@@ -96,6 +96,12 @@ spring:
               uri: lb://whale-iot
               predicates:
                 - Path=/iot/**
+            # Wave 6.03 数字孪生平台：自持 /twin 一级前缀（不含 StripPrefix，REQ-ARCH-003）；
+            # 内网 /twin/internal/** 由 internal-deny 统一 403
+            - id: whale-twin
+              uri: lb://whale-twin
+              predicates:
+                - Path=/twin/**
             # Wave 5.52 自研 WebIM：WS 升级路由 order=-1 先于 REST 路由匹配（同前缀 /im/ws）；
             # 两条路由均不含 StripPrefix，服务自持 /im 一级前缀（REQ-ARCH-003）
             - id: whale-im-ws

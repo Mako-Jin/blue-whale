@@ -26,6 +26,7 @@
         <module>whale-gateway</module>
         <module>whale-agent</module>
         <module>whale-iot</module>
+        <module>whale-twin</module>
         <!-- Wave 6.01 AI 助手平台：助手定义/会话/工具授权/用量 -->
         <module>whale-assistant</module>
         <module>whale-im</module>

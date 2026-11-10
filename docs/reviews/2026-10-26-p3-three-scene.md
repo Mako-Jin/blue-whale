@@ -51,8 +51,14 @@
 
 未做浏览器 WebGL 实机渲染验证：包当前**无消费应用**（全仓 grep 无 `whale-common-three` 引用），无法在真实页面挂载画布；待首个 3D 页面（如数字孪生/游戏场景）接入时再做渲染态验收。
 
+> **【2026-11-10 闭环】渲染态验收已完成**（Wave 6.03 孪生平台 M0，验收工具 `acceptance/{index.html,serve.mjs,verify.mjs}`）：
+> 无头 Chromium（Playwright）加载 `dist/index.mjs`，空场景挂载旋转立方体，断言全绿——
+> `webglVersion=WebGL 2.0 (OpenGL ES 3.0 Chromium)`、48 帧渲染循环递增、容器 resize 生效、
+> `dispose()` 后画布摘除且帧循环停止、0 控制台错误。光照/材质（`MeshNormalMaterial`）经真机
+> 渲染管线确认。遗留项「无消费方 → 无浏览器渲染态验证」就此关闭。
+
 ## 四、遗留
 
 - `whale-games-core` 的 `requestAnimationFrame` 主循环与资源清理仍是 TODO，与本包独立，可复用 `WhaleSceneManager#onFrame/start/stop` 实现，但不属于本轮范围。
-- 无消费方 → 无浏览器渲染态验证；渲染正确性（光照、材质、像素比）未经真机画面确认。
+- ~~无消费方 → 无浏览器渲染态验证~~（已闭环，见第三节 2026-11-10 验收记录；首个消费方为 Wave 6.03 `whale-twin` 前端子应用 8122）。
 - 未提供控制器（OrbitControls）、后处理（EffectComposer）、性能监控（Stats）等扩展；按需再增，避免提前封装。

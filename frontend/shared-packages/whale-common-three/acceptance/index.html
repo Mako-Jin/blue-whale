@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>whale-common-three 渲染态验收（Wave 6.03 M0）</title>
+    <style>
+      body { margin: 0; font-family: Consolas, monospace; background: #111; color: #eee; }
+      #stage { width: 640px; height: 480px; }
+      #stage canvas { display: block; }
+      #report { padding: 8px 12px; font-size: 13px; white-space: pre; }
+    </style>
+    <!-- 包以 external: ['three'] 构建，浏览器侧用 import map 解析裸说明符 -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "/node_modules/three/build/three.module.js",
+          "three/examples/jsm/": "/node_modules/three/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="stage"></div>
+    <div id="report">running...</div>
+    <script type="module">
+      import { WhaleSceneManager } from '/dist/index.mjs';
+
+      const stage = document.getElementById('stage');
+      const report = document.getElementById('report');
+      const result = {
+        ready: false,
+        error: null,
+        webglVersion: null,
+        frames: 0,
+        resizeApplied: false,
+        disposedCanvasRemoved: false,
+      };
+      window.__ACCEPT__ = result;
+
+      try {
+        // 1) 初始化空场景 + 渲染循环（start() 返回 void，不参与链式赋值）
+        const manager = new WhaleSceneManager({
+          container: stage,
+          backgroundColor: 0x1a2b3c,
+        }).init();
+        manager.start();
+
+        const renderer = manager.getRenderer();
+        const gl = renderer.getContext();
+        result.webglVersion = typeof gl.getParameter === 'function'
+          ? String(gl.getParameter(gl.VERSION))
+          : null;
+
+        // 2) 空场景中放一个旋转立方体，验证帧回调与真实渲染
+        const { Mesh, BoxGeometry, MeshNormalMaterial } = await import('three');
+        const box = new Mesh(new BoxGeometry(1, 1, 1), new MeshNormalMaterial());
+        manager.getScene().add(box);
+        manager.onFrame((delta, elapsed) => {
+          box.rotation.y = elapsed;
+          result.frames += 1;
+        });
+
+        // 3) 等帧跑起来后做 resize（模拟容器尺寸变化）
+        await new Promise((resolve) => setTimeout(resolve, 600));
+        const before = renderer.domElement.width;
+        stage.style.width = '480px';
+        manager.resize();
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        result.resizeApplied = renderer.domElement.width !== before;
+
+        // 4) dispose 后画布应被摘除、帧循环停止
+        const framesAtDispose = result.frames;
+        manager.dispose();
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        result.disposedCanvasRemoved = !stage.contains(renderer.domElement)
+          && result.frames === framesAtDispose;
+
+        // 5) 断言汇总
+        const ok = result.frames > 10
+          && result.webglVersion
+          && result.resizeApplied
+          && result.disposedCanvasRemoved;
+        result.ready = ok;
+        report.textContent = (ok ? 'PASS ' : 'FAIL ') + JSON.stringify(result, null, 2);
+      } catch (error) {
+        result.error = String(error && error.stack ? error.stack : error);
+        report.textContent = 'FAIL ' + result.error;
+      }
+    </script>
+  </body>
+</html>

@@ -85,6 +85,7 @@
 | 33 | `whale-assistant` | whale-services | `whale-services/whale-assistant` | **8087** | `/assistant/**` | ✅ `lb://whale-assistant`（Wave 6.01 M0；**不配 `StripPrefix`**，`/assistant/internal/**` 由 internal-deny 403） | **`bluewhale_assistant`**（V1 基线 5 张：`asst_definition`/`asst_session`/`asst_message`/`asst_tool_grant`/`asst_usage`） | `WhaleAssistantApplication` | AI 助手平台：助手定义与生命周期、会话与消息持久化、工具授权、面向业务应用的开放 API 与用量统计。**不持模型凭据**：LLM 编排委托 `whale-ai`（8092，仅内网），知识检索委托 `whale-agent`（8090）；8087 为 `whale-i18n` 服务删除后释放的空位。规划：[docs/plans/wave6-iot-twin-ai-assistant-plan.md](plans/wave6-iot-twin-ai-assistant-plan.md) | **M0 骨架已落地 / 可启动**（Wave 6.01；8087 / `/assistant/**`；`mvn compile` 通过，实机待启动） |
 
 | 34 | `whale-iot` | whale-services | `whale-services/whale-iot` | **8088** | `/iot/**` | ✅ `lb://whale-iot`（Wave 6.02 M0；**不配 `StripPrefix`**，`/iot/internal/**` 由 internal-deny 403） | **`bluewhale_iot`**（V1 基线 6 张：`iot_product`/`iot_thing_model`/`iot_device`/`iot_telemetry`（按月分区）/`iot_command`/`iot_rule`） | `WhaleIotApplication` | IoT 设备联网平台：设备接入与认证（EMQX 认证 Webhook 提供方）、物模型（属性/事件/服务）、遥测上下行、设备影子、指令下发与回执、规则引擎（条件→动作，告警对接 `whale-alert` `/alert/internal`）。不做业务语义（MES 设备台账仍归 MES）；首期仅 MQTT，协议网关留 M4。MQTT Broker 为 EMQX（compose `bw-emqx`，1883/1884/18083）。规划：[docs/plans/wave6.02-iot.md](plans/wave6.02-iot.md) | **M0 骨架已落地 / 可启动 + M1–M3 已落地**（Wave 6.02；8088 / `/iot/**`；M1：产品/物模型/设备 CRUD + 三元组签发 + EMQX 认证 Webhook；M2：遥测落库（物模型分流）+ 设备影子（reported/desired）+ 单设备 SSE 实时推送 + 指令下发（`message_id` 幂等）/回执收敛 + 内网实时态只读；M3：规则引擎（条件 JSON + 持续时长去抖 + 静默期 → `whale-alert` `/alert/internal/record`）+ 前端子应用 8121；`mvn test` **76 项全绿**；实机待 EMQX 联调） |
+| 35 | `whale-twin` | whale-services | `whale-services/whale-twin` | **8089** | `/twin/**` | ✅ `lb://whale-twin`（Wave 6.03 M0；**不配 `StripPrefix`**，`/twin/internal/**` 由 internal-deny 403） | **`bluewhale_twin`**（V1 基线 5 张：`twin_scene`/`twin_entity`/`twin_binding`/`twin_marker`/`twin_snapshot`） | `WhaleTwinApplication` | 数字孪生平台：3D 场景管理（场景/实体/场景树）、孪生实体与数据源绑定（`iot_device` / `internal_api`）、SSE 实时驱动 3D 呈现、标注/热点、发布快照与回滚。与 whale-scene（8097，2D 底座）互不改表；模型资产 GLB/GLTF 存 whale-file（8085）；实时数据取自 whale-iot internal 只读接口，不自连 MQTT。前端子应用 8122（`whale-common-three` 首个消费方）。规划：[docs/plans/wave6-iot-twin-ai-assistant-plan.md](plans/wave6-iot-twin-ai-assistant-plan.md) §三 | **M0 骨架已落地 / 可启动**（Wave 6.03；8089 / `/twin/**`；V1 DDL 5 表 + ArchUnit 4/4 + Checkstyle 0，`mvn test` 通过；实机待启动） |
 
 > 「对外一级前缀」= 服务自持的前缀，网关**只转发、不剥离**（REQ-ARCH-003）。
 > 网关 `discovery.locator.enabled=true` 已开启服务发现路由：`lb://whale-<域>` → `http://<服务实例>`。
@@ -108,6 +109,7 @@
 | `whale-agent` | `Path=/agent/**` | `lb://whale-agent` | whale-agent | ✅ 已配（Wave 5.47） |
 | `whale-assistant` | `Path=/assistant/**` | `lb://whale-assistant` | whale-assistant | ✅ 已配（Wave 6.01；**不配 `StripPrefix`**，内网 `/assistant/internal/**` 由 internal-deny 403；服务可启动） |
 | `whale-iot` | `Path=/iot/**` | `lb://whale-iot` | whale-iot | ✅ 已配（Wave 6.02；**不配 `StripPrefix`**，内网 `/iot/internal/**` 由 internal-deny 403；服务可启动，M3 已落地） |
+| `whale-twin` | `Path=/twin/**` | `lb://whale-twin` | whale-twin | ✅ 已配（Wave 6.03；**不配 `StripPrefix`**，内网 `/twin/internal/**` 由 internal-deny 403；服务 M0 骨架已落地，实机待启动） |
 | `whale-im` | `Path=/im/**`（**排除** `/im/ws`） | `lb://whale-im` | whale-im | 🟡 规划（Wave 5.52；**不配 `StripPrefix`**） |
 | `whale-im-ws` | `Path=/im/ws` | `lb:ws://whale-im` | whale-im | 🟡 规划（Wave 5.52；保留 `Upgrade`/`Connection` 头，鉴权走 60s 一次性 ticket） |
 | `whale-archive` | `Path=/archive/**` | `lb://whale-archive` | whale-archive | ✅ 已配（Wave 5.53 M1；**不配 `StripPrefix`**，内网 `/archive/internal/**` 由 internal-deny 403） |
@@ -161,6 +163,7 @@
 | 23 | whale-mall | `frontend/platform-apps/whale-mall` | `whale-mall` | qiankun **子应用**（商城：商品列表与详情 / 类目管理 / 库存管理 / 渠道管理（零售·经销·福利，绑定运费模板）/ 购物车与下单（订单预览·幂等键·**选券**·金额四项）/ 订单列表与详情（**发货弹窗·物流区块**·完成·取消·金额构成与行实付）/ 售后申请与审核 / 优惠券（券模板 + 我的券）/ 运费模板 / **发货管理（签收·作废）**） | **8119** | `/mall` | 微应用名 `whale-mall`（Wave 5.94 M0 + 5.96 售后 + 5.97 计价 + 5.98 物流；tsc + lint + build 已通过，已接入基座 qiankun 与菜单 491–503） |
 | 24 | whale-assistant | `frontend/platform-apps/whale-assistant` | `whale-assistant` | qiankun **子应用**（AI 助手平台：会话工作台——选助手 / 建会话 / 流式问答（SSE POST 手工分帧）/ 引用标签渲染 / 会话列表与删除；助手 admin 管理页在 `frontend/admin`） | **8120** | `/assistant` | 微应用名 `whale-assistant`（Wave 6.01 M1 工作台已落地；M3 修正端口 8117→8120，8117 归 whale-mail；tsc + build 已通过） |
 | 25 | whale-iot | `frontend/platform-apps/whale-iot` | `whale-iot` | qiankun **子应用**（IoT 设备联网：产品与物模型（整包 JSON 编辑）/ 设备管理（三元组 + 一次性 secret 展示·密钥重置·实时态抽屉）/ 遥测与影子（SSE 实时流手工分帧·影子 reported/desired·指令下发与回执）/ 规则引擎（条件 + 持续时长 + 静默期）） | **8121** | `/iot` | 微应用名 `whale-iot`（Wave 6.02 M3 已落地；8115/8116 已被 lms/party 占用；tsc + build 已通过；基座菜单入口 `sys:iot:device`） |
+| 26 | whale-twin | `frontend/platform-apps/whale-twin`（**预留**，Wave 6.03 M1 起建） | `whale-twin` | qiankun **子应用**（数字孪生：3D 场景查看器（GLB 加载 / 场景树 / 相机控制）、数据绑定与实时驱动、标注热点、发布快照；`whale-common-three` 首个消费方） | **8122** | `/twin` | 微应用名 `whale-twin`（Wave 6.03 规划；原草案 8116 已被 whale-party 占用，实机核验后修正为 8122） |
 
 共享包（不占端口）：`frontend/shared-packages/whale-common-tools`、`whale-common-theme`、`whale-log-sdk`、`frontend/shared-packages/whale-map`（地图：坐标转换 / `/map/**` 客户端 / 底图引擎抽象 / 围栏与地点组件，Wave 5.93）、`frontend/elemental/whale-ui`（NPM scope `@bluewhale/`）。
 冻结共享包（无消费方，不删除代码、不升级依赖）：`frontend/shared-packages/whale-common-three`（F-09）、`frontend/games/whale-games-core`（F-07）。
@@ -210,6 +213,7 @@
 | **8086** | `whale-pay` | 后端 | 支付 |
 | **8087** | `whale-assistant` | 后端 | AI 助手平台（Wave 6.01 规划，i18n 服务删除后释放的空位） |
 | **8088** | `whale-iot` | 后端 | IoT 设备联网平台（Wave 6.02 M0–M3，可启动） |
+| **8089** | `whale-twin` | 后端 | 数字孪生平台（Wave 6.03 M0 骨架，可启动） |
 | **8090** | `whale-agent` | 后端 | 知识 Agent |
 | **8091** | `whale-im` | 后端 | WebIM（规划） |
 | **8092** | `whale-ai` | 后端（Python） | LangChain 智能体（仅内网，规划） |
@@ -294,8 +298,8 @@
 | **3306 / 6379 / 5672 / 15672** | MySQL / Redis / RabbitMQ | 3306、6379 已运行；5672/15672 未运行 |
 | **8000–8099** | **前端 dev server**：基座 `8000`、admin `8001`、form-designer `8002`、workflow-designer `8003`、agent `8004` | 已落地（C-01 已解） |
 | **8080** | **网关（唯一后端入口）** | 已运行 |
-| **8081–8099** | **核心服务** | auth 8081、job 8082、workflow 8083、form 8084、file 8085、pay 8086、**assistant 8087（M0 骨架，Wave 6.01）、iot 8088（M0 骨架，Wave 6.02）、agent 8090、im 8091、ai 8092（Python）、archive 8093、message 8094、doc 8095（M1 骨架）、music 8096（M0–M5 已落地）、scene 8097（M1/M2 2D 已落地）、video 8098（M0–M5 已落地）**（8087 曾随 `whale-i18n` 服务删除释放，Wave 5.50；现由 `whale-assistant` 复用，Wave 6.01） |
-| **8101–8199** | **qiankun 子应用 + 运维端** | portal 8101、erp 8102、oa 8103、ops 8104、mes 8105、pdm 8106、**im 8107、pm 8108、contract 8109、doc 8110、music 8111（M0–M5 已落地）、scene 8112（M1/M2 已落地）、crm 8113（Step 1a/1b + M3 + M4-4a + M5 + M6 已落地）、video 8114（M0–M5 已落地）、assistant 8120（M1 工作台已落地，Wave 6.01；8117 已被 whale-mail 占用，M3 修正）、iot 8121（四页已落地，Wave 6.02 M3）** |
+| **8081–8099** | **核心服务** | auth 8081、job 8082、workflow 8083、form 8084、file 8085、pay 8086、**assistant 8087（M0–M3 已落地，Wave 6.01）、iot 8088（M0–M3 已落地，Wave 6.02）、twin 8089（M0 骨架，Wave 6.03）、agent 8090、im 8091、ai 8092（Python）、archive 8093、message 8094、doc 8095（M1 骨架）、music 8096（M0–M5 已落地）、scene 8097（M1/M2 2D 已落地）、video 8098（M0–M5 已落地）**（8087 曾随 `whale-i18n` 服务删除释放，Wave 5.50；现由 `whale-assistant` 复用，Wave 6.01） |
+| **8101–8199** | **qiankun 子应用 + 运维端** | portal 8101、erp 8102、oa 8103、ops 8104、mes 8105、pdm 8106、**im 8107、pm 8108、contract 8109、doc 8110、music 8111（M0–M5 已落地）、scene 8112（M1/M2 已落地）、crm 8113（Step 1a/1b + M3 + M4-4a + M5 + M6 已落地）、video 8114（M0–M5 已落地）、assistant 8120（M1 工作台已落地，Wave 6.01；8117 已被 whale-mail 占用，M3 修正）、iot 8121（四页已落地，Wave 6.02 M3）、twin 8122（预留，Wave 6.03）** |
 | **8848 / 8849 / 9848 / 9849** | **Nacos** | 已运行 |
 | **9001–9099** | **业务应用** | erp 9001、mes 9002、pdm 9003、oa 9004、**pm 9005、contract 9006、crm 9007（M0–M6 已落地）** |
 | **9101–9199** | **运维（ops）** | audit 9101、monitor 9102、alert 9103 |
