@@ -49,6 +49,7 @@ public class UserInternalController {
      * 分页查询内网通讯录（仅启用用户，手机号/邮箱脱敏）
      *
      * @param deptId 部门 ID（可空，为空时不过滤）
+     * @param includeChildren 是否连同子部门一起查，默认 {@code false}（精确匹配该部门）
      * @param keyword 用户名/昵称/手机号模糊匹配关键字（可空）
      * @param current 当前页码，默认 1
      * @param size 每页条数，默认 20，上限 200
@@ -57,10 +58,11 @@ public class UserInternalController {
     @GetMapping("/directory")
     public Result<PageResult<UserDirectoryVO>> directory(
             @RequestParam(required = false) Long deptId,
+            @RequestParam(defaultValue = "false") boolean includeChildren,
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") long current,
             @RequestParam(defaultValue = "20") long size) {
-        return Result.ok(userDirectoryAppService.directory(deptId, keyword, current, size));
+        return Result.ok(userDirectoryAppService.directory(deptId, includeChildren, keyword, current, size));
     }
 
     /**

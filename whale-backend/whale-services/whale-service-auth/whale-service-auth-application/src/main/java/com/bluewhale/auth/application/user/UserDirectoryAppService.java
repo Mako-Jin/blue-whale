@@ -60,17 +60,62 @@ public class UserDirectoryAppService {
      * 分页查询内网通讯录：仅启用且未删除的本租户用户，手机号与邮箱脱敏，部门名称批量补全。
      *
      * @param deptId 部门 ID（可空，为空时不过滤）
+     * @param includeChildren 是否连同子部门一起查（{@code true} 时常选父部门也能看到下属成员）
      * @param keyword 用户名/昵称/手机号模糊匹配关键字（可空）
      * @param current 当前页码，小于 1 时按 1 处理
      * @param size 每页条数，小于 1 按 1 处理，超过 200 按 200 处理
      * @return 通讯录分页结果
      */
-    public PageResult<UserDirectoryVO> directory(Long deptId, String keyword, long current, long size) {
+    public PageResult<UserDirectoryVO> directory(Long deptId, boolean includeChildren, String keyword,
+                                                 long current, long size) {
         long safeCurrent = Math.max(current, 1L);
         long safeSize = Math.min(Math.max(size, 1L), MAX_PAGE_SIZE);
-        UserRepository.UserPage page = userRepository.directoryPage(safeCurrent, safeSize, deptId, keyword);
+        Collection<Long> deptIds = deptScope(deptId, includeChildren);
+        if (deptIds != null && deptIds.isEmpty()) {
+            // 指定的部门不存在（或没有权限看到的部门）：直接空页，别下推成 `in ()`
+            return PageResult.of(List.of(), 0L, safeCurrent, safeSize);
+        }
+        UserRepository.UserPage page = userRepository.directoryPage(safeCurrent, safeSize, deptIds, keyword);
         List<UserDirectoryVO> records = toViewObjects(page.records());
         return PageResult.of(records, page.total(), safeCurrent, safeSize);
+    }
+
+    /**
+     * 计算部门筛选范围。
+     *
+     * <p>{@code includeChildren} 时按部门表的 {@code parentId} 逐层展开（反复扫描直到不再新增，
+     * 不依赖返回顺序与层级深度）；数据异常成环时也能收敛，因为只加入未见过的 ID。</p>
+     *
+     * @param deptId 部门 ID（可空）
+     * @param includeChildren 是否包含子部门
+     * @return 部门 ID 集合；{@code null} 表示不按部门过滤
+     */
+    private Collection<Long> deptScope(Long deptId, boolean includeChildren) {
+        if (deptId == null) {
+            return null;
+        }
+        if (!includeChildren) {
+            return List.of(deptId);
+        }
+        List<Dept> all = deptRepository.findAll();
+        boolean exists = all.stream().anyMatch(dept -> deptId.equals(dept.getId()));
+        if (!exists) {
+            // 部门已被删除或不在本租户：明确「查不到人」，别退化成「不过滤部门」
+            return List.of();
+        }
+        Set<Long> scope = new LinkedHashSet<>();
+        scope.add(deptId);
+        boolean grown = true;
+        while (grown) {
+            grown = false;
+            for (Dept dept : all) {
+                if (dept.getParentId() != null && scope.contains(dept.getParentId())
+                        && scope.add(dept.getId())) {
+                    grown = true;
+                }
+            }
+        }
+        return scope;
     }
 
     /**

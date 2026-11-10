@@ -54,7 +54,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/v1/login", "/auth/v1/refresh", "/auth/v1/logout",
-                                "/tenant/internal/**", "/user/internal/**",
+                                "/tenant/internal/**", "/user/internal/**", "/dept/internal/**",
                                 // 调度中心触发端点与执行器注册/心跳（starter 的 JobTriggerController、
                                 // JobExecutorRegistrar 都走 /internal/**）。外部访问由网关 internal-deny
                                 // 拦截，服务侧由 InternalTokenGuard 校验令牌（生产必须配置 WHALE_INTERNAL_TOKEN）。

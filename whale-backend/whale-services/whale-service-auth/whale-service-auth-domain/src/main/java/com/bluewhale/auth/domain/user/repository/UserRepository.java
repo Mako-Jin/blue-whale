@@ -105,16 +105,17 @@ public interface UserRepository {
     UserPage page(long current, long size, String keyword);
 
     /**
-     * 分页查询通讯录用户（仅启用且未删除用户；{@code deptId} 精确过滤，
+     * 分页查询通讯录用户（仅启用且未删除用户；{@code deptIds} 精确匹配其中之一，
      * {@code keyword} 模糊匹配用户名/昵称/手机号，按用户 ID 升序稳定排序）
      *
      * @param current 当前页码
      * @param size 每页条数
-     * @param deptId 部门 ID（可空，为空时不过滤）
+     * @param deptIds 部门 ID 集合（{@code null} 表示不过滤；空集合表示「没有任何匹配部门」，
+     *                调用方应直接返回空页，不应下推到 SQL 生成 {@code in ()}）
      * @param keyword 用户名/昵称/手机号模糊匹配关键字（可空）
      * @return 用户分页结果
      */
-    UserPage directoryPage(long current, long size, Long deptId, String keyword);
+    UserPage directoryPage(long current, long size, Collection<Long> deptIds, String keyword);
 
     /**
      * 按角色编码查询当前租户内的启用用户（角色不存在或已停用时返回空列表）

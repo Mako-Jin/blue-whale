@@ -17,10 +17,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -73,16 +77,28 @@ class UserDirectoryAppServiceTest {
         return Dept.reconstitute(id, TENANT_ID, Dept.ROOT_PARENT_ID, deptName, 1, "张三", NOW, NOW);
     }
 
+    /**
+     * 构造指定父部门的部门聚合（用于子部门展开断言）
+     *
+     * @param id 部门 ID
+     * @param parentId 父部门 ID
+     * @param deptName 部门名称
+     * @return 部门聚合根
+     */
+    private static Dept childDept(long id, long parentId, String deptName) {
+        return Dept.reconstitute(id, TENANT_ID, parentId, deptName, 1, null, NOW, NOW);
+    }
+
     @Test
     @DisplayName("directory：分页返回并正确脱敏手机号/邮箱，部门名称批量补全")
     void shouldMaskSensitiveFieldsInDirectory() {
-        when(userRepository.directoryPage(1L, 20L, DEPT_ID, "ali"))
+        when(userRepository.directoryPage(1L, 20L, List.of(DEPT_ID), "ali"))
                 .thenReturn(new UserRepository.UserPage(List.of(
                         enabledUser(1L, "alice", DEPT_ID, "13800000001", "alice@example.com"),
                         enabledUser(2L, "bob", null, "123", "no-at-sign")), 2L));
         when(deptRepository.findAll()).thenReturn(List.of(dept(DEPT_ID, "研发部")));
 
-        PageResult<UserDirectoryVO> page = userDirectoryAppService.directory(DEPT_ID, "ali", 1L, 20L);
+        PageResult<UserDirectoryVO> page = userDirectoryAppService.directory(DEPT_ID, false, "ali", 1L, 20L);
 
         assertEquals(2, page.getRecords().size());
         assertEquals(1L, page.getCurrent());
@@ -104,7 +120,7 @@ class UserDirectoryAppServiceTest {
         when(userRepository.directoryPage(1L, 200L, null, null))
                 .thenReturn(new UserRepository.UserPage(List.of(), 0L));
 
-        userDirectoryAppService.directory(null, null, 1L, 500L);
+        userDirectoryAppService.directory(null, false, null, 1L, 500L);
 
         verify(userRepository).directoryPage(1L, 200L, null, null);
     }
@@ -117,10 +133,38 @@ class UserDirectoryAppServiceTest {
                 .thenReturn(new UserRepository.UserPage(List.of(
                         enabledUser(2L, "bob", null, "123", "no-at-sign")), 1L));
 
-        PageResult<UserDirectoryVO> page = userDirectoryAppService.directory(null, null, 1L, 20L);
+        PageResult<UserDirectoryVO> page = userDirectoryAppService.directory(null, false, null, 1L, 20L);
 
         assertEquals(1, page.getRecords().size());
         assertNull(page.getRecords().get(0).getDeptName());
+    }
+
+    @Test
+    @DisplayName("directory：includeChildren 时连同子部门一起查（选父部门也能看到下属）")
+    void shouldExpandChildDepartmentsWhenRequested() {
+        when(deptRepository.findAll()).thenReturn(List.of(
+                childDept(DEPT_ID, Dept.ROOT_PARENT_ID, "生产部"),
+                childDept(11L, DEPT_ID, "设备科"),
+                childDept(12L, 11L, "仪表班")));
+        when(userRepository.directoryPage(1L, 20L, Set.of(DEPT_ID, 11L, 12L), null))
+                .thenReturn(new UserRepository.UserPage(List.of(), 0L));
+
+        userDirectoryAppService.directory(DEPT_ID, true, null, 1L, 20L);
+
+        // 逐层展开：10 → 11 → 12，不能只取直接子部门
+        verify(userRepository).directoryPage(1L, 20L, Set.of(DEPT_ID, 11L, 12L), null);
+    }
+
+    @Test
+    @DisplayName("directory：指定的部门不存在时直接返回空页，不下推 in ()")
+    void shouldReturnEmptyPageWhenDeptMissing() {
+        when(deptRepository.findAll()).thenReturn(List.of(childDept(DEPT_ID, Dept.ROOT_PARENT_ID, "生产部")));
+
+        PageResult<UserDirectoryVO> page = userDirectoryAppService.directory(99L, true, null, 1L, 20L);
+
+        assertEquals(0L, page.getTotal());
+        assertTrue(page.getRecords().isEmpty());
+        verify(userRepository, never()).directoryPage(anyLong(), anyLong(), any(), any());
     }
 
     @Test

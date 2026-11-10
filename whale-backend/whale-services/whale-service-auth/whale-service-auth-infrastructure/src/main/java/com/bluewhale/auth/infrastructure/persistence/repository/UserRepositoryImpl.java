@@ -149,13 +149,18 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
-    public UserPage directoryPage(long current, long size, Long deptId, String keyword) {
+    public UserPage directoryPage(long current, long size, Collection<Long> deptIds, String keyword) {
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysUser::getTenantId, TenantContext.requireId());
         wrapper.eq(SysUser::getStatus, STATUS_ENABLED);
         wrapper.eq(SysUser::getDeleted, DELETED_NO);
-        if (deptId != null) {
-            wrapper.eq(SysUser::getDeptId, deptId);
+        if (deptIds != null) {
+            // 空集合走 in 会生成 `in ()` 的非法 SQL，直接给一个恒假条件
+            if (deptIds.isEmpty()) {
+                wrapper.apply("1 = 0");
+            } else {
+                wrapper.in(SysUser::getDeptId, deptIds);
+            }
         }
         if (StringUtils.hasText(keyword)) {
             wrapper.and(w -> w.like(SysUser::getUsername, keyword)
