@@ -160,3 +160,4 @@ whale.twin.alert-notify:
    改为 `tools.jackson.databind.ObjectMapper`（Boot 4 自动装配），异常改捕 `JacksonException`。
 
 **未做**：恢复通知（`sendRecovery`）、每日静默时段、按用户选择器（当前是手填用户ID）。
+→ 三项已于 [Wave 6.11](wave6.11-alert-notify-plus.md) 全部补齐（含 twin 缺 `api_log` / `audit_log` 的运行期 500 修复）。
