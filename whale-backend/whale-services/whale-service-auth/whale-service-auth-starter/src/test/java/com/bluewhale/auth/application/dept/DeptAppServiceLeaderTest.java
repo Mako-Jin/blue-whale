@@ -3,7 +3,7 @@ package com.bluewhale.auth.application.dept;
 import com.bluewhale.auth.application.event.DomainEventPublisher;
 import com.bluewhale.auth.domain.dept.aggregate.Dept;
 import com.bluewhale.auth.domain.dept.repository.DeptRepository;
-import com.bluewhale.auth.vo.DeptLeaderVO;
+import com.bluewhale.auth.application.vo.DeptLeaderVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;

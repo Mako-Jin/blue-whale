@@ -1,6 +1,6 @@
 package com.bluewhale.auth.infrastructure.cache;
 
-import com.bluewhale.auth.config.PermissionCacheProperties;
+import com.bluewhale.auth.infrastructure.config.PermissionCacheProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;

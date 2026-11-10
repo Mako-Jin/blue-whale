@@ -9,7 +9,7 @@ import com.bluewhale.auth.domain.event.AuthDomainEvent;
 import com.bluewhale.auth.domain.event.UserDomainEvent;
 import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
-import com.bluewhale.auth.vo.UserVO;
+import com.bluewhale.auth.application.vo.UserVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import org.springframework.stereotype.Service;

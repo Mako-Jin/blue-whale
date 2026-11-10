@@ -6,7 +6,7 @@ import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
 import com.bluewhale.auth.domain.model.vo.Username;
 import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
-import com.bluewhale.auth.vo.UserDirectoryVO;
+import com.bluewhale.auth.application.vo.UserDirectoryVO;
 import com.bluewhale.common.core.result.PageResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

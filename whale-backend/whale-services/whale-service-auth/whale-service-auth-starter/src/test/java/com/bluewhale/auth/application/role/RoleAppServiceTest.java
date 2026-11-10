@@ -12,7 +12,7 @@ import com.bluewhale.auth.domain.permission.repository.PermissionRepository;
 import com.bluewhale.auth.domain.role.aggregate.Role;
 import com.bluewhale.auth.domain.role.repository.RoleRepository;
 import com.bluewhale.common.tenant.TenantContext;
-import com.bluewhale.auth.vo.RoleVO;
+import com.bluewhale.auth.application.vo.RoleVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;

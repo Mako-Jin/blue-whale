@@ -1,7 +1,7 @@
 package com.bluewhale.auth.infrastructure.persistence.assembler;
 
 import com.bluewhale.auth.domain.tenant.aggregate.Tenant;
-import com.bluewhale.auth.entity.SysTenant;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysTenant;
 
 /**
  * Tenant 聚合与其持久化对象（PO）的转换器（Wave 5.54 Phase 1）。

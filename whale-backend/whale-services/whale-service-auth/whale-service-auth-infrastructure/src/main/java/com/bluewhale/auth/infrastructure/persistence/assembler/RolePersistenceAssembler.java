@@ -3,8 +3,8 @@ package com.bluewhale.auth.infrastructure.persistence.assembler;
 import com.bluewhale.auth.domain.model.vo.RoleCode;
 import com.bluewhale.auth.domain.role.aggregate.Role;
 import com.bluewhale.auth.domain.role.entity.RolePermissionAssignment;
-import com.bluewhale.auth.entity.SysRole;
-import com.bluewhale.auth.entity.SysRolePermission;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysRole;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysRolePermission;
 
 /**
  * Role 聚合与其持久化对象（PO）的双向转换器（手写 Assembler，REQ-ARCH-001 / T-DDD-5）。

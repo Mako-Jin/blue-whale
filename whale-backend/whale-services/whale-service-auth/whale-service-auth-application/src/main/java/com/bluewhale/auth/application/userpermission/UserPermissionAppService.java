@@ -6,7 +6,7 @@ import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.UserPermissionDomainEvent;
 import com.bluewhale.auth.domain.permission.aggregate.UserPermissionAttribute;
 import com.bluewhale.auth.domain.permission.repository.UserPermissionRepository;
-import com.bluewhale.auth.vo.UserAttrVO;
+import com.bluewhale.auth.application.vo.UserAttrVO;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

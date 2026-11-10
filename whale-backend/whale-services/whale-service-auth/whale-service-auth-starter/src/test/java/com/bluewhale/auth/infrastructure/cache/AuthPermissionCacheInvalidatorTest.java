@@ -1,6 +1,6 @@
 package com.bluewhale.auth.infrastructure.cache;
 
-import com.bluewhale.auth.config.PermissionCacheProperties;
+import com.bluewhale.auth.infrastructure.config.PermissionCacheProperties;
 import com.bluewhale.common.cache.CacheConsistencyTemplate;
 import com.bluewhale.common.tenant.TenantContext;
 import org.junit.jupiter.api.AfterEach;

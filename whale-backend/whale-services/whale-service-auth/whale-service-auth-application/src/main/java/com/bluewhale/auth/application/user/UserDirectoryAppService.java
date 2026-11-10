@@ -4,7 +4,7 @@ import com.bluewhale.auth.domain.dept.aggregate.Dept;
 import com.bluewhale.auth.domain.dept.repository.DeptRepository;
 import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
-import com.bluewhale.auth.vo.UserDirectoryVO;
+import com.bluewhale.auth.application.vo.UserDirectoryVO;
 import com.bluewhale.common.core.result.PageResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

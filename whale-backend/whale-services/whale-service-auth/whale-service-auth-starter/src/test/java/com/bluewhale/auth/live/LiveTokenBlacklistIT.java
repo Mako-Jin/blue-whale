@@ -1,8 +1,8 @@
 package com.bluewhale.auth.live;
 
-import com.bluewhale.auth.config.JwtProperties;
-import com.bluewhale.auth.jwt.JwtTokenProvider;
-import com.bluewhale.auth.security.RedisTokenBlacklist;
+import com.bluewhale.auth.infrastructure.config.JwtProperties;
+import com.bluewhale.auth.infrastructure.jwt.JwtTokenProvider;
+import com.bluewhale.auth.infrastructure.security.RedisTokenBlacklist;
 import com.bluewhale.security.token.TokenBlacklistKeys;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;

@@ -8,7 +8,7 @@ import com.bluewhale.auth.domain.event.PermissionDomainEvent;
 import com.bluewhale.auth.domain.model.vo.PermCode;
 import com.bluewhale.auth.domain.permission.aggregate.Permission;
 import com.bluewhale.auth.domain.permission.repository.PermissionRepository;
-import com.bluewhale.auth.vo.PermissionVO;
+import com.bluewhale.auth.application.vo.PermissionVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;

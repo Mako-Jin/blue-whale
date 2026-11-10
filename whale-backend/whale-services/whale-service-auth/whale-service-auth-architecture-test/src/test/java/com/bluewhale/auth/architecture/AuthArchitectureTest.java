@@ -1,6 +1,6 @@
 package com.bluewhale.auth.architecture;
 
-import com.bluewhale.auth.security.PermissionCacheMutex;
+import com.bluewhale.auth.infrastructure.security.PermissionCacheMutex;
 import com.bluewhale.common.lock.annotation.DistributedLock;
 import com.tngtech.archunit.core.domain.JavaAnnotation;
 import com.tngtech.archunit.core.domain.JavaClass;
@@ -32,9 +32,7 @@ class AuthArchitectureTest {
     private static final String[] DOMAIN_FORBIDDEN_PACKAGES = {
             "com.bluewhale.auth.infrastructure..",
             "com.bluewhale.auth.application..",
-            "com.bluewhale.auth.controller..",
-            "com.bluewhale.auth.dto..",
-            "com.bluewhale.auth.vo..",
+            "com.bluewhale.auth.interfaces..",
             "org.springframework..",
             "org.apache.ibatis..",
             "com.baomidou..",
@@ -51,8 +49,7 @@ class AuthArchitectureTest {
             .that().resideInAPackage("com.bluewhale.auth.application..")
             .should().dependOnClassesThat().resideInAnyPackage(
                     "com.bluewhale.auth.infrastructure..",
-                    "com.bluewhale.auth.controller..",
-                    "com.bluewhale.auth.dto..",
+                    "com.bluewhale.auth.interfaces..",
                     "com.baomidou..",
                     "org.apache.ibatis..",
                     "org.springframework.data.redis..",
@@ -60,12 +57,27 @@ class AuthArchitectureTest {
 
     @ArchTest
     static final ArchRule interfaces_must_not_depend_on_infrastructure_or_domain = noClasses()
-            .that().resideInAnyPackage("com.bluewhale.auth.controller..", "com.bluewhale.auth.dto..")
+            .that().resideInAPackage("com.bluewhale.auth.interfaces..")
             .should().dependOnClassesThat().resideInAnyPackage(
                     "com.bluewhale.auth.infrastructure..",
                     "com.bluewhale.auth.domain..",
                     "com.baomidou..",
                     "org.apache.ibatis..");
+
+    /**
+     * 根包白名单：{@code com.bluewhale.auth} 下除启动类外，只允许四层包，
+     * 防止再次出现 {@code entity/}、{@code mapper/}、{@code util/} 这类"第五层"。
+     */
+    @ArchTest
+    static final ArchRule only_four_layers_at_root = classes()
+            .that().resideInAPackage("com.bluewhale.auth..")
+            .and().resideOutsideOfPackage("com.bluewhale.auth")
+            .and().resideOutsideOfPackage("com.bluewhale.auth.sdk..")
+            .should().resideInAnyPackage(
+                    "com.bluewhale.auth.domain..",
+                    "com.bluewhale.auth.application..",
+                    "com.bluewhale.auth.infrastructure..",
+                    "com.bluewhale.auth.interfaces..");
 
     /**
      * 分布式锁放行语义守护（T-14）：{@code @DistributedLock} 的 {@code failFast} 默认必须为 true，

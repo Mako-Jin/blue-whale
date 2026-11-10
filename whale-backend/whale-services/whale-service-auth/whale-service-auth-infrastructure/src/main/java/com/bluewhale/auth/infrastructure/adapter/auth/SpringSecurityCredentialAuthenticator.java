@@ -2,8 +2,8 @@ package com.bluewhale.auth.infrastructure.adapter.auth;
 
 import com.bluewhale.auth.application.auth.AuthenticatedUser;
 import com.bluewhale.auth.application.auth.port.CredentialAuthenticator;
-import com.bluewhale.auth.security.LoginTenantContext;
-import com.bluewhale.auth.security.LoginUser;
+import com.bluewhale.auth.infrastructure.security.LoginTenantContext;
+import com.bluewhale.auth.infrastructure.security.LoginUser;
 import com.bluewhale.common.core.exception.BizException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

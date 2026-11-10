@@ -3,9 +3,9 @@ package com.bluewhale.auth.infrastructure.persistence.repository;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.auth.domain.permission.aggregate.UserPermissionAttribute;
 import com.bluewhale.auth.domain.permission.repository.UserPermissionRepository;
-import com.bluewhale.auth.entity.SysUserPermission;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysUserPermission;
 import com.bluewhale.auth.infrastructure.persistence.assembler.UserPermissionPersistenceAssembler;
-import com.bluewhale.auth.mapper.SysUserPermissionMapper;
+import com.bluewhale.auth.infrastructure.persistence.mapper.SysUserPermissionMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 

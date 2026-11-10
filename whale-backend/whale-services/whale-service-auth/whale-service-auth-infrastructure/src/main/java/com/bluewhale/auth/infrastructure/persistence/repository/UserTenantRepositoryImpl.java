@@ -2,8 +2,8 @@ package com.bluewhale.auth.infrastructure.persistence.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.auth.domain.user.repository.UserTenantRepository;
-import com.bluewhale.auth.entity.SysUserTenant;
-import com.bluewhale.auth.mapper.SysUserTenantMapper;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysUserTenant;
+import com.bluewhale.auth.infrastructure.persistence.mapper.SysUserTenantMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 

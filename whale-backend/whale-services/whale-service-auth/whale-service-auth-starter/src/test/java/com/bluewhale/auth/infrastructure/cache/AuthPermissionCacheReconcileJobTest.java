@@ -1,6 +1,6 @@
 package com.bluewhale.auth.infrastructure.cache;
 
-import com.bluewhale.auth.config.PermissionCacheProperties;
+import com.bluewhale.auth.infrastructure.config.PermissionCacheProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

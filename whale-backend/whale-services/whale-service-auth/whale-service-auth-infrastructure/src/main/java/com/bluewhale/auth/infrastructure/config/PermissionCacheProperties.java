@@ -1,0 +1,58 @@
+package com.bluewhale.auth.infrastructure.config;
+
+import lombok.Data;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
+
+import java.io.File;
+import java.time.Duration;
+
+/**
+ * 权限判定缓存配置属性。
+ * <p>{@code whale.auth.permission-cache.enabled=false} 时回退直查 DB（秒级回滚开关）；
+ * {@code ttl} 为正常值存活时长，写入时由 {@code CacheProperties.ttlJitterPercent} 叠加随机抖动防雪崩。</p>
+ *
+ * @author BlueWhale
+ */
+@Data
+@Component
+@ConfigurationProperties(prefix = "whale.auth.permission-cache")
+public class PermissionCacheProperties {
+
+    /** 是否启用权限判定缓存，默认启用；置 false 即回到直查 DB */
+    private boolean enabled = true;
+
+    /** 权限码缓存正常值 TTL，默认 5 分钟 */
+    private Duration ttl = Duration.ofMinutes(5);
+
+    /** 是否启用跨实例失效广播（Redisson RTopic），默认启用；关闭后仅依赖共享 Redis 删除 */
+    private boolean broadcastEnabled = true;
+
+    /** 是否启用 Redis 断连后的待失效重对齐任务，默认启用 */
+    private boolean reconcileEnabled = true;
+
+    /** 重对齐执行间隔（毫秒），默认 30 秒 */
+    private long reconcileIntervalMs = 30_000L;
+
+    /** 重对齐首次延迟（毫秒），默认 10 秒 */
+    private long reconcileInitialDelayMs = 10_000L;
+
+    /** 单次重对齐最多处理的待失效 Key 数，默认 500 */
+    private int reconcileBatchSize = 500;
+
+    /** 待失效 Key 上限，防止 Redis 长时间不可用导致内存膨胀，默认 10000 */
+    private int pendingLimit = 10_000;
+
+    /**
+     * 是否把待失效 Key 持久化到本地文件，默认启用。
+     * <p>解决进程重启后内存中的待重对齐集合丢失：重启后自动读回并在下一次重对齐写入 Redis。</p>
+     */
+    private boolean pendingPersistenceEnabled = true;
+
+    /**
+     * 待失效 Key 本地持久化文件。
+     * <p>默认位于 JVM 临时目录；容器部署建议挂载到持久卷，多实例共享同一文件时重复 Key 会被去重。</p>
+     */
+    private String pendingFile = System.getProperty("java.io.tmpdir") + File.separator
+            + "bluewhale-auth-permission-pending.keys";
+}

@@ -4,8 +4,8 @@ import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
 import com.bluewhale.auth.domain.model.vo.Username;
 import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.entity.UserRoleAssignment;
-import com.bluewhale.auth.entity.SysUser;
-import com.bluewhale.auth.entity.SysUserRole;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysUser;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysUserRole;
 
 /**
  * User 聚合与其持久化对象（PO）的双向转换器（手写 Assembler，REQ-ARCH-001 / T-DDD-8）。

@@ -1,7 +1,7 @@
 package com.bluewhale.auth.infrastructure.cache;
 
-import com.bluewhale.auth.config.PermissionCacheProperties;
-import com.bluewhale.auth.security.PermissionCache;
+import com.bluewhale.auth.infrastructure.config.PermissionCacheProperties;
+import com.bluewhale.auth.infrastructure.security.PermissionCache;
 import com.bluewhale.common.cache.CacheConsistencyTemplate;
 import com.bluewhale.common.tenant.TenantKeys;
 import jakarta.annotation.PostConstruct;

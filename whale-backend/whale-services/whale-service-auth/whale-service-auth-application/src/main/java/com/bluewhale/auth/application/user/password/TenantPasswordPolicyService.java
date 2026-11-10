@@ -2,7 +2,7 @@ package com.bluewhale.auth.application.user.password;
 
 import com.bluewhale.auth.application.tenant.TenantAppService;
 import com.bluewhale.auth.application.user.password.port.TenantPasswordPolicyRepository;
-import com.bluewhale.auth.vo.TenantPasswordPolicyVO;
+import com.bluewhale.auth.application.vo.TenantPasswordPolicyVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.tenant.TenantContext;

@@ -1,7 +1,7 @@
 package com.bluewhale.auth.infrastructure.adapter.auth;
 
 import com.bluewhale.auth.application.auth.AuthenticatedUser;
-import com.bluewhale.auth.security.LoginUser;
+import com.bluewhale.auth.infrastructure.security.LoginUser;
 
 /**
  * 登录用户适配器：把 Spring Security 的 {@link LoginUser} 转换为应用层快照。
