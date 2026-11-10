@@ -72,12 +72,13 @@ public class TwinAlertService {
      * @param sceneId  场景ID
      * @param tenantId 租户ID
      * @param alert    告警内容（SSE 帧条目）
+     * @return 新落库告警的ID（恢复事件返回 {@code null}，不插行）
      */
-    public void record(Long sceneId, Long tenantId, BindingAlertVO alert) {
+    public Long record(Long sceneId, Long tenantId, BindingAlertVO alert) {
         boolean recovery = LEVEL_NORMAL.equals(alert.getLevel());
         if (recovery) {
             resolveOpenAlert(sceneId, alert);
-            return;
+            return null;
         }
         // 旧未恢复行被新级别替代（如 warn → critical），收口为已恢复
         resolveOpenAlert(sceneId, alert);
@@ -94,6 +95,7 @@ public class TwinAlertService {
         entity.setThresholdsJson(toJson(alert.getThresholds()));
         entity.setResolved(0);
         alertMapper.insert(entity);
+        return entity.getId();
     }
 
     /**

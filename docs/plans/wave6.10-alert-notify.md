@@ -1,6 +1,6 @@
 # Wave 6.10：告警外发（把「页面可见」升级为「主动触达」）
 
-> 状态：**M0 已落地（2026-11-10）** · 上游：6.06 落库 → 6.07 规则/确认 → 6.08 无头消费/总览 → 6.09 行级角标
+> 状态：**M0 + M1 已落地（2026-11-10）** · 上游：6.06 落库 → 6.07 规则/确认 → 6.08 无头消费/总览 → 6.09 行级角标
 > 缺口：到现在为止，告警只对「正在看页面的人」可见。夜里没人开页面时，
 > 告警虽然落库了，但没有任何人会被通知到——这是告警体系最后的断点。
 
@@ -17,7 +17,7 @@
 | 里程碑 | 内容 | 状态 |
 |---|---|---|
 | M0 | webhook 通道：级别门槛 + 冷却去重 + 虚拟线程异步投递 + 配置开关 | ✅ 2026-11-10 |
-| M1 | 站内信通道：复用 `whale-message` 内网发送，投递结果落 `twin_alert_dispatch` | 待开始 |
+| M1 | 站内信通道：复用 `whale-message` 内网发送，投递结果落 `twin_alert_dispatch` | ✅ 2026-11-10 |
 | M2 | 前端：场景级通知设置（通道/接收人/最低级别）+ 投递记录查看 | 待开始 |
 
 ## 三、M0 设计要点
@@ -83,10 +83,32 @@ whale.twin.alert-notify:
   whale-twin **129/129 全绿**
 - 两个类都有测试用构造器，生产构造器显式标注 `@Autowired`，避免 Spring 因多构造器找不到无参构造
 
-## 六、后续
+## 六、M1 落地清单（2026-11-10，站内信通道）
 
-- M1 站内信：`POST /message/internal/send`（`channels=[INAPP]`，`idempotencyKey=twin-alert-{alertId}`），
-  投递结果与失败原因落 `twin_alert_dispatch`，供 M2 展示；
-- 接收人来源：场景 `sceneConfig.alertNotify`（复用既有 JSON 配置，不新增迁移），
-  默认回退到「绑定的创建人」；
-- 恢复通知（`sendRecovery`）与每日静默时段，等 M2 有设置界面后再开。
+- **配置**（`TwinProperties.AlertNotify`）：新增 `inappEnabled`（默认 false）、
+  `messageBaseUrl`（默认 `http://127.0.0.1:8094`）、`maxRecipients`（默认 20，上限 100）；
+  yml 口子 `WHALE_TWIN_NOTIFY_INAPP_ENABLED / _MESSAGE_BASE_URL / _MAX_RECIPIENTS`
+- **`support/TwinMessageClient`**：调 `POST /message/internal/send`，
+  `channels=[INAPP]`、`idempotencyKey=twin-alert-{alertId}`（无 alertId 时退化为
+  `twin-alert-{sceneId}-{stateKey}-{ts}`）；信封 `code=0` 才判成功，`data.messageId/status` 回填；
+  任何异常折算为失败结果不抛出。**与 webhook 相反，此通道必须带内网令牌**——
+  客户端在调用时按 `InternalTokenSupport` 当前配置创建，避免 Bean 早于自动配置初始化时拿到空令牌
+- **`support/TwinAlertRecipientResolver`**：`sceneConfig.alertNotify.userIds` 优先，
+  为空回退场景 `createdBy`；解析失败只记 WARN 并回退；去重 + 按 `maxRecipients` 截断
+- **通知文案**：标题 `【孪生告警·{预警|严重}】{场景名} / {实体编码}.{状态键}`（120 字截断）；
+  正文纯文本多行（场景 / 点位 / 级别+上一级别 / 当前值 / 阈值 / 时间），接收端无需渲染
+- **`V5__alert_dispatch.sql` + `entity/TwinAlertDispatch` + `mapper` + `service/TwinAlertDispatchService`**：
+  每次投递尝试一行（`WEBHOOK` 按地址、`INAPP` 按一次发送），
+  状态 `SUCCESS / FAILED / SKIPPED`（无接收人记 SKIPPED 并写明原因）；
+  target/error 按列宽截断，写入异常只 WARN——投递记录是旁路
+- **编排**：`TwinAlertNotifyService.notify(sceneId, tenantId, alertId, alert)`；
+  两通道共用一套级别门槛与冷却过滤（一次级别变化最多触发一轮），
+  异步执行内先 webhook 逐地址、再站内信；`TwinAlertService.record` 改为返回告警ID供幂等键使用
+- 测试：新增 17 例（notify 服务 +4 / dispatch 3 / resolver 6 / message client 4），
+  whale-twin **146/146 全绿**，Checkstyle 通过
+
+## 七、后续（M2）
+
+- 前端：场景级通知设置（通道开关 / 接收人 → `sceneConfig.alertNotify` / 最低级别）；
+- 投递记录查看：基于 `twin_alert_dispatch` 的场景维度列表接口（`status` 过滤 + 时间倒序）；
+- 恢复通知（`sendRecovery`）与每日静默时段，等设置界面落地后再开。

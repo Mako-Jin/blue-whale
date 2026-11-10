@@ -162,5 +162,14 @@ public class TwinProperties {
 
         /** 同场景同状态键同级别的最小外发间隔（秒），0 = 不去重 */
         private int cooldownSeconds = 300;
+
+        /** 站内信通道开关（M1；走 whale-message 内网发送） */
+        private boolean inappEnabled = false;
+
+        /** whale-message 内网基础地址（站内信通道用，不经网关） */
+        private String messageBaseUrl = "http://127.0.0.1:8094";
+
+        /** 站内信单次最大接收人数（超限截断，与 whale-message 单次 100 人上限对齐） */
+        private int maxRecipients = 20;
     }
 }

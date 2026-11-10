@@ -113,6 +113,10 @@ whale:
       cooldown-seconds: ${WHALE_TWIN_NOTIFY_COOLDOWN_SECONDS:300}
       # 逗号分隔的多个地址，如 ${WHALE_TWIN_NOTIFY_WEBHOOK_URLS:}
       webhook-urls: ${WHALE_TWIN_NOTIFY_WEBHOOK_URLS:}
+      # M1 站内信通道（走 whale-message 内网发送；默认关）
+      inapp-enabled: ${WHALE_TWIN_NOTIFY_INAPP_ENABLED:false}
+      message-base-url: ${WHALE_TWIN_NOTIFY_MESSAGE_BASE_URL:http://127.0.0.1:8094}
+      max-recipients: ${WHALE_TWIN_NOTIFY_MAX_RECIPIENTS:20}
 
 mybatis-plus:
   configuration:

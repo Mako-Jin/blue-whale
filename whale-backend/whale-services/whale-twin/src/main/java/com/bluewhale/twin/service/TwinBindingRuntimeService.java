@@ -317,9 +317,9 @@ public class TwinBindingRuntimeService {
             for (BindingAlertVO alert : alerts) {
                 TwinBinding binding = bindingById.get(Long.valueOf(alert.getBindingId()));
                 Long tenantId = binding == null ? null : binding.getTenantId();
-                alertService.record(sceneId, tenantId, alert);
-                // Wave 6.10 M0：落库后外发（webhook 默认关闭；异步，不影响 tick）
-                alertNotifyService.notify(sceneId, tenantId, alert);
+                Long alertId = alertService.record(sceneId, tenantId, alert);
+                // Wave 6.10：落库后外发（webhook / 站内信；异步，不影响 tick）
+                alertNotifyService.notify(sceneId, tenantId, alertId, alert);
             }
         }
     }
