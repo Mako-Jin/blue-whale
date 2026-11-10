@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 /**
  * {@link AuthCookieManager} 单元测试（V-03）：refresh / CSRF Cookie 标志契约与双提交校验。
  *
- * <p>覆盖：HttpOnly / SameSite=Strict / Path=/v1/auth / MaxAge 与 refreshToken 有效期对齐 /
+ * <p>覆盖：HttpOnly / SameSite=Strict / Path=/auth/v1 / MaxAge 与 refreshToken 有效期对齐 /
  * Secure 开关（{@code whale.auth.cookie.secure}）、CSRF token 32 字节随机 hex、
  * 双提交校验通过 / 缺失 / 篡改三种分支、登出清除 Cookie（MaxAge=0）。</p>
  *
@@ -46,14 +46,14 @@ class AuthCookieManagerTest {
     }
 
     @Test
-    @DisplayName("writeAuthCookies：refresh Cookie 带 HttpOnly / Path=/v1/auth / SameSite=Strict，且 MaxAge 对齐有效期")
+    @DisplayName("writeAuthCookies：refresh Cookie 带 HttpOnly / Path=/auth/v1 / SameSite=Strict，且 MaxAge 对齐有效期")
     void writeAuthCookiesShouldSetRefreshCookieFlags() {
         cookieManager.writeAuthCookies(response, REFRESH_TOKEN);
 
         List<String> cookies = response.getHeaders("Set-Cookie");
         assertThat(cookies).anySatisfy(cookie -> {
             assertThat(cookie).startsWith(AuthCookieManager.REFRESH_COOKIE_NAME + "=" + REFRESH_TOKEN);
-            assertThat(cookie).contains("Path=/v1/auth")
+            assertThat(cookie).contains("Path=/auth/v1")
                     .contains("HttpOnly")
                     .contains("SameSite=Strict")
                     .contains("Max-Age=" + COOKIE_MAX_AGE_SECONDS)

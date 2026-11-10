@@ -26,7 +26,7 @@ export async function login(
   password: string,
   tenantCode?: string,
 ): Promise<LoginResponse> {
-  const data = await post<LoginResponse>('/v1/auth/login', {
+  const data = await post<LoginResponse>('/auth/v1/login', {
     tenantCode: tenantCode?.trim() || undefined,
     username,
     password,
@@ -39,7 +39,7 @@ export async function login(
 
 // 当前登录用户：GET /auth/me（需 accessToken）——用于校验令牌有效性并刷新权限码
 export async function fetchMe(): Promise<AuthMeResponse> {
-  const me = await get<AuthMeResponse>('/v1/auth/me');
+  const me = await get<AuthMeResponse>('/auth/v1/me');
   const user = getCurrentUser();
   const beforePermissions = (user?.permissions ?? []).join(',');
   saveCurrentUser({
@@ -74,7 +74,7 @@ export interface MyTenantVO {
 
 // 我的租户：GET /auth/tenants（仅需登录）——切换器数据源
 export async function listMyTenants(): Promise<MyTenantVO[]> {
-  return get<MyTenantVO[]>('/v1/auth/tenants');
+  return get<MyTenantVO[]>('/auth/v1/tenants');
 }
 
 // 切换租户：POST /auth/tenant/switch（Wave 5.54 Phase 5.2）
@@ -83,7 +83,7 @@ export async function switchTenant(
   tenantId: number | string,
   tenantCode: string,
 ): Promise<LoginResponse> {
-  const data = await post<LoginResponse>('/v1/auth/tenant/switch', {
+  const data = await post<LoginResponse>('/auth/v1/tenant/switch', {
     tenantId,
   });
   saveLogin(data, tenantCode);
@@ -94,7 +94,7 @@ export async function switchTenant(
 export async function logout(): Promise<void> {
   const user = getCurrentUser();
   try {
-    await post<void>('/v1/auth/logout');
+    await post<void>('/auth/v1/logout');
   } catch {
     // 登出接口异常（离线/网络故障）不阻断本地登出，保证用户始终能退出
   } finally {

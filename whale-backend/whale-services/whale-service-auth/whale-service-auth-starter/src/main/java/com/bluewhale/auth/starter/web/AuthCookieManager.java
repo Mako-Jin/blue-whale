@@ -18,10 +18,10 @@ import java.util.HexFormat;
  * 认证 Cookie 管理器（V-03）：refresh 令牌 HttpOnly Cookie 下发与 CSRF 双提交校验。
  *
  * <p>refresh 令牌不再出现在任何响应体：登录 / 刷新 / 切换租户成功后以
- * {@code Set-Cookie: whale_refresh_token} 下发（HttpOnly + Path=/v1/auth + SameSite=Strict，
+ * {@code Set-Cookie: whale_refresh_token} 下发（HttpOnly + Path=/auth/v1 + SameSite=Strict，
  * Secure 由 {@code whale.auth.cookie.secure} 控制），MaxAge 与 refreshToken 有效期对齐；
  * 同时下发 / 轮换 CSRF Cookie {@code whale_csrf}（非 HttpOnly，供前端读取后经
- * {@code X-CSRF-Token} 头回传）。{@code /v1/auth/refresh} 与 {@code /v1/auth/logout} 按
+ * {@code X-CSRF-Token} 头回传）。{@code /auth/v1/refresh} 与 {@code /auth/v1/logout} 按
  * 「双提交」校验：请求头值必须等于 Cookie 值，缺失或不等一律 403。</p>
  *
  * @author BlueWhale
@@ -39,7 +39,7 @@ public class AuthCookieManager {
     public static final String CSRF_HEADER_NAME = "X-CSRF-Token";
 
     /** 认证 Cookie 作用路径：仅认证端点携带，避免随业务请求外发 */
-    private static final String COOKIE_PATH = "/v1/auth";
+    private static final String COOKIE_PATH = "/auth/v1";
 
     /** CSRF Cookie 作用路径：整站可读（前端在任意业务页面都需读取后回传 X-CSRF-Token） */
     private static final String CSRF_COOKIE_PATH = "/";

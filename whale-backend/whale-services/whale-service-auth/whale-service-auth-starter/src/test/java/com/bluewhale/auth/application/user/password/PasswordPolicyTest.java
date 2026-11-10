@@ -1,5 +1,6 @@
 package com.bluewhale.auth.application.user.password;
 
+import com.bluewhale.auth.infrastructure.config.PasswordPolicyProperties;
 import com.bluewhale.common.core.exception.BizException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

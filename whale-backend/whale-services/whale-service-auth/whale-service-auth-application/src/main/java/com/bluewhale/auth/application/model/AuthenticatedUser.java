@@ -6,6 +6,9 @@ import java.util.List;
 /**
  * 应用层当前用户快照：登录 / 刷新 / 切换租户用例的用户载体，不含口令。
  *
+ * <p>应用层内部模型（读快照 / 值对象），仅在各用例内部流转后转换成 result，
+ * 不跨协议边界——与 interfaces 层的 request/response DTO 是两类对象。</p>
+ *
  * @param tenantId 租户 ID
  * @param userId 用户 ID
  * @param username 用户名
@@ -15,8 +18,6 @@ import java.util.List;
  * @param mustChangePassword 是否需强制修改口令（T-03 出厂口令轮换后首登）
  * @param passwordUpdatedTime 最近一次改密时间（REQ-SEC-023：口令到期判定依据，可空）
  * @author BlueWhale
- *
- * TODO 这个是不是算一个DTO，DTO是否需要在新建一个dto包，专门存放DTO类
  */
 public record AuthenticatedUser(
     Long tenantId, Long userId, String username,

@@ -1,5 +1,6 @@
 package com.bluewhale.auth.application.user.password;
 
+import com.bluewhale.auth.application.user.password.port.PasswordPolicyConfig;
 import com.bluewhale.auth.application.user.port.PasswordHasher;
 import com.bluewhale.auth.domain.user.repository.PasswordHistoryRepository;
 import com.bluewhale.common.core.exception.BizException;
@@ -22,7 +23,7 @@ import java.util.List;
 public class PasswordPolicyService {
 
     /** 口令策略配置 */
-    private final PasswordPolicyProperties properties;
+    private final PasswordPolicyConfig properties;
 
     /** 口令加密端口（比对历史密文需要 matches） */
     private final PasswordHasher passwordHasher;

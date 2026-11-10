@@ -56,7 +56,7 @@ public class PermissionHeaderGlobalFilter implements GlobalFilter, Ordered {
     private static final String UNKNOWN_TENANT = "0";
 
     /** 回落拉取权限码的服务地址（lb:// 由负载均衡 WebClient 解析） */
-    private static final String AUTH_ME_URI = "lb://whale-service-auth/v1/auth/me";
+    private static final String AUTH_ME_URI = "lb://whale-service-auth/auth/v1/me";
 
     /** /auth/me 响应体中的业务数据字段名 */
     private static final String FIELD_DATA = "data";

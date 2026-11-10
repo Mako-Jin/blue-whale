@@ -27,7 +27,7 @@ import java.util.List;
  * 实现类位于 starter 层（Web 适配层）。</p>
  *
  * <p><b>Spring Boot 4 API Versioning</b>：类级 {@code version = "1"} 声明 API 版本，
- * 路径首段 {@code /{version}} 由 {@code PathApiVersionResolver} 解析（如 {@code /v1/auth/login}）。
+ * 路径首段 {@code /{version}} 由 {@code PathApiVersionResolver} 解析（如 {@code /auth/v1/login}）。
  * 版本段必须以 URI 变量声明，否则无法参与路径匹配。</p>
  *
  * @author BlueWhale

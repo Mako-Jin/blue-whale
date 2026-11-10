@@ -40,7 +40,7 @@ spring:
             - id: whale-service-auth
               uri: lb://whale-service-auth
               predicates:
-                - Path=/v1/auth/**,/auth/**,/user/**,/dept/**,/role/**,/menu/**,/permission/**
+                - Path=/auth/v1/**,/auth/**,/user/**,/dept/**,/role/**,/menu/**,/permission/**
             # Wave 5.54 Phase 1/5.3 租户管理与成员：/tenant/** 同属 whale-service-auth；
             # /tenant/internal/** 由 internal-deny 统一 403，对外仅暴露运营接口
             - id: whale-service-auth-tenant
@@ -253,8 +253,8 @@ whale:
       allowed-origins: ${WHALE_GATEWAY_CORS_ALLOWED_ORIGINS:http://localhost:*,http://127.0.0.1:*}
     # 不需要 JWT 认证的白名单路径（支持 Ant 通配符）
     white-list:
-      - /v1/auth/login
-      - /v1/auth/refresh
+      - /auth/v1/login
+      - /auth/v1/refresh
       - /actuator/**
       - /v3/api-docs/**
       - /doc.html
@@ -283,7 +283,7 @@ whale:
     governance:
       token: ${WHALE_GATEWAY_GOVERNANCE_TOKEN:}
     # AUTH-06 权限码头注入：JwtAuthGlobalFilter 注入 X-User-Id 后，PermissionHeaderGlobalFilter(order=-50)
-    # 读 Redis 权限码缓存（命中即注入）；未命中/哨兵/异常回落 lb://whale-service-auth/v1/auth/me，两级均失败注入空串并告警
+    # 读 Redis 权限码缓存（命中即注入）；未命中/哨兵/异常回落 lb://whale-service-auth/auth/v1/me，两级均失败注入空串并告警
     permission-header:
       enabled: ${WHALE_GATEWAY_PERMISSION_HEADER_ENABLED:true}
     # T5.4 网关入口限流（Redis 计数器 + 固定窗口，REQ-DIST-003）：

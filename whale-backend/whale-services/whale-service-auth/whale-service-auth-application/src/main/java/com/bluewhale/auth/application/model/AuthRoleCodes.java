@@ -1,11 +1,12 @@
 package com.bluewhale.auth.application.model;
 
 /**
- * 认证域内置角色编码。
+ * 认证域内置角色编码字典：应用层（超管全量放权计算权限码）与基础设施层
+ * （{@code @RequirePermission} 拦截器超管放行）共用同一字符串来源，避免魔法串。
+ *
+ * <p>当前内置角色仅超级管理员；后续新增内置角色（如租户管理员）在此扩充。</p>
  *
  * @author BlueWhale
- *
- * TODO 这个是做什么的，就只配置了一个超级管理员的编码吗？
  */
 public final class AuthRoleCodes {
 

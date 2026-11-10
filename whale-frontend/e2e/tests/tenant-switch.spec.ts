@@ -67,7 +67,7 @@ async function ensureAcmeMembership(request: APIRequestContext): Promise<string>
   const acmeId = String(acme.id);
 
   const myTenants = await unwrap<MyTenantItem[]>(
-    await request.get(`${API_BASE_URL}/v1/auth/tenants`, { headers }),
+    await request.get(`${API_BASE_URL}/auth/v1/tenants`, { headers }),
     '查询我的租户',
   );
   if (!myTenants.some((item) => String(item.tenantId) === acmeId)) {
@@ -92,13 +92,13 @@ async function switchTenantViaUi(
   // 经 page.route 拦截切换请求并在拦截层缓存响应体：route.fetch 会先取全响应体，
   // 与前端 window.location.replace('/') 的整页导航完全无竞态
   //（直接 waitForResponse + response.json 会因「导航后响应体不可读」随机失败）。
-  await page.route('**/v1/auth/tenant/switch', async (route) => {
+  await page.route('**/auth/v1/tenant/switch', async (route) => {
     const response = await route.fetch();
     switchBody = (await response.json()) as Envelope<{ accessToken?: string }>;
     await route.fulfill({ response });
   });
   const switched = page.waitForResponse((response) =>
-    response.url().includes('/v1/auth/tenant/switch'),
+    response.url().includes('/auth/v1/tenant/switch'),
   );
   await page.locator('.admin-tenant-switcher').click();
   await page
@@ -108,7 +108,7 @@ async function switchTenantViaUi(
   // 切换成功后前端 window.location.replace('/') 整页重载，重建权限与租户上下文
   await page.waitForEvent('load');
   await expect(page.locator('.admin-tenant-switcher')).toBeVisible();
-  await page.unroute('**/v1/auth/tenant/switch');
+  await page.unroute('**/auth/v1/tenant/switch');
   return switchBody?.data?.accessToken;
 }
 
@@ -131,10 +131,10 @@ test('一人多租户：切换器切换到 acme 并切回默认租户', async ({
   const acmeToken = await switchTenantViaUi(page, ACME_NAME);
   await expect(switcher.locator('.ant-select-selection-item')).toHaveText(new RegExp(ACME_NAME));
 
-  // 4) 新令牌租户上下文 = acme（以切换响应返回的 accessToken 查询 /v1/auth/me）
+  // 4) 新令牌租户上下文 = acme（以切换响应返回的 accessToken 查询 /auth/v1/me）
   expect(acmeToken).toBeTruthy();
   const meInAcme = await unwrap<{ tenantId: number | string; menus: unknown[] }>(
-    await request.get(`${API_BASE_URL}/v1/auth/me`, {
+    await request.get(`${API_BASE_URL}/auth/v1/me`, {
       headers: { Authorization: `Bearer ${acmeToken}` },
     }),
     '查询切换后的当前用户',
@@ -145,7 +145,7 @@ test('一人多租户：切换器切换到 acme 并切回默认租户', async ({
   const defaultToken = await switchTenantViaUi(page, '默认租户');
   await expect(switcher.locator('.ant-select-selection-item')).toHaveText(/默认租户/);
   const meInDefault = await unwrap<{ tenantId: number | string }>(
-    await request.get(`${API_BASE_URL}/v1/auth/me`, {
+    await request.get(`${API_BASE_URL}/auth/v1/me`, {
       headers: { Authorization: `Bearer ${defaultToken}` },
     }),
     '查询切回后的当前用户',

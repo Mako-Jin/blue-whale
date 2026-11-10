@@ -1,5 +1,6 @@
 package com.bluewhale.auth.application.user.password;
 
+import com.bluewhale.auth.application.user.password.port.PasswordPolicyConfig;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 
@@ -10,7 +11,7 @@ import java.util.regex.Pattern;
 /**
  * 口令强度策略值对象（REQ-SEC-021）：创建 / 更新 / 自助改密 / 管理员重置四条入口统一校验。
  *
- * <p>纯内存校验，不依赖 Spring / 持久化；由 {@link PasswordPolicyProperties} 组装，
+ * <p>纯内存校验，不依赖 Spring / 持久化；由 {@link PasswordPolicyConfig} 组装，
  * 规则失败统一以 {@link BizException}（PARAM_ERROR）返回中文文案。</p>
  *
  * @author BlueWhale
@@ -46,7 +47,7 @@ public final class PasswordPolicy {
     private final boolean requireSpecial;
 
     /**
-     * 私有构造器：由 {@link #from(PasswordPolicyProperties)} 组装
+     * 私有构造器：由 {@link #from(PasswordPolicyConfig)} 组装
      *
      * @param minLength 最小长度
      * @param maxLength 最大长度
@@ -71,7 +72,7 @@ public final class PasswordPolicy {
      * @param properties 口令策略配置
      * @return 策略值对象
      */
-    public static PasswordPolicy from(PasswordPolicyProperties properties) {
+    public static PasswordPolicy from(PasswordPolicyConfig properties) {
         return new PasswordPolicy(properties.getMinLength(), properties.getMaxLength(),
                 properties.isRequireUpper(), properties.isRequireLower(),
                 properties.isRequireDigit(), properties.isRequireSpecial());

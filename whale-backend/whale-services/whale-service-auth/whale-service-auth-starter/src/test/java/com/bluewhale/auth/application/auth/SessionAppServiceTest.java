@@ -2,7 +2,7 @@ package com.bluewhale.auth.application.auth;
 
 import com.bluewhale.auth.application.model.AuthRoleCodes;
 import com.bluewhale.auth.application.model.AuthenticatedUser;
-import com.bluewhale.auth.application.model.RefreshRotationProperties;
+import com.bluewhale.auth.application.model.port.RefreshRotationPolicy;
 import com.bluewhale.auth.application.model.TokenPayload;
 import com.bluewhale.auth.application.model.command.LogoutCommand;
 import com.bluewhale.auth.application.model.command.RefreshCommand;
@@ -10,6 +10,7 @@ import com.bluewhale.auth.application.model.command.SwitchTenantCommand;
 import com.bluewhale.auth.application.model.port.CredentialAuthenticator;
 import com.bluewhale.auth.application.model.port.CurrentUserProvider;
 import com.bluewhale.auth.application.model.port.RefreshTokenRotationStore;
+import com.bluewhale.auth.application.service.impl.SessionAppServiceImpl;
 import com.bluewhale.auth.application.model.port.TokenBlacklist;
 import com.bluewhale.auth.application.model.port.TokenIssuer;
 import com.bluewhale.auth.application.model.port.UserAccessRevocationPort;
@@ -19,6 +20,7 @@ import com.bluewhale.auth.application.model.query.TenantListQuery;
 import com.bluewhale.auth.application.model.result.CurrentUserResult;
 import com.bluewhale.auth.application.model.result.LoginResult;
 import com.bluewhale.auth.application.model.result.TenantResult;
+import com.bluewhale.auth.application.service.SessionAppService;
 import com.bluewhale.auth.application.menu.MenuAppService;
 import com.bluewhale.auth.application.permission.PermissionAppService;
 import com.bluewhale.auth.application.role.RoleAppService;
@@ -107,7 +109,7 @@ class SessionAppServiceTest {
     private RefreshTokenRotationStore refreshRotationStore;
 
     @Mock
-    private RefreshRotationProperties refreshRotationProperties;
+    private RefreshRotationPolicy refreshRotationPolicy;
 
     @Mock
     private TenantAppService tenantAppService;
@@ -131,7 +133,7 @@ class SessionAppServiceTest {
     private TenantPasswordPolicyService tenantPasswordPolicyService;
 
     @InjectMocks
-    private SessionAppService sessionAppService;
+    private SessionAppServiceImpl sessionAppService;
 
     @BeforeEach
     void resetAlarmCount() {
@@ -235,7 +237,7 @@ class SessionAppServiceTest {
     void refreshShouldConsumeTokenWhenRotationEnabled() {
         when(tokenIssuer.parse(REFRESH_TOKEN))
                 .thenReturn(new TokenPayload(USERNAME, TENANT_ID, USER_ID, TokenPayload.TYPE_REFRESH, FAMILY_ID, JTI, 0L));
-        when(refreshRotationProperties.isEnabled()).thenReturn(true);
+        when(refreshRotationPolicy.isEnabled()).thenReturn(true);
         when(refreshRotationStore.isFamilyRevoked(FAMILY_ID)).thenReturn(false);
         when(tokenBlacklist.contains(REFRESH_TOKEN)).thenReturn(false);
         when(userSessionQuery.loadUserById(USER_ID, TENANT_ID))
@@ -260,7 +262,7 @@ class SessionAppServiceTest {
     void refreshShouldRevokeFamilyWhenReuseDetected() {
         when(tokenIssuer.parse(REFRESH_TOKEN))
                 .thenReturn(new TokenPayload(USERNAME, TENANT_ID, USER_ID, TokenPayload.TYPE_REFRESH, FAMILY_ID, JTI, 0L));
-        when(refreshRotationProperties.isEnabled()).thenReturn(true);
+        when(refreshRotationPolicy.isEnabled()).thenReturn(true);
         when(refreshRotationStore.isFamilyRevoked(FAMILY_ID)).thenReturn(false);
         when(tokenBlacklist.contains(REFRESH_TOKEN)).thenReturn(false);
         when(userSessionQuery.loadUserById(USER_ID, TENANT_ID))
@@ -280,7 +282,7 @@ class SessionAppServiceTest {
     @DisplayName("refresh：轮换开启但令牌缺少 familyId（旧令牌）返回 401")
     void refreshShouldRejectTokenWithoutFamilyWhenRotationEnabled() {
         when(tokenIssuer.parse(REFRESH_TOKEN)).thenReturn(refreshPayload(TENANT_ID, USER_ID));
-        when(refreshRotationProperties.isEnabled()).thenReturn(true);
+        when(refreshRotationPolicy.isEnabled()).thenReturn(true);
 
         BizException ex = assertThrows(BizException.class, () -> sessionAppService.refresh(new RefreshCommand(REFRESH_TOKEN)));
 
@@ -293,7 +295,7 @@ class SessionAppServiceTest {
     void refreshShouldRejectRevokedFamily() {
         when(tokenIssuer.parse(REFRESH_TOKEN))
                 .thenReturn(new TokenPayload(USERNAME, TENANT_ID, USER_ID, TokenPayload.TYPE_REFRESH, FAMILY_ID, null, 0L));
-        when(refreshRotationProperties.isEnabled()).thenReturn(true);
+        when(refreshRotationPolicy.isEnabled()).thenReturn(true);
         when(refreshRotationStore.isFamilyRevoked(FAMILY_ID)).thenReturn(true);
 
         BizException ex = assertThrows(BizException.class, () -> sessionAppService.refresh(new RefreshCommand(REFRESH_TOKEN)));

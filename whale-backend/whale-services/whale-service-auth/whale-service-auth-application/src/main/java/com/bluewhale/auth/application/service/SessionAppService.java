@@ -12,6 +12,14 @@ import com.bluewhale.auth.application.model.result.TenantResult;
 
 import java.util.List;
 
+/**
+ * 会话应用服务接口：登录、刷新 Token、切换租户、登出与当前用户信息。
+ *
+ * <p>实现位于 {@code service.impl.SessionAppServiceImpl}，只依赖应用层端口与领域仓储，
+ * 不感知 Spring Security / JWT / MyBatis 等具体实现。</p>
+ *
+ * @author BlueWhale
+ */
 public interface SessionAppService {
 
     /**

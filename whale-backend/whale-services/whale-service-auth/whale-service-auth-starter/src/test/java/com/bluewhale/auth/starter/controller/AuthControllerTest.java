@@ -6,6 +6,7 @@ import com.bluewhale.auth.application.model.command.RefreshCommand;
 import com.bluewhale.auth.application.model.command.SwitchTenantCommand;
 import com.bluewhale.auth.application.model.result.CurrentUserResult;
 import com.bluewhale.auth.application.model.result.LoginResult;
+import com.bluewhale.auth.application.service.SessionAppService;
 import com.bluewhale.auth.application.user.password.ChangeOwnPasswordCommand;
 import com.bluewhale.auth.application.user.password.PasswordAppService;
 import com.bluewhale.auth.application.vo.MenuVO;
@@ -54,7 +55,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * <p>覆盖：登录 / 刷新 / 切换租户 / 登出四个端点的 Cookie 行为（refresh 令牌只进
  * HttpOnly Cookie、CSRF 双提交 403 拦截、登出清除 Cookie）、响应体不含 refreshToken、
- * 请求体校验失败（统一参数错误体 {@code code=400}）、{@code /v1/auth/me} 的
+ * 请求体校验失败（统一参数错误体 {@code code=400}）、{@code /auth/v1/me} 的
  * {@code @RequirePermission} 与凭据端点 {@code @AuditLog} 契约反射校验。</p>
  *
  * @author BlueWhale
@@ -87,14 +88,14 @@ class AuthControllerTest {
 
     /**
      * 构建 standalone MockMvc：注册全局异常处理器、校验器与 API 版本策略，
-     * 使 {@code /v1/auth/**} 路径可按 Boot 4 路径段版本规则匹配。
+     * 使 {@code /auth/v1/**} 路径可按 Boot 4 路径段版本规则匹配。
      */
     @BeforeEach
     void setUp() {
         LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
         validator.afterPropertiesSet();
         ApiVersionStrategy versionStrategy = new DefaultApiVersionStrategy(
-                List.of(new PathApiVersionResolver(0, requestPath -> true)),
+                List.of(new PathApiVersionResolver(1, requestPath -> true)),
                 new SemanticApiVersionParser(), false, null, true, null, null);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
@@ -137,7 +138,7 @@ class AuthControllerTest {
         List<String> cookies = result.getResponse().getHeaders(HttpHeaders.SET_COOKIE);
         assertThat(cookies).anySatisfy(cookie -> {
             assertThat(cookie).startsWith(AuthCookieManager.REFRESH_COOKIE_NAME + "=" + expectedRefresh);
-            assertThat(cookie).contains("Path=/v1/auth")
+            assertThat(cookie).contains("Path=/auth/v1")
                     .contains("HttpOnly")
                     .contains("SameSite=Strict")
                     .contains("Max-Age=" + COOKIE_MAX_AGE_SECONDS)
@@ -162,7 +163,7 @@ class AuthControllerTest {
         List<String> cookies = result.getResponse().getHeaders(HttpHeaders.SET_COOKIE);
         assertThat(cookies).anySatisfy(cookie -> {
             assertThat(cookie).startsWith(AuthCookieManager.REFRESH_COOKIE_NAME + "=");
-            assertThat(cookie).contains("Max-Age=0").contains("HttpOnly").contains("Path=/v1/auth");
+            assertThat(cookie).contains("Max-Age=0").contains("HttpOnly").contains("Path=/auth/v1");
         });
         assertThat(cookies).anySatisfy(cookie -> {
             assertThat(cookie).startsWith(AuthCookieManager.CSRF_COOKIE_NAME + "=");
@@ -171,11 +172,11 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("POST /v1/auth/login：返回 code=0，refreshToken 只进 Cookie、响应体不可见")
+    @DisplayName("POST /auth/v1/login：返回 code=0，refreshToken 只进 Cookie、响应体不可见")
     void loginShouldSetCookiesAndHideRefreshToken() throws Exception {
         when(sessionAppService.login(any())).thenReturn(loginResult(OLD_REFRESH_TOKEN));
 
-        MvcResult result = mockMvc.perform(post("/v1/auth/login")
+        MvcResult result = mockMvc.perform(post("/auth/v1/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"alice\",\"password\":\"secret1\"}"))
                 .andExpect(status().isOk())
@@ -193,11 +194,11 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("POST /v1/auth/refresh：凭 Cookie + CSRF 双提交换发，轮换下发新 Cookie")
+    @DisplayName("POST /auth/v1/refresh：凭 Cookie + CSRF 双提交换发，轮换下发新 Cookie")
     void refreshShouldRotateFromCookie() throws Exception {
         when(sessionAppService.refresh(any())).thenReturn(loginResult(NEW_REFRESH_TOKEN));
 
-        MvcResult result = mockMvc.perform(post("/v1/auth/refresh")
+        MvcResult result = mockMvc.perform(post("/auth/v1/refresh")
                         .cookie(new Cookie(AuthCookieManager.REFRESH_COOKIE_NAME, OLD_REFRESH_TOKEN),
                                 new Cookie(AuthCookieManager.CSRF_COOKIE_NAME, CSRF_TOKEN))
                         .header(AuthCookieManager.CSRF_HEADER_NAME, CSRF_TOKEN))
@@ -212,9 +213,9 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("POST /v1/auth/refresh：缺失 X-CSRF-Token 头返回 403，且不触发刷新")
+    @DisplayName("POST /auth/v1/refresh：缺失 X-CSRF-Token 头返回 403，且不触发刷新")
     void refreshShouldRejectMissingCsrfHeader() throws Exception {
-        mockMvc.perform(post("/v1/auth/refresh")
+        mockMvc.perform(post("/auth/v1/refresh")
                         .cookie(new Cookie(AuthCookieManager.REFRESH_COOKIE_NAME, OLD_REFRESH_TOKEN),
                                 new Cookie(AuthCookieManager.CSRF_COOKIE_NAME, CSRF_TOKEN)))
                 .andExpect(status().isOk())
@@ -224,9 +225,9 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("POST /v1/auth/refresh：X-CSRF-Token 头与 Cookie 不等返回 403")
+    @DisplayName("POST /auth/v1/refresh：X-CSRF-Token 头与 Cookie 不等返回 403")
     void refreshShouldRejectMismatchedCsrf() throws Exception {
-        mockMvc.perform(post("/v1/auth/refresh")
+        mockMvc.perform(post("/auth/v1/refresh")
                         .cookie(new Cookie(AuthCookieManager.REFRESH_COOKIE_NAME, OLD_REFRESH_TOKEN),
                                 new Cookie(AuthCookieManager.CSRF_COOKIE_NAME, CSRF_TOKEN))
                         .header(AuthCookieManager.CSRF_HEADER_NAME, TAMPERED_CSRF_TOKEN))
@@ -237,9 +238,9 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("POST /v1/auth/refresh：缺失 refresh Cookie 返回 401，且不触发刷新")
+    @DisplayName("POST /auth/v1/refresh：缺失 refresh Cookie 返回 401，且不触发刷新")
     void refreshShouldRejectMissingRefreshCookie() throws Exception {
-        mockMvc.perform(post("/v1/auth/refresh")
+        mockMvc.perform(post("/auth/v1/refresh")
                         .cookie(new Cookie(AuthCookieManager.CSRF_COOKIE_NAME, CSRF_TOKEN))
                         .header(AuthCookieManager.CSRF_HEADER_NAME, CSRF_TOKEN))
                 .andExpect(status().isOk())
@@ -249,9 +250,9 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("POST /v1/auth/logout：凭 Cookie 撤销 refreshToken 并清除两枚认证 Cookie")
+    @DisplayName("POST /auth/v1/logout：凭 Cookie 撤销 refreshToken 并清除两枚认证 Cookie")
     void logoutShouldRevokeAndClearCookies() throws Exception {
-        MvcResult result = mockMvc.perform(post("/v1/auth/logout")
+        MvcResult result = mockMvc.perform(post("/auth/v1/logout")
                         .header(HttpHeaders.AUTHORIZATION, BEARER_ACCESS)
                         .cookie(new Cookie(AuthCookieManager.REFRESH_COOKIE_NAME, OLD_REFRESH_TOKEN),
                                 new Cookie(AuthCookieManager.CSRF_COOKIE_NAME, CSRF_TOKEN))
@@ -265,9 +266,9 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("POST /v1/auth/logout：CSRF 双提交校验失败返回 403，且不触发登出")
+    @DisplayName("POST /auth/v1/logout：CSRF 双提交校验失败返回 403，且不触发登出")
     void logoutShouldRejectWhenCsrfMissing() throws Exception {
-        mockMvc.perform(post("/v1/auth/logout")
+        mockMvc.perform(post("/auth/v1/logout")
                         .header(HttpHeaders.AUTHORIZATION, BEARER_ACCESS)
                         .cookie(new Cookie(AuthCookieManager.REFRESH_COOKIE_NAME, OLD_REFRESH_TOKEN),
                                 new Cookie(AuthCookieManager.CSRF_COOKIE_NAME, CSRF_TOKEN)))
@@ -278,11 +279,11 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("POST /v1/auth/tenant/switch：旧 refreshToken 取自 Cookie，成功后轮换下发新 Cookie")
+    @DisplayName("POST /auth/v1/tenant/switch：旧 refreshToken 取自 Cookie，成功后轮换下发新 Cookie")
     void switchTenantShouldRotateCookies() throws Exception {
         when(sessionAppService.switchTenant(any())).thenReturn(loginResult(NEW_REFRESH_TOKEN));
 
-        MvcResult result = mockMvc.perform(post("/v1/auth/tenant/switch")
+        MvcResult result = mockMvc.perform(post("/auth/v1/tenant/switch")
                         .header(HttpHeaders.AUTHORIZATION, BEARER_ACCESS)
                         .cookie(new Cookie(AuthCookieManager.REFRESH_COOKIE_NAME, OLD_REFRESH_TOKEN))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -298,9 +299,9 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("POST /v1/auth/login：用户名为空触发校验失败，返回统一参数错误体且不调用服务")
+    @DisplayName("POST /auth/v1/login：用户名为空触发校验失败，返回统一参数错误体且不调用服务")
     void loginShouldRejectBlankUsername() throws Exception {
-        mockMvc.perform(post("/v1/auth/login")
+        mockMvc.perform(post("/auth/v1/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"\",\"password\":\"secret1\"}"))
                 .andExpect(status().isOk())
@@ -311,16 +312,16 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("/v1/auth/me 权限契约：声明 @RequirePermission（仅需登录，无具体权限点）并正常返回当前用户")
+    @DisplayName("/auth/v1/me 权限契约：声明 @RequirePermission（仅需登录，无具体权限点）并正常返回当前用户")
     void meShouldDeclareRequirePermission() throws Exception {
         RequirePermission annotation = AuthController.class.getMethod("me").getAnnotation(RequirePermission.class);
 
-        assertThat(annotation).as("/v1/auth/me 缺少 @RequirePermission").isNotNull();
+        assertThat(annotation).as("/auth/v1/me 缺少 @RequirePermission").isNotNull();
         assertThat(annotation.value()).isEmpty();
         assertThat(annotation.requireLogin()).isTrue();
 
         when(sessionAppService.me(any())).thenReturn(currentUserResult());
-        mockMvc.perform(get("/v1/auth/me"))
+        mockMvc.perform(get("/auth/v1/me"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()))
                 .andExpect(jsonPath("$.data.userId").value(USER_ID))
@@ -333,21 +334,21 @@ class AuthControllerTest {
     void credentialEndpointsShouldNotRecordParams() throws NoSuchMethodException {
         AuditLog login = AuthController.class.getMethod("login", LoginRequest.class, HttpServletResponse.class)
                 .getAnnotation(AuditLog.class);
-        assertThat(login).as("/v1/auth/login 缺少 @AuditLog").isNotNull();
+        assertThat(login).as("/auth/v1/login 缺少 @AuditLog").isNotNull();
         assertThat(login.operation()).isEqualTo("用户登录");
         assertThat(login.recordParams()).isFalse();
 
         AuditLog logout = AuthController.class
                 .getMethod("logout", String.class, HttpServletRequest.class, HttpServletResponse.class)
                 .getAnnotation(AuditLog.class);
-        assertThat(logout).as("/v1/auth/logout 缺少 @AuditLog").isNotNull();
+        assertThat(logout).as("/auth/v1/logout 缺少 @AuditLog").isNotNull();
         assertThat(logout.recordParams()).isFalse();
     }
 
     @Test
-    @DisplayName("PUT /v1/auth/password：自助改密委托应用服务，且审计不记录口令")
+    @DisplayName("PUT /auth/v1/password：自助改密委托应用服务，且审计不记录口令")
     void changePasswordShouldDelegateAndNotRecordParams() throws Exception {
-        mockMvc.perform(put("/v1/auth/password")
+        mockMvc.perform(put("/auth/v1/password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"oldPassword\":\"Old#Pass1\",\"newPassword\":\"New#Pass2026\"}"))
                 .andExpect(status().isOk())
@@ -359,7 +360,7 @@ class AuthControllerTest {
         AuditLog auditLog = AuthController.class
                 .getMethod("changePassword", ChangeOwnPasswordRequest.class)
                 .getAnnotation(AuditLog.class);
-        assertThat(auditLog).as("/v1/auth/password 缺少 @AuditLog").isNotNull();
+        assertThat(auditLog).as("/auth/v1/password 缺少 @AuditLog").isNotNull();
         assertThat(auditLog.recordParams()).isFalse();
     }
 }

@@ -53,7 +53,7 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/v1/auth/login", "/v1/auth/refresh", "/v1/auth/logout",
+                        .requestMatchers("/auth/v1/login", "/auth/v1/refresh", "/auth/v1/logout",
                                 "/tenant/internal/**", "/user/internal/**",
                                 // 调度中心触发端点与执行器注册/心跳（starter 的 JobTriggerController、
                                 // JobExecutorRegistrar 都走 /internal/**）。外部访问由网关 internal-deny

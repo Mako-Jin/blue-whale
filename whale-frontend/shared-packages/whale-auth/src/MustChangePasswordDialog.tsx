@@ -123,7 +123,7 @@ export function MustChangePasswordDialog({ baseUrl = '', getToken, onSuccess }: 
     setSubmitting(true);
     setError(null);
     try {
-      const response = await fetch(`${baseUrl}/v1/auth/password`, {
+      const response = await fetch(`${baseUrl}/auth/v1/password`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -147,7 +147,7 @@ export function MustChangePasswordDialog({ baseUrl = '', getToken, onSuccess }: 
         if (csrf) {
           headers['X-CSRF-Token'] = csrf;
         }
-        await fetch(`${baseUrl}/v1/auth/logout`, {
+        await fetch(`${baseUrl}/auth/v1/logout`, {
           method: 'POST',
           headers,
           credentials: 'include',

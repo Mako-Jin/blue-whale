@@ -3,7 +3,7 @@ package com.bluewhale.auth.application.service.impl;
 import com.bluewhale.auth.application.menu.MenuAppService;
 import com.bluewhale.auth.application.model.AuthRoleCodes;
 import com.bluewhale.auth.application.model.AuthenticatedUser;
-import com.bluewhale.auth.application.model.RefreshRotationProperties;
+import com.bluewhale.auth.application.model.port.RefreshRotationPolicy;
 import com.bluewhale.auth.application.model.TokenPayload;
 import com.bluewhale.auth.application.model.command.LoginCommand;
 import com.bluewhale.auth.application.model.command.LogoutCommand;
@@ -71,12 +71,11 @@ public class SessionAppServiceImpl implements SessionAppService {
     /** Bearer 前缀 */
     private static final String BEARER_PREFIX = "Bearer ";
 
-    // TODO 标准DDD模式是不是六边形接口在domain定义，基础设施层实现。 应用层依赖基础设施层，基础设施层依赖领域层？
     private final CredentialAuthenticator credentialAuthenticator;
     private final TokenIssuer tokenIssuer;
     private final TokenBlacklist tokenBlacklist;
     private final RefreshTokenRotationStore refreshRotationStore;
-    private final RefreshRotationProperties refreshRotationProperties;
+    private final RefreshRotationPolicy refreshRotationPolicy;
     private final UserAccessRevocationPort userAccessRevocationPort;
     private final CurrentUserProvider currentUserProvider;
     private final UserSessionQuery userSessionQuery;
@@ -249,7 +248,7 @@ public class SessionAppServiceImpl implements SessionAppService {
      */
     private String resolveRotatingFamilyId(TokenPayload payload) {
         String familyId = payload.familyId();
-        if (!refreshRotationProperties.isEnabled()) {
+        if (!refreshRotationPolicy.isEnabled()) {
             return familyId;
         }
         if (!StringUtils.hasText(familyId)) {
@@ -345,7 +344,7 @@ public class SessionAppServiceImpl implements SessionAppService {
             return;
         }
         tokenBlacklist.add(refreshToken);
-        if (!refreshRotationProperties.isEnabled()) {
+        if (!refreshRotationPolicy.isEnabled()) {
             return;
         }
         TokenPayload payload = tokenIssuer.parse(refreshToken);
@@ -366,7 +365,7 @@ public class SessionAppServiceImpl implements SessionAppService {
      * @throws BizException 复用检测命中时抛出 401
      */
     private void consumeRotatingToken(String refreshToken, TokenPayload payload, String familyId) {
-        if (!refreshRotationProperties.isEnabled()) {
+        if (!refreshRotationPolicy.isEnabled()) {
             return;
         }
         long remainingSeconds = tokenIssuer.remainingValiditySeconds(refreshToken);

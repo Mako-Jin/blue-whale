@@ -1,6 +1,7 @@
 package com.bluewhale.auth.application.user.password;
 
 import com.bluewhale.auth.application.tenant.TenantAppService;
+import com.bluewhale.auth.application.user.password.port.PasswordPolicyConfig;
 import com.bluewhale.auth.application.user.password.port.TenantPasswordPolicyRepository;
 import com.bluewhale.auth.application.vo.TenantPasswordPolicyVO;
 import com.bluewhale.common.core.exception.BizException;
@@ -37,7 +38,7 @@ public class TenantPasswordPolicyService {
     public static final int MAX_MAX_AGE_DAYS = 365;
 
     /** 全局口令策略配置（默认值来源） */
-    private final PasswordPolicyProperties properties;
+    private final PasswordPolicyConfig properties;
 
     /** 租户口令策略仓储端口 */
     private final TenantPasswordPolicyRepository tenantPasswordPolicyRepository;

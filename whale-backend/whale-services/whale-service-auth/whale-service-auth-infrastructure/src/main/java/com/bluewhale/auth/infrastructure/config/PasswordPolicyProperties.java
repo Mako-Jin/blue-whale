@@ -1,21 +1,22 @@
-package com.bluewhale.auth.application.user.password;
+package com.bluewhale.auth.infrastructure.config;
 
-import lombok.Getter;
-import lombok.Setter;
+import com.bluewhale.auth.application.user.password.port.PasswordPolicyConfig;
+import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
 
 /**
- * 口令策略配置（REQ-SEC-021 / REQ-SEC-023）：有效期、提醒窗口、历史次数与强度要求。
+ * 口令策略配置绑定（REQ-SEC-021 / REQ-SEC-023），实现应用层 {@link PasswordPolicyConfig} 端口。
  *
  * <p>默认值即计划确认的口径：90 天有效期、提前 7 天提醒、最近 5 次不可复用、最小长度 12
  * 且必须含大小写字母、数字与特殊字符。{@code max-age-days<=0} 可临时关闭到期强制（应急开关）。</p>
  *
  * @author BlueWhale
  */
-@Getter
-@Setter
+@Data
+@Component
 @ConfigurationProperties(prefix = "whale.auth.password")
-public class PasswordPolicyProperties {
+public class PasswordPolicyProperties implements PasswordPolicyConfig {
 
     /** 口令有效期（天）；小于等于 0 表示不强制到期 */
     private int maxAgeDays = 90;
