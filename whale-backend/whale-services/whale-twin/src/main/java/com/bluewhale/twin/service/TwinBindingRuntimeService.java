@@ -1,12 +1,14 @@
 package com.bluewhale.twin.service;
 
 import com.bluewhale.twin.config.TwinProperties;
+import com.bluewhale.twin.dto.BindingAlertVO;
 import com.bluewhale.twin.dto.BindingStateVO;
 import com.bluewhale.twin.entity.TwinBinding;
 import com.bluewhale.twin.entity.TwinEntity;
 import com.bluewhale.twin.mapper.TwinEntityMapper;
 import com.bluewhale.twin.support.IotStateClient;
 import com.bluewhale.twin.support.InternalApiStateClient;
+import com.bluewhale.twin.support.TwinThresholdEvaluator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
@@ -37,7 +39,9 @@ import java.util.concurrent.TimeUnit;
  * <p>差分口径：绑定粒度的 {@code online + values} 序列化串与上次不一致才算变化；
  * 首次tick视为全量变化（订阅端需要初始态）。源类型支持 {@code iot_device}
  * （设备影子）与 {@code internal_api}（内部只读接口，propertyMap 键为
- * data 载荷内的 JSON 点路径）。</p>
+ * data 载荷内的 JSON 点路径）。差分推送之外，按 {@code propertyMap.thresholds}
+ * 逐键评估告警级别，级别变化才推 {@code alert} 帧（见
+ * {@link #publishAlerts}）。</p>
  *
  * @author BlueWhale
  */
@@ -71,6 +75,9 @@ public class TwinBindingRuntimeService {
 
     /** 绑定ID → 下次允许轮询的 epoch 毫秒（包内可见便于单测清空重放） */
     final Map<Long, Long> nextDueAt = new ConcurrentHashMap<>();
+
+    /** 场景ID → (绑定ID → (状态键 → 上次级别))：阈值级别变化才推告警帧 */
+    private final Map<Long, Map<Long, Map<String, String>>> alertLevels = new ConcurrentHashMap<>();
 
     /** 轮询调度线程池 */
     private final ScheduledExecutorService scheduler;
@@ -170,6 +177,76 @@ public class TwinBindingRuntimeService {
                     "sceneId", sceneId.toString(),
                     "ts", TIME_FORMAT.format(LocalDateTime.now()),
                     "items", changed));
+        }
+        publishAlerts(sceneId, bindings, computed.values());
+    }
+
+    /**
+     * 阈值告警评估与推送：对本 tick 拉到实时态的绑定逐键分级，
+     * 级别相对上次有变化（含首评越界、升级、降级、恢复）才推 {@code alert} 帧；
+     * 离线绑定静默清级（上下线由 binding 帧表达，恢复在线后重新首评）。
+     *
+     * @param sceneId 场景ID
+     * @param bindings 绑定列表（取 propertyMap 与清理已删绑定）
+     * @param states   本 tick 计算出的实时态
+     */
+    private void publishAlerts(Long sceneId, List<TwinBinding> bindings,
+                               Iterable<BindingStateVO> states) {
+        Map<Long, TwinBinding> bindingById = new HashMap<>(bindings.size() * 2);
+        for (TwinBinding binding : bindings) {
+            bindingById.put(binding.getId(), binding);
+        }
+        Map<Long, Map<String, String>> sceneLevels =
+                alertLevels.computeIfAbsent(sceneId, key -> new ConcurrentHashMap<>());
+        // 已删除的绑定不再占用级别表
+        sceneLevels.keySet().removeIf(id -> !bindingById.containsKey(id));
+        String ts = TIME_FORMAT.format(LocalDateTime.now());
+        List<BindingAlertVO> alerts = new ArrayList<>();
+        for (BindingStateVO state : states) {
+            Long bindingId = Long.valueOf(state.getBindingId());
+            if (!Boolean.TRUE.equals(state.getOnline())) {
+                sceneLevels.remove(bindingId);
+                continue;
+            }
+            TwinBinding binding = bindingById.get(bindingId);
+            if (binding == null) {
+                continue;
+            }
+            Map<String, TwinThresholdEvaluator.Level> evaluated =
+                    TwinThresholdEvaluator.evaluate(binding.getPropertyMap(), state.getValues());
+            if (evaluated.isEmpty()) {
+                continue;
+            }
+            Map<String, String> bindingLevels =
+                    sceneLevels.computeIfAbsent(bindingId, key -> new ConcurrentHashMap<>());
+            for (TwinThresholdEvaluator.Level level : evaluated.values()) {
+                String previous = bindingLevels.get(level.stateKey());
+                if (level.level().equals(previous)) {
+                    continue;
+                }
+                bindingLevels.put(level.stateKey(), level.level());
+                if (previous == null && TwinThresholdEvaluator.LEVEL_NORMAL.equals(level.level())) {
+                    // 首评为正常：登记基线即可，不发告警
+                    continue;
+                }
+                alerts.add(BindingAlertVO.builder()
+                        .bindingId(state.getBindingId())
+                        .entityId(state.getEntityId())
+                        .entityCode(state.getEntityCode())
+                        .stateKey(level.stateKey())
+                        .value(level.value())
+                        .previous(previous)
+                        .level(level.level())
+                        .thresholds(level.thresholds())
+                        .ts(ts)
+                        .build());
+            }
+        }
+        if (!alerts.isEmpty()) {
+            streamService.publish(sceneId, TwinStreamService.EVENT_ALERT, Map.of(
+                    "sceneId", sceneId.toString(),
+                    "ts", ts,
+                    "items", alerts));
         }
     }
 

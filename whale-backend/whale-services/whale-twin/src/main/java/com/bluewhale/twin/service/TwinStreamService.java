@@ -39,6 +39,9 @@ public class TwinStreamService {
     /** 事件名：绑定实时态批次 */
     public static final String EVENT_BINDING = "binding";
 
+    /** 事件名：阈值告警批次（级别变化才推，含升级与恢复） */
+    public static final String EVENT_ALERT = "alert";
+
     private final TwinProperties properties;
 
     /** 场景ID → 订阅者列表 */

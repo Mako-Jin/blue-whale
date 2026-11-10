@@ -16,6 +16,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -260,6 +261,97 @@ class TwinBindingRuntimeServiceTest {
         service.tick();
 
         verify(streamService, never()).publish(anyLong(), anyString(), any());
+    }
+
+    @Test
+    void thresholdBreachEmittedOnFirstTick() {
+        TwinBinding binding = binding("{\"temperature\":{\"stateKey\":\"color\",\"thresholds\":[50,80]}}");
+        when(bindingService.listByScene(SCENE_ID)).thenReturn(List.of(binding));
+        when(entityMapper.selectById(ENTITY_ID)).thenReturn(entity(1L));
+        when(iotStateClient.fetchDeviceState(300L, 1L))
+                .thenReturn(Map.of("online", 1, "reported", Map.of("temperature", 82.5)));
+        when(streamService.activeScenes()).thenReturn(java.util.Set.of(SCENE_ID));
+
+        service.tick();
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+        verify(streamService, times(1))
+                .publish(eq(SCENE_ID), eq(TwinStreamService.EVENT_ALERT), captor.capture());
+        @SuppressWarnings("unchecked")
+        List<com.bluewhale.twin.dto.BindingAlertVO> items =
+                (List<com.bluewhale.twin.dto.BindingAlertVO>) captor.getValue().get("items");
+        assertEquals(1, items.size());
+        assertEquals("critical", items.get(0).getLevel());
+        assertNull(items.get(0).getPrevious());
+        assertEquals("color", items.get(0).getStateKey());
+    }
+
+    @Test
+    void unchangedLevelDoesNotRepublishAlert() {
+        TwinBinding binding = binding("{\"temperature\":{\"stateKey\":\"color\",\"thresholds\":[50,80]}}");
+        when(bindingService.listByScene(SCENE_ID)).thenReturn(List.of(binding));
+        when(entityMapper.selectById(ENTITY_ID)).thenReturn(entity(1L));
+        when(iotStateClient.fetchDeviceState(300L, 1L))
+                .thenReturn(Map.of("online", 1, "reported", Map.of("temperature", 82.5)));
+        when(streamService.activeScenes()).thenReturn(java.util.Set.of(SCENE_ID));
+
+        service.tick();
+        service.nextDueAt.clear();
+        service.tick();
+
+        verify(streamService, times(1))
+                .publish(eq(SCENE_ID), eq(TwinStreamService.EVENT_ALERT), any());
+    }
+
+    @Test
+    void recoveryEmittedWhenValueBackToNormal() {
+        TwinBinding binding = binding("{\"temperature\":{\"stateKey\":\"color\",\"thresholds\":[50,80]}}");
+        when(bindingService.listByScene(SCENE_ID)).thenReturn(List.of(binding));
+        when(entityMapper.selectById(ENTITY_ID)).thenReturn(entity(1L));
+        when(streamService.activeScenes()).thenReturn(java.util.Set.of(SCENE_ID));
+        when(iotStateClient.fetchDeviceState(300L, 1L))
+                .thenReturn(Map.of("online", 1, "reported", Map.of("temperature", 82.5)))
+                .thenReturn(Map.of("online", 1, "reported", Map.of("temperature", 20)));
+
+        service.tick();
+        service.nextDueAt.clear();
+        service.tick();
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+        verify(streamService, times(2))
+                .publish(eq(SCENE_ID), eq(TwinStreamService.EVENT_ALERT), captor.capture());
+        @SuppressWarnings("unchecked")
+        List<com.bluewhale.twin.dto.BindingAlertVO> secondBatch =
+                (List<com.bluewhale.twin.dto.BindingAlertVO>) captor.getAllValues().get(1).get("items");
+        assertEquals("normal", secondBatch.get(0).getLevel());
+        assertEquals("critical", secondBatch.get(0).getPrevious());
+    }
+
+    @Test
+    void offlineClearsLevelsSilentlyAndRebreachEmitsAgain() {
+        TwinBinding binding = binding("{\"temperature\":{\"stateKey\":\"color\",\"thresholds\":[50,80]}}");
+        when(bindingService.listByScene(SCENE_ID)).thenReturn(List.of(binding));
+        when(entityMapper.selectById(ENTITY_ID)).thenReturn(entity(1L));
+        when(streamService.activeScenes()).thenReturn(java.util.Set.of(SCENE_ID));
+        when(iotStateClient.fetchDeviceState(300L, 1L))
+                .thenReturn(Map.of("online", 1, "reported", Map.of("temperature", 82.5)))
+                .thenReturn(Map.of("online", 0, "reported", Map.of("temperature", 82.5)))
+                .thenReturn(Map.of("online", 1, "reported", Map.of("temperature", 82.5)));
+
+        service.tick();
+        service.nextDueAt.clear();
+        service.tick();
+        service.nextDueAt.clear();
+        service.tick();
+
+        // 首评越界 1 次 + 离线（不发）+ 恢复在线重新越界 1 次
+        verify(streamService, times(2))
+                .publish(eq(SCENE_ID), eq(TwinStreamService.EVENT_ALERT), any());
+        // 离线 tick 仍有 binding 帧推送（上下线由 binding 帧表达）
+        verify(streamService, times(3))
+                .publish(eq(SCENE_ID), eq(TwinStreamService.EVENT_BINDING), any());
     }
 
     /**
