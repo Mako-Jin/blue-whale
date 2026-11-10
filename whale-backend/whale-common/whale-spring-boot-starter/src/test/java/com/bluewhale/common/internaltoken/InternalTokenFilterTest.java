@@ -87,6 +87,16 @@ class InternalTokenFilterTest {
     }
 
     @Test
+    @DisplayName("filter：internal 段前超过一段的路径仍受保护（令牌层是唯一防线）")
+    void shouldProtectDeepInternalSegment() throws Exception {
+        // 网关 internal-deny 只配了 /*/internal/**（星号不跨段），
+        // /twin/notify/internal/replay 这类深路径网关拦不住，只能靠本令牌层；
+        // 因此新增内网端点若用了多段命名，令牌层必须继续覆盖，否则等于对外裸奔。
+        assertEquals(403, doFilter("/twin/notify/internal/replay", null).getStatus());
+        assertEquals(200, doFilter("/twin/notify/internal/replay", "secret-token").getStatus());
+    }
+
+    @Test
     @DisplayName("filter：非内网路径放行")
     void shouldAllowPublicPath() throws Exception {
         assertEquals(200, doFilter("/file/public/1", null).getStatus());

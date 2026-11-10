@@ -16,16 +16,20 @@ on:
       - 'whale-backend/**'
       - 'whale-frontend/**'
       - 'ai/**'
+      - 'scripts/**'
       - 'config/checkstyle/**'
-      - '.github/workflows/code-quality.yml'
+      - '.github/workflows/**'
+      - '.workflow/**'
   pull_request:
     branches: [main]
     paths:
       - 'whale-backend/**'
       - 'whale-frontend/**'
       - 'ai/**'
+      - 'scripts/**'
       - 'config/checkstyle/**'
-      - '.github/workflows/code-quality.yml'
+      - '.github/workflows/**'
+      - '.workflow/**'
 
 concurrency:
   group: code-quality-${{ github.ref }}
@@ -71,7 +75,8 @@ jobs:
 
     defaults:
       run:
-        working-directory: frontend
+        # 2026-11-10 目录重命名：frontend/ → whale-frontend/（旧路径 checkout 后不存在，作业直接失败）
+        working-directory: whale-frontend
 
     steps:
       - name: Checkout
@@ -110,6 +115,22 @@ jobs:
       # 只有 ERROR（同 ID 被不同编码争用）会失败；WARN 仅打印（历史脚本的存量编号）。
       - name: Permission & Menu ID Range Scan
         run: python3 scripts/security/scan-id-ranges.py
+
+  internal-boundary:
+    name: Backend · 内网端点边界
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 内网端点靠三层叠加：网关 /*/internal/**、服务侧 X-Internal-Token、
+      # auth 的 Spring Security 白名单。任一层漏配都不会编译报错、单测也全绿，
+      # 只在真实联调时表现为「401/空数据」——2026-11-10 的 /dept/internal/** 漏配
+      # 就静默存在了数月。此步把三层的口径对齐，顺带校验 CI 里的 working-directory
+      # 指向的目录仍然存在（目录重命名后残留旧路径会让作业在 checkout 后直接失败）。
+      - name: Internal Boundary & CI Workdir Scan
+        run: python3 scripts/check-internal-boundary.py
 
   ai-pytest:
     name: AI · Python 3.12 + pytest
