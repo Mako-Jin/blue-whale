@@ -117,6 +117,15 @@ whale:
       inapp-enabled: ${WHALE_TWIN_NOTIFY_INAPP_ENABLED:false}
       message-base-url: ${WHALE_TWIN_NOTIFY_MESSAGE_BASE_URL:http://127.0.0.1:8094}
       max-recipients: ${WHALE_TWIN_NOTIFY_MAX_RECIPIENTS:20}
+      # Wave 6.11 M0：级别回落到 normal 时补一条「已恢复」
+      recovery-enabled: ${WHALE_TWIN_NOTIFY_RECOVERY_ENABLED:true}
+      # Wave 6.11 M1：静默时段（HH:mm，可跨零点；起止同为空表示不静默）
+      quiet-hours-start: ${WHALE_TWIN_NOTIFY_QUIET_START:}
+      quiet-hours-end: ${WHALE_TWIN_NOTIFY_QUIET_END:}
+      # 静默期内严重告警是否穿透（默认穿透，静默不压真事故）
+      quiet-hours-critical-bypass: ${WHALE_TWIN_NOTIFY_QUIET_CRITICAL_BYPASS:true}
+      # Wave 6.11 M2：接收人检索走 auth 内网通讯录
+      auth-base-url: ${WHALE_TWIN_NOTIFY_AUTH_BASE_URL:http://127.0.0.1:8081}
 
 mybatis-plus:
   configuration:

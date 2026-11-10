@@ -34,6 +34,15 @@ public class TwinAlertNotifySettingsVO {
     /** 场景级最低级别（warn / critical；null = 未设置，跟随全局） */
     private String minLevel;
 
+    /** 场景级恢复通知开关（Wave 6.11；null = 未设置，跟随全局） */
+    private Boolean recoveryEnabled;
+
+    /** 场景级静默开始（HH:mm；null = 未设置，跟随全局） */
+    private String quietStart;
+
+    /** 场景级静默结束（HH:mm；null = 未设置，跟随全局） */
+    private String quietEnd;
+
     /** 场景级接收人（字符串化用户ID；空表示回退场景创建人） */
     private List<String> userIds;
 
@@ -49,8 +58,32 @@ public class TwinAlertNotifySettingsVO {
     /** 实际生效的最低级别（取全局与场景中更严者） */
     private String effectiveMinLevel;
 
+    /** 实际是否发恢复通知（全局开 + 场景未关） */
+    private boolean effectiveRecoveryEnabled;
+
+    /** 实际生效的静默开始（全局窗口；场景窗口为叠加，见 quietStart） */
+    private String effectiveQuietStart;
+
+    /** 实际生效的静默结束（全局窗口） */
+    private String effectiveQuietEnd;
+
+    /** 当前时刻是否处于静默窗口（供前端提示「此刻静默中」） */
+    private boolean quietNow;
+
+    /** 静默期内严重告警是否穿透（全局口径） */
+    private boolean quietCriticalBypass;
+
     /** 全局最低级别（供前端展示「全局口径」） */
     private String globalMinLevel;
+
+    /** 全局恢复通知是否开启 */
+    private boolean globalRecoveryEnabled;
+
+    /** 全局静默开始（HH:mm，空表示未启用） */
+    private String globalQuietStart;
+
+    /** 全局静默结束（HH:mm，空表示未启用） */
+    private String globalQuietEnd;
 
     /** 全局 webhook 是否可用（开关开且配了地址） */
     private boolean globalWebhookReady;

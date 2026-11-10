@@ -7,6 +7,7 @@ import com.bluewhale.twin.dto.TwinAlertNotifySettingsRequest;
 import com.bluewhale.twin.dto.TwinAlertNotifySettingsVO;
 import com.bluewhale.twin.entity.TwinScene;
 import com.bluewhale.twin.mapper.TwinSceneMapper;
+import com.bluewhale.twin.support.TwinQuietHours;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -16,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -57,6 +59,15 @@ public class TwinAlertNotifySettingsService {
     /** 节点：接收人 */
     private static final String NODE_USER_IDS = "userIds";
 
+    /** 节点：恢复通知开关（Wave 6.11 M0） */
+    private static final String NODE_RECOVERY_ENABLED = "recoveryEnabled";
+
+    /** 节点：静默开始（Wave 6.11 M1） */
+    private static final String NODE_QUIET_START = "quietStart";
+
+    /** 节点：静默结束（Wave 6.11 M1） */
+    private static final String NODE_QUIET_END = "quietEnd";
+
     /** sceneConfig 列宽上限（与 SceneSaveRequest 校验一致） */
     private static final int CONFIG_MAX_LENGTH = 16384;
 
@@ -68,6 +79,9 @@ public class TwinAlertNotifySettingsService {
 
     /** 缺省级别（非法/缺失时按 warn 处理） */
     private static final String DEFAULT_LEVEL = "warn";
+
+    /** 级别：严重（静默穿透判定用） */
+    private static final String LEVEL_CRITICAL = "critical";
 
     private final TwinSceneMapper sceneMapper;
 
@@ -118,7 +132,10 @@ public class TwinAlertNotifySettingsService {
                 : JSON.createObjectNode();
         putOrRemoveBoolean(notify, NODE_WEBHOOK_ENABLED, request.getWebhookEnabled());
         putOrRemoveBoolean(notify, NODE_INAPP_ENABLED, request.getInappEnabled());
+        putOrRemoveBoolean(notify, NODE_RECOVERY_ENABLED, request.getRecoveryEnabled());
         putOrRemoveText(notify, NODE_MIN_LEVEL, request.getMinLevel());
+        putOrRemoveQuiet(notify, NODE_QUIET_START, request.getQuietStart());
+        putOrRemoveQuiet(notify, NODE_QUIET_END, request.getQuietEnd());
         putOrRemoveUserIds(notify, request.getUserIds());
         if (notify.isEmpty()) {
             root.remove(NODE_ALERT_NOTIFY);
@@ -168,6 +185,42 @@ public class TwinAlertNotifySettingsService {
     public boolean inappAllowed(SceneSettings settings) {
         return !Boolean.FALSE.equals(settings.inappEnabled());
     }
+
+    /**
+     * 场景是否允许发恢复通知（全局开关与场景开关同时为真才允许）。
+     *
+     * @param settings 场景设置
+     * @return 允许返回 {@code true}
+     */
+    public boolean recoveryAllowed(SceneSettings settings) {
+        return properties.getAlertNotify().isRecoveryEnabled()
+                && !Boolean.FALSE.equals(settings.recoveryEnabled());
+    }
+
+    /**
+     * 判断某个级别在当前时刻是否应被静默（Wave 6.11 M1）。
+     *
+     * <p>窗口取<b>并集</b>：全局窗口与场景窗口任一命中即静默——场景只能增加静默，
+     * 不能取消全局静默（与「单向收紧」同一套纪律）。严重告警是否穿透由全局开关决定，
+     * 场景无权放开（否则谁都把真事故静音掉）。</p>
+     *
+     * @param settings 场景设置
+     * @param level    告警级别（warn / critical）
+     * @param now      当前时刻
+     * @return 应静默返回 {@code true}
+     */
+    public boolean quietActive(SceneSettings settings, String level, LocalTime now) {
+        TwinProperties.AlertNotify config = properties.getAlertNotify();
+        boolean critical = LEVEL_CRITICAL.equalsIgnoreCase(level == null ? "" : level.trim());
+        if (critical && config.isQuietHoursCriticalBypass()) {
+            return false;
+        }
+        if (TwinQuietHours.active(config.getQuietHoursStart(), config.getQuietHoursEnd(), now)) {
+            return true;
+        }
+        return TwinQuietHours.active(settings.quietStart(), settings.quietEnd(), now);
+    }
+
 
     /**
      * 告警级别是否达到「全局 + 场景」共同门槛（取更严者）。
@@ -224,6 +277,9 @@ public class TwinAlertNotifySettingsService {
             Boolean inapp = asBoolean(notify.path(NODE_INAPP_ENABLED));
             String minLevel = notify.path(NODE_MIN_LEVEL).isTextual()
                     ? normalize(notify.path(NODE_MIN_LEVEL).asText()) : null;
+            Boolean recovery = asBoolean(notify.path(NODE_RECOVERY_ENABLED));
+            String quietStart = quiet(notify.path(NODE_QUIET_START));
+            String quietEnd = quiet(notify.path(NODE_QUIET_END));
             List<Long> userIds = new ArrayList<>();
             JsonNode ids = notify.path(NODE_USER_IDS);
             if (ids.isArray()) {
@@ -233,7 +289,8 @@ public class TwinAlertNotifySettingsService {
                     }
                 }
             }
-            return new SceneSettings(webhook, inapp, minLevel, List.copyOf(userIds));
+            return new SceneSettings(webhook, inapp, minLevel, recovery, quietStart, quietEnd,
+                    List.copyOf(userIds));
         } catch (Exception error) {
             log.warn("场景通知设置解析失败（按跟随全局处理）：reason={}", error.getMessage());
             return SceneSettings.EMPTY;
@@ -290,6 +347,32 @@ public class TwinAlertNotifySettingsService {
     }
 
     /**
+     * 写入静默时刻（空/非法表示删除该键——旧值残留会导致窗口半残）。
+     *
+     * @param node  目标节点
+     * @param field 字段名
+     * @param value 时刻（{@code HH:mm}）
+     */
+    private void putOrRemoveQuiet(ObjectNode node, String field, String value) {
+        String normalized = TwinQuietHours.normalize(value);
+        if (normalized == null) {
+            node.remove(field);
+            return;
+        }
+        node.put(field, normalized);
+    }
+
+    /**
+     * 读取静默时刻节点（非文本或非法返回 {@code null}）。
+     *
+     * @param node 节点
+     * @return 归一化后的 {@code HH:mm} 或 {@code null}
+     */
+    private String quiet(JsonNode node) {
+        return node.isTextual() ? TwinQuietHours.normalize(node.asText()) : null;
+    }
+
+    /**
      * 写入接收人（空表示删除该键）。
      *
      * @param node    目标节点
@@ -319,6 +402,18 @@ public class TwinAlertNotifySettingsService {
      * @return 视图
      */
     private TwinAlertNotifySettingsVO buildVo(Long sceneId, SceneSettings settings) {
+        return buildVo(sceneId, settings, LocalTime.now());
+    }
+
+    /**
+     * 组装设置视图（可注入当前时刻，便于单测断言静默判定）。
+     *
+     * @param sceneId  场景ID
+     * @param settings 场景设置
+     * @param now      当前时刻
+     * @return 视图
+     */
+    TwinAlertNotifySettingsVO buildVo(Long sceneId, SceneSettings settings, LocalTime now) {
         TwinProperties.AlertNotify global = properties.getAlertNotify();
         boolean globalWebhookReady = global.isEnabled()
                 && global.getWebhookUrls() != null && !global.getWebhookUrls().isEmpty();
@@ -329,14 +424,27 @@ public class TwinAlertNotifySettingsService {
                 .webhookEnabled(settings.webhookEnabled())
                 .inappEnabled(settings.inappEnabled())
                 .minLevel(settings.minLevel())
+                .recoveryEnabled(settings.recoveryEnabled())
+                .quietStart(settings.quietStart())
+                .quietEnd(settings.quietEnd())
                 .userIds(userIds)
                 .fallbackToCreator(userIds.isEmpty())
                 .effectiveWebhookEnabled(globalWebhookReady && webhookAllowed(settings))
                 .effectiveInappEnabled(global.isInappEnabled() && inappAllowed(settings))
                 .effectiveMinLevel(effectiveMinLevel(settings))
+                .effectiveRecoveryEnabled(recoveryAllowed(settings))
+                .effectiveQuietStart(TwinQuietHours.normalize(global.getQuietHoursStart()))
+                .effectiveQuietEnd(TwinQuietHours.normalize(global.getQuietHoursEnd()))
                 .globalMinLevel(globalMinLevel)
                 .globalWebhookReady(globalWebhookReady)
                 .globalInappEnabled(global.isInappEnabled())
+                .globalRecoveryEnabled(global.isRecoveryEnabled())
+                .globalQuietStart(TwinQuietHours.normalize(global.getQuietHoursStart()))
+                .globalQuietEnd(TwinQuietHours.normalize(global.getQuietHoursEnd()))
+                .quietCriticalBypass(global.isQuietHoursCriticalBypass())
+                .quietNow(TwinQuietHours.active(global.getQuietHoursStart(),
+                                global.getQuietHoursEnd(), now)
+                        || TwinQuietHours.active(settings.quietStart(), settings.quietEnd(), now))
                 .build();
     }
 
@@ -394,12 +502,17 @@ public class TwinAlertNotifySettingsService {
      * @param webhookEnabled 场景级 webhook 开关（null = 未设置）
      * @param inappEnabled   场景级站内信开关（null = 未设置）
      * @param minLevel       场景级最低级别（null = 未设置）
+     * @param recoveryEnabled 场景级恢复通知开关（null = 未设置）
+     * @param quietStart     场景级静默开始（HH:mm；null = 未设置）
+     * @param quietEnd       场景级静默结束（HH:mm；null = 未设置）
      * @param userIds        场景级接收人（空 = 回退创建人）
      */
     public record SceneSettings(Boolean webhookEnabled, Boolean inappEnabled,
-                                String minLevel, List<Long> userIds) {
+                                String minLevel, Boolean recoveryEnabled,
+                                String quietStart, String quietEnd, List<Long> userIds) {
 
         /** 全空设置：等价「跟随全局」 */
-        public static final SceneSettings EMPTY = new SceneSettings(null, null, null, List.of());
+        public static final SceneSettings EMPTY =
+                new SceneSettings(null, null, null, null, null, null, List.of());
     }
 }

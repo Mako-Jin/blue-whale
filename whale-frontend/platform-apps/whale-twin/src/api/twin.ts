@@ -282,14 +282,31 @@ export interface TwinAlertNotifySettingsVO {
   webhookEnabled?: boolean | null;
   inappEnabled?: boolean | null;
   minLevel?: AlertNotifyLevel | null;
+  /** 场景级恢复通知开关（6.11；null = 跟随全局） */
+  recoveryEnabled?: boolean | null;
+  /** 场景级静默开始（HH:mm；null = 跟随全局） */
+  quietStart?: string | null;
+  /** 场景级静默结束（HH:mm） */
+  quietEnd?: string | null;
   userIds: string[];
   fallbackToCreator: boolean;
   effectiveWebhookEnabled: boolean;
   effectiveInappEnabled: boolean;
   effectiveMinLevel: AlertNotifyLevel;
+  effectiveRecoveryEnabled: boolean;
+  /** 实际生效的静默窗口（全局口径；场景窗口为叠加） */
+  effectiveQuietStart?: string | null;
+  effectiveQuietEnd?: string | null;
+  /** 当前时刻是否处于静默（后端算好，前端只展示） */
+  quietNow: boolean;
+  /** 静默期内严重告警是否穿透 */
+  quietCriticalBypass: boolean;
   globalMinLevel: AlertNotifyLevel;
   globalWebhookReady: boolean;
   globalInappEnabled: boolean;
+  globalRecoveryEnabled: boolean;
+  globalQuietStart?: string | null;
+  globalQuietEnd?: string | null;
 }
 
 /** 保存请求（null/缺省 = 清除该项，回到跟随全局） */
@@ -297,7 +314,19 @@ export interface TwinAlertNotifySettingsRequest {
   webhookEnabled?: boolean | null;
   inappEnabled?: boolean | null;
   minLevel?: AlertNotifyLevel | null;
+  recoveryEnabled?: boolean | null;
+  /** HH:mm；空字符串 = 清除 */
+  quietStart?: string | null;
+  quietEnd?: string | null;
   userIds?: number[] | null;
+}
+
+/** 接收人候选项（6.11 M2，来自 auth 内网通讯录） */
+export interface TwinNotifyRecipientVO {
+  id: string;
+  name: string;
+  username?: string | null;
+  deptName?: string | null;
 }
 
 /** 投递记录（对齐后端 TwinAlertDispatchVO） */
@@ -325,6 +354,12 @@ export const notifyApi = {
   /** 投递记录列表（时间倒序，可按结果/通道过滤） */
   dispatches: (sceneId: string, query?: Record<string, unknown>) =>
     http.get<TwinAlertDispatchVO[]>(`/twin/scenes/${sceneId}/alert-dispatches`, query),
+  /** 检索候选接收人（走 twin 代理的 auth 内网通讯录，无需用户管理权限） */
+  recipients: (keyword?: string) =>
+    http.get<TwinNotifyRecipientVO[]>('/twin/alert-notify/recipients', {
+      keyword: keyword || undefined,
+      size: 20,
+    }),
 };
 
 /**

@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.math.BigDecimal;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
@@ -245,6 +247,139 @@ class TwinAlertNotifyServiceTest {
         service().notify(SCENE_ID, TENANT_ID, ALERT_ID, alert("critical"));
 
         verify(sender, times(1)).send(eq(URL), any());
+    }
+
+    @Test
+    void sendsRecoveryAfterAlertWasNotified() {
+        properties.getAlertNotify().setEnabled(true);
+        properties.getAlertNotify().setWebhookUrls(List.of(URL));
+        properties.getAlertNotify().setCooldownSeconds(0);
+
+        TwinAlertNotifyService service = service();
+        service.notify(SCENE_ID, TENANT_ID, ALERT_ID, alert("warn"));
+        service.notify(SCENE_ID, TENANT_ID, null, alert("normal"));
+
+        ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+        verify(sender, times(2)).send(eq(URL), captor.capture());
+        Map<String, Object> recovery = captor.getAllValues().get(1);
+        assertEquals("twin.alert.recovered", recovery.get("event"));
+        assertEquals("warn", recovery.get("recoveredFrom"));
+        assertEquals("normal", recovery.get("level"));
+
+        ArgumentCaptor<TwinAlertDispatch> dispatches =
+                ArgumentCaptor.forClass(TwinAlertDispatch.class);
+        verify(dispatchService, times(2)).record(dispatches.capture());
+        assertEquals("normal", dispatches.getAllValues().get(1).getLevel());
+    }
+
+    @Test
+    void skipsRecoveryForAlertBelowThreshold() {
+        properties.getAlertNotify().setEnabled(true);
+        properties.getAlertNotify().setWebhookUrls(List.of(URL));
+        properties.getAlertNotify().setMinLevel("critical");
+        properties.getAlertNotify().setCooldownSeconds(0);
+        when(sceneMapper.selectById(SCENE_ID))
+                .thenReturn(sceneWith("{\"alertNotify\":{\"minLevel\":\"critical\"}}"));
+
+        TwinAlertNotifyService service = service();
+        // warn 被门槛拦下（从未通知出去），恢复时不该凭空发一条
+        service.notify(SCENE_ID, TENANT_ID, ALERT_ID, alert("warn"));
+        service.notify(SCENE_ID, TENANT_ID, null, alert("normal"));
+
+        verify(sender, never()).send(anyString(), any());
+        verify(dispatchService, never()).record(any());
+    }
+
+    @Test
+    void skipsRecoveryWhenGloballyDisabled() {
+        properties.getAlertNotify().setEnabled(true);
+        properties.getAlertNotify().setWebhookUrls(List.of(URL));
+        properties.getAlertNotify().setRecoveryEnabled(false);
+        properties.getAlertNotify().setCooldownSeconds(0);
+
+        TwinAlertNotifyService service = service();
+        service.notify(SCENE_ID, TENANT_ID, ALERT_ID, alert("warn"));
+        service.notify(SCENE_ID, TENANT_ID, null, alert("normal"));
+
+        verify(sender, times(1)).send(eq(URL), any());
+    }
+
+    @Test
+    void sceneCanDisableRecoveryOnly() {
+        properties.getAlertNotify().setEnabled(true);
+        properties.getAlertNotify().setWebhookUrls(List.of(URL));
+        properties.getAlertNotify().setCooldownSeconds(0);
+        when(sceneMapper.selectById(SCENE_ID))
+                .thenReturn(sceneWith("{\"alertNotify\":{\"recoveryEnabled\":false}}"));
+
+        TwinAlertNotifyService service = service();
+        service.notify(SCENE_ID, TENANT_ID, ALERT_ID, alert("warn"));
+        service.notify(SCENE_ID, TENANT_ID, null, alert("normal"));
+
+        // 告警照发，恢复被场景关掉
+        verify(sender, times(1)).send(eq(URL), any());
+    }
+
+    @Test
+    void quietHoursSuppressWarnButLetCriticalThrough() {
+        TwinProperties.AlertNotify config = properties.getAlertNotify();
+        config.setEnabled(true);
+        config.setWebhookUrls(List.of(URL));
+        config.setCooldownSeconds(0);
+        String[] window = windowAroundNow();
+        config.setQuietHoursStart(window[0]);
+        config.setQuietHoursEnd(window[1]);
+
+        TwinAlertNotifyService service = service();
+        service.notify(SCENE_ID, TENANT_ID, ALERT_ID, alert("warn"));
+        service.notify(SCENE_ID, TENANT_ID, ALERT_ID, alert("critical"));
+
+        // 静默期内预警被拦、严重告警穿透（默认 bypass）
+        verify(sender, times(1)).send(eq(URL), any());
+    }
+
+    @Test
+    void quietHoursWithoutBypassSuppressCriticalToo() {
+        TwinProperties.AlertNotify config = properties.getAlertNotify();
+        config.setEnabled(true);
+        config.setWebhookUrls(List.of(URL));
+        config.setCooldownSeconds(0);
+        config.setQuietHoursCriticalBypass(false);
+        String[] window = windowAroundNow();
+        config.setQuietHoursStart(window[0]);
+        config.setQuietHoursEnd(window[1]);
+
+        service().notify(SCENE_ID, TENANT_ID, ALERT_ID, alert("critical"));
+
+        verify(sender, never()).send(anyString(), any());
+    }
+
+    @Test
+    void sceneQuietWindowAddsSilenceOnTopOfGlobal() {
+        TwinProperties.AlertNotify config = properties.getAlertNotify();
+        config.setEnabled(true);
+        config.setWebhookUrls(List.of(URL));
+        config.setCooldownSeconds(0);
+        String[] window = windowAroundNow();
+        when(sceneMapper.selectById(SCENE_ID)).thenReturn(sceneWith(
+                "{\"alertNotify\":{\"quietStart\":\"" + window[0] + "\",\"quietEnd\":\""
+                        + window[1] + "\"}}"));
+
+        service().notify(SCENE_ID, TENANT_ID, ALERT_ID, alert("warn"));
+
+        // 全局没配静默，场景自己加的窗口也要生效（场景只能加严）
+        verify(sender, never()).send(anyString(), any());
+    }
+
+    /**
+     * 取一个「包含当前时刻」的静默窗口（±1 小时，自动处理跨零点）。
+     *
+     * @return 长度为 2 的数组：[开始, 结束]，格式 HH:mm
+     */
+    private static String[] windowAroundNow() {
+        DateTimeFormatter format = DateTimeFormatter.ofPattern("HH:mm");
+        LocalTime now = LocalTime.now();
+        return new String[]{format.format(now.minusHours(1)), format.format(now.plusHours(1))};
     }
 
     /**

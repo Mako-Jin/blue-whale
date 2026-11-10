@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,6 +49,18 @@ public class TwinAlertNotifyService {
 
     /** 级别：严重 */
     private static final String LEVEL_CRITICAL = "critical";
+
+    /** 级别：恢复（不落告警行，只回填恢复时间） */
+    private static final String LEVEL_NORMAL = "normal";
+
+    /** 恢复通知标题前缀（Wave 6.11 M0） */
+    private static final String RECOVERY_PREFIX = "【孪生恢复】";
+
+    /** 事件：新告警（与 SSE 帧同名） */
+    private static final String EVENT_ALERT = "twin.alert";
+
+    /** 事件：恢复（Wave 6.11 M0） */
+    private static final String EVENT_RECOVERED = "twin.alert.recovered";
 
     private final TwinProperties properties;
 
@@ -117,7 +130,10 @@ public class TwinAlertNotifyService {
     }
 
     /**
-     * 告警级别变化后的外发入口（同级重复、恢复、低于门槛、通道全关均静默跳过）。
+     * 告警级别变化后的外发入口（同级重复、低于门槛、通道全关、静默期内均跳过）。
+     *
+     * <p>Wave 6.11 起 {@code level=normal} 走恢复通道：只有<b>当初真的通知过</b>的告警
+     * 才回一条「已恢复」，且静默判定按被恢复的级别做（严重告警的恢复照样穿透静默）。</p>
      *
      * @param sceneId  场景ID
      * @param tenantId 租户ID
@@ -138,7 +154,17 @@ public class TwinAlertNotifyService {
         if (!webhookReady && !inappReady) {
             return;
         }
+        if (LEVEL_NORMAL.equals(alert.getLevel())) {
+            notifyRecovery(sceneId, tenantId, alert, sceneSettings,
+                    webhookReady ? List.copyOf(urls) : List.of(), inappReady);
+            return;
+        }
         if (!settingsService.reachesMinLevel(alert.getLevel(), sceneSettings)) {
+            return;
+        }
+        if (settingsService.quietActive(sceneSettings, alert.getLevel(), LocalTime.now())) {
+            log.debug("静默时段跳过外发：sceneId={}, stateKey={}, level={}",
+                    sceneId, alert.getStateKey(), alert.getLevel());
             return;
         }
         if (!filter.accept(sceneId, alert.getStateKey(), alert.getLevel(), System.currentTimeMillis())) {
@@ -146,11 +172,56 @@ public class TwinAlertNotifyService {
         }
         Map<String, Object> payload = buildPayload(sceneId, tenantId, alert);
         List<String> targets = webhookReady ? List.copyOf(urls) : List.of();
+        execute(sceneId, alert, () -> dispatchAll(sceneId, tenantId, alertId, alert, payload,
+                targets, inappReady, EVENT_ALERT));
+    }
+
+    /**
+     * 恢复通知（Wave 6.11 M0）：级别回落到 normal 时补一条「已恢复」。
+     *
+     * <p>三个前提缺一不可：全局与场景都允许恢复通知、这次告警当初确实外发过、
+     * 被恢复的级别没被静默拦下。投递记录沿用同一张表，{@code level} 记 {@code normal}
+     * 以便与告警本身区分。</p>
+     *
+     * @param sceneId       场景ID
+     * @param tenantId      租户ID
+     * @param alert         恢复事件（level=normal，previous 为被恢复的级别）
+     * @param sceneSettings 场景设置
+     * @param urls          webhook 地址（空表示该通道未启用）
+     * @param inapp         站内信通道是否生效
+     */
+    private void notifyRecovery(Long sceneId, Long tenantId, BindingAlertVO alert,
+                                TwinAlertNotifySettingsService.SceneSettings sceneSettings,
+                                List<String> urls, boolean inapp) {
+        if (!settingsService.recoveryAllowed(sceneSettings)) {
+            return;
+        }
+        String previous = filter.acceptRecovery(sceneId, alert.getStateKey());
+        if (previous == null) {
+            // 当初没通知出去（低于门槛或被静默拦下），恢复也不该凭空发一条
+            return;
+        }
+        if (settingsService.quietActive(sceneSettings, previous, LocalTime.now())) {
+            log.debug("静默时段跳过恢复通知：sceneId={}, stateKey={}, previous={}",
+                    sceneId, alert.getStateKey(), previous);
+            return;
+        }
+        Map<String, Object> payload = buildRecoveryPayload(sceneId, tenantId, alert, previous);
+        execute(sceneId, alert, () -> dispatchAll(sceneId, tenantId, null, alert, payload,
+                urls, inapp, EVENT_RECOVERED));
+    }
+
+    /**
+     * 提交到虚拟线程执行器（关停中直接丢弃，不影响 tick）。
+     *
+     * @param sceneId 场景ID
+     * @param alert   告警内容（仅用于日志）
+     * @param task    投递任务
+     */
+    private void execute(Long sceneId, BindingAlertVO alert, Runnable task) {
         try {
-            executor.execute(() -> dispatchAll(sceneId, tenantId, alertId, alert, payload,
-                    targets, inappReady));
+            executor.execute(task);
         } catch (RejectedExecutionException error) {
-            // 关停中：丢弃即可，落库与页面可见性不受影响
             log.debug("告警外发执行器已关闭，丢弃本次投递：sceneId={}, stateKey={}",
                     sceneId, alert.getStateKey());
         }
@@ -178,16 +249,18 @@ public class TwinAlertNotifyService {
      * @param inapp    站内信通道是否生效（已叠加场景开关）
      */
     private void dispatchAll(Long sceneId, Long tenantId, Long alertId, BindingAlertVO alert,
-                             Map<String, Object> payload, List<String> urls, boolean inapp) {
+                             Map<String, Object> payload, List<String> urls, boolean inapp,
+                             String event) {
         for (String url : urls) {
             boolean sent = sender.send(url, payload);
-            recordDispatch(tenantId, sceneId, alertId, alert, TwinAlertDispatchService.CHANNEL_WEBHOOK,
-                    url, sent ? TwinAlertDispatchService.STATUS_SUCCESS
+            recordDispatch(tenantId, sceneId, alertId, alert, event,
+                    TwinAlertDispatchService.CHANNEL_WEBHOOK, url,
+                    sent ? TwinAlertDispatchService.STATUS_SUCCESS
                             : TwinAlertDispatchService.STATUS_FAILED,
                     null, sent ? null : "webhook 投递失败（HTTP 非 2xx 或连接异常）");
         }
         if (inapp) {
-            sendInapp(sceneId, tenantId, alertId, alert, payload);
+            sendInapp(sceneId, tenantId, alertId, alert, payload, event);
         }
     }
 
@@ -201,20 +274,22 @@ public class TwinAlertNotifyService {
      * @param payload  事件载荷
      */
     private void sendInapp(Long sceneId, Long tenantId, Long alertId, BindingAlertVO alert,
-                           Map<String, Object> payload) {
+                           Map<String, Object> payload, String event) {
         TwinAlertRecipientResolver.Recipients recipients = recipientResolver.resolve(sceneId);
         if (recipients.userIds().isEmpty()) {
-            recordDispatch(tenantId, sceneId, alertId, alert, TwinAlertDispatchService.CHANNEL_INAPP,
+            recordDispatch(tenantId, sceneId, alertId, alert, event,
+                    TwinAlertDispatchService.CHANNEL_INAPP,
                     "无接收人", TwinAlertDispatchService.STATUS_SKIPPED, null,
                     "场景未配置 alertNotify.userIds 且无创建人");
             return;
         }
         TwinMessageClient.SendOutcome outcome = messageClient.sendInapp(tenantId,
-                idempotencyKey(sceneId, alertId, alert),
-                title(recipients.sceneName(), alert),
-                content(recipients.sceneName(), alert),
+                idempotencyKey(sceneId, alertId, alert, event),
+                title(recipients.sceneName(), alert, event),
+                content(recipients.sceneName(), alert, event),
                 payload, recipients.userIds());
-        recordDispatch(tenantId, sceneId, alertId, alert, TwinAlertDispatchService.CHANNEL_INAPP,
+        recordDispatch(tenantId, sceneId, alertId, alert, event,
+                TwinAlertDispatchService.CHANNEL_INAPP,
                 "userIds=" + recipients.userIds().size(),
                 outcome.ok() ? TwinAlertDispatchService.STATUS_SUCCESS
                         : TwinAlertDispatchService.STATUS_FAILED,
@@ -235,14 +310,15 @@ public class TwinAlertNotifyService {
      * @param error     失败原因（成功为空）
      */
     private void recordDispatch(Long tenantId, Long sceneId, Long alertId, BindingAlertVO alert,
-                                String channel, String target, String status,
+                                String event, String channel, String target, String status,
                                 Long messageId, String error) {
         TwinAlertDispatch dispatch = new TwinAlertDispatch();
         dispatch.setTenantId(tenantId);
         dispatch.setAlertId(alertId);
         dispatch.setSceneId(sceneId);
         dispatch.setStateKey(alert.getStateKey());
-        dispatch.setLevel(alert.getLevel());
+        // 恢复投递记 normal（区别于告警本身），前端按级别标签渲染成「已恢复」
+        dispatch.setLevel(EVENT_RECOVERED.equals(event) ? LEVEL_NORMAL : alert.getLevel());
         dispatch.setChannel(channel);
         dispatch.setTarget(target);
         dispatch.setStatus(status);
@@ -259,27 +335,38 @@ public class TwinAlertNotifyService {
      * @param alert   告警内容
      * @return 幂等键（不超过 96 字符）
      */
-    private String idempotencyKey(Long sceneId, Long alertId, BindingAlertVO alert) {
+    private String idempotencyKey(Long sceneId, Long alertId, BindingAlertVO alert, String event) {
         if (alertId != null) {
             return IDEMPOTENCY_PREFIX + alertId;
         }
-        return IDEMPOTENCY_PREFIX + sceneId + "-" + alert.getStateKey() + "-" + alert.getTs();
+        String prefix = EVENT_RECOVERED.equals(event) ? IDEMPOTENCY_PREFIX + "recovery-" : IDEMPOTENCY_PREFIX;
+        return prefix + sceneId + "-" + alert.getStateKey() + "-" + alert.getTs();
     }
 
     /**
-     * 通知标题：级别 + 场景名 + 点位。
+     * 通知标题：级别 + 场景名 + 点位（恢复通知改前缀，不带级别）。
      *
      * @param sceneName 场景名称（可空）
      * @param alert     告警内容
+     * @param event     事件类型
      * @return 标题（超长截断）
      */
-    private String title(String sceneName, BindingAlertVO alert) {
-        StringBuilder title = new StringBuilder(TITLE_PREFIX)
-                .append(levelLabel(alert.getLevel())).append("】");
-        if (StringUtils.hasText(sceneName)) {
-            title.append(sceneName).append(" / ");
+    private String title(String sceneName, BindingAlertVO alert, String event) {
+        StringBuilder title;
+        if (EVENT_RECOVERED.equals(event)) {
+            title = new StringBuilder(RECOVERY_PREFIX);
+            if (StringUtils.hasText(sceneName)) {
+                title.append(sceneName).append(" / ");
+            }
+            title.append(point(alert));
+        } else {
+            title = new StringBuilder(TITLE_PREFIX)
+                    .append(levelLabel(alert.getLevel())).append("】");
+            if (StringUtils.hasText(sceneName)) {
+                title.append(sceneName).append(" / ");
+            }
+            title.append(point(alert));
         }
-        title.append(point(alert));
         String text = title.toString();
         return text.length() <= TITLE_MAX_LENGTH ? text : text.substring(0, TITLE_MAX_LENGTH);
     }
@@ -289,9 +376,19 @@ public class TwinAlertNotifyService {
      *
      * @param sceneName 场景名称（可空）
      * @param alert     告警内容
+     * @param event     事件类型
      * @return 正文
      */
-    private String content(String sceneName, BindingAlertVO alert) {
+    private String content(String sceneName, BindingAlertVO alert, String event) {
+        if (EVENT_RECOVERED.equals(event)) {
+            return new StringBuilder()
+                    .append("场景：").append(StringUtils.hasText(sceneName) ? sceneName : "-").append('\n')
+                    .append("点位：").append(point(alert)).append('\n')
+                    .append("状态：已恢复（原级别：").append(levelLabel(alert.getPrevious())).append("）\n")
+                    .append("当前值：").append(alert.getValue()).append('\n')
+                    .append("时间：").append(alert.getTs())
+                    .toString();
+        }
         StringBuilder content = new StringBuilder()
                 .append("场景：").append(StringUtils.hasText(sceneName) ? sceneName : "-").append('\n')
                 .append("点位：").append(point(alert)).append('\n')
@@ -351,6 +448,23 @@ public class TwinAlertNotifyService {
         payload.put("value", alert.getValue());
         payload.put("thresholds", alert.getThresholds());
         payload.put("ts", alert.getTs());
+        return payload;
+    }
+
+    /**
+     * 组装恢复事件载荷：字段与告警帧同源，另加 {@code recoveredFrom}。
+     *
+     * @param sceneId  场景ID
+     * @param tenantId 租户ID
+     * @param alert    恢复事件
+     * @param previous 被恢复的级别
+     * @return 载荷
+     */
+    private Map<String, Object> buildRecoveryPayload(Long sceneId, Long tenantId,
+                                                     BindingAlertVO alert, String previous) {
+        Map<String, Object> payload = buildPayload(sceneId, tenantId, alert);
+        payload.put("event", EVENT_RECOVERED);
+        payload.put("recoveredFrom", previous);
         return payload;
     }
 }

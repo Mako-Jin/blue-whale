@@ -171,5 +171,20 @@ public class TwinProperties {
 
         /** 站内信单次最大接收人数（超限截断，与 whale-message 单次 100 人上限对齐） */
         private int maxRecipients = 20;
+
+        /** 恢复通知开关（Wave 6.11 M0：级别回落到 normal 时补一条「已恢复」） */
+        private boolean recoveryEnabled = true;
+
+        /** 全局静默开始（HH:mm；与结束同为空表示不静默） */
+        private String quietHoursStart = "";
+
+        /** 全局静默结束（HH:mm；可跨零点，如 22:00–08:00） */
+        private String quietHoursEnd = "";
+
+        /** 静默期内是否允许严重告警穿透（默认允许：静默不该压掉真事故） */
+        private boolean quietHoursCriticalBypass = true;
+
+        /** whale-service-auth 内网地址（接收人检索走 /user/internal/directory） */
+        private String authBaseUrl = "http://127.0.0.1:8081";
     }
 }

@@ -8,7 +8,7 @@
 // 抽屉拉跨场景未恢复列表（/twin/alerts/unresolved），条目带场景名可直接跳查看器，
 // 也支持就地确认——不必先点进某个场景才知道平台在报警。
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   App,
   Badge,
@@ -45,6 +45,7 @@ import {
   type TwinAlertNotifySettingsVO,
   type TwinAlertSummaryVO,
   type TwinAlertVO,
+  type TwinNotifyRecipientVO,
 } from '../api/twin';
 
 /** 状态 → 标签（颜色对齐 IoT 产品页口径） */
@@ -111,13 +112,21 @@ export default function ScenePage({ onOpenViewer }: Props) {
   const [notifySettings, setNotifySettings] = useState<TwinAlertNotifySettingsVO | null>(null);
   const [notifyLoading, setNotifyLoading] = useState(false);
   const [notifySaving, setNotifySaving] = useState(false);
-  /** 本场景关闭 webhook / 站内信（后端 false = 关闭，null = 跟随全局） */
+  /** 本场景关闭 webhook / 站内信 / 恢复通知（后端 false = 关闭，null = 跟随全局） */
   const [webhookOff, setWebhookOff] = useState(false);
   const [inappOff, setInappOff] = useState(false);
+  const [recoveryOff, setRecoveryOff] = useState(false);
   /** 场景级门槛：跟随全局 或 仅严重 */
   const [minLevelOverride, setMinLevelOverride] = useState<'follow' | 'critical'>('follow');
-  /** 接收人（逗号分隔的用户ID；空 = 回退场景创建人） */
-  const [recipientText, setRecipientText] = useState('');
+  /** 场景级静默窗口（HH:mm；空 = 跟随全局，只叠加不覆盖） */
+  const [quietStart, setQuietStart] = useState('');
+  const [quietEnd, setQuietEnd] = useState('');
+  /** 接收人（6.11 M2：从 auth 通讯录选人，不再手填用户ID） */
+  const [recipientIds, setRecipientIds] = useState<string[]>([]);
+  const [recipientOptions, setRecipientOptions] = useState<TwinNotifyRecipientVO[]>([]);
+  const [recipientLoading, setRecipientLoading] = useState(false);
+  /** 选人搜索防抖句柄（每敲一个字就发请求会打爆 auth） */
+  const recipientTimer = useRef<number | undefined>(undefined);
   const [dispatchRows, setDispatchRows] = useState<TwinAlertDispatchVO[]>([]);
   const [dispatchLoading, setDispatchLoading] = useState(false);
   const [dispatchStatus, setDispatchStatus] = useState<'all' | AlertDispatchStatus>('all');
@@ -260,6 +269,47 @@ export default function ScenePage({ onOpenViewer }: Props) {
   }, [overviewScene, rows, overviewRows]);
 
   /**
+   * 拉取接收人候选（远程搜索，失败静默：通讯录不可用时仍保留已选的人）。
+   *
+   * @param keyword 关键字（空 = 取前 20 人）
+   * @param keep    需要保留显示的已选ID（旧配置里可能存在通讯录之外的人）
+   */
+  const loadRecipients = useCallback(async (keyword: string, keep: string[] = []) => {
+    setRecipientLoading(true);
+    try {
+      const list = await notifyApi.recipients(keyword);
+      setRecipientOptions((prev) => {
+        const merged = new Map<string, TwinNotifyRecipientVO>();
+        [...prev, ...list].forEach((item) => merged.set(item.id, item));
+        keep.forEach((id) => {
+          if (!merged.has(id)) {
+            merged.set(id, { id, name: `用户 ${id}` });
+          }
+        });
+        return [...merged.values()];
+      });
+    } catch {
+      // 静默：选人只是辅助，拉不到就让用户看到已有的选项
+    } finally {
+      setRecipientLoading(false);
+    }
+  }, []);
+
+  /**
+   * 选人搜索（300ms 防抖）。
+   *
+   * @param keyword 输入的关键字
+   */
+  const searchRecipients = (keyword: string) => {
+    if (recipientTimer.current) {
+      window.clearTimeout(recipientTimer.current);
+    }
+    recipientTimer.current = window.setTimeout(() => {
+      void loadRecipients(keyword, recipientIds);
+    }, 300);
+  };
+
+  /**
    * 打开场景通知设置抽屉（6.10 M2）：读回场景级配置并回填表单。
    *
    * @param scene 目标场景
@@ -275,8 +325,12 @@ export default function ScenePage({ onOpenViewer }: Props) {
       setNotifySettings(settings);
       setWebhookOff(settings.webhookEnabled === false);
       setInappOff(settings.inappEnabled === false);
+      setRecoveryOff(settings.recoveryEnabled === false);
       setMinLevelOverride(settings.minLevel === 'critical' ? 'critical' : 'follow');
-      setRecipientText(settings.userIds.join(','));
+      setQuietStart(settings.quietStart ?? '');
+      setQuietEnd(settings.quietEnd ?? '');
+      setRecipientIds(settings.userIds);
+      void loadRecipients('', settings.userIds);
     } catch (error) {
       message.error(`加载通知设置失败：${String(error)}`);
     } finally {
@@ -289,19 +343,27 @@ export default function ScenePage({ onOpenViewer }: Props) {
     if (!notifyScene) {
       return;
     }
-    const ids = recipientText
-      .split(/[,，\s]+/)
-      .filter(Boolean)
-      .map((item) => Number(item));
-    if (ids.some((id) => !Number.isInteger(id) || id <= 0)) {
-      message.error('接收人只能是正整数用户ID，多个用逗号分隔');
-      return;
+    const start = quietStart.trim();
+    const end = quietEnd.trim();
+    const timePattern = /^([01]?\d|2[0-3]):[0-5]\d$/;
+    if (start || end) {
+      if (!start || !end) {
+        message.error('静默时段需要同时填开始和结束（如 22:00 – 08:00）');
+        return;
+      }
+      if (!timePattern.test(start) || !timePattern.test(end)) {
+        message.error('时间格式应为 HH:mm，例如 22:00');
+        return;
+      }
     }
     const body: TwinAlertNotifySettingsRequest = {
       webhookEnabled: webhookOff ? false : null,
       inappEnabled: inappOff ? false : null,
+      recoveryEnabled: recoveryOff ? false : null,
       minLevel: minLevelOverride === 'critical' ? 'critical' : null,
-      userIds: ids.length > 0 ? ids : null,
+      quietStart: start || null,
+      quietEnd: end || null,
+      userIds: recipientIds.length > 0 ? recipientIds.map((id) => Number(id)) : null,
     };
     setNotifySaving(true);
     try {
@@ -928,9 +990,13 @@ export default function ScenePage({ onOpenViewer }: Props) {
             <div className="twin-live-off">
               全局口径：Webhook {notifySettings.globalWebhookReady ? '已配置' : '未配置'}｜站内信{' '}
               {notifySettings.globalInappEnabled ? '已开启' : '未开启'}｜最低级别{' '}
-              {notifySettings.globalMinLevel === 'critical' ? '仅严重' : '预警及以上'}
+              {notifySettings.globalMinLevel === 'critical' ? '仅严重' : '预警及以上'}｜恢复通知{' '}
+              {notifySettings.globalRecoveryEnabled ? '已开启' : '已关闭'}｜静默{' '}
+              {notifySettings.globalQuietStart && notifySettings.globalQuietEnd
+                ? `${notifySettings.globalQuietStart}–${notifySettings.globalQuietEnd}`
+                : '未启用'}
               <br />
-              场景只能收紧（关通道 / 抬高门槛），全局未开启时这里设了什么都不会外发。
+              场景只能收紧（关通道 / 抬高门槛 / 加静默），全局未开启时这里设了什么都不会外发。
             </div>
             <div>
               <div style={{ marginBottom: 8 }}>本场景关闭 Webhook</div>
@@ -964,15 +1030,63 @@ export default function ScenePage({ onOpenViewer }: Props) {
               </div>
             </div>
             <div>
-              <div style={{ marginBottom: 8 }}>接收人（用户ID，逗号分隔）</div>
-              <Input
-                value={recipientText}
-                onChange={(event) => setRecipientText(event.target.value)}
-                placeholder="留空则发给场景创建人"
-                allowClear
+              <div style={{ marginBottom: 8 }}>接收人</div>
+              <Select
+                mode="multiple"
+                style={{ width: '100%' }}
+                placeholder="搜索姓名 / 账号，留空则发给场景创建人"
+                value={recipientIds}
+                loading={recipientLoading}
+                showSearch
+                filterOption={false}
+                onSearch={searchRecipients}
+                onChange={(value: string[]) => setRecipientIds(value)}
+                options={recipientOptions.map((item) => ({
+                  value: item.id,
+                  label: item.deptName ? `${item.name}（${item.deptName}）` : item.name,
+                }))}
               />
               <div className="twin-live-off" style={{ marginTop: 4 }}>
-                {notifySettings.fallbackToCreator ? '当前：回退场景创建人' : `当前：${notifySettings.userIds.length} 人`}
+                {notifySettings.fallbackToCreator
+                  ? '当前：回退场景创建人'
+                  : `当前：${notifySettings.userIds.length} 人`}
+              </div>
+            </div>
+            <div>
+              <div style={{ marginBottom: 8 }}>本场景关闭恢复通知</div>
+              <Space>
+                <Switch checked={recoveryOff} onChange={setRecoveryOff} />
+                <Tag color={notifySettings.effectiveRecoveryEnabled ? 'green' : 'default'}>
+                  {notifySettings.effectiveRecoveryEnabled ? '恢复会通知' : '恢复不通知'}
+                </Tag>
+              </Space>
+              <div className="twin-live-off" style={{ marginTop: 4 }}>
+                只有当初真的通知过的告警才回「已恢复」，不会凭空打扰。
+              </div>
+            </div>
+            <div>
+              <div style={{ marginBottom: 8 }}>本场景静默时段（叠加在全局之上）</div>
+              <Space>
+                <Input
+                  value={quietStart}
+                  onChange={(event) => setQuietStart(event.target.value)}
+                  placeholder="22:00"
+                  style={{ width: 110 }}
+                  allowClear
+                />
+                <span>至</span>
+                <Input
+                  value={quietEnd}
+                  onChange={(event) => setQuietEnd(event.target.value)}
+                  placeholder="08:00"
+                  style={{ width: 110 }}
+                  allowClear
+                />
+                {notifySettings.quietNow && <Tag color="blue">此刻静默中</Tag>}
+              </Space>
+              <div className="twin-live-off" style={{ marginTop: 4 }}>
+                可跨零点；静默期只拦预警，
+                {notifySettings.quietCriticalBypass ? '严重告警照常外发。' : '严重告警也会被拦（全局已关穿透）。'}
               </div>
             </div>
           </Space>

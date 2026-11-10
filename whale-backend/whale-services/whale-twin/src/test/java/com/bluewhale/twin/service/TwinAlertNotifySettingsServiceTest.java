@@ -14,6 +14,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -153,6 +155,92 @@ class TwinAlertNotifySettingsServiceTest {
         // 通知设置属运营配置：已发布场景也必须能改（编辑锁只管几何/绑定）
         assertDoesNotThrow(() -> service.save(SCENE_ID, request));
         verify(sceneMapper).update(isNull(), any());
+    }
+
+    @Test
+    void mergeStoresRecoveryFlagAndQuietWindow() {
+        TwinAlertNotifySettingsRequest request = new TwinAlertNotifySettingsRequest();
+        request.setRecoveryEnabled(false);
+        request.setQuietStart("22:00");
+        request.setQuietEnd("8:05");
+
+        JsonNode notify = read(service.mergeConfig(null, request)).path("alertNotify");
+
+        assertFalse(notify.path("recoveryEnabled").asBoolean());
+        assertEquals("22:00", notify.path("quietStart").asText());
+        // 单位数小时补零到 HH:mm，避免前端 / 日志里出现两种写法
+        assertEquals("08:05", notify.path("quietEnd").asText());
+    }
+
+    @Test
+    void mergeDropsIllegalQuietTime() {
+        TwinAlertNotifySettingsRequest request = new TwinAlertNotifySettingsRequest();
+        request.setQuietStart("25:00");
+        request.setQuietEnd("");
+
+        // 非法值直接不落库（旧值也会被清掉），窗口半残会导致判定失真
+        assertNull(service.mergeConfig(null, request));
+    }
+
+    @Test
+    void quietActiveCombinesGlobalAndSceneWindows() {
+        String[] global = windowAroundNow();
+        properties.getAlertNotify().setQuietHoursStart(global[0]);
+        properties.getAlertNotify().setQuietHoursEnd(global[1]);
+        LocalTime now = LocalTime.now();
+
+        assertTrue(service.quietActive(TwinAlertNotifySettingsService.SceneSettings.EMPTY,
+                "warn", now));
+        // 严重告警默认穿透静默
+        assertFalse(service.quietActive(TwinAlertNotifySettingsService.SceneSettings.EMPTY,
+                "critical", now));
+
+        properties.getAlertNotify().setQuietHoursCriticalBypass(false);
+        assertTrue(service.quietActive(TwinAlertNotifySettingsService.SceneSettings.EMPTY,
+                "critical", now));
+    }
+
+    @Test
+    void sceneQuietWindowAppliesWithoutGlobalWindow() {
+        String[] sceneWindow = windowAroundNow();
+        TwinAlertNotifySettingsService.SceneSettings settings =
+                new TwinAlertNotifySettingsService.SceneSettings(null, null, null, null,
+                        sceneWindow[0], sceneWindow[1], List.of());
+
+        assertTrue(service.quietActive(settings, "warn", LocalTime.now()));
+        // 场景窗口之外的时刻不受影响
+        assertFalse(service.quietActive(settings, "warn",
+                LocalTime.now().plusHours(3)));
+    }
+
+    @Test
+    void viewExposesRecoveryAndQuietFields() {
+        properties.getAlertNotify().setQuietHoursStart("22:00");
+        properties.getAlertNotify().setQuietHoursEnd("08:00");
+        when(sceneMapper.selectById(SCENE_ID))
+                .thenReturn(scene("{\"alertNotify\":{\"recoveryEnabled\":false}}"));
+
+        TwinAlertNotifySettingsVO vo = service.get(SCENE_ID);
+
+        assertFalse(vo.getRecoveryEnabled());
+        assertFalse(vo.isEffectiveRecoveryEnabled());
+        assertEquals("22:00", vo.getGlobalQuietStart());
+        assertEquals("08:00", vo.getEffectiveQuietEnd());
+        assertTrue(vo.isQuietCriticalBypass());
+        // 02:00 在 22:00–08:00 内 → quietNow 为真
+        assertTrue(service.buildVo(SCENE_ID, service.current(SCENE_ID),
+                LocalTime.of(2, 0)).isQuietNow());
+    }
+
+    /**
+     * 取一个「包含当前时刻」的静默窗口（±1 小时，自动处理跨零点）。
+     *
+     * @return 长度为 2 的数组：[开始, 结束]，格式 HH:mm
+     */
+    private static String[] windowAroundNow() {
+        DateTimeFormatter format = DateTimeFormatter.ofPattern("HH:mm");
+        LocalTime now = LocalTime.now();
+        return new String[]{format.format(now.minusHours(1)), format.format(now.plusHours(1))};
     }
 
     /**

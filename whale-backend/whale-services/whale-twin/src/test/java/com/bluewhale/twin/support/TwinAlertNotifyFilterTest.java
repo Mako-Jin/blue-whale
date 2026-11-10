@@ -2,7 +2,9 @@ package com.bluewhale.twin.support;
 
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -71,5 +73,47 @@ class TwinAlertNotifyFilterTest {
 
         assertTrue(filter.accept(SCENE_ID, "color", "warn", NOW));
         assertFalse(filter.accept(SCENE_ID, "color", "normal", NOW));
+    }
+
+    @Test
+    void recoveryIsRejectedWhenNothingWasNotified() {
+        TwinAlertNotifyFilter filter = new TwinAlertNotifyFilter("warn", 300);
+
+        // 从未通知过该点位，恢复不该凭空发一条
+        assertNull(filter.acceptRecovery(SCENE_ID, "color"));
+    }
+
+    @Test
+    void recoveryReportsLevelThatWasActuallyNotified() {
+        TwinAlertNotifyFilter filter = new TwinAlertNotifyFilter("warn", 300);
+
+        filter.accept(SCENE_ID, "color", "warn", NOW);
+        filter.accept(SCENE_ID, "color", "critical", NOW + 1_000L);
+
+        // 以最近一次实际外发的级别为准
+        assertEquals("critical", filter.acceptRecovery(SCENE_ID, "color"));
+        // 恢复后点位回到未通知态，重复恢复不再放行
+        assertNull(filter.acceptRecovery(SCENE_ID, "color"));
+        assertFalse(filter.isNotified(SCENE_ID, "color"));
+    }
+
+    @Test
+    void recoveryClearsCooldownSoRelapseNotifiesImmediately() {
+        TwinAlertNotifyFilter filter = new TwinAlertNotifyFilter("warn", 300);
+
+        assertTrue(filter.accept(SCENE_ID, "color", "warn", NOW));
+        assertEquals("warn", filter.acceptRecovery(SCENE_ID, "color"));
+        // 恢复即一轮结束：同样的 warn 立刻复发也要重新通知，不能被冷却吞掉
+        assertTrue(filter.accept(SCENE_ID, "color", "warn", NOW + 10_000L));
+    }
+
+    @Test
+    void recoveryOnlyAppliesToTheSamePoint() {
+        TwinAlertNotifyFilter filter = new TwinAlertNotifyFilter("warn", 300);
+
+        filter.accept(SCENE_ID, "color", "warn", NOW);
+
+        assertNull(filter.acceptRecovery(SCENE_ID, "temperature"));
+        assertEquals("warn", filter.acceptRecovery(SCENE_ID, "color"));
     }
 }

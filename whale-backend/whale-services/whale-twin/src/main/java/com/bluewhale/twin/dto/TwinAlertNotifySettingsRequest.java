@@ -30,4 +30,15 @@ public class TwinAlertNotifySettingsRequest {
     /** 场景级接收人（null 或空 = 回退场景创建人；上限 20 人） */
     @Size(max = 20, message = "接收人最多 20 个")
     private List<Long> userIds;
+
+    /** 场景级恢复通知开关（null = 清除设置，跟随全局） */
+    private Boolean recoveryEnabled;
+
+    /** 场景级静默开始（HH:mm；null/空 = 清除，跟随全局） */
+    @Pattern(regexp = "^(([01]?\\d|2[0-3]):[0-5]\\d)?$", message = "静默开始时间格式应为 HH:mm")
+    private String quietStart;
+
+    /** 场景级静默结束（HH:mm；可跨零点） */
+    @Pattern(regexp = "^(([01]?\\d|2[0-3]):[0-5]\\d)?$", message = "静默结束时间格式应为 HH:mm")
+    private String quietEnd;
 }
