@@ -1,4 +1,5 @@
-// 3D 查看器页：左实体树 + 右 three.js 画布 + 数据绑定与实时联动（M2）+ 标注热点（M3）+ AI 解读（6.04 M1）
+// 3D 查看器页：左实体树 + 右 three.js 画布 + 数据绑定与实时联动（M2）+ 标注热点（M3）
+//   + AI 解读（6.04 M1）+ 告警中心（6.06 M2）
 //
 // 渲染规则：
 //   - 有 modelFileId 的实体：从 /file/{id}/preview 拉流为 Blob → GLTFLoader 加载；
@@ -24,8 +25,10 @@ import {
   Form,
   Input,
   InputNumber,
+  List,
   Modal,
   Popconfirm,
+  Radio,
   Select,
   Space,
   Switch,
@@ -51,6 +54,7 @@ import {
   Vector3,
 } from 'three';
 import {
+  alertApi,
   bindingApi,
   entityApi,
   fetchIotDevices,
@@ -60,6 +64,7 @@ import {
   revokeModelUrl,
   sceneApi,
   subscribeSceneStream,
+  type BindingAlertVO,
   type BindingSaveRequest,
   type BindingStateVO,
   type BindingVO,
@@ -70,6 +75,7 @@ import {
   type MarkerSaveRequest,
   type MarkerVO,
   type SceneVO,
+  type TwinAlertVO,
 } from '../api/twin';
 
 /** 变换 JSON 约定结构（分量可缺省） */
@@ -150,6 +156,31 @@ const MARKER_LABELS: Record<MarkerVO['markerType'], string> = {
   hotspot: '热点',
   alarm: '告警',
 };
+
+/** 告警级别 → 展示文案与配色（与实时变色口径一致：橙预警 / 红严重） */
+const ALERT_LEVEL_META: Record<string, { color: string; label: string }> = {
+  critical: { color: 'red', label: '严重' },
+  warn: { color: 'orange', label: '预警' },
+  normal: { color: 'green', label: '恢复' },
+};
+
+/** SSE alert 帧条目 → 告警视图（实时插入列表用，resolved 恒 false） */
+function frameToAlert(item: BindingAlertVO): TwinAlertVO {
+  return {
+    id: `live-${item.bindingId}-${item.stateKey}-${item.ts ?? ''}`,
+    entityId: item.entityId ?? null,
+    entityCode: item.entityCode ?? null,
+    bindingId: item.bindingId,
+    stateKey: item.stateKey,
+    value: item.value == null ? null : String(item.value),
+    previousLevel: item.previous ?? null,
+    level: item.level,
+    thresholds: item.thresholds ?? null,
+    resolved: false,
+    resolveTime: null,
+    createTime: item.ts ?? null,
+  };
+}
 
 /** 解析标注坐标 JSON（支持 {"x","y","z"} 与 [x,y,z] 两种形态；非法返回 null） */
 function parseMarkerPosition(json: string | null | undefined): [number, number, number] | null {
@@ -330,6 +361,12 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
   const [insightMeta, setInsightMeta] = useState<InsightDoneMeta | null>(null);
   const [insightQuestion, setInsightQuestion] = useState('');
   const insightAbortRef = useRef<AbortController | null>(null);
+
+  // 告警中心（6.06 M2）：未恢复角标 + 抽屉列表；SSE alert 帧实时插入
+  const [alertDrawerOpen, setAlertDrawerOpen] = useState(false);
+  const [alerts, setAlerts] = useState<TwinAlertVO[]>([]);
+  const [alertFilter, setAlertFilter] = useState<'unresolved' | 'all'>('unresolved');
+  const [unresolvedCount, setUnresolvedCount] = useState(0);
 
   // 1) 场景下拉数据（含从场景页带入的初始场景）
   useEffect(() => {
@@ -616,6 +653,66 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
     setStreaming(false);
   }, []);
 
+  // 未恢复告警角标：切场景重置并按接口拉取种子值（SSE alert 帧实时累加）
+  useEffect(() => {
+    setUnresolvedCount(0);
+    setAlerts([]);
+    if (!sceneId) return;
+    alertApi
+      .unresolved(sceneId)
+      .then((list) => setUnresolvedCount(list.length))
+      .catch(() => {
+        // 角标拉取失败不打断查看器，抽屉打开时会再拉
+      });
+  }, [sceneId]);
+
+  // 拉取告警列表（抽屉内切换过滤条件时调用）
+  const loadAlerts = useCallback(
+    async (mode: 'unresolved' | 'all') => {
+      if (!sceneId) return;
+      try {
+        const data =
+          mode === 'unresolved'
+            ? await alertApi.unresolved(sceneId)
+            : await alertApi.list(sceneId, { limit: 100 });
+        setAlerts(data);
+        if (mode === 'unresolved') setUnresolvedCount(data.length);
+      } catch (error) {
+        message.error(`加载告警失败：${String(error)}`);
+      }
+    },
+    [sceneId, message],
+  );
+
+  const openAlertDrawer = () => {
+    setAlertDrawerOpen(true);
+    void loadAlerts(alertFilter);
+  };
+
+  // SSE alert 帧：非 normal 级别累加角标并插入列表头部；严重级别弹全局提示
+  const handleAlertFrame = useCallback(
+    (data: string) => {
+      try {
+        const parsed = JSON.parse(data) as { items?: BindingAlertVO[] };
+        for (const item of parsed.items ?? []) {
+          const target = item.entityCode ?? '实体';
+          if (item.level === 'critical') {
+            message.error(`【严重告警】${target}.${item.stateKey} = ${String(item.value)}`);
+          } else if (item.level === 'warn') {
+            message.warning(`【预警】${target}.${item.stateKey} = ${String(item.value)}`);
+          }
+          if (item.level !== 'normal') {
+            setUnresolvedCount((count) => count + 1);
+            setAlerts((list) => [frameToAlert(item), ...list].slice(0, 200));
+          }
+        }
+      } catch {
+        // 半包/脏帧忽略
+      }
+    },
+    [message],
+  );
+
   const startStream = useCallback(async () => {
     if (!sceneId || streaming) return;
     const controller = new AbortController();
@@ -627,12 +724,17 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
       await subscribeSceneStream(
         `/twin/scenes/${sceneId}/stream`,
         (event, data) => {
-          if (event !== 'binding') return;
-          try {
-            const parsed = JSON.parse(data) as { items?: BindingStateVO[] };
-            if (parsed.items?.length) mergeStates(parsed.items);
-          } catch {
-            // 半包/脏帧忽略，等下一帧
+          if (event === 'binding') {
+            try {
+              const parsed = JSON.parse(data) as { items?: BindingStateVO[] };
+              if (parsed.items?.length) mergeStates(parsed.items);
+            } catch {
+              // 半包/脏帧忽略，等下一帧
+            }
+            return;
+          }
+          if (event === 'alert') {
+            handleAlertFrame(data);
           }
         },
         controller.signal,
@@ -647,7 +749,7 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
         setStreaming(false);
       }
     }
-  }, [sceneId, streaming, mergeStates, message]);
+  }, [sceneId, streaming, mergeStates, handleAlertFrame, message]);
 
   // 切场景即断流并清实时面板
   useEffect(() => {
@@ -941,6 +1043,11 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
             <Button size="small" disabled={!sceneId} onClick={openMarkerCreate}>
               标注热点
             </Button>
+            <Badge count={unresolvedCount} size="small">
+              <Button size="small" disabled={!sceneId} onClick={openAlertDrawer}>
+                告警中心
+              </Button>
+            </Badge>
             <Button size="small" disabled={!sceneId} onClick={openInsight}>
               AI 解读{selected ? `：${selected.name}` : '（整场景）'}
             </Button>
@@ -1302,6 +1409,71 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
             </div>
           ))}
         </div>
+      </Drawer>
+
+      {/* 告警中心抽屉（6.06 M2）：实时帧插入 + 历史/未恢复接口 */}
+      <Drawer
+        title={
+          <Space>
+            <span>告警中心</span>
+            <Badge count={unresolvedCount} size="small" color="red" />
+          </Space>
+        }
+        width={480}
+        open={alertDrawerOpen}
+        onClose={() => setAlertDrawerOpen(false)}
+        extra={
+          <Button onClick={() => void loadAlerts(alertFilter)}>刷新</Button>
+        }
+      >
+        <Radio.Group
+          value={alertFilter}
+          optionType="button"
+          buttonStyle="solid"
+          style={{ marginBottom: 12 }}
+          options={[
+            { label: '未恢复', value: 'unresolved' },
+            { label: '全部（近 100 条）', value: 'all' },
+          ]}
+          onChange={(event) => {
+            const mode = event.target.value as 'unresolved' | 'all';
+            setAlertFilter(mode);
+            void loadAlerts(mode);
+          }}
+        />
+        <List
+          size="small"
+          dataSource={alerts}
+          locale={{ emptyText: '暂无告警' }}
+          renderItem={(item) => {
+            const meta = ALERT_LEVEL_META[item.level] ?? ALERT_LEVEL_META.normal;
+            return (
+              <List.Item>
+                <div style={{ width: '100%' }}>
+                  <Space wrap size={4}>
+                    <Tag color={meta.color}>{meta.label}</Tag>
+                    <span style={{ fontWeight: 600 }}>
+                      {item.entityCode ?? item.entityId ?? '-'}
+                    </span>
+                    <span>.{item.stateKey}</span>
+                    <span>= {item.value ?? '-'}</span>
+                    {item.thresholds?.length ? (
+                      <span className="twin-live-off">
+                        阈值 [{item.thresholds.join(', ')}]
+                      </span>
+                    ) : null}
+                  </Space>
+                  <div className="twin-live-off">
+                    {item.createTime ?? '-'}
+                    {item.resolved
+                      ? ` · 已恢复（${item.resolveTime ?? '-'}）`
+                      : ' · 未恢复'}
+                  </div>
+                </div>
+              </List.Item>
+            );
+          }}
+        />
       </Drawer>
 
       <Modal

@@ -1,6 +1,6 @@
 # Wave 6.06：孪生阈值告警联动（后端评估 / SSE 告警帧 / 前端告警中心）
 
-> 状态：**M0 + M1 已落地（2026-11-10）** · 上游：Wave 6.05 已交付（流式解读 / 可视化拾取 / internal_api 源）
+> 状态：**M0 + M1 + M2 全部落地（2026-11-10）** · 上游：Wave 6.05 已交付（流式解读 / 可视化拾取 / internal_api 源）
 > 核心动机：`propertyMap.thresholds` 目前只驱动前端变色，后端对阈值越界零感知——
 > 本波让 IoT→孪生→告警形成数据闭环，用户不盯着 3D 场景也能收到越界通知。
 
@@ -18,7 +18,7 @@
 |---|---|---|
 | M0 | 后端阈值评估器 + SSE 告警帧（EVENT_ALERT）：级别变化才推（升级与恢复） | ✅ 2026-11-10 |
 | M1 | 告警持久化：`twin_alert` 表（Flyway）+ 触发落库 + 场景告警查询/未恢复列表接口 | ✅ 2026-11-10 |
-| M2 | 前端告警中心：查看器告警角标 + 告警抽屉（实时帧消费 + 历史接口） | 待开始 |
+| M2 | 前端告警中心：查看器告警角标 + 告警抽屉（实时帧消费 + 历史接口） | ✅ 2026-11-10 |
 
 ## 二点五、M0 落地清单（2026-11-10）
 
@@ -66,6 +66,21 @@ Checkstyle 0 违规（私有构造补 Javadoc 一处后通过）。
 **验证**：whale-twin 81/81 全绿（告警服务 5 例 + 运行时落库断言新增）；
 Checkstyle/ArchUnit 0 违规。期间 starter 出现一次 `Truncated class file`
 （并行构建互踩 target），clean 后复测通过。
+
+## 五点五、M2 落地清单（2026-11-10）：前端告警中心
+
+**whale-twin 前端**（`platform-apps/whale-twin`）：
+
+- `api/twin.ts`：`BindingAlertVO`（SSE alert 帧条目）+ `TwinAlertVO`（历史/未恢复视图）
+  + `alertApi.list/unresolved`
+- `ViewerPage.tsx`：
+  - 工具栏「告警中心」按钮，Badge 显示未恢复数（切场景重置并按接口拉种子值）
+  - SSE `alert` 帧：非 normal 级别累加角标并实时插入列表头部（cap 200）；
+    critical 弹全局 error 提示、warn 弹 warning
+  - 告警抽屉：Radio 过滤「未恢复 / 全部（近 100 条）」+ 刷新按钮；
+    列表展示级别 Tag（红严重 / 橙预警 / 绿恢复）、实体.状态键 = 取值、
+    阈值、触发时间与恢复状态；未恢复分支打开时同步校准角标数
+- 验证：`pnpm --filter whale-twin build` 通过（tsc + vite）
 
 ## 三、M0 设计要点
 

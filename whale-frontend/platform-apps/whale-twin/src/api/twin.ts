@@ -188,6 +188,44 @@ export async function fetchIotDevices(): Promise<IotDeviceItem[]> {
   }
 }
 
+// ---- 阈值告警（6.06 M2）----
+
+/** SSE alert 帧条目（对齐后端 BindingAlertVO：级别变化才推） */
+export interface BindingAlertVO {
+  bindingId: string;
+  entityId?: string | null;
+  entityCode?: string | null;
+  stateKey: string;
+  value?: unknown;
+  previous?: string | null;
+  level: 'normal' | 'warn' | 'critical';
+  thresholds?: number[];
+  ts?: string | null;
+}
+
+/** 告警视图（对齐后端 TwinAlertVO：历史查询/未恢复列表） */
+export interface TwinAlertVO {
+  id: string;
+  entityId?: string | null;
+  entityCode?: string | null;
+  bindingId: string;
+  stateKey: string;
+  value?: string | null;
+  previousLevel?: string | null;
+  level: 'normal' | 'warn' | 'critical';
+  thresholds?: number[] | null;
+  resolved?: boolean;
+  resolveTime?: string | null;
+  createTime?: string | null;
+}
+
+export const alertApi = {
+  list: (sceneId: string, query?: Record<string, unknown>) =>
+    http.get<TwinAlertVO[]>(`/twin/scenes/${sceneId}/alerts`, query),
+  unresolved: (sceneId: string) =>
+    http.get<TwinAlertVO[]>(`/twin/scenes/${sceneId}/alerts/unresolved`),
+};
+
 /**
  * GET 流式订阅场景实时事件（SSE）：EventSource 不支持自定义请求头，
  * 手工读流分帧（对齐 whale-iot 子应用同款实现）。
