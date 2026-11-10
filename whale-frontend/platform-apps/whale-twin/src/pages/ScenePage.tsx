@@ -28,6 +28,7 @@ import {
   Table,
   Tag,
   Tooltip,
+  TreeSelect,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -45,6 +46,7 @@ import {
   type TwinAlertNotifySettingsVO,
   type TwinAlertSummaryVO,
   type TwinAlertVO,
+  type TwinNotifyDeptVO,
   type TwinNotifyRecipientVO,
 } from '../api/twin';
 
@@ -67,6 +69,28 @@ const OVERVIEW_LIMIT = 200;
 
 /** 角标统计轮询间隔（无订阅时告警靠无头通道落库，前端只需低频对齐） */
 const SUMMARY_POLL_MS = 30_000;
+
+/** TreeSelect 节点（antd 用 title/value，后端给的是 name/id） */
+interface DeptTreeNode {
+  title: string;
+  value: string;
+  children?: DeptTreeNode[];
+}
+
+/**
+ * 部门树 → TreeSelect 数据（后端 children 为 null 表示叶子）。
+ *
+ * @param nodes 后端部门树
+ * @returns TreeSelect 可消费的节点
+ */
+function toDeptTreeData(nodes: TwinNotifyDeptVO[]): DeptTreeNode[] {
+  return nodes.map((node) => {
+    const children = node.children && node.children.length > 0
+      ? toDeptTreeData(node.children)
+      : undefined;
+    return { title: node.name, value: node.id, children };
+  });
+}
 
 interface Props {
   onOpenViewer: (sceneId: string) => void;
@@ -125,6 +149,11 @@ export default function ScenePage({ onOpenViewer }: Props) {
   const [recipientIds, setRecipientIds] = useState<string[]>([]);
   const [recipientOptions, setRecipientOptions] = useState<TwinNotifyRecipientVO[]>([]);
   const [recipientLoading, setRecipientLoading] = useState(false);
+  /** 6.12：按部门筛人（空 = 不限部门）+ 匹配总人数（用于提示「共 N 人」） */
+  const [recipientDeptId, setRecipientDeptId] = useState<string | undefined>(undefined);
+  const [recipientTotal, setRecipientTotal] = useState(0);
+  const [deptTree, setDeptTree] = useState<TwinNotifyDeptVO[]>([]);
+  const [deptLoading, setDeptLoading] = useState(false);
   /** 选人搜索防抖句柄（每敲一个字就发请求会打爆 auth） */
   const recipientTimer = useRef<number | undefined>(undefined);
   const [dispatchRows, setDispatchRows] = useState<TwinAlertDispatchVO[]>([]);
@@ -273,25 +302,42 @@ export default function ScenePage({ onOpenViewer }: Props) {
    *
    * @param keyword 关键字（空 = 取前 20 人）
    * @param keep    需要保留显示的已选ID（旧配置里可能存在通讯录之外的人）
+   * @param deptId  部门ID（可空 = 不限部门）
    */
-  const loadRecipients = useCallback(async (keyword: string, keep: string[] = []) => {
-    setRecipientLoading(true);
-    try {
-      const list = await notifyApi.recipients(keyword);
-      setRecipientOptions((prev) => {
-        const merged = new Map<string, TwinNotifyRecipientVO>();
-        [...prev, ...list].forEach((item) => merged.set(item.id, item));
-        keep.forEach((id) => {
-          if (!merged.has(id)) {
-            merged.set(id, { id, name: `用户 ${id}` });
-          }
+  const loadRecipients = useCallback(
+    async (keyword: string, keep: string[] = [], deptId?: string) => {
+      setRecipientLoading(true);
+      try {
+        const page = await notifyApi.recipients({ keyword, deptId, size: 20 });
+        setRecipientTotal(page.total);
+        setRecipientOptions((prev) => {
+          const merged = new Map<string, TwinNotifyRecipientVO>();
+          [...prev, ...page.records].forEach((item) => merged.set(item.id, item));
+          keep.forEach((id) => {
+            if (!merged.has(id)) {
+              merged.set(id, { id, name: `用户 ${id}` });
+            }
+          });
+          return [...merged.values()];
         });
-        return [...merged.values()];
-      });
+      } catch {
+        // 静默：选人只是辅助，拉不到就让用户看到已有的选项
+      } finally {
+        setRecipientLoading(false);
+      }
+    },
+    [],
+  );
+
+  /** 拉取部门树（按部门筛人用；拉不到就让「部门」保持为空，不影响按关键字搜） */
+  const loadDepartments = useCallback(async () => {
+    setDeptLoading(true);
+    try {
+      setDeptTree(await notifyApi.departments());
     } catch {
-      // 静默：选人只是辅助，拉不到就让用户看到已有的选项
+      // 静默：部门树只是筛选辅助
     } finally {
-      setRecipientLoading(false);
+      setDeptLoading(false);
     }
   }, []);
 
@@ -305,8 +351,21 @@ export default function ScenePage({ onOpenViewer }: Props) {
       window.clearTimeout(recipientTimer.current);
     }
     recipientTimer.current = window.setTimeout(() => {
-      void loadRecipients(keyword, recipientIds);
+      void loadRecipients(keyword, recipientIds, recipientDeptId);
     }, 300);
+  };
+
+  /**
+   * 切换部门筛选：清掉防抖中的搜索，立刻按新部门重拉第一页。
+   *
+   * @param deptId 部门ID（undefined = 不限部门）
+   */
+  const changeRecipientDept = (deptId?: string) => {
+    if (recipientTimer.current) {
+      window.clearTimeout(recipientTimer.current);
+    }
+    setRecipientDeptId(deptId);
+    void loadRecipients('', recipientIds, deptId);
   };
 
   /**
@@ -330,7 +389,9 @@ export default function ScenePage({ onOpenViewer }: Props) {
       setQuietStart(settings.quietStart ?? '');
       setQuietEnd(settings.quietEnd ?? '');
       setRecipientIds(settings.userIds);
+      setRecipientDeptId(undefined);
       void loadRecipients('', settings.userIds);
+      void loadDepartments();
     } catch (error) {
       message.error(`加载通知设置失败：${String(error)}`);
     } finally {
@@ -1031,6 +1092,18 @@ export default function ScenePage({ onOpenViewer }: Props) {
             </div>
             <div>
               <div style={{ marginBottom: 8 }}>接收人</div>
+              <TreeSelect
+                style={{ width: '100%', marginBottom: 8 }}
+                placeholder="先选部门缩小范围（可空 = 全公司）"
+                value={recipientDeptId}
+                onChange={changeRecipientDept}
+                treeData={toDeptTreeData(deptTree)}
+                loading={deptLoading}
+                allowClear
+                showSearch
+                treeNodeFilterProp="title"
+                treeDefaultExpandAll={false}
+              />
               <Select
                 mode="multiple"
                 style={{ width: '100%' }}
@@ -1050,6 +1123,9 @@ export default function ScenePage({ onOpenViewer }: Props) {
                 {notifySettings.fallbackToCreator
                   ? '当前：回退场景创建人'
                   : `当前：${notifySettings.userIds.length} 人`}
+                {recipientTotal > 0
+                  ? ` · 匹配 ${recipientTotal} 人，列表仅取前 20 条（继续输入关键字收窄）`
+                  : ''}
               </div>
             </div>
             <div>

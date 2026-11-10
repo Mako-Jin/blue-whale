@@ -329,6 +329,21 @@ export interface TwinNotifyRecipientVO {
   deptName?: string | null;
 }
 
+/** 接收人检索结果（6.12 分页：total 用于提示「共 N 人」而不是「本页 N 条」） */
+export interface TwinNotifyRecipientPageVO {
+  records: TwinNotifyRecipientVO[];
+  total: number;
+  size: number;
+  current: number;
+}
+
+/** 接收人选择器用的部门树节点（6.12，来自 auth 内网部门树） */
+export interface TwinNotifyDeptVO {
+  id: string;
+  name: string;
+  children?: TwinNotifyDeptVO[] | null;
+}
+
 /** 投递记录（对齐后端 TwinAlertDispatchVO） */
 export interface TwinAlertDispatchVO {
   id: string;
@@ -355,11 +370,15 @@ export const notifyApi = {
   dispatches: (sceneId: string, query?: Record<string, unknown>) =>
     http.get<TwinAlertDispatchVO[]>(`/twin/scenes/${sceneId}/alert-dispatches`, query),
   /** 检索候选接收人（走 twin 代理的 auth 内网通讯录，无需用户管理权限） */
-  recipients: (keyword?: string) =>
-    http.get<TwinNotifyRecipientVO[]>('/twin/alert-notify/recipients', {
-      keyword: keyword || undefined,
-      size: 20,
+  recipients: (params?: { keyword?: string; deptId?: string; current?: number; size?: number }) =>
+    http.get<TwinNotifyRecipientPageVO>('/twin/alert-notify/recipients', {
+      keyword: params?.keyword || undefined,
+      deptId: params?.deptId || undefined,
+      current: params?.current ?? 1,
+      size: params?.size ?? 20,
     }),
+  /** 部门树（按部门筛人；auth 不可用时返回空数组） */
+  departments: () => http.get<TwinNotifyDeptVO[]>('/twin/alert-notify/departments'),
 };
 
 /**
