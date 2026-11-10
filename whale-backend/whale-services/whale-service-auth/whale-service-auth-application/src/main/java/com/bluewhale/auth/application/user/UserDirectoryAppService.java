@@ -102,7 +102,9 @@ public class UserDirectoryAppService {
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         Map<Long, String> deptNames = deptNameMap(deptIds);
         return users.stream()
-                .map(user -> UserDirectoryVO.from(user, deptNames.get(user.getDeptId())))
+                // deptNames 可能是 Map.of()（不可变，get(null) 直接 NPE），先挡掉无部门的用户
+                .map(user -> UserDirectoryVO.from(user, user.getDeptId() == null
+                        ? null : deptNames.get(user.getDeptId())))
                 .toList();
     }
 

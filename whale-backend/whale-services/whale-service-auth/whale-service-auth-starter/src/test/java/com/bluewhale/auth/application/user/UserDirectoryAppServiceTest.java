@@ -19,6 +19,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -106,6 +107,20 @@ class UserDirectoryAppServiceTest {
         userDirectoryAppService.directory(null, null, 1L, 500L);
 
         verify(userRepository).directoryPage(1L, 200L, null, null);
+    }
+
+    @Test
+    @DisplayName("directory：全部用户都没部门时不抛 NPE（空部门映射 get(null)）")
+    void shouldTolerateUsersWithoutDept() {
+        // 回归：deptNameMap 在无部门时返回 Map.of()，不可变映射 get(null) 会抛 NPE
+        when(userRepository.directoryPage(1L, 20L, null, null))
+                .thenReturn(new UserRepository.UserPage(List.of(
+                        enabledUser(2L, "bob", null, "123", "no-at-sign")), 1L));
+
+        PageResult<UserDirectoryVO> page = userDirectoryAppService.directory(null, null, 1L, 20L);
+
+        assertEquals(1, page.getRecords().size());
+        assertNull(page.getRecords().get(0).getDeptName());
     }
 
     @Test
