@@ -73,7 +73,7 @@
 ## 阶段六：验证、文档与提交
 
 - [x] **T6.1 后端回归**
-  - `mvn -pl backend/whale-apps/whale-pdm test` → 0 failures。
+  - `mvn -pl whale-backend/whale-apps/whale-pdm test` → 0 failures。
 - [x] **T6.2 前端回归**
   - `pnpm --filter whale-pdm lint`、`pnpm --filter whale-pdm build`。
 - [x] **T6.3 文档**

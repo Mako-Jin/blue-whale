@@ -119,20 +119,20 @@
 8. `cancel`/`close` 来源状态矩阵正确；`delete` 仅草稿并级联任务。
 9. 分页 `size > 200` 截断为 200；详情任务按 `sort_no,id` 排序。
 10. 权限迁移脚本可重复执行；权限 956–962 连续、菜单 191、角色 21105 授权存在。
-11. 后端 `mvn -pl backend/whale-apps/whale-pdm test` 全绿；前端 `lint`、`build` 通过。
+11. 后端 `mvn -pl whale-backend/whale-apps/whale-pdm test` 全绿；前端 `lint`、`build` 通过。
 
 ---
 
 ## 六、提交范围
 
 ```
-backend/whale-apps/whale-pdm/src/main/java/com/bluewhale/pdm/change/**
-backend/whale-apps/whale-pdm/src/main/resources/db/migration/V8__change_order.sql
-backend/whale-apps/whale-pdm/src/test/java/com/bluewhale/pdm/change/**
-backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-5.80-pdm-eco.sql
-frontend/platform-apps/whale-pdm/src/api/changeOrder.ts
-frontend/platform-apps/whale-pdm/src/pages/change/**
-frontend/platform-apps/whale-pdm/src/App.tsx
+whale-backend/whale-apps/whale-pdm/src/main/java/com/bluewhale/pdm/change/**
+whale-backend/whale-apps/whale-pdm/src/main/resources/db/migration/V8__change_order.sql
+whale-backend/whale-apps/whale-pdm/src/test/java/com/bluewhale/pdm/change/**
+whale-backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-5.80-pdm-eco.sql
+whale-frontend/platform-apps/whale-pdm/src/api/changeOrder.ts
+whale-frontend/platform-apps/whale-pdm/src/pages/change/**
+whale-frontend/platform-apps/whale-pdm/src/App.tsx
 docs/plans/2026-11-04-wave5.80-pdm-panorama.md
 docs/service-catalog.md
 docs/requirements/register.md

@@ -1,7 +1,7 @@
 # 检查报告：档案在线预览 / 播放与流式代理下载
 
 - 日期：2026-11-01
-- 范围：`whale-archive`（8093）文件内容读取链路 + `frontend/admin` 档案详情预览 UI
+- 范围：`whale-archive`（8093）文件内容读取链路 + `whale-frontend/admin` 档案详情预览 UI
 - 关联计划：[wave5.53-archive-file-knowledge.md](../plans/wave5.53-archive-file-knowledge.md)
 - 关联日志：[devlog 2026-11-01](../devlog/2026-11-01.md)（「追加：档案服务在线预览 / 播放」与「追加：档案下载切换为流式代理」两节）
 - 前序报告：[2026-10-25-wave5.53-m5-archive-knowledge.md](./2026-10-25-wave5.53-m5-archive-knowledge.md)
@@ -18,7 +18,7 @@
 | 流式载荷 | 状态码、`Content-Type`、长度、`Content-Range`、总字节数、`ETag`、内容流 | `.../remote/RemoteContentStream.java`、`.../vo/ArchivePreviewVO.java` |
 | 响应头工具 | MIME 解析、内联白名单、`Content-Disposition`（ASCII 兜底 + RFC 5987） | `.../support/ArchiveFileResponses.java` |
 | 服务层 | 下载 / 预览共用 `loadContent`：条目存在 → 密级可见 → 文件归属三重校验 | `.../service/ArchiveItemService.java` |
-| 前端 | 文件清单「预览」按钮 + Modal（`img` / `video` / `audio` / `iframe`）、blob 对象 URL 回收、200MB 音视频提示 | `frontend/admin/src/api/archive.ts`、`frontend/admin/src/pages/archive/ItemList.tsx` |
+| 前端 | 文件清单「预览」按钮 + Modal（`img` / `video` / `audio` / `iframe`）、blob 对象 URL 回收、200MB 音视频提示 | `whale-frontend/admin/src/api/archive.ts`、`whale-frontend/admin/src/pages/archive/ItemList.tsx` |
 | 单测 | 内联白名单 / `Content-Range` 解析 / 下载与预览用例 | `.../support/ArchiveFileResponsesTest.java`、`.../client/FileArchiveClientTest.java`、`.../service/ArchiveItemServiceTest.java` |
 
 **清理项**：`ArchiveDownloadVO`（旧的全量 `byte[]` 下载载荷）已随流式改造删除，无残留引用。
@@ -56,7 +56,7 @@
 | 单测 | `mvn -o -q -pl whale-services/whale-archive test` | **73/73**（14 suites，0 failures / 0 errors） |
 | Checkstyle | `mvn -o -q -pl whale-services/whale-archive checkstyle:check` | **EXIT=0**；`checkstyle-result.xml` 中 `severity="error"` 计数 **0**（仅 `info` 级 MagicNumber 提示） |
 | ArchUnit | 同上（`ArchiveArchitectureTest`） | **4/4**，0 failure |
-| 前端类型 | `tsc -b`（`frontend/admin`） | exit 0 |
+| 前端类型 | `tsc -b`（`whale-frontend/admin`） | exit 0 |
 | 前端构建 | `vite build` | 成功（2146 modules，dist 1,639.10 kB） |
 | 前端 lint | `eslint src --max-warnings 0` | exit 0 |
 

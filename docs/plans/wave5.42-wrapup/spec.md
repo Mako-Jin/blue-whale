@@ -123,7 +123,7 @@ legacy 模式不执行分组校验（其 JSON 无 groups）。BPMN 导入的模�
 
 ## 6. 验收标准
 
-1. 后端 `mvn -o -f backend/pom.xml -pl :whale-workflow -am test checkstyle:check` 通过（JDK 21、禁用沙箱）。
+1. 后端 `mvn -o -f whale-backend/pom.xml -pl :whale-workflow -am test checkstyle:check` 通过（JDK 21、禁用沙箱）。
 2. 新增/更新单测覆盖：分组 JSON 解析、校验码、BPMN 导出→导入分组往返。
 3. 前端 `pnpm --filter whale-workflow-designer build` 通过。
 4. 浏览器实机验证：设计器「版本」抽屉可打开、版本列表展示与发布/迁移入口存在；画布分组容器渲染，新建分组后成员节点显示容器，取消归属后容器消失。

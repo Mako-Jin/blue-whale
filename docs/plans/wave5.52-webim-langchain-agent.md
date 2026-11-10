@@ -164,12 +164,12 @@ intent ──> retrieve(knowledge/facts) ──> think ──> tools ──> ver
 
 ## 七、前端设计
 
-- 新增 `frontend/platform-apps/whale-im`（8107，base `/im`），qiankun 子应用；`vite.config.ts` 走既有 `Accept: text/html` 旁路，避免 `/im` API 与路由冲突。
+- 新增 `whale-frontend/platform-apps/whale-im`（8107，base `/im`），qiankun 子应用；`vite.config.ts` 走既有 `Accept: text/html` 旁路，避免 `/im` API 与路由冲突。
 - 布局：左侧会话列表（未读红点、搜索）、中间消息流（文本/Markdown/图片/文件/确认卡片）、右侧成员/机器人信息。
 - 机器人消息：流式打字、引用角标（点击跳到文档行）、工具轨迹折叠、👍/👎 反馈、确认按钮。
 - 基座导航新增「消息」入口与全局未读角标；权限码 `sys:im:*` 接入 `PermissionProvider`。
 - 日志统一使用 `createLogger('whale-im › ...')`，不直接使用 `console`。
-- **实现状态（2026-10-24，T18b 完成）**：`frontend/platform-apps/whale-im` 已落地（8107 / base `/im`，qiankun），三层布局、WS 实时通道、机器人流式/轨迹/确认卡片与成员面板齐备；基座「消息」菜单、`/im` 路由、未读角标（后于 2026-10-24 改为 WS 全局未读通道，见 §11.3）与 `sys:im:chat` 权限接入完成，`/im` 走 `Accept: text/html` 旁路；子应用与基座 lint 0 warning、全 workspace build 19/19。
+- **实现状态（2026-10-24，T18b 完成）**：`whale-frontend/platform-apps/whale-im` 已落地（8107 / base `/im`，qiankun），三层布局、WS 实时通道、机器人流式/轨迹/确认卡片与成员面板齐备；基座「消息」菜单、`/im` 路由、未读角标（后于 2026-10-24 改为 WS 全局未读通道，见 §11.3）与 `sys:im:chat` 权限接入完成，`/im` 走 `Accept: text/html` 旁路；子应用与基座 lint 0 warning、全 workspace build 19/19。
 
 ## 八、阶段计划与任务
 

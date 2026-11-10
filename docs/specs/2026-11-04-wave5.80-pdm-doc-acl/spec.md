@@ -2,7 +2,7 @@
 
 - 状态：待评审
 - 上级计划：[2026-11-04-wave5.80-pdm-panorama.md](../../plans/2026-11-04-wave5.80-pdm-panorama.md)（M0-B）
-- 目标模块：`backend/whale-apps/whale-pdm`、`frontend/platform-apps/whale-pdm`
+- 目标模块：`whale-backend/whale-apps/whale-pdm`、`whale-frontend/platform-apps/whale-pdm`
 - 前置：M0-A 图文档中心已完成（commit `baf3d617`）
 - 不在本规格范围：在线预览、导出、审批联动、水印、审计报表
 
@@ -90,7 +90,7 @@ M0-B 的目录树仍返回完整树，保证 ACL 管理可导航；目录树可�
 
 ### 3.1 Flyway
 
-新增 `backend/whale-apps/whale-pdm/src/main/resources/db/migration/V3__document_acl_subject.sql`：
+新增 `whale-backend/whale-apps/whale-pdm/src/main/resources/db/migration/V3__document_acl_subject.sql`：
 
 ```sql
 -- 将 subject_id 扩展为字符串：USER 存用户ID，ROLE 存角色码，ALL 存 0
@@ -110,7 +110,7 @@ DEALLOCATE PREPARE stmt;
 
 ### 3.2 权限迁移
 
-新增 `backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-5.80-pdm-acl.sql`，沿用既有幂等写法（`INSERT ... WHERE NOT EXISTS` + MD5 授权 ID）：
+新增 `whale-backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-5.80-pdm-acl.sql`，沿用既有幂等写法（`INSERT ... WHERE NOT EXISTS` + MD5 授权 ID）：
 
 | ID | perm_code | 名称 | path / method |
 |---|---|---|---|
@@ -211,7 +211,7 @@ PdmDocVersionVO rollback(Long documentId, Long versionId, PdmDocViewer viewer, b
 ### 6.3 验证命令
 
 ```powershell
-mvn -pl backend/whale-apps/whale-pdm test
+mvn -pl whale-backend/whale-apps/whale-pdm test
 pnpm --filter whale-pdm lint
 pnpm --filter whale-pdm build
 ```

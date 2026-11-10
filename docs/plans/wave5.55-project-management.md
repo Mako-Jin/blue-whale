@@ -10,10 +10,10 @@
 
 | 项 | 结论 |
 |---|---|
-| 服务归属 | **新建 `backend/whale-apps/whale-pm`**（业务应用，与 erp/mes/pdm/oa 同级），不塞进 OA |
+| 服务归属 | **新建 `whale-backend/whale-apps/whale-pm`**（业务应用，与 erp/mes/pdm/oa 同级），不塞进 OA |
 | 端口 / 前缀 / 库 | **9005** / **`/pm/**`** / **`bluewhale_pm`** |
 | 包名 / 配置前缀 | `com.bluewhale.pm` / `whale.pm.*`；Redis key `whale:pm:*` |
-| 前端 | 新建 `frontend/platform-apps/whale-pm`，**qiankun 子应用**，base `/pm`，dev 端口 **8108** |
+| 前端 | 新建 `whale-frontend/platform-apps/whale-pm`，**qiankun 子应用**，base `/pm`，dev 端口 **8108** |
 | 分层 | DDD-lite：`interfaces / application / domain / infrastructure`（与 [ddd-whale-auth.md](../design/ddd-whale-auth.md) 同口径，不推倒现有三层规范） |
 | 复用的平台能力 | auth（RBAC + 租户）、gateway（JWT/路由/限流）、file（附件）、workflow（评审/变更审批，可选）、im（通知，可选）、audit（审计）、job（定时报表，可选） |
 | 明确不做 | 插件市场、自动化规则引擎、外部 Jira 导入导出、甘特图/资源日历、移动端原生 |
@@ -87,7 +87,7 @@
 
 | 项 | 值 | 落点 |
 |---|---|---|
-| Maven 模块 | `backend/whale-apps/whale-pm` | `whale-apps/pom.xml` 增加 `<module>whale-pm</module>` |
+| Maven 模块 | `whale-backend/whale-apps/whale-pm` | `whale-apps/pom.xml` 增加 `<module>whale-pm</module>` |
 | artifactId / 服务名 | `whale-pm` / `whale-pm` | `pom.xml`、`application.yml`、Nacos 服务名 |
 | 端口 | `${SERVER_PORT:9005}` | `application.yml` |
 | 对外前缀 | `/pm/**`（服务自持，网关**不剥离**） | Controller `@RequestMapping("/pm/...")` |
@@ -95,7 +95,7 @@
 | Java 包 | `com.bluewhale.pm` | `controller/service/domain/infrastructure` |
 | 配置前缀 | `whale.pm.*` | 如 `whale.pm.rank.step`、`whale.pm.notify.enabled` |
 | Redis key | `whale:pm:<用途>:<标识>` | 如 `whale:pm:project:lock:<id>` |
-| 前端 | `frontend/platform-apps/whale-pm`，base `/pm`，端口 8108 | `vite.config.ts`、`qiankun/apps.ts` |
+| 前端 | `whale-frontend/platform-apps/whale-pm`，base `/pm`，端口 8108 | `vite.config.ts`、`qiankun/apps.ts` |
 
 ### 3.2 架构与依赖关系
 
@@ -311,7 +311,7 @@ DDL 落地方式：`db/init.sql`（全量、可重建）+ `db/migration-5.55-*.s
 | 任务 | 交付物 | 验收 |
 |---|---|---|
 | M4-T1 报表后端 | 燃尽、速率、累积流、负载 4 端点 + Redis 缓存 | 空数据返回空序列不 500；1 年范围护栏 |
-| M4-T2 前端骨架 | `frontend/platform-apps/whale-pm`（vite + qiankun + 8108 + base `/pm`） | `pnpm build` / `lint` 通过 |
+| M4-T2 前端骨架 | `whale-frontend/platform-apps/whale-pm`（vite + qiankun + 8108 + base `/pm`） | `pnpm build` / `lint` 通过 |
 | M4-T3 页面 | 8 个页面 + 组件 + 拖拽 + 权限按钮 | 页面可经基座 `/pm` 访问 |
 | M4-T4 基座接入 | `qiankun/apps.ts`、`router/menu.ts`、`MainLayout`、`SubAppContainer` | 菜单点击进入、刷新不 404 |
 | M4-T5 联调与报告 | 浏览器 E2E 清单；检查报告 | 项目→工作项→看板→报表全链路可走通 |

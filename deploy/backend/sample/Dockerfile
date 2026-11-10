@@ -4,7 +4,7 @@
 #   docker build -f deploy/backend/sample/Dockerfile \
 #     --build-arg MODULE_PATH=whale-services/whale-service-auth/whale-service-auth-starter \
 #     --build-arg SERVICE_PORT=8081 -t bluewhale/whale-service-auth .
-# 说明：MODULE_PATH 为相对 backend/ 的模块路径（Maven -pl 坐标）
+# 说明：MODULE_PATH 为相对 whale-backend/ 的模块路径（Maven -pl 坐标）
 # ============================================================
 
 ARG MAVEN_IMAGE=maven:3.9-eclipse-temurin-21
@@ -12,26 +12,26 @@ ARG JRE_IMAGE=eclipse-temurin:21-jre-alpine
 
 # ---- Stage 0: 运行时素材（仅 NEED_FACT_ASSETS=true 的模块，如 whale-agent） ----
 # whale-agent 的 FactCollector / RepositoryScanner 在运行时按“仓库根布局”读取
-# backend/**/*.java|*.sql|pom.xml|*.yml|*.properties、frontend/**/package.json 与前端源码、docs/**/*.md。
+# whale-backend/**/*.java|*.sql|pom.xml|*.yml|*.properties、whale-frontend/**/package.json 与前端源码、docs/**/*.md。
 # 运行时镜像默认只含 app.jar，会导致结构化事实与文本检索通道为空（V-16）。
 # 这里在构建期把所需文件裁剪成一份只读素材包，默认构建为空目录、不增加体积。
 FROM alpine:3.20 AS fact-assets
 
 ARG NEED_FACT_ASSETS=false
 
-COPY backend /src/backend
-COPY frontend /src/frontend
+COPY whale-backend /src/whale-backend
+COPY whale-frontend /src/whale-frontend
 COPY docs /src/docs
 
 RUN set -eu; \
     mkdir -p /repo; \
     if [ "${NEED_FACT_ASSETS}" != "true" ]; then exit 0; fi; \
-    cp -a /src/backend /repo/backend; \
-    cp -a /src/frontend /repo/frontend; \
+    cp -a /src/whale-backend /repo/whale-backend; \
+    cp -a /src/whale-frontend /repo/whale-frontend; \
     cp -a /src/docs /repo/docs; \
-    find /repo/backend -type f ! \( -name '*.java' -o -name '*.sql' -o -name 'pom.xml' \
+    find /repo/whale-backend -type f ! \( -name '*.java' -o -name '*.sql' -o -name 'pom.xml' \
         -o -name '*.yml' -o -name '*.yaml' -o -name '*.properties' \) -delete; \
-    find /repo/frontend -type f ! \( -name 'package.json' -o -name '*.ts' -o -name '*.tsx' \
+    find /repo/whale-frontend -type f ! \( -name 'package.json' -o -name '*.ts' -o -name '*.tsx' \
         -o -name '*.js' -o -name '*.jsx' -o -name '*.vue' \) -delete; \
     find /repo/docs -type f ! -name '*.md' -delete; \
     find /repo -mindepth 1 -type d -empty -delete; \
@@ -47,7 +47,7 @@ WORKDIR /build
 
 COPY .mvn .mvn
 COPY config/checkstyle config/checkstyle
-COPY backend backend
+COPY whale-backend whale-backend
 
 # 镜像构建不执行单测：单测由 backend-ci 单独负责，镜像环境缺 .git/docs/MySQL 等，
 # 跑测试会引入环境性失败。使用 maven.test.skip（同时跳过测试编译），
@@ -60,7 +60,7 @@ RUN set -eu; \
             -Dmaven.test.skip=true \
             -Dmaven.wagon.http.retryHandler.count=5 \
             -Dmaven.wagon.httpconnectionManager.ttlSeconds=120 \
-            -f backend/pom.xml -pl "${MODULE_PATH}" -am package; then \
+            -f whale-backend/pom.xml -pl "${MODULE_PATH}" -am package; then \
             ok=1; break; \
         fi; \
         echo "--- mvn attempt ${i} failed, retrying in 20s ---"; \
@@ -68,7 +68,7 @@ RUN set -eu; \
     done; \
     [ "${ok}" = "1" ]; \
     mkdir -p /out; \
-    jar=$(find "backend/${MODULE_PATH}/target" -maxdepth 1 -type f -name '*.jar' ! -name '*.original' | head -n 1); \
+    jar=$(find "whale-backend/${MODULE_PATH}/target" -maxdepth 1 -type f -name '*.jar' ! -name '*.original' | head -n 1); \
     test -n "${jar}"; \
     cp "${jar}" /out/app.jar; \
     ls -l /out/app.jar

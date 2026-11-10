@@ -84,7 +84,7 @@ Wave 5.10 已交付 4 张独立表（`api_log`/`outbound_log`/`frontend_log`/`be
 | E1 module 回填 | `ApiLogFilterTest` | 记录 `module` 等于配置值（默认取服务名） |
 | E2 路径规则 | `RateLimitGlobalFilterTest` | 命中上报路径用规则阈值；其他路径用全局阈值；超阈值 429；未启用直放行 |
 | E3 保留清理 | `LogRetentionSchedulerTest` | `enabled=false` 不装配/不清理；`enabled=true` 删除阈值前记录（Mock 断言 mapper 调用） |
-| 门禁 | `mvn -B -f backend/pom.xml clean verify -T 1C`、`mvn -B -f backend/pom.xml checkstyle:check` | BUILD SUCCESS；全 reactor 0 违规（E16 中文 Javadoc / 行宽 ≤150 / C4 ≤4 参 / 魔法值常量化） |
+| 门禁 | `mvn -B -f whale-backend/pom.xml clean verify -T 1C`、`mvn -B -f whale-backend/pom.xml checkstyle:check` | BUILD SUCCESS；全 reactor 0 违规（E16 中文 Javadoc / 行宽 ≤150 / C4 ≤4 参 / 魔法值常量化） |
 
 ---
 

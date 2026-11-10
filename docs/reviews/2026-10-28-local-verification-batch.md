@@ -21,7 +21,7 @@
 
 ## 3. V-01 表单填报 → 发起流程 → 审批通过
 
-- 用例：[`frontend/e2e/tests/form-workflow-loop.spec.ts`](../../frontend/e2e/tests/form-workflow-loop.spec.ts)
+- 用例：[`whale-frontend/e2e/tests/form-workflow-loop.spec.ts`](../../whale-frontend/e2e/tests/form-workflow-loop.spec.ts)
 - 准备：API 建表 → 发布 → 建表单 → 建入口 `USER_TASK` 绑定 `formId/formCode` 的流程定义。
 - UI：登录工作流设计器 → 流程发起 → 选择定义 → 填业务标题与表单字段 → 发起 → 我的待办 → 审批抽屉 → 同意。
 - 核验：
@@ -33,16 +33,16 @@
 
 ## 4. V-02 form-designer 真实鼠标拖拽
 
-- 用例：[`frontend/e2e/tests/form-designer-drag.spec.ts`](../../frontend/e2e/tests/form-designer-drag.spec.ts)
+- 用例：[`whale-frontend/e2e/tests/form-designer-drag.spec.ts`](../../whale-frontend/e2e/tests/form-designer-drag.spec.ts)
 - 为画布补 `data-testid="form-designer-canvas"`，避免依赖 Ant Design 内部结构。
 - 操作：API 建表/发布/建空表单 → 打开 `/design/{formId}?tableDefinitionId=...` → Playwright `dragTo` 将「姓名」调色板条目拖入画布 → 保存。
 - 核验：画布出现「姓名」卡片、调色板显示「已使用」；保存后 API 返回 `fields[0].columnMetaId/fieldLabel/widgetType` 正确。
-- 截图：`frontend/e2e/test-results/form-designer-drag-数据字段拖入画布并保存/form-designer-drag.png`，人工复核通过。
+- 截图：`whale-frontend/e2e/test-results/form-designer-drag-数据字段拖入画布并保存/form-designer-drag.png`，人工复核通过。
 - 说明：此前「合成 PointerEvent 不可复现」的结论只适用于 `dispatchEvent`；真实鼠标事件可稳定复现。
 
 ## 5. V-03 admin UI 复验
 
-- 用例：[`frontend/e2e/tests/admin-role-menu-ui.spec.ts`](../../frontend/e2e/tests/admin-role-menu-ui.spec.ts)
+- 用例：[`whale-frontend/e2e/tests/admin-role-menu-ui.spec.ts`](../../whale-frontend/e2e/tests/admin-role-menu-ui.spec.ts)
 - 覆盖：
   1. 角色管理 → 分配权限：勾选首个权限 → 保存 → API `/role/{id}/permissions` 包含该权限；
   2. 用户管理 → 分配角色：勾选新建角色 → 保存 → API `/user/{id}/roles` 包含该角色；
@@ -52,10 +52,10 @@
 
 ## 6. V-04 服务目录重建性能回归
 
-- 测试：[`backend/whale-services/whale-agent/src/test/java/com/bluewhale/agent/support/facts/FactCollectorTest.java`](../../backend/whale-services/whale-agent/src/test/java/com/bluewhale/agent/support/facts/FactCollectorTest.java)
+- 测试：[`whale-backend/whale-services/whale-agent/src/test/java/com/bluewhale/agent/support/facts/FactCollectorTest.java`](../../whale-backend/whale-services/whale-agent/src/test/java/com/bluewhale/agent/support/facts/FactCollectorTest.java)
 - 新增 `shouldRebuildServiceCatalogWithinFiveSeconds`：自动向上定位仓库根，直接读取 `docs/service-catalog.md` 与网关配置，断言事实非空且耗时 < 5000ms。
 - 实跑：`FactCollectorTest` 4 用例 0 失败，该用例耗时 **0.057s**。
-- 命令：`mvn -f backend/pom.xml -pl :whale-agent -Dtest=FactCollectorTest test -q`
+- 命令：`mvn -f whale-backend/pom.xml -pl :whale-agent -Dtest=FactCollectorTest test -q`
 
 ## 7. V-14 熔断半开运行态取证
 

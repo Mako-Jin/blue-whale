@@ -13,7 +13,7 @@
 
 | 项 | 取值 |
 |---|---|
-| 模块 | `backend/whale-services/whale-video` |
+| 模块 | `whale-backend/whale-services/whale-video` |
 | 服务名 | `whale-video` |
 | 端口 | `8098`（`SERVER_PORT`） |
 | 数据库 | `bluewhale_video`（MySQL 8，`utf8mb4`；Flyway `V1`–`V4`，19 张核心表） |
@@ -21,15 +21,15 @@
 | 表前缀 | `vd_`（另含 `audit_log` / `api_log`） |
 | 对外前缀 | `/video/**`（网关不 StripPrefix） |
 | 内网前缀 | `/video/internal/**`（网关 `internal-deny` 统一 403） |
-| 前端 | `frontend/platform-apps/whale-video`，qiankun base `/video`，本地 dev 端口 8114 |
+| 前端 | `whale-frontend/platform-apps/whale-video`，qiankun base `/video`，本地 dev 端口 8114 |
 | Redis | `whale:video:*` |
 | 权限码 | `sys:video:*`（ID 79–82 + 309–322，共 18 项；`sort_no` 仍为 305–322） |
 | 角色 | `video_admin`（25105，按 `perm_code` 全量授权）、`video_member`（25106，314–318 + `sys:file:upload`(32)） |
 | 菜单 | 46「视频中心」+ 47–52（短视频 / 视频 / 电影 / 分类系列片单 / 评论审核 / 播放统计） |
 | 上游依赖 | `whale-file`（8085，视频字节与文件元信息）、`whale-message`（可选通知，暂未接入） |
-| 镜像 | 后端 `ghcr.io/<repo>/whale-video`；前端 `ghcr.io/<repo>/frontend/whale-video` |
+| 镜像 | 后端 `ghcr.io/<repo>/whale-video`；前端 `ghcr.io/<repo>/whale-frontend/whale-video` |
 
-网关路由（`backend/whale-services/whale-gateway/src/main/resources/application.yml`）：
+网关路由（`whale-backend/whale-services/whale-gateway/src/main/resources/application.yml`）：
 
 - `whale-video`：`lb://whale-video`，`Path=/video/**`，**不配 `StripPrefix`**。
 - 内网屏蔽：`/video/internal/**`（403）。
@@ -57,17 +57,17 @@
 ### 2.1 后端构建
 
 ```powershell
-mvn -q -o -pl backend/whale-services/whale-video -am -DskipTests package
+mvn -q -o -pl whale-backend/whale-services/whale-video -am -DskipTests package
 ```
 
-产物：`backend/whale-services/whale-video/target/whale-video.jar`（`finalName=${project.artifactId}`）。
+产物：`whale-backend/whale-services/whale-video/target/whale-video.jar`（`finalName=${project.artifactId}`）。
 
 ### 2.2 后端启动
 
 ```powershell
 $env:MYSQL_PASSWORD='***'
 $env:SPRING_DATA_REDIS_PASSWORD='***'   # 如 Redis 开启口令
-java -jar backend/whale-services/whale-video/target/whale-video.jar
+java -jar whale-backend/whale-services/whale-video/target/whale-video.jar
 ```
 
 必需外部依赖：MySQL、Redis、Nacos；对外链路还需要网关（8080）与 auth（8081）；
@@ -95,7 +95,7 @@ docker build -f deploy/frontend/Dockerfile `
 ```
 
 > 同名冲突（后端服务也叫 `whale-video`）由 CI 命名空间规避：前端推送
-> `ghcr.io/<repo>/frontend/whale-video`，后端推送 `ghcr.io/<repo>/whale-video`。
+> `ghcr.io/<repo>/whale-frontend/whale-video`，后端推送 `ghcr.io/<repo>/whale-video`。
 > CI 矩阵已包含：`.github/workflows/docker-deploy.yml` 后端 `whale-video`(8098) 与
 > 前端 `whale-video`(base `/video`, namespace `frontend`)；
 > Nginx `infrastructure/docker/nginx/conf.d/micro-frontend.conf` 的
@@ -109,7 +109,7 @@ pnpm --filter whale-video lint
 pnpm --filter whale-video build
 ```
 
-产物 `frontend/platform-apps/whale-video/dist`，按 qiankun 子应用部署到 `/video`。
+产物 `whale-frontend/platform-apps/whale-video/dist`，按 qiankun 子应用部署到 `/video`。
 
 ### 2.5 健康检查
 
@@ -539,7 +539,7 @@ Stopwatch + `ThreadPool.SetMinThreads`**，`ResponseHeadersRead` 到响应头即
 
 ## 十一、上线检查清单
 
-- [x] 代码与静态验证：`mvn -o -pl backend/whale-services/whale-video test` **151/151**、Checkstyle **0**、ArchUnit **5/5**。
+- [x] 代码与静态验证：`mvn -o -pl whale-backend/whale-services/whale-video test` **151/151**、Checkstyle **0**、ArchUnit **5/5**。
 - [x] Flyway `V1__baseline.sql` / `V2__series.sql` / `V3__movie_collection.sql` / `V4__watch_history_cleanup_index.sql` 就绪。
 - [x] auth `migration-5.77-video.sql`（权限 305–322、角色 25105/25106、菜单 46–52）就绪且幂等。
 - [x] 网关：`/video/**` 路由、`/video/internal/**` 403、六条限流规则、流式不进熔断名单。

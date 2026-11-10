@@ -1,6 +1,6 @@
 # 工作区扫描报告（2026-11-08）
 
-> 扫描范围：`backend/`、`frontend/`、`docs/`（devlog / plans / reviews）、`deploy/`、git 工作区状态、代码 TODO/FIXME 标记。
+> 扫描范围：`whale-backend/`、`whale-frontend/`、`docs/`（devlog / plans / reviews）、`deploy/`、git 工作区状态、代码 TODO/FIXME 标记。
 > 口径：只登记**当前仓库仍存在**的缺口；已闭环项见 §六。
 > 上一份：[2026-11-07 工作区扫描](2026-11-07-workspace-scan.md)。
 
@@ -166,13 +166,13 @@
 
 **新识别风险（P1，未修）**：全仓库无 ShedLock/Redisson，`@Scheduled` 共 21 处，**多副本部署会 N 倍执行**。副作用靠业务幂等兜底（快照 upsert、行动项 dedupKey、ERP 建单按 `crm_order_no` 唯一），实测未产生重复数据，但会产生重复 RPC/DB 负载。建议给有副作用的 job 加分布式锁，或加「仅主实例注册调度」开关。
 
-**P0 剩余**：CRM 营销发送投递回执。~~已确认仓库没有 whale-message 模块~~ —— **该判断有误**：`whale-message` 位于 `backend/whale-services/whale-message`（端口 8094，库 `bluewhale_message`，54 个类，含内网 `/message/internal/send`、模板、公告、站内信、四渠道 sender），此前只查了 `whale-apps` 与 compose 才漏判。真实缺口是：① 服务未容器化（compose 无 `message` 段）；② CRM 客户端报文与消息服务契约不一致；③ 平台侧没有异步「送达回执（DELIVERED）」状态，只有提交态 SENT/FAILED/SKIPPED/MOCKED。第 ①② 项已在同日晚间解决，见第十三节。
+**P0 剩余**：CRM 营销发送投递回执。~~已确认仓库没有 whale-message 模块~~ —— **该判断有误**：`whale-message` 位于 `whale-backend/whale-services/whale-message`（端口 8094，库 `bluewhale_message`，54 个类，含内网 `/message/internal/send`、模板、公告、站内信、四渠道 sender），此前只查了 `whale-apps` 与 compose 才漏判。真实缺口是：① 服务未容器化（compose 无 `message` 段）；② CRM 客户端报文与消息服务契约不一致；③ 平台侧没有异步「送达回执（DELIVERED）」状态，只有提交态 SENT/FAILED/SKIPPED/MOCKED。第 ①② 项已在同日晚间解决，见第十三节。
 
 ## 十三、补记（同日 17:15：CRM 营销触达 × whale-message 打通）
 
 **结论：CRM→消息服务的投递链路打通，但「送达回执」仍是平台侧空缺。**
 
-- 修正上一节的漏判：`whale-message` 在 `backend/whale-services/whale-message`（端口 8094、库 `bluewhale_message`、四渠道 sender）。
+- 修正上一节的漏判：`whale-message` 在 `whale-backend/whale-services/whale-message`（端口 8094、库 `bluewhale_message`、四渠道 sender）。
 - 已修：① 服务容器化（compose `message` 段 + 首次 `SPRING_FLYWAY_BASELINE_VERSION=0` 补建 `msg_announcement`）；② **CRM 客户端报文与消息服务契约不一致**（CRM 发扁平单收件人报文，消息服务要 `channels[]/recipients[]/idempotencyKey`）已按平台契约改写；③ 投递结果判定过宽（`code=0` 即 `SENT`）已收紧，`MOCKED/FAILED/SKIPPED` 一律判失败。
 - 实测 `MS-VERIFY-0001`：INBOX 明细 `SENT`（真实站内信）、EMAIL 明细 `FAILED / 消息通道处于 mock 模式，未真实投递`；重复执行不产生重复投递（`msg_delivery` 3 条不变）。CRM 334 单测、whale-message 37 单测均 0 失败，Checkstyle 均 0。
 
@@ -437,7 +437,7 @@ Spring Boot 4 用 Jackson 3（`tools.jackson.*`），不再自动注册 Jackson 
 | 项 | 状态 | 原因 |
 |---|---|---|
 | 商城进常态编排 | 阻塞 | 与 §17.4 P0-4 同一约束：VM 6GB、常态 21 容器已占约 5G；再常驻 mall/file/contract（约 900MB）会立刻回到 OOM 边缘 |
-| 商城前端页面 | 未开始 | 端到端已通，但 `frontend/platform-apps` 下没有商城应用，运营侧仍只能靠接口 |
+| 商城前端页面 | 未开始 | 端到端已通，但 `whale-frontend/platform-apps` 下没有商城应用，运营侧仍只能靠接口 |
 | 本地复跑冒烟 | 手工步骤 | 需先停 2 个低频服务腾内存 → 起 verify 栈 → `python scripts/mall-smoke.py` → 收尾；建议后续写进 `scripts/` 一键脚本 |
 
 ## 十九、补记（2026-11-09 00:20–01:00：收口 §十七/§十八 的剩余 P0 与两个数据一致性缺陷）
@@ -592,7 +592,7 @@ WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 1900 OR perm_code = '.
 
 ### 20.7 顺着同一条线又查出两类「代码有、库里没有」
 
-号段写完不过瘾，又做了一次**权限码覆盖检查**：把 `backend/**/src/main` 里所有
+号段写完不过瘾，又做了一次**权限码覆盖检查**：把 `whale-backend/**/src/main` 里所有
 `@RequirePermission("sys:...")` 字面量抓出来，和 `sys_permission` 台账比。878 个编码里 29 个查无此项。
 
 | 类型 | 明细 | 判读 |

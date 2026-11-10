@@ -22,12 +22,12 @@
 
 | 维度 | 现状 | 证据 |
 |---|---|---|
-| 后端代码 | 10 个主代码 Java 文件，单层分包（`controller / service / mapper / entity / dto / vo / converter`），非 DDD 四层 | `backend/whale-apps/whale-mes/src/main/java/com/bluewhale/mes` |
+| 后端代码 | 10 个主代码 Java 文件，单层分包（`controller / service / mapper / entity / dto / vo / converter`），非 DDD 四层 | `whale-backend/whale-apps/whale-mes/src/main/java/com/bluewhale/mes` |
 | 端点 | 5 个：`GET /mes/work-order/page`、`GET /{id}`、`POST`、`PUT /{id}`、`DELETE /{id}` | `MesWorkOrderController` |
 | 数据表 | 2 张：`mes_work_order` + `api_log`；无车间、产线、工序、报工、物料、质量、设备表 | `db/migration/V1__baseline.sql` |
 | 种子数据 | `MES-001`（ENABLED）、`MES-002`（DISABLED） | 同上 |
 | 工单模型 | 仅 `code / name / status / remark`；`status` 是启停标记，不是执行生命周期 | `MesWorkOrder` |
-| 前端 | `frontend/platform-apps/whale-mes`（8105、base `/mes`）：`App.tsx` + 列表 + 表单弹窗 + API 封装，无路由级模块页面 | 目录清单 |
+| 前端 | `whale-frontend/platform-apps/whale-mes`（8105、base `/mes`）：`App.tsx` + 列表 + 表单弹窗 + API 封装，无路由级模块页面 | 目录清单 |
 | 权限 | `sys:mes:workorder:list/add/edit/delete` 207–210 | `migration-5.59-mes.sql` |
 | 菜单 | 26 工单管理 | 同上 |
 | 角色 | `mes_manager`（20701）、`mes_member`（20702） | `migration-5.65-business-role-grant.sql` |
@@ -341,7 +341,7 @@ com.bluewhale.mes
 
 ### 8.5 前端
 
-- 复用 `frontend/platform-apps/whale-mes`（8105、base `/mes`），**不新增 qiankun 子应用**。
+- 复用 `whale-frontend/platform-apps/whale-mes`（8105、base `/mes`），**不新增 qiankun 子应用**。
 - 按模块新增路由：`/mes/master-data/*`、`/mes/dispatch/*`、`/mes/execution/*`、`/mes/trace/*`、`/mes/quality/*`、`/mes/equipment/*`、`/mes/collect/*`、`/mes/workforce/*`。
 - 页面模式：主数据列表/表单；单据“列表 + 详情 + 动作条”；现场终端“扫码 + 大按钮 + 最少输入”；看板“大屏只读 + 自动刷新”。
 - 现场终端需适配触摸屏/平板：最小点击区域 44px、扫码枪回车提交、断网重试提示。

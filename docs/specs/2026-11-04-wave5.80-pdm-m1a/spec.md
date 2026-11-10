@@ -123,7 +123,7 @@
 
 ### 4.1 存量扩展
 
-- [PdmProduct.java](file:///f:/blue-whale/backend/whale-apps/whale-pdm/src/main/java/com/bluewhale/pdm/entity/PdmProduct.java)：新增 `partType/material/spec/uom/categoryCode/erpItemCode/sourceType`。
+- [PdmProduct.java](file:///f:/blue-whale/whale-backend/whale-apps/whale-pdm/src/main/java/com/bluewhale/pdm/entity/PdmProduct.java)：新增 `partType/material/spec/uom/categoryCode/erpItemCode/sourceType`。
 - `PdmProductSaveRequest`：新增同名字段；`partType`、`sourceType` 使用 `@Pattern`；长度限制对齐列宽。
 - `PdmProductQueryRequest`：新增 `partType/categoryCode/sourceType` 过滤。
 - `PdmProductVO`：新增同名字段。
@@ -194,7 +194,7 @@
 
 | 项 | 命令/断言 |
 |---|---|
-| 后端单测 | `mvn -pl backend/whale-apps/whale-pdm test`，0 failures |
+| 后端单测 | `mvn -pl whale-backend/whale-apps/whale-pdm test`，0 failures |
 | 新增测试 | `PdmBomVersionNoTest`、`PdmBomSnapshotBuilderTest`、`PdmPartCategoryServiceImplTest`、`PdmBomServiceImplTest`、`PdmPartReferenceGuardTest` |
 | Flyway 静态校验 | 现有 `PdmFlywayMigrationScriptTest` 自动覆盖 V4 命名/递增/无破坏语句 |
 | 合同测试 | 同一 `bomNo+versionNo` 连续两次快照 `checksum` 与 `payload` 完全相等；未知版本 404 |
@@ -216,7 +216,7 @@
 
 - 新增文件：`V4__part_bom.sql`、`migration-5.80-pdm-part.sql`、`com.bluewhale.pdm.part` 包、前端 `api/part.ts` 与 `pages/part`、`pages/bom`、测试 5 个、评审文档 1 个。
 - 修改文件：`PdmProduct` 四件套、`PdmProductServiceImpl`、`PdmConverter`、`App.tsx`、计划文档 §6 状态。
-- 提交：仅暂存上述 PDM/auth 专属文件与本次 docs；**不提交** `docs/devlog/2026-11-04.md`、`docs/requirements/register.md`、`docs/service-catalog.md`、`frontend/pnpm-lock.yaml`。
+- 提交：仅暂存上述 PDM/auth 专属文件与本次 docs；**不提交** `docs/devlog/2026-11-04.md`、`docs/requirements/register.md`、`docs/service-catalog.md`、`whale-frontend/pnpm-lock.yaml`。
 - 提交信息：`feat(pdm): 零件主档与 EBOM 发布快照契约`。
 
 ---

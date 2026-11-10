@@ -10,7 +10,7 @@
 
 ## 二、变更点
 
-### 后端（`backend/whale-apps/whale-mes`）
+### 后端（`whale-backend/whale-apps/whale-mes`）
 
 - `pom.xml`：补 `micrometer-registry-prometheus`、`mybatis-plus-spring-boot4-starter`、`mysql-connector-j`、`whale-spring-boot-starter`。
 - `application.yml`：补数据源（`bluewhale_mes`）、`whale.permission.header.enabled=true`、MyBatis-Plus 逻辑删除与驼峰映射、actuator prometheus。
@@ -23,7 +23,7 @@
 - 新增幂等迁移 `migration-5.59-mes.sql`：权限点 207–210（`sys:mes:workorder:list/add/edit/delete`）+ 菜单 26（工单管理 `/mes`）。
 - 编号约定：203–206 归 ERP；207–210 归 MES；PDM 从 211 起编；菜单 25 归 ERP，MES 用 26。
 
-### 前端（`frontend/platform-apps/whale-mes`）
+### 前端（`whale-frontend/platform-apps/whale-mes`）
 
 - `api/mes.ts`：移除 mock，改接 `@bluewhale/http` 经网关调 `/mes/work-order/**`（列表取 `PageResult.records`；无 id 走 POST、有 id 走 PUT）。`List.tsx` / `Form.tsx` 无需改动。
 

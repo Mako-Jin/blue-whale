@@ -129,7 +129,7 @@
 ### 3.2 模块结构
 
 ```
-backend/whale-services/whale-map/
+whale-backend/whale-services/whale-map/
 ├── whale-map-api/                 对外 DTO + 内部能力接口
 ├── whale-map-core/                领域模型、坐标转换、缓存、限流、审计
 ├── whale-map-provider-tencent/    腾讯位置服务适配
@@ -195,7 +195,7 @@ GET  /map/provider/health              供应商可用性与配额余量
 
 ### 3.7 前端
 
-- 新建 `frontend/shared-packages/whale-map`
+- 新建 `whale-frontend/shared-packages/whale-map`
 - 定义 `MapAdapter`（底图/点/线/面/信息窗/视野），实现腾讯 GL JS 与高德 JS API 两套
 - SDK 用动态 `<script>` 加载，不进 npm 依赖；容器必须固定高度
 - 统一导出 `<WhaleMap>` / `<MarkerLayer>` / `<GeoFencePicker>`，qiankun 子应用共享

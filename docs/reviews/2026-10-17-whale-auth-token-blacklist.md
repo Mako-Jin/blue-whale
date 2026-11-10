@@ -86,9 +86,9 @@
 
 | 手段 | 命令 | 结果 |
 |---|---|---|
-| 编译 | `mvn -pl backend/whale-services/whale-auth -am compile` | **BUILD SUCCESS**（6 模块，67 源文件） |
-| Checkstyle（规则集自验） | `mvn -pl backend/whale-common/whale-tools checkstyle:check` | 0 violations，BUILD SUCCESS |
-| Checkstyle（变更模块） | `mvn -pl backend/whale-services/whale-auth checkstyle:check` | 0 violations，BUILD SUCCESS |
+| 编译 | `mvn -pl whale-backend/whale-services/whale-auth -am compile` | **BUILD SUCCESS**（6 模块，67 源文件） |
+| Checkstyle（规则集自验） | `mvn -pl whale-backend/whale-common/whale-tools checkstyle:check` | 0 violations，BUILD SUCCESS |
+| Checkstyle（变更模块） | `mvn -pl whale-backend/whale-services/whale-auth checkstyle:check` | 0 violations，BUILD SUCCESS |
 
 > 说明：当前 Checkstyle 门禁为「报告模式」（仅 `error` 级阻断，规则集为 `warning`），故显示 0 违规；`checkstyle:checkstyle` 仍会产出含全部级别的 XML 报告用于趋势跟踪。
 

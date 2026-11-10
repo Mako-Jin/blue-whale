@@ -12,11 +12,11 @@
 
 | # | 问题 | 证据 |
 |---|---|---|
-| P0-1 | **支付单状态流转 check-then-act，并发下可重复扣款/重复退款**。无 @Version、无条件更新；项目已有 @DistributedLock 但未用于此 | `backend/whale-services/whale-pay/.../PayOrderServiceImpl.java:133-167` |
-| P0-2 | **全前端 0 个 ErrorBoundary**，任何渲染异常 = 白屏；qiankun 全局错误处理不覆盖 React 渲染错误 | `frontend/platform-apps/whale-platform/src/main.tsx:12-20` |
-| P0-3 | **前端测试名存实亡**：全仓仅 1 个单测文件；turbo.json 无 test 任务；CI 只跑 lint+build；9 个 Playwright e2e 在 CI 中无任何步骤 | `frontend/turbo.json:1-19`、`.github/workflows/frontend-ci.yml:54-63` |
-| P0-4 | **`.gitignore:74` `data/` 无前导 `/`，静默忽略任意层级 data/ 目录**——`git check-ignore` 实测吞掉 `backend/.../resources/data/seed.json`、`frontend/admin/src/data/mock.ts`；`.gitignore:68` `out/` 同理。git add 无任何报错 | `.gitignore:68,74` |
-| P0-5 | **qiankun 子应用 entry 硬编码 localhost:8101~8110**，无 import.meta.env 生产配置；props.token 写死占位值，生产部署即失效 | `frontend/platform-apps/whale-platform/src/qiankun/apps.ts:20-111` |
+| P0-1 | **支付单状态流转 check-then-act，并发下可重复扣款/重复退款**。无 @Version、无条件更新；项目已有 @DistributedLock 但未用于此 | `whale-backend/whale-services/whale-pay/.../PayOrderServiceImpl.java:133-167` |
+| P0-2 | **全前端 0 个 ErrorBoundary**，任何渲染异常 = 白屏；qiankun 全局错误处理不覆盖 React 渲染错误 | `whale-frontend/platform-apps/whale-platform/src/main.tsx:12-20` |
+| P0-3 | **前端测试名存实亡**：全仓仅 1 个单测文件；turbo.json 无 test 任务；CI 只跑 lint+build；9 个 Playwright e2e 在 CI 中无任何步骤 | `whale-frontend/turbo.json:1-19`、`.github/workflows/frontend-ci.yml:54-63` |
+| P0-4 | **`.gitignore:74` `data/` 无前导 `/`，静默忽略任意层级 data/ 目录**——`git check-ignore` 实测吞掉 `whale-backend/.../resources/data/seed.json`、`whale-frontend/admin/src/data/mock.ts`；`.gitignore:68` `out/` 同理。git add 无任何报错 | `.gitignore:68,74` |
+| P0-5 | **qiankun 子应用 entry 硬编码 localhost:8101~8110**，无 import.meta.env 生产配置；props.token 写死占位值，生产部署即失效 | `whale-frontend/platform-apps/whale-platform/src/qiankun/apps.ts:20-111` |
 
 ## P1 — 高优先级
 

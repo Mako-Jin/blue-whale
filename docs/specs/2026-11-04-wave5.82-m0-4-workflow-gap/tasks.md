@@ -1,7 +1,7 @@
 # Wave 5.82 · M0-4 Workflow 缺口补齐 任务清单
 
 > 规格：[spec.md](./spec.md)。按顺序执行，每项完成后立即更新状态。
-> 所有路径相对 `backend/whale-services/whale-workflow/`。
+> 所有路径相对 `whale-backend/whale-services/whale-workflow/`。
 
 ## T1 数据库迁移与实体
 - [x] 新增 `src/main/resources/db/migration/V3__cc_delegate_urge.sql`

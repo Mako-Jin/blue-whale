@@ -266,13 +266,13 @@
   - 一人多租户切换器本期不实现：`sys_user.tenant_id` 为单值，账号归属租户唯一（D3 后续项），切换需先补齐「用户-租户多对多 + 换令牌」后端能力。
   - 审计导出不在本期：后端暂无租户级审计导出接口，避免前端空壳按钮。
 - 文件与改动：
-  - `frontend/shared-packages/http/src/client.ts`：`HttpClientConfig` 增加可选 `getTenantId`，在普通请求/文件下载/SSE 三类发送前统一注入 `X-Tenant-Id`（不传则保持原行为；服务端仍以 JWT claim 为准，网关会清除入站并重新注入）。
-  - `frontend/admin/src/api/token.ts`：`LoginResponse`/`AuthMeResponse`/`UserInfo` 补 `tenantId`，`UserInfo` 补展示用 `tenantCode`；`saveLogin(data, tenantCode?)` 合并保存，保留既有权限/菜单。
-  - `frontend/admin/src/api/auth.ts`：登录成功时把表单租户码一并落盘；`fetchMe` 回写 `tenantId`。
-  - `frontend/admin/src/api/client.ts`：接入 `getTenantId`（读取当前登录用户 `tenantId`）。
-  - `frontend/admin/src/api/tenant.ts`（新增）：`/tenant` 分页/详情/开通/更新/启停/续期，类型对齐 `TenantVO` 与后端 DTO。
-  - `frontend/admin/src/pages/tenant/TenantList.tsx`（新增）：`ProTable + SearchForm + FormModal + AuthButton` 风格，列表展示编码/名称/类型/状态/到期/配额；开通（编码、名称、管理员、到期、配额 JSON）、编辑（名称/配额）、启停、续期；平台租户行禁止停用。
-  - `frontend/admin/src/App.tsx`、`router/dynamicRoutes.tsx`、`layouts/AdminLayout.tsx`：注册 `/tenants` 静态路由与 `tenant` 组件契约键；导航在动态菜单未包含 `/tenants` 且具备 `sys:tenant:list` 时补充入口；顶栏展示当前租户编码。
+  - `whale-frontend/shared-packages/http/src/client.ts`：`HttpClientConfig` 增加可选 `getTenantId`，在普通请求/文件下载/SSE 三类发送前统一注入 `X-Tenant-Id`（不传则保持原行为；服务端仍以 JWT claim 为准，网关会清除入站并重新注入）。
+  - `whale-frontend/admin/src/api/token.ts`：`LoginResponse`/`AuthMeResponse`/`UserInfo` 补 `tenantId`，`UserInfo` 补展示用 `tenantCode`；`saveLogin(data, tenantCode?)` 合并保存，保留既有权限/菜单。
+  - `whale-frontend/admin/src/api/auth.ts`：登录成功时把表单租户码一并落盘；`fetchMe` 回写 `tenantId`。
+  - `whale-frontend/admin/src/api/client.ts`：接入 `getTenantId`（读取当前登录用户 `tenantId`）。
+  - `whale-frontend/admin/src/api/tenant.ts`（新增）：`/tenant` 分页/详情/开通/更新/启停/续期，类型对齐 `TenantVO` 与后端 DTO。
+  - `whale-frontend/admin/src/pages/tenant/TenantList.tsx`（新增）：`ProTable + SearchForm + FormModal + AuthButton` 风格，列表展示编码/名称/类型/状态/到期/配额；开通（编码、名称、管理员、到期、配额 JSON）、编辑（名称/配额）、启停、续期；平台租户行禁止停用。
+  - `whale-frontend/admin/src/App.tsx`、`router/dynamicRoutes.tsx`、`layouts/AdminLayout.tsx`：注册 `/tenants` 静态路由与 `tenant` 组件契约键；导航在动态菜单未包含 `/tenants` 且具备 `sys:tenant:list` 时补充入口；顶栏展示当前租户编码。
 - 验收：
   - 平台租户账号可见「租户管理」入口；非平台租户即使直接访问 `/tenants` 也因后端 `requirePlatformTenant()` 返回 403。
   - 开通/编辑/启停/续期均按权限码 `sys:tenant:add|edit|status|renew` 控制按钮，成功后列表刷新。
@@ -391,8 +391,8 @@
 
 | 库 | 脚本（`{module}` 内） | 关键验证 SQL |
 |---|---|---|
-| `bluewhale_auth` | `backend/whale-services/whale-auth/src/main/resources/db/migration-5.54-tenant.sql`、`migration-5.54-tenant-rbac.sql`、`migration-5.54-tenant-business.sql` | `SELECT tenant_code, tenant_type, status FROM sys_tenant;` 期望 `default / PLATFORM / 1`；`SELECT perm_code FROM sys_permission WHERE perm_code LIKE 'sys:tenant:%';` 期望 5 行 |
-| `bluewhale_audit` | `backend/whale-ops/whale-audit/src/main/resources/db/migration-5.54-tenant-logs.sql` | `audit_log.tenant_id` 已回填为 `1`，无 `NULL` 历史行 |
+| `bluewhale_auth` | `whale-backend/whale-services/whale-auth/src/main/resources/db/migration-5.54-tenant.sql`、`migration-5.54-tenant-rbac.sql`、`migration-5.54-tenant-business.sql` | `SELECT tenant_code, tenant_type, status FROM sys_tenant;` 期望 `default / PLATFORM / 1`；`SELECT perm_code FROM sys_permission WHERE perm_code LIKE 'sys:tenant:%';` 期望 5 行 |
+| `bluewhale_audit` | `whale-backend/whale-ops/whale-audit/src/main/resources/db/migration-5.54-tenant-logs.sql` | `audit_log.tenant_id` 已回填为 `1`，无 `NULL` 历史行 |
 | `bluewhale_form` | `whale-form/.../migration-5.54-tenant-business.sql` | `form_definition.tenant_id` 存在且历史行=1 |
 | `bluewhale_file` | `whale-file/.../migration-5.54-tenant-business.sql` | `file_info.tenant_id` 存在且历史行=1 |
 | `bluewhale_im` | `whale-im/.../migration-5.54-tenant-business.sql` | `im_conversation.tenant_id` 存在 |
@@ -401,7 +401,7 @@
 | `bluewhale_archive` | `whale-archive/.../migration-5.54-tenant-business.sql` | `archive_item.tenant_id` 存在 |
 | `bluewhale_job` | `whale-job/.../migration-5.54-tenant-business.sql` | `job_info.tenant_id` 存在 |
 | `bluewhale_pay` | `whale-pay/.../migration-5.54-tenant-business.sql` | `pay_order.tenant_id` 存在 |
-| `bluewhale_alert` | `backend/whale-ops/whale-alert/.../migration-5.54-tenant-business.sql` | `alert_rule.tenant_id` 存在 |
+| `bluewhale_alert` | `whale-backend/whale-ops/whale-alert/.../migration-5.54-tenant-business.sql` | `alert_rule.tenant_id` 存在 |
 
 **执行结果（2026-10-25）**：上表 11 个业务库 + `bluewhale_auth` 核心/日志共 14 个脚本已全部执行，并以第二轮复跑验证幂等（14/14 退出码 0）；12 库 `tenant_id` 列覆盖校验全部通过。执行中补齐了缺失库（job/pay/alert）与缺失表（agent 知识文件、audit/auth 四类日志表），未删除既有数据。Redis/Nacos 已由 `tools` 内原生进程启动，§14.4 已执行通过；14.5 E2E 待前端三应用就绪。详见 [执行报告](../../reviews/2026-10-25-wave5.54-5.53-deploy-execution.md)。
 
@@ -686,13 +686,13 @@ WHERE NOT EXISTS (
 
 ```bash
 # 1) 建表与回填
-mysql -u<user> -p bluewhale_auth < backend/whale-services/whale-auth/src/main/resources/db/migration-5.54-tenant-membership.sql
+mysql -u<user> -p bluewhale_auth < whale-backend/whale-services/whale-auth/src/main/resources/db/migration-5.54-tenant-membership.sql
 mysql -u<user> -p bluewhale_auth -e "SHOW CREATE TABLE sys_user_tenant"
 mysql -u<user> -p bluewhale_auth -e "SELECT COUNT(*) FROM sys_user s LEFT JOIN sys_user_tenant m ON m.user_id = s.id WHERE m.id IS NULL"
 # 期望：表存在；缺失关系数为 0
 
 # 2) 构建与单测
-mvn -pl backend/whale-services/whale-auth -am test
+mvn -pl whale-backend/whale-services/whale-auth -am test
 
 # 3) 接口：登录 → 租户列表 → 切换 → 旧令牌失效
 curl -s -X POST http://localhost:8080/auth/login -H 'Content-Type: application/json' \
@@ -717,7 +717,7 @@ curl -s -X POST http://localhost:8080/auth/refresh -H 'Content-Type: application
 - 令牌链路：`UserDetailsServiceImpl#loadUserById`（按全局 `userId` 跨租户加载、按令牌租户解析角色）；`JwtAuthenticationFilter`、`AuthService#refresh`、切换流程统一按 `userId` claim，不再依赖用户名或账号首页租户。
 - 切换接口：`GET /auth/tenants`、`POST /auth/tenant/switch`（出参同登录，旧 access/refresh 写黑名单，轮换开启时吊销 family，新会话新 familyId）。
 - 首页关系写入：新建账号与租户开通的初始管理员均写入首页关系。
-- 验证：`mvn -pl backend/whale-services/whale-auth -am test` → 330 个用例全部通过，Checkstyle 0 违规。
+- 验证：`mvn -pl whale-backend/whale-services/whale-auth -am test` → 330 个用例全部通过，Checkstyle 0 违规。
 
 **已知限制（沿用 15.8）**：关系撤销后存量 accessToken 仍存活至多一个 access TTL；成员列表/租户内角色分配/平台绑定关系在 5.3 交付。
 
@@ -726,7 +726,7 @@ curl -s -X POST http://localhost:8080/auth/refresh -H 'Content-Type: application
 | 类别 | 内容 |
 |---|---|
 | 需求项 | ① 顶栏展示「我的租户」切换器，仅当可进入租户数 > 1 时出现；② 切换只调用 `POST /auth/tenant/switch`，成功后落盘新令牌与目标租户编码并全量重载；③ 失败保持当前会话并给出可读提示；④ 单租户用户不出现切换器 |
-| 交付 | `frontend/admin/src/api/auth.ts`（`MyTenantVO` + `listMyTenants` + `switchTenant`）、`frontend/admin/src/layouts/AdminLayout.tsx`（`Select` + 切换处理 + 失败提示） |
+| 交付 | `whale-frontend/admin/src/api/auth.ts`（`MyTenantVO` + `listMyTenants` + `switchTenant`）、`whale-frontend/admin/src/layouts/AdminLayout.tsx`（`Select` + 切换处理 + 失败提示） |
 | 验收 | ① `pnpm --filter whale-admin lint` 与 `build`（含 `tsc -b`）EXIT=0；② 单租户账号顶栏仅显示原租户标签；③ 双租户账号切换后页面重载、`/auth/me` 的 `tenantId`/角色/菜单均为目标租户；④ 切换失败（403/401/网络）保留当前令牌并提示 |
 | 待做项 | 5.3 成员列表与租户内角色分配、平台绑定/解绑关系；5.4 双租户 E2E |
 

@@ -26,10 +26,10 @@ whale-job (8082)                       业务服务 (crm/oa/doc/...)
 | 项 | 实测值 |
 |---|---|
 | 业务侧 `@Scheduled` | **37 个方法**（29 个 cron、8 个 fixedDelay），分布在 **17 个模块** |
-| 已有的调度服务 | `backend/whale-services/whale-job`，端口 8082，库 `bluewhale_job`，表 `job_info / job_log / job_alert / job_dependency` |
+| 已有的调度服务 | `whale-backend/whale-services/whale-job`，端口 8082，库 `bluewhale_job`，表 `job_info / job_log / job_alert / job_dependency` |
 | 调度能力 | Redisson 锁 `lock:job:execute:{jobId}`、misfire 策略、失败重试（≤5）、分片（≤16）、依赖链、多实例广播 + 5 分钟 reconcile、Prometheus 指标 |
 | 手工/接口 | `POST /job/info/{id}/run` 手动触发、启停、日志分页、告警分页、依赖配置 |
-| 前端 | `frontend/admin/src/pages/job` 已有管理页，无需新做 |
+| 前端 | `whale-frontend/admin/src/pages/job` 已有管理页，无需新做 |
 | 容器化 | **`whale-job` 尚未进 `deploy/backend/docker-compose.services.yml`**，需补 |
 | 执行器 | 只有 `DemoJobHandler / JobLogArchiveHandler / JobLogCleanupHandler`，**没有通用 HTTP 执行器，也没有执行器注册表**（`job_group` 只是分类标签，非执行器分组） |
 

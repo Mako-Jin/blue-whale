@@ -2,10 +2,10 @@
 
 ## 结构
 
-- [ ] `backend/whale-services/whale-service-auth/pom.xml` 为 `packaging=pom`，modules 5 项齐全
+- [ ] `whale-backend/whale-services/whale-service-auth/pom.xml` 为 `packaging=pom`，modules 5 项齐全
 - [ ] 5 个子模块目录名 == artifactId == `whale-service-auth-{domain,application,infrastructure,interfaces,starter}`
-- [ ] `backend/whale-services/pom.xml` 只含 `whale-service-auth`，不含 `whale-auth`
-- [ ] 旧目录 `backend/whale-services/whale-auth` 已删除
+- [ ] `whale-backend/whale-services/pom.xml` 只含 `whale-service-auth`，不含 `whale-auth`
+- [ ] 旧目录 `whale-backend/whale-services/whale-auth` 已删除
 - [ ] `whale-auth-sdk` 模块未改名
 
 ## 依赖方向
@@ -50,11 +50,11 @@
 
 ## 2026-10-27 迁移完成复核
 
-- [x] `backend/whale-services/whale-service-auth/pom.xml` 为 `packaging=pom`，5 个模块齐全
-- [x] `backend/whale-services/pom.xml` 只含 `whale-service-auth`，不含 `whale-auth`
-- [x] 旧目录 `backend/whale-services/whale-auth` 无跟踪文件（仅剩本机构建产物，已删除）
+- [x] `whale-backend/whale-services/whale-service-auth/pom.xml` 为 `packaging=pom`，5 个模块齐全
+- [x] `whale-backend/whale-services/pom.xml` 只含 `whale-service-auth`，不含 `whale-auth`
+- [x] 旧目录 `whale-backend/whale-services/whale-auth` 无跟踪文件（仅剩本机构建产物，已删除）
 - [x] 网关两条路由 `whale-service-auth` / `whale-service-auth-tenant` 均指向 `lb://whale-service-auth`
 - [x] CI / 脚本 / prometheus / Dockerfile 中 `whale-auth`、`whale-services/whale-auth`、`lb://whale-auth` 残留计数为 0
-- [x] `mvn -pl backend/whale-services/whale-service-auth/whale-service-auth-starter -am test` 通过（346 用例 0 失败）
+- [x] `mvn -pl whale-backend/whale-services/whale-service-auth/whale-service-auth-starter -am test` 通过（346 用例 0 失败）
 - [ ] 6 控制器 / 35 接口逐项出入参对比未在本轮展开，沿用迁移提交记录
 - [ ] 部署侧 Nacos 服务名重新注册仍待运维执行

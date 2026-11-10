@@ -33,7 +33,7 @@
 
 ### 线 D：并行门禁（可与其他线同时启动）
 
-- [x] **D1** 后端全量回归：`mvn -o -f backend/pom.xml clean install`（28/28 模块 BUILD SUCCESS）
+- [x] **D1** 后端全量回归：`mvn -o -f whale-backend/pom.xml clean install`（28/28 模块 BUILD SUCCESS）
 - [x] **D2** 前端构建：`pnpm -C frontend --filter whale-form-designer build`（1461 modules，通过）
 
 ---

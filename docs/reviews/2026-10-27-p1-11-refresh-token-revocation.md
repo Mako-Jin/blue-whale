@@ -39,7 +39,7 @@ P1 #9 让停用、删除、改密后签发的旧 accessToken 在网关与 auth �
 ## 4. 验证
 
 ```powershell
-mvn -B -pl backend/whale-services/whale-service-auth/whale-service-auth-starter -am ^
+mvn -B -pl whale-backend/whale-services/whale-service-auth/whale-service-auth-starter -am ^
   "-Dtest=!Sm4CryptoTest" "-Dsurefire.failIfNoSpecifiedTests=false" test
 ```
 

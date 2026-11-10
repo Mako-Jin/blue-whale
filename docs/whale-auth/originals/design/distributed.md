@@ -6,7 +6,7 @@
 | 状态 | 设计已定稿 / 实现待启动 |
 | 最后更新 | 2026-10-17 |
 | 作者 | BlueWhale |
-| 落点 | `backend/whale-common`（工具与 starter）、各业务服务 |
+| 落点 | `whale-backend/whale-common`（工具与 starter）、各业务服务 |
 
 ---
 
@@ -96,7 +96,7 @@ private Long id;   // 主键 ID（雪花算法）
 处理方式（推荐全平台统一）：
 
 - 全局配置 Jackson 序列化器，将 `Long` / `long` 输出为 JSON **字符串**（`ToStringSerializer`）。
-- 前端（`frontend/`）类型定义将 `id` 声明为 `string`，避免 `number` 推断。
+- 前端（`whale-frontend/`）类型定义将 `id` 声明为 `string`，避免 `number` 推断。
 - 注意：**Spring Boot 4.0.8 已切换 Jackson 3**（包名 `tools.jackson.*`），配置类需按 Jackson 3 的 `JsonMapper`/`SimpleModule` API 编写，不能沿用 Jackson 2 的 `jackson-databind` 写法。
 - 落地钩子（已实测确认）：`org.springframework.boot.jackson.autoconfigure.JsonMapperBuilderCustomizer`（来自 `spring-boot-jackson` 构件，经 `spring-boot-starter-web` 传递引入），其 `customize(JsonMapper.Builder)` 即 Boot 4 的 Jackson 定制入口；旧版 `Jackson2ObjectMapperBuilderCustomizer` 在 Boot 4 已不存在。
 - 影响面（需在报告中记录取舍）：除 `id` 外，`PageResult.total/size/current`（`long`）也会变为字符串；`Result.code`（`int`）不受影响。

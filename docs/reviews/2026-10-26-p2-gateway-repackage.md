@@ -15,7 +15,7 @@
 
 ## 三、验证
 
-1. 构建：`mvn -o -pl backend/whale-services/whale-gateway -am package` BUILD SUCCESS，**84 用例全绿**（含 `NacosRouteDefinitionRepositoryTest` 16 项、`PermissionHeaderGlobalFilterTest` 等）。
+1. 构建：`mvn -o -pl whale-backend/whale-services/whale-gateway -am package` BUILD SUCCESS，**84 用例全绿**（含 `NacosRouteDefinitionRepositoryTest` 16 项、`PermissionHeaderGlobalFilterTest` 等）。
 2. 重启：停旧进程（pid 2764），以最新 jar 启动（注入 `MYSQL_PASSWORD` / `SPRING_DATA_REDIS_PASSWORD` / `SPRING_CLOUD_NACOS_USERNAME` / `SPRING_CLOUD_NACOS_PASSWORD` 环境变量），`/actuator/health` 轮询 **UP**。
 3. 经网关冒烟（8080）：
    - `POST /auth/login` admin：code=0，token 280 字符；

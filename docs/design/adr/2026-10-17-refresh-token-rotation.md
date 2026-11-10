@@ -6,8 +6,8 @@
 | 关联需求 | REQ-SEC-004（登出令牌失效）、REQ-SEC-002（令牌黑名单）、REQ-DIST-001/002 |
 | 关联任务 | **AUTH-03**（本 ADR）→ 实施另立 **AUTH-39** |
 | 决策日期 | 2026-10-17 ｜ 作者：BlueWhale |
-| 影响面 | whale-auth（签发/刷新/登出）、whale-gateway（黑名单校验）、前端 `frontend/admin`（token 持久化） |
-| 数据来源 | `backend/whale-services/whale-auth/src/main/java/com/bluewhale/auth/jwt/JwtTokenProvider.java`、`service/AuthService.java`、`security/RedisTokenBlacklist.java`、[distributed.md](distributed.md) §3.6 |
+| 影响面 | whale-auth（签发/刷新/登出）、whale-gateway（黑名单校验）、前端 `whale-frontend/admin`（token 持久化） |
+| 数据来源 | `whale-backend/whale-services/whale-auth/src/main/java/com/bluewhale/auth/jwt/JwtTokenProvider.java`、`service/AuthService.java`、`security/RedisTokenBlacklist.java`、[distributed.md](distributed.md) §3.6 |
 
 ---
 

@@ -12,8 +12,8 @@
 | [ ] S5 | `SysRoleServiceImpl#assignPermissions` 加 `@DistributedLock(prefix="lock", biz="auth:role", key="#id", waitTime=1, leaseTime=30, failFast=true)` | S1 | 高 | Key 为 `lock:auth:role:{roleId}`；锁覆盖事务（切面 order 高于 `@Transactional`） | ✅ |
 | [ ] S6 | 单测：`PermissionCacheTest` 扩充 + `PermissionCacheMutexTest` 新增 + `SysRoleServiceImplTest` 注解接线断言 | S2–S5 | 高 | 新增用例全绿；既有 `PermissionCacheTest` 用例同步构造 | ✅ |
 | [ ] S7 | 实时 IT：`LivePermissionLockIT`（真实 Redis @6379，`-Dwhale.live.it=true`）① 同角色并发互斥 ② 缓存防击穿回源计数=1 | S3–S5 | 高 | 实测通过（Redis 本机已可用） | ✅ |
-| [ ] S8 | 构建验证：`mvn -f backend/pom.xml -pl :whale-auth -am -Pcoverage-gate clean verify` | S6、S7 | 高 | 全绿 + LINE ≥ 0.40、BRANCH ≥ 0.30 | ✅ |
-| [ ] S9 | 规范门禁：`mvn -f backend/pom.xml checkstyle:check` | S8 | 高 | 全 reactor 0 违规 | ✅ |
+| [ ] S8 | 构建验证：`mvn -f whale-backend/pom.xml -pl :whale-auth -am -Pcoverage-gate clean verify` | S6、S7 | 高 | 全绿 + LINE ≥ 0.40、BRANCH ≥ 0.30 | ✅ |
+| [ ] S9 | 规范门禁：`mvn -f whale-backend/pom.xml checkstyle:check` | S8 | 高 | 全 reactor 0 违规 | ✅ |
 | [ ] S10 | 留痕收口：检查报告 `docs/reviews/2026-10-18-wave5.9-auth-distributed-lock.md` + devlog §29 + §三新增问题项 | S8、S9 | 中 | 四类信息齐备 | ✅ |
 | [ ] S11 | 台账销账：`whale-auth-backlog.md` AUTH-19（+ 风险 #9）、`next-steps.md` | S10 | 中 | 删除线 + ✅ | ✅ |
 | [ ] S12 | 自动 commit + push（Gitee origin/main） | S11 | 中 | 工作区干净且 `main == origin/main` | ✅ |

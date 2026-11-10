@@ -23,11 +23,11 @@
 
 - 影响能力：网关安全启动校验、令牌黑名单降级可观测、审计读取自审计、审计返回体留痕、权限中心文档归置。
 - 影响代码：
-  - `backend/whale-services/whale-gateway/`（新增 `config/GatewaySecretPlaceholderChecker.java`、改 `config/WhaleGatewayProperties.java`、`security/TokenBlacklistChecker.java`）
-  - `backend/whale-common/whale-security/`（新增 `degradation/SecurityDegradationAlerter.java`）
-  - `backend/whale-common/whale-spring-boot-starter/`（改 `audit/aop/AuditLogAspect.java`、`audit/entity/AuditLogRecord.java`、`audit/annotation/AuditLog.java` 注释）
-  - `backend/whale-services/whale-auth/`（改 `security/RedisTokenBlacklist.java`、`src/main/resources/db/init.sql`）
-  - `backend/whale-ops/whale-audit/`（改 `controller/AuditLogController.java`、`vo/AuditLogVO.java`、`src/main/resources/db/init.sql`）
+  - `whale-backend/whale-services/whale-gateway/`（新增 `config/GatewaySecretPlaceholderChecker.java`、改 `config/WhaleGatewayProperties.java`、`security/TokenBlacklistChecker.java`）
+  - `whale-backend/whale-common/whale-security/`（新增 `degradation/SecurityDegradationAlerter.java`）
+  - `whale-backend/whale-common/whale-spring-boot-starter/`（改 `audit/aop/AuditLogAspect.java`、`audit/entity/AuditLogRecord.java`、`audit/annotation/AuditLog.java` 注释）
+  - `whale-backend/whale-services/whale-auth/`（改 `security/RedisTokenBlacklist.java`、`src/main/resources/db/init.sql`）
+  - `whale-backend/whale-ops/whale-audit/`（改 `controller/AuditLogController.java`、`vo/AuditLogVO.java`、`src/main/resources/db/init.sql`）
   - `docs/`（design/audit-log.md、design/distributed.md、plans/whale-auth-backlog.md、requirements/register.md、devlog、本波 spec 三件套、`docs/whale-auth/**`）
 
 ## ADDED Requirements
@@ -124,7 +124,7 @@
 
 ## 七、验收口径
 
-- `mvn -f backend/pom.xml clean verify -T 1C` → BUILD SUCCESS，全模块用例不回归。
-- `mvn -f backend/pom.xml checkstyle:check` → 全 reactor 0 违规（E16 Javadoc / 行宽 ≤150 / C4 方法参数 ≤4）。
+- `mvn -f whale-backend/pom.xml clean verify -T 1C` → BUILD SUCCESS，全模块用例不回归。
+- `mvn -f whale-backend/pom.xml checkstyle:check` → 全 reactor 0 违规（E16 Javadoc / 行宽 ≤150 / C4 方法参数 ≤4）。
 - 新增单测覆盖上述 4 个 Scenario 的成功/降级/边界分支。
 - 检查报告（`docs/reviews/2026-10-18-wave5.11-auth-residual.md`）+ devlog 四节 + 台账销账 + 提交推送。

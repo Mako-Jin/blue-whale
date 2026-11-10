@@ -43,7 +43,7 @@
 - **规模**：M ｜ **依赖**：无 ｜ **附录**：GitHub 网络间歇超时，push 需重试；日常需 `git push origin main` + `git push ci main`。
 
 ### P0-2 构建可复现（已完成 2026-10-22）
-- **实际落点调整**：计划的 `backend/mvnw` 改为**仓库根** `mvnw`。根 `pom.xml` 是聚合入口，CI 与 Checkstyle 的 `configLocation`（`${maven.multiModuleProjectDirectory}`）都以仓库根为基准；在 `backend/` 单独生成 wrapper 反而会让 `validate` 阶段找不到规则集。
+- **实际落点调整**：计划的 `whale-backend/mvnw` 改为**仓库根** `mvnw`。根 `pom.xml` 是聚合入口，CI 与 Checkstyle 的 `configLocation`（`${maven.multiModuleProjectDirectory}`）都以仓库根为基准；在 `whale-backend/` 单独生成 wrapper 反而会让 `validate` 阶段找不到规则集。
 - **已完成**
   1. 根目录生成并入库 Maven Wrapper（wrapper 3.3.4 only-script + Maven 3.9.9，阿里云镜像）：`mvnw` / `mvnw.cmd` / `.mvn/wrapper/maven-wrapper.properties`；`.gitignore` 移除 `.mvn/`、`mvnw`、`mvnw.cmd` 三条忽略规则。
   2. 新增根 `.mvn/jvm.config`：`-Xmx2g`。
@@ -59,7 +59,7 @@
 
 ### P0-3 E2E 冒烟（Playwright，两批；两批已完成 2026-10-22）
 - **步骤**
-  1. ✅ 新建 `frontend/e2e/`（独立 workspace 包 `@bluewhale/e2e`），Playwright + `webServer` 自动拉起 admin（8001）、表单设计器（8002）与工作流设计器（8003）。
+  1. ✅ 新建 `whale-frontend/e2e/`（独立 workspace 包 `@bluewhale/e2e`），Playwright + `webServer` 自动拉起 admin（8001）、表单设计器（8002）与工作流设计器（8003）。
   2. ✅ 第一批两条：① 未登录 → 跳登录 → 登录成功 → 菜单按权限渲染；② 建表 → 加列 → 发布 → 填单 → 列表可见。
   3. ✅ 第二批：发起流程 → 审批 → 会签 → 通过（工作流闭环）。
   4. ✅ 本地入口 `pnpm e2e`（前端根目录），失败产出 trace/截图；CI 挂载待全栈 job 就绪。
@@ -92,9 +92,9 @@
 ### P1-1 前端统一请求层（已完成 2026-10-22）
 - **现状**：`admin / ops / erp / oa / form-designer / workflow-designer / agent / portal` 各自实现 `api/http.ts`（实盘 10 份，含 mes/pdm）。
 - **步骤**
-  1. ✅ 新建 `frontend/shared-packages/http`（`@bluewhale/http`）：`createHttpClient` 统一信封解包、Bearer 注入、401 单飞刷新重放、`X-Trace-Id`（32 位十六进制）、`downloadBlob`、`streamSse`；库构建不引用 `import.meta.env`，baseUrl 由各应用注入。
+  1. ✅ 新建 `whale-frontend/shared-packages/http`（`@bluewhale/http`）：`createHttpClient` 统一信封解包、Bearer 注入、401 单飞刷新重放、`X-Trace-Id`（32 位十六进制）、`downloadBlob`、`streamSse`；库构建不引用 `import.meta.env`，baseUrl 由各应用注入。
   2. ✅ 10 个应用新增 `src/api/client.ts` 薄适配（各自 token 模块注入），业务层 `api/*.ts` 仅改 import 路径。
-  3. ✅ 删除 10 份 `api/http.ts`，全仓 `frontend/**/api/http.ts` 为 0；新增 `scripts/smoke.mjs` 覆盖信封/Bearer/并发 401 单飞/业务码/下载/SSE/链路 ID。
+  3. ✅ 删除 10 份 `api/http.ts`，全仓 `whale-frontend/**/api/http.ts` 为 0；新增 `scripts/smoke.mjs` 覆盖信封/Bearer/并发 401 单飞/业务码/下载/SSE/链路 ID。
 - **验收**：✅ 共享包 build + smoke 全通过；10 个应用 build、lint 全绿；Playwright E2E **3 passed**（admin 登录菜单、表单闭环、工作流闭环）回归通过。
 - **遗留**：agent 应用登录页已随构建验证，SSE 实机对话回归未跑（依赖模型配置）；共享层 SSE 解析已由 smoke 覆盖。
 - **规模**：M ｜ **依赖**：无

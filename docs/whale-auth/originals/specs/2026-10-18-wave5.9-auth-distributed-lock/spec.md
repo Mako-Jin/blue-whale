@@ -29,9 +29,9 @@ Wave 5.0 交付了 `@DistributedLock` 注解 + `DistributedLockAspect`（Redisso
 
 | 项 | 现状 | 落点 |
 |---|---|---|
-| 锁工具 | [DistributedLock.java](../../../backend/whale-common/whale-spring-boot-starter/src/main/java/com/bluewhale/common/lock/annotation/DistributedLock.java) + [DistributedLockAspect.java](../../../backend/whale-common/whale-spring-boot-starter/src/main/java/com/bluewhale/common/lock/aop/DistributedLockAspect.java) + `DistributedLockAutoConfiguration`（`@ConditionalOnClass({RedissonClient, Aspect})`）；whale-auth 已引 Redisson → 切面已生效 | 直接复用（starter 不改锁语义） |
-| 场景 ①：角色权限变更 | [SysRoleServiceImpl.java](../../../backend/whale-services/whale-auth/src/main/java/com/bluewhale/auth/service/impl/SysRoleServiceImpl.java) `#assignPermissions`：先校验 → 删关联 → 逐条 `insert` → `evictByRole`；并发下会出现「删/插 交错」 | 方法上加 `@DistributedLock`，Key `lock:auth:role:{roleId}` |
-| 场景 ②：缓存防击穿 | [PermissionCache.java](../../../backend/whale-services/whale-auth/src/main/java/com/bluewhale/auth/security/PermissionCache.java) `#getPermissionCodes` 经 `CacheConsistencyTemplate#getOrLoad`：未命中即回源，**无互斥**（同 Key 并发 N 次回源） | 未命中后经锁 + **双重检查**再回源 |
+| 锁工具 | [DistributedLock.java](../../../whale-backend/whale-common/whale-spring-boot-starter/src/main/java/com/bluewhale/common/lock/annotation/DistributedLock.java) + [DistributedLockAspect.java](../../../whale-backend/whale-common/whale-spring-boot-starter/src/main/java/com/bluewhale/common/lock/aop/DistributedLockAspect.java) + `DistributedLockAutoConfiguration`（`@ConditionalOnClass({RedissonClient, Aspect})`）；whale-auth 已引 Redisson → 切面已生效 | 直接复用（starter 不改锁语义） |
+| 场景 ①：角色权限变更 | [SysRoleServiceImpl.java](../../../whale-backend/whale-services/whale-auth/src/main/java/com/bluewhale/auth/service/impl/SysRoleServiceImpl.java) `#assignPermissions`：先校验 → 删关联 → 逐条 `insert` → `evictByRole`；并发下会出现「删/插 交错」 | 方法上加 `@DistributedLock`，Key `lock:auth:role:{roleId}` |
+| 场景 ②：缓存防击穿 | [PermissionCache.java](../../../whale-backend/whale-services/whale-auth/src/main/java/com/bluewhale/auth/security/PermissionCache.java) `#getPermissionCodes` 经 `CacheConsistencyTemplate#getOrLoad`：未命中即回源，**无互斥**（同 Key 并发 N 次回源） | 未命中后经锁 + **双重检查**再回源 |
 | 缓存工具 | `CacheConsistencyTemplate`（starter）：`getOrLoad` / `evict` / `evictWithDelay`；`buildKey`/`readQuietly` 为 private | 新增**只读**公开方法 `getIfPresent(name, id)`（不回源、不写哨兵），供调用方自实现「先读 → 加锁 → 复查 → 回源」 |
 
 **锁 Key 约定**（REQ-ARCH-004 / [distributed.md](../../design/distributed.md) §2.4）：
@@ -94,8 +94,8 @@ getPermissionCodes(userId, loader)
 | 注解接线 | `SysRoleServiceImplTest`（新增用例） | 反射断言 `assignPermissions` 携带 `@DistributedLock`，`biz="auth:role"`、`key="#id"`、`failFast=true` |
 | 并发实证 | `LivePermissionLockIT`（`-Dwhale.live.it=true`，真实 Redis） | ① 同角色并发：持锁期间第二调用 `LOCK_ACQUIRE_FAILED`，Redis 中 `lock:auth:role:{id}` 确实被持有；② 缓存防击穿：N 线程并发未命中，DB 回源计数 = 1 |
 | 判定语义不回归 | 全量单测（既有 120 用例） | 全绿 |
-| 覆盖率门禁 | `mvn -f backend/pom.xml -pl :whale-auth -am -Pcoverage-gate clean verify` | BUILD SUCCESS（LINE ≥ 0.40、BRANCH ≥ 0.30） |
-| 代码规范 | `mvn -f backend/pom.xml checkstyle:check` | 全 reactor 0 违规（含 E16 Javadoc 门禁） |
+| 覆盖率门禁 | `mvn -f whale-backend/pom.xml -pl :whale-auth -am -Pcoverage-gate clean verify` | BUILD SUCCESS（LINE ≥ 0.40、BRANCH ≥ 0.30） |
+| 代码规范 | `mvn -f whale-backend/pom.xml checkstyle:check` | 全 reactor 0 违规（含 E16 Javadoc 门禁） |
 
 ---
 

@@ -40,7 +40,7 @@
 
 | 验证 | 结果 |
 |---|---|
-| `mvn -pl backend/whale-ops/whale-alert -am test` | 28 用例 0 失败；`AlertNotifyServiceImplTest` 9/9 |
+| `mvn -pl whale-backend/whale-ops/whale-alert -am test` | 28 用例 0 失败；`AlertNotifyServiceImplTest` 9/9 |
 | Checkstyle | 0 violations |
 | 预检空环境 `-SkipNetwork` | 7 BLOCKED：渠道、CA、TSA、回调密钥、实名、意愿、Alertmanager 令牌 |
 | 预检合成环境（临时自签 CA/P12 + 假 URL） | CA/P12/TSA/渠道/回调/短信/邮件/Alertmanager 全部 READY；仅实名/意愿 2 项 BLOCKED |

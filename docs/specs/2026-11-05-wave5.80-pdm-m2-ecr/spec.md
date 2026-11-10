@@ -82,20 +82,20 @@
 4. 影响对象：非法类型、缺少 ID 与编码均拒绝；合法对象序列化后可反序列化回显。
 5. 分页：`size > 200` 时按 200 截断。
 6. 权限迁移脚本可重复执行；权限 950–955 连续、菜单 190、角色 21105 存在。
-7. 后端 `mvn -pl backend/whale-apps/whale-pdm test` 全绿；前端 `lint`、`tsc -b`、`vite build` 通过。
+7. 后端 `mvn -pl whale-backend/whale-apps/whale-pdm test` 全绿；前端 `lint`、`tsc -b`、`vite build` 通过。
 
 ---
 
 ## 六、提交范围
 
 ```
-backend/whale-apps/whale-pdm/src/main/java/com/bluewhale/pdm/change/**
-backend/whale-apps/whale-pdm/src/main/resources/db/migration/V7__change_request.sql
-backend/whale-apps/whale-pdm/src/test/java/com/bluewhale/pdm/change/**
-backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-5.80-pdm-change.sql
-frontend/platform-apps/whale-pdm/src/api/change.ts
-frontend/platform-apps/whale-pdm/src/pages/change/**
-frontend/platform-apps/whale-pdm/src/App.tsx
+whale-backend/whale-apps/whale-pdm/src/main/java/com/bluewhale/pdm/change/**
+whale-backend/whale-apps/whale-pdm/src/main/resources/db/migration/V7__change_request.sql
+whale-backend/whale-apps/whale-pdm/src/test/java/com/bluewhale/pdm/change/**
+whale-backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-5.80-pdm-change.sql
+whale-frontend/platform-apps/whale-pdm/src/api/change.ts
+whale-frontend/platform-apps/whale-pdm/src/pages/change/**
+whale-frontend/platform-apps/whale-pdm/src/App.tsx
 docs/plans/2026-11-04-wave5.80-pdm-panorama.md
 docs/service-catalog.md
 docs/requirements/register.md

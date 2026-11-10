@@ -2,7 +2,7 @@
 
 - 状态：**待批准**（批准后进入实施）
 - 上级计划：[2026-11-04-wave5.83-crm-panorama.md](../../plans/2026-11-04-wave5.83-crm-panorama.md)（M2 增量）
-- 目标模块：`backend/whale-apps/whale-crm`
+- 目标模块：`whale-backend/whale-apps/whale-crm`
 - 业务上下文：`commerce`（商务：报价 / 订单）
 - 关联服务：`whale-workflow`（审批发起，CRM 不复制审批引擎）
 - 范围外：报价转订单（M3）、销售预测 / 目标、前端 8113
@@ -74,7 +74,7 @@
 
 ## 3. 数据库变更
 
-新增 `backend/whale-apps/whale-crm/src/main/resources/db/migration/V5__quote.sql`
+新增 `whale-backend/whale-apps/whale-crm/src/main/resources/db/migration/V5__quote.sql`
 （`CREATE TABLE IF NOT EXISTS`；不写 DROP / TRUNCATE / DELETE；无业务种子数据；表间逻辑外键不建物理 FK）。
 
 ### 3.1 `crm_quote`
@@ -190,7 +190,7 @@
 - `QuoteInternalController.java`：`/crm/internal/quote`，`POST /approval-callback`。
 
 ### 4.6 权限脚本
-新增 `backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-5.85-crm-quote.sql`：
+新增 `whale-backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-5.85-crm-quote.sql`：
 - 1850–1854 五条权限，全部 `INSERT ... SELECT ... WHERE NOT EXISTS`。
 - 授权按 D-6；授权 ID `CAST(CONV(SUBSTR(MD5(CONCAT(r.id, ':', p.id)), 1, 15), 16, 10) AS UNSIGNED)`，沿用既有范式。
 

@@ -11,19 +11,19 @@
 
 | 项 | 取值 |
 |---|---|
-| 模块 | `backend/whale-services/whale-doc` |
+| 模块 | `whale-backend/whale-services/whale-doc` |
 | 服务名 | `whale-doc` |
 | 端口 | `8095`（`SERVER_PORT`） |
 | 数据库 | `bluewhale_doc`（MySQL 8，`utf8mb4`） |
 | 包根 | `com.bluewhale.doc` |
 | 对外前缀 | `/doc/**`（网关不 StripPrefix） |
 | 内网前缀 | `/doc/internal/**`（网关 `internal-deny` 统一 403） |
-| 前端 | `frontend/platform-apps/whale-doc`，qiankun base `/doc` |
+| 前端 | `whale-frontend/platform-apps/whale-doc`，qiankun base `/doc` |
 | Redis | `whale:doc:*` |
 | 权限码 | `sys:doc:*`（251–279） |
 | 角色 | `doc_manager`（25101）、`doc_member`（25102） |
 
-网关路由（`backend/whale-services/whale-gateway/src/main/resources/application.yml`）：
+网关路由（`whale-backend/whale-services/whale-gateway/src/main/resources/application.yml`）：
 
 - `whale-doc-ws`：`lb:ws://whale-doc`，`Path=/doc/ws`，`order=-1`（WS 升级先于 REST）。
 - `whale-doc`：`lb://whale-doc`，`Path=/doc/**`。
@@ -40,14 +40,14 @@
 mvn -q -o -pl whale-services/whale-doc -am -DskipTests package
 ```
 
-产物：`backend/whale-services/whale-doc/target/whale-doc.jar`。
+产物：`whale-backend/whale-services/whale-doc/target/whale-doc.jar`。
 
 ### 2.2 后端启动
 
 ```powershell
 $env:MYSQL_PASSWORD='***'
 $env:SPRING_DATA_REDIS_PASSWORD='***'   # 如 Redis 开启口令
-java -jar backend/whale-services/whale-doc/target/whale-doc.jar
+java -jar whale-backend/whale-services/whale-doc/target/whale-doc.jar
 ```
 
 必需外部依赖：MySQL、Redis、Nacos（8080 网关与 8081 auth 用于对外链路）。
@@ -68,7 +68,7 @@ pnpm --filter whale-doc lint
 pnpm --filter whale-doc build
 ```
 
-产物位于 `frontend/platform-apps/whale-doc/dist`，按 qiankun 子应用部署到 `/doc`；
+产物位于 `whale-frontend/platform-apps/whale-doc/dist`，按 qiankun 子应用部署到 `/doc`；
 基座已注册 `whale-doc`（`qiankun/apps.ts`、`routes.tsx`、菜单与图标）。
 
 ### 2.5 健康检查

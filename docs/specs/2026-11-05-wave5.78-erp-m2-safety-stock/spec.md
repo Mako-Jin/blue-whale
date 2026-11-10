@@ -117,7 +117,7 @@ CREATE TABLE IF NOT EXISTS erp_scm_safety_stock (
 
 ---
 
-## 4. 前端设计（`frontend/platform-apps/whale-erp`）
+## 4. 前端设计（`whale-frontend/platform-apps/whale-erp`）
 
 | 文件 | 变更 |
 |---|---|

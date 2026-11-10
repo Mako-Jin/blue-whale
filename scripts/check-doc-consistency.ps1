@@ -1,6 +1,6 @@
 ﻿# ============================================================
 # 文档一致性门禁（平台评审 P0-4）
-# 以 backend/whale-parent/pom.xml 为框架版本唯一事实源：
+# 以 whale-backend/whale-parent/pom.xml 为框架版本唯一事实源：
 #   1) 现行事实文档（README / architecture / service-catalog）不得残留过期版本标记；
 #   2) 文档中若显式声明 Spring Boot / Cloud / Alibaba 版本，必须与 POM 一致。
 # 历史记录（docs/devlog、docs/reviews、docs/*/originals）为归档原文，不参与版本校验。
@@ -15,7 +15,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$pomPath = Join-Path $RepoRoot 'backend/whale-parent/pom.xml'
+$pomPath = Join-Path $RepoRoot 'whale-backend/whale-parent/pom.xml'
 if (-not (Test-Path -LiteralPath $pomPath)) {
     Write-Host "[FAIL] 未找到父 POM：$pomPath" -ForegroundColor Red
     exit 1
@@ -103,7 +103,7 @@ foreach ($relative in @('README.md', 'docs/architecture.md')) {
 # ============================================================
 
 $catalogPath = Join-Path $RepoRoot 'docs/service-catalog.md'
-$appsDir = Join-Path $RepoRoot 'backend/whale-apps'
+$appsDir = Join-Path $RepoRoot 'whale-backend/whale-apps'
 
 if ((Test-Path -LiteralPath $catalogPath) -and (Test-Path -LiteralPath $appsDir)) {
     $catalogLines = Get-Content -LiteralPath $catalogPath -Encoding UTF8

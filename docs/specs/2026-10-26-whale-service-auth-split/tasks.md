@@ -33,7 +33,7 @@
 - [ ] T2.6 `git mv` `controller`、`dto`、`service`、`interfaces` → `-interfaces`
 - [ ] T2.7 `git mv` `WhaleAuthApplication.java` + `src/main/resources` → `-starter`
 - [ ] T2.8 `git mv` `src/test` → `-starter/src/test`（含 `test/resources/application.yml`）
-- [ ] T2.9 `backend/whale-services/pom.xml`：module 替换为 `whale-service-auth`
+- [ ] T2.9 `whale-backend/whale-services/pom.xml`：module 替换为 `whale-service-auth`
 - [ ] T2.10 验证：`mvn -q -pl whale-services/whale-service-auth -am -DskipTests compile`
 
 ## 阶段 3：运行时改名 whale-auth → whale-service-auth
@@ -54,7 +54,7 @@
 
 ## 阶段 4：收尾
 
-- [ ] T4.1 `git rm -r backend/whale-services/whale-auth`
+- [ ] T4.1 `git rm -r whale-backend/whale-services/whale-auth`
 - [ ] T4.2 残留 grep 门禁：`whale-services/whale-auth`、`lb://whale-auth`、`job_name: whale-auth` 均为 0
 - [ ] T4.3 `mvn -q -DskipTests install`（全量）
 - [ ] T4.4 `mvn -q -pl whale-services/whale-service-auth/whale-service-auth-starter -am test`

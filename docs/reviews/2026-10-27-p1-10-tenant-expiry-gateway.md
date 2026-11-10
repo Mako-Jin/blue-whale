@@ -46,9 +46,9 @@ Wave 5.54 Phase 2 只把租户「启用/停用」写入缓存（`whale:{tenantId
 ## 4. 验证
 
 ```powershell
-mvn -B -pl backend/whale-services/whale-service-auth/whale-service-auth-starter -am ^
+mvn -B -pl whale-backend/whale-services/whale-service-auth/whale-service-auth-starter -am ^
   "-Dtest=!Sm4CryptoTest" "-Dsurefire.failIfNoSpecifiedTests=false" test
-mvn -B -pl backend/whale-services/whale-gateway -am ^
+mvn -B -pl whale-backend/whale-services/whale-gateway -am ^
   "-Dtest=!Sm4CryptoTest" "-Dsurefire.failIfNoSpecifiedTests=false" test
 ```
 

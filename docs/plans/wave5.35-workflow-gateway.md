@@ -8,9 +8,9 @@
 
 ## 一、现状基线
 
-- 工作流：`backend/whale-services/whale-workflow`，状态机内核 `support/machine/`（`StateMachine` 仅 `AlwaysGuard`/`DefaultFlowGuard`，`pickTransition` 按单流/默认流/多分支处理）；`ProcessModelFlow.condition` 仅往返不参与选路；校验器发 `CONDITION_IGNORED` 警告；`process_task` 只有 `assignee/status/comment/node_key/form_id/form_code`，无会签/委派/转办字段；`ProcessInstanceStartRequest` 与 `ApprovalRequest` 无 `variables`/`formData`。
-- 前端：`frontend/platform-apps/whale-workflow-designer`（8003），`PropertyPanel` 的 condition 仅文本框；`TaskCenter` 只有同意/驳回；`api/workflow.ts` 无转办/委派/回退接口。
-- 网关：`backend/whale-services/whale-gateway`，自研 `CircuitBreakerGlobalFilter`（滑动窗口 + 半开 + 503 `Result` 体 + `gateway.circuit.*` 指标）；`NacosRouteDefinitionRepository` 仅校验 `id/uri` 非空与 predicate/filter 有 `name`；本地 Maven 仓库**已有** `spring-cloud-starter-circuitbreaker-reactor-resilience4j`，**无** `com.alibaba.csp`（Sentinel 离线不可得）。
+- 工作流：`whale-backend/whale-services/whale-workflow`，状态机内核 `support/machine/`（`StateMachine` 仅 `AlwaysGuard`/`DefaultFlowGuard`，`pickTransition` 按单流/默认流/多分支处理）；`ProcessModelFlow.condition` 仅往返不参与选路；校验器发 `CONDITION_IGNORED` 警告；`process_task` 只有 `assignee/status/comment/node_key/form_id/form_code`，无会签/委派/转办字段；`ProcessInstanceStartRequest` 与 `ApprovalRequest` 无 `variables`/`formData`。
+- 前端：`whale-frontend/platform-apps/whale-workflow-designer`（8003），`PropertyPanel` 的 condition 仅文本框；`TaskCenter` 只有同意/驳回；`api/workflow.ts` 无转办/委派/回退接口。
+- 网关：`whale-backend/whale-services/whale-gateway`，自研 `CircuitBreakerGlobalFilter`（滑动窗口 + 半开 + 503 `Result` 体 + `gateway.circuit.*` 指标）；`NacosRouteDefinitionRepository` 仅校验 `id/uri` 非空与 predicate/filter 有 `name`；本地 Maven 仓库**已有** `spring-cloud-starter-circuitbreaker-reactor-resilience4j`，**无** `com.alibaba.csp`（Sentinel 离线不可得）。
 
 ## 二、任务清单
 
@@ -51,7 +51,7 @@
 ### C. 验证与收尾
 
 - [x] **V1** 后端模块自检：`mvn -o -pl whale-services/whale-workflow,whale-services/whale-form,whale-services/whale-gateway -am test`（Checkstyle + 单测）
-- [x] **V2** 全量回归：`mvn -o -f backend/pom.xml clean install -T 1C`（27/27 **BUILD SUCCESS**）
+- [x] **V2** 全量回归：`mvn -o -f whale-backend/pom.xml clean install -T 1C`（27/27 **BUILD SUCCESS**）
 - [x] **V3** DDL：`migration-5.35.sql` 在 `bluewhale_workflow` 落库并核对列
 - [x] **V4** 运行时冒烟（经网关 8080）：条件选路、会签 ANY/ALL、转办/委派/回退、审批改表单、网关非法路由拒绝 + 回滚
 - [x] **V5** 前端构建 + 浏览器 E2E：设计器条件输入 → 发起带变量 → 待办转办/回退 → 审批改表单（`pnpm build` 通过；浏览器实测登录/待办列表/审批抽屉表单编辑保存 PASS；**转办弹窗确认在自动化环境点击被拦截，未发出请求 → 需人工复核**；设计器本轮未复验，Wave 5.32 已通过）

@@ -2,7 +2,7 @@
 
 > 用户指令（2026-10-20）：「后端已经完成了吗？现在开始前端？管理和绘制，表单可以选择表单管理器的表单。」
 > 经 AskUserQuestion 冻结口径：
-> 1. **新建独立前端应用** `frontend/platform-apps/whale-workflow-designer`（端口 **8003**），与 whale-form-designer 并列；
+> 1. **新建独立前端应用** `whale-frontend/platform-apps/whale-workflow-designer`（端口 **8003**），与 whale-form-designer 并列；
 > 2. **自研自由画布流程图**（SVG 自绘 + 复用 `@dnd-kit`），**不引入 React Flow**；
 > 3. 本轮覆盖四域：**流程定义管理 / 流程发起+填表单 / 我的待办+审批 / 流程实例监控**；
 > 4. **允许后端最小可加性补强**：节点绑定表单（`formId`/`formCode`）、节点坐标（`x`/`y`）、待办携带表单信息。
@@ -17,8 +17,8 @@
 | 层 | 内容 | 落点 |
 |---|---|---|
 | 后端 whale-workflow | 可加性补强：节点 `formId`/`formCode`/`x`/`y` 与 JSON 往返；BPMN `formKey` 往返；`process_task` 增 `node_key`/`form_id`/`form_code`；待办 VO 透出 | `support/*`、`support/bpmn/*`、`entity/*`、`vo/*`、`db/*` |
-| 前端（新应用 8003） | 应用骨架 + 自由画布设计器 + 定义管理 + 流程发起（填表单）+ 待办审批（回显表单）+ 实例监控 | `frontend/platform-apps/whale-workflow-designer` |
-| 共享组件 | 抽取 `FormRenderer` 至 `elemental/whale-ui`，两个前端应用共用 | `frontend/elemental/whale-ui`、`whale-form-designer`（改 re-export） |
+| 前端（新应用 8003） | 应用骨架 + 自由画布设计器 + 定义管理 + 流程发起（填表单）+ 待办审批（回显表单）+ 实例监控 | `whale-frontend/platform-apps/whale-workflow-designer` |
+| 共享组件 | 抽取 `FormRenderer` 至 `elemental/whale-ui`，两个前端应用共用 | `whale-frontend/elemental/whale-ui`、`whale-form-designer`（改 re-export） |
 | 闭环 | `绘制定义 → 保存 → 校验 → 发起（填绑定表单）→ 待办审批（回显表单）→ 实例监控` | — |
 
 **非目标（见 §六）**：审批时表单可编辑写回、条件表达式求值、会签/转办/回退、BPMN-DI 坐标回写、定义版本快照、实例迁移。
@@ -29,14 +29,14 @@
 
 | # | 事实 | 影响 |
 |---|---|---|
-| 1 | [ProcessModelNode.java](file:///d:/BlueWhale/BlueWhale/backend/whale-services/whale-workflow/src/main/java/com/bluewhale/workflow/support/ProcessModelNode.java#L11-L32) 仅 `key/type/name/assignee`；无表单绑定、无坐标 | 需加 4 个可空字段 |
-| 2 | [ProcessModelParser.java](file:///d:/BlueWhale/BlueWhale/backend/whale-services/whale-workflow/src/main/java/com/bluewhale/workflow/support/ProcessModelParser.java#L163-L187) `readNode` **逐字段**读取 `JsonNode` | 未知字段被静默丢弃 → 坐标无法"夹带"在 JSON 里，必须显式加字段 |
-| 3 | [ProcessModelServiceImpl.java](file:///d:/BlueWhale/BlueWhale/backend/whale-services/whale-workflow/src/main/java/com/bluewhale/workflow/service/impl/ProcessModelServiceImpl.java#L184-L212) `toJson` **逐字段**写出 | 新增字段必须同步补进 `toJson`，否则保存即丢失 |
-| 4 | [ProcessTaskVO.java](file:///d:/BlueWhale/BlueWhale/backend/whale-services/whale-workflow/src/main/java/com/bluewhale/workflow/vo/ProcessTaskVO.java#L14-L36) 仅 `nodeIndex/nodeName/assignee`，无 `nodeKey`、无表单 | 待办页拿不到绑定表单 → 需 DDL + 实体 + VO |
-| 5 | [ProcessInstanceVO.java](file:///d:/BlueWhale/BlueWhale/backend/whale-services/whale-workflow/src/main/java/com/bluewhale/workflow/vo/ProcessInstanceVO.java#L20-L56) 已含 `businessKey`、`currentNodeKey`、`tasks` | 实例监控页与"表单数据定位"可直接复用 |
-| 6 | [ProcessDefinitionVO.java](file:///d:/BlueWhale/BlueWhale/backend/whale-services/whale-workflow/src/main/java/com/bluewhale/workflow/vo/ProcessDefinitionVO.java#L19-L43) 已含 `definitionJson` | 设计器可回读画布模型 |
-| 7 | [application.yml](file:///d:/BlueWhale/BlueWhale/backend/whale-services/whale-gateway/src/main/resources/application.yml#L45-L52) 已有 `/workflow/**` 与 `/form/**` 两条 lb 路由 | 前端可跨服务取表单，无需改网关 |
-| 8 | [FormRenderer.tsx](file:///d:/BlueWhale/BlueWhale/frontend/platform-apps/whale-form-designer/src/render/FormRenderer.tsx) 是 **应用内组件**（非共享包），受控受全量值、`disabled` 可整体只读 | 工作流发起/审批页复用需先抽取到共享包 |
+| 1 | [ProcessModelNode.java](file:///d:/BlueWhale/BlueWhale/whale-backend/whale-services/whale-workflow/src/main/java/com/bluewhale/workflow/support/ProcessModelNode.java#L11-L32) 仅 `key/type/name/assignee`；无表单绑定、无坐标 | 需加 4 个可空字段 |
+| 2 | [ProcessModelParser.java](file:///d:/BlueWhale/BlueWhale/whale-backend/whale-services/whale-workflow/src/main/java/com/bluewhale/workflow/support/ProcessModelParser.java#L163-L187) `readNode` **逐字段**读取 `JsonNode` | 未知字段被静默丢弃 → 坐标无法"夹带"在 JSON 里，必须显式加字段 |
+| 3 | [ProcessModelServiceImpl.java](file:///d:/BlueWhale/BlueWhale/whale-backend/whale-services/whale-workflow/src/main/java/com/bluewhale/workflow/service/impl/ProcessModelServiceImpl.java#L184-L212) `toJson` **逐字段**写出 | 新增字段必须同步补进 `toJson`，否则保存即丢失 |
+| 4 | [ProcessTaskVO.java](file:///d:/BlueWhale/BlueWhale/whale-backend/whale-services/whale-workflow/src/main/java/com/bluewhale/workflow/vo/ProcessTaskVO.java#L14-L36) 仅 `nodeIndex/nodeName/assignee`，无 `nodeKey`、无表单 | 待办页拿不到绑定表单 → 需 DDL + 实体 + VO |
+| 5 | [ProcessInstanceVO.java](file:///d:/BlueWhale/BlueWhale/whale-backend/whale-services/whale-workflow/src/main/java/com/bluewhale/workflow/vo/ProcessInstanceVO.java#L20-L56) 已含 `businessKey`、`currentNodeKey`、`tasks` | 实例监控页与"表单数据定位"可直接复用 |
+| 6 | [ProcessDefinitionVO.java](file:///d:/BlueWhale/BlueWhale/whale-backend/whale-services/whale-workflow/src/main/java/com/bluewhale/workflow/vo/ProcessDefinitionVO.java#L19-L43) 已含 `definitionJson` | 设计器可回读画布模型 |
+| 7 | [application.yml](file:///d:/BlueWhale/BlueWhale/whale-backend/whale-services/whale-gateway/src/main/resources/application.yml#L45-L52) 已有 `/workflow/**` 与 `/form/**` 两条 lb 路由 | 前端可跨服务取表单，无需改网关 |
+| 8 | [FormRenderer.tsx](file:///d:/BlueWhale/BlueWhale/whale-frontend/platform-apps/whale-form-designer/src/render/FormRenderer.tsx) 是 **应用内组件**（非共享包），受控受全量值、`disabled` 可整体只读 | 工作流发起/审批页复用需先抽取到共享包 |
 | 9 | 前端工程为 pnpm workspace（`shared-packages/*` + `elemental/*` + `platform-apps/*`），共享组件库为 `elemental/whale-ui` | 新应用按既有约定加入 workspace 即可 |
 
 ---
@@ -116,17 +116,17 @@
 
 ## 四、改动清单（文件级）
 
-**后端（`backend/whale-services/whale-workflow`）**
+**后端（`whale-backend/whale-services/whale-workflow`）**
 - 改：`support/ProcessModelNode.java`、`support/ProcessModelParser.java`、`support/ProcessModelValidator.java`、`support/ValidationCode.java`、`support/bpmn/BpmnXmlParser.java`、`support/bpmn/BpmnXmlWriter.java`、`service/impl/ProcessModelServiceImpl.java`（`toJson`）、`service/impl/ProcessInstanceServiceImpl.java`、`service/impl/ProcessTaskServiceImpl.java`（建任务回填三列）、`entity/ProcessTask.java`、`vo/ProcessTaskVO.java`
 - 新增：`src/main/resources/db/migration-5.32.sql`
 - 改：`src/main/resources/db/init.sql`（`process_task` 建表同步 3 列）
 - 测试：扩展 `ProcessModelParserTest`、`ProcessModelValidatorTest`、`BpmnXmlParserTest`、`BpmnXmlWriterTest`、`ProcessModelServiceImplTest`、`ProcessTaskServiceImplTest`（新增表单/坐标往返与三列落库断言）
 
-**共享组件（`frontend/elemental/whale-ui`）**
+**共享组件（`whale-frontend/elemental/whale-ui`）**
 - 新增 `src/components/FormRenderer/index.tsx`（自 form-designer 迁入，props 签名不变：`fields/value/onChange/disabled`）+ 结构化字段类型 `WhaleFormFieldConfig`
 - 改：`whale-form-designer/src/render/FormRenderer.tsx` → `export { FormRenderer as default } from '@bluewhale/whale-ui'`（**引用路径与调用点零改动**）
 
-**前端新应用（`frontend/platform-apps/whale-workflow-designer`）**
+**前端新应用（`whale-frontend/platform-apps/whale-workflow-designer`）**
 - 骨架：`package.json` / `index.html` / `tsconfig.json` / `tsconfig.node.json` / `vite.config.ts` / `src/main.tsx` / `src/App.tsx` / `src/vite-env.d.ts`
 - 契约层：`src/api/{token,http,auth,workflow,form}.ts`
 - 框架：`src/router/guards.tsx`、`src/layouts/AppLayout.tsx`、`src/pages/Login.tsx`
@@ -143,7 +143,7 @@
 
 ## 五、验证方式
 
-1. **后端静态**：`mvn -o -pl :whale-workflow -am test checkstyle:check` 全绿；`mvn -o -f backend/pom.xml clean install -T 1C` **BUILD SUCCESS（28/28）**；**Wave 5.31 既有 102 用例零回归**。
+1. **后端静态**：`mvn -o -pl :whale-workflow -am test checkstyle:check` 全绿；`mvn -o -f whale-backend/pom.xml clean install -T 1C` **BUILD SUCCESS（28/28）**；**Wave 5.31 既有 102 用例零回归**。
 2. **DDL 证据**：`bluewhale_workflow.process_task` 存在 `node_key`/`form_id`/`form_code` 三列。
 3. **后端运行时冒烟**（经网关 8080）：
    - 保存含 `formId/formCode/x/y` 的定义 → `GET /workflow/definition/{id}` 的 `definitionJson` 字段**往返保留**；

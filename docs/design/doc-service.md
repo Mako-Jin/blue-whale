@@ -157,7 +157,7 @@ DRAFT ──publish──▶ PUBLISHED ──archive──▶ ARCHIVED
 
 | 项 | 取值 |
 |---|---|
-| 服务/模块 | `whale-doc`（`backend/whale-services/whale-doc`） |
+| 服务/模块 | `whale-doc`（`whale-backend/whale-services/whale-doc`） |
 | Maven 坐标 | `com.bluewhale:whale-doc` |
 | Nacos / `spring.application.name` | `whale-doc` |
 | 端口 | `8095`（`${SERVER_PORT:8095}`） |
@@ -165,7 +165,7 @@ DRAFT ──publish──▶ PUBLISHED ──archive──▶ ARCHIVED
 | Java 包根 | `com.bluewhale.doc` |
 | 对外前缀 | `/doc/**`（网关不 StripPrefix） |
 | 内网前缀 | `/doc/internal/**`（网关 `internal-deny` 403） |
-| 前端 | `frontend/platform-apps/whale-doc`，端口 `8110`，base `/doc` |
+| 前端 | `whale-frontend/platform-apps/whale-doc`，端口 `8110`，base `/doc` |
 | 配置前缀 | `whale.doc.*` |
 | Redis 命名空间 | `whale:doc:*` |
 | 表前缀 | `doc_` |
@@ -173,7 +173,7 @@ DRAFT ──publish──▶ PUBLISHED ──archive──▶ ARCHIVED
 ### 4.2 分层与包结构
 
 ```text
-backend/whale-services/whale-doc/
+whale-backend/whale-services/whale-doc/
 └── src/main/java/com/bluewhale/doc/
     ├── WhaleDocApplication.java
     ├── interfaces/

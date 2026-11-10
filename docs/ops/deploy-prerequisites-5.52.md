@@ -9,11 +9,11 @@
 
 | # | 项 | 脚本 / 位置 | 执行方式 | 核验结果 |
 |---|---|---|---|---|
-| 1 | `bluewhale_im` 建库与 DDL | [whale-im/db/init.sql](../../backend/whale-services/whale-im/src/main/resources/db/init.sql) | `Create Table If Not Exists`，可重复执行 | 6 张表齐全：`im_conversation`、`im_conversation_member`、`im_message`、`im_agent_binding`、`im_agent_run`、`audit_log` |
-| 2 | IM 既有库增量（幂等键 + 评价） | [migration-5.52-im-loose-ends.sql](../../backend/whale-services/whale-im/src/main/resources/db/migration-5.52-im-loose-ends.sql) | 仅对旧库执行一次（MySQL 8 不支持 `ADD COLUMN IF NOT EXISTS`） | `im_conversation.pair_key` + `uk_pair_key` 存在；`im_agent_run.feedback` 存在；`SINGLE/BOT` 的 `pair_key` 空值为 **0** |
-| 3 | `bluewhale_agent` 建库与 DDL | [whale-agent/db/init.sql](../../backend/whale-services/whale-agent/src/main/resources/db/init.sql) | 新库直接执行；**既有库禁止整份重跑**（含 `DROP TABLE`） | 7 张表齐全；`agent_operation` 具备 `target / confirmed_by / result_code / elapsed_ms` 四列（既有库已按列 `ALTER` 补齐） |
-| 4 | `whale-auth` 增量权限种子 | [migration-5.52.sql](../../backend/whale-services/whale-auth/src/main/resources/db/migration-5.52.sql) | `INSERT IGNORE` + 仅补空属性，幂等 | 4 个权限码均存在且 `path/method` 已回填：`sys:agent:chat`、`sys:im:chat`、`sys:ai:data:read`、`sys:ai:ops:form` |
-| 5 | 只读账号 `whale_ai_ro` | [data-query-ro.sql](../../backend/whale-services/whale-agent/src/main/resources/db/data-query-ro.sql) | 以 root 执行 | 已收紧为 `@'localhost'` + `@'127.0.0.1'`，删除 `@'%'`；口令已轮换为 24 位随机强口令；**未授予库级权限**，仅四个视图 `SELECT`。实测：视图查询成功，查询基表 `agent_operation` 报 `ERROR 1142` |
+| 1 | `bluewhale_im` 建库与 DDL | [whale-im/db/init.sql](../../whale-backend/whale-services/whale-im/src/main/resources/db/init.sql) | `Create Table If Not Exists`，可重复执行 | 6 张表齐全：`im_conversation`、`im_conversation_member`、`im_message`、`im_agent_binding`、`im_agent_run`、`audit_log` |
+| 2 | IM 既有库增量（幂等键 + 评价） | [migration-5.52-im-loose-ends.sql](../../whale-backend/whale-services/whale-im/src/main/resources/db/migration-5.52-im-loose-ends.sql) | 仅对旧库执行一次（MySQL 8 不支持 `ADD COLUMN IF NOT EXISTS`） | `im_conversation.pair_key` + `uk_pair_key` 存在；`im_agent_run.feedback` 存在；`SINGLE/BOT` 的 `pair_key` 空值为 **0** |
+| 3 | `bluewhale_agent` 建库与 DDL | [whale-agent/db/init.sql](../../whale-backend/whale-services/whale-agent/src/main/resources/db/init.sql) | 新库直接执行；**既有库禁止整份重跑**（含 `DROP TABLE`） | 7 张表齐全；`agent_operation` 具备 `target / confirmed_by / result_code / elapsed_ms` 四列（既有库已按列 `ALTER` 补齐） |
+| 4 | `whale-auth` 增量权限种子 | [migration-5.52.sql](../../whale-backend/whale-services/whale-auth/src/main/resources/db/migration-5.52.sql) | `INSERT IGNORE` + 仅补空属性，幂等 | 4 个权限码均存在且 `path/method` 已回填：`sys:agent:chat`、`sys:im:chat`、`sys:ai:data:read`、`sys:ai:ops:form` |
+| 5 | 只读账号 `whale_ai_ro` | [data-query-ro.sql](../../whale-backend/whale-services/whale-agent/src/main/resources/db/data-query-ro.sql) | 以 root 执行 | 已收紧为 `@'localhost'` + `@'127.0.0.1'`，删除 `@'%'`；口令已轮换为 24 位随机强口令；**未授予库级权限**，仅四个视图 `SELECT`。实测：视图查询成功，查询基表 `agent_operation` 报 `ERROR 1142` |
 | 6 | 白名单视图（4 个） | 同上 | `CREATE OR REPLACE VIEW` | `v_ai_agent_fact_summary`、`v_ai_agent_usage_summary`、`v_ai_agent_feedback_summary`、`v_ai_agent_ops_summary` 均存在；T19 实机 14 例已验证「非白名单表/写 SQL/多语句 → 403」；本轮经 `/agent/tools/data-query` 实测 ops 视图返回 4 行、feedback 视图返回 0 行，均为 `code=0` |
 
 ### 1.1 本轮修正的脚本缺口
@@ -27,17 +27,17 @@
 
 ```sql
 -- 1) IM（新库）
-SOURCE backend/whale-services/whale-im/src/main/resources/db/init.sql;
+SOURCE whale-backend/whale-services/whale-im/src/main/resources/db/init.sql;
 -- 1b) IM（既有库，仅执行一次）
-SOURCE backend/whale-services/whale-im/src/main/resources/db/migration-5.52-im-loose-ends.sql;
+SOURCE whale-backend/whale-services/whale-im/src/main/resources/db/migration-5.52-im-loose-ends.sql;
 
 -- 2) Agent（新库；既有库只按列 ALTER，勿整份重跑）
-SOURCE backend/whale-services/whale-agent/src/main/resources/db/init.sql;
+SOURCE whale-backend/whale-services/whale-agent/src/main/resources/db/init.sql;
 -- 2b) Agent 只读账号与视图（root 执行，先改强口令与主机范围）
-SOURCE backend/whale-services/whale-agent/src/main/resources/db/data-query-ro.sql;
+SOURCE whale-backend/whale-services/whale-agent/src/main/resources/db/data-query-ro.sql;
 
 -- 3) Auth 权限种子（幂等）
-SOURCE backend/whale-services/whale-auth/src/main/resources/db/migration-5.52.sql;
+SOURCE whale-backend/whale-services/whale-auth/src/main/resources/db/migration-5.52.sql;
 ```
 
 校验 SQL：
@@ -111,7 +111,7 @@ WHERE deleted=0 AND type IN ('SINGLE','BOT') AND pair_key IS NULL;         -- �
 
 ## 六、`whale-form` 下游联调（8084，本机）
 
-- 建库：`CREATE DATABASE bluewhale_form` 后执行 [whale-form/db/init.sql](../../backend/whale-services/whale-form/src/main/resources/db/init.sql)，共 8 张表（`form_definition` 等），语句为 `DROP + CREATE`，仅可在空库执行。
+- 建库：`CREATE DATABASE bluewhale_form` 后执行 [whale-form/db/init.sql](../../whale-backend/whale-services/whale-form/src/main/resources/db/init.sql)，共 8 张表（`form_definition` 等），语句为 `DROP + CREATE`，仅可在空库执行。
 - 服务：`whale-form.jar`，端口 8084，已注册 Nacos。
 - 联调链路（`WHALE_AGENT_OPS_ENABLED=true`、`WHALE_AGENT_OPS_TARGET_FORM=http://127.0.0.1:8084`）：
 

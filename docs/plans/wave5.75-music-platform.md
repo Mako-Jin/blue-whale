@@ -10,10 +10,10 @@
 
 | 项 | 结论 |
 |---|---|
-| 服务归属 | **新建 `backend/whale-services/whale-music`**（核心服务，不塞进 file / doc / pay） |
+| 服务归属 | **新建 `whale-backend/whale-services/whale-music`**（核心服务，不塞进 file / doc / pay） |
 | 端口 / 前缀 / 库 | **8096** / **`/music/**`** / **`bluewhale_music`** |
 | 包名 / 配置前缀 | `com.bluewhale.music` / `whale.music.*`；Redis key `whale:music:*` |
-| 前端 | 新建 `frontend/platform-apps/whale-music`（qiankun 子应用，base `/music`，dev 端口 **8111**）；运营页面并入 `frontend/admin` |
+| 前端 | 新建 `whale-frontend/platform-apps/whale-music`（qiankun 子应用，base `/music`，dev 端口 **8111**）；运营页面并入 `whale-frontend/admin` |
 | 分层 | DDD 四层：`interfaces / application / domain / infrastructure` + `architecture-test`（与 auth / file 同口径） |
 | 复用的平台能力 | auth（登录 / RBAC / 租户）、gateway（JWT / 路由 / 限流 / `internal-deny`）、file（音频与封面字节）、message（可选通知）、audit（写操作与审核留痕）、job（可选计数回刷） |
 | 关键依赖缺口 | ~~**`whale-file` 当前下载接口不支持 HTTP Range**~~ → **G1 已完成（2026-10-31）**：下载 / 预览 / 内网内容接口支持 206 / 416 + `Content-Range` + `ETag` + `If-Range`，音频拖动/续播可用 |
@@ -60,7 +60,7 @@
 | 歌单 | 用户歌单 / 官方歌单 | `mu_playlist` + `mu_playlist_song`，公开 / 私有 | M3 |
 | 发现 | 首页 / 排行榜 / 分类 | 首页聚合、热门榜、新歌榜、标签筛选、搜索 | M3 |
 | 互动 | 评论 / 点赞 | `mu_song_comment` + 审核状态 + 点赞计数 | M4 |
-| 运营后台 | 曲库 / 歌单 / 评论管理 | `frontend/admin` 五个音乐运营页 | M1/M3/M4 |
+| 运营后台 | 曲库 / 歌单 / 评论管理 | `whale-frontend/admin` 五个音乐运营页 | M1/M3/M4 |
 | 会员 / 支付 | VIP / 数字专辑 | **不做**（后续可接 `whale-pay`） | — |
 | 直播 / MV / KTV | 视频与直播 | **不做** | — |
 | 推荐算法 | 个性化推荐 | **不做模型**；首版用热度 / 新歌 / 标签规则 | — |
@@ -159,7 +159,7 @@
 
 | 项 | 值 | 落点 |
 |---|---|---|
-| Maven 模块 | `backend/whale-services/whale-music` | `whale-services/pom.xml` 增加 `<module>whale-music</module>` |
+| Maven 模块 | `whale-backend/whale-services/whale-music` | `whale-services/pom.xml` 增加 `<module>whale-music</module>` |
 | artifactId / 服务名 | `whale-music` / `whale-music` | `pom.xml`、`application.yml`、Nacos 服务名 |
 | 端口 | `${SERVER_PORT:8096}` | `application.yml` |
 | 对外前缀 | `/music/**`（服务自持，网关**不剥离**） | Controller `@RequestMapping("/music/...")` |
@@ -167,8 +167,8 @@
 | Java 包 | `com.bluewhale.music` | 四层分包 |
 | 配置前缀 | `whale.music.*` | 如 `whale.music.play.ticket-ttl`、`whale.music.comment.pre-audit` |
 | Redis key | `whale:music:<用途>:<标识>` | 票据 / 计数 / 榜单 / 缓存 |
-| 前端子应用 | `frontend/platform-apps/whale-music`，base `/music`，端口 8111 | `vite.config.ts`、`qiankun/apps.ts` |
-| 运营页面 | `frontend/admin/src/pages/music` | 复用 admin 既有布局与权限组件 |
+| 前端子应用 | `whale-frontend/platform-apps/whale-music`，base `/music`，端口 8111 | `vite.config.ts`、`qiankun/apps.ts` |
+| 运营页面 | `whale-frontend/admin/src/pages/music` | 复用 admin 既有布局与权限组件 |
 
 ### 4.2 分层与依赖
 
@@ -330,7 +330,7 @@ interfaces  → application  → domain
 
 ### 4.9 前端设计
 
-**`frontend/platform-apps/whale-music`（qiankun 子应用，8111，base `/music`）**
+**`whale-frontend/platform-apps/whale-music`（qiankun 子应用，8111，base `/music`）**
 
 | 页面 / 组件 | 说明 |
 |---|---|
@@ -349,7 +349,7 @@ interfaces  → application  → domain
 - 播放器状态使用应用内 React Context / Reducer，不新增状态管理依赖；歌词按 LRC 时间戳在前端解析。
 - 封面与音频均来自 `whale-file`，前端只拿接口返回的代理 URL，不持有 `file_id` 直链。
 
-**`frontend/admin` 运营页**
+**`whale-frontend/admin` 运营页**
 
 - `pages/music/SongList`、`ArtistList`、`AlbumList`、`PlaylistManage`、`CommentAudit`、`AppealAudit`（版权申诉复核，菜单 45 / `music/appeals`）。
 - 上传音频 / 封面复用 admin 既有文件上传能力，提交时只传 `fileId`。

@@ -12,7 +12,7 @@
 | 项 | 说明 |
 |---|---|
 | 触发时机 | 每次代码变更完成、提交（commit）之前 |
-| 覆盖对象 | 后端 Java（`backend/**`）、前端 TS/TSX（`frontend/**`）、SQL（`**/db/init.sql`）、脚本与 Dockerfile（`infrastructure/**`、`deploy/**`） |
+| 覆盖对象 | 后端 Java（`whale-backend/**`）、前端 TS/TSX（`whale-frontend/**`）、SQL（`**/db/init.sql`）、脚本与 Dockerfile（`infrastructure/**`、`deploy/**`） |
 | 执行者 | 变更作者自检 + 复核者抽查 |
 | 留痕 | 报告必须逐条对应本清单编号，标注 `通过 / 不通过 / 不适用`，不通过项须有处置 |
 
@@ -108,7 +108,7 @@
 | E13 | SQL 规范 | 表名/字段 snake_case；必备 `id / create_time / update_time / deleted`；建表含注释；索引命名 `idx_/uk_` |
 | E14 | 脚本与 Dockerfile | 幂等可重跑；写操作有确认；镜像多阶段构建、非 root 运行、锁定基础镜像版本 |
 | E15 | 库/服务/包命名符合性 | 库 `bluewhale_<域>`（含基础设施组件）；服务形如 `whale-<域>` 且**目录 = artifactId = spring.application.name = Nacos 服务名**；Java 包 `com.bluewhale.<域>[.<层>]`；Redis key `whale:<域>:<用途>:<标识>`；新增项已在 `docs/naming-conventions.md` §八 登记（详见该文档） |
-| E16 | Javadoc 自动化门禁 | `config/checkstyle/whale-checkstyle.xml` 启用 `MissingJavadocType`、`MissingJavadocMethod`（`scope=private`，覆盖 private 方法）、`JavadocType`（要求 `@author`）、`NonEmptyAtclauseDescription`、`JavadocParagraph`，均置 `error`；`mvn -f backend/pom.xml checkstyle:check` 必须 0 违规 |
+| E16 | Javadoc 自动化门禁 | `config/checkstyle/whale-checkstyle.xml` 启用 `MissingJavadocType`、`MissingJavadocMethod`（`scope=private`，覆盖 private 方法）、`JavadocType`（要求 `@author`）、`NonEmptyAtclauseDescription`、`JavadocParagraph`，均置 `error`；`mvn -f whale-backend/pom.xml checkstyle:check` 必须 0 违规 |
 
 ---
 

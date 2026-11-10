@@ -10,7 +10,7 @@
 
 ## 二、变更点
 
-### 后端（`backend/whale-apps/whale-pdm`）
+### 后端（`whale-backend/whale-apps/whale-pdm`）
 
 - `pom.xml`：补 `micrometer-registry-prometheus`、`mybatis-plus-spring-boot4-starter`、`mysql-connector-j`、`whale-spring-boot-starter`。
 - `application.yml`：补数据源（`bluewhale_pdm`）、`whale.permission.header.enabled=true`、MyBatis-Plus 逻辑删除与驼峰映射、actuator prometheus。
@@ -23,7 +23,7 @@
 - 新增幂等迁移 `migration-5.60-pdm.sql`：权限点 211–214（`sys:pdm:product:list/add/edit/delete`）+ 菜单 27（产品管理 `/pdm`）。
 - 编号约定：203–206 归 ERP、207–210 归 MES、211–214 归 PDM；菜单 25/26 归 ERP/MES，PDM 用 27。
 
-### 前端（`frontend/platform-apps/whale-pdm`）
+### 前端（`whale-frontend/platform-apps/whale-pdm`）
 
 - `api/pdm.ts`：移除 mock，改接 `@bluewhale/http` 经网关调 `/pdm/product/**`（列表取 `PageResult.records`；无 id 走 POST、有 id 走 PUT）。`List.tsx` / `Form.tsx` 无需改动。
 

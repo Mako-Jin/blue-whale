@@ -30,7 +30,7 @@
 
 ### 3.1 单元测试
 
-`mvn -o -pl backend/whale-services/whale-job -am package` **通过**；whale-job 共 **77** 个用例、**0** 失败（含新增 5 个广播用例）。
+`mvn -o -pl whale-backend/whale-services/whale-job -am package` **通过**；whale-job 共 **77** 个用例、**0** 失败（含新增 5 个广播用例）。
 
 ### 3.2 双实例实机验证
 

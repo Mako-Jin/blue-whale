@@ -22,10 +22,10 @@
 
 | 维度 | 现状 | 证据 |
 |---|---|---|
-| 后端代码 | 10 个 Java 文件，单模块分包（`controller / service / mapper / entity / dto / vo / converter`），非 DDD 四层 | `backend/whale-apps/whale-pdm/src/main/java/com/bluewhale/pdm` |
+| 后端代码 | 10 个 Java 文件，单模块分包（`controller / service / mapper / entity / dto / vo / converter`），非 DDD 四层 | `whale-backend/whale-apps/whale-pdm/src/main/java/com/bluewhale/pdm` |
 | 端点 | 5 个：`/pdm/product/page`、`/{id}`、`POST`、`PUT /{id}`、`DELETE /{id}` | `PdmProductController` |
 | 数据表 | 2 张：`pdm_product`（种子 `PDM-001/002`）、`api_log`；无文件夹、无版本、无权限、无 BOM | `db/migration/V1__baseline.sql` |
-| 前端 | `frontend/platform-apps/whale-pdm`（8106、base `/pdm`）：单页 `List` + `Form` 弹窗，无路由 | 目录清单 |
+| 前端 | `whale-frontend/platform-apps/whale-pdm`（8106、base `/pdm`）：单页 `List` + `Form` 弹窗，无路由 | 目录清单 |
 | 权限/菜单 | 权限 `sys:pdm:product:*` 211–214；菜单 27「产品管理」；角色 `pdm_manager`(21101) / `pdm_member`(21102) | `migration-5.60-pdm.sql`、`migration-5.65-business-role-grant.sql` |
 | 网关 | `/pdm/**` → `lb://whale-pdm`，不剥离前缀；**`/pdm/internal/**` 尚未加入 internal-deny** | `whale-gateway/src/main/resources/application.yml` |
 | 相邻服务 | `whale-erp` 已有 M0–M3 第一阶段；`whale-mes` 仅工单 CRUD；`whale-pm` 已有项目/工作项/迭代/看板/报表；`whale-doc` 已交付 M1–M5；`whale-file` 提供内网内容读取与 Range | 各服务源码 |
@@ -317,7 +317,7 @@ com.bluewhale.pdm
 
 ### 8.5 前端
 
-- 复用现有 `frontend/platform-apps/whale-pdm`（8106、base `/pdm`），M0 从「单页 List+Form」重构为多路由：`/pdm/document`、`/pdm/product`（已落地）；`/pdm/part`、`/pdm/bom`、`/pdm/change`、`/pdm/process`、`/pdm/review`、`/pdm/sync` 随里程碑追加。
+- 复用现有 `whale-frontend/platform-apps/whale-pdm`（8106、base `/pdm`），M0 从「单页 List+Form」重构为多路由：`/pdm/document`、`/pdm/product`（已落地）；`/pdm/part`、`/pdm/bom`、`/pdm/change`、`/pdm/process`、`/pdm/review`、`/pdm/sync` 随里程碑追加。
 - 不新增 qiankun 子应用；基座 `/pdm` 菜单已拆为 `/pdm/document`（`sys:pdm:doc:list`，菜单 180）与 `/pdm/product`（`sys:pdm:product:list`，原菜单 27）。
 - 统一「树 + 列表 + 详情 + 动作条」模式；BOM 树/差异视图使用虚拟滚动；文档预览使用 iframe/PDF.js/模型查看器，**不引入**冻结的 `whale-common-three`（除非满足 F-09 解冻四条件）。
 

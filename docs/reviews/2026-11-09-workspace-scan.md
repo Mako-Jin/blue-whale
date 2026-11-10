@@ -1,6 +1,6 @@
 # 工作区扫描报告（2026-11-09）
 
-> 扫描范围：`backend/`、`frontend/`、`docs/`（plans / reviews / devlog / service-catalog）、`scripts/`、git 工作区状态、关键端口。
+> 扫描范围：`whale-backend/`、`whale-frontend/`、`docs/`（plans / reviews / devlog / service-catalog）、`scripts/`、git 工作区状态、关键端口。
 > 口径：只登记**当前仓库仍存在**的缺口；已完成项不再重复登记。
 > 上一份：[2026-11-07 工作区扫描](2026-11-07-workspace-scan.md)。
 
@@ -14,7 +14,7 @@
 | 文档门禁 | `scripts/check-doc-consistency.ps1` → **DOC-CONSISTENCY-PASS**（父 POM：Spring Boot 4.0.8 / Spring Cloud 2025.1.2 / SCA 2025.1.0.0） |
 | 端口 | 3306 / 6379 / 8848 / 8080 / 9001 / 9002 / 9003 / 9004 / 9005 / 9010 **全部 CLOSED** |
 | 代码标记 | 主代码无未实现 `TODO/FIXME`；检索到的 `TODO` 均为 PM 业务状态码（`TODO_STATUS_ID`），非待办 |
-| 新增服务 | `whale-mail`、`whale-map` 已入 `backend/whale-services/pom.xml` 与网关 `lb://` 路由；权限迁移 `migration-5.89`–`migration-5.99` 均已入库 |
+| 新增服务 | `whale-mail`、`whale-map` 已入 `whale-backend/whale-services/pom.xml` 与网关 `lb://` 路由；权限迁移 `migration-5.89`–`migration-5.99` 均已入库 |
 
 ## 二、进度快照
 
@@ -68,7 +68,7 @@
 
 | 级别 | 问题 | 证据 | 建议 |
 |---|---|---|---|
-| **高** | `whale-oa` Checkstyle **325 条 error**，门禁无法转绿；集中于 `collab` / `administrative` / `document` / `culture` 的 `MissingJavadocMethod` 与少量 `UnusedImports` | 本机 `mvnw -pl backend/whale-apps/whale-oa checkstyle:check` → BUILD FAILURE | ✅ 已修复（2026-11-09）：57 文件补 Javadoc 325 处、清理 3 处未用 import，`checkstyle:check` 转绿 |
+| **高** | `whale-oa` Checkstyle **325 条 error**，门禁无法转绿；集中于 `collab` / `administrative` / `document` / `culture` 的 `MissingJavadocMethod` 与少量 `UnusedImports` | 本机 `mvnw -pl whale-backend/whale-apps/whale-oa checkstyle:check` → BUILD FAILURE | ✅ 已修复（2026-11-09）：57 文件补 Javadoc 325 处、清理 3 处未用 import，`checkstyle:check` 转绿 |
 | **中** | CRM 客户列表「负责人」筛选静默失效：`CustomerPageParams` 无 `ownerId`，前端传参被丢弃 | `whale-crm/.../interfaces/support/CustomerPageParams.java` 仅 keyword/status/level/source/industry/createdFrom/To | ✅ 已修复（2026-11-09）：补 `ownerId` 并绑定到 `CustomerQuery`，前端注释同步订正 |
 | **中** | OA 审批通知同步发送：`ApprovalNotificationListener` 三处 `@EventListener`，消息服务抖动直接拉长审批接口耗时 | `whale-oa/.../approval/application/listener/ApprovalNotificationListener.java` | ✅ 已修复（2026-11-09）：改 `@TransactionalEventListener(AFTER_COMMIT)` + `oaNotificationExecutor` 异步投递 |
 | 中 | OA 附件仅登记 `fileId`，未校验上传者与租户，存在跨用户引用 | 11-07 扫描登记，本次未复核 | ✅ 已修复（2026-11-09）：`FileRefAppServiceImpl.register` 收口校验（文件存在、未删除、状态正常、上传人 = 当前用户，元数据以服务端为准）；租户校验待 whale-file 聚合暴露 tenantId 后补 |

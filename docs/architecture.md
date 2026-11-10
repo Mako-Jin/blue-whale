@@ -142,7 +142,7 @@
 ### Spring Boot 4
 - 基于 Spring Framework 7，性能进一步提升
 - GraalVM AOT 原生镜像支持更好
-- 当前使用 Boot 4 正式版（GA），**具体版本号以 [whale-parent/pom.xml](../backend/whale-parent/pom.xml) 的 `spring-boot.version` 为准**，本文件不再重复版本号
+- 当前使用 Boot 4 正式版（GA），**具体版本号以 [whale-parent/pom.xml](../whale-backend/whale-parent/pom.xml) 的 `spring-boot.version` 为准**，本文件不再重复版本号
 
 ### Spring Cloud Gateway
 - 响应式（WebFlux），高并发、低延迟

@@ -2,7 +2,7 @@
 
 - 关联需求：REQ-QA-002（每次代码变更必检）、REQ-CICD-001（覆盖率门禁）
 - 变更范围：
-  - `backend/whale-services/whale-auth/src/test/java/com/bluewhale/auth/service/impl/SysRoleServiceImplTest.java`（新增，21 用例）
+  - `whale-backend/whale-services/whale-auth/src/test/java/com/bluewhale/auth/service/impl/SysRoleServiceImplTest.java`（新增，21 用例）
   - `.../service/impl/SysPermissionServiceImplTest.java`（新增，13 用例）
   - `.../service/impl/SysDeptServiceImplTest.java`（新增，8 用例）
   - `.../service/impl/SysUserPermissionServiceImplTest.java`（新增，2 用例）
@@ -16,10 +16,10 @@
 
 | 项 | 命令 | 结果 |
 |---|---|---|
-| 单元测试 | `mvn -f backend/pom.xml -pl :whale-auth -am clean verify -Pcoverage-gate` | 99 run / 0 failures / 0 errors / 0 skipped（既有 55 + 新增 44 用例） |
+| 单元测试 | `mvn -f whale-backend/pom.xml -pl :whale-auth -am clean verify -Pcoverage-gate` | 99 run / 0 failures / 0 errors / 0 skipped（既有 55 + 新增 44 用例） |
 | 覆盖率门禁 | 同上（`-Pcoverage-gate`） | **All coverage checks have been met** / BUILD SUCCESS（LINE ≥ 0.40、BRANCH ≥ 0.30 均满足） |
 | 覆盖率实测 | `target/site/jacoco/jacoco.csv`（最后一次 `clean verify`） | LINE 483/715 = **0.6755**；BRANCH 176/262 = **0.6718** |
-| 代码规范 | `mvn -f backend/pom.xml checkstyle:check` | 0 违规（含 E16 Javadoc 门禁）、BUILD SUCCESS |
+| 代码规范 | `mvn -f whale-backend/pom.xml checkstyle:check` | 0 违规（含 E16 Javadoc 门禁）、BUILD SUCCESS |
 
 逐类覆盖（`jacoco.csv`）：`SysRoleServiceImpl` 81/81 覆盖、`SysPermissionServiceImpl` 53/53、`SysDeptServiceImpl` 35/35、`SysUserPermissionServiceImpl` **8/18**（余 10 行为 `replaceUserAttrs` 非空批量写路径，见第五节）。
 

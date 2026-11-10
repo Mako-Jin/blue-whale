@@ -4,9 +4,9 @@
 
 ## T1 建立 `whale-common-core`
 
-- [x] T1.1 新建 `backend/whale-common/whale-common-core/pom.xml`（parent `whale-parent`，artifactId `whale-common-core`，仅 lombok optional）
+- [x] T1.1 新建 `whale-backend/whale-common/whale-common-core/pom.xml`（parent `whale-parent`，artifactId `whale-common-core`，仅 lombok optional）
 - [x] T1.2 `git mv` `BizException.java`、`ErrorCode.java` 到 `whale-common-core/src/main/java/com/bluewhale/common/core/exception/`（包名不变）
-- [x] T1.3 `backend/whale-common/pom.xml` modules 首位加入 `whale-common-core`
+- [x] T1.3 `whale-backend/whale-common/pom.xml` modules 首位加入 `whale-common-core`
 - [x] T1.4 `whale-spring-boot-starter/pom.xml` 增加 `whale-common-core` 依赖
 - [x] T1.5 `whale-service-auth-domain/pom.xml`：`whale-spring-boot-starter` → `whale-common-core`
 - [x] T1.6 验证：`mvn -q -pl whale-common/whale-common-core -am -DskipTests install`

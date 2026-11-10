@@ -13,16 +13,16 @@ on:
   push:
     branches: [main]
     paths:
-      - 'backend/**'
-      - 'frontend/**'
+      - 'whale-backend/**'
+      - 'whale-frontend/**'
       - 'ai/**'
       - 'config/checkstyle/**'
       - '.github/workflows/code-quality.yml'
   pull_request:
     branches: [main]
     paths:
-      - 'backend/**'
-      - 'frontend/**'
+      - 'whale-backend/**'
+      - 'whale-frontend/**'
       - 'ai/**'
       - 'config/checkstyle/**'
       - '.github/workflows/code-quality.yml'

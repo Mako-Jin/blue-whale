@@ -11,8 +11,8 @@
 
 | 轨 | 范围 | 落点模块 |
 |---|---|---|
-| **T1 AUTH-39 残余** | ① admin 前端 `/auth/refresh` 续期链（401 → 刷新 → 重放，单飞合并；**每次刷新替换本地 refreshToken**）；② 轮换运行时端到端取证（换新后复用旧 token → 401 + family 吊销） | `frontend/admin`、`backend/whale-services/whale-auth`、运行时 |
-| **T2 whale-form MVP** | 表单定义 CRUD 最小可用：`bluewhale_form` 建库 + `form_definition` 表 + 5 个 REST 接口 + `sys:form:*` 权限点种子 + 单测 + 经网关冒烟 | `backend/whale-services/whale-form`、`whale-auth` db 种子 |
+| **T1 AUTH-39 残余** | ① admin 前端 `/auth/refresh` 续期链（401 → 刷新 → 重放，单飞合并；**每次刷新替换本地 refreshToken**）；② 轮换运行时端到端取证（换新后复用旧 token → 401 + family 吊销） | `whale-frontend/admin`、`whale-backend/whale-services/whale-auth`、运行时 |
+| **T2 whale-form MVP** | 表单定义 CRUD 最小可用：`bluewhale_form` 建库 + `form_definition` 表 + 5 个 REST 接口 + `sys:form:*` 权限点种子 + 单测 + 经网关冒烟 | `whale-backend/whale-services/whale-form`、`whale-auth` db 种子 |
 
 **非目标（明确不做）**
 - 表单**数据**（`form_data`）与提交/查询接口、表单渲染/设计器（前端）——本轮仅「定义」侧。
@@ -25,7 +25,7 @@
 ## 二、现状事实（研究结论，勿重复调研）
 
 - **AUTH-39 后端已实现（Wave 5.13）**：`RefreshRotationProperties`（前缀 `whale.auth.refresh.rotation`，`enabled` **默认 false**）；`RefreshTokenRotationStore` 接口 + `RedisRefreshTokenRotationStore`（键 `whale:auth:refresh:used:{jti}` 已消费、`whale:auth:refresh:family:{familyId}` 整族吊销，键约定下沉 `whale-security` `TokenBlacklistKeys`）；`AuthService#refresh` 顺序为「签名/类型 → family 校验 → 登出黑名单 → `SET NX` 原子消费（失败即复用：整族吊销 + `SecurityDegradationAlerter.alarm` + 401）→ 旧 token 入黑名单 → 同 familyId 换发」；`JwtTokenProvider` 的 `CLAIM_FAMILY_ID` 仅 refreshToken 携带。**残余**：前端无 `/auth/refresh` 调用；轮换开关未在运行时取证。
-- **frontend/admin**：`api/http.ts` 对 HTTP 401 直接 `clearAuth()` 并抛 `ApiError`（**无刷新重试**）；`api/auth.ts` 仅 `login`/`fetchMe`/`logout`，**无 refresh**；`api/token.ts` 已有 `getRefreshToken()`/`saveLogin()`/`clearAuth()`。
+- **whale-frontend/admin**：`api/http.ts` 对 HTTP 401 直接 `clearAuth()` 并抛 `ApiError`（**无刷新重试**）；`api/auth.ts` 仅 `login`/`fetchMe`/`logout`，**无 refresh**；`api/token.ts` 已有 `getRefreshToken()`/`saveLogin()`/`clearAuth()`。
 - **whale-form 裸骨架**：仅 `WhaleFormApplication` + `pom.xml`（已含 web/validation/actuator/nacos/mybatis-plus/mysql/whale-tools）+ `application.yml`（**无 datasource、无 mybatis 配置、无权限头开关**）；`/form/**` 网关路由与 8084 端口**已就绪**；`bluewhale_form` 库**未建**。
 - **权限种子落库位置**：`sys_permission` 表在 `bluewhale_auth`（whale-auth `db/init.sql`），当前种子 id 至 **35**（file 4 条：upload/download/list/delete）。
 - **参考实现模板**：whale-file 的 `FileInfo`(继承 `BaseEntity`) / `FileInfoMapper`(仅继承 `BaseMapper`，靠 `com.bluewhale.**.mapper` 扫描) / `FileInfoService(+Impl)` / `FileController`（`@RequirePermission` + `com.bluewhale.auth.sdk.annotation.RequirePermission`）/ `db/init.sql`。

@@ -4,7 +4,7 @@
 
 ## T1 前端契约层：版本 / 迁移 / 分组类型与 API
 
-- 文件：`frontend/platform-apps/whale-workflow-designer/src/api/workflow.ts`
+- 文件：`whale-frontend/platform-apps/whale-workflow-designer/src/api/workflow.ts`
 - 变更：
   1. 新增 `ProcessModelGroup { key: string; name?: string | null }`。
   2. `NormalizedDefinition` 增 `groups?: ProcessModelGroup[] | null`；`ProcessModelNode` 增 `groupKey?: string | null`。
@@ -14,14 +14,14 @@
 
 ## T2 后端分组模型 / 解析 / 校验 / 输出
 
-- 新建 `backend/whale-services/whale-workflow/src/main/java/com/bluewhale/workflow/support/ProcessModelGroup.java`。
+- 新建 `whale-backend/whale-services/whale-workflow/src/main/java/com/bluewhale/workflow/support/ProcessModelGroup.java`。
 - `ProcessModel`：`groups` + `group(key)`。
 - `ProcessModelNode`：`groupKey`。
 - `ProcessModelParser`：读 `groups` 与节点 `groupKey`，分组 key 非法抛 `GROUP_KEY_INVALID`，上限 50。
 - `ValidationCode`：新增 `GROUP_KEY_INVALID`、`GROUP_KEY_DUPLICATE`、`NODE_GROUP_UNKNOWN`、`TOO_MANY_GROUPS`。
 - `ProcessModelValidator`：`checkGroups`（normalized 分支）与 `validateModel` 内分组引用校验。
 - `ProcessModelServiceImpl.toJson`：写 `groups`（非空）与节点 `groupKey`。
-- 验证：`mvn -o -f backend/pom.xml -pl :whale-workflow -am test checkstyle:check`。
+- 验证：`mvn -o -f whale-backend/pom.xml -pl :whale-workflow -am test checkstyle:check`。
 
 ## T3 后端 BPMN 分组双向映射
 
@@ -53,7 +53,7 @@
 
 ## T6 构建 / 验证 / 文档 / 提交
 
-1. 停 8083 上运行中的 workflow 服务（避免 jar 占用），执行后端 `mvn -o -f backend/pom.xml -pl :whale-workflow -am test checkstyle:check`（`dangerouslyDisableSandbox: true`）。
+1. 停 8083 上运行中的 workflow 服务（避免 jar 占用），执行后端 `mvn -o -f whale-backend/pom.xml -pl :whale-workflow -am test checkstyle:check`（`dangerouslyDisableSandbox: true`）。
 2. 前端 `pnpm --filter whale-workflow-designer build`。
 3. 浏览器验证版本抽屉与分组渲染（8003 dev server）。
 4. 更新 `docs/devlog/2026-10-21.md`（§十四/§十五）、`docs/plans/roadmap.md`（Wave 5.42/5.43）、`docs/plans/whale-workflow-backlog.md`（5b ✅）。

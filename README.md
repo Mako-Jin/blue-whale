@@ -8,15 +8,15 @@
 
 | 层级 | 技术 | 版本来源 |
 |---|---|---|
-| 后端框架 | Spring Boot | [backend/whale-parent/pom.xml](backend/whale-parent/pom.xml)（`spring-boot.version`） |
+| 后端框架 | Spring Boot | [whale-backend/whale-parent/pom.xml](whale-backend/whale-parent/pom.xml)（`spring-boot.version`） |
 | 微服务 | Spring Cloud + Spring Cloud Alibaba | 同上（`spring-cloud.version` / `spring-cloud-alibaba.version`） |
 | JDK | OpenJDK | 同上（`java.version`） |
 | 构建工具 | Apache Maven | [mvnw](mvnw) / [.mvn/wrapper](.mvn/wrapper) |
-| 前端框架 | React + TypeScript | [frontend/package.json](frontend/package.json) |
+| 前端框架 | React + TypeScript | [whale-frontend/package.json](whale-frontend/package.json) |
 | 构建工具 | Vite | 各前端应用 `package.json` |
-| 微前端 | qiankun | [frontend/package.json](frontend/package.json) |
-| Monorepo | Turborepo + pnpm workspace | [frontend/package.json](frontend/package.json) |
-| 网关 | Spring Cloud Gateway | [backend/whale-parent/pom.xml](backend/whale-parent/pom.xml) |
+| 微前端 | qiankun | [whale-frontend/package.json](whale-frontend/package.json) |
+| Monorepo | Turborepo + pnpm workspace | [whale-frontend/package.json](whale-frontend/package.json) |
+| 网关 | Spring Cloud Gateway | [whale-backend/whale-parent/pom.xml](whale-backend/whale-parent/pom.xml) |
 | 注册配置 | Nacos | [docs/service-catalog.md](docs/service-catalog.md) §四 |
 | 数据库 | MySQL | [docs/service-catalog.md](docs/service-catalog.md) §四 |
 | 缓存 | Redis + Redisson | 同上 |
@@ -30,7 +30,7 @@
 
 ```
 BlueWhale/
-├── backend/                # Java 21 + Maven 多模块
+├── whale-backend/                # Java 21 + Maven 多模块
 │   ├── whale-parent/       # 父POM（统一依赖版本）
 │   ├── whale-common/       # 基础组件
 │   ├── whale-sdk/          # SDK
@@ -38,7 +38,7 @@ BlueWhale/
 │   ├── whale-apps/         # 业务应用
 │   ├── whale-ops/          # 运维监控
 │   └── whale-registry/     # 注册配置
-├── frontend/               # pnpm + Turborepo + qiankun
+├── whale-frontend/               # pnpm + Turborepo + qiankun
 │   ├── shared-packages/    # 共享包
 │   ├── elemental/          # 公共元素/组件库
 │   ├── platform-apps/      # qiankun 微前端

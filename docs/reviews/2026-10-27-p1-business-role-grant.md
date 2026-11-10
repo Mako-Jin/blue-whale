@@ -20,7 +20,7 @@
 
 ## 2. 改动
 
-新增幂等迁移 `backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-5.65-business-role-grant.sql`。
+新增幂等迁移 `whale-backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-5.65-business-role-grant.sql`。
 
 ### 2.1 平台租户业务角色模板（13 个）
 

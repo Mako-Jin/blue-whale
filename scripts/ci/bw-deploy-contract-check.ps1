@@ -65,7 +65,7 @@ if ($workflow -match '(?ms)^\s*backend:\s*(?<body>.*?)^\s*frontend:\s*(?<fronten
     $backendSection = $Matches['body']
     $frontendSection = $Matches['frontend']
 } else {
-    Write-Host 'FAIL 无法解析 docker-deploy.yml 的 backend/frontend 矩阵'
+    Write-Host 'FAIL 无法解析 docker-deploy.yml 的 whale-backend/frontend 矩阵'
     $script:failed = $true
 }
 
@@ -92,8 +92,8 @@ if ($frontendSection) {
 
 Assert-Contract '后端镜像 26 项' ($backendServices.Count -eq 26) "count=$($backendServices.Count)"
 Assert-Contract '前端镜像 18 项' ($frontendImages.Count -eq 18) "count=$($frontendImages.Count)"
-Assert-Contract '前端按冲突项使用 frontend/ 命名空间' `
-    ($workflow.Contains("matrix.namespace == 'frontend'") -and $workflow.Contains("'frontend/'"))
+Assert-Contract '前端按冲突项使用 whale-frontend/ 命名空间' `
+    ($workflow.Contains("matrix.namespace == 'frontend'") -and $workflow.Contains("'whale-frontend/'"))
 Assert-Contract '后端 cache scope 使用 be- 前缀' `
     ($workflow.Contains('scope=be-' + $exprBeScope))
 Assert-Contract '前端 cache scope 使用 fe- 前缀' `

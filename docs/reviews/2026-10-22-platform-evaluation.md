@@ -101,10 +101,10 @@ jdbcTemplate.update(sql, values.toArray());   // 值全部走占位符
 ### P0-2 业务价值空心化：90% 的能力，0% 的业务
 
 ```
-backend/whale-apps/whale-erp   26 行（1 个启动类）
-backend/whale-apps/whale-mes   26 行
-backend/whale-apps/whale-oa    26 行
-backend/whale-apps/whale-pdm   26 行
+whale-backend/whale-apps/whale-erp   26 行（1 个启动类）
+whale-backend/whale-apps/whale-mes   26 行
+whale-backend/whale-apps/whale-oa    26 行
+whale-backend/whale-apps/whale-pdm   26 行
 ```
 
 前端 erp/oa/mes/pdm 各 392 行 / 9 文件，`diff` 显示只有包名、端口、api 文件名不同——**同一份模板复制了四次**。
@@ -204,8 +204,8 @@ B. 留 Gitee，写 .workflow/ 下的 Gitee Go 流水线并实测触发一次
 **2. 固化构建环境（P0）**
 
 ```bash
-backend/.mvn/jvm.config        # -Xmx2g 等
-backend/maven-toolchains.xml   # 声明 jdk 21
+whale-backend/.mvn/jvm.config        # -Xmx2g 等
+whale-backend/maven-toolchains.xml   # 声明 jdk 21
 # .gitignore 移除 mvnw / mvnw.cmd，把 wrapper 提交入库
 ```
 

@@ -16,11 +16,11 @@
 
 | 文件 | 说明 |
 |---|---|
-| `frontend/platform-apps/whale-platform/src/router/menu.ts` | `MenuNode` 增加可选 `permission`；为系统管理三个子项与 ERP/OA/MES/PDM/IM/PM/合同入口标注权限码；新增 `filterMenuByPermissions`：叶子无权限即隐藏、目录子项全隐藏时目录一并隐藏、未声明权限的入口（工作台/门户）始终可见 |
-| `frontend/platform-apps/whale-platform/src/layouts/MainLayout.tsx` | 侧栏菜单改为 `filterMenuByPermissions(menuConfig, user?.permissions ?? [])`，权限未加载时只显示无权限要求的入口，避免先闪现全量菜单 |
-| `frontend/platform-apps/whale-portal/src/pages/Dashboard.tsx` | ERP/OA/MES 入口卡片按 `sys:erp:item:list` / `sys:oa:leave:list` / `sys:mes:workorder:list` 过滤，避免卡片跳转后 403 |
-| `frontend/ops/src/layouts/BasicLayout.tsx` | `NAV_ITEMS` 增加 `permission`（`sys:monitor:list` / `sys:audit:log:list` / `sys:alert:record:list`）；按当前用户权限过滤后再渲染；`findSelectedKey` 改为在当前可见项内匹配，无可见项时不选中 |
-| `frontend/admin/src/layouts/AdminLayout.tsx` | 保留 `/auth/me` 动态菜单为主路径；仅在动态菜单为空时使用静态回退，并新增 `STATIC_NAV_PERMISSIONS` + `filterStaticNav` 按权限裁剪（用户/角色/菜单/租户），组件示例与仪表盘保持登录可见 |
+| `whale-frontend/platform-apps/whale-platform/src/router/menu.ts` | `MenuNode` 增加可选 `permission`；为系统管理三个子项与 ERP/OA/MES/PDM/IM/PM/合同入口标注权限码；新增 `filterMenuByPermissions`：叶子无权限即隐藏、目录子项全隐藏时目录一并隐藏、未声明权限的入口（工作台/门户）始终可见 |
+| `whale-frontend/platform-apps/whale-platform/src/layouts/MainLayout.tsx` | 侧栏菜单改为 `filterMenuByPermissions(menuConfig, user?.permissions ?? [])`，权限未加载时只显示无权限要求的入口，避免先闪现全量菜单 |
+| `whale-frontend/platform-apps/whale-portal/src/pages/Dashboard.tsx` | ERP/OA/MES 入口卡片按 `sys:erp:item:list` / `sys:oa:leave:list` / `sys:mes:workorder:list` 过滤，避免卡片跳转后 403 |
+| `whale-frontend/ops/src/layouts/BasicLayout.tsx` | `NAV_ITEMS` 增加 `permission`（`sys:monitor:list` / `sys:audit:log:list` / `sys:alert:record:list`）；按当前用户权限过滤后再渲染；`findSelectedKey` 改为在当前可见项内匹配，无可见项时不选中 |
+| `whale-frontend/admin/src/layouts/AdminLayout.tsx` | 保留 `/auth/me` 动态菜单为主路径；仅在动态菜单为空时使用静态回退，并新增 `STATIC_NAV_PERMISSIONS` + `filterStaticNav` 按权限裁剪（用户/角色/菜单/租户），组件示例与仪表盘保持登录可见 |
 
 菜单与接口权限码同源，均为后端 `sys_permission.permission_code`：
 

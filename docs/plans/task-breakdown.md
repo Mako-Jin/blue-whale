@@ -26,7 +26,7 @@
   - `common/mybatis`：MyBatis-Plus 分页插件 + 字段自动填充 MetaObjectHandler 配置类
   - whale-tools：补充 AssertX / IdUtils 等实用工具
   - 验证：`mvn -pl whale-common/... compile` 通过
-- [x] ~~T1.2 **全服务 DDL 脚本**（`backend/<module>/src/main/resources/db/init.sql`）~~
+- [x] ~~T1.2 **全服务 DDL 脚本**（`whale-backend/<module>/src/main/resources/db/init.sql`）~~
   - whale-auth：sys_user / sys_role / sys_permission / sys_menu / sys_dept / sys_user_role / sys_role_permission / sys_user_permission(ABAC属性)
   - whale-i18n-sdk：sys_i18n_message
   - whale-audit：audit_log；whale-file：file_info；whale-job：job_info/job_log
@@ -76,11 +76,11 @@
 - [x] ~~T4.0c **CI/CD 代码质量门禁**（REQ-CICD-001）~~
   - `config/checkstyle/whale-checkstyle.xml`（C/D/E 类可自动化项）、`whale-parent/pom.xml` 插件管理、`.github/workflows/code-quality.yml`
   - 修正 `.github/workflows/frontend-ci.yml`：缺省工作目录 `frontend`
-  - 验证：`mvn -pl backend/whale-common/whale-tools checkstyle:check`、`.../whale-auth checkstyle:check` 均 0 违规
+  - 验证：`mvn -pl whale-backend/whale-common/whale-tools checkstyle:check`、`.../whale-auth checkstyle:check` 均 0 违规
   - 遗留：Gitee 托管需映射 Gitee Go；门禁当前为报告模式
 - [x] ~~T4.1 **分布式令牌黑名单**（REQ-SEC-002 / REQ-DIST-002）~~
   - 新增 `TokenBlacklist` / `RedisTokenBlacklist`；改造 `JwtAuthenticationFilter`、`AuthService#logout`、`AuthController#logout`、`JwtTokenProvider`、`whale-auth/pom.xml`
-  - 验证：`mvn -pl backend/whale-services/whale-auth -am compile` → BUILD SUCCESS（6 模块 / 67 源文件）
+  - 验证：`mvn -pl whale-backend/whale-services/whale-auth -am compile` → BUILD SUCCESS（6 模块 / 67 源文件）
   - 遗留：REQ-SEC-003（网关侧校验）、REQ-SEC-004（refreshToken 失效）→ 已于 Wave 5.1（T5.6/T5.7）闭环
 - [x] ~~T4.2 审计日志落地（`@AuditLog` + AOP + 异步写库 + 脱敏 + 7 个 ALTER 字段）~~
   - 已由 Wave 5.1b（T5.10/T5.11/T5.12）落地到 `whale-spring-boot-starter` `com.bluewhale.common.audit.*` + `whale-audit` 查询接口
@@ -253,7 +253,7 @@
 - [x] **A2 GW-05 多路由纳入熔断**：`apply-to-routes` 扩为 `whale-auth, whale-file, whale-job, whale-audit`
 - [x] **A3 GW-06 内网屏蔽覆盖**：确认 `patterns` 配置化语义 + 多 pattern/通配单测
 - [x] **A4 GW-07 测试基线**：随 A1/A3 扩充，0 违规
-- [x] **B1–B3 admin 动态路由**（`frontend/admin`）：`menus` 类型建模 + `router/dynamicRoutes.tsx`（menus → RouteObject + component 映射 + 侧栏 items）+ `App.tsx`/`AdminLayout` 接线 + 空回落静态导航
+- [x] **B1–B3 admin 动态路由**（`whale-frontend/admin`）：`menus` 类型建模 + `router/dynamicRoutes.tsx`（menus → RouteObject + component 映射 + 侧栏 items）+ `App.tsx`/`AdminLayout` 接线 + 空回落静态导航
 - [x] **B4 浏览器端到端验证**：侧栏由 menus 驱动、跳转正确、未知 component 不崩
 - [x] **C1 whale-file 对象存储抽象**（`whale-file`）：`whale.file.storage.type=local|minio` + `MinioFileStorage`（`io.minio:minio:8.5.12`）+ `MinioProperties` + 装配选择 + 单测
 - [x] **D1 auth 控制器层单测**（`whale-auth`）：`@WebMvcTest` + `@MockitoBean` 覆盖 6 控制器关键端点
@@ -281,7 +281,7 @@
 
 **Wave 5.23-a（并行：T1 admin 续期 / T2 whale-form 服务）**
 
-- [x] **T1-a 前端续期链**（`frontend/admin`）：`api/http.ts` 401→单飞刷新（`refreshOnce`）→重放一次 + `api/auth.ts#refresh()` + `token.ts#saveLogin` 合并既有用户态；`pnpm --filter whale-admin build` SUCCESS（1458 modules）
+- [x] **T1-a 前端续期链**（`whale-frontend/admin`）：`api/http.ts` 401→单飞刷新（`refreshOnce`）→重放一次 + `api/auth.ts#refresh()` + `token.ts#saveLogin` 合并既有用户态；`pnpm --filter whale-admin build` SUCCESS（1458 modules）
 - [x] **T2-a whale-form 骨架接线**：`application.yml` 补 datasource(`bluewhale_form`)/mybatis/权限头开关 + `db/init.sql`（`form_definition`）；**修复端口自引用占位符 `${server.port:8084}` → `${SERVER_PORT:8084}`**（启动失败根因）
 - [x] **T2-b whale-form 业务**：`FormDefinition` + Mapper + `FormQueryRequest` + VO + Service(+Impl) + `FormController`（5 接口 + `@RequirePermission`）；pom 补 `whale-spring-boot-starter`
 - [x] **T2-c 权限种子**：whale-auth `db/init.sql` 追加 `sys:form:add/edit/delete/list`（id 36–39），并落 `bluewhale_auth.sys_permission`
@@ -434,8 +434,8 @@
 - [x] **E-b 提交**：`FormDataService(+Impl)` 按视图 `field_config` 选列校验 + 表维度路由 + 主表新列
 - [x] **E-c 接线**：`FormController` 表定义发布/列表 + 定义详情带字段
 - [x] **F-a 单测**：`FormMetadataCompilerTest`/`FormTableDefinitionServiceImplTest`/`FormMetadataMigrationServiceImplTest` + 回归（44 / 0 / 0）
-- [x] **F-b 模块门禁**：`mvn -o -f backend/pom.xml -pl :whale-form -am test checkstyle:check` 0 违规
-- [x] **F-c 全量回归**：`mvn -o -f backend/pom.xml clean install -T 1C` 29 模块 SUCCESS
+- [x] **F-b 模块门禁**：`mvn -o -f whale-backend/pom.xml -pl :whale-form -am test checkstyle:check` 0 违规
+- [x] **F-c 全量回归**：`mvn -o -f whale-backend/pom.xml clean install -T 1C` 29 模块 SUCCESS
 - [x] **F-d 运行时冒烟**：增量 DDL/迁移落库 + 网关 `/form` 表定义→双表单视图（1:N）→提交→详情→负向
 - [x] **F-e 收尾**：检查报告 + devlog + roadmap/task-breakdown 勾选 + commit & push origin（Gitee）
 
@@ -464,7 +464,7 @@
 **Wave 5.29-c（设计器 F6 + 门禁 F9）**
 
 - [x] **F6-a~e 设计器**：`designer/{FormDesigner,Palette,Canvas,PropertyPanel,FieldPreview}.tsx`（三栏拖拽 + 保存/发布/预览/回填 + 前置校验）
-- [x] **F9-a 后端全量回归**：`mvn -f backend/pom.xml clean install`
+- [x] **F9-a 后端全量回归**：`mvn -f whale-backend/pom.xml clean install`
 - [x] **F9-b 前端构建**：`pnpm -C frontend --filter whale-form-designer build`
 - [x] **F9-c 实机 E2E**：7 步正向 + 2 条负向 + `browser_use` 截图
 - [x] **F9-e 收尾**：检查报告 + devlog + roadmap/task-breakdown 勾选
@@ -483,7 +483,7 @@
 - [x] **线 A · 后端列变更在线迁移（R2）**：`FormDataEngine`/`JdbcFormDataEngine` +`describeColumns`；`FormTableDdlGenerator` +`columnDef/alterAdd/alterModify/alterDrop/normalizeType/reservedColumns`；`FormPublishServiceImpl` 抽 `ensurePublished`（CREATE/ALTER diff）+ `listMetadataCodes` DROP 护栏；`FormTableDefinitionServiceImpl.update` 走 `mergeColumns` 保列主键（P1 修复）
 - [x] **线 B · 后端数据导出（R3）**：`support/FormDataExportSupport`（新，纯 JDK CSV/XLSX）、`vo/FormDataExportVO`（新）、`FormDataService(+Impl).export`（≤5000 行、解析 `dataJson`）、`FormDataController` +`GET /form/data/export`
 - [x] **线 C · 前端（R4/R5）**：`api/http.ts downloadBlob` + `api/form.ts ExportFormat/formDataApi.export`；`FormDataList.tsx` 「导出」下拉；`TableDefinitionList.tsx` 迁移语义 `Alert` + 发布文案；`FormDesigner.tsx` 历史栈 + 撤销/重做按钮 + 快捷键
-- [x] **线 D · 并行门禁**：`mvn -o -f backend/pom.xml clean install` 28/28 模块 SUCCESS；`pnpm -C frontend --filter whale-form-designer build` 通过（1461 modules）
+- [x] **线 D · 并行门禁**：`mvn -o -f whale-backend/pom.xml clean install` 28/28 模块 SUCCESS；`pnpm -C frontend --filter whale-form-designer build` 通过（1461 modules）
 
 **Wave 5.30-b（实机 E2E）**
 
@@ -533,7 +533,7 @@
 
 **Wave 5.31-d（全量回归与运行时冒烟）**
 
-- [x] **G1** 停运行中服务释放 jar → `mvn -o -f backend/pom.xml clean install -T 1C` → **28/28 模块 BUILD SUCCESS** → 重启 whale-auth 8081 / whale-workflow 8083 / whale-gateway 8080
+- [x] **G1** 停运行中服务释放 jar → `mvn -o -f whale-backend/pom.xml clean install -T 1C` → **28/28 模块 BUILD SUCCESS** → 重启 whale-auth 8081 / whale-workflow 8083 / whale-gateway 8080
 - [x] **G2** legacy 冒烟（定义→发起→同意→同意）：`currentNodeKey` `n1` → `n2` → `status=1`
 - [x] **G3** 校验冒烟 18/18：LEGACY + NORMALIZED`[CONDITION_IGNORED]` + 16 个负向码（含 `XML_DOCTYPE_FORBIDDEN`/`BPMN_UNSUPPORTED_ELEMENT`）
 - [x] **G4** BPMN 往返：导入 → 落规范化 JSON → 导出 657B XML → 再校验 `mode=BPMN valid=true nodes=4 flows=3`
@@ -571,7 +571,7 @@
 
 **Wave 5.32-c（收尾）**
 
-- [x] **V1** 后端全量回归：`mvn -o -f backend/pom.xml clean install -T 1C` → **28/28 模块 BUILD SUCCESS**（271 测试无失败）
+- [x] **V1** 后端全量回归：`mvn -o -f whale-backend/pom.xml clean install -T 1C` → **28/28 模块 BUILD SUCCESS**（271 测试无失败）
 - [x] **V2** DDL 落库（`process_task` 三列 `varchar(64) YES`）+ 运行时冒烟 **15/15 PASS**
 - [x] **V3** 前端全量构建：`pnpm -C frontend build` → **14/14 任务**
 - [x] **V4** 浏览器实机 E2E：A/B/C/C2/C3/D/E/F/G **全 PASS**；**C4 拖拽手势自动化不可复现 → 2026-10-26 人工复核通过**（[检查报告](../reviews/2026-10-26-p3-e6-designer-drag-manual.md)）
@@ -613,7 +613,7 @@
 - [x] **M1 项目域**：`whale-apps/whale-pm` 骨架（9005 / `/pm/**` / `bluewhale_pm`）+ 4 表 DDL + 项目/成员/状态/流转 17 端点 + 权限点 172–186 + 菜单 18–21 + 网关路由 + internal-deny + 单测 41 项 + 冒烟脚本 + 检查报告
 - [x] **M2 工作项域**：`pm_work_item` 统一模型（Epic/Story/Task/Bug/Subtask）+ 状态机 + 评论/附件/动态/关联 + 权限点 187–196 + 冒烟脚本 + 单测 81 项 + 检查报告
 - [x] **M3 迭代与看板**：Sprint 生命周期 + 工作项入迭代 + `pm_board`/`pm_board_column` + WIP 拖拽 + 权限点 197–200 / 菜单 22–23 + 单测 106 项 + 冒烟脚本 + 检查报告
-- [x] **M4 报表与前端**：燃尽/速率/累积流/负载 4 报表（权限 201、Redis 5 分钟缓存、1 年区间护栏）+ `frontend/platform-apps/whale-pm`（8108、base `/pm`，8 页面）+ 基座 qiankun 挂载（菜单 24）；whale-pm 116 例单测全绿、前端 `lint` / `build` 通过
+- [x] **M4 报表与前端**：燃尽/速率/累积流/负载 4 报表（权限 201、Redis 5 分钟缓存、1 年区间护栏）+ `whale-frontend/platform-apps/whale-pm`（8108、base `/pm`，8 页面）+ 基座 qiankun 挂载（菜单 24）；whale-pm 116 例单测全绿、前端 `lint` / `build` 通过
 - [x] **M5 集成与收尾**：whale-im `POST /im/internal/notify` 内网通知通道 + 网关 `/im/internal/**` 屏蔽；whale-pm 站内通知（`whale.pm.notify.enabled=false`，指派/评论/流转，`afterCommit` 异步 + 租户透传 + 失败仅 warn）；workflow 审批（`whale.pm.approval.enabled=false`，`POST /pm/work-item/{id}/approval`，权限 202）；集成冒烟脚本 + 文档；whale-pm 127 例 / whale-im 138 例单测全绿
 
 ## Wave 5.61（合同管理与电子签章）

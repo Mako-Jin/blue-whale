@@ -44,7 +44,7 @@ P1 #3 已交付「多实例广播 + Redis 删除失败重对齐」。本轮复�
 ## 3. 验证
 
 ```bash
-mvn -pl backend/whale-services/whale-service-auth/whale-service-auth-starter -am \
+mvn -pl whale-backend/whale-services/whale-service-auth/whale-service-auth-starter -am \
     "-Dtest=!Sm4CryptoTest" "-Dsurefire.failIfNoSpecifiedTests=false" test
 ```
 

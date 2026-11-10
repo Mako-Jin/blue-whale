@@ -26,7 +26,7 @@
 - **Status**: completed
 - **Inputs**
   - 用户 2026-10-28 范围决策（真实实名/意愿供应商短期不接入；短信/消息统一服务；Gitee Go 不做；合同沙箱与凭据仅 mock）
-  - 仓库证据：`backend/whale-apps`（contract/erp/mes/oa/pdm/pm）、`backend/whale-services`（agent/archive/file/form/gateway/im/job/pay/auth/workflow）、`backend/whale-ops`（alert/audit/monitor）
+  - 仓库证据：`whale-backend/whale-apps`（contract/erp/mes/oa/pdm/pm）、`whale-backend/whale-services`（agent/archive/file/form/gateway/im/job/pay/auth/workflow）、`whale-backend/whale-ops`（alert/audit/monitor）
   - 现有消息能力：`whale-alert`（EMAIL/SMS/Webhook/去重/静默）、`whale-im`（聊天会话/消息/已读/在线/机器人）、Portal（待办/公告）
   - 现有供应商相关能力：仅合同域「相对方」与电子签渠道；无 CRM/SRM/供应商主数据模块
 - **Summary**
@@ -53,9 +53,9 @@
   - 外部渠道失败只记 `FAILED` 与错误摘要，不阻断其它通道，也不回滚消息记录。
 - **Evidence**
   - `docs/service-catalog.md`：现有 21 个后端服务，无 CRM/SRM/消息中台。
-  - `backend/whale-ops/whale-alert/.../AlertNotifyServiceImpl.java`：告警域自带 EMAIL/SMS/Webhook，证明通道能力存在但服务于告警，不是通用消息中心。
-  - `backend/whale-services/whale-im/.../ImInternalController.java`：IM 已有内网站内通知入口，但语义是机器人会话投递，不承担模板/偏好/多渠道路由。
-  - `backend/whale-common/whale-spring-boot-starter/.../MybatisPlusConfig.java`：租户插件全表默认隔离，新增消息表可直接复用。
+  - `whale-backend/whale-ops/whale-alert/.../AlertNotifyServiceImpl.java`：告警域自带 EMAIL/SMS/Webhook，证明通道能力存在但服务于告警，不是通用消息中心。
+  - `whale-backend/whale-services/whale-im/.../ImInternalController.java`：IM 已有内网站内通知入口，但语义是机器人会话投递，不承担模板/偏好/多渠道路由。
+  - `whale-backend/whale-common/whale-spring-boot-starter/.../MybatisPlusConfig.java`：租户插件全表默认隔离，新增消息表可直接复用。
 - **Open Questions**
   - `whale-srm` 是否单独立项，还是先扩展现有 ERP 供应商主数据？需要采购/供应链业务确认主数据归属与编码规则。
   - 若未来出现客户/商机管理，`whale-crm` 与合同「相对方」、ERP 客户主数据的主键映射由谁维护？
@@ -63,7 +63,7 @@
 - **Artifacts**
   - 本文档
   - [`whale-message` M0 检查报告](../reviews/2026-10-28-wave5.68-message-m0.md)
-  - `backend/whale-services/whale-message/`（M0）
+  - `whale-backend/whale-services/whale-message/`（M0）
   - `docs/service-catalog.md` 新增 `whale-message` 行与网关路由
 - **Recommended Next Step**
   - 先以 `whale-message` M0 接入 1–2 个真实业务生产者（建议 PM 站内通知、合同到期提醒），验证模板与幂等；再决定是否补 `whale-message-sdk`。

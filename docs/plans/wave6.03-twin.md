@@ -22,18 +22,18 @@
 
 ## 三、M0 落地清单（2026-11-10）
 
-**后端骨架**（`backend/whale-services/whale-twin`）：
+**后端骨架**（`whale-backend/whale-services/whale-twin`）：
 
 - `WhaleTwinApplication`（`@SpringBootApplication` + `@EnableDiscoveryClient`），`application.yml`：8089、`bluewhale_twin` 数据源、Flyway、Nacos、internal-token 守卫（`/**/internal/**`）、权限码头拦截开启
 - V1 基线 DDL 5 表：`twin_scene`（场景：编码/缩略图/scene_config/version/状态机 draft→published⇄disabled）、`twin_entity`（场景树：entity_code/parent_id/model_file_id/transform_json）、`twin_binding`（source_type: `iot_device`/`internal_api`、bind_key、property_map、poll_interval_ms）、`twin_marker`（label/hotspot/alarm、position_json、link_url）、`twin_snapshot`（scene_id+version 唯一、snapshot_json 整包冻结）
 - ArchUnit 分层门禁 4 规则（空包期 `allowEmptyShould(true)`，M1 落实体后自动生效）
 - pom 注册进 `whale-services` 聚合；`mvn test` 4/4 全绿，Checkstyle 0
 
-**渲染态验收**（`frontend/shared-packages/whale-common-three/acceptance/`）：
+**渲染态验收**（`whale-frontend/shared-packages/whale-common-three/acceptance/`）：
 
 - `index.html`：import map 解析 `three` 裸说明符（包以 `external: ['three']` 构建）+ `WhaleSceneManager` 空场景 + 旋转立方体（`MeshNormalMaterial`）
 - `serve.mjs`：零依赖静态服务器（`127.0.0.1:8199`，MIME 覆盖 `.mjs`）
-- `verify.mjs`：Playwright 无头断言（从 `frontend/e2e` 工作区解析 `playwright-core`），结果 JSON 打印，退出码 0/1
+- `verify.mjs`：Playwright 无头断言（从 `whale-frontend/e2e` 工作区解析 `playwright-core`），结果 JSON 打印，退出码 0/1
 - 结果：`webglVersion=WebGL 2.0 (OpenGL ES 3.0 Chromium)`、48 帧渲染循环递增、resize 生效、dispose 后画布摘除且帧停止、0 控制台错误
 - 评审闭环：[2026-10-26-p3-three-scene.md](../reviews/2026-10-26-p3-three-scene.md) 遗留项「无消费方 → 无浏览器渲染态验证」已关闭
 

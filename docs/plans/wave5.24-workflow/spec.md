@@ -11,7 +11,7 @@
 
 | 轨 | 范围 | 落点模块 |
 |---|---|---|
-| **T1 whale-workflow 骨架接线** | 依赖与配置补齐：`pom.xml` 增 `whale-spring-boot-starter`；`application.yml` 修端口自引用占位符 + 补 datasource(`bluewhale_workflow`) + mybatis-plus + 权限头开关 | `backend/whale-services/whale-workflow` |
+| **T1 whale-workflow 骨架接线** | 依赖与配置补齐：`pom.xml` 增 `whale-spring-boot-starter`；`application.yml` 修端口自引用占位符 + 补 datasource(`bluewhale_workflow`) + mybatis-plus + 权限头开关 | `whale-backend/whale-services/whale-workflow` |
 | **T2 流程定义 CRUD 最小可用** | `bluewhale_workflow` 建库 + `process_definition` 表（含流程 JSON 定义）+ 5 个 REST 接口 + `sys:workflow:*` 权限点种子 + 单测 + 经网关冒烟 | `whale-workflow`、`whale-auth` db 种子 |
 
 **非目标（明确不做）**

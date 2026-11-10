@@ -51,7 +51,7 @@
 
 ## 四、工作区红线（每批必须遵守）
 
-- ~~5.89 邮箱与 5.91 地图未提交内容不得 `git add`~~ → **已闭环（2026-11-09）**：`backend/whale-services/pom.xml`、网关路由、`deploy/monitoring/prometheus.yml`、`infrastructure/docker/mysql/init/01-init-databases.sql`、`backend/whale-services/whale-map/`、`migration-5.89`–`5.99` 均已随 Wave 5.89–5.93 提交入库。
+- ~~5.89 邮箱与 5.91 地图未提交内容不得 `git add`~~ → **已闭环（2026-11-09）**：`whale-backend/whale-services/pom.xml`、网关路由、`deploy/monitoring/prometheus.yml`、`infrastructure/docker/mysql/init/01-init-databases.sql`、`whale-backend/whale-services/whale-map/`、`migration-5.89`–`5.99` 均已随 Wave 5.89–5.93 提交入库。
 - ~~`.trae/documents/crm-frontend-8113-implementation.md` 与 `docs/plans/2026-11-06-mail-server-and-map-service.md` 不提交；stash `pre-pull-local-edits-20261106` 不得 pop~~ → **已闭环（2026-11-09）**：方案文档已入库，本地临时稿不存在，`git stash list` 为空。
 - 新功能一律先文档（计划/ADR/权限号段）后代码；权限号段与菜单号段先查 `naming-conventions`，改动迁移前先脚本扫描全仓号段占用，避免撞号后被 `WHERE NOT EXISTS` 静默吞掉。
 
@@ -60,7 +60,7 @@
 ## 五、Step 1 启动清单（1a + 1b 已完成）
 
 1. ~~对账：读 CRM 后端 10 个 Controller 的端点和 DTO，冻结 `api/crm.ts` 契约。~~（已完成：客户域 + 销售域契约）
-2. ~~脚手架：`frontend/platform-apps/whale-crm`（8113、base `/crm`），注册进基座 `apps.ts` 与菜单。~~（已完成）
+2. ~~脚手架：`whale-frontend/platform-apps/whale-crm`（8113、base `/crm`），注册进基座 `apps.ts` 与菜单。~~（已完成）
 3. ~~页面：客户（列表/详情/联系人/跟进/公海）、线索/转化、商机/阶段/漏斗、报价、预测、目标。~~（已完成：4 路由 + 页内 Tab）
 4. 权限：CRM 已有 1800–1899，按页面按钮补齐 `list/detail/add/edit/delete/export` 缺失项（只追加）。本次未新增权限号，仅登记菜单 413–420。
 5. 验证：前端 lint/build 已通过（1a、1b 各自验证）。
@@ -102,11 +102,11 @@
 
 ### 6.4 前端
 
-`frontend/platform-apps/whale-erp` 新增 `MrpRunPage`（可编辑需求行 + 运行记录 + 详情抽屉 + 重跑）与 `MrpOrderPage`（筛选 + 计划订单 + 追溯抽屉），`api/mfg.ts` 增加 MRP 类型与 6 个函数，`App.tsx` 注册菜单与路由映射。
+`whale-frontend/platform-apps/whale-erp` 新增 `MrpRunPage`（可编辑需求行 + 运行记录 + 详情抽屉 + 重跑）与 `MrpOrderPage`（筛选 + 计划订单 + 追溯抽屉），`api/mfg.ts` 增加 MRP 类型与 6 个函数，`App.tsx` 注册菜单与路由映射。
 
 ### 6.5 验收
 
-- 后端 `mvn -o -pl backend/whale-apps/whale-erp test` 全绿（含多级累计、损耗率、净需求不为负、可用量只扣一次、类型判定、PDM 失败 FAILED、重跑）。
+- 后端 `mvn -o -pl whale-backend/whale-apps/whale-erp test` 全绿（含多级累计、损耗率、净需求不为负、可用量只扣一次、类型判定、PDM 失败 FAILED、重跑）。
 - 前端 `pnpm --filter whale-erp lint` / `build` 通过。
 - 文档一致性脚本：除 `service-catalog.md` 待补 V13 记录外其余通过；该文件同时含未提交的商城 5.94 改动，本批不混提，待 5.94 落地时一并回填。
 
@@ -159,11 +159,11 @@
 
 ### 7.5 前端
 
-`frontend/platform-apps/whale-erp` 新增 `WorkCenterPage`（列表/搜索/状态筛选/新增编辑/删除）与 `CrpPage`（日期区间 + 工作中心筛选、负荷表与纯 CSS 甘特条带），`api/mfg.ts` 增补工作中心/CRP/工序类型与 8 个函数，`App.tsx` 注册 `work-center`、`crp` 菜单与初始路由。
+`whale-frontend/platform-apps/whale-erp` 新增 `WorkCenterPage`（列表/搜索/状态筛选/新增编辑/删除）与 `CrpPage`（日期区间 + 工作中心筛选、负荷表与纯 CSS 甘特条带），`api/mfg.ts` 增补工作中心/CRP/工序类型与 8 个函数，`App.tsx` 注册 `work-center`、`crp` 菜单与初始路由。
 
 ### 7.6 验收
 
-- 后端 `mvn -o -pl backend/whale-apps/whale-erp test` 全绿（479 + 14 新增）；PDM `mvn -o -pl backend/whale-apps/whale-pdm test` 全绿（含快照 4 新增）。
+- 后端 `mvn -o -pl whale-backend/whale-apps/whale-erp test` 全绿（479 + 14 新增）；PDM `mvn -o -pl whale-backend/whale-apps/whale-pdm test` 全绿（含快照 4 新增）。
 - 前端 `pnpm --filter whale-erp lint` / `build` 通过。
 - `scripts/check-doc-consistency.ps1` → PASS（补记 V14）。
 - 3b 见 §7.7。
@@ -258,12 +258,12 @@
 
 ### 8.5 前端
 
-`frontend/platform-apps/whale-erp` 新增 `MesReconcilePage`：关键字/日期/MES 状态/下发状态筛选，差异标记，详情抽屉（回调流水 + 任务明细），行内重推/拉取，人工确认入库弹窗；`api/mfg.ts` 增补对账类型与 5 个函数、生产订单视图补 4 个 MES 字段；`App.tsx` 注册 `mes-reconcile` 菜单与 `/erp/mfg/mes-reconcile` 路由。
+`whale-frontend/platform-apps/whale-erp` 新增 `MesReconcilePage`：关键字/日期/MES 状态/下发状态筛选，差异标记，详情抽屉（回调流水 + 任务明细），行内重推/拉取，人工确认入库弹窗；`api/mfg.ts` 增补对账类型与 5 个函数、生产订单视图补 4 个 MES 字段；`App.tsx` 注册 `mes-reconcile` 菜单与 `/erp/mfg/mes-reconcile` 路由。
 
 ### 8.6 验收
 
-- `mvn -o -pl backend/whale-apps/whale-erp test`：**509 项全绿**（新增集成服务 7 例）；Checkstyle/ArchUnit 随构建通过。
-- `mvn -o -pl backend/whale-apps/whale-mes test`：全绿（新增进度查询 2 例）。
+- `mvn -o -pl whale-backend/whale-apps/whale-erp test`：**509 项全绿**（新增集成服务 7 例）；Checkstyle/ArchUnit 随构建通过。
+- `mvn -o -pl whale-backend/whale-apps/whale-mes test`：全绿（新增进度查询 2 例）。
 - `pnpm --filter whale-erp lint` / `build`：通过。
 - `scripts/check-doc-consistency.ps1`：PASS（`service-catalog.md` 补记 V16）；whale-mall V5 为商城 5.94 未跟踪文件，不在本批范围。
 - 未做：MES 侧对账视图（ERP 为准）、进度回写 ERP 工序报工（刻意不做）、实机联调（待环境）。

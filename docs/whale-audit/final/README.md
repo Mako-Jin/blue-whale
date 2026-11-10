@@ -1,9 +1,9 @@
 # 审计服务最终设计文档（whale-audit）
 
 > 关联需求：REQ-SEC-001（审计日志：谁/何时/对什么/做了什么/结果）、REQ-SEC-006（多通道日志采集）、REQ-SEC-002~005（令牌黑名单/密钥校验的审计留痕）、REQ-DIST-001（分布式 ID/雪花）、REQ-QA-002（必检留痕）、REQ-DOC-002（文档先行）
-> 落点模块：`backend/whale-ops/whale-audit`（服务端口 `9101`，Nacos 服务名 `whale-audit`，逻辑库 `bluewhale_audit`）。**审计核心代码落点：`backend/whale-common/whale-spring-boot-starter`（`common/audit/*` 注解/AOP/实体/脱敏 + `common/log/*` 多通道采集）；`whale-audit` 承载查询接口与上报接收**
+> 落点模块：`whale-backend/whale-ops/whale-audit`（服务端口 `9101`，Nacos 服务名 `whale-audit`，逻辑库 `bluewhale_audit`）。**审计核心代码落点：`whale-backend/whale-common/whale-spring-boot-starter`（`common/audit/*` 注解/AOP/实体/脱敏 + `common/log/*` 多通道采集）；`whale-audit` 承载查询接口与上报接收**
 > 生成日期：2026-10-18 ｜ 作者：BlueWhale ｜ 依据：Wave 5.16（审计服务收尾）
-> 口径说明：本文为**整合最终版**，以 `docs/{design,plans,requirements,specs,reviews,devlog}` 原位最新文件与 `backend/**` 源码为准；历史副本归置于 `docs/whale-audit/originals/`（原文件保留原位，见第 7 节）。
+> 口径说明：本文为**整合最终版**，以 `docs/{design,plans,requirements,specs,reviews,devlog}` 原位最新文件与 `whale-backend/**` 源码为准；历史副本归置于 `docs/whale-audit/originals/`（原文件保留原位，见第 7 节）。
 > 端口偏差：`docs/design/distributed.md` §端口基线与 `docs/design/audit-log.md` 头部记为 `audit 8088`，实际源码 `whale-audit/application.yml` 为 `SERVER_PORT:9101`（默认 9101）；本文以源码为准，8088 系基线文档的存量偏差，待台账统一下沉。
 
 ---
@@ -42,7 +42,7 @@
 | 读审计的元审计（`@AuditLog(type=QUERY)`） | 已闭环 | `AuditLogController` 3 个查询方法各标注 `@AuditLog(type=QUERY, targetType="audit_log", recordResult=false)`（AUTH-07） |
 | 通道① 后端接口日志 | 已闭环 | `common/log/filter/{ApiLogFilter,LimitedCachingRequestWrapper,LimitedCachingResponseWrapper}.java` · 表 `api_log` · 查询 `GET /audit/log/api/page` |
 | 通道② 后端出站三方调用日志 | 已闭环 | `common/log/interceptor/OutboundLogInterceptor.java` · 表 `outbound_log` · 查询 `GET /audit/log/outbound/page` |
-| 通道③ 前端开发者日志 | 已闭环（后端接收 + 前端 SDK） | `POST /audit/log/frontend/batch`（permitAll）· 表 `frontend_log` · 查询 `GET /audit/log/frontend/page` · `frontend/shared-packages/whale-log-sdk`（Wave 5.14） |
+| 通道③ 前端开发者日志 | 已闭环（后端接收 + 前端 SDK） | `POST /audit/log/frontend/batch`（permitAll）· 表 `frontend_log` · 查询 `GET /audit/log/frontend/page` · `whale-frontend/shared-packages/whale-log-sdk`（Wave 5.14） |
 | 通道④ 前端用户行为埋点 | 已闭环（后端接收 + 前端 SDK） | `POST /audit/log/behavior/batch`（permitAll）· 表 `behavior_log` · 查询 `GET /audit/log/behavior/page` · `whale-log-sdk`（Wave 5.14） |
 | 多通道 sink 切换（`whale.audit.sink=local\|mq`） | 部分（`local` 已落地；`mq` 已废弃并回落 local，MQ 汇聚改用 `whale.audit.mq.publish-enabled`，HTTP 转发用 `whale.audit.forward.enabled`） | `common/log/properties/LogSinkProperties.java` · `common/log/sink/LogSink.java` |
 | 保留期清理（4 张日志表，默认关闭） | 部分（调度器与清理器已落地，默认 `enabled=false` 不启用；**不清理 `audit_log`**） | `whale-audit` `retention/{LogRetentionScheduler,LogRetentionCleaner}.java` · `config/RetentionProperties.java` |
@@ -168,7 +168,7 @@
 | reviews | `originals/reviews/` | `2026-10-17-wave5.1b-audit-log.md`、`2026-10-17-wave5.1e-audit-aspect-wiring-fix.md`、`2026-10-18-wave5.10-multichannel-log.md`、`2026-10-18-wave5.12-audit-backend-polish.md`、`2026-10-18-wave5.14-whale-log-sdk.md`、`2026-10-18-wave5.15-audit-channel-query.md` |
 | devlog | `originals/devlog/` | `2026-10-16.md`、`2026-10-17.md`、`2026-10-18.md` |
 
-> 关联落点（原位，未归档副本）：平台级 `docs/requirements/register.md`、`docs/plans/next-steps.md`、`docs/plans/task-breakdown.md` 与源码 `backend/whale-common/whale-spring-boot-starter`（`common/audit/*`、`common/log/*`）、`backend/whale-ops/whale-audit`（`controller`/`service`/`dto`/`vo`/`retention`/`db/init.sql`）、`backend/whale-services/whale-gateway`（`PermissionHeaderGlobalFilter`/`RateLimitGlobalFilter`/`application.yml`）、`frontend/shared-packages/whale-log-sdk`。
+> 关联落点（原位，未归档副本）：平台级 `docs/requirements/register.md`、`docs/plans/next-steps.md`、`docs/plans/task-breakdown.md` 与源码 `whale-backend/whale-common/whale-spring-boot-starter`（`common/audit/*`、`common/log/*`）、`whale-backend/whale-ops/whale-audit`（`controller`/`service`/`dto`/`vo`/`retention`/`db/init.sql`）、`whale-backend/whale-services/whale-gateway`（`PermissionHeaderGlobalFilter`/`RateLimitGlobalFilter`/`application.yml`）、`whale-frontend/shared-packages/whale-log-sdk`。
 
 ---
 
@@ -176,4 +176,4 @@
 
 | 版本 | 日期 | 作者 | 变更说明 |
 |---|---|---|---|
-| v1.0 | 2026-10-18 | BlueWhale | 初始整合最终版。依据 **Wave 5.16**（审计服务收尾：originals 副本归档 + 最终版整合）。整合来源：`docs/design/audit-log.md`、`.trae/documents/审计日志服务多通道完善方案.md`、`docs/specs/2026-10-1{7,8}-wave5.{1b,10,12,14,15}-*/spec.md`、`docs/reviews/2026-10-1{7,8}-wave5.*.md`、`docs/requirements/register.md`、`docs/plans/next-steps.md`，及源码 `whale-spring-boot-starter`（`common/audit/*`、`common/log/*`）、`whale-audit`（`AuditLogController`/`LogIngestController`/`retention/*`/`db/init.sql`）、`whale-gateway/application.yml`、`frontend/shared-packages/whale-log-sdk`。 |
+| v1.0 | 2026-10-18 | BlueWhale | 初始整合最终版。依据 **Wave 5.16**（审计服务收尾：originals 副本归档 + 最终版整合）。整合来源：`docs/design/audit-log.md`、`.trae/documents/审计日志服务多通道完善方案.md`、`docs/specs/2026-10-1{7,8}-wave5.{1b,10,12,14,15}-*/spec.md`、`docs/reviews/2026-10-1{7,8}-wave5.*.md`、`docs/requirements/register.md`、`docs/plans/next-steps.md`，及源码 `whale-spring-boot-starter`（`common/audit/*`、`common/log/*`）、`whale-audit`（`AuditLogController`/`LogIngestController`/`retention/*`/`db/init.sql`）、`whale-gateway/application.yml`、`whale-frontend/shared-packages/whale-log-sdk`。 |

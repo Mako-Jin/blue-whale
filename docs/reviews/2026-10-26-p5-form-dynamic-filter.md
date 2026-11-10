@@ -87,11 +87,11 @@
 
 ### 4.1 单元测试与构建
 
-- `mvn -o -f backend/pom.xml -pl :whale-form test`：**113 用例、0 失败**（较上轮 103 新增 10 个）。
+- `mvn -o -f whale-backend/pom.xml -pl :whale-form test`：**113 用例、0 失败**（较上轮 103 新增 10 个）。
   - `JdbcFormDataEngineFilterTest`（新增 6）：参数化 SQL 与参数顺序、`selectIdsByFilters` limit、操作符大小写归一、未知字段防注入、类型-操作符不匹配、数值非法。
   - `FormDataServiceImplTest`（新增 4）：动态条件分页排序、字段不存在、未指定编码、非法 JSON。
-- `mvn -o -f backend/pom.xml -pl :whale-form checkstyle:check`：**0 违规**。
-- `mvn -o -f backend/pom.xml -pl :whale-form package`：停掉占用 jar 的 8084 进程后 **BUILD SUCCESS**。
+- `mvn -o -f whale-backend/pom.xml -pl :whale-form checkstyle:check`：**0 违规**。
+- `mvn -o -f whale-backend/pom.xml -pl :whale-form package`：停掉占用 jar 的 8084 进程后 **BUILD SUCCESS**。
 - 前端：`pnpm --filter whale-form-designer build` 与 `lint` 均通过。
 
 ### 4.2 实机验证（重启 8084 新 jar，经网关 8080）

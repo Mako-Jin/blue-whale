@@ -5,7 +5,7 @@
 
 | # | 任务 | 依赖 | 优先级 | 验收 | 状态 |
 |---|---|---|---|---|---|
-| [x] B1 | 包骨架：`frontend/shared-packages/whale-log-sdk/`（`package.json`/`tsconfig.json`/`tsup.config.ts`，镜像 `whale-common-tools`）+ `src/constants.ts` + `src/types.ts` | 无 | 高 | 可被 pnpm workspace 识别；类型齐备 | ✅ |
+| [x] B1 | 包骨架：`whale-frontend/shared-packages/whale-log-sdk/`（`package.json`/`tsconfig.json`/`tsup.config.ts`，镜像 `whale-common-tools`）+ `src/constants.ts` + `src/types.ts` | 无 | 高 | 可被 pnpm workspace 识别；类型齐备 | ✅ |
 | [x] B2 | `src/mask.ts`：递归敏感键掩码 + URL query 掩码（纯函数） | B1 | 高 | 掩码覆盖密码/令牌/手机号/身份证/银行卡 | ✅ |
 | [x] B3 | `src/console.ts`：劫持 `console.debug/info/warn/error`，保留原输出、可还原、防递归 | B1、B2 | 高 | console 采集且原行为不变 | ✅ |
 | [x] B4 | `src/behavior.ts`：`PAGE_VIEW`（history 补丁 + popstate）、`CLICK`（`[data-track]`）、`SUBMIT` | B1、B2 | 高 | 三类事件可采集 | ✅ |

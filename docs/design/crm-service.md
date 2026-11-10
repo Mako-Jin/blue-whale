@@ -4,7 +4,7 @@
 > 关联需求：REQ-FUNC-080..086、REQ-ARCH-024、REQ-SEC-034
 > 关联规划：[CRM 功能模块全景](crm-module-panorama.md) / [Wave 5.83 计划](../plans/2026-11-04-wave5.83-crm-panorama.md)
 > 关联决策：[CRM/SRM 与消息服务边界决策](../plans/2026-10-28-crm-srm-and-message-service-decisions.md)、REQ-ARCH-011
-> 实现位置：`backend/whale-apps/whale-crm`（后端）· `frontend/platform-apps/whale-crm`（前端 8113，base `/crm`）
+> 实现位置：`whale-backend/whale-apps/whale-crm`（后端）· `whale-frontend/platform-apps/whale-crm`（前端 8113，base `/crm`）
 
 > **2026-11-04 门禁与范围更新**：收到用户《CRM 功能模块全景》后，D1 采纳全景口径（六上下文全规划、M1/M2 优先），
 > `whale.crm.demand-gate-passed` 已改为默认 `true`；§1 的旧门禁结论与“不做线索/营销/工单”承诺已由
@@ -50,7 +50,7 @@
 
 | 项 | 内容 |
 |---|---|
-| 模块 | `backend/whale-apps/whale-crm`，端口 **9007**，前缀 `/crm/**`，库 `bluewhale_crm` |
+| 模块 | `whale-backend/whale-apps/whale-crm`，端口 **9007**，前缀 `/crm/**`，库 `bluewhale_crm` |
 | 启动类 | `WhaleCrmApplication`（`@EnableScheduling`，供公海回收任务使用） |
 | 配置 | `CrmProperties`：门禁（默认 `true`）、客户编码前缀、跟进分页上限、合同引用开关、默认客户等级 `C`、公海回收开关/表达式/批大小、CSV 导入/导出行数上限；`CrmMarketingProperties`（`whale.crm.marketing`）、`CrmAnalyticsProperties`（`whale.crm.analytics`） |
 | 元信息接口 | `GET /crm/meta`（权限 `sys:crm:browse`）→ 门禁状态、说明、里程碑、边界约束 |
@@ -58,7 +58,7 @@
 | 权限 | `migration-5.77-crm.sql`：337–354 保留；`migration-5.83-crm.sql`：1800 敏感明文 + 1810–1830 客户主数据；`migration-5.84-crm-sales.sql`：1840–1849 线索与商机；`migration-5.85-crm-quote.sql`：1850–1854 报价；`migration-5.86-crm-forecast-target.sql`：1855–1859 预测与目标；`migration-5.83-crm-m1-merge-import.sql`：1831–1833 合并/导入/导出；`migration-5.83-crm-m5-marketing.sql`：1891–1898；`migration-5.83-crm-m6-analytics.sql`：1899–1905 |
 | 角色 | 25108 `crm_admin`、25109 `crm_member` 保留；新增 25128 `crm_sales`、25129 `crm_sales_manager`、25130 `crm_service`、25131 `crm_marketing`、25132 `crm_analyst` |
 | 网关 | `lb://whale-crm`，不配 `StripPrefix`；`/crm/internal/**` 由 internal-deny 403 |
-| 前端 | 已创建：`frontend/platform-apps/whale-crm`，8113，base `/crm`，已接入基座菜单与 qiankun |
+| 前端 | 已创建：`whale-frontend/platform-apps/whale-crm`，8113，base `/crm`，已接入基座菜单与 qiankun |
 | 测试 | 329 项（架构、迁移、公共、客户（含合并/导入导出）、销售、报价、预测、目标、商务、售后、营销、分析、Controller）；Checkstyle 通过 |
 
 ### 3.1 分层与上下文
@@ -273,6 +273,6 @@ APPROVED 只读；APPROVED / REJECTED 可 revise 生成新版本（version+1，r
 1. `whale.crm.demand-gate-passed=true`（环境变量 `WHALE_CRM_DEMAND_GATE_PASSED`）；
 2. ADR-003 定稿与 Domain Modeling 复核记录；
 3. 前端交付时追加菜单 413–420 迁移脚本（幂等）；
-4. 新建前端 `frontend/platform-apps/whale-crm`（8113、base `/crm`）并接入基座；
+4. 新建前端 `whale-frontend/platform-apps/whale-crm`（8113、base `/crm`）并接入基座；
 5. CI 镜像矩阵与部署契约计数同步（后端已有 `whale-crm`；前端新增时再 +1）；
 6. 每个里程碑完成后更新本设计稿状态与 `docs/reviews/` 检查报告、`docs/devlog/` 记录（M1 已完成）。

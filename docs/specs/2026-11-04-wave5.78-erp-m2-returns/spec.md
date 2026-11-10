@@ -200,7 +200,7 @@ public BigDecimal outboundAt(BigDecimal quantity, BigDecimal unitCost)
 
 ---
 
-## 5. 前端（`frontend/platform-apps/whale-erp`、`whale-platform`）
+## 5. 前端（`whale-frontend/platform-apps/whale-erp`、`whale-platform`）
 
 | 文件 | 变更 |
 |---|---|

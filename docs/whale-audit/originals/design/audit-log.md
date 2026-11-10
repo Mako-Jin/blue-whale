@@ -6,7 +6,7 @@
 | 状态 | 设计已定稿 / 核心能力已落地（Wave 5.1b，运行时待验证） |
 | 最后更新 | 2026-10-18 |
 | 作者 | BlueWhale |
-| 落点模块 | `backend/whale-ops/whale-audit`（端口 8088）。**审计核心代码落点：`whale-spring-boot-starter`；`whale-audit` 仅承载查询接口**（详见 §5.1） |
+| 落点模块 | `whale-backend/whale-ops/whale-audit`（端口 8088）。**审计核心代码落点：`whale-spring-boot-starter`；`whale-audit` 仅承载查询接口**（详见 §5.1） |
 
 ---
 
@@ -46,7 +46,7 @@
 
 ## 3. 现状盘点
 
-`backend/whale-ops/whale-audit/src/main/resources/db/init.sql` 已存在 `audit_log` 表，**当前为纯建表、无读写代码**（roadmap Phase 2.5「audit 服务骨架填充」为待启动）。
+`whale-backend/whale-ops/whale-audit/src/main/resources/db/init.sql` 已存在 `audit_log` 表，**当前为纯建表、无读写代码**（roadmap Phase 2.5「audit 服务骨架填充」为待启动）。
 
 现状关键事实：
 
@@ -109,7 +109,7 @@ ALTER TABLE audit_log
 
 ### 5.1 注解定义
 
-落地于 `backend/whale-common/whale-spring-boot-starter` 的 `com.bluewhale.common.audit.*`（`annotation` / `enums` / `aop` / `support` / `entity` / `mapper` / `config` 七个包）。
+落地于 `whale-backend/whale-common/whale-spring-boot-starter` 的 `com.bluewhale.common.audit.*`（`annotation` / `enums` / `aop` / `support` / `entity` / `mapper` / `config` 七个包）。
 
 **落点修正理由**：原方案拟置于 `com.bluewhale.audit.annotation`（whale-audit 内提供），但 `whale-audit` 经 `spring-boot-maven-plugin:repackage` 打包为可执行 jar 后，类位于 `BOOT-INF/classes`，**不能作为库被 whale-auth 依赖**；而 `whale-spring-boot-starter` 为普通库模块且 auth 已依赖，与既有 `@DistributedLock`（annotation + aop + config 同址）模式一致。**原 `com.bluewhale.audit.annotation` 路径废弃**。
 
@@ -345,7 +345,7 @@ whale-gateway
 
 | 变更点 | 文件 | 说明 |
 |---|---|---|
-| 枚举 | `backend/whale-common/whale-spring-boot-starter/.../common/audit/enums/OperateType.java` | LOGIN/LOGOUT/CREATE/UPDATE/DELETE/QUERY/GRANT/EXPORT/IMPORT/OTHER |
+| 枚举 | `whale-backend/whale-common/whale-spring-boot-starter/.../common/audit/enums/OperateType.java` | LOGIN/LOGOUT/CREATE/UPDATE/DELETE/QUERY/GRANT/EXPORT/IMPORT/OTHER |
 | 注解 | `.../common/audit/annotation/AuditLog.java` | `module()`（空则取 `spring.application.name`）/`operation()`/`type()`/`targetType()`/`targetId()`（SpEL）/`recordParams()=true`/`recordResult()=false` |
 | 实体 | `.../common/audit/entity/AuditLogRecord.java` | `@TableName("audit_log")`，21 字段，`@TableId(type = IdType.ASSIGN_ID)`；**不继承 `BaseEntity`**（append-only，无 `update_time`/`deleted`） |
 | Mapper | `.../common/audit/mapper/AuditLogMapper.java` | `extends BaseMapper`，被 `@MapperScan("com.bluewhale.**.mapper")` 扫描 |
@@ -354,17 +354,17 @@ whale-gateway
 | 自动配置 | `.../common/audit/config/AuditLogAutoConfiguration.java` | `@AutoConfiguration(after = MybatisPlusConfig.class)` + `@ConditionalOnWebApplication(SERVLET)` + `@ConditionalOnClass`；**Wave 5.1e 修正**：去除 `@ConditionalOnBean(AuditLogMapper.class)`（时序不可靠），`auditLogAspect(...)` 改注入 `ObjectProvider<AuditLogMapper>` 在实例化期延迟解析（见 §5.4「自动装配条件」）；Bean：`auditLogExecutor`（core=1/max=2/queue=256/`CallerRunsPolicy`/前缀 `audit-log-`）、`sensitiveDataMasker`、`auditLogAspect` |
 | 单测 | `.../src/test/.../common/audit/aop/AuditLogAspectTest.java`、`.../support/SensitiveDataMaskerTest.java` | 覆盖切面成功/失败/落库路径与脱敏规则 |
 | 自动配置注册 | `.../src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` | 追加 `com.bluewhale.common.audit.config.AuditLogAutoConfiguration` |
-| starter pom | `backend/whale-common/whale-spring-boot-starter/pom.xml` | 保持普通库模块（不 repackage），可被业务服务依赖 |
-| 查询 DTO | `backend/whale-ops/whale-audit/.../audit/dto/AuditLogQueryRequest.java` | `extends PageQuery` + userId/username/module/operateType/bizStatus/traceId/startTime/endTime |
+| starter pom | `whale-backend/whale-common/whale-spring-boot-starter/pom.xml` | 保持普通库模块（不 repackage），可被业务服务依赖 |
+| 查询 DTO | `whale-backend/whale-ops/whale-audit/.../audit/dto/AuditLogQueryRequest.java` | `extends PageQuery` + userId/username/module/operateType/bizStatus/traceId/startTime/endTime |
 | 查询 VO | `.../audit/vo/AuditLogVO.java` | 与 `AuditLogRecord` 字段一一对应 |
 | 查询服务 | `.../audit/service/AuditLogService.java` + `.../service/impl/AuditLogServiceImpl.java` | 分页（`MAX_PAGE_SIZE=200`、`orderByDesc(create_time)`）、`getDetail`（空则抛 `BizException(ErrorCode.NOT_FOUND)`）、`listByTraceId` |
 | 查询控制器 | `.../audit/controller/AuditLogController.java` | `@RequestMapping("/audit/log")`：`GET /page`、`GET /{id}`、`GET /trace/{traceId}` |
 | 查询单测 | `.../src/test/.../audit/service/impl/AuditLogServiceImplTest.java` | 覆盖分页/详情/按 traceId |
-| 服务构建 | `backend/whale-ops/whale-audit/pom.xml`、`src/main/resources/application.yml` | pom 新增 `whale-spring-boot-starter`；yml 新增 `spring.datasource`（逻辑库 `bluewhale_audit`） |
-| 埋点（auth） | `backend/whale-services/whale-auth/.../controller/AuthController.java` | `#login`（LOGIN，`recordParams=false`）/`#logout`（LOGOUT，`recordParams=false`） |
+| 服务构建 | `whale-backend/whale-ops/whale-audit/pom.xml`、`src/main/resources/application.yml` | pom 新增 `whale-spring-boot-starter`；yml 新增 `spring.datasource`（逻辑库 `bluewhale_audit`） |
+| 埋点（auth） | `whale-backend/whale-services/whale-auth/.../controller/AuthController.java` | `#login`（LOGIN，`recordParams=false`）/`#logout`（LOGOUT，`recordParams=false`） |
 | 埋点（auth） | `.../controller/UserController.java` | `#create`（CREATE，targetType `sys_user`）/`#assignRoles`（GRANT，`targetId="#id"`） |
 | 埋点（auth） | `.../controller/RoleController.java` | `#assignPermissions`（GRANT，`targetId="#id"`） |
-| 建表（auth 侧） | `backend/whale-services/whale-auth/src/main/resources/db/init.sql` | 追加第 9 节 `audit_log` 建表（与 whale-audit DDL 一致，含 7 索引；阶段一各服务写各自实例下的审计表，DDL 以本设计文档与 whale-audit init.sql 为准，append-only 故不设 `update_time`/`deleted`） |
+| 建表（auth 侧） | `whale-backend/whale-services/whale-auth/src/main/resources/db/init.sql` | 追加第 9 节 `audit_log` 建表（与 whale-audit DDL 一致，含 7 索引；阶段一各服务写各自实例下的审计表，DDL 以本设计文档与 whale-audit init.sql 为准，append-only 故不设 `update_time`/`deleted`） |
 
 **验证证据**：
 
@@ -385,7 +385,7 @@ whale-gateway
 
 | 变更点 | 文件 | 说明 |
 |---|---|---|
-| 元审计埋点 | `backend/whale-ops/whale-audit/.../audit/controller/AuditLogController.java` | 3 个查询方法各加 `@AuditLog(type=QUERY, targetType="audit_log", recordResult=false)`；`operation` 为「分页查询审计日志」/「查看审计日志详情」/「按链路查询审计日志」；`TARGET_TYPE` 提为常量；REST 路径 / 返回类型 / `@RequirePermission` 语义不变 |
+| 元审计埋点 | `whale-backend/whale-ops/whale-audit/.../audit/controller/AuditLogController.java` | 3 个查询方法各加 `@AuditLog(type=QUERY, targetType="audit_log", recordResult=false)`；`operation` 为「分页查询审计日志」/「查看审计日志详情」/「按链路查询审计日志」；`TARGET_TYPE` 提为常量；REST 路径 / 返回类型 / `@RequirePermission` 语义不变 |
 | 元审计单测 | `.../src/test/.../audit/controller/AuditLogControllerTest.java` | 反射断言 3 个方法的 `@AuditLog` 存在、`type()=QUERY`、`operation()` 非空、`targetType()=audit_log` |
 | 返回体列 | `audit_log.result_body`（DDL） | 见 §4.1；仅 `recordResult()=true` 时落库 |
 | 返回体语义 | `recordResult()` / `SensitiveDataMasker#maskJson` | 见 §5.1 / §5.3 |

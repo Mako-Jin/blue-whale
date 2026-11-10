@@ -18,8 +18,8 @@
 
 | 文件 | 触发条件 | 关键步骤 | 产物 | 并发策略 |
 |---|---|---|---|---|
-| `backend-ci.yml` | `push` main（paths: `backend/**`、`pom.xml`、本文件）；`pull_request` → main（同 paths） | Checkout → Setup JDK 21（temurin + maven cache）→ Maven Wrapper 初始化（`mvn -N wrapper:wrapper -Dmaven=3.9.9`）→ `./mvnw -B -ntp test` → `./mvnw -B -ntp clean package -DskipTests` → Upload JAR | `backend-jars`（`**/target/*.jar`，保留 7 天，仅 push main） | `backend-ci-${{ github.ref }}`，`cancel-in-progress: true` |
-| `frontend-ci.yml` | `push` main（paths: `frontend/**`、`pnpm-workspace.yaml`、`package.json`、本文件）；`pull_request` → main（同 paths） | Checkout → Setup Node 24（pnpm cache）→ corepack 启用 pnpm → `pnpm install --frozen-lockfile` → `pnpm -r lint` → `pnpm turbo run build` → Upload dist | `frontend-dist`（`**/dist/`，保留 7 天，仅 push main） | `frontend-ci-${{ github.ref }}`，`cancel-in-progress: true` |
+| `backend-ci.yml` | `push` main（paths: `whale-backend/**`、`pom.xml`、本文件）；`pull_request` → main（同 paths） | Checkout → Setup JDK 21（temurin + maven cache）→ Maven Wrapper 初始化（`mvn -N wrapper:wrapper -Dmaven=3.9.9`）→ `./mvnw -B -ntp test` → `./mvnw -B -ntp clean package -DskipTests` → Upload JAR | `backend-jars`（`**/target/*.jar`，保留 7 天，仅 push main） | `backend-ci-${{ github.ref }}`，`cancel-in-progress: true` |
+| `frontend-ci.yml` | `push` main（paths: `whale-frontend/**`、`pnpm-workspace.yaml`、`package.json`、本文件）；`pull_request` → main（同 paths） | Checkout → Setup Node 24（pnpm cache）→ corepack 启用 pnpm → `pnpm install --frozen-lockfile` → `pnpm -r lint` → `pnpm turbo run build` → Upload dist | `frontend-dist`（`**/dist/`，保留 7 天，仅 push main） | `frontend-ci-${{ github.ref }}`，`cancel-in-progress: true` |
 | `docker-deploy.yml` | `push` tag `v*.*.*`；`workflow_dispatch`（可选 `image_tag` 输入，默认短 SHA） | Checkout → 登录 GHCR（`GITHUB_TOKEN`）→ `docker/metadata-action` 生成 tag → `setup-buildx-action` → 构建推送 `whale-gateway` / `whale-web` | 镜像推送至 GHCR；`cache-from/to: type=gha` | `docker-deploy-${{ github.ref }}`，`cancel-in-progress: false` |
 
 `docker-deploy.yml` 关键变量：

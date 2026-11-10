@@ -45,7 +45,7 @@
 ## 4. 验证
 
 ```powershell
-mvn -B -pl backend/whale-services/whale-gateway -am ^
+mvn -B -pl whale-backend/whale-services/whale-gateway -am ^
   "-Dtest=!Sm4CryptoTest" "-Dsurefire.failIfNoSpecifiedTests=false" test
 ```
 

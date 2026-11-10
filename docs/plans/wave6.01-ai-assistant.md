@@ -23,7 +23,7 @@
 
 | 交付物 | 位置 |
 |---|---|
-| Maven 模块（单模块分包，对齐 whale-agent） | `backend/whale-services/whale-assistant` |
+| Maven 模块（单模块分包，对齐 whale-agent） | `whale-backend/whale-services/whale-assistant` |
 | 启动类 + `/assistant/info` 自检端点 | `WhaleAssistantApplication` / `AssistantInfoController` |
 | `application.yml`（端口 8087、`bluewhale_assistant`、Flyway、权限码头拦截） | `src/main/resources/application.yml` |
 | Flyway V1 基线 5 表 | `src/main/resources/db/migration/V1__baseline.sql` |
@@ -31,7 +31,7 @@
 | 网关路由 `/assistant/**` → `lb://whale-assistant` | `whale-gateway/application.yml`（34 条，1 条规划） |
 | service-catalog 登记（§一 #33 / §二 / §五 / §七） | `docs/service-catalog.md` |
 
-编译验证：`mvnw -f backend/pom.xml -pl whale-services/whale-assistant -am compile` ✅（需 `JAVA_HOME=D:\tools\installer\jdk\java21`，默认 JAVA_HOME 指向 17 会报"不支持发行版本 21"）。
+编译验证：`mvnw -f whale-backend/pom.xml -pl whale-services/whale-assistant -am compile` ✅（需 `JAVA_HOME=D:\tools\installer\jdk\java21`，默认 JAVA_HOME 指向 17 会报"不支持发行版本 21"）。
 
 ## 三、数据模型（V1 基线，bluewhale_assistant）
 
@@ -112,7 +112,7 @@
 ### M1 落地清单（2026-11-09）
 
 - 后端：`AsstDefinitionService`（状态机 draft→published⇄disabled、模型参数键白名单 model/temperature/max_tokens、工具授权覆盖式 upsert）、`AsstSessionService`（归属隔离、消息条数/字节上限、来源白名单 platform/embed/openapi）、`AssistantChatService`（SSE 透传 + done 帧回写落库 + 用量聚合）、`AssistantStreamClient`（内网直连 whale-ai）、`AsstUsageService`（助手×天 upsert 聚合）、控制器 2 个（`/assistant/definitions`、`/assistant/sessions`，权限码 `sys:assistant:define` / `sys:assistant:chat`，审计注解齐备）。
-- 前端：`frontend/platform-apps/whale-assistant`（8117，qiankun，base `/assistant`）——会话工作台（选助手→建会话→流式问答→引用标签渲染），SSE POST 手工分帧（`postStream`）。
+- 前端：`whale-frontend/platform-apps/whale-assistant`（8117，qiankun，base `/assistant`）——会话工作台（选助手→建会话→流式问答→引用标签渲染），SSE POST 手工分帧（`postStream`）。
 - 登记：service-catalog §七 前端区段补 8117。
 - 待办：`sys:assistant:*` 权限码与菜单需在 whale-auth/admin 注册（M3）。
 
@@ -131,7 +131,7 @@
 - **端口修正**：M1 曾把前端子应用误登记 8117——该端口权威归属 `whale-mail`（Wave 5.89）。`whale-assistant` 前端自 M3 起改 **8120**（vite.config + service-catalog §七三处），基座 `apps.ts` DEV_PORTS 同步。
 - **权限码与菜单（SQL）**：`whale-service-auth-starter/db/migration-6.01-assistant.sql`（幂等）——`sys_permission` 2300 `sys:assistant:define` / 2301 `sys:assistant:chat`；`sys_role_permission` 授权 tenant_admin（MD5 派生幂等 id）；`sys_menu` 510「助手管理」`/assistant/definition`（component `assistant/definition/index`）、511「助手用量」`/assistant/usage`，均绑 `sys:assistant:define`。
 - **后端新增**：`GET /assistant/usage/page`（助手×天聚合分页，date 过滤校验、助手被删回退 ID 展示）、`GET /assistant/tools`（whale-ai 注册表透传，授权页可选工具全集）、`GET /assistant/definitions/published`（问答视角已发布清单，`sys:assistant:chat` 即可）。
-- **admin 管理页**（`frontend/admin`，构建通过）：`api/assistant.ts` 全套封装；`pages/assistant/DefinitionList.tsx`（分页/新增/编辑/发布/停用/删除 + 工具授权抽屉——勾选注册表工具，服务端强校验）；`pages/assistant/UsageBoard.tsx`（日期范围/助手过滤看板）；`dynamicRoutes.tsx` 注册 `assistant/definition`、`assistant/usage`；vite proxy 白名单补 `assistant`。
+- **admin 管理页**（`whale-frontend/admin`，构建通过）：`api/assistant.ts` 全套封装；`pages/assistant/DefinitionList.tsx`（分页/新增/编辑/发布/停用/删除 + 工具授权抽屉——勾选注册表工具，服务端强校验）；`pages/assistant/UsageBoard.tsx`（日期范围/助手过滤看板）；`dynamicRoutes.tsx` 注册 `assistant/definition`、`assistant/usage`；vite proxy 白名单补 `assistant`。
 - **基座注册**：`whale-platform` `apps.ts` 注册 `whale-assistant`（8120，activeRule `/assistant`）；`menu.ts` 加「AI 助手」入口（permission `sys:assistant:chat`）。
 - **内嵌演示入口**：`whale-portal` 新增「AI 助手」页（`pages/Assistant.tsx` + `api/assistant.ts`）——选已发布助手 → embed 来源建会话 → SSE 流式问答（delta 增量渲染），构建通过。
 - 待办（M4 / 实机联调）：三库迁移与 SQL 执行、EMQX/IoT 对接另立 wave。

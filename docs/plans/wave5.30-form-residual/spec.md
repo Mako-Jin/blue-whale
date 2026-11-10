@@ -38,11 +38,11 @@
 
 | 文件 | 现状 | 问题 |
 |---|---|---|
-| [FormTableDdlGenerator.java](file:///d:/BlueWhale/BlueWhale/backend/whale-services/whale-form/src/main/java/com/bluewhale/form/support/FormTableDdlGenerator.java) | 只有 `generate` / `generateFromColumns`（`CREATE TABLE IF NOT EXISTS`） | 缺 `ALTER` 语句生成 |
-| [FormPublishServiceImpl.java](file:///d:/BlueWhale/BlueWhale/backend/whale-services/whale-form/src/main/java/com/bluewhale/form/service/impl/FormPublishServiceImpl.java#L199-L210) | `assertTableVersionNotPublished()` 命中同版本登记即抛错 | 无法重复发布 → 无法迁移 |
-| [FormTableDefinitionServiceImpl.java](file:///d:/BlueWhale/BlueWhale/backend/whale-services/whale-form/src/main/java/com/bluewhale/form/service/impl/FormTableDefinitionServiceImpl.java#L147-L153) | `replaceColumns()` = `delete(wrapper)`（`@TableLogic` 逻辑删）+ 全量 `insert` → **列主键全变** | 既有表单视图引用悬空（P1） |
-| [FormDataEngine.java](file:///d:/BlueWhale/BlueWhale/backend/whale-services/whale-form/src/main/java/com/bluewhale/form/support/FormDataEngine.java) | `executeDdl / insert / selectFields / logicDelete` | 缺「描述物理表现有列」能力，无法做 diff |
-| [FormDataServiceImpl.java](file:///d:/BlueWhale/BlueWhale/backend/whale-services/whale-form/src/main/java/com/bluewhale/form/service/impl/FormDataServiceImpl.java#L120-L133) | `page()` 只读主表 `form_data`（`fields` 为 `null`） | 缺导出 |
+| [FormTableDdlGenerator.java](file:///d:/BlueWhale/BlueWhale/whale-backend/whale-services/whale-form/src/main/java/com/bluewhale/form/support/FormTableDdlGenerator.java) | 只有 `generate` / `generateFromColumns`（`CREATE TABLE IF NOT EXISTS`） | 缺 `ALTER` 语句生成 |
+| [FormPublishServiceImpl.java](file:///d:/BlueWhale/BlueWhale/whale-backend/whale-services/whale-form/src/main/java/com/bluewhale/form/service/impl/FormPublishServiceImpl.java#L199-L210) | `assertTableVersionNotPublished()` 命中同版本登记即抛错 | 无法重复发布 → 无法迁移 |
+| [FormTableDefinitionServiceImpl.java](file:///d:/BlueWhale/BlueWhale/whale-backend/whale-services/whale-form/src/main/java/com/bluewhale/form/service/impl/FormTableDefinitionServiceImpl.java#L147-L153) | `replaceColumns()` = `delete(wrapper)`（`@TableLogic` 逻辑删）+ 全量 `insert` → **列主键全变** | 既有表单视图引用悬空（P1） |
+| [FormDataEngine.java](file:///d:/BlueWhale/BlueWhale/whale-backend/whale-services/whale-form/src/main/java/com/bluewhale/form/support/FormDataEngine.java) | `executeDdl / insert / selectFields / logicDelete` | 缺「描述物理表现有列」能力，无法做 diff |
+| [FormDataServiceImpl.java](file:///d:/BlueWhale/BlueWhale/whale-backend/whale-services/whale-form/src/main/java/com/bluewhale/form/service/impl/FormDataServiceImpl.java#L120-L133) | `page()` 只读主表 `form_data`（`fields` 为 `null`） | 缺导出 |
 
 **关键事实**：
 
@@ -53,9 +53,9 @@
 
 ### 2.2 前端 whale-form-designer
 
-- [FormDesigner.tsx](file:///d:/BlueWhale/BlueWhale/frontend/platform-apps/whale-form-designer/src/pages/designer/FormDesigner.tsx)：`fields` 为唯一画布状态，共 5 处 `setFields`（加载 / 拖入 / 排序 / 删除 / 属性补丁 / 切表清理）→ 无历史栈。
-- [FormDataList.tsx](file:///d:/BlueWhale/BlueWhale/frontend/platform-apps/whale-form-designer/src/pages/data/FormDataList.tsx)：无导出入口。
-- [http.ts](file:///d:/BlueWhale/BlueWhale/frontend/platform-apps/whale-form-designer/src/api/http.ts)：仅解析 JSON 响应，**无 blob 下载能力**。
+- [FormDesigner.tsx](file:///d:/BlueWhale/BlueWhale/whale-frontend/platform-apps/whale-form-designer/src/pages/designer/FormDesigner.tsx)：`fields` 为唯一画布状态，共 5 处 `setFields`（加载 / 拖入 / 排序 / 删除 / 属性补丁 / 切表清理）→ 无历史栈。
+- [FormDataList.tsx](file:///d:/BlueWhale/BlueWhale/whale-frontend/platform-apps/whale-form-designer/src/pages/data/FormDataList.tsx)：无导出入口。
+- [http.ts](file:///d:/BlueWhale/BlueWhale/whale-frontend/platform-apps/whale-form-designer/src/api/http.ts)：仅解析 JSON 响应，**无 blob 下载能力**。
 
 ---
 
@@ -179,8 +179,8 @@ export const formDataApi = {
 
 ## 五、验证方式
 
-1. **后端模块**：`mvn -o -f backend/pom.xml -pl whale-services/whale-form -am clean install`（Checkstyle `severity=error` + 单测）。
-2. **后端全量**：`mvn -o -f backend/pom.xml clean install`。
+1. **后端模块**：`mvn -o -f whale-backend/pom.xml -pl whale-services/whale-form -am clean install`（Checkstyle `severity=error` + 单测）。
+2. **后端全量**：`mvn -o -f whale-backend/pom.xml clean install`。
 3. **前端**：`pnpm -C frontend --filter whale-form-designer build`（tsc + vite）。
 4. **实机 E2E**（8002 应用，凭据 admin/123456，实机服务已在跑）：
    - E1 编辑表定义：新增一列 `remark2` 并删除 `remark` → 保存 → **物理表未变**（`SHOW COLUMNS` 无 `remark2`）。

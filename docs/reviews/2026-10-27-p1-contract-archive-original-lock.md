@@ -1,7 +1,7 @@
 # P1 检查报告：合同归档原件未锁定
 
 - 日期：2026-10-27
-- 范围：`backend/whale-services/whale-archive`
+- 范围：`whale-backend/whale-services/whale-archive`
 - 关联：台账序号 22 遗留、Wave 5.53 M2「归档后文件 status=2、锁定拦截删除」、Wave 5.61 合同归档推送
 
 ## 1. 问题
@@ -36,7 +36,7 @@
 ## 4. 验证
 
 ```powershell
-mvn -B -pl backend/whale-services/whale-archive -am test
+mvn -B -pl whale-backend/whale-services/whale-archive -am test
 ```
 
 - `whale-archive` 全量 `50` 用例，`0` 失败、`0` 跳过；Checkstyle `0`；

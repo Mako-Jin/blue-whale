@@ -11,12 +11,12 @@
 
 | 维度 | 现状 | 证据 |
 |---|---|---|
-| 后端四应用 | 仅 `*Application.java` + pom，**无任何 Controller/Service/Entity/Mapper**；pom 未引 `whale-spring-boot-starter`、MyBatis-Plus、MySQL 驱动 | `backend/whale-apps/whale-{erp,mes,oa,pdm}` |
+| 后端四应用 | 仅 `*Application.java` + pom，**无任何 Controller/Service/Entity/Mapper**；pom 未引 `whale-spring-boot-starter`、MyBatis-Plus、MySQL 驱动 | `whale-backend/whale-apps/whale-{erp,mes,oa,pdm}` |
 | 数据源 | 四应用 `application.yml` **无 datasource**，库 `bluewhale_{erp,mes,oa,pdm}` **未建** | 全库 `url: jdbc:mysql` 扫描仅命中 9 个服务 |
-| 网关路由 | 缺 `/erp/**`、`/mes/**`、`/pdm/**`、`/oa/**` 四条（`/config` 非本波范围） | [gateway application.yml](../../backend/whale-services/whale-gateway/src/main/resources/application.yml) |
+| 网关路由 | 缺 `/erp/**`、`/mes/**`、`/pdm/**`、`/oa/**` 四条（`/config` 非本波范围） | [gateway application.yml](../../whale-backend/whale-services/whale-gateway/src/main/resources/application.yml) |
 | 权限种子 | 无 `sys:erp:*` / `sys:mes:*` / `sys:pdm:*` / `sys:oa:*` 权限点 | `whale-auth/src/main/resources/db/init.sql` |
-| 前端四子应用 | 列表页/表单页骨架已就绪，但 `api/{erp,oa,mes,pdm}.ts` 为**占位 mock + TODO**；契约已冻结为 `ErpItem` / `OaDocument` / `MesWorkOrder` / `PdmProduct`（`id: string`、`status: ENABLED\|DISABLED`、`code/name/remark`） | `frontend/platform-apps/whale-{erp,oa,mes,pdm}/src/api/*.ts` |
-| 基座登录 | `whale-platform` 的 `api/auth.ts` 仍是**本地 mock（admin/123456 + 假 JWT）**，未接真实 `/auth/login`；基座 `vite.config.ts` **无 proxy** | `frontend/platform-apps/whale-platform` |
+| 前端四子应用 | 列表页/表单页骨架已就绪，但 `api/{erp,oa,mes,pdm}.ts` 为**占位 mock + TODO**；契约已冻结为 `ErpItem` / `OaDocument` / `MesWorkOrder` / `PdmProduct`（`id: string`、`status: ENABLED\|DISABLED`、`code/name/remark`） | `whale-frontend/platform-apps/whale-{erp,oa,mes,pdm}/src/api/*.ts` |
+| 基座登录 | `whale-platform` 的 `api/auth.ts` 仍是**本地 mock（admin/123456 + 假 JWT）**，未接真实 `/auth/login`；基座 `vite.config.ts` **无 proxy** | `whale-frontend/platform-apps/whale-platform` |
 | 基座占位页 | `system/users`、`system/roles`、`system/menus`、`i18n-demo` 指向 `PlaceholderPage` | `src/router/routes.tsx` |
 | 门户占位 | Dashboard 三项统计、通知中心、待办跳审批均硬编码 | `whale-portal/src/pages/{Dashboard,Notice,Todo}.tsx` |
 
@@ -84,7 +84,7 @@ deleted TINYINT DEFAULT 0
 
 - **A1 后端模板统一**：四个 pom 补 `whale-spring-boot-starter`、`mybatis-plus-spring-boot4-starter`、`mysql-connector-j`；`application.yml` 补 `spring.datasource`（`bluewhale_<app>`，`MYSQL_HOST/PORT/USER/PASSWORD` 环境变量）+ MyBatis-Plus 逻辑删除/自动填充 + `whale.permission.header.enabled=true`。
 - **A2 前端 HTTP 统一**：四子应用 `api/http.ts` 增加 `Authorization: Bearer` 注入 + 401 清态 + 统一错误提示；API 基址沿用相对路径（基座 proxy 统一转发）。
-- **验收**：`mvn -pl backend/whale-apps/whale-erp -am compile` 通过；`pnpm --filter whale-erp build` 通过。
+- **验收**：`mvn -pl whale-backend/whale-apps/whale-erp -am compile` 通过；`pnpm --filter whale-erp build` 通过。
 
 ### 轨 B：erp（与 C/D/E 并行）
 
@@ -127,7 +127,7 @@ deleted TINYINT DEFAULT 0
 
 ### 轨 H：回归与收尾
 
-- **H1** `mvn -o -f backend/pom.xml clean install -T 1C`（JDK21，32 模块）全绿 + Checkstyle 0 违规。
+- **H1** `mvn -o -f whale-backend/pom.xml clean install -T 1C`（JDK21，32 模块）全绿 + Checkstyle 0 违规。
 - **H2** `pnpm build` 全量（14+ 包）通过。
 - **H3** 运行时冒烟脚本 `wave5.46-phase4.ps1`：四应用 6 端点 + 网关路由 + 权限/鉴权负向。
 - **H4** 文档：roadmap 勾选、devlog、检查报告、service-catalog 同步。

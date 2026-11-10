@@ -160,8 +160,8 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 |---|---|---|
 | 共享包 / 组件库 | `@bluewhale/whale-<域>` | `@bluewhale/whale-ui`、`@bluewhale/whale-common-tools`、`@bluewhale/whale-log-sdk`（Wave B 新建） ✔ |
 | 应用包名 | `whale-<域>`（不加 scope） | `whale-platform`、`whale-portal`、`whale-admin`、`whale-ops` ✔ |
-| 目录名 | 与包名一致（去掉 scope） | `frontend/admin` → 包名 `whale-admin`（**偏差 N-03**） |
-| 微前端分组 | `frontend/platform-apps/`（子应用）、`shared-packages/`（共享包）、`elemental/`（组件库）、`ops/`（运维） | —— |
+| 目录名 | 与包名一致（去掉 scope） | `whale-frontend/admin` → 包名 `whale-admin`（**偏差 N-03**） |
+| 微前端分组 | `whale-frontend/platform-apps/`（子应用）、`shared-packages/`（共享包）、`elemental/`（组件库）、`ops/`（运维） | —— |
 
 ---
 
@@ -217,7 +217,7 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 |---|---|---|---|---|
 | **N-01** | Nacos 库名缺少统一前缀 | `nacos` | `bluewhale_nacos` | ✅ **已整改（Wave 5.1g）**：停 Nacos → 表迁至 `bluewhale_nacos` → 改 `conf/application.properties` → 重启验证 |
 | **N-02** | Redis 黑名单 key 缺 `whale` 命名空间 | `auth:token:blacklist:<摘要>` | `whale:auth:token:blacklist:<摘要>` | ⏳ 待办：需同步改 `whale-security` 常量与 auth 侧、网关侧及单测 |
-| **N-03** | 前端目录名与包名不一致 | `frontend/admin`（包名 `whale-admin`） | 目录 `whale-admin` | ⏳ 待办（低优先，涉及 turbo / 构建脚本路径） |
+| **N-03** | 前端目录名与包名不一致 | `whale-frontend/admin`（包名 `whale-admin`） | 目录 `whale-admin` | ⏳ 待办（低优先，涉及 turbo / 构建脚本路径） |
 | **N-04** | SDK 包名后缀不统一 | `whale-i18n-sdk` → `com.bluewhale.i18n` | `com.bluewhale.i18n.sdk` | ⏳ 待办：需评估引用方改动量后统一 |
 
 > 偏差项须在 [devlog](devlog/) 与需求台账留痕；整改完成后再回填本表状态。

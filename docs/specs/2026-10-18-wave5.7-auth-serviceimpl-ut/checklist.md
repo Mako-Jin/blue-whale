@@ -19,9 +19,9 @@
 
 ## 三、构建与门禁验证
 
-- [x] 3.1 `mvn -f backend/pom.xml -pl :whale-auth -am clean verify`：新增 4 类全绿，既有用例无回归（**99 run / 0 failures / 0 errors / 0 skipped**）
+- [x] 3.1 `mvn -f whale-backend/pom.xml -pl :whale-auth -am clean verify`：新增 4 类全绿，既有用例无回归（**99 run / 0 failures / 0 errors / 0 skipped**）
 - [x] 3.2 同命令加 `-Pcoverage-gate`：`All coverage checks have been met` / BUILD SUCCESS（`whale-auth` LINE **483/715 = 0.6755** ≥ 0.40、BRANCH **176/262 = 0.6718** ≥ 0.30）
-- [x] 3.3 `mvn -f backend/pom.xml checkstyle:check`：全 reactor 0 违规 / BUILD SUCCESS
+- [x] 3.3 `mvn -f whale-backend/pom.xml checkstyle:check`：全 reactor 0 违规 / BUILD SUCCESS
 
 ## 四、留痕与销账
 

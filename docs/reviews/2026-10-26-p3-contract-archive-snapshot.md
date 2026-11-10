@@ -26,26 +26,26 @@
 
 ### archive
 
-- 新增 [`ArchiveIngestRequest`](../../backend/whale-services/whale-archive/src/main/java/com/bluewhale/archive/dto/ArchiveIngestRequest.java)（Bean Validation：来源/标题/快照必填，密级 1–3，各字段长度上限）。
-- 新增 [`ArchiveIngestResultVO`](../../backend/whale-services/whale-archive/src/main/java/com/bluewhale/archive/vo/ArchiveIngestResultVO.java)（ID 统一字符串返回）。
-- 新增 [`ArchiveIngestService`](../../backend/whale-services/whale-archive/src/main/java/com/bluewhale/archive/service/ArchiveIngestService.java)：白名单/限额/幂等/上传/落库/台账。
-- 修改 [`ArchiveInternalController`](../../backend/whale-services/whale-archive/src/main/java/com/bluewhale/archive/controller/ArchiveInternalController.java)：新增 `POST /archive/internal/items`。
-- 修改 [`ArchiveConstants`](../../backend/whale-services/whale-archive/src/main/java/com/bluewhale/archive/support/ArchiveConstants.java)：新增 `SOURCE_CONTRACT`。
+- 新增 [`ArchiveIngestRequest`](../../whale-backend/whale-services/whale-archive/src/main/java/com/bluewhale/archive/dto/ArchiveIngestRequest.java)（Bean Validation：来源/标题/快照必填，密级 1–3，各字段长度上限）。
+- 新增 [`ArchiveIngestResultVO`](../../whale-backend/whale-services/whale-archive/src/main/java/com/bluewhale/archive/vo/ArchiveIngestResultVO.java)（ID 统一字符串返回）。
+- 新增 [`ArchiveIngestService`](../../whale-backend/whale-services/whale-archive/src/main/java/com/bluewhale/archive/service/ArchiveIngestService.java)：白名单/限额/幂等/上传/落库/台账。
+- 修改 [`ArchiveInternalController`](../../whale-backend/whale-services/whale-archive/src/main/java/com/bluewhale/archive/controller/ArchiveInternalController.java)：新增 `POST /archive/internal/items`。
+- 修改 [`ArchiveConstants`](../../whale-backend/whale-services/whale-archive/src/main/java/com/bluewhale/archive/support/ArchiveConstants.java)：新增 `SOURCE_CONTRACT`。
 
 ### contract
 
-- 新增 [`ContractArchiveProperties`](../../backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/config/ContractArchiveProperties.java)：`enabled/base-url/connect-timeout-millis/read-timeout-millis/security-level`。
-- 新增 [`ArchiveInternalClient`](../../backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/client/ArchiveInternalClient.java)：构造入档请求体（含相对方快照）、校验统一响应信封、解析 `data.itemId`；透传 `X-Tenant-Id`。
-- 修改 [`ContractServiceImpl`](../../backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/service/impl/ContractServiceImpl.java)：`archive()` 先置 `ARCHIVED` 快照态 → 推送入档 → 回填 `archiveItemId` → 落库。
-- 修改 [`application.yml`](../../backend/whale-apps/whale-contract/src/main/resources/application.yml)：`whale.contract.archive.*`，支持 `CONTRACT_ARCHIVE_URL` 等环境变量覆盖。
-- 新增 [`ArchiveInternalClientTest`](../../backend/whale-apps/whale-contract/src/test/java/com/bluewhale/contract/client/ArchiveInternalClientTest.java)：3 用例（请求体字段/快照内容与相对方/无原件时省略原件引用）。
+- 新增 [`ContractArchiveProperties`](../../whale-backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/config/ContractArchiveProperties.java)：`enabled/base-url/connect-timeout-millis/read-timeout-millis/security-level`。
+- 新增 [`ArchiveInternalClient`](../../whale-backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/client/ArchiveInternalClient.java)：构造入档请求体（含相对方快照）、校验统一响应信封、解析 `data.itemId`；透传 `X-Tenant-Id`。
+- 修改 [`ContractServiceImpl`](../../whale-backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/service/impl/ContractServiceImpl.java)：`archive()` 先置 `ARCHIVED` 快照态 → 推送入档 → 回填 `archiveItemId` → 落库。
+- 修改 [`application.yml`](../../whale-backend/whale-apps/whale-contract/src/main/resources/application.yml)：`whale.contract.archive.*`，支持 `CONTRACT_ARCHIVE_URL` 等环境变量覆盖。
+- 新增 [`ArchiveInternalClientTest`](../../whale-backend/whale-apps/whale-contract/src/test/java/com/bluewhale/contract/client/ArchiveInternalClientTest.java)：3 用例（请求体字段/快照内容与相对方/无原件时省略原件引用）。
 - 冒烟脚本 [`bw-contract-m3-smoke.ps1`](../../scripts/smoke/bw-contract-m3-smoke.ps1)：`evidenceNo` 改为每轮随机后缀（原先固定 `EV-M3-*-001` 撞 `uk_tenant_evidence`，脚本不可重跑）。
 
 ## 四、验证
 
 ### 4.1 构建与单测
 
-- `mvn -o -pl backend/whale-services/whale-archive,backend/whale-apps/whale-contract -am package` **BUILD SUCCESS**，Checkstyle 0。
+- `mvn -o -pl whale-backend/whale-services/whale-archive,whale-backend/whale-apps/whale-contract -am package` **BUILD SUCCESS**，Checkstyle 0。
 - contract 单测 **7/7**（原回调补偿 4 + 本次 3）；archive 既有单测未回归。
 
 ### 4.2 端到端（实机，M3 冒烟脚本全量 00–27 通过）

@@ -2,7 +2,7 @@
 
 > 制定日期：2026-10-24 ｜ 状态：已实现（T18b，2026-10-24）
 > 关联规划：`docs/plans/wave5.52-webim-langchain-agent.md` §七、§八（T19 前置）
-> 目标：补齐 IM 前端（`frontend/platform-apps/whale-im`，8107 / base `/im`），并在基座接入「消息」入口与全局未读角标。
+> 目标：补齐 IM 前端（`whale-frontend/platform-apps/whale-im`，8107 / base `/im`），并在基座接入「消息」入口与全局未读角标。
 
 ## 一、范围与非目标
 
@@ -44,7 +44,7 @@
 
 ## 三、文件清单（精确到文件）
 
-### 新增 `frontend/platform-apps/whale-im`
+### 新增 `whale-frontend/platform-apps/whale-im`
 
 ```
 package.json              name=whale-im；deps 对齐 whale-oa，另加 @bluewhale/whale-ui、@ant-design/icons
@@ -76,7 +76,7 @@ src/utils/markdown.tsx    轻量安全 Markdown 渲染（不引入新三方依�
 src/utils/format.ts       时间/文件大小格式化
 ```
 
-### 修改 `frontend/platform-apps/whale-platform`
+### 修改 `whale-frontend/platform-apps/whale-platform`
 
 | 文件 | 改动 |
 |---|---|
@@ -87,7 +87,7 @@ src/utils/format.ts       时间/文件大小格式化
 | `src/hooks/useImUnread.ts` | 新增：30s 轮询 `/im/conversations` 汇总未读；无 `sys:im:chat` 或请求失败时静默为 0；页面聚焦时立即刷新 |
 | `vite.config.ts` | `GATEWAY_PREFIXES` 增加 `'/im'`（沿用 `Accept: text/html` 旁路） |
 
-### 修改 `frontend/platform-apps/whale-im/vite.config.ts` 代理细则
+### 修改 `whale-frontend/platform-apps/whale-im/vite.config.ts` 代理细则
 
 ```ts
 const gatewayBypass = (req) =>

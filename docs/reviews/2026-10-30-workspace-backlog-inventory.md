@@ -4,7 +4,7 @@
 > 代码基线：`main` = `origin/main` = `d4fb07f6`，`git rev-list --left-right --count origin/main...HEAD` = `0 0`，工作区干净。
 > 工具链：Node v24.14.1 / pnpm 10.33.0 / JDK 21.0.8。
 > 本机环境：Docker 守护进程未启动；`127.0.0.1:3306/6379/8848` 均未监听，故本轮**未执行**构建、测试、E2E、compose 与容器验证。
-> 扫描范围：`backend/`（1678 个 Java 文件）、`frontend/`（403 个 TS/TSX，不含 node_modules）、`scripts/`（41 个 ps1/sh）、`infrastructure/`、`deploy/`、`.github/workflows/`、`docs/`、仓库卫生；排除 `target/`、`dist/`、`node_modules/`。
+> 扫描范围：`whale-backend/`（1678 个 Java 文件）、`whale-frontend/`（403 个 TS/TSX，不含 node_modules）、`scripts/`（41 个 ps1/sh）、`infrastructure/`、`deploy/`、`.github/workflows/`、`docs/`、仓库卫生；排除 `target/`、`dist/`、`node_modules/`。
 
 ---
 
@@ -17,7 +17,7 @@
 | 漏洞 / 安全缺口 | 7 | 2 项高危、4 项中危、1 项低危 |
 | 任务（工作包） | 6 | 把待办与漏洞按可独立验收的批次归并 |
 
-代码级欠账很少：注释型 `TODO` 全仓仅 2 条，位于 `frontend/games/whale-games-core/src/engine.ts:26,34`（该包已按 [frozen-optional-modules.md](../design/frozen-optional-modules.md) 冻结、无消费方）；检索到的其余 `TODO` 均为 PM 状态分类常量或前端路由/文案标识，不是欠账。真正积压集中在安全边界、前端测试与文档/仓库卫生。
+代码级欠账很少：注释型 `TODO` 全仓仅 2 条，位于 `whale-frontend/games/whale-games-core/src/engine.ts:26,34`（该包已按 [frozen-optional-modules.md](../design/frozen-optional-modules.md) 冻结、无消费方）；检索到的其余 `TODO` 均为 PM 状态分类常量或前端路由/文案标识，不是欠账。真正积压集中在安全边界、前端测试与文档/仓库卫生。
 
 ---
 
@@ -27,9 +27,9 @@
 
 | ID | 优先级 | 事项 | 证据 / 现状 | 验收口径 |
 |---|---|---|---|---|
-| T-01 | P1 | 修复网关 `discovery.locator` 改写路径绕 `internal-deny` | `backend/whale-services/whale-gateway/src/main/resources/application.yml:31-34`（`enabled: true`）；`InternalApiDenyGlobalFilter.java:80` 只匹配原始 `path`；`/whale-file/file/internal/**` 可被 `RewritePath` 还原为 `/file/internal/**` 后直达下游 | 对 `/whale-file/file/internal/**` 等三种服务名前缀形态均 403；单测覆盖原始路径与改写后路径 |
-| T-02 | P1 | 前端令牌从 `localStorage` 迁移到 HttpOnly Cookie（或明确风险接受） | `frontend/shared-packages/whale-auth/src/createAuthStorage.ts:69-94` 及 admin/portal/ops/platform 子应用共 18 处 `localStorage.getItem/setItem`；access + refresh 均明文 | 二选一：① refresh 入 HttpOnly、access 短时内存化并补 CSRF；② 记录「XSS 风险接受」决策与补偿措施（CSP/审计） |
-| T-03 | P1 | 去掉默认管理员口令与 smoke 硬编码 | `backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/init.sql:385` 内置 `admin` bcrypt 值；`scripts/smoke/*.ps1` 中 33 处 `123456` | 首次启动强制改密或改用随机初始化口令；smoke 从环境变量取账号 |
+| T-01 | P1 | 修复网关 `discovery.locator` 改写路径绕 `internal-deny` | `whale-backend/whale-services/whale-gateway/src/main/resources/application.yml:31-34`（`enabled: true`）；`InternalApiDenyGlobalFilter.java:80` 只匹配原始 `path`；`/whale-file/file/internal/**` 可被 `RewritePath` 还原为 `/file/internal/**` 后直达下游 | 对 `/whale-file/file/internal/**` 等三种服务名前缀形态均 403；单测覆盖原始路径与改写后路径 |
+| T-02 | P1 | 前端令牌从 `localStorage` 迁移到 HttpOnly Cookie（或明确风险接受） | `whale-frontend/shared-packages/whale-auth/src/createAuthStorage.ts:69-94` 及 admin/portal/ops/platform 子应用共 18 处 `localStorage.getItem/setItem`；access + refresh 均明文 | 二选一：① refresh 入 HttpOnly、access 短时内存化并补 CSRF；② 记录「XSS 风险接受」决策与补偿措施（CSP/审计） |
+| T-03 | P1 | 去掉默认管理员口令与 smoke 硬编码 | `whale-backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/init.sql:385` 内置 `admin` bcrypt 值；`scripts/smoke/*.ps1` 中 33 处 `123456` | 首次启动强制改密或改用随机初始化口令；smoke 从环境变量取账号 |
 | T-04 | P2 | 内网接口直连业务端口无认证（纵深防御） | 仅部署边界文档 [network-boundary.md](../design/network-boundary.md)，代码侧 `SecurityConfig.java` 未对 `/internal/**` 做来源校验；10-27 S-06 已按「上线必检」结案 | 生产网络策略 + 服务侧来源白名单（`X-Internal-Token` 或 mTLS）；或复核上线检查脚本 `bw-network-boundary-check.ps1` 实际执行 |
 | T-05 | P2 | 文件知识库个人文件仍为租户级公开池（方案 B） | [2026-10-29-agent-knowledge-bucket-policy.md](2026-10-29-agent-knowledge-bucket-policy.md) §四.2：`bluewhale` 桶内个人文件对同租户可问答用户可见，需索引「可见范围/归属人」并在查询期过滤 | 知识块带 `owner/visibility`，检索按用户过滤；越权用例覆盖 |
 | T-06 | P2 | 白名单桶前缀匹配过宽 + 无热更新 | 同上 §四.1/§四.4：登记 `oa` 会同时放行 `oa-private`；白名单改动需重启 | 精确匹配/正则；配置刷新或重启步骤写入运维手册 |
@@ -38,12 +38,12 @@
 
 | ID | 优先级 | 事项 | 证据 / 现状 | 验收口径 |
 |---|---|---|---|---|
-| T-07 | P1 | 前端单测补量 | 全仓仅 1 个唯一单测：`frontend/elemental/whale-ui/src/components/FormRenderer/linkage.test.ts`（node_modules 内为软链副本）；CI 已接 `turbo run test` | 核心共享包与关键页面补 vitest；覆盖率门禁可量化 |
-| T-08 | P1 | Playwright E2E 未进 CI | 8 个 spec 已就绪（`frontend/e2e/tests/`），`frontend-ci.yml:64-67` 注释明确「依赖后端就绪，维持本地手动」 | 增加可选 job（夜间/手动触发）或容器化后端后进主门禁 |
+| T-07 | P1 | 前端单测补量 | 全仓仅 1 个唯一单测：`whale-frontend/elemental/whale-ui/src/components/FormRenderer/linkage.test.ts`（node_modules 内为软链副本）；CI 已接 `turbo run test` | 核心共享包与关键页面补 vitest；覆盖率门禁可量化 |
+| T-08 | P1 | Playwright E2E 未进 CI | 8 个 spec 已就绪（`whale-frontend/e2e/tests/`），`frontend-ci.yml:64-67` 注释明确「依赖后端就绪，维持本地手动」 | 增加可选 job（夜间/手动触发）或容器化后端后进主门禁 |
 | T-09 | P2 | 6 个 >600 行巨型组件拆分 | `whale-doc/DocEditor.tsx` 1073、`FormDataList.tsx` 848、`InfoPanel.tsx` 788、`FormRenderer/index.tsx` 741、`admin/job/JobList.tsx` 636、`FormDesigner.tsx` 635 | 按容器/视图/状态拆分，拆分后构建 + lint + 回归通过 |
-| T-10 | P2 | qiankun 首屏重复拉取与公共依赖未 external | `frontend/platform-apps/whale-platform/src/qiankun/index.ts:48` `prefetch: 'all'`；全仓 `vite.config.ts` 无 `external` 配置（仅 portal 有 `rollupOptions`） | 关闭全量预取或按需；react/antd 外置或共享 chunk 策略生效并测量首屏 |
-| T-11 | P3 | 前端环境变量文档覆盖不全 | 仅 `frontend/ops/.env.example`、`frontend/platform-apps/whale-platform/.env.example` 两份；子应用 `VITE_*` 无集中说明 | 每个可独立部署的 app 补 `.env.example` 或统一在根文档登记 |
-| T-12 | P3 | `shamefully-hoist=true` | `frontend/.npmrc` | 评估关闭，验证 workspace 依赖可解析 |
+| T-10 | P2 | qiankun 首屏重复拉取与公共依赖未 external | `whale-frontend/platform-apps/whale-platform/src/qiankun/index.ts:48` `prefetch: 'all'`；全仓 `vite.config.ts` 无 `external` 配置（仅 portal 有 `rollupOptions`） | 关闭全量预取或按需；react/antd 外置或共享 chunk 策略生效并测量首屏 |
+| T-11 | P3 | 前端环境变量文档覆盖不全 | 仅 `whale-frontend/ops/.env.example`、`whale-frontend/platform-apps/whale-platform/.env.example` 两份；子应用 `VITE_*` 无集中说明 | 每个可独立部署的 app 补 `.env.example` 或统一在根文档登记 |
+| T-12 | P3 | `shamefully-hoist=true` | `whale-frontend/.npmrc` | 评估关闭，验证 workspace 依赖可解析 |
 
 ### 2.3 后端与基础设施
 
@@ -62,7 +62,7 @@
 | ID | 优先级 | 事项 | 证据 / 现状 | 验收口径 |
 |---|---|---|---|---|
 | T-20 | P1 | `docs/architecture.md` 严重滞后 | 对 `whale-doc/pay/message/config/contract/alert/monitor/archive` 检索命中 0；后端已有 24 个模块/服务 | 补服务全景、限界上下文、端口/库/路由，并与 service-catalog 对齐 |
-| T-21 | P2 | `docs/README.md` 6 个「待建」文档仍不存在；README 目录树缺 `ai/` | `docs/README.md` 列 backend/frontend/devops/api/database/ai 均标「待建」；README 目录树无 `ai/`（正式服务 8092） | 补最小可用文档或删除「待建」条目；README 补 `ai/`、`tools/`、`data/` |
+| T-21 | P2 | `docs/README.md` 6 个「待建」文档仍不存在；README 目录树缺 `ai/` | `docs/README.md` 列 whale-backend/whale-frontend/devops/api/database/ai 均标「待建」；README 目录树无 `ai/`（正式服务 8092） | 补最小可用文档或删除「待建」条目；README 补 `ai/`、`tools/`、`data/` |
 | T-22 | P2 | 缺 `LICENSE` 与 `.gitattributes` | 两个文件均不存在（`Test-Path` = False） | 明确许可证（License TBD）与换行/二进制规则 |
 | T-23 | P2 | `.trae/` 14 个 IDE 私有文件入库 | `git ls-files .trae` = 14 | 决定保留（则登记为文档源）或移出并加 ignore |
 | T-24 | P2 | 根目录运行时残留约 102 MiB | `logs/`、`data/`、`.tmp/` 共 226 文件/107,236,033 B；根目录另有 `.e2e-form.log`、`monitor-boot.log`、`dump.rdb` 等 | 清理并确认 `*.log`/`dump.rdb` 不入库（已 ignore） |
@@ -94,7 +94,7 @@
 |---|---|---|---|---|
 | V-01 | **高** | 网关服务发现路由改写可绕过内网接口屏蔽 | `application.yml:31-34` locator 开启；`InternalApiDenyGlobalFilter` 只匹配原始路径（`:80`）；服务名前缀路由 `/whale-file/**` + 内部 `RewritePath` 后命中 `/file/internal/**` | 在路由过滤链末端再校验一次改写后路径，或将 `internal-deny` 改为按服务名 + 下游路径双重匹配；补绕过用例 |
 | V-02 | **高** | 直连业务端口的 `/internal/**` 无服务侧认证 | 现有防护只在网关；`network-boundary.md` 属部署边界；业务服务端口（8080–8095）可被直连 | 服务侧内网令牌/mTLS；或上线前强制执行网络策略并留存验证记录 |
-| V-03 | 中 | access/refresh token 明文存 `localStorage` | `frontend/shared-packages/whale-auth/src/createAuthStorage.ts:69-94` 等 18 处 | 迁移 HttpOnly（refresh）+ 短时 access + CSP；见 T-02 |
+| V-03 | 中 | access/refresh token 明文存 `localStorage` | `whale-frontend/shared-packages/whale-auth/src/createAuthStorage.ts:69-94` 等 18 处 | 迁移 HttpOnly（refresh）+ 短时 access + CSP；见 T-02 |
 | V-04 | 中 | 内置默认管理员口令与 smoke 硬编码 | `init.sql:385` bcrypt 种子；33 处 smoke 明文 | 首次改密/随机口令/环境变量注入；见 T-03 |
 | V-05 | 中 | 文件知识库个人文件对同租户可见 | [bucket-policy 报告](2026-10-29-agent-knowledge-bucket-policy.md) §四.2 | 索引期写归属 + 查询期过滤；见 T-05 |
 | V-06 | 低 | 白名单桶前缀匹配过宽、配置需重启生效 | 同报告 §四.1/§四.4 | 精确匹配/正则，配置热更新或明确重启步骤 |

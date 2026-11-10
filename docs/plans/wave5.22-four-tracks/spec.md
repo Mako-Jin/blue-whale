@@ -11,10 +11,10 @@
 
 | 轨 | 范围 | 落点模块 |
 |---|---|---|
-| **A 网关 backlog** | GW-04 熔断 Micrometer 指标 / GW-05 多路由纳入熔断 / GW-06 内网屏蔽覆盖评估与配置化 / GW-07 测试基线 | `backend/whale-services/whale-gateway` |
-| **B admin 动态路由** | 用 `GET /auth/me` 的 `menus[]` 驱动侧栏导航与路由；静态兜底保留 | `frontend/admin` |
+| **A 网关 backlog** | GW-04 熔断 Micrometer 指标 / GW-05 多路由纳入熔断 / GW-06 内网屏蔽覆盖评估与配置化 / GW-07 测试基线 | `whale-backend/whale-services/whale-gateway` |
+| **B admin 动态路由** | 用 `GET /auth/me` 的 `menus[]` 驱动侧栏导航与路由；静态兜底保留 | `whale-frontend/admin` |
 | **C 归档三件套** | C1 whale-file 对象存储抽象扩展（`local`/`minio` 可插拔）；C2 归档链路运行时端到端取证（job 导出→file→逻辑删；audit 归档导出不删） | `whale-file`、`whale-job`、`whale-audit` |
-| **D auth backlog** | D1 控制器层单测补齐；D2 DDD feature flag 运行时灰度验证；D3 AUTH-10 阻塞登记（不实现） | `backend/whale-services/whale-auth` |
+| **D auth backlog** | D1 控制器层单测补齐；D2 DDD feature flag 运行时灰度验证；D3 AUTH-10 阻塞登记（不实现） | `whale-backend/whale-services/whale-auth` |
 
 **非目标（明确不做）**
 - GW-01 Sentinel 接入、GW-02 resilience4j 替换（仍留 backlog；现自研熔断满足需求）。
@@ -27,7 +27,7 @@
 ## 二、现状事实（研究结论，勿重复调研）
 
 - **whale-gateway**：`CircuitBreakerGlobalFilter`（order=-75，按路由隔离 `breakers` 映射，`tryAcquire`/`record` 均 `synchronized`，503 用 `GatewayResponse.of(503,msg).toJson()`）；`CircuitBreakerProperties`（enabled/timeoutMillis=3000/failureRateThreshold=50/slidingWindowSize=20/waitDurationInOpenStateMillis=10000/`applyToRoutes: List<String>`）；`InternalApiDenyProperties`（enabled + `patterns: List<String>` 默认 `/file/internal/**`，**已配置化**）；pom 已含 `spring-boot-starter-actuator` → **micrometer-core 已在依赖树**，`MeterRegistry` 可注入。
-- **frontend/admin**：`App.tsx` 静态 `useRoutes`（`/` 下 users/roles/menus/components）；`PermissionGate` 仅注入 `me.permissions`；`AdminLayout` 侧栏为硬编码 `NAV_ITEMS`（只有 key/label）；`api/token.ts` 的 `AuthMeResponse.menus` 目前是 `unknown[]` 未建模；`api/menu.ts` 已有 `MenuVO`（id/parentId/name/path/component/icon/sort/menuType/permissionCode/visible/status/children）。
+- **whale-frontend/admin**：`App.tsx` 静态 `useRoutes`（`/` 下 users/roles/menus/components）；`PermissionGate` 仅注入 `me.permissions`；`AdminLayout` 侧栏为硬编码 `NAV_ITEMS`（只有 key/label）；`api/token.ts` 的 `AuthMeResponse.menus` 目前是 `unknown[]` 未建模；`api/menu.ts` 已有 `MenuVO`（id/parentId/name/path/component/icon/sort/menuType/permissionCode/visible/status/children）。
 - **whale-file**：`FileStorage` SPI（`store/load/delete(bucket,objectKey,...)`），`LocalFileStorage` 按 `${root}/${bucket}/${objectKey}` 落盘并做目录穿越防护；`FileProperties`（root `D:/data/whale-file`、默认桶 `bluewhale`、max-size 52428800）；objectKey = `yyyy/MM/dd/<uuid>.<ext>`；上传端点 `POST /file/upload` 与内网 `POST /file/internal/upload`。
 - **whale-job**：`JobLogArchiveHandler`（筛选过期 job_log → CSV → `JobArchiveClient.upload` → **成功后**逻辑删，失败不删）；`JobArchiveClient` 用 `RestClient` POST `/file/internal/upload`（表单 `file`+`bucket`，默认桶 `bluewhale`）；`JobProperties`（logRetentionDays/fileServiceUrl/archiveBatchSize）；种子任务 id=2。
 - **whale-audit**：`AuditLogArchiver`（`whale.audit.retention.archive-enabled=true` 才导出，**绝不删除**）；`LogRetentionScheduler`（`@ConditionalOnProperty(whale.audit.retention.enabled)`）。

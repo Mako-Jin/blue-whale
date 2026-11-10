@@ -40,7 +40,7 @@
   - 表元数据初始化增加 `PdmBomDiffTask`。
   - 新增 `@Mock PdmBomDiffTaskMapper`、`@Mock Executor`。
   - 用例：异步成功入库、失败回显、任务不存在；同步超限用例保持通过。
-  - 执行 `mvn -pl backend/whale-apps/whale-pdm test`。
+  - 执行 `mvn -pl whale-backend/whale-apps/whale-pdm test`。
 
 ## 阶段三：前端降级与轮询
 

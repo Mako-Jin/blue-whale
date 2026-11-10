@@ -3,7 +3,7 @@
 - 日期：2026-10-27
 - 范围：P1 #1「合同电子签生产配置护栏」、P1 #2「三方签章 API 接入」
 - 对应提交：`a14b4775 fix(contract): 补齐电子签生产配置护栏与三方签章 HTTP 接入`
-- 模块：`backend/whale-apps/whale-contract`
+- 模块：`whale-backend/whale-apps/whale-contract`
 - 结论：**代码级闭环**；真实供应商沙箱仍需外部凭据，未做生产验收。
 
 ## 1. 原问题
@@ -27,9 +27,9 @@
 
 ### 2.2 关键文件
 
-- `backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/config/ContractEsignStartupChecker.java`
-- `backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/config/ContractEsignProperties.java`
-- `backend/whale-apps/whale-contract/src/main/resources/application.yml`
+- `whale-backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/config/ContractEsignStartupChecker.java`
+- `whale-backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/config/ContractEsignProperties.java`
+- `whale-backend/whale-apps/whale-contract/src/main/resources/application.yml`
 
 ### 2.3 覆盖
 
@@ -99,7 +99,7 @@ whale.contract.esign:
 执行：
 
 ```powershell
-.\mvnw.cmd -B -pl backend/whale-apps/whale-contract -am test
+.\mvnw.cmd -B -pl whale-backend/whale-apps/whale-contract -am test
 ```
 
 结果：

@@ -1,6 +1,6 @@
 # 工作区扫描报告（2026-11-07）
 
-> 扫描范围：`backend/`、`frontend/`、`ai/`、`docs/`（plans / specs / reviews / devlog）、`scripts/`、`deploy/`、git 工作区状态、关键端口。
+> 扫描范围：`whale-backend/`、`whale-frontend/`、`ai/`、`docs/`（plans / specs / reviews / devlog）、`scripts/`、`deploy/`、git 工作区状态、关键端口。
 > 口径：只登记**当前仓库仍存在**的缺口；已交付项不再重复登记（见 §六）。
 > 上一份：[2026-11-06 工作区扫描](2026-11-06-workspace-scan.md)。
 

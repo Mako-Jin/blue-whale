@@ -93,7 +93,7 @@ HMAC-SHA256(secret, METHOD + "\n" + PATH + "\n" + TIMESTAMP + "\n" + NONCE + "\n
 ### 4.3 验证
 
 ```powershell
-mvn -B -pl backend/whale-apps/whale-contract -am test
+mvn -B -pl whale-backend/whale-apps/whale-contract -am test
 ```
 
 - `whale-contract` 29 用例 0 失败；上游依赖模块 91 用例 0 失败；

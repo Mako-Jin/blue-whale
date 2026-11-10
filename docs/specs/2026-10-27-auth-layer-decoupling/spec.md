@@ -3,7 +3,7 @@
 - 状态：已实施（2026-10-31 复核：`tasks.md` T1–T6 全部完成；`whale-service-auth` 5 个子模块与 ArchUnit 规则均已落地，本文为设计归档）
 - 日期：2026-10-27
 - 关联：REQ-ARCH-001、ADR-AUTH-004、[whale-service-auth 拆分 spec](../2026-10-26-whale-service-auth-split/spec.md)
-- 影响模块：`backend/whale-common`（新增 `whale-common-core`）、`backend/whale-services/whale-service-auth`（5 个模块）
+- 影响模块：`whale-backend/whale-common`（新增 `whale-common-core`）、`whale-backend/whale-services/whale-service-auth`（5 个模块）
 - 不改：Java 包根 `com.bluewhale.auth`、REST 契约、错误码/文案、Redis 键、数据库。
 
 ## 1. 背景与问题（审查结论）
@@ -54,10 +54,10 @@ interfaces ──> application, domain, whale-auth-sdk, starter, web, validation
 
 | 动作 | 路径 |
 | --- | --- |
-| 新建 pom | `backend/whale-common/whale-common-core/pom.xml`：parent `whale-parent`（`../whale-parent/pom.xml`），`artifactId=whale-common-core`，仅 `org.projectlombok:lombok`（optional） |
+| 新建 pom | `whale-backend/whale-common/whale-common-core/pom.xml`：parent `whale-parent`（`../whale-parent/pom.xml`），`artifactId=whale-common-core`，仅 `org.projectlombok:lombok`（optional） |
 | 迁移 | `whale-spring-boot-starter/src/main/java/com/bluewhale/common/core/exception/BizException.java` → `whale-common-core/src/main/java/com/bluewhale/common/core/exception/BizException.java`（包名不变） |
 | 迁移 | 同目录 `ErrorCode.java` 同上 |
-| 修改 | `backend/whale-common/pom.xml`：`<modules>` 首位新增 `whale-common-core` |
+| 修改 | `whale-backend/whale-common/pom.xml`：`<modules>` 首位新增 `whale-common-core` |
 | 修改 | `whale-spring-boot-starter/pom.xml`：新增 `com.bluewhale:whale-common-core:${project.version}` 依赖（`GlobalExceptionHandler` 等继续可用，并向下游传递） |
 | 修改 | `whale-service-auth-domain/pom.xml`：`whale-spring-boot-starter` → `whale-common-core`；保留 lombok |
 
@@ -189,7 +189,7 @@ public void recordLogin(LocalDateTime loginTime) {
 
 ## 9. 验证（执行门禁）
 
-在 `backend/` 下执行（PowerShell）：
+在 `whale-backend/` 下执行（PowerShell）：
 
 ```powershell
 mvn -q -pl whale-common/whale-common-core -am -DskipTests install

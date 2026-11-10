@@ -109,9 +109,9 @@
 
 | 手段 | 命令 | 结果 |
 |---|---|---|
-| 单模块编译 | `mvn -pl backend/whale-common/whale-spring-boot-starter -am compile` | **BUILD SUCCESS** |
+| 单模块编译 | `mvn -pl whale-backend/whale-common/whale-spring-boot-starter -am compile` | **BUILD SUCCESS** |
 | 全模块编译 | `mvn clean compile -T 1C` | **BUILD SUCCESS**（29 个聚合/模块） |
-| 单元测试 | `mvn -pl backend/whale-services/whale-auth -am test` | **Tests run: 13, Failures: 0, Errors: 0, Skipped: 0**（`JwtTokenProviderTest` 6 + `RedisTokenBlacklistTest` 7） |
+| 单元测试 | `mvn -pl whale-backend/whale-services/whale-auth -am test` | **Tests run: 13, Failures: 0, Errors: 0, Skipped: 0**（`JwtTokenProviderTest` 6 + `RedisTokenBlacklistTest` 7） |
 | Checkstyle | `mvn -pl …starter,…whale-tools,…whale-auth checkstyle:check` | 0 Checkstyle violations，BUILD SUCCESS |
 
 > 说明：Checkstyle 当前为「报告模式」（仅 `error` 级阻断，规则集为 `warning`）；`whale-auth` 出现的 2 条 `UnusedImports` 告警来自**既有未改动文件** `dto/AssignPermissionsRequest.java`（见第五节遗留）。

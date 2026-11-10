@@ -1,7 +1,7 @@
 # Wave 5.29 规格（拖拽式表单设计器 · 前后端贯通 · 冻结契约）
 
 > 用户指令（2026-10-20）：「今天打算搭建拖拽式表单搭建，前端后端一起搭建，并贯通。拆分任务，然后逐步搭建。」
-> 经 AskUserQuestion 冻结口径（详见 §七 决策记录）：**(a) 范围 = 设计器 + 渲染填报 + 数据列表完整闭环**｜**(b) 拖拽用 `@dnd-kit`**｜**(c) 独立新应用 `frontend/platform-apps/whale-form-designer`（非 qiankun 子应用，端口 8002，真实认证直连网关 8080）**｜**(d) 设计器可新建表定义也可选已有表定义**｜**(e) 画布布局粒度 = 栅格 12/24（后端加 `col_span`）**｜**(f) 支持纯布局字段（`columnMetaId=null` 的 title/divider/text-note）**。
+> 经 AskUserQuestion 冻结口径（详见 §七 决策记录）：**(a) 范围 = 设计器 + 渲染填报 + 数据列表完整闭环**｜**(b) 拖拽用 `@dnd-kit`**｜**(c) 独立新应用 `whale-frontend/platform-apps/whale-form-designer`（非 qiankun 子应用，端口 8002，真实认证直连网关 8080）**｜**(d) 设计器可新建表定义也可选已有表定义**｜**(e) 画布布局粒度 = 栅格 12/24（后端加 `col_span`）**｜**(f) 支持纯布局字段（`columnMetaId=null` 的 title/divider/text-note）**。
 > 执行原则：**先落文档（REQ-DOC-002）→ 冻结契约（本文 §三）→ 编码 → 模块自检（REQ-QA-002）→ 全量回归 → 检查报告 → 台账勾选 → 提交推送**。
 > 前置：Wave 5.28 已交付三层元数据模型（表定义 / 表单视图 / 选项），后端 API 契约已就绪；本轮后端仅「最小必要补强」。
 > 关联台账：[roadmap.md](../roadmap.md)、[task-breakdown.md](../task-breakdown.md)。
@@ -48,7 +48,7 @@
 - `platform-apps/*` 现有应用均为 qiankun 子应用，挂在 **mock 认证**基座 `whale-platform`（8000）下 —— 无法满足「真实认证 + 调 `/form`」，故本轮做**独立 Vite 应用**。
 - admin `vite.config.ts` 代理只覆盖 `auth|user|dept|role|menu|permission|audit`，**缺 `/form/**`**。
 - 可直接复用：`admin/src/api/{http,token,auth}.ts`、`admin/src/router/guards.tsx`、`admin/src/pages/Login.tsx`、`admin/src/layouts/AdminLayout.tsx`、`admin/package.json`、`admin/tsconfig.json`。
-- `frontend/pnpm-workspace.yaml` 已含 `platform-apps/*`，**新应用自动纳入 workspace，无需改工作区配置**。
+- `whale-frontend/pnpm-workspace.yaml` 已含 `platform-apps/*`，**新应用自动纳入 workspace，无需改工作区配置**。
 
 ---
 
@@ -144,7 +144,7 @@ export interface FormDataItem { id: number; definitionId: number; definitionCode
 |---|---|---|
 | 1 | 本轮范围 | 设计器 + 渲染填报 + 数据列表（完整闭环） |
 | 2 | 拖拽实现 | `@dnd-kit`（core + sortable + utilities） |
-| 3 | 落点 | 独立新应用 `frontend/platform-apps/whale-form-designer`（非 qiankun 子应用） |
+| 3 | 落点 | 独立新应用 `whale-frontend/platform-apps/whale-form-designer`（非 qiankun 子应用） |
 | 4 | 设计器与表定义关系 | 可新建表定义，也可选已有表定义 |
 | 5 | 画布布局粒度 | 栅格 12/24（半宽/整宽）→ 后端加 `form_field_config.col_span` |
 | 6 | 纯布局字段 | 支持（标题/分割线/说明，`columnMetaId=null`，不参与填报提交） |
@@ -171,7 +171,7 @@ export interface FormDataItem { id: number; definitionId: number; definitionCode
 
 ## 九、验证方式
 
-- 后端：`mvn -f backend/pom.xml -pl whale-services/whale-form -am clean install`（Checkstyle `severity=error` + 单测）→ 全量 `mvn -f backend/pom.xml clean install`。
+- 后端：`mvn -f whale-backend/pom.xml -pl whale-services/whale-form -am clean install`（Checkstyle `severity=error` + 单测）→ 全量 `mvn -f whale-backend/pom.xml clean install`。
 - DDL 落库：对 `bluewhale_form` 执行 `db/migration-5.29.sql`。
 - 前端：`pnpm -C frontend install` → `pnpm -C frontend --filter whale-form-designer build`。
 - 实机 E2E：7 步正向 + 2 条负向，`browser_use` 子代理在 8002 截图核验。

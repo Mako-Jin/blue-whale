@@ -5,8 +5,8 @@
 
 ## 一、交付范围
 
-- **子应用脚手架**：新建 `frontend/platform-apps/whale-crm`（vite 6 + React 19 + antd 5 + react-router-dom 6 + vite-plugin-qiankun），端口 **8113**、base `/crm`、qiankun 名 `whale-crm`；`@bluewhale/http` 提供 `http` / `downloadBlob` / `upload`。
-- **基座注册**：`frontend/platform-apps/whale-platform/src/qiankun/apps.ts` 的 `DEV_PORTS` 增 `'whale-crm': 8113`，`apps` 注册 `activeRule: '/crm'`；entry 走 `subAppEntry('whale-crm', VITE_SUBAPP_ENTRY_CRM)` 并注入统一 `platformProps()`。
+- **子应用脚手架**：新建 `whale-frontend/platform-apps/whale-crm`（vite 6 + React 19 + antd 5 + react-router-dom 6 + vite-plugin-qiankun），端口 **8113**、base `/crm`、qiankun 名 `whale-crm`；`@bluewhale/http` 提供 `http` / `downloadBlob` / `upload`。
+- **基座注册**：`whale-frontend/platform-apps/whale-platform/src/qiankun/apps.ts` 的 `DEV_PORTS` 增 `'whale-crm': 8113`，`apps` 注册 `activeRule: '/crm'`；entry 走 `subAppEntry('whale-crm', VITE_SUBAPP_ENTRY_CRM)` 并注入统一 `platformProps()`。
 - **API 层**：`src/api/crm.ts` 冻结客户域契约——客户分页/查重/详情/360/新建/编辑/状态/级别/删除/画像，联系人增改删，地址增改删，跟进分页与新增，公海分页/认领/释放/分配/回收/规则查存/归属日志，以及 `meta`。
 - **页面**：
   - 客户列表：关键字/状态/级别/负责人筛选、分页、新建与编辑、状态与级别变更、查重提示、删除，行内跳转详情。

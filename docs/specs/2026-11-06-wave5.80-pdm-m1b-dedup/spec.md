@@ -97,7 +97,7 @@
 
 ## 六、验证
 
-- 后端：`mvn -o -pl backend/whale-apps/whale-pdm test`（新增去重分组、改写、跳过、冲突累加、拒绝分支、迁移用例）。
+- 后端：`mvn -o -pl whale-backend/whale-apps/whale-pdm test`（新增去重分组、改写、跳过、冲突累加、拒绝分支、迁移用例）。
 - 前端：`pnpm --filter whale-pdm lint && pnpm --filter whale-pdm build`。
 - 迁移：`V13__part_merge.sql` 可重复执行；`migration-5.80-pdm-part-merge.sql` 幂等。
 

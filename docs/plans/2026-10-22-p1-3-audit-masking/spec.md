@@ -41,7 +41,7 @@
 
 ### D1 查询串脱敏
 
-**文件**：`backend/whale-common/whale-spring-boot-starter/src/main/java/com/bluewhale/common/audit/support/SensitiveDataMasker.java`
+**文件**：`whale-backend/whale-common/whale-spring-boot-starter/src/main/java/com/bluewhale/common/audit/support/SensitiveDataMasker.java`
 
 新增公开方法：
 
@@ -68,9 +68,9 @@ secret, secretkey, clientsecret, privatekey, apikey, appsecret, accesskey
 ```
 
 **接入点**
-- `backend/whale-common/whale-spring-boot-starter/src/main/java/com/bluewhale/common/log/filter/ApiLogFilter.java` L183：
+- `whale-backend/whale-common/whale-spring-boot-starter/src/main/java/com/bluewhale/common/log/filter/ApiLogFilter.java` L183：
   `record.setQueryString(sensitiveDataMasker.maskQueryString(request.getQueryString()));`
-- `backend/whale-common/whale-spring-boot-starter/src/main/java/com/bluewhale/common/log/interceptor/OutboundLogInterceptor.java`：
+- `whale-backend/whale-common/whale-spring-boot-starter/src/main/java/com/bluewhale/common/log/interceptor/OutboundLogInterceptor.java`：
   `buildTargetUri(URI)` 由 `static` 改为实例方法，查询串经 `sensitiveDataMasker.maskQueryString(uri.getQuery())`；`null` 时只返回 path。
 
 ### D2 审计 HTTP 转发（失败回退本地）
@@ -126,11 +126,11 @@ public AuditLogForwarder auditLogForwarder(AuditLogForwardProperties properties,
 
 **同步测试构造器**
 - `.../src/test/java/com/bluewhale/common/audit/aop/AuditLogAspectTest.java`：4 参构造改为 5 参，末位传 `null`。
-- `backend/whale-ops/whale-audit/src/test/java/com/bluewhale/audit/live/LiveAuditLogIT.java`：同上。
+- `whale-backend/whale-ops/whale-audit/src/test/java/com/bluewhale/audit/live/LiveAuditLogIT.java`：同上。
 
 ### D3 whale-audit 摄入端点
 
-**修改** `backend/whale-ops/whale-audit/src/main/java/com/bluewhale/audit/service/AuditLogService.java`
+**修改** `whale-backend/whale-ops/whale-audit/src/main/java/com/bluewhale/audit/service/AuditLogService.java`
 - 新增 `int ingest(List<AuditLogRecord> records);`
 
 **修改** `.../service/impl/AuditLogServiceImpl.java`
@@ -155,11 +155,11 @@ public Result<Integer> ingest(@RequestBody List<AuditLogRecord> records)
 ### D4 防回环与网关屏蔽
 
 - `.../common/log/properties/ApiLogProperties.java` 默认排除路径追加 `/audit/log/ingest/**`（whale-audit 不把摄入请求写入自己的 `api_log`）。
-- `backend/whale-services/whale-gateway/src/main/resources/application.yml` 的 `whale.gateway.internal-deny.patterns` 追加 `- /audit/log/ingest/**`，外部经网关访问返回 403。
+- `whale-backend/whale-services/whale-gateway/src/main/resources/application.yml` 的 `whale.gateway.internal-deny.patterns` 追加 `- /audit/log/ingest/**`，外部经网关访问返回 403。
 
 ### D5 whale-auth 开启转发
 
-`backend/whale-services/whale-auth/src/main/resources/application.yml` 在 `whale` 下新增：
+`whale-backend/whale-services/whale-auth/src/main/resources/application.yml` 在 `whale` 下新增：
 
 ```yaml
   audit:
@@ -192,7 +192,7 @@ mvn -o -B -pl whale-common/whale-spring-boot-starter,whale-services/whale-auth,w
 要求 BUILD SUCCESS（含 Checkstyle）。
 
 ### 实机验收（本机中间件已就绪）
-1. 确认 `bluewhale_audit` 库存在；缺失时执行 `backend/whale-ops/whale-audit/src/main/resources/db/init.sql`。
+1. 确认 `bluewhale_audit` 库存在；缺失时执行 `whale-backend/whale-ops/whale-audit/src/main/resources/db/init.sql`。
 2. 启动 whale-audit（9101）、重启 whale-auth（8081），网关保持 8080。
 3. `POST http://127.0.0.1:8080/auth/login`（admin/123456）→ 200。
 4. `SELECT id,module,operation,biz_status FROM bluewhale_audit.audit_log WHERE module='whale-auth' ORDER BY create_time DESC LIMIT 5` → 命中新记录。

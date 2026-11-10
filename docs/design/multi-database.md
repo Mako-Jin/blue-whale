@@ -9,14 +9,14 @@
 
 | 维度 | 事实 | 证据 |
 |---|---|---|
-| 连接与驱动 | 各服务 `application.yml` 硬编码 `com.mysql.cj.jdbc.Driver` 与 `jdbc:mysql://`，URL 固定 `characterEncoding=utf8`、`connectionCollation=utf8mb4_general_ci`、`serverTimezone=Asia/Shanghai`、`useSSL=false`、`allowPublicKeyRetrieval=true`；仅主机/端口/账号走环境变量 | `backend/whale-services/whale-workflow/src/main/resources/application.yml:11-16` |
-| 分页方言 | `PaginationInnerInterceptor(new DbType.MYSQL)` 写死 | `backend/whale-common/whale-spring-boot-starter/src/main/java/com/bluewhale/common/mybatis/config/MybatisPlusConfig.java:53` |
+| 连接与驱动 | 各服务 `application.yml` 硬编码 `com.mysql.cj.jdbc.Driver` 与 `jdbc:mysql://`，URL 固定 `characterEncoding=utf8`、`connectionCollation=utf8mb4_general_ci`、`serverTimezone=Asia/Shanghai`、`useSSL=false`、`allowPublicKeyRetrieval=true`；仅主机/端口/账号走环境变量 | `whale-backend/whale-services/whale-workflow/src/main/resources/application.yml:11-16` |
+| 分页方言 | `PaginationInnerInterceptor(new DbType.MYSQL)` 写死 | `whale-backend/whale-common/whale-spring-boot-starter/src/main/java/com/bluewhale/common/mybatis/config/MybatisPlusConfig.java:53` |
 | 租户插件 | `TenantLineInnerInterceptor` + `tenant_id` 已就绪，与方言无关 | 同上 `:47-55`、`:86-118` |
-| DDL 方言 | 全仓 SQL 中 `ENGINE=InnoDB` 31 处 / 10 文件；`ON UPDATE CURRENT_TIMESTAMP` 29 处 / 10 文件；`INSERT IGNORE`/`ON DUPLICATE KEY` 21 处 / 9 文件；普遍使用 `TINYINT`、`BIGINT`、`DATETIME`、`utf8mb4_general_ci`、反引号 | `backend/**/src/main/resources/db/*.sql`（含 `whale-auth`、`whale-form`、`whale-agent`、`whale-workflow`、`whale-audit`、`whale-alert`、`whale-pay`、`whale-i18n-sdk`） |
-| Mapper SQL | XML 中未检索到 `DATE_FORMAT`/`IFNULL`/`GROUP_CONCAT`/`FIND_IN_SET`/`JSON_EXTRACT`/`LIMIT n` 等 MySQL 专有函数；动态表名与分页由插件生成 | `backend/**/src/main/resources/**/*.xml` 全量检索无匹配 |
+| DDL 方言 | 全仓 SQL 中 `ENGINE=InnoDB` 31 处 / 10 文件；`ON UPDATE CURRENT_TIMESTAMP` 29 处 / 10 文件；`INSERT IGNORE`/`ON DUPLICATE KEY` 21 处 / 9 文件；普遍使用 `TINYINT`、`BIGINT`、`DATETIME`、`utf8mb4_general_ci`、反引号 | `whale-backend/**/src/main/resources/db/*.sql`（含 `whale-auth`、`whale-form`、`whale-agent`、`whale-workflow`、`whale-audit`、`whale-alert`、`whale-pay`、`whale-i18n-sdk`） |
+| Mapper SQL | XML 中未检索到 `DATE_FORMAT`/`IFNULL`/`GROUP_CONCAT`/`FIND_IN_SET`/`JSON_EXTRACT`/`LIMIT n` 等 MySQL 专有函数；动态表名与分页由插件生成 | `whale-backend/**/src/main/resources/**/*.xml` 全量检索无匹配 |
 | 初始化方式 | **22 个服务库已接入 Flyway（2026-11-01 阶段 4 铺开完成）**：auth + config/audit/alert/workflow/form/agent/doc/file + 12 个业务库（contract/erp/mes/oa/pdm/pm/archive/im/job/message/music/pay）+ video（自 M0 起即用 Flyway）。统一采用 `classpath:db/migration` + `baseline-on-migrate`，空库执行 V1 基线、存量库自动 baseline 到 v1 后仅执行增量；`db/init.sql` 保留为手工空库入口、历史 `migration-*.sql` 保留原位且不参与扫描；见[安全基线设计](security-baseline.md#五flyway-数据库版本化req-sec-022) | 各服务 `src/main/resources/db/migration/` 与 `db/README.md`、`infrastructure/docker/mysql/init/01-init-databases.sql` |
 | 多库现状 | 单实例多 schema：`bluewhale_auth/job/workflow/form/file/monitor/audit/pay/alert/agent/nacos/erp/mes/pdm/oa` 等，统一 `utf8mb4` + `utf8mb4_unicode_ci`（建库脚本） | `infrastructure/docker/mysql/init/01-init-databases.sql:2-82` |
-| 已有方言目录先例 | 国际化 SDK 已按数据库分目录：`db/i18n/mysql/sys_i18n_message.sql` | `backend/whale-sdk/whale-i18n-sdk/src/main/resources/db/i18n/mysql/` |
+| 已有方言目录先例 | 国际化 SDK 已按数据库分目录：`db/i18n/mysql/sys_i18n_message.sql` | `whale-backend/whale-sdk/whale-i18n-sdk/src/main/resources/db/i18n/mysql/` |
 | 动态数据源 | 评估稿提到的 `TenantDataSourceRouter` **不存在**；当前「一服务一库」，无多数据源路由 | 全仓检索无该类 |
 
 **结论**：SQL 语句本身对 MySQL 专有函数依赖很低（Mapper 无匹配），主要改造面集中在 **连接/驱动、分页方言、DDL 语法、跨库初始化机制** 四处。
@@ -70,7 +70,7 @@
 |---|---|---|---|
 | T1 | `whale.db.type` 配置 + `DbType` 解析 + 分页方言可切换 | `whale-spring-boot-starter`（`MybatisPlusConfig`、新增 `DatabaseProperties`） | 单测覆盖 5 种取值；MySQL 默认行为不变 |
 | T2 | 驱动依赖按 vendor 可选（`mysql`/`dm`/`kingbase`/`opengauss`/`oceanbase` profile 或 optional 依赖） | 各服务 `pom.xml`、父 POM `dependencyManagement` | 默认构建只带 MySQL 驱动；切换 profile 可打包对应驱动 |
-| T3 | DDL 方言化：先补 `db/mysql/` 与新脚本模板，统计的 31/29/21 处逐条替换 | `backend/**/src/main/resources/db/*` | MySQL 脚本语义等价；新增 DM/KingBase/openGauss 版本可执行 |
+| T3 | DDL 方言化：先补 `db/mysql/` 与新脚本模板，统计的 31/29/21 处逐条替换 | `whale-backend/**/src/main/resources/db/*` | MySQL 脚本语义等价；新增 DM/KingBase/openGauss 版本可执行 |
 | T4 | 初始化机制：启动自检（表/列缺失即失败）→ 评估 Flyway | 公共 starter `DatabaseSchemaVerifier` | 缺失表启动失败并输出脚本路径；Flyway 决策记录留档 |
 | T5 | SQL 兼容审计：动态表名、`LIKE`、批量插入、`last("limit 1")` 等 MP 生成 SQL | `whale-form`（动态表）、`whale-auth`（`limit 1`）、`whale-im` | 各 vendor 冒烟：登录、分页、表单动态表、IM 会话列表 |
 | T6 | 验证矩阵与文档 | 本文件 + `docs/design/cicd.md` | MySQL 8 回归全绿；国产库至少 1 种（建议 DM 或 KingBase）跑通登录 + 分页 + 租户隔离 |

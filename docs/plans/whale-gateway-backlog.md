@@ -4,8 +4,8 @@
 |---|---|
 | 关联需求 | REQ-ARCH-003（服务自持一级前缀、网关不剥离）、REQ-DIST-004（限流熔断）、REQ-SEC-003（网关黑名单校验）、REQ-SEC-005（网关占位密钥校验）、REQ-FUNC-006（内网接口收敛） |
 | 生成日期 | 2026-10-19 ｜ 作者：BlueWhale |
-| 数据来源 | [roadmap.md](roadmap.md) §2.2、[whale-auth-backlog.md](whale-auth-backlog.md) ⑦ 网关与联调、[wave5.21-four-tracks/spec.md](wave5.21-four-tracks/spec.md)、`backend/whale-services/whale-gateway/` 源码与 `application.yml` |
-| 落点模块 | `backend/whale-services/whale-gateway`（端口 `8080`，Nacos 服务名 `whale-gateway`）；Spring Cloud Gateway 5.x（`spring-cloud-starter-gateway-server-webflux`，WebFlux 栈） |
+| 数据来源 | [roadmap.md](roadmap.md) §2.2、[whale-auth-backlog.md](whale-auth-backlog.md) ⑦ 网关与联调、[wave5.21-four-tracks/spec.md](wave5.21-four-tracks/spec.md)、`whale-backend/whale-services/whale-gateway/` 源码与 `application.yml` |
+| 落点模块 | `whale-backend/whale-services/whale-gateway`（端口 `8080`，Nacos 服务名 `whale-gateway`）；Spring Cloud Gateway 5.x（`spring-cloud-starter-gateway-server-webflux`，WebFlux 栈） |
 | 快照口径 | **Wave 5.6**：限流（`RateLimitGlobalFilter` Redis 固定窗口 + 429 `Result` 体）；**Wave 5.21**：熔断（自研轻量熔断 `CircuitBreakerGlobalFilter`）+ Nacos 动态路由（`NacosRouteDefinitionRepository`）+ 内网接口屏蔽（`InternalApiDenyGlobalFilter`） |
 
 > 说明：本文档**只新增**，不改动既有计划文件。网关相关历史项 `AUTH-01/29/30/31/38` 仍以 [whale-auth-backlog.md](whale-auth-backlog.md) ⑦ 为准，本文仅承接 Wave 5.21 及后续新增项。

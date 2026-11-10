@@ -20,7 +20,7 @@
 | REQ-SEC-006 通道④ | **前端用户行为**：自动 `PAGE_VIEW`/`CLICK`/`SUBMIT` + 手动 `track()`，上报 `behavior_log` | 行为可被采集与查询 |
 | REQ-SEC-006 | **批量/采样/去重/退避**：条数或间隔触发 flush；`sampleRate` 采样；连续重复去重；失败指数退避重试 | 满批/定时即上报；超限自动分片（≤50/请求） |
 | REQ-SEC-006 | **隐私掩码**：上报前递归掩码敏感键（密码/令牌/手机号/身份证/银行卡）+ 页面 URL query 掩码 | 上报体无明文敏感值 |
-| REQ-ARCH-004 | 包名 `@bluewhale/whale-log-sdk`，落 `frontend/shared-packages/` | 随 pnpm workspace 自动纳入构建 |
+| REQ-ARCH-004 | 包名 `@bluewhale/whale-log-sdk`，落 `whale-frontend/shared-packages/` | 随 pnpm workspace 自动纳入构建 |
 | REQ-QA-002 | 构建验证 + 冒烟脚本 + 检查报告 | 构建 SUCCESS；冒烟断言全过；报告对应清单编号 |
 
 ---
@@ -54,7 +54,7 @@
 
 ## 三、包与组件布局
 
-新建 `frontend/shared-packages/whale-log-sdk/`，镜像 `whale-common-tools` 包模板（pnpm workspace + `tsup` + `tsconfig` 继承 `tsconfig.base.json`）：
+新建 `whale-frontend/shared-packages/whale-log-sdk/`，镜像 `whale-common-tools` 包模板（pnpm workspace + `tsup` + `tsconfig` 继承 `tsconfig.base.json`）：
 
 | 文件 | 职责 |
 |---|---|

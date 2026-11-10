@@ -63,7 +63,7 @@
 
 ## 回归与交付
 
-- [x] 后端 `mvn -pl backend/whale-apps/whale-pdm test` 通过
+- [x] 后端 `mvn -pl whale-backend/whale-apps/whale-pdm test` 通过
   - 证据：83 tests / 0 failures / 0 errors。
 - [x] 前端 `pnpm --filter whale-pdm lint` 与 `pnpm --filter whale-pdm build` 通过
   - 证据：ESLint 0 warnings；`tsc -b` + `vite build` 成功。

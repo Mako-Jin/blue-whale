@@ -42,7 +42,7 @@
 
 ## 3. 新增文件（application 层）
 
-包根：`backend/whale-services/whale-auth/src/main/java/com/bluewhale/auth/application/`
+包根：`whale-backend/whale-services/whale-auth/src/main/java/com/bluewhale/auth/application/`
 
 ### 3.1 user
 
@@ -309,7 +309,7 @@ void replaceAll(Long userId, List<UserPermissionAttribute> attributes);
 
 ```powershell
 $env:JAVA_HOME='D:\tools\installer\jdk\java21'
-mvn -o -f backend/pom.xml -pl whale-services/whale-auth -am test
+mvn -o -f whale-backend/pom.xml -pl whale-services/whale-auth -am test
 ```
 
 通过口径：`Tests run` 总数 ≥ 264，失败 0、错误 0、跳过数不增加（除既有 `*IT` 默认跳过）。

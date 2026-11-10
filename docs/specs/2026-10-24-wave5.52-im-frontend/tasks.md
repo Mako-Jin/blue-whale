@@ -4,7 +4,7 @@
 
 ## T1 子应用骨架
 
-- [x] 1.1 新建 `frontend/platform-apps/whale-im/{package.json,tsconfig.json,index.html,src/{main.tsx,index.css,vite-env.d.ts,public-path.ts}}`（对齐 whale-oa 模板，端口 8107 / base `/im`）
+- [x] 1.1 新建 `whale-frontend/platform-apps/whale-im/{package.json,tsconfig.json,index.html,src/{main.tsx,index.css,vite-env.d.ts,public-path.ts}}`（对齐 whale-oa 模板，端口 8107 / base `/im`）
 - [x] 1.2 `vite.config.ts`：qiankun 插件 + `/im` REST/WS 代理 + `Accept: text/html` 旁路
 - [x] 1.3 `src/platform/host.ts`、`src/api/{token.ts,client.ts,im.ts,file.ts}` 落地（契约见 spec §二/§四）
 - [x] 验证：`pnpm -C frontend --filter whale-im build` 成功

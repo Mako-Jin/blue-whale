@@ -18,7 +18,7 @@
 
 | 项 | 内容 |
 |---|---|
-| 模块 | `backend/whale-services/whale-iot`（8088 / `bluewhale_iot`，对齐 whale-assistant 骨架） |
+| 模块 | `whale-backend/whale-services/whale-iot`（8088 / `bluewhale_iot`，对齐 whale-assistant 骨架） |
 | V1 DDL | `iot_product` / `iot_thing_model` / `iot_device` / `iot_telemetry`（按月分区，主键 `(id, ts)`）/ `iot_command`（`message_id` 幂等键）/ `iot_rule` |
 | 自检端点 | `GET /iot/info` |
 | EMQX | compose `bw-emqx`（1883 / 1884→容器 8083 / 18083；`EMQX_DASHBOARD_PASSWORD` 弱口令硬校验；healthcheck `emqx ctl status`）；`.env.example` 补端口/镜像/口令变量 |
@@ -117,7 +117,7 @@
 - **告警指纹**：`SHA-256("iot|ruleId|deviceId|identifier")`，同规则同设备同属性恒定，供 alert 侧窗口去重；告警 `ruleCode` 形如 `iot:rule:11`，`source=iot`。
 - **失败策略**：`AlertNotifyClient` 任何异常只记日志返回 false；未成功落库则**不更新** `last_fired_time`/`fired_count`，下一批遥测可重试。
 - **alert 侧配套**：新增 `POST /alert/internal/record`（`AlertInternalRecordController` → `AlertRecordService#create`），负责租户归属（`X-Tenant-Id` + 请求体 `tenantId`）、级别归一化（未知值回落 WARN）、内容截断（512）、指纹窗口去重（复用 `alert.notify.dedup`），命中启用告警规则时才走通知通道。
-- **前端**：`frontend/platform-apps/whale-iot`（8121，四页），基座 `apps.ts`/`menu.ts` 注册；**不新增 admin 页面**——IoT 是业务管理面，入口由基座静态菜单承载，`sys_menu` 只登记权限码（避免 admin 动态路由指向不存在的组件）。
+- **前端**：`whale-frontend/platform-apps/whale-iot`（8121，四页），基座 `apps.ts`/`menu.ts` 注册；**不新增 admin 页面**——IoT 是业务管理面，入口由基座静态菜单承载，`sys_menu` 只登记权限码（避免 admin 动态路由指向不存在的组件）。
 
 ## 七、里程碑与验收
 

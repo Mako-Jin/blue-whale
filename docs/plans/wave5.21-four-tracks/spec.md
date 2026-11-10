@@ -13,12 +13,12 @@
 
 | 事实 | 证据 |
 |---|---|
-| `whale-file` 仅骨架：启动类 + `db/init.sql`（`file_info` 表）+ pom（web/validation/actuator/nacos/tools）+ yml（8085），**无 controller/service/entity、无存储配置项** | `backend/whale-services/whale-file/**` |
+| `whale-file` 仅骨架：启动类 + `db/init.sql`（`file_info` 表）+ pom（web/validation/actuator/nacos/tools）+ yml（8085），**无 controller/service/entity、无存储配置项** | `whale-backend/whale-services/whale-file/**` |
 | 本机**无 MinIO / 对象存储** | `infrastructure/` 无 compose 与存储配置 |
 | `whale-job` 已有 `JobHandler` SPI、`JobScheduler`、`JobLog` 实体（`startTime`/`endTime`/`status`/`result`/`errorMsg`）、`JobProperties`（`whale.job.log-retention-days`）、`JobLogCleanupHandler`（仅逻辑删除） | Wave 5.20 交付物 |
 | 网关**无限流之外的熔断**：全模块无 resilience4j / CircuitBreaker | `whale-gateway/pom.xml`、源码 Grep |
 | 网关 Nacos Config 坐标存在但 **yml 无 `spring.config.import`**，路由为本地静态 `routes`，**无 `RouteDefinitionRepository` 实现** | `whale-gateway/src/main/resources/application.yml` |
-| `whale-auth` DDD 仅完成 `domain/user/**` + `infrastructure/persistence/**`（User 聚合 + 手写 Assembler + 仓储实现）；**无 `whale.auth.ddd.*` feature flag** | `backend/whale-services/whale-auth/src/main/java/com/bluewhale/auth/{domain,infrastructure}/**` |
+| `whale-auth` DDD 仅完成 `domain/user/**` + `infrastructure/persistence/**`（User 聚合 + 手写 Assembler + 仓储实现）；**无 `whale.auth.ddd.*` feature flag** | `whale-backend/whale-services/whale-auth/src/main/java/com/bluewhale/auth/{domain,infrastructure}/**` |
 | 审计核心与四通道均闭环；`@Sensitive` 注解兜底与四通道查询元审计**已由 Wave 5.19 落地**，但 `docs/whale-audit/final/README.md` §6.2 仍记为残余 → **文档陈旧** | `Sensitive.java` 存在；`LogIngestController` 四查询端均带 `@AuditLog(type=QUERY)` |
 
 ## 二、范围与设计决策
@@ -85,8 +85,8 @@
 
 | 层级 | 手段 | 通过口径 |
 |---|---|---|
-| 单测 | 各模块 `mvn -o -pl backend/<module> test` | 全绿，无回归（auth 164+ / audit 46+ / job 42+ / gateway 23+ / file 新增） |
-| 静态门禁 | `mvn -o -pl backend/<module> checkstyle:check` | 0 违规（含 Javadoc 强制） |
+| 单测 | 各模块 `mvn -o -pl whale-backend/<module> test` | 全绿，无回归（auth 164+ / audit 46+ / job 42+ / gateway 23+ / file 新增） |
+| 静态门禁 | `mvn -o -pl whale-backend/<module> checkstyle:check` | 0 违规（含 Javadoc 强制） |
 | 全量构建 | `mvn clean install -T 1C`（停服务后） | 全模块 BUILD SUCCESS |
 | 运行时冒烟 | 起 MySQL/Redis/Nacos + whale-file/whale-auth/whale-audit/whale-job/whale-gateway | `/file/upload` 经网关 `code=0`；`PUBLISH` 归档任务执行后 `job_log` 过期行被导出且删除、文件落 whale-file；`POST /audit/log/export` 返回文件；`/file/internal/**` 经网关 403；熔断过滤器生效（异常时 503 `Result`） |
 | 台账文档 | 人工核对 | AUTH-08/09/16/27 口径更新；审计 final 三项改判有据 |

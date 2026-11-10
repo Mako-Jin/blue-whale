@@ -7,7 +7,7 @@
 
 | 编号 | 任务 | 落点模块 | 依赖 | 产物 | 自检 |
 |---|---|---|---|---|---|
-| **T1-a** | 刷新 API：`api/auth.ts` 增 `refresh()`（`POST /auth/refresh`，成功 `saveLogin` 替换双 token）；`api/http.ts` 增 401 → 单飞刷新 → 重放原请求一次（刷新/登录接口自身 401 不递归；失败则 `clearAuth` 抛 401） | `frontend/admin` | 无 | 2 文件 | `pnpm --filter whale-admin build` |
+| **T1-a** | 刷新 API：`api/auth.ts` 增 `refresh()`（`POST /auth/refresh`，成功 `saveLogin` 替换双 token）；`api/http.ts` 增 401 → 单飞刷新 → 重放原请求一次（刷新/登录接口自身 401 不递归；失败则 `clearAuth` 抛 401） | `whale-frontend/admin` | 无 | 2 文件 | `pnpm --filter whale-admin build` |
 | **T1-b** | AUTH-39 轮换运行时取证（串行，收尾段）：`whale.auth.refresh.rotation.enabled=true` 起 auth → 登录 → refresh 换新 → 复用旧 refreshToken → HTTP 401 + 文案命中 + Redis `whale:auth:refresh:family:*` 落键 | `whale-auth`、运行时 | T1-a | 冒烟证据 | 运行时 |
 | **T2-a** | whale-form 骨架接线：`application.yml` 补 datasource(`bluewhale_form`)/mybatis-plus/`whale.permission.header.enabled=true`；`db/init.sql`（`form_definition` + 建库注释） | `whale-services/whale-form` | 无 | 2 文件 | `mvn -o -pl ... test` |
 | **T2-b** | whale-form 业务：`FormDefinition`(继承 `BaseEntity`) + `FormDefinitionMapper` + `FormQueryRequest`(继承 `PageQuery`) + `FormDefinitionVO` + `FormDefinitionService(+Impl)` + `FormController`（5 接口 + `@RequirePermission`） | 同上 | T2-a | 7 文件 | 同上 |
@@ -16,7 +16,7 @@
 | **T2-e** | 建库与种子落库（串行，收尾段）：建 `bluewhale_form` + 执行 `form_definition` DDL；`bluewhale_auth.sys_permission` 插入 id 36–39；起 8084 经网关 `/form/**` 冒烟 | 运行时 | T2-b/T2-c | 冒烟证据 | 运行时 |
 | **E** | 收尾（串行，主执行）：全量 `mvn clean install -T 1C` → 检查报告 `docs/reviews/2026-10-19-wave5.23-auth39-form.md` → devlog 追加 → roadmap/task-breakdown/whale-auth-backlog 勾选 → commit + push origin | 全仓 | T1–T2 | 报告 + 日志 + 提交 | 全量 SUCCESS + 冒烟证据 |
 
-> **T1-a 单文件域**（`frontend/admin/src/api/`）。
+> **T1-a 单文件域**（`whale-frontend/admin/src/api/`）。
 > **T2-a~T2-d 同属 `whale-form` 模块**（由同一执行单元串行完成）。
 
 ## 执行波次

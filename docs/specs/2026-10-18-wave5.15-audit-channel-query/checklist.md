@@ -22,8 +22,8 @@
 ## 四、构建与验证
 
 - [x] 4.1 `ApiLogServiceImplTest` / `OutboundLogServiceImplTest` 全绿（分页映射 / `size` 上下界 / 条件拼装 + 倒序 / 空结果）
-- [x] 4.2 `mvn -f backend/pom.xml -pl :whale-audit -am test` 通过（既有用例不回归）
-- [x] 4.3 `mvn -f backend/pom.xml checkstyle:check` 0 违规（含全类型/方法中文 Javadoc、行宽 ≤150、E16 门禁、C4 参数 ≤4、D1–D5 魔法值）
+- [x] 4.2 `mvn -f whale-backend/pom.xml -pl :whale-audit -am test` 通过（既有用例不回归）
+- [x] 4.3 `mvn -f whale-backend/pom.xml checkstyle:check` 0 违规（含全类型/方法中文 Javadoc、行宽 ≤150、E16 门禁、C4 参数 ≤4、D1–D5 魔法值）
 - [x] 4.4 自检协议/代码漏洞：无越权（复用既有权限码头）、无 SQL 注入（全走 LambdaQueryWrapper 参数绑定）、无 NPE（空列表安全）
 
 ## 五、留痕与销账

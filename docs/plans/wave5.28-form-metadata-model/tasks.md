@@ -34,7 +34,7 @@
 
 **轨 F：门禁与收尾（F7–F9）**
 - [x] F-a 单测：`FormMetadataCompilerTest` / `FormTableDefinitionServiceImplTest` / `FormMetadataMigrationServiceImplTest` + 既有用例回归
-- [x] F-b 模块自检 `mvn -pl backend/whale-services/whale-form -am test checkstyle:check`（0 违规）
+- [x] F-b 模块自检 `mvn -pl whale-backend/whale-services/whale-form -am test checkstyle:check`（0 违规）
 - [x] F-c 全量 `mvn clean install -T 1C` BUILD SUCCESS
 - [x] F-d 增量 DDL/迁移落库 + 网关 `/form` 表定义→双表单视图→提交→详情→负向冒烟取证
 - [x] F-e `docs/reviews/2026-10-19-wave5.28-form-metadata-model.md` + devlog + roadmap/task-breakdown 勾选 + commit & push origin

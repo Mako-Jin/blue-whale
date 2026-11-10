@@ -6,7 +6,7 @@
 | 状态 | 已落地（2026-10-26 完成 Maven 五模块拆分） |
 | 最后更新 | 2026-10-26 |
 | 作者 | BlueWhale |
-| 落点模块 | `backend/whale-services/whale-service-auth`（可部署子模块 `whale-service-auth-starter`，端口 8081） |
+| 落点模块 | `whale-backend/whale-services/whale-service-auth`（可部署子模块 `whale-service-auth-starter`，端口 8081） |
 
 ---
 

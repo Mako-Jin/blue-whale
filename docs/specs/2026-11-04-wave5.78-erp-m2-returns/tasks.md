@@ -4,7 +4,7 @@
 
 ## T1 数据库迁移
 
-- [x] 新增 `backend/whale-apps/whale-erp/src/main/resources/db/migration/V9__scm_returns.sql`
+- [x] 新增 `whale-backend/whale-apps/whale-erp/src/main/resources/db/migration/V9__scm_returns.sql`
   - 4 张表：`erp_scm_purchase_return(_line)`、`erp_scm_sales_return(_line)`
   - 唯一键 `uk_pr_doc_no`/`uk_sr_doc_no`/`uk_pr_line`/`uk_sr_line`
   - 仅 `CREATE TABLE IF NOT EXISTS`，无破坏性语句
@@ -37,7 +37,7 @@
 
 ## T6 权限脚本
 
-- [x] 新增 `backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-5.78-erp-returns.sql`
+- [x] 新增 `whale-backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-5.78-erp-returns.sql`
   - 权限 507–514、菜单 98–99、角色授权幂等
 
 ## T7 前端

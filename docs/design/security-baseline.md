@@ -59,7 +59,7 @@
 | 强度策略 | 最小 12 / 最大 64 位；必须含大写、小写、数字、特殊字符；不得包含用户名；拒绝常见弱口令 | `PasswordPolicy` + `PasswordPolicyProperties` |
 | 统一入口 | 创建、更新、管理员重置、自助改密四条入口共用 `PasswordPolicyService` | `UserAppService`、`PasswordAppService` |
 | 历史口令 | 最近 `history-size`（默认 5）次不可复用；仅存 BCrypt 密文 | `sys_password_history` |
-| 管理端表单 | 新建/编辑用户密码最少 12 位并提示复杂度 | `frontend/admin/src/pages/user/UserList.tsx` |
+| 管理端表单 | 新建/编辑用户密码最少 12 位并提示复杂度 | `whale-frontend/admin/src/pages/user/UserList.tsx` |
 
 配置项（`whale.auth.password.*`，对应环境变量）：
 
@@ -108,7 +108,7 @@
 4. **明文只在本次响应出现一次**：不落库、不写审计参数、不提供再次查询接口；管理端以结果弹窗展示并提供复制，关闭后不可再查看。
 5. 目标账号使用临时口令登录即触发强制改密；旧令牌已撤销。
 
-管理端落点：`frontend/admin/src/api/user.ts`（`ResetPasswordVO`）、`frontend/admin/src/pages/user/UserList.tsx`（确认弹窗 + 一次性结果弹窗）。
+管理端落点：`whale-frontend/admin/src/api/user.ts`（`ResetPasswordVO`）、`whale-frontend/admin/src/pages/user/UserList.tsx`（确认弹窗 + 一次性结果弹窗）。
 
 ### 4.4 自助改密与强制阻断
 

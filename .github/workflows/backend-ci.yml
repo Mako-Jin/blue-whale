@@ -9,14 +9,14 @@ on:
   push:
     branches: [main]
     paths:
-      - 'backend/**'
+      - 'whale-backend/**'
       - 'pom.xml'
       - '.github/workflows/backend-ci.yml'
       - '.github/workflows/backend-test.yml'
   pull_request:
     branches: [main]
     paths:
-      - 'backend/**'
+      - 'whale-backend/**'
       - 'pom.xml'
       - '.github/workflows/backend-ci.yml'
       - '.github/workflows/backend-test.yml'

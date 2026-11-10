@@ -9,7 +9,7 @@
 
 ## 二、包骨架与类型
 
-- [x] 2.1 `frontend/shared-packages/whale-log-sdk/` 存在，`package.json` 名 `@bluewhale/whale-log-sdk`，`main/module/types` 指向 `dist`
+- [x] 2.1 `whale-frontend/shared-packages/whale-log-sdk/` 存在，`package.json` 名 `@bluewhale/whale-log-sdk`，`main/module/types` 指向 `dist`
 - [x] 2.2 `tsconfig.json` 继承 `../../tsconfig.base.json`；`tsup.config.ts` 配置 `esm+cjs` + `dts`
 - [x] 2.3 `src/constants.ts` 集中端点/上限 50/默认参数/掩码键；`src/types.ts` 定义 `LogSdkConfig`/`LogItem`/`LogBatchRequest`
 

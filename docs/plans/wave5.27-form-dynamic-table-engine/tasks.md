@@ -30,7 +30,7 @@
 
 **轨 E：门禁与收尾（D6–D9）**
 - [x] E-a 单测：`FormSchemaParserTest` / `FormTableDdlGeneratorTest`（解析与 DDL 用例）+ `FormPublishServiceImplTest`（发布/重复/非法编码）+ 改造 `FormDataServiceImplTest`（已发布校验/双写/未知字段/必填/跨租户）
-- [x] E-b 模块自检 `mvn -pl backend/whale-services/whale-form -am test checkstyle:check`（0 违规）
+- [x] E-b 模块自检 `mvn -pl whale-backend/whale-services/whale-form -am test checkstyle:check`（0 违规）
 - [x] E-c 全量 `mvn clean install -T 1C` BUILD SUCCESS
 - [x] E-d 建库/种子 + 网关 `/form` 发布→提交→详情→列表→删除冒烟取证 + 负向
 - [x] E-e `docs/reviews/2026-10-19-wave5.27-form-dynamic-table-engine.md` + devlog + roadmap/task-breakdown 勾选 + commit & push origin

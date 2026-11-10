@@ -26,7 +26,7 @@
   - `common/mybatis`：MyBatis-Plus 分页插件 + 字段自动填充 MetaObjectHandler 配置类
   - whale-tools：补充 AssertX / IdUtils 等实用工具
   - 验证：`mvn -pl whale-common/... compile` 通过
-- [x] ~~T1.2 **全服务 DDL 脚本**（`backend/<module>/src/main/resources/db/init.sql`）~~
+- [x] ~~T1.2 **全服务 DDL 脚本**（`whale-backend/<module>/src/main/resources/db/init.sql`）~~
   - whale-auth：sys_user / sys_role / sys_permission / sys_menu / sys_dept / sys_user_role / sys_role_permission / sys_user_permission(ABAC属性)
   - whale-i18n-sdk：sys_i18n_message
   - whale-audit：audit_log；whale-file：file_info；whale-job：job_info/job_log
@@ -76,11 +76,11 @@
 - [x] ~~T4.0c **CI/CD 代码质量门禁**（REQ-CICD-001）~~
   - `config/checkstyle/whale-checkstyle.xml`（C/D/E 类可自动化项）、`whale-parent/pom.xml` 插件管理、`.github/workflows/code-quality.yml`
   - 修正 `.github/workflows/frontend-ci.yml`：缺省工作目录 `frontend`
-  - 验证：`mvn -pl backend/whale-common/whale-tools checkstyle:check`、`.../whale-auth checkstyle:check` 均 0 违规
+  - 验证：`mvn -pl whale-backend/whale-common/whale-tools checkstyle:check`、`.../whale-auth checkstyle:check` 均 0 违规
   - 遗留：Gitee 托管需映射 Gitee Go；门禁当前为报告模式
 - [x] ~~T4.1 **分布式令牌黑名单**（REQ-SEC-002 / REQ-DIST-002）~~
   - 新增 `TokenBlacklist` / `RedisTokenBlacklist`；改造 `JwtAuthenticationFilter`、`AuthService#logout`、`AuthController#logout`、`JwtTokenProvider`、`whale-auth/pom.xml`
-  - 验证：`mvn -pl backend/whale-services/whale-auth -am compile` → BUILD SUCCESS（6 模块 / 67 源文件）
+  - 验证：`mvn -pl whale-backend/whale-services/whale-auth -am compile` → BUILD SUCCESS（6 模块 / 67 源文件）
   - 遗留：REQ-SEC-003（网关侧校验）、REQ-SEC-004（refreshToken 失效）→ 已于 Wave 5.1（T5.6/T5.7）闭环
 - [x] ~~T4.2 审计日志落地（`@AuditLog` + AOP + 异步写库 + 脱敏 + 7 个 ALTER 字段）~~
   - 已由 Wave 5.1b（T5.10/T5.11/T5.12）落地到 `whale-spring-boot-starter` `com.bluewhale.common.audit.*` + `whale-audit` 查询接口

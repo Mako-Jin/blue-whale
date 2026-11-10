@@ -1,7 +1,7 @@
 # 权限中心最终设计文档（whale-auth）
 
 > 关联需求：REQ-FUNC-002（权限中心 RBAC+ABAC 六层级）、REQ-ARCH-001（DDD 改造）、REQ-ARCH-003（网关路由前缀）、REQ-ARCH-004（命名规范）、REQ-SEC-001~005（审计/黑名单/密钥校验）、REQ-SEC-006（多通道日志）、REQ-DIST-001~003（分布式 ID/锁/其他）、REQ-QA-002（必检留痕）、REQ-CICD-001、REQ-PROC-001
-> 落点模块：`backend/whale-services/whale-auth`（端口 8081，Nacos 服务名 `whale-auth`，库 `bluewhale_auth`）
+> 落点模块：`whale-backend/whale-services/whale-auth`（端口 8081，Nacos 服务名 `whale-auth`，库 `bluewhale_auth`）
 > 生成日期：2026-10-18 ｜ 作者：BlueWhale ｜ 依据：Wave 5.11（残余收口）
 > 口径说明：本文为**整合最终版**，以 `docs/{design,plans,requirements,specs,architecture.md,naming-conventions.md}` 原位最新文件为准；历史副本归置于 `docs/whale-auth/originals/`（原文件保留原位，见第 6 节）。
 
@@ -207,7 +207,7 @@
 | AUTH-27 全量回归 | **残余**：`mvn clean install -T 1C` + `pnpm build` 全量回归报告待出 |
 | AUTH-30 Sentinel 端到端 | **残余**：Sentinel 未接入（当前为 Redis 计数器兜底），端到端 429 冒烟未做 |
 | Micrometer 指标未接入 | **已登记偏差**：黑名单降级告警、限流等可观测性暂以「ERROR 日志标记 + 进程内计数」替代，待监控栈就绪后回填 Prometheus/Micrometer 指标 |
-| 名称存量偏差 | N-02（黑名单 key 缺 `whale` 命名空间）、N-03（`frontend/admin` 目录名）、N-04（`whale-i18n-sdk` 包名）待整改（`naming-conventions.md` §九） |
+| 名称存量偏差 | N-02（黑名单 key 缺 `whale` 命名空间）、N-03（`whale-frontend/admin` 目录名）、N-04（`whale-i18n-sdk` 包名）待整改（`naming-conventions.md` §九） |
 
 ---
 

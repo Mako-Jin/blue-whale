@@ -64,10 +64,10 @@
 mysql -uroot -p -e "CREATE DATABASE IF NOT EXISTS bluewhale_map DEFAULT CHARSET utf8mb4;"
 
 # 2. 权限（幂等）
-mysql -uroot -p bluewhale_auth < backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-5.91-map-m0.sql
+mysql -uroot -p bluewhale_auth < whale-backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-5.91-map-m0.sql
 
 # 3. 启动
-cd backend/whale-services/whale-map && ../../../../mvnw spring-boot:run
+cd whale-backend/whale-services/whale-map && ../../../../mvnw spring-boot:run
 
 # 4. 健康检查
 curl -s localhost:8100/actuator/health

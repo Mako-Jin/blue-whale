@@ -4,12 +4,12 @@
 
 ## 工程结构
 
-- Monorepo：pnpm workspace + Turborepo（[frontend/package.json](../frontend/package.json)）；Node 24 / pnpm 10。
+- Monorepo：pnpm workspace + Turborepo（[whale-frontend/package.json](../whale-frontend/package.json)）；Node 24 / pnpm 10。
 - 应用族：
-  - 基座：`frontend/platform-apps/whale-platform`（qiankun 主应用，8000）
+  - 基座：`whale-frontend/platform-apps/whale-platform`（qiankun 主应用，8000）
   - 子应用：`platform-apps/whale-{portal,erp,oa,mes,pdm,im,pm,contract,doc,music,video}`（8101–8114）
-  - 独立 SPA：`frontend/admin`（8001）、`frontend/ops`（8104）、`platform-apps/whale-{form-designer,workflow-designer,agent}`（8002–8004）
-  - E2E：`frontend/e2e`（Playwright）
+  - 独立 SPA：`whale-frontend/admin`（8001）、`whale-frontend/ops`（8104）、`platform-apps/whale-{form-designer,workflow-designer,agent}`（8002–8004）
+  - E2E：`whale-frontend/e2e`（Playwright）
 - 共享包（`@bluewhale/*`）：`shared-packages/whale-{common-tools,common-theme,log-sdk}`、`elemental/whale-ui`；tsup 构建，turbo 依赖链保证先构建。
 - 冻结包（不升级不扩张）：`shared-packages/whale-common-three`、`games/whale-games-core`（[frozen-optional-modules.md](design/frozen-optional-modules.md)）。
 
@@ -33,7 +33,7 @@ pnpm run e2e        # Playwright（需后端就绪）
 
 ## 环境变量登记（T-11）
 
-各可独立部署 app 目录下均有 `.env.example`（`frontend/admin`、`frontend/ops`、`frontend/platform-apps/whale-{platform,form-designer,workflow-designer,agent}`）；全部变量均可选：
+各可独立部署 app 目录下均有 `.env.example`（`whale-frontend/admin`、`whale-frontend/ops`、`whale-frontend/platform-apps/whale-{platform,form-designer,workflow-designer,agent}`）；全部变量均可选：
 
 | 变量 | 适用 app | 未配置行为 |
 |---|---|---|

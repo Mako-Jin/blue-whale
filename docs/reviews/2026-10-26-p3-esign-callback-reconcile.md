@@ -25,19 +25,19 @@
 
 ## 三、变更点
 
-- 新增 [`EsignCallbackSigner`](../../backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/esign/provider/EsignCallbackSigner.java)：`HEADER_TIMESTAMP/NONCE/SIGNATURE` 常量 + `sign(secret,timestamp,nonce,body)` + `hmacBase64(secret,content)`。
-- 修改 [`AbstractHmacEsignProvider`](../../backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/esign/provider/AbstractHmacEsignProvider.java)：头常量与 HMAC 计算委托给 `EsignCallbackSigner`，删除其内联 `Mac/SecretKeySpec/Base64` 实现。
-- 新增 [`SignTaskReconcileJob`](../../backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/esign/reconcile/SignTaskReconcileJob.java)：`reconcile()` → `staleQuery()` → `reconcileOne()` → `mapAction()` → `deliver()`。
-- 修改 [`ContractEsignProperties`](../../backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/config/ContractEsignProperties.java)：新增 `reconcile{enabled,staleSeconds,batchSize}`。
-- 修改 [`WhaleContractApplication`](../../backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/WhaleContractApplication.java)：加 `@EnableScheduling`。
-- 修改 [`application.yml`](../../backend/whale-apps/whale-contract/src/main/resources/application.yml)：`whale.contract.esign.reconcile` 五项配置，环境变量 `CONTRACT_ESIGN_RECONCILE_*` 可覆盖。
-- 新增 [`SignTaskReconcileJobTest`](../../backend/whale-apps/whale-contract/src/test/java/com/bluewhale/contract/esign/reconcile/SignTaskReconcileJobTest.java)：4 用例。
+- 新增 [`EsignCallbackSigner`](../../whale-backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/esign/provider/EsignCallbackSigner.java)：`HEADER_TIMESTAMP/NONCE/SIGNATURE` 常量 + `sign(secret,timestamp,nonce,body)` + `hmacBase64(secret,content)`。
+- 修改 [`AbstractHmacEsignProvider`](../../whale-backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/esign/provider/AbstractHmacEsignProvider.java)：头常量与 HMAC 计算委托给 `EsignCallbackSigner`，删除其内联 `Mac/SecretKeySpec/Base64` 实现。
+- 新增 [`SignTaskReconcileJob`](../../whale-backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/esign/reconcile/SignTaskReconcileJob.java)：`reconcile()` → `staleQuery()` → `reconcileOne()` → `mapAction()` → `deliver()`。
+- 修改 [`ContractEsignProperties`](../../whale-backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/config/ContractEsignProperties.java)：新增 `reconcile{enabled,staleSeconds,batchSize}`。
+- 修改 [`WhaleContractApplication`](../../whale-backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/WhaleContractApplication.java)：加 `@EnableScheduling`。
+- 修改 [`application.yml`](../../whale-backend/whale-apps/whale-contract/src/main/resources/application.yml)：`whale.contract.esign.reconcile` 五项配置，环境变量 `CONTRACT_ESIGN_RECONCILE_*` 可覆盖。
+- 新增 [`SignTaskReconcileJobTest`](../../whale-backend/whale-apps/whale-contract/src/test/java/com/bluewhale/contract/esign/reconcile/SignTaskReconcileJobTest.java)：4 用例。
 
 ## 四、验证
 
 ### 4.1 构建与单测
 
-- `mvn -o -pl backend/whale-apps/whale-contract -am package` **BUILD SUCCESS**，Checkstyle 0 违规（首轮 `EsignCallbackSigner` 私有构造缺 Javadoc 被门禁拦截，已补注释后通过）。
+- `mvn -o -pl whale-backend/whale-apps/whale-contract -am package` **BUILD SUCCESS**，Checkstyle 0 违规（首轮 `EsignCallbackSigner` 私有构造缺 Javadoc 被门禁拦截，已补注释后通过）。
 - `SignTaskReconcileJobTest`：**Tests run: 4, Failures: 0, Errors: 0**。
   1. `FINISHED` → 生成 `SIGN` 回调，断言 `providerEventId=RECONCILE-<id>-SIGN`、payload 字段齐全、签名可用同一密钥复算一致；
   2. 三方仍 `SIGNING` → 不触发回调；

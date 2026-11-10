@@ -27,8 +27,8 @@
 - [x] 3.3 `PermissionCacheTest`：命中不取锁 / 未命中复查后仅一次 loader / `enabled=false` 不取锁 / 锁异常降级直查
 - [x] 3.4 `SysRoleServiceImplTest`：反射断言 `assignPermissions` 的 `@DistributedLock` 接线（`biz`/`key`/`failFast`）
 - [x] 3.5 `LivePermissionLockIT`（真实 Redis）：同角色并发互斥 + 缓存防击穿回源计数=1，实测通过
-- [x] 3.6 `mvn -f backend/pom.xml -pl :whale-auth -am -Pcoverage-gate clean verify`：全绿 + LINE ≥ 0.40、BRANCH ≥ 0.30
-- [x] 3.7 `mvn -f backend/pom.xml checkstyle:check`：全 reactor 0 违规
+- [x] 3.6 `mvn -f whale-backend/pom.xml -pl :whale-auth -am -Pcoverage-gate clean verify`：全绿 + LINE ≥ 0.40、BRANCH ≥ 0.30
+- [x] 3.7 `mvn -f whale-backend/pom.xml checkstyle:check`：全 reactor 0 违规
 
 ## 四、留痕与销账
 
@@ -45,9 +45,9 @@
 
 - 核验人：BlueWhale ｜ 日期：2026-10-18 ｜ 结论：**通过**
 - 依据：
-  - 构建/覆盖率：`mvn -f backend/pom.xml -pl :whale-auth -am -Pcoverage-gate clean verify` → **BUILD SUCCESS**；`whale-auth` **126 run / 0 fail / 0 error / 0 skipped**；`All coverage checks have been met`；JaCoCo **行 563/779 = 0.7227、分支 209/288 = 0.7257**（阈值 LINE ≥ 0.40、BRANCH ≥ 0.30）。
-  - 规范门禁：`mvn -f backend/pom.xml checkstyle:check` → **28 模块 0 违规 / BUILD SUCCESS**（含 E16 Javadoc 门禁）。
-  - 实时 IT：`mvn -f backend/pom.xml -pl :whale-auth -am test "-Dwhale.live.it=true" "-Dtest=LivePermissionLockIT" "-Dsurefire.failIfNoSpecifiedTests=false"` → **2/0/0**（真实 Redis @127.0.0.1:6379，`redis-cli ping` = PONG）：① 同角色并发第二调用抛 `BizException(LOCK_ACQUIRE_FAILED)` 且 `lock:auth:role:71` 被持有；② 8 线程并发未命中 DB 回源计数 == 1。
+  - 构建/覆盖率：`mvn -f whale-backend/pom.xml -pl :whale-auth -am -Pcoverage-gate clean verify` → **BUILD SUCCESS**；`whale-auth` **126 run / 0 fail / 0 error / 0 skipped**；`All coverage checks have been met`；JaCoCo **行 563/779 = 0.7227、分支 209/288 = 0.7257**（阈值 LINE ≥ 0.40、BRANCH ≥ 0.30）。
+  - 规范门禁：`mvn -f whale-backend/pom.xml checkstyle:check` → **28 模块 0 违规 / BUILD SUCCESS**（含 E16 Javadoc 门禁）。
+  - 实时 IT：`mvn -f whale-backend/pom.xml -pl :whale-auth -am test "-Dwhale.live.it=true" "-Dtest=LivePermissionLockIT" "-Dsurefire.failIfNoSpecifiedTests=false"` → **2/0/0**（真实 Redis @127.0.0.1:6379，`redis-cli ping` = PONG）：① 同角色并发第二调用抛 `BizException(LOCK_ACQUIRE_FAILED)` 且 `lock:auth:role:71` 被持有；② 8 线程并发未命中 DB 回源计数 == 1。
   - 检查报告：[reviews/2026-10-18-wave5.9-auth-distributed-lock.md](../../reviews/2026-10-18-wave5.9-auth-distributed-lock.md)（逐项对应 [code-review-checklist.md](../../checklists/code-review-checklist.md) 编号，含未通过项与修复记录）。
 - **规格偏离（如实记录）**：场景②「写缓存」时机对 spec §3.2 参考实现**有意偏离**——由「解锁后写」改为「锁内完成回源 + 写缓存」，以消除「A 解锁 → B 取锁复查（缓存尚未写）」竞态，满足「同 Key 并发仅一次回源」验收（spec 参考实现实测回源 2 次）。语义未变（值/哨兵/TTL 抖动仍由 starter `getOrLoad` 承担）。详见报告「规格偏离」与 devlog §三 #64。
 - 残余项见报告「待做项 / 遗留」。

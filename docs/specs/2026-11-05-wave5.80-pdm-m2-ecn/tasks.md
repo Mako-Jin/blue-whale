@@ -26,5 +26,5 @@
 
 ## 验证记录
 
-- 后端 `mvn -pl backend/whale-apps/whale-pdm test`：**152 tests / 0 failures / BUILD SUCCESS**。
+- 后端 `mvn -pl whale-backend/whale-apps/whale-pdm test`：**152 tests / 0 failures / BUILD SUCCESS**。
 - 前端 `pnpm --filter whale-pdm lint`：通过；`tsc -b && vite build`：通过。

@@ -18,7 +18,7 @@
     <description>蓝鲸系统 - 企业级全栈业务平台</description>
 
     <modules>
-        <module>backend</module>
+        <module>whale-backend</module>
     </modules>
 
     <properties>

@@ -10,7 +10,7 @@
 ## 一、结论与总体方案
 
 1. **独立服务，不扩展文件服务**：新增 `whale-doc`（8095、`/doc/**`、`bluewhale_doc`、`com.bluewhale.doc`），拥有空间、页面树、正文、版本、评论、附件引用与权限；文件字节仍归 `whale-file`。
-2. **前端独立子应用**：`frontend/platform-apps/whale-doc`（8110、base `/doc`），接入 qiankun 基座、菜单与权限；编辑器采用 TipTap（ProseMirror）JSON，不引入第二套富文本体系。
+2. **前端独立子应用**：`whale-frontend/platform-apps/whale-doc`（8110、base `/doc`），接入 qiankun 基座、菜单与权限；编辑器采用 TipTap（ProseMirror）JSON，不引入第二套富文本体系。
 3. **分期交付**：
    - **M1（可用 Wiki）**：空间/成员、页面树、富文本编辑、自动保存、冲突检测、版本历史、评论、附件、搜索、收藏。
    - **M2（协作增强）**：实时多人协作（Yjs，可开关）、回收站、页面级权限、标签/反向链接、全文检索。
@@ -69,13 +69,13 @@
 
 | 项 | 取值 |
 |---|---|
-| 后端模块 | `backend/whale-services/whale-doc`（单模块，DDD 四层包） |
+| 后端模块 | `whale-backend/whale-services/whale-doc`（单模块，DDD 四层包） |
 | 服务名 / Nacos | `whale-doc` |
 | 端口 / 库 | `8095` / `bluewhale_doc` |
 | 包根 | `com.bluewhale.doc` |
 | 对外前缀 | `/doc/**`（网关不 StripPrefix） |
 | 内网前缀 | `/doc/internal/**`（`internal-deny` 403） |
-| 前端 | `frontend/platform-apps/whale-doc`，8110，base `/doc` |
+| 前端 | `whale-frontend/platform-apps/whale-doc`，8110，base `/doc` |
 | 权限前缀 | `sys:doc:*`（251–277 预占，M1 用 251–270） |
 | 菜单 | 36 文档中心（DIR `/doc`）、37 文档空间（`/doc/spaces`） |
 | 表前缀 / Redis | `doc_*` / `whale:doc:*` |
@@ -297,11 +297,11 @@ powershell -File scripts/smoke/bw-doc-smoke.ps1
 - [x] `docs/design/doc-service.md` 评审定稿
 - [x] `docs/requirements/register.md` REQ-FUNC-027/028、REQ-ARCH-012、REQ-SEC-018
 - [x] `docs/naming-conventions.md`、`docs/service-catalog.md` 登记
-- [x] `backend/whale-services/whale-doc`：代码、`db/init.sql`、单测
+- [x] `whale-backend/whale-services/whale-doc`：代码、`db/init.sql`、单测
 - [x] auth `migration-5.74-doc.sql`：权限 251–270、角色、菜单
 - [x] auth `migration-5.75-doc-m3.sql`：权限 271–274、授权、菜单 38；`whale-doc` `migration-5.75-doc-m3.sql` 与 `init.sql` 同步
 - [x] gateway `/doc/**`、internal-deny、M2 `/doc/ws`
-- [x] `frontend/platform-apps/whale-doc`：页面、编辑器、lint/build（M2 协作编辑器与回收站抽屉已通过 `lint`/`build`）
+- [x] `whale-frontend/platform-apps/whale-doc`：页面、编辑器、lint/build（M2 协作编辑器与回收站抽屉已通过 `lint`/`build`）
 - [x] qiankun 注册、菜单/图标、部署与 Nginx 配置（M5 新增 `deploy/backend/whale-doc/Dockerfile`，Nginx 走 `/doc` 通用子应用模板）
 - [x] `scripts/smoke/bw-doc-smoke.ps1`、`bw-doc-m1-smoke.ps1`、`bw-doc-m2-smoke.ps1`、`bw-doc-m2b-smoke.ps1`、`bw-doc-m3-smoke.ps1`、`bw-agent-doc-m4-smoke.ps1`、`bw-doc-m5-smoke.ps1` 与执行记录（`logs/doc-m5-verify.ps1`）
 - [x] `docs/reviews/2026-10-29-wave5.74-doc-m5.md`

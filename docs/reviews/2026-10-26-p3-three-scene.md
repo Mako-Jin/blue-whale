@@ -1,6 +1,6 @@
 # 检查报告：whale-common-three 场景封装落地
 
-> 日期：2026-10-26 ｜ 包：`frontend/shared-packages/whale-common-three`（`@bluewhale/whale-common-three`）｜ 结论：**PASS（类型检查 / 构建 / Lint / Node 导入冒烟）**
+> 日期：2026-10-26 ｜ 包：`whale-frontend/shared-packages/whale-common-three`（`@bluewhale/whale-common-three`）｜ 结论：**PASS（类型检查 / 构建 / Lint / Node 导入冒烟）**
 > 关联：[todo-inventory 2026-10-23](../plans/archive/todo-inventory-2026-10-23.md) 第 14 项、优先级执行台账序号 26
 
 ---

@@ -116,9 +116,9 @@ Wave 5.6 已接入 JaCoCo 并定义 `coverage-gate` profile（行 ≥ 40%、分�
 ```
 1) 文档先行：本 spec + tasks 落地
 2) 编写 4 个测试类（互相独立，可并行）
-3) mvn -f backend/pom.xml -pl :whale-auth -am test（全绿）
-4) mvn -f backend/pom.xml -pl :whale-auth -am -Pcoverage-gate verify（行≥0.40、分支≥0.30 通过）
-5) mvn -f backend/pom.xml checkstyle:check（全 reactor 0 违规）
+3) mvn -f whale-backend/pom.xml -pl :whale-auth -am test（全绿）
+4) mvn -f whale-backend/pom.xml -pl :whale-auth -am -Pcoverage-gate verify（行≥0.40、分支≥0.30 通过）
+5) mvn -f whale-backend/pom.xml checkstyle:check（全 reactor 0 违规）
 6) 检查报告 docs/reviews/2026-10-18-auth23-serviceimpl-unit-tests.md
 7) devlog/2026-10-18.md 追加 §（需求项/完成项/待做项/已修正问题项）
 8) 台账销账：whale-auth-backlog.md AUTH-23、next-steps.md T5.19

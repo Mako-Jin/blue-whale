@@ -10,7 +10,7 @@
 | 领域 | 现状 | 结论 |
 |---|---|---|
 | IoT / MQTT | 无任何基础设施。仅 MES 有设备台账 + 采集 15 表（`whale-mes`，SSE 推送） | **从零规划**，中间件需新增 MQTT Broker |
-| 数字孪生 | `frontend/shared-packages/whale-common-three`（three ^0.169）已建但**零消费方、未做渲染验收**；`whale-scene`(8097) 2D 导航已落地、3D 增强未启动 | **挂点已预留**，前后端均在其上扩展 |
+| 数字孪生 | `whale-frontend/shared-packages/whale-common-three`（three ^0.169）已建但**零消费方、未做渲染验收**；`whale-scene`(8097) 2D 导航已落地、3D 增强未启动 | **挂点已预留**，前后端均在其上扩展 |
 | AI 助手 | `whale-agent`(8090, 知识检索) + `whale-ai`(8092, Python/LangGraph 编排，仅内网) + `whale-im`(8091, 机器人会话) 三层已就位 | **不另起炉灶**，在此骨架上演进为多助手平台 |
 | 接入范式 | 网关 `lb://` 不 StripPrefix、内网 `/**/internal/**` + `X-Internal-Token`、一服务一库 `bluewhale_<域>`、Flyway、ArchUnit、service-catalog 登记 | 三平台全部沿用，无例外 |
 
@@ -54,7 +54,7 @@
 
 | 项 | 值 | 说明 |
 |---|---|---|
-| 后端 | `whale-iot`，端口 **8088**（核心服务区段空位） | 模块位置 `backend/whale-services/whale-iot`，DDD 四层，对齐 auth/archive 骨架 |
+| 后端 | `whale-iot`，端口 **8088**（核心服务区段空位） | 模块位置 `whale-backend/whale-services/whale-iot`，DDD 四层，对齐 auth/archive 骨架 |
 | 数据库 | `bluewhale_iot` | 一服务一库 |
 | 网关路由 | `/iot/**` → `lb://whale-iot` | 不 StripPrefix |
 | MQTT Broker | **EMQX**（compose `bw-emqx`） | 端口：MQTT **1883**、MQTT-over-WS **8085→改 1884**（8085 已被 file 占用，宿主机映射避让）、Dashboard **18083**；端口经 `.env` 可覆盖 |
@@ -93,7 +93,7 @@
 
 | 项 | 值 | 说明 |
 |---|---|---|
-| 后端 | `whale-twin`，端口 **8089**（核心服务区段空位） | `backend/whale-services/whale-twin`，一服务一库 `bluewhale_twin` |
+| 后端 | `whale-twin`，端口 **8089**（核心服务区段空位） | `whale-backend/whale-services/whale-twin`，一服务一库 `bluewhale_twin` |
 | 网关路由 | `/twin/**` → `lb://whale-twin` | |
 | 实时推送 | SSE（`/twin/stream/**`） | 数据来源：whale-iot internal 订阅 + 自身轮询聚合；不引入 WebSocket 双栈，对齐 IM/scene 现状 |
 | 模型资产 | GLB/GLTF 存 `whale-file`(8085) | 不自建对象存储；`whale-common-three` 的 GLTFLoader 直接吃 file 的预览 URL |
@@ -133,7 +133,7 @@
 
 | 项 | 值 | 说明 |
 |---|---|---|
-| 后端 | `whale-assistant`，端口 **8087**（i18n 服务删除后释放的空位） | `backend/whale-services/whale-assistant`，一服务一库 `bluewhale_assistant` |
+| 后端 | `whale-assistant`，端口 **8087**（i18n 服务删除后释放的空位） | `whale-backend/whale-services/whale-assistant`，一服务一库 `bluewhale_assistant` |
 | 网关路由 | `/assistant/**` → `lb://whale-assistant` | 首个**经网关**暴露的 AI 会话入口；whale-ai 仍不注册网关 |
 | 内网调用链 | whale-assistant → whale-ai（SSE 透传）→ 工具循环内调 whale-agent / 新增的 iot·twin 只读工具 | whale-ai 工具注册表（`whale_ai/tools/registry.py`）扩展 |
 | 前端 | `whale-assistant` 子应用，端口 **8117** | 助手对话工作台 + 管理端页面进 admin |

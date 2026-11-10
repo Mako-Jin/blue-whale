@@ -28,7 +28,7 @@
 
 | 项 | 现状 | 落点 |
 |---|---|---|
-| 读路径 | [PermissionInterceptor.java](../../../backend/whale-services/whale-auth/src/main/java/com/bluewhale/auth/security/PermissionInterceptor.java) L72-75：`roleService.listPermissionCodesByUserId(userId).contains(required)` 每次直查 | 改为 `PermissionCache#getPermissionCodes(...)` |
+| 读路径 | [PermissionInterceptor.java](../../../whale-backend/whale-services/whale-auth/src/main/java/com/bluewhale/auth/security/PermissionInterceptor.java) L72-75：`roleService.listPermissionCodesByUserId(userId).contains(required)` 每次直查 | 改为 `PermissionCache#getPermissionCodes(...)` |
 | 缓存工具 | `com.bluewhale.common.cache.CacheConsistencyTemplate`（`getOrLoad(name,id,ttl,loader)` / `evict` / `evictWithDelay`，Key 约定 `{prefix}:{name}:{id}`） | 直接复用，不修改 starter |
 | 写路径（失效点） | 角色分配权限 / 角色删除；用户分配角色 / 用户删除 / 用户启停；权限点更新 / 删除 | 上述 6 类操作后失效受影响用户的缓存 |
 

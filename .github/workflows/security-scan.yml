@@ -88,7 +88,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pnpm-audit
-          path: frontend/pnpm-audit.json
+          path: whale-frontend/pnpm-audit.json
           retention-days: 30
 
       # N-10：运行期依赖 critical 阻断。`--prod` 排除 vitest/vite/esbuild 等开发期依赖，
@@ -176,8 +176,8 @@ jobs:
         with:
           name: backend-dependency-check
           path: |
-            backend/target/dependency-check-report.html
-            backend/target/dependency-check-report.json
+            whale-backend/target/dependency-check-report.html
+            whale-backend/target/dependency-check-report.json
           retention-days: 30
 
   codeql:

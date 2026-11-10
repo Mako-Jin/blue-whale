@@ -98,7 +98,7 @@ ADR §2.1 期望复用检测记 `@AuditLog(type=OTHER, operation="refresh 复用
 | 键约定 | `TokenBlacklistKeysTest` | 两新键前缀/格式正确 |
 | 轮换存储 | `RedisRefreshTokenRotationStoreTest` | `markUsed` 首次 true / 二次 false；family 吊销可查；Redis 异常 fail-closed |
 | 刷新轮换 | `AuthServiceTest` | 开启后：旧 token 二次使用 → 401 且 family 被吊销；正常刷新旧 token 入黑名单；关闭时行为与现状一致 |
-| 门禁 | `mvn -B -f backend/pom.xml clean verify -T 1C`、`checkstyle:check` | BUILD SUCCESS；全 reactor 0 违规 |
+| 门禁 | `mvn -B -f whale-backend/pom.xml clean verify -T 1C`、`checkstyle:check` | BUILD SUCCESS；全 reactor 0 违规 |
 
 ---
 

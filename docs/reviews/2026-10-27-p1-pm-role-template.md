@@ -13,8 +13,8 @@
 | PM 所有业务表必须带 `tenant_id`，复用 MyBatis-Plus 租户插件，不另造隔离 | [wave5.55-project-management.md:33](../plans/wave5.55-project-management.md#L33) |
 | PM 菜单 ID 从 18 起编（预留 18–29），随 `business` 租户开通模板复制 | [wave5.55-project-management.md:31](../plans/wave5.55-project-management.md#L31) |
 | PM 依赖平台 auth 的 RBAC + 租户能力，权限按租户授予 | [wave5.55-project-management.md:18](../plans/wave5.55-project-management.md#L18) |
-| Wave 5.55 联调时 `acme` 租户 `tenant_admin` 已被授予 PM 全量 31 项 | [migration-5.57-pm-role-grant.sql:13](../../backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-5.57-pm-role-grant.sql#L13) |
-| 平台壳已为业务租户提供 `/pm` 入口，权限码 `sys:pm:project:list` | `frontend/platform-apps/whale-platform/src/router/menu.ts` |
+| Wave 5.55 联调时 `acme` 租户 `tenant_admin` 已被授予 PM 全量 31 项 | [migration-5.57-pm-role-grant.sql:13](../../whale-backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-5.57-pm-role-grant.sql#L13) |
+| 平台壳已为业务租户提供 `/pm` 入口，权限码 `sys:pm:project:list` | `whale-frontend/platform-apps/whale-platform/src/router/menu.ts` |
 
 因此缺口成立：`migration-5.57-pm-role-grant.sql` 只在平台租户创建 `pm_manager` / `pm_member`，`TenantProvisioningAppService` 的模板清单也未包含 PM，业务租户没有可分配的 PM 角色。
 

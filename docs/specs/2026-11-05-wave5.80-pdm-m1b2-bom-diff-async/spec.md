@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS pdm_bom_diff_task (
 
 | 文件 | 内容 |
 |---|---|
-| `backend/whale-apps/whale-pdm/src/main/resources/db/migration/V6__bom_diff_task.sql` | 上文 DDL |
+| `whale-backend/whale-apps/whale-pdm/src/main/resources/db/migration/V6__bom_diff_task.sql` | 上文 DDL |
 | `.../part/entity/PdmBomDiffTask.java` | 字段：`baseBomId/targetBomId/status/resultJson/errorMessage/createdBy`；`@TableName("pdm_bom_diff_task")` |
 | `.../part/mapper/PdmBomDiffTaskMapper.java` | `@Mapper interface ... extends BaseMapper<PdmBomDiffTask>` |
 | `.../part/support/PdmBomDiffTaskStatus.java` | 四个状态常量 + 私有构造 |
@@ -210,18 +210,18 @@ export function getBomDiffTask(id: string): Promise<BomDiffTask>;
 ## 八、提交范围（仅 PDM + 本次 docs）
 
 ```
-backend/whale-apps/whale-pdm/src/main/resources/db/migration/V6__bom_diff_task.sql
-backend/whale-apps/whale-pdm/src/main/java/com/bluewhale/pdm/config/PdmBomDiffConfig.java
-backend/whale-apps/whale-pdm/src/main/java/com/bluewhale/pdm/part/entity/PdmBomDiffTask.java
-backend/whale-apps/whale-pdm/src/main/java/com/bluewhale/pdm/part/mapper/PdmBomDiffTaskMapper.java
-backend/whale-apps/whale-pdm/src/main/java/com/bluewhale/pdm/part/support/PdmBomDiffTaskStatus.java
-backend/whale-apps/whale-pdm/src/main/java/com/bluewhale/pdm/part/vo/PdmBomDiffTaskVO.java
-backend/whale-apps/whale-pdm/src/main/java/com/bluewhale/pdm/part/service/PdmBomService.java
-backend/whale-apps/whale-pdm/src/main/java/com/bluewhale/pdm/part/service/impl/PdmBomServiceImpl.java
-backend/whale-apps/whale-pdm/src/main/java/com/bluewhale/pdm/part/controller/PdmBomController.java
-backend/whale-apps/whale-pdm/src/test/java/com/bluewhale/pdm/part/service/impl/PdmBomServiceImplTest.java
-frontend/platform-apps/whale-pdm/src/api/part.ts
-frontend/platform-apps/whale-pdm/src/pages/bom/BomEditor.tsx
+whale-backend/whale-apps/whale-pdm/src/main/resources/db/migration/V6__bom_diff_task.sql
+whale-backend/whale-apps/whale-pdm/src/main/java/com/bluewhale/pdm/config/PdmBomDiffConfig.java
+whale-backend/whale-apps/whale-pdm/src/main/java/com/bluewhale/pdm/part/entity/PdmBomDiffTask.java
+whale-backend/whale-apps/whale-pdm/src/main/java/com/bluewhale/pdm/part/mapper/PdmBomDiffTaskMapper.java
+whale-backend/whale-apps/whale-pdm/src/main/java/com/bluewhale/pdm/part/support/PdmBomDiffTaskStatus.java
+whale-backend/whale-apps/whale-pdm/src/main/java/com/bluewhale/pdm/part/vo/PdmBomDiffTaskVO.java
+whale-backend/whale-apps/whale-pdm/src/main/java/com/bluewhale/pdm/part/service/PdmBomService.java
+whale-backend/whale-apps/whale-pdm/src/main/java/com/bluewhale/pdm/part/service/impl/PdmBomServiceImpl.java
+whale-backend/whale-apps/whale-pdm/src/main/java/com/bluewhale/pdm/part/controller/PdmBomController.java
+whale-backend/whale-apps/whale-pdm/src/test/java/com/bluewhale/pdm/part/service/impl/PdmBomServiceImplTest.java
+whale-frontend/platform-apps/whale-pdm/src/api/part.ts
+whale-frontend/platform-apps/whale-pdm/src/pages/bom/BomEditor.tsx
 docs/plans/2026-11-04-wave5.80-pdm-panorama.md
 docs/reviews/2026-11-05-wave5.80-pdm-m1b.md
 docs/specs/2026-11-05-wave5.80-pdm-m1b2-bom-diff-async/spec.md

@@ -5,7 +5,7 @@
 ## 一、方案
 
 平台租户（tenant_id=1）新建两个真实业务角色并固化为幂等迁移
-[migration-5.57-pm-role-grant.sql](../../backend/whale-services/whale-auth/src/main/resources/db/migration-5.57-pm-role-grant.sql)：
+[migration-5.57-pm-role-grant.sql](../../whale-backend/whale-services/whale-auth/src/main/resources/db/migration-5.57-pm-role-grant.sql)：
 
 | 角色 | id | 授权 | 说明 |
 |---|---|---|---|

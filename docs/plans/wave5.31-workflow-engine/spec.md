@@ -28,9 +28,9 @@
 
 ## 二、现状分析（已核验源码）
 
-- [ProcessNodeParser.java](file:///d:/BlueWhale/BlueWhale/backend/whale-services/whale-workflow/src/main/java/com/bluewhale/workflow/support/ProcessNodeParser.java)：唯一解析器，只认 `{"nodes":[{"key","name","assignee"}]}`，下标即顺序，`assignee` 必填，非法统一抛 `PARAM_ERROR`「流程定义缺少有效审批节点」。
-- [ProcessInstanceServiceImpl.java](file:///d:/BlueWhale/BlueWhale/backend/whale-services/whale-workflow/src/main/java/com/bluewhale/workflow/service/impl/ProcessInstanceServiceImpl.java#L60-L78)：`start` 载定义 → 解析节点 → 建实例（`currentIndex=0`）→ 首节点建待办。
-- [ProcessTaskServiceImpl.java](file:///d:/BlueWhale/BlueWhale/backend/whale-services/whale-workflow/src/main/java/com/bluewhale/workflow/service/impl/ProcessTaskServiceImpl.java#L78-L99)：`approve` **硬编码 `currentIndex+1`**，越界即实例 `APPROVED`；`reject` 置实例 `REJECTED` + 取消其余待办。
+- [ProcessNodeParser.java](file:///d:/BlueWhale/BlueWhale/whale-backend/whale-services/whale-workflow/src/main/java/com/bluewhale/workflow/support/ProcessNodeParser.java)：唯一解析器，只认 `{"nodes":[{"key","name","assignee"}]}`，下标即顺序，`assignee` 必填，非法统一抛 `PARAM_ERROR`「流程定义缺少有效审批节点」。
+- [ProcessInstanceServiceImpl.java](file:///d:/BlueWhale/BlueWhale/whale-backend/whale-services/whale-workflow/src/main/java/com/bluewhale/workflow/service/impl/ProcessInstanceServiceImpl.java#L60-L78)：`start` 载定义 → 解析节点 → 建实例（`currentIndex=0`）→ 首节点建待办。
+- [ProcessTaskServiceImpl.java](file:///d:/BlueWhale/BlueWhale/whale-backend/whale-services/whale-workflow/src/main/java/com/bluewhale/workflow/service/impl/ProcessTaskServiceImpl.java#L78-L99)：`approve` **硬编码 `currentIndex+1`**，越界即实例 `APPROVED`；`reject` 置实例 `REJECTED` + 取消其余待办。
 - 定义契约 **无图模型**（无 `flows`）、**无状态机抽象**、**无 BPMN**。
 - JSON 解析沿用 Jackson 2 `com.fasterxml.jackson.databind.ObjectMapper`（传递依赖 nacos-client）；HTTP 层为 Boot 默认 Jackson 3。
 
@@ -109,7 +109,7 @@ Response: Result<ProcessDefinitionValidateVO>  HTTP 200（内容非法也 200，
 
 ## 四、改动清单（文件级）
 
-**新增（`backend/whale-services/whale-workflow/src/main/java/com/bluewhale/workflow/`）**
+**新增（`whale-backend/whale-services/whale-workflow/src/main/java/com/bluewhale/workflow/`）**
 - `support/`：`ProcessNodeType`、`ProcessModelNode`、`ProcessModelFlow`、`ProcessModel`（含 `entryKey/node(key)/nodeAt/outgoing`）、`ProcessModelParser`、`ValidationCode`、`ValidationIssue`、`ValidationReport`、`ProcessModelValidator`
 - `support/machine/`：`StateMachineEvent`、`Guard`、`GuardContext`、`AlwaysGuard`、`DefaultFlowGuard`、`Transition`、`TransitionResult`、`StateMachine`
 - `support/bpmn/`：`BpmnXmlSupport`（加固工厂）、`BpmnXmlParser`、`BpmnXmlWriter`
@@ -123,7 +123,7 @@ Response: Result<ProcessDefinitionValidateVO>  HTTP 200（内容非法也 200，
 - `service/impl/ProcessInstanceServiceImpl.java`、`service/impl/ProcessTaskServiceImpl.java`：改由内核驱动（语义/文案/DB 调用次数不变）
 - `entity/ProcessInstance.java`、`vo/ProcessInstanceVO.java`：+ `currentNodeKey`（可加性）
 - `src/main/resources/db/init.sql`：`process_instance` 加 `current_node_key VARCHAR(64) NULL ... AFTER current_index`（权威源同步）
-- `backend/whale-services/whale-auth/src/main/resources/db/init.sql`：追加种子 **58**、**59**
+- `whale-backend/whale-services/whale-auth/src/main/resources/db/init.sql`：追加种子 **58**、**59**
 - 既有测试 `ProcessInstanceServiceImplTest` / `ProcessTaskServiceImplTest` 扩展（legacy 用例保持全绿）
 
 ---

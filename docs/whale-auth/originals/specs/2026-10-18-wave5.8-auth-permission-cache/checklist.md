@@ -25,8 +25,8 @@
 - [x] 3.1 `PermissionCacheTest` 覆盖读路径 5 类分支与写路径 5 个方法、`afterCommit` 两分支
 - [x] 3.2 `PermissionInterceptorTest` 改造后用例全绿，放行/拒绝结论不变
 - [x] 3.3 3 个 `ServiceImplTest` 构造参数同步更新，并断言新增失效调用（`verify`）
-- [x] 3.4 `mvn -f backend/pom.xml -pl :whale-auth -am -Pcoverage-gate clean verify`：全绿 + LINE ≥ 0.40、BRANCH ≥ 0.30
-- [x] 3.5 `mvn -f backend/pom.xml checkstyle:check`：全 reactor 0 违规
+- [x] 3.4 `mvn -f whale-backend/pom.xml -pl :whale-auth -am -Pcoverage-gate clean verify`：全绿 + LINE ≥ 0.40、BRANCH ≥ 0.30
+- [x] 3.5 `mvn -f whale-backend/pom.xml checkstyle:check`：全 reactor 0 违规
 
 ## 四、留痕与销账
 
@@ -43,6 +43,6 @@
 ## 六、核验结论
 
 - 核验人：BlueWhale ｜ 日期：2026-10-18 ｜ 结论：**通过**
-- 依据：`mvn -f backend/pom.xml -pl :whale-auth -am -Pcoverage-gate clean verify` → **120 run / 0 fail / 0 error / 0 skipped**、`All coverage checks have been met`；`mvn -f backend/pom.xml checkstyle:check` → **28 模块 0 违规**；JaCoCo 行 **0.7184**（551/767）/ 分支 **0.7238**（207/286），`PermissionCache` 行 42/42、分支 24/24（均 100%）。
+- 依据：`mvn -f whale-backend/pom.xml -pl :whale-auth -am -Pcoverage-gate clean verify` → **120 run / 0 fail / 0 error / 0 skipped**、`All coverage checks have been met`；`mvn -f whale-backend/pom.xml checkstyle:check` → **28 模块 0 违规**；JaCoCo 行 **0.7184**（551/767）/ 分支 **0.7238**（207/286），`PermissionCache` 行 42/42、分支 24/24（均 100%）。
 - **复测提示**：覆盖率复测**须带 `clean`**（`mvn ... clean verify`），否则 JaCoCo `append=true` 会累积历史 `jacoco.exec`，导致覆盖率虚高。
 - 4.4（commit + push）待提交后补勾。

@@ -20,7 +20,7 @@
   - [x] B2 `FormFieldConfig`/`FormFieldConfigDTO`(+`colSpan`)、`FormFieldConfigVO`(+`colSpan/columnCode/dataType/required/maxLength`)
   - [x] B3 `FormDefinitionServiceImpl`：`toConfig` 写 `colSpan` + 私有 `enrichColumnInfo` 回填列信息（`getDetail/create/update`）
   - [x] 单测：`colSpan` 持久化 + enrich 回填
-  - [x] 模块自检 `mvn -f backend/pom.xml -pl whale-services/whale-form -am clean install`（Checkstyle 0 违规）
+  - [x] 模块自检 `mvn -f whale-backend/pom.xml -pl whale-services/whale-form -am clean install`（Checkstyle 0 违规）
 - [x] F3 前端骨架（新应用 `whale-form-designer`）
   - [x] F3-a 骨架：`package.json`/`index.html`/`tsconfig.json`/`vite.config.ts`（8002，proxy `^/(auth|form)(/|$)`）
   - [x] F3-b `src/api/{token,http,auth}.ts`（复制 admin，storage 前缀 `whale_fd_`）
@@ -45,7 +45,7 @@
 
 **G5：门禁与端到端贯通（F9）** — 依赖 F2/F4/F5/F6/F7/F8
 
-- [x] F9-a 后端全量 `mvn -f backend/pom.xml clean install`
+- [x] F9-a 后端全量 `mvn -f whale-backend/pom.xml clean install`
 - [x] F9-b 前端 `pnpm -C frontend --filter whale-form-designer build`（`tsc -b && vite build`）
 - [x] F9-c 实机 E2E（7 步正向 + 2 条负向，`browser_use` 截图）
 - [x] F9-d `docs/reviews/2026-10-20-wave5.29-form-designer.md`

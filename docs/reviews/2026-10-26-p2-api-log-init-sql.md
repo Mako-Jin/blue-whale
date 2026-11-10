@@ -8,7 +8,7 @@
 
 ## 二、变更
 
-- 以 [whale-auth init.sql 的 api_log DDL](../../backend/whale-services/whale-auth/src/main/resources/db/init.sql)（含 `tenant_id` + `idx_tenant_create`，即 5.54 迁移后的最终形态）为标准块，追加到 **11 个**缺失的 `init.sql`：
+- 以 [whale-auth init.sql 的 api_log DDL](../../whale-backend/whale-services/whale-auth/src/main/resources/db/init.sql)（含 `tenant_id` + `idx_tenant_create`，即 5.54 迁移后的最终形态）为标准块，追加到 **11 个**缺失的 `init.sql`：
   - whale-services：workflow / pay / job / im / form / file / archive / agent
   - whale-ops：alert
   - whale-apps：pm / oa

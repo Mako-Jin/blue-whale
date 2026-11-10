@@ -50,8 +50,8 @@
 
 ## T6 删除集中式 whale-i18n
 
-- [x] 删除 `backend/whale-services/whale-i18n` 目录。
-- [x] `backend/whale-services/pom.xml` 移除模块。
+- [x] 删除 `whale-backend/whale-services/whale-i18n` 目录。
+- [x] `whale-backend/whale-services/pom.xml` 移除模块。
 - [x] 网关 `application.yml` 移除 `whale-i18n` 路由。
 - [x] `infrastructure/docker/mysql/init/01-init-databases.sql` 移除 `bluewhale_i18n`。
 - [x] `whale-auth/db/init.sql` 保留 `sys:i18n:*` 权限码，路径改为 `/auth/i18n/message/**`，注释同步。

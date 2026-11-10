@@ -25,13 +25,13 @@
 
 ## 3. 当前现状（已核对源码）
 
-- `whale-i18n-sdk`：[WhaleMessageSource.java](../../../backend/whale-sdk/whale-i18n-sdk/src/main/java/com/bluewhale/i18n/WhaleMessageSource.java) 已实现 DB > 属性文件 > 默认值 + Redis 缓存（含空值哨兵、Redis 不可用降级）。
-- 自动配置：[WhaleI18nAutoConfiguration.java](../../../backend/whale-sdk/whale-i18n-sdk/src/main/java/com/bluewhale/i18n/WhaleI18nAutoConfiguration.java) 只注册单一 basename `classpath:i18n/messages`，**不扫描模块目录**，**不建表**。
-- 实体/Mapper：[SysI18nMessage.java](../../../backend/whale-sdk/whale-i18n-sdk/src/main/java/com/bluewhale/i18n/entity/SysI18nMessage.java) 对应 `sys_i18n_message`（`id/message_key/locale/message_content/module/remark/create_time/update_time/deleted`，唯一键 `uk_key_locale`）。
-- 表结构只在 [SDK init.sql](../../../backend/whale-sdk/whale-i18n-sdk/src/main/resources/db/init.sql) 与 [whale-i18n init.sql](../../../backend/whale-services/whale-i18n/src/main/resources/db/init.sql) 中以 `DROP + CREATE` 手工执行，**无启动自动建表**。
-- 集中服务：`whale-i18n`（8087）提供 `/i18n/message` 5 个 CRUD 端点，复用 SDK 实体/Mapper；网关 [application.yml](../../../backend/whale-services/whale-gateway/src/main/resources/application.yml#L61-L64) `Path=/i18n/**`；权限种子 `sys:i18n:*` id 60–63 在 [whale-auth init.sql](../../../backend/whale-services/whale-auth/src/main/resources/db/init.sql#L466-L473)。
+- `whale-i18n-sdk`：[WhaleMessageSource.java](../../../whale-backend/whale-sdk/whale-i18n-sdk/src/main/java/com/bluewhale/i18n/WhaleMessageSource.java) 已实现 DB > 属性文件 > 默认值 + Redis 缓存（含空值哨兵、Redis 不可用降级）。
+- 自动配置：[WhaleI18nAutoConfiguration.java](../../../whale-backend/whale-sdk/whale-i18n-sdk/src/main/java/com/bluewhale/i18n/WhaleI18nAutoConfiguration.java) 只注册单一 basename `classpath:i18n/messages`，**不扫描模块目录**，**不建表**。
+- 实体/Mapper：[SysI18nMessage.java](../../../whale-backend/whale-sdk/whale-i18n-sdk/src/main/java/com/bluewhale/i18n/entity/SysI18nMessage.java) 对应 `sys_i18n_message`（`id/message_key/locale/message_content/module/remark/create_time/update_time/deleted`，唯一键 `uk_key_locale`）。
+- 表结构只在 [SDK init.sql](../../../whale-backend/whale-sdk/whale-i18n-sdk/src/main/resources/db/init.sql) 与 [whale-i18n init.sql](../../../whale-backend/whale-services/whale-i18n/src/main/resources/db/init.sql) 中以 `DROP + CREATE` 手工执行，**无启动自动建表**。
+- 集中服务：`whale-i18n`（8087）提供 `/i18n/message` 5 个 CRUD 端点，复用 SDK 实体/Mapper；网关 [application.yml](../../../whale-backend/whale-services/whale-gateway/src/main/resources/application.yml#L61-L64) `Path=/i18n/**`；权限种子 `sys:i18n:*` id 60–63 在 [whale-auth init.sql](../../../whale-backend/whale-services/whale-auth/src/main/resources/db/init.sql#L466-L473)。
 - 依赖面：目前仅 `whale-i18n` 服务依赖 SDK，其余业务服务未接入。
-- 前端：`/i18n-demo` 只是占位页（[menu.ts](../../../frontend/platform-apps/whale-platform/src/router/menu.ts#L21)、[routes.tsx](../../../frontend/platform-apps/whale-platform/src/router/routes.tsx#L40-L46)）。
+- 前端：`/i18n-demo` 只是占位页（[menu.ts](../../../whale-frontend/platform-apps/whale-platform/src/router/menu.ts#L21)、[routes.tsx](../../../whale-frontend/platform-apps/whale-platform/src/router/routes.tsx#L40-L46)）。
 - `whale-auth`、`whale-file` 均已有独立数据源 + MyBatis-Plus + `whale-spring-boot-starter`（后者传递 `spring-boot-starter-web`、validation、mybatis-plus、`whale-auth-sdk`），满足 starter 接入条件。
 
 ## 4. 目标架构
@@ -85,7 +85,7 @@ whale-i18n-sdk（jar）
 
 - 条件：`whale.i18n.enabled=true`、`whale.i18n.auto-init=true`、存在 `DataSource`、类路径存在 `JdbcTemplate`。
 - 读取 `ddl-location` 文本，通过 `JdbcTemplate.execute` 执行；脚本仅一条 `CREATE TABLE IF NOT EXISTS`（不删除数据）。
-- 新增资源 [sys_i18n_message.sql](../../../backend/whale-sdk/whale-i18n-sdk/src/main/resources/db/i18n/mysql/sys_i18n_message.sql)，字段与实体严格一致，含 `uk_key_locale(message_key, locale)`、`idx_locale(locale)`。
+- 新增资源 [sys_i18n_message.sql](../../../whale-backend/whale-sdk/whale-i18n-sdk/src/main/resources/db/i18n/mysql/sys_i18n_message.sql)，字段与实体严格一致，含 `uk_key_locale(message_key, locale)`、`idx_locale(locale)`。
 - 失败处理：捕获异常后再次尝试 `DatabaseMetaData.getTables` 判断表是否已存在；已存在则 INFO 跳过，否则 WARN 记录并**不阻断服务启动**（原因：建表失败不应放大为服务不可用，首次查询会自然回退属性文件）。
 - 多实例并发启动：`CREATE TABLE IF NOT EXISTS` 幂等，竞态异常按上一条处理。
 
@@ -101,11 +101,11 @@ whale-i18n-sdk（jar）
 
 ### 5.5 删除集中式 whale-i18n
 
-- 删除目录 `backend/whale-services/whale-i18n`。
-- [whale-services/pom.xml](../../../backend/whale-services/pom.xml) 移除 `<module>whale-i18n</module>`。
-- 网关 [application.yml](../../../backend/whale-services/whale-gateway/src/main/resources/application.yml#L61-L64) 移除 `whale-i18n` 路由。
+- 删除目录 `whale-backend/whale-services/whale-i18n`。
+- [whale-services/pom.xml](../../../whale-backend/whale-services/pom.xml) 移除 `<module>whale-i18n</module>`。
+- 网关 [application.yml](../../../whale-backend/whale-services/whale-gateway/src/main/resources/application.yml#L61-L64) 移除 `whale-i18n` 路由。
 - [infrastructure/docker/mysql/init/01-init-databases.sql](../../../infrastructure/docker/mysql/init/01-init-databases.sql#L44-L47) 移除 `bluewhale_i18n` 建库。
-- [whale-auth init.sql](../../../backend/whale-services/whale-auth/src/main/resources/db/init.sql#L466-L473) 保留 `sys:i18n:*` 权限码（本地管理接口复用），路径更新为 `/auth/i18n/message/**`；注释改为「服务内置国际化文案管理」。
+- [whale-auth init.sql](../../../whale-backend/whale-services/whale-auth/src/main/resources/db/init.sql#L466-L473) 保留 `sys:i18n:*` 权限码（本地管理接口复用），路径更新为 `/auth/i18n/message/**`；注释改为「服务内置国际化文案管理」。
 - 前端：移除 `/i18n-demo` 菜单与占位路由（`menu.ts`、`routes.tsx`、`MainLayout.tsx` 若有引用一并移除）。
 - 文档：更新 `docs/service-catalog.md`、`docs/architecture.md`、`docs/plans/roadmap.md`、`docs/plans/archive/todo-inventory-2026-10-23.md`；历史 devlog / `docs/whale-auth/originals` 不改。
 

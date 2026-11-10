@@ -1,7 +1,7 @@
 # P1 #3 检查报告：Auth 权限缓存跨实例失效
 
 - 日期：2026-10-27
-- 范围：`backend/whale-services/whale-service-auth`（多模块 DDD）
+- 范围：`whale-backend/whale-services/whale-service-auth`（多模块 DDD）
 - 关联：台账序号 24 残余、REQ-DIST-003、AUTH-20、Wave 5.8/5.9 权限缓存与防击穿
 
 ## 1. 问题
@@ -37,7 +37,7 @@
 ## 4. 验证
 
 ```powershell
-mvn -pl backend/whale-services/whale-service-auth/whale-service-auth-starter -am test -q
+mvn -pl whale-backend/whale-services/whale-service-auth/whale-service-auth-starter -am test -q
 ```
 
 - 结果：`346` 用例，`0` 失败（新增 11 个）；Checkstyle 通过（`-am` 覆盖 common/auth 各模块）。
@@ -56,8 +56,8 @@ mvn -pl backend/whale-services/whale-service-auth/whale-service-auth-starter -am
 
 ## 6. 附带复核：`whale-auth` → `whale-service-auth`
 
-- 5 子模块齐全，`backend/whale-services/pom.xml` 仅含 `whale-service-auth`；
+- 5 子模块齐全，`whale-backend/whale-services/pom.xml` 仅含 `whale-service-auth`；
 - 网关两条路由均 `lb://whale-service-auth`；
 - CI/脚本/prometheus/Dockerfile 旧名残留计数为 0；
-- 旧目录 `backend/whale-services/whale-auth` 已无跟踪文件，本机构建产物已删除；
+- 旧目录 `whale-backend/whale-services/whale-auth` 已无跟踪文件，本机构建产物已删除；
 - 迁移判定：已完成，可移除旧模块（见 [拆分 checklist](../specs/2026-10-26-whale-service-auth-split/checklist.md) 复核章节）。

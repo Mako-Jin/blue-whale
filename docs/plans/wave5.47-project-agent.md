@@ -98,7 +98,7 @@
 
 | 源 | 采集对象 | 切分方式 | 产出 |
 |---|---|---|---|
-| 代码 | `backend/**/*.java`、`frontend/**/*.{ts,tsx}` | Java 按类/方法（花括号深度 + 注解边界）；TS 按 export/function/组件；超长再按行窗重叠 80 行 | chunk（含模块、类名、方法名） |
+| 代码 | `whale-backend/**/*.java`、`whale-frontend/**/*.{ts,tsx}` | Java 按类/方法（花括号深度 + 注解边界）；TS 按 export/function/组件；超长再按行窗重叠 80 行 | chunk（含模块、类名、方法名） |
 | 文档 | `docs/**/*.md`、根 `README.md` | 按 `#` 层级切分，保留标题路径；单块 ≤ 800 tokens，重叠 100 | chunk（含 `doc_path#heading`） |
 | DDL | `**/db/init.sql`、迁移脚本 | 按 `CREATE TABLE` 语句切分；同步解析为字段事实 | chunk + `schema_fact` |
 | 版本 | 所有 `pom.xml`、`package.json`、`pnpm-lock.yaml`（仅顶层） | 解析 XML/JSON，抽 `groupId:artifactId → version` | `version_fact` |
@@ -205,7 +205,7 @@
 ### 轨 A：底座与索引（先行）
 
 - **A0** 依赖可用性验证（Lucene 4 制品 + 失败降级开关）。
-- **A1** 模块骨架：`backend/whale-services/whale-agent`（8090）、`bluewhale_agent` DDL、starter/datasource/权限拦截。
+- **A1** 模块骨架：`whale-backend/whale-services/whale-agent`（8090）、`bluewhale_agent` DDL、starter/datasource/权限拦截。
 - **A2** 采集器框架：扫描器（排除清单）+ 文件哈希 + 增量队列 + 切分器注册表。
 - **A3** 切分器：Markdown / Java / TS / SQL / YAML-JSON 五类 + 单测。
 - **A4** Lucene 索引：字段 schema、`PerFieldAnalyzerWrapper`、写入/更新/删除、`agent_index_meta`。
@@ -257,7 +257,7 @@
 
 | # | 项 | 口径 |
 |---|---|---|
-| 1 | 构建 | `mvn -o -f backend/pom.xml clean install` 含新模块 SUCCESS；Checkstyle 0 error |
+| 1 | 构建 | `mvn -o -f whale-backend/pom.xml clean install` 含新模块 SUCCESS；Checkstyle 0 error |
 | 2 | 索引 | 全仓建索引 < 90s；增量更新只处理变更文件；索引状态可查 |
 | 3 | 检索 | `search` p95 < 300ms（本机、10 万块以内） |
 | 4 | 问答 | 黄金集 ≥ 80% 正确；结构化事实类 ≥ 95%；引用有效率 100% |

@@ -10,11 +10,11 @@
 
 | 项 | 结论 |
 |---|---|
-| 服务归属 | **新建 `backend/whale-services/whale-video`**，一个服务承载「短视频 / 视频 / 电影」三个逻辑子域；**不拆三个微服务**，避免重复播放、互动、审核与检索底座 |
+| 服务归属 | **新建 `whale-backend/whale-services/whale-video`**，一个服务承载「短视频 / 视频 / 电影」三个逻辑子域；**不拆三个微服务**，避免重复播放、互动、审核与检索底座 |
 | 端口 / 前缀 / 库 | **8098** / **`/video/**`** / **`bluewhale_video`** |
 | 包名 / 配置前缀 | `com.bluewhale.video` / `whale.video.*`；Redis key `whale:video:*` |
 | 表前缀 | `vd_`（如 `vd_content`、`vd_movie`、`vd_comment`） |
-| 前端 | 新建 `frontend/platform-apps/whale-video`（qiankun 子应用，base `/video`，dev 端口 **8114**）；运营页面并入 `frontend/admin` |
+| 前端 | 新建 `whale-frontend/platform-apps/whale-video`（qiankun 子应用，base `/video`，dev 端口 **8114**）；运营页面并入 `whale-frontend/admin` |
 | 分层 | DDD 四层：`interfaces / application / domain / infrastructure` + `VideoArchitectureTest`（与 auth / file / doc / music 同口径） |
 | 复用的平台能力 | auth（登录 / RBAC / 租户）、gateway（JWT / 路由 / 限流 / `internal-deny`）、file（视频与封面字节 + Range）、audit（写操作留痕）、message（可选通知）、job / 本地调度（计数回刷与清理） |
 | 关键依赖缺口 | **`whale-file` 单文件上限 50MB、个人配额 1GB、分片完成前也校验 50MB** → 视频/电影必须先做 **G1 大文件上传策略**；Range 已具备（音乐 G1 已完成） |
@@ -76,7 +76,7 @@
 3. **视频**：登录用户上传长视频、分类、系列 / 集数、发布 / 下架、列表 / 详情 / 系列页、断点续播、搜索。
 4. **电影**：运营管理员入库、电影元数据（导演 / 演员 / 地区 / 语言 / 上映日期 / 评分）、授权来源与到期、发布 / 下架 / 版权下架、电影片单、电影详情、授权到期自动下线。
 5. **发现与运营**：首页聚合、分类 / 标签、热门榜 / 新片榜、站内搜索、评论审核、内容审核、播放统计、创作者管理。
-6. **前端**：qiankun 子应用 `whale-video`（首页 / 短视频滑播 / 视频 / 电影 / 搜索 / 我的 / 上传中心 / 播放器）+ `frontend/admin` 视频运营页。
+6. **前端**：qiankun 子应用 `whale-video`（首页 / 短视频滑播 / 视频 / 电影 / 搜索 / 我的 / 上传中心 / 播放器）+ `whale-frontend/admin` 视频运营页。
 7. **平台接入**：网关路由、权限点 / 菜单 / 角色种子、租户隔离、审计、限流、指标、Grafana 面板、冒烟与运维文档。
 
 ### 2.4 Out of Scope（明确不做）
@@ -184,7 +184,7 @@
 
 | 项 | 值 | 落点 |
 |---|---|---|
-| Maven 模块 | `backend/whale-services/whale-video` | `whale-services/pom.xml` 增加 `<module>whale-video</module>` |
+| Maven 模块 | `whale-backend/whale-services/whale-video` | `whale-services/pom.xml` 增加 `<module>whale-video</module>` |
 | artifactId / 服务名 | `whale-video` / `whale-video` | `pom.xml`、`application.yml`、Nacos 服务名 |
 | 端口 | `${SERVER_PORT:8098}` | `application.yml` |
 | 对外前缀 | `/video/**`（服务自持，网关**不剥离**） | Controller `@RequestMapping("/video/...")` |
@@ -192,8 +192,8 @@
 | Java 包 | `com.bluewhale.video` | 四层分包 |
 | 配置前缀 | `whale.video.*` | 如 `whale.video.play.ticket-ttl-seconds`、`whale.video.comment.pre-audit` |
 | Redis key | `whale:video:<用途>:<标识>` | 票据 / 可播状态 / 计数 / 榜单 / 缓存 |
-| 前端子应用 | `frontend/platform-apps/whale-video`，base `/video`，端口 8114 | `vite.config.ts`、qiankun/apps.ts |
-| 运营页面 | `frontend/admin/src/pages/video` | 复用 admin 布局、ProTable、权限组件 |
+| 前端子应用 | `whale-frontend/platform-apps/whale-video`，base `/video`，端口 8114 | `vite.config.ts`、qiankun/apps.ts |
+| 运营页面 | `whale-frontend/admin/src/pages/video` | 复用 admin 布局、ProTable、权限组件 |
 | 生产文件桶 | `whale-video`（建议） | `whale-file` 的 `bucket` 参数；本地可用默认桶 |
 
 ### 4.2 分层与依赖
@@ -458,7 +458,7 @@ interfaces  → application  → domain
 
 ### 4.10 前端设计
 
-**`frontend/platform-apps/whale-video`（qiankun 子应用，8114，base `/video`）**
+**`whale-frontend/platform-apps/whale-video`（qiankun 子应用，8114，base `/video`）**
 
 | 页面 / 组件 | 说明 |
 |---|---|
@@ -481,7 +481,7 @@ interfaces  → application  → domain
 - 票据刷新：`usePlaybackTicket` 在 240s 或流式 401/403 时重取，刷新后从当前 `currentTime` 继续；失败给出可重试提示。
 - 上传：短视频 / 视频默认公开，可选私密；电影入口仅 admin，不在用户端出现。
 
-**`frontend/admin` 运营页**
+**`whale-frontend/admin` 运营页**
 
 - `pages/video/ContentList`：短视频 / 视频分页、筛选、发布 / 下架 / 版权下架、二次确认、审计提示。
 - `pages/video/MovieList`、`MovieEdit`：电影入库、元数据、授权来源 / 到期、海报 / 背景图、发布 / 下架。
@@ -507,7 +507,7 @@ interfaces  → application  → domain
 
 ### 4.12 构建、CI 与运维
 
-- 后端：`whale-video` 纳入 `backend/whale-services/pom.xml`、根聚合、Backend CI 矩阵与 Docker 镜像矩阵。
+- 后端：`whale-video` 纳入 `whale-backend/whale-services/pom.xml`、根聚合、Backend CI 矩阵与 Docker 镜像矩阵。
 - 文件服务：G1 改动纳入 file 服务单测与 CI；既有下载 / 预览 / Range 用例不回归。
 - 前端：`whale-video` 纳入 pnpm workspace、Turborepo、build / lint 矩阵；`whale-admin` 同步。
 - Nginx：新增 `/video/` 前缀与子应用静态资源；环境变量 `VITE_SUBAPP_ENTRY_VIDEO`。
@@ -587,7 +587,7 @@ interfaces  → application  → domain
 | M3-6 | `bw-video-m3-smoke.ps1` + 前端 build / lint | 冒烟 PASS；前端构建通过 |
 | M3-7 | 系列排序 / 加集幂等 / 缓存失效 | 并发排序无重复；发布 / 下架缓存即时失效 |
 
-> **状态（2026-11-01）**：M3-1 ～ M3-7 代码与静态验证完成——编译通过、Checkstyle 0 违规、单测 96/96（含 `SeriesAppServiceImplTest` 14 例）、`whale-video` 与 `frontend/admin` 的 `pnpm build` + `pnpm lint` 通过；`bw-video-m3-smoke.ps1` 由 M0 PENDING 骨架升级为全段强断言且语法校验通过，实机冒烟与浏览器联调待环境（见 [M3 检查报告](../reviews/2026-11-01-wave5.77-video-m3.md)）。用户侧契约新增 `GET /video/series/page`（仅已上架），auth 314 权限 GET 路径同步。
+> **状态（2026-11-01）**：M3-1 ～ M3-7 代码与静态验证完成——编译通过、Checkstyle 0 违规、单测 96/96（含 `SeriesAppServiceImplTest` 14 例）、`whale-video` 与 `whale-frontend/admin` 的 `pnpm build` + `pnpm lint` 通过；`bw-video-m3-smoke.ps1` 由 M0 PENDING 骨架升级为全段强断言且语法校验通过，实机冒烟与浏览器联调待环境（见 [M3 检查报告](../reviews/2026-11-01-wave5.77-video-m3.md)）。用户侧契约新增 `GET /video/series/page`（仅已上架），auth 314 权限 GET 路径同步。
 
 ### M4 电影 / 发现 / 运营
 
@@ -602,7 +602,7 @@ interfaces  → application  → domain
 | M4-7 | `bw-video-m4-smoke.ps1` + 前端全量 build / lint | 冒烟 PASS；`whale-video` + `whale-admin` 构建通过 |
 | M4-8 | 电影授权到期提醒（可选消息） | 到期前提醒运营；失败只告警 |
 
-> **状态（2026-11-01）**：M4-1 ～ M4-7 代码与静态验证完成——编译通过、Checkstyle 0 违规、单测 **146/146**（新增 6 个测试类）、`whale-video` 与 `frontend/admin` 的 `tsc -b` + `vite build` + `eslint --max-warnings 0` 全部通过；`bw-video-m4-smoke.ps1` 升级为全段强断言且语法校验 `parseErrors=0`，实机冒烟（需 `SMOKE_VIDEO_FILE_ID`）与浏览器联调待环境。M4-8 口径调整为**运营统计页临期提醒 + 每日 03:10 授权到期自动下线兜底**，本期**不接消息中心**（后续可复用 `whale-message`）。详见 [M4 检查报告](../reviews/2026-11-01-wave5.77-video-m4.md)。
+> **状态（2026-11-01）**：M4-1 ～ M4-7 代码与静态验证完成——编译通过、Checkstyle 0 违规、单测 **146/146**（新增 6 个测试类）、`whale-video` 与 `whale-frontend/admin` 的 `tsc -b` + `vite build` + `eslint --max-warnings 0` 全部通过；`bw-video-m4-smoke.ps1` 升级为全段强断言且语法校验 `parseErrors=0`，实机冒烟（需 `SMOKE_VIDEO_FILE_ID`）与浏览器联调待环境。M4-8 口径调整为**运营统计页临期提醒 + 每日 03:10 授权到期自动下线兜底**，本期**不接消息中心**（后续可复用 `whale-message`）。详见 [M4 检查报告](../reviews/2026-11-01-wave5.77-video-m4.md)。
 
 ### M5 安全与上线硬化
 

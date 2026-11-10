@@ -10,7 +10,7 @@
 
 | 项 | 默认值 | 配置项 |
 |---|---|---|
-| 仓库根目录 | 启动目录向上探测（含 `backend/pom.xml` 与 `docs/`） | `whale.agent.repo-root` / `WHALE_AGENT_REPO_ROOT` |
+| 仓库根目录 | 启动目录向上探测（含 `whale-backend/pom.xml` 与 `docs/`） | `whale.agent.repo-root` / `WHALE_AGENT_REPO_ROOT` |
 | 索引目录 | `${repo-root}/data/agent-index` | `whale.agent.index-dir` / `WHALE_AGENT_INDEX_DIR` |
 | 单文件上限 | 2 MB | `whale.agent.ingest.max-file-size` |
 | 启动即建索引 | `true` | `whale.agent.ingest.build-on-startup` |

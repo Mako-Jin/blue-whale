@@ -81,7 +81,7 @@
 
 ## Phase 3：收尾（串行）
 
-- [x] V1 后端全量回归：`mvn -o -f backend/pom.xml clean install -T 1C` → 28/28 BUILD SUCCESS（先停运行中的服务释放 jar）
+- [x] V1 后端全量回归：`mvn -o -f whale-backend/pom.xml clean install -T 1C` → 28/28 BUILD SUCCESS（先停运行中的服务释放 jar）
 - [x] V2 DDL 落库 + 后端运行时冒烟（新字段往返、两个新校验码、待办三列、BPMN `formKey` 往返）
 - [x] V3 前端全量构建：`pnpm -C frontend build`（含新应用与 form-designer 回归）
 - [x] V4 浏览器端到端：登录 → 绘制 → 校验 → BPMN 往返 → 发起填表单 → 待办审批 → 实例监控（A/B/C/C2/C3/D/E/F/G 全 PASS；**C4 拖拽手势**：dnd-kit 拖拽源已确认正确挂载（`role="button"`+`aria-roledescription="draggable"`），但自动化 harness 无法产生可信原生指针流，手势**需人工复核**）

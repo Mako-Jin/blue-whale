@@ -1,13 +1,13 @@
 # Wave 5.80 · PDM M0-B 图文档 ACL 任务清单
 
 > 规格：[spec.md](./spec.md)。按顺序执行，每项完成后立即更新状态。
-> 所有后端路径相对 `backend/whale-apps/whale-pdm/`，前端路径相对 `frontend/platform-apps/whale-pdm/`。
+> 所有后端路径相对 `whale-backend/whale-apps/whale-pdm/`，前端路径相对 `whale-frontend/platform-apps/whale-pdm/`。
 
 ## T1 数据库与权限迁移
 - [x] 新增 `src/main/resources/db/migration/V3__document_acl_subject.sql`
   - `information_schema` 守卫，仅在 `subject_id` 为 `bigint` 时改为 `VARCHAR(64)`
   - 无 `DROP/TRUNCATE/DELETE`
-- [x] 新增 `backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-5.80-pdm-acl.sql`
+- [x] 新增 `whale-backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-5.80-pdm-acl.sql`
   - 权限 910 `sys:pdm:doc:acl:list`（`/pdm/acl` GET）
   - 权限 911 `sys:pdm:doc:acl:manage`（`/pdm/acl,/pdm/acl/{id}` PUT/DELETE）
   - `tenant_admin / pdm_manager / pdm_doc_manager` 授权 910–911
@@ -87,8 +87,8 @@
 - [x] 更新 `docs/design/pdm-module-panorama.md` 的 M0-B 状态与接口表
 - [x] 更新 `docs/plans/2026-11-04-wave5.80-pdm-panorama.md` 的 M0-B 进度
 - [x] 新增 `docs/reviews/2026-11-04-wave5.80-pdm-m0b.md`（检查结论 + 验证命令）
-- [x] 运行 `mvn -pl backend/whale-apps/whale-pdm test`
+- [x] 运行 `mvn -pl whale-backend/whale-apps/whale-pdm test`
 - [x] 运行 `pnpm --filter whale-pdm lint`、`pnpm --filter whale-pdm build`
-- [x] 仅提交 PDM 专属文件；`docs/devlog/2026-11-04.md`、`docs/requirements/register.md`、`docs/service-catalog.md`、`frontend/pnpm-lock.yaml` 保持未提交
+- [x] 仅提交 PDM 专属文件；`docs/devlog/2026-11-04.md`、`docs/requirements/register.md`、`docs/service-catalog.md`、`whale-frontend/pnpm-lock.yaml` 保持未提交
 
 **验证**：验收标准 §7 全部满足，提交信息为中文 `feat:`。

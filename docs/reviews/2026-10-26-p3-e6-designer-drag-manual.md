@@ -21,7 +21,7 @@
 
 | 组件 | 取值 |
 |---|---|
-| 前端 | `frontend/platform-apps/whale-workflow-designer`，`pnpm dev`（Vite ready ~790ms），端口 **8003** |
+| 前端 | `whale-frontend/platform-apps/whale-workflow-designer`，`pnpm dev`（Vite ready ~790ms），端口 **8003** |
 | 网关 / 工作流 | 8080 / 8083（新 jar，health UP） |
 | 中间件 | MySQL 8.0.26 / Redis 5.0.14 / Nacos 2.4.0 |
 | 账号 | `admin`（登录经网关 `/auth/login`） |

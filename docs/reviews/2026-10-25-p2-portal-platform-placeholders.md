@@ -12,14 +12,14 @@
 
 | 文件 | 变更 | 结论 |
 |---|---|---|
-| [client.ts](../../frontend/platform-apps/whale-portal/src/api/client.ts) | token 键由 `whale_token` 改为基座实际键 `whale_platform_access_token`；新增只读 `getCurrentUser()` / `hasPermission()` | **修复真实缺陷**：原键与基座不一致，子应用请求实际未携带 `Authorization`，接真实接口后必然 401 |
-| [api/workflow.ts](../../frontend/platform-apps/whale-portal/src/api/workflow.ts) | 新增 `pageMyTaskPage`（含 total）、`countRunningInstances`、`approveTask`、`rejectTask` | 统计与审批数据源 |
-| [api/notice.ts](../../frontend/platform-apps/whale-portal/src/api/notice.ts) | 新增告警记录分页（`/alert/record/page`）与 IM 会话（`/im/conversations`） | 通知数据源 |
-| [api/monitor.ts](../../frontend/platform-apps/whale-portal/src/api/monitor.ts) | 新增 `/monitor/service/list` 服务计数 | 系统服务数数据源 |
-| [pages/Dashboard.tsx](../../frontend/platform-apps/whale-portal/src/pages/Dashboard.tsx) | 四项统计全部接真实接口；按权限选择通知数据源；无权限/接口失败展示 `—` | 占位 `0` 清零 |
-| [pages/Todo.tsx](../../frontend/platform-apps/whale-portal/src/pages/Todo.tsx) | 列表按当前账号 + `status=0` 过滤；「去处理」打开审批抽屉，支持意见 + 同意/驳回并刷新 | 占位动作清零 |
-| [pages/Notice.tsx](../../frontend/platform-apps/whale-portal/src/pages/Notice.tsx) | 删除静态 `MOCK_NOTICES`；告警记录优先、IM 会话兜底、均无权限时空态 | 静态 mock 清零 |
-| [main.tsx](../../frontend/platform-apps/whale-portal/src/main.tsx) | 包裹 antd `App`，为 `App.useApp()` 提供上下文 | 审批反馈可用 |
+| [client.ts](../../whale-frontend/platform-apps/whale-portal/src/api/client.ts) | token 键由 `whale_token` 改为基座实际键 `whale_platform_access_token`；新增只读 `getCurrentUser()` / `hasPermission()` | **修复真实缺陷**：原键与基座不一致，子应用请求实际未携带 `Authorization`，接真实接口后必然 401 |
+| [api/workflow.ts](../../whale-frontend/platform-apps/whale-portal/src/api/workflow.ts) | 新增 `pageMyTaskPage`（含 total）、`countRunningInstances`、`approveTask`、`rejectTask` | 统计与审批数据源 |
+| [api/notice.ts](../../whale-frontend/platform-apps/whale-portal/src/api/notice.ts) | 新增告警记录分页（`/alert/record/page`）与 IM 会话（`/im/conversations`） | 通知数据源 |
+| [api/monitor.ts](../../whale-frontend/platform-apps/whale-portal/src/api/monitor.ts) | 新增 `/monitor/service/list` 服务计数 | 系统服务数数据源 |
+| [pages/Dashboard.tsx](../../whale-frontend/platform-apps/whale-portal/src/pages/Dashboard.tsx) | 四项统计全部接真实接口；按权限选择通知数据源；无权限/接口失败展示 `—` | 占位 `0` 清零 |
+| [pages/Todo.tsx](../../whale-frontend/platform-apps/whale-portal/src/pages/Todo.tsx) | 列表按当前账号 + `status=0` 过滤；「去处理」打开审批抽屉，支持意见 + 同意/驳回并刷新 | 占位动作清零 |
+| [pages/Notice.tsx](../../whale-frontend/platform-apps/whale-portal/src/pages/Notice.tsx) | 删除静态 `MOCK_NOTICES`；告警记录优先、IM 会话兜底、均无权限时空态 | 静态 mock 清零 |
+| [main.tsx](../../whale-frontend/platform-apps/whale-portal/src/main.tsx) | 包裹 antd `App`，为 `App.useApp()` 提供上下文 | 审批反馈可用 |
 
 **统计口径**
 
@@ -36,11 +36,11 @@
 
 | 文件 | 变更 | 结论 |
 |---|---|---|
-| [api/system.ts](../../frontend/platform-apps/whale-platform/src/api/system.ts) | 新增用户/角色分页、菜单树只读查询 | 复用既有 whale-auth 接口 |
-| [pages/system/UserList.tsx](../../frontend/platform-apps/whale-platform/src/pages/system/UserList.tsx) | 关键字搜索 + 分页表格（用户名/昵称/手机号/邮箱/状态/创建时间） | 真实页 |
-| [pages/system/RoleList.tsx](../../frontend/platform-apps/whale-platform/src/pages/system/RoleList.tsx) | 关键字搜索 + 分页表格（编码/名称/描述/排序/状态/创建时间） | 真实页 |
-| [pages/system/MenuList.tsx](../../frontend/platform-apps/whale-platform/src/pages/system/MenuList.tsx) | 菜单树表格（名称/路径/组件/类型/权限码/排序/状态） | 真实页 |
-| [router/routes.tsx](../../frontend/platform-apps/whale-platform/src/router/routes.tsx) | 三个路由由 `PlaceholderPage` 切换为真实页 | 占位清零 |
+| [api/system.ts](../../whale-frontend/platform-apps/whale-platform/src/api/system.ts) | 新增用户/角色分页、菜单树只读查询 | 复用既有 whale-auth 接口 |
+| [pages/system/UserList.tsx](../../whale-frontend/platform-apps/whale-platform/src/pages/system/UserList.tsx) | 关键字搜索 + 分页表格（用户名/昵称/手机号/邮箱/状态/创建时间） | 真实页 |
+| [pages/system/RoleList.tsx](../../whale-frontend/platform-apps/whale-platform/src/pages/system/RoleList.tsx) | 关键字搜索 + 分页表格（编码/名称/描述/排序/状态/创建时间） | 真实页 |
+| [pages/system/MenuList.tsx](../../whale-frontend/platform-apps/whale-platform/src/pages/system/MenuList.tsx) | 菜单树表格（名称/路径/组件/类型/权限码/排序/状态） | 真实页 |
+| [router/routes.tsx](../../whale-frontend/platform-apps/whale-platform/src/router/routes.tsx) | 三个路由由 `PlaceholderPage` 切换为真实页 | 占位清零 |
 | `pages/PlaceholderPage.tsx` | 删除（无其他引用） | 组件清零 |
 
 > 写操作（新增/编辑/删除/授权）**不**在基座复刻，仍由管理端 `whale-admin` 承担，避免两套 CRUD 分叉。

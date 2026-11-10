@@ -14,8 +14,8 @@
 | [x] S7 | 失效接入：`SysPermissionServiceImpl#update` / `#delete` → `evictByPermission` | S3 | 高 | 权限点变更后持有点位的用户缓存失效 | ✅ 已完成（含实测证据） |
 | [x] S8 | 新增 `PermissionCacheTest`（命中/回源/空结果/`enabled=false`/降级/evict 各分支/`afterCommit`） | S3–S7 | 高 | 新增用例全绿 | ✅ 已完成（含实测证据） |
 | [x] S9 | 改造既有测试：`PermissionInterceptorTest`、`SysRoleServiceImplTest`、`SysUserServiceImplTest`、`SysPermissionServiceImplTest` 构造与新依赖断言 | S4–S7 | 高 | 既有用例不回归且覆盖新增失效调用 | ✅ 已完成（含实测证据） |
-| [x] S10 | 构建验证：`mvn -f backend/pom.xml -pl :whale-auth -am -Pcoverage-gate clean verify` | S8、S9 | 高 | 全绿 + LINE ≥ 0.40、BRANCH ≥ 0.30 | ✅ 已完成（含实测证据） |
-| [x] S11 | 规范门禁：`mvn -f backend/pom.xml checkstyle:check` | S10 | 高 | 全 reactor 0 违规 | ✅ 已完成（含实测证据） |
+| [x] S10 | 构建验证：`mvn -f whale-backend/pom.xml -pl :whale-auth -am -Pcoverage-gate clean verify` | S8、S9 | 高 | 全绿 + LINE ≥ 0.40、BRANCH ≥ 0.30 | ✅ 已完成（含实测证据） |
+| [x] S11 | 规范门禁：`mvn -f whale-backend/pom.xml checkstyle:check` | S10 | 高 | 全 reactor 0 违规 | ✅ 已完成（含实测证据） |
 | [x] S12 | 留痕收口：检查报告 `docs/reviews/2026-10-18-wave5.8-auth-permission-cache.md` + devlog §28 + §三新增问题项 | S10、S11 | 中 | 四类信息齐备 | ✅ 已完成（含实测证据） |
 | [x] S13 | 台账销账：`whale-auth-backlog.md` AUTH-20、`next-steps.md`（T5.5 场景接入） | S12 | 中 | 删除线 + ✅ | ✅ 已完成（含实测证据） |
 | [x] S14 | 自动 commit + push（Gitee origin/main） | S13 | 中 | 工作区干净且 `main == origin/main` | ✅ 已完成（`c5d60a5` 已推送） |

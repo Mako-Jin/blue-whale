@@ -46,7 +46,7 @@ P1 #13 修复的是 actuator 的匿名写入口，本条是同一信任边界上
 ## 4. 验证
 
 ```powershell
-mvn -B -pl backend/whale-services/whale-gateway -am ^
+mvn -B -pl whale-backend/whale-services/whale-gateway -am ^
   "-Dtest=!Sm4CryptoTest" "-Dsurefire.failIfNoSpecifiedTests=false" test
 ```
 

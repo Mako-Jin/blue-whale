@@ -1,6 +1,6 @@
 # 后端开发指南
 
-> 技术栈版本以 [backend/whale-parent/pom.xml](../backend/whale-parent/pom.xml) 为唯一事实源；服务/端口/库权威清单见 [service-catalog.md](service-catalog.md)。
+> 技术栈版本以 [whale-backend/whale-parent/pom.xml](../whale-backend/whale-parent/pom.xml) 为唯一事实源；服务/端口/库权威清单见 [service-catalog.md](service-catalog.md)。
 
 ## 模块结构
 

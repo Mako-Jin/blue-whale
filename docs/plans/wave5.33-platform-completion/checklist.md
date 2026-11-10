@@ -11,7 +11,7 @@
 
 ## ② whale-ui 主题变量
 
-- [x] `frontend/elemental/whale-ui/src/theme/` 提供 `buildThemeVars` + `applyThemeVars`，经 `src/index.ts` 导出
+- [x] `whale-frontend/elemental/whale-ui/src/theme/` 提供 `buildThemeVars` + `applyThemeVars`，经 `src/index.ts` 导出
 - [x] 未新增第二套 `--whale-*` 变量，复用 `@bluewhale/whale-common-theme` 的 `--bw-*` 令牌体系
 - [x] `pnpm --filter @bluewhale/whale-ui build` 通过
 
@@ -34,7 +34,7 @@
 - [x] `roadmap.md` §2.5 whale-audit 行已勾选，`task-breakdown.md` 残留状态已标注
 - [x] MQ 汇聚 / 异步派发已明确标注「环境受限（无 RabbitMQ）backlog」
 
-## ⑥ frontend/ops
+## ⑥ whale-frontend/ops
 
 - [x] vite 端口 = 8104，代理 `/auth|/monitor|/alert|/audit` → 网关 8080
 - [x] token 存储前缀 = `whale_ops_`，`Result` 信封解包（`code=0` 成功 / 真实 401 跳登录）

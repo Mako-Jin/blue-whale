@@ -44,7 +44,7 @@
   - 验收：新增 ≥ 45 用例，全绿
 
 - [x] **T9-9 全量验证与文档**
-  - `mvn -o -f backend/pom.xml -pl whale-services/whale-auth -am test` 全绿（≥ 264 用例）
+  - `mvn -o -f whale-backend/pom.xml -pl whale-services/whale-auth -am test` 全绿（≥ 264 用例）
   - 追加 `docs/devlog/2026-10-23.md`；更新 backlog AUTH-17 行
   - 提交并推送 Gitee，尝试 GitHub 镜像
   - 验收：测试报告 0 失败；文档含范围/变更/验证/残留

@@ -41,7 +41,7 @@
 
 ## 5. 范围外（不做）
 
-- 不改任何 `backend/**` 源码（AUTH-08/09/10 仍受 whale-file/whale-job/RabbitMQ 未就绪阻塞）
+- 不改任何 `whale-backend/**` 源码（AUTH-08/09/10 仍受 whale-file/whale-job/RabbitMQ 未就绪阻塞）
 - 不删改原位置任何文件
 - 不重构既有设计文档内容（`docs/design/audit-log.md` 仅保留原位）
 

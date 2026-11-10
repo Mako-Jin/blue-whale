@@ -29,13 +29,13 @@
 
 | 项 | 现状 |
 |---|---|
-| 后端模块 | `backend/whale-apps/whale-crm`，3 个 Java 文件：启动类、`CrmProperties`、`CrmMetaController` |
+| 后端模块 | `whale-backend/whale-apps/whale-crm`，3 个 Java 文件：启动类、`CrmProperties`、`CrmMetaController` |
 | 端口 / 路由 / 库 | 9007、`/crm/**`、`bluewhale_crm` |
 | 数据 | `crm_customer`、`crm_contact`、`crm_opportunity`、`crm_follow_up` + `audit_log` / `api_log`；无业务种子 |
 | API | 仅 `GET /crm/meta`（`sys:crm:browse`），不读写业务表 |
 | 权限 | `migration-5.77-crm.sql` 登记 337–354（18 项）；**未注册菜单** |
 | 角色 | 25108 `crm_admin`、25109 `crm_member` |
-| 前端 | `frontend/platform-apps/whale-crm` **未创建**；服务目录中的 8113 为规划态 |
+| 前端 | `whale-frontend/platform-apps/whale-crm` **未创建**；服务目录中的 8113 为规划态 |
 | 网关 | `lb://whale-crm`，无 `StripPrefix`；`/crm/internal/**` 由 internal-deny 403 |
 | 测试 | 8 项（Controller 3、Flyway 2、ArchUnit 3）；无业务用例 |
 | 配置开关 | `whale.crm.demand-gate-passed=false`、客户编码前缀 `CUS`、跟进分页上限 100、合同引用开关 `false` |
@@ -484,7 +484,7 @@ com.bluewhale.crm
 
 ### 8.5 前端
 
-- 新建 `frontend/platform-apps/whale-crm`，端口 8113，base `/crm`，接入基座菜单与权限码。
+- 新建 `whale-frontend/platform-apps/whale-crm`，端口 8113，base `/crm`，接入基座菜单与权限码。
 - 页面按模块分区：客户、销售、合同订单、售后、营销、分析；共用客户选择器、金额/日期、脱敏展示、权限按钮、导入导出组件。
 - 大列表默认分页 + 服务端筛选；导出走异步任务，避免浏览器超时。
 - 移动端不单独建 App；一线销售/售后的轻量操作优先保证桌面端可用，后续再评估小程序/H5。

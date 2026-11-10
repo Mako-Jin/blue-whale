@@ -212,7 +212,7 @@ curl http://127.0.0.1:9090/api/v1/alerts
     （`ruleCode / ruleName / metric / target / level / status / content / triggerTime`）。
   - `SMS` 暂未接入，记录告警日志后跳过；`NONE` 不通知。
   - 通知失败只记日志，不回滚记录，也不影响入站接口返回。
-- **运维展示**：`frontend/ops` 监控页顶部提供 Prometheus / Grafana 外链
+- **运维展示**：`whale-frontend/ops` 监控页顶部提供 Prometheus / Grafana 外链
   （`VITE_PROMETHEUS_URL`、`VITE_GRAFANA_URL`，默认 `http://127.0.0.1:9090` / `http://127.0.0.1:3000`）；
   告警页“告警记录”直接展示入站落库结果。
 - **验证入口**：

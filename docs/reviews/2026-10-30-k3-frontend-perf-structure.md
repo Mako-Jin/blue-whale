@@ -93,7 +93,7 @@ qiankun 经典方案（子应用 external + 基座/CDN 注入共享依赖）在 
 
 ### 改动
 
-`frontend/.npmrc` 删除 `shamefully-hoist=true`（`strict-peer-dependencies=false`、`auto-install-peers=true` 保持不变）。
+`whale-frontend/.npmrc` 删除 `shamefully-hoist=true`（`strict-peer-dependencies=false`、`auto-install-peers=true` 保持不变）。
 
 ### 验证序列（关闭后全链路）
 

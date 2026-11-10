@@ -28,15 +28,15 @@
 **已具备的能力**
 
 - 敏感值已从 yml 外置为环境变量，例如数据源：
-  - [`whale-service-auth-starter/application.yml:19-21`](file:///f:/blue-whale/backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/application.yml#L19-L21)
+  - [`whale-service-auth-starter/application.yml:19-21`](file:///f:/blue-whale/whale-backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/application.yml#L19-L21)
     `username: ${MYSQL_USER:root}`、`password: ${MYSQL_PASSWORD:}`
 - 空口令启动守卫：
-  - [`DataSourcePasswordGuard.java`](file:///f:/blue-whale/backend/whale-common/whale-spring-boot-starter/src/main/java/com/bluewhale/common/security/DataSourcePasswordGuard.java#L47-L59)
-  - [`DataSourcePasswordGuardAutoConfiguration.java`](file:///f:/blue-whale/backend/whale-common/whale-spring-boot-starter/src/main/java/com/bluewhale/common/security/DataSourcePasswordGuardAutoConfiguration.java#L17-L31)
+  - [`DataSourcePasswordGuard.java`](file:///f:/blue-whale/whale-backend/whale-common/whale-spring-boot-starter/src/main/java/com/bluewhale/common/security/DataSourcePasswordGuard.java#L47-L59)
+  - [`DataSourcePasswordGuardAutoConfiguration.java`](file:///f:/blue-whale/whale-backend/whale-common/whale-spring-boot-starter/src/main/java/com/bluewhale/common/security/DataSourcePasswordGuardAutoConfiguration.java#L17-L31)
 - 非 dev 环境 JWT 占位密钥/Cookie Secure 启动拒绝：
-  - [`SecretPlaceholderChecker.java`](file:///f:/blue-whale/backend/whale-services/whale-service-auth/whale-service-auth-infrastructure/src/main/java/com/bluewhale/auth/config/SecretPlaceholderChecker.java#L37-L50)
+  - [`SecretPlaceholderChecker.java`](file:///f:/blue-whale/whale-backend/whale-services/whale-service-auth/whale-service-auth-infrastructure/src/main/java/com/bluewhale/auth/config/SecretPlaceholderChecker.java#L37-L50)
 - 已有 AES-GCM 工具类（但**未接入配置解析**）：
-  - [`AesCrypto.java`](file:///f:/blue-whale/backend/whale-common/whale-security/src/main/java/com/bluewhale/security/crypto/AesCrypto.java#L73-L94)
+  - [`AesCrypto.java`](file:///f:/blue-whale/whale-backend/whale-common/whale-security/src/main/java/com/bluewhale/security/crypto/AesCrypto.java#L73-L94)
 
 **未实现/风险**
 
@@ -48,10 +48,10 @@
    - [`infrastructure/docker/.env.example:63-64`](file:///f:/blue-whale/infrastructure/docker/.env.example#L63-L64) RabbitMQ 账号口令。
    这些值会以明文存在于部署机 `.env`、容器环境变量、进程环境与部分诊断输出中。
 3. 仍有弱默认值，虽然非 dev 守卫会拦一部分，但不同服务口径不一致：
-   - auth RabbitMQ `guest/guest`：[`application.yml:42-43`](file:///f:/blue-whale/backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/application.yml#L42-L43)
-   - JWT 默认占位：[`application.yml:63`](file:///f:/blue-whale/backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/application.yml#L63)、网关 [`application.yml:174`](file:///f:/blue-whale/backend/whale-services/whale-gateway/src/main/resources/application.yml#L174)
-   - 告警 Webhook 默认令牌：[`whale-alert/application.yml:52`](file:///f:/blue-whale/backend/whale-ops/whale-alert/src/main/resources/application.yml#L52)
-   - 合同回调默认密钥：[`whale-contract/application.yml:82`](file:///f:/blue-whale/backend/whale-apps/whale-contract/src/main/resources/application.yml#L82)
+   - auth RabbitMQ `guest/guest`：[`application.yml:42-43`](file:///f:/blue-whale/whale-backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/application.yml#L42-L43)
+   - JWT 默认占位：[`application.yml:63`](file:///f:/blue-whale/whale-backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/application.yml#L63)、网关 [`application.yml:174`](file:///f:/blue-whale/whale-backend/whale-services/whale-gateway/src/main/resources/application.yml#L174)
+   - 告警 Webhook 默认令牌：[`whale-alert/application.yml:52`](file:///f:/blue-whale/whale-backend/whale-ops/whale-alert/src/main/resources/application.yml#L52)
+   - 合同回调默认密钥：[`whale-contract/application.yml:82`](file:///f:/blue-whale/whale-backend/whale-apps/whale-contract/src/main/resources/application.yml#L82)
 
 **结论**：不满足「Jasypt 加密配置」要求；但「敏感值不硬编码、外置环境变量」已部分满足，可作为迁移基础。
 
@@ -59,19 +59,19 @@
 
 **已实现**
 
-- BCrypt 编码器 Bean：[`SecurityConfig.java:70-73`](file:///f:/blue-whale/backend/whale-services/whale-service-auth/whale-service-auth-infrastructure/src/main/java/com/bluewhale/auth/config/SecurityConfig.java#L70-L73)
-- 应用层编码端口适配：[`PasswordHasherAdapter.java:23-29`](file:///f:/blue-whale/backend/whale-services/whale-service-auth/whale-service-auth-infrastructure/src/main/java/com/bluewhale/auth/infrastructure/security/PasswordHasherAdapter.java#L23-L29)
-- 领域层只接受 BCrypt 密文：[`User.java:265-271`](file:///f:/blue-whale/backend/whale-services/whale-service-auth/whale-service-auth-domain/src/main/java/com/bluewhale/auth/domain/user/aggregate/User.java#L265-L271)
-- 登录比对由 Spring Security `AuthenticationManager` + `UserDetailsService` 完成：[`SpringSecurityCredentialAuthenticator.java:36-37`](file:///f:/blue-whale/backend/whale-services/whale-service-auth/whale-service-auth-infrastructure/src/main/java/com/bluewhale/auth/infrastructure/adapter/auth/SpringSecurityCredentialAuthenticator.java#L36-L37)
-- 数据库字段注释明确 BCrypt：[`init.sql:42`](file:///f:/blue-whale/backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/init.sql#L42)
+- BCrypt 编码器 Bean：[`SecurityConfig.java:70-73`](file:///f:/blue-whale/whale-backend/whale-services/whale-service-auth/whale-service-auth-infrastructure/src/main/java/com/bluewhale/auth/config/SecurityConfig.java#L70-L73)
+- 应用层编码端口适配：[`PasswordHasherAdapter.java:23-29`](file:///f:/blue-whale/whale-backend/whale-services/whale-service-auth/whale-service-auth-infrastructure/src/main/java/com/bluewhale/auth/infrastructure/security/PasswordHasherAdapter.java#L23-L29)
+- 领域层只接受 BCrypt 密文：[`User.java:265-271`](file:///f:/blue-whale/whale-backend/whale-services/whale-service-auth/whale-service-auth-domain/src/main/java/com/bluewhale/auth/domain/user/aggregate/User.java#L265-L271)
+- 登录比对由 Spring Security `AuthenticationManager` + `UserDetailsService` 完成：[`SpringSecurityCredentialAuthenticator.java:36-37`](file:///f:/blue-whale/whale-backend/whale-services/whale-service-auth/whale-service-auth-infrastructure/src/main/java/com/bluewhale/auth/infrastructure/adapter/auth/SpringSecurityCredentialAuthenticator.java#L36-L37)
+- 数据库字段注释明确 BCrypt：[`init.sql:42`](file:///f:/blue-whale/whale-backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/init.sql#L42)
 - 检查清单已把 BCrypt 作为基线：[`code-review-checklist.md:50`](file:///f:/blue-whale/docs/checklists/code-review-checklist.md#L50)
 
 **不足**
 
 1. `new BCryptPasswordEncoder()` 默认 `strength=10`，属可用但非推荐上限；没有 `upgradeEncoding` 登录自动重哈希。
 2. 后端口令强度与前端不一致：
-   - 前端强制 12 位且含大小写+数字：[`MustChangePasswordDialog.tsx:16-29`](file:///f:/blue-whale/frontend/shared-packages/whale-auth/src/MustChangePasswordDialog.tsx#L16-L29)
-   - 后端仍允许 6 位：[`ChangePasswordRequest.java:15-17`](file:///f:/blue-whale/backend/whale-services/whale-service-auth/whale-service-auth-interfaces/src/main/java/com/bluewhale/auth/dto/ChangePasswordRequest.java#L15-L17)、[`UserCreateRequest.java:20-21`](file:///f:/blue-whale/backend/whale-services/whale-service-auth/whale-service-auth-interfaces/src/main/java/com/bluewhale/auth/dto/UserCreateRequest.java#L20-L21)、[`UserUpdateRequest.java:14-15`](file:///f:/blue-whale/backend/whale-services/whale-service-auth/whale-service-auth-interfaces/src/main/java/com/bluewhale/auth/dto/UserUpdateRequest.java#L14-L15)、[`TenantCreateRequest.java:40`](file:///f:/blue-whale/backend/whale-services/whale-service-auth/whale-service-auth-interfaces/src/main/java/com/bluewhale/auth/dto/TenantCreateRequest.java#L40)
+   - 前端强制 12 位且含大小写+数字：[`MustChangePasswordDialog.tsx:16-29`](file:///f:/blue-whale/whale-frontend/shared-packages/whale-auth/src/MustChangePasswordDialog.tsx#L16-L29)
+   - 后端仍允许 6 位：[`ChangePasswordRequest.java:15-17`](file:///f:/blue-whale/whale-backend/whale-services/whale-service-auth/whale-service-auth-interfaces/src/main/java/com/bluewhale/auth/dto/ChangePasswordRequest.java#L15-L17)、[`UserCreateRequest.java:20-21`](file:///f:/blue-whale/whale-backend/whale-services/whale-service-auth/whale-service-auth-interfaces/src/main/java/com/bluewhale/auth/dto/UserCreateRequest.java#L20-L21)、[`UserUpdateRequest.java:14-15`](file:///f:/blue-whale/whale-backend/whale-services/whale-service-auth/whale-service-auth-interfaces/src/main/java/com/bluewhale/auth/dto/UserUpdateRequest.java#L14-L15)、[`TenantCreateRequest.java:40`](file:///f:/blue-whale/whale-backend/whale-services/whale-service-auth/whale-service-auth-interfaces/src/main/java/com/bluewhale/auth/dto/TenantCreateRequest.java#L40)
 3. 无口令历史/重用限制、无常见弱口令字典校验、无「不得与用户名相同」校验。
 
 **结论**：「采用安全哈希」✅ 已满足（BCrypt）；但建议按本计划补齐强度策略与自动升级，不改变「BCrypt + 可平滑迁移」的主路线。
@@ -109,28 +109,28 @@
 **已实现（仅覆盖出厂管理员）**
 
 - 启动时检测种子 admin 密文，命中则用 `SecureRandom` 生成 16 位随机口令、BCrypt 落库、置强制改密、启动日志打印一次：
-  - [`AdminPasswordInitializer.java:92-112`](file:///f:/blue-whale/backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/java/com/bluewhale/auth/bootstrap/AdminPasswordInitializer.java#L92-L112)
-  - [`AdminPasswordInitializer.java:163-179`](file:///f:/blue-whale/backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/java/com/bluewhale/auth/bootstrap/AdminPasswordInitializer.java#L163-L179)
+  - [`AdminPasswordInitializer.java:92-112`](file:///f:/blue-whale/whale-backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/java/com/bluewhale/auth/bootstrap/AdminPasswordInitializer.java#L92-L112)
+  - [`AdminPasswordInitializer.java:163-179`](file:///f:/blue-whale/whale-backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/java/com/bluewhale/auth/bootstrap/AdminPasswordInitializer.java#L163-L179)
 - `sys_user.must_change_password` 列及幂等迁移：
-  - [`init.sql:43`](file:///f:/blue-whale/backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/init.sql#L43)
-  - [`migration-2026-10-30-admin-random-password.sql:15-27`](file:///f:/blue-whale/backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-2026-10-30-admin-random-password.sql#L15-L27)
+  - [`init.sql:43`](file:///f:/blue-whale/whale-backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/init.sql#L43)
+  - [`migration-2026-10-30-admin-random-password.sql:15-27`](file:///f:/blue-whale/whale-backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-2026-10-30-admin-random-password.sql#L15-L27)
 - 登录/刷新响应透出 `mustChangePassword`；前端不可关闭弹窗：
-  - [`LoginResponse.java:30`](file:///f:/blue-whale/backend/whale-services/whale-service-auth/whale-service-auth-application/src/main/java/com/bluewhale/auth/vo/LoginResponse.java#L30)
-  - [`MustChangePasswordDialog.tsx`](file:///f:/blue-whale/frontend/shared-packages/whale-auth/src/MustChangePasswordDialog.tsx)
+  - [`LoginResponse.java:30`](file:///f:/blue-whale/whale-backend/whale-services/whale-service-auth/whale-service-auth-application/src/main/java/com/bluewhale/auth/vo/LoginResponse.java#L30)
+  - [`MustChangePasswordDialog.tsx`](file:///f:/blue-whale/whale-frontend/shared-packages/whale-auth/src/MustChangePasswordDialog.tsx)
 
 **未实现/关键缺口**
 
 1. **无「最后改密时间」字段**：`sys_user` 仅有 `last_login_time`，无法计算口令年龄：
-   - [`init.sql:38-57`](file:///f:/blue-whale/backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/init.sql#L38-L57)
+   - [`init.sql:38-57`](file:///f:/blue-whale/whale-backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/init.sql#L38-L57)
 2. **无到期判定**：登录流程只做凭据校验、记录登录时间、签发令牌，不检查口令是否到期：
-   - [`SessionAppService.java:81-91`](file:///f:/blue-whale/backend/whale-services/whale-service-auth/whale-service-auth-application/src/main/java/com/bluewhale/auth/application/auth/SessionAppService.java#L81-L91)
+   - [`SessionAppService.java:81-91`](file:///f:/blue-whale/whale-backend/whale-services/whale-service-auth/whale-service-auth-application/src/main/java/com/bluewhale/auth/application/auth/SessionAppService.java#L81-L91)
 3. **无定时任务**：auth 仅有权限缓存重对齐任务，无口令到期扫描/提醒。
 4. **无自助改密接口**：当前唯一改密接口是管理端重置：
-   - [`UserController.java:139-146`](file:///f:/blue-whale/backend/whale-services/whale-service-auth/whale-service-auth-interfaces/src/main/java/com/bluewhale/auth/controller/UserController.java#L139-L146)
+   - [`UserController.java:139-146`](file:///f:/blue-whale/whale-backend/whale-services/whale-service-auth/whale-service-auth-interfaces/src/main/java/com/bluewhale/auth/controller/UserController.java#L139-L146)
    - 前端首登弹窗也调用该接口，但普通用户没有 `sys:user:resetpwd`，存在「被要求改密却无权改密」的权限悖论。
 5. **管理员重置反而清除强制改密标记**：
-   - [`UserAppService.java:189-196`](file:///f:/blue-whale/backend/whale-services/whale-service-auth/whale-service-auth-application/src/main/java/com/bluewhale/auth/application/user/UserAppService.java#L189-L196)（`clearMustChangePassword`）
-   - [`UserAppService.java:140-145`](file:///f:/blue-whale/backend/whale-services/whale-service-auth/whale-service-auth-application/src/main/java/com/bluewhale/auth/application/user/UserAppService.java#L140-L145)（更新用户时同样清除）
+   - [`UserAppService.java:189-196`](file:///f:/blue-whale/whale-backend/whale-services/whale-service-auth/whale-service-auth-application/src/main/java/com/bluewhale/auth/application/user/UserAppService.java#L189-L196)（`clearMustChangePassword`）
+   - [`UserAppService.java:140-145`](file:///f:/blue-whale/whale-backend/whale-services/whale-service-auth/whale-service-auth-application/src/main/java/com/bluewhale/auth/application/user/UserAppService.java#L140-L145)（更新用户时同样清除）
    这会导致管理员重置后，用户仍可用管理员设定的临时口令长期使用。
 6. **无口令历史/重用限制**，无法满足「定期修改且不得复用近期口令」的常见合规口径。
 7. **无服务端强制阻断**：`mustChangePassword` 仅用于前端提示，用户可绕过前端直接调用其他接口。
@@ -178,12 +178,12 @@
 
 | 任务 | 涉及文件 | 实施要点 | 验收 |
 |---|---|---|---|
-| SEC-01-1 | `backend/whale-parent/pom.xml`、`whale-spring-boot-starter/pom.xml`、`whale-gateway/pom.xml` | 引入 Jasypt starter（gateway 因不依赖公共 starter，需单独引入）；版本统一管理 | 依赖树无冲突，`mvn validate` 通过 |
+| SEC-01-1 | `whale-backend/whale-parent/pom.xml`、`whale-spring-boot-starter/pom.xml`、`whale-gateway/pom.xml` | 引入 Jasypt starter（gateway 因不依赖公共 starter，需单独引入）；版本统一管理 | 依赖树无冲突，`mvn validate` 通过 |
 | SEC-01-2 | 各服务 `application.yml` | 增加 `jasypt.encryptor.*`：`password=${WHALE_CONFIG_ENC_KEY:}`、`algorithm=PBEWITHHMACSHA512ANDAES_256`、随机 IV/Salt、`property.prefix=ENC(` / `suffix=)` | dev 可启动；非 dev 缺密钥时给出明确中文报错 |
 | SEC-01-3 | `whale-spring-boot-starter` 新增 `ConfigEncryptionGuard` | 非 dev 且 `whale.config.encryption.enabled=true` 时校验密钥非空、非占位、长度达标；禁止把密钥打印到日志 | 单测覆盖缺密钥/占位/短密钥/正常四类 |
 | SEC-01-4 | 敏感配置迁移 | 先迁移第三方类密钥（合同 app-secret、告警 webhook token、SMS token、MinIO access key、TSA/P12 口令等）；数据源口令保留 `SPRING_DATASOURCE_PASSWORD` 环境变量覆盖能力 | 仓库内无新增明文；`ENC(...)` 能被正确解密 |
 | SEC-01-5 | 新增加密工具 | `scripts/security/encrypt-secret.ps1` + 一个 `main` 工具类（读取明文/旧密钥/新密钥，输出 `ENC(...)`）；支持批量重加密 | 运维可按文档生成密文；不把明文写入历史文件 |
-| SEC-01-6 | 兼容性兜底 | 若 Jasypt 3.0.5 在 Boot 4 下无法解密/启动，改用 `EnvironmentPostProcessor` + 现有 [`AesCrypto`](file:///f:/blue-whale/backend/whale-common/whale-security/src/main/java/com/bluewhale/security/crypto/AesCrypto.java) 包装 PropertySource，保持 `ENC(...)` 语法 | POC 报告记录「采用 Jasypt / 采用自研兜底」结论 |
+| SEC-01-6 | 兼容性兜底 | 若 Jasypt 3.0.5 在 Boot 4 下无法解密/启动，改用 `EnvironmentPostProcessor` + 现有 [`AesCrypto`](file:///f:/blue-whale/whale-backend/whale-common/whale-security/src/main/java/com/bluewhale/security/crypto/AesCrypto.java) 包装 PropertySource，保持 `ENC(...)` 语法 | POC 报告记录「采用 Jasypt / 采用自研兜底」结论 |
 
 **关键验证**
 
@@ -314,10 +314,10 @@
 
 #### 3.5 前端
 
-- 将 [`MustChangePasswordDialog.tsx`](file:///f:/blue-whale/frontend/shared-packages/whale-auth/src/MustChangePasswordDialog.tsx) 改为调用 `PUT /auth/password`，增加「当前密码」输入；保留 12 位+复杂度提示。
+- 将 [`MustChangePasswordDialog.tsx`](file:///f:/blue-whale/whale-frontend/shared-packages/whale-auth/src/MustChangePasswordDialog.tsx) 改为调用 `PUT /auth/password`，增加「当前密码」输入；保留 12 位+复杂度提示。
 - 登录响应新增字段后，各登录页无需改动（继续消费 `mustChangePassword`）；到期账号同样弹出不可关闭弹窗。
 - 管理端用户页重置改为「确认生成一次性临时口令」+ 结果弹窗（可复制、关闭后不可再查看）；新建/编辑用户密码规则提升为 12 位。
-- 管理端新增「口令策略」页（`frontend/admin/src/pages/system/password-policy/index.tsx`）与 `api/tenant.ts` 策略接口；`dynamicRoutes` 注册契约键 `password-policy`，对应菜单 36（`/system/password-policy`）。
+- 管理端新增「口令策略」页（`whale-frontend/admin/src/pages/system/password-policy/index.tsx`）与 `api/tenant.ts` 策略接口；`dynamicRoutes` 注册契约键 `password-policy`，对应菜单 36（`/system/password-policy`）。
 
 ### 阶段 4：验证、文档与 CI（2–3 人日）
 
@@ -411,19 +411,19 @@
 
 **后端**
 
-- `backend/whale-parent/pom.xml`
-- `backend/whale-common/whale-spring-boot-starter/pom.xml`
-- `backend/whale-common/whale-spring-boot-starter/src/main/java/com/bluewhale/common/security/*`
-- `backend/whale-common/whale-security/src/main/java/com/bluewhale/security/crypto/AesCrypto.java`（兜底方案复用）
-- `backend/whale-services/whale-gateway/pom.xml` + `config/*`（Jasypt 与强制改密拦截）
-- `backend/whale-services/whale-service-auth/**`（策略、聚合、接口、定时任务、Flyway）
+- `whale-backend/whale-parent/pom.xml`
+- `whale-backend/whale-common/whale-spring-boot-starter/pom.xml`
+- `whale-backend/whale-common/whale-spring-boot-starter/src/main/java/com/bluewhale/common/security/*`
+- `whale-backend/whale-common/whale-security/src/main/java/com/bluewhale/security/crypto/AesCrypto.java`（兜底方案复用）
+- `whale-backend/whale-services/whale-gateway/pom.xml` + `config/*`（Jasypt 与强制改密拦截）
+- `whale-backend/whale-services/whale-service-auth/**`（策略、聚合、接口、定时任务、Flyway）
 - 各服务 `src/main/resources/application.yml` 与 `src/main/resources/db/**`
 
 **前端**
 
-- `frontend/shared-packages/whale-auth/src/MustChangePasswordDialog.tsx`
+- `whale-frontend/shared-packages/whale-auth/src/MustChangePasswordDialog.tsx`
 - 各登录页（消费 `mustChangePassword` 不变）
-- `frontend/admin` 用户管理页（可选：到期账号/最近改密时间）
+- `whale-frontend/admin` 用户管理页（可选：到期账号/最近改密时间）
 
 **文档与运维**
 

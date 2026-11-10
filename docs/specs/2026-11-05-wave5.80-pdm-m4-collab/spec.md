@@ -63,4 +63,4 @@
 - 评审关闭后修改/重复关闭被拒绝；合法结论写入并记录关闭人/时间。
 - 同一文档版本同类型预览重复请求返回同一任务；Office/STEP 任务给出可诊断原因；重试累计次数。
 - 预览内容读取越权时返回 404/403，响应不泄漏 `fileId`。
-- `mvnw -o -pl backend/whale-apps/whale-pdm -am test` 全绿；前端 lint/build 通过。
+- `mvnw -o -pl whale-backend/whale-apps/whale-pdm -am test` 全绿；前端 lint/build 通过。

@@ -10,6 +10,6 @@
 - [x] 缓存失效点与旧实现对齐（`evictUser` / `evictByRole` / `evictByPermission`）
 - [x] Controller、旧 `Sys*ServiceImpl`、`DddMigrationProperties`、`application.yml` 零改动（git status 可证）
 - [x] 新增单测 ≥ 45 项且全部通过（实际新增 117 项，`Tests run: 336, Failures: 0, Errors: 0`）
-- [x] `mvn -o -f backend/pom.xml -pl whale-services/whale-auth -am test` BUILD SUCCESS
+- [x] `mvn -o -f whale-backend/pom.xml -pl whale-services/whale-auth -am test` BUILD SUCCESS
 - [x] `docs/devlog/2026-10-23.md` 已追加 T-DDD-9 小节（范围/变更/验证/残留）
 - [x] `docs/plans/whale-auth-backlog.md` AUTH-17 行已标注「T-DDD-9 已完成 / T-DDD-10~12 待做」

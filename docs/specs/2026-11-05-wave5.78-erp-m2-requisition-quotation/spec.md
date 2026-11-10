@@ -16,7 +16,7 @@ M2 供应链交易主链路（采购订单 / 销售订单 / 收货 / 发货 / �
 ## Impact
 
 - Affected specs：`REQ-FUNC-038`（供应链交易与库存）。
-- Affected code：`backend/whale-apps/whale-erp`（`scm` 包、`V10` 迁移、迁移测试）、`whale-service-auth-starter`（权限脚本）、`frontend/platform-apps/whale-erp`、`frontend/platform-apps/whale-platform/src/router/menu.ts`。
+- Affected code：`whale-backend/whale-apps/whale-erp`（`scm` 包、`V10` 迁移、迁移测试）、`whale-service-auth-starter`（权限脚本）、`whale-frontend/platform-apps/whale-erp`、`whale-frontend/platform-apps/whale-platform/src/router/menu.ts`。
 
 ## ADDED Requirements
 

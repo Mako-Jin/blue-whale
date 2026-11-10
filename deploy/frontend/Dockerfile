@@ -1,6 +1,6 @@
 # ============================================================
 # 蓝鲸前端 - pnpm + turbo + Nginx 多阶段构建
-# 构建上下文：仓库根目录（前端 workspace 位于 frontend/）
+# 构建上下文：仓库根目录（前端 workspace 位于 whale-frontend/）
 #   docker build -f deploy/frontend/Dockerfile -t bluewhale/whale-web .
 # ============================================================
 
@@ -10,9 +10,9 @@ ARG NGINX_IMAGE=nginx:alpine
 # ---- Stage 1: Build ----
 FROM ${NODE_IMAGE} AS builder
 
-# 应用名（frontend/<app>/package.json 的 name），默认主控台
+# 应用名（whale-frontend/<app>/package.json 的 name），默认主控台
 ARG APP_NAME=whale-admin
-# 应用目录（相对 frontend/，包名与目录名不一定相同）
+# 应用目录（相对 whale-frontend/，包名与目录名不一定相同）
 ARG APP_DIR=admin
 
 ENV PNPM_HOME="/pnpm" \

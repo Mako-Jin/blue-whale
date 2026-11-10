@@ -31,7 +31,7 @@
 |---|---|---|---|
 | D1 | 档案服务形态 | **独立微服务 `whale-archive`**，不并入 `whale-file` | 档案有自己的生命周期（整理→归档→保管→销毁）、权限与检索语义，属独立限界上下文；文件实体仍由 `whale-file` 存储 |
 | D2 | 归档对象 | `process_instance.status = 1`（**已通过**）的实例；驳回（2）、撤销（3）、运行中（0）**不归档** | 对应「经过审批的文档」；未通过不具备归档资格 |
-| D3 | 归档内容 | 实例元数据 + 表单数据快照 + 表单字段标签 + 审批轨迹 + 表单附件（attachment 控件中的 `fileId`，含子表递归） | 现有 [FormRenderer](file:///f:/blue-whale/frontend/elemental/whale-ui/src/components/FormRenderer/index.tsx#L210-L212) 的 attachment 字段以文件 ID 数组承载，可精确提取 |
+| D3 | 归档内容 | 实例元数据 + 表单数据快照 + 表单字段标签 + 审批轨迹 + 表单附件（attachment 控件中的 `fileId`，含子表递归） | 现有 [FormRenderer](file:///f:/blue-whale/whale-frontend/elemental/whale-ui/src/components/FormRenderer/index.tsx#L210-L212) 的 attachment 字段以文件 ID 数组承载，可精确提取 |
 | D4 | 归档触发 | **定时增量拉取候选 + 归档规则自动归档 / 人工确认归档**；不依赖 MQ | 本机 RabbitMQ 未运行；以 `(source_type, source_id)` 唯一索引保证幂等，轮询可重放 |
 | D5 | 快照与防篡改 | 归档时生成不可变 JSON 快照（含实例/表单/轨迹），上传 `whale-file` 独立桶 `whale-archive`；快照与附件在 `file_info` 置 `status=2`（归档锁定，禁止删除） | 档案要求内容可复现；锁定避免原始文件被误删 |
 | D6 | 知识库归属 | **扩展现有 `whale-agent`**（Lucene + BM25 + 向量 + 引用体系），不新建知识服务 | 复用 8090 的索引、切分、脱敏、问答与引用校验能力，避免第二套 RAG |
@@ -212,15 +212,15 @@
 
 | 模块 | 改动 | 里程碑 |
 |---|---|---|
-| `backend/whale-services/whale-archive`（新建） | 实体/Mapper/Service/Controller/配置/DDL/单测 | M1–M3 |
+| `whale-backend/whale-services/whale-archive`（新建） | 实体/Mapper/Service/Controller/配置/DDL/单测 | M1–M3 |
 | `whale-workflow` | `/internal/instance/**` 只读接口；**办结时间取 `process_instance.update_time`**（不改既有库加 `finished_at` 列，审批通过时状态与更新时间同事务写入） | M2 |
 | `whale-form` | `/internal/data/{id}`（数据 + 字段定义） | M2 |
 | `whale-file` | `/internal/changes`、`/internal/{id}`、`/internal/{id}/content`、`/internal/{id}/lock|unlock`；`file_info.status=2` | M2、M4 |
 | `whale-agent` | Tika 依赖、`agent_knowledge_file`、文件采集器/`FileChunker`、知识接口、检索权限字段 | M4–M5 |
 | `whale-gateway` | `/archive/**` 路由；internal-deny 扩 4 组前缀 | M1 |
 | `whale-auth` | 权限种子 + admin 菜单（幂等 migration） | M1、M3 |
-| `frontend/admin` | 门类、规则、待整理、档案检索、同步状态五页 | M3 |
-| `frontend/platform-apps/whale-agent` | 文件知识管理视图 + 问答范围开关 | M5 |
+| `whale-frontend/admin` | 门类、规则、待整理、档案检索、同步状态五页 | M3 |
+| `whale-frontend/platform-apps/whale-agent` | 文件知识管理视图 + 问答范围开关 | M5 |
 
 ---
 

@@ -37,9 +37,9 @@
 
 ## 六、接收与查询接口（whale-audit）
 
-- [x] 6.1 `LogIngestController` 上报 2 接口（`POST /frontend/batch`、`POST /behavior/batch`）`permitAll`，`items` 上限 50
+- [x] 6.1 `LogIngestController` 上报 2 接口（`POST /whale-frontend/batch`、`POST /behavior/batch`）`permitAll`，`items` 上限 50
 - [x] 6.2 上报以网关 `X-User-Id` 回填 `user_id`；`sink.submit` 后立即 `Result.ok()`
-- [x] 6.3 查询 2 接口（`GET /frontend/page`、`GET /behavior/page`）带 `@RequirePermission("sys:audit:log:list")`；`size ∈ [1,200]`、`create_time` 倒序
+- [x] 6.3 查询 2 接口（`GET /whale-frontend/page`、`GET /behavior/page`）带 `@RequirePermission("sys:audit:log:list")`；`size ∈ [1,200]`、`create_time` 倒序
 - [x] 6.4 AUTH-06 权限点种子（`sys:audit:log:list`）入库/登记（见 §十一）
 
 ## 六·补、AUTH-06 权限码头（§八）
@@ -66,8 +66,8 @@
 - [x] 8.5 `LogIngestControllerTest`：批量上限抛 `PARAM_ERROR` / `sink` 被调用 / `permitAll` 生效
 - [x] 8.6 whale-audit 两个新 `*ServiceImplTest`：分页 / `size` 收敛 / 倒序
 - [x] 8.7 实时 IT：`LiveApiLogIT`（`api_log` ≥1 行且无明文凭据）、`LiveFrontendLogIT`（上报→查询可见）
-- [x] 8.8 `mvn -f backend/pom.xml clean verify -T 1C`：BUILD SUCCESS
-- [x] 8.9 `mvn -f backend/pom.xml checkstyle:check`：全 reactor 0 违规（E16 Javadoc / 行宽 ≤150）
+- [x] 8.8 `mvn -f whale-backend/pom.xml clean verify -T 1C`：BUILD SUCCESS
+- [x] 8.9 `mvn -f whale-backend/pom.xml checkstyle:check`：全 reactor 0 违规（E16 Javadoc / 行宽 ≤150）
 - [x] 8.10 `PermissionHeaderGlobalFilterTest`：缓存命中注入 / 未命中回落 `/auth/me` / 两级失败注入空串并告警
 - [x] 8.11 `RequirePermissionInterceptorTest`：无注解直放行 / `super_admin` 放行 / 命中权限码放行 / 无码头 403
 
@@ -81,6 +81,6 @@
 ## 十、核验结论
 
 - 核验人：BlueWhale ｜ 日期：2026-10-18 ｜ 结论：**通过**
-- 依据：`mvn -f backend/pom.xml clean verify -T 1C` **BUILD SUCCESS**（**247 用例全绿 / 0 fail / 0 error / 0 skipped**）、`mvn -f backend/pom.xml checkstyle:check` **全 29 模块 0 违规**、实时 IT `LiveApiLogIT` + `LiveFrontendLogIT` **7/0/0**（自建 MySQL 3307 实例）、[本波检查报告](../reviews/2026-10-18-wave5.10-multichannel-log.md)
+- 依据：`mvn -f whale-backend/pom.xml clean verify -T 1C` **BUILD SUCCESS**（**247 用例全绿 / 0 fail / 0 error / 0 skipped**）、`mvn -f whale-backend/pom.xml checkstyle:check` **全 29 模块 0 违规**、实时 IT `LiveApiLogIT` + `LiveFrontendLogIT` **7/0/0**（自建 MySQL 3307 实例）、[本波检查报告](../reviews/2026-10-18-wave5.10-multichannel-log.md)
 - 规格偏离：① 响应体 tee 透传（替代缓冲式回写）；② 权限码头组件落点改为网关注入 + starter 通用拦截器（§八，用户批准）；③ 单测覆盖超出 A8 原表（补 2 类）；④ `api_log.module` 未赋值（登记残余）
 - 残余项：见 [spec §六](./spec.md#六风险与残余) 与 [tasks 待做项](./tasks.md#待做项本波明确不做登记备查)；另 `ApiLogFilter` 两个私有收集方法 6 参数（C4 P2）

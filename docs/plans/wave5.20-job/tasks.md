@@ -55,7 +55,7 @@
 
 ## T6 验证
 
-- [x] T6.1 `mvn -pl backend/whale-services/whale-job test`（禁沙箱，JDK21）
+- [x] T6.1 `mvn -pl whale-backend/whale-services/whale-job test`（禁沙箱，JDK21）
 - [x] T6.2 `mvn clean install -T 1C` 全量构建 SUCCESS
 - [x] T6.3 8082 启动冒烟：种子任务注册、`/job/info/page` 含 `nextFireTime`、分布式锁键生成
 

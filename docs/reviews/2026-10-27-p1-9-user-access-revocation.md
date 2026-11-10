@@ -52,9 +52,9 @@ P1 #8 只覆盖「成员解绑」。用户级生命周期变更仍存在缺口�
 ## 4. 验证
 
 ```powershell
-mvn -B -pl backend/whale-services/whale-service-auth/whale-service-auth-starter -am ^
+mvn -B -pl whale-backend/whale-services/whale-service-auth/whale-service-auth-starter -am ^
   "-Dtest=!Sm4CryptoTest" "-Dsurefire.failIfNoSpecifiedTests=false" test
-mvn -B -pl backend/whale-services/whale-gateway -am ^
+mvn -B -pl whale-backend/whale-services/whale-gateway -am ^
   "-Dtest=!Sm4CryptoTest" "-Dsurefire.failIfNoSpecifiedTests=false" test
 ```
 

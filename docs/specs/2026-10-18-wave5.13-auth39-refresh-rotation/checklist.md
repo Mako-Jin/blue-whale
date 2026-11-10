@@ -32,8 +32,8 @@
 
 ## 五、测试与门禁
 
-- [x] 5.1 `mvn -f backend/pom.xml clean verify -T 1C`：BUILD SUCCESS，全模块既有用例不回归
-- [x] 5.2 `mvn -f backend/pom.xml checkstyle:check`：全 reactor 0 违规（E16 Javadoc / 行宽 ≤150 / C4 ≤4 参 / 魔法值）
+- [x] 5.1 `mvn -f whale-backend/pom.xml clean verify -T 1C`：BUILD SUCCESS，全模块既有用例不回归
+- [x] 5.2 `mvn -f whale-backend/pom.xml checkstyle:check`：全 reactor 0 违规（E16 Javadoc / 行宽 ≤150 / C4 ≤4 参 / 魔法值）
 - [x] 5.3 新增单测全部纳入构建（无 `@Disabled` 逃逸）
 
 ## 六、留痕与销账

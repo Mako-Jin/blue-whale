@@ -19,34 +19,34 @@
 
 ### 2.1 文件与改动
 
-1. `backend/whale-services/whale-agent/src/main/java/com/bluewhale/agent/support/web/UserContext.java`
+1. `whale-backend/whale-services/whale-agent/src/main/java/com/bluewhale/agent/support/web/UserContext.java`
    - 新增 `public static boolean hasPermission(HttpServletRequest request, String code)`：
      `WebHeaders.splitCodes(WebHeaders.header(request, WebHeaders.PERMISSION_CODES)).contains(code)`。
-2. `backend/whale-services/whale-agent/src/main/java/com/bluewhale/agent/service/FactStoreService.java`
+2. `whale-backend/whale-services/whale-agent/src/main/java/com/bluewhale/agent/service/FactStoreService.java`
    - 新增重载 `query(String factType, String factKey, Integer limit, boolean includeRuntime)`；
      原三参方法委托新方法（`includeRuntime = true`）。
    - `includeRuntime == false` 且 `factType` 为空时，追加 `wrapper.ne(AgentFact::getFactType, "RUNTIME_SERVICE")`。
-3. `backend/whale-services/whale-agent/src/main/java/com/bluewhale/agent/controller/AgentFactController.java`
+3. `whale-backend/whale-services/whale-agent/src/main/java/com/bluewhale/agent/controller/AgentFactController.java`
    - 方法签名增加 `HttpServletRequest httpRequest`。
    - 常量 `RUNTIME_TYPE = "RUNTIME_SERVICE"`、`RUNTIME_PERMISSION = "sys:agent:runtime:read"`。
    - 判定 `boolean runtimeAllowed = UserContext.hasPermission(httpRequest, RUNTIME_PERMISSION)`。
    - 显式请求 runtime 且无权限：`throw new BizException(ErrorCode.FORBIDDEN)`（HTTP 403）。
    - 查询调用改为 `factStoreService.query(type, key, limit, runtimeAllowed)`。
-4. `backend/whale-services/whale-agent/src/main/java/com/bluewhale/agent/support/qa/FactRetriever.java`
+4. `whale-backend/whale-services/whale-agent/src/main/java/com/bluewhale/agent/support/qa/FactRetriever.java`
    - `retrieve(String question)` 委托 `retrieve(question, true)`。
    - 新增 `retrieve(String question, boolean includeRuntime)`；`collectServices(question, merged, includeRuntime)`
      仅在 `includeRuntime` 时查询 `RUNTIME_SERVICE`。
-5. `backend/whale-services/whale-agent/src/main/java/com/bluewhale/agent/service/ChatService.java`
+5. `whale-backend/whale-services/whale-agent/src/main/java/com/bluewhale/agent/service/ChatService.java`
    - `chat(ChatRequest request, Long userId, boolean includeRuntime)`；
      `answer(conversation, question, scope, includeRuntime, emitter)`；
      `collectCitations(question, scope, intent, includeRuntime)` 透传给 `factRetriever.retrieve`。
-6. `backend/whale-services/whale-agent/src/main/java/com/bluewhale/agent/controller/AgentChatController.java`
+6. `whale-backend/whale-services/whale-agent/src/main/java/com/bluewhale/agent/controller/AgentChatController.java`
    - 计算 `runtimeAllowed` 并传入 `chatService.chat(...)`。
-7. `backend/whale-services/whale-auth/src/main/resources/db/init.sql`
+7. `whale-backend/whale-services/whale-auth/src/main/resources/db/init.sql`
    - 菜单种子追加：
      - `(9, 0, '知识助手', '/agent', NULL, 'message', 2, 'DIR', NULL, 1, 1)`
      - `(10, 9, '知识问答', '/agent/chat', 'agent/chat/index', 'comment', 1, 'MENU', 'sys:agent:chat', 1, 1)`
-8. 新建 `backend/whale-services/whale-auth/src/main/resources/db/migration-5.47.sql`
+8. 新建 `whale-backend/whale-services/whale-auth/src/main/resources/db/migration-5.47.sql`
    - `INSERT IGNORE` 上述两行菜单；注释说明幂等与授权由角色界面完成。
 
 ### 2.2 验证
@@ -60,9 +60,9 @@
 
 ### 3.1 文件与改动
 
-1. `backend/whale-services/whale-agent/src/main/resources/db/init.sql`
+1. `whale-backend/whale-services/whale-agent/src/main/resources/db/init.sql`
    - 追加 `audit_log` 建表（与 `whale-audit/init.sql` 同构，append-only：无 `update_time` / `deleted`）。
-2. 新建 `backend/whale-services/whale-agent/src/main/resources/db/migration-5.47.sql`
+2. 新建 `whale-backend/whale-services/whale-agent/src/main/resources/db/migration-5.47.sql`
    - `CREATE TABLE IF NOT EXISTS audit_log (...)`，供存量库升级。
 3. `AgentSearchController#search`：`@AuditLog(operation = "知识检索", type = OperateType.QUERY, recordParams = true, recordResult = false)`。
 4. `AgentFactController#facts`：`@AuditLog(operation = "事实查询", type = OperateType.QUERY, recordParams = true, recordResult = false)`。

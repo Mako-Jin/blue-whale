@@ -52,7 +52,7 @@
 
 | 类型 | 文件 |
 |---|---|
-| DTO | `backend/whale-ops/whale-audit/.../audit/dto/ApiLogQueryRequest.java`、`OutboundLogQueryRequest.java` |
+| DTO | `whale-backend/whale-ops/whale-audit/.../audit/dto/ApiLogQueryRequest.java`、`OutboundLogQueryRequest.java` |
 | VO | `.../audit/vo/ApiLogVO.java`、`OutboundLogVO.java` |
 | Service | `.../audit/service/ApiLogService.java`、`OutboundLogService.java` |
 | Impl | `.../audit/service/impl/ApiLogServiceImpl.java`、`OutboundLogServiceImpl.java` |
@@ -67,7 +67,7 @@
 1. `GET /audit/log/api/page`、`GET /audit/log/outbound/page` 可达，均带 `@RequirePermission("sys:audit:log:list")`，返回 `Result<PageResult<VO>>`。
 2. `size` 收敛 `[1,200]`；查询结果按 `create_time` 倒序；8 个条件项均可独立与组合生效（未提供则不生成条件）。
 3. 单测全绿：分页映射、`size` 上下界收敛、条件拼装 + 倒序、空结果。
-4. `mvn -f backend/pom.xml -pl :whale-audit -am test` 通过（含既有不回归）；`checkstyle:check` 0 违规。
+4. `mvn -f whale-backend/pom.xml -pl :whale-audit -am test` 通过（含既有不回归）；`checkstyle:check` 0 违规。
 5. 留痕齐备：检查报告 + devlog 四节 + 台账销账（`register.md` REQ-SEC-006 / `next-steps.md` / `design/audit-log.md`）。
 
 ---

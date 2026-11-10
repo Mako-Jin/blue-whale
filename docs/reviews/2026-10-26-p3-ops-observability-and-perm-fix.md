@@ -57,7 +57,7 @@
 
 ### 服务重启与回归
 
-- `mvn -o -pl backend/whale-services/whale-gateway,backend/whale-services/whale-auth -am package`：**BUILD OK**；两服务以 `SERVER_PORT=8080/8081` 启动，`/actuator/health/readiness` 均 `{"status":"UP"}`（嵌套占位符 `${NACOS_SERVER:${NACOS_ADDR:...}}` 解析正常，Nacos 注册成功）。
+- `mvn -o -pl whale-backend/whale-services/whale-gateway,whale-backend/whale-services/whale-auth -am package`：**BUILD OK**；两服务以 `SERVER_PORT=8080/8081` 启动，`/actuator/health/readiness` 均 `{"status":"UP"}`（嵌套占位符 `${NACOS_SERVER:${NACOS_ADDR:...}}` 解析正常，Nacos 注册成功）。
 - `whale-mes` 改注解后重打包（BUILD OK）并重启 9002，readiness UP。
 - 经网关 8080 回归：`POST /auth/login` `code=0`；`GET /auth/me` **`code=0`，perms=172，menus=11**（修复前 `code=400`）；`GET /mes/work-order/page` **`code=0`，total=2**。
 

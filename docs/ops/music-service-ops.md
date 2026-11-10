@@ -12,22 +12,22 @@
 
 | 项 | 取值 |
 |---|---|
-| 模块 | `backend/whale-services/whale-music` |
+| 模块 | `whale-backend/whale-services/whale-music` |
 | 服务名 | `whale-music` |
 | 端口 | `8096`（`SERVER_PORT`） |
 | 数据库 | `bluewhale_music`（MySQL 8，`utf8mb4`） |
 | 包根 | `com.bluewhale.music`（interfaces / application / domain / infrastructure 四层） |
 | 对外前缀 | `/music/**`（网关不 StripPrefix） |
 | 内网前缀 | `/music/internal/**`（网关 `internal-deny` 统一 403） |
-| 前端 | `frontend/platform-apps/whale-music`，qiankun base `/music`，本地 dev 端口 8111 |
+| 前端 | `whale-frontend/platform-apps/whale-music`，qiankun base `/music`，本地 dev 端口 8111 |
 | Redis | `whale:music:*` |
 | 权限码 | `sys:music:*`（281–304，24 项）；申诉复核 `sys:music:appeal:audit`(304) |
 | 角色 | `music_admin`（25103，含 304）、`music_member`（25104，不含 304 以防自审自批） |
 | 菜单 | 45「版权申诉」（parent 39，path `/music/appeals`，component `music/appeals`） |
 | 上游依赖 | `whale-file`（音频字节与文件元信息）、`whale-message`（可选通知，旁路） |
-| 镜像 | 后端 `ghcr.io/<repo>/whale-music`；前端 `ghcr.io/<repo>/frontend/whale-music` |
+| 镜像 | 后端 `ghcr.io/<repo>/whale-music`；前端 `ghcr.io/<repo>/whale-frontend/whale-music` |
 
-网关路由（`backend/whale-services/whale-gateway/src/main/resources/application.yml`）：
+网关路由（`whale-backend/whale-services/whale-gateway/src/main/resources/application.yml`）：
 
 - `whale-music`：`lb://whale-music`，`Path=/music/**`。
 - 内网屏蔽：`/music/internal/**`（403；当前服务尚未暴露内网端点，规则先行为后续预留）。
@@ -50,14 +50,14 @@
 mvn -q -o -pl whale-services/whale-music -am -DskipTests package
 ```
 
-产物：`backend/whale-services/whale-music/target/whale-music.jar`。
+产物：`whale-backend/whale-services/whale-music/target/whale-music.jar`。
 
 ### 2.2 后端启动
 
 ```powershell
 $env:MYSQL_PASSWORD='***'
 $env:SPRING_DATA_REDIS_PASSWORD='***'   # 如 Redis 开启口令
-java -jar backend/whale-services/whale-music/target/whale-music.jar
+java -jar whale-backend/whale-services/whale-music/target/whale-music.jar
 ```
 
 必需外部依赖：MySQL、Redis、Nacos；对外链路还需要网关（8080）与 auth（8081）；
@@ -87,7 +87,7 @@ docker build -f deploy/frontend/Dockerfile \
 ```
 
 > 同名冲突（后端服务也叫 `whale-music`）由 CI 命名空间规避：前端推送到
-> `ghcr.io/<repo>/frontend/whale-music`，后端推送到 `ghcr.io/<repo>/whale-music`，
+> `ghcr.io/<repo>/whale-frontend/whale-music`，后端推送到 `ghcr.io/<repo>/whale-music`，
 > 缓存 scope 分别为 `fe-whale-music` / `be-whale-music`。
 > 部署契约由 `scripts/ci/bw-deploy-contract-check.ps1` 在 `docker-deploy.yml` 的
 > preflight job 中强制校验。脚本自收口轮起兼容 PowerShell 5.1 与 7：`${{ }}` 改为
@@ -101,7 +101,7 @@ pnpm --filter whale-music lint
 pnpm --filter whale-music build
 ```
 
-产物 `frontend/platform-apps/whale-music/dist`，按 qiankun 子应用部署到 `/music`；
+产物 `whale-frontend/platform-apps/whale-music/dist`，按 qiankun 子应用部署到 `/music`；
 Nginx 侧由 `infrastructure/docker/nginx/conf.d/micro-frontend.conf` 的
 `^/(...|music)(?=/|$)` 前缀转发到容器别名 `whale-fe-music:80`。
 
@@ -169,7 +169,7 @@ curl -H "Authorization: Bearer <token>" http://127.0.0.1:8080/music/home
 
 ### 4.1 表清单
 
-`backend/whale-services/whale-music/src/main/resources/db/init.sql` 建 14 张表：
+`whale-backend/whale-services/whale-music/src/main/resources/db/init.sql` 建 14 张表：
 
 | 分组 | 表 |
 |---|---|

@@ -56,7 +56,7 @@
 
 ## 3. 变更清单（精确到文件与函数）
 
-### 3.1 `backend/whale-common/whale-spring-boot-starter`
+### 3.1 `whale-backend/whale-common/whale-spring-boot-starter`
 | 文件 | 内容 |
 |---|---|
 | `.../common/audit/enums/OperateType.java`（新增） | `LOGIN/LOGOUT/CREATE/UPDATE/DELETE/QUERY/GRANT/EXPORT/IMPORT/OTHER` |
@@ -71,7 +71,7 @@
 | `src/test/.../support/SensitiveDataMaskerTest.java`（新增） | 规则表 + 嵌套/数组 + 深度上限 + 截断用例 |
 | `src/test/.../aop/AuditLogAspectTest.java`（新增） | mock `AuditLogMapper`；`MockHttpServletRequest` + `RequestContextHolder`；成功/异常两路径（`biz_status` 1/0、`error_msg`）、头取用户与 traceId、`recordParams=false` 不落参、无请求上下文不抛错、`insert` 恰好 1 次 |
 
-### 3.2 `backend/whale-ops/whale-audit`
+### 3.2 `whale-backend/whale-ops/whale-audit`
 | 文件 | 内容 |
 |---|---|
 | `pom.xml`（改） | 新增 `whale-spring-boot-starter` 依赖 |
@@ -83,7 +83,7 @@
 | `.../audit/controller/AuditLogController.java`（新增） | `GET /audit/log/page`、`GET /audit/log/{id}`、`GET /audit/log/trace/{traceId}` → `Result<...>` |
 | `src/test/.../service/AuditLogServiceImplTest.java`（新增） | mock `AuditLogMapper`：分页映射、条件构造、size 上限 |
 
-### 3.3 `backend/whale-services/whale-auth`
+### 3.3 `whale-backend/whale-services/whale-auth`
 | 文件 | 内容 |
 |---|---|
 | `controller/AuthController.java`（改） | `#login` / `#logout` 增加 `@AuditLog`（D6） |
@@ -96,7 +96,7 @@
 2. `mvn -pl whale-common/whale-spring-boot-starter -am test`（新增单测全绿）。
 3. `mvn -pl whale-ops/whale-audit -am test`。
 4. `mvn -pl whale-services/whale-auth -am test`（既有 19 用例不回归）。
-5. `cd f:\blue-whale && mvn -f backend/pom.xml -pl <模块> checkstyle:check` → 0 违规（warning 模式）。
+5. `cd f:\blue-whale && mvn -f whale-backend/pom.xml -pl <模块> checkstyle:check` → 0 违规（warning 模式）。
 6. 产出 `docs/reviews/2026-10-17-wave5.1b-audit-log.md`（逐项对应 57 项清单）。
 7. 更新 `docs/design/audit-log.md`（落点修正 + 实施记录）、`register.md`、`task-breakdown.md`、`next-steps.md`、`devlog/2026-10-17.md §14`（四类信息）。
 8. 自动 commit + push（Gitee `origin/main`，多 `-m`，正文中文）。

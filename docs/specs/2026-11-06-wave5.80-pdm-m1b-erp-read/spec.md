@@ -60,8 +60,8 @@
 
 ## 四、验证
 
-- ERP：`mvn -o -pl backend/whale-apps/whale-erp test`（466 例全绿，含 ArchUnit）。
-- PDM：`mvn -o -pl backend/whale-apps/whale-pdm test`（210 例全绿，新增 ERP 回显 4 例）。
+- ERP：`mvn -o -pl whale-backend/whale-apps/whale-erp test`（466 例全绿，含 ArchUnit）。
+- PDM：`mvn -o -pl whale-backend/whale-apps/whale-pdm test`（210 例全绿，新增 ERP 回显 4 例）。
 - 前端：`pnpm --filter whale-pdm lint`、`build`。
 - 网关：确认 `/erp/internal/**` 仍在 internal-deny，不新增放行。
 

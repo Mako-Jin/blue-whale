@@ -137,7 +137,7 @@ DDL 追加到 `whale-audit/db/init.sql`（4 张表）与 `whale-auth/db/init.sql
 | 上报接口 | `LogIngestControllerTest` | `items` 超 50 抛 `PARAM_ERROR`；`sink` 被调用；`permitAll` 生效 |
 | 查询接口 | whale-audit 两个新 `*ServiceImplTest` | 分页 / `size` 收敛 `[1,200]` / `create_time` 倒序 |
 | 实时 IT | `LiveApiLogIT` / `LiveFrontendLogIT`（`-Dwhale.live.it=true`，MySQL 3306） | `api_log` ≥1 行且**无明文凭据**；灌 `frontend_log`/`behavior_log` 后查询接口可见 |
-| 门禁 | `mvn -f backend/pom.xml clean verify -T 1C`、`mvn -f backend/pom.xml checkstyle:check` | BUILD SUCCESS；全 reactor 0 违规（E16 中文 Javadoc / 行宽 ≤150） |
+| 门禁 | `mvn -f whale-backend/pom.xml clean verify -T 1C`、`mvn -f whale-backend/pom.xml checkstyle:check` | BUILD SUCCESS；全 reactor 0 违规（E16 中文 Javadoc / 行宽 ≤150） |
 
 ---
 

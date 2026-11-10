@@ -1,0 +1,444 @@
+package com.bluewhale.agent.config;
+
+import lombok.Data;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.cloud.context.config.annotation.RefreshScope;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * 知识 Agent 配置（{@code whale.agent.*}）。
+ *
+ * <p>仓库根与索引目录均支持显式配置；未配置时按启动目录向上探测仓库根
+ * （同时存在 {@code whale-backend/pom.xml} 与 {@code docs/} 的目录），索引目录回落
+ * {@code <repo-root>/data/agent-index}，避免不同启动方式下路径漂移。</p>
+ *
+ * @author BlueWhale
+ */
+@Data
+@Component
+@RefreshScope
+@ConfigurationProperties(prefix = "whale.agent")
+public class AgentProperties {
+
+    /** 仓库根目录（显式配置优先） */
+    private String repoRoot;
+
+    /** Lucene 索引目录（显式配置优先） */
+    private String indexDir;
+
+    /** 采集配置 */
+    private Ingest ingest = new Ingest();
+
+    /** 检索配置 */
+    private Search search = new Search();
+
+    /** 文本向量（embedding）配置 */
+    private Embedding embedding = new Embedding();
+
+    /** 模型配置 */
+    private Llm llm = new Llm();
+
+    /** 问答配置 */
+    private Qa qa = new Qa();
+
+    /** MCP / IDE 接入配置（轨 F） */
+    private Mcp mcp = new Mcp();
+
+    /** 只读数据查询配置（T14） */
+    private DataQuery data = new DataQuery();
+
+    /** 平台写操作配置（T15） */
+    private Ops ops = new Ops();
+
+    /** 文件知识库采集配置（Wave 5.53 M4） */
+    private Knowledge knowledge = new Knowledge();
+
+    /**
+     * 解析仓库根目录：显式配置 → 向上探测 → 当前工作目录。
+     *
+     * @return 归一化后的绝对路径
+     */
+    public Path resolveRepoRoot() {
+        if (StringUtils.hasText(repoRoot)) {
+            return Paths.get(repoRoot).toAbsolutePath().normalize();
+        }
+        Path cursor = Paths.get(System.getProperty("user.dir")).toAbsolutePath().normalize();
+        for (int i = 0; i < 8 && cursor != null; i++) {
+            if (Files.exists(cursor.resolve("whale-backend/pom.xml")) && Files.isDirectory(cursor.resolve("docs"))) {
+                return cursor;
+            }
+            cursor = cursor.getParent();
+        }
+        return Paths.get(System.getProperty("user.dir")).toAbsolutePath().normalize();
+    }
+
+    /**
+     * 解析索引目录：显式配置 → {@code <repo-root>/data/agent-index}。
+     *
+     * @return 归一化后的绝对路径
+     */
+    public Path resolveIndexDir() {
+        if (StringUtils.hasText(indexDir)) {
+            return Paths.get(indexDir).toAbsolutePath().normalize();
+        }
+        return resolveRepoRoot().resolve("data/agent-index");
+    }
+
+    /**
+     * 采集参数。
+     */
+    @Data
+    public static class Ingest {
+
+        /** 单文件上限（字节） */
+        private long maxFileSize = 2L * 1024 * 1024;
+
+        /** 增量扫描周期（秒），0 表示仅手动重建 */
+        private int scanIntervalSeconds = 1800;
+
+        /** 启动后是否立即构建索引 */
+        private boolean buildOnStartup = true;
+    }
+
+    /**
+     * 检索参数。
+     */
+    @Data
+    public static class Search {
+
+        /** 默认返回条数 */
+        private int defaultTopK = 8;
+
+        /** 最大返回条数 */
+        private int maxTopK = 50;
+
+        /** 是否启用向量通道（BM25 + 向量 RRF 融合） */
+        private boolean vectorEnabled = true;
+
+        /** 每个通道参与融合的候选条数（不足时按实际条数） */
+        private int candidateTopK = 50;
+
+        /** RRF 平滑常数 k（论文默认 60） */
+        private int rrfK = 60;
+
+        /** BM25 通道融合权重 */
+        private double bm25Weight = 1.0D;
+
+        /** 向量通道融合权重 */
+        private double vectorWeight = 1.0D;
+    }
+
+    /**
+     * 文本向量（embedding）参数。
+     *
+     * <p>{@code auto} 模式下配置了 API Key 时走 OpenAI 兼容 {@code /embeddings} 接口，
+     * 否则降级为本地确定性哈希向量（无外部依赖、无出网），保证向量通道始终可用。</p>
+     */
+    @Data
+    public static class Embedding {
+
+        /** 是否启用向量化（关闭后索引不写向量，检索退回纯 BM25） */
+        private boolean enabled = true;
+
+        /** 提供方：auto / openai / hash / none */
+        private String provider = "auto";
+
+        /** API 基地址（含版本段）；为空时回退 {@code llm.base-url} */
+        private String baseUrl;
+
+        /** API Key（不入仓，通过环境变量注入）；为空时回退 {@code llm.api-key} */
+        private String apiKey;
+
+        /** 向量模型名 */
+        private String model = "text-embedding-3-small";
+
+        /** 向量维度：0 表示自动（本地哈希默认 256，远程模型以接口返回为准） */
+        private int dimension;
+
+        /** 请求超时（毫秒） */
+        private int timeoutMillis = 20_000;
+
+        /** 批量请求条数 */
+        private int batchSize = 16;
+    }
+
+    /**
+     * OpenAI 兼容模型参数（未配置 api-key 时自动降级为检索摘要）。
+     */
+    @Data
+    public static class Llm {
+
+        /** 是否启用模型（关闭后始终走检索摘要） */
+        private boolean enabled = true;
+
+        /** API 基地址（含版本段，如 {@code https://api.openai.com/v1}） */
+        private String baseUrl = "https://api.openai.com/v1";
+
+        /** API Key（不入仓，通过环境变量注入） */
+        private String apiKey;
+
+        /** 对话模型名 */
+        private String model = "gpt-4o-mini";
+
+        /** 请求超时（毫秒） */
+        private int timeoutMillis = 60_000;
+
+        /** 单次回答最大 token */
+        private int maxTokens = 1024;
+
+        /** 采样温度 */
+        private double temperature = 0.2D;
+    }
+
+    /**
+     * 问答编排参数。
+     */
+    @Data
+    public static class Qa {
+
+        /** 问答引擎：{@code legacy}（Java 内置）或 {@code langchain}（ai/whale-ai 内网服务） */
+        private String engine = "legacy";
+
+        /** LangChain 引擎参数 */
+        private Langchain langchain = new Langchain();
+
+        /** 证据块最多条数 */
+        private int evidenceTopK = 8;
+
+        /** 单个证据块最大字符数 */
+        private int maxChunkChars = 1200;
+
+        /** 事实块最多条数 */
+        private int maxFacts = 12;
+
+        /** 携带的历史消息条数（user + assistant） */
+        private int historyMessages = 6;
+
+        /** 是否启用自主工具编排（配置模型后生效；关闭则退回单轮 RAG） */
+        private boolean agenticEnabled = true;
+
+        /** 自主编排最大工具轮数（硬上限 12） */
+        private int maxToolSteps = 4;
+
+        /**
+         * 是否走 LangChain 引擎。
+         *
+         * @return {@code true} 表示委托 ai/whale-ai 流式问答
+         */
+        public boolean isLangchain() {
+            return "langchain".equalsIgnoreCase(engine);
+        }
+    }
+
+    /**
+     * LangChain 引擎（ai/whale-ai）连接参数。
+     */
+    @Data
+    public static class Langchain {
+
+        /** 服务基地址（仅内网，不注册网关） */
+        private String baseUrl = "http://127.0.0.1:8092";
+
+        /** 流式问答总超时（秒） */
+        private int timeoutSeconds = 120;
+    }
+
+    /**
+     * 只读数据查询参数。
+     *
+     * <p>默认关闭；配置 {@code url} 后启用独立只读账号连接（仅授权白名单视图），
+     * 不参与主数据源与 MyBatis 事务。</p>
+     */
+    @Data
+    public static class DataQuery {
+
+        /** 是否启用只读数据通道 */
+        private boolean enabled = false;
+
+        /** 只读账号 JDBC 地址（如 {@code jdbc:mysql://host:3306/bluewhale_agent?...}） */
+        private String url;
+
+        /** 只读账号 */
+        private String username = "whale_ai_ro";
+
+        /** 只读账号口令（环境变量注入，不入仓） */
+        private String password;
+
+        /** 允许访问的视图（库内名称，忽略大小写） */
+        private List<String> allowedViews = new ArrayList<>(
+                List.of("v_ai_agent_fact_summary", "v_ai_agent_usage_summary",
+                        "v_ai_agent_feedback_summary", "v_ai_agent_ops_summary"));
+
+        /** 单次返回行数上限 */
+        private int maxRows = 200;
+
+        /** 查询超时（秒） */
+        private int timeoutSeconds = 5;
+    }
+
+    /**
+     * MCP 接入参数。
+     *
+     * <p>默认关闭；仅在显式配置 {@code token} 后对外提供只读工具，
+     * 供 Trae / IDE 等本地 MCP 客户端直连服务端口使用（不经网关）。</p>
+     */
+    @Data
+    public static class Mcp {
+
+        /** 是否启用 MCP 端点 */
+        private boolean enabled = false;
+
+        /** 本地只读 Token（不入仓，通过环境变量注入） */
+        private String token;
+
+        /** 单次检索最大条数 */
+        private int maxSearchResults = 20;
+
+        /** 单次读取文件最大行数 */
+        private int maxReadLines = 400;
+
+        /** 单次读取文件最大字符数 */
+        private int maxReadChars = 20_000;
+    }
+
+    /**
+     * 文件知识库采集参数（Wave 5.53 M4）。
+     *
+     * <p>定时增量拉取 {@code whale-file} 变更流，经 Tika 解析、脱敏、切块后写入
+     * Lucene；单文件大小、抽取字符数与解析超时均设硬上限，避免不可信文档拖垮进程。</p>
+     */
+    @Data
+    public static class Knowledge {
+
+        /** 是否启用文件知识库采集 */
+        private boolean enabled = true;
+
+        /** 启动后是否立即执行一轮同步 */
+        private boolean syncOnStartup = false;
+
+        /** 增量同步周期（秒），0 表示仅手动触发 */
+        private int syncIntervalSeconds = 600;
+
+        /** 变更流单页条数（文件服务上限 200） */
+        private int pageSize = 200;
+
+        /** 单文件大小上限（字节），默认 20MB */
+        private long maxFileSize = 20L * 1024 * 1024;
+
+        /** 单文件抽取字符上限，默认 100 万 */
+        private int maxChars = 1_000_000;
+
+        /** 单文件解析超时（秒） */
+        private int timeoutSeconds = 30;
+
+        /** 失败重试上限 */
+        private int maxAttempts = 3;
+
+        /** 指数退避基数（秒）：第 n 次失败后等待 base * 2^(n-1) */
+        private int retryBaseSeconds = 60;
+
+        /** 文件服务基址（服务间直连，不经网关） */
+        private String fileUrl = "http://127.0.0.1:8085";
+
+        /** 档案服务基址（查询档案文件密级，服务间直连） */
+        private String archiveUrl = "http://127.0.0.1:8093";
+
+        /** 档案桶名（按前缀匹配，命中后知识类型为 archive） */
+        private String archiveBucket = "whale-archive";
+
+        /** 档案条目读权限码（密级 1/2 使用） */
+        private String archivePermissionCode = "sys:archive:item:read";
+
+        /** 档案秘密级权限码（密级 3 使用，仅授权角色可见） */
+        private String archiveSecretPermissionCode = "sys:archive:secret:read";
+
+        /** 建立连接超时（毫秒） */
+        private int connectTimeoutMillis = 5000;
+
+        /** 读取响应超时（毫秒） */
+        private int readTimeoutMillis = 60000;
+
+        /**
+         * 纳入知识库的桶白名单（逗号分隔，默认精确匹配，default-deny）。
+         *
+         * <p>只有命中白名单的桶才会进入文件知识库；未命中、白名单为空或桶名缺失时
+         * 一律不采集，避免个人/部门桶内容进入同租户全员可检索的公开知识池。默认只放行
+         * 业务文件默认桶 {@code bluewhale} 与档案桶 {@code whale-archive}。需要放行一类桶时
+         * 请显式使用通配符（如 {@code oa-*}），不再做隐式前缀匹配（V-06）。</p>
+         */
+        private List<String> includedBuckets = new ArrayList<>(List.of("bluewhale", "whale-archive"));
+
+        /**
+         * 不纳入知识库的桶（逗号分隔，默认精确匹配，可用 {@code *} 通配），优先级高于白名单。
+         *
+         * <p>默认排除 {@code whale-doc}：文档附件由页面附件权限控制，且正文已经通过
+         * 内网文档变更流进入知识库，避免同一内容被重复采集或越权暴露。</p>
+         */
+        private List<String> excludedBuckets = new ArrayList<>(List.of("whale-doc"));
+
+        /** 显式指定定时同步的租户ID列表；为空时从租户目录查询可用租户 */
+        private List<Long> syncTenantIds = new ArrayList<>();
+
+        /** 认证服务基址（查询可用租户目录，服务间直连） */
+        private String authUrl = "http://127.0.0.1:8081";
+
+        /** 是否采集 whale-doc 文档页面（M4 知识源，默认关闭） */
+        private boolean docEnabled = false;
+
+        /** 启动后是否立即执行一轮文档同步 */
+        private boolean docSyncOnStartup = false;
+
+        /** 文档增量同步周期（秒），0 表示仅手动触发 */
+        private int docSyncIntervalSeconds = 600;
+
+        /** 文档服务基址（服务间直连，不经网关） */
+        private String docUrl = "http://127.0.0.1:8095";
+
+        /** 文档知识块所需权限码（检索时按用户权限过滤） */
+        private String docPermissionCode = "sys:doc:page:read";
+
+        /** 单页面正文采集字符上限，默认 100 万 */
+        private int docMaxChars = 1_000_000;
+    }
+
+    /**
+     * 平台写操作参数（L2，人工确认后执行）。
+     *
+     * <p>默认关闭；开启后模型只能创建确认令牌，真正的写请求必须由用户确认触发。</p>
+     */
+    @Data
+    public static class Ops {
+
+        /** 是否启用平台写操作 */
+        private boolean enabled = false;
+
+        /** 确认令牌有效期（秒） */
+        private int ttlSeconds = 300;
+
+        /** 下游调用超时（秒） */
+        private int timeoutSeconds = 10;
+
+        /** 目标服务基地址（键为操作目录中的 target） */
+        private Map<String, String> targets = defaultTargets();
+
+        /**
+         * 默认目标服务地址。
+         *
+         * @return 目标服务映射
+         */
+        private static Map<String, String> defaultTargets() {
+            Map<String, String> targets = new LinkedHashMap<>();
+            targets.put("form", "http://127.0.0.1:8084");
+            return targets;
+        }
+    }
+}

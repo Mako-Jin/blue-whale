@@ -114,7 +114,7 @@
 
 | 任务 | 内容 | 依赖 | 优先级 | 验收口径 | 相对规模 |
 |---|---|---|---|---|---|
-| T5.21 | `frontend/admin` 登录对接 `/auth/login` + 登出调 `/auth/logout`（验证黑名单在真实前端链路生效） | T4.1，中间件就绪 | 中 | 登出后原 token 请求返回 401 | M |
+| T5.21 | `whale-frontend/admin` 登录对接 `/auth/login` + 登出调 `/auth/logout`（验证黑名单在真实前端链路生效） | T4.1，中间件就绪 | 中 | 登出后原 token 请求返回 401 | M |
 | T5.22 | `whale-ui`：ProTable / FormModal / SearchForm 二次封装 | 无 | 中 | 组件可独立构建，有示例页 | L |
 | T5.23 | admin 用户/角色/菜单管理页 + 按钮级权限渲染 | T5.21、T5.22 | 中 | 页面可完成 CRUD 且按权限隐藏按钮 | L |
 

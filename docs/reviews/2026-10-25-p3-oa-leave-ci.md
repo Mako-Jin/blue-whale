@@ -29,35 +29,35 @@ Docker Deploy：matrix（18 个后端服务）+ deploy/backend/sample/Dockerfile
 
 | 文件 | 变更 |
 |---|---|
-| [pom.xml](../../backend/whale-apps/whale-oa/pom.xml) | 引入 `whale-spring-boot-starter`、MyBatis-Plus、MySQL 驱动、Micrometer Prometheus |
-| [application.yml](../../backend/whale-apps/whale-oa/src/main/resources/application.yml) | 9004、`bluewhale_oa` 数据源、Nacos、权限头开关、`/actuator/prometheus` 暴露 |
-| [db/init.sql](../../backend/whale-apps/whale-oa/src/main/resources/db/init.sql) | `oa_leave` 表（租户 + 公共字段、`uk_tenant_code`）+ 2 条种子数据 |
-| [OaLeave.java](../../backend/whale-apps/whale-oa/src/main/java/com/bluewhale/oa/entity/OaLeave.java) | 实体，继承 `BaseEntity`，逻辑删除 |
-| [OaLeaveMapper.java](../../backend/whale-apps/whale-oa/src/main/java/com/bluewhale/oa/mapper/OaLeaveMapper.java) | `BaseMapper<OaLeave>` |
-| [OaLeaveQueryRequest.java](../../backend/whale-apps/whale-oa/src/main/java/com/bluewhale/oa/dto/OaLeaveQueryRequest.java) / [OaLeaveSaveRequest.java](../../backend/whale-apps/whale-oa/src/main/java/com/bluewhale/oa/dto/OaLeaveSaveRequest.java) / [OaLeaveStatusRequest.java](../../backend/whale-apps/whale-oa/src/main/java/com/bluewhale/oa/dto/OaLeaveStatusRequest.java) | 分页查询、保存校验（类型枚举/天数 0.5–365/日期非空）、状态变更枚举 |
-| [OaLeaveVO.java](../../backend/whale-apps/whale-oa/src/main/java/com/bluewhale/oa/vo/OaLeaveVO.java) | 视图对象 |
-| [OaLeaveService.java](../../backend/whale-apps/whale-oa/src/main/java/com/bluewhale/oa/service/OaLeaveService.java) / [OaLeaveServiceImpl.java](../../backend/whale-apps/whale-oa/src/main/java/com/bluewhale/oa/service/impl/OaLeaveServiceImpl.java) | 分页（单页上限 200）、详情、创建、更新、状态机、逻辑删除；单号租户内唯一、日期区间校验 |
-| [OaLeaveController.java](../../backend/whale-apps/whale-oa/src/main/java/com/bluewhale/oa/controller/OaLeaveController.java) | `/oa/leave` 6 端点，`@RequirePermission` + `@AuditLog`（写操作） |
-| [OaLeaveServiceImplTest.java](../../backend/whale-apps/whale-oa/src/test/java/com/bluewhale/oa/service/impl/OaLeaveServiceImplTest.java) | 6 用例：创建/重复单号/非法日期、审批通过/终态拒绝、分页映射 |
+| [pom.xml](../../whale-backend/whale-apps/whale-oa/pom.xml) | 引入 `whale-spring-boot-starter`、MyBatis-Plus、MySQL 驱动、Micrometer Prometheus |
+| [application.yml](../../whale-backend/whale-apps/whale-oa/src/main/resources/application.yml) | 9004、`bluewhale_oa` 数据源、Nacos、权限头开关、`/actuator/prometheus` 暴露 |
+| [db/init.sql](../../whale-backend/whale-apps/whale-oa/src/main/resources/db/init.sql) | `oa_leave` 表（租户 + 公共字段、`uk_tenant_code`）+ 2 条种子数据 |
+| [OaLeave.java](../../whale-backend/whale-apps/whale-oa/src/main/java/com/bluewhale/oa/entity/OaLeave.java) | 实体，继承 `BaseEntity`，逻辑删除 |
+| [OaLeaveMapper.java](../../whale-backend/whale-apps/whale-oa/src/main/java/com/bluewhale/oa/mapper/OaLeaveMapper.java) | `BaseMapper<OaLeave>` |
+| [OaLeaveQueryRequest.java](../../whale-backend/whale-apps/whale-oa/src/main/java/com/bluewhale/oa/dto/OaLeaveQueryRequest.java) / [OaLeaveSaveRequest.java](../../whale-backend/whale-apps/whale-oa/src/main/java/com/bluewhale/oa/dto/OaLeaveSaveRequest.java) / [OaLeaveStatusRequest.java](../../whale-backend/whale-apps/whale-oa/src/main/java/com/bluewhale/oa/dto/OaLeaveStatusRequest.java) | 分页查询、保存校验（类型枚举/天数 0.5–365/日期非空）、状态变更枚举 |
+| [OaLeaveVO.java](../../whale-backend/whale-apps/whale-oa/src/main/java/com/bluewhale/oa/vo/OaLeaveVO.java) | 视图对象 |
+| [OaLeaveService.java](../../whale-backend/whale-apps/whale-oa/src/main/java/com/bluewhale/oa/service/OaLeaveService.java) / [OaLeaveServiceImpl.java](../../whale-backend/whale-apps/whale-oa/src/main/java/com/bluewhale/oa/service/impl/OaLeaveServiceImpl.java) | 分页（单页上限 200）、详情、创建、更新、状态机、逻辑删除；单号租户内唯一、日期区间校验 |
+| [OaLeaveController.java](../../whale-backend/whale-apps/whale-oa/src/main/java/com/bluewhale/oa/controller/OaLeaveController.java) | `/oa/leave` 6 端点，`@RequirePermission` + `@AuditLog`（写操作） |
+| [OaLeaveServiceImplTest.java](../../whale-backend/whale-apps/whale-oa/src/test/java/com/bluewhale/oa/service/impl/OaLeaveServiceImplTest.java) | 6 用例：创建/重复单号/非法日期、审批通过/终态拒绝、分页映射 |
 
 ### 权限种子
 
 | 文件 | 变更 |
 |---|---|
-| [whale-auth/db/init.sql](../../backend/whale-services/whale-auth/src/main/resources/db/init.sql) | 新增权限 168–171：`sys:oa:leave:list/add/edit/delete` |
-| [migration-5.46-oa-leave.sql](../../backend/whale-services/whale-auth/src/main/resources/db/migration-5.46-oa-leave.sql) | `INSERT IGNORE` 幂等补齐；不自动写 `sys_role_permission`（授权由租户管理员分配） |
+| [whale-auth/db/init.sql](../../whale-backend/whale-services/whale-auth/src/main/resources/db/init.sql) | 新增权限 168–171：`sys:oa:leave:list/add/edit/delete` |
+| [migration-5.46-oa-leave.sql](../../whale-backend/whale-services/whale-auth/src/main/resources/db/migration-5.46-oa-leave.sql) | `INSERT IGNORE` 幂等补齐；不自动写 `sys_role_permission`（授权由租户管理员分配） |
 
 ### 前端（whale-oa）
 
 | 文件 | 变更 |
 |---|---|
-| [package.json](../../frontend/platform-apps/whale-oa/package.json) | 新增 `dayjs` |
-| [api/client.ts](../../frontend/platform-apps/whale-oa/src/api/client.ts) | 恢复基座 token（`whale_platform_access_token`）+ 当前用户读取，请求自动带 Authorization |
-| [api/oa.ts](../../frontend/platform-apps/whale-oa/src/api/oa.ts) | 请假 6 API + 类型（状态/类型/入参/分页） |
-| [pages/List.tsx](../../frontend/platform-apps/whale-oa/src/pages/List.tsx) | 请假列表：单号/状态筛选、分页；PENDING 可编辑/通过/驳回/删除 |
-| [pages/Form.tsx](../../frontend/platform-apps/whale-oa/src/pages/Form.tsx) | 新增/编辑弹窗：`RangePicker`→起止日期、类型/天数/事由/备注；新增默认申请人取当前用户 |
-| [App.tsx](../../frontend/platform-apps/whale-oa/src/App.tsx) | 标题与菜单改为「请假管理 / 新增申请」，类型改 `OaLeave` |
-| [main.tsx](../../frontend/platform-apps/whale-oa/src/main.tsx) | `AntdApp` 包裹，支持 `App.useApp()` 消息 |
+| [package.json](../../whale-frontend/platform-apps/whale-oa/package.json) | 新增 `dayjs` |
+| [api/client.ts](../../whale-frontend/platform-apps/whale-oa/src/api/client.ts) | 恢复基座 token（`whale_platform_access_token`）+ 当前用户读取，请求自动带 Authorization |
+| [api/oa.ts](../../whale-frontend/platform-apps/whale-oa/src/api/oa.ts) | 请假 6 API + 类型（状态/类型/入参/分页） |
+| [pages/List.tsx](../../whale-frontend/platform-apps/whale-oa/src/pages/List.tsx) | 请假列表：单号/状态筛选、分页；PENDING 可编辑/通过/驳回/删除 |
+| [pages/Form.tsx](../../whale-frontend/platform-apps/whale-oa/src/pages/Form.tsx) | 新增/编辑弹窗：`RangePicker`→起止日期、类型/天数/事由/备注；新增默认申请人取当前用户 |
+| [App.tsx](../../whale-frontend/platform-apps/whale-oa/src/App.tsx) | 标题与菜单改为「请假管理 / 新增申请」，类型改 `OaLeave` |
+| [main.tsx](../../whale-frontend/platform-apps/whale-oa/src/main.tsx) | `AntdApp` 包裹，支持 `App.useApp()` 消息 |
 
 ### CI / 部署
 

@@ -45,11 +45,11 @@
 
 ### 3.1 单元测试
 
-- `mvn -o -f backend/pom.xml -pl :whale-form test`：**103 用例、0 失败**。
+- `mvn -o -f whale-backend/pom.xml -pl :whale-form test`：**103 用例、0 失败**。
   - `FormTableDdlGeneratorTest` 14 用例（新增 4：建表 DDL 自动索引、上限 16 截断、类型过滤、ADD/DROP INDEX 语句与非法前缀拒绝）。
   - `FormPublishServiceImplTest` 16 用例（新增 3：存量表缺索引 → ADD INDEX、类型降级 → 回收索引、索引已对齐 → 不下发 DDL）。
-- `mvn -o -f backend/pom.xml -pl :whale-form checkstyle:check`：**0 违规**。
-- `mvn -o -f backend/pom.xml -pl :whale-form package -DskipTests`：**BUILD SUCCESS**。
+- `mvn -o -f whale-backend/pom.xml -pl :whale-form checkstyle:check`：**0 违规**。
+- `mvn -o -f whale-backend/pom.xml -pl :whale-form package -DskipTests`：**BUILD SUCCESS**。
 
 ### 3.2 实机验证（重启 8084 新 jar，经网关 8080）
 

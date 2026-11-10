@@ -1,7 +1,7 @@
 # Wave 5.83 · M2 增量：报价单与审批回调 任务清单
 
 > 规格：[spec.md](./spec.md)。按顺序执行，每项完成后立即更新状态。
-> 路径约定：`CRM = backend/whale-apps/whale-crm`，`AUTH = backend/whale-services/whale-service-auth/whale-service-auth-starter`。
+> 路径约定：`CRM = whale-backend/whale-apps/whale-crm`，`AUTH = whale-backend/whale-services/whale-service-auth/whale-service-auth-starter`。
 > 本清单需规格批准后开始执行。
 
 ## T1 数据库迁移

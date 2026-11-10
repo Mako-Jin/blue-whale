@@ -5,8 +5,8 @@
 
 ## ① whale-i18n 消息 CRUD（新建服务）
 
-- [x] ①-1 模块骨架：`backend/whale-services/whale-i18n/pom.xml` + `WhaleI18nApplication` + `application.yml`（8087 / `bluewhale_i18n` / Nacos / Redis / MyBatis-Plus / `whale.permission.header.enabled=true`）
-- [x] ①-2 注册模块：`backend/whale-services/pom.xml` `<modules>` 增 `whale-i18n`
+- [x] ①-1 模块骨架：`whale-backend/whale-services/whale-i18n/pom.xml` + `WhaleI18nApplication` + `application.yml`（8087 / `bluewhale_i18n` / Nacos / Redis / MyBatis-Plus / `whale.permission.header.enabled=true`）
+- [x] ①-2 注册模块：`whale-backend/whale-services/pom.xml` `<modules>` 增 `whale-i18n`
 - [x] ①-3 业务：`I18nMessageQueryRequest` + `I18nMessageSaveRequest` + `I18nMessageVO` + `I18nMessageService(+Impl)` + `I18nMessageController`（5 端点 + `@RequirePermission("sys:i18n:*")` + `@AuditLog`）
 - [x] ①-4 缓存一致性：写操作后按 `messageKey`+`locale` 调 `I18nCacheEvictHelper.evict`
 - [x] ①-5 DDL：`whale-i18n/src/main/resources/db/init.sql`（`sys_i18n_message`）
@@ -18,7 +18,7 @@
 
 ## ② whale-ui 主题 CSS 变量注入
 
-- [x] ②-1 核对 `frontend/shared-packages/whale-common-theme` 现状，确定「补齐 vs 复用」
+- [x] ②-1 核对 `whale-frontend/shared-packages/whale-common-theme` 现状，确定「补齐 vs 复用」
 - [x] ②-2 `whale-ui/src/theme/`：`vars.css`（`:root` `--whale-*` 令牌）+ `index.ts`（`buildThemeVars` + `applyThemeVars`）+ `src/index.ts` 导出
 - [x] ②-3 构建验证：`pnpm -C frontend --filter @bluewhale/whale-ui build`（tsup + dts）
 - [x] ②-4 文档 + push
@@ -42,7 +42,7 @@
 - [x] ⑤-1 `roadmap.md` §2.5 勾选 whale-audit；`task-breakdown.md` 残留标注
 - [x] ⑤-2 MQ 汇聚 / 异步派发 → 标注「环境受限（无 RabbitMQ）backlog」
 
-## ⑥ frontend/ops 运维平台
+## ⑥ whale-frontend/ops 运维平台
 
 - [x] ⑥-1 基座：vite 端口 8104 + 代理 `/auth|/monitor|/alert|/audit` → 8080；`api/http.ts` + `token.ts`（前缀 `whale_ops_`）+ 登录/守卫
 - [x] ⑥-2 `pages/Monitor.tsx` 服务监控面板

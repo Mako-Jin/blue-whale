@@ -21,11 +21,11 @@
 
 | 维度 | 现状 | 证据 |
 |---|---|---|
-| 后端代码 | 20 个 Java 文件，单模块分包（`controller / service / mapper / entity / dto / vo`），非 DDD 四层 | `backend/whale-apps/whale-erp/src/main/java/com/bluewhale/erp` |
+| 后端代码 | 20 个 Java 文件，单模块分包（`controller / service / mapper / entity / dto / vo`），非 DDD 四层 | `whale-backend/whale-apps/whale-erp/src/main/java/com/bluewhale/erp` |
 | 端点 | 10 个：`/erp/item`、`/erp/supplier` 各 5 个（分页、详情、新增、编辑、删除） | `ErpItemController`、`ErpSupplierController` |
 | 数据表 | 4 张：`erp_item`、`erp_supplier`、`audit_log`、`api_log`；无分录、无期间、无库存 | `db/migration/V1__baseline.sql` |
 | 种子数据 | 物料 `ERP-001/002`、供应商 `SUP-001/002` | 同上 |
-| 前端 | `frontend/platform-apps/whale-erp`（8102、base `/erp`）：物料列表/表单、供应商列表/表单 + 4 个测试 | 目录清单 |
+| 前端 | `whale-frontend/platform-apps/whale-erp`（8102、base `/erp`）：物料列表/表单、供应商列表/表单 + 4 个测试 | 目录清单 |
 | 权限 | `sys:erp:item:*` 203–206、`sys:erp:supplier:*` 235–238 | `migration-5.58-erp.sql`、`migration-5.69-erp-supplier.sql` |
 | 菜单 | 25 物料管理、32 供应商管理 | 同上 |
 | 角色 | `erp_manager` / `erp_member`（平台 + 业务租户复制，5.58/5.65/5.69 已固化） | 迁移脚本 |
@@ -339,7 +339,7 @@ com.bluewhale.erp
 
 ### 8.5 前端
 
-- 复用现有 `frontend/platform-apps/whale-erp`（8102、base `/erp`），按模块新增路由：`/erp/master-data/*`、`/erp/finance/*`、`/erp/scm/*`、`/erp/mfg/*`、`/erp/hr/*`、`/erp/qc/*`、`/erp/bi/*`。
+- 复用现有 `whale-frontend/platform-apps/whale-erp`（8102、base `/erp`），按模块新增路由：`/erp/master-data/*`、`/erp/finance/*`、`/erp/scm/*`、`/erp/mfg/*`、`/erp/hr/*`、`/erp/qc/*`、`/erp/bi/*`。
 - **不新增 qiankun 子应用**，避免 12 个已落地子应用继续膨胀；ERP 前端保持单应用多路由。
 - 单据类页面统一「列表 + 详情 + 动作条（提交/审批/过账/关闭）」模式；金额输入统一精度组件。
 
@@ -365,18 +365,18 @@ com.bluewhale.erp
 > **实施进度（2026-11-04）**：M0/M1 已启用权限 **355–367**（主数据 13 项）与 **375–387**（财务 13 项），
 > 368–374 保留；菜单已启用 **63–66**（ERP 主数据 / 会计凭证 / 应收应付 / 财务报表）；
 > 新增角色 `erp_finance`（25110）与 `erp_masterdata`（25111），
-> 脚本见 `backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-5.78-erp-finance.sql`。
+> 脚本见 `whale-backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-5.78-erp-finance.sql`。
 >
 > **实施进度（M3 第一阶段，2026-11-04）**：生产计划原 `470–499 / 85–90` 段因供应链实际仅用到 440、菜单用到 83，
 > 顺延启用 **441–455**（预测 441–444、MPS 445–448、生产订单 449–455）与菜单 **84–86**
 > （需求预测 / 主生产计划 / 生产订单）；新增角色 **`erp_mfg`（25113）**，命名沿用 `erp_scm` 风格，未采用设计稿的 `erp_planner`；
-> 脚本见 `backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-5.78-erp-mfg.sql`。
+> 脚本见 `whale-backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-5.78-erp-mfg.sql`。
 >
 > **实施进度（M6，2026-11-04）**：数据分析原 `550–569 / 101–105` 段因 HR 实际用至 474、QC 用至 494、菜单用至 93，
 > 顺延启用权限 **495–506**（驾驶舱 495–496、多维 497、报表 498–502、预警 503–506）与菜单 **94–97**
 > （经营驾驶舱 / 多维分析 / 报表中心 / 预警中心），507–514 保留；
 > 新增角色 **`erp_bi`（25116）**；`erp_finance` 得 495/497/498/500/501，`erp_member` 得 495/497/498/500/503；
-> 脚本见 `backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-5.78-erp-m6.sql`。
+> 脚本见 `whale-backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-5.78-erp-m6.sql`。
 
 ---
 

@@ -2,7 +2,7 @@
 
 - 状态：已批准并实施（2026-11-04）
 - 上级计划：[2026-11-04-wave5.82-oa-panorama.md](../../plans/2026-11-04-wave5.82-oa-panorama.md)（M0-4）
-- 目标模块：`backend/whale-services/whale-workflow`
+- 目标模块：`whale-backend/whale-services/whale-workflow`
 - 关联上下文：OA 审批底座（M0-3 已完成）
 
 ## 1. 背景与问题
@@ -52,7 +52,7 @@ M0-4 验收只要求“催办频控”。`process_urge` 记录 `instance_id / ta
 
 ## 3. 数据库变更
 
-新增 Flyway：`backend/whale-services/whale-workflow/src/main/resources/db/migration/V3__cc_delegate_urge.sql`
+新增 Flyway：`whale-backend/whale-services/whale-workflow/src/main/resources/db/migration/V3__cc_delegate_urge.sql`
 （全部 `CREATE TABLE IF NOT EXISTS` + `information_schema` 守卫 ALTER，保证幂等，不写 DROP/TRUNCATE/DELETE）
 
 ### 3.1 `process_instance` 增列
@@ -101,7 +101,7 @@ M0-4 验收只要求“催办频控”。`process_urge` 记录 `instance_id / ta
 
 ## 4. 代码变更清单
 
-> 路径均相对 `backend/whale-services/whale-workflow/src/main/java/com/bluewhale/workflow/`。
+> 路径均相对 `whale-backend/whale-services/whale-workflow/src/main/java/com/bluewhale/workflow/`。
 
 ### 4.1 模型与状态机
 

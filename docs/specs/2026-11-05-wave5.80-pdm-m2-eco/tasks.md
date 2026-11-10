@@ -40,7 +40,7 @@
 - [x] **T4.1 计划 §八状态更新**（M2-3 完成、M2-9/M2-10 部分完成）。
 - [x] **T4.2 检查报告 `docs/reviews/2026-11-05-wave5.80-pdm-m2-eco.md`**。
 - [x] **T4.3 devlog / service-catalog / requirements register 同步**。
-- [x] **T4.4 后端测试全绿**：`mvn -pl backend/whale-apps/whale-pdm test`。
+- [x] **T4.4 后端测试全绿**：`mvn -pl whale-backend/whale-apps/whale-pdm test`。
 - [x] **T4.5 提交并推送**：仅本次 PDM、权限脚本与文档。
 
 ---

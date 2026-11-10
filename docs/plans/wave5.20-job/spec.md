@@ -105,7 +105,7 @@
 
 ## 5. 验证方案
 
-1. `mvn -pl backend/whale-services/whale-job test`（禁用沙箱，`JAVA_HOME`→JDK21，`-Dmaven.repo.local=D:\repository\maven`）——预期新增用例全绿，checkstyle error 级通过。
+1. `mvn -pl whale-backend/whale-services/whale-job test`（禁用沙箱，`JAVA_HOME`→JDK21，`-Dmaven.repo.local=D:\repository\maven`）——预期新增用例全绿，checkstyle error 级通过。
 2. `mvn clean install -T 1C`（全量反应堆）——预期 28 模块 SUCCESS。
 3. 启动冒烟：`bluewhale_job` 建库并 source `init.sql`；以 `SPRING_DATA_REDIS_PASSWORD` 等环境变量启动 8082，`ApplicationReadyEvent` 应加载种子任务并注册；调用 `/job/info/page`（经网关 8080）返回 `code=0` 且含 `nextFireTime`；重复实例/并发触发路径日志显示互斥生效（Distributed 锁键存在）。
 4. 文档与提交：devlog/roadmap/task-breakdown/审查报告更新后 `git push origin HEAD`（Gitee）。

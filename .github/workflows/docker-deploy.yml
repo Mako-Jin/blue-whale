@@ -13,8 +13,8 @@ on:
   push:
     branches: [main]
     paths:
-      - 'backend/**'
-      - 'frontend/**'
+      - 'whale-backend/**'
+      - 'whale-frontend/**'
       - 'deploy/**'
       - '.github/workflows/docker-deploy.yml'
     tags:
@@ -142,10 +142,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # image：GHCR 镜像名；app：package.json 的 name（turbo --filter）；dir：frontend/ 下的应用目录
+        # image：GHCR 镜像名；app：package.json 的 name（turbo --filter）；dir：whale-frontend/ 下的应用目录
         # base：vite base 前缀（无 base 配置的应用为 /），必须与构建产物中的资源绝对路径一致
         # namespace：root=沿用 ghcr.io/<repo>/<image>（保持 admin 等既有部署引用）；
-        #            frontend=ghcr.io/<repo>/frontend/<image>，仅用于与同名后端服务冲突的前端应用。
+        #            frontend=ghcr.io/<repo>/whale-frontend/<image>，仅用于与同名后端服务冲突的前端应用。
         # 不冲突的前端保留原名，避免无谓的部署引用变更；冲突项由 preflight 校验强制命名空间。
         include:
           - { image: whale-web, app: whale-admin, dir: admin, base: /, namespace: root }
@@ -183,7 +183,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.namespace == 'frontend' && 'frontend/' || '' }}${{ matrix.image }}
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.namespace == 'frontend' && 'whale-frontend/' || '' }}${{ matrix.image }}
           tags: |
             type=ref,event=tag
             type=sha,prefix=sha-

@@ -28,8 +28,8 @@
 
 | 文件 | 变更 |
 |---|---|
-| [ImBotService.java](../../backend/whale-services/whale-im/src/main/java/com/bluewhale/im/service/ImBotService.java) | 构造器新增 `PlatformTransactionManager`；装配 `recoveryReadTemplate`（`PROPAGATION_REQUIRES_NEW` + `ISOLATION_READ_COMMITTED`）；`openDefault` catch 块改为 `recoveryReadTemplate.execute(...)` 包裹 findExisting + ensureMember + ensureBinding |
-| [ImBotServiceTest.java](../../backend/whale-services/whale-im/src/test/java/com/bluewhale/im/service/ImBotServiceTest.java) | 构造注入 txManager mock（`getTransaction` 放行）；既有并发恢复用例补 `ArgumentCaptor<TransactionDefinition>` 断言事务属性；**新增双线程并发首建用例** |
+| [ImBotService.java](../../whale-backend/whale-services/whale-im/src/main/java/com/bluewhale/im/service/ImBotService.java) | 构造器新增 `PlatformTransactionManager`；装配 `recoveryReadTemplate`（`PROPAGATION_REQUIRES_NEW` + `ISOLATION_READ_COMMITTED`）；`openDefault` catch 块改为 `recoveryReadTemplate.execute(...)` 包裹 findExisting + ensureMember + ensureBinding |
+| [ImBotServiceTest.java](../../whale-backend/whale-services/whale-im/src/test/java/com/bluewhale/im/service/ImBotServiceTest.java) | 构造注入 txManager mock（`getTransaction` 放行）；既有并发恢复用例补 `ArgumentCaptor<TransactionDefinition>` 断言事务属性；**新增双线程并发首建用例** |
 
 未选方案及理由：
 
@@ -39,7 +39,7 @@
 
 ## 三、验证
 
-### 单测（`mvn -o -pl backend/whale-services/whale-im -am package`，JAVA_HOME=java21）
+### 单测（`mvn -o -pl whale-backend/whale-services/whale-im -am package`，JAVA_HOME=java21）
 
 - **BUILD SUCCESS**，whale-im **139 用例全绿**，Checkstyle 0 违规；
 - `ImBotServiceTest` 12/12（原 11 + 新增 1）：

@@ -36,7 +36,7 @@
 
 ## D 并行门禁
 
-- [x] 后端全量构建通过：`mvn -o -f backend/pom.xml clean install`（Checkstyle `severity=error` + 单测）
+- [x] 后端全量构建通过：`mvn -o -f whale-backend/pom.xml clean install`（Checkstyle `severity=error` + 单测）
 - [x] 前端构建通过：`pnpm -C frontend --filter whale-form-designer build`
 - [x] 新增/调整单测全绿：ALTER 语句生成、重复发布=ALTER、DROP 护栏、列编辑保留主键
 

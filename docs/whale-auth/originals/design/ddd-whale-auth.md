@@ -6,7 +6,7 @@
 | 状态 | 设计已定稿 / 实现待启动 |
 | 最后更新 | 2026-10-17 |
 | 作者 | BlueWhale |
-| 落点模块 | `backend/whale-services/whale-auth`（端口 8081） |
+| 落点模块 | `whale-backend/whale-services/whale-auth`（端口 8081） |
 
 ---
 

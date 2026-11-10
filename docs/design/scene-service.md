@@ -4,7 +4,7 @@
 > 关联需求：REQ-FUNC-034、REQ-ARCH-016、REQ-SEC-026
 > 关联规划：[Wave 5.77 场景与 CRM 规划](../plans/2026-11-03-wave5.77-scene-and-crm.md) §3.1 / §9.1
 > 关联基线：[service-catalog.md](../service-catalog.md)、[naming-conventions.md](../naming-conventions.md)、[frozen-optional-modules.md](frozen-optional-modules.md)
-> 实现位置：`backend/whale-services/whale-scene`、`frontend/platform-apps/whale-scene`
+> 实现位置：`whale-backend/whale-services/whale-scene`、`whale-frontend/platform-apps/whale-scene`
 
 ---
 
