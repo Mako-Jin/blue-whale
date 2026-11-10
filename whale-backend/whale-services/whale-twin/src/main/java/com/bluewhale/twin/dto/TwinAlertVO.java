@@ -54,4 +54,13 @@ public class TwinAlertVO {
 
     /** 触发时间（ISO-8601） */
     private String createTime;
+
+    /** 是否已确认（人工知悉，与恢复语义独立） */
+    private Boolean acked;
+
+    /** 确认时间（ISO-8601，未确认为空） */
+    private String ackTime;
+
+    /** 确认人用户ID（字符串化，未确认为空） */
+    private String ackBy;
 }

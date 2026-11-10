@@ -1,6 +1,6 @@
 # Wave 6.07：孪生告警规则升级（持续确认 / 回差防抖 / 告警确认）
 
-> 状态：**M0 已落地（2026-11-10）** · 上游：Wave 6.06 已交付（阈值告警 M0 评估帧 / M1 持久化 / M2 前端告警中心）
+> 状态：**M0 + M1 已落地（2026-11-10）** · 上游：Wave 6.06 已交付（阈值告警 M0 评估帧 / M1 持久化 / M2 前端告警中心）
 > 核心动机：当前阈值告警是"瞬时越界即告警"——工业现场传感器毛刺会造成
 > 大量瞬时告警，临界值附近来回抖动会造成告警/恢复反复刷屏。本波引入
 > 持续时长确认（dwell）与回差区间（hysteresis），并提供告警确认（ACK）。
@@ -18,7 +18,7 @@
 | 里程碑 | 内容 | 状态 |
 |---|---|---|
 | M0 | 规则引擎：propertyMap 支持 `confirmSeconds`（持续确认）与 `recoveryDelta`（回差），状态跟踪器 `TwinAlertTracker` | ✅ 2026-11-10 |
-| M1 | 告警确认（ACK）：`twin_alert` 加 ack 字段 + 确认接口 + 未确认过滤 | 待开始 |
+| M1 | 告警确认（ACK）：`twin_alert` 加 ack 字段 + 确认接口 + 未确认过滤 | ✅ 2026-11-10 |
 | M2 | 前端：绑定表单规则编辑（确认时长/回差）+ 告警中心确认操作与规则展示 | 待开始 |
 
 ## 三、M0 设计要点
@@ -81,3 +81,17 @@
   恢复语义与 6.06 一致），帧内容与落库路径不变
 - 测试：跟踪器 10 例 + 评估器规则 3 例 + 运行时 2 例（确认窗口抑制、
   回差带内维持）；whale-twin **96/96 全绿**
+
+## 六、M1 落地清单（2026-11-10）：告警确认（ACK）
+
+- `V3__alert_ack.sql`（Flyway）：`twin_alert` 增加 `ack`（默认 0）/
+  `ack_time` / `ack_by` 与索引 `idx_scene_ack`
+- `TwinAlert` 实体与 `TwinAlertVO` 同步扩展（`acked` / `ackTime` / `ackBy`）
+- `TwinAlertService.ack(sceneId, alertId, userId)`：先按场景+ID 定位行
+  （防跨场景确认），不存在报「告警不存在」、已确认报「该告警已确认」，
+  更新后返回最新视图；确认与恢复语义相互独立（ACK 不改 resolved）
+- `TwinAlertService.list` 增加 `acked` 过滤参数（可空 = 全部）
+- `TwinAlertController`：`POST /twin/scenes/{sceneId}/alerts/{alertId}/ack`
+  （`sys:twin:scene` + `@AuditLog`，确认人取 `UserContext.requireUserId`）
+- 测试：服务新增 4 例（确认成功 / 告警不存在 / 重复确认 / acked 映射与过滤）；
+  whale-twin **100/100 全绿**

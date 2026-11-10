@@ -1,6 +1,7 @@
 package com.bluewhale.twin.service;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.twin.dto.BindingAlertVO;
 import com.bluewhale.twin.dto.TwinAlertVO;
 import com.bluewhale.twin.entity.TwinAlert;
@@ -19,6 +20,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -96,7 +98,7 @@ class TwinAlertServiceTest {
         row.setCreateTime(LocalDateTime.of(2026, 11, 10, 16, 0));
         when(alertMapper.selectList(any())).thenReturn(List.of(row));
 
-        List<TwinAlertVO> result = service.list(SCENE_ID, null, null, null);
+        List<TwinAlertVO> result = service.list(SCENE_ID, null, null, null, null);
 
         assertEquals(1, result.size());
         TwinAlertVO vo = result.get(0);
@@ -114,12 +116,82 @@ class TwinAlertServiceTest {
     void listResolvesFilterPassedThrough() {
         when(alertMapper.selectList(any())).thenReturn(List.of());
 
-        List<TwinAlertVO> unresolved = service.list(SCENE_ID, null, false, 10);
-        List<TwinAlertVO> capped = service.list(SCENE_ID, "critical", null, 500);
+        List<TwinAlertVO> unresolved = service.list(SCENE_ID, null, false, null, 10);
+        List<TwinAlertVO> capped = service.list(SCENE_ID, "critical", null, null, 500);
 
         assertNotNull(unresolved);
         assertNotNull(capped);
         // 服务在 mapper 层做 LIMIT 截断（200 上限由 service 收口），这里仅验证不抛错
+    }
+
+    @Test
+    void listMapsAckedState() {
+        TwinAlert row = new TwinAlert();
+        row.setId(9L);
+        row.setBindingId(1L);
+        row.setStateKey("color");
+        row.setLevel("critical");
+        row.setResolved(0);
+        row.setAck(1);
+        row.setAckTime(LocalDateTime.of(2026, 11, 10, 17, 0));
+        row.setAckBy(3L);
+        row.setCreateTime(LocalDateTime.of(2026, 11, 10, 16, 0));
+        when(alertMapper.selectList(any())).thenReturn(List.of(row));
+
+        var result = service.list(SCENE_ID, null, null, true, 10);
+
+        assertEquals(1, result.size());
+        assertEquals(Boolean.TRUE, result.get(0).getAcked());
+        assertTrue(result.get(0).getAckTime().startsWith("2026-11-10T17:00"));
+        assertEquals("3", result.get(0).getAckBy());
+    }
+
+    @Test
+    void ackMarksRowAndReturnsVo() {
+        TwinAlert row = new TwinAlert();
+        row.setId(9L);
+        row.setBindingId(1L);
+        row.setStateKey("color");
+        row.setLevel("warn");
+        row.setResolved(0);
+        row.setAck(0);
+        when(alertMapper.selectOne(any())).thenReturn(row);
+        when(alertMapper.update(any(), any())).thenReturn(1);
+
+        TwinAlertVO vo = service.ack(SCENE_ID, 9L, 3L);
+
+        assertEquals(Boolean.TRUE, vo.getAcked());
+        assertEquals("3", vo.getAckBy());
+        assertNotNull(vo.getAckTime());
+        verify(alertMapper).update(any(), any());
+    }
+
+    @Test
+    void ackRejectsUnknownAlert() {
+        when(alertMapper.selectOne(any())).thenReturn(null);
+
+        BizException exception = assertThrows(BizException.class,
+                () -> service.ack(SCENE_ID, 404L, 3L));
+
+        assertEquals("告警不存在", exception.getMessage());
+        verify(alertMapper, never()).update(any(), any());
+    }
+
+    @Test
+    void ackRejectsDuplicateConfirmation() {
+        TwinAlert row = new TwinAlert();
+        row.setId(9L);
+        row.setBindingId(1L);
+        row.setStateKey("color");
+        row.setLevel("warn");
+        row.setAck(1);
+        when(alertMapper.selectOne(any())).thenReturn(row);
+
+        BizException exception = assertThrows(BizException.class,
+                () -> service.ack(SCENE_ID, 9L, 3L));
+
+        assertEquals("该告警已确认", exception.getMessage());
+        verify(alertMapper, never()).update(any(), any());
     }
 
     @Test

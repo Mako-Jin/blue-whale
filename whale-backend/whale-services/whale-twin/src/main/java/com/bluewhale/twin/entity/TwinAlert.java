@@ -58,4 +58,13 @@ public class TwinAlert extends BaseEntity {
 
     /** 恢复时间（恢复到 normal 时回填） */
     private LocalDateTime resolveTime;
+
+    /** 是否已确认：0 未确认 / 1 已确认（人工知悉，与恢复语义独立） */
+    private Integer ack;
+
+    /** 确认时间 */
+    private LocalDateTime ackTime;
+
+    /** 确认人用户ID */
+    private Long ackBy;
 }

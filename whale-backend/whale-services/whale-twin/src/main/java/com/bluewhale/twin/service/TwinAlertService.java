@@ -2,6 +2,7 @@ package com.bluewhale.twin.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.twin.dto.BindingAlertVO;
 import com.bluewhale.twin.dto.TwinAlertVO;
 import com.bluewhale.twin.entity.TwinAlert;
@@ -83,10 +84,12 @@ public class TwinAlertService {
      * @param sceneId  场景ID
      * @param level    级别过滤（可空 = 全部）
      * @param resolved 恢复状态过滤（可空 = 全部）
+     * @param acked    确认状态过滤（可空 = 全部）
      * @param limit    返回条数上限（空则默认 50，最大 200）
      * @return 告警视图列表
      */
-    public List<TwinAlertVO> list(Long sceneId, String level, Boolean resolved, Integer limit) {
+    public List<TwinAlertVO> list(Long sceneId, String level, Boolean resolved,
+                                  Boolean acked, Integer limit) {
         int capped = limit == null ? 50 : Math.min(200, Math.max(1, limit));
         LambdaQueryWrapper<TwinAlert> query = new LambdaQueryWrapper<TwinAlert>()
                 .eq(TwinAlert::getSceneId, sceneId)
@@ -99,12 +102,46 @@ public class TwinAlertService {
         if (resolved != null) {
             query.eq(TwinAlert::getResolved, resolved ? 1 : 0);
         }
+        if (acked != null) {
+            query.eq(TwinAlert::getAck, acked ? 1 : 0);
+        }
         List<TwinAlert> rows = alertMapper.selectList(query);
         List<TwinAlertVO> result = new ArrayList<>(rows.size());
         for (TwinAlert row : rows) {
             result.add(toVo(row));
         }
         return result;
+    }
+
+    /**
+     * 确认告警（人工知悉；重复确认与告警不存在均报业务异常）。
+     *
+     * @param sceneId 场景ID（防跨场景确认）
+     * @param alertId 告警ID
+     * @param userId  确认人用户ID
+     * @return 更新后的告警视图
+     */
+    public TwinAlertVO ack(Long sceneId, Long alertId, Long userId) {
+        TwinAlert row = alertMapper.selectOne(new LambdaQueryWrapper<TwinAlert>()
+                .eq(TwinAlert::getSceneId, sceneId)
+                .eq(TwinAlert::getId, alertId)
+                .last("LIMIT 1"));
+        if (row == null) {
+            throw new BizException("告警不存在");
+        }
+        if (row.getAck() != null && row.getAck() == 1) {
+            throw new BizException("该告警已确认");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        alertMapper.update(null, new LambdaUpdateWrapper<TwinAlert>()
+                .eq(TwinAlert::getId, alertId)
+                .set(TwinAlert::getAck, 1)
+                .set(TwinAlert::getAckTime, now)
+                .set(TwinAlert::getAckBy, userId));
+        row.setAck(1);
+        row.setAckTime(now);
+        row.setAckBy(userId);
+        return toVo(row);
     }
 
     /**
@@ -212,6 +249,9 @@ public class TwinAlertService {
                 .resolved(row.getResolved() != null && row.getResolved() == 1)
                 .resolveTime(row.getResolveTime() == null ? null : TIME_FORMAT.format(row.getResolveTime()))
                 .createTime(row.getCreateTime() == null ? null : TIME_FORMAT.format(row.getCreateTime()))
+                .acked(row.getAck() != null && row.getAck() == 1)
+                .ackTime(row.getAckTime() == null ? null : TIME_FORMAT.format(row.getAckTime()))
+                .ackBy(row.getAckBy() == null ? null : String.valueOf(row.getAckBy()))
                 .build();
     }
 }
