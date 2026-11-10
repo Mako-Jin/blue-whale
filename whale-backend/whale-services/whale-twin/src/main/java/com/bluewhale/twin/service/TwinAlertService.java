@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.twin.dto.BindingAlertVO;
+import com.bluewhale.twin.dto.SceneAlertCountVO;
+import com.bluewhale.twin.dto.SceneVO;
 import com.bluewhale.twin.dto.TwinAlertSummaryVO;
 import com.bluewhale.twin.dto.TwinAlertVO;
 import com.bluewhale.twin.entity.TwinAlert;
@@ -21,6 +23,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -246,6 +249,100 @@ public class TwinAlertService {
         }
         Long count = alertMapper.selectCount(query);
         return count == null ? 0L : count;
+    }
+
+    /**
+     * 按场景统计未恢复告警（Wave 6.09）：一次 IN 查询取回后本地分组。
+     *
+     * <p>只取 {@code scene_id / level / ack} 三列，走 {@code idx_scene_resolved}；
+     * 未恢复行规模受「绑定 × 状态键」限制（同键至多一条），不存在全表扫描压力。
+     * 用一次性查询替代逐场景 COUNT，避免场景列表页 N+1。</p>
+     *
+     * @param sceneIds 场景ID集合（空集合直接返回空映射，不查库）
+     * @return 场景ID → 未恢复/严重/未确认计数（无告警的场景不在映射内）
+     */
+    public Map<Long, SceneAlertCountVO> countUnresolvedByScenes(Collection<Long> sceneIds) {
+        if (sceneIds == null || sceneIds.isEmpty()) {
+            return Map.of();
+        }
+        List<TwinAlert> rows = alertMapper.selectList(new LambdaQueryWrapper<TwinAlert>()
+                .select(TwinAlert::getSceneId, TwinAlert::getLevel, TwinAlert::getAck)
+                .eq(TwinAlert::getResolved, 0)
+                .in(TwinAlert::getSceneId, sceneIds));
+        Map<Long, long[]> accumulator = new HashMap<>();
+        for (TwinAlert row : rows) {
+            if (row.getSceneId() == null) {
+                continue;
+            }
+            // [0]=未恢复总数 [1]=其中严重 [2]=其中未确认
+            long[] counts = accumulator.computeIfAbsent(row.getSceneId(), key -> new long[3]);
+            counts[0]++;
+            if (LEVEL_CRITICAL.equals(row.getLevel())) {
+                counts[1]++;
+            }
+            if (row.getAck() == null || row.getAck() == 0) {
+                counts[2]++;
+            }
+        }
+        Map<Long, SceneAlertCountVO> result = new HashMap<>(accumulator.size());
+        accumulator.forEach((sceneId, counts) -> result.put(sceneId, SceneAlertCountVO.builder()
+                .unresolved(counts[0])
+                .critical(counts[1])
+                .unacked(counts[2])
+                .build()));
+        return result;
+    }
+
+    /**
+     * 为场景分页结果装配告警角标（Wave 6.09）。
+     *
+     * <p>无告警的场景显式写 0（前端据此区分「没有告警」与「未统计」）；
+     * 统计失败只记 WARN 并保持字段为空——场景列表不能因告警统计抖动而不可用。</p>
+     *
+     * @param scenes 场景视图列表（原地写入三个角标字段）
+     */
+    public void fillAlertCounts(List<SceneVO> scenes) {
+        if (scenes == null || scenes.isEmpty()) {
+            return;
+        }
+        List<Long> sceneIds = new ArrayList<>(scenes.size());
+        for (SceneVO scene : scenes) {
+            Long id = parseId(scene.getId());
+            if (id != null) {
+                sceneIds.add(id);
+            }
+        }
+        Map<Long, SceneAlertCountVO> counts;
+        try {
+            counts = countUnresolvedByScenes(sceneIds);
+        } catch (RuntimeException error) {
+            log.warn("场景列表告警角标统计失败，本次不显示角标：{}", error.toString());
+            return;
+        }
+        for (SceneVO scene : scenes) {
+            Long id = parseId(scene.getId());
+            SceneAlertCountVO count = id == null ? null : counts.get(id);
+            scene.setUnresolvedAlerts(count == null ? 0L : count.getUnresolved());
+            scene.setCriticalAlerts(count == null ? 0L : count.getCritical());
+            scene.setUnackedAlerts(count == null ? 0L : count.getUnacked());
+        }
+    }
+
+    /**
+     * 解析字符串化ID（非法或缺省返回 {@code null}）。
+     *
+     * @param raw 字符串化ID
+     * @return 数值ID或 {@code null}
+     */
+    private Long parseId(String raw) {
+        if (!StringUtils.hasText(raw)) {
+            return null;
+        }
+        try {
+            return Long.valueOf(raw);
+        } catch (NumberFormatException error) {
+            return null;
+        }
     }
 
     /**

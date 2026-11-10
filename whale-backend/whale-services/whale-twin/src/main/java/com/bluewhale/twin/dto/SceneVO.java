@@ -43,6 +43,15 @@ public class SceneVO {
     /** 实体数（管理列表展示用） */
     private Long entityCount;
 
+    /** 未恢复告警数（Wave 6.09：仅分页列表装配，详情接口不填） */
+    private Long unresolvedAlerts;
+
+    /** 未恢复中严重（critical）数量（分页列表装配用） */
+    private Long criticalAlerts;
+
+    /** 未恢复且未确认数量（分页列表装配用） */
+    private Long unackedAlerts;
+
     /** 创建人（字符串化，可空） */
     private String createdBy;
 

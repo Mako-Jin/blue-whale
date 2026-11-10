@@ -16,6 +16,10 @@ export interface SceneVO {
   version: number;
   status: 'draft' | 'published' | 'disabled';
   entityCount: number;
+  /** 未恢复告警数 / 其中严重 / 其中未确认（仅列表接口装配，详情为空） */
+  unresolvedAlerts?: number | null;
+  criticalAlerts?: number | null;
+  unackedAlerts?: number | null;
   createdBy?: string | null;
   createTime?: string | null;
   updateTime?: string | null;

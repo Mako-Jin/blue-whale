@@ -95,6 +95,8 @@ export default function ScenePage({ onOpenViewer }: Props) {
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [overviewLevel, setOverviewLevel] = useState<'all' | 'critical' | 'warn'>('all');
   const [overviewUnackedOnly, setOverviewUnackedOnly] = useState(false);
+  /** 抽屉的场景限定（从某一行角标点进来时只看该场景） */
+  const [overviewScene, setOverviewScene] = useState<{ id: string; name: string } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -118,6 +120,25 @@ export default function ScenePage({ onOpenViewer }: Props) {
   }, [load]);
 
   /**
+   * 静默重取当前页（不置 loading，轮询用）：失败保留上次数据。
+   *
+   * <p>行级告警角标随分页返回，告警恢复后角标需要跟着退，所以低频安静重取一次。</p>
+   */
+  const refreshQuiet = useCallback(async () => {
+    try {
+      const page = await sceneApi.page({
+        keyword: query.keyword || undefined,
+        current: query.current,
+        size: query.size,
+      });
+      setRows(page.records ?? []);
+      setTotal(page.total ?? 0);
+    } catch {
+      // 静默：角标刷新失败不影响当前列表
+    }
+  }, [query]);
+
+  /**
    * 拉取平台级告警统计（角标数字）。
    *
    * @param silent 静默模式（轮询用；失败不改角标、不弹错误，避免后台刷屏）
@@ -136,11 +157,16 @@ export default function ScenePage({ onOpenViewer }: Props) {
   );
 
   // 角标：进页拉一次 + 低频轮询（告警由无头通道落库，不依赖是否有人开着查看器）
+  // 行级角标随分页返回，轮询时静默重取一次列表，避免告警已恢复但角标还在
   useEffect(() => {
     void loadSummary();
-    const timer = window.setInterval(() => void loadSummary(), SUMMARY_POLL_MS);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      void loadSummary();
+      void refreshQuiet();
+    }, SUMMARY_POLL_MS);
     return () => window.clearInterval(timer);
-  }, [loadSummary]);
+  }, [loadSummary, refreshQuiet]);
 
   /** 拉取跨场景未恢复列表（抽屉打开/刷新/确认后调用） */
   const loadOverview = useCallback(async () => {
@@ -154,7 +180,13 @@ export default function ScenePage({ onOpenViewer }: Props) {
     }
   }, [message]);
 
-  const openOverview = () => {
+  /**
+   * 打开全局告警抽屉。
+   *
+   * @param scene 传入场景则只看该场景（行级角标点入），不传为全平台
+   */
+  const openOverview = (scene?: { id: string; name: string }) => {
+    setOverviewScene(scene ?? null);
     setOverviewOpen(true);
     void loadOverview();
     void loadSummary();
@@ -171,21 +203,36 @@ export default function ScenePage({ onOpenViewer }: Props) {
       message.success('告警已确认');
       void loadOverview();
       void loadSummary();
+      void refreshQuiet();
     } catch (error) {
       message.error(`确认失败：${String(error)}`);
     }
   };
 
-  /** 抽屉内本地过滤（级别 + 未确认），不额外打接口 */
+  /** 抽屉内本地过滤（场景 + 级别 + 未确认），不额外打接口 */
   const overviewView = useMemo(
     () =>
       overviewRows.filter(
         (item) =>
+          (!overviewScene || item.sceneId === overviewScene.id) &&
           (overviewLevel === 'all' || item.level === overviewLevel) &&
           (!overviewUnackedOnly || !item.acked),
       ),
-    [overviewRows, overviewLevel, overviewUnackedOnly],
+    [overviewRows, overviewScene, overviewLevel, overviewUnackedOnly],
   );
+
+  /** 场景限定下有多少条告警没进本次加载（只在超出 200 条上限时非 0） */
+  const overviewSceneMissing = useMemo(() => {
+    if (!overviewScene) {
+      return 0;
+    }
+    const row = rows.find((item) => item.id === overviewScene.id);
+    if (!row) {
+      return 0;
+    }
+    const loaded = overviewRows.filter((item) => item.sceneId === overviewScene.id).length;
+    return Math.max((row.unresolvedAlerts ?? 0) - loaded, 0);
+  }, [overviewScene, rows, overviewRows]);
 
   const openCreate = () => {
     setEditing(null);
@@ -316,6 +363,32 @@ export default function ScenePage({ onOpenViewer }: Props) {
     },
     { title: '版本', dataIndex: 'version', width: 70 },
     { title: '实体数', dataIndex: 'entityCount', width: 80 },
+    {
+      // 行级告警角标（6.09）：随分页一次带回，点开抽屉只看本场景
+      title: '告警',
+      key: 'alerts',
+      width: 110,
+      render: (_, scene) => {
+        const unresolved = scene.unresolvedAlerts ?? 0;
+        if (unresolved === 0) {
+          return <span className="twin-live-off">—</span>;
+        }
+        const critical = scene.criticalAlerts ?? 0;
+        const unacked = scene.unackedAlerts ?? 0;
+        return (
+          <Tooltip title={`未恢复 ${unresolved}｜严重 ${critical}｜未确认 ${unacked}（点击查看）`}>
+            <Tag
+              color={critical > 0 ? 'red' : 'orange'}
+              style={{ cursor: 'pointer', marginInlineEnd: 0 }}
+              onClick={() => openOverview({ id: scene.id, name: scene.name })}
+            >
+              {unresolved}
+              {critical > 0 ? ` · 严重 ${critical}` : ''}
+            </Tag>
+          </Tooltip>
+        );
+      },
+    },
     { title: '更新时间', dataIndex: 'updateTime', width: 180 },
     {
       title: '操作',
@@ -371,7 +444,7 @@ export default function ScenePage({ onOpenViewer }: Props) {
             offset={[2, -2]}
             color={summary && summary.critical > 0 ? 'red' : 'orange'}
           >
-            <Button danger={!!summary && summary.critical > 0} onClick={openOverview}>
+            <Button danger={!!summary && summary.critical > 0} onClick={() => openOverview()}>
               全局告警
             </Button>
           </Badge>
@@ -562,6 +635,13 @@ export default function ScenePage({ onOpenViewer }: Props) {
           <span style={{ color: '#fa8c16' }}>预警 {summary?.warn ?? 0}</span>
           <span>未确认 {summary?.unacked ?? 0}</span>
         </Space>
+        {overviewScene && (
+          <div style={{ marginBottom: 8 }}>
+            <Tag color="geekblue" closable onClose={() => setOverviewScene(null)}>
+              仅看：{overviewScene.name}
+            </Tag>
+          </div>
+        )}
         <Space style={{ marginBottom: 12 }} wrap>
           <Radio.Group
             size="small"
@@ -652,6 +732,11 @@ export default function ScenePage({ onOpenViewer }: Props) {
         {overviewRows.length >= OVERVIEW_LIMIT && (
           <p style={{ color: '#faad14', marginTop: 12, marginBottom: 0 }}>
             仅展示最近 {OVERVIEW_LIMIT} 条未恢复告警，剩余请进对应场景查看。
+          </p>
+        )}
+        {overviewSceneMissing > 0 && (
+          <p style={{ color: '#faad14', marginTop: 12, marginBottom: 0 }}>
+            该场景还有 {overviewSceneMissing} 条未恢复告警不在本次加载范围内，请在查看器告警中心查看。
           </p>
         )}
       </Drawer>

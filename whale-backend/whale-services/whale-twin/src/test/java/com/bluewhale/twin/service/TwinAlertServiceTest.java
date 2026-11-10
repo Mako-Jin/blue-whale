@@ -3,6 +3,7 @@ package com.bluewhale.twin.service;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.twin.dto.BindingAlertVO;
+import com.bluewhale.twin.dto.SceneVO;
 import com.bluewhale.twin.dto.TwinAlertVO;
 import com.bluewhale.twin.entity.TwinAlert;
 import com.bluewhale.twin.entity.TwinScene;
@@ -285,6 +286,57 @@ class TwinAlertServiceTest {
         assertEquals(0L, summary.getUnacked());
     }
 
+    @Test
+    void countUnresolvedByScenesGroupsPerSceneAndLevel() {
+        when(alertMapper.selectList(any())).thenReturn(List.of(
+                alertRow(100L, "critical", 0),
+                alertRow(100L, "warn", 1),
+                alertRow(200L, "warn", 0)));
+
+        var counts = service.countUnresolvedByScenes(List.of(100L, 200L));
+
+        assertEquals(2L, counts.get(100L).getUnresolved());
+        assertEquals(1L, counts.get(100L).getCritical());
+        assertEquals(1L, counts.get(100L).getUnacked());
+        assertEquals(1L, counts.get(200L).getUnresolved());
+        assertEquals(0L, counts.get(200L).getCritical());
+        assertEquals(1L, counts.get(200L).getUnacked());
+    }
+
+    @Test
+    void countUnresolvedByScenesSkipsQueryWhenNoScene() {
+        assertTrue(service.countUnresolvedByScenes(List.of()).isEmpty());
+
+        verify(alertMapper, never()).selectList(any());
+    }
+
+    @Test
+    void fillAlertCountsWritesZerosForSceneWithoutAlert() {
+        when(alertMapper.selectList(any())).thenReturn(List.of(alertRow(100L, "critical", 0)));
+        SceneVO withAlert = SceneVO.builder().id("100").name("A").build();
+        SceneVO withoutAlert = SceneVO.builder().id("200").name("B").build();
+
+        service.fillAlertCounts(List.of(withAlert, withoutAlert));
+
+        assertEquals(1L, withAlert.getUnresolvedAlerts());
+        assertEquals(1L, withAlert.getCriticalAlerts());
+        assertEquals(1L, withAlert.getUnackedAlerts());
+        assertEquals(0L, withoutAlert.getUnresolvedAlerts());
+        assertEquals(0L, withoutAlert.getCriticalAlerts());
+        assertEquals(0L, withoutAlert.getUnackedAlerts());
+    }
+
+    @Test
+    void fillAlertCountsKeepsFieldsEmptyWhenQueryFails() {
+        when(alertMapper.selectList(any())).thenThrow(new IllegalStateException("boom"));
+        SceneVO scene = SceneVO.builder().id("100").build();
+
+        service.fillAlertCounts(List.of(scene));
+
+        assertNull(scene.getUnresolvedAlerts());
+        assertNull(scene.getCriticalAlerts());
+    }
+
     /**
      * 构造告警条目。
      *
@@ -303,5 +355,22 @@ class TwinAlertServiceTest {
                 .thresholds(List.of(new BigDecimal("50"), new BigDecimal("80")))
                 .ts("2026-11-10T16:00:00")
                 .build();
+    }
+
+    /**
+     * 构造未恢复告警行（仅角标统计所需字段）。
+     *
+     * @param sceneId 场景ID
+     * @param level   级别
+     * @param ack     确认标记（0 未确认 / 1 已确认）
+     * @return 告警实体
+     */
+    private static TwinAlert alertRow(Long sceneId, String level, Integer ack) {
+        TwinAlert row = new TwinAlert();
+        row.setSceneId(sceneId);
+        row.setLevel(level);
+        row.setAck(ack);
+        row.setResolved(0);
+        return row;
     }
 }

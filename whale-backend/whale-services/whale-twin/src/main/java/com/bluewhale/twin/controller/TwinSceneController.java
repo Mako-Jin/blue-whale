@@ -9,6 +9,7 @@ import com.bluewhale.common.web.UserContext;
 import com.bluewhale.twin.dto.PublishRequest;
 import com.bluewhale.twin.dto.SceneSaveRequest;
 import com.bluewhale.twin.dto.SceneVO;
+import com.bluewhale.twin.service.TwinAlertService;
 import com.bluewhale.twin.service.TwinSceneService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -35,6 +36,9 @@ public class TwinSceneController {
 
     private final TwinSceneService sceneService;
 
+    /** 告警服务：仅用于分页列表角标装配（Wave 6.09） */
+    private final TwinAlertService alertService;
+
     /**
      * 创建场景（草稿态）。
      *
@@ -53,6 +57,9 @@ public class TwinSceneController {
     /**
      * 场景分页。
      *
+     * <p>每行随带未恢复告警角标（{@code unresolvedAlerts/criticalAlerts/unackedAlerts}），
+     * 一次分组查询装配，不进详情接口——列表页据此直接显示告警，不必先开全局抽屉。</p>
+     *
      * @param keyword 名称/编码模糊过滤（可空）
      * @param status  状态过滤（可空：draft/published/disabled）
      * @param current 当前页
@@ -66,7 +73,9 @@ public class TwinSceneController {
             @RequestParam(value = "status", required = false) String status,
             @RequestParam(value = "current", defaultValue = "1") long current,
             @RequestParam(value = "size", defaultValue = "20") long size) {
-        return Result.ok(sceneService.page(keyword, status, current, size));
+        PageResult<SceneVO> page = sceneService.page(keyword, status, current, size);
+        alertService.fillAlertCounts(page.getRecords());
+        return Result.ok(page);
     }
 
     /**
