@@ -1,6 +1,6 @@
 # Wave 6.03：数字孪生平台（whale-twin）
 
-> 状态：**实施中（M0 已落地）** · 起草：2026-11-10
+> 状态：**实施中（M0 + M1 已落地）** · 起草：2026-11-10
 > 总规划：[wave6-iot-twin-ai-assistant-plan.md](wave6-iot-twin-ai-assistant-plan.md) §三
 > 上游依赖：Wave 6.02 IoT M2 已交付（`GET /iot/internal/device/state` 内网实时态只读接口）
 
@@ -16,7 +16,7 @@
 | 里程碑 | 内容 | 验收 | 状态 |
 |---|---|---|---|
 | M0 | 后端模块骨架 + V1 DDL 5 表 + whale-common-three 首个消费方渲染态验收 | 空场景 WebGL 跑通，评审文档遗留项闭环 | ✅ 2026-11-10 |
-| M1 | 场景/实体/模型资产 CRUD + 前端 3D 场景查看器（加载 GLB、场景树、相机控制） | 上传一个 GLB 摆进场景并可保存/回显 | 待开始 |
+| M1 | 场景/实体/模型资产 CRUD + 前端 3D 场景查看器（加载 GLB、场景树、相机控制） | 上传一个 GLB 摆进场景并可保存/回显 | ✅ 2026-11-10（GLB 经 whale-file file_id 引用） |
 | M2 | 数据绑定 + SSE 实时驱动（绑 iot 设备属性 → 3D 实体状态变色/数值标注） | 模拟设备遥测变化，3D 实体实时联动 | 待开始 |
 | M3 | 标注/热点 + 发布快照/回滚 + admin/基座菜单接入 | 一个可演示的"厂区设备孪生" Demo 场景 | 待开始 |
 
@@ -39,11 +39,24 @@
 
 **登记**：网关 `/twin/**` → `lb://whale-twin`；service-catalog 登记 35 号服务、路由、8089/8122 端口
 
-## 四、M1 设计要点（预告）
+## 四、M1 落地清单（2026-11-10）
 
-- 后端：`TwinSceneService`（状态机对齐 iot_product：draft→published⇄disabled）、`TwinEntityService`（场景树 CRUD + 环检测：parent 链路不得成环）、模型资产走 whale-file 上传（GLB/GLTF 白名单 + 大小上限），VO 下发 file 预览 URL
-- 前端 8122：`@bluewhale/whale-common-three` 渲染 + OrbitControls（按需补进 three 包或子应用自引 three/addons）+ 场景树面板 + 实体变换编辑（gizmo 留 M3）
-- 权限：`sys:twin:scene`（2313）入 `migration-6.03-twin.sql`，基座菜单「数字孪生」
+**后端**（`whale-services/whale-twin`）：
+
+- `TwinSceneService`：创建（draft/version=1）/更新（已发布禁改、version 自增）/发布/停用/删除（要求无实体）/分页（带 entityCount）/详情；编码租户内唯一
+- `TwinEntityService`：场景树节点 CRUD；`assertParentInScene` 沿父链上溯做**环检测**（不能挂到自身/子孙下），父节点跨场景拒绝；删除要求无子节点；`tree()` 按 sortOrder 升序递归装配，孤儿节点（父缺失）兜底为根
+- 控制器：`/twin/scenes/**` + `/twin/scenes/{sceneId}/entities/**`，统一 `@RequirePermission("sys:twin:scene")` + 审计注解
+- 权限迁移：`migration-6.03-twin.sql`（sys:twin:scene 2313 + tenant_admin 授权；不写 sys_menu，入口走基座静态菜单）
+- 单测 17/17（架构 4 + 场景 6 + 实体 7），Checkstyle 0
+
+**前端**（`platform-apps/whale-twin`，8122，base `/twin`）：
+
+- **场景管理页**：场景 CRUD + 状态机操作 + 「查看」进入查看器
+- **3D 查看器页**：`WhaleSceneManager`（M0 验收过的渲染核心）+ OrbitControls（three/addons）；实体树面板（antd Tree）；有 `modelFileId` 的实体从 `/file/{id}/preview` fetch 为 Blob → objectURL → `loadGltf`（GLTFLoader 不能带请求头），加载失败降级为暗红占位体；无模型实体为蓝色占位立方体；`transformJson` 约定 `{position,rotation,scale}`（弧度欧拉角）；相机按场景包围盒自动取景
+- 基座接入：`apps.ts`（8122 + `/twin` activeRule）、`menu.ts`「数字孪生」（sys:twin:scene）、vite `/twin` 代理；子应用独立运行时 `/twin` `/file` 双代理
+- 构建通过（tsc + vite）；产物 ~1.7MB（three.js 打入主 chunk，gzip 507KB，M3 按需 manualChunks 拆分）
+
+**M1 边界**：GLB 上传本身走 whale-file（前端直传后把 file_id 填给实体），孪生服务不自建对象存储；实体变换的可视化 gizmo 编辑、标注/热点、发布快照留 M2/M3。
 
 ## 五、风险与边界
 

@@ -93,6 +93,8 @@ export const menuConfig: MenuNode[] = [
   { key: '/assistant', label: 'AI 助手', permission: 'sys:assistant:chat' },
   // IoT 设备联网（whale-iot 子应用，Wave 6.02；产品/设备/遥测/规则四页由子应用内部导航承载）
   { key: '/iot', label: 'IoT 设备', permission: 'sys:iot:device' },
+  // 数字孪生（whale-twin 子应用，Wave 6.03；场景管理/3D 查看器由子应用内部导航承载）
+  { key: '/twin', label: '数字孪生', permission: 'sys:twin:scene' },
 ];
 
 /**

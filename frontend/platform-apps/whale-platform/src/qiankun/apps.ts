@@ -37,6 +37,7 @@ const DEV_PORTS = {
   'whale-mall': 8119,
   'whale-assistant': 8120,
   'whale-iot': 8121,
+  'whale-twin': 8122,
 } as const;
 
 type SubAppName = keyof typeof DEV_PORTS;
@@ -204,6 +205,13 @@ export const apps: WhaleMicroApp[] = [
     name: 'whale-iot',
     entry: subAppEntry('whale-iot', import.meta.env.VITE_SUBAPP_ENTRY_IOT),
     activeRule: '/iot',
+    container: '#subapp-container',
+    props: platformProps(),
+  },
+  {
+    name: 'whale-twin',
+    entry: subAppEntry('whale-twin', import.meta.env.VITE_SUBAPP_ENTRY_TWIN),
+    activeRule: '/twin',
     container: '#subapp-container',
     props: platformProps(),
   },
