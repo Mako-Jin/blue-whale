@@ -319,6 +319,9 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
   const [markerDrawerOpen, setMarkerDrawerOpen] = useState(false);
   const [editingMarker, setEditingMarker] = useState<MarkerVO | null>(null);
   const [markerForm] = Form.useForm<MarkerFormValues>();
+  // 坐标拾取模式（6.05 M1）：点击模型表面 → Raycaster 世界坐标回填 positionJson
+  const [picking, setPicking] = useState(false);
+  const pickingRef = useRef(false);
 
   // AI 解读（6.04 M1 → 6.05 M0 流式）：服务端组装上下文，SSE 逐帧渲染
   const [insightOpen, setInsightOpen] = useState(false);
@@ -363,25 +366,67 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
     // 标注根节点（独立于实体 root：实体重建 root.clear() 不影响标注）
     const markersRoot = new Group();
     manager.getScene().add(markersRoot);
-    // 热点点击：Raycaster 命中 Sprite 且带 linkUrl 时新窗口打开
+    // 热点点击：Raycaster 命中 Sprite 且带 linkUrl 时新窗口打开；
+    // 拾取模式：点击模型表面把世界坐标回填到标注表单（并自动带出挂靠实体）
     const raycaster = new Raycaster();
     const pointer = new Vector2();
     const domElement = manager.getRenderer().domElement;
+    // 拖拽（旋转相机）后浏览器仍会派发 click：位移超阈值即视为拖拽，不触发拾取/跳转
+    let downX = 0;
+    let downY = 0;
+    const handlePointerDown = (event: PointerEvent) => {
+      downX = event.clientX;
+      downY = event.clientY;
+    };
     const handleClick = (event: MouseEvent) => {
-      if (markersRoot.children.length === 0) return;
+      if (Math.hypot(event.clientX - downX, event.clientY - downY) > 4) return;
       const rect = domElement.getBoundingClientRect();
       pointer.set(
         ((event.clientX - rect.left) / rect.width) * 2 - 1,
         -((event.clientY - rect.top) / rect.height) * 2 + 1,
       );
       raycaster.setFromCamera(pointer, manager.getCamera());
+      if (pickingRef.current) {
+        const entityRoot = rootGroupRef.current;
+        if (!entityRoot) return;
+        const entityHits = raycaster.intersectObjects(entityRoot.children, true);
+        if (entityHits.length === 0) {
+          message.info('未命中模型表面，请点击实体网格（Esc 退出拾取）');
+          return;
+        }
+        const hit = entityHits[0];
+        let node: Object3D | null = hit.object;
+        let entityId: string | null = null;
+        while (node && !entityId) {
+          const raw = (node.userData as Record<string, unknown>).__entityId;
+          if (raw) entityId = String(raw);
+          node = node.parent;
+        }
+        const point = hit.point;
+        const json = `{"x":${point.x.toFixed(3)},"y":${point.y.toFixed(3)},"z":${point.z.toFixed(3)}}`;
+        markerForm.setFieldsValue({
+          positionJson: json,
+          ...(entityId ? { entityId } : {}),
+        });
+        setPicking(false);
+        message.success(`已拾取坐标 ${json}${entityId ? '，挂靠实体已带出' : ''}`);
+        return;
+      }
+      if (markersRoot.children.length === 0) return;
       const hits = raycaster.intersectObjects(markersRoot.children, false);
       const link = hits[0]?.object.userData?.__linkUrl;
       if (typeof link === 'string' && link) {
         window.open(link, '_blank', 'noopener');
       }
     };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && pickingRef.current) {
+        setPicking(false);
+      }
+    };
     domElement.addEventListener('click', handleClick);
+    domElement.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('keydown', handleKeyDown);
     manager.onFrame(() => controls.update());
     manager.start();
     managerRef.current = manager;
@@ -390,6 +435,8 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
     markersRootRef.current = markersRoot;
     return () => {
       domElement.removeEventListener('click', handleClick);
+      domElement.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('keydown', handleKeyDown);
       disposeMarkerSprites(markersRootRef.current);
       manager.dispose();
       managerRef.current = null;
@@ -397,7 +444,17 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
       rootGroupRef.current = null;
       markersRootRef.current = null;
     };
-  }, []);
+  }, [markerForm, message]);
+
+  // 拾取模式：同步 ref（点击回调早于 state 生效）+ 十字光标
+  useEffect(() => {
+    pickingRef.current = picking;
+    const dom = managerRef.current?.getRenderer().domElement;
+    if (dom) dom.style.cursor = picking ? 'crosshair' : '';
+    if (picking) {
+      message.info('拾取模式：点击模型表面获取坐标，Esc 退出');
+    }
+  }, [picking, message]);
 
   /** 按绑定映射与实时态给实体上自发光色 */
   const applyLiveColor = useCallback((state: BindingStateVO, propertyMap: string | null | undefined) => {
@@ -460,6 +517,7 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
         for (const entity of flat) {
           const holder = new Group();
           holder.name = `${entity.entityCode}:${entity.name}`;
+          holder.userData.__entityId = entity.id;
           holdersRef.current.set(entity.id, holder);
           if (entity.modelFileId) {
             try {
@@ -745,6 +803,7 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
   // 8) 标注抽屉（M3）
   const openMarkerCreate = () => {
     setEditingMarker(null);
+    setPicking(false);
     markerForm.resetFields();
     markerForm.setFieldsValue({
       markerType: 'label',
@@ -1130,7 +1189,10 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
         title="标注 / 热点"
         width={520}
         open={markerDrawerOpen}
-        onClose={() => setMarkerDrawerOpen(false)}
+        onClose={() => {
+          setMarkerDrawerOpen(false);
+          setPicking(false);
+        }}
         extra={
           <Space>
             <Button onClick={() => setMarkerDrawerOpen(false)}>关闭</Button>
@@ -1193,6 +1255,12 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
             extra='{"x":0,"y":2,"z":0}（也支持 [x,y,z]；填了才会在 3D 场景渲染）'
           >
             <Input.TextArea rows={2} placeholder='{"x":0,"y":2,"z":0}' />
+            <Space size="small" style={{ marginTop: 6 }}>
+              <Button size="small" type={picking ? 'primary' : 'default'} onClick={() => setPicking((v) => !v)}>
+                {picking ? '退出拾取' : '拾取坐标（点击模型表面）'}
+              </Button>
+              {picking && <Tag color="processing">拾取中，Esc 取消</Tag>}
+            </Space>
           </Form.Item>
           <Form.Item name="linkUrl" label="跳转地址" extra="热点点击时新窗口打开（可空）">
             <Input placeholder="https://… 或 /iot/devices" />
