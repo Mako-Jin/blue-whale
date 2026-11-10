@@ -96,7 +96,7 @@ docker build -f deploy/frontend/Dockerfile \
 ### 2.4 前端构建
 
 ```powershell
-cd frontend
+cd whale-frontend
 pnpm --filter whale-music lint
 pnpm --filter whale-music build
 ```

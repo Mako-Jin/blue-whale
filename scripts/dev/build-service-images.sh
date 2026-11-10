@@ -3,7 +3,7 @@
 # 构建后端服务的运行时镜像（吃已 package 好的 jar，不做 Maven 构建）
 #
 # 用法：
-#   scripts/dev/build-service-images.sh                 # 全部 32 个服务
+#   scripts/dev/build-service-images.sh                 # 全部 33 个服务
 #   scripts/dev/build-service-images.sh crm oa job      # 只构建指定服务
 #   scripts/dev/build-service-images.sh --list          # 列出服务名与 jar 目录
 #
@@ -57,6 +57,7 @@ SERVICE_JAR_DIRS=(
   "mail:whale-backend/whale-services/whale-mail"
   "map:whale-backend/whale-services/whale-map"
   "scene:whale-backend/whale-services/whale-scene"
+  "twin:whale-backend/whale-services/whale-twin"
 )
 
 jar_dir_of() {

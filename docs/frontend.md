@@ -16,7 +16,7 @@
 ## 常用命令
 
 ```bash
-cd frontend
+cd whale-frontend
 pnpm install
 pnpm run dev        # turbo 并行启动全部应用
 pnpm run build      # 全量构建

@@ -1,6 +1,6 @@
 # 后端服务容器化运行（本机开发）
 
-把后端 32 个 Spring Boot 服务统一交由 compose 管理。MySQL 与 Nacos 仍跑宿主机，
+把后端 33 个 Spring Boot 服务统一交由 compose 管理。MySQL 与 Nacos 仍跑宿主机，
 Redis / RabbitMQ / EMQX 由 `infrastructure/docker/docker-compose.yml` 提供。
 
 ## 拓扑
@@ -61,22 +61,22 @@ Nacos 起不来/换容器版 `bw-nacos` 的代价：容器版默认开认证（`
 而服务侧不带凭据 → 会以同样方式 403 死循环，需额外关认证且存储换成本地 derby，
 与既有 `tools/nacos` 数据分叉，**不推荐**。
 
-## 服务分组：为什么 10 个服务默认不启动
+## 服务分组：为什么 11 个服务默认不启动
 
 Docker VM 上限 **8GB**（`~/.wslconfig`），20 个核心服务已占约 **7.2G**，余量不足 1G。
-10 个扩展服务合计需 5~6G，**物理上无法与核心服务同时常驻**——硬塞进默认集会把引擎拖死
+11 个扩展服务合计需 5~6G，**物理上无法与核心服务同时常驻**——硬塞进默认集会把引擎拖死
 （历史事故：MemAvailable < 1G 时 `docker ps` 全部 500，只能重启 Docker Desktop）。
 
-因此这 10 个服务全部纳入本编排文件统一管理，但按域分组、默认关闭：
+因此这 11 个服务全部纳入本编排文件统一管理，但按域分组、默认关闭：
 
 | profile | 服务（端口） | mem_limit 上限 | 实测常驻 | 起法 |
 |---|---|---|---|---|
 | （默认） | 核心 20 个 | 15.0G | ~6.4G | `up -d` |
 | `ops` | alert(9103) / monitor(9102) | 1.2G | ~0.6G | `--profile ops up -d` |
 | `collab` | im(8091) / mail(8099) / assistant(8087) | 2.2G | ~1.0G | `--profile collab up -d` |
-| `aiot` | agent(8090) / iot(8088) / scene(8097) | 2.0G | ~0.9G | `--profile aiot up -d` |
+| `aiot` | agent(8090) / iot(8088) / scene(8097) / twin(8089) | 2.6G | ~1.1G（twin 未实测） | `--profile aiot up -d` |
 | `biz` | pm(9005) / map(8100) | 1.3G | ~0.6G | `--profile biz up -d` |
-| `ext` | 以上 10 个全部 | 6.7G | ~3.0G | `--profile ext up -d`（需先停 6 个以上核心） |
+| `ext` | 以上 11 个全部 | 6.7G | ~3.0G | `--profile ext up -d`（需先停 6 个以上核心） |
 
 「实测常驻」按 `docker stats` 稳态读数：900 上限的服务 340~390MB（38~43%），480 上限的约 200MB。
 `mem_limit` 加总远超 VM 8G 是正常的——它是硬上限，不是预留。
@@ -124,7 +124,7 @@ scripts/dev/profile-swap.sh --restore       # 把上次停掉的核心服务拉�
 
 ## 重建镜像
 
-镜像吃的是已构建好的 jar，不做 Maven 构建。用脚本一次搞定（覆盖 32 个服务）：
+镜像吃的是已构建好的 jar，不做 Maven 构建。用脚本一次搞定（覆盖 33 个服务）：
 
 ```bash
 # 1. 打包（新增/改动的模块）
@@ -187,7 +187,7 @@ docker inspect bw-<svc> --format 'Restart={{.RestartCount}} OOM={{.State.OOMKill
 ## 相关文件
 
 - `deploy/backend/Dockerfile.runtime` — 运行时镜像模板（`ARG JRE_IMAGE` 可换源）
-- `deploy/backend/docker-compose.services.yml` — 32 服务编排（4 个扩展 profile + demo）
+- `deploy/backend/docker-compose.services.yml` — 33 服务编排（5 个扩展 profile + demo）
 - `deploy/backend/docker-compose.verify.yml` — 多副本验证编排（只放第二副本）
 - `scripts/dev/build-service-images.sh` — jar → 镜像构建脚本
 - `scripts/dev/profile-swap.sh` — 扩展 profile 换位（停核心服务腾内存 → 起扩展组 → 可回滚）

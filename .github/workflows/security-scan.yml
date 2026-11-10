@@ -160,10 +160,12 @@ jobs:
 
       # V-07：Maven 依赖传递漏洞。首批不阻断（存量基线未知），周期留档；
       # 配置 NVD_API_KEY 可显著加速 NVD 数据同步（未配置时仍可运行但较慢）。
+      # 根聚合 POM 已移除（2026-11-10，ec20f819），必须 -f whale-backend/pom.xml，
+      # 否则在根目录无 POM 直接失败（continue-on-error 会把它伪装成「通过」）。
       - name: OWASP dependency-check
         continue-on-error: true
         run: >
-          mvn -B -DskipTests
+          mvn -B -DskipTests -f whale-backend/pom.xml
           org.owasp:dependency-check-maven:check
           -Daggregate=true
           -DfailBuildOnCVSS=11

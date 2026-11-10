@@ -63,7 +63,7 @@ docker build -f deploy/backend/whale-doc/Dockerfile -t bluewhale/whale-doc .
 ### 2.4 前端构建
 
 ```powershell
-cd frontend
+cd whale-frontend
 pnpm --filter whale-doc lint
 pnpm --filter whale-doc build
 ```

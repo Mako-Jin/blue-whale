@@ -53,8 +53,9 @@ jobs:
 
       # checkstyle:check 已绑定到 validate 阶段（whale-parent），不解析模块依赖，
       # 因此在未构建过模块的干净仓库上也能直接执行；报告输出到各模块 target/checkstyle-result.xml
+      # 根聚合 POM 已移除（2026-11-10，ec20f819），必须 -f whale-backend/pom.xml。
       - name: Checkstyle Gate
-        run: ./mvnw -B -ntp validate
+        run: ./mvnw -B -ntp -f whale-backend/pom.xml validate
 
       - name: Upload Checkstyle Reports
         if: always()

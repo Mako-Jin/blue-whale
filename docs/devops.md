@@ -19,11 +19,11 @@ docker compose ps           # 健康检查
 ### 2. 后端服务
 
 ```bash
-cd backend && ./mvnw -o -DskipTests -T 1C install
+./mvnw -o -DskipTests -T 1C -f whale-backend/pom.xml install
 # 方式一：脚本拉起
-pwsh ../scripts/dev/whale-start-all.ps1
+pwsh scripts/dev/whale-start-all.ps1
 # 方式二：单服务
-./mvnw -pl whale-services/whale-gateway spring-boot:run
+./mvnw -o -f whale-backend/pom.xml -pl whale-services/whale-gateway spring-boot:run
 ```
 
 服务启动顺序建议：Nacos → gateway → service-auth → 其余按需；全部服务需 `WHALE_INTERNAL_TOKEN`（内网令牌，见 [backend.md](backend.md) 配置基线）。
@@ -31,7 +31,7 @@ pwsh ../scripts/dev/whale-start-all.ps1
 ### 3. 前端
 
 ```bash
-cd frontend && pnpm install && pnpm run dev
+cd whale-frontend && pnpm install && pnpm run dev
 ```
 
 ## 生产环境

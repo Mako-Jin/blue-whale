@@ -39,8 +39,10 @@ jobs:
 
       # coverage-gate profile：行 ≥ 40% / 分支 ≥ 30%（whale-parent），
       # verify 同时完成单测、覆盖率报告与打包，未达阈值直接失败（REQ-CICD-001）。
+      # 根聚合 POM 已于 2026-11-10 移除（ec20f819），构建入口统一为 whale-backend/pom.xml，
+      # 故必须显式 -f；直接在根跑 ./mvnw 会报「no POM in this directory」。
       - name: Maven Verify + Coverage Gate
-        run: ./mvnw -B -ntp -Pcoverage-gate verify
+        run: ./mvnw -B -ntp -f whale-backend/pom.xml -Pcoverage-gate verify
 
       - name: Upload JaCoCo Reports
         if: always()

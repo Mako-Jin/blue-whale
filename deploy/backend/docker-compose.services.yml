@@ -8,14 +8,14 @@
 #   - Nacos    → 宿主机原生实例   （0.0.0.0:8848，经 host.docker.internal 访问）
 #
 # 镜像需先用 deploy/backend/Dockerfile.runtime 构建（context 只放一个 app.jar）。
-# 推荐用脚本一次构建 32 个服务（内含 VM 余量校验）：
+# 推荐用脚本一次构建 33 个服务（内含 VM 余量校验）：
 #   scripts/dev/build-service-images.sh              # 全部
 #   scripts/dev/build-service-images.sh crm pm mail  # 指定服务
 #
 # 启动：docker compose -f deploy/backend/docker-compose.services.yml --env-file .env up -d
 #   默认 20 个核心服务（music / party 属 demo profile，需 --profile demo 显式起）。
-#   另有 10 个扩展服务按域分组挂在 ops / collab / aiot / biz / ext 下，默认关闭：
-#   8G 的 Docker VM 装不下 32 个 Spring 进程，一次只起一组，预算见 README。
+#   另有 11 个扩展服务按域分组挂在 ops / collab / aiot / biz / ext 下，默认关闭：
+#   8G 的 Docker VM 装不下 33 个 Spring 进程，一次只起一组，预算见 README。
 #
 # 内存：Docker VM 上限 8GB（~/.wslconfig）。20 个核心服务约占 7.2G，余量不足 1G，
 #   因此 build 前先看 MemAvailable，低于 1G 要先停非必需容器（否则 buildkit 会把引擎拖死）。
@@ -1003,6 +1003,35 @@ services:
       - "127.0.0.1:8097:8097"
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8097/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 90s
+
+  # ---------------- 数字孪生（Wave 6.03+，aiot 组） ----------------
+  # 依赖 whale-iot 内网实时态（绑定轮询）、whale-assistant 开放 API（AI 解读）、
+  # whale-message 内网发送（告警站内信）。三者均按容器名直连，不写跨 profile depends_on。
+  twin:
+    <<: *common
+    image: bluewhale/whale-twin:dev
+    container_name: bw-twin
+    profiles: ["aiot", "ext"]
+    mem_limit: 700m
+    environment:
+      JAVA_OPTS: "-Xms128m -Xmx448m -XX:MaxMetaspaceSize:256m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "8089"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      WHALE_TWIN_IOT_BASE_URL: "http://bw-iot:8088"
+      WHALE_TWIN_ASSISTANT_BASE_URL: "http://bw-assistant:8087"
+      WHALE_TWIN_NOTIFY_MESSAGE_BASE_URL: "http://bw-message:8094"
+    ports:
+      - "127.0.0.1:8089:8089"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8089/actuator/health || exit 1"]
       interval: 20s
       timeout: 8s
       retries: 12

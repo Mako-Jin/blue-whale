@@ -161,4 +161,9 @@ CREATE DATABASE IF NOT EXISTS bluewhale_pm
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_unicode_ci;
 
+-- ---- 数字孪生（whale-twin，Wave 6.03：表由服务启动时 Flyway 建立，V1 基线 5 张） ----
+CREATE DATABASE IF NOT EXISTS bluewhale_twin
+  DEFAULT CHARACTER SET utf8mb4
+  DEFAULT COLLATE utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;

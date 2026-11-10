@@ -23,9 +23,9 @@
 ## 构建与测试
 
 ```bash
-cd backend
-./mvnw -o -DskipTests -T 1C install     # 全量构建（离线，先装快照）
-./mvnw -o -pl whale-services/whale-gateway test   # 定向测试
+# 构建入口为 whale-backend/pom.xml（根聚合 POM 已于 2026-11-10 移除，提交 ec20f819）
+./mvnw -o -DskipTests -T 1C -f whale-backend/pom.xml install     # 全量构建（离线，先装快照）
+./mvnw -o -f whale-backend/pom.xml -pl whale-services/whale-gateway test   # 定向测试
 ```
 
 - JDK 21；`-pl` 定向测试前必须先 `install` 刷新本地仓库快照，否则报 `NoSuchMethod`（陈旧快照问题，见 devlog 2026-10-30）。

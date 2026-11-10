@@ -104,7 +104,7 @@ docker build -f deploy/frontend/Dockerfile `
 ### 2.4 前端构建
 
 ```powershell
-cd frontend
+cd whale-frontend
 pnpm --filter whale-video lint
 pnpm --filter whale-video build
 ```
