@@ -3,27 +3,40 @@
 // 发布需填发布说明（可空），发布时后端把场景整包冻结进 twin_snapshot；
 // 快照抽屉支持查看历史版本与回滚（场景须为草稿/停用态）。
 // 实体编辑在 3D 查看器页完成（树形面板），本页只管场景元数据与生命周期。
+//
+// Wave 6.08 M2：工具栏挂「全局告警」角标（/twin/alerts/summary，30s 轮询），
+// 抽屉拉跨场景未恢复列表（/twin/alerts/unresolved），条目带场景名可直接跳查看器，
+// 也支持就地确认——不必先点进某个场景才知道平台在报警。
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   App,
+  Badge,
   Button,
+  Checkbox,
   Drawer,
   Form,
   Input,
+  List,
   Modal,
   Popconfirm,
+  Radio,
   Space,
   Table,
   Tag,
+  Tooltip,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
+  alertApi,
+  alertOverviewApi,
   sceneApi,
   snapshotApi,
   type SceneSaveRequest,
   type SceneVO,
   type SnapshotVO,
+  type TwinAlertSummaryVO,
+  type TwinAlertVO,
 } from '../api/twin';
 
 /** 状态 → 标签（颜色对齐 IoT 产品页口径） */
@@ -32,6 +45,19 @@ const STATUS_TAG: Record<SceneVO['status'], { label: string; color: string }> = 
   published: { label: '已发布', color: 'success' },
   disabled: { label: '已停用', color: 'warning' },
 };
+
+/** 告警级别 → 展示文案与配色（与查看器告警中心同口径：橙预警 / 红严重） */
+const ALERT_LEVEL_META: Record<string, { color: string; label: string }> = {
+  critical: { color: 'red', label: '严重' },
+  warn: { color: 'orange', label: '预警' },
+  normal: { color: 'green', label: '恢复' },
+};
+
+/** 总览列表一次拉取上限（与后端钳制值一致，超出时抽屉给「仅展示最近 N 条」提示） */
+const OVERVIEW_LIMIT = 200;
+
+/** 角标统计轮询间隔（无订阅时告警靠无头通道落库，前端只需低频对齐） */
+const SUMMARY_POLL_MS = 30_000;
 
 interface Props {
   onOpenViewer: (sceneId: string) => void;
@@ -62,6 +88,14 @@ export default function ScenePage({ onOpenViewer }: Props) {
   const [snapshots, setSnapshots] = useState<SnapshotVO[]>([]);
   const [snapshotDetail, setSnapshotDetail] = useState<SnapshotVO | null>(null);
 
+  // ---- 6.08 M2：全局告警角标 + 跨场景总览抽屉 ----
+  const [summary, setSummary] = useState<TwinAlertSummaryVO | null>(null);
+  const [overviewOpen, setOverviewOpen] = useState(false);
+  const [overviewRows, setOverviewRows] = useState<TwinAlertVO[]>([]);
+  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [overviewLevel, setOverviewLevel] = useState<'all' | 'critical' | 'warn'>('all');
+  const [overviewUnackedOnly, setOverviewUnackedOnly] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -82,6 +116,76 @@ export default function ScenePage({ onOpenViewer }: Props) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  /**
+   * 拉取平台级告警统计（角标数字）。
+   *
+   * @param silent 静默模式（轮询用；失败不改角标、不弹错误，避免后台刷屏）
+   */
+  const loadSummary = useCallback(
+    async (silent = true) => {
+      try {
+        setSummary(await alertOverviewApi.summary());
+      } catch (error) {
+        if (!silent) {
+          message.error(`加载告警统计失败：${String(error)}`);
+        }
+      }
+    },
+    [message],
+  );
+
+  // 角标：进页拉一次 + 低频轮询（告警由无头通道落库，不依赖是否有人开着查看器）
+  useEffect(() => {
+    void loadSummary();
+    const timer = window.setInterval(() => void loadSummary(), SUMMARY_POLL_MS);
+    return () => window.clearInterval(timer);
+  }, [loadSummary]);
+
+  /** 拉取跨场景未恢复列表（抽屉打开/刷新/确认后调用） */
+  const loadOverview = useCallback(async () => {
+    setOverviewLoading(true);
+    try {
+      setOverviewRows(await alertOverviewApi.unresolved(OVERVIEW_LIMIT));
+    } catch (error) {
+      message.error(`加载全局告警失败：${String(error)}`);
+    } finally {
+      setOverviewLoading(false);
+    }
+  }, [message]);
+
+  const openOverview = () => {
+    setOverviewOpen(true);
+    void loadOverview();
+    void loadSummary();
+  };
+
+  /** 总览内就地确认：走场景维度确认接口（条目必带 sceneId） */
+  const ackInOverview = async (item: TwinAlertVO) => {
+    if (!item.sceneId) {
+      message.warning('该告警缺少场景信息，请进入对应场景后确认');
+      return;
+    }
+    try {
+      await alertApi.ack(item.sceneId, item.id);
+      message.success('告警已确认');
+      void loadOverview();
+      void loadSummary();
+    } catch (error) {
+      message.error(`确认失败：${String(error)}`);
+    }
+  };
+
+  /** 抽屉内本地过滤（级别 + 未确认），不额外打接口 */
+  const overviewView = useMemo(
+    () =>
+      overviewRows.filter(
+        (item) =>
+          (overviewLevel === 'all' || item.level === overviewLevel) &&
+          (!overviewUnackedOnly || !item.acked),
+      ),
+    [overviewRows, overviewLevel, overviewUnackedOnly],
+  );
 
   const openCreate = () => {
     setEditing(null);
@@ -253,6 +357,30 @@ export default function ScenePage({ onOpenViewer }: Props) {
         <Button type="primary" onClick={openCreate}>
           新建场景
         </Button>
+        {/* 全局告警角标（6.08 M2）：数字来自平台级统计，点开跨场景总览 */}
+        <Tooltip
+          title={
+            summary
+              ? `未恢复 ${summary.unresolved}｜严重 ${summary.critical}｜预警 ${summary.warn}｜未确认 ${summary.unacked}`
+              : '告警统计加载中'
+          }
+        >
+          <Badge
+            count={summary?.unresolved ?? 0}
+            size="small"
+            offset={[2, -2]}
+            color={summary && summary.critical > 0 ? 'red' : 'orange'}
+          >
+            <Button danger={!!summary && summary.critical > 0} onClick={openOverview}>
+              全局告警
+            </Button>
+          </Badge>
+        </Tooltip>
+        {summary && summary.unresolved > 0 && (
+          <span className="twin-live-off">
+            严重 {summary.critical} · 预警 {summary.warn} · 未确认 {summary.unacked}
+          </span>
+        )}
       </Space>
       <Table<SceneVO>
         rowKey="id"
@@ -403,6 +531,130 @@ export default function ScenePage({ onOpenViewer }: Props) {
             : ''}
         </pre>
       </Modal>
+      {/* 全局告警总览抽屉（6.08 M2）：跨场景未恢复列表，可就地确认或跳查看器 */}
+      <Drawer
+        title={
+          <Space>
+            <span>全局告警（未恢复）</span>
+            {summary && <Tag color={summary.critical > 0 ? 'red' : 'orange'}>{summary.unresolved}</Tag>}
+          </Space>
+        }
+        width={560}
+        open={overviewOpen}
+        onClose={() => setOverviewOpen(false)}
+        extra={
+          <Button
+            loading={overviewLoading}
+            onClick={() => {
+              void loadOverview();
+              void loadSummary(false);
+            }}
+          >
+            刷新
+          </Button>
+        }
+      >
+        <Space size={16} style={{ marginBottom: 12 }} wrap>
+          <span>
+            未恢复 <strong>{summary?.unresolved ?? 0}</strong>
+          </span>
+          <span style={{ color: '#e74c3c' }}>严重 {summary?.critical ?? 0}</span>
+          <span style={{ color: '#fa8c16' }}>预警 {summary?.warn ?? 0}</span>
+          <span>未确认 {summary?.unacked ?? 0}</span>
+        </Space>
+        <Space style={{ marginBottom: 12 }} wrap>
+          <Radio.Group
+            size="small"
+            value={overviewLevel}
+            optionType="button"
+            buttonStyle="solid"
+            options={[
+              { label: '全部', value: 'all' },
+              { label: '严重', value: 'critical' },
+              { label: '预警', value: 'warn' },
+            ]}
+            onChange={(event) => setOverviewLevel(event.target.value as 'all' | 'critical' | 'warn')}
+          />
+          <Checkbox
+            checked={overviewUnackedOnly}
+            onChange={(event) => setOverviewUnackedOnly(event.target.checked)}
+          >
+            仅未确认
+          </Checkbox>
+        </Space>
+        <List
+          size="small"
+          loading={overviewLoading}
+          dataSource={overviewView}
+          locale={{ emptyText: '暂无未恢复告警' }}
+          renderItem={(item) => {
+            const meta = ALERT_LEVEL_META[item.level] ?? ALERT_LEVEL_META.normal;
+            return (
+              <List.Item
+                actions={[
+                  ...(item.acked
+                    ? []
+                    : [
+                        <Button
+                          key="ack"
+                          size="small"
+                          type="link"
+                          onClick={() => void ackInOverview(item)}
+                        >
+                          确认
+                        </Button>,
+                      ]),
+                  ...(item.sceneId
+                    ? [
+                        <Button
+                          key="open"
+                          size="small"
+                          type="link"
+                          onClick={() => {
+                            const target = item.sceneId;
+                            if (target) {
+                              setOverviewOpen(false);
+                              onOpenViewer(target);
+                            }
+                          }}
+                        >
+                          查看
+                        </Button>,
+                      ]
+                    : []),
+                ]}
+              >
+                <div style={{ width: '100%' }}>
+                  <Space wrap size={4}>
+                    <Tag color={meta.color}>{meta.label}</Tag>
+                    {item.acked && <Tag color="blue">已确认</Tag>}
+                    <Tag color="geekblue">{item.sceneName ?? item.sceneCode ?? '未知场景'}</Tag>
+                    <span style={{ fontWeight: 600 }}>
+                      {item.entityCode ?? item.entityId ?? '-'}
+                    </span>
+                    <span>.{item.stateKey}</span>
+                    <span>= {item.value ?? '-'}</span>
+                    {item.thresholds?.length ? (
+                      <span className="twin-live-off">阈值 [{item.thresholds.join(', ')}]</span>
+                    ) : null}
+                  </Space>
+                  <div className="twin-live-off">
+                    {item.createTime ?? '-'}
+                    {item.acked
+                      ? ` · 确认于 ${item.ackTime ?? '-'}${item.ackBy ? `（用户 ${item.ackBy}）` : ''}`
+                      : ' · 待确认'}
+                  </div>
+                </div>
+              </List.Item>
+            );
+          }}
+        />
+        {overviewRows.length >= OVERVIEW_LIMIT && (
+          <p style={{ color: '#faad14', marginTop: 12, marginBottom: 0 }}>
+            仅展示最近 {OVERVIEW_LIMIT} 条未恢复告警，剩余请进对应场景查看。
+          </p>
+        )}
+      </Drawer>
     </div>
   );
 }

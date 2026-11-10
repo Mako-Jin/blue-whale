@@ -206,6 +206,10 @@ export interface BindingAlertVO {
 /** 告警视图（对齐后端 TwinAlertVO：历史查询/未恢复列表） */
 export interface TwinAlertVO {
   id: string;
+  /** 场景ID与场景编码/名称：跨场景总览才有值（场景维度接口留空） */
+  sceneId?: string | null;
+  sceneCode?: string | null;
+  sceneName?: string | null;
   entityId?: string | null;
   entityCode?: string | null;
   bindingId: string;
@@ -229,6 +233,27 @@ export const alertApi = {
     http.get<TwinAlertVO[]>(`/twin/scenes/${sceneId}/alerts/unresolved`),
   ack: (sceneId: string, alertId: string) =>
     http.post<TwinAlertVO>(`/twin/scenes/${sceneId}/alerts/${alertId}/ack`),
+};
+
+/** 平台级告警统计（对齐后端 TwinAlertSummaryVO；口径均为未恢复） */
+export interface TwinAlertSummaryVO {
+  unresolved: number;
+  critical: number;
+  warn: number;
+  unacked: number;
+}
+
+/**
+ * 跨场景告警总览（Wave 6.08 M1 接口）：不依赖「先选场景」。
+ *
+ * <p>条目自带 sceneId/sceneName，可直接跳转对应场景查看器；
+ * 确认操作仍走场景维度接口（{@link alertApi.ack}）。</p>
+ */
+export const alertOverviewApi = {
+  /** 跨场景未恢复列表（默认 100，上限 200） */
+  unresolved: (limit?: number) =>
+    http.get<TwinAlertVO[]>('/twin/alerts/unresolved', { limit }),
+  summary: () => http.get<TwinAlertSummaryVO>('/twin/alerts/summary'),
 };
 
 /**
