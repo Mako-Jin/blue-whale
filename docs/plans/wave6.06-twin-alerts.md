@@ -1,6 +1,6 @@
 # Wave 6.06：孪生阈值告警联动（后端评估 / SSE 告警帧 / 前端告警中心）
 
-> 状态：**M0 已落地（2026-11-10）** · 上游：Wave 6.05 已交付（流式解读 / 可视化拾取 / internal_api 源）
+> 状态：**M0 + M1 已落地（2026-11-10）** · 上游：Wave 6.05 已交付（流式解读 / 可视化拾取 / internal_api 源）
 > 核心动机：`propertyMap.thresholds` 目前只驱动前端变色，后端对阈值越界零感知——
 > 本波让 IoT→孪生→告警形成数据闭环，用户不盯着 3D 场景也能收到越界通知。
 
@@ -17,7 +17,7 @@
 | 里程碑 | 内容 | 状态 |
 |---|---|---|
 | M0 | 后端阈值评估器 + SSE 告警帧（EVENT_ALERT）：级别变化才推（升级与恢复） | ✅ 2026-11-10 |
-| M1 | 告警持久化：`twin_alert` 表（Flyway）+ 触发落库 + 场景告警查询/未恢复列表接口 | 待开始 |
+| M1 | 告警持久化：`twin_alert` 表（Flyway）+ 触发落库 + 场景告警查询/未恢复列表接口 | ✅ 2026-11-10 |
 | M2 | 前端告警中心：查看器告警角标 + 告警抽屉（实时帧消费 + 历史接口） | 待开始 |
 
 ## 二点五、M0 落地清单（2026-11-10）
@@ -43,6 +43,29 @@ Checkstyle 0 违规（私有构造补 Javadoc 一处后通过）。
 **M0 边界**：不落库（M1）；告警只在 refreshScene（有活跃订阅者）时评估，
 无人订阅的场景不累积告警——持久化后 M1 需要考虑"无订阅者也不丢告警"的
 口径（落库与订阅解耦）。
+
+## 五、M1 落地清单（2026-11-10）：告警持久化与查询
+
+**whale-twin 后端**：
+
+- `V2__alert.sql`（Flyway）：`twin_alert` 表——场景/实体/绑定/状态键、
+  触发值、前后级别、阈值 JSON、`resolved` + `resolve_time`；
+  索引 `idx_scene_time` / `idx_scene_resolved` / `idx_binding_key`
+- `entity/TwinAlert` + `mapper/TwinAlertMapper` + `dto/TwinAlertVO`
+- `service/TwinAlertService`：落库口径——非 normal 级别插入新行（resolved=0），
+  同绑定同状态键的旧未恢复行先收口（warn→critical 视为替代）；恢复到 normal
+  回填 `resolve_time` 不插恢复行；**同组未恢复行至多一条**；落库失败只记日志
+  不阻塞 SSE 主链路；`list`（级别/恢复状态过滤 + limit 50 默认 / 200 上限，
+  触发时间倒序）与 `listUnresolved`
+- `controller/TwinAlertController`：`GET /twin/scenes/{sceneId}/alerts?level=&resolved=&limit=`
+  与 `GET /twin/scenes/{sceneId}/alerts/unresolved`，`sys:twin:scene` 权限
+- `TwinBindingRuntimeService`：告警帧推送后逐条 `alertService.record`
+  （tenantId 取绑定行）；M0 的"无订阅者不评估"口径维持——告警产生依赖
+  有人看场景，看板类无头消费留 M2 后评估
+
+**验证**：whale-twin 81/81 全绿（告警服务 5 例 + 运行时落库断言新增）；
+Checkstyle/ArchUnit 0 违规。期间 starter 出现一次 `Truncated class file`
+（并行构建互踩 target），clean 后复测通过。
 
 ## 三、M0 设计要点
 
