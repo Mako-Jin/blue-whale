@@ -10,7 +10,7 @@ import lombok.EqualsAndHashCode;
  *
  * <p>把 3D 实体和数据源连起来：{@code iot_device} 源的 {@code bindKey} 是设备ID，
  * 由运行时轮询 whale-iot 内网实时态；{@code internal_api} 源的 {@code bindKey}
- * 是接口路径（M3 起接入轮询）。</p>
+ * 是 {@code /服务名/路径?query} 形态的接口路径，运行时按白名单轮询内部只读 GET。</p>
  *
  * @author BlueWhale
  */

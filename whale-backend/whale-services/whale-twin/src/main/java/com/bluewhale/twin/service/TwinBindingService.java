@@ -2,12 +2,14 @@ package com.bluewhale.twin.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.twin.config.TwinProperties;
 import com.bluewhale.twin.dto.BindingSaveRequest;
 import com.bluewhale.twin.dto.BindingVO;
 import com.bluewhale.twin.entity.TwinBinding;
 import com.bluewhale.twin.entity.TwinEntity;
 import com.bluewhale.twin.mapper.TwinBindingMapper;
 import com.bluewhale.twin.mapper.TwinEntityMapper;
+import com.bluewhale.twin.support.InternalApiStateClient;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -53,6 +55,11 @@ public class TwinBindingService {
     private final TwinBindingMapper bindingMapper;
 
     private final TwinEntityMapper entityMapper;
+
+    /** internal_api 绑定源客户端（白名单口径与运行时共用） */
+    private final InternalApiStateClient internalApiStateClient;
+
+    private final TwinProperties properties;
 
     /**
      * 创建绑定。
@@ -206,7 +213,9 @@ public class TwinBindingService {
     }
 
     /**
-     * 校验绑定键形态（iot_device 须为纯数字设备ID）。
+     * 校验绑定键形态：iot_device 须为纯数字设备ID；internal_api 须为以 / 开头的
+     * 接口路径（无路径穿越），且命中运行时白名单前缀——保存即拦截，避免
+     * 配置出永不生效的绑定。
      *
      * @param sourceType 数据源类型
      * @param bindKey    绑定键
@@ -215,8 +224,13 @@ public class TwinBindingService {
         if (SOURCE_IOT_DEVICE.equals(sourceType) && !bindKey.matches("^\\d{1,19}$")) {
             throw new BizException("iot_device 绑定键须为设备ID（纯数字）");
         }
-        if (SOURCE_INTERNAL_API.equals(sourceType) && !bindKey.startsWith("/")) {
-            throw new BizException("internal_api 绑定键须为以 / 开头的接口路径");
+        if (SOURCE_INTERNAL_API.equals(sourceType)) {
+            if (internalApiStateClient.normalizePath(bindKey) == null) {
+                throw new BizException("internal_api 绑定键须为以 / 开头的接口路径（不含 .. 与绝对 URL）");
+            }
+            if (!internalApiStateClient.isAllowed(bindKey)) {
+                throw new BizException("internal_api 绑定键不在白名单内，仅允许各服务 /internal/ 只读端点");
+            }
         }
     }
 

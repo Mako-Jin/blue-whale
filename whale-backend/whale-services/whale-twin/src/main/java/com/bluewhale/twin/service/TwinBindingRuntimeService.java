@@ -6,6 +6,7 @@ import com.bluewhale.twin.entity.TwinBinding;
 import com.bluewhale.twin.entity.TwinEntity;
 import com.bluewhale.twin.mapper.TwinEntityMapper;
 import com.bluewhale.twin.support.IotStateClient;
+import com.bluewhale.twin.support.InternalApiStateClient;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
@@ -30,11 +31,13 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>调度模型：全局 tick（{@code whale.twin.runtime.tick-ms}），只处理
  * <b>有活跃订阅者</b>的场景；场景内逐绑定判断 {@code pollIntervalMs} 是否到期，
- * 未到期的沿用上次快照。同一 tick 内同一设备只拉一次实时态（多绑定共享）。</p>
+ * 未到期的沿用上次快照。同一 tick 内同一设备只拉一次实时态（多绑定共享），
+ * internal_api 源同理按 bindKey 去重。</p>
  *
  * <p>差分口径：绑定粒度的 {@code online + values} 序列化串与上次不一致才算变化；
- * 首次tick视为全量变化（订阅端需要初始态）。{@code internal_api} 源 M2 只保留
- * 配置，轮询留 M3。</p>
+ * 首次tick视为全量变化（订阅端需要初始态）。源类型支持 {@code iot_device}
+ * （设备影子）与 {@code internal_api}（内部只读接口，propertyMap 键为
+ * data 载荷内的 JSON 点路径）。</p>
  *
  * @author BlueWhale
  */
@@ -57,6 +60,8 @@ public class TwinBindingRuntimeService {
 
     private final IotStateClient iotStateClient;
 
+    private final InternalApiStateClient internalApiStateClient;
+
     private final TwinStreamService streamService;
 
     private final TwinProperties properties;
@@ -73,20 +78,23 @@ public class TwinBindingRuntimeService {
     /**
      * 构造运行时并按配置启动轮询调度。
      *
-     * @param bindingService  绑定服务
-     * @param entityMapper    实体 Mapper
-     * @param iotStateClient  whale-iot 客户端
-     * @param streamService   场景推送服务
-     * @param properties      孪生配置
+     * @param bindingService         绑定服务
+     * @param entityMapper           实体 Mapper
+     * @param iotStateClient         whale-iot 客户端
+     * @param internalApiStateClient internal_api 绑定源客户端
+     * @param streamService          场景推送服务
+     * @param properties             孪生配置
      */
     public TwinBindingRuntimeService(TwinBindingService bindingService,
                                      TwinEntityMapper entityMapper,
                                      IotStateClient iotStateClient,
+                                     InternalApiStateClient internalApiStateClient,
                                      TwinStreamService streamService,
                                      TwinProperties properties) {
         this.bindingService = bindingService;
         this.entityMapper = entityMapper;
         this.iotStateClient = iotStateClient;
+        this.internalApiStateClient = internalApiStateClient;
         this.streamService = streamService;
         this.properties = properties;
         this.scheduler = Executors.newSingleThreadScheduledExecutor(runnable -> {
@@ -142,7 +150,8 @@ public class TwinBindingRuntimeService {
         }
         List<BindingStateVO> changed = new ArrayList<>();
         for (TwinBinding binding : bindings) {
-            if (!TwinBindingService.SOURCE_IOT_DEVICE.equals(binding.getSourceType())) {
+            if (!TwinBindingService.SOURCE_IOT_DEVICE.equals(binding.getSourceType())
+                    && !TwinBindingService.SOURCE_INTERNAL_API.equals(binding.getSourceType())) {
                 continue;
             }
             BindingStateVO state = computed.get(binding.getId());
@@ -179,10 +188,15 @@ public class TwinBindingRuntimeService {
         Map<Long, TwinEntity> entityById = new HashMap<>(bindings.size() * 2);
         // 设备级缓存：同 tick 内同设备只拉一次
         Map<String, Map<String, Object>> deviceCache = new HashMap<>();
+        // 接口级缓存：同 tick 内同 bindKey 只拉一次（白名单校验在客户端内做）
+        Map<String, Map<String, Object>> apiCache = new HashMap<>();
         List<BindingStateVO> result = new ArrayList<>();
         int devices = 0;
+        int apis = 0;
         for (TwinBinding binding : bindings) {
-            if (!TwinBindingService.SOURCE_IOT_DEVICE.equals(binding.getSourceType())) {
+            boolean iotSource = TwinBindingService.SOURCE_IOT_DEVICE.equals(binding.getSourceType());
+            boolean apiSource = TwinBindingService.SOURCE_INTERNAL_API.equals(binding.getSourceType());
+            if (!iotSource && !apiSource) {
                 continue;
             }
             if (binding.getEnabled() != null && binding.getEnabled() != 1) {
@@ -193,15 +207,24 @@ public class TwinBindingRuntimeService {
             }
             TwinEntity entity = entityById.computeIfAbsent(binding.getEntityId(),
                     key -> entityMapper.selectById(key));
-            BindingStateVO state = buildState(binding, entity, binding.getBindKey(),
-                    deviceCache, sceneId);
+            BindingStateVO state = iotSource
+                    ? buildState(binding, entity, binding.getBindKey(), deviceCache, sceneId)
+                    : buildApiState(binding, entity, apiCache, sceneId);
             if (state != null) {
                 result.add(state);
-                devices++;
+                if (iotSource) {
+                    devices++;
+                } else {
+                    apis++;
+                }
             }
-            if (devices >= properties.getRuntime().getMaxDevicesPerScene()) {
-                log.warn("场景绑定设备数达到上限，本 tick 截断：sceneId={}, max={}",
-                        sceneId, properties.getRuntime().getMaxDevicesPerScene());
+            int cap = iotSource
+                    ? properties.getRuntime().getMaxDevicesPerScene()
+                    : properties.getRuntime().getMaxApisPerScene();
+            int hit = iotSource ? devices : apis;
+            if (hit >= cap) {
+                log.warn("场景绑定源数达到上限，本 tick 截断：sceneId={}, sourceType={}, max={}",
+                        sceneId, binding.getSourceType(), cap);
                 break;
             }
         }
@@ -237,6 +260,125 @@ public class TwinBindingRuntimeService {
                 .values(applyPropertyMap(binding.getPropertyMap(), reported, online))
                 .ts(TIME_FORMAT.format(LocalDateTime.now()))
                 .build();
+    }
+
+    /**
+     * 组装 internal_api 绑定实时态（同 tick 内同 bindKey 走缓存；
+     * 拉取失败视为离线，values 留空）。
+     *
+     * @param binding 绑定实体
+     * @param entity  实体实体（可空）
+     * @param cache   接口数据缓存（bindKey → data 载荷）
+     * @param sceneId 场景ID
+     * @return 实时态视图（绑定实体已删时返回 null）
+     */
+    private BindingStateVO buildApiState(TwinBinding binding, TwinEntity entity,
+                                         Map<String, Map<String, Object>> cache, Long sceneId) {
+        if (entity == null) {
+            return null;
+        }
+        Map<String, Object> data = cache.computeIfAbsent(binding.getBindKey(),
+                key -> internalApiStateClient.fetch(key, entity.getTenantId()));
+        boolean online = data != null;
+        return BindingStateVO.builder()
+                .bindingId(String.valueOf(binding.getId()))
+                .entityId(String.valueOf(binding.getEntityId()))
+                .entityCode(entity.getEntityCode())
+                .sourceType(binding.getSourceType())
+                .bindKey(binding.getBindKey())
+                .online(online)
+                .values(applyApiPropertyMap(binding.getPropertyMap(), data))
+                .ts(TIME_FORMAT.format(LocalDateTime.now()))
+                .build();
+    }
+
+    /**
+     * internal_api 属性映射：键为 data 载荷内的 JSON 点路径（支持数组下标，
+     * 如 {@code temperature} / {@code list[0].value}），值语义与设备源一致
+     * （字符串=状态键；对象取 {@code stateKey}，thresholds 留给前端解释）。
+     *
+     * @param propertyMap 属性映射 JSON
+     * @param data        信封 data 载荷（可空）
+     * @return 状态键 → 取值
+     */
+    private Map<String, Object> applyApiPropertyMap(String propertyMap, Map<String, Object> data) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        if (data == null || data.isEmpty() || !StringUtils.hasText(propertyMap)) {
+            return values;
+        }
+        JsonNode payload = JSON.valueToTree(data);
+        try {
+            JsonNode mapping = JSON.readTree(propertyMap);
+            if (!mapping.isObject()) {
+                return values;
+            }
+            var fields = mapping.fields();
+            while (fields.hasNext()) {
+                var entry = fields.next();
+                JsonNode value = resolveJsonPath(payload, entry.getKey());
+                if (value == null || value.isMissingNode() || value.isNull()) {
+                    continue;
+                }
+                String stateKey = entry.getKey();
+                JsonNode target = entry.getValue();
+                if (target.isTextual()) {
+                    stateKey = target.asText(stateKey);
+                } else if (target.isObject() && target.hasNonNull("stateKey")) {
+                    stateKey = target.get("stateKey").asText(stateKey);
+                }
+                values.put(stateKey, JSON.convertValue(value, Object.class));
+            }
+        } catch (Exception e) {
+            log.warn("internal_api 属性映射解析失败，本条按空值处理：key={}, reason={}",
+                    bindingPropertyMapKey(propertyMap), e.getMessage());
+        }
+        return values;
+    }
+
+    /**
+     * 按 JSON 点路径取节点：段与段之间按 {@code .} 分隔，段内支持
+     * {@code [idx]} 数组下标（如 {@code rows[0].total}）。
+     *
+     * @param root 根节点
+     * @param path 点路径
+     * @return 命中节点；路径不存在返回 {@code null}
+     */
+    private JsonNode resolveJsonPath(JsonNode root, String path) {
+        if (root == null || !StringUtils.hasText(path)) {
+            return null;
+        }
+        JsonNode current = root;
+        for (String segment : path.split("\\.")) {
+            String field = segment;
+            int bracket = segment.indexOf('[');
+            if (bracket >= 0) {
+                field = segment.substring(0, bracket);
+            }
+            if (StringUtils.hasText(field)) {
+                current = current.get(field);
+                if (current == null) {
+                    return null;
+                }
+            }
+            while (bracket >= 0) {
+                int close = segment.indexOf(']', bracket);
+                if (close < 0) {
+                    return null;
+                }
+                int index;
+                try {
+                    index = Integer.parseInt(segment.substring(bracket + 1, close).trim());
+                } catch (NumberFormatException e) {
+                    return null;
+                }
+                current = current.get(index);
+                if (current == null) {
+                    return null;
+                }
+                bracket = segment.indexOf('[', close);
+            }
+        }
+        return current;
     }
 
     /**

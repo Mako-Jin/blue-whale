@@ -6,6 +6,7 @@ import com.bluewhale.twin.entity.TwinBinding;
 import com.bluewhale.twin.entity.TwinEntity;
 import com.bluewhale.twin.mapper.TwinEntityMapper;
 import com.bluewhale.twin.support.IotStateClient;
+import com.bluewhale.twin.support.InternalApiStateClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -45,6 +46,8 @@ class TwinBindingRuntimeServiceTest {
 
     private IotStateClient iotStateClient;
 
+    private InternalApiStateClient internalApiStateClient;
+
     private TwinStreamService streamService;
 
     private TwinBindingRuntimeService service;
@@ -54,11 +57,12 @@ class TwinBindingRuntimeServiceTest {
         bindingService = mock(TwinBindingService.class);
         entityMapper = mock(TwinEntityMapper.class);
         iotStateClient = mock(IotStateClient.class);
+        internalApiStateClient = mock(InternalApiStateClient.class);
         streamService = mock(TwinStreamService.class);
         TwinProperties properties = new TwinProperties();
         properties.getRuntime().setEnabled(false);
         service = new TwinBindingRuntimeService(bindingService, entityMapper,
-                iotStateClient, streamService, properties);
+                iotStateClient, internalApiStateClient, streamService, properties);
     }
 
     @Test
@@ -160,18 +164,93 @@ class TwinBindingRuntimeServiceTest {
     }
 
     @Test
-    void disabledAndInternalApiBindingsAreSkipped() {
-        TwinBinding internal = binding(null);
-        internal.setSourceType(TwinBindingService.SOURCE_INTERNAL_API);
+    void disabledBindingsAreSkipped() {
         TwinBinding disabled = binding("{\"temperature\":\"color\"}");
         disabled.setEnabled(0);
-        when(bindingService.listByScene(SCENE_ID)).thenReturn(List.of(internal, disabled));
+        when(bindingService.listByScene(SCENE_ID)).thenReturn(List.of(disabled));
         when(streamService.activeScenes()).thenReturn(java.util.Set.of(SCENE_ID));
 
         service.tick();
 
         verify(streamService, never()).publish(anyLong(), anyString(), any());
         verify(iotStateClient, never()).fetchDeviceState(anyLong(), anyLong());
+    }
+
+    @Test
+    void internalApiBindingPublishesMappedValues() {
+        TwinBinding binding = apiBinding("{\"temperature\":\"color\"}");
+        when(bindingService.listByScene(SCENE_ID)).thenReturn(List.of(binding));
+        when(entityMapper.selectById(ENTITY_ID)).thenReturn(entity(1L));
+        when(internalApiStateClient.fetch("/iot/internal/device/state?deviceId=300", 1L))
+                .thenReturn(Map.of("temperature", 71));
+        when(streamService.activeScenes()).thenReturn(java.util.Set.of(SCENE_ID));
+
+        service.tick();
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+        verify(streamService).publish(eq(SCENE_ID), eq(TwinStreamService.EVENT_BINDING), captor.capture());
+        @SuppressWarnings("unchecked")
+        List<BindingStateVO> items = (List<BindingStateVO>) captor.getValue().get("items");
+        assertEquals(1, items.size());
+        assertTrue(items.get(0).getOnline());
+        assertEquals(71, items.get(0).getValues().get("color"));
+        // iot 源不应被触发
+        verify(iotStateClient, never()).fetchDeviceState(anyLong(), anyLong());
+    }
+
+    @Test
+    void internalApiFetchFailurePublishesOffline() {
+        TwinBinding binding = apiBinding("{\"temperature\":\"color\"}");
+        when(bindingService.listByScene(SCENE_ID)).thenReturn(List.of(binding));
+        when(entityMapper.selectById(ENTITY_ID)).thenReturn(entity(1L));
+        when(internalApiStateClient.fetch(anyString(), anyLong())).thenReturn(null);
+        when(streamService.activeScenes()).thenReturn(java.util.Set.of(SCENE_ID));
+
+        service.tick();
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+        verify(streamService).publish(eq(SCENE_ID), eq(TwinStreamService.EVENT_BINDING), captor.capture());
+        @SuppressWarnings("unchecked")
+        List<BindingStateVO> items = (List<BindingStateVO>) captor.getValue().get("items");
+        assertFalse(items.get(0).getOnline());
+        assertTrue(items.get(0).getValues().isEmpty());
+    }
+
+    @Test
+    void internalApiPropertyMapSupportsDotAndArrayPath() {
+        TwinBinding binding = apiBinding("{\"list[0].value\":\"k\",\"meta.name\":\"n\"}");
+        when(bindingService.listByScene(SCENE_ID)).thenReturn(List.of(binding));
+        when(entityMapper.selectById(ENTITY_ID)).thenReturn(entity(1L));
+        when(internalApiStateClient.fetch(anyString(), anyLong()))
+                .thenReturn(Map.of(
+                        "list", List.of(Map.of("value", 5)),
+                        "meta", Map.of("name", "boilers")));
+        when(streamService.activeScenes()).thenReturn(java.util.Set.of(SCENE_ID));
+
+        List<BindingStateVO> states = service.currentStates(SCENE_ID);
+
+        assertEquals(1, states.size());
+        assertEquals(5, states.get(0).getValues().get("k"));
+        assertEquals("boilers", states.get(0).getValues().get("n"));
+    }
+
+    @Test
+    void internalApiSameBindKeyFetchedOncePerTick() {
+        TwinBinding first = apiBinding("{\"temperature\":\"a\"}");
+        first.setId(1L);
+        TwinBinding second = apiBinding("{\"temperature\":\"b\"}");
+        second.setId(2L);
+        when(bindingService.listByScene(SCENE_ID)).thenReturn(List.of(first, second));
+        when(entityMapper.selectById(ENTITY_ID)).thenReturn(entity(1L));
+        when(internalApiStateClient.fetch(anyString(), anyLong()))
+                .thenReturn(Map.of("temperature", 71));
+        when(streamService.activeScenes()).thenReturn(java.util.Set.of(SCENE_ID));
+
+        service.currentStates(SCENE_ID);
+
+        verify(internalApiStateClient, times(1)).fetch(anyString(), anyLong());
     }
 
     @Test
@@ -198,6 +277,19 @@ class TwinBindingRuntimeServiceTest {
         binding.setPropertyMap(propertyMap);
         binding.setPollIntervalMs(1000);
         binding.setEnabled(1);
+        return binding;
+    }
+
+    /**
+     * 构造 internal_api 绑定（bindKey 指向 iot 内网只读端点）。
+     *
+     * @param propertyMap 属性映射
+     * @return 绑定
+     */
+    private static TwinBinding apiBinding(String propertyMap) {
+        TwinBinding binding = binding(propertyMap);
+        binding.setSourceType(TwinBindingService.SOURCE_INTERNAL_API);
+        binding.setBindKey("/iot/internal/device/state?deviceId=300");
         return binding;
     }
 

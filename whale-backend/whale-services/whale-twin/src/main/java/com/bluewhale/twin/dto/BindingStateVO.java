@@ -36,7 +36,7 @@ public class BindingStateVO {
     /** 绑定键（iot_device 为设备ID） */
     private String bindKey;
 
-    /** 设备在线：true / false（internal_api 恒 true） */
+    /** 设备在线：true / false（internal_api 为「本次拉取是否成功」） */
     private Boolean online;
 
     /** 实体状态键 → 最新取值 */

@@ -1,12 +1,14 @@
 package com.bluewhale.twin.service;
 
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.twin.config.TwinProperties;
 import com.bluewhale.twin.dto.BindingSaveRequest;
 import com.bluewhale.twin.dto.BindingVO;
 import com.bluewhale.twin.entity.TwinBinding;
 import com.bluewhale.twin.entity.TwinEntity;
 import com.bluewhale.twin.mapper.TwinBindingMapper;
 import com.bluewhale.twin.mapper.TwinEntityMapper;
+import com.bluewhale.twin.support.InternalApiStateClient;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,6 +44,8 @@ class TwinBindingServiceTest {
 
     private TwinEntityMapper entityMapper;
 
+    private InternalApiStateClient internalApiStateClient;
+
     private TwinBindingService service;
 
     @BeforeAll
@@ -56,7 +60,9 @@ class TwinBindingServiceTest {
     void setUp() {
         bindingMapper = mock(TwinBindingMapper.class);
         entityMapper = mock(TwinEntityMapper.class);
-        service = new TwinBindingService(bindingMapper, entityMapper);
+        internalApiStateClient = new InternalApiStateClient(new TwinProperties());
+        service = new TwinBindingService(bindingMapper, entityMapper,
+                internalApiStateClient, new TwinProperties());
     }
 
     @Test
@@ -150,6 +156,44 @@ class TwinBindingServiceTest {
 
         assertNotNull(service.list(SCENE_ID));
         verify(bindingMapper, never()).selectList(any());
+    }
+
+    @Test
+    void createAcceptsWhitelistedInternalApiBindKey() {
+        when(entityMapper.selectById(ENTITY_ID)).thenReturn(entity());
+        when(bindingMapper.insert(any(TwinBinding.class))).thenAnswer(invocation -> {
+            TwinBinding binding = invocation.getArgument(0);
+            binding.setId(9L);
+            return 1;
+        });
+        BindingSaveRequest request = request();
+        request.setSourceType(TwinBindingService.SOURCE_INTERNAL_API);
+        request.setBindKey("/iot/internal/device/state?deviceId=300");
+
+        BindingVO vo = service.create(SCENE_ID, request);
+
+        assertEquals("9", vo.getId());
+        assertEquals("/iot/internal/device/state?deviceId=300", vo.getBindKey());
+    }
+
+    @Test
+    void createRejectsInternalApiBindKeyOutsideWhitelist() {
+        when(entityMapper.selectById(ENTITY_ID)).thenReturn(entity());
+        BindingSaveRequest request = request();
+        request.setSourceType(TwinBindingService.SOURCE_INTERNAL_API);
+        request.setBindKey("/system/admin/users");
+
+        assertThrows(BizException.class, () -> service.create(SCENE_ID, request));
+    }
+
+    @Test
+    void createRejectsInternalApiPathTraversal() {
+        when(entityMapper.selectById(ENTITY_ID)).thenReturn(entity());
+        BindingSaveRequest request = request();
+        request.setSourceType(TwinBindingService.SOURCE_INTERNAL_API);
+        request.setBindKey("/iot/internal/../admin/users");
+
+        assertThrows(BizException.class, () -> service.create(SCENE_ID, request));
     }
 
     /**

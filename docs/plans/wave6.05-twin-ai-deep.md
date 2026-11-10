@@ -1,6 +1,6 @@
 # Wave 6.05：孪生 × AI 深化（流式解读 / 可视化拾取 / internal_api 源）
 
-> 状态：**M0 + M1 已落地（2026-11-10）** · 起草：2026-11-10
+> 状态：**M0 + M1 + M2 已落地（2026-11-10）** · 起草：2026-11-10
 > 上游：Wave 6.04 M0+M1 已交付（三平台工具链 + 孪生 AI 解读同步版）
 
 ## 一、里程碑
@@ -9,7 +9,7 @@
 |---|---|---|
 | M0 | 流式 AI 解读：assistant 开放 SSE 端点 + twin 流式代理 + 前端逐帧渲染 | ✅ 2026-11-10 |
 | M1 | 标注可视化拾取：3D 场景点击拾取坐标自动填 `positionJson` | ✅ 2026-11-10 |
-| M2 | `internal_api` 绑定源运行时（M2 留白项：twin 轮询平台内部只读 API） | 待开始 |
+| M2 | `internal_api` 绑定源运行时（twin 轮询平台内部只读 API，白名单约束） | ✅ 2026-11-10 |
 
 ## 二、M0 落地清单（2026-11-10）
 
@@ -62,8 +62,36 @@
 
 **验证**：tsc 0 错误、vite 构建通过。拾取坐标系为世界坐标（与既有 `positionJson` 语义一致）。
 
-## 四、M2（待开始）：internal_api 绑定源
+## 四、M2 落地清单（2026-11-10）：internal_api 绑定源运行时
 
-- `TwinBindingRuntimeService` 支持 `sourceType=internal_api`：按 `bindKey`（服务名+路径）
-  经网关/内网 GET 拉取，`propertyMap` stateKey 指向响应 JSON 路径
-- 上线前置：服务目录（service-catalog）约束可调用的白名单端点，全部只读
+**whale-twin 后端**：
+
+- `TwinProperties.InternalApi`（新增）：`enabled` / `timeout-seconds` /
+  `allowed-prefixes`（默认 `/iot/internal/`、`/twin/internal/`、`/assistant/openapi/`，
+  全部只读口径）/ `base-urls`（服务名 → 内网地址路由表，iot 缺省回退
+  `iot.base-url`，其余拒绝）；`Runtime` 新增 `max-apis-per-scene`（默认 20）
+- `support/InternalApiStateClient`（新增）：按 bindKey（`/服务名/路径?query`）
+  内网 GET 拉取——白名单前置校验（与保存校验共用口径）、路径穿越/绝对 URL
+  防护、信封 `{code,message,data}` 解包；失败策略与 `IotStateClient` 一致
+  （异常只记日志返回 null，不拖垮 3D 场景）
+- `TwinBindingRuntimeService`：internal_api 绑定纳入轮询/差分/SSE 推送——
+  同 tick 内同 bindKey 只拉一次；propertyMap 键为 data 载荷内 JSON 点路径
+  （支持数组下标 `list[0].value`），值语义与设备源一致（字符串=状态键 /
+  对象取 stateKey）；拉取失败视为离线（online=false、values 空）
+- `TwinBindingService`：保存即校验 internal_api bindKey——形态（以 / 开头、
+  无 `..` 与绝对 URL）+ 白名单前缀，配置出永不生效的绑定在创建时就被拦截
+
+**配置（application.yml）**：`whale.twin.internal-api` 段 + `max-apis-per-scene`，
+全部带环境变量占位。
+
+**前端（8122）**：绑定表单 internal_api 文案更新（「内网接口（只读白名单）」）、
+接口路径 placeholder 换为真实形态 `/iot/internal/device/state?deviceId=1`
+并加白名单口径说明。
+
+**验证**：whale-twin 全量测试通过（新增 InternalApiStateClientTest 7 例、
+运行时 internal_api 用例 4 例、绑定服务白名单用例 3 例）；前端 tsc 0 错误、
+vite 构建通过。
+
+**M2 边界**：白名单为配置静态前缀（非 service-catalog 动态目录）——按当前
+仓库只有 whale-iot/whale-twin/whale-assistant 提供只读端点的现状收口，
+后续服务增多再演进为动态服务目录校验。

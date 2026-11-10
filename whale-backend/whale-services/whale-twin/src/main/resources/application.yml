@@ -80,6 +80,18 @@ whale:
       tick-ms: ${WHALE_TWIN_RUNTIME_TICK_MS:5000}
       # 单场景单 tick 允许触达的最大设备数
       max-devices-per-scene: ${WHALE_TWIN_MAX_DEVICES_PER_SCENE:50}
+      # 单场景单 tick 允许触达的最大 internal_api 绑定数
+      max-apis-per-scene: ${WHALE_TWIN_MAX_APIS_PER_SCENE:20}
+    # M2（Wave 6.05）：internal_api 绑定源——按 bindKey 轮询平台内部只读 GET 接口。
+    # 白名单前缀约束可调用范围；base-urls 为服务名 → 内网地址路由表（iot 缺省回退 iot.base-url）
+    internal-api:
+      enabled: ${WHALE_TWIN_INTERNAL_API_ENABLED:true}
+      timeout-seconds: ${WHALE_TWIN_INTERNAL_API_TIMEOUT_SECONDS:5}
+      allowed-prefixes:
+        - /iot/internal/
+        - /twin/internal/
+        - /assistant/openapi/
+      base-urls: {}
     # M1（Wave 6.04）：AI 解读（whale-assistant 开放 API，内网直连；assistant-code 为空则前端入口禁用）
     assistant:
       base-url: ${WHALE_TWIN_ASSISTANT_BASE_URL:http://127.0.0.1:8087}

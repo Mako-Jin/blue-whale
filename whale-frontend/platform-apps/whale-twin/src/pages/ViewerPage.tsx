@@ -1103,15 +1103,20 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
               disabled={!!editingBinding}
               options={[
                 { value: 'iot_device', label: 'IoT 设备属性（whale-iot）' },
-                { value: 'internal_api', label: '内网接口（M3 接入轮询）' },
+                { value: 'internal_api', label: '内网接口（只读白名单）' },
               ]}
             />
           </Form.Item>
           <Form.Item noStyle shouldUpdate={(prev, next) => prev.sourceType !== next.sourceType}>
             {({ getFieldValue }) =>
               getFieldValue('sourceType') === 'internal_api' ? (
-                <Form.Item name="apiPath" label="接口路径" rules={[{ required: true, message: '请填写接口路径' }]}>
-                  <Input placeholder="/metrics/device/boiler-01" />
+                <Form.Item
+                  name="apiPath"
+                  label="接口路径"
+                  rules={[{ required: true, message: '请填写接口路径' }]}
+                  extra="格式 /服务名/路径?query，须命中服务端白名单（各服务 /internal/ 只读端点）"
+                >
+                  <Input placeholder="/iot/internal/device/state?deviceId=1" />
                 </Form.Item>
               ) : (
                 <Form.Item name="deviceId" label="IoT 设备" rules={[{ required: true, message: '请选择设备' }]}>

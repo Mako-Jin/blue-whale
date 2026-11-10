@@ -3,6 +3,10 @@ package com.bluewhale.twin.config;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
 /**
  * 数字孪生平台配置属性（{@code whale.twin.*}）。
  *
@@ -17,6 +21,9 @@ public class TwinProperties {
 
     /** whale-iot 内网实时态来源配置 */
     private final Iot iot = new Iot();
+
+    /** internal_api 绑定源运行时配置 */
+    private final InternalApi internalApi = new InternalApi();
 
     /** 绑定轮询运行时配置 */
     private final Runtime runtime = new Runtime();
@@ -40,6 +47,38 @@ public class TwinProperties {
 
         /** 单次问答超时（秒） */
         private int timeoutSeconds = 60;
+    }
+
+    /**
+     * internal_api 绑定源配置：运行时按 bindKey 轮询平台内部只读接口。
+     *
+     * <p>bindKey 形如 {@code /iot/internal/device/state?deviceId=1}——首段是服务名，
+     * 用于解析 base-url；整条路径必须命中 {@code allowedPrefixes} 白名单才可调用，
+     * 且只发 GET（写接口不在白名单口径内）。</p>
+     *
+     * @author BlueWhale
+     */
+    @Data
+    public static class InternalApi {
+
+        /** 是否启用 internal_api 轮询源 */
+        private boolean enabled = true;
+
+        /** 单次调用超时（秒） */
+        private int timeoutSeconds = 5;
+
+        /**
+         * 可调用路径前缀白名单：bindKey 必须以其中一项开头；
+         * 约束为各服务 {@code /internal/**} 只读端点与 assistant 开放只读接口。
+         */
+        private List<String> allowedPrefixes = List.of(
+                "/iot/internal/", "/twin/internal/", "/assistant/openapi/");
+
+        /**
+         * 服务名 → base-url 路由表（内网直连，不经网关）；
+         * 未配置的服务名回退：iot 走 {@code whale.twin.iot.base-url}，其余拒绝。
+         */
+        private Map<String, String> baseUrls = new LinkedHashMap<>();
     }
 
     /**
@@ -73,5 +112,8 @@ public class TwinProperties {
 
         /** 单场景单次 tick 允许触达的最大设备数（防止误配拖垮 whale-iot） */
         private int maxDevicesPerScene = 50;
+
+        /** 单场景单次 tick 允许触达的最大 internal_api 绑定数（防误配拖垮内部服务） */
+        private int maxApisPerScene = 20;
     }
 }
