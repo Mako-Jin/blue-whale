@@ -217,6 +217,9 @@ export interface TwinAlertVO {
   resolved?: boolean;
   resolveTime?: string | null;
   createTime?: string | null;
+  acked?: boolean;
+  ackTime?: string | null;
+  ackBy?: string | null;
 }
 
 export const alertApi = {
@@ -224,6 +227,8 @@ export const alertApi = {
     http.get<TwinAlertVO[]>(`/twin/scenes/${sceneId}/alerts`, query),
   unresolved: (sceneId: string) =>
     http.get<TwinAlertVO[]>(`/twin/scenes/${sceneId}/alerts/unresolved`),
+  ack: (sceneId: string, alertId: string) =>
+    http.post<TwinAlertVO>(`/twin/scenes/${sceneId}/alerts/${alertId}/ack`),
 };
 
 /**

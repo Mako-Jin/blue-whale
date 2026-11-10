@@ -14,6 +14,8 @@
 //   - 订阅 /twin/scenes/{id}/stream（fetch 读流手工分帧，EventSource 带不了头）；
 //   - binding 事件按 propertyMap 的 thresholds 驱动实体 emissive 变色：
 //     离线灰 / 低于 t1 绿 / t1~t2 橙 / 高于 t2 红 / 在线无阈值青色底光；
+//   - 6.07：thresholds 键可带 confirmSeconds（越界持续确认）与 recoveryDelta
+//     （回差防抖），绑定表单可直接编辑并写回 JSON；
 //   - 右上角实时面板展示各绑定最新值。
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -104,10 +106,12 @@ function applyTransform(target: Object3D, json: string | null | undefined): void
   if (transform.scale) target.scale.set(...transform.scale);
 }
 
-/** 属性映射条目（值可为字符串状态键，或 {stateKey, thresholds} 对象） */
+/** 属性映射条目（值可为字符串状态键，或 {stateKey, thresholds, ...告警规则} 对象） */
 interface PropertyMapEntry {
   stateKey?: string;
   thresholds?: number[];
+  confirmSeconds?: number;
+  recoveryDelta?: number;
 }
 
 /** 解析属性映射 JSON（非法返回空对象，不打断联动） */
@@ -141,6 +145,53 @@ function resolveEmissive(
     }
   }
   return 0x18a999;
+}
+
+/** 从属性映射读取告警规则预填值（取首个带阈值的条目；无则空对象） */
+function readAlertRules(
+  json: string | null | undefined,
+): { confirmSeconds?: number; recoveryDelta?: number } {
+  for (const entry of Object.values(parsePropertyMap(json))) {
+    if (entry && typeof entry === 'object' && Array.isArray(entry.thresholds)) {
+      return { confirmSeconds: entry.confirmSeconds, recoveryDelta: entry.recoveryDelta };
+    }
+  }
+  return {};
+}
+
+/**
+ * 把表单里的告警规则写回属性映射（应用到全部带阈值的条目；
+ * 0/缺省表示移除该字段，保持 JSON 干净）。
+ */
+function applyAlertRules(
+  json: string | undefined,
+  confirmSeconds?: number,
+  recoveryDelta?: number,
+): string | null {
+  const text = json?.trim();
+  if (!text) return null;
+  let parsed: Record<string, PropertyMapEntry>;
+  try {
+    parsed = JSON.parse(text) as Record<string, PropertyMapEntry>;
+  } catch {
+    return text;
+  }
+  for (const entry of Object.values(parsed)) {
+    if (!entry || typeof entry !== 'object' || !Array.isArray(entry.thresholds)) {
+      continue;
+    }
+    if (confirmSeconds && confirmSeconds > 0) {
+      entry.confirmSeconds = confirmSeconds;
+    } else {
+      delete entry.confirmSeconds;
+    }
+    if (recoveryDelta && recoveryDelta > 0) {
+      entry.recoveryDelta = recoveryDelta;
+    } else {
+      delete entry.recoveryDelta;
+    }
+  }
+  return JSON.stringify(parsed);
 }
 
 /** 标注类型 → 描边/文字色（label 黄 / hotspot 青 / alarm 红） */
@@ -302,6 +353,8 @@ interface BindingFormValues {
   deviceId?: string;
   apiPath?: string;
   propertyMap?: string;
+  confirmSeconds?: number;
+  recoveryDelta?: number;
   pollIntervalMs?: number;
   enabled?: boolean;
 }
@@ -689,6 +742,18 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
     void loadAlerts(alertFilter);
   };
 
+  // 确认告警（人工知悉）：成功后刷新当前列表；未确认数不变（ACK 不影响恢复语义）
+  const ackAlert = async (item: TwinAlertVO) => {
+    if (!sceneId) return;
+    try {
+      await alertApi.ack(sceneId, item.id);
+      message.success('告警已确认');
+      void loadAlerts(alertFilter);
+    } catch (error) {
+      message.error(`确认失败：${String(error)}`);
+    }
+  };
+
   // SSE alert 帧：非 normal 级别累加角标并插入列表头部；严重级别弹全局提示
   const handleAlertFrame = useCallback(
     (data: string) => {
@@ -848,12 +913,15 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
 
   const openBindingEdit = (binding: BindingVO) => {
     setEditingBinding(binding);
+    const rules = readAlertRules(binding.propertyMap);
     bindingForm.setFieldsValue({
       entityId: binding.entityId,
       sourceType: binding.sourceType,
       deviceId: binding.sourceType === 'iot_device' ? binding.bindKey : undefined,
       apiPath: binding.sourceType === 'internal_api' ? binding.bindKey : undefined,
       propertyMap: binding.propertyMap ?? undefined,
+      confirmSeconds: rules.confirmSeconds,
+      recoveryDelta: rules.recoveryDelta,
       pollIntervalMs: binding.pollIntervalMs,
       enabled: binding.enabled === 1,
     });
@@ -872,7 +940,8 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
       entityId: Number(values.entityId),
       sourceType: values.sourceType,
       bindKey,
-      propertyMap: values.propertyMap?.trim() || null,
+      propertyMap: applyAlertRules(
+        values.propertyMap, values.confirmSeconds, values.recoveryDelta),
       pollIntervalMs: values.pollIntervalMs ?? 5000,
       enabled: values.enabled === false ? 0 : 1,
     };
@@ -1263,6 +1332,12 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
           >
             <Input.TextArea rows={3} placeholder='{"temperature":{"stateKey":"color","thresholds":[50,80]}}' />
           </Form.Item>
+          <Form.Item name="confirmSeconds" label="告警确认时长（秒）" extra="越界持续该秒数才告警，滤除瞬时毛刺（0 = 立即告警）；应用到属性映射内全部阈值键">
+            <InputNumber style={{ width: 180 }} min={0} max={3600} precision={0} />
+          </Form.Item>
+          <Form.Item name="recoveryDelta" label="恢复回差" extra="恢复需跌破 阈值−回差，防临界值附近反复告警/恢复（0 = 关闭）">
+            <InputNumber style={{ width: 180 }} min={0} precision={2} />
+          </Form.Item>
           <Form.Item name="pollIntervalMs" label="轮询间隔（毫秒）" extra="最小 1000；实际受服务端 tick 粒度约束">
             <InputNumber style={{ width: 180 }} min={1000} max={3600000} step={1000} precision={0} />
           </Form.Item>
@@ -1411,7 +1486,7 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
         </div>
       </Drawer>
 
-      {/* 告警中心抽屉（6.06 M2）：实时帧插入 + 历史/未恢复接口 */}
+      {/* 告警中心抽屉（6.06 M2 + 6.07 M2）：实时帧插入 + 历史/未恢复/确认 */}
       <Drawer
         title={
           <Space>
@@ -1447,11 +1522,28 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
           locale={{ emptyText: '暂无告警' }}
           renderItem={(item) => {
             const meta = ALERT_LEVEL_META[item.level] ?? ALERT_LEVEL_META.normal;
+            const isLiveItem = item.id.startsWith('live-');
             return (
-              <List.Item>
+              <List.Item
+                actions={
+                  !item.acked && !isLiveItem
+                    ? [
+                        <Button
+                          key="ack"
+                          size="small"
+                          type="link"
+                          onClick={() => void ackAlert(item)}
+                        >
+                          确认
+                        </Button>,
+                      ]
+                    : undefined
+                }
+              >
                 <div style={{ width: '100%' }}>
                   <Space wrap size={4}>
                     <Tag color={meta.color}>{meta.label}</Tag>
+                    {item.acked && <Tag color="blue">已确认</Tag>}
                     <span style={{ fontWeight: 600 }}>
                       {item.entityCode ?? item.entityId ?? '-'}
                     </span>
@@ -1468,6 +1560,9 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
                     {item.resolved
                       ? ` · 已恢复（${item.resolveTime ?? '-'}）`
                       : ' · 未恢复'}
+                    {item.acked
+                      ? ` · 确认于 ${item.ackTime ?? '-'}${item.ackBy ? `（用户 ${item.ackBy}）` : ''}`
+                      : ''}
                   </div>
                 </div>
               </List.Item>
