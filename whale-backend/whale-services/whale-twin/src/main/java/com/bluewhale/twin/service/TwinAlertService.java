@@ -4,9 +4,12 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.twin.dto.BindingAlertVO;
+import com.bluewhale.twin.dto.TwinAlertSummaryVO;
 import com.bluewhale.twin.dto.TwinAlertVO;
 import com.bluewhale.twin.entity.TwinAlert;
+import com.bluewhale.twin.entity.TwinScene;
 import com.bluewhale.twin.mapper.TwinAlertMapper;
+import com.bluewhale.twin.mapper.TwinSceneMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +21,10 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 /**
  * 孪生阈值告警服务（Wave 6.06 M1）：告警落库与查询。
@@ -44,7 +50,16 @@ public class TwinAlertService {
     /** 级别常量（与评估器一致） */
     private static final String LEVEL_NORMAL = "normal";
 
+    /** 级别：预警 */
+    private static final String LEVEL_WARN = "warn";
+
+    /** 级别：严重 */
+    private static final String LEVEL_CRITICAL = "critical";
+
     private final TwinAlertMapper alertMapper;
+
+    /** 场景 Mapper（跨场景总览补全场景编码/名称） */
+    private final TwinSceneMapper sceneMapper;
 
     /**
      * 记录告警（级别变化时由运行时调用）。
@@ -164,6 +179,107 @@ public class TwinAlertService {
     }
 
     /**
+     * 跨场景未恢复告警（Wave 6.08 M1，按触发时间倒序）——不依赖先选场景的总览数据源。
+     *
+     * <p>场景编码/名称按本页涉及的场景ID批量补全（场景被删除时留空，
+     * 不因补全失败影响主查询）。</p>
+     *
+     * @param limit 返回条数上限（空则默认 100，最大 200）
+     * @return 告警视图列表
+     */
+    public List<TwinAlertVO> listUnresolvedAcrossScenes(Integer limit) {
+        int capped = limit == null ? 100 : Math.min(200, Math.max(1, limit));
+        List<TwinAlert> rows = alertMapper.selectList(new LambdaQueryWrapper<TwinAlert>()
+                .eq(TwinAlert::getResolved, 0)
+                .orderByDesc(TwinAlert::getCreateTime)
+                .orderByDesc(TwinAlert::getId)
+                .last("LIMIT " + capped));
+        if (rows.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, TwinScene> sceneById = loadScenes(rows);
+        List<TwinAlertVO> result = new ArrayList<>(rows.size());
+        for (TwinAlert row : rows) {
+            TwinAlertVO vo = toVo(row);
+            TwinScene scene = row.getSceneId() == null ? null : sceneById.get(row.getSceneId());
+            if (scene != null) {
+                vo.setSceneCode(scene.getCode());
+                vo.setSceneName(scene.getName());
+            }
+            result.add(vo);
+        }
+        return result;
+    }
+
+    /**
+     * 平台级告警统计（Wave 6.08 M1）：未恢复总数 / 级别拆分 / 未确认数。
+     *
+     * <p>四个指标各走一次 COUNT，口径统一为 {@code resolved = 0}；
+     * 走 {@code idx_alert_resolved_level} 与 {@code idx_alert_resolved_ack}。</p>
+     *
+     * @return 统计视图
+     */
+    public TwinAlertSummaryVO summary() {
+        return TwinAlertSummaryVO.builder()
+                .unresolved(countUnresolved(null, null))
+                .critical(countUnresolved(LEVEL_CRITICAL, null))
+                .warn(countUnresolved(LEVEL_WARN, null))
+                .unacked(countUnresolved(null, false))
+                .build();
+    }
+
+    /**
+     * 统计未恢复告警行数。
+     *
+     * @param level 级别过滤（可空 = 不限）
+     * @param acked 确认状态过滤（可空 = 不限；false 表示未确认）
+     * @return 行数
+     */
+    private long countUnresolved(String level, Boolean acked) {
+        LambdaQueryWrapper<TwinAlert> query = new LambdaQueryWrapper<TwinAlert>()
+                .eq(TwinAlert::getResolved, 0);
+        if (level != null) {
+            query.eq(TwinAlert::getLevel, level);
+        }
+        if (acked != null) {
+            query.eq(TwinAlert::getAck, acked ? 1 : 0);
+        }
+        Long count = alertMapper.selectCount(query);
+        return count == null ? 0L : count;
+    }
+
+    /**
+     * 批量加载本页告警涉及的场景（补全编码与名称）。
+     *
+     * @param rows 告警行
+     * @return 场景ID → 场景
+     */
+    private Map<Long, TwinScene> loadScenes(List<TwinAlert> rows) {
+        List<Long> sceneIds = rows.stream()
+                .map(TwinAlert::getSceneId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (sceneIds.isEmpty()) {
+            return Map.of();
+        }
+        try {
+            List<TwinScene> scenes = sceneMapper.selectList(new LambdaQueryWrapper<TwinScene>()
+                    .in(TwinScene::getId, sceneIds)
+                    .select(TwinScene::getId, TwinScene::getCode, TwinScene::getName));
+            Map<Long, TwinScene> sceneById = new HashMap<>(scenes.size() * 2);
+            for (TwinScene scene : scenes) {
+                sceneById.put(scene.getId(), scene);
+            }
+            return sceneById;
+        } catch (RuntimeException e) {
+            // 场景信息只是展示增强，失败不影响告警本体返回
+            log.warn("告警总览场景信息补全失败（忽略）：{}", e.getMessage());
+            return Map.of();
+        }
+    }
+
+    /**
      * 收口同场景、同绑定、同状态键的未恢复行（恢复或被新级别替代）。
      *
      * @param sceneId 场景ID
@@ -238,6 +354,7 @@ public class TwinAlertService {
     private TwinAlertVO toVo(TwinAlert row) {
         return TwinAlertVO.builder()
                 .id(String.valueOf(row.getId()))
+                .sceneId(row.getSceneId() == null ? null : String.valueOf(row.getSceneId()))
                 .entityId(row.getEntityId() == null ? null : String.valueOf(row.getEntityId()))
                 .entityCode(row.getEntityCode())
                 .bindingId(String.valueOf(row.getBindingId()))

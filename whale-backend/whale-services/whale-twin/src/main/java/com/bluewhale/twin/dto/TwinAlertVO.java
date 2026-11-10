@@ -22,6 +22,15 @@ public class TwinAlertVO {
     /** 告警ID（字符串化） */
     private String id;
 
+    /** 场景ID（字符串化；跨场景总览时用于跳转定位） */
+    private String sceneId;
+
+    /** 场景编码（仅跨场景总览填充） */
+    private String sceneCode;
+
+    /** 场景名称（仅跨场景总览填充） */
+    private String sceneName;
+
     /** 孪生实体ID（字符串化，可空） */
     private String entityId;
 

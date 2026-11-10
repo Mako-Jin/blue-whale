@@ -1,6 +1,6 @@
 # Wave 6.08：无头告警消费（无人订阅也持续评估与落库）
 
-> 状态：**M0 已落地（2026-11-10）** · 上游：Wave 6.07 已交付（规则引擎 / ACK / 前端规则编辑）
+> 状态：**M0 + M1 已落地（2026-11-10）** · 上游：Wave 6.07 已交付（规则引擎 / ACK / 前端规则编辑）
 > 核心动机：6.06 起告警评估寄生在「场景有活跃 SSE 订阅者」的轮询路径上——
 > 没人打开 3D 查看器时不轮询、不评估、不落库，等于**告警依赖人盯着看**。
 > 本波把「评估/落库」与「订阅」解耦：无头轮询全场景，SSE 只作为实时可视化的加速带。
@@ -19,7 +19,7 @@
 | 里程碑 | 内容 | 状态 |
 |---|---|---|
 | M0 | 无头轮询：`tick` 追加「无订阅者场景」评估通道（独立节流 + 场景数上限 + 状态保留集清理） | ✅ 2026-11-10 |
-| M1 | 跨场景告警总览：未恢复列表 / 级别统计接口（摆脱"必须先选场景"） | 待开始 |
+| M1 | 跨场景告警总览：未恢复列表 / 级别统计接口（摆脱"必须先选场景"） | ✅ 2026-11-10 |
 | M2 | 前端：场景列表页全局告警角标 + 总览抽屉（复用 6.06 抽屉样式） | 待开始 |
 
 ## 三、M0 设计要点
@@ -81,3 +81,20 @@ tick(每 tick-ms)
   + 绑定服务 2 例（去重与上限 / 无绑定不查实体）；whale-twin **106/106 全绿**
 - 已知边界：`nextDueAt`（绑定级到期表）仍按 bindingId 累积，删除绑定的残留项
   由 `bindingId` 复用或进程重启消化，暂不做主动清理（量级小、无功能影响）
+
+## 六、M1 落地清单（2026-11-10）：跨场景告警总览
+
+- `V4__alert_global_index.sql`（Flyway）：`idx_alert_resolved_level (resolved, level)`
+  与 `idx_alert_resolved_ack (resolved, ack)`——全局未恢复查询不再走全表
+- `TwinAlertVO` 扩展 `sceneId` / `sceneCode` / `sceneName`（后两者仅跨场景总览填充）
+- 新增 `TwinAlertSummaryVO`：`unresolved` / `critical` / `warn` / `unacked`
+  （口径统一 `resolved = 0`，四个指标各一次 COUNT）
+- `TwinAlertService`：
+  - `listUnresolvedAcrossScenes(limit)`：跨场景未恢复（默认 100、上限 200），
+    按本页涉及的场景ID批量补全编码/名称，补全失败只记 WARN 不影响主查询
+  - `summary()`：四个 COUNT；null 计数兜底为 0
+- 新增 `TwinAlertOverviewController`（`/twin/alerts`，`sys:twin:scene`）：
+  `GET /twin/alerts/unresolved?limit=` 与 `GET /twin/alerts/summary`；
+  场景维度的历史/确认接口保持不动（`/twin/scenes/{id}/alerts`）
+- 测试：服务新增 4 例（场景补全成功 / 补全失败降级 / 统计拆分 / null 计数兜底）；
+  whale-twin **110/110 全绿**

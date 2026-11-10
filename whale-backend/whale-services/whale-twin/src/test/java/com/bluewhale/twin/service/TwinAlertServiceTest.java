@@ -5,7 +5,9 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.twin.dto.BindingAlertVO;
 import com.bluewhale.twin.dto.TwinAlertVO;
 import com.bluewhale.twin.entity.TwinAlert;
+import com.bluewhale.twin.entity.TwinScene;
 import com.bluewhale.twin.mapper.TwinAlertMapper;
+import com.bluewhale.twin.mapper.TwinSceneMapper;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,6 +22,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -41,6 +44,8 @@ class TwinAlertServiceTest {
 
     private TwinAlertMapper alertMapper;
 
+    private TwinSceneMapper sceneMapper;
+
     private TwinAlertService service;
 
     @BeforeAll
@@ -48,12 +53,14 @@ class TwinAlertServiceTest {
         MapperBuilderAssistant assistant =
                 new MapperBuilderAssistant(new MybatisConfiguration(), "");
         TableInfoHelper.initTableInfo(assistant, TwinAlert.class);
+        TableInfoHelper.initTableInfo(assistant, TwinScene.class);
     }
 
     @BeforeEach
     void setUp() {
         alertMapper = mock(TwinAlertMapper.class);
-        service = new TwinAlertService(alertMapper);
+        sceneMapper = mock(TwinSceneMapper.class);
+        service = new TwinAlertService(alertMapper, sceneMapper);
     }
 
     @Test
@@ -210,6 +217,72 @@ class TwinAlertServiceTest {
         assertEquals(1, result.size());
         assertEquals("warn", result.get(0).getLevel());
         assertFalse(result.get(0).getResolved());
+    }
+
+    @Test
+    void listUnresolvedAcrossScenesFillsSceneInfo() {
+        TwinAlert row = new TwinAlert();
+        row.setId(7L);
+        row.setSceneId(SCENE_ID);
+        row.setBindingId(1L);
+        row.setStateKey("color");
+        row.setLevel("critical");
+        row.setResolved(0);
+        row.setCreateTime(LocalDateTime.of(2026, 11, 10, 15, 0));
+        when(alertMapper.selectList(any())).thenReturn(List.of(row));
+        TwinScene scene = new TwinScene();
+        scene.setId(SCENE_ID);
+        scene.setCode("plant-demo");
+        scene.setName("一号厂区");
+        when(sceneMapper.selectList(any())).thenReturn(List.of(scene));
+
+        List<TwinAlertVO> result = service.listUnresolvedAcrossScenes(null);
+
+        assertEquals(1, result.size());
+        assertEquals(String.valueOf(SCENE_ID), result.get(0).getSceneId());
+        assertEquals("plant-demo", result.get(0).getSceneCode());
+        assertEquals("一号厂区", result.get(0).getSceneName());
+    }
+
+    @Test
+    void listUnresolvedAcrossScenesToleratesSceneLookupFailure() {
+        TwinAlert row = new TwinAlert();
+        row.setId(7L);
+        row.setSceneId(SCENE_ID);
+        row.setBindingId(1L);
+        row.setStateKey("color");
+        row.setLevel("warn");
+        row.setResolved(0);
+        when(alertMapper.selectList(any())).thenReturn(List.of(row));
+        when(sceneMapper.selectList(any())).thenThrow(new IllegalStateException("boom"));
+
+        List<TwinAlertVO> result = service.listUnresolvedAcrossScenes(10);
+
+        // 场景信息只是展示增强，补全失败仍返回告警本体
+        assertEquals(1, result.size());
+        assertNull(result.get(0).getSceneName());
+    }
+
+    @Test
+    void summaryCountsUnresolvedByLevelAndAck() {
+        when(alertMapper.selectCount(any())).thenReturn(5L, 2L, 3L, 1L);
+
+        var summary = service.summary();
+
+        assertEquals(5L, summary.getUnresolved());
+        assertEquals(2L, summary.getCritical());
+        assertEquals(3L, summary.getWarn());
+        assertEquals(1L, summary.getUnacked());
+    }
+
+    @Test
+    void summaryTreatsNullCountAsZero() {
+        when(alertMapper.selectCount(any())).thenReturn(null);
+
+        var summary = service.summary();
+
+        assertEquals(0L, summary.getUnresolved());
+        assertEquals(0L, summary.getUnacked());
     }
 
     /**
