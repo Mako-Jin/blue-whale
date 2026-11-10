@@ -80,6 +80,9 @@ public class TwinBindingRuntimeService {
 
     private final TwinAlertService alertService;
 
+    /** 告警外发（Wave 6.10 M0：落库后异步推 webhook） */
+    private final TwinAlertNotifyService alertNotifyService;
+
     private final TwinProperties properties;
 
     /** 场景ID → (绑定ID → 上次快照指纹)：不一致才推送 */
@@ -106,6 +109,7 @@ public class TwinBindingRuntimeService {
      * @param internalApiStateClient internal_api 绑定源客户端
      * @param streamService          场景推送服务
      * @param alertService           阈值告警服务（落库）
+     * @param alertNotifyService     告警外发服务（webhook，默认关闭）
      * @param properties             孪生配置
      */
     public TwinBindingRuntimeService(TwinBindingService bindingService,
@@ -114,6 +118,7 @@ public class TwinBindingRuntimeService {
                                      InternalApiStateClient internalApiStateClient,
                                      TwinStreamService streamService,
                                      TwinAlertService alertService,
+                                     TwinAlertNotifyService alertNotifyService,
                                      TwinProperties properties) {
         this.bindingService = bindingService;
         this.entityMapper = entityMapper;
@@ -121,6 +126,7 @@ public class TwinBindingRuntimeService {
         this.internalApiStateClient = internalApiStateClient;
         this.streamService = streamService;
         this.alertService = alertService;
+        this.alertNotifyService = alertNotifyService;
         this.properties = properties;
         this.scheduler = Executors.newSingleThreadScheduledExecutor(runnable -> {
             Thread thread = new Thread(runnable, "twin-binding-runtime");
@@ -310,7 +316,10 @@ public class TwinBindingRuntimeService {
             // M1：与 SSE 推送同源落库（SSE 帧已发出，落库失败不阻塞主链路）
             for (BindingAlertVO alert : alerts) {
                 TwinBinding binding = bindingById.get(Long.valueOf(alert.getBindingId()));
-                alertService.record(sceneId, binding == null ? null : binding.getTenantId(), alert);
+                Long tenantId = binding == null ? null : binding.getTenantId();
+                alertService.record(sceneId, tenantId, alert);
+                // Wave 6.10 M0：落库后外发（webhook 默认关闭；异步，不影响 tick）
+                alertNotifyService.notify(sceneId, tenantId, alert);
             }
         }
     }

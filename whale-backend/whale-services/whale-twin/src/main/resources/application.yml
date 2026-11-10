@@ -103,6 +103,16 @@ whale:
       base-url: ${WHALE_TWIN_ASSISTANT_BASE_URL:http://127.0.0.1:8087}
       assistant-code: ${WHALE_TWIN_ASSISTANT_CODE:}
       timeout-seconds: ${WHALE_TWIN_ASSISTANT_TIMEOUT_SECONDS:60}
+    # Wave 6.10 M0：告警外发（webhook）。默认关闭——未配置地址时不产生任何出站请求。
+    # 地址属运维配置（不是用户输入）；同场景同状态键同级别受 cooldown-seconds 冷却，防抖动刷屏。
+    alert-notify:
+      enabled: ${WHALE_TWIN_NOTIFY_ENABLED:false}
+      min-level: ${WHALE_TWIN_NOTIFY_MIN_LEVEL:warn}
+      timeout-seconds: ${WHALE_TWIN_NOTIFY_TIMEOUT_SECONDS:5}
+      webhook-token: ${WHALE_TWIN_NOTIFY_WEBHOOK_TOKEN:}
+      cooldown-seconds: ${WHALE_TWIN_NOTIFY_COOLDOWN_SECONDS:300}
+      # 逗号分隔的多个地址，如 ${WHALE_TWIN_NOTIFY_WEBHOOK_URLS:}
+      webhook-urls: ${WHALE_TWIN_NOTIFY_WEBHOOK_URLS:}
 
 mybatis-plus:
   configuration:

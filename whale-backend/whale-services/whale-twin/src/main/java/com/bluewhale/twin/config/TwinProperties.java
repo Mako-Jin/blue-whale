@@ -3,6 +3,7 @@ package com.bluewhale.twin.config;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +31,9 @@ public class TwinProperties {
 
     /** AI 解读（whale-assistant 开放 API）配置 */
     private final Assistant assistant = new Assistant();
+
+    /** 告警外发配置（Wave 6.10，默认关闭） */
+    private final AlertNotify alertNotify = new AlertNotify();
 
     /**
      * AI 解读配置。
@@ -127,5 +131,36 @@ public class TwinProperties {
 
         /** 单轮无头评估覆盖的最大场景数（按场景ID升序截断，防大租户拖垮） */
         private int maxHeadlessScenes = 20;
+    }
+
+    /**
+     * 告警外发配置（Wave 6.10）：级别变化后把告警推到平台外部。
+     *
+     * <p>默认关闭——没有配置 webhook 地址时不应产生任何出站请求。
+     * webhook 地址属运维配置（不是用户输入），但仍做形态校验，避免把内网令牌或
+     * 带凭据的 URL 发到意外目标。</p>
+     *
+     * @author BlueWhale
+     */
+    @Data
+    public static class AlertNotify {
+
+        /** 外发总开关（默认关：避免空配置下无意义出站） */
+        private boolean enabled = false;
+
+        /** 最低外发级别：warn（默认，含 critical）/ critical（仅严重） */
+        private String minLevel = "warn";
+
+        /** 单地址 webhook 超时（秒，连接与读取共用） */
+        private int timeoutSeconds = 5;
+
+        /** webhook 地址列表（http/https；非法地址跳过，不影响其它地址） */
+        private List<String> webhookUrls = new ArrayList<>();
+
+        /** 可选 Bearer 令牌（空表示不加 Authorization 头） */
+        private String webhookToken = "";
+
+        /** 同场景同状态键同级别的最小外发间隔（秒），0 = 不去重 */
+        private int cooldownSeconds = 300;
     }
 }

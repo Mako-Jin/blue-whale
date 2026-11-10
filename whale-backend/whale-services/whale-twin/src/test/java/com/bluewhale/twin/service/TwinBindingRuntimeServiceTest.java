@@ -54,6 +54,8 @@ class TwinBindingRuntimeServiceTest {
 
     private TwinAlertService alertService;
 
+    private TwinAlertNotifyService alertNotifyService;
+
     private TwinProperties properties;
 
     private TwinBindingRuntimeService service;
@@ -66,10 +68,12 @@ class TwinBindingRuntimeServiceTest {
         internalApiStateClient = mock(InternalApiStateClient.class);
         streamService = mock(TwinStreamService.class);
         alertService = mock(TwinAlertService.class);
+        alertNotifyService = mock(TwinAlertNotifyService.class);
         properties = new TwinProperties();
         properties.getRuntime().setEnabled(false);
         service = new TwinBindingRuntimeService(bindingService, entityMapper,
-                iotStateClient, internalApiStateClient, streamService, alertService, properties);
+                iotStateClient, internalApiStateClient, streamService, alertService,
+                alertNotifyService, properties);
     }
 
     @Test
@@ -408,6 +412,8 @@ class TwinBindingRuntimeServiceTest {
                 .publish(eq(SCENE_ID), eq(TwinStreamService.EVENT_BINDING), any());
         // M1：两次越界都落库，离线 tick 不落
         verify(alertService, times(2)).record(eq(SCENE_ID), eq(1L), any());
+        // 6.10 M0：落库后同步调用外发入口（是否真的发由 notify 服务内部按配置判定）
+        verify(alertNotifyService, times(2)).notify(eq(SCENE_ID), eq(1L), any());
     }
 
     @Test
