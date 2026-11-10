@@ -115,5 +115,17 @@ public class TwinProperties {
 
         /** 单场景单次 tick 允许触达的最大 internal_api 绑定数（防误配拖垮内部服务） */
         private int maxApisPerScene = 20;
+
+        /**
+         * 无头评估开关（Wave 6.08）：开启后无订阅者的场景也会周期轮询并落库告警，
+         * 关闭则回退到「只有人看才评估」的 6.07 行为。
+         */
+        private boolean headlessEnabled = true;
+
+        /** 无头评估轮次间隔（毫秒，独立于 tick，默认 15s） */
+        private long headlessIntervalMs = 15000;
+
+        /** 单轮无头评估覆盖的最大场景数（按场景ID升序截断，防大租户拖垮） */
+        private int maxHeadlessScenes = 20;
     }
 }

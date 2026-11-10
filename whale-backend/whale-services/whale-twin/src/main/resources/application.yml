@@ -82,6 +82,12 @@ whale:
       max-devices-per-scene: ${WHALE_TWIN_MAX_DEVICES_PER_SCENE:50}
       # 单场景单 tick 允许触达的最大 internal_api 绑定数
       max-apis-per-scene: ${WHALE_TWIN_MAX_APIS_PER_SCENE:20}
+      # 无头评估（Wave 6.08）：无订阅者的场景也周期轮询并落库告警，关闭则回到「有人看才评估」
+      headless-enabled: ${WHALE_TWIN_HEADLESS_ENABLED:true}
+      # 无头评估轮次间隔（毫秒，独立于 tick；绑定实际周期仍由 pollIntervalMs 决定）
+      headless-interval-ms: ${WHALE_TWIN_HEADLESS_INTERVAL_MS:15000}
+      # 单轮无头评估覆盖的最大场景数（按场景ID升序截断）
+      max-headless-scenes: ${WHALE_TWIN_MAX_HEADLESS_SCENES:20}
     # M2（Wave 6.05）：internal_api 绑定源——按 bindKey 轮询平台内部只读 GET 接口。
     # 白名单前缀约束可调用范围；base-urls 为服务名 → 内网地址路由表（iot 缺省回退 iot.base-url）
     internal-api:

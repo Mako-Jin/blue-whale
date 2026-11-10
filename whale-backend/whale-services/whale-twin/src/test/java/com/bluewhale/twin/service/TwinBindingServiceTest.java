@@ -23,6 +23,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -194,6 +195,33 @@ class TwinBindingServiceTest {
         request.setBindKey("/iot/internal/../admin/users");
 
         assertThrows(BizException.class, () -> service.create(SCENE_ID, request));
+    }
+
+    @Test
+    void listScenesWithEnabledBindingsDedupesAndCapsScenes() {
+        TwinBinding first = binding();
+        TwinBinding second = binding();
+        second.setId(2L);
+        when(bindingMapper.selectList(any())).thenReturn(List.of(first, second));
+        TwinEntity sameScene = entity();
+        TwinEntity otherScene = entity();
+        otherScene.setId(201L);
+        otherScene.setSceneId(101L);
+        when(entityMapper.selectList(any())).thenReturn(List.of(sameScene, otherScene, entity()));
+
+        List<Long> scenes = service.listScenesWithEnabledBindings(10);
+        List<Long> capped = service.listScenesWithEnabledBindings(1);
+
+        assertEquals(List.of(SCENE_ID, 101L), scenes);
+        assertEquals(List.of(SCENE_ID), capped);
+    }
+
+    @Test
+    void listScenesWithEnabledBindingsReturnsEmptyWhenNoBindings() {
+        when(bindingMapper.selectList(any())).thenReturn(List.of());
+
+        assertTrue(service.listScenesWithEnabledBindings(10).isEmpty());
+        verify(entityMapper, never()).selectList(any());
     }
 
     /**

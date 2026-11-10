@@ -21,9 +21,11 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -32,10 +34,17 @@ import java.util.concurrent.TimeUnit;
 /**
  * 绑定实时态运行时：轮询 whale-iot 内网接口 → 属性映射 → 差分 → 场景 SSE 推送。
  *
- * <p>调度模型：全局 tick（{@code whale.twin.runtime.tick-ms}），只处理
- * <b>有活跃订阅者</b>的场景；场景内逐绑定判断 {@code pollIntervalMs} 是否到期，
- * 未到期的沿用上次快照。同一 tick 内同一设备只拉一次实时态（多绑定共享），
- * internal_api 源同理按 bindKey 去重。</p>
+ * <p>调度模型：全局 tick（{@code whale.twin.runtime.tick-ms}），分两条通道：</p>
+ * <ul>
+ *   <li><b>前台通道</b>：只处理有活跃 SSE 订阅者的场景（有人看，差分即时推送）；</li>
+ *   <li><b>无头通道</b>（Wave 6.08 M0）：每 {@code headless-interval-ms} 扫一遍
+ *       「有启用绑定的场景」，跳过本 tick 已在前台通道刷过的场景，让告警评估与
+ *       落库不依赖是否有人打开 3D 查看器。</li>
+ * </ul>
+ *
+ * <p>场景内逐绑定判断 {@code pollIntervalMs} 是否到期，未到期的沿用上次快照；
+ * 同一 tick 内同一设备只拉一次实时态（多绑定共享），internal_api 源同理按
+ * bindKey 去重。</p>
  *
  * <p>差分口径：绑定粒度的 {@code online + values} 序列化串与上次不一致才算变化；
  * 首次tick视为全量变化（订阅端需要初始态）。源类型支持 {@code iot_device}
@@ -85,6 +94,9 @@ public class TwinBindingRuntimeService {
     /** 轮询调度线程池 */
     private final ScheduledExecutorService scheduler;
 
+    /** 上次无头评估时刻（epoch 毫秒；包内可见便于单测重置节流窗口） */
+    volatile long lastHeadlessAt;
+
     /**
      * 构造运行时并按配置启动轮询调度。
      *
@@ -133,25 +145,66 @@ public class TwinBindingRuntimeService {
     }
 
     /**
-     * 单次调度 tick：只刷有订阅者的场景。
+     * 单次调度 tick：先刷有订阅者的场景（前台通道），再按节流周期做无头评估。
      */
     void tick() {
+        Set<Long> active;
         try {
-            for (Long sceneId : streamService.activeScenes()) {
-                refreshScene(sceneId);
-            }
+            active = streamService.activeScenes();
         } catch (RuntimeException e) {
             // 调度线程里异常必须吞掉，否则后续 tick 全部停摆
+            log.warn("绑定轮询 tick 异常（忽略）：{}", e.getMessage());
+            return;
+        }
+        try {
+            for (Long sceneId : active) {
+                refreshScene(sceneId, false);
+            }
+            tickHeadless(active);
+        } catch (RuntimeException e) {
             log.warn("绑定轮询 tick 异常（忽略）：{}", e.getMessage());
         }
     }
 
     /**
-     * 刷新单场景：取到期绑定 → 拉实时态 → 差分 → 推送变化批次。
+     * 无头评估通道（Wave 6.08 M0）：无人订阅的场景也周期评估并按级别变化落库告警。
      *
-     * @param sceneId 场景ID
+     * <p>与前台通道的分工：本 tick 已有订阅者的场景直接跳过（前台刚拉过，
+     * 再拉一次等于翻倍调用数据源）；绑定级 {@code pollIntervalMs} 节流照旧生效。
+     * 跑完按「前台场景 ∪ 本轮无头场景」收窄差分指纹与告警状态，避免长跑内存无界。</p>
+     *
+     * @param active 本 tick 的活跃订阅场景
      */
-    private void refreshScene(Long sceneId) {
+    private void tickHeadless(Set<Long> active) {
+        TwinProperties.Runtime runtime = properties.getRuntime();
+        if (!runtime.isHeadlessEnabled()) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now - lastHeadlessAt < Math.max(1000L, runtime.getHeadlessIntervalMs())) {
+            return;
+        }
+        lastHeadlessAt = now;
+        List<Long> candidates = bindingService.listScenesWithEnabledBindings(runtime.getMaxHeadlessScenes());
+        Set<Long> keep = new HashSet<>(active);
+        for (Long sceneId : candidates) {
+            if (active.contains(sceneId)) {
+                continue;
+            }
+            keep.add(sceneId);
+            refreshScene(sceneId, true);
+        }
+        lastSnapshots.keySet().retainAll(keep);
+        alertTrackers.keySet().retainAll(keep);
+    }
+
+    /**
+     * 刷新单场景：取到期绑定 → 拉实时态 → 差分 → 推送变化批次 → 评估告警。
+     *
+     * @param sceneId  场景ID
+     * @param headless 是否由无头通道触发（仅影响日志口径）
+     */
+    private void refreshScene(Long sceneId, boolean headless) {
         List<TwinBinding> bindings = bindingService.listByScene(sceneId);
         if (bindings.isEmpty()) {
             return;
@@ -184,7 +237,7 @@ public class TwinBindingRuntimeService {
                     "ts", TIME_FORMAT.format(LocalDateTime.now()),
                     "items", changed));
         }
-        publishAlerts(sceneId, bindings, computed.values());
+        publishAlerts(sceneId, bindings, computed.values(), headless);
     }
 
     /**
@@ -196,9 +249,10 @@ public class TwinBindingRuntimeService {
      * @param sceneId 场景ID
      * @param bindings 绑定列表（取 propertyMap 与清理已删绑定）
      * @param states   本 tick 计算出的实时态
+     * @param headless 是否由无头通道触发（无人订阅时补一条 INFO 留痕日志）
      */
     private void publishAlerts(Long sceneId, List<TwinBinding> bindings,
-                               Iterable<BindingStateVO> states) {
+                               Iterable<BindingStateVO> states, boolean headless) {
         Map<Long, TwinBinding> bindingById = new HashMap<>(bindings.size() * 2);
         for (TwinBinding binding : bindings) {
             bindingById.put(binding.getId(), binding);
@@ -245,6 +299,14 @@ public class TwinBindingRuntimeService {
                     "sceneId", sceneId.toString(),
                     "ts", ts,
                     "items", alerts));
+            if (headless) {
+                // 无人订阅场景：SSE 空转，靠日志留痕（同帧内容，便于事后对账）
+                for (BindingAlertVO alert : alerts) {
+                    log.info("无头告警：sceneId={}, bindingId={}, stateKey={}, level={}, previous={}, value={}",
+                            sceneId, alert.getBindingId(), alert.getStateKey(),
+                            alert.getLevel(), alert.getPrevious(), alert.getValue());
+                }
+            }
             // M1：与 SSE 推送同源落库（SSE 帧已发出，落库失败不阻塞主链路）
             for (BindingAlertVO alert : alerts) {
                 TwinBinding binding = bindingById.get(Long.valueOf(alert.getBindingId()));

@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 孪生数据源绑定服务：绑定 CRUD 与合法性校验。
@@ -42,6 +43,9 @@ public class TwinBindingService {
 
     /** 默认轮询间隔（毫秒） */
     private static final int DEFAULT_POLL_INTERVAL_MS = 5000;
+
+    /** 无头评估扫描时单次 IN 查询的实体ID上限（超过则跳过本轮，避免打爆数据库） */
+    private static final int MAX_SCAN_ENTITY_IDS = 5000;
 
     /** JSON 解析器（仅做结构校验，不落字段白名单——映射语义由前端解释） */
     private static final ObjectMapper JSON = new ObjectMapper();
@@ -155,6 +159,50 @@ public class TwinBindingService {
      */
     public List<TwinBinding> listByScene(Long sceneId) {
         return listEntitiesBindings(sceneId);
+    }
+
+    /**
+     * 存在启用绑定（且源类型可轮询）的场景ID列表——无头评估通道的扫描入口
+     * （Wave 6.08 M0）。
+     *
+     * <p>只取 {@code enabled=1} 的 {@code iot_device}/{@code internal_api} 绑定，
+     * 经实体反查所属场景并去重，按场景ID升序返回；超过 {@code limit} 截断
+     * （升序保证截断结果稳定，运维可预期哪批场景先被评估）。</p>
+     *
+     * @param limit 返回场景数上限（小于 1 视为不限）
+     * @return 场景ID列表（可能为空）
+     */
+    public List<Long> listScenesWithEnabledBindings(int limit) {
+        List<TwinBinding> bindings = bindingMapper.selectList(new LambdaQueryWrapper<TwinBinding>()
+                .eq(TwinBinding::getEnabled, 1)
+                .in(TwinBinding::getSourceType, SOURCE_IOT_DEVICE, SOURCE_INTERNAL_API)
+                .select(TwinBinding::getEntityId));
+        if (bindings.isEmpty()) {
+            return List.of();
+        }
+        // IN 子句规模上限：绑定数量远超实体数量时先去重，仍过大则跳过本轮（宁可不评估也不打爆数据库）
+        List<Long> entityIds = bindings.stream()
+                .map(TwinBinding::getEntityId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (entityIds.size() > MAX_SCAN_ENTITY_IDS) {
+            log.warn("无头评估扫描跳过：启用绑定关联实体过多（{} > {}）", entityIds.size(), MAX_SCAN_ENTITY_IDS);
+            return List.of();
+        }
+        List<TwinEntity> entities = entityMapper.selectList(new LambdaQueryWrapper<TwinEntity>()
+                .in(TwinEntity::getId, entityIds)
+                .select(TwinEntity::getId, TwinEntity::getSceneId));
+        List<Long> sceneIds = entities.stream()
+                .map(TwinEntity::getSceneId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .sorted()
+                .toList();
+        if (limit > 0 && sceneIds.size() > limit) {
+            return sceneIds.subList(0, limit);
+        }
+        return sceneIds;
     }
 
     /**

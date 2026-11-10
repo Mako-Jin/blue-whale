@@ -19,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -53,6 +54,8 @@ class TwinBindingRuntimeServiceTest {
 
     private TwinAlertService alertService;
 
+    private TwinProperties properties;
+
     private TwinBindingRuntimeService service;
 
     @BeforeEach
@@ -63,7 +66,7 @@ class TwinBindingRuntimeServiceTest {
         internalApiStateClient = mock(InternalApiStateClient.class);
         streamService = mock(TwinStreamService.class);
         alertService = mock(TwinAlertService.class);
-        TwinProperties properties = new TwinProperties();
+        properties = new TwinProperties();
         properties.getRuntime().setEnabled(false);
         service = new TwinBindingRuntimeService(bindingService, entityMapper,
                 iotStateClient, internalApiStateClient, streamService, alertService, properties);
@@ -405,6 +408,65 @@ class TwinBindingRuntimeServiceTest {
                 .publish(eq(SCENE_ID), eq(TwinStreamService.EVENT_BINDING), any());
         // M1：两次越界都落库，离线 tick 不落
         verify(alertService, times(2)).record(eq(SCENE_ID), eq(1L), any());
+    }
+
+    @Test
+    void headlessSceneWithoutSubscribersStillEvaluatesAndRecords() {
+        // 6.08：没人订阅读取器也不该漏告警——无头通道独立评估并落库
+        TwinBinding binding = binding("{\"temperature\":{\"stateKey\":\"color\",\"thresholds\":[50,80]}}");
+        when(streamService.activeScenes()).thenReturn(java.util.Set.of());
+        when(bindingService.listScenesWithEnabledBindings(anyInt())).thenReturn(List.of(SCENE_ID));
+        when(bindingService.listByScene(SCENE_ID)).thenReturn(List.of(binding));
+        when(entityMapper.selectById(ENTITY_ID)).thenReturn(entity(1L));
+        when(iotStateClient.fetchDeviceState(300L, 1L))
+                .thenReturn(Map.of("online", 1, "reported", Map.of("temperature", 82.5)));
+
+        service.tick();
+
+        verify(iotStateClient, times(1)).fetchDeviceState(300L, 1L);
+        verify(alertService, times(1)).record(eq(SCENE_ID), eq(1L), any());
+    }
+
+    @Test
+    void headlessSkipsSceneAlreadyRefreshedBySubscribers() {
+        // 有订阅者的场景本 tick 已拉过一次，无头通道必须跳过，避免翻倍调用数据源
+        TwinBinding binding = binding("{\"temperature\":\"color\"}");
+        when(streamService.activeScenes()).thenReturn(java.util.Set.of(SCENE_ID));
+        when(bindingService.listScenesWithEnabledBindings(anyInt())).thenReturn(List.of(SCENE_ID));
+        when(bindingService.listByScene(SCENE_ID)).thenReturn(List.of(binding));
+        when(entityMapper.selectById(ENTITY_ID)).thenReturn(entity(1L));
+        when(iotStateClient.fetchDeviceState(300L, 1L))
+                .thenReturn(Map.of("online", 1, "reported", Map.of("temperature", 61)));
+
+        service.tick();
+
+        verify(iotStateClient, times(1)).fetchDeviceState(300L, 1L);
+        verify(bindingService, times(1)).listByScene(SCENE_ID);
+    }
+
+    @Test
+    void headlessRespectsIntervalThrottle() {
+        // 无头通道按 headless-interval-ms 节流：两次紧邻 tick 只扫一轮
+        when(streamService.activeScenes()).thenReturn(java.util.Set.of());
+        when(bindingService.listScenesWithEnabledBindings(anyInt())).thenReturn(List.of());
+
+        service.tick();
+        service.tick();
+
+        verify(bindingService, times(1)).listScenesWithEnabledBindings(anyInt());
+    }
+
+    @Test
+    void headlessDisabledKeepsSubscriberOnlyBehaviour() {
+        properties.getRuntime().setHeadlessEnabled(false);
+        when(streamService.activeScenes()).thenReturn(java.util.Set.of());
+        when(bindingService.listScenesWithEnabledBindings(anyInt())).thenReturn(List.of(SCENE_ID));
+        when(bindingService.listByScene(SCENE_ID)).thenReturn(List.of(binding("{\"temperature\":\"color\"}")));
+
+        service.tick();
+
+        verify(bindingService, never()).listScenesWithEnabledBindings(anyInt());
+        verify(iotStateClient, never()).fetchDeviceState(anyLong(), anyLong());
     }
 
     /**
