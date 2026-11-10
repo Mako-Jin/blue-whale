@@ -50,9 +50,10 @@ BlueWhale/
 ├── deploy/                 # Dockerfile 部署模板
 ├── .github/workflows/      # CI/CD Pipeline
 ├── scripts/                # 运维脚本（dev / smoke / ops / ci）
-├── docs/                   # 文档
-└── pom.xml                 # 根聚合 POM
+└── docs/                   # 文档
 ```
+
+> 后端为独立 Maven 聚合工程，聚合 POM 位于 [whale-backend/pom.xml](whale-backend/pom.xml)，仓库根目录不再提供 `pom.xml`；根目录仅保留 Maven Wrapper 与 `.mvn` 配置。
 
 > 本地运行时与工具目录（`logs/`、`data/`、`tools/`、`work/`、`target/` 等）不入库，见 [.gitignore](.gitignore)。
 
@@ -72,20 +73,22 @@ docker compose up -d
 ### 2. 后端
 
 ```bash
-cd backend
-./mvnw clean install -DskipTests
+# 在仓库根目录执行；后端聚合 POM 为 whale-backend/pom.xml
+./mvnw -f whale-backend/pom.xml clean install -DskipTests
 
 # 启动 API 网关
-./mvnw -pl whale-services/whale-gateway spring-boot:run
+./mvnw -f whale-backend/pom.xml -pl whale-services/whale-gateway -am spring-boot:run
 
 # 启动权限中心
-./mvnw -pl whale-services/whale-service-auth/whale-service-auth-starter spring-boot:run
+./mvnw -f whale-backend/pom.xml -pl whale-services/whale-service-auth/whale-service-auth-starter -am spring-boot:run
 ```
+
+> Windows 下使用 `mvnw.cmd`。
 
 ### 3. 前端
 
 ```bash
-cd frontend
+cd whale-frontend
 pnpm install
 pnpm run dev              # 同时启动所有应用
 ```
