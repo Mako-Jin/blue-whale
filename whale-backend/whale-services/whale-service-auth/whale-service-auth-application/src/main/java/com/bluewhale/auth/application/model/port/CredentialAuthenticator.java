@@ -1,6 +1,6 @@
-package com.bluewhale.auth.application.auth.port;
+package com.bluewhale.auth.application.model.port;
 
-import com.bluewhale.auth.application.auth.AuthenticatedUser;
+import com.bluewhale.auth.application.model.AuthenticatedUser;
 
 /**
  * 凭据认证端口：由基础设施适配器基于 Spring Security 实现，应用层只接收认证结果。

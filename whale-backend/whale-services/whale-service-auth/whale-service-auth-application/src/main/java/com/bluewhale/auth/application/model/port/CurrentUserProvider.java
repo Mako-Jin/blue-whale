@@ -1,6 +1,6 @@
-package com.bluewhale.auth.application.auth.port;
+package com.bluewhale.auth.application.model.port;
 
-import com.bluewhale.auth.application.auth.AuthenticatedUser;
+import com.bluewhale.auth.application.model.AuthenticatedUser;
 
 /**
  * 当前登录用户提供者：从运行时认证上下文读取身份，应用层不依赖 Spring Security。

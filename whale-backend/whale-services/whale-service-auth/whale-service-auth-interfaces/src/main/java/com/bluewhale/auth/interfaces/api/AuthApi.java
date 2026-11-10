@@ -32,7 +32,7 @@ import java.util.List;
  *
  * @author BlueWhale
  */
-@RequestMapping(path = "/{version}/auth", version = "1")
+@RequestMapping(path = "/auth/v{version}", version = "1")
 public interface AuthApi {
 
     /**
@@ -75,6 +75,8 @@ public interface AuthApi {
      *
      * @param request 自助改密请求（旧口令 + 新口令）
      * @return 操作结果
+     *
+     * TODO : 危险操作需要二次认证
      */
     @PutMapping("/password")
     Result<Void> changePassword(@Valid @RequestBody ChangeOwnPasswordRequest request);
@@ -103,7 +105,8 @@ public interface AuthApi {
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @Valid @RequestBody SwitchTenantRequest request,
             HttpServletRequest servletRequest,
-            HttpServletResponse response);
+            HttpServletResponse response
+    );
 
     /**
      * 登出：使请求头中的 accessToken 与 {@code whale_refresh_token} Cookie 中的 refreshToken
@@ -118,5 +121,6 @@ public interface AuthApi {
     Result<Void> logout(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             HttpServletRequest request,
-            HttpServletResponse response);
+            HttpServletResponse response
+    );
 }

@@ -1,12 +1,13 @@
 package com.bluewhale.auth.starter.controller;
 
-import com.bluewhale.auth.application.auth.SessionAppService;
-import com.bluewhale.auth.application.auth.command.LogoutCommand;
-import com.bluewhale.auth.application.auth.command.RefreshCommand;
-import com.bluewhale.auth.application.auth.command.SwitchTenantCommand;
-import com.bluewhale.auth.application.auth.query.CurrentUserQuery;
-import com.bluewhale.auth.application.auth.query.TenantListQuery;
-import com.bluewhale.auth.application.auth.result.LoginResult;
+import com.bluewhale.auth.application.model.command.LogoutCommand;
+import com.bluewhale.auth.application.model.command.RefreshCommand;
+import com.bluewhale.auth.application.model.command.SwitchTenantCommand;
+import com.bluewhale.auth.application.model.query.CurrentUserQuery;
+import com.bluewhale.auth.application.model.query.TenantListQuery;
+import com.bluewhale.auth.application.model.result.LoginResult;
+import com.bluewhale.auth.application.model.result.TenantResult;
+import com.bluewhale.auth.application.service.SessionAppService;
 import com.bluewhale.auth.application.user.password.PasswordAppService;
 import com.bluewhale.auth.interfaces.api.AuthApi;
 import com.bluewhale.auth.interfaces.dto.request.ChangeOwnPasswordRequest;
@@ -82,8 +83,8 @@ public class AuthController implements AuthApi {
     @Override
     public Result<LoginResponse> refresh(HttpServletRequest request, HttpServletResponse response) {
         cookieManager.verifyCsrf(request);
-        LoginResult result = sessionAppService.refresh(
-                new RefreshCommand(cookieManager.requireRefreshToken(request)));
+        RefreshCommand refreshCommand = new RefreshCommand(cookieManager.requireRefreshToken(request));
+        LoginResult result = sessionAppService.refresh(refreshCommand);
         cookieManager.writeAuthCookies(response, result.refreshToken());
         return Result.ok(authAssembler.toLoginResponse(result));
     }
@@ -124,8 +125,8 @@ public class AuthController implements AuthApi {
     @Override
     @RequirePermission
     public Result<List<TenantResponse>> listTenants() {
-        return Result.ok(authAssembler.toTenantResponses(
-                sessionAppService.listTenants(new TenantListQuery())));
+        List<TenantResult> tenantResult = sessionAppService.listTenants(new TenantListQuery());
+        return Result.ok(authAssembler.toTenantResponses(tenantResult));
     }
 
     /**
@@ -145,9 +146,14 @@ public class AuthController implements AuthApi {
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @Valid @RequestBody SwitchTenantRequest request,
             HttpServletRequest servletRequest,
-            HttpServletResponse response) {
-        LoginResult result = sessionAppService.switchTenant(new SwitchTenantCommand(
-                authorization, request.getTenantId(), cookieManager.resolveRefreshToken(servletRequest)));
+            HttpServletResponse response
+    ) {
+        SwitchTenantCommand switchTenantCommand = new SwitchTenantCommand(
+            authorization,
+            request.getTenantId(),
+            cookieManager.resolveRefreshToken(servletRequest)
+        );
+        LoginResult result = sessionAppService.switchTenant(switchTenantCommand);
         cookieManager.writeAuthCookies(response, result.refreshToken());
         return Result.ok(authAssembler.toLoginResponse(result));
     }
@@ -166,7 +172,8 @@ public class AuthController implements AuthApi {
     public Result<Void> logout(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             HttpServletRequest request,
-            HttpServletResponse response) {
+            HttpServletResponse response
+    ) {
         cookieManager.verifyCsrf(request);
         sessionAppService.logout(new LogoutCommand(authorization, cookieManager.requireRefreshToken(request)));
         cookieManager.clearAuthCookies(response);

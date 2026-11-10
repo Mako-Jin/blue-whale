@@ -1,4 +1,4 @@
-package com.bluewhale.auth.application.auth.query;
+package com.bluewhale.auth.application.model.query;
 
 /**
  * 我的租户列表查询（当前无过滤条件，保留查询对象以统一应用层入参形态）。

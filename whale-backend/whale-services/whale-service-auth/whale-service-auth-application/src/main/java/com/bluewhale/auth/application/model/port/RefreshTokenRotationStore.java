@@ -1,4 +1,4 @@
-package com.bluewhale.auth.application.auth.port;
+package com.bluewhale.auth.application.model.port;
 
 /**
  * refreshToken 一次性轮换状态存储（AUTH-39 / ADR-001）。

@@ -1,12 +1,11 @@
 package com.bluewhale.auth.starter.controller;
 
-import com.bluewhale.auth.application.auth.SessionAppService;
-import com.bluewhale.auth.application.auth.command.LoginCommand;
-import com.bluewhale.auth.application.auth.command.LogoutCommand;
-import com.bluewhale.auth.application.auth.command.RefreshCommand;
-import com.bluewhale.auth.application.auth.command.SwitchTenantCommand;
-import com.bluewhale.auth.application.auth.result.CurrentUserResult;
-import com.bluewhale.auth.application.auth.result.LoginResult;
+import com.bluewhale.auth.application.model.command.LoginCommand;
+import com.bluewhale.auth.application.model.command.LogoutCommand;
+import com.bluewhale.auth.application.model.command.RefreshCommand;
+import com.bluewhale.auth.application.model.command.SwitchTenantCommand;
+import com.bluewhale.auth.application.model.result.CurrentUserResult;
+import com.bluewhale.auth.application.model.result.LoginResult;
 import com.bluewhale.auth.application.user.password.ChangeOwnPasswordCommand;
 import com.bluewhale.auth.application.user.password.PasswordAppService;
 import com.bluewhale.auth.application.vo.MenuVO;

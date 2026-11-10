@@ -1,6 +1,6 @@
 package com.bluewhale.auth.infrastructure.adapter.auth;
 
-import com.bluewhale.auth.application.auth.AuthenticatedUser;
+import com.bluewhale.auth.application.model.AuthenticatedUser;
 import com.bluewhale.auth.infrastructure.security.LoginUser;
 
 /**

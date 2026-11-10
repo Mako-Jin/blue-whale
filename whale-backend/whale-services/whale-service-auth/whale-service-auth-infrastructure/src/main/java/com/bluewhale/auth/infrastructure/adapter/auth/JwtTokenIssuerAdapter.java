@@ -1,7 +1,7 @@
 package com.bluewhale.auth.infrastructure.adapter.auth;
 
-import com.bluewhale.auth.application.auth.TokenPayload;
-import com.bluewhale.auth.application.auth.port.TokenIssuer;
+import com.bluewhale.auth.application.model.TokenPayload;
+import com.bluewhale.auth.application.model.port.TokenIssuer;
 import com.bluewhale.auth.infrastructure.jwt.JwtTokenProvider;
 import com.bluewhale.security.token.TokenTimeSupport;
 import io.jsonwebtoken.Claims;

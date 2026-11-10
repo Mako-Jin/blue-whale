@@ -11,7 +11,7 @@ import com.bluewhale.auth.domain.tenant.repository.TenantRepository;
 import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
 import com.bluewhale.auth.domain.user.repository.UserTenantRepository;
-import com.bluewhale.auth.application.auth.result.TenantResult;
+import com.bluewhale.auth.application.model.result.TenantResult;
 import com.bluewhale.auth.application.vo.TenantMemberVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.tenant.TenantContext;

@@ -1,4 +1,4 @@
-package com.bluewhale.auth.application.auth;
+package com.bluewhale.auth.application.model;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -15,10 +15,14 @@ import java.util.List;
  * @param mustChangePassword 是否需强制修改口令（T-03 出厂口令轮换后首登）
  * @param passwordUpdatedTime 最近一次改密时间（REQ-SEC-023：口令到期判定依据，可空）
  * @author BlueWhale
+ *
+ * TODO 这个是不是算一个DTO，DTO是否需要在新建一个dto包，专门存放DTO类
  */
-public record AuthenticatedUser(Long tenantId, Long userId, String username, String nickname,
-                                List<String> roles, boolean enabled, boolean mustChangePassword,
-                                LocalDateTime passwordUpdatedTime) {
+public record AuthenticatedUser(
+    Long tenantId, Long userId, String username,
+    String nickname, List<String> roles, boolean enabled,
+    boolean mustChangePassword, LocalDateTime passwordUpdatedTime
+) {
 
     /**
      * 紧凑构造器：角色列表做不可变拷贝，{@code null} 视为空列表
@@ -38,8 +42,10 @@ public record AuthenticatedUser(Long tenantId, Long userId, String username, Str
      * @param enabled 账号是否启用
      * @param mustChangePassword 是否强制修改口令
      */
-    public AuthenticatedUser(Long tenantId, Long userId, String username, String nickname,
-                             List<String> roles, boolean enabled, boolean mustChangePassword) {
+    public AuthenticatedUser(
+        Long tenantId, Long userId, String username, String nickname,
+        List<String> roles, boolean enabled, boolean mustChangePassword
+    ) {
         this(tenantId, userId, username, nickname, roles, enabled, mustChangePassword, null);
     }
 }

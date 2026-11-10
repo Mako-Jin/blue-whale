@@ -1,6 +1,6 @@
-package com.bluewhale.auth.application.auth.port;
+package com.bluewhale.auth.application.model.port;
 
-import com.bluewhale.auth.application.auth.TokenPayload;
+import com.bluewhale.auth.application.model.TokenPayload;
 
 import java.util.List;
 

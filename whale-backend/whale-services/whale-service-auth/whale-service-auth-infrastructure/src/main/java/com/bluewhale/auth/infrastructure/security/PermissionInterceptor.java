@@ -1,5 +1,6 @@
 package com.bluewhale.auth.infrastructure.security;
 
+import com.bluewhale.auth.application.model.AuthRoleCodes;
 import com.bluewhale.auth.domain.role.repository.RoleRepository;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -36,7 +37,7 @@ import java.util.stream.Collectors;
 public class PermissionInterceptor implements HandlerInterceptor {
 
     /** 内置超级管理员角色 code，拥有全部权限 */
-    public static final String SUPER_ADMIN = com.bluewhale.auth.application.auth.AuthRoleCodes.SUPER_ADMIN;
+    public static final String SUPER_ADMIN = AuthRoleCodes.SUPER_ADMIN;
 
     private final PermissionCache permissionCache;
     private final RoleRepository roleRepository;

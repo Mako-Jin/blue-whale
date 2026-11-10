@@ -1,7 +1,7 @@
 package com.bluewhale.auth.infrastructure.security;
 
-import com.bluewhale.auth.application.auth.port.TokenBlacklist;
-import com.bluewhale.auth.application.auth.port.UserAccessRevocationPort;
+import com.bluewhale.auth.application.model.port.TokenBlacklist;
+import com.bluewhale.auth.application.model.port.UserAccessRevocationPort;
 import com.bluewhale.auth.infrastructure.jwt.JwtTokenProvider;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.security.token.TokenTimeSupport;

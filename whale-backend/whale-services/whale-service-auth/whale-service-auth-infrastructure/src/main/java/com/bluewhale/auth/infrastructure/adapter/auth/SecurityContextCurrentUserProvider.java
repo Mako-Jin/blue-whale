@@ -1,7 +1,7 @@
 package com.bluewhale.auth.infrastructure.adapter.auth;
 
-import com.bluewhale.auth.application.auth.AuthenticatedUser;
-import com.bluewhale.auth.application.auth.port.CurrentUserProvider;
+import com.bluewhale.auth.application.model.AuthenticatedUser;
+import com.bluewhale.auth.application.model.port.CurrentUserProvider;
 import com.bluewhale.auth.infrastructure.security.LoginUser;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;

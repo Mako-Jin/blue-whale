@@ -1,4 +1,4 @@
-package com.bluewhale.auth.application.auth;
+package com.bluewhale.auth.application.model;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -13,6 +13,8 @@ import org.springframework.stereotype.Component;
  * 开关变更秒级生效，可快速回滚（ADR-001 R1）。</p>
  *
  * @author BlueWhale
+ *
+ * TODO 配置类都应该放到基础设施层
  */
 @Data
 @Component

@@ -1,4 +1,4 @@
-package com.bluewhale.auth.application.auth.port;
+package com.bluewhale.auth.application.model.port;
 
 import java.util.Date;
 

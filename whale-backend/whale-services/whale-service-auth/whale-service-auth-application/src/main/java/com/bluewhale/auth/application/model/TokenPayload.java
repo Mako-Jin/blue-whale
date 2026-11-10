@@ -1,4 +1,4 @@
-package com.bluewhale.auth.application.auth;
+package com.bluewhale.auth.application.model;
 
 /**
  * 令牌载荷：由基础设施适配器从 JWT Claims 转换，应用层不感知 jjwt 类型。

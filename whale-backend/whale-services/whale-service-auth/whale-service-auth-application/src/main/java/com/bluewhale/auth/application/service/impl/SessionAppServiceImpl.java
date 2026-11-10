@@ -1,33 +1,38 @@
-package com.bluewhale.auth.application.auth;
+package com.bluewhale.auth.application.service.impl;
 
-import com.bluewhale.auth.application.auth.command.LoginCommand;
-import com.bluewhale.auth.application.auth.command.LogoutCommand;
-import com.bluewhale.auth.application.auth.command.RefreshCommand;
-import com.bluewhale.auth.application.auth.command.SwitchTenantCommand;
-import com.bluewhale.auth.application.auth.port.CredentialAuthenticator;
-import com.bluewhale.auth.application.auth.port.CurrentUserProvider;
-import com.bluewhale.auth.application.auth.port.RefreshTokenRotationStore;
-import com.bluewhale.auth.application.auth.port.TokenBlacklist;
-import com.bluewhale.auth.application.auth.port.TokenIssuer;
-import com.bluewhale.auth.application.auth.port.UserAccessRevocationPort;
-import com.bluewhale.auth.application.auth.port.UserSessionQuery;
-import com.bluewhale.auth.application.auth.query.CurrentUserQuery;
-import com.bluewhale.auth.application.auth.query.TenantListQuery;
-import com.bluewhale.auth.application.auth.result.CurrentUserResult;
-import com.bluewhale.auth.application.auth.result.LoginResult;
-import com.bluewhale.auth.application.auth.result.TenantResult;
 import com.bluewhale.auth.application.menu.MenuAppService;
+import com.bluewhale.auth.application.model.AuthRoleCodes;
+import com.bluewhale.auth.application.model.AuthenticatedUser;
+import com.bluewhale.auth.application.model.RefreshRotationProperties;
+import com.bluewhale.auth.application.model.TokenPayload;
+import com.bluewhale.auth.application.model.command.LoginCommand;
+import com.bluewhale.auth.application.model.command.LogoutCommand;
+import com.bluewhale.auth.application.model.command.RefreshCommand;
+import com.bluewhale.auth.application.model.command.SwitchTenantCommand;
+import com.bluewhale.auth.application.model.port.CredentialAuthenticator;
+import com.bluewhale.auth.application.model.port.CurrentUserProvider;
+import com.bluewhale.auth.application.model.port.RefreshTokenRotationStore;
+import com.bluewhale.auth.application.model.port.TokenBlacklist;
+import com.bluewhale.auth.application.model.port.TokenIssuer;
+import com.bluewhale.auth.application.model.port.UserAccessRevocationPort;
+import com.bluewhale.auth.application.model.port.UserSessionQuery;
+import com.bluewhale.auth.application.model.query.CurrentUserQuery;
+import com.bluewhale.auth.application.model.query.TenantListQuery;
+import com.bluewhale.auth.application.model.result.CurrentUserResult;
+import com.bluewhale.auth.application.model.result.LoginResult;
+import com.bluewhale.auth.application.model.result.TenantResult;
 import com.bluewhale.auth.application.permission.PermissionAppService;
 import com.bluewhale.auth.application.role.RoleAppService;
+import com.bluewhale.auth.application.service.SessionAppService;
 import com.bluewhale.auth.application.tenant.TenantAppService;
 import com.bluewhale.auth.application.tenant.TenantMembershipAppService;
 import com.bluewhale.auth.application.user.password.PasswordPolicyService;
 import com.bluewhale.auth.application.user.password.TenantPasswordPolicyService;
 import com.bluewhale.auth.application.user.port.PasswordHasher;
+import com.bluewhale.auth.application.vo.MenuVO;
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
 import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
-import com.bluewhale.auth.application.vo.MenuVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.security.degradation.SecurityDegradationAlerter;
 import lombok.RequiredArgsConstructor;
@@ -53,7 +58,7 @@ import java.util.UUID;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class SessionAppService {
+public class SessionAppServiceImpl implements SessionAppService {
 
     /** refreshToken 无效 / 过期 / 命中黑名单时的统一对外文案，避免泄露具体失败原因 */
     private static final String INVALID_REFRESH_TOKEN_MESSAGE = "refreshToken 无效或已过期";
@@ -66,6 +71,7 @@ public class SessionAppService {
     /** Bearer 前缀 */
     private static final String BEARER_PREFIX = "Bearer ";
 
+    // TODO 标准DDD模式是不是六边形接口在domain定义，基础设施层实现。 应用层依赖基础设施层，基础设施层依赖领域层？
     private final CredentialAuthenticator credentialAuthenticator;
     private final TokenIssuer tokenIssuer;
     private final TokenBlacklist tokenBlacklist;
@@ -93,7 +99,7 @@ public class SessionAppService {
     public LoginResult login(LoginCommand command) {
         Long tenantId = tenantAppService.resolveEnabledTenantId(command.tenantCode());
         AuthenticatedUser user = credentialAuthenticator.authenticate(
-                tenantId, command.username(), command.password());
+            tenantId, command.username(), command.password());
         // 记录最后登录时间（聚合行为），并在口令密文强度落后时自动升级（REQ-SEC-021）
         userRepository.findByIdAcrossTenants(user.userId()).ifPresent(entity -> {
             entity.recordLogin(LocalDateTime.now());
@@ -165,13 +171,13 @@ public class SessionAppService {
         Long targetTenantId = command.targetTenantId();
         tenantMembershipAppService.requireSwitchable(current.userId(), targetTenantId);
         AuthenticatedUser switched = userSessionQuery.loadUserById(current.userId(), targetTenantId)
-                .orElseThrow(() -> new BizException(401, "账号不存在或已停用"));
+            .orElseThrow(() -> new BizException(401, "账号不存在或已停用"));
         if (!switched.enabled()) {
             throw new BizException(401, "账号已停用");
         }
         invalidateSwitchTokens(command.authorization(), command.currentRefreshToken());
         log.info("用户切换租户: userId={}, fromTenantId={}, toTenantId={}",
-                current.userId(), current.tenantId(), targetTenantId);
+            current.userId(), current.tenantId(), targetTenantId);
         return buildLoginResult(switched, UUID.randomUUID().toString());
     }
 
@@ -209,14 +215,14 @@ public class SessionAppService {
         List<String> roles = current.roles();
         boolean superAdmin = roles.contains(AuthRoleCodes.SUPER_ADMIN);
         List<String> permissions = superAdmin
-                ? permissionAppService.listAllCodes()
-                : roleAppService.listPermissionCodesByUserId(current.userId());
+            ? permissionAppService.listAllCodes()
+            : roleAppService.listPermissionCodesByUserId(current.userId());
         List<MenuVO> menus = superAdmin
-                ? menuAppService.treeByPermissionCodes(null)
-                : menuAppService.treeByPermissionCodes(Set.copyOf(permissions));
+            ? menuAppService.treeByPermissionCodes(null)
+            : menuAppService.treeByPermissionCodes(Set.copyOf(permissions));
         return new CurrentUserResult(
-                current.tenantId(), current.userId(), current.username(), current.nickname(),
-                roles, permissions, menus);
+            current.tenantId(), current.userId(), current.username(), current.nickname(),
+            roles, permissions, menus);
     }
 
     /**
@@ -252,7 +258,7 @@ public class SessionAppService {
         }
         if (refreshRotationStore.isFamilyRevoked(familyId)) {
             log.warn("refreshToken 所属 family 已吊销，拒绝换发: familyId={}, username={}",
-                    familyId, payload.subject());
+                familyId, payload.subject());
             throw new BizException(401, REVOKED_REFRESH_TOKEN_MESSAGE);
         }
         return familyId;
@@ -296,7 +302,7 @@ public class SessionAppService {
      */
     private AuthenticatedUser loadEnabledUser(Long userId, Long tenantId) {
         AuthenticatedUser user = userSessionQuery.loadUserById(userId, tenantId)
-                .orElseThrow(() -> new BizException(401, INVALID_REFRESH_TOKEN_MESSAGE));
+            .orElseThrow(() -> new BizException(401, INVALID_REFRESH_TOKEN_MESSAGE));
         if (!user.enabled()) {
             throw new BizException(401, "账号已停用");
         }
@@ -319,7 +325,7 @@ public class SessionAppService {
             return;
         }
         log.warn("refreshToken 在用户级撤销前签发，拒绝换发新令牌: userId={}, tenantId={}",
-                userId, tenantId);
+            userId, tenantId);
         throw new BizException(401, REVOKED_REFRESH_TOKEN_MESSAGE);
     }
 
@@ -367,9 +373,9 @@ public class SessionAppService {
         if (!refreshRotationStore.markUsed(payload.jti(), remainingSeconds)) {
             refreshRotationStore.revokeFamily(familyId, tokenIssuer.refreshExpireSeconds());
             log.error("refreshToken 复用检测命中，已吊销整个 family: familyId={}, username={}",
-                    familyId, payload.subject());
+                familyId, payload.subject());
             SecurityDegradationAlerter.alarm(SCENE_REFRESH_REUSE,
-                    "refreshToken 复用检测命中，已吊销该 family 全部 refreshToken", null);
+                "refreshToken 复用检测命中，已吊销该 family 全部 refreshToken", null);
             throw new BizException(401, REUSE_REFRESH_TOKEN_MESSAGE);
         }
         tokenBlacklist.add(refreshToken);
@@ -413,14 +419,14 @@ public class SessionAppService {
         boolean mustChange = user.mustChangePassword() || passwordExpired;
         List<String> roles = user.roles();
         String refreshToken = tokenIssuer.issueRefreshToken(
-                user.tenantId(), user.userId(), user.username(), familyId);
+            user.tenantId(), user.userId(), user.username(), familyId);
         String accessToken = tokenIssuer.issueAccessToken(
-                user.tenantId(), user.userId(), user.username(), roles, mustChange);
+            user.tenantId(), user.userId(), user.username(), roles, mustChange);
         // T-03 / REQ-SEC-023：强制首登改密或口令到期，登录/刷新/切换结果统一透出该标记
         return new LoginResult(
-                accessToken, "Bearer", tokenIssuer.accessExpireSeconds(),
-                user.userId(), user.tenantId(), user.username(), user.nickname(), roles,
-                mustChange, passwordExpired, expiresInDays, refreshToken);
+            accessToken, "Bearer", tokenIssuer.accessExpireSeconds(),
+            user.userId(), user.tenantId(), user.username(), user.nickname(), roles,
+            mustChange, passwordExpired, expiresInDays, refreshToken);
     }
 
     /**
@@ -453,4 +459,5 @@ public class SessionAppService {
         }
         return Duration.between(now, passwordUpdatedTime.plusDays(maxAgeDays)).toDays();
     }
+
 }

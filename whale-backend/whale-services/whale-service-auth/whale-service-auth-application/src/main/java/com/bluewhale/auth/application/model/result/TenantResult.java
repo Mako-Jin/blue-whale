@@ -1,4 +1,4 @@
-package com.bluewhale.auth.application.auth.result;
+package com.bluewhale.auth.application.model.result;
 
 import com.bluewhale.auth.domain.tenant.aggregate.Tenant;
 

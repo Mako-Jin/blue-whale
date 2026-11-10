@@ -1,6 +1,6 @@
-package com.bluewhale.auth.application.auth.port;
+package com.bluewhale.auth.application.model.port;
 
-import com.bluewhale.auth.application.auth.AuthenticatedUser;
+import com.bluewhale.auth.application.model.AuthenticatedUser;
 
 import java.util.Optional;
 

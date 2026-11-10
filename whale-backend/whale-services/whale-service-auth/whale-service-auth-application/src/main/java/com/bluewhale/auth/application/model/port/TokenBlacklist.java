@@ -1,4 +1,4 @@
-package com.bluewhale.auth.application.auth.port;
+package com.bluewhale.auth.application.model.port;
 
 /**
  * 令牌黑名单：记录已登出但在有效期内仍可被伪造使用的令牌（accessToken / refreshToken）。

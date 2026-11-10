@@ -1,9 +1,11 @@
-package com.bluewhale.auth.application.auth;
+package com.bluewhale.auth.application.model;
 
 /**
  * 认证域内置角色编码。
  *
  * @author BlueWhale
+ *
+ * TODO 这个是做什么的，就只配置了一个超级管理员的编码吗？
  */
 public final class AuthRoleCodes {
 

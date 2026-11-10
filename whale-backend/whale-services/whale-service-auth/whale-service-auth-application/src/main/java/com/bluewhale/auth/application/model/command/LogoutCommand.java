@@ -1,4 +1,4 @@
-package com.bluewhale.auth.application.auth.command;
+package com.bluewhale.auth.application.model.command;
 
 /**
  * 登出命令。

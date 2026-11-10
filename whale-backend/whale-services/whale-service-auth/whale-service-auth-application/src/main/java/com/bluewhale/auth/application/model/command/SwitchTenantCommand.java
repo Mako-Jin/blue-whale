@@ -1,4 +1,4 @@
-package com.bluewhale.auth.application.auth.command;
+package com.bluewhale.auth.application.model.command;
 
 /**
  * 切换租户命令。
