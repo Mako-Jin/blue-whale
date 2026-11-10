@@ -1028,6 +1028,8 @@ services:
       WHALE_TWIN_IOT_BASE_URL: "http://bw-iot:8088"
       WHALE_TWIN_ASSISTANT_BASE_URL: "http://bw-assistant:8087"
       WHALE_TWIN_NOTIFY_MESSAGE_BASE_URL: "http://bw-message:8094"
+      # 接收人检索走 auth 内网通讯录；可用环境变量覆盖（联调时指向桩服务）
+      WHALE_TWIN_NOTIFY_AUTH_BASE_URL: "${WHALE_TWIN_NOTIFY_AUTH_BASE_URL:-http://bw-auth:8081}"
     ports:
       - "127.0.0.1:8089:8089"
     healthcheck:
