@@ -96,4 +96,40 @@ class TwinThresholdEvaluatorTest {
 
         assertTrue(result.isEmpty());
     }
+
+    @Test
+    void rulesAreParsedAndExposedWithLevel() {
+        String propertyMap = "{\"temperature\":{\"thresholds\":[50,80],"
+                + "\"confirmSeconds\":30,\"recoveryDelta\":2}}";
+
+        var result = TwinThresholdEvaluator.evaluate(propertyMap, Map.of("temperature", 82.5));
+
+        var rule = result.get("temperature").rule();
+        assertEquals(30, rule.confirmSeconds());
+        assertEquals(0, rule.recoveryDelta().compareTo(new java.math.BigDecimal("2")));
+    }
+
+    @Test
+    void ruleDefaultsWhenAbsent() {
+        String propertyMap = "{\"temperature\":{\"thresholds\":[50,80]}}";
+
+        var rule = TwinThresholdEvaluator.evaluate(propertyMap,
+                Map.of("temperature", 60)).get("temperature").rule();
+
+        assertEquals(0, rule.confirmSeconds());
+        assertEquals(0, rule.recoveryDelta().signum());
+    }
+
+    @Test
+    void ruleValuesAreClampedToSafeRange() {
+        String propertyMap = "{\"a\":{\"thresholds\":[50],\"confirmSeconds\":-5,\"recoveryDelta\":-3},"
+                + "\"b\":{\"thresholds\":[50],\"confirmSeconds\":99999,\"recoveryDelta\":0}}";
+
+        var result = TwinThresholdEvaluator.evaluate(propertyMap, Map.of("a", 60, "b", 60));
+
+        assertEquals(0, result.get("a").rule().confirmSeconds());
+        assertEquals(0, result.get("a").rule().recoveryDelta().signum());
+        assertEquals(TwinThresholdEvaluator.MAX_CONFIRM_SECONDS,
+                result.get("b").rule().confirmSeconds());
+    }
 }

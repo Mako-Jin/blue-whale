@@ -8,6 +8,7 @@ import com.bluewhale.twin.entity.TwinEntity;
 import com.bluewhale.twin.mapper.TwinEntityMapper;
 import com.bluewhale.twin.support.IotStateClient;
 import com.bluewhale.twin.support.InternalApiStateClient;
+import com.bluewhale.twin.support.TwinAlertTracker;
 import com.bluewhale.twin.support.TwinThresholdEvaluator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -40,8 +41,8 @@ import java.util.concurrent.TimeUnit;
  * 首次tick视为全量变化（订阅端需要初始态）。源类型支持 {@code iot_device}
  * （设备影子）与 {@code internal_api}（内部只读接口，propertyMap 键为
  * data 载荷内的 JSON 点路径）。差分推送之外，按 {@code propertyMap.thresholds}
- * 逐键评估告警级别，级别变化才推 {@code alert} 帧（见
- * {@link #publishAlerts}）。</p>
+ * 逐键评估告警级别（6.07 起叠加持续确认与回差防抖），生效级别变化才推
+ * {@code alert} 帧（见 {@link #publishAlerts}）。</p>
  *
  * @author BlueWhale
  */
@@ -78,8 +79,8 @@ public class TwinBindingRuntimeService {
     /** 绑定ID → 下次允许轮询的 epoch 毫秒（包内可见便于单测清空重放） */
     final Map<Long, Long> nextDueAt = new ConcurrentHashMap<>();
 
-    /** 场景ID → (绑定ID → (状态键 → 上次级别))：阈值级别变化才推告警帧 */
-    private final Map<Long, Map<Long, Map<String, String>>> alertLevels = new ConcurrentHashMap<>();
+    /** 场景ID → 告警级别跟踪器（持续确认 + 回差，6.07 M0） */
+    private final Map<Long, TwinAlertTracker> alertTrackers = new ConcurrentHashMap<>();
 
     /** 轮询调度线程池 */
     private final ScheduledExecutorService scheduler;
@@ -187,8 +188,9 @@ public class TwinBindingRuntimeService {
     }
 
     /**
-     * 阈值告警评估与推送：对本 tick 拉到实时态的绑定逐键分级，
-     * 级别相对上次有变化（含首评越界、升级、降级、恢复）才推 {@code alert} 帧；
+     * 阈值告警评估与推送：对本 tick 拉到实时态的绑定逐键分级，交给
+     * {@link TwinAlertTracker} 做持续确认与回差修正，生效级别有变化
+     * （含首评越界、升级、降级、恢复）才推 {@code alert} 帧；
      * 离线绑定静默清级（上下线由 binding 帧表达，恢复在线后重新首评）。
      *
      * @param sceneId 场景ID
@@ -201,16 +203,17 @@ public class TwinBindingRuntimeService {
         for (TwinBinding binding : bindings) {
             bindingById.put(binding.getId(), binding);
         }
-        Map<Long, Map<String, String>> sceneLevels =
-                alertLevels.computeIfAbsent(sceneId, key -> new ConcurrentHashMap<>());
+        TwinAlertTracker tracker =
+                alertTrackers.computeIfAbsent(sceneId, key -> new TwinAlertTracker());
         // 已删除的绑定不再占用级别表
-        sceneLevels.keySet().removeIf(id -> !bindingById.containsKey(id));
+        tracker.retain(bindingById.keySet());
+        long now = System.currentTimeMillis();
         String ts = TIME_FORMAT.format(LocalDateTime.now());
         List<BindingAlertVO> alerts = new ArrayList<>();
         for (BindingStateVO state : states) {
             Long bindingId = Long.valueOf(state.getBindingId());
             if (!Boolean.TRUE.equals(state.getOnline())) {
-                sceneLevels.remove(bindingId);
+                tracker.reset(bindingId);
                 continue;
             }
             TwinBinding binding = bindingById.get(bindingId);
@@ -222,27 +225,17 @@ public class TwinBindingRuntimeService {
             if (evaluated.isEmpty()) {
                 continue;
             }
-            Map<String, String> bindingLevels =
-                    sceneLevels.computeIfAbsent(bindingId, key -> new ConcurrentHashMap<>());
-            for (TwinThresholdEvaluator.Level level : evaluated.values()) {
-                String previous = bindingLevels.get(level.stateKey());
-                if (level.level().equals(previous)) {
-                    continue;
-                }
-                bindingLevels.put(level.stateKey(), level.level());
-                if (previous == null && TwinThresholdEvaluator.LEVEL_NORMAL.equals(level.level())) {
-                    // 首评为正常：登记基线即可，不发告警
-                    continue;
-                }
+            for (TwinAlertTracker.Transition change
+                    : tracker.observe(bindingId, evaluated.values(), now)) {
                 alerts.add(BindingAlertVO.builder()
                         .bindingId(state.getBindingId())
                         .entityId(state.getEntityId())
                         .entityCode(state.getEntityCode())
-                        .stateKey(level.stateKey())
-                        .value(level.value())
-                        .previous(previous)
-                        .level(level.level())
-                        .thresholds(level.thresholds())
+                        .stateKey(change.stateKey())
+                        .value(change.value())
+                        .previous(change.previous())
+                        .level(change.level())
+                        .thresholds(change.thresholds())
                         .ts(ts)
                         .build());
             }

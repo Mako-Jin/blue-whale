@@ -20,6 +20,9 @@ import java.util.Map;
  * 其余为 normal（绿）；只给单个阈值时 {@code v >= t} 为 warn。
  * 仅数值参与比较（Number 或可解析的数值字符串），非数值/缺阈值的键不产生级别。</p>
  *
+ * <p>6.07 起每个状态键可追加告警规则：{@code confirmSeconds}（升格持续确认秒数）
+ * 与 {@code recoveryDelta}（降格回差），由 {@link TwinAlertTracker} 消费。</p>
+ *
  * @author BlueWhale
  */
 public final class TwinThresholdEvaluator {
@@ -33,11 +36,26 @@ public final class TwinThresholdEvaluator {
     /** 级别：严重（红） */
     public static final String LEVEL_CRITICAL = "critical";
 
+    /** 持续确认秒数上限（防止误配导致告警永不触发） */
+    static final int MAX_CONFIRM_SECONDS = 3600;
+
     /** JSON 解析器（读 propertyMap 的 stateKey 与 thresholds） */
     private static final ObjectMapper JSON = new ObjectMapper();
 
     /** 工具类，不实例化。 */
     private TwinThresholdEvaluator() {
+    }
+
+    /**
+     * 状态键的告警规则（缺省即旧行为：立即升格、无回差）。
+     *
+     * @param confirmSeconds 升格持续确认秒数（0 = 立即生效）
+     * @param recoveryDelta  降格回差（0 = 无回差）
+     */
+    public record Rule(int confirmSeconds, BigDecimal recoveryDelta) {
+
+        /** 无规则（立即升格 / 无回差） */
+        public static final Rule DEFAULT = new Rule(0, BigDecimal.ZERO);
     }
 
     /**
@@ -47,8 +65,10 @@ public final class TwinThresholdEvaluator {
      * @param level      级别（normal / warn / critical）
      * @param value      参与评估的原始取值
      * @param thresholds 参与判定的阈值（升序）
+     * @param rule       告警规则（缺省为 {@link Rule#DEFAULT}）
      */
-    public record Level(String stateKey, String level, Object value, List<BigDecimal> thresholds) {
+    public record Level(String stateKey, String level, Object value, List<BigDecimal> thresholds,
+                        Rule rule) {
     }
 
     /**
@@ -89,13 +109,37 @@ public final class TwinThresholdEvaluator {
                     continue;
                 }
                 result.put(stateKey, new Level(stateKey,
-                        classify(number, thresholds), raw, thresholds));
+                        classify(number, thresholds), raw, thresholds,
+                        parseRule(target)));
             }
         } catch (Exception e) {
             // 属性映射解析失败按无告警处理，不阻塞实时态主链路
             return Map.of();
         }
         return result;
+    }
+
+    /**
+     * 解析状态键上的告警规则（非对象或缺字段时取缺省值）。
+     *
+     * @param target propertyMap 的状态键值节点
+     * @return 规则（永不为 {@code null}）
+     */
+    private static Rule parseRule(JsonNode target) {
+        if (target == null || !target.isObject()) {
+            return Rule.DEFAULT;
+        }
+        int confirmSeconds = 0;
+        JsonNode confirmNode = target.get("confirmSeconds");
+        if (confirmNode != null && confirmNode.isNumber()) {
+            confirmSeconds = Math.max(0, Math.min(confirmNode.asInt(0), MAX_CONFIRM_SECONDS));
+        }
+        BigDecimal recoveryDelta = BigDecimal.ZERO;
+        JsonNode deltaNode = target.get("recoveryDelta");
+        if (deltaNode != null && deltaNode.isNumber() && deltaNode.decimalValue().signum() > 0) {
+            recoveryDelta = deltaNode.decimalValue();
+        }
+        return new Rule(confirmSeconds, recoveryDelta);
     }
 
     /**
@@ -143,7 +187,7 @@ public final class TwinThresholdEvaluator {
      * @param raw 原始取值
      * @return 数值；无法解析返回 {@code null}
      */
-    private static BigDecimal toNumber(Object raw) {
+    static BigDecimal toNumber(Object raw) {
         if (raw == null) {
             return null;
         }

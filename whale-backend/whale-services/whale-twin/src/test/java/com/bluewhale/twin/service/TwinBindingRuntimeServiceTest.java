@@ -333,6 +333,54 @@ class TwinBindingRuntimeServiceTest {
     }
 
     @Test
+    void confirmationWindowSuppressesImmediateEscalation() {
+        // 6.07：越界需持续 60 秒才升格，短窗口内重复 tick 不应推告警帧
+        TwinBinding binding = binding("{\"temperature\":{\"stateKey\":\"color\","
+                + "\"thresholds\":[50,80],\"confirmSeconds\":60}}");
+        when(bindingService.listByScene(SCENE_ID)).thenReturn(List.of(binding));
+        when(entityMapper.selectById(ENTITY_ID)).thenReturn(entity(1L));
+        when(iotStateClient.fetchDeviceState(300L, 1L))
+                .thenReturn(Map.of("online", 1, "reported", Map.of("temperature", 82.5)));
+        when(streamService.activeScenes()).thenReturn(java.util.Set.of(SCENE_ID));
+
+        service.tick();
+        service.nextDueAt.clear();
+        service.tick();
+
+        verify(streamService, never()).publish(eq(SCENE_ID), eq(TwinStreamService.EVENT_ALERT), any());
+    }
+
+    @Test
+    void hysteresisKeepsLevelInsideRecoveryBand() {
+        // 6.07：回差 5 —— 60→warn 后跌到 48（> 50-5）维持 warn，跌到 44 才恢复
+        TwinBinding binding = binding("{\"temperature\":{\"stateKey\":\"color\","
+                + "\"thresholds\":[50,80],\"recoveryDelta\":5}}");
+        when(bindingService.listByScene(SCENE_ID)).thenReturn(List.of(binding));
+        when(entityMapper.selectById(ENTITY_ID)).thenReturn(entity(1L));
+        when(streamService.activeScenes()).thenReturn(java.util.Set.of(SCENE_ID));
+        when(iotStateClient.fetchDeviceState(300L, 1L))
+                .thenReturn(Map.of("online", 1, "reported", Map.of("temperature", 60)))
+                .thenReturn(Map.of("online", 1, "reported", Map.of("temperature", 48)))
+                .thenReturn(Map.of("online", 1, "reported", Map.of("temperature", 44)));
+
+        service.tick();
+        service.nextDueAt.clear();
+        service.tick();
+        service.nextDueAt.clear();
+        service.tick();
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+        verify(streamService, times(2))
+                .publish(eq(SCENE_ID), eq(TwinStreamService.EVENT_ALERT), captor.capture());
+        @SuppressWarnings("unchecked")
+        List<com.bluewhale.twin.dto.BindingAlertVO> recoveryBatch =
+                (List<com.bluewhale.twin.dto.BindingAlertVO>) captor.getAllValues().get(1).get("items");
+        assertEquals("normal", recoveryBatch.get(0).getLevel());
+        assertEquals("warn", recoveryBatch.get(0).getPrevious());
+    }
+
+    @Test
     void offlineClearsLevelsSilentlyAndRebreachEmitsAgain() {
         TwinBinding binding = binding("{\"temperature\":{\"stateKey\":\"color\",\"thresholds\":[50,80]}}");
         when(bindingService.listByScene(SCENE_ID)).thenReturn(List.of(binding));
