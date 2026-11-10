@@ -69,6 +69,17 @@ whale:
   twin:
     # SSE 心跳间隔（秒）：空闲连接按此发注释帧，避免中间代理掐链（对齐 whale-iot 口径）
     stream-heartbeat-seconds: ${WHALE_TWIN_STREAM_HEARTBEAT_SECONDS:30}
+    # M2：绑定实时态来源（whale-iot 内网只读接口，不经网关直连）
+    iot:
+      base-url: ${WHALE_TWIN_IOT_BASE_URL:http://127.0.0.1:8088}
+      timeout-seconds: ${WHALE_TWIN_IOT_TIMEOUT_SECONDS:5}
+    runtime:
+      # 绑定轮询总开关（关闭后仅保留绑定 CRUD 与快照接口）
+      enabled: ${WHALE_TWIN_RUNTIME_ENABLED:true}
+      # 调度 tick（毫秒）；绑定实际周期由其 pollIntervalMs 决定
+      tick-ms: ${WHALE_TWIN_RUNTIME_TICK_MS:5000}
+      # 单场景单 tick 允许触达的最大设备数
+      max-devices-per-scene: ${WHALE_TWIN_MAX_DEVICES_PER_SCENE:50}
 
 mybatis-plus:
   configuration:

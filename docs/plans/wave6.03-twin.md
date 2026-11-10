@@ -1,6 +1,6 @@
 # Wave 6.03：数字孪生平台（whale-twin）
 
-> 状态：**实施中（M0 + M1 已落地）** · 起草：2026-11-10
+> 状态：**实施中（M0 + M1 + M2 已落地）** · 起草：2026-11-10
 > 总规划：[wave6-iot-twin-ai-assistant-plan.md](wave6-iot-twin-ai-assistant-plan.md) §三
 > 上游依赖：Wave 6.02 IoT M2 已交付（`GET /iot/internal/device/state` 内网实时态只读接口）
 
@@ -17,7 +17,7 @@
 |---|---|---|---|
 | M0 | 后端模块骨架 + V1 DDL 5 表 + whale-common-three 首个消费方渲染态验收 | 空场景 WebGL 跑通，评审文档遗留项闭环 | ✅ 2026-11-10 |
 | M1 | 场景/实体/模型资产 CRUD + 前端 3D 场景查看器（加载 GLB、场景树、相机控制） | 上传一个 GLB 摆进场景并可保存/回显 | ✅ 2026-11-10（GLB 经 whale-file file_id 引用） |
-| M2 | 数据绑定 + SSE 实时驱动（绑 iot 设备属性 → 3D 实体状态变色/数值标注） | 模拟设备遥测变化，3D 实体实时联动 | 待开始 |
+| M2 | 数据绑定 + SSE 实时驱动（绑 iot 设备属性 → 3D 实体状态变色/数值标注） | 模拟设备遥测变化，3D 实体实时联动 | ✅ 2026-11-10 |
 | M3 | 标注/热点 + 发布快照/回滚 + admin/基座菜单接入 | 一个可演示的"厂区设备孪生" Demo 场景 | 待开始 |
 
 ## 三、M0 落地清单（2026-11-10）
@@ -63,3 +63,22 @@
 - **多实例 SSE**：M2 SSE 单实例内存注册表，与 whale-iot 同口径；横向扩容时统一改造（Redis pub/sub 或粘性路由），Wave 6 内不展开
 - **whale-file 大文件**：GLB 可达几十 MB，M1 上传走 file 服务既有分片能力；预览 URL 需带内网令牌的签名策略在 M1 定
 - **three 版本**：`whale-common-three` 锁 three ^0.169，子应用必须复用同一实例（peer），避免双打包
+
+## 六、M2 落地清单（2026-11-10）
+
+**后端**（`whale-services/whale-twin`）：
+
+- `TwinBindingService`：绑定 CRUD；校验实体归属场景、数据源类型白名单（`iot_device`/`internal_api`）、`bindKey` 形态（设备ID纯数字 / 接口路径以 `/` 开头）、`propertyMap` 必须为 JSON 对象；**数据源类型不可改**（改则删了重建）；列表跳过实体已删的脏绑定
+- `TwinStreamService`：按<b>场景</b>粒度 SSE（`GET /twin/scenes/{id}/stream`），事件 `ready`/`binding`，心跳注释帧（对齐 whale-iot 设备流）；`activeScenes()` 供运行时只刷有订阅者的场景
+- `IotStateClient`：内网 GET `{whale.twin.iot.base-url}/iot/internal/device/state?deviceId=`，`InternalTokenSupport` 自动带 `X-Internal-Token` + `X-Tenant-Id`；失败返回 null（渲染旁路不拖垮场景）
+- `TwinBindingRuntimeService`：全局 tick（默认 5s）→ 场景内逐绑定按 `pollIntervalMs` 到期判断 → 同 tick 同设备共享一次拉取 → 按 `propertyMap` 抽值（映射值为字符串直接换键；为对象取 `stateKey`，`thresholds` 留给前端）→ **绑定粒度差分**（`online+values` 指纹）→ 只推变化批次；单场景设备数上限 50；`internal_api` 源 M2 只留配置
+- `TwinBindingController`（CRUD + `GET /bindings/state` 快照）与 `TwinStreamController`（SSE）；配置收口 `TwinProperties`（`whale.twin.iot.*` / `runtime.*`）
+- 单测 32/32（新增绑定 8 + 运行时 7：差分/离线/映射/停用跳过/tick 异常吞噬），Checkstyle 0
+
+**前端**（8122 查看器页增强）：
+
+- 数据绑定抽屉：实体选择、IoT 设备选择器（跨服务拉 `/iot/devices`）、`internal_api` 路径切换、属性映射 JSON（带阈值示例）、轮询间隔、启停；绑定列表就地编辑/删除
+- 实时联动：`订阅实时` 先拉 `bindings/state` 快照再开 SSE（fetch 读流手工分帧）；`binding` 事件按 `thresholds` 驱动实体 **emissive 变色**（离线灰 / <t1 绿 / t1~t2 橙 / >t2 红 / 在线无阈值青底光；GLB 材质只动 emissive 不毁贴图，本色存 `userData` 可恢复）；右上角实时面板展示各绑定最新值
+- 切场景自动断流、清面板、恢复本色
+
+**M2 边界**：`internal_api` 轮询、实体 gizmo 变换编辑、标注/热点、发布快照均留 M3；SSE 与 whale-iot 同为单实例内存注册表，横向扩容统一改造。

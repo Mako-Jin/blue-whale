@@ -1,0 +1,378 @@
+package com.bluewhale.twin.service;
+
+import com.bluewhale.twin.config.TwinProperties;
+import com.bluewhale.twin.dto.BindingStateVO;
+import com.bluewhale.twin.entity.TwinBinding;
+import com.bluewhale.twin.entity.TwinEntity;
+import com.bluewhale.twin.mapper.TwinEntityMapper;
+import com.bluewhale.twin.support.IotStateClient;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PreDestroy;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * 绑定实时态运行时：轮询 whale-iot 内网接口 → 属性映射 → 差分 → 场景 SSE 推送。
+ *
+ * <p>调度模型：全局 tick（{@code whale.twin.runtime.tick-ms}），只处理
+ * <b>有活跃订阅者</b>的场景；场景内逐绑定判断 {@code pollIntervalMs} 是否到期，
+ * 未到期的沿用上次快照。同一 tick 内同一设备只拉一次实时态（多绑定共享）。</p>
+ *
+ * <p>差分口径：绑定粒度的 {@code online + values} 序列化串与上次不一致才算变化；
+ * 首次tick视为全量变化（订阅端需要初始态）。{@code internal_api} 源 M2 只保留
+ * 配置，轮询留 M3。</p>
+ *
+ * @author BlueWhale
+ */
+@Slf4j
+@Service
+public class TwinBindingRuntimeService {
+
+    /** 默认轮询间隔下限（毫秒） */
+    private static final int MIN_POLL_INTERVAL_MS = 1000;
+
+    /** 时间格式 */
+    private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+
+    /** JSON 解析器（读 propertyMap 与序列化差分指纹） */
+    private static final ObjectMapper JSON = new ObjectMapper();
+
+    private final TwinBindingService bindingService;
+
+    private final TwinEntityMapper entityMapper;
+
+    private final IotStateClient iotStateClient;
+
+    private final TwinStreamService streamService;
+
+    private final TwinProperties properties;
+
+    /** 场景ID → (绑定ID → 上次快照指纹)：不一致才推送 */
+    private final Map<Long, Map<Long, String>> lastSnapshots = new ConcurrentHashMap<>();
+
+    /** 绑定ID → 下次允许轮询的 epoch 毫秒（包内可见便于单测清空重放） */
+    final Map<Long, Long> nextDueAt = new ConcurrentHashMap<>();
+
+    /** 轮询调度线程池 */
+    private final ScheduledExecutorService scheduler;
+
+    /**
+     * 构造运行时并按配置启动轮询调度。
+     *
+     * @param bindingService  绑定服务
+     * @param entityMapper    实体 Mapper
+     * @param iotStateClient  whale-iot 客户端
+     * @param streamService   场景推送服务
+     * @param properties      孪生配置
+     */
+    public TwinBindingRuntimeService(TwinBindingService bindingService,
+                                     TwinEntityMapper entityMapper,
+                                     IotStateClient iotStateClient,
+                                     TwinStreamService streamService,
+                                     TwinProperties properties) {
+        this.bindingService = bindingService;
+        this.entityMapper = entityMapper;
+        this.iotStateClient = iotStateClient;
+        this.streamService = streamService;
+        this.properties = properties;
+        this.scheduler = Executors.newSingleThreadScheduledExecutor(runnable -> {
+            Thread thread = new Thread(runnable, "twin-binding-runtime");
+            thread.setDaemon(true);
+            return thread;
+        });
+        if (properties.getRuntime().isEnabled()) {
+            long tick = Math.max(1000L, properties.getRuntime().getTickMs());
+            scheduler.scheduleAtFixedRate(this::tick, tick, tick, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    /**
+     * 当前绑定实时态快照（订阅端初始化用；不做差分，全量返回到期绑定）。
+     *
+     * @param sceneId 场景ID
+     * @return 各绑定实时态列表
+     */
+    public List<BindingStateVO> currentStates(Long sceneId) {
+        List<TwinBinding> bindings = bindingService.listByScene(sceneId);
+        return computeStates(sceneId, bindings, new ConcurrentHashMap<>());
+    }
+
+    /**
+     * 单次调度 tick：只刷有订阅者的场景。
+     */
+    void tick() {
+        try {
+            for (Long sceneId : streamService.activeScenes()) {
+                refreshScene(sceneId);
+            }
+        } catch (RuntimeException e) {
+            // 调度线程里异常必须吞掉，否则后续 tick 全部停摆
+            log.warn("绑定轮询 tick 异常（忽略）：{}", e.getMessage());
+        }
+    }
+
+    /**
+     * 刷新单场景：取到期绑定 → 拉实时态 → 差分 → 推送变化批次。
+     *
+     * @param sceneId 场景ID
+     */
+    private void refreshScene(Long sceneId) {
+        List<TwinBinding> bindings = bindingService.listByScene(sceneId);
+        if (bindings.isEmpty()) {
+            return;
+        }
+        Map<Long, String> lastScene = lastSnapshots.computeIfAbsent(sceneId, key -> new ConcurrentHashMap<>());
+        Map<Long, BindingStateVO> computed = new LinkedHashMap<>();
+        for (BindingStateVO state : computeStates(sceneId, bindings, nextDueAt)) {
+            computed.put(Long.valueOf(state.getBindingId()), state);
+        }
+        List<BindingStateVO> changed = new ArrayList<>();
+        for (TwinBinding binding : bindings) {
+            if (!TwinBindingService.SOURCE_IOT_DEVICE.equals(binding.getSourceType())) {
+                continue;
+            }
+            BindingStateVO state = computed.get(binding.getId());
+            if (state == null) {
+                continue;
+            }
+            String fingerprint = fingerprint(state);
+            String previous = lastScene.get(binding.getId());
+            if (!fingerprint.equals(previous)) {
+                changed.add(state);
+                lastScene.put(binding.getId(), fingerprint);
+            }
+        }
+        if (!changed.isEmpty()) {
+            streamService.publish(sceneId, TwinStreamService.EVENT_BINDING, Map.of(
+                    "sceneId", sceneId.toString(),
+                    "ts", TIME_FORMAT.format(LocalDateTime.now()),
+                    "items", changed));
+        }
+    }
+
+    /**
+     * 计算绑定实时态（内部共用：快照接口传空 dueMap 表示忽略到期）。
+     *
+     * @param sceneId 场景ID
+     * @param bindings 绑定列表
+     * @param dueMap   绑定到期表（可空；为 null 时忽略到期判断）
+     * @return 实时态列表
+     */
+    private List<BindingStateVO> computeStates(Long sceneId,
+                                               List<TwinBinding> bindings,
+                                               Map<Long, Long> dueMap) {
+        long now = System.currentTimeMillis();
+        Map<Long, TwinEntity> entityById = new HashMap<>(bindings.size() * 2);
+        // 设备级缓存：同 tick 内同设备只拉一次
+        Map<String, Map<String, Object>> deviceCache = new HashMap<>();
+        List<BindingStateVO> result = new ArrayList<>();
+        int devices = 0;
+        for (TwinBinding binding : bindings) {
+            if (!TwinBindingService.SOURCE_IOT_DEVICE.equals(binding.getSourceType())) {
+                continue;
+            }
+            if (binding.getEnabled() != null && binding.getEnabled() != 1) {
+                continue;
+            }
+            if (dueMap != null && !isDue(binding, dueMap, now)) {
+                continue;
+            }
+            TwinEntity entity = entityById.computeIfAbsent(binding.getEntityId(),
+                    key -> entityMapper.selectById(key));
+            BindingStateVO state = buildState(binding, entity, binding.getBindKey(),
+                    deviceCache, sceneId);
+            if (state != null) {
+                result.add(state);
+                devices++;
+            }
+            if (devices >= properties.getRuntime().getMaxDevicesPerScene()) {
+                log.warn("场景绑定设备数达到上限，本 tick 截断：sceneId={}, max={}",
+                        sceneId, properties.getRuntime().getMaxDevicesPerScene());
+                break;
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 组装单个绑定实时态（设备态走缓存；拉取失败视为离线）。
+     *
+     * @param binding     绑定实体
+     * @param entity      实体实体（可空）
+     * @param deviceIdKey 设备ID
+     * @param cache       设备态缓存
+     * @param sceneId     场景ID
+     * @return 实时态视图（绑定实体已删时返回 null）
+     */
+    private BindingStateVO buildState(TwinBinding binding, TwinEntity entity, String deviceIdKey,
+                                      Map<String, Map<String, Object>> cache, Long sceneId) {
+        if (entity == null) {
+            return null;
+        }
+        Map<String, Object> deviceState = cache.computeIfAbsent(deviceIdKey,
+                key -> iotStateClient.fetchDeviceState(Long.valueOf(key), entity.getTenantId()));
+        boolean online = extractOnline(deviceState);
+        Map<String, Object> reported = extractReported(deviceState);
+        return BindingStateVO.builder()
+                .bindingId(String.valueOf(binding.getId()))
+                .entityId(String.valueOf(binding.getEntityId()))
+                .entityCode(entity.getEntityCode())
+                .sourceType(binding.getSourceType())
+                .bindKey(binding.getBindKey())
+                .online(online)
+                .values(applyPropertyMap(binding.getPropertyMap(), reported, online))
+                .ts(TIME_FORMAT.format(LocalDateTime.now()))
+                .build();
+    }
+
+    /**
+     * 判断绑定本轮是否到期（首次必发；之后按 pollIntervalMs 节流）。
+     *
+     * @param binding 绑定实体
+     * @param dueMap  到期表
+     * @param now     当前毫秒
+     * @return true 到期
+     */
+    private boolean isDue(TwinBinding binding, Map<Long, Long> dueMap, long now) {
+        Long due = dueMap.get(binding.getId());
+        if (due == null || now >= due) {
+            int interval = binding.getPollIntervalMs() == null
+                    ? MIN_POLL_INTERVAL_MS : binding.getPollIntervalMs();
+            dueMap.put(binding.getId(), now + Math.max(MIN_POLL_INTERVAL_MS, interval));
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 按属性映射抽值：源字段取设备 reported 值，落到实体状态键。
+     *
+     * <p>映射值为字符串时直接换键；为对象时取 {@code stateKey}（缺省沿用源字段名），
+     * {@code thresholds} 留给前端解释，后端不参与配色。</p>
+     *
+     * @param propertyMap 属性映射 JSON
+     * @param reported    设备上报快照
+     * @param online      设备是否在线
+     * @return 状态键 → 取值
+     */
+    private Map<String, Object> applyPropertyMap(String propertyMap,
+                                                 Map<String, Object> reported,
+                                                 boolean online) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        if (!online || reported.isEmpty()) {
+            return values;
+        }
+        if (!StringUtils.hasText(propertyMap)) {
+            return values;
+        }
+        try {
+            JsonNode mapping = JSON.readTree(propertyMap);
+            if (!mapping.isObject()) {
+                return values;
+            }
+            var fields = mapping.fields();
+            while (fields.hasNext()) {
+                var entry = fields.next();
+                String sourceField = entry.getKey();
+                if (!reported.containsKey(sourceField)) {
+                    continue;
+                }
+                String stateKey = sourceField;
+                JsonNode target = entry.getValue();
+                if (target.isTextual()) {
+                    stateKey = target.asText(sourceField);
+                } else if (target.isObject() && target.hasNonNull("stateKey")) {
+                    stateKey = target.get("stateKey").asText(sourceField);
+                }
+                values.put(stateKey, reported.get(sourceField));
+            }
+        } catch (Exception e) {
+            log.warn("属性映射解析失败，本条按空值处理：binding={}, reason={}",
+                    bindingPropertyMapKey(propertyMap), e.getMessage());
+        }
+        return values;
+    }
+
+    /**
+     * 差分指纹：online + values 稳定序列化。
+     *
+     * @param state 实时态
+     * @return 指纹串
+     */
+    private String fingerprint(BindingStateVO state) {
+        try {
+            return JSON.writeValueAsString(Map.of(
+                    "online", Boolean.TRUE.equals(state.getOnline()),
+                    "values", state.getValues() == null ? Map.of() : state.getValues()));
+        } catch (Exception e) {
+            return String.valueOf(state.hashCode());
+        }
+    }
+
+    /**
+     * 从设备态里抽 online（兼容 Boolean 与数值两种序列化）。
+     *
+     * @param deviceState 设备态
+     * @return true 在线
+     */
+    private boolean extractOnline(Map<String, Object> deviceState) {
+        if (deviceState == null) {
+            return false;
+        }
+        Object online = deviceState.get("online");
+        if (online instanceof Boolean bool) {
+            return bool;
+        }
+        if (online instanceof Number number) {
+            return number.intValue() == 1;
+        }
+        return false;
+    }
+
+    /**
+     * 从设备态里抽 reported 快照。
+     *
+     * @param deviceState 设备态
+     * @return reported 映射（缺失返回空映射）
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> extractReported(Map<String, Object> deviceState) {
+        if (deviceState == null) {
+            return Map.of();
+        }
+        Object reported = deviceState.get("reported");
+        return reported instanceof Map ? (Map<String, Object>) reported : Map.of();
+    }
+
+    /**
+     * 日志用映射摘要（避免打印全量 JSON）。
+     *
+     * @param propertyMap 属性映射
+     * @return 截断后的摘要
+     */
+    private String bindingPropertyMapKey(String propertyMap) {
+        return propertyMap.length() <= 32 ? propertyMap : propertyMap.substring(0, 32) + "...";
+    }
+
+    /**
+     * 停服时关掉轮询线程池。
+     */
+    @PreDestroy
+    void shutdown() {
+        scheduler.shutdownNow();
+    }
+}

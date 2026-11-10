@@ -1,7 +1,9 @@
 package com.bluewhale.twin;
 
+import com.bluewhale.twin.config.TwinProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 
 /**
@@ -15,13 +17,14 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
  * 发布快照与回滚。与 whale-scene（8097，2D 导航底座）互不修改对方表结构，
  * {@code WHALE_SCENE_3D_ENABLED} 开关保持不动，两条 3D 路线互不污染。</p>
  *
- * <p>模型资产 GLB/GLTF 存 whale-file（8085），本服务不自建对象存储；
- * 实时数据来源为 whale-iot internal 只读接口（M2 起），本服务不直接连 MQTT。</p>
+ * <p>模型资产 GLB/GLTF 存 whale-file（8085），本服务不自建对象存储；实时数据
+ * 来源为 whale-iot internal 只读接口（M2 起轮询拉取），本服务不直接连 MQTT。</p>
  *
  * @author BlueWhale
  */
 @SpringBootApplication
 @EnableDiscoveryClient
+@EnableConfigurationProperties(TwinProperties.class)
 public class WhaleTwinApplication {
 
     /**

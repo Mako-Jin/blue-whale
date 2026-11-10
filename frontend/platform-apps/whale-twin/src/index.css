@@ -73,3 +73,49 @@
   font-size: 12px;
   pointer-events: none;
 }
+
+/* M2 实时状态面板（画布右下角悬浮） */
+.twin-live-panel {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  width: 240px;
+  max-height: 60%;
+  overflow: auto;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  font-size: 12px;
+}
+
+.twin-live-panel h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.twin-live-item {
+  padding: 4px 0;
+  border-top: 1px dashed #f0f0f0;
+  line-height: 1.6;
+}
+
+.twin-live-item:first-of-type {
+  border-top: none;
+}
+
+.twin-live-item .twin-live-code {
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+  margin-right: 6px;
+}
+
+.twin-live-item .twin-live-off {
+  color: #bfbfbf;
+}
+
+.twin-live-value {
+  color: #555;
+}

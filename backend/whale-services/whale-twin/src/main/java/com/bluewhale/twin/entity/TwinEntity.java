@@ -20,6 +20,9 @@ public class TwinEntity extends BaseEntity {
 
     private static final long serialVersionUID = 1L;
 
+    /** 租户ID（行级隔离） */
+    private Long tenantId;
+
     /** 所属场景ID（twin_scene.id） */
     private Long sceneId;
 
