@@ -83,8 +83,8 @@ export default function CustomerToolsPage() {
         ...values,
         confirmPrimaryContactConflict: true,
       });
-      const rewritten = result.rewrittenReferences
-        ? Object.entries(result.rewrittenReferences).map(([key, count]) => `${key} ${count}`).join('、')
+      const rewritten = result.references && Object.keys(result.references).length > 0
+        ? Object.entries(result.references).map(([key, count]) => `${key} ${count}`).join('、')
         : '无';
       message.success(`合并完成：${rewritten}`);
       setMergePreview(null);

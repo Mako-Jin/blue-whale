@@ -28,15 +28,18 @@ export interface CustomerMergePreview {
   warnings: string[];
 }
 
-/** 合并结果 */
+/** 合并结果（字段名与后端 CustomerMergeResultView 对齐） */
 export interface CustomerMergeResult {
   sourceId?: number | null;
   targetId?: number | null;
-  rewrittenReferences?: Record<string, number>;
-  movedContacts?: number | null;
-  movedFollowUps?: number | null;
-  movedAddresses?: number | null;
-  merged?: boolean | null;
+  /** 各上下文引用重写数量，key 为上下文中文名（如「合同服务」） */
+  references?: Record<string, number>;
+  idempotent?: boolean;
+  migratedContacts?: number | null;
+  migratedAddresses?: number | null;
+  migratedFollowUps?: number | null;
+  profileMigrated?: boolean;
+  warnings?: string[];
 }
 
 /** 导入行预检结果 */

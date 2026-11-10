@@ -142,7 +142,7 @@ com.bluewhale.crm
 |---|---|---|---|
 | M0-5 数据范围 | auth 内网 `data-scope` 接口 + 部门树 | 角色判定：`tenant_admin/crm_admin/crm_sales_manager/crm_analyst` 全量，其余仅本人 | auth 内网数据范围接口尚未提供，先安全降级为本人范围 |
 | M0-6 集成底座 | 合同/ERP/工作流/消息/文件/文档 6 个客户端 + outbox 重试 | V2 已建 outbox / 同步日志 / 外部引用 / 幂等四表；仅商机摘要端口真实接读，其余在 360 中声明“不可用” | 按里程碑分阶段接入，避免未联调的空壳客户端 |
-| M1-4 客户合并 | 合并预览 + 引用重写 | **已实现**：合并预览 + 执行，`MergeReferencePort` 端口下发 `sales` / `commerce` / `service` 三个适配器重写引用；合同域需 `whale-contract` 提供内网接口后接入 | 权限 1831 |
+| M1-4 客户合并 | 合并预览 + 引用重写 | **已实现**：合并预览 + 执行，`MergeReferencePort` 端口下发 `sales` / `commerce` / `service` 三个适配器重写引用；合同域由 `ContractServiceMergeReferenceAdapter` 调 `whale-contract` 内网 `references/count`、`references/rewrite`（`biz_type=CRM_CUSTOMER`）重写「合同服务」引用，受 `whale.crm.contract.enabled` 开关控制（默认 `false`） | 权限 1831 |
 | M1-9 导入导出 | CSV 预检 + 异步导出 | **已实现**：CSV 解析/预检/落库与导出，受 `customer-import-max-rows` / `customer-export-max-rows` 限制，展示侧掩码 | 权限 1832–1833；异步任务与 `whale-file` 联通后置 |
 | M1-10 前端 | 8113 页面 | **已创建**：客户/销售/商务/售后/营销/分析/行动计划/客户工具页面，接入基座菜单与 qiankun | — |
 | M1-5 自动回收 | 定时回收默认开启 | 已实现任务，`whale.crm.pool-recycle-enabled` **默认 false** | 灰度先手动触发验证回收规则，再打开定时 |
