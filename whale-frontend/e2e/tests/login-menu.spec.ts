@@ -16,11 +16,11 @@ test('未登录跳登录，登录后菜单按权限渲染', async ({ page, reque
   // antd 会在两个汉字间插入空格（登 录），故用正则匹配
   await page.getByRole('button', { name: /登\s*录/ }).click();
 
-  // 3) 登录后进入首页；PermissionGate 拉取 /auth/me 后才渲染动态菜单
+  // 3) 登录后进入首页；PermissionGate 拉取 /v1/auth/me 后才渲染动态菜单
   await page.waitForURL((url) => url.pathname === '/');
   await expect(page.getByText('知识助手', { exact: true })).toBeVisible();
 
-  // 4) 期望菜单 = /auth/me 返回的权限菜单（顶层，按 sort 排序）
+  // 4) 期望菜单 = /v1/auth/me 返回的权限菜单（顶层，按 sort 排序）
   const token = await login(request);
   const me = await fetchMe(request, token);
   const expectedLabels = [...me.menus]

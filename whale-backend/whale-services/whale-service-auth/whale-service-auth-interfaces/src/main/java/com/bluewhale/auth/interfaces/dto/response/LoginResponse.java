@@ -1,4 +1,4 @@
-package com.bluewhale.auth.application.vo;
+package com.bluewhale.auth.interfaces.dto.response;
 
 import lombok.Data;
 

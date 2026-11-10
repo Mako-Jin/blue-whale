@@ -201,11 +201,11 @@ class JwtAuthGlobalFilterTest {
     void shouldStripForgedIdentityHeadersForWhiteListPath() {
         WhaleGatewayProperties properties = new WhaleGatewayProperties();
         properties.getJwt().setSecret(SECRET);
-        properties.setWhiteList(java.util.List.of("/auth/login"));
+        properties.setWhiteList(java.util.List.of("/v1/auth/login"));
         JwtAuthGlobalFilter whiteListFilter = new JwtAuthGlobalFilter(properties, tokenBlacklistChecker,
                 tenantStatusChecker, membershipRevocationChecker, userAccessRevocationChecker);
         MockServerWebExchange exchange = MockServerWebExchange.from(MockServerHttpRequest
-                .post("http://localhost/auth/login")
+                .post("http://localhost/v1/auth/login")
                 .header("X-Tenant-Id", "999")
                 .header("X-User-Id", "888")
                 .header("X-Username", "forged")
@@ -345,7 +345,7 @@ class JwtAuthGlobalFilterTest {
     void shouldAllowPasswordChangeEndpointWhenPasswordChangeRequired() {
         String accessToken = passwordChangeRequiredToken();
         MockServerWebExchange exchange = MockServerWebExchange.from(MockServerHttpRequest
-                .put("http://localhost/auth/password")
+                .put("http://localhost/v1/auth/password")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                 .build());
         GatewayFilterChain chain = mock(GatewayFilterChain.class);
@@ -357,6 +357,6 @@ class JwtAuthGlobalFilterTest {
 
         ArgumentCaptor<ServerWebExchange> captor = ArgumentCaptor.forClass(ServerWebExchange.class);
         verify(chain).filter(captor.capture());
-        assertEquals("/auth/password", captor.getValue().getRequest().getURI().getPath());
+        assertEquals("/v1/auth/password", captor.getValue().getRequest().getURI().getPath());
     }
 }

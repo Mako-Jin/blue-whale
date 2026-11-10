@@ -1,4 +1,4 @@
-package com.bluewhale.auth.interfaces.dto;
+package com.bluewhale.auth.interfaces.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

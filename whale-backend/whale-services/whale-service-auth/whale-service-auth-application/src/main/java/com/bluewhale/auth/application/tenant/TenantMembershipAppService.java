@@ -11,7 +11,7 @@ import com.bluewhale.auth.domain.tenant.repository.TenantRepository;
 import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
 import com.bluewhale.auth.domain.user.repository.UserTenantRepository;
-import com.bluewhale.auth.application.vo.MyTenantVO;
+import com.bluewhale.auth.application.auth.result.TenantResult;
 import com.bluewhale.auth.application.vo.TenantMemberVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.tenant.TenantContext;
@@ -68,13 +68,13 @@ public class TenantMembershipAppService {
      * @param currentTenantId 当前令牌租户 ID
      * @return 租户列表（标记当前项）
      */
-    public List<MyTenantVO> listMyTenants(Long userId, Long currentTenantId) {
+    public List<TenantResult> listMyTenants(Long userId, Long currentTenantId) {
         LocalDateTime now = TenantExpiryClock.now();
         return userTenantRepository.listEnabledTenantIds(userId).stream()
                 .map(tenantRepository::findById)
                 .flatMap(Optional::stream)
                 .filter(tenant -> tenant.isAvailableAt(now))
-                .map(tenant -> MyTenantVO.from(tenant, tenant.getId().equals(currentTenantId)))
+                .map(tenant -> TenantResult.from(tenant, tenant.getId().equals(currentTenantId)))
                 .toList();
     }
 

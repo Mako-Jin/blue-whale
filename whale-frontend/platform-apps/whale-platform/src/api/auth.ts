@@ -24,7 +24,7 @@ export async function login(
   password: string,
   tenantCode?: string,
 ): Promise<LoginResponse> {
-  const data = await post<LoginResponse>('/auth/login', {
+  const data = await post<LoginResponse>('/v1/auth/login', {
     tenantCode: tenantCode?.trim() || undefined,
     username,
     password,
@@ -37,7 +37,7 @@ export async function login(
 
 // 当前登录用户：GET /auth/me（需 accessToken）——校验令牌有效性并刷新权限码，供子应用共享
 export async function fetchMe(): Promise<AuthMeResponse> {
-  const me = await get<AuthMeResponse>('/auth/me');
+  const me = await get<AuthMeResponse>('/v1/auth/me');
   const user = getCurrentUser();
   const beforePermissions = (user?.permissions ?? []).join(',');
   saveCurrentUser({
@@ -64,7 +64,7 @@ export async function fetchMe(): Promise<AuthMeResponse> {
 export async function logout(): Promise<void> {
   const user = getCurrentUser();
   try {
-    await post<void>('/auth/logout');
+    await post<void>('/v1/auth/logout');
   } catch {
     // 登出接口异常（离线/网络故障）不阻断本地登出，保证用户始终能退出
   } finally {

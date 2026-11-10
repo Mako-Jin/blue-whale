@@ -66,6 +66,11 @@ export default defineConfig({
         changeOrigin: true,
         bypass: gatewayBypass,
       },
+      '^/v1(/|$)': {
+        target: GATEWAY_TARGET,
+        changeOrigin: true,
+        bypass: gatewayBypass,
+      },
     },
   },
   base: '/im',

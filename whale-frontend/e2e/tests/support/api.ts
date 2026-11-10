@@ -14,7 +14,7 @@ interface Envelope<T> {
   data: T;
 }
 
-/** /auth/me 的菜单节点（仅取断言所需字段） */
+/** /v1/auth/me 的菜单节点（仅取断言所需字段） */
 export interface MenuNode {
   name: string;
   sort?: number;
@@ -87,7 +87,7 @@ export async function loginFull(
   username: string = ADMIN_USERNAME,
   password: string = ADMIN_PASSWORD,
 ): Promise<LoginSession> {
-  const response = await ctx.post(`${API_BASE_URL}/auth/login`, {
+  const response = await ctx.post(`${API_BASE_URL}/v1/auth/login`, {
     data: { username, password },
   });
   return readEnvelope<LoginSession>(response, '登录');
@@ -117,9 +117,9 @@ export async function changePassword(
   await readEnvelope<void>(response, '修改密码');
 }
 
-/** GET /auth/me（角色/权限码/菜单） */
+/** GET /v1/auth/me（角色/权限码/菜单） */
 export async function fetchMe(ctx: APIRequestContext, token: string): Promise<MeResponse> {
-  const response = await ctx.get(`${API_BASE_URL}/auth/me`, {
+  const response = await ctx.get(`${API_BASE_URL}/v1/auth/me`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return readEnvelope<MeResponse>(response, '查询当前用户');

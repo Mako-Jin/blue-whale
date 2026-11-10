@@ -60,7 +60,7 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
     private static final String CLAIM_PWD_CHANGE_REQUIRED = "pwdChangeRequired";
     /** 强制改密状态下仍可访问的路径（自助改密 / 登出 / 刷新 / 当前用户） */
     private static final String[] PASSWORD_CHANGE_ALLOWED_PATTERNS = {
-            "/auth/password", "/auth/logout", "/auth/refresh", "/auth/me"};
+            "/v1/auth/password", "/v1/auth/logout", "/v1/auth/refresh", "/v1/auth/me"};
 
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
     private final WhaleGatewayProperties properties;
@@ -116,7 +116,7 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
                     .parseSignedClaims(token)
                     .getPayload();
 
-            // 仅 accessToken 可访问下游 API，refreshToken 只能用于 /auth/refresh（白名单）
+            // 仅 accessToken 可访问下游 API，refreshToken 只能用于 /v1/auth/refresh（白名单）
             if (!TOKEN_TYPE_ACCESS.equals(stringify(claims.get(CLAIM_TOKEN_TYPE)))) {
                 log.warn("非 accessToken 访问受保护资源: path={}", path);
                 return unauthorized(exchange);

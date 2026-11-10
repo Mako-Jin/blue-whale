@@ -83,7 +83,7 @@ export interface HttpClientConfig<TLogin extends LoginData = LoginData> {
 }
 
 /** 不做自动续期的路径：登录/刷新自身的 401 直接透传，避免递归续期 */
-const NO_REFRESH_PATHS = new Set(['/auth/login', '/auth/refresh']);
+const NO_REFRESH_PATHS = new Set(['/v1/auth/login', '/v1/auth/refresh']);
 
 /** 服务端下发的 CSRF Cookie 名（非 HttpOnly，登录/刷新成功后可读） */
 const CSRF_COOKIE_NAME = 'whale_csrf';

@@ -12,7 +12,7 @@ import com.bluewhale.auth.domain.tenant.repository.TenantRepository;
 import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
 import com.bluewhale.auth.domain.user.repository.UserTenantRepository;
-import com.bluewhale.auth.application.vo.MyTenantVO;
+import com.bluewhale.auth.application.auth.result.TenantResult;
 import com.bluewhale.auth.application.vo.TenantMemberVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.tenant.TenantContext;
@@ -110,11 +110,11 @@ class TenantMembershipAppServiceTest {
         when(tenantRepository.findById(1L)).thenReturn(Optional.of(available));
         when(tenantRepository.findById(2L)).thenReturn(Optional.of(expired));
 
-        List<MyTenantVO> tenants = service.listMyTenants(USER_ID, 1L);
+        List<TenantResult> tenants = service.listMyTenants(USER_ID, 1L);
 
         assertEquals(1, tenants.size());
-        assertEquals(1L, tenants.get(0).getTenantId());
-        assertTrue(tenants.get(0).isCurrent());
+        assertEquals(1L, tenants.get(0).tenantId());
+        assertTrue(tenants.get(0).current());
     }
 
     @Test

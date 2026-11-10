@@ -19,7 +19,7 @@ export default defineConfig({
       // Wave 5.73 修复：/pay、/message、/archive、/config 为 5.7x 新增服务前缀，
       // 此前未纳入白名单，导致新服务页面在开发环境所有请求 404（页面表现为空列表）。
       // Wave 6.01：新增 /assistant（AI 助手平台 whale-assistant）。
-      '^/(auth|user|dept|role|menu|permission|audit|job|file|tenant|pay|message|archive|config|music|assistant)(/|$)':
+      '^/(v1|auth|user|dept|role|menu|permission|audit|job|file|tenant|pay|message|archive|config|music|assistant)(/|$)':
         {
           target: 'http://localhost:8080',
           changeOrigin: true,

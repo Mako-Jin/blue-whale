@@ -1,5 +1,9 @@
 package com.bluewhale.auth.application.auth;
 
+import com.bluewhale.auth.application.auth.command.LoginCommand;
+import com.bluewhale.auth.application.auth.command.LogoutCommand;
+import com.bluewhale.auth.application.auth.command.RefreshCommand;
+import com.bluewhale.auth.application.auth.command.SwitchTenantCommand;
 import com.bluewhale.auth.application.auth.port.CredentialAuthenticator;
 import com.bluewhale.auth.application.auth.port.CurrentUserProvider;
 import com.bluewhale.auth.application.auth.port.RefreshTokenRotationStore;
@@ -7,6 +11,11 @@ import com.bluewhale.auth.application.auth.port.TokenBlacklist;
 import com.bluewhale.auth.application.auth.port.TokenIssuer;
 import com.bluewhale.auth.application.auth.port.UserAccessRevocationPort;
 import com.bluewhale.auth.application.auth.port.UserSessionQuery;
+import com.bluewhale.auth.application.auth.query.CurrentUserQuery;
+import com.bluewhale.auth.application.auth.query.TenantListQuery;
+import com.bluewhale.auth.application.auth.result.CurrentUserResult;
+import com.bluewhale.auth.application.auth.result.LoginResult;
+import com.bluewhale.auth.application.auth.result.TenantResult;
 import com.bluewhale.auth.application.menu.MenuAppService;
 import com.bluewhale.auth.application.permission.PermissionAppService;
 import com.bluewhale.auth.application.role.RoleAppService;
@@ -18,11 +27,7 @@ import com.bluewhale.auth.application.user.port.PasswordHasher;
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
 import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
-import com.bluewhale.auth.application.vo.AuthMeResponse;
-import com.bluewhale.auth.application.vo.AuthTokenIssue;
-import com.bluewhale.auth.application.vo.LoginResponse;
 import com.bluewhale.auth.application.vo.MenuVO;
-import com.bluewhale.auth.application.vo.MyTenantVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.security.degradation.SecurityDegradationAlerter;
 import lombok.RequiredArgsConstructor;
@@ -82,22 +87,21 @@ public class SessionAppService {
     /**
      * 登录：按（租户, 用户名, 密码）完成凭据校验并签发一对令牌。
      *
-     * @param tenantCode 租户编码（可空，按现有规则解析默认租户）
-     * @param username 用户名
-     * @param rawPassword 明文密码
-     * @return 令牌签发结果（响应体含 accessToken；refreshToken 仅由接口层写入 HttpOnly Cookie）
+     * @param command 登录命令（租户编码、用户名与明文密码）
+     * @return 登录结果（响应体含 accessToken；refreshToken 仅由接口层写入 HttpOnly Cookie）
      */
-    public AuthTokenIssue login(String tenantCode, String username, String rawPassword) {
-        Long tenantId = tenantAppService.resolveEnabledTenantId(tenantCode);
-        AuthenticatedUser user = credentialAuthenticator.authenticate(tenantId, username, rawPassword);
+    public LoginResult login(LoginCommand command) {
+        Long tenantId = tenantAppService.resolveEnabledTenantId(command.tenantCode());
+        AuthenticatedUser user = credentialAuthenticator.authenticate(
+                tenantId, command.username(), command.password());
         // 记录最后登录时间（聚合行为），并在口令密文强度落后时自动升级（REQ-SEC-021）
         userRepository.findByIdAcrossTenants(user.userId()).ifPresent(entity -> {
             entity.recordLogin(LocalDateTime.now());
-            upgradePasswordIfNeeded(entity, rawPassword);
+            upgradePasswordIfNeeded(entity, command.password());
             userRepository.save(entity);
         });
         // 每次登录生成独立 familyId（AUTH-39）：该次会话后续所有轮换令牌共用，复用检测时整族吊销
-        return buildAuthTokenIssue(user, UUID.randomUUID().toString());
+        return buildLoginResult(user, UUID.randomUUID().toString());
     }
 
     /**
@@ -111,10 +115,11 @@ public class SessionAppService {
      * <p>用户级撤销（REQ-SEC-014）：停用、删除、改密后写入的撤销时刻同样作用于 refreshToken，
      * 撤销前签发的 refreshToken 不能再换发新令牌，避免绕过 accessToken 撤销继续访问。</p>
      *
-     * @param refreshToken Cookie 中解析出的 refreshToken 原文
-     * @return 令牌签发结果（响应体含新 accessToken；新 refreshToken 仅写 Cookie）
+     * @param command 刷新命令（Cookie 中解析出的 refreshToken 原文）
+     * @return 登录结果（响应体含新 accessToken；新 refreshToken 仅写 Cookie）
      */
-    public AuthTokenIssue refresh(String refreshToken) {
+    public LoginResult refresh(RefreshCommand command) {
+        String refreshToken = command.refreshToken();
         TokenPayload payload = tokenIssuer.parse(refreshToken);
         if (payload == null || !TokenPayload.TYPE_REFRESH.equals(payload.tokenType())) {
             throw new BizException(401, INVALID_REFRESH_TOKEN_MESSAGE);
@@ -132,15 +137,16 @@ public class SessionAppService {
         AuthenticatedUser user = loadEnabledUser(userId, tenantId);
         requireRefreshNotRevoked(userId, tenantId, payload);
         consumeRotatingToken(refreshToken, payload, familyId);
-        return buildAuthTokenIssue(user, familyId);
+        return buildLoginResult(user, familyId);
     }
 
     /**
      * 当前用户可进入的租户列表（一人多租户切换器数据源）。
      *
+     * @param query 我的租户查询
      * @return 启用且当前可用的租户列表，当前令牌租户标记 {@code current=true}
      */
-    public List<MyTenantVO> listTenants() {
+    public List<TenantResult> listTenants(TenantListQuery query) {
         AuthenticatedUser current = currentUserProvider.current();
         return tenantMembershipAppService.listMyTenants(current.userId(), current.tenantId());
     }
@@ -151,23 +157,22 @@ public class SessionAppService {
      * <p>切换成功后将当前 accessToken 与 Cookie 携带的 refreshToken 写入黑名单（开启轮换时
      * 吊销整个 family），避免新旧租户令牌并存；新令牌使用全新 familyId。</p>
      *
-     * @param authorization 请求头原始值，形如 {@code Bearer <token>}（可空）
-     * @param targetTenantId 目标租户 ID
-     * @param currentRefreshToken Cookie 中解析出的当前 refreshToken（可空，携带时一并失效）
-     * @return 新租户下的令牌签发结果（新 refreshToken 仅由接口层写 Cookie）
+     * @param command 切换租户命令（Authorization 头、目标租户与当前 refreshToken）
+     * @return 新租户下的登录结果（新 refreshToken 仅由接口层写 Cookie）
      */
-    public AuthTokenIssue switchTenant(String authorization, Long targetTenantId, String currentRefreshToken) {
+    public LoginResult switchTenant(SwitchTenantCommand command) {
         AuthenticatedUser current = currentUserProvider.current();
+        Long targetTenantId = command.targetTenantId();
         tenantMembershipAppService.requireSwitchable(current.userId(), targetTenantId);
         AuthenticatedUser switched = userSessionQuery.loadUserById(current.userId(), targetTenantId)
                 .orElseThrow(() -> new BizException(401, "账号不存在或已停用"));
         if (!switched.enabled()) {
             throw new BizException(401, "账号已停用");
         }
-        invalidateSwitchTokens(authorization, currentRefreshToken);
+        invalidateSwitchTokens(command.authorization(), command.currentRefreshToken());
         log.info("用户切换租户: userId={}, fromTenantId={}, toTenantId={}",
                 current.userId(), current.tenantId(), targetTenantId);
-        return buildAuthTokenIssue(switched, UUID.randomUUID().toString());
+        return buildLoginResult(switched, UUID.randomUUID().toString());
     }
 
     /**
@@ -175,18 +180,17 @@ public class SessionAppService {
      * <p>TTL 取各自令牌剩余有效期，到期后由 Redis 自动清理；
      * Redis 不可用时降级为客户端丢弃 token，不阻断登出流程。</p>
      *
-     * @param authorization 请求头原始值，形如 {@code Bearer <token>}；缺失或格式不符时静默跳过
-     * @param refreshToken Cookie 携带的 refreshToken（可空）；为空时仅失效 accessToken
+     * @param command 登出命令（Authorization 头与 refreshToken，均可空）
      */
-    public void logout(String authorization, String refreshToken) {
-        String accessToken = resolveBearerToken(authorization);
+    public void logout(LogoutCommand command) {
+        String accessToken = resolveBearerToken(command.authorization());
         if (accessToken != null) {
             tokenBlacklist.add(accessToken);
         } else {
             log.debug("登出请求未携带有效 Bearer token，跳过 accessToken 黑名单写入");
         }
-        if (StringUtils.hasText(refreshToken)) {
-            tokenBlacklist.add(refreshToken);
+        if (StringUtils.hasText(command.refreshToken())) {
+            tokenBlacklist.add(command.refreshToken());
         } else {
             log.debug("登出请求未携带 refreshToken，仅失效 accessToken");
         }
@@ -197,9 +201,10 @@ public class SessionAppService {
      * <p>权限码与菜单为「动态路由 + 按钮级权限渲染」的数据源：内置超管（super_admin）
      * 授予全量启用权限码与全部启用可见菜单，其余用户按「用户 → 角色 → 权限点」实际授权过滤。</p>
      *
+     * @param query 当前登录用户查询
      * @return 当前登录用户的角色、权限码与可见菜单树
      */
-    public AuthMeResponse me() {
+    public CurrentUserResult me(CurrentUserQuery query) {
         AuthenticatedUser current = currentUserProvider.current();
         List<String> roles = current.roles();
         boolean superAdmin = roles.contains(AuthRoleCodes.SUPER_ADMIN);
@@ -209,15 +214,9 @@ public class SessionAppService {
         List<MenuVO> menus = superAdmin
                 ? menuAppService.treeByPermissionCodes(null)
                 : menuAppService.treeByPermissionCodes(Set.copyOf(permissions));
-        AuthMeResponse response = new AuthMeResponse();
-        response.setTenantId(current.tenantId());
-        response.setUserId(current.userId());
-        response.setUsername(current.username());
-        response.setNickname(current.nickname());
-        response.setRoles(roles);
-        response.setPermissions(permissions);
-        response.setMenus(menus);
-        return response;
+        return new CurrentUserResult(
+                current.tenantId(), current.userId(), current.username(), current.nickname(),
+                roles, permissions, menus);
     }
 
     /**
@@ -396,40 +395,32 @@ public class SessionAppService {
     }
 
     /**
-     * 为用户签发 accessToken 与 refreshToken 并组装令牌签发结果（V-03：refreshToken 仅写 Cookie）
+     * 为用户签发 accessToken 与 refreshToken 并组装登录结果（V-03：refreshToken 仅写 Cookie）
      *
      * <p>REQ-SEC-023：强制首登改密标记与口令到期均折算为 {@code mustChangePassword=true}，
      * 同时写入 accessToken 的 {@code pwdChangeRequired} claim，供 auth 服务与网关双层拦截。</p>
      *
      * @param user 登录用户
      * @param familyId 令牌 family 标识（登录时新生成，轮换时沿用）；为 {@code null} 时 refreshToken 不含该 claim
-     * @return 令牌签发结果（响应体载荷不含 refreshToken）
+     * @return 登录结果（响应体载荷不含 refreshToken）
      */
-    private AuthTokenIssue buildAuthTokenIssue(AuthenticatedUser user, String familyId) {
+    private LoginResult buildLoginResult(AuthenticatedUser user, String familyId) {
         // REQ-SEC-023：有效期按用户所属租户的生效策略计算，未配置时回退全局默认
         int maxAgeDays = tenantPasswordPolicyService.maxAgeDays(user.tenantId());
         LocalDateTime now = LocalDateTime.now();
         boolean passwordExpired = isPasswordExpired(user.passwordUpdatedTime(), now, maxAgeDays);
         long expiresInDays = passwordExpiresInDays(user.passwordUpdatedTime(), now, maxAgeDays);
         boolean mustChange = user.mustChangePassword() || passwordExpired;
-        LoginResponse response = new LoginResponse();
         List<String> roles = user.roles();
         String refreshToken = tokenIssuer.issueRefreshToken(
                 user.tenantId(), user.userId(), user.username(), familyId);
-        response.setAccessToken(tokenIssuer.issueAccessToken(
-                user.tenantId(), user.userId(), user.username(), roles, mustChange));
-        response.setTokenType("Bearer");
-        response.setExpiresIn(tokenIssuer.accessExpireSeconds());
-        response.setUserId(user.userId());
-        response.setTenantId(user.tenantId());
-        response.setUsername(user.username());
-        response.setNickname(user.nickname());
-        response.setRoles(roles);
-        // T-03 / REQ-SEC-023：强制首登改密或口令到期，登录/刷新/切换响应统一透出该标记
-        response.setMustChangePassword(mustChange);
-        response.setPasswordExpired(passwordExpired);
-        response.setPasswordExpiresInDays(expiresInDays);
-        return new AuthTokenIssue(response, refreshToken);
+        String accessToken = tokenIssuer.issueAccessToken(
+                user.tenantId(), user.userId(), user.username(), roles, mustChange);
+        // T-03 / REQ-SEC-023：强制首登改密或口令到期，登录/刷新/切换结果统一透出该标记
+        return new LoginResult(
+                accessToken, "Bearer", tokenIssuer.accessExpireSeconds(),
+                user.userId(), user.tenantId(), user.username(), user.nickname(), roles,
+                mustChange, passwordExpired, expiresInDays, refreshToken);
     }
 
     /**

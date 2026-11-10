@@ -254,7 +254,7 @@ class JwtAuthenticationFilterTest {
         when(tokenProvider.parse("p.p.p")).thenReturn(claims);
         givenAccessClaims("tester");
         when(claims.get(JwtTokenProvider.CLAIM_PWD_CHANGE_REQUIRED)).thenReturn(true);
-        when(request.getRequestURI()).thenReturn("/auth/password");
+        when(request.getRequestURI()).thenReturn("/v1/auth/password");
         when(userDetailsService.loadUserById(1L, 1L))
                 .thenReturn(new LoginUser(1L, 1L, "tester", "pwd", "T", List.of("super_admin"), true));
 

@@ -27,7 +27,7 @@ export interface MeResponse {
 
 // 登录：POST /auth/login（网关白名单，免 JWT）
 export async function login(payload: LoginPayload): Promise<LoginResponse> {
-  const data = await post<LoginResponse>('/auth/login', {
+  const data = await post<LoginResponse>('/v1/auth/login', {
     ...payload,
     tenantCode: payload.tenantCode?.trim() || undefined,
   });
@@ -39,7 +39,7 @@ export async function login(payload: LoginPayload): Promise<LoginResponse> {
 
 // 当前登录用户：GET /auth/me（需 accessToken）——校验令牌有效性并刷新用户信息
 export async function me(): Promise<MeResponse> {
-  const data = await get<MeResponse>('/auth/me');
+  const data = await get<MeResponse>('/v1/auth/me');
   const current = getCurrentUser();
   saveCurrentUser({
     userId: data.userId,

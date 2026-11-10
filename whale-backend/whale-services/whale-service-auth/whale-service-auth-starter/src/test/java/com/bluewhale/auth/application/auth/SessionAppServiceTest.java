@@ -1,5 +1,8 @@
 package com.bluewhale.auth.application.auth;
 
+import com.bluewhale.auth.application.auth.command.LogoutCommand;
+import com.bluewhale.auth.application.auth.command.RefreshCommand;
+import com.bluewhale.auth.application.auth.command.SwitchTenantCommand;
 import com.bluewhale.auth.application.auth.port.CredentialAuthenticator;
 import com.bluewhale.auth.application.auth.port.CurrentUserProvider;
 import com.bluewhale.auth.application.auth.port.RefreshTokenRotationStore;
@@ -7,6 +10,11 @@ import com.bluewhale.auth.application.auth.port.TokenBlacklist;
 import com.bluewhale.auth.application.auth.port.TokenIssuer;
 import com.bluewhale.auth.application.auth.port.UserAccessRevocationPort;
 import com.bluewhale.auth.application.auth.port.UserSessionQuery;
+import com.bluewhale.auth.application.auth.query.CurrentUserQuery;
+import com.bluewhale.auth.application.auth.query.TenantListQuery;
+import com.bluewhale.auth.application.auth.result.CurrentUserResult;
+import com.bluewhale.auth.application.auth.result.LoginResult;
+import com.bluewhale.auth.application.auth.result.TenantResult;
 import com.bluewhale.auth.application.menu.MenuAppService;
 import com.bluewhale.auth.application.permission.PermissionAppService;
 import com.bluewhale.auth.application.role.RoleAppService;
@@ -16,10 +24,7 @@ import com.bluewhale.auth.application.user.password.PasswordPolicyService;
 import com.bluewhale.auth.application.user.password.TenantPasswordPolicyService;
 import com.bluewhale.auth.application.user.port.PasswordHasher;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
-import com.bluewhale.auth.application.vo.AuthMeResponse;
-import com.bluewhale.auth.application.vo.AuthTokenIssue;
 import com.bluewhale.auth.application.vo.MenuVO;
-import com.bluewhale.auth.application.vo.MyTenantVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.security.degradation.SecurityDegradationAlerter;
 import org.junit.jupiter.api.BeforeEach;
@@ -141,7 +146,7 @@ class SessionAppServiceTest {
         when(tokenIssuer.parse(REFRESH_TOKEN)).thenReturn(refreshPayload(TENANT_ID, USER_ID));
         when(tokenBlacklist.contains(REFRESH_TOKEN)).thenReturn(true);
 
-        BizException ex = assertThrows(BizException.class, () -> sessionAppService.refresh(REFRESH_TOKEN));
+        BizException ex = assertThrows(BizException.class, () -> sessionAppService.refresh(new RefreshCommand(REFRESH_TOKEN)));
 
         assertEquals(UNAUTHORIZED_CODE, ex.getCode());
         verifyNoInteractions(userSessionQuery);
@@ -153,7 +158,7 @@ class SessionAppServiceTest {
         when(tokenIssuer.parse(REFRESH_TOKEN))
                 .thenReturn(new TokenPayload(USERNAME, TENANT_ID, USER_ID, "access", null, null, 0L));
 
-        BizException ex = assertThrows(BizException.class, () -> sessionAppService.refresh(REFRESH_TOKEN));
+        BizException ex = assertThrows(BizException.class, () -> sessionAppService.refresh(new RefreshCommand(REFRESH_TOKEN)));
 
         assertEquals(UNAUTHORIZED_CODE, ex.getCode());
         verifyNoInteractions(tokenBlacklist);
@@ -172,10 +177,10 @@ class SessionAppServiceTest {
         when(tokenIssuer.issueRefreshToken(TENANT_ID, USER_ID, USERNAME, null)).thenReturn("new-refresh");
         when(tokenIssuer.accessExpireSeconds()).thenReturn(ACCESS_EXPIRE_SECONDS);
 
-        AuthTokenIssue issue = sessionAppService.refresh(REFRESH_TOKEN);
+        LoginResult issue = sessionAppService.refresh(new RefreshCommand(REFRESH_TOKEN));
 
-        assertEquals("new-access", issue.getResponse().getAccessToken());
-        assertEquals("new-refresh", issue.getRefreshToken());
+        assertEquals("new-access", issue.accessToken());
+        assertEquals("new-refresh", issue.refreshToken());
         verifyNoInteractions(refreshRotationStore);
     }
 
@@ -191,7 +196,7 @@ class SessionAppServiceTest {
                 .thenReturn(Optional.of(new AuthenticatedUser(TENANT_ID, USER_ID, USERNAME, "Alice", List.of("admin"), true, false)));
         when(userAccessRevocationPort.isRevoked(USER_ID, issuedAt)).thenReturn(true);
 
-        BizException ex = assertThrows(BizException.class, () -> sessionAppService.refresh(REFRESH_TOKEN));
+        BizException ex = assertThrows(BizException.class, () -> sessionAppService.refresh(new RefreshCommand(REFRESH_TOKEN)));
 
         assertEquals(UNAUTHORIZED_CODE, ex.getCode());
         verify(tokenIssuer, never()).issueAccessToken(anyLong(), anyLong(), anyString(), any(), anyBoolean());
@@ -214,10 +219,10 @@ class SessionAppServiceTest {
         when(tokenIssuer.issueRefreshToken(TENANT_ID, USER_ID, USERNAME, null)).thenReturn("new-refresh");
         when(tokenIssuer.accessExpireSeconds()).thenReturn(ACCESS_EXPIRE_SECONDS);
 
-        AuthTokenIssue issue = sessionAppService.refresh(REFRESH_TOKEN);
+        LoginResult issue = sessionAppService.refresh(new RefreshCommand(REFRESH_TOKEN));
 
-        assertEquals("new-access", issue.getResponse().getAccessToken());
-        assertEquals("new-refresh", issue.getRefreshToken());
+        assertEquals("new-access", issue.accessToken());
+        assertEquals("new-refresh", issue.refreshToken());
         verify(userAccessRevocationPort).isRevoked(USER_ID, issuedAt);
     }
 
@@ -238,10 +243,10 @@ class SessionAppServiceTest {
         when(tokenIssuer.issueRefreshToken(TENANT_ID, USER_ID, USERNAME, FAMILY_ID)).thenReturn("new-refresh");
         when(tokenIssuer.accessExpireSeconds()).thenReturn(ACCESS_EXPIRE_SECONDS);
 
-        AuthTokenIssue issue = sessionAppService.refresh(REFRESH_TOKEN);
+        LoginResult issue = sessionAppService.refresh(new RefreshCommand(REFRESH_TOKEN));
 
-        assertEquals("new-access", issue.getResponse().getAccessToken());
-        assertEquals("new-refresh", issue.getRefreshToken());
+        assertEquals("new-access", issue.accessToken());
+        assertEquals("new-refresh", issue.refreshToken());
         verify(tokenBlacklist).add(REFRESH_TOKEN);
         verify(refreshRotationStore, never()).revokeFamily(anyString(), anyLong());
     }
@@ -260,7 +265,7 @@ class SessionAppServiceTest {
         when(refreshRotationStore.markUsed(JTI, REMAINING_SECONDS)).thenReturn(false);
         when(tokenIssuer.refreshExpireSeconds()).thenReturn(REFRESH_EXPIRE_SECONDS);
 
-        BizException ex = assertThrows(BizException.class, () -> sessionAppService.refresh(REFRESH_TOKEN));
+        BizException ex = assertThrows(BizException.class, () -> sessionAppService.refresh(new RefreshCommand(REFRESH_TOKEN)));
 
         assertEquals(UNAUTHORIZED_CODE, ex.getCode());
         verify(refreshRotationStore).revokeFamily(FAMILY_ID, REFRESH_EXPIRE_SECONDS);
@@ -273,7 +278,7 @@ class SessionAppServiceTest {
         when(tokenIssuer.parse(REFRESH_TOKEN)).thenReturn(refreshPayload(TENANT_ID, USER_ID));
         when(refreshRotationProperties.isEnabled()).thenReturn(true);
 
-        BizException ex = assertThrows(BizException.class, () -> sessionAppService.refresh(REFRESH_TOKEN));
+        BizException ex = assertThrows(BizException.class, () -> sessionAppService.refresh(new RefreshCommand(REFRESH_TOKEN)));
 
         assertEquals(UNAUTHORIZED_CODE, ex.getCode());
         verifyNoInteractions(refreshRotationStore, tokenBlacklist);
@@ -287,7 +292,7 @@ class SessionAppServiceTest {
         when(refreshRotationProperties.isEnabled()).thenReturn(true);
         when(refreshRotationStore.isFamilyRevoked(FAMILY_ID)).thenReturn(true);
 
-        BizException ex = assertThrows(BizException.class, () -> sessionAppService.refresh(REFRESH_TOKEN));
+        BizException ex = assertThrows(BizException.class, () -> sessionAppService.refresh(new RefreshCommand(REFRESH_TOKEN)));
 
         assertEquals(UNAUTHORIZED_CODE, ex.getCode());
         verify(tokenBlacklist, never()).add(anyString());
@@ -296,7 +301,7 @@ class SessionAppServiceTest {
     @Test
     @DisplayName("logout：accessToken 与 refreshToken 一并写入黑名单")
     void logoutShouldBlacklistBothTokens() {
-        sessionAppService.logout(BEARER_ACCESS, REFRESH_TOKEN);
+        sessionAppService.logout(new LogoutCommand(BEARER_ACCESS, REFRESH_TOKEN));
 
         verify(tokenBlacklist).add(ACCESS_TOKEN);
         verify(tokenBlacklist).add(REFRESH_TOKEN);
@@ -305,7 +310,7 @@ class SessionAppServiceTest {
     @Test
     @DisplayName("logout：未携带 refreshToken 时仅失效 accessToken")
     void logoutShouldBlacklistOnlyAccessTokenWhenRefreshAbsent() {
-        sessionAppService.logout(BEARER_ACCESS, null);
+        sessionAppService.logout(new LogoutCommand(BEARER_ACCESS, null));
 
         verify(tokenBlacklist, times(1)).add(anyString());
         verify(tokenBlacklist).add(ACCESS_TOKEN);
@@ -314,7 +319,7 @@ class SessionAppServiceTest {
     @Test
     @DisplayName("logout：Authorization 头格式不符时静默跳过，不写黑名单")
     void logoutShouldSkipWhenAuthorizationMalformed() {
-        sessionAppService.logout("Basic abc", null);
+        sessionAppService.logout(new LogoutCommand("Basic abc", null));
 
         verifyNoInteractions(tokenBlacklist);
     }
@@ -327,10 +332,10 @@ class SessionAppServiceTest {
         when(permissionAppService.listAllCodes()).thenReturn(List.of("sys:user:list", "sys:role:list"));
         when(menuAppService.treeByPermissionCodes(null)).thenReturn(List.of(new MenuVO()));
 
-        AuthMeResponse response = sessionAppService.me();
+        CurrentUserResult response = sessionAppService.me(new CurrentUserQuery());
 
-        assertEquals(List.of("sys:user:list", "sys:role:list"), response.getPermissions());
-        assertEquals(1, response.getMenus().size());
+        assertEquals(List.of("sys:user:list", "sys:role:list"), response.permissions());
+        assertEquals(1, response.menus().size());
         verifyNoInteractions(roleAppService);
     }
 
@@ -342,12 +347,12 @@ class SessionAppServiceTest {
         when(roleAppService.listPermissionCodesByUserId(USER_ID)).thenReturn(List.of("sys:user:list"));
         when(menuAppService.treeByPermissionCodes(Set.of("sys:user:list"))).thenReturn(List.of(new MenuVO()));
 
-        AuthMeResponse response = sessionAppService.me();
+        CurrentUserResult response = sessionAppService.me(new CurrentUserQuery());
 
-        assertEquals(List.of("sys:user:list"), response.getPermissions());
-        assertEquals(TENANT_ID, response.getTenantId());
-        assertEquals(USER_ID, response.getUserId());
-        assertEquals(List.of("admin"), response.getRoles());
+        assertEquals(List.of("sys:user:list"), response.permissions());
+        assertEquals(TENANT_ID, response.tenantId());
+        assertEquals(USER_ID, response.userId());
+        assertEquals(List.of("admin"), response.roles());
         verifyNoInteractions(permissionAppService);
     }
 
@@ -356,7 +361,7 @@ class SessionAppServiceTest {
     void meShouldRejectAnonymous() {
         when(currentUserProvider.current()).thenThrow(new BizException(UNAUTHORIZED_CODE, "未认证"));
 
-        BizException ex = assertThrows(BizException.class, () -> sessionAppService.me());
+        BizException ex = assertThrows(BizException.class, () -> sessionAppService.me(new CurrentUserQuery()));
 
         assertEquals(UNAUTHORIZED_CODE, ex.getCode());
     }
@@ -367,7 +372,7 @@ class SessionAppServiceTest {
         when(tokenIssuer.parse(REFRESH_TOKEN))
                 .thenReturn(new TokenPayload(USERNAME, TENANT_ID, null, TokenPayload.TYPE_REFRESH, null, null, 0L));
 
-        BizException ex = assertThrows(BizException.class, () -> sessionAppService.refresh(REFRESH_TOKEN));
+        BizException ex = assertThrows(BizException.class, () -> sessionAppService.refresh(new RefreshCommand(REFRESH_TOKEN)));
 
         assertEquals(UNAUTHORIZED_CODE, ex.getCode());
         verifyNoInteractions(userSessionQuery, tokenBlacklist);
@@ -378,15 +383,13 @@ class SessionAppServiceTest {
     void listTenantsShouldDelegateToMembershipService() {
         when(currentUserProvider.current()).thenReturn(
                 new AuthenticatedUser(TENANT_ID, USER_ID, USERNAME, "Alice", List.of("admin"), true, false));
-        MyTenantVO current = new MyTenantVO();
-        current.setTenantId(TENANT_ID);
-        current.setCurrent(true);
+        TenantResult current = new TenantResult(TENANT_ID, "default", "默认租户", true);
         when(tenantMembershipAppService.listMyTenants(USER_ID, TENANT_ID)).thenReturn(List.of(current));
 
-        List<MyTenantVO> tenants = sessionAppService.listTenants();
+        List<TenantResult> tenants = sessionAppService.listTenants(new TenantListQuery());
 
         assertEquals(1, tenants.size());
-        assertEquals(TENANT_ID, tenants.get(0).getTenantId());
+        assertEquals(TENANT_ID, tenants.get(0).tenantId());
     }
 
     @Test
@@ -406,11 +409,11 @@ class SessionAppServiceTest {
                 anyString())).thenReturn("new-refresh");
         when(tokenIssuer.accessExpireSeconds()).thenReturn(ACCESS_EXPIRE_SECONDS);
 
-        AuthTokenIssue issue = sessionAppService.switchTenant(BEARER_ACCESS, targetTenantId, REFRESH_TOKEN);
+        LoginResult issue = sessionAppService.switchTenant(new SwitchTenantCommand(BEARER_ACCESS, targetTenantId, REFRESH_TOKEN));
 
-        assertEquals(targetTenantId, issue.getResponse().getTenantId());
-        assertEquals("new-access", issue.getResponse().getAccessToken());
-        assertEquals("new-refresh", issue.getRefreshToken());
+        assertEquals(targetTenantId, issue.tenantId());
+        assertEquals("new-access", issue.accessToken());
+        assertEquals("new-refresh", issue.refreshToken());
         verify(tenantMembershipAppService).requireSwitchable(USER_ID, targetTenantId);
         verify(tokenBlacklist).add(ACCESS_TOKEN);
         verify(tokenBlacklist).add(REFRESH_TOKEN);
@@ -426,7 +429,7 @@ class SessionAppServiceTest {
                 .when(tenantMembershipAppService).requireSwitchable(USER_ID, targetTenantId);
 
         BizException ex = assertThrows(BizException.class,
-                () -> sessionAppService.switchTenant(BEARER_ACCESS, targetTenantId, REFRESH_TOKEN));
+                () -> sessionAppService.switchTenant(new SwitchTenantCommand(BEARER_ACCESS, targetTenantId, REFRESH_TOKEN)));
 
         assertEquals(403, ex.getCode());
         verifyNoInteractions(userSessionQuery, tokenBlacklist);
@@ -438,7 +441,7 @@ class SessionAppServiceTest {
         when(tokenIssuer.parse(REFRESH_TOKEN))
                 .thenReturn(new TokenPayload(USERNAME, null, USER_ID, TokenPayload.TYPE_REFRESH, null, null, 0L));
 
-        BizException ex = assertThrows(BizException.class, () -> sessionAppService.refresh(REFRESH_TOKEN));
+        BizException ex = assertThrows(BizException.class, () -> sessionAppService.refresh(new RefreshCommand(REFRESH_TOKEN)));
 
         assertEquals(UNAUTHORIZED_CODE, ex.getCode());
         verifyNoInteractions(userSessionQuery, tokenBlacklist);

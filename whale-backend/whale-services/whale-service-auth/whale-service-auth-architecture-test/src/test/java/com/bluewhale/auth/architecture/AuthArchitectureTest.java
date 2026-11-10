@@ -65,11 +65,34 @@ class AuthArchitectureTest {
                     "org.apache.ibatis..");
 
     /**
-     * 根包白名单：{@code com.bluewhale.auth} 下除启动类外，只允许四层包，
-     * 防止再次出现 {@code entity/}、{@code mapper/}、{@code util/} 这类"第五层"。
+     * API 契约隔离：{@code interfaces.api} 只允许声明 HTTP 契约与 DTO，不得反向依赖
+     * application / domain / infrastructure / starter（实现位于 starter 层）。
      */
     @ArchTest
-    static final ArchRule only_four_layers_at_root = classes()
+    static final ArchRule api_contracts_must_not_depend_on_implementation_layers = noClasses()
+            .that().resideInAPackage("com.bluewhale.auth.interfaces.api..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.bluewhale.auth.application..",
+                    "com.bluewhale.auth.domain..",
+                    "com.bluewhale.auth.infrastructure..",
+                    "com.bluewhale.auth.starter..");
+
+    /**
+     * Web 适配层只做协议适配与装配：允许依赖 interfaces / application / infrastructure，
+     * 但不得绕过应用层直接操作领域聚合与仓储。
+     */
+    @ArchTest
+    static final ArchRule starter_must_not_depend_on_domain = noClasses()
+            .that().resideInAPackage("com.bluewhale.auth.starter..")
+            .should().dependOnClassesThat().resideInAPackage("com.bluewhale.auth.domain..");
+
+    /**
+     * 根包白名单：{@code com.bluewhale.auth} 下除启动类外，只允许分层的固定包，
+     * 防止再次出现 {@code entity/}、{@code mapper/}、{@code util/} 这类"第五层"。
+     * <p>{@code starter} 为 Web 适配层（接口实现 + MapStruct 装配）。</p>
+     */
+    @ArchTest
+    static final ArchRule only_layered_packages_at_root = classes()
             .that().resideInAPackage("com.bluewhale.auth..")
             .and().resideOutsideOfPackage("com.bluewhale.auth")
             .and().resideOutsideOfPackage("com.bluewhale.auth.sdk..")
@@ -77,7 +100,8 @@ class AuthArchitectureTest {
                     "com.bluewhale.auth.domain..",
                     "com.bluewhale.auth.application..",
                     "com.bluewhale.auth.infrastructure..",
-                    "com.bluewhale.auth.interfaces..");
+                    "com.bluewhale.auth.interfaces..",
+                    "com.bluewhale.auth.starter..");
 
     /**
      * 分布式锁放行语义守护（T-14）：{@code @DistributedLock} 的 {@code failFast} 默认必须为 true，

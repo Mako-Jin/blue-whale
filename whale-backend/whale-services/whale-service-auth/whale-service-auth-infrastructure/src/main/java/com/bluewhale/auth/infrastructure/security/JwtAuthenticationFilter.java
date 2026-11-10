@@ -45,7 +45,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     /** 强制改密状态下仍允许访问的路径（自助改密 / 登出 / 刷新 / 当前用户） */
     private static final Set<String> PASSWORD_CHANGE_ALLOWED_PATHS =
-            Set.of("/auth/password", "/auth/logout", "/auth/refresh", "/auth/me");
+            Set.of("/v1/auth/password", "/v1/auth/logout", "/v1/auth/refresh", "/v1/auth/me");
 
     /** 强制改密拦截的对外文案与状态码（REQ-SEC-023，前端据此弹出改密对话框） */
     private static final int PASSWORD_CHANGE_REQUIRED = 403;
@@ -87,7 +87,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private boolean authenticate(String token, HttpServletRequest request, HttpServletResponse response)
             throws IOException {
         Claims claims = tokenProvider.parse(token);
-        // 仅 accessToken 可访问 API，refreshToken 需走 /auth/refresh 换取新 token
+        // 仅 accessToken 可访问 API，refreshToken 需走 /v1/auth/refresh 换取新 token
         if (claims == null || !JwtTokenProvider.TOKEN_TYPE_ACCESS.equals(
                 claims.get(JwtTokenProvider.CLAIM_TOKEN_TYPE, String.class))) {
             return true;

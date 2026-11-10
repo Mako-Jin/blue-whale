@@ -155,7 +155,7 @@ describe('createHttpClient', () => {
       releaseRefresh = resolve;
     });
     const fetchMock = vi.fn().mockImplementation(async (input: string) => {
-      if (input.includes('/auth/refresh')) {
+      if (input.includes('/v1/auth/refresh')) {
         await refreshGate;
         return jsonResponse({ code: 0, message: 'ok', data: { accessToken: 'new-token' } });
       }
@@ -176,7 +176,7 @@ describe('createHttpClient', () => {
 
     expect(results.every((item) => item.status === 'rejected')).toBe(true);
     const refreshCalls = (fetchMock.mock.calls as unknown as FetchCall[]).filter(([url]) =>
-      url.includes('/auth/refresh'),
+      url.includes('/v1/auth/refresh'),
     );
     expect(refreshCalls).toHaveLength(1);
   });
@@ -195,7 +195,7 @@ describe('createHttpClient', () => {
       onUnauthorized,
     });
 
-    await expect(client.post('/auth/login', { username: 'u' })).rejects.toMatchObject({
+    await expect(client.post('/v1/auth/login', { username: 'u' })).rejects.toMatchObject({
       name: 'ApiError',
       code: 401,
     });

@@ -1,8 +1,8 @@
 /**
  * Cookie 静默续期（V-03）：刷新令牌由服务端下发 HttpOnly Cookie
- * `whale_refresh_token`（Path=/auth，SameSite=Strict），浏览器自动携带；
- * CSRF 令牌经非 HttpOnly Cookie `whale_csrf` 下发，请求 /auth/refresh、
- * /auth/logout 时必须回传 `X-CSRF-Token` 请求头。
+ * `whale_refresh_token`（Path=/v1/auth，SameSite=Strict），浏览器自动携带；
+ * CSRF 令牌经非 HttpOnly Cookie `whale_csrf` 下发，请求 /v1/auth/refresh、
+ * /v1/auth/logout 时必须回传 `X-CSRF-Token` 请求头。
  *
  * 本模块是 whale-auth 侧的唯一续期入口：bootstrapAuth（应用启动静默续期）
  * 与各应用显式刷新共用同一次单飞请求，避免并发刷新风暴。
@@ -44,11 +44,11 @@ export interface RefreshAuthOptions {
   onSuccess?: (data: LoginResponse) => void;
 }
 
-/** 单飞刷新中的 Promise：并发调用合并为同一次 /auth/refresh 请求 */
+/** 单飞刷新中的 Promise：并发调用合并为同一次 /v1/auth/refresh 请求 */
 let refreshInFlight: Promise<LoginResponse | null> | null = null;
 
 /**
- * 静默续期：POST /auth/refresh（credentials: 'include' + X-CSRF-Token 头）。
+ * 静默续期：POST /v1/auth/refresh（credentials: 'include' + X-CSRF-Token 头）。
  *
  * 成功返回登录响应（含新 accessToken 与用户信息）并回调 onSuccess；
  * 401/403（Cookie 缺失或已失效，即登录态失效）与其他失败统一返回 null，
@@ -72,7 +72,7 @@ async function doRefresh(options?: RefreshAuthOptions): Promise<LoginResponse | 
     headers['X-CSRF-Token'] = csrf;
   }
   try {
-    const response = await fetch(`${baseUrl}/auth/refresh`, {
+    const response = await fetch(`${baseUrl}/v1/auth/refresh`, {
       method: 'POST',
       headers,
       credentials: 'include',
