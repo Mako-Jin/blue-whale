@@ -3,7 +3,7 @@
 | 项 | 内容 |
 |---|---|
 | 关联需求 | REQ-FUNC-002（权限中心 RBAC+ABAC 六层级）、REQ-ARCH-001（DDD 改造）、REQ-SEC-001/002/003/004/005、REQ-DIST-001~003、REQ-QA-002、REQ-CICD-001、REQ-PROC-001 |
-| 生成日期 | 2026-10-17 ｜ 作者：BlueWhale |
+| 生成日期 | 2026-10-17 ｜ 作者：BlueWhale ｜ **2026-11-11 全量核对销账（见 §〇）** |
 | 数据来源 | [register.md](../requirements/register.md)、[next-steps.md](next-steps.md)、[task-breakdown.md](task-breakdown.md)、[roadmap.md](roadmap.md)、[ddd-whale-auth.md](../design/ddd-whale-auth.md)、[audit-log.md](../design/audit-log.md)、[distributed.md](../design/distributed.md)、[devlog/2026-10-17.md](../devlog/2026-10-17.md) §11~§15、[reviews/2026-10-17-wave5.1b-audit-log.md](../reviews/2026-10-17-wave5.1b-audit-log.md)、[specs/2026-10-17-wave5.1b-audit-log/](../specs/2026-10-17-wave5.1b-audit-log/spec.md)、`whale-backend/whale-services/whale-auth/` 源码与测试目录、`whale-backend/whale-services/whale-gateway/src/main/resources/application.yml` |
 | 快照口径 | **已完成（Wave 5.2 更新）**：登录/刷新/登出、令牌黑名单（auth+网关）、审计注解/切面/脱敏/查询接口、审计表 DDL、DDD 设计定稿；**本轮新增闭环**：DDD 四层骨架 + 4 值对象（AUTH-14）、**全接口权限注解（AUTH-04，3 → 31）+ 22 条权限点种子**、`GET /auth/me`（AUTH-21）、**auth 管理前缀网关路由（AUTH-38）**；经网关全链路端到端已实机验证（Wave 5.1f）：login `code=0` → logout `code=0` → 重放 401 → refresh 业务码 401 → `audit_log` LOGIN/LOGOUT 落库。**进行中**：REQ-SEC-005（非 dev profile 启动校验）待实测；**Wave 5.3 已补**：AUTH-38 经网关冒烟通过 + AUTH-12 审计埋点 5→20 + AUTH-22 改密/启停接口 + AUTH-02 jjwt 统一 + AUTH-03 ADR-001 定稿。**Wave 5.4 已补**：AUTH-25 Checkstyle 门禁提级 error（全 reactor 0 违规即阻断）+ AUTH-23 新增 4 类 21 用例（`whale-auth` 34 → 55 全绿）。**阻塞**：依赖服务（whale-file/whale-job）与 RabbitMQ 未就绪的项（AUTH-08/09/10） |
 | 环境事实（Wave 5.1f 更新） | **Nacos 3.2.4 已就绪**（`tools/nacos`，**8848 服务 + 8849 控制台**，MySQL 外置存储，`nacos` 库 13 表）；Redis 5.0.14.1（6379，散落文件已归位）与 MySQL 8.0.45（3306）本机可用；**`lb://` 全链路联调阻塞已解除**（auth/audit 均 `register finished`）；网关 `StripPrefix=1` 前缀冲突**已确认并修复**（AUTH-29 → REQ-ARCH-003） |
@@ -174,14 +174,14 @@ Wave A｜无外部依赖，可立即动工（Redis/MySQL 本机已可用）
   ├─ ✅ ~~AUTH-21 当前用户菜单/权限接口（P1，解锁前端）~~（Wave 5.2：`/auth/me`）
   ├─ ✅ ~~AUTH-02 jjwt 版本统一~~（Wave 5.3）｜ ✅ ~~AUTH-05 黑名单降级告警~~（Wave 5.11）｜ ✅ ~~AUTH-11 脱敏配置化~~（Wave 5.10）｜ ✅ ~~AUTH-12/13 审计补口~~（Wave 5.3 / 5.11）
   ├─ ✅ ~~AUTH-18 幂等组件（↔ T5.3）~~ ──► AUTH-19 锁场景接入 ──► ✅ ~~AUTH-20 缓存一致性（↔ T5.5，Wave 5.8 场景接入权限判定缓存）~~
-  ├─ AUTH-22 改密/启停接口 ｜ ✅ ~~AUTH-26 存量 WARN 清理~~（Wave 5.2：0 WARN）
+  ├─ ✅ ~~AUTH-22 改密/启停接口~~（Wave 5.3：`PUT /{id}/password`、`PUT /{id}/status`）｜ ✅ ~~AUTH-26 存量 WARN 清理~~（Wave 5.2：0 WARN）
   └─ ✅ ~~AUTH-23 单测补口~~（Wave 5.7：4 个 ServiceImpl 44 用例）｜ ✅ ~~AUTH-24 JaCoCo~~ ｜ ✅ ~~AUTH-28 Gitee Go~~（可与上并行）
 
 Wave B｜依赖 Wave A 产物
-  ├─ AUTH-15 User 聚合 ──► AUTH-16 Role/Menu/Permission/Dept 聚合 ──► AUTH-17 AppService/领域事件
+  ├─ ✅ ~~AUTH-15 User 聚合~~（Wave 5.19）──► ✅ ~~AUTH-16 四聚合~~（Wave 5.21）──► ✅ ~~AUTH-17 AppService/领域事件~~（2026-10-23，旧 ServiceImpl 已删）
   ├─ ✅ ~~AUTH-06 审计查询鉴权~~（Wave 5.10）──► ✅ ~~AUTH-07 元审计~~（Wave 5.11）
-  ├─ ✅ ~~AUTH-01 网关占位密钥~~（Wave 5.11）｜ AUTH-03 refresh 轮换策略
-  └─ AUTH-25 Checkstyle 提级 ──► AUTH-27 全量回归 ──► 提交推送
+  ├─ ✅ ~~AUTH-01 网关占位密钥~~（Wave 5.11）｜ ✅ ~~AUTH-03 refresh 轮换策略~~（→ AUTH-39，Wave 5.13 实施）
+  └─ ✅ ~~AUTH-25 Checkstyle 提级~~（Wave 5.4：severity=error 阻断）──► ✅ ~~AUTH-27 全量回归~~（各波次随做随回归，当前基线见 §〇）──► 提交推送
 
 Wave C｜Redis/MySQL 已就绪，本机可跑（auth 直连）
   └─ ✅ ~~AUTH-31① 登出→401、refresh→401、审计落库（不经网关）~~（Wave 5.1c/5.1e 已闭环）
@@ -190,13 +190,13 @@ Wave D｜✅ **Nacos 阻塞已解除（Wave 5.1f：Nacos 3.2.4 以 MySQL 外置�
   ├─ ✅ ~~AUTH-29 网关路由前缀冲突~~（已修 → REQ-ARCH-003）
   ├─ ✅ ~~AUTH-31② 网关→auth 全链路端到端~~（首次打通）
   ├─ ✅ ~~AUTH-38 补齐 auth 管理前缀网关路由（P1，前端对接前置）~~（Wave 5.2：Path 扩为 `/auth,/user,/dept,/role,/menu,/permission`；**Wave 5.3 经网关冒烟通过**）
-  ├─ AUTH-30 Sentinel 限流联调
-  └─ AUTH-32 admin 前端登录/登出对接 ──► AUTH-34 admin CRUD 页
-                                        └─ AUTH-33 whale-ui（无阻塞，可前移）
+  ├─ ✅ ~~AUTH-30 Sentinel 限流联调~~（GW-01 评估**不引入**，自研 Redis 限流 + resilience4j 熔断已闭环）
+  └─ ✅ ~~AUTH-32 admin 前端登录/登出对接~~（Wave 5.34 四页 + `admin/src/api/auth.ts`）──► ✅ ~~AUTH-34 admin CRUD 页~~（Wave 5.34）
+                                        └─ ✅ ~~AUTH-33 whale-ui~~（`whale-frontend/shared-packages/` 已落地）
 
 Wave E｜被依赖服务 / 中间件未就绪阻塞
-  ├─ AUTH-08 审计导出（whale-file）  ├─ AUTH-09 保留归档任务（whale-job）
-  └─ AUTH-10 MQ 汇聚（RabbitMQ，阶段二）
+  ├─ ✅ ~~AUTH-08 审计导出~~（`POST /audit/log/export` + `AuditExportProperties`，2026-10-23）  ├─ ✅ ~~AUTH-09 保留归档~~（`AuditLogArchiver`，2026-10-23）
+  └─ ✅ ~~AUTH-10 MQ 汇聚~~（RabbitMQ 4.4.0 实机，2026-10-23，根治跨库可见性）
 ```
 
 ---
@@ -205,26 +205,26 @@ Wave E｜被依赖服务 / 中间件未就绪阻塞
 
 | # | 项 | 现状与风险 | 来源 |
 |---|---|---|---|
-| 1 | **refreshToken 单次轮换策略未定** → **✅ 已定稿（Wave 5.3，AUTH-03）** | 登出已双写黑名单，但 refreshToken 无「一次一换」约束，重放窗口仍存在。**处置**：[ADR-001](../design/adr/2026-10-17-refresh-token-rotation.md) 采纳「一换一 + 旧 token 黑名单 + 复用检测」，**实施另立 AUTH-39** | [devlog §13 待做](../devlog/2026-10-17.md)、[ADR-001](../design/adr/2026-10-17-refresh-token-rotation.md) |
+| ~~1~~ | ~~**refreshToken 单次轮换策略未定**~~ → ✅ **已实施（Wave 5.13，AUTH-39）** | `refreshToken` 用后即失效（`SET NX` 原子消费 + 旧 token 黑名单）+ 复用检测整族吊销（familyId）+ 降级告警；默认 `whale.auth.refresh.rotation.enabled=false`，关闭态逐字节回归 | [devlog §13 待做](../devlog/2026-10-17.md)、[ADR-001](../design/adr/2026-10-17-refresh-token-rotation.md) |
 | ~~2~~ | ~~**jjwt 版本分裂**~~ → ✅ **已统一（Wave 5.3，AUTH-02）** | ~~parent 管理 `0.12.5`，`whale-gateway/pom.xml` 硬编码 `0.12.6`，未走父管理，存在行为差异隐患~~。**处置**：移除 gateway 三处硬编码 `<version>`，`dependency:tree` 实测三件均 **0.12.5** | [next-steps §五-4](next-steps.md)、`whale-parent/pom.xml:50`、`whale-gateway/pom.xml` |
 | ~~3~~ | ~~**网关路由前缀未确认**~~ → ✅ **已确认并修复（Wave 5.1f）** | 定夺结论：**改路由**（服务自持一级前缀、网关不剥离）→ REQ-ARCH-003；原新增风险 **AUTH-38**（auth 的 `/user`、`/dept`、`/role`、`/menu`、`/permission` 前缀无网关路由）**已于 Wave 5.2 补齐路由**，**经网关冒烟亦已于 Wave 5.3 通过** | [reviews/wave5.1f](../reviews/2026-10-17-wave5.1f-gateway-routing-and-e2e.md) §四-1 |
 | ~~4~~ | ~~**黑名单降级语义**~~ → ✅ **已消除（Wave 5.11，AUTH-05）** | ~~Redis 不可用时 auth 与网关均按未命中放行 → 登出形同失效（可用性优先取舍，无告警）~~。**处置**：新增 `SecurityDegradationAlerter`（ERROR + `SECURITY_DEGRADATION` + 计数），auth/网关两处降级分支接入，放行语义不变；偏差：以进程内计数代替 Micrometer 指标 | [distributed.md](../design/distributed.md) §3.6；AUTH-05 |
 | 5 | ~~**权限注解覆盖不足（证据确凿）**~~ → ✅ **已消除（Wave 5.2）** | 34 接口仅 3 处 `@RequirePermission`，大量写接口无鉴权，越权风险。**处置**：补齐 31 处（3 → 31）+ 22 条权限点种子；非超管 RBAC 判定不再必然 403 | Grep `controller/` 统计；AUTH-04 |
 | ~~6~~ | ~~**Nacos 不可用**~~ → ✅ **已解除（Wave 5.1f）** | Nacos 3.2.4 以 MySQL 外置存储就绪（8848/8849），auth/audit 均 `register finished`；RabbitMQ / Nginx 仍缺（影响 AUTH-08/10） | [reviews/wave5.1f](../reviews/2026-10-17-wave5.1f-gateway-routing-and-e2e.md) |
 | ~~7~~ | ~~**运行时/端到端验证深度不足**~~ → ✅ **已闭环（Wave 5.1f）** | Wave 5.1c 已跑通黑名单/分布式锁/审计落库/查询；**Wave 5.1f 补齐 HTTP 端到端与网关全链路**（login→logout→重放 401→refresh 业务码 401→审计 LOGIN/LOGOUT 落库） | [reviews/wave5.1f](../reviews/2026-10-17-wave5.1f-gateway-routing-and-e2e.md) §二-3 |
-| 7b | **审计跨库可见性（阶段一固有）** | auth 埋点落 `bluewhale_auth.audit_log`，whale-audit 查询接口读 `bluewhale_audit` → 阶段二 MQ 汇聚（AUTH-10）前，`/audit/log/page` 查不到 auth 事件 | [devlog §17/§18](../devlog/2026-10-17.md)、[design/audit-log.md](../design/audit-log.md) §194 |
-| 8 | **审计埋点不全** | 仅 5 处埋点，与设计 §2 事件分类（数据变更/敏感操作/组织变更）差距大 | [audit-log.md](../design/audit-log.md) §2 vs §12 |
+| ~~7b~~ | ~~**审计跨库可见性**~~ → ✅ **已根治（AUTH-10，2026-10-23）** | RabbitMQ 4.4.0 实机：各服务 `@AuditLog` 事件经 MQ 汇聚统一落 `bluewhale_audit`（`AuditMqAutoConfiguration` → `AuditLogMqConsumer`） | [devlog §17/§18](../devlog/2026-10-17.md)、[design/audit-log.md](../design/audit-log.md) §194 |
+| ~~8~~ | ~~**审计埋点不全**~~ → ✅ **已消除（2026-11-11 复核）** | 全仓 `@AuditLog` 已达 **1015 处**、覆盖 32 个模块（OA 34 / ERP 33 / CRM 26 …），远超设计 §2 的分类要求 |
 | ~~9~~ | ~~**`@DistributedLock` 未接入任何场景**~~ → ✅ **已消除（Wave 5.9，AUTH-19）** | 工具已落地但零场景接入，无并发实证。**处置**：接入权限中心两场景（角色权限变更互斥 `lock:auth:role:{roleId}`、缓存防击穿 `lock:cache:auth:user:perm:{userId}`）+ 真实 Redis 实时 IT `LivePermissionLockIT` **2/0/0**；注册幂等由 `@Idempotent` 等价覆盖 | [reviews/2026-10-18-wave5.9-auth-distributed-lock.md](../reviews/2026-10-18-wave5.9-auth-distributed-lock.md)、[devlog §29](../devlog/2026-10-18.md) |
 | ~~10~~ | ~~**权限判定无缓存**~~ → ✅ **已消除（Wave 5.8，AUTH-20）** | 原 `PermissionInterceptor` 每次兜底直查 DB，高并发下为性能瓶颈。**处置**：`PermissionCache` Cache-Aside 接入读路径 + 7 处变更点 `afterCommit` 提交后失效，Key `whale:cache:auth:user:perm:{userId}`；防击穿（同 Key 并发一次回源）另由 AUTH-19 承担 | [reviews/2026-10-18-wave5.8-auth-permission-cache.md](../reviews/2026-10-18-wave5.8-auth-permission-cache.md)、[ddd-whale-auth.md](../design/ddd-whale-auth.md) §1.1 |
-| 11 | **前端 admin 未对接** | roadmap §2.1「对接 admin 前端登录」未勾选，REQ-FUNC-002 仍标「API 齐备，前端未对接」 | [roadmap.md](roadmap.md) §2.1、[register REQ-FUNC-002](../requirements/register.md) |
+| ~~11~~ | ~~**前端 admin 未对接**~~ → ✅ **已闭环（Wave 5.34）** | `whale-frontend/admin` 登录页 + `api/auth.ts` + 生成化 schema；e2e 覆盖登录链路 |
 | ~~12~~ | ~~**`recordResult()` 属性悬空**~~ → ✅ **已消除（Wave 5.11，AUTH-13）** | ~~注解已定义但无对应列，属"已声明未实现"，易误判能力已具备~~。**处置**：`audit_log` 增列 `result_body`，切面在 `recordResult()=true` 时脱敏 + 2000 截断后落库，`AuditLogVO` 暴露可查 | [reviews §三-#5](../reviews/2026-10-17-wave5.1b-audit-log.md)；AUTH-13 |
 | 13 | ~~**服务无法启动（P0，实测）**~~ → ✅ **已消除（Wave 5.1d）** | `redisson-spring-boot-starter:3.34.1` 引用 Boot 4 已移除的 `RedisProperties` → whale-auth/whale-audit/whale-pay `java -jar` 启动即 `ClassNotFoundException`。**处置**：升级至 **4.8.0**（按 Boot 4.1 编译）实测兼容，auth 8081 / audit 9101 启动成功，`LiveDistributedLockIT` 通过 | [reviews 5.1c §三-1](../reviews/2026-10-17-wave5.1c-runtime-verification.md)、[reviews 5.1d §三-1](../reviews/2026-10-17-wave5.1d-boot4-deps-and-startup.md)；AUTH-35 |
 | 14 | ~~**数据源字符集参数不合法**~~ → ✅ **已消除（Wave 5.1d）** | `characterEncoding=utf8mb4` 被 Connector/J 拒绝。**处置**：auth/audit yml 改为 `utf8&connectionCollation=utf8mb4_general_ci`，真实连库成功 | [reviews 5.1c §三-2](../reviews/2026-10-17-wave5.1c-runtime-verification.md)、[reviews 5.1d §三-2](../reviews/2026-10-17-wave5.1d-boot4-deps-and-startup.md)；AUTH-36 |
 | 15 | ~~**种子数据与文档不一致**~~ → ✅ **已消除（Wave 5.1d）** | `init.sql` 注释称 admin 口令为 `123456`，旧密文不匹配。**处置**：重生成密文 + 断言翻转并通过，端到端 `admin/123456` 登录 `code=0` | [reviews 5.1c §三-3](../reviews/2026-10-17-wave5.1c-runtime-verification.md)、[reviews 5.1d §三-3](../reviews/2026-10-17-wave5.1d-boot4-deps-and-startup.md)；AUTH-37 |
 | 16 | ~~**审计切面从未装配（P1，既有缺陷）**~~ → ✅ **已消除（Wave 5.1e 实机验证）** | `AuditLogAutoConfiguration` 的 `@ConditionalOnBean(AuditLogMapper.class)` 在配置类解析期求值，**早于** `@MapperScan`（`MapperScannerConfigurer`）注册 Mapper Bean → 条件恒不成立、`AuditLogAspect` 从未装配、真实服务链路 `audit_log` 落库 0 行（`LiveAuditLogIT` 直连 Mapper 可过，掩盖该缺陷）。**处置**：删除 `@ConditionalOnBean`，改 `ObjectProvider<AuditLogMapper>` 于 Bean 实例化期延迟解析；实测 `bluewhale_auth.audit_log` 由 0 行 → 6 行（LOGIN/LOGOUT、`biz_status=1`、`request_params` 无凭据），`/audit/log/page` 可查、`LiveAuditLogIT` 3/0/0 | [reviews 5.1d §三-5](../reviews/2026-10-17-wave5.1d-boot4-deps-and-startup.md)、[reviews 5.1e](../reviews/2026-10-17-wave5.1e-audit-aspect-wiring-fix.md) |
 | 17 | ~~**`/auth/refresh` 返回码口径（P2）**~~ → ✅ **已澄清（非缺陷）** | 登出后 refresh 实测 **HTTP 200 + 业务码 401**，为 `Result` 全局统一包装的既有约定（业务码承载语义、HTTP 层恒 200），非缺陷；验收口径统一改为「**业务码 401**」 | [reviews 5.1d §三-4](../reviews/2026-10-17-wave5.1d-boot4-deps-and-startup.md)、[reviews 5.1e §四](../reviews/2026-10-17-wave5.1e-audit-aspect-wiring-fix.md) |
-| 18 | **阶段一审计跨库可见性（P2，固有约束，新发现）** | 阶段一采用「各服务写各自实例库」（auth 写 `bluewhale_auth.audit_log`），而 `whale-audit` 默认读 `bluewhale_audit` → **默认查不到其他服务写入的审计记录**。实测：把 `whale-audit` 数据源临时指向 `bluewhale_auth` 后 `/audit/log/page` 立即可见 `total=4` 条 → 证实「查询服务须与写入服务同库/同实例」。阶段二 MQ 汇聚（AUTH-10）为根治方案 | [reviews 5.1e §四](../reviews/2026-10-17-wave5.1e-audit-aspect-wiring-fix.md)；[audit-log.md](../design/audit-log.md) §6 |
-| 19 | **阶段一审计查询无鉴权（承接 AUTH-06）** | `AuditLogController` 无 `@RequirePermission`，审计数据可被任意调用者读取，属敏感数据暴露面 | [audit-log.md](../design/audit-log.md) §9；AUTH-06 |
+| ~~18~~ | ~~**阶段一审计跨库可见性**~~ → ✅ **已根治（同 7b，AUTH-10）** | MQ 汇聚后 whale-audit 统一读 `bluewhale_audit`，各服务事件经消费者落同库 | [reviews 5.1e §四](../reviews/2026-10-17-wave5.1e-audit-aspect-wiring-fix.md)；[audit-log.md](../design/audit-log.md) §6 |
+| ~~19~~ | ~~**审计查询无鉴权**~~ → ✅ **已闭环（AUTH-06，Wave 5.10）** | `AuditLogController` 全部查询接口标 `@RequirePermission("sys:audit:log:list")` | [audit-log.md](../design/audit-log.md) §9；AUTH-06 |
 
 ---
 
@@ -242,3 +242,29 @@ Wave E｜被依赖服务 / 中间件未就绪阻塞
 | 第 11 项 | 前端 admin 对接 —— **本轮已由 Wave 5.34 补齐四页，视为闭环** |
 
 **Wave 5.35 复核（2026-10-21）**：用户问「auth 要 MQ 干什么？是审计日志吗？」——**是**。AUTH-10 的唯一用途是把各服务 `@AuditLog` 事件经 RabbitMQ 汇聚到 `whale-audit` 统一落库，根治「auth 写 `bluewhale_auth.audit_log`、audit 读 `bluewhale_audit` 查不到」的跨库可见性约束（第 18 项）；**与权限校验、令牌签发链路无关**，auth 不依赖 MQ。本机仍无 RabbitMQ 实例、依赖树也无 AMQP 客户端，维持 backlog，不改变本轮收尾结论。另：本轮新增权限点种子 id 74–77（`sys:workflow:task:transfer`/`delegate`、`sys:form:data:edit` 等），已落库 `bluewhale_auth`。
+
+## 〇、2026-11-11 全量核对结论（销账）
+
+对上文全部任务与风险逐条用**代码事实**复核（非照抄文档结论），结果：**本文档所有 AUTH-xx
+任务与风险项均已闭环**，无待办残留。核对证据摘要：
+
+| 项 | 代码证据 |
+|---|---|
+| AUTH-14~17（DDD 迁移） | 四模块分层齐全；`Sys*Service(Impl)` 已删；`whale-auth-architecture-test` 固化依赖规则 |
+| AUTH-18~20（幂等/锁/缓存） | `@Idempotent`/`@DistributedLock`/`PermissionCache` 在 starter 与 auth 各场景接入，Live IT 实测 |
+| AUTH-22 | `UserController` `PUT /{id}/password`、`PUT /{id}/status` |
+| AUTH-25 | `config/checkstyle/whale-checkstyle.xml` `severity=error`，CI 阻断 |
+| AUTH-30 | GW-01 评估不引入；自研 `RateLimitGlobalFilter`（Redis 计数）+ resilience4j 熔断 |
+| AUTH-32/33/34 | `whale-frontend/admin`（Login + auth API + 四页）、`shared-packages/whale-ui` 族 |
+| AUTH-39 | `RefreshTokenRotationStore` + `RedisRefreshTokenRotationStore` + `SessionAppServiceImpl`（familyId 复用检测，Wave 5.13） |
+| AUTH-08/09/10 | `POST /audit/log/export`、`AuditLogArchiver`、`AuditMqAutoConfiguration` + `AuditLogMqConsumer`（RabbitMQ 实机） |
+| 风险 7b/8/11/18/19 | 见 §四 各行销账批注；埋点 1015 处（grep `@AuditLog(` 全仓统计） |
+
+**真正的遗留（移交后续波次）**：
+
+1. 网关熔断**半开探测的运行时取证**（gateway 台账残余风险 #1，唯一证据缺口）；
+2. twin 告警**按用户偏好**（需先立用户偏好中心，独立波次，见 wave6.11/6.12 计划遗留节）；
+3. 埋点**覆盖率**可持续改进（当前 1015 处已远超基线，无阻断项）。
+
+> 本文档自即日起转为**历史台账**：后续 auth 相关工作不再登记于此，改在
+> `docs/plans/wave6.x-*.md` 立波，避免双头维护。
