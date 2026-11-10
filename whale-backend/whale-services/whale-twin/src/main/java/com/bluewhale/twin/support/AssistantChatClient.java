@@ -9,8 +9,19 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.function.BiConsumer;
+import java.util.stream.Stream;
 
 /**
  * whale-assistant 开放 API 客户端：AI 解读问答（Wave 6.04 M1）。
@@ -35,7 +46,19 @@ public class AssistantChatClient {
     /** 成功业务码 */
     private static final String CODE_SUCCESS = "0";
 
+    /** SSE 数据字段前缀 */
+    private static final String DATA_PREFIX = "data:";
+
+    /** SSE 事件字段前缀 */
+    private static final String EVENT_PREFIX = "event:";
+
+    /** 流式 HttpClient 连接超时 */
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
+
     private final TwinProperties properties;
+
+    /** 流式问答专用 HttpClient（RestClient 拿不到逐行流） */
+    private final HttpClient streamHttpClient = HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
 
     /**
      * 同步问答。
@@ -83,6 +106,76 @@ public class AssistantChatClient {
         } catch (RuntimeException e) {
             log.warn("AI 解读问答调用失败：userId={}, reason={}", userId, e.getMessage());
             throw new BizException("AI 解读服务不可用，请稍后重试");
+        }
+    }
+
+    /**
+     * 流式问答（Wave 6.05）：内网直连 assistant 开放 SSE，逐帧回调。
+     *
+     * <p>流式通道无法走 RestClient 拦截器，直接以 {@link InternalTokenSupport#token()}
+     * 附加内网令牌（与拦截器同一配置源）。事件契约：{@code delta}/{@code done}/{@code error}。</p>
+     *
+     * @param body        JSON 请求体（assistantCode/question/channelRef）
+     * @param userId      最终用户ID
+     * @param tenantId    租户ID
+     * @param consumer    事件回调（事件名, 原始 data JSON）
+     * @throws IOException          HTTP 非 200 或网络失败
+     * @throws InterruptedException 线程中断
+     */
+    public void chatStream(String body, Long userId, String tenantId, BiConsumer<String, String> consumer)
+            throws IOException, InterruptedException {
+        TwinProperties.Assistant config = properties.getAssistant();
+        if (config.getAssistantCode() == null || config.getAssistantCode().isBlank()) {
+            throw new BizException("未配置 AI 解读助手（whale.twin.assistant.assistant-code）");
+        }
+        HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(config.getBaseUrl() + CHAT_PATH + "/stream"))
+                .timeout(Duration.ofSeconds(Math.max(10, config.getTimeoutSeconds())))
+                .header("Content-Type", "application/json")
+                .header("Accept", "text/event-stream")
+                .header(WebHeaders.USER_ID, String.valueOf(userId))
+                .header(WebHeaders.TENANT_ID, tenantId == null || tenantId.isBlank() ? "1" : tenantId)
+                .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
+        String token = InternalTokenSupport.token();
+        if (StringUtils.hasText(token)) {
+            builder.header(InternalTokenSupport.headerName(), token);
+        }
+        HttpResponse<Stream<String>> response = streamHttpClient.send(
+                builder.build(), HttpResponse.BodyHandlers.ofLines());
+        if (response.statusCode() != 200) {
+            throw new IOException("whale-assistant 流式接口返回 HTTP " + response.statusCode());
+        }
+        parseSse(response.body(), consumer);
+    }
+
+    /**
+     * 解析 SSE 行流并按事件回调（与 whale-assistant 的消费端同款手工分帧）。
+     *
+     * @param lines    SSE 行流
+     * @param consumer 事件回调
+     */
+    private void parseSse(Stream<String> lines, BiConsumer<String, String> consumer) {
+        String event = "message";
+        StringBuilder data = new StringBuilder();
+        Iterator<String> iterator = lines.iterator();
+        while (iterator.hasNext()) {
+            String line = iterator.next();
+            if (line.isEmpty()) {
+                if (data.length() > 0) {
+                    consumer.accept(event, data.toString());
+                    event = "message";
+                    data.setLength(0);
+                }
+            } else if (line.startsWith(EVENT_PREFIX)) {
+                event = line.substring(EVENT_PREFIX.length()).trim();
+            } else if (line.startsWith(DATA_PREFIX)) {
+                if (data.length() > 0) {
+                    data.append('\n');
+                }
+                data.append(line.substring(DATA_PREFIX.length()).stripLeading());
+            }
+        }
+        if (data.length() > 0) {
+            consumer.accept(event, data.toString());
         }
     }
 }

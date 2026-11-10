@@ -9,14 +9,20 @@ import com.bluewhale.twin.entity.TwinEntity;
 import com.bluewhale.twin.entity.TwinScene;
 import com.bluewhale.twin.mapper.TwinEntityMapper;
 import com.bluewhale.twin.support.AssistantChatClient;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * AI 解读服务（Wave 6.04 M1）：孪生上下文组装 + assistant 开放问答。
@@ -38,11 +44,18 @@ public class TwinInsightService {
     /** 实时态上下文最多携带的绑定条数（防问题超长） */
     private static final int MAX_STATE_LINES = 20;
 
+    /** SSE 超时额外余量（毫秒） */
+    private static final long EMITTER_EXTRA_MILLIS = 30_000L;
+
     private final TwinSceneService sceneService;
     private final TwinEntityMapper entityMapper;
     private final TwinBindingRuntimeService runtimeService;
     private final AssistantChatClient assistantClient;
     private final TwinProperties properties;
+    private final ObjectMapper objectMapper;
+
+    /** 流式解读转发线程池（虚拟线程：每请求一帧长连接） */
+    private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 
     /**
      * 生成 AI 解读。
@@ -64,6 +77,95 @@ public class TwinInsightService {
 
         Map<String, Object> data = assistantClient.chat(question, userId, tenantId, channelRef);
         return toVo(data);
+    }
+
+    /**
+     * 流式 AI 解读（Wave 6.05）：上下文组装（同步）后内网直连 assistant 开放 SSE 逐帧转发。
+     *
+     * <p>帧契约与 assistant 一致：{@code delta}（正文增量）/ {@code done}（终帧）/
+     * {@code error}；调用失败统一转 {@code error} 帧。</p>
+     *
+     * @param sceneId  场景ID
+     * @param request  解读请求（entityId/question 可空）
+     * @param userId   当前用户ID
+     * @param tenantId 当前租户ID
+     * @return SSE 发射器
+     */
+    public SseEmitter stream(Long sceneId, InsightRequest request, Long userId, String tenantId) {
+        TwinScene scene = sceneService.requireExists(sceneId);
+        TwinEntity target = resolveTarget(sceneId, request.getEntityId());
+        List<BindingStateVO> states = runtimeService.currentStates(sceneId);
+        String context = buildContext(scene, target, states);
+        String ask = StringUtils.hasText(request.getQuestion()) ? request.getQuestion() : DEFAULT_ASK;
+        String question = context + "\n\n用户诉求：" + ask;
+        String channelRef = "twin:" + sceneId + ":" + (target == null ? "-" : target.getId());
+
+        long timeout = properties.getAssistant().getTimeoutSeconds() * 1000L + EMITTER_EXTRA_MILLIS;
+        SseEmitter emitter = new SseEmitter(timeout);
+        String body;
+        try {
+            body = objectMapper.writeValueAsString(Map.of(
+                    "assistantCode", properties.getAssistant().getAssistantCode(),
+                    "question", question,
+                    "channelRef", channelRef));
+        } catch (IOException e) {
+            throw new BizException("解读请求序列化失败：" + e.getMessage());
+        }
+        executor.submit(() -> relayStream(body, userId, tenantId, emitter));
+        return emitter;
+    }
+
+    /**
+     * 转发 assistant SSE 到本服务发射器（终帧后 complete；异常转 error 帧）。
+     *
+     * @param body     请求体 JSON
+     * @param userId   用户ID
+     * @param tenantId 租户ID
+     * @param emitter  SSE 发射器
+     */
+    private void relayStream(String body, Long userId, String tenantId, SseEmitter emitter) {
+        try {
+            assistantClient.chatStream(body, userId, tenantId, (event, data) -> {
+                try {
+                    emitter.send(SseEmitter.event().name(event).data(data));
+                } catch (IOException e) {
+                    log.debug("AI 解读 SSE 发送失败（客户端可能已断开）：{}", e.getMessage());
+                }
+            });
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            sendErrorFrame(emitter, "AI 解读被中断，请稍后重试");
+        } catch (BizException e) {
+            sendErrorFrame(emitter, e.getMessage());
+        } catch (IOException | RuntimeException e) {
+            log.warn("AI 解读流式调用失败：{}", e.getMessage());
+            sendErrorFrame(emitter, "AI 解读服务不可用，请稍后重试");
+        } finally {
+            emitter.complete();
+        }
+    }
+
+    /**
+     * 下发 error 帧并静默容错。
+     *
+     * @param emitter SSE 发射器
+     * @param message 错误消息
+     */
+    private void sendErrorFrame(SseEmitter emitter, String message) {
+        try {
+            emitter.send(SseEmitter.event().name("error")
+                    .data(objectMapper.writeValueAsString(Map.of("message", message))));
+        } catch (IOException e) {
+            log.debug("AI 解读 error 帧发送失败：{}", e.getMessage());
+        }
+    }
+
+    /**
+     * 释放转发线程池。
+     */
+    @PreDestroy
+    void shutdown() {
+        executor.shutdown();
     }
 
     /**

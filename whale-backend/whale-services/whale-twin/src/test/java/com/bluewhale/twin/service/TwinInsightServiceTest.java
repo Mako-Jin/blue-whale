@@ -49,7 +49,8 @@ class TwinInsightServiceTest {
         runtimeService = mock(TwinBindingRuntimeService.class);
         assistantClient = mock(AssistantChatClient.class);
         service = new TwinInsightService(
-                sceneService, entityMapper, runtimeService, assistantClient, new TwinProperties());
+                sceneService, entityMapper, runtimeService, assistantClient, new TwinProperties(),
+                new com.fasterxml.jackson.databind.ObjectMapper());
     }
 
     @Test

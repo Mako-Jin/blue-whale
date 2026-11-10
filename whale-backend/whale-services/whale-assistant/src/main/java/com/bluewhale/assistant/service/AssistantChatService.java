@@ -129,6 +129,39 @@ public class AssistantChatService {
     }
 
     /**
+     * 开放 API 流式问答（Wave 6.05：SSE 逐帧透传，帧契约与内部会话流一致）。
+     *
+     * <p>会话解析逻辑与 {@link #chatSync} 相同（openapi 来源，sessionId 续聊校验）；
+     * {@code delta/done/error} 事件语义不变，回答与引用照常落库。</p>
+     *
+     * @param request         开放问答请求
+     * @param userId          业务侧透传的最终用户ID
+     * @param permissionCodes 业务侧可选透传的权限码
+     * @return SSE 发射器
+     */
+    public SseEmitter chatStream(OpenChatRequest request, Long userId, String permissionCodes) {
+        AsstDefinition definition = definitionService.requirePublishedByCode(request.getAssistantCode());
+        AsstSession session;
+        if (request.getSessionId() != null) {
+            session = sessionService.requireOwned(request.getSessionId(), userId);
+            if (!definition.getId().equals(session.getAssistantId())) {
+                throw new BizException("会话与助手不匹配，无法续聊");
+            }
+        } else {
+            SessionCreateRequest createRequest = new SessionCreateRequest();
+            createRequest.setAssistantId(definition.getId());
+            createRequest.setSource(AsstSessionService.SOURCE_OPENAPI);
+            createRequest.setChannelRef(request.getChannelRef());
+            session = sessionService.createSession(createRequest, userId);
+        }
+        String question = request.getQuestion().trim();
+        long timeout = (properties.getAi().getTimeoutSeconds() * 1000L) + EMITTER_EXTRA_MILLIS;
+        SseEmitter emitter = new SseEmitter(timeout);
+        executor.submit(() -> answer(session, definition, question, userId, permissionCodes, emitter));
+        return emitter;
+    }
+
+    /**
      * 执行一次问答并落库（异步 SSE 线程或开放 API 同步线程）。
      *
      * <p>事件累积由 {@link #accumulate} 统一完成；{@code sink} 为 SSE 逐帧转发回调

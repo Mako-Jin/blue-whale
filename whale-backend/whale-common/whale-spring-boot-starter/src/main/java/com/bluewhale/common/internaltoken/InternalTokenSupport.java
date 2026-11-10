@@ -56,6 +56,24 @@ public final class InternalTokenSupport {
     }
 
     /**
+     * 取当前生效的内网令牌（供无法走拦截器的出站通道使用，如 SSE 流式 HttpClient）
+     *
+     * @return 生效令牌；可能为空串（未配置，调用方按需跳过附加）
+     */
+    public static String token() {
+        return currentProperties().resolveToken();
+    }
+
+    /**
+     * 取内网令牌请求头名称（默认 {@code X-Internal-Token}）
+     *
+     * @return 请求头名称
+     */
+    public static String headerName() {
+        return currentProperties().getHeader();
+    }
+
+    /**
      * 构造内网令牌出站拦截器
      *
      * @return 拦截器

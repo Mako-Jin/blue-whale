@@ -324,3 +324,27 @@ export const insightApi = {
   ask: (sceneId: string, body: InsightRequest) =>
     http.post<InsightVO>(`/twin/scenes/${sceneId}/ai/insight`, body),
 };
+
+/** 流式解读终帧（done）载荷，对齐 assistant ChatDoneVO */
+export interface InsightDoneMeta {
+  sessionId?: string;
+  assistantId?: string;
+  messageId?: string;
+  tokens: number;
+  degraded: boolean;
+  elapsedMillis: number;
+  citations?: Record<string, unknown>[] | null;
+}
+
+/** 构造流式 AI 解读 SSE 地址（delta/done/error 帧契约，与内部会话流一致） */
+export function buildInsightStreamUrl(
+  sceneId: string,
+  entityId?: number | null,
+  question?: string | null,
+): string {
+  const params = new URLSearchParams();
+  if (entityId) params.set('entityId', String(entityId));
+  if (question && question.trim()) params.set('question', question.trim());
+  const query = params.toString();
+  return `/twin/scenes/${sceneId}/ai/insight/stream${query ? `?${query}` : ''}`;
+}

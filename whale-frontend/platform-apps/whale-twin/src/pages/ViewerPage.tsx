@@ -55,7 +55,7 @@ import {
   entityApi,
   fetchIotDevices,
   fetchModelUrl,
-  insightApi,
+  buildInsightStreamUrl,
   markerApi,
   revokeModelUrl,
   sceneApi,
@@ -66,8 +66,7 @@ import {
   type EntitySaveRequest,
   type EntityVO,
   type IotDeviceItem,
-  type InsightRequest,
-  type InsightVO,
+  type InsightDoneMeta,
   type MarkerSaveRequest,
   type MarkerVO,
   type SceneVO,
@@ -321,11 +320,13 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
   const [editingMarker, setEditingMarker] = useState<MarkerVO | null>(null);
   const [markerForm] = Form.useForm<MarkerFormValues>();
 
-  // AI 解读（6.04 M1）：服务端组装上下文（实体 + 实时态）调 assistant 开放问答
+  // AI 解读（6.04 M1 → 6.05 M0 流式）：服务端组装上下文，SSE 逐帧渲染
   const [insightOpen, setInsightOpen] = useState(false);
-  const [insightLoading, setInsightLoading] = useState(false);
-  const [insightResult, setInsightResult] = useState<InsightVO | null>(null);
+  const [insightStreaming, setInsightStreaming] = useState(false);
+  const [insightText, setInsightText] = useState('');
+  const [insightMeta, setInsightMeta] = useState<InsightDoneMeta | null>(null);
   const [insightQuestion, setInsightQuestion] = useState('');
+  const insightAbortRef = useRef<AbortController | null>(null);
 
   // 1) 场景下拉数据（含从场景页带入的初始场景）
   useEffect(() => {
@@ -755,27 +756,53 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
 
   /** 打开 AI 解读弹窗（携带当前选中实体上下文） */
   const openInsight = () => {
-    setInsightResult(null);
+    setInsightText('');
+    setInsightMeta(null);
     setInsightQuestion('');
     setInsightOpen(true);
   };
 
-  /** 请求 AI 解读（服务端组装上下文；同步聚合返回） */
+  /** 流式请求 AI 解读：delta 逐帧追加正文，done 落统计，error 弹错 */
   const askInsight = async () => {
-    if (!sceneId) return;
-    setInsightLoading(true);
+    if (!sceneId || insightStreaming) return;
+    setInsightText('');
+    setInsightMeta(null);
+    setInsightStreaming(true);
+    const controller = new AbortController();
+    insightAbortRef.current = controller;
     try {
-      const body: InsightRequest = {
-        entityId: selected ? Number(selected.id) : null,
-        question: insightQuestion.trim() || null,
-      };
-      const result = await insightApi.ask(sceneId, body);
-      setInsightResult(result);
+      await subscribeSceneStream(
+        buildInsightStreamUrl(sceneId, selected ? Number(selected.id) : null, insightQuestion),
+        (event, data) => {
+          try {
+            if (event === 'delta') {
+              const payload = JSON.parse(data) as { text?: string };
+              if (payload.text) setInsightText((prev) => prev + payload.text);
+            } else if (event === 'done') {
+              setInsightMeta(JSON.parse(data) as InsightDoneMeta);
+            } else if (event === 'error') {
+              const payload = JSON.parse(data) as { message?: string };
+              message.error(payload.message || 'AI 解读失败，请稍后重试');
+            }
+          } catch {
+            // 半包/脏帧忽略
+          }
+        },
+        controller.signal,
+      );
     } catch (error) {
-      message.error(`AI 解读失败：${String(error)}`);
+      if (!controller.signal.aborted) {
+        message.error(`AI 解读失败：${String(error)}`);
+      }
     } finally {
-      setInsightLoading(false);
+      setInsightStreaming(false);
+      insightAbortRef.current = null;
     }
+  };
+
+  /** 中止本次流式解读 */
+  const stopInsight = () => {
+    insightAbortRef.current?.abort();
   };
 
   const openMarkerEdit = (marker: MarkerVO) => {
@@ -1207,16 +1234,22 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
       <Modal
         title={selected ? `AI 解读：${selected.name}` : 'AI 解读（整场景概要）'}
         open={insightOpen}
-        onCancel={() => !insightLoading && setInsightOpen(false)}
+        onCancel={() => !insightStreaming && setInsightOpen(false)}
         width={640}
         footer={
           <Space>
-            <Button disabled={insightLoading} onClick={() => setInsightOpen(false)}>
+            <Button disabled={insightStreaming} onClick={() => setInsightOpen(false)}>
               关闭
             </Button>
-            <Button type="primary" loading={insightLoading} onClick={() => void askInsight()}>
-              {insightResult ? '重新解读' : '开始解读'}
-            </Button>
+            {insightStreaming ? (
+              <Button danger onClick={stopInsight}>
+                停止
+              </Button>
+            ) : (
+              <Button type="primary" onClick={() => void askInsight()}>
+                {insightText ? '重新解读' : '开始解读'}
+              </Button>
+            )}
           </Space>
         }
       >
@@ -1225,19 +1258,22 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
           value={insightQuestion}
           maxLength={500}
           showCount
+          disabled={insightStreaming}
           onChange={(e) => setInsightQuestion(e.target.value)}
           onPressEnter={() => void askInsight()}
         />
-        {insightResult && (
+        {(insightText || insightMeta) && (
           <div style={{ marginTop: 12 }}>
-            <Space size="small" wrap style={{ marginBottom: 8 }}>
-              {insightResult.degraded && <Tag color="warning">降级回答（检索摘要）</Tag>}
-              <Tag>{insightResult.tokens} tokens</Tag>
-              <Tag>{(insightResult.elapsedMillis / 1000).toFixed(1)}s</Tag>
-              {insightResult.citations && insightResult.citations.length > 0 && (
-                <Tag color="blue">{insightResult.citations.length} 条引用</Tag>
-              )}
-            </Space>
+            {insightMeta && (
+              <Space size="small" wrap style={{ marginBottom: 8 }}>
+                {insightMeta.degraded && <Tag color="warning">降级回答（检索摘要）</Tag>}
+                <Tag>{insightMeta.tokens} tokens</Tag>
+                <Tag>{(insightMeta.elapsedMillis / 1000).toFixed(1)}s</Tag>
+                {insightMeta.citations && insightMeta.citations.length > 0 && (
+                  <Tag color="blue">{insightMeta.citations.length} 条引用</Tag>
+                )}
+              </Space>
+            )}
             <div
               style={{
                 whiteSpace: 'pre-wrap',
@@ -1250,18 +1286,19 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
                 lineHeight: 1.7,
               }}
             >
-              {insightResult.answer}
+              {insightText || ''}
+              {insightStreaming && <span className="insight-caret">▍</span>}
             </div>
           </div>
         )}
-        {!insightResult && !insightLoading && (
+        {!insightText && !insightStreaming && !insightMeta && (
           <div style={{ marginTop: 12, color: 'rgba(128,128,128,0.9)', fontSize: 12 }}>
-            将把{selected ? '选中实体' : '整场景'}的实时绑定状态发给 AI 助手解读；内网令牌留在服务端，不经前端。
+            将把{selected ? '选中实体' : '整场景'}的实时绑定状态发给 AI 助手流式解读；内网令牌留在服务端，不经前端。
           </div>
         )}
-        {insightLoading && (
+        {insightStreaming && !insightText && (
           <div style={{ marginTop: 12, color: 'rgba(128,128,128,0.9)', fontSize: 12 }}>
-            正在调用 AI 助手解读（含实时态上下文组装），请稍候…
+            正在组装实时态上下文并调用 AI 助手，请稍候…
           </div>
         )}
       </Modal>

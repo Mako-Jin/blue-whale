@@ -7,11 +7,13 @@ import com.bluewhale.common.core.result.Result;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
  * AI 助手开放 API（业务应用服务对服务内嵌问答）。
@@ -43,5 +45,23 @@ public class AssistantOpenApiController {
                                    @RequestHeader("X-User-Id") Long userId,
                                    @RequestHeader(value = "X-Permission-Codes", required = false) String permissionCodes) {
         return Result.ok(chatService.chatSync(request, userId, permissionCodes));
+    }
+
+    /**
+     * 开放问答（SSE 流式逐帧返回，Wave 6.05）。
+     *
+     * <p>帧契约与内部会话流一致：{@code delta}（正文增量）/ {@code done}（终帧，含
+     * sessionId/messageId/tokens/引用）/ {@code error}。鉴权同 {@link #chat}。</p>
+     *
+     * @param request         问答请求
+     * @param userId          业务侧透传的最终用户ID
+     * @param permissionCodes 业务侧可选透传的权限码
+     * @return SSE 发射器
+     */
+    @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter chatStream(@Valid @RequestBody OpenChatRequest request,
+                                 @RequestHeader("X-User-Id") Long userId,
+                                 @RequestHeader(value = "X-Permission-Codes", required = false) String permissionCodes) {
+        return chatService.chatStream(request, userId, permissionCodes);
     }
 }
