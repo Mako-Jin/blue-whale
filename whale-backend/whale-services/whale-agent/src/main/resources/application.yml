@@ -129,6 +129,12 @@ whale:
       timeout-seconds: ${WHALE_AGENT_OPS_TIMEOUT_SECONDS:10}
       targets:
         form: ${WHALE_AGENT_OPS_TARGET_FORM:http://127.0.0.1:8084}
+    # Wave 6.04 三平台联动：平台只读工具（内网读 whale-iot / whale-twin）
+    platform:
+      iot-base-url: ${WHALE_AGENT_IOT_BASE_URL:http://127.0.0.1:8088}
+      twin-base-url: ${WHALE_AGENT_TWIN_BASE_URL:http://127.0.0.1:8089}
+      internal-token: ${WHALE_INTERNAL_TOKEN:}
+      timeout-seconds: ${WHALE_AGENT_PLATFORM_TIMEOUT_SECONDS:10}
     # Wave 5.53 M4：文件知识库采集（whale-file 业务文件自动解析入库）
     knowledge:
       enabled: ${WHALE_AGENT_KNOWLEDGE_ENABLED:true}

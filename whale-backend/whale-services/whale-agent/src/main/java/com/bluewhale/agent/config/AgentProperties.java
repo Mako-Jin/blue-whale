@@ -58,6 +58,8 @@ public class AgentProperties {
 
     /** 平台写操作配置（T15） */
     private Ops ops = new Ops();
+    /** 平台只读工具配置（IoT/孪生内网读取，Wave 6.04） */
+    private Platform platform = new Platform();
 
     /** 文件知识库采集配置（Wave 5.53 M4） */
     private Knowledge knowledge = new Knowledge();
@@ -440,5 +442,24 @@ public class AgentProperties {
             targets.put("form", "http://127.0.0.1:8084");
             return targets;
         }
+    }
+
+    /**
+     * 平台只读工具配置（Wave 6.04 三平台联动）。
+     */
+    @Data
+    public static class Platform {
+
+        /** whale-iot 基地址（设备实时态/遥测历史内网读取） */
+        private String iotBaseUrl = "http://127.0.0.1:8088";
+
+        /** whale-twin 基地址（孪生场景概要内网读取） */
+        private String twinBaseUrl = "http://127.0.0.1:8089";
+
+        /** 内网令牌（X-Internal-Token，与平台其余服务共享同一口令） */
+        private String internalToken = "";
+
+        /** 调用超时（秒） */
+        private int timeoutSeconds = 10;
     }
 }

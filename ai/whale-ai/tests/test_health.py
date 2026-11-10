@@ -48,12 +48,17 @@ def test_tools_endpoint_returns_tool_catalog() -> None:
         "doc_read",
         "data_query",
         "platform_op",
+        "iot_device_state",
+        "iot_device_history",
+        "twin_scene_overview",
     }
     risk_by_name = {tool["name"]: tool["riskLevel"] for tool in tools}
     assert risk_by_name["data_query"] == "L1"
     assert risk_by_name["platform_op"] == "L2"
     assert all(
-        level == "L0" for name, level in risk_by_name.items() if name not in ("data_query", "platform_op")
+        level == "L0" for name, level in risk_by_name.items()
+        if name not in ("data_query", "platform_op", "iot_device_state",
+                        "iot_device_history", "twin_scene_overview")
     )
 
 

@@ -188,6 +188,39 @@ public class TwinSceneService {
     }
 
     /**
+     * 按编码取场景（内网概要接口用；不存在返回 {@code null}）。
+     *
+     * @param code 场景编码
+     * @return 场景实体或 {@code null}
+     */
+    public TwinScene findByCode(String code) {
+        return sceneMapper.selectOne(new LambdaQueryWrapper<TwinScene>()
+                .eq(TwinScene::getCode, code));
+    }
+
+    /**
+     * 解析场景ID（内网概要接口用；sceneId 优先，其次按编码定位）。
+     *
+     * @param sceneId   场景ID（可空）
+     * @param sceneCode 场景编码（可空）
+     * @return 场景ID
+     */
+    public Long resolveSceneId(Long sceneId, String sceneCode) {
+        if (sceneId != null) {
+            requireExists(sceneId);
+            return sceneId;
+        }
+        if (StringUtils.hasText(sceneCode)) {
+            TwinScene scene = findByCode(sceneCode.trim());
+            if (scene == null) {
+                throw new BizException("场景不存在：" + sceneCode);
+            }
+            return scene.getId();
+        }
+        throw new BizException("需提供 sceneId 或 sceneCode");
+    }
+
+    /**
      * 按 ID 取场景（存在性校验）。
      *
      * @param id 场景ID

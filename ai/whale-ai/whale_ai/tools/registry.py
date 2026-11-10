@@ -117,6 +117,46 @@ def _platform_op_payload(arguments: dict[str, Any]) -> dict[str, Any]:
     return {"operation": operation, "params": params}
 
 
+def _iot_device_payload(arguments: dict[str, Any], *, history: bool = False) -> dict[str, Any]:
+    """IoT 设备工具入参（deviceId 或 productCode+deviceName 二选一）。"""
+    payload: dict[str, Any] = {}
+    device_id = _optional_int(arguments, "device_id")
+    if device_id is not None:
+        payload["deviceId"] = device_id
+    for source, target in (("product_code", "productCode"), ("device_name", "deviceName")):
+        value = arguments.get(source)
+        if value is not None and str(value).strip():
+            payload[target] = str(value).strip()
+    if not payload:
+        raise ToolError("需提供 device_id 或 product_code+device_name")
+    if history:
+        identifier = arguments.get("identifier")
+        if identifier is not None and str(identifier).strip():
+            payload["identifier"] = str(identifier).strip()
+        for source, target in (("from", "from"), ("to", "to")):
+            value = arguments.get(source)
+            if value is not None and str(value).strip():
+                payload[target] = str(value).strip()
+        limit = _optional_int(arguments, "limit")
+        if limit is not None:
+            payload["limit"] = limit
+    return payload
+
+
+def _twin_scene_payload(arguments: dict[str, Any]) -> dict[str, Any]:
+    """孪生场景概要入参（scene_id 或 scene_code 二选一）。"""
+    payload: dict[str, Any] = {}
+    scene_id = _optional_int(arguments, "scene_id")
+    if scene_id is not None:
+        payload["sceneId"] = scene_id
+    scene_code = arguments.get("scene_code")
+    if scene_code is not None and str(scene_code).strip():
+        payload["sceneCode"] = str(scene_code).strip()
+    if not payload:
+        raise ToolError("需提供 scene_id 或 scene_code")
+    return payload
+
+
 TOOLS: dict[str, ToolDefinition] = {
     "knowledge_search": ToolDefinition(
         name="knowledge_search",
@@ -200,6 +240,57 @@ TOOLS: dict[str, ToolDefinition] = {
         build_payload=_platform_op_payload,
         risk_level="L2",
         permission="sys:ai:ops:*",
+    ),
+    "iot_device_state": ToolDefinition(
+        name="iot_device_state",
+        description="查询 IoT 设备实时态（在线状态 + 影子最新上报值）。设备用 deviceId 或 productCode+deviceName 定位。",
+        endpoint="iot-device-state",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "device_id": {"type": "integer", "description": "设备ID（与三元组二选一）"},
+                "product_code": {"type": "string", "description": "产品编码"},
+                "device_name": {"type": "string", "description": "设备名"},
+            },
+        },
+        build_payload=_iot_device_payload,
+        risk_level="L1",
+        permission="sys:ai:data:read",
+    ),
+    "iot_device_history": ToolDefinition(
+        name="iot_device_history",
+        description="查询 IoT 设备遥测历史（时间倒序），可按属性标识符与时间段过滤。",
+        endpoint="iot-device-history",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "device_id": {"type": "integer", "description": "设备ID（与三元组二选一）"},
+                "product_code": {"type": "string", "description": "产品编码"},
+                "device_name": {"type": "string", "description": "设备名"},
+                "identifier": {"type": "string", "description": "属性标识符过滤（如 temperature）"},
+                "from": {"type": "string", "description": "起始时间 ISO-8601"},
+                "to": {"type": "string", "description": "结束时间 ISO-8601"},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 500},
+            },
+        },
+        build_payload=lambda arguments: _iot_device_payload(arguments, history=True),
+        risk_level="L1",
+        permission="sys:ai:data:read",
+    ),
+    "twin_scene_overview": ToolDefinition(
+        name="twin_scene_overview",
+        description="查询数字孪生场景概要：场景元数据、实体树、数据绑定与标注热点。",
+        endpoint="twin-scene-overview",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "scene_id": {"type": "integer", "description": "场景ID（与 scene_code 二选一）"},
+                "scene_code": {"type": "string", "description": "场景编码（如 plant-demo）"},
+            },
+        },
+        build_payload=_twin_scene_payload,
+        risk_level="L1",
+        permission="sys:ai:data:read",
     ),
 }
 

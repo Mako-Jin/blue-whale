@@ -198,6 +198,9 @@ def test_list_tools_exposes_l0_and_l1_catalog() -> None:
         "doc_read",
         "data_query",
         "platform_op",
+        "iot_device_state",
+        "iot_device_history",
+        "twin_scene_overview",
     }
     risk_by_name = {tool["name"]: tool["riskLevel"] for tool in tools}
     assert risk_by_name["data_query"] == "L1"
@@ -205,7 +208,8 @@ def test_list_tools_exposes_l0_and_l1_catalog() -> None:
     assert all(
         level == "L0"
         for name, level in risk_by_name.items()
-        if name not in ("data_query", "platform_op")
+        if name not in ("data_query", "platform_op", "iot_device_state",
+                        "iot_device_history", "twin_scene_overview")
     )
     permission_by_name = {tool["name"]: tool["permission"] for tool in tools}
     assert permission_by_name["data_query"] == "sys:ai:data:read"
@@ -213,6 +217,92 @@ def test_list_tools_exposes_l0_and_l1_catalog() -> None:
     assert all(
         code == "sys:agent:chat"
         for name, code in permission_by_name.items()
-        if name not in ("data_query", "platform_op")
+        if name not in ("data_query", "platform_op", "iot_device_state",
+                        "iot_device_history", "twin_scene_overview")
     )
 
+
+
+def test_iot_device_state_maps_device_fields() -> None:
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["url"] = str(request.url)
+        captured["body"] = json.loads(request.content) if request.content else {}
+        return httpx.Response(200, json={"code": 0, "data": {"online": 1, "reported": {"temperature": 42}}})
+
+    data = execute_tool(
+        "iot_device_state",
+        {"product_code": "plant-demo", "device_name": "boiler-01"},
+        ToolContext(user_id="7", permission_codes="sys:ai:data:read"),
+        client=_client(handler),
+    )
+
+    assert data == {"online": 1, "reported": {"temperature": 42}}
+    assert captured["url"].endswith("/agent/tools/iot-device-state")
+    body = captured["body"]
+    assert isinstance(body, dict)
+    assert body["productCode"] == "plant-demo"
+    assert body["deviceName"] == "boiler-01"
+
+
+def test_iot_device_history_maps_filters() -> None:
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content) if request.content else {}
+        return httpx.Response(200, json={"code": 0, "data": []})
+
+    execute_tool(
+        "iot_device_history",
+        {"device_id": 9001, "identifier": "temperature", "from": "2026-11-10T00:00:00", "limit": 50},
+        ToolContext(),
+        client=_client(handler),
+    )
+
+    body = captured["body"]
+    assert isinstance(body, dict)
+    assert body["deviceId"] == 9001
+    assert body["identifier"] == "temperature"
+    assert body["from"] == "2026-11-10T00:00:00"
+    assert body["limit"] == 50
+
+
+def test_iot_device_requires_locator() -> None:
+    with pytest.raises(ToolError, match="device_id 或 product_code"):
+        execute_tool("iot_device_state", {}, ToolContext())
+
+
+def test_twin_scene_overview_maps_scene_code() -> None:
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["url"] = str(request.url)
+        captured["body"] = json.loads(request.content) if request.content else {}
+        return httpx.Response(200, json={"code": 0, "data": {"scene": {}, "entities": []}})
+
+    data = execute_tool(
+        "twin_scene_overview",
+        {"scene_code": "plant-demo"},
+        ToolContext(),
+        client=_client(handler),
+    )
+
+    assert data == {"scene": {}, "entities": []}
+    assert captured["url"].endswith("/agent/tools/twin-scene-overview")
+    body = captured["body"]
+    assert isinstance(body, dict)
+    assert body["sceneCode"] == "plant-demo"
+
+
+def test_twin_scene_requires_locator() -> None:
+    with pytest.raises(ToolError, match="scene_id 或 scene_code"):
+        execute_tool("twin_scene_overview", {}, ToolContext())
+
+
+def test_platform_tools_registered_as_l1() -> None:
+    descriptions = {item["name"]: item for item in list_tools()}
+    for name in ("iot_device_state", "iot_device_history", "twin_scene_overview"):
+        item = descriptions[name]
+        assert item["riskLevel"] == "L1"
+        assert item["permission"] == "sys:ai:data:read"
