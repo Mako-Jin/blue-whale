@@ -1,6 +1,7 @@
 package com.bluewhale.gateway.filter;
 
 import com.bluewhale.gateway.config.CircuitBreakerProperties;
+import com.bluewhale.gateway.support.CircuitAlertNotifier;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -62,7 +63,8 @@ class CircuitBreakerGlobalFilterTest {
     void setUp() {
         properties = new CircuitBreakerProperties();
         registry = new SimpleMeterRegistry();
-        filter = new CircuitBreakerGlobalFilter(properties, new StubMeterProvider(registry));
+        filter = new CircuitBreakerGlobalFilter(properties, new StubMeterProvider(registry),
+                new CircuitAlertNotifier(properties));
     }
 
     /**
@@ -283,7 +285,8 @@ class CircuitBreakerGlobalFilterTest {
     @DisplayName("GW-04 指标：容器内无 MeterRegistry 时静默跳过指标，熔断主流程不受影响")
     void shouldSkipMetricsWhenNoRegistry() {
         CircuitBreakerGlobalFilter noMetricFilter =
-                new CircuitBreakerGlobalFilter(properties, new StubMeterProvider(null));
+                new CircuitBreakerGlobalFilter(properties, new StubMeterProvider(null),
+                        new CircuitAlertNotifier(properties));
         MockServerWebExchange exchange = buildExchange(PROTECTED_ROUTE);
         when(chain.filter(any())).thenReturn(Mono.empty());
 

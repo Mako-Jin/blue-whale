@@ -345,8 +345,10 @@ whale:
     # timeout-millis 为单次下游调用超时；failure-rate-threshold 为触发阈值（百分比）；
     # sliding-window-size 为失败率统计窗口；wait-duration-in-open-state-millis 为打开后等待时长；
     # apply-to-routes 为启用熔断的路由 id，命中后超时/失败按失败率熔断并降级返回 503。
+    # alert-base-url 为熔断打开/恢复时的告警上报地址（whale-alert 内网接口）；留空表示不上报。
     circuit-breaker:
       enabled: ${WHALE_GATEWAY_CIRCUIT_BREAKER_ENABLED:true}
+      alert-base-url: ${WHALE_GATEWAY_ALERT_BASE_URL:}
       timeout-millis: ${WHALE_GATEWAY_CIRCUIT_BREAKER_TIMEOUT_MILLIS:3000}
       failure-rate-threshold: ${WHALE_GATEWAY_CIRCUIT_BREAKER_FAILURE_RATE:50}
       sliding-window-size: ${WHALE_GATEWAY_CIRCUIT_BREAKER_WINDOW_SIZE:20}

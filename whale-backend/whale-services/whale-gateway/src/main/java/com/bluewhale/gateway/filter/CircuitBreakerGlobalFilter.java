@@ -2,6 +2,7 @@ package com.bluewhale.gateway.filter;
 
 import com.bluewhale.gateway.common.GatewayResponse;
 import com.bluewhale.gateway.config.CircuitBreakerProperties;
+import com.bluewhale.gateway.support.CircuitAlertNotifier;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
@@ -92,6 +93,9 @@ public class CircuitBreakerGlobalFilter implements GlobalFilter, Ordered {
     /** 指标注册表提供者：容器无 MeterRegistry 时返回 {@code null}，指标静默跳过 */
     private final ObjectProvider<MeterRegistry> meterRegistryProvider;
 
+    /** 熔断状态告警上报客户端（未配置 alert-base-url 时整体跳过，旁路不影响主流程） */
+    private final CircuitAlertNotifier alertNotifier;
+
     /** resilience4j 熔断器注册表（按路由 id 隔离实例） */
     private final CircuitBreakerRegistry registry = CircuitBreakerRegistry.ofDefaults();
 
@@ -103,11 +107,14 @@ public class CircuitBreakerGlobalFilter implements GlobalFilter, Ordered {
      *
      * @param properties            网关熔断降级配置
      * @param meterRegistryProvider Micrometer 指标注册表提供者，缺省时返回 {@code null} 表示不采集指标
+     * @param alertNotifier         熔断状态告警上报客户端
      */
     public CircuitBreakerGlobalFilter(CircuitBreakerProperties properties,
-                                      ObjectProvider<MeterRegistry> meterRegistryProvider) {
+                                      ObjectProvider<MeterRegistry> meterRegistryProvider,
+                                      CircuitAlertNotifier alertNotifier) {
         this.properties = properties;
         this.meterRegistryProvider = meterRegistryProvider;
+        this.alertNotifier = alertNotifier;
     }
 
     /**
@@ -182,7 +189,9 @@ public class CircuitBreakerGlobalFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 注册熔断状态迁移日志（S-07）：CLOSED/OPEN/HALF_OPEN 迁移与半开探测结果可在运行态日志中取证
+     * 注册熔断状态迁移日志（S-07）与告警上报：CLOSED/OPEN/HALF_OPEN 迁移与半开探测结果
+     * 可在运行态日志中取证；打开时上报 ERROR 告警、恢复闭合时上报 INFO 恢复告警
+     * （whale-alert 侧按指纹去重并触发通知，上报失败只记 WARN 不影响熔断主流程）
      *
      * @param routeId 路由 id
      * @param breaker resilience4j 熔断器
@@ -192,6 +201,11 @@ public class CircuitBreakerGlobalFilter implements GlobalFilter, Ordered {
             CircuitBreaker.StateTransition transition = event.getStateTransition();
             log.info("网关熔断状态迁移: route={}, {} -> {}", routeId,
                     transition.getFromState(), transition.getToState());
+            if (transition.getToState() == CircuitBreaker.State.OPEN) {
+                alertNotifier.notifyOpenAsync(routeId);
+            } else if (transition.getToState() == CircuitBreaker.State.CLOSED) {
+                alertNotifier.notifyRecoveredAsync(routeId);
+            }
         });
     }
 

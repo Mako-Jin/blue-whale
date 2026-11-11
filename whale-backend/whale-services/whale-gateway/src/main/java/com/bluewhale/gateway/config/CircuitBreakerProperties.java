@@ -39,6 +39,12 @@ public class CircuitBreakerProperties {
     /** 熔断打开后的等待时长（毫秒），期满后放行一次半开探测，默认 10000 */
     private int waitDurationInOpenStateMillis = 10000;
 
+    /**
+     * whale-alert 内网基址（如 {@code http://bw-alert:9103}）；熔断打开/恢复时上报告警记录。
+     * 留空表示不上报（告警旁路，不影响熔断主流程），容器编排中默认指向 bw-alert。
+     */
+    private String alertBaseUrl = "";
+
     /** 启用熔断降级的路由 id 列表，默认覆盖认证/任务/文件/审计四类关键路由 */
     private List<String> applyToRoutes = new ArrayList<>(List.of("whale-service-auth", "whale-job", "whale-file", "whale-audit"));
 }
