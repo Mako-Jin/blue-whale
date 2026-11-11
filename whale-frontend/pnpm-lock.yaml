@@ -920,6 +920,9 @@ importers:
       antd:
         specifier: ^5.21.0
         version: 5.29.3(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      dayjs:
+        specifier: ^1.11.13
+        version: 1.11.23
       react:
         specifier: ^19.0.0
         version: 19.3.1
@@ -1082,6 +1085,9 @@ importers:
 
   platform-apps/whale-oa:
     dependencies:
+      '@ant-design/icons':
+        specifier: ^5.6.1
+        version: 5.6.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@bluewhale/http':
         specifier: workspace:*
         version: link:../../shared-packages/http

@@ -147,6 +147,21 @@ jobs:
       - name: Frontend Permission Mapping Scan
         run: python3 scripts/check-frontend-perm-mapping.py
 
+  qiankun-lifecycle:
+    name: Frontend · 子应用 qiankun 接入
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 子应用用 vite-plugin-qiankun 插件，产物 index.html 由插件注入的脚本从
+      # window.moudleQiankunAppLifeCycles[name] 取生命周期。只导出 mount/unmount 而漏调
+      # renderWithQiankun 时该表为空，基座 mount 的 Promise 永不 resolve —— 白屏且无报错，
+      # 20 个子应用里曾有 14 个如此。此步校验生命周期注册 + vite base 与 activeRule 对齐。
+      - name: Qiankun Lifecycle & Base Scan
+        run: python3 scripts/check-qiankun-lifecycle.py
+
   ai-pytest:
     name: AI · Python 3.12 + pytest
     runs-on: ubuntu-latest

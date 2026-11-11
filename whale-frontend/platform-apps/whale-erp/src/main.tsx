@@ -3,6 +3,7 @@ import { ErrorBoundary } from '@bluewhale/whale-ui';
 import ReactDOM from 'react-dom/client';
 import { ThemeProvider } from '@bluewhale/whale-common-theme';
 import { initAuditLogging } from '@bluewhale/whale-log-sdk';
+import { renderWithQiankun } from 'vite-plugin-qiankun/dist/helper';
 import App from './App';
 import './index.css';
 
@@ -41,3 +42,14 @@ export async function unmount() {
   root?.unmount();
   root = null;
 }
+
+// 把生命周期注册进 vite-plugin-qiankun 的桥接表：产物 index.html 由插件注入的脚本
+// 从 window.moudleQiankunAppLifeCycles['whale-erp'] 取生命周期。缺这一步时基座内
+// mount 的 Promise 永不 resolve —— 表现为白屏且无报错。
+renderWithQiankun({
+  bootstrap,
+  mount,
+  unmount,
+  // 基座不调用 update；保留空实现以满足插件的生命周期类型
+  update: () => Promise.resolve(),
+});
