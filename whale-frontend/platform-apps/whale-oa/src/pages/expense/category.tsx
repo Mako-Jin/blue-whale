@@ -63,9 +63,11 @@ export default function ExpenseCategoryPage() {
   const [editingStandard, setEditingStandard] = useState<OaExpenseStandard | null>(null);
   const [standardForm] = Form.useForm<StandardFormValues>();
 
-  const canAdd = hasPermission('sys:oa:expense:category:add');
+  // 后端只发放 sys:oa:expense:category:list / edit 两个权限码
+  // （ExpenseCategoryController：新增/删除/编辑统一由 edit 保护）
+  const canAdd = hasPermission('sys:oa:expense:category:edit');
   const canEdit = hasPermission('sys:oa:expense:category:edit');
-  const canDelete = hasPermission('sys:oa:expense:category:delete');
+  const canDelete = hasPermission('sys:oa:expense:category:edit');
 
   const load = useCallback(async () => {
     setLoading(true);

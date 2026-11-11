@@ -132,6 +132,21 @@ jobs:
       - name: Internal Boundary & CI Workdir Scan
         run: python3 scripts/check-internal-boundary.py
 
+  frontend-perm-mapping:
+    name: Frontend · 菜单/权限码映射
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 前端菜单与按钮级权限由后端数据驱动，但没有编译期约束：
+      # sys_menu.component 配错只渲染「页面未配置」占位、权限码写错按钮永不渲染，
+      # 两者都是静默失败。此步核对「菜单种子 ↔ admin 契约键/基座子应用前缀」与
+      # 「前端引用的权限码 ↔ 后端种子（sys_permission/sys_menu/@RequirePermission）」。
+      - name: Frontend Permission Mapping Scan
+        run: python3 scripts/check-frontend-perm-mapping.py
+
   ai-pytest:
     name: AI · Python 3.12 + pytest
     runs-on: ubuntu-latest
