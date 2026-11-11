@@ -58,8 +58,9 @@ public class TenantProvisioningAppService {
 
     /**
      * 业务角色模板编码：模板由 {@code migration-5.65-business-role-grant.sql}、
-     * {@code migration-5.66-pm-role-template.sql} 与 {@code migration-5.74-doc.sql}
-     * 在平台租户维护，新租户开通时按模板当前的角色名称/描述/排序与权限集下发同名角色。
+     * {@code migration-5.66-pm-role-template.sql}、{@code migration-5.74-doc.sql}
+     * 与 {@code V10__rbac_role_baseline.sql}（商城）在平台租户维护，新租户开通时按模板
+     * 当前的角色名称/描述/排序与权限集下发同名角色。
      *
      * <p>模板缺失（未执行对应迁移）时仅告警跳过，不阻断租户开通；平台租户 {@code tenant_admin}
      * 仍持有全部启用业务权限，不会出现业务接口 403。</p>
@@ -72,15 +73,22 @@ public class TenantProvisioningAppService {
             "pdm_manager", "pdm_member",
             "pm_manager", "pm_member",
             "contract_manager", "contract_member", "contract_signatory",
-            "doc_manager", "doc_member");
+            "doc_manager", "doc_member",
+            // 商城：whale-mall 的 MallActor 以角色码判定数据范围（canManageAll / isOperator），
+            // 只授权限码不建角色时，运营动作对非超管永久不可用。模板见 V10__rbac_role_baseline.sql。
+            "mall_admin", "mall_operator");
 
     /**
      * 平台侧专属权限码：不下发给业务租户。
      *
      * <p>只收口「平台运营」动作；{@code sys:tenant:member:list/assign} 属于租户管理员
      * 的本租户成员管理能力，必须正常下发。</p>
+     *
+     * <p><b>与迁移脚本的强耦合</b>：{@code V10__rbac_role_baseline.sql} 给平台租户的
+     * {@code tenant_admin} 授权时用的是「全部启用权限 − 本集合」，两处必须一字不差。
+     * 由 {@code FlywayMigrationScriptTest} 做一致性断言，改一处漏改另一处会被门禁拦下。</p>
      */
-    private static final Set<String> PLATFORM_ONLY_PERM_CODES = Set.of(
+    public static final Set<String> PLATFORM_ONLY_PERM_CODES = Set.of(
             "sys:tenant:list", "sys:tenant:add", "sys:tenant:edit", "sys:tenant:status",
             "sys:tenant:renew", "sys:user:tenant");
 

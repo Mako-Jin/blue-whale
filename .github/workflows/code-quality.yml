@@ -116,6 +116,22 @@ jobs:
       - name: Permission & Menu ID Range Scan
         run: python3 scripts/security/scan-id-ranges.py
 
+  role-coverage:
+    name: Backend · 角色码覆盖
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 角色码是纯字符串判定，没有任何编译期约束。2026-11-11 实测库里 55 个角色中
+      # tenant_admin **一条都没有**，而 20+ 份迁移脚本的授权段都写成
+      # `role_code IN ('tenant_admin')`、5 个服务的 Actor 又用它判定全量数据范围 ——
+      # 授权整段静默不生效、运营动作对非超管永久不可用，而建表/单测/其余门禁全绿。
+      # 此步核对「代码判定的角色码」是否都有迁移脚本 INSERT INTO sys_role 播种过。
+      - name: Role Code Coverage Scan
+        run: python3 scripts/security/check-role-coverage.py
+
   internal-boundary:
     name: Backend · 内网端点边界
     runs-on: ubuntu-latest

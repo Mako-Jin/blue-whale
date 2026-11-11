@@ -1,5 +1,6 @@
 package com.bluewhale.auth.migration;
 
+import com.bluewhale.auth.application.tenant.TenantProvisioningAppService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -8,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -155,11 +157,38 @@ class FlywayMigrationScriptTest {
     }
 
     /**
-     * 基线一致性校验：V1 建表集合必须与 init.sql 完全一致
+     * RBAC 治理脚本与代码口径一致性：V10 的「平台专属排除清单」必须等于
+     * {@code TenantProvisioningAppService.PLATFORM_ONLY_PERM_CODES}
+     *
+     * <p>为什么必须守住：V10 给平台租户的 {@code tenant_admin} 授权用的是
+     * 「全部启用权限 − 平台专属码」，而新租户开通走的是 Java 侧同一口径。两处若漂移，
+     * 平台租户与业务租户的 {@code tenant_admin} 就会一套一个样——业务租户管理员能改
+     * 平台运营动作，或反过来少了权限却无人察觉。</p>
      *
      * @throws IOException 读取脚本失败
      */
     @Test
+    @DisplayName("V10 平台专属排除清单与 PLATFORM_ONLY_PERM_CODES 一致")
+    void rbacBaselineShouldMatchPlatformOnlyCodes() throws IOException {
+        String content = read(MIGRATION_DIR.resolve("V10__rbac_role_baseline.sql"));
+        Matcher block = Pattern.compile(
+                "NOT\\s+IN\\s*\\(([^)]*sys:tenant:list[^)]*)\\)", Pattern.CASE_INSENSITIVE).matcher(content);
+        assertTrue(block.find(), "V10 未找到「平台专属排除清单」（NOT IN (... sys:tenant:list ...)）");
+
+        Set<String> inScript = new LinkedHashSet<>();
+        Matcher code = Pattern.compile("'(sys:[A-Za-z0-9:_\\-]+)'").matcher(block.group(1));
+        while (code.find()) {
+            inScript.add(code.group(1));
+        }
+        assertEquals(TenantProvisioningAppService.PLATFORM_ONLY_PERM_CODES, inScript,
+                "V10 的排除清单与 TenantProvisioningAppService.PLATFORM_ONLY_PERM_CODES 不一致");
+    }
+
+    /**
+     * 基线一致性校验：V1 建表集合必须与 init.sql 完全一致
+     *
+     * @throws IOException 读取脚本失败
+     */    @Test
     @DisplayName("V1 基线建表集合与 init.sql 一致")
     void baselineTablesShouldMatchInitScript() throws IOException {
         Set<String> initTables = extractTables(INIT_SCRIPT);
@@ -214,17 +243,32 @@ class FlywayMigrationScriptTest {
     }
 
     /**
-     * 列出迁移脚本并按文件名字典序返回
+     * 列出迁移脚本，按版本号**数值**排序返回
      *
-     * @return 迁移脚本路径
+     * <p>不能用文件名字典序：{@code V10__x.sql} 字典序会排在 {@code V2__x.sql} 之前
+     * （字符 '1' &lt; '2'），「版本号严格递增」断言就会误报。Flyway 自身按版本数值排序，
+     * 测试必须与之一致，否则每次进两位版本号都要改测试。</p>
+     *
+     * @return 迁移脚本路径（版本号升序）
      * @throws IOException 读取目录失败
      */
     private static List<Path> migrationScripts() throws IOException {
         try (var stream = Files.list(MIGRATION_DIR)) {
             return stream.filter(path -> path.getFileName().toString().endsWith(".sql"))
-                    .sorted()
+                    .sorted(Comparator.comparingLong(FlywayMigrationScriptTest::versionOf))
                     .collect(Collectors.toList());
         }
+    }
+
+    /**
+     * 取脚本版本号数值（文件名形如 {@code V<数字>__描述.sql}）
+     *
+     * @param path 脚本路径
+     * @return 版本号；不符合命名约定时返回 {@link Long#MAX_VALUE}，交由命名断言报错
+     */
+    private static long versionOf(Path path) {
+        Matcher matcher = VERSIONED_NAME.matcher(path.getFileName().toString());
+        return matcher.matches() ? Long.parseLong(matcher.group(1)) : Long.MAX_VALUE;
     }
 
     /**
