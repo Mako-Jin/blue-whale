@@ -115,7 +115,7 @@ function readCsrfToken(): string | null {
   return null;
 }
 
-/** 非 GET 请求回传 CSRF 令牌（服务端校验 /auth/refresh、/auth/logout 等写操作） */
+/** 非 GET 请求回传 CSRF 令牌（服务端校验 /auth/v1/refresh、/auth/v1/logout 等写操作） */
 function applyCsrfHeader(headers: Headers, method: string): void {
   if (method === 'GET') {
     return;
@@ -276,7 +276,7 @@ export function createHttpClient<TLogin extends LoginData = LoginData>(
   }
 
   /**
-   * 刷新会话（Cookie 静默续期）：POST /auth/refresh，
+   * 刷新会话（Cookie 静默续期）：POST /auth/v1/refresh，
    * 刷新令牌在 HttpOnly Cookie（whale_refresh_token）中由浏览器自动携带，
    * 并回传 X-CSRF-Token 请求头；成功后服务端会滚动下发新的 Cookie。
    *
@@ -287,7 +287,9 @@ export function createHttpClient<TLogin extends LoginData = LoginData>(
     const headers = newHeaders();
     headers.set('Content-Type', 'application/json');
     applyCsrfHeader(headers, 'POST');
-    const response = await fetch(`${baseUrl}/auth/refresh`, {
+    // 路径必须与网关白名单 `/auth/v1/refresh` 一致：写成 `/auth/refresh` 会拿到 404，
+    // 续期恒失败 → 用户每次 access 过期都被踢回登录页，而前端只表现为「登录已失效」
+    const response = await fetch(`${baseUrl}/auth/v1/refresh`, {
       method: 'POST',
       headers,
       credentials: 'include',
@@ -365,7 +367,8 @@ export function createHttpClient<TLogin extends LoginData = LoginData>(
       signal,
     });
 
-    const payload = parseResult<T>(await response.text());
+    const rawText = await response.text();
+    const payload = parseResult<T>(rawText);
 
     // 401：令牌缺失/过期/已登出（黑名单命中）→ 先静默续期并重放一次，仍失败则清态抛出
     if (response.status === 401) {
@@ -392,10 +395,28 @@ export function createHttpClient<TLogin extends LoginData = LoginData>(
         payload?.message ?? `请求失败（HTTP ${response.status}）`,
       );
     }
-    if (payload && typeof payload.code === 'number' && payload.code !== 0) {
+    // 2xx 但没有统一信封：宁可抛错，也不要把 undefined 当成业务数据返回。
+    // 旧实现 `payload ? payload.data : undefined` 会把「反代/静态资源兜底把页面 HTML、
+    // 或未配路由的错误页以 200 返回」静默折叠成 undefined，调用方 setState 之后要等到
+    // 渲染期才炸（表现为整页落 ErrorBoundary / 表格空白），现场没有任何可追的线索。
+    if (payload === null) {
+      // 空 body 是 void 接口（204 / Result 不带 data）的正常形态，保持返回 undefined
+      if (rawText.trim() === '') {
+        return undefined as T;
+      }
+      const contentType = response.headers.get('Content-Type') ?? 'unknown';
+      throw new ApiError(
+        response.status,
+        `响应不是 JSON（HTTP ${response.status}，Content-Type: ${contentType}），请检查接口路由与代理配置`,
+      );
+    }
+    if (typeof payload.code !== 'number') {
+      throw new ApiError(response.status, '响应缺少统一信封 { code, message, data }');
+    }
+    if (payload.code !== 0) {
       throw new ApiError(payload.code, payload.message ?? '请求失败');
     }
-    return (payload ? payload.data : undefined) as T;
+    return payload.data as T;
   }
 
   /**

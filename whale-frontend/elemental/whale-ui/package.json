@@ -20,6 +20,7 @@
     "react-dom": "^19.0.0"
   },
   "dependencies": {
+    "@ant-design/v5-patch-for-react-19": "^1.0.3",
     "@bluewhale/whale-common-theme": "workspace:*",
     "antd": "^5.21.0",
     "dayjs": "^1.11.13"

@@ -53,18 +53,18 @@ function errorText(error: unknown): string {
 /**
  * 拍平类目树为上级下拉选项。
  *
- * @param nodes 类目树
+ * @param nodes 类目树（允许 undefined：接口未返回 data 时不要把渲染拖垮）
  * @param excludeId 需要排除的节点（编辑时不能把自己或自己的后代挂到自己下面）
  * @param depth 当前深度
  * @returns 选项列表
  */
 function flattenOptions(
-  nodes: CategoryNode[],
+  nodes: CategoryNode[] | undefined,
   excludeId?: number,
   depth = 0,
 ): ParentOption[] {
   const options: ParentOption[] = [];
-  nodes.forEach((node) => {
+  (nodes ?? []).forEach((node) => {
     if (node.id === excludeId) {
       return;
     }
@@ -96,7 +96,9 @@ export default function CategoryPage() {
         keyword: keyword.trim() || undefined,
         status,
       });
-      setTree(data);
+      // 只接受数组：接口即使返回 200 + `{code:0}`（不带 data）也不能把 undefined
+      // 灌进 state——setTree(undefined) 要到渲染期拍平选项时才炸，且报错落在 ErrorBoundary
+      setTree(Array.isArray(data) ? data : []);
     } catch (error) {
       message.error(errorText(error));
     } finally {

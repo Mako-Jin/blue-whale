@@ -1,3 +1,10 @@
+// React 19 兼容补丁：antd v5 的静态 message / notification / Modal.confirm 依赖
+// 已从 react-dom 移除的 render 语义，缺补丁时调用不报错但页面上**什么都不出现**——
+// 全平台 25 个前端应用共约 2000 处 message.error/success 会集体静默丢失。
+// 补丁只是调用 antd 的 unstableSetRender 注入 createRoot，随本包入口执行一次即可覆盖
+// 所有子应用（每个应用都用了本包的 ErrorBoundary / 组件）。
+import '@ant-design/v5-patch-for-react-19';
+
 export { WhaleButton } from './button';
 export type { WhaleButtonProps } from './button';
 export { WhaleInput } from './input';

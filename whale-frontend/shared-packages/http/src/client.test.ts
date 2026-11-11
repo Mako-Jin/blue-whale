@@ -144,7 +144,7 @@ describe('createHttpClient', () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(saveLogin).toHaveBeenCalledWith({ accessToken: 'new-token' });
     const refresh = callAt(fetchMock, 1);
-    expect(refresh.url).toBe('http://api/auth/refresh');
+    expect(refresh.url).toBe('http://api/auth/v1/refresh');
     expect(refresh.headers.get('X-CSRF-Token')).toBe('csrf-123');
   });
 
@@ -260,5 +260,38 @@ describe('createHttpClient', () => {
       ['delta', '纯文本'],
     ]);
     expect(callAt(fetchMock, 0).headers.get('X-CSRF-Token')).toBe('csrf-123');
+  });
+
+  it('空 body 的 204 视为无返回值，不抛错', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const client = createHttpClient({ baseUrl: 'http://api', getToken: () => 'tk' });
+
+    await expect(client.del<void>('/mall/category/1')).resolves.toBeUndefined();
+  });
+
+  it('2xx 但返回 HTML（反代/静态兜底）时抛 ApiError，不静默返回 undefined', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response('<!doctype html><html><body>index</body></html>', {
+        status: 200,
+        headers: { 'Content-Type': 'text/html' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const client = createHttpClient({ baseUrl: 'http://api', getToken: () => 'tk' });
+
+    await expect(client.get('/mall/category/tree')).rejects.toThrowError(
+      /响应不是 JSON（HTTP 200，Content-Type: text\/html）/,
+    );
+  });
+
+  it('2xx 返回 JSON 但不是 Result 信封时抛 ApiError', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse([{ id: 1 }]));
+    vi.stubGlobal('fetch', fetchMock);
+    const client = createHttpClient({ baseUrl: 'http://api', getToken: () => 'tk' });
+
+    await expect(client.get('/mall/category/tree')).rejects.toThrowError(
+      /响应缺少统一信封/,
+    );
   });
 });
