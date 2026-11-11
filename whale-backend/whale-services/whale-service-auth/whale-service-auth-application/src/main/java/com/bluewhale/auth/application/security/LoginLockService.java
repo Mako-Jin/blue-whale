@@ -21,8 +21,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class LoginLockService {
 
-    /** 账号锁定的业务码（HTTP 语义参考 423 Locked，与 42801 同一命名习惯） */
-    public static final int LOCKED_CODE = 42301;
+    /** 账号锁定的业务码（唯一来源在 {@link AccountLockedException#CODE}） */
+    public static final int LOCKED_CODE = AccountLockedException.CODE;
 
     /** 每分钟秒数（用于把剩余秒数向上取整成分钟） */
     private static final long SECONDS_PER_MINUTE = 60L;
@@ -72,11 +72,15 @@ public class LoginLockService {
     /**
      * 构造锁定异常（剩余秒数向上取整为分钟，最少提示 1 分钟）
      *
+     * <p>返回带剩余秒数的 {@link AccountLockedException}：文案给人看，秒数给前端做
+     * 倒计时禁用态。只靠文案前端无法可靠还原剩余时间（解析中文文案一改就失效）。</p>
+     *
      * @param remainingSeconds 剩余锁定秒数
      * @return 业务异常
      */
     private BizException locked(long remainingSeconds) {
         long minutes = Math.max(1L, (remainingSeconds + SECONDS_PER_MINUTE - 1L) / SECONDS_PER_MINUTE);
-        return new BizException(LOCKED_CODE, "账号已锁定，请 " + minutes + " 分钟后再试");
+        return new AccountLockedException(
+                "账号已锁定，请 " + minutes + " 分钟后再试", remainingSeconds);
     }
 }

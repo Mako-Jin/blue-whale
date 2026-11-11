@@ -294,4 +294,32 @@ describe('createHttpClient', () => {
       /响应缺少统一信封/,
     );
   });
+
+  it('业务失败时 ApiError 保留信封 data（账号锁定的 retryAfterSeconds 靠它）', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({ code: 42301, message: '账号已锁定，请 15 分钟后再试', data: { retryAfterSeconds: 872 } }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const client = createHttpClient({ baseUrl: 'http://api', getToken: () => 'tk' });
+
+    const error = await client.post('/auth/v1/login', { username: 'x' }).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).code).toBe(42301);
+    expect((error as ApiError).data).toEqual({ retryAfterSeconds: 872 });
+  });
+
+  it('HTTP 非 2xx 时同样保留信封 data', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ code: 42301, message: '账号已锁定', data: { retryAfterSeconds: 60 } }), {
+        status: 423,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const client = createHttpClient({ baseUrl: 'http://api', getToken: () => 'tk' });
+
+    const error = await client.post('/auth/v1/login', {}).catch((e: unknown) => e);
+    expect((error as ApiError).code).toBe(42301);
+    expect((error as ApiError).data).toEqual({ retryAfterSeconds: 60 });
+  });
 });

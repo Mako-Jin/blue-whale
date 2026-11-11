@@ -23,10 +23,19 @@ export interface PageResult<T> {
 export class ApiError extends Error {
   readonly code: number;
 
-  constructor(code: number, message: string) {
+  /**
+   * 后端信封中的 data（仅失败态有意义）。
+   *
+   * 惯例上失败响应不带 data，但少数业务码需要结构化补充信息（例如账号锁定
+   * 42301 的 retryAfterSeconds），`message` 只给人看，不能拿来做倒计时。
+   */
+  readonly data?: unknown;
+
+  constructor(code: number, message: string, data?: unknown) {
     super(message);
     this.name = 'ApiError';
     this.code = code;
+    this.data = data;
   }
 }
 
@@ -393,6 +402,7 @@ export function createHttpClient<TLogin extends LoginData = LoginData>(
       throw new ApiError(
         payload?.code ?? response.status,
         payload?.message ?? `请求失败（HTTP ${response.status}）`,
+        payload?.data,
       );
     }
     // 2xx 但没有统一信封：宁可抛错，也不要把 undefined 当成业务数据返回。
@@ -414,7 +424,7 @@ export function createHttpClient<TLogin extends LoginData = LoginData>(
       throw new ApiError(response.status, '响应缺少统一信封 { code, message, data }');
     }
     if (payload.code !== 0) {
-      throw new ApiError(payload.code, payload.message ?? '请求失败');
+      throw new ApiError(payload.code, payload.message ?? '请求失败', payload.data);
     }
     return payload.data as T;
   }
