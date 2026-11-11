@@ -34,6 +34,7 @@ import { useImUnread } from '../hooks/useImUnread';
 import {
   getBreadcrumbItems,
   getRouteTitle,
+  hasMenuEntry,
   filterMenuByPermissions,
   menuConfig,
 } from '../router/menu';
@@ -67,6 +68,7 @@ const MENU_ICONS: Record<string, ReactNode> = {
   '/music': <CustomerServiceOutlined />,
   '/mail': <MailOutlined />,
   '/lms': <ReadOutlined />,
+  '/agent': <ReadOutlined />,
   '/party': <FlagOutlined />,
   '/scene': <BankOutlined />,
   '/scene/navigation': <BankOutlined />,
@@ -90,6 +92,12 @@ export default function MainLayout() {
   useEffect(() => {
     setTabs((prev) => {
       if (prev.some((tab) => tab.key === activeKey)) return prev;
+      // 子应用内部跳转（如 /agent/chat）不新开标签：入口标签（/agent）已存在时直接复用，
+      // 否则会出现两个同名标签（Wave 6.18 实机验证发现）
+      if (!hasMenuEntry(activeKey)) {
+        const segment = `/${activeKey.split('/')[1] ?? ''}`;
+        if (prev.some((tab) => tab.key === segment)) return prev;
+      }
       return [
         ...prev,
         { key: activeKey, label: getRouteTitle(activeKey), closable: activeKey !== '/' },
@@ -146,8 +154,18 @@ export default function MainLayout() {
   ];
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Sider trigger={null} collapsible collapsed={collapsed} width={220} theme="dark">
+    // 固定视口高度（而非 minHeight）：子应用容器用 height:100% 撑满，父级必须高度确定，
+    // 否则 qiankun 子应用（如知识助手）只按自身内容高度渲染，下方留大片空白。
+    // 内容区自身 overflow:auto，长页面仍在 .platform-content 内部滚动。
+    <Layout style={{ height: '100vh', overflow: 'hidden' }}>
+      <Sider
+        trigger={null}
+        collapsible
+        collapsed={collapsed}
+        width={220}
+        theme="dark"
+        className="platform-sider"
+      >
         <Menu
           theme="dark"
           mode="inline"

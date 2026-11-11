@@ -93,6 +93,8 @@ export const menuConfig: MenuNode[] = [
   },
   // AI 助手（whale-assistant 子应用，Wave 6.01；问答入口，定义/用量管理在 admin）
   { key: '/assistant', label: 'AI 助手', permission: 'sys:assistant:chat' },
+  // 知识助手（whale-agent 子应用，Wave 6.18 接入；权限码与后端 @RequirePermission 一致）
+  { key: '/agent', label: '知识助手', permission: 'sys:agent:chat' },
   // IoT 设备联网（whale-iot 子应用，Wave 6.02；产品/设备/遥测/规则四页由子应用内部导航承载）
   { key: '/iot', label: 'IoT 设备', permission: 'sys:iot:device' },
   // 数字孪生（whale-twin 子应用，Wave 6.03；场景管理/3D 查看器由子应用内部导航承载）
@@ -144,6 +146,19 @@ export function getRouteTitle(pathname: string): string {
   if (exact) return exact;
   const segment = `/${pathname.split('/')[1]}`;
   return routeTitles.get(segment) ?? pathname;
+}
+
+/**
+ * 判断路径是否在静态菜单中登记（即「用户从菜单点进来的页面」）。
+ *
+ * <p>用于区分两类路径：菜单页（如 {@code /erp/items}，每个都应独立成标签）与子应用内部
+ * 跳转的路径（如 {@code /agent/chat}，应归并到子应用入口标签，否则出现同名重复标签）。</p>
+ *
+ * @param pathname 当前路由路径
+ * @returns 是菜单项返回 true
+ */
+export function hasMenuEntry(pathname: string): boolean {
+  return routeTitles.has(pathname);
 }
 
 // 根据路径取面包屑文本链（如 ['系统管理', '用户管理']）

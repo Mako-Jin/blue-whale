@@ -93,11 +93,27 @@ body,
   border-bottom: 1px solid var(--bw-border);
 }
 
+/* 侧边菜单超过视口高度时在 Sider 内部滚动：否则 antd 会把整个页面撑高，
+   点击靠下的菜单项会连带把 Header 滚出视口（Wave 6.18 实机验证发现） */
+.platform-sider .ant-layout-sider-children {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 .platform-content {
   flex: 1;
+  /* flex 子项默认 min-height:auto 会被内容顶开，导致子应用容器的高度百分比失效 */
+  min-height: 0;
   padding: 16px;
   overflow: auto;
   background: var(--bw-content-bg);
+}
+
+/* qiankun 注入的包裹层与子应用 #root 高度默认 auto：子应用根节点写 height:100% 会退化成
+   内容高度，表现为子应用只在上方渲染一小块、下方大片留白（知识助手实测 488px vs 容器 757px） */
+#subapp-container > div,
+#subapp-container > div > div {
+  height: 100%;
 }
 
 /* ---------- 登录页 ---------- */

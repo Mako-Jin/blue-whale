@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Button, Result } from 'antd';
 import { useLocation } from 'react-router-dom';
 import { apps } from '../qiankun/apps';
-import { onSubAppError } from '../qiankun';
+import { onSubAppError, startQiankun } from '../qiankun';
 
 export default function SubAppContainer() {
   const { pathname } = useLocation();
@@ -13,6 +13,9 @@ export default function SubAppContainer() {
   const [failedApp, setFailedApp] = useState<string | null>(null);
 
   useEffect(() => {
+    // 容器已在 DOM 中（useEffect 在提交后执行），此时启动 qiankun 才能正确激活；
+    // 幂等，重复调用无副作用（深链接刷新时由这里补上 start）
+    startQiankun();
     setFailedApp(null);
     if (!app) return undefined;
     return onSubAppError((name) => {
