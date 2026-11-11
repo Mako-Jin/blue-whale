@@ -46,7 +46,7 @@
 
 | # | 项 | 现状与风险 |
 |---|---|---|
-| 1 | 熔断仅运行时以「1ms 超时 + 4 窗口」构造故障验证过一次（半开探测路径未在运行时单独取证）——**本台账唯一未决项（2026-11-11 核对）** | 半开探测由单测覆盖（`CircuitBreakerGlobalFilterTest`），运行时未单独复现；取证思路：压测制造连续失败使熔断 OPEN → 停故障等 `waitDurationInOpenState` → 观察单个探测请求放行与 `gateway.circuit.state{route}=2` |
+| ~~1~~ | ~~**熔断半开探测运行时未取证**~~ → ✅ **已取证（2026-11-11，Wave 6.14）** | 真实故障注入全链 PASS：20 连败（`Unable to find instance`）→ CLOSED→OPEN → 短路 503「服务暂时不可用」→ 等 10s → OPEN→HALF_OPEN→OPEN（探测失败，验证半开只放行一个请求）→ 下游恢复 → 探测成功 → HALF_OPEN→CLOSED，后续 200。prometheus 实测 `gateway_circuit_state` OPEN 期 =1、恢复后 =0；迁移日志见 `logs/gateway.e2e2.out.log`。脚本 `scripts/smoke/bw-gateway-circuit-breaker-smoke.ps1`（-Recovery 补恢复路径） |
 | 2 | ~~动态路由仅在「配置为空时返回空列表」与「环境变更触发刷新」两种路径有单测~~ → **已消除（Wave 5.35）** | 已在真实 Nacos（`tenant=public`）发布合法/非法/第二版配置并观察热刷新、整体拒绝与回滚；回滚固定标记单测 2 例 |
 | 3 | 熔断状态为进程内（单实例） | 多实例部署时各实例独立计数，无全局一致性（可接受，符合本地熔断语义） |
 | 4 | 动态路由 current/previous 快照为进程内（Wave 5.35） | 回滚只在当前实例生效，不回写 Nacos；多实例需重新发布上一版配置实现全局回滚 |
@@ -57,6 +57,7 @@
 
 | 版本 | 日期 | 作者 | 变更说明 |
 |---|---|---|---|
+| v1.4 | 2026-11-11 | BlueWhale | **残余风险 #1 销账（Wave 6.14）**：真实故障注入跑通熔断全生命周期（CLOSED→OPEN→HALF_OPEN→OPEN→CLOSED），prometheus 指标与迁移日志双证据。顺带修复冒烟脚本三处潜伏缺陷（PS 5.1 缺 BOM 解析失败、`/auth/login` 未跟随 URL 版式、5.1 读 4xx/5xx 响应体为空）——此前「运行时未取证」的根因正是脚本在 PS 5.1 下无法解析执行。另记录一次部署漂移：网关镜像停在 11-07，未包含 11-10 的 auth URL 版式白名单，导致 `/auth/v1/login` 经网关 401，重建镜像后恢复 |
 | v1.3 | 2026-11-11 | BlueWhale | **全量核对**：GW-01~07 逐条以代码事实复核，确认全部闭环（无未勾销任务）。GW-06 的持续保障升级为静态门禁 `scripts/check-internal-boundary.py`（CI 作业 `internal-boundary`，基线 118 条内网端点三层口径一致）；auth 台账同步销账并互相引用。**唯一未决项 = 残余风险 #1**（熔断半开探测运行时取证），其余风险为已接受的单实例语义 |
 | v1.2 | 2026-10-21 | BlueWhale | **Wave 5.35 网关治理收口**：GW-03 动态路由配置治理闭环（校验器 + 整体拒绝 + 双快照 + `gateway.routes.rejected` + `/actuator/routeGovernance` 回滚 + **回滚固定标记**）；GW-02 resilience4j 2.3.0 替换自研熔断闭环（契约与指标名不变）；GW-01 Sentinel **评估结案（不引入）**。网关单测 **76/76**，运行时 `GW-GOVERNANCE-PASS`；残余风险 #2 消除，新增 #4（快照为进程内）。报告：[reviews/2026-10-21-wave5.35-workflow-gateway.md](../reviews/2026-10-21-wave5.35-workflow-gateway.md)、[Sentinel 评估](../reviews/2026-10-21-wave5.35-sentinel-evaluation.md) |
 | v1.1 | 2026-10-21 | BlueWhale | Wave 5.34 收尾：GW-04~07 维持闭环；**GW-01/02/03 明确保持 P3 backlog**（本轮不实现）。另修复潜伏缺陷：`whale-apps` erp/mes/oa/pdm 与 `whale-config` 共 5 处 `${server.port:…}` → `${SERVER_PORT:…}`，消除带 actuator 服务启动时的 `Circular placeholder reference`（与网关无直接耦合，但属同批配置收尾）。 |
