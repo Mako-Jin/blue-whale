@@ -35,6 +35,9 @@ public class TwinMessageClient {
     /** 内网发送路径 */
     private static final String SEND_PATH = "/message/internal/send";
 
+    /** 内网偏好解析路径（Wave 6.17c） */
+    private static final String PREFERENCE_RESOLVE_PATH = "/message/internal/preferences/resolve";
+
     /** 业务类型（whale-message 侧归类用，最长 32） */
     private static final String BIZ_TYPE = "twin-alert";
 
@@ -114,6 +117,98 @@ public class TwinMessageClient {
                     idempotencyKey, error.getMessage());
             return new SendOutcome(null, null, error.getMessage());
         }
+    }
+
+    /**
+     * 按用户偏好解析站内信可投收件人（Wave 6.17c）。
+     *
+     * <p>语义解释在 whale-message（静默窗口/阈值/渠道归一），孪生侧只声明默认行为：
+     * 渠道 INAPP、级别用本次告警级别；critical 穿透由全局开关转成
+     * {@code quietBypassLevels}。任何失败（message 不可达 / 返回异常）返回
+     * {@code null} 表示「解析不了」，调用方按<b>全部放行</b>处理——偏好是旁路，
+     * 绝不阻塞外发（fail-open）。</p>
+     *
+     * @param tenantId      租户ID
+     * @param userIds       候选接收人
+     * @param level         本次告警级别（warn/critical，大小写不敏感）
+     * @param criticalBypass 全局 critical 穿透开关（true 时静默对 critical 不生效）
+     * @return 仍可投站内信的用户 ID；解析失败返回 {@code null}（全部放行）
+     */
+    public List<Long> resolveInappRecipients(Long tenantId, List<Long> userIds, String level,
+                                             boolean criticalBypass) {
+        if (userIds == null || userIds.isEmpty()) {
+            return userIds;
+        }
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("tenantId", tenantId);
+        body.put("bizType", BIZ_TYPE);
+        body.put("userIds", userIds);
+        if (StringUtils.hasText(level)) {
+            body.put("level", level.trim().toUpperCase(java.util.Locale.ROOT));
+        }
+        body.put("defaults", Map.of("channels", List.of(CHANNEL_INAPP)));
+        if (criticalBypass && StringUtils.hasText(level)
+                && "CRITICAL".equalsIgnoreCase(level.trim())) {
+            body.put("quietBypassLevels", List.of("CRITICAL"));
+        }
+        RestClient target = client == null ? InternalTokenSupport.restClient() : client;
+        try {
+            Map<String, Object> response = target.post()
+                    .uri(properties.getAlertNotify().getMessageBaseUrl() + PREFERENCE_RESOLVE_PATH)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .headers(headers -> {
+                        if (tenantId != null) {
+                            headers.set(WebHeaders.TENANT_ID, String.valueOf(tenantId));
+                        }
+                    })
+                    .body(body)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
+            return parseAllowedUsers(response, userIds);
+        } catch (RuntimeException error) {
+            log.warn("用户偏好解析失败（按全部放行处理）：reason={}", error.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 解析偏好结果：保留仍可投站内信的用户。
+     *
+     * @param response       响应信封
+     * @param requestedUsers 请求的候选用户
+     * @return 可投用户；业务失败或结构不符返回 {@code null}（全部放行）
+     */
+    private List<Long> parseAllowedUsers(Map<String, Object> response, List<Long> requestedUsers) {
+        if (response == null) {
+            return null;
+        }
+        Object code = response.get("code");
+        if (code != null && !CODE_SUCCESS.equals(String.valueOf(code))) {
+            log.warn("用户偏好解析业务失败（按全部放行处理）：{}", response.get("message"));
+            return null;
+        }
+        if (!(response.get("data") instanceof List<?> items)) {
+            return null;
+        }
+        List<Long> allowed = new java.util.ArrayList<>();
+        for (Object item : items) {
+            if (!(item instanceof Map<?, ?> decision)) {
+                continue;
+            }
+            Object userId = decision.get("userId");
+            Object channels = decision.get("channels");
+            if (!(userId instanceof Number number) || !(channels instanceof List<?> names)) {
+                continue;
+            }
+            long id = number.longValue();
+            boolean inappAllowed = names.stream()
+                    .anyMatch(name -> CHANNEL_INAPP.equalsIgnoreCase(String.valueOf(name)));
+            if (inappAllowed && requestedUsers.contains(id)) {
+                allowed.add(id);
+            }
+        }
+        return allowed;
     }
 
     /**

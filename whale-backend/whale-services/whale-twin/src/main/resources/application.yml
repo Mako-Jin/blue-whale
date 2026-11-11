@@ -126,6 +126,8 @@ whale:
       quiet-hours-critical-bypass: ${WHALE_TWIN_NOTIFY_QUIET_CRITICAL_BYPASS:true}
       # Wave 6.11 M2：接收人检索走 auth 内网通讯录
       auth-base-url: ${WHALE_TWIN_NOTIFY_AUTH_BASE_URL:http://127.0.0.1:8081}
+      # Wave 6.17c：站内信接收人按用户偏好过滤（偏好数据在 auth，语义解释在 message）
+      preference-enabled: ${WHALE_TWIN_NOTIFY_PREFERENCE_ENABLED:true}
 
 mybatis-plus:
   configuration:

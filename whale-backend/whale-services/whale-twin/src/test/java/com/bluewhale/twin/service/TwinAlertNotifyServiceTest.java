@@ -21,6 +21,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -76,6 +77,9 @@ class TwinAlertNotifyServiceTest {
         settingsService = new TwinAlertNotifySettingsService(sceneMapper, properties);
         when(recipientResolver.resolve(SCENE_ID))
                 .thenReturn(new TwinAlertRecipientResolver.Recipients(List.of(USER_ID), "示范场景"));
+        // Wave 6.17c：偏好解析默认桩为 null（fail-open 全部放行），仅偏好专项用例会覆盖
+        when(messageClient.resolveInappRecipients(any(), anyList(), any(), anyBoolean()))
+                .thenReturn(null);
     }
 
     @Test
@@ -142,6 +146,41 @@ class TwinAlertNotifyServiceTest {
         assertEquals(555L, dispatch.getMessageId());
         assertEquals(ALERT_ID, dispatch.getAlertId());
         assertEquals(TENANT_ID, dispatch.getTenantId());
+    }
+
+    @Test
+    void skipsInappWhenPreferenceFiltersAllRecipients() {
+        // Wave 6.17c：偏好把唯一接收人也剔掉（渠道关闭/静默）→ 不外发，记 SKIPPED
+        properties.getAlertNotify().setInappEnabled(true);
+        properties.getAlertNotify().setCooldownSeconds(0);
+        when(messageClient.resolveInappRecipients(any(), anyList(), any(), anyBoolean()))
+                .thenReturn(List.of());
+
+        service().notify(SCENE_ID, TENANT_ID, ALERT_ID, alert("warn"));
+
+        verify(messageClient, never()).sendInapp(any(), anyString(), anyString(), anyString(),
+                anyMap(), anyList());
+        TwinAlertDispatch dispatch = captureDispatch();
+        assertEquals(TwinAlertDispatchService.STATUS_SKIPPED, dispatch.getStatus());
+        assertEquals("userIds=0", dispatch.getTarget());
+    }
+
+    @Test
+    void skipsInappWhenPreferenceFiltersSomeRecipients() {
+        // Wave 6.17c：偏好放行部分接收人 → 只对剩余用户外发
+        properties.getAlertNotify().setInappEnabled(true);
+        properties.getAlertNotify().setCooldownSeconds(0);
+        when(recipientResolver.resolve(SCENE_ID))
+                .thenReturn(new TwinAlertRecipientResolver.Recipients(List.of(USER_ID, 999L), "示范场景"));
+        when(messageClient.resolveInappRecipients(any(), anyList(), any(), anyBoolean()))
+                .thenReturn(List.of(USER_ID));
+        when(messageClient.sendInapp(any(), anyString(), anyString(), anyString(), anyMap(), anyList()))
+                .thenReturn(new TwinMessageClient.SendOutcome(556L, "SENT", null));
+
+        service().notify(SCENE_ID, TENANT_ID, ALERT_ID, alert("warn"));
+
+        verify(messageClient).sendInapp(eq(TENANT_ID), anyString(), anyString(), anyString(),
+                anyMap(), eq(List.of(USER_ID)));
     }
 
     @Test

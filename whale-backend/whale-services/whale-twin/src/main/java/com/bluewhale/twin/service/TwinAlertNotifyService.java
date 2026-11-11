@@ -283,17 +283,47 @@ public class TwinAlertNotifyService {
                     "场景未配置 alertNotify.userIds 且无创建人");
             return;
         }
+        // Wave 6.17c：站内信接收人按用户偏好过滤（偏好数据在 auth、语义解释在 message）。
+        // 解析失败返回 null → 全部放行（fail-open）；偏好只能收紧接收人集合，铁律不动。
+        List<Long> userIds = filterByPreference(tenantId, recipients.userIds(), alert.getLevel());
+        if (userIds.isEmpty()) {
+            recordDispatch(tenantId, sceneId, alertId, alert, event,
+                    TwinAlertDispatchService.CHANNEL_INAPP,
+                    "userIds=0", TwinAlertDispatchService.STATUS_SKIPPED, null,
+                    "全部接收人被用户偏好过滤（渠道关闭或静默窗口）");
+            return;
+        }
         TwinMessageClient.SendOutcome outcome = messageClient.sendInapp(tenantId,
                 idempotencyKey(sceneId, alertId, alert, event),
                 title(recipients.sceneName(), alert, event),
                 content(recipients.sceneName(), alert, event),
-                payload, recipients.userIds());
+                payload, userIds);
         recordDispatch(tenantId, sceneId, alertId, alert, event,
                 TwinAlertDispatchService.CHANNEL_INAPP,
-                "userIds=" + recipients.userIds().size(),
+                "userIds=" + userIds.size(),
                 outcome.ok() ? TwinAlertDispatchService.STATUS_SUCCESS
                         : TwinAlertDispatchService.STATUS_FAILED,
                 outcome.messageId(), outcome.error());
+    }
+
+    /**
+     * 按用户偏好过滤站内信接收人（Wave 6.17c）。
+     *
+     * <p>开关关闭或解析失败（{@code null}）时全部放行；critical 穿透由全局开关
+     * {@code quietHoursCriticalBypass} 转成 message 侧的静默豁免级别。</p>
+     *
+     * @param tenantId 租户ID
+     * @param userIds  候选接收人
+     * @param level    本次告警级别
+     * @return 过滤后仍可投的用户列表
+     */
+    private List<Long> filterByPreference(Long tenantId, List<Long> userIds, String level) {
+        if (!properties.getAlertNotify().isPreferenceEnabled()) {
+            return userIds;
+        }
+        List<Long> allowed = messageClient.resolveInappRecipients(tenantId, userIds, level,
+                properties.getAlertNotify().isQuietHoursCriticalBypass());
+        return allowed != null ? allowed : userIds;
     }
 
     /**

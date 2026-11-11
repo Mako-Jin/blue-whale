@@ -186,5 +186,8 @@ public class TwinProperties {
 
         /** whale-service-auth 内网地址（接收人检索走 /user/internal/directory） */
         private String authBaseUrl = "http://127.0.0.1:8081";
+
+        /** 用户偏好过滤开关（Wave 6.17c；关闭或解析失败时按「全部放行」处理） */
+        private boolean preferenceEnabled = true;
     }
 }
