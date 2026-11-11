@@ -155,22 +155,6 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.20.5)(jsdom@25.0.1)
 
-  games/whale-games-core:
-    dependencies:
-      '@bluewhale/whale-common-tools':
-        specifier: workspace:*
-        version: link:../../shared-packages/whale-common-tools
-    devDependencies:
-      rimraf:
-        specifier: ^6.0.1
-        version: 6.1.3
-      tsup:
-        specifier: ^8.3.4
-        version: 8.5.1(postcss@8.5.30)(typescript@5.9.3)
-      typescript:
-        specifier: ^5.6.3
-        version: 5.9.3
-
   ops:
     dependencies:
       '@bluewhale/http':

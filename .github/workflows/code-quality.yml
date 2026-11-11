@@ -178,6 +178,21 @@ jobs:
       - name: Qiankun Lifecycle & Base Scan
         run: python3 scripts/check-qiankun-lifecycle.py
 
+  reauth-wiring:
+    name: Frontend · 二次认证接线
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 危险端点（删用户/重置口令/改状态/分配角色）标了 @RequireReauth，缺 step-up 凭证
+      # 时后端返回 HTTP 428 + 42801。共享 http 只有在创建客户端时传了 onReauthRequired
+      # 才会弹窗验密并带 X-Reauth-Token 重放一次；没传就把 42801 原样抛给业务层——
+      # 用户只看到「需要二次认证」，重试多少次都不可能成功，现场没有任何线索。
+      - name: Reauth Wiring Scan
+        run: python3 scripts/check-reauth-wiring.py
+
   ai-pytest:
     name: AI · Python 3.12 + pytest
     runs-on: ubuntu-latest

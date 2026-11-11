@@ -11,7 +11,6 @@ import ArchiveItemList from '../pages/archive/ItemList';
 import ArchivePendingList from '../pages/archive/PendingList';
 import ArchiveRuleList from '../pages/archive/RuleList';
 import ArchiveSyncStatus from '../pages/archive/SyncStatus';
-import ComponentsDemo from '../pages/demo/ComponentsDemo';
 import AssistantDefinitionList from '../pages/assistant/DefinitionList';
 import AssistantUsageBoard from '../pages/assistant/UsageBoard';
 import ConfigItemList from '../pages/config/ItemList';
@@ -43,7 +42,12 @@ import VideoStatPage from '../pages/video/StatPage';
 /** 侧边导航项类型（与 antd Menu items 对齐） */
 export type SidebarItem = NonNullable<MenuProps['items']>[number];
 
-/** 组件标识 → 页面组件（契约键：user / role / menu / tenant / components / dept / permission / job / file / archive/*） */
+/**
+ * 组件标识 → 页面组件（契约键：user / role / menu / tenant / dept / permission / job / file / archive/*）。
+ *
+ * <p>只登记由后端 {@code sys_menu.component} 驱动的页面；`/components` 是开发用的静态路由，
+ * 由 App.tsx 直接渲染，不进本表——否则会留下永远匹配不到菜单种子的死键。</p>
+ */
 const COMPONENT_MAP: Record<
   | 'user'
   | 'role'
@@ -51,7 +55,6 @@ const COMPONENT_MAP: Record<
   | 'tenant'
   | 'tenant/member'
   | 'tenant/config'
-  | 'components'
   | 'dept'
   | 'permission'
   | 'job'
@@ -86,7 +89,6 @@ const COMPONENT_MAP: Record<
   tenant: TenantList,
   'tenant/member': TenantMemberList,
   'tenant/config': TenantConfigList,
-  components: ComponentsDemo,
   dept: DeptList,
   permission: PermissionList,
   job: JobList,
@@ -134,7 +136,7 @@ function isComponentKey(value: string): value is ComponentKey {
 
 /**
  * 解析组件标识，同时兼容契约键与路径式取值：
- * user / role / menu / components / dept / permission / job / file，
+ * user / role / menu / dept / permission / job / file，
  * 以及 system/user/index → user、system/dept/index → dept、system/job/index → job 等
  */
 function resolveComponent(component?: string): ComponentType | undefined {
