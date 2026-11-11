@@ -38,6 +38,9 @@ const DEV_PORTS = {
   'whale-assistant': 8120,
   'whale-iot': 8121,
   'whale-twin': 8122,
+  // 知识助手沿用独立运行端口 8004（早期立项即定，见 docs/service-catalog.md §七），
+  // 未并入 81xx 段以免影响既有的独立起服脚本
+  'whale-agent': 8004,
 } as const;
 
 type SubAppName = keyof typeof DEV_PORTS;
@@ -212,6 +215,14 @@ export const apps: WhaleMicroApp[] = [
     name: 'whale-twin',
     entry: subAppEntry('whale-twin', import.meta.env.VITE_SUBAPP_ENTRY_TWIN),
     activeRule: '/twin',
+    container: '#subapp-container',
+    props: platformProps(),
+  },
+  {
+    // 知识助手（Wave 6.18a 接入）：菜单种子 sys_menu#9/#10 落点 /agent、/agent/chat
+    name: 'whale-agent',
+    entry: subAppEntry('whale-agent', import.meta.env.VITE_SUBAPP_ENTRY_AGENT),
+    activeRule: '/agent',
     container: '#subapp-container',
     props: platformProps(),
   },

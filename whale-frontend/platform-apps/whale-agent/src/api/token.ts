@@ -13,7 +13,35 @@ const storage = createAuthStorage<UserInfo>({
   userKey: 'whale_agent_user',
 });
 
-export const getToken = storage.getToken;
+/** 基座注入的登录态读取器（qiankun props；独立运行时为 null） */
+let hostTokenGetter: (() => string | null) | null = null;
+
+/** 是否内嵌在基座中运行（mount 时置 true，unmount 复位） */
+let embeddedInHost = false;
+
+/**
+ * 保存基座注入的宿主属性（qiankun mount 前调用，unmount 后传 null 清空）。
+ *
+ * <p>基座的 accessToken 是内存态，子应用读不到 localStorage，只能经 props 注入读取器；
+ * 独立运行时该读取器为空，回落到本应用自己的存储。</p>
+ *
+ * @param props 基座注入的 props（含 getToken）；null 表示退出基座
+ */
+export function setPlatformHostProps(props?: { getToken?: () => string | null } | null): void {
+  hostTokenGetter = props?.getToken ?? null;
+  embeddedInHost = Boolean(props);
+}
+
+/** 是否内嵌在基座中运行（决定是否复用基座的顶栏/登录态） */
+export function isEmbeddedInHost(): boolean {
+  return embeddedInHost;
+}
+
+/** 读取当前登录 token：基座注入优先，其次本应用存储（未登录为 null） */
+export function getToken(): string | null {
+  return hostTokenGetter?.() ?? storage.getToken();
+}
+
 export const getCurrentUser = storage.getCurrentUser;
 export const subscribeCurrentUser = storage.subscribeCurrentUser;
 export const useCurrentUser = storage.useCurrentUser;

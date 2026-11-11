@@ -68,6 +68,8 @@ export const routes = [
       { path: 'party/*', element: <SubAppContainer /> },
       // 邮箱（whale-mail 子应用，Wave 5.89 M0 独立起服务）
       { path: 'mail/*', element: <SubAppContainer /> },
+      // 知识助手（whale-agent 子应用，Wave 6.18a 接入基座）
+      { path: 'agent/*', element: <SubAppContainer /> },
     ],
   },
 ];

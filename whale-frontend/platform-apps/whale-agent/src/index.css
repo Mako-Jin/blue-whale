@@ -92,7 +92,10 @@ body,
 }
 
 .agent-content {
-  height: calc(100vh - 56px);
+  /* 用 flex 撑满父容器：独立运行时父级是 100vh 的 Layout，基座内嵌时是注入容器的 100%，
+     写死 calc(100vh - 56px) 在基座里会顶出可视区（Wave 6.18a） */
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: hidden;
   background: var(--agent-bg);
 }

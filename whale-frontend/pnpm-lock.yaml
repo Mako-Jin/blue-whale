@@ -274,6 +274,9 @@ importers:
       vite:
         specifier: ^6.0.0
         version: 6.4.4(@types/node@22.20.5)
+      vite-plugin-qiankun:
+        specifier: ^1.0.15
+        version: 1.0.15(typescript@5.9.3)(vite@6.4.4(@types/node@22.20.5))
 
   platform-apps/whale-assistant:
     dependencies:

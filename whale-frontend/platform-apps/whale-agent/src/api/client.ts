@@ -16,4 +16,7 @@ const client = createHttpClient<LoginResponse>({
 export { ApiError } from '@bluewhale/http';
 export type { HttpOptions, PageResult, Result, SseEventHandler } from '@bluewhale/http';
 
+/** 基座注入的登录态读取器挂载点（qiankun mount 前调用，见 main.tsx） */
+export { setPlatformHostProps } from './token';
+
 export const { http, get, post, put, del, refreshSession, streamSse } = client;

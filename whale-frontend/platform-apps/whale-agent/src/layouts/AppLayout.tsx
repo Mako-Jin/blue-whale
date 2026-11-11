@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { App, Button, Layout, Space, Tag } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { fetchMe, logout } from '../api/auth';
-import { getCurrentUser, useCurrentUser } from '../api/token';
+import { getCurrentUser, isEmbeddedInHost, useCurrentUser } from '../api/token';
 import IndexBadge from '../components/IndexBadge';
 
 const { Header, Content } = Layout;
@@ -18,6 +18,8 @@ export default function AppLayout() {
   const location = useLocation();
   const { message } = App.useApp();
   const user = useCurrentUser();
+  // 基座内嵌时顶栏由基座提供：不重复渲染品牌与退出登录，高度也不吃满视口
+  const embedded = isEmbeddedInHost();
   const [permissions, setPermissions] = useState<string[]>(
     () => getCurrentUser()?.permissions ?? [],
   );
@@ -48,12 +50,17 @@ export default function AppLayout() {
   };
 
   return (
-    <Layout style={{ height: '100vh' }}>
+    <Layout style={{ height: embedded ? '100%' : '100vh' }}>
       <Header className="agent-header">
-        <Space size={12} align="center">
-          <span className="agent-brand">蓝鲸知识助手</span>
-          <span className="agent-brand-sub">Platform &amp; Project Knowledge Agent</span>
-        </Space>
+        {embedded ? (
+          // 基座内：只保留索引状态（顶栏品牌与退出登录由基座承担）
+          <span className="agent-brand-sub">知识助手</span>
+        ) : (
+          <Space size={12} align="center">
+            <span className="agent-brand">蓝鲸知识助手</span>
+            <span className="agent-brand-sub">Platform &amp; Project Knowledge Agent</span>
+          </Space>
+        )}
         <Space size={12} align="center">
           <IndexBadge canRebuild={permissions.includes(REBUILD_PERMISSION)} />
           <span>{user?.nickname ?? user?.username ?? '-'}</span>
@@ -62,9 +69,11 @@ export default function AppLayout() {
               {role}
             </Tag>
           ))}
-          <Button type="primary" danger size="small" onClick={() => void handleLogout()}>
-            退出登录
-          </Button>
+          {embedded ? null : (
+            <Button type="primary" danger size="small" onClick={() => void handleLogout()}>
+              退出登录
+            </Button>
+          )}
         </Space>
       </Header>
       <Content className="agent-content" data-path={location.pathname}>
