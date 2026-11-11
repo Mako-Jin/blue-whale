@@ -48,6 +48,8 @@ services:
       NACOS_SERVER: ${NACOS_SERVER}
       REDIS_HOST: ${REDIS_HOST}
       REDIS_PORT: "6379"
+      # 熔断打开/恢复时向 whale-alert 上报告警记录（alert 属 ops profile，未起时调用失败仅记 WARN）
+      WHALE_GATEWAY_ALERT_BASE_URL: "${WHALE_GATEWAY_ALERT_BASE_URL:-http://bw-alert:9103}"
     ports:
       - "127.0.0.1:8080:8080"
     healthcheck:
