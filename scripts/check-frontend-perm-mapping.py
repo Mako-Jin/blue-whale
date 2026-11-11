@@ -274,11 +274,20 @@ def collect_auth_seeds() -> tuple[list[MenuSeed], set[str]]:
             for values in tuples:
                 if len(values) != len(columns):
                     continue
-                # INSERT ... SELECT 拷贝型语句（按租户复制既有菜单）：SELECT 列是
-                # 别名/函数表达式而非新数据，不携带新的 component 事实 → 跳过
+                # 判定「拷贝型 INSERT ... SELECT」（按租户复制既有菜单）时只看**事实列**：
+                # name/path/component/permission_code/menu_type。这些列是别名或函数表达式，
+                # 说明该行是从别的行复制来的，不携带新的「菜单是什么」的事实 → 跳过。
+                #
+                # id 列不参与判定：项目红线要求新菜单主键用 MD5 派生
+                # （`CAST(CONV(SUBSTR(MD5(...))) AS UNSIGNED)`），若把 id 也算进去，
+                # 越是按规范写的迁移越会被整行丢弃——门禁反而对最该覆盖的脚本失明。
+                fact_indexes = [
+                    idx for idx in (idx_name, idx_path, idx_comp, idx_perm, idx_type)
+                    if idx is not None
+                ]
                 if any(
-                    "(" in value or re.match(r"^[A-Za-z_]\w*\.\w+", value.strip())
-                    for value in values
+                    "(" in values[idx] or re.match(r"^[A-Za-z_]\w*\.\w+", values[idx].strip())
+                    for idx in fact_indexes
                 ):
                     continue
 
