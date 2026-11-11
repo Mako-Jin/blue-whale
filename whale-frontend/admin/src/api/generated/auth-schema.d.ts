@@ -68,22 +68,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/user-config": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["list"];
-        put: operations["upsert"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/tenant/{id}": {
         parameters: {
             query?: never;
@@ -171,8 +155,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_1"];
-        put: operations["upsert_1"];
+        get: operations["list"];
+        put: operations["upsert"];
         post?: never;
         delete?: never;
         options?: never;
@@ -239,6 +223,22 @@ export interface paths {
         put: operations["update_5"];
         post?: never;
         delete: operations["delete_4"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/v1/user-config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_1"];
+        put: operations["upsert_1"];
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -884,7 +884,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/user-config/{configKey}": {
+    "/auth/v1/user-config/{configKey}": {
         parameters: {
             query?: never;
             header?: never;
@@ -974,10 +974,6 @@ export interface components {
             permissionId: number;
             attrKey: string;
             attrValue: string;
-        };
-        SaveUserConfigRequest: {
-            configKey: string;
-            configValue: string;
         };
         TenantUpdateRequest: {
             tenantName?: string;
@@ -1112,6 +1108,10 @@ export interface components {
             leader?: string;
             /** Format: int64 */
             leaderUserId?: number;
+        };
+        SaveUserConfigRequest: {
+            configKey: string;
+            configValue: string;
         };
         ChangeOwnPasswordRequest: {
             oldPassword: string;
@@ -1369,16 +1369,6 @@ export interface components {
             message?: string;
             data?: components["schemas"]["UserDirectoryVO"][];
         };
-        ResultListUserConfigVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["UserConfigVO"][];
-        };
-        UserConfigVO: {
-            configKey?: string;
-            configValue?: string;
-        };
         PageResultTenantVO: {
             records?: components["schemas"]["TenantVO"][];
             /** Format: int64 */
@@ -1565,6 +1555,16 @@ export interface components {
             code?: number;
             message?: string;
             data?: components["schemas"]["DeptLeaderVO"];
+        };
+        ResultListUserConfigVO: {
+            /** Format: int32 */
+            code?: number;
+            message?: string;
+            data?: components["schemas"]["UserConfigVO"][];
+        };
+        UserConfigVO: {
+            configKey?: string;
+            configValue?: string;
         };
         ResultListTenantResponse: {
             /** Format: int32 */
@@ -1881,70 +1881,6 @@ export interface operations {
             };
         };
     };
-    list: {
-        parameters: {
-            query?: {
-                prefix?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListUserConfigVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    upsert: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SaveUserConfigRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
     detail_1: {
         parameters: {
             query?: never;
@@ -2178,7 +2114,7 @@ export interface operations {
             };
         };
     };
-    list_1: {
+    list: {
         parameters: {
             query?: {
                 prefix?: string;
@@ -2209,7 +2145,7 @@ export interface operations {
             };
         };
     };
-    upsert_1: {
+    upsert: {
         parameters: {
             query?: never;
             header?: never;
@@ -2609,6 +2545,70 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultVoid"];
+                };
+            };
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultVoid"];
+                };
+            };
+        };
+    };
+    list_1: {
+        parameters: {
+            query?: {
+                prefix?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultListUserConfigVO"];
+                };
+            };
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultVoid"];
+                };
+            };
+        };
+    };
+    upsert_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveUserConfigRequest"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {

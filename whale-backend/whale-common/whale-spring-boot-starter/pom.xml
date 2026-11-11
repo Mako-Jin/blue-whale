@@ -85,6 +85,12 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-restclient</artifactId>
         </dependency>
+        <!-- OpenAPI 契约统一暴露：所有 MVC 服务默认开放 /v3/api-docs，供前端批量生成 TS 契约
+             （P2-3 试点 whale-auth 验证过 Boot 4 / Jackson 3 兼容性；网关是 WebFlux，不经本 starter） -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
