@@ -131,3 +131,33 @@ export function bindUserTenant(userId: number, tenantId: number): Promise<void> 
 export function unbindUserTenant(userId: number, tenantId: number): Promise<void> {
   return del<void>(`/user/${userId}/tenants/${tenantId}`);
 }
+
+// ---------------------------------------------------------------------------
+// 租户配置（Wave 6.19）：权限中心通用配置的租户默认值层
+//
+// 读取优先级「用户配置 > 租户配置 > 消费方默认」，本层由租户管理员维护；
+// 值一律 JSON 字符串（≤8KB），auth 只存取不解释语义，键前缀分域（notify.* / ui.*）。
+// ---------------------------------------------------------------------------
+
+/** 租户配置条目 */
+export interface TenantConfigEntry {
+  /** 租户 ID */
+  tenantId: number;
+  /** 配置键（前缀分域，如 notify.twin.alert） */
+  configKey: string;
+  /** 配置值（JSON 字符串） */
+  configValue: string;
+}
+
+/** 查询本租户配置（prefix 为空表示全部） */
+export function listTenantConfig(prefix?: string): Promise<TenantConfigEntry[]> {
+  return get<TenantConfigEntry[]>('/tenant/config', prefix ? { prefix } : undefined);
+}
+
+/** 保存一条租户配置（存在则覆盖） */
+export function upsertTenantConfig(payload: {
+  configKey: string;
+  configValue: string;
+}): Promise<void> {
+  return put<void>('/tenant/config', payload);
+}

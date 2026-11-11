@@ -730,3 +730,18 @@ VALUES
     -- REQ-SEC-023：租户口令策略（172–173 下发给租户管理员，平台专属码清单不含这两项）
     (172, 0, 'sys:tenant:pwdpolicy:list', '查询租户口令策略', 'API', '/tenant/password-policy', 'GET', 172, 1),
     (173, 0, 'sys:tenant:pwdpolicy:edit', '配置租户口令策略', 'API', '/tenant/password-policy', 'PUT', 173, 1);
+
+-- ---------------------------------------------------------------------------
+-- Wave 6.19：租户配置页菜单（权限码 2322/2323 见 migration/V4，业务租户由开通流程或 V7 复制）
+-- 注意：sys_menu.id 非自增且各服务迁移各自编号，判重键必须用 (tenant_id, path)，
+--       早期版本的固定 id=37 已与 whale-doc 的 /doc/spaces 撞号（见 V7 头部复盘）
+-- ---------------------------------------------------------------------------
+INSERT INTO sys_menu (id, tenant_id, parent_id, name, path, component, icon, sort,
+                      menu_type, permission_code, visible, status)
+SELECT CAST(CONV(SUBSTR(MD5('menu:tenant-config'), 1, 15), 16, 10) AS UNSIGNED),
+       1, 1, '租户配置', '/system/tenant-config', 'tenant/config/index', 'setting', 10,
+       'MENU', 'sys:tenant:config:list', 1, 1
+FROM DUAL
+WHERE NOT EXISTS (
+    SELECT 1 FROM sys_menu WHERE tenant_id = 1 AND path = '/system/tenant-config'
+);

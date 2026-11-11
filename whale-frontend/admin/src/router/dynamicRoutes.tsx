@@ -30,6 +30,7 @@ import AppealAudit from '../pages/music/AppealAudit';
 import CommentAudit from '../pages/music/CommentAudit';
 import PlaylistList from '../pages/music/PlaylistList';
 import SongList from '../pages/music/SongList';
+import TenantConfigList from '../pages/tenant/TenantConfig';
 import TenantList from '../pages/tenant/TenantList';
 import TenantMemberList from '../pages/tenant/TenantMemberList';
 import UserList from '../pages/user/UserList';
@@ -49,6 +50,7 @@ const COMPONENT_MAP: Record<
   | 'menu'
   | 'tenant'
   | 'tenant/member'
+  | 'tenant/config'
   | 'components'
   | 'dept'
   | 'permission'
@@ -83,6 +85,7 @@ const COMPONENT_MAP: Record<
   menu: MenuList,
   tenant: TenantList,
   'tenant/member': TenantMemberList,
+  'tenant/config': TenantConfigList,
   components: ComponentsDemo,
   dept: DeptList,
   permission: PermissionList,
