@@ -193,6 +193,22 @@ jobs:
       - name: Reauth Wiring Scan
         run: python3 scripts/check-reauth-wiring.py
 
+  api-path-drift:
+    name: Full-stack · 接口路径漂移
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 网关只转发、不剥离前缀（REQ-ARCH-003），前端写的路径必须与后端
+      # @RequestMapping + @XxxMapping 拼出来的完整路径一致。两边任何一侧改了路径，
+      # 编译和启动都不报错，只在用户点下去那一刻 404/405。
+      # 已因此踩过三次：/auth/refresh 漂移、/auth/v1/user-config 恒 404、
+      # /party/union/welfare/welfare/... 重复段。同时覆盖「路径存在但方法不对」（405）。
+      - name: API Path Drift Scan
+        run: python3 scripts/check-api-path-drift.py
+
   ai-pytest:
     name: AI · Python 3.12 + pytest
     runs-on: ubuntu-latest

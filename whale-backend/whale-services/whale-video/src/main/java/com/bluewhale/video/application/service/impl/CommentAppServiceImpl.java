@@ -136,6 +136,20 @@ public class CommentAppServiceImpl implements CommentAppService {
         }
     }
 
+    /**
+     * 取消点赞。
+     *
+     * <p>不像 {@link #like} 那样校验评论可见：评论被审核隐藏或删除后，
+     * 用户仍要能收回自己的赞，否则会永远留在自己的「已赞」列表里。</p>
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void unlike(Long commentId, Long userId) {
+        if (commentLikeRepository.remove(userId, commentId)) {
+            commentRepository.addLikeCount(commentId, -1L);
+        }
+    }
+
     @Override
     public PageResult<CommentAuditView> auditPage(String status, long current, long size) {
         long pageNo = Math.max(current, 1L);

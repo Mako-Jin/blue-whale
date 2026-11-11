@@ -25,7 +25,6 @@ import {
   completeOrder,
   pageMyOrders,
   pageOrders,
-  shipOrder,
   type OrderView,
 } from '../../api/mall';
 import { hasPermission } from '../../utils/permission';
@@ -111,17 +110,6 @@ export default function OrderPage() {
     }
   };
 
-  /** 发货 */
-  const handleShip = async (row: OrderView) => {
-    try {
-      await shipOrder(row.id);
-      message.success('已发货');
-      await load();
-    } catch (error) {
-      message.error(errorText(error));
-    }
-  };
-
   /** 确认收货 */
   const handleComplete = async (row: OrderView) => {
     try {
@@ -183,12 +171,12 @@ export default function OrderPage() {
               取消
             </Button>
           )}
+          {/* 发货不是「点一下就发」：要选本次发哪几件、填承运商与运单号，一个订单可拆多个包裹。
+              完整流程在订单详情页（打开发货弹窗按可发数量预填），列表页只做入口。 */}
           {canManage && row.status === 'PAID' && (
-            <Popconfirm title="确认发货？" onConfirm={() => handleShip(row)}>
-              <Button type="link" size="small">
-                发货
-              </Button>
-            </Popconfirm>
+            <Button type="link" size="small" onClick={() => navigate(`/order/${row.id}`)}>
+              去发货
+            </Button>
           )}
           {row.status === 'SHIPPED' && (
             <Popconfirm title="确认收货？" onConfirm={() => handleComplete(row)}>

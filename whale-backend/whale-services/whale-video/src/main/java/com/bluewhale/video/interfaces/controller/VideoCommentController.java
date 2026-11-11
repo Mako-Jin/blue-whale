@@ -102,4 +102,21 @@ public class VideoCommentController {
         commentAppService.like(id, UserContext.requireUserId(request));
         return Result.ok();
     }
+
+    /**
+     * 取消点赞评论（幂等）。
+     *
+     * <p>与 {@link #like} 成对：前端 {@code likeComment(id, false)} 走的就是 DELETE，
+     * 此前只实现了 POST，取消点赞会 405，前端只能看着按钮状态跳变但服务端不变。</p>
+     *
+     * @param id 评论 ID
+     * @param request 当前请求（读取网关注入的用户头）
+     * @return 空结果
+     */
+    @DeleteMapping("/comment/{id}/like")
+    @RequirePermission("sys:video:comment:create")
+    public Result<Void> unlike(@PathVariable Long id, HttpServletRequest request) {
+        commentAppService.unlike(id, UserContext.requireUserId(request));
+        return Result.ok();
+    }
 }

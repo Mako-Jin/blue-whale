@@ -50,6 +50,14 @@ public interface CommentAppService {
     void like(Long commentId, Long userId);
 
     /**
+     * 取消点赞评论（幂等）。
+     *
+     * @param commentId 评论 ID
+     * @param userId 当前用户 ID
+     */
+    void unlike(Long commentId, Long userId);
+
+    /**
      * 审核队列分页。
      *
      * @param status 评论状态（默认 PENDING）

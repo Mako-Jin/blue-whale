@@ -20,6 +20,15 @@ public interface CommentLikeRepository {
     boolean add(Long userId, Long commentId);
 
     /**
+     * 幂等取消点赞。
+     *
+     * @param userId 用户 ID
+     * @param commentId 评论 ID
+     * @return 本次真的删掉一行返回 {@code true}
+     */
+    boolean remove(Long userId, Long commentId);
+
+    /**
      * 批量判断用户是否点赞过评论。
      *
      * @param userId 用户 ID

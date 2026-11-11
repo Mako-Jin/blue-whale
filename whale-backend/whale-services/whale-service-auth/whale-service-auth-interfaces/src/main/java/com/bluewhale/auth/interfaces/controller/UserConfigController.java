@@ -23,13 +23,18 @@ import java.util.List;
 /**
  * 用户配置接口：登录用户自助管理自己的配置（无需权限码）。
  *
- * <p>配置按当前租户隔离；网关侧经 {@code /auth/v1/user-config} 转发到本控制器。
- * 配置语义由 config_key 所属业务域定义，auth 只做存储口径校验（键格式、JSON、大小）。</p>
+ * <p>配置按当前租户隔离；网关经 {@code /auth/v1/**} 转发到本服务，因此路径必须自带
+ * 版本段（与 {@link com.bluewhale.auth.interfaces.api.AuthApi} 同一套
+ * {@code PathApiVersionResolver} 口径）。此前误写成 {@code /user-config}：网关
+ * 没有该前缀的路由，服务内也没有 {@code /auth/v1} 前缀——前端调
+ * {@code /auth/v1/user-config} 会 404，通知偏好页整体不可用。</p>
+ *
+ * <p>配置语义由 config_key 所属业务域定义，auth 只做存储口径校验（键格式、JSON、大小）。</p>
  *
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/user-config")
+@RequestMapping(path = "/auth/v{version}/user-config", version = "1")
 @RequiredArgsConstructor
 public class UserConfigController {
 

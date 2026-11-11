@@ -173,7 +173,7 @@ public class PartyUnionWelfareController {
      * @param request 当前请求
      * @return 视图
      */
-    @PostMapping("/welfare/item/{itemId}/sign")
+    @PostMapping("/item/{itemId}/sign")
     @RequirePermission(PartyPermissions.UNION_BROWSE)
     @AuditLog(operation = "签收节日福利", type = OperateType.UPDATE, targetType = "pty_union_welfare_item")
     public Result<UnionWelfareItemView> sign(@PathVariable("itemId") Long itemId, HttpServletRequest request) {

@@ -504,11 +504,6 @@ export function refundOrder(id: number, reason?: string): Promise<void> {
   return http.post<void>(`/mall/order/${id}/refund`, undefined, { reason });
 }
 
-/** 发货（PAID → SHIPPED） */
-export function shipOrder(id: number): Promise<void> {
-  return http.post<void>(`/mall/order/${id}/ship`);
-}
-
 /** 确认收货（SHIPPED → COMPLETED） */
 export function completeOrder(id: number): Promise<void> {
   return http.post<void>(`/mall/order/${id}/complete`);

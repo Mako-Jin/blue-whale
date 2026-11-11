@@ -38,6 +38,13 @@ public class CommentLikeRepositoryImpl implements CommentLikeRepository {
     }
 
     @Override
+    public boolean remove(Long userId, Long commentId) {
+        return commentLikeMapper.delete(new LambdaQueryWrapper<CommentLikeEntity>()
+                .eq(CommentLikeEntity::getUserId, userId)
+                .eq(CommentLikeEntity::getCommentId, commentId)) > 0;
+    }
+
+    @Override
     public List<Long> findLiked(Long userId, Collection<Long> commentIds) {
         if (commentIds == null || commentIds.isEmpty()) {
             return Collections.emptyList();
