@@ -495,8 +495,7 @@ export interface components {
             data?: unknown;
         };
         TwinSceneToolRequest: {
-            /** Format: int64 */
-            sceneId?: number;
+            sceneId?: string;
             sceneCode?: string;
         };
         JsonNode: unknown;
@@ -511,8 +510,7 @@ export interface components {
             params?: {
                 [key: string]: unknown;
             };
-            /** Format: int64 */
-            conversationId?: number;
+            conversationId?: string;
         };
         ResultMapStringObject: {
             /** Format: int32 */
@@ -529,8 +527,7 @@ export interface components {
             kinds?: string[];
         };
         IotDeviceToolRequest: {
-            /** Format: int64 */
-            deviceId?: number;
+            deviceId?: string;
             productCode?: string;
             deviceName?: string;
             identifier?: string;
@@ -562,16 +559,11 @@ export interface components {
             data?: boolean;
         };
         KnowledgeSyncResultVO: {
-            /** Format: int64 */
-            pulled?: number;
-            /** Format: int64 */
-            indexed?: number;
-            /** Format: int64 */
-            unchanged?: number;
-            /** Format: int64 */
-            skipped?: number;
-            /** Format: int64 */
-            failed?: number;
+            pulled?: string;
+            indexed?: string;
+            unchanged?: string;
+            skipped?: string;
+            failed?: string;
             /** Format: date-time */
             cursor?: string;
             /** Format: date-time */
@@ -586,21 +578,18 @@ export interface components {
             data?: components["schemas"]["KnowledgeSyncResultVO"];
         };
         FeedbackRequest: {
-            /** Format: int64 */
-            messageId: number;
+            messageId: string;
             /** Format: int32 */
             rating: number;
             comment?: string;
         };
         ChatRequest: {
-            /** Format: int64 */
-            conversationId?: number;
+            conversationId?: string;
             question: string;
             scope?: string;
         };
         SseEmitter: {
-            /** Format: int64 */
-            timeout?: number;
+            timeout?: string;
         };
         ResultListSearchHitVO: {
             /** Format: int32 */
@@ -625,39 +614,25 @@ export interface components {
             score?: number;
         };
         AgentKnowledgeStatsVO: {
-            /** Format: int64 */
-            total?: number;
-            /** Format: int64 */
-            pending?: number;
-            /** Format: int64 */
-            indexing?: number;
-            /** Format: int64 */
-            indexed?: number;
-            /** Format: int64 */
-            skipped?: number;
-            /** Format: int64 */
-            failed?: number;
-            /** Format: int64 */
-            chunkCount?: number;
+            total?: string;
+            pending?: string;
+            indexing?: string;
+            indexed?: string;
+            skipped?: string;
+            failed?: string;
+            chunkCount?: string;
             /** Format: date-time */
             cursor?: string;
             /** Format: date-time */
             lastRunAt?: string;
             lastResult?: string;
-            /** Format: int64 */
-            docTotal?: number;
-            /** Format: int64 */
-            docPending?: number;
-            /** Format: int64 */
-            docIndexing?: number;
-            /** Format: int64 */
-            docIndexed?: number;
-            /** Format: int64 */
-            docSkipped?: number;
-            /** Format: int64 */
-            docFailed?: number;
-            /** Format: int64 */
-            docChunkCount?: number;
+            docTotal?: string;
+            docPending?: string;
+            docIndexing?: string;
+            docIndexed?: string;
+            docSkipped?: string;
+            docFailed?: string;
+            docChunkCount?: string;
             /** Format: date-time */
             docCursor?: string;
             /** Format: date-time */
@@ -671,18 +646,14 @@ export interface components {
             data?: components["schemas"]["AgentKnowledgeStatsVO"];
         };
         AgentKnowledgeFileVO: {
-            /** Format: int64 */
-            id?: number;
-            /** Format: int64 */
-            fileId?: number;
+            id?: string;
+            fileId?: string;
             bucket?: string;
             originalName?: string;
             contentType?: string;
-            /** Format: int64 */
-            fileSize?: number;
+            fileSize?: string;
             md5?: string;
-            /** Format: int64 */
-            uploaderId?: number;
+            uploaderId?: string;
             source?: string;
             indexStatus?: string;
             /** Format: int32 */
@@ -701,12 +672,9 @@ export interface components {
         };
         PageResultAgentKnowledgeFileVO: {
             records?: components["schemas"]["AgentKnowledgeFileVO"][];
-            /** Format: int64 */
-            total?: number;
-            /** Format: int64 */
-            size?: number;
-            /** Format: int64 */
-            current?: number;
+            total?: string;
+            size?: string;
+            current?: string;
         };
         ResultPageResultAgentKnowledgeFileVO: {
             /** Format: int32 */
@@ -715,16 +683,12 @@ export interface components {
             data?: components["schemas"]["PageResultAgentKnowledgeFileVO"];
         };
         AgentKnowledgeDocVO: {
-            /** Format: int64 */
-            id?: number;
-            /** Format: int64 */
-            pageId?: number;
-            /** Format: int64 */
-            spaceId?: number;
+            id?: string;
+            pageId?: string;
+            spaceId?: string;
             title?: string;
             slug?: string;
-            /** Format: int64 */
-            revision?: number;
+            revision?: string;
             url?: string;
             indexStatus?: string;
             /** Format: int32 */
@@ -741,12 +705,9 @@ export interface components {
         };
         PageResultAgentKnowledgeDocVO: {
             records?: components["schemas"]["AgentKnowledgeDocVO"][];
-            /** Format: int64 */
-            total?: number;
-            /** Format: int64 */
-            size?: number;
-            /** Format: int64 */
-            current?: number;
+            total?: string;
+            size?: string;
+            current?: string;
         };
         ResultPageResultAgentKnowledgeDocVO: {
             /** Format: int32 */
@@ -763,8 +724,7 @@ export interface components {
             chunkCount?: number;
             /** Format: date-time */
             lastBuildAt?: string;
-            /** Format: int64 */
-            buildMillis?: number;
+            buildMillis?: string;
             /** Format: int32 */
             dimension?: number;
             embedding?: string;
@@ -804,8 +764,7 @@ export interface components {
             factKey?: string;
             /** Format: double */
             score?: number;
-            /** Format: int64 */
-            fileId?: number;
+            fileId?: string;
             downloadUrl?: string;
             url?: string;
         };
@@ -833,12 +792,9 @@ export interface components {
         };
         PageResultConversationVO: {
             records?: components["schemas"]["ConversationVO"][];
-            /** Format: int64 */
-            total?: number;
-            /** Format: int64 */
-            size?: number;
-            /** Format: int64 */
-            current?: number;
+            total?: string;
+            size?: string;
+            current?: string;
         };
         ResultPageResultConversationVO: {
             /** Format: int32 */
@@ -862,7 +818,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                fileId: number;
+                fileId: string;
             };
             cookie?: never;
         };
@@ -886,7 +842,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                pageId: number;
+                pageId: string;
             };
             cookie?: never;
         };
@@ -1191,7 +1147,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                fileId: number;
+                fileId: string;
             };
             cookie?: never;
         };
@@ -1213,7 +1169,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                pageId: number;
+                pageId: string;
             };
             cookie?: never;
         };
@@ -1388,8 +1344,8 @@ export interface operations {
                 keyword?: string;
                 status?: string;
                 source?: string;
-                current?: number;
-                size?: number;
+                current?: string;
+                size?: string;
             };
             header?: never;
             path?: never;
@@ -1413,8 +1369,8 @@ export interface operations {
             query?: {
                 keyword?: string;
                 status?: string;
-                current?: number;
-                size?: number;
+                current?: string;
+                size?: string;
             };
             header?: never;
             path?: never;
@@ -1482,7 +1438,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -1502,8 +1458,8 @@ export interface operations {
     page_1: {
         parameters: {
             query?: {
-                current?: number;
-                size?: number;
+                current?: string;
+                size?: string;
             };
             header?: never;
             path?: never;
@@ -1527,7 +1483,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };

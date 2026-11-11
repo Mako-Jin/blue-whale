@@ -274,8 +274,7 @@ export interface components {
             remark?: string;
         };
         MessageTemplateVO: {
-            /** Format: int64 */
-            id?: number;
+            id?: string;
             templateCode?: string;
             templateName?: string;
             titleTemplate?: string;
@@ -301,8 +300,7 @@ export interface components {
             data?: unknown;
         };
         MessageDeliveryVO: {
-            /** Format: int64 */
-            id?: number;
+            id?: string;
             channel?: string;
             recipient?: string;
             status?: string;
@@ -320,22 +318,19 @@ export interface components {
             data?: components["schemas"]["SendMessageResult"];
         };
         SendMessageResult: {
-            /** Format: int64 */
-            messageId?: number;
+            messageId?: string;
             duplicate?: boolean;
             status?: string;
             deliveries?: components["schemas"]["MessageDeliveryVO"][];
         };
         MessageRecipient: {
-            /** Format: int64 */
-            userId?: number;
+            userId?: string;
             /** Format: email */
             email?: string;
             phone?: string;
         };
         SendMessageRequest: {
-            /** Format: int64 */
-            tenantId?: number;
+            tenantId?: string;
             bizType?: string;
             bizId?: string;
             idempotencyKey?: string;
@@ -361,8 +356,7 @@ export interface components {
             rawPayload?: string;
         };
         DeliveryReceiptRequest: {
-            /** Format: int64 */
-            tenantId?: number;
+            tenantId?: string;
             receipts: components["schemas"]["DeliveryReceiptItem"][];
         };
         ReceiptApplyResult: {
@@ -390,17 +384,15 @@ export interface components {
             minLevel?: string;
         };
         PreferenceResolveRequest: {
-            /** Format: int64 */
-            tenantId: number;
+            tenantId: string;
             bizType: string;
-            userIds: number[];
+            userIds: string[];
             level?: string;
             defaults?: components["schemas"]["Defaults"];
             quietBypassLevels?: string[];
         };
         PreferenceDecisionVO: {
-            /** Format: int64 */
-            userId?: number;
+            userId?: string;
             channels?: string[];
             quiet?: boolean;
             suppressed?: boolean;
@@ -418,16 +410,13 @@ export interface components {
             bizType?: string;
         };
         AnnouncementVO: {
-            /** Format: int64 */
-            id?: number;
-            /** Format: int64 */
-            recordId?: number;
+            id?: string;
+            recordId?: string;
             title?: string;
             content?: string;
             bizType?: string;
             status?: string;
-            /** Format: int64 */
-            publisherId?: number;
+            publisherId?: string;
             /** Format: date-time */
             publishTime?: string;
             /** Format: date-time */
@@ -440,10 +429,8 @@ export interface components {
             data?: components["schemas"]["AnnouncementVO"];
         };
         MessageTemplateQueryRequest: {
-            /** Format: int64 */
-            current?: number;
-            /** Format: int64 */
-            size?: number;
+            current?: string;
+            size?: string;
             templateCode?: string;
             templateName?: string;
             /** Format: int32 */
@@ -451,12 +438,9 @@ export interface components {
         };
         PageResultMessageTemplateVO: {
             records?: components["schemas"]["MessageTemplateVO"][];
-            /** Format: int64 */
-            total?: number;
-            /** Format: int64 */
-            size?: number;
-            /** Format: int64 */
-            current?: number;
+            total?: string;
+            size?: string;
+            current?: string;
         };
         ResultPageResultMessageTemplateVO: {
             /** Format: int32 */
@@ -465,8 +449,7 @@ export interface components {
             data?: components["schemas"]["PageResultMessageTemplateVO"];
         };
         MessageRecordVO: {
-            /** Format: int64 */
-            id?: number;
+            id?: string;
             bizType?: string;
             bizId?: string;
             templateCode?: string;
@@ -487,10 +470,8 @@ export interface components {
             data?: components["schemas"]["MessageRecordVO"];
         };
         MessageRecordQueryRequest: {
-            /** Format: int64 */
-            current?: number;
-            /** Format: int64 */
-            size?: number;
+            current?: string;
+            size?: string;
             bizType?: string;
             bizId?: string;
             status?: string;
@@ -498,12 +479,9 @@ export interface components {
         };
         PageResultMessageRecordVO: {
             records?: components["schemas"]["MessageRecordVO"][];
-            /** Format: int64 */
-            total?: number;
-            /** Format: int64 */
-            size?: number;
-            /** Format: int64 */
-            current?: number;
+            total?: string;
+            size?: string;
+            current?: string;
         };
         ResultPageResultMessageRecordVO: {
             /** Format: int32 */
@@ -515,22 +493,17 @@ export interface components {
             /** Format: int32 */
             code?: number;
             message?: string;
-            /** Format: int64 */
-            data?: number;
+            data?: string;
         };
         InAppMessageQueryRequest: {
-            /** Format: int64 */
-            current?: number;
-            /** Format: int64 */
-            size?: number;
+            current?: string;
+            size?: string;
             /** Format: int32 */
             readFlag?: number;
         };
         InAppMessageVO: {
-            /** Format: int64 */
-            deliveryId?: number;
-            /** Format: int64 */
-            messageId?: number;
+            deliveryId?: string;
+            messageId?: string;
             title?: string;
             content?: string;
             bizType?: string;
@@ -545,12 +518,9 @@ export interface components {
         };
         PageResultInAppMessageVO: {
             records?: components["schemas"]["InAppMessageVO"][];
-            /** Format: int64 */
-            total?: number;
-            /** Format: int64 */
-            size?: number;
-            /** Format: int64 */
-            current?: number;
+            total?: string;
+            size?: string;
+            current?: string;
         };
         ResultPageResultInAppMessageVO: {
             /** Format: int32 */
@@ -559,20 +529,15 @@ export interface components {
             data?: components["schemas"]["PageResultInAppMessageVO"];
         };
         AnnouncementQueryRequest: {
-            /** Format: int64 */
-            current?: number;
-            /** Format: int64 */
-            size?: number;
+            current?: string;
+            size?: string;
             status?: string;
         };
         PageResultAnnouncementVO: {
             records?: components["schemas"]["AnnouncementVO"][];
-            /** Format: int64 */
-            total?: number;
-            /** Format: int64 */
-            size?: number;
-            /** Format: int64 */
-            current?: number;
+            total?: string;
+            size?: string;
+            current?: string;
         };
         ResultPageResultAnnouncementVO: {
             /** Format: int32 */
@@ -594,7 +559,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -616,7 +581,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -642,7 +607,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -664,7 +629,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -710,7 +675,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -804,7 +769,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                messageId: number;
+                messageId: string;
             };
             cookie?: never;
         };
@@ -872,7 +837,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -980,7 +945,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };

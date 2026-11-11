@@ -916,8 +916,7 @@ export interface components {
             phone?: string;
             email?: string;
             avatar?: string;
-            /** Format: int64 */
-            deptId?: number;
+            deptId?: string;
             /** Format: int32 */
             status?: number;
         };
@@ -928,15 +927,13 @@ export interface components {
             data?: components["schemas"]["UserVO"];
         };
         UserVO: {
-            /** Format: int64 */
-            id?: number;
+            id?: string;
             username?: string;
             nickname?: string;
             phone?: string;
             email?: string;
             avatar?: string;
-            /** Format: int64 */
-            deptId?: number;
+            deptId?: string;
             /** Format: int32 */
             status?: number;
             mustChangePassword?: boolean;
@@ -954,8 +951,7 @@ export interface components {
             status: number;
         };
         ResetPasswordVO: {
-            /** Format: int64 */
-            userId?: number;
+            userId?: string;
             username?: string;
             temporaryPassword?: string;
             mustChangePassword?: boolean;
@@ -970,8 +966,7 @@ export interface components {
             attrs: components["schemas"]["UserAttrItem"][];
         };
         UserAttrItem: {
-            /** Format: int64 */
-            permissionId: number;
+            permissionId: string;
             attrKey: string;
             attrValue: string;
         };
@@ -986,8 +981,7 @@ export interface components {
             data?: components["schemas"]["TenantVO"];
         };
         TenantVO: {
-            /** Format: int64 */
-            id?: number;
+            id?: string;
             tenantCode?: string;
             tenantName?: string;
             tenantType?: string;
@@ -1022,8 +1016,7 @@ export interface components {
             data?: components["schemas"]["TenantPasswordPolicyVO"];
         };
         TenantPasswordPolicyVO: {
-            /** Format: int64 */
-            tenantId?: number;
+            tenantId?: string;
             /** Format: int32 */
             maxAgeDays?: number;
             /** Format: int32 */
@@ -1035,7 +1028,7 @@ export interface components {
             defaultWarnDays?: number;
         };
         AssignRolesRequest: {
-            roleIds: number[];
+            roleIds: string[];
         };
         SaveTenantConfigRequest: {
             configKey: string;
@@ -1056,8 +1049,7 @@ export interface components {
             data?: components["schemas"]["RoleVO"];
         };
         RoleVO: {
-            /** Format: int64 */
-            id?: number;
+            id?: string;
             roleCode?: string;
             roleName?: string;
             description?: string;
@@ -1071,8 +1063,7 @@ export interface components {
             updateTime?: string;
         };
         PermissionRequest: {
-            /** Format: int64 */
-            parentId?: number;
+            parentId?: string;
             permCode: string;
             permName: string;
             permType: string;
@@ -1084,8 +1075,7 @@ export interface components {
             status?: number;
         };
         MenuRequest: {
-            /** Format: int64 */
-            parentId?: number;
+            parentId?: string;
             name: string;
             path?: string;
             component?: string;
@@ -1100,14 +1090,12 @@ export interface components {
             status?: number;
         };
         DeptRequest: {
-            /** Format: int64 */
-            parentId?: number;
+            parentId?: string;
             deptName: string;
             /** Format: int32 */
             sort?: number;
             leader?: string;
-            /** Format: int64 */
-            leaderUserId?: number;
+            leaderUserId?: string;
         };
         SaveUserConfigRequest: {
             configKey: string;
@@ -1125,8 +1113,7 @@ export interface components {
             remark?: string;
         };
         I18nMessageVO: {
-            /** Format: int64 */
-            id?: number;
+            id?: string;
             messageKey?: string;
             locale?: string;
             messageContent?: string;
@@ -1150,23 +1137,19 @@ export interface components {
             phone?: string;
             email?: string;
             avatar?: string;
-            /** Format: int64 */
-            deptId?: number;
+            deptId?: string;
             /** Format: int32 */
             status?: number;
         };
         BindUserTenantRequest: {
-            /** Format: int64 */
-            tenantId: number;
+            tenantId: string;
         };
         UserLifecycleCommand: {
             action?: string;
-            /** Format: int64 */
-            userId?: number;
+            userId?: string;
             username?: string;
             nickname?: string;
-            /** Format: int64 */
-            deptId?: number;
+            deptId?: string;
             phone?: string;
             email?: string;
         };
@@ -1177,43 +1160,36 @@ export interface components {
             data?: components["schemas"]["UserLifecycleVO"];
         };
         UserLifecycleVO: {
-            /** Format: int64 */
-            userId?: number;
+            userId?: string;
             username?: string;
             /** Format: int32 */
             status?: number;
-            /** Format: int64 */
-            deptId?: number;
+            deptId?: string;
             temporaryPassword?: string;
         };
         UserExistsRequest: {
-            userIds: number[];
+            userIds: string[];
         };
         ResultListLong: {
             /** Format: int32 */
             code?: number;
             message?: string;
-            data?: number[];
+            data?: string[];
         };
         ConfigSetRequest: {
-            /** Format: int64 */
-            tenantId: number;
-            /** Format: int64 */
-            userId: number;
+            tenantId: string;
+            userId: string;
             configKey: string;
             configValue: string;
-            /** Format: int64 */
-            operatorId?: number;
+            operatorId?: string;
         };
         ConfigBatchGetRequest: {
-            /** Format: int64 */
-            tenantId: number;
-            userIds: number[];
+            tenantId: string;
+            userIds: string[];
             keys: string[];
         };
         ConfigBatchItemVO: {
-            /** Format: int64 */
-            userId?: number;
+            userId?: string;
             configKey?: string;
             value?: string;
             source?: string;
@@ -1244,7 +1220,7 @@ export interface components {
             status?: number;
         };
         AssignPermissionsRequest: {
-            permissionIds: number[];
+            permissionIds: string[];
         };
         ResultString: {
             /** Format: int32 */
@@ -1253,25 +1229,20 @@ export interface components {
             data?: string;
         };
         SwitchTenantRequest: {
-            /** Format: int64 */
-            tenantId: number;
+            tenantId: string;
         };
         LoginResponse: {
             accessToken?: string;
             tokenType?: string;
-            /** Format: int64 */
-            expiresIn?: number;
-            /** Format: int64 */
-            userId?: number;
-            /** Format: int64 */
-            tenantId?: number;
+            expiresIn?: string;
+            userId?: string;
+            tenantId?: string;
             username?: string;
             nickname?: string;
             roles?: string[];
             mustChangePassword?: boolean;
             passwordExpired?: boolean;
-            /** Format: int64 */
-            passwordExpiresInDays?: number;
+            passwordExpiresInDays?: string;
         };
         ResultLoginResponse: {
             /** Format: int32 */
@@ -1284,8 +1255,7 @@ export interface components {
         };
         ReauthResponse: {
             token?: string;
-            /** Format: int64 */
-            expiresIn?: number;
+            expiresIn?: string;
         };
         ResultReauthResponse: {
             /** Format: int32 */
@@ -1306,29 +1276,21 @@ export interface components {
             data?: components["schemas"]["UserAttrVO"][];
         };
         UserAttrVO: {
-            /** Format: int64 */
-            id?: number;
-            /** Format: int64 */
-            userId?: number;
-            /** Format: int64 */
-            permissionId?: number;
+            id?: string;
+            userId?: string;
+            permissionId?: string;
             attrKey?: string;
             attrValue?: string;
         };
         PageQuery: {
-            /** Format: int64 */
-            current?: number;
-            /** Format: int64 */
-            size?: number;
+            current?: string;
+            size?: string;
         };
         PageResultUserVO: {
             records?: components["schemas"]["UserVO"][];
-            /** Format: int64 */
-            total?: number;
-            /** Format: int64 */
-            size?: number;
-            /** Format: int64 */
-            current?: number;
+            total?: string;
+            size?: string;
+            current?: string;
         };
         ResultPageResultUserVO: {
             /** Format: int32 */
@@ -1338,12 +1300,9 @@ export interface components {
         };
         PageResultUserDirectoryVO: {
             records?: components["schemas"]["UserDirectoryVO"][];
-            /** Format: int64 */
-            total?: number;
-            /** Format: int64 */
-            size?: number;
-            /** Format: int64 */
-            current?: number;
+            total?: string;
+            size?: string;
+            current?: string;
         };
         ResultPageResultUserDirectoryVO: {
             /** Format: int32 */
@@ -1352,12 +1311,10 @@ export interface components {
             data?: components["schemas"]["PageResultUserDirectoryVO"];
         };
         UserDirectoryVO: {
-            /** Format: int64 */
-            id?: number;
+            id?: string;
             username?: string;
             nickname?: string;
-            /** Format: int64 */
-            deptId?: number;
+            deptId?: string;
             deptName?: string;
             phone?: string;
             email?: string;
@@ -1371,12 +1328,9 @@ export interface components {
         };
         PageResultTenantVO: {
             records?: components["schemas"]["TenantVO"][];
-            /** Format: int64 */
-            total?: number;
-            /** Format: int64 */
-            size?: number;
-            /** Format: int64 */
-            current?: number;
+            total?: string;
+            size?: string;
+            current?: string;
         };
         ResultPageResultTenantVO: {
             /** Format: int32 */
@@ -1391,14 +1345,12 @@ export interface components {
             data?: components["schemas"]["TenantMemberVO"][];
         };
         RoleItem: {
-            /** Format: int64 */
-            id?: number;
+            id?: string;
             roleCode?: string;
             roleName?: string;
         };
         TenantMemberVO: {
-            /** Format: int64 */
-            userId?: number;
+            userId?: string;
             username?: string;
             nickname?: string;
             phone?: string;
@@ -1413,19 +1365,15 @@ export interface components {
             data?: components["schemas"]["TenantConfigEntry"][];
         };
         TenantConfigEntry: {
-            /** Format: int64 */
-            tenantId?: number;
+            tenantId?: string;
             configKey?: string;
             configValue?: string;
         };
         PageResultRoleVO: {
             records?: components["schemas"]["RoleVO"][];
-            /** Format: int64 */
-            total?: number;
-            /** Format: int64 */
-            size?: number;
-            /** Format: int64 */
-            current?: number;
+            total?: string;
+            size?: string;
+            current?: string;
         };
         ResultPageResultRoleVO: {
             /** Format: int32 */
@@ -1434,10 +1382,8 @@ export interface components {
             data?: components["schemas"]["PageResultRoleVO"];
         };
         PermissionVO: {
-            /** Format: int64 */
-            id?: number;
-            /** Format: int64 */
-            parentId?: number;
+            id?: string;
+            parentId?: string;
             permCode?: string;
             permName?: string;
             permType?: string;
@@ -1460,12 +1406,9 @@ export interface components {
         };
         PageResultPermissionVO: {
             records?: components["schemas"]["PermissionVO"][];
-            /** Format: int64 */
-            total?: number;
-            /** Format: int64 */
-            size?: number;
-            /** Format: int64 */
-            current?: number;
+            total?: string;
+            size?: string;
+            current?: string;
         };
         ResultPageResultPermissionVO: {
             /** Format: int32 */
@@ -1474,10 +1417,8 @@ export interface components {
             data?: components["schemas"]["PageResultPermissionVO"];
         };
         MenuVO: {
-            /** Format: int64 */
-            id?: number;
-            /** Format: int64 */
-            parentId?: number;
+            id?: string;
+            parentId?: string;
             name?: string;
             path?: string;
             component?: string;
@@ -1515,16 +1456,13 @@ export interface components {
             data?: string[];
         };
         DeptVO: {
-            /** Format: int64 */
-            id?: number;
-            /** Format: int64 */
-            parentId?: number;
+            id?: string;
+            parentId?: string;
             deptName?: string;
             /** Format: int32 */
             sort?: number;
             leader?: string;
-            /** Format: int64 */
-            leaderUserId?: number;
+            leaderUserId?: string;
             /** Format: date-time */
             createTime?: string;
             /** Format: date-time */
@@ -1544,11 +1482,9 @@ export interface components {
             data?: components["schemas"]["DeptVO"][];
         };
         DeptLeaderVO: {
-            /** Format: int64 */
-            deptId?: number;
+            deptId?: string;
             deptName?: string;
-            /** Format: int64 */
-            leaderUserId?: number;
+            leaderUserId?: string;
         };
         ResultDeptLeaderVO: {
             /** Format: int32 */
@@ -1573,17 +1509,14 @@ export interface components {
             data?: components["schemas"]["TenantResponse"][];
         };
         TenantResponse: {
-            /** Format: int64 */
-            tenantId?: number;
+            tenantId?: string;
             tenantCode?: string;
             tenantName?: string;
             current?: boolean;
         };
         CurrentUserResponse: {
-            /** Format: int64 */
-            tenantId?: number;
-            /** Format: int64 */
-            userId?: number;
+            tenantId?: string;
+            userId?: string;
             username?: string;
             nickname?: string;
             roles?: string[];
@@ -1591,10 +1524,8 @@ export interface components {
             menus?: components["schemas"]["MenuResponse"][];
         };
         MenuResponse: {
-            /** Format: int64 */
-            id?: number;
-            /** Format: int64 */
-            parentId?: number;
+            id?: string;
+            parentId?: string;
             name?: string;
             path?: string;
             component?: string;
@@ -1620,22 +1551,17 @@ export interface components {
             data?: components["schemas"]["CurrentUserResponse"];
         };
         I18nMessageQueryRequest: {
-            /** Format: int64 */
-            current?: number;
-            /** Format: int64 */
-            size?: number;
+            current?: string;
+            size?: string;
             keyword?: string;
             locale?: string;
             module?: string;
         };
         PageResultI18nMessageVO: {
             records?: components["schemas"]["I18nMessageVO"][];
-            /** Format: int64 */
-            total?: number;
-            /** Format: int64 */
-            size?: number;
-            /** Format: int64 */
-            current?: number;
+            total?: string;
+            size?: string;
+            current?: string;
         };
         ResultPageResultI18nMessageVO: {
             /** Format: int32 */
@@ -1657,7 +1583,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -1688,7 +1614,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -1723,7 +1649,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -1754,7 +1680,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -1789,7 +1715,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -1820,7 +1746,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -1851,7 +1777,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -1886,7 +1812,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -1917,7 +1843,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -1952,7 +1878,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -1987,7 +1913,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -2084,7 +2010,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                userId: number;
+                userId: string;
             };
             cookie?: never;
         };
@@ -2183,7 +2109,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -2214,7 +2140,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -2249,7 +2175,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -2280,7 +2206,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -2311,7 +2237,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -2346,7 +2272,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -2377,7 +2303,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -2408,7 +2334,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -2443,7 +2369,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -2474,7 +2400,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -2505,7 +2431,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -2540,7 +2466,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -2668,7 +2594,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -2699,7 +2625,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -2734,7 +2660,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -2798,7 +2724,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -2833,7 +2759,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -2864,7 +2790,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -3097,7 +3023,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -3128,7 +3054,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -3517,11 +3443,11 @@ export interface operations {
     directory: {
         parameters: {
             query?: {
-                deptId?: number;
+                deptId?: string;
                 includeChildren?: boolean;
                 keyword?: string;
-                current?: number;
-                size?: number;
+                current?: string;
+                size?: string;
             };
             header?: never;
             path?: never;
@@ -3859,7 +3785,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -4008,8 +3934,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
-                tenantId: number;
+                id: string;
+                tenantId: string;
             };
             cookie?: never;
         };

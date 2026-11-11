@@ -473,8 +473,7 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         MarkerSaveRequest: {
-            /** Format: int64 */
-            entityId?: number;
+            entityId?: string;
             markerType: string;
             content?: string;
             positionJson?: string;
@@ -505,10 +504,8 @@ export interface components {
         EntitySaveRequest: {
             entityCode: string;
             name: string;
-            /** Format: int64 */
-            parentId?: number;
-            /** Format: int64 */
-            modelFileId?: number;
+            parentId?: string;
+            modelFileId?: string;
             transformJson?: string;
             extraConfig?: string;
             /** Format: int32 */
@@ -534,8 +531,7 @@ export interface components {
             data?: components["schemas"]["EntityVO"];
         };
         BindingSaveRequest: {
-            /** Format: int64 */
-            entityId?: number;
+            entityId?: string;
             sourceType: string;
             bindKey: string;
             propertyMap?: string;
@@ -568,7 +564,7 @@ export interface components {
             webhookEnabled?: boolean;
             inappEnabled?: boolean;
             minLevel?: string;
-            userIds?: number[];
+            userIds?: string[];
             recoveryEnabled?: boolean;
             quietStart?: string;
             quietEnd?: string;
@@ -608,8 +604,7 @@ export interface components {
             code: string;
             name: string;
             description?: string;
-            /** Format: int64 */
-            thumbnailFileId?: number;
+            thumbnailFileId?: string;
             sceneConfig?: string;
         };
         ResultSceneVO: {
@@ -628,14 +623,10 @@ export interface components {
             /** Format: int32 */
             version?: number;
             status?: string;
-            /** Format: int64 */
-            entityCount?: number;
-            /** Format: int64 */
-            unresolvedAlerts?: number;
-            /** Format: int64 */
-            criticalAlerts?: number;
-            /** Format: int64 */
-            unackedAlerts?: number;
+            entityCount?: string;
+            unresolvedAlerts?: string;
+            criticalAlerts?: string;
+            unackedAlerts?: string;
             createdBy?: string;
             createTime?: string;
             updateTime?: string;
@@ -683,8 +674,7 @@ export interface components {
             ackBy?: string;
         };
         InsightRequest: {
-            /** Format: int64 */
-            entityId?: number;
+            entityId?: string;
             question?: string;
         };
         InsightVO: {
@@ -709,8 +699,7 @@ export interface components {
             remark?: string;
         };
         SseEmitter: {
-            /** Format: int64 */
-            timeout?: number;
+            timeout?: string;
         };
         ResultListSnapshotVO: {
             /** Format: int32 */
@@ -781,12 +770,9 @@ export interface components {
         };
         PageResultSceneVO: {
             records?: components["schemas"]["SceneVO"][];
-            /** Format: int64 */
-            total?: number;
-            /** Format: int64 */
-            size?: number;
-            /** Format: int64 */
-            current?: number;
+            total?: string;
+            size?: string;
+            current?: string;
         };
         ResultPageResultSceneVO: {
             /** Format: int32 */
@@ -809,23 +795,16 @@ export interface components {
             data?: components["schemas"]["TwinAlertSummaryVO"];
         };
         TwinAlertSummaryVO: {
-            /** Format: int64 */
-            unresolved?: number;
-            /** Format: int64 */
-            critical?: number;
-            /** Format: int64 */
-            warn?: number;
-            /** Format: int64 */
-            unacked?: number;
+            unresolved?: string;
+            critical?: string;
+            warn?: string;
+            unacked?: string;
         };
         PageResultTwinNotifyRecipientVO: {
             records?: components["schemas"]["TwinNotifyRecipientVO"][];
-            /** Format: int64 */
-            total?: number;
-            /** Format: int64 */
-            size?: number;
-            /** Format: int64 */
-            current?: number;
+            total?: string;
+            size?: string;
+            current?: string;
         };
         ResultPageResultTwinNotifyRecipientVO: {
             /** Format: int32 */
@@ -870,8 +849,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                sceneId: number;
-                id: number;
+                sceneId: string;
+                id: string;
             };
             cookie?: never;
         };
@@ -893,8 +872,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                sceneId: number;
-                id: number;
+                sceneId: string;
+                id: string;
             };
             cookie?: never;
         };
@@ -920,8 +899,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                sceneId: number;
-                id: number;
+                sceneId: string;
+                id: string;
             };
             cookie?: never;
         };
@@ -943,8 +922,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                sceneId: number;
-                id: number;
+                sceneId: string;
+                id: string;
             };
             cookie?: never;
         };
@@ -966,8 +945,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                sceneId: number;
-                id: number;
+                sceneId: string;
+                id: string;
             };
             cookie?: never;
         };
@@ -993,8 +972,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                sceneId: number;
-                id: number;
+                sceneId: string;
+                id: string;
             };
             cookie?: never;
         };
@@ -1016,8 +995,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                sceneId: number;
-                id: number;
+                sceneId: string;
+                id: string;
             };
             cookie?: never;
         };
@@ -1039,8 +1018,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                sceneId: number;
-                id: number;
+                sceneId: string;
+                id: string;
             };
             cookie?: never;
         };
@@ -1066,8 +1045,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                sceneId: number;
-                id: number;
+                sceneId: string;
+                id: string;
             };
             cookie?: never;
         };
@@ -1089,7 +1068,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                sceneId: number;
+                sceneId: string;
             };
             cookie?: never;
         };
@@ -1111,7 +1090,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                sceneId: number;
+                sceneId: string;
             };
             cookie?: never;
         };
@@ -1137,7 +1116,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -1159,7 +1138,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -1185,7 +1164,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -1231,8 +1210,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                sceneId: number;
-                id: number;
+                sceneId: string;
+                id: string;
             };
             cookie?: never;
         };
@@ -1254,7 +1233,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                sceneId: number;
+                sceneId: string;
             };
             cookie?: never;
         };
@@ -1276,7 +1255,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                sceneId: number;
+                sceneId: string;
             };
             cookie?: never;
         };
@@ -1302,7 +1281,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                sceneId: number;
+                sceneId: string;
             };
             cookie?: never;
         };
@@ -1324,7 +1303,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                sceneId: number;
+                sceneId: string;
             };
             cookie?: never;
         };
@@ -1350,7 +1329,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                sceneId: number;
+                sceneId: string;
             };
             cookie?: never;
         };
@@ -1372,7 +1351,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                sceneId: number;
+                sceneId: string;
             };
             cookie?: never;
         };
@@ -1398,8 +1377,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                sceneId: number;
-                alertId: number;
+                sceneId: string;
+                alertId: string;
             };
             cookie?: never;
         };
@@ -1421,7 +1400,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                sceneId: number;
+                sceneId: string;
             };
             cookie?: never;
         };
@@ -1447,7 +1426,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -1473,7 +1452,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -1495,7 +1474,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                sceneId: number;
+                sceneId: string;
             };
             cookie?: never;
         };
@@ -1517,7 +1496,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                sceneId: number;
+                sceneId: string;
             };
             cookie?: never;
         };
@@ -1539,8 +1518,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                sceneId: number;
-                id: number;
+                sceneId: string;
+                id: string;
             };
             cookie?: never;
         };
@@ -1562,7 +1541,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                sceneId: number;
+                sceneId: string;
             };
             cookie?: never;
         };
@@ -1584,7 +1563,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                sceneId: number;
+                sceneId: string;
             };
             cookie?: never;
         };
@@ -1611,7 +1590,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                sceneId: number;
+                sceneId: string;
             };
             cookie?: never;
         };
@@ -1633,7 +1612,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                sceneId: number;
+                sceneId: string;
             };
             cookie?: never;
         };
@@ -1659,7 +1638,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                sceneId: number;
+                sceneId: string;
             };
             cookie?: never;
         };
@@ -1679,12 +1658,12 @@ export interface operations {
     insightStream: {
         parameters: {
             query?: {
-                entityId?: number;
+                entityId?: string;
                 question?: string;
             };
             header?: never;
             path: {
-                sceneId: number;
+                sceneId: string;
             };
             cookie?: never;
         };
@@ -1706,8 +1685,8 @@ export interface operations {
             query?: {
                 keyword?: string;
                 status?: string;
-                current?: number;
-                size?: number;
+                current?: string;
+                size?: string;
             };
             header?: never;
             path?: never;
@@ -1729,7 +1708,7 @@ export interface operations {
     overview: {
         parameters: {
             query?: {
-                sceneId?: number;
+                sceneId?: string;
                 sceneCode?: string;
             };
             header?: never;
@@ -1795,8 +1774,8 @@ export interface operations {
         parameters: {
             query?: {
                 keyword?: string;
-                deptId?: number;
-                current?: number;
+                deptId?: string;
+                current?: string;
                 size?: number;
             };
             header?: never;
