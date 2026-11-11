@@ -137,6 +137,13 @@ export function MustChangePasswordDialog({ baseUrl = '', getToken, onSuccess }: 
         message?: string;
       } | null;
       if (!response.ok || !payload || payload.code !== 0) {
+        // 42801：服务端要求 step-up 凭证。待改密用户调 /auth/v1/reauth 会被 403「请先修改口令」
+        // 拒绝，再弹一次验密只会更绕——直接给出可执行的提示（后端已取消该端点的二次认证，
+        // 此处是历史配置或网关策略变动时的兜底）。
+        if (response.status === 428 || payload?.code === 42801) {
+          setError('当前会话需要重新验证身份，请退出后重新登录再试');
+          return;
+        }
         setError(payload?.message ?? `密码修改失败（HTTP ${response.status}）`);
         return;
       }

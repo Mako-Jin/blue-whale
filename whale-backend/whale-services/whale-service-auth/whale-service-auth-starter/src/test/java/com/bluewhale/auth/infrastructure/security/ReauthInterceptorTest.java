@@ -88,13 +88,13 @@ class ReauthInterceptorTest {
     }
 
     @Test
-    @DisplayName("路径规则兜底：PUT /auth/v1/password 未带凭证 → 428（注解无关）")
+    @DisplayName("路径规则兜底：命中清单且未带凭证 → 428（注解无关）")
     void pathRuleProtectsUnannotatedEndpoint() throws Exception {
         when(request.getMethod()).thenReturn("PUT");
-        when(request.getRequestURI()).thenReturn("/auth/v1/password");
+        when(request.getRequestURI()).thenReturn("/user/1/status");
         when(request.getHeader(ReauthInterceptor.HEADER_NAME)).thenReturn(null);
         when(reauthAppService.verify(null)).thenReturn(false);
-        assertThrows(ReauthRequiredException.class, () -> newInterceptor(List.of("PUT /auth/v1/password"))
+        assertThrows(ReauthRequiredException.class, () -> newInterceptor(List.of("PUT /user/*/status"))
                 .preHandle(request, response, handler("open")));
     }
 
@@ -102,9 +102,17 @@ class ReauthInterceptorTest {
     @DisplayName("路径规则按方法区分：GET 同路径不受约束")
     void pathRuleMatchesMethod() throws Exception {
         when(request.getMethod()).thenReturn("GET");
-        when(request.getRequestURI()).thenReturn("/auth/v1/password");
-        assertTrue(newInterceptor(List.of("PUT /auth/v1/password"))
+        when(request.getRequestURI()).thenReturn("/user/1/status");
+        assertTrue(newInterceptor(List.of("PUT /user/*/status"))
                 .preHandle(request, response, handler("open")));
+    }
+
+    @Test
+    @DisplayName("自助改密不进默认清单：不带凭证也不拦（否则与待改密状态互锁）")
+    void selfPasswordChangeNotProtectedByDefault() throws Exception {
+        when(request.getMethod()).thenReturn("PUT");
+        when(request.getRequestURI()).thenReturn("/auth/v1/password");
+        assertTrue(newInterceptor(List.of()).preHandle(request, response, handler("open")));
     }
 
     /** API-first 形态：注解标在接口方法上，实现类不重复标注 */

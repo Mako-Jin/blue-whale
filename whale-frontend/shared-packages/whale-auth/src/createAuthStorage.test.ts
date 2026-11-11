@@ -75,19 +75,19 @@ describe('createAuthStorage', () => {
     const listener = vi.fn();
     const unsubscribe = auth.subscribeCurrentUser(listener);
 
-    auth.saveCurrentUser({ username: 'u1' });
+    auth.saveCurrentUser({ username: 'u1', nickname: 'u1', roles: [] });
     auth.clearAuth();
     expect(listener).toHaveBeenCalledTimes(2);
 
     unsubscribe();
-    auth.saveCurrentUser({ username: 'u2' });
+    auth.saveCurrentUser({ username: 'u2', nickname: 'u2', roles: [] });
     expect(listener).toHaveBeenCalledTimes(2);
   });
 
   it('clearAuth 同时清除内存令牌与用户缓存', () => {
     const auth = createAuthStorage({ accessTokenKey: 'k5_token', userKey: 'k5_user' });
     auth.setToken('tok');
-    auth.saveCurrentUser({ username: 'admin' });
+    auth.saveCurrentUser({ username: 'admin', nickname: '管理员', roles: ['ADMIN'] });
 
     auth.clearAuth();
 

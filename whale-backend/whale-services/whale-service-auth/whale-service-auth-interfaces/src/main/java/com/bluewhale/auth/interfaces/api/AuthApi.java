@@ -78,9 +78,14 @@ public interface AuthApi {
      * @return 操作结果
      *
      * 危险操作：受 {@code @RequireReauth} 二次认证约束（Wave 6.22，需 X-Reauth-Token）。
+     *
+     * <p><b>例外（Wave 6.32）：自助改密不标 {@code @RequireReauth}。</b>
+     * 请求体里的原口令已经构成 step-up 证明（服务端逐字校验），再要一张 step-up 凭证是重复；
+     * 更关键的是会与「待改密」状态互锁——拦截器返回 428 要求先验密，而 {@code POST /auth/v1/reauth}
+     * 对 {@code must_change_password} / 口令过期的用户直接 403「请先修改口令」，
+     * 于是这类用户既改不了口令也拿不到凭证，除超管重置外无路可走。</p>
      */
     @PutMapping("/password")
-    @RequireReauth
     Result<Void> changePassword(@Valid @RequestBody ChangeOwnPasswordRequest request);
 
     /**

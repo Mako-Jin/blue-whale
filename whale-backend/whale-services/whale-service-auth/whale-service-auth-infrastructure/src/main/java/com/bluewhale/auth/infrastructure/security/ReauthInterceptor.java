@@ -13,7 +13,6 @@ import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -26,8 +25,12 @@ import java.util.Locale;
  *
  * <p>注解解析顺序：方法 → 声明类 → 实现的接口方法（兼容 API-first 写法，Spring 的
  * {@code getMethodAnnotation} 不跨接口）。另支持 {@code whale.auth.reauth.protected-rules}
- * 配置「METHOD 路径」清单兜底（默认覆盖自助改密 {@code PUT /auth/v1/password}），
- * 用于不便改源码或需运维侧临时收紧的场景。</p>
+ * 配置「METHOD 路径」清单兜底（<b>默认空</b>），用于不便改源码或需运维侧临时收紧的场景。</p>
+ *
+ * <p><b>自助改密不在默认清单内（Wave 6.32）</b>：{@code PUT /auth/v1/password} 的请求体
+ * 已带原口令并由服务端逐字校验，本身即 step-up 证明。若再要求凭证会与「待改密」状态互锁：
+ * 本拦截器返回 428 要求先验密，而 {@code POST /auth/v1/reauth} 对 {@code must_change_password}
+ * 与口令过期的用户直接 403「请先修改口令」——这类用户既改不了口令也拿不到凭证。</p>
  *
  * @author BlueWhale
  */
@@ -50,12 +53,14 @@ public class ReauthInterceptor implements HandlerInterceptor {
      * 构造拦截器
      *
      * @param reauthAppService 二次认证应用服务
-     * @param rules 路径规则（默认 {@code PUT /auth/v1/password}）
+     * @param rules 路径规则（默认空，自助改密刻意不入默认清单，见类注释）
      */
     public ReauthInterceptor(ReauthAppService reauthAppService,
-                             @Value("${whale.auth.reauth.protected-rules:PUT /auth/v1/password}") List<String> rules) {
+                             @Value("${whale.auth.reauth.protected-rules:}") List<String> rules) {
         this.reauthAppService = reauthAppService;
-        this.protectedRules = rules == null ? List.of() : new ArrayList<>(rules);
+        // `${…:}` 的空默认值会被 Spring 解析成含空串的列表，过滤掉空白项，避免规则表里混进 "" 匹配
+        this.protectedRules = rules == null ? List.of()
+                : rules.stream().filter(StringUtils::hasText).map(String::trim).toList();
     }
 
     @Override
