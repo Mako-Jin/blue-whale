@@ -76,12 +76,17 @@ public class KnowledgeIngestService {
     private volatile int indexedFileCount;
 
     /**
-     * 启动后触发首次构建并注册周期增量扫描。
+     * 启动后触发首次同步并注册周期增量扫描。
+     *
+     * <p>首次同步走<b>增量</b>路径而非全量重建：全量重建开头会 {@code deleteAll()}，
+     * 索引落盘卷上的既有内容在重建期间（万级文件约 1~2 分钟）不可用，检索直接零证据。
+     * 增量路径对空索引等价全量（全部文件都是"变更"），对已有索引只补差异；
+     * embedding 签名变化时 {@code incrementalScan()} 内部仍会回落全量重建。</p>
      */
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
         if (properties.getIngest().isBuildOnStartup()) {
-            executor.submit(this::rebuildSafely);
+            executor.submit(this::incrementalSafely);
         }
         int interval = properties.getIngest().getScanIntervalSeconds();
         if (interval > 0) {
