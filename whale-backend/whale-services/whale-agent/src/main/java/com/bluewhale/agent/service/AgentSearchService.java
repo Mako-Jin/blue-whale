@@ -26,6 +26,9 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class AgentSearchService {
 
+    /** 本地哈希向量提供方标识（无语义，默认不参与召回） */
+    private static final String HASH_PROVIDER = "hash";
+
     private final AgentIndexService indexService;
 
     private final EmbeddingService embeddingService;
@@ -85,6 +88,12 @@ public class AgentSearchService {
                                        Set<String> permissionCodes) {
         if (!properties.getSearch().isVectorEnabled() || !embeddingService.available()
                 || indexService.indexedDimension() <= 0) {
+            return List.of();
+        }
+        if (HASH_PROVIDER.equals(embeddingService.providerName())
+                && !properties.getSearch().isVectorHashEnabled()) {
+            // 哈希向量无语义：任意查询都会召回一批同分量纲的文档，融合后「无相关内容」
+            // 与「有相关内容」不可区分。未接真实模型时只走 BM25，宁缺毋滥。
             return List.of();
         }
         float[] queryVector = embeddingService.embed(question);

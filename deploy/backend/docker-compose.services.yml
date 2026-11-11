@@ -947,8 +947,17 @@ services:
       WHALE_AGENT_FILE_URL: "http://bw-file:8085"
       WHALE_AGENT_AUTH_URL: "http://bw-auth:8081"
       WHALE_AGENT_DOC_URL: "http://bw-doc:8095"
+      # 代码/文档知识源：容器内无源码则索引恒为空（EMPTY），检索永远零证据。
+      # 只读挂载仓库根，扫描器自行排除 target/node_modules/.git/.env*。
+      WHALE_AGENT_REPO_ROOT: "/repo"
+      # 索引目录必须显式指定：留空会回落 <repo-root>/data/agent-index，而 /repo 是只读挂载（Lucene 写 lock 直接失败）
+      WHALE_AGENT_INDEX_DIR: "/app/data/agent-index"
       WHALE_AGENT_LLM_BASE_URL: ${WHALE_AGENT_LLM_BASE_URL:-https://api.openai.com/v1}
       WHALE_AGENT_LLM_API_KEY: ${WHALE_AGENT_LLM_API_KEY:-}
+    # 相对 compose 文件定位到仓库根（deploy/backend/../..）；生产环境无源码时该目录为空，扫描结果为 0 不报错
+    volumes:
+      - ../../:/repo:ro
+      - agent-index:/app/data/agent-index
     ports:
       - "127.0.0.1:8090:8090"
     healthcheck:
@@ -1070,6 +1079,9 @@ volumes:
   # Lucene 全文索引落盘：容器重建不丢，重建索引需全量重同步邮件
   mail-index:
     name: bw-mail-index
+  # agent 知识索引（Lucene）：与只读的 /repo 分离，容器重建不必重扫全仓
+  agent-index:
+    name: bw-agent-index
 
 networks:
   bw-net:

@@ -44,8 +44,9 @@ public class RepositoryScanner {
             "target", "node_modules", "dist", "build", ".git", ".idea", ".vscode",
             "data", "logs", "coverage", ".mvn", "out");
 
-    /** 仅当位于仓库根时排除的目录（本地下载的第三方工具，不入仓，见 .gitignore） */
-    private static final Set<String> ROOT_EXCLUDED_DIRS = Set.of("tools", "work", ".workbuddy");
+    /** 仅当位于仓库根时排除的目录（本地工具链与缓存，.gitignore 已忽略、不入仓） */
+    private static final Set<String> ROOT_EXCLUDED_DIRS = Set.of(
+            "tools", "work", ".workbuddy", ".toolchains", ".cache", ".turbo", ".pnpm-store");
 
     /** 排除文件名（锁文件与产物） */
     private static final Set<String> EXCLUDED_FILES = Set.of(

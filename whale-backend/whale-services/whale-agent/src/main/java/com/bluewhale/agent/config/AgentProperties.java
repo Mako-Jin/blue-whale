@@ -126,6 +126,16 @@ public class AgentProperties {
         /** 是否启用向量通道（BM25 + 向量 RRF 融合） */
         private boolean vectorEnabled = true;
 
+        /**
+         * 是否允许「哈希向量」参与召回（默认 false）。
+         *
+         * <p>哈希向量是确定性伪向量，只有字面重合度、没有语义——任何查询都能召回一批
+         * 分数接近的文档，导致「知识库无相关内容」与「有相关内容」无法区分（噪声证据
+         * 会被当成答案引用）。因此未配置真实 embedding 模型时只走 BM25：词不命中即零证据，
+         * 问答链路才能如实回答「未找到资料」。仅在排查向量链路时才建议打开。</p>
+         */
+        private boolean vectorHashEnabled = false;
+
         /** 每个通道参与融合的候选条数（不足时按实际条数） */
         private int candidateTopK = 50;
 

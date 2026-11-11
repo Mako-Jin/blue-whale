@@ -78,6 +78,9 @@ whale:
       vector-enabled: ${WHALE_AGENT_SEARCH_VECTOR_ENABLED:true}
       candidate-top-k: ${WHALE_AGENT_SEARCH_CANDIDATE_TOP_K:50}
       rrf-k: ${WHALE_AGENT_SEARCH_RRF_K:60}
+      # 哈希向量（未配真实 embedding 模型时的降级形态）默认不参与召回：
+      # 它会为任何查询都召回一批同分量纲结果，让「无相关资料」无法与「有资料」区分
+      vector-hash-enabled: ${WHALE_AGENT_SEARCH_VECTOR_HASH_ENABLED:false}
       bm25-weight: ${WHALE_AGENT_SEARCH_BM25_WEIGHT:1.0}
       vector-weight: ${WHALE_AGENT_SEARCH_VECTOR_WEIGHT:1.0}
     # 文本向量：auto = 有 API Key 走 OpenAI 兼容 /embeddings，否则本地哈希向量（无出网）
