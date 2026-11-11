@@ -1,4 +1,4 @@
-# 启动工作区内的 Nacos 3.x（宿主机 standalone），并等待 8848 就绪。
+﻿# 启动工作区内的 Nacos 3.x（宿主机 standalone），并等待 8848 就绪。
 #
 # 为什么需要单独一个脚本：Nacos 的 startup.cmd 依赖 JAVA_HOME，而本机 JAVA_HOME 为空
 # （java 只在 PATH 里）。此脚本自动从 java.exe 反推 java.home 再拉起，避免每次手敲。

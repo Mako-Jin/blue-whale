@@ -1,4 +1,4 @@
-param(
+﻿param(
     # E2E 前强制重建本脚本启动的模块及其依赖，避免旧 jar 造成路由/接口漂移
     [switch]$Rebuild
 )

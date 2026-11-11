@@ -1,4 +1,4 @@
-# Wave 5.74 M1 文档服务冒烟（只读）
+﻿# Wave 5.74 M1 文档服务冒烟（只读）
 # 前置：gateway(8080)/auth(8081)/whale-doc(8095) 就绪，bluewhale_doc 与 migration-5.74-doc.sql 已执行。
 # 用法：powershell -File scripts/smoke/bw-doc-smoke.ps1
 # 退出码：0 全部通过；1 断言失败。

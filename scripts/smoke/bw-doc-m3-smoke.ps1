@@ -1,4 +1,4 @@
-# Wave 5.75 M3 文档服务冒烟（模板/复制/导入导出/分享/审批/归档/通知）
+﻿# Wave 5.75 M3 文档服务冒烟（模板/复制/导入导出/分享/审批/归档/通知）
 # 前置：
 #   1) gateway(8080)/auth(8081)/whale-doc(8095) 就绪，MySQL 可用；
 #   2) bluewhale_doc 已执行 migration-5.75-doc-m3.sql，bluewhale_auth 已执行 migration-5.75-doc-m3.sql；

@@ -1,4 +1,4 @@
-# Wave 5.55 P2-5 回归：PM 工作项审批「开启态」联调冒烟
+﻿# Wave 5.55 P2-5 回归：PM 工作项审批「开启态」联调冒烟
 # 前置：gateway(8080)/auth(8081)/workflow(8083) 就绪；whale-pm(9005) 以
 #   PM_APPROVAL_ENABLED=true / PM_APPROVAL_DEFINITION_ID=<本脚本自动创建的定义> 启动。
 # 用法：powershell -File scripts/smoke/bw-pm-approval-smoke.ps1

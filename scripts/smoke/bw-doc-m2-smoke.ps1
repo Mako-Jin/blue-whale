@@ -1,4 +1,4 @@
-# Wave 5.74 M2 文档服务冒烟（回收站 + 实时协作 Yjs）
+﻿# Wave 5.74 M2 文档服务冒烟（回收站 + 实时协作 Yjs）
 # 前置：
 #   1) gateway(8080)/auth(8081)/whale-doc(8095) 就绪，MySQL 与 Redis 可用；
 #   2) bluewhale_doc 已执行 migration-5.74-doc.sql 与 migration-5.74-doc-m2.sql；

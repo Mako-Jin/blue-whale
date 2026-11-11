@@ -1,4 +1,4 @@
-# Wave 5.61 M1 合同管理冒烟：登录 → 列表/详情 → 新建/编辑 → 提交审批 → 审批通过同步 → 终止；
+﻿# Wave 5.61 M1 合同管理冒烟：登录 → 列表/详情 → 新建/编辑 → 提交审批 → 审批通过同步 → 终止；
 # 以及 撤回 → 修订（版本+1）→ 重新提交；另含 APPROVED 状态禁止编辑的负向用例。
 # 前置：gateway(8080)/auth(8081)/workflow(8083)/whale-contract(9006) 就绪，
 #       whale-contract 以 CONTRACT_APPROVAL_DEFINITION_ID=<已存在流程定义> 启动。

@@ -1,4 +1,4 @@
-# 权限 / 菜单号段占用扫描：检测 sys_permission / sys_menu 的真实撞号。
+﻿# 权限 / 菜单号段占用扫描：检测 sys_permission / sys_menu 的真实撞号。
 # 判定口径：
 #   - 同一 table + ID 被不同权限码占用 => 真实冲突（重复登记同一权限码视为幂等副本，不报）。
 #   - sys_permission 中同一权限码映射到不同 ID => 真实冲突。

@@ -1,4 +1,4 @@
-# Wave 5.65/5.66/5.74 业务权限角色授予校验（只读）
+﻿# Wave 5.65/5.66/5.74 业务权限角色授予校验（只读）
 # 前置：执行 whale-backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/
 #       migration-5.46/5.53/5.54/5.55/5.57/5.58~5.66/5.74 后运行；本脚本不写库。
 # 用法：$env:MYSQL_PASSWORD='***'; powershell -File scripts/smoke/bw-auth-business-role-grant-smoke.ps1

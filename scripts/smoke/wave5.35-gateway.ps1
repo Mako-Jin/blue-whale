@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $nacos = 'http://127.0.0.1:8848'
 $gw = 'http://127.0.0.1:8080'
 $nacosUser = $env:SPRING_CLOUD_NACOS_USERNAME

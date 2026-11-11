@@ -1,4 +1,4 @@
-# Wave 5.74 M1 文档服务业务冒烟（空间/页面/版本/附件/评论/搜索/收藏/内网同步）
+﻿# Wave 5.74 M1 文档服务业务冒烟（空间/页面/版本/附件/评论/搜索/收藏/内网同步）
 # 前置：gateway(8080)/auth(8081)/whale-doc(8095)/whale-file(8085) 就绪，
 #       bluewhale_doc、bluewhale_file 与 migration-5.74-doc.sql 已执行。
 # 用法：powershell -File scripts/smoke/bw-doc-m1-smoke.ps1

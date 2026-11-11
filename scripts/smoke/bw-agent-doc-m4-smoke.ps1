@@ -1,4 +1,4 @@
-# Wave 5.75 M4 文档知识源冒烟（whale-doc → whale-agent 知识库）
+﻿# Wave 5.75 M4 文档知识源冒烟（whale-doc → whale-agent 知识库）
 # 前置：
 #   1) gateway(8080)/auth(8081)/whale-doc(8095)/whale-agent(8090) 就绪；
 #   2) bluewhale_agent 已执行 init.sql 与 migration-5.75-agent-doc.sql；

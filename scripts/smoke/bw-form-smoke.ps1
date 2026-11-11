@@ -1,4 +1,4 @@
-
+﻿
 # 公共工具（审计 P2：Assert/Check/Show 已收口到 lib/common.ps1）
 $script:SmokeAssertThrow = $false
 . "$PSScriptRoot/lib/common.ps1"

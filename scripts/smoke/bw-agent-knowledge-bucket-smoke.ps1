@@ -1,4 +1,4 @@
-# 文件知识桶白名单冒烟（default-deny）
+﻿# 文件知识桶白名单冒烟（default-deny）
 # 前置：
 #   1) gateway(8080)/auth(8081)/whale-file(8085)/whale-agent(8090) 就绪；
 #   2) whale-agent 使用默认白名单：
