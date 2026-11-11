@@ -3,8 +3,9 @@
 import { del, get, post, put, type PageResult } from './client';
 
 export interface PermissionVO {
-  id: number;
-  parentId: number;
+  /** 后端 Long 序列化为字符串 */
+  id: string;
+  parentId: string;
   permCode: string;
   permName: string;
   permType?: string;
@@ -28,7 +29,7 @@ export type PermissionType = 'SYSTEM' | 'MENU' | 'API' | 'BUTTON' | 'DATA' | 'AT
 
 /** 新增/更新权限点请求体 */
 export interface PermissionPayload {
-  parentId?: number;
+  parentId?: string;
   permCode: string;
   permName: string;
   permType: PermissionType | string;
@@ -46,10 +47,10 @@ export function createPermission(body: PermissionPayload): Promise<void> {
   return post<void>('/permission', body);
 }
 
-export function updatePermission(id: number, body: PermissionPayload): Promise<void> {
+export function updatePermission(id: string, body: PermissionPayload): Promise<void> {
   return put<void>(`/permission/${id}`, body);
 }
 
-export function deletePermission(id: number): Promise<void> {
+export function deletePermission(id: string): Promise<void> {
   return del<void>(`/permission/${id}`);
 }

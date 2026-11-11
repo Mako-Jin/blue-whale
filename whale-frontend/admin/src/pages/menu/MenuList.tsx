@@ -32,7 +32,8 @@ interface MenuFormValues extends MenuPayload {
 }
 
 interface TreeOption {
-  value: number;
+  /** 菜单 id 为后端 Long（字符串） */
+  value: string;
   title: string;
   children?: TreeOption[];
 }
@@ -52,7 +53,7 @@ const STATUS_OPTIONS = [
   { value: 0, label: '停用' },
 ];
 
-function toOptions(nodes: MenuVO[], excludeId?: number): TreeOption[] {
+function toOptions(nodes: MenuVO[], excludeId?: string): TreeOption[] {
   return nodes
     .filter((node) => node.id !== excludeId)
     .map((node) => ({
@@ -100,7 +101,7 @@ export default function MenuList() {
 
   const handleSubmit = async (values: MenuFormValues) => {
     try {
-      const payload: MenuPayload = { ...values, parentId: values.parentId ?? 0 };
+      const payload: MenuPayload = { ...values, parentId: values.parentId ?? '0' };
       if (editRecord) {
         await updateMenu(editRecord.id, payload);
         message.success('菜单已更新');
@@ -212,7 +213,7 @@ export default function MenuList() {
             allowClear
             treeDefaultExpandAll
             placeholder="不选则为顶级菜单"
-            treeData={[{ value: 0, title: '顶级菜单', children: toOptions(menus, editRecord?.id) }]}
+            treeData={[{ value: '0', title: '顶级菜单', children: toOptions(menus, editRecord?.id) }]}
           />
         </Form.Item>
         <Form.Item

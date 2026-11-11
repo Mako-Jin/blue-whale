@@ -47,7 +47,8 @@ interface UserFormValues {
   nickname?: string;
   phone?: string;
   email?: string;
-  deptId?: number;
+  /** 后端 Long 序列化为字符串 */
+  deptId?: string;
   status?: number;
 }
 
@@ -92,7 +93,7 @@ export default function UserList() {
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignRecord, setAssignRecord] = useState<UserVO | null>(null);
   const [assignSaving, setAssignSaving] = useState(false);
-  const [checkedRoleIds, setCheckedRoleIds] = useState<number[]>([]);
+  const [checkedRoleIds, setCheckedRoleIds] = useState<string[]>([]);
 
   useEffect(() => {
     treeDepts()
@@ -429,7 +430,7 @@ export default function UserList() {
       >
         <Checkbox.Group
           value={checkedRoleIds}
-          onChange={(values) => setCheckedRoleIds(values as number[])}
+          onChange={(values) => setCheckedRoleIds(values as string[])}
           style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
         >
           {roles.map((role) => (

@@ -65,7 +65,7 @@ export default function RoleList() {
   const [permSaving, setPermSaving] = useState(false);
   const [permLoading, setPermLoading] = useState(false);
   const [allPermissions, setAllPermissions] = useState<PermissionVO[]>([]);
-  const [checkedPermIds, setCheckedPermIds] = useState<number[]>([]);
+  const [checkedPermIds, setCheckedPermIds] = useState<string[]>([]);
 
   useEffect(() => {
     pagePermissions({ current: 1, size: 200 })
@@ -286,7 +286,7 @@ export default function RoleList() {
           scroll={{ y: 360 }}
           rowSelection={{
             selectedRowKeys: checkedPermIds,
-            onChange: (keys) => setCheckedPermIds(keys as number[]),
+            onChange: (keys) => setCheckedPermIds(keys as string[]),
           }}
           columns={[
             { title: '权限编码', dataIndex: 'permCode', width: 200 },

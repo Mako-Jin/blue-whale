@@ -6,8 +6,9 @@ import { del, get, post, put } from './client';
 export type MenuType = 'DIR' | 'MENU';
 
 export interface MenuVO {
-  id: number;
-  parentId: number;
+  /** 后端 Long 序列化为字符串 */
+  id: string;
+  parentId: string;
   name: string;
   path?: string;
   component?: string;
@@ -23,7 +24,7 @@ export interface MenuVO {
 }
 
 export interface MenuPayload {
-  parentId?: number;
+  parentId?: string;
   name: string;
   path?: string;
   component?: string;
@@ -39,7 +40,7 @@ export function treeMenus(): Promise<MenuVO[]> {
   return get<MenuVO[]>('/menu/tree');
 }
 
-export function getMenu(id: number): Promise<MenuVO> {
+export function getMenu(id: string): Promise<MenuVO> {
   return get<MenuVO>(`/menu/${id}`);
 }
 
@@ -47,10 +48,10 @@ export function createMenu(payload: MenuPayload): Promise<void> {
   return post<void>('/menu', payload);
 }
 
-export function updateMenu(id: number, payload: MenuPayload): Promise<void> {
+export function updateMenu(id: string, payload: MenuPayload): Promise<void> {
   return put<void>(`/menu/${id}`, payload);
 }
 
-export function deleteMenu(id: number): Promise<void> {
+export function deleteMenu(id: string): Promise<void> {
   return del<void>(`/menu/${id}`);
 }

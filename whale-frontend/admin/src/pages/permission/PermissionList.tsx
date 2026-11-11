@@ -33,7 +33,8 @@ import {
 } from '../../api/permission';
 
 interface PermissionFormValues {
-  parentId?: number;
+  /** 后端 Long 序列化为字符串 */
+  parentId?: string;
   permCode: string;
   permName: string;
   permType: PermissionType | string;
@@ -239,7 +240,7 @@ export default function PermissionList() {
         onCancel={() => setEditorOpen(false)}
       >
         <Form.Item name="parentId" label="上级权限ID">
-          <InputNumber min={0} style={{ width: '100%' }} placeholder="留空表示无上级" />
+          <Input placeholder="留空表示无上级" style={{ width: '100%' }} />
         </Form.Item>
         <Form.Item
           name="permCode"
