@@ -53,9 +53,16 @@ class FlywayMigrationScriptTest {
     private static final Pattern CREATE_TABLE =
             Pattern.compile("^CREATE TABLE(?: IF NOT EXISTS)? (\\w+) \\(", Pattern.MULTILINE);
 
-    /** DELETE 是否带 WHERE 谓词（无谓词的整表删除一律拒绝，白名单也不豁免） */
+    /**
+     * DELETE 是否带 WHERE 谓词（无谓词的整表删除一律拒绝，白名单也不豁免）。
+     *
+     * <p>兼容 MySQL 多表删除语法 {@code DELETE m FROM tbl m JOIN ... WHERE ...}：
+     * 别名可选、FROM 与 WHERE 之间允许 JOIN/子查询。判定对象是 {@link #joinStatement}
+     * 拼好的整条语句（单行），因此无需 DOTALL。</p>
+     */
     private static final Pattern DELETE_WITH_PREDICATE =
-            Pattern.compile("^DELETE\\s+FROM\\s+\\w+\\s+WHERE\\s+\\S", Pattern.CASE_INSENSITIVE);
+            Pattern.compile("^DELETE\\s+(?:\\w+\\s+)?FROM\\s+[\\w.]+\\s+.*?\\bWHERE\\s+\\S",
+                    Pattern.CASE_INSENSITIVE);
 
     /**
      * 已登记的破坏性语句白名单：脚本名 → 理由。
@@ -66,7 +73,9 @@ class FlywayMigrationScriptTest {
      */
     private static final Map<String, String> ALLOWED_DELETE_SCRIPTS = Map.of(
             "V7__tenant_config_menu_fix.sql",
-            "清理 V6 因 id=37 撞号误复制的 /doc/spaces 菜单；谓词已锁定 id 派生值，不会误伤合法菜单");
+            "清理 V6 因 id=37 撞号误复制的 /doc/spaces 菜单；谓词已锁定 id 派生值，不会误伤合法菜单",
+            "V9__tenant_config_menu_dedupe.sql",
+            "删除 V6 遗留的 id=37 重复「租户配置」行；仅在存在同 (tenant_id, path) 的另一行时删除");
 
     /**
      * 迁移脚本命名与目录完整性校验
