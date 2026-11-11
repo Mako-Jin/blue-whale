@@ -13,6 +13,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalTime;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -360,17 +363,44 @@ public class TwinAlertNotifyService {
     /**
      * 幂等键：同一告警行固定不变，重复投递由 whale-message 去重。
      *
+     * <p>whale-message 的 {@code bizId} 上限 64 字符：告警路径直接用告警主键（定长）；
+     * 恢复路径没有告警行，用「场景ID + 状态键/时间戳摘要」拼短键——早期实现把
+     * {@code stateKey} 与纳秒时间戳原样拼进去，长度恒超 64，导致<b>所有恢复通知
+     * 都被 message 拒绝</b>（只在 dispatch 记录里留 FAILED，业务侧无感知）。</p>
+     *
      * @param sceneId 场景ID
      * @param alertId 告警ID
      * @param alert   告警内容
-     * @return 幂等键（不超过 96 字符）
+     * @param event   事件类型
+     * @return 幂等键（不超过 64 字符）
      */
     private String idempotencyKey(Long sceneId, Long alertId, BindingAlertVO alert, String event) {
         if (alertId != null) {
             return IDEMPOTENCY_PREFIX + alertId;
         }
-        String prefix = EVENT_RECOVERED.equals(event) ? IDEMPOTENCY_PREFIX + "recovery-" : IDEMPOTENCY_PREFIX;
-        return prefix + sceneId + "-" + alert.getStateKey() + "-" + alert.getTs();
+        String kind = EVENT_RECOVERED.equals(event) ? "rc-" : "";
+        return IDEMPOTENCY_PREFIX + kind + sceneId + '-' + digest(alert.getStateKey() + '@' + alert.getTs());
+    }
+
+    /**
+     * 生成 12 位十六进制摘要（SHA-256 截断）：同一事件稳定、不同事件几乎不碰撞。
+     *
+     * @param text 原文
+     * @return 12 位十六进制串
+     */
+    private String digest(String text) {
+        try {
+            byte[] hash = MessageDigest.getInstance("SHA-256")
+                    .digest(String.valueOf(text).getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder(64);
+            for (byte item : hash) {
+                hex.append(String.format("%02x", item));
+            }
+            return hex.substring(0, 12);
+        } catch (NoSuchAlgorithmException error) {
+            // SHA-256 是 JDK 必备算法：走到这里说明运行环境异常，退化为 hashCode（仍定长）
+            return String.format("%012x", String.valueOf(text).hashCode() & 0xffffffffffffL);
+        }
     }
 
     /**

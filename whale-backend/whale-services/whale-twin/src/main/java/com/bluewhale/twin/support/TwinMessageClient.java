@@ -196,12 +196,13 @@ public class TwinMessageClient {
             if (!(item instanceof Map<?, ?> decision)) {
                 continue;
             }
-            Object userId = decision.get("userId");
+            // 平台全局把 Long 序列化成字符串（防前端精度丢失），这里必须两种形态都认：
+            // 只判 Number 会让每个接收人都解不出来 → 静默丢空群（表现为全部被偏好过滤）
+            Long id = asLong(decision.get("userId"));
             Object channels = decision.get("channels");
-            if (!(userId instanceof Number number) || !(channels instanceof List<?> names)) {
+            if (id == null || !(channels instanceof List<?> names)) {
                 continue;
             }
-            long id = number.longValue();
             boolean inappAllowed = names.stream()
                     .anyMatch(name -> CHANNEL_INAPP.equalsIgnoreCase(String.valueOf(name)));
             if (inappAllowed && requestedUsers.contains(id)) {
@@ -259,10 +260,29 @@ public class TwinMessageClient {
             return new SendOutcome(null, null, "站内信接口返回无 data");
         }
         Map<String, Object> detail = (Map<String, Object>) data;
-        Object messageId = detail.get("messageId");
+        Long id = asLong(detail.get("messageId"));
         Object status = detail.get("status");
-        Long id = messageId instanceof Number number ? number.longValue() : null;
         return new SendOutcome(id, status == null ? null : String.valueOf(status), null);
+    }
+
+    /**
+     * 宽松解析长整型：兼容 {@code Number} 与数值字符串（平台 Long 默认序列化为字符串）。
+     *
+     * @param raw 原始值
+     * @return 数值；无法解析返回 {@code null}
+     */
+    private static Long asLong(Object raw) {
+        if (raw instanceof Number number) {
+            return number.longValue();
+        }
+        if (raw instanceof String text) {
+            try {
+                return Long.valueOf(text.trim());
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
     }
 
     /**

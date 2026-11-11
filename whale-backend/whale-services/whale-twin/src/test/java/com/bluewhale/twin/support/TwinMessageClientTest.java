@@ -100,6 +100,37 @@ class TwinMessageClientTest {
         server.verify();
     }
 
+    @Test
+    void parsesStringUserIdsInPreferenceResolve() {
+        // 平台把 Long 序列化成字符串：userId 是 "601"/"602"，只判 Number 会全部丢空
+        server.expect(requestTo(BASE_URL + "/message/internal/preferences/resolve"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess("{\"code\":0,\"data\":["
+                        + "{\"userId\":\"601\",\"channels\":[\"INAPP\"],\"quiet\":false},"
+                        + "{\"userId\":\"602\",\"channels\":[\"EMAIL\"],\"quiet\":false},"
+                        + "{\"userId\":603,\"channels\":[\"INAPP\"],\"quiet\":true}]}",
+                        MediaType.APPLICATION_JSON));
+
+        List<Long> allowed = client.resolveInappRecipients(1L, List.of(601L, 602L), "warn", true);
+
+        // 601 保留（字符串 ID + INAPP）；602 被偏好收紧到 EMAIL；603 未申请不返回
+        assertEquals(List.of(601L), allowed);
+        server.verify();
+    }
+
+    @Test
+    void parsesStringMessageIdInSendResult() {
+        server.expect(requestTo(BASE_URL + "/message/internal/send"))
+                .andRespond(withSuccess("{\"code\":0,\"data\":{\"messageId\":\"2120470057446309889\","
+                        + "\"status\":\"SENT\"}}", MediaType.APPLICATION_JSON));
+
+        TwinMessageClient.SendOutcome outcome = client.sendInapp(1L, "twin-alert-9002",
+                "标题", "正文", payload(), List.of(7L));
+
+        assertTrue(outcome.ok());
+        assertEquals(2120470057446309889L, outcome.messageId());
+    }
+
     /**
      * 构造载荷。
      *

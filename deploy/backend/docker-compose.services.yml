@@ -1054,6 +1054,16 @@ services:
       WHALE_TWIN_NOTIFY_MESSAGE_BASE_URL: "http://bw-message:8094"
       # 接收人检索走 auth 内网通讯录；可用环境变量覆盖（联调时指向桩服务）
       WHALE_TWIN_NOTIFY_AUTH_BASE_URL: "${WHALE_TWIN_NOTIFY_AUTH_BASE_URL:-http://bw-auth:8081}"
+      # 告警外发总开关（Wave 6.10/6.11）：未显式打开时只落库不出站，避免开发环境误打扰
+      WHALE_TWIN_NOTIFY_ENABLED: "${WHALE_TWIN_NOTIFY_ENABLED:-false}"
+      WHALE_TWIN_NOTIFY_INAPP_ENABLED: "${WHALE_TWIN_NOTIFY_INAPP_ENABLED:-false}"
+      WHALE_TWIN_NOTIFY_MIN_LEVEL: "${WHALE_TWIN_NOTIFY_MIN_LEVEL:-warn}"
+      WHALE_TWIN_NOTIFY_COOLDOWN_SECONDS: "${WHALE_TWIN_NOTIFY_COOLDOWN_SECONDS:-300}"
+      # 用户偏好过滤（Wave 6.17c）：数据在 auth、语义解释在 message，解析失败 fail-open
+      WHALE_TWIN_NOTIFY_PREFERENCE_ENABLED: "${WHALE_TWIN_NOTIFY_PREFERENCE_ENABLED:-true}"
+      # 全局静默时段（HH:mm，跨零点可写 22:00/07:00；留空表示不静默）
+      WHALE_TWIN_NOTIFY_QUIET_START: "${WHALE_TWIN_NOTIFY_QUIET_START:-}"
+      WHALE_TWIN_NOTIFY_QUIET_END: "${WHALE_TWIN_NOTIFY_QUIET_END:-}"
     ports:
       - "127.0.0.1:8089:8089"
     healthcheck:

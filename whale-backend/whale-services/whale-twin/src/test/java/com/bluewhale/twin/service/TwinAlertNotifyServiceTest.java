@@ -312,6 +312,31 @@ class TwinAlertNotifyServiceTest {
     }
 
     @Test
+    void recoveryIdempotencyKeyFitsMessageBizIdLimit() {
+        properties.getAlertNotify().setInappEnabled(true);
+        properties.getAlertNotify().setCooldownSeconds(0);
+        // 生产形态：18 位雪花场景ID + 纳秒时间戳（早期实现把两者原样拼进键，长度恒超 64）
+        Long snowflakeSceneId = 991000000000000301L;
+        String nanoTs = "2026-11-11T19:01:34.991791533";
+        when(recipientResolver.resolve(snowflakeSceneId))
+                .thenReturn(new TwinAlertRecipientResolver.Recipients(List.of(USER_ID), "示范场景"));
+        when(messageClient.sendInapp(any(), anyString(), anyString(), anyString(), anyMap(), anyList()))
+                .thenReturn(new TwinMessageClient.SendOutcome(557L, "SENT", null));
+
+        TwinAlertNotifyService service = service();
+        service.notify(snowflakeSceneId, TENANT_ID, ALERT_ID, alertWith("warn", nanoTs));
+        service.notify(snowflakeSceneId, TENANT_ID, null, alertWith("normal", nanoTs));
+
+        ArgumentCaptor<String> keys = ArgumentCaptor.forClass(String.class);
+        verify(messageClient, times(2)).sendInapp(any(), keys.capture(), anyString(), anyString(),
+                anyMap(), anyList());
+        assertEquals("twin-alert-9001", keys.getAllValues().get(0));
+        String recoveryKey = keys.getAllValues().get(1);
+        assertTrue(recoveryKey.startsWith("twin-alert-rc-"), recoveryKey);
+        assertTrue(recoveryKey.length() <= 64, "恢复幂等键超过 message bizId 上限：" + recoveryKey);
+    }
+
+    @Test
     void skipsRecoveryForAlertBelowThreshold() {
         properties.getAlertNotify().setEnabled(true);
         properties.getAlertNotify().setWebhookUrls(List.of(URL));
@@ -464,6 +489,17 @@ class TwinAlertNotifyServiceTest {
      * @return 告警视图
      */
     private static BindingAlertVO alert(String level) {
+        return alertWith(level, "2026-11-10T18:30:00");
+    }
+
+    /**
+     * 构造指定级别/时间戳的告警（时间戳形态影响幂等键长度）。
+     *
+     * @param level 级别
+     * @param ts    时间戳
+     * @return 告警视图
+     */
+    private static BindingAlertVO alertWith(String level, String ts) {
         return BindingAlertVO.builder()
                 .bindingId("1")
                 .entityId("200")
@@ -473,7 +509,7 @@ class TwinAlertNotifyServiceTest {
                 .previous("warn")
                 .level(level)
                 .thresholds(List.of(new BigDecimal("50"), new BigDecimal("80")))
-                .ts("2026-11-10T18:30:00")
+                .ts(ts)
                 .build();
     }
 }
