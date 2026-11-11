@@ -33,7 +33,7 @@ public final class SceneUserContext {
         Set<String> roles = WebHeaders.splitCodes(WebHeaders.header(request, WebHeaders.USER_ROLES));
         Set<String> permissions = WebHeaders.splitCodes(
                 WebHeaders.header(request, WebHeaders.PERMISSION_CODES));
-        return new NavigationUser(parseUserId(WebHeaders.userId(request)), roles, permissions, null);
+        return new NavigationUser(parseNumeric(WebHeaders.userId(request)), roles, permissions, null);
     }
 
     /**
@@ -43,7 +43,7 @@ public final class SceneUserContext {
      * @return 用户 ID
      */
     public static Long requireUserId(HttpServletRequest request) {
-        Long userId = parseUserId(WebHeaders.userId(request));
+        Long userId = parseNumeric(WebHeaders.userId(request));
         if (userId == null) {
             throw new BizException(ErrorCode.UNAUTHORIZED);
         }
@@ -51,17 +51,34 @@ public final class SceneUserContext {
     }
 
     /**
-     * 解析用户 ID（网关未注入或非法时返回 {@code null}）。
+     * 读取当前租户 ID，缺失或非法时按未认证拒绝。
      *
-     * @param userIdText 用户 ID 文本
-     * @return 用户 ID
+     * <p>偏好读写落在 auth 统一配置表（按 tenant_id 行级隔离），缺租户上下文会串租户，
+     * 因此与用户 ID 同样失败关闭——宁可让请求失败，也不写错租户。</p>
+     *
+     * @param request 当前请求
+     * @return 租户 ID
      */
-    private static Long parseUserId(String userIdText) {
-        if (userIdText == null) {
+    public static Long requireTenantId(HttpServletRequest request) {
+        Long tenantId = parseNumeric(WebHeaders.tenantId(request));
+        if (tenantId == null) {
+            throw new BizException(ErrorCode.UNAUTHORIZED);
+        }
+        return tenantId;
+    }
+
+    /**
+     * 解析网关注入的数值型头部（缺失或非法时返回 {@code null}）。
+     *
+     * @param text 头部文本
+     * @return 解析结果
+     */
+    private static Long parseNumeric(String text) {
+        if (text == null) {
             return null;
         }
         try {
-            return Long.valueOf(userIdText);
+            return Long.valueOf(text);
         } catch (NumberFormatException exception) {
             return null;
         }

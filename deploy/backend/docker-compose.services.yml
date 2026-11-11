@@ -78,6 +78,9 @@ services:
       RABBITMQ_PORT: ${RABBITMQ_PORT}
       RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      # 内网令牌（V-02 纵深防御）：留空时 dev 按 fail-open 放行（InternalTokenGuard 告警），
+      # 非 dev 环境必须注入同一随机值——各服务出站会自动携带，缺失方调用会被 403
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       MANAGEMENT_HEALTH_RABBIT_ENABLED: "false"
       # 定时任务迁入 whale-job：口令到期提醒（auth.password.expiry-notice）
       WHALE_SCHEDULE_LOCAL_ENABLED: "false"
@@ -1023,6 +1026,11 @@ services:
       MYSQL_PORT: ${MYSQL_PORT}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      # 出站调用 auth 内网配置接口需带同一令牌（留空则 dev fail-open 行为不变）
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
+      # 用户偏好收敛到 auth 统一配置（Wave 6.25）：容器内必须走容器名直连，
+      # 默认的 127.0.0.1 会被 fail-open 掩盖成「永远读不到偏好、永远返回 2D」
+      WHALE_SCENE_AUTH_BASE_URL: "http://bw-auth:8081"
     ports:
       - "127.0.0.1:8097:8097"
     healthcheck:

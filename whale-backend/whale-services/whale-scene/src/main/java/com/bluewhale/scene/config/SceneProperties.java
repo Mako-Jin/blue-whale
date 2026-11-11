@@ -30,4 +30,13 @@ public class SceneProperties {
 
     /** 允许外部入口的协议白名单（内部路径入口另行放行） */
     private String allowedSchemes = "http,https";
+
+    /**
+     * auth 内网基地址：用户偏好读写走 auth 统一配置（Wave 6.25）。
+     *
+     * <p>容器内必须为 {@code http://bw-auth:8081}（compose 已注入）；
+     * 默认值面向本机直接起进程的调试场景。读失败按默认偏好处理（fail-open），
+     * 写失败直接报错（fail-closed）。</p>
+     */
+    private String authBaseUrl = "http://127.0.0.1:8081";
 }

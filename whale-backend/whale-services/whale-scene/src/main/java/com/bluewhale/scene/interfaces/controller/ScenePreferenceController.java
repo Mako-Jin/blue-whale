@@ -16,8 +16,9 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 用户场景偏好接口（2D / 3D 视图模式与默认场景）。
  *
- * <p>登录即可访问，偏好按当前用户维度保存；用户身份只信任网关注入的
- * {@code X-User-Id}。</p>
+ * <p>登录即可访问，偏好按当前用户维度保存。Wave 6.25 起存储落在 auth 统一配置
+ * （{@code sys_user_config} 的 {@code scene.view}），对外契约保持不变；
+ * 用户与租户身份只信任网关注入的 {@code X-User-Id} / {@code X-Tenant-Id}。</p>
  *
  * @author BlueWhale
  */
@@ -36,7 +37,8 @@ public class ScenePreferenceController {
      */
     @GetMapping("/preference")
     public Result<ScenePreferenceView> preference(HttpServletRequest request) {
-        return Result.ok(scenePreferenceAppService.get(SceneUserContext.requireUserId(request)));
+        return Result.ok(scenePreferenceAppService.get(
+                SceneUserContext.requireTenantId(request), SceneUserContext.requireUserId(request)));
     }
 
     /**
@@ -49,6 +51,8 @@ public class ScenePreferenceController {
     @PutMapping("/preference")
     public Result<ScenePreferenceView> save(@RequestBody ScenePreferenceSaveCommand command,
                                             HttpServletRequest request) {
-        return Result.ok(scenePreferenceAppService.save(SceneUserContext.requireUserId(request), command));
+        return Result.ok(scenePreferenceAppService.save(
+                SceneUserContext.requireTenantId(request),
+                SceneUserContext.requireUserId(request), command));
     }
 }

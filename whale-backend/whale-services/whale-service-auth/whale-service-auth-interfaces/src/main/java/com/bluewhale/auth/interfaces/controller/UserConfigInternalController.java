@@ -1,9 +1,15 @@
 package com.bluewhale.auth.interfaces.controller;
 
+import com.bluewhale.auth.application.userconfig.UserConfigAppService;
 import com.bluewhale.auth.application.userconfig.UserConfigBatchService;
+import com.bluewhale.auth.application.userconfig.command.SaveUserConfigCommand;
 import com.bluewhale.auth.application.userconfig.vo.ConfigBatchItemVO;
 import com.bluewhale.auth.interfaces.dto.ConfigBatchGetRequest;
+import com.bluewhale.auth.interfaces.dto.ConfigSetRequest;
+import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.Result;
+import com.bluewhale.common.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -32,6 +38,9 @@ public class UserConfigInternalController {
     /** 批量合并读取服务 */
     private final UserConfigBatchService userConfigBatchService;
 
+    /** 用户配置单条写服务（复用自助写入的同一实现） */
+    private final UserConfigAppService userConfigAppService;
+
     /**
      * 批量读取多个用户在多个配置键上的生效值（合并优先级：用户 &gt; 租户 &gt; 未配置）
      *
@@ -43,5 +52,28 @@ public class UserConfigInternalController {
                                                     @RequestBody ConfigBatchGetRequest body) {
         return Result.ok(userConfigBatchService.batchGet(
                 body.tenantId(), body.userIds(), body.keys()));
+    }
+
+    /**
+     * 写入（upsert）一个用户在某个配置键上的值。
+     *
+     * <p>供业务服务把「用户偏好」落到 auth 统一配置表（Wave 6.25 起 whale-scene 使用），
+     * auth 只做存储安全校验（键口径 / JSON 合法性 / 大小上限），业务语义由调用方解释。
+     * {@code tenantId} 必须与请求头 {@code X-Tenant-Id} 一致，防止调用方串租户写库。</p>
+     *
+     * @param body 写入请求
+     * @return 成功
+     */
+    @PostMapping("/set")
+    public Result<Void> set(@jakarta.validation.Valid @RequestBody ConfigSetRequest body) {
+        Long contextTenantId = TenantContext.requireId();
+        if (!contextTenantId.equals(body.tenantId())) {
+            throw new BizException(ErrorCode.PARAM_ERROR,
+                    "tenantId 与 X-Tenant-Id 不一致：" + body.tenantId() + " vs " + contextTenantId);
+        }
+        Long operatorId = body.operatorId() == null ? body.userId() : body.operatorId();
+        userConfigAppService.upsert(body.tenantId(), body.userId(),
+                new SaveUserConfigCommand(body.configKey(), body.configValue(), operatorId));
+        return Result.ok();
     }
 }

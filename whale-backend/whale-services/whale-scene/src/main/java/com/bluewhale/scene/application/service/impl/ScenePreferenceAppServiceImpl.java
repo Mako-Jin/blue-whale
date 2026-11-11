@@ -2,22 +2,26 @@ package com.bluewhale.scene.application.service.impl;
 
 import com.bluewhale.scene.application.command.ScenePreferenceSaveCommand;
 import com.bluewhale.scene.application.service.ScenePreferenceAppService;
+import com.bluewhale.scene.application.support.SceneViewModes;
 import com.bluewhale.scene.application.view.ScenePreferenceView;
 import com.bluewhale.scene.domain.exception.SceneErrorCode;
 import com.bluewhale.scene.domain.model.SceneStatus;
-import com.bluewhale.scene.domain.model.UserPreference;
 import com.bluewhale.scene.domain.repository.SceneRepository;
-import com.bluewhale.scene.domain.repository.UserPreferenceRepository;
+import com.bluewhale.scene.infrastructure.client.AuthScenePreferenceClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 /**
  * 用户场景偏好用例实现。
  *
- * <p>默认场景只允许指向已发布场景，避免保存后在导航中找不到；
- * 偏好记录按用户维度 upsert，租户隔离由持久化插件保证。</p>
+ * <p>Wave 6.25 起存储落在 auth 统一配置（{@code sys_user_config} 的 {@code scene.view}），
+ * 本服务只负责业务语义校验：视图模式枚举、默认场景必须已发布。存储/传输由
+ * {@link AuthScenePreferenceClient} 承担，读取失败按默认偏好回落（fail-open），
+ * 写入失败直接报错（fail-closed）。</p>
+ *
+ * <p>3D 视图受 {@code whale.scene.three-d-enabled} 约束：开关关闭时仍允许保存
+ * 3D 偏好（前端 M3 解冻后可直接生效），但默认值始终为 2D。</p>
  *
  * @author BlueWhale
  */
@@ -25,28 +29,28 @@ import org.springframework.util.StringUtils;
 @RequiredArgsConstructor
 public class ScenePreferenceAppServiceImpl implements ScenePreferenceAppService {
 
-    /** 场景标识最大长度（与 DDL 一致） */
+    /** 场景标识最大长度（与前端/DTO 口径一致） */
     private static final int SCENE_KEY_MAX_LENGTH = 64;
 
-    private final UserPreferenceRepository userPreferenceRepository;
+    /** auth 统一配置客户端 */
+    private final AuthScenePreferenceClient authScenePreferenceClient;
 
+    /** 场景仓储（校验默认场景是否已发布） */
     private final SceneRepository sceneRepository;
 
     @Override
-    public ScenePreferenceView get(Long userId) {
-        return userPreferenceRepository.findByUserId(userId)
-                .map(this::toView)
-                .orElseGet(() -> toView(defaultPreference(userId)));
+    public ScenePreferenceView get(Long tenantId, Long userId) {
+        return authScenePreferenceClient.read(tenantId, userId)
+                .orElseGet(this::defaultView);
     }
 
     @Override
-    @Transactional
-    public ScenePreferenceView save(Long userId, ScenePreferenceSaveCommand command) {
+    public ScenePreferenceView save(Long tenantId, Long userId, ScenePreferenceSaveCommand command) {
         ScenePreferenceSaveCommand saveCommand = command == null
                 ? new ScenePreferenceSaveCommand() : command;
         String viewMode = StringUtils.hasText(saveCommand.getViewMode())
-                ? saveCommand.getViewMode().trim() : UserPreference.VIEW_MODE_2D;
-        if (!UserPreference.isValidViewMode(viewMode)) {
+                ? saveCommand.getViewMode().trim() : SceneViewModes.VIEW_MODE_2D;
+        if (!SceneViewModes.isValid(viewMode)) {
             throw SceneErrorCode.exception(SceneErrorCode.PREFERENCE_INVALID);
         }
         String sceneKey = StringUtils.hasText(saveCommand.getDefaultSceneKey())
@@ -62,38 +66,21 @@ public class ScenePreferenceAppServiceImpl implements ScenePreferenceAppService 
                 throw SceneErrorCode.exception(SceneErrorCode.PREFERENCE_SCENE_INVALID);
             }
         }
-        UserPreference preference = userPreferenceRepository.findByUserId(userId)
-                .orElseGet(() -> defaultPreference(userId));
-        preference.setViewMode(viewMode);
-        preference.setDefaultSceneKey(sceneKey);
-        userPreferenceRepository.save(preference);
-        return toView(preference);
+        ScenePreferenceView view = new ScenePreferenceView();
+        view.setViewMode(viewMode);
+        view.setDefaultSceneKey(sceneKey);
+        authScenePreferenceClient.write(tenantId, userId, view, userId);
+        return view;
     }
 
     /**
      * 构造默认偏好（2D、未指定场景）。
      *
-     * @param userId 用户 ID
-     * @return 默认偏好
+     * @return 默认偏好视图
      */
-    private UserPreference defaultPreference(Long userId) {
-        UserPreference preference = new UserPreference();
-        preference.setUserId(userId);
-        preference.setViewMode(UserPreference.VIEW_MODE_2D);
-        return preference;
-    }
-
-    /**
-     * 偏好转视图。
-     *
-     * @param preference 偏好
-     * @return 偏好视图
-     */
-    private ScenePreferenceView toView(UserPreference preference) {
+    private ScenePreferenceView defaultView() {
         ScenePreferenceView view = new ScenePreferenceView();
-        view.setViewMode(preference.getViewMode() == null
-                ? UserPreference.VIEW_MODE_2D : preference.getViewMode());
-        view.setDefaultSceneKey(preference.getDefaultSceneKey());
+        view.setViewMode(SceneViewModes.VIEW_MODE_2D);
         return view;
     }
 }
