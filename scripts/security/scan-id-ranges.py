@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-SCAN_DIRS = [ROOT / "backend", ROOT / "deploy"]
+SCAN_DIRS = [ROOT / "whale-backend", ROOT / "deploy"]
 SKIP_PARTS = {"target", "node_modules", "build", "dist", ".git"}
 
 # INSERT INTO sys_permission (...) \n SELECT 1900, 0, 'sys:lms:browse', ...

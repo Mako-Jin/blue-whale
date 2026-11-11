@@ -17,7 +17,7 @@
 # ============================================================
 $ErrorActionPreference = 'Stop'
 
-$jar = if ($env:MUSIC_JAR) { $env:MUSIC_JAR } else { 'f:\blue-whale\backend\whale-services\whale-music\target\whale-music.jar' }
+$jar = if ($env:MUSIC_JAR) { $env:MUSIC_JAR } else { 'f:\blue-whale\whale-backend\whale-services\whale-music\target\whale-music.jar' }
 if (-not (Test-Path -LiteralPath $jar)) { throw "jar not found: $jar" }
 
 if (-not $env:MYSQL_PASSWORD) { throw 'MYSQL_PASSWORD not set: run with $env:MYSQL_PASSWORD=<your local password> (no built-in default since 2026-10-31)' }

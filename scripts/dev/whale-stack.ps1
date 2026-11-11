@@ -66,7 +66,7 @@ Wait-Port 8849 'nacos-console' 60 | Out-Null
 $env:JAVA_HOME = $javaHome
 $env:NACOS_SERVER = '127.0.0.1:8848'
 $java = "$($env:JAVA_HOME)\bin\java.exe"
-$base = Join-Path $workspaceRoot 'backend'
+$base = Join-Path $workspaceRoot 'whale-backend'
 
 function Start-Svc($name, $jar, $port) {
   $env:SERVER_PORT = "$port"

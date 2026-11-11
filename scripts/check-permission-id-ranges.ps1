@@ -19,7 +19,7 @@ $sameLineValuesRe = 'VALUES\s*\(\s*(\d+)\s*,'
 $permCodeRe = "'(sys:[A-Za-z0-9:._*-]+)'"
 
 $records = @()
-$sqlFiles = Get-ChildItem -Path (Join-Path $RepoRoot 'backend') -Filter '*.sql' -Recurse |
+$sqlFiles = Get-ChildItem -Path (Join-Path $RepoRoot 'whale-backend') -Filter '*.sql' -Recurse |
     Where-Object { $_.FullName -notmatch '\\target\\' }
 
 foreach ($file in $sqlFiles) {

@@ -28,8 +28,8 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $workspaceRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$modulePom = Join-Path $workspaceRoot 'backend\whale-common\whale-config-crypto\pom.xml'
-$moduleClasses = Join-Path $workspaceRoot 'backend\whale-common\whale-config-crypto\target\classes'
+$modulePom = Join-Path $workspaceRoot 'whale-backend\whale-common\whale-config-crypto\pom.xml'
+$moduleClasses = Join-Path $workspaceRoot 'whale-backend\whale-common\whale-config-crypto\target\classes'
 
 function Resolve-Maven {
     foreach ($candidate in @(

@@ -492,7 +492,7 @@
 - [x] **E3** 改类型 `number → text` 发布后物理列变 `varchar(255)`
 - [x] **E4** 导出 CSV / XLSX（表头/行数正确、XLSX 首字节 `50 4B 03 04`）
 - [x] **E5** 设计器撤销/重做（删除 → `Ctrl+Z` 恢复 → `Ctrl+Y` 再删，按钮禁用态正确）
-- [ ] **E6** 真实指针拖拽入画布复验（**自动化不可复现 → 代码复核通过，需人工复核**；详见报告）
+- [x] **E6** 真实指针拖拽入画布复验（2026-10-28 已闭环：`e2e/form-designer-drag.spec.ts` 自动化覆盖；见 `pending-issues` V-02 销账）
 - [x] **E7** 负向：导出缺 `definitionCode` → `PARAM_ERROR`；DROP 被引用列 → 护栏 `PARAM_ERROR`
 
 **Wave 5.30-c（收尾 R7）**

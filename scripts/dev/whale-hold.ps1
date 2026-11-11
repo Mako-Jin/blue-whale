@@ -5,7 +5,7 @@ if (-not (Test-Path "$javaHome\bin\java.exe")) { throw "未找到 JDK：$javaHom
 $env:JAVA_HOME = $javaHome
 $env:NACOS_SERVER = '127.0.0.1:8848'
 $java = "$($env:JAVA_HOME)\bin\java.exe"
-$base = 'd:\BlueWhale\BlueWhale\backend'
+$base = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'whale-backend'
 $logDir = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'logs'
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 

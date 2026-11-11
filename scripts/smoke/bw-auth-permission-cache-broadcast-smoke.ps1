@@ -43,7 +43,7 @@ $script:SmokeAssertThrow = $false
 $ErrorActionPreference = 'Stop'
 
 if (-not $JarPath) {
-    $JarPath = Join-Path $PSScriptRoot '..\..\backend\whale-services\whale-service-auth\whale-service-auth-starter\target\whale-service-auth.jar'
+    $JarPath = Join-Path $PSScriptRoot '..\..\whale-backend\whale-services\whale-service-auth\whale-service-auth-starter\target\whale-service-auth.jar'
 }
 foreach ($required in @(
         @{ Name = 'MysqlPassword'; Value = $MysqlPassword },

@@ -24,7 +24,7 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-BACKEND = os.path.join(ROOT, "backend")
+BACKEND = os.path.join(ROOT, "whale-backend")
 PATTERN = re.compile(r'"(sys:[a-zA-Z0-9:_\-]+)"')
 
 

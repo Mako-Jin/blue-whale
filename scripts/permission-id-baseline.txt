@@ -1,10 +1,14 @@
 # 权限/菜单撞号基线（2026-11-09 首次扫描）
-# 下列 11 处为历史遗留的真实撞号：迁移均以 `WHERE NOT EXISTS` 幂等写入，后写入的号段被静默跳过。
+# 下列 12 处为历史遗留的真实撞号：迁移均以 `WHERE NOT EXISTS` 幂等写入，后写入的号段被静默跳过。
 # 基线内的条目不再阻塞门禁；新增撞号一律 FAIL，必须在本批次内解决。
 # 历史项清理需单独 RBAC 数据治理批次，涉及已应用环境的数据修复与角色重授权。
 id:sys_permission:172
 id:sys_permission:173
 id:sys_menu:35
+# 2026-11-11 追加：V6 用固定 id=37 写 /system/tenant-config，与 whale-doc 的
+# /doc/spaces（migration-5.74-doc.sql）撞号。V6 已被 Flyway 应用（validate-on-migrate
+# 禁止改历史版本），运行时由 V7 按 (tenant_id,path) 判重接管、V9 清理重复行。
+id:sys_menu:37
 code:sys_permission:sys:crm:customer:list
 code:sys_permission:sys:crm:customer:delete
 code:sys_permission:sys:crm:customer:merge

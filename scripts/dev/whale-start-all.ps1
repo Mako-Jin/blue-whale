@@ -9,7 +9,7 @@ $ErrorActionPreference = 'Stop'  # 审计修复：与 ops 脚本对齐，命令�
 $javaHome = if ($env:WHALE_JAVA_HOME) { $env:WHALE_JAVA_HOME } else { 'D:\tools\installer\jdk\java21' }
 if (-not (Test-Path "$javaHome\bin\java.exe")) { throw "未找到 JDK：$javaHome（请设置 WHALE_JAVA_HOME）" }
 $java = "$javaHome\bin\java.exe"
-$base = 'd:\BlueWhale\BlueWhale\backend'
+$base = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'whale-backend'
 $logDir = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'logs'
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 

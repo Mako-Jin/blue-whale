@@ -129,7 +129,7 @@
 ### M3 落地清单（2026-11-09）
 
 - **端口修正**：M1 曾把前端子应用误登记 8117——该端口权威归属 `whale-mail`（Wave 5.89）。`whale-assistant` 前端自 M3 起改 **8120**（vite.config + service-catalog §七三处），基座 `apps.ts` DEV_PORTS 同步。
-- **权限码与菜单（SQL）**：`whale-service-auth-starter/db/migration-6.01-assistant.sql`（幂等）——`sys_permission` 2300 `sys:assistant:define` / 2301 `sys:assistant:chat`；`sys_role_permission` 授权 tenant_admin（MD5 派生幂等 id）；`sys_menu` 510「助手管理」`/assistant/definition`（component `assistant/definition/index`）、511「助手用量」`/assistant/usage`，均绑 `sys:assistant:define`。
+- **权限码与菜单（SQL）**：`whale-service-auth-starter/db/migration-6.01-assistant.sql`（幂等）——`sys_permission` 2330 `sys:assistant:define` / 2331 `sys:assistant:chat`（2026-11-11 订正：原 2300/2301 与 CRM 分析权限撞号，两条 INSERT 被幂等条件整条跳过，助手权限从未入库）；`sys_role_permission` 按 `perm_code` 联查授权 tenant_admin（MD5 派生幂等 id）；`sys_menu` 按 `(tenant_id, path)` 判重、主键 MD5 派生，注册「助手管理」`/assistant/definition`（component `assistant/definition/index`）与「助手用量」`/assistant/usage`，均绑 `sys:assistant:define`；存量库由 Flyway `V8__assistant_permission_menu.sql` 补齐并复制到业务租户。
 - **后端新增**：`GET /assistant/usage/page`（助手×天聚合分页，date 过滤校验、助手被删回退 ID 展示）、`GET /assistant/tools`（whale-ai 注册表透传，授权页可选工具全集）、`GET /assistant/definitions/published`（问答视角已发布清单，`sys:assistant:chat` 即可）。
 - **admin 管理页**（`whale-frontend/admin`，构建通过）：`api/assistant.ts` 全套封装；`pages/assistant/DefinitionList.tsx`（分页/新增/编辑/发布/停用/删除 + 工具授权抽屉——勾选注册表工具，服务端强校验）；`pages/assistant/UsageBoard.tsx`（日期范围/助手过滤看板）；`dynamicRoutes.tsx` 注册 `assistant/definition`、`assistant/usage`；vite proxy 白名单补 `assistant`。
 - **基座注册**：`whale-platform` `apps.ts` 注册 `whale-assistant`（8120，activeRule `/assistant`）；`menu.ts` 加「AI 助手」入口（permission `sys:assistant:chat`）。

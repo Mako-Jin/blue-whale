@@ -31,8 +31,8 @@
 
 | 级别 | 问题 | 证据 | 建议 |
 |---|---|---|---|
-| **高** | 号段扫描门禁失效：`check-permission-id-ranges.ps1:22` 仍 `Join-Path $RepoRoot 'backend'`，目录已改 `whale-backend` → 实测 exit 1，等于该门禁从未真正执行 | 本机运行输出 | 改路径后重跑；同一批修复见下行 |
-| **中** | 目录重命名遗留 6 处旧 `backend/` / `frontend/` 引用，脚本空扫或直接失败 | `scripts/smoke/bw-auth-permission-cache-broadcast-smoke.ps1:46`、`scripts/security/check-perm-coverage.py:27`、`scripts/security/scan-id-ranges.py:31`、`scripts/dev/run-music.ps1:20`、`scripts/dev/whale-stack.ps1:69`、`scripts/dev/whale-stack534.ps1:69` | 统一改 `whale-backend` / `whale-frontend`，逐个跑一次冒烟 |
+| **高** | 号段扫描门禁失效：`check-permission-id-ranges.ps1:22` 仍 `Join-Path $RepoRoot 'backend'`，目录已改 `whale-backend` → 实测 exit 1，等于该门禁从未真正执行 | 本机运行输出 | **已修（见 §八）**：路径订正后门禁可执行，并立即暴露 2 处真实撞号 |
+| **中** | 目录重命名遗留 6 处旧 `backend/` / `frontend/` 引用，脚本空扫或直接失败 | `scripts/smoke/bw-auth-permission-cache-broadcast-smoke.ps1:46`、`scripts/security/check-perm-coverage.py:27`、`scripts/security/scan-id-ranges.py:31`、`scripts/dev/run-music.ps1:20`、`scripts/dev/whale-stack.ps1:69`、`scripts/dev/whale-stack534.ps1:69` | **已修（见 §八）**，另补 `whale-start-all.ps1` / `whale-hold.ps1` / `encrypt-secret.ps1` 三处更早的 `d:\BlueWhale\...` 硬编码 |
 | **中** | 在途改动未提交：登录锁定异常/处理器（3 个 Java 未跟踪）+ `login-lockout.ts` 及其测试（2 个未跟踪），另有 7 个已修改文件 | `git status` | 先跑 auth 单测 + 前端 lint/tsc，再提交 |
 | 低 | 权限映射 WARN：契约键 `components` 未被任何菜单种子命中（疑似死代码） | 门禁输出 | 确认后删除或在契约中标注保留 |
 | 低 | 内网边界 WARN：`/alert/internal/prometheus` 仅靠自带凭据鉴权 | 门禁输出 | 维持现状并留档，或补共享令牌 |
@@ -42,12 +42,12 @@
 
 ### 4.1 在途收口（优先）
 
-1. 登录失败计数与锁定：补前端 lint/tsc、auth 单测；回填 spec/devlog；提交 7 改 + 5 新增。
-2. 文档订正 4 处：
-   - `docs/specs/2026-11-11-wave6.22-auth-reauth/spec.md` 状态行仍「待确认（Spec）」，且「未做：未接登录锁定计数」已被 `1b8a9a27` 覆盖；
-   - `docs/design/audit-log.md:30` 仍写「登录失败风控 / 账号锁定策略（另立需求）」；
-   - `docs/plans/task-breakdown.md:495` E6 未勾（实际已闭环）；
-   - `docs/devlog/2026-11-11.md` 6.24 的 mall 分类页待办已修。
+1. ~~登录失败计数与锁定：补前端 lint/tsc、auth 单测；回填 spec/devlog；提交 7 改 + 5 新增。~~ ✅ 见 §七。
+2. ~~文档订正 4 处~~ ✅ 见 §八：
+   - `docs/specs/2026-11-11-wave6.22-auth-reauth/spec.md` 状态行改为「已实施」，「未做：未接登录锁定计数」标为已闭环；
+   - `docs/design/audit-log.md:30` 改为已由 Wave 6.22 落地；
+   - `docs/plans/task-breakdown.md:495` E6 已勾选（2026-10-28 闭环）；
+   - `docs/devlog/2026-11-11.md` 6.24 的 mall 分类页待办标为已修（`168f2b1b`）。
 3. 复核并清理 `stash@{0}`（2026-11-06 的 `ProcessCcServiceImpl` 及其测试改动），确认无价值后再删，勿直接 drop。
 
 ### 4.2 功能遗留
@@ -81,6 +81,40 @@
 - 第三节「在途改动未提交」**已闭环**：登录锁定前端倒计时（Wave 6.28）连同后端剩余秒数下发一起提交，
   `git status` 干净、`origin/main..HEAD` = 0。
 - 第一节的「工作区 7 修改 + 5 未跟踪」是 21:05 扫描时点的快照，保留以便追溯。
-- 4.1 第 1 项（补 lint/tsc/单测 + 提交）完成；4.1 第 2 项（文档订正 4 处）与 4.2 其余项仍待做。
+- 4.1 第 1 项（补 lint/tsc/单测 + 提交）完成；4.1 第 2 项（文档订正 4 处）→ 已于 §八 完成；4.2 其余项仍待做。
 - 第三节「高」项（号段门禁 `check-permission-id-ranges.ps1` 扫旧 `backend/` 路径）**仍未修**，优先级最高：
-  该门禁目前等于从未执行过。
+  该门禁目前等于从未执行过。（→ 已于 §八 闭环）
+
+## 八、收口更新（21:23，本轮执行）
+
+### 需求项
+
+1. 恢复号段门禁的真实覆盖（含脚本路径订正）。
+2. 收口 4 处文档失真。
+3. 复核 `stash@{0}` 价值。
+
+### 完成项
+
+| 内容 | 证据 |
+|---|---|
+| 10 个脚本的旧目录路径订正：`check-permission-id-ranges.ps1`、`bw-auth-permission-cache-broadcast-smoke.ps1`、`check-perm-coverage.py`、`scan-id-ranges.py`、`run-music.ps1`、`whale-stack.ps1`、`whale-stack534.ps1`，另补 `whale-start-all.ps1` / `whale-hold.ps1`（`d:\BlueWhale\...`）/ `encrypt-secret.ps1` | `git diff` |
+| 号段门禁恢复执行：`PERMISSION-ID-CHECK-PASS`（381 份 SQL / 权限 843 条 / 菜单 246 条 / 基线已知 10 处） | 本机运行 |
+| 静态号段扫描：`ERROR 0`，WARN 31（号段未声明类，历史基线） | `scan-id-ranges.py` |
+| 文档订正 4 处（6.22 状态与锁定项、audit-log 范围外项、E6 勾选、6.24 待办） | `git diff docs/` |
+| `check-doc-consistency.ps1` → `DOC-CONSISTENCY-PASS` | 本机运行 |
+
+### 已修正问题项（门禁恢复后暴露的真实缺陷）
+
+| 问题 | 根因 | 修法 |
+|---|---|---|
+| `sys:assistant:define` / `sys:assistant:chat` **从未入库**，助手管理/问答接口除超管外一律 403、菜单不出现 | `migration-6.01-assistant.sql` 用 2300/2301，而 2026-11-09 01:09 的 CRM 修复已把 `sys:crm:analytics:*` 挪到 2300–2306；幂等条件 `id=? OR perm_code=?` 让后执行的助手两条 INSERT 整条跳过。更隐蔽的是其授权段按 `p.id IN (2300,2301)` 联查，若在 CRM 之后执行会把 **CRM 权限**授给 tenant_admin | 手工脚本改用 **2330–2331** 且判重键只看 `perm_code`、授权按 `perm_code` 联查、菜单改 MD5 派生 + `(tenant_id,path)` 判重；新增 Flyway `V8__assistant_permission_menu.sql` 为存量库补齐并复制到业务租户 |
+| Flyway 新建库里「租户配置」菜单出现两行 | `V6__tenant_config_menu.sql` 固定 `id=37` 写 `/system/tenant-config`，与 doc 的 `/doc/spaces` 撞号；空库中先由 V6 写 37、V7 又按路径写一条 | 新增 `V9__tenant_config_menu_dedupe.sql` 删除 id=37 的重复行；`scripts/permission-id-baseline.txt` 登记 `id:sys_menu:37` 并注明 V6 受 `validate-on-migrate` 保护不得改写 |
+
+### 待做项
+
+1. `stash@{0}` 复核结论：**内容全部过时**，建议丢弃（未执行，等确认）——
+   - `ProcessCcServiceImpl` 把现行「上限 100 + 超限显式报错」回退成旧的 `.limit(10)` 静默截断；
+   - 其单测删除的正是现行两个用例（12 人双口径不丢人 / 超 100 报错）；
+   - 三处文档改动为旧状态文本与 BOM 空白，HEAD 已更新。
+2. 决策阻塞与功能遗留同 §四/§五，本轮未动。
+

@@ -1,6 +1,6 @@
 # Wave 6.22 auth 危险操作二次认证（Step-Up Authentication）
 
-> 状态：**待确认（Spec）**，确认后进入实现。
+> 状态：**已实施（2026-11-11）**——后端 `ReauthService` + admin 危险操作弹窗已交付并通过实机验收；剩余见「未做 / 后续」。
 > 收口目标：`AuthApi.java:79` 的 `TODO : 危险操作需要二次认证`。
 > 编写：2026-11-11 ｜ 涉及：whale-auth（后端）、@bluewhale/http（前端拦截器）、admin/基座（弹窗 UI）
 
@@ -151,4 +151,6 @@ Result<Void> changePassword(...);
 
 - 基座（whale-platform）与其余子应用未接入 `onReauthRequired`（当前只有 admin 有危险操作入口）；
   接入方式：`setReauthPrompt(promptReauth)` 一行。
-- 未接 login 失败锁定计数（reauth 失败仅返回 401）；如需防爆破，可与 login 锁定共用计数键。
+- ~~未接 login 失败锁定计数（reauth 失败仅返回 401）~~ ✅ 2026-11-11 已接：reauth 与 login
+  共用 `LoginLockService` 计数（提交 `1b8a9a27`），锁定态返回业务码 **42301** 并下发剩余秒数
+  （提交 `9bc86176`，四端登录页倒计时已验）。
