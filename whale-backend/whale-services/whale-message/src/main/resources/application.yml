@@ -88,6 +88,14 @@ whale:
       dispatch-initial-delay-millis: ${WHALE_MESSAGE_RECEIPT_DISPATCH_INITIAL_DELAY_MS:20000}
       dispatch-batch-size: ${WHALE_MESSAGE_RECEIPT_DISPATCH_BATCH_SIZE:50}
       max-attempts: ${WHALE_MESSAGE_RECEIPT_MAX_ATTEMPTS:5}
+    # Wave 6.17b：通知偏好解析（偏好数据在 auth sys_user_config，键 notify.<bizType>；
+    # 解析失败一律 fail-open 按调用方默认放行）
+    preference:
+      enabled: ${WHALE_MESSAGE_PREFERENCE_ENABLED:true}
+      auth-base-url: ${WHALE_MESSAGE_PREFERENCE_AUTH_BASE_URL:http://127.0.0.1:8081}
+      key-prefix: ${WHALE_MESSAGE_PREFERENCE_KEY_PREFIX:notify.}
+      max-users: ${WHALE_MESSAGE_PREFERENCE_MAX_USERS:200}
+      timeout-millis: ${WHALE_MESSAGE_PREFERENCE_TIMEOUT_MS:3000}
       retry-backoff-seconds: ${WHALE_MESSAGE_RECEIPT_RETRY_BACKOFF_SECONDS:30}
       connect-timeout-millis: ${WHALE_MESSAGE_RECEIPT_CONNECT_TIMEOUT_MS:1000}
       read-timeout-millis: ${WHALE_MESSAGE_RECEIPT_READ_TIMEOUT_MS:3000}
