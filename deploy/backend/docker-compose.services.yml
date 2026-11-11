@@ -952,8 +952,18 @@ services:
       WHALE_AGENT_REPO_ROOT: "/repo"
       # 索引目录必须显式指定：留空会回落 <repo-root>/data/agent-index，而 /repo 是只读挂载（Lucene 写 lock 直接失败）
       WHALE_AGENT_INDEX_DIR: "/app/data/agent-index"
-      WHALE_AGENT_LLM_BASE_URL: ${WHALE_AGENT_LLM_BASE_URL:-https://api.openai.com/v1}
-      WHALE_AGENT_LLM_API_KEY: ${WHALE_AGENT_LLM_API_KEY:-}
+      WHALE_AGENT_LLM_BASE_URL: ${WHALE_AGENT_LLM_BASE_URL:-http://host.docker.internal:11434/v1}
+      WHALE_AGENT_LLM_API_KEY: ${WHALE_AGENT_LLM_API_KEY:-ollama-local}
+      WHALE_AGENT_LLM_MODEL: ${WHALE_AGENT_LLM_MODEL:-qwen2.5:1.5b}
+      # CPU 跑 1.5B + 多轮工具编排，单轮首次推理（含模型加载）常超 60s，默认超时会把
+      # 成功的调用判成失败并降级成摘要；放宽到 180s（客户端超时，不是服务端排队）
+      WHALE_AGENT_LLM_TIMEOUT_MILLIS: ${WHALE_AGENT_LLM_TIMEOUT_MILLIS:-180000}
+      # 默认接宿主机本地 Ollama（OpenAI 兼容端点，api-key 任意非空值即可）；
+      # 换云端在 .env 覆盖上面三项即可。模型目录落 F:\blue-whale\tools\ollama\models。
+      # 向量默认关闭：CPU 上 nomic-embed-text 约 62ms/块，本仓 5.6 万块全量向量化要 1 小时，
+      # 每次重建都付这个代价不划算。检索走 BM25（分数真实、无关即零证据）。
+      # 需要语义召回时把 provider 改回 openai + 下面三个 base-url/api-key/model，并接受重建耗时。
+      WHALE_AGENT_EMBEDDING_PROVIDER: ${WHALE_AGENT_EMBEDDING_PROVIDER:-none}
     # 相对 compose 文件定位到仓库根（deploy/backend/../..）；生产环境无源码时该目录为空，扫描结果为 0 不报错
     volumes:
       - ../../:/repo:ro
