@@ -4,6 +4,7 @@ import com.bluewhale.auth.application.model.AuthRoleCodes;
 import com.bluewhale.auth.application.model.AuthenticatedUser;
 import com.bluewhale.auth.application.model.port.RefreshRotationPolicy;
 import com.bluewhale.auth.application.model.TokenPayload;
+import com.bluewhale.auth.application.model.command.LoginCommand;
 import com.bluewhale.auth.application.model.command.LogoutCommand;
 import com.bluewhale.auth.application.model.command.RefreshCommand;
 import com.bluewhale.auth.application.model.command.SwitchTenantCommand;
@@ -24,6 +25,8 @@ import com.bluewhale.auth.application.service.SessionAppService;
 import com.bluewhale.auth.application.menu.MenuAppService;
 import com.bluewhale.auth.application.permission.PermissionAppService;
 import com.bluewhale.auth.application.role.RoleAppService;
+import com.bluewhale.auth.application.security.InvalidCredentialException;
+import com.bluewhale.auth.application.security.LoginLockService;
 import com.bluewhale.auth.application.tenant.TenantAppService;
 import com.bluewhale.auth.application.tenant.TenantMembershipAppService;
 import com.bluewhale.auth.application.user.password.PasswordPolicyService;
@@ -52,6 +55,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -131,6 +135,9 @@ class SessionAppServiceTest {
 
     @Mock
     private TenantPasswordPolicyService tenantPasswordPolicyService;
+
+    @Mock
+    private LoginLockService loginLockService;
 
     @InjectMocks
     private SessionAppServiceImpl sessionAppService;
@@ -451,5 +458,70 @@ class SessionAppServiceTest {
 
         assertEquals(UNAUTHORIZED_CODE, ex.getCode());
         verifyNoInteractions(userSessionQuery, tokenBlacklist);
+    }
+
+    @Test
+    @DisplayName("login：账号已锁定时直接拒绝，不再校验口令（正确口令也不能登录）")
+    void loginShouldRejectLockedAccount() {
+        when(tenantAppService.resolveEnabledTenantId("default")).thenReturn(TENANT_ID);
+        doThrow(new BizException(LoginLockService.LOCKED_CODE, "账号已锁定，请 5 分钟后再试"))
+                .when(loginLockService).ensureUnlocked(TENANT_ID, USERNAME);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> sessionAppService.login(new LoginCommand("default", USERNAME, "secret1")));
+
+        assertEquals(LoginLockService.LOCKED_CODE, ex.getCode());
+        verifyNoInteractions(credentialAuthenticator);
+    }
+
+    @Test
+    @DisplayName("login：口令错误计入失败次数并保持 401 文案")
+    void loginShouldCountInvalidCredential() {
+        when(tenantAppService.resolveEnabledTenantId("default")).thenReturn(TENANT_ID);
+        when(credentialAuthenticator.authenticate(TENANT_ID, USERNAME, "wrong"))
+                .thenThrow(new InvalidCredentialException("用户名或密码错误"));
+
+        BizException ex = assertThrows(InvalidCredentialException.class,
+                () -> sessionAppService.login(new LoginCommand("default", USERNAME, "wrong")));
+
+        assertEquals(UNAUTHORIZED_CODE, ex.getCode());
+        assertEquals("用户名或密码错误", ex.getMessage());
+        verify(loginLockService).recordFailure(TENANT_ID, USERNAME);
+        verify(loginLockService, never()).clear(anyLong(), anyString());
+    }
+
+    @Test
+    @DisplayName("login：本次失败触达上限时抛 42301 锁定提示（而不是继续返回口令错误）")
+    void loginShouldThrowLockedWhenThresholdReached() {
+        when(tenantAppService.resolveEnabledTenantId("default")).thenReturn(TENANT_ID);
+        when(credentialAuthenticator.authenticate(TENANT_ID, USERNAME, "wrong"))
+                .thenThrow(new InvalidCredentialException("用户名或密码错误"));
+        doThrow(new BizException(LoginLockService.LOCKED_CODE, "账号已锁定，请 15 分钟后再试"))
+                .when(loginLockService).recordFailure(TENANT_ID, USERNAME);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> sessionAppService.login(new LoginCommand("default", USERNAME, "wrong")));
+
+        assertEquals(LoginLockService.LOCKED_CODE, ex.getCode());
+    }
+
+    @Test
+    @DisplayName("login：口令正确时清除失败计数并签发令牌")
+    void loginShouldClearFailureOnSuccess() {
+        when(tenantAppService.resolveEnabledTenantId("default")).thenReturn(TENANT_ID);
+        when(credentialAuthenticator.authenticate(TENANT_ID, USERNAME, "secret1"))
+                .thenReturn(new AuthenticatedUser(TENANT_ID, USER_ID, USERNAME, "Alice", List.of("admin"), true, false));
+        when(userRepository.findByIdAcrossTenants(USER_ID)).thenReturn(Optional.empty());
+        when(tokenIssuer.issueAccessToken(TENANT_ID, USER_ID, USERNAME, List.of("admin"), false))
+                .thenReturn("new-access");
+        when(tokenIssuer.issueRefreshToken(eq(TENANT_ID), eq(USER_ID), eq(USERNAME), anyString()))
+                .thenReturn("new-refresh");
+        when(tokenIssuer.accessExpireSeconds()).thenReturn(ACCESS_EXPIRE_SECONDS);
+
+        LoginResult result = sessionAppService.login(new LoginCommand("default", USERNAME, "secret1"));
+
+        assertEquals("new-access", result.accessToken());
+        verify(loginLockService).clear(TENANT_ID, USERNAME);
+        verify(loginLockService, never()).recordFailure(anyLong(), anyString());
     }
 }

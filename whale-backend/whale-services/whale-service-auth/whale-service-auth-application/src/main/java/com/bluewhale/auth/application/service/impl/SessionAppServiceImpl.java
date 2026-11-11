@@ -23,6 +23,8 @@ import com.bluewhale.auth.application.model.result.LoginResult;
 import com.bluewhale.auth.application.model.result.TenantResult;
 import com.bluewhale.auth.application.permission.PermissionAppService;
 import com.bluewhale.auth.application.role.RoleAppService;
+import com.bluewhale.auth.application.security.InvalidCredentialException;
+import com.bluewhale.auth.application.security.LoginLockService;
 import com.bluewhale.auth.application.service.SessionAppService;
 import com.bluewhale.auth.application.tenant.TenantAppService;
 import com.bluewhale.auth.application.tenant.TenantMembershipAppService;
@@ -88,6 +90,8 @@ public class SessionAppServiceImpl implements SessionAppService {
     private final PasswordPolicyService passwordPolicyService;
     private final PasswordHasher passwordHasher;
     private final TenantPasswordPolicyService tenantPasswordPolicyService;
+    /** 登录失败锁定（与二次认证共用同一计数，Wave 6.27） */
+    private final LoginLockService loginLockService;
 
     /**
      * 登录：按（租户, 用户名, 密码）完成凭据校验并签发一对令牌。
@@ -97,8 +101,18 @@ public class SessionAppServiceImpl implements SessionAppService {
      */
     public LoginResult login(LoginCommand command) {
         Long tenantId = tenantAppService.resolveEnabledTenantId(command.tenantCode());
-        AuthenticatedUser user = credentialAuthenticator.authenticate(
-            tenantId, command.username(), command.password());
+        // 锁定检查放在认证之前：锁定期内即使口令正确也拒绝（否则锁定形同虚设）
+        loginLockService.ensureUnlocked(tenantId, command.username());
+        AuthenticatedUser user;
+        try {
+            user = credentialAuthenticator.authenticate(
+                tenantId, command.username(), command.password());
+        } catch (InvalidCredentialException e) {
+            // 只对「口令错」计数；本次失败到达上限时由 recordFailure 抛锁定异常
+            loginLockService.recordFailure(tenantId, command.username());
+            throw e;
+        }
+        loginLockService.clear(tenantId, command.username());
         // 记录最后登录时间（聚合行为），并在口令密文强度落后时自动升级（REQ-SEC-021）
         userRepository.findByIdAcrossTenants(user.userId()).ifPresent(entity -> {
             entity.recordLogin(LocalDateTime.now());

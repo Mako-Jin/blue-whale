@@ -2,6 +2,7 @@ package com.bluewhale.auth.infrastructure.adapter.auth;
 
 import com.bluewhale.auth.application.model.AuthenticatedUser;
 import com.bluewhale.auth.application.model.port.CredentialAuthenticator;
+import com.bluewhale.auth.application.security.InvalidCredentialException;
 import com.bluewhale.auth.infrastructure.security.LoginTenantContext;
 import com.bluewhale.auth.infrastructure.security.LoginUser;
 import com.bluewhale.common.core.exception.BizException;
@@ -36,7 +37,8 @@ public class SpringSecurityCredentialAuthenticator implements CredentialAuthenti
             authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(username, rawPassword));
         } catch (BadCredentialsException e) {
-            throw new BizException(401, "用户名或密码错误");
+            // 专用异常类型：只有「口令错」计入登录失败次数（账号停用不计，避免把停用账号当爆破）
+            throw new InvalidCredentialException("用户名或密码错误");
         } catch (DisabledException e) {
             throw new BizException(401, "账号已停用");
         } catch (AuthenticationException e) {

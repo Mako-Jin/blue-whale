@@ -81,6 +81,10 @@ services:
       # 内网令牌（V-02 纵深防御）：留空时 dev 按 fail-open 放行（InternalTokenGuard 告警），
       # 非 dev 环境必须注入同一随机值——各服务出站会自动携带，缺失方调用会被 403
       WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
+      # 登录失败锁定（Wave 6.27）：连续失败达上限即锁定 window 秒，登录与 step-up 验密共用同一计数。
+      # 计数存 Redis，窗口到期自动解锁；Redis 不可用时 fail-open（不阻断登录，只告警）。
+      WHALE_AUTH_LOCKOUT_MAX_ATTEMPTS: "${WHALE_AUTH_LOCKOUT_MAX_ATTEMPTS:-5}"
+      WHALE_AUTH_LOCKOUT_WINDOW_SECONDS: "${WHALE_AUTH_LOCKOUT_WINDOW_SECONDS:-900}"
       MANAGEMENT_HEALTH_RABBIT_ENABLED: "false"
       # 定时任务迁入 whale-job：口令到期提醒（auth.password.expiry-notice）
       WHALE_SCHEDULE_LOCAL_ENABLED: "false"

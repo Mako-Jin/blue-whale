@@ -31,17 +31,31 @@ public class ReauthAppService {
     /** step-up 凭证存储端口 */
     private final ReauthTokenStore reauthTokenStore;
 
+    /** 登录失败锁定（与登录共用同一计数，Wave 6.27） */
+    private final LoginLockService loginLockService;
+
     /**
      * 校验当前用户的明文口令并发放凭证
      *
+     * <p>失败次数与登录共用同一计数键：否则拿到会话的攻击者可以绕过登录锁定，
+     * 改用 reauth 继续爆破口令。</p>
+     *
      * @param rawPassword 当前登录用户的明文口令
      * @return 新凭证与有效期
-     * @throws BizException 口令错误（401）或认证结果与当前用户不一致（401）时抛出
+     * @throws BizException 口令错误（401）、账号已锁定（42301）或认证结果与当前用户不一致（401）时抛出
      */
     public ReauthResult reauthenticate(String rawPassword) {
         AuthenticatedUser current = currentUserProvider.current();
-        AuthenticatedUser verified = credentialAuthenticator.authenticate(
-                current.tenantId(), current.username(), rawPassword);
+        loginLockService.ensureUnlocked(current.tenantId(), current.username());
+        AuthenticatedUser verified;
+        try {
+            verified = credentialAuthenticator.authenticate(
+                    current.tenantId(), current.username(), rawPassword);
+        } catch (InvalidCredentialException e) {
+            loginLockService.recordFailure(current.tenantId(), current.username());
+            throw e;
+        }
+        loginLockService.clear(current.tenantId(), current.username());
         // 防御：认证结果必须与当前登录身份一致，避免租户/账号错位时误发凭证
         if (!current.userId().equals(verified.userId())) {
             throw new BizException(ErrorCode.UNAUTHORIZED);
