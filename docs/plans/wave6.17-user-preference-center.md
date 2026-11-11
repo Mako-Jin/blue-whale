@@ -127,3 +127,32 @@ POST /user/internal/config/batch-get      X-Internal-Token + X-Tenant-Id
 - message：resolve 语义单测（静默/阈值/渠道归一/fail-open）+ 实机 resolve；
 - twin：外发实机验证——某收件人设静默 → 告警触发 → 该人无外发但落库与 SSE 正常；
 - 全部门禁 PASS、auth/message/twin 全量单测绿、`git status` 干净、推送完成。
+
+## 十、实机验证记录（2026-11-11 12:45-13:00）
+
+环境：Docker 恢复后重建 auth/message/twin 镜像（jar 12:45 打包），
+`docker compose up -d --force-recreate auth twin message` 三容器 healthy。
+
+| # | 场景 | 结果 |
+|---|---|---|
+| 1 | 存量库 Flyway 应用 V4 | `flyway_schema_history` version=4 success=true，`sys_user_config`/`sys_tenant_config` 均建出 |
+| 2 | 无配置 fail-open | 两用户 `source=NONE`、`channels=[INAPP,EMAIL]`、`quiet=false` |
+| 3 | 渠道只能收紧 | user1 偏好 `channels:[EMAIL]` → `[EMAIL]`（INAPP 被交集剔除），user2 无配置不受影响 |
+| 4 | 静默窗口 | `00:00-23:59` 内 level=ERROR → `quiet=true`、`suppressed=true`、`channels=[]`（twin 会 SKIPPED） |
+| 5 | CRITICAL 穿透 | `quietBypassLevels:[CRITICAL]` + level=CRITICAL → `quiet=false`、送达 EMAIL |
+| 6 | 站内信永远保留 | 偏好 `[EMAIL,INAPP]` + 静默窗口 → `channels=[INAPP]`、`suppressed=true`（非站内信被压制） |
+| 7 | 容器间连通 | bw-twin 内 wget 直连 `http://bw-message:8094/message/internal/preferences/resolve` 返回 200 |
+| 8 | 造数还原 | 删除测试配置后 `sys_user_config` 0 行，resolve 回到 `source=NONE` |
+
+**验证发现的真缺陷（已修）**：`whale-message/application.yml` 把
+`retry-backoff-seconds` / `connect-timeout-millis` / `read-timeout-millis` 三个
+**属于 receipt 域**的配置项误缩进到 `preference` 块下，导致
+`WHALE_MESSAGE_RECEIPT_RETRY_BACKOFF_SECONDS` 等环境变量静默失效（绑定到不存在的字段，
+Spring 默认忽略未知属性），回执退避与超时永远停在默认值。已归位到 `receipt` 块。
+
+**同时补齐**：message 容器补 `WHALE_MESSAGE_PREFERENCE_AUTH_BASE_URL=http://bw-auth:8081`。
+默认值 `127.0.0.1:8081` 在容器内指向自身，调用失败会被 fail-open 静默吞掉（验证第 2 项
+正是从「看似通过」的角度掩盖了这个问题）。
+
+**未覆盖**：真实 twin 告警端到端（需场景遥测/规则触发）。twin 侧过滤逻辑由 195 项单测
+（含 6.17c 两个专项用例）与第 7 项连通性验证共同兜底。

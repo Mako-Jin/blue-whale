@@ -239,6 +239,9 @@ services:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       SPRING_FLYWAY_BASELINE_VERSION: "0"
+      # 通知偏好解析（Wave 6.17b）：偏好数据在 auth，容器内必须走容器名，
+      # 默认值 127.0.0.1:8081 在容器内指向自身，失败会被 fail-open 静默吞掉
+      WHALE_MESSAGE_PREFERENCE_AUTH_BASE_URL: "http://bw-auth:8081"
     ports:
       - "127.0.0.1:8094:8094"
     healthcheck:

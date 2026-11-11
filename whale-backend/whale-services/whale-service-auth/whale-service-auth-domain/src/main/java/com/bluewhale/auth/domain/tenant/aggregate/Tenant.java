@@ -14,6 +14,12 @@ import java.util.regex.Pattern;
  * ③ {@code tenantType ∈ {PLATFORM, TENANT}}；④ 仅 {@code status=1} 且未过期的租户可用于登录与签发令牌。</p>
  * <p>本类为纯领域对象，不依赖 Spring / MyBatis / Web 等框架类型。</p>
  *
+ * <p>选型说明：本类实现 {@link Entity} 而非继承 {@code AbstractAggregate}。后者相对
+ * {@code Entity} 只多两项东西——领域事件收集/发布（{@code registerEvent}/{@code publishEvents}）
+ * 与「主键由父构造器绑定、子类不可自行维护」的约束。权限中心各聚合（Tenant/User/Role/Menu/
+ * Dept/Permission）全都不发布领域事件，继承只会得到一套永不使用的空壳，并把 id 变成父类字段。
+ * 等真正需要事件驱动（如租户停用需广播缓存失效）时，再统一改为继承并补事件登记。</p>
+ *
  * @author BlueWhale
  */
 public class Tenant implements Entity<Long> {
