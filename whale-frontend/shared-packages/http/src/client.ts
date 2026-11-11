@@ -80,7 +80,19 @@ export interface HttpClientConfig<TLogin extends LoginData = LoginData> {
   clearAuth?: () => void;
   /** 401 且无法续期时的额外动作（如跳转登录页） */
   onUnauthorized?: () => void;
+  /**
+   * 二次认证（Wave 6.22）：危险操作返回 428/42801 时调用，应弹出验密框并返回
+   * step-up 凭证；返回 null 表示用户取消，原请求以 ApiError(42801) 失败。
+   * 未提供时保持旧行为（直接抛 ApiError）。
+   */
+  onReauthRequired?: () => Promise<string | null>;
 }
+
+/** 二次认证业务码：后端返回 HTTP 428 + 该业务码表示需要重新验密 */
+export const REAUTH_REQUIRED_CODE = 42801;
+
+/** step-up 凭证请求头 */
+export const REAUTH_HEADER = 'X-Reauth-Token';
 
 /** 不做自动续期的路径：登录/刷新自身的 401 直接透传，避免递归续期 */
 const NO_REFRESH_PATHS = new Set(['/auth/v1/login', '/auth/v1/refresh']);
@@ -310,17 +322,23 @@ export function createHttpClient<TLogin extends LoginData = LoginData>(
   }
 
   const http = <T>(path: string, options: HttpOptions = {}): Promise<T> =>
-    send<T>(path, options, true);
+    send<T>(path, options, true, true);
 
   /**
-   * 发送请求并按需续期重放。
+   * 发送请求并按需续期 / 二次认证重放。
    *
    * @param path 请求路径（同源相对路径）
    * @param options 请求选项
    * @param allowRefresh 是否允许在 401 时自动续期并重放（重放仅一次，防递归）
+   * @param allowReauth 是否允许在 428/42801 时验密并重放（重放仅一次，防递归）
    * @returns 解析后的业务数据
    */
-  async function send<T>(path: string, options: HttpOptions, allowRefresh: boolean): Promise<T> {
+  async function send<T>(
+    path: string,
+    options: HttpOptions,
+    allowRefresh: boolean,
+    allowReauth = true,
+  ): Promise<T> {
     const { method = 'GET', body, auth = true, query, headers: extraHeaders, signal } = options;
 
     const headers = newHeaders();
@@ -352,9 +370,21 @@ export function createHttpClient<TLogin extends LoginData = LoginData>(
     // 401：令牌缺失/过期/已登出（黑名单命中）→ 先静默续期并重放一次，仍失败则清态抛出
     if (response.status === 401) {
       if (allowRefresh && !NO_REFRESH_PATHS.has(path) && (await refreshOnce())) {
-        return send<T>(path, options, false);
+        return send<T>(path, options, false, allowReauth);
       }
       handleUnauthorized(payload?.message);
+    }
+    // 428 / 42801：危险操作需要二次认证 → 验密后带 X-Reauth-Token 重放一次
+    if (response.status === 428 || payload?.code === REAUTH_REQUIRED_CODE) {
+      if (allowReauth && config.onReauthRequired) {
+        const reauthToken = await config.onReauthRequired();
+        if (reauthToken) {
+          const retryHeaders = new Headers((options.headers ?? undefined) as HeadersInit | undefined);
+          retryHeaders.set(REAUTH_HEADER, reauthToken);
+          return send<T>(path, { ...options, headers: retryHeaders }, allowRefresh, false);
+        }
+      }
+      throw new ApiError(REAUTH_REQUIRED_CODE, payload?.message ?? '需要二次认证');
     }
     if (!response.ok) {
       throw new ApiError(

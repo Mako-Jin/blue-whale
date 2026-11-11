@@ -17,6 +17,7 @@ import com.bluewhale.auth.interfaces.dto.TenantRenewRequest;
 import com.bluewhale.auth.interfaces.dto.TenantStatusRequest;
 import com.bluewhale.auth.interfaces.dto.TenantUpdateRequest;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
+import com.bluewhale.auth.sdk.annotation.RequireReauth;
 import com.bluewhale.auth.application.vo.TenantMemberVO;
 import com.bluewhale.auth.application.vo.TenantPasswordPolicyVO;
 import com.bluewhale.auth.application.vo.TenantVO;
@@ -87,6 +88,7 @@ public class TenantController {
      */
     @PutMapping("/members/{userId}/roles")
     @RequirePermission("sys:tenant:member:assign")
+    @RequireReauth
     @AuditLog(operation = "分配租户成员角色", type = OperateType.GRANT, targetType = "sys_user",
             targetId = "#userId")
     public Result<Void> assignMemberRoles(@PathVariable Long userId,
@@ -166,6 +168,7 @@ public class TenantController {
      */
     @PutMapping("/{id}/status")
     @RequirePermission("sys:tenant:status")
+    @RequireReauth
     @AuditLog(operation = "启停租户", type = OperateType.UPDATE, targetType = "sys_tenant", targetId = "#id")
     public Result<TenantVO> changeStatus(@PathVariable Long id,
                                          @Valid @RequestBody TenantStatusRequest request) {

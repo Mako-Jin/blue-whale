@@ -16,6 +16,7 @@ import com.bluewhale.auth.interfaces.dto.UserCreateRequest;
 import com.bluewhale.auth.interfaces.dto.UserStatusRequest;
 import com.bluewhale.auth.interfaces.dto.UserUpdateRequest;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
+import com.bluewhale.auth.sdk.annotation.RequireReauth;
 import com.bluewhale.auth.application.vo.ResetPasswordVO;
 import com.bluewhale.auth.application.vo.UserAttrVO;
 import com.bluewhale.auth.application.vo.UserVO;
@@ -122,6 +123,7 @@ public class UserController {
      */
     @DeleteMapping("/{id}")
     @RequirePermission("sys:user:delete")
+    @RequireReauth
     @AuditLog(operation = "删除用户", type = OperateType.DELETE, targetType = "sys_user", targetId = "#id")
     public Result<Void> delete(@PathVariable Long id) {
         userAppService.delete(id);
@@ -139,6 +141,7 @@ public class UserController {
      */
     @PutMapping("/{id}/password")
     @RequirePermission("sys:user:resetpwd")
+    @RequireReauth
     @AuditLog(operation = "重置用户密码", type = OperateType.UPDATE, targetType = "sys_user",
             targetId = "#id", recordParams = false)
     public Result<ResetPasswordVO> resetPassword(@PathVariable Long id) {
@@ -154,6 +157,7 @@ public class UserController {
      */
     @PutMapping("/{id}/status")
     @RequirePermission("sys:user:status")
+    @RequireReauth
     @AuditLog(operation = "启停用户", type = OperateType.UPDATE, targetType = "sys_user", targetId = "#id")
     public Result<Void> changeStatus(@PathVariable Long id, @Valid @RequestBody UserStatusRequest request) {
         userAppService.changeStatus(id, new ChangeUserStatusCommand(request.getStatus()));

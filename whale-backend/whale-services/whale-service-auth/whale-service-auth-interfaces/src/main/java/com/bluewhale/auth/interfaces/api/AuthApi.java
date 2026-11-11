@@ -6,6 +6,7 @@ import com.bluewhale.auth.interfaces.dto.request.SwitchTenantRequest;
 import com.bluewhale.auth.interfaces.dto.response.CurrentUserResponse;
 import com.bluewhale.auth.interfaces.dto.response.LoginResponse;
 import com.bluewhale.auth.interfaces.dto.response.TenantResponse;
+import com.bluewhale.auth.sdk.annotation.RequireReauth;
 import com.bluewhale.common.core.result.Result;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -76,9 +77,10 @@ public interface AuthApi {
      * @param request 自助改密请求（旧口令 + 新口令）
      * @return 操作结果
      *
-     * TODO : 危险操作需要二次认证
+     * 危险操作：受 {@code @RequireReauth} 二次认证约束（Wave 6.22，需 X-Reauth-Token）。
      */
     @PutMapping("/password")
+    @RequireReauth
     Result<Void> changePassword(@Valid @RequestBody ChangeOwnPasswordRequest request);
 
     /**

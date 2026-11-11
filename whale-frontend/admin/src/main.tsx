@@ -7,10 +7,15 @@ import { ThemeProvider } from '@bluewhale/whale-common-theme';
 import { initAuditLogging } from '@bluewhale/whale-log-sdk';
 import App from './App';
 import { bootstrapAuth } from './api/token';
+import { setReauthPrompt } from './api/client';
+import { promptReauth } from './api/reauth';
 import './index.css';
 
 // 前端日志与审计接入：console 开发者日志 + 全局事件审计（REQ-SEC-006 通道③④）
 initAuditLogging();
+
+// 二次认证（Wave 6.22）：注册验密弹窗，危险操作 428 时自动弹窗并重放
+setReauthPrompt(promptReauth);
 
 // 启动静默续期（V-03）：内存无 accessToken 时用 HttpOnly 刷新 Cookie 换新一次，
 // Cookie 不在则按未登录进入（守卫重定向 /login）；完成后再渲染路由以稳定守卫判定
