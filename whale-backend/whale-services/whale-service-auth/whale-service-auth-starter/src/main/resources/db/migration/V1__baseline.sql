@@ -83,6 +83,31 @@ CREATE TABLE IF NOT EXISTS sys_tenant_password_policy (
     UNIQUE KEY uk_tenant_pwd_policy (tenant_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='租户口令策略配置表';
 
+CREATE TABLE IF NOT EXISTS sys_user_config (
+    id           BIGINT      NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id    BIGINT      NOT NULL               COMMENT '租户ID（逻辑关联 sys_tenant.id）',
+    user_id      BIGINT      NOT NULL               COMMENT '用户ID（逻辑关联 sys_user.id）',
+    config_key   VARCHAR(128) NOT NULL              COMMENT '配置键（前缀分域，如 notify.twin.alert / ui.theme）',
+    config_value TEXT        NOT NULL               COMMENT '配置值（JSON，结构由 config_key 所属业务域定义）',
+    updated_by   BIGINT      DEFAULT NULL           COMMENT '最后更新人用户ID',
+    create_time  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_user_config (tenant_id, user_id, config_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='用户配置表（权限中心通用配置存储）';
+
+CREATE TABLE IF NOT EXISTS sys_tenant_config (
+    id           BIGINT      NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id    BIGINT      NOT NULL               COMMENT '租户ID（逻辑关联 sys_tenant.id）',
+    config_key   VARCHAR(128) NOT NULL              COMMENT '配置键（前缀分域，与 sys_user_config 同一口径）',
+    config_value TEXT        NOT NULL               COMMENT '配置值（JSON），作为该租户用户的默认值层',
+    updated_by   BIGINT      DEFAULT NULL           COMMENT '最后更新人用户ID',
+    create_time  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_tenant_config (tenant_id, config_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='租户配置表（租户管理员维护的默认值层）';
+
 -- ---------------------------------------------------------------------
 -- 2. 系统角色表
 -- ---------------------------------------------------------------------
