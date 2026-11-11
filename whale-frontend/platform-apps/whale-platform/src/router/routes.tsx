@@ -4,6 +4,7 @@
 import { lazy, Suspense } from 'react';
 import Dashboard from '../pages/Dashboard';
 import MenuList from '../pages/system/MenuList';
+import NotificationPreferences from '../pages/NotificationPreferences';
 import RoleList from '../pages/system/RoleList';
 import SubAppContainer from '../pages/SubAppContainer';
 import UserList from '../pages/system/UserList';
@@ -35,6 +36,8 @@ export const routes = [
     children: [
       // 工作台（首页，多标签页中固定不可关）
       { index: true, element: <Dashboard /> },
+      // 通知偏好（Wave 6.17d：登录即可自助配置，无需权限码）
+      { path: 'preferences', element: <NotificationPreferences /> },
       // 系统管理（只读查询，维护仍在 whale-admin）
       { path: 'system/users', element: <UserList /> },
       { path: 'system/roles', element: <RoleList /> },

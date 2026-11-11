@@ -11,6 +11,8 @@ export interface MenuNode {
 
 export const menuConfig: MenuNode[] = [
   { key: '/', label: '工作台' },
+  // 通知偏好（Wave 6.17d：个人设置，登录即可见，无需权限码）
+  { key: '/preferences', label: '通知偏好' },
   {
     key: '/system',
     label: '系统管理',
