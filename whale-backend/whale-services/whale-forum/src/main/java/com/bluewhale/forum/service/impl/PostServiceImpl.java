@@ -17,8 +17,12 @@ import com.bluewhale.forum.entity.ForumPost;
 import com.bluewhale.forum.entity.ForumThread;
 import com.bluewhale.forum.mapper.ForumPostMapper;
 import com.bluewhale.forum.mapper.ForumThreadMapper;
+import com.bluewhale.forum.entity.ForumBoard;
+import com.bluewhale.forum.service.BanService;
 import com.bluewhale.forum.service.BoardService;
+import com.bluewhale.forum.service.ForumNotifyService;
 import com.bluewhale.forum.service.PostService;
+import com.bluewhale.forum.service.SensitiveWordService;
 import com.bluewhale.forum.service.ThreadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
@@ -55,11 +59,18 @@ public class PostServiceImpl implements PostService {
 
     private final ForumThreadMapper threadMapper;
 
+    private final SensitiveWordService sensitiveWordService;
+
+    private final BanService banService;
+
+    private final ForumNotifyService notifyService;
+
     @Override
     public PostVO create(Long threadId, PostCreateRequest request, ForumActor actor) {
         TenantContext.requireId();
         ForumThread thread = threadService.requireVisibleThread(threadId, actor);
-        boardService.requireVisibleBoard(thread.getBoardId(), actor);
+        ForumBoard board = boardService.requireVisibleBoard(thread.getBoardId(), actor);
+        banService.assertNotMuted(actor.userId());
         if (!REPLYABLE_STATUSES.contains(thread.getStatus())) {
             throw new BizException(ForumErrorCodes.THREAD_STATE_ILLEGAL,
                     "帖子当前状态不接受回复（可能已关闭或审核中）");
@@ -74,18 +85,31 @@ public class PostServiceImpl implements PostService {
         }
         assertReplyRate(actor.userId());
 
+        SensitiveWordService.ScanResult scan = sensitiveWordService.scan(content);
+        if (scan.hit()) {
+            sensitiveWordService.recordHit("POST", null, actor.userId(), scan);
+        }
+        if (SensitiveWordService.ScanResult.BLOCK.equals(scan.action())) {
+            throw new BizException(ForumErrorCodes.SENSITIVE_BLOCKED, "回复包含不允许发布的词，请修改后重试");
+        }
+        content = scan.text();
+        // 审核版块或命中「转待审」词：楼层先落 PENDING，不计入回复数，通过后再 +1
+        String status = (board.getAuditMode() != null && board.getAuditMode() == 1)
+                || SensitiveWordService.ScanResult.PENDING.equals(scan.action())
+                ? "PENDING" : "PUBLISHED";
+
         try {
             ForumPost post = postWriter.append(threadId, actor.userId(), content,
-                    request.getReplyToPostId(), properties.getMaxPostsPerThread());
-            return toVO(post);
+                    request.getReplyToPostId(), properties.getMaxPostsPerThread(), status);
+            return finish(post, thread, actor);
         } catch (DuplicateKeyException e) {
             // 正常路径不会走到这里：唯一键只可能在 next_floor 被人工改坏时撞上。
             // 按现有楼层重算一次即可自愈，再失败说明数据已不可信，如实报错。
             threadMapper.syncNextFloor(threadId);
             try {
                 ForumPost post = postWriter.append(threadId, actor.userId(), content,
-                        request.getReplyToPostId(), properties.getMaxPostsPerThread());
-                return toVO(post);
+                        request.getReplyToPostId(), properties.getMaxPostsPerThread(), status);
+                return finish(post, thread, actor);
             } catch (DuplicateKeyException retryFailure) {
                 throw new BizException(ForumErrorCodes.FLOOR_CONFLICT,
                         "楼层号分配冲突，请联系管理员重算楼层（本次未占用楼层）");
@@ -106,6 +130,7 @@ public class PostServiceImpl implements PostService {
                 new Page<>(Math.min(pageNo, properties.getMaxPageNumber()), pageSize),
                 Wrappers.<ForumPost>lambdaQuery()
                         .eq(ForumPost::getThreadId, threadId)
+                        .eq(ForumPost::getStatus, "PUBLISHED")
                         .isNotNull(ForumPost::getFloor)
                         .orderByAsc(ForumPost::getFloor));
         List<PostVO> records = new ArrayList<>(page.getRecords().size());
@@ -132,6 +157,22 @@ public class PostServiceImpl implements PostService {
     }
 
     /**
+     * 回帖收尾：给楼主发「被回复」通知（自己回自己不通知；待审楼层等通过后才通知）。
+     *
+     * @param post 已落库楼层
+     * @param thread 所属帖子
+     * @param actor 回复人
+     * @return 视图
+     */
+    private PostVO finish(ForumPost post, ForumThread thread, ForumActor actor) {
+        if ("PUBLISHED".equals(post.getStatus()) && !actor.userId().equals(thread.getAuthorId())) {
+            notifyService.notifyReply(thread.getId(), post.getId(), thread.getTitle(),
+                    thread.getAuthorId(), "有鲸友");
+        }
+        return toVO(post);
+    }
+
+    /**
      * 实体转视图。
      *
      * @param post 楼层实体
@@ -147,6 +188,7 @@ public class PostServiceImpl implements PostService {
         vo.setContent(post.getContent());
         vo.setLikeCount(post.getLikeCount());
         vo.setReplyToPostId(post.getReplyToPostId());
+        vo.setStatus(post.getStatus());
         vo.setCreateTime(post.getCreateTime());
         return vo;
     }

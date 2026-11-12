@@ -41,4 +41,7 @@ public class PostVO implements Serializable {
 
     /** 创建时间 */
     private LocalDateTime createTime;
+
+    /** 楼层状态：PUBLISHED 已发布 / PENDING 待审（待审楼层不出现在楼层列表） */
+    private String status;
 }

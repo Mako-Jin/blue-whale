@@ -13,7 +13,10 @@ import com.bluewhale.forum.entity.ForumPost;
 import com.bluewhale.forum.entity.ForumThread;
 import com.bluewhale.forum.mapper.ForumPostMapper;
 import com.bluewhale.forum.mapper.ForumThreadMapper;
+import com.bluewhale.forum.service.BanService;
 import com.bluewhale.forum.service.BoardService;
+import com.bluewhale.forum.service.ForumNotifyService;
+import com.bluewhale.forum.service.SensitiveWordService;
 import com.bluewhale.forum.service.ThreadService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +37,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -62,6 +66,15 @@ class PostServiceImplTest {
     @Mock
     private BoardService boardService;
 
+    @Mock
+    private SensitiveWordService sensitiveWordService;
+
+    @Mock
+    private BanService banService;
+
+    @Mock
+    private ForumNotifyService notifyService;
+
     @Spy
     private ForumProperties properties = new ForumProperties();
 
@@ -71,6 +84,9 @@ class PostServiceImplTest {
     @BeforeEach
     void setUp() {
         TenantContext.set(1L);
+        lenient().when(sensitiveWordService.scan(anyString())).thenAnswer(invocation ->
+                new SensitiveWordService.ScanResult(SensitiveWordService.ScanResult.NONE, null, -1,
+                        invocation.getArgument(0)));
     }
 
     @AfterEach
@@ -84,12 +100,12 @@ class PostServiceImplTest {
         when(threadService.requireVisibleThread(anyLong(), any())).thenReturn(thread("PUBLISHED"));
         when(boardService.requireVisibleBoard(anyLong(), any())).thenReturn(new ForumBoard());
         when(postMapper.selectCount(any())).thenReturn(0L);
-        when(postWriter.append(anyLong(), anyLong(), anyString(), any(), anyInt())).thenReturn(post(7));
+        when(postWriter.append(anyLong(), anyLong(), anyString(), any(), anyInt(), anyString())).thenReturn(post(7));
 
         PostVO vo = postService.create(11L, request("回复内容"), author());
 
         assertThat(vo.getFloor()).isEqualTo(7);
-        verify(postWriter, times(1)).append(anyLong(), anyLong(), anyString(), any(), anyInt());
+        verify(postWriter, times(1)).append(anyLong(), anyLong(), anyString(), any(), anyInt(), anyString());
         verify(threadMapper, never()).syncNextFloor(anyLong());
     }
 
@@ -99,7 +115,7 @@ class PostServiceImplTest {
         when(threadService.requireVisibleThread(anyLong(), any())).thenReturn(thread("PUBLISHED"));
         when(boardService.requireVisibleBoard(anyLong(), any())).thenReturn(new ForumBoard());
         when(postMapper.selectCount(any())).thenReturn(0L);
-        when(postWriter.append(anyLong(), anyLong(), anyString(), any(), anyInt()))
+        when(postWriter.append(anyLong(), anyLong(), anyString(), any(), anyInt(), anyString()))
                 .thenThrow(new DuplicateKeyException("uk_fm_post_floor"))
                 .thenReturn(post(8));
 
@@ -107,7 +123,7 @@ class PostServiceImplTest {
 
         assertThat(vo.getFloor()).isEqualTo(8);
         verify(threadMapper, times(1)).syncNextFloor(11L);
-        verify(postWriter, times(2)).append(anyLong(), anyLong(), anyString(), any(), anyInt());
+        verify(postWriter, times(2)).append(anyLong(), anyLong(), anyString(), any(), anyInt(), anyString());
     }
 
     @Test
@@ -116,14 +132,14 @@ class PostServiceImplTest {
         when(threadService.requireVisibleThread(anyLong(), any())).thenReturn(thread("PUBLISHED"));
         when(boardService.requireVisibleBoard(anyLong(), any())).thenReturn(new ForumBoard());
         when(postMapper.selectCount(any())).thenReturn(0L);
-        when(postWriter.append(anyLong(), anyLong(), anyString(), any(), anyInt()))
+        when(postWriter.append(anyLong(), anyLong(), anyString(), any(), anyInt(), anyString()))
                 .thenThrow(new DuplicateKeyException("uk_fm_post_floor"));
 
         assertThatThrownBy(() -> postService.create(11L, request("回复内容"), author()))
                 .isInstanceOf(BizException.class)
                 .satisfies(e -> assertThat(((BizException) e).getCode())
                         .isEqualTo(ForumErrorCodes.FLOOR_CONFLICT));
-        verify(postWriter, times(2)).append(anyLong(), anyLong(), anyString(), any(), anyInt());
+        verify(postWriter, times(2)).append(anyLong(), anyLong(), anyString(), any(), anyInt(), anyString());
     }
 
     @Test
@@ -136,7 +152,7 @@ class PostServiceImplTest {
                 .isInstanceOf(BizException.class)
                 .satisfies(e -> assertThat(((BizException) e).getCode())
                         .isEqualTo(ForumErrorCodes.THREAD_STATE_ILLEGAL));
-        verify(postWriter, times(0)).append(anyLong(), anyLong(), anyString(), any(), anyInt());
+        verify(postWriter, times(0)).append(anyLong(), anyLong(), anyString(), any(), anyInt(), anyString());
     }
 
     @Test

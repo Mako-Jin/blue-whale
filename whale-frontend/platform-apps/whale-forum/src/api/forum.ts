@@ -172,3 +172,143 @@ export function createPost(
 ): Promise<PostItem> {
   return request<PostItem>(`/forum/thread/${threadId}/post`, { method: 'POST', body });
 }
+
+// ---------------------------------------------------------------------------
+// M2：治理（审核台 / 举报工单 / 词库 / 通知补偿）
+// 路径与后端 ForumAdminController、ReportController 逐字对应
+// ---------------------------------------------------------------------------
+
+/** 待审条目（帖子与楼层共用） */
+export interface AuditItem {
+  targetType: 'THREAD' | 'POST';
+  targetId: string;
+  threadId: string;
+  title: string;
+  summary: string;
+  authorId: string;
+  boardId?: string | null;
+  floor?: number | null;
+  status: string;
+  createTime?: string | null;
+}
+
+/** 举报工单 */
+export interface ReportItem {
+  id: string;
+  targetType: string;
+  targetId: string;
+  targetTitle: string;
+  reporterId: string;
+  reportType: string;
+  description?: string | null;
+  status: string;
+  handlerId?: string | null;
+  handleRemark?: string | null;
+  handleTime?: string | null;
+  createTime?: string | null;
+}
+
+/** 敏感词词条 */
+export interface SensitiveWordItem {
+  id: string;
+  word: string;
+  action: string;
+  category?: string | null;
+  status: number;
+  createTime?: string | null;
+}
+
+/** 待审队列 */
+export function fetchAuditPage(
+  targetType: 'THREAD' | 'POST',
+  current = 1,
+  size = 20,
+): Promise<PageResult<AuditItem>> {
+  return request<PageResult<AuditItem>>(
+    `/forum/admin/audit/page?targetType=${targetType}&current=${current}&size=${size}`,
+  );
+}
+
+/** 审核通过 */
+export function passAudit(body: {
+  targetType: string;
+  targetId: string;
+  remark?: string;
+}): Promise<void> {
+  return request<void>('/forum/admin/audit/pass', { method: 'POST', body });
+}
+
+/** 审核驳回（remark 必填，后端 30020） */
+export function rejectAudit(body: {
+  targetType: string;
+  targetId: string;
+  remark: string;
+}): Promise<void> {
+  return request<void>('/forum/admin/audit/reject', { method: 'POST', body });
+}
+
+/** 举报工单分页 */
+export function fetchReports(
+  status: string,
+  current = 1,
+  size = 20,
+): Promise<PageResult<ReportItem>> {
+  const suffix = status ? `&status=${status}` : '';
+  return request<PageResult<ReportItem>>(
+    `/forum/admin/report/page?current=${current}&size=${size}${suffix}`,
+  );
+}
+
+/** 处理举报工单 */
+export function handleReport(
+  id: string,
+  body: { status: string; remark?: string; action?: string; muteDays?: number },
+): Promise<void> {
+  return request<void>(`/forum/admin/report/${id}/handle`, { method: 'POST', body });
+}
+
+/** 提交举报（鸣鼓） */
+export function submitReport(body: {
+  targetType: string;
+  targetId: string;
+  reportType: string;
+  description?: string;
+}): Promise<string> {
+  return request<string>('/forum/report', { method: 'POST', body });
+}
+
+/** 词库分页 */
+export function fetchSensitiveWords(
+  keyword: string,
+  current = 1,
+  size = 20,
+): Promise<PageResult<SensitiveWordItem>> {
+  const suffix = keyword ? `&keyword=${encodeURIComponent(keyword)}` : '';
+  return request<PageResult<SensitiveWordItem>>(
+    `/forum/admin/sensitive/page?current=${current}&size=${size}${suffix}`,
+  );
+}
+
+/** 新增/更新词条 */
+export function saveSensitiveWord(body: {
+  word: string;
+  action: string;
+  category?: string;
+}): Promise<string> {
+  return request<string>('/forum/admin/sensitive', { method: 'POST', body });
+}
+
+/** 删除词条 */
+export function deleteSensitiveWord(id: string): Promise<void> {
+  return request<void>(`/forum/admin/sensitive/${id}`, { method: 'DELETE' });
+}
+
+/** 重载词库缓存 */
+export function reloadSensitiveWords(): Promise<number> {
+  return request<number>('/forum/admin/sensitive/reload', { method: 'POST' });
+}
+
+/** 补偿投递待发通知 */
+export function flushNotify(): Promise<number> {
+  return request<number>('/forum/admin/notify/flush', { method: 'POST' });
+}

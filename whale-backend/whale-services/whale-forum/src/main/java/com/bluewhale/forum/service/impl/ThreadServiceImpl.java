@@ -1,5 +1,6 @@
 package com.bluewhale.forum.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -23,7 +24,9 @@ import com.bluewhale.forum.entity.ForumThread;
 import com.bluewhale.forum.entity.ForumThreadEditHistory;
 import com.bluewhale.forum.mapper.ForumThreadEditHistoryMapper;
 import com.bluewhale.forum.mapper.ForumThreadMapper;
+import com.bluewhale.forum.service.BanService;
 import com.bluewhale.forum.service.BoardService;
+import com.bluewhale.forum.service.SensitiveWordService;
 import com.bluewhale.forum.service.ThreadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
@@ -87,16 +90,40 @@ public class ThreadServiceImpl implements ThreadService {
 
     private final ForumProperties properties;
 
+    private final SensitiveWordService sensitiveWordService;
+
+    private final BanService banService;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ThreadDetailVO create(ThreadCreateRequest request, ForumActor actor) {
         Long tenantId = TenantContext.requireId();
         ForumBoard board = boardService.requirePostableBoard(request.getBoardId(), actor);
+        banService.assertNotMuted(actor.userId());
         String title = validateTitle(request.getTitle());
         String content = validateContent(request.getContent());
         assertPostRate(actor.userId());
 
-        boolean auditRequired = board.getAuditMode() != null && board.getAuditMode() == 1;
+        // 敏感词：BLOCK 直接拒绝（留痕后抛 30031），REPLACE 打码，PENDING 转待审
+        SensitiveWordService.ScanResult titleScan = sensitiveWordService.scan(title);
+        SensitiveWordService.ScanResult contentScan = sensitiveWordService.scan(content);
+        if (titleScan.hit()) {
+            sensitiveWordService.recordHit("THREAD", null, actor.userId(), titleScan);
+        }
+        if (contentScan.hit()) {
+            sensitiveWordService.recordHit("THREAD", null, actor.userId(), contentScan);
+        }
+        if (SensitiveWordService.ScanResult.BLOCK.equals(titleScan.action())
+                || SensitiveWordService.ScanResult.BLOCK.equals(contentScan.action())) {
+            throw new BizException(ForumErrorCodes.SENSITIVE_BLOCKED, "内容包含不允许发布的词，请修改后重试");
+        }
+        title = titleScan.text();
+        content = contentScan.text();
+
+        boolean auditRequired = board.getAuditMode() != null && board.getAuditMode() == 1
+                || SensitiveWordService.ScanResult.PENDING.equals(titleScan.action())
+                || SensitiveWordService.ScanResult.PENDING.equals(contentScan.action())
+                || isNewUser(actor);
         ForumThread thread = new ForumThread();
         thread.setId(IdWorker.getId());
         thread.setTenantId(tenantId);
@@ -329,6 +356,32 @@ public class ThreadServiceImpl implements ThreadService {
                                 + properties.getPostWindowMax() + " 帖");
             }
         }
+    }
+
+    /**
+     * 是否「新用户」（已发布帖数少于阈值，前 N 帖必审）。
+     *
+     * <p>管理者豁免：版主/管理员刚被授予权限时不该被自己的首帖卡在待审队列里，
+     * 否则审核台没人能审。</p>
+     *
+     * @param actor 当前操作者
+     * @return 需要强制送审返回 {@code true}
+     */
+    private boolean isNewUser(ForumActor actor) {
+        int threshold = properties.getNewUserAuditThreads();
+        if (threshold <= 0) {
+            return false;
+        }
+        if (actor.hasPermission(ForumPermissions.MANAGE_AUDIT)
+                || actor.hasPermission(ForumPermissions.MANAGE_BOARD)) {
+            return false;
+        }
+        // 用字符串列名而非 lambda：lambda 依赖 TableInfo 缓存，纯单测（无 Spring 上下文）
+        // 会直接抛 "can not find lambda cache for this entity"，让业务规则没法被单测覆盖
+        Long published = threadMapper.selectCount(new QueryWrapper<ForumThread>()
+                .eq("author_id", actor.userId())
+                .in("status", VISIBLE_STATUSES));
+        return published == null || published < threshold;
     }
 
     /**

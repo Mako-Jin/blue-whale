@@ -42,11 +42,12 @@ public class ForumPostWriter {
      * @param content 已消毒正文
      * @param replyToPostId 引用楼层ID（可空）
      * @param maxPostsPerThread 单帖楼层上限（含楼主占用的 1 楼）
+     * @param status 初始状态：PUBLISHED 直接可见 / PENDING 待审（不计入回复数）
      * @return 落库后的楼层
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
     public ForumPost append(Long threadId, Long authorId, String content, Long replyToPostId,
-                            int maxPostsPerThread) {
+                            int maxPostsPerThread, String status) {
         ForumThread thread = threadMapper.selectById(threadId);
         if (thread == null) {
             throw new BizException(ForumErrorCodes.THREAD_NOT_FOUND, "帖子不存在或已删除");
@@ -70,9 +71,12 @@ public class ForumPostWriter {
         post.setAnonymous(0);
         post.setContent(content);
         post.setLikeCount(0);
-        post.setStatus("PUBLISHED");
+        post.setStatus(status == null ? "PUBLISHED" : status);
         postMapper.insert(post);
-        threadMapper.increaseReplyCount(threadId, authorId, LocalDateTime.now());
+        if (!"PENDING".equals(post.getStatus())) {
+            // 待审楼层不计入回复数，审核通过时再 +1——否则「回复数」会把看不到的楼层算进去
+            threadMapper.increaseReplyCount(threadId, authorId, LocalDateTime.now());
+        }
         return post;
     }
 }

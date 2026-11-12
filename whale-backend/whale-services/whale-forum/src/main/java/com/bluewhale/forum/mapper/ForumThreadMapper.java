@@ -76,6 +76,16 @@ public interface ForumThreadMapper extends BaseMapper<ForumThread> {
                            @Param("repliedAt") LocalDateTime repliedAt);
 
     /**
+     * 回复计数 -1（删楼层/驳回待审楼层时用，下限 0）。
+     *
+     * @param threadId 帖子ID
+     * @return 影响行数
+     */
+    @Update("UPDATE fm_thread SET reply_count = GREATEST(reply_count - 1, 0), update_time = NOW() "
+            + "WHERE id = #{threadId} AND deleted = 0")
+    int decreaseReplyCount(@Param("threadId") Long threadId);
+
+    /**
      * 软删时改写帖子编号以释放唯一键（{@code uk_fm_thread_no}）。
      *
      * @param id 帖子ID

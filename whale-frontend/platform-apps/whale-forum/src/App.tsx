@@ -8,11 +8,12 @@ import { Alert, Empty, Spin, Tag, Typography } from 'antd';
 import { fetchBoards, type BoardItem } from './api/forum';
 import ThreadListPage from './pages/ThreadListPage';
 import ThreadDetailPage from './pages/ThreadDetailPage';
+import AdminPage from './pages/AdminPage';
 
 const { Text } = Typography;
 
 interface ViewState {
-  kind: 'list' | 'thread';
+  kind: 'list' | 'thread' | 'admin';
   boardId?: string;
   threadId?: string;
 }
@@ -78,6 +79,10 @@ export default function App() {
     setView((prev) => ({ kind: 'list', boardId: prev.boardId }));
   }, []);
 
+  const openAdmin = useCallback(() => {
+    setView((prev) => ({ kind: 'admin', boardId: prev.boardId }));
+  }, []);
+
   if (loading) {
     return (
       <div className="forum-loading">
@@ -121,6 +126,13 @@ export default function App() {
           ))}
         </ul>
         <div className="forum-slogan">
+          <button
+            type="button"
+            className={view.kind === 'admin' ? 'is-active' : undefined}
+            onClick={openAdmin}
+          >
+            管理台
+          </button>
           <Text type="secondary">人发帖 · 内容沉淀 · 知识复用</Text>
         </div>
       </aside>
@@ -133,6 +145,8 @@ export default function App() {
             message="论坛服务暂不可用"
             description={`${error}（请确认 whale-forum 已启动、网关已配置 /forum/** 路由）`}
           />
+        ) : view.kind === 'admin' ? (
+          <AdminPage />
         ) : view.kind === 'thread' && view.threadId ? (
           <ThreadDetailPage threadId={view.threadId} onBack={backToList} />
         ) : activeBoard ? (

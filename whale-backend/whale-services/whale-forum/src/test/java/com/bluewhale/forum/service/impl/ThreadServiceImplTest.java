@@ -14,7 +14,9 @@ import com.bluewhale.forum.entity.ForumThread;
 import com.bluewhale.forum.entity.ForumThreadEditHistory;
 import com.bluewhale.forum.mapper.ForumThreadEditHistoryMapper;
 import com.bluewhale.forum.mapper.ForumThreadMapper;
+import com.bluewhale.forum.service.BanService;
 import com.bluewhale.forum.service.BoardService;
+import com.bluewhale.forum.service.SensitiveWordService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -35,6 +37,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -56,6 +60,12 @@ class ThreadServiceImplTest {
     @Mock
     private BoardService boardService;
 
+    @Mock
+    private SensitiveWordService sensitiveWordService;
+
+    @Mock
+    private BanService banService;
+
     @Spy
     private ForumProperties properties = new ForumProperties();
 
@@ -65,11 +75,84 @@ class ThreadServiceImplTest {
     @BeforeEach
     void setUp() {
         TenantContext.set(1L);
+        // 默认关闭「新用户前 N 帖必审」，让用例只校验版块审核口径；
+        // 「新用户必审」由 createByNewUserGoesPending 单独覆盖
+        lenient().doReturn(0).when(properties).getNewUserAuditThreads();
+        // 默认无命中：个别用例再覆盖成 BLOCK/PENDING
+        lenient().when(sensitiveWordService.scan(anyString())).thenAnswer(invocation ->
+                new SensitiveWordService.ScanResult(SensitiveWordService.ScanResult.NONE, null, -1,
+                        invocation.getArgument(0)));
+        lenient().when(threadMapper.selectCount(any())).thenReturn(0L);
     }
 
     @AfterEach
     void tearDown() {
         TenantContext.clear();
+    }
+
+    @Test
+    @DisplayName("新用户前 N 帖必审：已发布 0 帖且阈值为 3 时落 PENDING")
+    void createByNewUserGoesPending() {
+        doReturn(3).when(properties).getNewUserAuditThreads();
+        when(boardService.requirePostableBoard(anyLong(), any())).thenReturn(board(0));
+        when(threadMapper.selectCount(any())).thenReturn(0L);
+        when(threadMapper.insert(any(ForumThread.class))).thenReturn(1);
+
+        ThreadDetailVO vo = threadService.create(request("新人的第一帖", "<p>正文</p>"), author());
+
+        assertThat(vo.getStatus()).isEqualTo("PENDING");
+        assertThat(vo.getPublishTime()).isNull();
+    }
+
+    @Test
+    @DisplayName("管理者的首帖不受新用户必审限制")
+    void managerBypassesNewUserAudit() {
+        doReturn(3).when(properties).getNewUserAuditThreads();
+        when(boardService.requirePostableBoard(anyLong(), any())).thenReturn(board(0));
+        when(threadMapper.insert(any(ForumThread.class))).thenReturn(1);
+
+        ThreadDetailVO vo = threadService.create(request("版主发帖", "<p>正文</p>"), manager());
+
+        assertThat(vo.getStatus()).isEqualTo("PUBLISHED");
+    }
+
+    @Test
+    @DisplayName("敏感词 BLOCK：拦截并留痕，不落库")
+    void createBlockedBySensitiveWord() {
+        when(boardService.requirePostableBoard(anyLong(), any())).thenReturn(board(0));
+        when(sensitiveWordService.scan(anyString())).thenAnswer(invocation -> {
+            String text = invocation.getArgument(0);
+            boolean hit = text.contains("代开发票");
+            return new SensitiveWordService.ScanResult(
+                    hit ? SensitiveWordService.ScanResult.BLOCK : SensitiveWordService.ScanResult.NONE,
+                    hit ? "代开发票" : null, hit ? 0 : -1, text);
+        });
+
+        assertThatThrownBy(() -> threadService.create(request("标题", "<p>代开发票找我</p>"), author()))
+                .isInstanceOf(BizException.class)
+                .satisfies(e -> assertThat(((BizException) e).getCode())
+                        .isEqualTo(ForumErrorCodes.SENSITIVE_BLOCKED));
+        verify(threadMapper, never()).insert(any(ForumThread.class));
+        verify(sensitiveWordService, org.mockito.Mockito.atLeastOnce())
+                .recordHit(anyString(), any(), anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("敏感词 PENDING：即便开放版块也转待审")
+    void createByPendingWordGoesPending() {
+        when(boardService.requirePostableBoard(anyLong(), any())).thenReturn(board(0));
+        when(sensitiveWordService.scan(anyString())).thenAnswer(invocation -> {
+            String text = invocation.getArgument(0);
+            boolean hit = text.contains("刷单");
+            return new SensitiveWordService.ScanResult(
+                    hit ? SensitiveWordService.ScanResult.PENDING : SensitiveWordService.ScanResult.NONE,
+                    hit ? "刷单" : null, hit ? 0 : -1, text);
+        });
+        when(threadMapper.insert(any(ForumThread.class))).thenReturn(1);
+
+        ThreadDetailVO vo = threadService.create(request("标题", "<p>刷单兼职</p>"), author());
+
+        assertThat(vo.getStatus()).isEqualTo("PENDING");
     }
 
     @Test
@@ -256,6 +339,16 @@ class ThreadServiceImplTest {
     private ForumActor author() {
         return new ForumActor(100L, Set.of(ForumPermissions.BROWSE, ForumPermissions.THREAD_ADD,
                 ForumPermissions.THREAD_EDIT, ForumPermissions.THREAD_REMOVE), null);
+    }
+
+    /**
+     * 构造带审核权限的管理者（验证新用户必审的豁免分支）。
+     *
+     * @return 管理者操作者
+     */
+    private ForumActor manager() {
+        return new ForumActor(200L, Set.of(ForumPermissions.BROWSE, ForumPermissions.THREAD_ADD,
+                ForumPermissions.MANAGE_AUDIT), null);
     }
 
     /**

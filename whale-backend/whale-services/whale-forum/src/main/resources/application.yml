@@ -86,6 +86,14 @@ whale:
     audit-on-edit: ${WHALE_FORUM_AUDIT_ON_EDIT:true}
     # 匿名编号 HMAC 密钥；为空时匿名发帖强制关闭（fail-closed）
     anonymous-secret: ${WHALE_FORUM_ANONYMOUS_SECRET:}
+    # 新用户前 N 帖强制送审（0 关闭）
+    new-user-audit-threads: ${WHALE_FORUM_NEW_USER_AUDIT_THREADS:3}
+    # 举报去重窗口（小时）：同人同目标窗口内只受理一条
+    report-duplicate-hours: ${WHALE_FORUM_REPORT_DUPLICATE_HOURS:24}
+    # 通知最大重试次数
+    notify-max-retry: ${WHALE_FORUM_NOTIFY_MAX_RETRY:5}
+    # whale-message 内网地址（站内信）
+    message-base-url: ${WHALE_FORUM_MESSAGE_BASE_URL:http://127.0.0.1:8094}
 
 mybatis-plus:
   configuration:

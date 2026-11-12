@@ -62,4 +62,16 @@ public class ForumProperties {
 
     /** 匿名编号 HMAC 密钥；为空时匿名发帖开关强制失效（fail-closed，避免编号可预测） */
     private String anonymousSecret = "";
+
+    /** 新用户前 N 帖强制送审（0 关闭；F-09-03「新用户前 3 帖必审」） */
+    private int newUserAuditThreads = 3;
+
+    /** 举报去重窗口（小时）：同人对同目标在窗口内只受理一条 */
+    private int reportDuplicateHours = 24;
+
+    /** 通知最多重试次数（超过转 FAILED，等人工排查） */
+    private int notifyMaxRetry = 5;
+
+    /** whale-message 内网基础地址（站内信经 /message/internal/send 投递） */
+    private String messageBaseUrl = "http://127.0.0.1:8094";
 }
