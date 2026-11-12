@@ -864,8 +864,8 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
     const body: EntitySaveRequest = {
       entityCode: (values.entityCode ?? '').trim(),
       name: (values.name ?? '').trim(),
-      parentId: values.parentId ? Number(values.parentId) : null,
-      modelFileId: values.modelFileId ? Number(values.modelFileId) : null,
+      parentId: values.parentId ? String(values.parentId) : null,
+      modelFileId: values.modelFileId ? String(values.modelFileId) : null,
       transformJson: values.transformJson?.trim() || null,
       sortOrder: values.sortOrder ?? 0,
     };
@@ -937,7 +937,7 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
       return;
     }
     const body: BindingSaveRequest = {
-      entityId: Number(values.entityId),
+      entityId: String(values.entityId),
       sourceType: values.sourceType,
       bindKey,
       propertyMap: applyAlertRules(
@@ -1002,7 +1002,7 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
     insightAbortRef.current = controller;
     try {
       await subscribeSceneStream(
-        buildInsightStreamUrl(sceneId, selected ? Number(selected.id) : null, insightQuestion),
+        buildInsightStreamUrl(sceneId, selected ? selected.id : null, insightQuestion),
         (event, data) => {
           try {
             if (event === 'delta') {
@@ -1052,7 +1052,7 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
     if (!sceneId) return;
     const values = await markerForm.validateFields();
     const body: MarkerSaveRequest = {
-      entityId: values.entityId ? Number(values.entityId) : null,
+      entityId: values.entityId ? String(values.entityId) : null,
       markerType: values.markerType,
       content: values.content?.trim() || null,
       positionJson: values.positionJson?.trim() || null,
@@ -1222,7 +1222,7 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
             />
           </Form.Item>
           <Form.Item name="modelFileId" label="模型文件ID" extra="whale-file 文件ID（GLB/GLTF），留空显示占位体">
-            <InputNumber style={{ width: '100%' }} min={1} precision={0} placeholder="文件ID" />
+            <Input style={{ width: '100%' }} placeholder="文件ID（雪花 ID，字符串）" />
           </Form.Item>
           <Form.Item
             name="transformJson"

@@ -30,7 +30,7 @@ export interface SceneSaveRequest {
   code: string;
   name: string;
   description?: string;
-  thumbnailFileId?: number | null;
+  thumbnailFileId?: string | null;
   sceneConfig?: string | null;
 }
 
@@ -52,8 +52,8 @@ export interface EntityVO {
 export interface EntitySaveRequest {
   entityCode: string;
   name: string;
-  parentId?: number | null;
-  modelFileId?: number | null;
+  parentId?: string | null;
+  modelFileId?: string | null;
   transformJson?: string | null;
   extraConfig?: string | null;
   sortOrder?: number;
@@ -139,7 +139,7 @@ export interface BindingVO {
 
 /** 绑定保存请求 */
 export interface BindingSaveRequest {
-  entityId: number;
+  entityId: string;
   sourceType: 'iot_device' | 'internal_api';
   bindKey: string;
   propertyMap?: string | null;
@@ -456,7 +456,7 @@ export interface MarkerVO {
 
 /** 标注保存请求 */
 export interface MarkerSaveRequest {
-  entityId?: number | null;
+  entityId?: string | null;
   markerType: 'label' | 'hotspot' | 'alarm';
   content?: string | null;
   positionJson?: string | null;
@@ -499,7 +499,7 @@ export const snapshotApi = {
 
 /** AI 解读请求 */
 export interface InsightRequest {
-  entityId?: number | null;
+  entityId?: string | null;
   question?: string | null;
 }
 
@@ -532,7 +532,7 @@ export interface InsightDoneMeta {
 /** 构造流式 AI 解读 SSE 地址（delta/done/error 帧契约，与内部会话流一致） */
 export function buildInsightStreamUrl(
   sceneId: string,
-  entityId?: number | null,
+  entityId?: string | null,
   question?: string | null,
 ): string {
   const params = new URLSearchParams();
