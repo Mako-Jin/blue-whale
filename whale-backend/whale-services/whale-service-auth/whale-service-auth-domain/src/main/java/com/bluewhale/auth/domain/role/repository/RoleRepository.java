@@ -70,6 +70,10 @@ public interface RoleRepository {
     /**
      * 判断角色编码在当前租户内是否已存在（供角色编码唯一性不变量校验）
      *
+     * <p><b>并发说明</b>：本方法为「先查后插」的友好预检，存在竞态窗口；真正的唯一性由
+     * DB 唯一约束 {@code uk_tenant_role_code(tenant_id, role_code)} 兜底，并发下后插入方将收到
+     * 数据库冲突而非重复数据。</p>
+     *
      * @param roleCode 角色编码
      * @return 已存在返回 true，否则返回 false
      */
@@ -136,7 +140,11 @@ public interface RoleRepository {
     List<String> listPermissionCodesByUserId(Long userId);
 
     /**
-     * 全量覆盖角色-权限关联（先清空后重建）
+     * 全量覆盖角色-权限关联（先清空后重建）。
+     *
+     * <p><b>边界说明</b>：本方法为 {@code sys_role_permission} 关联表端口，而非 Role 聚合内部实体
+     * 的持久化通道——Role 聚合根未持有权限关联集合；调用方应先通过聚合根的领域方法
+     * {@code assignPermissions} 完成去重与数量校验，再调用本端口落库。</p>
      *
      * @param roleId 角色 ID
      * @param permissionIds 目标权限点 ID 列表

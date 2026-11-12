@@ -60,7 +60,7 @@ public interface MenuAppService {
     void create(SaveMenuCommand command);
 
     /**
-     * 更新菜单（默认值由 {@link Menu#applyChanges} 负责）
+     * 更新菜单（PATCH 契约：command 中为 null 的字段保持原值，由 {@link Menu#applyUpdate} 负责）
      *
      * @param id 菜单 ID
      * @param command 菜单更新命令

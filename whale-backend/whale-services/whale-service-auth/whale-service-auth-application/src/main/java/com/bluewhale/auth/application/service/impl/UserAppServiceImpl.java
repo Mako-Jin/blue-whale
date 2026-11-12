@@ -272,12 +272,14 @@ public class UserAppServiceImpl implements UserAppService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void assignRoles(Long id, AssignUserRolesCommand command) {
-        requireUser(id);
+        User user = requireUser(id);
         List<Long> roleIds = command.roleIds() == null ? List.of() : command.roleIds();
-        if (!roleIds.isEmpty() && roleRepository.countByIds(roleIds) != roleIds.size()) {
+        // 领域侧归一化（去重去空 + 数量上限），以归一化结果做有效性校验与落库
+        List<Long> normalized = user.assignRoles(roleIds);
+        if (!normalized.isEmpty() && roleRepository.countByIds(normalized) != normalized.size()) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "存在无效的角色ID");
         }
-        userRepository.replaceRoles(id, roleIds);
+        userRepository.replaceRoles(id, normalized);
         // 用户角色变更后发布事件，由监听器在提交后失效其权限缓存
         domainEventPublisher.publish(new UserDomainEvent(id, ChangeType.ROLES_ASSIGNED));
     }

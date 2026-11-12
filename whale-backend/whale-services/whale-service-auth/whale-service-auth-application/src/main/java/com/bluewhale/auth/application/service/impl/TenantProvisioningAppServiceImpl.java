@@ -144,7 +144,7 @@ public class TenantProvisioningAppServiceImpl implements TenantProvisioningAppSe
                 .toList();
         Role adminRole = roleRepository.save(Role.create(tenantId, RoleCode.of(DEFAULT_TENANT_ADMIN_ROLE),
                 "租户管理员", "租户开通时自动创建，管理本租户用户、角色、菜单与部门", 0, Role.STATUS_ENABLED));
-        roleRepository.replacePermissions(adminRole.getId(), permissionIds);
+        roleRepository.replacePermissions(adminRole.getId(), adminRole.assignPermissions(permissionIds));
 
         // 4. 业务角色：按平台租户模板下发同名角色并复制模板当前权限集
         copyBusinessRolesFromPlatform(tenantId, tenantGrantablePermissions);
@@ -153,7 +153,7 @@ public class TenantProvisioningAppServiceImpl implements TenantProvisioningAppSe
         User admin = userRepository.save(User.create(tenantId, adminUsername,
                 EncryptedPassword.of(passwordHasher.encode(command.rawPassword())), command.adminNickname(),
                 null, null, null, rootDept.getId(), User.STATUS_ENABLED));
-        userRepository.replaceRoles(admin.getId(), List.of(adminRole.getId()));
+        userRepository.replaceRoles(admin.getId(), admin.assignRoles(List.of(adminRole.getId())));
         // 一人多租户：初始管理员的首页租户即新开通租户
         tenantMembershipAppService.ensureHomeMembership(admin.getId(), tenantId);
         tenantStatusSync.sync(tenant);
@@ -197,7 +197,7 @@ public class TenantProvisioningAppServiceImpl implements TenantProvisioningAppSe
             List<Long> permissionIds = templatePermissionIds.stream()
                     .filter(grantablePermissionIds::contains)
                     .toList();
-            roleRepository.replacePermissions(role.getId(), permissionIds);
+            roleRepository.replacePermissions(role.getId(), role.assignPermissions(permissionIds));
             copied++;
         }
         log.info("业务角色模板下发完成: tenantId={}, copied={}, missing={}, total={}",

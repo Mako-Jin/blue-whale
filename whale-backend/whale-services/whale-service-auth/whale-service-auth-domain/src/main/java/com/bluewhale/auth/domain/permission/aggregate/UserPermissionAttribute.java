@@ -7,15 +7,18 @@ import com.bluewhale.common.domain.model.Entity;
 /**
  * 用户 ABAC 属性小聚合（对应 {@code sys_user_permission}，REQ-ARCH-001 / T-DDD-9）。
  *
- * <p>聚合根标识为 {@code (userId, permissionId, attrKey)} 组合：为「用户 + 权限点」附加属性键值对，
- * 供鉴权时做数据范围过滤。<b>不变量</b>：① {@code userId}/{@code permissionId} 非空；
+ * <p>聚合根标识为 {@link UserPermissionKey}（{@code (userId, permissionId, attrKey)} 三元组）：
+ * 为「用户 + 权限点」附加属性键值对，供鉴权时做数据范围过滤。<b>不变量</b>：① {@code userId}/{@code permissionId} 非空；
  * ② {@code attrKey} 非空。</p>
+ *
+ * <p><b>双标识说明</b>：{@link #getId()} 返回业务标识（三元组），{@link #getRowId()} 返回持久化自增主键
+ * （仅供仓储映射，新建未落库时为 {@code null}），两者不可混用。</p>
  *
  * <p>本类为纯领域对象，不依赖 Spring / MyBatis / Web 等框架类型。</p>
  *
  * @author BlueWhale
  */
-public class UserPermissionAttribute implements Entity<Long> {
+public class UserPermissionAttribute implements Entity<UserPermissionKey> {
 
     private final Long id;
     private final Long userId;
@@ -78,11 +81,21 @@ public class UserPermissionAttribute implements Entity<Long> {
     }
 
     /**
-     * 获取属性 ID
+     * 获取聚合业务标识（三元组）
      *
-     * @return 属性 ID（新建且未落库时为 {@code null}）
+     * @return 业务标识 {@code (userId, permissionId, attrKey)}
      */
-    public Long getId() {
+    @Override
+    public UserPermissionKey getId() {
+        return new UserPermissionKey(userId, permissionId, attrKey);
+    }
+
+    /**
+     * 获取持久化自增主键（仅供仓储映射使用，非业务标识）
+     *
+     * @return 关联记录 ID（新建且未落库时为 {@code null}）
+     */
+    public Long getRowId() {
         return id;
     }
 

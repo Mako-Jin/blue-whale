@@ -61,6 +61,10 @@ public interface UserRepository {
     /**
      * 判断用户名在指定租户内是否已存在（供用户唯一性不变量跨聚合校验）
      *
+     * <p><b>并发说明</b>：本方法为「先查后插」的友好预检，存在竞态窗口；真正的唯一性由
+     * DB 唯一约束 {@code uk_tenant_username(tenant_id, username)} 兜底，并发下后插入方将收到
+     * 数据库冲突而非重复数据。</p>
+     *
      * @param tenantId 租户 ID
      * @param username 用户名
      * @return 已存在返回 true，否则返回 false
@@ -68,7 +72,11 @@ public interface UserRepository {
     boolean existsByUsername(Long tenantId, String username);
 
     /**
-     * 全量覆盖用户在当前租户内的角色关联（只清理并重建本租户角色的关联行）
+     * 全量覆盖用户在当前租户内的角色关联（只清理并重建本租户角色的关联行）。
+     *
+     * <p><b>边界说明</b>：本方法为 {@code sys_user_role} 关联表端口，而非 User 聚合内部实体的
+     * 持久化通道——User 聚合根未持有角色关联集合；调用方应先通过聚合根的领域方法
+     * {@code assignRoles} 完成去重与数量校验，再调用本端口落库。</p>
      *
      * @param userId 用户 ID
      * @param roleIds 目标角色 ID 列表（属于当前租户）

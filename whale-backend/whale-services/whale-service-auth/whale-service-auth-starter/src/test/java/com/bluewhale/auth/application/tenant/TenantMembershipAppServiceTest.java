@@ -266,6 +266,10 @@ class TenantMembershipAppServiceTest {
         org.mockito.Mockito.lenient().when(user.getPhone()).thenReturn("13800000000");
         org.mockito.Mockito.lenient().when(user.getStatus()).thenReturn(1);
         org.mockito.Mockito.lenient().when(user.getTenantId()).thenReturn(1L);
+        // 应用层会先经 User#assignRoles 归一化（去重去空）再落库，mock 按同等语义透传
+        org.mockito.Mockito.lenient().when(user.assignRoles(org.mockito.ArgumentMatchers.anyCollection()))
+                .thenAnswer(inv -> ((java.util.Collection<Long>) inv.getArgument(0)).stream()
+                        .filter(java.util.Objects::nonNull).distinct().toList());
         return user;
     }
 

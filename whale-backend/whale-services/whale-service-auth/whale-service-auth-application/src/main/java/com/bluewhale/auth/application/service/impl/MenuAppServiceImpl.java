@@ -99,7 +99,7 @@ public class MenuAppServiceImpl implements MenuAppService {
     }
 
     /**
-     * 更新菜单（默认值由 {@link Menu#applyChanges} 负责）
+     * 更新菜单（PATCH 契约：{@code command} 中为 {@code null} 的字段保持原值，由 {@link Menu#applyUpdate} 负责）
      *
      * @param id 菜单 ID
      * @param command 菜单更新命令
@@ -108,7 +108,7 @@ public class MenuAppServiceImpl implements MenuAppService {
     public void update(Long id, SaveMenuCommand command) {
         Menu menu = menuRepository.findById(id)
                 .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
-        menu.applyChanges(command.parentId(), command.name(), command.path(), command.component(),
+        menu.applyUpdate(command.parentId(), command.name(), command.path(), command.component(),
                 command.icon(), command.sort(), command.menuType(), command.permissionCode(),
                 command.visible(), command.status());
         menuRepository.save(menu);

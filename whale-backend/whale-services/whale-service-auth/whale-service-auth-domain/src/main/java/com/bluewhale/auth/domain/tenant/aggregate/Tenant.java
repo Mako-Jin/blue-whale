@@ -14,6 +14,9 @@ import java.util.regex.Pattern;
  * ③ {@code tenantType ∈ {PLATFORM, TENANT}}；④ 仅 {@code status=1} 且未过期的租户可用于登录与签发令牌。</p>
  * <p>本类为纯领域对象，不依赖 Spring / MyBatis / Web 等框架类型。</p>
  *
+ * <p><b>时间口径</b>：本聚合所有时间字段（{@code expireTime}/{@code createTime}/{@code updateTime}）
+ * 统一按 {@link TenantExpiryClock}（UTC）取当前时间，避免到期判定与审计时间口径不一致。</p>
+ *
  * <p>选型说明：本类实现 {@link Entity} 而非继承 {@code AbstractAggregate}。后者相对
  * {@code Entity} 只多两项东西——领域事件收集/发布（{@code registerEvent}/{@code publishEvents}）
  * 与「主键由父构造器绑定、子类不可自行维护」的约束。权限中心各聚合（Tenant/User/Role/Menu/
@@ -90,22 +93,29 @@ public class Tenant implements Entity<Long> {
     }
 
     /**
-     * 工厂方法：新建业务租户（默认启用）
+     * 工厂方法：新建业务租户（默认启用，固定 {@code tenantType=TENANT}）
+     *
+     * <p>平台运营租户（{@code PLATFORM}，ID 固定为 {@link #PLATFORM_TENANT_ID}）仅通过种子数据创建，
+     * 不支持程序化创建。</p>
      *
      * @param tenantCode 租户编码
      * @param tenantName 租户名称
-     * @param expireTime 到期时间（{@code null} 表示长期有效）
+     * @param expireTime 到期时间（{@code null} 表示长期有效，UTC 口径）
      * @param quotaJson 配额 JSON
      * @return 新建的租户聚合
      */
     public static Tenant create(String tenantCode, String tenantName, LocalDateTime expireTime, String quotaJson) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = TenantExpiryClock.now();
         return new Tenant(null, tenantCode, tenantName, TYPE_TENANT, STATUS_ENABLED, expireTime, quotaJson,
                 now, now);
     }
 
     /**
-     * 由持久化数据重建聚合（不做格式校验，保持存量数据可读）
+     * 由持久化数据重建聚合
+     *
+     * <p>注意：重建与 {@link #create} 走同一私有构造器，同样执行不变量校验
+     * （{@code tenantCode} 格式、{@code tenantType} 合法性等）；存量脏数据将在此处暴露，
+     * 而不是被静默放过。</p>
      *
      * @param id 租户 ID
      * @param tenantCode 租户编码
@@ -136,7 +146,7 @@ public class Tenant implements Entity<Long> {
             throw new DomainException(ErrorCode.PARAM_ERROR, "租户名称不能为空");
         }
         this.tenantName = tenantName;
-        this.updateTime = LocalDateTime.now();
+        this.updateTime = TenantExpiryClock.now();
     }
 
     /**
@@ -146,7 +156,7 @@ public class Tenant implements Entity<Long> {
      */
     public void changeQuota(String quotaJson) {
         this.quotaJson = quotaJson;
-        this.updateTime = LocalDateTime.now();
+        this.updateTime = TenantExpiryClock.now();
     }
 
     /**
@@ -159,7 +169,7 @@ public class Tenant implements Entity<Long> {
             throw new DomainException(ErrorCode.PARAM_ERROR, "续期时间必须晚于当前时间");
         }
         this.expireTime = expireTime;
-        this.updateTime = LocalDateTime.now();
+        this.updateTime = TenantExpiryClock.now();
     }
 
     /**
@@ -167,7 +177,7 @@ public class Tenant implements Entity<Long> {
      */
     public void enable() {
         this.status = STATUS_ENABLED;
-        this.updateTime = LocalDateTime.now();
+        this.updateTime = TenantExpiryClock.now();
     }
 
     /**
@@ -175,7 +185,7 @@ public class Tenant implements Entity<Long> {
      */
     public void disable() {
         this.status = STATUS_DISABLED;
-        this.updateTime = LocalDateTime.now();
+        this.updateTime = TenantExpiryClock.now();
     }
 
     /**

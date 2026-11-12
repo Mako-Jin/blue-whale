@@ -8,14 +8,17 @@ import com.bluewhale.common.domain.model.Entity;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.regex.Pattern;
+import java.util.Collection;
+import java.util.List;
+import java.util.Objects;
 
 /**
  * User 聚合根（对应 {@code sys_user}，REQ-ARCH-001 / T-DDD-4）。
  *
  * <p><b>不变量</b>：① {@code username} 非空且格式合法（其租户内唯一性由
  * {@link com.bluewhale.auth.domain.user.repository.UserRepository#existsByUsername(Long, String)}
- * 跨聚合校验）；② 口令必须为 BCrypt 密文（以 {@link EncryptedPassword} 承载，禁止明文）；
+ * 跨聚合校验，并以 DB 唯一约束 {@code uk_tenant_username(tenant_id, username)} 兜底）；
+ * ② 口令必须为 BCrypt 密文（格式校验由 {@link EncryptedPassword} 值对象构造时保证，禁止明文）；
  * ③ {@code status ∈ {1 启用, 0 停用}}；④ 用户必须归属某个租户。</p>
  *
  * <p>本类为纯领域对象，不依赖 Spring / MyBatis / Web 等框架类型。</p>
@@ -28,9 +31,8 @@ public class User implements Entity<Long> {
     public static final int STATUS_ENABLED = 1;
     /** 状态：停用 */
     public static final int STATUS_DISABLED = 0;
-
-    /** BCrypt 密文形态：以 {@code $2a$/$2b$/$2y$} 起始且带盐与散列内容 */
-    private static final Pattern BCRYPT_PATTERN = Pattern.compile("^\\$2[aby]\\$.+$");
+    /** 单用户可分配角色数量上限（防止误传超大集合导致关联表爆炸） */
+    public static final int MAX_ROLES_PER_USER = 50;
 
     private final Long id;
     private final Long tenantId;
@@ -79,7 +81,7 @@ public class User implements Entity<Long> {
         if (username == null) {
             throw new DomainException(ErrorCode.PARAM_ERROR, "用户名不能为空");
         }
-        if (password == null || !BCRYPT_PATTERN.matcher(password.value()).matches()) {
+        if (password == null) {
             throw new DomainException(ErrorCode.PARAM_ERROR, "口令必须为 BCrypt 密文");
         }
         if (status != STATUS_ENABLED && status != STATUS_DISABLED) {
@@ -274,6 +276,28 @@ public class User implements Entity<Long> {
     }
 
     /**
+     * 行为：归一化本次要分配给用户的角色集合（去重、去空、数量上限校验）
+     *
+     * <p>聚合根不持有角色关联集合，关联落库由 {@code UserRepository#replaceRoles} 端口承担；
+     * 本方法负责在应用层落库前完成领域侧校验与归一化，返回值应作为落库入参。</p>
+     *
+     * @param roleIds 待分配的角色 ID 集合（允许为空集合，表示清空全部角色）
+     * @return 去重去空后的角色 ID 列表（应作为 {@code replaceRoles} 落库入参）
+     * @throws DomainException 集合为 {@code null} 或超过 {@link #MAX_ROLES_PER_USER} 时抛出参数错误
+     */
+    public List<Long> assignRoles(Collection<Long> roleIds) {
+        if (roleIds == null) {
+            throw new DomainException(ErrorCode.PARAM_ERROR, "角色 ID 列表不能为空");
+        }
+        List<Long> distinct = roleIds.stream().filter(Objects::nonNull).distinct().toList();
+        if (distinct.size() > MAX_ROLES_PER_USER) {
+            throw new DomainException(ErrorCode.PARAM_ERROR,
+                    "单用户最多分配 " + MAX_ROLES_PER_USER + " 个角色");
+        }
+        return distinct;
+    }
+
+    /**
      * 行为：变更用户资料（对应更新接口的昵称/手机号/邮箱/头像/部门赋值）
      *
      * @param nickname 昵称
@@ -307,7 +331,7 @@ public class User implements Entity<Long> {
      * @param changedAt 改密生效时间（不得为空）
      */
     public void changePassword(EncryptedPassword password, LocalDateTime changedAt) {
-        if (password == null || !BCRYPT_PATTERN.matcher(password.value()).matches()) {
+        if (password == null) {
             throw new DomainException(ErrorCode.PARAM_ERROR, "口令必须为 BCrypt 密文");
         }
         this.password = password;
@@ -318,6 +342,9 @@ public class User implements Entity<Long> {
     /**
      * 判定口令是否已到期（REQ-SEC-023）
      *
+     * <p>边界语义：到期时刻与判定时刻相等（{@code now == 改密时间 + maxAgeDays}）即视为已过期，
+     * 即按 {@code !isAfter} 判定。</p>
+     *
      * @param now 判定时刻
      * @param maxAgeDays 口令有效期（天）；小于等于 0 表示不强制到期
      * @return 已到期返回 true；改密时间缺失时返回 false（避免误锁存量账号）
@@ -326,8 +353,7 @@ public class User implements Entity<Long> {
         if (maxAgeDays <= 0 || passwordUpdatedTime == null || now == null) {
             return false;
         }
-        return passwordUpdatedTime.plusDays(maxAgeDays).isBefore(now)
-                || passwordUpdatedTime.plusDays(maxAgeDays).isEqual(now);
+        return !passwordUpdatedTime.plusDays(maxAgeDays).isAfter(now);
     }
 
     /**

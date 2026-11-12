@@ -141,13 +141,15 @@ public class TenantMembershipAppServiceImpl implements TenantMembershipAppServic
         if (!userTenantRepository.existsEnabled(userId, tenantId)) {
             throw new BizException(404, "成员不存在或关系已停用");
         }
-        userRepository.findByIdAcrossTenants(userId)
+        User member = userRepository.findByIdAcrossTenants(userId)
                 .orElseThrow(() -> new BizException(404, "用户不存在"));
         List<Long> targets = roleIds == null ? List.of() : roleIds;
-        if (!targets.isEmpty() && roleRepository.countByIds(targets) != targets.size()) {
+        // 领域侧归一化（去重去空 + 数量上限），以归一化结果做有效性校验与落库
+        List<Long> normalized = member.assignRoles(targets);
+        if (!normalized.isEmpty() && roleRepository.countByIds(normalized) != normalized.size()) {
             throw new BizException(400, "存在无效的角色ID");
         }
-        userRepository.replaceRoles(userId, targets);
+        userRepository.replaceRoles(userId, normalized);
         domainEventPublisher.publish(new UserDomainEvent(userId, ChangeType.ROLES_ASSIGNED, tenantId));
     }
 

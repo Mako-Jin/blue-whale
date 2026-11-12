@@ -153,12 +153,14 @@ public class RoleAppServiceImpl implements RoleAppService {
     @Transactional(rollbackFor = Exception.class)
     @DistributedLock(prefix = "lock", biz = "auth:role", key = "#id", waitTime = 1, leaseTime = 30, failFast = true)
     public void assignPermissions(Long id, AssignRolePermissionsCommand command) {
-        requireRole(id);
+        Role role = requireRole(id);
         List<Long> permissionIds = command.permissionIds() == null ? List.of() : command.permissionIds();
-        if (!permissionIds.isEmpty() && permissionRepository.countByIds(permissionIds) != permissionIds.size()) {
+        // 领域侧归一化（去重去空 + 数量上限），以归一化结果做有效性校验与落库
+        List<Long> normalized = role.assignPermissions(permissionIds);
+        if (!normalized.isEmpty() && permissionRepository.countByIds(normalized) != normalized.size()) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "存在无效的权限ID");
         }
-        roleRepository.replacePermissions(id, permissionIds);
+        roleRepository.replacePermissions(id, normalized);
         // 角色权限变更后发布事件，由监听器在提交后失效该角色下用户的缓存
         domainEventPublisher.publish(new RoleDomainEvent(id, ChangeType.PERMISSIONS_ASSIGNED));
     }

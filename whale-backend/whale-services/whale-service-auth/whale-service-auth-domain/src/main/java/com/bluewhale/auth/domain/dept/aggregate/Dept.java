@@ -25,6 +25,7 @@ public class Dept implements Entity<Long> {
     private Long parentId;
     private String deptName;
     private int sort;
+    /** 负责人姓名（展示快照：与 {@code leaderUserId} 指向的用户改名后可能不同步，仅作展示用，权威关联以 {@code leaderUserId} 为准） */
     private String leader;
     /** 负责人用户 ID（逻辑关联 {@code sys_user.id}，允许为空） */
     private Long leaderUserId;
@@ -194,37 +195,45 @@ public class Dept implements Entity<Long> {
     }
 
     /**
-     * 行为：一次性应用更新接口的全部字段（空值默认与 {@link #create} 保持一致）
+     * 行为：一次性应用更新接口的全部字段（PATCH 契约）
      *
      * <p><b>注意</b>：本重载不修改 {@code leaderUserId}，避免未携带该字段的旧调用方
      * 无意清空已维护的负责人用户 ID。</p>
      *
-     * @param parentId 父部门 ID，为空时按 0（顶级）处理
-     * @param deptName 部门名称
-     * @param sort 排序号，为空时按 0 处理
-     * @param leader 负责人
+     * @param parentId 新父部门 ID（{@code null} 表示不修改）
+     * @param deptName 新部门名称（{@code null} 表示不修改）
+     * @param sort 新排序号（{@code null} 表示不修改）
+     * @param leader 新负责人（{@code null} 表示不修改）
      */
-    public void applyChanges(Long parentId, String deptName, Integer sort, String leader) {
-        applyChanges(parentId, deptName, sort, leader, null);
+    public void applyUpdate(Long parentId, String deptName, Integer sort, String leader) {
+        applyUpdate(parentId, deptName, sort, leader, null);
     }
 
     /**
-     * 行为：一次性应用更新接口的全部字段（含负责人用户 ID）
+     * 行为：一次性应用更新接口的全部字段（含负责人用户 ID，PATCH 契约）
      *
-     * <p>{@code leaderUserId} 为 {@code null} 时保持原值不变，不做清空；需要清空时调用方应显式链式调用
-     * {@link #changeLeaderUser(Long)}。</p>
+     * <p><b>PATCH 契约</b>：所有参数统一 {@code null = 不修改}（保持原值），不做任何隐式默认值
+     * 降级；需要清空 {@code leaderUserId} 时显式调用 {@link #changeLeaderUser(Long)} 传 {@code null}。</p>
      *
-     * @param parentId 父部门 ID，为空时按 0（顶级）处理
-     * @param deptName 部门名称
-     * @param sort 排序号，为空时按 0 处理
-     * @param leader 负责人
-     * @param leaderUserId 负责人用户 ID（{@code null} 表示不修改）
+     * @param parentId 新父部门 ID（{@code null} 表示不修改）
+     * @param deptName 新部门名称（{@code null} 表示不修改）
+     * @param sort 新排序号（{@code null} 表示不修改）
+     * @param leader 新负责人（{@code null} 表示不修改）
+     * @param leaderUserId 新负责人用户 ID（{@code null} 表示不修改）
      */
-    public void applyChanges(Long parentId, String deptName, Integer sort, String leader, Long leaderUserId) {
-        moveTo(parentId == null ? ROOT_PARENT_ID : parentId);
-        rename(deptName);
-        changeSort(sort == null ? 0 : sort);
-        changeLeader(leader);
+    public void applyUpdate(Long parentId, String deptName, Integer sort, String leader, Long leaderUserId) {
+        if (parentId != null) {
+            moveTo(parentId);
+        }
+        if (deptName != null) {
+            rename(deptName);
+        }
+        if (sort != null) {
+            changeSort(sort);
+        }
+        if (leader != null) {
+            changeLeader(leader);
+        }
         if (leaderUserId != null) {
             changeLeaderUser(leaderUserId);
         }

@@ -35,7 +35,7 @@ public final class UserPermissionPersistenceAssembler {
      */
     public static SysUserPermission toPo(UserPermissionAttribute attribute) {
         SysUserPermission po = new SysUserPermission();
-        po.setId(attribute.getId());
+        po.setId(attribute.getRowId());
         po.setUserId(attribute.getUserId());
         po.setPermissionId(attribute.getPermissionId());
         po.setAttrKey(attribute.getAttrKey());

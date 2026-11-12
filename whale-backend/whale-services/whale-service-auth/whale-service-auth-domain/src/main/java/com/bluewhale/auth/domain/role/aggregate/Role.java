@@ -6,6 +6,9 @@ import com.bluewhale.common.domain.exception.DomainException;
 import com.bluewhale.common.domain.model.Entity;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
+import java.util.Objects;
 
 /**
  * Role 聚合根（对应 {@code sys_role}，REQ-ARCH-001 / T-DDD-5）。
@@ -23,6 +26,8 @@ public class Role implements Entity<Long> {
     public static final int STATUS_ENABLED = 1;
     /** 状态：停用 */
     public static final int STATUS_DISABLED = 0;
+    /** 单角色可分配权限点数量上限（防止误传超大集合导致关联表爆炸） */
+    public static final int MAX_PERMISSIONS_PER_ROLE = 500;
 
     private final Long id;
     private final Long tenantId;
@@ -178,6 +183,28 @@ public class Role implements Entity<Long> {
      */
     public boolean isEnabled() {
         return status == STATUS_ENABLED;
+    }
+
+    /**
+     * 行为：归一化本次要分配给角色的权限点集合（去重、去空、数量上限校验）
+     *
+     * <p>聚合根不持有权限关联集合，关联落库由 {@code RoleRepository#replacePermissions} 端口承担；
+     * 本方法负责在应用层落库前完成领域侧校验与归一化，返回值应作为落库入参。</p>
+     *
+     * @param permissionIds 待分配的权限点 ID 集合（允许为空集合，表示清空全部权限）
+     * @return 去重去空后的权限点 ID 列表（应作为 {@code replacePermissions} 落库入参）
+     * @throws DomainException 集合为 {@code null} 或超过 {@link #MAX_PERMISSIONS_PER_ROLE} 时抛出参数错误
+     */
+    public List<Long> assignPermissions(Collection<Long> permissionIds) {
+        if (permissionIds == null) {
+            throw new DomainException(ErrorCode.PARAM_ERROR, "权限点 ID 列表不能为空");
+        }
+        List<Long> distinct = permissionIds.stream().filter(Objects::nonNull).distinct().toList();
+        if (distinct.size() > MAX_PERMISSIONS_PER_ROLE) {
+            throw new DomainException(ErrorCode.PARAM_ERROR,
+                    "单角色最多分配 " + MAX_PERMISSIONS_PER_ROLE + " 个权限点");
+        }
+        return distinct;
     }
 
     /**

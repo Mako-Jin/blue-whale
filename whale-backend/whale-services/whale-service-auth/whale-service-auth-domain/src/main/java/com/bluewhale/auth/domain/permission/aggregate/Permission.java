@@ -223,26 +223,43 @@ public class Permission implements Entity<Long> {
     }
 
     /**
-     * 行为：一次性应用更新接口的全部字段（空值默认与 {@link #create} 保持一致）
+     * 行为：一次性应用更新接口的全部字段（PATCH 契约）
      *
-     * @param parentId 父权限点 ID，为空时按 0（顶级）处理
-     * @param permCode 权限码值对象
-     * @param permName 权限名称
-     * @param permType 权限类型（SYSTEM / MENU / API / BUTTON / DATA / ATTR）
-     * @param path 接口路径
-     * @param method 请求方法
-     * @param sortNo 排序号，为空时按 0 处理
-     * @param status 状态，为空时按启用处理
+     * <p><b>PATCH 契约</b>：所有参数统一 {@code null = 不修改}（保持原值），不做任何隐式默认值
+     * 降级（如不再把空 {@code parentId} 降级为顶级、空 {@code sortNo} 降级为 0）。</p>
+     *
+     * @param parentId 新父权限点 ID（{@code null} 表示不修改）
+     * @param permCode 新权限码值对象（{@code null} 表示不修改）
+     * @param permName 新权限名称（{@code null} 表示不修改）
+     * @param permType 新权限类型（{@code null} 表示不修改）
+     * @param path 接口路径（{@code null} 表示不修改）
+     * @param method 请求方法（{@code null} 表示不修改）
+     * @param sortNo 新排序号（{@code null} 表示不修改）
+     * @param status 新状态（{@code null} 表示不修改）
      */
-    public void applyChanges(Long parentId, PermCode permCode, String permName, String permType,
-                             String path, String method, Integer sortNo, Integer status) {
-        moveTo(parentId == null ? ROOT_PARENT_ID : parentId);
-        changeCode(permCode);
-        rename(permName);
-        changeType(permType);
-        changeApi(path, method);
-        changeSort(sortNo == null ? 0 : sortNo);
-        changeStatus(status == null ? STATUS_ENABLED : status);
+    public void applyUpdate(Long parentId, PermCode permCode, String permName, String permType,
+                            String path, String method, Integer sortNo, Integer status) {
+        if (parentId != null) {
+            moveTo(parentId);
+        }
+        if (permCode != null) {
+            changeCode(permCode);
+        }
+        if (permName != null) {
+            rename(permName);
+        }
+        if (permType != null) {
+            changeType(permType);
+        }
+        if (path != null || method != null) {
+            changeApi(path, method);
+        }
+        if (sortNo != null) {
+            changeSort(sortNo);
+        }
+        if (status != null) {
+            changeStatus(status);
+        }
     }
 
     /**

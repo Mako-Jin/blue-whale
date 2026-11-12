@@ -62,7 +62,7 @@ class DeptTest {
 
     @Test
     @DisplayName("行为：moveTo/rename/changeSort/changeLeader 各自生效")
-    void shouldApplyChanges() {
+    void shouldApplySemanticBehaviors() {
         Dept dept = Dept.create(1L, 0L, "旧名", 1, "旧负责人");
 
         dept.moveTo(3L);

@@ -49,7 +49,7 @@ public interface DeptAppService {
     void create(SaveDeptCommand command);
 
     /**
-     * 更新部门（默认值由 {@link Dept#applyChanges} 负责）
+     * 更新部门（PATCH 契约：command 中为 null 的字段保持原值，由 {@link Dept#applyUpdate} 负责）
      *
      * @param id 部门 ID
      * @param command 部门更新命令

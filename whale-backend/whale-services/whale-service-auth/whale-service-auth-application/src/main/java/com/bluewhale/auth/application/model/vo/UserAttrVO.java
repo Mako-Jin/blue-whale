@@ -29,7 +29,7 @@ public class UserAttrVO implements Serializable {
      */
     public static UserAttrVO from(UserPermissionAttribute attribute) {
         UserAttrVO vo = new UserAttrVO();
-        vo.setId(attribute.getId());
+        vo.setId(attribute.getRowId());
         vo.setUserId(attribute.getUserId());
         vo.setPermissionId(attribute.getPermissionId());
         vo.setAttrKey(attribute.getAttrKey());

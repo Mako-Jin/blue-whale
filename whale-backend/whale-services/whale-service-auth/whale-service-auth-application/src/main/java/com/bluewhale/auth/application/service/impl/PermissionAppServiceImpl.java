@@ -116,7 +116,7 @@ public class PermissionAppServiceImpl implements PermissionAppService {
         if (permissionRepository.existsByPermCode(permCode.value(), id)) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "权限编码已存在");
         }
-        permission.applyChanges(command.parentId(), permCode, command.permName(), command.permType(),
+        permission.applyUpdate(command.parentId(), permCode, command.permName(), command.permType(),
                 command.path(), command.method(), command.sortNo(), command.status());
         permissionRepository.save(permission);
         // 权限点变更后发布事件，由监听器在提交后失效持有该点位的用户缓存

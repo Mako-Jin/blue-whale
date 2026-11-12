@@ -81,7 +81,7 @@ public class DeptAppServiceImpl implements DeptAppService {
     }
 
     /**
-     * 更新部门（默认值由 {@link Dept#applyChanges} 负责）
+     * 更新部门（PATCH 契约：{@code command} 中为 {@code null} 的字段保持原值，由 {@link Dept#applyUpdate} 负责）
      *
      * @param id 部门 ID
      * @param command 部门更新命令
@@ -90,7 +90,7 @@ public class DeptAppServiceImpl implements DeptAppService {
     public void update(Long id, SaveDeptCommand command) {
         Dept dept = deptRepository.findById(id)
                 .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
-        dept.applyChanges(command.parentId(), command.deptName(), command.sort(), command.leader(),
+        dept.applyUpdate(command.parentId(), command.deptName(), command.sort(), command.leader(),
                 command.leaderUserId());
         deptRepository.save(dept);
         domainEventPublisher.publish(new DeptDomainEvent(id, ChangeType.UPDATED));

@@ -20,11 +20,12 @@ class UserPermissionAttributeTest {
     private static final long PERMISSION_ID = 10L;
 
     @Test
-    @DisplayName("create：合法构造，ID 为空并回填各字段")
+    @DisplayName("create：合法构造，业务标识为三元组且持久化主键为空")
     void shouldCreate() {
         UserPermissionAttribute attribute = UserPermissionAttribute.create(USER_ID, PERMISSION_ID, "deptId", "100");
 
-        assertNull(attribute.getId());
+        assertEquals(new UserPermissionKey(USER_ID, PERMISSION_ID, "deptId"), attribute.getId());
+        assertNull(attribute.getRowId());
         assertEquals(USER_ID, attribute.getUserId());
         assertEquals(PERMISSION_ID, attribute.getPermissionId());
         assertEquals("deptId", attribute.getAttrKey());
@@ -59,7 +60,8 @@ class UserPermissionAttributeTest {
         UserPermissionAttribute attribute = UserPermissionAttribute.reconstitute(
                 7L, USER_ID, PERMISSION_ID, "deptId", "100");
 
-        assertEquals(7L, attribute.getId());
+        assertEquals(7L, attribute.getRowId());
+        assertEquals(new UserPermissionKey(USER_ID, PERMISSION_ID, "deptId"), attribute.getId());
         assertEquals(USER_ID, attribute.getUserId());
         assertEquals(PERMISSION_ID, attribute.getPermissionId());
         assertEquals("deptId", attribute.getAttrKey());

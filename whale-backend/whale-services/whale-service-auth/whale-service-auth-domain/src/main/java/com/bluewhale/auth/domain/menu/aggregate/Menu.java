@@ -259,29 +259,48 @@ public class Menu implements Entity<Long> {
     }
 
     /**
-     * 行为：一次性应用更新接口的全部字段（空值默认与 {@link #create} 保持一致）
+     * 行为：一次性应用更新接口的全部字段（PATCH 契约）
      *
-     * @param parentId 父菜单 ID，为空时按 0（顶级）处理
-     * @param name 菜单名称
-     * @param path 前端路由路径
-     * @param component 前端组件路径
-     * @param icon 图标
-     * @param sort 排序号，为空时按 0 处理
-     * @param menuType 菜单类型，为空时按 MENU 处理
-     * @param permissionCode 关联权限编码
-     * @param visible 是否可见，为空时按显示处理
-     * @param status 状态，为空时按启用处理
+     * <p><b>PATCH 契约</b>：所有参数统一 {@code null = 不修改}（保持原值），不做任何隐式默认值
+     * 降级（如不再把空 {@code parentId} 降级为顶级、空 {@code sort} 降级为 0）。</p>
+     *
+     * @param parentId 新父菜单 ID（{@code null} 表示不修改）
+     * @param name 新菜单名称（{@code null} 表示不修改）
+     * @param path 前端路由路径（{@code null} 表示不修改）
+     * @param component 前端组件路径（{@code null} 表示不修改）
+     * @param icon 图标（{@code null} 表示不修改）
+     * @param sort 新排序号（{@code null} 表示不修改）
+     * @param menuType 新菜单类型（{@code null} 或空白表示不修改）
+     * @param permissionCode 关联权限编码（{@code null} 表示不修改）
+     * @param visible 新可见性（{@code null} 表示不修改）
+     * @param status 新状态（{@code null} 表示不修改）
      */
-    public void applyChanges(Long parentId, String name, String path, String component, String icon, Integer sort,
-                             String menuType, String permissionCode, Integer visible, Integer status) {
-        moveTo(parentId == null ? ROOT_PARENT_ID : parentId);
-        rename(name);
-        changeRoute(path, component, icon);
-        changeSort(sort == null ? 0 : sort);
-        changeMenuType(menuType == null || menuType.isBlank() ? MENU_TYPE_MENU : menuType);
-        bindPermissionCode(permissionCode);
-        changeVisible(visible == null ? VISIBLE_SHOWN : visible);
-        changeStatus(status == null ? STATUS_ENABLED : status);
+    public void applyUpdate(Long parentId, String name, String path, String component, String icon, Integer sort,
+                            String menuType, String permissionCode, Integer visible, Integer status) {
+        if (parentId != null) {
+            moveTo(parentId);
+        }
+        if (name != null) {
+            rename(name);
+        }
+        if (path != null || component != null || icon != null) {
+            changeRoute(path, component, icon);
+        }
+        if (sort != null) {
+            changeSort(sort);
+        }
+        if (menuType != null && !menuType.isBlank()) {
+            changeMenuType(menuType);
+        }
+        if (permissionCode != null) {
+            bindPermissionCode(permissionCode);
+        }
+        if (visible != null) {
+            changeVisible(visible);
+        }
+        if (status != null) {
+            changeStatus(status);
+        }
     }
 
     /**
