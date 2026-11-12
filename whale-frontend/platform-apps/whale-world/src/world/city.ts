@@ -7,10 +7,22 @@
  *  - DOM id / class 全部带 bww- 前缀，避免与基座及其他子应用冲突
  *  - 生命周期化：createWorld(host, opts) 返回 dispose()，供 React 卸载回收
  *  - 传送面板新增「进入」按钮：qiankun 内 pushState 跳转对应 2D 子应用
- * TODO(P1)：拆分模块并补全类型（当前 @ts-nocheck 承接原型逻辑）。
+ * P1 增补：
+ *  - 角色系统（avatar.ts / profile.ts / charpanel.ts）：参数化捏脸 + 照片取色
+ *  - NPC 生态（npc.ts）与多人同屏骨架（net.ts，本地模拟，P2 换 whale-im 帧协议）
+ *  - 城图小地图（minimap.ts）
+ * TODO(P2)：拆分本文件的城墙/宫殿/天气等子系统为独立模块并补全类型。
  * ========================================================================== */
 
 import * as THREE from 'three';
+import { DEFAULT_AVATAR, createAvatar } from './avatar';
+import { loadProfile, saveProfile } from './profile';
+import { createNpcs } from './npc';
+import { createWorldChannel } from './net';
+import { createMinimap } from './minimap';
+import { mountCharPanel } from './charpanel';
+import type { CharPanelHandle } from './charpanel';
+import type { AvatarParams } from './avatar';
 
 export interface WorldOptions {
   /** 是否运行在 qiankun 基座内（决定传送门「进入」是否跳转 2D） */
@@ -675,23 +687,23 @@ PALACES.forEach((p, i) => {
 // 灯笼：沿御道两侧
 const lanterns = [];
 {
-  const poleGeo = new THREE.CylinderGeometry(0.16, 0.2, 5.2, 8);
-  const ballGeo = new THREE.SphereGeometry(0.55, 12, 10);
+  const poleGeo = new THREE.CylinderGeometry(0.11, 0.15, 4.6, 8);
+  const ballGeo = new THREE.SphereGeometry(0.38, 12, 10);
   for (let i = 0; i < 11; i++) {
     const z = 86 - i * 16;
     for (const s of [-1, 1]) {
       const px = s * 7.4;
       if (Math.abs(z) < 26 || (Math.abs(z) > 38 && Math.abs(z) < 58)) continue;
       const pole = new THREE.Mesh(poleGeo, matWood);
-      pole.position.set(px, 2.6, z);
+      pole.position.set(px, 2.3, z);
       pole.castShadow = true;
       cityGroup.add(pole);
 
       const ball = new THREE.Mesh(ballGeo, matLantern);
-      ball.position.set(px, 5.4, z);
+      ball.position.set(px, 4.85, z);
       cityGroup.add(ball);
 
-      const glow = new THREE.Mesh(new THREE.SphereGeometry(1.5, 12, 10), matLanternGlow);
+      const glow = new THREE.Mesh(new THREE.SphereGeometry(1.15, 12, 10), matLanternGlow);
       glow.position.copy(ball.position);
       cityGroup.add(glow);
       lanterns.push(ball);
@@ -851,12 +863,12 @@ function scatterVegetation() {
 
 const vegetation = scatterVegetation();
 
-// 城内草丛
+// 城内草丛（用四棱锥做草簇，任意角度都不会变成"绿卡片"）
 {
   const grassCount = 2600;
-  const gGeo = new THREE.PlaneGeometry(0.9, 1.7);
-  gGeo.translate(0, 0.85, 0);
-  const gMat = M(0x5d7a38, { roughness: 1, side: THREE.DoubleSide });
+  const gGeo = new THREE.ConeGeometry(0.13, 0.55, 4);
+  gGeo.translate(0, 0.27, 0);
+  const gMat = M(0x5d7a38, { roughness: 1 });
   const grass = new THREE.InstancedMesh(gGeo, gMat, grassCount);
   grass.receiveShadow = true;
   let n = 0;
@@ -872,7 +884,7 @@ const vegetation = scatterVegetation();
     if (Math.abs(x) < 8 || Math.abs(z) < 8) continue;
     const y = terrainHeight(x, z);
     if (y < -2.6) continue;
-    const s = 0.6 + Math.random() * 0.8;
+    const s = 0.7 + Math.random() * 0.7;
     _q.setFromAxisAngle(Y_AXIS, Math.random() * Math.PI * 2);
     _v3.set(x, y, z);
     _s3.set(s, s, s);
@@ -975,71 +987,197 @@ function updateParticles(p, dt, camera, strength) {
 }
 
 /* ==========================================================================
- * 9. 玩家角色
+ * 9. 玩家角色（参数化形象，形象取自本地档案）
  * ========================================================================== */
 const player = {
-  pos: new THREE.Vector3(0, 0, 72),
+  pos: new THREE.Vector3(0, 0, 66),
   yaw: Math.PI,
   vel: new THREE.Vector3(),
   speed: 0,
   phase: 0,
 };
 
-const avatar = new THREE.Group();
-{
-  const robeMat = M(0x2b4a63, { roughness: 0.8 });
-  const skinMat = M(0xe8c4a0, { roughness: 0.85 });
-  const hairMat = M(0x1a1410, { roughness: 0.9 });
-  const beltMat = M(0xc9a13a, { roughness: 0.5, metalness: 0.4 });
+const profileState = loadProfile();
+let profile: AvatarParams = profileState.params;
 
-  const robe = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.86, 1.55, 14), robeMat);
-  robe.position.y = 0.78;
-  robe.castShadow = true;
-  avatar.add(robe);
-
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 0.5, 6, 12), robeMat);
-  torso.position.y = 1.72;
-  torso.castShadow = true;
-  avatar.add(torso);
-
-  const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.18, 14), beltMat);
-  belt.position.y = 1.42;
-  avatar.add(belt);
-
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.33, 18, 14), skinMat);
-  head.position.y = 2.34;
-  head.castShadow = true;
-  avatar.add(head);
-
-  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.345, 18, 14, 0, Math.PI * 2, 0, Math.PI * 0.62), hairMat);
-  hair.position.y = 2.36;
-  avatar.add(hair);
-
-  const bun = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), hairMat);
-  bun.position.set(0, 2.62, -0.14);
-  avatar.add(bun);
-
-  const legGeo = new THREE.CapsuleGeometry(0.15, 0.62, 4, 8);
-  const legMat = M(0x232f3d, { roughness: 0.9 });
-  const legL = new THREE.Mesh(legGeo, legMat);
-  legL.position.set(-0.22, 0.42, 0);
-  legL.castShadow = true;
-  const legR = legL.clone();
-  legR.position.x = 0.22;
-  avatar.add(legL, legR);
-
-  const armGeo = new THREE.CapsuleGeometry(0.12, 0.52, 4, 8);
-  const armL = new THREE.Mesh(armGeo, robeMat);
-  armL.position.set(-0.52, 1.78, 0);
-  armL.castShadow = true;
-  const armR = armL.clone();
-  armR.position.x = 0.52;
-  avatar.add(armL, armR);
-
-  avatar.userData = { legL, legR, armL, armR };
-}
+const playerRig = createAvatar(profile);
+const avatar = playerRig.group;
 avatar.position.copy(player.pos);
 scene.add(avatar);
+
+/* ==========================================================================
+ * 9.5 NPC / 其他玩家 / 城图 / 角色面板
+ * ========================================================================== */
+const labelsRoot = document.getElementById('bww-labels');
+
+/* ---- 城内 NPC ---- */
+const npcs = createNpcs();
+scene.add(npcs.group);
+
+const npcLabels = new Map();
+for (const n of npcs.list) {
+  const el = document.createElement('div');
+  el.className = 'bww-nlabel';
+  el.innerHTML = `<b>${n.def.name}</b><span>${n.def.role}</span>`;
+  labelsRoot.appendChild(el);
+  npcLabels.set(n.def.id, el);
+}
+
+/* ---- 其他玩家（联机骨架：本地模拟，P2 换成 whale-im 的 world 帧） ---- */
+const channel = createWorldChannel();
+const peerRigs = channel.peers.map((peer, i) => {
+  const rig = createAvatar({
+    ...DEFAULT_AVATAR,
+    name: peer.name,
+    robe: peer.robe,
+    hairStyle: (i % 3),
+    accessory: i % 2 === 0 ? 1 : 0,
+    beard: i === 3,
+  });
+  scene.add(rig.group);
+  const el = document.createElement('div');
+  el.className = 'bww-nlabel is-peer';
+  el.innerHTML = `<b>${peer.name}</b><span>在线</span>`;
+  labelsRoot.appendChild(el);
+  return { peer, rig, el };
+});
+
+/* ---- 城图 ---- */
+const minimapCanvas = document.getElementById('bww-minimap');
+const minimap = minimapCanvas ? createMinimap(minimapCanvas) : null;
+const mapPanel = document.getElementById('bww-map-panel');
+let mapVisible = true;
+
+function toggleMap() {
+  mapVisible = !mapVisible;
+  if (mapPanel) {
+    mapPanel.classList.toggle('bww-hidden', !mapVisible);
+  }
+  if (mapVisible) {
+    requestAnimationFrame(() => minimap?.resize());
+  }
+}
+
+const minimapPortals = portals.map((p) => ({ x: p.x, z: p.z, color: p.color }));
+const minimapPalaces = palaces.map((p) => ({ x: p.x, z: p.z }));
+let mapTick = 0;
+
+function updateMinimap() {
+  if (!minimap || !mapVisible) {
+    return;
+  }
+  mapTick++;
+  if (mapTick % 3 !== 0) {
+    return;
+  }
+  minimap.render({
+    player: { x: player.pos.x, z: player.pos.z, yaw: player.yaw },
+    portals: minimapPortals,
+    palaces: minimapPalaces,
+    npcs: npcs.list.map((n) => ({ x: n.pos.x, z: n.pos.z })),
+    peers: channel.peers.map((p) => ({ x: p.x, z: p.z })),
+  });
+}
+
+/* ---- 角色面板（录名入城） ---- */
+const charPanelEl = document.getElementById('bww-char-panel');
+let charPanel: CharPanelHandle | null = null;
+if (charPanelEl) {
+  charPanel = mountCharPanel(charPanelEl, {
+    params: profile,
+    onChange: (p) => {
+      profile = p;
+      playerRig.setParams(p);
+    },
+    onSave: (p) => {
+      profile = p;
+      playerRig.setParams(p);
+      saveProfile(p);
+      showToast('形象已存档', `${p.name} · 城民`);
+    },
+  });
+}
+
+/* ---- NPC 搭话 ---- */
+let npcTalkCooldown = 0;
+const npcSayTimers = new Set();
+
+function updateNpcTalk(dt) {
+  npcTalkCooldown -= dt;
+  if (npcTalkCooldown > 0 || disposed) {
+    return;
+  }
+  for (const n of npcs.list) {
+    const d = Math.hypot(player.pos.x - n.pos.x, player.pos.z - n.pos.z);
+    if (d > 5.2) {
+      continue;
+    }
+    const el = npcLabels.get(n.def.id);
+    if (el) {
+      let say = el.querySelector('.bww-nlabel-say');
+      if (!say) {
+        say = document.createElement('div');
+        say.className = 'bww-nlabel-say';
+        el.appendChild(say);
+      }
+      say.textContent = n.def.lines[Math.floor(Math.random() * n.def.lines.length)];
+      el.classList.add('is-talking');
+      const timer = window.setTimeout(() => {
+        el.classList.remove('is-talking');
+        npcSayTimers.delete(timer);
+      }, 4200);
+      npcSayTimers.add(timer);
+    }
+    npcTalkCooldown = 10;
+    return;
+  }
+}
+
+/* ---- 每帧推进 NPC 与其他玩家 ---- */
+function updateActors(dt) {
+  npcs.update(dt, terrainHeight);
+  channel.update(dt);
+  for (const item of peerRigs) {
+    const { peer, rig } = item;
+    const gh = terrainHeight(peer.x, peer.z);
+    rig.group.position.set(peer.x, gh, peer.z);
+    rig.group.rotation.y = peer.yaw;
+    rig.update(dt, peer.speed);
+  }
+  updateNpcTalk(dt);
+}
+
+/* ---- 名字标签投影 ---- */
+const _labelV = new THREE.Vector3();
+function projectLabel(el, x, y, z, maxDist = 58) {
+  _labelV.set(x, y, z);
+  const dist = camera.position.distanceTo(_labelV);
+  const p = _labelV.project(camera);
+  if (p.z > 1 || dist > maxDist) {
+    el.style.opacity = '0';
+    return;
+  }
+  const w = renderer.domElement.clientWidth;
+  const h = renderer.domElement.clientHeight;
+  const sx = (p.x * 0.5 + 0.5) * w;
+  const sy = (-p.y * 0.5 + 0.5) * h;
+  el.style.transform = `translate(-50%,-100%) translate(${sx}px,${sy}px)`;
+  const fade = 1 - Math.max(0, dist - maxDist * 0.65) / (maxDist * 0.35);
+  el.style.opacity = String(clamp(fade, 0.12, 1));
+}
+
+function updateNameLabels() {
+  for (const n of npcs.list) {
+    const el = npcLabels.get(n.def.id);
+    if (el) {
+      projectLabel(el, n.pos.x, n.pos.y + 2.95, n.pos.z);
+    }
+  }
+  for (const item of peerRigs) {
+    const gh = terrainHeight(item.peer.x, item.peer.z);
+    projectLabel(item.el, item.peer.x, gh + 2.95, item.peer.z, 50);
+  }
+}
 
 /* ==========================================================================
  * 10. 小鲸宝
@@ -1118,7 +1256,9 @@ let whaleFlukes = [];
   aura.scale.set(1.1, 0.9, 1.9);
   whale.add(aura);
 }
-whale.position.set(4, 4, 78);
+whale.position.set(4, 4, 72);
+// 体型收敛：P0 里按"宠物"的感觉调小一点，避免比主角还抢镜
+whale.scale.setScalar(0.8);
 scene.add(whale);
 
 /* ==========================================================================
@@ -1133,6 +1273,15 @@ const cam = {
 const keys = new Set();
 let dragging = false;
 let lastPointer = { x: 0, y: 0 };
+
+/** 焦点在输入类控件上时，键盘事件不参与世界操作 */
+function isTypingTarget(target) {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+  const tag = target.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
+}
 
 renderer.domElement.addEventListener('pointerdown', (e) => {
   dragging = true;
@@ -1159,10 +1308,25 @@ renderer.domElement.addEventListener('wheel', (e) => {
 }, { passive: false });
 
 on(window, 'keydown', (e) => {
+  // 面板输入中不劫持按键，否则在姓名框里打 W 会驱动角色走路
+  if (isTypingTarget(e.target)) {
+    if (e.code === 'Escape' && e.target instanceof HTMLElement) {
+      e.target.blur();
+    }
+    return;
+  }
   keys.add(e.code);
   if (e.code === 'KeyE') togglePortalPanel();
-  if (e.code === 'Escape') closePortalPanel();
+  if (e.code === 'Escape') {
+    closePortalPanel();
+    charPanel?.close();
+  }
   if (e.code === 'KeyR') { cam.yaw = 0; cam.pitch = 0.44; cam.dist = 16; }
+  if (e.code === 'KeyC') {
+    closePortalPanel();
+    charPanel?.toggle();
+  }
+  if (e.code === 'KeyM') toggleMap();
   const num = e.code.match(/^Digit([1-9])$/);
   if (num) {
     const idx = Number(num[1]) - 1;
@@ -1216,6 +1380,7 @@ const portalList = document.getElementById('bww-portal-list');
 const toast = document.getElementById('bww-toast');
 const toastTitle = document.getElementById('bww-toast-title');
 const toastSub = document.getElementById('bww-toast-sub');
+const hudOnline = document.getElementById('bww-hud-online');
 
 const SHICHEN = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
 const SEASONS = ['春', '夏', '秋', '冬'];
@@ -1287,7 +1452,7 @@ function closePortalPanel() {
 // 传送门世界坐标标签
 const portalLabels = portals.map((p) => {
   const el = document.createElement('div');
-  el.className = 'plabel';
+  el.className = 'bww-plabel';
   el.textContent = p.name;
   document.getElementById('bww-labels').appendChild(el);
   return { el, pos: new THREE.Vector3(p.x, 7.4, p.z), name: p.name };
@@ -1317,6 +1482,11 @@ host.querySelectorAll('[data-action]').forEach((btn) => {
       showToast(world.daySpeed > 1 / 300 ? '时辰 · 常速' : '时辰 · 疾行');
     }
     if (a === 'portal') togglePortalPanel();
+    if (a === 'char') {
+      closePortalPanel();
+      charPanel?.toggle();
+    }
+    if (a === 'map') toggleMap();
     if (a === 'reset') { cam.yaw = 0; cam.pitch = 0.44; cam.dist = 16; }
   });
 });
@@ -1452,33 +1622,38 @@ function updatePlayer(dt) {
   avatar.position.copy(player.pos);
   avatar.rotation.y = player.yaw;
 
-  // 行走动画
-  player.phase += dt * (2.2 + player.speed * 0.62);
-  const swing = Math.min(1, player.speed / 8);
-  const { legL, legR, armL, armR } = avatar.userData;
-  legL.rotation.x = Math.sin(player.phase) * 0.62 * swing;
-  legR.rotation.x = -Math.sin(player.phase) * 0.62 * swing;
-  armL.rotation.x = -Math.sin(player.phase) * 0.42 * swing;
-  armR.rotation.x = Math.sin(player.phase) * 0.42 * swing;
-  avatar.position.y += Math.abs(Math.sin(player.phase)) * 0.06 * swing;
+  // 行走动画（姿态由 avatar 模块托管，含呼吸与静止张望）
+  playerRig.update(dt, player.speed);
 }
 
 /** 建筑碰撞：把玩家从台基/墙体里推出来 */
 const BLOCKERS = [];
 function registerBlockers() {
-  // 皇城与内城墙体
-  const walls = [
-    { x: 0, z: 0, hx: 23.5, hz: 2.2 }, { x: 0, z: 0, hx: 2.2, hz: 23.5 },
-  ];
   // 主殿
   BLOCKERS.push({ x: 0, z: -2, hx: 15, hz: 13 });
+  // 八方宫殿
   palaces.forEach((p) => BLOCKERS.push({ x: p.x, z: p.z, hx: 10, hz: 9 }));
-  // 皇城四墙
-  BLOCKERS.push({ x: 0, z: -22, hx: 23, hz: 1.8 }, { x: 0, z: 22, hx: 23, hz: 1.8 });
-  BLOCKERS.push({ x: -22, z: 0, hx: 1.8, hz: 23 }, { x: 22, z: 0, hx: 1.8, hz: 23 });
-  // 内城四墙
-  BLOCKERS.push({ x: 0, z: -48, hx: 48, hz: 1.6 }, { x: 0, z: 48, hx: 48, hz: 1.6 });
-  BLOCKERS.push({ x: -48, z: 0, hx: 1.6, hz: 48 }, { x: 48, z: 0, hx: 1.6, hz: 48 });
+
+  /**
+   * 城墙按门洞切成四段，把门洞留空。
+   * P0 时每面墙都是整条碰撞体，门只是画上去的——玩家永远走不进内城与皇城，
+   * 只能靠传送门。这里改成"有门可过"，御道才真的能一路走到数枢殿。
+   */
+  const wallRing = (half, thick, gate) => {
+    const seg = (half - gate) / 2;
+    const off = gate + seg;
+    for (const s of [-1, 1]) {
+      for (const sx of [-1, 1]) {
+        BLOCKERS.push({ x: sx * off, z: s * half, hx: seg, hz: thick });
+      }
+      for (const sz of [-1, 1]) {
+        BLOCKERS.push({ x: s * half, z: sz * off, hx: thick, hz: seg });
+      }
+    }
+  };
+  wallRing(OUTER, 2.0, 8.5); // 外城（城门宽 16）
+  wallRing(INNER, 1.5, 6.5); // 内城（城门宽 12）
+  wallRing(22, 1.6, 5.5); // 皇城（城门宽 10）
 }
 registerBlockers();
 
@@ -1591,7 +1766,8 @@ function updateLabels() {
   for (const l of portalLabels) {
     const p = tmpV.copy(l.pos).project(camera);
     const d = camera.position.distanceTo(l.pos);
-    const visible = p.z < 1 && d < 150;
+    // 远处传送门的标签会在屏幕顶聚成一排遮住 HUD，这里收到 60m 内
+    const visible = p.z < 1 && d < 42;
     if (!visible) {
       l.el.style.opacity = '0';
       continue;
@@ -1599,7 +1775,7 @@ function updateLabels() {
     const x = (p.x * 0.5 + 0.5) * w;
     const y = (-p.y * 0.5 + 0.5) * h;
     l.el.style.transform = `translate(-50%,-50%) translate(${x}px,${y}px)`;
-    l.el.style.opacity = String(clamp(1 - (d - 100) / 60, 0.15, 1));
+    l.el.style.opacity = String(clamp(1 - (d - 26) / 16, 0.12, 1));
   }
 }
 
@@ -1611,6 +1787,10 @@ function updateHUD() {
   hudTime.textContent = `${sc}时 · ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
   const w = WEATHER[world.weather];
   hudDate.textContent = `${SEASONS[world.season]} · ${w}`;
+  if (hudOnline) {
+    const net = channel.mode === 'local' ? '单机模拟' : '联机';
+    hudOnline.textContent = `同屏 ${channel.peers.length + 1} 人 · NPC ${npcs.list.length} · ${net}`;
+  }
 }
 
 function updateWeather(dt) {
@@ -1637,6 +1817,7 @@ function animate() {
   updateSky(dt);
   updateWeather(dt);
   updatePlayer(dt);
+  updateActors(dt);
   updateCamera(dt);
   updateWhale(dt);
   updatePortals(dt);
@@ -1644,6 +1825,8 @@ function animate() {
 
   renderer.render(scene, camera);
   updateLabels();
+  updateNameLabels();
+  updateMinimap();
 }
 
 on(window, 'resize', () => {
@@ -1664,6 +1847,32 @@ setTimeout(() => {
   document.getElementById('bww-loading').style.display = 'none';
 }, 1600);
 
+/* 首次入城：引导录入形象（已有档案则直接进城） */
+if (!profileState.saved) {
+  setTimeout(() => {
+    if (disposed) {
+      return;
+    }
+    charPanel?.open();
+    showToast('初次入城', '录个姓名与形貌 · 按 C 可随时重录');
+  }, 2100);
+}
+
+  /* 仅 ?debug=1 时暴露最小调试接口：给 e2e 断言玩家坐标用，不影响正常路径 */
+  if (new URLSearchParams(window.location.search).has('debug')) {
+    window.__bwwDebug = () => ({
+      x: Number(player.pos.x.toFixed(2)),
+      z: Number(player.pos.z.toFixed(2)),
+      yaw: Number(player.yaw.toFixed(2)),
+      npcs: npcs.list.length,
+      peers: channel.peers.length,
+      profile: { ...profile },
+    });
+    window.__bwwWarp = (x, z) => {
+      player.pos.set(x, 0, z);
+    };
+  }
+
   function dispose() {
     if (disposed) return;
     disposed = true;
@@ -1672,6 +1881,17 @@ setTimeout(() => {
     cleanups.length = 0;
     clearTimeout(toastTimer);
     clearTimeout(whaleSay.timer);
+    npcSayTimers.forEach((timer) => clearTimeout(timer));
+    npcSayTimers.clear();
+    charPanel?.destroy();
+    charPanel = null;
+    playerRig.dispose();
+    npcs.dispose();
+    channel.dispose();
+    for (const item of peerRigs) {
+      item.rig.dispose();
+    }
+    minimap?.dispose();
     scene.traverse((obj) => {
       const o = obj;
       if (o.geometry) o.geometry.dispose();

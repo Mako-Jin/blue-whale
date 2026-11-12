@@ -279,11 +279,15 @@
   backdrop-filter: blur(9px);
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.32s ease, visibility 0.32s;
+  pointer-events: none;
+  /* visibility 是离散属性，放进 transition 时在低帧率（软件渲染 / 基座内）会停在中间态，
+     表现为"面板打开了但内容不显示"。只过渡 opacity，可见性立即切换。 */
+  transition: opacity 0.32s ease;
 }
 .bww-portal-panel.bww-open {
   opacity: 1;
   visibility: visible;
+  pointer-events: auto;
 }
 .bww-panel-inner {
   width: min(760px, 88vw);

@@ -6,6 +6,7 @@ import { initAuditLogging } from '@bluewhale/whale-log-sdk';
 import { renderWithQiankun } from 'vite-plugin-qiankun/dist/helper';
 import App from './App';
 import './index.css';
+import './world-ui.css';
 
 // 前端日志与审计接入：console 开发者日志 + 全局事件审计（REQ-SEC-006 通道③④）
 initAuditLogging();

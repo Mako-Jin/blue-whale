@@ -48,9 +48,23 @@ export default function App() {
         <div className="bww-meta">
           <div id="bww-hud-time">—</div>
           <div id="bww-hud-date">—</div>
+          <div id="bww-hud-online" className="bww-hint">同屏 — 人</div>
           <div className="bww-hint">皇城 · 内城 · 外城 · 八方宫署</div>
         </div>
       </header>
+
+      <div className="bww-map-panel" id="bww-map-panel">
+        <div className="bww-map-head">
+          <span>城 图</span>
+          <i>BLUEWHALE CITY</i>
+        </div>
+        <canvas className="bww-minimap" id="bww-minimap" width="180" height="180" />
+        <div className="bww-map-legend">
+          <span><i className="lg-player" />你</span>
+          <span><i className="lg-npc" />城民</span>
+          <span><i className="lg-peer" />在线</span>
+        </div>
+      </div>
 
       <div className="bww-pet-bubble" id="bww-pet-bubble">
         <div className="bww-who">小鲸宝</div>
@@ -65,16 +79,20 @@ export default function App() {
         <div>
           <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 行走&ensp;<kbd>Shift</kbd> 疾行
         </div>
-        <div>拖拽 转视角&ensp;滚轮 远近&ensp;<kbd>E</kbd> 传送&ensp;<kbd>R</kbd> 复位</div>
+        <div>拖拽 转视角&ensp;滚轮 远近&ensp;<kbd>E</kbd> 传送&ensp;<kbd>C</kbd> 形象&ensp;<kbd>M</kbd> 城图&ensp;<kbd>R</kbd> 复位</div>
       </div>
 
       <div className="bww-toolbar">
+        <button data-action="char" type="button">录名入城 · C</button>
+        <button data-action="map" type="button">城图显隐 · M</button>
         <button data-action="weather" type="button">天象：晴</button>
         <button data-action="season" type="button">时节：秋</button>
         <button data-action="speed" type="button">时辰：常速</button>
         <button data-action="portal" type="button">传送门 · E</button>
         <button data-action="reset" type="button">视角复位 · R</button>
       </div>
+
+      <div className="bww-char-panel" id="bww-char-panel" />
 
       <div className="bww-portal-panel" id="bww-portal-panel">
         <div className="bww-panel-inner">

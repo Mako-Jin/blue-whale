@@ -1,0 +1,437 @@
+/* ==========================================================================
+ * 蓝鲸城 P1 新增界面：城图 / 名字标签 / 录名入城面板
+ * 与 index.css 同域，全部 bww- 前缀。
+ * ========================================================================== */
+
+/* ---------- 城图 ---------- */
+.bww-map-panel {
+  position: absolute;
+  right: 28px;
+  top: 104px;
+  z-index: 12;
+  width: 186px;
+  padding: 8px 8px 6px;
+  background: rgba(8, 16, 22, 0.72);
+  border: 1px solid rgba(216, 180, 90, 0.25);
+  border-radius: 3px;
+  backdrop-filter: blur(7px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.bww-map-panel.bww-hidden {
+  opacity: 0;
+  transform: translateX(14px);
+  pointer-events: none;
+}
+.bww-map-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0 2px 6px;
+}
+.bww-map-head span {
+  font-size: 12px;
+  letter-spacing: 4px;
+  color: #f0e2c0;
+}
+.bww-map-head i {
+  font-style: normal;
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: rgba(216, 180, 90, 0.45);
+}
+.bww-minimap {
+  display: block;
+  width: 170px;
+  height: 170px;
+}
+.bww-map-legend {
+  display: flex;
+  gap: 10px;
+  padding-top: 5px;
+  font-size: 9.5px;
+  letter-spacing: 1px;
+  color: rgba(236, 223, 196, 0.5);
+}
+.bww-map-legend i {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 3px;
+}
+.lg-player { background: #ff8a4c; }
+.lg-npc { background: #e8dcc0; }
+.lg-peer { background: #7fd8ff; }
+
+/* ---------- 名字标签（NPC / 其他玩家） ---------- */
+.bww-nlabel {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 2px 8px 3px;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: #efe3c6;
+  background: rgba(6, 14, 20, 0.55);
+  border: 1px solid rgba(216, 180, 90, 0.22);
+  border-radius: 2px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s linear;
+  will-change: transform;
+}
+.bww-nlabel b {
+  font-weight: 500;
+}
+.bww-nlabel span {
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: rgba(216, 180, 90, 0.7);
+}
+.bww-nlabel.is-peer {
+  border-color: rgba(127, 216, 255, 0.32);
+}
+.bww-nlabel.is-peer span {
+  color: rgba(127, 216, 255, 0.78);
+}
+.bww-nlabel-say {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 230px;
+  padding: 6px 10px;
+  font-size: 11px;
+  line-height: 1.7;
+  letter-spacing: 1px;
+  color: #f4e8cd;
+  background: rgba(10, 22, 30, 0.92);
+  border: 1px solid rgba(216, 180, 90, 0.35);
+  border-radius: 3px;
+  white-space: normal;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.bww-nlabel.is-talking .bww-nlabel-say {
+  opacity: 1;
+}
+
+/* ---------- 录名入城 ---------- */
+.bww-char-panel {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(60% 60% at 50% 45%, rgba(3, 8, 12, 0.45), rgba(2, 6, 10, 0.84));
+  backdrop-filter: blur(4px);
+}
+.bww-char-panel.bww-open {
+  display: flex;
+}
+.bww-cp-inner {
+  display: flex;
+  width: min(880px, 92vw);
+  max-height: 86vh;
+  overflow: hidden;
+  background: linear-gradient(160deg, rgba(12, 24, 32, 0.97), rgba(8, 16, 22, 0.98));
+  border: 1px solid rgba(216, 180, 90, 0.3);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), inset 0 0 60px rgba(216, 180, 90, 0.04);
+}
+.bww-cp-stage {
+  position: relative;
+  flex: 0 0 300px;
+  width: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid rgba(216, 180, 90, 0.18);
+  background:
+    radial-gradient(70% 55% at 50% 62%, rgba(216, 180, 90, 0.16), rgba(0, 0, 0, 0) 70%),
+    linear-gradient(180deg, rgba(9, 20, 28, 0.9), rgba(4, 10, 14, 0.95));
+}
+.bww-cp-canvas {
+  display: block;
+  width: 260px;
+  height: 360px;
+}
+.bww-cp-tag {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 16px;
+  text-align: center;
+}
+.bww-cp-tag strong {
+  display: block;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 5px;
+  color: #f4e7cb;
+}
+.bww-cp-tag span {
+  font-size: 9.5px;
+  letter-spacing: 2px;
+  color: rgba(216, 180, 90, 0.6);
+}
+.bww-cp-form {
+  flex: 1;
+  min-width: 0;
+  padding: 22px 26px 18px;
+  overflow-y: auto;
+}
+.bww-cp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.bww-cp-head h2 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 500;
+  letter-spacing: 8px;
+  color: #f4e7cb;
+}
+.bww-cp-close {
+  padding: 0 2px;
+  font-size: 22px;
+  line-height: 1;
+  color: rgba(236, 223, 196, 0.5);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.bww-cp-close:hover {
+  color: #f4e7cb;
+}
+.bww-cp-tip {
+  margin: 8px 0 16px;
+  font-size: 11px;
+  line-height: 1.8;
+  letter-spacing: 1px;
+  color: rgba(236, 223, 196, 0.45);
+}
+.bww-cp-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.bww-cp-row label {
+  font-size: 12px;
+  letter-spacing: 3px;
+  color: rgba(216, 180, 90, 0.85);
+}
+.bww-cp-name {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 12px;
+  font-family: inherit;
+  font-size: 14px;
+  letter-spacing: 3px;
+  color: #f4e7cb;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(216, 180, 90, 0.25);
+  border-radius: 2px;
+  outline: none;
+}
+.bww-cp-name:focus {
+  border-color: rgba(216, 180, 90, 0.7);
+}
+.bww-cp-group {
+  margin-bottom: 14px;
+}
+.bww-cp-label {
+  margin-bottom: 8px;
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: rgba(216, 180, 90, 0.75);
+}
+.bww-cp-slider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+  font-size: 11px;
+  color: rgba(236, 223, 196, 0.6);
+}
+.bww-cp-slider span {
+  width: 30px;
+  letter-spacing: 1px;
+}
+.bww-cp-slider input[type='range'] {
+  flex: 1;
+  min-width: 0;
+  height: 2px;
+  accent-color: #c9a13a;
+  cursor: pointer;
+}
+.bww-cp-slider i {
+  width: 34px;
+  font-style: normal;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: rgba(216, 180, 90, 0.7);
+}
+.bww-cp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.bww-cp-chip {
+  padding: 6px 14px;
+  font-family: inherit;
+  font-size: 11.5px;
+  letter-spacing: 2px;
+  color: rgba(236, 223, 196, 0.7);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(216, 180, 90, 0.2);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.bww-cp-chip:hover {
+  border-color: rgba(216, 180, 90, 0.55);
+  color: #f4e7cb;
+}
+.bww-cp-chip.is-on {
+  color: #0d1b24;
+  background: linear-gradient(180deg, #e2c374, #c9a13a);
+  border-color: #e2c374;
+}
+.bww-cp-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 9px;
+  font-size: 11.5px;
+  letter-spacing: 2px;
+  color: rgba(236, 223, 196, 0.7);
+  cursor: pointer;
+}
+.bww-cp-check input {
+  accent-color: #c9a13a;
+}
+.bww-cp-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.bww-cp-sw {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  background: var(--sw);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 2px;
+  cursor: pointer;
+}
+.bww-cp-sw.is-on {
+  box-shadow: 0 0 0 2px #0b1a24, 0 0 0 3px #e2c374;
+}
+.bww-cp-photo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 18px;
+}
+.bww-cp-photo-btn {
+  padding: 7px 14px;
+  font-family: inherit;
+  font-size: 11.5px;
+  letter-spacing: 2px;
+  color: rgba(236, 223, 196, 0.78);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(216, 180, 90, 0.35);
+  border-radius: 2px;
+  cursor: pointer;
+}
+.bww-cp-photo-btn:hover {
+  border-color: rgba(216, 180, 90, 0.75);
+  color: #f4e7cb;
+}
+.bww-cp-thumb {
+  display: none;
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 2px;
+  border: 1px solid rgba(216, 180, 90, 0.3);
+}
+.bww-cp-thumb.is-on {
+  display: block;
+}
+.bww-cp-note {
+  flex: 1;
+  min-width: 0;
+  font-size: 10px;
+  line-height: 1.5;
+  letter-spacing: 0.5px;
+  color: rgba(236, 223, 196, 0.4);
+}
+.bww-cp-actions {
+  display: flex;
+  gap: 10px;
+  padding-top: 2px;
+}
+.bww-cp-save {
+  flex: 1;
+  padding: 11px;
+  font-family: inherit;
+  font-size: 13px;
+  letter-spacing: 4px;
+  color: #0d1b24;
+  background: linear-gradient(180deg, #e2c374, #c9a13a);
+  border: 0;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.bww-cp-save:hover {
+  filter: brightness(1.08);
+}
+.bww-cp-reset {
+  padding: 11px 18px;
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: rgba(236, 223, 196, 0.7);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(216, 180, 90, 0.22);
+  border-radius: 2px;
+  cursor: pointer;
+}
+.bww-cp-reset:hover {
+  color: #f4e7cb;
+  border-color: rgba(216, 180, 90, 0.6);
+}
+
+@media (max-width: 760px) {
+  .bww-map-panel {
+    display: none;
+  }
+  .bww-cp-inner {
+    flex-direction: column;
+    width: 94vw;
+  }
+  .bww-cp-stage {
+    flex: 0 0 200px;
+    width: 100%;
+    border-right: 0;
+    border-bottom: 1px solid rgba(216, 180, 90, 0.18);
+  }
+  .bww-cp-canvas {
+    width: 150px;
+    height: 190px;
+  }
+  .bww-cp-tag {
+    display: none;
+  }
+}
