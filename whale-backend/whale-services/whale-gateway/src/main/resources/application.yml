@@ -47,6 +47,11 @@ spring:
               uri: lb://whale-service-auth
               predicates:
                 - Path=/tenant/**
+            # 权限中心扩展 M0：登录页品牌配置 + OAuth2 客户端注册
+            - id: whale-service-auth-brand
+              uri: lb://whale-service-auth
+              predicates:
+                - Path=/brand/**,/oauth-client/**
             - id: whale-job
               uri: lb://whale-job
               predicates:
@@ -261,6 +266,8 @@ whale:
     white-list:
       - /auth/v1/login
       - /auth/v1/refresh
+      # 登录页品牌解析（权限中心扩展 M0）：登录前渲染品牌，免 JWT
+      - /brand/v1/resolve
       - /actuator/**
       - /v3/api-docs/**
       - /doc.html
@@ -361,6 +368,7 @@ whale:
       wait-duration-in-open-state-millis: ${WHALE_GATEWAY_CIRCUIT_BREAKER_WAIT_MILLIS:10000}
       apply-to-routes:
         - whale-service-auth
+        - whale-service-auth-brand
         - whale-job
         - whale-file
         - whale-audit

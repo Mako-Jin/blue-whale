@@ -275,6 +275,22 @@
 - 验收：登录页可按租户解析品牌（无登录）；客户端可增删改查，禁用后不可用于换票；密钥只落哈希。
 - 测试：品牌优先级解析、client 校验（redirect_uri 精确匹配）、领域不变量单测；`BrandControllerTest`。
 
+**实施记录（2026-11-12，已完成）**
+
+| 项 | 落地内容 |
+|---|---|
+| 迁移脚本 | `V11__brand_config.sql`（建表 + 平台默认品牌 + `sys:brand:list/add/edit/delete` 2340–2343 + 菜单）、`V12__oauth_client.sql`（建表 + 内置 `bluewhale-web` 客户端 + `sys:oauth:client:*` 2344–2348） |
+| 领域层 | `BrandConfigAggregate`、`OAuthClientAggregate`、`BrandConfigRepository`、`OAuthClientRepository`、`ClientId`/`RedirectUriSet`/`ScopeSet`/`GrantType` |
+| 应用层 | `BrandAppService`（resolve/page/create/update/delete）、`OAuthClientAppService`（page/create/update/rotateSecret/disable）、端口 `ClientSecretVerifier` |
+| 基础设施 | `SysBrandConfigPo`/`SysOAuthClientPo`、Mapper、持久化装配器、仓储实现、`BcryptClientSecretVerifier` |
+| 接口层 | `BrandApi`（`/brand/v{version}/resolve|page` 等）、`OAuthClientApi`（`/oauth-client/v{version}`） |
+| 安全/网关 | SecurityConfig 放行 `/brand/v1/resolve`；网关新增 `whale-service-auth-brand` 路由（`/brand/**`、`/oauth-client/**`）并加入白名单与熔断名单 |
+| 测试 | `BrandConfigAggregateTest`、`OAuthClientAggregateTest`、`BrandControllerTest`、`OAuthClientControllerTest`，ArchUnit 通过 |
+
+> 路径偏差说明：项目 `PathApiVersionResolver` 只识别「单资源段 + v版本」形式，
+> 故 OAuth 客户端契约使用 `/oauth-client/v{version}`（而非 `/oauth/client/v{version}`），
+> 网关按 `/oauth-client/**` 前缀路由。
+
 ### M1 OAuth2.0（R2）
 
 - 前置 spike（必须先做）：验证 Spring Authorization Server 与 Spring Boot 4.0.8 / Spring Security 7 的兼容性。

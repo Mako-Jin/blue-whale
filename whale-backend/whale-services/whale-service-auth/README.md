@@ -10,7 +10,7 @@
 | 默认端口 | `8081`（`SERVER_PORT` 可覆盖） |
 | 数据库 | MySQL `bluewhale_auth` |
 | 缓存 / 锁 | Redis + Redisson（令牌黑名单、刷新轮换、权限缓存广播） |
-| 网关前缀 | `/auth/**`、`/user/**`、`/dept/**`、`/role/**`、`/menu/**`、`/permission/**`、`/tenant/**` |
+| 网关前缀 | `/auth/**`、`/user/**`、`/dept/**`、`/role/**`、`/menu/**`、`/permission/**`、`/tenant/**`、`/brand/**`、`/oauth-client/**` |
 | 契约文档 | `/v3/api-docs`、`/swagger-ui.html`（仅服务直连端口，网关未放行） |
 
 技术选型与版本以 [whale-parent/pom.xml](../../whale-parent/pom.xml) 为唯一事实源，本文不硬编码版本号。
@@ -123,8 +123,10 @@ whale-service-auth/
 | `Dept`（`sys_dept`） | 部门树与负责人关系 | `DeptRepository` |
 | `Tenant`（`sys_tenant`） | 编码 2–64 位；类型仅 `PLATFORM`/`TENANT`；仅启用且未过期租户可签发令牌 | `TenantRepository` |
 | `UserRoleAssignment` / `RolePermissionAssignment` | 聚合内实体，维护授权关系 | 随所属聚合仓储持久化 |
+| `BrandConfig`（`sys_brand_config`，扩展 M0） | 作用域仅 `PLATFORM`/`TENANT`/`COMPANY`；同 `(targetType,targetId,domain)` 唯一；仅启用品牌参与登录页解析；主题色须为十六进制 | `BrandConfigRepository` |
+| `OAuthClient`（`sys_oauth_client`，扩展 M0） | `clientId` 全局唯一；密钥只存 BCrypt 哈希；授权码模式必须有回调白名单且禁止通配；停用后不得换票 | `OAuthClientRepository` |
 
-值对象：`Username`、`EncryptedPassword`、`RoleCode`、`PermCode` —— 把格式与合法性校验收敛在领域内。
+值对象：`Username`、`EncryptedPassword`、`RoleCode`、`PermCode`、`ClientId`、`RedirectUriSet`、`ScopeSet`、`GrantType` —— 把格式与合法性校验收敛在领域内。
 
 领域事件：`AuthDomainEvent` 为 `sealed interface`，派生出 `UserDomainEvent`、`RoleDomainEvent`、`MenuDomainEvent`、
 `PermissionDomainEvent`、`DeptDomainEvent`、`UserPermissionDomainEvent`，变更类型由 `ChangeType` 枚举表达，

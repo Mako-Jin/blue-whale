@@ -50,6 +50,8 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/v1/login", "/auth/v1/refresh", "/auth/v1/logout",
+                                // 登录页品牌解析：登录前必须可访问，仅返回品牌渲染字段
+                                "/brand/v1/resolve",
                                 "/tenant/v1/internal/**", "/user/v1/internal/**", "/dept/v1/internal/**",
                                 // 调度中心触发端点与执行器注册/心跳（starter 的 JobTriggerController、
                                 // JobExecutorRegistrar 都走 /internal/**）。外部访问由网关 internal-deny
