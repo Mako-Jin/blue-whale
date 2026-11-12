@@ -11,6 +11,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.data.redis.core.ReactiveValueOperations;
+import org.springframework.http.HttpHeaders;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 import org.springframework.mock.web.server.MockServerWebExchange;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -18,6 +19,8 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
+
+import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -50,6 +53,14 @@ class PermissionHeaderGlobalFilterTest {
     private static final String CODE = "sys:audit:log:list";
     /** 受保护请求地址 */
     private static final String REQUEST_URL = "http://localhost/audit/log/frontend/page";
+    /** 回落接口地址 */
+    private static final String AUTH_ME_URI = "lb://whale-service-auth/auth/v1/me";
+    /** 租户头名 */
+    private static final String TENANT_ID_HEADER = "X-Tenant-Id";
+    /** 测试租户 */
+    private static final String TENANT_ID = "1";
+    /** 测试 Bearer 令牌 */
+    private static final String BEARER_TOKEN = "Bearer test-token";
 
     @Mock
     private ReactiveStringRedisTemplate redisTemplate;
@@ -62,6 +73,12 @@ class PermissionHeaderGlobalFilterTest {
 
     private PermissionHeaderProperties properties;
     private PermissionHeaderGlobalFilter filter;
+
+    /** 回落调用实际使用的 URI，用于断言负载均衡地址 */
+    private String capturedUri;
+
+    /** 回落调用实际透传的请求头，用于断言 Authorization / X-Tenant-Id */
+    private HttpHeaders capturedHeaders;
 
     @BeforeEach
     void setUp() {
@@ -141,6 +158,9 @@ class PermissionHeaderGlobalFilterTest {
         filter.filter(exchange, chain).block();
 
         assertThat(capturedCodes()).isEqualTo("a," + CODE);
+        assertThat(capturedUri).isEqualTo(AUTH_ME_URI);
+        assertThat(capturedHeaders.getFirst(HttpHeaders.AUTHORIZATION)).isEqualTo(BEARER_TOKEN);
+        assertThat(capturedHeaders.getFirst(TENANT_ID_HEADER)).isEqualTo(TENANT_ID);
     }
 
     @Test
@@ -171,6 +191,8 @@ class PermissionHeaderGlobalFilterTest {
     private static MockServerWebExchange exchangeWithUser() {
         return MockServerWebExchange.from(MockServerHttpRequest.get(REQUEST_URL)
                 .header(USER_ID_HEADER, USER_ID)
+                .header(HttpHeaders.AUTHORIZATION, BEARER_TOKEN)
+                .header(TENANT_ID_HEADER, TENANT_ID)
                 .build());
     }
 
@@ -218,8 +240,17 @@ class PermissionHeaderGlobalFilterTest {
         filter = new PermissionHeaderGlobalFilter(properties, redisTemplate, builder, objectMapper);
         when(builder.build()).thenReturn(webClient);
         when(webClient.get()).thenReturn(uriSpec);
-        when(uriSpec.uri(anyString())).thenReturn(headersSpec);
-        when(headersSpec.headers(any())).thenReturn(headersSpec);
+        when(uriSpec.uri(anyString())).thenAnswer(invocation -> {
+            capturedUri = invocation.getArgument(0);
+            return headersSpec;
+        });
+        when(headersSpec.headers(any())).thenAnswer(invocation -> {
+            Consumer<HttpHeaders> consumer = invocation.getArgument(0);
+            HttpHeaders headers = new HttpHeaders();
+            consumer.accept(headers);
+            capturedHeaders = headers;
+            return headersSpec;
+        });
         when(headersSpec.retrieve()).thenReturn(responseSpec);
         when(responseSpec.bodyToMono(String.class)).thenReturn(response);
     }

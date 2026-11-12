@@ -20,8 +20,13 @@ import java.util.UUID;
 
 /**
  * 网关全局异常兜底：统一返回 Result 风格 JSON。
- * 404/路由不存在（含网关 NotFoundException 与 503）→ {"code":404,"message":"服务不可用"}；
- * 其余异常 → {"code":500,"message":"系统异常"}。
+ *
+ * <p>HTTP 状态码与业务码保持一致，避免「下游 503 被回成 HTTP 404」误导客户端重试策略：</p>
+ * <ul>
+ *   <li>路由不存在（{@link NotFoundException}）→ HTTP 404，业务码 404；</li>
+ *   <li>下游不可用（502 / 503 / 504）→ 保持原 HTTP 状态码，业务码同 HTTP 码；</li>
+ *   <li>其余异常 → HTTP 500，业务码 500。</li>
+ * </ul>
  *
  * @author BlueWhale
  */
@@ -42,19 +47,17 @@ public class GatewayExceptionHandler implements ErrorWebExceptionHandler {
             return Mono.error(ex);
         }
 
-        int code;
-        String message;
-        if (isServiceUnavailable(ex)) {
-            code = CODE_NOT_FOUND;
-            message = MSG_NOT_FOUND;
-            log.warn("路由不可达: path={}, reason={}", exchange.getRequest().getURI().getPath(), ex.getMessage());
-        } else {
-            code = CODE_SERVER_ERROR;
-            message = MSG_SERVER_ERROR;
+        HttpStatus status = resolveStatus(ex);
+        int code = status.value();
+        String message = code == CODE_SERVER_ERROR ? MSG_SERVER_ERROR : MSG_NOT_FOUND;
+        if (code == CODE_SERVER_ERROR) {
             log.error("网关系统异常: path={}", exchange.getRequest().getURI().getPath(), ex);
+        } else {
+            log.warn("路由不可达: path={}, status={}, reason={}",
+                    exchange.getRequest().getURI().getPath(), code, ex.getMessage());
         }
 
-        response.setStatusCode(HttpStatus.valueOf(code));
+        response.setStatusCode(status);
         response.getHeaders().setContentType(MediaType.parseMediaType("application/json;charset=UTF-8"));
         String traceId = exchange.getRequest().getHeaders().getFirst(TraceIdGlobalFilter.TRACE_ID_HEADER);
         if (traceId == null || traceId.isBlank()) {
@@ -68,19 +71,24 @@ public class GatewayExceptionHandler implements ErrorWebExceptionHandler {
     }
 
     /**
-     * 判断异常是否代表下游服务不可用（路由不存在或 503）
+     * 将异常映射为对外的 HTTP 状态：路由不存在 → 404，下游不可用 → 保留 502/503/504，其余 → 500
      *
      * @param ex 捕获的异常
-     * @return 属于服务不可用返回 {@code true}
+     * @return 对外 HTTP 状态
      */
-    private boolean isServiceUnavailable(Throwable ex) {
+    private HttpStatus resolveStatus(Throwable ex) {
         if (ex instanceof NotFoundException) {
-            return true;
+            return HttpStatus.NOT_FOUND;
         }
         if (ex instanceof ResponseStatusException rse) {
-            int status = rse.getStatusCode().value();
-            return status == 404 || status == 503;
+            HttpStatus status = HttpStatus.resolve(rse.getStatusCode().value());
+            if (status == HttpStatus.NOT_FOUND
+                    || status == HttpStatus.BAD_GATEWAY
+                    || status == HttpStatus.SERVICE_UNAVAILABLE
+                    || status == HttpStatus.GATEWAY_TIMEOUT) {
+                return status;
+            }
         }
-        return false;
+        return HttpStatus.INTERNAL_SERVER_ERROR;
     }
 }

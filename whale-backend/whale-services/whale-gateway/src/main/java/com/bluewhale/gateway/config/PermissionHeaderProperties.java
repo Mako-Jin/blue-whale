@@ -34,4 +34,12 @@ public class PermissionHeaderProperties {
 
     /** 空值哨兵串，与 whale-service-auth 侧 {@code whale.cache.null-sentinel} 默认值一致，命中视为未命中 */
     private String nullSentinel = "__NULL__";
+
+    /**
+     * 回落 {@code /auth/me} 的超时（毫秒），默认 800。
+     *
+     * <p>Redis 未命中且 auth 抖动时必须快速失败：无超时会让每个请求都挂在 auth 调用上，
+     * 超时后按 fail-closed 注入空权限码头，由下游鉴权拒绝，避免拖垮网关请求处理。</p>
+     */
+    private long fallbackTimeoutMillis = 800L;
 }

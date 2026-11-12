@@ -3,12 +3,16 @@ package com.bluewhale.gateway.filter;
 import com.bluewhale.gateway.common.GatewayResponse;
 import com.bluewhale.gateway.config.RateLimitProperties;
 import com.bluewhale.gateway.config.RateLimitProperties.PathRule;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpResponse;
@@ -19,7 +23,6 @@ import reactor.core.publisher.Mono;
 
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.List;
 
 /**
@@ -30,6 +33,12 @@ import java.util.List;
  * 路径规则（特化优先），未命中则用全局阈值；规则标识维度避免不同规则窗口互相污染。</p>
  * <p>降级策略：Redis 不可用时仅告警并放行，避免限流存储故障阻断全站流量
  * （与令牌黑名单「可用性优先」取舍一致）。</p>
+ *
+ * <p><b>计数与过期原子化</b>：用 Lua 脚本一次往返完成 {@code INCR} 与首计数时的 {@code EXPIRE}，
+ * 避免「已 INCR 但 EXPIRE 失败」导致计数键永不过期、客户端被永久 429 的竞态。</p>
+ *
+ * <p><b>固定窗口固有缺陷</b>：窗口切换边界处，前一窗口末尾与新窗口开头可叠加到接近 2×limit，
+ * 属固定窗口的已知取舍；阈值按此余量设置即可，若需严格平滑可后续改滑动窗口。</p>
  *
  * @author BlueWhale
  */
@@ -55,8 +64,21 @@ public class RateLimitGlobalFilter implements GlobalFilter, Ordered {
     /** 每秒毫秒数，用于将窗口秒数换算为毫秒 */
     private static final long MILLIS_PER_SECOND = 1000L;
 
-    /** 单次计数值：出现该值说明是本窗口首次请求，需为键设置过期 */
-    private static final long FIRST_COUNT = 1L;
+    /** 窗口秒数下界，避免 0 或负数导致窗口编号除零 */
+    private static final int MIN_WINDOW_SECONDS = 1;
+
+    /** 计数与过期原子化脚本：返回本次计数；首次计数（=1）时设置窗口级 TTL */
+    private static final RedisScript<Long> INCR_WITH_EXPIRE = new DefaultRedisScript<>(
+            "local current = redis.call('INCR', KEYS[1]) "
+                    + "if current == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end "
+                    + "return current",
+            Long.class);
+
+    /** 限流拒绝计数指标名 */
+    private static final String METER_REJECTED = "gateway.rate_limit.rejected";
+
+    /** 指标规则标签名 */
+    private static final String TAG_RULE = "rule";
 
     /** 限流触发时的业务状态码 */
     private static final int RATE_LIMIT_CODE = 429;
@@ -73,18 +95,24 @@ public class RateLimitGlobalFilter implements GlobalFilter, Ordered {
     private final ReactiveStringRedisTemplate redisTemplate;
     private final RateLimitProperties properties;
 
+    /** 指标注册表提供者：容器无 MeterRegistry 时返回 {@code null}，指标静默跳过 */
+    private final ObjectProvider<MeterRegistry> meterRegistryProvider;
+
     /** Ant 路径匹配器（线程安全，复用单例） */
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
     /**
-     * 构造限流过滤器，注入响应式 Redis 模板与限流配置
+     * 构造限流过滤器，注入响应式 Redis 模板、限流配置与指标注册表提供者
      *
-     * @param redisTemplate 响应式字符串 Redis 模板
-     * @param properties    网关限流配置属性
+     * @param redisTemplate         响应式字符串 Redis 模板
+     * @param properties            网关限流配置属性
+     * @param meterRegistryProvider Micrometer 指标注册表提供者，缺省时返回 {@code null} 表示不采集指标
      */
-    public RateLimitGlobalFilter(ReactiveStringRedisTemplate redisTemplate, RateLimitProperties properties) {
+    public RateLimitGlobalFilter(ReactiveStringRedisTemplate redisTemplate, RateLimitProperties properties,
+                                 ObjectProvider<MeterRegistry> meterRegistryProvider) {
         this.redisTemplate = redisTemplate;
         this.properties = properties;
+        this.meterRegistryProvider = meterRegistryProvider;
     }
 
     /**
@@ -101,7 +129,10 @@ public class RateLimitGlobalFilter implements GlobalFilter, Ordered {
         }
         String clientId = resolveClientId(exchange);
         LimitRule rule = resolveRule(matchRule(exchange.getRequest().getPath().value()), clientId);
-        return redisTemplate.opsForValue().increment(rule.key)
+        return redisTemplate.execute(INCR_WITH_EXPIRE, List.of(rule.key), rule.windowSeconds)
+                .next()
+                // 脚本异常返回空时按「窗口内首个请求」处理，避免请求悬挂
+                .defaultIfEmpty(1L)
                 .flatMap(count -> decide(exchange, chain, rule, count))
                 .onErrorResume(e -> {
                     log.warn("网关限流计数失败（Redis 不可用），按可用性优先降级放行: client={}, key={}, reason={}",
@@ -111,7 +142,9 @@ public class RateLimitGlobalFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 依据窗口内计数值决定放行或短路：首次计数时补设键过期，超阈值则写 429
+     * 依据窗口内计数值决定放行或短路：超阈值则写 429
+     *
+     * <p>计数键的 TTL 已由 {@link #INCR_WITH_EXPIRE} 在首次计数时原子设置，此处不再补设。</p>
      *
      * @param exchange 当前请求上下文
      * @param chain    网关过滤器链
@@ -121,13 +154,7 @@ public class RateLimitGlobalFilter implements GlobalFilter, Ordered {
      */
     private Mono<Void> decide(ServerWebExchange exchange, GatewayFilterChain chain, LimitRule rule, Long count) {
         long current = count == null ? 0L : count;
-        Mono<Boolean> expiration = current == FIRST_COUNT
-                ? redisTemplate.expire(rule.key, Duration.ofSeconds(rule.windowSeconds))
-                        .defaultIfEmpty(Boolean.TRUE)
-                : Mono.just(Boolean.TRUE);
-        return expiration.flatMap(ignored -> current > rule.limit
-                ? tooManyRequests(exchange)
-                : chain.filter(exchange));
+        return current > rule.limit ? tooManyRequests(exchange, rule) : chain.filter(exchange);
     }
 
     /**
@@ -166,11 +193,16 @@ public class RateLimitGlobalFilter implements GlobalFilter, Ordered {
     private LimitRule resolveRule(PathRule rule, String clientId) {
         String ruleKey = rule == null ? DEFAULT_RULE_KEY : rule.getPathPattern();
         int limit = rule == null ? properties.getLimit() : rule.getLimit();
-        int windowSeconds = rule == null ? properties.getWindowSeconds() : rule.getWindowSeconds();
+        int configuredWindow = rule == null ? properties.getWindowSeconds() : rule.getWindowSeconds();
+        // 窗口秒数必须 >= 1：0/负数会让窗口编号除零（ArithmeticException）；非法配置回落到 1 秒窗口
+        int windowSeconds = configuredWindow < MIN_WINDOW_SECONDS ? MIN_WINDOW_SECONDS : configuredWindow;
+        if (configuredWindow < MIN_WINDOW_SECONDS) {
+            log.warn("限流窗口秒数配置非法，已回落为 1 秒: rule={}, configured={}", ruleKey, configuredWindow);
+        }
         long window = System.currentTimeMillis() / (windowSeconds * MILLIS_PER_SECOND);
         String key = properties.getKeyPrefix() + KEY_SEPARATOR + ruleKey + KEY_SEPARATOR + window
                 + KEY_SEPARATOR + clientId;
-        return new LimitRule(key, limit, windowSeconds);
+        return new LimitRule(ruleKey, key, limit, windowSeconds);
     }
 
     /**
@@ -180,9 +212,13 @@ public class RateLimitGlobalFilter implements GlobalFilter, Ordered {
      * @return 客户端标识
      */
     private String resolveClientId(ServerWebExchange exchange) {
-        String forwardedFor = exchange.getRequest().getHeaders().getFirst(X_FORWARDED_FOR_HEADER);
-        if (forwardedFor != null && !forwardedFor.isBlank()) {
-            return forwardedFor.split(FORWARDED_FOR_SEPARATOR)[0].trim();
+        // X-Forwarded-For 仅在明确存在可信前置代理时启用（默认开启，由 Nginx 覆写）；
+        // 网关直接暴露时置 whale.gateway.rate-limit.trust-forwarded-for=false 防止伪造绕过
+        if (properties.isTrustForwardedFor()) {
+            String forwardedFor = exchange.getRequest().getHeaders().getFirst(X_FORWARDED_FOR_HEADER);
+            if (forwardedFor != null && !forwardedFor.isBlank()) {
+                return forwardedFor.split(FORWARDED_FOR_SEPARATOR)[0].trim();
+            }
         }
         InetSocketAddress remoteAddress = exchange.getRequest().getRemoteAddress();
         if (remoteAddress != null && remoteAddress.getHostString() != null) {
@@ -195,9 +231,11 @@ public class RateLimitGlobalFilter implements GlobalFilter, Ordered {
      * 写出 429 限流响应（与业务侧 Result 同结构 JSON 体），并透传链路追踪头
      *
      * @param exchange 当前请求上下文
+     * @param rule     本次命中的限流规则（用于指标规则标签）
      * @return 响应写出完成的信号，不进入下游过滤器链
      */
-    private Mono<Void> tooManyRequests(ServerWebExchange exchange) {
+    private Mono<Void> tooManyRequests(ServerWebExchange exchange, LimitRule rule) {
+        countRejected(rule);
         ServerHttpResponse response = exchange.getResponse();
         response.setStatusCode(HttpStatus.TOO_MANY_REQUESTS);
         response.getHeaders().setContentType(MediaType.parseMediaType(JSON_CONTENT_TYPE));
@@ -208,6 +246,19 @@ public class RateLimitGlobalFilter implements GlobalFilter, Ordered {
         String body = GatewayResponse.of(RATE_LIMIT_CODE, RATE_LIMIT_MESSAGE).toJson();
         DataBuffer buffer = response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8));
         return response.writeWith(Mono.just(buffer));
+    }
+
+    /**
+     * 记录一次限流拒绝计数（容器无 {@link MeterRegistry} 时静默跳过）
+     *
+     * @param rule 本次命中的限流规则
+     */
+    private void countRejected(LimitRule rule) {
+        MeterRegistry meterRegistry = meterRegistryProvider.getIfAvailable();
+        if (meterRegistry == null) {
+            return;
+        }
+        meterRegistry.counter(METER_REJECTED, TAG_RULE, rule.ruleKey).increment();
     }
 
     @Override
@@ -222,6 +273,9 @@ public class RateLimitGlobalFilter implements GlobalFilter, Ordered {
      */
     private static final class LimitRule {
 
+        /** 规则标识（路径模式或 default），用于指标标签 */
+        private final String ruleKey;
+
         /** Redis 限流计数键（含规则标识与窗口维度） */
         private final String key;
 
@@ -234,11 +288,13 @@ public class RateLimitGlobalFilter implements GlobalFilter, Ordered {
         /**
          * 构造限流规则快照
          *
+         * @param ruleKey 规则标识
          * @param key 计数键
          * @param limit 阈值
          * @param windowSeconds 窗口秒数
          */
-        private LimitRule(String key, int limit, int windowSeconds) {
+        private LimitRule(String ruleKey, String key, int limit, int windowSeconds) {
+            this.ruleKey = ruleKey;
             this.key = key;
             this.limit = limit;
             this.windowSeconds = windowSeconds;

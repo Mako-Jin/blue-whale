@@ -22,27 +22,36 @@ import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
+import reactor.core.Exceptions;
 import reactor.core.publisher.Mono;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * 网关熔断降级全局过滤器（T4 / G2）。
  *
  * <p>对 {@code whale.gateway.circuit-breaker.apply-to-routes} 列出的路由，基于 resilience4j
- * {@link CircuitBreaker} + {@link CircuitBreakerOperator} 实施熔断：单次下游调用超过
- * {@code timeoutMillis} 或抛出异常均计为一次失败；计数滑动窗口（COUNT_BASED，
+ * {@link CircuitBreaker} 手动状态机（{@code tryAcquirePermission} + {@code onSuccess}/{@code onError}）
+ * 实施熔断：单次下游调用超过 {@code timeoutMillis} 或抛出异常均计为一次失败；计数滑动窗口（COUNT_BASED，
  * {@code minimumNumberOfCalls} = 窗口大小）的失败率达到 {@code failureRateThreshold} 即打开熔断；
  * 打开后经 {@code waitDurationInOpenStateMillis} 等待期放行一次半开探测，探测成功恢复闭合、
  * 失败重新打开（由 resilience4j 状态机负责迁移，不再自研）。</p>
  *
- * <p>熔断打开时（resilience4j 抛出 {@link CallNotPermittedException}）或下游调用失败/超时时，
- * 短路写出 HTTP 503 与业务侧 {@code Result} 同结构 JSON 体，并透传链路追踪头。</p>
+ * <p>熔断打开时（resilience4j 拒绝放行）或下游真正不可用（连接失败 / 超时 / IO 异常）时，
+ * 短路写出 HTTP 503 与业务侧 {@code Result} 同结构 JSON 体，并透传链路追踪头。
+ * <b>非可用性异常（如路由不存在、下游 4xx/5xx 经异常通道抛出）不再改写为 503</b>，
+ * 而是继续抛出交给 {@code GatewayExceptionHandler} 统一映射，避免掩盖真实状态码。</p>
+ *
+ * <p>半开只放行 <b>一次</b> 探测（{@code permittedNumberOfCallsInHalfOpenState(1)}），
+ * 探测失败即重新打开——这是「快速止损优先」的取舍：偶发失败会导致多等一个等待期，
+ * 但不会把故障流量持续放给下游。</p>
  *
  * <p>GW-04 熔断指标（Micrometer，均带 {@code route} 标签）：{@code gateway.circuit.calls} 记录下游调用
  * 成功/失败（{@code result} 标签），{@code gateway.circuit.short_circuits} 记录熔断打开的短路次数，
@@ -99,7 +108,13 @@ public class CircuitBreakerGlobalFilter implements GlobalFilter, Ordered {
     /** resilience4j 熔断器注册表（按路由 id 隔离实例） */
     private final CircuitBreakerRegistry registry = CircuitBreakerRegistry.ofDefaults();
 
-    /** 路由 id 到 resilience4j 熔断器的映射 */
+    /**
+     * 路由 id 到 resilience4j 熔断器的映射。
+     *
+     * <p>生命周期与 {@code apply-to-routes} 强绑定：键仅在路由命中该静态列表时才创建，
+     * 列表来自本地配置而非动态路由仓库，因此不会随 Nacos 路由增删而无界增长；
+     * 每个键的 Gauge 也只在首次创建时注册一次（{@code computeIfAbsent} 保证）。</p>
+     */
     private final Map<String, CircuitBreaker> breakers = new ConcurrentHashMap<>();
 
     /**
@@ -139,7 +154,7 @@ public class CircuitBreakerGlobalFilter implements GlobalFilter, Ordered {
         }
         long startNanos = System.nanoTime();
         return chain.filter(exchange)
-                .timeout(Duration.ofMillis(properties.getTimeoutMillis()))
+                .timeout(Duration.ofMillis(Math.max(1, properties.getTimeoutMillis())))
                 .doOnSuccess(unused -> {
                     breaker.onSuccess(System.nanoTime() - startNanos, TimeUnit.NANOSECONDS);
                     countCall(routeId, true);
@@ -147,9 +162,32 @@ public class CircuitBreakerGlobalFilter implements GlobalFilter, Ordered {
                 .onErrorResume(e -> {
                     breaker.onError(System.nanoTime() - startNanos, TimeUnit.NANOSECONDS, e);
                     countCall(routeId, false);
-                    log.warn("下游调用超时或失败，触发网关熔断降级: route={}, reason={}", routeId, e.getMessage());
+                    if (!isUnavailable(e)) {
+                        // 非可用性异常（路由不存在 / 下游 4xx、5xx 经异常通道抛出等）不降级为 503，
+                        // 继续抛出交给 GatewayExceptionHandler 映射，避免把 404 掩盖成 503
+                        log.warn("下游调用异常但非不可用，继续交由全局异常处理: route={}, reason={}",
+                                routeId, e.toString());
+                        return Mono.error(e);
+                    }
+                    log.warn("下游调用超时或不可用，触发网关熔断降级: route={}, reason={}", routeId, e.getMessage());
                     return unavailable(exchange);
                 });
+    }
+
+    /**
+     * 判断异常是否代表下游「不可用」（连接失败 / 超时 / IO 异常），仅此三类降级为 503。
+     *
+     * <p>reactor 的 {@code timeout} 操作符发出 {@link java.util.concurrent.TimeoutException}；
+     * 连接被拒、连接重置、响应提前关闭等均落在 {@link java.io.IOException} 体系内
+     * （如 {@link java.net.ConnectException}、Netty {@code PrematureCloseException}）。
+     * 用 {@code Exceptions.unwrap} 剥掉 {@code WebClientRequestException} 等包装层后再判定。</p>
+     *
+     * @param error 下游调用异常
+     * @return 属于下游不可用返回 {@code true}
+     */
+    private static boolean isUnavailable(Throwable error) {
+        Throwable unwrapped = Exceptions.unwrap(error);
+        return unwrapped instanceof TimeoutException || unwrapped instanceof IOException;
     }
 
     /**
@@ -210,16 +248,21 @@ public class CircuitBreakerGlobalFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 由网关配置构造 resilience4j 熔断配置（计数滑动窗口，窗口即最小调用数）
+     * 由网关配置构造 resilience4j 熔断配置（计数滑动窗口，窗口即最小调用数）。
+     *
+     * <p>对配置做下界/上界收敛，避免误配（如 0 窗口、0 超时、负阈值）导致 resilience4j
+     * 构造异常或熔断行为失真。</p>
      *
      * @return resilience4j 熔断配置
      */
     private CircuitBreakerConfig buildConfig() {
+        int windowSize = Math.max(1, properties.getSlidingWindowSize());
+        int failureRate = Math.min(100, Math.max(1, properties.getFailureRateThreshold()));
         return CircuitBreakerConfig.custom()
                 .slidingWindowType(SlidingWindowType.COUNT_BASED)
-                .slidingWindowSize(properties.getSlidingWindowSize())
-                .minimumNumberOfCalls(properties.getSlidingWindowSize())
-                .failureRateThreshold(properties.getFailureRateThreshold())
+                .slidingWindowSize(windowSize)
+                .minimumNumberOfCalls(windowSize)
+                .failureRateThreshold(failureRate)
                 .waitDurationInOpenState(Duration.ofMillis(
                         Math.max(1, properties.getWaitDurationInOpenStateMillis())))
                 .permittedNumberOfCallsInHalfOpenState(1)

@@ -16,6 +16,11 @@ import java.util.List;
  * {@code /<service>/internal/**} 内网端点（上线必检 network-boundary 收口，
  * 2026-11-09 第九批起全量生效）。</p>
  *
+ * <p><b>命名约定（新增服务必检）</b>：内网端点统一形如 {@code /<service>/internal/**}
+ * 或带版本号的 {@code /<service>/<version>/internal/**}，即 {@code internal} 紧跟服务名
+ * 或版本段之后；若未来引入更深层前缀（如 {@code /<service>/<version>/admin/internal/**}），
+ * 必须同步在 {@code patterns} 中补充对应通配（Ant {@code *} 不跨段），否则会漏管。</p>
+ *
  * @author BlueWhale
  */
 @Data

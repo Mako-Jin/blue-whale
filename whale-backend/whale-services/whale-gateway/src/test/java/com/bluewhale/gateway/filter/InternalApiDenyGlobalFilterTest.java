@@ -39,6 +39,10 @@ class InternalApiDenyGlobalFilterTest {
     @Mock
     private GatewayFilterChain chain;
 
+    @Mock
+    private org.springframework.beans.factory.ObjectProvider<io.micrometer.core.instrument.MeterRegistry>
+            meterRegistryProvider;
+
     private InternalApiDenyProperties properties;
 
     private InternalApiDenyGlobalFilter filter;
@@ -46,7 +50,7 @@ class InternalApiDenyGlobalFilterTest {
     @BeforeEach
     void setUp() {
         properties = new InternalApiDenyProperties();
-        filter = new InternalApiDenyGlobalFilter(properties);
+        filter = new InternalApiDenyGlobalFilter(properties, meterRegistryProvider);
     }
 
     /**

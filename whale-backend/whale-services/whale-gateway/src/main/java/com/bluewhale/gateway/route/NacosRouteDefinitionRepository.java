@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -200,19 +201,23 @@ public class NacosRouteDefinitionRepository implements RouteDefinitionRepository
                     DATA_ID, rejected, errors);
             return currentRoutes;
         }
-        if (isAbandoned(parsed)) {
-            log.info("Nacos 动态路由仍为回滚前被放弃的版本，保持回滚后快照: dataId={}, routeCount={}",
-                    DATA_ID, currentRoutes.size());
+        // 快照读写与回滚共用同一监视器，避免刷新线程与治理端点并发时出现「上一版指向新当前」的中间态
+        synchronized (this) {
+            if (isAbandoned(parsed)) {
+                log.info("Nacos 动态路由仍为回滚前被放弃的版本，保持回滚后快照: dataId={}, routeCount={}",
+                        DATA_ID, currentRoutes.size());
+                return currentRoutes;
+            }
+            if (sameAsCurrent(parsed)) {
+                log.debug("Nacos 动态路由配置未变化，保持当前快照: dataId={}, routeCount={}",
+                        DATA_ID, currentRoutes.size());
+                return currentRoutes;
+            }
+            previousRoutes = currentRoutes;
+            currentRoutes = List.copyOf(parsed);
+            abandonedSignatures = null;
             return currentRoutes;
         }
-        if (sameAsCurrent(parsed)) {
-            log.debug("Nacos 动态路由配置未变化，保持当前快照: dataId={}, routeCount={}", DATA_ID, currentRoutes.size());
-            return currentRoutes;
-        }
-        previousRoutes = currentRoutes;
-        currentRoutes = List.copyOf(parsed);
-        abandonedSignatures = null;
-        return currentRoutes;
     }
 
     /**
@@ -258,6 +263,9 @@ public class NacosRouteDefinitionRepository implements RouteDefinitionRepository
     /**
      * 生成路由定义的比对签名（id / uri / 断言 / 过滤器及其参数）。
      *
+     * <p>参数按键名排序后拼接，消除 YAML 解析得到的 Map 迭代顺序差异，
+     * 避免 Nacos 侧仅调整键顺序就被误判为「配置变更」而触发无意义的 RefreshRoutesEvent。</p>
+     *
      * @param definition 路由定义
      * @return 比对签名
      */
@@ -265,12 +273,25 @@ public class NacosRouteDefinitionRepository implements RouteDefinitionRepository
         StringBuilder builder = new StringBuilder();
         builder.append(definition.getId()).append('|').append(definition.getUri());
         for (PredicateDefinition predicate : definition.getPredicates()) {
-            builder.append('|').append(predicate.getName()).append(predicate.getArgs());
+            builder.append('|').append(predicate.getName()).append(sortedArgs(predicate.getArgs()));
         }
         for (FilterDefinition filter : definition.getFilters()) {
-            builder.append('|').append(filter.getName()).append(filter.getArgs());
+            builder.append('|').append(filter.getName()).append(sortedArgs(filter.getArgs()));
         }
         return builder.toString();
+    }
+
+    /**
+     * 将参数映射按 key 排序后拼接为稳定字符串
+     *
+     * @param args 参数映射，可为 {@code null}
+     * @return 排序后的稳定字符串表示
+     */
+    private static String sortedArgs(Map<String, String> args) {
+        if (args == null || args.isEmpty()) {
+            return "{}";
+        }
+        return new TreeMap<>(args).toString();
     }
 
     /**
@@ -285,10 +306,23 @@ public class NacosRouteDefinitionRepository implements RouteDefinitionRepository
     /**
      * 获取上一版动态路由快照（用于治理端点展示与回滚）。
      *
+     * <p>注意回滚后的语义：{@link #rollback()} 会交换 current/previous，
+     * 因此回滚成功后本方法返回的是「刚刚被放弃的版本」，再次回滚即可切回；
+     * 治理端点若需区分，应结合 {@link #isRolledBack()} 展示。</p>
+     *
      * @return 上一版路由定义列表（不可变）
      */
     public List<RouteDefinition> getPreviousRoutes() {
         return previousRoutes;
+    }
+
+    /**
+     * 判断当前快照是否处于「回滚后固定」状态（即 Nacos 中仍是回滚时被放弃的版本）
+     *
+     * @return 处于回滚固定状态返回 {@code true}
+     */
+    public boolean isRolledBack() {
+        return abandonedSignatures != null;
     }
 
     /**

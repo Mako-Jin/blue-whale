@@ -11,7 +11,9 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -62,9 +64,45 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
     private static final String[] PASSWORD_CHANGE_ALLOWED_PATTERNS = {
             "/auth/v1/password", "/auth/v1/logout", "/auth/v1/refresh", "/auth/v1/me"};
 
+    /** 认证拒绝计数指标名 */
+    private static final String METER_REJECTED = "gateway.auth.rejected";
+
+    /** 指标拒绝原因标签名 */
+    private static final String TAG_REASON = "reason";
+
+    /** 拒绝原因：缺少 Bearer 令牌 */
+    private static final String REASON_MISSING_TOKEN = "missing_token";
+
+    /** 拒绝原因：签名/过期等验签失败 */
+    private static final String REASON_INVALID_TOKEN = "invalid_token";
+
+    /** 拒绝原因：非 accessToken */
+    private static final String REASON_WRONG_TOKEN_TYPE = "wrong_token_type";
+
+    /** 拒绝原因：令牌缺少租户或用户标识 */
+    private static final String REASON_MISSING_CLAIM = "missing_claim";
+
+    /** 拒绝原因：令牌命中登出黑名单 */
+    private static final String REASON_BLACKLISTED = "blacklisted";
+
+    /** 拒绝原因：租户停用或到期 */
+    private static final String REASON_TENANT_UNAVAILABLE = "tenant_unavailable";
+
+    /** 拒绝原因：租户成员关系已解除 */
+    private static final String REASON_MEMBERSHIP_REVOKED = "membership_revoked";
+
+    /** 拒绝原因：用户停用/删除/改密 */
+    private static final String REASON_USER_REVOKED = "user_revoked";
+
+    /** 拒绝原因：强制改密未完成 */
+    private static final String REASON_PASSWORD_CHANGE_REQUIRED = "password_change_required";
+
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
     private final WhaleGatewayProperties properties;
     private final TokenBlacklistChecker tokenBlacklistChecker;
+
+    /** 指标注册表提供者：容器无 MeterRegistry 时返回 {@code null}，指标静默跳过 */
+    private final ObjectProvider<MeterRegistry> meterRegistryProvider;
 
     private final TenantStatusChecker tenantStatusChecker;
 
@@ -80,16 +118,19 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
      * @param tenantStatusChecker         租户状态校验器（停用租户存量令牌拒绝）
      * @param membershipRevocationChecker 租户成员撤销校验器（解绑后存量令牌拒绝）
      * @param userAccessRevocationChecker 用户级撤销校验器（停用/删除/改密后存量令牌拒绝）
+     * @param meterRegistryProvider       Micrometer 指标注册表提供者，缺省时返回 {@code null} 表示不采集指标
      */
     public JwtAuthGlobalFilter(WhaleGatewayProperties properties, TokenBlacklistChecker tokenBlacklistChecker,
                                TenantStatusChecker tenantStatusChecker,
                                MembershipRevocationChecker membershipRevocationChecker,
-                               UserAccessRevocationChecker userAccessRevocationChecker) {
+                               UserAccessRevocationChecker userAccessRevocationChecker,
+                               ObjectProvider<MeterRegistry> meterRegistryProvider) {
         this.properties = properties;
         this.tokenBlacklistChecker = tokenBlacklistChecker;
         this.tenantStatusChecker = tenantStatusChecker;
         this.membershipRevocationChecker = membershipRevocationChecker;
         this.userAccessRevocationChecker = userAccessRevocationChecker;
+        this.meterRegistryProvider = meterRegistryProvider;
     }
 
     @Override
@@ -104,7 +145,7 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
 
         String authorization = request.getHeaders().getFirst(AUTHORIZATION_HEADER);
         if (authorization == null || !authorization.startsWith(BEARER_PREFIX)) {
-            return unauthorized(exchange);
+            return unauthorized(exchange, REASON_MISSING_TOKEN);
         }
         String token = authorization.substring(BEARER_PREFIX.length()).trim();
         try {
@@ -119,32 +160,32 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
             // 仅 accessToken 可访问下游 API，refreshToken 只能用于 /auth/v1/refresh（白名单）
             if (!TOKEN_TYPE_ACCESS.equals(stringify(claims.get(CLAIM_TOKEN_TYPE)))) {
                 log.warn("非 accessToken 访问受保护资源: path={}", path);
-                return unauthorized(exchange);
+                return unauthorized(exchange, REASON_WRONG_TOKEN_TYPE);
             }
             // 令牌必须绑定租户：旧令牌（无 tenantId claim）一律拒绝，避免下游静默回落默认租户
             String tenantId = stringify(claims.get(CLAIM_TENANT_ID));
             if (tenantId.isBlank()) {
                 log.warn("accessToken 缺少 tenantId claim: path={}", path);
-                return unauthorized(exchange);
+                return unauthorized(exchange, REASON_MISSING_CLAIM);
             }
             // 令牌必须绑定用户：缺失 userId 无法校验用户级撤销，也无法向下游注入可靠身份
             String userId = stringify(claims.get(CLAIM_USER_ID));
             if (userId.isBlank()) {
                 log.warn("accessToken 缺少 userId claim: path={}", path);
-                return unauthorized(exchange);
+                return unauthorized(exchange, REASON_MISSING_CLAIM);
             }
             return tokenBlacklistChecker.isBlacklisted(token)
                     .flatMap(blacklisted -> {
                         if (Boolean.TRUE.equals(blacklisted)) {
                             log.warn("令牌命中登出黑名单: path={}", path);
-                            return unauthorized(exchange);
+                            return unauthorized(exchange, REASON_BLACKLISTED);
                         }
                         return tenantStatusChecker.isUnavailable(tenantId)
                                 .flatMap(unavailable -> {
                                     if (Boolean.TRUE.equals(unavailable)) {
                                         log.warn("租户已停用或已到期，拒绝存量令牌访问: path={}, tenantId={}",
                                                 path, tenantId);
-                                        return unauthorized(exchange);
+                                        return unauthorized(exchange, REASON_TENANT_UNAVAILABLE);
                                     }
                                     return verifyRevocationsAndForward(
                                             exchange, request, claims, tenantId, userId, path, chain);
@@ -152,7 +193,7 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
                     });
         } catch (JwtException | IllegalArgumentException e) {
             log.warn("JWT 校验失败: path={}, reason={}", path, e.getMessage());
-            return unauthorized(exchange);
+            return unauthorized(exchange, REASON_INVALID_TOKEN);
         }
     }
 
@@ -177,14 +218,14 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
                     if (Boolean.TRUE.equals(membershipRevoked)) {
                         log.warn("租户成员关系已解除，拒绝存量令牌访问: path={}, tenantId={}, userId={}",
                                 path, tenantId, userId);
-                        return unauthorized(exchange);
+                        return unauthorized(exchange, REASON_MEMBERSHIP_REVOKED);
                     }
                     return userAccessRevocationChecker.isRevoked(userId, issuedAt)
                             .flatMap(userRevoked -> {
                                 if (Boolean.TRUE.equals(userRevoked)) {
                                     log.warn("用户已停用/删除/改密，拒绝存量令牌访问: path={}, userId={}",
                                             path, userId);
-                                    return unauthorized(exchange);
+                                    return unauthorized(exchange, REASON_USER_REVOKED);
                                 }
                                 // REQ-SEC-023：强制改密/口令到期拦截（auth 服务侧还有第二层拦截）。
                                 // 置于撤销校验之后：已改密/停用的旧令牌（撤销生效）优先 401，
@@ -193,7 +234,7 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
                                         && !isPasswordChangeAllowed(path)) {
                                     log.warn("令牌携带强制改密标记，拒绝访问业务接口: path={}, userId={}",
                                             path, userId);
-                                    return forbidden(exchange);
+                                    return forbidden(exchange, REASON_PASSWORD_CHANGE_REQUIRED);
                                 }
                                 ServerHttpRequest mutatedRequest =
                                         withIdentityHeaders(request, claims, tenantId);
@@ -261,6 +302,10 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
      * 客户端可自带任意 {@code X-User-Id}/{@code X-Username}/{@code X-User-Roles}/{@code X-Tenant-Id}。
      * 若不清除，下游按网关注入头获取当前用户的接口（如审计埋点归属）会被伪造身份污染。</p>
      *
+     * <p><b>保留 {@code Authorization} 是有意为之</b>：{@code /auth/v1/refresh} 等白名单接口
+     * 需要读取客户端携带的 refreshToken（或 Bearer 头）完成续期/登出，网关剥离会直接打断该流程；
+     * 下游 auth 服务对白名单接口自行决定是否解析该头，不依赖网关做二次裁剪。</p>
+     *
      * @param request 原始请求
      * @return 清除身份/租户头后的新请求
      */
@@ -289,9 +334,11 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
      * 直接返回 401 未认证 JSON 响应，并透传链路追踪头
      *
      * @param exchange 当前请求上下文
+     * @param reason   拒绝原因（用于指标标签）
      * @return 写出响应完成的信号
      */
-    private Mono<Void> unauthorized(ServerWebExchange exchange) {
+    private Mono<Void> unauthorized(ServerWebExchange exchange, String reason) {
+        countRejected(reason);
         ServerHttpResponse response = exchange.getResponse();
         response.setStatusCode(HttpStatus.UNAUTHORIZED);
         response.getHeaders().setContentType(MediaType.parseMediaType("application/json;charset=UTF-8"));
@@ -308,9 +355,11 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
      * 返回 403 强制改密 JSON 响应（REQ-SEC-023），前端据此弹出改密对话框
      *
      * @param exchange 当前请求上下文
+     * @param reason   拒绝原因（用于指标标签）
      * @return 写出响应完成的信号
      */
-    private Mono<Void> forbidden(ServerWebExchange exchange) {
+    private Mono<Void> forbidden(ServerWebExchange exchange, String reason) {
+        countRejected(reason);
         ServerHttpResponse response = exchange.getResponse();
         response.setStatusCode(HttpStatus.FORBIDDEN);
         response.getHeaders().setContentType(MediaType.parseMediaType("application/json;charset=UTF-8"));
@@ -321,6 +370,19 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
         String body = GatewayResponse.of(403, "首次登录或口令已到期，请先修改口令").toJson();
         DataBuffer buffer = response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8));
         return response.writeWith(Mono.just(buffer));
+    }
+
+    /**
+     * 记录一次认证拒绝计数（容器无 {@link MeterRegistry} 时静默跳过）
+     *
+     * @param reason 拒绝原因
+     */
+    private void countRejected(String reason) {
+        MeterRegistry meterRegistry = meterRegistryProvider.getIfAvailable();
+        if (meterRegistry == null) {
+            return;
+        }
+        meterRegistry.counter(METER_REJECTED, TAG_REASON, reason).increment();
     }
 
     @Override

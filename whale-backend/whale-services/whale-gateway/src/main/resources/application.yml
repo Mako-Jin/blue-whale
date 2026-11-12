@@ -299,6 +299,8 @@ whale:
     # 读 Redis 权限码缓存（命中即注入）；未命中/哨兵/异常回落 lb://whale-service-auth/auth/v1/me，两级均失败注入空串并告警
     permission-header:
       enabled: ${WHALE_GATEWAY_PERMISSION_HEADER_ENABLED:true}
+      # 回落 /auth/me 的强制超时（毫秒）：auth 抖动时快速失败，超时按 fail-closed 注入空权限码
+      fallback-timeout-millis: ${WHALE_GATEWAY_PERMISSION_FALLBACK_TIMEOUT_MILLIS:800}
     # T5.4 网关入口限流（Redis 计数器 + 固定窗口，REQ-DIST-003）：
     # window-seconds 为固定窗口长度（秒），limit 为单窗口允许的最大请求数，超阈值返回 HTTP 429 + Result 体；
     # Redis 不可用时降级放行（可用性优先），由 RateLimitGlobalFilter 执行。
@@ -306,6 +308,9 @@ whale:
     # 单独收紧阈值防刷量（REQ-SEC-006）；未命中规则的路径沿用上方全局阈值。
     rate-limit:
       enabled: ${WHALE_GATEWAY_RATE_LIMIT_ENABLED:true}
+      # 客户端标识是否信任 X-Forwarded-For 首段：网关部署在 Nginx 之后（由 Nginx 覆写）时为 true；
+      # 若网关直接暴露公网，必须置 false，改用 TCP 远端地址，防止伪造 XFF 绕过限流
+      trust-forwarded-for: ${WHALE_GATEWAY_RATE_LIMIT_TRUST_XFF:true}
       limit: ${WHALE_GATEWAY_RATE_LIMIT:200}
       window-seconds: ${WHALE_GATEWAY_RATE_LIMIT_WINDOW_SECONDS:1}
       path-rules:
@@ -404,6 +409,7 @@ management:
     tags:
       application: ${spring.application.name}
 
+# 网关调试日志仅在 dev profile 开启（application-dev.yml），避免生产每请求多条 debug 日志放大 IO
 logging:
   level:
-    org.springframework.cloud.gateway: debug
+    org.springframework.cloud.gateway: info

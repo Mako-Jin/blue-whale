@@ -1,0 +1,5 @@
+# dev profile 专属覆盖：仅在本地联调时打开网关调试日志。
+# 生产/测试 profile 使用 application.yml 中的 info 级别，避免每请求多条 debug 日志放大磁盘 IO。
+logging:
+  level:
+    org.springframework.cloud.gateway: debug

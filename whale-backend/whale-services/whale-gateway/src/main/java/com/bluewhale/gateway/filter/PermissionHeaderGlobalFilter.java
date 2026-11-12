@@ -15,6 +15,7 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 import tools.jackson.databind.ObjectMapper;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -190,6 +191,8 @@ public class PermissionHeaderGlobalFilter implements GlobalFilter, Ordered {
                 })
                 .retrieve()
                 .bodyToMono(String.class)
+                // 强制超时：auth 抖动时快速失败，避免每个请求都挂在回落调用上（fail-closed）
+                .timeout(Duration.ofMillis(Math.max(1L, properties.getFallbackTimeoutMillis())))
                 .map(this::parsePermissions)
                 .onErrorResume(e -> {
                     log.warn("回落 /auth/me 获取权限码失败，注入空权限码头（fail-closed）: userId={}, reason={}",

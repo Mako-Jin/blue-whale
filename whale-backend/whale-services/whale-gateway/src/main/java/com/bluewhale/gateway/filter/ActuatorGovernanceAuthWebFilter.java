@@ -18,6 +18,7 @@ import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 /**
  * 路由治理端点鉴权过滤器（P1-13）。
@@ -54,13 +55,42 @@ public class ActuatorGovernanceAuthWebFilter implements WebFilter, Ordered {
         String expected = properties.getGovernance().getToken();
         String provided = request.getHeaders().getFirst(GOVERNANCE_TOKEN_HEADER);
         if (expected == null || expected.isBlank() || provided == null
-                || !MessageDigest.isEqual(expected.getBytes(StandardCharsets.UTF_8),
-                        provided.getBytes(StandardCharsets.UTF_8))) {
+                || !constantTimeEquals(expected, provided)) {
             log.warn("路由治理端点令牌校验失败，拒绝访问: path={}, method={}",
                     path, request.getMethod());
             return forbidden(exchange);
         }
         return chain.filter(exchange);
+    }
+
+    /**
+     * 常量时间比较两个令牌。
+     *
+     * <p>{@link MessageDigest#isEqual(byte[], byte[])} 在 JDK 实现中会先比较长度，
+     * 长度不同即提前返回，不完全常量时间。这里先对两侧做 SHA-256 摘要（固定 32 字节），
+     * 再比较摘要，长度差异不再泄露时序信息。</p>
+     *
+     * @param expected 期望令牌
+     * @param provided 客户端提供令牌
+     * @return 完全一致返回 {@code true}
+     */
+    private static boolean constantTimeEquals(String expected, String provided) {
+        return MessageDigest.isEqual(sha256(expected), sha256(provided));
+    }
+
+    /**
+     * 计算字符串的 SHA-256 摘要
+     *
+     * @param value 原始字符串
+     * @return 32 字节摘要
+     */
+    private static byte[] sha256(String value) {
+        try {
+            return MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
+        } catch (NoSuchAlgorithmException e) {
+            // JDK 必须提供 SHA-256，走到这里说明运行环境异常，直接失败关闭
+            throw new IllegalStateException("SHA-256 摘要算法不可用", e);
+        }
     }
 
     /**

@@ -2,7 +2,9 @@ package com.bluewhale.gateway.filter;
 
 import com.bluewhale.gateway.common.GatewayResponse;
 import com.bluewhale.gateway.config.InternalApiDenyProperties;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -51,7 +53,13 @@ public class InternalApiDenyGlobalFilter implements GlobalFilter, Ordered {
     /** 过滤器顺序：早于鉴权（-100）与权限码头（-50），保证内网路径先被拒绝 */
     private static final int ORDER = -110;
 
+    /** 内网接口拒绝计数指标名 */
+    private static final String METER_REJECTED = "gateway.internal_deny.rejected";
+
     private final InternalApiDenyProperties properties;
+
+    /** 指标注册表提供者：容器无 MeterRegistry 时返回 {@code null}，指标静默跳过 */
+    private final ObjectProvider<MeterRegistry> meterRegistryProvider;
 
     /** Ant 路径匹配器（线程安全，复用单例） */
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
@@ -59,10 +67,13 @@ public class InternalApiDenyGlobalFilter implements GlobalFilter, Ordered {
     /**
      * 构造内网接口屏蔽过滤器
      *
-     * @param properties 内网接口屏蔽配置
+     * @param properties            内网接口屏蔽配置
+     * @param meterRegistryProvider Micrometer 指标注册表提供者，缺省时返回 {@code null} 表示不采集指标
      */
-    public InternalApiDenyGlobalFilter(InternalApiDenyProperties properties) {
+    public InternalApiDenyGlobalFilter(InternalApiDenyProperties properties,
+                                       ObjectProvider<MeterRegistry> meterRegistryProvider) {
         this.properties = properties;
+        this.meterRegistryProvider = meterRegistryProvider;
     }
 
     /**
@@ -149,6 +160,10 @@ public class InternalApiDenyGlobalFilter implements GlobalFilter, Ordered {
      * @return 响应写出完成的信号，不进入下游过滤器链
      */
     private Mono<Void> denied(ServerWebExchange exchange) {
+        MeterRegistry meterRegistry = meterRegistryProvider.getIfAvailable();
+        if (meterRegistry != null) {
+            meterRegistry.counter(METER_REJECTED).increment();
+        }
         ServerHttpResponse response = exchange.getResponse();
         response.setStatusCode(HttpStatus.FORBIDDEN);
         response.getHeaders().setContentType(MediaType.parseMediaType(JSON_CONTENT_TYPE));

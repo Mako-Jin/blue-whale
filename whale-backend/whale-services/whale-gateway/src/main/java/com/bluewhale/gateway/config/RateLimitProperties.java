@@ -33,6 +33,15 @@ public class RateLimitProperties {
     /** Redis 限流计数键前缀，默认 whale:gateway:rate-limit */
     private String keyPrefix = "whale:gateway:rate-limit";
 
+    /**
+     * 是否信任 {@code X-Forwarded-For} 首段作为客户端标识，默认 {@code true}。
+     *
+     * <p>网关部署在 Nginx 之后，由 Nginx 覆写该头，取首段即真实客户端 IP。
+     * 若网关被直接暴露（前面没有可信代理），客户端可伪造该头绕过限流，
+     * 此时应置为 {@code false}，改用 TCP 连接的远端地址。</p>
+     */
+    private boolean trustForwardedFor = true;
+
     /** 按路径特化的限流规则（默认空列表，此时行为与仅全局规则完全一致） */
     private List<PathRule> pathRules = new ArrayList<>();
 

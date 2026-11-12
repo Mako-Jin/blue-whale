@@ -19,10 +19,14 @@ import org.springframework.cloud.gateway.support.ServerWebExchangeUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 import org.springframework.mock.web.server.MockServerWebExchange;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
+
+import java.net.ConnectException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -152,16 +156,27 @@ class CircuitBreakerGlobalFilterTest {
     }
 
     @Test
-    @DisplayName("filter：下游异常时计为失败并返回 503 降级体")
+    @DisplayName("filter：下游连接失败时计为失败并返回 503 降级体")
     void shouldReturnServiceUnavailableWhenDownstreamFails() {
         MockServerWebExchange exchange = buildExchange(PROTECTED_ROUTE);
-        when(chain.filter(any())).thenReturn(Mono.error(new RuntimeException("connection refused")));
+        when(chain.filter(any())).thenReturn(Mono.error(new ConnectException("connection refused")));
 
         filter.filter(exchange, chain).block();
 
         verify(chain).filter(any());
         assertEquals(HttpStatus.SERVICE_UNAVAILABLE, exchange.getResponse().getStatusCode());
         assertEquals(EXPECTED_503_BODY, exchange.getResponse().getBodyAsString().block());
+    }
+
+    @Test
+    @DisplayName("filter：非可用性异常（如下游 404）不误降级为 503，继续抛出交由全局异常处理")
+    void shouldPropagateNonAvailabilityException() {
+        MockServerWebExchange exchange = buildExchange(PROTECTED_ROUTE);
+        when(chain.filter(any())).thenReturn(
+                Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "downstream 404")));
+
+        assertThrows(ResponseStatusException.class, () -> filter.filter(exchange, chain).block());
+        assertNull(exchange.getResponse().getStatusCode(), "非可用性异常不应由本过滤器写响应");
     }
 
     @Test
@@ -183,7 +198,7 @@ class CircuitBreakerGlobalFilterTest {
         properties.setSlidingWindowSize(2);
         properties.setFailureRateThreshold(50);
         properties.setWaitDurationInOpenStateMillis(60000);
-        when(chain.filter(any())).thenReturn(Mono.error(new RuntimeException("down")));
+        when(chain.filter(any())).thenReturn(Mono.error(new ConnectException("down")));
 
         filter.filter(buildExchange(PROTECTED_ROUTE), chain).block();
         filter.filter(buildExchange(PROTECTED_ROUTE), chain).block();
@@ -200,7 +215,7 @@ class CircuitBreakerGlobalFilterTest {
         properties.setSlidingWindowSize(2);
         properties.setFailureRateThreshold(50);
         properties.setWaitDurationInOpenStateMillis(1);
-        when(chain.filter(any())).thenReturn(Mono.error(new RuntimeException("down")));
+        when(chain.filter(any())).thenReturn(Mono.error(new ConnectException("down")));
 
         filter.filter(buildExchange(PROTECTED_ROUTE), chain).block();
         filter.filter(buildExchange(PROTECTED_ROUTE), chain).block();
@@ -234,7 +249,7 @@ class CircuitBreakerGlobalFilterTest {
     @DisplayName("GW-04 指标：下游失败计数 +1、状态 Gauge 仍为 CLOSED(0)")
     void shouldCountFailureCall() {
         MockServerWebExchange exchange = buildExchange(PROTECTED_ROUTE);
-        when(chain.filter(any())).thenReturn(Mono.error(new RuntimeException("down")));
+        when(chain.filter(any())).thenReturn(Mono.error(new ConnectException("down")));
 
         filter.filter(exchange, chain).block();
 
@@ -249,7 +264,7 @@ class CircuitBreakerGlobalFilterTest {
         properties.setSlidingWindowSize(2);
         properties.setFailureRateThreshold(50);
         properties.setWaitDurationInOpenStateMillis(60000);
-        when(chain.filter(any())).thenReturn(Mono.error(new RuntimeException("down")));
+        when(chain.filter(any())).thenReturn(Mono.error(new ConnectException("down")));
 
         filter.filter(buildExchange(PROTECTED_ROUTE), chain).block();
         filter.filter(buildExchange(PROTECTED_ROUTE), chain).block();
@@ -265,7 +280,7 @@ class CircuitBreakerGlobalFilterTest {
         properties.setSlidingWindowSize(2);
         properties.setFailureRateThreshold(50);
         properties.setWaitDurationInOpenStateMillis(1);
-        when(chain.filter(any())).thenReturn(Mono.error(new RuntimeException("down")));
+        when(chain.filter(any())).thenReturn(Mono.error(new ConnectException("down")));
 
         filter.filter(buildExchange(PROTECTED_ROUTE), chain).block();
         filter.filter(buildExchange(PROTECTED_ROUTE), chain).block();

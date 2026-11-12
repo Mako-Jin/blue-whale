@@ -63,4 +63,15 @@ class GatewaySecretPlaceholderCheckerTest {
 
         assertDoesNotThrow(() -> checker.afterPropertiesSet());
     }
+
+    @Test
+    @DisplayName("非 dev + 密钥长度不足 32 字节：启动期拒绝，避免运行期 WeakKeyException")
+    void shouldRejectWeakSecretOutsideDev() {
+        environment.setActiveProfiles("prod");
+        WhaleGatewayProperties.Jwt jwt = new WhaleGatewayProperties.Jwt();
+        jwt.setSecret("short-secret");
+        when(whaleGatewayProperties.getJwt()).thenReturn(jwt);
+
+        assertThrows(IllegalStateException.class, () -> checker.afterPropertiesSet());
+    }
 }

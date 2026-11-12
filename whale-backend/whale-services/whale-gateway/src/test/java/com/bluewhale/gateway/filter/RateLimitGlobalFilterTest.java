@@ -1,6 +1,7 @@
 package com.bluewhale.gateway.filter;
 
 import com.bluewhale.gateway.config.RateLimitProperties;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -8,22 +9,23 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
-import org.springframework.data.redis.core.ReactiveValueOperations;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 import org.springframework.mock.web.server.MockServerWebExchange;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.time.Duration;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -57,10 +59,10 @@ class RateLimitGlobalFilterTest {
     private ReactiveStringRedisTemplate redisTemplate;
 
     @Mock
-    private ReactiveValueOperations<String, String> valueOperations;
+    private GatewayFilterChain chain;
 
     @Mock
-    private GatewayFilterChain chain;
+    private ObjectProvider<MeterRegistry> meterRegistryProvider;
 
     private RateLimitProperties properties;
 
@@ -69,7 +71,7 @@ class RateLimitGlobalFilterTest {
     @BeforeEach
     void setUp() {
         properties = new RateLimitProperties();
-        filter = new RateLimitGlobalFilter(redisTemplate, properties);
+        filter = new RateLimitGlobalFilter(redisTemplate, properties, meterRegistryProvider);
     }
 
     /**
@@ -108,32 +110,37 @@ class RateLimitGlobalFilterTest {
         return rule;
     }
 
+    /**
+     * 桩设 Lua 计数脚本的返回计数
+     *
+     * @param count 本次窗口累计计数
+     */
+    private void stubCount(long count) {
+        when(redisTemplate.execute(any(RedisScript.class), anyList(), any(Object[].class)))
+                .thenReturn(Flux.just(count));
+    }
+
     @Test
     @DisplayName("filter：计数未超阈值时放行并继续过滤器链，键前缀与客户端标识正确")
     void shouldPassThroughWhenCountWithinLimit() {
         MockServerWebExchange exchange = buildExchange();
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.increment(anyString())).thenReturn(Mono.just(COUNT_WITHIN_LIMIT));
+        stubCount(COUNT_WITHIN_LIMIT);
         when(chain.filter(any())).thenReturn(Mono.empty());
 
         filter.filter(exchange, chain).block();
 
         verify(chain).filter(any());
         assertNull(exchange.getResponse().getStatusCode());
-        ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
-        verify(valueOperations).increment(keyCaptor.capture());
-        assertTrue(keyCaptor.getValue().startsWith("whale:gateway:rate-limit:"),
-                "限流键须以配置前缀开头");
-        assertTrue(keyCaptor.getValue().endsWith(":" + CLIENT_IP),
-                "限流键末段须为客户端标识");
+        String key = captureKey();
+        assertTrue(key.startsWith("whale:gateway:rate-limit:"), "限流键须以配置前缀开头");
+        assertTrue(key.endsWith(":" + CLIENT_IP), "限流键末段须为客户端标识");
     }
 
     @Test
     @DisplayName("filter：计数超阈值时返回 429 并写出 Result 体，且不继续过滤器链")
     void shouldReturnTooManyRequestsWhenCountOverLimit() {
         MockServerWebExchange exchange = buildExchange();
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.increment(anyString())).thenReturn(Mono.just(COUNT_OVER_LIMIT));
+        stubCount(COUNT_OVER_LIMIT);
 
         filter.filter(exchange, chain).block();
 
@@ -146,8 +153,8 @@ class RateLimitGlobalFilterTest {
     @DisplayName("filter：Redis 抛异常时降级放行，不阻断请求")
     void shouldPassThroughWhenRedisUnavailable() {
         MockServerWebExchange exchange = buildExchange();
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.increment(anyString())).thenReturn(Mono.error(new RuntimeException("redis down")));
+        when(redisTemplate.execute(any(RedisScript.class), anyList(), any(Object[].class)))
+                .thenReturn(Flux.error(new RuntimeException("redis down")));
         when(chain.filter(any())).thenReturn(Mono.empty());
 
         filter.filter(exchange, chain).block();
@@ -174,8 +181,7 @@ class RateLimitGlobalFilterTest {
     void shouldApplySpecializedRuleWhenReportPathMatched() {
         properties.setPathRules(List.of(pathRule(REPORT_RULE_PATTERN, REPORT_RULE_LIMIT)));
         MockServerWebExchange exchange = buildExchange(REPORT_URL);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.increment(anyString())).thenReturn(Mono.just(COUNT_OVER_REPORT_RULE));
+        stubCount(COUNT_OVER_REPORT_RULE);
 
         filter.filter(exchange, chain).block();
 
@@ -189,9 +195,7 @@ class RateLimitGlobalFilterTest {
     void shouldPassThroughWhenWithinSpecializedRuleLimit() {
         properties.setPathRules(List.of(pathRule(REPORT_RULE_PATTERN, REPORT_RULE_LIMIT)));
         MockServerWebExchange exchange = buildExchange(REPORT_URL);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.increment(anyString())).thenReturn(Mono.just(COUNT_WITHIN_REPORT_RULE));
-        when(redisTemplate.expire(anyString(), any(Duration.class))).thenReturn(Mono.just(Boolean.TRUE));
+        stubCount(COUNT_WITHIN_REPORT_RULE);
         when(chain.filter(any())).thenReturn(Mono.empty());
 
         filter.filter(exchange, chain).block();
@@ -207,8 +211,7 @@ class RateLimitGlobalFilterTest {
                 pathRule(BROAD_RULE_PATTERN, BROAD_RULE_LIMIT),
                 pathRule(REPORT_RULE_PATTERN, REPORT_RULE_LIMIT)));
         MockServerWebExchange exchange = buildExchange(REPORT_URL);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.increment(anyString())).thenReturn(Mono.just(COUNT_OVER_REPORT_RULE));
+        stubCount(COUNT_OVER_REPORT_RULE);
 
         filter.filter(exchange, chain).block();
 
@@ -222,8 +225,7 @@ class RateLimitGlobalFilterTest {
     void shouldFallBackToGlobalLimitWhenNoRuleMatched() {
         properties.setPathRules(List.of(pathRule(REPORT_RULE_PATTERN, REPORT_RULE_LIMIT)));
         MockServerWebExchange exchange = buildExchange();
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.increment(anyString())).thenReturn(Mono.just(COUNT_OVER_LIMIT));
+        stubCount(COUNT_OVER_LIMIT);
 
         filter.filter(exchange, chain).block();
 
@@ -231,14 +233,29 @@ class RateLimitGlobalFilterTest {
         assertTrue(captureKey().contains(":default:"), "未命中规则须使用 default 规则标识");
     }
 
+    @Test
+    @DisplayName("filter：窗口秒数为 0 时回落为 1 秒窗口，不抛除零异常")
+    void shouldNotDivideByZeroWhenWindowSecondsIsZero() {
+        properties.setWindowSeconds(0);
+        MockServerWebExchange exchange = buildExchange();
+        stubCount(COUNT_WITHIN_LIMIT);
+        when(chain.filter(any())).thenReturn(Mono.empty());
+
+        filter.filter(exchange, chain).block();
+
+        verify(chain).filter(any());
+        assertNull(exchange.getResponse().getStatusCode());
+    }
+
     /**
      * 捕获本次请求实际使用的 Redis 限流计数键
      *
      * @return 限流计数键
      */
+    @SuppressWarnings("unchecked")
     private String captureKey() {
-        ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
-        verify(valueOperations).increment(keyCaptor.capture());
-        return keyCaptor.getValue();
+        ArgumentCaptor<List<String>> keysCaptor = ArgumentCaptor.forClass(List.class);
+        verify(redisTemplate).execute(any(RedisScript.class), keysCaptor.capture(), any(Object[].class));
+        return keysCaptor.getValue().getFirst();
     }
 }

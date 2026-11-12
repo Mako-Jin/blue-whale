@@ -7,6 +7,7 @@ import com.bluewhale.gateway.security.TokenBlacklistChecker;
 import com.bluewhale.gateway.security.UserAccessRevocationChecker;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -67,6 +69,9 @@ class JwtAuthGlobalFilterTest {
     @Mock
     private UserAccessRevocationChecker userAccessRevocationChecker;
 
+    @Mock
+    private ObjectProvider<MeterRegistry> meterRegistryProvider;
+
     private JwtAuthGlobalFilter filter;
 
     @BeforeEach
@@ -74,7 +79,7 @@ class JwtAuthGlobalFilterTest {
         WhaleGatewayProperties properties = new WhaleGatewayProperties();
         properties.getJwt().setSecret(SECRET);
         filter = new JwtAuthGlobalFilter(properties, tokenBlacklistChecker, tenantStatusChecker,
-                membershipRevocationChecker, userAccessRevocationChecker);
+                membershipRevocationChecker, userAccessRevocationChecker, meterRegistryProvider);
         lenient().when(membershipRevocationChecker.isRevoked(anyString(), anyString(), any()))
                 .thenReturn(Mono.just(Boolean.FALSE));
         lenient().when(userAccessRevocationChecker.isRevoked(anyString(), any()))
@@ -203,7 +208,8 @@ class JwtAuthGlobalFilterTest {
         properties.getJwt().setSecret(SECRET);
         properties.setWhiteList(java.util.List.of("/auth/v1/login"));
         JwtAuthGlobalFilter whiteListFilter = new JwtAuthGlobalFilter(properties, tokenBlacklistChecker,
-                tenantStatusChecker, membershipRevocationChecker, userAccessRevocationChecker);
+                tenantStatusChecker, membershipRevocationChecker, userAccessRevocationChecker,
+                meterRegistryProvider);
         MockServerWebExchange exchange = MockServerWebExchange.from(MockServerHttpRequest
                 .post("http://localhost/auth/v1/login")
                 .header("X-Tenant-Id", "999")
@@ -277,7 +283,8 @@ class JwtAuthGlobalFilterTest {
         WhaleGatewayProperties otherProperties = new WhaleGatewayProperties();
         otherProperties.getJwt().setSecret("another-unit-test-secret-key-9876543210-abcdefgh");
         JwtAuthGlobalFilter otherFilter = new JwtAuthGlobalFilter(otherProperties, tokenBlacklistChecker,
-                tenantStatusChecker, membershipRevocationChecker, userAccessRevocationChecker);
+                tenantStatusChecker, membershipRevocationChecker, userAccessRevocationChecker,
+                meterRegistryProvider);
         MockServerWebExchange exchange = exchangeWithBearer(token("access"));
         GatewayFilterChain chain = mock(GatewayFilterChain.class);
 
