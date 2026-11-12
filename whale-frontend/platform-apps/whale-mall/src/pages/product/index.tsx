@@ -138,7 +138,7 @@ export default function ProductPage() {
         size: query.size,
       });
       setRows(page.records ?? []);
-      setTotal(page.total ?? 0);
+      setTotal(Number(page.total ?? 0));
     } catch (error) {
       message.error(errorText(error));
     } finally {

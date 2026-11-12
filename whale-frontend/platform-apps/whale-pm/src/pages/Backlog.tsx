@@ -64,7 +64,7 @@ export default function Backlog() {
     try {
       const result = await itemApi.page({ projectId, current, size, keyword, type, priority });
       setRecords(result.records);
-      setTotal(result.total);
+      setTotal(Number(result.total));
     } catch (error) {
       message.error((error as Error).message);
     } finally {

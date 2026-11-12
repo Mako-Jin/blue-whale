@@ -48,7 +48,7 @@ export default function ProjectList() {
     try {
       const result = await projectApi.page({ current, size, keyword, status });
       setRecords(result.records);
-      setTotal(result.total);
+      setTotal(Number(result.total));
     } catch (error) {
       message.error((error as Error).message);
     } finally {

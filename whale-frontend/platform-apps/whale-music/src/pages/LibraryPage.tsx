@@ -104,7 +104,10 @@ export default function LibraryPage() {
       rowKey="id"
       title="公开曲库"
       columns={columns}
-      request={pagePublicSongs}
+      request={async (params) => {
+        const result = await pagePublicSongs(params);
+        return result;
+      }}
       params={{ keyword, tagId, sortBy }}
       onError={(error) => message.error(error instanceof Error ? error.message : '曲库加载失败')}
       search={

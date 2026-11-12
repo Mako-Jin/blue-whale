@@ -134,7 +134,7 @@ export default function ProcessRouteCenter() {
     try {
       const page = await listProcessRoutes({ ...filters, current, size });
       setRows(page.records);
-      setTotal(page.total);
+      setTotal(Number(page.total));
     } finally {
       setLoading(false);
     }

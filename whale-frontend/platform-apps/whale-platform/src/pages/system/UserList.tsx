@@ -29,7 +29,7 @@ export default function UserList() {
         keyword: query.keyword || undefined,
       });
       setData(result.records);
-      setTotal(result.total);
+      setTotal(Number(result.total));
     } catch (error) {
       message.error(error instanceof Error ? error.message : '用户查询失败');
       setData([]);

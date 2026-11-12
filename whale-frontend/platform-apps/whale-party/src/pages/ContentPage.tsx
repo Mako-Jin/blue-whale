@@ -151,7 +151,7 @@ export default function ContentPage() {
         size: PAGE_SIZE,
       });
       setRows(page.records);
-      setTotal(page.total);
+      setTotal(Number(page.total));
     } catch (err) {
       message.error(err instanceof Error ? err.message : '党建内容加载失败');
     } finally {

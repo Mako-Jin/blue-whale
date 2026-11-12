@@ -17,12 +17,14 @@ export interface PageParams {
   size: number;
 }
 
-/** 后端统一分页响应体（与 whale-common PageResult 字段一致） */
+/** 后端统一分页响应体（与 whale-common PageResult 字段一致）
+ *  total/size/current 后端是 Long → 全局序列化为字符串（运行时真实类型），
+ *  ProTable 内部统一 Number() 强转后维护分页状态。 */
 export interface PageResult<T> {
   records: T[];
-  total: number;
-  size: number;
-  current: number;
+  total: string;
+  size: string;
+  current: string;
 }
 
 /** 命令式句柄：reload 保持当前页，reset 回到第一页 */

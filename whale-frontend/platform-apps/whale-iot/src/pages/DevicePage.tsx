@@ -192,15 +192,16 @@ export default function DevicePage() {
         rowKey="id"
         columns={columns}
         params={filters}
-        request={(query) =>
-          deviceApi.page({
+        request={async (query) => {
+          const result = await deviceApi.page({
             productId: query.productId,
             keyword: query.keyword,
             status: query.status,
             current: query.current,
             size: query.size,
-          })
-        }
+          });
+          return result;
+        }}
         search={
           <SearchForm
             items={[

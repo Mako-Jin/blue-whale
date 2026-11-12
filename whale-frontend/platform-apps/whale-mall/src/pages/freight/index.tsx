@@ -65,7 +65,7 @@ export default function FreightTemplatePage() {
         size: page.size,
       });
       setRows(result.records ?? []);
-      setTotal(result.total ?? 0);
+      setTotal(Number(result.total ?? 0));
     } catch (error) {
       message.error(errorText(error));
     } finally {

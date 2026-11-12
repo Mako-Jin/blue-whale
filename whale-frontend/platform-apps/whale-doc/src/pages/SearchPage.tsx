@@ -96,7 +96,7 @@ export default function SearchPage() {
           tagId: tag,
         });
         setItems(result.records);
-        setTotal(result.total);
+        setTotal(Number(result.total));
         setSearched(true);
       } catch (error) {
         message.error((error as Error).message);

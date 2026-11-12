@@ -56,7 +56,7 @@ export default function ActionPlanPage() {
     try {
       const result = await pageActionItems({ ...filters, ...page });
       setRows(result.records);
-      setTotal(result.total);
+      setTotal(Number(result.total));
     } catch (error) {
       message.error(errorText(error));
     } finally {

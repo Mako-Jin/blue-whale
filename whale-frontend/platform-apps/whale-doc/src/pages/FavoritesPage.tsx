@@ -41,7 +41,7 @@ export default function FavoritesPage() {
     try {
       const result = await starApi.page(current, PAGE_SIZE);
       setItems(result.records);
-      setTotal(result.total);
+      setTotal(Number(result.total));
     } catch (error) {
       message.error((error as Error).message);
     } finally {

@@ -205,7 +205,10 @@ export default function PlaylistListPage() {
         rowKey="id"
         title={mine ? '我的歌单' : '歌单广场'}
         columns={columns}
-        request={pagePlaylists}
+        request={async (params) => {
+          const result = await pagePlaylists(params);
+          return result;
+        }}
         params={{ keyword, mine: mine ? true : undefined }}
         onError={(error) => message.error(error instanceof Error ? error.message : '歌单加载失败')}
         search={

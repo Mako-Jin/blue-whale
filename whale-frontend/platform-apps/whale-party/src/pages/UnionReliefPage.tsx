@@ -135,7 +135,7 @@ export default function UnionReliefPage() {
         size: PAGE_SIZE,
       });
       setRows(page.records);
-      setTotal(page.total);
+      setTotal(Number(page.total));
     } catch (err) {
       message.error(err instanceof Error ? err.message : '慰问申请加载失败');
     } finally {

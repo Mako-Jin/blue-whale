@@ -86,7 +86,7 @@ export default function MemberPage() {
     try {
       const page = await pageMember({ keyword: keyword || undefined, status, current, size: PAGE_SIZE });
       setRows(page.records);
-      setTotal(page.total);
+      setTotal(Number(page.total));
     } catch (err) {
       message.error(err instanceof Error ? err.message : '党员列表加载失败');
     } finally {

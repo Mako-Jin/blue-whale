@@ -69,7 +69,13 @@ export default function TenantMemberList() {
               (item.phone ?? '').includes(kw),
           )
         : list;
-      return { records, total: records.length, current: params.current, size: params.size };
+      // 本地分页也与运行时对齐：total/size/current 为字符串
+      return {
+        records,
+        total: String(records.length),
+        current: String(params.current),
+        size: String(params.size),
+      };
     },
     [],
   );

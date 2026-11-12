@@ -143,7 +143,7 @@ export default function UnionProposalPage() {
         size: PAGE_SIZE,
       });
       setRows(page.records);
-      setTotal(page.total);
+      setTotal(Number(page.total));
     } catch (err) {
       message.error(err instanceof Error ? err.message : '提案列表加载失败');
     } finally {
@@ -156,7 +156,7 @@ export default function UnionProposalPage() {
     try {
       const page = await pageUnionProposalPortal({ current: myCurrent, size: PAGE_SIZE });
       setMyRows(page.records);
-      setMyTotal(page.total);
+      setMyTotal(Number(page.total));
     } catch (err) {
       message.error(err instanceof Error ? err.message : '我的提案加载失败');
     } finally {

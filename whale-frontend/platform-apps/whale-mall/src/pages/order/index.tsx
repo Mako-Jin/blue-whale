@@ -79,7 +79,7 @@ export default function OrderPage() {
           ? await pageMyOrders(query)
           : await pageOrders({ ...query, keyword: filter.keyword?.trim() || undefined });
       setRows(result.records ?? []);
-      setTotal(result.total ?? 0);
+      setTotal(Number(result.total ?? 0));
     } catch (error) {
       message.error(errorText(error));
     } finally {

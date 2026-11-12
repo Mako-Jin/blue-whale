@@ -514,7 +514,7 @@ export default function QuotePage() {
     try {
       const result = await pageQuotes({ ...filters, current: page.current, size: page.size });
       setRows(result.records);
-      setTotal(result.total);
+      setTotal(Number(result.total));
     } catch (error) {
       message.error(errorText(error));
     } finally {

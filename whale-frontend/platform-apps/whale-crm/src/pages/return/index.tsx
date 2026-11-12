@@ -485,7 +485,7 @@ export default function ReturnPage() {
     try {
       const result = await pageReturns({ ...filters, current: page.current, size: page.size });
       setRows(result.records);
-      setTotal(result.total);
+      setTotal(Number(result.total));
     } catch (error) {
       message.error(errorText(error));
     } finally {

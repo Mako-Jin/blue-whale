@@ -78,7 +78,7 @@ export default function DeliverableCenter() {
     try {
       const result = await pageDeliverables({ ...filters, current, size });
       setRows(result.records);
-      setTotal(result.total);
+      setTotal(Number(result.total));
     } catch (error) {
       message.error(error instanceof Error ? error.message : '交付物加载失败');
     } finally {

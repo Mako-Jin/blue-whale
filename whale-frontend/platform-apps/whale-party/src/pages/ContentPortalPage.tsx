@@ -40,7 +40,7 @@ export default function ContentPortalPage() {
         size: PAGE_SIZE,
       });
       setRows(page.records);
-      setTotal(page.total);
+      setTotal(Number(page.total));
     } catch (err) {
       message.error(err instanceof Error ? err.message : '党建园地加载失败');
     } finally {

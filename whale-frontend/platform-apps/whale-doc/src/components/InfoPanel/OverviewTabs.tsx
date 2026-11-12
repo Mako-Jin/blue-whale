@@ -240,7 +240,7 @@ export function ActivityTab({ page }: { page: DocPage }) {
     try {
       const result = await insightApi.activity(page.id, current, 20);
       setItems(result.records);
-      setTotal(result.total);
+      setTotal(Number(result.total));
     } catch (error) {
       message.error((error as Error).message);
     } finally {

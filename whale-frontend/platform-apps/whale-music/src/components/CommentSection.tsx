@@ -33,7 +33,7 @@ export default function CommentSection({ songId }: CommentSectionProps) {
       pageComments(songId, { current: page, size: PAGE_SIZE })
         .then((result) => {
           setComments(result.records);
-          setTotal(result.total);
+          setTotal(Number(result.total));
           setCurrent(page);
         })
         .catch((error) => message.error(error instanceof Error ? error.message : '评论加载失败'))

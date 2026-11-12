@@ -50,7 +50,7 @@ export default function SprintPage() {
     try {
       const result = await sprintApi.page({ projectId, current, size: 10, status });
       setRecords(result.records);
-      setTotal(result.total);
+      setTotal(Number(result.total));
     } catch (error) {
       message.error((error as Error).message);
     } finally {

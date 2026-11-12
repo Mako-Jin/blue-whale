@@ -63,7 +63,7 @@ export default function SpaceList() {
     try {
       const result = await spaceApi.page({ current, size: 12, keyword, scope });
       setSpaces(result.records);
-      setTotal(result.total);
+      setTotal(Number(result.total));
     } catch (error) {
       message.error((error as Error).message);
     } finally {

@@ -106,7 +106,7 @@ export default function TableDefinitionList() {
         status: query.status,
       });
       setRows(result.records as TableDefinitionRow[]);
-      setTotal(result.total);
+      setTotal(Number(result.total));
     } catch (e) {
       message.error((e as Error).message);
     } finally {

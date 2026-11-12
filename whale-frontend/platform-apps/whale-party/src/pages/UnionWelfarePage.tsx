@@ -143,7 +143,7 @@ export default function UnionWelfarePage() {
         size: PAGE_SIZE,
       });
       setRows(page.records);
-      setTotal(page.total);
+      setTotal(Number(page.total));
     } catch (err) {
       message.error(err instanceof Error ? err.message : '福利批次加载失败');
     } finally {
@@ -171,9 +171,9 @@ export default function UnionWelfarePage() {
         pageUnionWelfareItems(detailTarget.id, { signStatus: 'UNSIGNED', current: 1, size: 1 }),
       ]);
       setItems(page.records);
-      setItemsTotal(page.total);
-      setSignedTotal(signed.total);
-      setUnsignedTotal(unsigned.total);
+      setItemsTotal(Number(page.total));
+      setSignedTotal(Number(signed.total));
+      setUnsignedTotal(Number(unsigned.total));
     } catch (err) {
       message.error(err instanceof Error ? err.message : '福利明细加载失败');
     } finally {

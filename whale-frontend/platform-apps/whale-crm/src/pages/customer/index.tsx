@@ -352,7 +352,7 @@ export default function CustomerList() {
       .then((result) => {
         if (!cancelled) {
           setRows(result.records);
-          setTotal(result.total);
+          setTotal(Number(result.total));
         }
       })
       .catch((error: unknown) => {

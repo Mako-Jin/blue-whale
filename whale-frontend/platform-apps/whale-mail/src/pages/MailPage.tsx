@@ -173,7 +173,7 @@ export default function MailPage() {
       if (localDraftView) {
         const page = await pageDrafts({ current, size: PAGE_SIZE, accountId });
         setDrafts(page.records);
-        setDraftTotal(page.total);
+        setDraftTotal(Number(page.total));
         setRows([]);
         setTotal(0);
       } else {
@@ -187,7 +187,7 @@ export default function MailPage() {
           size: PAGE_SIZE,
         });
         setRows(page.records);
-        setTotal(page.total);
+        setTotal(Number(page.total));
         setDrafts([]);
       }
     } catch (err) {

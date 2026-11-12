@@ -68,7 +68,7 @@ export default function AfterSalePage() {
       const query = { status, keyword: keyword.trim() || undefined, current: page, size };
       const result = canList ? await pageAfterSaleAdmin(query) : await pageMyAfterSale(query);
       setRows(result.records ?? []);
-      setTotal(result.total ?? 0);
+      setTotal(Number(result.total ?? 0));
     } catch (error) {
       message.error(errorText(error));
     } finally {

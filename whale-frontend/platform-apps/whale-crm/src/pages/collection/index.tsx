@@ -465,7 +465,7 @@ export default function CollectionPage() {
     try {
       const result = await pageCollections({ ...filters, current: page.current, size: page.size });
       setRows(result.records);
-      setTotal(result.total);
+      setTotal(Number(result.total));
     } catch (error) {
       message.error(errorText(error));
     } finally {

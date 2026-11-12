@@ -140,7 +140,7 @@ export default function DocumentCenter() {
       };
       const page = await pageDocuments(query);
       setDocuments(page.records ?? []);
-      setTotal(page.total ?? 0);
+      setTotal(Number(page.total ?? 0));
     } catch (error) {
       showError(error);
     } finally {

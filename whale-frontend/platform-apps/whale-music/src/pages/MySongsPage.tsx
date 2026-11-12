@@ -272,7 +272,10 @@ export default function MySongsPage() {
         rowKey="id"
         title="我的作品"
         columns={columns}
-        request={pageMySongs}
+        request={async (params) => {
+          const result = await pageMySongs(params);
+          return result;
+        }}
         params={{ keyword, visibility }}
         onError={(error) => message.error(error instanceof Error ? error.message : '作品加载失败')}
         search={

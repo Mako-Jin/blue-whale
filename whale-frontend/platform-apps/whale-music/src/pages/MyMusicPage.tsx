@@ -35,7 +35,7 @@ export default function MyMusicPage() {
       pageMyLikes({ current: page, size: PAGE_SIZE })
         .then((result) => {
           setLikes(result.records);
-          setLikesTotal(result.total);
+          setLikesTotal(Number(result.total));
         })
         .catch((error) => message.error(error instanceof Error ? error.message : '收藏加载失败'))
         .finally(() => setLoading(false));
@@ -49,7 +49,7 @@ export default function MyMusicPage() {
       pagePlayHistory({ current: page, size: PAGE_SIZE })
         .then((result) => {
           setHistory(result.records);
-          setHistoryTotal(result.total);
+          setHistoryTotal(Number(result.total));
         })
         .catch((error) =>
           message.error(error instanceof Error ? error.message : '最近播放加载失败'),
@@ -65,7 +65,7 @@ export default function MyMusicPage() {
       pagePlaylists({ current: page, size: PAGE_SIZE, mine: true })
         .then((result) => {
           setPlaylists(result.records);
-          setPlaylistsTotal(result.total);
+          setPlaylistsTotal(Number(result.total));
         })
         .catch((error) => message.error(error instanceof Error ? error.message : '歌单加载失败'))
         .finally(() => setLoading(false));

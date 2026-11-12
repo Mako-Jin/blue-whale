@@ -69,9 +69,10 @@ export default function ComponentsDemo() {
     const start = (params.current - 1) * params.size;
     return {
       records: filtered.slice(start, start + params.size),
-      total: filtered.length,
-      size: params.size,
-      current: params.current,
+      // 本地分页也与运行时对齐：total/size/current 为字符串
+      total: String(filtered.length),
+      size: String(params.size),
+      current: String(params.current),
     };
   };
 

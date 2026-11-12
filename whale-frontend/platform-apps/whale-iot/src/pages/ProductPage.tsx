@@ -194,9 +194,15 @@ export default function ProductPage() {
         rowKey="id"
         columns={columns}
         params={filters}
-        request={(query) =>
-          productApi.page({ keyword: query.keyword, status: query.status, current: query.current, size: query.size })
-        }
+        request={async (query) => {
+          const result = await productApi.page({
+            keyword: query.keyword,
+            status: query.status,
+            current: query.current,
+            size: query.size,
+          });
+          return result;
+        }}
         search={
           <SearchForm
             items={[

@@ -246,9 +246,15 @@ export default function RulePage() {
         rowKey="id"
         columns={columns}
         params={filters}
-        request={(query) =>
-          ruleApi.page({ productId: query.productId, keyword: query.keyword, current: query.current, size: query.size })
-        }
+        request={async (query) => {
+          const result = await ruleApi.page({
+            productId: query.productId,
+            keyword: query.keyword,
+            current: query.current,
+            size: query.size,
+          });
+          return result;
+        }}
         search={
           <SearchForm
             items={[

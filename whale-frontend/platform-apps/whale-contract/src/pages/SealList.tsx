@@ -86,7 +86,7 @@ export default function SealList() {
     try {
       const result = await sealApi.page({ current, size, ...query });
       setRecords(result.records);
-      setTotal(result.total);
+      setTotal(Number(result.total));
     } catch (error) {
       message.error((error as Error).message);
     } finally {

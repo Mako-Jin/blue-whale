@@ -100,7 +100,7 @@ export default function InstanceList() {
       const result = await workflowApi.instancePage(query);
       const records = result.records ?? [];
       setRows(records);
-      setTotal(result.total ?? 0);
+      setTotal(Number(result.total ?? 0));
       void loadNodeNames(records);
     } catch (e) {
       message.error((e as Error).message);

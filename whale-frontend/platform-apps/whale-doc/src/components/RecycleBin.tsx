@@ -51,7 +51,7 @@ export default function RecycleBin({ spaceId, open, onClose, onChanged }: Recycl
       try {
         const result = await recycleApi.page(spaceId, pageNo, PAGE_SIZE);
         setRecords(result.records);
-        setTotal(result.total);
+        setTotal(Number(result.total));
         setCurrent(pageNo);
       } catch (error) {
         message.error((error as Error).message);

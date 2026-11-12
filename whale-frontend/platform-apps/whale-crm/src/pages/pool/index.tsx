@@ -228,7 +228,7 @@ export default function PoolList() {
       .then((result) => {
         if (!cancelled) {
           setRows(result.records);
-          setTotal(result.total);
+          setTotal(Number(result.total));
         }
       })
       .catch((error: unknown) => {

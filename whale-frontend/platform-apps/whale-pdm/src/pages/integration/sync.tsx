@@ -45,7 +45,7 @@ export default function SyncCenter() {
     try {
       const page = await pageSyncLogs({ current, size, channel, status, bizNo: bizNo || undefined });
       setLogs(page.records);
-      setTotal(page.total);
+      setTotal(Number(page.total));
     } catch (error) {
       message.error(error instanceof Error ? error.message : '同步日志加载失败');
     } finally {

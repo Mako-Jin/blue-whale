@@ -56,7 +56,7 @@ export default function VersionTab({
     try {
       const result = await versionApi.page(page.id, current, 10);
       setVersions(result.records);
-      setTotal(result.total);
+      setTotal(Number(result.total));
     } catch (error) {
       message.error((error as Error).message);
     } finally {

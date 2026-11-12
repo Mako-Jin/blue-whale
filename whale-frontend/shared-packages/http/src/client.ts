@@ -12,12 +12,14 @@ export interface Result<T = unknown> {
   data: T;
 }
 
-/** 后端统一分页响应体（与 whale-common PageResult 字段一致） */
+/** 后端统一分页响应体（与 whale-common PageResult 字段一致）
+ *  total/size/current 后端是 Long → 全局序列化为字符串（雪花 ID 同口径），
+ *  展示/计算时用 Number() 转换；ProTable 已在收口处统一强转。 */
 export interface PageResult<T> {
   records: T[];
-  total: number;
-  size: number;
-  current: number;
+  total: string;
+  size: string;
+  current: string;
 }
 
 export class ApiError extends Error {

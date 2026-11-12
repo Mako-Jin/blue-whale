@@ -109,7 +109,7 @@ export default function ChangeCenter() {
     try {
       const page = await pageChgRequests({ current, size, ...filters });
       setRows(page.records);
-      setTotal(page.total);
+      setTotal(Number(page.total));
     } finally {
       setLoading(false);
     }

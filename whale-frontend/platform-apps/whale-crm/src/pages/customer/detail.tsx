@@ -515,7 +515,7 @@ export default function CustomerDetail() {
       .then((result) => {
         if (!cancelled) {
           setFollowUps(result.records);
-          setFollowTotal(result.total);
+          setFollowTotal(Number(result.total));
         }
       })
       .catch((error: unknown) => {

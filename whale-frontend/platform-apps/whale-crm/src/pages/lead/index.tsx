@@ -558,7 +558,7 @@ function LeadActivityDrawer({ lead, onClose, onChanged }: LeadActivityDrawerProp
     try {
       const result = await pageLeadActivities(lead.id, current, size);
       setRows(result.records);
-      setTotal(result.total);
+      setTotal(Number(result.total));
     } catch (error) {
       message.error(errorText(error));
     } finally {
@@ -718,7 +718,7 @@ export default function LeadList() {
     try {
       const result = await pageLeads({ ...filters, current: page.current, size: page.size });
       setRows(result.records);
-      setTotal(result.total);
+      setTotal(Number(result.total));
     } catch (error) {
       message.error(errorText(error));
     } finally {

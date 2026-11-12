@@ -571,9 +571,9 @@ export function acceptDeclaration(version: string, contentSource: ContentSource)
 /** 我的短视频分页（含草稿与私密） */
 export function fetchMyShorts(query?: PageQuery): Promise<{
   records: OwnerContentView[];
-  total: number;
-  current: number;
-  size: number;
+  total: string;
+  current: string;
+  size: string;
 }> {
   return http.get('/video/my/shorts', { ...query });
 }
@@ -581,9 +581,9 @@ export function fetchMyShorts(query?: PageQuery): Promise<{
 /** 我的视频分页（含草稿与私密） */
 export function fetchMyVideos(query?: PageQuery): Promise<{
   records: OwnerContentView[];
-  total: number;
-  current: number;
-  size: number;
+  total: string;
+  current: string;
+  size: string;
 }> {
   return http.get('/video/my/videos', { ...query });
 }

@@ -379,7 +379,7 @@ function SnapshotPanel() {
     try {
       const result = await pageSnapshots({ ...page });
       setRows(result.records);
-      setTotal(result.total);
+      setTotal(Number(result.total));
     } catch (error) {
       message.error(errorText(error));
     } finally {

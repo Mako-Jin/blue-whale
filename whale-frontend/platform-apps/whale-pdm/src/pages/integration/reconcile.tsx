@@ -43,7 +43,7 @@ export default function ReconcileCenter() {
     try {
       const page = await pageReconcile({ current, size, channel, matchStatus });
       setRows(page.records);
-      setTotal(page.total);
+      setTotal(Number(page.total));
     } catch (error) {
       message.error(error instanceof Error ? error.message : '对账结果加载失败');
     } finally {

@@ -73,7 +73,7 @@ export default function FormList() {
     try {
       const result = await formApi.page({ current, size, ...query });
       setRows(result.records as FormRow[]);
-      setTotal(result.total);
+      setTotal(Number(result.total));
     } catch (e) {
       message.error((e as Error).message);
     } finally {

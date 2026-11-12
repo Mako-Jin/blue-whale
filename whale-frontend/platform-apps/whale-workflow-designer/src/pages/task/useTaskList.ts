@@ -65,7 +65,7 @@ export function useTaskList(): TaskListController {
       });
       const records = result.records ?? [];
       setDataSource(records);
-      setTotal(result.total ?? 0);
+      setTotal(Number(result.total ?? 0));
       await loadInstanceBriefs(records);
     } catch (e) {
       message.error((e as Error).message);

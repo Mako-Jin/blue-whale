@@ -115,7 +115,7 @@ export function useDefinitionList(): DefinitionListController {
         name: query.name,
       });
       setRows(result.records ?? []);
-      setTotal(result.total ?? 0);
+      setTotal(Number(result.total ?? 0));
     } catch (e) {
       message.error((e as Error).message);
     } finally {

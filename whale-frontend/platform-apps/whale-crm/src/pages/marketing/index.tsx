@@ -125,7 +125,7 @@ function CampaignPanel() {
     try {
       const result = await pageCampaigns({ ...filters, ...page });
       setRows(result.records);
-      setTotal(result.total);
+      setTotal(Number(result.total));
     } catch (error) {
       message.error(errorText(error));
     } finally {
@@ -484,7 +484,7 @@ function NurturePanel() {
     try {
       const result = await pageNurture({ ...filters, ...page });
       setRows(result.records);
-      setTotal(result.total);
+      setTotal(Number(result.total));
     } catch (error) {
       message.error(errorText(error));
     } finally {
@@ -661,7 +661,7 @@ function SendPanel() {
     try {
       const result = await pageSends({ ...filters, ...page });
       setRows(result.records);
-      setTotal(result.total);
+      setTotal(Number(result.total));
     } catch (error) {
       message.error(errorText(error));
     } finally {
@@ -877,7 +877,7 @@ function PartnerPanel() {
     try {
       const result = await pagePartners({ ...filters, ...page });
       setRows(result.records);
-      setTotal(result.total);
+      setTotal(Number(result.total));
     } catch (error) {
       message.error(errorText(error));
     } finally {
@@ -890,7 +890,7 @@ function PartnerPanel() {
     try {
       const result = await pagePartnerReports(reportPage);
       setReports(result.records);
-      setReportTotal(result.total);
+      setReportTotal(Number(result.total));
     } catch (error) {
       message.error(errorText(error));
     } finally {

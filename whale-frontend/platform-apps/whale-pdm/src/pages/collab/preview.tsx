@@ -71,7 +71,7 @@ export default function PreviewCenter() {
     try {
       const result = await pagePreviewJobs({ current, size, documentId, versionId });
       setJobs(result.records);
-      setTotal(result.total);
+      setTotal(Number(result.total));
     } catch (error) {
       message.error(error instanceof Error ? error.message : '预览任务加载失败');
     } finally {

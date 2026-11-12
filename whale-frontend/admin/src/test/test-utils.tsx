@@ -4,12 +4,12 @@ import { render, type RenderOptions } from '@testing-library/react';
 import { PermissionProvider } from '@bluewhale/whale-ui';
 import type { ReactElement } from 'react';
 
-/** 与 @bluewhale/http PageResult 字段一致（测试内联，避免牵出真实 HTTP 客户端） */
+/** 与 @bluewhale/http PageResult 字段一致（后端 Long→String 序列化，测试内联，避免牵出真实 HTTP 客户端） */
 interface PageResult<T> {
   records: T[];
-  total: number;
-  size: number;
-  current: number;
+  total: string;
+  size: string;
+  current: string;
 }
 
 /** 渲染页面组件：包 App（message 上下文）+ PermissionProvider（按钮级权限） */
@@ -24,7 +24,7 @@ export function renderPage(ui: ReactElement, permissions: string[] = [], options
 
 /** 构造 ProTable.request 的分页返回体 */
 export function pageResult<T>(records: T[]): PageResult<T> {
-  return { records, total: records.length, size: 10, current: 1 };
+  return { records, total: String(records.length), size: '10', current: '1' };
 }
 
 /** 音乐运营模块权限码全集 */

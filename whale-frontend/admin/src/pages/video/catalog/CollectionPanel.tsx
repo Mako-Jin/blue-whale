@@ -227,7 +227,7 @@ export default function CollectionPanel() {
         size: PICKER_PAGE_SIZE,
       });
       setPickerMovies(result.records ?? []);
-      setPickerTotal(result.total ?? 0);
+      setPickerTotal(Number(result.total ?? 0));
     } catch (error) {
       message.error(error instanceof Error ? error.message : '电影加载失败');
     } finally {

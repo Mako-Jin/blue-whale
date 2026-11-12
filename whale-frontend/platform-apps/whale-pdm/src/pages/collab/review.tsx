@@ -92,7 +92,7 @@ export default function ReviewCenter() {
     try {
       const result = await pageReviews({ ...filters, current, size });
       setRows(result.records);
-      setTotal(result.total);
+      setTotal(Number(result.total));
     } catch (error) {
       message.error(error instanceof Error ? error.message : '评审加载失败');
     } finally {

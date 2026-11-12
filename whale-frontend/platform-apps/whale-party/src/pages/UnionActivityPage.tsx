@@ -132,7 +132,7 @@ export default function UnionActivityPage() {
         size: PAGE_SIZE,
       });
       setRows(page.records);
-      setTotal(page.total);
+      setTotal(Number(page.total));
     } catch (err) {
       message.error(err instanceof Error ? err.message : '工会活动加载失败');
     } finally {
@@ -149,7 +149,7 @@ export default function UnionActivityPage() {
         size: PAGE_SIZE,
       });
       setPortalRows(page.records);
-      setPortalTotal(page.total);
+      setPortalTotal(Number(page.total));
     } catch (err) {
       message.error(err instanceof Error ? err.message : '活动园地加载失败');
     } finally {
@@ -168,7 +168,7 @@ export default function UnionActivityPage() {
         size: PAGE_SIZE,
       });
       setSignups(page.records);
-      setSignupTotal(page.total);
+      setSignupTotal(Number(page.total));
     } catch (err) {
       message.error(err instanceof Error ? err.message : '报名名单加载失败');
     } finally {
@@ -181,7 +181,7 @@ export default function UnionActivityPage() {
     try {
       const page = await pageMyUnionActivities({ current: myCurrent, size: PAGE_SIZE });
       setMyRows(page.records);
-      setMyTotal(page.total);
+      setMyTotal(Number(page.total));
     } catch (err) {
       message.error(err instanceof Error ? err.message : '我的报名加载失败');
     } finally {

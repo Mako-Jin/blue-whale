@@ -49,21 +49,21 @@ const takedownSong: SongView = {
 function renderPage(songs: SongView[]) {
   vi.mocked(pageMySongs).mockResolvedValue({
     records: songs,
-    total: songs.length,
-    size: 10,
-    current: 1,
+    total: String(songs.length),
+    size: '10',
+    current: '1',
   });
   vi.mocked(pageArtists).mockResolvedValue({
     records: [{ id: 1, name: '周杰伦' }],
-    total: 1,
-    size: 200,
-    current: 1,
+    total: '1',
+    size: '200',
+    current: '1',
   });
   vi.mocked(pageAlbums).mockResolvedValue({
     records: [],
-    total: 0,
-    size: 200,
-    current: 1,
+    total: '0',
+    size: '200',
+    current: '1',
   });
   vi.mocked(listTags).mockResolvedValue([]);
   return render(

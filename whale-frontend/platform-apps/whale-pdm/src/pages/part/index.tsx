@@ -135,7 +135,7 @@ export default function PartLibrary() {
     try {
       const page = await listParts({ current, size, categoryCode, ...filters });
       setRows(page.records);
-      setTotal(page.total);
+      setTotal(Number(page.total));
     } finally {
       setLoading(false);
     }

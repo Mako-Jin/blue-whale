@@ -179,7 +179,7 @@ export default function ChangeOrderCenter() {
     try {
       const page = await pageChgOrders({ current, size, ...filters });
       setRows(page.records);
-      setTotal(page.total);
+      setTotal(Number(page.total));
     } finally {
       setLoading(false);
     }

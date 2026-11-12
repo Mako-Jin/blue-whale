@@ -174,7 +174,7 @@ export default function SatisfactionPage() {
         getSurveyStats(),
       ]);
       setRows(result.records);
-      setTotal(result.total);
+      setTotal(Number(result.total));
       setStats(statsView);
     } catch (error) {
       message.error(errorText(error));

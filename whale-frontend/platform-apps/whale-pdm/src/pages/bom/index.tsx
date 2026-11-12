@@ -63,7 +63,7 @@ export default function BomLibrary() {
     try {
       const page = await listBoms({ current, size, ...filters });
       setRows(page.records);
-      setTotal(page.total);
+      setTotal(Number(page.total));
     } finally {
       setLoading(false);
     }

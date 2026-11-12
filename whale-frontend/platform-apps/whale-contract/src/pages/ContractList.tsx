@@ -70,7 +70,7 @@ export default function ContractList() {
     try {
       const result = await contractApi.page({ current, size, ...query });
       setRecords(result.records);
-      setTotal(result.total);
+      setTotal(Number(result.total));
     } catch (error) {
       message.error((error as Error).message);
     } finally {
