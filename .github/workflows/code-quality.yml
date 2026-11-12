@@ -209,6 +209,21 @@ jobs:
       - name: API Path Drift Scan
         run: python3 scripts/check-api-path-drift.py
 
+  long-id-typing:
+    name: Full-stack · 雪花 ID 前端类型
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 后端雪花 ID 是 Long，前端 number 只有 53 位安全整数：超过 2^53 静默丢精度，
+      # 不报错、不告警，只是查不到/改错对象。全站口径是 Long 一律 string。
+      # 本门禁拿各应用已生成的 openapi 契约反向校准手写 api 层：契约里是 string 的
+      # 复合 ID 字段（userId/tenantId/entityId…）不得被改回 number（含 number | string）。
+      - name: Long ID Typing Scan
+        run: python3 scripts/check-long-id-typing.py
+
   ai-pytest:
     name: AI · Python 3.12 + pytest
     runs-on: ubuntu-latest

@@ -18,7 +18,7 @@ const USER_STORAGE_KEY = PLATFORM_USER_KEY;
 
 /** 基座缓存的当前用户（仅取权限判定所需字段） */
 export interface PortalUser {
-  userId?: number | string;
+  userId?: string;
   username?: string;
   nickname?: string;
   roles?: string[];

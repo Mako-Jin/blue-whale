@@ -21,7 +21,8 @@ export interface AlertRecord {
 /** 后端分页结果信封 */
 interface PageResult<T> {
   records: T[];
-  total: number;
+  /** 后端 PageResult.total 为字符串（全局 Long→String 口径） */
+  total: string;
 }
 
 /** IM 会话中的最后一条消息摘要（字段对齐 backend MessageVO） */
@@ -52,7 +53,7 @@ export async function pageAlertRecords(
   const page = await http.get<PageResult<AlertRecord>>(
     `/alert/record/page${query ? `?${query}` : ''}`,
   );
-  return { records: page?.records ?? [], total: page?.total ?? 0 };
+  return { records: page?.records ?? [], total: page?.total ?? '0' };
 }
 
 /** 查询当前用户 IM 会话列表（含未读数与最后一条消息） */

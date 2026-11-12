@@ -78,7 +78,7 @@ export default function Dashboard() {
     } else if (hasPermission('sys:alert:record:list')) {
       tasks.push(
         pageAlertRecords({ pageSize: 1, status: 'FIRING' })
-          .then((page) => setUnreadTotal(page.total))
+          .then((page) => setUnreadTotal(Number(page.total) || 0))
           .catch(() => setUnreadTotal(UNAVAILABLE)),
       );
     } else {

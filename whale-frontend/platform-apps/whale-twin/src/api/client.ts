@@ -11,7 +11,7 @@ const USER_STORAGE_KEY = PLATFORM_USER_KEY;
 
 /** 基座缓存的当前用户 */
 export interface TwinUser {
-  userId?: number | string;
+  userId?: string;
   username?: string;
   nickname?: string;
   permissions?: string[];
