@@ -2,8 +2,8 @@ package com.bluewhale.auth.infrastructure.persistence.assembler;
 
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
 import com.bluewhale.auth.domain.model.vo.Username;
-import com.bluewhale.auth.domain.user.aggregate.User;
-import com.bluewhale.auth.domain.user.entity.UserRoleAssignment;
+import com.bluewhale.auth.domain.aggregate.UserAggregate;
+import com.bluewhale.auth.domain.model.entity.UserRoleAssignment;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysUser;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysUserRole;
 
@@ -31,9 +31,9 @@ public final class UserPersistenceAssembler {
      * @param po 用户持久化对象
      * @return 用户聚合根
      */
-    public static User toDomain(SysUser po) {
-        int status = po.getStatus() == null ? User.STATUS_DISABLED : po.getStatus();
-        return User.reconstitute(
+    public static UserAggregate toDomain(SysUser po) {
+        int status = po.getStatus() == null ? UserAggregate.STATUS_DISABLED : po.getStatus();
+        return UserAggregate.reconstitute(
                 po.getId(),
                 po.getTenantId(),
                 Username.of(po.getUsername()),
@@ -57,7 +57,7 @@ public final class UserPersistenceAssembler {
      * @param user 用户聚合根
      * @return 用户持久化对象
      */
-    public static SysUser toPo(User user) {
+    public static SysUser toPo(UserAggregate user) {
         SysUser po = new SysUser();
         po.setId(user.getId());
         po.setTenantId(user.getTenantId());

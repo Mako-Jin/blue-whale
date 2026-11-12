@@ -2,6 +2,9 @@ package com.bluewhale.auth.application.service.impl;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.StreamReadConstraints;
+import tools.jackson.core.json.JsonFactory;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.util.regex.Pattern;
@@ -30,8 +33,16 @@ public final class ConfigKeyValidator {
     /** 前缀过滤参数口径：小写段与点号，允许空 */
     private static final Pattern PREFIX_PATTERN = Pattern.compile("^[a-z0-9.-]*$");
 
-    /** Jackson 3 JSON 解析器（仅用于校验值合法性，不持有状态） */
-    private static final JsonMapper JSON_MAPPER = JsonMapper.builder().build();
+    /** 配置值 JSON 嵌套深度上限（配置值均为浅层结构，收紧默认值防解析资源耗尽） */
+    private static final int MAX_NESTING_DEPTH = 64;
+
+    /** Jackson 3 JSON 解析器（仅用于校验值合法性，不持有状态；读约束限制嵌套深度） */
+    private static final JsonMapper JSON_MAPPER = JsonMapper.builder(
+            JsonFactory.builder()
+                    .streamReadConstraints(StreamReadConstraints.builder()
+                            .maxNestingDepth(MAX_NESTING_DEPTH)
+                            .build())
+                    .build()).build();
 
     /**
      * 私有构造器：工具类，禁止实例化
@@ -83,7 +94,7 @@ public final class ConfigKeyValidator {
         }
         try {
             JSON_MAPPER.readTree(configValue);
-        } catch (RuntimeException e) {
+        } catch (JacksonException e) {
             throw new BizException(ErrorCode.PARAM_ERROR, "配置值必须是合法 JSON: " + e.getMessage());
         }
     }

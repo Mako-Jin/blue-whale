@@ -2,8 +2,8 @@ package com.bluewhale.auth.infrastructure.mail;
 
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.UserDomainEvent;
-import com.bluewhale.auth.domain.user.aggregate.User;
-import com.bluewhale.auth.domain.user.repository.UserRepository;
+import com.bluewhale.auth.domain.aggregate.UserAggregate;
+import com.bluewhale.auth.domain.repository.UserRepository;
 import com.bluewhale.common.tenant.TenantContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -89,7 +89,7 @@ public class MailProvisionListener {
             if (tenantId != null) {
                 TenantContext.set(tenantId);
             }
-            User user = userRepository.findByIdAcrossTenants(userId).orElse(null);
+            UserAggregate user = userRepository.findByIdAcrossTenants(userId).orElse(null);
             if (user == null) {
                 log.warn("邮箱代开跳过：用户不存在或已删除, userId={}", userId);
                 return;

@@ -1,20 +1,10 @@
 package com.bluewhale.auth.application.service;
 
 import com.bluewhale.auth.application.model.vo.UserDirectoryVO;
-import com.bluewhale.auth.domain.dept.aggregate.Dept;
-import com.bluewhale.auth.domain.dept.repository.DeptRepository;
-import com.bluewhale.auth.domain.user.aggregate.User;
-import com.bluewhale.auth.domain.user.repository.UserRepository;
 import com.bluewhale.common.core.result.PageResult;
-import org.springframework.util.StringUtils;
 
 import java.util.Collection;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * 用户目录应用服务：面向服务间调用的「用户存在且启用」批量判定、内网通讯录与按角色查用户。

@@ -1,8 +1,8 @@
 package com.bluewhale.auth.infrastructure.security;
 
 import com.bluewhale.auth.domain.role.repository.RoleRepository;
-import com.bluewhale.auth.domain.user.aggregate.User;
-import com.bluewhale.auth.domain.user.repository.UserRepository;
+import com.bluewhale.auth.domain.aggregate.UserAggregate;
+import com.bluewhale.auth.domain.repository.UserRepository;
 import com.bluewhale.common.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -34,7 +34,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         if (tenantId == null) {
             throw new UsernameNotFoundException("缺少租户上下文: " + username);
         }
-        User user = userRepository.findByTenantIdAndUsername(tenantId, username)
+        UserAggregate user = userRepository.findByTenantIdAndUsername(tenantId, username)
                 .orElseThrow(() -> new UsernameNotFoundException("用户不存在: " + username));
         // 角色必须按登录租户解析（Phase 5.1 起角色仓储要求租户上下文）
         Long previous = TenantContext.get();
@@ -65,7 +65,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         if (userId == null || tenantId == null) {
             throw new UsernameNotFoundException("缺少用户或租户标识");
         }
-        User user = userRepository.findByIdAcrossTenants(userId)
+        UserAggregate user = userRepository.findByIdAcrossTenants(userId)
                 .orElseThrow(() -> new UsernameNotFoundException("用户不存在: " + userId));
         Long previous = TenantContext.get();
         TenantContext.set(tenantId);

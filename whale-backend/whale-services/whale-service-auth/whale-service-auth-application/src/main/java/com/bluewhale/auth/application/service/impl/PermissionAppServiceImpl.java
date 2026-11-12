@@ -14,6 +14,7 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -91,6 +92,7 @@ public class PermissionAppServiceImpl implements PermissionAppService {
      * @param command 权限点新增命令
      * @throws BizException 权限码格式非法或已存在时抛出 {@link ErrorCode#PARAM_ERROR}
      */
+    @Transactional(rollbackFor = Exception.class)
     public void create(SavePermissionCommand command) {
         PermCode permCode = PermCode.of(command.permCode());
         if (permissionRepository.existsByPermCode(permCode.value(), null)) {
@@ -109,6 +111,7 @@ public class PermissionAppServiceImpl implements PermissionAppService {
      * @param command 权限点更新命令
      * @throws BizException 权限点不存在时抛出 {@link ErrorCode#NOT_FOUND}；权限码已存在时抛出 {@link ErrorCode#PARAM_ERROR}
      */
+    @Transactional(rollbackFor = Exception.class)
     public void update(Long id, SavePermissionCommand command) {
         Permission permission = permissionRepository.findById(id)
                 .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
@@ -129,6 +132,7 @@ public class PermissionAppServiceImpl implements PermissionAppService {
      * @param id 权限点 ID
      * @throws BizException 存在子权限时抛出 {@link ErrorCode#PARAM_ERROR}
      */
+    @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
         if (permissionRepository.countChildren(id) > 0) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "存在子权限，不允许删除");

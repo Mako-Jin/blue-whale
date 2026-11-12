@@ -49,13 +49,15 @@ public class LoginLockServiceImpl implements LoginLockService {
     /**
      * 记录一次凭据校验失败，并在此次失败导致锁定时直接抛出锁定异常
      *
+     * <p>计数写入与锁定判定由存储端基于同次自增结果原子完成，不存在计数与判定
+     * 两次往返之间的竞态窗口。</p>
+     *
      * @param tenantId 租户 ID
      * @param username 用户名
      * @throws BizException 本次失败已触达上限时抛出（业务码 {@value #LOCKED_CODE}）
      */
     public void recordFailure(Long tenantId, String username) {
-        loginAttemptStore.recordFailure(tenantId, username);
-        long remainingSeconds = loginAttemptStore.lockRemainingSeconds(tenantId, username);
+        long remainingSeconds = loginAttemptStore.recordFailureAndCheckLocked(tenantId, username);
         if (remainingSeconds > 0L) {
             throw locked(remainingSeconds);
         }

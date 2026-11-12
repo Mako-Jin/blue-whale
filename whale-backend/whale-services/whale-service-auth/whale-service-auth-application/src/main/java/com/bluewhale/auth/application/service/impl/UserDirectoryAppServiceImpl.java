@@ -4,14 +4,17 @@ import com.bluewhale.auth.application.model.vo.UserDirectoryVO;
 import com.bluewhale.auth.application.service.UserDirectoryAppService;
 import com.bluewhale.auth.domain.dept.aggregate.Dept;
 import com.bluewhale.auth.domain.dept.repository.DeptRepository;
-import com.bluewhale.auth.domain.user.aggregate.User;
-import com.bluewhale.auth.domain.user.repository.UserRepository;
+import com.bluewhale.auth.domain.aggregate.UserAggregate;
+import com.bluewhale.auth.domain.repository.UserRepository;
 import com.bluewhale.common.core.result.PageResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayDeque;
 import java.util.Collection;
+import java.util.Deque;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -84,8 +87,8 @@ public class UserDirectoryAppServiceImpl implements UserDirectoryAppService {
     /**
      * 计算部门筛选范围。
      *
-     * <p>{@code includeChildren} 时按部门表的 {@code parentId} 逐层展开（反复扫描直到不再新增，
-     * 不依赖返回顺序与层级深度）；数据异常成环时也能收敛，因为只加入未见过的 ID。</p>
+     * <p>{@code includeChildren} 时按部门表的 {@code parentId} 建父子索引后 BFS 逐层展开
+     * （单次遍历，O(n)），不依赖返回顺序与层级深度；数据异常成环时也能收敛，因为只加入未见过的 ID。</p>
      *
      * @param deptId 部门 ID（可空）
      * @param includeChildren 是否包含子部门
@@ -99,20 +102,28 @@ public class UserDirectoryAppServiceImpl implements UserDirectoryAppService {
             return List.of(deptId);
         }
         List<Dept> all = deptRepository.findAll();
-        boolean exists = all.stream().anyMatch(dept -> deptId.equals(dept.getId()));
+        Map<Long, List<Long>> childrenByParent = new HashMap<>();
+        boolean exists = false;
+        for (Dept dept : all) {
+            if (deptId.equals(dept.getId())) {
+                exists = true;
+            }
+            childrenByParent.computeIfAbsent(dept.getParentId(), key -> new java.util.ArrayList<>())
+                    .add(dept.getId());
+        }
         if (!exists) {
             // 部门已被删除或不在本租户：明确「查不到人」，别退化成「不过滤部门」
             return List.of();
         }
+        // BFS 逐层展开子部门（成环时因 scope 去重自动收敛）
         Set<Long> scope = new LinkedHashSet<>();
         scope.add(deptId);
-        boolean grown = true;
-        while (grown) {
-            grown = false;
-            for (Dept dept : all) {
-                if (dept.getParentId() != null && scope.contains(dept.getParentId())
-                        && scope.add(dept.getId())) {
-                    grown = true;
+        Deque<Long> queue = new ArrayDeque<>();
+        queue.add(deptId);
+        while (!queue.isEmpty()) {
+            for (Long childId : childrenByParent.getOrDefault(queue.poll(), List.of())) {
+                if (scope.add(childId)) {
+                    queue.add(childId);
                 }
             }
         }
@@ -138,12 +149,12 @@ public class UserDirectoryAppServiceImpl implements UserDirectoryAppService {
      * @param users 用户聚合列表
      * @return 通讯录视图对象列表
      */
-    private List<UserDirectoryVO> toViewObjects(List<User> users) {
+    private List<UserDirectoryVO> toViewObjects(List<UserAggregate> users) {
         if (users.isEmpty()) {
             return List.of();
         }
         Set<Long> deptIds = users.stream()
-                .map(User::getDeptId)
+                .map(UserAggregate::getDeptId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         Map<Long, String> deptNames = deptNameMap(deptIds);

@@ -6,8 +6,8 @@ import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
 import com.bluewhale.auth.domain.model.vo.Username;
-import com.bluewhale.auth.domain.user.aggregate.User;
-import com.bluewhale.auth.domain.user.repository.UserRepository;
+import com.bluewhale.auth.domain.aggregate.UserAggregate;
+import com.bluewhale.auth.domain.repository.UserRepository;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysUser;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysUserRole;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysUserMapper;
@@ -95,7 +95,7 @@ class UserRepositoryImplTest {
     void shouldFindById() {
         when(userMapper.selectOne(any())).thenReturn(po());
 
-        Optional<User> result = repository.findById(USER_ID);
+        Optional<UserAggregate> result = repository.findById(USER_ID);
 
         assertTrue(result.isPresent());
         assertEquals("bob_02", result.get().getUsername().value());
@@ -144,7 +144,7 @@ class UserRepositoryImplTest {
     @Test
     @DisplayName("save：无 ID 走新增")
     void shouldInsertWhenIdAbsent() {
-        repository.save(User.create(1L, Username.of("bob_02"), EncryptedPassword.of(CIPHER),
+        repository.save(UserAggregate.create(1L, Username.of("bob_02"), EncryptedPassword.of(CIPHER),
                 "Bob", null, null, null, 1));
 
         verify(userMapper).insert(any(SysUser.class));
@@ -154,7 +154,7 @@ class UserRepositoryImplTest {
     @Test
     @DisplayName("save：有 ID 走按主键更新")
     void shouldUpdateWhenIdPresent() {
-        repository.save(User.reconstitute(USER_ID, 1L, Username.of("bob_02"), EncryptedPassword.of(CIPHER),
+        repository.save(UserAggregate.reconstitute(USER_ID, 1L, Username.of("bob_02"), EncryptedPassword.of(CIPHER),
                 "Bob", null, null, null, 1, null, null));
 
         verify(userMapper).updateById(any(SysUser.class));

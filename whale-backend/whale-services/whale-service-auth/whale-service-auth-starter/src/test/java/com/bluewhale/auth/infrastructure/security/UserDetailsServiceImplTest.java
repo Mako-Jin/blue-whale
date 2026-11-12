@@ -3,8 +3,8 @@ package com.bluewhale.auth.infrastructure.security;
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
 import com.bluewhale.auth.domain.model.vo.Username;
 import com.bluewhale.auth.domain.role.repository.RoleRepository;
-import com.bluewhale.auth.domain.user.aggregate.User;
-import com.bluewhale.auth.domain.user.repository.UserRepository;
+import com.bluewhale.auth.domain.aggregate.UserAggregate;
+import com.bluewhale.auth.domain.repository.UserRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -56,8 +56,8 @@ class UserDetailsServiceImplTest {
         LoginTenantContext.clear();
     }
 
-    private static User user(Integer status) {
-        return User.reconstitute(USER_ID, TENANT_ID, Username.of("tester"), EncryptedPassword.of("$2a$cipher"),
+    private static UserAggregate user(Integer status) {
+        return UserAggregate.reconstitute(USER_ID, TENANT_ID, Username.of("tester"), EncryptedPassword.of("$2a$cipher"),
                 "T", null, null, null, status, null, null);
     }
 

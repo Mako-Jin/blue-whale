@@ -2,9 +2,9 @@ package com.bluewhale.auth.infrastructure.persistence.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.bluewhale.auth.domain.user.aggregate.User;
-import com.bluewhale.auth.domain.user.entity.UserRoleAssignment;
-import com.bluewhale.auth.domain.user.repository.UserRepository;
+import com.bluewhale.auth.domain.aggregate.UserAggregate;
+import com.bluewhale.auth.domain.model.entity.UserRoleAssignment;
+import com.bluewhale.auth.domain.repository.UserRepository;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysRole;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysUser;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysUserRole;
@@ -19,7 +19,9 @@ import org.springframework.util.StringUtils;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * {@link UserRepository} 的 MyBatis-Plus 实现（REQ-ARCH-001 / T-DDD-8）：以既有 Mapper 完成
@@ -42,7 +44,7 @@ public class UserRepositoryImpl implements UserRepository {
     private final SysRoleMapper roleMapper;
 
     @Override
-    public User save(User user) {
+    public UserAggregate save(UserAggregate user) {
         SysUser po = UserPersistenceAssembler.toPo(user);
         if (po.getId() == null) {
             userMapper.insert(po);
@@ -53,7 +55,7 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
-    public Optional<User> findById(Long id) {
+    public Optional<UserAggregate> findById(Long id) {
         SysUser po = userMapper.selectOne(new LambdaQueryWrapper<SysUser>()
                 .eq(SysUser::getId, id)
                 .eq(SysUser::getTenantId, TenantContext.requireId()));
@@ -61,7 +63,7 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
-    public Optional<User> findByIdAcrossTenants(Long id) {
+    public Optional<UserAggregate> findByIdAcrossTenants(Long id) {
         // sys_user 归属首页租户，令牌租户可能是切换后的其他租户：
         // 临时清空租户上下文以绕过行级过滤，读取后立即恢复原值（含 null）
         Long previous = TenantContext.get();
@@ -75,7 +77,40 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
-    public Optional<User> findByUsername(String username) {
+    public List<UserAggregate> findByIdsAcrossTenants(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        // 跨租户批量加载（语义同 findByIdAcrossTenants）：临时清空租户上下文绕过行级过滤
+        Long previous = TenantContext.get();
+        TenantContext.clear();
+        try {
+            return userMapper.selectList(new LambdaQueryWrapper<SysUser>()
+                            .in(SysUser::getId, ids))
+                    .stream().map(UserPersistenceAssembler::toDomain).toList();
+        } finally {
+            TenantContext.set(previous);
+        }
+    }
+
+    @Override
+    public Map<Long, List<Long>> listRoleIdsByUserIds(Collection<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return Map.of();
+        }
+        // 仅返回当前租户内的角色关联（跨租户角色不参与本租户的角色管理展示）
+        Long tenantId = TenantContext.requireId();
+        return userRoleMapper.selectList(new LambdaQueryWrapper<SysUserRole>()
+                        .in(SysUserRole::getUserId, userIds)
+                        .inSql(SysUserRole::getRoleId,
+                                "SELECT id FROM sys_role WHERE tenant_id = " + tenantId))
+                .stream()
+                .collect(Collectors.groupingBy(SysUserRole::getUserId,
+                        Collectors.mapping(SysUserRole::getRoleId, Collectors.toList())));
+    }
+
+    @Override
+    public Optional<UserAggregate> findByUsername(String username) {
         SysUser po = userMapper.selectOne(new LambdaQueryWrapper<SysUser>()
                 .eq(SysUser::getTenantId, TenantContext.requireId())
                 .eq(SysUser::getUsername, username)
@@ -84,7 +119,7 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
-    public Optional<User> findByTenantIdAndUsername(Long tenantId, String username) {
+    public Optional<UserAggregate> findByTenantIdAndUsername(Long tenantId, String username) {
         SysUser po = userMapper.selectOne(new LambdaQueryWrapper<SysUser>()
                 .eq(SysUser::getTenantId, tenantId)
                 .eq(SysUser::getUsername, username)
@@ -144,7 +179,7 @@ public class UserRepositoryImpl implements UserRepository {
         }
         wrapper.orderByDesc(SysUser::getCreateTime);
         Page<SysUser> page = userMapper.selectPage(new Page<>(current, size), wrapper);
-        List<User> records = page.getRecords().stream().map(UserPersistenceAssembler::toDomain).toList();
+        List<UserAggregate> records = page.getRecords().stream().map(UserPersistenceAssembler::toDomain).toList();
         return new UserPage(records, page.getTotal());
     }
 
@@ -169,12 +204,12 @@ public class UserRepositoryImpl implements UserRepository {
         }
         wrapper.orderByAsc(SysUser::getId);
         Page<SysUser> page = userMapper.selectPage(new Page<>(current, size), wrapper);
-        List<User> records = page.getRecords().stream().map(UserPersistenceAssembler::toDomain).toList();
+        List<UserAggregate> records = page.getRecords().stream().map(UserPersistenceAssembler::toDomain).toList();
         return new UserPage(records, page.getTotal());
     }
 
     @Override
-    public List<User> findByRoleCode(String roleCode, int limit) {
+    public List<UserAggregate> findByRoleCode(String roleCode, int limit) {
         if (!StringUtils.hasText(roleCode)) {
             return List.of();
         }

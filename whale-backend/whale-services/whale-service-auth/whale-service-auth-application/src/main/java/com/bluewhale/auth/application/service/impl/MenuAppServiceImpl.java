@@ -12,9 +12,11 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.tenant.TenantContext;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -90,6 +92,7 @@ public class MenuAppServiceImpl implements MenuAppService {
      *
      * @param command 菜单新增命令
      */
+    @Transactional(rollbackFor = Exception.class)
     public void create(SaveMenuCommand command) {
         Menu menu = Menu.create(TenantContext.requireId(), command.parentId(), command.name(), command.path(),
                 command.component(), command.icon(), command.sort(), command.menuType(),
@@ -105,6 +108,7 @@ public class MenuAppServiceImpl implements MenuAppService {
      * @param command 菜单更新命令
      * @throws BizException 菜单不存在时抛出 {@link ErrorCode#NOT_FOUND}
      */
+    @Transactional(rollbackFor = Exception.class)
     public void update(Long id, SaveMenuCommand command) {
         Menu menu = menuRepository.findById(id)
                 .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
@@ -121,6 +125,7 @@ public class MenuAppServiceImpl implements MenuAppService {
      * @param id 菜单 ID
      * @throws BizException 存在子菜单时抛出 {@link ErrorCode#PARAM_ERROR}
      */
+    @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
         if (menuRepository.countChildren(id) > 0) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "存在子菜单，不允许删除");
@@ -139,7 +144,8 @@ public class MenuAppServiceImpl implements MenuAppService {
     private List<Menu> retainGrantedWithAncestors(List<Menu> menus, Set<String> permissionCodes) {
         Map<Long, Menu> byId = new HashMap<>();
         menus.forEach(menu -> byId.put(menu.getId(), menu));
-        Map<Long, Menu> retained = new HashMap<>();
+        // LinkedHashMap 保持命中菜单的原始顺序，保证过滤后树顺序稳定可预期
+        Map<Long, Menu> retained = new LinkedHashMap<>();
         for (Menu menu : menus) {
             if (menu.getPermissionCode() != null && permissionCodes.contains(menu.getPermissionCode())) {
                 retained.put(menu.getId(), menu);

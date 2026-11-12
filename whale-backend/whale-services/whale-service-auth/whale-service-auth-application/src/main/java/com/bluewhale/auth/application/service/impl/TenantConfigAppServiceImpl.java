@@ -6,6 +6,7 @@ import com.bluewhale.auth.application.port.TenantConfigRepository;
 import com.bluewhale.auth.application.service.TenantConfigAppService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -42,6 +43,7 @@ public class TenantConfigAppServiceImpl implements TenantConfigAppService {
      * @param tenantId 租户 ID
      * @param command  保存命令
      */
+    @Transactional(rollbackFor = Exception.class)
     public void upsert(Long tenantId, SaveTenantConfigCommand command) {
         ConfigKeyValidator.requireValidKey(command.configKey());
         ConfigKeyValidator.requireValidValue(command.configValue());

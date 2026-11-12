@@ -20,8 +20,8 @@ import com.bluewhale.auth.domain.role.aggregate.Role;
 import com.bluewhale.auth.domain.role.repository.RoleRepository;
 import com.bluewhale.auth.domain.tenant.aggregate.Tenant;
 import com.bluewhale.auth.domain.tenant.repository.TenantRepository;
-import com.bluewhale.auth.domain.user.aggregate.User;
-import com.bluewhale.auth.domain.user.repository.UserRepository;
+import com.bluewhale.auth.domain.aggregate.UserAggregate;
+import com.bluewhale.auth.domain.repository.UserRepository;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.lock.annotation.DistributedLock;
@@ -150,9 +150,9 @@ public class TenantProvisioningAppServiceImpl implements TenantProvisioningAppSe
         copyBusinessRolesFromPlatform(tenantId, tenantGrantablePermissions);
 
         // 5. 初始管理员：归属根部门并绑定默认角色
-        User admin = userRepository.save(User.create(tenantId, adminUsername,
+        UserAggregate admin = userRepository.save(UserAggregate.create(tenantId, adminUsername,
                 EncryptedPassword.of(passwordHasher.encode(command.rawPassword())), command.adminNickname(),
-                null, null, null, rootDept.getId(), User.STATUS_ENABLED));
+                null, null, null, rootDept.getId(), UserAggregate.STATUS_ENABLED));
         userRepository.replaceRoles(admin.getId(), admin.assignRoles(List.of(adminRole.getId())));
         // 一人多租户：初始管理员的首页租户即新开通租户
         tenantMembershipAppService.ensureHomeMembership(admin.getId(), tenantId);
@@ -219,8 +219,8 @@ public class TenantProvisioningAppServiceImpl implements TenantProvisioningAppSe
             while (iterator.hasNext()) {
                 Menu source = iterator.next();
                 // 父节点尚未映射时 get() 返回 null，属于「本轮跳过、下一轮重试」的正常情形；
-                // 必须保持三元两端同为 Long，避免与原始字面量 0L 混用触发自动拆箱 NPE
-                Long mappedParentId = source.getParentId() == 0L
+                // parentId 判等必须用 Long.equals，避免 Long 与原始字面量比较触发自动拆箱 NPE
+                Long mappedParentId = Long.valueOf(Menu.ROOT_PARENT_ID).equals(source.getParentId())
                         ? Long.valueOf(Menu.ROOT_PARENT_ID) : idMapping.get(source.getParentId());
                 if (mappedParentId == null) {
                     continue;

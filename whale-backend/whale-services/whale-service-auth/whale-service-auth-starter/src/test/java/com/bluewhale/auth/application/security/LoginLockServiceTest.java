@@ -68,16 +68,16 @@ class LoginLockServiceTest {
     @Test
     @DisplayName("记录失败：未达上限不抛异常，只写入计数")
     void recordFailureBelowThresholdDoesNotThrow() {
-        when(loginAttemptStore.lockRemainingSeconds(TENANT_ID, USERNAME)).thenReturn(0L);
+        when(loginAttemptStore.recordFailureAndCheckLocked(TENANT_ID, USERNAME)).thenReturn(0L);
 
         assertDoesNotThrow(() -> new LoginLockServiceImpl(loginAttemptStore).recordFailure(TENANT_ID, USERNAME));
-        verify(loginAttemptStore).recordFailure(TENANT_ID, USERNAME);
+        verify(loginAttemptStore).recordFailureAndCheckLocked(TENANT_ID, USERNAME);
     }
 
     @Test
     @DisplayName("记录失败：本次失败触达上限时直接抛锁定异常")
     void recordFailureThrowsWhenThresholdReached() {
-        when(loginAttemptStore.lockRemainingSeconds(TENANT_ID, USERNAME)).thenReturn(900L);
+        when(loginAttemptStore.recordFailureAndCheckLocked(TENANT_ID, USERNAME)).thenReturn(900L);
 
         BizException ex = assertThrows(BizException.class,
                 () -> new LoginLockServiceImpl(loginAttemptStore).recordFailure(TENANT_ID, USERNAME));

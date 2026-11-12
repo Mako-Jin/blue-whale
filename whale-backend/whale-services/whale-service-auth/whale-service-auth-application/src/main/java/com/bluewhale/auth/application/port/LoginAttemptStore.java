@@ -22,13 +22,16 @@ public interface LoginAttemptStore {
     long lockRemainingSeconds(Long tenantId, String username);
 
     /**
-     * 记录一次凭据校验失败
+     * 记录一次凭据校验失败，并基于同次写入的计数结果原子判定是否触达锁定上限
+     *
+     * <p>锁定判定使用本次自增后的计数（而非写入后另行回读），消除「计数与判定
+     * 两次往返」之间的竞态：并发失败命中上限时不会漏判，期间发生的计数清除也不会误判。</p>
      *
      * @param tenantId 租户 ID
      * @param username 用户名
-     * @return 当前窗口内的累计失败次数（存储不可用时返回 0）
+     * @return 已触达上限时返回剩余锁定秒数（&gt; 0），未达上限返回 0；存储不可用时返回 0（fail-open）
      */
-    int recordFailure(Long tenantId, String username);
+    long recordFailureAndCheckLocked(Long tenantId, String username);
 
     /**
      * 清除失败计数（凭据校验通过时调用）

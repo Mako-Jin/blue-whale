@@ -1,14 +1,5 @@
 package com.bluewhale.auth.application.service;
 
-import com.bluewhale.auth.application.model.PasswordPolicy;
-import com.bluewhale.auth.application.port.PasswordHasher;
-import com.bluewhale.auth.application.port.PasswordPolicyConfig;
-import com.bluewhale.auth.domain.user.repository.PasswordHistoryRepository;
-import com.bluewhale.common.core.exception.BizException;
-import com.bluewhale.common.core.exception.ErrorCode;
-
-import java.util.List;
-
 /**
  * 口令策略服务（REQ-SEC-021 / REQ-SEC-023）：统一强度校验、历史复用校验、加密与历史记录。
  *

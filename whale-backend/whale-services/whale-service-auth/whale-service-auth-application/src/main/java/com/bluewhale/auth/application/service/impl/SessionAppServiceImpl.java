@@ -34,15 +34,15 @@ import com.bluewhale.auth.application.service.TenantAppService;
 import com.bluewhale.auth.application.service.TenantMembershipAppService;
 import com.bluewhale.auth.application.service.TenantPasswordPolicyService;
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
-import com.bluewhale.auth.domain.user.aggregate.User;
-import com.bluewhale.auth.domain.user.repository.UserRepository;
+import com.bluewhale.auth.domain.aggregate.UserAggregate;
+import com.bluewhale.auth.domain.repository.UserRepository;
 import com.bluewhale.common.core.exception.BizException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
@@ -100,6 +100,7 @@ public class SessionAppServiceImpl implements SessionAppService {
      * @param command 登录命令（租户编码、用户名与明文密码）
      * @return 登录结果（响应体含 accessToken；refreshToken 仅由接口层写入 HttpOnly Cookie）
      */
+    @Transactional(rollbackFor = Exception.class)
     public LoginResult login(LoginCommand command) {
         Long tenantId = tenantAppService.resolveEnabledTenantId(command.tenantCode());
         // 锁定检查放在认证之前：锁定期内即使口令正确也拒绝（否则锁定形同虚设）
@@ -138,6 +139,7 @@ public class SessionAppServiceImpl implements SessionAppService {
      * @param command 刷新命令（Cookie 中解析出的 refreshToken 原文）
      * @return 登录结果（响应体含新 accessToken；新 refreshToken 仅写 Cookie）
      */
+    @Transactional(rollbackFor = Exception.class)
     public LoginResult refresh(RefreshCommand command) {
         String refreshToken = command.refreshToken();
         TokenPayload payload = tokenIssuer.parse(refreshToken);
@@ -175,11 +177,14 @@ public class SessionAppServiceImpl implements SessionAppService {
      * 切换租户：同一 {@code userId} / {@code sub} 只更换令牌中的租户上下文与角色。
      *
      * <p>切换成功后将当前 accessToken 与 Cookie 携带的 refreshToken 写入黑名单（开启轮换时
-     * 吊销整个 family），避免新旧租户令牌并存；新令牌使用全新 familyId。</p>
+     * 吊销整个 family），避免新旧租户令牌并存；新令牌使用全新 familyId。方法整体开启事务
+     * 保证用户加载与令牌签发的原子语义；Redis 吊销操作保持「先吊销旧令牌、再签发新令牌」
+     * 顺序不变——该顺序是安全语义（旧令牌先失效），不纳入事务回滚范围。</p>
      *
      * @param command 切换租户命令（Authorization 头、目标租户与当前 refreshToken）
      * @return 新租户下的登录结果（新 refreshToken 仅由接口层写 Cookie）
      */
+    @Transactional(rollbackFor = Exception.class)
     public LoginResult switchTenant(SwitchTenantCommand command) {
         AuthenticatedUser current = currentUserProvider.current();
         Long targetTenantId = command.targetTenantId();
@@ -405,7 +410,7 @@ public class SessionAppServiceImpl implements SessionAppService {
      * @param user 登录用户聚合
      * @param rawPassword 本次登录使用的明文口令
      */
-    private void upgradePasswordIfNeeded(User user, String rawPassword) {
+    private void upgradePasswordIfNeeded(UserAggregate user, String rawPassword) {
         if (!passwordHasher.upgradeEncoding(user.getPassword().value())) {
             return;
         }
@@ -428,8 +433,9 @@ public class SessionAppServiceImpl implements SessionAppService {
         // REQ-SEC-023：有效期按用户所属租户的生效策略计算，未配置时回退全局默认
         int maxAgeDays = tenantPasswordPolicyService.maxAgeDays(user.tenantId());
         LocalDateTime now = LocalDateTime.now();
-        boolean passwordExpired = isPasswordExpired(user.passwordUpdatedTime(), now, maxAgeDays);
-        long expiresInDays = passwordExpiresInDays(user.passwordUpdatedTime(), now, maxAgeDays);
+        // 到期判定与剩余天数统一复用领域口径（User 静态方法），避免应用层双实现漂移
+        boolean passwordExpired = UserAggregate.isPasswordExpired(user.passwordUpdatedTime(), now, maxAgeDays);
+        long expiresInDays = UserAggregate.passwordExpiresInDays(user.passwordUpdatedTime(), now, maxAgeDays);
         boolean mustChange = user.mustChangePassword() || passwordExpired;
         List<String> roles = user.roles();
         String refreshToken = tokenIssuer.issueRefreshToken(
@@ -441,37 +447,6 @@ public class SessionAppServiceImpl implements SessionAppService {
             accessToken, "Bearer", tokenIssuer.accessExpireSeconds(),
             user.userId(), user.tenantId(), user.username(), user.nickname(), roles,
             mustChange, passwordExpired, expiresInDays, refreshToken);
-    }
-
-    /**
-     * 判定口令是否已到期
-     *
-     * @param passwordUpdatedTime 最近改密时间（可空）
-     * @param now 判定时刻
-     * @param maxAgeDays 口令有效期（天）；小于等于 0 表示不强制到期
-     * @return 已到期返回 true；改密时间缺失或未启用有效期返回 false
-     */
-    private static boolean isPasswordExpired(LocalDateTime passwordUpdatedTime, LocalDateTime now, int maxAgeDays) {
-        if (maxAgeDays <= 0 || passwordUpdatedTime == null) {
-            return false;
-        }
-        LocalDateTime expireAt = passwordUpdatedTime.plusDays(maxAgeDays);
-        return !expireAt.isAfter(now);
-    }
-
-    /**
-     * 计算距口令到期剩余天数
-     *
-     * @param passwordUpdatedTime 最近改密时间（可空）
-     * @param now 判定时刻
-     * @param maxAgeDays 口令有效期（天）
-     * @return 剩余天数（已到期为负数）；不适用返回 -1
-     */
-    private static long passwordExpiresInDays(LocalDateTime passwordUpdatedTime, LocalDateTime now, int maxAgeDays) {
-        if (maxAgeDays <= 0 || passwordUpdatedTime == null) {
-            return -1L;
-        }
-        return Duration.between(now, passwordUpdatedTime.plusDays(maxAgeDays)).toDays();
     }
 
 }

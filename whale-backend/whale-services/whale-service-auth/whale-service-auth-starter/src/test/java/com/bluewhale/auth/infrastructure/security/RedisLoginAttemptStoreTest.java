@@ -57,23 +57,33 @@ class RedisLoginAttemptStoreTest {
     }
 
     @Test
-    @DisplayName("记录失败：首次自增后设置窗口过期，键按租户与小写用户名拼装")
+    @DisplayName("记录失败：首次自增后设置窗口过期，未达上限返回 0（锁定判定基于同次计数）")
     void recordFailureSetsWindowOnFirstFailure() {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.increment(KEY)).thenReturn(1L);
 
-        assertEquals(1, newStore().recordFailure(TENANT_ID, USERNAME));
+        assertEquals(0L, newStore().recordFailureAndCheckLocked(TENANT_ID, USERNAME));
         verify(redisTemplate).expire(KEY, WINDOW_SECONDS, TimeUnit.SECONDS);
     }
 
     @Test
-    @DisplayName("记录失败：非首次不再重设过期时间（窗口不因继续试错而延长）")
+    @DisplayName("记录失败：非首次不再重设过期时间（窗口不因继续试错而延长），未达上限返回 0")
     void recordFailureKeepsWindowAfterFirst() {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.increment(KEY)).thenReturn(3L);
 
-        assertEquals(3, newStore().recordFailure(TENANT_ID, USERNAME));
+        assertEquals(0L, newStore().recordFailureAndCheckLocked(TENANT_ID, USERNAME));
         verify(redisTemplate, never()).expire(anyString(), eq(WINDOW_SECONDS), any(TimeUnit.class));
+    }
+
+    @Test
+    @DisplayName("记录失败：本次自增触达上限时返回剩余 TTL（计数与判定同次完成，无竞态窗口）")
+    void recordFailureLocksAtThreshold() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.increment(KEY)).thenReturn(5L);
+        when(redisTemplate.getExpire(KEY, TimeUnit.SECONDS)).thenReturn(42L);
+
+        assertEquals(42L, newStore().recordFailureAndCheckLocked(TENANT_ID, USERNAME));
     }
 
     @Test
@@ -124,7 +134,7 @@ class RedisLoginAttemptStoreTest {
         when(broken.opsForValue()).thenThrow(new RedisConnectionFailureException("down"));
         RedisLoginAttemptStore store = new RedisLoginAttemptStore(broken, MAX_ATTEMPTS, WINDOW_SECONDS);
 
-        assertEquals(0, store.recordFailure(TENANT_ID, USERNAME));
+        assertEquals(0L, store.recordFailureAndCheckLocked(TENANT_ID, USERNAME));
         assertEquals(0L, store.lockRemainingSeconds(TENANT_ID, USERNAME));
         assertTrue(SecurityDegradationAlerter.alarmCount() > alarmBefore, "应输出安全降级告警");
     }
@@ -138,13 +148,15 @@ class RedisLoginAttemptStoreTest {
     }
 
     @Test
-    @DisplayName("配置兜底：非法配置回落到下限（上限至少 1 次、窗口至少 1 秒）")
+    @DisplayName("配置兜底：非法配置回落到下限（上限至少 1 次、窗口至少 1 秒，首次失败即锁定）")
     void illegalConfigIsClamped() {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.increment(KEY)).thenReturn(1L);
+        when(redisTemplate.getExpire(KEY, TimeUnit.SECONDS)).thenReturn(1L);
         RedisLoginAttemptStore store = new RedisLoginAttemptStore(redisTemplate, 0, 0L);
 
-        assertEquals(1, store.recordFailure(TENANT_ID, USERNAME));
+        // maxAttempts 兜底为 1：首次失败即触达上限，返回兜底窗口 1 秒
+        assertEquals(1L, store.recordFailureAndCheckLocked(TENANT_ID, USERNAME));
         verify(redisTemplate).expire(KEY, 1L, TimeUnit.SECONDS);
     }
 }

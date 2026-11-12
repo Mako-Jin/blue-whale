@@ -84,24 +84,20 @@ public class TenantAppServiceImpl implements TenantAppService {
     /**
      * 租户分页列表（仅平台租户）
      *
+     * <p>条件与分页下推到数据库（LIMIT/OFFSET），不再全量加载后内存切片；
+     * keyword 模糊匹配交由数据库排序规则处理（默认大小写不敏感）。</p>
+     *
      * @param query 分页查询条件
      * @return 分页结果
      */
     public PageResult<TenantVO> page(TenantPageQuery query) {
         requirePlatformTenant();
-        String keyword = query.keyword() == null ? null : query.keyword().trim().toLowerCase();
-        List<Tenant> matched = tenantRepository.findAll().stream()
-                .filter(tenant -> query.status() == null || tenant.getStatus() == query.status())
-                .filter(tenant -> !StringUtils.hasText(keyword)
-                        || tenant.getTenantCode().toLowerCase().contains(keyword)
-                        || tenant.getTenantName().toLowerCase().contains(keyword))
-                .toList();
+        String keyword = query.keyword() == null ? null : query.keyword().trim();
         long current = Math.max(query.current(), 1);
         long size = query.size() <= 0 ? 10 : query.size();
-        int from = (int) Math.min((current - 1) * size, matched.size());
-        int to = (int) Math.min(from + size, matched.size());
-        List<TenantVO> records = matched.subList(from, to).stream().map(TenantVO::from).toList();
-        return PageResult.of(records, (long) matched.size(), current, size);
+        TenantRepository.TenantPage page = tenantRepository.page(current, size, keyword, query.status());
+        List<TenantVO> records = page.records().stream().map(TenantVO::from).toList();
+        return PageResult.of(records, page.total(), current, size);
     }
 
     /**

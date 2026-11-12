@@ -1,6 +1,5 @@
 package com.bluewhale.auth.application.service;
 
-import com.bluewhale.auth.application.event.DomainEventPublisher;
 import com.bluewhale.auth.application.model.command.AssignUserRolesCommand;
 import com.bluewhale.auth.application.model.command.ChangeUserStatusCommand;
 import com.bluewhale.auth.application.model.command.CreateUserCommand;
@@ -8,17 +7,7 @@ import com.bluewhale.auth.application.model.command.UpdateUserCommand;
 import com.bluewhale.auth.application.model.query.UserPageQuery;
 import com.bluewhale.auth.application.model.vo.ResetPasswordVO;
 import com.bluewhale.auth.application.model.vo.UserVO;
-import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
-import com.bluewhale.auth.domain.event.UserDomainEvent;
-import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
-import com.bluewhale.auth.domain.model.vo.Username;
-import com.bluewhale.auth.domain.role.repository.RoleRepository;
-import com.bluewhale.auth.domain.user.aggregate.User;
-import com.bluewhale.auth.domain.user.repository.UserRepository;
-import com.bluewhale.common.core.exception.BizException;
-import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
-import com.bluewhale.common.tenant.TenantContext;
 
 import java.util.List;
 

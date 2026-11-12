@@ -44,4 +44,25 @@ public interface TenantRepository {
      * @return 租户聚合列表
      */
     List<Tenant> findAll();
+
+    /**
+     * 分页查询租户（数据库侧 LIMIT/OFFSET 下推，避免全量加载后内存切片；按创建时间降序）
+     *
+     * @param current 当前页码（从 1 起）
+     * @param size 每页条数
+     * @param keyword 租户编码或名称模糊匹配关键字（可空）
+     * @param status 状态精确过滤（可空）
+     * @return 租户分页结果
+     */
+    TenantPage page(long current, long size, String keyword, Integer status);
+
+    /**
+     * 租户分页结果：领域层自有分页载体，避免向领域层泄漏 MyBatis 分页类型。
+     *
+     * @param records 当前页租户聚合列表
+     * @param total 总记录数
+     * @author BlueWhale
+     */
+    record TenantPage(List<Tenant> records, long total) {
+    }
 }

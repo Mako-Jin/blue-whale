@@ -1,7 +1,7 @@
 package com.bluewhale.auth.application.user.password;
 
 import com.bluewhale.auth.application.port.PasswordHasher;
-import com.bluewhale.auth.domain.user.repository.PasswordHistoryRepository;
+import com.bluewhale.auth.domain.repository.PasswordHistoryRepository;
 import com.bluewhale.auth.infrastructure.config.PasswordPolicyProperties;
 import com.bluewhale.common.core.exception.BizException;
 import org.junit.jupiter.api.BeforeEach;

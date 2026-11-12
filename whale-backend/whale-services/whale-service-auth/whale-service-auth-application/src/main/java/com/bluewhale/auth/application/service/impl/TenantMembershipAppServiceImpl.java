@@ -12,9 +12,9 @@ import com.bluewhale.auth.domain.role.repository.RoleRepository;
 import com.bluewhale.auth.domain.tenant.aggregate.Tenant;
 import com.bluewhale.auth.domain.tenant.aggregate.TenantExpiryClock;
 import com.bluewhale.auth.domain.tenant.repository.TenantRepository;
-import com.bluewhale.auth.domain.user.aggregate.User;
-import com.bluewhale.auth.domain.user.repository.UserRepository;
-import com.bluewhale.auth.domain.user.repository.UserTenantRepository;
+import com.bluewhale.auth.domain.aggregate.UserAggregate;
+import com.bluewhale.auth.domain.repository.UserRepository;
+import com.bluewhale.auth.domain.repository.UserTenantRepository;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +24,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * 用户-租户成员关系应用服务（Wave 5.54 Phase 5.1：一人多租户）。
@@ -56,6 +59,7 @@ public class TenantMembershipAppServiceImpl implements TenantMembershipAppServic
      * @param userId 用户 ID
      * @param tenantId 首页租户 ID
      */
+    @Transactional(rollbackFor = Exception.class)
     public void ensureHomeMembership(Long userId, Long tenantId) {
         if (userId == null || tenantId == null) {
             return;
@@ -114,17 +118,30 @@ public class TenantMembershipAppServiceImpl implements TenantMembershipAppServic
     /**
      * 列出当前租户的启用成员（Wave 5.54 Phase 5.3）。
      *
-     * <p>用户基本信息按全局 {@code userId} 跨租户加载；角色只取当前租户内的关联。</p>
+     * <p>用户基本信息按全局 {@code userId} 跨租户加载；角色只取当前租户内的关联。
+     * 组装走 3 次批量查询（用户 → 角色关联 → 角色聚合），避免逐成员 3N 次查询。</p>
      *
      * @return 成员列表；无成员时返回空列表
      */
     public List<TenantMemberVO> listMembers() {
         Long tenantId = TenantContext.requireId();
-        return userTenantRepository.listEnabledUserIds(tenantId).stream()
-                .map(userId -> userRepository.findByIdAcrossTenants(userId)
-                        .map(user -> toMember(user, tenantId))
-                        .orElse(null))
-                .filter(member -> member != null)
+        List<Long> userIds = userTenantRepository.listEnabledUserIds(tenantId);
+        if (userIds.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, UserAggregate> usersById = userRepository.findByIdsAcrossTenants(userIds).stream()
+                .collect(Collectors.toMap(UserAggregate::getId, user -> user, (first, second) -> first));
+        Map<Long, List<Long>> roleIdsByUserId = userRepository.listRoleIdsByUserIds(userIds);
+        List<Long> allRoleIds = roleIdsByUserId.values().stream()
+                .flatMap(List::stream).distinct().toList();
+        Map<Long, Role> rolesById = allRoleIds.isEmpty() ? Map.of()
+                : roleRepository.listEnabledByIds(allRoleIds).stream()
+                        .filter(role -> tenantId.equals(role.getTenantId()))
+                        .collect(Collectors.toMap(Role::getId, role -> role, (first, second) -> first));
+        return userIds.stream()
+                .map(usersById::get)
+                .filter(Objects::nonNull)
+                .map(user -> toMember(user, roleIdsByUserId, rolesById))
                 .toList();
     }
 
@@ -141,7 +158,7 @@ public class TenantMembershipAppServiceImpl implements TenantMembershipAppServic
         if (!userTenantRepository.existsEnabled(userId, tenantId)) {
             throw new BizException(404, "成员不存在或关系已停用");
         }
-        User member = userRepository.findByIdAcrossTenants(userId)
+        UserAggregate member = userRepository.findByIdAcrossTenants(userId)
                 .orElseThrow(() -> new BizException(404, "用户不存在"));
         List<Long> targets = roleIds == null ? List.of() : roleIds;
         // 领域侧归一化（去重去空 + 数量上限），以归一化结果做有效性校验与落库
@@ -188,7 +205,7 @@ public class TenantMembershipAppServiceImpl implements TenantMembershipAppServic
     @Transactional(rollbackFor = Exception.class)
     public void unbindTenant(Long userId, Long tenantId) {
         tenantAppService.requirePlatformTenant();
-        User user = userRepository.findByIdAcrossTenants(userId)
+        UserAggregate user = userRepository.findByIdAcrossTenants(userId)
                 .orElseThrow(() -> new BizException(404, "用户不存在"));
         if (tenantId.equals(user.getTenantId())) {
             throw new BizException(400, "首页租户关系不允许解除");
@@ -205,21 +222,22 @@ public class TenantMembershipAppServiceImpl implements TenantMembershipAppServic
      * 组装成员视图（用户信息 + 当前租户内角色）
      *
      * @param user 用户聚合
-     * @param tenantId 当前租户 ID
+     * @param roleIdsByUserId userId → 当前租户内角色 ID 列表
+     * @param rolesById 角色 ID → 角色聚合（仅当前租户启用角色）
      * @return 成员视图
      */
-    private TenantMemberVO toMember(User user, Long tenantId) {
+    private TenantMemberVO toMember(UserAggregate user, Map<Long, List<Long>> roleIdsByUserId,
+                                    Map<Long, Role> rolesById) {
         TenantMemberVO member = new TenantMemberVO();
         member.setUserId(user.getId());
         member.setUsername(user.getUsername().value());
         member.setNickname(user.getNickname());
         member.setPhone(user.getPhone());
         member.setStatus(user.getStatus());
-        List<Long> roleIds = userRepository.listRoleIds(user.getId());
-        List<Role> roles = roleRepository.listEnabledByIds(roleIds).stream()
-                .filter(role -> tenantId.equals(role.getTenantId()))
-                .toList();
-        member.setRoles(roles.stream()
+        List<Long> roleIds = roleIdsByUserId.getOrDefault(user.getId(), List.of());
+        member.setRoles(roleIds.stream()
+                .map(rolesById::get)
+                .filter(Objects::nonNull)
                 .map(role -> TenantMemberVO.RoleItem.of(role.getId(),
                         role.getRoleCode().value(), role.getRoleName()))
                 .toList());

@@ -1,8 +1,8 @@
 package com.bluewhale.auth.infrastructure.bootstrap;
 
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
-import com.bluewhale.auth.domain.user.aggregate.User;
-import com.bluewhale.auth.domain.user.repository.UserRepository;
+import com.bluewhale.auth.domain.aggregate.UserAggregate;
+import com.bluewhale.auth.domain.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
@@ -95,7 +95,7 @@ public class AdminPasswordInitializer implements ApplicationRunner, Ordered {
             return;
         }
         // 启动阶段无租户上下文，sys_user 归属首页租户，按全局 userId 跨租户定位内置 admin
-        User admin = userRepository.findByIdAcrossTenants(ADMIN_USER_ID).orElse(null);
+        UserAggregate admin = userRepository.findByIdAcrossTenants(ADMIN_USER_ID).orElse(null);
         if (admin == null) {
             log.info("未找到内置 admin 用户（id=1），跳过默认口令轮换");
             return;

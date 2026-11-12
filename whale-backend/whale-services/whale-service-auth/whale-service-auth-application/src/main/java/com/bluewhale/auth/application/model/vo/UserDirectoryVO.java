@@ -1,6 +1,6 @@
 package com.bluewhale.auth.application.model.vo;
 
-import com.bluewhale.auth.domain.user.aggregate.User;
+import com.bluewhale.auth.domain.aggregate.UserAggregate;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -48,7 +48,7 @@ public class UserDirectoryVO implements Serializable {
      * @param deptName 部门名称（可空）
      * @return 通讯录视图对象
      */
-    public static UserDirectoryVO from(User user, String deptName) {
+    public static UserDirectoryVO from(UserAggregate user, String deptName) {
         UserDirectoryVO vo = new UserDirectoryVO();
         vo.setId(user.getId());
         vo.setUsername(user.getUsername().value());

@@ -1,7 +1,8 @@
-package com.bluewhale.auth.domain.user.aggregate;
+package com.bluewhale.auth.domain.aggregate;
 
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
 import com.bluewhale.auth.domain.model.vo.Username;
+import com.bluewhale.auth.domain.repository.UserRepository;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.domain.exception.DomainException;
 import com.bluewhale.common.domain.model.Entity;
@@ -16,7 +17,7 @@ import java.util.Objects;
  * User 聚合根（对应 {@code sys_user}，REQ-ARCH-001 / T-DDD-4）。
  *
  * <p><b>不变量</b>：① {@code username} 非空且格式合法（其租户内唯一性由
- * {@link com.bluewhale.auth.domain.user.repository.UserRepository#existsByUsername(Long, String)}
+ * {@link UserRepository#existsByUsername(Long, String)}
  * 跨聚合校验，并以 DB 唯一约束 {@code uk_tenant_username(tenant_id, username)} 兜底）；
  * ② 口令必须为 BCrypt 密文（格式校验由 {@link EncryptedPassword} 值对象构造时保证，禁止明文）；
  * ③ {@code status ∈ {1 启用, 0 停用}}；④ 用户必须归属某个租户。</p>
@@ -25,7 +26,7 @@ import java.util.Objects;
  *
  * @author BlueWhale
  */
-public class User implements Entity<Long> {
+public class UserAggregate implements Entity<Long> {
 
     /** 状态：启用 */
     public static final int STATUS_ENABLED = 1;
@@ -71,10 +72,10 @@ public class User implements Entity<Long> {
      * @param createTime 创建时间
      * @param updateTime 更新时间
      */
-    private User(Long id, Long tenantId, Username username, EncryptedPassword password, String nickname,
-                 String phone, String email, String avatar, Long deptId, int status, boolean mustChangePassword,
-                 LocalDateTime passwordUpdatedTime, LocalDateTime lastLoginTime, LocalDateTime createTime,
-                 LocalDateTime updateTime) {
+    private UserAggregate(Long id, Long tenantId, Username username, EncryptedPassword password, String nickname,
+                          String phone, String email, String avatar, Long deptId, int status, boolean mustChangePassword,
+                          LocalDateTime passwordUpdatedTime, LocalDateTime lastLoginTime, LocalDateTime createTime,
+                          LocalDateTime updateTime) {
         if (tenantId == null) {
             throw new DomainException(ErrorCode.PARAM_ERROR, "用户所属租户不能为空");
         }
@@ -118,11 +119,11 @@ public class User implements Entity<Long> {
      * @param status 状态（1 启用 / 0 停用），为空时按启用处理
      * @return 新建的用户聚合根
      */
-    public static User create(Long tenantId, Username username, EncryptedPassword password, String nickname,
-                              String phone, String email, String avatar, Long deptId, Integer status) {
+    public static UserAggregate create(Long tenantId, Username username, EncryptedPassword password, String nickname,
+                                       String phone, String email, String avatar, Long deptId, Integer status) {
         LocalDateTime now = LocalDateTime.now();
         int resolved = status == null ? STATUS_ENABLED : status;
-        return new User(null, tenantId, username, password, nickname, phone, email, avatar, deptId, resolved,
+        return new UserAggregate(null, tenantId, username, password, nickname, phone, email, avatar, deptId, resolved,
                 false, now, null, now, now);
     }
 
@@ -139,8 +140,8 @@ public class User implements Entity<Long> {
      * @param status 状态（1 启用 / 0 停用），为空时按启用处理
      * @return 新建的用户聚合根
      */
-    public static User create(Long tenantId, Username username, EncryptedPassword password, String nickname,
-                              String phone, String email, Long deptId, Integer status) {
+    public static UserAggregate create(Long tenantId, Username username, EncryptedPassword password, String nickname,
+                                       String phone, String email, Long deptId, Integer status) {
         return create(tenantId, username, password, nickname, phone, email, null, deptId, status);
     }
 
@@ -162,10 +163,10 @@ public class User implements Entity<Long> {
      * @param updateTime 更新时间
      * @return 还原的用户聚合根
      */
-    public static User reconstitute(Long id, Long tenantId, Username username, EncryptedPassword password,
-                                    String nickname, String phone, String email, String avatar, Long deptId,
-                                    Integer status, LocalDateTime lastLoginTime, LocalDateTime createTime,
-                                    LocalDateTime updateTime) {
+    public static UserAggregate reconstitute(Long id, Long tenantId, Username username, EncryptedPassword password,
+                                             String nickname, String phone, String email, String avatar, Long deptId,
+                                             Integer status, LocalDateTime lastLoginTime, LocalDateTime createTime,
+                                             LocalDateTime updateTime) {
         return reconstitute(id, tenantId, username, password, nickname, phone, email, avatar, deptId, status,
                 null, lastLoginTime, createTime, updateTime);
     }
@@ -189,10 +190,10 @@ public class User implements Entity<Long> {
      * @param updateTime 更新时间
      * @return 还原的用户聚合根
      */
-    public static User reconstitute(Long id, Long tenantId, Username username, EncryptedPassword password,
-                                    String nickname, String phone, String email, String avatar, Long deptId,
-                                    Integer status, Integer mustChangePassword, LocalDateTime lastLoginTime,
-                                    LocalDateTime createTime, LocalDateTime updateTime) {
+    public static UserAggregate reconstitute(Long id, Long tenantId, Username username, EncryptedPassword password,
+                                             String nickname, String phone, String email, String avatar, Long deptId,
+                                             Integer status, Integer mustChangePassword, LocalDateTime lastLoginTime,
+                                             LocalDateTime createTime, LocalDateTime updateTime) {
         return reconstitute(id, tenantId, username, password, nickname, phone, email, avatar, deptId, status,
                 mustChangePassword, null, lastLoginTime, createTime, updateTime);
     }
@@ -217,13 +218,13 @@ public class User implements Entity<Long> {
      * @param updateTime 更新时间
      * @return 还原的用户聚合根
      */
-    public static User reconstitute(Long id, Long tenantId, Username username, EncryptedPassword password,
-                                    String nickname, String phone, String email, String avatar, Long deptId,
-                                    Integer status, Integer mustChangePassword, LocalDateTime passwordUpdatedTime,
-                                    LocalDateTime lastLoginTime, LocalDateTime createTime, LocalDateTime updateTime) {
+    public static UserAggregate reconstitute(Long id, Long tenantId, Username username, EncryptedPassword password,
+                                             String nickname, String phone, String email, String avatar, Long deptId,
+                                             Integer status, Integer mustChangePassword, LocalDateTime passwordUpdatedTime,
+                                             LocalDateTime lastLoginTime, LocalDateTime createTime, LocalDateTime updateTime) {
         int resolved = status == null ? STATUS_DISABLED : status;
         boolean mustChange = mustChangePassword != null && mustChangePassword == 1;
-        return new User(id, tenantId, username, password, nickname, phone, email, avatar, deptId, resolved,
+        return new UserAggregate(id, tenantId, username, password, nickname, phone, email, avatar, deptId, resolved,
                 mustChange, passwordUpdatedTime, lastLoginTime, createTime, updateTime);
     }
 
@@ -243,9 +244,9 @@ public class User implements Entity<Long> {
      * @param updateTime 更新时间
      * @return 还原的用户聚合根
      */
-    public static User reconstitute(Long id, Long tenantId, Username username, EncryptedPassword password,
-                                    String nickname, String phone, String email, Long deptId, Integer status,
-                                    LocalDateTime createTime, LocalDateTime updateTime) {
+    public static UserAggregate reconstitute(Long id, Long tenantId, Username username, EncryptedPassword password,
+                                             String nickname, String phone, String email, Long deptId, Integer status,
+                                             LocalDateTime createTime, LocalDateTime updateTime) {
         return reconstitute(id, tenantId, username, password, nickname, phone, email, null, deptId, status,
                 null, createTime, updateTime);
     }
@@ -350,6 +351,19 @@ public class User implements Entity<Long> {
      * @return 已到期返回 true；改密时间缺失时返回 false（避免误锁存量账号）
      */
     public boolean isPasswordExpired(LocalDateTime now, int maxAgeDays) {
+        return isPasswordExpired(passwordUpdatedTime, now, maxAgeDays);
+    }
+
+    /**
+     * 判定口令是否已到期（静态口径：供持有口令改密时间快照的调用方复用，
+     * 与实例方法保持同一套到期判定，避免双实现漂移）
+     *
+     * @param passwordUpdatedTime 最近改密时间（可空）
+     * @param now 判定时刻
+     * @param maxAgeDays 口令有效期（天）；小于等于 0 表示不强制到期
+     * @return 已到期返回 true；改密时间缺失时返回 false（避免误锁存量账号）
+     */
+    public static boolean isPasswordExpired(LocalDateTime passwordUpdatedTime, LocalDateTime now, int maxAgeDays) {
         if (maxAgeDays <= 0 || passwordUpdatedTime == null || now == null) {
             return false;
         }
@@ -364,6 +378,18 @@ public class User implements Entity<Long> {
      * @return 剩余天数（已到期为负数）；不适用返回 -1
      */
     public long passwordExpiresInDays(LocalDateTime now, int maxAgeDays) {
+        return passwordExpiresInDays(passwordUpdatedTime, now, maxAgeDays);
+    }
+
+    /**
+     * 计算距口令到期还剩多少天（静态口径：供持有口令改密时间快照的调用方复用，REQ-SEC-023）
+     *
+     * @param passwordUpdatedTime 最近改密时间（可空）
+     * @param now 判定时刻
+     * @param maxAgeDays 口令有效期（天）
+     * @return 剩余天数（已到期为负数）；不适用（有效期非正或改密时间缺失）返回 -1
+     */
+    public static long passwordExpiresInDays(LocalDateTime passwordUpdatedTime, LocalDateTime now, int maxAgeDays) {
         if (maxAgeDays <= 0 || passwordUpdatedTime == null || now == null) {
             return -1L;
         }

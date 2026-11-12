@@ -11,14 +11,13 @@ import com.bluewhale.auth.application.model.vo.UserVO;
 import com.bluewhale.auth.application.service.PasswordPolicyService;
 import com.bluewhale.auth.application.service.TenantMembershipAppService;
 import com.bluewhale.auth.application.service.UserAppService;
-import com.bluewhale.auth.application.service.impl.TemporaryPasswordGenerator;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.UserDomainEvent;
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
 import com.bluewhale.auth.domain.model.vo.Username;
 import com.bluewhale.auth.domain.role.repository.RoleRepository;
-import com.bluewhale.auth.domain.user.aggregate.User;
-import com.bluewhale.auth.domain.user.repository.UserRepository;
+import com.bluewhale.auth.domain.aggregate.UserAggregate;
+import com.bluewhale.auth.domain.repository.UserRepository;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
@@ -131,13 +130,13 @@ public class UserAppServiceImpl implements UserAppService {
         }
         passwordPolicyService.validate(command.rawPassword(), username.value());
         EncryptedPassword password = EncryptedPassword.of(passwordPolicyService.encode(command.rawPassword()));
-        User user = User.create(tenantId, username, password, command.nickname(), command.phone(),
+        UserAggregate user = UserAggregate.create(tenantId, username, password, command.nickname(), command.phone(),
                 command.email(), command.avatar(), command.deptId(), command.status());
         if (passwordPolicyService.isForceChangeOnCreate()) {
             user.markMustChangePassword();
         }
         // 保存并回填数据库生成的主键与时间戳
-        User persisted = userRepository.save(user);
+        UserAggregate persisted = userRepository.save(user);
         // 一人多租户：新账号必须拥有首页租户关系，否则切换器与刷新校验都会判为无关系
         tenantMembershipAppService.ensureHomeMembership(persisted.getId(), tenantId);
         passwordPolicyService.recordHistory(tenantId, persisted.getId(), persisted.getPassword().value());
@@ -157,7 +156,7 @@ public class UserAppServiceImpl implements UserAppService {
      */
     @Transactional(rollbackFor = Exception.class)
     public UserVO update(Long id, UpdateUserCommand command) {
-        User user = requireUser(id);
+        UserAggregate user = requireUser(id);
         int previousStatus = user.getStatus();
         boolean passwordChanged = command.rawPassword() != null && !command.rawPassword().isBlank();
         if (passwordChanged) {
@@ -222,7 +221,7 @@ public class UserAppServiceImpl implements UserAppService {
      */
     @Transactional(rollbackFor = Exception.class)
     public ResetPasswordVO resetPassword(Long id) {
-        User user = requireUser(id);
+        UserAggregate user = requireUser(id);
         String temporaryPassword = temporaryPasswordGenerator.generate(passwordPolicyService.minLength());
         user.changePassword(EncryptedPassword.of(passwordPolicyService.encode(temporaryPassword)));
         user.markMustChangePassword();
@@ -238,8 +237,9 @@ public class UserAppServiceImpl implements UserAppService {
      * @param id 用户 ID
      * @param command 变更状态命令
      */
+    @Transactional(rollbackFor = Exception.class)
     public void changeStatus(Long id, ChangeUserStatusCommand command) {
-        User user = requireUser(id);
+        UserAggregate user = requireUser(id);
         Integer status = command.status();
         if (status == null || (status != STATUS_ENABLED && status != STATUS_DISABLED)) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "状态值非法，仅支持 1（启用）/ 0（停用）");
@@ -272,7 +272,7 @@ public class UserAppServiceImpl implements UserAppService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void assignRoles(Long id, AssignUserRolesCommand command) {
-        User user = requireUser(id);
+        UserAggregate user = requireUser(id);
         List<Long> roleIds = command.roleIds() == null ? List.of() : command.roleIds();
         // 领域侧归一化（去重去空 + 数量上限），以归一化结果做有效性校验与落库
         List<Long> normalized = user.assignRoles(roleIds);
@@ -300,7 +300,7 @@ public class UserAppServiceImpl implements UserAppService {
      * @param id 用户 ID
      * @return 用户聚合根
      */
-    private User requireUser(Long id) {
+    private UserAggregate requireUser(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
     }

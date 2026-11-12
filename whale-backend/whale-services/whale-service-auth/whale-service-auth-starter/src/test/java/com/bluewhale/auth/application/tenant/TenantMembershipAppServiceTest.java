@@ -9,9 +9,9 @@ import com.bluewhale.auth.domain.role.aggregate.Role;
 import com.bluewhale.auth.domain.role.repository.RoleRepository;
 import com.bluewhale.auth.domain.tenant.aggregate.Tenant;
 import com.bluewhale.auth.domain.tenant.repository.TenantRepository;
-import com.bluewhale.auth.domain.user.aggregate.User;
-import com.bluewhale.auth.domain.user.repository.UserRepository;
-import com.bluewhale.auth.domain.user.repository.UserTenantRepository;
+import com.bluewhale.auth.domain.aggregate.UserAggregate;
+import com.bluewhale.auth.domain.repository.UserRepository;
+import com.bluewhale.auth.domain.repository.UserTenantRepository;
 import com.bluewhale.auth.application.model.result.TenantResult;
 import com.bluewhale.auth.application.model.vo.TenantMemberVO;
 import com.bluewhale.common.core.exception.BizException;
@@ -26,6 +26,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -121,15 +122,16 @@ class TenantMembershipAppServiceTest {
     }
 
     @Test
-    @DisplayName("listMembers：只返回本租户启用关系，角色按当前租户过滤")
+    @DisplayName("listMembers：只返回本租户启用关系，角色按当前租户过滤（3 次批量查询组装）")
     void listMembersShouldReturnTenantMembersOnly() {
         TenantContext.set(5L);
         Long userId2 = 1251323419503984641L;
         when(userTenantRepository.listEnabledUserIds(5L)).thenReturn(List.of(USER_ID, userId2));
-        User user1 = user(USER_ID, "alice");
-        when(userRepository.findByIdAcrossTenants(USER_ID)).thenReturn(Optional.of(user1));
-        when(userRepository.findByIdAcrossTenants(userId2)).thenReturn(Optional.empty());
-        when(userRepository.listRoleIds(USER_ID)).thenReturn(List.of(10L, 20L));
+        UserAggregate user1 = user(USER_ID, "alice");
+        when(userRepository.findByIdsAcrossTenants(List.of(USER_ID, userId2)))
+                .thenReturn(List.of(user1));
+        when(userRepository.listRoleIdsByUserIds(List.of(USER_ID, userId2)))
+                .thenReturn(Map.of(USER_ID, List.of(10L, 20L)));
         Role tenantRole = role(10L, 5L, "tenant_admin");
         Role platformRole = role(20L, 1L, "platform_admin");
         when(roleRepository.listEnabledByIds(List.of(10L, 20L)))
@@ -147,7 +149,7 @@ class TenantMembershipAppServiceTest {
     @DisplayName("assignMemberRoles：覆盖角色并发布目标租户缓存失效事件")
     void assignMemberRolesShouldPublishTenantEvent() {
         TenantContext.set(5L);
-        User user = user(USER_ID, "alice");
+        UserAggregate user = user(USER_ID, "alice");
         when(userTenantRepository.existsEnabled(USER_ID, 5L)).thenReturn(true);
         when(userRepository.findByIdAcrossTenants(USER_ID)).thenReturn(Optional.of(user));
         when(roleRepository.countByIds(List.of(10L))).thenReturn(1L);
@@ -176,7 +178,7 @@ class TenantMembershipAppServiceTest {
     @DisplayName("assignMemberRoles：角色不属于当前租户返回 400")
     void assignMemberRolesShouldRejectForeignRole() {
         TenantContext.set(5L);
-        User user = user(USER_ID, "alice");
+        UserAggregate user = user(USER_ID, "alice");
         when(userTenantRepository.existsEnabled(USER_ID, 5L)).thenReturn(true);
         when(userRepository.findByIdAcrossTenants(USER_ID)).thenReturn(Optional.of(user));
         when(roleRepository.countByIds(List.of(20L))).thenReturn(0L);
@@ -191,7 +193,7 @@ class TenantMembershipAppServiceTest {
     @Test
     @DisplayName("bindTenant：目标租户停用返回 400，不写关系")
     void bindTenantShouldRejectUnavailableTenant() {
-        User user = user(USER_ID, "alice");
+        UserAggregate user = user(USER_ID, "alice");
         Tenant tenant = tenant(2L, "t2", "租户2", false);
         when(userRepository.findByIdAcrossTenants(USER_ID)).thenReturn(Optional.of(user));
         when(tenantRepository.findById(2L)).thenReturn(Optional.of(tenant));
@@ -205,7 +207,7 @@ class TenantMembershipAppServiceTest {
     @Test
     @DisplayName("bindTenant：写入关系并发布权限缓存失效事件")
     void bindTenantShouldPersistRelation() {
-        User user = user(USER_ID, "alice");
+        UserAggregate user = user(USER_ID, "alice");
         Tenant tenant = tenant(2L, "t2", "租户2", true);
         when(userRepository.findByIdAcrossTenants(USER_ID)).thenReturn(Optional.of(user));
         when(tenantRepository.findById(2L)).thenReturn(Optional.of(tenant));
@@ -220,7 +222,7 @@ class TenantMembershipAppServiceTest {
     @Test
     @DisplayName("unbindTenant：软停用关系、清理本租户角色并发布解绑事件")
     void unbindTenantShouldPublishTenantEvent() {
-        User user = user(USER_ID, "alice");
+        UserAggregate user = user(USER_ID, "alice");
         when(userRepository.findByIdAcrossTenants(USER_ID)).thenReturn(Optional.of(user));
         when(userTenantRepository.exists(USER_ID, 2L)).thenReturn(true);
 
@@ -235,7 +237,7 @@ class TenantMembershipAppServiceTest {
     @Test
     @DisplayName("unbindTenant：首页租户关系禁止删除")
     void unbindTenantShouldRejectHomeRelation() {
-        User user = user(USER_ID, "alice");
+        UserAggregate user = user(USER_ID, "alice");
         when(userRepository.findByIdAcrossTenants(USER_ID)).thenReturn(Optional.of(user));
 
         BizException ex = assertThrows(BizException.class, () -> service.unbindTenant(USER_ID, 1L));
@@ -248,7 +250,7 @@ class TenantMembershipAppServiceTest {
     @Test
     @DisplayName("unbindTenant：关系不存在返回 404")
     void unbindTenantShouldRejectMissingRelation() {
-        User user = user(USER_ID, "alice");
+        UserAggregate user = user(USER_ID, "alice");
         when(userRepository.findByIdAcrossTenants(USER_ID)).thenReturn(Optional.of(user));
         when(userTenantRepository.exists(USER_ID, 2L)).thenReturn(false);
 
@@ -258,8 +260,8 @@ class TenantMembershipAppServiceTest {
         verify(userTenantRepository, never()).disable(any(), any());
     }
 
-    private static User user(Long id, String username) {
-        User user = mock(User.class);
+    private static UserAggregate user(Long id, String username) {
+        UserAggregate user = mock(UserAggregate.class);
         org.mockito.Mockito.lenient().when(user.getId()).thenReturn(id);
         org.mockito.Mockito.lenient().when(user.getUsername()).thenReturn(Username.of(username));
         org.mockito.Mockito.lenient().when(user.getNickname()).thenReturn(username);

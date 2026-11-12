@@ -6,8 +6,8 @@ import com.bluewhale.auth.application.service.PasswordPolicyService;
 import com.bluewhale.auth.application.service.impl.TemporaryPasswordGenerator;
 import com.bluewhale.auth.domain.event.UserDomainEvent;
 import com.bluewhale.auth.domain.model.vo.Username;
-import com.bluewhale.auth.domain.user.aggregate.User;
-import com.bluewhale.auth.domain.user.repository.UserRepository;
+import com.bluewhale.auth.domain.aggregate.UserAggregate;
+import com.bluewhale.auth.domain.repository.UserRepository;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -76,7 +76,7 @@ class UserLifecycleAppServiceTest {
     @Test
     @DisplayName("apply：离职停用账号并发布 USER_DISABLED")
     void shouldDisableOnLeave() {
-        User user = enabledUser();
+        UserAggregate user = enabledUser();
         when(userRepository.findById(100L)).thenReturn(Optional.of(user));
 
         UserLifecycleVO result = userLifecycleAppService.apply(command("LEAVE", 100L));
@@ -91,7 +91,7 @@ class UserLifecycleAppServiceTest {
     @Test
     @DisplayName("apply：调岗仅变更部门并发布更新事件")
     void shouldTransferDepartment() {
-        User user = enabledUser();
+        UserAggregate user = enabledUser();
         when(user.getNickname()).thenReturn("nick");
         when(user.getPhone()).thenReturn("13800000000");
         when(user.getEmail()).thenReturn("a@b.com");
@@ -107,7 +107,7 @@ class UserLifecycleAppServiceTest {
     @Test
     @DisplayName("apply：返聘启用账号")
     void shouldEnableOnRehire() {
-        User user = enabledUser();
+        UserAggregate user = enabledUser();
         when(userRepository.findById(100L)).thenReturn(Optional.of(user));
 
         userLifecycleAppService.apply(command("REHIRE", 100L));
@@ -132,8 +132,8 @@ class UserLifecycleAppServiceTest {
      *
      * @return 用户
      */
-    private static User enabledUser() {
-        User user = mock(User.class);
+    private static UserAggregate enabledUser() {
+        UserAggregate user = mock(UserAggregate.class);
         when(user.getId()).thenReturn(100L);
         when(user.getUsername()).thenReturn(Username.of("alice"));
         when(user.getStatus()).thenReturn(1);

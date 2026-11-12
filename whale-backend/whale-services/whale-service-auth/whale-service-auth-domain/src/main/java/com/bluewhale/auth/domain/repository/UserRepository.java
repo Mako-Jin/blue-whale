@@ -1,9 +1,10 @@
-package com.bluewhale.auth.domain.user.repository;
+package com.bluewhale.auth.domain.repository;
 
-import com.bluewhale.auth.domain.user.aggregate.User;
+import com.bluewhale.auth.domain.aggregate.UserAggregate;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -19,7 +20,7 @@ public interface UserRepository {
      * @param user 用户聚合根
      * @return 回填主键后的用户聚合根
      */
-    User save(User user);
+    UserAggregate save(UserAggregate user);
 
     /**
      * 按用户 ID 查询用户聚合（租户内查询，跨租户视为不存在）
@@ -27,7 +28,7 @@ public interface UserRepository {
      * @param id 用户 ID
      * @return 用户聚合；不存在时返回空
      */
-    Optional<User> findById(Long id);
+    Optional<UserAggregate> findById(Long id);
 
     /**
      * 按用户 ID 加载用户聚合，忽略租户行级过滤（Wave 5.54 Phase 5.1）。
@@ -39,7 +40,23 @@ public interface UserRepository {
      * @param id 用户 ID
      * @return 用户聚合；不存在或已逻辑删除时返回空
      */
-    Optional<User> findByIdAcrossTenants(Long id);
+    Optional<UserAggregate> findByIdAcrossTenants(Long id);
+
+    /**
+     * 按 ID 集合批量加载用户聚合，忽略租户行级过滤（跨租户语义同 {@link #findByIdAcrossTenants}）
+     *
+     * @param ids 用户 ID 集合（空集合返回空列表）
+     * @return 实际存在的用户聚合列表（顺序不保证）
+     */
+    List<UserAggregate> findByIdsAcrossTenants(Collection<Long> ids);
+
+    /**
+     * 批量查询多个用户在当前租户内的角色 ID 列表（单次查询，避免逐用户 N+1）
+     *
+     * @param userIds 用户 ID 集合（空集合返回空映射）
+     * @return userId → 当前租户内角色 ID 列表（无角色的用户不出现在结果中）
+     */
+    Map<Long, List<Long>> listRoleIdsByUserIds(Collection<Long> userIds);
 
     /**
      * 按用户名查询用户聚合（当前租户内查询）
@@ -47,7 +64,7 @@ public interface UserRepository {
      * @param username 用户名
      * @return 用户聚合；不存在时返回空
      */
-    Optional<User> findByUsername(String username);
+    Optional<UserAggregate> findByUsername(String username);
 
     /**
      * 按租户与用户名查询用户聚合（Wave 5.54 Phase 0：用户名在租户内唯一）
@@ -56,7 +73,7 @@ public interface UserRepository {
      * @param username 用户名
      * @return 用户聚合；不存在时返回空
      */
-    Optional<User> findByTenantIdAndUsername(Long tenantId, String username);
+    Optional<UserAggregate> findByTenantIdAndUsername(Long tenantId, String username);
 
     /**
      * 判断用户名在指定租户内是否已存在（供用户唯一性不变量跨聚合校验）
@@ -132,7 +149,7 @@ public interface UserRepository {
      * @param limit 返回条数上限
      * @return 启用用户聚合列表，按用户 ID 升序
      */
-    List<User> findByRoleCode(String roleCode, int limit);
+    List<UserAggregate> findByRoleCode(String roleCode, int limit);
 
     /**
      * 批量查询「启用」状态的用户 ID（供服务间成员合法性校验使用）
@@ -156,6 +173,6 @@ public interface UserRepository {
      * @param total 总记录数
      * @author BlueWhale
      */
-    record UserPage(List<User> records, long total) {
+    record UserPage(List<UserAggregate> records, long total) {
     }
 }

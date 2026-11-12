@@ -1,7 +1,7 @@
 package com.bluewhale.auth.infrastructure.persistence.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.bluewhale.auth.domain.user.repository.PasswordHistoryRepository;
+import com.bluewhale.auth.domain.repository.PasswordHistoryRepository;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysPasswordHistory;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysPasswordHistoryMapper;
 import lombok.RequiredArgsConstructor;

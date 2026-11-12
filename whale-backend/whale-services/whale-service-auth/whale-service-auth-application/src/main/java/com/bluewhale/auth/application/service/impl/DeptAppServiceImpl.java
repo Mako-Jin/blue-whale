@@ -13,6 +13,7 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.tenant.TenantContext;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -73,6 +74,7 @@ public class DeptAppServiceImpl implements DeptAppService {
      *
      * @param command 部门新增命令
      */
+    @Transactional(rollbackFor = Exception.class)
     public void create(SaveDeptCommand command) {
         Dept dept = Dept.create(TenantContext.requireId(), command.parentId(), command.deptName(),
                 command.sort(), command.leader(), command.leaderUserId());
@@ -87,6 +89,7 @@ public class DeptAppServiceImpl implements DeptAppService {
      * @param command 部门更新命令
      * @throws BizException 部门不存在时抛出 {@link ErrorCode#NOT_FOUND}
      */
+    @Transactional(rollbackFor = Exception.class)
     public void update(Long id, SaveDeptCommand command) {
         Dept dept = deptRepository.findById(id)
                 .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
@@ -118,6 +121,7 @@ public class DeptAppServiceImpl implements DeptAppService {
      * @param id 部门 ID
      * @throws BizException 存在子部门时抛出 {@link ErrorCode#PARAM_ERROR}
      */
+    @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
         if (deptRepository.countChildren(id) > 0) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "存在子部门，不允许删除");

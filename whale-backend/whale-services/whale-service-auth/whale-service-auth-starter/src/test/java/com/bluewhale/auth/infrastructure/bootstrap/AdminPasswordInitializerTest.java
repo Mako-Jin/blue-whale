@@ -2,8 +2,8 @@ package com.bluewhale.auth.infrastructure.bootstrap;
 
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
 import com.bluewhale.auth.domain.model.vo.Username;
-import com.bluewhale.auth.domain.user.aggregate.User;
-import com.bluewhale.auth.domain.user.repository.UserRepository;
+import com.bluewhale.auth.domain.aggregate.UserAggregate;
+import com.bluewhale.auth.domain.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -58,9 +58,9 @@ class AdminPasswordInitializerTest {
     @InjectMocks
     private AdminPasswordInitializer initializer;
 
-    private static User admin(String cipher) {
-        return User.reconstitute(ADMIN_ID, 1L, Username.of("admin"), EncryptedPassword.of(cipher),
-                "超级管理员", null, null, null, null, User.STATUS_ENABLED, null, null,
+    private static UserAggregate admin(String cipher) {
+        return UserAggregate.reconstitute(ADMIN_ID, 1L, Username.of("admin"), EncryptedPassword.of(cipher),
+                "超级管理员", null, null, null, null, UserAggregate.STATUS_ENABLED, null, null,
                 LocalDateTime.of(2026, 1, 1, 0, 0), LocalDateTime.of(2026, 1, 1, 0, 0));
     }
 
@@ -83,7 +83,7 @@ class AdminPasswordInitializerTest {
         assertTrue(plaintext.chars().anyMatch(Character::isLowerCase));
         assertTrue(plaintext.chars().anyMatch(Character::isDigit));
 
-        ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
+        ArgumentCaptor<UserAggregate> saved = ArgumentCaptor.forClass(UserAggregate.class);
         verify(userRepository).save(saved.capture());
         assertEquals(NEW_CIPHER, saved.getValue().getPassword().value());
         assertNotEquals(SEED_CIPHER, saved.getValue().getPassword().value());
@@ -100,7 +100,7 @@ class AdminPasswordInitializerTest {
         initializer.run(null);
 
         verify(passwordEncoder, never()).encode(anyString());
-        verify(userRepository, never()).save(any(User.class));
+        verify(userRepository, never()).save(any(UserAggregate.class));
     }
 
     @Test
@@ -115,7 +115,7 @@ class AdminPasswordInitializerTest {
         initializer.run(null);
 
         verify(passwordEncoder).encode(ENV_PASSWORD);
-        ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
+        ArgumentCaptor<UserAggregate> saved = ArgumentCaptor.forClass(UserAggregate.class);
         verify(userRepository).save(saved.capture());
         assertEquals(NEW_CIPHER, saved.getValue().getPassword().value());
         assertTrue(saved.getValue().isMustChangePassword());

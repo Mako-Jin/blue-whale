@@ -4,9 +4,10 @@ import com.bluewhale.auth.application.model.command.SaveUserConfigCommand;
 import com.bluewhale.auth.application.model.vo.UserConfigVO;
 import com.bluewhale.auth.application.port.UserConfigRepository;
 import com.bluewhale.auth.application.service.UserConfigAppService;
+import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.Optional;
@@ -34,6 +35,7 @@ public class UserConfigAppServiceImpl implements UserConfigAppService {
      * @return 配置列表（按 config_key 升序）
      */
     public List<UserConfigVO> list(Long tenantId, Long userId, String prefix) {
+        requireUserScope(tenantId, userId);
         ConfigKeyValidator.requireValidPrefix(prefix);
         return userConfigRepository.listByUser(tenantId, userId, prefix).stream()
                 .map(entry -> new UserConfigVO(entry.configKey(), entry.configValue()))
@@ -49,6 +51,7 @@ public class UserConfigAppServiceImpl implements UserConfigAppService {
      * @return 配置值；未配置返回 empty
      */
     public Optional<String> findValue(Long tenantId, Long userId, String configKey) {
+        requireUserScope(tenantId, userId);
         ConfigKeyValidator.requireValidKey(configKey);
         return userConfigRepository.findValue(tenantId, userId, configKey);
     }
@@ -61,6 +64,7 @@ public class UserConfigAppServiceImpl implements UserConfigAppService {
      * @param command  保存命令
      */
     public void upsert(Long tenantId, Long userId, SaveUserConfigCommand command) {
+        requireUserScope(tenantId, userId);
         ConfigKeyValidator.requireValidKey(command.configKey());
         ConfigKeyValidator.requireValidValue(command.configValue());
         userConfigRepository.upsert(tenantId, userId,
@@ -75,17 +79,21 @@ public class UserConfigAppServiceImpl implements UserConfigAppService {
      * @param configKey 配置键
      */
     public void delete(Long tenantId, Long userId, String configKey) {
+        requireUserScope(tenantId, userId);
         ConfigKeyValidator.requireValidKey(configKey);
         userConfigRepository.delete(tenantId, userId, configKey);
     }
 
     /**
-     * 归一前缀参数（blank → null），供仓储实现统一处理
+     * 防御校验租户/用户作用域参数：接口层上下文缺失时尽早 400，避免空值透传仓储层
      *
-     * @param prefix 前缀
-     * @return 归一后的前缀或 null
+     * @param tenantId 租户 ID
+     * @param userId   用户 ID
      */
-    public static String normalizePrefix(String prefix) {
-        return StringUtils.hasText(prefix) ? prefix.trim() : null;
+    private static void requireUserScope(Long tenantId, Long userId) {
+        if (tenantId == null || userId == null) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "租户/用户上下文缺失，无法定位用户配置");
+        }
     }
+
 }

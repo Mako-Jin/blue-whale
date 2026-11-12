@@ -2,8 +2,8 @@ package com.bluewhale.auth.infrastructure.persistence.assembler;
 
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
 import com.bluewhale.auth.domain.model.vo.Username;
-import com.bluewhale.auth.domain.user.aggregate.User;
-import com.bluewhale.auth.domain.user.entity.UserRoleAssignment;
+import com.bluewhale.auth.domain.aggregate.UserAggregate;
+import com.bluewhale.auth.domain.model.entity.UserRoleAssignment;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysUser;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysUserRole;
 import org.junit.jupiter.api.DisplayName;
@@ -40,7 +40,7 @@ class UserPersistenceAssemblerTest {
         po.setEmail("b@c.com");
         po.setAvatar("avatar.png");
         po.setDeptId(4L);
-        po.setStatus(User.STATUS_ENABLED);
+        po.setStatus(UserAggregate.STATUS_ENABLED);
         po.setLastLoginTime(LocalDateTime.of(2026, 2, 2, 10, 0, 0));
         po.setDeleted(0);
         po.setCreateTime(CREATED);
@@ -48,15 +48,15 @@ class UserPersistenceAssemblerTest {
         return po;
     }
 
-    private static User fullDomain() {
-        return User.reconstitute(5L, 1L, Username.of("bob_02"), EncryptedPassword.of(CIPHER), "Bob",
-                "13900000000", "b@c.com", null, 4L, User.STATUS_ENABLED, 1, null, CREATED, UPDATED);
+    private static UserAggregate fullDomain() {
+        return UserAggregate.reconstitute(5L, 1L, Username.of("bob_02"), EncryptedPassword.of(CIPHER), "Bob",
+                "13900000000", "b@c.com", null, 4L, UserAggregate.STATUS_ENABLED, 1, null, CREATED, UPDATED);
     }
 
     @Test
     @DisplayName("PO → 领域：User 聚合全部关键字段逐项一致")
     void shouldMapPoToDomainFieldByField() {
-        User user = UserPersistenceAssembler.toDomain(fullPo());
+        UserAggregate user = UserPersistenceAssembler.toDomain(fullPo());
 
         assertEquals(5L, user.getId());
         assertEquals("bob_02", user.getUsername().value());
@@ -65,7 +65,7 @@ class UserPersistenceAssemblerTest {
         assertEquals("13900000000", user.getPhone());
         assertEquals("b@c.com", user.getEmail());
         assertEquals(4L, user.getDeptId());
-        assertEquals(User.STATUS_ENABLED, user.getStatus());
+        assertEquals(UserAggregate.STATUS_ENABLED, user.getStatus());
         assertTrue(user.isEnabled());
         assertTrue(user.isMustChangePassword());
         assertEquals(CREATED, user.getCreateTime());
@@ -84,7 +84,7 @@ class UserPersistenceAssemblerTest {
         assertEquals("13900000000", po.getPhone());
         assertEquals("b@c.com", po.getEmail());
         assertEquals(4L, po.getDeptId());
-        assertEquals(User.STATUS_ENABLED, po.getStatus());
+        assertEquals(UserAggregate.STATUS_ENABLED, po.getStatus());
         assertEquals(1, po.getMustChangePassword());
         assertEquals(CREATED, po.getCreateTime());
         assertEquals(UPDATED, po.getUpdateTime());
@@ -100,9 +100,9 @@ class UserPersistenceAssemblerTest {
         SysUser po = fullPo();
         po.setStatus(null);
 
-        User user = UserPersistenceAssembler.toDomain(po);
+        UserAggregate user = UserPersistenceAssembler.toDomain(po);
 
-        assertEquals(User.STATUS_DISABLED, user.getStatus());
+        assertEquals(UserAggregate.STATUS_DISABLED, user.getStatus());
         assertFalse(user.isEnabled());
     }
 
@@ -111,7 +111,7 @@ class UserPersistenceAssemblerTest {
     void shouldMapAvatarAndLastLoginTimeToDomain() {
         SysUser po = fullPo();
 
-        User user = UserPersistenceAssembler.toDomain(po);
+        UserAggregate user = UserPersistenceAssembler.toDomain(po);
 
         assertEquals("avatar.png", user.getAvatar());
         assertEquals(po.getLastLoginTime(), user.getLastLoginTime());
@@ -121,8 +121,8 @@ class UserPersistenceAssemblerTest {
     @DisplayName("领域 → PO：avatar 与 lastLoginTime 原样写回")
     void shouldMapAvatarAndLastLoginTimeToPo() {
         LocalDateTime lastLogin = LocalDateTime.of(2026, 2, 2, 10, 0, 0);
-        User domain = User.reconstitute(5L, 1L, Username.of("bob_02"), EncryptedPassword.of(CIPHER), "Bob",
-                "13900000000", "b@c.com", "avatar.png", 4L, User.STATUS_ENABLED, lastLogin, CREATED, UPDATED);
+        UserAggregate domain = UserAggregate.reconstitute(5L, 1L, Username.of("bob_02"), EncryptedPassword.of(CIPHER), "Bob",
+                "13900000000", "b@c.com", "avatar.png", 4L, UserAggregate.STATUS_ENABLED, lastLogin, CREATED, UPDATED);
 
         SysUser po = UserPersistenceAssembler.toPo(domain);
 

@@ -2,34 +2,9 @@ package com.bluewhale.auth.application.service;
 
 import com.bluewhale.auth.application.model.command.CreateTenantCommand;
 import com.bluewhale.auth.application.model.vo.TenantVO;
-import com.bluewhale.auth.application.port.PasswordHasher;
-import com.bluewhale.auth.application.port.TenantStatusSyncPort;
-import com.bluewhale.auth.domain.dept.aggregate.Dept;
-import com.bluewhale.auth.domain.dept.repository.DeptRepository;
-import com.bluewhale.auth.domain.menu.aggregate.Menu;
-import com.bluewhale.auth.domain.menu.repository.MenuRepository;
-import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
-import com.bluewhale.auth.domain.model.vo.RoleCode;
-import com.bluewhale.auth.domain.model.vo.Username;
-import com.bluewhale.auth.domain.permission.aggregate.Permission;
-import com.bluewhale.auth.domain.permission.repository.PermissionRepository;
-import com.bluewhale.auth.domain.role.aggregate.Role;
-import com.bluewhale.auth.domain.role.repository.RoleRepository;
-import com.bluewhale.auth.domain.tenant.aggregate.Tenant;
-import com.bluewhale.auth.domain.tenant.repository.TenantRepository;
-import com.bluewhale.auth.domain.user.aggregate.User;
-import com.bluewhale.auth.domain.user.repository.UserRepository;
-import com.bluewhale.common.core.exception.BizException;
-import com.bluewhale.common.core.exception.ErrorCode;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * 租户开通应用服务（Wave 5.54 Phase 1）。

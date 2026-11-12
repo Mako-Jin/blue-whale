@@ -4,7 +4,7 @@ import com.bluewhale.auth.application.model.PasswordPolicy;
 import com.bluewhale.auth.application.port.PasswordHasher;
 import com.bluewhale.auth.application.port.PasswordPolicyConfig;
 import com.bluewhale.auth.application.service.PasswordPolicyService;
-import com.bluewhale.auth.domain.user.repository.PasswordHistoryRepository;
+import com.bluewhale.auth.domain.repository.PasswordHistoryRepository;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;

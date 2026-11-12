@@ -15,8 +15,8 @@ import com.bluewhale.auth.domain.role.aggregate.Role;
 import com.bluewhale.auth.domain.role.repository.RoleRepository;
 import com.bluewhale.auth.domain.tenant.aggregate.Tenant;
 import com.bluewhale.auth.domain.tenant.repository.TenantRepository;
-import com.bluewhale.auth.domain.user.aggregate.User;
-import com.bluewhale.auth.domain.user.repository.UserRepository;
+import com.bluewhale.auth.domain.aggregate.UserAggregate;
+import com.bluewhale.auth.domain.repository.UserRepository;
 import com.bluewhale.auth.application.model.vo.TenantVO;
 import com.bluewhale.common.core.exception.BizException;
 import org.junit.jupiter.api.DisplayName;
@@ -130,9 +130,9 @@ class TenantProvisioningAppServiceTest {
                     draft.getDescription(), draft.getSortNo(), draft.getStatus(),
                     draft.getCreateTime(), draft.getUpdateTime());
         });
-        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
-            User draft = invocation.getArgument(0);
-            return User.reconstitute(ADMIN_ID, draft.getTenantId(), draft.getUsername(), draft.getPassword(),
+        when(userRepository.save(any(UserAggregate.class))).thenAnswer(invocation -> {
+            UserAggregate draft = invocation.getArgument(0);
+            return UserAggregate.reconstitute(ADMIN_ID, draft.getTenantId(), draft.getUsername(), draft.getPassword(),
                     draft.getNickname(), draft.getPhone(), draft.getEmail(), draft.getDeptId(), draft.getStatus(),
                     draft.getCreateTime(), draft.getUpdateTime());
         });
@@ -154,7 +154,7 @@ class TenantProvisioningAppServiceTest {
         assertEquals(Long.valueOf(NEW_TENANT_ID), roleCaptor.getValue().getTenantId());
         verify(roleRepository).replacePermissions(eq(ROLE_ID), eq(List.of(501L)));
 
-        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        ArgumentCaptor<UserAggregate> userCaptor = ArgumentCaptor.forClass(UserAggregate.class);
         verify(userRepository).save(userCaptor.capture());
         assertEquals(Long.valueOf(NEW_TENANT_ID), userCaptor.getValue().getTenantId());
         assertEquals(Long.valueOf(ROOT_DEPT_ID), userCaptor.getValue().getDeptId());
@@ -197,9 +197,9 @@ class TenantProvisioningAppServiceTest {
                         RoleCode.of("archive_manager"), "档案管理员", "档案全量", 140, Role.STATUS_ENABLED, NOW, NOW)));
         // 模板授权含可下发 140、平台专属 165 与不存在的 999
         when(roleRepository.listPermissionIds(9_000L)).thenReturn(List.of(140L, 165L, 999L));
-        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
-            User draft = invocation.getArgument(0);
-            return User.reconstitute(ADMIN_ID, draft.getTenantId(), draft.getUsername(), draft.getPassword(),
+        when(userRepository.save(any(UserAggregate.class))).thenAnswer(invocation -> {
+            UserAggregate draft = invocation.getArgument(0);
+            return UserAggregate.reconstitute(ADMIN_ID, draft.getTenantId(), draft.getUsername(), draft.getPassword(),
                     draft.getNickname(), draft.getPhone(), draft.getEmail(), draft.getDeptId(), draft.getStatus(),
                     draft.getCreateTime(), draft.getUpdateTime());
         });
@@ -271,9 +271,9 @@ class TenantProvisioningAppServiceTest {
                     draft.getDescription(), draft.getSortNo(), draft.getStatus(),
                     draft.getCreateTime(), draft.getUpdateTime());
         });
-        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
-            User draft = invocation.getArgument(0);
-            return User.reconstitute(ADMIN_ID, draft.getTenantId(), draft.getUsername(), draft.getPassword(),
+        when(userRepository.save(any(UserAggregate.class))).thenAnswer(invocation -> {
+            UserAggregate draft = invocation.getArgument(0);
+            return UserAggregate.reconstitute(ADMIN_ID, draft.getTenantId(), draft.getUsername(), draft.getPassword(),
                     draft.getNickname(), draft.getPhone(), draft.getEmail(), draft.getDeptId(), draft.getStatus(),
                     draft.getCreateTime(), draft.getUpdateTime());
         });

@@ -1,4 +1,4 @@
-package com.bluewhale.auth.domain.user.entity;
+package com.bluewhale.auth.domain.model.entity;
 
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.domain.exception.DomainException;

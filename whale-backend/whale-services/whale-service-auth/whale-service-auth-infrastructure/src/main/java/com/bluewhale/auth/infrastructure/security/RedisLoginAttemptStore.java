@@ -90,9 +90,7 @@ public class RedisLoginAttemptStore implements LoginAttemptStore {
             if (parseCount(raw) < maxAttempts) {
                 return 0L;
             }
-            Long ttl = redisTemplate.getExpire(key, TimeUnit.SECONDS);
-            // TTL 缺失（未设置过期时间）时按整窗口兜底，绝不返回「永久锁定」
-            return ttl == null || ttl <= 0L ? windowSeconds : ttl;
+            return remainingLockSeconds(key);
         } catch (RuntimeException e) {
             log.warn("登录失败计数读取失败（Redis 不可用），按未锁定放行: {}", e.getMessage());
             SecurityDegradationAlerter.alarm(SCENE_LOCKED, DETAIL_LOCKED, e);
@@ -101,21 +99,22 @@ public class RedisLoginAttemptStore implements LoginAttemptStore {
     }
 
     @Override
-    public int recordFailure(Long tenantId, String username) {
+    public long recordFailureAndCheckLocked(Long tenantId, String username) {
         String key = key(tenantId, username);
         try {
             Long count = redisTemplate.opsForValue().increment(key);
             if (count == null) {
-                return 0;
+                return 0L;
             }
             if (count == 1L) {
                 redisTemplate.expire(key, windowSeconds, TimeUnit.SECONDS);
             }
-            return count.intValue();
+            // 锁定判定基于本次 INCR 结果（而非写入后另行回读），消除计数与判定两次往返的竞态
+            return count >= maxAttempts ? remainingLockSeconds(key) : 0L;
         } catch (RuntimeException e) {
             log.warn("登录失败计数写入失败（Redis 不可用），本次失败不计数: {}", e.getMessage());
             SecurityDegradationAlerter.alarm(SCENE_RECORD, DETAIL_RECORD, e);
-            return 0;
+            return 0L;
         }
     }
 
@@ -127,6 +126,17 @@ public class RedisLoginAttemptStore implements LoginAttemptStore {
             log.warn("登录失败计数清除失败（Redis 不可用），由窗口自然过期: {}", e.getMessage());
             SecurityDegradationAlerter.alarm(SCENE_CLEAR, DETAIL_CLEAR, e);
         }
+    }
+
+    /**
+     * 读取剩余锁定秒数（TTL 缺失时按整窗口兜底，绝不返回「永久锁定」）
+     *
+     * @param key 计数键
+     * @return 剩余锁定秒数
+     */
+    private long remainingLockSeconds(String key) {
+        Long ttl = redisTemplate.getExpire(key, TimeUnit.SECONDS);
+        return ttl == null || ttl <= 0L ? windowSeconds : ttl;
     }
 
     /**

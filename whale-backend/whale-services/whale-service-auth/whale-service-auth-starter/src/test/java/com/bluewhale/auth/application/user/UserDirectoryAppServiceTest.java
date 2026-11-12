@@ -4,8 +4,8 @@ import com.bluewhale.auth.domain.dept.aggregate.Dept;
 import com.bluewhale.auth.domain.dept.repository.DeptRepository;
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
 import com.bluewhale.auth.domain.model.vo.Username;
-import com.bluewhale.auth.domain.user.aggregate.User;
-import com.bluewhale.auth.domain.user.repository.UserRepository;
+import com.bluewhale.auth.domain.aggregate.UserAggregate;
+import com.bluewhale.auth.domain.repository.UserRepository;
 import com.bluewhale.auth.application.model.vo.UserDirectoryVO;
 import com.bluewhale.common.core.result.PageResult;
 import org.junit.jupiter.api.DisplayName;
@@ -63,8 +63,8 @@ class UserDirectoryAppServiceTest {
      * @param email 邮箱
      * @return 用户聚合根
      */
-    private static User enabledUser(long id, String username, Long deptId, String phone, String email) {
-        return User.reconstitute(id, TENANT_ID, Username.of(username), EncryptedPassword.of(BCRYPT),
+    private static UserAggregate enabledUser(long id, String username, Long deptId, String phone, String email) {
+        return UserAggregate.reconstitute(id, TENANT_ID, Username.of(username), EncryptedPassword.of(BCRYPT),
                 "昵称" + id, phone, email, deptId, STATUS_ENABLED, NOW, NOW);
     }
 

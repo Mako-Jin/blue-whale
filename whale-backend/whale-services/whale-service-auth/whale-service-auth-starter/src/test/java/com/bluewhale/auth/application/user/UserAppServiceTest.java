@@ -14,8 +14,8 @@ import com.bluewhale.auth.domain.event.UserDomainEvent;
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
 import com.bluewhale.auth.domain.model.vo.Username;
 import com.bluewhale.auth.domain.role.repository.RoleRepository;
-import com.bluewhale.auth.domain.user.aggregate.User;
-import com.bluewhale.auth.domain.user.repository.UserRepository;
+import com.bluewhale.auth.domain.aggregate.UserAggregate;
+import com.bluewhale.auth.domain.repository.UserRepository;
 import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.auth.application.model.vo.ResetPasswordVO;
 import com.bluewhale.auth.application.model.vo.UserVO;
@@ -100,9 +100,9 @@ class UserAppServiceTest {
         TenantContext.clear();
     }
 
-    private static User user(String nickname) {
-        return User.reconstitute(USER_ID, 1L, Username.of("alice_01"), EncryptedPassword.of(CIPHER), nickname,
-                "13800000000", "a@b.com", "avatar.png", 3L, User.STATUS_ENABLED,
+    private static UserAggregate user(String nickname) {
+        return UserAggregate.reconstitute(USER_ID, 1L, Username.of("alice_01"), EncryptedPassword.of(CIPHER), nickname,
+                "13800000000", "a@b.com", "avatar.png", 3L, UserAggregate.STATUS_ENABLED,
                 LocalDateTime.of(2026, 1, 1, 8, 0, 0), CREATED, UPDATED);
     }
 
@@ -153,7 +153,7 @@ class UserAppServiceTest {
 
         assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
         assertEquals("用户名已存在", ex.getMessage());
-        verify(userRepository, never()).save(any(User.class));
+        verify(userRepository, never()).save(any(UserAggregate.class));
         verify(passwordPolicyService, never()).encode(any());
     }
 
@@ -162,9 +162,9 @@ class UserAppServiceTest {
     void shouldCreateUserWhenUsernameAvailable() {
         when(userRepository.existsByUsername(1L, "alice_01")).thenReturn(false);
         when(passwordPolicyService.encode(STRONG_PASSWORD)).thenReturn(NEW_CIPHER);
-        when(userRepository.save(any(User.class))).thenReturn(User.reconstitute(USER_ID, 1L,
+        when(userRepository.save(any(UserAggregate.class))).thenReturn(UserAggregate.reconstitute(USER_ID, 1L,
                 Username.of("alice_01"), EncryptedPassword.of(NEW_CIPHER), "Alice", "138", "a@b.com",
-                "avatar.png", 3L, User.STATUS_ENABLED, null, CREATED, UPDATED));
+                "avatar.png", 3L, UserAggregate.STATUS_ENABLED, null, CREATED, UPDATED));
 
         UserVO vo = userAppService.create(
                 new CreateUserCommand("alice_01", STRONG_PASSWORD, "Alice", "138", "a@b.com", "avatar.png", 3L, null));
@@ -172,10 +172,10 @@ class UserAppServiceTest {
         assertEquals("alice_01", vo.getUsername());
         assertEquals("Alice", vo.getNickname());
         assertEquals("avatar.png", vo.getAvatar());
-        assertEquals(User.STATUS_ENABLED, vo.getStatus());
+        assertEquals(UserAggregate.STATUS_ENABLED, vo.getStatus());
         verify(passwordPolicyService).validate(STRONG_PASSWORD, "alice_01");
         verify(passwordPolicyService).recordHistory(1L, USER_ID, NEW_CIPHER);
-        verify(userRepository).save(any(User.class));
+        verify(userRepository).save(any(UserAggregate.class));
         // 一人多租户：新建账号必须写入首页租户关系
         verify(tenantMembershipAppService).ensureHomeMembership(USER_ID, 1L);
         verify(eventPublisher).publish(new UserDomainEvent(USER_ID, ChangeType.CREATED));
@@ -184,18 +184,18 @@ class UserAppServiceTest {
     @Test
     @DisplayName("update：停用优先发布 USER_DISABLED，口令非空时按策略校验并重新加密")
     void shouldReencodePasswordAndApplyProfileOnUpdate() {
-        User stored = user("旧昵称");
+        UserAggregate stored = user("旧昵称");
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(stored));
         when(passwordPolicyService.encode(STRONG_PASSWORD)).thenReturn(NEW_CIPHER);
 
         UserVO vo = userAppService.update(USER_ID, new UpdateUserCommand(STRONG_PASSWORD, "新昵称",
-                "13900000000", "n@b.com", "new-avatar.png", 4L, User.STATUS_DISABLED));
+                "13900000000", "n@b.com", "new-avatar.png", 4L, UserAggregate.STATUS_DISABLED));
 
         assertEquals("新昵称", vo.getNickname());
         assertEquals("13900000000", vo.getPhone());
         assertEquals("new-avatar.png", vo.getAvatar());
         assertEquals(4L, vo.getDeptId());
-        assertEquals(User.STATUS_DISABLED, vo.getStatus());
+        assertEquals(UserAggregate.STATUS_DISABLED, vo.getStatus());
         assertEquals(NEW_CIPHER, stored.getPassword().value());
         verify(passwordPolicyService).validate(STRONG_PASSWORD, "alice_01");
         verify(passwordPolicyService).ensureNotReused(1L, USER_ID, CIPHER, STRONG_PASSWORD);
@@ -206,11 +206,11 @@ class UserAppServiceTest {
     @Test
     @DisplayName("update：仅资料变更发布 UPDATED，不触发缓存/令牌动作")
     void shouldPublishUpdatedWhenOnlyProfileChanged() {
-        User stored = user("旧昵称");
+        UserAggregate stored = user("旧昵称");
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(stored));
 
         userAppService.update(USER_ID, new UpdateUserCommand(null, "新昵称",
-                "13900000000", "n@b.com", "new-avatar.png", 4L, User.STATUS_ENABLED));
+                "13900000000", "n@b.com", "new-avatar.png", 4L, UserAggregate.STATUS_ENABLED));
 
         verify(eventPublisher).publish(new UserDomainEvent(USER_ID, ChangeType.UPDATED));
     }
@@ -218,7 +218,7 @@ class UserAppServiceTest {
     @Test
     @DisplayName("update：仅改密发布 PASSWORD_CHANGED，按策略校验并写入口令历史")
     void shouldPublishPasswordChangedWhenOnlyPasswordChanged() {
-        User stored = user("Alice");
+        UserAggregate stored = user("Alice");
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(stored));
         when(passwordPolicyService.encode(STRONG_PASSWORD)).thenReturn(NEW_CIPHER);
 
@@ -233,13 +233,13 @@ class UserAppServiceTest {
     @Test
     @DisplayName("update：启用状态变化发布 STATUS_CHANGED，失效权限缓存")
     void shouldPublishStatusChangedWhenEnabling() {
-        User stored = User.reconstitute(USER_ID, 1L, Username.of("alice_01"),
+        UserAggregate stored = UserAggregate.reconstitute(USER_ID, 1L, Username.of("alice_01"),
                 EncryptedPassword.of(CIPHER), "Alice", "13800000000", "a@b.com", "avatar.png", 3L,
-                User.STATUS_DISABLED, LocalDateTime.of(2026, 1, 1, 8, 0, 0), CREATED, UPDATED);
+                UserAggregate.STATUS_DISABLED, LocalDateTime.of(2026, 1, 1, 8, 0, 0), CREATED, UPDATED);
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(stored));
 
         userAppService.update(USER_ID, new UpdateUserCommand(null, "Alice",
-                "13800000000", "a@b.com", "avatar.png", 3L, User.STATUS_ENABLED));
+                "13800000000", "a@b.com", "avatar.png", 3L, UserAggregate.STATUS_ENABLED));
 
         verify(eventPublisher).publish(new UserDomainEvent(USER_ID, ChangeType.STATUS_CHANGED));
     }
@@ -247,7 +247,7 @@ class UserAppServiceTest {
     @Test
     @DisplayName("resetPassword：生成一次性临时口令、置强制首登改密并撤销存量令牌（REQ-SEC-023）")
     void shouldResetPasswordWithTemporaryPassword() {
-        User stored = user("Alice");
+        UserAggregate stored = user("Alice");
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(stored));
         when(passwordPolicyService.minLength()).thenReturn(MIN_LENGTH);
         when(temporaryPasswordGenerator.generate(MIN_LENGTH)).thenReturn(TEMPORARY_PASSWORD);
@@ -269,8 +269,8 @@ class UserAppServiceTest {
     @Test
     @DisplayName("update：策略要求首登改密时，管理员代改口令后置强制改密标记（REQ-SEC-023）")
     void shouldMarkMustChangePasswordOnUpdatePasswordWhenPolicyEnabled() {
-        User stored = User.reconstitute(USER_ID, 1L, Username.of("alice_01"), EncryptedPassword.of(CIPHER),
-                "Alice", "13800000000", "a@b.com", "avatar.png", 3L, User.STATUS_ENABLED, 0,
+        UserAggregate stored = UserAggregate.reconstitute(USER_ID, 1L, Username.of("alice_01"), EncryptedPassword.of(CIPHER),
+                "Alice", "13800000000", "a@b.com", "avatar.png", 3L, UserAggregate.STATUS_ENABLED, 0,
                 LocalDateTime.of(2026, 1, 1, 8, 0, 0), CREATED, UPDATED);
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(stored));
         when(passwordPolicyService.encode(STRONG_PASSWORD)).thenReturn(NEW_CIPHER);
@@ -287,8 +287,8 @@ class UserAppServiceTest {
     @Test
     @DisplayName("update：策略不要求首登改密时，管理员代改口令后清除强制改密标记")
     void shouldClearMustChangePasswordOnUpdatePasswordWhenPolicyDisabled() {
-        User stored = User.reconstitute(USER_ID, 1L, Username.of("alice_01"), EncryptedPassword.of(CIPHER),
-                "Alice", "13800000000", "a@b.com", "avatar.png", 3L, User.STATUS_ENABLED, 1,
+        UserAggregate stored = UserAggregate.reconstitute(USER_ID, 1L, Username.of("alice_01"), EncryptedPassword.of(CIPHER),
+                "Alice", "13800000000", "a@b.com", "avatar.png", 3L, UserAggregate.STATUS_ENABLED, 1,
                 LocalDateTime.of(2026, 1, 1, 8, 0, 0), CREATED, UPDATED);
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(stored));
         when(passwordPolicyService.encode(STRONG_PASSWORD)).thenReturn(NEW_CIPHER);
@@ -312,19 +312,19 @@ class UserAppServiceTest {
 
         assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
         assertEquals("状态值非法，仅支持 1（启用）/ 0（停用）", ex.getMessage());
-        verify(userRepository, never()).save(any(User.class));
+        verify(userRepository, never()).save(any(UserAggregate.class));
         verify(eventPublisher, never()).publish(any());
     }
 
     @Test
     @DisplayName("changeStatus：停用落库并发布 USER_DISABLED 事件")
     void shouldChangeStatusAndPublishEvent() {
-        User stored = user("Alice");
+        UserAggregate stored = user("Alice");
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(stored));
 
-        userAppService.changeStatus(USER_ID, new ChangeUserStatusCommand(User.STATUS_DISABLED));
+        userAppService.changeStatus(USER_ID, new ChangeUserStatusCommand(UserAggregate.STATUS_DISABLED));
 
-        assertEquals(User.STATUS_DISABLED, stored.getStatus());
+        assertEquals(UserAggregate.STATUS_DISABLED, stored.getStatus());
         verify(userRepository).save(stored);
         verify(eventPublisher).publish(new UserDomainEvent(USER_ID, ChangeType.USER_DISABLED));
     }
@@ -332,14 +332,14 @@ class UserAppServiceTest {
     @Test
     @DisplayName("changeStatus：启用落库并发布 STATUS_CHANGED 事件")
     void shouldPublishStatusChangedWhenEnablingStatus() {
-        User stored = User.reconstitute(USER_ID, 1L, Username.of("alice_01"),
+        UserAggregate stored = UserAggregate.reconstitute(USER_ID, 1L, Username.of("alice_01"),
                 EncryptedPassword.of(CIPHER), "Alice", "13800000000", "a@b.com", "avatar.png", 3L,
-                User.STATUS_DISABLED, LocalDateTime.of(2026, 1, 1, 8, 0, 0), CREATED, UPDATED);
+                UserAggregate.STATUS_DISABLED, LocalDateTime.of(2026, 1, 1, 8, 0, 0), CREATED, UPDATED);
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(stored));
 
-        userAppService.changeStatus(USER_ID, new ChangeUserStatusCommand(User.STATUS_ENABLED));
+        userAppService.changeStatus(USER_ID, new ChangeUserStatusCommand(UserAggregate.STATUS_ENABLED));
 
-        assertEquals(User.STATUS_ENABLED, stored.getStatus());
+        assertEquals(UserAggregate.STATUS_ENABLED, stored.getStatus());
         verify(eventPublisher).publish(new UserDomainEvent(USER_ID, ChangeType.STATUS_CHANGED));
     }
 

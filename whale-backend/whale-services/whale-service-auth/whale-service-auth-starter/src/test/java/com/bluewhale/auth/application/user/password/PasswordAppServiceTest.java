@@ -8,8 +8,8 @@ import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.UserDomainEvent;
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
 import com.bluewhale.auth.domain.model.vo.Username;
-import com.bluewhale.auth.domain.user.aggregate.User;
-import com.bluewhale.auth.domain.user.repository.UserRepository;
+import com.bluewhale.auth.domain.aggregate.UserAggregate;
+import com.bluewhale.auth.domain.repository.UserRepository;
 import com.bluewhale.common.core.exception.BizException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,15 +18,19 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -67,6 +71,9 @@ class PasswordAppServiceTest {
     @Mock
     private DomainEventPublisher domainEventPublisher;
 
+    @Mock
+    private TransactionTemplate transactionTemplate;
+
     @InjectMocks
     private PasswordAppServiceImpl service;
 
@@ -75,10 +82,10 @@ class PasswordAppServiceTest {
      *
      * @return 账号聚合根
      */
-    private static User forcedUser() {
+    private static UserAggregate forcedUser() {
         LocalDateTime time = LocalDateTime.of(2026, 1, 1, 0, 0);
-        return User.reconstitute(USER_ID, TENANT_ID, Username.of("alice_01"), EncryptedPassword.of(CURRENT_CIPHER),
-                "Alice", null, null, null, null, User.STATUS_ENABLED, 1, time, time, time, time);
+        return UserAggregate.reconstitute(USER_ID, TENANT_ID, Username.of("alice_01"), EncryptedPassword.of(CURRENT_CIPHER),
+                "Alice", null, null, null, null, UserAggregate.STATUS_ENABLED, 1, time, time, time, time);
     }
 
     private void givenCurrentUser() {
@@ -90,7 +97,13 @@ class PasswordAppServiceTest {
     @DisplayName("改密成功：清除强制改密标记、写入历史并发布 PASSWORD_CHANGED 事件")
     void shouldChangeOwnPassword() {
         givenCurrentUser();
-        User user = forcedUser();
+        // 事务模板直接执行回调（单测中无需真实事务管理器）
+        doAnswer(invocation -> {
+            Consumer<TransactionStatus> action = invocation.getArgument(0);
+            action.accept(null);
+            return null;
+        }).when(transactionTemplate).executeWithoutResult(any());
+        UserAggregate user = forcedUser();
         when(userRepository.findByIdAcrossTenants(USER_ID)).thenReturn(Optional.of(user));
         when(passwordHasher.matches(OLD_RAW, CURRENT_CIPHER)).thenReturn(true);
         when(passwordPolicyService.encode(NEW_RAW)).thenReturn(NEW_CIPHER);

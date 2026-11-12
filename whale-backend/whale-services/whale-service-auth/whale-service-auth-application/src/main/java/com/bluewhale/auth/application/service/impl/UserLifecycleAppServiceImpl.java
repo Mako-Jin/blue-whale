@@ -1,6 +1,7 @@
 package com.bluewhale.auth.application.service.impl;
 
 import com.bluewhale.auth.application.event.DomainEventPublisher;
+import com.bluewhale.auth.application.model.UserLifecycleAction;
 import com.bluewhale.auth.application.model.command.CreateUserCommand;
 import com.bluewhale.auth.application.model.command.UserLifecycleCommand;
 import com.bluewhale.auth.application.model.vo.UserLifecycleVO;
@@ -8,11 +9,10 @@ import com.bluewhale.auth.application.model.vo.UserVO;
 import com.bluewhale.auth.application.service.PasswordPolicyService;
 import com.bluewhale.auth.application.service.UserAppService;
 import com.bluewhale.auth.application.service.UserLifecycleAppService;
-import com.bluewhale.auth.application.service.impl.TemporaryPasswordGenerator;
 import com.bluewhale.auth.domain.event.AuthDomainEvent;
 import com.bluewhale.auth.domain.event.UserDomainEvent;
-import com.bluewhale.auth.domain.user.aggregate.User;
-import com.bluewhale.auth.domain.user.repository.UserRepository;
+import com.bluewhale.auth.domain.aggregate.UserAggregate;
+import com.bluewhale.auth.domain.repository.UserRepository;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import org.springframework.stereotype.Service;
@@ -22,24 +22,13 @@ import org.springframework.transaction.annotation.Transactional;
  * 人员生命周期应用服务：供 OA 人事异动审批通过后同步 Auth 账号状态与部门。
  *
  * <p>动作语义：入职建号或启用、转正保活、调岗改部门、离职停用（不删除）、返聘启用。
- * 停用走 {@link User#disable()}，发布 {@code USER_DISABLED} 事件以撤销存量令牌并失效权限缓存；
+ * 停用走 {@link UserAggregate#disable()}，发布 {@code USER_DISABLED} 事件以撤销存量令牌并失效权限缓存；
  * 入职建号复用 {@link UserAppService#create(CreateUserCommand)}，一次性临时口令仅在本次响应返回。</p>
  *
  * @author BlueWhale
  */
 @Service
 public class UserLifecycleAppServiceImpl implements UserLifecycleAppService {
-
-    /** 动作：入职 */
-    private static final String ACTION_ONBOARD = "ONBOARD";
-    /** 动作：转正 */
-    private static final String ACTION_REGULAR = "REGULAR";
-    /** 动作：调岗 */
-    private static final String ACTION_TRANSFER = "TRANSFER";
-    /** 动作：离职 */
-    private static final String ACTION_LEAVE = "LEAVE";
-    /** 动作：返聘 */
-    private static final String ACTION_REHIRE = "REHIRE";
 
     /** 状态：启用 */
     private static final int STATUS_ENABLED = 1;
@@ -78,15 +67,14 @@ public class UserLifecycleAppServiceImpl implements UserLifecycleAppService {
      */
     @Transactional(rollbackFor = Exception.class)
     public UserLifecycleVO apply(UserLifecycleCommand command) {
-        String action = command.action() == null ? "" : command.action().trim().toUpperCase();
+        // 动作字符串统一在枚举处映射与校验（大小写不敏感），非法动作 400
+        UserLifecycleAction action = UserLifecycleAction.fromAction(command.action());
         return switch (action) {
-            case ACTION_ONBOARD -> onboard(command);
-            case ACTION_REGULAR -> regular(command);
-            case ACTION_TRANSFER -> transfer(command);
-            case ACTION_LEAVE -> leave(command);
-            case ACTION_REHIRE -> rehire(command);
-            default -> throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
-                    "不支持的生命周期动作：" + command.action());
+            case ONBOARD -> onboard(command);
+            case REGULAR -> regular(command);
+            case TRANSFER -> transfer(command);
+            case LEAVE -> leave(command);
+            case REHIRE -> rehire(command);
         };
     }
 
@@ -108,7 +96,7 @@ public class UserLifecycleAppServiceImpl implements UserLifecycleAppService {
             return new UserLifecycleVO(created.getId(), created.getUsername(), created.getStatus(),
                     created.getDeptId(), temporaryPassword);
         }
-        User user = requireUser(command.userId());
+        UserAggregate user = requireUser(command.userId());
         boolean changed = false;
         if (command.deptId() != null && !command.deptId().equals(user.getDeptId())) {
             user.changeProfile(user.getNickname(), user.getPhone(), user.getEmail(), user.getAvatar(), command.deptId());
@@ -133,7 +121,7 @@ public class UserLifecycleAppServiceImpl implements UserLifecycleAppService {
      * @return 执行结果
      */
     private UserLifecycleVO regular(UserLifecycleCommand command) {
-        User user = requireUser(command.userId());
+        UserAggregate user = requireUser(command.userId());
         if (user.getStatus() != STATUS_ENABLED) {
             user.enable();
             userRepository.save(user);
@@ -153,7 +141,7 @@ public class UserLifecycleAppServiceImpl implements UserLifecycleAppService {
         if (command.deptId() == null) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "调岗必须提供目标部门");
         }
-        User user = requireUser(command.userId());
+        UserAggregate user = requireUser(command.userId());
         user.changeProfile(user.getNickname(), user.getPhone(), user.getEmail(), user.getAvatar(), command.deptId());
         userRepository.save(user);
         domainEventPublisher.publish(new UserDomainEvent(user.getId(), AuthDomainEvent.ChangeType.UPDATED));
@@ -167,7 +155,7 @@ public class UserLifecycleAppServiceImpl implements UserLifecycleAppService {
      * @return 执行结果
      */
     private UserLifecycleVO leave(UserLifecycleCommand command) {
-        User user = requireUser(command.userId());
+        UserAggregate user = requireUser(command.userId());
         user.disable();
         userRepository.save(user);
         domainEventPublisher.publish(new UserDomainEvent(user.getId(),
@@ -182,7 +170,7 @@ public class UserLifecycleAppServiceImpl implements UserLifecycleAppService {
      * @return 执行结果
      */
     private UserLifecycleVO rehire(UserLifecycleCommand command) {
-        User user = requireUser(command.userId());
+        UserAggregate user = requireUser(command.userId());
         user.enable();
         if (command.deptId() != null) {
             user.changeProfile(user.getNickname(), user.getPhone(), user.getEmail(), user.getAvatar(), command.deptId());
@@ -199,7 +187,7 @@ public class UserLifecycleAppServiceImpl implements UserLifecycleAppService {
      * @param userId 用户 ID
      * @return 用户聚合
      */
-    private User requireUser(Long userId) {
+    private UserAggregate requireUser(Long userId) {
         if (userId == null) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "生命周期动作必须提供用户ID");
         }
@@ -214,7 +202,7 @@ public class UserLifecycleAppServiceImpl implements UserLifecycleAppService {
      * @param temporaryPassword 一次性临时口令
      * @return 结果
      */
-    private UserLifecycleVO toVO(User user, String temporaryPassword) {
+    private UserLifecycleVO toVO(UserAggregate user, String temporaryPassword) {
         return new UserLifecycleVO(user.getId(), user.getUsername().value(), user.getStatus(),
                 user.getDeptId(), temporaryPassword);
     }

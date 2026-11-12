@@ -1,4 +1,4 @@
-package com.bluewhale.auth.domain.user.repository;
+package com.bluewhale.auth.domain.repository;
 
 import java.util.List;
 
