@@ -2,7 +2,7 @@ package com.bluewhale.auth.infrastructure.security;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
-import com.bluewhale.auth.application.model.port.UserAccessRevocationPort;
+import com.bluewhale.auth.application.port.UserAccessRevocationPort;
 import com.bluewhale.auth.infrastructure.config.PermissionCacheProperties;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.UserDomainEvent;

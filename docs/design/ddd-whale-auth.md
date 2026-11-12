@@ -263,4 +263,10 @@ com.bluewhale.auth
 3. HTTP 层恒 200、业务语义由 `Result.code` 承载（既有全局约定）；
 4. 值对象（`Username`/`EncryptedPassword`/`RoleCode`/`PermCode`）为**领域内不变量**，其校验失败统一映射为 `ErrorCode.PARAM_ERROR`（400），不影响上述路径契约。
 
+> **Wave 6.33 结构调整**：上表是 Wave 5.2 的冻结基线（无版本段）。此后 auth 全部 REST 契约已按
+> `@RequestMapping(path = "/<资源>/v{version}", version = "1")` 统一版本化（如 `/user/v1/page`），
+> 内网端点位于版本段之后（如 `/user/v1/internal/exists`）；具体方法与路径以
+> `whale-service-auth-interfaces` 的 `interfaces/api/*Api` 契约为准，实现类位于
+> `whale-service-auth-starter` 的 `starter/controller`，`interfaces.api` 不再依赖 application/domain。
+
 **值对象落地映射（T-DDD-2/T-DDD-3，Wave 5.2）**：`Username`（`^[A-Za-z0-9_.-]{1,64}$`）、`EncryptedPassword`（非空，`toString` 掩码）、`RoleCode`（`^[a-z][a-z0-9_]{1,63}$`）、`PermCode`（`^[a-z][a-z0-9]*(?::[a-z0-9]+)+$`）；四层骨架以 `package-info.java` 固化依赖规则（domain 禁 Spring/MyBatis/Web 注解）。

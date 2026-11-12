@@ -94,7 +94,7 @@
 
 ### 4.2 租户口令策略配置（REQ-SEC-024）
 
-- 接口：`GET/PUT /tenant/password-policy`（权限码 `sys:tenant:pwdpolicy:list` / `sys:tenant:pwdpolicy:edit`，下发给租户管理员）。
+- 接口：`GET/PUT /tenant/v1/password-policy`（权限码 `sys:tenant:pwdpolicy:list` / `sys:tenant:pwdpolicy:edit`，下发给租户管理员）。
 - 可配置范围：有效期 **1–365 天**，提醒天数 **0–有效期**；不允许租户关闭到期强制（应急关闭只保留全局 `max-age-days<=0`）。
 - 未配置时回退全局默认，响应 `customized=false` 并返回 `defaultMaxAgeDays` / `defaultWarnDays`，供前端展示「沿用全局默认」。
 - 登录/刷新按**账号所属租户**的生效策略判定到期，而非全局一刀切。

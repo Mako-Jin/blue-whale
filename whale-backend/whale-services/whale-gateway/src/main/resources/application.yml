@@ -375,6 +375,9 @@ whale:
         # 单段通配：覆盖 erp/mes/crm/oa/pm/contract/pdm/lms/party/mall/pay/im/music/video/
         # scene/map/doc/mail/message/file/user/dept/tenant/workflow/form/archive/alert 等全部前缀
         - /*/internal/**
+        # 版本化内网端点：/user/v1/internal/**（internal 段位于版本段之后，单段通配不跨段；
+        # 第二段为版本号，用 `*` 匹配 v1/v2…）
+        - /*/*/internal/**
         # P1-3 审计汇聚摄入端点：非 /internal 命名，单独收口
         - /audit/log/ingest/**
 

@@ -1,6 +1,6 @@
 package com.bluewhale.auth.infrastructure.event;
 
-import com.bluewhale.auth.application.model.port.UserAccessRevocationPort;
+import com.bluewhale.auth.application.port.UserAccessRevocationPort;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.PermissionDomainEvent;
 import com.bluewhale.auth.domain.event.RoleDomainEvent;

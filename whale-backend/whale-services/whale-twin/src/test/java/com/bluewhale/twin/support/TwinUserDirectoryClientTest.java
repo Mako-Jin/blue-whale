@@ -36,9 +36,9 @@ class TwinUserDirectoryClientTest {
     private static final Long TENANT_ID = 1L;
 
     private static final String DIRECTORY_URL = AUTH_URL
-            + "/user/internal/directory?keyword=zhang&current=1&size=20";
+            + "/user/v1/internal/directory?keyword=zhang&current=1&size=20";
 
-    private static final String TREE_URL = AUTH_URL + "/dept/internal/tree";
+    private static final String TREE_URL = AUTH_URL + "/dept/v1/internal/tree";
 
     private MockRestServiceServer server;
 
@@ -96,7 +96,7 @@ class TwinUserDirectoryClientTest {
     @Test
     void passesDeptAndPageParamsAndClampsSize() {
         server.expect(requestTo(AUTH_URL
-                        + "/user/internal/directory?deptId=12&includeChildren=true&current=2&size=50"))
+                        + "/user/v1/internal/directory?deptId=12&includeChildren=true&current=2&size=50"))
                 .andRespond(withSuccess("{\"code\":0,\"data\":{\"records\":[],\"total\":0}}",
                         MediaType.APPLICATION_JSON));
 

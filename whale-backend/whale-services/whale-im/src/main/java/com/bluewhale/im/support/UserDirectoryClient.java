@@ -25,7 +25,7 @@ import java.util.Set;
 /**
  * 用户目录客户端：经内网直连 {@code whale-service-auth} 批量校验用户是否存在且启用。
  *
- * <p>调用 {@code POST /user/internal/exists}（该路径已在网关注册为内网接口，外部访问 403），
+ * <p>调用 {@code POST /user/v1/internal/exists}（该路径已在网关注册为内网接口，外部访问 403），
  * 地址优先取 {@code whale.im.auth.base-url}，未配置时经 {@link DiscoveryClient} 解析
  * {@code whale-service-auth} 实例。</p>
  *
@@ -40,7 +40,7 @@ import java.util.Set;
 public class UserDirectoryClient {
 
     /** 存在性校验路径 */
-    private static final String EXISTS_PATH = "/user/internal/exists";
+    private static final String EXISTS_PATH = "/user/v1/internal/exists";
 
     /** 响应体业务成功码 */
     private static final int SUCCESS_CODE = 0;

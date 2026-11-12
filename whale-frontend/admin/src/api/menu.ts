@@ -37,21 +37,21 @@ export interface MenuPayload {
 }
 
 export function treeMenus(): Promise<MenuVO[]> {
-  return get<MenuVO[]>('/menu/tree');
+  return get<MenuVO[]>('/menu/v1/tree');
 }
 
 export function getMenu(id: string): Promise<MenuVO> {
-  return get<MenuVO>(`/menu/${id}`);
+  return get<MenuVO>(`/menu/v1/${id}`);
 }
 
 export function createMenu(payload: MenuPayload): Promise<void> {
-  return post<void>('/menu', payload);
+  return post<void>('/menu/v1', payload);
 }
 
 export function updateMenu(id: string, payload: MenuPayload): Promise<void> {
-  return put<void>(`/menu/${id}`, payload);
+  return put<void>(`/menu/v1/${id}`, payload);
 }
 
 export function deleteMenu(id: string): Promise<void> {
-  return del<void>(`/menu/${id}`);
+  return del<void>(`/menu/v1/${id}`);
 }

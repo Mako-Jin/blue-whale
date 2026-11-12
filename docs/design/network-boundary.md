@@ -21,14 +21,15 @@
    `WHALE_INTERNAL_TOKEN`（联调占位值），生产必须替换为随机值并同样注入各服务实例。
 3. **auth 的 Spring Security 白名单（第三处，易漏）**：`whale-service-auth` 是唯一启用
    Spring Security 的服务，内网端点必须同时在 `SecurityConfig.permitAll` 里显式列出
-   （`/tenant/internal/**`、`/user/internal/**`、`/dept/internal/**`）。漏配时 Spring Security
+   （`/tenant/v1/internal/**`、`/user/v1/internal/**`、`/dept/v1/internal/**`）。漏配时 Spring Security
    会在令牌过滤器之前返回 401 —— 端点「写了但永远打不通」，且调用方多数把 401 折算成空数据，
    **不报错也不告警**（2026-11-10 的 `/dept/internal/**` 就是这样静默了数月，影响 OA 的
    审批人/部门解析）。新增 auth 内网控制器必须同步白名单。
 
    另注意两条 `**` 语义不同：网关 `/*/internal/**` 的星号**不跨段**，`/**/internal/**`
-   跨段。因此 `/twin/notify/internal/x` 这类多段命名网关拦不住，只剩令牌一层——
-   内网端点一律按 `/<service>/internal/**` 命名。
+   跨段。auth 自 Wave 6.33 起内网端点版本化（`/user/v1/internal/**`，版本段在 `internal` 之前），
+   网关因此额外声明 `/*/*/internal/**`（首段服务、次段版本）。因此 `/twin/notify/internal/x`
+   这类多段命名网关拦不住，只剩令牌一层——内网端点一律按 `/<service>[/vN]/internal/**` 命名。
 
 ## 1. 风险
 

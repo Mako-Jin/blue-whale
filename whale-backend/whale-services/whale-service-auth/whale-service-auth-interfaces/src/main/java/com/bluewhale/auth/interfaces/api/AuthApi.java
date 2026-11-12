@@ -6,7 +6,6 @@ import com.bluewhale.auth.interfaces.dto.request.SwitchTenantRequest;
 import com.bluewhale.auth.interfaces.dto.response.CurrentUserResponse;
 import com.bluewhale.auth.interfaces.dto.response.LoginResponse;
 import com.bluewhale.auth.interfaces.dto.response.TenantResponse;
-import com.bluewhale.auth.sdk.annotation.RequireReauth;
 import com.bluewhale.common.core.result.Result;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

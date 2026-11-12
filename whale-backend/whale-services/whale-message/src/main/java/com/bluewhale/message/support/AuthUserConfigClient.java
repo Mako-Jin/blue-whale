@@ -21,7 +21,7 @@ import java.util.Map;
 /**
  * auth 用户配置内网客户端：批量读取 {@code notify.<bizType>} 配置值。
  *
- * <p>调用 {@code POST /user/internal/config/batch-get}（网关 403、auth permitAll、
+ * <p>调用 {@code POST /user/v1/internal/config/batch-get}（网关 403、auth permitAll、
  * X-Internal-Token），带 {@code X-Tenant-Id} 租户上下文。任何失败折算成
  * 「无配置」并记 WARN——偏好是旁路，绝不能阻塞投递主链路（fail-open）。
  * 配置键由调用方拼装（前缀 notify 加业务类型）。</p>
@@ -33,7 +33,7 @@ import java.util.Map;
 public class AuthUserConfigClient {
 
     /** auth 内网批量读取路径 */
-    private static final String BATCH_GET_PATH = "/user/internal/config/batch-get";
+    private static final String BATCH_GET_PATH = "/user/v1/internal/config/batch-get";
 
     private final MessagePreferenceProperties properties;
 

@@ -38,9 +38,9 @@ test.afterAll(async ({ request }) => {
   if (!token) {
     return;
   }
-  await deleteResource(request, token, `/user/${userId}`);
-  await deleteResource(request, token, `/role/${roleId}`);
-  await deleteResource(request, token, `/menu/${menuId}`);
+  await deleteResource(request, token, `/user/v1/${userId}`);
+  await deleteResource(request, token, `/role/v1/${roleId}`);
+  await deleteResource(request, token, `/menu/v1/${menuId}`);
 });
 
 test('角色权限分配→用户角色分配→角色/菜单删除', async ({ page, request }) => {
@@ -138,7 +138,7 @@ test('角色权限分配→用户角色分配→角色/菜单删除', async ({ p
   expect(assignedRoleIds).toContain(roleId);
 
   // 5) 先解除用户占用，再复验角色删除
-  await deleteResource(request, token, `/user/${userId}`);
+  await deleteResource(request, token, `/user/v1/${userId}`);
   userId = 0;
 
   await page.goto(`${ADMIN_BASE_URL}/roles`);

@@ -1,6 +1,6 @@
 package com.bluewhale.auth.application.security;
 
-import com.bluewhale.auth.application.model.port.LoginAttemptStore;
+import com.bluewhale.auth.application.port.LoginAttemptStore;
 import com.bluewhale.common.core.exception.BizException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

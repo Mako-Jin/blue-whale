@@ -34,7 +34,7 @@ from pathlib import Path
 DEFAULT_TOKEN_PATTERNS = ["/**/internal/**", "/audit/log/ingest/**"]
 
 #: 网关默认收口模式（与 InternalApiDenyProperties 保持一致）
-DEFAULT_GATEWAY_PATTERNS = ["/*/internal/**"]
+DEFAULT_GATEWAY_PATTERNS = ["/*/internal/**", "/*/*/internal/**"]
 
 #: 控制器文件扫描的根目录（相对仓库根）
 BACKEND_DIR = "whale-backend"
@@ -150,6 +150,15 @@ def join_path(*parts: str) -> str:
     """
     joined = "/".join(part.strip("/") for part in parts if part and part.strip("/"))
     return "/" + joined if joined else "/"
+
+
+def normalize_version(path: str) -> str:
+    """把契约里的版本占位符 ``v{version}`` 归一为具体版本 ``v1``，供网关/白名单字面量匹配。
+
+    :param path: 含版本占位符的路径
+    :return: 归一后的路径
+    """
+    return re.sub(r"v\{version\}", "v1", path)
 
 
 def ant_match(pattern: str, path: str) -> bool:
@@ -275,11 +284,17 @@ def collect_endpoints(repo_root: Path) -> tuple[list[Endpoint], list[Finding]]:
         if "@RequestMapping" not in raw or "internal" not in raw:
             continue
         source = strip_comments(raw)
-        if "@RestController" not in source and "@Controller" not in source:
+        # API 契约接口（interfaces/api/*Api）只声明映射注解，实现类在 starter 层，
+        # 因此这里同时接受「实现类」与「契约接口」两种载体。
+        is_api_contract = re.search(r"\binterface\s+\w+Api\b", source) is not None
+        if "@RestController" not in source and "@Controller" not in source and not is_api_contract:
             continue
         class_index = source.find("class ")
         if class_index < 0:
             class_index = len(source)
+        interface_index = source.find("interface ")
+        if 0 <= interface_index < class_index:
+            class_index = interface_index
 
         class_path = ""
         for match in MAPPING_RE.finditer(source):
@@ -298,7 +313,7 @@ def collect_endpoints(repo_root: Path) -> tuple[list[Endpoint], list[Finding]]:
             method_body = source[match.end(): body_end if body_end >= 0 else len(source)]
             perms = re.findall(r'@RequirePermission\s*\(\s*(?:value\s*=\s*)?"([^"]*)"', method_body)
             for method_path in method_paths:
-                full = join_path(class_path, method_path)
+                full = normalize_version(join_path(class_path, method_path))
                 if "/internal" not in full:
                     continue
                 module = module_root(java_file, repo_root)

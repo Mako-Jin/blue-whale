@@ -24,8 +24,8 @@
 | 1 | [`whale-service-auth-domain`](whale-service-auth-domain) | 聚合根、实体、值对象、领域事件、仓储端口 | `whale-common-core`、`whale-common-domain` |
 | 2 | [`whale-service-auth-application`](whale-service-auth-application) | 用例编排（AppService）、命令 / 查询、视图对象、出站端口 | `-domain`、`whale-common-core`、`whale-spring-boot-starter`、`whale-security` |
 | 3 | [`whale-service-auth-infrastructure`](whale-service-auth-infrastructure) | 仓储实现、持久化装配、JWT / 安全、Redis、MQ、领域事件监听 | `-domain`、`-application`、`whale-security`、`whale-auth-sdk`、Web/Security/Redis/Redisson/MyBatis-Plus/AMQP |
-| 4 | [`whale-service-auth-interfaces`](whale-service-auth-interfaces) | REST 控制器、请求 DTO、Cookie 管理 | `-application`、`whale-spring-boot-starter`、`whale-auth-sdk`、Web/Validation/Security/SpringDoc |
-| 5 | [`whale-service-auth-starter`](whale-service-auth-starter) | 启动类、`application.yml`、Flyway 脚本、i18n 文案、可执行 jar | 上述四层 + Nacos/Flyway/MySQL/AMQP/Actuator/Prometheus/i18n |
+| 4 | [`whale-service-auth-interfaces`](whale-service-auth-interfaces) | REST API 契约（`interfaces/api/*Api`：路径 + 版本 + 映射注解）、请求 / 响应 DTO、跨层异常类型 | `-application`、`whale-spring-boot-starter`、`whale-auth-sdk`、Web/Validation/Security/SpringDoc |
+| 5 | [`whale-service-auth-starter`](whale-service-auth-starter) | Web 适配层（`starter/controller` 实现契约、`starter/assemble` MapStruct 装配、Cookie 管理、异常 advice）、启动类、`application.yml`、Flyway 脚本、i18n 文案、可执行 jar | 上述四层 + Nacos/Flyway/MySQL/AMQP/Actuator/Prometheus/i18n |
 | 6 | [`whale-service-auth-architecture-test`](whale-service-auth-architecture-test) | ArchUnit 架构守护（无生产代码） | 上述四层（`test` 作用域）+ ArchUnit |
 
 > Maven Reactor 构建顺序与上表一致；`-starter` 依赖全部四层，`-architecture-test` 仅以 `test` 作用域聚合四层。

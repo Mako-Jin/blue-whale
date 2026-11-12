@@ -184,7 +184,7 @@ public class TwinProperties {
         /** 静默期内是否允许严重告警穿透（默认允许：静默不该压掉真事故） */
         private boolean quietHoursCriticalBypass = true;
 
-        /** whale-service-auth 内网地址（接收人检索走 /user/internal/directory） */
+        /** whale-service-auth 内网地址（接收人检索走 /user/v1/internal/directory） */
         private String authBaseUrl = "http://127.0.0.1:8081";
 
         /** 用户偏好过滤开关（Wave 6.17c；关闭或解析失败时按「全部放行」处理） */

@@ -27,7 +27,7 @@
 ## 内网接口约定
 
 - 服务间同步调用：`POST/GET /**/internal/**`，经 Nacos 服务发现直连（不经网关），必须携带 `X-Internal-Token`；出站统一用 `InternalTokenSupport.interceptor()`。
-- 典型契约：`/file/internal/upload`、`/message/internal/send`、`/archive/internal/items`、`/user/internal/exists`（[service-catalog.md](service-catalog.md) §六）。
+- 典型契约：`/file/internal/upload`、`/message/internal/send`、`/archive/internal/items`、`/user/v1/internal/exists`（auth 自 Wave 6.33 起内网端点也带版本段，[service-catalog.md](service-catalog.md) §六）。
 
 ## 接口文档（springdoc）
 

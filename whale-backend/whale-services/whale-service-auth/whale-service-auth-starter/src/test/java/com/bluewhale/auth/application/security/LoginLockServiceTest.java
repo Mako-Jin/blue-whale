@@ -1,6 +1,6 @@
 package com.bluewhale.auth.application.security;
 
-import com.bluewhale.auth.application.model.port.LoginAttemptStore;
+import com.bluewhale.auth.application.port.LoginAttemptStore;
 import com.bluewhale.common.core.exception.BizException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

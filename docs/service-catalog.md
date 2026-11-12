@@ -97,7 +97,7 @@
 | 路由 id | 断言前缀 | 目标 URI | 对应服务 | 状态 |
 |---|---|---|---|---|
 | `whale-service-auth` | `Path=/auth/**,/user/**,/dept/**,/role/**,/menu/**,/permission/**` | `lb://whale-service-auth` | whale-service-auth | ✅ 已配（Wave 5.2/AUTH-38 补齐管理前缀） |
-| `whale-service-auth-tenant` | `Path=/tenant/**` | `lb://whale-service-auth` | whale-service-auth | ✅ 已配（Wave 5.54；内网 `/tenant/internal/**` 由 internal-deny 403） |
+| `whale-service-auth-tenant` | `Path=/tenant/**` | `lb://whale-service-auth` | whale-service-auth | ✅ 已配（Wave 5.54；内网 `/tenant/v1/internal/**` 由 internal-deny 403） |
 | `whale-job` | `Path=/job/**` | `lb://whale-job` | whale-job | ✅ 已配 |
 | `whale-workflow` | `Path=/workflow/**` | `lb://whale-workflow` | whale-workflow | ✅ 已配 |
 | `whale-form` | `Path=/form/**` | `lb://whale-form` | whale-form | ✅ 已配 |
@@ -274,7 +274,7 @@
 | 前端（任意） | 网关 | `http://<host>:8080/<一级前缀>/...` | 唯一对外入口，不再直连业务服务 |
 | 网关 | 各后端服务 | `lb://whale-<域>` | Nacos 服务发现，服务名 = `spring.application.name` |
 | 任意后端服务 | `whale-service-auth` | `lb://whale-service-auth` 或 SDK `whale-auth-sdk` | 包 `com.bluewhale.auth.sdk` |
-| `whale-im` | `whale-service-auth` | `POST /user/internal/exists`（Nacos 直连，不经网关） | 群成员 / 单聊对方合法性校验（存在且启用）；网关已列入 `internal-deny`，外部访问 403 |
+| `whale-im` | `whale-service-auth` | `POST /user/v1/internal/exists`（Nacos 直连，不经网关） | 群成员 / 单聊对方合法性校验（存在且启用）；网关已列入 `internal-deny`，外部访问 403 |
 | 任意后端服务 | `whale-file` | `lb://whale-file` | —— |
 | `whale-doc`（规划） | `whale-file` | `POST /file/internal/upload`、`GET /file/internal/{id}/content` | 附件/图片上传与代理读取；桶 `whale-doc`（Nacos 直连，不经网关） |
 | `whale-mall` | `whale-pay` | `POST /pay/internal/order`、`/order/{no}/pay`、`/order/{no}/cancel`、`POST /pay/internal/refund`（Nacos 直连，不经网关） | 支付单归属 `whale-pay`：mall 创建支付单（金额=订单应付，按单号幂等）、发起支付、取消联动、整单退款；全链路 M1 已落地 |
@@ -320,7 +320,7 @@
 | `REDIS_HOST` / `REDIS_PORT` | Redis | `127.0.0.1` / `6379` | whale-gateway、whale-service-auth、**whale-im**（seq/ticket/presence） |
 | `MYSQL_USER` / `MYSQL_PASSWORD` | 库账号 | 见各 yml | whale-service-auth、whale-audit、**whale-im**、**whale-message** |
 | `WHALE_CONFIG_ENC_KEY` | 配置密文 `ENC(...)` 解密密钥（REQ-SEC-020）；至少 16 字符，生产必须由密钥管理系统注入 | 空（存在密文则启动失败） | 引入 `whale-config-crypto` 的服务（auth 已接入，其余按阶段铺开） |
-| `WHALE_AUTH_PASSWORD_MAX_AGE_DAYS` / `WARN_DAYS` | 全局口令有效期 / 提前提醒天数（REQ-SEC-023） | `90` / `7` | whale-service-auth；租户可用 `PUT /tenant/password-policy` 覆盖（1–365 天） |
+| `WHALE_AUTH_PASSWORD_MAX_AGE_DAYS` / `WARN_DAYS` | 全局口令有效期 / 提前提醒天数（REQ-SEC-023） | `90` / `7` | whale-service-auth；租户可用 `PUT /tenant/v1/password-policy` 覆盖（1–365 天） |
 | `WHALE_AUTH_PASSWORD_HISTORY_SIZE` / `MIN_LENGTH` | 历史口令保留条数 / 最小长度（REQ-SEC-021） | `5` / `12` | whale-service-auth |
 | `WHALE_AUTH_PASSWORD_FORCE_CHANGE` / `NOTICE_CRON` | 新建或重置后强制首登改密 / 到期提醒 cron | `true` / `0 0 2 * * ?` | whale-service-auth |
 | `WHALE_FLYWAY_ENABLED` / `WHALE_FLYWAY_BASELINE_ON_MIGRATE` | Flyway 开关 / 存量库自动 baseline（REQ-SEC-022，**22 个服务库已启用**：auth + config/audit/alert/workflow/form/agent/doc/file + 12 个业务库 + video） | `true` / `true` | 各服务 `db/migration`（V1 基线起；auth V1–V3、workflow/contract 另有 V2 增量；`db/README.md` 说明脚本边界） |

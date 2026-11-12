@@ -21,8 +21,8 @@ import java.util.Map;
 /**
  * 通讯录网关实现。
  *
- * <p>调用 Auth 内网通讯录 {@code GET /user/internal/directory} 与
- * {@code GET /dept/internal/tree}；服务不可达或响应异常时统一抛出
+ * <p>调用 Auth 内网通讯录 {@code GET /user/v1/internal/directory} 与
+ * {@code GET /dept/v1/internal/tree}；服务不可达或响应异常时统一抛出
  * {@link OaErrorCode#DIRECTORY_UNAVAILABLE}，由接口层转为 {@code 503}。</p>
  *
  * @author BlueWhale
@@ -43,7 +43,7 @@ public class DirectoryGatewayImpl implements DirectoryGateway {
     @Override
     public PageResult<DirectoryUser> pageUsers(String keyword, Long deptId, long current, long size) {
         UriComponentsBuilder builder = UriComponentsBuilder
-                .fromUriString(baseUrl() + "/user/internal/directory")
+                .fromUriString(baseUrl() + "/user/v1/internal/directory")
                 .queryParam("current", current)
                 .queryParam("size", size);
         if (StringUtils.hasText(keyword)) {
@@ -58,7 +58,7 @@ public class DirectoryGatewayImpl implements DirectoryGateway {
 
     @Override
     public List<DeptNode> deptTree() {
-        Map<?, ?> response = request(baseUrl() + "/dept/internal/tree");
+        Map<?, ?> response = request(baseUrl() + "/dept/v1/internal/tree");
         Object code = response.get("code");
         if (!(code instanceof Number number) || number.intValue() != CODE_SUCCESS) {
             log.warn("通讯录部门树返回失败: message={}", response.get("message"));

@@ -1,6 +1,6 @@
 package com.bluewhale.auth.infrastructure.config;
 
-import com.bluewhale.auth.application.model.port.RefreshRotationPolicy;
+import com.bluewhale.auth.application.port.RefreshRotationPolicy;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;

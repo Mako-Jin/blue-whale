@@ -8,6 +8,8 @@ import com.bluewhale.auth.domain.event.AuthDomainEvent;
  * <p>应用层只依赖本端口，由基础设施层提供 Spring 事件实现，避免应用层反向依赖框架。</p>
  *
  * @author BlueWhale
+ *
+ * TODO 这个公共接口是不是该挪到common-基础设施层，或者common-应用层？
  */
 public interface DomainEventPublisher {
 

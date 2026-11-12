@@ -19,7 +19,7 @@ import java.util.Map;
 /**
  * 企业文化通讯录网关实现。
  *
- * <p>调用 Auth 内网通讯录 {@code GET /user/internal/directory}，仅用于补全姓名快照；
+ * <p>调用 Auth 内网通讯录 {@code GET /user/v1/internal/directory}，仅用于补全姓名快照；
  * 服务不可达或返回异常时降级为空映射。</p>
  *
  * @author BlueWhale
@@ -85,7 +85,7 @@ public class CultureUserDirectoryGatewayImpl implements CultureUserDirectoryGate
         if (baseUrl == null) {
             return null;
         }
-        String uri = UriComponentsBuilder.fromUriString(baseUrl + "/user/internal/directory")
+        String uri = UriComponentsBuilder.fromUriString(baseUrl + "/user/v1/internal/directory")
                 .queryParam("current", current)
                 .queryParam("size", size)
                 .build().encode().toUri().toString();

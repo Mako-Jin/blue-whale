@@ -21,9 +21,9 @@ import java.util.stream.Collectors;
 /**
  * 用户目录应用服务：面向服务间调用的「用户存在且启用」批量判定、内网通讯录与按角色查用户。
  *
- * <p>仅供内网接口使用：{@code POST /user/internal/exists} 供 IM 等业务服务在创建会话、
- * 添加群成员前校验目标用户是否真实存在；{@code GET /user/internal/directory} 与
- * {@code GET /user/internal/by-role} 供 OA 审批中心解析审批人。所有对外字段均不含口令等敏感信息。</p>
+ * <p>仅供内网接口使用：{@code POST /user/v1/internal/exists} 供 IM 等业务服务在创建会话、
+ * 添加群成员前校验目标用户是否真实存在；{@code GET /user/v1/internal/directory} 与
+ * {@code GET /user/v1/internal/by-role} 供 OA 审批中心解析审批人。所有对外字段均不含口令等敏感信息。</p>
  *
  * @author BlueWhale
  */

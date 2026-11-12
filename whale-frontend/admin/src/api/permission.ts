@@ -40,17 +40,17 @@ export interface PermissionPayload {
 }
 
 export function pagePermissions(params: PermissionPageParams): Promise<PageResult<PermissionVO>> {
-  return get<PageResult<PermissionVO>>('/permission/page', { ...params });
+  return get<PageResult<PermissionVO>>('/permission/v1/page', { ...params });
 }
 
 export function createPermission(body: PermissionPayload): Promise<void> {
-  return post<void>('/permission', body);
+  return post<void>('/permission/v1', body);
 }
 
 export function updatePermission(id: string, body: PermissionPayload): Promise<void> {
-  return put<void>(`/permission/${id}`, body);
+  return put<void>(`/permission/v1/${id}`, body);
 }
 
 export function deletePermission(id: string): Promise<void> {
-  return del<void>(`/permission/${id}`);
+  return del<void>(`/permission/v1/${id}`);
 }

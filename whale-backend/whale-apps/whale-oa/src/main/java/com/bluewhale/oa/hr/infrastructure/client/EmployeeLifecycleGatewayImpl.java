@@ -20,7 +20,7 @@ import java.util.Map;
 /**
  * Auth 人员生命周期网关实现。
  *
- * <p>调用 Auth 内网接口 {@code POST /user/internal/lifecycle}；服务不可达或返回失败时抛出
+ * <p>调用 Auth 内网接口 {@code POST /user/v1/internal/lifecycle}；服务不可达或返回失败时抛出
  * 业务异常，由应用服务落 {@code EXEC_FAILED} 状态并支持稍后重试。</p>
  *
  * @author BlueWhale
@@ -49,7 +49,7 @@ public class EmployeeLifecycleGatewayImpl implements EmployeeLifecycleGateway {
         body.put("deptId", change.getToDeptId());
         try {
             Map<?, ?> response = InternalTokenSupport.restClient().post()
-                    .uri(baseUrl + "/user/internal/lifecycle")
+                    .uri(baseUrl + "/user/v1/internal/lifecycle")
                     .body(body)
                     .retrieve()
                     .body(Map.class);

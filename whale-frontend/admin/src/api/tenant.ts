@@ -43,29 +43,29 @@ export interface TenantUpdatePayload {
 }
 
 export function pageTenants(params: TenantPageParams): Promise<PageResult<TenantVO>> {
-  return get<PageResult<TenantVO>>('/tenant/page', { ...params });
+  return get<PageResult<TenantVO>>('/tenant/v1/page', { ...params });
 }
 
 export function getTenant(id: number): Promise<TenantVO> {
-  return get<TenantVO>(`/tenant/${id}`);
+  return get<TenantVO>(`/tenant/v1/${id}`);
 }
 
 /** 开通租户：创建租户并初始化管理员、默认角色、菜单与部门根 */
 export function createTenant(payload: TenantCreatePayload): Promise<TenantVO> {
-  return post<TenantVO>('/tenant', payload);
+  return post<TenantVO>('/tenant/v1', payload);
 }
 
 export function updateTenant(id: number, payload: TenantUpdatePayload): Promise<TenantVO> {
-  return put<TenantVO>(`/tenant/${id}`, payload);
+  return put<TenantVO>(`/tenant/v1/${id}`, payload);
 }
 
 export function changeTenantStatus(id: number, status: number): Promise<TenantVO> {
-  return put<TenantVO>(`/tenant/${id}/status`, { status });
+  return put<TenantVO>(`/tenant/v1/${id}/status`, { status });
 }
 
 /** 续期：新到期时间必须晚于当前时间（yyyy-MM-dd HH:mm:ss） */
 export function renewTenant(id: number, expireTime: string): Promise<TenantVO> {
-  return put<TenantVO>(`/tenant/${id}/renew`, { expireTime });
+  return put<TenantVO>(`/tenant/v1/${id}/renew`, { expireTime });
 }
 
 /** 租户成员内的角色项（Wave 5.54 Phase 5.3） */
@@ -86,14 +86,14 @@ export interface TenantMemberVO {
   roles: TenantMemberRoleVO[];
 }
 
-/** 查询当前租户成员（GET /tenant/members） */
+/** 查询当前租户成员（GET /tenant/v1/members） */
 export function listTenantMembers(): Promise<TenantMemberVO[]> {
-  return get<TenantMemberVO[]>('/tenant/members');
+  return get<TenantMemberVO[]>('/tenant/v1/members');
 }
 
 /** 全量覆盖成员在本租户内的角色 */
 export function assignTenantMemberRoles(userId: number, roleIds: number[]): Promise<void> {
-  return put<void>(`/tenant/members/${userId}/roles`, { roleIds });
+  return put<void>(`/tenant/v1/members/${userId}/roles`, { roleIds });
 }
 
 /** 租户口令策略视图（REQ-SEC-023）：生效值 + 全局默认值 */
@@ -109,27 +109,27 @@ export interface TenantPasswordPolicyVO {
   defaultWarnDays: number;
 }
 
-/** 查询本租户生效口令策略（GET /tenant/password-policy，租户管理员/平台管理员） */
+/** 查询本租户生效口令策略（GET /tenant/v1/password-policy，租户管理员/平台管理员） */
 export function getTenantPasswordPolicy(): Promise<TenantPasswordPolicyVO> {
-  return get<TenantPasswordPolicyVO>('/tenant/password-policy');
+  return get<TenantPasswordPolicyVO>('/tenant/v1/password-policy');
 }
 
-/** 保存本租户口令策略（PUT /tenant/password-policy，有效期 1–365 天，提醒天数 0–有效期） */
+/** 保存本租户口令策略（PUT /tenant/v1/password-policy，有效期 1–365 天，提醒天数 0–有效期） */
 export function updateTenantPasswordPolicy(payload: {
   maxAgeDays: number;
   warnDays: number;
 }): Promise<TenantPasswordPolicyVO> {
-  return put<TenantPasswordPolicyVO>('/tenant/password-policy', payload);
+  return put<TenantPasswordPolicyVO>('/tenant/v1/password-policy', payload);
 }
 
 /** 平台租户：为用户绑定可进入的租户 */
 export function bindUserTenant(userId: number, tenantId: number): Promise<void> {
-  return post<void>(`/user/${userId}/tenants`, { tenantId });
+  return post<void>(`/user/v1/${userId}/tenants`, { tenantId });
 }
 
 /** 平台租户：解除用户与租户的关系（首页关系由后端拒绝） */
 export function unbindUserTenant(userId: number, tenantId: number): Promise<void> {
-  return del<void>(`/user/${userId}/tenants/${tenantId}`);
+  return del<void>(`/user/v1/${userId}/tenants/${tenantId}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -151,7 +151,7 @@ export interface TenantConfigEntry {
 
 /** 查询本租户配置（prefix 为空表示全部） */
 export function listTenantConfig(prefix?: string): Promise<TenantConfigEntry[]> {
-  return get<TenantConfigEntry[]>('/tenant/config', prefix ? { prefix } : undefined);
+  return get<TenantConfigEntry[]>('/tenant/v1/config', prefix ? { prefix } : undefined);
 }
 
 /** 保存一条租户配置（存在则覆盖） */
@@ -159,5 +159,5 @@ export function upsertTenantConfig(payload: {
   configKey: string;
   configValue: string;
 }): Promise<void> {
-  return put<void>('/tenant/config', payload);
+  return put<void>('/tenant/v1/config', payload);
 }

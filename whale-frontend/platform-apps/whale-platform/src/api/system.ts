@@ -62,7 +62,7 @@ export function pageUsers(params: {
   size?: number;
   keyword?: string;
 }): Promise<PageResult<UserVO>> {
-  return get<PageResult<UserVO>>(`/user/page${buildQuery(params)}`);
+  return get<PageResult<UserVO>>(`/user/v1/page${buildQuery(params)}`);
 }
 
 /** 分页查询角色（keyword 匹配角色编码/名称） */
@@ -71,10 +71,10 @@ export function pageRoles(params: {
   size?: number;
   keyword?: string;
 }): Promise<PageResult<RoleVO>> {
-  return get<PageResult<RoleVO>>(`/role/page${buildQuery(params)}`);
+  return get<PageResult<RoleVO>>(`/role/v1/page${buildQuery(params)}`);
 }
 
 /** 查询菜单树 */
 export function treeMenus(): Promise<MenuVO[]> {
-  return get<MenuVO[]>('/menu/tree');
+  return get<MenuVO[]>('/menu/v1/tree');
 }

@@ -21,7 +21,7 @@ import java.util.Optional;
 /**
  * 用户目录查询客户端实现。
  *
- * <p>调用 Auth 内网通讯录 {@code GET /user/internal/directory}，仅接受账号精确匹配；
+ * <p>调用 Auth 内网通讯录 {@code GET /user/v1/internal/directory}，仅接受账号精确匹配；
  * 找不到或存在多个同名账号时返回空，由调用方跳过该接收人。</p>
  *
  * @author BlueWhale
@@ -47,7 +47,7 @@ public class UserDirectoryGatewayImpl implements UserDirectoryGateway {
         if (!StringUtils.hasText(username)) {
             return Optional.empty();
         }
-        String uri = UriComponentsBuilder.fromUriString(baseUrl() + "/user/internal/directory")
+        String uri = UriComponentsBuilder.fromUriString(baseUrl() + "/user/v1/internal/directory")
                 .queryParam("keyword", username.trim())
                 .queryParam("current", 1)
                 .queryParam("size", QUERY_SIZE)

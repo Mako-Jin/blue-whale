@@ -1,9 +1,9 @@
 package com.bluewhale.auth.application.security;
 
 import com.bluewhale.auth.application.model.AuthenticatedUser;
-import com.bluewhale.auth.application.model.port.CredentialAuthenticator;
-import com.bluewhale.auth.application.model.port.CurrentUserProvider;
-import com.bluewhale.auth.application.model.port.ReauthTokenStore;
+import com.bluewhale.auth.application.port.CredentialAuthenticator;
+import com.bluewhale.auth.application.port.CurrentUserProvider;
+import com.bluewhale.auth.application.port.ReauthTokenStore;
 import com.bluewhale.common.core.exception.BizException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

@@ -1,7 +1,7 @@
 package com.bluewhale.auth.infrastructure.adapter.auth;
 
 import com.bluewhale.auth.application.model.AuthenticatedUser;
-import com.bluewhale.auth.application.model.port.UserSessionQuery;
+import com.bluewhale.auth.application.port.UserSessionQuery;
 import com.bluewhale.auth.infrastructure.security.UserDetailsServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;

@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-    "/user/{id}": {
+    "/user/v1/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -20,7 +20,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/user/{id}/status": {
+    "/user/v1/{id}/status": {
         parameters: {
             query?: never;
             header?: never;
@@ -36,7 +36,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/user/{id}/password": {
+    "/user/v1/{id}/password": {
         parameters: {
             query?: never;
             header?: never;
@@ -52,7 +52,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/user/{id}/attrs": {
+    "/user/v1/{id}/attrs": {
         parameters: {
             query?: never;
             header?: never;
@@ -68,7 +68,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/tenant/{id}": {
+    "/tenant/v1/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -84,7 +84,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/tenant/{id}/status": {
+    "/tenant/v1/{id}/status": {
         parameters: {
             query?: never;
             header?: never;
@@ -100,7 +100,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/tenant/{id}/renew": {
+    "/tenant/v1/{id}/renew": {
         parameters: {
             query?: never;
             header?: never;
@@ -116,7 +116,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/tenant/password-policy": {
+    "/tenant/v1/password-policy": {
         parameters: {
             query?: never;
             header?: never;
@@ -132,7 +132,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/tenant/members/{userId}/roles": {
+    "/tenant/v1/members/{userId}/roles": {
         parameters: {
             query?: never;
             header?: never;
@@ -148,7 +148,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/tenant/config": {
+    "/tenant/v1/config": {
         parameters: {
             query?: never;
             header?: never;
@@ -164,7 +164,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/role/{id}": {
+    "/role/v1/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -180,7 +180,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/permission/{id}": {
+    "/permission/v1/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -196,7 +196,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/menu/{id}": {
+    "/menu/v1/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -212,7 +212,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/dept/{id}": {
+    "/dept/v1/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -276,7 +276,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/user": {
+    "/user/v1": {
         parameters: {
             query?: never;
             header?: never;
@@ -292,7 +292,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/user/{id}/tenants": {
+    "/user/v1/{id}/tenants": {
         parameters: {
             query?: never;
             header?: never;
@@ -308,7 +308,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/user/{id}/roles": {
+    "/user/v1/{id}/roles": {
         parameters: {
             query?: never;
             header?: never;
@@ -324,7 +324,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/user/internal/lifecycle": {
+    "/user/v1/internal/lifecycle": {
         parameters: {
             query?: never;
             header?: never;
@@ -340,7 +340,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/user/internal/exists": {
+    "/user/v1/internal/exists": {
         parameters: {
             query?: never;
             header?: never;
@@ -356,7 +356,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/user/internal/config/set": {
+    "/user/v1/internal/config/set": {
         parameters: {
             query?: never;
             header?: never;
@@ -372,7 +372,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/user/internal/config/batch-get": {
+    "/user/v1/internal/config/batch-get": {
         parameters: {
             query?: never;
             header?: never;
@@ -388,7 +388,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/tenant": {
+    "/tenant/v1": {
         parameters: {
             query?: never;
             header?: never;
@@ -404,7 +404,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/role": {
+    "/role/v1": {
         parameters: {
             query?: never;
             header?: never;
@@ -420,7 +420,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/role/{id}/permissions": {
+    "/role/v1/{id}/permissions": {
         parameters: {
             query?: never;
             header?: never;
@@ -436,7 +436,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/permission": {
+    "/permission/v1": {
         parameters: {
             query?: never;
             header?: never;
@@ -452,7 +452,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/menu": {
+    "/menu/v1": {
         parameters: {
             query?: never;
             header?: never;
@@ -484,7 +484,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/dept": {
+    "/dept/v1": {
         parameters: {
             query?: never;
             header?: never;
@@ -596,7 +596,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/user/page": {
+    "/user/v1/page": {
         parameters: {
             query?: never;
             header?: never;
@@ -612,7 +612,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/user/internal/directory": {
+    "/user/v1/internal/directory": {
         parameters: {
             query?: never;
             header?: never;
@@ -628,7 +628,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/user/internal/by-role": {
+    "/user/v1/internal/by-role": {
         parameters: {
             query?: never;
             header?: never;
@@ -644,7 +644,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/tenant/page": {
+    "/tenant/v1/page": {
         parameters: {
             query?: never;
             header?: never;
@@ -660,7 +660,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/tenant/members": {
+    "/tenant/v1/members": {
         parameters: {
             query?: never;
             header?: never;
@@ -676,7 +676,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/tenant/internal/enabled-ids": {
+    "/tenant/v1/internal/enabled-ids": {
         parameters: {
             query?: never;
             header?: never;
@@ -692,7 +692,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/role/page": {
+    "/role/v1/page": {
         parameters: {
             query?: never;
             header?: never;
@@ -708,7 +708,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/permission/page": {
+    "/permission/v1/page": {
         parameters: {
             query?: never;
             header?: never;
@@ -724,7 +724,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/menu/tree": {
+    "/menu/v1/tree": {
         parameters: {
             query?: never;
             header?: never;
@@ -772,7 +772,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/dept/tree": {
+    "/dept/v1/tree": {
         parameters: {
             query?: never;
             header?: never;
@@ -788,7 +788,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/dept/internal/{id}/leader": {
+    "/dept/v1/internal/{id}/leader": {
         parameters: {
             query?: never;
             header?: never;
@@ -804,7 +804,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/dept/internal/tree": {
+    "/dept/v1/internal/tree": {
         parameters: {
             query?: never;
             header?: never;
@@ -868,7 +868,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/user/{id}/tenants/{tenantId}": {
+    "/user/v1/{id}/tenants/{tenantId}": {
         parameters: {
             query?: never;
             header?: never;

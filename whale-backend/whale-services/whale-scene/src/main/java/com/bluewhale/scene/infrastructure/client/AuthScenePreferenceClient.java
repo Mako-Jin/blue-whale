@@ -47,10 +47,10 @@ public class AuthScenePreferenceClient {
     public static final String CONFIG_KEY = "scene.view";
 
     /** auth 内网批量读取路径 */
-    private static final String BATCH_GET_PATH = "/user/internal/config/batch-get";
+    private static final String BATCH_GET_PATH = "/user/v1/internal/config/batch-get";
 
     /** auth 内网单条写入路径（Wave 6.25 新增） */
-    private static final String SET_PATH = "/user/internal/config/set";
+    private static final String SET_PATH = "/user/v1/internal/config/set";
 
     /** JSON 映射器（Jackson 3，无状态复用） */
     private static final JsonMapper JSON_MAPPER = JsonMapper.builder().build();

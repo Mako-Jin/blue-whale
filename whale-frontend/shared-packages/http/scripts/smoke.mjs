@@ -42,9 +42,9 @@ function assertTraceId(record) {
   const client = createHttpClient({ baseUrl: 'https://api.test', getToken: () => 'token-1' });
   calls.length = 0;
   handler = async () => jsonResponse({ code: 0, message: 'ok', data: { id: 7 } });
-  const data = await client.get('/user/7');
+  const data = await client.get('/user/v1/7');
   assert.deepEqual(data, { id: 7 });
-  assert.equal(calls[0].url, 'https://api.test/user/7');
+  assert.equal(calls[0].url, 'https://api.test/user/v1/7');
   assert.equal(headerOf(calls[0].init, 'Authorization'), 'Bearer token-1');
   assertTraceId(calls[0]);
 }

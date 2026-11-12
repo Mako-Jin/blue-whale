@@ -1,7 +1,7 @@
 package com.bluewhale.auth.application.user.password;
 
 import com.bluewhale.auth.application.model.AuthenticatedUser;
-import com.bluewhale.auth.application.model.port.CurrentUserProvider;
+import com.bluewhale.auth.application.port.CurrentUserProvider;
 import com.bluewhale.auth.application.event.DomainEventPublisher;
 import com.bluewhale.auth.application.user.port.PasswordHasher;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;

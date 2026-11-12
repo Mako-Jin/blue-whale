@@ -20,7 +20,7 @@ import java.util.Map;
 /**
  * 协同通讯录网关实现。
  *
- * <p>调用 Auth 内网通讯录 {@code GET /user/internal/directory}，按页拉取候选用户；
+ * <p>调用 Auth 内网通讯录 {@code GET /user/v1/internal/directory}，按页拉取候选用户；
  * 服务不可达时返回空列表，由调用方按业务提示处理。</p>
  *
  * @author BlueWhale
@@ -75,7 +75,7 @@ public class CollabUserDirectoryGatewayImpl implements CollabUserDirectoryGatewa
      */
     private Map<?, ?> fetch(String keyword, Long deptId, long current, int size) {
         UriComponentsBuilder builder = UriComponentsBuilder
-                .fromUriString(baseUrl() + "/user/internal/directory")
+                .fromUriString(baseUrl() + "/user/v1/internal/directory")
                 .queryParam("current", current)
                 .queryParam("size", size);
         if (StringUtils.hasText(keyword)) {

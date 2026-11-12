@@ -45,23 +45,23 @@ export interface UserPageParams {
 }
 
 export function pageUsers(params: UserPageParams): Promise<PageResult<UserVO>> {
-  return get<PageResult<UserVO>>('/user/page', { ...params });
+  return get<PageResult<UserVO>>('/user/v1/page', { ...params });
 }
 
 export function getUser(id: string): Promise<UserVO> {
-  return get<UserVO>(`/user/${id}`);
+  return get<UserVO>(`/user/v1/${id}`);
 }
 
 export function createUser(payload: UserCreatePayload): Promise<UserVO> {
-  return post<UserVO>('/user', payload);
+  return post<UserVO>('/user/v1', payload);
 }
 
 export function updateUser(id: string, payload: UserUpdatePayload): Promise<UserVO> {
-  return put<UserVO>(`/user/${id}`, payload);
+  return put<UserVO>(`/user/v1/${id}`, payload);
 }
 
 export function deleteUser(id: string): Promise<void> {
-  return del<void>(`/user/${id}`);
+  return del<void>(`/user/v1/${id}`);
 }
 
 /** 管理员重置口令响应：一次性临时口令仅在本次响应展示（REQ-SEC-023） */
@@ -76,17 +76,17 @@ export interface ResetPasswordVO {
 }
 
 export function resetUserPassword(id: string): Promise<ResetPasswordVO> {
-  return put<ResetPasswordVO>(`/user/${id}/password`);
+  return put<ResetPasswordVO>(`/user/v1/${id}/password`);
 }
 
 export function changeUserStatus(id: string, status: number): Promise<void> {
-  return put<void>(`/user/${id}/status`, { status });
+  return put<void>(`/user/v1/${id}/status`, { status });
 }
 
 export function getUserRoleIds(id: string): Promise<string[]> {
-  return get<string[]>(`/user/${id}/roles`);
+  return get<string[]>(`/user/v1/${id}/roles`);
 }
 
 export function assignUserRoles(id: string, roleIds: string[]): Promise<void> {
-  return post<void>(`/user/${id}/roles`, { roleIds });
+  return post<void>(`/user/v1/${id}/roles`, { roleIds });
 }

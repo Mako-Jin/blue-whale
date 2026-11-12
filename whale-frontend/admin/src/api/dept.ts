@@ -25,17 +25,17 @@ export interface DeptPayload {
 }
 
 export function treeDepts(): Promise<DeptVO[]> {
-  return get<DeptVO[]>('/dept/tree');
+  return get<DeptVO[]>('/dept/v1/tree');
 }
 
 export function createDept(body: DeptPayload): Promise<void> {
-  return post<void>('/dept', body);
+  return post<void>('/dept/v1', body);
 }
 
 export function updateDept(id: string, body: DeptPayload): Promise<void> {
-  return put<void>(`/dept/${id}`, body);
+  return put<void>(`/dept/v1/${id}`, body);
 }
 
 export function deleteDept(id: string): Promise<void> {
-  return del<void>(`/dept/${id}`);
+  return del<void>(`/dept/v1/${id}`);
 }

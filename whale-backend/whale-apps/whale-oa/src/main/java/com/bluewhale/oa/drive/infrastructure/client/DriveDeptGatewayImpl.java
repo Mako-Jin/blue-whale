@@ -18,7 +18,7 @@ import java.util.Map;
 /**
  * 组织架构网关实现。
  *
- * <p>调用 Auth 内网通讯录 {@code GET /user/internal/directory}，仅接受账号精确匹配；
+ * <p>调用 Auth 内网通讯录 {@code GET /user/v1/internal/directory}，仅接受账号精确匹配；
  * 解析失败一律返回 {@code null}，由应用层按无部门处理。</p>
  *
  * @author BlueWhale
@@ -44,7 +44,7 @@ public class DriveDeptGatewayImpl implements DriveDeptGateway {
         if (!StringUtils.hasText(username)) {
             return null;
         }
-        String uri = UriComponentsBuilder.fromUriString(baseUrl() + "/user/internal/directory")
+        String uri = UriComponentsBuilder.fromUriString(baseUrl() + "/user/v1/internal/directory")
                 .queryParam("keyword", username.trim())
                 .queryParam("current", 1)
                 .queryParam("size", QUERY_SIZE)

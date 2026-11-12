@@ -1,7 +1,7 @@
 package com.bluewhale.auth.infrastructure.adapter.auth;
 
 import com.bluewhale.auth.application.model.AuthenticatedUser;
-import com.bluewhale.auth.application.model.port.CredentialAuthenticator;
+import com.bluewhale.auth.application.port.CredentialAuthenticator;
 import com.bluewhale.auth.application.security.InvalidCredentialException;
 import com.bluewhale.auth.infrastructure.security.LoginTenantContext;
 import com.bluewhale.auth.infrastructure.security.LoginUser;

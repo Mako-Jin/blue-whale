@@ -23,7 +23,7 @@ import java.util.Map;
  *
  * <p>为什么不让前端直接调 {@code /user/page}：那个端点要求 {@code sys:user:list}，
  * 孪生的场景运营者通常没有用户管理权限，会出现「配不了接收人」的死结。
- * 这里改走 {@code GET /user/internal/directory} 与 {@code GET /dept/internal/tree}
+ * 这里改走 {@code GET /user/v1/internal/directory} 与 {@code GET /dept/v1/internal/tree}
  * （网关对 {@code /internal/**} 统一 403，外部不可达），由孪生服务带内网令牌代理，
  * 前端只拿到「ID + 名字 + 部门」。</p>
  *
@@ -37,10 +37,10 @@ import java.util.Map;
 public class TwinUserDirectoryClient {
 
     /** 内网通讯录路径 */
-    private static final String DIRECTORY_PATH = "/user/internal/directory";
+    private static final String DIRECTORY_PATH = "/user/v1/internal/directory";
 
     /** 内网部门树路径 */
-    private static final String DEPT_TREE_PATH = "/dept/internal/tree";
+    private static final String DEPT_TREE_PATH = "/dept/v1/internal/tree";
 
     /** 单次返回上限（选择器只做增量搜索，不需要大页） */
     private static final int MAX_SIZE = 50;

@@ -54,7 +54,7 @@ class AuthScenePreferenceClientTest {
     @Test
     @DisplayName("读到配置时解析出 viewMode 与 defaultSceneKey")
     void shouldParseStoredValue() {
-        server.expect(requestTo(AUTH_BASE + "/user/internal/config/batch-get"))
+        server.expect(requestTo(AUTH_BASE + "/user/v1/internal/config/batch-get"))
                 .andExpect(method(HttpMethod.POST))
                 .andExpect(content().string(containsString("\"scene.view\"")))
                 .andRespond(withSuccess("""
@@ -74,7 +74,7 @@ class AuthScenePreferenceClientTest {
     @Test
     @DisplayName("未配置（value 为 null）时返回 empty")
     void shouldReturnEmptyWhenNotConfigured() {
-        server.expect(requestTo(AUTH_BASE + "/user/internal/config/batch-get"))
+        server.expect(requestTo(AUTH_BASE + "/user/v1/internal/config/batch-get"))
                 .andRespond(withSuccess("""
                         {"code":0,"data":[{"userId":7,"configKey":"scene.view","value":null,"source":"NONE"}]}
                         """, MediaType.APPLICATION_JSON));
@@ -85,7 +85,7 @@ class AuthScenePreferenceClientTest {
     @Test
     @DisplayName("auth 不可用时返回 empty（fail-open，不抛错）")
     void shouldFailOpenWhenAuthUnavailable() {
-        server.expect(requestTo(AUTH_BASE + "/user/internal/config/batch-get"))
+        server.expect(requestTo(AUTH_BASE + "/user/v1/internal/config/batch-get"))
                 .andRespond(withServerError());
 
         assertTrue(client.read(1L, 7L).isEmpty());
@@ -94,7 +94,7 @@ class AuthScenePreferenceClientTest {
     @Test
     @DisplayName("配置值 JSON 非法时返回 empty（脏数据不阻塞进页面）")
     void shouldReturnEmptyOnBrokenValue() {
-        server.expect(requestTo(AUTH_BASE + "/user/internal/config/batch-get"))
+        server.expect(requestTo(AUTH_BASE + "/user/v1/internal/config/batch-get"))
                 .andRespond(withSuccess("""
                         {"code":0,"data":[{"userId":7,"configKey":"scene.view","value":"not-json","source":"USER"}]}
                         """, MediaType.APPLICATION_JSON));
@@ -105,7 +105,7 @@ class AuthScenePreferenceClientTest {
     @Test
     @DisplayName("存储的 viewMode 被改坏时回落 2D")
     void shouldFallbackToTwoDOnInvalidStoredViewMode() {
-        server.expect(requestTo(AUTH_BASE + "/user/internal/config/batch-get"))
+        server.expect(requestTo(AUTH_BASE + "/user/v1/internal/config/batch-get"))
                 .andRespond(withSuccess("""
                         {"code":0,"data":[{"userId":7,"configKey":"scene.view",
                         "value":"{\\"viewMode\\":\\"4D\\"}","source":"USER"}]}
@@ -121,7 +121,7 @@ class AuthScenePreferenceClientTest {
     @Test
     @DisplayName("写入时提交 scene.view 键与规范 JSON 值")
     void shouldWriteNormalizedValue() {
-        server.expect(requestTo(AUTH_BASE + "/user/internal/config/set"))
+        server.expect(requestTo(AUTH_BASE + "/user/v1/internal/config/set"))
                 .andExpect(method(HttpMethod.POST))
                 .andExpect(content().string(containsString("\"configKey\":\"scene.view\"")))
                 .andExpect(content().string(
@@ -140,7 +140,7 @@ class AuthScenePreferenceClientTest {
     @Test
     @DisplayName("写入业务码非 0 时抛错（fail-closed，不假装成功）")
     void shouldFailClosedOnBusinessError() {
-        server.expect(requestTo(AUTH_BASE + "/user/internal/config/set"))
+        server.expect(requestTo(AUTH_BASE + "/user/v1/internal/config/set"))
                 .andRespond(withSuccess("{\"code\":400,\"message\":\"配置键不合法\"}",
                         MediaType.APPLICATION_JSON));
 

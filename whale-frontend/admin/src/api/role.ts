@@ -36,29 +36,29 @@ export interface RolePageParams {
 }
 
 export function pageRoles(params: RolePageParams): Promise<PageResult<RoleVO>> {
-  return get<PageResult<RoleVO>>('/role/page', { ...params });
+  return get<PageResult<RoleVO>>('/role/v1/page', { ...params });
 }
 
 export function getRole(id: string): Promise<RoleVO> {
-  return get<RoleVO>(`/role/${id}`);
+  return get<RoleVO>(`/role/v1/${id}`);
 }
 
 export function createRole(payload: RoleCreatePayload): Promise<RoleVO> {
-  return post<RoleVO>('/role', payload);
+  return post<RoleVO>('/role/v1', payload);
 }
 
 export function updateRole(id: string, payload: RoleUpdatePayload): Promise<RoleVO> {
-  return put<RoleVO>(`/role/${id}`, payload);
+  return put<RoleVO>(`/role/v1/${id}`, payload);
 }
 
 export function deleteRole(id: string): Promise<void> {
-  return del<void>(`/role/${id}`);
+  return del<void>(`/role/v1/${id}`);
 }
 
 export function getRolePermissionIds(id: string): Promise<string[]> {
-  return get<string[]>(`/role/${id}/permissions`);
+  return get<string[]>(`/role/v1/${id}/permissions`);
 }
 
 export function assignRolePermissions(id: string, permissionIds: string[]): Promise<void> {
-  return post<void>(`/role/${id}/permissions`, { permissionIds });
+  return post<void>(`/role/v1/${id}/permissions`, { permissionIds });
 }

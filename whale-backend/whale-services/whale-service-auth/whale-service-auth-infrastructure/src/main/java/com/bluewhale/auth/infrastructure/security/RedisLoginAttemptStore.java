@@ -1,6 +1,6 @@
 package com.bluewhale.auth.infrastructure.security;
 
-import com.bluewhale.auth.application.model.port.LoginAttemptStore;
+import com.bluewhale.auth.application.port.LoginAttemptStore;
 import com.bluewhale.security.degradation.SecurityDegradationAlerter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;

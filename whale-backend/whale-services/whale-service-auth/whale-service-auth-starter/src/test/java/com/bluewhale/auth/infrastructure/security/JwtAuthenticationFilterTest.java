@@ -1,7 +1,7 @@
 package com.bluewhale.auth.infrastructure.security;
 
-import com.bluewhale.auth.application.model.port.TokenBlacklist;
-import com.bluewhale.auth.application.model.port.UserAccessRevocationPort;
+import com.bluewhale.auth.application.port.TokenBlacklist;
+import com.bluewhale.auth.application.port.UserAccessRevocationPort;
 import com.bluewhale.auth.infrastructure.jwt.JwtTokenProvider;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
