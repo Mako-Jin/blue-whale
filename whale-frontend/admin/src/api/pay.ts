@@ -14,7 +14,8 @@ export interface PayOrderVO {
   orderNo: string;
   /** 业务标识 */
   businessKey?: string;
-  amount: string;
+  /** 运行时为 number（BigDecimal 不走 Long→String） */
+  amount: number;
   currency: string;
   /** 支付渠道：ALIPAY / WECHAT / BALANCE 等 */
   channel?: string;
@@ -22,7 +23,8 @@ export interface PayOrderVO {
   payTime?: string;
   /** 渠道流水号（mock 模式为模拟流水号） */
   channelTradeNo?: string;
-  refundAmount?: string;
+  /** 运行时为 number（BigDecimal） */
+  refundAmount?: number;
   refundTime?: string;
   remark?: string;
   createTime?: string;
@@ -37,7 +39,8 @@ export interface PayTransactionVO {
   /** PAY / REFUND */
   type: string;
   channel?: string;
-  amount: string;
+  /** 运行时为 number（BigDecimal） */
+  amount: number;
   currency: string;
   providerTradeNo?: string;
   /** SUCCESS / FAILED */
@@ -61,8 +64,8 @@ export interface PayReconcileVO {
 export interface PayOrderInput {
   orderNo: string;
   businessKey?: string;
-  /** 金额字符串，最多 2 位小数 */
-  amount: string;
+  /** 运行时为 number（BigDecimal），最多 2 位小数 */
+  amount: number;
   currency: string;
   channel?: string;
   remark?: string;

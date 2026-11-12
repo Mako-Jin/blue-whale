@@ -12,7 +12,7 @@ interface JobEditorModalProps {
   form: FormInstance<JobFormValues>;
   dependency: JobDependencyVO | null;
   dependencyLoading: boolean;
-  jobOptions: { value: number; label: string }[];
+  jobOptions: { value: string; label: string }[];
   onOk: (values: JobFormValues) => void | Promise<void>;
   onCancel: () => void;
 }

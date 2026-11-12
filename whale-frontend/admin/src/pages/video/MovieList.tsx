@@ -76,12 +76,12 @@ interface MovieFormValues {
   title: string;
   subtitle?: string;
   description?: string;
-  videoFileId?: number;
+  videoFileId?: string;
   durationMs?: number;
   width?: number;
   height?: number;
-  categoryId?: number;
-  creatorId?: number;
+  categoryId?: string;
+  creatorId?: string;
   originalTitle?: string;
   director?: string;
   actors?: string;
@@ -153,7 +153,7 @@ export default function MovieList() {
 
   const [categories, setCategories] = useState<CategoryView[]>([]);
   const [keyword, setKeyword] = useState<string | undefined>(undefined);
-  const [categoryId, setCategoryId] = useState<number | undefined>(undefined);
+  const [categoryId, setCategoryId] = useState<string | undefined>(undefined);
   const [publishState, setPublishState] = useState<PublishState | undefined>(undefined);
   const [sortBy, setSortBy] = useState<'LATEST' | 'HOT' | undefined>(undefined);
 
@@ -161,9 +161,9 @@ export default function MovieList() {
   const [editing, setEditing] = useState<MovieAdminView | null>(null);
   const [releaseDateValue, setReleaseDateValue] = useState<string | undefined>(undefined);
   const [licenseExpireValue, setLicenseExpireValue] = useState<string | undefined>(undefined);
-  const [posterFileId, setPosterFileId] = useState<number | undefined>(undefined);
+  const [posterFileId, setPosterFileId] = useState<string | undefined>(undefined);
   const [posterName, setPosterName] = useState('');
-  const [backdropFileId, setBackdropFileId] = useState<number | undefined>(undefined);
+  const [backdropFileId, setBackdropFileId] = useState<string | undefined>(undefined);
   const [backdropName, setBackdropName] = useState('');
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [uploadingPoster, setUploadingPoster] = useState(false);
@@ -203,7 +203,7 @@ export default function MovieList() {
 
   const handleUpload = (
     file: File,
-    done: (fileId: number, name: string) => void,
+    done: (fileId: string, name: string) => void,
     setUploading: (value: boolean) => void,
     label: string,
   ) => {
@@ -223,7 +223,8 @@ export default function MovieList() {
       message.warning('请选择授权到期时间');
       throw new Error('missing license expire at');
     }
-    if (!editing && (!values.videoFileId || values.videoFileId <= 0)) {
+    // videoFileId 运行时为字符串，'0' 视为未填写
+    if (!editing && (!values.videoFileId || values.videoFileId === '0')) {
       message.warning('请上传视频文件或填写视频文件 ID');
       throw new Error('missing video file');
     }
@@ -235,8 +236,9 @@ export default function MovieList() {
       durationMs: values.durationMs,
       width: values.width,
       height: values.height,
-      categoryId: values.categoryId ?? 0,
-      creatorId: values.creatorId ?? 0,
+      // 未选分类 / 未填创作者沿用后端约定的 '0' 占位
+      categoryId: values.categoryId ?? '0',
+      creatorId: values.creatorId ?? '0',
       originalTitle: values.originalTitle || undefined,
       director: values.director || undefined,
       actors: values.actors || undefined,
@@ -319,8 +321,10 @@ export default function MovieList() {
     }
   };
 
-  const categoryName = (value?: number) =>
-    categories.find((item) => item.id === value)?.name ?? (value ? `#${value}` : '-');
+  // categoryId 运行时为字符串，'0' 表示未选分类
+  const categoryName = (value?: string) =>
+    categories.find((item) => item.id === value)?.name ??
+    (value && value !== '0' ? `#${value}` : '-');
 
   const columns: TableProps<MovieAdminView>['columns'] = [
     { title: 'ID', dataIndex: 'id', width: 80 },
@@ -349,7 +353,7 @@ export default function MovieList() {
       title: '分类',
       dataIndex: 'categoryId',
       width: 110,
-      render: (value?: number) => categoryName(value),
+      render: (value?: string) => categoryName(value),
     },
     {
       title: '状态',
@@ -491,7 +495,7 @@ export default function MovieList() {
             ]}
             onSearch={(values) => {
               setKeyword((values.keyword as string) || undefined);
-              setCategoryId((values.categoryId as number) || undefined);
+              setCategoryId((values.categoryId as string) || undefined);
               setPublishState((values.publishState as PublishState) || undefined);
               setSortBy((values.sortBy as 'LATEST' | 'HOT') || undefined);
             }}
@@ -524,8 +528,8 @@ export default function MovieList() {
           durationMs: editing?.durationMs,
           width: editing?.width,
           height: editing?.height,
-          categoryId: editing?.categoryId && editing.categoryId > 0 ? editing.categoryId : undefined,
-          creatorId: editing?.creatorId && editing.creatorId > 0 ? editing.creatorId : undefined,
+          categoryId: editing?.categoryId && editing.categoryId !== '0' ? editing.categoryId : undefined,
+          creatorId: editing?.creatorId && editing.creatorId !== '0' ? editing.creatorId : undefined,
           originalTitle: editing?.originalTitle,
           director: editing?.director,
           actors: editing?.actors,
@@ -564,7 +568,7 @@ export default function MovieList() {
             />
           </Form.Item>
           <Form.Item name="creatorId" label="创作者 ID" style={{ flex: 1 }} extra="可选，运营入库通常留空">
-            <InputNumber min={1} precision={0} style={{ width: '100%' }} placeholder="留空表示未登记" />
+            <Input placeholder="留空表示未登记" />
           </Form.Item>
         </Space>
 
@@ -575,7 +579,7 @@ export default function MovieList() {
           rules={editing ? [] : [{ required: true, message: '请填写视频文件 ID' }]}
           extra={editing ? '留空表示保留原视频文件；填写则替换并重新校验格式与大小' : '可上传视频或直接填写 whale-file 文件 ID'}
         >
-          <InputNumber min={1} precision={0} style={{ width: '100%' }} placeholder="whale-file 文件 ID" />
+          <Input placeholder="whale-file 文件 ID" />
         </Form.Item>
         <Space size={16} align="start" style={{ display: 'flex' }}>
           <Form.Item
@@ -688,7 +692,7 @@ export default function MovieList() {
         <Typography.Text type="secondary">图片素材</Typography.Text>
         <Form.Item label="海报">
           <Space direction="vertical" size={6}>
-            {posterFileId === 0 ? (
+            {posterFileId === '0' ? (
               <Typography.Text type="secondary">已清除海报（保存后生效）</Typography.Text>
             ) : posterFileId ? (
               <Typography.Text type="secondary">已上传海报：{posterName || `文件 ID ${posterFileId}`}</Typography.Text>
@@ -715,14 +719,14 @@ export default function MovieList() {
                 }}
               >
                 <Button loading={uploadingPoster}>
-                  {posterFileId !== 0 && (posterFileId || editing?.posterUrl) ? '重新上传海报' : '上传海报'}
+                  {posterFileId !== '0' && (posterFileId || editing?.posterUrl) ? '重新上传海报' : '上传海报'}
                 </Button>
               </Upload>
-              {editing?.posterUrl || posterFileId ? (
+              {editing?.posterUrl || (posterFileId && posterFileId !== '0') ? (
                 <Button
                   danger
                   onClick={() => {
-                    setPosterFileId(0);
+                    setPosterFileId('0');
                     setPosterName('');
                   }}
                 >
@@ -734,7 +738,7 @@ export default function MovieList() {
         </Form.Item>
         <Form.Item label="背景图">
           <Space direction="vertical" size={6}>
-            {backdropFileId === 0 ? (
+            {backdropFileId === '0' ? (
               <Typography.Text type="secondary">已清除背景图（保存后生效）</Typography.Text>
             ) : backdropFileId ? (
               <Typography.Text type="secondary">
@@ -763,14 +767,14 @@ export default function MovieList() {
                 }}
               >
                 <Button loading={uploadingBackdrop}>
-                  {backdropFileId !== 0 && (backdropFileId || editing?.backdropUrl) ? '重新上传背景图' : '上传背景图'}
+                  {backdropFileId !== '0' && (backdropFileId || editing?.backdropUrl) ? '重新上传背景图' : '上传背景图'}
                 </Button>
               </Upload>
-              {editing?.backdropUrl || backdropFileId ? (
+              {editing?.backdropUrl || (backdropFileId && backdropFileId !== '0') ? (
                 <Button
                   danger
                   onClick={() => {
-                    setBackdropFileId(0);
+                    setBackdropFileId('0');
                     setBackdropName('');
                   }}
                 >

@@ -31,7 +31,7 @@ export default function CommentAudit() {
   const tableRef = useRef<ProTableRef>(null);
 
   const [status, setStatus] = useState<CommentStatus | undefined>(undefined);
-  const [actingId, setActingId] = useState<number | undefined>(undefined);
+  const [actingId, setActingId] = useState<string | undefined>(undefined);
 
   const handleApprove = async (row: CommentAuditView) => {
     setActingId(row.id);
@@ -65,9 +65,9 @@ export default function CommentAudit() {
       title: '内容 ID',
       dataIndex: 'contentId',
       width: 110,
-      render: (value?: number) => value ?? '-',
+      render: (value?: string) => value ?? '-',
     },
-    { title: '用户', dataIndex: 'userId', width: 100, render: (value?: number) => value ?? '-' },
+    { title: '用户', dataIndex: 'userId', width: 100, render: (value?: string) => value ?? '-' },
     {
       title: '评论正文',
       dataIndex: 'content',
@@ -76,7 +76,8 @@ export default function CommentAudit() {
           style={{ marginBottom: 0, maxWidth: 460 }}
           ellipsis={{ rows: 2, expandable: true, symbol: '展开' }}
         >
-          {row.parentId && row.parentId > 0 ? `回复 #${row.parentId}：${value}` : value}
+          {/* parentId 运行时为字符串，根评论为 '0'（非空串，需显式判断） */}
+          {row.parentId && row.parentId !== '0' ? `回复 #${row.parentId}：${value}` : value}
         </Typography.Paragraph>
       ),
     },

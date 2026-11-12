@@ -47,16 +47,16 @@ export default function JobList() {
 
   const [keyword, setKeyword] = useState<string | undefined>(undefined);
   const [status, setStatus] = useState<number | undefined>(undefined);
-  const [logJobId, setLogJobId] = useState<number | undefined>(undefined);
+  const [logJobId, setLogJobId] = useState<string | undefined>(undefined);
   const [logStatus, setLogStatus] = useState<number | undefined>(undefined);
-  const [alertJobId, setAlertJobId] = useState<number | undefined>(undefined);
+  const [alertJobId, setAlertJobId] = useState<string | undefined>(undefined);
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [editRecord, setEditRecord] = useState<JobInfoVO | null>(null);
   const [editorInitial, setEditorInitial] = useState<Partial<JobFormValues> | undefined>(undefined);
   const [dependency, setDependency] = useState<JobDependencyVO | null>(null);
   const [dependencyLoading, setDependencyLoading] = useState(false);
-  const [jobOptions, setJobOptions] = useState<{ value: number; label: string }[]>([]);
+  const [jobOptions, setJobOptions] = useState<{ value: string; label: string }[]>([]);
   const [editorForm] = Form.useForm<JobFormValues>();
 
   const showError = (error: unknown, fallback: string) => {
@@ -280,7 +280,7 @@ export default function JobList() {
                     onSearch={(values) => {
                       const rawJobId = values.jobId as number | null | undefined;
                       setLogJobId(
-                        rawJobId === undefined || rawJobId === null ? undefined : Number(rawJobId),
+                        rawJobId === undefined || rawJobId === null ? undefined : String(rawJobId),
                       );
                       setLogStatus(values.status as number | undefined);
                     }}
@@ -318,7 +318,7 @@ export default function JobList() {
                     onSearch={(values) => {
                       const rawJobId = values.jobId as number | null | undefined;
                       setAlertJobId(
-                        rawJobId === undefined || rawJobId === null ? undefined : Number(rawJobId),
+                        rawJobId === undefined || rawJobId === null ? undefined : String(rawJobId),
                       );
                     }}
                     onReset={() => setAlertJobId(undefined)}

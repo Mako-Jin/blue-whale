@@ -40,9 +40,9 @@ import {
 import { uploadFile } from '../../api/file';
 
 interface AlbumFormValues {
-  artistId: number;
+  artistId: string;
   title: string;
-  coverFileId: number;
+  coverFileId: string;
   releaseDate?: string;
   albumType?: string;
   intro?: string;
@@ -96,7 +96,7 @@ export default function AlbumList() {
       .catch((error) => message.error(error instanceof Error ? error.message : '歌手加载失败'));
   }, [message]);
 
-  const artistName = (artistId?: number) =>
+  const artistName = (artistId?: string) =>
     artists.find((item) => item.id === artistId)?.name ?? '-';
 
   const openCreate = () => {
@@ -186,7 +186,7 @@ export default function AlbumList() {
       title: '歌手',
       dataIndex: 'artistId',
       width: 140,
-      render: (value: number | undefined) => artistName(value),
+      render: (value: string | undefined) => artistName(value),
     },
     {
       title: '发行日期',
@@ -346,7 +346,7 @@ export default function AlbumList() {
           hidden
           rules={[{ required: true, message: '请上传专辑封面' }]}
         >
-          <InputNumber />
+          <Input />
         </Form.Item>
         <Form.Item name="releaseDate" label="发行日期" extra="格式 YYYY-MM-DD">
           <Input placeholder="如 2026-10-31" />

@@ -100,7 +100,7 @@ export default function ContentList() {
   const [contentType, setContentType] = useState<ContentType | undefined>(undefined);
   const [publishState, setPublishState] = useState<PublishState | undefined>(undefined);
   const [visibility, setVisibility] = useState<ContentVisibility | undefined>(undefined);
-  const [categoryId, setCategoryId] = useState<number | undefined>(undefined);
+  const [categoryId, setCategoryId] = useState<string | undefined>(undefined);
 
   const [takedownTarget, setTakedownTarget] = useState<ContentView | null>(null);
   const [takedownReason, setTakedownReason] = useState('');
@@ -159,7 +159,8 @@ export default function ContentList() {
         <Space direction="vertical" size={0}>
           <Typography.Text strong>{value}</Typography.Text>
           {row.subtitle ? <Typography.Text type="secondary">{row.subtitle}</Typography.Text> : null}
-          {row.seriesId && row.seriesId > 0 ? (
+          {/* seriesId 运行时为字符串，'0' 表示不属于任何系列 */}
+          {row.seriesId && row.seriesId !== '0' ? (
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
               系列 #{row.seriesId} · 第 {row.episodeNo || 1} 集
             </Typography.Text>
@@ -309,7 +310,7 @@ export default function ContentList() {
               setContentType((values.contentType as ContentType) || undefined);
               setPublishState((values.publishState as PublishState) || undefined);
               setVisibility((values.visibility as ContentVisibility) || undefined);
-              setCategoryId((values.categoryId as number) || undefined);
+              setCategoryId((values.categoryId as string) || undefined);
             }}
             onReset={() => {
               setKeyword(undefined);

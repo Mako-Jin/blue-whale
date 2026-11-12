@@ -56,10 +56,10 @@ export default function CreatorPanel() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<CreatorAdminView | null>(null);
-  const [avatarFileId, setAvatarFileId] = useState<number | undefined>(undefined);
+  const [avatarFileId, setAvatarFileId] = useState<string | undefined>(undefined);
   const [avatarName, setAvatarName] = useState('');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [actingId, setActingId] = useState<number | undefined>(undefined);
+  const [actingId, setActingId] = useState<string | undefined>(undefined);
 
   const openEdit = (row: CreatorAdminView) => {
     setEditing(row);
@@ -237,7 +237,7 @@ export default function CreatorPanel() {
       >
         <Form.Item label="头像">
           <Space direction="vertical" size={6}>
-            {avatarFileId === 0 ? (
+            {avatarFileId === '0' ? (
               <Typography.Text type="secondary">已清除头像（保存后生效）</Typography.Text>
             ) : avatarFileId ? (
               <Typography.Text type="secondary">已上传头像：{avatarName || `文件 ID ${avatarFileId}`}</Typography.Text>
@@ -256,14 +256,14 @@ export default function CreatorPanel() {
                 }}
               >
                 <Button loading={uploadingAvatar}>
-                  {avatarFileId !== 0 && (avatarFileId || editing?.avatarUrl) ? '重新上传头像' : '上传头像'}
+                  {avatarFileId !== '0' && (avatarFileId || editing?.avatarUrl) ? '重新上传头像' : '上传头像'}
                 </Button>
               </Upload>
-              {editing?.avatarUrl || avatarFileId ? (
+              {editing?.avatarUrl || (avatarFileId && avatarFileId !== '0') ? (
                 <Button
                   danger
                   onClick={() => {
-                    setAvatarFileId(0);
+                    setAvatarFileId('0');
                     setAvatarName('');
                   }}
                 >

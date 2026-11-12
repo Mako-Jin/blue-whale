@@ -32,7 +32,7 @@ export default function CommentAudit() {
 
   const [status, setStatus] = useState<CommentStatus | undefined>(undefined);
   const [keyword, setKeyword] = useState<string | undefined>(undefined);
-  const [actingId, setActingId] = useState<number | undefined>(undefined);
+  const [actingId, setActingId] = useState<string | undefined>(undefined);
 
   const handleApprove = async (row: CommentView) => {
     setActingId(row.id);
@@ -77,7 +77,10 @@ export default function CommentAudit() {
           style={{ marginBottom: 0, maxWidth: 420 }}
           ellipsis={{ rows: 2, expandable: true, symbol: '展开' }}
         >
-          {row.parentId ? `回复 #${row.parentId}：${value}` : value}
+          {/* parentId 运行时为字符串，根评论为 '0'（非空串，需显式判断） */}
+          {row.parentId && row.parentId !== '0'
+            ? `回复 #${row.parentId}：${value}`
+            : value}
         </Typography.Paragraph>
       ),
     },

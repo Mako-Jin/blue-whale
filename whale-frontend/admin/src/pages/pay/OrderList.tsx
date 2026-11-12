@@ -179,7 +179,7 @@ export default function OrderList() {
     const payload: PayOrderInput = {
       orderNo: values.orderNo,
       businessKey: values.businessKey || undefined,
-      amount: values.amount.toFixed(2),
+      amount: values.amount,
       currency: values.currency,
       channel: values.channel || undefined,
       remark: values.remark || undefined,

@@ -12,13 +12,13 @@ export interface JobFormValues {
   shardTotal?: number;
   status?: number;
   remark?: string;
-  /** 上游依赖任务 ID（仅编辑场景，任务本身字段之外单独提交） */
-  upstreamJobIds?: number[];
+  /** 上游依赖任务 ID（仅编辑场景，任务本身字段之外单独提交；后端 Long 序列化为字符串） */
+  upstreamJobIds?: string[];
 }
 
 export type JobQuery = { keyword?: string; status?: number };
-export type JobLogQuery = { jobId?: number; status?: number };
-export type JobAlertQuery = { jobId?: number };
+export type JobLogQuery = { jobId?: string; status?: number };
+export type JobAlertQuery = { jobId?: string };
 
 export const MISFIRE_OPTIONS = [
   { value: 'SMART', label: 'SMART（智能补跑）' },

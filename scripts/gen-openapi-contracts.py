@@ -63,6 +63,18 @@ CONTRACTS: dict[str, dict] = {
             "whale-frontend/platform-apps/whale-portal/src/api/generated/message-schema.d.ts",
         ],
     },
+    "file": {
+        "port": 8085,
+        "outputs": ["whale-frontend/admin/src/api/generated/file-schema.d.ts"],
+    },
+    "job": {
+        "port": 8082,
+        "outputs": ["whale-frontend/admin/src/api/generated/job-schema.d.ts"],
+    },
+    "pay": {
+        "port": 8086,
+        "outputs": ["whale-frontend/admin/src/api/generated/pay-schema.d.ts"],
+    },
 }
 
 

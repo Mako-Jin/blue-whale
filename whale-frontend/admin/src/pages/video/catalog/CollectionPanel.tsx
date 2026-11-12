@@ -97,7 +97,7 @@ export default function CollectionPanel() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<MovieCollectionAdminView | null>(null);
-  const [coverFileId, setCoverFileId] = useState<number | undefined>(undefined);
+  const [coverFileId, setCoverFileId] = useState<string | undefined>(undefined);
   const [coverName, setCoverName] = useState('');
   const [uploadingCover, setUploadingCover] = useState(false);
 
@@ -113,7 +113,7 @@ export default function CollectionPanel() {
   const [pickerTotal, setPickerTotal] = useState(0);
   const [pickerMovies, setPickerMovies] = useState<MovieAdminView[]>([]);
   const [pickerLoading, setPickerLoading] = useState(false);
-  const [addingId, setAddingId] = useState<number | undefined>(undefined);
+  const [addingId, setAddingId] = useState<string | undefined>(undefined);
 
   const openCreate = () => {
     setEditing(null);
@@ -196,7 +196,7 @@ export default function CollectionPanel() {
     }
   };
 
-  const reloadItems = async (id: number) => {
+  const reloadItems = async (id: string) => {
     setItemsLoading(true);
     try {
       const detail: MovieCollectionAdminDetailView = await getCollection(id);
@@ -243,7 +243,7 @@ export default function CollectionPanel() {
     void loadPicker(1);
   };
 
-  const handleAdd = async (contentId: number) => {
+  const handleAdd = async (contentId: string) => {
     if (!current) {
       return;
     }
@@ -261,7 +261,7 @@ export default function CollectionPanel() {
     }
   };
 
-  const handleRemove = async (contentId: number) => {
+  const handleRemove = async (contentId: string) => {
     if (!current) {
       return;
     }
@@ -508,7 +508,7 @@ export default function CollectionPanel() {
       >
         <Form.Item label="封面">
           <Space direction="vertical" size={6}>
-            {coverFileId === 0 ? (
+            {coverFileId === '0' ? (
               <Typography.Text type="secondary">已清除封面（保存后生效）</Typography.Text>
             ) : coverFileId ? (
               <Typography.Text type="secondary">已上传封面：{coverName || `文件 ID ${coverFileId}`}</Typography.Text>
@@ -527,14 +527,14 @@ export default function CollectionPanel() {
                 }}
               >
                 <Button loading={uploadingCover}>
-                  {coverFileId !== 0 && (coverFileId || editing?.coverUrl) ? '重新上传封面' : '上传封面'}
+                  {coverFileId !== '0' && (coverFileId || editing?.coverUrl) ? '重新上传封面' : '上传封面'}
                 </Button>
               </Upload>
-              {editing?.coverUrl || coverFileId ? (
+              {editing?.coverUrl || (coverFileId && coverFileId !== '0') ? (
                 <Button
                   danger
                   onClick={() => {
-                    setCoverFileId(0);
+                    setCoverFileId('0');
                     setCoverName('');
                   }}
                 >

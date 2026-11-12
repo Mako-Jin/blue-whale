@@ -12,10 +12,10 @@ vi.mock('../../api/music', () => ({
 }));
 
 const pendingComment: CommentView = {
-  id: 5,
-  songId: 9,
-  userId: 1001,
-  parentId: 0,
+  id: '5',
+  songId: '9',
+  userId: '1001',
+  parentId: '0',
   content: '这首歌太好听了',
   status: 'PENDING',
   createTime: '2026-10-31 12:00:00',
@@ -67,7 +67,7 @@ describe('CommentAudit 评论审核页', () => {
     fireEvent.click(await screen.findByRole('button', { name: '通过' }));
 
     await waitFor(() => {
-      expect(approveComment).toHaveBeenCalledWith(5);
+      expect(approveComment).toHaveBeenCalledWith('5');
     });
     // 通过成功后触发 reload（初始加载 + 刷新 = 2 次）
     await waitFor(() => {
@@ -77,8 +77,8 @@ describe('CommentAudit 评论审核页', () => {
 
   it('已可见评论不显示通过按钮，已隐藏评论不显示隐藏按钮', async () => {
     mockPage([
-      { ...pendingComment, id: 6, status: 'VISIBLE' },
-      { ...pendingComment, id: 7, status: 'HIDDEN' },
+      { ...pendingComment, id: '6', status: 'VISIBLE' },
+      { ...pendingComment, id: '7', status: 'HIDDEN' },
     ]);
     renderPage(<CommentAudit />, MUSIC_PERMS);
 

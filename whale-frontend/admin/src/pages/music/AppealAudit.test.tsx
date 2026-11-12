@@ -12,10 +12,10 @@ vi.mock('../../api/music', () => ({
 }));
 
 const pendingAppeal: AppealView = {
-  id: 7,
-  songId: 2,
+  id: '7',
+  songId: '2',
   songTitle: '稻香',
-  applicantId: 1001,
+  applicantId: '1001',
   reason: '本人原创',
   status: 'PENDING',
   createTime: '2026-10-31 09:00:00',
@@ -23,8 +23,8 @@ const pendingAppeal: AppealView = {
 
 const approvedAppeal: AppealView = {
   ...pendingAppeal,
-  id: 8,
-  songId: 3,
+  id: '8',
+  songId: '3',
   status: 'APPROVED',
   reviewOpinion: '证据充分',
   reviewedAt: '2026-10-31 10:00:00',
@@ -72,7 +72,7 @@ describe('AppealAudit 版权申诉复核页', () => {
     fireEvent.click(within(modal).getByRole('button', { name: /通\s*过/ }));
 
     await waitFor(() => {
-      expect(approveAppeal).toHaveBeenCalledWith(7, '情况属实');
+      expect(approveAppeal).toHaveBeenCalledWith('7', '情况属实');
     });
   });
 
@@ -88,7 +88,7 @@ describe('AppealAudit 版权申诉复核页', () => {
     fireEvent.click(within(modal).getByRole('button', { name: /驳\s*回/ }));
 
     await waitFor(() => {
-      expect(rejectAppeal).toHaveBeenCalledWith(7, undefined);
+      expect(rejectAppeal).toHaveBeenCalledWith('7', undefined);
     });
     expect(approveAppeal).not.toHaveBeenCalled();
   });

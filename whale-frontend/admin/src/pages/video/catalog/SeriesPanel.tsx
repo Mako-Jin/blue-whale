@@ -44,8 +44,8 @@ import { uploadFile } from '../../../api/file';
 interface SeriesFormValues {
   title: string;
   description?: string;
-  categoryId?: number;
-  creatorId?: number;
+  categoryId?: string;
+  creatorId?: string;
   sortNo?: number;
 }
 
@@ -75,11 +75,11 @@ export default function SeriesPanel() {
   const [categories, setCategories] = useState<CategoryView[]>([]);
   const [keyword, setKeyword] = useState<string | undefined>(undefined);
   const [publishState, setPublishState] = useState<PublishState | undefined>(undefined);
-  const [categoryId, setCategoryId] = useState<number | undefined>(undefined);
+  const [categoryId, setCategoryId] = useState<string | undefined>(undefined);
 
   const [editing, setEditing] = useState<SeriesView | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [coverFileId, setCoverFileId] = useState<number | undefined>(undefined);
+  const [coverFileId, setCoverFileId] = useState<string | undefined>(undefined);
   const [coverName, setCoverName] = useState('');
   const [uploadingCover, setUploadingCover] = useState(false);
 
@@ -172,7 +172,7 @@ export default function SeriesPanel() {
     }
   };
 
-  const categoryName = (value?: number) => categories.find((item) => item.id === value)?.name ?? '-';
+  const categoryName = (value?: string) => categories.find((item) => item.id === value)?.name ?? '-';
 
   const columns: TableProps<SeriesView>['columns'] = [
     { title: 'ID', dataIndex: 'id', width: 80 },
@@ -201,13 +201,14 @@ export default function SeriesPanel() {
       title: '分类',
       dataIndex: 'categoryId',
       width: 120,
-      render: (value: number | undefined) => categoryName(value),
+      render: (value: string | undefined) => categoryName(value),
     },
     {
       title: '创作者',
       dataIndex: 'creatorName',
       width: 140,
-      render: (value: string | undefined, row) => value || (row.creatorId ? `#${row.creatorId}` : '-'),
+      render: (value: string | undefined, row) =>
+        value || (row.creatorId && row.creatorId !== '0' ? `#${row.creatorId}` : '-'),
     },
     { title: '集数', dataIndex: 'episodeCount', width: 80 },
     { title: '排序', dataIndex: 'sortNo', width: 80 },
@@ -303,7 +304,7 @@ export default function SeriesPanel() {
             onSearch={(values) => {
               setKeyword((values.keyword as string) || undefined);
               setPublishState((values.publishState as PublishState) || undefined);
-              setCategoryId((values.categoryId as number) || undefined);
+              setCategoryId((values.categoryId as string) || undefined);
             }}
             onReset={() => {
               setKeyword(undefined);
@@ -336,7 +337,7 @@ export default function SeriesPanel() {
       >
         <Form.Item label="封面">
           <Space direction="vertical" size={6}>
-            {coverFileId === 0 ? (
+            {coverFileId === '0' ? (
               <Typography.Text type="secondary">已清除封面（保存后生效）</Typography.Text>
             ) : coverFileId ? (
               <Typography.Text type="secondary">已上传封面：{coverName || `文件 ID ${coverFileId}`}</Typography.Text>
@@ -355,14 +356,14 @@ export default function SeriesPanel() {
                 }}
               >
                 <Button loading={uploadingCover}>
-                  {coverFileId !== 0 && (coverFileId || editing?.coverUrl) ? '重新上传封面' : '上传封面'}
+                  {coverFileId !== '0' && (coverFileId || editing?.coverUrl) ? '重新上传封面' : '上传封面'}
                 </Button>
               </Upload>
-              {editing?.coverUrl || coverFileId ? (
+              {editing?.coverUrl || (coverFileId && coverFileId !== '0') ? (
                 <Button
                   danger
                   onClick={() => {
-                    setCoverFileId(0);
+                    setCoverFileId('0');
                     setCoverName('');
                   }}
                 >
@@ -390,7 +391,7 @@ export default function SeriesPanel() {
           />
         </Form.Item>
         <Form.Item name="creatorId" label="创作者 ID" extra="可选，填写后用户侧展示创作者昵称">
-          <InputNumber min={1} precision={0} style={{ width: '100%' }} />
+          <Input placeholder="创作者 ID" />
         </Form.Item>
         <Form.Item name="sortNo" label="运营排序" extra="数值越小越靠前">
           <InputNumber min={0} precision={0} style={{ width: '100%' }} />

@@ -27,10 +27,10 @@ vi.mock('../../api/music', () => ({
 vi.mock('../../api/file', () => ({ uploadFile: vi.fn() }));
 
 const draftSong: SongView = {
-  id: 2,
+  id: '2',
   title: '稻香',
   subtitle: '回忆版',
-  artistId: 1,
+  artistId: '1',
   visibility: 'PUBLIC',
   publishState: 'DRAFT',
   copyrightState: 'VALID',
@@ -39,7 +39,7 @@ const draftSong: SongView = {
 
 function mockApis(songs: SongView[]) {
   vi.mocked(pageSongs).mockResolvedValue(pageResult(songs));
-  vi.mocked(pageArtists).mockResolvedValue(pageResult([{ id: 1, name: '周杰伦' }]));
+  vi.mocked(pageArtists).mockResolvedValue(pageResult([{ id: '1', name: '周杰伦' }]));
   vi.mocked(pageAlbums).mockResolvedValue(pageResult([]));
   vi.mocked(listTags).mockResolvedValue([]);
 }
@@ -53,7 +53,7 @@ describe('SongList 曲库页', () => {
     mockApis([
       {
         ...draftSong,
-        id: 1,
+        id: '1',
         title: '晴天',
         publishState: 'PUBLISHED',
         copyrightState: 'VALID',
@@ -122,7 +122,7 @@ describe('SongList 曲库页', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: '确认下架' }));
     await waitFor(() => {
-      expect(takedownSong).toHaveBeenCalledWith(2, '权利人投诉');
+      expect(takedownSong).toHaveBeenCalledWith('2', '权利人投诉');
     });
   });
 });

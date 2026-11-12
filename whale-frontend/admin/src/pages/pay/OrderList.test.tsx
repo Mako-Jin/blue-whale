@@ -36,7 +36,7 @@ const createdOrder: PayOrderVO = {
   id: '1',
   orderNo: 'PAY20261028001',
   businessKey: 'BIZ-1',
-  amount: '9.90',
+  amount: 9.9,
   currency: 'CNY',
   channel: 'ALIPAY',
   status: 'CREATED',
@@ -48,7 +48,7 @@ const paidOrder: PayOrderVO = {
   id: '2',
   orderNo: 'PAY20261028002',
   businessKey: undefined,
-  amount: '99.00',
+  amount: 99,
   status: 'PAID',
   payTime: '2026-10-28 10:05:00',
   channelTradeNo: 'CH-20261028-0002',
@@ -60,7 +60,7 @@ const transaction: PayTransactionVO = {
   orderNo: 'PAY20261028001',
   type: 'PAY',
   channel: 'ALIPAY',
-  amount: '9.90',
+  amount: 9.9,
   currency: 'CNY',
   providerTradeNo: 'PT-1',
   status: 'SUCCESS',
@@ -88,7 +88,7 @@ describe('OrderList 支付单页', () => {
     renderPage(<OrderList />, PAY_PERMS);
 
     expect(await screen.findByText('PAY20261028001')).toBeInTheDocument();
-    expect(screen.getByText('9.90')).toBeInTheDocument();
+    expect(screen.getByText('9.9')).toBeInTheDocument();
     expect(screen.getByText('待支付')).toBeInTheDocument();
     expect(screen.getByText('已支付')).toBeInTheDocument();
     expect(screen.getByText('支付单')).toBeInTheDocument();
@@ -154,7 +154,7 @@ describe('OrderList 支付单页', () => {
     expect(screen.getAllByText('CREATED')).toHaveLength(2);
   });
 
-  it('新增支付单：金额转两位小数字符串后提交', async () => {
+  it('新增支付单：金额以 number 提交', async () => {
     vi.mocked(createPayOrder).mockResolvedValue({
       ...createdOrder,
       id: '3',
@@ -175,7 +175,7 @@ describe('OrderList 支付单页', () => {
 
     await waitFor(() => {
       expect(createPayOrder).toHaveBeenCalledWith(
-        expect.objectContaining({ orderNo: 'PAY20261028003', amount: '9.90', currency: 'CNY' }),
+        expect.objectContaining({ orderNo: 'PAY20261028003', amount: 9.9, currency: 'CNY' }),
       );
     });
   });

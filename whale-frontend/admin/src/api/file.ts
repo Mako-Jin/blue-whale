@@ -6,15 +6,18 @@ import { del, get, type PageResult, type Result } from './client';
 import { getToken } from './token';
 
 export interface FileInfoVO {
-  id: number;
+  /** 后端 Long 序列化为字符串（雪花 ID） */
+  id: string;
   fileName?: string;
   originalName?: string;
   bucket?: string;
   objectKey?: string;
-  fileSize?: number;
+  /** 后端 Long 序列化为字符串（字节数） */
+  fileSize?: string;
   contentType?: string;
   md5?: string;
-  uploaderId?: number;
+  /** 后端 Long 序列化为字符串 */
+  uploaderId?: string;
   createTime?: string;
 }
 
@@ -27,12 +30,14 @@ export interface FilePageParams {
 
 /** 上传接口返回的文件标识 */
 interface FileUploadVO {
-  id: number;
+  /** 后端 Long 序列化为字符串 */
+  id: string;
   fileName?: string;
   originalName?: string;
   bucket?: string;
   objectKey?: string;
-  fileSize?: number;
+  /** 后端 Long 序列化为字符串（字节数） */
+  fileSize?: string;
   contentType?: string;
 }
 
@@ -40,7 +45,7 @@ export function pageFiles(params: FilePageParams): Promise<PageResult<FileInfoVO
   return get<PageResult<FileInfoVO>>('/file/page', { ...params });
 }
 
-export function deleteFile(id: number): Promise<void> {
+export function deleteFile(id: string): Promise<void> {
   return del<void>(`/file/${id}`);
 }
 
@@ -71,7 +76,7 @@ export async function uploadFile(file: File, bucket?: string): Promise<FileUploa
 }
 
 /** 下载文件：取 blob 后用临时 <a download> 触发保存 */
-export async function downloadFile(id: number, filename?: string): Promise<void> {
+export async function downloadFile(id: string, filename?: string): Promise<void> {
   const response = await fetch(`/file/${id}/download`, {
     method: 'GET',
     headers: authHeaders(),

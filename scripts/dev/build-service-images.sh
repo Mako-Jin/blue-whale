@@ -44,7 +44,7 @@ SERVICE_JAR_DIRS=(
   "party:whale-backend/whale-apps/whale-party"
   "pdm:whale-backend/whale-apps/whale-pdm"
   "form:whale-backend/whale-services/whale-form"
-  "file:whale-backend/whale-services/whale-file"
+  "file:whale-backend/whale-services/whale-service-file/whale-service-file-web"
   "contract:whale-backend/whale-apps/whale-contract"
   "mall:whale-backend/whale-apps/whale-mall"
   "pm:whale-backend/whale-apps/whale-pm"

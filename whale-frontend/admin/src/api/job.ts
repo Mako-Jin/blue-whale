@@ -3,7 +3,8 @@
 import { del, get, post, put, type PageResult } from './client';
 
 export interface JobInfoVO {
-  id: number;
+  /** 后端 Long 序列化为字符串（雪花 ID） */
+  id: string;
   jobName: string;
   jobGroup?: string;
   cronExpression: string;
@@ -24,8 +25,10 @@ export interface JobInfoVO {
 }
 
 export interface JobLogVO {
-  id: number;
-  jobId: number;
+  /** 后端 Long 序列化为字符串 */
+  id: string;
+  /** 后端 Long 序列化为字符串 */
+  jobId: string;
   jobName?: string;
   handlerBean?: string;
   startTime?: string;
@@ -42,17 +45,23 @@ export interface JobLogVO {
 
 /** 任务上下游依赖 */
 export interface JobDependencyVO {
-  jobId: number;
-  upstreamJobIds: number[];
-  downstreamJobIds: number[];
+  /** 后端 Long 序列化为字符串 */
+  jobId: string;
+  /** 后端 Long 序列化为字符串数组 */
+  upstreamJobIds: string[];
+  /** 后端 Long 序列化为字符串数组 */
+  downstreamJobIds: string[];
 }
 
 /** 任务失败告警记录 */
 export interface JobAlertVO {
-  id: number;
-  jobId: number;
+  /** 后端 Long 序列化为字符串 */
+  id: string;
+  /** 后端 Long 序列化为字符串 */
+  jobId: string;
   jobName?: string;
-  logId?: number;
+  /** 后端 Long 序列化为字符串 */
+  logId?: string;
   runId?: string;
   level?: string;
   channel?: string;
@@ -74,7 +83,8 @@ export interface JobInfoPageParams {
 
 /** 执行日志分页查询参数：status 1 成功 / 0 执行中 / -1 失败 */
 export interface JobLogPageParams {
-  jobId?: number;
+  /** 后端 Long 序列化为字符串 */
+  jobId?: string;
   status?: number;
   current: number;
   size: number;
@@ -82,7 +92,8 @@ export interface JobLogPageParams {
 
 /** 告警记录分页查询参数：level 告警级别 */
 export interface JobAlertPageParams {
-  jobId?: number;
+  /** 后端 Long 序列化为字符串 */
+  jobId?: string;
   level?: string;
   current: number;
   size: number;
@@ -115,19 +126,19 @@ export function createJob(body: JobPayload): Promise<void> {
   return post<void>('/job/info', body);
 }
 
-export function updateJob(id: number, body: JobPayload): Promise<void> {
+export function updateJob(id: string, body: JobPayload): Promise<void> {
   return put<void>(`/job/info/${id}`, body);
 }
 
-export function deleteJob(id: number): Promise<void> {
+export function deleteJob(id: string): Promise<void> {
   return del<void>(`/job/info/${id}`);
 }
 
-export function changeJobStatus(id: number, status: number): Promise<void> {
+export function changeJobStatus(id: string, status: number): Promise<void> {
   return put<void>(`/job/info/${id}/status`, { status });
 }
 
-export function runJob(id: number): Promise<void> {
+export function runJob(id: string): Promise<void> {
   return post<void>(`/job/info/${id}/run`);
 }
 
@@ -135,12 +146,12 @@ export function pageJobLog(params: JobLogPageParams): Promise<PageResult<JobLogV
   return get<PageResult<JobLogVO>>('/job/log/page', { ...params });
 }
 
-export function getJobDependencies(id: number): Promise<JobDependencyVO> {
+export function getJobDependencies(id: string): Promise<JobDependencyVO> {
   return get<JobDependencyVO>(`/job/info/${id}/dependencies`);
 }
 
 /** 全量替换上游依赖 */
-export function setJobDependencies(id: number, upstreamJobIds: number[]): Promise<void> {
+export function setJobDependencies(id: string, upstreamJobIds: string[]): Promise<void> {
   return post<void>(`/job/info/${id}/dependencies`, { upstreamJobIds });
 }
 

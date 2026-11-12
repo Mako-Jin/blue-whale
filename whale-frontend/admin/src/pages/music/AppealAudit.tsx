@@ -1,7 +1,7 @@
 // 音乐运营 - 版权申诉复核：按状态 / 歌曲过滤，通过（版权恢复仍保持下架）或驳回
 // 权限码：sys:music:appeal:audit；复核仅一次，重复复核返回 40902
 
-import { App, Input, InputNumber, Modal, Select, Tag, Typography, type TableProps } from 'antd';
+import { App, Input, Modal, Select, Tag, Typography, type TableProps } from 'antd';
 import { useRef, useState } from 'react';
 import { AuthButton, ProTable, SearchForm, type ProTableRef } from '@bluewhale/whale-ui';
 import {
@@ -34,7 +34,7 @@ export default function AppealAudit() {
   const tableRef = useRef<ProTableRef>(null);
 
   const [status, setStatus] = useState<AppealStatus | undefined>(undefined);
-  const [songId, setSongId] = useState<number | undefined>(undefined);
+  const [songId, setSongId] = useState<string | undefined>(undefined);
   const [reviewing, setReviewing] = useState<AppealView | undefined>(undefined);
   const [reviewAction, setReviewAction] = useState<ReviewAction>('approve');
   const [opinion, setOpinion] = useState('');
@@ -178,12 +178,12 @@ export default function AppealAudit() {
               {
                 name: 'songId',
                 label: '歌曲 ID',
-                element: <InputNumber min={1} placeholder="歌曲 ID" style={{ minWidth: 140 }} />,
+                element: <Input allowClear placeholder="歌曲 ID" style={{ minWidth: 140 }} />,
               },
             ]}
             onSearch={(values) => {
               setStatus((values.status as AppealStatus) || undefined);
-              setSongId((values.songId as number) || undefined);
+              setSongId((values.songId as string) || undefined);
             }}
             onReset={() => {
               setStatus(undefined);

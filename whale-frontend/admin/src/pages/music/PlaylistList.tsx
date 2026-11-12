@@ -43,7 +43,7 @@ import {
 interface PlaylistFormValues {
   title: string;
   description?: string;
-  coverFileId?: number;
+  coverFileId?: string;
 }
 
 /** 歌曲选择弹窗每页条数 */
@@ -84,7 +84,7 @@ export default function PlaylistList() {
   const [pickerTotal, setPickerTotal] = useState(0);
   const [pickerSongs, setPickerSongs] = useState<SongView[]>([]);
   const [pickerLoading, setPickerLoading] = useState(false);
-  const [addingId, setAddingId] = useState<number | undefined>(undefined);
+  const [addingId, setAddingId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     pageArtists({ current: 1, size: 200 })
@@ -112,7 +112,7 @@ export default function PlaylistList() {
       .finally(() => setPickerLoading(false));
   }, [message, pickerKeyword, pickerOpen, pickerPage]);
 
-  const artistName = (artistId?: number) =>
+  const artistName = (artistId?: string) =>
     artists.find((item) => item.id === artistId)?.name ?? '-';
 
   const openCreate = () => {
@@ -172,7 +172,7 @@ export default function PlaylistList() {
     }
   };
 
-  const reloadSongs = async (id: number) => {
+  const reloadSongs = async (id: string) => {
     setSongsLoading(true);
     try {
       const detail = await getPlaylist(id);
@@ -227,7 +227,7 @@ export default function PlaylistList() {
     }
   };
 
-  const handleRemove = async (songId: number) => {
+  const handleRemove = async (songId: string) => {
     if (!current) {
       return;
     }
@@ -241,7 +241,7 @@ export default function PlaylistList() {
     }
   };
 
-  const handleAdd = async (songId: number) => {
+  const handleAdd = async (songId: string) => {
     if (!current) {
       return;
     }
@@ -345,7 +345,7 @@ export default function PlaylistList() {
       title: '歌手',
       dataIndex: 'artistId',
       width: 130,
-      render: (value: number | undefined) => artistName(value),
+      render: (value: string | undefined) => artistName(value),
     },
     {
       title: '时长',
@@ -400,7 +400,7 @@ export default function PlaylistList() {
       title: '歌手',
       dataIndex: 'artistId',
       width: 130,
-      render: (value: number | undefined) => artistName(value),
+      render: (value: string | undefined) => artistName(value),
     },
     {
       title: '时长',

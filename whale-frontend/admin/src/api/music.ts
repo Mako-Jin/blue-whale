@@ -23,7 +23,7 @@ export type TagType = 'GENRE' | 'LANGUAGE' | 'MOOD';
 
 /** 标签 */
 export interface TagView {
-  id: number;
+  id: string;
   name: string;
   tagType?: TagType;
   sortNo?: number;
@@ -31,9 +31,9 @@ export interface TagView {
 
 /** 歌手 */
 export interface ArtistView {
-  id: number;
+  id: string;
   name: string;
-  avatarFileId?: number;
+  avatarFileId?: string;
   region?: string;
   bio?: string;
   status?: number;
@@ -43,10 +43,10 @@ export interface ArtistView {
 
 /** 专辑 */
 export interface AlbumView {
-  id: number;
-  artistId: number;
+  id: string;
+  artistId: string;
   title: string;
-  coverFileId?: number;
+  coverFileId?: string;
   releaseDate?: string;
   albumType?: string;
   intro?: string;
@@ -58,17 +58,17 @@ export interface AlbumView {
 
 /** 运营侧歌曲视图（含文件 ID，用于编辑回填） */
 export interface SongView {
-  id: number;
-  uploaderId?: number;
+  id: string;
+  uploaderId?: string;
   visibility?: SongVisibility;
-  albumId?: number;
-  artistId?: number;
+  albumId?: string;
+  artistId?: string;
   title: string;
   subtitle?: string;
-  audioFileId?: number;
-  coverFileId?: number;
+  audioFileId?: string;
+  coverFileId?: string;
   durationMs?: number;
-  lyricFileId?: number;
+  lyricFileId?: string;
   lyricText?: string;
   language?: string;
   publishState?: PublishState;
@@ -88,9 +88,9 @@ export interface SongView {
 /** 歌曲分页查询参数 */
 export interface SongQuery extends PageQuery {
   keyword?: string;
-  artistId?: number;
-  albumId?: number;
-  tagId?: number;
+  artistId?: string;
+  albumId?: string;
+  tagId?: string;
   publishState?: PublishState;
   visibility?: SongVisibility;
   sortBy?: 'NEW' | 'HOT';
@@ -105,31 +105,31 @@ export interface ArtistQuery extends PageQuery {
 /** 专辑分页查询参数 */
 export interface AlbumQuery extends PageQuery {
   keyword?: string;
-  artistId?: number;
+  artistId?: string;
   publishState?: PublishState;
 }
 
 /** 歌曲保存入参 */
 export interface SongSaveInput {
-  albumId?: number;
-  artistId: number;
+  albumId?: string;
+  artistId: string;
   title: string;
   subtitle?: string;
-  audioFileId: number;
-  coverFileId?: number;
+  audioFileId: string;
+  coverFileId?: string;
   durationMs?: number;
-  lyricFileId?: number;
+  lyricFileId?: string;
   lyricText?: string;
   language?: string;
   visibility?: SongVisibility;
   sortWeight?: number;
-  tagIds?: number[];
+  tagIds?: string[];
 }
 
 /** 歌手保存入参 */
 export interface ArtistSaveInput {
   name: string;
-  avatarFileId?: number;
+  avatarFileId?: string;
   region?: string;
   bio?: string;
   status?: number;
@@ -137,9 +137,9 @@ export interface ArtistSaveInput {
 
 /** 专辑保存入参 */
 export interface AlbumSaveInput {
-  artistId: number;
+  artistId: string;
   title: string;
-  coverFileId: number;
+  coverFileId: string;
   releaseDate?: string;
   albumType?: string;
   intro?: string;
@@ -159,7 +159,7 @@ export function pageSongs(params: SongQuery): Promise<PageResult<SongView>> {
 }
 
 /** 歌曲详情 */
-export function getSong(id: number): Promise<SongView> {
+export function getSong(id: string): Promise<SongView> {
   return get<SongView>(`/music/song/${id}`);
 }
 
@@ -169,27 +169,27 @@ export function createSong(input: SongSaveInput): Promise<SongView> {
 }
 
 /** 更新歌曲 */
-export function updateSong(id: number, input: SongSaveInput): Promise<SongView> {
+export function updateSong(id: string, input: SongSaveInput): Promise<SongView> {
   return put<SongView>(`/music/song/${id}`, input);
 }
 
 /** 删除歌曲 */
-export function deleteSong(id: number): Promise<void> {
+export function deleteSong(id: string): Promise<void> {
   return del<void>(`/music/song/${id}`);
 }
 
 /** 上架歌曲 */
-export function publishSong(id: number): Promise<SongView> {
+export function publishSong(id: string): Promise<SongView> {
   return post<SongView>(`/music/song/${id}/publish`);
 }
 
 /** 下架歌曲 */
-export function offlineSong(id: number): Promise<SongView> {
+export function offlineSong(id: string): Promise<SongView> {
   return post<SongView>(`/music/song/${id}/offline`);
 }
 
 /** 版权下架歌曲 */
-export function takedownSong(id: number, reason: string): Promise<SongView> {
+export function takedownSong(id: string, reason: string): Promise<SongView> {
   return post<SongView>(`/music/song/${id}/takedown`, { reason });
 }
 
@@ -204,12 +204,12 @@ export function createArtist(input: ArtistSaveInput): Promise<ArtistView> {
 }
 
 /** 更新歌手 */
-export function updateArtist(id: number, input: ArtistSaveInput): Promise<ArtistView> {
+export function updateArtist(id: string, input: ArtistSaveInput): Promise<ArtistView> {
   return put<ArtistView>(`/music/artist/${id}`, input);
 }
 
 /** 删除歌手 */
-export function deleteArtist(id: number): Promise<void> {
+export function deleteArtist(id: string): Promise<void> {
   return del<void>(`/music/artist/${id}`);
 }
 
@@ -224,22 +224,22 @@ export function createAlbum(input: AlbumSaveInput): Promise<AlbumView> {
 }
 
 /** 更新专辑 */
-export function updateAlbum(id: number, input: AlbumSaveInput): Promise<AlbumView> {
+export function updateAlbum(id: string, input: AlbumSaveInput): Promise<AlbumView> {
   return put<AlbumView>(`/music/album/${id}`, input);
 }
 
 /** 删除专辑 */
-export function deleteAlbum(id: number): Promise<void> {
+export function deleteAlbum(id: string): Promise<void> {
   return del<void>(`/music/album/${id}`);
 }
 
 /** 上架专辑 */
-export function publishAlbum(id: number): Promise<AlbumView> {
+export function publishAlbum(id: string): Promise<AlbumView> {
   return post<AlbumView>(`/music/album/${id}/publish`);
 }
 
 /** 下架专辑 */
-export function offlineAlbum(id: number): Promise<AlbumView> {
+export function offlineAlbum(id: string): Promise<AlbumView> {
   return post<AlbumView>(`/music/album/${id}/offline`);
 }
 
@@ -254,12 +254,12 @@ export function createTag(input: TagSaveInput): Promise<TagView> {
 }
 
 /** 更新标签 */
-export function updateTag(id: number, input: TagSaveInput): Promise<TagView> {
+export function updateTag(id: string, input: TagSaveInput): Promise<TagView> {
   return put<TagView>(`/music/tag/${id}`, input);
 }
 
 /** 删除标签 */
-export function deleteTag(id: number): Promise<void> {
+export function deleteTag(id: string): Promise<void> {
   return del<void>(`/music/tag/${id}`);
 }
 
@@ -271,16 +271,16 @@ export type PlaylistType = 'USER' | 'OFFICIAL';
 
 /** 用户侧歌曲视图（歌单曲目接口返回，不含文件 ID） */
 export interface PublicSongView {
-  id: number;
+  id: string;
   visibility?: SongVisibility;
-  uploaderId?: number;
-  albumId?: number;
-  artistId?: number;
+  uploaderId?: string;
+  albumId?: string;
+  artistId?: string;
   title: string;
   subtitle?: string;
   durationMs?: number;
   language?: string;
-  coverFileId?: number;
+  coverFileId?: string;
   playCount?: number;
   likeCount?: number;
   commentCount?: number;
@@ -296,10 +296,10 @@ export interface PlaylistSongView extends PublicSongView {
 
 /** 歌单视图（详情响应填充 songs） */
 export interface PlaylistView {
-  id: number;
-  ownerId?: number;
+  id: string;
+  ownerId?: string;
   title: string;
-  coverFileId?: number;
+  coverFileId?: string;
   description?: string;
   playlistType?: PlaylistType;
   visibility?: PlaylistVisibility;
@@ -315,7 +315,7 @@ export interface PlaylistSaveInput {
   title: string;
   description?: string;
   visibility?: PlaylistVisibility;
-  coverFileId?: number;
+  coverFileId?: string;
 }
 
 /** 歌单分页查询参数 */
@@ -334,11 +334,11 @@ export type CommentStatus = 'PENDING' | 'VISIBLE' | 'HIDDEN';
 
 /** 歌曲评论视图（审核侧） */
 export interface CommentView {
-  id: number;
-  songId: number;
+  id: string;
+  songId: string;
   songTitle?: string;
-  userId: number;
-  parentId: number;
+  userId: string;
+  parentId: string;
   content: string;
   status?: CommentStatus;
   likeCount?: number;
@@ -347,7 +347,7 @@ export interface CommentView {
 
 /** 评论审核分页查询参数 */
 export interface CommentAuditQuery extends PageQuery {
-  songId?: number;
+  songId?: string;
   status?: CommentStatus;
   keyword?: string;
 }
@@ -358,12 +358,12 @@ export function pageCommentAudit(params: CommentAuditQuery): Promise<PageResult<
 }
 
 /** 审核通过（PENDING / HIDDEN → VISIBLE，幂等） */
-export function approveComment(id: number): Promise<CommentView> {
+export function approveComment(id: string): Promise<CommentView> {
   return post<CommentView>(`/music/comment/${id}/approve`);
 }
 
 /** 隐藏评论（→ HIDDEN，幂等，立即对用户不可见） */
-export function hideComment(id: number): Promise<CommentView> {
+export function hideComment(id: string): Promise<CommentView> {
   return post<CommentView>(`/music/comment/${id}/hide`);
 }
 
@@ -374,49 +374,49 @@ export function createOfficialPlaylist(input: PlaylistSaveInput): Promise<Playli
 
 /** 修改官方歌单 */
 export function updateOfficialPlaylist(
-  id: number,
+  id: string,
   input: PlaylistSaveInput,
 ): Promise<PlaylistView> {
   return put<PlaylistView>(`/music/playlist/official/${id}`, input);
 }
 
 /** 删除官方歌单 */
-export function deleteOfficialPlaylist(id: number): Promise<void> {
+export function deleteOfficialPlaylist(id: string): Promise<void> {
   return del<void>(`/music/playlist/official/${id}`);
 }
 
 /** 歌单详情（含歌曲与排序号） */
-export function getPlaylist(id: number): Promise<PlaylistView> {
+export function getPlaylist(id: string): Promise<PlaylistView> {
   return get<PlaylistView>(`/music/playlist/${id}`);
 }
 
 /** 向歌单加歌（重复加入幂等） */
-export function addPlaylistSong(id: number, songId: number): Promise<PlaylistView> {
+export function addPlaylistSong(id: string, songId: string): Promise<PlaylistView> {
   return post<PlaylistView>(`/music/playlist/${id}/song`, { songId });
 }
 
 /** 从歌单移除歌曲（幂等） */
-export function removePlaylistSong(id: number, songId: number): Promise<void> {
+export function removePlaylistSong(id: string, songId: string): Promise<void> {
   return del<void>(`/music/playlist/${id}/song/${songId}`);
 }
 
 /** 重排歌单内歌曲 */
-export function reorderPlaylist(id: number, songIds: number[]): Promise<PlaylistView> {
+export function reorderPlaylist(id: string, songIds: string[]): Promise<PlaylistView> {
   return put<PlaylistView>(`/music/playlist/${id}/sort`, { songIds });
 }
 
 /** 官方歌单加歌（运营） */
-export function addOfficialPlaylistSong(id: number, songId: number): Promise<PlaylistView> {
+export function addOfficialPlaylistSong(id: string, songId: string): Promise<PlaylistView> {
   return post<PlaylistView>(`/music/playlist/official/${id}/song`, { songId });
 }
 
 /** 官方歌单移除歌曲（运营，幂等） */
-export function removeOfficialPlaylistSong(id: number, songId: number): Promise<void> {
+export function removeOfficialPlaylistSong(id: string, songId: string): Promise<void> {
   return del<void>(`/music/playlist/official/${id}/song/${songId}`);
 }
 
 /** 官方歌单重排（运营） */
-export function reorderOfficialPlaylist(id: number, songIds: number[]): Promise<PlaylistView> {
+export function reorderOfficialPlaylist(id: string, songIds: string[]): Promise<PlaylistView> {
   return put<PlaylistView>(`/music/playlist/official/${id}/sort`, { songIds });
 }
 
@@ -425,21 +425,21 @@ export type AppealStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 /** 版权下架申诉视图（运营复核侧） */
 export interface AppealView {
-  id: number;
-  songId: number;
+  id: string;
+  songId: string;
   songTitle?: string;
-  applicantId: number;
+  applicantId: string;
   reason: string;
   status: AppealStatus;
   reviewOpinion?: string;
-  reviewerId?: number;
+  reviewerId?: string;
   reviewedAt?: string;
   createTime?: string;
 }
 
 /** 申诉复核分页查询参数 */
 export interface AppealQuery extends PageQuery {
-  songId?: number;
+  songId?: string;
   status?: AppealStatus;
 }
 
@@ -449,11 +449,11 @@ export function pageAppeals(params: AppealQuery): Promise<PageResult<AppealView>
 }
 
 /** 通过申诉：版权恢复为有效并保持下架，需运营随后显式重新上架 */
-export function approveAppeal(id: number, opinion?: string): Promise<AppealView> {
+export function approveAppeal(id: string, opinion?: string): Promise<AppealView> {
   return post<AppealView>(`/music/appeal/${id}/approve`, { opinion });
 }
 
 /** 驳回申诉：歌曲保持版权下架 */
-export function rejectAppeal(id: number, opinion?: string): Promise<AppealView> {
+export function rejectAppeal(id: string, opinion?: string): Promise<AppealView> {
   return post<AppealView>(`/music/appeal/${id}/reject`, { opinion });
 }

@@ -48,14 +48,14 @@ import {
 import { uploadFile } from '../../api/file';
 
 interface SongFormValues {
-  artistId: number;
-  albumId?: number;
+  artistId: string;
+  albumId?: string;
   title: string;
   subtitle?: string;
   language?: string;
   visibility?: SongVisibility;
   sortWeight?: number;
-  tagIds?: number[];
+  tagIds?: string[];
   lyricText?: string;
 }
 
@@ -115,7 +115,7 @@ export default function SongList() {
   const [form] = Form.useForm<SongFormValues>();
 
   const [keyword, setKeyword] = useState<string | undefined>(undefined);
-  const [artistId, setArtistId] = useState<number | undefined>(undefined);
+  const [artistId, setArtistId] = useState<string | undefined>(undefined);
   const [publishState, setPublishState] = useState<PublishState | undefined>(undefined);
   const [visibility, setVisibility] = useState<SongVisibility | undefined>(undefined);
   const [sortBy, setSortBy] = useState<'NEW' | 'HOT'>('NEW');
@@ -126,7 +126,7 @@ export default function SongList() {
 
   const [editing, setEditing] = useState<SongView | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [audioFileId, setAudioFileId] = useState<number | undefined>(undefined);
+  const [audioFileId, setAudioFileId] = useState<string | undefined>(undefined);
   const [audioName, setAudioName] = useState('');
   const [durationMs, setDurationMs] = useState<number | undefined>(undefined);
   const [uploadingAudio, setUploadingAudio] = useState(false);
@@ -146,7 +146,7 @@ export default function SongList() {
       .catch((error) => message.error(error instanceof Error ? error.message : '标签加载失败'));
   }, [message]);
 
-  const artistName = (value?: number) => artists.find((item) => item.id === value)?.name ?? '-';
+  const artistName = (value?: string) => artists.find((item) => item.id === value)?.name ?? '-';
 
   const openCreate = () => {
     setEditing(null);
@@ -276,7 +276,7 @@ export default function SongList() {
       title: '歌手',
       dataIndex: 'artistId',
       width: 130,
-      render: (value: number | undefined) => artistName(value),
+      render: (value: string | undefined) => artistName(value),
     },
     {
       title: '可见性',
@@ -427,7 +427,7 @@ export default function SongList() {
             ]}
             onSearch={(values) => {
               setKeyword((values.keyword as string) || undefined);
-              setArtistId((values.artistId as number) || undefined);
+              setArtistId((values.artistId as string) || undefined);
               setPublishState((values.publishState as PublishState) || undefined);
               setVisibility((values.visibility as SongVisibility) || undefined);
               setSortBy((values.sortBy as 'NEW' | 'HOT') || 'NEW');

@@ -87,9 +87,11 @@ export function ProTable<T extends object, Q extends object = Record<string, nev
         PageParams;
       const result = await requestRef.current(query);
       setRecords(result?.records ?? []);
-      setTotal(result?.total ?? 0);
-      setCurrent(result?.current ?? page);
-      setSize(result?.size ?? pageSize);
+      // 后端 PageResult 的 total/current/size 是 Long→String 序列化（运行时为字符串），
+      // 此处统一强转 number，保证分页状态始终是数值（一处收口，所有列表页受益）
+      setTotal(Number(result?.total ?? 0));
+      setCurrent(Number(result?.current ?? page));
+      setSize(Number(result?.size ?? pageSize));
     } catch (error) {
       onErrorRef.current?.(error);
     } finally {
