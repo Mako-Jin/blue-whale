@@ -3,6 +3,8 @@ package com.bluewhale.forum.config;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.util.List;
+
 /**
  * 论坛服务配置属性（{@code whale.forum.*}）。
  *
@@ -187,4 +189,10 @@ public class ForumProperties {
 
     /** 单个标签长度上限（与 fm_thread_tag.tag VARCHAR(32) 列宽对齐） */
     private int maxTagLength = 32;
+
+    /** 鲸阶阈值（升序，首项必须为 0；F-07-03） */
+    private List<Long> levelThresholds = List.of(0L, 100L, 500L, 2000L, 5000L, 10000L);
+
+    /** 鲸阶名称（下标与阈值一一对应） */
+    private List<String> levelNames = List.of("初入鲸门", "观澜", "听潮", "破浪", "领航", "鲸首");
 }

@@ -63,6 +63,11 @@ public class ExpServiceImpl implements ExpService {
     }
 
     @Override
+    public long totalOf(Long userId) {
+        return userId == null ? 0L : ledgerMapper.sumExp(TenantContext.requireId(), userId);
+    }
+
+    @Override
     public ExpSummaryVO myExp(ForumActor actor) {
         Long tenantId = TenantContext.requireId();
         ExpSummaryVO vo = new ExpSummaryVO();

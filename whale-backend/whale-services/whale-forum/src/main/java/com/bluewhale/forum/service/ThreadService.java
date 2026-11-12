@@ -93,4 +93,14 @@ public interface ThreadService {
      * @return 帖子分页
      */
     PageResult<ThreadListItemVO> collections(long current, long size, ForumActor actor);
+
+    /**
+     * 我的帖子分页（含审核中 / 已处置，作者要能看到自己的全部稿件）。
+     *
+     * @param current 页码
+     * @param size 条数
+     * @param actor 当前操作者
+     * @return 帖子分页
+     */
+    PageResult<ThreadListItemVO> myThreads(long current, long size, ForumActor actor);
 }

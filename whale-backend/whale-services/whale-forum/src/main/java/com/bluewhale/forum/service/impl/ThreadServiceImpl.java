@@ -319,6 +319,23 @@ public class ThreadServiceImpl implements ThreadService {
     }
 
     @Override
+    public PageResult<ThreadListItemVO> myThreads(long current, long size, ForumActor actor) {
+        TenantContext.requireId();
+        long pageNo = current < 1 ? 1 : Math.min(current, properties.getMaxPageNumber());
+        // 不按可见状态过滤：作者必须能看到自己审核中/被处置的帖子，否则「发了没显示」只能来问客服
+        IPage<ForumThread> page = threadMapper.selectPage(new Page<>(pageNo, normalizeSize(size)),
+                Wrappers.<ForumThread>lambdaQuery()
+                        .eq(ForumThread::getAuthorId, actor.userId())
+                        .orderByDesc(ForumThread::getCreateTime)
+                        .orderByDesc(ForumThread::getId));
+        List<ThreadListItemVO> records = new ArrayList<>(page.getRecords().size());
+        for (ForumThread thread : page.getRecords()) {
+            records.add(toListVO(thread));
+        }
+        return PageResult.of(records, page.getTotal(), page.getCurrent(), page.getSize());
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public ThreadDetailVO update(Long id, ThreadUpdateRequest request, ForumActor actor) {
         TenantContext.requireId();

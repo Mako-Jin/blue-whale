@@ -207,6 +207,7 @@ M4 落地口径：检索走 `FULLTEXT(title, content_text) WITH PARSER ngram`（
 | M5 互动增强（P1） | `V8__mention.sql`（`fm_mention`）；@提及（F-03-10）：解析 → auth 内网通讯录解析 → 落库 → outbox 通知，**afterCommit 派发**；引用回复摘要（F-04-02，被引楼层删除只回占位）；楼层正/倒序（F-02-06，下推 `ORDER BY`） | ✅ 实机：发帖 `@admin @qa_admin` 落 2 条 `fm_mention` + 2 条 outbox `SENT`；跨帖 @ 同一人各自成条（唯一键含 `thread_id`）；回帖引用回填摘要，被引楼层 `REMOVE` 后仅 `deleted=true`；`order=desc` 返回 `[3,2]`；单测 111 项全绿 |
 | M6 成长与热榜增强（P1） | `V9__hot_window_exp.sql`（`fm_hot_snapshot.hot_window` + `fm_exp_ledger`）；热榜双档 24h/7d（24h 档按小时指数衰减，`GET /forum/hot?window=` 缺省 7d）；题金榜 / 撤销精华（`POST /forum/admin/thread/{id}/essence|unessence`）；论坛经验本地账本（发帖 5 / 被投花 2 / 精华 200 / 金榜 Top1 1000，匿名不计，同人同帖同事件唯一）与 `GET /forum/exp/me` | 单测 117 项全绿；24h 与 7d 快照各自覆盖互不覆盖；同帖重复题金榜不重复发经验 |
 | M7-1 发现页（P1） | `V10__thread_tag.sql`（`fm_thread_tag` + 历史标签递归回填）；发帖/改帖同步标签行；`GET /forum/tag/list` 标签聚合；`ThreadQuery` 增 `authorId` / `from` / `to` / `tag`，列表与检索共用同一谓词；精华榜复用 `GET /forum/thread/page?essenceOnly=true`；前端「发现」页（精华榜 / 标签页 + 版块、作者、时间范围、只看精华筛选） | 单测覆盖标签同步、超限拒绝、筛选透传、聚合排序；前端 lint + build 通过；`check-api-path-drift.py` / `check-long-id-typing.py` 全绿 |
+| M7-2 个人中心（P1） | `GET /forum/profile/me` 与 `GET /forum/profile/{userId}`（鲸阶、经验、发帖数、获花数、精华数、禁言状态）；`GET /forum/my/threads`（含审核中/已处置，作者可见）；`GET /forum/my/posts`（联 `fm_thread` 排除已删帖）；鲸阶阈值走 `whale.forum.level-thresholds`；前端「我的」页（资料卡 + 我的帖子 / 回复 / 收藏） | 单测覆盖鲸阶边界、禁言映射、我的帖子/回复分页；前端 lint + build；两项门禁全绿 |
 
 ---
 
@@ -253,6 +254,20 @@ M4 落地口径：检索走 `FULLTEXT(title, content_text) WITH PARSER ngram`（
 | 筛选 | `ThreadQuery` 增 `authorId` / `from` / `to`（`yyyy-MM-dd`，含首尾日）/ `tag`；列表通道用 `EXISTS fm_thread_tag`，检索通道把同样的条件写进 `MATCH` 语句 | 检索通道若不带筛选，用户「搜索 + 时间范围」会静默返回范围外结果，看起来像缓存没生效 |
 | 精华榜 | 不新增端点，复用 `GET /forum/thread/page?essenceOnly=true`（跨版块、按发布时间倒序，悬榜优先） | 同一份查询再包一个 `/essence/page` 只会产生两个会分叉的契约 |
 | 作者筛选 | 传 `authorId`，不传作者昵称 | 平台无跨服务用户名查询，按昵称筛会退化成「先查 auth 再 IN」，分页 total 与实际条数会对不上 |
+
+---
+
+## 8.4 M7-2 个人中心与鲸阶实现口径（P1）
+
+| 项 | 口径 | 为什么 |
+|---|---|---|
+| 鲸阶算法 | `whale.forum.level-thresholds` 升序（默认 0/100/500/2000/5000/10000），`level` = 满足 `total ≥ 阈值` 的最大下标 + 1；`level-names` 默认 初入鲸门/观澜/听潮/破浪/领航/鲸首 | 经验账本是 append-only，总额只增，等级天然「只升不降」，不需要独立等级表与降级申诉流 |
+| 个人主页数据源 | 只回本服务可得项：userId、等级、经验总额、发帖数、获花数、精华数、禁言状态；**头像 / 部门 / 勋章本批不返回** | auth 无批量通讯录 SDK、勋章是 P2；接口先给稳定字段，后补项只加不改 |
+| 统计口径 | 发帖 / 获花 / 精华对 `fm_thread` 按 `author_id` 聚合，仅 `PUBLISHED/SOLVED/CLOSED` 且 `deleted=0` | 与列表页可见性一致；对明细表逐条 `COUNT` 在主页这种高频读上没必要 |
+| 我的帖子 | `GET /forum/my/threads`：`author_id = 当前用户`，**含 PENDING / REMOVED**，按创建时间倒序 | 作者必须能看到自己审核中与被处置的帖子，否则「发了没显示」只能来问客服 |
+| 我的回复 | `GET /forum/my/posts`：`fm_post` 内联 `fm_thread`（`deleted=0`）排除已删帖，按楼层创建时间倒序，返回帖子标题与帖子ID | 帖子被删后回复没有落点，返回了也点不进去；分页先过滤再分页，避免「每页条数越翻越少」 |
+| 禁言展示 | `ProfileVO` 只回 `banned` / `banType` / `banUntil`，**不回原因** | 处置原因是治理信息，公开展示等于把举报理由挂到对方主页 |
+| 权限 | 个人主页与我的内容均只要求 `sys:forum:browse`；`/my/*` 一律以身份头用户为准，不接受 `userId` 入参 | 允许传 userId 的「我的」等于给越权读开入口，且没人需要「查别人的我的回复」 |
 
 ---
 

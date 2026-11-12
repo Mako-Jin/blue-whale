@@ -2,6 +2,7 @@ package com.bluewhale.forum.service;
 
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.forum.common.ForumActor;
+import com.bluewhale.forum.dto.MyPostVO;
 import com.bluewhale.forum.dto.PostCreateRequest;
 import com.bluewhale.forum.dto.PostVO;
 
@@ -48,4 +49,14 @@ public interface PostService {
      * @return 分页结果
      */
     PageResult<PostVO> page(Long threadId, Long current, Long size, String order, ForumActor actor);
+
+    /**
+     * 我的回复分页（按回复时间倒序，排除所在帖子已删的楼层）。
+     *
+     * @param current 页码
+     * @param size 每页条数
+     * @param actor 当前操作者
+     * @return 分页结果
+     */
+    PageResult<MyPostVO> myPosts(long current, long size, ForumActor actor);
 }

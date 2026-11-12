@@ -3,6 +3,7 @@ package com.bluewhale.forum.mapper;
 import com.baomidou.mybatisplus.annotation.InterceptorIgnore;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.bluewhale.forum.dto.AuthorStatVO;
 import com.bluewhale.forum.dto.HotCandidate;
 import com.bluewhale.forum.dto.IndexStat;
 import com.bluewhale.forum.dto.ThreadCountDrift;
@@ -26,6 +27,28 @@ import java.util.List;
  */
 @Mapper
 public interface ForumThreadMapper extends BaseMapper<ForumThread> {
+
+    /**
+     * 作者帖子统计（个人主页，单次聚合）。
+     *
+     * <p>只统计可见状态：审核中/已驳回/已删帖不该出现在主页的「发帖数」里，
+     * 否则作者看到的数字和列表条数永远对不上。</p>
+     *
+     * @param tenantId 租户ID
+     * @param authorId 作者ID
+     * @return 发帖数 / 获花数 / 精华数
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("""
+            SELECT COUNT(*) AS thread_count,
+                   COALESCE(SUM(t.like_count), 0) AS like_count,
+                   COALESCE(SUM(t.essence), 0) AS essence_count
+            FROM fm_thread t
+            WHERE t.tenant_id = #{tenantId} AND t.author_id = #{authorId} AND t.deleted = 0
+              AND t.status IN ('PUBLISHED', 'SOLVED', 'CLOSED')
+            """)
+    AuthorStatVO selectAuthorStats(@Param("tenantId") Long tenantId,
+                                   @Param("authorId") Long authorId);
 
     /**
      * 原子分配一个楼层号（无需重试）。

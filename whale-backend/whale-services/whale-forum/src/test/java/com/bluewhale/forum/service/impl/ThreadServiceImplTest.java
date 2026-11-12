@@ -1,8 +1,8 @@
 package com.bluewhale.forum.service.impl;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.tenant.TenantContext;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.forum.common.ForumActor;
 import com.bluewhale.forum.common.ForumErrorCodes;
 import com.bluewhale.forum.common.ForumPermissions;
@@ -496,8 +496,28 @@ class ThreadServiceImplTest {
     }
 
     @Test
+    @DisplayName("我的帖子：按作者过滤，审核中稿件也返回")
+    void myThreadsQueriesOwnAllStatuses() {
+        ForumThread pending = publishedThread();
+        pending.setStatus("PENDING");
+        Page<ForumThread> page = new Page<>(1, 20);
+        page.setRecords(List.of(pending));
+        page.setTotal(1);
+        when(threadMapper.selectPage(any(), any())).thenReturn(page);
+
+        var result = threadService.myThreads(1, 20, author());
+
+        assertThat(result.getTotal()).isEqualTo(1);
+        assertThat(result.getRecords().get(0).getStatus()).isEqualTo("PENDING");
+        // 分页查询走统一入口，作者条件在 QueryWrapper 内下推到 SQL（无法在单测里还原 SQL 片段，
+        // 依赖 MyBatis-Plus 实体元数据；此处确认确实走了分页查询而非内存过滤）
+        verify(threadMapper).selectPage(any(), any());
+    }
+
+    @Test
     @DisplayName("我的收藏：联查分页透传总数与当前页")
-    void collectionsPassThroughPage() {        Page<ForumThread> page = new Page<>(1, 20);
+    void collectionsPassThroughPage() {
+        Page<ForumThread> page = new Page<>(1, 20);
         page.setRecords(List.of(publishedThread()));
         page.setTotal(1);
         when(threadMapper.selectCollectedPage(any(), anyLong(), anyLong(), anyString())).thenReturn(page);

@@ -6,6 +6,7 @@ import com.bluewhale.forum.common.ForumActor;
 import com.bluewhale.forum.common.ForumErrorCodes;
 import com.bluewhale.forum.common.ForumPermissions;
 import com.bluewhale.forum.config.ForumProperties;
+import com.bluewhale.forum.dto.MyPostVO;
 import com.bluewhale.forum.dto.PostCreateRequest;
 import com.bluewhale.forum.dto.PostVO;
 import com.bluewhale.forum.entity.ForumBoard;
@@ -30,6 +31,7 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DuplicateKeyException;
 
+import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -239,5 +241,29 @@ class PostServiceImplTest {
         // 注入串不因为「包含 desc 字样」就被当成倒序
         assertThat(PostServiceImpl.isDescending("1;desc")).isFalse();
         assertThat(PostServiceImpl.isDescending("desc;drop table fm_post")).isFalse();
+    }
+
+    @Test
+    @DisplayName("我的回复：联查分页透传总数，原文转摘要后清空")
+    void myPostsMapsSummary() {
+        MyPostVO row = new MyPostVO();
+        row.setPostId(21L);
+        row.setThreadId(11L);
+        row.setThreadTitle("标签帖");
+        row.setFloor(3);
+        row.setContent("<p>" + "回".repeat(300) + "</p>");
+        row.setLikeCount(2);
+        row.setStatus("PUBLISHED");
+        when(postMapper.countMyPosts(1L, 100L)).thenReturn(1L);
+        when(postMapper.selectMyPosts(1L, 100L, 0L, 20L)).thenReturn(List.of(row));
+
+        var result = postService.myPosts(1, 20, author());
+
+        assertThat(result.getTotal()).isEqualTo(1);
+        assertThat(result.getRecords()).hasSize(1);
+        MyPostVO mapped = result.getRecords().get(0);
+        assertThat(mapped.getThreadTitle()).isEqualTo("标签帖");
+        assertThat(mapped.getSummary()).doesNotContain("<p>");
+        assertThat(mapped.getContent()).isNull();
     }
 }

@@ -419,6 +419,53 @@ export function refreshHot(): Promise<number> {
   return request<number>('/forum/hot/refresh', { method: 'POST' });
 }
 
+// ---------------------------------------------------------------------------
+// M7：个人中心（F-07-01 个人主页 / F-07-02 我的内容 / F-07-03 鲸阶 / F-07-07 禁言）
+// `/forum/my/*` 一律以身份头用户为准，不接受 userId 入参（防越权读）
+// ---------------------------------------------------------------------------
+
+/** 个人主页（只含论坛服务可得字段：头像/部门待 auth 通讯录，勋章属 P2） */
+export interface Profile {
+  userId: string;
+  level: number;
+  levelName: string;
+  nextLevelExp?: string | number | null;
+  expTotal: string | number;
+  threadCount: string | number;
+  likeCount: string | number;
+  essenceCount: string | number;
+  banned: boolean;
+  banType?: string | null;
+  banUntil?: string | null;
+}
+
+/** 我的回复条目（摘要由服务端截断，正文不返回） */
+export interface MyPost {
+  postId: string;
+  threadId: string;
+  threadTitle: string;
+  floor?: number | null;
+  summary?: string | null;
+  likeCount: number;
+  status: string;
+  createTime?: string | null;
+}
+
+/** 个人主页：不传 userId 走 `/me`，传了走公开统计 */
+export function fetchProfile(userId?: string): Promise<Profile> {
+  return request<Profile>(userId ? `/forum/profile/${userId}` : '/forum/profile/me');
+}
+
+/** 我的帖子（含审核中/已处置，服务端不过滤状态） */
+export function fetchMyThreads(current = 1, size = 20): Promise<PageResult<ThreadListItem>> {
+  return request<PageResult<ThreadListItem>>(`/forum/my/threads?current=${current}&size=${size}`);
+}
+
+/** 我的回复（已删帖的楼层不出现） */
+export function fetchMyPosts(current = 1, size = 20): Promise<PageResult<MyPost>> {
+  return request<PageResult<MyPost>>(`/forum/my/posts?current=${current}&size=${size}`);
+}
+
 /** 论坛经验流水条目 */
 export interface ExpItem {
   event: string;

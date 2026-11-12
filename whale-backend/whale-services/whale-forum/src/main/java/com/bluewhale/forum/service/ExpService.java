@@ -42,6 +42,14 @@ public interface ExpService {
     int award(Long userId, String event, int amount, Long threadId);
 
     /**
+     * 用户经验总额（个人主页 / 鲸阶用）。
+     *
+     * @param userId 用户ID（为空返回 0）
+     * @return 累计经验
+     */
+    long totalOf(Long userId);
+
+    /**
      * 我的经验（总额 + 最近流水）。
      *
      * @param actor 当前操作者

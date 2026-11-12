@@ -11,6 +11,7 @@ import com.bluewhale.forum.common.ForumActor;
 import com.bluewhale.forum.common.ForumErrorCodes;
 import com.bluewhale.forum.common.RichTextSanitizer;
 import com.bluewhale.forum.config.ForumProperties;
+import com.bluewhale.forum.dto.MyPostVO;
 import com.bluewhale.forum.dto.PostCreateRequest;
 import com.bluewhale.forum.dto.PostVO;
 import com.bluewhale.forum.dto.QuotedPostVO;
@@ -160,6 +161,25 @@ public class PostServiceImpl implements PostService {
         }
         fillQuoted(records);
         return PageResult.of(records, page.getTotal(), page.getCurrent(), page.getSize());
+    }
+
+    @Override
+    public PageResult<MyPostVO> myPosts(long current, long size, ForumActor actor) {
+        Long tenantId = TenantContext.requireId();
+        long pageNo = current < 1 ? 1 : Math.min(current, properties.getMaxPageNumber());
+        long pageSize = size < 1 ? properties.getPageSizeDefault() : Math.min(size, properties.getPageSizeMax());
+        long total = postMapper.countMyPosts(tenantId, actor.userId());
+        if (total == 0) {
+            return PageResult.of(List.of(), 0, pageNo, pageSize);
+        }
+        List<MyPostVO> rows = postMapper.selectMyPosts(tenantId, actor.userId(),
+                (pageNo - 1) * pageSize, pageSize);
+        for (MyPostVO row : rows) {
+            row.setSummary(RichTextSanitizer.summarize(row.getContent(), 200));
+            // 原文不进响应：列表只需要一眼能看出回了什么
+            row.setContent(null);
+        }
+        return PageResult.of(rows, total, pageNo, pageSize);
     }
 
     /**
