@@ -29,10 +29,16 @@ export default defineConfig({
     headers: {
       'Access-Control-Allow-Origin': '*',
     },
-    // 独立运行（非基座内嵌）时，把 /forum 与 /file 前缀请求转发到网关：
-    // /forum 走论坛服务；/file 走文件服务（图片/附件）
+    // 独立运行（非基座内嵌）时，把论坛/文件接口转发到网关。
+    // 注意不能写成 `^/forum(/|$)`：子应用 base 本身就是 `/forum`，那样连
+    // `GET /forum/`（qiankun 拉取的入口 HTML）、`/forum/src/*`、`/forum/@vite/client`
+    // 一起被转发到网关，入口直接 401，基座与独立运行都是白屏且无报错。
+    // 因此只匹配论坛真实的一级接口段。
     proxy: {
-      '^/forum(/|$)': { target: 'http://127.0.0.1:8080', changeOrigin: true },
+      '^/forum/(meta|board|thread|post|hot|search|tag|profile|my|follow|exp|appeal|report|reaction|admin|internal)(/|$)': {
+        target: 'http://127.0.0.1:8080',
+        changeOrigin: true,
+      },
       '^/file(/|$)': { target: 'http://127.0.0.1:8080', changeOrigin: true },
     },
   },

@@ -111,7 +111,20 @@ mysql -u<user> -p --default-character-set=utf8mb4 bluewhale_auth < migration-6.4
 幂等（`NOT EXISTS`），可反复执行；脚本登记 12 个 `sys:forum:*` 权限、`forum_moderator` 角色、
 授权与 3 个菜单。**预期：tenant_admin 12 项 / forum_moderator 9 项**（`manage:ops` 只授管理员）。
 
-**执行记录**：2026-11-12 实机冒烟时在开发库执行过一次（此前一直是「脚本就绪、库内 0 行」）。
+脚本 §5 是**存量库元数据校正**（幂等 `UPDATE`）：早期版本按设计稿把 `sys:forum:manage:*` 的 `path`
+写成 `/forum/manage/**`，而实现落在 `/forum/admin/**`；由于插入走 `NOT EXISTS`，重跑会跳过，
+错误的 `path`/`perm_name` 会永久留在库里，权限中心展示的接口路径与实际端点对不上。
+校正后 `path` 与真实端点逐字一致（`manage:dispose` 的置顶/锁定端点其实不存在，已一并改为
+加精/撤精/删帖/删层/举报处置/禁言/解禁/申诉复核）。鉴权只按 `perm_code` 判定（`PermissionInterceptor`），
+所以这纯粹是展示元数据，**不影响任何授权结果**。自检：
+
+```sql
+-- 应为 0 行（菜单 path 不在 sys_permission 里）
+SELECT perm_code FROM sys_permission WHERE perm_code LIKE 'sys:forum:%' AND path LIKE '%/forum/manage/%';
+```
+
+**执行记录**：2026-11-12 实机冒烟时在开发库执行过一次（此前一直是「脚本就绪、库内 0 行」）；
+同日执行 §5 校正，5 行 `path` 各更新 1 条，脏路径归零，授权仍为 12/9。
 验证方法：重新登录后 `GET /auth/v1/me`，`permissions` 应比执行前多 12 条并含全部 `sys:forum:*`，
 菜单树出现「论坛 / 论坛管理」。无 mysql 客户端时可用仓库内 JDBC 小工具按文件执行（见 devlog 6.63）。
 
@@ -283,3 +296,40 @@ python scripts/forum-smoke.py --rate   # 限流专项 6 例（默认配置下才
    而 `/forum/internal/**` 仍会 403，容易误判成「路由没问题」。
 3. **`fm_notify_outbox` 的降级与补投**：`bw-message` 挂掉时通知落 `PENDING` + `retry_count`，
    恢复后 `POST /forum/admin/notify/flush?limit=200` 可一次性补投（实测 161 条 PENDING → 171 SENT，无卡单）。
+
+### 10.1 界面实机（申诉材料缩略图 / 放大）
+
+API 层由 `forum-smoke.py` 覆盖，渲染层另有两条脚本（M7-8 验收）：
+
+```bash
+# 1) 造一条待审工单（临时禁言用户 + 96x96 实色 PNG + txt 材料），结果落
+#    .workbuddy/tmp/forum-ui-seed-latest.json
+python scripts/forum-ui-seed-appeal.py
+
+# 2) 起论坛子应用 dev（8123），再跑浏览器检查（系统 Edge 当内核，无头）
+cd whale-frontend && pnpm --filter whale-forum dev &
+cd whale-frontend/e2e && node tools/forum-material-ui-check.mjs
+#   断言：缩略图渲染（blob URL）/ 非图片材料降级下载链接 / 点击进全屏预览，截图 3 张
+```
+
+口径说明：
+
+- 检查脚本**不上基座**：拦截 `8123` 的 `/forum/**` 接口补 `X-User-Id / X-Tenant-Id /
+  X-Permission-Codes`（与 `forum-smoke.py` 同款注入式身份），验的是论坛自己的渲染逻辑。
+- **不要尝试经基座（8000）走 qiankun 验证**：dev 下 qiankun 激活与子应用容器存在竞态
+  （`Target container with #subapp-container not existed`），是框架层问题，与论坛无关；
+  生产构建无 StrictMode 不受影响。
+- 本机没装 Playwright 自带 Chromium（CDN 不可达），脚本用 `channel` 外的
+  `executablePath` 指向系统 Edge（`C:/Program Files (x86)\Microsoft\Edge\...\msedge.exe`）。
+
+历史上挡住这套验证的两处 dev 配置缺陷（2026-11-12 修复）：
+
+1. `whale-forum/vite.config.ts` 的代理写成 `^/forum(/|$)`，把子应用自己的入口 HTML
+   （base=`/forum`）也转发到了网关 → `GET /forum/` 401，基座加载与独立运行都白屏。
+   已改为只匹配论坛真实接口段（meta|board|thread|post|...）。
+2. `whale-platform/vite.config.ts` 的 `GATEWAY_PREFIXES` 缺 `/forum` → 基座内嵌时论坛
+   接口落到前端 SPA 回退。已补（文档导航由 `gatewayBypass` 旁路，不影响页面路由）。
+
+生产 nginx（`micro-frontend.conf` 的 `fe_app` 正则与 `whale-fe-*` 容器矩阵）同样没有
+`forum`/`mall`/`twin`/`agent`，属**前端部署矩阵未接线**，与网关路由是两回事——接线时记得
+一起补（见 devlog 6.64 遗留）。

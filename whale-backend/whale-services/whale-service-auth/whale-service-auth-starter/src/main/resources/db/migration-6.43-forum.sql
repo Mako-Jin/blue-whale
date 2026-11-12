@@ -3,7 +3,8 @@
 -- =====================================================================
 -- 适用库   : bluewhale_auth
 -- 执行方式 : mysql -u<user> -p --default-character-set=utf8mb4 bluewhale_auth < migration-6.43-forum.sql
--- 幂等说明 : 权限、角色、授权、菜单均为 NOT EXISTS 幂等插入；不修改/删除既有数据。
+-- 幂等说明 : 权限、角色、授权、菜单均为 NOT EXISTS 幂等插入；§6 对「路径/方法/名称」
+--            元数据做幂等 UPDATE（只修 sys:forum:* 自身的展示字段），不动授权关系与业务数据。
 -- 边界说明 : 本脚本只登记「论坛域」权限（sys:forum:*）。文件（/file/**）、消息
 --            （/message/**）、商城积分（/mall/**）权限在各自迁移中登记，论坛不重复定义。
 -- 权限编号 : 2340–2351（共 12 个）。**2330–2339 属 whale-assistant**
@@ -21,7 +22,7 @@
 -- 1. 权限点（2340–2350）
 -- ---------------------------------------------------------------------
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 2340, 0, 'sys:forum:browse', '浏览论坛（版块/帖子/详情）', 'API', '/forum/meta,/forum/board/page,/forum/thread/page,/forum/thread/{id}', 'GET', 2340, 1
+SELECT 2340, 0, 'sys:forum:browse', '浏览论坛（版块/帖子/详情/检索/个人中心/申诉与举报入口）', 'API', '/forum/meta,/forum/board/page,/forum/thread/page,/forum/thread/{id},/forum/thread/{id}/post/page,/forum/hot,/forum/search,/forum/search/status,/forum/tag/list,/forum/profile/me,/forum/profile/{userId},/forum/my/threads,/forum/my/posts,/forum/my/feed,/forum/my/follows,/forum/my/collections,/forum/follow/{targetType}/{targetId},/forum/thread/{id}/reactions/my,/forum/exp/me,/forum/appeal,/forum/my/appeals,/forum/appeal/material/{fileId}/preview,/forum/report', 'GET,POST', 2340, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 2340 OR perm_code = 'sys:forum:browse');
 
@@ -51,22 +52,22 @@ FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 2345 OR perm_code = 'sys:forum:reaction:use');
 
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 2346, 0, 'sys:forum:manage:list', '论坛管理端入口（待审/举报/敏感词）', 'API', '/forum/manage/thread/pending/page,/forum/manage/report/page,/forum/manage/sensitive/page', 'GET', 2346, 1
+SELECT 2346, 0, 'sys:forum:manage:list', '论坛管理端入口（待审/举报/敏感词/申诉工单）', 'API', '/forum/admin/audit/page,/forum/admin/report/page,/forum/admin/sensitive/page,/forum/admin/appeal/page', 'GET', 2346, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 2346 OR perm_code = 'sys:forum:manage:list');
 
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 2347, 0, 'sys:forum:manage:audit', '审核（通过/驳回，意见必填）', 'API', '/forum/manage/thread/{id}/audit', 'POST', 2347, 1
+SELECT 2347, 0, 'sys:forum:manage:audit', '审核（通过/驳回，意见必填）', 'API', '/forum/admin/audit/pass,/forum/admin/audit/reject', 'POST', 2347, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 2347 OR perm_code = 'sys:forum:manage:audit');
 
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 2348, 0, 'sys:forum:manage:dispose', '悬榜/题金榜/关闭/处置', 'API', '/forum/manage/thread/{id}/pin,/forum/manage/thread/{id}/essence,/forum/manage/thread/{id}/lock,/forum/manage/thread/{id}/remove,/forum/manage/report/{id}/dispose', 'PUT', 2348, 1
+SELECT 2348, 0, 'sys:forum:manage:dispose', '处置（加精/撤精/删帖/删层/举报/禁言/申诉复核）', 'API', '/forum/admin/report/{id}/handle,/forum/admin/thread/{id}/remove,/forum/admin/post/{id}/remove,/forum/admin/thread/{id}/essence,/forum/admin/thread/{id}/unessence,/forum/admin/user/{id}/ban,/forum/admin/user/{id}/release,/forum/admin/appeal/{id}/handle', 'POST', 2348, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 2348 OR perm_code = 'sys:forum:manage:dispose');
 
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 2349, 0, 'sys:forum:manage:board', '版块管理（含审核开关/可见性）', 'API', '/forum/board', 'POST', 2349, 1
+SELECT 2349, 0, 'sys:forum:manage:board', '版块与敏感词管理（含审核开关/可见性/通知补投）', 'API', '/forum/board,/forum/board/{id},/forum/admin/sensitive/page,/forum/admin/sensitive,/forum/admin/sensitive/{id},/forum/admin/sensitive/reload,/forum/admin/notify/flush', 'POST,PUT,DELETE', 2349, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 2349 OR perm_code = 'sys:forum:manage:board');
 
@@ -142,7 +143,39 @@ FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE id = 512);
 
 -- ---------------------------------------------------------------------
--- 5. 自检（手工执行时按需取消注释）
+-- 5. 存量库元数据校正（幂等 UPDATE，2026-11-12 实机冒烟发现）
+--    问题：§1 的 INSERT 按设计稿写成 /forum/manage/**，而实现是 /forum/admin/**，
+--    存量库重跑本脚本时 NOT EXISTS 会跳过，错误的 path/perm_name 永远留在库里，
+--    权限中心展示的接口路径与实际端点对不上（鉴权按 perm_code，功能不受影响）。
+--    这里按 perm_code 校正，新库由 §1 直接插正确值，两条路径结果一致。
+-- ---------------------------------------------------------------------
+UPDATE sys_permission SET path = '/forum/meta,/forum/board/page,/forum/thread/page,/forum/thread/{id},/forum/thread/{id}/post/page,/forum/hot,/forum/search,/forum/search/status,/forum/tag/list,/forum/profile/me,/forum/profile/{userId},/forum/my/threads,/forum/my/posts,/forum/my/feed,/forum/my/follows,/forum/my/collections,/forum/follow/{targetType}/{targetId},/forum/thread/{id}/reactions/my,/forum/exp/me,/forum/appeal,/forum/my/appeals,/forum/appeal/material/{fileId}/preview,/forum/report',
+       method = 'GET,POST',
+       perm_name = '浏览论坛（版块/帖子/详情/检索/个人中心/申诉与举报入口）'
+ WHERE perm_code = 'sys:forum:browse' AND deleted = 0;
+
+UPDATE sys_permission SET path = '/forum/admin/audit/page,/forum/admin/report/page,/forum/admin/sensitive/page,/forum/admin/appeal/page',
+       method = 'GET',
+       perm_name = '论坛管理端入口（待审/举报/敏感词/申诉工单）'
+ WHERE perm_code = 'sys:forum:manage:list' AND deleted = 0;
+
+UPDATE sys_permission SET path = '/forum/admin/audit/pass,/forum/admin/audit/reject',
+       method = 'POST',
+       perm_name = '审核（通过/驳回，意见必填）'
+ WHERE perm_code = 'sys:forum:manage:audit' AND deleted = 0;
+
+UPDATE sys_permission SET path = '/forum/admin/report/{id}/handle,/forum/admin/thread/{id}/remove,/forum/admin/post/{id}/remove,/forum/admin/thread/{id}/essence,/forum/admin/thread/{id}/unessence,/forum/admin/user/{id}/ban,/forum/admin/user/{id}/release,/forum/admin/appeal/{id}/handle',
+       method = 'POST',
+       perm_name = '处置（加精/撤精/删帖/删层/举报/禁言/申诉复核）'
+ WHERE perm_code = 'sys:forum:manage:dispose' AND deleted = 0;
+
+UPDATE sys_permission SET path = '/forum/board,/forum/board/{id},/forum/admin/sensitive/page,/forum/admin/sensitive,/forum/admin/sensitive/{id},/forum/admin/sensitive/reload,/forum/admin/notify/flush',
+       method = 'POST,PUT,DELETE',
+       perm_name = '版块与敏感词管理（含审核开关/可见性/通知补投）'
+ WHERE perm_code = 'sys:forum:manage:board' AND deleted = 0;
+
+-- ---------------------------------------------------------------------
+-- 6. 自检（手工执行时按需取消注释）
 -- ---------------------------------------------------------------------
 -- SELECT r.tenant_id, r.role_code, COUNT(*) AS perm_cnt
 --   FROM sys_role r JOIN sys_role_permission rp ON rp.role_id = r.id
@@ -150,4 +183,7 @@ WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE id = 512);
 --  GROUP BY r.tenant_id, r.role_code;
 -- -- 期望 tenant_admin 12 项 / forum_moderator 9 项（M4 的 manage:ops 只授管理员）
 -- 以 admin 登录后 GET /auth/v1/me，确认 menus 树包含「论坛」目录与 2 个子菜单
+-- -- 元数据校正自检：应无任何 path 命中旧的 /forum/manage（菜单 path 除外）
+-- SELECT perm_code, path FROM sys_permission
+--  WHERE perm_code LIKE 'sys:forum:%' AND path LIKE '%/forum/manage/%';
 -- =====================================================================

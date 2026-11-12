@@ -35,6 +35,9 @@ const GATEWAY_PREFIXES = [
   '/scene',
   '/iot',
   '/twin',
+  // 员工论坛（Wave 6.43）：子应用 base 与 API 一级前缀同为 /forum，
+  // 基座必须转发（文档导航由 gatewayBypass 旁路给 SPA），否则内嵌场景下接口落到前端回退
+  '/forum',
 ];
 
 interface ProxyRequest {
