@@ -7,7 +7,9 @@
 .bww-map-panel {
   position: absolute;
   right: 28px;
-  top: 104px;
+  /* 顶部 HUD 元信息实测占到 y≈111，此处留出间隙，否则城图压住最后一行提示
+     （1280×800 下重叠 7px，肉眼表现为文字被裁一截） */
+  top: 122px;
   z-index: 12;
   width: 186px;
   padding: 8px 8px 6px;
