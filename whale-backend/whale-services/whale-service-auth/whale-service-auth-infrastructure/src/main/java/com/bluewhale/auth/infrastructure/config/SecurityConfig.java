@@ -53,6 +53,9 @@ public class SecurityConfig {
                                 // 登录页品牌解析：登录前必须可访问，仅返回品牌渲染字段
                                 "/brand/v1/resolve",
                                 "/tenant/v1/internal/**", "/user/v1/internal/**", "/dept/v1/internal/**",
+                                // 网关白名单下发（网关定时拉取）：内网令牌由 InternalTokenFilter 校验，
+                                // 外部访问由网关 internal-deny 统一 403
+                                "/auth/v1/internal/**",
                                 // 调度中心触发端点与执行器注册/心跳（starter 的 JobTriggerController、
                                 // JobExecutorRegistrar 都走 /internal/**）。外部访问由网关 internal-deny
                                 // 拦截，服务侧由 InternalTokenGuard 校验令牌（生产必须配置 WHALE_INTERNAL_TOKEN）。

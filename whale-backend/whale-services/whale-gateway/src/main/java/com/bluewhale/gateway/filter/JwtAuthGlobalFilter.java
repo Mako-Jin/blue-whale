@@ -6,6 +6,7 @@ import com.bluewhale.gateway.security.MembershipRevocationChecker;
 import com.bluewhale.gateway.security.TenantStatusChecker;
 import com.bluewhale.gateway.security.TokenBlacklistChecker;
 import com.bluewhale.gateway.security.UserAccessRevocationChecker;
+import com.bluewhale.gateway.whitelist.GatewayWhitelistProvider;
 import com.bluewhale.security.token.TokenTimeSupport;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
@@ -110,6 +111,9 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
 
     private final UserAccessRevocationChecker userAccessRevocationChecker;
 
+    /** 远程白名单提供者（权限中心下发 + 本地配置兜底） */
+    private final GatewayWhitelistProvider gatewayWhitelistProvider;
+
     /**
      * 构造过滤器，注入网关配置、令牌黑名单、租户状态与撤销校验器
      *
@@ -119,26 +123,30 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
      * @param membershipRevocationChecker 租户成员撤销校验器（解绑后存量令牌拒绝）
      * @param userAccessRevocationChecker 用户级撤销校验器（停用/删除/改密后存量令牌拒绝）
      * @param meterRegistryProvider       Micrometer 指标注册表提供者，缺省时返回 {@code null} 表示不采集指标
+     * @param gatewayWhitelistProvider    远程白名单提供者（与本地 white-list 取并集）
      */
     public JwtAuthGlobalFilter(WhaleGatewayProperties properties, TokenBlacklistChecker tokenBlacklistChecker,
                                TenantStatusChecker tenantStatusChecker,
                                MembershipRevocationChecker membershipRevocationChecker,
                                UserAccessRevocationChecker userAccessRevocationChecker,
-                               ObjectProvider<MeterRegistry> meterRegistryProvider) {
+                               ObjectProvider<MeterRegistry> meterRegistryProvider,
+                               GatewayWhitelistProvider gatewayWhitelistProvider) {
         this.properties = properties;
         this.tokenBlacklistChecker = tokenBlacklistChecker;
         this.tenantStatusChecker = tenantStatusChecker;
         this.membershipRevocationChecker = membershipRevocationChecker;
         this.userAccessRevocationChecker = userAccessRevocationChecker;
         this.meterRegistryProvider = meterRegistryProvider;
+        this.gatewayWhitelistProvider = gatewayWhitelistProvider;
     }
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getURI().getPath();
+        String method = request.getMethod() == null ? null : request.getMethod().name();
 
-        if (isWhiteListed(path)) {
+        if (isWhiteListed(path, method)) {
             // 白名单不携带可信身份：清除客户端伪造的身份/租户头，避免审计归属与下游租户上下文被污染
             return chain.filter(exchange.mutate().request(withoutIdentityHeaders(request)).build());
         }
@@ -244,14 +252,18 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 判断请求路径是否命中免认证白名单
+     * 判断请求是否命中免认证白名单：本地 {@code white-list}（不限方法）或远程下发规则命中即放行。
+     *
+     * <p>本地配置优先短路，保证 auth 不可用时登录/刷新等关键路径始终可用。</p>
      *
      * @param path 请求路径
+     * @param method 请求方法（如 {@code GET}），可空
      * @return 命中白名单返回 {@code true}
      */
-    private boolean isWhiteListed(String path) {
-        return properties.getWhiteList().stream()
+    private boolean isWhiteListed(String path, String method) {
+        boolean localHit = properties.getWhiteList().stream()
                 .anyMatch(pattern -> pathMatcher.match(pattern, path));
+        return localHit || gatewayWhitelistProvider.matches(path, method);
     }
 
     /**

@@ -5,6 +5,7 @@ import com.bluewhale.gateway.security.MembershipRevocationChecker;
 import com.bluewhale.gateway.security.TenantStatusChecker;
 import com.bluewhale.gateway.security.TokenBlacklistChecker;
 import com.bluewhale.gateway.security.UserAccessRevocationChecker;
+import com.bluewhale.gateway.whitelist.GatewayWhitelistProvider;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -70,6 +71,9 @@ class JwtAuthGlobalFilterTest {
     private UserAccessRevocationChecker userAccessRevocationChecker;
 
     @Mock
+    private GatewayWhitelistProvider gatewayWhitelistProvider;
+
+    @Mock
     private ObjectProvider<MeterRegistry> meterRegistryProvider;
 
     private JwtAuthGlobalFilter filter;
@@ -79,7 +83,8 @@ class JwtAuthGlobalFilterTest {
         WhaleGatewayProperties properties = new WhaleGatewayProperties();
         properties.getJwt().setSecret(SECRET);
         filter = new JwtAuthGlobalFilter(properties, tokenBlacklistChecker, tenantStatusChecker,
-                membershipRevocationChecker, userAccessRevocationChecker, meterRegistryProvider);
+                membershipRevocationChecker, userAccessRevocationChecker, meterRegistryProvider,
+                gatewayWhitelistProvider);
         lenient().when(membershipRevocationChecker.isRevoked(anyString(), anyString(), any()))
                 .thenReturn(Mono.just(Boolean.FALSE));
         lenient().when(userAccessRevocationChecker.isRevoked(anyString(), any()))
@@ -209,7 +214,7 @@ class JwtAuthGlobalFilterTest {
         properties.setWhiteList(java.util.List.of("/auth/v1/login"));
         JwtAuthGlobalFilter whiteListFilter = new JwtAuthGlobalFilter(properties, tokenBlacklistChecker,
                 tenantStatusChecker, membershipRevocationChecker, userAccessRevocationChecker,
-                meterRegistryProvider);
+                meterRegistryProvider, gatewayWhitelistProvider);
         MockServerWebExchange exchange = MockServerWebExchange.from(MockServerHttpRequest
                 .post("http://localhost/auth/v1/login")
                 .header("X-Tenant-Id", "999")
@@ -229,6 +234,34 @@ class JwtAuthGlobalFilterTest {
         assertEquals(null, headers.getFirst("X-User-Id"));
         assertEquals(null, headers.getFirst("X-Username"));
         assertEquals(null, headers.getFirst("X-User-Roles"));
+    }
+
+    @Test
+    @DisplayName("filter：远程下发白名单命中时无 Authorization 也放行")
+    void shouldAllowRemoteWhiteListedPathWithoutToken() {
+        MockServerWebExchange exchange = MockServerWebExchange.from(
+                MockServerHttpRequest.get("http://localhost/demo/open/ping").build());
+        GatewayFilterChain chain = mock(GatewayFilterChain.class);
+        when(gatewayWhitelistProvider.matches("/demo/open/ping", "GET")).thenReturn(true);
+        when(chain.filter(any())).thenReturn(Mono.empty());
+
+        filter.filter(exchange, chain).block();
+
+        verify(chain).filter(any());
+    }
+
+    @Test
+    @DisplayName("filter：远程白名单未命中且无本地配置时返回 401")
+    void shouldRejectWhenRemoteWhiteListMissed() {
+        MockServerWebExchange exchange = MockServerWebExchange.from(
+                MockServerHttpRequest.get("http://localhost/demo/open/ping").build());
+        GatewayFilterChain chain = mock(GatewayFilterChain.class);
+        when(gatewayWhitelistProvider.matches("/demo/open/ping", "GET")).thenReturn(false);
+
+        filter.filter(exchange, chain).block();
+
+        assertEquals(HttpStatus.UNAUTHORIZED, exchange.getResponse().getStatusCode());
+        verifyNoInteractions(chain);
     }
 
     @Test
@@ -284,7 +317,7 @@ class JwtAuthGlobalFilterTest {
         otherProperties.getJwt().setSecret("another-unit-test-secret-key-9876543210-abcdefgh");
         JwtAuthGlobalFilter otherFilter = new JwtAuthGlobalFilter(otherProperties, tokenBlacklistChecker,
                 tenantStatusChecker, membershipRevocationChecker, userAccessRevocationChecker,
-                meterRegistryProvider);
+                meterRegistryProvider, gatewayWhitelistProvider);
         MockServerWebExchange exchange = exchangeWithBearer(token("access"));
         GatewayFilterChain chain = mock(GatewayFilterChain.class);
 

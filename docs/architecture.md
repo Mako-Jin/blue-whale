@@ -105,8 +105,11 @@
   - `whale-audit`：`AuditLogController` → `/audit/log/**`
 - 网关路由形如 `Path=/{segment}/**` → `uri: lb://whale-{service}`，**不得使用 `StripPrefix`** 过滤器。
 - 鉴权白名单两侧按**同一对外路径**书写，避免「网关放行路径」与「服务放行路径」漂移：
-  - 网关：`whale.gateway.jwt.white-list`（`/auth/login`、`/auth/refresh`、`/actuator/**` …）
-  - 服务：`whale-service-auth` `SecurityConfig#authorizeHttpRequests`（`/auth/login`、`/auth/refresh`、`/auth/logout` …）
+  - 网关：**权限中心（auth 库 `sys_gateway_whitelist`）为准**，网关每 60s 拉取
+    `/auth/v1/internal/gateway/whitelist` 动态生效；本地 `whale.gateway.white-list`
+    保留为兜底，两侧取并集（远程失败或为空时仅本地生效，登录链路不因 auth 抖动全量 401）。
+    详见 [gateway-whitelist.md](design/gateway-whitelist.md)。
+  - 服务：`whale-service-auth` `SecurityConfig#authorizeHttpRequests`（`/auth/v1/login`、`/auth/v1/refresh`、`/auth/v1/logout` …）
 
 > **反面案例（Wave 5.1f 实测根因，AUTH-29）**：网关曾对 `/auth/**`、`/audit/**` 配 `StripPrefix=1`，
 > 于是 `POST /auth/login` 被改写为 `/login` 转发给 `whale-service-auth`；该路径不在服务侧
