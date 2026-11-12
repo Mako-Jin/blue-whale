@@ -67,14 +67,38 @@ public class GatewayAccessListProvider {
     }
 
     /**
-     * 判断请求是否命中远程黑名单（优先级高于白名单）
+     * 判断请求是否命中黑名单（优先级高于白名单）
+     *
+     * <p>先匹配 Nacos 应急黑名单（不限方法、不依赖 auth），再匹配远程黑名单快照。</p>
      *
      * @param path   请求路径
      * @param method 请求方法（如 {@code GET}），可空
      * @return 命中任一封禁规则返回 {@code true}
      */
     public boolean matchesBlacklist(String path, String method) {
-        return matches(blacklist.get(), path, method);
+        return matchesEmergencyBlacklist(path) || matches(blacklist.get(), path, method);
+    }
+
+    /**
+     * 判断请求是否命中 Nacos 应急黑名单：路径模式不限方法，空白项忽略
+     *
+     * @param path 请求路径
+     * @return 命中返回 {@code true}
+     */
+    private boolean matchesEmergencyBlacklist(String path) {
+        if (path == null) {
+            return false;
+        }
+        List<String> patterns = properties.getEmergencyBlacklist();
+        if (patterns == null || patterns.isEmpty()) {
+            return false;
+        }
+        for (String pattern : patterns) {
+            if (pattern != null && !pattern.isBlank() && pathMatcher.match(pattern.trim(), path)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

@@ -147,6 +147,36 @@ class GatewayAccessListProviderTest {
     }
 
     @Test
+    @DisplayName("应急黑名单：不限 HTTP 方法，命中即封禁")
+    void shouldMatchEmergencyBlacklistForAnyMethod() {
+        properties.setEmergencyBlacklist(List.of("/pay/**"));
+
+        assertTrue(provider.matchesBlacklist("/pay/v1/order", "GET"));
+        assertTrue(provider.matchesBlacklist("/pay/v1/order", "POST"));
+        assertFalse(provider.matchesBlacklist("/demo/open/ping", "GET"));
+    }
+
+    @Test
+    @DisplayName("应急黑名单：动态拉取关闭时仍生效且不发起远程拉取")
+    void shouldMatchEmergencyBlacklistWhenDisabled() {
+        properties.setEnabled(false);
+        properties.setEmergencyBlacklist(List.of(" /pay/** "));
+
+        provider.refresh();
+
+        verifyNoInteractions(client);
+        assertTrue(provider.matchesBlacklist("/pay/v1/order", "DELETE"));
+    }
+
+    @Test
+    @DisplayName("应急黑名单：空白项忽略，不产生误封")
+    void shouldIgnoreBlankEmergencyPatterns() {
+        properties.setEmergencyBlacklist(List.of("  ", ""));
+
+        assertFalse(provider.matchesBlacklist("/pay/v1/order", "GET"));
+    }
+
+    @Test
     @DisplayName("refresh：同一名单上一次未结束时跳过本次刷新")
     void shouldSkipWhenPreviousRefreshInFlight() {
         when(client.fetchWhitelist()).thenReturn(Mono.never());

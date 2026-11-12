@@ -107,6 +107,8 @@ whale:
       timeout-millis: 800
       internal-token: ${WHALE_INTERNAL_TOKEN:}
       internal-token-header: X-Internal-Token
+      # Nacos 热配置应急黑名单（不限方法，优先级最高，不受 enabled 影响）
+      emergency-blacklist: []
 ```
 
 组件（`com.bluewhale.gateway.accesslist`）：
@@ -115,7 +117,7 @@ whale:
 |---|---|
 | `GatewayAccessListProperties` | 配置绑定（与 `white-list` 分离，避免 List 绑定歧义） |
 | `AuthGatewayAccessListClient` | 负载均衡 WebClient 拉取；内部令牌头 + 800ms 超时；`code!=0`/解析失败抛错 |
-| `GatewayAccessListProvider` | 白/黑两份 `AtomicReference` 快照 + 各自防重入；`@Scheduled` 首拉/周期刷新 |
+| `GatewayAccessListProvider` | 白/黑两份 `AtomicReference` 快照 + 各自防重入；`@Scheduled` 首拉/周期刷新；Nacos 应急黑名单优先匹配 |
 | `JwtAuthGlobalFilter` | **先黑名单后白名单**：黑名单命中 → 403；白名单 = 本地 `white-list` 优先 ∪ 远程快照 |
 
 单次请求判定顺序：
@@ -136,7 +138,8 @@ whale:
 | 拉取成功但为空 | 清空该名单快照（白名单 → 仅本地配置；黑名单 → 无封禁） |
 | HTTP 失败 / 超时 / `code!=0` / 解析失败 | **保留上一份快照**，WARN 日志，避免抖动期名单丢失 |
 | 同一名单上一次拉取未结束 | 跳过本次，避免并发覆盖 |
-| `enabled=false` | 不拉取；白名单仅本地，黑名单不生效 |
+| `emergency-blacklist` 命中 | 直接 403：不限 HTTP 方法，不依赖 auth 与 `enabled` 开关 |
+| `enabled=false` | 不拉取；白名单仅本地，远程黑名单不生效（应急黑名单仍生效） |
 
 匹配语义：远程条目 `http_method='*'`（或空）不限方法，否则与实际请求方法忽略大小写比较；
 本地 `white-list` 条目始终不限方法。黑名单命中时记录指标
@@ -150,8 +153,7 @@ whale:
   2. 名单属于身份/访问控制数据，与权限、审计、权限码同源，放 auth 库可复用现有管理端与审计；
   3. 网关只需「拉取 + 快照」，数据一致性由单一控制平面保证。
 - **代价**：auth 不可用时黑名单只能沿用最后快照；极端场景（auth 长时间不可用 + 需紧急封禁）
-  需恢复 auth 或滚动重启网关（本地 `white-list` 不可用于封禁）。若后续需要「不依赖 auth 的秒级熔断」，
-  可增加 Nacos 热配置通道（GW-03 已有配置面）。
+  已由 Nacos 热配置应急黑名单覆盖（见 §6），无需恢复 auth 或重启网关。
 - **误封风险**：黑名单优先级最高，误配 `/auth/v1/login` 会锁死登录；写操作（后续管理端）建议二次确认 +
   审计，并限制权限码只授予平台管理员。
 
@@ -160,6 +162,20 @@ whale:
 - 服务端：`WHALE_INTERNAL_TOKEN`（auth 与网关取同一值；非 dev 必配）。
 - 网关可选覆盖：`WHALE_GATEWAY_ACCESS_LIST_ENABLED`、`WHALE_GATEWAY_WHITELIST_URI`、
   `WHALE_GATEWAY_BLACKLIST_URI`、`..._REFRESH_INTERVAL_MS`、`..._INITIAL_DELAY_MS`、`..._TIMEOUT_MILLIS`。
+- **应急黑名单（Nacos 热配置）**：网关 `spring.config.import` 已引入
+  `optional:nacos:whale-gateway-access-list.yaml?group=DEFAULT_GROUP&refreshEnabled=true`，
+  在该 dataId 写入后由 `@ConfigurationProperties` 热重绑定，**无需重启**：
+
+  ```yaml
+  whale:
+    gateway:
+      access-list:
+        emergency-blacklist:
+          - /some/hot/path/**
+  ```
+
+  语义：路径模式（Ant 通配）不限 HTTP 方法、优先级最高、不受 `enabled` 影响；
+  修改后下一个请求即生效。**用完请删除条目**，避免长期留存造成后续误封。
 - 启动顺序无强依赖：网关首拉失败即用本地兜底，auth 恢复后下一周期自动接管。
 - 升级兼容：白名单接口契约未变；旧网关不拉黑名单，黑名单在网关升级后生效。
 
@@ -175,13 +191,15 @@ whale:
 5. 登录 401：先确认本地 `whale.gateway.white-list` 仍含 `/auth/v1/login`（兜底不能被清空）。
 6. 登录/接口 403 且路径疑似被封禁：查 `sys_gateway_blacklist` 是否有命中条目（`status=1`）；
    网关日志「请求命中路径黑名单」会打印 `path/method`。
+7. auth 不可用且需紧急封禁：改 Nacos `whale-gateway-access-list.yaml` 的 `emergency-blacklist`
+   （见 §6），改完即时生效；验证方式同第 6 条（同样命中 `path_blacklisted` 指标）。
 
 ## 8. 后续
 
 - 管理端页面与菜单已落地（见 §3.2）；后续按租户下发（`scope` 扩展）需网关携带租户上下文并按租户合并，
   涉及匹配优先级设计。
 - 如需观察面：可补 `gateway.access_list.refresh{list,result}` 计数与快照条数 Gauge。
-- 应急通道：Nacos 热配置黑名单（不依赖 auth 可用性），作为本方案的第 2 优先级来源。
+- 应急通道（Nacos 热配置）已落地（见 §6）。
 
 ## 9. 变更记录
 
@@ -191,3 +209,4 @@ whale:
 | 2026-11-12 | 追加黑名单：V14（黑名单表 + 4 个权限码）、`/internal/gateway/blacklist`、网关黑名单优先匹配（403 + 指标）；网关组件合并为 `accesslist` 包，配置前缀改为 `whale.gateway.access-list` |
 | 2026-11-12 | 追加管理端 CRUD：`/auth/v1/gateway/{whitelist\|blacklist}` 四类操作 + 权限码/审计，删除走物理删除以释放唯一键 |
 | 2026-11-12 | 追加管理端页面与菜单（V15，平台租户）：白/黑双 Tab，新增/编辑/启停/删除，黑名单误封提示 |
+| 2026-11-12 | 追加 Nacos 应急黑名单：新增 dataId `whale-gateway-access-list.yaml` 与 `emergency-blacklist`，不限方法、不依赖 auth 与 `enabled`，热重绑定即时生效 |

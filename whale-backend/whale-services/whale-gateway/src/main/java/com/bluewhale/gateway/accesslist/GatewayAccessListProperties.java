@@ -4,6 +4,9 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * 网关访问名单（白名单 / 黑名单）动态加载配置（{@code whale.gateway.access-list.*}）。
  *
@@ -16,6 +19,9 @@ import org.springframework.stereotype.Component;
  *
  * <p>远程不可用时保留上一份快照；白名单另有本地配置兜底，保证登录/刷新链路不因 auth 抖动全量 401。</p>
  *
+ * <p>{@link #emergencyBlacklist} 为 Nacos 热配置的应急封禁通道：不依赖 auth 可用性，
+ * 优先级高于远程黑名单，也不受 {@link #enabled} 开关影响。</p>
+ *
  * @author BlueWhale
  */
 @Data
@@ -23,7 +29,7 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "whale.gateway.access-list")
 public class GatewayAccessListProperties {
 
-    /** 是否启用动态拉取；关闭后白名单仅用本地 {@code white-list}，黑名单不生效 */
+    /** 是否启用动态拉取；关闭后白名单仅用本地 {@code white-list}，远程黑名单不生效（应急黑名单仍生效） */
     private boolean enabled = true;
 
     /** 白名单只读内部接口地址（{@code lb://} 由负载均衡 WebClient 解析） */
@@ -46,4 +52,11 @@ public class GatewayAccessListProperties {
 
     /** 内网令牌请求头名 */
     private String internalTokenHeader = "X-Internal-Token";
+
+    /**
+     * 应急黑名单路径模式（Nacos 热配置 {@code whale-gateway-access-list.yaml}）：
+     * 不限 HTTP 方法，优先级高于远程黑名单；auth 长时间不可用时仍可即时封禁。
+     * 变更后 {@code @ConfigurationProperties} 重新绑定，无需重启网关。
+     */
+    private List<String> emergencyBlacklist = new ArrayList<>();
 }

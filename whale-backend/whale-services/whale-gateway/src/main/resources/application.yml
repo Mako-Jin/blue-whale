@@ -7,9 +7,12 @@ spring:
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
   # T5 Nacos 动态路由：从 Nacos 导入网关动态路由配置（dataId/group 见 NacosRouteDefinitionRepository）；
-  # optional: 前缀保证 Nacos 不可用时网关仍能启动，refreshEnabled=true 支持配置变更后刷新路由。
+  # AUTH-41 应急黑名单：dataId=whale-gateway-access-list.yaml，改完由 @ConfigurationProperties 热重绑定。
+  # optional: 前缀保证 Nacos 不可用时网关仍能启动，refreshEnabled=true 支持配置变更后刷新。
   config:
-    import: "optional:nacos:whale-gateway-routes.yaml?group=DEFAULT_GROUP&refreshEnabled=true"
+    import:
+      - "optional:nacos:whale-gateway-routes.yaml?group=DEFAULT_GROUP&refreshEnabled=true"
+      - "optional:nacos:whale-gateway-access-list.yaml?group=DEFAULT_GROUP&refreshEnabled=true"
   data:
     redis:
       host: ${REDIS_HOST:127.0.0.1}
@@ -304,6 +307,12 @@ whale:
       # 与服务侧 InternalTokenFilter 共享令牌（生产必须配置 WHALE_INTERNAL_TOKEN）
       internal-token: ${WHALE_INTERNAL_TOKEN:}
       internal-token-header: X-Internal-Token
+      # AUTH-41 应急封禁通道：Nacos 热配置，不依赖 auth 可用性，优先级最高、不限 HTTP 方法。
+      # 在 Nacos dataId=whale-gateway-access-list.yaml 写入（本地默认空列表）：
+      #   whale.gateway.access-list.emergency-blacklist:
+      #     - /some/hot/path/**
+      # 变更后 @ConfigurationProperties 重新绑定，下一个请求即生效（不受 enabled 开关影响）。
+      emergency-blacklist: []
     # P1-13 路由治理端点鉴权：/actuator/routeGovernance 不受 JWT 保护（actuator 端点不经过网关路由链），
     # 且含写操作（回滚路由），必须携带 X-Governance-Token；令牌未配置时一律 403（fail-closed），
     # 生产通过环境变量 WHALE_GATEWAY_GOVERNANCE_TOKEN 显式启用。health/info/prometheus 仍匿名可用。
