@@ -127,6 +127,16 @@
   font-size: 13px;
 }
 
+/* 引用块：左侧竖线 + 灰底，与正文明显区分但不抢视觉 */
+.forum-quote {
+  border-left: 3px solid rgba(0, 0, 0, 0.12);
+  background: rgba(0, 0, 0, 0.03);
+  padding: 6px 10px;
+  margin-bottom: 6px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
 /* 富文本正文：限制图片宽度，避免长链接/长代码块撑破布局 */
 .forum-rich-text {
   line-height: 1.7;

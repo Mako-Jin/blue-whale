@@ -39,6 +39,9 @@ public class PostVO implements Serializable {
     /** 引用楼层ID（被引用楼层已删时前端占位） */
     private Long replyToPostId;
 
+    /** 被引用楼层摘要（未引用时为 {@code null}；已删除时 {@code deleted=true}） */
+    private QuotedPostVO quoted;
+
     /** 创建时间 */
     private LocalDateTime createTime;
 

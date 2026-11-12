@@ -18,6 +18,7 @@ import com.bluewhale.forum.mapper.ForumThreadEditHistoryMapper;
 import com.bluewhale.forum.mapper.ForumThreadMapper;
 import com.bluewhale.forum.service.BanService;
 import com.bluewhale.forum.service.BoardService;
+import com.bluewhale.forum.service.MentionService;
 import com.bluewhale.forum.service.SearchService;
 import com.bluewhale.forum.service.SensitiveWordService;
 import com.bluewhale.forum.service.ViewCountService;
@@ -81,6 +82,9 @@ class ThreadServiceImplTest {
     @Mock
     private SearchService searchService;
 
+    @Mock
+    private MentionService mentionService;
+
     @Spy
     private ForumProperties properties = new ForumProperties();
 
@@ -117,6 +121,9 @@ class ThreadServiceImplTest {
 
         assertThat(vo.getStatus()).isEqualTo("PENDING");
         assertThat(vo.getPublishTime()).isNull();
+        // 待审帖不可见，此时 @ 等于通知一个「点进去看不到」的链接
+        verify(mentionService, never()).dispatch(anyLong(), anyLong(), anyString(), anyString(),
+                anyString(), anyLong());
     }
 
     @Test
@@ -129,6 +136,8 @@ class ThreadServiceImplTest {
         ThreadDetailVO vo = threadService.create(request("版主发帖", "<p>正文</p>"), manager());
 
         assertThat(vo.getStatus()).isEqualTo("PUBLISHED");
+        // 发布态才派发 @提及
+        verify(mentionService).dispatch(anyLong(), anyLong(), anyString(), anyString(), anyString(), anyLong());
     }
 
     @Test

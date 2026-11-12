@@ -75,6 +75,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:9011/forum/meta   # �
 | `fm_thread_view` | 浏览去重窗口行 | `uk(tenant, thread, user)`，滚动 24h |
 | `fm_hot_snapshot` | 热榜快照 | 每 30 分钟整表覆盖 |
 | `fm_count_reconcile` | 计数对账轨迹 | append-only，M4 新增 |
+| `fm_mention` | @提及记录 | append-only，M5 新增；`post_id=0` 表示主帖，唯一键 `(tenant_id, thread_id, post_id, user_id)` |
 | `api_log` / `audit_log` | 平台同构日志 | 缺失会表现为「刷栈但接口 200」/ 写接口 500 |
 
 ### 3.2 Flyway（`db/migration`，禁止改历史脚本）
@@ -88,6 +89,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:9011/forum/meta   # �
 | V5 | 治理 3 表 + 违规词种子（`fm_sensitive_word` / `fm_user_ban` / `fm_notify_outbox`） |
 | V6 | 浏览去重 `fm_thread_view` + 热榜快照 `fm_hot_snapshot` |
 | V7 | 检索纯文本 `fm_thread.content_text` + `FULLTEXT(title, content_text) WITH PARSER ngram` + `fm_count_reconcile` |
+| V8 | `fm_mention`（@提及，append-only） |
 
 > **改历史脚本的注释也会让校验和变**，随后 `validate-on-migrate` 直接拒启。
 > 真要改语义就加新版本；本地库只能重建（`db/migration` 全量重放）后再起服务。
@@ -217,6 +219,11 @@ mysql -u<user> -p --default-character-set=utf8mb4 bluewhale_forum_bak < forum-20
 | 帖子计数不对 | `fm_count_reconcile` 最近批次 | 跑一次 `count/reconcile?fix=true`，再查对应写路径 |
 | 起服 `Flyway validate failed` | 是否改过历史脚本 | 加新版本或重建库，别改 V1–V7 |
 | 站内信收不到 | `fm_notify_outbox.status`、`bw-message` 健康 | 投递失败会重试；超过 `notify-max-retry` 需人工补投 |
+| @了人但对方没收到 | `fm_mention` 是否有行；`fm_notify_outbox` 里 `biz_type=MENTION` | 三种最常见的：① 昵称写错（不做模糊匹配，解析不到直接跳过）；② 通讯录不可达/超时（日志 `提及解析失败`，连接 800ms、读 1500ms）；③ 自己 @ 自己、待审帖、同层重复都不发 |
+| @提及全都不生效 | 日志 `通讯录返回非成功` / `通讯录未精确命中` | 检查 `whale.forum.auth-base-url` 与 `X-Tenant-Id`；auth 通讯录实际路径是 **`/user/internal/directory`（无版本段）**，带 `/v1` 恒 401；返回的 `id` 是字符串，代码必须同时认 String 与 Number |
+| 第二个帖子 @ 同一个人没有通知 | `fm_mention` 唯一键、outbox 幂等键 | 唯一键须为 `(tenant_id, thread_id, post_id, user_id)`、幂等键须带 `threadId`；缺 `thread_id` 时主帖（`post_id=0`）会跨帖互相顶掉 |
+| 引用块显示「该楼层已删除」但楼层还在 | 被引楼层的 `status` 与 `deleted` | 引用摘要只认 `PUBLISHED`；待审/已删/跨租户都按删除占位（不回正文，避免成为绕过删帖的通道） |
+| 楼层倒序翻页有跳号 | 请求是否带 `order=desc` | 排序必须下推服务端 `ORDER BY`；前端本地反转单页会导致页边界不连续 |
 
 ## 九、日常巡检
 

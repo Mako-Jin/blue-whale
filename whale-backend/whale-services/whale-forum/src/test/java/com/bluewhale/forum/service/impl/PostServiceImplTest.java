@@ -16,6 +16,7 @@ import com.bluewhale.forum.mapper.ForumThreadMapper;
 import com.bluewhale.forum.service.BanService;
 import com.bluewhale.forum.service.BoardService;
 import com.bluewhale.forum.service.ForumNotifyService;
+import com.bluewhale.forum.service.MentionService;
 import com.bluewhale.forum.service.SensitiveWordService;
 import com.bluewhale.forum.service.ThreadService;
 import org.junit.jupiter.api.AfterEach;
@@ -74,6 +75,9 @@ class PostServiceImplTest {
 
     @Mock
     private ForumNotifyService notifyService;
+
+    @Mock
+    private MentionService mentionService;
 
     @Spy
     private ForumProperties properties = new ForumProperties();
@@ -222,5 +226,18 @@ class PostServiceImplTest {
      */
     private ForumActor author() {
         return new ForumActor(100L, Set.of(ForumPermissions.BROWSE, ForumPermissions.POST_ADD), null);
+    }
+
+    @Test
+    @DisplayName("排序归一化：只有明确 desc 才倒序，其余一律正序")
+    void normalizesOrder() {
+        assertThat(PostServiceImpl.isDescending("desc")).isTrue();
+        assertThat(PostServiceImpl.isDescending(" DESC ")).isTrue();
+        assertThat(PostServiceImpl.isDescending("Desc")).isTrue();
+        assertThat(PostServiceImpl.isDescending("asc")).isFalse();
+        assertThat(PostServiceImpl.isDescending(null)).isFalse();
+        // 注入串不因为「包含 desc 字样」就被当成倒序
+        assertThat(PostServiceImpl.isDescending("1;desc")).isFalse();
+        assertThat(PostServiceImpl.isDescending("desc;drop table fm_post")).isFalse();
     }
 }

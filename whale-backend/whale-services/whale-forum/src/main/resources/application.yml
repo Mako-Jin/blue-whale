@@ -94,6 +94,11 @@ whale:
     notify-max-retry: ${WHALE_FORUM_NOTIFY_MAX_RETRY:5}
     # whale-message 内网地址（站内信）
     message-base-url: ${WHALE_FORUM_MESSAGE_BASE_URL:http://127.0.0.1:8094}
+    # whale-service-auth 内网地址（@提及经 /user/v1/internal/directory 解析昵称）
+    auth-base-url: ${WHALE_FORUM_AUTH_BASE_URL:http://127.0.0.1:8081}
+    # 通讯录解析超时：@提及是附属能力，auth 慢时必须毫秒级放弃，不能拖住发帖
+    directory-connect-timeout-millis: ${WHALE_FORUM_DIRECTORY_CONNECT_TIMEOUT:800}
+    directory-read-timeout-millis: ${WHALE_FORUM_DIRECTORY_READ_TIMEOUT:1500}
     # 浏览去重窗口（小时）：同人同帖窗口内只计一次（库内去重行，不依赖 Redis）
     view-dedupe-hours: ${WHALE_FORUM_VIEW_DEDUPE_HOURS:24}
     # 互动固定窗口限流（秒 / 次数），防脚本刷投花；规格 v1.3：投花 60/分

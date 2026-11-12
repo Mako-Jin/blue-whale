@@ -27,6 +27,7 @@ import com.bluewhale.forum.mapper.ForumThreadEditHistoryMapper;
 import com.bluewhale.forum.mapper.ForumThreadMapper;
 import com.bluewhale.forum.service.BanService;
 import com.bluewhale.forum.service.BoardService;
+import com.bluewhale.forum.service.MentionService;
 import com.bluewhale.forum.service.SearchService;
 import com.bluewhale.forum.service.SensitiveWordService;
 import com.bluewhale.forum.service.ThreadService;
@@ -104,6 +105,8 @@ public class ThreadServiceImpl implements ThreadService {
 
     private final SearchService searchService;
 
+    private final MentionService mentionService;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ThreadDetailVO create(ThreadCreateRequest request, ForumActor actor) {
@@ -164,6 +167,11 @@ public class ThreadServiceImpl implements ThreadService {
             // 帖子编号撞车（同日同尾号）：换编号重试一次，仍失败按系统错误返回
             thread.setThreadNo(nextThreadNo(IdWorker.getId()));
             threadMapper.insert(thread);
+        }
+        if (STATUS_PUBLISHED.equals(thread.getStatus())) {
+            // 待审帖不派发 @：帖子还没发布，被 @ 的人点进来是「看不到的内容」
+            mentionService.dispatch(thread.getId(), MentionService.MAIN_POST_ID,
+                    MentionService.SOURCE_THREAD, content, title, actor.userId());
         }
         return toDetailVO(thread, board, actor);
     }

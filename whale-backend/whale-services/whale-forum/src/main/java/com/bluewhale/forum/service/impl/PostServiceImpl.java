@@ -13,6 +13,7 @@ import com.bluewhale.forum.common.RichTextSanitizer;
 import com.bluewhale.forum.config.ForumProperties;
 import com.bluewhale.forum.dto.PostCreateRequest;
 import com.bluewhale.forum.dto.PostVO;
+import com.bluewhale.forum.dto.QuotedPostVO;
 import com.bluewhale.forum.entity.ForumPost;
 import com.bluewhale.forum.entity.ForumThread;
 import com.bluewhale.forum.mapper.ForumPostMapper;
@@ -21,6 +22,7 @@ import com.bluewhale.forum.entity.ForumBoard;
 import com.bluewhale.forum.service.BanService;
 import com.bluewhale.forum.service.BoardService;
 import com.bluewhale.forum.service.ForumNotifyService;
+import com.bluewhale.forum.service.MentionService;
 import com.bluewhale.forum.service.PostService;
 import com.bluewhale.forum.service.SensitiveWordService;
 import com.bluewhale.forum.service.ThreadService;
@@ -31,6 +33,10 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 楼层服务实现：回帖与楼层分页。
@@ -46,6 +52,12 @@ public class PostServiceImpl implements PostService {
 
     /** 允许回帖的状态（CLOSED 不接受回复） */
     private static final List<String> REPLYABLE_STATUSES = List.of("PUBLISHED", "SOLVED");
+
+    /** 楼层正序 */
+    private static final String ORDER_ASC = "asc";
+
+    /** 楼层倒序 */
+    private static final String ORDER_DESC = "desc";
 
     private final ForumPostMapper postMapper;
 
@@ -64,6 +76,8 @@ public class PostServiceImpl implements PostService {
     private final BanService banService;
 
     private final ForumNotifyService notifyService;
+
+    private final MentionService mentionService;
 
     @Override
     public PostVO create(Long threadId, PostCreateRequest request, ForumActor actor) {
@@ -119,6 +133,11 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public PageResult<PostVO> page(Long threadId, Long current, Long size, ForumActor actor) {
+        return page(threadId, current, size, ORDER_ASC, actor);
+    }
+
+    @Override
+    public PageResult<PostVO> page(Long threadId, Long current, Long size, String order, ForumActor actor) {
         TenantContext.requireId();
         ForumThread thread = threadService.requireVisibleThread(threadId, actor);
         boardService.requireVisibleBoard(thread.getBoardId(), actor);
@@ -126,18 +145,73 @@ public class PostServiceImpl implements PostService {
         long pageSize = size == null || size < 1
                 ? properties.getPageSizeDefault()
                 : Math.min(size, properties.getPageSizeMax());
+        boolean desc = isDescending(order);
         IPage<ForumPost> page = postMapper.selectPage(
                 new Page<>(Math.min(pageNo, properties.getMaxPageNumber()), pageSize),
                 Wrappers.<ForumPost>lambdaQuery()
                         .eq(ForumPost::getThreadId, threadId)
                         .eq(ForumPost::getStatus, "PUBLISHED")
                         .isNotNull(ForumPost::getFloor)
-                        .orderByAsc(ForumPost::getFloor));
+                        .orderByAsc(!desc, ForumPost::getFloor)
+                        .orderByDesc(desc, ForumPost::getFloor));
         List<PostVO> records = new ArrayList<>(page.getRecords().size());
         for (ForumPost post : page.getRecords()) {
             records.add(toVO(post));
         }
+        fillQuoted(records);
         return PageResult.of(records, page.getTotal(), page.getCurrent(), page.getSize());
+    }
+
+    /**
+     * 判断是否倒序。
+     *
+     * <p>只有明确写 {@code desc} 才倒序，其余（含空、拼错、注入串）一律正序：
+     * 排序方向不接受「猜」，免得 {@code order=;DROP} 之类的东西被当成有效值往 SQL 里带。</p>
+     *
+     * @param order 排序参数
+     * @return 倒序返回 {@code true}
+     */
+    static boolean isDescending(String order) {
+        return ORDER_DESC.equalsIgnoreCase(order == null ? null : order.trim());
+    }
+
+    /**
+     * 批量回填被引用楼层摘要。
+     *
+     * <p>一次 {@code selectBatchIds} 解决整页的引用，不做 N+1；
+     * 软删过滤由 {@code @TableLogic} 在 SQL 层完成，查不到即视为「已删除」，
+     * 待审楼层同理（{@code status != PUBLISHED} 也不返回摘要）。</p>
+     *
+     * @param records 当前页楼层视图
+     */
+    private void fillQuoted(List<PostVO> records) {
+        Set<Long> quotedIds = records.stream()
+                .map(PostVO::getReplyToPostId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (quotedIds.isEmpty()) {
+            return;
+        }
+        Map<Long, ForumPost> quotedPosts = postMapper.selectBatchIds(quotedIds).stream()
+                .collect(Collectors.toMap(ForumPost::getId, post -> post, (left, right) -> left));
+        for (PostVO vo : records) {
+            if (vo.getReplyToPostId() == null) {
+                continue;
+            }
+            ForumPost source = quotedPosts.get(vo.getReplyToPostId());
+            QuotedPostVO quoted = new QuotedPostVO();
+            quoted.setPostId(vo.getReplyToPostId());
+            if (source == null || !"PUBLISHED".equals(source.getStatus())) {
+                quoted.setDeleted(true);
+            } else {
+                quoted.setDeleted(false);
+                quoted.setFloor(source.getFloor());
+                quoted.setAuthorId(source.getAuthorId());
+                quoted.setExcerpt(RichTextSanitizer.summarize(source.getContent(),
+                        properties.getQuoteExcerptLength()));
+            }
+            vo.setQuoted(quoted);
+        }
     }
 
     /**
@@ -165,9 +239,14 @@ public class PostServiceImpl implements PostService {
      * @return 视图
      */
     private PostVO finish(ForumPost post, ForumThread thread, ForumActor actor) {
-        if ("PUBLISHED".equals(post.getStatus()) && !actor.userId().equals(thread.getAuthorId())) {
-            notifyService.notifyReply(thread.getId(), post.getId(), thread.getTitle(),
-                    thread.getAuthorId(), "有鲸友");
+        if ("PUBLISHED".equals(post.getStatus())) {
+            if (!actor.userId().equals(thread.getAuthorId())) {
+                notifyService.notifyReply(thread.getId(), post.getId(), thread.getTitle(),
+                        thread.getAuthorId(), "有鲸友");
+            }
+            // 待审楼层不派发 @：楼层列表看不到待审内容，先通知等于通知了一个「点进去没有」的链接
+            mentionService.dispatch(thread.getId(), post.getId(), MentionService.SOURCE_POST,
+                    post.getContent(), thread.getTitle(), actor.userId());
         }
         return toVO(post);
     }

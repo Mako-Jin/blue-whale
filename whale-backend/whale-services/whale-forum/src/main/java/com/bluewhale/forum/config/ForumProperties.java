@@ -54,6 +54,9 @@ public class ForumProperties {
     /** 摘要截断长度（字符） */
     private int summaryLength = 200;
 
+    /** 引用块摘要长度（字符）：引用只是一行灰字提示，太长会把楼层列表挤爆 */
+    private int quoteExcerptLength = 80;
+
     /** 热榜快照刷新周期（分钟） */
     private int hotRefreshMinutes = 30;
 
@@ -74,6 +77,20 @@ public class ForumProperties {
 
     /** whale-message 内网基础地址（站内信经 /message/internal/send 投递） */
     private String messageBaseUrl = "http://127.0.0.1:8094";
+
+    /** whale-service-auth 内网基础地址（@提及经 /user/v1/internal/directory 解析昵称） */
+    private String authBaseUrl = "http://127.0.0.1:8081";
+
+    /**
+     * 通讯录解析连接超时（毫秒）。
+     *
+     * <p>@提及是发帖的<b>附属能力</b>：通讯录慢或不可达时必须在毫秒级放弃，
+     * 不能让「@了谁」把「帖子发出去」拖住——默认 RestClient 无超时，会一直等。</p>
+     */
+    private int directoryConnectTimeoutMillis = 800;
+
+    /** 通讯录解析读超时（毫秒） */
+    private int directoryReadTimeoutMillis = 1_500;
 
     /** 浏览去重窗口（小时）：同人同帖窗口内只计一次浏览 */
     private int viewDedupeHours = 24;

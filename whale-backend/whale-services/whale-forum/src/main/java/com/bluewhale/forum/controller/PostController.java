@@ -51,11 +51,12 @@ public class PostController {
     }
 
     /**
-     * 楼层分页（按楼层号升序）。
+     * 楼层分页（默认按楼层号升序）。
      *
      * @param threadId 帖子ID
      * @param current 页码
      * @param size 每页条数
+     * @param order 排序：asc 正序（默认）/ desc 倒序（热帖从最新楼层看起）
      * @param request 当前请求
      * @return 分页结果
      */
@@ -64,7 +65,8 @@ public class PostController {
     public Result<PageResult<PostVO>> page(@PathVariable("threadId") Long threadId,
                                            @RequestParam(value = "current", defaultValue = "1") Long current,
                                            @RequestParam(value = "size", defaultValue = "20") Long size,
+                                           @RequestParam(value = "order", defaultValue = "asc") String order,
                                            HttpServletRequest request) {
-        return Result.ok(postService.page(threadId, current, size, ForumActor.from(request)));
+        return Result.ok(postService.page(threadId, current, size, order, ForumActor.from(request)));
     }
 }

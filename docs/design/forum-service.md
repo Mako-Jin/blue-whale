@@ -203,6 +203,24 @@ M4 落地口径：检索走 `FULLTEXT(title, content_text) WITH PARSER ngram`（
 | M2 治理 | 审核模式（状态机 + 退回必填意见）、举报与处置、敏感词三档、限流 429 实测 | 负向验证：未审内容对普通用户 404；处置必落轨迹 |
 | M3 互动与热榜 | 投花/藏帖（幂等 + 计数原子增减）、我的收藏、浏览 24h 去重、热榜打分与快照（`GET /forum/hot`、`POST /forum/hot/refresh`，受管任务 `forum.hot.snapshot`） | 重复投花不重复计数、取消后可再投；同日重复打开只 +1 浏览；快照刷新为整表覆盖不累加 |
 | M4 检索与收口 | ngram 全文索引（`fm_thread.title + content_text`）、单字回退 LIKE、`GET /forum/search` + `/status` + `/reindex`、计数对账（`fm_count_reconcile` + 受管任务 `forum.count.reconcile` + `POST /forum/admin/count/reconcile`）、运维手册 `docs/ops/forum-service-ops.md`、SLO-12/13/14 | ✅ 实机：回填前正文词命中 0 → 回填 6 条后命中 1；单字走 LIKE 命中 3；对账 dry-run 报 2 处差异、`fix=true` 修正并留 4 行轨迹 |
+| M5 互动增强（P1） | `V8__mention.sql`（`fm_mention`）；@提及（F-03-10）：解析 → auth 内网通讯录解析 → 落库 → outbox 通知，**afterCommit 派发**；引用回复摘要（F-04-02，被引楼层删除只回占位）；楼层正/倒序（F-02-06，下推 `ORDER BY`） | ✅ 实机：发帖 `@admin @qa_admin` 落 2 条 `fm_mention` + 2 条 outbox `SENT`；跨帖 @ 同一人各自成条（唯一键含 `thread_id`）；回帖引用回填摘要，被引楼层 `REMOVE` 后仅 `deleted=true`；`order=desc` 返回 `[3,2]`；单测 111 项全绿 |
+
+---
+
+## 8.1 M5 @提及实现口径（P1）
+
+| 项 | 口径 | 为什么 |
+|---|---|---|
+| 解析输入 | 富文本先经 `RichTextSanitizer.summarize(content, searchTextLength)` 转纯文本，再交给 `MentionParser` | 直接解析 HTML 会把 `@张三</p>` 的标签算进昵称，也会让 `href="mailto:a@b"` 变成一次提及 |
+| 匹配规则 | `(?<![\p{L}\p{N}_.-])@([\p{L}\p{N}_.-]{1,32})`，`＠` 归一化为 `@`，尾部 ASCII 标点剔除 | 全角 `＠` 在中文输入法下极常见；后行断言排除邮箱；尾部标点剔除避免 `@wang.` 把句号当名字 |
+| 歧义 | 中文无分隔符时**最长匹配**，解析不到就跳过 | 「@张三的说法」无法区分，宁可少通知一个人，也不能 @ 错人；前端用选择器插入「@昵称 」从源头消除 |
+| 上限 | 单帖 ≤ `max-mentions-per-post`（默认 20），超出截断并 `log.info` 留痕 | 与 F-03-10 一致；截断不是错误但必须可解释 |
+| 身份解析 | auth `GET /user/internal/directory?keyword=` + `X-Tenant-Id`，按 `nickname`/`username` **精确等于**过滤（忽略大小写） | 模糊命中多条时不去猜；缺租户头 auth 直接回「缺少租户上下文」，不是查不到 |
+| 落库 | `fm_mention`，`post_id=0` 表示主帖；唯一键 `(tenant_id, thread_id, post_id, user_id)` | 主键是雪花 ID，含主键的唯一键永不冲突；主帖 `post_id` 恒 0，**唯一键必须带 `thread_id`**，否则跨帖 @ 同一人互相当成重复 |
+| 通知 | outbox，幂等键 `forum:mention:{threadId}:{postId}:{userId}`，`biz_type=MENTION` | 键不带 `threadId` 时，第二个帖子的主帖 @ 同一个人会撞 outbox 唯一键而静默丢通知 |
+| 派发时机 | 事务内注册 `afterCommit`；无事务时同步执行 | 不在事务里打 HTTP（避免长事务空等网络），也避免通知一个可能回滚的帖子 |
+| 跳过规则 | 自己 @ 自己、解析不到、同层重复、待审帖/待审楼层 | 待审内容不可见，通知等于给一个「点进去看不到」的链接 |
+| 失败策略 | 通讯录不可达/超时（800ms 连接、1500ms 读）只 `warn` 并跳过 | @提及是附属能力，不能让「@了谁」把「帖子发出去」拖住 |
 
 ---
 

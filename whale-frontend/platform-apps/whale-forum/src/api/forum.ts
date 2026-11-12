@@ -118,6 +118,15 @@ export interface HotItem {
   snapshotTime?: string | null;
 }
 
+/** 被引用楼层摘要（未引用时为 null；被引楼层已删时 deleted=true，正文不返回） */
+export interface QuotedPost {
+  postId: string;
+  floor?: number | null;
+  authorId?: string | null;
+  excerpt?: string | null;
+  deleted?: boolean;
+}
+
 /** 楼层 */
 export interface PostItem {
   id: string;
@@ -128,6 +137,8 @@ export interface PostItem {
   content: string;
   likeCount: number;
   replyToPostId?: string | null;
+  /** 被引用楼层摘要：服务端批量回填，软删后只剩 deleted 标记 */
+  quoted?: QuotedPost | null;
   createTime?: string | null;
 }
 
@@ -182,14 +193,19 @@ export function createThread(body: {
   return request<ThreadDetail>('/forum/thread', { method: 'POST', body });
 }
 
-/** 楼层分页 */
+/**
+ * 楼层分页
+ *
+ * order 必须交给服务端：前端只反转当前页数组，翻页时楼层会「跳」（页尾与下一页不连续）。
+ */
 export function fetchPosts(
   threadId: string,
   current = 1,
   size = 20,
+  order: 'asc' | 'desc' = 'asc',
 ): Promise<PageResult<PostItem>> {
   return request<PageResult<PostItem>>(
-    `/forum/thread/${threadId}/post/page?current=${current}&size=${size}`,
+    `/forum/thread/${threadId}/post/page?current=${current}&size=${size}&order=${order}`,
   );
 }
 
