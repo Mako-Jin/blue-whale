@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.auth.domain.aggregate.TenantAggregate;
 import com.bluewhale.auth.domain.repository.TenantRepository;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysTenant;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysTenantPo;
 import com.bluewhale.auth.infrastructure.persistence.assembler.TenantPersistenceAssembler;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysTenantMapper;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +27,7 @@ public class TenantRepositoryImpl implements TenantRepository {
 
     @Override
     public TenantAggregate save(TenantAggregate tenant) {
-        SysTenant po = TenantPersistenceAssembler.toPo(tenant);
+        SysTenantPo po = TenantPersistenceAssembler.toPo(tenant);
         if (po.getId() == null) {
             tenantMapper.insert(po);
         } else {
@@ -38,40 +38,40 @@ public class TenantRepositoryImpl implements TenantRepository {
 
     @Override
     public Optional<TenantAggregate> findByCode(String tenantCode) {
-        SysTenant po = tenantMapper.selectOne(new LambdaQueryWrapper<SysTenant>()
-                .eq(SysTenant::getTenantCode, tenantCode)
+        SysTenantPo po = tenantMapper.selectOne(new LambdaQueryWrapper<SysTenantPo>()
+                .eq(SysTenantPo::getTenantCode, tenantCode)
                 .last("limit 1"));
         return Optional.ofNullable(po).map(TenantPersistenceAssembler::toDomain);
     }
 
     @Override
     public Optional<TenantAggregate> findById(Long id) {
-        SysTenant po = tenantMapper.selectById(id);
+        SysTenantPo po = tenantMapper.selectById(id);
         return Optional.ofNullable(po).map(TenantPersistenceAssembler::toDomain);
     }
 
     @Override
     public List<TenantAggregate> findAll() {
-        List<SysTenant> pos = tenantMapper.selectList(new LambdaQueryWrapper<SysTenant>()
-                .orderByDesc(SysTenant::getCreateTime));
+        List<SysTenantPo> pos = tenantMapper.selectList(new LambdaQueryWrapper<SysTenantPo>()
+                .orderByDesc(SysTenantPo::getCreateTime));
         return pos.stream().map(TenantPersistenceAssembler::toDomain).toList();
     }
 
     @Override
     public TenantPage page(long current, long size, String keyword, Integer status) {
-        LambdaQueryWrapper<SysTenant> wrapper = new LambdaQueryWrapper<>();
+        LambdaQueryWrapper<SysTenantPo> wrapper = new LambdaQueryWrapper<>();
         if (status != null) {
-            wrapper.eq(SysTenant::getStatus, status);
+            wrapper.eq(SysTenantPo::getStatus, status);
         }
         if (StringUtils.hasText(keyword)) {
             // 数据库排序规则默认大小写不敏感，语义与原内存过滤（lower contains）一致；
             // LIKE 关键字转义反斜杠/百分号/下划线，防止通配符被当作模式展开导致全表扫描
             String escaped = keyword.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
-            wrapper.and(w -> w.like(SysTenant::getTenantCode, escaped)
-                    .or().like(SysTenant::getTenantName, escaped));
+            wrapper.and(w -> w.like(SysTenantPo::getTenantCode, escaped)
+                    .or().like(SysTenantPo::getTenantName, escaped));
         }
-        wrapper.orderByDesc(SysTenant::getCreateTime);
-        Page<SysTenant> poPage = tenantMapper.selectPage(Page.of(current, size), wrapper);
+        wrapper.orderByDesc(SysTenantPo::getCreateTime);
+        Page<SysTenantPo> poPage = tenantMapper.selectPage(Page.of(current, size), wrapper);
         List<TenantAggregate> records = poPage.getRecords().stream()
                 .map(TenantPersistenceAssembler::toDomain)
                 .toList();

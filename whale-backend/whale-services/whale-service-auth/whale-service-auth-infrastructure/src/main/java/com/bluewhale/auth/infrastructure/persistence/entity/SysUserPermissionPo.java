@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @TableName("sys_user_permission")
-public class SysUserPermission implements Serializable {
+public class SysUserPermissionPo implements Serializable {
 
     private static final long serialVersionUID = 1L;
 

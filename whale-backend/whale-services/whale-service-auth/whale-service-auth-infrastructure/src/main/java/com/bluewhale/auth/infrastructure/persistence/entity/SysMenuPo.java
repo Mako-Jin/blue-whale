@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @TableName("sys_menu")
-public class SysMenu implements Serializable {
+public class SysMenuPo implements Serializable {
 
     private static final long serialVersionUID = 1L;
 

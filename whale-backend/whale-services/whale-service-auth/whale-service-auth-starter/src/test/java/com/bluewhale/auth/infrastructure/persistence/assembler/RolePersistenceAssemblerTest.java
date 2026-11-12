@@ -3,8 +3,8 @@ package com.bluewhale.auth.infrastructure.persistence.assembler;
 import com.bluewhale.auth.domain.model.vo.RoleCode;
 import com.bluewhale.auth.domain.aggregate.RoleAggregate;
 import com.bluewhale.auth.domain.model.entity.RolePermissionAssignment;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysRole;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysRolePermission;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysRolePo;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysRolePermissionPo;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -24,8 +24,8 @@ class RolePersistenceAssemblerTest {
     private static final LocalDateTime CREATED = LocalDateTime.of(2026, 1, 1, 9, 0, 0);
     private static final LocalDateTime UPDATED = LocalDateTime.of(2026, 1, 2, 9, 0, 0);
 
-    private static SysRole fullPo() {
-        SysRole po = new SysRole();
+    private static SysRolePo fullPo() {
+        SysRolePo po = new SysRolePo();
         po.setId(5L);
         po.setTenantId(1L);
         po.setRoleCode("test_role");
@@ -62,7 +62,7 @@ class RolePersistenceAssemblerTest {
     @Test
     @DisplayName("领域 → PO：SysRole 各字段逐项一致，未纳入聚合的字段保持为空")
     void shouldMapDomainToPoFieldByField() {
-        SysRole po = RolePersistenceAssembler.toPo(fullDomain());
+        SysRolePo po = RolePersistenceAssembler.toPo(fullDomain());
 
         assertEquals(5L, po.getId());
         assertEquals("test_role", po.getRoleCode());
@@ -79,7 +79,7 @@ class RolePersistenceAssemblerTest {
     @Test
     @DisplayName("PO → 领域：sortNo/status 为空归一化为 0 / 启用")
     void shouldNormalizeNullSortAndStatus() {
-        SysRole po = fullPo();
+        SysRolePo po = fullPo();
         po.setSortNo(null);
         po.setStatus(null);
 
@@ -92,7 +92,7 @@ class RolePersistenceAssemblerTest {
     @Test
     @DisplayName("角色-权限分配：PO ↔ 领域双向字段一致")
     void shouldMapPermissionAssignmentBothWays() {
-        SysRolePermission po = new SysRolePermission();
+        SysRolePermissionPo po = new SysRolePermissionPo();
         po.setId(8L);
         po.setRoleId(5L);
         po.setPermissionId(6L);
@@ -103,7 +103,7 @@ class RolePersistenceAssemblerTest {
         assertEquals(5L, assignment.roleId());
         assertEquals(6L, assignment.permissionId());
 
-        SysRolePermission converted = RolePersistenceAssembler.toAssignmentPo(RolePermissionAssignment.of(5L, 6L));
+        SysRolePermissionPo converted = RolePersistenceAssembler.toAssignmentPo(RolePermissionAssignment.of(5L, 6L));
         assertEquals(5L, converted.getRoleId());
         assertEquals(6L, converted.getPermissionId());
         assertNull(converted.getId());

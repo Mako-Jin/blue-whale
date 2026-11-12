@@ -102,9 +102,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             log.debug("accessToken 缺少租户或用户 claim，按未认证处理: username={}", claims.getSubject());
             return true;
         }
-        // REQ-SEC-023：强制改密/口令到期时仅放行改密、登出、刷新与当前用户接口（auth 侧第一层拦截）
+        // REQ-SEC-023：强制改密/口令到期时仅放行改密、登出、刷新与当前用户接口（auth 侧第一层拦截）；
+        // 白名单为 servlet 路径（不含 context-path），需剥离部署前缀后精确匹配
         if (requiresPasswordChange(claims)
-                && !PASSWORD_CHANGE_ALLOWED_PATHS.contains(request.getRequestURI())) {
+                && !PASSWORD_CHANGE_ALLOWED_PATHS.contains(stripContextPath(request))) {
             log.info("令牌携带强制改密标记，拒绝访问受保护资源: path={}, userId={}",
                     request.getRequestURI(), userId);
             writePasswordChangeRequired(response);
@@ -135,6 +136,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // token 对应的用户不存在，保持未认证状态，由 EntryPoint 返回 401
         }
         return true;
+    }
+
+    /**
+     * 剥离 context-path，得到 servlet 路径（与白名单口径一致）
+     *
+     * @param request 当前请求
+     * @return 不含部署前缀的请求路径
+     */
+    private static String stripContextPath(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        String contextPath = request.getContextPath();
+        if (contextPath == null || contextPath.isEmpty() || !uri.startsWith(contextPath)) {
+            return uri;
+        }
+        return uri.substring(contextPath.length());
     }
 
     /**
@@ -193,6 +209,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         Object raw = claims.get(claimName);
         if (raw == null) {
             return null;
+        }
+        // jjwt 对数字 claim 可能反序列化为 Integer / Long / BigInteger，直接取 longValue，
+        // 避免字符串转换把 Double 之类格式变成 "123.0" 后解析失败
+        if (raw instanceof Number n) {
+            return n.longValue();
         }
         try {
             return Long.valueOf(String.valueOf(raw));

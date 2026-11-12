@@ -1,14 +1,10 @@
 package com.bluewhale.auth.infrastructure.security;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.bluewhale.auth.domain.repository.RoleRepository;
+import com.bluewhale.auth.domain.repository.RoleRepository.UserTenantRef;
+import com.bluewhale.auth.domain.repository.UserRepository;
 import com.bluewhale.auth.infrastructure.config.PermissionCacheProperties;
-import com.bluewhale.auth.infrastructure.persistence.entity.RoleTenantRef;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysRolePermission;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysUserRole;
 import com.bluewhale.auth.infrastructure.cache.AuthPermissionCacheInvalidator;
-import com.bluewhale.auth.infrastructure.persistence.mapper.SysRoleMapper;
-import com.bluewhale.auth.infrastructure.persistence.mapper.SysRolePermissionMapper;
-import com.bluewhale.auth.infrastructure.persistence.mapper.SysUserRoleMapper;
 import com.bluewhale.common.cache.CacheConsistencyTemplate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,9 +12,9 @@ import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -36,10 +32,12 @@ import java.util.stream.Collectors;
  * <p>删除动作委托 {@link AuthPermissionCacheInvalidator}，同时完成跨实例广播与
  * Redis 断连后的待失效重对齐。</p>
  * <p>本类不注入 {@code RoleAppService}：读路径的 DB 查询由调用方以 {@link Supplier} 传入，
- * 失效路径的受影响用户反查直接走 Mapper，避免 {@code RoleAppService → PermissionCache →
- * RoleAppService} 循环依赖，也不复制权限码查询逻辑。</p>
- * <p>击穿防护（REQ-DIST-003）：未命中时经独立 Bean {@link PermissionCacheMutex} 互斥回源，并在锁内
- * <b>复查缓存</b>，使同 Key 并发仅一次回源；锁/Redis 异常时降级直查，不阻断权限判定。</p>
+ * 失效路径的受影响用户反查走 {@link UserRepository} / {@link RoleRepository} 领域端口
+ * （而非本层 Mapper 或应用服务），既避免 {@code RoleAppService → PermissionCache →
+ * RoleAppService} 循环依赖，也保证依赖方向为 infrastructure → domain 端口（Wave 6.49）。</p>
+ * <p>击穿防护（REQ-DIST-003）：未命中时经独立 Bean {@link PermissionCacheMutex} 互斥回源；
+ * {@code getOrLoad} 自带「先查后写」，锁内等待期间其他实例写入的缓存会在锁内复查命中，
+ * 使同 Key 并发仅一次回源；锁/Redis 异常时降级直查，不阻断权限判定。</p>
  *
  * @author BlueWhale
  */
@@ -55,9 +53,8 @@ public class PermissionCache {
     private final PermissionCacheProperties properties;
     private final PermissionCacheMutex mutex;
     private final AuthPermissionCacheInvalidator cacheInvalidator;
-    private final SysUserRoleMapper userRoleMapper;
-    private final SysRolePermissionMapper rolePermissionMapper;
-    private final SysRoleMapper roleMapper;
+    private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
 
     /**
      * 读取用户权限码集合（Cache-Aside）
@@ -75,12 +72,17 @@ public class PermissionCache {
         if (value == null || value.isEmpty()) {
             return Set.of();
         }
+        // 权限码格式（PermCode 正则）不含逗号，逗号拼接/拆分安全
         return new LinkedHashSet<>(Arrays.asList(value.split(",")));
     }
 
     /**
-     * 互斥回源（防击穿）：经 {@link PermissionCacheMutex} 加锁后在锁内复查缓存，命中则直接返回，
-     * 未命中才真正回源；锁或 Redis 异常时降级直查，保证缓存故障不阻断权限判定。
+     * 互斥回源（防击穿）：经 {@link PermissionCacheMutex} 加锁后由 {@code getOrLoad} 完成
+     * 「锁内先查（复查等待期间其他实例写入的缓存）→ 未命中回源 → 写缓存」；锁或 Redis 异常时
+     * 降级直查，保证缓存故障不阻断权限判定。
+     *
+     * <p>不额外用 {@code getIfPresent} 复查：{@code getOrLoad} 内部本就先读缓存，二次读纯冗余；
+     * 且 {@code getIfPresent} 会把空值哨兵原样返回，作为锁内复查手段会把哨兵串当权限串透传。</p>
      *
      * @param userId 用户 ID，作为锁 Key 的业务标识
      * @param loader 缓存未命中时的回源加载器，返回权限码列表
@@ -88,16 +90,8 @@ public class PermissionCache {
      */
     private String loadUnderLock(Long userId, Supplier<List<String>> loader) {
         try {
-            return mutex.load(userId, () -> {
-                String cached = cacheTemplate.getIfPresent(PERMISSION_CACHE_NAME, String.valueOf(userId));
-                if (cached != null) {
-                    return cached;
-                }
-                // 未命中：在锁内完成回源 + 写缓存，使持锁期结束时缓存已就绪，
-                // 后续等待线程复查必命中，保证同 Key 并发仅一次回源（防击穿）
-                return cacheTemplate.getOrLoad(PERMISSION_CACHE_NAME, String.valueOf(userId),
-                        properties.getTtl(), () -> String.join(",", loader.get()));
-            });
+            return mutex.load(userId, () -> cacheTemplate.getOrLoad(PERMISSION_CACHE_NAME,
+                    String.valueOf(userId), properties.getTtl(), () -> String.join(",", loader.get())));
         } catch (Exception ex) {
             // 锁获取异常（Redis 不可用等）→ 降级直查，不阻断权限判定（Wave 5.8 降级链一致）
             log.warn("权限缓存互斥回源降级直查, userId={}", userId, ex);
@@ -153,24 +147,25 @@ public class PermissionCache {
     /**
      * 失效某角色下全部用户的权限缓存（角色分配权限 / 角色删除后调用）
      *
+     * <p>经 {@link UserRepository#listUserIdsByRoleId} 跨租户反查受影响用户（sys_user_role
+     * 无租户维度），不走本层 Mapper，保持依赖方向为 infrastructure → domain 端口。</p>
+     *
      * @param roleId 角色 ID
      */
     public void evictByRole(Long roleId) {
         if (roleId == null) {
             return;
         }
-        List<Long> userIds = userRoleMapper.selectList(new LambdaQueryWrapper<SysUserRole>()
-                        .eq(SysUserRole::getRoleId, roleId))
-                .stream().map(SysUserRole::getUserId).distinct().toList();
-        evictUsers(userIds);
+        evictUsers(userRepository.listUserIdsByRoleId(roleId));
     }
 
     /**
      * 失效持有指定权限点的全部用户的权限缓存（权限点更新 / 删除后调用）。
      *
-     * <p>权限点为平台共享数据，一次变更可能影响多个租户的角色与用户。此处按「权限 → 角色 → 用户」
-     * 反查后，再用角色所属租户构造完整的跨租户 Key（{@code TenantKeys#cacheKey(Long, String, String)}），
-     * 避免仅按当前租户（通常为平台租户）删除而遗漏其他租户的缓存。</p>
+     * <p>权限点为平台共享数据，一次变更可能影响多个租户的角色与用户。经
+     * {@link RoleRepository#listUsersByPermissionId} 单条 JOIN SQL 反查（租户, 用户）对
+     * （实现侧忽略租户上下文），再用角色所属租户构造完整的跨租户 Key 失效，避免仅按当前
+     * 租户（通常为平台租户）删除而遗漏其他租户的缓存。</p>
      *
      * @param permissionId 权限点 ID
      */
@@ -178,24 +173,15 @@ public class PermissionCache {
         if (permissionId == null) {
             return;
         }
-        List<Long> roleIds = rolePermissionMapper.selectList(new LambdaQueryWrapper<SysRolePermission>()
-                        .eq(SysRolePermission::getPermissionId, permissionId))
-                .stream().map(SysRolePermission::getRoleId).distinct().toList();
-        if (roleIds.isEmpty()) {
-            return;
-        }
-        Map<Long, Long> tenantByRoleId = roleMapper.selectTenantRefsByIds(roleIds).stream()
-                .collect(Collectors.toMap(RoleTenantRef::getRoleId, RoleTenantRef::getTenantId,
-                        (existing, ignored) -> existing));
-        Set<AuthPermissionCacheInvalidator.UserKey> userKeys = new LinkedHashSet<>();
-        userRoleMapper.selectList(new LambdaQueryWrapper<SysUserRole>()
-                        .in(SysUserRole::getRoleId, roleIds))
-                .forEach(relation -> {
-                    Long tenantId = tenantByRoleId.get(relation.getRoleId());
-                    if (tenantId != null && relation.getUserId() != null) {
-                        userKeys.add(new AuthPermissionCacheInvalidator.UserKey(tenantId, relation.getUserId()));
-                    }
-                });
+        Set<AuthPermissionCacheInvalidator.UserKey> userKeys =
+                roleRepository.listUsersByPermissionId(permissionId).stream()
+                        .filter(ref -> ref.userId() > 0 && ref.tenantId() > 0)
+                        .collect(Collectors.toMap(
+                                ref -> new AuthPermissionCacheInvalidator.UserKey(ref.tenantId(), ref.userId()),
+                                ref -> ref,
+                                (existing, ignored) -> existing,
+                                LinkedHashMap::new))
+                        .keySet();
         if (userKeys.isEmpty()) {
             return;
         }

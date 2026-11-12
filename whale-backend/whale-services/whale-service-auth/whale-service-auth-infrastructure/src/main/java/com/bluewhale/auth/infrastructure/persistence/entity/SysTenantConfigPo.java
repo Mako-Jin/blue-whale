@@ -9,14 +9,14 @@ import java.time.LocalDateTime;
 /**
  * 租户配置实体（租户管理员维护的默认值层）。
  *
- * <p>与 {@link SysUserConfig} 同一口径：auth 只存取不解释语义；
+ * <p>与 {@link SysUserConfigPo} 同一口径：auth 只存取不解释语义；
  * 读取优先级约定为「用户配置 &gt; 租户配置 &gt; 消费方内置默认」。</p>
  *
  * @author BlueWhale
  */
 @Data
 @TableName("sys_tenant_config")
-public class SysTenantConfig implements Serializable {
+public class SysTenantConfigPo implements Serializable {
 
     private static final long serialVersionUID = 1L;
 

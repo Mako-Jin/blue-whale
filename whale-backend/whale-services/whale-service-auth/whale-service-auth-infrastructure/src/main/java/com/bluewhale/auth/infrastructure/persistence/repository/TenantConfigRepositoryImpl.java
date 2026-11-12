@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.auth.application.model.TenantConfigEntry;
 import com.bluewhale.auth.application.port.TenantConfigRepository;
 import com.bluewhale.auth.infrastructure.persistence.TenantContextSupport;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysTenantConfig;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysTenantConfigPo;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysTenantConfigMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -33,10 +33,10 @@ public class TenantConfigRepositoryImpl implements TenantConfigRepository {
     @Override
     public List<TenantConfigEntry> listByTenant(Long tenantId, String prefix) {
         return TenantContextSupport.runWithoutTenant(() -> {
-            LambdaQueryWrapper<SysTenantConfig> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(SysTenantConfig::getTenantId, tenantId);
+            LambdaQueryWrapper<SysTenantConfigPo> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(SysTenantConfigPo::getTenantId, tenantId);
             if (StringUtils.hasText(prefix)) {
-                wrapper.likeRight(SysTenantConfig::getConfigKey, prefix);
+                wrapper.likeRight(SysTenantConfigPo::getConfigKey, prefix);
             }
             // 排序下推数据库（configKey 有索引前缀），避免应用内存排序
             return tenantConfigMapper.selectList(wrapper).stream()
@@ -53,9 +53,9 @@ public class TenantConfigRepositoryImpl implements TenantConfigRepository {
             return Map.of();
         }
         return TenantContextSupport.runWithoutTenant(() -> {
-            LambdaQueryWrapper<SysTenantConfig> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(SysTenantConfig::getTenantId, tenantId);
-            wrapper.in(SysTenantConfig::getConfigKey, keys);
+            LambdaQueryWrapper<SysTenantConfigPo> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(SysTenantConfigPo::getTenantId, tenantId);
+            wrapper.in(SysTenantConfigPo::getConfigKey, keys);
             Map<String, String> values = new HashMap<>();
             tenantConfigMapper.selectList(wrapper)
                     .forEach(po -> values.put(po.getConfigKey(), po.getConfigValue()));
@@ -66,12 +66,12 @@ public class TenantConfigRepositoryImpl implements TenantConfigRepository {
     @Override
     public void upsert(Long tenantId, String configKey, String configValue, Long updatedBy) {
         TenantContextSupport.runWithoutTenant(() -> {
-            SysTenantConfig existing = tenantConfigMapper.selectOne(
-                    new LambdaQueryWrapper<SysTenantConfig>()
-                            .eq(SysTenantConfig::getTenantId, tenantId)
-                            .eq(SysTenantConfig::getConfigKey, configKey));
+            SysTenantConfigPo existing = tenantConfigMapper.selectOne(
+                    new LambdaQueryWrapper<SysTenantConfigPo>()
+                            .eq(SysTenantConfigPo::getTenantId, tenantId)
+                            .eq(SysTenantConfigPo::getConfigKey, configKey));
             if (existing == null) {
-                SysTenantConfig po = new SysTenantConfig();
+                SysTenantConfigPo po = new SysTenantConfigPo();
                 po.setTenantId(tenantId);
                 po.setConfigKey(configKey);
                 po.setConfigValue(configValue);

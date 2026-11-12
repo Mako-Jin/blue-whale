@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @TableName("sys_user_config")
-public class SysUserConfig implements Serializable {
+public class SysUserConfigPo implements Serializable {
 
     private static final long serialVersionUID = 1L;
 

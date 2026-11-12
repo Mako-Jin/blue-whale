@@ -87,7 +87,8 @@ public class RedisReauthTokenStore implements ReauthTokenStore {
             if (expected == null || token == null) {
                 return false;
             }
-            // 恒时比较，避免按字节差异泄露凭证前缀
+            // 常量时间比较（MessageDigest.isEqual）：长度不同时存在轻微时间差，但仅泄露
+            // 长度信息（攻击者本就知晓自己传入的长度），不影响凭证安全
             return MessageDigest.isEqual(expected.getBytes(StandardCharsets.UTF_8),
                     token.getBytes(StandardCharsets.UTF_8));
         } catch (RuntimeException e) {

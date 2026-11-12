@@ -3,7 +3,7 @@ package com.bluewhale.auth.infrastructure.persistence.repository;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.auth.domain.aggregate.DeptAggregate;
 import com.bluewhale.auth.domain.repository.DeptRepository;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysDept;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysDeptPo;
 import com.bluewhale.auth.infrastructure.persistence.assembler.DeptPersistenceAssembler;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysDeptMapper;
 import com.bluewhale.common.tenant.TenantContext;
@@ -29,7 +29,7 @@ public class DeptRepositoryImpl implements DeptRepository {
 
     @Override
     public DeptAggregate save(DeptAggregate dept) {
-        SysDept po = DeptPersistenceAssembler.toPo(dept);
+        SysDeptPo po = DeptPersistenceAssembler.toPo(dept);
         if (po.getId() == null) {
             deptMapper.insert(po);
         } else {
@@ -40,41 +40,41 @@ public class DeptRepositoryImpl implements DeptRepository {
 
     @Override
     public Optional<DeptAggregate> findById(Long id) {
-        SysDept po = deptMapper.selectOne(new LambdaQueryWrapper<SysDept>()
-                .eq(SysDept::getId, id)
-                .eq(SysDept::getTenantId, TenantContext.requireId()));
+        SysDeptPo po = deptMapper.selectOne(new LambdaQueryWrapper<SysDeptPo>()
+                .eq(SysDeptPo::getId, id)
+                .eq(SysDeptPo::getTenantId, TenantContext.requireId()));
         return Optional.ofNullable(po).map(DeptPersistenceAssembler::toDomain);
     }
 
     @Override
     public List<DeptAggregate> findAll() {
-        List<SysDept> pos = deptMapper.selectList(new LambdaQueryWrapper<SysDept>()
-                .eq(SysDept::getTenantId, TenantContext.requireId())
-                .orderByAsc(SysDept::getSort)
-                .orderByAsc(SysDept::getId));
+        List<SysDeptPo> pos = deptMapper.selectList(new LambdaQueryWrapper<SysDeptPo>()
+                .eq(SysDeptPo::getTenantId, TenantContext.requireId())
+                .orderByAsc(SysDeptPo::getSort)
+                .orderByAsc(SysDeptPo::getId));
         return pos.stream().map(DeptPersistenceAssembler::toDomain).toList();
     }
 
     @Override
     public List<DeptAggregate> findAllByParentId(Long parentId) {
-        List<SysDept> pos = deptMapper.selectList(new LambdaQueryWrapper<SysDept>()
-                .eq(SysDept::getTenantId, TenantContext.requireId())
-                .eq(SysDept::getParentId, parentId));
+        List<SysDeptPo> pos = deptMapper.selectList(new LambdaQueryWrapper<SysDeptPo>()
+                .eq(SysDeptPo::getTenantId, TenantContext.requireId())
+                .eq(SysDeptPo::getParentId, parentId));
         return pos.stream().map(DeptPersistenceAssembler::toDomain).toList();
     }
 
     @Override
     public long countChildren(Long parentId) {
-        Long count = deptMapper.selectCount(new LambdaQueryWrapper<SysDept>()
-                .eq(SysDept::getTenantId, TenantContext.requireId())
-                .eq(SysDept::getParentId, parentId));
+        Long count = deptMapper.selectCount(new LambdaQueryWrapper<SysDeptPo>()
+                .eq(SysDeptPo::getTenantId, TenantContext.requireId())
+                .eq(SysDeptPo::getParentId, parentId));
         return count == null ? 0L : count;
     }
 
     @Override
     public void deleteById(Long id) {
-        deptMapper.delete(new LambdaQueryWrapper<SysDept>()
-                .eq(SysDept::getId, id)
-                .eq(SysDept::getTenantId, TenantContext.requireId()));
+        deptMapper.delete(new LambdaQueryWrapper<SysDeptPo>()
+                .eq(SysDeptPo::getId, id)
+                .eq(SysDeptPo::getTenantId, TenantContext.requireId()));
     }
 }

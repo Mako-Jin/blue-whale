@@ -158,12 +158,20 @@ class PermissionInterceptorTest {
     }
 
     @Test
-    @DisplayName("requireLogin=false 且匿名：跳过登录校验，权限码仍校验 → 403")
+    @DisplayName("requireLogin=false 且匿名：无登录主体，权限码不可判定 → 401")
     void shouldRejectAnonymousPublicApi() throws NoSuchMethodException {
         SecurityContextHolder.getContext().setAuthentication(new AnonymousAuthenticationToken(
                 "key", "anonymousUser", List.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS"))));
         BizException ex = assertThrows(BizException.class,
                 () -> interceptor.preHandle(request, response, handler("publicApi")));
-        assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
+        assertEquals(ErrorCode.UNAUTHORIZED.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("requireLogin=false 且无认证上下文：authentication 为 null → 401，不 NPE")
+    void shouldRejectNullAuthenticationPublicApi() throws NoSuchMethodException {
+        BizException ex = assertThrows(BizException.class,
+                () -> interceptor.preHandle(request, response, handler("publicApi")));
+        assertEquals(ErrorCode.UNAUTHORIZED.getCode(), ex.getCode());
     }
 }

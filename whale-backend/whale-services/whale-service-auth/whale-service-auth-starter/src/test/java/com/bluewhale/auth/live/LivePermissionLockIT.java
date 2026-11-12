@@ -8,10 +8,8 @@ import com.bluewhale.auth.domain.model.vo.RoleCode;
 import com.bluewhale.auth.domain.repository.PermissionRepository;
 import com.bluewhale.auth.domain.aggregate.RoleAggregate;
 import com.bluewhale.auth.domain.repository.RoleRepository;
+import com.bluewhale.auth.domain.repository.UserRepository;
 import com.bluewhale.auth.infrastructure.cache.AuthPermissionCacheInvalidator;
-import com.bluewhale.auth.infrastructure.persistence.mapper.SysRoleMapper;
-import com.bluewhale.auth.infrastructure.persistence.mapper.SysRolePermissionMapper;
-import com.bluewhale.auth.infrastructure.persistence.mapper.SysUserRoleMapper;
 import com.bluewhale.auth.infrastructure.security.PermissionCache;
 import com.bluewhale.auth.infrastructure.security.PermissionCacheMutex;
 import com.bluewhale.common.cache.CacheConsistencyTemplate;
@@ -169,7 +167,7 @@ class LivePermissionLockIT {
 
         PermissionCache cache = new PermissionCache(template, new PermissionCacheProperties(), mutex,
                 mock(AuthPermissionCacheInvalidator.class),
-                mock(SysUserRoleMapper.class), mock(SysRolePermissionMapper.class), mock(SysRoleMapper.class));
+                mock(UserRepository.class), mock(RoleRepository.class));
 
         // 清理可能残留的缓存键，保证从「未命中」开始
         template.evict(PermissionCache.PERMISSION_CACHE_NAME, String.valueOf(USER_ID));

@@ -4,8 +4,8 @@ import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
 import com.bluewhale.auth.domain.model.vo.Username;
 import com.bluewhale.auth.domain.aggregate.UserAggregate;
 import com.bluewhale.auth.domain.model.entity.UserRoleAssignment;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysUser;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysUserRole;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysUserPo;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysUserRolePo;
 
 /**
  * User 聚合与其持久化对象（PO）的双向转换器（手写 Assembler，REQ-ARCH-001 / T-DDD-8）。
@@ -26,12 +26,14 @@ public final class UserPersistenceAssembler {
     }
 
     /**
-     * PO → 领域对象：{@code status=null} 归一化为停用（与既有登录判定一致）
+     * PO → 领域对象：{@code status=null} 归一化为停用（与既有登录判定一致）；
+     * {@code mustChangePassword=null} 由 {@code UserAggregate.reconstitute} 按「否」处理
+     * （读侧 null 与 0 语义一致，写侧统一落 0）
      *
      * @param po 用户持久化对象
      * @return 用户聚合根
      */
-    public static UserAggregate toDomain(SysUser po) {
+    public static UserAggregate toDomain(SysUserPo po) {
         int status = po.getStatus() == null ? UserAggregate.STATUS_DISABLED : po.getStatus();
         return UserAggregate.reconstitute(
                 po.getId(),
@@ -57,8 +59,8 @@ public final class UserPersistenceAssembler {
      * @param user 用户聚合根
      * @return 用户持久化对象
      */
-    public static SysUser toPo(UserAggregate user) {
-        SysUser po = new SysUser();
+    public static SysUserPo toPo(UserAggregate user) {
+        SysUserPo po = new SysUserPo();
         po.setId(user.getId());
         po.setTenantId(user.getTenantId());
         po.setUsername(user.getUsername().value());
@@ -84,7 +86,7 @@ public final class UserPersistenceAssembler {
      * @param po 用户-角色关联持久化对象
      * @return 用户-角色分配实体
      */
-    public static UserRoleAssignment toAssignment(SysUserRole po) {
+    public static UserRoleAssignment toAssignment(SysUserRolePo po) {
         return new UserRoleAssignment(po.getId(), po.getUserId(), po.getRoleId());
     }
 
@@ -94,8 +96,8 @@ public final class UserPersistenceAssembler {
      * @param assignment 用户-角色分配实体
      * @return 用户-角色关联持久化对象
      */
-    public static SysUserRole toAssignmentPo(UserRoleAssignment assignment) {
-        SysUserRole po = new SysUserRole();
+    public static SysUserRolePo toAssignmentPo(UserRoleAssignment assignment) {
+        SysUserRolePo po = new SysUserRolePo();
         po.setId(assignment.id());
         po.setUserId(assignment.userId());
         po.setRoleId(assignment.roleId());

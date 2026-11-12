@@ -3,7 +3,7 @@ package com.bluewhale.auth.infrastructure.persistence.repository;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.auth.application.port.PasswordExpiryQuery;
 import com.bluewhale.auth.infrastructure.persistence.TenantContextSupport;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysUser;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysUserPo;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysUserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -38,10 +38,10 @@ public class PasswordExpiryQueryImpl implements PasswordExpiryQuery {
             return List.of();
         }
         return TenantContextSupport.runWithoutTenant(() ->
-                userMapper.selectList(new LambdaQueryWrapper<SysUser>()
-                                .eq(SysUser::getStatus, STATUS_ENABLED)
-                                .isNotNull(SysUser::getPasswordUpdatedTime)
-                                .le(SysUser::getPasswordUpdatedTime, remindFrom)
+                userMapper.selectList(new LambdaQueryWrapper<SysUserPo>()
+                                .eq(SysUserPo::getStatus, STATUS_ENABLED)
+                                .isNotNull(SysUserPo::getPasswordUpdatedTime)
+                                .le(SysUserPo::getPasswordUpdatedTime, remindFrom)
                                 .apply(NOT_NOTICED_THIS_CYCLE))
                         .stream().map(row -> new PasswordExpiryCandidate(row.getTenantId(), row.getId(),
                                 row.getUsername(), row.getPasswordUpdatedTime())).toList());
@@ -52,7 +52,7 @@ public class PasswordExpiryQueryImpl implements PasswordExpiryQuery {
         if (userId == null || noticedAt == null) {
             return;
         }
-        SysUser update = new SysUser();
+        SysUserPo update = new SysUserPo();
         update.setId(userId);
         update.setPasswordNoticeTime(noticedAt);
         TenantContextSupport.runWithoutTenant(() -> userMapper.updateById(update));

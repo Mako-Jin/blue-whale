@@ -22,6 +22,10 @@ import java.util.concurrent.TimeUnit;
  * {@link #isFamilyRevoked} 返回 {@code true}，即保守拒绝换发；两处降级分支均 {@code warn} 并
  * 经 {@link SecurityDegradationAlerter} 输出 ERROR 级告警与进程内计数。</p>
  *
+ * <p><b>{@link #revokeFamily} 写失败为 fail-open（刻意设计）</b>：markUsed 的 fail-closed 已拒绝
+ * 本次消费，且 family 内各 jti 的已消费标记（TTL 覆盖令牌有效期）会继续拦截重放，吊销标记写入
+ * 失败的影响窗口有限，无需为写失败额外抛异常中断主流程。</p>
+ *
  * @author BlueWhale
  */
 @Slf4j
@@ -51,7 +55,8 @@ public class RedisRefreshTokenRotationStore implements RefreshTokenRotationStore
     private static final String DETAIL_FAMILY_REVOKED = "refresh family 吊销状态查询失败（Redis 不可用），按已吊销处理拒绝换发（fail-closed）";
 
     /** 吊销 family 降级说明 */
-    private static final String DETAIL_REVOKE_FAMILY = "refresh family 吊销标记写入失败（Redis 不可用），该 family 已被拒绝换发";
+    private static final String DETAIL_REVOKE_FAMILY =
+            "refresh family 吊销标记写入失败（Redis 不可用），依赖各 jti 已消费标记继续拦截重放";
 
     private final StringRedisTemplate redisTemplate;
 

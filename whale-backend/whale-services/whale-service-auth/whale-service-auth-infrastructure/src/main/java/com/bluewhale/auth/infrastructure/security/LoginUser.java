@@ -32,6 +32,8 @@ public class LoginUser implements UserDetails {
     private final boolean mustChangePassword;
     /** 最近一次改密时间（REQ-SEC-023：口令到期判定依据，可空） */
     private final LocalDateTime passwordUpdatedTime;
+    /** 预计算的 authorities：roles 不可变，避免拦截器 / Security 每次调用重复分配 */
+    private final transient List<SimpleGrantedAuthority> authorities;
 
     /**
      * 构造器：基于用户基础信息与角色 code 列表构建登录用户（不携带强制改密标记，按否处理）
@@ -91,11 +93,12 @@ public class LoginUser implements UserDetails {
         this.enabled = enabled;
         this.mustChangePassword = mustChangePassword;
         this.passwordUpdatedTime = passwordUpdatedTime;
+        this.authorities = this.roles.stream().map(SimpleGrantedAuthority::new).toList();
     }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return roles.stream().map(SimpleGrantedAuthority::new).toList();
+        return authorities;
     }
 
     @Override

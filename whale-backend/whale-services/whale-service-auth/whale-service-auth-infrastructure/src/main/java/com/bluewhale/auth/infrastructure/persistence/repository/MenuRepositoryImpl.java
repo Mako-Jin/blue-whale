@@ -3,7 +3,7 @@ package com.bluewhale.auth.infrastructure.persistence.repository;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.auth.domain.aggregate.MenuAggregate;
 import com.bluewhale.auth.domain.repository.MenuRepository;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysMenu;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysMenuPo;
 import com.bluewhale.auth.infrastructure.persistence.assembler.MenuPersistenceAssembler;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysMenuMapper;
 import com.bluewhale.common.tenant.TenantContext;
@@ -29,7 +29,7 @@ public class MenuRepositoryImpl implements MenuRepository {
 
     @Override
     public MenuAggregate save(MenuAggregate menu) {
-        SysMenu po = MenuPersistenceAssembler.toPo(menu);
+        SysMenuPo po = MenuPersistenceAssembler.toPo(menu);
         if (po.getId() == null) {
             menuMapper.insert(po);
         } else {
@@ -40,61 +40,61 @@ public class MenuRepositoryImpl implements MenuRepository {
 
     @Override
     public Optional<MenuAggregate> findById(Long id) {
-        SysMenu po = menuMapper.selectOne(new LambdaQueryWrapper<SysMenu>()
-                .eq(SysMenu::getId, id)
-                .eq(SysMenu::getTenantId, TenantContext.requireId()));
+        SysMenuPo po = menuMapper.selectOne(new LambdaQueryWrapper<SysMenuPo>()
+                .eq(SysMenuPo::getId, id)
+                .eq(SysMenuPo::getTenantId, TenantContext.requireId()));
         return Optional.ofNullable(po).map(MenuPersistenceAssembler::toDomain);
     }
 
     @Override
     public List<MenuAggregate> findAll() {
-        List<SysMenu> pos = menuMapper.selectList(new LambdaQueryWrapper<SysMenu>()
-                .eq(SysMenu::getTenantId, TenantContext.requireId())
-                .orderByAsc(SysMenu::getSort)
-                .orderByAsc(SysMenu::getId));
+        List<SysMenuPo> pos = menuMapper.selectList(new LambdaQueryWrapper<SysMenuPo>()
+                .eq(SysMenuPo::getTenantId, TenantContext.requireId())
+                .orderByAsc(SysMenuPo::getSort)
+                .orderByAsc(SysMenuPo::getId));
         return pos.stream().map(MenuPersistenceAssembler::toDomain).toList();
     }
 
     @Override
     public List<MenuAggregate> findAllByTenantId(Long tenantId) {
-        List<SysMenu> pos = menuMapper.selectList(new LambdaQueryWrapper<SysMenu>()
-                .eq(SysMenu::getTenantId, tenantId)
-                .orderByAsc(SysMenu::getSort)
-                .orderByAsc(SysMenu::getId));
+        List<SysMenuPo> pos = menuMapper.selectList(new LambdaQueryWrapper<SysMenuPo>()
+                .eq(SysMenuPo::getTenantId, tenantId)
+                .orderByAsc(SysMenuPo::getSort)
+                .orderByAsc(SysMenuPo::getId));
         return pos.stream().map(MenuPersistenceAssembler::toDomain).toList();
     }
 
     @Override
     public List<MenuAggregate> findAllByParentId(Long parentId) {
-        List<SysMenu> pos = menuMapper.selectList(new LambdaQueryWrapper<SysMenu>()
-                .eq(SysMenu::getTenantId, TenantContext.requireId())
-                .eq(SysMenu::getParentId, parentId));
+        List<SysMenuPo> pos = menuMapper.selectList(new LambdaQueryWrapper<SysMenuPo>()
+                .eq(SysMenuPo::getTenantId, TenantContext.requireId())
+                .eq(SysMenuPo::getParentId, parentId));
         return pos.stream().map(MenuPersistenceAssembler::toDomain).toList();
     }
 
     @Override
     public List<MenuAggregate> findEnabledVisible() {
-        List<SysMenu> pos = menuMapper.selectList(new LambdaQueryWrapper<SysMenu>()
-                .eq(SysMenu::getTenantId, TenantContext.requireId())
-                .eq(SysMenu::getStatus, MenuAggregate.STATUS_ENABLED)
-                .eq(SysMenu::getVisible, MenuAggregate.VISIBLE_SHOWN)
-                .orderByAsc(SysMenu::getSort)
-                .orderByAsc(SysMenu::getId));
+        List<SysMenuPo> pos = menuMapper.selectList(new LambdaQueryWrapper<SysMenuPo>()
+                .eq(SysMenuPo::getTenantId, TenantContext.requireId())
+                .eq(SysMenuPo::getStatus, MenuAggregate.STATUS_ENABLED)
+                .eq(SysMenuPo::getVisible, MenuAggregate.VISIBLE_SHOWN)
+                .orderByAsc(SysMenuPo::getSort)
+                .orderByAsc(SysMenuPo::getId));
         return pos.stream().map(MenuPersistenceAssembler::toDomain).toList();
     }
 
     @Override
     public long countChildren(Long parentId) {
-        Long count = menuMapper.selectCount(new LambdaQueryWrapper<SysMenu>()
-                .eq(SysMenu::getTenantId, TenantContext.requireId())
-                .eq(SysMenu::getParentId, parentId));
+        Long count = menuMapper.selectCount(new LambdaQueryWrapper<SysMenuPo>()
+                .eq(SysMenuPo::getTenantId, TenantContext.requireId())
+                .eq(SysMenuPo::getParentId, parentId));
         return count == null ? 0L : count;
     }
 
     @Override
     public void deleteById(Long id) {
-        menuMapper.delete(new LambdaQueryWrapper<SysMenu>()
-                .eq(SysMenu::getId, id)
-                .eq(SysMenu::getTenantId, TenantContext.requireId()));
+        menuMapper.delete(new LambdaQueryWrapper<SysMenuPo>()
+                .eq(SysMenuPo::getId, id)
+                .eq(SysMenuPo::getTenantId, TenantContext.requireId()));
     }
 }

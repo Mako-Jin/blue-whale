@@ -14,7 +14,7 @@ import java.io.Serializable;
  */
 @Data
 @TableName("sys_tenant_password_policy")
-public class SysTenantPasswordPolicy implements Serializable {
+public class SysTenantPasswordPolicyPo implements Serializable {
 
     private static final long serialVersionUID = 1L;
 

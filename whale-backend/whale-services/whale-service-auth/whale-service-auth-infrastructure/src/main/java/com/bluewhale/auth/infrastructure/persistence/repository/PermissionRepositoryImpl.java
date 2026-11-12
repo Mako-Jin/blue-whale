@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.auth.domain.aggregate.PermissionAggregate;
 import com.bluewhale.auth.domain.repository.PermissionRepository;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysPermission;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysPermissionPo;
 import com.bluewhale.auth.infrastructure.persistence.assembler.PermissionPersistenceAssembler;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysPermissionMapper;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +32,7 @@ public class PermissionRepositoryImpl implements PermissionRepository {
 
     @Override
     public void save(PermissionAggregate permission) {
-        SysPermission po = PermissionPersistenceAssembler.toPo(permission);
+        SysPermissionPo po = PermissionPersistenceAssembler.toPo(permission);
         if (po.getId() == null) {
             permissionMapper.insert(po);
         } else {
@@ -42,31 +42,31 @@ public class PermissionRepositoryImpl implements PermissionRepository {
 
     @Override
     public Optional<PermissionAggregate> findById(Long id) {
-        SysPermission po = permissionMapper.selectById(id);
+        SysPermissionPo po = permissionMapper.selectById(id);
         return Optional.ofNullable(po).map(PermissionPersistenceAssembler::toDomain);
     }
 
     @Override
     public List<PermissionAggregate> findEnabledAll() {
-        List<SysPermission> pos = permissionMapper.selectList(new LambdaQueryWrapper<SysPermission>()
-                .eq(SysPermission::getStatus, PermissionAggregate.STATUS_ENABLED));
+        List<SysPermissionPo> pos = permissionMapper.selectList(new LambdaQueryWrapper<SysPermissionPo>()
+                .eq(SysPermissionPo::getStatus, PermissionAggregate.STATUS_ENABLED));
         return pos.stream().map(PermissionPersistenceAssembler::toDomain).toList();
     }
 
     @Override
     public PermissionPage page(long current, long size, String keyword, String permType) {
-        LambdaQueryWrapper<SysPermission> wrapper = new LambdaQueryWrapper<>();
+        LambdaQueryWrapper<SysPermissionPo> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(keyword)) {
             // LIKE 关键字转义反斜杠/百分号/下划线，防止通配符被当作模式展开导致全表扫描
             String escaped = keyword.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
-            wrapper.and(w -> w.like(SysPermission::getPermCode, escaped)
-                    .or().like(SysPermission::getPermName, escaped));
+            wrapper.and(w -> w.like(SysPermissionPo::getPermCode, escaped)
+                    .or().like(SysPermissionPo::getPermName, escaped));
         }
         if (StringUtils.hasText(permType)) {
-            wrapper.eq(SysPermission::getPermType, permType);
+            wrapper.eq(SysPermissionPo::getPermType, permType);
         }
-        wrapper.orderByAsc(SysPermission::getSortNo).orderByDesc(SysPermission::getCreateTime);
-        Page<SysPermission> page = permissionMapper.selectPage(Page.of(current, size), wrapper);
+        wrapper.orderByAsc(SysPermissionPo::getSortNo).orderByDesc(SysPermissionPo::getCreateTime);
+        Page<SysPermissionPo> page = permissionMapper.selectPage(Page.of(current, size), wrapper);
         List<PermissionAggregate> records = page.getRecords().stream()
                 .map(PermissionPersistenceAssembler::toDomain).toList();
         return new PermissionPage(records, page.getTotal());
@@ -74,10 +74,10 @@ public class PermissionRepositoryImpl implements PermissionRepository {
 
     @Override
     public boolean existsByPermCode(String permCode, Long excludeId) {
-        LambdaQueryWrapper<SysPermission> wrapper = new LambdaQueryWrapper<SysPermission>()
-                .eq(SysPermission::getPermCode, permCode);
+        LambdaQueryWrapper<SysPermissionPo> wrapper = new LambdaQueryWrapper<SysPermissionPo>()
+                .eq(SysPermissionPo::getPermCode, permCode);
         if (excludeId != null) {
-            wrapper.ne(SysPermission::getId, excludeId);
+            wrapper.ne(SysPermissionPo::getId, excludeId);
         }
         Long count = permissionMapper.selectCount(wrapper);
         return count != null && count > 0;
@@ -88,15 +88,15 @@ public class PermissionRepositoryImpl implements PermissionRepository {
         if (ids == null || ids.isEmpty()) {
             return 0L;
         }
-        Long count = permissionMapper.selectCount(new LambdaQueryWrapper<SysPermission>()
-                .in(SysPermission::getId, ids));
+        Long count = permissionMapper.selectCount(new LambdaQueryWrapper<SysPermissionPo>()
+                .in(SysPermissionPo::getId, ids));
         return count == null ? 0L : count;
     }
 
     @Override
     public long countChildren(Long parentId) {
-        Long count = permissionMapper.selectCount(new LambdaQueryWrapper<SysPermission>()
-                .eq(SysPermission::getParentId, parentId));
+        Long count = permissionMapper.selectCount(new LambdaQueryWrapper<SysPermissionPo>()
+                .eq(SysPermissionPo::getParentId, parentId));
         return count == null ? 0L : count;
     }
 

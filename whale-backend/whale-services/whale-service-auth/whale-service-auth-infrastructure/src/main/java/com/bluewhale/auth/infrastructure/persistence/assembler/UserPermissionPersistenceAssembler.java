@@ -1,7 +1,7 @@
 package com.bluewhale.auth.infrastructure.persistence.assembler;
 
 import com.bluewhale.auth.domain.aggregate.UserPermissionAttributeAggregate;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysUserPermission;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysUserPermissionPo;
 
 /**
  * 用户 ABAC 属性聚合与持久化对象的双向转换器（REQ-ARCH-001 / T-DDD-9）。
@@ -22,7 +22,7 @@ public final class UserPermissionPersistenceAssembler {
      * @param po 用户属性持久化对象
      * @return 属性聚合根
      */
-    public static UserPermissionAttributeAggregate toDomain(SysUserPermission po) {
+    public static UserPermissionAttributeAggregate toDomain(SysUserPermissionPo po) {
         return UserPermissionAttributeAggregate.reconstitute(po.getId(), po.getUserId(), po.getPermissionId(),
                 po.getAttrKey(), po.getAttrValue());
     }
@@ -33,8 +33,8 @@ public final class UserPermissionPersistenceAssembler {
      * @param attribute 属性聚合根
      * @return 用户属性持久化对象
      */
-    public static SysUserPermission toPo(UserPermissionAttributeAggregate attribute) {
-        SysUserPermission po = new SysUserPermission();
+    public static SysUserPermissionPo toPo(UserPermissionAttributeAggregate attribute) {
+        SysUserPermissionPo po = new SysUserPermissionPo();
         po.setId(attribute.getRowId());
         po.setUserId(attribute.getUserId());
         po.setPermissionId(attribute.getPermissionId());

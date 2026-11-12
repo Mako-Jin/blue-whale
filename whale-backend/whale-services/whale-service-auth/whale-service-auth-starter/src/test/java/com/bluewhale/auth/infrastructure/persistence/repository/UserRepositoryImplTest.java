@@ -8,9 +8,9 @@ import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
 import com.bluewhale.auth.domain.model.vo.Username;
 import com.bluewhale.auth.domain.aggregate.UserAggregate;
 import com.bluewhale.auth.domain.repository.UserRepository;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysRole;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysUser;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysUserRole;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysRolePo;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysUserPo;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysUserRolePo;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysRoleMapper;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysUserMapper;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysUserRoleMapper;
@@ -80,13 +80,13 @@ class UserRepositoryImplTest {
     @BeforeAll
     static void initTableInfoCache() {
         MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "");
-        TableInfoHelper.initTableInfo(assistant, SysUser.class);
-        TableInfoHelper.initTableInfo(assistant, SysUserRole.class);
-        TableInfoHelper.initTableInfo(assistant, SysRole.class);
+        TableInfoHelper.initTableInfo(assistant, SysUserPo.class);
+        TableInfoHelper.initTableInfo(assistant, SysUserRolePo.class);
+        TableInfoHelper.initTableInfo(assistant, SysRolePo.class);
     }
 
-    private static SysUser po() {
-        SysUser po = new SysUser();
+    private static SysUserPo po() {
+        SysUserPo po = new SysUserPo();
         po.setId(USER_ID);
         po.setTenantId(1L);
         po.setUsername("bob_02");
@@ -153,26 +153,26 @@ class UserRepositoryImplTest {
         repository.save(UserAggregate.create(1L, Username.of("bob_02"), EncryptedPassword.of(CIPHER),
                 "Bob", null, null, null, 1));
 
-        verify(userMapper).insert(any(SysUser.class));
-        verify(userMapper, never()).updateById(any(SysUser.class));
+        verify(userMapper).insert(any(SysUserPo.class));
+        verify(userMapper, never()).updateById(any(SysUserPo.class));
     }
 
     @Test
     @DisplayName("save：有 ID 走按主键更新")
     void shouldUpdateWhenIdPresent() {
-        when(userMapper.updateById(any(SysUser.class))).thenReturn(1);
+        when(userMapper.updateById(any(SysUserPo.class))).thenReturn(1);
 
         repository.save(UserAggregate.reconstitute(USER_ID, 1L, Username.of("bob_02"), EncryptedPassword.of(CIPHER),
                 "Bob", null, null, null, 1, null, null));
 
-        verify(userMapper).updateById(any(SysUser.class));
-        verify(userMapper, never()).insert(any(SysUser.class));
+        verify(userMapper).updateById(any(SysUserPo.class));
+        verify(userMapper, never()).insert(any(SysUserPo.class));
     }
 
     @Test
     @DisplayName("save：有 ID 但影响 0 行（记录已被并发删除）抛异常")
     void shouldThrowWhenUpdateAffectsNoRows() {
-        when(userMapper.updateById(any(SysUser.class))).thenReturn(0);
+        when(userMapper.updateById(any(SysUserPo.class))).thenReturn(0);
 
         org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
                 () -> repository.save(UserAggregate.reconstitute(USER_ID, 1L, Username.of("bob_02"),
@@ -185,17 +185,17 @@ class UserRepositoryImplTest {
         repository.replaceRoles(USER_ID, List.of(1L, 2L));
 
         verify(userRoleMapper).deleteByUserAndRoleTenant(USER_ID, 1L);
-        verify(userRoleMapper, times(2)).insert(any(SysUserRole.class));
+        verify(userRoleMapper, times(2)).insert(any(SysUserRolePo.class));
     }
 
     @Test
     @DisplayName("page：关键字与分页参数透传，结果映射为领域聚合")
     void shouldPageWithKeywordAndPagination() {
-        Page<SysUser> page = new Page<>(2, 5);
+        Page<SysUserPo> page = new Page<>(2, 5);
         page.setRecords(List.of(po()));
         page.setTotal(6L);
-        when(userMapper.selectPage(ArgumentMatchers.<Page<SysUser>>any(),
-                ArgumentMatchers.<Wrapper<SysUser>>any())).thenReturn(page);
+        when(userMapper.selectPage(ArgumentMatchers.<Page<SysUserPo>>any(),
+                ArgumentMatchers.<Wrapper<SysUserPo>>any())).thenReturn(page);
 
         UserRepository.UserPage result = repository.page(2, 5, "bob");
 
@@ -203,7 +203,7 @@ class UserRepositoryImplTest {
         assertEquals("bob_02", result.records().get(0).getUsername().value());
         assertEquals(6L, result.total());
         ArgumentCaptor<Page> pageCaptor = ArgumentCaptor.forClass(Page.class);
-        verify(userMapper).selectPage(pageCaptor.capture(), ArgumentMatchers.<Wrapper<SysUser>>any());
+        verify(userMapper).selectPage(pageCaptor.capture(), ArgumentMatchers.<Wrapper<SysUserPo>>any());
         assertEquals(2L, pageCaptor.getValue().getCurrent());
         assertEquals(5L, pageCaptor.getValue().getSize());
     }
@@ -213,8 +213,8 @@ class UserRepositoryImplTest {
     void shouldDeleteUserAndCleanRelations() {
         repository.deleteById(USER_ID);
 
-        verify(userMapper).delete(ArgumentMatchers.<Wrapper<SysUser>>any());
-        verify(userRoleMapper).delete(ArgumentMatchers.<Wrapper<SysUserRole>>any());
+        verify(userMapper).delete(ArgumentMatchers.<Wrapper<SysUserPo>>any());
+        verify(userRoleMapper).delete(ArgumentMatchers.<Wrapper<SysUserRolePo>>any());
     }
 
     @Test
@@ -237,23 +237,48 @@ class UserRepositoryImplTest {
     @Test
     @DisplayName("listRoleIds：返回用户在当前租户内关联的角色 ID 列表")
     void shouldListRoleIds() {
-        SysRole role1 = new SysRole();
+        SysRolePo role1 = new SysRolePo();
         role1.setId(1L);
-        SysRole role2 = new SysRole();
+        SysRolePo role2 = new SysRolePo();
         role2.setId(2L);
-        when(roleMapper.selectList(ArgumentMatchers.<Wrapper<SysRole>>any()))
+        when(roleMapper.selectList(ArgumentMatchers.<Wrapper<SysRolePo>>any()))
                 .thenReturn(List.of(role1, role2));
-        SysUserRole first = new SysUserRole();
+        SysUserRolePo first = new SysUserRolePo();
         first.setUserId(USER_ID);
         first.setRoleId(1L);
-        SysUserRole second = new SysUserRole();
+        SysUserRolePo second = new SysUserRolePo();
         second.setUserId(USER_ID);
         second.setRoleId(2L);
-        when(userRoleMapper.selectList(ArgumentMatchers.<Wrapper<SysUserRole>>any()))
+        when(userRoleMapper.selectList(ArgumentMatchers.<Wrapper<SysUserRolePo>>any()))
                 .thenReturn(List.of(first, second));
 
         List<Long> roleIds = repository.listRoleIds(USER_ID);
 
         assertEquals(List.of(1L, 2L), roleIds);
+    }
+
+    @Test
+    @DisplayName("listUserIdsByRoleId：按角色全局反查用户 ID 并去重")
+    void shouldListUserIdsByRoleId() {
+        SysUserRolePo first = new SysUserRolePo();
+        first.setUserId(USER_ID);
+        first.setRoleId(3L);
+        SysUserRolePo duplicate = new SysUserRolePo();
+        duplicate.setUserId(USER_ID);
+        duplicate.setRoleId(3L);
+        SysUserRolePo other = new SysUserRolePo();
+        other.setUserId(6L);
+        other.setRoleId(3L);
+        when(userRoleMapper.selectList(ArgumentMatchers.<Wrapper<SysUserRolePo>>any()))
+                .thenReturn(List.of(first, duplicate, other));
+
+        assertEquals(List.of(USER_ID, 6L), repository.listUserIdsByRoleId(3L));
+    }
+
+    @Test
+    @DisplayName("listUserIdsByRoleId：角色 ID 为空时返回空列表且不查库")
+    void shouldReturnEmptyWhenListUserIdsByRoleIdNull() {
+        assertTrue(repository.listUserIdsByRoleId(null).isEmpty());
+        verifyNoInteractions(userRoleMapper);
     }
 }

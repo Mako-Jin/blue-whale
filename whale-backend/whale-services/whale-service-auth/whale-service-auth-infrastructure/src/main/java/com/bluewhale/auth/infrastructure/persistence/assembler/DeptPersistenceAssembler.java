@@ -1,13 +1,15 @@
 package com.bluewhale.auth.infrastructure.persistence.assembler;
 
 import com.bluewhale.auth.domain.aggregate.DeptAggregate;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysDept;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysDeptPo;
 
 /**
  * Dept 聚合与其持久化对象（PO）的双向转换器（手写 Assembler，REQ-ARCH-001 / T-DDD-7）。
  *
- * <p>选择手写而非 MapStruct：需对 {@code parentId}/{@code sort} 做空值归一化（与既有 Service 的默认值口径一致），
- * 显式转换更可控、可读。未映射字段 {@code deleted} 不属于 Dept 聚合关键项，转换时保持 PO 原值不动。</p>
+ * <p>选择手写而非 MapStruct：显式转换更可控、可读；{@code parentId}/{@code sort} 的空值
+ * 归一化（按 0 / 0，与既有 Service 的默认值口径一致）由 {@code DeptAggregate.reconstitute}
+ * 在领域侧完成，本类仅透传 PO 原值。未映射字段 {@code deleted} 不属于 Dept 聚合关键项，
+ * 转换时保持 PO 原值不动。</p>
  *
  * @author BlueWhale
  */
@@ -20,12 +22,13 @@ public final class DeptPersistenceAssembler {
     }
 
     /**
-     * PO → 领域对象：{@code parentId}/{@code sort} 为空时按 0 / 0 归一化
+     * PO → 领域对象：{@code parentId}/{@code sort} 为 null 时透传，
+     * 由 {@code DeptAggregate.reconstitute} 归一化为 0 / 0
      *
      * @param po 部门持久化对象
      * @return 部门聚合根
      */
-    public static DeptAggregate toDomain(SysDept po) {
+    public static DeptAggregate toDomain(SysDeptPo po) {
         return DeptAggregate.reconstitute(
                 po.getId(),
                 po.getTenantId(),
@@ -44,8 +47,8 @@ public final class DeptPersistenceAssembler {
      * @param dept 部门聚合根
      * @return 部门持久化对象
      */
-    public static SysDept toPo(DeptAggregate dept) {
-        SysDept po = new SysDept();
+    public static SysDeptPo toPo(DeptAggregate dept) {
+        SysDeptPo po = new SysDeptPo();
         po.setId(dept.getId());
         po.setTenantId(dept.getTenantId());
         po.setParentId(dept.getParentId());

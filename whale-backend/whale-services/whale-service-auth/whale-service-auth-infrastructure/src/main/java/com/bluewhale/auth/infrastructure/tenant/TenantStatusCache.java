@@ -5,6 +5,7 @@ import com.bluewhale.auth.domain.aggregate.TenantAggregate;
 import com.bluewhale.auth.domain.model.TenantExpiryClock;
 import com.bluewhale.auth.domain.repository.TenantRepository;
 import com.bluewhale.security.token.TenantStatusKeys;
+import com.bluewhale.security.degradation.SecurityDegradationAlerter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -14,6 +15,8 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+
+import java.util.concurrent.CompletableFuture;
 
 /**
  * 租户状态缓存适配器（Wave 5.54 Phase 2）。
@@ -98,12 +101,20 @@ public class TenantStatusCache implements TenantStatusSyncPort, ApplicationRunne
             }
             redisTemplate.opsForValue().set(TenantStatusKeys.expireKey(tenantId), expireAt);
         } catch (Exception e) {
-            log.warn("租户状态缓存写入失败: tenantId={}, reason={}", tenantId, e.getMessage());
+            log.warn("租户状态缓存写入失败: tenantId={}, status={}, reason={}", tenantId, status, e.getMessage());
+            // 停用/到期写入失败意味着网关侧将继续放行存量令牌，必须告警让运维感知；
+            // 启用写入失败仅影响缓存及时性，由网关可用降级兜底
+            SecurityDegradationAlerter.alarm("auth:tenant-status:write",
+                    "租户状态缓存写入失败（Redis 不可用），停用/到期可能延迟生效: tenantId=" + tenantId
+                            + ", status=" + status, e);
         }
     }
 
     /**
      * 应用启动预热：把数据库中的租户状态全量写入缓存
+     *
+     * <p>异步执行不阻塞应用就绪：租户数量多或 Redis 网络抖动时，同步预热会拖慢启动；
+     * 预热线程无租户上下文，租户插件自动忽略行级过滤，行为与同步一致。</p>
      *
      * @param args 启动参数
      */
@@ -112,7 +123,12 @@ public class TenantStatusCache implements TenantStatusSyncPort, ApplicationRunne
         if (redisTemplateProvider.getIfAvailable() == null) {
             return;
         }
-        tenantRepository.findAll().forEach(this::sync);
-        log.info("租户状态缓存预热完成");
+        CompletableFuture.runAsync(() -> {
+            tenantRepository.findAll().forEach(this::sync);
+            log.info("租户状态缓存预热完成");
+        }).exceptionally(ex -> {
+            log.warn("租户状态缓存预热失败: {}", ex.getMessage());
+            return null;
+        });
     }
 }

@@ -28,6 +28,18 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
 
+    /**
+     * 按用户名加载（Spring Security 标准接口方法）。
+     *
+     * <p><b>仅供 AuthenticationManager 登录链路使用</b>：调用前必须设置
+     * {@link LoginTenantContext}（见 {@code SpringSecurityCredentialAuthenticator}），
+     * 租户上下文缺失时抛 {@link UsernameNotFoundException}。JWT 过滤器等携带令牌的
+     * 场景请改用 {@link #loadUserById(Long, Long)}，不要走本方法。</p>
+     *
+     * @param username 用户名
+     * @return 登录用户详情
+     * @throws UsernameNotFoundException 用户不存在或缺少租户上下文
+     */
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         Long tenantId = LoginTenantContext.current();

@@ -1,7 +1,7 @@
 package com.bluewhale.auth.infrastructure.persistence.assembler;
 
 import com.bluewhale.auth.domain.aggregate.TenantAggregate;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysTenant;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysTenantPo;
 
 /**
  * Tenant 聚合与其持久化对象（PO）的转换器（Wave 5.54 Phase 1）。
@@ -22,7 +22,7 @@ public final class TenantPersistenceAssembler {
      * @param po 租户持久化对象
      * @return 租户聚合
      */
-    public static TenantAggregate toDomain(SysTenant po) {
+    public static TenantAggregate toDomain(SysTenantPo po) {
         return TenantAggregate.reconstitute(po.getId(), po.getTenantCode(), po.getTenantName(), po.getTenantType(),
                 po.getStatus(), po.getExpireTime(), po.getQuotaJson(), po.getCreateTime(), po.getUpdateTime());
     }
@@ -33,8 +33,8 @@ public final class TenantPersistenceAssembler {
      * @param tenant 租户聚合
      * @return 租户持久化对象
      */
-    public static SysTenant toPo(TenantAggregate tenant) {
-        SysTenant po = new SysTenant();
+    public static SysTenantPo toPo(TenantAggregate tenant) {
+        SysTenantPo po = new SysTenantPo();
         po.setId(tenant.getId());
         po.setTenantCode(tenant.getTenantCode());
         po.setTenantName(tenant.getTenantName());

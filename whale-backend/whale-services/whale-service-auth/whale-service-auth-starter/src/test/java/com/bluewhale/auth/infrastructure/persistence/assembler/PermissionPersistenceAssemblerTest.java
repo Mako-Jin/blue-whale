@@ -2,7 +2,7 @@ package com.bluewhale.auth.infrastructure.persistence.assembler;
 
 import com.bluewhale.auth.domain.model.vo.PermCode;
 import com.bluewhale.auth.domain.aggregate.PermissionAggregate;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysPermission;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysPermissionPo;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -22,8 +22,8 @@ class PermissionPersistenceAssemblerTest {
     private static final LocalDateTime CREATED = LocalDateTime.of(2026, 1, 1, 9, 0, 0);
     private static final LocalDateTime UPDATED = LocalDateTime.of(2026, 1, 2, 9, 0, 0);
 
-    private static SysPermission fullPo() {
-        SysPermission po = new SysPermission();
+    private static SysPermissionPo fullPo() {
+        SysPermissionPo po = new SysPermissionPo();
         po.setId(5L);
         po.setParentId(3L);
         po.setPermCode("sys:user:list");
@@ -65,7 +65,7 @@ class PermissionPersistenceAssemblerTest {
     @Test
     @DisplayName("领域 → PO：SysPermission 各字段逐项一致，未纳入聚合的字段保持为空")
     void shouldMapDomainToPoFieldByField() {
-        SysPermission po = PermissionPersistenceAssembler.toPo(fullDomain());
+        SysPermissionPo po = PermissionPersistenceAssembler.toPo(fullDomain());
 
         assertEquals(5L, po.getId());
         assertEquals(3L, po.getParentId());
@@ -85,7 +85,7 @@ class PermissionPersistenceAssemblerTest {
     @Test
     @DisplayName("PO → 领域：parentId/sortNo/status 为空按 0 / 0 / 启用归一化")
     void shouldNormalizeNullFields() {
-        SysPermission po = fullPo();
+        SysPermissionPo po = fullPo();
         po.setParentId(null);
         po.setSortNo(null);
         po.setStatus(null);

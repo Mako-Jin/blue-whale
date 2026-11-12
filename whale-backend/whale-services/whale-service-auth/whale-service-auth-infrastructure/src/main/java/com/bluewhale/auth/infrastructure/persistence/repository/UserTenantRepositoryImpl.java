@@ -2,7 +2,7 @@ package com.bluewhale.auth.infrastructure.persistence.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.auth.domain.repository.UserTenantRepository;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysUserTenant;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysUserTenantPo;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysUserTenantMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
@@ -31,44 +31,44 @@ public class UserTenantRepositoryImpl implements UserTenantRepository {
 
     @Override
     public boolean existsEnabled(Long userId, Long tenantId) {
-        Long count = mapper.selectCount(new LambdaQueryWrapper<SysUserTenant>()
-                .eq(SysUserTenant::getUserId, userId)
-                .eq(SysUserTenant::getTenantId, tenantId)
-                .eq(SysUserTenant::getStatus, STATUS_ENABLED));
+        Long count = mapper.selectCount(new LambdaQueryWrapper<SysUserTenantPo>()
+                .eq(SysUserTenantPo::getUserId, userId)
+                .eq(SysUserTenantPo::getTenantId, tenantId)
+                .eq(SysUserTenantPo::getStatus, STATUS_ENABLED));
         return count != null && count > 0;
     }
 
     @Override
     public List<Long> listEnabledTenantIds(Long userId) {
-        return mapper.selectList(new LambdaQueryWrapper<SysUserTenant>()
-                        .eq(SysUserTenant::getUserId, userId)
-                        .eq(SysUserTenant::getStatus, STATUS_ENABLED)
-                        .orderByAsc(SysUserTenant::getTenantId))
-                .stream().map(SysUserTenant::getTenantId).toList();
+        return mapper.selectList(new LambdaQueryWrapper<SysUserTenantPo>()
+                        .eq(SysUserTenantPo::getUserId, userId)
+                        .eq(SysUserTenantPo::getStatus, STATUS_ENABLED)
+                        .orderByAsc(SysUserTenantPo::getTenantId))
+                .stream().map(SysUserTenantPo::getTenantId).toList();
     }
 
     @Override
     public List<Long> listEnabledUserIds(Long tenantId) {
-        return mapper.selectList(new LambdaQueryWrapper<SysUserTenant>()
-                        .eq(SysUserTenant::getTenantId, tenantId)
-                        .eq(SysUserTenant::getStatus, STATUS_ENABLED)
-                        .orderByAsc(SysUserTenant::getUserId))
-                .stream().map(SysUserTenant::getUserId).toList();
+        return mapper.selectList(new LambdaQueryWrapper<SysUserTenantPo>()
+                        .eq(SysUserTenantPo::getTenantId, tenantId)
+                        .eq(SysUserTenantPo::getStatus, STATUS_ENABLED)
+                        .orderByAsc(SysUserTenantPo::getUserId))
+                .stream().map(SysUserTenantPo::getUserId).toList();
     }
 
     @Override
     public boolean exists(Long userId, Long tenantId) {
-        Long count = mapper.selectCount(new LambdaQueryWrapper<SysUserTenant>()
-                .eq(SysUserTenant::getUserId, userId)
-                .eq(SysUserTenant::getTenantId, tenantId));
+        Long count = mapper.selectCount(new LambdaQueryWrapper<SysUserTenantPo>()
+                .eq(SysUserTenantPo::getUserId, userId)
+                .eq(SysUserTenantPo::getTenantId, tenantId));
         return count != null && count > 0;
     }
 
     @Override
     public void ensureEnabled(Long userId, Long tenantId) {
-        SysUserTenant existing = findRelation(userId, tenantId);
+        SysUserTenantPo existing = findRelation(userId, tenantId);
         if (existing == null) {
-            SysUserTenant relation = new SysUserTenant();
+            SysUserTenantPo relation = new SysUserTenantPo();
             relation.setUserId(userId);
             relation.setTenantId(tenantId);
             relation.setStatus(STATUS_ENABLED);
@@ -93,7 +93,7 @@ public class UserTenantRepositoryImpl implements UserTenantRepository {
 
     @Override
     public void disable(Long userId, Long tenantId) {
-        SysUserTenant existing = findRelation(userId, tenantId);
+        SysUserTenantPo existing = findRelation(userId, tenantId);
         if (existing != null && (existing.getStatus() == null || existing.getStatus() != STATUS_DISABLED)) {
             existing.setStatus(STATUS_DISABLED);
             mapper.updateById(existing);
@@ -107,10 +107,10 @@ public class UserTenantRepositoryImpl implements UserTenantRepository {
      * @param tenantId 租户 ID
      * @return 关系行；不存在时返回 null
      */
-    private SysUserTenant findRelation(Long userId, Long tenantId) {
-        return mapper.selectOne(new LambdaQueryWrapper<SysUserTenant>()
-                .eq(SysUserTenant::getUserId, userId)
-                .eq(SysUserTenant::getTenantId, tenantId)
+    private SysUserTenantPo findRelation(Long userId, Long tenantId) {
+        return mapper.selectOne(new LambdaQueryWrapper<SysUserTenantPo>()
+                .eq(SysUserTenantPo::getUserId, userId)
+                .eq(SysUserTenantPo::getTenantId, tenantId)
                 .last("limit 1"));
     }
 }

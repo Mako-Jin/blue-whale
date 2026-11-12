@@ -18,8 +18,9 @@ import java.util.concurrent.TimeUnit;
  * 值为固定占位符，仅依赖键是否存在判断命中；使用摘要而非 token 原文作为键名，
  * 避免明文凭据落入 Redis keyspace。键约定与 whale-gateway 侧校验实现共用，
  * 保证登出写入与网关校验指向同一键。</p>
- * <p>降级策略：Redis 不可用时 {@link #add} 仅告警不抛异常，{@link #contains} 返回未命中，
- * 保证鉴权链路整体可用（与 whale-i18n-sdk 的 Redis 降级策略一致）。两处降级分支同时经
+ * <p>降级策略：Redis 不可用时 {@link #add} 仅告警不抛异常，{@link #contains} 默认返回未命中
+ * （可用性优先；可经 {@code whale.security.degradation.fail-closed=true} 切换为按命中拒绝）。
+ * 两处降级分支同时经
  * {@link SecurityDegradationAlerter} 输出 ERROR 级 {@code SECURITY_DEGRADATION} 告警并自增进程内计数。</p>
  *
  * @author BlueWhale

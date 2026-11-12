@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @TableName("sys_password_history")
-public class SysPasswordHistory implements Serializable {
+public class SysPasswordHistoryPo implements Serializable {
 
     private static final long serialVersionUID = 1L;
 

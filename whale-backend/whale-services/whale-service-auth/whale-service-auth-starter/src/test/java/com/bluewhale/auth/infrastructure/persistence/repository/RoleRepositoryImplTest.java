@@ -3,10 +3,12 @@ package com.bluewhale.auth.infrastructure.persistence.repository;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysPermission;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysRole;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysRolePermission;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysUserRole;
+import com.bluewhale.auth.domain.repository.RoleRepository;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysPermissionPo;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysRolePo;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysRolePermissionPo;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysUserRolePo;
+import com.bluewhale.auth.infrastructure.persistence.entity.UserTenantRefPo;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysPermissionMapper;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysRoleMapper;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysRolePermissionMapper;
@@ -77,35 +79,35 @@ class RoleRepositoryImplTest {
     @BeforeAll
     static void initTableInfoCache() {
         MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "");
-        TableInfoHelper.initTableInfo(assistant, SysUserRole.class);
-        TableInfoHelper.initTableInfo(assistant, SysRolePermission.class);
-        TableInfoHelper.initTableInfo(assistant, SysPermission.class);
-        TableInfoHelper.initTableInfo(assistant, SysRole.class);
+        TableInfoHelper.initTableInfo(assistant, SysUserRolePo.class);
+        TableInfoHelper.initTableInfo(assistant, SysRolePermissionPo.class);
+        TableInfoHelper.initTableInfo(assistant, SysPermissionPo.class);
+        TableInfoHelper.initTableInfo(assistant, SysRolePo.class);
     }
 
-    private static SysUserRole userRole(long roleId) {
-        SysUserRole po = new SysUserRole();
+    private static SysUserRolePo userRole(long roleId) {
+        SysUserRolePo po = new SysUserRolePo();
         po.setUserId(USER_ID);
         po.setRoleId(roleId);
         return po;
     }
 
-    private static SysRole role(long id) {
-        SysRole po = new SysRole();
+    private static SysRolePo role(long id) {
+        SysRolePo po = new SysRolePo();
         po.setId(id);
         po.setTenantId(1L);
         return po;
     }
 
-    private static SysRolePermission rolePermission(long permissionId) {
-        SysRolePermission po = new SysRolePermission();
+    private static SysRolePermissionPo rolePermission(long permissionId) {
+        SysRolePermissionPo po = new SysRolePermissionPo();
         po.setRoleId(ROLE_ID);
         po.setPermissionId(permissionId);
         return po;
     }
 
-    private static SysPermission permission(long id, String code, int status) {
-        SysPermission po = new SysPermission();
+    private static SysPermissionPo permission(long id, String code, int status) {
+        SysPermissionPo po = new SysPermissionPo();
         po.setId(id);
         po.setPermCode(code);
         po.setStatus(status);
@@ -115,9 +117,9 @@ class RoleRepositoryImplTest {
     @Test
     @DisplayName("listRoleIdsByUserId：映射用户关联的角色 ID")
     void shouldListRoleIdsByUserId() {
-        when(roleMapper.selectList(ArgumentMatchers.<Wrapper<SysRole>>any()))
+        when(roleMapper.selectList(ArgumentMatchers.<Wrapper<SysRolePo>>any()))
                 .thenReturn(List.of(role(1L), role(2L)));
-        when(userRoleMapper.selectList(ArgumentMatchers.<Wrapper<SysUserRole>>any()))
+        when(userRoleMapper.selectList(ArgumentMatchers.<Wrapper<SysUserRolePo>>any()))
                 .thenReturn(List.of(userRole(1L), userRole(2L)));
 
         assertEquals(List.of(1L, 2L), repository.listRoleIdsByUserId(USER_ID));
@@ -126,7 +128,7 @@ class RoleRepositoryImplTest {
     @Test
     @DisplayName("listRoleIdsByUserId：当前租户无角色时返回空列表且不查关联表")
     void shouldReturnEmptyWhenTenantHasNoRole() {
-        when(roleMapper.selectList(ArgumentMatchers.<Wrapper<SysRole>>any()))
+        when(roleMapper.selectList(ArgumentMatchers.<Wrapper<SysRolePo>>any()))
                 .thenReturn(List.of());
 
         assertTrue(repository.listRoleIdsByUserId(USER_ID).isEmpty());
@@ -143,9 +145,9 @@ class RoleRepositoryImplTest {
     @Test
     @DisplayName("listPermissionIdsByRoleIds：映射权限 ID 并按 ID 去重")
     void shouldListPermissionIdsDistinct() {
-        when(roleMapper.selectList(ArgumentMatchers.<Wrapper<SysRole>>any()))
+        when(roleMapper.selectList(ArgumentMatchers.<Wrapper<SysRolePo>>any()))
                 .thenReturn(List.of(role(ROLE_ID)));
-        when(rolePermissionMapper.selectList(ArgumentMatchers.<Wrapper<SysRolePermission>>any()))
+        when(rolePermissionMapper.selectList(ArgumentMatchers.<Wrapper<SysRolePermissionPo>>any()))
                 .thenReturn(List.of(rolePermission(10L), rolePermission(10L), rolePermission(11L)));
 
         assertEquals(List.of(10L, 11L), repository.listPermissionIdsByRoleIds(List.of(ROLE_ID)));
@@ -161,12 +163,38 @@ class RoleRepositoryImplTest {
     @Test
     @DisplayName("listEnabledPermissionCodesByIds：映射启用权限码并去重")
     void shouldListEnabledPermissionCodesDistinct() {
-        when(permissionMapper.selectList(ArgumentMatchers.<Wrapper<SysPermission>>any()))
+        when(permissionMapper.selectList(ArgumentMatchers.<Wrapper<SysPermissionPo>>any()))
                 .thenReturn(List.of(permission(10L, "sys:user:list", 1),
                         permission(11L, "sys:user:list", 1),
                         permission(12L, "sys:role:list", 1)));
 
         assertEquals(List.of("sys:user:list", "sys:role:list"),
                 repository.listEnabledPermissionCodesByIds(List.of(10L, 11L, 12L)));
+    }
+
+    @Test
+    @DisplayName("listUsersByPermissionId：映射 JOIN 投影为（租户, 用户）对")
+    void shouldListUsersByPermissionId() {
+        UserTenantRefPo ref1 = new UserTenantRefPo();
+        ref1.setTenantId(9L);
+        ref1.setUserId(USER_ID);
+        UserTenantRefPo ref2 = new UserTenantRefPo();
+        ref2.setTenantId(9L);
+        ref2.setUserId(6L);
+        when(roleMapper.selectUserTenantRefsByPermissionId(10L)).thenReturn(List.of(ref1, ref2));
+
+        List<RoleRepository.UserTenantRef> refs = repository.listUsersByPermissionId(10L);
+
+        assertEquals(2, refs.size());
+        assertEquals(9L, refs.get(0).tenantId());
+        assertEquals(USER_ID, refs.get(0).userId());
+        assertEquals(6L, refs.get(1).userId());
+    }
+
+    @Test
+    @DisplayName("listUsersByPermissionId：权限点 ID 为空时返回空列表且不查库")
+    void shouldReturnEmptyWhenListUsersByPermissionIdNull() {
+        assertTrue(repository.listUsersByPermissionId(null).isEmpty());
+        verify(roleMapper, never()).selectUserTenantRefsByPermissionId(ArgumentMatchers.any());
     }
 }

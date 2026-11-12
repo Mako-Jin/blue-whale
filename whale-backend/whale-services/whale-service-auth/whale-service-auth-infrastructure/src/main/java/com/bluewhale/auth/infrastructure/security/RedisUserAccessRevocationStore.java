@@ -23,7 +23,8 @@ import java.util.concurrent.TimeUnit;
  * 撤销后重新启用账号不会清除撤销时刻：旧令牌保持失效，重新登录签发的新令牌（iat 更晚）正常放行。</p>
  *
  * <p>降级策略与成员撤销一致：Redis 不可用时写入仅告警（权限缓存已失效、权限码为空），
- * 查询按未撤销放行，并输出 ERROR 级 {@code SECURITY_DEGRADATION} 告警。</p>
+ * 查询默认按未撤销放行（可用性优先；可经 {@code whale.security.degradation.fail-closed=true}
+ * 切换为按已撤销拒绝），并输出 ERROR 级 {@code SECURITY_DEGRADATION} 告警。</p>
  *
  * @author BlueWhale
  */

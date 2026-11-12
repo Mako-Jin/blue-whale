@@ -2,7 +2,7 @@ package com.bluewhale.auth.infrastructure.persistence.assembler;
 
 import com.bluewhale.auth.domain.model.vo.PermCode;
 import com.bluewhale.auth.domain.aggregate.PermissionAggregate;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysPermission;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysPermissionPo;
 
 /**
  * Permission 聚合与其持久化对象（PO）的双向转换器（手写 Assembler，REQ-ARCH-001 / T-DDD-6）。
@@ -27,7 +27,7 @@ public final class PermissionPersistenceAssembler {
      * @param po 权限点持久化对象
      * @return 权限点聚合根
      */
-    public static PermissionAggregate toDomain(SysPermission po) {
+    public static PermissionAggregate toDomain(SysPermissionPo po) {
         return PermissionAggregate.reconstitute(
                 po.getId(),
                 po.getParentId(),
@@ -48,8 +48,8 @@ public final class PermissionPersistenceAssembler {
      * @param permission 权限点聚合根
      * @return 权限点持久化对象
      */
-    public static SysPermission toPo(PermissionAggregate permission) {
-        SysPermission po = new SysPermission();
+    public static SysPermissionPo toPo(PermissionAggregate permission) {
+        SysPermissionPo po = new SysPermissionPo();
         po.setId(permission.getId());
         po.setParentId(permission.getParentId());
         po.setPermCode(permission.getPermCode().value());

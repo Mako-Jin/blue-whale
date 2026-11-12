@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.auth.application.model.TenantPasswordPolicy;
 import com.bluewhale.auth.application.port.TenantPasswordPolicyRepository;
 import com.bluewhale.auth.infrastructure.persistence.TenantContextSupport;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysTenantPasswordPolicy;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysTenantPasswordPolicyPo;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysTenantPasswordPolicyMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -35,8 +35,8 @@ public class TenantPasswordPolicyRepositoryImpl implements TenantPasswordPolicyR
         }
         return TenantContextSupport.runWithoutTenant(() ->
                 Optional.ofNullable(tenantPasswordPolicyMapper.selectOne(
-                                new LambdaQueryWrapper<SysTenantPasswordPolicy>()
-                                        .eq(SysTenantPasswordPolicy::getTenantId, tenantId)))
+                                new LambdaQueryWrapper<SysTenantPasswordPolicyPo>()
+                                        .eq(SysTenantPasswordPolicyPo::getTenantId, tenantId)))
                         .map(TenantPasswordPolicyRepositoryImpl::toDomain));
     }
 
@@ -54,11 +54,11 @@ public class TenantPasswordPolicyRepositoryImpl implements TenantPasswordPolicyR
             return policy;
         }
         return TenantContextSupport.runWithoutTenant(() -> {
-            SysTenantPasswordPolicy existing = tenantPasswordPolicyMapper.selectOne(
-                    new LambdaQueryWrapper<SysTenantPasswordPolicy>()
-                            .eq(SysTenantPasswordPolicy::getTenantId, policy.tenantId()));
+            SysTenantPasswordPolicyPo existing = tenantPasswordPolicyMapper.selectOne(
+                    new LambdaQueryWrapper<SysTenantPasswordPolicyPo>()
+                            .eq(SysTenantPasswordPolicyPo::getTenantId, policy.tenantId()));
             if (existing == null) {
-                SysTenantPasswordPolicy inserted = new SysTenantPasswordPolicy();
+                SysTenantPasswordPolicyPo inserted = new SysTenantPasswordPolicyPo();
                 inserted.setTenantId(policy.tenantId());
                 inserted.setMaxAgeDays(policy.maxAgeDays());
                 inserted.setWarnDays(policy.warnDays());
@@ -79,7 +79,7 @@ public class TenantPasswordPolicyRepositoryImpl implements TenantPasswordPolicyR
      * @param po 持久化对象
      * @return 租户策略
      */
-    private static TenantPasswordPolicy toDomain(SysTenantPasswordPolicy po) {
+    private static TenantPasswordPolicy toDomain(SysTenantPasswordPolicyPo po) {
         return new TenantPasswordPolicy(po.getTenantId(), po.getMaxAgeDays(), po.getWarnDays());
     }
 }

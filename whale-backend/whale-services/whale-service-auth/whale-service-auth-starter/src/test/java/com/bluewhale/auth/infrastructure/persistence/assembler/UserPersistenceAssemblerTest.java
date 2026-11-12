@@ -4,8 +4,8 @@ import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
 import com.bluewhale.auth.domain.model.vo.Username;
 import com.bluewhale.auth.domain.aggregate.UserAggregate;
 import com.bluewhale.auth.domain.model.entity.UserRoleAssignment;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysUser;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysUserRole;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysUserPo;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysUserRolePo;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -28,8 +28,8 @@ class UserPersistenceAssemblerTest {
     private static final LocalDateTime CREATED = LocalDateTime.of(2026, 1, 1, 9, 0, 0);
     private static final LocalDateTime UPDATED = LocalDateTime.of(2026, 1, 2, 9, 0, 0);
 
-    private static SysUser fullPo() {
-        SysUser po = new SysUser();
+    private static SysUserPo fullPo() {
+        SysUserPo po = new SysUserPo();
         po.setId(5L);
         po.setTenantId(1L);
         po.setUsername("bob_02");
@@ -75,7 +75,7 @@ class UserPersistenceAssemblerTest {
     @Test
     @DisplayName("领域 → PO：SysUser 各字段逐项一致，未纳入聚合的字段保持为空")
     void shouldMapDomainToPoFieldByField() {
-        SysUser po = UserPersistenceAssembler.toPo(fullDomain());
+        SysUserPo po = UserPersistenceAssembler.toPo(fullDomain());
 
         assertEquals(5L, po.getId());
         assertEquals("bob_02", po.getUsername());
@@ -97,7 +97,7 @@ class UserPersistenceAssemblerTest {
     @Test
     @DisplayName("PO → 领域：status 为空归一化为停用")
     void shouldNormalizeNullStatusToDisabled() {
-        SysUser po = fullPo();
+        SysUserPo po = fullPo();
         po.setStatus(null);
 
         UserAggregate user = UserPersistenceAssembler.toDomain(po);
@@ -109,7 +109,7 @@ class UserPersistenceAssemblerTest {
     @Test
     @DisplayName("PO → 领域：avatar 与 lastLoginTime 原样承载")
     void shouldMapAvatarAndLastLoginTimeToDomain() {
-        SysUser po = fullPo();
+        SysUserPo po = fullPo();
 
         UserAggregate user = UserPersistenceAssembler.toDomain(po);
 
@@ -124,7 +124,7 @@ class UserPersistenceAssemblerTest {
         UserAggregate domain = UserAggregate.reconstitute(5L, 1L, Username.of("bob_02"), EncryptedPassword.of(CIPHER), "Bob",
                 "13900000000", "b@c.com", "avatar.png", 4L, UserAggregate.STATUS_ENABLED, lastLogin, CREATED, UPDATED);
 
-        SysUser po = UserPersistenceAssembler.toPo(domain);
+        SysUserPo po = UserPersistenceAssembler.toPo(domain);
 
         assertEquals("avatar.png", po.getAvatar());
         assertEquals(lastLogin, po.getLastLoginTime());
@@ -133,7 +133,7 @@ class UserPersistenceAssemblerTest {
     @Test
     @DisplayName("用户-角色分配：PO ↔ 领域双向字段一致")
     void shouldMapRoleAssignmentBothWays() {
-        SysUserRole po = new SysUserRole();
+        SysUserRolePo po = new SysUserRolePo();
         po.setId(8L);
         po.setUserId(5L);
         po.setRoleId(6L);
@@ -144,7 +144,7 @@ class UserPersistenceAssemblerTest {
         assertEquals(5L, assignment.userId());
         assertEquals(6L, assignment.roleId());
 
-        SysUserRole converted = UserPersistenceAssembler.toAssignmentPo(UserRoleAssignment.of(5L, 6L));
+        SysUserRolePo converted = UserPersistenceAssembler.toAssignmentPo(UserRoleAssignment.of(5L, 6L));
         assertEquals(5L, converted.getUserId());
         assertEquals(6L, converted.getRoleId());
         assertNull(converted.getId());

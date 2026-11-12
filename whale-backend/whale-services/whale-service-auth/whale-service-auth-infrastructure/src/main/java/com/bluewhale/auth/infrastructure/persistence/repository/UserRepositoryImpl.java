@@ -5,9 +5,9 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.auth.domain.aggregate.UserAggregate;
 import com.bluewhale.auth.domain.model.entity.UserRoleAssignment;
 import com.bluewhale.auth.domain.repository.UserRepository;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysRole;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysUser;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysUserRole;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysRolePo;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysUserPo;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysUserRolePo;
 import com.bluewhale.auth.infrastructure.persistence.assembler.UserPersistenceAssembler;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysRoleMapper;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysUserMapper;
@@ -48,7 +48,7 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public UserAggregate save(UserAggregate user) {
-        SysUser po = UserPersistenceAssembler.toPo(user);
+        SysUserPo po = UserPersistenceAssembler.toPo(user);
         if (po.getId() == null) {
             userMapper.insert(po);
         } else if (userMapper.updateById(po) == 0) {
@@ -60,9 +60,9 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public Optional<UserAggregate> findById(Long id) {
-        SysUser po = userMapper.selectOne(new LambdaQueryWrapper<SysUser>()
-                .eq(SysUser::getId, id)
-                .eq(SysUser::getTenantId, TenantContext.requireId()));
+        SysUserPo po = userMapper.selectOne(new LambdaQueryWrapper<SysUserPo>()
+                .eq(SysUserPo::getId, id)
+                .eq(SysUserPo::getTenantId, TenantContext.requireId()));
         return Optional.ofNullable(po).map(UserPersistenceAssembler::toDomain);
     }
 
@@ -71,7 +71,7 @@ public class UserRepositoryImpl implements UserRepository {
         // sys_user 归属首页租户，令牌租户可能是切换后的其他租户：
         // 临时清空租户上下文以绕过行级过滤，读取后立即恢复原值（含 null）
         return TenantContextSupport.runWithoutTenant(() -> {
-            SysUser po = userMapper.selectById(id);
+            SysUserPo po = userMapper.selectById(id);
             return Optional.ofNullable(po).map(UserPersistenceAssembler::toDomain);
         });
     }
@@ -83,8 +83,8 @@ public class UserRepositoryImpl implements UserRepository {
         }
         // 跨租户批量加载（语义同 findByIdAcrossTenants）：临时清空租户上下文绕过行级过滤
         return TenantContextSupport.runWithoutTenant(() ->
-                userMapper.selectList(new LambdaQueryWrapper<SysUser>()
-                                .in(SysUser::getId, ids))
+                userMapper.selectList(new LambdaQueryWrapper<SysUserPo>()
+                                .in(SysUserPo::getId, ids))
                         .stream().map(UserPersistenceAssembler::toDomain).toList());
     }
 
@@ -99,37 +99,37 @@ public class UserRepositoryImpl implements UserRepository {
         if (tenantRoleIds.isEmpty()) {
             return Map.of();
         }
-        return userRoleMapper.selectList(new LambdaQueryWrapper<SysUserRole>()
-                        .in(SysUserRole::getUserId, userIds)
-                        .in(SysUserRole::getRoleId, tenantRoleIds))
+        return userRoleMapper.selectList(new LambdaQueryWrapper<SysUserRolePo>()
+                        .in(SysUserRolePo::getUserId, userIds)
+                        .in(SysUserRolePo::getRoleId, tenantRoleIds))
                 .stream()
-                .collect(Collectors.groupingBy(SysUserRole::getUserId,
-                        Collectors.mapping(SysUserRole::getRoleId, Collectors.toList())));
+                .collect(Collectors.groupingBy(SysUserRolePo::getUserId,
+                        Collectors.mapping(SysUserRolePo::getRoleId, Collectors.toList())));
     }
 
     @Override
     public Optional<UserAggregate> findByUsername(String username) {
-        SysUser po = userMapper.selectOne(new LambdaQueryWrapper<SysUser>()
-                .eq(SysUser::getTenantId, TenantContext.requireId())
-                .eq(SysUser::getUsername, username)
+        SysUserPo po = userMapper.selectOne(new LambdaQueryWrapper<SysUserPo>()
+                .eq(SysUserPo::getTenantId, TenantContext.requireId())
+                .eq(SysUserPo::getUsername, username)
                 .last("limit 1"));
         return Optional.ofNullable(po).map(UserPersistenceAssembler::toDomain);
     }
 
     @Override
     public Optional<UserAggregate> findByTenantIdAndUsername(Long tenantId, String username) {
-        SysUser po = userMapper.selectOne(new LambdaQueryWrapper<SysUser>()
-                .eq(SysUser::getTenantId, tenantId)
-                .eq(SysUser::getUsername, username)
+        SysUserPo po = userMapper.selectOne(new LambdaQueryWrapper<SysUserPo>()
+                .eq(SysUserPo::getTenantId, tenantId)
+                .eq(SysUserPo::getUsername, username)
                 .last("limit 1"));
         return Optional.ofNullable(po).map(UserPersistenceAssembler::toDomain);
     }
 
     @Override
     public boolean existsByUsername(Long tenantId, String username) {
-        Long count = userMapper.selectCount(new LambdaQueryWrapper<SysUser>()
-                .eq(SysUser::getTenantId, tenantId)
-                .eq(SysUser::getUsername, username));
+        Long count = userMapper.selectCount(new LambdaQueryWrapper<SysUserPo>()
+                .eq(SysUserPo::getTenantId, tenantId)
+                .eq(SysUserPo::getUsername, username));
         return count != null && count > 0;
     }
 
@@ -152,10 +152,21 @@ public class UserRepositoryImpl implements UserRepository {
         if (tenantRoleIds.isEmpty()) {
             return List.of();
         }
-        return userRoleMapper.selectList(new LambdaQueryWrapper<SysUserRole>()
-                        .eq(SysUserRole::getUserId, userId)
-                        .in(SysUserRole::getRoleId, tenantRoleIds))
-                .stream().map(SysUserRole::getRoleId).toList();
+        return userRoleMapper.selectList(new LambdaQueryWrapper<SysUserRolePo>()
+                        .eq(SysUserRolePo::getUserId, userId)
+                        .in(SysUserRolePo::getRoleId, tenantRoleIds))
+                .stream().map(SysUserRolePo::getRoleId).toList();
+    }
+
+    @Override
+    public List<Long> listUserIdsByRoleId(Long roleId) {
+        if (roleId == null) {
+            return List.of();
+        }
+        // sys_user_role 无租户维度且在租户插件忽略白名单内，按角色全局反查（缓存失效链路专用）
+        return userRoleMapper.selectList(new LambdaQueryWrapper<SysUserRolePo>()
+                        .eq(SysUserRolePo::getRoleId, roleId))
+                .stream().map(SysUserRolePo::getUserId).distinct().toList();
     }
 
     @Override
@@ -169,42 +180,42 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public UserPage page(long current, long size, String keyword) {
-        LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SysUser::getTenantId, TenantContext.requireId());
+        LambdaQueryWrapper<SysUserPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysUserPo::getTenantId, TenantContext.requireId());
         if (StringUtils.hasText(keyword)) {
             String escaped = escapeLike(keyword);
-            wrapper.and(w -> w.like(SysUser::getUsername, escaped)
-                    .or().like(SysUser::getNickname, escaped)
-                    .or().like(SysUser::getPhone, escaped));
+            wrapper.and(w -> w.like(SysUserPo::getUsername, escaped)
+                    .or().like(SysUserPo::getNickname, escaped)
+                    .or().like(SysUserPo::getPhone, escaped));
         }
-        wrapper.orderByDesc(SysUser::getCreateTime);
-        Page<SysUser> page = userMapper.selectPage(Page.of(current, size), wrapper);
+        wrapper.orderByDesc(SysUserPo::getCreateTime);
+        Page<SysUserPo> page = userMapper.selectPage(Page.of(current, size), wrapper);
         List<UserAggregate> records = page.getRecords().stream().map(UserPersistenceAssembler::toDomain).toList();
         return new UserPage(records, page.getTotal());
     }
 
     @Override
     public UserPage directoryPage(long current, long size, Collection<Long> deptIds, String keyword) {
-        LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SysUser::getTenantId, TenantContext.requireId());
-        wrapper.eq(SysUser::getStatus, STATUS_ENABLED);
-        wrapper.eq(SysUser::getDeleted, DELETED_NO);
+        LambdaQueryWrapper<SysUserPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysUserPo::getTenantId, TenantContext.requireId());
+        wrapper.eq(SysUserPo::getStatus, STATUS_ENABLED);
+        wrapper.eq(SysUserPo::getDeleted, DELETED_NO);
         if (deptIds != null) {
             // 空集合走 in 会生成 `in ()` 的非法 SQL，直接给一个恒假条件
             if (deptIds.isEmpty()) {
                 wrapper.apply("1 = 0");
             } else {
-                wrapper.in(SysUser::getDeptId, deptIds);
+                wrapper.in(SysUserPo::getDeptId, deptIds);
             }
         }
         if (StringUtils.hasText(keyword)) {
             String escaped = escapeLike(keyword);
-            wrapper.and(w -> w.like(SysUser::getUsername, escaped)
-                    .or().like(SysUser::getNickname, escaped)
-                    .or().like(SysUser::getPhone, escaped));
+            wrapper.and(w -> w.like(SysUserPo::getUsername, escaped)
+                    .or().like(SysUserPo::getNickname, escaped)
+                    .or().like(SysUserPo::getPhone, escaped));
         }
-        wrapper.orderByAsc(SysUser::getId);
-        Page<SysUser> page = userMapper.selectPage(Page.of(current, size), wrapper);
+        wrapper.orderByAsc(SysUserPo::getId);
+        Page<SysUserPo> page = userMapper.selectPage(Page.of(current, size), wrapper);
         List<UserAggregate> records = page.getRecords().stream().map(UserPersistenceAssembler::toDomain).toList();
         return new UserPage(records, page.getTotal());
     }
@@ -215,27 +226,27 @@ public class UserRepositoryImpl implements UserRepository {
             return List.of();
         }
         Long tenantId = TenantContext.requireId();
-        SysRole role = roleMapper.selectOne(new LambdaQueryWrapper<SysRole>()
-                .eq(SysRole::getTenantId, tenantId)
-                .eq(SysRole::getRoleCode, roleCode)
-                .eq(SysRole::getStatus, STATUS_ENABLED)
-                .eq(SysRole::getDeleted, DELETED_NO)
+        SysRolePo role = roleMapper.selectOne(new LambdaQueryWrapper<SysRolePo>()
+                .eq(SysRolePo::getTenantId, tenantId)
+                .eq(SysRolePo::getRoleCode, roleCode)
+                .eq(SysRolePo::getStatus, STATUS_ENABLED)
+                .eq(SysRolePo::getDeleted, DELETED_NO)
                 .last("limit 1"));
         if (role == null) {
             return List.of();
         }
-        List<Long> userIds = userRoleMapper.selectList(new LambdaQueryWrapper<SysUserRole>()
-                        .eq(SysUserRole::getRoleId, role.getId()))
-                .stream().map(SysUserRole::getUserId).distinct().toList();
+        List<Long> userIds = userRoleMapper.selectList(new LambdaQueryWrapper<SysUserRolePo>()
+                        .eq(SysUserRolePo::getRoleId, role.getId()))
+                .stream().map(SysUserRolePo::getUserId).distinct().toList();
         if (userIds.isEmpty()) {
             return List.of();
         }
-        LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SysUser::getTenantId, tenantId);
-        wrapper.eq(SysUser::getStatus, STATUS_ENABLED);
-        wrapper.eq(SysUser::getDeleted, DELETED_NO);
-        wrapper.in(SysUser::getId, userIds);
-        wrapper.orderByAsc(SysUser::getId);
+        LambdaQueryWrapper<SysUserPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysUserPo::getTenantId, tenantId);
+        wrapper.eq(SysUserPo::getStatus, STATUS_ENABLED);
+        wrapper.eq(SysUserPo::getDeleted, DELETED_NO);
+        wrapper.in(SysUserPo::getId, userIds);
+        wrapper.orderByAsc(SysUserPo::getId);
         wrapper.last("limit " + limit);
         return userMapper.selectList(wrapper).stream().map(UserPersistenceAssembler::toDomain).toList();
     }
@@ -245,13 +256,13 @@ public class UserRepositoryImpl implements UserRepository {
         if (ids == null || ids.isEmpty()) {
             return List.of();
         }
-        LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
-        wrapper.select(SysUser::getId);
-        wrapper.in(SysUser::getId, ids);
-        wrapper.eq(SysUser::getStatus, STATUS_ENABLED);
+        LambdaQueryWrapper<SysUserPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.select(SysUserPo::getId);
+        wrapper.in(SysUserPo::getId, ids);
+        wrapper.eq(SysUserPo::getStatus, STATUS_ENABLED);
         // 服务间成员校验：有租户上下文时限制在同租户内，无上下文时保持既有的全局行为（Phase 3 收口）
-        wrapper.eq(TenantContext.get() != null, SysUser::getTenantId, TenantContext.get());
-        return userMapper.selectList(wrapper).stream().map(SysUser::getId).toList();
+        wrapper.eq(TenantContext.get() != null, SysUserPo::getTenantId, TenantContext.get());
+        return userMapper.selectList(wrapper).stream().map(SysUserPo::getId).toList();
     }
 
     /**
@@ -261,10 +272,10 @@ public class UserRepositoryImpl implements UserRepository {
      * @return 角色 ID 列表
      */
     private List<Long> listTenantRoleIds(Long tenantId) {
-        return roleMapper.selectList(new LambdaQueryWrapper<SysRole>()
-                        .select(SysRole::getId)
-                        .eq(SysRole::getTenantId, tenantId))
-                .stream().map(SysRole::getId).toList();
+        return roleMapper.selectList(new LambdaQueryWrapper<SysRolePo>()
+                        .select(SysRolePo::getId)
+                        .eq(SysRolePo::getTenantId, tenantId))
+                .stream().map(SysRolePo::getId).toList();
     }
 
     /**
@@ -280,11 +291,11 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public void deleteById(Long id) {
-        userMapper.delete(new LambdaQueryWrapper<SysUser>()
-                .eq(SysUser::getId, id)
-                .eq(SysUser::getTenantId, TenantContext.requireId()));
+        userMapper.delete(new LambdaQueryWrapper<SysUserPo>()
+                .eq(SysUserPo::getId, id)
+                .eq(SysUserPo::getTenantId, TenantContext.requireId()));
         // sys_user 走全局逻辑删除（logic-delete-field: deleted）；本方法为账号级删除语义
         // （仅首页租户可删自己的账号），角色关联为物理删除、跨租户一并清理，语义一致
-        userRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, id));
+        userRoleMapper.delete(new LambdaQueryWrapper<SysUserRolePo>().eq(SysUserRolePo::getUserId, id));
     }
 }

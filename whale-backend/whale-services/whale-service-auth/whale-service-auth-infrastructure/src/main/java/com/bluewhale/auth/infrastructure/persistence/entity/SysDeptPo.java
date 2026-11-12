@@ -7,25 +7,26 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
- * 系统角色实体
+ * 系统部门实体
  *
  * @author BlueWhale
  */
 @Data
-@TableName("sys_role")
-public class SysRole implements Serializable {
+@TableName("sys_dept")
+public class SysDeptPo implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     private Long id;
     /** 所属租户ID（逻辑关联 sys_tenant.id） */
     private Long tenantId;
-    private String roleCode;
-    private String roleName;
-    private String description;
-    private Integer sortNo;
-    /** 状态：1 启用 / 0 停用 */
-    private Integer status;
+    /** 父部门ID，0 表示顶级 */
+    private Long parentId;
+    private String deptName;
+    private Integer sort;
+    private String leader;
+    /** 负责人用户ID（逻辑关联 sys_user.id，允许为空） */
+    private Long leaderUserId;
     private Integer deleted;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;

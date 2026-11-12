@@ -164,6 +164,28 @@ public interface RoleRepository {
     List<Long> listPermissionIds(Long roleId);
 
     /**
+     * 反查持有指定权限点的全部（租户, 用户）对，供权限点变更时跨租户失效用户权限缓存。
+     *
+     * <p>权限点为平台共享数据，一次变更可能影响多个租户的角色与用户；本方法单条 JOIN SQL
+     * 完成「权限 → 角色 → 用户」反查并带出角色所属租户，忽略租户上下文（不按租户过滤）。
+     * 仅限缓存失效等平台侧链路调用。</p>
+     *
+     * @param permissionId 权限点 ID
+     * @return （租户 ID, 用户 ID）对集合（去重）；无关联用户时返回空列表
+     */
+    List<UserTenantRef> listUsersByPermissionId(Long permissionId);
+
+    /**
+     * 权限点受影响用户投影：用户 ID 及其角色所属租户 ID
+     *
+     * @param tenantId 角色所属租户 ID
+     * @param userId 用户 ID
+     * @author BlueWhale
+     */
+    record UserTenantRef(long tenantId, long userId) {
+    }
+
+    /**
      * 角色分页结果：领域层自有分页载体，避免向领域层泄漏 MyBatis 分页类型。
      *
      * @param records 当前页角色聚合列表

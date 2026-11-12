@@ -3,7 +3,8 @@ package com.bluewhale.auth.infrastructure.persistence.mapper;
 import com.baomidou.mybatisplus.annotation.InterceptorIgnore;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.bluewhale.auth.infrastructure.persistence.entity.RoleTenantRef;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysRole;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysRolePo;
+import com.bluewhale.auth.infrastructure.persistence.entity.UserTenantRefPo;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
@@ -15,7 +16,7 @@ import java.util.List;
  *
  * @author BlueWhale
  */
-public interface SysRoleMapper extends BaseMapper<SysRole> {
+public interface SysRoleMapper extends BaseMapper<SysRolePo> {
 
     /**
      * 按角色 ID 批量反查角色所属租户（绕过行级租户过滤）。
@@ -32,4 +33,21 @@ public interface SysRoleMapper extends BaseMapper<SysRole> {
             + "<foreach collection='roleIds' item='roleId' open='(' separator=',' close=')'>#{roleId}</foreach>"
             + "</script>")
     List<RoleTenantRef> selectTenantRefsByIds(@Param("roleIds") Collection<Long> roleIds);
+
+    /**
+     * 单条 JOIN 反查持有指定权限点的全部（租户, 用户）对（绕过行级租户过滤）。
+     *
+     * <p>权限点变更需失效多个租户的用户权限缓存：权限 → 角色（带出所属租户）→ 用户
+     * 一次查询完成，替代「三次查询 + 内存组装」，也不产生大 IN 参数列表。</p>
+     *
+     * @param permissionId 权限点 ID
+     * @return （租户 ID, 用户 ID）对投影（DISTINCT 去重）
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT DISTINCT r.tenant_id AS tenantId, ur.user_id AS userId "
+            + "FROM sys_role_permission rp "
+            + "JOIN sys_role r ON r.id = rp.role_id AND r.deleted = 0 "
+            + "JOIN sys_user_role ur ON ur.role_id = rp.role_id "
+            + "WHERE rp.permission_id = #{permissionId}")
+    List<UserTenantRefPo> selectUserTenantRefsByPermissionId(@Param("permissionId") Long permissionId);
 }

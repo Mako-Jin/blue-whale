@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @TableName("sys_tenant")
-public class SysTenant implements Serializable {
+public class SysTenantPo implements Serializable {
 
     private static final long serialVersionUID = 1L;
 

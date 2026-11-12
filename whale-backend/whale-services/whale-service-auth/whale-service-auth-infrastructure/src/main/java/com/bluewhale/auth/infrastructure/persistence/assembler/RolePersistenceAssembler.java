@@ -3,8 +3,8 @@ package com.bluewhale.auth.infrastructure.persistence.assembler;
 import com.bluewhale.auth.domain.model.vo.RoleCode;
 import com.bluewhale.auth.domain.aggregate.RoleAggregate;
 import com.bluewhale.auth.domain.model.entity.RolePermissionAssignment;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysRole;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysRolePermission;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysRolePo;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysRolePermissionPo;
 
 /**
  * Role 聚合与其持久化对象（PO）的双向转换器（手写 Assembler，REQ-ARCH-001 / T-DDD-5）。
@@ -28,7 +28,7 @@ public final class RolePersistenceAssembler {
      * @param po 角色持久化对象
      * @return 角色聚合根
      */
-    public static RoleAggregate toDomain(SysRole po) {
+    public static RoleAggregate toDomain(SysRolePo po) {
         return RoleAggregate.reconstitute(
                 po.getId(),
                 po.getTenantId(),
@@ -47,8 +47,8 @@ public final class RolePersistenceAssembler {
      * @param role 角色聚合根
      * @return 角色持久化对象
      */
-    public static SysRole toPo(RoleAggregate role) {
-        SysRole po = new SysRole();
+    public static SysRolePo toPo(RoleAggregate role) {
+        SysRolePo po = new SysRolePo();
         po.setId(role.getId());
         po.setTenantId(role.getTenantId());
         po.setRoleCode(role.getRoleCode().value());
@@ -67,7 +67,7 @@ public final class RolePersistenceAssembler {
      * @param po 角色-权限关联持久化对象
      * @return 角色-权限分配实体
      */
-    public static RolePermissionAssignment toAssignment(SysRolePermission po) {
+    public static RolePermissionAssignment toAssignment(SysRolePermissionPo po) {
         return new RolePermissionAssignment(po.getId(), po.getRoleId(), po.getPermissionId());
     }
 
@@ -77,8 +77,8 @@ public final class RolePersistenceAssembler {
      * @param assignment 角色-权限分配实体
      * @return 角色-权限关联持久化对象
      */
-    public static SysRolePermission toAssignmentPo(RolePermissionAssignment assignment) {
-        SysRolePermission po = new SysRolePermission();
+    public static SysRolePermissionPo toAssignmentPo(RolePermissionAssignment assignment) {
+        SysRolePermissionPo po = new SysRolePermissionPo();
         po.setId(assignment.id());
         po.setRoleId(assignment.roleId());
         po.setPermissionId(assignment.permissionId());

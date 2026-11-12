@@ -1,7 +1,7 @@
 package com.bluewhale.auth.infrastructure.persistence.assembler;
 
 import com.bluewhale.auth.domain.aggregate.MenuAggregate;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysMenu;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysMenuPo;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -21,8 +21,8 @@ class MenuPersistenceAssemblerTest {
     private static final LocalDateTime CREATED = LocalDateTime.of(2026, 1, 1, 9, 0, 0);
     private static final LocalDateTime UPDATED = LocalDateTime.of(2026, 1, 2, 9, 0, 0);
 
-    private static SysMenu fullPo() {
-        SysMenu po = new SysMenu();
+    private static SysMenuPo fullPo() {
+        SysMenuPo po = new SysMenuPo();
         po.setId(5L);
         po.setTenantId(1L);
         po.setParentId(3L);
@@ -69,7 +69,7 @@ class MenuPersistenceAssemblerTest {
     @Test
     @DisplayName("领域 → PO：SysMenu 各字段逐项一致，未纳入聚合的字段保持为空")
     void shouldMapDomainToPoFieldByField() {
-        SysMenu po = MenuPersistenceAssembler.toPo(fullDomain());
+        SysMenuPo po = MenuPersistenceAssembler.toPo(fullDomain());
 
         assertEquals(5L, po.getId());
         assertEquals(3L, po.getParentId());
@@ -91,7 +91,7 @@ class MenuPersistenceAssemblerTest {
     @Test
     @DisplayName("PO → 领域：parentId/sort/menuType/visible/status 为空按默认归一化")
     void shouldNormalizeNullFields() {
-        SysMenu po = fullPo();
+        SysMenuPo po = fullPo();
         po.setParentId(null);
         po.setSort(null);
         po.setMenuType(null);

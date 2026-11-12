@@ -21,7 +21,8 @@ import java.util.concurrent.TimeUnit;
  * 网关与 whale-service-auth 共用同一键约定，保证解绑写入与两侧校验指向同一键。</p>
  *
  * <p>降级策略：Redis 不可用时 {@link #revoke} 仅告警不抛异常（角色关联已删除，权限码随即失效），
- * {@link #isRevoked} 返回未撤销，保证鉴权链路可用；两处降级分支同时经
+ * {@link #isRevoked} 默认返回未撤销（可用性优先；可经 {@code whale.security.degradation.fail-closed=true}
+ * 切换为按已撤销拒绝），保证鉴权链路可用；两处降级分支同时经
  * {@link SecurityDegradationAlerter} 输出 ERROR 级 {@code SECURITY_DEGRADATION} 告警。</p>
  *
  * @author BlueWhale
@@ -51,6 +52,8 @@ public class RedisTenantMembershipRevocationStore implements TenantMembershipRev
         if (tenantId == null || userId == null) {
             return;
         }
+        // revokedAt 取本机时钟：多实例依赖 NTP 保持时钟同步；若签发实例时钟快于撤销实例，
+        // 撤销时刻可能早于令牌 iat 而漏判，运维需保障节点间时钟偏差在秒级以内
         long revokedAtMillis = System.currentTimeMillis();
         long ttlSeconds = Math.max(tokenProvider.getAccessExpireSeconds() + TTL_BUFFER_SECONDS,
                 MIN_TTL_SECONDS);

@@ -65,6 +65,11 @@ public class PermissionInterceptor implements HandlerInterceptor {
         if (!StringUtils.hasText(required)) {
             return true;
         }
+        // 权限码判定要求登录主体：requireLogin=false + 匿名访问时 authentication 可能为 null
+        // （无认证上下文）或 AnonymousAuthenticationToken，直接按未认证处理，避免 NPE / 匿名绕过
+        if (authentication == null || !(authentication.getPrincipal() instanceof LoginUser)) {
+            throw new BizException(ErrorCode.UNAUTHORIZED);
+        }
 
         Set<String> authorities = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)

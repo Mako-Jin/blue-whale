@@ -110,6 +110,17 @@ public interface UserRepository {
     List<Long> listRoleIds(Long userId);
 
     /**
+     * 反查关联指定角色的全部用户 ID（跨租户全局查询，供权限缓存失效定位受影响用户）。
+     *
+     * <p>{@code sys_user_role} 无租户维度（角色归属租户，关联行全局唯一），本方法不按租户过滤、
+     * 不依赖租户上下文；仅限缓存失效等平台侧链路调用，业务查询禁止依赖该全局语义。</p>
+     *
+     * @param roleId 角色 ID
+     * @return 用户 ID 列表（去重）；无关联用户时返回空列表
+     */
+    List<Long> listUserIdsByRoleId(Long roleId);
+
+    /**
      * 物理删除用户与指定租户角色的关联行（成员解绑时清理租户内角色）。
      *
      * <p>只删除 {@code sys_role.tenant_id=指定租户} 的角色关联，不影响该用户在其他租户的

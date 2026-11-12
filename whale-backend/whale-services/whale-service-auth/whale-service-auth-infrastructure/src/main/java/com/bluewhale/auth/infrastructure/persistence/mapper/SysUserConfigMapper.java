@@ -1,7 +1,7 @@
 package com.bluewhale.auth.infrastructure.persistence.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysUserConfig;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysUserConfigPo;
 
 /**
  * 用户配置 Mapper（MyBatis-Plus）。
@@ -11,5 +11,5 @@ import com.bluewhale.auth.infrastructure.persistence.entity.SysUserConfig;
  *
  * @author BlueWhale
  */
-public interface SysUserConfigMapper extends BaseMapper<SysUserConfig> {
+public interface SysUserConfigMapper extends BaseMapper<SysUserConfigPo> {
 }
