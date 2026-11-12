@@ -2,6 +2,7 @@ package com.bluewhale.auth.interfaces.dto.request;
 
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
@@ -19,9 +20,11 @@ public record ConfigBatchGetRequest(
         Long tenantId,
 
         @NotEmpty(message = "userIds 不能为空")
+        @Size(max = 200, message = "userIds 最多 200 个")
         List<Long> userIds,
 
         @NotEmpty(message = "keys 不能为空")
+        @Size(max = 50, message = "keys 最多 50 个")
         List<String> keys
 ) {
 }

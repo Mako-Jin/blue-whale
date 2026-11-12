@@ -1,6 +1,7 @@
 package com.bluewhale.auth.interfaces.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 /**
  * 保存用户配置请求。
@@ -15,6 +16,7 @@ public record SaveUserConfigRequest(
         String configKey,
 
         @NotBlank(message = "configValue 不能为空")
+        @Size(max = 8192, message = "configValue 长度不能超过 8192")
         String configValue
 ) {
 }
