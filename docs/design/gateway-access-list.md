@@ -2,7 +2,7 @@
 
 | 项 | 内容 |
 |---|---|
-| 状态 | 已落地（2026-11-12，Wave 6.64 白名单 / Wave 6.65 黑名单） |
+| 状态 | 已落地（2026-11-12，Wave 6.64 白名单 / Wave 6.65 黑名单 / Wave 6.67 管理端页面） |
 | 关联需求 | REQ-ARCH-003（服务自持一级前缀）、REQ-FUNC-006（内网接口收敛） |
 | 落点 | `whale-service-auth`（数据 + 只读内部接口）、`whale-gateway`（拉取与匹配） |
 | 台账 | [whale-auth-backlog AUTH-40/AUTH-41](../plans/whale-auth-backlog.md)、[whale-gateway-backlog GW-08/GW-09](../plans/whale-gateway-backlog.md) |
@@ -43,9 +43,9 @@ CREATE TABLE sys_gateway_xxxlist (
 ```
 
 - 迁移：`V13__gateway_whitelist.sql`（15 条与旧 yml 逐字一致的种子）、`V14__gateway_blacklist.sql`；
-  均按 `(path_pattern, http_method, scope)` 判重，幂等。
-- 权限码：白名单 `sys:gateway:whitelist:*`（2360–2363）、黑名单 `sys:gateway:blacklist:*`（2364–2367），
-  为后续管理端 CRUD 预留；本轮不建菜单、不授租户管理员。
+  均按 `(path_pattern, http_method, scope)` 判重，幂等；`V15__gateway_access_menu.sql` 补管理端菜单。
+- 权限码：白名单 `sys:gateway:whitelist:*`（2360–2363）、黑名单 `sys:gateway:blacklist:*`（2364–2367）；
+  V15 起仅平台租户建菜单，权限码仍不授予业务租户管理员。
 - `status=0` 表示停用/解除封禁，保留记录便于审计；`scope` 当前仅 `PLATFORM` 参与下发。
 
 ## 3. 接口契约
@@ -83,6 +83,15 @@ DELETE /auth/v1/gateway/whitelist/{id}           sys:gateway:whitelist:delete
 - 同一 `(pathPattern, httpMethod, scope)` 唯一，重复新增或改名冲突返回参数错误码 400；
 - 删除为**物理删除**（释放唯一键，便于重新录入），仅临时停用/解封请把 `status` 置 0；
 - 写操作记审计（`targetType=sys_gateway_whitelist | sys_gateway_blacklist`），网关下一周期自动生效。
+
+### 3.2 管理端页面
+
+- 入口：系统管理 →「网关访问名单」（`/system/gateway-access`，组件键 `gateway/access`，V15 菜单种子）；
+  **仅平台租户**（`tenant_id=1`）建菜单，权限码 `sys:gateway:whitelist:list` 控制菜单与 Tab 可见性。
+- 页面为白/黑双 Tab：路径、方法、状态开关、排序、来源、备注、更新时间；支持新增 / 编辑 / 启停 / 删除，
+  删除有二次确认并提示「临时停用请用状态开关」；黑名单 Tab 顶部常驻误封风险提示。
+- 前端权限码一一对应后端：Tab 与查询用 `sys:gateway:{whitelist|blacklist}:list`，
+  按钮分别用 `:add` / `:edit` / `:delete`；状态开关复用编辑权限。
 
 ## 4. 网关动态加载与匹配
 
@@ -169,8 +178,8 @@ whale:
 
 ## 8. 后续
 
-- 管理端 CRUD 后端接口已完成（见 §3.1）；前端管理页面尚未开发，当前可直接调用接口维护。
-- 按租户下发（`scope` 扩展）需网关携带租户上下文并按租户合并，涉及匹配优先级设计。
+- 管理端页面与菜单已落地（见 §3.2）；后续按租户下发（`scope` 扩展）需网关携带租户上下文并按租户合并，
+  涉及匹配优先级设计。
 - 如需观察面：可补 `gateway.access_list.refresh{list,result}` 计数与快照条数 Gauge。
 - 应急通道：Nacos 热配置黑名单（不依赖 auth 可用性），作为本方案的第 2 优先级来源。
 
@@ -181,3 +190,4 @@ whale:
 | 2026-11-12 | 初版：V13 迁移（白名单表 + 15 条种子 + 4 个权限码）、auth 只读内部接口、网关动态拉取与本地兜底 |
 | 2026-11-12 | 追加黑名单：V14（黑名单表 + 4 个权限码）、`/internal/gateway/blacklist`、网关黑名单优先匹配（403 + 指标）；网关组件合并为 `accesslist` 包，配置前缀改为 `whale.gateway.access-list` |
 | 2026-11-12 | 追加管理端 CRUD：`/auth/v1/gateway/{whitelist\|blacklist}` 四类操作 + 权限码/审计，删除走物理删除以释放唯一键 |
+| 2026-11-12 | 追加管理端页面与菜单（V15，平台租户）：白/黑双 Tab，新增/编辑/启停/删除，黑名单误封提示 |
