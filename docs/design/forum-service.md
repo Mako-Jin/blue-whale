@@ -1,7 +1,8 @@
 # 论坛服务设计（whale-forum）
 
 > 状态：**设计稿（待评审，未落码）**
-> 关联基线：[service-catalog.md](../service-catalog.md)（§一 / §七 端口分段）、[naming-conventions.md](../naming-conventions.md)（§八 域词表须先登记 `forum` 词根与 `fm_` 表前缀）、[network-boundary.md](network-boundary.md)、[security-baseline.md](security-baseline.md)
+> 关联功能规格：[鲸议台 2D 功能规格 v1.3](../requirements/2026-11-12-forum-2d-functional-spec-v1.3.md)（需求侧唯一口径，功能编号 F-xx-xx 以该文件为准）
+> 关联基线：[service-catalog.md](../service-catalog.md)（§一 / §七 端口分段，9011 例外已登记）、[naming-conventions.md](../naming-conventions.md)（§八 域词表须先登记 `forum` 词根与 `fm_` 表前缀）、[network-boundary.md](network-boundary.md)、[security-baseline.md](security-baseline.md)
 > 关联需求：REQ-ARCH-003（网关不剥前缀）、REQ-ARCH-004（命名规范）、REQ-ARCH-005（端口清单）、REQ-SEC-026（内网边界）
 > 拟实现位置：`whale-backend/whale-services/whale-forum`、`whale-frontend/platform-apps/whale-forum`
 > 参照实现：`whale-party`（先审后发状态机）、`whale-mall`（软删释放唯一键）、`whale-music`（热榜滚动窗口）、`whale-doc`（富文本消毒与 ngram 检索）

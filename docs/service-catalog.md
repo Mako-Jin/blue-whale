@@ -86,13 +86,14 @@
 
 | 34 | `whale-iot` | whale-services | `whale-services/whale-iot` | **8088** | `/iot/**` | ✅ `lb://whale-iot`（Wave 6.02 M0；**不配 `StripPrefix`**，`/iot/internal/**` 由 internal-deny 403） | **`bluewhale_iot`**（V1 基线 6 张：`iot_product`/`iot_thing_model`/`iot_device`/`iot_telemetry`（按月分区）/`iot_command`/`iot_rule`） | `WhaleIotApplication` | IoT 设备联网平台：设备接入与认证（EMQX 认证 Webhook 提供方）、物模型（属性/事件/服务）、遥测上下行、设备影子、指令下发与回执、规则引擎（条件→动作，告警对接 `whale-alert` `/alert/internal`）。不做业务语义（MES 设备台账仍归 MES）；首期仅 MQTT，协议网关留 M4。MQTT Broker 为 EMQX（compose `bw-emqx`，1883/1884/18083）。规划：[docs/plans/wave6.02-iot.md](plans/wave6.02-iot.md) | **M0 骨架已落地 / 可启动 + M1–M3 已落地**（Wave 6.02；8088 / `/iot/**`；M1：产品/物模型/设备 CRUD + 三元组签发 + EMQX 认证 Webhook；M2：遥测落库（物模型分流）+ 设备影子（reported/desired）+ 单设备 SSE 实时推送 + 指令下发（`message_id` 幂等）/回执收敛 + 内网实时态只读；M3：规则引擎（条件 JSON + 持续时长去抖 + 静默期 → `whale-alert` `/alert/internal/record`）+ 前端子应用 8121；`mvn test` **76 项全绿**；实机待 EMQX 联调） |
 | 35 | `whale-twin` | whale-services | `whale-services/whale-twin` | **8089** | `/twin/**` | ✅ `lb://whale-twin`（Wave 6.03 M0；**不配 `StripPrefix`**，`/twin/internal/**` 由 internal-deny 403） | **`bluewhale_twin`**（**9 表** = 7 张业务表 + `api_log` + `audit_log`；V1 基线 5 张：`twin_scene`/`twin_entity`/`twin_binding`/`twin_marker`/`twin_snapshot`，V2 告警 `twin_alert`，V3 确认字段，V4 全局告警索引，V5 投递 `twin_alert_dispatch`，V6 公共日志表 `api_log`+`audit_log`） | `WhaleTwinApplication` | 数字孪生平台：3D 场景管理（场景/实体/场景树）、孪生实体与数据源绑定（`iot_device` / `internal_api`）、SSE 实时驱动 3D 呈现、标注/热点、发布快照与回滚。与 whale-scene（8097，2D 底座）互不改表；模型资产 GLB/GLTF 存 whale-file（8085）；实时数据取自 whale-iot internal 只读接口，不自连 MQTT。前端子应用 8122（`whale-common-three` 首个消费方）。规划：[docs/plans/wave6-iot-twin-ai-assistant-plan.md](plans/wave6-iot-twin-ai-assistant-plan.md) §三 | **M0–M3 及 Wave 6.04–6.12 全量落地 / 已实机起服（2026-11-10，healthy）**（自 Wave 6.03 起；8089 / `/twin/**`；M0：V1 DDL 5 表 + ArchUnit 门禁；M1：场景/实体场景树 CRUD（环检测）+ 权限 2313 + 前端子应用 8122（场景管理 + 3D 查看器：GLB 经 whale-file 预览流加载、OrbitControls、实体树编辑）；M2：数据绑定 CRUD（`iot_device`/`internal_api`，绑定键/映射校验）+ 场景级 SSE（`/twin/scenes/{id}/stream`）+ 运行时轮询 whale-iot 内网实时态（`pollIntervalMs` 到期 + 同 tick 设备共享 + 绑定粒度差分只推变化）+ 前端实时联动（`thresholds` 驱动 emissive 变色、实时面板）；`mvn test` **32 项全绿**；实机待启动。后续已落地：6.03 M3 标注/热点 + 发布快照/回滚、6.04 M1「AI 解读」入口、6.05 AI 解读流式化 + 标注拾取 + internal_api 绑定源、6.06 阈值告警持久化 + SSE alert 帧、6.07 规则引擎 + 告警确认、6.08 无头告警消费 + 跨场景总览、6.09 场景行级角标、6.10 M0 webhook 外发 / M1 站内信通道 / M2 场景通知设置 + 投递记录、6.11 恢复通知（`twin.alert.recovered`）+ 每日静默时段（跨零点、critical 可穿透）+ 接收人选择器（`GET /twin/alert-notify/recipients` 走 auth 内网通讯录）与 V6 公共日志表、6.12 接收人分页（`total`）+ 部门树筛选（`GET /twin/alert-notify/departments`，选父部门含子部门） **） |
+| 36 | `whale-forum` | whale-services | `whale-services/whale-forum` | **9011** | `/forum/**` | 🟡 规划（Wave 6.43；**不配 `StripPrefix`**，`/forum/internal/**` 由 internal-deny 403） | **`bluewhale_forum`**（规划：V1 基线 `audit_log`/`api_log` + V2 业务 8 张 `fm_board`/`fm_thread`/`fm_thread_edit_history`/`fm_post`/`fm_reaction`/`fm_moderation_record`/`fm_report`/`fm_sensitive_hit`；后续 `fm_tag`/`fm_vote`/`fm_user_sanction`/`fm_hot_snapshot`/`fm_event_log`/`fm_notify_outbox`） | `WhaleForumApplication` | 员工论坛（鲸议台）：版块 / 帖子 / 楼层 / 互动 / 审核 / 举报 / 热榜 / 检索。**关键口径**：① 楼层号由 `next_floor` 条件更新分配、软删不回收，楼中楼不占楼层号；② 唯一编码软删改写 `#D{id}` 释放；③ 计数以 DB 条件更新为准 + 每日对账；④ 匿名库内存 `user_id`、HMAC 稳定编号、不计经验不进金榜；⑤ 搜索走 MySQL ngram（**不引 ES**）、埋点落 `fm_event_log`（**不引 ClickHouse**）。权限 **2330–2359** / 菜单 **510–519** / 角色 `forum_moderator`；P0 22–24 人日。详见 [功能规格 v1.3](requirements/2026-11-12-forum-2d-functional-spec-v1.3.md)、[设计稿](design/forum-service.md)、[v1.2 评审](reviews/2026-11-12-forum-2d-design-review.md) | 🟡 规划（Wave 6.43，未落码） |
 
 > 「对外一级前缀」= 服务自持的前缀，网关**只转发、不剥离**（REQ-ARCH-003）。
 > 网关 `discovery.locator.enabled=true` 已开启服务发现路由：`lb://whale-<域>` → `http://<服务实例>`。
 
 ---
 
-## 二、网关路由映射（`whale-gateway`，现配 34 条，含 1 条规划路由）
+## 二、网关路由映射（`whale-gateway`，现配 35 条，含 2 条规划路由）
 
 | 路由 id | 断言前缀 | 目标 URI | 对应服务 | 状态 |
 |---|---|---|---|---|
@@ -113,6 +114,7 @@
 | `whale-im` | `Path=/im/**`（**排除** `/im/ws`） | `lb://whale-im` | whale-im | 🟡 规划（Wave 5.52；**不配 `StripPrefix`**） |
 | `whale-im-ws` | `Path=/im/ws` | `lb:ws://whale-im` | whale-im | 🟡 规划（Wave 5.52；保留 `Upgrade`/`Connection` 头，鉴权走 60s 一次性 ticket） |
 | `whale-archive` | `Path=/archive/**` | `lb://whale-archive` | whale-archive | ✅ 已配（Wave 5.53 M1；**不配 `StripPrefix`**，内网 `/archive/internal/**` 由 internal-deny 403） |
+| `whale-forum` | `Path=/forum/**` | `lb://whale-forum` | whale-forum | 🟡 规划（Wave 6.43；**不配 `StripPrefix`**，内网 `/forum/internal/**` 由 internal-deny 403） |
 | whale-erp | `Path=/erp/**` | `lb://whale-erp` | whale-erp | ✅ 已配（2026-10-25） |
 | whale-mes | `Path=/mes/**` | `lb://whale-mes` | whale-mes | ✅ 已配（2026-10-25） |
 | whale-pdm | `Path=/pdm/**` | `lb://whale-pdm` | whale-pdm | ✅ 已配（2026-10-25） |
@@ -299,9 +301,9 @@
 | **8000–8099** | **前端 dev server**：基座 `8000`、admin `8001`、form-designer `8002`、workflow-designer `8003`、agent `8004` | 已落地（C-01 已解） |
 | **8080** | **网关（唯一后端入口）** | 已运行 |
 | **8081–8099** | **核心服务** | auth 8081、job 8082、workflow 8083、form 8084、file 8085、pay 8086、**assistant 8087（M0–M3 已落地，Wave 6.01）、iot 8088（M0–M3 已落地，Wave 6.02）、twin 8089（M0–M3 及 6.04–6.11 已落地，Wave 6.03 起）、agent 8090、im 8091、ai 8092（Python）、archive 8093、message 8094、doc 8095（M1 骨架）、music 8096（M0–M5 已落地）、scene 8097（M1/M2 2D 已落地）、video 8098（M0–M5 已落地）**（8087 曾随 `whale-i18n` 服务删除释放，Wave 5.50；现由 `whale-assistant` 复用，Wave 6.01） |
-| **8101–8199** | **qiankun 子应用 + 运维端** | portal 8101、erp 8102、oa 8103、ops 8104、mes 8105、pdm 8106、**im 8107、pm 8108、contract 8109、doc 8110、music 8111（M0–M5 已落地）、scene 8112（M1/M2 已落地）、crm 8113（Step 1a/1b + M3 + M4-4a + M5 + M6 已落地）、video 8114（M0–M5 已落地）、assistant 8120（M1 工作台已落地，Wave 6.01；8117 已被 whale-mail 占用，M3 修正）、iot 8121（四页已落地，Wave 6.02 M3）、twin 8122（M1+M2 已落地：绑定管理与实时联动，Wave 6.03）** |
+| **8101–8199** | **qiankun 子应用 + 运维端** | portal 8101、erp 8102、oa 8103、ops 8104、mes 8105、pdm 8106、**im 8107、pm 8108、contract 8109、doc 8110、music 8111（M0–M5 已落地）、scene 8112（M1/M2 已落地）、crm 8113（Step 1a/1b + M3 + M4-4a + M5 + M6 已落地）、video 8114（M0–M5 已落地）、assistant 8120（M1 工作台已落地，Wave 6.01；8117 已被 whale-mail 占用，M3 修正）、iot 8121（四页已落地，Wave 6.02 M3）、twin 8122（M1+M2 已落地：绑定管理与实时联动，Wave 6.03）、forum 8123（规划，Wave 6.43）** |
 | **8848 / 8849 / 9848 / 9849** | **Nacos** | 已运行 |
-| **9001–9099** | **业务应用** | erp 9001、mes 9002、pdm 9003、oa 9004、**pm 9005、contract 9006、crm 9007（M0–M6 已落地）** |
+| **9001–9099** | **业务应用** | erp 9001、mes 9002、pdm 9003、oa 9004、**pm 9005、contract 9006、crm 9007（M0–M6 已落地）、lms 9008、party 9009、mall 9010、forum 9011（规划，Wave 6.43）**；**9011 为例外登记**：8081–8100 已满且 8101–8199 归前端子应用段，`whale-forum` 虽属 `whale-services` 分组仍借用本段，后续社区型服务顺延 9012 起 |
 | **9101–9199** | **运维（ops）** | audit 9101、monitor 9102、alert 9103 |
 | **9201–9299** | **注册与配置** | config 9201 |
 
