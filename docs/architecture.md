@@ -108,7 +108,10 @@
   - 网关：**权限中心（auth 库 `sys_gateway_whitelist`）为准**，网关每 60s 拉取
     `/auth/v1/internal/gateway/whitelist` 动态生效；本地 `whale.gateway.white-list`
     保留为兜底，两侧取并集（远程失败或为空时仅本地生效，登录链路不因 auth 抖动全量 401）。
-    详见 [gateway-whitelist.md](design/gateway-whitelist.md)。
+    详见 [gateway-access-list.md](design/gateway-access-list.md)。
+  - 黑名单：权限中心 auth 库 `sys_gateway_blacklist` 为准，网关每 60s 拉取
+    `/auth/v1/internal/gateway/blacklist`；**黑名单优先于白名单**——命中即 403
+    `{"code":403,"message":"禁止访问"}`，不再校验令牌与白名单（指标 `gateway.auth.rejected{reason=path_blacklisted}`）。
   - 服务：`whale-service-auth` `SecurityConfig#authorizeHttpRequests`（`/auth/v1/login`、`/auth/v1/refresh`、`/auth/v1/logout` …）
 
 > **反面案例（Wave 5.1f 实测根因，AUTH-29）**：网关曾对 `/auth/**`、`/audit/**` 配 `StripPrefix=1`，

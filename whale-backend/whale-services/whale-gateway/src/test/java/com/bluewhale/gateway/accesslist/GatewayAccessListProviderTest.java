@@ -1,0 +1,172 @@
+package com.bluewhale.gateway.accesslist;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import reactor.core.publisher.Mono;
+
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+
+/**
+ * {@link GatewayAccessListProvider} 单元测试：白名单/黑名单各自独立刷新
+ * （成功替换、空结果清空、失败保留快照）、方法匹配、防重入与开关。
+ *
+ * @author BlueWhale
+ */
+@ExtendWith(MockitoExtension.class)
+class GatewayAccessListProviderTest {
+
+    private static final String PATH = "/demo/open/ping";
+
+    @Mock
+    private AuthGatewayAccessListClient client;
+
+    private GatewayAccessListProperties properties;
+
+    private GatewayAccessListProvider provider;
+
+    @BeforeEach
+    void setUp() {
+        properties = new GatewayAccessListProperties();
+        provider = new GatewayAccessListProvider(properties, client);
+        lenient().when(client.fetchWhitelist()).thenReturn(Mono.just(List.of()));
+        lenient().when(client.fetchBlacklist()).thenReturn(Mono.just(List.of()));
+    }
+
+    @Test
+    @DisplayName("refresh：白名单拉取成功后命中远程规则")
+    void shouldReplaceWhitelistOnSuccess() {
+        when(client.fetchWhitelist())
+                .thenReturn(Mono.just(List.of(new GatewayAccessListRule("/demo/open/**", "*"))));
+
+        provider.refresh();
+
+        assertTrue(provider.matchesWhitelist(PATH, "GET"));
+        assertFalse(provider.matchesWhitelist("/demo/closed/ping", "GET"));
+    }
+
+    @Test
+    @DisplayName("refresh：白名单拉取成功但为空时清空快照（回落本地配置）")
+    void shouldClearWhitelistOnEmptyResult() {
+        when(client.fetchWhitelist())
+                .thenReturn(Mono.just(List.of(new GatewayAccessListRule("/demo/open/**", "*"))));
+        provider.refresh();
+        assertTrue(provider.matchesWhitelist(PATH, "GET"));
+
+        when(client.fetchWhitelist()).thenReturn(Mono.just(List.of()));
+        provider.refresh();
+
+        assertFalse(provider.matchesWhitelist(PATH, "GET"));
+    }
+
+    @Test
+    @DisplayName("refresh：白名单拉取失败时保留上一份快照")
+    void shouldKeepWhitelistOnFailure() {
+        when(client.fetchWhitelist())
+                .thenReturn(Mono.just(List.of(new GatewayAccessListRule("/demo/open/**", "*"))));
+        provider.refresh();
+
+        when(client.fetchWhitelist()).thenReturn(Mono.error(new IllegalStateException("auth unavailable")));
+        provider.refresh();
+
+        assertTrue(provider.matchesWhitelist(PATH, "GET"));
+    }
+
+    @Test
+    @DisplayName("matchesWhitelist：方法不匹配时不放行")
+    void shouldNotMatchWhitelistWhenMethodDiffers() {
+        when(client.fetchWhitelist())
+                .thenReturn(Mono.just(List.of(new GatewayAccessListRule("/demo/open/**", "GET"))));
+        provider.refresh();
+
+        assertTrue(provider.matchesWhitelist(PATH, "GET"));
+        assertFalse(provider.matchesWhitelist(PATH, "POST"));
+    }
+
+    @Test
+    @DisplayName("refresh：黑名单拉取成功后命中封禁规则")
+    void shouldReplaceBlacklistOnSuccess() {
+        when(client.fetchBlacklist())
+                .thenReturn(Mono.just(List.of(new GatewayAccessListRule("/pay/**", "*"))));
+
+        provider.refresh();
+
+        assertTrue(provider.matchesBlacklist("/pay/v1/order", "POST"));
+        assertFalse(provider.matchesBlacklist("/demo/open/ping", "POST"));
+    }
+
+    @Test
+    @DisplayName("refresh：黑名单拉取成功但为空时解除全部封禁")
+    void shouldClearBlacklistOnEmptyResult() {
+        when(client.fetchBlacklist())
+                .thenReturn(Mono.just(List.of(new GatewayAccessListRule("/pay/**", "*"))));
+        provider.refresh();
+        assertTrue(provider.matchesBlacklist("/pay/v1/order", "POST"));
+
+        when(client.fetchBlacklist()).thenReturn(Mono.just(List.of()));
+        provider.refresh();
+
+        assertFalse(provider.matchesBlacklist("/pay/v1/order", "POST"));
+    }
+
+    @Test
+    @DisplayName("refresh：黑名单拉取失败时保留上一份封禁快照")
+    void shouldKeepBlacklistOnFailure() {
+        when(client.fetchBlacklist())
+                .thenReturn(Mono.just(List.of(new GatewayAccessListRule("/pay/**", "*"))));
+        provider.refresh();
+
+        when(client.fetchBlacklist()).thenReturn(Mono.error(new IllegalStateException("auth unavailable")));
+        provider.refresh();
+
+        assertTrue(provider.matchesBlacklist("/pay/v1/order", "POST"));
+    }
+
+    @Test
+    @DisplayName("refresh：白名单失败不影响黑名单刷新（独立降级）")
+    void shouldRefreshBlacklistIndependently() {
+        when(client.fetchWhitelist()).thenReturn(Mono.error(new IllegalStateException("timeout")));
+        when(client.fetchBlacklist())
+                .thenReturn(Mono.just(List.of(new GatewayAccessListRule("/pay/**", "*"))));
+
+        provider.refresh();
+
+        assertTrue(provider.matchesBlacklist("/pay/v1/order", "GET"));
+        assertFalse(provider.matchesWhitelist("/pay/v1/order", "GET"));
+    }
+
+    @Test
+    @DisplayName("refresh：同一名单上一次未结束时跳过本次刷新")
+    void shouldSkipWhenPreviousRefreshInFlight() {
+        when(client.fetchWhitelist()).thenReturn(Mono.never());
+
+        provider.refresh();
+        provider.refresh();
+
+        verify(client, times(1)).fetchWhitelist();
+        verify(client, times(2)).fetchBlacklist();
+    }
+
+    @Test
+    @DisplayName("refresh：动态加载关闭时不发起拉取")
+    void shouldSkipWhenDisabled() {
+        properties.setEnabled(false);
+
+        provider.refresh();
+
+        verifyNoInteractions(client);
+        assertFalse(provider.matchesWhitelist(PATH, "GET"));
+        assertFalse(provider.matchesBlacklist(PATH, "GET"));
+    }
+}

@@ -290,15 +290,17 @@ whale:
       # Wave 5.61 M3 第三方电子签章回调：三方平台匿名回调，安全依赖渠道 HMAC/RSA 验签
       # + 时间戳窗口 + provider_event_id 幂等；仅放行该前缀，其余 /contract/** 仍须 JWT。
       - /contract/sign/callback/**
-    # 白名单动态加载：以权限中心（whale-service-auth）DB 为准，网关按 refresh-interval-ms 周期拉取
-    # GET /auth/v1/internal/gateway/whitelist（内部令牌头 + 800ms 超时），与上方 white-list 取并集。
-    # 远程失败保留上一份快照、远程为空仅用本地配置，保证 auth 抖动时登录/刷新链路仍可用。
-    whitelist-dynamic:
-      enabled: ${WHALE_GATEWAY_WHITELIST_DYNAMIC_ENABLED:true}
-      uri: ${WHALE_GATEWAY_WHITELIST_URI:lb://whale-service-auth/auth/v1/internal/gateway/whitelist}
-      refresh-interval-ms: ${WHALE_GATEWAY_WHITELIST_REFRESH_INTERVAL_MS:60000}
-      initial-delay-ms: ${WHALE_GATEWAY_WHITELIST_INITIAL_DELAY_MS:5000}
-      timeout-millis: ${WHALE_GATEWAY_WHITELIST_TIMEOUT_MILLIS:800}
+    # 访问名单动态加载：以权限中心（whale-service-auth）DB 为准，网关按 refresh-interval-ms 周期拉取
+    #   白名单 GET /auth/v1/internal/gateway/whitelist → 与上方 white-list 取并集；
+    #   黑名单 GET /auth/v1/internal/gateway/blacklist → 优先级高于白名单，命中即 403。
+    # 远程失败保留上一份快照；白名单另有本地 white-list 兜底，避免 auth 抖动导致登录链路 401。
+    access-list:
+      enabled: ${WHALE_GATEWAY_ACCESS_LIST_ENABLED:true}
+      whitelist-uri: ${WHALE_GATEWAY_WHITELIST_URI:lb://whale-service-auth/auth/v1/internal/gateway/whitelist}
+      blacklist-uri: ${WHALE_GATEWAY_BLACKLIST_URI:lb://whale-service-auth/auth/v1/internal/gateway/blacklist}
+      refresh-interval-ms: ${WHALE_GATEWAY_ACCESS_LIST_REFRESH_INTERVAL_MS:60000}
+      initial-delay-ms: ${WHALE_GATEWAY_ACCESS_LIST_INITIAL_DELAY_MS:5000}
+      timeout-millis: ${WHALE_GATEWAY_ACCESS_LIST_TIMEOUT_MILLIS:800}
       # 与服务侧 InternalTokenFilter 共享令牌（生产必须配置 WHALE_INTERNAL_TOKEN）
       internal-token: ${WHALE_INTERNAL_TOKEN:}
       internal-token-header: X-Internal-Token

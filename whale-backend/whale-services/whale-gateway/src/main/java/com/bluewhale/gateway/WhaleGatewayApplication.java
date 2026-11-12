@@ -8,7 +8,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 /**
  * API 网关启动类
  *
- * <p>{@code @EnableScheduling}：启用白名单动态刷新（{@code GatewayWhitelistProvider} 定时拉取）。</p>
+ * <p>{@code @EnableScheduling}：启用访问名单（白名单 / 黑名单）动态刷新（{@code GatewayAccessListProvider} 定时拉取）。</p>
  *
  * @author BlueWhale
  */

@@ -1,12 +1,12 @@
 package com.bluewhale.gateway.filter;
 
+import com.bluewhale.gateway.accesslist.GatewayAccessListProvider;
 import com.bluewhale.gateway.common.GatewayResponse;
 import com.bluewhale.gateway.config.WhaleGatewayProperties;
 import com.bluewhale.gateway.security.MembershipRevocationChecker;
 import com.bluewhale.gateway.security.TenantStatusChecker;
 import com.bluewhale.gateway.security.TokenBlacklistChecker;
 import com.bluewhale.gateway.security.UserAccessRevocationChecker;
-import com.bluewhale.gateway.whitelist.GatewayWhitelistProvider;
 import com.bluewhale.security.token.TokenTimeSupport;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
@@ -98,6 +98,9 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
     /** 拒绝原因：强制改密未完成 */
     private static final String REASON_PASSWORD_CHANGE_REQUIRED = "password_change_required";
 
+    /** 拒绝原因：请求路径命中黑名单 */
+    private static final String REASON_PATH_BLACKLISTED = "path_blacklisted";
+
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
     private final WhaleGatewayProperties properties;
     private final TokenBlacklistChecker tokenBlacklistChecker;
@@ -111,8 +114,8 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
 
     private final UserAccessRevocationChecker userAccessRevocationChecker;
 
-    /** 远程白名单提供者（权限中心下发 + 本地配置兜底） */
-    private final GatewayWhitelistProvider gatewayWhitelistProvider;
+    /** 远程访问名单提供者（黑名单优先 + 白名单与本地配置兜底） */
+    private final GatewayAccessListProvider accessListProvider;
 
     /**
      * 构造过滤器，注入网关配置、令牌黑名单、租户状态与撤销校验器
@@ -123,21 +126,21 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
      * @param membershipRevocationChecker 租户成员撤销校验器（解绑后存量令牌拒绝）
      * @param userAccessRevocationChecker 用户级撤销校验器（停用/删除/改密后存量令牌拒绝）
      * @param meterRegistryProvider       Micrometer 指标注册表提供者，缺省时返回 {@code null} 表示不采集指标
-     * @param gatewayWhitelistProvider    远程白名单提供者（与本地 white-list 取并集）
+     * @param accessListProvider          远程访问名单提供者（黑名单优先，白名单与本地配置取并集）
      */
     public JwtAuthGlobalFilter(WhaleGatewayProperties properties, TokenBlacklistChecker tokenBlacklistChecker,
                                TenantStatusChecker tenantStatusChecker,
                                MembershipRevocationChecker membershipRevocationChecker,
                                UserAccessRevocationChecker userAccessRevocationChecker,
                                ObjectProvider<MeterRegistry> meterRegistryProvider,
-                               GatewayWhitelistProvider gatewayWhitelistProvider) {
+                               GatewayAccessListProvider accessListProvider) {
         this.properties = properties;
         this.tokenBlacklistChecker = tokenBlacklistChecker;
         this.tenantStatusChecker = tenantStatusChecker;
         this.membershipRevocationChecker = membershipRevocationChecker;
         this.userAccessRevocationChecker = userAccessRevocationChecker;
         this.meterRegistryProvider = meterRegistryProvider;
-        this.gatewayWhitelistProvider = gatewayWhitelistProvider;
+        this.accessListProvider = accessListProvider;
     }
 
     @Override
@@ -145,6 +148,12 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getURI().getPath();
         String method = request.getMethod() == null ? null : request.getMethod().name();
+
+        // 黑名单优先于白名单：命中封禁路径立即 403，不再校验令牌/白名单
+        if (accessListProvider.matchesBlacklist(path, method)) {
+            log.warn("请求命中路径黑名单，拒绝访问: path={}, method={}", path, method);
+            return pathForbidden(exchange, REASON_PATH_BLACKLISTED);
+        }
 
         if (isWhiteListed(path, method)) {
             // 白名单不携带可信身份：清除客户端伪造的身份/租户头，避免审计归属与下游租户上下文被污染
@@ -263,7 +272,7 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
     private boolean isWhiteListed(String path, String method) {
         boolean localHit = properties.getWhiteList().stream()
                 .anyMatch(pattern -> pathMatcher.match(pattern, path));
-        return localHit || gatewayWhitelistProvider.matches(path, method);
+        return localHit || accessListProvider.matchesWhitelist(path, method);
     }
 
     /**
@@ -359,6 +368,27 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
             response.getHeaders().set(TraceIdGlobalFilter.TRACE_ID_HEADER, traceId);
         }
         String body = GatewayResponse.of(401, "未认证").toJson();
+        DataBuffer buffer = response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8));
+        return response.writeWith(Mono.just(buffer));
+    }
+
+    /**
+     * 返回 403 路径封禁 JSON 响应（黑名单命中），提示信息为服务端固定文案
+     *
+     * @param exchange 当前请求上下文
+     * @param reason   拒绝原因（用于指标标签）
+     * @return 写出响应完成的信号
+     */
+    private Mono<Void> pathForbidden(ServerWebExchange exchange, String reason) {
+        countRejected(reason);
+        ServerHttpResponse response = exchange.getResponse();
+        response.setStatusCode(HttpStatus.FORBIDDEN);
+        response.getHeaders().setContentType(MediaType.parseMediaType("application/json;charset=UTF-8"));
+        String traceId = exchange.getRequest().getHeaders().getFirst(TraceIdGlobalFilter.TRACE_ID_HEADER);
+        if (traceId != null && !traceId.isBlank()) {
+            response.getHeaders().set(TraceIdGlobalFilter.TRACE_ID_HEADER, traceId);
+        }
+        String body = GatewayResponse.of(HttpStatus.FORBIDDEN.value(), "禁止访问").toJson();
         DataBuffer buffer = response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8));
         return response.writeWith(Mono.just(buffer));
     }
