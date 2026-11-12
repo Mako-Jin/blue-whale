@@ -1,4 +1,4 @@
-package com.bluewhale.auth.infrastructure.password;
+package com.bluewhale.auth.starter.trigger;
 
 import com.bluewhale.auth.application.model.TenantPasswordPolicy;
 import com.bluewhale.auth.application.service.TenantPasswordPolicyService;

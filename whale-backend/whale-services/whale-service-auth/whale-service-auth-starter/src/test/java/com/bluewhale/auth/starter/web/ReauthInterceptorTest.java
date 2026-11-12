@@ -1,4 +1,4 @@
-package com.bluewhale.auth.infrastructure.security;
+package com.bluewhale.auth.starter.web;
 
 import com.bluewhale.auth.application.service.ReauthAppService;
 import com.bluewhale.auth.application.security.ReauthRequiredException;

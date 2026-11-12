@@ -68,17 +68,16 @@ class AuthArchitectureTest {
                     "com.bluewhale.security..");
 
     /**
-     * 基础设施层实现端口与查询（六边形出口方向），只允许触达应用层的
-     * port / model / event / security（异常），编排入口 {@code application.service}
-     * 的引用仅限既有的 5 处触发型组件（监听器 / 定时任务 / 缓存加载 / MVC 拦截），
-     * 服务实现 {@code service.impl} 必须不可见——后续拦截器迁出 starter/web 后应
-     * 进一步收紧为禁止全部 {@code application.service}。
+     * 基础设施层只实现端口与持久化适配，不得触达应用服务（Wave 6.42 收紧：
+     * 编排应用服务的触发型组件——MVC 拦截器 / 定时任务——已上移 starter 模块的
+     * {@code starter.web} / {@code starter.trigger}；领域事件副作用适配器
+     * （如 MailProvisionListener，只读聚合不调应用服务）留在 infrastructure）。
      */
     @ArchTest
-    static final ArchRule infrastructure_must_not_depend_on_service_impl = noClasses()
+    static final ArchRule infrastructure_must_not_depend_on_application_service = noClasses()
             .that().resideInAPackage("com.bluewhale.auth.infrastructure..")
             .should().dependOnClassesThat().resideInAPackage(
-                    "com.bluewhale.auth.application.service.impl..");
+                    "com.bluewhale.auth.application.service..");
 
     @ArchTest
     static final ArchRule interfaces_must_not_depend_on_infrastructure_or_domain = noClasses()

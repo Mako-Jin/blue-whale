@@ -1,4 +1,4 @@
-package com.bluewhale.auth.infrastructure.security;
+package com.bluewhale.auth.starter.web;
 
 import com.bluewhale.auth.application.service.ReauthAppService;
 import com.bluewhale.auth.application.security.ReauthRequiredException;
@@ -19,7 +19,7 @@ import java.util.Locale;
 /**
  * {@link RequireReauth} 二次认证拦截器（Wave 6.22）
  *
- * <p>在 {@link PermissionInterceptor} 之后执行：命中注解或路径规则 → 校验请求头
+ * <p>在 {@link com.bluewhale.auth.infrastructure.security.PermissionInterceptor} 之后执行：命中注解或路径规则 → 校验请求头
  * {@code X-Reauth-Token} 是否为当前用户的有效 step-up 凭证；无效时抛
  * {@link ReauthRequiredException}（HTTP 428 + 业务码 42801），由前端拦截器引导验密后重放。</p>
  *

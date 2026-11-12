@@ -1,12 +1,10 @@
-package com.bluewhale.auth.infrastructure.config;
+package com.bluewhale.auth.starter.web;
 
 import com.bluewhale.auth.infrastructure.security.PermissionInterceptor;
-import com.bluewhale.auth.infrastructure.security.ReauthInterceptor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
-import com.bluewhale.auth.application.service.ReauthAppService;
 
 /**
  * WebMvc 拦截器注册（Wave 6.22 从 SecurityConfig 拆出）
