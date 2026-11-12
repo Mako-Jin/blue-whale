@@ -5,7 +5,16 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Button, Card, Empty, Input, List, Space, Spin, Tag, Typography, message } from 'antd';
-import { createPost, fetchPosts, fetchThread, type PostItem, type ThreadDetail } from '../api/forum';
+import {
+  addReaction,
+  cancelReaction,
+  createPost,
+  fetchPosts,
+  fetchThread,
+  type PostItem,
+  type ReactionState,
+  type ThreadDetail,
+} from '../api/forum';
 import { hasPermission } from '../api/client';
 
 const { Text, Paragraph } = Typography;
@@ -36,6 +45,19 @@ export default function ThreadDetailPage({ threadId, onBack }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
+  const [reaction, setReaction] = useState<ReactionState | null>(null);
+  const [reacting, setReacting] = useState<'LIKE' | 'COLLECT' | null>(null);
+
+  /** 详情响应已经带按钮态与计数，直接落地，避免再打一轮接口 */
+  const applyThread = useCallback((data: ThreadDetail) => {
+    setThread(data);
+    setReaction({
+      liked: data.liked ?? false,
+      collected: data.collected ?? false,
+      likeCount: data.likeCount ?? 0,
+      collectCount: data.collectCount ?? 0,
+    });
+  }, []);
 
   const loadPosts = useCallback(() => {
     fetchPosts(threadId, 1, 100)
@@ -47,13 +69,32 @@ export default function ThreadDetailPage({ threadId, onBack }: Props) {
     setLoading(true);
     fetchThread(threadId)
       .then((data) => {
-        setThread(data);
+        applyThread(data);
         setError(null);
         loadPosts();
       })
       .catch((err: unknown) => setError(err instanceof Error ? err.message : '加载失败'))
       .finally(() => setLoading(false));
-  }, [threadId, loadPosts]);
+  }, [threadId, loadPosts, applyThread]);
+
+  /** 投花/藏帖：服务端返回最新选中态与计数，前端不本地加减 */
+  const onToggleReaction = async (type: 'LIKE' | 'COLLECT') => {
+    const active = type === 'LIKE' ? reaction?.liked : reaction?.collected;
+    setReacting(type);
+    try {
+      const next = active
+        ? await cancelReaction(threadId, type)
+        : await addReaction(threadId, type);
+      setReaction(next);
+      void message.success(
+        type === 'LIKE' ? (next.liked ? '已投花' : '已取消投花') : next.collected ? '已藏帖' : '已取消藏帖',
+      );
+    } catch (err: unknown) {
+      void message.error(err instanceof Error ? err.message : '操作失败');
+    } finally {
+      setReacting(null);
+    }
+  };
 
   const submitReply = async () => {
     const content = reply.trim();
@@ -69,7 +110,7 @@ export default function ThreadDetailPage({ threadId, onBack }: Props) {
       loadPosts();
       // 回复数由服务端累加，重新取详情保证计数与列表一致
       const fresh = await fetchThread(threadId);
-      setThread(fresh);
+      applyThread(fresh);
     } catch (err: unknown) {
       void message.error(err instanceof Error ? err.message : '回复失败');
     } finally {
@@ -97,6 +138,7 @@ export default function ThreadDetailPage({ threadId, onBack }: Props) {
 
   const replyable = thread.status === 'PUBLISHED' || thread.status === 'SOLVED';
   const canReply = hasPermission('sys:forum:post:add');
+  const canReact = hasPermission('sys:forum:reaction:use');
 
   return (
     <div className="forum-page">
@@ -130,7 +172,7 @@ export default function ThreadDetailPage({ threadId, onBack }: Props) {
           <Space size={12}>
             <Text type="secondary">回复 {thread.replyCount}</Text>
             <Text type="secondary">浏览 {thread.viewCount}</Text>
-            <Text type="secondary">投花 {thread.likeCount}</Text>
+            <Text type="secondary">投花 {reaction?.likeCount ?? thread.likeCount}</Text>
           </Space>
         }
         bordered={false}
@@ -147,6 +189,24 @@ export default function ThreadDetailPage({ threadId, onBack }: Props) {
         {thread.tags ? (
           <Paragraph type="secondary">标签：{thread.tags}</Paragraph>
         ) : null}
+        <Space style={{ marginTop: 12 }}>
+          <Button
+            type={reaction?.liked ? 'primary' : 'default'}
+            disabled={!canReact}
+            loading={reacting === 'LIKE'}
+            onClick={() => onToggleReaction('LIKE')}
+          >
+            {reaction?.liked ? '已投花' : '投花'} {reaction?.likeCount ?? 0}
+          </Button>
+          <Button
+            type={reaction?.collected ? 'primary' : 'default'}
+            disabled={!canReact}
+            loading={reacting === 'COLLECT'}
+            onClick={() => onToggleReaction('COLLECT')}
+          >
+            {reaction?.collected ? '已藏帖' : '藏帖'} {reaction?.collectCount ?? 0}
+          </Button>
+        </Space>
       </Card>
 
       <List

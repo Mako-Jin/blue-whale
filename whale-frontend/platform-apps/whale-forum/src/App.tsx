@@ -9,11 +9,13 @@ import { fetchBoards, type BoardItem } from './api/forum';
 import ThreadListPage from './pages/ThreadListPage';
 import ThreadDetailPage from './pages/ThreadDetailPage';
 import AdminPage from './pages/AdminPage';
+import HotPage from './pages/HotPage';
+import CollectionsPage from './pages/CollectionsPage';
 
 const { Text } = Typography;
 
 interface ViewState {
-  kind: 'list' | 'thread' | 'admin';
+  kind: 'list' | 'thread' | 'admin' | 'hot' | 'collections';
   boardId?: string;
   threadId?: string;
 }
@@ -83,6 +85,14 @@ export default function App() {
     setView((prev) => ({ kind: 'admin', boardId: prev.boardId }));
   }, []);
 
+  const openHot = useCallback(() => {
+    setView((prev) => ({ kind: 'hot', boardId: prev.boardId }));
+  }, []);
+
+  const openCollections = useCallback(() => {
+    setView((prev) => ({ kind: 'collections', boardId: prev.boardId }));
+  }, []);
+
   if (loading) {
     return (
       <div className="forum-loading">
@@ -128,6 +138,20 @@ export default function App() {
         <div className="forum-slogan">
           <button
             type="button"
+            className={view.kind === 'hot' ? 'is-active' : undefined}
+            onClick={openHot}
+          >
+            鲸榜
+          </button>
+          <button
+            type="button"
+            className={view.kind === 'collections' ? 'is-active' : undefined}
+            onClick={openCollections}
+          >
+            我的收藏
+          </button>
+          <button
+            type="button"
             className={view.kind === 'admin' ? 'is-active' : undefined}
             onClick={openAdmin}
           >
@@ -147,6 +171,10 @@ export default function App() {
           />
         ) : view.kind === 'admin' ? (
           <AdminPage />
+        ) : view.kind === 'hot' ? (
+          <HotPage onOpenThread={openThread} />
+        ) : view.kind === 'collections' ? (
+          <CollectionsPage onOpenThread={openThread} />
         ) : view.kind === 'thread' && view.threadId ? (
           <ThreadDetailPage threadId={view.threadId} onBack={backToList} />
         ) : activeBoard ? (

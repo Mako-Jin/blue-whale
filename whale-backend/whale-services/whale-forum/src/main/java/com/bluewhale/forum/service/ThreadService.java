@@ -71,4 +71,14 @@ public interface ThreadService {
      * @return 帖子实体
      */
     ForumThread requireVisibleThread(Long id, ForumActor actor);
+
+    /**
+     * 我的收藏分页（按收藏时间倒序，只含当前可见状态）。
+     *
+     * @param current 页码
+     * @param size 条数
+     * @param actor 当前操作者
+     * @return 帖子分页
+     */
+    PageResult<ThreadListItemVO> collections(long current, long size, ForumActor actor);
 }

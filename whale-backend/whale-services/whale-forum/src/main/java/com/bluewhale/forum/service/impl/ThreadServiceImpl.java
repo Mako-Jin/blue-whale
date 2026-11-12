@@ -13,6 +13,7 @@ import com.bluewhale.forum.common.ForumActor;
 import com.bluewhale.forum.common.ForumErrorCodes;
 import com.bluewhale.forum.common.ForumPermissions;
 import com.bluewhale.forum.common.RichTextSanitizer;
+import com.bluewhale.forum.common.enums.ReactionType;
 import com.bluewhale.forum.config.ForumProperties;
 import com.bluewhale.forum.dto.ThreadCreateRequest;
 import com.bluewhale.forum.dto.ThreadDetailVO;
@@ -28,6 +29,7 @@ import com.bluewhale.forum.service.BanService;
 import com.bluewhale.forum.service.BoardService;
 import com.bluewhale.forum.service.SensitiveWordService;
 import com.bluewhale.forum.service.ThreadService;
+import com.bluewhale.forum.service.ViewCountService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -38,6 +40,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 帖子服务实现。
@@ -93,6 +96,10 @@ public class ThreadServiceImpl implements ThreadService {
     private final SensitiveWordService sensitiveWordService;
 
     private final BanService banService;
+
+    private final ViewCountService viewCountService;
+
+    private final ReactionStateReader reactionStateReader;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -194,11 +201,32 @@ public class ThreadServiceImpl implements ThreadService {
         TenantContext.requireId();
         ForumThread thread = requireReadable(id, actor);
         ForumBoard board = boardService.requireVisibleBoard(thread.getBoardId(), actor);
-        if (VISIBLE_STATUSES.contains(thread.getStatus())) {
+        // 浏览 +1 交去重服务判定：同人同帖 24h 内只计一次，刷新页面刷不出浏览量
+        if (VISIBLE_STATUSES.contains(thread.getStatus())
+                && viewCountService.touch(thread.getId(), actor.userId())) {
             threadMapper.increaseViewCount(thread.getId());
             thread.setViewCount(thread.getViewCount() == null ? 1 : thread.getViewCount() + 1);
         }
-        return toDetailVO(thread, board, actor);
+        ThreadDetailVO vo = toDetailVO(thread, board, actor);
+        // 按钮态只在详情里查：发帖/编辑的响应不需要，多一次查询就多一份进列表页的开销
+        Set<String> mine = reactionStateReader.typesOf(thread.getId(), actor.userId());
+        vo.setLiked(mine.contains(ReactionType.LIKE.name()));
+        vo.setCollected(mine.contains(ReactionType.COLLECT.name()));
+        return vo;
+    }
+
+    @Override
+    public PageResult<ThreadListItemVO> collections(long current, long size, ForumActor actor) {
+        Long tenantId = TenantContext.requireId();
+        long pageNo = current < 1 ? 1 : Math.min(current, properties.getMaxPageNumber());
+        Page<ForumThread> page = new Page<>(pageNo, normalizeSize(size));
+        IPage<ForumThread> result = threadMapper.selectCollectedPage(page, tenantId, actor.userId(),
+                ReactionType.COLLECT.name());
+        List<ThreadListItemVO> records = new ArrayList<>(result.getRecords().size());
+        for (ForumThread thread : result.getRecords()) {
+            records.add(toListVO(thread));
+        }
+        return PageResult.of(records, result.getTotal(), result.getCurrent(), result.getSize());
     }
 
     @Override
@@ -448,6 +476,9 @@ public class ThreadServiceImpl implements ThreadService {
         vo.setTags(thread.getTags());
         vo.setNextFloor(thread.getNextFloor());
         vo.setAuditRemark(thread.getAuditRemark());
+        // 默认未互动：详情接口会按实际查询覆盖，发帖/编辑响应保持 false 而不是 null
+        vo.setLiked(Boolean.FALSE);
+        vo.setCollected(Boolean.FALSE);
         vo.setCreateTime(thread.getCreateTime());
         boolean manager = actor.hasPermission(ForumPermissions.MANAGE_DISPOSE)
                 || actor.hasPermission(ForumPermissions.MANAGE_BOARD);
@@ -481,6 +512,7 @@ public class ThreadServiceImpl implements ThreadService {
         vo.setReplyCount(thread.getReplyCount());
         vo.setViewCount(thread.getViewCount());
         vo.setLikeCount(thread.getLikeCount());
+        vo.setCollectCount(thread.getCollectCount());
         vo.setLastReplyTime(thread.getLastReplyTime());
         vo.setPublishTime(thread.getPublishTime());
     }

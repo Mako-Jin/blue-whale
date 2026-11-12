@@ -37,6 +37,12 @@ public class ThreadDetailVO extends ThreadListItemVO {
     /** 审核意见（驳回/退回时可见） */
     private String auditRemark;
 
+    /** 当前用户是否已投花 */
+    private Boolean liked;
+
+    /** 当前用户是否已藏帖 */
+    private Boolean collected;
+
     /** 创建时间 */
     private LocalDateTime createTime;
 }

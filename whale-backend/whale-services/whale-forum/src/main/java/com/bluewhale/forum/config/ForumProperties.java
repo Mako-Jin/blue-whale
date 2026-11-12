@@ -74,4 +74,34 @@ public class ForumProperties {
 
     /** whale-message 内网基础地址（站内信经 /message/internal/send 投递） */
     private String messageBaseUrl = "http://127.0.0.1:8094";
+
+    /** 浏览去重窗口（小时）：同人同帖窗口内只计一次浏览 */
+    private int viewDedupeHours = 24;
+
+    /** 互动（投花/藏帖）固定窗口长度（秒） */
+    private int reactionWindowSeconds = 60;
+
+    /** 互动窗口内次数上限（规格 v1.3：投花 60/分；0 关闭） */
+    private int reactionWindowMax = 60;
+
+    /** 热榜滚动窗口（天） */
+    private int hotWindowDays = 7;
+
+    /** 热榜取前 N 名 */
+    private int hotTopN = 20;
+
+    /** 热度分权重：回复 */
+    private double hotReplyWeight = 3;
+
+    /** 热度分权重：投花 */
+    private double hotLikeWeight = 5;
+
+    /** 热度分权重：浏览（浏览最容易刷，权重最低） */
+    private double hotViewWeight = 0.2;
+
+    /** 热度分扣分权重：每条违规处置轨迹扣的分 */
+    private double hotPenaltyWeight = 5;
+
+    /** 是否启用热榜定时刷新（多实例各自刷新，结果幂等覆盖） */
+    private boolean hotRefreshEnabled = true;
 }

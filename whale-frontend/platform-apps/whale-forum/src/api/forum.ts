@@ -75,6 +75,7 @@ export interface ThreadListItem {
   replyCount: number;
   viewCount: number;
   likeCount: number;
+  collectCount: number;
   lastReplyTime?: string | null;
   publishTime?: string | null;
 }
@@ -87,7 +88,34 @@ export interface ThreadDetail extends ThreadListItem {
   editable: boolean;
   deletable: boolean;
   auditRemark?: string | null;
+  /** 当前用户是否已投花 */
+  liked?: boolean;
+  /** 当前用户是否已藏帖 */
+  collected?: boolean;
   createTime?: string | null;
+}
+
+/** 互动状态（投花/藏帖按钮选中态 + 最新计数） */
+export interface ReactionState {
+  liked: boolean;
+  collected: boolean;
+  likeCount: number;
+  collectCount: number;
+}
+
+/** 热榜条目（只读快照） */
+export interface HotItem {
+  rankNo: number;
+  threadId: string;
+  boardId?: string | null;
+  title: string;
+  summary?: string | null;
+  authorId?: string | null;
+  replyCount: number;
+  likeCount: number;
+  viewCount: number;
+  score: string | number;
+  snapshotTime?: string | null;
 }
 
 /** 楼层 */
@@ -311,4 +339,45 @@ export function reloadSensitiveWords(): Promise<number> {
 /** 补偿投递待发通知 */
 export function flushNotify(): Promise<number> {
   return request<number>('/forum/admin/notify/flush', { method: 'POST' });
+}
+
+// ---------------------------------------------------------------------------
+// M3：互动（投花/藏帖）、我的收藏、热榜
+// 投花用 PUT、取消用 DELETE（同一路径），语义是「把状态置为目标值」，重复调用不报错
+// ---------------------------------------------------------------------------
+
+/** 投花 / 收藏（type=LIKE 投花，COLLECT 藏帖） */
+export function addReaction(threadId: string, type: 'LIKE' | 'COLLECT'): Promise<ReactionState> {
+  return request<ReactionState>(`/forum/reaction/thread/${threadId}?type=${type}`, {
+    method: 'PUT',
+  });
+}
+
+/** 取消投花 / 取消收藏（DELETE 同路径，语义是置为未投） */
+export function cancelReaction(threadId: string, type: 'LIKE' | 'COLLECT'): Promise<ReactionState> {
+  return request<ReactionState>(`/forum/reaction/thread/${threadId}?type=${type}`, {
+    method: 'DELETE',
+  });
+}
+
+/** 当前用户对某帖的互动状态 */
+export function fetchMyReaction(threadId: string): Promise<ReactionState> {
+  return request<ReactionState>(`/forum/thread/${threadId}/reactions/my`);
+}
+
+/** 我的收藏 */
+export function fetchMyCollections(current = 1, size = 20): Promise<PageResult<ThreadListItem>> {
+  return request<PageResult<ThreadListItem>>(
+    `/forum/my/collections?current=${current}&size=${size}`,
+  );
+}
+
+/** 热榜（读快照） */
+export function fetchHot(limit = 20): Promise<HotItem[]> {
+  return request<HotItem[]>(`/forum/hot?limit=${limit}`);
+}
+
+/** 手工刷新热榜快照（需 sys:forum:hot:refresh） */
+export function refreshHot(): Promise<number> {
+  return request<number>('/forum/hot/refresh', { method: 'POST' });
 }

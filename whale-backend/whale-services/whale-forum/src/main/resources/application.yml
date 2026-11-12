@@ -94,6 +94,21 @@ whale:
     notify-max-retry: ${WHALE_FORUM_NOTIFY_MAX_RETRY:5}
     # whale-message 内网地址（站内信）
     message-base-url: ${WHALE_FORUM_MESSAGE_BASE_URL:http://127.0.0.1:8094}
+    # 浏览去重窗口（小时）：同人同帖窗口内只计一次（库内去重行，不依赖 Redis）
+    view-dedupe-hours: ${WHALE_FORUM_VIEW_DEDUPE_HOURS:24}
+    # 互动固定窗口限流（秒 / 次数），防脚本刷投花；规格 v1.3：投花 60/分
+    reaction-window-seconds: ${WHALE_FORUM_REACTION_WINDOW_SECONDS:60}
+    reaction-window-max: ${WHALE_FORUM_REACTION_WINDOW_MAX:60}
+    # 热榜：7 天滚动窗口 + 权重打分（回复/投花/浏览 − 处置扣分）
+    hot-window-days: ${WHALE_FORUM_HOT_WINDOW_DAYS:7}
+    hot-top-n: ${WHALE_FORUM_HOT_TOP_N:20}
+    hot-reply-weight: ${WHALE_FORUM_HOT_REPLY_WEIGHT:3}
+    hot-like-weight: ${WHALE_FORUM_HOT_LIKE_WEIGHT:5}
+    hot-view-weight: ${WHALE_FORUM_HOT_VIEW_WEIGHT:0.2}
+    hot-penalty-weight: ${WHALE_FORUM_HOT_PENALTY_WEIGHT:5}
+    hot-refresh-enabled: ${WHALE_FORUM_HOT_REFRESH_ENABLED:true}
+    # 热榜快照刷新 cron（默认每 30 分钟；改周期请同时改 hot-refresh-minutes 让前端提示一致）
+    hot-refresh-cron: ${WHALE_FORUM_HOT_REFRESH_CRON:0 0/30 * * * ?}
 
 mybatis-plus:
   configuration:

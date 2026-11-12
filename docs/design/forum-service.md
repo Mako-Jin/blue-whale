@@ -123,9 +123,9 @@ ArchUnit 固化（`ForumArchitectureTest`，与 scene 同款 4 条规则）：
 
 ### 4.5 计数与热榜
 
-1. `reply_count / like_count / view_count` 条件更新自增；**浏览计数按会话去重**（同用户同帖 24h 内只 +1，Redis SETNX）；
+1. `reply_count / like_count / view_count` 条件更新自增；**浏览计数按会话去重**（同用户同帖 24h 内只 +1，落库到 `fm_thread_view`，唯一键 `(tenant_id, thread_id, user_id)` + 滚动窗口条件更新——详情是读主路径，不引入 Redis 依赖，缓存不可用也不该让详情 500）；
 2. 每日对账 Job 以明细表 `COUNT` 校正展示计数，差异写审计；
-3. 热榜近 7 天滚动窗口（复用音乐热榜口径）：权重 = 回复 + 点赞加权 − 处置扣分，快照 30 分钟刷新，portal 只读快照。
+3. 热榜近 7 天滚动窗口（复用音乐热榜口径）：权重 = 回复×3 + 投花×5 + 浏览×0.2 − 处置扣分×5（处置=窗口内 `REMOVE`/`AUDIT_REJECT` 轨迹条数），快照 30 分钟刷新到 `fm_hot_snapshot`（租户内整表覆盖），portal 只读快照；快照为空时接口用实时头部兜底，不让首页空白。
 
 ---
 
@@ -141,6 +141,7 @@ fm_board (版块聚合根)
   │        │        │ 1
   │        │        └── N  fm_reaction (target_type=POST)
   │        └── N  fm_reaction (target_type=THREAD, 点赞/收藏)
+  ├── N  fm_thread_view (浏览去重, 同人同帖 24h 一行, 唯一键 tenant+thread+user)
   ├── N  fm_moderation_record (审核/举报/处置轨迹)
   └── N  fm_hot_snapshot (热榜快照, tenant 内每 30min 覆盖)
 
@@ -197,8 +198,8 @@ M2 起追加：检索（ngram，`GET /forum/search`）、@提及通知、精华�
 | M0 底座 | V1 基线（audit/api_log）+ V2 版块/帖子/楼层/互动 8 表、`/forum/meta` 门禁、网关路由 + internal-deny、mysql init 建库、Prometheus job、镜像矩阵 9011、前端子应用 8123 骨架（qiankun `renderWithQiankun`） | `mvn verify` + ArchUnit 4/4 + 单测；起服冒烟 `/forum/meta` |
 | M1 闭环 | 发帖/回复/引用/编辑历史/点赞收藏/我的、通知接 `whale-message`（回复/引用/@提及，幂等留痕）、附件接 `whale-file`、浏览去重 | 单测 ≥ 80 项；前后端路径过 `check-api-path-drift.py` |
 | M2 治理 | 审核模式（状态机 + 退回必填意见）、举报与处置、敏感词三档、限流 429 实测 | 负向验证：未审内容对普通用户 404；处置必落轨迹 |
-| M3 检索 | ngram 全文索引（帖标题/正文）、单字回退 LIKE、重建接口（复用 mail 口径） | 检索冒烟 + `GET /forum/search/status` |
-| M4 收口 | 热榜快照 + portal 接线、计数对账 Job、运维手册 `docs/ops/forum-service-ops.md`、SLO 接 Prometheus/Grafana | 对账演练 + 备份恢复演练 |
+| M3 互动与热榜 | 投花/藏帖（幂等 + 计数原子增减）、我的收藏、浏览 24h 去重、热榜打分与快照（`GET /forum/hot`、`POST /forum/hot/refresh`，受管任务 `forum.hot.snapshot`） | 重复投花不重复计数、取消后可再投；同日重复打开只 +1 浏览；快照刷新为整表覆盖不累加 |
+| M4 检索与收口 | ngram 全文索引（帖标题/正文）、单字回退 LIKE、重建接口（复用 mail 口径）+ 计数对账 Job、运维手册 `docs/ops/forum-service-ops.md`、SLO 接 Prometheus/Grafana | 检索冒烟 + `GET /forum/search/status`；对账演练 + 备份恢复演练 |
 
 ---
 

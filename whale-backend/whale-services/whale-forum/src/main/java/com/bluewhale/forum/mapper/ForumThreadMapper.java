@@ -1,6 +1,9 @@
 package com.bluewhale.forum.mapper;
 
+import com.baomidou.mybatisplus.annotation.InterceptorIgnore;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.bluewhale.forum.dto.HotCandidate;
 import com.bluewhale.forum.entity.ForumThread;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -8,6 +11,7 @@ import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 帖子 Mapper。
@@ -96,11 +100,109 @@ public interface ForumThreadMapper extends BaseMapper<ForumThread> {
     int renameNoForDelete(@Param("id") Long id, @Param("newNo") String newNo);
 
     /**
-     * 浏览数 +1（不做 24h 去重，去重需 Redis，M3 接）。
+     * 浏览数 +1（24h 去重由 {@code fm_thread_view} 行判定，见 {@link ForumThreadViewMapper}）。
      *
      * @param threadId 帖子ID
      * @return 影响行数
      */
     @Update("UPDATE fm_thread SET view_count = view_count + 1 WHERE id = #{threadId} AND deleted = 0")
     int increaseViewCount(@Param("threadId") Long threadId);
+
+    /**
+     * 投花数增减（{@code delta} 为 ±1，下限 0）。
+     *
+     * <p>不做「读出来改再写回」：并发投花会互相覆盖计数，出现「点了 10 次只加了 3」。</p>
+     *
+     * @param threadId 帖子ID
+     * @param delta 增量（+1 / -1）
+     * @return 影响行数
+     */
+    @Update("UPDATE fm_thread SET like_count = GREATEST(COALESCE(like_count, 0) + #{delta}, 0), "
+            + "update_time = NOW() WHERE id = #{threadId} AND deleted = 0")
+    int changeLikeCount(@Param("threadId") Long threadId, @Param("delta") int delta);
+
+    /**
+     * 收藏数增减（{@code delta} 为 ±1，下限 0）。
+     *
+     * @param threadId 帖子ID
+     * @param delta 增量（+1 / -1）
+     * @return 影响行数
+     */
+    @Update("UPDATE fm_thread SET collect_count = GREATEST(COALESCE(collect_count, 0) + #{delta}, 0), "
+            + "update_time = NOW() WHERE id = #{threadId} AND deleted = 0")
+    int changeCollectCount(@Param("threadId") Long threadId, @Param("delta") int delta);
+
+    /**
+     * 热榜候选：近 {@code windowDays} 天已发布帖子按热度分排序。
+     *
+     * <p>打分 = 回复×权重 + 投花×权重 + 浏览×权重 − 处置扣分×权重。处置扣分取窗口内
+     * {@code REMOVE} / {@code AUDIT_REJECT} 的轨迹条数——被删过的帖子即使后来恢复，
+     * 热度也不该和干净帖子一样，否则「先违规冲量再申诉」就是刷榜捷径。</p>
+     *
+     * <p>租户条件在本 SQL 内显式写出，并关掉租户插件：插件对带子查询的聚合语句
+     * 追加条件容易落到错误的表上，这里宁可自己写死。</p>
+     *
+     * @param tenantId 租户ID
+     * @param from 窗口起点
+     * @param replyWeight 回复权重
+     * @param likeWeight 投花权重
+     * @param viewWeight 浏览权重
+     * @param penaltyWeight 处置扣分权重
+     * @param limit 取前 N 条
+     * @return 候选列表（含 score）
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT t.id, t.board_id, t.title, t.summary, t.author_id, "
+            + "t.reply_count, t.like_count, t.view_count, "
+            + "(t.reply_count * #{replyWeight} + t.like_count * #{likeWeight} "
+            + " + t.view_count * #{viewWeight} - COALESCE(p.penalty, 0) * #{penaltyWeight}) AS score "
+            + "FROM fm_thread t "
+            + "LEFT JOIN (SELECT target_id, COUNT(*) AS penalty FROM fm_moderation_record "
+            + "  WHERE tenant_id = #{tenantId} AND target_type = 'THREAD' "
+            + "    AND action IN ('REMOVE', 'AUDIT_REJECT') AND create_time >= #{from} "
+            + "  GROUP BY target_id) p ON p.target_id = t.id "
+            + "WHERE t.tenant_id = #{tenantId} AND t.deleted = 0 "
+            + "  AND t.status IN ('PUBLISHED', 'SOLVED', 'CLOSED') "
+            + "  AND t.publish_time IS NOT NULL AND t.publish_time >= #{from} "
+            + "ORDER BY score DESC, t.publish_time DESC LIMIT #{limit}")
+    List<HotCandidate> selectHotCandidates(@Param("tenantId") Long tenantId,
+                                           @Param("from") LocalDateTime from,
+                                           @Param("replyWeight") double replyWeight,
+                                           @Param("likeWeight") double likeWeight,
+                                           @Param("viewWeight") double viewWeight,
+                                           @Param("penaltyWeight") double penaltyWeight,
+                                           @Param("limit") int limit);
+
+    /**
+     * 我的收藏分页（帖子 × 收藏记录联查，按收藏时间倒序）。
+     *
+     * <p>不用「先查互动表拿 ID 再查帖子」：两步之间帖子可能被删，
+     * 会出现 total 与实际条数对不上，前端翻到最后一页是空白。</p>
+     *
+     * @param page 分页参数
+     * @param tenantId 租户ID
+     * @param userId 用户ID
+     * @param reactionType 互动类型（COLLECT）
+     * @return 帖子分页
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT t.* FROM fm_thread t INNER JOIN fm_reaction r ON r.target_id = t.id "
+            + "AND r.target_type = 'THREAD' AND r.tenant_id = #{tenantId} "
+            + "AND r.user_id = #{userId} AND r.reaction_type = #{reactionType} "
+            + "WHERE t.tenant_id = #{tenantId} AND t.deleted = 0 "
+            + "AND t.status IN ('PUBLISHED', 'SOLVED', 'CLOSED') "
+            + "ORDER BY r.create_time DESC")
+    IPage<ForumThread> selectCollectedPage(IPage<ForumThread> page,
+                                           @Param("tenantId") Long tenantId,
+                                           @Param("userId") Long userId,
+                                           @Param("reactionType") String reactionType);
+
+    /**
+     * 有帖子的租户列表（热榜定时刷新用：定时线程没有租户上下文，必须自己遍历）。
+     *
+     * @return 租户ID列表
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT DISTINCT tenant_id FROM fm_thread WHERE deleted = 0")
+    List<Long> selectActiveTenantIds();
 }

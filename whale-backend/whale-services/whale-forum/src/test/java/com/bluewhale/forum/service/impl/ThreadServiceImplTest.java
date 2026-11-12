@@ -2,6 +2,7 @@ package com.bluewhale.forum.service.impl;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.tenant.TenantContext;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.forum.common.ForumActor;
 import com.bluewhale.forum.common.ForumErrorCodes;
 import com.bluewhale.forum.common.ForumPermissions;
@@ -17,6 +18,7 @@ import com.bluewhale.forum.mapper.ForumThreadMapper;
 import com.bluewhale.forum.service.BanService;
 import com.bluewhale.forum.service.BoardService;
 import com.bluewhale.forum.service.SensitiveWordService;
+import com.bluewhale.forum.service.ViewCountService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -29,6 +31,7 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -65,6 +68,12 @@ class ThreadServiceImplTest {
 
     @Mock
     private BanService banService;
+
+    @Mock
+    private ViewCountService viewCountService;
+
+    @Mock
+    private ReactionStateReader reactionStateReader;
 
     @Spy
     private ForumProperties properties = new ForumProperties();
@@ -297,6 +306,62 @@ class ThreadServiceImplTest {
 
         verify(threadMapper).renameNoForDelete(11L, "FM-20261112-00011#D11");
         verify(threadMapper).deleteById(11L);
+    }
+
+    @Test
+    @DisplayName("详情：去重窗口内不再累加浏览数")
+    void detailSkipsViewWhenDeduplicated() {
+        when(threadMapper.selectById(11L)).thenReturn(publishedThread());
+        when(boardService.requireVisibleBoard(anyLong(), any())).thenReturn(board(0));
+        when(viewCountService.touch(11L, 100L)).thenReturn(false);
+
+        ThreadDetailVO vo = threadService.detail(11L, author());
+
+        assertThat(vo.getViewCount()).isZero();
+        verify(threadMapper, never()).increaseViewCount(11L);
+    }
+
+    @Test
+    @DisplayName("详情：窗口过期时浏览 +1 并回填计数")
+    void detailCountsViewWhenWindowExpired() {
+        when(threadMapper.selectById(11L)).thenReturn(publishedThread());
+        when(boardService.requireVisibleBoard(anyLong(), any())).thenReturn(board(0));
+        when(viewCountService.touch(11L, 100L)).thenReturn(true);
+        when(threadMapper.increaseViewCount(11L)).thenReturn(1);
+
+        ThreadDetailVO vo = threadService.detail(11L, author());
+
+        assertThat(vo.getViewCount()).isEqualTo(1);
+        verify(threadMapper).increaseViewCount(11L);
+    }
+
+    @Test
+    @DisplayName("详情：按互动记录装填投花/藏帖按钮态")
+    void detailFillsReactionState() {
+        when(threadMapper.selectById(11L)).thenReturn(publishedThread());
+        when(boardService.requireVisibleBoard(anyLong(), any())).thenReturn(board(0));
+        when(viewCountService.touch(11L, 100L)).thenReturn(false);
+        when(reactionStateReader.typesOf(11L, 100L)).thenReturn(Set.of("LIKE"));
+
+        ThreadDetailVO vo = threadService.detail(11L, author());
+
+        assertThat(vo.getLiked()).isTrue();
+        assertThat(vo.getCollected()).isFalse();
+    }
+
+    @Test
+    @DisplayName("我的收藏：联查分页透传总数与当前页")
+    void collectionsPassThroughPage() {
+        Page<ForumThread> page = new Page<>(1, 20);
+        page.setRecords(List.of(publishedThread()));
+        page.setTotal(1);
+        when(threadMapper.selectCollectedPage(any(), anyLong(), anyLong(), anyString())).thenReturn(page);
+
+        var result = threadService.collections(1, 20, author());
+
+        assertThat(result.getTotal()).isEqualTo(1);
+        assertThat(result.getRecords()).hasSize(1);
+        assertThat(result.getRecords().get(0).getId()).isEqualTo(11L);
     }
 
     /**

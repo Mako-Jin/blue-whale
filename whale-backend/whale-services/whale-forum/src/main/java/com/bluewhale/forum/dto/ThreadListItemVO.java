@@ -63,6 +63,9 @@ public class ThreadListItemVO implements Serializable {
     /** 投花数 */
     private Integer likeCount;
 
+    /** 收藏数 */
+    private Integer collectCount;
+
     /** 最后回复时间 */
     private LocalDateTime lastReplyTime;
 
