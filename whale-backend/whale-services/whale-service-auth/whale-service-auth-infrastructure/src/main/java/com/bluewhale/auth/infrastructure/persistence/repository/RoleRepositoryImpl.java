@@ -17,6 +17,8 @@ import com.bluewhale.auth.infrastructure.persistence.mapper.SysUserRoleMapper;
 import com.bluewhale.common.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.Collection;
@@ -46,8 +48,9 @@ public class RoleRepositoryImpl implements RoleRepository {
         SysRole po = RolePersistenceAssembler.toPo(role);
         if (po.getId() == null) {
             roleMapper.insert(po);
-        } else {
-            roleMapper.updateById(po);
+        } else if (roleMapper.updateById(po) == 0) {
+            // 领域对象来自本事务内的 selectOne（已过滤逻辑删除），影响 0 行说明记录已被并发删除
+            throw new IllegalStateException("更新角色失败，记录不存在或已被删除: id=" + po.getId());
         }
         return RolePersistenceAssembler.toDomain(po);
     }
@@ -92,11 +95,12 @@ public class RoleRepositoryImpl implements RoleRepository {
         LambdaQueryWrapper<SysRole> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysRole::getTenantId, TenantContext.requireId());
         if (StringUtils.hasText(keyword)) {
-            wrapper.and(w -> w.like(SysRole::getRoleCode, keyword)
-                    .or().like(SysRole::getRoleName, keyword));
+            String escaped = escapeLike(keyword);
+            wrapper.and(w -> w.like(SysRole::getRoleCode, escaped)
+                    .or().like(SysRole::getRoleName, escaped));
         }
         wrapper.orderByAsc(SysRole::getSortNo).orderByDesc(SysRole::getCreateTime);
-        Page<SysRole> page = roleMapper.selectPage(new Page<>(current, size), wrapper);
+        Page<SysRole> page = roleMapper.selectPage(Page.of(current, size), wrapper);
         List<RoleAggregate> records = page.getRecords().stream().map(RolePersistenceAssembler::toDomain).toList();
         return new RolePage(records, page.getTotal());
     }
@@ -133,13 +137,19 @@ public class RoleRepositoryImpl implements RoleRepository {
     @Override
     public List<Long> listRoleIdsByUserId(Long userId) {
         // 一人多租户（Wave 5.54 Phase 5.1）：sys_user_role 无 tenant_id，
-        // 必须 join sys_role 按当前租户 + 启用状态收口，禁止把其他租户的角色带入权限计算
-        Long tenantId = TenantContext.requireId();
+        // 必须按当前租户 + 启用状态收口，禁止把其他租户的角色带入权限计算；
+        // 先查本租户启用角色 ID，再以参数化 in() 过滤，不使用 inSql 字符串拼接
+        List<Long> tenantRoleIds = roleMapper.selectList(new LambdaQueryWrapper<SysRole>()
+                        .select(SysRole::getId)
+                        .eq(SysRole::getTenantId, TenantContext.requireId())
+                        .eq(SysRole::getStatus, RoleAggregate.STATUS_ENABLED))
+                .stream().map(SysRole::getId).toList();
+        if (tenantRoleIds.isEmpty()) {
+            return List.of();
+        }
         return userRoleMapper.selectList(new LambdaQueryWrapper<SysUserRole>()
                         .eq(SysUserRole::getUserId, userId)
-                        .inSql(SysUserRole::getRoleId,
-                                "SELECT id FROM sys_role WHERE tenant_id = " + tenantId
-                                        + " AND status = " + RoleAggregate.STATUS_ENABLED + " AND deleted = 0"))
+                        .in(SysUserRole::getRoleId, tenantRoleIds))
                 .stream().map(SysUserRole::getRoleId).toList();
     }
 
@@ -148,13 +158,18 @@ public class RoleRepositoryImpl implements RoleRepository {
         if (roleIds == null || roleIds.isEmpty()) {
             return List.of();
         }
-        // 防御性租户收口：即使调用方传入跨租户角色 ID，也只解析当前租户内的角色
-        Long tenantId = TenantContext.requireId();
+        // 防御性租户收口：即使调用方传入跨租户角色 ID，也只解析当前租户内的角色；
+        // 先查本租户角色 ID，再以参数化 in() 过滤，不使用 inSql 字符串拼接
+        List<Long> tenantRoleIds = roleMapper.selectList(new LambdaQueryWrapper<SysRole>()
+                        .select(SysRole::getId)
+                        .eq(SysRole::getTenantId, TenantContext.requireId()))
+                .stream().map(SysRole::getId).toList();
+        if (tenantRoleIds.isEmpty()) {
+            return List.of();
+        }
         return rolePermissionMapper.selectList(new LambdaQueryWrapper<SysRolePermission>()
                         .in(SysRolePermission::getRoleId, roleIds)
-                        .inSql(SysRolePermission::getRoleId,
-                                "SELECT id FROM sys_role WHERE tenant_id = " + tenantId
-                                        + " AND deleted = 0"))
+                        .in(SysRolePermission::getRoleId, tenantRoleIds))
                 .stream().map(SysRolePermission::getPermissionId).distinct().toList();
     }
 
@@ -170,7 +185,11 @@ public class RoleRepositoryImpl implements RoleRepository {
     }
 
     @Override
+    @Transactional(propagation = Propagation.MANDATORY)
     public void replacePermissions(Long roleId, List<Long> permissionIds) {
+        // 先删后插要求调用方已开启事务（MANDATORY 强制）；
+        // 调用方（RoleAppServiceImpl.assignPermissions）已校验 roleId 属于当前租户，
+        // 本方法不重复校验
         rolePermissionMapper.delete(new LambdaQueryWrapper<SysRolePermission>()
                 .eq(SysRolePermission::getRoleId, roleId));
         for (Long permissionId : permissionIds) {
@@ -179,6 +198,17 @@ public class RoleRepositoryImpl implements RoleRepository {
             relation.setPermissionId(permissionId);
             rolePermissionMapper.insert(relation);
         }
+    }
+
+    /**
+     * LIKE 关键字转义：反斜杠、百分号、下划线（MySQL LIKE 默认以反斜杠为转义符），
+     * 防止用户输入的通配符被当作模式展开导致全表扫描
+     *
+     * @param keyword 原始关键字
+     * @return 转义后的关键字
+     */
+    private static String escapeLike(String keyword) {
+        return keyword.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 
     @Override

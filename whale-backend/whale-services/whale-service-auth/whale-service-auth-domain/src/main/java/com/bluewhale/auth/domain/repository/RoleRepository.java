@@ -52,6 +52,9 @@ public interface RoleRepository {
     /**
      * 按角色 ID 集合查询其中处于启用状态的角色（对应 {@code listRoleCodesByUserId} 对 {@code sys_role} 的读）
      *
+     * <p><b>租户口径</b>：本方法不按租户过滤（平台管理员上下文与目标租户不一致的场景
+     * 无法依赖行级插件），调用方拿到结果后自行按 {@code role.tenantId()} 过滤或校验。</p>
+     *
      * @param ids 角色 ID 集合
      * @return 命中的启用角色聚合列表；{@code ids} 为空时返回空列表
      */
@@ -144,7 +147,8 @@ public interface RoleRepository {
      *
      * <p><b>边界说明</b>：本方法为 {@code sys_role_permission} 关联表端口，而非 Role 聚合内部实体
      * 的持久化通道——Role 聚合根未持有权限关联集合；调用方应先通过聚合根的领域方法
-     * {@code assignPermissions} 完成去重与数量校验，再调用本端口落库。</p>
+     * {@code assignPermissions} 完成去重与数量校验，再调用本端口落库。须在事务内调用
+     * （实现侧 MANDATORY 传播强制）。</p>
      *
      * @param roleId 角色 ID
      * @param permissionIds 目标权限点 ID 列表

@@ -2,9 +2,9 @@ package com.bluewhale.auth.infrastructure.persistence.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.auth.application.port.PasswordExpiryQuery;
+import com.bluewhale.auth.infrastructure.persistence.TenantContextSupport;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysUser;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysUserMapper;
-import com.bluewhale.common.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
@@ -37,19 +37,14 @@ public class PasswordExpiryQueryImpl implements PasswordExpiryQuery {
         if (remindFrom == null) {
             return List.of();
         }
-        Long previous = TenantContext.get();
-        TenantContext.clear();
-        try {
-            List<SysUser> rows = userMapper.selectList(new LambdaQueryWrapper<SysUser>()
-                    .eq(SysUser::getStatus, STATUS_ENABLED)
-                    .isNotNull(SysUser::getPasswordUpdatedTime)
-                    .le(SysUser::getPasswordUpdatedTime, remindFrom)
-                    .apply(NOT_NOTICED_THIS_CYCLE));
-            return rows.stream().map(row -> new PasswordExpiryCandidate(row.getTenantId(), row.getId(),
-                    row.getUsername(), row.getPasswordUpdatedTime())).toList();
-        } finally {
-            TenantContext.set(previous);
-        }
+        return TenantContextSupport.runWithoutTenant(() ->
+                userMapper.selectList(new LambdaQueryWrapper<SysUser>()
+                                .eq(SysUser::getStatus, STATUS_ENABLED)
+                                .isNotNull(SysUser::getPasswordUpdatedTime)
+                                .le(SysUser::getPasswordUpdatedTime, remindFrom)
+                                .apply(NOT_NOTICED_THIS_CYCLE))
+                        .stream().map(row -> new PasswordExpiryCandidate(row.getTenantId(), row.getId(),
+                                row.getUsername(), row.getPasswordUpdatedTime())).toList());
     }
 
     @Override
@@ -60,12 +55,6 @@ public class PasswordExpiryQueryImpl implements PasswordExpiryQuery {
         SysUser update = new SysUser();
         update.setId(userId);
         update.setPasswordNoticeTime(noticedAt);
-        Long previous = TenantContext.get();
-        TenantContext.clear();
-        try {
-            userMapper.updateById(update);
-        } finally {
-            TenantContext.set(previous);
-        }
+        TenantContextSupport.runWithoutTenant(() -> userMapper.updateById(update));
     }
 }

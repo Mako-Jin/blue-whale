@@ -93,7 +93,8 @@ public interface UserRepository {
      *
      * <p><b>边界说明</b>：本方法为 {@code sys_user_role} 关联表端口，而非 User 聚合内部实体的
      * 持久化通道——User 聚合根未持有角色关联集合；调用方应先通过聚合根的领域方法
-     * {@code assignRoles} 完成去重与数量校验，再调用本端口落库。</p>
+     * {@code assignRoles} 完成去重与数量校验，再调用本端口落库。须在事务内调用
+     * （实现侧 MANDATORY 传播强制）。</p>
      *
      * @param userId 用户 ID
      * @param roleIds 目标角色 ID 列表（属于当前租户）
@@ -154,6 +155,10 @@ public interface UserRepository {
     /**
      * 批量查询「启用」状态的用户 ID（供服务间成员合法性校验使用）
      *
+     * <p><b>租户上下文语义</b>：上下文存在时按上下文租户过滤；上下文为空时退化为跨租户
+     * 全局查询——仅限内部令牌（InternalTokenFilter）保护的服务间成员校验场景调用，
+     * 公开接口禁止依赖该退化行为。Phase 3 计划改为显式 {@code tenantId} 参数后移除该分支。</p>
+     *
      * @param ids 待校验用户 ID 集合（调用方保证去重）
      * @return 存在且启用的用户 ID 列表；入参为空时返回空列表
      */
@@ -161,6 +166,10 @@ public interface UserRepository {
 
     /**
      * 删除用户（逻辑删除用户并按物理删除清理用户-角色关联）
+     *
+     * <p><b>删除语义</b>：账号级删除——sys_user 行归属首页租户，仅首页租户可触发
+     * （行级过滤保证 {@code tenant_id=当前租户}）；账号删除后跨租户成员关系随之失效，
+     * 因此角色关联跨租户一并物理清理。</p>
      *
      * @param id 用户 ID
      */

@@ -57,14 +57,16 @@ public class PermissionRepositoryImpl implements PermissionRepository {
     public PermissionPage page(long current, long size, String keyword, String permType) {
         LambdaQueryWrapper<SysPermission> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(keyword)) {
-            wrapper.and(w -> w.like(SysPermission::getPermCode, keyword)
-                    .or().like(SysPermission::getPermName, keyword));
+            // LIKE 关键字转义反斜杠/百分号/下划线，防止通配符被当作模式展开导致全表扫描
+            String escaped = keyword.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+            wrapper.and(w -> w.like(SysPermission::getPermCode, escaped)
+                    .or().like(SysPermission::getPermName, escaped));
         }
         if (StringUtils.hasText(permType)) {
             wrapper.eq(SysPermission::getPermType, permType);
         }
         wrapper.orderByAsc(SysPermission::getSortNo).orderByDesc(SysPermission::getCreateTime);
-        Page<SysPermission> page = permissionMapper.selectPage(new Page<>(current, size), wrapper);
+        Page<SysPermission> page = permissionMapper.selectPage(Page.of(current, size), wrapper);
         List<PermissionAggregate> records = page.getRecords().stream()
                 .map(PermissionPersistenceAssembler::toDomain).toList();
         return new PermissionPage(records, page.getTotal());

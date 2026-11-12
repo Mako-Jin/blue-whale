@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysPermission;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysRole;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysRolePermission;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysUserRole;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysPermissionMapper;
@@ -79,12 +80,20 @@ class RoleRepositoryImplTest {
         TableInfoHelper.initTableInfo(assistant, SysUserRole.class);
         TableInfoHelper.initTableInfo(assistant, SysRolePermission.class);
         TableInfoHelper.initTableInfo(assistant, SysPermission.class);
+        TableInfoHelper.initTableInfo(assistant, SysRole.class);
     }
 
     private static SysUserRole userRole(long roleId) {
         SysUserRole po = new SysUserRole();
         po.setUserId(USER_ID);
         po.setRoleId(roleId);
+        return po;
+    }
+
+    private static SysRole role(long id) {
+        SysRole po = new SysRole();
+        po.setId(id);
+        po.setTenantId(1L);
         return po;
     }
 
@@ -106,20 +115,22 @@ class RoleRepositoryImplTest {
     @Test
     @DisplayName("listRoleIdsByUserId：映射用户关联的角色 ID")
     void shouldListRoleIdsByUserId() {
+        when(roleMapper.selectList(ArgumentMatchers.<Wrapper<SysRole>>any()))
+                .thenReturn(List.of(role(1L), role(2L)));
         when(userRoleMapper.selectList(ArgumentMatchers.<Wrapper<SysUserRole>>any()))
                 .thenReturn(List.of(userRole(1L), userRole(2L)));
 
         assertEquals(List.of(1L, 2L), repository.listRoleIdsByUserId(USER_ID));
-        verify(userRoleMapper).selectList(ArgumentMatchers.<Wrapper<SysUserRole>>any());
     }
 
     @Test
-    @DisplayName("listRoleIdsByUserId：无关联记录时返回空列表")
-    void shouldReturnEmptyWhenUserHasNoRole() {
-        when(userRoleMapper.selectList(ArgumentMatchers.<Wrapper<SysUserRole>>any()))
+    @DisplayName("listRoleIdsByUserId：当前租户无角色时返回空列表且不查关联表")
+    void shouldReturnEmptyWhenTenantHasNoRole() {
+        when(roleMapper.selectList(ArgumentMatchers.<Wrapper<SysRole>>any()))
                 .thenReturn(List.of());
 
         assertTrue(repository.listRoleIdsByUserId(USER_ID).isEmpty());
+        verify(userRoleMapper, never()).selectList(ArgumentMatchers.any());
     }
 
     @Test
@@ -132,6 +143,8 @@ class RoleRepositoryImplTest {
     @Test
     @DisplayName("listPermissionIdsByRoleIds：映射权限 ID 并按 ID 去重")
     void shouldListPermissionIdsDistinct() {
+        when(roleMapper.selectList(ArgumentMatchers.<Wrapper<SysRole>>any()))
+                .thenReturn(List.of(role(ROLE_ID)));
         when(rolePermissionMapper.selectList(ArgumentMatchers.<Wrapper<SysRolePermission>>any()))
                 .thenReturn(List.of(rolePermission(10L), rolePermission(10L), rolePermission(11L)));
 

@@ -5,6 +5,7 @@ import com.bluewhale.auth.domain.repository.UserTenantRepository;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysUserTenant;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysUserTenantMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -71,7 +72,17 @@ public class UserTenantRepositoryImpl implements UserTenantRepository {
             relation.setUserId(userId);
             relation.setTenantId(tenantId);
             relation.setStatus(STATUS_ENABLED);
-            mapper.insert(relation);
+            try {
+                mapper.insert(relation);
+            } catch (DuplicateKeyException e) {
+                // 并发插入竞态：另一实例已建行（uk_user_tenant），转为更新启用状态
+                existing = findRelation(userId, tenantId);
+                if (existing == null) {
+                    throw e;
+                }
+                existing.setStatus(STATUS_ENABLED);
+                mapper.updateById(existing);
+            }
             return;
         }
         if (existing.getStatus() == null || existing.getStatus() != STATUS_ENABLED) {

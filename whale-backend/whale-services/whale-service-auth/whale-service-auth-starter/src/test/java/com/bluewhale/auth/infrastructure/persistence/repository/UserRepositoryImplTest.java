@@ -8,8 +8,10 @@ import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
 import com.bluewhale.auth.domain.model.vo.Username;
 import com.bluewhale.auth.domain.aggregate.UserAggregate;
 import com.bluewhale.auth.domain.repository.UserRepository;
+import com.bluewhale.auth.infrastructure.persistence.entity.SysRole;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysUser;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysUserRole;
+import com.bluewhale.auth.infrastructure.persistence.mapper.SysRoleMapper;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysUserMapper;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysUserRoleMapper;
 import com.bluewhale.common.tenant.TenantContext;
@@ -56,6 +58,9 @@ class UserRepositoryImplTest {
     @Mock
     private SysUserRoleMapper userRoleMapper;
 
+    @Mock
+    private SysRoleMapper roleMapper;
+
     @InjectMocks
     private UserRepositoryImpl repository;
 
@@ -77,6 +82,7 @@ class UserRepositoryImplTest {
         MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "");
         TableInfoHelper.initTableInfo(assistant, SysUser.class);
         TableInfoHelper.initTableInfo(assistant, SysUserRole.class);
+        TableInfoHelper.initTableInfo(assistant, SysRole.class);
     }
 
     private static SysUser po() {
@@ -154,6 +160,8 @@ class UserRepositoryImplTest {
     @Test
     @DisplayName("save：有 ID 走按主键更新")
     void shouldUpdateWhenIdPresent() {
+        when(userMapper.updateById(any(SysUser.class))).thenReturn(1);
+
         repository.save(UserAggregate.reconstitute(USER_ID, 1L, Username.of("bob_02"), EncryptedPassword.of(CIPHER),
                 "Bob", null, null, null, 1, null, null));
 
@@ -162,11 +170,21 @@ class UserRepositoryImplTest {
     }
 
     @Test
-    @DisplayName("replaceRoles：先清空关联再逐条重建")
+    @DisplayName("save：有 ID 但影响 0 行（记录已被并发删除）抛异常")
+    void shouldThrowWhenUpdateAffectsNoRows() {
+        when(userMapper.updateById(any(SysUser.class))).thenReturn(0);
+
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
+                () -> repository.save(UserAggregate.reconstitute(USER_ID, 1L, Username.of("bob_02"),
+                        EncryptedPassword.of(CIPHER), "Bob", null, null, null, 1, null, null)));
+    }
+
+    @Test
+    @DisplayName("replaceRoles：先按当前租户清空关联再逐条重建")
     void shouldReplaceRoles() {
         repository.replaceRoles(USER_ID, List.of(1L, 2L));
 
-        verify(userRoleMapper).delete(any());
+        verify(userRoleMapper).deleteByUserAndRoleTenant(USER_ID, 1L);
         verify(userRoleMapper, times(2)).insert(any(SysUserRole.class));
     }
 
@@ -217,8 +235,14 @@ class UserRepositoryImplTest {
     }
 
     @Test
-    @DisplayName("listRoleIds：返回用户关联的角色 ID 列表")
+    @DisplayName("listRoleIds：返回用户在当前租户内关联的角色 ID 列表")
     void shouldListRoleIds() {
+        SysRole role1 = new SysRole();
+        role1.setId(1L);
+        SysRole role2 = new SysRole();
+        role2.setId(2L);
+        when(roleMapper.selectList(ArgumentMatchers.<Wrapper<SysRole>>any()))
+                .thenReturn(List.of(role1, role2));
         SysUserRole first = new SysUserRole();
         first.setUserId(USER_ID);
         first.setRoleId(1L);

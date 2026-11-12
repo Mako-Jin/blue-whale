@@ -52,20 +52,26 @@ public class PasswordHistoryRepositoryImpl implements PasswordHistoryRepository 
         if (tenantId == null || userId == null) {
             return;
         }
-        List<SysPasswordHistory> rows = passwordHistoryMapper.selectList(
+        int keepCount = Math.max(keep, 0);
+        // 只取保留边界那一行（OFFSET keep LIMIT 1），避免全量加载历史行到内存再裁剪；
+        // 严格小于边界排序键 (create_time, id) 的行即为待清理行，与列表排序口径一致
+        List<SysPasswordHistory> boundary = passwordHistoryMapper.selectList(
                 new LambdaQueryWrapper<SysPasswordHistory>()
-                        .select(SysPasswordHistory::getId)
+                        .select(SysPasswordHistory::getCreateTime, SysPasswordHistory::getId)
                         .eq(SysPasswordHistory::getTenantId, tenantId)
                         .eq(SysPasswordHistory::getUserId, userId)
                         .orderByDesc(SysPasswordHistory::getCreateTime)
-                        .orderByDesc(SysPasswordHistory::getId));
-        int keepCount = Math.max(keep, 0);
-        if (rows.size() <= keepCount) {
+                        .orderByDesc(SysPasswordHistory::getId)
+                        .last("limit " + keepCount + ", 1"));
+        if (boundary.isEmpty()) {
             return;
         }
-        List<Long> staleIds = rows.subList(keepCount, rows.size()).stream()
-                .map(SysPasswordHistory::getId)
-                .toList();
-        passwordHistoryMapper.deleteByIds(staleIds);
+        SysPasswordHistory edge = boundary.get(0);
+        passwordHistoryMapper.delete(new LambdaQueryWrapper<SysPasswordHistory>()
+                .eq(SysPasswordHistory::getTenantId, tenantId)
+                .eq(SysPasswordHistory::getUserId, userId)
+                .and(w -> w.lt(SysPasswordHistory::getCreateTime, edge.getCreateTime())
+                        .or(wt -> wt.eq(SysPasswordHistory::getCreateTime, edge.getCreateTime())
+                                .lt(SysPasswordHistory::getId, edge.getId()))));
     }
 }

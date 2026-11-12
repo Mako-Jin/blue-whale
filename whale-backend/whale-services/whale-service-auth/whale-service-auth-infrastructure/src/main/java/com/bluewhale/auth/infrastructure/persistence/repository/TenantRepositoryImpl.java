@@ -64,9 +64,11 @@ public class TenantRepositoryImpl implements TenantRepository {
             wrapper.eq(SysTenant::getStatus, status);
         }
         if (StringUtils.hasText(keyword)) {
-            // 数据库排序规则默认大小写不敏感，语义与原内存过滤（lower contains）一致
-            wrapper.and(w -> w.like(SysTenant::getTenantCode, keyword)
-                    .or().like(SysTenant::getTenantName, keyword));
+            // 数据库排序规则默认大小写不敏感，语义与原内存过滤（lower contains）一致；
+            // LIKE 关键字转义反斜杠/百分号/下划线，防止通配符被当作模式展开导致全表扫描
+            String escaped = keyword.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+            wrapper.and(w -> w.like(SysTenant::getTenantCode, escaped)
+                    .or().like(SysTenant::getTenantName, escaped));
         }
         wrapper.orderByDesc(SysTenant::getCreateTime);
         Page<SysTenant> poPage = tenantMapper.selectPage(Page.of(current, size), wrapper);
