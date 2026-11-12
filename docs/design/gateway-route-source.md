@@ -11,15 +11,15 @@
 
 | 事实 | 说明 |
 |---|---|
-| 本地静态路由 | `application.yml` 的 `spring.cloud.gateway.routes` 共 38 条，**始终生效** |
-| Nacos 动态路由 | `whale-gateway-routes.yaml` 由 `NacosRouteDefinitionRepository` 读取，**增量叠加**；读取失败/为空返回空列表 |
-| 兜底 | 没有独立 classpath fallback 文件，本地静态路由就是实际兜底 |
+| 本地兜底路由 | 38 条基础路由已从 `application.yml` 迁至 `classpath:gateway-routes-fallback.yaml`，与 Nacos 使用同一 `whale.gateway.dynamic-routes` 结构 |
+| Nacos 动态路由 | `whale-gateway-routes.yaml` 由 `NacosRouteDefinitionRepository` 读取，与兜底**按 id 合并**；同 id 由 Nacos 覆盖 |
+| 兜底语义 | Nacos 不可用/为空/非法时使用兜底；已有生效快照时保持快照不降级 |
 | order | 转换器此前**未解析** `order`，重叠路径只能按注册顺序命中，结果不可预期 |
 | id 唯一性 | 此前**未校验**，同一批配置重复 id 会在运行时按 id 建映射时冲突 |
 | 治理端点 | 已有 current/previous 双快照、整体拒绝、回滚固定标记，缺 order 与条目数 |
 | 网关数据依赖 | 只有 Nacos + Redis，**无 JDBC/Flyway**（与访问名单既定范式一致） |
 
-结论：Nacos 目前不是权威源；"DB 存路由"不应在网关里直接接数据库。
+结论：Nacos 目前不是唯一权威源（兜底文件保证基础路由始终可用）；"DB 存路由"不应在网关里直接接数据库。
 
 ## 2. 决策
 
@@ -28,34 +28,37 @@
 | D1 | 路由定义（id/uri/predicates/filters/order）只来自 Nacos / 本地 YAML，**DB 不存定义** | 避免权威源分裂；WebFlux 请求链路不碰 JDBC |
 | D2 | DB 只存**业务属性覆盖**（enabled/生效窗口），且表落 **auth**，网关走内部只读接口 + 60s 快照 | 复用访问名单的控制平面范式，消除多实例一致性与部署形态问题 |
 | D3 | 覆盖层 v1 只做 `enabled + effective_from/to`；`weight/match_tags` 延后 | 单路由一个 weight 无法直接生效（需 Weight 分组或自定义 LB），tags 无消费方 |
-| D4 | 不新建重复的 fallback 文件；迁移完成前，本地静态路由继续承担兜底 | 两处同内容必漂移 |
+| D4 | 兜底文件复用 Nacos 的 `whale.gateway.dynamic-routes` 自定义结构，按 id 合并、Nacos 优先；不使用 Spring `routes` 结构 | 复用 `convert()` 校验链路；避免 Binder 把 `Path=/x/**` 绑定成 `_genkey_0`、与校验器只认 `patterns` 冲突；合并消除同 id 双源歧义 |
 | D5 | Nacos 配置必须解析 order、拒绝重复 id | 重叠路径的可预期命中是路由正确性的前提 |
 
 权威矩阵（目标形态）：
 
 | 数据 | 权威写入源 | 网关读取 | 生效方式 |
 |---|---|---|---|
-| 路由定义 | Nacos | `NacosRouteDefinitionRepository` | Nacos 推送 → `RefreshRoutesEvent`，≤ 秒级 |
-| 冷备定义 | 本地 YAML（application.yml 或未来 fallback） | 同一仓库兜底 | 启动即生效，Nacos 不可用时保持 |
+| 路由定义 | Nacos | `NacosRouteDefinitionRepository` | Nacos 推送 → `RefreshRoutesEvent`，≤ 秒级；同 id 覆盖兜底 |
+| 冷备定义 | `classpath:gateway-routes-fallback.yaml` | 同一仓库兜底 | 启动即生效，Nacos 不可用/为空/非法时仍然可用 |
 | 业务属性 | auth DB（Phase 2） | 内部接口快照（60s） | 下一周期生效，不重启 |
 
 ## 3. 已落地（Phase 1）
 
 - **order 解析**：`order` 支持整数（含负数），缺省按 0；非整数视为条目级错误——WARN 日志并跳过该条，避免静默按 0 排序。
 - **重复 id 整体拒绝**：新增 `RouteDefinitionValidator.validateAll()`，先逐条校验再校验 id 唯一；任一错误 → 整份 Nacos 配置不生效，保留上一版并累加 `gateway.routes.rejected{dataId}`。
+- **兜底路由落盘**：38 条基础路由从 `application.yml` 迁至 `classpath:gateway-routes-fallback.yaml`，由仓库用同一 `convert()` 解析并校验；解析结果进程内缓存。
+- **按 id 合并**：兜底在前、Nacos 动态新增在后，同 id 由 Nacos 覆盖；合并结果再做一次 `validateAll()`，防止兜底与动态路由拼出重复 id。
+- **降级语义**：Nacos 读取异常/为空/校验失败时，已有快照保持不变，首次加载使用兜底。
 - **签名包含 order**：`sameAsCurrent` 的内容签名加入 `order`，仅调整优先级也会触发快照替换。
 - **治理端点**：路由摘要新增 `order`，顶层新增 `currentCount` / `previousCount`，保留 `rejectedCount`。
-- **测试**：`NacosRouteDefinitionRepositoryTest` 20/20、`RouteDefinitionValidatorTest` 12/12（含 order 解析、非法 order 跳过、重复 id 拒绝、仅 order 变化刷新）。
+- **测试**：网关全量 163/163 通过；`NacosRouteDefinitionRepositoryTest` 23/23（含 order 解析、非法 order 跳过、重复 id 拒绝、仅 order 变化刷新、兜底加载、Nacos 同 id 覆盖兜底、生产兜底文件解析校验）。
 
 ## 4. Nacos 权威化迁移 runbook（待运维执行）
 
-> 目标：Nacos 成为路由定义的唯一权威源，本地仅保留冷备。**必须协调发布，不能只改一边。**
+> 目标：Nacos 成为路由定义的唯一写入源，本地文件仅作冷备。**因已按 id 合并，可分批发布，无需与代码发布严格同刻。**
 
-1. 从现网 `application.yml` 导出 38 条路由，补齐每条 `order`（建议按路径具体度从 -100 到 0 递增），发布到 Nacos `whale-gateway-routes.yaml`。
-2. 在**不删除本地静态路由**的前提下核对：Nacos 配置整体校验通过、治理端点 `currentCount` 与预期一致、`rejectedCount` 不增长。
-3. 确认无误后，在**同一次发布**中移除 `application.yml` 的 `spring.cloud.gateway.routes`（否则同 id 冲突）；若需保留冷备，将同样内容放入 `classpath:gateway-routes-fallback.yaml` 并由仓库在 Nacos 不可用时加载（后续增量项）。
+1. 将 `classpath:gateway-routes-fallback.yaml` 的 38 条路由按需补齐 `order`（建议按路径具体度从 -100 到 0 递增），分批发布到 Nacos `whale-gateway-routes.yaml`。
+2. 每批发布后核对：治理端点 `currentCount` 与预期一致、`rejectedCount` 不增长、`previousCount` 正常滚动。
+3. 全部迁完后，本地兜底文件继续保留（冷备），不再维护增量业务路由；新增/调整路由只改 Nacos。
 4. 冒烟：登录、刷新、登出、各服务一级路径、内网 403、限流/熔断降级。
-5. 回滚：治理端点 `POST /actuator/routeGovernance` 固定上一版路由；或恢复 application.yml 静态路由并重新发布。
+5. 回滚：治理端点 `POST /actuator/routeGovernance` 固定上一版路由；或移除 Nacos 中对应路由，自动回落到兜底。
 
 ## 5. DB 业务覆盖层（Phase 2，未启动）
 

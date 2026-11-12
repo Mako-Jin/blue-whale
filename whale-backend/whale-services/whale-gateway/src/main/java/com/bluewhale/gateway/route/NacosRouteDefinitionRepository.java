@@ -14,12 +14,16 @@ import org.springframework.cloud.gateway.route.RouteDefinition;
 import org.springframework.cloud.gateway.route.RouteDefinitionRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.ApplicationListener;
+import org.springframework.core.io.DefaultResourceLoader;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 import org.yaml.snakeyaml.Yaml;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.io.IOException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -35,8 +39,9 @@ import java.util.concurrent.atomic.AtomicLong;
  * {@code {id, uri, predicates:[{name,args}], filters:[{name,args}]}}；内容以 YAML 为准（JSON 亦兼容，
  * 因 YAML 为 JSON 的超集）。</p>
  *
- * <p><b>可用性优先</b>：Nacos 配置管理器不可用、读取异常或内容解析失败时，均返回空列表并告警，
- * 绝不抛出异常以阻断网关启动；本地静态路由（{@code spring.cloud.gateway...routes}）仍作为兜底生效。</p>
+ * <p><b>可用性优先</b>：classpath {@code gateway-routes-fallback.yaml} 提供基础路由冷备
+ * （结构与 Nacos 侧 {@code whale.gateway.dynamic-routes} 完全一致），Nacos 动态路由按 id 合并并优先覆盖；
+ * Nacos 不可用、读取异常或内容非法时使用兜底或保留上一版快照，绝不抛出异常阻断网关启动。</p>
  *
  * <p><b>刷新</b>：监听 {@link EnvironmentChangeEvent}（由 {@code spring.config.import} 的 Nacos 配置
  * 刷新触发），收到后发布 {@link RefreshRoutesEvent}，促使网关重新调用 {@link #getRouteDefinitions()}
@@ -53,6 +58,9 @@ public class NacosRouteDefinitionRepository implements RouteDefinitionRepository
 
     /** Nacos 动态路由配置分组 */
     public static final String GROUP = "DEFAULT_GROUP";
+
+    /** 兜底路由文件默认位置（classpath） */
+    public static final String DEFAULT_FALLBACK_LOCATION = "classpath:gateway-routes-fallback.yaml";
 
     /** Nacos 读取配置的超时时间（毫秒） */
     private static final long READ_TIMEOUT_MILLIS = 3000L;
@@ -100,6 +108,15 @@ public class NacosRouteDefinitionRepository implements RouteDefinitionRepository
     /** 指标注册表提供者：容器无 MeterRegistry 时返回 {@code null}，指标静默跳过 */
     private final ObjectProvider<MeterRegistry> meterRegistryProvider;
 
+    /** 兜底路由文件位置（测试可替换） */
+    private final String fallbackLocation;
+
+    /** 是否启用兜底路由（测试可关闭以隔离断言） */
+    private final boolean fallbackEnabled;
+
+    /** 兜底路由解析缓存（构建期静态资源，进程内只读） */
+    private volatile List<RouteDefinition> fallbackRoutes;
+
     /** 当前生效的路由快照（最近一次校验通过的配置） */
     private volatile List<RouteDefinition> currentRoutes = List.of();
 
@@ -121,22 +138,40 @@ public class NacosRouteDefinitionRepository implements RouteDefinitionRepository
     /**
      * 构造 Nacos 动态路由仓库
      *
-     * @param configManagerProvider Nacos 配置管理器提供者（允许缺失，缺失时动态路由降级为空）
+     * @param configManagerProvider Nacos 配置管理器提供者（允许缺失，缺失时仅使用兜底路由）
      * @param eventPublisher        应用事件发布器，用于发布路由刷新事件
      * @param meterRegistryProvider Micrometer 指标注册表提供者，缺省时返回 {@code null} 表示不采集指标
      */
     public NacosRouteDefinitionRepository(ObjectProvider<NacosConfigManager> configManagerProvider,
                                           ApplicationEventPublisher eventPublisher,
                                           ObjectProvider<MeterRegistry> meterRegistryProvider) {
-        this.configManagerProvider = configManagerProvider;
-        this.eventPublisher = eventPublisher;
-        this.meterRegistryProvider = meterRegistryProvider;
+        this(configManagerProvider, eventPublisher, meterRegistryProvider, DEFAULT_FALLBACK_LOCATION, true);
     }
 
     /**
-     * 返回 Nacos 中的动态路由定义；读取或解析失败时返回空列表（不抛异常）
+     * 构造 Nacos 动态路由仓库（可指定兜底路由位置，供测试隔离使用）
      *
-     * @return 动态路由定义流；无配置或异常时为空流
+     * @param configManagerProvider Nacos 配置管理器提供者（允许缺失，缺失时仅使用兜底路由）
+     * @param eventPublisher        应用事件发布器，用于发布路由刷新事件
+     * @param meterRegistryProvider Micrometer 指标注册表提供者，缺省时返回 {@code null} 表示不采集指标
+     * @param fallbackLocation      兜底路由文件位置（Spring Resource 表达式）
+     * @param fallbackEnabled       是否启用兜底路由
+     */
+    NacosRouteDefinitionRepository(ObjectProvider<NacosConfigManager> configManagerProvider,
+                                   ApplicationEventPublisher eventPublisher,
+                                   ObjectProvider<MeterRegistry> meterRegistryProvider,
+                                   String fallbackLocation, boolean fallbackEnabled) {
+        this.configManagerProvider = configManagerProvider;
+        this.eventPublisher = eventPublisher;
+        this.meterRegistryProvider = meterRegistryProvider;
+        this.fallbackLocation = fallbackLocation;
+        this.fallbackEnabled = fallbackEnabled;
+    }
+
+    /**
+     * 返回兜底路由与 Nacos 动态路由合并后的定义；读取或解析失败时降级（不抛异常）
+     *
+     * @return 路由定义流；无兜底且无动态路由时为空流
      */
     @Override
     public Flux<RouteDefinition> getRouteDefinitions() {
@@ -177,21 +212,23 @@ public class NacosRouteDefinitionRepository implements RouteDefinitionRepository
     }
 
     /**
-     * 读取并转换 Nacos 动态路由配置，读取异常时告警并返回空列表
+     * 读取 Nacos 动态路由并与兜底路由按 id 合并；读取异常/配置非法时降级，不抛异常
      *
-     * @return 动态路由定义列表；不可用时为空列表
+     * @return 合并后的路由定义列表；Nacos 不可用时为兜底路由
      */
     private List<RouteDefinition> loadRouteDefinitions() {
+        List<RouteDefinition> fallback = loadFallbackRoutes();
         String content;
         try {
             content = readRawContent();
         } catch (Exception e) {
-            log.warn("读取 Nacos 动态路由配置失败（不阻断启动）: dataId={}, reason={}", DATA_ID, e.getMessage());
-            return List.of();
+            log.warn("读取 Nacos 动态路由配置失败，使用现有快照或兜底路由（不阻断启动）: dataId={}, reason={}",
+                    DATA_ID, e.getMessage());
+            return degrade(fallback);
         }
         List<RouteDefinition> parsed = convert(content);
         if (parsed.isEmpty()) {
-            return List.of();
+            return replaceSnapshot(fallback);
         }
         List<String> errors = RouteDefinitionValidator.validateAll(parsed);
         if (!errors.isEmpty()) {
@@ -199,24 +236,128 @@ public class NacosRouteDefinitionRepository implements RouteDefinitionRepository
             countRejected();
             log.warn("Nacos 动态路由配置校验失败，整体拒绝并保留上一版: dataId={}, rejectedCount={}, errors={}",
                     DATA_ID, rejected, errors);
-            return currentRoutes;
+            return degrade(fallback);
         }
+        List<RouteDefinition> merged = merge(fallback, parsed);
+        List<String> mergedErrors = RouteDefinitionValidator.validateAll(merged);
+        if (!mergedErrors.isEmpty()) {
+            long rejected = rejectedCount.incrementAndGet();
+            countRejected();
+            log.error("兜底路由与 Nacos 动态路由合并后校验失败，保留上一版: rejectedCount={}, errors={}",
+                    rejected, mergedErrors);
+            return degrade(fallback);
+        }
+        return replaceSnapshot(merged);
+    }
+
+    /**
+     * Nacos 侧不可用时的降级：已有快照保持不变，首次加载则采用兜底路由
+     *
+     * @param fallback 兜底路由
+     * @return 生效的路由定义
+     */
+    private List<RouteDefinition> degrade(List<RouteDefinition> fallback) {
+        return currentRoutes.isEmpty() ? replaceSnapshot(fallback) : currentRoutes;
+    }
+
+    /**
+     * 将候选路由替换为当前快照（回滚固定版本与内容等价时保持不动）
+     *
+     * @param candidate 候选路由定义列表
+     * @return 生效的路由定义
+     */
+    private List<RouteDefinition> replaceSnapshot(List<RouteDefinition> candidate) {
         // 快照读写与回滚共用同一监视器，避免刷新线程与治理端点并发时出现「上一版指向新当前」的中间态
         synchronized (this) {
-            if (isAbandoned(parsed)) {
+            if (isAbandoned(candidate)) {
                 log.info("Nacos 动态路由仍为回滚前被放弃的版本，保持回滚后快照: dataId={}, routeCount={}",
                         DATA_ID, currentRoutes.size());
                 return currentRoutes;
             }
-            if (sameAsCurrent(parsed)) {
-                log.debug("Nacos 动态路由配置未变化，保持当前快照: dataId={}, routeCount={}",
+            if (sameAsCurrent(candidate)) {
+                log.debug("网关路由配置未变化，保持当前快照: dataId={}, routeCount={}",
                         DATA_ID, currentRoutes.size());
                 return currentRoutes;
             }
             previousRoutes = currentRoutes;
-            currentRoutes = List.copyOf(parsed);
+            currentRoutes = List.copyOf(candidate);
             abandonedSignatures = null;
             return currentRoutes;
+        }
+    }
+
+    /**
+     * 按路由 id 合并兜底路由与动态路由，动态路由优先覆盖同 id 条目
+     *
+     * @param fallback 兜底路由
+     * @param dynamic  动态路由
+     * @return 合并后的路由列表（id 唯一，保持兜底在前、动态新增在后）
+     */
+    private static List<RouteDefinition> merge(List<RouteDefinition> fallback, List<RouteDefinition> dynamic) {
+        Map<String, RouteDefinition> merged = new LinkedHashMap<>();
+        for (RouteDefinition route : fallback) {
+            merged.put(route.getId(), route);
+        }
+        for (RouteDefinition route : dynamic) {
+            merged.put(route.getId(), route);
+        }
+        return new ArrayList<>(merged.values());
+    }
+
+    /**
+     * 加载兜底路由（进程内缓存，文件为构建期静态资源）
+     *
+     * @return 兜底路由定义列表；未启用或文件不可用时为空列表
+     */
+    private List<RouteDefinition> loadFallbackRoutes() {
+        if (!fallbackEnabled) {
+            return List.of();
+        }
+        List<RouteDefinition> cached = fallbackRoutes;
+        if (cached != null) {
+            return cached;
+        }
+        synchronized (this) {
+            if (fallbackRoutes == null) {
+                fallbackRoutes = readFallbackRoutes();
+            }
+            return fallbackRoutes;
+        }
+    }
+
+    /**
+     * 读取 classpath 兜底路由文件。
+     *
+     * <p>与 Nacos 侧共用 {@link #convert(String)} 解析器（{@code whale.gateway.dynamic-routes} 结构），
+     * 规避 Spring Binder 将 {@code Path=/x/**} 简写绑定为 {@code _genkey_0} 参数、
+     * 与 {@link RouteDefinitionValidator} 只识别 {@code patterns} 的规则冲突。</p>
+     *
+     * @return 校验通过的兜底路由；读取或校验失败时为空列表（告警但不阻断启动）
+     */
+    private List<RouteDefinition> readFallbackRoutes() {
+        Resource resource = new DefaultResourceLoader().getResource(fallbackLocation);
+        if (!resource.exists()) {
+            log.warn("网关路由兜底文件不存在，兜底路由为空: location={}", fallbackLocation);
+            return List.of();
+        }
+        try {
+            String content = resource.getContentAsString(StandardCharsets.UTF_8);
+            List<RouteDefinition> routes = convert(content);
+            if (routes.isEmpty()) {
+                log.warn("网关路由兜底文件未解析出路由: location={}", fallbackLocation);
+                return List.of();
+            }
+            List<String> errors = RouteDefinitionValidator.validateAll(routes);
+            if (!errors.isEmpty()) {
+                log.error("网关路由兜底文件校验失败，忽略兜底路由: location={}, errors={}", fallbackLocation, errors);
+                return List.of();
+            }
+            log.info("网关路由兜底加载完成: location={}, routeCount={}", fallbackLocation, routes.size());
+            return List.copyOf(routes);
+        } catch (IOException e) {
+            log.error("读取网关路由兜底文件失败，忽略兜底路由: location={}, reason={}",
+                    fallbackLocation, e.getMessage());
+            return List.of();
         }
     }
 

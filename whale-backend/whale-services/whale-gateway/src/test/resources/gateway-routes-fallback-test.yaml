@@ -1,0 +1,19 @@
+# 单元测试专用兜底路由：仅用于验证 Nacos 不可用时读取兜底、以及 Nacos 同 id 覆盖语义
+whale:
+  gateway:
+    dynamic-routes:
+      - id: fallback-demo
+        uri: lb://fallback-demo
+        order: 100
+        predicates:
+          - name: Path
+            args:
+              patterns: /fallback-demo/**
+        filters: []
+      - id: whale-demo
+        uri: lb://whale-fallback
+        predicates:
+          - name: Path
+            args:
+              patterns: /demo/**
+        filters: []

@@ -15,7 +15,9 @@ import org.springframework.cloud.context.environment.EnvironmentChangeEvent;
 import org.springframework.cloud.gateway.event.RefreshRoutesEvent;
 import org.springframework.cloud.gateway.route.RouteDefinition;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.core.io.ClassPathResource;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Set;
 
@@ -37,6 +39,9 @@ import static org.mockito.Mockito.when;
  */
 @ExtendWith(MockitoExtension.class)
 class NacosRouteDefinitionRepositoryTest {
+
+    /** 测试专用兜底路由文件位置 */
+    private static final String TEST_FALLBACK_LOCATION = "classpath:gateway-routes-fallback-test.yaml";
 
     /** 正常 YAML 配置样例 */
     private static final String YAML_CONTENT = """
@@ -197,8 +202,20 @@ class NacosRouteDefinitionRepositoryTest {
     @BeforeEach
     void setUp() {
         registry = new SimpleMeterRegistry();
-        repository = new NacosRouteDefinitionRepository(configManagerProvider, eventPublisher,
-                new StubMeterProvider(registry));
+        // 既有用例只关注 Nacos 侧行为，关闭兜底路由以隔离断言
+        repository = createRepository(NacosRouteDefinitionRepository.DEFAULT_FALLBACK_LOCATION, false);
+    }
+
+    /**
+     * 构建被测仓库
+     *
+     * @param fallbackLocation 兜底路由文件位置
+     * @param fallbackEnabled  是否启用兜底路由
+     * @return 被测仓库实例
+     */
+    private NacosRouteDefinitionRepository createRepository(String fallbackLocation, boolean fallbackEnabled) {
+        return new NacosRouteDefinitionRepository(configManagerProvider, eventPublisher,
+                new StubMeterProvider(registry), fallbackLocation, fallbackEnabled);
     }
 
     @Test
@@ -326,6 +343,51 @@ class NacosRouteDefinitionRepositoryTest {
         when(configService.getConfig(anyString(), anyString(), anyLong())).thenReturn(ORDER_CONTENT_V2);
         repository.getRouteDefinitions().collectList().block();
         assertEquals(10, repository.getCurrentRoutes().get(0).getOrder());
+    }
+
+    @Test
+    @DisplayName("兜底路由：Nacos 不可用时读取 classpath 兜底文件")
+    void shouldLoadFallbackWhenNacosUnavailable() {
+        NacosRouteDefinitionRepository fallbackRepository =
+                createRepository(TEST_FALLBACK_LOCATION, true);
+        when(configManagerProvider.getIfAvailable()).thenReturn(null);
+
+        List<RouteDefinition> definitions = fallbackRepository.getRouteDefinitions().collectList().block();
+
+        assertEquals(2, definitions.size());
+        assertEquals("fallback-demo", definitions.get(0).getId());
+        assertEquals(100, definitions.get(0).getOrder());
+        assertEquals("whale-demo", definitions.get(1).getId());
+        assertEquals("lb://whale-fallback", definitions.get(1).getUri().toString());
+    }
+
+    @Test
+    @DisplayName("兜底路由：Nacos 同 id 路由覆盖兜底，其余兜底保留")
+    void shouldOverrideFallbackByIdFromNacos() throws Exception {
+        NacosRouteDefinitionRepository fallbackRepository =
+                createRepository(TEST_FALLBACK_LOCATION, true);
+        when(configManagerProvider.getIfAvailable()).thenReturn(configManager);
+        when(configManager.getConfigService()).thenReturn(configService);
+        when(configService.getConfig(anyString(), anyString(), anyLong())).thenReturn(YAML_CONTENT);
+
+        List<RouteDefinition> definitions = fallbackRepository.getRouteDefinitions().collectList().block();
+
+        assertEquals(2, definitions.size());
+        assertEquals("fallback-demo", definitions.get(0).getId());
+        assertEquals("whale-demo", definitions.get(1).getId());
+        assertEquals("lb://whale-demo", definitions.get(1).getUri().toString(), "Nacos 应覆盖同 id 兜底路由");
+    }
+
+    @Test
+    @DisplayName("兜底路由：生产兜底文件可解析且通过校验")
+    void shouldParseProductionFallback() throws Exception {
+        String content = new ClassPathResource("gateway-routes-fallback.yaml")
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        List<RouteDefinition> routes = repository.convert(content);
+
+        assertEquals(38, routes.size());
+        assertTrue(RouteDefinitionValidator.validateAll(routes).isEmpty());
     }
 
     @Test

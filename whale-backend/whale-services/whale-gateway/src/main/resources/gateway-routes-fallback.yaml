@@ -1,0 +1,273 @@
+# 网关基础路由兜底（冷备）：Nacos 不可用/无动态路由时由 NacosRouteDefinitionRepository 加载。
+# 结构与 Nacos whale-gateway-routes.yaml 一致（whale.gateway.dynamic-routes），按 id 合并且 Nacos 优先。
+whale:
+  gateway:
+    dynamic-routes:
+      - id: whale-service-auth
+        uri: lb://whale-service-auth
+        predicates:
+          - name: Path
+            args:
+              patterns: /auth/v1/**,/auth/**,/user/**,/dept/**,/role/**,/menu/**,/permission/**
+        filters: []
+      - id: whale-service-auth-tenant
+        uri: lb://whale-service-auth
+        predicates:
+          - name: Path
+            args:
+              patterns: /tenant/**
+        filters: []
+      - id: whale-service-auth-brand
+        uri: lb://whale-service-auth
+        predicates:
+          - name: Path
+            args:
+              patterns: /brand/**,/oauth-client/**
+        filters: []
+      - id: whale-job
+        uri: lb://whale-job
+        predicates:
+          - name: Path
+            args:
+              patterns: /job/**
+        filters: []
+      - id: whale-workflow
+        uri: lb://whale-workflow
+        predicates:
+          - name: Path
+            args:
+              patterns: /workflow/**
+        filters: []
+      - id: whale-form
+        uri: lb://whale-form
+        predicates:
+          - name: Path
+            args:
+              patterns: /form/**
+        filters: []
+      - id: whale-file
+        uri: lb://whale-file
+        predicates:
+          - name: Path
+            args:
+              patterns: /file/**
+        filters: []
+      - id: whale-pay
+        uri: lb://whale-pay
+        predicates:
+          - name: Path
+            args:
+              patterns: /pay/**
+        filters: []
+      - id: whale-alert
+        uri: lb://whale-alert
+        predicates:
+          - name: Path
+            args:
+              patterns: /alert/**
+        filters: []
+      - id: whale-monitor
+        uri: lb://whale-monitor
+        predicates:
+          - name: Path
+            args:
+              patterns: /monitor/**
+        filters: []
+      - id: whale-audit
+        uri: lb://whale-audit
+        predicates:
+          - name: Path
+            args:
+              patterns: /audit/**
+        filters: []
+      - id: whale-agent
+        uri: lb://whale-agent
+        predicates:
+          - name: Path
+            args:
+              patterns: /agent/**
+        filters: []
+      - id: whale-assistant
+        uri: lb://whale-assistant
+        predicates:
+          - name: Path
+            args:
+              patterns: /assistant/**
+        filters: []
+      - id: whale-iot
+        uri: lb://whale-iot
+        predicates:
+          - name: Path
+            args:
+              patterns: /iot/**
+        filters: []
+      - id: whale-twin
+        uri: lb://whale-twin
+        predicates:
+          - name: Path
+            args:
+              patterns: /twin/**
+        filters: []
+      - id: whale-forum
+        uri: lb://whale-forum
+        predicates:
+          - name: Path
+            args:
+              patterns: /forum/**
+        filters: []
+      - id: whale-im-ws
+        uri: lb:ws://whale-im
+        order: -1
+        predicates:
+          - name: Path
+            args:
+              patterns: /im/ws
+        filters: []
+      - id: whale-im
+        uri: lb://whale-im
+        predicates:
+          - name: Path
+            args:
+              patterns: /im/**
+        filters: []
+      - id: whale-archive
+        uri: lb://whale-archive
+        predicates:
+          - name: Path
+            args:
+              patterns: /archive/**
+        filters: []
+      - id: whale-message
+        uri: lb://whale-message
+        predicates:
+          - name: Path
+            args:
+              patterns: /message/**
+        filters: []
+      - id: whale-mail
+        uri: lb://whale-mail
+        predicates:
+          - name: Path
+            args:
+              patterns: /mail/**
+        filters: []
+      - id: whale-map
+        uri: lb://whale-map
+        predicates:
+          - name: Path
+            args:
+              patterns: /map/**
+        filters: []
+      - id: whale-doc-ws
+        uri: lb:ws://whale-doc
+        order: -1
+        predicates:
+          - name: Path
+            args:
+              patterns: /doc/ws
+        filters: []
+      - id: whale-doc
+        uri: lb://whale-doc
+        predicates:
+          - name: Path
+            args:
+              patterns: /doc/**
+        filters: []
+      - id: whale-music
+        uri: lb://whale-music
+        predicates:
+          - name: Path
+            args:
+              patterns: /music/**
+        filters: []
+      - id: whale-video
+        uri: lb://whale-video
+        predicates:
+          - name: Path
+            args:
+              patterns: /video/**
+        filters: []
+      - id: whale-scene
+        uri: lb://whale-scene
+        predicates:
+          - name: Path
+            args:
+              patterns: /scene/**
+        filters: []
+      - id: whale-erp
+        uri: lb://whale-erp
+        predicates:
+          - name: Path
+            args:
+              patterns: /erp/**
+        filters: []
+      - id: whale-mes
+        uri: lb://whale-mes
+        predicates:
+          - name: Path
+            args:
+              patterns: /mes/**
+        filters: []
+      - id: whale-pdm
+        uri: lb://whale-pdm
+        predicates:
+          - name: Path
+            args:
+              patterns: /pdm/**
+        filters: []
+      - id: whale-oa
+        uri: lb://whale-oa
+        predicates:
+          - name: Path
+            args:
+              patterns: /oa/**
+        filters: []
+      - id: whale-pm
+        uri: lb://whale-pm
+        predicates:
+          - name: Path
+            args:
+              patterns: /pm/**
+        filters: []
+      - id: whale-contract
+        uri: lb://whale-contract
+        predicates:
+          - name: Path
+            args:
+              patterns: /contract/**
+        filters: []
+      - id: whale-crm
+        uri: lb://whale-crm
+        predicates:
+          - name: Path
+            args:
+              patterns: /crm/**
+        filters: []
+      - id: whale-lms
+        uri: lb://whale-lms
+        predicates:
+          - name: Path
+            args:
+              patterns: /lms/**
+        filters: []
+      - id: whale-party
+        uri: lb://whale-party
+        predicates:
+          - name: Path
+            args:
+              patterns: /party/**
+        filters: []
+      - id: whale-mall
+        uri: lb://whale-mall
+        predicates:
+          - name: Path
+            args:
+              patterns: /mall/**
+        filters: []
+      - id: whale-config
+        uri: lb://whale-config
+        predicates:
+          - name: Path
+            args:
+              patterns: /config/**
+        filters: []
