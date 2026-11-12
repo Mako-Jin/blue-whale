@@ -209,6 +209,7 @@ M4 落地口径：检索走 `FULLTEXT(title, content_text) WITH PARSER ngram`（
 | M7-1 发现页（P1） | `V10__thread_tag.sql`（`fm_thread_tag` + 历史标签递归回填）；发帖/改帖同步标签行；`GET /forum/tag/list` 标签聚合；`ThreadQuery` 增 `authorId` / `from` / `to` / `tag`，列表与检索共用同一谓词；精华榜复用 `GET /forum/thread/page?essenceOnly=true`；前端「发现」页（精华榜 / 标签页 + 版块、作者、时间范围、只看精华筛选） | 单测覆盖标签同步、超限拒绝、筛选透传、聚合排序；前端 lint + build 通过；`check-api-path-drift.py` / `check-long-id-typing.py` 全绿 |
 | M7-2 个人中心（P1） | `GET /forum/profile/me` 与 `GET /forum/profile/{userId}`（鲸阶、经验、发帖数、获花数、精华数、禁言状态）；`GET /forum/my/threads`（含审核中/已处置，作者可见）；`GET /forum/my/posts`（联 `fm_thread` 排除已删帖）；鲸阶阈值走 `whale.forum.level-thresholds`；前端「我的」页（资料卡 + 我的帖子 / 回复 / 收藏） | 单测覆盖鲸阶边界、禁言映射、我的帖子/回复分页；前端 lint + build；两项门禁全绿 |
 | M7-3 结契（P1） | `V11__follow.sql`（`fm_follow`，关注作者 / 版块）；`PUT|DELETE /forum/follow/{targetType}/{targetId}`（幂等）；`GET /forum/follow/{targetType}/{targetId}` 回关注态；`GET /forum/my/follows` 我的关注；发布态新帖向关注者写 outbox 通知（幂等、排除作者本人、单帖上限 `follow-notify-limit`）；前端详情页关注作者、列表页关注版块、「我的」页关注 Tab | 单测覆盖自关注拒绝、版块可见性校验、幂等关注/取关、关注列表分页与通知去重；前端 lint + build；两项门禁全绿 |
+| M7-4 帖子编辑（P1） | 复用 `PUT /forum/thread/{id}`（`sys:forum:thread:edit`）；前端详情页新增编辑弹窗：标题 / 正文 / 标签 / 编辑说明，保存后用响应值回填详情；审核版块保存后提示「等待版主审核」 | 前端 lint + build；两项门禁全绿 |
 
 ---
 

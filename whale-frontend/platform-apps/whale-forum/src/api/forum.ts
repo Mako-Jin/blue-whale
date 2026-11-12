@@ -520,6 +520,14 @@ export function fetchMyFollows(
   return request<PageResult<FollowItem>>(`/forum/my/follows?${query.toString()}`);
 }
 
+/** 编辑帖子（审核版块会退回待审；tags 传空串表示清空，不传表示不改） */
+export function updateThread(
+  threadId: string,
+  body: { title: string; content: string; tags?: string; reason?: string },
+): Promise<ThreadDetail> {
+  return request<ThreadDetail>(`/forum/thread/${threadId}`, { method: 'PUT', body });
+}
+
 /** 论坛经验流水条目 */
 export interface ExpItem {
   event: string;

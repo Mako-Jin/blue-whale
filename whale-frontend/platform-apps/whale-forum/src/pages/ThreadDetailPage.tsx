@@ -9,8 +9,10 @@ import {
   Button,
   Card,
   Empty,
+  Form,
   Input,
   List,
+  Modal,
   Segmented,
   Space,
   Spin,
@@ -27,6 +29,7 @@ import {
   fetchPosts,
   fetchThread,
   removeFollow,
+  updateThread,
   type PostItem,
   type ReactionState,
   type ThreadDetail,
@@ -70,6 +73,15 @@ export default function ThreadDetailPage({ threadId, onBack }: Props) {
   /** 是否已关注楼主（结契） */
   const [authorFollowed, setAuthorFollowed] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+  /** 编辑弹窗（标题 / 正文 / 标签 / 编辑说明） */
+  const [editOpen, setEditOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editForm] = Form.useForm<{
+    title: string;
+    content: string;
+    tags?: string;
+    reason?: string;
+  }>();
 
   /** 详情响应已经带按钮态与计数，直接落地，避免再打一轮接口 */
   const applyThread = useCallback((data: ThreadDetail) => {
@@ -146,6 +158,46 @@ export default function ThreadDetailPage({ threadId, onBack }: Props) {
     }
   };
 
+  /** 打开编辑弹窗：表单初值取服务端当前值，不拿本地拼的摘要 */
+  const openEditor = () => {
+    if (!thread) {
+      return;
+    }
+    editForm.setFieldsValue({
+      title: thread.title,
+      content: thread.content ?? '',
+      tags: thread.tags ?? '',
+      reason: '',
+    });
+    setEditOpen(true);
+  };
+
+  /** 保存编辑：审核版块会退回待审，提示语要跟状态走 */
+  const submitEdit = async () => {
+    let values: { title: string; content: string; tags?: string; reason?: string };
+    try {
+      values = await editForm.validateFields();
+    } catch {
+      return;
+    }
+    setSaving(true);
+    try {
+      const next = await updateThread(threadId, {
+        title: values.title.trim(),
+        content: values.content,
+        tags: values.tags?.trim() ?? '',
+        reason: values.reason?.trim() || undefined,
+      });
+      applyThread(next);
+      setEditOpen(false);
+      void message.success(next.status === 'PENDING' ? '已提交修改，等待版主审核' : '已保存');
+    } catch (err: unknown) {
+      void message.error(err instanceof Error ? err.message : '保存失败');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   /** 投花/藏帖：服务端返回最新选中态与计数，前端不本地加减 */
   const onToggleReaction = async (type: 'LIKE' | 'COLLECT') => {
     const active = type === 'LIKE' ? reaction?.liked : reaction?.collected;
@@ -213,6 +265,7 @@ export default function ThreadDetailPage({ threadId, onBack }: Props) {
   const replyable = thread.status === 'PUBLISHED' || thread.status === 'SOLVED';
   const canReply = hasPermission('sys:forum:post:add');
   const canReact = hasPermission('sys:forum:reaction:use');
+  const canEdit = hasPermission('sys:forum:thread:edit');
 
   return (
     <div className="forum-page">
@@ -221,6 +274,11 @@ export default function ThreadDetailPage({ threadId, onBack }: Props) {
           ← 返回列表
         </Button>
         <Text type="secondary">{thread.threadNo}</Text>
+        {canEdit ? (
+          <Button size="small" onClick={openEditor}>
+            编辑
+          </Button>
+        ) : null}
       </Space>
 
       {thread.status === 'PENDING' ? (
@@ -382,6 +440,49 @@ export default function ThreadDetailPage({ threadId, onBack }: Props) {
           message={replyable ? '当前账号无回帖权限' : '该帖已关闭或不接受回复'}
         />
       )}
+
+      <Modal
+        title="编辑帖子"
+        open={editOpen}
+        confirmLoading={saving}
+        onOk={submitEdit}
+        onCancel={() => setEditOpen(false)}
+        okText="保存"
+        cancelText="取消"
+        width={720}
+        destroyOnClose
+      >
+        <Form form={editForm} layout="vertical">
+          <Form.Item
+            name="title"
+            label="标题"
+            rules={[{ required: true, message: '标题不能为空' }]}
+          >
+            <Input maxLength={80} showCount />
+          </Form.Item>
+          <Form.Item
+            name="content"
+            label="正文（支持简单 HTML）"
+            rules={[{ required: true, message: '正文不能为空' }]}
+          >
+            <Input.TextArea rows={8} />
+          </Form.Item>
+          <Form.Item
+            name="tags"
+            label="标签"
+            extra="逗号分隔，最多 10 个；清空表示删除全部标签"
+          >
+            <Input placeholder="如：报销,差旅" />
+          </Form.Item>
+          <Form.Item
+            name="reason"
+            label="编辑说明"
+            extra="审核版块编辑会退回待审；说明进编辑历史，便于审核人对比"
+          >
+            <Input maxLength={200} placeholder="改了什么、为什么改" />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 }
