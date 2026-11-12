@@ -6,6 +6,7 @@ import org.springframework.cloud.gateway.route.RouteDefinition;
 
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -19,7 +20,8 @@ import java.util.regex.Pattern;
  *   <li>必填：{@code id}、{@code uri}、{@code predicates}（非空）、{@code filters}（可为空列表）；</li>
  *   <li>{@code uri} scheme 白名单：{@code lb} / {@code http} / {@code https}；</li>
  *   <li>断言 / 过滤器 {@code name} 白名单，防止下发任意网关组件；</li>
- *   <li>{@code Path} 断言必须带一级路径前缀（如 {@code /workflow/**}），禁止 {@code /**} 全域匹配。</li>
+ *   <li>{@code Path} 断言必须带一级路径前缀（如 {@code /workflow/**}），禁止 {@code /**} 全域匹配；</li>
+ *   <li>同一批路由的 {@code id} 必须唯一（重复 id 会导致运行时按 id 建映射冲突）。</li>
  * </ul>
  * 任一条目非法即整体拒绝本次配置，网关保留上一版可用路由。</p>
  *
@@ -80,6 +82,28 @@ public final class RouteDefinitionValidator {
         }
         validatePredicates(id, definition.getPredicates(), errors);
         validateFilters(id, definition.getFilters(), errors);
+        return errors;
+    }
+
+    /**
+     * 校验一批路由定义：逐条校验 + id 唯一性校验。
+     *
+     * @param definitions 路由定义列表，可为 {@code null}
+     * @return 错误信息列表；全部合法时为空列表
+     */
+    public static List<String> validateAll(List<RouteDefinition> definitions) {
+        List<String> errors = new ArrayList<>();
+        if (definitions == null) {
+            return errors;
+        }
+        Set<String> ids = new HashSet<>();
+        for (RouteDefinition definition : definitions) {
+            errors.addAll(validate(definition));
+            String id = definition == null ? null : definition.getId();
+            if (id != null && !id.isBlank() && !ids.add(id)) {
+                errors.add("路由 id 重复：" + id);
+            }
+        }
         return errors;
     }
 

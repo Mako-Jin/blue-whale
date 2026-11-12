@@ -72,6 +72,9 @@ public class NacosRouteDefinitionRepository implements RouteDefinitionRepository
     /** 路由条目字段：目标地址 */
     private static final String FIELD_URI = "uri";
 
+    /** 路由条目字段：匹配优先级（数值小者优先，可为负） */
+    private static final String FIELD_ORDER = "order";
+
     /** 路由条目字段：断言列表 */
     private static final String FIELD_PREDICATES = "predicates";
 
@@ -190,10 +193,7 @@ public class NacosRouteDefinitionRepository implements RouteDefinitionRepository
         if (parsed.isEmpty()) {
             return List.of();
         }
-        List<String> errors = new ArrayList<>();
-        for (RouteDefinition definition : parsed) {
-            errors.addAll(RouteDefinitionValidator.validate(definition));
-        }
+        List<String> errors = RouteDefinitionValidator.validateAll(parsed);
         if (!errors.isEmpty()) {
             long rejected = rejectedCount.incrementAndGet();
             countRejected();
@@ -271,7 +271,8 @@ public class NacosRouteDefinitionRepository implements RouteDefinitionRepository
      */
     private static String signature(RouteDefinition definition) {
         StringBuilder builder = new StringBuilder();
-        builder.append(definition.getId()).append('|').append(definition.getUri());
+        builder.append(definition.getId()).append('|').append(definition.getUri())
+                .append('|').append(definition.getOrder());
         for (PredicateDefinition predicate : definition.getPredicates()) {
             builder.append('|').append(predicate.getName()).append(sortedArgs(predicate.getArgs()));
         }
@@ -464,7 +465,38 @@ public class NacosRouteDefinitionRepository implements RouteDefinitionRepository
         }
         definition.setPredicates(toPredicates(map.get(FIELD_PREDICATES)));
         definition.setFilters(toFilters(map.get(FIELD_FILTERS)));
+        Integer order;
+        try {
+            order = toOrder(map.get(FIELD_ORDER));
+        } catch (IllegalArgumentException e) {
+            log.warn("动态路由 order 非法，跳过: id={}, order={}", id, map.get(FIELD_ORDER));
+            return null;
+        }
+        if (order != null) {
+            definition.setOrder(order);
+        }
         return definition;
+    }
+
+    /**
+     * 解析路由优先级字段。
+     *
+     * <p>缺省（{@code null}/空白）返回 {@code null}，由网关按默认值 0 处理；
+     * 非整数值视为配置错误，整条路由跳过（与非法 uri 一致），避免静默按 0 排序导致路由命中顺序错乱。</p>
+     *
+     * @param value 原始字段值
+     * @return 优先级；缺省返回 {@code null}
+     */
+    private static Integer toOrder(Object value) {
+        String raw = stringValue(value);
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return Integer.valueOf(raw.trim());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("动态路由 order 必须为整数：" + raw, e);
+        }
     }
 
     /**

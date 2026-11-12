@@ -31,6 +31,9 @@ public class RouteGovernanceEndpoint {
     /** 路由摘要字段：目标地址 */
     private static final String FIELD_URI = "uri";
 
+    /** 路由摘要字段：匹配优先级（未配置时为默认 0） */
+    private static final String FIELD_ORDER = "order";
+
     /** 路由摘要字段：断言名称列表 */
     private static final String FIELD_PREDICATES = "predicates";
 
@@ -49,6 +52,8 @@ public class RouteGovernanceEndpoint {
         Map<String, Object> snapshot = new LinkedHashMap<>();
         snapshot.put("current", summarize(repository.getCurrentRoutes()));
         snapshot.put("previous", summarize(repository.getPreviousRoutes()));
+        snapshot.put("currentCount", repository.getCurrentRoutes().size());
+        snapshot.put("previousCount", repository.getPreviousRoutes().size());
         snapshot.put("rejectedCount", repository.getRejectedCount());
         return snapshot;
     }
@@ -78,6 +83,7 @@ public class RouteGovernanceEndpoint {
             Map<String, Object> summary = new LinkedHashMap<>();
             summary.put(FIELD_ID, definition.getId());
             summary.put(FIELD_URI, definition.getUri() == null ? null : definition.getUri().toString());
+            summary.put(FIELD_ORDER, definition.getOrder());
             summary.put(FIELD_PREDICATES, definition.getPredicates().stream()
                     .map(predicate -> predicate.getName()).toList());
             summary.put(FIELD_FILTERS, definition.getFilters().stream()

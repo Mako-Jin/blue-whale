@@ -64,6 +64,72 @@ class NacosRouteDefinitionRepositoryTest {
     /** 结构合法但无动态路由的样例 */
     private static final String NO_ROUTES_CONTENT = "whale:\n  gateway:\n    other: value\n";
 
+    /** 带 order 的路由配置样例 */
+    private static final String ORDER_CONTENT = """
+            whale:
+              gateway:
+                dynamic-routes:
+                  - id: whale-demo
+                    uri: lb://whale-demo
+                    order: -5
+                    predicates:
+                      - name: Path
+                        args:
+                          patterns: /demo/**
+                    filters: []
+            """;
+
+    /** 同一路由仅调整 order 的样例（用于验证签名包含 order） */
+    private static final String ORDER_CONTENT_V2 = """
+            whale:
+              gateway:
+                dynamic-routes:
+                  - id: whale-demo
+                    uri: lb://whale-demo
+                    order: 10
+                    predicates:
+                      - name: Path
+                        args:
+                          patterns: /demo/**
+                    filters: []
+            """;
+
+    /** order 非整数的样例 */
+    private static final String INVALID_ORDER_CONTENT = """
+            whale:
+              gateway:
+                dynamic-routes:
+                  - id: whale-bad-order
+                    uri: lb://whale-bad-order
+                    order: high
+                    predicates:
+                      - name: Path
+                        args:
+                          patterns: /bad/**
+                    filters: []
+            """;
+
+    /** id 重复的样例 */
+    private static final String DUPLICATE_ID_CONTENT = """
+            whale:
+              gateway:
+                dynamic-routes:
+                  - id: whale-demo
+                    uri: lb://whale-demo
+                    predicates:
+                      - name: Path
+                        args:
+                          patterns: /demo/**
+                    filters: []
+                  - id: whale-demo
+                    uri: lb://whale-demo2
+                    predicates:
+                      - name: Path
+                        args:
+                          patterns: /demo2/**
+                    filters: []
+            """;
+
     /** 无法解析的非法内容样例 */
     private static final String INVALID_CONTENT = "{ \"whale\": { \"gateway\": {";
 
@@ -170,6 +236,24 @@ class NacosRouteDefinitionRepositoryTest {
     }
 
     @Test
+    @DisplayName("convert：解析 order 字段，缺省为默认 0")
+    void shouldParseOrder() {
+        List<RouteDefinition> ordered = repository.convert(ORDER_CONTENT);
+        assertEquals(1, ordered.size());
+        assertEquals(-5, ordered.get(0).getOrder());
+
+        List<RouteDefinition> defaulted = repository.convert(YAML_CONTENT);
+        assertEquals(1, defaulted.size());
+        assertEquals(0, defaulted.get(0).getOrder());
+    }
+
+    @Test
+    @DisplayName("convert：order 非整数时跳过该条目")
+    void shouldSkipInvalidOrder() {
+        assertTrue(repository.convert(INVALID_ORDER_CONTENT).isEmpty());
+    }
+
+    @Test
     @DisplayName("convert：非法内容返回空列表且不抛异常")
     void shouldReturnEmptyForInvalidContent() {
         assertTrue(repository.convert(INVALID_CONTENT).isEmpty());
@@ -213,6 +297,35 @@ class NacosRouteDefinitionRepositoryTest {
 
         assertEquals(1, definitions.size());
         assertEquals("whale-demo", definitions.get(0).getId());
+    }
+
+    @Test
+    @DisplayName("getRouteDefinitions：id 重复时整体拒绝并计数")
+    void shouldRejectDuplicateRouteIds() throws Exception {
+        when(configManagerProvider.getIfAvailable()).thenReturn(configManager);
+        when(configManager.getConfigService()).thenReturn(configService);
+        when(configService.getConfig(anyString(), anyString(), anyLong())).thenReturn(DUPLICATE_ID_CONTENT);
+
+        List<RouteDefinition> definitions = repository.getRouteDefinitions().collectList().block();
+
+        assertTrue(definitions.isEmpty());
+        assertTrue(repository.getCurrentRoutes().isEmpty());
+        assertEquals(1, repository.getRejectedCount());
+    }
+
+    @Test
+    @DisplayName("getRouteDefinitions：仅 order 变化时也刷新快照")
+    void shouldRefreshWhenOrderChanges() throws Exception {
+        when(configManagerProvider.getIfAvailable()).thenReturn(configManager);
+        when(configManager.getConfigService()).thenReturn(configService);
+        when(configService.getConfig(anyString(), anyString(), anyLong())).thenReturn(ORDER_CONTENT);
+
+        repository.getRouteDefinitions().collectList().block();
+        assertEquals(-5, repository.getCurrentRoutes().get(0).getOrder());
+
+        when(configService.getConfig(anyString(), anyString(), anyLong())).thenReturn(ORDER_CONTENT_V2);
+        repository.getRouteDefinitions().collectList().block();
+        assertEquals(10, repository.getCurrentRoutes().get(0).getOrder());
     }
 
     @Test

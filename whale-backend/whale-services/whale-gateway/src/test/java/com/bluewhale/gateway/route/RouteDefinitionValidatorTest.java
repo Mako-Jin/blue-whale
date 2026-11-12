@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -142,5 +143,21 @@ class RouteDefinitionValidatorTest {
 
         errors.addAll(RouteDefinitionValidator.validate(route("bad", "lb://bad", "/**")));
         assertFalse(errors.isEmpty());
+    }
+
+    @Test
+    @DisplayName("validateAll：id 唯一时通过，重复时报错")
+    void shouldRejectDuplicateRouteIds() {
+        List<RouteDefinition> unique = List.of(
+                route("whale-a", "lb://whale-a", "/a/**"),
+                route("whale-b", "lb://whale-b", "/b/**"));
+        assertTrue(RouteDefinitionValidator.validateAll(unique).isEmpty());
+
+        List<RouteDefinition> duplicated = List.of(
+                route("whale-a", "lb://whale-a", "/a/**"),
+                route("whale-a", "lb://whale-b", "/b/**"));
+        List<String> errors = RouteDefinitionValidator.validateAll(duplicated);
+        assertEquals(1, errors.size());
+        assertTrue(errors.get(0).contains("路由 id 重复：whale-a"));
     }
 }
