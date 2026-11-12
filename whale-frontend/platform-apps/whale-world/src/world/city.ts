@@ -21,6 +21,19 @@ import { createNpcs } from './npc';
 import { createWorldChannel } from './net';
 import { createMinimap } from './minimap';
 import { mountCharPanel } from './charpanel';
+import {
+  CITY_GEOMETRY,
+  MAIN_HALL,
+  MAIN_PORTAL,
+  PALACES,
+  SIDE_HALLS,
+} from './layout';
+import {
+  WORLD_BOUND,
+  camBlocked as isCamBlocked,
+  collide as resolveCollide,
+  createBlockers,
+} from './collision';
 import type { CharPanelHandle } from './charpanel';
 import type { AvatarParams } from './avatar';
 
@@ -29,6 +42,8 @@ export interface WorldOptions {
   poweredByQiankun: boolean;
   /** 跳转到 2D 子应用路由（qiankun 劫持 pushState 触发 activeRule 切换） */
   navigate: (route: string) => void;
+  /** 读取 accessToken（基座经 qiankun props 注入）；缺省时世界频道只跑本地模拟 */
+  getToken?: () => string | null;
 }
 
 export interface WorldHandle {
@@ -445,8 +460,8 @@ function buildGateTower(x, z, yaw, scale = 1, roofColor = 0x2f6b5f) {
 const cityGroup = new THREE.Group();
 scene.add(cityGroup);
 
-// 外城
-const OUTER = 92;
+// 外城（尺度来自 city-layout.json）
+const OUTER = CITY_GEOMETRY.outerWall;
 buildWallSide(OUTER, 10, 3.2, 'x', -1, 16, 9.2, cityGroup);
 buildWallSide(OUTER, 10, 3.2, 'x', 1, 16, 9.2, cityGroup);
 buildWallSide(OUTER, 10, 3.2, 'z', -1, 16, 9.2, cityGroup);
@@ -457,7 +472,7 @@ cityGroup.add(buildGateTower(OUTER, 0, -Math.PI / 2, 1.0, 0x2f6b5f));
 cityGroup.add(buildGateTower(-OUTER, 0, Math.PI / 2, 1.0, 0x2f6b5f));
 
 // 内城
-const INNER = 48;
+const INNER = CITY_GEOMETRY.innerWall;
 buildWallSide(INNER, 8, 2.4, 'x', -1, 12, 7.2, cityGroup);
 buildWallSide(INNER, 8, 2.4, 'x', 1, 12, 7.2, cityGroup);
 buildWallSide(INNER, 8, 2.4, 'z', -1, 12, 7.2, cityGroup);
@@ -609,45 +624,60 @@ scene.add(palaceGroup);
 const faceCenter = (x, z) => Math.atan2(-x, -z);
 
 // 皇城墙
-buildWallSide(22, 12, 2.6, 'x', -1, 10, 8.5, palaceGroup);
-buildWallSide(22, 12, 2.6, 'x', 1, 10, 8.5, palaceGroup);
-buildWallSide(22, 12, 2.6, 'z', -1, 10, 8.5, palaceGroup);
-buildWallSide(22, 12, 2.6, 'z', 1, 10, 8.5, palaceGroup);
+{
+  const R = CITY_GEOMETRY.royalWall;
+  buildWallSide(R, 12, 2.6, 'x', -1, 10, 8.5, palaceGroup);
+  buildWallSide(R, 12, 2.6, 'x', 1, 10, 8.5, palaceGroup);
+  buildWallSide(R, 12, 2.6, 'z', -1, 10, 8.5, palaceGroup);
+  buildWallSide(R, 12, 2.6, 'z', 1, 10, 8.5, palaceGroup);
+}
 
-// 主殿：太和殿 → 核心数据
+// 主殿：数枢殿 → 核心数据（参数来自 city-layout.json）
 const mainHall = createPalace({
-  x: 0, z: -2, w: 17, d: 12, name: '数枢殿', roof: 0xc9a13a, body: 0x8f2f24, scale: 1.22, yaw: 0,
+  x: MAIN_HALL.x,
+  z: MAIN_HALL.z,
+  w: MAIN_HALL.w,
+  d: MAIN_HALL.d,
+  name: MAIN_HALL.name,
+  roof: MAIN_HALL.roof,
+  body: MAIN_HALL.body,
+  scale: MAIN_HALL.scale,
+  yaw: MAIN_HALL.yaw,
 });
 palaceGroup.add(mainHall);
 
 // 皇城内配殿
-palaceGroup.add(createPalace({ x: -15, z: 12, w: 6, d: 5, name: '典籍阁', roof: 0x3c6b5a, scale: 0.72, yaw: -0.5 }));
-palaceGroup.add(createPalace({ x: 15, z: 12, w: 6, d: 5, name: '玉衡阁', roof: 0x3c6b5a, scale: 0.72, yaw: 0.5 }));
+SIDE_HALLS.forEach((hall) => {
+  palaceGroup.add(createPalace({
+    x: hall.x,
+    z: hall.z,
+    w: hall.w,
+    d: hall.d,
+    name: hall.name,
+    roof: hall.roof,
+    body: hall.body,
+    scale: hall.scale,
+    yaw: hall.yaw,
+  }));
+});
 
-/* ---- 八方宫殿（对应业务子系统） ---- */
-const PALACES = [
-  { name: '户部', sub: 'ERP · 企业资源', roof: 0x2f6b5f, body: 0x8f3a2c, route: '/erp' },
-  { name: '工部', sub: 'MES · 智能制造', roof: 0x3f5f78, body: 0x7c3b30, route: '/mes' },
-  { name: '吏部', sub: 'OA · 协同办公', roof: 0x4a6b8a, body: 0x8f3a2c, route: '/oa' },
-  { name: '礼部', sub: 'CRM · 客户经营', roof: 0x6b4a78, body: 0x8a3b34, route: '/crm' },
-  { name: '兵部', sub: 'IoT · 物联感知', roof: 0x4a5560, body: 0x6f3a30, route: '/iot' },
-  { name: '翰林院', sub: 'DOC · 文档知识', roof: 0x2c5a52, body: 0x8a4a30, route: '/doc' },
-  { name: '杏坛', sub: 'LMS · 学习培训', roof: 0x8a5a2e, body: 0x8f3a2c, route: '/lms' },
-  { name: '市舶司', sub: 'MALL · 商城交易', roof: 0xc9a13a, body: 0x8a3b34, route: '/mall' },
-];
-
-const RING_R = 68;
+/* ---- 八方宫殿（对应业务子系统，坐标与配色来自 city-layout.json） ---- */
+const RING_R = CITY_GEOMETRY.ringRoadRadius;
 const palaces = [];
-PALACES.forEach((p, i) => {
-  const a = (22.5 + i * 45) * (Math.PI / 180);
-  const x = Math.sin(a) * RING_R;
-  const z = Math.cos(a) * RING_R;
-  const yaw = faceCenter(x, z);
+PALACES.forEach((p) => {
   const g = createPalace({
-    x, z, w: 9, d: 7, name: p.name, roof: p.roof, body: p.body, scale: 0.95, yaw,
+    x: p.x,
+    z: p.z,
+    w: p.w,
+    d: p.d,
+    name: p.name,
+    roof: p.roof,
+    body: p.body,
+    scale: p.scale,
+    yaw: p.yaw,
   });
   palaceGroup.add(g);
-  palaces.push({ ...p, x, z, yaw, group: g });
+  palaces.push({ ...p, group: g });
 });
 
 /* ==========================================================================
@@ -786,22 +816,34 @@ function createPortal(x, z, color, yaw) {
 
 const portals = [];
 
-// 皇城传送门（数枢殿前）
+// 皇城传送门（数枢殿前，坐标来自 city-layout.json 的 portal.main）
 {
-  const doorZ = 2 + 8.4;
-  const p = createPortal(0, 30, 0xffd166, 0);
+  const p = createPortal(MAIN_PORTAL.x, MAIN_PORTAL.z, MAIN_PORTAL.color, 0);
   scene.add(p.group);
-  portals.push({ name: '数枢殿', sub: '核心数据 · 皇城', x: 0, z: 30, route: '/portal', ...p, main: true });
+  portals.push({
+    name: MAIN_PORTAL.name,
+    sub: MAIN_PORTAL.sub,
+    x: MAIN_PORTAL.x,
+    z: MAIN_PORTAL.z,
+    route: MAIN_PORTAL.route,
+    ...p,
+    main: true,
+  });
 }
 
-// 八方宫殿传送门
-palaces.forEach((pal, i) => {
-  const dist = 15.5;
-  const px = pal.x + Math.sin(pal.yaw) * dist;
-  const pz = pal.z + Math.cos(pal.yaw) * dist;
-  const p = createPortal(px, pz, 0x6fe3ff, pal.yaw);
+// 八方宫殿传送门（位置与光色在库里对应 sc_node_world.portal_*）
+palaces.forEach((pal) => {
+  const p = createPortal(pal.portal.x, pal.portal.z, pal.portal.color, pal.yaw);
   scene.add(p.group);
-  portals.push({ name: pal.name, sub: pal.sub, x: px, z: pz, route: pal.route, palace: pal, ...p });
+  portals.push({
+    name: pal.name,
+    sub: pal.sub,
+    x: pal.portal.x,
+    z: pal.portal.z,
+    route: pal.route,
+    palace: pal,
+    ...p,
+  });
 });
 
 /* ==========================================================================
@@ -1023,16 +1065,35 @@ for (const n of npcs.list) {
   npcLabels.set(n.def.id, el);
 }
 
-/* ---- 其他玩家（联机骨架：本地模拟，P2 换成 whale-im 的 world 帧） ---- */
-const channel = createWorldChannel();
-const peerRigs = channel.peers.map((peer, i) => {
+/* ---- 其他玩家（world 帧协议；连不上自动退回本地模拟） ---- */
+const channel = createWorldChannel({
+  getToken: opts.getToken,
+  self: { name: profile.name, robe: profile.robe },
+});
+
+/** 由 id 派生稳定的形象差异，避免所有人长一样 */
+function hashOf(value: string): number {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = (hash * 31 + value.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+/**
+ * 其他玩家按 id 增量维护：联机模式下 peers 会随进出场景变化，
+ * 早期把数组与模型一一绑定（静态 map）在有人进场时就会漏人。
+ */
+const peerRigs = new Map();
+function createPeerRig(peer) {
+  const seed = hashOf(peer.id);
   const rig = createAvatar({
     ...DEFAULT_AVATAR,
     name: peer.name,
     robe: peer.robe,
-    hairStyle: (i % 3),
-    accessory: i % 2 === 0 ? 1 : 0,
-    beard: i === 3,
+    hairStyle: seed % 3,
+    accessory: seed % 2 === 0 ? 1 : 0,
+    beard: seed % 5 === 0,
   });
   scene.add(rig.group);
   const el = document.createElement('div');
@@ -1040,7 +1101,31 @@ const peerRigs = channel.peers.map((peer, i) => {
   el.innerHTML = `<b>${peer.name}</b><span>在线</span>`;
   labelsRoot.appendChild(el);
   return { peer, rig, el };
-});
+}
+
+function syncPeerRigs(dt) {
+  const alive = new Set();
+  for (const peer of channel.peers) {
+    alive.add(peer.id);
+    let item = peerRigs.get(peer.id);
+    if (!item) {
+      item = createPeerRig(peer);
+      peerRigs.set(peer.id, item);
+    }
+    item.peer = peer;
+    const gh = terrainHeight(peer.x, peer.z);
+    item.rig.group.position.set(peer.x, gh, peer.z);
+    item.rig.group.rotation.y = peer.yaw;
+    item.rig.update(dt, peer.speed);
+  }
+  for (const [id, item] of peerRigs) {
+    if (!alive.has(id)) {
+      scene.remove(item.rig.group);
+      item.el.remove();
+      peerRigs.delete(id);
+    }
+  }
+}
 
 /* ---- 城图 ---- */
 const minimapCanvas = document.getElementById('bww-minimap');
@@ -1093,6 +1178,8 @@ if (charPanelEl) {
       profile = p;
       playerRig.setParams(p);
       saveProfile(p);
+      // 联机时让别人也看到新形象（单机模式内部直接忽略）
+      channel.setSelf({ name: p.name, robe: p.robe });
       showToast('形象已存档', `${p.name} · 城民`);
     },
   });
@@ -1137,13 +1224,7 @@ function updateNpcTalk(dt) {
 function updateActors(dt) {
   npcs.update(dt, terrainHeight);
   channel.update(dt);
-  for (const item of peerRigs) {
-    const { peer, rig } = item;
-    const gh = terrainHeight(peer.x, peer.z);
-    rig.group.position.set(peer.x, gh, peer.z);
-    rig.group.rotation.y = peer.yaw;
-    rig.update(dt, peer.speed);
-  }
+  syncPeerRigs(dt);
   updateNpcTalk(dt);
 }
 
@@ -1173,7 +1254,7 @@ function updateNameLabels() {
       projectLabel(el, n.pos.x, n.pos.y + 2.95, n.pos.z);
     }
   }
-  for (const item of peerRigs) {
+  for (const item of peerRigs.values()) {
     const gh = terrainHeight(item.peer.x, item.peer.z);
     projectLabel(item.el, item.peer.x, gh + 2.95, item.peer.z, 50);
   }
@@ -1619,6 +1700,9 @@ function updatePlayer(dt) {
 
   player.pos.y = terrainHeight(player.pos.x, player.pos.z);
 
+  // 世界频道上报（内部按 10Hz 节流；单机模式下只更新本地缓存）
+  channel.report(player.pos.x, player.pos.z, player.yaw, player.speed);
+
   avatar.position.copy(player.pos);
   avatar.rotation.y = player.yaw;
 
@@ -1626,60 +1710,16 @@ function updatePlayer(dt) {
   playerRig.update(dt, player.speed);
 }
 
-/** 建筑碰撞：把玩家从台基/墙体里推出来 */
-const BLOCKERS = [];
-function registerBlockers() {
-  // 主殿
-  BLOCKERS.push({ x: 0, z: -2, hx: 15, hz: 13 });
-  // 八方宫殿
-  palaces.forEach((p) => BLOCKERS.push({ x: p.x, z: p.z, hx: 10, hz: 9 }));
-
-  /**
-   * 城墙按门洞切成四段，把门洞留空。
-   * P0 时每面墙都是整条碰撞体，门只是画上去的——玩家永远走不进内城与皇城，
-   * 只能靠传送门。这里改成"有门可过"，御道才真的能一路走到数枢殿。
-   */
-  const wallRing = (half, thick, gate) => {
-    const seg = (half - gate) / 2;
-    const off = gate + seg;
-    for (const s of [-1, 1]) {
-      for (const sx of [-1, 1]) {
-        BLOCKERS.push({ x: sx * off, z: s * half, hx: seg, hz: thick });
-      }
-      for (const sz of [-1, 1]) {
-        BLOCKERS.push({ x: s * half, z: sz * off, hx: thick, hz: seg });
-      }
-    }
-  };
-  wallRing(OUTER, 2.0, 8.5); // 外城（城门宽 16）
-  wallRing(INNER, 1.5, 6.5); // 内城（城门宽 12）
-  wallRing(22, 1.6, 5.5); // 皇城（城门宽 10）
-}
-registerBlockers();
+/** 建筑碰撞：几何全部由 collision 模块按布局生成，这里只保留调用点 */
+const BLOCKERS = createBlockers();
 
 function collide(pos) {
-  for (const b of BLOCKERS) {
-    const dx = pos.x - b.x;
-    const dz = pos.z - b.z;
-    const px = Math.abs(dx) - b.hx;
-    const pz = Math.abs(dz) - b.hz;
-    if (px < 0 && pz < 0) {
-      // 沿最小穿透方向推出
-      if (px > pz) {
-        pos.x = b.x + Math.sign(dx || 1) * b.hx;
-      } else {
-        pos.z = b.z + Math.sign(dz || 1) * b.hz;
-      }
-    }
-  }
+  resolveCollide(BLOCKERS, pos);
 }
 
 /** 相机避让：落入墙体/建筑缓冲区则视为阻挡 */
 function camBlocked(x, z) {
-  for (const b of BLOCKERS) {
-    if (Math.abs(x - b.x) < b.hx + 2 && Math.abs(z - b.z) < b.hz + 2) return true;
-  }
-  return false;
+  return isCamBlocked(BLOCKERS, x, z);
 }
 
 function updateCamera(dt) {
@@ -1790,6 +1830,7 @@ function updateHUD() {
   if (hudOnline) {
     const net = channel.mode === 'local' ? '单机模拟' : '联机';
     hudOnline.textContent = `同屏 ${channel.peers.length + 1} 人 · NPC ${npcs.list.length} · ${net}`;
+    hudOnline.classList.toggle('is-online', channel.mode === 'ws');
   }
 }
 
@@ -1888,9 +1929,10 @@ if (!profileState.saved) {
     playerRig.dispose();
     npcs.dispose();
     channel.dispose();
-    for (const item of peerRigs) {
+    for (const item of peerRigs.values()) {
       item.rig.dispose();
     }
+    peerRigs.clear();
     minimap?.dispose();
     scene.traverse((obj) => {
       const o = obj;

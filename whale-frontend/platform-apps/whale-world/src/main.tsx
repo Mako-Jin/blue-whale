@@ -13,7 +13,13 @@ initAuditLogging();
 
 let root: ReactDOM.Root | null = null;
 
-function render(props?: { container?: HTMLElement }) {
+/** qiankun 注入的 props（基座只用到 container 与 getToken） */
+interface QiankunProps {
+  container?: HTMLElement;
+  getToken?: () => string | null;
+}
+
+function render(props?: QiankunProps) {
   const container = props?.container ?? document;
   const mountNode = container.querySelector('#root') as HTMLElement;
 
@@ -22,7 +28,7 @@ function render(props?: { container?: HTMLElement }) {
     <ThemeProvider>
       <AntdApp>
         <ErrorBoundary>
-          <App />
+          <App getToken={props?.getToken} />
         </ErrorBoundary>
       </AntdApp>
     </ThemeProvider>,
@@ -35,7 +41,7 @@ if (!(window as unknown as { __POWERED_BY_QIANKUN__?: boolean }).__POWERED_BY_QI
 
 export async function bootstrap() {}
 
-export async function mount(props: { container?: HTMLElement }) {
+export async function mount(props: QiankunProps) {
   render(props);
 }
 

@@ -10,8 +10,17 @@
 import { useEffect, useRef } from 'react';
 import { createWorld } from './world/city';
 
-export default function App() {
+/** 基座经 qiankun props 注入的能力（缺省时按独立站点运行） */
+export interface AppProps {
+  /** 读取 accessToken：有值才尝试连世界频道，否则只跑本地模拟 */
+  getToken?: () => string | null;
+}
+
+export default function App({ getToken }: AppProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
+  // 用 ref 持有 getToken：它只被世界频道惰性调用，不该因为 props 身份变化重建整个 3D 场景
+  const tokenRef = useRef(getToken);
+  tokenRef.current = getToken;
 
   useEffect(() => {
     const host = hostRef.current;
@@ -26,6 +35,7 @@ export default function App() {
       navigate: (route: string) => {
         window.history.pushState(null, '', route);
       },
+      getToken: () => tokenRef.current?.() ?? null,
     });
     return () => world.dispose();
   }, []);
