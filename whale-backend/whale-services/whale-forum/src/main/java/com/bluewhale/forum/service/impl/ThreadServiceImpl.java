@@ -1,5 +1,6 @@
 package com.bluewhale.forum.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
@@ -23,8 +24,10 @@ import com.bluewhale.forum.dto.ThreadUpdateRequest;
 import com.bluewhale.forum.entity.ForumBoard;
 import com.bluewhale.forum.entity.ForumThread;
 import com.bluewhale.forum.entity.ForumThreadEditHistory;
+import com.bluewhale.forum.entity.ForumThreadTag;
 import com.bluewhale.forum.mapper.ForumThreadEditHistoryMapper;
 import com.bluewhale.forum.mapper.ForumThreadMapper;
+import com.bluewhale.forum.mapper.ForumThreadTagMapper;
 import com.bluewhale.forum.service.BanService;
 import com.bluewhale.forum.service.BoardService;
 import com.bluewhale.forum.service.ExpService;
@@ -42,6 +45,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -90,6 +94,8 @@ public class ThreadServiceImpl implements ThreadService {
 
     private final ForumThreadMapper threadMapper;
 
+    private final ForumThreadTagMapper threadTagMapper;
+
     private final ForumThreadEditHistoryMapper editHistoryMapper;
 
     private final BoardService boardService;
@@ -118,6 +124,8 @@ public class ThreadServiceImpl implements ThreadService {
         banService.assertNotMuted(actor.userId());
         String title = validateTitle(request.getTitle());
         String content = validateContent(request.getContent());
+        // 标签先归一化并校验上限：超长标签会撞列宽报 500，必须在落库前拦成 400
+        List<String> tags = normalizeTags(request.getTags());
         assertPostRate(actor.userId());
 
         // 敏感词：BLOCK 直接拒绝（留痕后抛 30031），REPLACE 打码，PENDING 转待审
@@ -151,7 +159,7 @@ public class ThreadServiceImpl implements ThreadService {
         // 检索用纯文本：与摘要同源（去标签 + 压缩空白），只是保留更长，供全文索引使用
         thread.setContentText(RichTextSanitizer.summarize(content, properties.getSearchTextLength()));
         thread.setSummary(RichTextSanitizer.summarize(content, properties.getSummaryLength()));
-        thread.setTags(request.getTags());
+        thread.setTags(tags.isEmpty() ? null : String.join(",", tags));
         thread.setAuthorId(actor.userId());
         thread.setAnonymous(0);
         thread.setStatus(auditRequired ? STATUS_PENDING : STATUS_PUBLISHED);
@@ -171,6 +179,8 @@ public class ThreadServiceImpl implements ThreadService {
             thread.setThreadNo(nextThreadNo(IdWorker.getId()));
             threadMapper.insert(thread);
         }
+        // 标签行与帖子同事务写入：标签页的数据源不能靠异步补，否则发帖后立刻点标签是空的
+        syncTags(thread.getId(), tenantId, tags);
         if (STATUS_PUBLISHED.equals(thread.getStatus())) {
             // 待审帖不派发 @：帖子还没发布，被 @ 的人点进来是「看不到的内容」
             mentionService.dispatch(thread.getId(), MentionService.MAIN_POST_ID,
@@ -187,7 +197,7 @@ public class ThreadServiceImpl implements ThreadService {
 
     @Override
     public PageResult<ThreadListItemVO> page(ThreadQuery query, ForumActor actor) {
-        TenantContext.requireId();
+        Long tenantId = TenantContext.requireId();
         if (query.getKeyword() != null && !query.getKeyword().isBlank()) {
             // 关键词走检索通道：ngram 全文（标题命中优先）或单字 LIKE 回退，口径只在 search 里维护
             return search(query, actor);
@@ -199,14 +209,26 @@ public class ThreadServiceImpl implements ThreadService {
             return PageResult.of(List.of(), 0, current, size);
         }
         boolean hot = !SORT_LATEST.equalsIgnoreCase(query.getSort()) && !"essence".equalsIgnoreCase(query.getSort());
-        IPage<ForumThread> page = threadMapper.selectPage(new Page<>(Math.min(current, properties.getMaxPageNumber()), size),
-                Wrappers.<ForumThread>lambdaQuery()
-                        .in(ForumThread::getBoardId, boardIds)
-                        .in(ForumThread::getStatus, VISIBLE_STATUSES)
-                        .eq(Boolean.TRUE.equals(query.getEssenceOnly()), ForumThread::getEssence, 1)
-                        .orderByDesc(ForumThread::getPinned)
-                        .orderByDesc(hot, ForumThread::getLastReplyTime)
-                        .orderByDesc(!hot, ForumThread::getPublishTime));
+        LocalDateTime from = startOfDay(query.getFrom());
+        LocalDateTime toExclusive = startOfNextDay(query.getTo());
+        String tag = normalizeTag(query.getTag());
+        LambdaQueryWrapper<ForumThread> wrapper = Wrappers.<ForumThread>lambdaQuery()
+                .in(ForumThread::getBoardId, boardIds)
+                .in(ForumThread::getStatus, VISIBLE_STATUSES)
+                .eq(Boolean.TRUE.equals(query.getEssenceOnly()), ForumThread::getEssence, 1)
+                .eq(query.getAuthorId() != null, ForumThread::getAuthorId, query.getAuthorId())
+                .ge(from != null, ForumThread::getPublishTime, from)
+                .lt(toExclusive != null, ForumThread::getPublishTime, toExclusive)
+                .orderByDesc(ForumThread::getPinned)
+                .orderByDesc(hot, ForumThread::getLastReplyTime)
+                .orderByDesc(!hot, ForumThread::getPublishTime);
+        if (tag != null) {
+            // 标签用 EXISTS 下推，不 LIKE 逗号串：「后端」不能命中「前端后端」
+            wrapper.apply("EXISTS (SELECT 1 FROM fm_thread_tag tt WHERE tt.tenant_id = {0} "
+                    + "AND tt.thread_id = fm_thread.id AND tt.tag = {1})", tenantId, tag);
+        }
+        IPage<ForumThread> page = threadMapper.selectPage(
+                new Page<>(Math.min(current, properties.getMaxPageNumber()), size), wrapper);
         List<ThreadListItemVO> records = new ArrayList<>(page.getRecords().size());
         for (ForumThread thread : page.getRecords()) {
             records.add(toListVO(thread));
@@ -230,12 +252,17 @@ public class ThreadServiceImpl implements ThreadService {
         }
         boolean essenceOnly = Boolean.TRUE.equals(query.getEssenceOnly());
         boolean fulltext = searchService.useFulltext(keyword);
-        long total = threadMapper.countSearchRows(tenantId, boardIds, keyword, essenceOnly, fulltext);
+        LocalDateTime from = startOfDay(query.getFrom());
+        LocalDateTime toExclusive = startOfNextDay(query.getTo());
+        String tag = normalizeTag(query.getTag());
+        long total = threadMapper.countSearchRows(tenantId, boardIds, keyword, essenceOnly,
+                query.getAuthorId(), from, toExclusive, tag, fulltext);
         if (total == 0) {
             return PageResult.of(List.of(), 0, current, size);
         }
         List<ForumThread> rows = threadMapper.selectSearchRows(tenantId, boardIds, keyword,
-                essenceOnly, fulltext, (pageNo - 1) * size, size);
+                essenceOnly, query.getAuthorId(), from, toExclusive, tag, fulltext,
+                (pageNo - 1) * size, size);
         List<ThreadListItemVO> records = new ArrayList<>(rows.size());
         for (ForumThread thread : rows) {
             records.add(toListVO(thread));
@@ -310,8 +337,10 @@ public class ThreadServiceImpl implements ThreadService {
         }
         String newTitle = request.getTitle() == null ? null : validateTitle(request.getTitle());
         String newContent = request.getContent() == null ? null : validateContent(request.getContent());
-        if (newTitle == null && newContent == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "标题与正文不能同时为空");
+        boolean tagsProvided = request.getTags() != null;
+        List<String> newTags = tagsProvided ? normalizeTags(request.getTags()) : null;
+        if (newTitle == null && newContent == null && !tagsProvided) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "标题、正文与标签不能同时为空");
         }
 
         ForumThreadEditHistory history = new ForumThreadEditHistory();
@@ -332,6 +361,9 @@ public class ThreadServiceImpl implements ThreadService {
             thread.setContentText(RichTextSanitizer.summarize(newContent, properties.getSearchTextLength()));
             thread.setSummary(RichTextSanitizer.summarize(newContent, properties.getSummaryLength()));
         }
+        if (tagsProvided) {
+            thread.setTags(newTags.isEmpty() ? null : String.join(",", newTags));
+        }
         boolean auditRequired = board.getAuditMode() != null && board.getAuditMode() == 1;
         if (auditRequired && properties.isAuditOnEdit() && !manager
                 && !STATUS_PENDING.equals(thread.getStatus())) {
@@ -340,6 +372,10 @@ public class ThreadServiceImpl implements ThreadService {
             thread.setPublishTime(null);
         }
         threadMapper.updateById(thread);
+        if (tagsProvided) {
+            // 整体重建而不是差量比对：并发编辑下差量会漏行，单帖标签最多十来个
+            syncTags(thread.getId(), thread.getTenantId(), newTags);
+        }
         return toDetailVO(thread, board, actor);
     }
 
@@ -385,6 +421,96 @@ public class ThreadServiceImpl implements ThreadService {
             throw new BizException(ForumErrorCodes.THREAD_NOT_FOUND, "帖子不存在或已删除");
         }
         return thread;
+    }
+
+    /**
+     * 归一化标签串：逗号拆分、去首尾空白、去重保序，并校验数量与单标签长度。
+     *
+     * <p>超限直接 400：标签长于列宽会以 1406 变成 500，数量不设上限则能靠标签把列表页刷屏。</p>
+     *
+     * @param raw 原始标签串（逗号分隔）
+     * @return 归一化后的标签（可能为空列表）
+     */
+    private List<String> normalizeTags(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return List.of();
+        }
+        Set<String> tags = new LinkedHashSet<>();
+        for (String part : raw.split(",")) {
+            String tag = part.strip();
+            if (tag.isEmpty()) {
+                continue;
+            }
+            if (tag.length() > properties.getMaxTagLength()) {
+                throw new BizException(ErrorCode.PARAM_ERROR,
+                        "单个标签不超过 " + properties.getMaxTagLength() + " 字符");
+            }
+            tags.add(tag);
+        }
+        if (tags.size() > properties.getMaxTagsPerThread()) {
+            throw new BizException(ErrorCode.PARAM_ERROR,
+                    "最多选择 " + properties.getMaxTagsPerThread() + " 个标签");
+        }
+        return List.copyOf(tags);
+    }
+
+    /**
+     * 归一化单个筛选标签（空串视为不筛选）。
+     *
+     * @param raw 原始标签
+     * @return 去空白后的标签或 {@code null}
+     */
+    private String normalizeTag(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        return raw.strip();
+    }
+
+    /**
+     * 整体重建帖子的标签行（先删后插，幂等）。
+     *
+     * @param threadId 帖子ID
+     * @param tenantId 租户ID
+     * @param tags 归一化后的标签
+     */
+    private void syncTags(Long threadId, Long tenantId, List<String> tags) {
+        threadTagMapper.delete(Wrappers.<ForumThreadTag>lambdaQuery()
+                .eq(ForumThreadTag::getThreadId, threadId));
+        if (tags == null || tags.isEmpty()) {
+            return;
+        }
+        List<ForumThreadTag> rows = new ArrayList<>(tags.size());
+        for (String tag : tags) {
+            ForumThreadTag row = new ForumThreadTag();
+            // 自定义 INSERT 不会走 TableId 自动填充，主键必须在这里给
+            row.setId(IdWorker.getId());
+            row.setTenantId(tenantId);
+            row.setThreadId(threadId);
+            row.setTag(tag);
+            rows.add(row);
+        }
+        threadTagMapper.insertIgnoreBatch(rows);
+    }
+
+    /**
+     * 起始日期转当日 00:00（空返回 {@code null}）。
+     *
+     * @param date 起始日期
+     * @return 起始时间
+     */
+    private LocalDateTime startOfDay(LocalDate date) {
+        return date == null ? null : date.atStartOfDay();
+    }
+
+    /**
+     * 截止日期转次日 00:00（查询用左闭右开，保证「含截止日」）。
+     *
+     * @param date 截止日期
+     * @return 次日零点
+     */
+    private LocalDateTime startOfNextDay(LocalDate date) {
+        return date == null ? null : date.plusDays(1).atStartOfDay();
     }
 
     /**

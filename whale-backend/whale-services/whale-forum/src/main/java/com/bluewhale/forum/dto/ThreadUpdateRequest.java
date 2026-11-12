@@ -23,6 +23,9 @@ public class ThreadUpdateRequest implements Serializable {
     /** 新正文（富文本源码，服务端消毒） */
     private String content;
 
+    /** 新标签（逗号分隔；{@code null} 表示不改，空串表示清空） */
+    private String tags;
+
     /** 编辑说明（进编辑历史） */
     private String reason;
 }

@@ -14,8 +14,10 @@ import com.bluewhale.forum.dto.ThreadUpdateRequest;
 import com.bluewhale.forum.entity.ForumBoard;
 import com.bluewhale.forum.entity.ForumThread;
 import com.bluewhale.forum.entity.ForumThreadEditHistory;
+import com.bluewhale.forum.entity.ForumThreadTag;
 import com.bluewhale.forum.mapper.ForumThreadEditHistoryMapper;
 import com.bluewhale.forum.mapper.ForumThreadMapper;
+import com.bluewhale.forum.mapper.ForumThreadTagMapper;
 import com.bluewhale.forum.service.BanService;
 import com.bluewhale.forum.service.BoardService;
 import com.bluewhale.forum.service.ExpService;
@@ -61,6 +63,9 @@ class ThreadServiceImplTest {
 
     @Mock
     private ForumThreadMapper threadMapper;
+
+    @Mock
+    private ForumThreadTagMapper threadTagMapper;
 
     @Mock
     private ForumThreadEditHistoryMapper editHistoryMapper;
@@ -373,16 +378,17 @@ class ThreadServiceImplTest {
     void searchUsesFulltextWhenKeywordLongEnough() {
         when(boardService.requireVisibleBoard(anyLong(), any())).thenReturn(board(0));
         when(searchService.useFulltext("鲸议")).thenReturn(true);
-        when(threadMapper.countSearchRows(anyLong(), any(), anyString(), anyBoolean(), anyBoolean()))
-                .thenReturn(1L);
+        when(threadMapper.countSearchRows(anyLong(), any(), anyString(), anyBoolean(),
+                any(), any(), any(), any(), anyBoolean())).thenReturn(1L);
         when(threadMapper.selectSearchRows(anyLong(), any(), anyString(), anyBoolean(),
-                anyBoolean(), anyLong(), anyLong())).thenReturn(List.of(publishedThread()));
+                any(), any(), any(), any(), anyBoolean(), anyLong(), anyLong()))
+                .thenReturn(List.of(publishedThread()));
 
         var result = threadService.search(query("鲸议", 9L), author());
 
         assertThat(result.getTotal()).isEqualTo(1);
         assertThat(result.getRecords()).hasSize(1);
-        verify(threadMapper).countSearchRows(1L, List.of(9L), "鲸议", false, true);
+        verify(threadMapper).countSearchRows(1L, List.of(9L), "鲸议", false, null, null, null, null, true);
     }
 
     @Test
@@ -390,14 +396,14 @@ class ThreadServiceImplTest {
     void searchFallsBackToLikeWhenKeywordTooShort() {
         when(boardService.requireVisibleBoard(anyLong(), any())).thenReturn(board(0));
         when(searchService.useFulltext("鲸")).thenReturn(false);
-        when(threadMapper.countSearchRows(anyLong(), any(), anyString(), anyBoolean(), anyBoolean()))
-                .thenReturn(0L);
+        when(threadMapper.countSearchRows(anyLong(), any(), anyString(), anyBoolean(),
+                any(), any(), any(), any(), anyBoolean())).thenReturn(0L);
 
         var result = threadService.search(query("鲸", 9L), author());
 
         assertThat(result.getTotal()).isZero();
         verify(threadMapper, never()).selectSearchRows(anyLong(), any(), anyString(), anyBoolean(),
-                anyBoolean(), anyLong(), anyLong());
+                any(), any(), any(), any(), anyBoolean(), anyLong(), anyLong());
     }
 
     @Test
@@ -409,7 +415,7 @@ class ThreadServiceImplTest {
 
         assertThat(result.getRecords()).isEmpty();
         verify(threadMapper, never()).countSearchRows(anyLong(), any(), anyString(),
-                anyBoolean(), anyBoolean());
+                anyBoolean(), any(), any(), any(), any(), anyBoolean());
     }
 
     @Test
@@ -417,14 +423,76 @@ class ThreadServiceImplTest {
     void pageWithKeywordDelegatesToSearch() {
         when(boardService.requireVisibleBoard(anyLong(), any())).thenReturn(board(0));
         when(searchService.useFulltext("鲸议")).thenReturn(true);
-        when(threadMapper.countSearchRows(anyLong(), any(), anyString(), anyBoolean(), anyBoolean()))
-                .thenReturn(0L);
+        when(threadMapper.countSearchRows(anyLong(), any(), anyString(), anyBoolean(),
+                any(), any(), any(), any(), anyBoolean())).thenReturn(0L);
 
         var result = threadService.page(query(" 鲸议 ", 9L), author());
 
         assertThat(result.getRecords()).isEmpty();
         // 关键词先 strip 再进检索：前后空格不该让命中数变成 0
-        verify(threadMapper).countSearchRows(1L, List.of(9L), "鲸议", false, true);
+        verify(threadMapper).countSearchRows(1L, List.of(9L), "鲸议", false, null, null, null, null, true);
+    }
+
+    @Test
+    @DisplayName("发帖：标签去空白去重后同步为标签行")
+    void createSyncsNormalizedTags() {
+        when(boardService.requirePostableBoard(anyLong(), any())).thenReturn(board(0));
+        when(threadMapper.insert(any(ForumThread.class))).thenReturn(1);
+        ThreadCreateRequest request = request("标签帖", "<p>正文</p>");
+        request.setTags(" 后端 , 讨论 ,, 后端 ");
+
+        threadService.create(request, author());
+
+        ArgumentCaptor<ForumThread> threadCaptor = ArgumentCaptor.forClass(ForumThread.class);
+        verify(threadMapper).insert(threadCaptor.capture());
+        assertThat(threadCaptor.getValue().getTags()).isEqualTo("后端,讨论");
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ForumThreadTag>> tagCaptor = ArgumentCaptor.forClass(List.class);
+        verify(threadTagMapper).insertIgnoreBatch(tagCaptor.capture());
+        assertThat(tagCaptor.getValue()).extracting(ForumThreadTag::getTag)
+                .containsExactly("后端", "讨论");
+        assertThat(tagCaptor.getValue()).allSatisfy(row -> {
+            assertThat(row.getId()).isNotNull();
+            assertThat(row.getTenantId()).isEqualTo(1L);
+            assertThat(row.getThreadId()).isNotNull();
+        });
+    }
+
+    @Test
+    @DisplayName("发帖：标签数量超限直接 400，不落库")
+    void createRejectsTooManyTags() {
+        when(boardService.requirePostableBoard(anyLong(), any())).thenReturn(board(0));
+        ThreadCreateRequest request = request("标签帖", "<p>正文</p>");
+        request.setTags("t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11");
+
+        assertThatThrownBy(() -> threadService.create(request, author()))
+                .isInstanceOf(BizException.class)
+                .hasMessageContaining("最多选择");
+        verify(threadMapper, never()).insert(any(ForumThread.class));
+        verify(threadTagMapper, never()).insertIgnoreBatch(any());
+    }
+
+    @Test
+    @DisplayName("编辑：只改标签时不要求标题/正文，并整体重建标签行")
+    void updateTagsOnlyRebuildsTagRows() {
+        ForumThread thread = publishedThread();
+        thread.setTags("旧标签");
+        when(threadMapper.selectById(11L)).thenReturn(thread);
+        when(boardService.requireVisibleBoard(anyLong(), any())).thenReturn(board(0));
+        when(threadMapper.updateById(any(ForumThread.class))).thenReturn(1);
+        ThreadUpdateRequest request = new ThreadUpdateRequest();
+        request.setTags(" 新标签 ");
+
+        threadService.update(11L, request, author());
+
+        assertThat(thread.getTags()).isEqualTo("新标签");
+        verify(threadTagMapper).delete(any());
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ForumThreadTag>> tagCaptor = ArgumentCaptor.forClass(List.class);
+        verify(threadTagMapper).insertIgnoreBatch(tagCaptor.capture());
+        assertThat(tagCaptor.getValue()).extracting(ForumThreadTag::getTag)
+                .containsExactly("新标签");
     }
 
     @Test

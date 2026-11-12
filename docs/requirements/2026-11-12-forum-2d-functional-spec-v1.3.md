@@ -46,6 +46,15 @@
 | 12 | 精华加成「留待 P1」，题金榜/撤精无治理动作 | 24h/7d 统一加 `essence × 50`（`hot-essence-bonus`）；新增 `POST /forum/admin/thread/{id}/essence|unessence`，落 `ESSENCE`/`UNESSENCE` 轨迹并通知作者；重复操作幂等返回 | 精华是人工强信号，两档都应体现；幂等避免审计流水被重复点击灌满 |
 | 13 | F-07-04 论坛经验只有口径，无落库与读取端点 | `fm_exp_ledger` append-only，唯一键 `(tenant_id, user_id, event, ref_thread_id)` + `INSERT IGNORE`；发帖 5 / 被投花 2 / 精华 200 / 7d 金榜 Top1 1000；匿名或无作者跳过；账本故障只 `warn` 不影响主流程；`GET /forum/exp/me` 返回总额 + 最近 20 条 | 多实例刷榜与重试必须幂等；经验是附属能力，不能阻断发帖/投花 |
 
+## 落码修订记录（v1.3 内部修订，2026-11-12 M7）
+
+| # | 原口径 | 落码口径 | 原因 |
+|---|---|---|---|
+| 14 | F-06-07 标签页只有「标签聚合，按热度排序」，无数据源定义 | 新增 `fm_thread_tag`（唯一键 `tenant_id + thread_id + tag`），发帖/改帖整体重建、V10 从 `fm_thread.tags` 递归 CTE 幂等回填；`GET /forum/tag/list` 按帖子数降序 | 逗号串无法分组聚合，`LIKE '%tag%'` 会把「后端」算进「前端后端」；不迁移历史帖则标签页只显示新帖，验收对不上 |
+| 15 | F-06-04 搜索筛选只定义「版块、作者、时间范围、有无精华」 | `ThreadQuery` 增 `authorId` / `from` / `to`（`yyyy-MM-dd` 含首尾日）/ `tag`；列表与检索两条通道使用同一组谓词 | 只在列表通道加条件时，带关键词的「搜索 + 筛选」会静默返回范围外结果，用户看到的是「筛选没生效」 |
+| 16 | F-06-06 精华榜未定义端点 | 复用 `GET /forum/thread/page?essenceOnly=true`（跨版块，悬榜优先、发布时间倒序），不新增 `/essence/page` | 同一查询包两个端点会产生两份会分叉的契约 |
+| 17 | 标签选择（F-03-11）未定义长度与数量上限 | 单标签 ≤ `max-tag-length`（默认 32，与列宽对齐）、单帖 ≤ `max-tags-per-thread`（默认 10），超限 400 | 不限长会撞 `VARCHAR(32)` / 1406 变成 500；不限量能靠标签把列表页刷屏 |
+
 ---
 
 ## 一、服务定位

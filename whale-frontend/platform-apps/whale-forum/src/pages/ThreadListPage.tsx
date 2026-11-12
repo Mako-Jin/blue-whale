@@ -63,7 +63,7 @@ export default function ThreadListPage({ board, onOpenThread }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [form] = Form.useForm<{ title: string; content: string }>();
+  const [form] = Form.useForm<{ title: string; content: string; tags?: string }>();
 
   const load = useCallback(
     (page: number, activeSort: string, activeKeyword: string) => {
@@ -100,6 +100,7 @@ export default function ThreadListPage({ board, onOpenThread }: Props) {
         boardId: board.id,
         title: values.title,
         content: values.content,
+        tags: values.tags?.trim() ? values.tags.trim() : undefined,
       });
       setEditorOpen(false);
       form.resetFields();
@@ -227,6 +228,13 @@ export default function ThreadListPage({ board, onOpenThread }: Props) {
             extra="支持简单 HTML（p/strong/em/ul/li/pre/code/a）。含 script、on* 事件等危险内容会被服务端拒绝。"
           >
             <Input.TextArea rows={10} placeholder="<p>正文…</p>" />
+          </Form.Item>
+          <Form.Item
+            name="tags"
+            label="标签"
+            extra="逗号分隔，最多 10 个，单个不超过 32 字符；标签页按标签聚合同类帖子。"
+          >
+            <Input placeholder="例如：后端,讨论" />
           </Form.Item>
         </Form>
       </Modal>

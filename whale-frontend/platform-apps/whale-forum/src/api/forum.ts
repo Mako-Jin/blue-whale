@@ -152,17 +152,26 @@ export function fetchBoards(): Promise<BoardItem[]> {
   return request<BoardItem[]>('/forum/board/page');
 }
 
-/** 帖子列表 */
+/** 帖子列表（boardId 为空表示全站：精华榜/标签页跨版块） */
 export function fetchThreads(params: {
-  boardId: string;
+  boardId?: string;
   sort?: string;
   keyword?: string;
   essenceOnly?: boolean;
+  authorId?: string;
+  /** 起始日期（含），yyyy-MM-dd */
+  from?: string;
+  /** 截止日期（含），yyyy-MM-dd */
+  to?: string;
+  /** 标签（精确匹配） */
+  tag?: string;
   current?: number;
   size?: number;
 }): Promise<PageResult<ThreadListItem>> {
   const query = new URLSearchParams();
-  query.set('boardId', params.boardId);
+  if (params.boardId) {
+    query.set('boardId', params.boardId);
+  }
   if (params.sort) {
     query.set('sort', params.sort);
   }
@@ -171,6 +180,18 @@ export function fetchThreads(params: {
   }
   if (params.essenceOnly) {
     query.set('essenceOnly', 'true');
+  }
+  if (params.authorId) {
+    query.set('authorId', params.authorId);
+  }
+  if (params.from) {
+    query.set('from', params.from);
+  }
+  if (params.to) {
+    query.set('to', params.to);
+  }
+  if (params.tag) {
+    query.set('tag', params.tag);
   }
   query.set('current', String(params.current ?? 1));
   query.set('size', String(params.size ?? 20));
@@ -459,6 +480,10 @@ export function searchThreads(params: {
   keyword: string;
   boardId?: string;
   essenceOnly?: boolean;
+  authorId?: string;
+  from?: string;
+  to?: string;
+  tag?: string;
   current?: number;
   size?: number;
 }): Promise<PageResult<ThreadListItem>> {
@@ -470,9 +495,32 @@ export function searchThreads(params: {
   if (params.essenceOnly) {
     query.set('essenceOnly', 'true');
   }
+  if (params.authorId) {
+    query.set('authorId', params.authorId);
+  }
+  if (params.from) {
+    query.set('from', params.from);
+  }
+  if (params.to) {
+    query.set('to', params.to);
+  }
+  if (params.tag) {
+    query.set('tag', params.tag);
+  }
   query.set('current', String(params.current ?? 1));
   query.set('size', String(params.size ?? 20));
   return request<PageResult<ThreadListItem>>(`/forum/search?${query.toString()}`);
+}
+
+/** 标签聚合条目（F-06-07 标签页） */
+export interface TagStat {
+  tag: string;
+  threadCount: string | number;
+}
+
+/** 标签聚合（按帖子数降序，只统计当前用户可见版块） */
+export function fetchTags(limit = 50): Promise<TagStat[]> {
+  return request<TagStat[]>(`/forum/tag/list?limit=${limit}`);
 }
 
 /** 检索状态（索引覆盖到哪、分词长度） */

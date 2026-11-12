@@ -14,11 +14,14 @@ import com.bluewhale.forum.service.SearchService;
 import com.bluewhale.forum.service.ThreadService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.time.LocalDate;
 
 /**
  * 论坛检索接口。
@@ -47,6 +50,10 @@ public class SearchController {
      * @param keyword 关键词（必填，空白按未命中处理）
      * @param boardId 限定版块（可空表示全部可见版块）
      * @param essenceOnly 只看精华
+     * @param authorId 作者ID（可空）
+     * @param from 起始日期（含，yyyy-MM-dd，可空）
+     * @param to 截止日期（含，yyyy-MM-dd，可空）
+     * @param tag 标签（精确匹配，可空）
      * @param current 页码
      * @param size 每页条数
      * @param request 当前请求
@@ -58,6 +65,12 @@ public class SearchController {
             @RequestParam(value = "keyword", required = false) String keyword,
             @RequestParam(value = "boardId", required = false) Long boardId,
             @RequestParam(value = "essenceOnly", required = false) Boolean essenceOnly,
+            @RequestParam(value = "authorId", required = false) Long authorId,
+            @RequestParam(value = "from", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(value = "to", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(value = "tag", required = false) String tag,
             @RequestParam(value = "current", required = false) Long current,
             @RequestParam(value = "size", required = false) Long size,
             HttpServletRequest request) {
@@ -65,6 +78,10 @@ public class SearchController {
         query.setKeyword(keyword);
         query.setBoardId(boardId);
         query.setEssenceOnly(essenceOnly);
+        query.setAuthorId(authorId);
+        query.setFrom(from);
+        query.setTo(to);
+        query.setTag(tag);
         query.setCurrent(current);
         query.setSize(size);
         return Result.ok(threadService.search(query, ForumActor.from(request)));

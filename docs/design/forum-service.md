@@ -164,6 +164,7 @@ fm_sensitive_hit (敏感词命中, 独立表)
 | 管理端 | `PUT /forum/manage/thread/{id}/pin`、`/essence`、`/lock`、`/remove`、`GET /forum/manage/thread/pending/page`、`POST /forum/manage/thread/{id}/audit`、`GET /forum/manage/report/page`、`POST /forum/manage/report/{id}/dispose`、`GET /forum/manage/sensitive/page`（9） |
 | 热榜 | `GET /forum/hot`、`POST /forum/hot/refresh`（2） |
 | 检索 | `GET /forum/search`、`GET /forum/search/status`、`POST /forum/search/reindex`（3） |
+| 标签 | `GET /forum/tag/list`（M7：标签聚合，按帖子数降序，仅统计可见版块内已发布帖） |
 | 内网 | `GET /forum/internal/thread/{id}`（供 portal/agent 只读快照，internal-deny） |
 
 M4 落地口径：检索走 `FULLTEXT(title, content_text) WITH PARSER ngram`（`content_text` 为写入时提取的纯文本，
@@ -205,6 +206,7 @@ M4 落地口径：检索走 `FULLTEXT(title, content_text) WITH PARSER ngram`（
 | M4 检索与收口 | ngram 全文索引（`fm_thread.title + content_text`）、单字回退 LIKE、`GET /forum/search` + `/status` + `/reindex`、计数对账（`fm_count_reconcile` + 受管任务 `forum.count.reconcile` + `POST /forum/admin/count/reconcile`）、运维手册 `docs/ops/forum-service-ops.md`、SLO-12/13/14 | ✅ 实机：回填前正文词命中 0 → 回填 6 条后命中 1；单字走 LIKE 命中 3；对账 dry-run 报 2 处差异、`fix=true` 修正并留 4 行轨迹 |
 | M5 互动增强（P1） | `V8__mention.sql`（`fm_mention`）；@提及（F-03-10）：解析 → auth 内网通讯录解析 → 落库 → outbox 通知，**afterCommit 派发**；引用回复摘要（F-04-02，被引楼层删除只回占位）；楼层正/倒序（F-02-06，下推 `ORDER BY`） | ✅ 实机：发帖 `@admin @qa_admin` 落 2 条 `fm_mention` + 2 条 outbox `SENT`；跨帖 @ 同一人各自成条（唯一键含 `thread_id`）；回帖引用回填摘要，被引楼层 `REMOVE` 后仅 `deleted=true`；`order=desc` 返回 `[3,2]`；单测 111 项全绿 |
 | M6 成长与热榜增强（P1） | `V9__hot_window_exp.sql`（`fm_hot_snapshot.hot_window` + `fm_exp_ledger`）；热榜双档 24h/7d（24h 档按小时指数衰减，`GET /forum/hot?window=` 缺省 7d）；题金榜 / 撤销精华（`POST /forum/admin/thread/{id}/essence|unessence`）；论坛经验本地账本（发帖 5 / 被投花 2 / 精华 200 / 金榜 Top1 1000，匿名不计，同人同帖同事件唯一）与 `GET /forum/exp/me` | 单测 117 项全绿；24h 与 7d 快照各自覆盖互不覆盖；同帖重复题金榜不重复发经验 |
+| M7-1 发现页（P1） | `V10__thread_tag.sql`（`fm_thread_tag` + 历史标签递归回填）；发帖/改帖同步标签行；`GET /forum/tag/list` 标签聚合；`ThreadQuery` 增 `authorId` / `from` / `to` / `tag`，列表与检索共用同一谓词；精华榜复用 `GET /forum/thread/page?essenceOnly=true`；前端「发现」页（精华榜 / 标签页 + 版块、作者、时间范围、只看精华筛选） | 单测覆盖标签同步、超限拒绝、筛选透传、聚合排序；前端 lint + build 通过；`check-api-path-drift.py` / `check-long-id-typing.py` 全绿 |
 
 ---
 
@@ -237,6 +239,20 @@ M4 落地口径：检索走 `FULLTEXT(title, content_text) WITH PARSER ngram`（
 | 经验事件 | `fm_exp_ledger` 唯一键 `(tenant_id, user_id, event, ref_thread_id)`，`INSERT IGNORE`；匿名帖/无作者一律跳过；失败只 `warn` 返回 0 | 账本 append-only，重放安全；经验是附属能力，不能把发帖/投花打挂 |
 | 经验口径 | 发帖 +5、被投花 +2、精华 +200、7d 金榜 Top1 +1000；同一帖子重复霸榜只发一次；撤销精华不回收已发经验 | 与 F-07-04 一致；回收会造成总额负数与对账复杂度 |
 | 读取 | `GET /forum/exp/me` 返回 `total` + 最近 N 条（默认 20）流水 | 前端只读展示，不做本地累计 |
+
+---
+
+## 8.3 M7 标签聚合与发现筛选实现口径（P1）
+
+| 项 | 口径 | 为什么 |
+|---|---|---|
+| 标签数据源 | 新增 `fm_thread_tag`（`tenant_id + thread_id + tag` 唯一），仍保留 `fm_thread.tags` 逗号串作为展示快照 | 逗号串无法建索引、`LIKE '%tag%'` 会把 `后端` 命中 `前端后端`；标签页需要 `GROUP BY` 聚合，必须有行式数据源 |
+| 回填 | V10 用递归 CTE 拆 `fm_thread.tags`，`INSERT IGNORE` 幂等；标签首尾空白剔除、空标签丢弃 | 迁移可重复执行；历史帖不迁移则标签页只显示新帖，验收「标签聚合」必然对不上 |
+| 同步 | 发帖/改帖时按「删旧行 + 插新行」整体重建；单帖 ≤ `max-tags-per-thread`（默认 10）、单标签 ≤ `max-tag-length`（默认 32），超限 400 | 差量对比在并发编辑下会漏行；上限与列宽对齐，否则 `VARCHAR(32)` 截断或 1406 报 500 |
+| 聚合口径 | `GET /forum/tag/list?limit=`：只统计当前用户**可见版块**内 `PUBLISHED/SOLVED/CLOSED` 且 `deleted=0` 的帖子；按帖子数降序、标签名升序；`limit` 默认 50、上限 200 | 标签页不能把私密版块的标签与计数暴露给无权用户；同数时按名称排序保证分页稳定 |
+| 筛选 | `ThreadQuery` 增 `authorId` / `from` / `to`（`yyyy-MM-dd`，含首尾日）/ `tag`；列表通道用 `EXISTS fm_thread_tag`，检索通道把同样的条件写进 `MATCH` 语句 | 检索通道若不带筛选，用户「搜索 + 时间范围」会静默返回范围外结果，看起来像缓存没生效 |
+| 精华榜 | 不新增端点，复用 `GET /forum/thread/page?essenceOnly=true`（跨版块、按发布时间倒序，悬榜优先） | 同一份查询再包一个 `/essence/page` 只会产生两个会分叉的契约 |
+| 作者筛选 | 传 `authorId`，不传作者昵称 | 平台无跨服务用户名查询，按昵称筛会退化成「先查 auth 再 IN」，分页 total 与实际条数会对不上 |
 
 ---
 

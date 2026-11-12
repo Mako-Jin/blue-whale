@@ -11,11 +11,12 @@ import ThreadDetailPage from './pages/ThreadDetailPage';
 import AdminPage from './pages/AdminPage';
 import HotPage from './pages/HotPage';
 import CollectionsPage from './pages/CollectionsPage';
+import DiscoveryPage from './pages/DiscoveryPage';
 
 const { Text } = Typography;
 
 interface ViewState {
-  kind: 'list' | 'thread' | 'admin' | 'hot' | 'collections';
+  kind: 'list' | 'thread' | 'admin' | 'hot' | 'collections' | 'discovery';
   boardId?: string;
   threadId?: string;
 }
@@ -111,6 +112,10 @@ export default function App() {
     setView((prev) => ({ kind: 'collections', boardId: prev.boardId }));
   }, []);
 
+  const openDiscovery = useCallback(() => {
+    setView((prev) => ({ kind: 'discovery', boardId: prev.boardId }));
+  }, []);
+
   if (loading) {
     return (
       <div className="forum-loading">
@@ -163,6 +168,13 @@ export default function App() {
           </button>
           <button
             type="button"
+            className={view.kind === 'discovery' ? 'is-active' : undefined}
+            onClick={openDiscovery}
+          >
+            发现
+          </button>
+          <button
+            type="button"
             className={view.kind === 'collections' ? 'is-active' : undefined}
             onClick={openCollections}
           >
@@ -193,6 +205,8 @@ export default function App() {
           <AdminPage />
         ) : view.kind === 'hot' ? (
           <HotPage onOpenThread={openThread} />
+        ) : view.kind === 'discovery' ? (
+          <DiscoveryPage boards={boards} onOpenThread={openThread} />
         ) : view.kind === 'collections' ? (
           <CollectionsPage onOpenThread={openThread} />
         ) : view.kind === 'thread' && view.threadId ? (

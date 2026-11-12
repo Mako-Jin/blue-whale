@@ -178,4 +178,13 @@ public class ForumProperties {
 
     /** 经验流水单次查询条数上限 */
     private int expLedgerPageSize = 20;
+
+    /** 标签聚合默认返回条数（F-06-07 标签页；接口另有 200 条硬上限） */
+    private int tagListLimit = 50;
+
+    /** 单帖标签数量上限（超出 400；与 fm_thread.tags VARCHAR(512) 容量匹配） */
+    private int maxTagsPerThread = 10;
+
+    /** 单个标签长度上限（与 fm_thread_tag.tag VARCHAR(32) 列宽对齐） */
+    private int maxTagLength = 32;
 }

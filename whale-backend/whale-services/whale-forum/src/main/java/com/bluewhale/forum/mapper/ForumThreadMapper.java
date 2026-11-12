@@ -240,6 +240,10 @@ public interface ForumThreadMapper extends BaseMapper<ForumThread> {
      * @param boardIds 可见版块ID（不可为空，空集合由调用方提前返回）
      * @param keyword 关键词
      * @param essenceOnly 只看精华
+     * @param authorId 作者ID（可空）
+     * @param from 发布起始时间（含，可空）
+     * @param to 发布截止时间（不含，可空）
+     * @param tag 标签（可空，精确匹配 fm_thread_tag）
      * @param useFulltext 是否走全文索引（关键词长度达到 ngram_token_size 时为 true）
      * @param offset 偏移量
      * @param size 每页条数
@@ -254,6 +258,13 @@ public interface ForumThreadMapper extends BaseMapper<ForumThread> {
               AND t.board_id IN
               <foreach collection="boardIds" item="bid" open="(" separator="," close=")">#{bid}</foreach>
               <if test="essenceOnly"> AND t.essence = 1 </if>
+              <if test="authorId != null"> AND t.author_id = #{authorId} </if>
+              <if test="from != null"> AND t.publish_time &gt;= #{from} </if>
+              <if test="to != null"> AND t.publish_time &lt; #{to} </if>
+              <if test="tag != null and tag != ''">
+                AND EXISTS (SELECT 1 FROM fm_thread_tag tt
+                            WHERE tt.tenant_id = #{tenantId} AND tt.thread_id = t.id AND tt.tag = #{tag})
+              </if>
               AND (
                 <choose>
                   <when test="useFulltext">
@@ -277,6 +288,10 @@ public interface ForumThreadMapper extends BaseMapper<ForumThread> {
                                        @Param("boardIds") List<Long> boardIds,
                                        @Param("keyword") String keyword,
                                        @Param("essenceOnly") boolean essenceOnly,
+                                       @Param("authorId") Long authorId,
+                                       @Param("from") LocalDateTime from,
+                                       @Param("to") LocalDateTime to,
+                                       @Param("tag") String tag,
                                        @Param("useFulltext") boolean useFulltext,
                                        @Param("offset") long offset,
                                        @Param("size") long size);
@@ -288,6 +303,10 @@ public interface ForumThreadMapper extends BaseMapper<ForumThread> {
      * @param boardIds 可见版块ID
      * @param keyword 关键词
      * @param essenceOnly 只看精华
+     * @param authorId 作者ID（可空）
+     * @param from 发布起始时间（含，可空）
+     * @param to 发布截止时间（不含，可空）
+     * @param tag 标签（可空）
      * @param useFulltext 是否走全文索引
      * @return 命中总数
      */
@@ -300,6 +319,13 @@ public interface ForumThreadMapper extends BaseMapper<ForumThread> {
               AND t.board_id IN
               <foreach collection="boardIds" item="bid" open="(" separator="," close=")">#{bid}</foreach>
               <if test="essenceOnly"> AND t.essence = 1 </if>
+              <if test="authorId != null"> AND t.author_id = #{authorId} </if>
+              <if test="from != null"> AND t.publish_time &gt;= #{from} </if>
+              <if test="to != null"> AND t.publish_time &lt; #{to} </if>
+              <if test="tag != null and tag != ''">
+                AND EXISTS (SELECT 1 FROM fm_thread_tag tt
+                            WHERE tt.tenant_id = #{tenantId} AND tt.thread_id = t.id AND tt.tag = #{tag})
+              </if>
               AND (
                 <choose>
                   <when test="useFulltext">
@@ -317,6 +343,10 @@ public interface ForumThreadMapper extends BaseMapper<ForumThread> {
                          @Param("boardIds") List<Long> boardIds,
                          @Param("keyword") String keyword,
                          @Param("essenceOnly") boolean essenceOnly,
+                         @Param("authorId") Long authorId,
+                         @Param("from") LocalDateTime from,
+                         @Param("to") LocalDateTime to,
+                         @Param("tag") String tag,
                          @Param("useFulltext") boolean useFulltext);
 
     /**
