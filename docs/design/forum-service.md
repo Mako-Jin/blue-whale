@@ -210,6 +210,7 @@ M4 落地口径：检索走 `FULLTEXT(title, content_text) WITH PARSER ngram`（
 | M7-2 个人中心（P1） | `GET /forum/profile/me` 与 `GET /forum/profile/{userId}`（鲸阶、经验、发帖数、获花数、精华数、禁言状态）；`GET /forum/my/threads`（含审核中/已处置，作者可见）；`GET /forum/my/posts`（联 `fm_thread` 排除已删帖）；鲸阶阈值走 `whale.forum.level-thresholds`；前端「我的」页（资料卡 + 我的帖子 / 回复 / 收藏） | 单测覆盖鲸阶边界、禁言映射、我的帖子/回复分页；前端 lint + build；两项门禁全绿 |
 | M7-3 结契（P1） | `V11__follow.sql`（`fm_follow`，关注作者 / 版块）；`PUT|DELETE /forum/follow/{targetType}/{targetId}`（幂等）；`GET /forum/follow/{targetType}/{targetId}` 回关注态；`GET /forum/my/follows` 我的关注；发布态新帖向关注者写 outbox 通知（幂等、排除作者本人、单帖上限 `follow-notify-limit`）；前端详情页关注作者、列表页关注版块、「我的」页关注 Tab | 单测覆盖自关注拒绝、版块可见性校验、幂等关注/取关、关注列表分页与通知去重；前端 lint + build；两项门禁全绿 |
 | M7-4 帖子编辑（P1） | 复用 `PUT /forum/thread/{id}`（`sys:forum:thread:edit`）；前端详情页新增编辑弹窗：标题 / 正文 / 标签 / 编辑说明，保存后用响应值回填详情；审核版块保存后提示「等待版主审核」 | 前端 lint + build；两项门禁全绿 |
+| M7-5 申诉（P1） | `V12__appeal.sql`（`fm_appeal`）；`POST /forum/appeal`（对已处置帖子/楼层/当前禁言提交）、`GET /forum/my/appeals`；管理端 `GET /forum/admin/appeal/page`、`POST /forum/admin/appeal/{id}/handle`（通过自动解禁、写 outbox 通知）；前端禁言告警与「已处置」帖子行提供申诉入口，后台新增申诉工单 Tab | 单测覆盖受理范围、归属校验、重复待审拒绝、复核幂等与解禁；前端 lint + build；两项门禁全绿 |
 
 ---
 
@@ -285,6 +286,19 @@ M4 落地口径：检索走 `FULLTEXT(title, content_text) WITH PARSER ngram`（
 | 通知时机 | 与发帖/审核通过同事务写 outbox（与发帖经验一致），不额外注册 afterCommit | outbox 行跟帖子一起提交或回滚，不会通知一个被回滚的帖子；投递失败仍由 flush 补偿 |
 | 读取 | `GET /forum/follow/{targetType}/{targetId}` 回 `{following}`；`GET /forum/my/follows?targetType=` 按关注时间倒序分页，只回 `targetType/targetId/createTime` | 版块名由前端用已加载的版块树本地映射，不为了一个展示字段在论坛服务拼跨表查询 |
 | 权限 | 读用 `sys:forum:browse`，关注/取关用 `sys:forum:reaction:use` | 结契属互动行为，复用互动权限码；新增权限点要走「常量 → 迁移 → 注解」三步，收益不抵成本 |
+
+---
+
+## 8.6 M7-5 申诉实现口径（P1）
+
+| 项 | 口径 | 为什么 |
+|---|---|---|
+| 数据模型 | 新增 `fm_appeal`：`target_type` 仅 `THREAD / POST / BAN`（`BAN` 的 `target_id` 为用户ID），`status` 仅 `PENDING / APPROVED / REJECTED`，CHECK 兜住；保留 `handler_id / handle_remark / handle_time` | 申诉是工单，必须有处理人、意见与时间的落点，否则「谁驳的、为什么」只能靠日志 |
+| 受理范围 | `THREAD` / `POST` 仅限作者本人且状态为 `REMOVED`；`BAN` 仅限本人且当前有生效处置；未处置对象返回 400「无需申诉」 | 对未处置内容开放申诉只会产生无效工单；允许替他人申诉等于给骚扰开通道 |
+| 重复提交 | 同一用户对同一对象存在 `PENDING` 申诉时拒绝；驳回/通过后可再次提交 | 唯一键做不了「仅待审唯一」，应用层查询即可；永久禁止再次申诉会把误驳回变成死局 |
+| 复核副作用 | 通过/驳回只改申诉状态与备注；**仅 `BAN` 申诉通过时自动 `BanService.release`**，内容恢复仍在处置模块手工操作 | 解禁是单一事实源上的状态翻转；自动恢复帖子会绕过处置轨迹与通知，复核不该有跨聚合副作用 |
+| 通知 | 复核结果向申诉人写 outbox（幂等键 `forum:appeal:{appealId}:{status}`），通过/驳回文案区分 | 用户提交申诉后唯一的信息来源就是通知；键带申诉ID与结果，重复处理不会重复打扰 |
+| 权限 | 提交与「我的申诉」用 `sys:forum:browse`；工单列表与复核用 `sys:forum:manage:dispose` | 被禁言用户仍有浏览权限，申诉入口不能因禁言消失；复核与处置同权限，版主与管理员职责一致 |
 
 ---
 

@@ -26,11 +26,13 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import {
   deleteSensitiveWord,
+  fetchAdminAppeals,
   fetchAuditPage,
   fetchReports,
   fetchSearchStatus,
   fetchSensitiveWords,
   flushNotify,
+  handleAppeal,
   handleReport,
   passAudit,
   reconcileCounts,
@@ -38,6 +40,7 @@ import {
   reindexSearch,
   reloadSensitiveWords,
   saveSensitiveWord,
+  type AppealItem,
   type AuditItem,
   type ReconcileReport,
   type ReportItem,
@@ -88,6 +91,7 @@ export default function AdminPage() {
         items={[
           { key: 'audit', label: '内容审核台', children: <AuditPanel /> },
           { key: 'report', label: '举报工单', children: <ReportPanel /> },
+          { key: 'appeal', label: '申诉工单', children: <AppealPanel /> },
           { key: 'word', label: '敏感词库', children: <WordPanel /> },
           { key: 'ops', label: '运维', children: <OpsPanel /> },
         ]}
@@ -243,6 +247,171 @@ function AuditPanel() {
         />
       </Modal>
     </div>
+  );
+}
+
+/** 申诉状态标签 */
+function appealStatusTag(status: string) {
+  switch (status) {
+    case 'PENDING':
+      return <Tag color="orange">待复核</Tag>;
+    case 'APPROVED':
+      return <Tag color="green">已通过</Tag>;
+    case 'REJECTED':
+      return <Tag>已驳回</Tag>;
+    default:
+      return <Tag>{status}</Tag>;
+  }
+}
+
+/** 申诉对象展示名 */
+function appealTargetLabel(item: AppealItem) {
+  const type = item.targetType === 'BAN' ? '禁言' : item.targetType === 'THREAD' ? '帖子' : '楼层';
+  return `${type} #${item.targetId}`;
+}
+
+/**
+ * 申诉工单复核。
+ *
+ * <p>通过/驳回只改工单状态；仅禁言申诉通过会由服务端自动解禁，
+ * 所以按钮文案要提示这一点，避免版主误以为会顺带恢复帖子。</p>
+ */
+function AppealPanel() {
+  const [items, setItems] = useState<AppealItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [status, setStatus] = useState('PENDING');
+  const [loading, setLoading] = useState(false);
+  const [current, setCurrent] = useState<AppealItem | null>(null);
+  const [form] = Form.useForm<{ approved: string; remark?: string }>();
+
+  const load = useCallback(() => {
+    setLoading(true);
+    fetchAdminAppeals(status || undefined, page, PAGE_SIZE)
+      .then((result) => {
+        setItems(result.records);
+        setTotal(Number(result.total));
+      })
+      .catch(() => {
+        setItems([]);
+        setTotal(0);
+      })
+      .finally(() => setLoading(false));
+  }, [status, page]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  /** 打开复核弹窗：默认通过，意见从空开始 */
+  const openHandle = (item: AppealItem) => {
+    setCurrent(item);
+    form.setFieldsValue({ approved: 'APPROVED', remark: '' });
+  };
+
+  const submitHandle = async () => {
+    const values = await form.validateFields();
+    if (!current) {
+      return;
+    }
+    try {
+      await handleAppeal(current.id, values.approved === 'APPROVED', values.remark?.trim());
+      void message.success('已复核');
+      setCurrent(null);
+      load();
+    } catch (err: unknown) {
+      void message.error(err instanceof Error ? err.message : '复核失败');
+    }
+  };
+
+  const columns: ColumnsType<AppealItem> = [
+    { title: '申诉人', dataIndex: 'userId', width: 150, render: (value: string) => `鲸友 #${value}` },
+    { title: '对象', width: 150, render: (_, row) => appealTargetLabel(row) },
+    { title: '理由', dataIndex: 'reason', ellipsis: true },
+    { title: '状态', dataIndex: 'status', width: 100, render: (value: string) => appealStatusTag(value) },
+    { title: '提交时间', dataIndex: 'createTime', width: 180 },
+    {
+      title: '操作',
+      width: 150,
+      render: (_, row) =>
+        row.status === 'PENDING' ? (
+          <Button size="small" onClick={() => openHandle(row)}>
+            复核
+          </Button>
+        ) : (
+          <Text type="secondary" ellipsis>
+            {row.handleRemark || '—'}
+          </Text>
+        ),
+    },
+  ];
+
+  return (
+    <>
+      <Space style={{ marginBottom: 12 }}>
+        <Segmented
+          value={status}
+          options={[
+            { label: '待复核', value: 'PENDING' },
+            { label: '已通过', value: 'APPROVED' },
+            { label: '已驳回', value: 'REJECTED' },
+            { label: '全部', value: '' },
+          ]}
+          onChange={(value) => {
+            setStatus(String(value));
+            setPage(1);
+          }}
+        />
+      </Space>
+      <Table
+        rowKey="id"
+        loading={loading}
+        columns={columns}
+        dataSource={items}
+        pagination={false}
+        size="small"
+      />
+      <Pagination
+        style={{ marginTop: 12, textAlign: 'right' }}
+        current={page}
+        pageSize={PAGE_SIZE}
+        total={total}
+        showSizeChanger={false}
+        onChange={(next) => setPage(next)}
+      />
+      <Modal
+        title="复核申诉"
+        open={current !== null}
+        onOk={submitHandle}
+        onCancel={() => setCurrent(null)}
+        okText="提交复核"
+        cancelText="取消"
+        destroyOnClose
+      >
+        {current ? (
+          <Paragraph type="secondary">
+            {appealTargetLabel(current)}｜申诉理由：{current.reason}
+          </Paragraph>
+        ) : null}
+        <Form form={form} layout="vertical">
+          <Form.Item name="approved" label="结论" rules={[{ required: true }]}>
+            <Segmented
+              options={[
+                { label: '通过', value: 'APPROVED' },
+                { label: '驳回', value: 'REJECTED' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item
+            name="remark"
+            label="复核意见"
+            extra="通过禁言申诉会自动解禁；帖子 / 楼层需到处置模块手工恢复"
+          >
+            <Input.TextArea rows={3} maxLength={500} showCount />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </>
   );
 }
 

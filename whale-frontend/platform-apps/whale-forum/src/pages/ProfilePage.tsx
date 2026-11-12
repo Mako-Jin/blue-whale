@@ -11,12 +11,15 @@ import {
   Card,
   Descriptions,
   Empty,
+  Input,
   List,
+  Modal,
   Pagination,
   Space,
   Tabs,
   Tag,
   Typography,
+  message,
 } from 'antd';
 import {
   fetchMyFollows,
@@ -24,6 +27,8 @@ import {
   fetchMyThreads,
   fetchProfile,
   removeFollow,
+  submitAppeal,
+  type AppealTargetType,
   type BoardItem,
   type FollowItem,
   type MyPost,
@@ -68,6 +73,14 @@ export default function ProfilePage({ boards, onOpenThread }: Props) {
   const [followTotal, setFollowTotal] = useState(0);
   const [followPage, setFollowPage] = useState(1);
   const [followLoading, setFollowLoading] = useState(false);
+
+  /** 申诉弹窗：target 为空表示关闭；禁言申诉的 targetId 就是本人 userId */
+  const [appealTarget, setAppealTarget] = useState<{
+    targetType: AppealTargetType;
+    targetId: string;
+  } | null>(null);
+  const [appealReason, setAppealReason] = useState('');
+  const [appealSubmitting, setAppealSubmitting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -148,6 +161,39 @@ export default function ProfilePage({ boards, onOpenThread }: Props) {
     return `鲸友 #${item.targetId}`;
   };
 
+  /** 打开申诉弹窗（禁言 / 已处置帖子） */
+  const openAppeal = (targetType: AppealTargetType, targetId: string) => {
+    setAppealTarget({ targetType, targetId });
+    setAppealReason('');
+  };
+
+  const closeAppeal = () => {
+    setAppealTarget(null);
+    setAppealReason('');
+  };
+
+  /** 提交申诉：理由必填，提交后不本地刷新列表（工单在「我的申诉」里查） */
+  const onAppeal = async () => {
+    if (!appealTarget) {
+      return;
+    }
+    const reason = appealReason.trim();
+    if (!reason) {
+      void message.warning('请填写申诉理由');
+      return;
+    }
+    setAppealSubmitting(true);
+    try {
+      await submitAppeal({ ...appealTarget, reason });
+      void message.success('申诉已提交，复核结果会通过通知告知');
+      closeAppeal();
+    } catch (err: unknown) {
+      void message.error(err instanceof Error ? err.message : '提交失败');
+    } finally {
+      setAppealSubmitting(false);
+    }
+  };
+
   // 默认 Tab 是「我的帖子」：Tabs 的 onChange 首次不触发，这里主动加载
   useEffect(() => {
     loadThreads(1);
@@ -160,7 +206,21 @@ export default function ProfilePage({ boards, onOpenThread }: Props) {
         dataSource={threads}
         locale={{ emptyText: <Empty description="还没有发过帖子" /> }}
         renderItem={(item) => (
-          <List.Item>
+          <List.Item
+            actions={
+              item.status === 'REMOVED'
+                ? [
+                    <Button
+                      key="appeal"
+                      size="small"
+                      onClick={() => openAppeal('THREAD', item.id)}
+                    >
+                      申诉
+                    </Button>,
+                  ]
+                : undefined
+            }
+          >
             <Space size={8} wrap>
               {item.status !== 'PUBLISHED' ? (
                 <Tag color={item.status === 'PENDING' ? 'orange' : 'default'}>
@@ -306,6 +366,11 @@ export default function ProfilePage({ boards, onOpenThread }: Props) {
               <Alert
                 type="warning"
                 showIcon
+                action={
+                  <Button size="small" danger onClick={() => openAppeal('BAN', profile.userId)}>
+                    申诉
+                  </Button>
+                }
                 message={
                   profile.banType === 'BAN'
                     ? '当前账号已被封号，暂时无法发帖回帖'
@@ -366,6 +431,25 @@ export default function ProfilePage({ boards, onOpenThread }: Props) {
           }}
         />
       </Card>
+
+      <Modal
+        title={appealTarget?.targetType === 'BAN' ? '申诉禁言处置' : '申诉已处置帖子'}
+        open={appealTarget !== null}
+        confirmLoading={appealSubmitting}
+        onOk={onAppeal}
+        onCancel={closeAppeal}
+        okText="提交申诉"
+        cancelText="取消"
+      >
+        <Input.TextArea
+          rows={5}
+          maxLength={500}
+          showCount
+          value={appealReason}
+          onChange={(event) => setAppealReason(event.target.value)}
+          placeholder="请说明申诉理由与补充材料线索，便于复核"
+        />
+      </Modal>
     </div>
   );
 }

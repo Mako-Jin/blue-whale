@@ -528,6 +528,66 @@ export function updateThread(
   return request<ThreadDetail>(`/forum/thread/${threadId}`, { method: 'PUT', body });
 }
 
+// ---------------------------------------------------------------------------
+// M7-5 申诉（F-09-08）
+// 只受理已处置对象：帖子 / 楼层限作者本人，禁言限本人且当前生效
+// ---------------------------------------------------------------------------
+
+/** 申诉对象类型 */
+export type AppealTargetType = 'THREAD' | 'POST' | 'BAN';
+
+/** 申诉工单 */
+export interface AppealItem {
+  id: string;
+  userId: string;
+  targetType: AppealTargetType | string;
+  targetId: string;
+  reason: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | string;
+  handleRemark?: string | null;
+  handleTime?: string | null;
+  createTime?: string | null;
+}
+
+/** 提交申诉 */
+export function submitAppeal(body: {
+  targetType: AppealTargetType;
+  targetId: string;
+  reason: string;
+}): Promise<AppealItem> {
+  return request<AppealItem>('/forum/appeal', { method: 'POST', body });
+}
+
+/** 我的申诉 */
+export function fetchMyAppeals(current = 1, size = 20): Promise<PageResult<AppealItem>> {
+  return request<PageResult<AppealItem>>(`/forum/my/appeals?current=${current}&size=${size}`);
+}
+
+/** 管理端申诉工单列表 */
+export function fetchAdminAppeals(
+  status?: string,
+  current = 1,
+  size = 10,
+): Promise<PageResult<AppealItem>> {
+  const query = new URLSearchParams({ current: String(current), size: String(size) });
+  if (status) {
+    query.set('status', status);
+  }
+  return request<PageResult<AppealItem>>(`/forum/admin/appeal/page?${query.toString()}`);
+}
+
+/** 复核申诉：approved=true 通过（禁言申诉会同时解禁），false 驳回 */
+export function handleAppeal(
+  appealId: string,
+  approved: boolean,
+  remark?: string,
+): Promise<AppealItem> {
+  return request<AppealItem>(`/forum/admin/appeal/${appealId}/handle`, {
+    method: 'POST',
+    body: { approved, remark },
+  });
+}
+
 /** 论坛经验流水条目 */
 export interface ExpItem {
   event: string;
