@@ -40,6 +40,13 @@ import type {
 import type { FileInfoVO } from './file';
 import type { DeptVO, DeptPayload } from './dept';
 import type {
+  TenantVO,
+  TenantMemberVO,
+  TenantPasswordPolicyVO,
+  TenantConfigEntry,
+} from './tenant';
+import type { MyTenantVO } from './auth';
+import type {
   JobInfoVO,
   JobLogVO,
   JobDependencyVO,
@@ -166,6 +173,22 @@ export type AssertDeptPayload = Assert<
   SubsetOf<DeptPayload, AuthSchemas['DeptRequest']>
 >;
 
+// ---- 租户（/tenant/**、/auth/tenants） --------------------------------------
+
+export type AssertTenantVO = Assert<SubsetOf<TenantVO, AuthSchemas['TenantVO']>>;
+export type AssertTenantMemberVO = Assert<
+  SubsetOf<TenantMemberVO, AuthSchemas['TenantMemberVO']>
+>;
+export type AssertTenantPasswordPolicyVO = Assert<
+  SubsetOf<TenantPasswordPolicyVO, AuthSchemas['TenantPasswordPolicyVO']>
+>;
+export type AssertTenantConfigEntry = Assert<
+  SubsetOf<TenantConfigEntry, AuthSchemas['TenantConfigEntry']>
+>;
+export type AssertMyTenantVO = Assert<
+  SubsetOf<MyTenantVO, AuthSchemas['TenantResponse']>
+>;
+
 // ---- 关键口径钉死：Long 一律 string（防手工改回 number） ---------------------
 
 export type AssertUserVOIdIsString = Assert<
@@ -196,6 +219,16 @@ export type AssertPayOrderIdIsString = Assert<
 /** 金额是 BigDecimal：运行时为 number（不走 Long→String），钉死防误改成 string */
 export type AssertPayAmountIsNumber = Assert<
   Equal<PayOrderVO['amount'], number>
+>;
+export type AssertTenantVOIdIsString = Assert<Equal<TenantVO['id'], string>>;
+export type AssertTenantMemberUserIdIsString = Assert<
+  Equal<TenantMemberVO['userId'], string>
+>;
+export type AssertTenantMemberRoleIdIsString = Assert<
+  Equal<TenantMemberVO['roles'][number]['id'], string>
+>;
+export type AssertMyTenantIdIsString = Assert<
+  Equal<MyTenantVO['tenantId'], string>
 >;
 
 // eslint 不检查纯类型，防止被误清空：导出一个运行时空对象占位

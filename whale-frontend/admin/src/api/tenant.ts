@@ -6,7 +6,7 @@ import { del, get, post, put, type PageResult } from './client';
 export type TenantType = 'PLATFORM' | 'TENANT';
 
 export interface TenantVO {
-  id: number;
+  id: string;
   tenantCode: string;
   tenantName: string;
   tenantType: TenantType;
@@ -46,7 +46,7 @@ export function pageTenants(params: TenantPageParams): Promise<PageResult<Tenant
   return get<PageResult<TenantVO>>('/tenant/v1/page', { ...params });
 }
 
-export function getTenant(id: number): Promise<TenantVO> {
+export function getTenant(id: string): Promise<TenantVO> {
   return get<TenantVO>(`/tenant/v1/${id}`);
 }
 
@@ -55,29 +55,29 @@ export function createTenant(payload: TenantCreatePayload): Promise<TenantVO> {
   return post<TenantVO>('/tenant/v1', payload);
 }
 
-export function updateTenant(id: number, payload: TenantUpdatePayload): Promise<TenantVO> {
+export function updateTenant(id: string, payload: TenantUpdatePayload): Promise<TenantVO> {
   return put<TenantVO>(`/tenant/v1/${id}`, payload);
 }
 
-export function changeTenantStatus(id: number, status: number): Promise<TenantVO> {
+export function changeTenantStatus(id: string, status: number): Promise<TenantVO> {
   return put<TenantVO>(`/tenant/v1/${id}/status`, { status });
 }
 
 /** 续期：新到期时间必须晚于当前时间（yyyy-MM-dd HH:mm:ss） */
-export function renewTenant(id: number, expireTime: string): Promise<TenantVO> {
+export function renewTenant(id: string, expireTime: string): Promise<TenantVO> {
   return put<TenantVO>(`/tenant/v1/${id}/renew`, { expireTime });
 }
 
 /** 租户成员内的角色项（Wave 5.54 Phase 5.3） */
 export interface TenantMemberRoleVO {
-  id: number;
+  id: string;
   roleCode: string;
   roleName: string;
 }
 
 /** 当前租户成员：启用关系 + 本租户角色 */
 export interface TenantMemberVO {
-  userId: number;
+  userId: string;
   username: string;
   nickname?: string;
   phone?: string;
@@ -92,13 +92,13 @@ export function listTenantMembers(): Promise<TenantMemberVO[]> {
 }
 
 /** 全量覆盖成员在本租户内的角色 */
-export function assignTenantMemberRoles(userId: number, roleIds: number[]): Promise<void> {
+export function assignTenantMemberRoles(userId: string, roleIds: string[]): Promise<void> {
   return put<void>(`/tenant/v1/members/${userId}/roles`, { roleIds });
 }
 
 /** 租户口令策略视图（REQ-SEC-023）：生效值 + 全局默认值 */
 export interface TenantPasswordPolicyVO {
-  tenantId: number;
+  tenantId: string;
   /** 生效的口令有效期（天） */
   maxAgeDays: number;
   /** 生效的到期前提醒天数 */
@@ -123,12 +123,12 @@ export function updateTenantPasswordPolicy(payload: {
 }
 
 /** 平台租户：为用户绑定可进入的租户 */
-export function bindUserTenant(userId: number, tenantId: number): Promise<void> {
+export function bindUserTenant(userId: string, tenantId: string): Promise<void> {
   return post<void>(`/user/v1/${userId}/tenants`, { tenantId });
 }
 
 /** 平台租户：解除用户与租户的关系（首页关系由后端拒绝） */
-export function unbindUserTenant(userId: number, tenantId: number): Promise<void> {
+export function unbindUserTenant(userId: string, tenantId: string): Promise<void> {
   return del<void>(`/user/v1/${userId}/tenants/${tenantId}`);
 }
 
@@ -142,7 +142,7 @@ export function unbindUserTenant(userId: number, tenantId: number): Promise<void
 /** 租户配置条目 */
 export interface TenantConfigEntry {
   /** 租户 ID */
-  tenantId: number;
+  tenantId: string;
   /** 配置键（前缀分域，如 notify.twin.alert） */
   configKey: string;
   /** 配置值（JSON 字符串） */

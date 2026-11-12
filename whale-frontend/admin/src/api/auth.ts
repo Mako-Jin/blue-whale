@@ -65,7 +65,7 @@ export async function fetchMe(): Promise<AuthMeResponse> {
 
 /** 后端 MyTenantVO：GET /auth/tenants 列表项（Wave 5.54 Phase 5.1） */
 export interface MyTenantVO {
-  tenantId: number | string;
+  tenantId: string;
   tenantCode: string;
   tenantName: string;
   /** 是否为当前令牌所在租户 */
@@ -80,7 +80,7 @@ export async function listMyTenants(): Promise<MyTenantVO[]> {
 // 切换租户：POST /auth/tenant/switch（Wave 5.54 Phase 5.2）
 // 成功即落盘新令牌与目标租户编码；失败不改变本地登录态，由调用方提示
 export async function switchTenant(
-  tenantId: number | string,
+  tenantId: string,
   tenantCode: string,
 ): Promise<LoginResponse> {
   const data = await post<LoginResponse>('/auth/v1/tenant/switch', {

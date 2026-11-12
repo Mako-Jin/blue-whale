@@ -1,7 +1,7 @@
 // 租户成员页（Wave 5.54 Phase 5.3）
 // 本租户启用成员 + 租户内角色分配；绑定/解绑关系仅平台租户（sys:user:tenant）
 
-import { App, Form, Input, InputNumber, Select, Space, Tag, type TableProps } from 'antd';
+import { App, Form, Input, Select, Space, Tag, type TableProps } from 'antd';
 import { useCallback, useRef, useState } from 'react';
 import {
   AuthButton,
@@ -26,11 +26,11 @@ interface MemberQuery {
 }
 
 interface AssignValues {
-  roleIds?: number[];
+  roleIds?: string[];
 }
 
 interface BindValues {
-  userId: number;
+  userId: string;
 }
 
 const ROLE_PAGE_SIZE = 200;
@@ -40,8 +40,8 @@ export default function TenantMemberList() {
   const { has } = usePermission();
   const tableRef = useRef<ProTableRef>(null);
   const rawTenantId = getCurrentUser()?.tenantId;
-  const currentTenantId =
-    typeof rawTenantId === 'number' ? rawTenantId : Number(rawTenantId) || undefined;
+  // 雪花 ID 走 string：不做 Number() 转换，避免超过 2^53 后静默丢精度
+  const currentTenantId = rawTenantId ? String(rawTenantId) : undefined;
 
   const [keyword, setKeyword] = useState<string | undefined>(undefined);
 
@@ -279,7 +279,7 @@ export default function TenantMemberList() {
           label="用户 ID"
           rules={[{ required: true, message: '请输入用户 ID' }]}
         >
-          <InputNumber min={1} style={{ width: '100%' }} placeholder="全局用户 ID" />
+          <Input style={{ width: '100%' }} placeholder="全局用户 ID（雪花 ID，字符串）" />
         </Form.Item>
       </FormModal>
     </>

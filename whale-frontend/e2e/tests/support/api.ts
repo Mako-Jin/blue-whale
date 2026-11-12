@@ -276,7 +276,8 @@ export async function deleteResource(
 }
 
 export interface RoleRecord {
-  id: number;
+  /** 雪花 ID：运行时为字符串，禁止当 number 运算 */
+  id: string;
   roleCode: string;
   roleName: string;
 }
@@ -317,7 +318,7 @@ export async function rolePermissionIds(
 }
 
 export interface PermissionRecord {
-  id: number;
+  id: string;
   permCode: string;
   permName: string;
 }
@@ -333,8 +334,8 @@ export async function pagePermissionRecords(
 }
 
 export interface MenuRecord {
-  id: number;
-  parentId: number;
+  id: string;
+  parentId: string;
   name: string;
   children?: MenuRecord[];
 }
@@ -362,7 +363,7 @@ export async function treeMenuRecords(
 }
 
 export interface UserRecord {
-  id: number;
+  id: string;
   username: string;
 }
 
