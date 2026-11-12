@@ -101,6 +101,8 @@ export const menuConfig: MenuNode[] = [
   { key: '/twin', label: '数字孪生', permission: 'sys:twin:scene' },
   // 员工论坛（whale-forum 子应用，Wave 6.43；版块/收藏/管理由子应用内部导航承载）
   { key: '/forum', label: '鲸议台', permission: 'sys:forum:browse' },
+  // 蓝鲸城 3D（whale-world 子应用；种子脚本未执行前菜单不显示，可 URL 直达 /world）
+  { key: '/world', label: '蓝鲸城 3D', permission: 'sys:world:browse' },
 ];
 
 /**

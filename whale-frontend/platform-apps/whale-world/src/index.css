@@ -1,0 +1,502 @@
+/* 蓝鲸城 3D（whale-world）样式。所有类名带 bww- 前缀，避免与基座 / 其他子应用冲突。 */
+
+:root {
+  --bww-gold: #d8b45a;
+  --bww-gold-dim: #9c8038;
+  --bww-paper: #ecdfc4;
+  --bww-cyan: #7fd8ff;
+}
+
+.bww-page {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  font-family: 'Songti SC', 'STSong', 'Noto Serif SC', 'SimSun', serif;
+  color: var(--bww-paper);
+  background: #05090e;
+  -webkit-font-smoothing: antialiased;
+}
+
+.bww-scene {
+  position: absolute;
+  inset: 0;
+}
+.bww-scene canvas {
+  display: block;
+}
+
+/* 暗角 */
+.bww-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background:
+    radial-gradient(120% 90% at 50% 45%, rgba(0, 0, 0, 0) 40%, rgba(2, 6, 10, 0.55) 100%),
+    linear-gradient(to bottom, rgba(4, 10, 16, 0.45) 0%, rgba(0, 0, 0, 0) 22%, rgba(0, 0, 0, 0) 78%, rgba(3, 8, 12, 0.6) 100%);
+}
+
+.bww-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+.bww-plabel {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 3px 10px;
+  font-size: 12px;
+  letter-spacing: 3px;
+  color: #f0e2c0;
+  background: rgba(8, 16, 22, 0.55);
+  border: 1px solid rgba(216, 180, 90, 0.35);
+  border-radius: 2px;
+  white-space: nowrap;
+  transition: opacity 0.2s linear;
+  backdrop-filter: blur(3px);
+}
+
+/* 顶部 HUD */
+.bww-hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  padding: 20px 28px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  pointer-events: none;
+}
+.bww-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.bww-seal {
+  width: 46px;
+  height: 46px;
+  border-radius: 4px;
+  background: linear-gradient(140deg, #16303f, #0b1a24);
+  border: 1px solid rgba(216, 180, 90, 0.45);
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  color: var(--bww-gold);
+  text-shadow: 0 0 12px rgba(216, 180, 90, 0.5);
+}
+.bww-brand h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: 8px;
+  color: #f2e6cc;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.8);
+}
+.bww-brand p {
+  margin: 3px 0 0;
+  font-size: 10px;
+  letter-spacing: 3.4px;
+  color: rgba(216, 180, 90, 0.72);
+  text-transform: uppercase;
+}
+.bww-meta {
+  text-align: right;
+  font-size: 12px;
+  letter-spacing: 2px;
+  line-height: 1.9;
+}
+.bww-meta > div:first-child {
+  color: #f4e7cb;
+  font-size: 15px;
+  letter-spacing: 3px;
+}
+.bww-meta > div:nth-child(2) {
+  color: rgba(216, 180, 90, 0.8);
+}
+.bww-hint {
+  color: rgba(236, 223, 196, 0.4);
+  font-size: 10.5px;
+  letter-spacing: 1.6px;
+}
+
+/* 小鲸宝对话 */
+.bww-pet-bubble {
+  position: absolute;
+  left: 28px;
+  bottom: 96px;
+  z-index: 12;
+  max-width: 330px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.45s ease, transform 0.45s ease;
+  pointer-events: none;
+}
+.bww-pet-bubble.bww-show {
+  opacity: 1;
+  transform: translateY(0);
+}
+.bww-who {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  letter-spacing: 2.4px;
+  color: var(--bww-cyan);
+  margin-bottom: 6px;
+}
+.bww-who::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--bww-cyan);
+  box-shadow: 0 0 10px var(--bww-cyan);
+}
+.bww-bubble-body {
+  position: relative;
+  padding: 12px 16px;
+  font-size: 13.5px;
+  line-height: 1.85;
+  letter-spacing: 0.6px;
+  color: #e9f4fb;
+  background: rgba(9, 26, 38, 0.82);
+  border: 1px solid rgba(127, 216, 255, 0.28);
+  border-radius: 3px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 0 24px rgba(127, 216, 255, 0.06);
+  backdrop-filter: blur(6px);
+}
+.bww-bubble-body::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 12px;
+  bottom: 12px;
+  width: 2px;
+  background: linear-gradient(to bottom, transparent, var(--bww-cyan), transparent);
+  opacity: 0.7;
+}
+
+/* 传送提示 */
+.bww-portal-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 118px;
+  transform: translate(-50%, 12px);
+  z-index: 12;
+  padding: 9px 20px;
+  font-size: 13px;
+  letter-spacing: 2px;
+  color: #f2e6cc;
+  background: rgba(8, 16, 22, 0.72);
+  border: 1px solid rgba(216, 180, 90, 0.4);
+  border-radius: 999px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s, transform 0.25s;
+  backdrop-filter: blur(6px);
+}
+.bww-portal-hint.bww-show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+.bww-portal-hint b {
+  color: var(--bww-gold);
+}
+.bww-portal-hint span {
+  color: var(--bww-cyan);
+}
+
+/* 工具栏 */
+.bww-toolbar {
+  position: absolute;
+  right: 28px;
+  bottom: 28px;
+  z-index: 13;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+}
+.bww-toolbar button {
+  font-family: inherit;
+  padding: 9px 16px;
+  font-size: 12px;
+  letter-spacing: 2.4px;
+  color: #e6d9bb;
+  background: rgba(10, 20, 28, 0.72);
+  border: 1px solid rgba(216, 180, 90, 0.22);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(6px);
+  min-width: 118px;
+  text-align: left;
+}
+.bww-toolbar button:hover {
+  border-color: rgba(216, 180, 90, 0.65);
+  color: #fff4dc;
+  background: rgba(18, 34, 46, 0.88);
+  box-shadow: 0 0 18px rgba(216, 180, 90, 0.14);
+}
+
+/* 操作说明 */
+.bww-help {
+  position: absolute;
+  left: 28px;
+  bottom: 28px;
+  z-index: 11;
+  font-size: 11px;
+  letter-spacing: 1.6px;
+  line-height: 2;
+  color: rgba(236, 223, 196, 0.42);
+  pointer-events: none;
+}
+.bww-help kbd {
+  font-family: inherit;
+  display: inline-block;
+  min-width: 20px;
+  padding: 0 5px;
+  border: 1px solid rgba(236, 223, 196, 0.24);
+  border-radius: 2px;
+  color: rgba(236, 223, 196, 0.7);
+  font-size: 10px;
+  text-align: center;
+  margin-right: 2px;
+}
+
+/* 传送面板 */
+.bww-portal-panel {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  background: rgba(3, 8, 12, 0.72);
+  backdrop-filter: blur(9px);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.32s ease, visibility 0.32s;
+}
+.bww-portal-panel.bww-open {
+  opacity: 1;
+  visibility: visible;
+}
+.bww-panel-inner {
+  width: min(760px, 88vw);
+  padding: 34px 38px 30px;
+  background: linear-gradient(160deg, rgba(14, 28, 38, 0.96), rgba(7, 16, 22, 0.98));
+  border: 1px solid rgba(216, 180, 90, 0.3);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.7), inset 0 0 60px rgba(216, 180, 90, 0.04);
+  transform: translateY(14px) scale(0.985);
+  transition: transform 0.32s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+.bww-portal-panel.bww-open .bww-panel-inner {
+  transform: translateY(0) scale(1);
+}
+.bww-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+.bww-panel-head h2 {
+  margin: 0;
+  font-size: 19px;
+  letter-spacing: 7px;
+  color: #f2e6cc;
+  font-weight: 500;
+}
+.bww-panel-head span {
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: rgba(216, 180, 90, 0.6);
+}
+.bww-panel-sub {
+  font-size: 11.5px;
+  letter-spacing: 1.4px;
+  color: rgba(236, 223, 196, 0.4);
+  padding-bottom: 18px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(216, 180, 90, 0.14);
+}
+.bww-portal-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.bww-portal-item {
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  padding: 13px 15px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(216, 180, 90, 0.14);
+  border-left: 2px solid var(--pc);
+  color: var(--bww-paper);
+  transition: all 0.18s ease;
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  gap: 2px 8px;
+  align-items: center;
+}
+.bww-portal-item:hover {
+  background: rgba(216, 180, 90, 0.09);
+  border-color: rgba(216, 180, 90, 0.5);
+  transform: translateY(-2px);
+}
+.bww-pi-idx {
+  font-size: 10px;
+  color: rgba(236, 223, 196, 0.32);
+  grid-row: span 2;
+}
+.bww-pi-name {
+  font-size: 14px;
+  letter-spacing: 3px;
+  color: #f0e4cb;
+}
+.bww-pi-sub {
+  font-size: 10px;
+  letter-spacing: 0.8px;
+  color: rgba(236, 223, 196, 0.42);
+  grid-column: 2;
+}
+.bww-pi-enter {
+  grid-row: span 2;
+  font-size: 11px;
+  letter-spacing: 1.4px;
+  color: var(--bww-cyan);
+  border: 1px solid rgba(127, 216, 255, 0.3);
+  border-radius: 2px;
+  padding: 4px 9px;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+}
+.bww-pi-enter:hover {
+  background: rgba(127, 216, 255, 0.12);
+  color: #c9ecff;
+}
+
+/* Toast */
+.bww-toast {
+  position: absolute;
+  left: 50%;
+  top: 96px;
+  transform: translate(-50%, -14px);
+  z-index: 18;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.3s, transform 0.3s;
+  pointer-events: none;
+}
+.bww-toast.bww-show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+.bww-toast > div:first-child {
+  font-size: 15px;
+  letter-spacing: 4px;
+  color: #f6ecd4;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.9);
+}
+.bww-toast > div:nth-child(2) {
+  font-size: 10.5px;
+  letter-spacing: 2px;
+  color: rgba(216, 180, 90, 0.75);
+  margin-top: 4px;
+}
+
+/* 黑场 */
+.bww-fade {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  background: #03070b;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+/* 载入 */
+.bww-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 50% 45%, #0a1d2a, #030810 70%);
+  transition: opacity 0.9s ease;
+}
+.bww-loading.bww-done {
+  opacity: 0;
+  pointer-events: none;
+}
+.bww-load-inner {
+  text-align: center;
+}
+.bww-load-title {
+  font-size: 27px;
+  letter-spacing: 16px;
+  color: #f0e4cb;
+  text-indent: 16px;
+}
+.bww-load-sub {
+  margin-top: 12px;
+  font-size: 10px;
+  letter-spacing: 6px;
+  color: rgba(216, 180, 90, 0.65);
+  text-transform: uppercase;
+}
+.bww-load-line {
+  width: 190px;
+  height: 1px;
+  margin: 26px auto 0;
+  background: linear-gradient(to right, transparent, rgba(216, 180, 90, 0.7), transparent);
+  animation: bww-pulse 1.8s ease-in-out infinite;
+}
+@keyframes bww-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scaleX(0.55);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+@media (max-width: 860px) {
+  .bww-portal-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .bww-help {
+    display: none;
+  }
+  .bww-toolbar {
+    right: 14px;
+    bottom: 14px;
+  }
+  .bww-toolbar button {
+    min-width: 96px;
+    padding: 7px 12px;
+    font-size: 11px;
+  }
+  .bww-pet-bubble {
+    left: 14px;
+    right: 14px;
+    bottom: 78px;
+    max-width: none;
+  }
+  .bww-hud {
+    padding: 14px 16px 0;
+  }
+  .bww-brand h1 {
+    font-size: 17px;
+    letter-spacing: 5px;
+  }
+}

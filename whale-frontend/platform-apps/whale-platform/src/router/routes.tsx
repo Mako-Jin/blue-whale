@@ -70,6 +70,8 @@ export const routes = [
       { path: 'mail/*', element: <SubAppContainer /> },
       // 知识助手（whale-agent 子应用，Wave 6.18a 接入基座）
       { path: 'agent/*', element: <SubAppContainer /> },
+      // 蓝鲸城 3D（whale-world 子应用，独立新域，不影响既有 2D 路由）
+      { path: 'world/*', element: <SubAppContainer /> },
     ],
   },
 ];

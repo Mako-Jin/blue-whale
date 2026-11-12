@@ -39,6 +39,7 @@ const DEV_PORTS = {
   'whale-iot': 8121,
   'whale-twin': 8122,
   'whale-forum': 8123,
+  'whale-world': 8124,
   // 知识助手沿用独立运行端口 8004（早期立项即定，见 docs/service-catalog.md §七），
   // 未并入 81xx 段以免影响既有的独立起服脚本
   'whale-agent': 8004,
@@ -224,6 +225,14 @@ export const apps: WhaleMicroApp[] = [
     name: 'whale-forum',
     entry: subAppEntry('whale-forum', import.meta.env.VITE_SUBAPP_ENTRY_FORUM),
     activeRule: '/forum',
+    container: '#subapp-container',
+    props: platformProps(),
+  },
+  {
+    // 蓝鲸城 3D 主场景（独立新域：不调用后端接口，不影响既有 2D 子应用）
+    name: 'whale-world',
+    entry: subAppEntry('whale-world', import.meta.env.VITE_SUBAPP_ENTRY_WORLD),
+    activeRule: '/world',
     container: '#subapp-container',
     props: platformProps(),
   },
