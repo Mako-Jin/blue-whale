@@ -389,9 +389,28 @@ function AppealPanel() {
         destroyOnClose
       >
         {current ? (
-          <Paragraph type="secondary">
-            {appealTargetLabel(current)}｜申诉理由：{current.reason}
-          </Paragraph>
+          <>
+            <Paragraph type="secondary">
+              {appealTargetLabel(current)}｜申诉理由：{current.reason}
+            </Paragraph>
+            {current.materials && current.materials.length > 0 ? (
+              <Paragraph>
+                <Text strong>申诉材料：</Text>
+                <Space direction="vertical" size={2} style={{ display: 'flex', marginTop: 6 }}>
+                  {current.materials.map((material) => (
+                    <a
+                      key={material.fileId}
+                      href={material.downloadUrl ?? `/file/${material.fileId}/download`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {material.fileName ?? `文件 #${material.fileId}`}
+                    </a>
+                  ))}
+                </Space>
+              </Paragraph>
+            ) : null}
+          </>
         ) : null}
         <Form form={form} layout="vertical">
           <Form.Item name="approved" label="结论" rules={[{ required: true }]}>

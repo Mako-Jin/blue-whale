@@ -550,6 +550,14 @@ export function updateThread(
 export type AppealTargetType = 'THREAD' | 'POST' | 'BAN';
 
 /** 申诉工单 */
+export interface AppealMaterial {
+  fileId: string;
+  fileName?: string | null;
+  fileSize?: number | null;
+  contentType?: string | null;
+  downloadUrl?: string | null;
+}
+
 export interface AppealItem {
   id: string;
   userId: string;
@@ -560,6 +568,29 @@ export interface AppealItem {
   handleRemark?: string | null;
   handleTime?: string | null;
   createTime?: string | null;
+  materials?: AppealMaterial[];
+}
+
+/** 平台文件上传结果（/file/upload），ID 统一按字符串处理 */
+export interface UploadedFile {
+  id: string;
+  fileName?: string;
+  originalName?: string;
+  fileSize?: number;
+  contentType?: string;
+}
+
+/** 上传申诉材料：走平台 /file/upload，返回文件ID供提交工单引用 */
+export function uploadAppealMaterial(file: File): Promise<UploadedFile> {
+  const formData = new FormData();
+  formData.append('file', file);
+  return request<UploadedFile>('/file/upload', { method: 'POST', body: formData }).then((result) => {
+    const id = result?.id === undefined || result?.id === null ? '' : String(result.id);
+    if (!id) {
+      throw new Error('上传成功但未返回文件标识');
+    }
+    return { ...result, id };
+  });
 }
 
 /** 提交申诉 */
@@ -567,6 +598,7 @@ export function submitAppeal(body: {
   targetType: AppealTargetType;
   targetId: string;
   reason: string;
+  materialFileIds?: string[];
 }): Promise<AppealItem> {
   return request<AppealItem>('/forum/appeal', { method: 'POST', body });
 }

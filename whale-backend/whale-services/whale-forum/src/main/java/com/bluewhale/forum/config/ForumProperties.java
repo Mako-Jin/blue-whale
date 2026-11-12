@@ -203,4 +203,16 @@ public class ForumProperties {
 
     /** 鲸阶名称（下标与阈值一一对应） */
     private List<String> levelNames = List.of("初入鲸门", "观澜", "听潮", "破浪", "领航", "鲸首");
+
+    /** whale-file 内网基础地址（申诉材料归属校验经 /file/internal/{id} 读取元数据） */
+    private String fileBaseUrl = "http://whale-file:8085";
+
+    /** 文件服务连接超时（毫秒） */
+    private int fileConnectTimeoutMillis = 800;
+
+    /** 文件服务读超时（毫秒）：材料校验在提交主路径上，不能无限等 */
+    private int fileReadTimeoutMillis = 1_500;
+
+    /** 单条申诉可附材料数量上限（超出 400；字节上限由 whale-file 上传策略负责） */
+    private int appealMaterialLimit = 5;
 }

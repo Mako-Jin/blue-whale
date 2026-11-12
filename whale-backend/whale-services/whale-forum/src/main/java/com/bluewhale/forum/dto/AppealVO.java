@@ -4,6 +4,7 @@ import lombok.Data;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 申诉工单视图。
@@ -41,4 +42,7 @@ public class AppealVO implements Serializable {
 
     /** 提交时间 */
     private LocalDateTime createTime;
+
+    /** 申诉材料（可能为空列表，不返回 {@code null}） */
+    private List<AppealMaterialVO> materials;
 }

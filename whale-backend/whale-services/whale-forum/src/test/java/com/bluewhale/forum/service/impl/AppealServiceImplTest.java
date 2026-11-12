@@ -1,7 +1,10 @@
 package com.bluewhale.forum.service.impl;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.forum.common.ForumActor;
 import com.bluewhale.forum.common.ForumPermissions;
@@ -10,15 +13,20 @@ import com.bluewhale.forum.dto.AppealCreateRequest;
 import com.bluewhale.forum.dto.AppealHandleRequest;
 import com.bluewhale.forum.dto.AppealVO;
 import com.bluewhale.forum.entity.ForumAppeal;
+import com.bluewhale.forum.entity.ForumAppealMaterial;
 import com.bluewhale.forum.entity.ForumPost;
 import com.bluewhale.forum.entity.ForumThread;
 import com.bluewhale.forum.entity.ForumUserBan;
 import com.bluewhale.forum.mapper.ForumAppealMapper;
+import com.bluewhale.forum.mapper.ForumAppealMaterialMapper;
 import com.bluewhale.forum.mapper.ForumPostMapper;
 import com.bluewhale.forum.mapper.ForumThreadMapper;
 import com.bluewhale.forum.service.BanService;
 import com.bluewhale.forum.service.ForumNotifyService;
+import com.bluewhale.forum.support.ForumFileMetadataClient;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -54,6 +62,12 @@ class AppealServiceImplTest {
     private ForumAppealMapper appealMapper;
 
     @Mock
+    private ForumAppealMaterialMapper materialMapper;
+
+    @Mock
+    private ForumFileMetadataClient fileMetadataClient;
+
+    @Mock
     private ForumThreadMapper threadMapper;
 
     @Mock
@@ -70,6 +84,14 @@ class AppealServiceImplTest {
 
     @InjectMocks
     private AppealServiceImpl appealService;
+
+    @BeforeAll
+    static void initTableInfo() {
+        // 纯单测没有 MyBatis 容器，LambdaQueryWrapper 解析字段前需手动登记表元数据
+        MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "");
+        TableInfoHelper.initTableInfo(assistant, ForumAppeal.class);
+        TableInfoHelper.initTableInfo(assistant, ForumAppealMaterial.class);
+    }
 
     @BeforeEach
     void setUp() {
@@ -217,6 +239,88 @@ class AppealServiceImplTest {
         assertThat(result.getTotal()).isEqualTo(1);
         assertThat(result.getRecords()).hasSize(1);
         assertThat(result.getRecords().get(0).getStatus()).isEqualTo("PENDING");
+    }
+
+    @Test
+    @DisplayName("申诉材料：按文件服务元数据落库并回填下载地址")
+    void materialSnapshotsComeFromFileService() {
+        when(threadMapper.selectById(11L)).thenReturn(thread(11L, 100L, "REMOVED"));
+        when(appealMapper.selectCount(any())).thenReturn(0L);
+        when(appealMapper.insert(any(ForumAppeal.class))).thenReturn(1);
+        when(fileMetadataClient.requireOwned(801L, 100L)).thenReturn(meta(801L));
+        AppealCreateRequest body = request("THREAD", 11L);
+        body.setMaterialFileIds(List.of(801L));
+
+        AppealVO vo = appealService.submit(body, actor());
+
+        assertThat(vo.getMaterials()).hasSize(1);
+        assertThat(vo.getMaterials().get(0).getFileName()).isEqualTo("证据.png");
+        assertThat(vo.getMaterials().get(0).getDownloadUrl()).isEqualTo("/file/801/download");
+        ArgumentCaptor<ForumAppealMaterial> captor = ArgumentCaptor.forClass(ForumAppealMaterial.class);
+        verify(materialMapper).insert(captor.capture());
+        assertThat(captor.getValue().getFileId()).isEqualTo(801L);
+        assertThat(captor.getValue().getSortNo()).isZero();
+        assertThat(captor.getValue().getFileSize()).isEqualTo(2048L);
+        assertThat(captor.getValue().getContentType()).isEqualTo("image/png");
+    }
+
+    @Test
+    @DisplayName("申诉材料：重复文件ID只登记一次")
+    void duplicateMaterialIdsAreDeduplicated() {
+        when(threadMapper.selectById(11L)).thenReturn(thread(11L, 100L, "REMOVED"));
+        when(appealMapper.selectCount(any())).thenReturn(0L);
+        when(appealMapper.insert(any(ForumAppeal.class))).thenReturn(1);
+        when(fileMetadataClient.requireOwned(801L, 100L)).thenReturn(meta(801L));
+        AppealCreateRequest body = request("THREAD", 11L);
+        body.setMaterialFileIds(List.of(801L, 801L));
+
+        appealService.submit(body, actor());
+
+        verify(fileMetadataClient).requireOwned(801L, 100L);
+        verify(materialMapper).insert(any(ForumAppealMaterial.class));
+    }
+
+    @Test
+    @DisplayName("申诉材料：超过数量上限时拒绝且不校验文件、不落工单")
+    void rejectsTooManyMaterials() {
+        when(threadMapper.selectById(11L)).thenReturn(thread(11L, 100L, "REMOVED"));
+        when(appealMapper.selectCount(any())).thenReturn(0L);
+        properties.setAppealMaterialLimit(1);
+        AppealCreateRequest body = request("THREAD", 11L);
+        body.setMaterialFileIds(List.of(801L, 802L));
+
+        assertThatThrownBy(() -> appealService.submit(body, actor()))
+                .isInstanceOf(BizException.class)
+                .hasMessageContaining("不能超过");
+        verify(fileMetadataClient, never()).requireOwned(anyLong(), anyLong());
+        verify(appealMapper, never()).insert(any(ForumAppeal.class));
+    }
+
+    @Test
+    @DisplayName("申诉材料：文件校验失败时整个提交回滚（不落工单）")
+    void invalidMaterialFailsWholeSubmission() {
+        when(threadMapper.selectById(11L)).thenReturn(thread(11L, 100L, "REMOVED"));
+        when(appealMapper.selectCount(any())).thenReturn(0L);
+        when(fileMetadataClient.requireOwned(801L, 100L))
+                .thenThrow(new BizException(ErrorCode.PARAM_ERROR, "只能上传本人的文件作为申诉材料"));
+        AppealCreateRequest body = request("THREAD", 11L);
+        body.setMaterialFileIds(List.of(801L));
+
+        assertThatThrownBy(() -> appealService.submit(body, actor()))
+                .isInstanceOf(BizException.class)
+                .hasMessageContaining("本人");
+        verify(appealMapper, never()).insert(any(ForumAppeal.class));
+        verify(materialMapper, never()).insert(any(ForumAppealMaterial.class));
+    }
+
+    /**
+     * 构造文件元数据。
+     *
+     * @param fileId 文件ID
+     * @return 元数据
+     */
+    private ForumFileMetadataClient.FileMeta meta(Long fileId) {
+        return new ForumFileMetadataClient.FileMeta(fileId, "证据.png", 2048L, "image/png", 100L, 0, 1);
     }
 
     /**

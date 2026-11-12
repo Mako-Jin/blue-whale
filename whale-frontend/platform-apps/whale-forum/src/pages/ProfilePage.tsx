@@ -19,6 +19,7 @@ import {
   Tabs,
   Tag,
   Typography,
+  Upload,
   message,
 } from 'antd';
 import {
@@ -29,6 +30,7 @@ import {
   fetchProfile,
   removeFollow,
   submitAppeal,
+  uploadAppealMaterial,
   type AppealTargetType,
   type BoardItem,
   type FollowItem,
@@ -39,6 +41,15 @@ import {
 import CollectionsPage from './CollectionsPage';
 
 const { Text, Paragraph } = Typography;
+
+/** 申诉材料数量上限，与后端 `appeal-material-limit` 默认值一致 */
+const APPEAL_MATERIAL_LIMIT = 5;
+
+/** 已上传的申诉材料 */
+interface AppealMaterialItem {
+  fileId: string;
+  fileName: string;
+}
 
 /** 帖子状态中文名（列表页与「我的帖子」共用口径） */
 const THREAD_STATUS_LABEL: Record<string, string> = {
@@ -87,6 +98,8 @@ export default function ProfilePage({ boards, onOpenThread }: Props) {
   } | null>(null);
   const [appealReason, setAppealReason] = useState('');
   const [appealSubmitting, setAppealSubmitting] = useState(false);
+  const [appealMaterials, setAppealMaterials] = useState<AppealMaterialItem[]>([]);
+  const [appealUploading, setAppealUploading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -185,11 +198,38 @@ export default function ProfilePage({ boards, onOpenThread }: Props) {
   const openAppeal = (targetType: AppealTargetType, targetId: string) => {
     setAppealTarget({ targetType, targetId });
     setAppealReason('');
+    setAppealMaterials([]);
   };
 
   const closeAppeal = () => {
     setAppealTarget(null);
     setAppealReason('');
+    setAppealMaterials([]);
+  };
+
+  /** 上传申诉材料：先落 whale-file 拿 fileId，提交工单时只带 ID */
+  const onUploadMaterial = async (file: File) => {
+    if (appealMaterials.length >= APPEAL_MATERIAL_LIMIT) {
+      void message.warning(`申诉材料最多 ${APPEAL_MATERIAL_LIMIT} 个`);
+      return;
+    }
+    setAppealUploading(true);
+    try {
+      const uploaded = await uploadAppealMaterial(file);
+      setAppealMaterials((prev) => [
+        ...prev,
+        { fileId: uploaded.id, fileName: uploaded.originalName ?? uploaded.fileName ?? file.name },
+      ]);
+    } catch (err: unknown) {
+      void message.error(err instanceof Error ? err.message : '材料上传失败');
+    } finally {
+      setAppealUploading(false);
+    }
+  };
+
+  /** 移除已上传材料；文件本身留在 whale-file，不做物理删除 */
+  const onRemoveMaterial = (fileId: string) => {
+    setAppealMaterials((prev) => prev.filter((item) => item.fileId !== fileId));
   };
 
   /** 提交申诉：理由必填，提交后不本地刷新列表（工单在「我的申诉」里查） */
@@ -204,7 +244,11 @@ export default function ProfilePage({ boards, onOpenThread }: Props) {
     }
     setAppealSubmitting(true);
     try {
-      await submitAppeal({ ...appealTarget, reason });
+      await submitAppeal({
+        ...appealTarget,
+        reason,
+        materialFileIds: appealMaterials.map((item) => item.fileId),
+      });
       void message.success('申诉已提交，复核结果会通过通知告知');
       closeAppeal();
     } catch (err: unknown) {
@@ -518,6 +562,45 @@ export default function ProfilePage({ boards, onOpenThread }: Props) {
           onChange={(event) => setAppealReason(event.target.value)}
           placeholder="请说明申诉理由与补充材料线索，便于复核"
         />
+        <div style={{ marginTop: 12 }}>
+          <Space size={8} wrap>
+            <Upload
+              multiple
+              showUploadList={false}
+              disabled={appealUploading || appealMaterials.length >= APPEAL_MATERIAL_LIMIT}
+              beforeUpload={(file) => {
+                void onUploadMaterial(file);
+                // 返回 false 阻止 antd 自动上传，由本组件带鉴权头走统一请求层
+                return false;
+              }}
+            >
+              <Button loading={appealUploading} disabled={appealMaterials.length >= APPEAL_MATERIAL_LIMIT}>
+                上传材料（{appealMaterials.length}/{APPEAL_MATERIAL_LIMIT}）
+              </Button>
+            </Upload>
+            <Text type="secondary">支持图片、PDF 等，作为申诉补充证据</Text>
+          </Space>
+          {appealMaterials.length > 0 ? (
+            <List
+              size="small"
+              style={{ marginTop: 8 }}
+              dataSource={appealMaterials}
+              renderItem={(item) => (
+                <List.Item
+                  actions={[
+                    <Button key="remove" type="link" size="small" onClick={() => onRemoveMaterial(item.fileId)}>
+                      移除
+                    </Button>,
+                  ]}
+                >
+                  <Text ellipsis style={{ maxWidth: 360 }}>
+                    {item.fileName}
+                  </Text>
+                </List.Item>
+              )}
+            />
+          ) : null}
+        </div>
       </Modal>
     </div>
   );

@@ -212,6 +212,7 @@ M4 落地口径：检索走 `FULLTEXT(title, content_text) WITH PARSER ngram`（
 | M7-4 帖子编辑（P1） | 复用 `PUT /forum/thread/{id}`（`sys:forum:thread:edit`）；前端详情页新增编辑弹窗：标题 / 正文 / 标签 / 编辑说明，保存后用响应值回填详情；审核版块保存后提示「等待版主审核」 | 前端 lint + build；两项门禁全绿 |
 | M7-5 申诉（P1） | `V12__appeal.sql`（`fm_appeal`）；`POST /forum/appeal`（对已处置帖子/楼层/当前禁言提交）、`GET /forum/my/appeals`；管理端 `GET /forum/admin/appeal/page`、`POST /forum/admin/appeal/{id}/handle`（通过自动解禁、写 outbox 通知）；前端禁言告警与「已处置」帖子行提供申诉入口，后台新增申诉工单 Tab | 单测覆盖受理范围、归属校验、重复待审拒绝、复核幂等与解禁；前端 lint + build；两项门禁全绿 |
 | M7-6 结契动态（P1） | `GET /forum/my/feed`：按「关注作者 ∪ 关注版块」反查已发布帖，排除本人；匿名帖只按版块维度进流；仅当前可见版块；可选 `boardId` 过滤；按发布时间倒序分页；前端「我的」页新增「结契动态」Tab | 单测覆盖可见范围、匿名不泄露、排除本人、`boardId` 过滤；前端 lint + build；两项门禁全绿 |
+| M7-7 申诉材料（P1） | `V13__appeal_material.sql`（`fm_appeal_material`，append-only，仅存 fileId 与元数据快照）；`POST /forum/appeal` 增 `materialFileIds`（≤5、去重），提交前经 whale-file `/file/internal/{id}` 校验存在/未删/状态正常/上传人为本人；工单视图回 `materials`（含 `/file/{id}/download`）；前端申诉弹窗支持上传与移除材料，复核弹窗展示材料链接 | 单测覆盖元数据落库、去重、超限、归属失败回滚、404/500 fail-closed；前端 lint + build；两项门禁全绿 |
 
 ---
 
@@ -312,6 +313,19 @@ M4 落地口径：检索走 `FULLTEXT(title, content_text) WITH PARSER ngram`（
 | 排序分页 | `ORDER BY COALESCE(publish_time, create_time) DESC, id DESC`，用 `IPage` 单语句分页 | 分页在 SQL 内完成；「先取 ID 再查帖子」两步之间删帖会让 total 与条数漂移，末页出现空白 |
 | 权限 | 只要求 `sys:forum:browse`，不额外要求 `reaction:use` | 动态流是浏览的衍生视图；取关后历史数据仍在，不该因互动权限缺失整页 403 |
 | 前端 | 「我的」页新增「结契动态」Tab，切 Tab 懒加载，条目复用帖子列表项（含匿名标记），点击进详情 | 与「我的帖子」一致的分页与错误隔离，不让动态接口抖动打空整页 |
+
+---
+
+## 8.8 M7-7 申诉材料实现口径（P1）
+
+| 项 | 口径 | 为什么 |
+|---|---|---|
+| 存储 | `fm_appeal_material`（`tenant_id + appeal_id + file_id` 唯一），append-only，落 `file_id / file_name / file_size / content_type / sort_no` 快照；不存字节、不设 `update_time`/`deleted` | 字节归 whale-file；材料随工单一次提交，没有「改材料」语义，软删只会多一份要过滤的状态 |
+| 上传 | 前端先走平台 `POST /file/upload` 拿 `fileId`，提交工单只带 ID；文件名/大小/类型一律回填文件服务元数据 | 客户端展示字段可伪造；由服务端回填才能保证复核人看到的就是库里那份文件 |
+| 归属校验 | 提交前逐条查 `GET /file/internal/{id}`：必须存在、`deleted=0`、`status=1` 且 `uploaderId == 当前用户`；重试/连点按提交顺序去重 | 不校验归属时用户可把申诉挂到他人文件上，复核人点开下载即替攻击者取了一次文件；去重避免唯一键在插第 N 行才报错 |
+| 失败策略 | 数量超 `appeal-material-limit`（默认 5）直接 400；文件不存在/已删/非本人 400 并整体回滚；文件服务不可用 400「校验服务暂不可用」 | 材料是申诉的补充证据，宁可让用户重试，也不能放行未校验引用；校验在落工单之前完成，不留半张工单 |
+| 展示 | 工单 VO 统一回 `materials`（空为 `[]`），`downloadUrl=/file/{id}/download`；用户提交后与复核弹窗共用同一结构 | 回收站/复核台各拼一次下载地址必然分叉；空列表而非 `null` 让前端少一层判空 |
+| 权限 | 上传沿用平台 `sys:file:upload`，提交与查看沿用 `sys:forum:browse` / `manage:dispose` | 媒体/视频等既有应用已把 `sys:file:upload` 授予全员，论坛不另造权限点避免号段膨胀 |
 
 ---
 
