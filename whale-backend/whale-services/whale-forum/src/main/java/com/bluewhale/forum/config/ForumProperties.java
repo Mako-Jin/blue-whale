@@ -39,8 +39,20 @@ public class ForumProperties {
     /** 同一用户两次发帖最小间隔（秒） */
     private int postIntervalSeconds = 60;
 
+    /** 发帖滑动窗口长度（秒）：窗口内发帖数上限见 {@link #postWindowMax} */
+    private int postWindowSeconds = 600;
+
+    /** 滑动窗口内发帖数上限（规格 F-03-17：10 分钟 5 帖） */
+    private int postWindowMax = 5;
+
     /** 同一用户两次回帖最小间隔（秒） */
     private int replyIntervalSeconds = 10;
+
+    /** 作者可编辑自身帖子的时间窗（分钟），超时需治理权限 */
+    private int editWindowMinutes = 30;
+
+    /** 摘要截断长度（字符） */
+    private int summaryLength = 200;
 
     /** 热榜快照刷新周期（分钟） */
     private int hotRefreshMinutes = 30;

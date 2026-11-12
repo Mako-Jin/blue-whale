@@ -7,9 +7,11 @@
 -- 表前缀   : fm_（forum），单数 snake_case
 --
 -- 三条硬规则（改表前先读，改错不会报错，只会在并发下静默出错）：
---   1) 楼层号由 fm_thread.next_floor 条件更新分配，floor 一经分配不回收；
+--   1) 楼层号由 fm_thread.next_floor 单语句原子分配
+--      （UPDATE ... SET next_floor = LAST_INSERT_ID(next_floor) + 1，再取 SELECT LAST_INSERT_ID()），
+--      floor 一经分配不回收；不用「先读后 CAS + 重试」——实测 20 并发下有偶发失败。
 --      二级回复（楼中楼）floor 为 NULL、只记 parent_post_id，且最多两级。
---      uk_fm_post_floor 兜底并发：唯一键冲突即重试，不靠 SELECT MAX(floor)+1。
+--      uk_fm_post_floor 只作不变量兜底（真撞上说明 next_floor 被改坏，按 MAX(floor)+1 重算）。
 --   2) 唯一编码（board.code / thread.thread_no）软删时由应用改写为
 --      「原编码#D{id}」释放唯一键，否则删除后无法重建同名对象。
 --   3) 关联/互动表（fm_reaction）物理删除、不挂 deleted，否则「取消后再点」撞唯一键。
@@ -66,7 +68,7 @@ CREATE TABLE IF NOT EXISTS fm_thread (
     reply_count       INT           NOT NULL DEFAULT 0    COMMENT '回复数（正文字段计数，每日对账校正）',
     like_count        INT           NOT NULL DEFAULT 0    COMMENT '投花数（条件更新，不为负）',
     collect_count     INT           NOT NULL DEFAULT 0    COMMENT '收藏数',
-    next_floor        INT           NOT NULL DEFAULT 1    COMMENT '下一个可用楼层号（条件更新分配，不回收）',
+    next_floor        INT           NOT NULL DEFAULT 1    COMMENT '下一个可用楼层号（LAST_INSERT_ID 原子分配，不回收）',
     last_reply_time   DATETIME      DEFAULT NULL          COMMENT '最后回复时间（列表排序用）',
     last_reply_user_id BIGINT       DEFAULT NULL          COMMENT '最后回复人（列表展示用）',
     publish_time      DATETIME      DEFAULT NULL          COMMENT '发布时间（SCHEDULED 到点由 whale-job 抢占发布）',

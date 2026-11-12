@@ -1,0 +1,200 @@
+// 帖子详情页：楼主正文 + 楼层列表 + 回帖
+//
+// 正文为服务端白名单消毒后的富文本，用 innerHTML 渲染；危险构造在入库前已被拒绝（30030），
+// 前端不再做二次清洗，避免「前端清洗后内容变样」与「两套规则不一致」。
+
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, Button, Card, Empty, Input, List, Space, Spin, Tag, Typography, message } from 'antd';
+import { createPost, fetchPosts, fetchThread, type PostItem, type ThreadDetail } from '../api/forum';
+import { hasPermission } from '../api/client';
+
+const { Text, Paragraph } = Typography;
+
+interface Props {
+  threadId: string;
+  onBack: () => void;
+}
+
+/** 状态徽标 */
+function statusTag(status: string) {
+  switch (status) {
+    case 'PENDING':
+      return <Tag color="orange">待审</Tag>;
+    case 'SOLVED':
+      return <Tag color="green">已解决</Tag>;
+    case 'CLOSED':
+      return <Tag>已关闭</Tag>;
+    default:
+      return null;
+  }
+}
+
+export default function ThreadDetailPage({ threadId, onBack }: Props) {
+  const [thread, setThread] = useState<ThreadDetail | null>(null);
+  const [posts, setPosts] = useState<PostItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reply, setReply] = useState('');
+  const [sending, setSending] = useState(false);
+
+  const loadPosts = useCallback(() => {
+    fetchPosts(threadId, 1, 100)
+      .then((page) => setPosts(page.records))
+      .catch(() => setPosts([]));
+  }, [threadId]);
+
+  useEffect(() => {
+    setLoading(true);
+    fetchThread(threadId)
+      .then((data) => {
+        setThread(data);
+        setError(null);
+        loadPosts();
+      })
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : '加载失败'))
+      .finally(() => setLoading(false));
+  }, [threadId, loadPosts]);
+
+  const submitReply = async () => {
+    const content = reply.trim();
+    if (!content) {
+      void message.warning('回复内容不能为空');
+      return;
+    }
+    setSending(true);
+    try {
+      await createPost(threadId, { content });
+      setReply('');
+      void message.success('回复成功');
+      loadPosts();
+      // 回复数由服务端累加，重新取详情保证计数与列表一致
+      const fresh = await fetchThread(threadId);
+      setThread(fresh);
+    } catch (err: unknown) {
+      void message.error(err instanceof Error ? err.message : '回复失败');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="forum-loading">
+        <Spin tip="正在加载帖子…" />
+      </div>
+    );
+  }
+  if (error || !thread) {
+    return (
+      <div className="forum-page">
+        <Button type="link" onClick={onBack}>
+          ← 返回列表
+        </Button>
+        <Empty description={error ?? '帖子不存在或已删除'} />
+      </div>
+    );
+  }
+
+  const replyable = thread.status === 'PUBLISHED' || thread.status === 'SOLVED';
+  const canReply = hasPermission('sys:forum:post:add');
+
+  return (
+    <div className="forum-page">
+      <Space>
+        <Button type="link" onClick={onBack}>
+          ← 返回列表
+        </Button>
+        <Text type="secondary">{thread.threadNo}</Text>
+      </Space>
+
+      {thread.status === 'PENDING' ? (
+        <Alert
+          type="warning"
+          showIcon
+          message="该帖正在审核中"
+          description="审核通过后才会出现在版块列表；审核版块内编辑已发布帖子会重新回到待审。"
+          style={{ marginBottom: 12 }}
+        />
+      ) : null}
+
+      <Card
+        title={
+          <Space size={6} wrap>
+            {thread.pinned === 1 ? <Tag color="red">悬榜</Tag> : null}
+            {thread.essence === 1 ? <Tag color="gold">金榜</Tag> : null}
+            {statusTag(thread.status)}
+            <span>{thread.title}</span>
+          </Space>
+        }
+        extra={
+          <Space size={12}>
+            <Text type="secondary">回复 {thread.replyCount}</Text>
+            <Text type="secondary">浏览 {thread.viewCount}</Text>
+            <Text type="secondary">投花 {thread.likeCount}</Text>
+          </Space>
+        }
+        bordered={false}
+      >
+        <div className="forum-post-meta">
+          <Text strong>{thread.anonymous === 1 ? `匿名鲸友 ${thread.anonymousNo ?? ''}` : `鲸友 #${thread.authorId}`}</Text>
+          <Text type="secondary">1 楼 · {thread.publishTime ?? thread.createTime ?? ''}</Text>
+        </div>
+        <div
+          className="forum-rich-text"
+          // 服务端已白名单消毒（危险构造入库前拒绝），此处直接渲染
+          dangerouslySetInnerHTML={{ __html: thread.content ?? '' }}
+        />
+        {thread.tags ? (
+          <Paragraph type="secondary">标签：{thread.tags}</Paragraph>
+        ) : null}
+      </Card>
+
+      <List
+        header={<Text strong>全部回复（{posts.length}）</Text>}
+        dataSource={posts}
+        locale={{ emptyText: '还没有回复' }}
+        renderItem={(item) => (
+          <List.Item key={item.id}>
+            <div className="forum-post">
+              <div className="forum-post-meta">
+                <Text strong>
+                  {item.anonymous === 1 ? `匿名鲸友 ${item.anonymousNo ?? ''}` : `鲸友 #${item.authorId}`}
+                </Text>
+                <Text type="secondary">
+                  {item.floor} 楼 · {item.createTime ?? ''}
+                </Text>
+              </div>
+              <div
+                className="forum-rich-text"
+                dangerouslySetInnerHTML={{ __html: item.content }}
+              />
+            </div>
+          </List.Item>
+        )}
+      />
+
+      {replyable && canReply ? (
+        <Card bordered={false} className="forum-reply-box">
+          <Input.TextArea
+            rows={4}
+            value={reply}
+            onChange={(event) => setReply(event.target.value)}
+            placeholder="写下你的回复（支持简单 HTML；10 秒内只能回一条）"
+          />
+          <Space style={{ marginTop: 8 }}>
+            <Button type="primary" loading={sending} onClick={submitReply}>
+              回复
+            </Button>
+            <Text type="secondary">下一层将是 {thread.nextFloor} 楼</Text>
+          </Space>
+        </Card>
+      ) : (
+        <Alert
+          type="info"
+          showIcon
+          message={replyable ? '当前账号无回帖权限' : '该帖已关闭或不接受回复'}
+        />
+      )}
+    </div>
+  );
+}

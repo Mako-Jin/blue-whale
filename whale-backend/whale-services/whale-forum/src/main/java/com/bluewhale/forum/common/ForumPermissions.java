@@ -1,7 +1,7 @@
 package com.bluewhale.forum.common;
 
 /**
- * 论坛权限码常量（号段 2330–2359，见规格 v1.3 §八）。
+ * 论坛权限码常量（号段 2340–2350，见规格 v1.3 §八；原 2330 段与 whale-assistant 冲突已后移）。
  *
  * <p>权限码必须与 {@code migration-6.43-forum.sql} 中的 {@code sys_permission.perm_code}
  * 逐字一致：授权语句按 {@code perm_code} 授权，不按 ID 区间——同名权限码在存量库里

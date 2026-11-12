@@ -51,8 +51,16 @@ export function hasPermission(code: string): boolean {
 
 const client = createHttpClient({ getToken });
 
+/** 本子应用请求参数：body 允许直接传对象（共享客户端统一 JSON 序列化并补 Content-Type） */
+export interface ForumRequestInit {
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  body?: unknown;
+  headers?: HeadersInit;
+  signal?: AbortSignal;
+}
+
 /** 发起请求并解包 Result 信封：HTTP 异常或业务码非 0 时抛错。 */
-export async function request<T>(url: string, init?: RequestInit): Promise<T> {
+export async function request<T>(url: string, init?: ForumRequestInit): Promise<T> {
   const { method = 'GET', body, headers, signal } = init ?? {};
   return client.http<T>(url, {
     method: method as HttpOptions['method'],

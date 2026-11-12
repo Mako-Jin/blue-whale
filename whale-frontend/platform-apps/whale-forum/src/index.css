@@ -62,11 +62,90 @@
   font-size: 12px;
 }
 
+/* 二级版块（大区 → 版块）缩进，字号略小以拉开层级 */
+.forum-subnav {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 12px;
+}
+
+.forum-subnav button {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
 .forum-content {
   flex: 1;
   min-width: 0;
   padding: 16px;
   overflow: auto;
+}
+
+.forum-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.forum-page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.forum-page-head h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.forum-thread-item {
+  cursor: pointer;
+}
+
+.forum-thread-item:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.forum-thread-summary {
+  margin: 4px 0 0;
+  color: rgba(0, 0, 0, 0.55);
+  font-size: 13px;
+}
+
+.forum-post {
+  width: 100%;
+}
+
+.forum-post-meta {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+/* 富文本正文：限制图片宽度，避免长链接/长代码块撑破布局 */
+.forum-rich-text {
+  line-height: 1.7;
+  word-break: break-word;
+}
+
+.forum-rich-text img {
+  max-width: 100%;
+}
+
+.forum-rich-text pre {
+  background: rgba(0, 0, 0, 0.04);
+  padding: 8px 12px;
+  border-radius: 6px;
+  overflow: auto;
+}
+
+.forum-reply-box {
+  margin-top: 4px;
 }
 
 .forum-loading {

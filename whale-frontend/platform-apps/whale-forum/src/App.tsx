@@ -1,49 +1,45 @@
-// 论坛子应用根组件（M0）：左侧版块导航占位 + 右侧服务状态面板
+// 论坛子应用根组件：左侧版块树 + 右侧列表/详情
 //
-// 基座以 activeRule=/forum 挂载本子应用。M0 只验证「子应用能挂载 + 能打通网关 +
-// 枚举由服务端下发」这条链路；M1 起把版块树、帖子列表、详情页接到 pages/ 下。
+// 基座以 activeRule=/forum 挂载；页内导航用本地状态 + history.replaceState，
+// 不引 react-router（子应用只有两级视图，路由库反而增加 qiankun 下的 basename 麻烦）。
 
-import { useCallback, useEffect, useState } from 'react';
-import { Alert, Card, Descriptions, Empty, Spin, Tag, Typography } from 'antd';
-import { fetchForumMeta, type ForumMeta } from './api/forum';
-import { hasPermission } from './api/client';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, Empty, Spin, Tag, Typography } from 'antd';
+import { fetchBoards, type BoardItem } from './api/forum';
+import ThreadListPage from './pages/ThreadListPage';
+import ThreadDetailPage from './pages/ThreadDetailPage';
 
-const { Paragraph, Text } = Typography;
+const { Text } = Typography;
 
-type PageKey = 'boards' | 'collections' | 'manage';
-
-/** 版块导航占位（M1 由 GET /forum/portal/boards 下发，仅返回有权限版块） */
-const PAGES: Array<{ key: PageKey; label: string; permission?: string }> = [
-  { key: 'boards', label: '版块', permission: 'sys:forum:browse' },
-  { key: 'collections', label: '我的收藏', permission: 'sys:forum:browse' },
-  { key: 'manage', label: '论坛管理', permission: 'sys:forum:manage:list' },
-];
-
-/** 从路径推断初始页（/forum/manage → manage），未知值回落版块页 */
-function initialPage(): PageKey {
-  const segment = window.location.pathname.split('/')[2] ?? '';
-  const matched = PAGES.find((page) => page.key === segment);
-  return matched?.key ?? 'boards';
+interface ViewState {
+  kind: 'list' | 'thread';
+  boardId?: string;
+  threadId?: string;
 }
 
 export default function App() {
-  const [active, setActive] = useState<PageKey>(initialPage);
-  const [meta, setMeta] = useState<ForumMeta | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [boards, setBoards] = useState<BoardItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [view, setView] = useState<ViewState>({ kind: 'list' });
 
   useEffect(() => {
     let cancelled = false;
-    fetchForumMeta()
+    fetchBoards()
       .then((data) => {
-        if (!cancelled) {
-          setMeta(data);
-          setError(null);
+        if (cancelled) {
+          return;
+        }
+        setBoards(data);
+        setError(null);
+        const first = data.find((board) => board.parentId == null) ?? data[0];
+        if (first) {
+          setView({ kind: 'list', boardId: first.id });
         }
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : '无法读取论坛配置');
+          setError(err instanceof Error ? err.message : '无法加载版块');
         }
       })
       .finally(() => {
@@ -56,28 +52,71 @@ export default function App() {
     };
   }, []);
 
-  const switchPage = useCallback((key: PageKey) => {
-    setActive(key);
-    window.history.replaceState(null, '', `/forum/${key}`);
+  /** 大区（根版块）及其子版，扁平数据前端组树 */
+  const tree = useMemo(() => {
+    const roots = boards.filter((board) => board.parentId == null);
+    return roots.map((root) => ({
+      root,
+      children: boards.filter((board) => board.parentId === root.id),
+    }));
+  }, [boards]);
+
+  const activeBoard = useMemo(
+    () => boards.find((board) => board.id === view.boardId),
+    [boards, view.boardId],
+  );
+
+  const openBoard = useCallback((boardId: string) => {
+    setView({ kind: 'list', boardId });
   }, []);
 
-  const visiblePages = PAGES.filter((page) => !page.permission || hasPermission(page.permission));
-  const activePage = visiblePages.find((page) => page.key === active) ?? visiblePages[0];
+  const openThread = useCallback((threadId: string) => {
+    setView((prev) => ({ kind: 'thread', boardId: prev.boardId, threadId }));
+  }, []);
+
+  const backToList = useCallback(() => {
+    setView((prev) => ({ kind: 'list', boardId: prev.boardId }));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="forum-loading">
+        <Spin tip="正在连接鲸议台…" />
+      </div>
+    );
+  }
 
   return (
     <div className="forum-layout">
       <aside className="forum-sidebar">
         <div className="forum-brand">鲸议台</div>
         <ul className="forum-nav">
-          {visiblePages.map((page) => (
-            <li key={page.key}>
+          {tree.map(({ root, children }) => (
+            <li key={root.id}>
               <button
                 type="button"
-                className={page.key === activePage?.key ? 'is-active' : undefined}
-                onClick={() => switchPage(page.key)}
+                className={root.id === activeBoard?.id ? 'is-active' : undefined}
+                onClick={() => openBoard(root.id)}
               >
-                {page.label}
+                {root.name}
+                {root.auditMode === 1 ? <Tag color="orange">先审后发</Tag> : null}
+                {root.postPolicy === 'READONLY' ? <Tag>只读</Tag> : null}
               </button>
+              {children.length > 0 ? (
+                <ul className="forum-subnav">
+                  {children.map((child) => (
+                    <li key={child.id}>
+                      <button
+                        type="button"
+                        className={child.id === activeBoard?.id ? 'is-active' : undefined}
+                        onClick={() => openBoard(child.id)}
+                      >
+                        {child.name}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </li>
           ))}
         </ul>
@@ -87,66 +126,19 @@ export default function App() {
       </aside>
 
       <main className="forum-content">
-        {loading ? (
-          <div className="forum-loading">
-            <Spin tip="正在连接鲸议台…" />
-          </div>
-        ) : error ? (
+        {error ? (
           <Alert
             type="error"
             showIcon
             message="论坛服务暂不可用"
             description={`${error}（请确认 whale-forum 已启动、网关已配置 /forum/** 路由）`}
           />
+        ) : view.kind === 'thread' && view.threadId ? (
+          <ThreadDetailPage threadId={view.threadId} onBack={backToList} />
+        ) : activeBoard ? (
+          <ThreadListPage board={activeBoard} onOpenThread={openThread} />
         ) : (
-          <>
-            <Card title={`${activePage?.label ?? '版块'} · M0 底座`} bordered={false}>
-              <Paragraph>
-                M0 已打通：服务骨架、V1/V2 迁移（8 张业务表）、网关路由
-                <Text code>/forum/**</Text>、权限码头与枚举下发。版块树与帖子列表在 M1 接入。
-              </Paragraph>
-              {meta ? (
-                <Descriptions column={2} size="small" bordered>
-                  <Descriptions.Item label="服务">
-                    {meta.service}（{meta.version}）
-                  </Descriptions.Item>
-                  <Descriptions.Item label="匿名发帖">
-                    {meta.anonymousEnabled ? (
-                      <Tag color="green">已启用</Tag>
-                    ) : (
-                      <Tag>未启用（HMAC 密钥未配置）</Tag>
-                    )}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="帖子类型">
-                    {meta.threadTypes.map((type) => (
-                      <Tag key={type}>{type}</Tag>
-                    ))}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="帖子状态">
-                    {meta.threadStatuses.map((status) => (
-                      <Tag key={status}>{status}</Tag>
-                    ))}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="版块可见性">
-                    {meta.boardVisibilities.map((item) => (
-                      <Tag key={item}>{item}</Tag>
-                    ))}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="审核模式">
-                    {meta.auditModes.map((item) => (
-                      <Tag key={item}>{item}</Tag>
-                    ))}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="单帖楼层上限">{meta.limits.maxPostsPerThread}</Descriptions.Item>
-                  <Descriptions.Item label="发帖/回帖间隔">
-                    {meta.limits.postIntervalSeconds}s / {meta.limits.replyIntervalSeconds}s
-                  </Descriptions.Item>
-                </Descriptions>
-              ) : (
-                <Empty description="未取得门面配置" />
-              )}
-            </Card>
-          </>
+          <Empty description="暂无可见版块，请联系管理员配置版块权限" />
         )}
       </main>
     </div>

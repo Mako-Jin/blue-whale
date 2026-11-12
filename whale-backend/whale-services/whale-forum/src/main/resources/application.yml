@@ -73,7 +73,14 @@ whale:
     max-page-number: ${WHALE_FORUM_MAX_PAGE_NUMBER:500}
     max-mentions-per-post: ${WHALE_FORUM_MAX_MENTIONS:20}
     post-interval-seconds: ${WHALE_FORUM_POST_INTERVAL_SECONDS:60}
+    # 滑动窗口：默认 10 分钟内最多 5 帖（F-03-17）
+    post-window-seconds: ${WHALE_FORUM_POST_WINDOW_SECONDS:600}
+    post-window-max: ${WHALE_FORUM_POST_WINDOW_MAX:5}
     reply-interval-seconds: ${WHALE_FORUM_REPLY_INTERVAL_SECONDS:10}
+    # 作者可编辑自身帖子的时间窗（分钟），超时需治理权限
+    edit-window-minutes: ${WHALE_FORUM_EDIT_WINDOW_MINUTES:30}
+    # 列表摘要截断长度
+    summary-length: ${WHALE_FORUM_SUMMARY_LENGTH:200}
     hot-refresh-minutes: ${WHALE_FORUM_HOT_REFRESH_MINUTES:30}
     # 审核模式版块内发布态编辑自动退回待审（规格 §6.6）；关闭等于审核白做
     audit-on-edit: ${WHALE_FORUM_AUDIT_ON_EDIT:true}

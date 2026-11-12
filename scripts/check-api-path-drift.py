@@ -61,10 +61,33 @@ REQUEST_MAPPING_METHOD = re.compile(
 CALL = re.compile(
     r'\b(get|post|put|del|delete|patch)\s*(?:<[^>]*>)?\s*\(\s*([`\'"])(.+?)\2'
 )
+# 包装式调用：`request<T>(url, { method: 'POST' })`（论坛/孪生等子应用统一走 @bluewhale/http 包装层）。
+# 不补这条规则时，这类调用既不计数也不校验，等于「门禁看不见」——2026-11-12 负向验证发现。
+WRAPPER_CALL = re.compile(
+    r'\brequest\s*(?:<[^();]*?>)?\s*\(\s*([`\'"])(.+?)\1'
+)
 METHOD_OF = {
     "get": "GET", "post": "POST", "put": "PUT",
     "del": "DELETE", "delete": "DELETE", "patch": "PATCH",
 }
+
+
+def iter_calls(text: str):
+    """枚举文件内的接口调用，产出 (HTTP 方法, 路径字面量, 匹配结束位置)。"""
+    for m in CALL.finditer(text):
+        method = METHOD_OF.get(m.group(1))
+        if method:
+            yield method, m.group(3), m.end()
+    for m in WRAPPER_CALL.finditer(text):
+        # 方法取本次调用实参里的 method: 'XXX'，缺省按 GET。
+        # 必须在本调用的 `)` 处截断：否则会读到下一个接口的 method，
+        # 把 GET 误判成 POST（负向验证时踩到过，表现为「后端只有 GET」的假报错）。
+        tail = text[m.end():m.end() + 300]
+        stop = tail.find(")")
+        if stop != -1:
+            tail = tail[:stop]
+        verb = re.search(r"method\s*:\s*['\"](\w+)['\"]", tail)
+        yield (verb.group(1).upper() if verb else "GET"), m.group(2), m.end()
 
 
 def iter_files(root: str, exts: tuple[str, ...]):
@@ -286,12 +309,7 @@ def main() -> int:
             if "/" not in text:
                 continue
             rel = os.path.relpath(path, ROOT).replace(os.sep, "/")
-            for m in CALL.finditer(text):
-                verb = m.group(1)
-                method = METHOD_OF.get(verb)
-                if not method:
-                    continue
-                raw = m.group(3)
+            for method, raw, end_pos in iter_calls(text):
                 actual, mode = normalize_call(raw)
                 if actual is None:
                     skipped.append({"call": raw, "file": rel, "why": mode})
@@ -299,7 +317,7 @@ def main() -> int:
                 total += 1
 
                 # 字符串拼接形态：字面量后面紧跟 `+` → 前缀匹配
-                tail = text[m.end():m.end() + 3].lstrip()
+                tail = text[end_pos:end_pos + 3].lstrip()
                 concat = tail.startswith("+")
 
                 same_path = by_method.get(method, [])
