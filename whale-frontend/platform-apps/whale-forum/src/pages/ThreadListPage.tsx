@@ -17,8 +17,11 @@ import {
   message,
 } from 'antd';
 import {
+  addFollow,
   createThread,
+  fetchFollowState,
   fetchThreads,
+  removeFollow,
   searchThreads,
   type BoardItem,
   type ThreadListItem,
@@ -64,6 +67,43 @@ export default function ThreadListPage({ board, onOpenThread }: Props) {
   const [editorOpen, setEditorOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm<{ title: string; content: string; tags?: string }>();
+  /** 是否已关注本版块（结契：新帖进通知） */
+  const [boardFollowed, setBoardFollowed] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchFollowState('BOARD', board.id)
+      .then((state) => {
+        if (!cancelled) {
+          setBoardFollowed(state.following);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setBoardFollowed(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [board.id]);
+
+  /** 关注/取关版块：服务端返回目标态，前端不本地取反 */
+  const onToggleFollowBoard = async () => {
+    setFollowLoading(true);
+    try {
+      const next = boardFollowed
+        ? await removeFollow('BOARD', board.id)
+        : await addFollow('BOARD', board.id);
+      setBoardFollowed(next.following);
+      void message.success(next.following ? '已结契，关注版块' : '已取关');
+    } catch (err: unknown) {
+      void message.error(err instanceof Error ? err.message : '操作失败');
+    } finally {
+      setFollowLoading(false);
+    }
+  };
 
   const load = useCallback(
     (page: number, activeSort: string, activeKeyword: string) => {
@@ -126,6 +166,9 @@ export default function ThreadListPage({ board, onOpenThread }: Props) {
           {board.description ? <Paragraph type="secondary">{board.description}</Paragraph> : null}
         </div>
         <Space wrap>
+          <Button type={boardFollowed ? 'primary' : 'default'} loading={followLoading} onClick={onToggleFollowBoard}>
+            {boardFollowed ? '已结契' : '结契版块'}
+          </Button>
           <Segmented
             options={SORTS}
             value={sort}

@@ -19,11 +19,14 @@ import {
   message,
 } from 'antd';
 import {
+  addFollow,
   addReaction,
   cancelReaction,
   createPost,
+  fetchFollowState,
   fetchPosts,
   fetchThread,
+  removeFollow,
   type PostItem,
   type ReactionState,
   type ThreadDetail,
@@ -64,6 +67,9 @@ export default function ThreadDetailPage({ threadId, onBack }: Props) {
   const [order, setOrder] = useState<'asc' | 'desc'>('asc');
   /** 正在引用的楼层：回帖时带 replyToPostId */
   const [quote, setQuote] = useState<PostItem | null>(null);
+  /** 是否已关注楼主（结契） */
+  const [authorFollowed, setAuthorFollowed] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
 
   /** 详情响应已经带按钮态与计数，直接落地，避免再打一轮接口 */
   const applyThread = useCallback((data: ThreadDetail) => {
@@ -97,6 +103,48 @@ export default function ThreadDetailPage({ threadId, onBack }: Props) {
   useEffect(() => {
     loadPosts();
   }, [loadPosts]);
+
+  // 关注态单独拉：详情接口不带关注信息（关注是用户↔作者的跨帖关系）
+  useEffect(() => {
+    if (!thread || thread.anonymous === 1 || !thread.authorId) {
+      setAuthorFollowed(false);
+      return;
+    }
+    let cancelled = false;
+    fetchFollowState('USER', thread.authorId)
+      .then((state) => {
+        if (!cancelled) {
+          setAuthorFollowed(state.following);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAuthorFollowed(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [thread]);
+
+  /** 关注/取关楼主：服务端返回目标态，前端不做本地取反 */
+  const onToggleFollowAuthor = async () => {
+    if (!thread?.authorId) {
+      return;
+    }
+    setFollowLoading(true);
+    try {
+      const next = authorFollowed
+        ? await removeFollow('USER', thread.authorId)
+        : await addFollow('USER', thread.authorId);
+      setAuthorFollowed(next.following);
+      void message.success(next.following ? '已结契，关注楼主' : '已取关');
+    } catch (err: unknown) {
+      void message.error(err instanceof Error ? err.message : '操作失败');
+    } finally {
+      setFollowLoading(false);
+    }
+  };
 
   /** 投花/藏帖：服务端返回最新选中态与计数，前端不本地加减 */
   const onToggleReaction = async (type: 'LIKE' | 'COLLECT') => {
@@ -204,7 +252,14 @@ export default function ThreadDetailPage({ threadId, onBack }: Props) {
         bordered={false}
       >
         <div className="forum-post-meta">
-          <Text strong>{thread.anonymous === 1 ? `匿名鲸友 ${thread.anonymousNo ?? ''}` : `鲸友 #${thread.authorId}`}</Text>
+          <Space size={8}>
+            <Text strong>{thread.anonymous === 1 ? `匿名鲸友 ${thread.anonymousNo ?? ''}` : `鲸友 #${thread.authorId}`}</Text>
+            {thread.anonymous === 1 ? null : (
+              <Button size="small" type={authorFollowed ? 'primary' : 'default'} loading={followLoading} onClick={onToggleFollowAuthor}>
+                {authorFollowed ? '已结契' : '结契关注'}
+              </Button>
+            )}
+          </Space>
           <Text type="secondary">1 楼 · {thread.publishTime ?? thread.createTime ?? ''}</Text>
         </div>
         <div

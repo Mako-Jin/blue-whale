@@ -466,6 +466,60 @@ export function fetchMyPosts(current = 1, size = 20): Promise<PageResult<MyPost>
   return request<PageResult<MyPost>>(`/forum/my/posts?current=${current}&size=${size}`);
 }
 
+// ---------------------------------------------------------------------------
+// M7-3 结契（关注作者 / 版块，F-05-03）
+// 关注用 PUT、取关用 DELETE（同一路径），语义是「把状态置为目标值」
+// ---------------------------------------------------------------------------
+
+/** 关注对象类型 */
+export type FollowTargetType = 'USER' | 'BOARD';
+
+/** 关注态 */
+export interface FollowState {
+  following: boolean;
+}
+
+/** 我的关注条目（版块名前端本地映射） */
+export interface FollowItem {
+  targetType: FollowTargetType | string;
+  targetId: string;
+  createTime?: string | null;
+}
+
+/** 当前用户对某对象的关注态 */
+export function fetchFollowState(
+  targetType: FollowTargetType,
+  targetId: string,
+): Promise<FollowState> {
+  return request<FollowState>(`/forum/follow/${targetType}/${targetId}`);
+}
+
+/** 关注作者 / 版块 */
+export function addFollow(targetType: FollowTargetType, targetId: string): Promise<FollowState> {
+  return request<FollowState>(`/forum/follow/${targetType}/${targetId}`, { method: 'PUT' });
+}
+
+/** 取关 */
+export function removeFollow(
+  targetType: FollowTargetType,
+  targetId: string,
+): Promise<FollowState> {
+  return request<FollowState>(`/forum/follow/${targetType}/${targetId}`, { method: 'DELETE' });
+}
+
+/** 我的关注 */
+export function fetchMyFollows(
+  targetType?: FollowTargetType,
+  current = 1,
+  size = 20,
+): Promise<PageResult<FollowItem>> {
+  const query = new URLSearchParams({ current: String(current), size: String(size) });
+  if (targetType) {
+    query.set('targetType', targetType);
+  }
+  return request<PageResult<FollowItem>>(`/forum/my/follows?${query.toString()}`);
+}
+
 /** 论坛经验流水条目 */
 export interface ExpItem {
   event: string;

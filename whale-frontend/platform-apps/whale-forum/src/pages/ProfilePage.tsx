@@ -19,9 +19,13 @@ import {
   Typography,
 } from 'antd';
 import {
+  fetchMyFollows,
   fetchMyPosts,
   fetchMyThreads,
   fetchProfile,
+  removeFollow,
+  type BoardItem,
+  type FollowItem,
   type MyPost,
   type Profile,
   type ThreadListItem,
@@ -42,10 +46,11 @@ const THREAD_STATUS_LABEL: Record<string, string> = {
 };
 
 interface Props {
+  boards: BoardItem[];
   onOpenThread: (threadId: string) => void;
 }
 
-export default function ProfilePage({ onOpenThread }: Props) {
+export default function ProfilePage({ boards, onOpenThread }: Props) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
 
@@ -58,6 +63,11 @@ export default function ProfilePage({ onOpenThread }: Props) {
   const [postTotal, setPostTotal] = useState(0);
   const [postPage, setPostPage] = useState(1);
   const [postLoading, setPostLoading] = useState(false);
+
+  const [follows, setFollows] = useState<FollowItem[]>([]);
+  const [followTotal, setFollowTotal] = useState(0);
+  const [followPage, setFollowPage] = useState(1);
+  const [followLoading, setFollowLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -105,6 +115,38 @@ export default function ProfilePage({ onOpenThread }: Props) {
       })
       .finally(() => setPostLoading(false));
   }, []);
+
+  const loadFollows = useCallback((page: number) => {
+    setFollowLoading(true);
+    fetchMyFollows(undefined, page, 20)
+      .then((result) => {
+        setFollows(result.records);
+        setFollowTotal(Number(result.total));
+      })
+      .catch(() => {
+        setFollows([]);
+        setFollowTotal(0);
+      })
+      .finally(() => setFollowLoading(false));
+  }, []);
+
+  /** 取关：成功后重取当前页，避免本地删行后页码与总数错位 */
+  const onUnfollow = async (item: FollowItem) => {
+    try {
+      await removeFollow(item.targetType === 'BOARD' ? 'BOARD' : 'USER', item.targetId);
+      loadFollows(followPage);
+    } catch {
+      // 失败保持原样：状态以服务端为准，不本地乐观删除
+    }
+  };
+
+  /** 关注对象的展示名：版块查本地版块树，作者没有跨服务通讯录，用占位 */
+  const followLabel = (item: FollowItem) => {
+    if (item.targetType === 'BOARD') {
+      return boards.find((board) => board.id === item.targetId)?.name ?? `版块 #${item.targetId}`;
+    }
+    return `鲸友 #${item.targetId}`;
+  };
 
   // 默认 Tab 是「我的帖子」：Tabs 的 onChange 首次不触发，这里主动加载
   useEffect(() => {
@@ -200,6 +242,46 @@ export default function ProfilePage({ onOpenThread }: Props) {
     </>
   );
 
+  const followItems = (
+    <>
+      <List
+        loading={followLoading}
+        dataSource={follows}
+        locale={{ emptyText: <Empty description="还没有结契关注" /> }}
+        renderItem={(item) => (
+          <List.Item
+            actions={[
+              <Button key="unfollow" size="small" onClick={() => onUnfollow(item)}>
+                取关
+              </Button>,
+            ]}
+          >
+            <Space size={8} wrap>
+              <Tag color={item.targetType === 'BOARD' ? 'blue' : 'default'}>
+                {item.targetType === 'BOARD' ? '版块' : '鲸友'}
+              </Tag>
+              <Text>{followLabel(item)}</Text>
+              <Text type="secondary">{item.createTime ?? ''}</Text>
+            </Space>
+          </List.Item>
+        )}
+      />
+      {followTotal > 20 ? (
+        <Pagination
+          style={{ marginTop: 12, textAlign: 'right' }}
+          current={followPage}
+          pageSize={20}
+          total={followTotal}
+          showSizeChanger={false}
+          onChange={(page) => {
+            setFollowPage(page);
+            loadFollows(page);
+          }}
+        />
+      ) : null}
+    </>
+  );
+
   return (
     <div className="forum-page">
       {profileError ? (
@@ -261,6 +343,11 @@ export default function ProfilePage({ onOpenThread }: Props) {
               children: postItems,
             },
             {
+              key: 'follows',
+              label: '我的关注',
+              children: followItems,
+            },
+            {
               key: 'collections',
               label: '我的收藏',
               children: <CollectionsPage onOpenThread={onOpenThread} />,
@@ -272,6 +359,9 @@ export default function ProfilePage({ onOpenThread }: Props) {
             }
             if (key === 'posts' && posts.length === 0 && !postLoading) {
               loadPosts(postPage);
+            }
+            if (key === 'follows' && follows.length === 0 && !followLoading) {
+              loadFollows(followPage);
             }
           }}
         />

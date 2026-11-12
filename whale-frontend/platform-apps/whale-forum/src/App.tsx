@@ -222,7 +222,7 @@ export default function App() {
         ) : view.kind === 'collections' ? (
           <CollectionsPage onOpenThread={openThread} />
         ) : view.kind === 'profile' ? (
-          <ProfilePage onOpenThread={openThread} />
+          <ProfilePage boards={boards} onOpenThread={openThread} />
         ) : view.kind === 'thread' && view.threadId ? (
           <ThreadDetailPage threadId={view.threadId} onBack={backToList} />
         ) : activeBoard ? (

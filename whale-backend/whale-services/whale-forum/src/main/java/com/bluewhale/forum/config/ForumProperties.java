@@ -77,6 +77,14 @@ public class ForumProperties {
     /** 通知最多重试次数（超过转 FAILED，等人工排查） */
     private int notifyMaxRetry = 5;
 
+    /**
+     * 单帖关注通知接收人上限（关注作者 + 关注版块的并集）。
+     *
+     * <p>大版块发帖时关注者可能上千，逐条写 outbox 再逐条打 whale-message
+     * 会把发帖接口拖垮；截断是业务可接受的，但不能悄悄截，日志要留痕。</p>
+     */
+    private int followNotifyLimit = 200;
+
     /** whale-message 内网基础地址（站内信经 /message/internal/send 投递） */
     private String messageBaseUrl = "http://127.0.0.1:8094";
 

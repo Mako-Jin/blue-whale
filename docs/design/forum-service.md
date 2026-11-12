@@ -208,6 +208,7 @@ M4 落地口径：检索走 `FULLTEXT(title, content_text) WITH PARSER ngram`（
 | M6 成长与热榜增强（P1） | `V9__hot_window_exp.sql`（`fm_hot_snapshot.hot_window` + `fm_exp_ledger`）；热榜双档 24h/7d（24h 档按小时指数衰减，`GET /forum/hot?window=` 缺省 7d）；题金榜 / 撤销精华（`POST /forum/admin/thread/{id}/essence|unessence`）；论坛经验本地账本（发帖 5 / 被投花 2 / 精华 200 / 金榜 Top1 1000，匿名不计，同人同帖同事件唯一）与 `GET /forum/exp/me` | 单测 117 项全绿；24h 与 7d 快照各自覆盖互不覆盖；同帖重复题金榜不重复发经验 |
 | M7-1 发现页（P1） | `V10__thread_tag.sql`（`fm_thread_tag` + 历史标签递归回填）；发帖/改帖同步标签行；`GET /forum/tag/list` 标签聚合；`ThreadQuery` 增 `authorId` / `from` / `to` / `tag`，列表与检索共用同一谓词；精华榜复用 `GET /forum/thread/page?essenceOnly=true`；前端「发现」页（精华榜 / 标签页 + 版块、作者、时间范围、只看精华筛选） | 单测覆盖标签同步、超限拒绝、筛选透传、聚合排序；前端 lint + build 通过；`check-api-path-drift.py` / `check-long-id-typing.py` 全绿 |
 | M7-2 个人中心（P1） | `GET /forum/profile/me` 与 `GET /forum/profile/{userId}`（鲸阶、经验、发帖数、获花数、精华数、禁言状态）；`GET /forum/my/threads`（含审核中/已处置，作者可见）；`GET /forum/my/posts`（联 `fm_thread` 排除已删帖）；鲸阶阈值走 `whale.forum.level-thresholds`；前端「我的」页（资料卡 + 我的帖子 / 回复 / 收藏） | 单测覆盖鲸阶边界、禁言映射、我的帖子/回复分页；前端 lint + build；两项门禁全绿 |
+| M7-3 结契（P1） | `V11__follow.sql`（`fm_follow`，关注作者 / 版块）；`PUT|DELETE /forum/follow/{targetType}/{targetId}`（幂等）；`GET /forum/follow/{targetType}/{targetId}` 回关注态；`GET /forum/my/follows` 我的关注；发布态新帖向关注者写 outbox 通知（幂等、排除作者本人、单帖上限 `follow-notify-limit`）；前端详情页关注作者、列表页关注版块、「我的」页关注 Tab | 单测覆盖自关注拒绝、版块可见性校验、幂等关注/取关、关注列表分页与通知去重；前端 lint + build；两项门禁全绿 |
 
 ---
 
@@ -268,6 +269,21 @@ M4 落地口径：检索走 `FULLTEXT(title, content_text) WITH PARSER ngram`（
 | 我的回复 | `GET /forum/my/posts`：`fm_post` 内联 `fm_thread`（`deleted=0`）排除已删帖，按楼层创建时间倒序，返回帖子标题与帖子ID | 帖子被删后回复没有落点，返回了也点不进去；分页先过滤再分页，避免「每页条数越翻越少」 |
 | 禁言展示 | `ProfileVO` 只回 `banned` / `banType` / `banUntil`，**不回原因** | 处置原因是治理信息，公开展示等于把举报理由挂到对方主页 |
 | 权限 | 个人主页与我的内容均只要求 `sys:forum:browse`；`/my/*` 一律以身份头用户为准，不接受 `userId` 入参 | 允许传 userId 的「我的」等于给越权读开入口，且没人需要「查别人的我的回复」 |
+
+---
+
+## 8.5 M7-3 结契（关注）实现口径（P1）
+
+| 项 | 口径 | 为什么 |
+|---|---|---|
+| 数据模型 | 新增 `fm_follow`，唯一键 `(tenant_id, user_id, target_type, target_id)`，`target_type` 只允许 `USER` / `BOARD`；关系表不设 `deleted`，取关即物理删行 | 关注是纯关系数据、无审计需求；软删会让唯一键挡住「取关后再关注」，还得额外写恢复分支 |
+| 自关注 | `targetType=USER` 且 `targetId=当前用户` 返回 400 | 自关注只会给自己灌自己的新帖通知 |
+| 目标校验 | `BOARD` 关注前过 `BoardService.requireVisibleBoard`；`USER` 只做空值与自关注校验，不反查 auth | 关注不可见版块等于订阅一个永远看不到的流；跨服务用户目录只用于 @提及解析，不给关注做存在性反查 |
+| 幂等 | 关注用 `INSERT IGNORE`（唯一键兜底），重复关注不报错；取关直接 `DELETE`，未关注也返回成功 | 与投花/藏帖同语义：把状态置为目标值，按钮连点与网络重试都不该报错 |
+| 新帖通知 | 发布态帖子（直接发布与审核通过两条路径）向「关注作者」与「关注版块」的用户各写一条 outbox；幂等键 `forum:follow:thread:{threadId}:{userId}`；排除作者本人；单帖最多通知 `follow-notify-limit`（默认 200）人 | 键带 threadId，重复触发只打扰一次；上限防止大版块发帖把 outbox 与 whale-message 打爆 |
+| 通知时机 | 与发帖/审核通过同事务写 outbox（与发帖经验一致），不额外注册 afterCommit | outbox 行跟帖子一起提交或回滚，不会通知一个被回滚的帖子；投递失败仍由 flush 补偿 |
+| 读取 | `GET /forum/follow/{targetType}/{targetId}` 回 `{following}`；`GET /forum/my/follows?targetType=` 按关注时间倒序分页，只回 `targetType/targetId/createTime` | 版块名由前端用已加载的版块树本地映射，不为了一个展示字段在论坛服务拼跨表查询 |
+| 权限 | 读用 `sys:forum:browse`，关注/取关用 `sys:forum:reaction:use` | 结契属互动行为，复用互动权限码；新增权限点要走「常量 → 迁移 → 注解」三步，收益不抵成本 |
 
 ---
 

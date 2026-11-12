@@ -17,7 +17,7 @@ public interface ForumNotifyService {
      * 落库并尝试立即投递一条站内信。
      *
      * @param receiverId 接收人
-     * @param bizType 业务类型：REPLY / MENTION / MODERATION
+     * @param bizType 业务类型：REPLY / MENTION / MODERATION / FOLLOW
      * @param bizId 业务主键
      * @param idempotencyKey 幂等键
      * @param title 标题

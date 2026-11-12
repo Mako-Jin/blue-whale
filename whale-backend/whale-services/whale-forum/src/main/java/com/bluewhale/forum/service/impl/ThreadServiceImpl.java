@@ -31,6 +31,7 @@ import com.bluewhale.forum.mapper.ForumThreadTagMapper;
 import com.bluewhale.forum.service.BanService;
 import com.bluewhale.forum.service.BoardService;
 import com.bluewhale.forum.service.ExpService;
+import com.bluewhale.forum.service.FollowService;
 import com.bluewhale.forum.service.MentionService;
 import com.bluewhale.forum.service.SearchService;
 import com.bluewhale.forum.service.SensitiveWordService;
@@ -116,6 +117,8 @@ public class ThreadServiceImpl implements ThreadService {
 
     private final ExpService expService;
 
+    private final FollowService followService;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ThreadDetailVO create(ThreadCreateRequest request, ForumActor actor) {
@@ -191,6 +194,9 @@ public class ThreadServiceImpl implements ThreadService {
                 expService.award(actor.userId(), ExpService.EVENT_THREAD_PUBLISH,
                         properties.getExpThreadPublish(), thread.getId());
             }
+            // 结契新帖通知（F-05-03）：与 outbox 同事务写入，帖子回滚则通知一起回滚
+            followService.notifyNewThread(thread.getId(), thread.getBoardId(), actor.userId(),
+                    thread.getTitle(), thread.getAnonymous());
         }
         return toDetailVO(thread, board, actor);
     }

@@ -16,6 +16,7 @@ import com.bluewhale.forum.mapper.ForumPostMapper;
 import com.bluewhale.forum.mapper.ForumThreadMapper;
 import com.bluewhale.forum.service.AuditService;
 import com.bluewhale.forum.service.ExpService;
+import com.bluewhale.forum.service.FollowService;
 import com.bluewhale.forum.service.ForumNotifyService;
 import com.bluewhale.forum.service.ModerationService;
 import lombok.RequiredArgsConstructor;
@@ -67,6 +68,8 @@ public class AuditServiceImpl implements AuditService {
 
     private final ExpService expService;
 
+    private final FollowService followService;
+
     @Override
     public PageResult<AuditItemVO> page(String targetType, Long current, Long size, ForumActor actor) {
         TenantContext.requireId();
@@ -103,6 +106,9 @@ public class AuditServiceImpl implements AuditService {
             expService.award(thread.getAuthorId(), ExpService.EVENT_THREAD_PUBLISH,
                     properties.getExpThreadPublish(), thread.getId());
         }
+        // 审核通过才算「发布」，此时才通知关注者（待审阶段通知等于推死链）
+        followService.notifyNewThread(thread.getId(), thread.getBoardId(), thread.getAuthorId(),
+                thread.getTitle(), thread.getAnonymous());
     }
 
     @Override
