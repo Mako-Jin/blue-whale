@@ -3,8 +3,8 @@ package com.bluewhale.auth.infrastructure.persistence.assembler;
 import com.bluewhale.auth.domain.model.vo.RoleCode;
 import com.bluewhale.auth.domain.aggregate.RoleAggregate;
 import com.bluewhale.auth.domain.model.entity.RolePermissionAssignment;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysRolePo;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysRolePermissionPo;
+import com.bluewhale.auth.infrastructure.persistence.po.SysRolePo;
+import com.bluewhale.auth.infrastructure.persistence.po.SysRolePermissionPo;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

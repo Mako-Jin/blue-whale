@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.auth.domain.aggregate.PermissionAggregate;
 import com.bluewhale.auth.domain.repository.PermissionRepository;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysPermissionPo;
+import com.bluewhale.auth.infrastructure.persistence.po.SysPermissionPo;
 import com.bluewhale.auth.infrastructure.persistence.assembler.PermissionPersistenceAssembler;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysPermissionMapper;
 import lombok.RequiredArgsConstructor;

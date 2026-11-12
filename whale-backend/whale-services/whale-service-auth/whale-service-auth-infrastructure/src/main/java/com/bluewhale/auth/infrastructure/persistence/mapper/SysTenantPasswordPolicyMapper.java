@@ -1,7 +1,7 @@
 package com.bluewhale.auth.infrastructure.persistence.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysTenantPasswordPolicyPo;
+import com.bluewhale.auth.infrastructure.persistence.po.SysTenantPasswordPolicyPo;
 
 /**
  * 租户口令策略 Mapper（REQ-SEC-023）

@@ -4,11 +4,11 @@ import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.bluewhale.auth.domain.repository.RoleRepository;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysPermissionPo;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysRolePo;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysRolePermissionPo;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysUserRolePo;
-import com.bluewhale.auth.infrastructure.persistence.entity.UserTenantRefPo;
+import com.bluewhale.auth.infrastructure.persistence.po.SysPermissionPo;
+import com.bluewhale.auth.infrastructure.persistence.po.SysRolePo;
+import com.bluewhale.auth.infrastructure.persistence.po.SysRolePermissionPo;
+import com.bluewhale.auth.infrastructure.persistence.po.SysUserRolePo;
+import com.bluewhale.auth.infrastructure.persistence.projection.UserTenantRef;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysPermissionMapper;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysRoleMapper;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysRolePermissionMapper;
@@ -175,10 +175,10 @@ class RoleRepositoryImplTest {
     @Test
     @DisplayName("listUsersByPermissionId：映射 JOIN 投影为（租户, 用户）对")
     void shouldListUsersByPermissionId() {
-        UserTenantRefPo ref1 = new UserTenantRefPo();
+        UserTenantRef ref1 = new UserTenantRef();
         ref1.setTenantId(9L);
         ref1.setUserId(USER_ID);
-        UserTenantRefPo ref2 = new UserTenantRefPo();
+        UserTenantRef ref2 = new UserTenantRef();
         ref2.setTenantId(9L);
         ref2.setUserId(6L);
         when(roleMapper.selectUserTenantRefsByPermissionId(10L)).thenReturn(List.of(ref1, ref2));

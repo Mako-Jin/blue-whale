@@ -1,4 +1,4 @@
-package com.bluewhale.auth.infrastructure.persistence.entity;
+package com.bluewhale.auth.infrastructure.persistence.po;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;

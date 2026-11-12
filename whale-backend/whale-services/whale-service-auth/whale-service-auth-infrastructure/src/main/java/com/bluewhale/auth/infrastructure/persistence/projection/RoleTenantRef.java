@@ -1,4 +1,4 @@
-package com.bluewhale.auth.infrastructure.persistence.entity;
+package com.bluewhale.auth.infrastructure.persistence.projection;
 
 import lombok.Data;
 

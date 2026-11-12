@@ -1,7 +1,7 @@
 package com.bluewhale.auth.infrastructure.persistence.assembler;
 
 import com.bluewhale.auth.domain.aggregate.DeptAggregate;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysDeptPo;
+import com.bluewhale.auth.infrastructure.persistence.po.SysDeptPo;
 
 /**
  * Dept 聚合与其持久化对象（PO）的双向转换器（手写 Assembler，REQ-ARCH-001 / T-DDD-7）。

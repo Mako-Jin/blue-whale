@@ -1,4 +1,4 @@
-package com.bluewhale.auth.infrastructure.persistence.entity;
+package com.bluewhale.auth.infrastructure.persistence.projection;
 
 import lombok.Data;
 
@@ -14,7 +14,7 @@ import java.io.Serializable;
  * @author BlueWhale
  */
 @Data
-public class UserTenantRefPo implements Serializable {
+public class UserTenantRef implements Serializable {
 
     private static final long serialVersionUID = 1L;
 

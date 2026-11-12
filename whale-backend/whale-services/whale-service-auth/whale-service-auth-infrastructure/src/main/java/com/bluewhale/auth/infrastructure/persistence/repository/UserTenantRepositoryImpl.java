@@ -2,7 +2,7 @@ package com.bluewhale.auth.infrastructure.persistence.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.auth.domain.repository.UserTenantRepository;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysUserTenantPo;
+import com.bluewhale.auth.infrastructure.persistence.po.SysUserTenantPo;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysUserTenantMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;

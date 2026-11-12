@@ -2,9 +2,9 @@ package com.bluewhale.auth.infrastructure.persistence.mapper;
 
 import com.baomidou.mybatisplus.annotation.InterceptorIgnore;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bluewhale.auth.infrastructure.persistence.entity.RoleTenantRef;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysRolePo;
-import com.bluewhale.auth.infrastructure.persistence.entity.UserTenantRefPo;
+import com.bluewhale.auth.infrastructure.persistence.projection.RoleTenantRef;
+import com.bluewhale.auth.infrastructure.persistence.po.SysRolePo;
+import com.bluewhale.auth.infrastructure.persistence.projection.UserTenantRef;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
@@ -49,5 +49,5 @@ public interface SysRoleMapper extends BaseMapper<SysRolePo> {
             + "JOIN sys_role r ON r.id = rp.role_id AND r.deleted = 0 "
             + "JOIN sys_user_role ur ON ur.role_id = rp.role_id "
             + "WHERE rp.permission_id = #{permissionId}")
-    List<UserTenantRefPo> selectUserTenantRefsByPermissionId(@Param("permissionId") Long permissionId);
+    List<UserTenantRef> selectUserTenantRefsByPermissionId(@Param("permissionId") Long permissionId);
 }

@@ -2,7 +2,7 @@ package com.bluewhale.auth.infrastructure.persistence.assembler;
 
 import com.bluewhale.auth.domain.model.vo.PermCode;
 import com.bluewhale.auth.domain.aggregate.PermissionAggregate;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysPermissionPo;
+import com.bluewhale.auth.infrastructure.persistence.po.SysPermissionPo;
 
 /**
  * Permission 聚合与其持久化对象（PO）的双向转换器（手写 Assembler，REQ-ARCH-001 / T-DDD-6）。

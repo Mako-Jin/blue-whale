@@ -3,7 +3,7 @@ package com.bluewhale.auth.infrastructure.persistence.repository;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.auth.domain.aggregate.DeptAggregate;
 import com.bluewhale.auth.domain.repository.DeptRepository;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysDeptPo;
+import com.bluewhale.auth.infrastructure.persistence.po.SysDeptPo;
 import com.bluewhale.auth.infrastructure.persistence.assembler.DeptPersistenceAssembler;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysDeptMapper;
 import com.bluewhale.common.tenant.TenantContext;

@@ -1,7 +1,7 @@
 package com.bluewhale.auth.infrastructure.persistence.assembler;
 
 import com.bluewhale.auth.domain.aggregate.UserPermissionAttributeAggregate;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysUserPermissionPo;
+import com.bluewhale.auth.infrastructure.persistence.po.SysUserPermissionPo;
 
 /**
  * 用户 ABAC 属性聚合与持久化对象的双向转换器（REQ-ARCH-001 / T-DDD-9）。

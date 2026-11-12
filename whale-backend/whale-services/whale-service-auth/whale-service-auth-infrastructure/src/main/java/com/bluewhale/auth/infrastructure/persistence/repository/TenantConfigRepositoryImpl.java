@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.auth.application.model.TenantConfigEntry;
 import com.bluewhale.auth.application.port.TenantConfigRepository;
 import com.bluewhale.auth.infrastructure.persistence.TenantContextSupport;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysTenantConfigPo;
+import com.bluewhale.auth.infrastructure.persistence.po.SysTenantConfigPo;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysTenantConfigMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;

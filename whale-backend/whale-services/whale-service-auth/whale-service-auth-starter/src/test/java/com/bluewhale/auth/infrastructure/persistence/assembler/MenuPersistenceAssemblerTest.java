@@ -1,7 +1,7 @@
 package com.bluewhale.auth.infrastructure.persistence.assembler;
 
 import com.bluewhale.auth.domain.aggregate.MenuAggregate;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysMenuPo;
+import com.bluewhale.auth.infrastructure.persistence.po.SysMenuPo;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

@@ -3,7 +3,7 @@ package com.bluewhale.auth.infrastructure.persistence.repository;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.auth.domain.aggregate.UserPermissionAttributeAggregate;
 import com.bluewhale.auth.domain.repository.UserPermissionRepository;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysUserPermissionPo;
+import com.bluewhale.auth.infrastructure.persistence.po.SysUserPermissionPo;
 import com.bluewhale.auth.infrastructure.persistence.assembler.UserPermissionPersistenceAssembler;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysUserPermissionMapper;
 import lombok.RequiredArgsConstructor;

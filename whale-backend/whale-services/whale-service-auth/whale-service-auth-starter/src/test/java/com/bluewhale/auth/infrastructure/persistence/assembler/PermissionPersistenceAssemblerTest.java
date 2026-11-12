@@ -2,7 +2,7 @@ package com.bluewhale.auth.infrastructure.persistence.assembler;
 
 import com.bluewhale.auth.domain.model.vo.PermCode;
 import com.bluewhale.auth.domain.aggregate.PermissionAggregate;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysPermissionPo;
+import com.bluewhale.auth.infrastructure.persistence.po.SysPermissionPo;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

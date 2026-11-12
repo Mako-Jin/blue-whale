@@ -3,7 +3,7 @@ package com.bluewhale.auth.infrastructure.persistence.repository;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.auth.application.port.PasswordExpiryQuery;
 import com.bluewhale.auth.infrastructure.persistence.TenantContextSupport;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysUserPo;
+import com.bluewhale.auth.infrastructure.persistence.po.SysUserPo;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysUserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;

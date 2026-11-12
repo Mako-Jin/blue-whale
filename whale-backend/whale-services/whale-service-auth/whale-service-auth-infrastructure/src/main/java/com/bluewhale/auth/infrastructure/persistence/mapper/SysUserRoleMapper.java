@@ -2,7 +2,7 @@ package com.bluewhale.auth.infrastructure.persistence.mapper;
 
 import com.baomidou.mybatisplus.annotation.InterceptorIgnore;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysUserRolePo;
+import com.bluewhale.auth.infrastructure.persistence.po.SysUserRolePo;
 import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Param;
 

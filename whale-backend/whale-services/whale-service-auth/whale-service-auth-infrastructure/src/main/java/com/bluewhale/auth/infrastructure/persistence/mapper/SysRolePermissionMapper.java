@@ -1,7 +1,7 @@
 package com.bluewhale.auth.infrastructure.persistence.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bluewhale.auth.infrastructure.persistence.entity.SysRolePermissionPo;
+import com.bluewhale.auth.infrastructure.persistence.po.SysRolePermissionPo;
 
 /**
  * 角色-权限关联 Mapper
