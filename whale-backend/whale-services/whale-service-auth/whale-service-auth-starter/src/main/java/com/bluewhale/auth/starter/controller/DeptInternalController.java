@@ -1,6 +1,6 @@
 package com.bluewhale.auth.starter.controller;
 
-import com.bluewhale.auth.application.dept.DeptAppService;
+import com.bluewhale.auth.application.service.DeptAppService;
 import com.bluewhale.auth.interfaces.api.DeptInternalApi;
 import com.bluewhale.auth.interfaces.dto.response.DeptLeaderResponse;
 import com.bluewhale.auth.interfaces.dto.response.DeptResponse;

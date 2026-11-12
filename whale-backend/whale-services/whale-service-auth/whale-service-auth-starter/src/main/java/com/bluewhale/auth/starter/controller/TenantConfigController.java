@@ -1,9 +1,9 @@
 package com.bluewhale.auth.starter.controller;
 
-import com.bluewhale.auth.application.userconfig.TenantConfigAppService;
-import com.bluewhale.auth.application.userconfig.command.SaveTenantConfigCommand;
+import com.bluewhale.auth.application.service.TenantConfigAppService;
+import com.bluewhale.auth.application.model.command.SaveTenantConfigCommand;
 import com.bluewhale.auth.interfaces.api.TenantConfigApi;
-import com.bluewhale.auth.interfaces.dto.SaveTenantConfigRequest;
+import com.bluewhale.auth.interfaces.dto.request.SaveTenantConfigRequest;
 import com.bluewhale.auth.interfaces.dto.response.TenantConfigEntryResponse;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.auth.starter.assemble.ConfigAssembler;

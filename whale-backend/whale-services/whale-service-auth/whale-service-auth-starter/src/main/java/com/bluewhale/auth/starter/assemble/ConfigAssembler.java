@@ -1,8 +1,8 @@
 package com.bluewhale.auth.starter.assemble;
 
-import com.bluewhale.auth.application.userconfig.TenantConfigEntry;
-import com.bluewhale.auth.application.userconfig.vo.ConfigBatchItemVO;
-import com.bluewhale.auth.application.userconfig.vo.UserConfigVO;
+import com.bluewhale.auth.application.model.TenantConfigEntry;
+import com.bluewhale.auth.application.model.vo.ConfigBatchItemVO;
+import com.bluewhale.auth.application.model.vo.UserConfigVO;
 import com.bluewhale.auth.interfaces.dto.response.ConfigBatchItemResponse;
 import com.bluewhale.auth.interfaces.dto.response.TenantConfigEntryResponse;
 import com.bluewhale.auth.interfaces.dto.response.UserConfigResponse;

@@ -1,7 +1,7 @@
 package com.bluewhale.auth.infrastructure.persistence.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.bluewhale.auth.application.user.password.port.PasswordExpiryQuery;
+import com.bluewhale.auth.application.port.PasswordExpiryQuery;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysUser;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysUserMapper;
 import com.bluewhale.common.tenant.TenantContext;

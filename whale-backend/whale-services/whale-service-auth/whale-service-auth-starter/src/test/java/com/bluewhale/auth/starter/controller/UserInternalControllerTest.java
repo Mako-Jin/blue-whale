@@ -1,6 +1,6 @@
 package com.bluewhale.auth.starter.controller;
 
-import com.bluewhale.auth.application.user.UserDirectoryAppService;
+import com.bluewhale.auth.application.service.UserDirectoryAppService;
 import com.bluewhale.auth.starter.assemble.UserAssembler;
 import com.bluewhale.common.core.handler.GlobalExceptionHandler;
 import org.junit.jupiter.api.BeforeEach;

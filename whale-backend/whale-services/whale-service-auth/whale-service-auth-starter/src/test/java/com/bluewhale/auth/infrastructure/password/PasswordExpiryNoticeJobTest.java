@@ -1,9 +1,9 @@
 package com.bluewhale.auth.infrastructure.password;
 
-import com.bluewhale.auth.application.user.password.TenantPasswordPolicy;
-import com.bluewhale.auth.application.user.password.TenantPasswordPolicyService;
-import com.bluewhale.auth.application.user.password.port.PasswordExpiryQuery;
-import com.bluewhale.auth.application.user.password.port.PasswordExpiryQuery.PasswordExpiryCandidate;
+import com.bluewhale.auth.application.model.TenantPasswordPolicy;
+import com.bluewhale.auth.application.service.TenantPasswordPolicyService;
+import com.bluewhale.auth.application.port.PasswordExpiryQuery;
+import com.bluewhale.auth.application.port.PasswordExpiryQuery.PasswordExpiryCandidate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

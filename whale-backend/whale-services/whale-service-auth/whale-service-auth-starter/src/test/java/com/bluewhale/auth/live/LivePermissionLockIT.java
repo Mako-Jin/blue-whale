@@ -1,8 +1,8 @@
 package com.bluewhale.auth.live;
 
 import com.bluewhale.auth.application.event.DomainEventPublisher;
-import com.bluewhale.auth.application.role.RoleAppService;
-import com.bluewhale.auth.application.role.command.AssignRolePermissionsCommand;
+import com.bluewhale.auth.application.service.RoleAppService;
+import com.bluewhale.auth.application.model.command.AssignRolePermissionsCommand;
 import com.bluewhale.auth.infrastructure.config.PermissionCacheProperties;
 import com.bluewhale.auth.domain.model.vo.RoleCode;
 import com.bluewhale.auth.domain.permission.repository.PermissionRepository;
@@ -48,6 +48,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import com.bluewhale.auth.application.service.impl.RoleAppServiceImpl;
 
 /**
  * 权限中心分布式锁场景的实时集成测试（真实 Redis 5.x @ 127.0.0.1:6379）。
@@ -127,7 +128,7 @@ class LivePermissionLockIT {
             return 1L;
         });
 
-        RoleAppService target = new RoleAppService(roleRepository, permissionRepository, eventPublisher);
+        RoleAppService target = new RoleAppServiceImpl(roleRepository, permissionRepository, eventPublisher);
 
         AspectJProxyFactory proxyFactory = new AspectJProxyFactory(target);
         proxyFactory.setProxyTargetClass(true);

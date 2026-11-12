@@ -1,6 +1,6 @@
 package com.bluewhale.auth.starter.assemble;
 
-import com.bluewhale.auth.application.vo.MenuVO;
+import com.bluewhale.auth.application.model.vo.MenuVO;
 import com.bluewhale.auth.interfaces.dto.response.MenuResponse;
 import org.mapstruct.Mapper;
 

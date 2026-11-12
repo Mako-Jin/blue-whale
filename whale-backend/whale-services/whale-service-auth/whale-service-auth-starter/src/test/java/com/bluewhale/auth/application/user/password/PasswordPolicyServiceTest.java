@@ -1,6 +1,6 @@
 package com.bluewhale.auth.application.user.password;
 
-import com.bluewhale.auth.application.user.port.PasswordHasher;
+import com.bluewhale.auth.application.port.PasswordHasher;
 import com.bluewhale.auth.domain.user.repository.PasswordHistoryRepository;
 import com.bluewhale.auth.infrastructure.config.PasswordPolicyProperties;
 import com.bluewhale.common.core.exception.BizException;
@@ -19,6 +19,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import com.bluewhale.auth.application.service.PasswordPolicyService;
+import com.bluewhale.auth.application.service.impl.PasswordPolicyServiceImpl;
 
 /**
  * {@link PasswordPolicyService} 单元测试（REQ-SEC-021 / REQ-SEC-023）。
@@ -50,7 +52,7 @@ class PasswordPolicyServiceTest {
     @BeforeEach
     void setUp() {
         properties = new PasswordPolicyProperties();
-        service = new PasswordPolicyService(properties, passwordHasher, passwordHistoryRepository);
+        service = new PasswordPolicyServiceImpl(properties, passwordHasher, passwordHistoryRepository);
     }
 
     @Test

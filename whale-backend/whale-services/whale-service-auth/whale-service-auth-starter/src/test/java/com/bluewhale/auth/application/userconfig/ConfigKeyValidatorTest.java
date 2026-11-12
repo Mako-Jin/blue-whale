@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import com.bluewhale.auth.application.service.impl.ConfigKeyValidator;
 
 /**
  * {@link ConfigKeyValidator} 单测：键口径、前缀口径与 JSON 值校验。

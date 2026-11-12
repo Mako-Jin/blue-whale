@@ -1,6 +1,6 @@
 package com.bluewhale.auth.interfaces.api;
 
-import com.bluewhale.auth.interfaces.dto.PermissionRequest;
+import com.bluewhale.auth.interfaces.dto.request.PermissionRequest;
 import com.bluewhale.auth.interfaces.dto.response.PermissionResponse;
 import com.bluewhale.common.core.query.PageQuery;
 import com.bluewhale.common.core.result.PageResult;

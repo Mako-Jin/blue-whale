@@ -1,9 +1,9 @@
 package com.bluewhale.auth.starter.controller;
 
-import com.bluewhale.auth.application.userconfig.UserConfigAppService;
-import com.bluewhale.auth.application.userconfig.UserConfigBatchService;
-import com.bluewhale.auth.application.userconfig.command.SaveUserConfigCommand;
-import com.bluewhale.auth.application.userconfig.vo.ConfigBatchItemVO;
+import com.bluewhale.auth.application.service.UserConfigAppService;
+import com.bluewhale.auth.application.service.UserConfigBatchService;
+import com.bluewhale.auth.application.model.command.SaveUserConfigCommand;
+import com.bluewhale.auth.application.model.vo.ConfigBatchItemVO;
 import com.bluewhale.auth.starter.assemble.ConfigAssembler;
 import com.bluewhale.common.core.handler.GlobalExceptionHandler;
 import com.bluewhale.common.tenant.TenantContext;

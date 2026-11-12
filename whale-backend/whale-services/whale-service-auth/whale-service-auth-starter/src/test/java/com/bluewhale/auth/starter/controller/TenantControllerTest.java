@@ -1,13 +1,13 @@
 package com.bluewhale.auth.starter.controller;
 
-import com.bluewhale.auth.application.tenant.TenantAppService;
-import com.bluewhale.auth.application.tenant.TenantMembershipAppService;
-import com.bluewhale.auth.application.tenant.TenantProvisioningAppService;
-import com.bluewhale.auth.application.user.password.TenantPasswordPolicyService;
-import com.bluewhale.auth.application.user.password.UpdateTenantPasswordPolicyCommand;
-import com.bluewhale.auth.interfaces.dto.TenantPasswordPolicyRequest;
+import com.bluewhale.auth.application.service.TenantAppService;
+import com.bluewhale.auth.application.service.TenantMembershipAppService;
+import com.bluewhale.auth.application.service.TenantProvisioningAppService;
+import com.bluewhale.auth.application.service.TenantPasswordPolicyService;
+import com.bluewhale.auth.application.model.command.UpdateTenantPasswordPolicyCommand;
+import com.bluewhale.auth.interfaces.dto.request.TenantPasswordPolicyRequest;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
-import com.bluewhale.auth.application.vo.TenantPasswordPolicyVO;
+import com.bluewhale.auth.application.model.vo.TenantPasswordPolicyVO;
 import com.bluewhale.auth.starter.assemble.TenantAssembler;
 import com.bluewhale.common.audit.annotation.AuditLog;
 import com.bluewhale.common.core.exception.ErrorCode;

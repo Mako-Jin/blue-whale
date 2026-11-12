@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import com.bluewhale.auth.application.service.RoleAppService;
 
 /**
  * 权限判定缓存（Cache-Aside，REQ-DIST-003 场景接入）。

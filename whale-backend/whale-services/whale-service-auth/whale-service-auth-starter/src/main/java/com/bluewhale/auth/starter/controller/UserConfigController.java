@@ -1,9 +1,9 @@
 package com.bluewhale.auth.starter.controller;
 
-import com.bluewhale.auth.application.userconfig.UserConfigAppService;
-import com.bluewhale.auth.application.userconfig.command.SaveUserConfigCommand;
+import com.bluewhale.auth.application.service.UserConfigAppService;
+import com.bluewhale.auth.application.model.command.SaveUserConfigCommand;
 import com.bluewhale.auth.interfaces.api.UserConfigApi;
-import com.bluewhale.auth.interfaces.dto.SaveUserConfigRequest;
+import com.bluewhale.auth.interfaces.dto.request.SaveUserConfigRequest;
 import com.bluewhale.auth.interfaces.dto.response.UserConfigResponse;
 import com.bluewhale.auth.starter.assemble.ConfigAssembler;
 import com.bluewhale.common.core.result.Result;

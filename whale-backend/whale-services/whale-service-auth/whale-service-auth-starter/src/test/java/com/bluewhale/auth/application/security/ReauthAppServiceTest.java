@@ -22,6 +22,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import com.bluewhale.auth.application.model.result.ReauthResult;
+import com.bluewhale.auth.application.service.LoginLockService;
+import com.bluewhale.auth.application.service.ReauthAppService;
+import com.bluewhale.auth.application.service.impl.ReauthAppServiceImpl;
 
 /**
  * {@link ReauthAppService} 单元测试（Wave 6.22 / 6.27）
@@ -63,7 +67,7 @@ class ReauthAppServiceTest {
     private LoginLockService loginLockService;
 
     private ReauthAppService newService() {
-        return new ReauthAppService(currentUserProvider, credentialAuthenticator,
+        return new ReauthAppServiceImpl(currentUserProvider, credentialAuthenticator,
                 reauthTokenStore, loginLockService);
     }
 

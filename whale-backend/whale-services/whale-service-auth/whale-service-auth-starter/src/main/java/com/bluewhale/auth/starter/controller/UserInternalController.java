@@ -1,8 +1,8 @@
 package com.bluewhale.auth.starter.controller;
 
-import com.bluewhale.auth.application.user.UserDirectoryAppService;
+import com.bluewhale.auth.application.service.UserDirectoryAppService;
 import com.bluewhale.auth.interfaces.api.UserInternalApi;
-import com.bluewhale.auth.interfaces.dto.UserExistsRequest;
+import com.bluewhale.auth.interfaces.dto.request.UserExistsRequest;
 import com.bluewhale.auth.interfaces.dto.response.UserDirectoryResponse;
 import com.bluewhale.auth.starter.assemble.UserAssembler;
 import com.bluewhale.common.core.result.PageResult;

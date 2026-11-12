@@ -1,7 +1,7 @@
 package com.bluewhale.auth.starter.controller;
 
-import com.bluewhale.auth.application.security.ReauthAppService;
-import com.bluewhale.auth.application.security.ReauthResult;
+import com.bluewhale.auth.application.service.ReauthAppService;
+import com.bluewhale.auth.application.model.result.ReauthResult;
 import com.bluewhale.common.audit.annotation.AuditLog;
 import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.result.Result;

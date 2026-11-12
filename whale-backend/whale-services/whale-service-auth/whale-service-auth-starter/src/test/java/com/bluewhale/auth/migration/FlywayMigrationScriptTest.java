@@ -1,6 +1,6 @@
 package com.bluewhale.auth.migration;
 
-import com.bluewhale.auth.application.tenant.TenantProvisioningAppService;
+import com.bluewhale.auth.application.service.TenantProvisioningAppService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

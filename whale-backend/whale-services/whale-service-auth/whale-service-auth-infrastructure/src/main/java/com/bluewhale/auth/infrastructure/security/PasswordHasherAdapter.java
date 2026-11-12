@@ -1,6 +1,6 @@
 package com.bluewhale.auth.infrastructure.security;
 
-import com.bluewhale.auth.application.user.port.PasswordHasher;
+import com.bluewhale.auth.application.port.PasswordHasher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 

@@ -1,10 +1,10 @@
 package com.bluewhale.auth.application.role;
 
 import com.bluewhale.auth.application.event.DomainEventPublisher;
-import com.bluewhale.auth.application.role.command.AssignRolePermissionsCommand;
-import com.bluewhale.auth.application.role.command.CreateRoleCommand;
-import com.bluewhale.auth.application.role.command.UpdateRoleCommand;
-import com.bluewhale.auth.application.role.query.RolePageQuery;
+import com.bluewhale.auth.application.model.command.AssignRolePermissionsCommand;
+import com.bluewhale.auth.application.model.command.CreateRoleCommand;
+import com.bluewhale.auth.application.model.command.UpdateRoleCommand;
+import com.bluewhale.auth.application.model.query.RolePageQuery;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.RoleDomainEvent;
 import com.bluewhale.auth.domain.model.vo.RoleCode;
@@ -12,7 +12,7 @@ import com.bluewhale.auth.domain.permission.repository.PermissionRepository;
 import com.bluewhale.auth.domain.role.aggregate.Role;
 import com.bluewhale.auth.domain.role.repository.RoleRepository;
 import com.bluewhale.common.tenant.TenantContext;
-import com.bluewhale.auth.application.vo.RoleVO;
+import com.bluewhale.auth.application.model.vo.RoleVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
@@ -36,6 +36,8 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import com.bluewhale.auth.application.service.RoleAppService;
+import com.bluewhale.auth.application.service.impl.RoleAppServiceImpl;
 
 /**
  * {@link RoleAppService} 单元测试：角色分页/详情/增删改、权限分配与缓存失效（AUTH-17 / T-DDD-9）。
@@ -61,7 +63,7 @@ class RoleAppServiceTest {
     private DomainEventPublisher eventPublisher;
 
     @InjectMocks
-    private RoleAppService roleAppService;
+    private RoleAppServiceImpl roleAppService;
 
     @BeforeEach
     void bindTenant() {

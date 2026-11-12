@@ -1,6 +1,6 @@
 package com.bluewhale.auth.interfaces.api;
 
-import com.bluewhale.auth.interfaces.dto.UserLifecycleRequest;
+import com.bluewhale.auth.interfaces.dto.request.UserLifecycleRequest;
 import com.bluewhale.auth.interfaces.dto.response.UserLifecycleResponse;
 import com.bluewhale.common.core.result.Result;
 import org.springframework.web.bind.annotation.PostMapping;

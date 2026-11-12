@@ -1,6 +1,6 @@
 package com.bluewhale.auth.infrastructure.security;
 
-import com.bluewhale.auth.application.security.ReauthAppService;
+import com.bluewhale.auth.application.service.ReauthAppService;
 import com.bluewhale.auth.application.security.ReauthRequiredException;
 import com.bluewhale.auth.sdk.annotation.RequireReauth;
 import jakarta.servlet.http.HttpServletRequest;

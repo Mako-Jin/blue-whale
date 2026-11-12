@@ -1,11 +1,11 @@
 package com.bluewhale.auth.interfaces.api;
 
-import com.bluewhale.auth.interfaces.dto.AssignRolesRequest;
-import com.bluewhale.auth.interfaces.dto.BindUserTenantRequest;
-import com.bluewhale.auth.interfaces.dto.UpdateAttrsRequest;
-import com.bluewhale.auth.interfaces.dto.UserCreateRequest;
-import com.bluewhale.auth.interfaces.dto.UserStatusRequest;
-import com.bluewhale.auth.interfaces.dto.UserUpdateRequest;
+import com.bluewhale.auth.interfaces.dto.request.AssignRolesRequest;
+import com.bluewhale.auth.interfaces.dto.request.BindUserTenantRequest;
+import com.bluewhale.auth.interfaces.dto.request.UpdateAttrsRequest;
+import com.bluewhale.auth.interfaces.dto.request.UserCreateRequest;
+import com.bluewhale.auth.interfaces.dto.request.UserStatusRequest;
+import com.bluewhale.auth.interfaces.dto.request.UserUpdateRequest;
 import com.bluewhale.auth.interfaces.dto.response.ResetPasswordResponse;
 import com.bluewhale.auth.interfaces.dto.response.UserAttrResponse;
 import com.bluewhale.auth.interfaces.dto.response.UserResponse;

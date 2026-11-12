@@ -13,6 +13,8 @@ import org.springframework.stereotype.Component;
  * 默认开启；置为 {@code false} 可整体关闭该轮换行为。</p>
  *
  * @author BlueWhale
+ *
+ * TODO 这个配置类怎么没移到 基础设施层去？
  */
 @Data
 @Component

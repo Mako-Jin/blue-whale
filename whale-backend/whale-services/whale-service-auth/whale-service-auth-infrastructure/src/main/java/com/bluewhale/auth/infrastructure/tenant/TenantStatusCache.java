@@ -1,6 +1,6 @@
 package com.bluewhale.auth.infrastructure.tenant;
 
-import com.bluewhale.auth.application.tenant.port.TenantStatusSyncPort;
+import com.bluewhale.auth.application.port.TenantStatusSyncPort;
 import com.bluewhale.auth.domain.tenant.aggregate.Tenant;
 import com.bluewhale.auth.domain.tenant.aggregate.TenantExpiryClock;
 import com.bluewhale.auth.domain.tenant.repository.TenantRepository;

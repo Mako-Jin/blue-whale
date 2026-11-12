@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import com.bluewhale.auth.application.service.LoginLockService;
 
 /**
  * 账号锁定异常处理测试（Wave 6.28）
@@ -40,7 +41,7 @@ class LoginLockedExceptionHandlerTest {
     @DisplayName("业务码唯一来源：LoginLockService.LOCKED_CODE 与异常常量一致")
     void codeShouldBeSingleSourced() {
         assertEquals(
-                com.bluewhale.auth.application.security.LoginLockService.LOCKED_CODE,
+                com.bluewhale.auth.application.service.LoginLockService.LOCKED_CODE,
                 AccountLockedException.CODE);
     }
 }

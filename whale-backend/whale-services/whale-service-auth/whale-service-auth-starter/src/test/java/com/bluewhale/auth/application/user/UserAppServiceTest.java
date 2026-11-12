@@ -1,14 +1,14 @@
 package com.bluewhale.auth.application.user;
 
 import com.bluewhale.auth.application.event.DomainEventPublisher;
-import com.bluewhale.auth.application.tenant.TenantMembershipAppService;
-import com.bluewhale.auth.application.user.command.AssignUserRolesCommand;
-import com.bluewhale.auth.application.user.command.ChangeUserStatusCommand;
-import com.bluewhale.auth.application.user.command.CreateUserCommand;
-import com.bluewhale.auth.application.user.command.UpdateUserCommand;
-import com.bluewhale.auth.application.user.password.PasswordPolicyService;
-import com.bluewhale.auth.application.user.password.TemporaryPasswordGenerator;
-import com.bluewhale.auth.application.user.query.UserPageQuery;
+import com.bluewhale.auth.application.service.TenantMembershipAppService;
+import com.bluewhale.auth.application.model.command.AssignUserRolesCommand;
+import com.bluewhale.auth.application.model.command.ChangeUserStatusCommand;
+import com.bluewhale.auth.application.model.command.CreateUserCommand;
+import com.bluewhale.auth.application.model.command.UpdateUserCommand;
+import com.bluewhale.auth.application.service.PasswordPolicyService;
+import com.bluewhale.auth.application.service.impl.TemporaryPasswordGenerator;
+import com.bluewhale.auth.application.model.query.UserPageQuery;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.UserDomainEvent;
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
@@ -17,8 +17,8 @@ import com.bluewhale.auth.domain.role.repository.RoleRepository;
 import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
 import com.bluewhale.common.tenant.TenantContext;
-import com.bluewhale.auth.application.vo.ResetPasswordVO;
-import com.bluewhale.auth.application.vo.UserVO;
+import com.bluewhale.auth.application.model.vo.ResetPasswordVO;
+import com.bluewhale.auth.application.model.vo.UserVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
@@ -44,6 +44,8 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import com.bluewhale.auth.application.service.UserAppService;
+import com.bluewhale.auth.application.service.impl.UserAppServiceImpl;
 
 /**
  * {@link UserAppService} 单元测试：用户分页/详情/增删改、启停与角色分配（AUTH-17 / T-DDD-9）。
@@ -86,7 +88,7 @@ class UserAppServiceTest {
     private TenantMembershipAppService tenantMembershipAppService;
 
     @InjectMocks
-    private UserAppService userAppService;
+    private UserAppServiceImpl userAppService;
 
     @BeforeEach
     void bindTenant() {

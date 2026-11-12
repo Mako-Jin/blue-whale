@@ -1,6 +1,6 @@
 package com.bluewhale.auth.interfaces.api;
 
-import com.bluewhale.auth.interfaces.dto.SaveTenantConfigRequest;
+import com.bluewhale.auth.interfaces.dto.request.SaveTenantConfigRequest;
 import com.bluewhale.auth.interfaces.dto.response.TenantConfigEntryResponse;
 import com.bluewhale.common.core.result.Result;
 import jakarta.servlet.http.HttpServletRequest;

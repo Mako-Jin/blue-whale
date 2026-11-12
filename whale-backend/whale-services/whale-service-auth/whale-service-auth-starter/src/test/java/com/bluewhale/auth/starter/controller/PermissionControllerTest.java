@@ -1,11 +1,11 @@
 package com.bluewhale.auth.starter.controller;
 
-import com.bluewhale.auth.application.permission.PermissionAppService;
-import com.bluewhale.auth.application.permission.command.SavePermissionCommand;
-import com.bluewhale.auth.application.permission.query.PermissionPageQuery;
-import com.bluewhale.auth.interfaces.dto.PermissionRequest;
+import com.bluewhale.auth.application.service.PermissionAppService;
+import com.bluewhale.auth.application.model.command.SavePermissionCommand;
+import com.bluewhale.auth.application.model.query.PermissionPageQuery;
+import com.bluewhale.auth.interfaces.dto.request.PermissionRequest;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
-import com.bluewhale.auth.application.vo.PermissionVO;
+import com.bluewhale.auth.application.model.vo.PermissionVO;
 import com.bluewhale.auth.starter.assemble.PermissionAssembler;
 import com.bluewhale.common.audit.annotation.AuditLog;
 import com.bluewhale.common.core.exception.ErrorCode;

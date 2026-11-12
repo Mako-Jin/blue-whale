@@ -1,7 +1,7 @@
 package com.bluewhale.auth.application.userconfig;
 
-import com.bluewhale.auth.application.userconfig.command.SaveUserConfigCommand;
-import com.bluewhale.auth.application.userconfig.port.UserConfigRepository;
+import com.bluewhale.auth.application.model.command.SaveUserConfigCommand;
+import com.bluewhale.auth.application.port.UserConfigRepository;
 import com.bluewhale.common.core.exception.BizException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,6 +20,10 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import com.bluewhale.auth.application.model.UserConfigEntry;
+import com.bluewhale.auth.application.model.vo.UserConfigVO;
+import com.bluewhale.auth.application.service.UserConfigAppService;
+import com.bluewhale.auth.application.service.impl.UserConfigAppServiceImpl;
 
 /**
  * {@link UserConfigAppService} 单测：入口校验委托与仓储调用。
@@ -33,7 +37,7 @@ class UserConfigAppServiceTest {
     private UserConfigRepository repository;
 
     @InjectMocks
-    private UserConfigAppService service;
+    private UserConfigAppServiceImpl service;
 
     /**
      * 合法保存命令透传仓储
@@ -71,7 +75,7 @@ class UserConfigAppServiceTest {
                 .thenReturn(List.of(new UserConfigEntry(1L, 101L,
                         "notify.twin.alert", "{}")));
 
-        List<com.bluewhale.auth.application.userconfig.vo.UserConfigVO> items =
+        List<com.bluewhale.auth.application.model.vo.UserConfigVO> items =
                 service.list(1L, 101L, "notify.");
 
         assertThat(items).hasSize(1);

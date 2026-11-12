@@ -1,9 +1,9 @@
 package com.bluewhale.auth.application.tenant;
 
-import com.bluewhale.auth.application.tenant.command.ChangeTenantStatusCommand;
-import com.bluewhale.auth.application.tenant.command.RenewTenantCommand;
-import com.bluewhale.auth.application.tenant.query.TenantPageQuery;
-import com.bluewhale.auth.application.tenant.port.TenantStatusSyncPort;
+import com.bluewhale.auth.application.model.command.ChangeTenantStatusCommand;
+import com.bluewhale.auth.application.model.command.RenewTenantCommand;
+import com.bluewhale.auth.application.model.query.TenantPageQuery;
+import com.bluewhale.auth.application.port.TenantStatusSyncPort;
 import com.bluewhale.auth.domain.tenant.aggregate.Tenant;
 import com.bluewhale.auth.domain.tenant.repository.TenantRepository;
 import com.bluewhale.common.tenant.TenantContext;
@@ -25,6 +25,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import com.bluewhale.auth.application.service.TenantAppService;
+import com.bluewhale.auth.application.service.impl.TenantAppServiceImpl;
 
 /**
  * {@link TenantAppService} 单元测试（Wave 5.54 Phase 0）：登录租户解析与启用校验。
@@ -43,7 +45,7 @@ class TenantAppServiceTest {
     private TenantStatusSyncPort tenantStatusSync;
 
     @InjectMocks
-    private TenantAppService service;
+    private TenantAppServiceImpl service;
 
     @BeforeEach
     void bindTenant() {

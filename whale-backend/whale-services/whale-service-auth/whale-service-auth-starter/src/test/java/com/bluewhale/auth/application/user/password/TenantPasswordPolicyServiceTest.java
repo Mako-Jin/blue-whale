@@ -1,8 +1,8 @@
 package com.bluewhale.auth.application.user.password;
 
-import com.bluewhale.auth.application.tenant.TenantAppService;
-import com.bluewhale.auth.application.user.password.port.TenantPasswordPolicyRepository;
-import com.bluewhale.auth.application.vo.TenantPasswordPolicyVO;
+import com.bluewhale.auth.application.service.TenantAppService;
+import com.bluewhale.auth.application.port.TenantPasswordPolicyRepository;
+import com.bluewhale.auth.application.model.vo.TenantPasswordPolicyVO;
 import com.bluewhale.auth.infrastructure.config.PasswordPolicyProperties;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.tenant.TenantContext;
@@ -26,6 +26,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import com.bluewhale.auth.application.model.TenantPasswordPolicy;
+import com.bluewhale.auth.application.model.command.UpdateTenantPasswordPolicyCommand;
+import com.bluewhale.auth.application.service.TenantPasswordPolicyService;
+import com.bluewhale.auth.application.service.impl.TenantPasswordPolicyServiceImpl;
 
 /**
  * {@link TenantPasswordPolicyService} 单元测试（REQ-SEC-023）。
@@ -56,7 +60,7 @@ class TenantPasswordPolicyServiceTest {
     @BeforeEach
     void setUp() {
         properties = new PasswordPolicyProperties();
-        service = new TenantPasswordPolicyService(properties, tenantPasswordPolicyRepository, tenantAppService);
+        service = new TenantPasswordPolicyServiceImpl(properties, tenantPasswordPolicyRepository, tenantAppService);
     }
 
     @AfterEach

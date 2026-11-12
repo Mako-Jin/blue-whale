@@ -1,14 +1,14 @@
 package com.bluewhale.auth.starter.controller;
 
-import com.bluewhale.auth.application.role.RoleAppService;
-import com.bluewhale.auth.application.role.command.AssignRolePermissionsCommand;
-import com.bluewhale.auth.application.role.command.CreateRoleCommand;
-import com.bluewhale.auth.application.role.command.UpdateRoleCommand;
-import com.bluewhale.auth.application.role.query.RolePageQuery;
+import com.bluewhale.auth.application.service.RoleAppService;
+import com.bluewhale.auth.application.model.command.AssignRolePermissionsCommand;
+import com.bluewhale.auth.application.model.command.CreateRoleCommand;
+import com.bluewhale.auth.application.model.command.UpdateRoleCommand;
+import com.bluewhale.auth.application.model.query.RolePageQuery;
 import com.bluewhale.auth.interfaces.api.RoleApi;
-import com.bluewhale.auth.interfaces.dto.AssignPermissionsRequest;
-import com.bluewhale.auth.interfaces.dto.RoleCreateRequest;
-import com.bluewhale.auth.interfaces.dto.RoleUpdateRequest;
+import com.bluewhale.auth.interfaces.dto.request.AssignPermissionsRequest;
+import com.bluewhale.auth.interfaces.dto.request.RoleCreateRequest;
+import com.bluewhale.auth.interfaces.dto.request.RoleUpdateRequest;
 import com.bluewhale.auth.interfaces.dto.response.RoleResponse;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.auth.starter.assemble.RoleAssembler;

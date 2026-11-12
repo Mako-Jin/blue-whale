@@ -1,14 +1,14 @@
 package com.bluewhale.auth.application.permission;
 
 import com.bluewhale.auth.application.event.DomainEventPublisher;
-import com.bluewhale.auth.application.permission.command.SavePermissionCommand;
-import com.bluewhale.auth.application.permission.query.PermissionPageQuery;
+import com.bluewhale.auth.application.model.command.SavePermissionCommand;
+import com.bluewhale.auth.application.model.query.PermissionPageQuery;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.PermissionDomainEvent;
 import com.bluewhale.auth.domain.model.vo.PermCode;
 import com.bluewhale.auth.domain.permission.aggregate.Permission;
 import com.bluewhale.auth.domain.permission.repository.PermissionRepository;
-import com.bluewhale.auth.application.vo.PermissionVO;
+import com.bluewhale.auth.application.model.vo.PermissionVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
@@ -31,6 +31,8 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import com.bluewhale.auth.application.service.PermissionAppService;
+import com.bluewhale.auth.application.service.impl.PermissionAppServiceImpl;
 
 /**
  * {@link PermissionAppService} 单元测试：权限点分页/全量码/详情/增删改与缓存失效（AUTH-17 / T-DDD-9）。
@@ -50,7 +52,7 @@ class PermissionAppServiceTest {
     private DomainEventPublisher eventPublisher;
 
     @InjectMocks
-    private PermissionAppService permissionAppService;
+    private PermissionAppServiceImpl permissionAppService;
 
     private static Permission permission(Long id, String code, String name) {
         return Permission.reconstitute(id, Permission.ROOT_PARENT_ID, PermCode.of(code), name, "API",

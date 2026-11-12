@@ -1,6 +1,6 @@
 package com.bluewhale.auth.application.model.result;
 
-import com.bluewhale.auth.application.vo.MenuVO;
+import com.bluewhale.auth.application.model.vo.MenuVO;
 
 import java.util.List;
 

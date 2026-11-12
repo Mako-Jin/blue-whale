@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import com.bluewhale.auth.application.service.impl.TemporaryPasswordGenerator;
 
 /**
  * {@link TemporaryPasswordGenerator} 单元测试（REQ-SEC-023）：管理员重置口令时的一次性口令生成。

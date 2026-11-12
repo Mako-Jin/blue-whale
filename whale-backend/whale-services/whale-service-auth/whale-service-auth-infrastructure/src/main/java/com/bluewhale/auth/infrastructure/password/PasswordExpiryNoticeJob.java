@@ -1,9 +1,9 @@
 package com.bluewhale.auth.infrastructure.password;
 
-import com.bluewhale.auth.application.user.password.TenantPasswordPolicy;
-import com.bluewhale.auth.application.user.password.TenantPasswordPolicyService;
-import com.bluewhale.auth.application.user.password.port.PasswordExpiryQuery;
-import com.bluewhale.auth.application.user.password.port.PasswordExpiryQuery.PasswordExpiryCandidate;
+import com.bluewhale.auth.application.model.TenantPasswordPolicy;
+import com.bluewhale.auth.application.service.TenantPasswordPolicyService;
+import com.bluewhale.auth.application.port.PasswordExpiryQuery;
+import com.bluewhale.auth.application.port.PasswordExpiryQuery.PasswordExpiryCandidate;
 import com.bluewhale.common.jobschedule.ScheduledJob;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

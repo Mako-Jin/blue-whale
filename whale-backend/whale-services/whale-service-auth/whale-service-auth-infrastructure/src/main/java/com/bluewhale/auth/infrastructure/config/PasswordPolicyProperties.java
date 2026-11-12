@@ -1,6 +1,6 @@
 package com.bluewhale.auth.infrastructure.config;
 
-import com.bluewhale.auth.application.user.password.port.PasswordPolicyConfig;
+import com.bluewhale.auth.application.port.PasswordPolicyConfig;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;

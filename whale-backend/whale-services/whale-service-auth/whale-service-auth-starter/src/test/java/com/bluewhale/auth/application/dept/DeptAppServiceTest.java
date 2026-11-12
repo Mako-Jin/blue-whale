@@ -1,13 +1,13 @@
 package com.bluewhale.auth.application.dept;
 
-import com.bluewhale.auth.application.dept.command.SaveDeptCommand;
+import com.bluewhale.auth.application.model.command.SaveDeptCommand;
 import com.bluewhale.auth.application.event.DomainEventPublisher;
 import com.bluewhale.auth.domain.dept.aggregate.Dept;
 import com.bluewhale.auth.domain.dept.repository.DeptRepository;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.DeptDomainEvent;
 import com.bluewhale.common.tenant.TenantContext;
-import com.bluewhale.auth.application.vo.DeptVO;
+import com.bluewhale.auth.application.model.vo.DeptVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import org.junit.jupiter.api.AfterEach;
@@ -31,6 +31,8 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import com.bluewhale.auth.application.service.DeptAppService;
+import com.bluewhale.auth.application.service.impl.DeptAppServiceImpl;
 
 /**
  * {@link DeptAppService} 单元测试：部门树/详情/增删改与子部门校验（AUTH-17 / T-DDD-9）。
@@ -51,7 +53,7 @@ class DeptAppServiceTest {
     private DomainEventPublisher eventPublisher;
 
     @InjectMocks
-    private DeptAppService deptAppService;
+    private DeptAppServiceImpl deptAppService;
 
     @BeforeEach
     void bindTenant() {

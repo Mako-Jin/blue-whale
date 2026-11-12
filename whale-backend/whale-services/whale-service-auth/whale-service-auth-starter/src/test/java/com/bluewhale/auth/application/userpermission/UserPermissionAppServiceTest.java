@@ -1,12 +1,12 @@
 package com.bluewhale.auth.application.userpermission;
 
 import com.bluewhale.auth.application.event.DomainEventPublisher;
-import com.bluewhale.auth.application.userpermission.command.ReplaceUserAttrsCommand;
+import com.bluewhale.auth.application.model.command.ReplaceUserAttrsCommand;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.UserPermissionDomainEvent;
 import com.bluewhale.auth.domain.permission.aggregate.UserPermissionAttribute;
 import com.bluewhale.auth.domain.permission.repository.UserPermissionRepository;
-import com.bluewhale.auth.application.vo.UserAttrVO;
+import com.bluewhale.auth.application.model.vo.UserAttrVO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,6 +20,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import com.bluewhale.auth.application.service.UserPermissionAppService;
+import com.bluewhale.auth.application.service.impl.UserPermissionAppServiceImpl;
 
 /**
  * {@link UserPermissionAppService} 单元测试：ABAC 属性查询与全量覆盖（AUTH-17 / T-DDD-9）。
@@ -39,7 +41,7 @@ class UserPermissionAppServiceTest {
     private DomainEventPublisher eventPublisher;
 
     @InjectMocks
-    private UserPermissionAppService userPermissionAppService;
+    private UserPermissionAppServiceImpl userPermissionAppService;
 
     @Test
     @DisplayName("listByUserId：返回用户 ABAC 属性视图列表")

@@ -1,6 +1,6 @@
 package com.bluewhale.auth.interfaces.api;
 
-import com.bluewhale.auth.interfaces.dto.UserExistsRequest;
+import com.bluewhale.auth.interfaces.dto.request.UserExistsRequest;
 import com.bluewhale.auth.interfaces.dto.response.UserDirectoryResponse;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;

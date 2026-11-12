@@ -1,7 +1,7 @@
 package com.bluewhale.auth.interfaces.api;
 
-import com.bluewhale.auth.interfaces.dto.ConfigBatchGetRequest;
-import com.bluewhale.auth.interfaces.dto.ConfigSetRequest;
+import com.bluewhale.auth.interfaces.dto.request.ConfigBatchGetRequest;
+import com.bluewhale.auth.interfaces.dto.request.ConfigSetRequest;
 import com.bluewhale.auth.interfaces.dto.response.ConfigBatchItemResponse;
 import com.bluewhale.common.core.result.Result;
 import jakarta.validation.Valid;

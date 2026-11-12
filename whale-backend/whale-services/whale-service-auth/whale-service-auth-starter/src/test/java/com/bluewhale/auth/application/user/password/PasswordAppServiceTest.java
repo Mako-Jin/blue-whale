@@ -3,7 +3,7 @@ package com.bluewhale.auth.application.user.password;
 import com.bluewhale.auth.application.model.AuthenticatedUser;
 import com.bluewhale.auth.application.port.CurrentUserProvider;
 import com.bluewhale.auth.application.event.DomainEventPublisher;
-import com.bluewhale.auth.application.user.port.PasswordHasher;
+import com.bluewhale.auth.application.port.PasswordHasher;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.UserDomainEvent;
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
@@ -30,6 +30,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import com.bluewhale.auth.application.model.command.ChangeOwnPasswordCommand;
+import com.bluewhale.auth.application.service.PasswordAppService;
+import com.bluewhale.auth.application.service.PasswordPolicyService;
+import com.bluewhale.auth.application.service.impl.PasswordAppServiceImpl;
 
 /**
  * {@link PasswordAppService} 单元测试（REQ-SEC-023）：自助改密用例。
@@ -64,7 +68,7 @@ class PasswordAppServiceTest {
     private DomainEventPublisher domainEventPublisher;
 
     @InjectMocks
-    private PasswordAppService service;
+    private PasswordAppServiceImpl service;
 
     /**
      * 构造强制改密状态的当前用户与其账号

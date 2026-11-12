@@ -3,7 +3,7 @@ package com.bluewhale.auth.application.dept;
 import com.bluewhale.auth.application.event.DomainEventPublisher;
 import com.bluewhale.auth.domain.dept.aggregate.Dept;
 import com.bluewhale.auth.domain.dept.repository.DeptRepository;
-import com.bluewhale.auth.application.vo.DeptLeaderVO;
+import com.bluewhale.auth.application.model.vo.DeptLeaderVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
@@ -20,6 +20,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
+import com.bluewhale.auth.application.service.DeptAppService;
+import com.bluewhale.auth.application.service.impl.DeptAppServiceImpl;
 
 /**
  * {@link DeptAppService#leader(Long)} 单元测试：负责人命中、部门不存在/跨租户 404、负责人用户 ID 为空降级。
@@ -40,7 +42,7 @@ class DeptAppServiceLeaderTest {
     private DomainEventPublisher eventPublisher;
 
     @InjectMocks
-    private DeptAppService deptAppService;
+    private DeptAppServiceImpl deptAppService;
 
     @Test
     @DisplayName("leader：命中部门时返回负责人用户 ID 与部门名称")

@@ -1,8 +1,8 @@
 package com.bluewhale.auth.starter.controller;
 
-import com.bluewhale.auth.application.user.UserLifecycleAppService;
+import com.bluewhale.auth.application.service.UserLifecycleAppService;
 import com.bluewhale.auth.interfaces.api.UserLifecycleInternalApi;
-import com.bluewhale.auth.interfaces.dto.UserLifecycleRequest;
+import com.bluewhale.auth.interfaces.dto.request.UserLifecycleRequest;
 import com.bluewhale.auth.interfaces.dto.response.UserLifecycleResponse;
 import com.bluewhale.auth.starter.assemble.UserAssembler;
 import com.bluewhale.common.core.result.Result;

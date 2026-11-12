@@ -1,9 +1,9 @@
 package com.bluewhale.auth.application.user;
 
 import com.bluewhale.auth.application.event.DomainEventPublisher;
-import com.bluewhale.auth.application.user.command.UserLifecycleCommand;
-import com.bluewhale.auth.application.user.password.PasswordPolicyService;
-import com.bluewhale.auth.application.user.password.TemporaryPasswordGenerator;
+import com.bluewhale.auth.application.model.command.UserLifecycleCommand;
+import com.bluewhale.auth.application.service.PasswordPolicyService;
+import com.bluewhale.auth.application.service.impl.TemporaryPasswordGenerator;
 import com.bluewhale.auth.domain.event.UserDomainEvent;
 import com.bluewhale.auth.domain.model.vo.Username;
 import com.bluewhale.auth.domain.user.aggregate.User;
@@ -27,6 +27,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import com.bluewhale.auth.application.model.vo.UserLifecycleVO;
+import com.bluewhale.auth.application.service.UserAppService;
+import com.bluewhale.auth.application.service.UserLifecycleAppService;
+import com.bluewhale.auth.application.service.impl.UserLifecycleAppServiceImpl;
 
 /**
  * {@link UserLifecycleAppService} 人员生命周期动作测试。
@@ -56,7 +60,7 @@ class UserLifecycleAppServiceTest {
 
     @BeforeEach
     void setUp() {
-        userLifecycleAppService = new UserLifecycleAppService(userRepository, userAppService,
+        userLifecycleAppService = new UserLifecycleAppServiceImpl(userRepository, userAppService,
                 temporaryPasswordGenerator, passwordPolicyService, domainEventPublisher);
     }
 

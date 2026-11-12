@@ -1,13 +1,13 @@
 package com.bluewhale.auth.application.menu;
 
 import com.bluewhale.auth.application.event.DomainEventPublisher;
-import com.bluewhale.auth.application.menu.command.SaveMenuCommand;
+import com.bluewhale.auth.application.model.command.SaveMenuCommand;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.MenuDomainEvent;
 import com.bluewhale.auth.domain.menu.aggregate.Menu;
 import com.bluewhale.auth.domain.menu.repository.MenuRepository;
 import com.bluewhale.common.tenant.TenantContext;
-import com.bluewhale.auth.application.vo.MenuVO;
+import com.bluewhale.auth.application.model.vo.MenuVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import org.junit.jupiter.api.AfterEach;
@@ -32,6 +32,8 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import com.bluewhale.auth.application.service.MenuAppService;
+import com.bluewhale.auth.application.service.impl.MenuAppServiceImpl;
 
 /**
  * {@link MenuAppService} 单元测试：菜单树/权限过滤树/详情/增删改（AUTH-17 / T-DDD-9）。
@@ -53,7 +55,7 @@ class MenuAppServiceTest {
     private DomainEventPublisher eventPublisher;
 
     @InjectMocks
-    private MenuAppService menuAppService;
+    private MenuAppServiceImpl menuAppService;
 
     @BeforeEach
     void bindTenant() {

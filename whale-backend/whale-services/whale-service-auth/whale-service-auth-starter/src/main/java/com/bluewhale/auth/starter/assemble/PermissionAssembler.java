@@ -1,6 +1,6 @@
 package com.bluewhale.auth.starter.assemble;
 
-import com.bluewhale.auth.application.vo.PermissionVO;
+import com.bluewhale.auth.application.model.vo.PermissionVO;
 import com.bluewhale.auth.interfaces.dto.response.PermissionResponse;
 import com.bluewhale.common.core.result.PageResult;
 import org.mapstruct.Mapper;

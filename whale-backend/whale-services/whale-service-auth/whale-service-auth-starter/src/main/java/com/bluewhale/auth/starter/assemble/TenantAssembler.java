@@ -1,8 +1,8 @@
 package com.bluewhale.auth.starter.assemble;
 
-import com.bluewhale.auth.application.vo.TenantMemberVO;
-import com.bluewhale.auth.application.vo.TenantPasswordPolicyVO;
-import com.bluewhale.auth.application.vo.TenantVO;
+import com.bluewhale.auth.application.model.vo.TenantMemberVO;
+import com.bluewhale.auth.application.model.vo.TenantPasswordPolicyVO;
+import com.bluewhale.auth.application.model.vo.TenantVO;
 import com.bluewhale.auth.interfaces.dto.response.TenantAdminResponse;
 import com.bluewhale.auth.interfaces.dto.response.TenantMemberResponse;
 import com.bluewhale.auth.interfaces.dto.response.TenantPasswordPolicyResponse;

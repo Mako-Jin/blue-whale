@@ -1,10 +1,10 @@
 package com.bluewhale.auth.starter.controller;
 
-import com.bluewhale.auth.application.menu.MenuAppService;
-import com.bluewhale.auth.application.menu.command.SaveMenuCommand;
-import com.bluewhale.auth.interfaces.dto.MenuRequest;
+import com.bluewhale.auth.application.service.MenuAppService;
+import com.bluewhale.auth.application.model.command.SaveMenuCommand;
+import com.bluewhale.auth.interfaces.dto.request.MenuRequest;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
-import com.bluewhale.auth.application.vo.MenuVO;
+import com.bluewhale.auth.application.model.vo.MenuVO;
 import com.bluewhale.auth.starter.assemble.MenuAssembler;
 import com.bluewhale.common.audit.annotation.AuditLog;
 import com.bluewhale.common.core.exception.ErrorCode;

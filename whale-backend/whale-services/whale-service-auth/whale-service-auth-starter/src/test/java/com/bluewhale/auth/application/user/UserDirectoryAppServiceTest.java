@@ -6,7 +6,7 @@ import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
 import com.bluewhale.auth.domain.model.vo.Username;
 import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
-import com.bluewhale.auth.application.vo.UserDirectoryVO;
+import com.bluewhale.auth.application.model.vo.UserDirectoryVO;
 import com.bluewhale.common.core.result.PageResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,6 +27,8 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import com.bluewhale.auth.application.service.UserDirectoryAppService;
+import com.bluewhale.auth.application.service.impl.UserDirectoryAppServiceImpl;
 
 /**
  * {@link UserDirectoryAppService} 单元测试：通讯录分页脱敏、部门名称批量补全、按角色查询与空角色降级。
@@ -49,7 +51,7 @@ class UserDirectoryAppServiceTest {
     private DeptRepository deptRepository;
 
     @InjectMocks
-    private UserDirectoryAppService userDirectoryAppService;
+    private UserDirectoryAppServiceImpl userDirectoryAppService;
 
     /**
      * 构造启用用户聚合（用于通讯录断言）

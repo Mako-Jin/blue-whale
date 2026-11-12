@@ -1,6 +1,6 @@
 package com.bluewhale.auth.starter.assemble;
 
-import com.bluewhale.auth.application.vo.RoleVO;
+import com.bluewhale.auth.application.model.vo.RoleVO;
 import com.bluewhale.auth.interfaces.dto.response.RoleResponse;
 import com.bluewhale.common.core.result.PageResult;
 import org.mapstruct.Mapper;

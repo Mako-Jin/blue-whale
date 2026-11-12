@@ -13,6 +13,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import com.bluewhale.auth.application.service.LoginLockService;
+import com.bluewhale.auth.application.service.impl.LoginLockServiceImpl;
 
 /**
  * {@link LoginLockService} 单元测试（Wave 6.27）
@@ -37,7 +39,7 @@ class LoginLockServiceTest {
     void ensureUnlockedPassesWhenNotLocked() {
         when(loginAttemptStore.lockRemainingSeconds(TENANT_ID, USERNAME)).thenReturn(0L);
 
-        assertDoesNotThrow(() -> new LoginLockService(loginAttemptStore).ensureUnlocked(TENANT_ID, USERNAME));
+        assertDoesNotThrow(() -> new LoginLockServiceImpl(loginAttemptStore).ensureUnlocked(TENANT_ID, USERNAME));
     }
 
     @Test
@@ -46,7 +48,7 @@ class LoginLockServiceTest {
         when(loginAttemptStore.lockRemainingSeconds(TENANT_ID, USERNAME)).thenReturn(301L);
 
         BizException ex = assertThrows(BizException.class,
-                () -> new LoginLockService(loginAttemptStore).ensureUnlocked(TENANT_ID, USERNAME));
+                () -> new LoginLockServiceImpl(loginAttemptStore).ensureUnlocked(TENANT_ID, USERNAME));
 
         assertEquals(LoginLockService.LOCKED_CODE, ex.getCode());
         assertEquals("账号已锁定，请 6 分钟后再试", ex.getMessage());
@@ -58,7 +60,7 @@ class LoginLockServiceTest {
         when(loginAttemptStore.lockRemainingSeconds(TENANT_ID, USERNAME)).thenReturn(5L);
 
         BizException ex = assertThrows(BizException.class,
-                () -> new LoginLockService(loginAttemptStore).ensureUnlocked(TENANT_ID, USERNAME));
+                () -> new LoginLockServiceImpl(loginAttemptStore).ensureUnlocked(TENANT_ID, USERNAME));
 
         assertEquals("账号已锁定，请 1 分钟后再试", ex.getMessage());
     }
@@ -68,7 +70,7 @@ class LoginLockServiceTest {
     void recordFailureBelowThresholdDoesNotThrow() {
         when(loginAttemptStore.lockRemainingSeconds(TENANT_ID, USERNAME)).thenReturn(0L);
 
-        assertDoesNotThrow(() -> new LoginLockService(loginAttemptStore).recordFailure(TENANT_ID, USERNAME));
+        assertDoesNotThrow(() -> new LoginLockServiceImpl(loginAttemptStore).recordFailure(TENANT_ID, USERNAME));
         verify(loginAttemptStore).recordFailure(TENANT_ID, USERNAME);
     }
 
@@ -78,7 +80,7 @@ class LoginLockServiceTest {
         when(loginAttemptStore.lockRemainingSeconds(TENANT_ID, USERNAME)).thenReturn(900L);
 
         BizException ex = assertThrows(BizException.class,
-                () -> new LoginLockService(loginAttemptStore).recordFailure(TENANT_ID, USERNAME));
+                () -> new LoginLockServiceImpl(loginAttemptStore).recordFailure(TENANT_ID, USERNAME));
 
         assertEquals(LoginLockService.LOCKED_CODE, ex.getCode());
         assertEquals("账号已锁定，请 15 分钟后再试", ex.getMessage());
@@ -87,7 +89,7 @@ class LoginLockServiceTest {
     @Test
     @DisplayName("清除：委托存储删除计数")
     void clearDelegatesToStore() {
-        new LoginLockService(loginAttemptStore).clear(TENANT_ID, USERNAME);
+        new LoginLockServiceImpl(loginAttemptStore).clear(TENANT_ID, USERNAME);
         verify(loginAttemptStore).clear(TENANT_ID, USERNAME);
     }
 }

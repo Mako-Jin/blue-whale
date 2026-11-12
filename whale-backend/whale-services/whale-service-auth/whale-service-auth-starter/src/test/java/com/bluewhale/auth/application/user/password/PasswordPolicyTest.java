@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import com.bluewhale.auth.application.model.PasswordPolicy;
 
 /**
  * {@link PasswordPolicy} 口令强度策略单元测试（REQ-SEC-021）。

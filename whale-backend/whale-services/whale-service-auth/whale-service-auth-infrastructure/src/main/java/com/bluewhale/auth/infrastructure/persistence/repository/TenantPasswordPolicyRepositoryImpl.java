@@ -1,8 +1,8 @@
 package com.bluewhale.auth.infrastructure.persistence.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.bluewhale.auth.application.user.password.TenantPasswordPolicy;
-import com.bluewhale.auth.application.user.password.port.TenantPasswordPolicyRepository;
+import com.bluewhale.auth.application.model.TenantPasswordPolicy;
+import com.bluewhale.auth.application.port.TenantPasswordPolicyRepository;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysTenantPasswordPolicy;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysTenantPasswordPolicyMapper;
 import com.bluewhale.common.tenant.TenantContext;

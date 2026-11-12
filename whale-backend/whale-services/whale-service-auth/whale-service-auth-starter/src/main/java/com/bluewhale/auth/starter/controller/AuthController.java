@@ -8,7 +8,7 @@ import com.bluewhale.auth.application.model.query.TenantListQuery;
 import com.bluewhale.auth.application.model.result.LoginResult;
 import com.bluewhale.auth.application.model.result.TenantResult;
 import com.bluewhale.auth.application.service.SessionAppService;
-import com.bluewhale.auth.application.user.password.PasswordAppService;
+import com.bluewhale.auth.application.service.PasswordAppService;
 import com.bluewhale.auth.interfaces.api.AuthApi;
 import com.bluewhale.auth.interfaces.dto.request.ChangeOwnPasswordRequest;
 import com.bluewhale.auth.interfaces.dto.request.LoginRequest;

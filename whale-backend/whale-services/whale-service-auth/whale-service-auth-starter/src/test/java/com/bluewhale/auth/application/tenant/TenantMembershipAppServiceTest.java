@@ -13,7 +13,7 @@ import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
 import com.bluewhale.auth.domain.user.repository.UserTenantRepository;
 import com.bluewhale.auth.application.model.result.TenantResult;
-import com.bluewhale.auth.application.vo.TenantMemberVO;
+import com.bluewhale.auth.application.model.vo.TenantMemberVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.tenant.TenantContext;
 import org.junit.jupiter.api.AfterEach;
@@ -37,6 +37,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import com.bluewhale.auth.application.service.TenantAppService;
+import com.bluewhale.auth.application.service.TenantMembershipAppService;
+import com.bluewhale.auth.application.service.impl.TenantMembershipAppServiceImpl;
 
 /**
  * {@link TenantMembershipAppService} 单元测试（Wave 5.54 Phase 5.1：一人多租户）。
@@ -61,7 +64,7 @@ class TenantMembershipAppServiceTest {
     @Mock
     private DomainEventPublisher domainEventPublisher;
     @InjectMocks
-    private TenantMembershipAppService service;
+    private TenantMembershipAppServiceImpl service;
 
     @AfterEach
     void clearTenantContext() {

@@ -1,8 +1,8 @@
 package com.bluewhale.auth.application.userconfig;
 
-import com.bluewhale.auth.application.userconfig.port.TenantConfigRepository;
-import com.bluewhale.auth.application.userconfig.port.UserConfigRepository;
-import com.bluewhale.auth.application.userconfig.vo.ConfigBatchItemVO;
+import com.bluewhale.auth.application.port.TenantConfigRepository;
+import com.bluewhale.auth.application.port.UserConfigRepository;
+import com.bluewhale.auth.application.model.vo.ConfigBatchItemVO;
 import com.bluewhale.common.core.exception.BizException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,6 +27,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import com.bluewhale.auth.application.service.UserConfigBatchService;
+import com.bluewhale.auth.application.service.impl.UserConfigBatchServiceImpl;
 
 /**
  * {@link UserConfigBatchService} 单测：合并优先级与批量上限。
@@ -43,7 +45,7 @@ class UserConfigBatchServiceTest {
     private TenantConfigRepository tenantConfigRepository;
 
     @InjectMocks
-    private UserConfigBatchService service;
+    private UserConfigBatchServiceImpl service;
 
     /**
      * 用户层优先于租户层：命中用户配置即返回 USER 来源，且不查租户层

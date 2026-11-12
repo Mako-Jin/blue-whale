@@ -1,9 +1,9 @@
 package com.bluewhale.auth.starter.controller;
 
-import com.bluewhale.auth.application.dept.DeptAppService;
-import com.bluewhale.auth.application.dept.command.SaveDeptCommand;
+import com.bluewhale.auth.application.service.DeptAppService;
+import com.bluewhale.auth.application.model.command.SaveDeptCommand;
 import com.bluewhale.auth.interfaces.api.DeptApi;
-import com.bluewhale.auth.interfaces.dto.DeptRequest;
+import com.bluewhale.auth.interfaces.dto.request.DeptRequest;
 import com.bluewhale.auth.interfaces.dto.response.DeptResponse;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.auth.starter.assemble.DeptAssembler;

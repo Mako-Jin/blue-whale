@@ -1,11 +1,11 @@
 package com.bluewhale.auth.interfaces.api;
 
-import com.bluewhale.auth.interfaces.dto.AssignRolesRequest;
-import com.bluewhale.auth.interfaces.dto.TenantCreateRequest;
-import com.bluewhale.auth.interfaces.dto.TenantPasswordPolicyRequest;
-import com.bluewhale.auth.interfaces.dto.TenantRenewRequest;
-import com.bluewhale.auth.interfaces.dto.TenantStatusRequest;
-import com.bluewhale.auth.interfaces.dto.TenantUpdateRequest;
+import com.bluewhale.auth.interfaces.dto.request.AssignRolesRequest;
+import com.bluewhale.auth.interfaces.dto.request.TenantCreateRequest;
+import com.bluewhale.auth.interfaces.dto.request.TenantPasswordPolicyRequest;
+import com.bluewhale.auth.interfaces.dto.request.TenantRenewRequest;
+import com.bluewhale.auth.interfaces.dto.request.TenantStatusRequest;
+import com.bluewhale.auth.interfaces.dto.request.TenantUpdateRequest;
 import com.bluewhale.auth.interfaces.dto.response.TenantAdminResponse;
 import com.bluewhale.auth.interfaces.dto.response.TenantMemberResponse;
 import com.bluewhale.auth.interfaces.dto.response.TenantPasswordPolicyResponse;

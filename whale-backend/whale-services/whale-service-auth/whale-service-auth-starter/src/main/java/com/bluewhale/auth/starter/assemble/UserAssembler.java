@@ -1,11 +1,11 @@
 package com.bluewhale.auth.starter.assemble;
 
-import com.bluewhale.auth.application.user.UserLifecycleVO;
-import com.bluewhale.auth.application.vo.ResetPasswordVO;
-import com.bluewhale.auth.application.vo.UserAttrVO;
-import com.bluewhale.auth.application.vo.UserDirectoryVO;
-import com.bluewhale.auth.application.vo.UserVO;
-import com.bluewhale.auth.interfaces.dto.UserLifecycleRequest;
+import com.bluewhale.auth.application.model.vo.UserLifecycleVO;
+import com.bluewhale.auth.application.model.vo.ResetPasswordVO;
+import com.bluewhale.auth.application.model.vo.UserAttrVO;
+import com.bluewhale.auth.application.model.vo.UserDirectoryVO;
+import com.bluewhale.auth.application.model.vo.UserVO;
+import com.bluewhale.auth.interfaces.dto.request.UserLifecycleRequest;
 import com.bluewhale.auth.interfaces.dto.response.ResetPasswordResponse;
 import com.bluewhale.auth.interfaces.dto.response.UserAttrResponse;
 import com.bluewhale.auth.interfaces.dto.response.UserDirectoryResponse;
@@ -15,6 +15,7 @@ import com.bluewhale.common.core.result.PageResult;
 import org.mapstruct.Mapper;
 
 import java.util.List;
+import com.bluewhale.auth.application.model.command.UserLifecycleCommand;
 
 /**
  * 用户接口装配器：application 视图对象 → interfaces 响应 DTO。
@@ -108,6 +109,6 @@ public interface UserAssembler {
      * @param request 生命周期请求
      * @return 生命周期命令
      */
-    com.bluewhale.auth.application.user.command.UserLifecycleCommand toLifecycleCommand(
+    com.bluewhale.auth.application.model.command.UserLifecycleCommand toLifecycleCommand(
             UserLifecycleRequest request);
 }

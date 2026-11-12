@@ -1,8 +1,8 @@
 package com.bluewhale.auth.application.tenant;
 
-import com.bluewhale.auth.application.tenant.command.CreateTenantCommand;
-import com.bluewhale.auth.application.tenant.port.TenantStatusSyncPort;
-import com.bluewhale.auth.application.user.port.PasswordHasher;
+import com.bluewhale.auth.application.model.command.CreateTenantCommand;
+import com.bluewhale.auth.application.port.TenantStatusSyncPort;
+import com.bluewhale.auth.application.port.PasswordHasher;
 import com.bluewhale.auth.domain.dept.aggregate.Dept;
 import com.bluewhale.auth.domain.dept.repository.DeptRepository;
 import com.bluewhale.auth.domain.menu.aggregate.Menu;
@@ -17,7 +17,7 @@ import com.bluewhale.auth.domain.tenant.aggregate.Tenant;
 import com.bluewhale.auth.domain.tenant.repository.TenantRepository;
 import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
-import com.bluewhale.auth.application.vo.TenantVO;
+import com.bluewhale.auth.application.model.vo.TenantVO;
 import com.bluewhale.common.core.exception.BizException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -42,6 +42,10 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import com.bluewhale.auth.application.service.TenantAppService;
+import com.bluewhale.auth.application.service.TenantMembershipAppService;
+import com.bluewhale.auth.application.service.TenantProvisioningAppService;
+import com.bluewhale.auth.application.service.impl.TenantProvisioningAppServiceImpl;
 
 /**
  * {@link TenantProvisioningAppService} 单元测试（Wave 5.54 Phase 1）：租户开通编排与准入校验。
@@ -89,7 +93,7 @@ class TenantProvisioningAppServiceTest {
     private TenantMembershipAppService tenantMembershipAppService;
 
     @InjectMocks
-    private TenantProvisioningAppService service;
+    private TenantProvisioningAppServiceImpl service;
 
     @Test
     @DisplayName("开通：创建租户、部门根、菜单、默认角色与管理员，且不下发平台专属权限")

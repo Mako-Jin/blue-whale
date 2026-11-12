@@ -1,7 +1,7 @@
 package com.bluewhale.auth.starter.assemble;
 
-import com.bluewhale.auth.application.vo.DeptLeaderVO;
-import com.bluewhale.auth.application.vo.DeptVO;
+import com.bluewhale.auth.application.model.vo.DeptLeaderVO;
+import com.bluewhale.auth.application.model.vo.DeptVO;
 import com.bluewhale.auth.interfaces.dto.response.DeptLeaderResponse;
 import com.bluewhale.auth.interfaces.dto.response.DeptResponse;
 import org.mapstruct.Mapper;

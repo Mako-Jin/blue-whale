@@ -1,8 +1,8 @@
 package com.bluewhale.auth.interfaces.api;
 
-import com.bluewhale.auth.interfaces.dto.AssignPermissionsRequest;
-import com.bluewhale.auth.interfaces.dto.RoleCreateRequest;
-import com.bluewhale.auth.interfaces.dto.RoleUpdateRequest;
+import com.bluewhale.auth.interfaces.dto.request.AssignPermissionsRequest;
+import com.bluewhale.auth.interfaces.dto.request.RoleCreateRequest;
+import com.bluewhale.auth.interfaces.dto.request.RoleUpdateRequest;
 import com.bluewhale.auth.interfaces.dto.response.RoleResponse;
 import com.bluewhale.common.core.query.PageQuery;
 import com.bluewhale.common.core.result.PageResult;

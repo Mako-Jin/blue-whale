@@ -1,8 +1,8 @@
 package com.bluewhale.auth.infrastructure.persistence.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.bluewhale.auth.application.userconfig.TenantConfigEntry;
-import com.bluewhale.auth.application.userconfig.port.TenantConfigRepository;
+import com.bluewhale.auth.application.model.TenantConfigEntry;
+import com.bluewhale.auth.application.port.TenantConfigRepository;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysTenantConfig;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysTenantConfigMapper;
 import com.bluewhale.common.tenant.TenantContext;

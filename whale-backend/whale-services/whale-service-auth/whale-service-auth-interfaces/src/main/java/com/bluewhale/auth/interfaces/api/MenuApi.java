@@ -1,6 +1,6 @@
 package com.bluewhale.auth.interfaces.api;
 
-import com.bluewhale.auth.interfaces.dto.MenuRequest;
+import com.bluewhale.auth.interfaces.dto.request.MenuRequest;
 import com.bluewhale.auth.interfaces.dto.response.MenuResponse;
 import com.bluewhale.common.core.result.Result;
 import jakarta.validation.Valid;
