@@ -1,5 +1,6 @@
 package com.bluewhale.auth.starter.web;
 
+import com.bluewhale.auth.interfaces.web.AuthCookieManager;
 import com.bluewhale.common.core.exception.BizException;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;

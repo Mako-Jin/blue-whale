@@ -1,6 +1,7 @@
 package com.bluewhale.auth.starter.web.advice;
 
 import com.bluewhale.auth.application.security.AccountLockedException;
+import com.bluewhale.auth.interfaces.web.advice.LoginLockedExceptionHandler;
 import com.bluewhale.common.core.result.Result;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

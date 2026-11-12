@@ -14,7 +14,7 @@ import com.bluewhale.auth.interfaces.dto.request.ChangeOwnPasswordRequest;
 import com.bluewhale.auth.interfaces.dto.request.LoginRequest;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.auth.starter.assemble.AuthAssembler;
-import com.bluewhale.auth.starter.web.AuthCookieManager;
+import com.bluewhale.auth.interfaces.web.AuthCookieManager;
 import com.bluewhale.common.audit.annotation.AuditLog;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.handler.GlobalExceptionHandler;

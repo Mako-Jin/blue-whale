@@ -18,7 +18,7 @@ import com.bluewhale.auth.interfaces.dto.response.LoginResponse;
 import com.bluewhale.auth.interfaces.dto.response.TenantResponse;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.auth.starter.assemble.AuthAssembler;
-import com.bluewhale.auth.starter.web.AuthCookieManager;
+import com.bluewhale.auth.interfaces.web.AuthCookieManager;
 import com.bluewhale.common.audit.annotation.AuditLog;
 import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.result.Result;

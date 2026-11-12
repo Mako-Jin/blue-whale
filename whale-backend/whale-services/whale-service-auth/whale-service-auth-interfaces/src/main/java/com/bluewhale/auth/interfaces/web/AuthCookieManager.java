@@ -1,4 +1,4 @@
-package com.bluewhale.auth.starter.web;
+package com.bluewhale.auth.interfaces.web;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
