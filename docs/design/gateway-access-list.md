@@ -68,6 +68,22 @@ Header: X-Internal-Token: ${WHALE_INTERNAL_TOKEN}
 - 网关侧：外部访问 `/auth/v1/internal/**` 由 `InternalApiDenyGlobalFilter` 统一 403；
 - 不引入 Redis/Caffeine 缓存：每实例每分钟两次查询，直接读库。
 
+### 3.1 管理端维护接口（权限中心）
+
+```
+GET    /auth/v1/gateway/whitelist?status={0|1}   sys:gateway:whitelist:list
+POST   /auth/v1/gateway/whitelist                sys:gateway:whitelist:add
+PUT    /auth/v1/gateway/whitelist/{id}           sys:gateway:whitelist:edit
+DELETE /auth/v1/gateway/whitelist/{id}           sys:gateway:whitelist:delete
+（黑名单同构：/auth/v1/gateway/blacklist + sys:gateway:blacklist:*）
+```
+
+- 请求体：`{pathPattern, httpMethod, status, sortNo, remark}`；`pathPattern` 必填且以 `/` 开头；
+  `httpMethod` 为空表示不限，统一转大写后存储；`status` 仅 0/1；
+- 同一 `(pathPattern, httpMethod, scope)` 唯一，重复新增或改名冲突返回参数错误码 400；
+- 删除为**物理删除**（释放唯一键，便于重新录入），仅临时停用/解封请把 `status` 置 0；
+- 写操作记审计（`targetType=sys_gateway_whitelist | sys_gateway_blacklist`），网关下一周期自动生效。
+
 ## 4. 网关动态加载与匹配
 
 ```yaml
@@ -153,8 +169,7 @@ whale:
 
 ## 8. 后续
 
-- 管理端 CRUD：`GET/POST/PUT/DELETE /auth/v1/gateway/{whitelist|blacklist}` + `sys:gateway:*list:*` 鉴权，
-  写操作后网关下一周期自动生效（无需推送）。
+- 管理端 CRUD 后端接口已完成（见 §3.1）；前端管理页面尚未开发，当前可直接调用接口维护。
 - 按租户下发（`scope` 扩展）需网关携带租户上下文并按租户合并，涉及匹配优先级设计。
 - 如需观察面：可补 `gateway.access_list.refresh{list,result}` 计数与快照条数 Gauge。
 - 应急通道：Nacos 热配置黑名单（不依赖 auth 可用性），作为本方案的第 2 优先级来源。
@@ -165,3 +180,4 @@ whale:
 |---|---|
 | 2026-11-12 | 初版：V13 迁移（白名单表 + 15 条种子 + 4 个权限码）、auth 只读内部接口、网关动态拉取与本地兜底 |
 | 2026-11-12 | 追加黑名单：V14（黑名单表 + 4 个权限码）、`/internal/gateway/blacklist`、网关黑名单优先匹配（403 + 指标）；网关组件合并为 `accesslist` 包，配置前缀改为 `whale.gateway.access-list` |
+| 2026-11-12 | 追加管理端 CRUD：`/auth/v1/gateway/{whitelist\|blacklist}` 四类操作 + 权限码/审计，删除走物理删除以释放唯一键 |

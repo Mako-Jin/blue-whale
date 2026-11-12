@@ -24,6 +24,28 @@ public final class GatewayWhitelistPersistenceAssembler {
      */
     public static GatewayWhitelistAggregate toDomain(SysGatewayWhitelistPo po) {
         return GatewayWhitelistAggregate.reconstitute(po.getId(), po.getPathPattern(), po.getHttpMethod(),
-                po.getScope(), po.getStatus(), po.getSortNo());
+                po.getScope(), po.getSource(), po.getRemark(), po.getStatus(), po.getSortNo(),
+                po.getCreateTime(), po.getUpdateTime());
+    }
+
+    /**
+     * 领域对象 → PO（新增时主键为空，由 MyBatis-Plus 填充）
+     *
+     * @param rule 白名单聚合
+     * @return 白名单持久化对象
+     */
+    public static SysGatewayWhitelistPo toPo(GatewayWhitelistAggregate rule) {
+        SysGatewayWhitelistPo po = new SysGatewayWhitelistPo();
+        po.setId(rule.getId());
+        po.setPathPattern(rule.getPathPattern());
+        po.setHttpMethod(rule.getHttpMethod());
+        po.setScope(rule.getScope());
+        po.setSource(rule.getSource());
+        po.setRemark(rule.getRemark());
+        po.setStatus(rule.getStatus());
+        po.setSortNo(rule.getSortNo());
+        po.setCreateTime(rule.getCreateTime());
+        po.setUpdateTime(rule.getUpdateTime());
+        return po;
     }
 }

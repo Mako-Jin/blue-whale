@@ -24,6 +24,28 @@ public final class GatewayBlacklistPersistenceAssembler {
      */
     public static GatewayBlacklistAggregate toDomain(SysGatewayBlacklistPo po) {
         return GatewayBlacklistAggregate.reconstitute(po.getId(), po.getPathPattern(), po.getHttpMethod(),
-                po.getScope(), po.getStatus(), po.getSortNo());
+                po.getScope(), po.getSource(), po.getRemark(), po.getStatus(), po.getSortNo(),
+                po.getCreateTime(), po.getUpdateTime());
+    }
+
+    /**
+     * 领域对象 → PO（新增时主键为空，由 MyBatis-Plus 填充）
+     *
+     * @param rule 黑名单聚合
+     * @return 黑名单持久化对象
+     */
+    public static SysGatewayBlacklistPo toPo(GatewayBlacklistAggregate rule) {
+        SysGatewayBlacklistPo po = new SysGatewayBlacklistPo();
+        po.setId(rule.getId());
+        po.setPathPattern(rule.getPathPattern());
+        po.setHttpMethod(rule.getHttpMethod());
+        po.setScope(rule.getScope());
+        po.setSource(rule.getSource());
+        po.setRemark(rule.getRemark());
+        po.setStatus(rule.getStatus());
+        po.setSortNo(rule.getSortNo());
+        po.setCreateTime(rule.getCreateTime());
+        po.setUpdateTime(rule.getUpdateTime());
+        return po;
     }
 }

@@ -1,11 +1,13 @@
 package com.bluewhale.auth.application.service;
 
+import com.bluewhale.auth.application.model.command.SaveGatewayAccessRuleCommand;
+import com.bluewhale.auth.application.model.vo.GatewayAccessRuleVO;
 import com.bluewhale.auth.application.model.vo.GatewayBlacklistVO;
 
 import java.util.List;
 
 /**
- * 网关黑名单应用服务：向网关提供只读下发能力。
+ * 网关黑名单应用服务：向网关提供只读下发能力，向管理端提供维护能力。
  *
  * @author BlueWhale
  */
@@ -17,4 +19,34 @@ public interface GatewayBlacklistAppService {
      * @return 黑名单视图对象列表；无数据时返回空列表
      */
     List<GatewayBlacklistVO> listEnabled();
+
+    /**
+     * 管理端查询黑名单（含已解除项）
+     *
+     * @param status 状态过滤；{@code null} 表示全部
+     * @return 访问名单管理视图对象列表
+     */
+    List<GatewayAccessRuleVO> list(Integer status);
+
+    /**
+     * 新增黑名单条目
+     *
+     * @param command 保存命令
+     */
+    void create(SaveGatewayAccessRuleCommand command);
+
+    /**
+     * 更新黑名单条目
+     *
+     * @param id 主键
+     * @param command 保存命令
+     */
+    void update(Long id, SaveGatewayAccessRuleCommand command);
+
+    /**
+     * 删除黑名单条目（物理删除，释放唯一键）
+     *
+     * @param id 主键
+     */
+    void delete(Long id);
 }
