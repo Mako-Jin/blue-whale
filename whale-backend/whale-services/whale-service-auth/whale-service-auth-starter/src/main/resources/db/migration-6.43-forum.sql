@@ -6,9 +6,10 @@
 -- 幂等说明 : 权限、角色、授权、菜单均为 NOT EXISTS 幂等插入；不修改/删除既有数据。
 -- 边界说明 : 本脚本只登记「论坛域」权限（sys:forum:*）。文件（/file/**）、消息
 --            （/message/**）、商城积分（/mall/**）权限在各自迁移中登记，论坛不重复定义。
--- 权限编号 : 2340–2350（共 11 个）。**2330–2339 属 whale-assistant**
+-- 权限编号 : 2340–2351（共 12 个）。**2330–2339 属 whale-assistant**
 --            （V8__assistant_permission_menu.sql 已应用：2330 define / 2331 chat），
---            原设计「2330–2359」与该段冲突，本脚本已整体后移至 2340–2350。
+--            原设计「2330–2359」与该段冲突，本脚本已整体后移至 2340–2350；
+--            M4（检索与对账）追加 2351 sys:forum:manage:ops。
 --            23xx 段其余占用：2300–2306 CRM 分析、2313 twin、2320–2323 PM。
 -- 菜单编号 : 510–519（sys_menu 现最大 505，510 起连续，506–509 留给在途批次）。
 -- 授权口径 : 按 perm_code 授权，不按 ID 区间——同名权限码在存量库可能挂着另一个 ID，
@@ -74,6 +75,13 @@ SELECT 2350, 0, 'sys:forum:hot:refresh', '热榜手工刷新', 'API', '/forum/ho
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 2350 OR perm_code = 'sys:forum:hot:refresh');
 
+-- M4 增量：运维动作（检索重建 / 计数对账）。只授租户管理员——
+-- 版主能重算全站计数，等于给了「把展示值改成任意值」的间接能力。
+INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+SELECT 2351, 0, 'sys:forum:manage:ops', '论坛运维（检索重建/计数对账）', 'API', '/forum/search/reindex,/forum/admin/count/reconcile', 'POST', 2351, 1
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 2351 OR perm_code = 'sys:forum:manage:ops');
+
 -- ---------------------------------------------------------------------
 -- 2. 角色：论坛版主（forum_moderator，25139）
 --    「部门管理员」不新造角色，用数据范围 (DEPT) 表达；此处只造版主。
@@ -99,7 +107,7 @@ JOIN sys_permission p ON p.perm_code IN (
     'sys:forum:browse', 'sys:forum:thread:add', 'sys:forum:thread:edit', 'sys:forum:thread:remove',
     'sys:forum:post:add', 'sys:forum:reaction:use',
     'sys:forum:manage:list', 'sys:forum:manage:audit', 'sys:forum:manage:dispose',
-    'sys:forum:manage:board', 'sys:forum:hot:refresh')
+    'sys:forum:manage:board', 'sys:forum:hot:refresh', 'sys:forum:manage:ops')
   AND p.deleted = 0 AND p.status = 1
 WHERE r.deleted = 0 AND r.status = 1 AND r.role_code IN ('tenant_admin')
   AND NOT EXISTS (SELECT 1 FROM sys_role_permission tgt WHERE tgt.role_id = r.id AND tgt.permission_id = p.id);
@@ -140,6 +148,6 @@ WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE id = 512);
 --   FROM sys_role r JOIN sys_role_permission rp ON rp.role_id = r.id
 --  WHERE r.role_code IN ('tenant_admin', 'forum_moderator') AND r.deleted = 0
 --  GROUP BY r.tenant_id, r.role_code;
--- -- 期望 tenant_admin 11 项 / forum_moderator 9 项
+-- -- 期望 tenant_admin 12 项 / forum_moderator 9 项（M4 的 manage:ops 只授管理员）
 -- 以 admin 登录后 GET /auth/v1/me，确认 menus 树包含「论坛」目录与 2 个子菜单
 -- =====================================================================

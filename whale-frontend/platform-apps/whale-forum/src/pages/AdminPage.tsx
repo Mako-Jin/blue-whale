@@ -1,12 +1,14 @@
-// 管理台：审核台 / 举报工单 / 敏感词库
+// 管理台：审核台 / 举报工单 / 敏感词库 / 运维
 //
-// 三个 Tab 对应三组权限（manage:audit / manage:dispose / manage:board）：
+// 四个 Tab 对应四组权限（manage:audit / manage:dispose / manage:board / manage:ops）：
 // 后端逐接口校验，无权限时返回 403，前端不做「隐藏入口」以外的判断——
 // 隐藏入口只影响观感，真正的门在服务端。
 
 import { useCallback, useEffect, useState } from 'react';
 import {
   Button,
+  Card,
+  Descriptions,
   Empty,
   Form,
   Input,
@@ -26,19 +28,25 @@ import {
   deleteSensitiveWord,
   fetchAuditPage,
   fetchReports,
+  fetchSearchStatus,
   fetchSensitiveWords,
   flushNotify,
   handleReport,
   passAudit,
+  reconcileCounts,
   rejectAudit,
+  reindexSearch,
   reloadSensitiveWords,
   saveSensitiveWord,
   type AuditItem,
+  type ReconcileReport,
   type ReportItem,
+  type SearchStatus,
   type SensitiveWordItem,
 } from '../api/forum';
+import { hasPermission } from '../api/client';
 
-const { Text } = Typography;
+const { Text, Paragraph } = Typography;
 
 /** 页大小 */
 const PAGE_SIZE = 10;
@@ -81,6 +89,7 @@ export default function AdminPage() {
           { key: 'audit', label: '内容审核台', children: <AuditPanel /> },
           { key: 'report', label: '举报工单', children: <ReportPanel /> },
           { key: 'word', label: '敏感词库', children: <WordPanel /> },
+          { key: 'ops', label: '运维', children: <OpsPanel /> },
         ]}
       />
     </div>
@@ -558,5 +567,144 @@ function WordPanel() {
         </Form.Item>
       </Form>
     </div>
+  );
+}
+
+/** 运维面板：检索索引覆盖与重建、计数对账（需 sys:forum:manage:ops） */
+function OpsPanel() {
+  const canOps = hasPermission('sys:forum:manage:ops');
+  const [status, setStatus] = useState<SearchStatus | null>(null);
+  const [report, setReport] = useState<ReconcileReport | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const loadStatus = useCallback(() => {
+    fetchSearchStatus()
+      .then(setStatus)
+      .catch((err: unknown) => {
+        message.error(err instanceof Error ? err.message : '读取检索状态失败');
+      });
+  }, []);
+
+  useEffect(() => {
+    loadStatus();
+  }, [loadStatus]);
+
+  const runReindex = async () => {
+    setBusy(true);
+    try {
+      const rows = await reindexSearch();
+      message.success(`已回填 ${rows} 条检索纯文本`);
+      loadStatus();
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : '重建失败');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const runReconcile = async (fix: boolean) => {
+    setBusy(true);
+    try {
+      const result = await reconcileCounts(fix);
+      setReport(result);
+      if (result.diffCount === 0) {
+        message.success('核对通过：展示计数与明细一致');
+      } else if (fix) {
+        message.warning(`发现 ${result.diffCount} 处差异，已修正 ${result.fixedCount} 处`);
+      } else {
+        message.info(`发现 ${result.diffCount} 处差异（未修正，仅报告）`);
+      }
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : '对账失败');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <Card
+        size="small"
+        title="检索索引"
+        extra={
+          <Space>
+            <Button size="small" onClick={loadStatus} disabled={busy}>
+              刷新状态
+            </Button>
+            <Button size="small" type="primary" onClick={runReindex} disabled={busy || !canOps}>
+              回填索引
+            </Button>
+          </Space>
+        }
+      >
+        {status ? (
+          <Descriptions size="small" column={3}>
+            <Descriptions.Item label="引擎">{status.engine}</Descriptions.Item>
+            <Descriptions.Item label="索引名">{status.indexName}</Descriptions.Item>
+            <Descriptions.Item label="分词长度">{status.ngramTokenSize}</Descriptions.Item>
+            <Descriptions.Item label="帖子总数">{status.totalThreads}</Descriptions.Item>
+            <Descriptions.Item label="已建索引">{status.indexedThreads}</Descriptions.Item>
+            <Descriptions.Item label="待回填">{status.pendingBackfill}</Descriptions.Item>
+          </Descriptions>
+        ) : (
+          <Text type="secondary">读取中…</Text>
+        )}
+        <Paragraph type="secondary" style={{ marginBottom: 0 }}>
+          关键词短于分词长度时自动回退 LIKE；回填只是把历史帖的纯文本补上，可重复执行。
+        </Paragraph>
+      </Card>
+
+      <Card
+        size="small"
+        title="计数对账"
+        extra={
+          <Space>
+            <Button size="small" onClick={() => runReconcile(false)} disabled={busy}>
+              只报告
+            </Button>
+            <Button
+              size="small"
+              danger
+              onClick={() => runReconcile(true)}
+              disabled={busy || !canOps}
+            >
+              报告并修正
+            </Button>
+          </Space>
+        }
+      >
+        {report ? (
+          <>
+            <Paragraph style={{ marginBottom: 8 }}>
+              批次 {report.batchNo} · 差异 {report.diffCount} 处 · 修正 {report.fixedCount} 处 ·{' '}
+              {report.dryRun ? '仅报告' : '已写回'}
+              {report.truncated ? '（明细仅显示前 20 条）' : ''}
+            </Paragraph>
+            <Table
+              size="small"
+              rowKey={(row) => `${row.threadId}-${row.metric}`}
+              dataSource={report.items}
+              pagination={false}
+              columns={[
+                { title: '帖子', dataIndex: 'threadId' },
+                { title: '计数项', dataIndex: 'metric', width: 100 },
+                { title: '展示值', dataIndex: 'before', width: 90 },
+                { title: '真实值', dataIndex: 'actual', width: 90 },
+                {
+                  title: '已修正',
+                  dataIndex: 'fixed',
+                  width: 90,
+                  render: (value: boolean) => (value ? <Tag color="green">是</Tag> : <Tag>否</Tag>),
+                },
+              ]}
+            />
+          </>
+        ) : (
+          <Text type="secondary">
+            对账以明细表 COUNT 校正回复/投花/收藏三项；浏览数没有逐次流水，不纳入对账。
+          </Text>
+        )}
+      </Card>
+    </Space>
   );
 }

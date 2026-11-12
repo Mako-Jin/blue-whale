@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.annotation.InterceptorIgnore;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.bluewhale.forum.dto.HotCandidate;
+import com.bluewhale.forum.dto.IndexStat;
+import com.bluewhale.forum.dto.ThreadCountDrift;
 import com.bluewhale.forum.entity.ForumThread;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -205,4 +207,195 @@ public interface ForumThreadMapper extends BaseMapper<ForumThread> {
     @InterceptorIgnore(tenantLine = "true")
     @Select("SELECT DISTINCT tenant_id FROM fm_thread WHERE deleted = 0")
     List<Long> selectActiveTenantIds();
+
+    /**
+     * 检索命中行（ngram 全文索引，标题命中优先）。
+     *
+     * <p>排序分两段：先按「标题整串命中」降序，再按全文相关度降序——ngram 的相关度
+     * 把标题与正文的词频混在一起算，短标题帖容易被长正文帖压下去；用户在列表页
+     * 搜标题词时，期望的是标题命中的排前面。</p>
+     *
+     * <p>租户与可见状态写死在 SQL 内并关掉租户插件：带 {@code MATCH} 的语句里
+     * 插件追加条件的位置依赖解析结果，宁可自己写。</p>
+     *
+     * @param tenantId 租户ID
+     * @param boardIds 可见版块ID（不可为空，空集合由调用方提前返回）
+     * @param keyword 关键词
+     * @param essenceOnly 只看精华
+     * @param useFulltext 是否走全文索引（关键词长度达到 ngram_token_size 时为 true）
+     * @param offset 偏移量
+     * @param size 每页条数
+     * @return 命中行
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("""
+            <script>
+            SELECT t.* FROM fm_thread t
+            WHERE t.tenant_id = #{tenantId} AND t.deleted = 0
+              AND t.status IN ('PUBLISHED', 'SOLVED', 'CLOSED')
+              AND t.board_id IN
+              <foreach collection="boardIds" item="bid" open="(" separator="," close=")">#{bid}</foreach>
+              <if test="essenceOnly"> AND t.essence = 1 </if>
+              AND (
+                <choose>
+                  <when test="useFulltext">
+                    MATCH(t.title, t.content_text) AGAINST (#{keyword} IN NATURAL LANGUAGE MODE)
+                  </when>
+                  <otherwise>
+                    (t.title LIKE CONCAT('%', #{keyword}, '%')
+                     OR t.content_text LIKE CONCAT('%', #{keyword}, '%'))
+                  </otherwise>
+                </choose>
+              )
+            ORDER BY (t.title LIKE CONCAT('%', #{keyword}, '%')) DESC,
+              <if test="useFulltext">
+                MATCH(t.title, t.content_text) AGAINST (#{keyword} IN NATURAL LANGUAGE MODE) DESC,
+              </if>
+              t.publish_time DESC, t.id DESC
+            LIMIT #{offset}, #{size}
+            </script>
+            """)
+    List<ForumThread> selectSearchRows(@Param("tenantId") Long tenantId,
+                                       @Param("boardIds") List<Long> boardIds,
+                                       @Param("keyword") String keyword,
+                                       @Param("essenceOnly") boolean essenceOnly,
+                                       @Param("useFulltext") boolean useFulltext,
+                                       @Param("offset") long offset,
+                                       @Param("size") long size);
+
+    /**
+     * 检索命中总数（与 {@link #selectSearchRows} 同谓词，改一处必须改两处）。
+     *
+     * @param tenantId 租户ID
+     * @param boardIds 可见版块ID
+     * @param keyword 关键词
+     * @param essenceOnly 只看精华
+     * @param useFulltext 是否走全文索引
+     * @return 命中总数
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("""
+            <script>
+            SELECT COUNT(*) FROM fm_thread t
+            WHERE t.tenant_id = #{tenantId} AND t.deleted = 0
+              AND t.status IN ('PUBLISHED', 'SOLVED', 'CLOSED')
+              AND t.board_id IN
+              <foreach collection="boardIds" item="bid" open="(" separator="," close=")">#{bid}</foreach>
+              <if test="essenceOnly"> AND t.essence = 1 </if>
+              AND (
+                <choose>
+                  <when test="useFulltext">
+                    MATCH(t.title, t.content_text) AGAINST (#{keyword} IN NATURAL LANGUAGE MODE)
+                  </when>
+                  <otherwise>
+                    (t.title LIKE CONCAT('%', #{keyword}, '%')
+                     OR t.content_text LIKE CONCAT('%', #{keyword}, '%'))
+                  </otherwise>
+                </choose>
+              )
+            </script>
+            """)
+    long countSearchRows(@Param("tenantId") Long tenantId,
+                         @Param("boardIds") List<Long> boardIds,
+                         @Param("keyword") String keyword,
+                         @Param("essenceOnly") boolean essenceOnly,
+                         @Param("useFulltext") boolean useFulltext);
+
+    /**
+     * 待建索引的帖子（{@code content_text} 未回填），供检索重建分批处理。
+     *
+     * @param tenantId 租户ID
+     * @param limit 单批条数
+     * @return 帖子（只取 id 与 content）
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT id, content FROM fm_thread "
+            + "WHERE tenant_id = #{tenantId} AND deleted = 0 AND content_text IS NULL "
+            + "ORDER BY id LIMIT #{limit}")
+    List<ForumThread> selectPendingIndexRows(@Param("tenantId") Long tenantId,
+                                             @Param("limit") int limit);
+
+    /**
+     * 写入检索纯文本。
+     *
+     * @param id 帖子ID
+     * @param contentText 纯文本
+     * @return 影响行数
+     */
+    @Update("UPDATE fm_thread SET content_text = #{contentText} WHERE id = #{id}")
+    int updateContentText(@Param("id") Long id, @Param("contentText") String contentText);
+
+    /**
+     * 索引覆盖情况（总数 / 已回填数）。
+     *
+     * @param tenantId 租户ID
+     * @return 统计行
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT COUNT(*) AS total, "
+            + "COALESCE(SUM(CASE WHEN content_text IS NOT NULL THEN 1 ELSE 0 END), 0) AS indexed "
+            + "FROM fm_thread WHERE tenant_id = #{tenantId} AND deleted = 0")
+    IndexStat selectIndexStat(@Param("tenantId") Long tenantId);
+
+    /**
+     * 读取 ngram 分词长度（MySQL 内置变量，MariaDB 等无此变量时由调用方兜底为 2）。
+     *
+     * @return 分词长度
+     */
+    @Select("SELECT @@ngram_token_size")
+    Integer selectNgramTokenSize();
+
+    /**
+     * 计数漂移行：展示值与明细 {@code COUNT} 不一致的帖子。
+     *
+     * <p>只核对可从明细重算的三项：{@code reply_count}（已发布楼层）、
+     * {@code like_count} / {@code collect_count}（互动表有效行）。浏览数没有明细可重算——
+     * {@code fm_thread_view} 是去重窗口的判定行、不是逐次浏览流水，硬对账会把
+     * 「同一人 24h 内看了 5 次」算成 1，越对越错，故不纳入。</p>
+     *
+     * @param tenantId 租户ID
+     * @param limit 单批条数
+     * @return 漂移行
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("""
+            SELECT t.id AS thread_id, t.reply_count, t.like_count, t.collect_count,
+                   (SELECT COUNT(*) FROM fm_post p
+                     WHERE p.thread_id = t.id AND p.deleted = 0 AND p.floor IS NOT NULL
+                       AND p.status = 'PUBLISHED') AS actual_reply,
+                   (SELECT COUNT(*) FROM fm_reaction r
+                     WHERE r.tenant_id = t.tenant_id AND r.target_type = 'THREAD'
+                       AND r.target_id = t.id AND r.reaction_type = 'LIKE') AS actual_like,
+                   (SELECT COUNT(*) FROM fm_reaction r
+                     WHERE r.tenant_id = t.tenant_id AND r.target_type = 'THREAD'
+                       AND r.target_id = t.id AND r.reaction_type = 'COLLECT') AS actual_collect
+            FROM fm_thread t
+            WHERE t.tenant_id = #{tenantId} AND t.deleted = 0
+            HAVING t.reply_count <> actual_reply
+                OR t.like_count <> actual_like
+                OR t.collect_count <> actual_collect
+            ORDER BY t.id
+            LIMIT #{limit}
+            """)
+    List<ThreadCountDrift> selectCountDrift(@Param("tenantId") Long tenantId,
+                                            @Param("limit") int limit);
+
+    /**
+     * 按真实值修正三项计数。
+     *
+     * @param threadId 帖子ID
+     * @param tenantId 租户ID
+     * @param replyCount 真实回复数
+     * @param likeCount 真实投花数
+     * @param collectCount 真实收藏数
+     * @return 影响行数
+     */
+    @Update("UPDATE fm_thread SET reply_count = #{replyCount}, like_count = #{likeCount}, "
+            + "collect_count = #{collectCount}, update_time = NOW() "
+            + "WHERE id = #{threadId} AND tenant_id = #{tenantId} AND deleted = 0")
+    int fixCounts(@Param("threadId") Long threadId,
+                  @Param("tenantId") Long tenantId,
+                  @Param("replyCount") int replyCount,
+                  @Param("likeCount") int likeCount,
+                  @Param("collectCount") int collectCount);
 }

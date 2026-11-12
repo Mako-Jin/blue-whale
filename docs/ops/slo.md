@@ -95,13 +95,45 @@ histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{u
   `/video/meta`、`/video/home`、`/video/content/{id}`、`/video/stream/{contentId}` 均输出
   `http_server_requests_seconds_bucket`，SLO-9/10/11 可直接 `histogram_quantile`。
 
+## SLO-12 论坛帖子列表时延：P95 < 300ms
+
+```promql
+histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri="/forum/thread/page",application="whale-forum"}[5m])))
+```
+
+- 列表页每次请求都会过一次版块可见性判定（单版块 → 1 次校验；全站 → 查可见版块列表再 `IN`），
+  计入时延即为「鉴权 + 可见版块解析 + 分页查询」。
+
+## SLO-13 论坛检索时延：P95 < 800ms
+
+```promql
+histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri="/forum/search",application="whale-forum"}[5m])))
+```
+
+- 检索走 `FULLTEXT(title, content_text) WITH PARSER ngram`；关键词长度 < `ngram_token_size`（默认 2）
+  时回退 `LIKE`，回退路径必然全表扫，因此单字检索慢属预期——`uri` 无法区分两条路径，
+  排障时结合 `whale-forum` 日志与请求参数 `keyword` 长度判断。
+- 排序为「标题整串命中优先 → 全文相关度 → 发布时间」，`title LIKE` 参与 `ORDER BY` 会产生
+  filesort；数据量上万后若 P95 越线，先看 `EXPLAIN` 是否命中 `ft_fm_thread_search`。
+
+## SLO-14 论坛计数漂移：0 处/日
+
+```promql
+increase(forum_count_reconcile_diff_total{application="whale-forum"}[24h]) > 0
+```
+
+- 计数漂移不是性能问题而是数据正确性问题：接口全 200、页面数字也在动，但和明细对不上。
+  该指标由 `CountReconcileJob`（`forum.count.reconcile`，每日 03:30）与手工对账接口共同累加。
+- 告警口径建议：`> 0` 触发工单（不翻页），人工看 `fm_count_reconcile` 轨迹定位是哪一项在漂；
+  连续多日同帖同项漂移，说明对应的写路径漏了计数维护，别再靠对账兜。
+
 ## 采集前提
 
 - 服务侧 `management.endpoints.web.exposure.include` 至少包含 `health,info,prometheus`。
 - `management.metrics.tags.application=${spring.application.name}`，便于按服务聚合。
 - Prometheus 抓取目标为各服务 `http://<host>:<port>/actuator/prometheus`。
 - P95 查询依赖直方图桶 `http_server_requests_seconds_bucket`。该桶默认不输出，已开启直方图的服务为
-  **whale-auth / whale-workflow / whale-doc / whale-music / whale-video**（`management.metrics.distribution.percentiles-histogram.[http.server.requests]=true`）；
+  **whale-auth / whale-workflow / whale-doc / whale-music / whale-video / whale-forum**（`management.metrics.distribution.percentiles-histogram.[http.server.requests]=true`）；
   其余服务保持默认（不打桶，避免指标基数膨胀），如需新增时延 SLO 再按服务开启。
 
 ## 实测

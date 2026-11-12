@@ -47,6 +47,9 @@ public final class ForumPermissions {
     /** 热榜手工刷新 */
     public static final String HOT_REFRESH = "sys:forum:hot:refresh";
 
+    /** 运维动作：检索索引重建、计数对账（只给租户管理员，版主不该有能力重算全站计数） */
+    public static final String MANAGE_OPS = "sys:forum:manage:ops";
+
     private ForumPermissions() {
     }
 }

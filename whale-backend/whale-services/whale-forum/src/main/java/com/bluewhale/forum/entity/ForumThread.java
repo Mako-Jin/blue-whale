@@ -42,6 +42,9 @@ public class ForumThread extends BaseEntity {
     /** 正文（已消毒富文本源码） */
     private String content;
 
+    /** 正文纯文本（检索用，写入时由消毒后 HTML 提取；全文索引建在这列而不是 content） */
+    private String contentText;
+
     /** 摘要（列表与搜索高亮用） */
     private String summary;
 

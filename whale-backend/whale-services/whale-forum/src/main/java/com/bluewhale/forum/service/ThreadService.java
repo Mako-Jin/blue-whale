@@ -28,11 +28,23 @@ public interface ThreadService {
     /**
      * 分页查询帖子列表。
      *
+     * <p>{@code keyword} 非空时内部转 {@link #search(ThreadQuery, ForumActor)}：
+     * 列表页与检索页必须是同一份可见性判定，两套实现在改版块可见性时必然分叉。</p>
+     *
      * @param query 查询条件
      * @param actor 当前操作者
      * @return 分页结果
      */
     PageResult<ThreadListItemVO> page(ThreadQuery query, ForumActor actor);
+
+    /**
+     * 关键词检索（ngram 全文索引，标题命中优先；关键词短于分词长度时回退 LIKE）。
+     *
+     * @param query 查询条件（{@code keyword} 必填）
+     * @param actor 当前操作者
+     * @return 分页结果
+     */
+    PageResult<ThreadListItemVO> search(ThreadQuery query, ForumActor actor);
 
     /**
      * 帖子详情（累加浏览数）。

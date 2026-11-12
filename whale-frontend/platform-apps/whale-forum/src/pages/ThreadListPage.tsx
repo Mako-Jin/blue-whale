@@ -16,7 +16,13 @@ import {
   Typography,
   message,
 } from 'antd';
-import { createThread, fetchThreads, type BoardItem, type ThreadListItem } from '../api/forum';
+import {
+  createThread,
+  fetchThreads,
+  searchThreads,
+  type BoardItem,
+  type ThreadListItem,
+} from '../api/forum';
 import { hasPermission } from '../api/client';
 
 const { Text, Paragraph } = Typography;
@@ -62,7 +68,13 @@ export default function ThreadListPage({ board, onOpenThread }: Props) {
   const load = useCallback(
     (page: number, activeSort: string, activeKeyword: string) => {
       setLoading(true);
-      fetchThreads({ boardId: board.id, sort: activeSort, keyword: activeKeyword, current: page })
+      const trimmed = activeKeyword.trim();
+      // 有关键词走检索通道（ngram 全文，标题命中优先）；无关键词走列表通道。
+      // 两条通道共用后端同一套可见性判定，这里只是选择入参形态。
+      const task = trimmed
+        ? searchThreads({ keyword: trimmed, boardId: board.id, current: page })
+        : fetchThreads({ boardId: board.id, sort: activeSort, current: page });
+      task
         .then((data) => {
           setItems(data.records);
           setTotal(Number(data.total));
@@ -123,8 +135,8 @@ export default function ThreadListPage({ board, onOpenThread }: Props) {
           />
           <Input.Search
             allowClear
-            placeholder="搜索标题"
-            style={{ width: 220 }}
+            placeholder="搜索标题与正文"
+            style={{ width: 240 }}
             onSearch={(value) => {
               setKeyword(value.trim());
               setCurrent(1);
@@ -137,6 +149,12 @@ export default function ThreadListPage({ board, onOpenThread }: Props) {
           ) : null}
         </Space>
       </div>
+
+      {keyword ? (
+        <Paragraph type="secondary">
+          全文检索「{keyword}」命中 {total} 条（标题命中优先；单字检索走 LIKE 回退）
+        </Paragraph>
+      ) : null}
 
       {error ? (
         <Empty description={error} />

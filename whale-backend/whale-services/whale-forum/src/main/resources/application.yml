@@ -109,6 +109,14 @@ whale:
     hot-refresh-enabled: ${WHALE_FORUM_HOT_REFRESH_ENABLED:true}
     # 热榜快照刷新 cron（默认每 30 分钟；改周期请同时改 hot-refresh-minutes 让前端提示一致）
     hot-refresh-cron: ${WHALE_FORUM_HOT_REFRESH_CRON:0 0/30 * * * ?}
+    # 检索：纯文本保留长度 / 全文索引最小关键词长度（0=按 @@ngram_token_size 自动）/ 重建批大小
+    search-text-length: ${WHALE_FORUM_SEARCH_TEXT_LENGTH:4000}
+    search-min-keyword-length: ${WHALE_FORUM_SEARCH_MIN_KEYWORD_LENGTH:0}
+    search-reindex-batch: ${WHALE_FORUM_SEARCH_REINDEX_BATCH:200}
+    # 计数对账（受管任务，默认每日 03:30；dry-run 用接口参数控制）
+    count-reconcile-enabled: ${WHALE_FORUM_COUNT_RECONCILE_ENABLED:true}
+    count-reconcile-batch: ${WHALE_FORUM_COUNT_RECONCILE_BATCH:500}
+    count-reconcile-cron: ${WHALE_FORUM_COUNT_RECONCILE_CRON:0 30 3 * * ?}
 
 mybatis-plus:
   configuration:
@@ -127,3 +135,7 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+    distribution:
+      # SLO 依赖 http_server_requests_seconds_bucket 算 P95，不开直方图就只剩 max/avg
+      percentiles-histogram:
+        http.server.requests: true

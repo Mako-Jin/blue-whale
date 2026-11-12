@@ -104,4 +104,32 @@ public class ForumProperties {
 
     /** 是否启用热榜定时刷新（多实例各自刷新，结果幂等覆盖） */
     private boolean hotRefreshEnabled = true;
+
+    /**
+     * 检索用纯文本的保留长度（字符）。
+     *
+     * <p>正文上限 10 万字符，但没人靠第 8 万字命中；截断到 4000 字符可把
+     * {@code content_text} 控制在几十 KB 内，全文索引体积与重建耗时都降一个量级。</p>
+     */
+    private int searchTextLength = 4_000;
+
+    /**
+     * 走全文索引的最小关键词长度；0 表示按数据库 {@code ngram_token_size} 自动取值。
+     *
+     * <p>ngram 默认分词长度 2，比它短的关键词（单字）在索引里根本不存在，
+     * 必须回退 {@code LIKE}，否则单字搜索恒空。</p>
+     */
+    private int searchMinKeywordLength = 0;
+
+    /** 检索重建单批条数（批量提交，避免一次 UPDATE 十万行锁表） */
+    private int searchReindexBatch = 200;
+
+    /** 是否启用计数对账定时任务 */
+    private boolean countReconcileEnabled = true;
+
+    /** 计数对账单批扫描帖子数 */
+    private int countReconcileBatch = 500;
+
+    /** 计数对账 cron（默认每日 03:30，避开备份与热榜刷新） */
+    private String countReconcileCron = "0 30 3 * * ?";
 }

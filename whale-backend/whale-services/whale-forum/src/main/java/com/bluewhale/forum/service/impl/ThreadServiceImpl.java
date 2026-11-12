@@ -27,6 +27,7 @@ import com.bluewhale.forum.mapper.ForumThreadEditHistoryMapper;
 import com.bluewhale.forum.mapper.ForumThreadMapper;
 import com.bluewhale.forum.service.BanService;
 import com.bluewhale.forum.service.BoardService;
+import com.bluewhale.forum.service.SearchService;
 import com.bluewhale.forum.service.SensitiveWordService;
 import com.bluewhale.forum.service.ThreadService;
 import com.bluewhale.forum.service.ViewCountService;
@@ -101,6 +102,8 @@ public class ThreadServiceImpl implements ThreadService {
 
     private final ReactionStateReader reactionStateReader;
 
+    private final SearchService searchService;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ThreadDetailVO create(ThreadCreateRequest request, ForumActor actor) {
@@ -139,6 +142,8 @@ public class ThreadServiceImpl implements ThreadService {
         thread.setThreadType(request.getThreadType() == null ? "NORMAL" : request.getThreadType());
         thread.setTitle(title);
         thread.setContent(content);
+        // 检索用纯文本：与摘要同源（去标签 + 压缩空白），只是保留更长，供全文索引使用
+        thread.setContentText(RichTextSanitizer.summarize(content, properties.getSearchTextLength()));
         thread.setSummary(RichTextSanitizer.summarize(content, properties.getSummaryLength()));
         thread.setTags(request.getTags());
         thread.setAuthorId(actor.userId());
@@ -166,17 +171,15 @@ public class ThreadServiceImpl implements ThreadService {
     @Override
     public PageResult<ThreadListItemVO> page(ThreadQuery query, ForumActor actor) {
         TenantContext.requireId();
+        if (query.getKeyword() != null && !query.getKeyword().isBlank()) {
+            // 关键词走检索通道：ngram 全文（标题命中优先）或单字 LIKE 回退，口径只在 search 里维护
+            return search(query, actor);
+        }
         long current = query.getCurrent() == null || query.getCurrent() < 1 ? 1 : query.getCurrent();
         long size = normalizeSize(query.getSize());
-        List<Long> boardIds;
-        if (query.getBoardId() != null) {
-            ForumBoard board = boardService.requireVisibleBoard(query.getBoardId(), actor);
-            boardIds = List.of(board.getId());
-        } else {
-            boardIds = boardService.listVisible(actor).stream().map(vo -> vo.getId()).toList();
-            if (boardIds.isEmpty()) {
-                return PageResult.of(List.of(), 0, current, size);
-            }
+        List<Long> boardIds = visibleBoardIds(query, actor);
+        if (boardIds.isEmpty()) {
+            return PageResult.of(List.of(), 0, current, size);
         }
         boolean hot = !SORT_LATEST.equalsIgnoreCase(query.getSort()) && !"essence".equalsIgnoreCase(query.getSort());
         IPage<ForumThread> page = threadMapper.selectPage(new Page<>(Math.min(current, properties.getMaxPageNumber()), size),
@@ -184,8 +187,6 @@ public class ThreadServiceImpl implements ThreadService {
                         .in(ForumThread::getBoardId, boardIds)
                         .in(ForumThread::getStatus, VISIBLE_STATUSES)
                         .eq(Boolean.TRUE.equals(query.getEssenceOnly()), ForumThread::getEssence, 1)
-                        .like(query.getKeyword() != null && !query.getKeyword().isBlank(),
-                                ForumThread::getTitle, query.getKeyword())
                         .orderByDesc(ForumThread::getPinned)
                         .orderByDesc(hot, ForumThread::getLastReplyTime)
                         .orderByDesc(!hot, ForumThread::getPublishTime));
@@ -194,6 +195,50 @@ public class ThreadServiceImpl implements ThreadService {
             records.add(toListVO(thread));
         }
         return PageResult.of(records, page.getTotal(), page.getCurrent(), page.getSize());
+    }
+
+    @Override
+    public PageResult<ThreadListItemVO> search(ThreadQuery query, ForumActor actor) {
+        Long tenantId = TenantContext.requireId();
+        String keyword = query.getKeyword() == null ? "" : query.getKeyword().strip();
+        long current = query.getCurrent() == null || query.getCurrent() < 1 ? 1 : query.getCurrent();
+        long size = normalizeSize(query.getSize());
+        long pageNo = Math.min(current, properties.getMaxPageNumber());
+        if (keyword.isEmpty()) {
+            return PageResult.of(List.of(), 0, current, size);
+        }
+        List<Long> boardIds = visibleBoardIds(query, actor);
+        if (boardIds.isEmpty()) {
+            return PageResult.of(List.of(), 0, current, size);
+        }
+        boolean essenceOnly = Boolean.TRUE.equals(query.getEssenceOnly());
+        boolean fulltext = searchService.useFulltext(keyword);
+        long total = threadMapper.countSearchRows(tenantId, boardIds, keyword, essenceOnly, fulltext);
+        if (total == 0) {
+            return PageResult.of(List.of(), 0, current, size);
+        }
+        List<ForumThread> rows = threadMapper.selectSearchRows(tenantId, boardIds, keyword,
+                essenceOnly, fulltext, (pageNo - 1) * size, size);
+        List<ThreadListItemVO> records = new ArrayList<>(rows.size());
+        for (ForumThread thread : rows) {
+            records.add(toListVO(thread));
+        }
+        return PageResult.of(records, total, pageNo, size);
+    }
+
+    /**
+     * 解析当前操作者可见的版块范围（单版块或全部可见版块）。
+     *
+     * @param query 查询条件
+     * @param actor 当前操作者
+     * @return 版块ID列表，空表示无可见版块
+     */
+    private List<Long> visibleBoardIds(ThreadQuery query, ForumActor actor) {
+        if (query.getBoardId() != null) {
+            ForumBoard board = boardService.requireVisibleBoard(query.getBoardId(), actor);
+            return List.of(board.getId());
+        }
+        return boardService.listVisible(actor).stream().map(vo -> vo.getId()).toList();
     }
 
     @Override
@@ -267,6 +312,7 @@ public class ThreadServiceImpl implements ThreadService {
         }
         if (newContent != null) {
             thread.setContent(newContent);
+            thread.setContentText(RichTextSanitizer.summarize(newContent, properties.getSearchTextLength()));
             thread.setSummary(RichTextSanitizer.summarize(newContent, properties.getSummaryLength()));
         }
         boolean auditRequired = board.getAuditMode() != null && board.getAuditMode() == 1;

@@ -381,3 +381,84 @@ export function fetchHot(limit = 20): Promise<HotItem[]> {
 export function refreshHot(): Promise<number> {
   return request<number>('/forum/hot/refresh', { method: 'POST' });
 }
+
+// ---------------------------------------------------------------------------
+// M4：检索（ngram 全文 + 单字 LIKE 回退）与运维（索引重建 / 计数对账）
+// 计数类字段后端按 Long 序列化成字符串，前端统一 Number() 后再比较
+// ---------------------------------------------------------------------------
+
+/** 检索状态 */
+export interface SearchStatus {
+  engine: string;
+  indexName: string;
+  ngramTokenSize: number;
+  minKeywordLength: number;
+  likeFallback: boolean;
+  totalThreads: string | number;
+  indexedThreads: string | number;
+  pendingBackfill: string | number;
+}
+
+/** 单条计数差异 */
+export interface ReconcileItem {
+  threadId: string;
+  metric: 'REPLY' | 'LIKE' | 'COLLECT' | string;
+  before: number;
+  actual: number;
+  fixed: boolean;
+}
+
+/** 计数对账结果 */
+export interface ReconcileReport {
+  batchNo: string;
+  batchSize: number;
+  diffCount: number;
+  fixedCount: number;
+  dryRun: boolean;
+  items: ReconcileItem[];
+  truncated: boolean;
+}
+
+/** 关键词检索（走 ngram 全文索引，关键词过短时后端自动回退 LIKE） */
+export function searchThreads(params: {
+  keyword: string;
+  boardId?: string;
+  essenceOnly?: boolean;
+  current?: number;
+  size?: number;
+}): Promise<PageResult<ThreadListItem>> {
+  const query = new URLSearchParams();
+  query.set('keyword', params.keyword);
+  if (params.boardId) {
+    query.set('boardId', params.boardId);
+  }
+  if (params.essenceOnly) {
+    query.set('essenceOnly', 'true');
+  }
+  query.set('current', String(params.current ?? 1));
+  query.set('size', String(params.size ?? 20));
+  return request<PageResult<ThreadListItem>>(`/forum/search?${query.toString()}`);
+}
+
+/** 检索状态（索引覆盖到哪、分词长度） */
+export function fetchSearchStatus(): Promise<SearchStatus> {
+  return request<SearchStatus>('/forum/search/status');
+}
+
+/** 重建检索索引（回填纯文本，需 sys:forum:manage:ops） */
+export function reindexSearch(limit?: number): Promise<number> {
+  const suffix = limit ? `?limit=${limit}` : '';
+  return request<number>(`/forum/search/reindex${suffix}`, { method: 'POST' });
+}
+
+/** 计数对账（fix=false 只报告，fix=true 按真实值修正） */
+export function reconcileCounts(fix = false, limit?: number): Promise<ReconcileReport> {
+  const query = new URLSearchParams();
+  query.set('fix', String(fix));
+  if (limit) {
+    query.set('limit', String(limit));
+  }
+  return request<ReconcileReport>(`/forum/admin/count/reconcile?${query.toString()}`, {
+    method: 'POST',
+  });
+}

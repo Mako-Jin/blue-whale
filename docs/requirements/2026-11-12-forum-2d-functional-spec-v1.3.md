@@ -28,6 +28,16 @@
 | 2 | §6.3 浏览去重用 Redis SETNX | 落库 `fm_thread_view`（唯一键 `tenant_id+thread_id+user_id` + 滚动 24h 条件更新） | 详情是读主路径，Redis 不可用不该让详情 500；一行/人/帖，行数有上界 |
 | 10 | 积分拆为「论坛经验」与「可兑换积分」两套口径 | 论坛自建账本会与商城积分对不上账 |
 
+## 落码修订记录（v1.3 内部修订，2026-11-12 M4）
+
+| # | 原口径 | 落码口径 | 原因 |
+|---|---|---|---|
+| 3 | F-06-04 检索：ngram 全文索引建在帖标题/正文 | 索引建在 `(title, content_text)`，`content_text` 为写入时由消毒后 HTML 提取的纯文本（上限 4000 字符），历史帖由 `POST /forum/search/reindex` 分批回填 | 直接索引富文本源码时搜 `p`/`div`/`href` 会命中几乎全部帖子，命中数虚高且摘要高亮落进标签里；纯文本列同时让「重建」成为可幂等重算的动作 |
+| 4 | 搜索关键词任意长度直接走索引 | 关键词长度 < `ngram_token_size`（默认 2）回退 `LIKE`（标题 + 纯文本） | ngram 索引里没有单字倒排项，单字走 `MATCH` 恒空；这是分词器口径，只能应用层回退 |
+| 5 | 计数以定时对账为准，未定义范围 | 只对账 `reply_count` / `like_count` / `collect_count`（明细 `COUNT` 可重算）；浏览数不纳入 | `fm_thread_view` 是去重窗口判定行而非浏览流水，按它重算会把「同一人 24h 看 5 次」压成 1，越对越错 |
+| 6 | 对账 Job 未定义默认行为 | 手工接口默认 `dry-run`（只报告），`fix=true` 才写回；定时任务 `forum.count.reconcile` 每日 03:30 按租户 `fix=true` | 对账接口默认写库时，一次误点就把展示值改成明细口径；先看差异再决定修 |
+| 7 | 未定义对账留痕 | 每条差异落 `fm_count_reconcile`（`value_before`/`value_actual`/`fixed`/`batch_no`/`operator_id`），「只报告未修」也留 | 否则事后分不清「没差异」与「有差异但没修」，自动修数无法追溯 |
+
 ---
 
 ## 一、服务定位
@@ -423,6 +433,7 @@ pending（待受理，SLA 24h）
 | 2348 | `sys:forum:manage:dispose` | 悬榜/题金榜/关闭/处置 |
 | 2349 | `sys:forum:manage:board` | 版块管理（含审核开关、可见性） |
 | 2350 | `sys:forum:hot:refresh` | 热榜手工刷新 |
+| 2351 | `sys:forum:manage:ops` | 运维：检索重建 / 计数对账（M4 增，只授 tenant_admin） |
 
 > 授权语句**按 `perm_code` 不按 ID 区间**（2026-11-09 撞号教训）；`forum_moderator` 必须进迁移播种并通过 `check-role-coverage.py`。
 

@@ -163,9 +163,12 @@ fm_sensitive_hit (敏感词命中, 独立表)
 | 互动 | `PUT/DELETE /forum/reaction/thread/{id}`、`GET /forum/thread/{id}/reactions/my`、`GET /forum/my/collections`（4） |
 | 管理端 | `PUT /forum/manage/thread/{id}/pin`、`/essence`、`/lock`、`/remove`、`GET /forum/manage/thread/pending/page`、`POST /forum/manage/thread/{id}/audit`、`GET /forum/manage/report/page`、`POST /forum/manage/report/{id}/dispose`、`GET /forum/manage/sensitive/page`（9） |
 | 热榜 | `GET /forum/hot`、`POST /forum/hot/refresh`（2） |
+| 检索 | `GET /forum/search`、`GET /forum/search/status`、`POST /forum/search/reindex`（3） |
 | 内网 | `GET /forum/internal/thread/{id}`（供 portal/agent 只读快照，internal-deny） |
 
-M2 起追加：检索（ngram，`GET /forum/search`）、@提及通知、精华转知识库登记。
+M4 落地口径：检索走 `FULLTEXT(title, content_text) WITH PARSER ngram`（`content_text` 为写入时提取的纯文本，
+不索引富文本源码），关键词长度 < `ngram_token_size` 时回退 `LIKE`；
+计数对账以明细 `COUNT` 校正展示值并落 `fm_count_reconcile` 轨迹。@提及通知留给后续批次。
 
 ---
 
@@ -199,7 +202,7 @@ M2 起追加：检索（ngram，`GET /forum/search`）、@提及通知、精华�
 | M1 闭环 | 发帖/回复/引用/编辑历史/点赞收藏/我的、通知接 `whale-message`（回复/引用/@提及，幂等留痕）、附件接 `whale-file`、浏览去重 | 单测 ≥ 80 项；前后端路径过 `check-api-path-drift.py` |
 | M2 治理 | 审核模式（状态机 + 退回必填意见）、举报与处置、敏感词三档、限流 429 实测 | 负向验证：未审内容对普通用户 404；处置必落轨迹 |
 | M3 互动与热榜 | 投花/藏帖（幂等 + 计数原子增减）、我的收藏、浏览 24h 去重、热榜打分与快照（`GET /forum/hot`、`POST /forum/hot/refresh`，受管任务 `forum.hot.snapshot`） | 重复投花不重复计数、取消后可再投；同日重复打开只 +1 浏览；快照刷新为整表覆盖不累加 |
-| M4 检索与收口 | ngram 全文索引（帖标题/正文）、单字回退 LIKE、重建接口（复用 mail 口径）+ 计数对账 Job、运维手册 `docs/ops/forum-service-ops.md`、SLO 接 Prometheus/Grafana | 检索冒烟 + `GET /forum/search/status`；对账演练 + 备份恢复演练 |
+| M4 检索与收口 | ngram 全文索引（`fm_thread.title + content_text`）、单字回退 LIKE、`GET /forum/search` + `/status` + `/reindex`、计数对账（`fm_count_reconcile` + 受管任务 `forum.count.reconcile` + `POST /forum/admin/count/reconcile`）、运维手册 `docs/ops/forum-service-ops.md`、SLO-12/13/14 | ✅ 实机：回填前正文词命中 0 → 回填 6 条后命中 1；单字走 LIKE 命中 3；对账 dry-run 报 2 处差异、`fix=true` 修正并留 4 行轨迹 |
 
 ---
 

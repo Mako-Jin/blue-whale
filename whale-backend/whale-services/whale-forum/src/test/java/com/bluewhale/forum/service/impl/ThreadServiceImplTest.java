@@ -9,6 +9,7 @@ import com.bluewhale.forum.common.ForumPermissions;
 import com.bluewhale.forum.config.ForumProperties;
 import com.bluewhale.forum.dto.ThreadCreateRequest;
 import com.bluewhale.forum.dto.ThreadDetailVO;
+import com.bluewhale.forum.dto.ThreadQuery;
 import com.bluewhale.forum.dto.ThreadUpdateRequest;
 import com.bluewhale.forum.entity.ForumBoard;
 import com.bluewhale.forum.entity.ForumThread;
@@ -17,6 +18,7 @@ import com.bluewhale.forum.mapper.ForumThreadEditHistoryMapper;
 import com.bluewhale.forum.mapper.ForumThreadMapper;
 import com.bluewhale.forum.service.BanService;
 import com.bluewhale.forum.service.BoardService;
+import com.bluewhale.forum.service.SearchService;
 import com.bluewhale.forum.service.SensitiveWordService;
 import com.bluewhale.forum.service.ViewCountService;
 import org.junit.jupiter.api.AfterEach;
@@ -37,6 +39,7 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -74,6 +77,9 @@ class ThreadServiceImplTest {
 
     @Mock
     private ReactionStateReader reactionStateReader;
+
+    @Mock
+    private SearchService searchService;
 
     @Spy
     private ForumProperties properties = new ForumProperties();
@@ -350,9 +356,67 @@ class ThreadServiceImplTest {
     }
 
     @Test
+    @DisplayName("检索：关键词达到分词长度时走全文索引")
+    void searchUsesFulltextWhenKeywordLongEnough() {
+        when(boardService.requireVisibleBoard(anyLong(), any())).thenReturn(board(0));
+        when(searchService.useFulltext("鲸议")).thenReturn(true);
+        when(threadMapper.countSearchRows(anyLong(), any(), anyString(), anyBoolean(), anyBoolean()))
+                .thenReturn(1L);
+        when(threadMapper.selectSearchRows(anyLong(), any(), anyString(), anyBoolean(),
+                anyBoolean(), anyLong(), anyLong())).thenReturn(List.of(publishedThread()));
+
+        var result = threadService.search(query("鲸议", 9L), author());
+
+        assertThat(result.getTotal()).isEqualTo(1);
+        assertThat(result.getRecords()).hasSize(1);
+        verify(threadMapper).countSearchRows(1L, List.of(9L), "鲸议", false, true);
+    }
+
+    @Test
+    @DisplayName("检索：关键词过短时回退 LIKE")
+    void searchFallsBackToLikeWhenKeywordTooShort() {
+        when(boardService.requireVisibleBoard(anyLong(), any())).thenReturn(board(0));
+        when(searchService.useFulltext("鲸")).thenReturn(false);
+        when(threadMapper.countSearchRows(anyLong(), any(), anyString(), anyBoolean(), anyBoolean()))
+                .thenReturn(0L);
+
+        var result = threadService.search(query("鲸", 9L), author());
+
+        assertThat(result.getTotal()).isZero();
+        verify(threadMapper, never()).selectSearchRows(anyLong(), any(), anyString(), anyBoolean(),
+                anyBoolean(), anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("检索：无可读版块时直接空结果，不打库")
+    void searchReturnsEmptyWhenNoBoardVisible() {
+        when(boardService.listVisible(any())).thenReturn(List.of());
+
+        var result = threadService.search(query("鲸议", null), author());
+
+        assertThat(result.getRecords()).isEmpty();
+        verify(threadMapper, never()).countSearchRows(anyLong(), any(), anyString(),
+                anyBoolean(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("列表：带关键词时转检索通道（同一套可见性判定）")
+    void pageWithKeywordDelegatesToSearch() {
+        when(boardService.requireVisibleBoard(anyLong(), any())).thenReturn(board(0));
+        when(searchService.useFulltext("鲸议")).thenReturn(true);
+        when(threadMapper.countSearchRows(anyLong(), any(), anyString(), anyBoolean(), anyBoolean()))
+                .thenReturn(0L);
+
+        var result = threadService.page(query(" 鲸议 ", 9L), author());
+
+        assertThat(result.getRecords()).isEmpty();
+        // 关键词先 strip 再进检索：前后空格不该让命中数变成 0
+        verify(threadMapper).countSearchRows(1L, List.of(9L), "鲸议", false, true);
+    }
+
+    @Test
     @DisplayName("我的收藏：联查分页透传总数与当前页")
-    void collectionsPassThroughPage() {
-        Page<ForumThread> page = new Page<>(1, 20);
+    void collectionsPassThroughPage() {        Page<ForumThread> page = new Page<>(1, 20);
         page.setRecords(List.of(publishedThread()));
         page.setTotal(1);
         when(threadMapper.selectCollectedPage(any(), anyLong(), anyLong(), anyString())).thenReturn(page);
@@ -379,6 +443,22 @@ class ThreadServiceImplTest {
         board.setPostPolicy("OPEN");
         board.setStatus(1);
         return board;
+    }
+
+    /**
+     * 构造检索条件。
+     *
+     * @param keyword 关键词
+     * @param boardId 版块ID（null 表示全部可见版块）
+     * @return 查询条件
+     */
+    private ThreadQuery query(String keyword, Long boardId) {
+        ThreadQuery query = new ThreadQuery();
+        query.setKeyword(keyword);
+        query.setBoardId(boardId);
+        query.setCurrent(1L);
+        query.setSize(20L);
+        return query;
     }
 
     /**

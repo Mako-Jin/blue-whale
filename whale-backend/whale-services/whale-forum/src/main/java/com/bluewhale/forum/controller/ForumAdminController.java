@@ -10,12 +10,14 @@ import com.bluewhale.forum.common.ForumPermissions;
 import com.bluewhale.forum.dto.AuditActionRequest;
 import com.bluewhale.forum.dto.AuditItemVO;
 import com.bluewhale.forum.dto.ModerationRequest;
+import com.bluewhale.forum.dto.ReconcileReportVO;
 import com.bluewhale.forum.dto.ReportHandleRequest;
 import com.bluewhale.forum.dto.ReportVO;
 import com.bluewhale.forum.dto.SensitiveWordSaveRequest;
 import com.bluewhale.forum.dto.SensitiveWordVO;
 import com.bluewhale.forum.service.AuditService;
 import com.bluewhale.forum.service.BanService;
+import com.bluewhale.forum.service.CountReconcileService;
 import com.bluewhale.forum.service.ForumNotifyService;
 import com.bluewhale.forum.service.ModerationService;
 import com.bluewhale.forum.service.ReportService;
@@ -57,6 +59,8 @@ public class ForumAdminController {
     private final SensitiveWordService sensitiveWordService;
 
     private final ForumNotifyService notifyService;
+
+    private final CountReconcileService countReconcileService;
 
     /**
      * 待审队列。
@@ -293,5 +297,28 @@ public class ForumAdminController {
     @RequirePermission(ForumPermissions.MANAGE_BOARD)
     public Result<Integer> flushNotify(@RequestParam(value = "limit", required = false) Integer limit) {
         return Result.ok(notifyService.flushPending(limit == null ? 100 : limit));
+    }
+
+    /**
+     * 计数对账（默认只报告不修，需显式 {@code fix=true} 才写回）。
+     *
+     * <p>默认 dry-run 是刻意的：对账接口一旦默认写库，任何一次误点都会把展示计数
+     * 改成明细口径，而明细口径在「楼层被删但保留编号」等历史场景下未必就是
+     * 运营想要的值。先看差异，再决定修。</p>
+     *
+     * @param fix 是否按真实值修正
+     * @param limit 单批帖子数
+     * @param request 当前请求
+     * @return 对账结果
+     */
+    @PostMapping("/count/reconcile")
+    @RequirePermission(ForumPermissions.MANAGE_OPS)
+    @AuditLog(operation = "论坛计数对账", type = OperateType.UPDATE, targetType = "fm_thread")
+    public Result<ReconcileReportVO> reconcileCounts(
+            @RequestParam(value = "fix", required = false) Boolean fix,
+            @RequestParam(value = "limit", required = false) Integer limit,
+            HttpServletRequest request) {
+        return Result.ok(countReconcileService.reconcile(Boolean.TRUE.equals(fix), limit,
+                ForumActor.from(request).userId()));
     }
 }
