@@ -20,6 +20,15 @@
 # 说明：
 #   - 生成产物是 .d.ts 类型声明，仅当被 import 才参与编译；接线由 check-api-path-drift.py 兜底
 #   - 生成需要服务在跑，无法进 CI；CI 侧由路径漂移门禁守住「路径存在性」这一层
+#   - --status 打印覆盖表（谁上线了、谁还缺契约），用来规划镜像重建顺序
+#
+# 已知坑（2026-11 实测）：
+#   auth 服务把 controller 映射上移到 `*Api` 接口并改成
+#   `@RequestMapping(path = "/user/v{version}", version = "1")` 之后，springdoc
+#   渲染出的路径会**丢掉 v{version} 段**（/user/v1/{id} → /user/{id}）。而运行时
+#   两种写法都能命中（Spring 版本化对无版本请求回落到默认版本），所以不会报错，
+#   只是契约与前端手写的 `/user/v1/...` 不一致。重新生成前先比对 diff，别把
+#   版本段无声抹掉。
 # ============================================================
 from __future__ import annotations
 
@@ -38,7 +47,13 @@ ROOT = Path(__file__).resolve().parent.parent
 FRONTEND = ROOT / "whale-frontend"
 
 # 服务名 -> 端口 + 输出路径列表（相对仓库根，同一 JSON 可发多个消费方）
+#
+# 端口取自 deploy/backend/docker-compose.services.yml 的 SERVER_PORT；
+# 覆盖面 = 所有挂了 whale-spring-boot-starter 的 MVC 服务。gateway 是 WebFlux
+# 不经该 starter，无 /v3/api-docs；map 服务目前没有独立前端应用，未列。
+# 服务镜像还是旧代码时（未含 springdoc）会拉取失败，用 --status 看谁还没上线。
 CONTRACTS: dict[str, dict] = {
+    # ---- 已出契约、已接线 ----
     "auth": {
         "port": 8081,
         "outputs": ["whale-frontend/admin/src/api/generated/auth-schema.d.ts"],
@@ -75,6 +90,115 @@ CONTRACTS: dict[str, dict] = {
         "port": 8086,
         "outputs": ["whale-frontend/admin/src/api/generated/pay-schema.d.ts"],
     },
+    # ---- 待镜像重建后生成（服务已编排、未在跑） ----
+    "crm": {
+        "port": 9007,
+        "outputs": ["whale-frontend/platform-apps/whale-crm/src/api/generated/crm-schema.d.ts"],
+    },
+    "doc": {
+        "port": 8095,
+        "outputs": ["whale-frontend/platform-apps/whale-doc/src/api/generated/doc-schema.d.ts"],
+    },
+    "erp": {
+        "port": 9001,
+        "outputs": ["whale-frontend/platform-apps/whale-erp/src/api/generated/erp-schema.d.ts"],
+    },
+    "oa": {
+        "port": 9004,
+        "outputs": ["whale-frontend/platform-apps/whale-oa/src/api/generated/oa-schema.d.ts"],
+    },
+    "mes": {
+        "port": 9002,
+        "outputs": ["whale-frontend/platform-apps/whale-mes/src/api/generated/mes-schema.d.ts"],
+    },
+    "lms": {
+        "port": 9008,
+        "outputs": ["whale-frontend/platform-apps/whale-lms/src/api/generated/lms-schema.d.ts"],
+    },
+    "party": {
+        "port": 9009,
+        "outputs": ["whale-frontend/platform-apps/whale-party/src/api/generated/party-schema.d.ts"],
+    },
+    "pdm": {
+        "port": 9003,
+        "outputs": ["whale-frontend/platform-apps/whale-pdm/src/api/generated/pdm-schema.d.ts"],
+    },
+    "pm": {
+        "port": 9005,
+        "outputs": ["whale-frontend/platform-apps/whale-pm/src/api/generated/pm-schema.d.ts"],
+    },
+    "contract": {
+        "port": 9006,
+        "outputs": [
+            "whale-frontend/platform-apps/whale-contract/src/api/generated/contract-schema.d.ts"
+        ],
+    },
+    "mall": {
+        "port": 9010,
+        "outputs": ["whale-frontend/platform-apps/whale-mall/src/api/generated/mall-schema.d.ts"],
+    },
+    "form": {
+        "port": 8084,
+        "outputs": [
+            "whale-frontend/platform-apps/whale-form-designer/src/api/generated/form-schema.d.ts"
+        ],
+    },
+    "workflow": {
+        "port": 8083,
+        "outputs": [
+            "whale-frontend/platform-apps/whale-workflow-designer/src/api/generated/workflow-schema.d.ts"
+        ],
+    },
+    "im": {
+        "port": 8091,
+        "outputs": ["whale-frontend/platform-apps/whale-im/src/api/generated/im-schema.d.ts"],
+    },
+    "mail": {
+        "port": 8099,
+        "outputs": ["whale-frontend/platform-apps/whale-mail/src/api/generated/mail-schema.d.ts"],
+    },
+    "assistant": {
+        "port": 8087,
+        "outputs": [
+            "whale-frontend/platform-apps/whale-assistant/src/api/generated/assistant-schema.d.ts"
+        ],
+    },
+    "video": {
+        "port": 8098,
+        "outputs": ["whale-frontend/platform-apps/whale-video/src/api/generated/video-schema.d.ts"],
+    },
+    "music": {
+        "port": 8096,
+        "outputs": ["whale-frontend/platform-apps/whale-music/src/api/generated/music-schema.d.ts"],
+    },
+    "iot": {
+        "port": 8088,
+        "outputs": ["whale-frontend/platform-apps/whale-iot/src/api/generated/iot-schema.d.ts"],
+    },
+    "scene": {
+        "port": 8097,
+        "outputs": ["whale-frontend/platform-apps/whale-scene/src/api/generated/scene-schema.d.ts"],
+    },
+    # 运营端消费：archive（admin 的归档页）/ audit / alert / monitor
+    "archive": {
+        "port": 8093,
+        "outputs": [
+            "whale-frontend/admin/src/api/generated/archive-schema.d.ts",
+            "whale-frontend/ops/src/api/generated/archive-schema.d.ts",
+        ],
+    },
+    "audit": {
+        "port": 9101,
+        "outputs": ["whale-frontend/ops/src/api/generated/audit-schema.d.ts"],
+    },
+    "alert": {
+        "port": 9103,
+        "outputs": ["whale-frontend/ops/src/api/generated/alert-schema.d.ts"],
+    },
+    "monitor": {
+        "port": 9102,
+        "outputs": ["whale-frontend/ops/src/api/generated/monitor-schema.d.ts"],
+    },
 }
 
 
@@ -102,6 +226,45 @@ def fetch_docs(url: str, retries: int = 2) -> dict:
             if attempt < retries:
                 time.sleep(3)
     raise RuntimeError(f"拉取 {url} 失败：{last_err}")
+
+
+def probe(url: str, timeout: float = 5) -> tuple[bool, str]:
+    """轻量探测：服务是否已暴露 api-docs（不走代理、不重试）。"""
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    try:
+        with opener.open(url, timeout=timeout) as resp:
+            if resp.status != 200:
+                return False, f"HTTP {resp.status}"
+            data = json.loads(resp.read().decode("utf-8"))
+        paths = len(data.get("paths") or {})
+        if not paths:
+            return False, "paths 为空（服务在跑但无 springdoc？）"
+        return True, f"paths {paths}"
+    except Exception as e:  # noqa: BLE001 - 仅用于汇总表
+        return False, type(e).__name__
+
+
+def print_status() -> None:
+    """打印「服务 ↔ 契约产物」覆盖表，用于判断下一步该重建哪个镜像。"""
+    reachable = missing_out = 0
+    print(f"{'服务':10} {'端口':6} {'状态':22} 契约产物")
+    for name, cfg in CONTRACTS.items():
+        ok, detail = probe(f"http://127.0.0.1:{cfg['port']}/v3/api-docs")
+        if ok:
+            reachable += 1
+        outs = list(cfg["outputs"])
+        absent = [o for o in outs if not (ROOT / o).exists()]
+        if absent:
+            missing_out += 1
+        mark = "OK" if ok and not absent else ("在跑未生成" if ok else "未上线")
+        exists = "缺失" if absent else "已生成"
+        print(f"{name:10} {cfg['port']:<6} {mark + ' / ' + detail:22} {exists} × {len(outs)}")
+    print(
+        f"\n汇总：{len(CONTRACTS)} 个服务，api-docs 可达 {reachable}，"
+        f"契约产物待生成 {missing_out}"
+    )
+    print("未上线的服务需先 `scripts/dev/build-service-images.sh <svc>` 重建镜像"
+          "（注意 Docker VM 余量 > 1G）。")
 
 
 def find_generator() -> list[str]:
@@ -160,7 +323,16 @@ def main() -> int:
         metavar="NAME=URL,OUT[,OUT...]",
         help="临时追加契约项（负向验证/一次性生成用）；URL 需含完整路径",
     )
+    ap.add_argument(
+        "--status",
+        action="store_true",
+        help="只打印各服务 api-docs 可达性与契约产物覆盖表，不做生成",
+    )
     args = ap.parse_args()
+
+    if args.status:
+        print_status()
+        return 0
 
     jobs: dict[str, tuple[str, list[str]]] = {}
     only = {s.strip() for s in args.only.split(",") if s.strip()}
