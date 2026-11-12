@@ -111,6 +111,11 @@ scrape_configs:
     metrics_path: /actuator/prometheus
     static_configs:
       - targets: ['host.docker.internal:9201']
+  # Wave 6.43 员工论坛（M0 骨架）：9011 为例外端口登记，见 service-catalog §七
+  - job_name: whale-forum
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['host.docker.internal:9011']
   # Nacos 2.x 自带 Prometheus 指标端点
   - job_name: nacos
     metrics_path: /nacos/metrics

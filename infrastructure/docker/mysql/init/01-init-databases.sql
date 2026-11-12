@@ -166,4 +166,9 @@ CREATE DATABASE IF NOT EXISTS bluewhale_twin
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_unicode_ci;
 
+-- ---- 员工论坛（whale-forum，Wave 6.43 M0：表由服务启动时 Flyway 建立，V1 公共日志 + V2 业务 8 张） ----
+CREATE DATABASE IF NOT EXISTS bluewhale_forum
+  DEFAULT CHARACTER SET utf8mb4
+  DEFAULT COLLATE utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;

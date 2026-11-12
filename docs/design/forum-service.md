@@ -21,8 +21,8 @@
 | 数据库 | `bluewhale_forum` | utf8mb4 / utf8mb4_general_ci，连接参数按规范 |
 | 表前缀 | `fm_` | 单数、snake_case；naming-conventions §二/§八 登记域词 |
 | 前端子应用 | **8123**，base `/forum` | qiankun 子应用；8117/8118 分别被 mail/预留占用，取 8123 避让 portal 8101–8122 段 |
-| 权限号段 | **2330–2359** | 23xx 段已占 2300–2306（CRM 分析）、2313（twin）、2320–2321（PM）；落码前必须过 `scripts/security/scan-id-ranges.py` 负向验证 |
-| 菜单号段 | **510–519** | 现有最大 503（商城物流）；跳过 504–509 留给在途批次 |
+| 权限号段 | **2340–2350** | 原定 2330 与 whale-assistant 撞号（V8 已应用），整体后移；23xx 其余占用 2300–2306 / 2313 / 2320–2323；落码前过 `scripts/security/scan-id-ranges.py` 负向验证 |
+| 菜单号段 | **510–519** | 现有最大 505（商城套餐）；跳过 506–509 留给在途批次 |
 | Flyway | `V1__baseline.sql` 起 | `audit_log` + `api_log` 两张公共表进 V1 |
 
 ---
@@ -172,19 +172,21 @@ M2 起追加：检索（ngram，`GET /forum/search`）、@提及通知、精华�
 
 | 权限号 | 权限码 | 说明 |
 |---|---|---|
-| 2330 | `sys:forum:browse` | 登录可见论坛（版块/帖子浏览） |
-| 2331 | `sys:forum:thread:add` | 发帖 |
-| 2332 | `sys:forum:thread:edit` | 编辑本人帖（服务端仍校验所有权） |
-| 2333 | `sys:forum:thread:remove` | 删除本人帖 |
-| 2334 | `sys:forum:post:add` | 回复 |
-| 2335 | `sys:forum:reaction:use` | 点赞/收藏 |
-| 2340 | `sys:forum:manage:list` | 管理端入口（待审/举报/敏感词） |
-| 2341 | `sys:forum:manage:audit` | 审核（通过/退回，意见必填） |
-| 2342 | `sys:forum:manage:dispose` | 置顶/精华/锁定/违规处置 |
-| 2343 | `sys:forum:manage:board` | 版块管理（含审核开关、可见范围） |
-| 2344 | `sys:forum:hot:refresh` | 热榜手工刷新 |
+| 2340 | `sys:forum:browse` | 登录可见论坛（版块/帖子浏览） |
+| 2341 | `sys:forum:thread:add` | 发帖 |
+| 2342 | `sys:forum:thread:edit` | 编辑本人帖（服务端仍校验所有权） |
+| 2343 | `sys:forum:thread:remove` | 删除本人帖 |
+| 2344 | `sys:forum:post:add` | 回复 |
+| 2345 | `sys:forum:reaction:use` | 点赞/收藏 |
+| 2346 | `sys:forum:manage:list` | 管理端入口（待审/举报/敏感词） |
+| 2347 | `sys:forum:manage:audit` | 审核（通过/退回，意见必填） |
+| 2348 | `sys:forum:manage:dispose` | 置顶/精华/锁定/违规处置 |
+| 2349 | `sys:forum:manage:board` | 版块管理（含审核开关、可见范围） |
+| 2350 | `sys:forum:hot:refresh` | 热榜手工刷新 |
 
-菜单（510–519）：`510 论坛`（帖子页）、`511 我的收藏`、`512 论坛管理`（下挂待审/举报/敏感词/版块，按 2340–2344 分权）。授权语句**按 perm_code 不按 ID 区间**（2026-11-09 撞号教训）；落码前跑 `scan-id-ranges.py` 与 `check-perm-coverage.py` 双门禁。
+菜单（510–519）：`510 论坛`（帖子页）、`511 我的收藏`、`512 论坛管理`（下挂待审/举报/敏感词/版块，按 2346–2350 分权）。授权语句**按 perm_code 不按 ID 区间**（2026-11-09 撞号教训）；落码前跑 `scan-id-ranges.py` 与 `check-perm-coverage.py` 双门禁。
+
+> **号段修订（落码时发现）**：原定 2330–2359 与 `whale-assistant` 冲突——`V8__assistant_permission_menu.sql` 已占用 2330（`sys:assistant:define`）/2331（`sys:assistant:chat`），2330–2339 整段归助手域。论坛整体后移至 **2340–2350**，迁移见 `migration-6.43-forum.sql`。
 
 ---
 

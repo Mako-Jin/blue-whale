@@ -1085,6 +1085,40 @@ services:
       retries: 12
       start_period: 90s
 
+  # ---------------- 员工论坛（Wave 6.43 M0，biz 组） ----------------
+  # 端口 9011 为例外登记（8081–8100 已满、8101–8199 归前端子应用段，见 service-catalog §七）。
+  # 依赖：whale-file（附件字节）、whale-message（站内信）均按容器名直连，不写跨 profile depends_on。
+  forum:
+    <<: *common
+    image: bluewhale/whale-forum:dev
+    container_name: bw-forum
+    profiles: ["biz", "ext"]
+    mem_limit: 700m
+    environment:
+      JAVA_OPTS: "-Xms128m -Xmx448m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "9011"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      SPRING_DATA_REDIS_HOST: ${REDIS_HOST}
+      SPRING_DATA_REDIS_PORT: ${REDIS_PORT}
+      # 库由 01-init-databases.sql 建成但首启无 flyway 历史，需 baseline（有历史后是空操作）
+      WHALE_FLYWAY_BASELINE_ON_MIGRATE: "true"
+      WHALE_FILE_URL: "http://bw-file:8085"
+      WHALE_FORUM_MESSAGE_BASE_URL: "http://bw-message:8094"
+      # 匿名编号 HMAC 密钥：为空时匿名发帖强制关闭（fail-closed），本地默认留空
+      WHALE_FORUM_ANONYMOUS_SECRET: "${WHALE_FORUM_ANONYMOUS_SECRET:-}"
+    ports:
+      - "127.0.0.1:9011:9011"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9011/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 90s
+
 volumes:
   auth-joblogs:
     name: bw-auth-joblogs

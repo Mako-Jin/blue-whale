@@ -58,6 +58,7 @@ SERVICE_JAR_DIRS=(
   "map:whale-backend/whale-services/whale-map"
   "scene:whale-backend/whale-services/whale-scene"
   "twin:whale-backend/whale-services/whale-twin"
+  "forum:whale-backend/whale-services/whale-forum"
 )
 
 jar_dir_of() {

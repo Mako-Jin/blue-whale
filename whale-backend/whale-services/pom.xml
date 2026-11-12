@@ -38,5 +38,6 @@
         <module>whale-video</module>
         <module>whale-scene</module>
         <module>whale-map</module>
+        <module>whale-forum</module>
     </modules>
 </project>

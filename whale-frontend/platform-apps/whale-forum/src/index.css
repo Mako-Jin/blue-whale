@@ -1,0 +1,77 @@
+/* 论坛子应用样式（对齐平台通用主题变量与孪生/商城子应用布局口径） */
+
+.forum-layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background: #f5f6f8;
+}
+
+.forum-sidebar {
+  width: 180px;
+  flex-shrink: 0;
+  background: #fff;
+  border-right: 1px solid #f0f0f0;
+  display: flex;
+  flex-direction: column;
+}
+
+.forum-brand {
+  padding: 16px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.forum-nav {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.forum-nav li {
+  padding: 0 8px;
+}
+
+.forum-nav button {
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.72);
+  cursor: pointer;
+}
+
+.forum-nav button:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.forum-nav button.is-active {
+  background: #e6f0ff;
+  color: #1677ff;
+  font-weight: 500;
+}
+
+.forum-slogan {
+  margin-top: auto;
+  padding: 12px 20px 16px;
+  font-size: 12px;
+}
+
+.forum-content {
+  flex: 1;
+  min-width: 0;
+  padding: 16px;
+  overflow: auto;
+}
+
+.forum-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 240px;
+}

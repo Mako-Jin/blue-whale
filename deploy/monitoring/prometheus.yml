@@ -90,6 +90,11 @@ scrape_configs:
     metrics_path: /actuator/prometheus
     static_configs:
       - targets: ['127.0.0.1:8098']
+  # Wave 6.43 员工论坛（M0 骨架）：9011 为例外端口登记，见 service-catalog §七
+  - job_name: whale-forum
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['127.0.0.1:9011']
   - job_name: whale-erp
     metrics_path: /actuator/prometheus
     static_configs:

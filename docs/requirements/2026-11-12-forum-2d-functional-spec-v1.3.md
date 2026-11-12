@@ -76,8 +76,8 @@
 | 数据库 | `bluewhale_forum` | utf8mb4 / utf8mb4_general_ci |
 | 表前缀 | `fm_` | 单数 snake_case；`audit_log`/`api_log` 进 V1 基线 |
 | 前端子应用 | 端口 **8123**，base `/forum` | qiankun 子应用，必须 `renderWithQiankun` + `onReauthRequired` |
-| 权限号段 | **2330–2359** | 23xx 已占 2300–2306 / 2313 / 2320–2321；落码前过 `scan-id-ranges.py` |
-| 菜单号段 | **510–519** | 现最大 503 |
+| 权限号段 | **2340–2350** | 23xx 已占 2300–2306 / 2313 / 2320–2323，且 **2330–2339 属 whale-assistant（V8 已应用）**；原 2330 方案废弃，整体后移 |
+| 菜单号段 | **510–519** | 现最大 505（跳过 506–509 留给在途批次） |
 | 首批表 | V1 基线 + V2 业务 8 张 | `fm_board`/`fm_thread`/`fm_thread_edit_history`/`fm_post`/`fm_reaction`/`fm_moderation_record`/`fm_report`/`fm_sensitive_hit` |
 
 ---
@@ -401,21 +401,21 @@ pending（待受理，SLA 24h）
 | `tenant_admin` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 匿名发帖（属性，非角色） | ✅ | ⚠️ 版块开关 | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 
-权限码（2330–2359，落码前过 `scan-id-ranges.py`）：
+权限码（2340–2350，落码前过 `scan-id-ranges.py`）：
 
 | 码 | 权限码 | 说明 |
 |---|---|---|
-| 2330 | `sys:forum:browse` | 浏览论坛 |
-| 2331 | `sys:forum:thread:add` | 发帖 |
-| 2332 | `sys:forum:thread:edit` | 编辑本人帖（服务端仍校验所有权） |
-| 2333 | `sys:forum:thread:remove` | 删除本人帖 |
-| 2334 | `sys:forum:post:add` | 回复 |
-| 2335 | `sys:forum:reaction:use` | 投花/藏帖 |
-| 2340 | `sys:forum:manage:list` | 管理端入口 |
-| 2341 | `sys:forum:manage:audit` | 审核（通过/驳回） |
-| 2342 | `sys:forum:manage:dispose` | 悬榜/题金榜/关闭/处置 |
-| 2343 | `sys:forum:manage:board` | 版块管理（含审核开关、可见性） |
-| 2344 | `sys:forum:hot:refresh` | 热榜手工刷新 |
+| 2340 | `sys:forum:browse` | 浏览论坛 |
+| 2341 | `sys:forum:thread:add` | 发帖 |
+| 2342 | `sys:forum:thread:edit` | 编辑本人帖（服务端仍校验所有权） |
+| 2343 | `sys:forum:thread:remove` | 删除本人帖 |
+| 2344 | `sys:forum:post:add` | 回复 |
+| 2345 | `sys:forum:reaction:use` | 投花/藏帖 |
+| 2346 | `sys:forum:manage:list` | 管理端入口 |
+| 2347 | `sys:forum:manage:audit` | 审核（通过/驳回） |
+| 2348 | `sys:forum:manage:dispose` | 悬榜/题金榜/关闭/处置 |
+| 2349 | `sys:forum:manage:board` | 版块管理（含审核开关、可见性） |
+| 2350 | `sys:forum:hot:refresh` | 热榜手工刷新 |
 
 > 授权语句**按 `perm_code` 不按 ID 区间**（2026-11-09 撞号教训）；`forum_moderator` 必须进迁移播种并通过 `check-role-coverage.py`。
 
