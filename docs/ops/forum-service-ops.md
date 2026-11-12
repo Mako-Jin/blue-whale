@@ -32,12 +32,16 @@ MAVEN_OPTS=-Xmx1024m ./mvnw -B -ntp -s logs/maven-settings-aliyun.xml \
 ### 2.2 本地直起（调试用）
 
 ```bash
-set -a && . deploy/backend/.env && set +a
+set -a && . infrastructure/docker/.env && . deploy/backend/.env && set +a   # 前者给 WHALE_INTERNAL_TOKEN
 cd whale-backend/whale-services/whale-forum
 MYSQL_HOST=127.0.0.1 SERVER_PORT=19011 \
+WHALE_FORUM_FILE_BASE_URL=http://127.0.0.1:8085 \
 SPRING_DATASOURCE_URL="jdbc:mysql://127.0.0.1:3306/bluewhale_forum?useUnicode=true&characterEncoding=utf8&connectionCollation=utf8mb4_general_ci&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true" \
 java -jar target/whale-forum.jar
 ```
+
+> `WHALE_FORUM_FILE_BASE_URL` 必补：`ForumProperties.fileBaseUrl` 默认 `http://whale-file:8085`
+> 是容器 DNS，宿主机解析不到，申诉材料会整单失败（`300` 系列的参数错误，日志 `申诉材料元数据查询失败`）。
 
 > 端口被旧进程占着时先停：`Get-NetTCPConnection -LocalPort 19011 -State Listen | %{ Stop-Process -Id $_.OwningProcess -Force }`。
 
@@ -106,6 +110,10 @@ mysql -u<user> -p --default-character-set=utf8mb4 bluewhale_auth < migration-6.4
 
 幂等（`NOT EXISTS`），可反复执行；脚本登记 12 个 `sys:forum:*` 权限、`forum_moderator` 角色、
 授权与 3 个菜单。**预期：tenant_admin 12 项 / forum_moderator 9 项**（`manage:ops` 只授管理员）。
+
+**执行记录**：2026-11-12 实机冒烟时在开发库执行过一次（此前一直是「脚本就绪、库内 0 行」）。
+验证方法：重新登录后 `GET /auth/v1/me`，`permissions` 应比执行前多 12 条并含全部 `sys:forum:*`，
+菜单树出现「论坛 / 论坛管理」。无 mysql 客户端时可用仓库内 JDBC 小工具按文件执行（见 devlog 6.63）。
 
 ## 四、检索（M4）
 
@@ -242,3 +250,36 @@ mysql -u<user> -p --default-character-set=utf8mb4 bluewhale_forum_bak < forum-20
 - [ ] `fm_notify_outbox` 无 `FAILED` 堆积
 - [ ] `fm_report` 待受理工单没有超过 48h 未处理
 - [ ] `fm_sensitive_hit` 中 BLOCK 命中量与舆情/投诉量对得上
+
+## 十、实机冒烟（`scripts/forum-smoke.py`）
+
+服务起好后跑两条命令，报告落 `.workbuddy/tmp/forum-smoke-report.json` / `forum-smoke-rate-report.json`：
+
+```bash
+python scripts/forum-smoke.py          # 全链路 188 例（基线/版块/发帖/回帖/互动/热榜/检索/治理/申诉/结契/对账/越权）
+python scripts/forum-smoke.py --rate   # 限流专项 6 例（默认配置下才有意义）
+```
+
+口径与前置：
+
+- 默认直打本机 `19011`（`FORUM_SMOKE_BASE` 可改），文件服务 `8085`（`FORUM_SMOKE_FILE_BASE` 可改）。
+  与 `mall-smoke.py` / `file-smoke.py` 一致：**绕过网关**，用 `X-User-Id / X-Tenant-Id / X-Permission-Codes`
+  注入可信身份，因此不会因网关权限头问题假失败。
+- **全链路用例不依赖限流回退**：每条写路径都用本轮专属新账号（`95<RUN><序号>`），
+  所以**不要**再为跑冒烟把 `WHALE_FORUM_POST_INTERVAL_SECONDS` 改成 0——默认 60s / 10s 下也全绿。
+- 本地直起必须补 `WHALE_FORUM_FILE_BASE_URL=http://127.0.0.1:8085`
+  （`ForumProperties` 默认 `http://whale-file:8085` 是容器 DNS，宿主机解析不到，申诉材料会整单失败）。
+- 冒烟会真实落库（版块/帖子/标签/申诉/举报/经验/通知），脚本用 `RUN` 后缀隔离数据，
+  可反复执行；`--rate` 用 `91<RUN>` / `92<RUN>` 两个独立账号，避免上一轮的 60 秒间隔污染结论。
+- 断言口径：HTTP 200 且业务码匹配；负向用例钉死业务码（30001/30020/30031/30041/30042/30060/30062/403）。
+  失败清单直接打印在末尾，`rc=1`。
+
+冒烟覆盖到、但日常巡检容易漏的三处真实依赖：
+
+1. **权限点必须先在 `bluewhale_auth` 播种**（§3.3）。库里 0 条 `sys:forum:*` 时服务本身能起、
+   直连注入头也能过，但走网关的真实用户一律 `{"code":403}`——2026-11-12 实机冒烟就是这样抓到的。
+2. **网关镜像要跟着 `application.yml` 里的 `Path=/forum/**` 重建**。只 `package` 不重建镜像时
+   `/forum/**` 会 404「服务不可用」（旧网关注册的是 `/whale-forum/**` 自动发现路由），
+   而 `/forum/internal/**` 仍会 403，容易误判成「路由没问题」。
+3. **`fm_notify_outbox` 的降级与补投**：`bw-message` 挂掉时通知落 `PENDING` + `retry_count`，
+   恢复后 `POST /forum/admin/notify/flush?limit=200` 可一次性补投（实测 161 条 PENDING → 171 SENT，无卡单）。
