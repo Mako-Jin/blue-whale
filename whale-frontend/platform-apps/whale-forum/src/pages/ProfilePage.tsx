@@ -22,6 +22,7 @@ import {
   message,
 } from 'antd';
 import {
+  fetchMyFeed,
   fetchMyFollows,
   fetchMyPosts,
   fetchMyThreads,
@@ -73,6 +74,11 @@ export default function ProfilePage({ boards, onOpenThread }: Props) {
   const [followTotal, setFollowTotal] = useState(0);
   const [followPage, setFollowPage] = useState(1);
   const [followLoading, setFollowLoading] = useState(false);
+
+  const [feed, setFeed] = useState<ThreadListItem[]>([]);
+  const [feedTotal, setFeedTotal] = useState(0);
+  const [feedPage, setFeedPage] = useState(1);
+  const [feedLoading, setFeedLoading] = useState(false);
 
   /** 申诉弹窗：target 为空表示关闭；禁言申诉的 targetId 就是本人 userId */
   const [appealTarget, setAppealTarget] = useState<{
@@ -141,6 +147,20 @@ export default function ProfilePage({ boards, onOpenThread }: Props) {
         setFollowTotal(0);
       })
       .finally(() => setFollowLoading(false));
+  }, []);
+
+  const loadFeed = useCallback((page: number) => {
+    setFeedLoading(true);
+    fetchMyFeed(undefined, page, 20)
+      .then((result) => {
+        setFeed(result.records);
+        setFeedTotal(Number(result.total));
+      })
+      .catch(() => {
+        setFeed([]);
+        setFeedTotal(0);
+      })
+      .finally(() => setFeedLoading(false));
   }, []);
 
   /** 取关：成功后重取当前页，避免本地删行后页码与总数错位 */
@@ -342,6 +362,47 @@ export default function ProfilePage({ boards, onOpenThread }: Props) {
     </>
   );
 
+  const feedItems = (
+    <>
+      <List
+        loading={feedLoading}
+        dataSource={feed}
+        locale={{ emptyText: <Empty description="关注的鲸友与版块还没有新帖" /> }}
+        renderItem={(item) => (
+          <List.Item>
+            <Space size={8} wrap>
+              <Tag color="blue">
+                {boards.find((board) => board.id === item.boardId)?.name ?? `版块 #${item.boardId}`}
+              </Tag>
+              {item.anonymous === 1 ? <Tag>匿名</Tag> : null}
+              {item.essence === 1 ? <Tag color="gold">金榜</Tag> : null}
+              <Button type="link" style={{ padding: 0 }} onClick={() => onOpenThread(item.id)}>
+                {item.title}
+              </Button>
+              <Text type="secondary">
+                回复 {item.replyCount} · 浏览 {item.viewCount} · 投花 {item.likeCount}
+              </Text>
+              <Text type="secondary">{item.publishTime ?? ''}</Text>
+            </Space>
+          </List.Item>
+        )}
+      />
+      {feedTotal > 20 ? (
+        <Pagination
+          style={{ marginTop: 12, textAlign: 'right' }}
+          current={feedPage}
+          pageSize={20}
+          total={feedTotal}
+          showSizeChanger={false}
+          onChange={(page) => {
+            setFeedPage(page);
+            loadFeed(page);
+          }}
+        />
+      ) : null}
+    </>
+  );
+
   return (
     <div className="forum-page">
       {profileError ? (
@@ -413,6 +474,11 @@ export default function ProfilePage({ boards, onOpenThread }: Props) {
               children: followItems,
             },
             {
+              key: 'feed',
+              label: '结契动态',
+              children: feedItems,
+            },
+            {
               key: 'collections',
               label: '我的收藏',
               children: <CollectionsPage onOpenThread={onOpenThread} />,
@@ -427,6 +493,9 @@ export default function ProfilePage({ boards, onOpenThread }: Props) {
             }
             if (key === 'follows' && follows.length === 0 && !followLoading) {
               loadFollows(followPage);
+            }
+            if (key === 'feed' && feed.length === 0 && !feedLoading) {
+              loadFeed(feedPage);
             }
           }}
         />

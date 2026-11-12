@@ -520,6 +520,19 @@ export function fetchMyFollows(
   return request<PageResult<FollowItem>>(`/forum/my/follows?${query.toString()}`);
 }
 
+/** 结契动态（关注作者 ∪ 关注版块的已发布帖，排除本人；boardId 可选） */
+export function fetchMyFeed(
+  boardId?: string,
+  current = 1,
+  size = 20,
+): Promise<PageResult<ThreadListItem>> {
+  const query = new URLSearchParams({ current: String(current), size: String(size) });
+  if (boardId) {
+    query.set('boardId', boardId);
+  }
+  return request<PageResult<ThreadListItem>>(`/forum/my/feed?${query.toString()}`);
+}
+
 /** 编辑帖子（审核版块会退回待审；tags 传空串表示清空，不传表示不改） */
 export function updateThread(
   threadId: string,

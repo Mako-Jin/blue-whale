@@ -342,6 +342,27 @@ public class ThreadServiceImpl implements ThreadService {
     }
 
     @Override
+    public PageResult<ThreadListItemVO> myFeed(Long boardId, long current, long size, ForumActor actor) {
+        Long tenantId = TenantContext.requireId();
+        long pageNo = current < 1 ? 1 : Math.min(current, properties.getMaxPageNumber());
+        long pageSize = normalizeSize(size);
+        // 版块可见性在这里裁一次：关注关系可能早于权限变更建立，不能直接拿来查帖子
+        ThreadQuery query = new ThreadQuery();
+        query.setBoardId(boardId);
+        List<Long> boardIds = visibleBoardIds(query, actor);
+        if (boardIds.isEmpty()) {
+            return PageResult.of(List.of(), 0, pageNo, pageSize);
+        }
+        IPage<ForumThread> page = threadMapper.selectFeedPage(new Page<>(pageNo, pageSize),
+                tenantId, actor.userId(), boardIds);
+        List<ThreadListItemVO> records = new ArrayList<>(page.getRecords().size());
+        for (ForumThread thread : page.getRecords()) {
+            records.add(toListVO(thread));
+        }
+        return PageResult.of(records, page.getTotal(), page.getCurrent(), page.getSize());
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public ThreadDetailVO update(Long id, ThreadUpdateRequest request, ForumActor actor) {
         TenantContext.requireId();

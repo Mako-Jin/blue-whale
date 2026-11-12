@@ -66,4 +66,23 @@ public class MyController {
             HttpServletRequest request) {
         return Result.ok(postService.myPosts(current, size, ForumActor.from(request)));
     }
+
+    /**
+     * 结契动态（关注作者 ∪ 关注版块的已发布帖，排除本人与不可见版块）。
+     *
+     * @param boardId 可选：只看某个版块
+     * @param current 页码
+     * @param size 每页条数
+     * @param request 当前请求
+     * @return 帖子分页
+     */
+    @GetMapping("/feed")
+    @RequirePermission(ForumPermissions.BROWSE)
+    public Result<PageResult<ThreadListItemVO>> feed(
+            @RequestParam(value = "boardId", required = false) Long boardId,
+            @RequestParam(value = "current", defaultValue = "1") Long current,
+            @RequestParam(value = "size", defaultValue = "20") Long size,
+            HttpServletRequest request) {
+        return Result.ok(threadService.myFeed(boardId, current, size, ForumActor.from(request)));
+    }
 }

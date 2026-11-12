@@ -7,6 +7,7 @@ import com.bluewhale.forum.common.ForumActor;
 import com.bluewhale.forum.common.ForumErrorCodes;
 import com.bluewhale.forum.common.ForumPermissions;
 import com.bluewhale.forum.config.ForumProperties;
+import com.bluewhale.forum.dto.BoardVO;
 import com.bluewhale.forum.dto.ThreadCreateRequest;
 import com.bluewhale.forum.dto.ThreadDetailVO;
 import com.bluewhale.forum.dto.ThreadQuery;
@@ -46,8 +47,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -531,6 +534,58 @@ class ThreadServiceImplTest {
         assertThat(result.getTotal()).isEqualTo(1);
         assertThat(result.getRecords()).hasSize(1);
         assertThat(result.getRecords().get(0).getId()).isEqualTo(11L);
+    }
+
+    @Test
+    @DisplayName("结契动态：可见版块下推 SQL，分页结果透传")
+    void myFeedPushesVisibleBoards() {
+        BoardVO visible = new BoardVO();
+        visible.setId(9L);
+        when(boardService.listVisible(any())).thenReturn(List.of(visible));
+        Page<ForumThread> page = new Page<>(1, 20);
+        page.setRecords(List.of(publishedThread()));
+        page.setTotal(1);
+        when(threadMapper.selectFeedPage(any(), eq(1L), eq(100L), anyList())).thenReturn(page);
+
+        var result = threadService.myFeed(null, 1, 20, author());
+
+        assertThat(result.getTotal()).isEqualTo(1);
+        assertThat(result.getRecords()).hasSize(1);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<Long>> captor = ArgumentCaptor.forClass(List.class);
+        verify(threadMapper).selectFeedPage(any(), eq(1L), eq(100L), captor.capture());
+        assertThat(captor.getValue()).containsExactly(9L);
+    }
+
+    @Test
+    @DisplayName("结契动态：指定版块先校验可见性，只查该版块")
+    void myFeedChecksBoardVisibility() {
+        when(boardService.requireVisibleBoard(eq(9L), any())).thenReturn(board(0));
+        Page<ForumThread> page = new Page<>(1, 20);
+        page.setRecords(List.of());
+        page.setTotal(0);
+        when(threadMapper.selectFeedPage(any(), eq(1L), eq(100L), anyList())).thenReturn(page);
+
+        threadService.myFeed(9L, 1, 20, author());
+
+        verify(boardService).requireVisibleBoard(eq(9L), any());
+        verify(boardService, never()).listVisible(any());
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<Long>> captor = ArgumentCaptor.forClass(List.class);
+        verify(threadMapper).selectFeedPage(any(), eq(1L), eq(100L), captor.capture());
+        assertThat(captor.getValue()).containsExactly(9L);
+    }
+
+    @Test
+    @DisplayName("结契动态：没有任何可见版块时直接空结果，不打库")
+    void myFeedReturnsEmptyWhenNoBoardVisible() {
+        when(boardService.listVisible(any())).thenReturn(List.of());
+
+        var result = threadService.myFeed(null, 1, 20, author());
+
+        assertThat(result.getRecords()).isEmpty();
+        assertThat(result.getTotal()).isZero();
+        verify(threadMapper, never()).selectFeedPage(any(), anyLong(), anyLong(), anyList());
     }
 
     /**

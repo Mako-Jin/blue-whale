@@ -103,4 +103,15 @@ public interface ThreadService {
      * @return 帖子分页
      */
     PageResult<ThreadListItemVO> myThreads(long current, long size, ForumActor actor);
+
+    /**
+     * 结契动态分页：关注作者 ∪ 关注版块的已发布帖，排除本人与当前不可见版块。
+     *
+     * @param boardId 可选：只看某个版块（必须可见）
+     * @param current 页码
+     * @param size 条数
+     * @param actor 当前操作者
+     * @return 帖子分页
+     */
+    PageResult<ThreadListItemVO> myFeed(Long boardId, long current, long size, ForumActor actor);
 }

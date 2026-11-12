@@ -241,6 +241,49 @@ public interface ForumThreadMapper extends BaseMapper<ForumThread> {
                                            @Param("reactionType") String reactionType);
 
     /**
+     * 结契动态分页：关注作者 ∪ 关注版块的新帖流。
+     *
+     * <p>作者维度必须带 {@code t.anonymous = 0}：匿名帖能被「关注了谁」命中时，
+     * 关注关系本身就成了反推作者的线索。版块维度不受匿名限制——
+     * 关注版块的人本来就该看到该版块的全部发布态内容。</p>
+     *
+     * <p>版块可见性由调用方先解析成 {@code boardIds} 再下推，不做二次校验：
+     * 关注关系可能早于版块权限变更建立，动态流不能借关注绕过可见性。</p>
+     *
+     * @param page 分页参数
+     * @param tenantId 租户ID
+     * @param userId 用户ID
+     * @param boardIds 可见版块ID（不可为空，空集合由调用方提前返回）
+     * @return 帖子分页
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("""
+            <script>
+            SELECT t.* FROM fm_thread t
+            WHERE t.tenant_id = #{tenantId} AND t.deleted = 0
+              AND t.status IN ('PUBLISHED', 'SOLVED', 'CLOSED')
+              AND t.author_id != #{userId}
+              AND t.board_id IN
+              <foreach collection="boardIds" item="bid" open="(" separator="," close=")">#{bid}</foreach>
+              AND (
+                (t.anonymous = 0 AND EXISTS (
+                   SELECT 1 FROM fm_follow f
+                   WHERE f.tenant_id = #{tenantId} AND f.user_id = #{userId}
+                     AND f.target_type = 'USER' AND f.target_id = t.author_id))
+                OR EXISTS (
+                   SELECT 1 FROM fm_follow f
+                   WHERE f.tenant_id = #{tenantId} AND f.user_id = #{userId}
+                     AND f.target_type = 'BOARD' AND f.target_id = t.board_id)
+              )
+            ORDER BY COALESCE(t.publish_time, t.create_time) DESC, t.id DESC
+            </script>
+            """)
+    IPage<ForumThread> selectFeedPage(IPage<ForumThread> page,
+                                      @Param("tenantId") Long tenantId,
+                                      @Param("userId") Long userId,
+                                      @Param("boardIds") List<Long> boardIds);
+
+    /**
      * 有帖子的租户列表（热榜定时刷新用：定时线程没有租户上下文，必须自己遍历）。
      *
      * @return 租户ID列表

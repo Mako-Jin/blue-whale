@@ -211,6 +211,7 @@ M4 落地口径：检索走 `FULLTEXT(title, content_text) WITH PARSER ngram`（
 | M7-3 结契（P1） | `V11__follow.sql`（`fm_follow`，关注作者 / 版块）；`PUT|DELETE /forum/follow/{targetType}/{targetId}`（幂等）；`GET /forum/follow/{targetType}/{targetId}` 回关注态；`GET /forum/my/follows` 我的关注；发布态新帖向关注者写 outbox 通知（幂等、排除作者本人、单帖上限 `follow-notify-limit`）；前端详情页关注作者、列表页关注版块、「我的」页关注 Tab | 单测覆盖自关注拒绝、版块可见性校验、幂等关注/取关、关注列表分页与通知去重；前端 lint + build；两项门禁全绿 |
 | M7-4 帖子编辑（P1） | 复用 `PUT /forum/thread/{id}`（`sys:forum:thread:edit`）；前端详情页新增编辑弹窗：标题 / 正文 / 标签 / 编辑说明，保存后用响应值回填详情；审核版块保存后提示「等待版主审核」 | 前端 lint + build；两项门禁全绿 |
 | M7-5 申诉（P1） | `V12__appeal.sql`（`fm_appeal`）；`POST /forum/appeal`（对已处置帖子/楼层/当前禁言提交）、`GET /forum/my/appeals`；管理端 `GET /forum/admin/appeal/page`、`POST /forum/admin/appeal/{id}/handle`（通过自动解禁、写 outbox 通知）；前端禁言告警与「已处置」帖子行提供申诉入口，后台新增申诉工单 Tab | 单测覆盖受理范围、归属校验、重复待审拒绝、复核幂等与解禁；前端 lint + build；两项门禁全绿 |
+| M7-6 结契动态（P1） | `GET /forum/my/feed`：按「关注作者 ∪ 关注版块」反查已发布帖，排除本人；匿名帖只按版块维度进流；仅当前可见版块；可选 `boardId` 过滤；按发布时间倒序分页；前端「我的」页新增「结契动态」Tab | 单测覆盖可见范围、匿名不泄露、排除本人、`boardId` 过滤；前端 lint + build；两项门禁全绿 |
 
 ---
 
@@ -299,6 +300,18 @@ M4 落地口径：检索走 `FULLTEXT(title, content_text) WITH PARSER ngram`（
 | 复核副作用 | 通过/驳回只改申诉状态与备注；**仅 `BAN` 申诉通过时自动 `BanService.release`**，内容恢复仍在处置模块手工操作 | 解禁是单一事实源上的状态翻转；自动恢复帖子会绕过处置轨迹与通知，复核不该有跨聚合副作用 |
 | 通知 | 复核结果向申诉人写 outbox（幂等键 `forum:appeal:{appealId}:{status}`），通过/驳回文案区分 | 用户提交申诉后唯一的信息来源就是通知；键带申诉ID与结果，重复处理不会重复打扰 |
 | 权限 | 提交与「我的申诉」用 `sys:forum:browse`；工单列表与复核用 `sys:forum:manage:dispose` | 被禁言用户仍有浏览权限，申诉入口不能因禁言消失；复核与处置同权限，版主与管理员职责一致 |
+
+---
+
+## 8.7 M7-6 结契动态实现口径（P1）
+
+| 项 | 口径 | 为什么 |
+|---|---|---|
+| 数据源 | 一条 SQL 联 `fm_thread` 与 `fm_follow`：`(anonymous=0 AND EXISTS 关注作者) OR EXISTS 关注版块`，只取 `PUBLISHED / SOLVED / CLOSED` 且 `deleted=0`，并排除本人帖子 | 两次查询再内存合并会让 total 不可控、还要自己判重；匿名帖若能被「关注作者」命中，等于用关注关系反推出匿名帖作者 |
+| 可见范围 | 先经 `BoardService.listVisible` 解析可见版块，SQL 内 `board_id IN (...)`；传 `boardId` 时先 `requireVisibleBoard` 且只查该版块 | 关注关系可能早于版块权限变更建立，动态流不能借关注关系绕过版块可见性 |
+| 排序分页 | `ORDER BY COALESCE(publish_time, create_time) DESC, id DESC`，用 `IPage` 单语句分页 | 分页在 SQL 内完成；「先取 ID 再查帖子」两步之间删帖会让 total 与条数漂移，末页出现空白 |
+| 权限 | 只要求 `sys:forum:browse`，不额外要求 `reaction:use` | 动态流是浏览的衍生视图；取关后历史数据仍在，不该因互动权限缺失整页 403 |
+| 前端 | 「我的」页新增「结契动态」Tab，切 Tab 懒加载，条目复用帖子列表项（含匿名标记），点击进详情 | 与「我的帖子」一致的分页与错误隔离，不让动态接口抖动打空整页 |
 
 ---
 
