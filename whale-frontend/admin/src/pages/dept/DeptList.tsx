@@ -25,7 +25,8 @@ import {
 } from '../../api/dept';
 
 interface DeptFormValues {
-  parentId?: number;
+  /** 后端 Long 序列化为字符串 */
+  parentId?: string;
   deptName: string;
   sort?: number;
   leader?: string;
@@ -81,7 +82,7 @@ export default function DeptList() {
 
   const handleSubmit = async (values: DeptFormValues) => {
     try {
-      const payload: DeptPayload = { ...values, parentId: values.parentId ?? 0 };
+      const payload: DeptPayload = { ...values, parentId: values.parentId ?? '0' };
       if (editRecord) {
         await updateDept(editRecord.id, payload);
         message.success('部门已更新');

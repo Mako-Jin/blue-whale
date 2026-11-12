@@ -38,6 +38,7 @@ import type {
   ResetPasswordVO,
 } from './user';
 import type { FileInfoVO } from './file';
+import type { DeptVO, DeptPayload } from './dept';
 import type {
   JobInfoVO,
   JobLogVO,
@@ -158,6 +159,13 @@ export type AssertPayOrderInput = Assert<
   SubsetOf<PayOrderInput, PaySchemas['PayOrderCreateRequest']>
 >;
 
+// ---- 部门（/dept/**） -------------------------------------------------------
+
+export type AssertDeptVO = Assert<SubsetOf<DeptVO, AuthSchemas['DeptVO']>>;
+export type AssertDeptPayload = Assert<
+  SubsetOf<DeptPayload, AuthSchemas['DeptRequest']>
+>;
+
 // ---- 关键口径钉死：Long 一律 string（防手工改回 number） ---------------------
 
 export type AssertUserVOIdIsString = Assert<
@@ -181,6 +189,7 @@ export type AssertFileInfoIdIsString = Assert<
 export type AssertJobInfoIdIsString = Assert<
   Equal<JobInfoVO['id'], string>
 >;
+export type AssertDeptIdIsString = Assert<Equal<DeptVO['id'], string>>;
 export type AssertPayOrderIdIsString = Assert<
   Equal<PayOrderVO['id'], string>
 >;
@@ -191,5 +200,6 @@ export type AssertPayAmountIsNumber = Assert<
 
 // eslint 不检查纯类型，防止被误清空：导出一个运行时空对象占位
 export const CONTRACT_CHECKS = true;
+
 
 

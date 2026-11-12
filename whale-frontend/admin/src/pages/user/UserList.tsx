@@ -229,7 +229,7 @@ export default function UserList() {
       title: '部门',
       dataIndex: 'deptId',
       width: 140,
-      render: (value: number | undefined) =>
+      render: (value: string | undefined) =>
         deptOptions.find((option) => option.value === value)?.label ?? '-',
     },
     {
