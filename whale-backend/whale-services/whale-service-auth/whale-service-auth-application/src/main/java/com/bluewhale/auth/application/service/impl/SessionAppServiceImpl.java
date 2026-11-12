@@ -1,6 +1,6 @@
 package com.bluewhale.auth.application.service.impl;
 
-import com.bluewhale.auth.application.model.AuthRoleCodes;
+import com.bluewhale.auth.domain.model.AuthRoleCodes;
 import com.bluewhale.auth.application.model.AuthenticatedUser;
 import com.bluewhale.auth.application.model.TokenPayload;
 import com.bluewhale.auth.application.model.command.LoginCommand;
@@ -170,7 +170,7 @@ public class SessionAppServiceImpl implements SessionAppService {
      */
     public List<TenantResult> listTenants(TenantListQuery query) {
         AuthenticatedUser current = currentUserProvider.current();
-        return tenantMembershipAppService.listMyTenants(current.userId(), current.tenantId());
+        return tenantMembershipAppService.listMyTenants(current.userId(), current.tokenTenantId());
     }
 
     /**
@@ -196,7 +196,7 @@ public class SessionAppServiceImpl implements SessionAppService {
         }
         invalidateSwitchTokens(command.authorization(), command.currentRefreshToken());
         log.info("用户切换租户: userId={}, fromTenantId={}, toTenantId={}",
-            current.userId(), current.tenantId(), targetTenantId);
+            current.userId(), current.tokenTenantId(), targetTenantId);
         return buildLoginResult(switched, UUID.randomUUID().toString());
     }
 
@@ -231,7 +231,7 @@ public class SessionAppServiceImpl implements SessionAppService {
      */
     public CurrentUserResult me(CurrentUserQuery query) {
         AuthenticatedUser current = currentUserProvider.current();
-        List<String> roles = current.roles();
+        List<String> roles = List.copyOf(current.roles());
         boolean superAdmin = roles.contains(AuthRoleCodes.SUPER_ADMIN);
         List<String> permissions = superAdmin
             ? permissionAppService.listAllCodes()
@@ -240,7 +240,7 @@ public class SessionAppServiceImpl implements SessionAppService {
             ? menuAppService.treeByPermissionCodes(null)
             : menuAppService.treeByPermissionCodes(Set.copyOf(permissions));
         return new CurrentUserResult(
-            current.tenantId(), current.userId(), current.username(), current.nickname(),
+            current.tokenTenantId(), current.userId(), current.username(), current.nickname(),
             roles, permissions, menus);
     }
 
@@ -431,21 +431,21 @@ public class SessionAppServiceImpl implements SessionAppService {
      */
     private LoginResult buildLoginResult(AuthenticatedUser user, String familyId) {
         // REQ-SEC-023：有效期按用户所属租户的生效策略计算，未配置时回退全局默认
-        int maxAgeDays = tenantPasswordPolicyService.maxAgeDays(user.tenantId());
+        int maxAgeDays = tenantPasswordPolicyService.maxAgeDays(user.tokenTenantId());
         LocalDateTime now = LocalDateTime.now();
         // 到期判定与剩余天数统一复用领域口径（User 静态方法），避免应用层双实现漂移
         boolean passwordExpired = UserAggregate.isPasswordExpired(user.passwordUpdatedTime(), now, maxAgeDays);
         long expiresInDays = UserAggregate.passwordExpiresInDays(user.passwordUpdatedTime(), now, maxAgeDays);
         boolean mustChange = user.mustChangePassword() || passwordExpired;
-        List<String> roles = user.roles();
+        List<String> roles = List.copyOf(user.roles());
         String refreshToken = tokenIssuer.issueRefreshToken(
-            user.tenantId(), user.userId(), user.username(), familyId);
+            user.tokenTenantId(), user.userId(), user.username(), familyId);
         String accessToken = tokenIssuer.issueAccessToken(
-            user.tenantId(), user.userId(), user.username(), roles, mustChange);
+            user.tokenTenantId(), user.userId(), user.username(), roles, mustChange);
         // T-03 / REQ-SEC-023：强制首登改密或口令到期，登录/刷新/切换结果统一透出该标记
         return new LoginResult(
             accessToken, "Bearer", tokenIssuer.accessExpireSeconds(),
-            user.userId(), user.tenantId(), user.username(), user.nickname(), roles,
+            user.userId(), user.tokenTenantId(), user.username(), user.nickname(), roles,
             mustChange, passwordExpired, expiresInDays, refreshToken);
     }
 

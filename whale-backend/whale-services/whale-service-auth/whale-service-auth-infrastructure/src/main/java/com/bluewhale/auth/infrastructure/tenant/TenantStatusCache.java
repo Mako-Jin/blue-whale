@@ -2,7 +2,7 @@ package com.bluewhale.auth.infrastructure.tenant;
 
 import com.bluewhale.auth.application.port.TenantStatusSyncPort;
 import com.bluewhale.auth.domain.aggregate.Tenant;
-import com.bluewhale.auth.domain.aggregate.TenantExpiryClock;
+import com.bluewhale.auth.domain.model.TenantExpiryClock;
 import com.bluewhale.auth.domain.repository.TenantRepository;
 import com.bluewhale.security.token.TenantStatusKeys;
 import lombok.RequiredArgsConstructor;

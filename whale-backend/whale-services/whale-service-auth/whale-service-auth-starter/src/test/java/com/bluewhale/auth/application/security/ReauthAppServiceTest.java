@@ -12,6 +12,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -72,7 +73,7 @@ class ReauthAppServiceTest {
     }
 
     private static AuthenticatedUser user(Long userId) {
-        return new AuthenticatedUser(TENANT_ID, userId, USERNAME, "Alice", List.of("admin"), true, false);
+        return new AuthenticatedUser(TENANT_ID, userId, USERNAME, "Alice", Set.of("admin"), true, false);
     }
 
     @Test

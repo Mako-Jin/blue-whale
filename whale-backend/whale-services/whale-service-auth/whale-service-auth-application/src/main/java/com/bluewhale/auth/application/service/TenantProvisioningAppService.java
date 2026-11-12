@@ -20,9 +20,6 @@ import java.util.Set;
  */
 public interface TenantProvisioningAppService {
 
-    /** 新租户默认管理员角色编码 */
-    public static final String DEFAULT_TENANT_ADMIN_ROLE = "tenant_admin";
-
     /**
      * 业务角色模板编码：模板由 {@code migration-5.65-business-role-grant.sql}、
      * {@code migration-5.66-pm-role-template.sql}、{@code migration-5.74-doc.sql}

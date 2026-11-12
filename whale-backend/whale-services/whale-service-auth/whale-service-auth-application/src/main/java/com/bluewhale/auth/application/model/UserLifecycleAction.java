@@ -1,8 +1,5 @@
 package com.bluewhale.auth.application.model;
 
-import com.bluewhale.common.core.exception.BizException;
-import com.bluewhale.common.core.exception.ErrorCode;
-
 /**
  * 人员生命周期动作枚举：OA 人事异动审批通过后同步 Auth 账号的动作类型。
  *
@@ -34,16 +31,16 @@ public enum UserLifecycleAction {
      *
      * @param raw 原始动作字符串（如 {@code "onboard"}）
      * @return 对应枚举值
-     * @throws BizException 空值或未识别的动作时抛出 400
+     * @throws IllegalArgumentException 空值或未识别的动作时抛出（由应用服务转 BizException）
      */
     public static UserLifecycleAction fromAction(String raw) {
         if (raw == null || raw.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "生命周期动作不能为空");
+            throw new IllegalArgumentException("生命周期动作不能为空");
         }
         try {
             return valueOf(raw.trim().toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "不支持的生命周期动作：" + raw);
+            throw new IllegalArgumentException("不支持的生命周期动作：" + raw);
         }
     }
 }

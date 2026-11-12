@@ -1,6 +1,6 @@
 package com.bluewhale.auth.infrastructure.security;
 
-import com.bluewhale.auth.application.model.AuthRoleCodes;
+import com.bluewhale.auth.domain.model.AuthRoleCodes;
 import com.bluewhale.auth.domain.repository.RoleRepository;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;

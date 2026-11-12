@@ -1,5 +1,6 @@
 package com.bluewhale.auth.domain.aggregate;
 
+import com.bluewhale.auth.domain.model.TenantExpiryClock;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.domain.exception.DomainException;
 import com.bluewhale.common.domain.model.Entity;

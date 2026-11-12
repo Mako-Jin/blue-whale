@@ -23,6 +23,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.Optional;
 import java.util.function.Consumer;
 
@@ -90,7 +91,7 @@ class PasswordAppServiceTest {
 
     private void givenCurrentUser() {
         when(currentUserProvider.current()).thenReturn(new AuthenticatedUser(TENANT_ID, USER_ID, "alice_01", "Alice",
-                List.of("tenant_admin"), true, true));
+                Set.of("tenant_admin"), true, true));
     }
 
     @Test

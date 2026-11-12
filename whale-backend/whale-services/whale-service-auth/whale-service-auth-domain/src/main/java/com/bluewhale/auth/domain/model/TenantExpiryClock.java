@@ -1,4 +1,4 @@
-package com.bluewhale.auth.domain.aggregate;
+package com.bluewhale.auth.domain.model;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;

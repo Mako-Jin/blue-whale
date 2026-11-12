@@ -50,21 +50,21 @@ public class ReauthAppServiceImpl implements ReauthAppService {
      */
     public ReauthResult reauthenticate(String rawPassword) {
         AuthenticatedUser current = currentUserProvider.current();
-        loginLockService.ensureUnlocked(current.tenantId(), current.username());
+        loginLockService.ensureUnlocked(current.tokenTenantId(), current.username());
         AuthenticatedUser verified;
         try {
             verified = credentialAuthenticator.authenticate(
-                    current.tenantId(), current.username(), rawPassword);
+                    current.tokenTenantId(), current.username(), rawPassword);
         } catch (InvalidCredentialException e) {
-            loginLockService.recordFailure(current.tenantId(), current.username());
+            loginLockService.recordFailure(current.tokenTenantId(), current.username());
             throw e;
         }
-        loginLockService.clear(current.tenantId(), current.username());
+        loginLockService.clear(current.tokenTenantId(), current.username());
         // 防御：认证结果必须与当前登录身份一致，避免租户/账号错位时误发凭证
         if (!current.userId().equals(verified.userId())) {
             throw new BizException(ErrorCode.UNAUTHORIZED);
         }
-        String token = reauthTokenStore.issue(current.tenantId(), current.userId());
+        String token = reauthTokenStore.issue(current.tokenTenantId(), current.userId());
         return new ReauthResult(token, reauthTokenStore.ttlSeconds());
     }
 
@@ -79,6 +79,6 @@ public class ReauthAppServiceImpl implements ReauthAppService {
             return false;
         }
         AuthenticatedUser current = currentUserProvider.current();
-        return reauthTokenStore.matches(current.tenantId(), current.userId(), token);
+        return reauthTokenStore.matches(current.tokenTenantId(), current.userId(), token);
     }
 }

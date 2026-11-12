@@ -10,7 +10,7 @@ import com.bluewhale.auth.domain.event.UserDomainEvent;
 import com.bluewhale.auth.domain.aggregate.Role;
 import com.bluewhale.auth.domain.repository.RoleRepository;
 import com.bluewhale.auth.domain.aggregate.Tenant;
-import com.bluewhale.auth.domain.aggregate.TenantExpiryClock;
+import com.bluewhale.auth.domain.model.TenantExpiryClock;
 import com.bluewhale.auth.domain.repository.TenantRepository;
 import com.bluewhale.auth.domain.aggregate.UserAggregate;
 import com.bluewhale.auth.domain.repository.UserRepository;

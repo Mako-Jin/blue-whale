@@ -8,6 +8,7 @@ import com.bluewhale.auth.application.service.TenantAppService;
 import com.bluewhale.auth.application.service.TenantMembershipAppService;
 import com.bluewhale.auth.application.service.TenantProvisioningAppService;
 import com.bluewhale.auth.domain.aggregate.Dept;
+import com.bluewhale.auth.domain.model.AuthRoleCodes;
 import com.bluewhale.auth.domain.repository.DeptRepository;
 import com.bluewhale.auth.domain.aggregate.Menu;
 import com.bluewhale.auth.domain.repository.MenuRepository;
@@ -55,9 +56,6 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class TenantProvisioningAppServiceImpl implements TenantProvisioningAppService {
-
-    /** 新租户默认管理员角色编码 */
-    public static final String DEFAULT_TENANT_ADMIN_ROLE = "tenant_admin";
 
     /**
      * 业务角色模板编码：模板由 {@code migration-5.65-business-role-grant.sql}、
@@ -142,7 +140,7 @@ public class TenantProvisioningAppServiceImpl implements TenantProvisioningAppSe
         List<Long> permissionIds = tenantGrantablePermissions.stream()
                 .map(Permission::getId)
                 .toList();
-        Role adminRole = roleRepository.save(Role.create(tenantId, RoleCode.of(DEFAULT_TENANT_ADMIN_ROLE),
+        Role adminRole = roleRepository.save(Role.create(tenantId, RoleCode.of(AuthRoleCodes.TENANT_ADMIN),
                 "租户管理员", "租户开通时自动创建，管理本租户用户、角色、菜单与部门", 0, Role.STATUS_ENABLED));
         roleRepository.replacePermissions(adminRole.getId(), adminRole.assignPermissions(permissionIds));
 

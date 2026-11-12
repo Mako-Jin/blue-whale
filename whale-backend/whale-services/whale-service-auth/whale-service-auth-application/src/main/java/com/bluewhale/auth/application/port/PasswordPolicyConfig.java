@@ -79,11 +79,4 @@ public interface PasswordPolicyConfig {
      * @return 强制改密返回 {@code true}
      */
     boolean isForceChangeOnCreate();
-
-    /**
-     * 到期提醒定时任务 cron
-     *
-     * @return cron 表达式（默认每日 02:00）
-     */
-    String getNoticeCron();
 }

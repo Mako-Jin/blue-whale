@@ -67,8 +67,13 @@ public class UserLifecycleAppServiceImpl implements UserLifecycleAppService {
      */
     @Transactional(rollbackFor = Exception.class)
     public UserLifecycleVO apply(UserLifecycleCommand command) {
-        // 动作字符串统一在枚举处映射与校验（大小写不敏感），非法动作 400
-        UserLifecycleAction action = UserLifecycleAction.fromAction(command.action());
+        // 动作字符串统一在枚举处映射与校验（大小写不敏感）；枚举抛 IAE，应用服务转 400
+        UserLifecycleAction action;
+        try {
+            action = UserLifecycleAction.fromAction(command.action());
+        } catch (IllegalArgumentException e) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), e.getMessage());
+        }
         return switch (action) {
             case ONBOARD -> onboard(command);
             case REGULAR -> regular(command);

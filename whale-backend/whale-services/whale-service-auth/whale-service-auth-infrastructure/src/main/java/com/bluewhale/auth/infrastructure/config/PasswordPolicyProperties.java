@@ -47,7 +47,4 @@ public class PasswordPolicyProperties implements PasswordPolicyConfig {
 
     /** 新建/更新/重置口令后是否强制目标用户下次登录改密 */
     private boolean forceChangeOnCreate = true;
-
-    /** 到期提醒定时任务 cron（默认每日 02:00） */
-    private String noticeCron = "0 0 2 * * ?";
 }

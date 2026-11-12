@@ -1,6 +1,6 @@
 package com.bluewhale.auth.application.auth;
 
-import com.bluewhale.auth.application.model.AuthRoleCodes;
+import com.bluewhale.auth.domain.model.AuthRoleCodes;
 import com.bluewhale.auth.application.model.AuthenticatedUser;
 import com.bluewhale.auth.application.port.RefreshRotationPolicy;
 import com.bluewhale.auth.application.model.TokenPayload;
@@ -181,7 +181,7 @@ class SessionAppServiceTest {
         when(tokenIssuer.parse(REFRESH_TOKEN)).thenReturn(refreshPayload(TENANT_ID, USER_ID));
         when(tokenBlacklist.contains(REFRESH_TOKEN)).thenReturn(false);
         when(userSessionQuery.loadUserById(USER_ID, TENANT_ID))
-                .thenReturn(Optional.of(new AuthenticatedUser(TENANT_ID, USER_ID, USERNAME, "Alice", List.of("admin"), true, false)));
+                .thenReturn(Optional.of(new AuthenticatedUser(TENANT_ID, USER_ID, USERNAME, "Alice", Set.of("admin"), true, false)));
         when(tokenIssuer.issueAccessToken(TENANT_ID, USER_ID, USERNAME, List.of("admin"), false))
                 .thenReturn("new-access");
         // 轮换默认关闭：familyId 原样透传（载荷未携带即 null）
@@ -204,7 +204,7 @@ class SessionAppServiceTest {
                 .thenReturn(new TokenPayload(USERNAME, TENANT_ID, USER_ID, TokenPayload.TYPE_REFRESH, null, null, issuedAtMillis));
         when(tokenBlacklist.contains(REFRESH_TOKEN)).thenReturn(false);
         when(userSessionQuery.loadUserById(USER_ID, TENANT_ID))
-                .thenReturn(Optional.of(new AuthenticatedUser(TENANT_ID, USER_ID, USERNAME, "Alice", List.of("admin"), true, false)));
+                .thenReturn(Optional.of(new AuthenticatedUser(TENANT_ID, USER_ID, USERNAME, "Alice", Set.of("admin"), true, false)));
         when(userAccessRevocationPort.isRevoked(USER_ID, issuedAt)).thenReturn(true);
 
         BizException ex = assertThrows(BizException.class, () -> sessionAppService.refresh(new RefreshCommand(REFRESH_TOKEN)));
@@ -223,7 +223,7 @@ class SessionAppServiceTest {
                 .thenReturn(new TokenPayload(USERNAME, TENANT_ID, USER_ID, TokenPayload.TYPE_REFRESH, null, null, issuedAtMillis));
         when(tokenBlacklist.contains(REFRESH_TOKEN)).thenReturn(false);
         when(userSessionQuery.loadUserById(USER_ID, TENANT_ID))
-                .thenReturn(Optional.of(new AuthenticatedUser(TENANT_ID, USER_ID, USERNAME, "Alice", List.of("admin"), true, false)));
+                .thenReturn(Optional.of(new AuthenticatedUser(TENANT_ID, USER_ID, USERNAME, "Alice", Set.of("admin"), true, false)));
         when(userAccessRevocationPort.isRevoked(USER_ID, issuedAt)).thenReturn(false);
         when(tokenIssuer.issueAccessToken(TENANT_ID, USER_ID, USERNAME, List.of("admin"), false))
                 .thenReturn("new-access");
@@ -246,7 +246,7 @@ class SessionAppServiceTest {
         when(refreshRotationStore.isFamilyRevoked(FAMILY_ID)).thenReturn(false);
         when(tokenBlacklist.contains(REFRESH_TOKEN)).thenReturn(false);
         when(userSessionQuery.loadUserById(USER_ID, TENANT_ID))
-                .thenReturn(Optional.of(new AuthenticatedUser(TENANT_ID, USER_ID, USERNAME, "Alice", List.of("admin"), true, false)));
+                .thenReturn(Optional.of(new AuthenticatedUser(TENANT_ID, USER_ID, USERNAME, "Alice", Set.of("admin"), true, false)));
         when(tokenIssuer.remainingValiditySeconds(REFRESH_TOKEN)).thenReturn(REMAINING_SECONDS);
         when(refreshRotationStore.markUsed(JTI, REMAINING_SECONDS)).thenReturn(true);
         when(tokenIssuer.issueAccessToken(TENANT_ID, USER_ID, USERNAME, List.of("admin"), false))
@@ -271,7 +271,7 @@ class SessionAppServiceTest {
         when(refreshRotationStore.isFamilyRevoked(FAMILY_ID)).thenReturn(false);
         when(tokenBlacklist.contains(REFRESH_TOKEN)).thenReturn(false);
         when(userSessionQuery.loadUserById(USER_ID, TENANT_ID))
-                .thenReturn(Optional.of(new AuthenticatedUser(TENANT_ID, USER_ID, USERNAME, "Alice", List.of("admin"), true, false)));
+                .thenReturn(Optional.of(new AuthenticatedUser(TENANT_ID, USER_ID, USERNAME, "Alice", Set.of("admin"), true, false)));
         when(tokenIssuer.remainingValiditySeconds(REFRESH_TOKEN)).thenReturn(REMAINING_SECONDS);
         when(refreshRotationStore.markUsed(JTI, REMAINING_SECONDS)).thenReturn(false);
         when(tokenIssuer.refreshExpireSeconds()).thenReturn(REFRESH_EXPIRE_SECONDS);
@@ -339,7 +339,7 @@ class SessionAppServiceTest {
     @DisplayName("me：内置超管授予全量权限码与全部启用可见菜单")
     void meShouldGrantAllForSuperAdmin() {
         when(currentUserProvider.current()).thenReturn(new AuthenticatedUser(TENANT_ID, USER_ID, USERNAME, "Admin",
-                List.of(AuthRoleCodes.SUPER_ADMIN), true, false));
+                Set.of(AuthRoleCodes.SUPER_ADMIN), true, false));
         when(permissionAppService.listAllCodes()).thenReturn(List.of("sys:user:list", "sys:role:list"));
         when(menuAppService.treeByPermissionCodes(null)).thenReturn(List.of(new MenuVO()));
 
@@ -354,7 +354,7 @@ class SessionAppServiceTest {
     @DisplayName("me：普通用户按角色授权返回权限码并据此过滤菜单树")
     void meShouldReturnGrantedPermissionsForNormalUser() {
         when(currentUserProvider.current()).thenReturn(
-                new AuthenticatedUser(TENANT_ID, USER_ID, USERNAME, "Alice", List.of("admin"), true, false));
+                new AuthenticatedUser(TENANT_ID, USER_ID, USERNAME, "Alice", Set.of("admin"), true, false));
         when(roleAppService.listPermissionCodesByUserId(USER_ID)).thenReturn(List.of("sys:user:list"));
         when(menuAppService.treeByPermissionCodes(Set.of("sys:user:list"))).thenReturn(List.of(new MenuVO()));
 
@@ -393,7 +393,7 @@ class SessionAppServiceTest {
     @DisplayName("listTenants：按当前登录用户与当前租户返回可进入租户列表")
     void listTenantsShouldDelegateToMembershipService() {
         when(currentUserProvider.current()).thenReturn(
-                new AuthenticatedUser(TENANT_ID, USER_ID, USERNAME, "Alice", List.of("admin"), true, false));
+                new AuthenticatedUser(TENANT_ID, USER_ID, USERNAME, "Alice", Set.of("admin"), true, false));
         TenantResult current = new TenantResult(TENANT_ID, "default", "默认租户", true);
         when(tenantMembershipAppService.listMyTenants(USER_ID, TENANT_ID)).thenReturn(List.of(current));
 
@@ -407,10 +407,10 @@ class SessionAppServiceTest {
     @DisplayName("switchTenant：校验关系后按同一 userId 签发目标租户令牌，并失效旧 access/refresh")
     void switchTenantShouldIssueTokensForTargetTenant() {
         when(currentUserProvider.current()).thenReturn(
-                new AuthenticatedUser(TENANT_ID, USER_ID, USERNAME, "Alice", List.of("admin"), true, false));
+                new AuthenticatedUser(TENANT_ID, USER_ID, USERNAME, "Alice", Set.of("admin"), true, false));
         long targetTenantId = 2L;
         when(userSessionQuery.loadUserById(USER_ID, targetTenantId)).thenReturn(
-                Optional.of(new AuthenticatedUser(targetTenantId, USER_ID, USERNAME, "Alice", List.of("tenant_admin"), true, false)));
+                Optional.of(new AuthenticatedUser(targetTenantId, USER_ID, USERNAME, "Alice", Set.of("tenant_admin"), true, false)));
         when(tokenIssuer.issueAccessToken(targetTenantId, USER_ID, USERNAME, List.of("tenant_admin"), false))
                 .thenReturn("new-access");
         when(tokenIssuer.issueRefreshToken(
@@ -434,7 +434,7 @@ class SessionAppServiceTest {
     @DisplayName("switchTenant：无权进入目标租户时返回 403，不签发令牌")
     void switchTenantShouldRejectNonMember() {
         when(currentUserProvider.current()).thenReturn(
-                new AuthenticatedUser(TENANT_ID, USER_ID, USERNAME, "Alice", List.of("admin"), true, false));
+                new AuthenticatedUser(TENANT_ID, USER_ID, USERNAME, "Alice", Set.of("admin"), true, false));
         long targetTenantId = 2L;
         doThrow(new BizException(403, "无权进入该租户"))
                 .when(tenantMembershipAppService).requireSwitchable(USER_ID, targetTenantId);
@@ -508,7 +508,7 @@ class SessionAppServiceTest {
     void loginShouldClearFailureOnSuccess() {
         when(tenantAppService.resolveEnabledTenantId("default")).thenReturn(TENANT_ID);
         when(credentialAuthenticator.authenticate(TENANT_ID, USERNAME, "secret1"))
-                .thenReturn(new AuthenticatedUser(TENANT_ID, USER_ID, USERNAME, "Alice", List.of("admin"), true, false));
+                .thenReturn(new AuthenticatedUser(TENANT_ID, USER_ID, USERNAME, "Alice", Set.of("admin"), true, false));
         when(userRepository.findByIdAcrossTenants(USER_ID)).thenReturn(Optional.empty());
         when(tokenIssuer.issueAccessToken(TENANT_ID, USER_ID, USERNAME, List.of("admin"), false))
                 .thenReturn("new-access");

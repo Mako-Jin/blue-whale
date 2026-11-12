@@ -1,7 +1,7 @@
 package com.bluewhale.auth.infrastructure.event;
 
 import com.bluewhale.auth.application.event.DomainEventPublisher;
-import com.bluewhale.auth.domain.event.AuthDomainEvent;
+import com.bluewhale.common.domain.event.DomainEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
@@ -29,7 +29,7 @@ public class SpringDomainEventPublisher implements DomainEventPublisher {
     }
 
     @Override
-    public void publish(AuthDomainEvent event) {
+    public void publish(DomainEvent event) {
         publisher.publishEvent(event);
     }
 }

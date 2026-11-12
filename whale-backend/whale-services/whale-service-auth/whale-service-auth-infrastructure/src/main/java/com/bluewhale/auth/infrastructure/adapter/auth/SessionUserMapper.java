@@ -3,6 +3,8 @@ package com.bluewhale.auth.infrastructure.adapter.auth;
 import com.bluewhale.auth.application.model.AuthenticatedUser;
 import com.bluewhale.auth.infrastructure.security.LoginUser;
 
+import java.util.Set;
+
 /**
  * 登录用户适配器：把 Spring Security 的 {@link LoginUser} 转换为应用层快照。
  *
@@ -24,7 +26,7 @@ final class SessionUserMapper {
      */
     static AuthenticatedUser toAuthenticatedUser(LoginUser loginUser) {
         return new AuthenticatedUser(loginUser.getTenantId(), loginUser.getUserId(), loginUser.getUsername(),
-                loginUser.getNickname(), loginUser.getRoles(), loginUser.isEnabled(),
+                loginUser.getNickname(), Set.copyOf(loginUser.getRoles()), loginUser.isEnabled(),
                 loginUser.isMustChangePassword(), loginUser.getPasswordUpdatedTime());
     }
 }

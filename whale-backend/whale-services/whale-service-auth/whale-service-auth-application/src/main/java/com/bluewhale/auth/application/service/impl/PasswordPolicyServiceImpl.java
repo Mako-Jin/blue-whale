@@ -1,13 +1,13 @@
 package com.bluewhale.auth.application.service.impl;
 
-import com.bluewhale.auth.application.model.PasswordPolicy;
 import com.bluewhale.auth.application.port.PasswordHasher;
 import com.bluewhale.auth.application.port.PasswordPolicyConfig;
 import com.bluewhale.auth.application.service.PasswordPolicyService;
+import com.bluewhale.auth.domain.model.vo.PasswordPolicy;
 import com.bluewhale.auth.domain.repository.PasswordHistoryRepository;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
-import lombok.RequiredArgsConstructor;
+import com.bluewhale.common.domain.exception.DomainException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -16,12 +16,14 @@ import java.util.List;
  * 口令策略服务（REQ-SEC-021 / REQ-SEC-023）：统一强度校验、历史复用校验、加密与历史记录。
  *
  * <p>四条口令入口（创建用户 / 更新用户 / 自助改密 / 管理员重置）都经由本服务，
- * 避免策略在接口层分散实现导致口径漂移。</p>
+ * 避免策略在接口层分散实现导致口径漂移。强度规则下沉为领域值对象
+ * {@link PasswordPolicy}（REQ-ARCH-001），本服务负责将 {@link PasswordPolicyConfig}
+ * 端口映射为领域对象并在构造时缓存（配置绑定后不变），校验失败捕获
+ * {@link DomainException} 转换为 {@link BizException} 对外口径。</p>
  *
  * @author BlueWhale
  */
 @Service
-@RequiredArgsConstructor
 public class PasswordPolicyServiceImpl implements PasswordPolicyService {
 
     /** 口令策略配置 */
@@ -33,14 +35,48 @@ public class PasswordPolicyServiceImpl implements PasswordPolicyService {
     /** 口令历史仓储端口 */
     private final PasswordHistoryRepository passwordHistoryRepository;
 
+    /** 由配置映射并缓存的领域强度策略（配置绑定后不变，避免每次校验重建） */
+    private final PasswordPolicy policy;
+
+    /**
+     * 构造器注入并缓存领域策略
+     *
+     * @param properties 口令策略配置
+     * @param passwordHasher 口令加密端口
+     * @param passwordHistoryRepository 口令历史仓储端口
+     */
+    public PasswordPolicyServiceImpl(PasswordPolicyConfig properties, PasswordHasher passwordHasher,
+                                     PasswordHistoryRepository passwordHistoryRepository) {
+        this.properties = properties;
+        this.passwordHasher = passwordHasher;
+        this.passwordHistoryRepository = passwordHistoryRepository;
+        this.policy = toDomainPolicy(properties);
+    }
+
+    /**
+     * 将配置端口映射为领域强度策略（应用层 → 领域方向的唯一映射点）
+     *
+     * @param config 口令策略配置
+     * @return 领域强度策略值对象
+     */
+    private static PasswordPolicy toDomainPolicy(PasswordPolicyConfig config) {
+        return new PasswordPolicy(config.getMinLength(), config.getMaxLength(),
+                config.isRequireUpper(), config.isRequireLower(),
+                config.isRequireDigit(), config.isRequireSpecial());
+    }
+
     /**
      * 校验明文口令强度
      *
      * @param rawPassword 明文口令
-     * @param username 用户名（口令不得包含）
+     * @param username 用户名（口令与用户名不得互相包含）
      */
     public void validate(String rawPassword, String username) {
-        PasswordPolicy.from(properties).validate(rawPassword, username);
+        try {
+            policy.validate(rawPassword, username);
+        } catch (DomainException e) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), e.getMessage());
+        }
     }
 
     /**
