@@ -1,20 +1,20 @@
 package com.bluewhale.auth.application.service.impl;
 
-import com.bluewhale.auth.application.model.command.SaveDeptCommand;
 import com.bluewhale.auth.application.event.DomainEventPublisher;
+import com.bluewhale.auth.application.model.command.SaveDeptCommand;
+import com.bluewhale.auth.application.model.vo.DeptLeaderVO;
+import com.bluewhale.auth.application.model.vo.DeptVO;
+import com.bluewhale.auth.application.service.DeptAppService;
 import com.bluewhale.auth.domain.dept.aggregate.Dept;
 import com.bluewhale.auth.domain.dept.repository.DeptRepository;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.DeptDomainEvent;
-import com.bluewhale.common.tenant.TenantContext;
-import com.bluewhale.auth.application.model.vo.DeptLeaderVO;
-import com.bluewhale.auth.application.model.vo.DeptVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.tenant.TenantContext;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import com.bluewhale.auth.application.service.DeptAppService;
 
 /**
  * 部门应用服务（AUTH-17 / T-DDD-9）

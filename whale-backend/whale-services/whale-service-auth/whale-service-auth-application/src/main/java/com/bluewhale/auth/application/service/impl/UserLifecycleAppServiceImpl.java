@@ -3,20 +3,20 @@ package com.bluewhale.auth.application.service.impl;
 import com.bluewhale.auth.application.event.DomainEventPublisher;
 import com.bluewhale.auth.application.model.command.CreateUserCommand;
 import com.bluewhale.auth.application.model.command.UserLifecycleCommand;
+import com.bluewhale.auth.application.model.vo.UserLifecycleVO;
+import com.bluewhale.auth.application.model.vo.UserVO;
 import com.bluewhale.auth.application.service.PasswordPolicyService;
+import com.bluewhale.auth.application.service.UserAppService;
+import com.bluewhale.auth.application.service.UserLifecycleAppService;
 import com.bluewhale.auth.application.service.impl.TemporaryPasswordGenerator;
 import com.bluewhale.auth.domain.event.AuthDomainEvent;
 import com.bluewhale.auth.domain.event.UserDomainEvent;
 import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
-import com.bluewhale.auth.application.model.vo.UserVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.bluewhale.auth.application.model.vo.UserLifecycleVO;
-import com.bluewhale.auth.application.service.UserAppService;
-import com.bluewhale.auth.application.service.UserLifecycleAppService;
 
 /**
  * 人员生命周期应用服务：供 OA 人事异动审批通过后同步 Auth 账号状态与部门。

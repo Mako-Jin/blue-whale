@@ -1,13 +1,13 @@
 package com.bluewhale.auth.application.service.impl;
 
+import com.bluewhale.auth.application.model.TenantConfigEntry;
 import com.bluewhale.auth.application.model.command.SaveTenantConfigCommand;
 import com.bluewhale.auth.application.port.TenantConfigRepository;
+import com.bluewhale.auth.application.service.TenantConfigAppService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import com.bluewhale.auth.application.model.TenantConfigEntry;
-import com.bluewhale.auth.application.service.TenantConfigAppService;
 
 /**
  * 租户配置应用服务：租户管理员维护本租户的默认值层。

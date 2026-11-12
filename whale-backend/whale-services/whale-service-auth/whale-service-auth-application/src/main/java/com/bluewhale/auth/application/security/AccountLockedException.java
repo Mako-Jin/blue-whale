@@ -1,8 +1,8 @@
 package com.bluewhale.auth.application.security;
 
+import com.bluewhale.auth.application.service.LoginLockService;
 import com.bluewhale.common.core.exception.BizException;
 import lombok.Getter;
-import com.bluewhale.auth.application.service.LoginLockService;
 
 /**
  * 账号锁定异常（Wave 6.28）

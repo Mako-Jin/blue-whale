@@ -1,8 +1,9 @@
 package com.bluewhale.auth.application.service.impl;
 
+import com.bluewhale.auth.application.model.vo.ConfigBatchItemVO;
 import com.bluewhale.auth.application.port.TenantConfigRepository;
 import com.bluewhale.auth.application.port.UserConfigRepository;
-import com.bluewhale.auth.application.model.vo.ConfigBatchItemVO;
+import com.bluewhale.auth.application.service.UserConfigBatchService;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +14,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import com.bluewhale.auth.application.service.UserConfigBatchService;
 
 /**
  * 用户配置批量合并读取服务（供 whale-message 等服务经内网端点调用）。

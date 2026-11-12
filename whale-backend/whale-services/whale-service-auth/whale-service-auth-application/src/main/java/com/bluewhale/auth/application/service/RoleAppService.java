@@ -16,6 +16,7 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.tenant.TenantContext;
+
 import java.util.List;
 
 /**
@@ -40,7 +41,7 @@ public interface RoleAppService {
      * @param query 角色分页查询条件
      * @return 角色分页结果
      */
-    public PageResult<RoleVO> page(RolePageQuery query);
+    PageResult<RoleVO> page(RolePageQuery query);
 
     /**
      * 查询角色详情
@@ -48,7 +49,7 @@ public interface RoleAppService {
      * @param id 角色 ID
      * @return 角色视图对象
      */
-    public RoleVO getDetail(Long id);
+    RoleVO getDetail(Long id);
 
     /**
      * 创建角色：角色编码值对象前置校验 → 编码唯一性校验 → 保存
@@ -56,7 +57,7 @@ public interface RoleAppService {
      * @param command 创建角色命令
      * @return 新建角色视图对象
      */
-    public RoleVO create(CreateRoleCommand command);
+    RoleVO create(CreateRoleCommand command);
 
     /**
      * 更新角色：角色编码不可修改，名称/描述全量覆盖，排序号与状态非空时变更
@@ -65,14 +66,14 @@ public interface RoleAppService {
      * @param command 更新角色命令
      * @return 更新后的角色视图对象
      */
-    public RoleVO update(Long id, UpdateRoleCommand command);
+    RoleVO update(Long id, UpdateRoleCommand command);
 
     /**
      * 删除角色：逻辑删除角色并清理角色-权限关联，随后发布删除事件
      *
      * @param id 角色 ID
      */
-    public void delete(Long id);
+    void delete(Long id);
 
     /**
      * 全量覆盖角色权限：校验权限点有效性后重建关联，并发布权限分配事件
@@ -80,7 +81,7 @@ public interface RoleAppService {
      * @param id 角色 ID
      * @param command 分配权限命令
      */
-    public void assignPermissions(Long id, AssignRolePermissionsCommand command);
+    void assignPermissions(Long id, AssignRolePermissionsCommand command);
 
     /**
      * 查询角色已分配的权限点 ID 列表
@@ -88,7 +89,7 @@ public interface RoleAppService {
      * @param id 角色 ID
      * @return 权限点 ID 列表
      */
-    public List<Long> listPermissionIds(Long id);
+    List<Long> listPermissionIds(Long id);
 
     /**
      * 查询用户拥有的启用角色编码（用户 → 角色，过滤停用角色）
@@ -99,7 +100,7 @@ public interface RoleAppService {
      * @param userId 用户 ID
      * @return 启用角色编码列表；用户无角色时返回空列表
      */
-    public List<String> listRoleCodesByUserId(Long userId);
+    List<String> listRoleCodesByUserId(Long userId);
 
     /**
      * 查询用户经由角色获得的启用权限码（用户 → 角色 → 权限点，逐层去重并过滤停用）
@@ -111,5 +112,5 @@ public interface RoleAppService {
      * @param userId 用户 ID
      * @return 权限码列表；用户无角色或无有效权限关联时返回空列表
      */
-    public List<String> listPermissionCodesByUserId(Long userId);
+    List<String> listPermissionCodesByUserId(Long userId);
 }

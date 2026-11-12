@@ -13,9 +13,10 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.tenant.TenantContext;
+import org.springframework.util.StringUtils;
+
 import java.time.LocalDateTime;
 import java.util.List;
-import org.springframework.util.StringUtils;
 
 /**
  * 租户应用服务（Wave 5.54 Phase 1）：登录租户解析、租户生命周期与平台侧租户管理用例编排。
@@ -35,14 +36,14 @@ public interface TenantAppService {
      * @param tenantCode 登录请求携带的租户编码
      * @return 可用租户 ID
      */
-    public Long resolveEnabledTenantId(String tenantCode);
+    Long resolveEnabledTenantId(String tenantCode);
 
     /**
      * 校验租户当前可用（启用且未过期），用于刷新令牌等仅携带租户 ID 的链路
      *
      * @param tenantId 租户 ID
      */
-    public void ensureEnabled(Long tenantId);
+    void ensureEnabled(Long tenantId);
 
     /**
      * 查询全部可用租户 ID（启用且未过期），供后台定时任务按租户游标执行
@@ -51,7 +52,7 @@ public interface TenantAppService {
      *
      * @return 可用租户 ID（升序）
      */
-    public List<Long> listEnabledTenantIds();
+    List<Long> listEnabledTenantIds();
 
     /**
      * 租户分页列表（仅平台租户）
@@ -59,7 +60,7 @@ public interface TenantAppService {
      * @param query 分页查询条件
      * @return 分页结果
      */
-    public PageResult<TenantVO> page(TenantPageQuery query);
+    PageResult<TenantVO> page(TenantPageQuery query);
 
     /**
      * 租户详情（仅平台租户）
@@ -67,7 +68,7 @@ public interface TenantAppService {
      * @param id 租户 ID
      * @return 租户视图
      */
-    public TenantVO getDetail(Long id);
+    TenantVO getDetail(Long id);
 
     /**
      * 更新租户名称与配额（仅平台租户）
@@ -76,7 +77,7 @@ public interface TenantAppService {
      * @param command 更新命令
      * @return 更新后的租户视图
      */
-    public TenantVO update(Long id, UpdateTenantCommand command);
+    TenantVO update(Long id, UpdateTenantCommand command);
 
     /**
      * 启用/停用租户（仅平台租户；平台租户自身不允许停用）
@@ -85,7 +86,7 @@ public interface TenantAppService {
      * @param command 启停命令
      * @return 变更后的租户视图
      */
-    public TenantVO changeStatus(Long id, ChangeTenantStatusCommand command);
+    TenantVO changeStatus(Long id, ChangeTenantStatusCommand command);
 
     /**
      * 租户续期（仅平台租户）
@@ -94,12 +95,12 @@ public interface TenantAppService {
      * @param command 续期命令
      * @return 续期后的租户视图
      */
-    public TenantVO renew(Long id, RenewTenantCommand command);
+    TenantVO renew(Long id, RenewTenantCommand command);
 
     /**
      * 校验并返回当前租户为平台运营租户（租户管理用例的统一准入条件）
      *
      * @return 当前平台租户
      */
-    public Tenant requirePlatformTenant();
+    Tenant requirePlatformTenant();
 }

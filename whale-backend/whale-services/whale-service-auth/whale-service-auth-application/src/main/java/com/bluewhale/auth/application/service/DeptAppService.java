@@ -11,6 +11,7 @@ import com.bluewhale.auth.domain.event.DeptDomainEvent;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.tenant.TenantContext;
+
 import java.util.List;
 
 /**
@@ -29,7 +30,7 @@ public interface DeptAppService {
      *
      * @return 顶级部门节点列表（各节点含递归子节点）
      */
-    public List<DeptVO> tree();
+    List<DeptVO> tree();
 
     /**
      * 查询部门详情
@@ -38,14 +39,14 @@ public interface DeptAppService {
      * @return 部门视图对象
      * @throws BizException 部门不存在时抛出 {@link ErrorCode#NOT_FOUND}
      */
-    public DeptVO getDetail(Long id);
+    DeptVO getDetail(Long id);
 
     /**
      * 新增部门（默认值由 {@link Dept#create} 负责）
      *
      * @param command 部门新增命令
      */
-    public void create(SaveDeptCommand command);
+    void create(SaveDeptCommand command);
 
     /**
      * 更新部门（默认值由 {@link Dept#applyChanges} 负责）
@@ -54,7 +55,7 @@ public interface DeptAppService {
      * @param command 部门更新命令
      * @throws BizException 部门不存在时抛出 {@link ErrorCode#NOT_FOUND}
      */
-    public void update(Long id, SaveDeptCommand command);
+    void update(Long id, SaveDeptCommand command);
 
     /**
      * 解析部门负责人（供 OA 审批中心内网直连解析「部门经理」）
@@ -66,7 +67,7 @@ public interface DeptAppService {
      * @return 部门负责人视图对象
      * @throws BizException 部门不存在或跨租户时抛出 {@link ErrorCode#NOT_FOUND}
      */
-    public DeptLeaderVO leader(Long deptId);
+    DeptLeaderVO leader(Long deptId);
 
     /**
      * 删除部门（存在子部门时拒绝）
@@ -74,5 +75,5 @@ public interface DeptAppService {
      * @param id 部门 ID
      * @throws BizException 存在子部门时抛出 {@link ErrorCode#PARAM_ERROR}
      */
-    public void delete(Long id);
+    void delete(Long id);
 }

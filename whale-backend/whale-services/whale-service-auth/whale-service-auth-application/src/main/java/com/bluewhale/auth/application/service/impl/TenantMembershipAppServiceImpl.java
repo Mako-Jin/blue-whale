@@ -1,6 +1,10 @@
 package com.bluewhale.auth.application.service.impl;
 
 import com.bluewhale.auth.application.event.DomainEventPublisher;
+import com.bluewhale.auth.application.model.result.TenantResult;
+import com.bluewhale.auth.application.model.vo.TenantMemberVO;
+import com.bluewhale.auth.application.service.TenantAppService;
+import com.bluewhale.auth.application.service.TenantMembershipAppService;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.UserDomainEvent;
 import com.bluewhale.auth.domain.role.aggregate.Role;
@@ -11,8 +15,6 @@ import com.bluewhale.auth.domain.tenant.repository.TenantRepository;
 import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
 import com.bluewhale.auth.domain.user.repository.UserTenantRepository;
-import com.bluewhale.auth.application.model.result.TenantResult;
-import com.bluewhale.auth.application.model.vo.TenantMemberVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
@@ -23,8 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import com.bluewhale.auth.application.service.TenantAppService;
-import com.bluewhale.auth.application.service.TenantMembershipAppService;
 
 /**
  * 用户-租户成员关系应用服务（Wave 5.54 Phase 5.1：一人多租户）。

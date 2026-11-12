@@ -21,6 +21,7 @@ import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -89,5 +90,5 @@ public interface TenantProvisioningAppService {
      * @param command 开通命令
      * @return 新租户视图
      */
-    public TenantVO provision(CreateTenantCommand command);
+    TenantVO provision(CreateTenantCommand command);
 }

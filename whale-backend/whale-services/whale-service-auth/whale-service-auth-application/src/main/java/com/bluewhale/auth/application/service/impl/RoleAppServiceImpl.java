@@ -5,23 +5,23 @@ import com.bluewhale.auth.application.model.command.AssignRolePermissionsCommand
 import com.bluewhale.auth.application.model.command.CreateRoleCommand;
 import com.bluewhale.auth.application.model.command.UpdateRoleCommand;
 import com.bluewhale.auth.application.model.query.RolePageQuery;
+import com.bluewhale.auth.application.model.vo.RoleVO;
+import com.bluewhale.auth.application.service.RoleAppService;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.RoleDomainEvent;
 import com.bluewhale.auth.domain.model.vo.RoleCode;
 import com.bluewhale.auth.domain.permission.repository.PermissionRepository;
 import com.bluewhale.auth.domain.role.aggregate.Role;
 import com.bluewhale.auth.domain.role.repository.RoleRepository;
-import com.bluewhale.common.tenant.TenantContext;
-import com.bluewhale.auth.application.model.vo.RoleVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.lock.annotation.DistributedLock;
+import com.bluewhale.common.tenant.TenantContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import com.bluewhale.auth.application.service.RoleAppService;
 
 /**
  * 角色管理应用服务：编排角色聚合与角色-权限关联的管理端用例（REQ-ARCH-001 / T-DDD-9）。

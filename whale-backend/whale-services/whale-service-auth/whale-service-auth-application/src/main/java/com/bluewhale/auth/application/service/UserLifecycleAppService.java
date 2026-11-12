@@ -29,5 +29,5 @@ public interface UserLifecycleAppService {
      * @param command 生命周期命令
      * @return 执行结果（入职建号时含一次性临时口令）
      */
-    public UserLifecycleVO apply(UserLifecycleCommand command);
+    UserLifecycleVO apply(UserLifecycleCommand command);
 }

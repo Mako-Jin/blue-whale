@@ -1,18 +1,18 @@
 package com.bluewhale.auth.application.service.impl;
 
 import com.bluewhale.auth.application.model.AuthenticatedUser;
+import com.bluewhale.auth.application.model.result.ReauthResult;
 import com.bluewhale.auth.application.port.CredentialAuthenticator;
 import com.bluewhale.auth.application.port.CurrentUserProvider;
 import com.bluewhale.auth.application.port.ReauthTokenStore;
+import com.bluewhale.auth.application.security.InvalidCredentialException;
+import com.bluewhale.auth.application.service.LoginLockService;
+import com.bluewhale.auth.application.service.ReauthAppService;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import com.bluewhale.auth.application.model.result.ReauthResult;
-import com.bluewhale.auth.application.service.LoginLockService;
-import com.bluewhale.auth.application.service.ReauthAppService;
-import com.bluewhale.auth.application.security.InvalidCredentialException;
 
 /**
  * 二次认证应用服务（Wave 6.22）

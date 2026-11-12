@@ -1,15 +1,15 @@
 package com.bluewhale.auth.application.service.impl;
 
 import com.bluewhale.auth.application.model.command.SaveUserConfigCommand;
-import com.bluewhale.auth.application.port.UserConfigRepository;
 import com.bluewhale.auth.application.model.vo.UserConfigVO;
+import com.bluewhale.auth.application.port.UserConfigRepository;
+import com.bluewhale.auth.application.service.UserConfigAppService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.Optional;
-import com.bluewhale.auth.application.service.UserConfigAppService;
 
 /**
  * 用户配置应用服务：用户自助管理自己的配置（无权限码要求，登录即可）。

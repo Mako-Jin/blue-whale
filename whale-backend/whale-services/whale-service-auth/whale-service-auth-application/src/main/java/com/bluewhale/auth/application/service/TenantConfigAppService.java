@@ -3,6 +3,7 @@ package com.bluewhale.auth.application.service;
 import com.bluewhale.auth.application.model.TenantConfigEntry;
 import com.bluewhale.auth.application.model.command.SaveTenantConfigCommand;
 import com.bluewhale.auth.application.port.TenantConfigRepository;
+
 import java.util.List;
 
 /**
@@ -22,7 +23,7 @@ public interface TenantConfigAppService {
      * @param prefix   配置键前缀，空表示不过滤
      * @return 配置条目列表（按 config_key 升序）
      */
-    public List<TenantConfigEntry> list(Long tenantId, String prefix);
+    List<TenantConfigEntry> list(Long tenantId, String prefix);
 
     /**
      * upsert 一条租户配置
@@ -30,5 +31,5 @@ public interface TenantConfigAppService {
      * @param tenantId 租户 ID
      * @param command  保存命令
      */
-    public void upsert(Long tenantId, SaveTenantConfigCommand command);
+    void upsert(Long tenantId, SaveTenantConfigCommand command);
 }

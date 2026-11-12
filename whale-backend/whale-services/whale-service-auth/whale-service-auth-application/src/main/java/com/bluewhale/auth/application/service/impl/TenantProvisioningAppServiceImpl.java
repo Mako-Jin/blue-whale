@@ -1,8 +1,12 @@
 package com.bluewhale.auth.application.service.impl;
 
 import com.bluewhale.auth.application.model.command.CreateTenantCommand;
-import com.bluewhale.auth.application.port.TenantStatusSyncPort;
+import com.bluewhale.auth.application.model.vo.TenantVO;
 import com.bluewhale.auth.application.port.PasswordHasher;
+import com.bluewhale.auth.application.port.TenantStatusSyncPort;
+import com.bluewhale.auth.application.service.TenantAppService;
+import com.bluewhale.auth.application.service.TenantMembershipAppService;
+import com.bluewhale.auth.application.service.TenantProvisioningAppService;
 import com.bluewhale.auth.domain.dept.aggregate.Dept;
 import com.bluewhale.auth.domain.dept.repository.DeptRepository;
 import com.bluewhale.auth.domain.menu.aggregate.Menu;
@@ -18,7 +22,6 @@ import com.bluewhale.auth.domain.tenant.aggregate.Tenant;
 import com.bluewhale.auth.domain.tenant.repository.TenantRepository;
 import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
-import com.bluewhale.auth.application.model.vo.TenantVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.lock.annotation.DistributedLock;
@@ -35,9 +38,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-import com.bluewhale.auth.application.service.TenantAppService;
-import com.bluewhale.auth.application.service.TenantMembershipAppService;
-import com.bluewhale.auth.application.service.TenantProvisioningAppService;
 
 /**
  * 租户开通应用服务（Wave 5.54 Phase 1）。

@@ -3,9 +3,10 @@ package com.bluewhale.auth.application.service;
 import com.bluewhale.auth.application.model.command.SaveUserConfigCommand;
 import com.bluewhale.auth.application.model.vo.UserConfigVO;
 import com.bluewhale.auth.application.port.UserConfigRepository;
+import org.springframework.util.StringUtils;
+
 import java.util.List;
 import java.util.Optional;
-import org.springframework.util.StringUtils;
 
 /**
  * 用户配置应用服务：用户自助管理自己的配置（无权限码要求，登录即可）。
@@ -24,7 +25,7 @@ public interface UserConfigAppService {
      * @param prefix   配置键前缀，空表示不过滤
      * @return 配置列表（按 config_key 升序）
      */
-    public List<UserConfigVO> list(Long tenantId, Long userId, String prefix);
+    List<UserConfigVO> list(Long tenantId, Long userId, String prefix);
 
     /**
      * 读取单条配置值
@@ -34,7 +35,7 @@ public interface UserConfigAppService {
      * @param configKey 配置键
      * @return 配置值；未配置返回 empty
      */
-    public Optional<String> findValue(Long tenantId, Long userId, String configKey);
+    Optional<String> findValue(Long tenantId, Long userId, String configKey);
 
     /**
      * upsert 一条用户配置
@@ -43,7 +44,7 @@ public interface UserConfigAppService {
      * @param userId   用户 ID
      * @param command  保存命令
      */
-    public void upsert(Long tenantId, Long userId, SaveUserConfigCommand command);
+    void upsert(Long tenantId, Long userId, SaveUserConfigCommand command);
 
     /**
      * 删除一条用户配置（删除后读取时回到租户默认/消费方默认）
@@ -52,5 +53,5 @@ public interface UserConfigAppService {
      * @param userId    用户 ID
      * @param configKey 配置键
      */
-    public void delete(Long tenantId, Long userId, String configKey);
+    void delete(Long tenantId, Long userId, String configKey);
 }

@@ -4,15 +4,16 @@ import com.bluewhale.auth.application.model.command.ChangeTenantStatusCommand;
 import com.bluewhale.auth.application.model.command.RenewTenantCommand;
 import com.bluewhale.auth.application.model.command.UpdateTenantCommand;
 import com.bluewhale.auth.application.model.query.TenantPageQuery;
+import com.bluewhale.auth.application.model.vo.TenantVO;
 import com.bluewhale.auth.application.port.TenantStatusSyncPort;
+import com.bluewhale.auth.application.service.TenantAppService;
 import com.bluewhale.auth.domain.tenant.aggregate.Tenant;
 import com.bluewhale.auth.domain.tenant.aggregate.TenantExpiryClock;
 import com.bluewhale.auth.domain.tenant.repository.TenantRepository;
-import com.bluewhale.common.tenant.TenantContext;
-import com.bluewhale.auth.application.model.vo.TenantVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.common.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,7 +22,6 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import com.bluewhale.auth.application.service.TenantAppService;
 
 /**
  * 租户应用服务（Wave 5.54 Phase 1）：登录租户解析、租户生命周期与平台侧租户管理用例编排。

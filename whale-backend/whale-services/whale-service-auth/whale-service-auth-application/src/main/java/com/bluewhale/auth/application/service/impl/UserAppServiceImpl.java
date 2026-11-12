@@ -1,14 +1,17 @@
 package com.bluewhale.auth.application.service.impl;
 
 import com.bluewhale.auth.application.event.DomainEventPublisher;
-import com.bluewhale.auth.application.service.TenantMembershipAppService;
 import com.bluewhale.auth.application.model.command.AssignUserRolesCommand;
 import com.bluewhale.auth.application.model.command.ChangeUserStatusCommand;
 import com.bluewhale.auth.application.model.command.CreateUserCommand;
 import com.bluewhale.auth.application.model.command.UpdateUserCommand;
-import com.bluewhale.auth.application.service.PasswordPolicyService;
-import com.bluewhale.auth.application.service.impl.TemporaryPasswordGenerator;
 import com.bluewhale.auth.application.model.query.UserPageQuery;
+import com.bluewhale.auth.application.model.vo.ResetPasswordVO;
+import com.bluewhale.auth.application.model.vo.UserVO;
+import com.bluewhale.auth.application.service.PasswordPolicyService;
+import com.bluewhale.auth.application.service.TenantMembershipAppService;
+import com.bluewhale.auth.application.service.UserAppService;
+import com.bluewhale.auth.application.service.impl.TemporaryPasswordGenerator;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.UserDomainEvent;
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
@@ -16,17 +19,14 @@ import com.bluewhale.auth.domain.model.vo.Username;
 import com.bluewhale.auth.domain.role.repository.RoleRepository;
 import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
-import com.bluewhale.common.tenant.TenantContext;
-import com.bluewhale.auth.application.model.vo.ResetPasswordVO;
-import com.bluewhale.auth.application.model.vo.UserVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.common.tenant.TenantContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import com.bluewhale.auth.application.service.UserAppService;
 
 /**
  * 用户管理应用服务：编排用户聚合与用户-角色关联的管理端用例（REQ-ARCH-001 / T-DDD-9）。

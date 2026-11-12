@@ -8,6 +8,7 @@ import com.bluewhale.auth.application.port.TenantPasswordPolicyRepository;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.tenant.TenantContext;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -37,7 +38,7 @@ public interface TenantPasswordPolicyService {
      *
      * @return 当前租户生效策略视图
      */
-    public TenantPasswordPolicyVO current();
+    TenantPasswordPolicyVO current();
 
     /**
      * 查询指定租户生效策略（含全局默认值）
@@ -45,7 +46,7 @@ public interface TenantPasswordPolicyService {
      * @param tenantId 租户 ID
      * @return 租户生效策略视图
      */
-    public TenantPasswordPolicyVO getEffective(Long tenantId);
+    TenantPasswordPolicyVO getEffective(Long tenantId);
 
     /**
      * 获取指定租户的生效策略（租户未配置时回退全局默认）
@@ -53,7 +54,7 @@ public interface TenantPasswordPolicyService {
      * @param tenantId 租户 ID
      * @return 生效策略
      */
-    public TenantPasswordPolicy effectivePolicy(Long tenantId);
+    TenantPasswordPolicy effectivePolicy(Long tenantId);
 
     /**
      * 获取指定租户的生效口令有效期（供登录/刷新到期判定）
@@ -61,14 +62,14 @@ public interface TenantPasswordPolicyService {
      * @param tenantId 租户 ID
      * @return 有效期天数；小于等于 0 表示不强制到期
      */
-    public int maxAgeDays(Long tenantId);
+    int maxAgeDays(Long tenantId);
 
     /**
      * 计算全部启用租户的生效策略（供到期提醒任务按租户口径扫描）
      *
      * @return 租户 ID → 生效策略；无启用租户时返回空 Map
      */
-    public Map<Long, TenantPasswordPolicy> effectivePolicies();
+    Map<Long, TenantPasswordPolicy> effectivePolicies();
 
     /**
      * 更新当前租户的口令策略（租户管理员操作，按审计注解留痕）
@@ -76,5 +77,5 @@ public interface TenantPasswordPolicyService {
      * @param command 更新命令
      * @return 更新后的生效策略视图（{@code customized=true}）
      */
-    public TenantPasswordPolicyVO update(UpdateTenantPasswordPolicyCommand command);
+    TenantPasswordPolicyVO update(UpdateTenantPasswordPolicyCommand command);
 }

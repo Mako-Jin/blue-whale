@@ -2,16 +2,16 @@ package com.bluewhale.auth.application.service.impl;
 
 import com.bluewhale.auth.application.event.DomainEventPublisher;
 import com.bluewhale.auth.application.model.command.ReplaceUserAttrsCommand;
+import com.bluewhale.auth.application.model.vo.UserAttrVO;
+import com.bluewhale.auth.application.service.UserPermissionAppService;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.UserPermissionDomainEvent;
 import com.bluewhale.auth.domain.permission.aggregate.UserPermissionAttribute;
 import com.bluewhale.auth.domain.permission.repository.UserPermissionRepository;
-import com.bluewhale.auth.application.model.vo.UserAttrVO;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import com.bluewhale.auth.application.service.UserPermissionAppService;
 
 /**
  * 用户 ABAC 属性应用服务（AUTH-17 / T-DDD-9）

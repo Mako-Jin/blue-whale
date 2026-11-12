@@ -10,6 +10,7 @@ import com.bluewhale.auth.domain.menu.repository.MenuRepository;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.tenant.TenantContext;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -32,7 +33,7 @@ public interface MenuAppService {
      *
      * @return 顶级菜单节点列表（各节点含递归子节点）
      */
-    public List<MenuVO> tree();
+    List<MenuVO> tree();
 
     /**
      * 按权限码过滤查询菜单树（命中菜单 + 祖先目录保留）
@@ -40,7 +41,7 @@ public interface MenuAppService {
      * @param permissionCodes 用户权限码集合；为 {@code null} 时不做过滤
      * @return 过滤后的顶级菜单节点列表（各节点含递归子节点）
      */
-    public List<MenuVO> treeByPermissionCodes(Set<String> permissionCodes);
+    List<MenuVO> treeByPermissionCodes(Set<String> permissionCodes);
 
     /**
      * 查询菜单详情
@@ -49,14 +50,14 @@ public interface MenuAppService {
      * @return 菜单视图对象
      * @throws BizException 菜单不存在时抛出 {@link ErrorCode#NOT_FOUND}
      */
-    public MenuVO getDetail(Long id);
+    MenuVO getDetail(Long id);
 
     /**
      * 新增菜单（默认值由 {@link Menu#create} 负责）
      *
      * @param command 菜单新增命令
      */
-    public void create(SaveMenuCommand command);
+    void create(SaveMenuCommand command);
 
     /**
      * 更新菜单（默认值由 {@link Menu#applyChanges} 负责）
@@ -65,7 +66,7 @@ public interface MenuAppService {
      * @param command 菜单更新命令
      * @throws BizException 菜单不存在时抛出 {@link ErrorCode#NOT_FOUND}
      */
-    public void update(Long id, SaveMenuCommand command);
+    void update(Long id, SaveMenuCommand command);
 
     /**
      * 删除菜单（存在子菜单时拒绝）
@@ -73,5 +74,5 @@ public interface MenuAppService {
      * @param id 菜单 ID
      * @throws BizException 存在子菜单时抛出 {@link ErrorCode#PARAM_ERROR}
      */
-    public void delete(Long id);
+    void delete(Long id);
 }

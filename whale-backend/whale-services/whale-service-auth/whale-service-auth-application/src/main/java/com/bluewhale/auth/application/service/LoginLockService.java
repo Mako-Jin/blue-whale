@@ -1,8 +1,8 @@
 package com.bluewhale.auth.application.service;
 
 import com.bluewhale.auth.application.port.LoginAttemptStore;
-import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.auth.application.security.AccountLockedException;
+import com.bluewhale.common.core.exception.BizException;
 
 /**
  * 登录失败锁定服务（Wave 6.27）
@@ -28,7 +28,7 @@ public interface LoginLockService {
      * @param username 用户名
      * @throws BizException 已锁定时抛出（业务码 {@value #LOCKED_CODE}）
      */
-    public void ensureUnlocked(Long tenantId, String username);
+    void ensureUnlocked(Long tenantId, String username);
 
     /**
      * 记录一次凭据校验失败，并在此次失败导致锁定时直接抛出锁定异常
@@ -37,7 +37,7 @@ public interface LoginLockService {
      * @param username 用户名
      * @throws BizException 本次失败已触达上限时抛出（业务码 {@value #LOCKED_CODE}）
      */
-    public void recordFailure(Long tenantId, String username);
+    void recordFailure(Long tenantId, String username);
 
     /**
      * 凭据校验通过后清除失败计数
@@ -45,5 +45,5 @@ public interface LoginLockService {
      * @param tenantId 租户 ID
      * @param username 用户名
      */
-    public void clear(Long tenantId, String username);
+    void clear(Long tenantId, String username);
 }

@@ -15,6 +15,7 @@ import com.bluewhale.auth.domain.user.repository.UserRepository;
 import com.bluewhale.auth.domain.user.repository.UserTenantRepository;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.tenant.TenantContext;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -39,7 +40,7 @@ public interface TenantMembershipAppService {
      * @param userId 用户 ID
      * @param tenantId 首页租户 ID
      */
-    public void ensureHomeMembership(Long userId, Long tenantId);
+    void ensureHomeMembership(Long userId, Long tenantId);
 
     /**
      * 列出当前用户可进入的租户（仅启用关系且租户当前可用）
@@ -48,7 +49,7 @@ public interface TenantMembershipAppService {
      * @param currentTenantId 当前令牌租户 ID
      * @return 租户列表（标记当前项）
      */
-    public List<TenantResult> listMyTenants(Long userId, Long currentTenantId);
+    List<TenantResult> listMyTenants(Long userId, Long currentTenantId);
 
     /**
      * 校验刷新链路的关系仍然有效（撤销关系后 refresh 立即 401）
@@ -57,7 +58,7 @@ public interface TenantMembershipAppService {
      * @param tenantId 令牌租户 ID
      * @throws BizException 关系缺失或停用时抛出 401
      */
-    public void requireEnabledMembership(Long userId, Long tenantId);
+    void requireEnabledMembership(Long userId, Long tenantId);
 
     /**
      * 校验主动切换目标：关系存在且目标租户当前可用
@@ -66,7 +67,7 @@ public interface TenantMembershipAppService {
      * @param tenantId 目标租户 ID
      * @throws BizException 非成员或目标租户停用/过期时抛出 403
      */
-    public void requireSwitchable(Long userId, Long tenantId);
+    void requireSwitchable(Long userId, Long tenantId);
 
     /**
      * 列出当前租户的启用成员（Wave 5.54 Phase 5.3）。
@@ -75,7 +76,7 @@ public interface TenantMembershipAppService {
      *
      * @return 成员列表；无成员时返回空列表
      */
-    public List<TenantMemberVO> listMembers();
+    List<TenantMemberVO> listMembers();
 
     /**
      * 全量覆盖成员在当前租户内的角色（只影响本租户角色关联）。
@@ -84,7 +85,7 @@ public interface TenantMembershipAppService {
      * @param roleIds 目标角色 ID 列表（必须全部属于当前租户）
      * @throws BizException 非本租户成员或角色无效时抛出
      */
-    public void assignMemberRoles(Long userId, List<Long> roleIds);
+    void assignMemberRoles(Long userId, List<Long> roleIds);
 
     /**
      * 平台租户为用户绑定可进入的租户关系（幂等）。
@@ -93,7 +94,7 @@ public interface TenantMembershipAppService {
      * @param tenantId 目标租户 ID
      * @throws BizException 用户/租户不存在或租户不可用时抛出
      */
-    public void bindTenant(Long userId, Long tenantId);
+    void bindTenant(Long userId, Long tenantId);
 
     /**
      * 平台租户解除用户与租户的关系（软停用；首页关系禁止删除）。
@@ -106,5 +107,5 @@ public interface TenantMembershipAppService {
      * @param tenantId 目标租户 ID
      * @throws BizException 首页关系、关系不存在或用户不存在时抛出
      */
-    public void unbindTenant(Long userId, Long tenantId);
+    void unbindTenant(Long userId, Long tenantId);
 }

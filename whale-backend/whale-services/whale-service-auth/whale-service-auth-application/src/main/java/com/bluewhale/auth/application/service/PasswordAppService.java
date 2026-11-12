@@ -29,5 +29,5 @@ public interface PasswordAppService {
      *
      * @param command 自助改密命令（旧口令 + 新口令）
      */
-    public void changeOwnPassword(ChangeOwnPasswordCommand command);
+    void changeOwnPassword(ChangeOwnPasswordCommand command);
 }

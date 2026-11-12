@@ -1,9 +1,12 @@
 package com.bluewhale.auth.application.service.impl;
 
-import com.bluewhale.auth.application.model.AuthenticatedUser;
-import com.bluewhale.auth.application.port.CurrentUserProvider;
 import com.bluewhale.auth.application.event.DomainEventPublisher;
+import com.bluewhale.auth.application.model.AuthenticatedUser;
+import com.bluewhale.auth.application.model.command.ChangeOwnPasswordCommand;
+import com.bluewhale.auth.application.port.CurrentUserProvider;
 import com.bluewhale.auth.application.port.PasswordHasher;
+import com.bluewhale.auth.application.service.PasswordAppService;
+import com.bluewhale.auth.application.service.PasswordPolicyService;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.UserDomainEvent;
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
@@ -14,9 +17,6 @@ import com.bluewhale.common.core.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.bluewhale.auth.application.model.command.ChangeOwnPasswordCommand;
-import com.bluewhale.auth.application.service.PasswordAppService;
-import com.bluewhale.auth.application.service.PasswordPolicyService;
 
 /**
  * 自助改密应用服务（REQ-SEC-023）：当前登录用户修改本人口令。

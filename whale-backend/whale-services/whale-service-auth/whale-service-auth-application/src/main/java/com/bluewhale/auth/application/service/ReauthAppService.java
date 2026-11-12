@@ -29,7 +29,7 @@ public interface ReauthAppService {
      * @return 新凭证与有效期
      * @throws BizException 口令错误（401）、账号已锁定（42301）或认证结果与当前用户不一致（401）时抛出
      */
-    public ReauthResult reauthenticate(String rawPassword);
+    ReauthResult reauthenticate(String rawPassword);
 
     /**
      * 校验请求头中的凭证是否属于当前用户且未过期
@@ -37,5 +37,5 @@ public interface ReauthAppService {
      * @param token 请求头 {@code X-Reauth-Token} 的值，可为空
      * @return 有效返回 {@code true}
      */
-    public boolean verify(String token);
+    boolean verify(String token);
 }

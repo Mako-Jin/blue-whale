@@ -12,6 +12,7 @@ import com.bluewhale.auth.domain.permission.repository.PermissionRepository;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
+
 import java.util.List;
 
 /**
@@ -31,14 +32,14 @@ public interface PermissionAppService {
      * @param query 权限点分页查询条件
      * @return 权限点分页结果
      */
-    public PageResult<PermissionVO> page(PermissionPageQuery query);
+    PageResult<PermissionVO> page(PermissionPageQuery query);
 
     /**
      * 查询全部启用权限码（去重）
      *
      * @return 启用权限码列表
      */
-    public List<String> listAllCodes();
+    List<String> listAllCodes();
 
     /**
      * 查询权限点详情
@@ -47,7 +48,7 @@ public interface PermissionAppService {
      * @return 权限点视图对象
      * @throws BizException 权限点不存在时抛出 {@link ErrorCode#NOT_FOUND}
      */
-    public PermissionVO getDetail(Long id);
+    PermissionVO getDetail(Long id);
 
     /**
      * 新增权限点（先校验权限码格式与全局唯一性）
@@ -55,7 +56,7 @@ public interface PermissionAppService {
      * @param command 权限点新增命令
      * @throws BizException 权限码格式非法或已存在时抛出 {@link ErrorCode#PARAM_ERROR}
      */
-    public void create(SavePermissionCommand command);
+    void create(SavePermissionCommand command);
 
     /**
      * 更新权限点（校验权限码唯一性后落库，并发布更新事件）
@@ -64,7 +65,7 @@ public interface PermissionAppService {
      * @param command 权限点更新命令
      * @throws BizException 权限点不存在时抛出 {@link ErrorCode#NOT_FOUND}；权限码已存在时抛出 {@link ErrorCode#PARAM_ERROR}
      */
-    public void update(Long id, SavePermissionCommand command);
+    void update(Long id, SavePermissionCommand command);
 
     /**
      * 删除权限点（存在子权限时拒绝，成功后发布删除事件）
@@ -72,5 +73,5 @@ public interface PermissionAppService {
      * @param id 权限点 ID
      * @throws BizException 存在子权限时抛出 {@link ErrorCode#PARAM_ERROR}
      */
-    public void delete(Long id);
+    void delete(Long id);
 }

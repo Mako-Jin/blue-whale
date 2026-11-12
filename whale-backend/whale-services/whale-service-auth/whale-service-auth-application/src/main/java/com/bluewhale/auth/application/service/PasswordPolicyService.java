@@ -6,6 +6,7 @@ import com.bluewhale.auth.application.port.PasswordPolicyConfig;
 import com.bluewhale.auth.domain.user.repository.PasswordHistoryRepository;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+
 import java.util.List;
 
 /**
@@ -24,7 +25,7 @@ public interface PasswordPolicyService {
      * @param rawPassword 明文口令
      * @param username 用户名（口令不得包含）
      */
-    public void validate(String rawPassword, String username);
+    void validate(String rawPassword, String username);
 
     /**
      * 校验口令未被近期使用（当前口令 + 最近 N 条历史）
@@ -34,7 +35,7 @@ public interface PasswordPolicyService {
      * @param currentEncodedPassword 当前口令密文
      * @param rawPassword 待校验的新口令明文
      */
-    public void ensureNotReused(Long tenantId, Long userId, String currentEncodedPassword, String rawPassword);
+    void ensureNotReused(Long tenantId, Long userId, String currentEncodedPassword, String rawPassword);
 
     /**
      * 加密明文口令（调用前应先通过 {@link #validate}）
@@ -42,7 +43,7 @@ public interface PasswordPolicyService {
      * @param rawPassword 明文口令
      * @return BCrypt 密文
      */
-    public String encode(String rawPassword);
+    String encode(String rawPassword);
 
     /**
      * 记录口令历史并按策略裁剪
@@ -51,33 +52,33 @@ public interface PasswordPolicyService {
      * @param userId 用户 ID
      * @param encodedPassword 新口令密文
      */
-    public void recordHistory(Long tenantId, Long userId, String encodedPassword);
+    void recordHistory(Long tenantId, Long userId, String encodedPassword);
 
     /**
      * 是否要求新建/重置口令后强制目标用户下次登录改密
      *
      * @return 需要强制改密返回 true
      */
-    public boolean isForceChangeOnCreate();
+    boolean isForceChangeOnCreate();
 
     /**
      * 口令有效期（天），供登录到期判定
      *
      * @return 有效期天数；小于等于 0 表示不强制到期
      */
-    public int maxAgeDays();
+    int maxAgeDays();
 
     /**
      * 口令最小长度（供临时口令生成器保证系统生成的临时口令同样满足策略）
      *
      * @return 最小长度
      */
-    public int minLength();
+    int minLength();
 
     /**
      * 口令到期前提醒天数
      *
      * @return 提前提醒天数
      */
-    public int warnDays();
+    int warnDays();
 }

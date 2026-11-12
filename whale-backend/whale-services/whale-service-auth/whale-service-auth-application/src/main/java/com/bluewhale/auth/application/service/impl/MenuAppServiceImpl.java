@@ -2,14 +2,15 @@ package com.bluewhale.auth.application.service.impl;
 
 import com.bluewhale.auth.application.event.DomainEventPublisher;
 import com.bluewhale.auth.application.model.command.SaveMenuCommand;
+import com.bluewhale.auth.application.model.vo.MenuVO;
+import com.bluewhale.auth.application.service.MenuAppService;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.MenuDomainEvent;
 import com.bluewhale.auth.domain.menu.aggregate.Menu;
 import com.bluewhale.auth.domain.menu.repository.MenuRepository;
-import com.bluewhale.common.tenant.TenantContext;
-import com.bluewhale.auth.application.model.vo.MenuVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.tenant.TenantContext;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -17,7 +18,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import com.bluewhale.auth.application.service.MenuAppService;
 
 /**
  * 菜单应用服务（AUTH-17 / T-DDD-9）

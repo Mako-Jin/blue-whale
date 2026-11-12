@@ -19,6 +19,7 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.tenant.TenantContext;
+
 import java.util.List;
 
 /**
@@ -42,7 +43,7 @@ public interface UserAppService {
      * @param query 用户分页查询条件
      * @return 用户分页结果
      */
-    public PageResult<UserVO> page(UserPageQuery query);
+    PageResult<UserVO> page(UserPageQuery query);
 
     /**
      * 查询用户详情
@@ -50,7 +51,7 @@ public interface UserAppService {
      * @param id 用户 ID
      * @return 用户视图对象
      */
-    public UserVO getDetail(Long id);
+    UserVO getDetail(Long id);
 
     /**
      * 创建用户：用户名值对象前置校验 → 唯一性校验 → 口令策略校验 → BCrypt 加密 → 保存
@@ -61,7 +62,7 @@ public interface UserAppService {
      * @param command 创建用户命令
      * @return 新建用户视图对象
      */
-    public UserVO create(CreateUserCommand command);
+    UserVO create(CreateUserCommand command);
 
     /**
      * 更新用户：口令非空时按策略重置，其余资料字段全量覆盖，状态非空时变更
@@ -73,7 +74,7 @@ public interface UserAppService {
      * @param command 更新用户命令
      * @return 更新后的用户视图对象
      */
-    public UserVO update(Long id, UpdateUserCommand command);
+    UserVO update(Long id, UpdateUserCommand command);
 
     /**
      * 管理员重置口令：系统生成一次性随机临时口令（REQ-SEC-023）
@@ -84,7 +85,7 @@ public interface UserAppService {
      * @param id 用户 ID
      * @return 重置结果（含一次性临时口令）
      */
-    public ResetPasswordVO resetPassword(Long id);
+    ResetPasswordVO resetPassword(Long id);
 
     /**
      * 变更用户状态：校验目标状态合法后保存，并发布状态变更事件
@@ -92,14 +93,14 @@ public interface UserAppService {
      * @param id 用户 ID
      * @param command 变更状态命令
      */
-    public void changeStatus(Long id, ChangeUserStatusCommand command);
+    void changeStatus(Long id, ChangeUserStatusCommand command);
 
     /**
      * 删除用户：逻辑删除用户并清理用户-角色关联，随后发布删除事件
      *
      * @param id 用户 ID
      */
-    public void delete(Long id);
+    void delete(Long id);
 
     /**
      * 全量覆盖用户角色：校验角色有效性后重建关联，并发布角色分配事件
@@ -107,7 +108,7 @@ public interface UserAppService {
      * @param id 用户 ID
      * @param command 分配角色命令
      */
-    public void assignRoles(Long id, AssignUserRolesCommand command);
+    void assignRoles(Long id, AssignUserRolesCommand command);
 
     /**
      * 查询用户已分配的角色 ID 列表
@@ -115,5 +116,5 @@ public interface UserAppService {
      * @param id 用户 ID
      * @return 角色 ID 列表
      */
-    public List<Long> listRoleIds(Long id);
+    List<Long> listRoleIds(Long id);
 }

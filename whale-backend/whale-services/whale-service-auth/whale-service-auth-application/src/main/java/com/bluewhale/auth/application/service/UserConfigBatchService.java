@@ -5,6 +5,7 @@ import com.bluewhale.auth.application.port.TenantConfigRepository;
 import com.bluewhale.auth.application.port.UserConfigRepository;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -35,5 +36,5 @@ public interface UserConfigBatchService {
      * @param keys     配置键列表（去重，上限 {@value #MAX_KEYS_PER_REQUEST}）
      * @return 每个 (userId, configKey) 组合一个结果项
      */
-    public List<ConfigBatchItemVO> batchGet(Long tenantId, List<Long> userIds, List<String> keys);
+    List<ConfigBatchItemVO> batchGet(Long tenantId, List<Long> userIds, List<String> keys);
 }

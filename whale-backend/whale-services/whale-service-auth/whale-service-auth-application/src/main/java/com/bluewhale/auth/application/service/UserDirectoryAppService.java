@@ -6,6 +6,8 @@ import com.bluewhale.auth.domain.dept.repository.DeptRepository;
 import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
 import com.bluewhale.common.core.result.PageResult;
+import org.springframework.util.StringUtils;
+
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -13,7 +15,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.springframework.util.StringUtils;
 
 /**
  * 用户目录应用服务：面向服务间调用的「用户存在且启用」批量判定、内网通讯录与按角色查用户。
@@ -32,7 +33,7 @@ public interface UserDirectoryAppService {
      * @param ids 待校验用户 ID（允许重复，内部去重）
      * @return 存在且启用的用户 ID 列表
      */
-    public List<Long> findEnabledIds(Collection<Long> ids);
+    List<Long> findEnabledIds(Collection<Long> ids);
 
     /**
      * 分页查询内网通讯录：仅启用且未删除的本租户用户，手机号与邮箱脱敏，部门名称批量补全。
@@ -44,7 +45,7 @@ public interface UserDirectoryAppService {
      * @param size 每页条数，小于 1 按 1 处理，超过 200 按 200 处理
      * @return 通讯录分页结果
      */
-    public PageResult<UserDirectoryVO> directory(Long deptId, boolean includeChildren, String keyword, long current, long size);
+    PageResult<UserDirectoryVO> directory(Long deptId, boolean includeChildren, String keyword, long current, long size);
 
     /**
      * 按角色编码查询内网通讯录：角色不存在或已停用返回空列表，仅返回启用用户。
@@ -52,5 +53,5 @@ public interface UserDirectoryAppService {
      * @param roleCode 角色编码
      * @return 通讯录用户列表（按用户 ID 升序，最多 200 条）
      */
-    public List<UserDirectoryVO> byRole(String roleCode);
+    List<UserDirectoryVO> byRole(String roleCode);
 }
