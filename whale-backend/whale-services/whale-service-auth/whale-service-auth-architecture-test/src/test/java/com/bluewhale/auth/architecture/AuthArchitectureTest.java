@@ -55,6 +55,31 @@ class AuthArchitectureTest {
                     "org.springframework.data.redis..",
                     "org.springframework.security..");
 
+    /**
+     * 应用层框架最小化（Wave 6.41）：不得依赖 Spring Boot autoconfigure / 安全实现——
+     * 应用层只允许 spring-context（ stereotype 注解）、spring-tx（事务边界声明）与
+     * Jackson（配置值 JSON 校验），其余框架能力一律经端口下沉基础设施层。
+     */
+    @ArchTest
+    static final ArchRule application_must_not_depend_on_boot_or_security_kit = noClasses()
+            .that().resideInAPackage("com.bluewhale.auth.application..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "org.springframework.boot..",
+                    "com.bluewhale.security..");
+
+    /**
+     * 基础设施层实现端口与查询（六边形出口方向），只允许触达应用层的
+     * port / model / event / security（异常），编排入口 {@code application.service}
+     * 的引用仅限既有的 5 处触发型组件（监听器 / 定时任务 / 缓存加载 / MVC 拦截），
+     * 服务实现 {@code service.impl} 必须不可见——后续拦截器迁出 starter/web 后应
+     * 进一步收紧为禁止全部 {@code application.service}。
+     */
+    @ArchTest
+    static final ArchRule infrastructure_must_not_depend_on_service_impl = noClasses()
+            .that().resideInAPackage("com.bluewhale.auth.infrastructure..")
+            .should().dependOnClassesThat().resideInAPackage(
+                    "com.bluewhale.auth.application.service.impl..");
+
     @ArchTest
     static final ArchRule interfaces_must_not_depend_on_infrastructure_or_domain = noClasses()
             .that().resideInAPackage("com.bluewhale.auth.interfaces..")

@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- 应用层：用例编排（AppService）+ 命令/查询 + 视图对象（VO）。仅依赖领域层与基础能力 -->
+<!-- 应用层：用例编排（AppService）+ 命令/查询 + 视图对象（VO）。
+     仅依赖领域层与基础能力：Spring 限定为注解与核心工具（context/tx/jackson），
+     不引入任何 Spring Boot starter / 安全实现（Wave 6.41） -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -27,16 +29,31 @@
             <artifactId>whale-common-core</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- @Service / @Component 与 StringUtils（spring-core 经 context 传递） -->
         <dependency>
-            <groupId>com.bluewhale</groupId>
-            <artifactId>whale-spring-boot-starter</artifactId>
-            <version>${project.version}</version>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
         </dependency>
-        <!-- 租户状态键（TenantStatusKeys） -->
+        <!-- @Transactional（应用层只声明事务边界，不携带事务实现） -->
         <dependency>
-            <groupId>com.bluewhale</groupId>
-            <artifactId>whale-security</artifactId>
-            <version>${project.version}</version>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-tx</artifactId>
+        </dependency>
+        <!-- PageResult.of(IPage) 编译期需要；provided：运行时由 starter 的 mybatis-plus 提供 -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-core</artifactId>
+            <version>${mybatis-plus.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <!-- ConfigKeyValidator 校验配置值 JSON 合法性（Jackson 3） -->
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>

@@ -34,8 +34,8 @@ import com.bluewhale.auth.application.service.TenantPasswordPolicyService;
 import com.bluewhale.auth.application.port.PasswordHasher;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
 import com.bluewhale.auth.application.model.vo.MenuVO;
+import com.bluewhale.auth.application.port.SecurityAlarmPort;
 import com.bluewhale.common.core.exception.BizException;
-import com.bluewhale.security.degradation.SecurityDegradationAlerter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -56,6 +56,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -139,13 +140,11 @@ class SessionAppServiceTest {
     @Mock
     private LoginLockService loginLockService;
 
+    @Mock
+    private SecurityAlarmPort securityAlarmPort;
+
     @InjectMocks
     private SessionAppServiceImpl sessionAppService;
-
-    @BeforeEach
-    void resetAlarmCount() {
-        SecurityDegradationAlerter.resetAlarmCount();
-    }
 
 
     /** 构造已完成签名校验的 refreshToken 载荷 */
@@ -282,7 +281,7 @@ class SessionAppServiceTest {
 
         assertEquals(UNAUTHORIZED_CODE, ex.getCode());
         verify(refreshRotationStore).revokeFamily(FAMILY_ID, REFRESH_EXPIRE_SECONDS);
-        assertEquals(1L, SecurityDegradationAlerter.alarmCount());
+        verify(securityAlarmPort).alarm(eq("auth:refresh:reuse"), anyString(), isNull());
     }
 
     @Test

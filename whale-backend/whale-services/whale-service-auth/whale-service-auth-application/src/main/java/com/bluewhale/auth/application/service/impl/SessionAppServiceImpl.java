@@ -18,6 +18,7 @@ import com.bluewhale.auth.application.port.CurrentUserProvider;
 import com.bluewhale.auth.application.port.PasswordHasher;
 import com.bluewhale.auth.application.port.RefreshRotationPolicy;
 import com.bluewhale.auth.application.port.RefreshTokenRotationStore;
+import com.bluewhale.auth.application.port.SecurityAlarmPort;
 import com.bluewhale.auth.application.port.TokenBlacklist;
 import com.bluewhale.auth.application.port.TokenIssuer;
 import com.bluewhale.auth.application.port.UserAccessRevocationPort;
@@ -36,7 +37,6 @@ import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
 import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
 import com.bluewhale.common.core.exception.BizException;
-import com.bluewhale.security.degradation.SecurityDegradationAlerter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -92,6 +92,7 @@ public class SessionAppServiceImpl implements SessionAppService {
     private final TenantPasswordPolicyService tenantPasswordPolicyService;
     /** 登录失败锁定（与二次认证共用同一计数，Wave 6.27） */
     private final LoginLockService loginLockService;
+    private final SecurityAlarmPort securityAlarmPort;
 
     /**
      * 登录：按（租户, 用户名, 密码）完成凭据校验并签发一对令牌。
@@ -387,7 +388,7 @@ public class SessionAppServiceImpl implements SessionAppService {
             refreshRotationStore.revokeFamily(familyId, tokenIssuer.refreshExpireSeconds());
             log.error("refreshToken 复用检测命中，已吊销整个 family: familyId={}, username={}",
                 familyId, payload.subject());
-            SecurityDegradationAlerter.alarm(SCENE_REFRESH_REUSE,
+            securityAlarmPort.alarm(SCENE_REFRESH_REUSE,
                 "refreshToken 复用检测命中，已吊销该 family 全部 refreshToken", null);
             throw new BizException(401, REUSE_REFRESH_TOKEN_MESSAGE);
         }

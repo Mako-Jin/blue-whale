@@ -22,6 +22,15 @@
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
+        <!-- PageResult.of(IPage) 的编译期支持；provided：不向消费者传递，
+             运行时由各服务的 mybatis-plus starter 提供（Wave 6.41） -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-core</artifactId>
+            <version>${mybatis-plus.version}</version>
+            <scope>provided</scope>
+            <optional>true</optional>
+        </dependency>
         <!-- 单测：保证 JaCoCo 覆盖率门禁对本模块产出执行数据（不再因零测试被跳过） -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
