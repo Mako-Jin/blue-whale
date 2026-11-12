@@ -20,7 +20,7 @@ import java.util.Objects;
  *
  * @author BlueWhale
  */
-public class Role implements Entity<Long> {
+public class RoleAggregate implements Entity<Long> {
 
     /** 状态：启用 */
     public static final int STATUS_ENABLED = 1;
@@ -52,8 +52,8 @@ public class Role implements Entity<Long> {
      * @param createTime 创建时间
      * @param updateTime 更新时间
      */
-    private Role(Long id, Long tenantId, RoleCode roleCode, String roleName, String description, int sortNo,
-                 int status, LocalDateTime createTime, LocalDateTime updateTime) {
+    private RoleAggregate(Long id, Long tenantId, RoleCode roleCode, String roleName, String description, int sortNo,
+                          int status, LocalDateTime createTime, LocalDateTime updateTime) {
         if (tenantId == null) {
             throw new DomainException(ErrorCode.PARAM_ERROR, "角色所属租户不能为空");
         }
@@ -88,10 +88,10 @@ public class Role implements Entity<Long> {
      * @param status 状态（1 启用 / 0 停用），为空时按启用处理
      * @return 新建的角色聚合根
      */
-    public static Role create(Long tenantId, RoleCode roleCode, String roleName, String description, Integer sortNo,
-                              Integer status) {
+    public static RoleAggregate create(Long tenantId, RoleCode roleCode, String roleName, String description, Integer sortNo,
+                                       Integer status) {
         LocalDateTime now = LocalDateTime.now();
-        return new Role(null, tenantId, roleCode, roleName, description, sortNo == null ? 0 : sortNo,
+        return new RoleAggregate(null, tenantId, roleCode, roleName, description, sortNo == null ? 0 : sortNo,
                 status == null ? STATUS_ENABLED : status, now, now);
     }
 
@@ -109,10 +109,10 @@ public class Role implements Entity<Long> {
      * @param updateTime 更新时间
      * @return 还原的角色聚合根
      */
-    public static Role reconstitute(Long id, Long tenantId, RoleCode roleCode, String roleName, String description,
-                                    Integer sortNo, Integer status, LocalDateTime createTime,
-                                    LocalDateTime updateTime) {
-        return new Role(id, tenantId, roleCode, roleName, description, sortNo == null ? 0 : sortNo,
+    public static RoleAggregate reconstitute(Long id, Long tenantId, RoleCode roleCode, String roleName, String description,
+                                             Integer sortNo, Integer status, LocalDateTime createTime,
+                                             LocalDateTime updateTime) {
+        return new RoleAggregate(id, tenantId, roleCode, roleName, description, sortNo == null ? 0 : sortNo,
                 status == null ? STATUS_ENABLED : status, createTime, updateTime);
     }
 

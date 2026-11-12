@@ -1,7 +1,7 @@
 package com.bluewhale.auth.infrastructure.persistence.assembler;
 
 import com.bluewhale.auth.domain.model.vo.RoleCode;
-import com.bluewhale.auth.domain.aggregate.Role;
+import com.bluewhale.auth.domain.aggregate.RoleAggregate;
 import com.bluewhale.auth.domain.model.entity.RolePermissionAssignment;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysRole;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysRolePermission;
@@ -32,29 +32,29 @@ class RolePersistenceAssemblerTest {
         po.setRoleName("测试角色");
         po.setDescription("描述");
         po.setSortNo(3);
-        po.setStatus(Role.STATUS_ENABLED);
+        po.setStatus(RoleAggregate.STATUS_ENABLED);
         po.setDeleted(0);
         po.setCreateTime(CREATED);
         po.setUpdateTime(UPDATED);
         return po;
     }
 
-    private static Role fullDomain() {
-        return Role.reconstitute(5L, 1L, RoleCode.of("test_role"), "测试角色", "描述", 3,
-                Role.STATUS_ENABLED, CREATED, UPDATED);
+    private static RoleAggregate fullDomain() {
+        return RoleAggregate.reconstitute(5L, 1L, RoleCode.of("test_role"), "测试角色", "描述", 3,
+                RoleAggregate.STATUS_ENABLED, CREATED, UPDATED);
     }
 
     @Test
     @DisplayName("PO → 领域：Role 聚合全部关键字段逐项一致")
     void shouldMapPoToDomainFieldByField() {
-        Role role = RolePersistenceAssembler.toDomain(fullPo());
+        RoleAggregate role = RolePersistenceAssembler.toDomain(fullPo());
 
         assertEquals(5L, role.getId());
         assertEquals("test_role", role.getRoleCode().value());
         assertEquals("测试角色", role.getRoleName());
         assertEquals("描述", role.getDescription());
         assertEquals(3, role.getSortNo());
-        assertEquals(Role.STATUS_ENABLED, role.getStatus());
+        assertEquals(RoleAggregate.STATUS_ENABLED, role.getStatus());
         assertEquals(CREATED, role.getCreateTime());
         assertEquals(UPDATED, role.getUpdateTime());
     }
@@ -69,7 +69,7 @@ class RolePersistenceAssemblerTest {
         assertEquals("测试角色", po.getRoleName());
         assertEquals("描述", po.getDescription());
         assertEquals(3, po.getSortNo());
-        assertEquals(Role.STATUS_ENABLED, po.getStatus());
+        assertEquals(RoleAggregate.STATUS_ENABLED, po.getStatus());
         assertEquals(CREATED, po.getCreateTime());
         assertEquals(UPDATED, po.getUpdateTime());
         // deleted 不属本步 Role 聚合关键项，转换不携带
@@ -83,10 +83,10 @@ class RolePersistenceAssemblerTest {
         po.setSortNo(null);
         po.setStatus(null);
 
-        Role role = RolePersistenceAssembler.toDomain(po);
+        RoleAggregate role = RolePersistenceAssembler.toDomain(po);
 
         assertEquals(0, role.getSortNo());
-        assertEquals(Role.STATUS_ENABLED, role.getStatus());
+        assertEquals(RoleAggregate.STATUS_ENABLED, role.getStatus());
     }
 
     @Test

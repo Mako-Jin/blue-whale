@@ -1,7 +1,7 @@
 package com.bluewhale.auth.infrastructure.persistence.assembler;
 
 import com.bluewhale.auth.domain.model.vo.PermCode;
-import com.bluewhale.auth.domain.aggregate.Permission;
+import com.bluewhale.auth.domain.aggregate.PermissionAggregate;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysPermission;
 
 /**
@@ -27,8 +27,8 @@ public final class PermissionPersistenceAssembler {
      * @param po 权限点持久化对象
      * @return 权限点聚合根
      */
-    public static Permission toDomain(SysPermission po) {
-        return Permission.reconstitute(
+    public static PermissionAggregate toDomain(SysPermission po) {
+        return PermissionAggregate.reconstitute(
                 po.getId(),
                 po.getParentId(),
                 PermCode.of(po.getPermCode()),
@@ -48,7 +48,7 @@ public final class PermissionPersistenceAssembler {
      * @param permission 权限点聚合根
      * @return 权限点持久化对象
      */
-    public static SysPermission toPo(Permission permission) {
+    public static SysPermission toPo(PermissionAggregate permission) {
         SysPermission po = new SysPermission();
         po.setId(permission.getId());
         po.setParentId(permission.getParentId());

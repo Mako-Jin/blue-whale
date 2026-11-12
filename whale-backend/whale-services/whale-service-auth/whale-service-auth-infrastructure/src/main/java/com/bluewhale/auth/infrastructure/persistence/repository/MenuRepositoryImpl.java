@@ -1,7 +1,7 @@
 package com.bluewhale.auth.infrastructure.persistence.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.bluewhale.auth.domain.aggregate.Menu;
+import com.bluewhale.auth.domain.aggregate.MenuAggregate;
 import com.bluewhale.auth.domain.repository.MenuRepository;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysMenu;
 import com.bluewhale.auth.infrastructure.persistence.assembler.MenuPersistenceAssembler;
@@ -28,7 +28,7 @@ public class MenuRepositoryImpl implements MenuRepository {
     private final SysMenuMapper menuMapper;
 
     @Override
-    public Menu save(Menu menu) {
+    public MenuAggregate save(MenuAggregate menu) {
         SysMenu po = MenuPersistenceAssembler.toPo(menu);
         if (po.getId() == null) {
             menuMapper.insert(po);
@@ -39,7 +39,7 @@ public class MenuRepositoryImpl implements MenuRepository {
     }
 
     @Override
-    public Optional<Menu> findById(Long id) {
+    public Optional<MenuAggregate> findById(Long id) {
         SysMenu po = menuMapper.selectOne(new LambdaQueryWrapper<SysMenu>()
                 .eq(SysMenu::getId, id)
                 .eq(SysMenu::getTenantId, TenantContext.requireId()));
@@ -47,7 +47,7 @@ public class MenuRepositoryImpl implements MenuRepository {
     }
 
     @Override
-    public List<Menu> findAll() {
+    public List<MenuAggregate> findAll() {
         List<SysMenu> pos = menuMapper.selectList(new LambdaQueryWrapper<SysMenu>()
                 .eq(SysMenu::getTenantId, TenantContext.requireId())
                 .orderByAsc(SysMenu::getSort)
@@ -56,7 +56,7 @@ public class MenuRepositoryImpl implements MenuRepository {
     }
 
     @Override
-    public List<Menu> findAllByTenantId(Long tenantId) {
+    public List<MenuAggregate> findAllByTenantId(Long tenantId) {
         List<SysMenu> pos = menuMapper.selectList(new LambdaQueryWrapper<SysMenu>()
                 .eq(SysMenu::getTenantId, tenantId)
                 .orderByAsc(SysMenu::getSort)
@@ -65,7 +65,7 @@ public class MenuRepositoryImpl implements MenuRepository {
     }
 
     @Override
-    public List<Menu> findAllByParentId(Long parentId) {
+    public List<MenuAggregate> findAllByParentId(Long parentId) {
         List<SysMenu> pos = menuMapper.selectList(new LambdaQueryWrapper<SysMenu>()
                 .eq(SysMenu::getTenantId, TenantContext.requireId())
                 .eq(SysMenu::getParentId, parentId));
@@ -73,11 +73,11 @@ public class MenuRepositoryImpl implements MenuRepository {
     }
 
     @Override
-    public List<Menu> findEnabledVisible() {
+    public List<MenuAggregate> findEnabledVisible() {
         List<SysMenu> pos = menuMapper.selectList(new LambdaQueryWrapper<SysMenu>()
                 .eq(SysMenu::getTenantId, TenantContext.requireId())
-                .eq(SysMenu::getStatus, Menu.STATUS_ENABLED)
-                .eq(SysMenu::getVisible, Menu.VISIBLE_SHOWN)
+                .eq(SysMenu::getStatus, MenuAggregate.STATUS_ENABLED)
+                .eq(SysMenu::getVisible, MenuAggregate.VISIBLE_SHOWN)
                 .orderByAsc(SysMenu::getSort)
                 .orderByAsc(SysMenu::getId));
         return pos.stream().map(MenuPersistenceAssembler::toDomain).toList();

@@ -7,19 +7,19 @@ import com.bluewhale.auth.application.port.TenantStatusSyncPort;
 import com.bluewhale.auth.application.service.TenantAppService;
 import com.bluewhale.auth.application.service.TenantMembershipAppService;
 import com.bluewhale.auth.application.service.TenantProvisioningAppService;
-import com.bluewhale.auth.domain.aggregate.Dept;
+import com.bluewhale.auth.domain.aggregate.DeptAggregate;
 import com.bluewhale.auth.domain.model.AuthRoleCodes;
 import com.bluewhale.auth.domain.repository.DeptRepository;
-import com.bluewhale.auth.domain.aggregate.Menu;
+import com.bluewhale.auth.domain.aggregate.MenuAggregate;
 import com.bluewhale.auth.domain.repository.MenuRepository;
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
 import com.bluewhale.auth.domain.model.vo.RoleCode;
 import com.bluewhale.auth.domain.model.vo.Username;
-import com.bluewhale.auth.domain.aggregate.Permission;
+import com.bluewhale.auth.domain.aggregate.PermissionAggregate;
 import com.bluewhale.auth.domain.repository.PermissionRepository;
-import com.bluewhale.auth.domain.aggregate.Role;
+import com.bluewhale.auth.domain.aggregate.RoleAggregate;
 import com.bluewhale.auth.domain.repository.RoleRepository;
-import com.bluewhale.auth.domain.aggregate.Tenant;
+import com.bluewhale.auth.domain.aggregate.TenantAggregate;
 import com.bluewhale.auth.domain.repository.TenantRepository;
 import com.bluewhale.auth.domain.aggregate.UserAggregate;
 import com.bluewhale.auth.domain.repository.UserRepository;
@@ -122,26 +122,26 @@ public class TenantProvisioningAppServiceImpl implements TenantProvisioningAppSe
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "租户编码已存在");
         }
         Username adminUsername = Username.of(command.adminUsername());
-        Tenant tenant = tenantRepository.save(
-                Tenant.create(tenantCode, command.tenantName(), command.expireTime(), command.quotaJson()));
+        TenantAggregate tenant = tenantRepository.save(
+                TenantAggregate.create(tenantCode, command.tenantName(), command.expireTime(), command.quotaJson()));
         Long tenantId = tenant.getId();
 
         // 1. 部门根：以租户名称作为根部门，供管理员与后续用户挂载
-        Dept rootDept = deptRepository.save(
-                Dept.create(tenantId, 0L, tenant.getTenantName(), 0, null));
+        DeptAggregate rootDept = deptRepository.save(
+                DeptAggregate.create(tenantId, 0L, tenant.getTenantName(), 0, null));
 
         // 2. 菜单模板：从平台租户复制，保持父子层级
         copyMenusFromPlatform(tenantId);
 
         // 3. 默认角色：租户管理员，授予除平台租户管理外的全部启用权限
-        List<Permission> tenantGrantablePermissions = permissionRepository.findEnabledAll().stream()
+        List<PermissionAggregate> tenantGrantablePermissions = permissionRepository.findEnabledAll().stream()
                 .filter(permission -> !PLATFORM_ONLY_PERM_CODES.contains(permission.getPermCode().value()))
                 .toList();
         List<Long> permissionIds = tenantGrantablePermissions.stream()
-                .map(Permission::getId)
+                .map(PermissionAggregate::getId)
                 .toList();
-        Role adminRole = roleRepository.save(Role.create(tenantId, RoleCode.of(AuthRoleCodes.TENANT_ADMIN),
-                "租户管理员", "租户开通时自动创建，管理本租户用户、角色、菜单与部门", 0, Role.STATUS_ENABLED));
+        RoleAggregate adminRole = roleRepository.save(RoleAggregate.create(tenantId, RoleCode.of(AuthRoleCodes.TENANT_ADMIN),
+                "租户管理员", "租户开通时自动创建，管理本租户用户、角色、菜单与部门", 0, RoleAggregate.STATUS_ENABLED));
         roleRepository.replacePermissions(adminRole.getId(), adminRole.assignPermissions(permissionIds));
 
         // 4. 业务角色：按平台租户模板下发同名角色并复制模板当前权限集
@@ -164,7 +164,7 @@ public class TenantProvisioningAppServiceImpl implements TenantProvisioningAppSe
     /**
      * 按平台租户业务角色模板向新租户下发业务角色。
      *
-     * <p><b>模板来源</b>：平台租户（{@link Tenant#PLATFORM_TENANT_ID}）下由
+     * <p><b>模板来源</b>：平台租户（{@link TenantAggregate#PLATFORM_TENANT_ID}）下由
      * {@code migration-5.65-business-role-grant.sql} 与
      * {@code migration-5.66-pm-role-template.sql} 维护的同名角色；角色名称、描述、排序与状态原样复制，
      * 权限集取模板当前的 {@code sys_role_permission}，再与本次下发给业务租户的启用权限集合取交集。</p>
@@ -175,21 +175,21 @@ public class TenantProvisioningAppServiceImpl implements TenantProvisioningAppSe
      * @param targetTenantId 新租户 ID
      * @param grantablePermissions 可下发给业务租户的启用权限（已剔除平台专属码）
      */
-    private void copyBusinessRolesFromPlatform(Long targetTenantId, List<Permission> grantablePermissions) {
+    private void copyBusinessRolesFromPlatform(Long targetTenantId, List<PermissionAggregate> grantablePermissions) {
         Set<Long> grantablePermissionIds = grantablePermissions.stream()
-                .map(Permission::getId)
+                .map(PermissionAggregate::getId)
                 .collect(Collectors.toSet());
         int copied = 0;
         int missing = 0;
         for (String roleCode : BUSINESS_ROLE_TEMPLATE_CODES) {
-            Optional<Role> template = roleRepository.findByTenantIdAndCode(Tenant.PLATFORM_TENANT_ID, roleCode);
+            Optional<RoleAggregate> template = roleRepository.findByTenantIdAndCode(TenantAggregate.PLATFORM_TENANT_ID, roleCode);
             if (template.isEmpty()) {
                 missing++;
                 log.warn("业务角色模板缺失，跳过下发: tenantId={}, roleCode={}", targetTenantId, roleCode);
                 continue;
             }
-            Role source = template.get();
-            Role role = roleRepository.save(Role.create(targetTenantId, RoleCode.of(roleCode),
+            RoleAggregate source = template.get();
+            RoleAggregate role = roleRepository.save(RoleAggregate.create(targetTenantId, RoleCode.of(roleCode),
                     source.getRoleName(), source.getDescription(), source.getSortNo(), source.getStatus()));
             List<Long> templatePermissionIds = roleRepository.listPermissionIds(source.getId());
             List<Long> permissionIds = templatePermissionIds.stream()
@@ -208,22 +208,22 @@ public class TenantProvisioningAppServiceImpl implements TenantProvisioningAppSe
      * @param targetTenantId 目标租户 ID
      */
     private void copyMenusFromPlatform(Long targetTenantId) {
-        List<Menu> remaining = new ArrayList<>(
-                menuRepository.findAllByTenantId(Tenant.PLATFORM_TENANT_ID));
+        List<MenuAggregate> remaining = new ArrayList<>(
+                menuRepository.findAllByTenantId(TenantAggregate.PLATFORM_TENANT_ID));
         Map<Long, Long> idMapping = new HashMap<>();
         while (!remaining.isEmpty()) {
             boolean progressed = false;
-            Iterator<Menu> iterator = remaining.iterator();
+            Iterator<MenuAggregate> iterator = remaining.iterator();
             while (iterator.hasNext()) {
-                Menu source = iterator.next();
+                MenuAggregate source = iterator.next();
                 // 父节点尚未映射时 get() 返回 null，属于「本轮跳过、下一轮重试」的正常情形；
                 // parentId 判等必须用 Long.equals，避免 Long 与原始字面量比较触发自动拆箱 NPE
-                Long mappedParentId = Long.valueOf(Menu.ROOT_PARENT_ID).equals(source.getParentId())
-                        ? Long.valueOf(Menu.ROOT_PARENT_ID) : idMapping.get(source.getParentId());
+                Long mappedParentId = Long.valueOf(MenuAggregate.ROOT_PARENT_ID).equals(source.getParentId())
+                        ? Long.valueOf(MenuAggregate.ROOT_PARENT_ID) : idMapping.get(source.getParentId());
                 if (mappedParentId == null) {
                     continue;
                 }
-                Menu copied = menuRepository.save(Menu.create(targetTenantId, mappedParentId,
+                MenuAggregate copied = menuRepository.save(MenuAggregate.create(targetTenantId, mappedParentId,
                         source.getName(), source.getPath(), source.getComponent(), source.getIcon(),
                         source.getSort(), source.getMenuType(), source.getPermissionCode(),
                         source.getVisible(), source.getStatus()));

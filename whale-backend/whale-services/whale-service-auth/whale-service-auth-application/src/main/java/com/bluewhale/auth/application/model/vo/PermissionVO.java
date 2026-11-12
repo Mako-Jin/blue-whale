@@ -1,6 +1,6 @@
 package com.bluewhale.auth.application.model.vo;
 
-import com.bluewhale.auth.domain.aggregate.Permission;
+import com.bluewhale.auth.domain.aggregate.PermissionAggregate;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -34,7 +34,7 @@ public class PermissionVO implements Serializable {
      * @param permission 权限点聚合根
      * @return 权限点视图对象
      */
-    public static PermissionVO from(Permission permission) {
+    public static PermissionVO from(PermissionAggregate permission) {
         PermissionVO vo = new PermissionVO();
         vo.setId(permission.getId());
         vo.setParentId(permission.getParentId());

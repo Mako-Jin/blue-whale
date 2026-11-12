@@ -1,6 +1,6 @@
 package com.bluewhale.auth.application.model.vo;
 
-import com.bluewhale.auth.domain.aggregate.Role;
+import com.bluewhale.auth.domain.aggregate.RoleAggregate;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -31,7 +31,7 @@ public class RoleVO implements Serializable {
      * @param role 角色聚合根
      * @return 角色视图对象
      */
-    public static RoleVO from(Role role) {
+    public static RoleVO from(RoleAggregate role) {
         RoleVO vo = new RoleVO();
         vo.setId(role.getId());
         vo.setRoleCode(role.getRoleCode().value());

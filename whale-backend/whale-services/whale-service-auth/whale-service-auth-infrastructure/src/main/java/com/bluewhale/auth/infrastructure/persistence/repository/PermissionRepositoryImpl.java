@@ -2,7 +2,7 @@ package com.bluewhale.auth.infrastructure.persistence.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.bluewhale.auth.domain.aggregate.Permission;
+import com.bluewhale.auth.domain.aggregate.PermissionAggregate;
 import com.bluewhale.auth.domain.repository.PermissionRepository;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysPermission;
 import com.bluewhale.auth.infrastructure.persistence.assembler.PermissionPersistenceAssembler;
@@ -31,7 +31,7 @@ public class PermissionRepositoryImpl implements PermissionRepository {
     private final SysPermissionMapper permissionMapper;
 
     @Override
-    public void save(Permission permission) {
+    public void save(PermissionAggregate permission) {
         SysPermission po = PermissionPersistenceAssembler.toPo(permission);
         if (po.getId() == null) {
             permissionMapper.insert(po);
@@ -41,15 +41,15 @@ public class PermissionRepositoryImpl implements PermissionRepository {
     }
 
     @Override
-    public Optional<Permission> findById(Long id) {
+    public Optional<PermissionAggregate> findById(Long id) {
         SysPermission po = permissionMapper.selectById(id);
         return Optional.ofNullable(po).map(PermissionPersistenceAssembler::toDomain);
     }
 
     @Override
-    public List<Permission> findEnabledAll() {
+    public List<PermissionAggregate> findEnabledAll() {
         List<SysPermission> pos = permissionMapper.selectList(new LambdaQueryWrapper<SysPermission>()
-                .eq(SysPermission::getStatus, Permission.STATUS_ENABLED));
+                .eq(SysPermission::getStatus, PermissionAggregate.STATUS_ENABLED));
         return pos.stream().map(PermissionPersistenceAssembler::toDomain).toList();
     }
 
@@ -65,7 +65,7 @@ public class PermissionRepositoryImpl implements PermissionRepository {
         }
         wrapper.orderByAsc(SysPermission::getSortNo).orderByDesc(SysPermission::getCreateTime);
         Page<SysPermission> page = permissionMapper.selectPage(new Page<>(current, size), wrapper);
-        List<Permission> records = page.getRecords().stream()
+        List<PermissionAggregate> records = page.getRecords().stream()
                 .map(PermissionPersistenceAssembler::toDomain).toList();
         return new PermissionPage(records, page.getTotal());
     }

@@ -5,9 +5,9 @@ import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.UserDomainEvent;
 import com.bluewhale.auth.domain.model.vo.RoleCode;
 import com.bluewhale.auth.domain.model.vo.Username;
-import com.bluewhale.auth.domain.aggregate.Role;
+import com.bluewhale.auth.domain.aggregate.RoleAggregate;
 import com.bluewhale.auth.domain.repository.RoleRepository;
-import com.bluewhale.auth.domain.aggregate.Tenant;
+import com.bluewhale.auth.domain.aggregate.TenantAggregate;
 import com.bluewhale.auth.domain.repository.TenantRepository;
 import com.bluewhale.auth.domain.aggregate.UserAggregate;
 import com.bluewhale.auth.domain.repository.UserRepository;
@@ -86,7 +86,7 @@ class TenantMembershipAppServiceTest {
     @Test
     @DisplayName("requireSwitchable：目标租户停用或过期返回 403")
     void requireSwitchableShouldRejectUnavailableTenant() {
-        Tenant tenant = tenant(2L, "t2", "租户2", false);
+        TenantAggregate tenant = tenant(2L, "t2", "租户2", false);
         when(userTenantRepository.existsEnabled(USER_ID, 2L)).thenReturn(true);
         when(tenantRepository.findById(2L)).thenReturn(Optional.of(tenant));
 
@@ -108,8 +108,8 @@ class TenantMembershipAppServiceTest {
     @Test
     @DisplayName("listMyTenants：过滤不可用租户并标记当前租户")
     void listMyTenantsShouldFilterUnavailableAndMarkCurrent() {
-        Tenant available = tenant(1L, "t1", "租户1", true);
-        Tenant expired = tenant(2L, "t2", "租户2", false);
+        TenantAggregate available = tenant(1L, "t1", "租户1", true);
+        TenantAggregate expired = tenant(2L, "t2", "租户2", false);
         when(userTenantRepository.listEnabledTenantIds(USER_ID)).thenReturn(List.of(1L, 2L));
         when(tenantRepository.findById(1L)).thenReturn(Optional.of(available));
         when(tenantRepository.findById(2L)).thenReturn(Optional.of(expired));
@@ -132,8 +132,8 @@ class TenantMembershipAppServiceTest {
                 .thenReturn(List.of(user1));
         when(userRepository.listRoleIdsByUserIds(List.of(USER_ID, userId2)))
                 .thenReturn(Map.of(USER_ID, List.of(10L, 20L)));
-        Role tenantRole = role(10L, 5L, "tenant_admin");
-        Role platformRole = role(20L, 1L, "platform_admin");
+        RoleAggregate tenantRole = role(10L, 5L, "tenant_admin");
+        RoleAggregate platformRole = role(20L, 1L, "platform_admin");
         when(roleRepository.listEnabledByIds(List.of(10L, 20L)))
                 .thenReturn(List.of(tenantRole, platformRole));
 
@@ -194,7 +194,7 @@ class TenantMembershipAppServiceTest {
     @DisplayName("bindTenant：目标租户停用返回 400，不写关系")
     void bindTenantShouldRejectUnavailableTenant() {
         UserAggregate user = user(USER_ID, "alice");
-        Tenant tenant = tenant(2L, "t2", "租户2", false);
+        TenantAggregate tenant = tenant(2L, "t2", "租户2", false);
         when(userRepository.findByIdAcrossTenants(USER_ID)).thenReturn(Optional.of(user));
         when(tenantRepository.findById(2L)).thenReturn(Optional.of(tenant));
 
@@ -208,7 +208,7 @@ class TenantMembershipAppServiceTest {
     @DisplayName("bindTenant：写入关系并发布权限缓存失效事件")
     void bindTenantShouldPersistRelation() {
         UserAggregate user = user(USER_ID, "alice");
-        Tenant tenant = tenant(2L, "t2", "租户2", true);
+        TenantAggregate tenant = tenant(2L, "t2", "租户2", true);
         when(userRepository.findByIdAcrossTenants(USER_ID)).thenReturn(Optional.of(user));
         when(tenantRepository.findById(2L)).thenReturn(Optional.of(tenant));
 
@@ -275,8 +275,8 @@ class TenantMembershipAppServiceTest {
         return user;
     }
 
-    private static Role role(Long id, Long tenantId, String roleCode) {
-        Role role = mock(Role.class);
+    private static RoleAggregate role(Long id, Long tenantId, String roleCode) {
+        RoleAggregate role = mock(RoleAggregate.class);
         org.mockito.Mockito.lenient().when(role.getId()).thenReturn(id);
         org.mockito.Mockito.lenient().when(role.getTenantId()).thenReturn(tenantId);
         org.mockito.Mockito.lenient().when(role.getRoleCode()).thenReturn(RoleCode.of(roleCode));
@@ -284,8 +284,8 @@ class TenantMembershipAppServiceTest {
         return role;
     }
 
-    private static Tenant tenant(Long id, String code, String name, boolean available) {
-        Tenant tenant = org.mockito.Mockito.mock(Tenant.class);
+    private static TenantAggregate tenant(Long id, String code, String name, boolean available) {
+        TenantAggregate tenant = org.mockito.Mockito.mock(TenantAggregate.class);
         org.mockito.Mockito.lenient().when(tenant.getId()).thenReturn(id);
         org.mockito.Mockito.lenient().when(tenant.getTenantCode()).thenReturn(code);
         org.mockito.Mockito.lenient().when(tenant.getTenantName()).thenReturn(name);

@@ -10,11 +10,11 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
- * {@link UserPermissionAttribute} 聚合不变量单元测试（AUTH-17 / T-DDD-9）。
+ * {@link UserPermissionAttributeAggregate} 聚合不变量单元测试（AUTH-17 / T-DDD-9）。
  *
  * @author BlueWhale
  */
-class UserPermissionAttributeTest {
+class UserPermissionAttributeAggregateTest {
 
     private static final long USER_ID = 2L;
     private static final long PERMISSION_ID = 10L;
@@ -22,9 +22,9 @@ class UserPermissionAttributeTest {
     @Test
     @DisplayName("create：合法构造，业务标识为三元组且持久化主键为空")
     void shouldCreate() {
-        UserPermissionAttribute attribute = UserPermissionAttribute.create(USER_ID, PERMISSION_ID, "deptId", "100");
+        UserPermissionAttributeAggregate attribute = UserPermissionAttributeAggregate.create(USER_ID, PERMISSION_ID, "deptId", "100");
 
-        assertEquals(new UserPermissionKey(USER_ID, PERMISSION_ID, "deptId"), attribute.getId());
+        assertEquals(new UserPermissionKeyAggregate(USER_ID, PERMISSION_ID, "deptId"), attribute.getId());
         assertNull(attribute.getRowId());
         assertEquals(USER_ID, attribute.getUserId());
         assertEquals(PERMISSION_ID, attribute.getPermissionId());
@@ -36,7 +36,7 @@ class UserPermissionAttributeTest {
     @DisplayName("不变量：attrKey 为空抛参数错误")
     void shouldRejectBlankAttrKey() {
         BizException ex = assertThrows(BizException.class,
-                () -> UserPermissionAttribute.create(USER_ID, PERMISSION_ID, " ", "100"));
+                () -> UserPermissionAttributeAggregate.create(USER_ID, PERMISSION_ID, " ", "100"));
 
         assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
         assertEquals("属性键不能为空", ex.getMessage());
@@ -46,9 +46,9 @@ class UserPermissionAttributeTest {
     @DisplayName("不变量：userId 与 permissionId 为空抛参数错误")
     void shouldRejectNullIds() {
         BizException userEx = assertThrows(BizException.class,
-                () -> UserPermissionAttribute.create(null, PERMISSION_ID, "deptId", "100"));
+                () -> UserPermissionAttributeAggregate.create(null, PERMISSION_ID, "deptId", "100"));
         BizException permEx = assertThrows(BizException.class,
-                () -> UserPermissionAttribute.create(USER_ID, null, "deptId", "100"));
+                () -> UserPermissionAttributeAggregate.create(USER_ID, null, "deptId", "100"));
 
         assertEquals("用户 ID 不能为空", userEx.getMessage());
         assertEquals("权限点 ID 不能为空", permEx.getMessage());
@@ -57,11 +57,11 @@ class UserPermissionAttributeTest {
     @Test
     @DisplayName("reconstitute：按持久化数据原样还原")
     void shouldReconstitute() {
-        UserPermissionAttribute attribute = UserPermissionAttribute.reconstitute(
+        UserPermissionAttributeAggregate attribute = UserPermissionAttributeAggregate.reconstitute(
                 7L, USER_ID, PERMISSION_ID, "deptId", "100");
 
         assertEquals(7L, attribute.getRowId());
-        assertEquals(new UserPermissionKey(USER_ID, PERMISSION_ID, "deptId"), attribute.getId());
+        assertEquals(new UserPermissionKeyAggregate(USER_ID, PERMISSION_ID, "deptId"), attribute.getId());
         assertEquals(USER_ID, attribute.getUserId());
         assertEquals(PERMISSION_ID, attribute.getPermissionId());
         assertEquals("deptId", attribute.getAttrKey());

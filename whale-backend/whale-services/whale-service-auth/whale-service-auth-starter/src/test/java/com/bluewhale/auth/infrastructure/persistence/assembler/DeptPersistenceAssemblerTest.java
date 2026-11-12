@@ -1,6 +1,6 @@
 package com.bluewhale.auth.infrastructure.persistence.assembler;
 
-import com.bluewhale.auth.domain.aggregate.Dept;
+import com.bluewhale.auth.domain.aggregate.DeptAggregate;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysDept;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,14 +35,14 @@ class DeptPersistenceAssemblerTest {
         return po;
     }
 
-    private static Dept fullDomain() {
-        return Dept.reconstitute(5L, 1L, 3L, "研发部", 2, "张三", CREATED, UPDATED);
+    private static DeptAggregate fullDomain() {
+        return DeptAggregate.reconstitute(5L, 1L, 3L, "研发部", 2, "张三", CREATED, UPDATED);
     }
 
     @Test
     @DisplayName("PO → 领域：Dept 聚合全部关键字段逐项一致")
     void shouldMapPoToDomainFieldByField() {
-        Dept dept = DeptPersistenceAssembler.toDomain(fullPo());
+        DeptAggregate dept = DeptPersistenceAssembler.toDomain(fullPo());
 
         assertEquals(5L, dept.getId());
         assertEquals(3L, dept.getParentId());
@@ -76,9 +76,9 @@ class DeptPersistenceAssemblerTest {
         po.setParentId(null);
         po.setSort(null);
 
-        Dept dept = DeptPersistenceAssembler.toDomain(po);
+        DeptAggregate dept = DeptPersistenceAssembler.toDomain(po);
 
-        assertEquals(Dept.ROOT_PARENT_ID, dept.getParentId());
+        assertEquals(DeptAggregate.ROOT_PARENT_ID, dept.getParentId());
         assertEquals(0, dept.getSort());
     }
 }

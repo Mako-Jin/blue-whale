@@ -1,7 +1,7 @@
 package com.bluewhale.auth.infrastructure.persistence.assembler;
 
 import com.bluewhale.auth.domain.model.vo.RoleCode;
-import com.bluewhale.auth.domain.aggregate.Role;
+import com.bluewhale.auth.domain.aggregate.RoleAggregate;
 import com.bluewhale.auth.domain.model.entity.RolePermissionAssignment;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysRole;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysRolePermission;
@@ -28,8 +28,8 @@ public final class RolePersistenceAssembler {
      * @param po 角色持久化对象
      * @return 角色聚合根
      */
-    public static Role toDomain(SysRole po) {
-        return Role.reconstitute(
+    public static RoleAggregate toDomain(SysRole po) {
+        return RoleAggregate.reconstitute(
                 po.getId(),
                 po.getTenantId(),
                 RoleCode.of(po.getRoleCode()),
@@ -47,7 +47,7 @@ public final class RolePersistenceAssembler {
      * @param role 角色聚合根
      * @return 角色持久化对象
      */
-    public static SysRole toPo(Role role) {
+    public static SysRole toPo(RoleAggregate role) {
         SysRole po = new SysRole();
         po.setId(role.getId());
         po.setTenantId(role.getTenantId());

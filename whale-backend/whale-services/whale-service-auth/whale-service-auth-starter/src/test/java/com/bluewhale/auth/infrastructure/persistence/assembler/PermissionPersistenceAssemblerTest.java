@@ -1,7 +1,7 @@
 package com.bluewhale.auth.infrastructure.persistence.assembler;
 
 import com.bluewhale.auth.domain.model.vo.PermCode;
-import com.bluewhale.auth.domain.aggregate.Permission;
+import com.bluewhale.auth.domain.aggregate.PermissionAggregate;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysPermission;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,22 +32,22 @@ class PermissionPersistenceAssemblerTest {
         po.setPath("/api/user");
         po.setMethod("GET");
         po.setSortNo(2);
-        po.setStatus(Permission.STATUS_ENABLED);
+        po.setStatus(PermissionAggregate.STATUS_ENABLED);
         po.setDeleted(0);
         po.setCreateTime(CREATED);
         po.setUpdateTime(UPDATED);
         return po;
     }
 
-    private static Permission fullDomain() {
-        return Permission.reconstitute(5L, 3L, PermCode.of("sys:user:list"), "用户列表", "API",
-                "/api/user", "GET", 2, Permission.STATUS_ENABLED, CREATED, UPDATED);
+    private static PermissionAggregate fullDomain() {
+        return PermissionAggregate.reconstitute(5L, 3L, PermCode.of("sys:user:list"), "用户列表", "API",
+                "/api/user", "GET", 2, PermissionAggregate.STATUS_ENABLED, CREATED, UPDATED);
     }
 
     @Test
     @DisplayName("PO → 领域：Permission 聚合全部关键字段逐项一致")
     void shouldMapPoToDomainFieldByField() {
-        Permission permission = PermissionPersistenceAssembler.toDomain(fullPo());
+        PermissionAggregate permission = PermissionPersistenceAssembler.toDomain(fullPo());
 
         assertEquals(5L, permission.getId());
         assertEquals(3L, permission.getParentId());
@@ -57,7 +57,7 @@ class PermissionPersistenceAssemblerTest {
         assertEquals("/api/user", permission.getPath());
         assertEquals("GET", permission.getMethod());
         assertEquals(2, permission.getSortNo());
-        assertEquals(Permission.STATUS_ENABLED, permission.getStatus());
+        assertEquals(PermissionAggregate.STATUS_ENABLED, permission.getStatus());
         assertEquals(CREATED, permission.getCreateTime());
         assertEquals(UPDATED, permission.getUpdateTime());
     }
@@ -75,7 +75,7 @@ class PermissionPersistenceAssemblerTest {
         assertEquals("/api/user", po.getPath());
         assertEquals("GET", po.getMethod());
         assertEquals(2, po.getSortNo());
-        assertEquals(Permission.STATUS_ENABLED, po.getStatus());
+        assertEquals(PermissionAggregate.STATUS_ENABLED, po.getStatus());
         assertEquals(CREATED, po.getCreateTime());
         assertEquals(UPDATED, po.getUpdateTime());
         // deleted 不属本步 Permission 聚合关键项，转换不携带
@@ -90,10 +90,10 @@ class PermissionPersistenceAssemblerTest {
         po.setSortNo(null);
         po.setStatus(null);
 
-        Permission permission = PermissionPersistenceAssembler.toDomain(po);
+        PermissionAggregate permission = PermissionPersistenceAssembler.toDomain(po);
 
-        assertEquals(Permission.ROOT_PARENT_ID, permission.getParentId());
+        assertEquals(PermissionAggregate.ROOT_PARENT_ID, permission.getParentId());
         assertEquals(0, permission.getSortNo());
-        assertEquals(Permission.STATUS_ENABLED, permission.getStatus());
+        assertEquals(PermissionAggregate.STATUS_ENABLED, permission.getStatus());
     }
 }

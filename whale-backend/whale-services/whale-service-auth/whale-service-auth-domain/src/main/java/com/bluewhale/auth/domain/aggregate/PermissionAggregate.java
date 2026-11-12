@@ -19,7 +19,7 @@ import java.util.Set;
  *
  * @author BlueWhale
  */
-public class Permission implements Entity<Long> {
+public class PermissionAggregate implements Entity<Long> {
 
     /** 状态：启用 */
     public static final int STATUS_ENABLED = 1;
@@ -58,9 +58,9 @@ public class Permission implements Entity<Long> {
      * @param createTime 创建时间
      * @param updateTime 更新时间
      */
-    private Permission(Long id, Long parentId, PermCode permCode, String permName, String permType,
-                       String path, String method, int sortNo, int status,
-                       LocalDateTime createTime, LocalDateTime updateTime) {
+    private PermissionAggregate(Long id, Long parentId, PermCode permCode, String permName, String permType,
+                                String path, String method, int sortNo, int status,
+                                LocalDateTime createTime, LocalDateTime updateTime) {
         if (parentId == null) {
             throw new DomainException(ErrorCode.PARAM_ERROR, "父权限点 ID 不能为空（0 表示顶级）");
         }
@@ -103,10 +103,10 @@ public class Permission implements Entity<Long> {
      * @param status 状态，为空时按启用处理
      * @return 新建的权限点聚合根
      */
-    public static Permission create(Long parentId, PermCode permCode, String permName, String permType,
-                                    String path, String method, Integer sortNo, Integer status) {
+    public static PermissionAggregate create(Long parentId, PermCode permCode, String permName, String permType,
+                                             String path, String method, Integer sortNo, Integer status) {
         LocalDateTime now = LocalDateTime.now();
-        return new Permission(null, parentId == null ? ROOT_PARENT_ID : parentId, permCode, permName, permType,
+        return new PermissionAggregate(null, parentId == null ? ROOT_PARENT_ID : parentId, permCode, permName, permType,
                 path, method, sortNo == null ? 0 : sortNo, status == null ? STATUS_ENABLED : status, now, now);
     }
 
@@ -126,10 +126,10 @@ public class Permission implements Entity<Long> {
      * @param updateTime 更新时间
      * @return 还原的权限点聚合根
      */
-    public static Permission reconstitute(Long id, Long parentId, PermCode permCode, String permName, String permType,
-                                          String path, String method, Integer sortNo, Integer status,
-                                          LocalDateTime createTime, LocalDateTime updateTime) {
-        return new Permission(id, parentId == null ? ROOT_PARENT_ID : parentId, permCode, permName, permType,
+    public static PermissionAggregate reconstitute(Long id, Long parentId, PermCode permCode, String permName, String permType,
+                                                   String path, String method, Integer sortNo, Integer status,
+                                                   LocalDateTime createTime, LocalDateTime updateTime) {
+        return new PermissionAggregate(id, parentId == null ? ROOT_PARENT_ID : parentId, permCode, permName, permType,
                 path, method, sortNo == null ? 0 : sortNo, status == null ? STATUS_ENABLED : status,
                 createTime, updateTime);
     }

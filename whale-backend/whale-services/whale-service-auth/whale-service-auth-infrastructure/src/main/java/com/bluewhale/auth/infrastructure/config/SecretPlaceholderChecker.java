@@ -6,6 +6,8 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
+
 /**
  * 生产安全配置强制校验器（REQ-SEC-005）。
  * <p>非 dev 环境下校验两项配置，任一不安全即拒绝启动：</p>
@@ -28,6 +30,9 @@ public class SecretPlaceholderChecker implements InitializingBean {
     /** 允许使用占位密钥的开发环境 profile 名 */
     private static final String DEV_PROFILE = "dev";
 
+    /** JWT 密钥最小字节数（HS256 要求 256 bit） */
+    private static final int MIN_SECRET_BYTES = 32;
+
     private final JwtProperties jwtProperties;
 
     private final AuthCookieProperties authCookieProperties;
@@ -44,6 +49,10 @@ public class SecretPlaceholderChecker implements InitializingBean {
             throw new IllegalStateException("JWT 签名密钥仍为默认占位值，非 dev 环境拒绝启动。"
                     + "请通过环境变量 JWT_SECRET 设置至少 32 字节（HS256 要求 256 bit）的随机密钥。");
         }
+        if (jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8).length < MIN_SECRET_BYTES) {
+            throw new IllegalStateException("JWT 签名密钥长度不足 " + MIN_SECRET_BYTES + " 字节，非 dev 环境拒绝启动。"
+                    + "HS256 要求至少 256 bit，请通过环境变量 JWT_SECRET 设置足够长的随机密钥。");
+        }
         if (!authCookieProperties.isSecure()) {
             throw new IllegalStateException("认证 Cookie 的 Secure 标记未开启，非 dev 环境拒绝启动。"
                     + "请通过环境变量 WHALE_AUTH_COOKIE_SECURE=true 开启，避免 refresh / CSRF Cookie 经 HTTP 明文传输。");
@@ -51,7 +60,8 @@ public class SecretPlaceholderChecker implements InitializingBean {
     }
 
     /**
-     * 判断当前是否激活了 dev profile（大小写不敏感，支持 dev / DEV 等写法）
+     * 判断当前是否激活了 dev profile（大小写不敏感，支持 dev / DEV 等写法；
+     * 遍历全部 active profiles，支持 {@code dev,local} 等多 profile 组合）
      */
     private boolean isDevProfile() {
         for (String profile : environment.getActiveProfiles()) {

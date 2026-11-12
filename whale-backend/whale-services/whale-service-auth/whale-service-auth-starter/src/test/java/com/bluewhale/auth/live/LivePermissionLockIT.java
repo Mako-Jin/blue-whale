@@ -6,7 +6,7 @@ import com.bluewhale.auth.application.model.command.AssignRolePermissionsCommand
 import com.bluewhale.auth.infrastructure.config.PermissionCacheProperties;
 import com.bluewhale.auth.domain.model.vo.RoleCode;
 import com.bluewhale.auth.domain.repository.PermissionRepository;
-import com.bluewhale.auth.domain.aggregate.Role;
+import com.bluewhale.auth.domain.aggregate.RoleAggregate;
 import com.bluewhale.auth.domain.repository.RoleRepository;
 import com.bluewhale.auth.infrastructure.cache.AuthPermissionCacheInvalidator;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysRoleMapper;
@@ -115,8 +115,8 @@ class LivePermissionLockIT {
         PermissionRepository permissionRepository = mock(PermissionRepository.class);
         DomainEventPublisher eventPublisher = mock(DomainEventPublisher.class);
 
-        Role role = Role.reconstitute(ROLE_ID, 1L, RoleCode.of("it_role"), "实时IT角色", null, 0,
-                Role.STATUS_ENABLED, null, null);
+        RoleAggregate role = RoleAggregate.reconstitute(ROLE_ID, 1L, RoleCode.of("it_role"), "实时IT角色", null, 0,
+                RoleAggregate.STATUS_ENABLED, null, null);
         when(roleRepository.findById(ROLE_ID)).thenReturn(Optional.of(role));
 
         CountDownLatch entered = new CountDownLatch(1);

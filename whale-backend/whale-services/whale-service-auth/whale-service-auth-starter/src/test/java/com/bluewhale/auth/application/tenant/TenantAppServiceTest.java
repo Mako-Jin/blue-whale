@@ -4,7 +4,7 @@ import com.bluewhale.auth.application.model.command.ChangeTenantStatusCommand;
 import com.bluewhale.auth.application.model.command.RenewTenantCommand;
 import com.bluewhale.auth.application.model.query.TenantPageQuery;
 import com.bluewhale.auth.application.port.TenantStatusSyncPort;
-import com.bluewhale.auth.domain.aggregate.Tenant;
+import com.bluewhale.auth.domain.aggregate.TenantAggregate;
 import com.bluewhale.auth.domain.repository.TenantRepository;
 import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.common.core.exception.BizException;
@@ -61,7 +61,7 @@ class TenantAppServiceTest {
     @DisplayName("租户编码为空：回落默认租户 default")
     void shouldFallbackToDefaultTenantWhenCodeBlank() {
         when(tenantRepository.findByCode(TenantAppService.DEFAULT_TENANT_CODE))
-                .thenReturn(Optional.of(Tenant.reconstitute(1L, "default", "默认租户", "PLATFORM", 1,
+                .thenReturn(Optional.of(TenantAggregate.reconstitute(1L, "default", "默认租户", "PLATFORM", 1,
                         null, null, null, null)));
 
         assertEquals(1L, service.resolveEnabledTenantId("  "));
@@ -71,7 +71,7 @@ class TenantAppServiceTest {
     @DisplayName("租户存在且启用：返回租户 ID")
     void shouldResolveEnabledTenant() {
         when(tenantRepository.findByCode("acme"))
-                .thenReturn(Optional.of(Tenant.reconstitute(TENANT_ID, "acme", "ACME", "PLATFORM", 1,
+                .thenReturn(Optional.of(TenantAggregate.reconstitute(TENANT_ID, "acme", "ACME", "PLATFORM", 1,
                         null, null, null, null)));
 
         assertEquals(TENANT_ID, service.resolveEnabledTenantId("acme"));
@@ -91,7 +91,7 @@ class TenantAppServiceTest {
     @DisplayName("租户已停用：返回 401")
     void shouldRejectDisabledTenant() {
         when(tenantRepository.findByCode("acme"))
-                .thenReturn(Optional.of(Tenant.reconstitute(TENANT_ID, "acme", "ACME", "PLATFORM", 0,
+                .thenReturn(Optional.of(TenantAggregate.reconstitute(TENANT_ID, "acme", "ACME", "PLATFORM", 0,
                         null, null, null, null)));
 
         BizException ex = assertThrows(BizException.class, () -> service.resolveEnabledTenantId("acme"));
@@ -111,7 +111,7 @@ class TenantAppServiceTest {
     @DisplayName("ensureEnabled：租户启用时通过")
     void shouldPassEnsureWhenTenantEnabled() {
         when(tenantRepository.findById(TENANT_ID))
-                .thenReturn(Optional.of(Tenant.reconstitute(TENANT_ID, "acme", "ACME", "PLATFORM", 1,
+                .thenReturn(Optional.of(TenantAggregate.reconstitute(TENANT_ID, "acme", "ACME", "PLATFORM", 1,
                         null, null, null, null)));
 
         service.ensureEnabled(TENANT_ID);
@@ -121,7 +121,7 @@ class TenantAppServiceTest {
     @DisplayName("租户已过期：返回 401")
     void shouldRejectExpiredTenant() {
         when(tenantRepository.findByCode("acme"))
-                .thenReturn(Optional.of(Tenant.reconstitute(TENANT_ID, "acme", "ACME", "PLATFORM", 1,
+                .thenReturn(Optional.of(TenantAggregate.reconstitute(TENANT_ID, "acme", "ACME", "PLATFORM", 1,
                         LocalDateTime.now().minusDays(1), null, null, null)));
 
         BizException ex = assertThrows(BizException.class, () -> service.resolveEnabledTenantId("acme"));
@@ -133,7 +133,7 @@ class TenantAppServiceTest {
     @DisplayName("分页列表：非平台租户返回 403")
     void shouldRejectPageWhenTenantNotPlatform() {
         when(tenantRepository.findById(1L))
-                .thenReturn(Optional.of(Tenant.reconstitute(1L, "acme", "ACME", "TENANT", 1,
+                .thenReturn(Optional.of(TenantAggregate.reconstitute(1L, "acme", "ACME", "TENANT", 1,
                         null, null, null, null)));
 
         BizException ex = assertThrows(BizException.class,
@@ -146,7 +146,7 @@ class TenantAppServiceTest {
     @DisplayName("平台租户停用自身：返回参数异常")
     void shouldRejectDisablingPlatformTenant() {
         when(tenantRepository.findById(1L))
-                .thenReturn(Optional.of(Tenant.reconstitute(1L, "default", "默认租户", "PLATFORM", 1,
+                .thenReturn(Optional.of(TenantAggregate.reconstitute(1L, "default", "默认租户", "PLATFORM", 1,
                         null, null, null, null)));
 
         BizException ex = assertThrows(BizException.class,
@@ -160,7 +160,7 @@ class TenantAppServiceTest {
     @DisplayName("续期：到期时间早于当前时间返回参数异常")
     void shouldRejectRenewWithPastExpireTime() {
         when(tenantRepository.findById(1L))
-                .thenReturn(Optional.of(Tenant.reconstitute(1L, "default", "默认租户", "PLATFORM", 1,
+                .thenReturn(Optional.of(TenantAggregate.reconstitute(1L, "default", "默认租户", "PLATFORM", 1,
                         null, null, null, null)));
 
         BizException ex = assertThrows(BizException.class,
@@ -173,9 +173,9 @@ class TenantAppServiceTest {
     @Test
     @DisplayName("续期：保存后同步到期时间缓存，供网关即时判定")
     void shouldSyncStatusCacheWhenRenewed() {
-        Tenant platform = Tenant.reconstitute(1L, "default", "默认租户", "PLATFORM", 1,
+        TenantAggregate platform = TenantAggregate.reconstitute(1L, "default", "默认租户", "PLATFORM", 1,
                 null, null, null, null);
-        Tenant target = Tenant.reconstitute(TENANT_ID, "acme", "ACME", "TENANT", 1,
+        TenantAggregate target = TenantAggregate.reconstitute(TENANT_ID, "acme", "ACME", "TENANT", 1,
                 LocalDateTime.now().plusDays(10), null, null, null);
         when(tenantRepository.findById(1L)).thenReturn(Optional.of(platform));
         when(tenantRepository.findById(TENANT_ID)).thenReturn(Optional.of(target));
@@ -189,15 +189,15 @@ class TenantAppServiceTest {
     @Test
     @DisplayName("启停：状态落库后同步状态缓存")
     void shouldSyncStatusCacheWhenStatusChanged() {
-        Tenant platform = Tenant.reconstitute(1L, "default", "默认租户", "PLATFORM", 1,
+        TenantAggregate platform = TenantAggregate.reconstitute(1L, "default", "默认租户", "PLATFORM", 1,
                 null, null, null, null);
-        Tenant target = Tenant.reconstitute(TENANT_ID, "acme", "ACME", "TENANT", 1,
+        TenantAggregate target = TenantAggregate.reconstitute(TENANT_ID, "acme", "ACME", "TENANT", 1,
                 null, null, null, null);
         when(tenantRepository.findById(1L)).thenReturn(Optional.of(platform));
         when(tenantRepository.findById(TENANT_ID)).thenReturn(Optional.of(target));
         when(tenantRepository.save(target)).thenReturn(target);
 
-        service.changeStatus(TENANT_ID, new ChangeTenantStatusCommand(Tenant.STATUS_DISABLED));
+        service.changeStatus(TENANT_ID, new ChangeTenantStatusCommand(TenantAggregate.STATUS_DISABLED));
 
         verify(tenantStatusSync).sync(target);
     }

@@ -3,11 +3,13 @@ package com.bluewhale.auth.infrastructure.jwt;
 import com.bluewhale.auth.infrastructure.config.JwtProperties;
 import com.bluewhale.security.token.TokenTimeSupport;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.security.Keys;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
@@ -30,6 +32,7 @@ import java.util.UUID;
  *
  * @author BlueWhale
  */
+@Slf4j
 @Component
 public class JwtTokenProvider {
 
@@ -79,26 +82,16 @@ public class JwtTokenProvider {
     }
 
     /**
-     * 生成 accessToken：sub=username、userId、tenantId、roles（逗号分隔角色 code），带唯一 jti
+     * 生成 accessToken：sub=username、userId、tenantId、roles（逗号分隔角色 code），带唯一 jti。
+     * <p>不提供省略 {@code pwdChangeRequired} 的便捷重载：调用方必须显式传值，
+     * 避免漏传导致「强制改密用户拿到全量 token」（应用层端口 {@code TokenIssuer} 的
+     * default 重载已显式以 {@code false} 委托，职责边界在应用层）。</p>
      *
      * @param tenantId 租户 ID（网关据此注入 X-Tenant-Id）
      * @param userId 用户 ID
      * @param username 用户名（作为 sub）
      * @param roles 角色 code 列表（逗号分隔写入 roles claim）
-     * @return 签名后的 accessToken 字符串
-     */
-    public String generateAccessToken(Long tenantId, Long userId, String username, List<String> roles) {
-        return generateAccessToken(tenantId, userId, username, roles, false);
-    }
-
-    /**
-     * 生成 accessToken，并按需携入强制改密标记（REQ-SEC-023）
-     *
-     * @param tenantId 租户 ID（网关据此注入 X-Tenant-Id）
-     * @param userId 用户 ID
-     * @param username 用户名（作为 sub）
-     * @param roles 角色 code 列表（逗号分隔写入 roles claim）
-     * @param pwdChangeRequired 是否强制改密
+     * @param pwdChangeRequired 是否强制改密（REQ-SEC-023）
      * @return 签名后的 accessToken 字符串
      */
     public String generateAccessToken(Long tenantId, Long userId, String username, List<String> roles,
@@ -150,7 +143,9 @@ public class JwtTokenProvider {
     }
 
     /**
-     * 解析并校验 token，无效 / 过期 / 签名不符返回 null（不抛异常）
+     * 解析并校验 token，无效 / 过期 / 签名不符返回 null（不抛异常）。
+     * <p>失败会分级记录日志：过期（{@link ExpiredJwtException}）是登出等场景的正常路径，仅 debug；
+     * 其余（签名不符 / 结构非法）可能是伪造尝试，记 warn 并输出异常类型供审计与告警。</p>
      *
      * @param token 待解析的 token
      * @return 令牌载荷 claims；无效时返回 {@code null}
@@ -162,7 +157,11 @@ public class JwtTokenProvider {
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
+        } catch (ExpiredJwtException e) {
+            log.debug("JWT 已过期: subject={}", e.getClaims().getSubject());
+            return null;
         } catch (JwtException | IllegalArgumentException e) {
+            log.warn("JWT 解析失败，疑似伪造或非法令牌: type={}", e.getClass().getSimpleName());
             return null;
         }
     }

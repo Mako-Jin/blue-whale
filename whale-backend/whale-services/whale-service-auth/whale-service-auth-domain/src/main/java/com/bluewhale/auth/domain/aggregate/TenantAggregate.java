@@ -26,7 +26,7 @@ import java.util.regex.Pattern;
  *
  * @author BlueWhale
  */
-public class Tenant implements Entity<Long> {
+public class TenantAggregate implements Entity<Long> {
 
     /** 租户类型：平台运营租户（仅该类租户可管理租户清单） */
     public static final String TYPE_PLATFORM = "PLATFORM";
@@ -65,9 +65,9 @@ public class Tenant implements Entity<Long> {
      * @param createTime 创建时间
      * @param updateTime 更新时间
      */
-    private Tenant(Long id, String tenantCode, String tenantName, String tenantType, int status,
-                   LocalDateTime expireTime, String quotaJson, LocalDateTime createTime,
-                   LocalDateTime updateTime) {
+    private TenantAggregate(Long id, String tenantCode, String tenantName, String tenantType, int status,
+                            LocalDateTime expireTime, String quotaJson, LocalDateTime createTime,
+                            LocalDateTime updateTime) {
         if (tenantCode == null || !CODE_PATTERN.matcher(tenantCode).matches()) {
             throw new DomainException(ErrorCode.PARAM_ERROR,
                     "租户编码非法，仅支持 2–64 位字母、数字、下划线或中划线");
@@ -105,9 +105,9 @@ public class Tenant implements Entity<Long> {
      * @param quotaJson 配额 JSON
      * @return 新建的租户聚合
      */
-    public static Tenant create(String tenantCode, String tenantName, LocalDateTime expireTime, String quotaJson) {
+    public static TenantAggregate create(String tenantCode, String tenantName, LocalDateTime expireTime, String quotaJson) {
         LocalDateTime now = TenantExpiryClock.now();
-        return new Tenant(null, tenantCode, tenantName, TYPE_TENANT, STATUS_ENABLED, expireTime, quotaJson,
+        return new TenantAggregate(null, tenantCode, tenantName, TYPE_TENANT, STATUS_ENABLED, expireTime, quotaJson,
                 now, now);
     }
 
@@ -129,11 +129,11 @@ public class Tenant implements Entity<Long> {
      * @param updateTime 更新时间
      * @return 租户聚合
      */
-    public static Tenant reconstitute(Long id, String tenantCode, String tenantName, String tenantType,
-                                      Integer status, LocalDateTime expireTime, String quotaJson,
-                                      LocalDateTime createTime, LocalDateTime updateTime) {
+    public static TenantAggregate reconstitute(Long id, String tenantCode, String tenantName, String tenantType,
+                                               Integer status, LocalDateTime expireTime, String quotaJson,
+                                               LocalDateTime createTime, LocalDateTime updateTime) {
         String resolvedType = tenantType == null || tenantType.isBlank() ? TYPE_TENANT : tenantType;
-        return new Tenant(id, tenantCode, tenantName, resolvedType,
+        return new TenantAggregate(id, tenantCode, tenantName, resolvedType,
                 status == null ? STATUS_DISABLED : status, expireTime, quotaJson, createTime, updateTime);
     }
 

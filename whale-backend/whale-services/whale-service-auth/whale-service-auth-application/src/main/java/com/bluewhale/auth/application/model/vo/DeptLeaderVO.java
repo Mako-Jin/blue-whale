@@ -1,6 +1,6 @@
 package com.bluewhale.auth.application.model.vo;
 
-import com.bluewhale.auth.domain.aggregate.Dept;
+import com.bluewhale.auth.domain.aggregate.DeptAggregate;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -30,7 +30,7 @@ public class DeptLeaderVO implements Serializable {
      * @param dept 部门聚合根
      * @return 部门负责人视图对象
      */
-    public static DeptLeaderVO from(Dept dept) {
+    public static DeptLeaderVO from(DeptAggregate dept) {
         DeptLeaderVO vo = new DeptLeaderVO();
         vo.setDeptId(dept.getId());
         vo.setDeptName(dept.getDeptName());

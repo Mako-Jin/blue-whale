@@ -8,7 +8,7 @@ import com.bluewhale.auth.application.service.PermissionAppService;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.PermissionDomainEvent;
 import com.bluewhale.auth.domain.model.vo.PermCode;
-import com.bluewhale.auth.domain.aggregate.Permission;
+import com.bluewhale.auth.domain.aggregate.PermissionAggregate;
 import com.bluewhale.auth.domain.repository.PermissionRepository;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -98,7 +98,7 @@ public class PermissionAppServiceImpl implements PermissionAppService {
         if (permissionRepository.existsByPermCode(permCode.value(), null)) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "权限编码已存在");
         }
-        Permission permission = Permission.create(command.parentId(), permCode, command.permName(),
+        PermissionAggregate permission = PermissionAggregate.create(command.parentId(), permCode, command.permName(),
                 command.permType(), command.path(), command.method(), command.sortNo(), command.status());
         permissionRepository.save(permission);
         domainEventPublisher.publish(new PermissionDomainEvent(permission.getId(), ChangeType.CREATED));
@@ -113,7 +113,7 @@ public class PermissionAppServiceImpl implements PermissionAppService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void update(Long id, SavePermissionCommand command) {
-        Permission permission = permissionRepository.findById(id)
+        PermissionAggregate permission = permissionRepository.findById(id)
                 .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
         PermCode permCode = PermCode.of(command.permCode());
         if (permissionRepository.existsByPermCode(permCode.value(), id)) {

@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
  *
  * @author BlueWhale
  */
-public class Dept implements Entity<Long> {
+public class DeptAggregate implements Entity<Long> {
 
     /** 顶级部门的父 ID */
     public static final long ROOT_PARENT_ID = 0L;
@@ -45,8 +45,8 @@ public class Dept implements Entity<Long> {
      * @param createTime 创建时间
      * @param updateTime 更新时间
      */
-    private Dept(Long id, Long tenantId, Long parentId, String deptName, int sort, String leader,
-                 Long leaderUserId, LocalDateTime createTime, LocalDateTime updateTime) {
+    private DeptAggregate(Long id, Long tenantId, Long parentId, String deptName, int sort, String leader,
+                          Long leaderUserId, LocalDateTime createTime, LocalDateTime updateTime) {
         if (tenantId == null) {
             throw new DomainException(ErrorCode.PARAM_ERROR, "部门所属租户不能为空");
         }
@@ -77,7 +77,7 @@ public class Dept implements Entity<Long> {
      * @param leader 负责人
      * @return 新建的部门聚合根
      */
-    public static Dept create(Long tenantId, Long parentId, String deptName, Integer sort, String leader) {
+    public static DeptAggregate create(Long tenantId, Long parentId, String deptName, Integer sort, String leader) {
         return create(tenantId, parentId, deptName, sort, leader, null);
     }
 
@@ -92,10 +92,10 @@ public class Dept implements Entity<Long> {
      * @param leaderUserId 负责人用户 ID（允许为空）
      * @return 新建的部门聚合根
      */
-    public static Dept create(Long tenantId, Long parentId, String deptName, Integer sort, String leader,
-                              Long leaderUserId) {
+    public static DeptAggregate create(Long tenantId, Long parentId, String deptName, Integer sort, String leader,
+                                       Long leaderUserId) {
         LocalDateTime now = LocalDateTime.now();
-        return new Dept(null, tenantId, parentId == null ? ROOT_PARENT_ID : parentId, deptName,
+        return new DeptAggregate(null, tenantId, parentId == null ? ROOT_PARENT_ID : parentId, deptName,
                 sort == null ? 0 : sort, leader, leaderUserId, now, now);
     }
 
@@ -112,8 +112,8 @@ public class Dept implements Entity<Long> {
      * @param updateTime 更新时间
      * @return 还原的部门聚合根
      */
-    public static Dept reconstitute(Long id, Long tenantId, Long parentId, String deptName, Integer sort,
-                                    String leader, LocalDateTime createTime, LocalDateTime updateTime) {
+    public static DeptAggregate reconstitute(Long id, Long tenantId, Long parentId, String deptName, Integer sort,
+                                             String leader, LocalDateTime createTime, LocalDateTime updateTime) {
         return reconstitute(id, tenantId, parentId, deptName, sort, leader, null, createTime, updateTime);
     }
 
@@ -131,10 +131,10 @@ public class Dept implements Entity<Long> {
      * @param updateTime 更新时间
      * @return 还原的部门聚合根
      */
-    public static Dept reconstitute(Long id, Long tenantId, Long parentId, String deptName, Integer sort,
-                                    String leader, Long leaderUserId, LocalDateTime createTime,
-                                    LocalDateTime updateTime) {
-        return new Dept(id, tenantId, parentId == null ? ROOT_PARENT_ID : parentId, deptName,
+    public static DeptAggregate reconstitute(Long id, Long tenantId, Long parentId, String deptName, Integer sort,
+                                             String leader, Long leaderUserId, LocalDateTime createTime,
+                                             LocalDateTime updateTime) {
+        return new DeptAggregate(id, tenantId, parentId == null ? ROOT_PARENT_ID : parentId, deptName,
                 sort == null ? 0 : sort, leader, leaderUserId, createTime, updateTime);
     }
 

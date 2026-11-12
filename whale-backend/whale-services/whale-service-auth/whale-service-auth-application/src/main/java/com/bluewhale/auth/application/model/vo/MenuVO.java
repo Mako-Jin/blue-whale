@@ -1,6 +1,6 @@
 package com.bluewhale.auth.application.model.vo;
 
-import com.bluewhale.auth.domain.aggregate.Menu;
+import com.bluewhale.auth.domain.aggregate.MenuAggregate;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -38,7 +38,7 @@ public class MenuVO implements Serializable {
      * @param menu 菜单聚合根
      * @return 菜单视图对象
      */
-    public static MenuVO from(Menu menu) {
+    public static MenuVO from(MenuAggregate menu) {
         MenuVO vo = new MenuVO();
         vo.setId(menu.getId());
         vo.setParentId(menu.getParentId());

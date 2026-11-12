@@ -68,7 +68,7 @@ class LiveTokenBlacklistIT {
     @Test
     @DisplayName("有效期内 token：写入摘要键（TTL>0），contains=true，键前缀/摘要长度符合约定")
     void shouldWriteDigestKeyWithPositiveTtlAndHit() {
-        String token = tokenProvider.generateAccessToken(1L, 1L, "admin", List.of("super_admin"));
+        String token = tokenProvider.generateAccessToken(1L, 1L, "admin", List.of("super_admin"), false);
         long remaining = tokenProvider.getRemainingValiditySeconds(token);
         assertThat(remaining).isBetween(SIXTY_SECONDS - TTL_TOLERANCE, SIXTY_SECONDS);
 
@@ -107,7 +107,7 @@ class LiveTokenBlacklistIT {
         expiredProperties.setExpireMinutes(0);
         expiredProperties.setRefreshExpireMinutes(0);
         JwtTokenProvider expiredProvider = new JwtTokenProvider(expiredProperties);
-        String expiredToken = expiredProvider.generateAccessToken(1L, 1L, "admin", List.of());
+        String expiredToken = expiredProvider.generateAccessToken(1L, 1L, "admin", List.of(), false);
 
         assertThat(tokenProvider.getRemainingValiditySeconds(expiredToken)).isLessThan(1L);
 

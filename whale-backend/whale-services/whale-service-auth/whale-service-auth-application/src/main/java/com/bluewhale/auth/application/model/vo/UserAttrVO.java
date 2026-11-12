@@ -1,6 +1,6 @@
 package com.bluewhale.auth.application.model.vo;
 
-import com.bluewhale.auth.domain.aggregate.UserPermissionAttribute;
+import com.bluewhale.auth.domain.aggregate.UserPermissionAttributeAggregate;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -27,7 +27,7 @@ public class UserAttrVO implements Serializable {
      * @param attribute 用户属性聚合根
      * @return 用户属性视图对象
      */
-    public static UserAttrVO from(UserPermissionAttribute attribute) {
+    public static UserAttrVO from(UserPermissionAttributeAggregate attribute) {
         UserAttrVO vo = new UserAttrVO();
         vo.setId(attribute.getRowId());
         vo.setUserId(attribute.getUserId());

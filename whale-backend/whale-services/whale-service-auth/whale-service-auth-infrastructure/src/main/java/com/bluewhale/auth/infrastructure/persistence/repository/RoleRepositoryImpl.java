@@ -2,8 +2,8 @@ package com.bluewhale.auth.infrastructure.persistence.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.bluewhale.auth.domain.aggregate.Permission;
-import com.bluewhale.auth.domain.aggregate.Role;
+import com.bluewhale.auth.domain.aggregate.PermissionAggregate;
+import com.bluewhale.auth.domain.aggregate.RoleAggregate;
 import com.bluewhale.auth.domain.repository.RoleRepository;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysPermission;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysRole;
@@ -42,7 +42,7 @@ public class RoleRepositoryImpl implements RoleRepository {
     private final SysPermissionMapper permissionMapper;
 
     @Override
-    public Role save(Role role) {
+    public RoleAggregate save(RoleAggregate role) {
         SysRole po = RolePersistenceAssembler.toPo(role);
         if (po.getId() == null) {
             roleMapper.insert(po);
@@ -53,7 +53,7 @@ public class RoleRepositoryImpl implements RoleRepository {
     }
 
     @Override
-    public Optional<Role> findById(Long id) {
+    public Optional<RoleAggregate> findById(Long id) {
         SysRole po = roleMapper.selectOne(new LambdaQueryWrapper<SysRole>()
                 .eq(SysRole::getId, id)
                 .eq(SysRole::getTenantId, TenantContext.requireId()));
@@ -61,7 +61,7 @@ public class RoleRepositoryImpl implements RoleRepository {
     }
 
     @Override
-    public Optional<Role> findByCode(String roleCode) {
+    public Optional<RoleAggregate> findByCode(String roleCode) {
         SysRole po = roleMapper.selectOne(new LambdaQueryWrapper<SysRole>()
                 .eq(SysRole::getTenantId, TenantContext.requireId())
                 .eq(SysRole::getRoleCode, roleCode));
@@ -69,7 +69,7 @@ public class RoleRepositoryImpl implements RoleRepository {
     }
 
     @Override
-    public Optional<Role> findByTenantIdAndCode(Long tenantId, String roleCode) {
+    public Optional<RoleAggregate> findByTenantIdAndCode(Long tenantId, String roleCode) {
         SysRole po = roleMapper.selectOne(new LambdaQueryWrapper<SysRole>()
                 .eq(SysRole::getTenantId, tenantId)
                 .eq(SysRole::getRoleCode, roleCode));
@@ -77,13 +77,13 @@ public class RoleRepositoryImpl implements RoleRepository {
     }
 
     @Override
-    public List<Role> listEnabledByIds(Collection<Long> ids) {
+    public List<RoleAggregate> listEnabledByIds(Collection<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             return List.of();
         }
         List<SysRole> pos = roleMapper.selectList(new LambdaQueryWrapper<SysRole>()
                 .in(SysRole::getId, ids)
-                .eq(SysRole::getStatus, Role.STATUS_ENABLED));
+                .eq(SysRole::getStatus, RoleAggregate.STATUS_ENABLED));
         return pos.stream().map(RolePersistenceAssembler::toDomain).toList();
     }
 
@@ -97,7 +97,7 @@ public class RoleRepositoryImpl implements RoleRepository {
         }
         wrapper.orderByAsc(SysRole::getSortNo).orderByDesc(SysRole::getCreateTime);
         Page<SysRole> page = roleMapper.selectPage(new Page<>(current, size), wrapper);
-        List<Role> records = page.getRecords().stream().map(RolePersistenceAssembler::toDomain).toList();
+        List<RoleAggregate> records = page.getRecords().stream().map(RolePersistenceAssembler::toDomain).toList();
         return new RolePage(records, page.getTotal());
     }
 
@@ -139,7 +139,7 @@ public class RoleRepositoryImpl implements RoleRepository {
                         .eq(SysUserRole::getUserId, userId)
                         .inSql(SysUserRole::getRoleId,
                                 "SELECT id FROM sys_role WHERE tenant_id = " + tenantId
-                                        + " AND status = " + Role.STATUS_ENABLED + " AND deleted = 0"))
+                                        + " AND status = " + RoleAggregate.STATUS_ENABLED + " AND deleted = 0"))
                 .stream().map(SysUserRole::getRoleId).toList();
     }
 
@@ -165,7 +165,7 @@ public class RoleRepositoryImpl implements RoleRepository {
         }
         return permissionMapper.selectList(new LambdaQueryWrapper<SysPermission>()
                         .in(SysPermission::getId, permissionIds)
-                        .eq(SysPermission::getStatus, Permission.STATUS_ENABLED))
+                        .eq(SysPermission::getStatus, PermissionAggregate.STATUS_ENABLED))
                 .stream().map(SysPermission::getPermCode).distinct().toList();
     }
 

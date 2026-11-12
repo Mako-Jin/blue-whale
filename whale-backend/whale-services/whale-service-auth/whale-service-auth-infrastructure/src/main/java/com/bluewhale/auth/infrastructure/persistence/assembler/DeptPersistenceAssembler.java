@@ -1,6 +1,6 @@
 package com.bluewhale.auth.infrastructure.persistence.assembler;
 
-import com.bluewhale.auth.domain.aggregate.Dept;
+import com.bluewhale.auth.domain.aggregate.DeptAggregate;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysDept;
 
 /**
@@ -25,8 +25,8 @@ public final class DeptPersistenceAssembler {
      * @param po 部门持久化对象
      * @return 部门聚合根
      */
-    public static Dept toDomain(SysDept po) {
-        return Dept.reconstitute(
+    public static DeptAggregate toDomain(SysDept po) {
+        return DeptAggregate.reconstitute(
                 po.getId(),
                 po.getTenantId(),
                 po.getParentId(),
@@ -44,7 +44,7 @@ public final class DeptPersistenceAssembler {
      * @param dept 部门聚合根
      * @return 部门持久化对象
      */
-    public static SysDept toPo(Dept dept) {
+    public static SysDept toPo(DeptAggregate dept) {
         SysDept po = new SysDept();
         po.setId(dept.getId());
         po.setTenantId(dept.getTenantId());

@@ -1,6 +1,6 @@
 package com.bluewhale.auth.domain.repository;
 
-import com.bluewhale.auth.domain.aggregate.Permission;
+import com.bluewhale.auth.domain.aggregate.PermissionAggregate;
 
 import java.util.Collection;
 import java.util.List;
@@ -20,7 +20,7 @@ public interface PermissionRepository {
      *
      * @param permission 权限点聚合根
      */
-    void save(Permission permission);
+    void save(PermissionAggregate permission);
 
     /**
      * 按权限点 ID 查询权限点聚合
@@ -28,14 +28,14 @@ public interface PermissionRepository {
      * @param id 权限点 ID
      * @return 权限点聚合；不存在时返回空
      */
-    Optional<Permission> findById(Long id);
+    Optional<PermissionAggregate> findById(Long id);
 
     /**
      * 查询全部启用权限点（对应 {@code listAllCodes} 对 {@code sys_permission} 的读）
      *
      * @return 启用权限点聚合列表
      */
-    List<Permission> findEnabledAll();
+    List<PermissionAggregate> findEnabledAll();
 
     /**
      * 分页查询权限点（{@code keyword} 模糊匹配权限编码/名称，{@code permType} 精确过滤）
@@ -87,6 +87,6 @@ public interface PermissionRepository {
      * @param total 总记录数
      * @author BlueWhale
      */
-    record PermissionPage(List<Permission> records, long total) {
+    record PermissionPage(List<PermissionAggregate> records, long total) {
     }
 }

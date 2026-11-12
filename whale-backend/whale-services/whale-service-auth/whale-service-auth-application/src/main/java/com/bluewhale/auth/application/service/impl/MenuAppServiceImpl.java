@@ -6,7 +6,7 @@ import com.bluewhale.auth.application.model.vo.MenuVO;
 import com.bluewhale.auth.application.service.MenuAppService;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.MenuDomainEvent;
-import com.bluewhale.auth.domain.aggregate.Menu;
+import com.bluewhale.auth.domain.aggregate.MenuAggregate;
 import com.bluewhale.auth.domain.repository.MenuRepository;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -57,7 +57,7 @@ public class MenuAppServiceImpl implements MenuAppService {
      */
     public List<MenuVO> tree() {
         List<MenuVO> all = menuRepository.findAll().stream().map(MenuVO::from).toList();
-        return buildChildren(all, Menu.ROOT_PARENT_ID);
+        return buildChildren(all, MenuAggregate.ROOT_PARENT_ID);
     }
 
     /**
@@ -67,11 +67,11 @@ public class MenuAppServiceImpl implements MenuAppService {
      * @return 过滤后的顶级菜单节点列表（各节点含递归子节点）
      */
     public List<MenuVO> treeByPermissionCodes(Set<String> permissionCodes) {
-        List<Menu> menus = menuRepository.findEnabledVisible();
+        List<MenuAggregate> menus = menuRepository.findEnabledVisible();
         if (permissionCodes != null) {
             menus = retainGrantedWithAncestors(menus, permissionCodes);
         }
-        return buildChildren(menus.stream().map(MenuVO::from).toList(), Menu.ROOT_PARENT_ID);
+        return buildChildren(menus.stream().map(MenuVO::from).toList(), MenuAggregate.ROOT_PARENT_ID);
     }
 
     /**
@@ -88,21 +88,21 @@ public class MenuAppServiceImpl implements MenuAppService {
     }
 
     /**
-     * 新增菜单（默认值由 {@link Menu#create} 负责）
+     * 新增菜单（默认值由 {@link MenuAggregate#create} 负责）
      *
      * @param command 菜单新增命令
      */
     @Transactional(rollbackFor = Exception.class)
     public void create(SaveMenuCommand command) {
-        Menu menu = Menu.create(TenantContext.requireId(), command.parentId(), command.name(), command.path(),
+        MenuAggregate menu = MenuAggregate.create(TenantContext.requireId(), command.parentId(), command.name(), command.path(),
                 command.component(), command.icon(), command.sort(), command.menuType(),
                 command.permissionCode(), command.visible(), command.status());
-        Menu persisted = menuRepository.save(menu);
+        MenuAggregate persisted = menuRepository.save(menu);
         domainEventPublisher.publish(new MenuDomainEvent(persisted.getId(), ChangeType.CREATED));
     }
 
     /**
-     * 更新菜单（PATCH 契约：{@code command} 中为 {@code null} 的字段保持原值，由 {@link Menu#applyUpdate} 负责）
+     * 更新菜单（PATCH 契约：{@code command} 中为 {@code null} 的字段保持原值，由 {@link MenuAggregate#applyUpdate} 负责）
      *
      * @param id 菜单 ID
      * @param command 菜单更新命令
@@ -110,7 +110,7 @@ public class MenuAppServiceImpl implements MenuAppService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void update(Long id, SaveMenuCommand command) {
-        Menu menu = menuRepository.findById(id)
+        MenuAggregate menu = menuRepository.findById(id)
                 .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
         menu.applyUpdate(command.parentId(), command.name(), command.path(), command.component(),
                 command.icon(), command.sort(), command.menuType(), command.permissionCode(),
@@ -141,12 +141,12 @@ public class MenuAppServiceImpl implements MenuAppService {
      * @param permissionCodes 用户权限码集合
      * @return 命中菜单及其祖先目录的集合
      */
-    private List<Menu> retainGrantedWithAncestors(List<Menu> menus, Set<String> permissionCodes) {
-        Map<Long, Menu> byId = new HashMap<>();
+    private List<MenuAggregate> retainGrantedWithAncestors(List<MenuAggregate> menus, Set<String> permissionCodes) {
+        Map<Long, MenuAggregate> byId = new HashMap<>();
         menus.forEach(menu -> byId.put(menu.getId(), menu));
         // LinkedHashMap 保持命中菜单的原始顺序，保证过滤后树顺序稳定可预期
-        Map<Long, Menu> retained = new LinkedHashMap<>();
-        for (Menu menu : menus) {
+        Map<Long, MenuAggregate> retained = new LinkedHashMap<>();
+        for (MenuAggregate menu : menus) {
             if (menu.getPermissionCode() != null && permissionCodes.contains(menu.getPermissionCode())) {
                 retained.put(menu.getId(), menu);
                 appendAncestors(menu, byId, retained);
@@ -162,10 +162,10 @@ public class MenuAppServiceImpl implements MenuAppService {
      * @param byId 菜单 ID 到聚合根的索引
      * @param retained 保留集合（就地写入祖先目录）
      */
-    private void appendAncestors(Menu menu, Map<Long, Menu> byId, Map<Long, Menu> retained) {
+    private void appendAncestors(MenuAggregate menu, Map<Long, MenuAggregate> byId, Map<Long, MenuAggregate> retained) {
         Long parentId = menu.getParentId();
-        while (parentId != null && parentId != Menu.ROOT_PARENT_ID && !retained.containsKey(parentId)) {
-            Menu parent = byId.get(parentId);
+        while (parentId != null && parentId != MenuAggregate.ROOT_PARENT_ID && !retained.containsKey(parentId)) {
+            MenuAggregate parent = byId.get(parentId);
             if (parent == null) {
                 return;
             }

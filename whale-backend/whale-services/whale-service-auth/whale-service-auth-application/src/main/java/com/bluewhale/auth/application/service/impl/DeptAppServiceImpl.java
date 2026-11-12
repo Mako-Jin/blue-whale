@@ -5,7 +5,7 @@ import com.bluewhale.auth.application.model.command.SaveDeptCommand;
 import com.bluewhale.auth.application.model.vo.DeptLeaderVO;
 import com.bluewhale.auth.application.model.vo.DeptVO;
 import com.bluewhale.auth.application.service.DeptAppService;
-import com.bluewhale.auth.domain.aggregate.Dept;
+import com.bluewhale.auth.domain.aggregate.DeptAggregate;
 import com.bluewhale.auth.domain.repository.DeptRepository;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.DeptDomainEvent;
@@ -53,7 +53,7 @@ public class DeptAppServiceImpl implements DeptAppService {
      */
     public List<DeptVO> tree() {
         List<DeptVO> all = deptRepository.findAll().stream().map(DeptVO::from).toList();
-        return buildChildren(all, Dept.ROOT_PARENT_ID);
+        return buildChildren(all, DeptAggregate.ROOT_PARENT_ID);
     }
 
     /**
@@ -70,20 +70,20 @@ public class DeptAppServiceImpl implements DeptAppService {
     }
 
     /**
-     * 新增部门（默认值由 {@link Dept#create} 负责）
+     * 新增部门（默认值由 {@link DeptAggregate#create} 负责）
      *
      * @param command 部门新增命令
      */
     @Transactional(rollbackFor = Exception.class)
     public void create(SaveDeptCommand command) {
-        Dept dept = Dept.create(TenantContext.requireId(), command.parentId(), command.deptName(),
+        DeptAggregate dept = DeptAggregate.create(TenantContext.requireId(), command.parentId(), command.deptName(),
                 command.sort(), command.leader(), command.leaderUserId());
-        Dept persisted = deptRepository.save(dept);
+        DeptAggregate persisted = deptRepository.save(dept);
         domainEventPublisher.publish(new DeptDomainEvent(persisted.getId(), ChangeType.CREATED));
     }
 
     /**
-     * 更新部门（PATCH 契约：{@code command} 中为 {@code null} 的字段保持原值，由 {@link Dept#applyUpdate} 负责）
+     * 更新部门（PATCH 契约：{@code command} 中为 {@code null} 的字段保持原值，由 {@link DeptAggregate#applyUpdate} 负责）
      *
      * @param id 部门 ID
      * @param command 部门更新命令
@@ -91,7 +91,7 @@ public class DeptAppServiceImpl implements DeptAppService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void update(Long id, SaveDeptCommand command) {
-        Dept dept = deptRepository.findById(id)
+        DeptAggregate dept = deptRepository.findById(id)
                 .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
         dept.applyUpdate(command.parentId(), command.deptName(), command.sort(), command.leader(),
                 command.leaderUserId());
@@ -110,7 +110,7 @@ public class DeptAppServiceImpl implements DeptAppService {
      * @throws BizException 部门不存在或跨租户时抛出 {@link ErrorCode#NOT_FOUND}
      */
     public DeptLeaderVO leader(Long deptId) {
-        Dept dept = deptRepository.findById(deptId)
+        DeptAggregate dept = deptRepository.findById(deptId)
                 .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
         return DeptLeaderVO.from(dept);
     }

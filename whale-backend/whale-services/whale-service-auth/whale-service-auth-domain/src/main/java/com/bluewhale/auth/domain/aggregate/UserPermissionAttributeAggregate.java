@@ -7,7 +7,7 @@ import com.bluewhale.common.domain.model.Entity;
 /**
  * 用户 ABAC 属性小聚合（对应 {@code sys_user_permission}，REQ-ARCH-001 / T-DDD-9）。
  *
- * <p>聚合根标识为 {@link UserPermissionKey}（{@code (userId, permissionId, attrKey)} 三元组）：
+ * <p>聚合根标识为 {@link UserPermissionKeyAggregate}（{@code (userId, permissionId, attrKey)} 三元组）：
  * 为「用户 + 权限点」附加属性键值对，供鉴权时做数据范围过滤。<b>不变量</b>：① {@code userId}/{@code permissionId} 非空；
  * ② {@code attrKey} 非空。</p>
  *
@@ -18,7 +18,7 @@ import com.bluewhale.common.domain.model.Entity;
  *
  * @author BlueWhale
  */
-public class UserPermissionAttribute implements Entity<UserPermissionKey> {
+public class UserPermissionAttributeAggregate implements Entity<UserPermissionKeyAggregate> {
 
     private final Long id;
     private final Long userId;
@@ -35,7 +35,7 @@ public class UserPermissionAttribute implements Entity<UserPermissionKey> {
      * @param attrKey 属性键
      * @param attrValue 属性值
      */
-    private UserPermissionAttribute(Long id, Long userId, Long permissionId, String attrKey, String attrValue) {
+    private UserPermissionAttributeAggregate(Long id, Long userId, Long permissionId, String attrKey, String attrValue) {
         if (userId == null) {
             throw new DomainException(ErrorCode.PARAM_ERROR, "用户 ID 不能为空");
         }
@@ -61,8 +61,8 @@ public class UserPermissionAttribute implements Entity<UserPermissionKey> {
      * @param attrValue 属性值
      * @return 新建的属性聚合根
      */
-    public static UserPermissionAttribute create(Long userId, Long permissionId, String attrKey, String attrValue) {
-        return new UserPermissionAttribute(null, userId, permissionId, attrKey, attrValue);
+    public static UserPermissionAttributeAggregate create(Long userId, Long permissionId, String attrKey, String attrValue) {
+        return new UserPermissionAttributeAggregate(null, userId, permissionId, attrKey, attrValue);
     }
 
     /**
@@ -75,9 +75,9 @@ public class UserPermissionAttribute implements Entity<UserPermissionKey> {
      * @param attrValue 属性值
      * @return 还原的属性聚合根
      */
-    public static UserPermissionAttribute reconstitute(Long id, Long userId, Long permissionId,
-                                                       String attrKey, String attrValue) {
-        return new UserPermissionAttribute(id, userId, permissionId, attrKey, attrValue);
+    public static UserPermissionAttributeAggregate reconstitute(Long id, Long userId, Long permissionId,
+                                                                String attrKey, String attrValue) {
+        return new UserPermissionAttributeAggregate(id, userId, permissionId, attrKey, attrValue);
     }
 
     /**
@@ -86,8 +86,8 @@ public class UserPermissionAttribute implements Entity<UserPermissionKey> {
      * @return 业务标识 {@code (userId, permissionId, attrKey)}
      */
     @Override
-    public UserPermissionKey getId() {
-        return new UserPermissionKey(userId, permissionId, attrKey);
+    public UserPermissionKeyAggregate getId() {
+        return new UserPermissionKeyAggregate(userId, permissionId, attrKey);
     }
 
     /**

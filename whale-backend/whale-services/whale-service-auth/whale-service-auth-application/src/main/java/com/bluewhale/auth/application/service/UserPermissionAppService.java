@@ -3,9 +3,6 @@ package com.bluewhale.auth.application.service;
 import com.bluewhale.auth.application.event.DomainEventPublisher;
 import com.bluewhale.auth.application.model.command.ReplaceUserAttrsCommand;
 import com.bluewhale.auth.application.model.vo.UserAttrVO;
-import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
-import com.bluewhale.auth.domain.event.UserPermissionDomainEvent;
-import com.bluewhale.auth.domain.aggregate.UserPermissionAttribute;
 import com.bluewhale.auth.domain.repository.UserPermissionRepository;
 
 import java.util.List;

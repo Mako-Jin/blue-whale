@@ -7,9 +7,9 @@ import com.bluewhale.auth.application.service.TenantAppService;
 import com.bluewhale.auth.application.service.TenantMembershipAppService;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.UserDomainEvent;
-import com.bluewhale.auth.domain.aggregate.Role;
+import com.bluewhale.auth.domain.aggregate.RoleAggregate;
 import com.bluewhale.auth.domain.repository.RoleRepository;
-import com.bluewhale.auth.domain.aggregate.Tenant;
+import com.bluewhale.auth.domain.aggregate.TenantAggregate;
 import com.bluewhale.auth.domain.model.TenantExpiryClock;
 import com.bluewhale.auth.domain.repository.TenantRepository;
 import com.bluewhale.auth.domain.aggregate.UserAggregate;
@@ -108,7 +108,7 @@ public class TenantMembershipAppServiceImpl implements TenantMembershipAppServic
         if (!userTenantRepository.existsEnabled(userId, tenantId)) {
             throw new BizException(403, "无权进入该租户");
         }
-        Tenant tenant = tenantRepository.findById(tenantId)
+        TenantAggregate tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new BizException(403, "租户不存在或已停用"));
         if (!tenant.isAvailableAt(TenantExpiryClock.now())) {
             throw new BizException(403, "目标租户已停用或已过期");
@@ -134,10 +134,10 @@ public class TenantMembershipAppServiceImpl implements TenantMembershipAppServic
         Map<Long, List<Long>> roleIdsByUserId = userRepository.listRoleIdsByUserIds(userIds);
         List<Long> allRoleIds = roleIdsByUserId.values().stream()
                 .flatMap(List::stream).distinct().toList();
-        Map<Long, Role> rolesById = allRoleIds.isEmpty() ? Map.of()
+        Map<Long, RoleAggregate> rolesById = allRoleIds.isEmpty() ? Map.of()
                 : roleRepository.listEnabledByIds(allRoleIds).stream()
                         .filter(role -> tenantId.equals(role.getTenantId()))
-                        .collect(Collectors.toMap(Role::getId, role -> role, (first, second) -> first));
+                        .collect(Collectors.toMap(RoleAggregate::getId, role -> role, (first, second) -> first));
         return userIds.stream()
                 .map(usersById::get)
                 .filter(Objects::nonNull)
@@ -182,7 +182,7 @@ public class TenantMembershipAppServiceImpl implements TenantMembershipAppServic
         tenantAppService.requirePlatformTenant();
         userRepository.findByIdAcrossTenants(userId)
                 .orElseThrow(() -> new BizException(404, "用户不存在"));
-        Tenant tenant = tenantRepository.findById(tenantId)
+        TenantAggregate tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new BizException(404, "租户不存在"));
         if (!tenant.isAvailableAt(TenantExpiryClock.now())) {
             throw new BizException(400, "目标租户已停用或已过期");
@@ -227,7 +227,7 @@ public class TenantMembershipAppServiceImpl implements TenantMembershipAppServic
      * @return 成员视图
      */
     private TenantMemberVO toMember(UserAggregate user, Map<Long, List<Long>> roleIdsByUserId,
-                                    Map<Long, Role> rolesById) {
+                                    Map<Long, RoleAggregate> rolesById) {
         TenantMemberVO member = new TenantMemberVO();
         member.setUserId(user.getId());
         member.setUsername(user.getUsername().value());

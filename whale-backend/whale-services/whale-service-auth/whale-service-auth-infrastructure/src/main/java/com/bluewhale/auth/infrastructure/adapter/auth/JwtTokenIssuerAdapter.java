@@ -74,10 +74,8 @@ public class JwtTokenIssuerAdapter implements TokenIssuer {
         if (raw == null) {
             return null;
         }
-        try {
-            return Long.valueOf(String.valueOf(raw));
-        } catch (NumberFormatException e) {
-            return null;
-        }
+        // jjwt 解析 JSON number 时可能返回 Integer / Long / BigInteger，按 Number 统一取值，
+        // 避免 String.valueOf 把 Double 之类的值转成 "1.23E11" 后 NumberFormatException
+        return raw instanceof Number number ? number.longValue() : null;
     }
 }

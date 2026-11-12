@@ -1,6 +1,6 @@
 package com.bluewhale.auth.application.model.vo;
 
-import com.bluewhale.auth.domain.aggregate.Tenant;
+import com.bluewhale.auth.domain.aggregate.TenantAggregate;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -34,7 +34,7 @@ public class TenantVO implements Serializable {
      * @param tenant 租户聚合
      * @return 租户视图对象
      */
-    public static TenantVO from(Tenant tenant) {
+    public static TenantVO from(TenantAggregate tenant) {
         TenantVO vo = new TenantVO();
         vo.setId(tenant.getId());
         vo.setTenantCode(tenant.getTenantCode());

@@ -1,6 +1,6 @@
 package com.bluewhale.auth.domain.repository;
 
-import com.bluewhale.auth.domain.aggregate.Menu;
+import com.bluewhale.auth.domain.aggregate.MenuAggregate;
 
 import java.util.List;
 import java.util.Optional;
@@ -20,7 +20,7 @@ public interface MenuRepository {
      * @param menu 菜单聚合根
      * @return 回填主键后的菜单聚合根
      */
-    Menu save(Menu menu);
+    MenuAggregate save(MenuAggregate menu);
 
     /**
      * 按菜单 ID 查询菜单聚合（当前租户内查询，跨租户视为不存在）
@@ -28,14 +28,14 @@ public interface MenuRepository {
      * @param id 菜单 ID
      * @return 菜单聚合；不存在时返回空
      */
-    Optional<Menu> findById(Long id);
+    Optional<MenuAggregate> findById(Long id);
 
     /**
      * 查询全部菜单（当前租户内，按 sort 升序、id 升序，对应菜单树 {@code tree} 的读）
      *
      * @return 全部菜单聚合列表
      */
-    List<Menu> findAll();
+    List<MenuAggregate> findAll();
 
     /**
      * 查询指定租户的全部菜单（租户开通复制菜单模板时使用）
@@ -43,7 +43,7 @@ public interface MenuRepository {
      * @param tenantId 租户 ID
      * @return 该租户的菜单聚合列表
      */
-    List<Menu> findAllByTenantId(Long tenantId);
+    List<MenuAggregate> findAllByTenantId(Long tenantId);
 
     /**
      * 查询指定父菜单下的直接子菜单
@@ -51,14 +51,14 @@ public interface MenuRepository {
      * @param parentId 父菜单 ID
      * @return 该父菜单下的子菜单聚合列表
      */
-    List<Menu> findAllByParentId(Long parentId);
+    List<MenuAggregate> findAllByParentId(Long parentId);
 
     /**
      * 查询全部启用且可见的菜单（按 sort 升序、id 升序，对应权限过滤菜单树的读）
      *
      * @return 启用且可见的菜单聚合列表
      */
-    List<Menu> findEnabledVisible();
+    List<MenuAggregate> findEnabledVisible();
 
     /**
      * 统计指定父菜单下的直接子菜单数量（供删除前树完整性校验）

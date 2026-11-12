@@ -1,7 +1,7 @@
 package com.bluewhale.auth.infrastructure.persistence.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.bluewhale.auth.domain.aggregate.Dept;
+import com.bluewhale.auth.domain.aggregate.DeptAggregate;
 import com.bluewhale.auth.domain.repository.DeptRepository;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysDept;
 import com.bluewhale.auth.infrastructure.persistence.assembler.DeptPersistenceAssembler;
@@ -28,7 +28,7 @@ public class DeptRepositoryImpl implements DeptRepository {
     private final SysDeptMapper deptMapper;
 
     @Override
-    public Dept save(Dept dept) {
+    public DeptAggregate save(DeptAggregate dept) {
         SysDept po = DeptPersistenceAssembler.toPo(dept);
         if (po.getId() == null) {
             deptMapper.insert(po);
@@ -39,7 +39,7 @@ public class DeptRepositoryImpl implements DeptRepository {
     }
 
     @Override
-    public Optional<Dept> findById(Long id) {
+    public Optional<DeptAggregate> findById(Long id) {
         SysDept po = deptMapper.selectOne(new LambdaQueryWrapper<SysDept>()
                 .eq(SysDept::getId, id)
                 .eq(SysDept::getTenantId, TenantContext.requireId()));
@@ -47,7 +47,7 @@ public class DeptRepositoryImpl implements DeptRepository {
     }
 
     @Override
-    public List<Dept> findAll() {
+    public List<DeptAggregate> findAll() {
         List<SysDept> pos = deptMapper.selectList(new LambdaQueryWrapper<SysDept>()
                 .eq(SysDept::getTenantId, TenantContext.requireId())
                 .orderByAsc(SysDept::getSort)
@@ -56,7 +56,7 @@ public class DeptRepositoryImpl implements DeptRepository {
     }
 
     @Override
-    public List<Dept> findAllByParentId(Long parentId) {
+    public List<DeptAggregate> findAllByParentId(Long parentId) {
         List<SysDept> pos = deptMapper.selectList(new LambdaQueryWrapper<SysDept>()
                 .eq(SysDept::getTenantId, TenantContext.requireId())
                 .eq(SysDept::getParentId, parentId));

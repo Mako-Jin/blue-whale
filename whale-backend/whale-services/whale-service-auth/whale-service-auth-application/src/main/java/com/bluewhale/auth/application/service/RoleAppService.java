@@ -1,21 +1,11 @@
 package com.bluewhale.auth.application.service;
 
-import com.bluewhale.auth.application.event.DomainEventPublisher;
 import com.bluewhale.auth.application.model.command.AssignRolePermissionsCommand;
 import com.bluewhale.auth.application.model.command.CreateRoleCommand;
 import com.bluewhale.auth.application.model.command.UpdateRoleCommand;
 import com.bluewhale.auth.application.model.query.RolePageQuery;
 import com.bluewhale.auth.application.model.vo.RoleVO;
-import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
-import com.bluewhale.auth.domain.event.RoleDomainEvent;
-import com.bluewhale.auth.domain.model.vo.RoleCode;
-import com.bluewhale.auth.domain.repository.PermissionRepository;
-import com.bluewhale.auth.domain.aggregate.Role;
-import com.bluewhale.auth.domain.repository.RoleRepository;
-import com.bluewhale.common.core.exception.BizException;
-import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
-import com.bluewhale.common.tenant.TenantContext;
 
 import java.util.List;
 

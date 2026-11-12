@@ -3,18 +3,12 @@ package com.bluewhale.auth.application.service;
 import com.bluewhale.auth.application.event.DomainEventPublisher;
 import com.bluewhale.auth.application.model.command.SaveMenuCommand;
 import com.bluewhale.auth.application.model.vo.MenuVO;
-import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
-import com.bluewhale.auth.domain.event.MenuDomainEvent;
-import com.bluewhale.auth.domain.aggregate.Menu;
+import com.bluewhale.auth.domain.aggregate.MenuAggregate;
 import com.bluewhale.auth.domain.repository.MenuRepository;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
-import com.bluewhale.common.tenant.TenantContext;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -53,14 +47,14 @@ public interface MenuAppService {
     MenuVO getDetail(Long id);
 
     /**
-     * 新增菜单（默认值由 {@link Menu#create} 负责）
+     * 新增菜单（默认值由 {@link MenuAggregate#create} 负责）
      *
      * @param command 菜单新增命令
      */
     void create(SaveMenuCommand command);
 
     /**
-     * 更新菜单（PATCH 契约：command 中为 null 的字段保持原值，由 {@link Menu#applyUpdate} 负责）
+     * 更新菜单（PATCH 契约：command 中为 null 的字段保持原值，由 {@link MenuAggregate#applyUpdate} 负责）
      *
      * @param id 菜单 ID
      * @param command 菜单更新命令

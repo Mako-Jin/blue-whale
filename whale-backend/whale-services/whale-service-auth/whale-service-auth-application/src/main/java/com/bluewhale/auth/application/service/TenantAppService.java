@@ -5,17 +5,9 @@ import com.bluewhale.auth.application.model.command.RenewTenantCommand;
 import com.bluewhale.auth.application.model.command.UpdateTenantCommand;
 import com.bluewhale.auth.application.model.query.TenantPageQuery;
 import com.bluewhale.auth.application.model.vo.TenantVO;
-import com.bluewhale.auth.application.port.TenantStatusSyncPort;
-import com.bluewhale.auth.domain.aggregate.Tenant;
-import com.bluewhale.auth.domain.model.TenantExpiryClock;
-import com.bluewhale.auth.domain.repository.TenantRepository;
-import com.bluewhale.common.core.exception.BizException;
-import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.auth.domain.aggregate.TenantAggregate;
 import com.bluewhale.common.core.result.PageResult;
-import com.bluewhale.common.tenant.TenantContext;
-import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -102,5 +94,5 @@ public interface TenantAppService {
      *
      * @return 当前平台租户
      */
-    Tenant requirePlatformTenant();
+    TenantAggregate requirePlatformTenant();
 }

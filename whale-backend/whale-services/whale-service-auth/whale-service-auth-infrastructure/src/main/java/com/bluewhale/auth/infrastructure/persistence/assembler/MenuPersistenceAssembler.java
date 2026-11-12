@@ -1,6 +1,6 @@
 package com.bluewhale.auth.infrastructure.persistence.assembler;
 
-import com.bluewhale.auth.domain.aggregate.Menu;
+import com.bluewhale.auth.domain.aggregate.MenuAggregate;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysMenu;
 
 /**
@@ -26,8 +26,8 @@ public final class MenuPersistenceAssembler {
      * @param po 菜单持久化对象
      * @return 菜单聚合根
      */
-    public static Menu toDomain(SysMenu po) {
-        return Menu.reconstitute(
+    public static MenuAggregate toDomain(SysMenu po) {
+        return MenuAggregate.reconstitute(
                 po.getId(),
                 po.getTenantId(),
                 po.getParentId(),
@@ -50,7 +50,7 @@ public final class MenuPersistenceAssembler {
      * @param menu 菜单聚合根
      * @return 菜单持久化对象
      */
-    public static SysMenu toPo(Menu menu) {
+    public static SysMenu toPo(MenuAggregate menu) {
         SysMenu po = new SysMenu();
         po.setId(menu.getId());
         po.setTenantId(menu.getTenantId());

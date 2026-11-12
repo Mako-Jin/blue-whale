@@ -51,7 +51,10 @@ public class PermissionCacheProperties {
 
     /**
      * 待失效 Key 本地持久化文件。
-     * <p>默认位于 JVM 临时目录；容器部署建议挂载到持久卷，多实例共享同一文件时重复 Key 会被去重。</p>
+     * <p>默认位于 JVM 临时目录；容器部署建议挂载到持久卷。<b>注意</b>：写入为整文件覆盖、
+     * 不做跨实例合并——多实例共享同一文件时后写实例会覆盖先写实例的待处理 Key，
+     * 因此该文件仅适用于单实例部署，或多实例各自配置独立的 {@code pending-file} 路径；
+     * 共享存储场景应改用 Redis 集合存储待处理 Key。</p>
      */
     private String pendingFile = System.getProperty("java.io.tmpdir") + File.separator
             + "bluewhale-auth-permission-pending.keys";

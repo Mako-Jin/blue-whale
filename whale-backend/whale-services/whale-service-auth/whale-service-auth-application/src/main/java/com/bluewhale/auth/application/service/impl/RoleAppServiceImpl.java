@@ -11,7 +11,7 @@ import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.RoleDomainEvent;
 import com.bluewhale.auth.domain.model.vo.RoleCode;
 import com.bluewhale.auth.domain.repository.PermissionRepository;
-import com.bluewhale.auth.domain.aggregate.Role;
+import com.bluewhale.auth.domain.aggregate.RoleAggregate;
 import com.bluewhale.auth.domain.repository.RoleRepository;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -98,10 +98,10 @@ public class RoleAppServiceImpl implements RoleAppService {
         if (roleRepository.existsByCode(roleCode.value())) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "角色编码已存在");
         }
-        Role role = Role.create(tenantId, roleCode, command.roleName(), command.description(), command.sortNo(),
+        RoleAggregate role = RoleAggregate.create(tenantId, roleCode, command.roleName(), command.description(), command.sortNo(),
                 command.status());
         // 保存并回填数据库生成的主键与时间戳
-        Role persisted = roleRepository.save(role);
+        RoleAggregate persisted = roleRepository.save(role);
         domainEventPublisher.publish(new RoleDomainEvent(persisted.getId(), ChangeType.CREATED));
         return RoleVO.from(persisted);
     }
@@ -114,7 +114,7 @@ public class RoleAppServiceImpl implements RoleAppService {
      * @return 更新后的角色视图对象
      */
     public RoleVO update(Long id, UpdateRoleCommand command) {
-        Role role = requireRole(id);
+        RoleAggregate role = requireRole(id);
         // 停用/启用会改变该角色下用户的权限码集合，需与普通改名区分事件类型以触发缓存失效
         boolean statusChanged = command.status() != null && command.status() != role.getStatus();
         role.rename(command.roleName());
@@ -153,7 +153,7 @@ public class RoleAppServiceImpl implements RoleAppService {
     @Transactional(rollbackFor = Exception.class)
     @DistributedLock(prefix = "lock", biz = "auth:role", key = "#id", waitTime = 1, leaseTime = 30, failFast = true)
     public void assignPermissions(Long id, AssignRolePermissionsCommand command) {
-        Role role = requireRole(id);
+        RoleAggregate role = requireRole(id);
         List<Long> permissionIds = command.permissionIds() == null ? List.of() : command.permissionIds();
         // 领域侧归一化（去重去空 + 数量上限），以归一化结果做有效性校验与落库
         List<Long> normalized = role.assignPermissions(permissionIds);
@@ -208,7 +208,7 @@ public class RoleAppServiceImpl implements RoleAppService {
      * @param id 角色 ID
      * @return 角色聚合根
      */
-    private Role requireRole(Long id) {
+    private RoleAggregate requireRole(Long id) {
         return roleRepository.findById(id)
                 .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
     }

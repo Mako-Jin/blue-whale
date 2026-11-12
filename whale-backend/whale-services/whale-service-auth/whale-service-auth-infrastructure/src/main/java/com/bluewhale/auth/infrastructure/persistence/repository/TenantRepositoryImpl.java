@@ -2,7 +2,7 @@ package com.bluewhale.auth.infrastructure.persistence.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.bluewhale.auth.domain.aggregate.Tenant;
+import com.bluewhale.auth.domain.aggregate.TenantAggregate;
 import com.bluewhale.auth.domain.repository.TenantRepository;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysTenant;
 import com.bluewhale.auth.infrastructure.persistence.assembler.TenantPersistenceAssembler;
@@ -26,7 +26,7 @@ public class TenantRepositoryImpl implements TenantRepository {
     private final SysTenantMapper tenantMapper;
 
     @Override
-    public Tenant save(Tenant tenant) {
+    public TenantAggregate save(TenantAggregate tenant) {
         SysTenant po = TenantPersistenceAssembler.toPo(tenant);
         if (po.getId() == null) {
             tenantMapper.insert(po);
@@ -37,7 +37,7 @@ public class TenantRepositoryImpl implements TenantRepository {
     }
 
     @Override
-    public Optional<Tenant> findByCode(String tenantCode) {
+    public Optional<TenantAggregate> findByCode(String tenantCode) {
         SysTenant po = tenantMapper.selectOne(new LambdaQueryWrapper<SysTenant>()
                 .eq(SysTenant::getTenantCode, tenantCode)
                 .last("limit 1"));
@@ -45,13 +45,13 @@ public class TenantRepositoryImpl implements TenantRepository {
     }
 
     @Override
-    public Optional<Tenant> findById(Long id) {
+    public Optional<TenantAggregate> findById(Long id) {
         SysTenant po = tenantMapper.selectById(id);
         return Optional.ofNullable(po).map(TenantPersistenceAssembler::toDomain);
     }
 
     @Override
-    public List<Tenant> findAll() {
+    public List<TenantAggregate> findAll() {
         List<SysTenant> pos = tenantMapper.selectList(new LambdaQueryWrapper<SysTenant>()
                 .orderByDesc(SysTenant::getCreateTime));
         return pos.stream().map(TenantPersistenceAssembler::toDomain).toList();
@@ -70,7 +70,7 @@ public class TenantRepositoryImpl implements TenantRepository {
         }
         wrapper.orderByDesc(SysTenant::getCreateTime);
         Page<SysTenant> poPage = tenantMapper.selectPage(Page.of(current, size), wrapper);
-        List<Tenant> records = poPage.getRecords().stream()
+        List<TenantAggregate> records = poPage.getRecords().stream()
                 .map(TenantPersistenceAssembler::toDomain)
                 .toList();
         return new TenantPage(records, poPage.getTotal());

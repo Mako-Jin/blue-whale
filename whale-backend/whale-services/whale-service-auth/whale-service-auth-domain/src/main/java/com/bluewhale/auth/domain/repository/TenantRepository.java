@@ -1,6 +1,6 @@
 package com.bluewhale.auth.domain.repository;
 
-import com.bluewhale.auth.domain.aggregate.Tenant;
+import com.bluewhale.auth.domain.aggregate.TenantAggregate;
 
 import java.util.List;
 import java.util.Optional;
@@ -20,7 +20,7 @@ public interface TenantRepository {
      * @param tenant 租户聚合
      * @return 回填主键与时间戳后的租户聚合
      */
-    Tenant save(Tenant tenant);
+    TenantAggregate save(TenantAggregate tenant);
 
     /**
      * 按租户编码查询租户
@@ -28,7 +28,7 @@ public interface TenantRepository {
      * @param tenantCode 租户编码
      * @return 租户聚合；不存在时返回空
      */
-    Optional<Tenant> findByCode(String tenantCode);
+    Optional<TenantAggregate> findByCode(String tenantCode);
 
     /**
      * 按租户 ID 查询租户
@@ -36,14 +36,14 @@ public interface TenantRepository {
      * @param id 租户 ID
      * @return 租户聚合；不存在时返回空
      */
-    Optional<Tenant> findById(Long id);
+    Optional<TenantAggregate> findById(Long id);
 
     /**
      * 查询全部租户（按创建时间降序）
      *
      * @return 租户聚合列表
      */
-    List<Tenant> findAll();
+    List<TenantAggregate> findAll();
 
     /**
      * 分页查询租户（数据库侧 LIMIT/OFFSET 下推，避免全量加载后内存切片；按创建时间降序）
@@ -63,6 +63,6 @@ public interface TenantRepository {
      * @param total 总记录数
      * @author BlueWhale
      */
-    record TenantPage(List<Tenant> records, long total) {
+    record TenantPage(List<TenantAggregate> records, long total) {
     }
 }

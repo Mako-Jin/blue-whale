@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
  *
  * @author BlueWhale
  */
-public class Menu implements Entity<Long> {
+public class MenuAggregate implements Entity<Long> {
 
     /** 菜单类型：目录 */
     public static final String MENU_TYPE_DIR = "DIR";
@@ -67,9 +67,9 @@ public class Menu implements Entity<Long> {
      * @param createTime 创建时间
      * @param updateTime 更新时间
      */
-    private Menu(Long id, Long tenantId, Long parentId, String name, String path, String component, String icon,
-                 int sort, String menuType, String permissionCode, int visible, int status,
-                 LocalDateTime createTime, LocalDateTime updateTime) {
+    private MenuAggregate(Long id, Long tenantId, Long parentId, String name, String path, String component, String icon,
+                          int sort, String menuType, String permissionCode, int visible, int status,
+                          LocalDateTime createTime, LocalDateTime updateTime) {
         if (tenantId == null) {
             throw new DomainException(ErrorCode.PARAM_ERROR, "菜单所属租户不能为空");
         }
@@ -120,11 +120,11 @@ public class Menu implements Entity<Long> {
      * @param status 状态，为空时按启用处理
      * @return 新建的菜单聚合根
      */
-    public static Menu create(Long tenantId, Long parentId, String name, String path, String component, String icon,
-                              Integer sort, String menuType, String permissionCode, Integer visible,
-                              Integer status) {
+    public static MenuAggregate create(Long tenantId, Long parentId, String name, String path, String component, String icon,
+                                       Integer sort, String menuType, String permissionCode, Integer visible,
+                                       Integer status) {
         LocalDateTime now = LocalDateTime.now();
-        return new Menu(null, tenantId, parentId == null ? ROOT_PARENT_ID : parentId, name, path, component, icon,
+        return new MenuAggregate(null, tenantId, parentId == null ? ROOT_PARENT_ID : parentId, name, path, component, icon,
                 sort == null ? 0 : sort, menuType == null || menuType.isBlank() ? MENU_TYPE_MENU : menuType,
                 permissionCode, visible == null ? VISIBLE_SHOWN : visible,
                 status == null ? STATUS_ENABLED : status, now, now);
@@ -149,11 +149,11 @@ public class Menu implements Entity<Long> {
      * @param updateTime 更新时间
      * @return 还原的菜单聚合根
      */
-    public static Menu reconstitute(Long id, Long tenantId, Long parentId, String name, String path,
-                                    String component, String icon, Integer sort, String menuType,
-                                    String permissionCode, Integer visible, Integer status,
-                                    LocalDateTime createTime, LocalDateTime updateTime) {
-        return new Menu(id, tenantId, parentId == null ? ROOT_PARENT_ID : parentId, name, path, component, icon,
+    public static MenuAggregate reconstitute(Long id, Long tenantId, Long parentId, String name, String path,
+                                             String component, String icon, Integer sort, String menuType,
+                                             String permissionCode, Integer visible, Integer status,
+                                             LocalDateTime createTime, LocalDateTime updateTime) {
+        return new MenuAggregate(id, tenantId, parentId == null ? ROOT_PARENT_ID : parentId, name, path, component, icon,
                 sort == null ? 0 : sort, menuType == null || menuType.isBlank() ? MENU_TYPE_MENU : menuType,
                 permissionCode, visible == null ? VISIBLE_SHOWN : visible,
                 status == null ? STATUS_ENABLED : status, createTime, updateTime);

@@ -1,6 +1,6 @@
 package com.bluewhale.auth.domain.repository;
 
-import com.bluewhale.auth.domain.aggregate.Role;
+import com.bluewhale.auth.domain.aggregate.RoleAggregate;
 
 import java.util.Collection;
 import java.util.List;
@@ -22,7 +22,7 @@ public interface RoleRepository {
      * @param role 角色聚合根
      * @return 回填主键后的角色聚合根
      */
-    Role save(Role role);
+    RoleAggregate save(RoleAggregate role);
 
     /**
      * 按角色 ID 查询角色聚合（当前租户内查询，跨租户视为不存在）
@@ -30,7 +30,7 @@ public interface RoleRepository {
      * @param id 角色 ID
      * @return 角色聚合；不存在时返回空
      */
-    Optional<Role> findById(Long id);
+    Optional<RoleAggregate> findById(Long id);
 
     /**
      * 按角色编码查询角色聚合（当前租户内查询）
@@ -38,7 +38,7 @@ public interface RoleRepository {
      * @param roleCode 角色编码
      * @return 角色聚合；不存在时返回空
      */
-    Optional<Role> findByCode(String roleCode);
+    Optional<RoleAggregate> findByCode(String roleCode);
 
     /**
      * 按租户与角色编码查询角色聚合（租户开通等跨租户编排使用）
@@ -47,7 +47,7 @@ public interface RoleRepository {
      * @param roleCode 角色编码
      * @return 角色聚合；不存在时返回空
      */
-    Optional<Role> findByTenantIdAndCode(Long tenantId, String roleCode);
+    Optional<RoleAggregate> findByTenantIdAndCode(Long tenantId, String roleCode);
 
     /**
      * 按角色 ID 集合查询其中处于启用状态的角色（对应 {@code listRoleCodesByUserId} 对 {@code sys_role} 的读）
@@ -55,7 +55,7 @@ public interface RoleRepository {
      * @param ids 角色 ID 集合
      * @return 命中的启用角色聚合列表；{@code ids} 为空时返回空列表
      */
-    List<Role> listEnabledByIds(Collection<Long> ids);
+    List<RoleAggregate> listEnabledByIds(Collection<Long> ids);
 
     /**
      * 分页查询角色（{@code keyword} 模糊匹配角色编码/名称，按 sortNo 升序、createTime 降序）
@@ -166,6 +166,6 @@ public interface RoleRepository {
      * @param total 总记录数
      * @author BlueWhale
      */
-    record RolePage(List<Role> records, long total) {
+    record RolePage(List<RoleAggregate> records, long total) {
     }
 }

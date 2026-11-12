@@ -1,6 +1,6 @@
 package com.bluewhale.auth.application.model.result;
 
-import com.bluewhale.auth.domain.aggregate.Tenant;
+import com.bluewhale.auth.domain.aggregate.TenantAggregate;
 
 /**
  * 「我的租户」列表项结果。
@@ -20,7 +20,7 @@ public record TenantResult(Long tenantId, String tenantCode, String tenantName, 
      * @param current 是否为当前租户
      * @return 租户结果
      */
-    public static TenantResult from(Tenant tenant, boolean current) {
+    public static TenantResult from(TenantAggregate tenant, boolean current) {
         return new TenantResult(tenant.getId(), tenant.getTenantCode(), tenant.getTenantName(), current);
     }
 }

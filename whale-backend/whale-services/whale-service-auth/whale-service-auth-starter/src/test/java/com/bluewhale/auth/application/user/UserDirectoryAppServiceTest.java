@@ -1,6 +1,6 @@
 package com.bluewhale.auth.application.user;
 
-import com.bluewhale.auth.domain.aggregate.Dept;
+import com.bluewhale.auth.domain.aggregate.DeptAggregate;
 import com.bluewhale.auth.domain.repository.DeptRepository;
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
 import com.bluewhale.auth.domain.model.vo.Username;
@@ -75,8 +75,8 @@ class UserDirectoryAppServiceTest {
      * @param deptName 部门名称
      * @return 部门聚合根
      */
-    private static Dept dept(long id, String deptName) {
-        return Dept.reconstitute(id, TENANT_ID, Dept.ROOT_PARENT_ID, deptName, 1, "张三", NOW, NOW);
+    private static DeptAggregate dept(long id, String deptName) {
+        return DeptAggregate.reconstitute(id, TENANT_ID, DeptAggregate.ROOT_PARENT_ID, deptName, 1, "张三", NOW, NOW);
     }
 
     /**
@@ -87,8 +87,8 @@ class UserDirectoryAppServiceTest {
      * @param deptName 部门名称
      * @return 部门聚合根
      */
-    private static Dept childDept(long id, long parentId, String deptName) {
-        return Dept.reconstitute(id, TENANT_ID, parentId, deptName, 1, null, NOW, NOW);
+    private static DeptAggregate childDept(long id, long parentId, String deptName) {
+        return DeptAggregate.reconstitute(id, TENANT_ID, parentId, deptName, 1, null, NOW, NOW);
     }
 
     @Test
@@ -145,7 +145,7 @@ class UserDirectoryAppServiceTest {
     @DisplayName("directory：includeChildren 时连同子部门一起查（选父部门也能看到下属）")
     void shouldExpandChildDepartmentsWhenRequested() {
         when(deptRepository.findAll()).thenReturn(List.of(
-                childDept(DEPT_ID, Dept.ROOT_PARENT_ID, "生产部"),
+                childDept(DEPT_ID, DeptAggregate.ROOT_PARENT_ID, "生产部"),
                 childDept(11L, DEPT_ID, "设备科"),
                 childDept(12L, 11L, "仪表班")));
         when(userRepository.directoryPage(1L, 20L, Set.of(DEPT_ID, 11L, 12L), null))
@@ -160,7 +160,7 @@ class UserDirectoryAppServiceTest {
     @Test
     @DisplayName("directory：指定的部门不存在时直接返回空页，不下推 in ()")
     void shouldReturnEmptyPageWhenDeptMissing() {
-        when(deptRepository.findAll()).thenReturn(List.of(childDept(DEPT_ID, Dept.ROOT_PARENT_ID, "生产部")));
+        when(deptRepository.findAll()).thenReturn(List.of(childDept(DEPT_ID, DeptAggregate.ROOT_PARENT_ID, "生产部")));
 
         PageResult<UserDirectoryVO> page = userDirectoryAppService.directory(99L, true, null, 1L, 20L);
 

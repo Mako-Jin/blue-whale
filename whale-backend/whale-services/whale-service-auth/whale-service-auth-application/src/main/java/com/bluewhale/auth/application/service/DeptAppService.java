@@ -4,13 +4,10 @@ import com.bluewhale.auth.application.event.DomainEventPublisher;
 import com.bluewhale.auth.application.model.command.SaveDeptCommand;
 import com.bluewhale.auth.application.model.vo.DeptLeaderVO;
 import com.bluewhale.auth.application.model.vo.DeptVO;
-import com.bluewhale.auth.domain.aggregate.Dept;
+import com.bluewhale.auth.domain.aggregate.DeptAggregate;
 import com.bluewhale.auth.domain.repository.DeptRepository;
-import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
-import com.bluewhale.auth.domain.event.DeptDomainEvent;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
-import com.bluewhale.common.tenant.TenantContext;
 
 import java.util.List;
 
@@ -42,14 +39,14 @@ public interface DeptAppService {
     DeptVO getDetail(Long id);
 
     /**
-     * 新增部门（默认值由 {@link Dept#create} 负责）
+     * 新增部门（默认值由 {@link DeptAggregate#create} 负责）
      *
      * @param command 部门新增命令
      */
     void create(SaveDeptCommand command);
 
     /**
-     * 更新部门（PATCH 契约：command 中为 null 的字段保持原值，由 {@link Dept#applyUpdate} 负责）
+     * 更新部门（PATCH 契约：command 中为 null 的字段保持原值，由 {@link DeptAggregate#applyUpdate} 负责）
      *
      * @param id 部门 ID
      * @param command 部门更新命令

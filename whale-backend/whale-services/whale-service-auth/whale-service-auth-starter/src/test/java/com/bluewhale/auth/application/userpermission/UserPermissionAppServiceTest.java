@@ -4,7 +4,7 @@ import com.bluewhale.auth.application.event.DomainEventPublisher;
 import com.bluewhale.auth.application.model.command.ReplaceUserAttrsCommand;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.UserPermissionDomainEvent;
-import com.bluewhale.auth.domain.aggregate.UserPermissionAttribute;
+import com.bluewhale.auth.domain.aggregate.UserPermissionAttributeAggregate;
 import com.bluewhale.auth.domain.repository.UserPermissionRepository;
 import com.bluewhale.auth.application.model.vo.UserAttrVO;
 import org.junit.jupiter.api.DisplayName;
@@ -47,7 +47,7 @@ class UserPermissionAppServiceTest {
     @DisplayName("listByUserId：返回用户 ABAC 属性视图列表")
     void shouldListByUserId() {
         when(userPermissionRepository.listByUserId(USER_ID)).thenReturn(List.of(
-                UserPermissionAttribute.reconstitute(1L, USER_ID, PERMISSION_ID, "deptId", "100")));
+                UserPermissionAttributeAggregate.reconstitute(1L, USER_ID, PERMISSION_ID, "deptId", "100")));
 
         List<UserAttrVO> attrs = userPermissionAppService.listByUserId(USER_ID);
 

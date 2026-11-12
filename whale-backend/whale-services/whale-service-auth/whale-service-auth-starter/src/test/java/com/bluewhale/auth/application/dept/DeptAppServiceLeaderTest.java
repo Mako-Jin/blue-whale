@@ -1,7 +1,7 @@
 package com.bluewhale.auth.application.dept;
 
 import com.bluewhale.auth.application.event.DomainEventPublisher;
-import com.bluewhale.auth.domain.aggregate.Dept;
+import com.bluewhale.auth.domain.aggregate.DeptAggregate;
 import com.bluewhale.auth.domain.repository.DeptRepository;
 import com.bluewhale.auth.application.model.vo.DeptLeaderVO;
 import com.bluewhale.common.core.exception.BizException;
@@ -47,7 +47,7 @@ class DeptAppServiceLeaderTest {
     @Test
     @DisplayName("leader：命中部门时返回负责人用户 ID 与部门名称")
     void shouldReturnLeaderUserIdWhenDeptExists() {
-        Dept dept = Dept.reconstitute(DEPT_ID, 1L, Dept.ROOT_PARENT_ID, "研发部", 1, "张三",
+        DeptAggregate dept = DeptAggregate.reconstitute(DEPT_ID, 1L, DeptAggregate.ROOT_PARENT_ID, "研发部", 1, "张三",
                 LEADER_USER_ID, NOW, NOW);
         when(deptRepository.findById(DEPT_ID)).thenReturn(Optional.of(dept));
 
@@ -71,7 +71,7 @@ class DeptAppServiceLeaderTest {
     @Test
     @DisplayName("leader：负责人用户 ID 未维护时返回 null 且不抛错")
     void shouldReturnNullLeaderWithoutError() {
-        Dept dept = Dept.reconstitute(DEPT_ID, 1L, Dept.ROOT_PARENT_ID, "研发部", 1, "张三",
+        DeptAggregate dept = DeptAggregate.reconstitute(DEPT_ID, 1L, DeptAggregate.ROOT_PARENT_ID, "研发部", 1, "张三",
                 null, NOW, NOW);
         when(deptRepository.findById(DEPT_ID)).thenReturn(Optional.of(dept));
 

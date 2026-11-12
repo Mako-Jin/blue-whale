@@ -6,7 +6,7 @@ import com.bluewhale.auth.application.model.vo.UserAttrVO;
 import com.bluewhale.auth.application.service.UserPermissionAppService;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.UserPermissionDomainEvent;
-import com.bluewhale.auth.domain.aggregate.UserPermissionAttribute;
+import com.bluewhale.auth.domain.aggregate.UserPermissionAttributeAggregate;
 import com.bluewhale.auth.domain.repository.UserPermissionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,10 +62,10 @@ public class UserPermissionAppServiceImpl implements UserPermissionAppService {
     @Transactional(rollbackFor = Exception.class)
     public void replaceUserAttrs(Long userId, ReplaceUserAttrsCommand command) {
         List<ReplaceUserAttrsCommand.UserAttrCommand> attrs = command.attrs();
-        List<UserPermissionAttribute> attributes = attrs == null || attrs.isEmpty()
+        List<UserPermissionAttributeAggregate> attributes = attrs == null || attrs.isEmpty()
                 ? List.of()
                 : attrs.stream()
-                        .map(attr -> UserPermissionAttribute.create(userId, attr.permissionId(),
+                        .map(attr -> UserPermissionAttributeAggregate.create(userId, attr.permissionId(),
                                 attr.attrKey(), attr.attrValue()))
                         .toList();
         userPermissionRepository.replaceAll(userId, attributes);

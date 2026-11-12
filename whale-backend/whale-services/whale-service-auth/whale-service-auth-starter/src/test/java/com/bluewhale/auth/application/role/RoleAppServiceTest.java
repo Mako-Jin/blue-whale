@@ -9,7 +9,7 @@ import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.RoleDomainEvent;
 import com.bluewhale.auth.domain.model.vo.RoleCode;
 import com.bluewhale.auth.domain.repository.PermissionRepository;
-import com.bluewhale.auth.domain.aggregate.Role;
+import com.bluewhale.auth.domain.aggregate.RoleAggregate;
 import com.bluewhale.auth.domain.repository.RoleRepository;
 import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.auth.application.model.vo.RoleVO;
@@ -75,9 +75,9 @@ class RoleAppServiceTest {
         TenantContext.clear();
     }
 
-    private static Role role(String name) {
-        return Role.reconstitute(ROLE_ID, 1L, RoleCode.of("test_role"), name, "描述", 1,
-                Role.STATUS_ENABLED, CREATED, UPDATED);
+    private static RoleAggregate role(String name) {
+        return RoleAggregate.reconstitute(ROLE_ID, 1L, RoleCode.of("test_role"), name, "描述", 1,
+                RoleAggregate.STATUS_ENABLED, CREATED, UPDATED);
     }
 
     @Test
@@ -125,39 +125,39 @@ class RoleAppServiceTest {
 
         assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
         assertEquals("角色编码已存在", ex.getMessage());
-        verify(roleRepository, never()).save(any(Role.class));
+        verify(roleRepository, never()).save(any(RoleAggregate.class));
     }
 
     @Test
     @DisplayName("create：编码可用时落库并取默认排序/状态，发布 CREATED 事件")
     void shouldCreateRoleWhenCodeAvailable() {
         when(roleRepository.existsByCode("test_role")).thenReturn(false);
-        when(roleRepository.save(any(Role.class))).thenReturn(Role.reconstitute(
-                ROLE_ID, 1L, RoleCode.of("test_role"), "测试角色", null, 0, Role.STATUS_ENABLED, CREATED, UPDATED));
+        when(roleRepository.save(any(RoleAggregate.class))).thenReturn(RoleAggregate.reconstitute(
+                ROLE_ID, 1L, RoleCode.of("test_role"), "测试角色", null, 0, RoleAggregate.STATUS_ENABLED, CREATED, UPDATED));
 
         RoleVO vo = roleAppService.create(new CreateRoleCommand("test_role", "测试角色", null, null, null));
 
         assertEquals("test_role", vo.getRoleCode());
         assertEquals("测试角色", vo.getRoleName());
         assertEquals(0, vo.getSortNo());
-        assertEquals(Role.STATUS_ENABLED, vo.getStatus());
-        verify(roleRepository).save(any(Role.class));
+        assertEquals(RoleAggregate.STATUS_ENABLED, vo.getStatus());
+        verify(roleRepository).save(any(RoleAggregate.class));
         verify(eventPublisher).publish(new RoleDomainEvent(ROLE_ID, ChangeType.CREATED));
     }
 
     @Test
     @DisplayName("update：名称/描述全量覆盖，排序与状态非空时变更")
     void shouldUpdateRoleFields() {
-        Role stored = role("旧名");
+        RoleAggregate stored = role("旧名");
         when(roleRepository.findById(ROLE_ID)).thenReturn(Optional.of(stored));
 
         RoleVO vo = roleAppService.update(ROLE_ID,
-                new UpdateRoleCommand("新名", "新描述", 9, Role.STATUS_DISABLED));
+                new UpdateRoleCommand("新名", "新描述", 9, RoleAggregate.STATUS_DISABLED));
 
         assertEquals("新名", vo.getRoleName());
         assertEquals("新描述", vo.getDescription());
         assertEquals(9, vo.getSortNo());
-        assertEquals(Role.STATUS_DISABLED, vo.getStatus());
+        assertEquals(RoleAggregate.STATUS_DISABLED, vo.getStatus());
         verify(roleRepository).save(stored);
         verify(eventPublisher).publish(new RoleDomainEvent(ROLE_ID, ChangeType.STATUS_CHANGED));
     }
@@ -165,10 +165,10 @@ class RoleAppServiceTest {
     @Test
     @DisplayName("update：状态未变化时发布 UPDATED 事件，不触发角色级缓存失效")
     void shouldPublishUpdatedWhenStatusUnchanged() {
-        Role stored = role("旧名");
+        RoleAggregate stored = role("旧名");
         when(roleRepository.findById(ROLE_ID)).thenReturn(Optional.of(stored));
 
-        roleAppService.update(ROLE_ID, new UpdateRoleCommand("新名", "新描述", 9, Role.STATUS_ENABLED));
+        roleAppService.update(ROLE_ID, new UpdateRoleCommand("新名", "新描述", 9, RoleAggregate.STATUS_ENABLED));
 
         assertEquals("新名", stored.getRoleName());
         verify(eventPublisher).publish(new RoleDomainEvent(ROLE_ID, ChangeType.UPDATED));

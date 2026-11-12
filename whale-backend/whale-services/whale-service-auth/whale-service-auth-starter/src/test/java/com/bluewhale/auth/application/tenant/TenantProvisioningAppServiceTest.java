@@ -3,17 +3,17 @@ package com.bluewhale.auth.application.tenant;
 import com.bluewhale.auth.application.model.command.CreateTenantCommand;
 import com.bluewhale.auth.application.port.TenantStatusSyncPort;
 import com.bluewhale.auth.application.port.PasswordHasher;
-import com.bluewhale.auth.domain.aggregate.Dept;
+import com.bluewhale.auth.domain.aggregate.DeptAggregate;
 import com.bluewhale.auth.domain.repository.DeptRepository;
-import com.bluewhale.auth.domain.aggregate.Menu;
+import com.bluewhale.auth.domain.aggregate.MenuAggregate;
 import com.bluewhale.auth.domain.repository.MenuRepository;
 import com.bluewhale.auth.domain.model.vo.PermCode;
 import com.bluewhale.auth.domain.model.vo.RoleCode;
-import com.bluewhale.auth.domain.aggregate.Permission;
+import com.bluewhale.auth.domain.aggregate.PermissionAggregate;
 import com.bluewhale.auth.domain.repository.PermissionRepository;
-import com.bluewhale.auth.domain.aggregate.Role;
+import com.bluewhale.auth.domain.aggregate.RoleAggregate;
 import com.bluewhale.auth.domain.repository.RoleRepository;
-import com.bluewhale.auth.domain.aggregate.Tenant;
+import com.bluewhale.auth.domain.aggregate.TenantAggregate;
 import com.bluewhale.auth.domain.repository.TenantRepository;
 import com.bluewhale.auth.domain.aggregate.UserAggregate;
 import com.bluewhale.auth.domain.repository.UserRepository;
@@ -101,32 +101,32 @@ class TenantProvisioningAppServiceTest {
         AtomicLong menuIdSequence = new AtomicLong(10_000L);
         when(tenantAppService.requirePlatformTenant()).thenReturn(platformTenant());
         when(tenantRepository.findByCode("acme")).thenReturn(Optional.empty());
-        when(tenantRepository.save(any(Tenant.class))).thenAnswer(invocation -> {
-            Tenant draft = invocation.getArgument(0);
-            return Tenant.reconstitute(NEW_TENANT_ID, draft.getTenantCode(), draft.getTenantName(), "TENANT",
+        when(tenantRepository.save(any(TenantAggregate.class))).thenAnswer(invocation -> {
+            TenantAggregate draft = invocation.getArgument(0);
+            return TenantAggregate.reconstitute(NEW_TENANT_ID, draft.getTenantCode(), draft.getTenantName(), "TENANT",
                     draft.getStatus(), draft.getExpireTime(), draft.getQuotaJson(),
                     draft.getCreateTime(), draft.getUpdateTime());
         });
-        when(deptRepository.save(any(Dept.class))).thenAnswer(invocation -> {
-            Dept draft = invocation.getArgument(0);
-            return Dept.reconstitute(ROOT_DEPT_ID, draft.getTenantId(), draft.getParentId(), draft.getDeptName(),
+        when(deptRepository.save(any(DeptAggregate.class))).thenAnswer(invocation -> {
+            DeptAggregate draft = invocation.getArgument(0);
+            return DeptAggregate.reconstitute(ROOT_DEPT_ID, draft.getTenantId(), draft.getParentId(), draft.getDeptName(),
                     draft.getSort(), draft.getLeader(), draft.getCreateTime(), draft.getUpdateTime());
         });
-        when(menuRepository.findAllByTenantId(Tenant.PLATFORM_TENANT_ID))
+        when(menuRepository.findAllByTenantId(TenantAggregate.PLATFORM_TENANT_ID))
                 .thenReturn(List.of(platformMenu(10L, 0L, "系统管理", "DIR", null),
                         platformMenu(11L, 10L, "租户管理", "MENU", "sys:tenant:list")));
-        when(menuRepository.save(any(Menu.class))).thenAnswer(invocation -> {
-            Menu draft = invocation.getArgument(0);
+        when(menuRepository.save(any(MenuAggregate.class))).thenAnswer(invocation -> {
+            MenuAggregate draft = invocation.getArgument(0);
             long id = menuIdSequence.incrementAndGet();
-            return Menu.reconstitute(id, draft.getTenantId(), draft.getParentId(), draft.getName(), draft.getPath(),
+            return MenuAggregate.reconstitute(id, draft.getTenantId(), draft.getParentId(), draft.getName(), draft.getPath(),
                     draft.getComponent(), draft.getIcon(), draft.getSort(), draft.getMenuType(),
                     draft.getPermissionCode(), draft.getVisible(), draft.getStatus(), NOW, NOW);
         });
         when(permissionRepository.findEnabledAll()).thenReturn(List.of(
                 permission(500L, "sys:tenant:list"), permission(501L, "sys:user:list")));
-        when(roleRepository.save(any(Role.class))).thenAnswer(invocation -> {
-            Role draft = invocation.getArgument(0);
-            return Role.reconstitute(ROLE_ID, draft.getTenantId(), draft.getRoleCode(), draft.getRoleName(),
+        when(roleRepository.save(any(RoleAggregate.class))).thenAnswer(invocation -> {
+            RoleAggregate draft = invocation.getArgument(0);
+            return RoleAggregate.reconstitute(ROLE_ID, draft.getTenantId(), draft.getRoleCode(), draft.getRoleName(),
                     draft.getDescription(), draft.getSortNo(), draft.getStatus(),
                     draft.getCreateTime(), draft.getUpdateTime());
         });
@@ -141,14 +141,14 @@ class TenantProvisioningAppServiceTest {
         TenantVO result = service.provision(new CreateTenantCommand("acme", "ACME",
                 LocalDateTime.now().plusDays(30), "{\"maxUser\":10}", "admin", "initPwd", "管理员"));
 
-        ArgumentCaptor<Dept> deptCaptor = ArgumentCaptor.forClass(Dept.class);
+        ArgumentCaptor<DeptAggregate> deptCaptor = ArgumentCaptor.forClass(DeptAggregate.class);
         verify(deptRepository, times(1)).save(deptCaptor.capture());
         assertEquals(Long.valueOf(NEW_TENANT_ID), deptCaptor.getValue().getTenantId());
         assertEquals("ACME", deptCaptor.getValue().getDeptName());
 
-        verify(menuRepository, times(2)).save(any(Menu.class));
+        verify(menuRepository, times(2)).save(any(MenuAggregate.class));
 
-        ArgumentCaptor<Role> roleCaptor = ArgumentCaptor.forClass(Role.class);
+        ArgumentCaptor<RoleAggregate> roleCaptor = ArgumentCaptor.forClass(RoleAggregate.class);
         verify(roleRepository).save(roleCaptor.capture());
         assertEquals("tenant_admin", roleCaptor.getValue().getRoleCode().value());
         assertEquals(Long.valueOf(NEW_TENANT_ID), roleCaptor.getValue().getTenantId());
@@ -170,31 +170,31 @@ class TenantProvisioningAppServiceTest {
         AtomicLong roleIdSequence = new AtomicLong(300L);
         when(tenantAppService.requirePlatformTenant()).thenReturn(platformTenant());
         when(tenantRepository.findByCode("acme")).thenReturn(Optional.empty());
-        when(tenantRepository.save(any(Tenant.class))).thenAnswer(invocation -> {
-            Tenant draft = invocation.getArgument(0);
-            return Tenant.reconstitute(NEW_TENANT_ID, draft.getTenantCode(), draft.getTenantName(), "TENANT",
+        when(tenantRepository.save(any(TenantAggregate.class))).thenAnswer(invocation -> {
+            TenantAggregate draft = invocation.getArgument(0);
+            return TenantAggregate.reconstitute(NEW_TENANT_ID, draft.getTenantCode(), draft.getTenantName(), "TENANT",
                     draft.getStatus(), draft.getExpireTime(), draft.getQuotaJson(),
                     draft.getCreateTime(), draft.getUpdateTime());
         });
-        when(deptRepository.save(any(Dept.class))).thenAnswer(invocation -> {
-            Dept draft = invocation.getArgument(0);
-            return Dept.reconstitute(ROOT_DEPT_ID, draft.getTenantId(), draft.getParentId(), draft.getDeptName(),
+        when(deptRepository.save(any(DeptAggregate.class))).thenAnswer(invocation -> {
+            DeptAggregate draft = invocation.getArgument(0);
+            return DeptAggregate.reconstitute(ROOT_DEPT_ID, draft.getTenantId(), draft.getParentId(), draft.getDeptName(),
                     draft.getSort(), draft.getLeader(), draft.getCreateTime(), draft.getUpdateTime());
         });
         when(permissionRepository.findEnabledAll()).thenReturn(List.of(
                 permission(140L, "sys:archive:category:list"),
                 permission(44L, "sys:workflow:instance:start"),
                 permission(165L, "sys:tenant:list")));
-        when(roleRepository.save(any(Role.class))).thenAnswer(invocation -> {
-            Role draft = invocation.getArgument(0);
-            return Role.reconstitute(roleIdSequence.incrementAndGet(), draft.getTenantId(), draft.getRoleCode(),
+        when(roleRepository.save(any(RoleAggregate.class))).thenAnswer(invocation -> {
+            RoleAggregate draft = invocation.getArgument(0);
+            return RoleAggregate.reconstitute(roleIdSequence.incrementAndGet(), draft.getTenantId(), draft.getRoleCode(),
                     draft.getRoleName(), draft.getDescription(), draft.getSortNo(), draft.getStatus(),
                     draft.getCreateTime(), draft.getUpdateTime());
         });
         // 仅 archive_manager 模板存在，其余 16 个编码按缺失跳过
-        when(roleRepository.findByTenantIdAndCode(Tenant.PLATFORM_TENANT_ID, "archive_manager"))
-                .thenReturn(Optional.of(Role.reconstitute(9_000L, Tenant.PLATFORM_TENANT_ID,
-                        RoleCode.of("archive_manager"), "档案管理员", "档案全量", 140, Role.STATUS_ENABLED, NOW, NOW)));
+        when(roleRepository.findByTenantIdAndCode(TenantAggregate.PLATFORM_TENANT_ID, "archive_manager"))
+                .thenReturn(Optional.of(RoleAggregate.reconstitute(9_000L, TenantAggregate.PLATFORM_TENANT_ID,
+                        RoleCode.of("archive_manager"), "档案管理员", "档案全量", 140, RoleAggregate.STATUS_ENABLED, NOW, NOW)));
         // 模板授权含可下发 140、平台专属 165 与不存在的 999
         when(roleRepository.listPermissionIds(9_000L)).thenReturn(List.of(140L, 165L, 999L));
         when(userRepository.save(any(UserAggregate.class))).thenAnswer(invocation -> {
@@ -207,11 +207,11 @@ class TenantProvisioningAppServiceTest {
 
         service.provision(new CreateTenantCommand("acme", "ACME", null, null, "admin", "initPwd", "管理员"));
 
-        ArgumentCaptor<Role> roleCaptor = ArgumentCaptor.forClass(Role.class);
+        ArgumentCaptor<RoleAggregate> roleCaptor = ArgumentCaptor.forClass(RoleAggregate.class);
         verify(roleRepository, times(2)).save(roleCaptor.capture());
-        List<Role> saved = roleCaptor.getAllValues();
+        List<RoleAggregate> saved = roleCaptor.getAllValues();
         assertEquals("tenant_admin", saved.get(0).getRoleCode().value());
-        Role copied = saved.get(1);
+        RoleAggregate copied = saved.get(1);
         assertEquals("archive_manager", copied.getRoleCode().value());
         assertEquals("档案管理员", copied.getRoleName());
         assertEquals("档案全量", copied.getDescription());
@@ -242,32 +242,32 @@ class TenantProvisioningAppServiceTest {
         AtomicLong menuIdSequence = new AtomicLong(20_000L);
         when(tenantAppService.requirePlatformTenant()).thenReturn(platformTenant());
         when(tenantRepository.findByCode("acme")).thenReturn(Optional.empty());
-        when(tenantRepository.save(any(Tenant.class))).thenAnswer(invocation -> {
-            Tenant draft = invocation.getArgument(0);
-            return Tenant.reconstitute(NEW_TENANT_ID, draft.getTenantCode(), draft.getTenantName(), "TENANT",
+        when(tenantRepository.save(any(TenantAggregate.class))).thenAnswer(invocation -> {
+            TenantAggregate draft = invocation.getArgument(0);
+            return TenantAggregate.reconstitute(NEW_TENANT_ID, draft.getTenantCode(), draft.getTenantName(), "TENANT",
                     draft.getStatus(), draft.getExpireTime(), draft.getQuotaJson(),
                     draft.getCreateTime(), draft.getUpdateTime());
         });
-        when(deptRepository.save(any(Dept.class))).thenAnswer(invocation -> {
-            Dept draft = invocation.getArgument(0);
-            return Dept.reconstitute(ROOT_DEPT_ID, draft.getTenantId(), draft.getParentId(), draft.getDeptName(),
+        when(deptRepository.save(any(DeptAggregate.class))).thenAnswer(invocation -> {
+            DeptAggregate draft = invocation.getArgument(0);
+            return DeptAggregate.reconstitute(ROOT_DEPT_ID, draft.getTenantId(), draft.getParentId(), draft.getDeptName(),
                     draft.getSort(), draft.getLeader(), draft.getCreateTime(), draft.getUpdateTime());
         });
         // 故意把子菜单排在父菜单之前，模拟无序遍历
-        when(menuRepository.findAllByTenantId(Tenant.PLATFORM_TENANT_ID))
+        when(menuRepository.findAllByTenantId(TenantAggregate.PLATFORM_TENANT_ID))
                 .thenReturn(List.of(platformMenu(11L, 10L, "租户管理", "MENU", null),
                         platformMenu(10L, 0L, "系统管理", "DIR", null)));
-        when(menuRepository.save(any(Menu.class))).thenAnswer(invocation -> {
-            Menu draft = invocation.getArgument(0);
+        when(menuRepository.save(any(MenuAggregate.class))).thenAnswer(invocation -> {
+            MenuAggregate draft = invocation.getArgument(0);
             long id = menuIdSequence.incrementAndGet();
-            return Menu.reconstitute(id, draft.getTenantId(), draft.getParentId(), draft.getName(), draft.getPath(),
+            return MenuAggregate.reconstitute(id, draft.getTenantId(), draft.getParentId(), draft.getName(), draft.getPath(),
                     draft.getComponent(), draft.getIcon(), draft.getSort(), draft.getMenuType(),
                     draft.getPermissionCode(), draft.getVisible(), draft.getStatus(), NOW, NOW);
         });
         when(permissionRepository.findEnabledAll()).thenReturn(List.of());
-        when(roleRepository.save(any(Role.class))).thenAnswer(invocation -> {
-            Role draft = invocation.getArgument(0);
-            return Role.reconstitute(ROLE_ID, draft.getTenantId(), draft.getRoleCode(), draft.getRoleName(),
+        when(roleRepository.save(any(RoleAggregate.class))).thenAnswer(invocation -> {
+            RoleAggregate draft = invocation.getArgument(0);
+            return RoleAggregate.reconstitute(ROLE_ID, draft.getTenantId(), draft.getRoleCode(), draft.getRoleName(),
                     draft.getDescription(), draft.getSortNo(), draft.getStatus(),
                     draft.getCreateTime(), draft.getUpdateTime());
         });
@@ -281,11 +281,11 @@ class TenantProvisioningAppServiceTest {
 
         service.provision(new CreateTenantCommand("acme", "ACME", null, null, "admin", "initPwd", "管理员"));
 
-        ArgumentCaptor<Menu> menuCaptor = ArgumentCaptor.forClass(Menu.class);
+        ArgumentCaptor<MenuAggregate> menuCaptor = ArgumentCaptor.forClass(MenuAggregate.class);
         verify(menuRepository, times(2)).save(menuCaptor.capture());
-        List<Menu> saved = menuCaptor.getAllValues();
+        List<MenuAggregate> saved = menuCaptor.getAllValues();
         assertEquals("系统管理", saved.get(0).getName());
-        assertEquals(Long.valueOf(Menu.ROOT_PARENT_ID), saved.get(0).getParentId());
+        assertEquals(Long.valueOf(MenuAggregate.ROOT_PARENT_ID), saved.get(0).getParentId());
         assertEquals("租户管理", saved.get(1).getName());
         // 子菜单在第二轮落库，父 ID 指向第一轮保存父菜单时返回的 20001
         assertEquals(Long.valueOf(20_001L), saved.get(1).getParentId());
@@ -296,14 +296,14 @@ class TenantProvisioningAppServiceTest {
     void shouldRejectDuplicateTenantCode() {
         when(tenantAppService.requirePlatformTenant()).thenReturn(platformTenant());
         when(tenantRepository.findByCode("acme"))
-                .thenReturn(Optional.of(Tenant.reconstitute(NEW_TENANT_ID, "acme", "ACME", "TENANT", 1,
+                .thenReturn(Optional.of(TenantAggregate.reconstitute(NEW_TENANT_ID, "acme", "ACME", "TENANT", 1,
                         null, null, NOW, NOW)));
 
         BizException ex = assertThrows(BizException.class, () -> service.provision(
                 new CreateTenantCommand("acme", "ACME", null, null, "admin", "initPwd", "管理员")));
 
         assertTrue(ex.getMessage().contains("租户编码已存在"));
-        verify(tenantRepository, never()).save(any(Tenant.class));
+        verify(tenantRepository, never()).save(any(TenantAggregate.class));
         verifyNoInteractions(deptRepository, menuRepository, roleRepository, userRepository,
                 permissionRepository, passwordHasher);
     }
@@ -322,18 +322,18 @@ class TenantProvisioningAppServiceTest {
                 permissionRepository, passwordHasher);
     }
 
-    private static Tenant platformTenant() {
-        return Tenant.reconstitute(Tenant.PLATFORM_TENANT_ID, "default", "默认租户", "PLATFORM", 1,
+    private static TenantAggregate platformTenant() {
+        return TenantAggregate.reconstitute(TenantAggregate.PLATFORM_TENANT_ID, "default", "默认租户", "PLATFORM", 1,
                 null, null, NOW, NOW);
     }
 
-    private static Menu platformMenu(Long id, Long parentId, String name, String menuType, String permissionCode) {
-        return Menu.reconstitute(id, Tenant.PLATFORM_TENANT_ID, parentId, name, "/" + id, "component/" + id,
+    private static MenuAggregate platformMenu(Long id, Long parentId, String name, String menuType, String permissionCode) {
+        return MenuAggregate.reconstitute(id, TenantAggregate.PLATFORM_TENANT_ID, parentId, name, "/" + id, "component/" + id,
                 "icon", 0, menuType, permissionCode, 1, 1, NOW, NOW);
     }
 
-    private static Permission permission(Long id, String permCode) {
-        return Permission.reconstitute(id, Permission.ROOT_PARENT_ID, PermCode.of(permCode), permCode,
-                "API", "/" + permCode, "GET", 0, Permission.STATUS_ENABLED, NOW, NOW);
+    private static PermissionAggregate permission(Long id, String permCode) {
+        return PermissionAggregate.reconstitute(id, PermissionAggregate.ROOT_PARENT_ID, PermCode.of(permCode), permCode,
+                "API", "/" + permCode, "GET", 0, PermissionAggregate.STATUS_ENABLED, NOW, NOW);
     }
 }

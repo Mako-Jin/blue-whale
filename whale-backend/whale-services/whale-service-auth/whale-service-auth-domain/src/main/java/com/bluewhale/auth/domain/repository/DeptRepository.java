@@ -1,6 +1,6 @@
 package com.bluewhale.auth.domain.repository;
 
-import com.bluewhale.auth.domain.aggregate.Dept;
+import com.bluewhale.auth.domain.aggregate.DeptAggregate;
 
 import java.util.List;
 import java.util.Optional;
@@ -20,7 +20,7 @@ public interface DeptRepository {
      * @param dept 部门聚合根
      * @return 回填主键后的部门聚合根
      */
-    Dept save(Dept dept);
+    DeptAggregate save(DeptAggregate dept);
 
     /**
      * 按部门 ID 查询部门聚合（当前租户内查询，跨租户视为不存在）
@@ -28,14 +28,14 @@ public interface DeptRepository {
      * @param id 部门 ID
      * @return 部门聚合；不存在时返回空
      */
-    Optional<Dept> findById(Long id);
+    Optional<DeptAggregate> findById(Long id);
 
     /**
      * 查询全部部门（当前租户内，按 sort 升序、id 升序，对应部门树 {@code tree} 的读）
      *
      * @return 全部部门聚合列表
      */
-    List<Dept> findAll();
+    List<DeptAggregate> findAll();
 
     /**
      * 查询指定父部门下的直接子部门
@@ -43,7 +43,7 @@ public interface DeptRepository {
      * @param parentId 父部门 ID
      * @return 该父部门下的子部门聚合列表
      */
-    List<Dept> findAllByParentId(Long parentId);
+    List<DeptAggregate> findAllByParentId(Long parentId);
 
     /**
      * 统计指定父部门下的直接子部门数量（供删除前树完整性校验）

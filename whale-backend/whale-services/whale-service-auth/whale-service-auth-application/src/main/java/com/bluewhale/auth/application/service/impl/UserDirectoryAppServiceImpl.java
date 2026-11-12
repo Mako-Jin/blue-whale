@@ -2,7 +2,7 @@ package com.bluewhale.auth.application.service.impl;
 
 import com.bluewhale.auth.application.model.vo.UserDirectoryVO;
 import com.bluewhale.auth.application.service.UserDirectoryAppService;
-import com.bluewhale.auth.domain.aggregate.Dept;
+import com.bluewhale.auth.domain.aggregate.DeptAggregate;
 import com.bluewhale.auth.domain.repository.DeptRepository;
 import com.bluewhale.auth.domain.aggregate.UserAggregate;
 import com.bluewhale.auth.domain.repository.UserRepository;
@@ -101,10 +101,10 @@ public class UserDirectoryAppServiceImpl implements UserDirectoryAppService {
         if (!includeChildren) {
             return List.of(deptId);
         }
-        List<Dept> all = deptRepository.findAll();
+        List<DeptAggregate> all = deptRepository.findAll();
         Map<Long, List<Long>> childrenByParent = new HashMap<>();
         boolean exists = false;
-        for (Dept dept : all) {
+        for (DeptAggregate dept : all) {
             if (deptId.equals(dept.getId())) {
                 exists = true;
             }
@@ -177,6 +177,6 @@ public class UserDirectoryAppServiceImpl implements UserDirectoryAppService {
         }
         return deptRepository.findAll().stream()
                 .filter(dept -> deptIds.contains(dept.getId()))
-                .collect(Collectors.toMap(Dept::getId, Dept::getDeptName, (first, second) -> first));
+                .collect(Collectors.toMap(DeptAggregate::getId, DeptAggregate::getDeptName, (first, second) -> first));
     }
 }

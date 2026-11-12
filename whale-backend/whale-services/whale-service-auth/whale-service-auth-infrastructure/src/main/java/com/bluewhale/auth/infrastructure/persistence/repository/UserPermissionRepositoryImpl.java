@@ -1,7 +1,7 @@
 package com.bluewhale.auth.infrastructure.persistence.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.bluewhale.auth.domain.aggregate.UserPermissionAttribute;
+import com.bluewhale.auth.domain.aggregate.UserPermissionAttributeAggregate;
 import com.bluewhale.auth.domain.repository.UserPermissionRepository;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysUserPermission;
 import com.bluewhale.auth.infrastructure.persistence.assembler.UserPermissionPersistenceAssembler;
@@ -25,18 +25,18 @@ public class UserPermissionRepositoryImpl implements UserPermissionRepository {
     private final SysUserPermissionMapper userPermissionMapper;
 
     @Override
-    public List<UserPermissionAttribute> listByUserId(Long userId) {
+    public List<UserPermissionAttributeAggregate> listByUserId(Long userId) {
         return userPermissionMapper.selectList(new LambdaQueryWrapper<SysUserPermission>()
                         .eq(SysUserPermission::getUserId, userId))
                 .stream().map(UserPermissionPersistenceAssembler::toDomain).toList();
     }
 
     @Override
-    public void replaceAll(Long userId, List<UserPermissionAttribute> attributes) {
+    public void replaceAll(Long userId, List<UserPermissionAttributeAggregate> attributes) {
         // 关联表实体无 deleted 字段，走物理删除，避免唯一键 uk_user_perm_attr 冲突
         userPermissionMapper.delete(new LambdaQueryWrapper<SysUserPermission>()
                 .eq(SysUserPermission::getUserId, userId));
-        for (UserPermissionAttribute attribute : attributes) {
+        for (UserPermissionAttributeAggregate attribute : attributes) {
             userPermissionMapper.insert(UserPermissionPersistenceAssembler.toPo(attribute));
         }
     }

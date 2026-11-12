@@ -14,11 +14,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * {@link Permission} 聚合不变量与行为单元测试（REQ-ARCH-001 / T-DDD-6）。
+ * {@link PermissionAggregate} 聚合不变量与行为单元测试（REQ-ARCH-001 / T-DDD-6）。
  *
  * @author BlueWhale
  */
-class PermissionTest {
+class PermissionAggregateTest {
 
     private static final int PARAM_ERROR_CODE = 400;
     private static final PermCode CODE = PermCode.of("sys:user:list");
@@ -26,28 +26,28 @@ class PermissionTest {
     @Test
     @DisplayName("create：合法构造，默认父节点 0、排序 0、状态启用并回填各字段")
     void shouldCreateWithDefaults() {
-        Permission permission = Permission.create(null, CODE, "用户列表", "API", "/api/user", "GET", null, null);
+        PermissionAggregate permission = PermissionAggregate.create(null, CODE, "用户列表", "API", "/api/user", "GET", null, null);
 
         assertNull(permission.getId());
-        assertEquals(Permission.ROOT_PARENT_ID, permission.getParentId());
+        assertEquals(PermissionAggregate.ROOT_PARENT_ID, permission.getParentId());
         assertEquals("sys:user:list", permission.getPermCode().value());
         assertEquals("用户列表", permission.getPermName());
         assertEquals("API", permission.getPermType());
         assertEquals("/api/user", permission.getPath());
         assertEquals("GET", permission.getMethod());
         assertEquals(0, permission.getSortNo());
-        assertEquals(Permission.STATUS_ENABLED, permission.getStatus());
+        assertEquals(PermissionAggregate.STATUS_ENABLED, permission.getStatus());
         assertTrue(permission.isEnabled());
     }
 
     @Test
     @DisplayName("create：显式父节点、排序与停用状态生效")
     void shouldCreateWithExplicitValues() {
-        Permission permission = Permission.create(3L, CODE, "用户列表", "BUTTON", null, null, 9, 0);
+        PermissionAggregate permission = PermissionAggregate.create(3L, CODE, "用户列表", "BUTTON", null, null, 9, 0);
 
         assertEquals(3L, permission.getParentId());
         assertEquals(9, permission.getSortNo());
-        assertEquals(Permission.STATUS_DISABLED, permission.getStatus());
+        assertEquals(PermissionAggregate.STATUS_DISABLED, permission.getStatus());
         assertFalse(permission.isEnabled());
     }
 
@@ -55,7 +55,7 @@ class PermissionTest {
     @DisplayName("不变量①：权限码为空抛参数错误")
     void shouldRejectNullPermCode() {
         BizException ex = assertThrows(BizException.class,
-                () -> Permission.create(0L, null, "用户列表", "API", null, null, null, null));
+                () -> PermissionAggregate.create(0L, null, "用户列表", "API", null, null, null, null));
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
     }
 
@@ -63,21 +63,21 @@ class PermissionTest {
     @DisplayName("不变量②：权限名称为空抛参数错误")
     void shouldRejectBlankPermName() {
         assertThrows(BizException.class,
-                () -> Permission.create(0L, CODE, " ", "API", null, null, null, null));
+                () -> PermissionAggregate.create(0L, CODE, " ", "API", null, null, null, null));
     }
 
     @Test
     @DisplayName("不变量③：权限类型非法抛参数错误")
     void shouldRejectIllegalPermType() {
         assertThrows(BizException.class,
-                () -> Permission.create(0L, CODE, "用户列表", "UNKNOWN", null, null, null, null));
+                () -> PermissionAggregate.create(0L, CODE, "用户列表", "UNKNOWN", null, null, null, null));
     }
 
     @Test
     @DisplayName("不变量④：状态越界抛参数错误")
     void shouldRejectIllegalStatus() {
         assertThrows(BizException.class,
-                () -> Permission.create(0L, CODE, "用户列表", "API", null, null, null, 2));
+                () -> PermissionAggregate.create(0L, CODE, "用户列表", "API", null, null, null, 2));
     }
 
     @Test
@@ -85,11 +85,11 @@ class PermissionTest {
     void shouldReconstituteWithNormalizedParent() {
         LocalDateTime created = LocalDateTime.of(2026, 1, 1, 0, 0);
 
-        Permission permission = Permission.reconstitute(7L, null, CODE, "用户列表", "API", null, null,
+        PermissionAggregate permission = PermissionAggregate.reconstitute(7L, null, CODE, "用户列表", "API", null, null,
                 null, null, created, created);
 
         assertEquals(7L, permission.getId());
-        assertEquals(Permission.ROOT_PARENT_ID, permission.getParentId());
+        assertEquals(PermissionAggregate.ROOT_PARENT_ID, permission.getParentId());
         assertEquals(0, permission.getSortNo());
         assertEquals(created, permission.getCreateTime());
     }
@@ -97,7 +97,7 @@ class PermissionTest {
     @Test
     @DisplayName("行为：moveTo/changeCode/rename/changeType 各自生效")
     void shouldApplyProfileChanges() {
-        Permission permission = Permission.create(0L, CODE, "旧名", "API", null, null, 1, 1);
+        PermissionAggregate permission = PermissionAggregate.create(0L, CODE, "旧名", "API", null, null, 1, 1);
 
         permission.moveTo(3L);
         permission.changeCode(PermCode.of("sys:user:add"));
@@ -113,22 +113,22 @@ class PermissionTest {
     @Test
     @DisplayName("行为：changeApi/changeSort/changeStatus 各自生效")
     void shouldApplyApiAndStatusChanges() {
-        Permission permission = Permission.create(0L, CODE, "用户列表", "API", null, null, 1, 1);
+        PermissionAggregate permission = PermissionAggregate.create(0L, CODE, "用户列表", "API", null, null, 1, 1);
 
         permission.changeApi("/api/user/page", "POST");
         permission.changeSort(5);
-        permission.changeStatus(Permission.STATUS_DISABLED);
+        permission.changeStatus(PermissionAggregate.STATUS_DISABLED);
 
         assertEquals("/api/user/page", permission.getPath());
         assertEquals("POST", permission.getMethod());
         assertEquals(5, permission.getSortNo());
-        assertEquals(Permission.STATUS_DISABLED, permission.getStatus());
+        assertEquals(PermissionAggregate.STATUS_DISABLED, permission.getStatus());
     }
 
     @Test
     @DisplayName("行为：非法入参（moveTo null、changeCode null、rename 空、类型/状态越界）抛参数错误")
     void shouldRejectIllegalChanges() {
-        Permission permission = Permission.create(0L, CODE, "用户列表", "API", null, null, 1, 1);
+        PermissionAggregate permission = PermissionAggregate.create(0L, CODE, "用户列表", "API", null, null, 1, 1);
 
         assertThrows(BizException.class, () -> permission.moveTo(null));
         assertThrows(BizException.class, () -> permission.changeCode(null));

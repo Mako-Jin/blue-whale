@@ -4,7 +4,7 @@ import com.bluewhale.auth.application.event.DomainEventPublisher;
 import com.bluewhale.auth.application.model.command.SaveMenuCommand;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.MenuDomainEvent;
-import com.bluewhale.auth.domain.aggregate.Menu;
+import com.bluewhale.auth.domain.aggregate.MenuAggregate;
 import com.bluewhale.auth.domain.repository.MenuRepository;
 import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.auth.application.model.vo.MenuVO;
@@ -67,16 +67,16 @@ class MenuAppServiceTest {
         TenantContext.clear();
     }
 
-    private static Menu menu(Long id, Long parentId, String name, String menuType, String permissionCode) {
-        return Menu.reconstitute(id, 1L, parentId, name, "/" + id, "component/" + id, "icon", 0, menuType,
-                permissionCode, Menu.VISIBLE_SHOWN, Menu.STATUS_ENABLED, NOW, NOW);
+    private static MenuAggregate menu(Long id, Long parentId, String name, String menuType, String permissionCode) {
+        return MenuAggregate.reconstitute(id, 1L, parentId, name, "/" + id, "component/" + id, "icon", 0, menuType,
+                permissionCode, MenuAggregate.VISIBLE_SHOWN, MenuAggregate.STATUS_ENABLED, NOW, NOW);
     }
 
-    private static List<Menu> allMenus() {
+    private static List<MenuAggregate> allMenus() {
         return List.of(
-                menu(ROOT_ID, Menu.ROOT_PARENT_ID, "系统管理", Menu.MENU_TYPE_DIR, null),
-                menu(USER_MENU_ID, ROOT_ID, "用户管理", Menu.MENU_TYPE_MENU, "sys:user:list"),
-                menu(ROLE_MENU_ID, ROOT_ID, "角色管理", Menu.MENU_TYPE_MENU, "sys:role:list"));
+                menu(ROOT_ID, MenuAggregate.ROOT_PARENT_ID, "系统管理", MenuAggregate.MENU_TYPE_DIR, null),
+                menu(USER_MENU_ID, ROOT_ID, "用户管理", MenuAggregate.MENU_TYPE_MENU, "sys:user:list"),
+                menu(ROLE_MENU_ID, ROOT_ID, "角色管理", MenuAggregate.MENU_TYPE_MENU, "sys:role:list"));
     }
 
     @Test
@@ -127,19 +127,19 @@ class MenuAppServiceTest {
     @Test
     @DisplayName("create：空值默认由聚合适配（父节点 0、排序 0、MENU、显示、启用）")
     void shouldCreateWithDefaults() {
-        when(menuRepository.save(any(Menu.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(menuRepository.save(any(MenuAggregate.class))).thenAnswer(inv -> inv.getArgument(0));
 
         menuAppService.create(new SaveMenuCommand(null, "用户管理", "/user", "system/user", "user",
                 null, null, null, null, null));
 
-        ArgumentCaptor<Menu> captor = ArgumentCaptor.forClass(Menu.class);
+        ArgumentCaptor<MenuAggregate> captor = ArgumentCaptor.forClass(MenuAggregate.class);
         verify(menuRepository).save(captor.capture());
-        Menu saved = captor.getValue();
-        assertEquals(Menu.ROOT_PARENT_ID, saved.getParentId());
+        MenuAggregate saved = captor.getValue();
+        assertEquals(MenuAggregate.ROOT_PARENT_ID, saved.getParentId());
         assertEquals(0, saved.getSort());
-        assertEquals(Menu.MENU_TYPE_MENU, saved.getMenuType());
-        assertEquals(Menu.VISIBLE_SHOWN, saved.getVisible());
-        assertEquals(Menu.STATUS_ENABLED, saved.getStatus());
+        assertEquals(MenuAggregate.MENU_TYPE_MENU, saved.getMenuType());
+        assertEquals(MenuAggregate.VISIBLE_SHOWN, saved.getVisible());
+        assertEquals(MenuAggregate.STATUS_ENABLED, saved.getStatus());
         verify(eventPublisher).publish(new MenuDomainEvent(null, ChangeType.CREATED));
     }
 
@@ -150,28 +150,28 @@ class MenuAppServiceTest {
 
         assertThrows(BizException.class, () -> menuAppService.update(ROOT_ID,
                 new SaveMenuCommand(null, "新名", null, null, null, null, null, null, null, null)));
-        verify(menuRepository, never()).save(any(Menu.class));
+        verify(menuRepository, never()).save(any(MenuAggregate.class));
     }
 
     @Test
     @DisplayName("update：命中时应用全部字段并落库")
     void shouldUpdateWhenExists() {
-        Menu stored = menu(ROOT_ID, Menu.ROOT_PARENT_ID, "旧名", Menu.MENU_TYPE_MENU, null);
+        MenuAggregate stored = menu(ROOT_ID, MenuAggregate.ROOT_PARENT_ID, "旧名", MenuAggregate.MENU_TYPE_MENU, null);
         when(menuRepository.findById(ROOT_ID)).thenReturn(Optional.of(stored));
 
         menuAppService.update(ROOT_ID, new SaveMenuCommand(ROOT_ID, "新名", "/new", "new/component", "new-icon",
-                5, Menu.MENU_TYPE_DIR, "sys:user:list", Menu.VISIBLE_HIDDEN, Menu.STATUS_DISABLED));
+                5, MenuAggregate.MENU_TYPE_DIR, "sys:user:list", MenuAggregate.VISIBLE_HIDDEN, MenuAggregate.STATUS_DISABLED));
 
-        ArgumentCaptor<Menu> captor = ArgumentCaptor.forClass(Menu.class);
+        ArgumentCaptor<MenuAggregate> captor = ArgumentCaptor.forClass(MenuAggregate.class);
         verify(menuRepository).save(captor.capture());
-        Menu saved = captor.getValue();
+        MenuAggregate saved = captor.getValue();
         assertEquals("新名", saved.getName());
         assertEquals("/new", saved.getPath());
         assertEquals(5, saved.getSort());
-        assertEquals(Menu.MENU_TYPE_DIR, saved.getMenuType());
+        assertEquals(MenuAggregate.MENU_TYPE_DIR, saved.getMenuType());
         assertEquals("sys:user:list", saved.getPermissionCode());
-        assertEquals(Menu.VISIBLE_HIDDEN, saved.getVisible());
-        assertEquals(Menu.STATUS_DISABLED, saved.getStatus());
+        assertEquals(MenuAggregate.VISIBLE_HIDDEN, saved.getVisible());
+        assertEquals(MenuAggregate.STATUS_DISABLED, saved.getStatus());
         verify(eventPublisher).publish(new MenuDomainEvent(ROOT_ID, ChangeType.UPDATED));
     }
 

@@ -2,7 +2,7 @@ package com.bluewhale.auth.application.dept;
 
 import com.bluewhale.auth.application.model.command.SaveDeptCommand;
 import com.bluewhale.auth.application.event.DomainEventPublisher;
-import com.bluewhale.auth.domain.aggregate.Dept;
+import com.bluewhale.auth.domain.aggregate.DeptAggregate;
 import com.bluewhale.auth.domain.repository.DeptRepository;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.DeptDomainEvent;
@@ -65,15 +65,15 @@ class DeptAppServiceTest {
         TenantContext.clear();
     }
 
-    private static Dept dept(Long id, Long parentId, String name, int sort) {
-        return Dept.reconstitute(id, 1L, parentId, name, sort, "负责人", NOW, NOW);
+    private static DeptAggregate dept(Long id, Long parentId, String name, int sort) {
+        return DeptAggregate.reconstitute(id, 1L, parentId, name, sort, "负责人", NOW, NOW);
     }
 
     @Test
     @DisplayName("tree：按父子关系组装两级部门树")
     void shouldBuildTree() {
         when(deptRepository.findAll()).thenReturn(List.of(
-                dept(ROOT_ID, Dept.ROOT_PARENT_ID, "总部", 1),
+                dept(ROOT_ID, DeptAggregate.ROOT_PARENT_ID, "总部", 1),
                 dept(CHILD_ID, ROOT_ID, "研发部", 2)));
 
         List<DeptVO> tree = deptAppService.tree();
@@ -97,14 +97,14 @@ class DeptAppServiceTest {
     @Test
     @DisplayName("create：落库并取默认父节点/排序")
     void shouldCreateWithDefaults() {
-        when(deptRepository.save(any(Dept.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(deptRepository.save(any(DeptAggregate.class))).thenAnswer(inv -> inv.getArgument(0));
 
         deptAppService.create(new SaveDeptCommand(null, "财务部", null, null));
 
-        ArgumentCaptor<Dept> captor = ArgumentCaptor.forClass(Dept.class);
+        ArgumentCaptor<DeptAggregate> captor = ArgumentCaptor.forClass(DeptAggregate.class);
         verify(deptRepository).save(captor.capture());
-        Dept saved = captor.getValue();
-        assertEquals(Dept.ROOT_PARENT_ID, saved.getParentId());
+        DeptAggregate saved = captor.getValue();
+        assertEquals(DeptAggregate.ROOT_PARENT_ID, saved.getParentId());
         assertEquals(0, saved.getSort());
         assertEquals("财务部", saved.getDeptName());
         verify(eventPublisher).publish(new DeptDomainEvent(null, ChangeType.CREATED));
@@ -113,14 +113,14 @@ class DeptAppServiceTest {
     @Test
     @DisplayName("update：命中时覆盖字段并落库")
     void shouldUpdateWhenExists() {
-        Dept stored = dept(ROOT_ID, Dept.ROOT_PARENT_ID, "旧名", 1);
+        DeptAggregate stored = dept(ROOT_ID, DeptAggregate.ROOT_PARENT_ID, "旧名", 1);
         when(deptRepository.findById(ROOT_ID)).thenReturn(Optional.of(stored));
 
         deptAppService.update(ROOT_ID, new SaveDeptCommand(ROOT_ID, "新名", 5, "新负责人"));
 
-        ArgumentCaptor<Dept> captor = ArgumentCaptor.forClass(Dept.class);
+        ArgumentCaptor<DeptAggregate> captor = ArgumentCaptor.forClass(DeptAggregate.class);
         verify(deptRepository).save(captor.capture());
-        Dept saved = captor.getValue();
+        DeptAggregate saved = captor.getValue();
         assertEquals("新名", saved.getDeptName());
         assertEquals(5, saved.getSort());
         assertEquals("新负责人", saved.getLeader());
@@ -134,7 +134,7 @@ class DeptAppServiceTest {
 
         assertThrows(BizException.class,
                 () -> deptAppService.update(ROOT_ID, new SaveDeptCommand(null, "新名", null, null)));
-        verify(deptRepository, never()).save(any(Dept.class));
+        verify(deptRepository, never()).save(any(DeptAggregate.class));
     }
 
     @Test

@@ -1,7 +1,7 @@
 package com.bluewhale.auth.infrastructure.tenant;
 
 import com.bluewhale.auth.application.port.TenantStatusSyncPort;
-import com.bluewhale.auth.domain.aggregate.Tenant;
+import com.bluewhale.auth.domain.aggregate.TenantAggregate;
 import com.bluewhale.auth.domain.model.TenantExpiryClock;
 import com.bluewhale.auth.domain.repository.TenantRepository;
 import com.bluewhale.security.token.TenantStatusKeys;
@@ -45,7 +45,7 @@ public class TenantStatusCache implements TenantStatusSyncPort, ApplicationRunne
      * @param tenant 租户聚合
      */
     @Override
-    public void sync(Tenant tenant) {
+    public void sync(TenantAggregate tenant) {
         if (tenant == null || tenant.getId() == null) {
             return;
         }
@@ -74,7 +74,7 @@ public class TenantStatusCache implements TenantStatusSyncPort, ApplicationRunne
      * @param tenant 租户聚合
      * @return 到期秒数；长期有效返回 {@code null}
      */
-    private static String toExpireAtSeconds(Tenant tenant) {
+    private static String toExpireAtSeconds(TenantAggregate tenant) {
         if (tenant.getExpireTime() == null) {
             return null;
         }

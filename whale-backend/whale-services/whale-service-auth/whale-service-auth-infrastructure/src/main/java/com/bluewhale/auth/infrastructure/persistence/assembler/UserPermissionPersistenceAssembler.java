@@ -1,6 +1,6 @@
 package com.bluewhale.auth.infrastructure.persistence.assembler;
 
-import com.bluewhale.auth.domain.aggregate.UserPermissionAttribute;
+import com.bluewhale.auth.domain.aggregate.UserPermissionAttributeAggregate;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysUserPermission;
 
 /**
@@ -22,8 +22,8 @@ public final class UserPermissionPersistenceAssembler {
      * @param po 用户属性持久化对象
      * @return 属性聚合根
      */
-    public static UserPermissionAttribute toDomain(SysUserPermission po) {
-        return UserPermissionAttribute.reconstitute(po.getId(), po.getUserId(), po.getPermissionId(),
+    public static UserPermissionAttributeAggregate toDomain(SysUserPermission po) {
+        return UserPermissionAttributeAggregate.reconstitute(po.getId(), po.getUserId(), po.getPermissionId(),
                 po.getAttrKey(), po.getAttrValue());
     }
 
@@ -33,7 +33,7 @@ public final class UserPermissionPersistenceAssembler {
      * @param attribute 属性聚合根
      * @return 用户属性持久化对象
      */
-    public static SysUserPermission toPo(UserPermissionAttribute attribute) {
+    public static SysUserPermission toPo(UserPermissionAttributeAggregate attribute) {
         SysUserPermission po = new SysUserPermission();
         po.setId(attribute.getRowId());
         po.setUserId(attribute.getUserId());

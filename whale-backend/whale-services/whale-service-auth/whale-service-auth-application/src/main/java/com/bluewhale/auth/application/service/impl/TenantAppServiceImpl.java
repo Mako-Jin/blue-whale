@@ -7,7 +7,7 @@ import com.bluewhale.auth.application.model.query.TenantPageQuery;
 import com.bluewhale.auth.application.model.vo.TenantVO;
 import com.bluewhale.auth.application.port.TenantStatusSyncPort;
 import com.bluewhale.auth.application.service.TenantAppService;
-import com.bluewhale.auth.domain.aggregate.Tenant;
+import com.bluewhale.auth.domain.aggregate.TenantAggregate;
 import com.bluewhale.auth.domain.model.TenantExpiryClock;
 import com.bluewhale.auth.domain.repository.TenantRepository;
 import com.bluewhale.common.core.exception.BizException;
@@ -49,7 +49,7 @@ public class TenantAppServiceImpl implements TenantAppService {
      */
     public Long resolveEnabledTenantId(String tenantCode) {
         String code = StringUtils.hasText(tenantCode) ? tenantCode.trim() : DEFAULT_TENANT_CODE;
-        Tenant tenant = tenantRepository.findByCode(code)
+        TenantAggregate tenant = tenantRepository.findByCode(code)
                 .orElseThrow(() -> new BizException(ErrorCode.UNAUTHORIZED.getCode(), "租户不存在或已停用"));
         return requireAvailable(tenant);
     }
@@ -60,7 +60,7 @@ public class TenantAppServiceImpl implements TenantAppService {
      * @param tenantId 租户 ID
      */
     public void ensureEnabled(Long tenantId) {
-        Tenant tenant = tenantRepository.findById(tenantId)
+        TenantAggregate tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new BizException(401, "租户不存在或已停用"));
         requireAvailable(tenant);
     }
@@ -76,7 +76,7 @@ public class TenantAppServiceImpl implements TenantAppService {
         LocalDateTime now = TenantExpiryClock.now();
         return tenantRepository.findAll().stream()
                 .filter(tenant -> tenant.isAvailableAt(now))
-                .map(Tenant::getId)
+                .map(TenantAggregate::getId)
                 .sorted()
                 .toList();
     }
@@ -121,7 +121,7 @@ public class TenantAppServiceImpl implements TenantAppService {
     @Transactional
     public TenantVO update(Long id, UpdateTenantCommand command) {
         requirePlatformTenant();
-        Tenant tenant = requireTenant(id);
+        TenantAggregate tenant = requireTenant(id);
         if (StringUtils.hasText(command.tenantName())) {
             tenant.rename(command.tenantName().trim());
         }
@@ -142,19 +142,19 @@ public class TenantAppServiceImpl implements TenantAppService {
     public TenantVO changeStatus(Long id, ChangeTenantStatusCommand command) {
         requirePlatformTenant();
         Integer status = command.status();
-        if (status == null || (status != Tenant.STATUS_ENABLED && status != Tenant.STATUS_DISABLED)) {
+        if (status == null || (status != TenantAggregate.STATUS_ENABLED && status != TenantAggregate.STATUS_DISABLED)) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "状态值非法，仅支持 1（启用）/ 0（停用）");
         }
-        Tenant tenant = requireTenant(id);
-        if (tenant.isPlatform() && status == Tenant.STATUS_DISABLED) {
+        TenantAggregate tenant = requireTenant(id);
+        if (tenant.isPlatform() && status == TenantAggregate.STATUS_DISABLED) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "平台租户不允许停用");
         }
-        if (status == Tenant.STATUS_ENABLED) {
+        if (status == TenantAggregate.STATUS_ENABLED) {
             tenant.enable();
         } else {
             tenant.disable();
         }
-        Tenant saved = tenantRepository.save(tenant);
+        TenantAggregate saved = tenantRepository.save(tenant);
         tenantStatusSync.sync(saved);
         log.info("租户状态变更: tenantId={}, status={}", id, status);
         return TenantVO.from(saved);
@@ -170,9 +170,9 @@ public class TenantAppServiceImpl implements TenantAppService {
     @Transactional
     public TenantVO renew(Long id, RenewTenantCommand command) {
         requirePlatformTenant();
-        Tenant tenant = requireTenant(id);
+        TenantAggregate tenant = requireTenant(id);
         tenant.renew(command.expireTime());
-        Tenant saved = tenantRepository.save(tenant);
+        TenantAggregate saved = tenantRepository.save(tenant);
         // 网关按缓存中的到期秒数拒绝过期租户，续期后必须同步，否则仍按旧时间判定
         tenantStatusSync.sync(saved);
         return TenantVO.from(saved);
@@ -183,9 +183,9 @@ public class TenantAppServiceImpl implements TenantAppService {
      *
      * @return 当前平台租户
      */
-    public Tenant requirePlatformTenant() {
+    public TenantAggregate requirePlatformTenant() {
         Long tenantId = TenantContext.requireId();
-        Tenant tenant = tenantRepository.findById(tenantId)
+        TenantAggregate tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new BizException(ErrorCode.UNAUTHORIZED.getCode(), "租户不存在"));
         if (!tenant.isPlatform()) {
             throw new BizException(403, "仅平台租户可管理租户");
@@ -199,7 +199,7 @@ public class TenantAppServiceImpl implements TenantAppService {
      * @param tenant 租户聚合
      * @return 租户 ID
      */
-    private Long requireAvailable(Tenant tenant) {
+    private Long requireAvailable(TenantAggregate tenant) {
         if (!tenant.isAvailableAt(TenantExpiryClock.now())) {
             throw new BizException(ErrorCode.UNAUTHORIZED.getCode(), "租户已停用或已过期");
         }
@@ -212,7 +212,7 @@ public class TenantAppServiceImpl implements TenantAppService {
      * @param id 租户 ID
      * @return 租户聚合
      */
-    private Tenant requireTenant(Long id) {
+    private TenantAggregate requireTenant(Long id) {
         return tenantRepository.findById(id)
                 .orElseThrow(() -> new BizException(404, "租户不存在"));
     }

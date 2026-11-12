@@ -6,7 +6,7 @@ import com.bluewhale.auth.application.model.query.PermissionPageQuery;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.PermissionDomainEvent;
 import com.bluewhale.auth.domain.model.vo.PermCode;
-import com.bluewhale.auth.domain.aggregate.Permission;
+import com.bluewhale.auth.domain.aggregate.PermissionAggregate;
 import com.bluewhale.auth.domain.repository.PermissionRepository;
 import com.bluewhale.auth.application.model.vo.PermissionVO;
 import com.bluewhale.common.core.exception.BizException;
@@ -54,9 +54,9 @@ class PermissionAppServiceTest {
     @InjectMocks
     private PermissionAppServiceImpl permissionAppService;
 
-    private static Permission permission(Long id, String code, String name) {
-        return Permission.reconstitute(id, Permission.ROOT_PARENT_ID, PermCode.of(code), name, "API",
-                "/api/user", "GET", 1, Permission.STATUS_ENABLED, NOW, NOW);
+    private static PermissionAggregate permission(Long id, String code, String name) {
+        return PermissionAggregate.reconstitute(id, PermissionAggregate.ROOT_PARENT_ID, PermCode.of(code), name, "API",
+                "/api/user", "GET", 1, PermissionAggregate.STATUS_ENABLED, NOW, NOW);
     }
 
     @Test
@@ -107,7 +107,7 @@ class PermissionAppServiceTest {
 
         assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
         assertEquals("权限编码已存在", ex.getMessage());
-        verify(permissionRepository, never()).save(any(Permission.class));
+        verify(permissionRepository, never()).save(any(PermissionAggregate.class));
     }
 
     @Test
@@ -118,12 +118,12 @@ class PermissionAppServiceTest {
         permissionAppService.create(new SavePermissionCommand(null, "sys:user:list", "用户列表", "API",
                 null, null, null, null));
 
-        ArgumentCaptor<Permission> captor = ArgumentCaptor.forClass(Permission.class);
+        ArgumentCaptor<PermissionAggregate> captor = ArgumentCaptor.forClass(PermissionAggregate.class);
         verify(permissionRepository).save(captor.capture());
-        Permission saved = captor.getValue();
-        assertEquals(Permission.ROOT_PARENT_ID, saved.getParentId());
+        PermissionAggregate saved = captor.getValue();
+        assertEquals(PermissionAggregate.ROOT_PARENT_ID, saved.getParentId());
         assertEquals(0, saved.getSortNo());
-        assertEquals(Permission.STATUS_ENABLED, saved.getStatus());
+        assertEquals(PermissionAggregate.STATUS_ENABLED, saved.getStatus());
         verify(eventPublisher).publish(new PermissionDomainEvent(null, ChangeType.CREATED));
     }
 
@@ -134,7 +134,7 @@ class PermissionAppServiceTest {
 
         assertThrows(BizException.class, () -> permissionAppService.update(PERM_ID,
                 new SavePermissionCommand(null, "sys:user:edit", "用户编辑", "API", null, null, null, null)));
-        verify(permissionRepository, never()).save(any(Permission.class));
+        verify(permissionRepository, never()).save(any(PermissionAggregate.class));
         verify(eventPublisher, never()).publish(any());
     }
 
@@ -149,29 +149,29 @@ class PermissionAppServiceTest {
                 new SavePermissionCommand(null, "sys:user:edit", "用户编辑", "API", null, null, null, null)));
 
         assertEquals("权限编码已存在", ex.getMessage());
-        verify(permissionRepository, never()).save(any(Permission.class));
+        verify(permissionRepository, never()).save(any(PermissionAggregate.class));
         verify(eventPublisher, never()).publish(any());
     }
 
     @Test
     @DisplayName("update：编码不冲突时应用字段落库并失效权限缓存")
     void shouldUpdateAndEvictByPermission() {
-        Permission stored = permission(PERM_ID, "sys:user:list", "旧名");
+        PermissionAggregate stored = permission(PERM_ID, "sys:user:list", "旧名");
         when(permissionRepository.findById(PERM_ID)).thenReturn(Optional.of(stored));
         when(permissionRepository.existsByPermCode("sys:user:edit", PERM_ID)).thenReturn(false);
 
         permissionAppService.update(PERM_ID, new SavePermissionCommand(3L, "sys:user:edit", "新名", "BUTTON",
-                "/api/user/edit", "POST", 9, Permission.STATUS_DISABLED));
+                "/api/user/edit", "POST", 9, PermissionAggregate.STATUS_DISABLED));
 
-        ArgumentCaptor<Permission> captor = ArgumentCaptor.forClass(Permission.class);
+        ArgumentCaptor<PermissionAggregate> captor = ArgumentCaptor.forClass(PermissionAggregate.class);
         verify(permissionRepository).save(captor.capture());
-        Permission saved = captor.getValue();
+        PermissionAggregate saved = captor.getValue();
         assertEquals(3L, saved.getParentId());
         assertEquals("sys:user:edit", saved.getPermCode().value());
         assertEquals("新名", saved.getPermName());
         assertEquals("BUTTON", saved.getPermType());
         assertEquals(9, saved.getSortNo());
-        assertEquals(Permission.STATUS_DISABLED, saved.getStatus());
+        assertEquals(PermissionAggregate.STATUS_DISABLED, saved.getStatus());
         verify(eventPublisher).publish(new PermissionDomainEvent(PERM_ID, ChangeType.UPDATED));
     }
 

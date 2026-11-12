@@ -1,6 +1,6 @@
 package com.bluewhale.auth.application.tenant;
 
-import com.bluewhale.auth.domain.aggregate.Tenant;
+import com.bluewhale.auth.domain.aggregate.TenantAggregate;
 import com.bluewhale.auth.domain.repository.TenantRepository;
 import com.bluewhale.auth.infrastructure.tenant.TenantStatusCache;
 import com.bluewhale.security.token.TenantStatusKeys;
@@ -53,8 +53,8 @@ class TenantStatusCacheTest {
     @InjectMocks
     private TenantStatusCache cache;
 
-    private static Tenant tenant(int status, LocalDateTime expireTime) {
-        return Tenant.reconstitute(TENANT_ID, "acme", "ACME", "TENANT", status, expireTime,
+    private static TenantAggregate tenant(int status, LocalDateTime expireTime) {
+        return TenantAggregate.reconstitute(TENANT_ID, "acme", "ACME", "TENANT", status, expireTime,
                 null, null, null);
     }
 
@@ -73,7 +73,7 @@ class TenantStatusCacheTest {
         when(redisTemplateProvider.getIfAvailable()).thenReturn(redisTemplate);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 
-        cache.sync(tenant(Tenant.STATUS_ENABLED, expireTime));
+        cache.sync(tenant(TenantAggregate.STATUS_ENABLED, expireTime));
 
         verify(valueOperations).set(TenantStatusKeys.statusKey(TENANT_ID), TenantStatusKeys.ENABLED);
         verify(valueOperations).set(TenantStatusKeys.expireKey(TENANT_ID),
@@ -86,7 +86,7 @@ class TenantStatusCacheTest {
         when(redisTemplateProvider.getIfAvailable()).thenReturn(redisTemplate);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 
-        cache.sync(tenant(Tenant.STATUS_DISABLED, null));
+        cache.sync(tenant(TenantAggregate.STATUS_DISABLED, null));
 
         verify(valueOperations).set(TenantStatusKeys.statusKey(TENANT_ID), TenantStatusKeys.DISABLED);
         verify(redisTemplate).delete(TenantStatusKeys.expireKey(TENANT_ID));
@@ -100,7 +100,7 @@ class TenantStatusCacheTest {
         doThrow(new RuntimeException("connection refused"))
                 .when(valueOperations).set(anyString(), eq(TenantStatusKeys.ENABLED));
 
-        assertDoesNotThrow(() -> cache.sync(tenant(Tenant.STATUS_ENABLED, null)));
+        assertDoesNotThrow(() -> cache.sync(tenant(TenantAggregate.STATUS_ENABLED, null)));
     }
 
     @Test
@@ -108,7 +108,7 @@ class TenantStatusCacheTest {
     void shouldSkipWhenRedisTemplateAbsent() {
         when(redisTemplateProvider.getIfAvailable()).thenReturn(null);
 
-        cache.sync(tenant(Tenant.STATUS_ENABLED, null));
+        cache.sync(tenant(TenantAggregate.STATUS_ENABLED, null));
 
         verifyNoInteractions(redisTemplate);
     }
@@ -121,7 +121,7 @@ class TenantStatusCacheTest {
         TransactionSynchronizationManager.initSynchronization();
         TransactionSynchronizationManager.setActualTransactionActive(true);
 
-        cache.sync(tenant(Tenant.STATUS_DISABLED, null));
+        cache.sync(tenant(TenantAggregate.STATUS_DISABLED, null));
 
         verifyNoInteractions(valueOperations);
         TransactionSynchronizationManager.getSynchronizations()
@@ -135,7 +135,7 @@ class TenantStatusCacheTest {
     @DisplayName("sync：租户为空或缺少 ID 时跳过写入")
     void shouldSkipWhenTenantInvalid() {
         cache.sync(null);
-        cache.sync(Tenant.create("acme", "ACME", null, null));
+        cache.sync(TenantAggregate.create("acme", "ACME", null, null));
 
         verifyNoInteractions(redisTemplateProvider);
     }

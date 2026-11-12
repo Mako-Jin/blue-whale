@@ -363,8 +363,9 @@ public class AuthPermissionCacheInvalidator {
             try {
                 rt.publish(payload);
             } catch (Exception ex) {
+                // 单批失败继续发后续批（Redis 抖动可能只影响个别请求）；共享 Redis 删除
+                // 已完成，广播只是加速其他实例失效，最终由断连重对齐兜底
                 log.warn("权限缓存失效广播失败，依赖共享 Redis 删除与断连重对齐: {}", ex.getMessage());
-                return;
             }
         }
     }
