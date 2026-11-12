@@ -52,6 +52,28 @@ public interface ModerationService {
     int release(Long userId, ForumActor actor);
 
     /**
+     * 题金榜（加精）：置 {@code essence=1} + 留痕 + 通知作者 + 经验 +200。
+     *
+     * <p>已删/已移除的帖子不能加精；已是精华的重复题榜幂等返回（不再发第二份经验）。</p>
+     *
+     * @param threadId 帖子ID
+     * @param reason 理由（必填）
+     * @param actor 操作者
+     */
+    void featureThread(Long threadId, String reason, ForumActor actor);
+
+    /**
+     * 撤销精华：置 {@code essence=0} + 留痕 + 通知作者。
+     *
+     * <p>已发出去的精华经验<b>不回收</b>——经验流水 append-only，只增不扣。</p>
+     *
+     * @param threadId 帖子ID
+     * @param reason 理由（必填）
+     * @param actor 操作者
+     */
+    void unfeatureThread(Long threadId, String reason, ForumActor actor);
+
+    /**
      * 写一条处置轨迹（供审核通过/驳回复用）。
      *
      * @param targetType 对象类型

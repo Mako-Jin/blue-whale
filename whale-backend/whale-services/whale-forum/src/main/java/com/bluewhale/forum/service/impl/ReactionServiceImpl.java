@@ -14,6 +14,7 @@ import com.bluewhale.forum.entity.ForumReaction;
 import com.bluewhale.forum.entity.ForumThread;
 import com.bluewhale.forum.mapper.ForumReactionMapper;
 import com.bluewhale.forum.mapper.ForumThreadMapper;
+import com.bluewhale.forum.service.ExpService;
 import com.bluewhale.forum.service.ReactionService;
 import com.bluewhale.forum.service.ThreadService;
 import lombok.RequiredArgsConstructor;
@@ -53,11 +54,13 @@ public class ReactionServiceImpl implements ReactionService {
 
     private final ForumProperties properties;
 
+    private final ExpService expService;
+
     @Override
     public ReactionStateVO toggle(Long threadId, String reactionType, boolean enable, ForumActor actor) {
         ReactionType type = parseType(reactionType);
         // 可见性校验交给帖子服务：不可见/不存在统一 30001，不泄露存在性
-        threadService.requireVisibleThread(threadId, actor);
+        ForumThread thread = threadService.requireVisibleThread(threadId, actor);
         if (enable) {
             assertRate(actor.userId());
             ForumReaction reaction = new ForumReaction();
@@ -69,6 +72,14 @@ public class ReactionServiceImpl implements ReactionService {
             reaction.setReactionType(type.name());
             if (reactionMapper.insertIgnore(reaction) > 0) {
                 changeCounter(threadId, type, 1);
+                if (type == ReactionType.LIKE) {
+                    // 被投花经验（F-07-04）：给帖作者 +2，匿名帖不计；
+                    // 取消再投不会重复发——经验唯一键按帖子幂等
+                    if (!isAnonymous(thread)) {
+                        expService.award(thread.getAuthorId(), ExpService.EVENT_LIKE_GIVEN,
+                                properties.getExpLikeGiven(), threadId);
+                    }
+                }
             }
         } else if (reactionMapper.deletePhysical(actor.userId(), TARGET_THREAD, threadId, type.name()) > 0) {
             changeCounter(threadId, type, -1);
@@ -141,5 +152,15 @@ public class ReactionServiceImpl implements ReactionService {
         } else {
             threadMapper.changeCollectCount(threadId, delta);
         }
+    }
+
+    /**
+     * 匿名帖不计经验（F-07-04 硬规则）。
+     *
+     * @param thread 帖子
+     * @return 是否匿名
+     */
+    private boolean isAnonymous(ForumThread thread) {
+        return thread.getAnonymous() != null && thread.getAnonymous() == 1;
     }
 }

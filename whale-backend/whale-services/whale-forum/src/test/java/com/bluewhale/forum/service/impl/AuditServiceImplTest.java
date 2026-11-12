@@ -10,6 +10,7 @@ import com.bluewhale.forum.entity.ForumPost;
 import com.bluewhale.forum.entity.ForumThread;
 import com.bluewhale.forum.mapper.ForumPostMapper;
 import com.bluewhale.forum.mapper.ForumThreadMapper;
+import com.bluewhale.forum.service.ExpService;
 import com.bluewhale.forum.service.ForumNotifyService;
 import com.bluewhale.forum.service.ModerationService;
 import org.junit.jupiter.api.AfterEach;
@@ -53,6 +54,9 @@ class AuditServiceImplTest {
 
     @Mock
     private ForumNotifyService notifyService;
+
+    @Mock
+    private ExpService expService;
 
     @Spy
     private ForumProperties properties = new ForumProperties();

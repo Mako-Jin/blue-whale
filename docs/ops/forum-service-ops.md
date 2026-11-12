@@ -1,6 +1,6 @@
 # 员工论坛服务运维手册（whale-forum / 鲸议台）
 
-> 适用版本：Wave 6.43 / 论坛 M4（检索、计数对账、热榜、治理全部落地）。
+> 适用版本：Wave 6.47 / 论坛 M6（检索、计数对账、热榜双档、精华治理、经验账本全部落地）。
 > 本文只写「上线后要做什么、出问题先看哪里」，业务规则见 `docs/design/forum-service.md`，
 > 需求与验收判据见 `docs/requirements/2026-11-12-forum-2d-functional-spec-v1.3.md`。
 
@@ -73,9 +73,10 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:9011/forum/meta   # �
 | `fm_user_ban` | 禁言 / 封号 | 只有 ACTIVE 且未过期才生效 |
 | `fm_notify_outbox` | 站内信 outbox | 先落库再投递，失败按 `retry_count` 退避 |
 | `fm_thread_view` | 浏览去重窗口行 | `uk(tenant, thread, user)`，滚动 24h |
-| `fm_hot_snapshot` | 热榜快照 | 每 30 分钟整表覆盖 |
+| `fm_hot_snapshot` | 热榜快照 | 按 `(tenant_id, hot_window)` 每 30 分钟分区覆盖，`hot_window=24h/7d` |
 | `fm_count_reconcile` | 计数对账轨迹 | append-only，M4 新增 |
 | `fm_mention` | @提及记录 | append-only，M5 新增；`post_id=0` 表示主帖，唯一键 `(tenant_id, thread_id, post_id, user_id)` |
+| `fm_exp_ledger` | 论坛经验账本 | append-only，M6 新增；唯一键 `(tenant_id, user_id, event, ref_thread_id)`，`INSERT IGNORE` |
 | `api_log` / `audit_log` | 平台同构日志 | 缺失会表现为「刷栈但接口 200」/ 写接口 500 |
 
 ### 3.2 Flyway（`db/migration`，禁止改历史脚本）
@@ -90,6 +91,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:9011/forum/meta   # �
 | V6 | 浏览去重 `fm_thread_view` + 热榜快照 `fm_hot_snapshot` |
 | V7 | 检索纯文本 `fm_thread.content_text` + `FULLTEXT(title, content_text) WITH PARSER ngram` + `fm_count_reconcile` |
 | V8 | `fm_mention`（@提及，append-only） |
+| V9 | 热榜双档 `fm_hot_snapshot.hot_window` + 经验账本 `fm_exp_ledger` |
 
 > **改历史脚本的注释也会让校验和变**，随后 `validate-on-migrate` 直接拒启。
 > 真要改语义就加新版本；本地库只能重建（`db/migration` 全量重放）后再起服务。
@@ -178,15 +180,22 @@ curl -s -X POST "http://127.0.0.1:9011/forum/admin/count/reconcile?fix=true" ...
 ## 六、热榜与通知
 
 ```bash
-# 热榜只读快照（空则实时兜底）
-curl -s "http://127.0.0.1:9011/forum/hot?limit=20" -H "X-Permission-Codes: sys:forum:browse" ...
-# 手工刷新（sys:forum:hot:refresh）
+# 热榜只读快照（空则实时兜底）；window=24h|7d，缺省/非法按 7d
+curl -s "http://127.0.0.1:9011/forum/hot?window=24h&limit=20" -H "X-Permission-Codes: sys:forum:browse" ...
+# 手工刷新（sys:forum:hot:refresh）：24h/7d 两档一起重算，返回两档写入合计
 curl -s -X POST "http://127.0.0.1:9011/forum/hot/refresh" -H "X-Permission-Codes: sys:forum:hot:refresh" ...
+# 我的论坛经验（只读）
+curl -s "http://127.0.0.1:9011/forum/exp/me" -H "X-Permission-Codes: sys:forum:browse" ...
 # 补偿投递待发通知（sys:forum:manage:board）
 curl -s -X POST "http://127.0.0.1:9011/forum/admin/notify/flush?limit=100" ...
 ```
 
-- 热榜任务 `forum.hot.snapshot`，整表物理覆盖，多实例同时跑不会写出两份（最多浪费一次聚合）。
+- 热榜任务 `forum.hot.snapshot`，按 `(tenant_id, hot_window)` 先删后插，多实例同时跑不会写出两份
+  （最多浪费一次聚合）；24h 档在刷新 SQL 里按 `EXP(-发帖小时数/τ)` 衰减，τ=`hot-decay-half-life-hours`（默认 24）。
+- 题金榜/撤精走 `POST /forum/admin/thread/{id}/essence|unessence`（理由必填），落
+  `ESSENCE`/`UNESSENCE` 轨迹并通知作者；重复操作幂等；撤精不回滚已发经验。
+- 经验账本只增不改：同一人同一事件同一帖子只记一次（唯一键 + `INSERT IGNORE`），
+  匿名帖与无作者不入账；`fm_exp_ledger` 写失败只 `warn`，不影响发帖/投花。
 - `fm_notify_outbox` 里 `status=FAILED` 且 `retry_count>=notify-max-retry` 的记录需人工看一眼
   `whale-message` 是否在线；恢复后用 `notify/flush` 补投，幂等键保证不重复发。
 

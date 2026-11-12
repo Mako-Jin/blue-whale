@@ -204,6 +204,7 @@ M4 落地口径：检索走 `FULLTEXT(title, content_text) WITH PARSER ngram`（
 | M3 互动与热榜 | 投花/藏帖（幂等 + 计数原子增减）、我的收藏、浏览 24h 去重、热榜打分与快照（`GET /forum/hot`、`POST /forum/hot/refresh`，受管任务 `forum.hot.snapshot`） | 重复投花不重复计数、取消后可再投；同日重复打开只 +1 浏览；快照刷新为整表覆盖不累加 |
 | M4 检索与收口 | ngram 全文索引（`fm_thread.title + content_text`）、单字回退 LIKE、`GET /forum/search` + `/status` + `/reindex`、计数对账（`fm_count_reconcile` + 受管任务 `forum.count.reconcile` + `POST /forum/admin/count/reconcile`）、运维手册 `docs/ops/forum-service-ops.md`、SLO-12/13/14 | ✅ 实机：回填前正文词命中 0 → 回填 6 条后命中 1；单字走 LIKE 命中 3；对账 dry-run 报 2 处差异、`fix=true` 修正并留 4 行轨迹 |
 | M5 互动增强（P1） | `V8__mention.sql`（`fm_mention`）；@提及（F-03-10）：解析 → auth 内网通讯录解析 → 落库 → outbox 通知，**afterCommit 派发**；引用回复摘要（F-04-02，被引楼层删除只回占位）；楼层正/倒序（F-02-06，下推 `ORDER BY`） | ✅ 实机：发帖 `@admin @qa_admin` 落 2 条 `fm_mention` + 2 条 outbox `SENT`；跨帖 @ 同一人各自成条（唯一键含 `thread_id`）；回帖引用回填摘要，被引楼层 `REMOVE` 后仅 `deleted=true`；`order=desc` 返回 `[3,2]`；单测 111 项全绿 |
+| M6 成长与热榜增强（P1） | `V9__hot_window_exp.sql`（`fm_hot_snapshot.hot_window` + `fm_exp_ledger`）；热榜双档 24h/7d（24h 档按小时指数衰减，`GET /forum/hot?window=` 缺省 7d）；题金榜 / 撤销精华（`POST /forum/admin/thread/{id}/essence|unessence`）；论坛经验本地账本（发帖 5 / 被投花 2 / 精华 200 / 金榜 Top1 1000，匿名不计，同人同帖同事件唯一）与 `GET /forum/exp/me` | 单测 117 项全绿；24h 与 7d 快照各自覆盖互不覆盖；同帖重复题金榜不重复发经验 |
 
 ---
 
@@ -221,6 +222,21 @@ M4 落地口径：检索走 `FULLTEXT(title, content_text) WITH PARSER ngram`（
 | 派发时机 | 事务内注册 `afterCommit`；无事务时同步执行 | 不在事务里打 HTTP（避免长事务空等网络），也避免通知一个可能回滚的帖子 |
 | 跳过规则 | 自己 @ 自己、解析不到、同层重复、待审帖/待审楼层 | 待审内容不可见，通知等于给一个「点进去看不到」的链接 |
 | 失败策略 | 通讯录不可达/超时（800ms 连接、1500ms 读）只 `warn` 并跳过 | @提及是附属能力，不能让「@了谁」把「帖子发出去」拖住 |
+
+---
+
+## 8.2 M6 热榜双档与经验账本实现口径（P1）
+
+| 项 | 口径 | 为什么 |
+|---|---|---|
+| 快照分区 | `fm_hot_snapshot` 新增 `hot_window`（`24h` / `7d`），唯一键 `uk(tenant_id, hot_window, rank_no)`；刷新按 `(tenant_id, hot_window)` 先删后插 | 一档一表清洗会互相抹除；分区后两档可独立刷新、独立回退 |
+| 24h 衰减 | 查询时按 `TIMESTAMPDIFF(HOUR, create_time, NOW())` 计算指数衰减 `EXP(-h/τ)`，τ（`hot-decay-half-life-hours`）默认 24，不落衰减系数列；7d 档不衰减 | 落系数意味着每隔一小时要回写全表；查询时算天然无状态，重建快照即可修正历史口径 |
+| 窗口参数 | `GET /forum/hot?window=24h|7d`，非法/缺省一律 7d；`limit` 仍受配置上限截断 | portal 不传参保持旧行为；非法值不应 400 打断首屏 |
+| 精华加成 | 24h/7d 查询统一加 `essence × essenceBonus`（默认 50），不用额外排序分支 | 题金榜本身就是强信号，两档都需要体现 |
+| 题金榜/撤精 | `essence` 置 1/0 + `fm_moderation_record` 留 `ESSENCE`/`UNESSENCE` 轨迹 + 通知作者；已精/已撤幂等返回 | 重复点击不应灌重复轨迹，更不能重复发经验 |
+| 经验事件 | `fm_exp_ledger` 唯一键 `(tenant_id, user_id, event, ref_thread_id)`，`INSERT IGNORE`；匿名帖/无作者一律跳过；失败只 `warn` 返回 0 | 账本 append-only，重放安全；经验是附属能力，不能把发帖/投花打挂 |
+| 经验口径 | 发帖 +5、被投花 +2、精华 +200、7d 金榜 Top1 +1000；同一帖子重复霸榜只发一次；撤销精华不回收已发经验 | 与 F-07-04 一致；回收会造成总额负数与对账复杂度 |
+| 读取 | `GET /forum/exp/me` 返回 `total` + 最近 N 条（默认 20）流水 | 前端只读展示，不做本地累计 |
 
 ---
 

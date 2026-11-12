@@ -11,6 +11,7 @@ import com.bluewhale.forum.entity.ForumReaction;
 import com.bluewhale.forum.entity.ForumThread;
 import com.bluewhale.forum.mapper.ForumReactionMapper;
 import com.bluewhale.forum.mapper.ForumThreadMapper;
+import com.bluewhale.forum.service.ExpService;
 import com.bluewhale.forum.service.ThreadService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -53,6 +54,9 @@ class ReactionServiceImplTest {
 
     @Mock
     private ReactionStateReader reactionStateReader;
+
+    @Mock
+    private ExpService expService;
 
     @Spy
     private ForumProperties properties = new ForumProperties();

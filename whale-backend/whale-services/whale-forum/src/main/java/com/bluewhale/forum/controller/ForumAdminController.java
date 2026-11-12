@@ -185,6 +185,42 @@ public class ForumAdminController {
     }
 
     /**
+     * 题金榜（加精，治理动作）。
+     *
+     * @param id 帖子ID
+     * @param body 处置请求（理由必填）
+     * @param request 当前请求
+     * @return 空结果
+     */
+    @PostMapping("/thread/{id}/essence")
+    @RequirePermission(ForumPermissions.MANAGE_DISPOSE)
+    @AuditLog(operation = "论坛题金榜（加精）", type = OperateType.UPDATE, targetType = "fm_thread")
+    public Result<Void> featureThread(@PathVariable("id") Long id,
+                                      @Valid @RequestBody ModerationRequest body,
+                                      HttpServletRequest request) {
+        moderationService.featureThread(id, body.getReason(), ForumActor.from(request));
+        return Result.ok();
+    }
+
+    /**
+     * 撤销精华（治理动作）。
+     *
+     * @param id 帖子ID
+     * @param body 处置请求（理由必填）
+     * @param request 当前请求
+     * @return 空结果
+     */
+    @PostMapping("/thread/{id}/unessence")
+    @RequirePermission(ForumPermissions.MANAGE_DISPOSE)
+    @AuditLog(operation = "论坛撤销精华", type = OperateType.UPDATE, targetType = "fm_thread")
+    public Result<Void> unfeatureThread(@PathVariable("id") Long id,
+                                        @Valid @RequestBody ModerationRequest body,
+                                        HttpServletRequest request) {
+        moderationService.unfeatureThread(id, body.getReason(), ForumActor.from(request));
+        return Result.ok();
+    }
+
+    /**
      * 禁言/封号。
      *
      * @param id 用户ID

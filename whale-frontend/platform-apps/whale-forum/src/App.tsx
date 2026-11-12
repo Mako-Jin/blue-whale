@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Empty, Spin, Tag, Typography } from 'antd';
-import { fetchBoards, type BoardItem } from './api/forum';
+import { fetchBoards, fetchMyExp, type BoardItem } from './api/forum';
 import ThreadListPage from './pages/ThreadListPage';
 import ThreadDetailPage from './pages/ThreadDetailPage';
 import AdminPage from './pages/AdminPage';
@@ -24,6 +24,7 @@ export default function App() {
   const [boards, setBoards] = useState<BoardItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expTotal, setExpTotal] = useState<number | null>(null);
   const [view, setView] = useState<ViewState>({ kind: 'list' });
 
   useEffect(() => {
@@ -49,6 +50,23 @@ export default function App() {
         if (!cancelled) {
           setLoading(false);
         }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /** 我的论坛经验：拿不到就隐藏，不打扰主流程 */
+  useEffect(() => {
+    let cancelled = false;
+    fetchMyExp()
+      .then((data) => {
+        if (!cancelled) {
+          setExpTotal(data.total);
+        }
+      })
+      .catch(() => {
+        // 经验是附属能力，读取失败静默
       });
     return () => {
       cancelled = true;
@@ -157,7 +175,9 @@ export default function App() {
           >
             管理台
           </button>
-          <Text type="secondary">人发帖 · 内容沉淀 · 知识复用</Text>
+          <Text type="secondary">
+            论坛经验 {expTotal ?? '—'} · 人发帖 · 内容沉淀 · 知识复用
+          </Text>
         </div>
       </aside>
 

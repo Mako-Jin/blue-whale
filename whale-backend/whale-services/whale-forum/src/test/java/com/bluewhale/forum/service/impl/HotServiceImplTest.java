@@ -11,6 +11,8 @@ import com.bluewhale.forum.entity.ForumHotSnapshot;
 import com.bluewhale.forum.mapper.ForumHotSnapshotMapper;
 import com.bluewhale.forum.mapper.ForumThreadMapper;
 import com.bluewhale.forum.service.BoardService;
+import com.bluewhale.forum.service.ExpService;
+import com.bluewhale.forum.service.HotService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -31,6 +33,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -56,6 +59,9 @@ class HotServiceImplTest {
     @Mock
     private BoardService boardService;
 
+    @Mock
+    private ExpService expService;
+
     @Spy
     private ForumProperties properties = new ForumProperties();
 
@@ -78,10 +84,24 @@ class HotServiceImplTest {
         when(snapshotMapper.selectList(any())).thenReturn(List.of(snapshot(1, 21L, 9L), snapshot(2, 22L, 77L)));
         when(boardService.listVisible(actor())).thenReturn(List.of(board(9L)));
 
-        List<HotItemVO> items = hotService.list(null, actor());
+        List<HotItemVO> items = hotService.list(null, null, actor());
 
         assertThat(items).hasSize(1);
         assertThat(items.get(0).getThreadId()).isEqualTo(21L);
+    }
+
+    @Test
+    @DisplayName("窗口参数：非法值按 7d 兜底，空快照仍可实时兜底")
+    void illegalWindowFallsBackTo7d() {
+        when(snapshotMapper.selectList(any())).thenReturn(List.of());
+        when(boardService.listVisible(actor())).thenReturn(List.of(board(9L)));
+        when(threadMapper.selectHotCandidates(anyLong(), any(LocalDateTime.class), anyDouble(), anyDouble(),
+                anyDouble(), anyDouble(), anyDouble(), anyInt(), anyInt()))
+                .thenReturn(List.of(candidate(21L, 9L)));
+
+        List<HotItemVO> items = hotService.list("30d", 5, actor());
+
+        assertThat(items).hasSize(1);
     }
 
     @Test
@@ -90,9 +110,10 @@ class HotServiceImplTest {
         when(snapshotMapper.selectList(any())).thenReturn(List.of());
         when(boardService.listVisible(actor())).thenReturn(List.of(board(9L)));
         when(threadMapper.selectHotCandidates(anyLong(), any(LocalDateTime.class), anyDouble(), anyDouble(),
-                anyDouble(), anyDouble(), anyInt())).thenReturn(List.of(candidate(21L, 9L)));
+                anyDouble(), anyDouble(), anyDouble(), anyInt(), anyInt()))
+                .thenReturn(List.of(candidate(21L, 9L)));
 
-        List<HotItemVO> items = hotService.list(5, actor());
+        List<HotItemVO> items = hotService.list(HotService.WINDOW_24H, 5, actor());
 
         assertThat(items).hasSize(1);
         assertThat(items.get(0).getRankNo()).isEqualTo(1);
@@ -100,15 +121,20 @@ class HotServiceImplTest {
     }
 
     @Test
-    @DisplayName("刷新：候选整表覆盖并返回写入条数")
-    void refreshReplacesSnapshot() {
+    @DisplayName("刷新：24h 与 7d 两档分别整表覆盖并返回合计条数")
+    void refreshReplacesBothWindows() {
         List<HotCandidate> candidates = List.of(candidate(21L, 9L), candidate(22L, 9L));
         when(threadMapper.selectHotCandidates(anyLong(), any(LocalDateTime.class), anyDouble(), anyDouble(),
-                anyDouble(), anyDouble(), anyInt())).thenReturn(candidates);
-        when(snapshotStore.replace(eq(1L), eq(candidates), any(LocalDateTime.class))).thenReturn(2);
+                anyDouble(), anyDouble(), anyDouble(), anyInt(), anyInt())).thenReturn(candidates);
+        when(snapshotStore.replace(eq(1L), eq(HotService.WINDOW_24H), eq(candidates), any(LocalDateTime.class)))
+                .thenReturn(2);
+        when(snapshotStore.replace(eq(1L), eq(HotService.WINDOW_7D), eq(candidates), any(LocalDateTime.class)))
+                .thenReturn(2);
 
-        assertThat(hotService.refresh()).isEqualTo(2);
-        verify(snapshotStore).replace(eq(1L), eq(candidates), any(LocalDateTime.class));
+        assertThat(hotService.refresh()).isEqualTo(4);
+        verify(snapshotStore).replace(eq(1L), eq(HotService.WINDOW_24H), eq(candidates), any(LocalDateTime.class));
+        verify(snapshotStore).replace(eq(1L), eq(HotService.WINDOW_7D), eq(candidates), any(LocalDateTime.class));
+        verify(expService).award(eq(100L), eq(ExpService.EVENT_HOT_TOP1), anyInt(), eq(21L));
     }
 
     @Test
@@ -116,11 +142,12 @@ class HotServiceImplTest {
     void refreshAllTenantsIteratesAndClearsContext() {
         when(threadMapper.selectActiveTenantIds()).thenReturn(List.of(1L, 2L));
         when(threadMapper.selectHotCandidates(anyLong(), any(LocalDateTime.class), anyDouble(), anyDouble(),
-                anyDouble(), anyDouble(), anyInt())).thenReturn(List.of(candidate(21L, 9L)));
-        when(snapshotStore.replace(anyLong(), any(), any(LocalDateTime.class))).thenReturn(1);
+                anyDouble(), anyDouble(), anyDouble(), anyInt(), anyInt()))
+                .thenReturn(List.of(candidate(21L, 9L)));
+        when(snapshotStore.replace(anyLong(), anyString(), any(), any(LocalDateTime.class))).thenReturn(1);
 
-        assertThat(hotService.refreshAllTenants()).isEqualTo(2);
-        verify(snapshotStore, times(2)).replace(anyLong(), any(), any(LocalDateTime.class));
+        assertThat(hotService.refreshAllTenants()).isEqualTo(4);
+        verify(snapshotStore, times(4)).replace(anyLong(), anyString(), any(), any(LocalDateTime.class));
         assertThat(TenantContext.get()).isNull();
     }
 
@@ -178,6 +205,8 @@ class HotServiceImplTest {
         HotCandidate candidate = new HotCandidate();
         candidate.setId(threadId);
         candidate.setBoardId(boardId);
+        candidate.setAuthorId(100L);
+        candidate.setAnonymous(0);
         candidate.setTitle("标题" + threadId);
         candidate.setReplyCount(1);
         candidate.setLikeCount(1);

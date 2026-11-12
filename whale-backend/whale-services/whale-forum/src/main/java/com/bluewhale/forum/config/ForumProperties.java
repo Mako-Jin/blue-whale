@@ -107,6 +107,20 @@ public class ForumProperties {
     /** 热榜取前 N 名 */
     private int hotTopN = 20;
 
+    /** 热榜窗口小时数：24h 档窗口（24 小时内发布的帖子参榜） */
+    private int hotWindowHours24 = 24;
+
+    /**
+     * 24h 档小时衰减常数 τ（小时）。
+     *
+     * <p>衰减系数 = {@code EXP(-发帖小时数 / τ)}，τ 越大衰减越慢。7d 档不衰减
+     * （长周期榜看累计热度，衰减会把老帖整体清出，7 天窗口本身就是衰减）。</p>
+     */
+    private int hotDecayHalfLifeHours = 24;
+
+    /** 热度分加成：精华帖（题金榜）额外加的分 */
+    private double hotEssenceBonus = 50;
+
     /** 热度分权重：回复 */
     private double hotReplyWeight = 3;
 
@@ -149,4 +163,19 @@ public class ForumProperties {
 
     /** 计数对账 cron（默认每日 03:30，避开备份与热榜刷新） */
     private String countReconcileCron = "0 30 3 * * ?";
+
+    /** 论坛经验：发帖（THREAD_PUBLISH，匿名帖不计） */
+    private int expThreadPublish = 5;
+
+    /** 论坛经验：被投花（LIKE_GIVEN，每帖只计一次，匿名帖不计） */
+    private int expLikeGiven = 2;
+
+    /** 论坛经验：题金榜（ESSENCE_AWARD，匿名帖不计） */
+    private int expEssenceAward = 200;
+
+    /** 论坛经验：7d 金榜第一名（HOT_TOP1，匿名帖不计） */
+    private int expHotTop1 = 1000;
+
+    /** 经验流水单次查询条数上限 */
+    private int expLedgerPageSize = 20;
 }

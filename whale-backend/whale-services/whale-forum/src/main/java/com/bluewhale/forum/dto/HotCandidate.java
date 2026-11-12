@@ -33,6 +33,9 @@ public class HotCandidate implements Serializable {
     /** 作者 */
     private Long authorId;
 
+    /** 是否匿名（0/1）：匿名帖不参与金榜经验，打分不受影响 */
+    private Integer anonymous;
+
     /** 回复数 */
     private Integer replyCount;
 

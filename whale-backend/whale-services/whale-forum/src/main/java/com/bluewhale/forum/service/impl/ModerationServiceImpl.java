@@ -11,7 +11,9 @@ import com.bluewhale.forum.entity.ForumThread;
 import com.bluewhale.forum.mapper.ForumModerationRecordMapper;
 import com.bluewhale.forum.mapper.ForumPostMapper;
 import com.bluewhale.forum.mapper.ForumThreadMapper;
+import com.bluewhale.forum.config.ForumProperties;
 import com.bluewhale.forum.service.BanService;
+import com.bluewhale.forum.service.ExpService;
 import com.bluewhale.forum.service.ForumNotifyService;
 import com.bluewhale.forum.service.ModerationService;
 import lombok.RequiredArgsConstructor;
@@ -53,6 +55,10 @@ public class ModerationServiceImpl implements ModerationService {
     private final BanService banService;
 
     private final ForumNotifyService notifyService;
+
+    private final ExpService expService;
+
+    private final ForumProperties properties;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -103,6 +109,65 @@ public class ModerationServiceImpl implements ModerationService {
         int released = banService.release(userId, actor.userId());
         record("USER", userId, "RELEASE", "解除处置", actor.userId());
         return released;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void featureThread(Long threadId, String reason, ForumActor actor) {
+        requireReason(reason);
+        ForumThread thread = requireThread(threadId);
+        if (thread.getEssence() != null && thread.getEssence() == 1) {
+            // 已是精华：幂等返回。不重复留痕、更不能重复发经验——唯一键挡得住经验，
+            // 但每次都写一条 ESSENCE 轨迹会把审计流水灌满重复记录
+            return;
+        }
+        thread.setEssence(1);
+        threadMapper.updateById(thread);
+        Long recordId = record("THREAD", threadId, "ESSENCE", reason, actor.userId());
+        notifyService.notifyModeration(thread.getAuthorId(), "THREAD", threadId, "ESSENCE", reason, recordId);
+        if (!isAnonymous(thread)) {
+            expService.award(thread.getAuthorId(), ExpService.EVENT_ESSENCE_AWARD,
+                    properties.getExpEssenceAward(), threadId);
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void unfeatureThread(Long threadId, String reason, ForumActor actor) {
+        requireReason(reason);
+        ForumThread thread = requireThread(threadId);
+        if (thread.getEssence() == null || thread.getEssence() != 1) {
+            return;
+        }
+        thread.setEssence(0);
+        threadMapper.updateById(thread);
+        Long recordId = record("THREAD", threadId, "UNESSENCE", reason, actor.userId());
+        notifyService.notifyModeration(thread.getAuthorId(), "THREAD", threadId, "UNESSENCE", reason, recordId);
+    }
+
+    /**
+     * 取可处置的帖子（已删/已移除不可处置）。
+     *
+     * @param threadId 帖子ID
+     * @return 帖子
+     */
+    private ForumThread requireThread(Long threadId) {
+        ForumThread thread = threadMapper.selectById(threadId);
+        if (thread == null || STATUS_DELETED.equals(thread.getStatus())
+                || STATUS_REMOVED.equals(thread.getStatus())) {
+            throw new BizException(ForumErrorCodes.THREAD_NOT_FOUND, "帖子不存在或已删除");
+        }
+        return thread;
+    }
+
+    /**
+     * 匿名帖不计经验（F-07-04 硬规则：匿名刷分零成本）。
+     *
+     * @param thread 帖子
+     * @return 是否匿名
+     */
+    private boolean isAnonymous(ForumThread thread) {
+        return thread.getAnonymous() != null && thread.getAnonymous() == 1;
     }
 
     @Override

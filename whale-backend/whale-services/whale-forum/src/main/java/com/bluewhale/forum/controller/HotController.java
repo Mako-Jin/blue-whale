@@ -33,15 +33,17 @@ public class HotController {
     /**
      * 热榜（读快照；快照为空时实时头部兜底）。
      *
+     * @param window 窗口（24h / 7d，非法值按 7d）
      * @param limit 条数（为空取配置上限）
      * @param request 当前请求
      * @return 热榜列表
      */
     @GetMapping
     @RequirePermission(ForumPermissions.BROWSE)
-    public Result<List<HotItemVO>> list(@RequestParam(value = "limit", required = false) Integer limit,
+    public Result<List<HotItemVO>> list(@RequestParam(value = "window", required = false) String window,
+                                       @RequestParam(value = "limit", required = false) Integer limit,
                                        HttpServletRequest request) {
-        return Result.ok(hotService.list(limit, ForumActor.from(request)));
+        return Result.ok(hotService.list(window, limit, ForumActor.from(request)));
     }
 
     /**

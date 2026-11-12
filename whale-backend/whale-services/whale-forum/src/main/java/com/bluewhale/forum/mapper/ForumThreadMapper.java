@@ -135,11 +135,16 @@ public interface ForumThreadMapper extends BaseMapper<ForumThread> {
     int changeCollectCount(@Param("threadId") Long threadId, @Param("delta") int delta);
 
     /**
-     * 热榜候选：近 {@code windowDays} 天已发布帖子按热度分排序。
+     * 热榜候选：窗口内已发布帖子按热度分排序（支持 24h / 7d 双档）。
      *
-     * <p>打分 = 回复×权重 + 投花×权重 + 浏览×权重 − 处置扣分×权重。处置扣分取窗口内
-     * {@code REMOVE} / {@code AUDIT_REJECT} 的轨迹条数——被删过的帖子即使后来恢复，
-     * 热度也不该和干净帖子一样，否则「先违规冲量再申诉」就是刷榜捷径。</p>
+     * <p>打分 = (回复×权重 + 投花×权重 + 浏览×权重 + 精华×加成 − 处置扣分×权重)
+     * × 衰减系数。处置扣分取窗口内 {@code REMOVE} / {@code AUDIT_REJECT} 的轨迹条数——
+     * 被删过的帖子即使后来恢复，热度也不该和干净帖子一样，否则「先违规冲量再申诉」
+     * 就是刷榜捷径。</p>
+     *
+     * <p>精华加成（P1）：题金榜的帖子额外 +{@code essenceBonus}，好内容值得被看见。
+     * 衰减只在 24h 档启用（{@code decayHours} &gt; 0 时按
+     * {@code EXP(-发帖小时数/decayHours)} 衰减），7d 档传 0 即不衰减。</p>
      *
      * <p>租户条件在本 SQL 内显式写出，并关掉租户插件：插件对带子查询的聚合语句
      * 追加条件容易落到错误的表上，这里宁可自己写死。</p>
@@ -149,15 +154,25 @@ public interface ForumThreadMapper extends BaseMapper<ForumThread> {
      * @param replyWeight 回复权重
      * @param likeWeight 投花权重
      * @param viewWeight 浏览权重
+     * @param essenceBonus 精华加成分
      * @param penaltyWeight 处置扣分权重
+     * @param decayHours 衰减常数 τ（小时，0 = 不衰减）
      * @param limit 取前 N 条
      * @return 候选列表（含 score）
      */
     @InterceptorIgnore(tenantLine = "true")
-    @Select("SELECT t.id, t.board_id, t.title, t.summary, t.author_id, "
+    @Select("<script>"
+            + "SELECT t.id, t.board_id, t.title, t.summary, t.author_id, t.anonymous, "
             + "t.reply_count, t.like_count, t.view_count, "
             + "(t.reply_count * #{replyWeight} + t.like_count * #{likeWeight} "
-            + " + t.view_count * #{viewWeight} - COALESCE(p.penalty, 0) * #{penaltyWeight}) AS score "
+            + " + t.view_count * #{viewWeight} + t.essence * #{essenceBonus} "
+            + " - COALESCE(p.penalty, 0) * #{penaltyWeight}) "
+            + " * <choose>"
+            + "   <when test='decayHours > 0'>"
+            + "     EXP(-GREATEST(TIMESTAMPDIFF(HOUR, t.publish_time, NOW()), 0) / #{decayHours})"
+            + "   </when>"
+            + "   <otherwise>1</otherwise>"
+            + " </choose> AS score "
             + "FROM fm_thread t "
             + "LEFT JOIN (SELECT target_id, COUNT(*) AS penalty FROM fm_moderation_record "
             + "  WHERE tenant_id = #{tenantId} AND target_type = 'THREAD' "
@@ -166,13 +181,16 @@ public interface ForumThreadMapper extends BaseMapper<ForumThread> {
             + "WHERE t.tenant_id = #{tenantId} AND t.deleted = 0 "
             + "  AND t.status IN ('PUBLISHED', 'SOLVED', 'CLOSED') "
             + "  AND t.publish_time IS NOT NULL AND t.publish_time >= #{from} "
-            + "ORDER BY score DESC, t.publish_time DESC LIMIT #{limit}")
+            + "ORDER BY score DESC, t.publish_time DESC LIMIT #{limit}"
+            + "</script>")
     List<HotCandidate> selectHotCandidates(@Param("tenantId") Long tenantId,
                                            @Param("from") LocalDateTime from,
                                            @Param("replyWeight") double replyWeight,
                                            @Param("likeWeight") double likeWeight,
                                            @Param("viewWeight") double viewWeight,
+                                           @Param("essenceBonus") double essenceBonus,
                                            @Param("penaltyWeight") double penaltyWeight,
+                                           @Param("decayHours") int decayHours,
                                            @Param("limit") int limit);
 
     /**

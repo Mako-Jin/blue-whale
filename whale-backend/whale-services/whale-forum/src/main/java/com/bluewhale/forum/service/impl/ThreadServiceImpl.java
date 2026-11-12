@@ -27,6 +27,7 @@ import com.bluewhale.forum.mapper.ForumThreadEditHistoryMapper;
 import com.bluewhale.forum.mapper.ForumThreadMapper;
 import com.bluewhale.forum.service.BanService;
 import com.bluewhale.forum.service.BoardService;
+import com.bluewhale.forum.service.ExpService;
 import com.bluewhale.forum.service.MentionService;
 import com.bluewhale.forum.service.SearchService;
 import com.bluewhale.forum.service.SensitiveWordService;
@@ -107,6 +108,8 @@ public class ThreadServiceImpl implements ThreadService {
 
     private final MentionService mentionService;
 
+    private final ExpService expService;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ThreadDetailVO create(ThreadCreateRequest request, ForumActor actor) {
@@ -172,6 +175,12 @@ public class ThreadServiceImpl implements ThreadService {
             // 待审帖不派发 @：帖子还没发布，被 @ 的人点进来是「看不到的内容」
             mentionService.dispatch(thread.getId(), MentionService.MAIN_POST_ID,
                     MentionService.SOURCE_THREAD, content, title, actor.userId());
+            // 发帖经验（F-07-04）：只在发布时计，待审帖转发布由审核通过路径补计；
+            // 匿名帖不计经验。幂等靠唯一键（同人同帖同事件只发一次）
+            if (thread.getAnonymous() == null || thread.getAnonymous() != 1) {
+                expService.award(actor.userId(), ExpService.EVENT_THREAD_PUBLISH,
+                        properties.getExpThreadPublish(), thread.getId());
+            }
         }
         return toDetailVO(thread, board, actor);
     }

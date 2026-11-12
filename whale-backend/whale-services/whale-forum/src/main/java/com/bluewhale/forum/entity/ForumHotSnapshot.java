@@ -31,6 +31,9 @@ public class ForumHotSnapshot implements Serializable {
     /** 租户ID */
     private Long tenantId;
 
+    /** 热榜窗口：24h / 7d */
+    private String hotWindow;
+
     /** 名次（1 起） */
     private Integer rankNo;
 

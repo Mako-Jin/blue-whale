@@ -15,6 +15,7 @@ import com.bluewhale.forum.entity.ForumThread;
 import com.bluewhale.forum.mapper.ForumPostMapper;
 import com.bluewhale.forum.mapper.ForumThreadMapper;
 import com.bluewhale.forum.service.AuditService;
+import com.bluewhale.forum.service.ExpService;
 import com.bluewhale.forum.service.ForumNotifyService;
 import com.bluewhale.forum.service.ModerationService;
 import lombok.RequiredArgsConstructor;
@@ -64,6 +65,8 @@ public class AuditServiceImpl implements AuditService {
 
     private final ForumProperties properties;
 
+    private final ExpService expService;
+
     @Override
     public PageResult<AuditItemVO> page(String targetType, Long current, Long size, ForumActor actor) {
         TenantContext.requireId();
@@ -95,6 +98,11 @@ public class AuditServiceImpl implements AuditService {
         thread.setPublishTime(LocalDateTime.now());
         threadMapper.updateById(thread);
         moderationService.record(TYPE_THREAD, targetId, "AUDIT_PASS", remark, actor.userId());
+        // 待审帖通过转发布，此处补发帖经验（直接发布的在 create 里已发）
+        if (thread.getAnonymous() == null || thread.getAnonymous() != 1) {
+            expService.award(thread.getAuthorId(), ExpService.EVENT_THREAD_PUBLISH,
+                    properties.getExpThreadPublish(), thread.getId());
+        }
     }
 
     @Override

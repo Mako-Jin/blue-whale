@@ -388,14 +388,33 @@ export function fetchMyCollections(current = 1, size = 20): Promise<PageResult<T
   );
 }
 
-/** 热榜（读快照） */
-export function fetchHot(limit = 20): Promise<HotItem[]> {
-  return request<HotItem[]>(`/forum/hot?limit=${limit}`);
+/** 热榜（读快照；window=24h/7d，非法值后端按 7d） */
+export function fetchHot(window: '24h' | '7d' = '7d', limit = 20): Promise<HotItem[]> {
+  return request<HotItem[]>(`/forum/hot?window=${window}&limit=${limit}`);
 }
 
 /** 手工刷新热榜快照（需 sys:forum:hot:refresh） */
 export function refreshHot(): Promise<number> {
   return request<number>('/forum/hot/refresh', { method: 'POST' });
+}
+
+/** 论坛经验流水条目 */
+export interface ExpItem {
+  event: string;
+  amount: number;
+  refThreadId: string;
+  createTime: string;
+}
+
+/** 论坛经验汇总（总额 + 最近流水） */
+export interface ExpSummary {
+  total: number;
+  recent: ExpItem[];
+}
+
+/** 我的论坛经验（只读，入账由发帖/投花/题金榜/金榜事件触发） */
+export function fetchMyExp(): Promise<ExpSummary> {
+  return request<ExpSummary>('/forum/exp/me');
 }
 
 // ---------------------------------------------------------------------------

@@ -4,17 +4,20 @@
 // 所以这里不做轮询，只在手动刷新后重新拉取。
 
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Button, Card, Empty, List, Space, Spin, Tag, Typography, message } from 'antd';
+import { Alert, Button, Card, Empty, List, Segmented, Space, Spin, Tag, Typography, message } from 'antd';
 import { fetchHot, refreshHot, type HotItem } from '../api/forum';
 import { hasPermission } from '../api/client';
 
 const { Text } = Typography;
+
+type HotWindow = '24h' | '7d';
 
 interface Props {
   onOpenThread: (threadId: string) => void;
 }
 
 export default function HotPage({ onOpenThread }: Props) {
+  const [window, setWindow] = useState<HotWindow>('7d');
   const [items, setItems] = useState<HotItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,14 +25,14 @@ export default function HotPage({ onOpenThread }: Props) {
 
   const load = useCallback(() => {
     setLoading(true);
-    fetchHot(20)
+    fetchHot(window, 20)
       .then((data) => {
         setItems(data);
         setError(null);
       })
       .catch((err: unknown) => setError(err instanceof Error ? err.message : '加载热榜失败'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [window]);
 
   useEffect(() => {
     load();
@@ -53,13 +56,23 @@ export default function HotPage({ onOpenThread }: Props) {
   return (
     <div className="forum-page">
       <Card
-        title="鲸榜 · 近 7 日热议"
+        title={window === '24h' ? '鲸榜 · 近 24 小时热议' : '鲸榜 · 近 7 日热议'}
         extra={
-          canRefresh ? (
-            <Button loading={refreshing} onClick={refresh}>
-              刷新快照
-            </Button>
-          ) : null
+          <Space>
+            <Segmented<HotWindow>
+              value={window}
+              onChange={setWindow}
+              options={[
+                { label: '24 小时', value: '24h' },
+                { label: '7 日', value: '7d' },
+              ]}
+            />
+            {canRefresh ? (
+              <Button loading={refreshing} onClick={refresh}>
+                刷新快照
+              </Button>
+            ) : null}
+          </Space>
         }
         bordered={false}
       >
@@ -71,7 +84,11 @@ export default function HotPage({ onOpenThread }: Props) {
         ) : (
           <List
             dataSource={items}
-            locale={{ emptyText: <Empty description="近 7 天还没有上榜的帖子" /> }}
+            locale={{
+              emptyText: (
+                <Empty description={window === '24h' ? '近 24 小时还没有上榜的帖子' : '近 7 天还没有上榜的帖子'} />
+              ),
+            }}
             renderItem={(item) => (
               <List.Item>
                 <Space size={12} align="start" style={{ width: '100%' }}>

@@ -1,7 +1,6 @@
 package com.bluewhale.forum.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.forum.common.ForumActor;
 import com.bluewhale.forum.config.ForumProperties;
@@ -12,6 +11,7 @@ import com.bluewhale.forum.entity.ForumHotSnapshot;
 import com.bluewhale.forum.mapper.ForumHotSnapshotMapper;
 import com.bluewhale.forum.mapper.ForumThreadMapper;
 import com.bluewhale.forum.service.BoardService;
+import com.bluewhale.forum.service.ExpService;
 import com.bluewhale.forum.service.HotService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,10 +24,13 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 热榜服务实现。
+ * 热榜服务实现（24h / 7d 双档）。
  *
- * <p>读写分离得很硬：<b>读只读快照，写只在刷新</b>。列表页现算 7 天窗口聚合会把
+ * <p>读写分离得很硬：<b>读只读快照，写只在刷新</b>。列表页现算窗口聚合会把
  * 每次打开首页都变成一次全表扫描，而且同一榜单在不同时刻排序不一样，没法解释名次。</p>
+ *
+ * <p>7d 档第一名发金榜经验（HOT_TOP1，+1000）：经验唯一键按帖子幂等，
+ * 30 分钟一轮的刷新不会重复发；榜单易主后新榜首的帖子没发过，自然补上。</p>
  *
  * @author BlueWhale
  */
@@ -44,18 +47,22 @@ public class HotServiceImpl implements HotService {
 
     private final BoardService boardService;
 
+    private final ExpService expService;
+
     private final ForumProperties properties;
 
     @Override
-    public List<HotItemVO> list(Integer limit, ForumActor actor) {
+    public List<HotItemVO> list(String window, Integer limit, ForumActor actor) {
         TenantContext.requireId();
+        String win = normalizeWindow(window);
         int top = normalizeLimit(limit);
         List<ForumHotSnapshot> rows = snapshotMapper.selectList(new QueryWrapper<ForumHotSnapshot>()
+                .eq("hot_window", win)
                 .orderByAsc("rank_no")
                 .last("LIMIT " + top));
         if (rows.isEmpty()) {
-            // 兜底：快照还没刷过（首次部署 / 刷新失败）时给实时头部，只读不写
-            return liveTop(top, actor);
+            // 兜底：该档快照还没刷过（首次部署 / 刷新失败）时给实时头部，只读不写
+            return liveTop(win, top, actor);
         }
         Set<Long> visibleBoards = visibleBoardIds(actor);
         List<HotItemVO> items = new ArrayList<>(rows.size());
@@ -72,9 +79,13 @@ public class HotServiceImpl implements HotService {
     @Override
     public int refresh() {
         Long tenantId = TenantContext.requireId();
-        List<HotCandidate> candidates = candidates(tenantId, properties.getHotTopN());
-        int written = snapshotStore.replace(tenantId, candidates, LocalDateTime.now());
-        log.info("热榜快照刷新完成 tenantId={} count={}", tenantId, written);
+        LocalDateTime now = LocalDateTime.now();
+        List<HotCandidate> day = candidates(tenantId, WINDOW_24H, properties.getHotTopN());
+        List<HotCandidate> week = candidates(tenantId, WINDOW_7D, properties.getHotTopN());
+        int written = snapshotStore.replace(tenantId, WINDOW_24H, day, now)
+                + snapshotStore.replace(tenantId, WINDOW_7D, week, now);
+        awardHotTop1(week);
+        log.info("热榜快照刷新完成 tenantId={} 24h={} 7d={}", tenantId, day.size(), week.size());
         return written;
     }
 
@@ -97,18 +108,40 @@ public class HotServiceImpl implements HotService {
     }
 
     /**
+     * 7d 金榜第一名发经验（HOT_TOP1）。
+     *
+     * <p>只发给 7d 榜：24h 榜波动太快，第一名频繁易主会变成「轮着白送」。
+     * 经验唯一键按帖子幂等——同一帖子即使连续霸榜也只发一次。
+     * 匿名帖不计（F-07-04 硬规则）。</p>
+     *
+     * @param week 7d 档候选（已按分数倒序）
+     */
+    private void awardHotTop1(List<HotCandidate> week) {
+        if (week.isEmpty()) {
+            return;
+        }
+        HotCandidate top = week.get(0);
+        if (top.getAnonymous() != null && top.getAnonymous() == 1) {
+            return;
+        }
+        expService.award(top.getAuthorId(), ExpService.EVENT_HOT_TOP1,
+                properties.getExpHotTop1(), top.getId());
+    }
+
+    /**
      * 实时头部（不落库），仅在快照为空时使用。
      *
+     * @param window 窗口
      * @param top 条数
      * @param actor 当前操作者
      * @return 热榜条目
      */
-    private List<HotItemVO> liveTop(int top, ForumActor actor) {
+    private List<HotItemVO> liveTop(String window, int top, ForumActor actor) {
         Long tenantId = TenantContext.requireId();
         Set<Long> visibleBoards = visibleBoardIds(actor);
         List<HotItemVO> items = new ArrayList<>(top);
         int rank = 1;
-        for (HotCandidate candidate : candidates(tenantId, top)) {
+        for (HotCandidate candidate : candidates(tenantId, window, top)) {
             if (candidate.getBoardId() != null && !visibleBoards.contains(candidate.getBoardId())) {
                 continue;
             }
@@ -129,17 +162,23 @@ public class HotServiceImpl implements HotService {
     }
 
     /**
-     * 取窗口内候选（已按热度分倒序）。
+     * 取窗口内候选（已按热度分倒序）。24h 档启用小时衰减，7d 档不衰减。
      *
      * @param tenantId 租户ID
+     * @param window 窗口
      * @param limit 条数
      * @return 候选
      */
-    private List<HotCandidate> candidates(Long tenantId, int limit) {
-        LocalDateTime from = LocalDateTime.now().minusDays(properties.getHotWindowDays());
+    private List<HotCandidate> candidates(Long tenantId, String window, int limit) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime from = WINDOW_24H.equals(window)
+                ? now.minusHours(properties.getHotWindowHours24())
+                : now.minusDays(properties.getHotWindowDays());
+        int decayHours = WINDOW_24H.equals(window) ? properties.getHotDecayHalfLifeHours() : 0;
         return threadMapper.selectHotCandidates(tenantId, from,
                 properties.getHotReplyWeight(), properties.getHotLikeWeight(),
-                properties.getHotViewWeight(), properties.getHotPenaltyWeight(), limit);
+                properties.getHotViewWeight(), properties.getHotEssenceBonus(),
+                properties.getHotPenaltyWeight(), decayHours, limit);
     }
 
     /**
@@ -170,6 +209,16 @@ public class HotServiceImpl implements HotService {
             return max;
         }
         return Math.min(limit, max);
+    }
+
+    /**
+     * 归一化窗口（非法值按 7d，保持旧行为兼容）。
+     *
+     * @param window 请求窗口
+     * @return 生效窗口
+     */
+    private String normalizeWindow(String window) {
+        return WINDOW_24H.equalsIgnoreCase(window) ? WINDOW_24H : WINDOW_7D;
     }
 
     /**

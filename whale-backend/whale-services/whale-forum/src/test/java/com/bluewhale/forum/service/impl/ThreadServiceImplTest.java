@@ -18,6 +18,7 @@ import com.bluewhale.forum.mapper.ForumThreadEditHistoryMapper;
 import com.bluewhale.forum.mapper.ForumThreadMapper;
 import com.bluewhale.forum.service.BanService;
 import com.bluewhale.forum.service.BoardService;
+import com.bluewhale.forum.service.ExpService;
 import com.bluewhale.forum.service.MentionService;
 import com.bluewhale.forum.service.SearchService;
 import com.bluewhale.forum.service.SensitiveWordService;
@@ -84,6 +85,9 @@ class ThreadServiceImplTest {
 
     @Mock
     private MentionService mentionService;
+
+    @Mock
+    private ExpService expService;
 
     @Spy
     private ForumProperties properties = new ForumProperties();
