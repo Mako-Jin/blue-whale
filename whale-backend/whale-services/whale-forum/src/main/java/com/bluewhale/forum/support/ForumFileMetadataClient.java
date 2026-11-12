@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
@@ -43,6 +44,9 @@ public class ForumFileMetadataClient {
 
     /** 内网元数据路径 */
     private static final String METADATA_PATH = "/file/internal/%d";
+
+    /** 内网内容路径（支持 Range，代理预览只需完整字节） */
+    private static final String CONTENT_PATH = "/file/internal/%d/content";
 
     private final ForumProperties properties;
 
@@ -96,16 +100,10 @@ public class ForumFileMetadataClient {
         }
         Map<String, Object> response;
         try {
-            RestClient target = client == null ? InternalTokenSupport.restClient() : client;
-            response = target.get()
+            response = target().get()
                     .uri(properties.getFileBaseUrl() + METADATA_PATH.formatted(fileId))
                     .accept(MediaType.APPLICATION_JSON)
-                    .headers(headers -> {
-                        Long tenantId = TenantContext.get();
-                        if (tenantId != null) {
-                            headers.set(WebHeaders.TENANT_ID, String.valueOf(tenantId));
-                        }
-                    })
+                    .headers(this::applyTenantHeader)
                     .retrieve()
                     .body(new ParameterizedTypeReference<Map<String, Object>>() {
                     });
@@ -157,6 +155,67 @@ public class ForumFileMetadataClient {
             throw new BizException(ErrorCode.PARAM_ERROR, "只能上传本人的文件作为申诉材料");
         }
         return meta;
+    }
+
+    /**
+     * 读取文件字节（内网内容接口）。
+     *
+     * <p>只供论坛服务代理预览：内网接口不做归属校验，调用方必须先在论坛侧
+     * 判完「本人或复核人」，否则等于把任意文件内容开放给登录用户。</p>
+     *
+     * @param fileId 文件ID
+     * @return 字节与 MIME 类型
+     */
+    public FileContent loadContent(Long fileId) {
+        if (fileId == null || fileId <= 0) {
+            throw new BizException(ErrorCode.NOT_FOUND, "申诉材料不存在或已删除");
+        }
+        try {
+            ResponseEntity<byte[]> response = target().get()
+                    .uri(properties.getFileBaseUrl() + CONTENT_PATH.formatted(fileId))
+                    .accept(MediaType.ALL)
+                    .headers(this::applyTenantHeader)
+                    .retrieve()
+                    .toEntity(byte[].class);
+            byte[] body = response.getBody();
+            if (body == null || body.length == 0) {
+                throw new BizException(ErrorCode.NOT_FOUND, "申诉材料不存在或已删除");
+            }
+            MediaType contentType = response.getHeaders().getContentType();
+            return new FileContent(body, contentType == null
+                    ? MediaType.APPLICATION_OCTET_STREAM_VALUE
+                    : contentType.toString());
+        } catch (RestClientResponseException ex) {
+            if (ex.getStatusCode().value() == 404) {
+                throw new BizException(ErrorCode.NOT_FOUND, "申诉材料不存在或已删除");
+            }
+            log.warn("申诉材料内容读取失败: fileId={}, error={}", fileId, ex.getMessage());
+            throw unavailable();
+        } catch (ResourceAccessException | IllegalStateException ex) {
+            log.warn("申诉材料内容读取失败: fileId={}, error={}", fileId, ex.getMessage());
+            throw unavailable();
+        }
+    }
+
+    /**
+     * 取内网客户端（生产构造下为自建超时客户端）。
+     *
+     * @return 客户端
+     */
+    private RestClient target() {
+        return client == null ? InternalTokenSupport.restClient() : client;
+    }
+
+    /**
+     * 补租户头：文件服务按租户隔离元数据与内容。
+     *
+     * @param headers 请求头
+     */
+    private void applyTenantHeader(org.springframework.http.HttpHeaders headers) {
+        Long tenantId = TenantContext.get();
+        if (tenantId != null) {
+            headers.set(WebHeaders.TENANT_ID, String.valueOf(tenantId));
+        }
     }
 
     /**
@@ -239,5 +298,14 @@ public class ForumFileMetadataClient {
                            Long uploaderId,
                            int deleted,
                            int status) {
+    }
+
+    /**
+     * 文件内容。
+     *
+     * @param bytes 字节
+     * @param contentType MIME 类型
+     */
+    public record FileContent(byte[] bytes, String contentType) {
     }
 }

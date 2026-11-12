@@ -48,6 +48,7 @@ import {
   type SensitiveWordItem,
 } from '../api/forum';
 import { hasPermission } from '../api/client';
+import AppealMaterials from '../components/AppealMaterials';
 
 const { Text, Paragraph } = Typography;
 
@@ -394,21 +395,12 @@ function AppealPanel() {
               {appealTargetLabel(current)}｜申诉理由：{current.reason}
             </Paragraph>
             {current.materials && current.materials.length > 0 ? (
-              <Paragraph>
-                <Text strong>申诉材料：</Text>
-                <Space direction="vertical" size={2} style={{ display: 'flex', marginTop: 6 }}>
-                  {current.materials.map((material) => (
-                    <a
-                      key={material.fileId}
-                      href={material.downloadUrl ?? `/file/${material.fileId}/download`}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {material.fileName ?? `文件 #${material.fileId}`}
-                    </a>
-                  ))}
-                </Space>
-              </Paragraph>
+              <div style={{ marginBottom: 12 }}>
+                <Text strong>申诉材料</Text>
+                <div style={{ marginTop: 6 }}>
+                  <AppealMaterials materials={current.materials} />
+                </div>
+              </div>
             ) : null}
           </>
         ) : null}

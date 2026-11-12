@@ -98,6 +98,12 @@
 |---|---|---|---|
 | 30 | F-09-08 申诉只有文字理由，处置通知里的「补充材料」无落点 | 申诉支持 `materialFileIds`（≤5、去重）：文件先经 `/file/upload` 落 whale-file，提交时经内网 `/file/internal/{id}` 校验存在/未删/状态正常/上传人为本人；`fm_appeal_material` append-only 存 fileId 与元数据快照；工单回 `materials`（含 `/file/{id}/download`） | 不校验归属时用户可把自己的申诉挂到他人文件上，复核人下载即替攻击者取文件；文件名/大小若信客户端即可伪造展示；材料随工单一次提交，不需要追加/删除语义，故 append-only 且不设软删 |
 
+## 落码修订记录（v1.3 内部修订，2026-11-12 M7-8）
+
+| # | 原口径 | 落码口径 | 原因 |
+|---|---|---|---|
+| 31 | F-09-08 材料只给下载链接，复核时需逐个下载才能看清截图 | 新增 `GET /forum/appeal/material/{fileId}/preview` 代理图片：本人或 `sys:forum:manage:dispose` 可读，仅放行 `image/*`，经内网 `/file/internal/{id}/content` 取字节返回，`Cache-Control: private, max-age=1800`；前端复核弹窗显示缩略图并可放大，非图片与失败降级为原下载链接；提交弹窗用本地文件出缩略图 | 文件服务下载接口要 `sys:file:download`，种子数据未授予任何角色，直连会 403；论坛代理按论坛权限判权。只放行图片是防止论坛被当作任意文件下载通道 |
+
 ---
 
 ## 一、服务定位

@@ -11,6 +11,7 @@ import com.bluewhale.forum.common.ForumPermissions;
 import com.bluewhale.forum.config.ForumProperties;
 import com.bluewhale.forum.dto.AppealCreateRequest;
 import com.bluewhale.forum.dto.AppealHandleRequest;
+import com.bluewhale.forum.dto.AppealMaterialContent;
 import com.bluewhale.forum.dto.AppealVO;
 import com.bluewhale.forum.entity.ForumAppeal;
 import com.bluewhale.forum.entity.ForumAppealMaterial;
@@ -311,6 +312,73 @@ class AppealServiceImplTest {
                 .hasMessageContaining("本人");
         verify(appealMapper, never()).insert(any(ForumAppeal.class));
         verify(materialMapper, never()).insert(any(ForumAppealMaterial.class));
+    }
+
+    @Test
+    @DisplayName("材料预览：本人可读图片，返回字节与 MIME")
+    void ownerPreviewsImageMaterial() {
+        when(materialMapper.selectOne(any())).thenReturn(material(801L, 41L, "image/png"));
+        when(appealMapper.selectById(41L)).thenReturn(appeal(41L, "THREAD", 100L));
+        when(fileMetadataClient.loadContent(801L))
+                .thenReturn(new ForumFileMetadataClient.FileContent(new byte[]{1, 2}, "image/png"));
+
+        AppealMaterialContent content = appealService.previewMaterial(801L, actor());
+
+        assertThat(content.contentType()).isEqualTo("image/png");
+        assertThat(content.bytes()).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("材料预览：复核人可读他人材料")
+    void managerPreviewsForeignMaterial() {
+        when(materialMapper.selectOne(any())).thenReturn(material(801L, 41L, "image/jpeg"));
+        when(appealMapper.selectById(41L)).thenReturn(appeal(41L, "THREAD", 100L));
+        when(fileMetadataClient.loadContent(801L))
+                .thenReturn(new ForumFileMetadataClient.FileContent(new byte[]{9}, "image/jpeg"));
+
+        assertThat(appealService.previewMaterial(801L, manager()).contentType()).isEqualTo("image/jpeg");
+    }
+
+    @Test
+    @DisplayName("材料预览：非本人且无处置权限拒绝")
+    void strangerCannotPreviewMaterial() {
+        when(materialMapper.selectOne(any())).thenReturn(material(801L, 41L, "image/png"));
+        when(appealMapper.selectById(41L)).thenReturn(appeal(41L, "THREAD", 100L));
+
+        assertThatThrownBy(() -> appealService.previewMaterial(801L, new ForumActor(200L, Set.of(
+                ForumPermissions.BROWSE), null)))
+                .isInstanceOf(BizException.class)
+                .hasMessageContaining("无权");
+        verify(fileMetadataClient, never()).loadContent(anyLong());
+    }
+
+    @Test
+    @DisplayName("材料预览：非图片类型拒绝在线预览")
+    void nonImageMaterialIsNotPreviewable() {
+        when(materialMapper.selectOne(any())).thenReturn(material(801L, 41L, "application/pdf"));
+        when(appealMapper.selectById(41L)).thenReturn(appeal(41L, "THREAD", 100L));
+
+        assertThatThrownBy(() -> appealService.previewMaterial(801L, actor()))
+                .isInstanceOf(BizException.class)
+                .hasMessageContaining("不支持在线预览");
+        verify(fileMetadataClient, never()).loadContent(anyLong());
+    }
+
+    /**
+     * 构造材料登记行。
+     *
+     * @param fileId 文件ID
+     * @param appealId 工单ID
+     * @param contentType MIME 类型
+     * @return 材料
+     */
+    private ForumAppealMaterial material(Long fileId, Long appealId, String contentType) {
+        ForumAppealMaterial material = new ForumAppealMaterial();
+        material.setFileId(fileId);
+        material.setAppealId(appealId);
+        material.setFileName("证据");
+        material.setContentType(contentType);
+        return material;
     }
 
     /**

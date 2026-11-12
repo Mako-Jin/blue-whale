@@ -4,7 +4,7 @@
 // 前端路径必须与后端「类前缀 + 方法映射」逐字一致，写错只在点击时 404。
 // `check-api-path-drift.py` 会扫这些字符串，改路径前先跑它。
 
-import { request } from './client';
+import { getToken, request } from './client';
 
 /** 非功能上限（与后端 ForumMetaVO.Limits 一一对应） */
 export interface ForumLimits {
@@ -631,6 +631,23 @@ export function handleAppeal(
     method: 'POST',
     body: { approved, remark },
   });
+}
+
+/**
+ * 申诉材料图片预览：带鉴权取回二进制，返回可直接放进 img/src 的对象 URL。
+ *
+ * 不能走 `request()`：它只解 `Result` 信封，而这里是图片字节流。
+ * 返回的对象 URL 由调用方在卸载时 `URL.revokeObjectURL` 释放。
+ */
+export async function fetchAppealMaterialPreview(fileId: string): Promise<string> {
+  const token = getToken();
+  const response = await fetch(`/forum/appeal/material/${fileId}/preview`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+  if (!response.ok) {
+    throw new Error(`材料预览加载失败（${response.status}）`);
+  }
+  return URL.createObjectURL(await response.blob());
 }
 
 /** 论坛经验流水条目 */

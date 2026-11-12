@@ -9,11 +9,16 @@ import com.bluewhale.forum.common.ForumActor;
 import com.bluewhale.forum.common.ForumPermissions;
 import com.bluewhale.forum.dto.AppealCreateRequest;
 import com.bluewhale.forum.dto.AppealHandleRequest;
+import com.bluewhale.forum.dto.AppealMaterialContent;
 import com.bluewhale.forum.dto.AppealVO;
 import com.bluewhale.forum.service.AppealService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.CacheControl;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,6 +26,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.time.Duration;
 
 /**
  * 申诉接口（F-09-08）。
@@ -100,5 +107,27 @@ public class AppealController {
                                    @Valid @RequestBody AppealHandleRequest body,
                                    HttpServletRequest request) {
         return Result.ok(appealService.handle(id, body, ForumActor.from(request)));
+    }
+
+    /**
+     * 申诉材料图片预览（缩略图与原图共用）。
+     *
+     * <p>走本服务代理而不是让前端直连 whale-file：文件服务的下载接口要
+     * {@code sys:file:download}，而申诉人与版主都未必持有；这里按「本人或复核人」
+     * 判权后经内网取字节，论坛权限自洽。</p>
+     *
+     * @param fileId 文件ID
+     * @param request 当前请求
+     * @return 图片字节
+     */
+    @GetMapping("/appeal/material/{fileId}/preview")
+    @RequirePermission(ForumPermissions.BROWSE)
+    public ResponseEntity<ByteArrayResource> previewMaterial(@PathVariable("fileId") Long fileId,
+                                                             HttpServletRequest request) {
+        AppealMaterialContent content = appealService.previewMaterial(fileId, ForumActor.from(request));
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(content.contentType()))
+                .cacheControl(CacheControl.maxAge(Duration.ofMinutes(30)).cachePrivate())
+                .body(new ByteArrayResource(content.bytes()));
     }
 }

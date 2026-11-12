@@ -213,6 +213,7 @@ M4 落地口径：检索走 `FULLTEXT(title, content_text) WITH PARSER ngram`（
 | M7-5 申诉（P1） | `V12__appeal.sql`（`fm_appeal`）；`POST /forum/appeal`（对已处置帖子/楼层/当前禁言提交）、`GET /forum/my/appeals`；管理端 `GET /forum/admin/appeal/page`、`POST /forum/admin/appeal/{id}/handle`（通过自动解禁、写 outbox 通知）；前端禁言告警与「已处置」帖子行提供申诉入口，后台新增申诉工单 Tab | 单测覆盖受理范围、归属校验、重复待审拒绝、复核幂等与解禁；前端 lint + build；两项门禁全绿 |
 | M7-6 结契动态（P1） | `GET /forum/my/feed`：按「关注作者 ∪ 关注版块」反查已发布帖，排除本人；匿名帖只按版块维度进流；仅当前可见版块；可选 `boardId` 过滤；按发布时间倒序分页；前端「我的」页新增「结契动态」Tab | 单测覆盖可见范围、匿名不泄露、排除本人、`boardId` 过滤；前端 lint + build；两项门禁全绿 |
 | M7-7 申诉材料（P1） | `V13__appeal_material.sql`（`fm_appeal_material`，append-only，仅存 fileId 与元数据快照）；`POST /forum/appeal` 增 `materialFileIds`（≤5、去重），提交前经 whale-file `/file/internal/{id}` 校验存在/未删/状态正常/上传人为本人；工单视图回 `materials`（含 `/file/{id}/download`）；前端申诉弹窗支持上传与移除材料，复核弹窗展示材料链接 | 单测覆盖元数据落库、去重、超限、归属失败回滚、404/500 fail-closed；前端 lint + build；两项门禁全绿 |
+| M7-8 材料缩略图预览（P1） | `GET /forum/appeal/material/{fileId}/preview`：本人或 `manage:dispose` 可读，仅放行 `image/*`，经 whale-file 内网 `/file/internal/{id}/content` 取字节后由论坛代理返回，`Cache-Control: private, max-age=1800`；前端申诉弹窗本地缩略图、复核弹窗新增材料缩略图（非图片与加载失败降级为下载链接） | 单测覆盖本人/复核人放行、陌生人拒绝、非图片拒绝、内容读取 404 与租户头透传；前端 lint + build；两项门禁全绿 |
 
 ---
 
@@ -326,6 +327,21 @@ M4 落地口径：检索走 `FULLTEXT(title, content_text) WITH PARSER ngram`（
 | 失败策略 | 数量超 `appeal-material-limit`（默认 5）直接 400；文件不存在/已删/非本人 400 并整体回滚；文件服务不可用 400「校验服务暂不可用」 | 材料是申诉的补充证据，宁可让用户重试，也不能放行未校验引用；校验在落工单之前完成，不留半张工单 |
 | 展示 | 工单 VO 统一回 `materials`（空为 `[]`），`downloadUrl=/file/{id}/download`；用户提交后与复核弹窗共用同一结构 | 回收站/复核台各拼一次下载地址必然分叉；空列表而非 `null` 让前端少一层判空 |
 | 权限 | 上传沿用平台 `sys:file:upload`，提交与查看沿用 `sys:forum:browse` / `manage:dispose` | 媒体/视频等既有应用已把 `sys:file:upload` 授予全员，论坛不另造权限点避免号段膨胀 |
+
+---
+
+## 8.9 M7-8 材料缩略图预览实现口径（P1）
+
+| 项 | 口径 | 为什么 |
+|---|---|---|
+| 为什么不直连 | 前端不直连 `/file/{id}/download` / `preview`，统一走 `GET /forum/appeal/material/{fileId}/preview` | 文件服务下载接口要 `sys:file:download`，而该权限在种子数据里未授予任何角色，申诉人与版主都不一定有；论坛代理按论坛自己的权限模型判权 |
+| 取字节 | 论坛经内网 `GET /file/internal/{id}/content` 取原始字节（该通道不校验归属，由论坛侧判定） | 内网通道是系统级访问；归属与工单关系只有论坛知道，判权必须落在论坛 |
+| 判权 | 先按 `file_id` 反查材料 → 工单，`actor.userId == appeal.userId` 或具备 `sys:forum:manage:dispose` 才放行，否则 403 | 材料属于申诉人与复核人两者；陌生人拿到 fileId 也不能借此读取他人证据 |
+| 类型白名单 | 只有 `content_type` 以 `image/` 开头才放行，其余 400「该材料不支持在线预览」 | 不加白名单等于把论坛变成任意文件的下载通道，绕过文件服务的下载权限 |
+| 响应 | 原样回 `content_type`，`Cache-Control: private, max-age=1800`；不返回文件名（避免 `Content-Disposition` 触发下载） | 同一张截图复核人可能反复放大，私有缓存 30 分钟足够省流量；`private` 防中间代理缓存他人证据 |
+| 前端渲染 | 预览需要 `Authorization` 头，`<img src>` 带不上，故 `fetch` 成 blob 再 `URL.createObjectURL`；对象 URL 在组件卸载时 `revokeObjectURL` | 直接拼 URL 会 401；不释放对象 URL 会让每次打开复核弹窗都留下几份图片内存 |
+| 降级 | 非图片材料、预览失败（403/404/网络）都退回原下载链接，不显示破图 | 复核人至少要能拿到文件；预览是增强，不是唯一通路 |
+| 提交弹窗 | 上传成功后用本地 `File` 直接出缩略图（`URL.createObjectURL(file)`），移除/关闭/提交成功时释放 | 材料还没落工单，服务端预览接口此时查不到；本地 File 是唯一可用来源 |
 
 ---
 

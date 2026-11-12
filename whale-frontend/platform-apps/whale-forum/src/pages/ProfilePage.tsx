@@ -11,6 +11,7 @@ import {
   Card,
   Descriptions,
   Empty,
+  Image,
   Input,
   List,
   Modal,
@@ -45,10 +46,11 @@ const { Text, Paragraph } = Typography;
 /** 申诉材料数量上限，与后端 `appeal-material-limit` 默认值一致 */
 const APPEAL_MATERIAL_LIMIT = 5;
 
-/** 已上传的申诉材料 */
+/** 已上传的申诉材料（previewUrl 是本地对象 URL，仅图片有，需在移除/关闭时释放） */
 interface AppealMaterialItem {
   fileId: string;
   fileName: string;
+  previewUrl?: string;
 }
 
 /** 帖子状态中文名（列表页与「我的帖子」共用口径） */
@@ -202,6 +204,11 @@ export default function ProfilePage({ boards, onOpenThread }: Props) {
   };
 
   const closeAppeal = () => {
+    appealMaterials.forEach((item) => {
+      if (item.previewUrl) {
+        URL.revokeObjectURL(item.previewUrl);
+      }
+    });
     setAppealTarget(null);
     setAppealReason('');
     setAppealMaterials([]);
@@ -216,9 +223,15 @@ export default function ProfilePage({ boards, onOpenThread }: Props) {
     setAppealUploading(true);
     try {
       const uploaded = await uploadAppealMaterial(file);
+      // 图片用本地 File 直接出缩略图，不必等服务端快照回填
+      const previewUrl = file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined;
       setAppealMaterials((prev) => [
         ...prev,
-        { fileId: uploaded.id, fileName: uploaded.originalName ?? uploaded.fileName ?? file.name },
+        {
+          fileId: uploaded.id,
+          fileName: uploaded.originalName ?? uploaded.fileName ?? file.name,
+          previewUrl,
+        },
       ]);
     } catch (err: unknown) {
       void message.error(err instanceof Error ? err.message : '材料上传失败');
@@ -229,6 +242,10 @@ export default function ProfilePage({ boards, onOpenThread }: Props) {
 
   /** 移除已上传材料；文件本身留在 whale-file，不做物理删除 */
   const onRemoveMaterial = (fileId: string) => {
+    const removed = appealMaterials.find((item) => item.fileId === fileId);
+    if (removed?.previewUrl) {
+      URL.revokeObjectURL(removed.previewUrl);
+    }
     setAppealMaterials((prev) => prev.filter((item) => item.fileId !== fileId));
   };
 
@@ -593,9 +610,20 @@ export default function ProfilePage({ boards, onOpenThread }: Props) {
                     </Button>,
                   ]}
                 >
-                  <Text ellipsis style={{ maxWidth: 360 }}>
-                    {item.fileName}
-                  </Text>
+                  <Space size={8}>
+                    {item.previewUrl ? (
+                      <Image
+                        src={item.previewUrl}
+                        width={64}
+                        height={48}
+                        alt={item.fileName}
+                        style={{ objectFit: 'cover', borderRadius: 4 }}
+                      />
+                    ) : null}
+                    <Text ellipsis style={{ maxWidth: item.previewUrl ? 300 : 360 }}>
+                      {item.fileName}
+                    </Text>
+                  </Space>
                 </List.Item>
               )}
             />

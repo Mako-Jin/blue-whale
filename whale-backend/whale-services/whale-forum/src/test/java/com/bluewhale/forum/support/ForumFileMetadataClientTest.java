@@ -112,4 +112,29 @@ class ForumFileMetadataClientTest {
                 .isInstanceOf(BizException.class)
                 .hasMessageContaining("暂不可用");
     }
+
+    @Test
+    @DisplayName("代理预览：读取内网内容并保留 MIME 类型")
+    void loadsContent() {
+        server.expect(requestTo("http://127.0.0.1:8085/file/internal/801/content"))
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(header("X-Tenant-Id", "1"))
+                .andRespond(withSuccess(new byte[]{1, 2, 3}, MediaType.IMAGE_PNG));
+
+        ForumFileMetadataClient.FileContent content = client.loadContent(801L);
+
+        assertThat(content.bytes()).containsExactly(1, 2, 3);
+        assertThat(content.contentType()).isEqualTo("image/png");
+    }
+
+    @Test
+    @DisplayName("代理预览：内容 404 折算为材料不存在")
+    void contentMissingIsNotFound() {
+        server.expect(requestTo("http://127.0.0.1:8085/file/internal/801/content"))
+                .andRespond(withStatus(HttpStatus.NOT_FOUND));
+
+        assertThatThrownBy(() -> client.loadContent(801L))
+                .isInstanceOf(BizException.class)
+                .hasMessageContaining("不存在或已删除");
+    }
 }

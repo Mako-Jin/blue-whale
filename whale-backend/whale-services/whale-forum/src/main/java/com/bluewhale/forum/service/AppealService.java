@@ -4,6 +4,7 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.forum.common.ForumActor;
 import com.bluewhale.forum.dto.AppealCreateRequest;
 import com.bluewhale.forum.dto.AppealHandleRequest;
+import com.bluewhale.forum.dto.AppealMaterialContent;
 import com.bluewhale.forum.dto.AppealVO;
 
 /**
@@ -72,4 +73,16 @@ public interface AppealService {
      * @return 更新后的工单
      */
     AppealVO handle(Long appealId, AppealHandleRequest body, ForumActor actor);
+
+    /**
+     * 读取申诉材料内容用于缩略图/原图预览。
+     *
+     * <p>仅本人与具备处置权限的复核人可读；只放行图片类型，
+     * 避免把论坛变成任意文件的下载通道。</p>
+     *
+     * @param fileId 文件ID
+     * @param actor 当前操作者
+     * @return 材料内容
+     */
+    AppealMaterialContent previewMaterial(Long fileId, ForumActor actor);
 }

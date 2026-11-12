@@ -8,9 +8,11 @@ import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.forum.common.ForumActor;
+import com.bluewhale.forum.common.ForumPermissions;
 import com.bluewhale.forum.config.ForumProperties;
 import com.bluewhale.forum.dto.AppealCreateRequest;
 import com.bluewhale.forum.dto.AppealHandleRequest;
+import com.bluewhale.forum.dto.AppealMaterialContent;
 import com.bluewhale.forum.dto.AppealMaterialVO;
 import com.bluewhale.forum.dto.AppealVO;
 import com.bluewhale.forum.entity.ForumAppeal;
@@ -233,6 +235,33 @@ public class AppealServiceImpl implements AppealService {
             throw new BizException(ErrorCode.PARAM_ERROR, "工单状态仅支持 PENDING / APPROVED / REJECTED");
         }
         return normalized;
+    }
+
+    @Override
+    public AppealMaterialContent previewMaterial(Long fileId, ForumActor actor) {
+        ForumAppealMaterial material = materialMapper.selectOne(
+                new LambdaQueryWrapper<ForumAppealMaterial>()
+                        .eq(ForumAppealMaterial::getFileId, fileId)
+                        .orderByAsc(ForumAppealMaterial::getId)
+                        .last("LIMIT 1"));
+        if (material == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "申诉材料不存在");
+        }
+        ForumAppeal appeal = appealMapper.selectById(material.getAppealId());
+        if (appeal == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "申诉材料不存在");
+        }
+        // 本人看自己的材料，复核人看工单材料；其余一律拒绝——内网内容接口不做归属校验
+        boolean owner = actor != null && actor.userId() != null && actor.userId().equals(appeal.getUserId());
+        if (!owner && (actor == null || !actor.hasPermission(ForumPermissions.MANAGE_DISPOSE))) {
+            throw new BizException(ErrorCode.FORBIDDEN, "无权查看该申诉材料");
+        }
+        String contentType = material.getContentType() == null ? "" : material.getContentType();
+        if (!contentType.startsWith("image/")) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "该材料不支持在线预览");
+        }
+        ForumFileMetadataClient.FileContent content = fileMetadataClient.loadContent(fileId);
+        return new AppealMaterialContent(content.bytes(), contentType);
     }
 
     /**
