@@ -1,6 +1,6 @@
 package com.bluewhale.auth.application.model.result;
 
-import com.bluewhale.auth.domain.tenant.aggregate.Tenant;
+import com.bluewhale.auth.domain.aggregate.Tenant;
 
 /**
  * 「我的租户」列表项结果。

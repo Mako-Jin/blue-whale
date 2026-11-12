@@ -1,6 +1,6 @@
 package com.bluewhale.auth.application.port;
 
-import com.bluewhale.auth.domain.tenant.aggregate.Tenant;
+import com.bluewhale.auth.domain.aggregate.Tenant;
 
 /**
  * 租户状态缓存同步端口：应用层只表达「租户状态已变更」，由基础设施层写入网关共享缓存。

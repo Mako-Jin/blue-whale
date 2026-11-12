@@ -1,6 +1,6 @@
 package com.bluewhale.auth.infrastructure.security;
 
-import com.bluewhale.auth.domain.role.repository.RoleRepository;
+import com.bluewhale.auth.domain.repository.RoleRepository;
 import com.bluewhale.auth.domain.aggregate.UserAggregate;
 import com.bluewhale.auth.domain.repository.UserRepository;
 import com.bluewhale.common.tenant.TenantContext;

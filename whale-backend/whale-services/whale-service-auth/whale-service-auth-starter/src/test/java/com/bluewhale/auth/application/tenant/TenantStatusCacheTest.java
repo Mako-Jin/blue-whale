@@ -1,7 +1,7 @@
 package com.bluewhale.auth.application.tenant;
 
-import com.bluewhale.auth.domain.tenant.aggregate.Tenant;
-import com.bluewhale.auth.domain.tenant.repository.TenantRepository;
+import com.bluewhale.auth.domain.aggregate.Tenant;
+import com.bluewhale.auth.domain.repository.TenantRepository;
 import com.bluewhale.auth.infrastructure.tenant.TenantStatusCache;
 import com.bluewhale.security.token.TenantStatusKeys;
 import org.junit.jupiter.api.AfterEach;

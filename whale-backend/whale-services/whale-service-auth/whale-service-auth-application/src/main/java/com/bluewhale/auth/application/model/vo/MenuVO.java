@@ -1,6 +1,6 @@
 package com.bluewhale.auth.application.model.vo;
 
-import com.bluewhale.auth.domain.menu.aggregate.Menu;
+import com.bluewhale.auth.domain.aggregate.Menu;
 import lombok.Data;
 
 import java.io.Serializable;

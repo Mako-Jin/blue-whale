@@ -1,7 +1,7 @@
 package com.bluewhale.auth.application.user;
 
-import com.bluewhale.auth.domain.dept.aggregate.Dept;
-import com.bluewhale.auth.domain.dept.repository.DeptRepository;
+import com.bluewhale.auth.domain.aggregate.Dept;
+import com.bluewhale.auth.domain.repository.DeptRepository;
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
 import com.bluewhale.auth.domain.model.vo.Username;
 import com.bluewhale.auth.domain.aggregate.UserAggregate;

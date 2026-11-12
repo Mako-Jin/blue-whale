@@ -1,8 +1,8 @@
 package com.bluewhale.auth.application.dept;
 
 import com.bluewhale.auth.application.event.DomainEventPublisher;
-import com.bluewhale.auth.domain.dept.aggregate.Dept;
-import com.bluewhale.auth.domain.dept.repository.DeptRepository;
+import com.bluewhale.auth.domain.aggregate.Dept;
+import com.bluewhale.auth.domain.repository.DeptRepository;
 import com.bluewhale.auth.application.model.vo.DeptLeaderVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;

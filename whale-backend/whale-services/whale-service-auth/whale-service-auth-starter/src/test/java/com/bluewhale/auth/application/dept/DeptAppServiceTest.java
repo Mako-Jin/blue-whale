@@ -2,8 +2,8 @@ package com.bluewhale.auth.application.dept;
 
 import com.bluewhale.auth.application.model.command.SaveDeptCommand;
 import com.bluewhale.auth.application.event.DomainEventPublisher;
-import com.bluewhale.auth.domain.dept.aggregate.Dept;
-import com.bluewhale.auth.domain.dept.repository.DeptRepository;
+import com.bluewhale.auth.domain.aggregate.Dept;
+import com.bluewhale.auth.domain.repository.DeptRepository;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.DeptDomainEvent;
 import com.bluewhale.common.tenant.TenantContext;

@@ -1,8 +1,8 @@
 package com.bluewhale.auth.infrastructure.persistence.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.bluewhale.auth.domain.menu.aggregate.Menu;
-import com.bluewhale.auth.domain.menu.repository.MenuRepository;
+import com.bluewhale.auth.domain.aggregate.Menu;
+import com.bluewhale.auth.domain.repository.MenuRepository;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysMenu;
 import com.bluewhale.auth.infrastructure.persistence.assembler.MenuPersistenceAssembler;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysMenuMapper;

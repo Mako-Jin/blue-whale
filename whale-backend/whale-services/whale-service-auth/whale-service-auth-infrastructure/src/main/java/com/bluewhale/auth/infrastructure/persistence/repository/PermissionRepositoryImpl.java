@@ -2,8 +2,8 @@ package com.bluewhale.auth.infrastructure.persistence.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.bluewhale.auth.domain.permission.aggregate.Permission;
-import com.bluewhale.auth.domain.permission.repository.PermissionRepository;
+import com.bluewhale.auth.domain.aggregate.Permission;
+import com.bluewhale.auth.domain.repository.PermissionRepository;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysPermission;
 import com.bluewhale.auth.infrastructure.persistence.assembler.PermissionPersistenceAssembler;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysPermissionMapper;

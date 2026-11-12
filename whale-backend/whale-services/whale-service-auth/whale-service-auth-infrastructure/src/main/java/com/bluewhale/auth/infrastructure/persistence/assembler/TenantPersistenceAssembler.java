@@ -1,6 +1,6 @@
 package com.bluewhale.auth.infrastructure.persistence.assembler;
 
-import com.bluewhale.auth.domain.tenant.aggregate.Tenant;
+import com.bluewhale.auth.domain.aggregate.Tenant;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysTenant;
 
 /**

@@ -1,0 +1,243 @@
+package com.bluewhale.auth.domain.aggregate;
+
+import com.bluewhale.auth.domain.aggregate.UserAggregate;
+import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
+import com.bluewhale.auth.domain.model.vo.Username;
+import com.bluewhale.common.core.exception.BizException;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+import java.time.LocalDateTime;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * {@link UserAggregate} 聚合不变量与状态流转单元测试（REQ-ARCH-001 / T-DDD-4）。
+ *
+ * @author BlueWhale
+ */
+class UserAggregateTest {
+
+    private static final int PARAM_ERROR_CODE = 400;
+    private static final EncryptedPassword CIPHER = EncryptedPassword.of("$2a$10$abcdefghijklmnopqrstuv");
+
+    private static Username username() {
+        return Username.of("alice_01");
+    }
+
+    @Test
+    @DisplayName("create：合法构造，默认启用并回填各字段")
+    void shouldCreateEnabledUserByDefault() {
+        UserAggregate user = UserAggregate.create(1L, username(), CIPHER, "Alice", "13800000000", "a@b.com", 3L, null);
+
+        assertNull(user.getId());
+        assertEquals("alice_01", user.getUsername().value());
+        assertEquals("Alice", user.getNickname());
+        assertEquals("13800000000", user.getPhone());
+        assertEquals("a@b.com", user.getEmail());
+        assertEquals(3L, user.getDeptId());
+        assertEquals(UserAggregate.STATUS_ENABLED, user.getStatus());
+        assertTrue(user.isEnabled());
+    }
+
+    @Test
+    @DisplayName("create：显式停用状态生效")
+    void shouldCreateDisabledUserWhenStatusZero() {
+        UserAggregate user = UserAggregate.create(1L, username(), CIPHER, "Alice", null, null, null, 0);
+
+        assertEquals(UserAggregate.STATUS_DISABLED, user.getStatus());
+        assertFalse(user.isEnabled());
+    }
+
+    @Test
+    @DisplayName("不变量①：username 为空抛参数错误")
+    void shouldRejectNullUsername() {
+        BizException ex = assertThrows(BizException.class,
+                () -> UserAggregate.create(1L, null, CIPHER, "Alice", null, null, null, 1));
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+    }
+
+    @Test
+    @DisplayName("不变量②：口令非 BCrypt 密文抛参数错误")
+    void shouldRejectNonBcryptPassword() {
+        BizException ex = assertThrows(BizException.class,
+                () -> UserAggregate.create(1L, username(), EncryptedPassword.of("plaintext"), "Alice", null, null, null, 1));
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+    }
+
+    @Test
+    @DisplayName("不变量③：reconstitute 非法状态抛参数错误")
+    void shouldRejectIllegalStatus() {
+        assertThrows(BizException.class, () -> UserAggregate.reconstitute(1L, 1L, username(), CIPHER, "Alice",
+                null, null, null, 9, null, null));
+    }
+
+    @Test
+    @DisplayName("reconstitute：status 为空按停用处理，其余字段原样还原")
+    void shouldReconstituteAsDisabledWhenStatusNull() {
+        LocalDateTime created = LocalDateTime.of(2026, 1, 1, 0, 0);
+
+        UserAggregate user = UserAggregate.reconstitute(7L, 1L, username(), CIPHER, "Alice", "138", "a@b.com", 2L,
+                null, created, created);
+
+        assertEquals(7L, user.getId());
+        assertEquals(2L, user.getDeptId());
+        assertEquals(UserAggregate.STATUS_DISABLED, user.getStatus());
+        assertFalse(user.isEnabled());
+        assertEquals(created, user.getCreateTime());
+    }
+
+    @Test
+    @DisplayName("状态流转：disable 与 enable 互斥切换")
+    void shouldToggleStatus() {
+        UserAggregate user = UserAggregate.create(1L, username(), CIPHER, "Alice", null, null, null, 1);
+
+        user.disable();
+        assertEquals(UserAggregate.STATUS_DISABLED, user.getStatus());
+        assertFalse(user.isEnabled());
+
+        user.enable();
+        assertEquals(UserAggregate.STATUS_ENABLED, user.getStatus());
+        assertTrue(user.isEnabled());
+    }
+
+    @Test
+    @DisplayName("强制改密标记：mark 置位、clear 清除，新建用户默认为否（T-03）")
+    void shouldToggleMustChangePassword() {
+        UserAggregate user = UserAggregate.create(1L, username(), CIPHER, "Alice", null, null, null, 1);
+        assertFalse(user.isMustChangePassword());
+
+        user.markMustChangePassword();
+        assertTrue(user.isMustChangePassword());
+
+        user.clearMustChangePassword();
+        assertFalse(user.isMustChangePassword());
+    }
+
+    @Test
+    @DisplayName("reconstitute：must_change_password=1 还原为强制改密，null 按 0 处理（T-03）")
+    void shouldReconstituteMustChangePassword() {
+        UserAggregate forced = UserAggregate.reconstitute(9L, 1L, username(), CIPHER, "Alice", "138", "a@b.com", null, 3L,
+                UserAggregate.STATUS_ENABLED, 1, null, LocalDateTime.of(2026, 1, 1, 0, 0),
+                LocalDateTime.of(2026, 1, 2, 0, 0));
+        UserAggregate unforced = UserAggregate.reconstitute(9L, 1L, username(), CIPHER, "Alice", "138", "a@b.com", null, 3L,
+                UserAggregate.STATUS_ENABLED, null, null, LocalDateTime.of(2026, 1, 1, 0, 0),
+                LocalDateTime.of(2026, 1, 2, 0, 0));
+
+        assertTrue(forced.isMustChangePassword());
+        assertFalse(unforced.isMustChangePassword());
+    }
+
+    @Test
+    @DisplayName("口令以值对象承载且 toString 为掩码，不外泄密文")
+    void shouldMaskPassword() {
+        UserAggregate user = UserAggregate.create(1L, username(), CIPHER, "Alice", null, null, null, 1);
+
+        assertEquals("EncryptedPassword(***)", user.getPassword().toString());
+        assertFalse(user.getPassword().toString().contains("$2a$"));
+    }
+
+    @Test
+    @DisplayName("reconstitute：avatar 与 lastLoginTime 原样承载")
+    void shouldCarryAvatarAndLastLoginTime() {
+        LocalDateTime lastLogin = LocalDateTime.of(2026, 2, 2, 10, 0);
+
+        UserAggregate user = UserAggregate.reconstitute(9L, 1L, username(), CIPHER, "Alice", "138", "a@b.com", "avatar.png", 3L,
+                UserAggregate.STATUS_ENABLED, lastLogin, LocalDateTime.of(2026, 1, 1, 0, 0),
+                LocalDateTime.of(2026, 1, 2, 0, 0));
+
+        assertEquals("avatar.png", user.getAvatar());
+        assertEquals(lastLogin, user.getLastLoginTime());
+    }
+
+    @Test
+    @DisplayName("行为：changeProfile 全量覆盖昵称/手机号/邮箱/头像/部门")
+    void shouldChangeProfile() {
+        UserAggregate user = UserAggregate.create(1L, username(), CIPHER, "Alice", "138", "a@b.com", 3L, 1);
+
+        user.changeProfile("Alice2", "139", "n@b.com", "new-avatar.png", 9L);
+
+        assertEquals("Alice2", user.getNickname());
+        assertEquals("139", user.getPhone());
+        assertEquals("n@b.com", user.getEmail());
+        assertEquals("new-avatar.png", user.getAvatar());
+        assertEquals(9L, user.getDeptId());
+    }
+
+    @Test
+    @DisplayName("行为：changePassword 非 BCrypt 密文抛参数错误且原口令不变")
+    void shouldRejectNonBcryptPasswordOnChange() {
+        UserAggregate user = UserAggregate.create(1L, username(), CIPHER, "Alice", null, null, null, 1);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> user.changePassword(EncryptedPassword.of("plaintext")));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        assertEquals("口令必须为 BCrypt 密文", ex.getMessage());
+        assertEquals(CIPHER.value(), user.getPassword().value());
+    }
+
+    @Test
+    @DisplayName("行为：changeStatus 非法值抛参数错误且原状态不变")
+    void shouldRejectIllegalStatusOnChange() {
+        UserAggregate user = UserAggregate.create(1L, username(), CIPHER, "Alice", null, null, null, 1);
+
+        BizException ex = assertThrows(BizException.class, () -> user.changeStatus(9));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        assertEquals("状态值非法，仅支持 1（启用）/ 0（停用）", ex.getMessage());
+        assertEquals(UserAggregate.STATUS_ENABLED, user.getStatus());
+    }
+
+    @Test
+    @DisplayName("口令到期判定：达到有效期当天即视为到期，未达到则未到期（REQ-SEC-023）")
+    void shouldDetectPasswordExpiry() {
+        UserAggregate user = UserAggregate.reconstitute(9L, 1L, username(), CIPHER, "Alice", null, null, null, null,
+                UserAggregate.STATUS_ENABLED, 0, LocalDateTime.of(2026, 1, 1, 0, 0), null,
+                LocalDateTime.of(2026, 1, 1, 0, 0), LocalDateTime.of(2026, 1, 1, 0, 0));
+
+        assertTrue(user.isPasswordExpired(LocalDateTime.of(2026, 4, 1, 0, 0), 90));
+        assertFalse(user.isPasswordExpired(LocalDateTime.of(2026, 3, 31, 0, 0), 90));
+        // maxAgeDays<=0 为应急关闭开关，不强制到期
+        assertFalse(user.isPasswordExpired(LocalDateTime.of(2027, 1, 1, 0, 0), 0));
+    }
+
+    @Test
+    @DisplayName("口令剩余天数：未到期返回正数、已到期返回负数、策略未启用返回 -1")
+    void shouldCalculatePasswordExpiresInDays() {
+        UserAggregate user = UserAggregate.reconstitute(9L, 1L, username(), CIPHER, "Alice", null, null, null, null,
+                UserAggregate.STATUS_ENABLED, 0, LocalDateTime.of(2026, 1, 1, 0, 0), null,
+                LocalDateTime.of(2026, 1, 1, 0, 0), LocalDateTime.of(2026, 1, 1, 0, 0));
+
+        assertEquals(31L, user.passwordExpiresInDays(LocalDateTime.of(2026, 3, 1, 0, 0), 90));
+        assertTrue(user.passwordExpiresInDays(LocalDateTime.of(2026, 5, 1, 0, 0), 90) < 0);
+        assertEquals(-1L, user.passwordExpiresInDays(LocalDateTime.of(2026, 3, 1, 0, 0), 0));
+    }
+
+    @Test
+    @DisplayName("reconstitute：改密时间缺失时回退为创建时间，避免存量账号被误判过期")
+    void shouldFallbackPasswordUpdatedTimeToCreateTime() {
+        LocalDateTime created = LocalDateTime.of(2026, 1, 1, 0, 0);
+
+        UserAggregate user = UserAggregate.reconstitute(9L, 1L, username(), CIPHER, "Alice", null, null, null, null,
+                UserAggregate.STATUS_ENABLED, 0, null, null, created, created);
+
+        assertEquals(created, user.getPasswordUpdatedTime());
+    }
+
+    @Test
+    @DisplayName("行为：changePassword 携带改密时间后口令年龄从该时刻起算")
+    void shouldRecordPasswordUpdatedTimeOnChange() {
+        LocalDateTime changedAt = LocalDateTime.of(2026, 6, 1, 0, 0);
+        UserAggregate user = UserAggregate.create(1L, username(), CIPHER, "Alice", null, null, null, 1);
+
+        user.changePassword(EncryptedPassword.of("$2a$10$newencodedciphervalue"), changedAt);
+
+        assertEquals(changedAt, user.getPasswordUpdatedTime());
+        assertFalse(user.isPasswordExpired(LocalDateTime.of(2026, 7, 1, 0, 0), 90));
+    }
+}

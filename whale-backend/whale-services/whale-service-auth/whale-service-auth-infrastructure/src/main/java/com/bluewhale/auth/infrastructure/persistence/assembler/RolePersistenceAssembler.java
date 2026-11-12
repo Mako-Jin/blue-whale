@@ -1,8 +1,8 @@
 package com.bluewhale.auth.infrastructure.persistence.assembler;
 
 import com.bluewhale.auth.domain.model.vo.RoleCode;
-import com.bluewhale.auth.domain.role.aggregate.Role;
-import com.bluewhale.auth.domain.role.entity.RolePermissionAssignment;
+import com.bluewhale.auth.domain.aggregate.Role;
+import com.bluewhale.auth.domain.model.entity.RolePermissionAssignment;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysRole;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysRolePermission;
 

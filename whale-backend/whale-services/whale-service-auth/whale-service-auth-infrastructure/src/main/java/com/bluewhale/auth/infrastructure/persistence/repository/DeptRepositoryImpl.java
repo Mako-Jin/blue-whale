@@ -1,8 +1,8 @@
 package com.bluewhale.auth.infrastructure.persistence.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.bluewhale.auth.domain.dept.aggregate.Dept;
-import com.bluewhale.auth.domain.dept.repository.DeptRepository;
+import com.bluewhale.auth.domain.aggregate.Dept;
+import com.bluewhale.auth.domain.repository.DeptRepository;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysDept;
 import com.bluewhale.auth.infrastructure.persistence.assembler.DeptPersistenceAssembler;
 import com.bluewhale.auth.infrastructure.persistence.mapper.SysDeptMapper;

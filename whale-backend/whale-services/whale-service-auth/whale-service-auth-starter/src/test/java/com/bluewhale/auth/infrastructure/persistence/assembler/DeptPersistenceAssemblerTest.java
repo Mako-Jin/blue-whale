@@ -1,6 +1,6 @@
 package com.bluewhale.auth.infrastructure.persistence.assembler;
 
-import com.bluewhale.auth.domain.dept.aggregate.Dept;
+import com.bluewhale.auth.domain.aggregate.Dept;
 import com.bluewhale.auth.infrastructure.persistence.entity.SysDept;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

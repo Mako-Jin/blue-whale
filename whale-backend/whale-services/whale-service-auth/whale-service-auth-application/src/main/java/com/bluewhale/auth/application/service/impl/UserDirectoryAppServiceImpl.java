@@ -2,8 +2,8 @@ package com.bluewhale.auth.application.service.impl;
 
 import com.bluewhale.auth.application.model.vo.UserDirectoryVO;
 import com.bluewhale.auth.application.service.UserDirectoryAppService;
-import com.bluewhale.auth.domain.dept.aggregate.Dept;
-import com.bluewhale.auth.domain.dept.repository.DeptRepository;
+import com.bluewhale.auth.domain.aggregate.Dept;
+import com.bluewhale.auth.domain.repository.DeptRepository;
 import com.bluewhale.auth.domain.aggregate.UserAggregate;
 import com.bluewhale.auth.domain.repository.UserRepository;
 import com.bluewhale.common.core.result.PageResult;

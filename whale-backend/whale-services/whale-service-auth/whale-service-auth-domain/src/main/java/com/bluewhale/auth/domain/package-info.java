@@ -7,7 +7,9 @@ package com.bluewhale.auth.domain;
  * <b>禁止</b>出现 Spring / MyBatis-Plus / Web / 数据库 注解与类型。外部能力（持久化、消息、缓存）
  * 一律以接口（端口）在本层声明，由 {@code infrastructure} 层适配实现。</p>
  *
- * <p>子包：{@code model}（聚合与值对象）、{@code repository}（仓储接口，迁移第 2 步引入）。</p>
+ * <p>子包（领域层按功能分包）：{@code aggregate}（聚合根及其配套类型）、{@code model}
+ * （{@code vo} 值对象、{@code entity} 聚合内部实体）、{@code repository}（仓储端口）、
+ * {@code event}（领域事件）。</p>
  *
  * @author BlueWhale
  */
