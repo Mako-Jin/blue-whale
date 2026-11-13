@@ -9,7 +9,6 @@ import org.springframework.security.oauth2.server.authorization.client.Registere
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
 import org.springframework.security.oauth2.server.authorization.settings.TokenSettings;
-import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 
@@ -28,7 +27,6 @@ import java.time.Duration;
  *
  * @author BlueWhale
  */
-@Component
 public class OAuth2ClientRegisteredClientAdapter implements RegisteredClientRepository {
 
     private final OAuthClientRepository oauthClientRepository;

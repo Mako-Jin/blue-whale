@@ -5,9 +5,10 @@ import com.bluewhale.auth.domain.model.vo.StrategyCondition;
 import com.bluewhale.auth.infrastructure.persistence.po.SysPermissionStrategyPo;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.domain.exception.DomainException;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.util.List;
 
@@ -23,7 +24,7 @@ import java.util.List;
 public final class PermissionStrategyPersistenceAssembler {
 
     /** JSON 序列化器（静态复用，StrategyCondition 为 record，Jackson 原生支持） */
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final ObjectMapper OBJECT_MAPPER = JsonMapper.builder().build();
 
     /**
      * 工具类禁止实例化
@@ -82,7 +83,7 @@ public final class PermissionStrategyPersistenceAssembler {
         }
         try {
             return OBJECT_MAPPER.writeValueAsString(conditions);
-        } catch (JsonProcessingException ex) {
+        } catch (JacksonException ex) {
             throw new DomainException(ErrorCode.PARAM_ERROR, "策略条件序列化失败：" + ex.getMessage());
         }
     }
@@ -101,7 +102,7 @@ public final class PermissionStrategyPersistenceAssembler {
             List<StrategyCondition> conditions = OBJECT_MAPPER
                     .readValue(conditionJson, new TypeReference<List<StrategyCondition>>() { });
             return conditions == null ? List.of() : conditions;
-        } catch (JsonProcessingException ex) {
+        } catch (JacksonException ex) {
             throw new DomainException(ErrorCode.PARAM_ERROR, "策略条件反序列化失败：" + ex.getMessage());
         }
     }
@@ -118,7 +119,7 @@ public final class PermissionStrategyPersistenceAssembler {
         }
         try {
             return OBJECT_MAPPER.writeValueAsString(ids);
-        } catch (JsonProcessingException ex) {
+        } catch (JacksonException ex) {
             throw new DomainException(ErrorCode.PARAM_ERROR, "策略目标集合序列化失败：" + ex.getMessage());
         }
     }
@@ -136,7 +137,7 @@ public final class PermissionStrategyPersistenceAssembler {
         try {
             List<Long> ids = OBJECT_MAPPER.readValue(json, new TypeReference<List<Long>>() { });
             return ids == null ? List.of() : ids;
-        } catch (JsonProcessingException ex) {
+        } catch (JacksonException ex) {
             throw new DomainException(ErrorCode.PARAM_ERROR, "策略目标集合反序列化失败：" + ex.getMessage());
         }
     }

@@ -2,11 +2,11 @@ package com.bluewhale.auth.infrastructure.importexport;
 
 import com.bluewhale.auth.application.model.importexport.UserImportRow;
 import com.bluewhale.auth.application.port.ImportBatchStore;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Duration;
 import java.util.List;

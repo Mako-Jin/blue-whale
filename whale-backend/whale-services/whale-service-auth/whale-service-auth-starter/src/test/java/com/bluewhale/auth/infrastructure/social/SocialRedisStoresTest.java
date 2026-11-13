@@ -2,13 +2,14 @@ package com.bluewhale.auth.infrastructure.social;
 
 import com.bluewhale.auth.application.model.social.SocialLoginCodeRecord;
 import com.bluewhale.auth.application.model.social.SocialStateRecord;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Duration;
 import java.util.Optional;
@@ -36,7 +37,7 @@ class SocialRedisStoresTest {
 
     private final StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
     private final ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = JsonMapper.builder().build();
 
     private RedisSocialStateStore stateStore;
     private RedisSocialLoginCodeStore codeStore;
