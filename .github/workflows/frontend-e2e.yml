@@ -143,11 +143,14 @@ jobs:
           # CI 冷启动首调 /auth/me 需全量加载权限/菜单（run#11 实测 4.5s），
           # 超过网关熔断默认 3s 会误降级 503，CI 环境放宽到 10s（仅作用于 runner 内进程）
           export WHALE_GATEWAY_CIRCUIT_BREAKER_TIMEOUT_MILLIS=10000
+          # 不要传 SPRING_DATA_REDIS_PASSWORD：compose 里的 bw-redis 关闭了 requirepass
+          # （redis.conf 明确「服务端未支持密码，容器不启用」）。一旦注入该变量，
+          # Redisson 会先 AUTH，被无密码的 Redis 拒绝，表现为
+          # "Unable to connect to Redis server: 127.0.0.1:6379"（E2E run#23 实证）。
           start_svc() {
             local name="$1" jar="$2" port="$3"
             MYSQL_USER="${{ env.CI_MYSQL_USER }}" \
             MYSQL_PASSWORD="${{ env.CI_MYSQL_PASSWORD }}" \
-            SPRING_DATA_REDIS_PASSWORD="${{ env.CI_REDIS_PASSWORD }}" \
             SPRING_CLOUD_NACOS_USERNAME=nacos \
             SPRING_CLOUD_NACOS_PASSWORD=nacos \
             WHALE_AUTH_ADMIN_INIT_PASSWORD="${{ env.CI_ADMIN_INIT_PASSWORD }}" \
