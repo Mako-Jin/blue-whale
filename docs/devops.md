@@ -23,7 +23,7 @@ docker compose ps           # 健康检查
 # 方式一：脚本拉起
 pwsh scripts/dev/whale-start-all.ps1
 # 方式二：单服务
-./mvnw -o -f whale-backend/pom.xml -pl whale-services/whale-gateway spring-boot:run
+./mvnw -o -f whale-backend/pom.xml -pl whale-services/whale-service-gateway spring-boot:run
 ```
 
 服务启动顺序建议：Nacos → gateway → service-auth → 其余按需；全部服务需 `WHALE_INTERNAL_TOKEN`（内网令牌，见 [backend.md](backend.md) 配置基线）。

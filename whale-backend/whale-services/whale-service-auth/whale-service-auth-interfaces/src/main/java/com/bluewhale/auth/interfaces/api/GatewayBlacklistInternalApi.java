@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import java.util.List;
 
 /**
- * 网关黑名单内网 API 契约：仅供 whale-gateway 定时拉取，不对外暴露。
+ * 网关黑名单内网 API 契约：仅供 whale-service-gateway 定时拉取，不对外暴露。
  *
  * <p>黑名单优先于白名单：网关先匹配本接口下发的规则，命中即 403。
  * 路径以 {@code /auth/v1/internal} 开头：网关 internal-deny 统一 403 外部访问，

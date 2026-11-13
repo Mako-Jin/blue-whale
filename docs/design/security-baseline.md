@@ -231,7 +231,7 @@
 | 登录到期标记、自助改密、管理员重置响应 | `AuthControllerTest`、`UserControllerTest`、`UserAppServiceTest` | 通过 |
 | 网关强制改密拦截 | `JwtAuthGlobalFilterTest` | 通过 |
 | auth 全量单测 | `mvn -pl whale-service-auth-starter -am test` | `Tests run: 475, Failures: 0, Errors: 0`（含新增 `FlywayMigrationScriptTest` 4 用例）+ Checkstyle 通过 |
-| 网关全量单测 | `mvn -pl whale-gateway -am test` | `Tests run: 122, Failures: 0, Errors: 0` |
+| 网关全量单测 | `mvn -pl whale-service-gateway -am test` | `Tests run: 122, Failures: 0, Errors: 0` |
 | Flyway 空库/存量库/checksum/并发/真启动实机验证（auth） | 本机 MySQL 8.0.45 + Flyway API/应用启动 | **已通过**，明细见 §5.3 |
 | Flyway 阶段 4 铺开单测（核心库） | `mvn -pl :whale-workflow,:whale-form,:whale-agent,:whale-doc,:whale-service-file-web -am test` | workflow 155 / form 118 / agent 136 / doc 18 / file-web 2 全绿 + Checkstyle 0 违规 |
 | Flyway 阶段 4 铺开单测（业务库） | `mvn -pl :whale-contract,:whale-erp,:whale-mes,:whale-oa,:whale-pdm,:whale-pm,:whale-archive,:whale-im,:whale-job,:whale-message,:whale-music,:whale-pay -am test` | 12 模块 656 用例全绿（含新增 24 个迁移脚本用例）+ Checkstyle 0 违规 |

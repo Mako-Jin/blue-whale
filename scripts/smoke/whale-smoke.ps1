@@ -36,7 +36,7 @@ $h = @{ Authorization = "Bearer $token" }
 
 # monitor
 Call 'P1 monitor/service/list' 'GET' "$gw/monitor/service/list" $h $null | Out-Null
-Call 'P2 monitor/instances(gateway)' 'GET' "$gw/monitor/service/whale-gateway/instances" $h $null | Out-Null
+Call 'P2 monitor/instances(gateway)' 'GET' "$gw/monitor/service/whale-service-gateway/instances" $h $null | Out-Null
 Call 'P2b monitor/instances(no-such-svc)' 'GET' "$gw/monitor/service/NO_SUCH_SVC/instances" $h $null | Out-Null
 
 # alert

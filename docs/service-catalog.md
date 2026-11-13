@@ -38,7 +38,7 @@
 
 | 项 | 说明 |
 |---|---|
-| 数据来源 | 实测核对：各服务 `src/main/resources/application.yml` 的 `server.port` / `spring.application.name` / `datasource.url`、`whale-gateway/application.yml` 路由、各前端 `vite.config.ts` 的 `server.port`、`infrastructure/docker/docker-compose*.yml`、本机 `Get-NetTCPConnection` 实监听核验 |
+| 数据来源 | 实测核对：各服务 `src/main/resources/application.yml` 的 `server.port` / `spring.application.name` / `datasource.url`、`whale-service-gateway/application.yml` 路由、各前端 `vite.config.ts` 的 `server.port`、`infrastructure/docker/docker-compose*.yml`、本机 `Get-NetTCPConnection` 实监听核验 |
 | 「本机状态」含义 | **已运行**＝本机实测监听/注册过；**可启动**＝模块已具备启动条件、尚未在本机启动；**规划**＝仅设计登记，无实现 |
 | 端口分段 | 见 §七；服务端口一律用 `${SERVER_PORT:xxxx}` 或 `${server.port:xxxx}` 外置可覆盖 |
 | 命名铁律 | `模块目录 == artifactId == spring.application.name == Nacos 服务名 == whale-<域>`（[naming-conventions.md](naming-conventions.md) §三） |
@@ -49,7 +49,7 @@
 
 | # | 服务名（Spring / Nacos） | 所属分组 | 模块目录 | 端口 | 对外一级前缀 | 网关路由 | 数据库（`bluewhale_<域>`） | 启动类 | 职责 | 本机状态 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| 1 | `whale-gateway` | whale-services | `whale-services/whale-gateway` | **8080** | ——（唯一入口） | —— | 无（仅 Redis 存放黑名单） | `WhaleGatewayApplication` | 统一入口：路由转发、JWT 鉴权、令牌黑名单校验、TraceId；限流（Redis 固定窗口）+ 熔断降级（resilience4j，Wave 6.15 起打开/恢复自动上报 whale-alert 落告警记录） | **已运行**（已在 Nacos 注册） |
+| 1 | `whale-service-gateway` | whale-services | `whale-services/whale-service-gateway` | **8080** | ——（唯一入口） | —— | 无（仅 Redis 存放黑名单） | `WhaleGatewayApplication` | 统一入口：路由转发、JWT 鉴权、令牌黑名单校验、TraceId；限流（Redis 固定窗口）+ 熔断降级（resilience4j，Wave 6.15 起打开/恢复自动上报 whale-alert 落告警记录） | **已运行**（已在 Nacos 注册） |
 | 2 | `whale-service-auth` | whale-services | `whale-services/whale-service-auth`（starter 模块 `whale-service-auth-starter`） | **8081** | `/auth/**`（另自持 `/user`、`/dept`、`/role`、`/menu`、`/permission`） | ✅ `lb://whale-service-auth` | **`bluewhale_auth`**（13 表，已建） | `WhaleAuthApplication` | 认证与权限中心：登录/刷新/注销、RBAC+ABAC、用户/部门/角色/菜单/权限 | **已运行**（已在 Nacos 注册） |
 | 3 | `whale-job` | whale-services | `whale-services/whale-job` | **8082** | `/job/**` | ✅ `lb://whale-job` | **`bluewhale_job`**（已建库） | `WhaleJobApplication` | 定时任务调度 | 可启动 |
 | 4 | `whale-workflow` | whale-services | `whale-services/whale-workflow` | **8083** | `/workflow/**` | ✅ `lb://whale-workflow` | **`bluewhale_workflow`**（已建库） | `WhaleWorkflowApplication` | 工作流引擎（审批流） | 可启动 |
@@ -93,7 +93,7 @@
 
 ---
 
-## 二、网关路由映射（`whale-gateway`，现配 35 条，含 2 条规划路由）
+## 二、网关路由映射（`whale-service-gateway`，现配 35 条，含 2 条规划路由）
 
 | 路由 id | 断言前缀 | 目标 URI | 对应服务 | 状态 |
 |---|---|---|---|---|
@@ -178,13 +178,13 @@
 |---|---|---|---|---|---|---|
 | 1 | **MySQL** | 业务库 + Nacos 外置存储 | **3306**（TCP） | 8.0.45（本机 `D:\mysql8`）／镜像 8.4（compose） | 本机原生；compose `bw-mysql` | **已运行**。库：`bluewhale_auth`、`bluewhale_audit`、`bluewhale_nacos`、`bluewhale_agent`、**`bluewhale_im`（规划，Wave 5.52）**、**`bluewhale_message`（M0，脚本已就绪）**、**`bluewhale_doc`（Wave 5.74，已建）**、**`bluewhale_music`（Wave 5.75 M0–M5，已建库 14 表）**、**`bluewhale_video`（Wave 5.77 M0–M5，Flyway `V1`–`V4` 就绪，待建库）**、**`bluewhale_scene`（Wave 5.77 M1/M2，Flyway `V1__baseline.sql` 5 表 + 审计/API 日志，初始化脚本已登记）**、**`bluewhale_crm`（Wave 5.77 门禁骨架，4 表 DDL 无业务种子）**、**`bluewhale_iot`（Wave 6.02，Flyway `V1` 6 表就绪，待建库）**（另有外部遗留 `yc-sts-db-auth` / `yc-sts-db-flow`，登记不改名） |
 | 2 | **Redis** | 令牌黑名单、i18n 缓存、分布式锁 | **6379**（TCP） | 5.0.14.1（本机 `tools/`）／镜像 7-alpine（compose） | 本机原生；compose `bw-redis` | **已运行** |
-| 3 | **Nacos** | 服务注册发现 + 配置中心 | **8848**（HTTP OpenAPI + 主服务）<br>**8849**（控制台，仅 3.x 独立控制台）<br>**9848**（gRPC 客户端→服务端）<br>**9849**（gRPC 服务端→服务端，集群） | 3.2.4（本机 `tools/nacos`）／镜像 3.2.4（compose） | 本机原生（standalone + MySQL 外置存储）；compose `bw-nacos` | **已运行**（3.2.4 实机启动验证：8848/8849 监听、`started successfully ... with external storage`；已注册 `whale-gateway` / `whale-service-auth` / `whale-audit`） |
+| 3 | **Nacos** | 服务注册发现 + 配置中心 | **8848**（HTTP OpenAPI + 主服务）<br>**8849**（控制台，仅 3.x 独立控制台）<br>**9848**（gRPC 客户端→服务端）<br>**9849**（gRPC 服务端→服务端，集群） | 3.2.4（本机 `tools/nacos`）／镜像 3.2.4（compose） | 本机原生（standalone + MySQL 外置存储）；compose `bw-nacos` | **已运行**（3.2.4 实机启动验证：8848/8849 监听、`started successfully ... with external storage`；已注册 `whale-service-gateway` / `whale-service-auth` / `whale-audit`） |
 | 4 | **RabbitMQ** | 审计日志汇聚、异步消息（规划） | **5672**（AMQP）<br>**15672**（Management 控制台） | 4-management-alpine | compose `bw-rabbitmq` | ⚠ **未启动**（compose 服务已定义，本机未拉起） |
 | 5 | **Nginx** | 反向代理 + 前端静态资源 + TLS | **80**（HTTP）<br>**443**（HTTPS） | 自建镜像（`infrastructure/docker/nginx`） | compose `bw-nginx` | ⚠ **未启动**（compose 服务已定义，本机未拉起） |
 | 6 | **Prometheus** | 指标采集 | **9090**（默认，`PROMETHEUS_HOST_PORT` 可覆盖） | v2.54.1（compose `PROMETHEUS_IMAGE`） | compose `bw-prometheus`（挂载 `infrastructure/prometheus/prometheus-docker.yml` + `deploy/monitoring/prometheus-rules.yml`） | **已运行**（healthcheck healthy；抓取宿主机 gateway/auth/workflow/contract 均为 up） |
 | 7 | **Grafana** | 监控看板 | **3000**（默认，`GRAFANA_HOST_PORT` 可覆盖） | 11.2.0（compose `GRAFANA_IMAGE`） | compose `bw-grafana`（provisioning 自动装配 Prometheus 数据源） | **已运行**（`/api/health` ok；数据源 `BlueWhale Prometheus` 已装配） |
 | 8 | **Alertmanager** | 告警路由（webhook → `whale-alert`） | **9093**（默认，`ALERTMANAGER_HOST_PORT` 可覆盖） | v0.27.0（compose `ALERTMANAGER_IMAGE`） | compose `bw-alertmanager`（挂载 `infrastructure/prometheus/alertmanager-docker.yml`） | **已运行**（`amtool check-config` SUCCESS，`/-/ready` 200） |
-| 9 | **Sentinel Dashboard** | 流控/熔断控制台（REQ-ARCH 限流方案） | **8858**（默认） | —— | **未引入**（`whale-gateway` 未接 Sentinel） | 规划 |
+| 9 | **Sentinel Dashboard** | 流控/熔断控制台（REQ-ARCH 限流方案） | **8858**（默认） | —— | **未引入**（`whale-service-gateway` 未接 Sentinel） | 规划 |
 | 10 | **EMQX** | MQTT Broker（IoT 设备接入，Wave 6.02） | **1883**（MQTT）<br>**1884**（MQTT over WS；容器内 8083，宿主机映射避让后端 8083-8085 号段）<br>**18083**（Dashboard/REST API） | 5.8（compose `EMQX_IMAGE`） | compose `bw-emqx`（`infrastructure/docker/docker-compose.yml`） | 🟡 **已定义未启动**（`.env` 需配置 `EMQX_DASHBOARD_PASSWORD`；认证 Webhook 对接 whale-iot `/iot/internal/emqx/**`） |
 
 > Nacos 版本以本机实装 **3.2.4**（`tools/nacos` 解压体，JAR MANIFEST `Implementation-Version: 3.2.4`）为准，compose 镜像已统一 v3.2.4（T-16 口径变更，2026-10-30 实机启动验证通过）；健康检查使用 `/nacos/actuator/health`，控制台为独立端口 8849。
@@ -206,7 +206,7 @@
 | **8002** | `whale-form-designer` | 前端（独立 SPA） | 表单设计器 |
 | **8003** | `whale-workflow-designer` | 前端（独立 SPA） | 工作流设计器 |
 | **8004** | `whale-agent` | 前端（独立 SPA） | 知识问答工作台（Wave 5.47） |
-| **8080** | `whale-gateway` | 后端 | **唯一 API 入口** |
+| **8080** | `whale-service-gateway` | 后端 | **唯一 API 入口** |
 | **8081** | `whale-service-auth` | 后端 | 认证与权限中心 |
 | **8082** | `whale-job` | 后端 | 定时任务 |
 | **8083** | `whale-workflow` | 后端 | 工作流 |
@@ -319,7 +319,7 @@
 | `PROMETHEUS_HOST_PORT` / `ALERTMANAGER_HOST_PORT` / `GRAFANA_HOST_PORT` | 可观测性端口 | `9090` / `9093` / `3000` | compose `bw-prometheus` / `bw-alertmanager` / `bw-grafana` |
 | `PROMETHEUS_RETENTION` | 指标保留期 | `15d` | compose `bw-prometheus` |
 | `GRAFANA_ADMIN_PASSWORD` | Grafana 管理员口令 | `admin`（仅供本机） | compose `bw-grafana` |
-| `REDIS_HOST` / `REDIS_PORT` | Redis | `127.0.0.1` / `6379` | whale-gateway、whale-service-auth、**whale-im**（seq/ticket/presence） |
+| `REDIS_HOST` / `REDIS_PORT` | Redis | `127.0.0.1` / `6379` | whale-service-gateway、whale-service-auth、**whale-im**（seq/ticket/presence） |
 | `MYSQL_USER` / `MYSQL_PASSWORD` | 库账号 | 见各 yml | whale-service-auth、whale-audit、**whale-im**、**whale-message** |
 | `WHALE_CONFIG_ENC_KEY` | 配置密文 `ENC(...)` 解密密钥（REQ-SEC-020）；至少 16 字符，生产必须由密钥管理系统注入 | 空（存在密文则启动失败） | 引入 `whale-config-crypto` 的服务（auth 已接入，其余按阶段铺开） |
 | `WHALE_AUTH_PASSWORD_MAX_AGE_DAYS` / `WARN_DAYS` | 全局口令有效期 / 提前提醒天数（REQ-SEC-023） | `90` / `7` | whale-service-auth；租户可用 `PUT /tenant/v1/password-policy` 覆盖（1–365 天） |
@@ -339,7 +339,7 @@
 | `WHALE_SCENE_3D_ENABLED` | 场景 3D 增强层开关（M3） | `false` | whale-scene（关闭时仅 2D 导航，前端自动降级） |
 | `WHALE_SCENE_NAV_MAX_NODES` | 单场景节点上限 | `200` | whale-scene（超过拒绝发布） |
 | `JWT_SECRET` | 认证签名密钥 | 开发占位（非 dev 拒绝启动） | whale-service-auth |
-| `WHALE_GATEWAY_JWT_SECRET` | 网关校验密钥 | 开发占位 | whale-gateway |
+| `WHALE_GATEWAY_JWT_SECRET` | 网关校验密钥 | 开发占位 | whale-service-gateway |
 | `SPRING_PROFILES_ACTIVE` | 环境 | `dev` | 全部服务 |
 
 > ⚠ 注意：`NACOS_ADDR`（网关）与 `NACOS_SERVER`（其余服务）**两个变量名不一致**，见 §九 偏差 C-05。
@@ -352,9 +352,9 @@
 |---|---|---|---|
 | **C-01** | ~~前端 dev 端口与后端冲突：`whale-frontend/admin` 8080 = 网关 8080、`whale-frontend/ops` 8081 = `whale-auth` 8081~~ | **已解** | **✅ 已整改**：admin → **8001**、ops → **8104**，与后端端口区段无冲突 |
 | **C-02** | ~~`whale-auth` 端口硬编码 `server.port: 8081`~~ | **已解（2026-10-26）** | **✅ 已整改**：改为 `${SERVER_PORT:8081}`，服务端口全部可外置覆盖 |
-| **C-03** | ~~`whale-gateway` **缺 5 条路由**：`/erp/**`、`/mes/**`、`/pdm/**`、`/oa/**`、`/config/**`~~ | **已解（2026-10-25）** | **✅ 已整改**：5 条路由已写入 `whale-gateway/src/main/resources/application.yml`，统一 `lb://`（自持一级前缀，不含 `StripPrefix`）；基座同步挂载 `/mes/*`、`/pdm/*` 并补菜单/图标；路由冒烟需服务与 Nacos 就绪后执行 |
+| **C-03** | ~~`whale-service-gateway` **缺 5 条路由**：`/erp/**`、`/mes/**`、`/pdm/**`、`/oa/**`、`/config/**`~~ | **已解（2026-10-25）** | **✅ 已整改**：5 条路由已写入 `whale-service-gateway/src/main/resources/application.yml`，统一 `lb://`（自持一级前缀，不含 `StripPrefix`）；基座同步挂载 `/mes/*`、`/pdm/*` 并补菜单/图标；路由冒烟需服务与 Nacos 就绪后执行 |
 | **C-04** | ~~Nacos 版本/端口不一致：本机 3.2.4（控制台 8849）vs compose 镜像 2.3.2（控制台 8848）~~ | **已解（2026-10-26；2026-10-30 升级闭环）** | **✅ 已整改**：以本机实装 **2.4.0** 为准，compose `NACOS_IMAGE` 统一 `nacos/nacos-server:v2.4.0`，健康检查 `/nacos/actuator/health`；本机监听 8848/9848（无 8849 独立控制台）。**口径变更（2026-10-30，T-16 拍板）**：统一升级 Nacos **3.x（v3.2.4**，Wave 5.1f/5.1g 时期验证过的 3.x 版本）——compose `NACOS_IMAGE` 默认值、`.env.example`、check-env 提示已同步。**本机实机升级已完成（2026-10-30）**：`tools/nacos` 即为 3.2.4 解压体（MANIFEST `Implementation-Version: 3.2.4`、`Build-Jdk-Spec 17`、Spring Boot 3.5.14，含 `plugins/` 的 default-auth/oidc/datasource 插件），`scripts/dev/whale-stack*.ps1` 写死的 `D:\tools\installer\nacos` 已改为工作区 `tools/nacos`；standalone + 外置 MySQL（`bluewhale_nacos`）实测启动，8848 主服务与 8849 控制台监听、日志 `Nacos started successfully in stand alone mode with external storage`。仅剩 B-01：`docker compose config` 与容器内健康检查验证 |
-| **C-05** | ~~注册中心环境变量名分裂：网关 `NACOS_ADDR` vs 其余 `NACOS_SERVER`~~ | **已解（2026-10-26）** | **✅ 已整改**：`whale-gateway`/`whale-auth` 改为 `${NACOS_SERVER:${NACOS_ADDR:127.0.0.1:8848}}`，统一首选 `NACOS_SERVER` 且保留 `NACOS_ADDR` 回退；`scripts/dev/whale-start-all.ps1` 同步传 `NACOS_SERVER` |
+| **C-05** | ~~注册中心环境变量名分裂：网关 `NACOS_ADDR` vs 其余 `NACOS_SERVER`~~ | **已解（2026-10-26）** | **✅ 已整改**：`whale-service-gateway`/`whale-auth` 改为 `${NACOS_SERVER:${NACOS_ADDR:127.0.0.1:8848}}`，统一首选 `NACOS_SERVER` 且保留 `NACOS_ADDR` 回退；`scripts/dev/whale-start-all.ps1` 同步传 `NACOS_SERVER` |
 | **C-06** | ~~8 个业务服务库在规范 §八 已登记库名，但 `application.yml` **均未配数据源**、库亦未建~~ | **已解（2026-10-27）** | **✅ 已整改**：auth/audit/job/workflow/form/file/pay/alert 共 8 个服务均已配数据源并建库（原 `whale-i18n` 服务及 `bluewhale_i18n` 库已于 Wave 5.50 删除，国际化改由 SDK 在各服务库内自建 `sys_i18n_message`）；`erp/mes/pdm/oa` 四个业务应用也已分别接入 `bluewhale_erp` / `bluewhale_mes` / `bluewhale_pdm` / `bluewhale_oa` 独立数据源，compose 初始化脚本创建 4 库，各应用 `db/init.sql` 各建 2 张表。**C-06 全部闭环** |
 | **C-07** | ~~Prometheus/Grafana/Sentinel 仅在文档中「规划」，compose 未定义、网关未接 Sentinel~~ | **已解（2026-10-26）** | **✅ Prometheus/Grafana/Alertmanager 已落地**：compose 新增 `bw-prometheus`(9090)/`bw-grafana`(3000)/`bw-alertmanager`(9093)，配置 `infrastructure/prometheus/prometheus-docker.yml`、`alertmanager-docker.yml`、Grafana provisioning 数据源，规则复用 `deploy/monitoring/prometheus-rules.yml`；实机 healthy，宿主机 gateway/auth/workflow/contract 抓取 up。**Sentinel 结案不引入**（见 [GW-01 评估](reviews/2026-10-21-wave5.35-sentinel-evaluation.md)）：限流由网关 `RateLimitGlobalFilter`（Redis 固定窗口，`whale.gateway.rate-limit.*`，429）承担，熔断由 `CircuitBreakerGlobalFilter`（resilience4j，`whale.gateway.circuit-breaker.*`，503）承担；重开条件为具备制品库/Dashboard 或出现热点参数、集群流控等现有方案不覆盖的诉求。**实机验证（2026-10-26）**：`/audit/log/behavior/batch` 特化规则 30/s，并发 60 次得 30 个 429 + 30 个 503；全局规则 200/s，并发 400 次得 18 个 429；`whale.gateway.rate-limit` 计数键正常落 Redis，无降级告警 |
 | **C-08** | `whale-scene` M1/M2 已落地；`whale-crm` M0–M2 已落地（前端客户域 + 销售域已建） | **部分落地** | Wave 5.77 场景（2D 优先）与 Wave 5.83 CRM 首切片（M0 底座 + M1 客户主数据 + M2 销售域后端）均已交付；2026-11-06 新建前端 **8113**（`whale-crm`、base `/crm`）：Step 1a 客户列表/客户 360/联系人/地址/跟进/公海（菜单 **413–416**），Step 1b 线索/商机与漏斗/报价/预测与目标（菜单 **417–420**），两个迁移均幂等且不新增权限。商务（M3）已完成（7f-1/2/3）、售后（M4）已完成（7f-4a 工单与 SLA、7f-4b 知识引用与满意度、7f-4c 退换货），营销（M5）、分析（M6）见 [Wave 5.83 计划](plans/2026-11-04-wave5.83-crm-panorama.md) §12 |

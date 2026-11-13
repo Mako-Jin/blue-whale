@@ -21,7 +21,7 @@ import java.util.List;
  * HTTP 失败、超时与响应解析失败均以错误信号返回，由 {@link RouteOverrideProvider}
  * 决定「保留上一份快照」。</p>
  *
- * <p>whale-gateway 为 WebFlux 栈，不能引入 Servlet 栈的 whale-common starter，
+ * <p>whale-service-gateway 为 WebFlux 栈，不能引入 Servlet 栈的 whale-common starter，
  * 内网令牌头常量在此独立定义（与 {@code InternalTokenProperties} 约定一致）。</p>
  *
  * @author BlueWhale
@@ -106,12 +106,17 @@ public class AuthGatewayRouteOverrideClient {
 
     /**
      * 响应信封（{@code Result} 结构）：{@code {code, message, data:{items:[]}}}
+     *
+     * @param code 响应码
+     * @param data 覆盖数据体
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     record SnapshotDto(int code, DataDto data) {
 
         /**
          * 覆盖数据体
+         *
+         * @param items 覆盖条目列表
          */
         @JsonIgnoreProperties(ignoreUnknown = true)
         record DataDto(List<ItemDto> items) {
@@ -119,6 +124,12 @@ public class AuthGatewayRouteOverrideClient {
 
         /**
          * 覆盖条目
+         *
+         * @param routeId 路由 ID
+         * @param enabled 是否生效
+         * @param effectiveFrom 生效起始时间
+         * @param effectiveTo 生效截止时间
+         * @param version 版本号
          */
         @JsonIgnoreProperties(ignoreUnknown = true)
         record ItemDto(String routeId, Boolean enabled, LocalDateTime effectiveFrom,

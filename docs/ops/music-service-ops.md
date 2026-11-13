@@ -27,7 +27,7 @@
 | 上游依赖 | `whale-file`（音频字节与文件元信息）、`whale-message`（可选通知，旁路） |
 | 镜像 | 后端 `ghcr.io/<repo>/whale-music`；前端 `ghcr.io/<repo>/whale-frontend/whale-music` |
 
-网关路由（`whale-backend/whale-services/whale-gateway/src/main/resources/application.yml`）：
+网关路由（`whale-backend/whale-services/whale-service-gateway/src/main/resources/application.yml`）：
 
 - `whale-music`：`lb://whale-music`，`Path=/music/**`。
 - 内网屏蔽：`/music/internal/**`（403；当前服务尚未暴露内网端点，规则先行为后续预留）。

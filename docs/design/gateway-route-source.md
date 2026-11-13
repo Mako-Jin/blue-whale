@@ -4,7 +4,7 @@
 |---|---|
 | 状态 | Phase 0/1/2 已落地（2026-11-13）；Phase 2 运行时验收（停用 ≤60s 生效取证）待真机重启后执行 |
 | 关联需求 | REQ-ARCH-003（服务自持一级前缀）、REQ-CONFIG（路由配置治理） |
-| 落点 | `whale-gateway`（路由解析/校验/治理端点）、`whale-service-auth`（Phase 2 覆盖数据） |
+| 落点 | `whale-service-gateway`（路由解析/校验/治理端点）、`whale-service-auth`（Phase 2 覆盖数据） |
 | 台账 | [whale-gateway-backlog GW-10](../plans/whale-gateway-backlog.md) |
 
 ## 1. 现状与问题

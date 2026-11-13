@@ -61,7 +61,7 @@
 
 | 服务 | 端口 | 对外前缀 | 数据库（`bluewhale_<域>`） | 限界上下文与职责 |
 |---|---|---|---|---|
-| whale-gateway | 8080 | ——（唯一入口） | ——（Redis 存黑名单） | **接入网关**：路由转发、JWT 鉴权、令牌黑名单、限流 429（Redis 固定窗口）、熔断 503（resilience4j）、TraceId、内网路径屏蔽（internal-deny + 令牌头剥离） |
+| whale-service-gateway | 8080 | ——（唯一入口） | ——（Redis 存黑名单） | **接入网关**：路由转发、JWT 鉴权、令牌黑名单、限流 429（Redis 固定窗口）、熔断 503（resilience4j）、TraceId、内网路径屏蔽（internal-deny + 令牌头剥离） |
 | whale-service-auth | 8081 | `/auth` `/user` `/dept` `/role` `/menu` `/permission` `/tenant` | bluewhale_auth | **身份与权限**：登录/刷新/注销（令牌轮换与撤销）、RBAC+ABAC、用户/部门/角色/菜单/权限/租户、权限缓存广播与重对齐 |
 | whale-job | 8082 | `/job` | bluewhale_job | **任务调度**：定时任务注册/调度/重对齐 |
 | whale-workflow | 8083 | `/workflow` | bluewhale_workflow | **工作流**：BPMN 流程定义/发起/审批/待办，业务回调 |

@@ -35,7 +35,7 @@ import java.util.Map;
  * {@code RequirePermissionInterceptor} 将据此拒绝受保护查询。</p>
  *
  * <p><b>为何在网关自定义头常量而不复用 starter 的 {@code com.bluewhale.common.web.WebHeaders}</b>：
- * whale-gateway 为 WebFlux 响应式栈，引入 {@code whale-spring-boot-starter}（Servlet/WebMvc）会与
+ * whale-service-gateway 为 WebFlux 响应式栈，引入 {@code whale-spring-boot-starter}（Servlet/WebMvc）会与
  * WebFlux 冲突；故此处独立定义头常量，属可接受的跨栈重复。</p>
  *
  * @author BlueWhale

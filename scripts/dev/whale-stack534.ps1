@@ -76,7 +76,7 @@ function Start-Svc($name, $jar, $port) {
 }
 
 $env:NACOS_ADDR = '127.0.0.1:8848'
-Start-Svc 'gateway' "$base\whale-services\whale-gateway\target\whale-gateway.jar" 8080
+Start-Svc 'gateway' "$base\whale-services\whale-service-gateway\target\whale-service-gateway.jar" 8080
 Remove-Item Env:\NACOS_ADDR
 Start-Svc 'auth' "$base\whale-services\whale-service-auth\whale-service-auth-starter\target\whale-service-auth.jar" 8081
 Start-Svc 'job'  "$base\whale-services\whale-job\target\whale-job.jar"  8082

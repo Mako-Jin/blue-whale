@@ -91,7 +91,7 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 
 | 区段 | 用途 | 现状占用 |
 |---|---|---|
-| `8080` | API 网关（唯一入口） | whale-gateway |
+| `8080` | API 网关（唯一入口） | whale-service-gateway |
 | `8081–8099` | 核心服务 | auth 8081、job 8082、workflow 8083、form 8084、file 8085、pay 8086（8087 随 `whale-i18n` 删除释放，Wave 5.50）、agent 8090、im 8091、ai 8092（Python，仅内网）、archive 8093、message 8094、**doc 8095（Wave 5.74 M1 骨架）**、**music 8096（Wave 5.75 M0 骨架）**、**scene 8097（Wave 5.77 M1/M2 2D 已落地）**、**video 8098（Wave 5.77 M0–M5 已落地）** |
 | `9001–9099` | 业务应用 | erp 9001、mes 9002、pdm 9003、oa 9004、pm 9005、contract 9006、**crm 9007（Wave 5.77 门禁骨架）**、**lms 9008（Wave 5.87 学习培训考试）**、**party 9009（Wave 5.88 党政工会）**、**mall 9010（Wave 5.94 商城）**、**forum 9011（Wave 6.43 员工论坛；8081–8099 已满，例外借用本段，见 service-catalog §七）** |
 | `9101–9199` | 运维服务 | audit 9101、monitor 9102、alert 9103 |
@@ -178,7 +178,7 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 | common | whale-spring-boot-starter | — | — | `com.bluewhale.starter.autoconfigure` + `com.bluewhale.common.*` | — |
 | sdk | whale-auth-sdk | — | — | `com.bluewhale.auth.sdk` | — |
 | sdk | whale-i18n-sdk | — | — | `com.bluewhale.i18n.sdk`（目标，现为 `com.bluewhale.i18n`） | — |
-| services | whale-gateway | whale-gateway | 无 | `com.bluewhale.gateway` | 8080 |
+| services | whale-service-gateway | whale-service-gateway | 无 | `com.bluewhale.gateway` | 8080 |
 | services | whale-service-auth | whale-service-auth | `bluewhale_auth` ✔ | `com.bluewhale.auth` | 8081 |
 | services | whale-job | whale-job | `bluewhale_job`（规划） | `com.bluewhale.job` | 8082 |
 | services | whale-workflow | whale-workflow | `bluewhale_workflow`（规划） | `com.bluewhale.workflow` | 8083 |

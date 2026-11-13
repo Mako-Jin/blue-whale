@@ -21,7 +21,7 @@ import java.util.Map;
  * 显式携带内网令牌头并强制超时。HTTP 失败、超时与响应解析失败均以错误信号返回，
  * 由 {@link GatewayAccessListProvider} 决定「保留上一份快照」，避免短暂抖动清空名单。</p>
  *
- * <p>whale-gateway 为 WebFlux 栈，不能引入 Servlet 栈的 whale-common starter，
+ * <p>whale-service-gateway 为 WebFlux 栈，不能引入 Servlet 栈的 whale-common starter，
  * 因此内网令牌头常量在此独立定义（与 {@code InternalTokenProperties} 约定一致）。</p>
  *
  * @author BlueWhale

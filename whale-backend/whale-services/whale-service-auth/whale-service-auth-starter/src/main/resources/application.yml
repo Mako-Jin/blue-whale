@@ -82,7 +82,7 @@ whale:
       fail-closed: ${SECURITY_DEGRADATION_FAIL_CLOSED:false}
   auth:
     jwt:
-      # HS256 签名密钥，与 whale-gateway 保持完全一致；生产环境务必覆盖
+      # HS256 签名密钥，与 whale-service-gateway 保持完全一致；生产环境务必覆盖
       secret: ${JWT_SECRET:bluewhale-jwt-secret-2026-please-change-in-production}
       expire-minutes: 120
       refresh-expire-minutes: 1440

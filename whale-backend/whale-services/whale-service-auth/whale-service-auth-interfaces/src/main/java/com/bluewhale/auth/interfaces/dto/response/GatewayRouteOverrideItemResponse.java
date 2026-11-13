@@ -3,7 +3,7 @@ package com.bluewhale.auth.interfaces.dto.response;
 import java.time.LocalDateTime;
 
 /**
- * 网关路由覆盖下发项响应（仅供 whale-gateway 定时拉取）。
+ * 网关路由覆盖下发项响应（仅供 whale-service-gateway 定时拉取）。
  *
  * <p>下发全部条目（含停用与窗口外条目），生效判定由网关按当前时间执行，
  * 时间窗口随时间推移自动进入/退出生效态，无需重新下发。</p>

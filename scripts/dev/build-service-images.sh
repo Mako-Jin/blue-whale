@@ -25,7 +25,7 @@ JARS_DIR="$ROOT/deploy/backend/jars"
 
 # 服务名:jar 所在模块目录（auth 的产物在 starter 子模块）
 SERVICE_JAR_DIRS=(
-  "gateway:whale-backend/whale-services/whale-gateway"
+  "gateway:whale-backend/whale-services/whale-service-gateway"
   "auth:whale-backend/whale-services/whale-service-auth/whale-service-auth-starter"
   "pay:whale-backend/whale-services/whale-pay"
   "erp:whale-backend/whale-apps/whale-erp"

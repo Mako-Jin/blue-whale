@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  whale-gateway - API 网关
+  whale-service-gateway - API 网关
   基于 Spring Cloud Gateway（响应式，非 Servlet 栈）
   注意：不能引入 spring-boot-starter-web，需用 spring-cloud-starter-gateway
 -->
@@ -16,7 +16,7 @@
         <relativePath>../../whale-parent/pom.xml</relativePath>
     </parent>
 
-    <artifactId>whale-gateway</artifactId>
+    <artifactId>whale-service-gateway</artifactId>
     <name>Whale Gateway</name>
     <description>API 网关 - Spring Cloud Gateway</description>
 

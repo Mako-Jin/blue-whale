@@ -260,7 +260,7 @@ public @interface AuditLog {
 客户端请求
   │
   ▼
-whale-gateway
+whale-service-gateway
   ├─ TraceIdGlobalFilter(order=-200)：读入站 X-Trace-Id，缺失则生成 32 位 UUID；
   │                                      写入下游请求头 + 响应头
   └─ JwtAuthGlobalFilter(order=-100)：解析 JWT → 注入 X-User-Id / X-Username / X-User-Roles

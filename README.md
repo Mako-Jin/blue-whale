@@ -77,7 +77,7 @@ docker compose up -d
 ./mvnw -f whale-backend/pom.xml clean install -DskipTests
 
 # 启动 API 网关
-./mvnw -f whale-backend/pom.xml -pl whale-services/whale-gateway -am spring-boot:run
+./mvnw -f whale-backend/pom.xml -pl whale-services/whale-service-gateway -am spring-boot:run
 
 # 启动权限中心
 ./mvnw -f whale-backend/pom.xml -pl whale-services/whale-service-auth/whale-service-auth-starter -am spring-boot:run

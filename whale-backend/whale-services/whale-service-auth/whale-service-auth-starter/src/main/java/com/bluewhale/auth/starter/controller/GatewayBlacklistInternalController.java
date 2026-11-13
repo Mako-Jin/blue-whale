@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * 网关黑名单内网接口实现（Web 适配层）：仅供 whale-gateway 定时拉取。
+ * 网关黑名单内网接口实现（Web 适配层）：仅供 whale-service-gateway 定时拉取。
  *
  * <p>外部访问由网关 internal-deny 拦截，服务侧令牌由 {@code InternalTokenFilter} 校验。</p>
  *

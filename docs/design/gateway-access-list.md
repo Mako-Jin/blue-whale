@@ -4,7 +4,7 @@
 |---|---|
 | 状态 | 已落地（2026-11-12，Wave 6.64 白名单 / Wave 6.65 黑名单 / Wave 6.67 管理端页面） |
 | 关联需求 | REQ-ARCH-003（服务自持一级前缀）、REQ-FUNC-006（内网接口收敛） |
-| 落点 | `whale-service-auth`（数据 + 只读内部接口）、`whale-gateway`（拉取与匹配） |
+| 落点 | `whale-service-auth`（数据 + 只读内部接口）、`whale-service-gateway`（拉取与匹配） |
 | 台账 | [whale-auth-backlog AUTH-40/AUTH-41](../plans/whale-auth-backlog.md)、[whale-gateway-backlog GW-08/GW-09](../plans/whale-gateway-backlog.md) |
 
 ## 1. 背景与目标

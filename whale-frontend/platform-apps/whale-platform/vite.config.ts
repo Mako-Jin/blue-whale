@@ -2,10 +2,10 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
 
-// 开发态网关地址（whale-gateway 默认 8080）
+// 开发态网关地址（whale-service-gateway 默认 8080）
 const GATEWAY_TARGET = 'http://127.0.0.1:8080';
 
-// 网关一级前缀：与 whale-gateway 路由保持一致，新增服务时同步补充
+// 网关一级前缀：与 whale-service-gateway 路由保持一致，新增服务时同步补充
 const GATEWAY_PREFIXES = [
   '/v1',
   '/auth',

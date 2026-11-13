@@ -339,7 +339,7 @@ def gateway_patterns(repo_root: Path) -> list[str]:
     :param repo_root: 仓库根
     :return: 网关收口模式列表
     """
-    yml = repo_root / BACKEND_DIR / "whale-services/whale-gateway/src/main/resources/application.yml"
+    yml = repo_root / BACKEND_DIR / "whale-services/whale-service-gateway/src/main/resources/application.yml"
     patterns = read_yaml_list(yml, "internal-deny", "patterns")
     return patterns if patterns else list(DEFAULT_GATEWAY_PATTERNS)
 

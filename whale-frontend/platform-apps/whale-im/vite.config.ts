@@ -6,7 +6,7 @@ import path from 'node:path';
 
 const microAppName = 'whale-im';
 
-// 开发态网关地址（whale-gateway 默认 8080）
+// 开发态网关地址（whale-service-gateway 默认 8080）
 const GATEWAY_TARGET = 'http://127.0.0.1:8080';
 
 interface ProxyRequest {

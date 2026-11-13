@@ -23,7 +23,7 @@
 | 权限码 | `sys:doc:*`（251–279） |
 | 角色 | `doc_manager`（25101）、`doc_member`（25102） |
 
-网关路由（`whale-backend/whale-services/whale-gateway/src/main/resources/application.yml`）：
+网关路由（`whale-backend/whale-services/whale-service-gateway/src/main/resources/application.yml`）：
 
 - `whale-doc-ws`：`lb:ws://whale-doc`，`Path=/doc/ws`，`order=-1`（WS 升级先于 REST）。
 - `whale-doc`：`lb://whale-doc`，`Path=/doc/**`。

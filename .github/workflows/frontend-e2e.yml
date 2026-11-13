@@ -119,7 +119,7 @@ jobs:
       - name: Build backend jars
         run: >
           ./mvnw -B -ntp -T 1C -DskipTests package -f whale-backend/pom.xml
-          -pl whale-services/whale-gateway,whale-services/whale-service-auth/whale-service-auth-starter,whale-services/whale-workflow,whale-services/whale-form
+          -pl whale-services/whale-service-gateway,whale-services/whale-service-auth/whale-service-auth-starter,whale-services/whale-workflow,whale-services/whale-form
           -am
 
       - name: Start backend services
@@ -139,7 +139,7 @@ jobs:
             nohup java -jar "$jar" > "logs/$name.out.log" 2>&1 &
             echo "started $name (expect :$port)"
           }
-          start_svc gateway  whale-backend/whale-services/whale-gateway/target/whale-gateway.jar 8080
+          start_svc gateway  whale-backend/whale-services/whale-service-gateway/target/whale-service-gateway.jar 8080
           start_svc auth     whale-backend/whale-services/whale-service-auth/whale-service-auth-starter/target/whale-service-auth.jar 8081
           start_svc workflow whale-backend/whale-services/whale-workflow/target/whale-workflow.jar 8083
           start_svc form     whale-backend/whale-services/whale-form/target/whale-form.jar 8084

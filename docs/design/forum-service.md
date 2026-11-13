@@ -348,7 +348,7 @@ M4 落地口径：检索走 `FULLTEXT(title, content_text) WITH PARSER ngram`（
 ## 9. 编排与门禁接线清单（实施时逐项打勾）
 
 - [ ] `whale-backend/pom.xml` 聚合 + `whale-services/whale-forum` 模块（五同名）
-- [ ] `whale-gateway/application.yml`：`lb://whale-forum` + `Path=/forum/**` + internal-deny `/forum/internal/**`（**不配 StripPrefix**）
+- [ ] `whale-service-gateway/application.yml`：`lb://whale-forum` + `Path=/forum/**` + internal-deny `/forum/internal/**`（**不配 StripPrefix**）
 - [ ] `infrastructure/docker/docker-compose.services.yml` + mysql init 建库 `bluewhale_forum` + Prometheus `job_name: whale-forum` + 镜像矩阵 9011
 - [ ] naming-conventions §八 登记 `forum` 域词 / `fm_` 前缀；service-catalog §一/§七 登记 9011 例外与前端 8123
 - [ ] 权限迁移幂等（`IF NOT EXISTS`）+ 授权按 perm_code + 角色播种走 `check-role-coverage.py`

@@ -20,7 +20,7 @@ import java.util.UUID;
 
 /**
  * JWT Token 提供者（jjwt 0.12 API，HS256）
- * <p>与 whale-gateway 约定：</p>
+ * <p>与 whale-service-gateway 约定：</p>
  * <ul>
  *   <li>算法 HS256，secret = whale.auth.jwt.secret</li>
  *   <li>claims：sub=username、userId、roles（逗号分隔角色 code）、tokenType（access/refresh）、jti、

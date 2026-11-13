@@ -143,7 +143,7 @@ increase(forum_count_reconcile_diff_total{application="whale-forum"}[24h]) > 0
 | 端点 | HTTP 状态 |
 | --- | --- |
 | `http://127.0.0.1:8081/actuator/prometheus`（whale-auth） | 200 |
-| `http://127.0.0.1:8080/actuator/prometheus`（whale-gateway） | 200 |
+| `http://127.0.0.1:8080/actuator/prometheus`（whale-service-gateway） | 200 |
 
 实际指标命名（Boot 4.0.8 / Micrometer 1.16.7）：
 
@@ -275,8 +275,8 @@ curl -X POST http://127.0.0.1:9103/alert/internal/prometheus `
 
 ## 本地监控闭环验证（2026-10-23）
 
-- 启动组合：MySQL 3306 + Redis 6379 + Nacos 8848 + whale-gateway 8080 + whale-auth 8081 + whale-audit 9101 + Prometheus 9090 + Grafana 3000。
-- 抓取结果：`whale-gateway` / `whale-auth` / `whale-ops(9101)` 三个目标 `up=1`；其余 15 个未启动目标 `down` 并触发 `ServiceDown`（本地按需启动，属预期）。
+- 启动组合：MySQL 3306 + Redis 6379 + Nacos 8848 + whale-service-gateway 8080 + whale-auth 8081 + whale-audit 9101 + Prometheus 9090 + Grafana 3000。
+- 抓取结果：`whale-service-gateway` / `whale-auth` / `whale-ops(9101)` 三个目标 `up=1`；其余 15 个未启动目标 `down` 并触发 `ServiceDown`（本地按需启动，属预期）。
 - 实测指标：登录 P95 ≈ 0.153s；平台总 QPS ≈ 0.42；审计上报 QPS ≈ 0.086；whale-auth 堆使用率 ≈ 18%。
 - 校验方式：`/api/v1/rules`（3 组 5 条）、`/api/v1/alerts`（15 条 ServiceDown FIRING）、Grafana `/api/dashboards/uid/bluewhale-overview`（16 panels）、Grafana `/api/ds/query`（返回 0.389）。
 - 已知问题与处理：Grafana 首次启动报 `Datasource provisioning error: data source not found`（旧 `grafana.db` 数据源 uid 与新增 `uid: prometheus` 冲突），备份 `grafana.db` 后重建即恢复；旧库已保留为 `grafana.db.bak-20261023`。

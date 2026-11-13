@@ -21,7 +21,7 @@ public class JwtProperties {
      */
     public static final String DEFAULT_PLACEHOLDER_SECRET = "bluewhale-jwt-secret-2026-please-change-in-production";
 
-    /** HS256 签名密钥（与 whale-gateway 保持完全一致，生产环境务必通过环境变量覆盖） */
+    /** HS256 签名密钥（与 whale-service-gateway 保持完全一致，生产环境务必通过环境变量覆盖） */
     private String secret = DEFAULT_PLACEHOLDER_SECRET;
 
     /** accessToken 有效期（分钟） */

@@ -3,7 +3,9 @@ server:
 
 spring:
   application:
-    name: whale-gateway
+    # 与 whale-service-auth 命名口径一致；Nacos dataId（whale-gateway-routes/access-list.yaml）
+    # 为既有外部配置资产，重命名需运维同步发布，故沿用历史 dataId
+    name: whale-service-gateway
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
   # T5 Nacos 动态路由：从 Nacos 导入网关动态路由配置（dataId/group 见 NacosRouteDefinitionRepository）；

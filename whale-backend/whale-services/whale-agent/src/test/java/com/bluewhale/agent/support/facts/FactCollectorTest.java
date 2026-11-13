@@ -36,7 +36,7 @@ class FactCollectorTest {
                 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
                 | 1 | `whale-demo` | whale-services | `whale-services/whale-demo` | 8099 | `/demo` | `lb://whale-demo` | `bluewhale_demo` | `WhaleDemoApplication` | 演示服务 | 已运行 |
                 """);
-        write(root.resolve("whale-backend/whale-services/whale-gateway/src/main/resources/application.yml"), """
+        write(root.resolve("whale-backend/whale-services/whale-service-gateway/src/main/resources/application.yml"), """
                 spring:
                   cloud:
                     gateway:

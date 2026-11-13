@@ -30,7 +30,7 @@ public class ServiceCatalogFactCollector implements FactCollector {
 
     /** 网关配置文件 */
     private static final String GATEWAY_CONFIG =
-            "whale-backend/whale-services/whale-gateway/src/main/resources/application.yml";
+            "whale-backend/whale-services/whale-service-gateway/src/main/resources/application.yml";
 
     /** 反引号内容 */
     private static final Pattern BACKTICK = Pattern.compile("`([^`]+)`");

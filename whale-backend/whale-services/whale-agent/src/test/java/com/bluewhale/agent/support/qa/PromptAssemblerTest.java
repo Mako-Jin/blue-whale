@@ -24,7 +24,7 @@ class PromptAssemblerTest {
         List<Citation> citations = List.of(
                 new Citation("S1", "fact", "docs/service-catalog.md", "whale-agent", null, null,
                         "{\"port\":8090}", "PORT", "whale-agent", null, null),
-                new Citation("S2", "chunk", "backend/whale-services/whale-gateway/src/main/resources/application.yml",
+                new Citation("S2", "chunk", "backend/whale-services/whale-service-gateway/src/main/resources/application.yml",
                         "gateway", 10, 20, "routes: []", null, null, 1.5D, null));
         List<ChatMessage> history = List.of(ChatMessage.user("上一轮问题"), ChatMessage.assistant("上一轮回答"));
 

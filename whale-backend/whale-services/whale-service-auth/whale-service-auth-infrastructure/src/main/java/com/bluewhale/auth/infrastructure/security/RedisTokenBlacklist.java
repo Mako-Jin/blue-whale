@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit;
  * 基于 Redis 的令牌黑名单实现。
  * <p>键结构由 {@link TokenBlacklistKeys} 统一构造（{@code auth:token:blacklist:<sha256(token)>}），
  * 值为固定占位符，仅依赖键是否存在判断命中；使用摘要而非 token 原文作为键名，
- * 避免明文凭据落入 Redis keyspace。键约定与 whale-gateway 侧校验实现共用，
+ * 避免明文凭据落入 Redis keyspace。键约定与 whale-service-gateway 侧校验实现共用，
  * 保证登出写入与网关校验指向同一键。</p>
  * <p>降级策略：Redis 不可用时 {@link #add} 仅告警不抛异常，{@link #contains} 默认返回未命中
  * （可用性优先；可经 {@code whale.security.degradation.fail-closed=true} 切换为按命中拒绝）。

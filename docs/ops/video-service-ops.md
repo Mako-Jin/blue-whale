@@ -29,7 +29,7 @@
 | 上游依赖 | `whale-file`（8085，视频字节与文件元信息）、`whale-message`（可选通知，暂未接入） |
 | 镜像 | 后端 `ghcr.io/<repo>/whale-video`；前端 `ghcr.io/<repo>/whale-frontend/whale-video` |
 
-网关路由（`whale-backend/whale-services/whale-gateway/src/main/resources/application.yml`）：
+网关路由（`whale-backend/whale-services/whale-service-gateway/src/main/resources/application.yml`）：
 
 - `whale-video`：`lb://whale-video`，`Path=/video/**`，**不配 `StripPrefix`**。
 - 内网屏蔽：`/video/internal/**`（403）。
