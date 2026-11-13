@@ -106,9 +106,17 @@ services:
       NACOS_AUTH_IDENTITY_VALUE: ${NACOS_AUTH_IDENTITY_VALUE}
       NACOS_AUTH_TOKEN: ${NACOS_AUTH_TOKEN}
       # 外置 MySQL（bluewhale_nacos）
-      SPRING_DATASOURCE_PLATFORM: mysql
-      MYSQL_SERVICE_HOST: ${NACOS_DB_HOST:-host.docker.internal}
-      MYSQL_SERVICE_PORT: ${MYSQL_PORT:-3306}
+      # 默认【不用】外部 MySQL：本仓库没有内置 nacos 官方 mysql-schema.sql，
+      # bluewhale_nacos 只是个空库，配成 mysql 会在启动时报表不存在/连接拒绝（CI 实测）。
+      # 需要外部存储时设 NACOS_DATASOURCE_PLATFORM=mysql，并自行导入 nacos 的
+      # mysql-schema.sql（含 config_info / users 等表）到 bluewhale_nacos。
+      SPRING_DATASOURCE_PLATFORM: ${NACOS_DATASOURCE_PLATFORM:-}
+      # 默认走 compose 内网的服务名：mysql 的宿主端口只发布在 127.0.0.1 上，
+      # 容器经 host-gateway（host.docker.internal）连宿主 IP:3306 是 Connection refused
+      # （CI 实测 bw-nacos 起不来就是这个原因）。nacos 与 mysql 同在本编排里，用服务名即可。
+      # 若 mysql 在编排之外，显式设 NACOS_DB_HOST / NACOS_DB_PORT 覆盖。
+      MYSQL_SERVICE_HOST: ${NACOS_DB_HOST:-mysql}
+      MYSQL_SERVICE_PORT: ${NACOS_DB_PORT:-3306}
       MYSQL_SERVICE_DB_NAME: ${NACOS_DB_NAME:-bluewhale_nacos}
       MYSQL_SERVICE_USER: ${NACOS_DB_USER:-root}
       # 空口令会让 Nacos 起不来（healthcheck 一直 unhealthy，日志里是 Access denied），
