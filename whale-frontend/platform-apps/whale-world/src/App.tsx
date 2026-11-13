@@ -83,6 +83,9 @@ export default function App({ getToken, getPermissions }: AppProps) {
         </div>
       </div>
 
+      {/* 委托追踪：接下的活与当前该走哪儿，挂在城图下面 */}
+      <div className="bww-quest" id="bww-quest" />
+
       <div className="bww-pet-bubble" id="bww-pet-bubble">
         <div className="bww-who">小鲸宝</div>
         <div className="bww-bubble-body" id="bww-pet-text">……</div>

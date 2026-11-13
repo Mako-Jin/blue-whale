@@ -44,6 +44,7 @@ import {
   createBlockers,
 } from './collision';
 import { createNavGrid } from './path';
+import { createQuestSystem } from './quests';
 import type { CharPanelHandle } from './charpanel';
 import type { AvatarParams } from './avatar';
 import type { NpcChatHandle } from './npcchat';
@@ -1056,6 +1057,125 @@ function updateParticles(p, dt, camera, strength) {
   p.geo.attributes.position.needsUpdate = true;
 }
 
+/* ---- 雨点落地水花 ----
+ * 4200 颗粒子不可能每颗都真打在地面上再算水花（也没人看得见远处的）。
+ * 这里用"玩家脚边随机落点"近似：人只会注意到近处溅起的那几圈，
+ * 远处的雨丝本来在视野里就糊成一片。 */
+const SPLASH_COUNT = 24;
+
+/**
+ * 水花贴图：径向渐变 + 一圈细外环，一次生成所有水花共用。
+ *
+ * <p>为什么不用 RingGeometry：纯几何细环在浅色石板上既不"水"也不明显
+ * （实机连改三版仍然像地面上的划痕）。渐变贴图自带柔边，中心亮、边缘散，
+ * 才像雨点砸出来的那一圈；外环留给"扩散"一个可读的方向。</p>
+ */
+function makeSplashTexture() {
+  const size = 96;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    return null;
+  }
+  const c = size / 2;
+  const grad = ctx.createRadialGradient(c, c, 2, c, c, c);
+  grad.addColorStop(0, 'rgba(255,255,255,0.78)');
+  grad.addColorStop(0.34, 'rgba(216,240,255,0.32)');
+  grad.addColorStop(0.62, 'rgba(200,230,255,0.07)');
+  grad.addColorStop(1, 'rgba(200,230,255,0)');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(c, c, c, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.84)';
+  ctx.lineWidth = size * 0.045;
+  ctx.beginPath();
+  ctx.arc(c, c, c * 0.76, 0, Math.PI * 2);
+  ctx.stroke();
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+const splashTex = makeSplashTexture();
+// 1×1 的方片贴图，靠 scale 控制水花直径（0.5 → 1.9 米）
+const splashGeom = new THREE.PlaneGeometry(1, 1);
+const splashRoot = new THREE.Group();
+splashRoot.visible = false;
+const splashes = [];
+for (let i = 0; i < SPLASH_COUNT; i += 1) {
+  const mat = new THREE.MeshBasicMaterial({
+    map: splashTex,
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    // 必须用普通混合：地面是浅色石板/草地，additive 叠上去几乎没有变化，
+    // 实机看就是"雨下得挺大，地上什么都不溅"
+    side: THREE.DoubleSide,
+  });
+  const mesh = new THREE.Mesh(splashGeom, mat);
+  // 方片是竖着的，绕 x 转 90° 才平铺在地面
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.visible = false;
+  splashRoot.add(mesh);
+  splashes.push({ mesh, mat, life: 0, dur: 1, fade: 0 });
+}
+scene.add(splashRoot);
+
+let splashTimer = 0;
+/** 取相机朝向用的临时向量（每帧只算一次，不新建对象） */
+const splashDir = new THREE.Vector3();
+/**
+ * @param amount 雨强 0..1；0 时整组隐藏（不隐藏的话每帧仍会遍历 24 个空对象）
+ */
+function updateSplashes(dt, amount) {
+  for (const s of splashes) {
+    if (s.life <= 0) {
+      continue;
+    }
+    s.life -= dt;
+    const t = 1 - Math.max(0, s.life) / s.dur;
+    // 从贴着地面的一小圈扩到近一米，同时淡出——像水花开的那一下
+    const scale = 0.5 + t * 1.4;
+    s.mesh.scale.set(scale, scale, 1);
+    s.mat.opacity = (1 - t) * s.fade;
+    if (s.life <= 0) {
+      s.mesh.visible = false;
+    }
+  }
+  if (amount < 0.05) {
+    splashRoot.visible = false;
+    return;
+  }
+  splashRoot.visible = true;
+  splashTimer -= dt;
+  if (splashTimer > 0) {
+    return;
+  }
+  splashTimer = 0.05;
+  const free = splashes.find((s) => s.life <= 0);
+  if (!free) {
+    return;
+  }
+  // 必须落在**相机前方**：早先按"相机周围一圈"生成，结果一半水花溅在背后，
+  // 屏幕上看着像什么都没发生（探针里 11 个活跃水花，画面里一个都找不到）。
+  camera.getWorldDirection(splashDir);
+  const ahead = 5 + Math.random() * 18;
+  const side = (Math.random() - 0.5) * 18;
+  const x = camera.position.x + splashDir.x * ahead - splashDir.z * side;
+  const z = camera.position.z + splashDir.z * ahead + splashDir.x * side;
+  // 必须抬到路面之上：环形路 y=0.06、御道 y=0.07，早先放在 +0.03 会被石板整片盖住
+  // （实机表现是"雨下得挺大，地上什么都不溅"，探针里却一直有十几个活跃水花）。
+  free.mesh.position.set(x, terrainHeight(x, z) + 0.12, z);
+  free.life = 0.5 + Math.random() * 0.4;
+  free.dur = free.life;
+  free.fade = amount;
+  free.mesh.visible = true;
+}
+
 /* ==========================================================================
  * 9. 玩家角色（参数化形象，形象取自本地档案）
  * ========================================================================== */
@@ -1091,6 +1211,199 @@ for (const n of npcs.list) {
   el.innerHTML = `<b>${n.def.name}</b><span>${n.def.role}</span>`;
   labelsRoot.appendChild(el);
   npcLabels.set(n.def.id, el);
+}
+
+/* ---- 城民委托 ----
+ * 状态机自己管存档（localStorage），这里只管三件事：把玩家位置喂进去、
+ * 把头顶标记画对、把追踪面板刷新。 */
+const quests = createQuestSystem();
+
+/** 头顶委托标记：! 可接 · ? 可交 · · 进行中（只画状态，不带数字，远处也认得出） */
+function paintQuestMarks() {
+  for (const n of npcs.list) {
+    const el = npcLabels.get(n.def.id);
+    if (!el) {
+      continue;
+    }
+    const mine = quests.forGiver(n.def.id);
+    let mark = '';
+    let kind = '';
+    if (mine.some((q) => quests.stateOf(q.id) === 'ready')) {
+      mark = '?';
+      kind = 'ready';
+    } else if (mine.some((q) => quests.stateOf(q.id) === 'available')) {
+      mark = '!';
+      kind = 'offer';
+    } else if (mine.some((q) => quests.stateOf(q.id) === 'active')) {
+      mark = '·';
+      kind = 'active';
+    }
+    let badge = el.querySelector('.bww-nlabel-quest');
+    if (!mark) {
+      badge?.remove();
+      delete el.dataset.quest;
+      continue;
+    }
+    if (!badge) {
+      badge = document.createElement('div');
+      badge.className = 'bww-nlabel-quest';
+      el.appendChild(badge);
+    }
+    badge.textContent = mark;
+    el.dataset.quest = kind;
+  }
+}
+
+/* ---- 委托追踪面板（右侧、城图之下） ---- */
+const questHud = document.getElementById('bww-quest');
+/** questId -> 这一行的距离元素，每帧只改 textContent，不重建 DOM */
+const questHudRows = new Map();
+
+function renderQuestHud() {
+  if (!questHud) {
+    return;
+  }
+  questHudRows.clear();
+  const list = quests.active();
+  if (list.length === 0) {
+    questHud.innerHTML = '';
+    questHud.classList.remove('bww-show');
+    return;
+  }
+  questHud.innerHTML = list
+    .map((item) => {
+      const goal = item.nextStep ? item.nextStep.label : '回去向委托人复命';
+      return `<div class="bww-quest-row${item.nextStep ? '' : ' is-ready'}" data-quest-row="${item.quest.id}">
+        <div class="bww-quest-row-top"><b>${item.quest.title}</b><i>${item.done}/${item.total}</i></div>
+        <div class="bww-quest-row-goal">${goal}</div>
+        <div class="bww-quest-row-dist" data-quest-dist="${item.quest.id}">—</div>
+      </div>`;
+    })
+    .join('');
+  questHud.classList.add('bww-show');
+  for (const item of list) {
+    const el = questHud.querySelector(`[data-quest-dist="${item.quest.id}"]`);
+    if (el) {
+      questHudRows.set(item.quest.id, { el, item });
+    }
+  }
+}
+
+/** 距离刷新节流：每帧改 DOM 文字没有意义，4Hz 足够读 */
+let questDistTimer = 0;
+function updateQuestHud(dt) {
+  if (questHudRows.size === 0) {
+    return;
+  }
+  questDistTimer -= dt;
+  if (questDistTimer > 0) {
+    return;
+  }
+  questDistTimer = 0.25;
+  for (const row of questHudRows.values()) {
+    const step = row.item.nextStep;
+    // 可交时目标不再是地点，而是"人在哪儿"——所以改报委托人距离
+    let tx = 0;
+    let tz = 0;
+    let ok = false;
+    if (step) {
+      tx = step.x;
+      tz = step.z;
+      ok = true;
+    } else {
+      const giver = npcs.list.find((n) => n.def.id === row.item.quest.giver);
+      if (giver) {
+        tx = giver.pos.x;
+        tz = giver.pos.z;
+        ok = true;
+      }
+    }
+    if (!ok) {
+      row.el.textContent = '';
+      continue;
+    }
+    const d = Math.hypot(player.pos.x - tx, player.pos.z - tz);
+    // 可交时不再报"还差多少米"，那句话已经没意义了
+    row.el.textContent = step ? `还差 ${Math.round(d)} 米` : `委托人 ${Math.round(d)} 米外`;
+  }
+}
+
+/** 接取/交付后统一收尾：标记、面板、对话里的卡片一起刷新 */
+function syncQuestUi() {
+  paintQuestMarks();
+  renderQuestHud();
+  npcChat?.refreshQuests();
+}
+
+function questGiverName(npcId) {
+  return npcs.list.find((n) => n.def.id === npcId)?.def.name ?? '委托人';
+}
+
+/** 交给问话面板的委托卡（面板只画，不做判断） */
+function questCardsFor(npcId) {
+  const list = quests.active();
+  return quests.forGiver(npcId).map((def) => {
+    const state = quests.stateOf(def.id);
+    const view = list.find((v) => v.quest.id === def.id);
+    if (state === 'available') {
+      return { id: def.id, title: def.title, state: 'offer', text: def.offer, action: '接下此事' };
+    }
+    if (state === 'ready') {
+      return {
+        id: def.id,
+        title: def.title,
+        state: 'ready',
+        text: def.report,
+        action: '回禀',
+        done: view ? view.done : def.steps.length,
+        total: def.steps.length,
+      };
+    }
+    const next = view && view.nextStep ? `还差：${view.nextStep.label}` : '';
+    return {
+      id: def.id,
+      title: def.title,
+      state: 'active',
+      text: next,
+      done: view ? view.done : 0,
+      total: def.steps.length,
+    };
+  });
+}
+
+function handleQuestAction(npcId, questId, action) {
+  const def = quests.defs.find((q) => q.id === questId);
+  if (!def) {
+    return;
+  }
+  if (action === '接下此事') {
+    quests.accept(questId);
+    showToast(`接下委托 · ${def.title}`, `${def.steps.length} 处要走 · 右键点地即可前往`);
+    npcChat?.say('路上留神。都走完了回来找我。');
+    whaleSay(`接着了：${def.title}。头一处是「${def.steps[0].label}」。`);
+  } else if (action === '回禀') {
+    quests.complete(questId);
+    npcChat?.say(def.done);
+    showToast(`委托已成 · ${def.title}`, def.reward);
+    whaleSay(`${questGiverName(npcId)}把「${def.reward}」给主公了。`);
+  }
+  syncQuestUi();
+}
+
+/* ---- 推进：每帧喂位置，达成一步给一次回执 ---- */
+function updateQuests(dt) {
+  const events = quests.tick(player.pos.x, player.pos.z);
+  for (const ev of events) {
+    if (ev.kind === 'step') {
+      showToast(`委托 · ${ev.quest.title}`, `${ev.label} ✓`);
+    } else {
+      showToast(`委托可回禀 · ${ev.quest.title}`, `回去找${questGiverName(ev.quest.giver)}复命`);
+    }
+  }
+  if (events.length > 0) {
+    syncQuestUi();
+  }
+  updateQuestHud(dt);
 }
 
 /* ---- 城中声景 ----
@@ -1304,6 +1617,9 @@ const chatEl = document.getElementById('bww-chat-panel');
 const npcChat: NpcChatHandle | null = chatEl
   ? mountNpcChat(chatEl, {
       brain,
+      // 面板只负责画：能不能接、能不能交，全由 quests 状态机说了算
+      quests: (npcId) => questCardsFor(npcId),
+      onQuestAction: (npcId, questId, action) => handleQuestAction(npcId, questId, action),
       onOpenChange: (open, persona) => {
         setTalking(open && persona ? persona.id : null);
         if (open) {
@@ -1313,6 +1629,10 @@ const npcChat: NpcChatHandle | null = chatEl
       },
     })
   : null;
+
+// 委托标记要在面板挂好之后再画一次（首次渲染时 npcChat 可能还不存在）
+paintQuestMarks();
+renderQuestHud();
 
 /** 正在对话的 NPC：停步并转身看向玩家 */
 let talkingId = null;
@@ -1345,7 +1665,18 @@ function talkToNearestNpc() {
     showToast('四下无人', '走近城民再按 F 交谈');
     return;
   }
-  npcChat.open(npcPersona(npc.def));
+  const persona = npcPersona(npc.def);
+  // 他手上有事交代时，开场白不能还是那句寒暄：
+  // 可回禀就说交付那句，进行中就说催问那句——否则玩家得自己在面板里找按钮
+  const mine = quests.forGiver(npc.def.id);
+  const ready = mine.find((q) => quests.stateOf(q.id) === 'ready');
+  const active = mine.find((q) => quests.stateOf(q.id) === 'active');
+  if (ready) {
+    persona.greeting = ready.report;
+  } else if (active) {
+    persona.greeting = active.remind;
+  }
+  npcChat.open(persona);
 }
 
 function talkToPet() {
@@ -2462,8 +2793,12 @@ function updateWeather(dt) {
   for (let i = 0; i < 4; i++) {
     world.weatherMix[i] = lerp(world.weatherMix[i], target[i], 1 - Math.exp(-dt * 2.2));
   }
-  updateParticles(rain, dt, camera, world.weatherMix[1] * 0.9);
+  const wet = world.weatherMix[1];
+  updateParticles(rain, dt, camera, wet * 0.9);
   updateParticles(snow, dt, camera, world.weatherMix[2] * 0.95);
+  updateSplashes(dt, wet);
+  // 城里的人不是纸片：雨天自己撑伞（雪天暂不撑，雪不湿衣）
+  npcs.setWet(wet);
 }
 
 function animate() {
@@ -2480,6 +2815,8 @@ function animate() {
   updateSky(dt);
   updateWeather(dt);
   updatePlayer(dt);
+  // 位置更新之后才判达成：这一帧走到门口就该这一帧算数
+  updateQuests(dt);
   updateWalkMarker(dt);
   // 脚步声跟速度走：静止时 update 内部会自己归零，不必在外面判
   audio.update(dt, player.speed, groundAt(player.pos.x, player.pos.z));
@@ -2600,6 +2937,72 @@ metrics.start();
       ground: groundAt(player.pos.x, player.pos.z),
     });
     window.__bwwSound = () => toggleSound();
+    /* 天象探针：e2e 无法"看"，只能读强度与可见性——真好不好看仍需人眼 */
+    window.__bwwWeather = () => ({
+      weather: world.weather,
+      wet: Number(world.weatherMix[1].toFixed(3)),
+      snow: Number(world.weatherMix[2].toFixed(3)),
+      splashes: splashes.filter((s) => s.life > 0).length,
+      splashVisible: splashRoot.visible,
+      /* 第一个活跃水花的实际状态：看不见时用来分辨"没画"还是"太淡" */
+      splashSample: (() => {
+        const s = splashes.find((item) => item.life > 0);
+        return s
+          ? {
+              x: Number(s.mesh.position.x.toFixed(1)),
+              y: Number(s.mesh.position.y.toFixed(2)),
+              z: Number(s.mesh.position.z.toFixed(1)),
+              op: Number(s.mat.opacity.toFixed(2)),
+              scale: Number(s.mesh.scale.x.toFixed(2)),
+              vis: s.mesh.visible,
+            }
+          : null;
+      })(),
+      umbrella: Number(npcs.wetOpacity().toFixed(3)),
+    });
+    window.__bwwSetWeather = (kind) => {
+      world.weather = kind;
+      audio.setWeather(kind);
+      uiRoot.querySelectorAll('[data-action="weather"]').forEach((b) => {
+        b.textContent = `天象：${WEATHER[kind]}`;
+      });
+      // 渐变是逐帧插值的，e2e 不必等 3 秒：直接把目标值顶到位
+      world.weatherMix = [0, 0, 0, 0];
+      world.weatherMix[kind] = 1;
+    };
+    /* 委托探针：状态快照 + 面板文字，e2e 据此断言"接了才推进、交付才清零" */
+    window.__bwwQuests = () => quests.snapshot();
+    window.__bwwQuestHud = () => ({
+      visible: Boolean(questHud?.classList.contains('bww-show')),
+      text: (questHud?.textContent ?? '').replace(/\s+/g, ' ').trim(),
+    });
+    /* 头顶标记：读 name/role 标签上的 data-quest，验证"可接/可交"是否真的画到人头上 */
+    window.__bwwQuestMarks = () =>
+      npcs.list.map((n) => ({
+        id: n.def.id,
+        mark: npcLabels.get(n.def.id)?.dataset.quest ?? null,
+        text: npcLabels.get(n.def.id)?.querySelector('.bww-nlabel-quest')?.textContent ?? '',
+      }));
+    window.__bwwQuestAccept = (id) => {
+      quests.accept(id);
+      syncQuestUi();
+    };
+    window.__bwwQuestComplete = (id) => {
+      quests.complete(id);
+      syncQuestUi();
+    };
+    window.__bwwQuestReset = () => {
+      quests.reset();
+      syncQuestUi();
+    };
+    /* NPC 坐标：e2e 要"走到韩五身边按 F"，而他是巡逻的，位置不固定 */
+    window.__bwwNpcs = () =>
+      npcs.list.map((n) => ({
+        id: n.def.id,
+        name: n.def.name,
+        x: Number(n.pos.x.toFixed(2)),
+        z: Number(n.pos.z.toFixed(2)),
+      }));
     /* 导览探针：读进度与当前目标，以及不按键直接开始（e2e 走完整条路线用） */
     window.__bwwGuide = () => {
       const s = guide.status();

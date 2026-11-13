@@ -20,10 +20,29 @@ export interface NpcChatPersona extends BrainPersona {
   lines?: string[];
 }
 
+/** 面板顶部的一条委托卡（由场景层的任务系统算好，这里只负责画） */
+export interface NpcChatQuestCard {
+  id: string;
+  title: string;
+  /** offer = 可接（还没接）；active = 进行中（只显示进度）；ready = 可回禀 */
+  state: 'offer' | 'active' | 'ready';
+  /** 正文：可接时是他托付的那几句，进行中是还差什么，可交时是"可以复命了" */
+  text: string;
+  /** 按钮文案；不给就只显示不可点的进度条 */
+  action?: string;
+  /** 进度（已完成/总数），进行中与可交时显示 */
+  done?: number;
+  total?: number;
+}
+
 export interface NpcChatOptions {
   brain: WorldBrain;
   /** 面板开/关：场景层据此暂停该 NPC 巡逻、停止本地搭话 */
   onOpenChange?: (open: boolean, persona: NpcChatPersona | null) => void;
+  /** 取该 NPC 身上的委托卡；不给则面板不显示委托区 */
+  quests?: (npcId: string) => NpcChatQuestCard[];
+  /** 点了委托按钮；action 与卡片的 action 一致 */
+  onQuestAction?: (npcId: string, questId: string, action: string) => void;
 }
 
 export interface NpcChatHandle {
@@ -34,6 +53,10 @@ export interface NpcChatHandle {
   personaId: () => string | null;
   /** 代玩家发一句（冒烟/调试用；与输入框提交同一路径） */
   ask: (text: string) => void;
+  /** 重画委托区：接取/交付之后状态变了，必须当场刷新，否则按钮还挂着旧状态 */
+  refreshQuests: () => void;
+  /** 以当前 NPC 的口吻补一句（交付后接一句收尾话） */
+  say: (text: string) => void;
   destroy: () => void;
 }
 
@@ -96,6 +119,7 @@ export function mountNpcChat(container: HTMLElement, options: NpcChatOptions): N
         <div class="bww-chat-badge" data-state="wait">···</div>
         <button type="button" class="bww-chat-close" title="${CLOSE_LABEL}（Esc）">✕</button>
       </div>
+      <div class="bww-chat-quest"></div>
       <div class="bww-chat-log"></div>
       <div class="bww-chat-state"></div>
       <form class="bww-chat-form">
@@ -116,6 +140,7 @@ export function mountNpcChat(container: HTMLElement, options: NpcChatOptions): N
   const nameEl = $<HTMLElement>('.bww-chat-name');
   const roleEl = $<HTMLElement>('.bww-chat-role');
   const badgeEl = $<HTMLElement>('.bww-chat-badge');
+  const questEl = $<HTMLElement>('.bww-chat-quest');
   const logEl = $<HTMLElement>('.bww-chat-log');
   const stateEl = $<HTMLElement>('.bww-chat-state');
   const formEl = $<HTMLFormElement>('.bww-chat-form');
@@ -177,6 +202,61 @@ export function mountNpcChat(container: HTMLElement, options: NpcChatOptions): N
     line.textContent = text;
     logEl.appendChild(line);
     scrollToEnd();
+  };
+
+  /* ---- 委托区：接取 / 进行中 / 可回禀 ----
+   * 卡片全部由场景层的任务系统提供，这里只画不判：
+   * 「能不能交」是状态机的事，面板照着显示就好，免得两处判断渐渐不一致。 */
+  const escText = (s: string) =>
+    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+  const renderQuests = () => {
+    if (!options.quests || !persona) {
+      questEl.innerHTML = '';
+      questEl.classList.remove('bww-show');
+      return;
+    }
+    const cards = options.quests(persona.id);
+    if (cards.length === 0) {
+      questEl.innerHTML = '';
+      questEl.classList.remove('bww-show');
+      return;
+    }
+    questEl.innerHTML = cards
+      .map((card) => {
+        const total = card.total ?? 0;
+        const done = card.done ?? 0;
+        // 进度条只在真的有几步时出现；可接的委托还不知道要跑几趟，画进度条是假的
+        const bar =
+          card.state !== 'offer' && total > 0
+            ? `<div class="bww-quest-bar"><i style="width:${Math.round((done / total) * 100)}%"></i></div>`
+            : '';
+        const tag =
+          card.state === 'offer' ? '委托' : card.state === 'ready' ? '可回禀' : '进行中';
+        const btn = card.action
+          ? `<button type="button" class="bww-quest-act" data-quest="${escText(card.id)}" data-quest-action="${escText(card.action)}">${escText(card.action)}</button>`
+          : '';
+        return `<div class="bww-quest-card is-${card.state}">
+          <div class="bww-quest-top"><b>${escText(card.title)}</b><i class="bww-quest-tag">${tag}</i></div>
+          <div class="bww-quest-text">${escText(card.text)}</div>
+          ${bar}
+          ${btn}
+        </div>`;
+      })
+      .join('');
+    questEl.classList.add('bww-show');
+    for (const btn of questEl.querySelectorAll<HTMLButtonElement>('[data-quest]')) {
+      btn.addEventListener('click', () => {
+        const npcId = persona?.id;
+        const questId = btn.dataset.quest;
+        const action = btn.dataset.questAction;
+        if (!npcId || !questId || !action) {
+          return;
+        }
+        options.onQuestAction?.(npcId, questId, action);
+        renderQuests();
+      });
+    }
   };
 
   const failText = (error: unknown): string => {
@@ -322,6 +402,7 @@ export function mountNpcChat(container: HTMLElement, options: NpcChatOptions): N
     if (next.greeting) {
       pushBubble('npc', next.greeting);
     }
+    renderQuests();
     if (offline()) {
       note(`AI 未接入（${brain.reason || '未登录'}）：先按本地台词应答。`);
     }
@@ -356,6 +437,12 @@ export function mountNpcChat(container: HTMLElement, options: NpcChatOptions): N
     personaId: () => persona?.id ?? null,
     ask: (text: string) => {
       void ask(text);
+    },
+    refreshQuests: renderQuests,
+    say: (text: string) => {
+      if (opened && text) {
+        pushBubble('npc', text);
+      }
     },
     destroy() {
       destroyed = true;

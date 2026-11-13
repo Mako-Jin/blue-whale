@@ -42,6 +42,10 @@ export interface NpcRuntime {
 export interface NpcSystem {
   group: THREE.Group;
   list: NpcRuntime[];
+  /** 雨强 0..1：撑伞（伞面淡入）/ 收伞。0 时整把伞不参与绘制 */
+  setWet: (amount: number) => void;
+  /** 当前伞的透明度（0 = 收着）：给探针断言用，正常逻辑不该读它 */
+  wetOpacity: () => number;
   update: (dt: number, groundAt: (x: number, z: number) => number) => void;
   dispose: () => void;
 }
@@ -163,9 +167,47 @@ export const NPCS: NpcDef[] = [
   },
 ];
 
+/**
+ * 造一把伞。
+ *
+ * <p>不建骨骼、不做收放动画：伞面直接淡入淡出，走起来跟着人平移就够——
+ * 这个距离下没人会盯伞骨。真正要避免的是"雨天城里七个人全在淋雨"。</p>
+ *
+ * <p>高度按 avatar 的头部位置定（头顶约 2.9m，伞面中心 2.62m 正好罩住肩以上）。</p>
+ */
+function makeUmbrella(): { group: THREE.Group; mats: THREE.MeshStandardMaterial[] } {
+  const group = new THREE.Group();
+  const canopyMat = new THREE.MeshStandardMaterial({
+    color: 0x24313d,
+    roughness: 0.68,
+    metalness: 0.08,
+    transparent: true,
+    opacity: 0,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+  const shaftMat = new THREE.MeshStandardMaterial({
+    color: 0x6b4e2e,
+    roughness: 0.85,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+  });
+  const canopy = new THREE.Mesh(new THREE.ConeGeometry(1.04, 0.46, 14, 1, true), canopyMat);
+  canopy.position.y = 2.62;
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 1.5, 6), shaftMat);
+  shaft.position.y = 1.92;
+  group.add(canopy, shaft);
+  group.visible = false;
+  return { group, mats: [canopyMat, shaftMat] };
+}
+
 export function createNpcs(list: NpcDef[] = NPCS): NpcSystem {
   const group = new THREE.Group();
   const runtimes: NpcRuntime[] = [];
+  const umbrellas: Array<{ group: THREE.Group; mats: THREE.MeshStandardMaterial[] }> = [];
+  /** 最近一次 setWet 的值；探针读它，避免去翻场景图判断"伞有没有撑开" */
+  let wetAmount = 0;
 
   for (const def of list) {
     const params: AvatarParams = { ...DEFAULT_AVATAR, name: def.name, ...def.appearance };
@@ -173,6 +215,10 @@ export function createNpcs(list: NpcDef[] = NPCS): NpcSystem {
     const start = def.route[0];
     const pos = new THREE.Vector3(start[0], 0, start[1]);
     handle.group.position.copy(pos);
+    // 伞挂在人物 group 上：人物转身、走路，伞跟着，不必单独维护朝向
+    const umbrella = makeUmbrella();
+    handle.group.add(umbrella.group);
+    umbrellas.push(umbrella);
     group.add(handle.group);
     runtimes.push({
       def,
@@ -189,6 +235,19 @@ export function createNpcs(list: NpcDef[] = NPCS): NpcSystem {
   return {
     group,
     list: runtimes,
+    setWet(amount) {
+      const a = Math.max(0, Math.min(1, amount));
+      wetAmount = a;
+      // 透明度为 0 的物体仍会走一遍绘制调用，低于阈值直接整把藏起来
+      const visible = a > 0.02;
+      for (const umbrella of umbrellas) {
+        umbrella.group.visible = visible;
+        for (const mat of umbrella.mats) {
+          mat.opacity = a;
+        }
+      }
+    },
+    wetOpacity: () => wetAmount,
     update(dt, groundAt) {
       for (const npc of runtimes) {
         // 对话中：原地停步（仍要贴地），否则玩家一路追着气泡跑
@@ -235,6 +294,18 @@ export function createNpcs(list: NpcDef[] = NPCS): NpcSystem {
         npc.handle.dispose();
         group.remove(npc.handle.group);
       }
+      for (const umbrella of umbrellas) {
+        umbrella.group.removeFromParent();
+        for (const mat of umbrella.mats) {
+          mat.dispose();
+        }
+        for (const child of [...umbrella.group.children]) {
+          if (child instanceof THREE.Mesh) {
+            child.geometry.dispose();
+          }
+        }
+      }
+      umbrellas.length = 0;
       runtimes.length = 0;
     },
   };

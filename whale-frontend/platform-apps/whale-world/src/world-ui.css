@@ -937,3 +937,192 @@
   letter-spacing: 1px;
   color: rgba(236, 223, 196, 0.34);
 }
+
+/* ==========================================================================
+ * 城民委托：头顶标记 / 追踪面板 / 对话卡片
+ * 三处用同一套金色，玩家一眼能把"这件事"串起来（人头上的 ! → 右侧面板 → 面板里的按钮）。
+ * ========================================================================== */
+
+/* ---------- 头顶标记 ----------
+ * 挂在名字标签**左侧**，不放上方：标签上方已经归搭话气泡（.bww-nlabel-say）用，
+ * 两者同时出现时叠在一起会糊成一团。 */
+.bww-nlabel-quest {
+  position: absolute;
+  right: calc(100% + 7px);
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 15px;
+  line-height: 1;
+  font-weight: 700;
+  color: #f2d488;
+  text-shadow: 0 0 10px rgba(216, 180, 90, 0.85), 0 1px 2px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+}
+/* 可接：上下轻浮，像钉在空中的一枚金符 */
+.bww-nlabel[data-quest="offer"] .bww-nlabel-quest {
+  animation: bwwQuestBob 1.8s ease-in-out infinite;
+}
+/* 可交：脉动金色，与"还在跑"的灰点明确区分 */
+.bww-nlabel[data-quest="ready"] .bww-nlabel-quest {
+  color: #ffe6a0;
+  animation: bwwQuestPulse 1.4s ease-in-out infinite;
+}
+.bww-nlabel[data-quest="active"] .bww-nlabel-quest {
+  font-size: 18px;
+  color: rgba(216, 180, 90, 0.55);
+  text-shadow: none;
+}
+@keyframes bwwQuestBob {
+  0%, 100% { transform: translateY(-50%); }
+  50% { transform: translateY(calc(-50% - 3px)); }
+}
+@keyframes bwwQuestPulse {
+  0%, 100% { opacity: 0.55; text-shadow: 0 0 8px rgba(216, 180, 90, 0.6); }
+  50% { opacity: 1; text-shadow: 0 0 18px rgba(255, 226, 150, 0.95); }
+}
+
+/* ---------- 追踪面板（城图之下） ---------- */
+.bww-quest {
+  position: absolute;
+  /* 放左侧，不放右侧：右侧 top 122 以下是城图，再往下被整排工具栏按钮压住
+     （实机截图确认过，面板文字和按钮叠成一团）。左侧只有导览条占着 top 96。 */
+  left: 28px;
+  top: 140px;
+  z-index: 12;
+  width: 196px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  opacity: 0;
+  transform: translateX(-10px);
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.bww-quest.bww-show {
+  opacity: 1;
+  transform: translateX(0);
+}
+.bww-quest-row {
+  padding: 7px 9px 8px;
+  background: rgba(8, 16, 22, 0.72);
+  border: 1px solid rgba(216, 180, 90, 0.25);
+  border-left: 2px solid rgba(216, 180, 90, 0.62);
+  border-radius: 3px;
+  backdrop-filter: blur(7px);
+}
+/* 可回禀：整行转亮，和"还要继续走"的进行中区分开 */
+.bww-quest-row.is-ready {
+  border-left-color: #ffe0a0;
+  background: rgba(28, 24, 12, 0.78);
+}
+.bww-quest-row-top {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.bww-quest-row-top b {
+  flex: 1;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  color: #f0e2c2;
+}
+.bww-quest-row-top i {
+  font-style: normal;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  color: rgba(216, 180, 90, 0.85);
+}
+.bww-quest-row-goal {
+  margin-top: 4px;
+  font-size: 10.5px;
+  line-height: 1.55;
+  letter-spacing: 0.6px;
+  color: rgba(236, 223, 196, 0.72);
+}
+.bww-quest-row-dist {
+  margin-top: 3px;
+  font-size: 10px;
+  letter-spacing: 0.8px;
+  color: rgba(127, 216, 255, 0.72);
+}
+
+/* ---------- 对话面板里的委托卡 ---------- */
+.bww-chat-quest {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px 2px;
+}
+.bww-chat-quest.bww-show {
+  display: flex;
+}
+.bww-quest-card {
+  padding: 9px 11px 10px;
+  background: rgba(216, 180, 90, 0.055);
+  border: 1px solid rgba(216, 180, 90, 0.28);
+  border-radius: 3px;
+}
+.bww-quest-card.is-ready {
+  background: rgba(216, 180, 90, 0.12);
+  border-color: rgba(255, 224, 160, 0.5);
+}
+.bww-quest-top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.bww-quest-top b {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  color: #f4e6c4;
+}
+.bww-quest-tag {
+  font-style: normal;
+  padding: 1px 6px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: rgba(216, 180, 90, 0.95);
+  border: 1px solid rgba(216, 180, 90, 0.4);
+  border-radius: 2px;
+}
+.bww-quest-card.is-ready .bww-quest-tag {
+  color: #12181c;
+  background: #e8cd8a;
+  border-color: #e8cd8a;
+}
+.bww-quest-text {
+  margin-top: 5px;
+  font-size: 11.5px;
+  line-height: 1.75;
+  letter-spacing: 0.6px;
+  color: rgba(236, 223, 196, 0.82);
+}
+.bww-quest-bar {
+  margin-top: 7px;
+  height: 3px;
+  background: rgba(216, 180, 90, 0.16);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.bww-quest-bar i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #c9a659, #f2d488);
+}
+.bww-quest-act {
+  margin-top: 9px;
+  height: 27px;
+  padding: 0 16px;
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: #12181c;
+  background: linear-gradient(180deg, #e8cd8a, #c9a659);
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.bww-quest-act:hover {
+  filter: brightness(1.08);
+}
