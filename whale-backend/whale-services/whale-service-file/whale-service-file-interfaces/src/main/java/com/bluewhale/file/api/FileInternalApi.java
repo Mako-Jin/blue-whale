@@ -3,6 +3,7 @@ package com.bluewhale.file.api;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.file.model.response.FileChangeResponse;
+import com.bluewhale.file.model.response.FileUploadResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.core.io.Resource;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 
@@ -21,8 +23,10 @@ import java.time.LocalDateTime;
  * 文件服务内网 API 契约（只读 + 归档锁定）。
  *
  * <p>路径版本段位于 {@code internal} 之前（{@code /file/v1/internal/**}），与网关
- * {@code internal-deny} 的版本化内部路径规则对齐，外部统一 403。
- * 内网调用方（whale-agent、whale-archive）需同步配置 {@code whale.file.internal-token}。</p>
+ * {@code internal-deny} 的版本化内部路径规则对齐，外部统一 403。内网来源校验由
+ * common starter 的 {@code InternalTokenFilter} 统一完成（配置前缀
+ * {@code bluewhale.internal-token}，默认开启；非 dev 环境缺少令牌时启动失败），
+ * 契约层与服务实现均不再重复校验。</p>
  *
  * @author BlueWhale
  */
@@ -35,7 +39,7 @@ public interface FileInternalApi {
      * @param since 游标下界（不含，ISO-8601 本地时间），缺省为全量
      * @param current 页码，默认 1
      * @param size 每页条数，默认 100、上限 200
-     * @param httpRequest 当前请求（用于内网来源令牌校验）
+     * @param httpRequest 当前请求
      * @return 文件变更分页结果
      */
     @GetMapping("/changes")
@@ -50,7 +54,7 @@ public interface FileInternalApi {
      * 文件元数据（变更视图，含状态与逻辑删除标记）。
      *
      * @param id 文件ID
-     * @param httpRequest 当前请求（用于内网来源令牌校验）
+     * @param httpRequest 当前请求
      * @return 文件变更响应
      */
     @GetMapping("/{id}")
@@ -62,7 +66,7 @@ public interface FileInternalApi {
      * @param id 文件ID
      * @param range 请求的 {@code Range} 头，可为 {@code null}
      * @param ifRange 请求的 {@code If-Range} 头，可为 {@code null}
-     * @param httpRequest 当前请求（用于内网来源令牌校验）
+     * @param httpRequest 当前请求
      * @return 文件内容流式响应
      */
     @GetMapping("/{id}/content")
@@ -75,7 +79,7 @@ public interface FileInternalApi {
      * 归档锁定文件（状态置 2，幂等）。
      *
      * @param id 文件ID
-     * @param httpRequest 当前请求（用于内网来源令牌校验）
+     * @param httpRequest 当前请求
      * @return 空结果
      */
     @PostMapping("/{id}/lock")
@@ -85,9 +89,24 @@ public interface FileInternalApi {
      * 解除归档锁定（状态恢复 1，幂等）。
      *
      * @param id 文件ID
-     * @param httpRequest 当前请求（用于内网来源令牌校验）
+     * @param httpRequest 当前请求
      * @return 空结果
      */
     @PostMapping("/{id}/unlock")
     Result<Void> unlock(@PathVariable Long id, HttpServletRequest httpRequest);
+
+    /**
+     * 上传文件（内网服务间接口，外部经网关不可达）。
+     *
+     * <p>按全局默认上限与配额登记，不适用按权限码放宽的 G1 策略。</p>
+     *
+     * @param file 上传的文件，必填
+     * @param bucket 目标桶名称，可选；为空时取配置的默认桶
+     * @param httpRequest 当前请求（用于读取网关 {@code X-User-Id}）
+     * @return 上传结果
+     */
+    @PostMapping("/upload")
+    Result<FileUploadResponse> internalUpload(@RequestParam("file") MultipartFile file,
+                                              @RequestParam(value = "bucket", required = false) String bucket,
+                                              HttpServletRequest httpRequest);
 }

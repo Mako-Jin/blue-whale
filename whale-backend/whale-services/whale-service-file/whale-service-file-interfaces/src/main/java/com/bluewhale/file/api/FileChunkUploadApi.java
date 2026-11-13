@@ -7,6 +7,8 @@ import com.bluewhale.file.model.response.ChunkUploadInitResponse;
 import com.bluewhale.file.model.response.FileUploadResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -49,9 +51,10 @@ public interface FileChunkUploadApi {
      * @return 已上传分片索引（升序）
      */
     @PostMapping("/part")
-    Result<List<Integer>> uploadChunkPart(@RequestParam("file") MultipartFile file,
-                                          @RequestParam("uploadId") String uploadId,
-                                          @RequestParam("index") int index);
+    Result<List<Integer>> uploadChunkPart(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("uploadId") @NotBlank(message = "uploadId 不能为空") String uploadId,
+            @RequestParam("index") @Min(value = 0, message = "分片索引不能为负数") int index);
 
     /**
      * 查询分片上传会话的已上传分片索引。

@@ -19,7 +19,10 @@ import com.bluewhale.file.service.FileInfoService;
 import com.bluewhale.file.service.support.FileUploadPolicy;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -43,6 +46,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
+@Validated
 @RequiredArgsConstructor
 public class FileChunkUploadController implements FileChunkUploadApi {
 
@@ -64,9 +68,10 @@ public class FileChunkUploadController implements FileChunkUploadApi {
 
     @Override
     @RequirePermission("sys:file:upload")
-    public Result<List<Integer>> uploadChunkPart(@RequestParam("file") MultipartFile file,
-                                                 @RequestParam("uploadId") String uploadId,
-                                                 @RequestParam("index") int index) {
+    public Result<List<Integer>> uploadChunkPart(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("uploadId") @NotBlank(message = "uploadId 不能为空") String uploadId,
+            @RequestParam("index") @Min(value = 0, message = "分片索引不能为负数") int index) {
         return Result.ok(fileInfoService.uploadChunkPart(uploadId, index,
                 toUploadContent(file, fileInfoService.chunkSizeBytes())));
     }

@@ -88,7 +88,7 @@ public final class FileContentResponses {
             throw new BizException(ErrorCode.SYSTEM_ERROR, "文件元数据缺少大小信息: " + info.id());
         }
         long size = info.fileSize();
-        String etag = buildEtag(info, size);
+        String etag = buildEtag(info);
         HttpHeaders headers = baseHeaders(info, inline, etag);
         RequestedRange range = resolveRange(rangeHeader, ifRangeHeader, etag, size);
         if (range.refused()) {
@@ -247,11 +247,10 @@ public final class FileContentResponses {
      * 生成强 ETag：优先使用文件 MD5，缺失时以文件标识与字节数兜底。
      *
      * @param info 文件元数据
-     * @param size 文件总字节数
      * @return 带引号的 ETag
      */
-    private static String buildEtag(FileInfoResult info, long size) {
-        String token = StringUtils.hasText(info.md5()) ? info.md5() : info.id() + "-" + size;
+    private static String buildEtag(FileInfoResult info) {
+        String token = StringUtils.hasText(info.md5()) ? info.md5() : info.id() + "-" + info.fileSize();
         return "\"" + token + "\"";
     }
 

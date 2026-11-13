@@ -43,10 +43,10 @@ import java.io.IOException;
 /**
  * 文件接口实现（Web 适配层）：协议适配 + Request ↔ Command/Query 转换，业务编排在应用层。
  *
- * <p>服务内路径 {@code /file/v1/**}；除 {@code POST /file/v1/internal/upload} 外，全部接口
- * 受 {@code @RequirePermission("sys:file:*")} 保护（AUTH-06：由网关权限码头
- * {@code X-Permission-Codes} + starter {@code RequirePermissionInterceptor} 判定）。
- * {@code POST /file/v1/internal/upload} 为内网服务间接口，外部经网关不可达。</p>
+ * <p>服务内路径 {@code /file/v1/**}，全部接口受 {@code @RequirePermission("sys:file:*")}
+ * 保护（AUTH-06：由网关权限码头 {@code X-Permission-Codes} + starter
+ * {@code RequirePermissionInterceptor} 判定）。内网服务间接口见
+ * {@link com.bluewhale.file.api.FileInternalApi}。</p>
  *
  * <p>G1 大文件上传策略：分片上传按网关可信注入的 {@code X-Permission-Codes} 解析生效上限与配额
  * （视频 2GB / 8GB、电影 4GB / 不限、音乐 100MB），未命中规则仍按全局默认 50MB / 1GB 拒绝，
@@ -76,16 +76,6 @@ public class FileController implements FileApi {
                                              HttpServletRequest httpRequest) {
         FileUploadResult result = doUpload(file, bucket, UserContext.requireUserId(httpRequest),
                 uploadLimits(httpRequest));
-        return Result.ok(fileAssembler.toUploadResponse(result));
-    }
-
-    @Override
-    public Result<FileUploadResponse> internalUpload(@RequestParam("file") MultipartFile file,
-                                                     @RequestParam(value = "bucket", required = false)
-                                                     String bucket,
-                                                     HttpServletRequest httpRequest) {
-        FileUploadResult result = doUpload(file, bucket, UserContext.findUserId(httpRequest),
-                fileUploadPolicy.defaults());
         return Result.ok(fileAssembler.toUploadResponse(result));
     }
 
@@ -143,7 +133,7 @@ public class FileController implements FileApi {
     @RequirePermission("sys:file:list")
     public Result<FileQuotaResponse> quota(HttpServletRequest httpRequest) {
         return Result.ok(fileAssembler.toQuotaResponse(
-                fileInfoService.quota(UserContext.findUserId(httpRequest), uploadLimits(httpRequest))));
+                fileInfoService.quota(UserContext.requireUserId(httpRequest), uploadLimits(httpRequest))));
     }
 
     @Override

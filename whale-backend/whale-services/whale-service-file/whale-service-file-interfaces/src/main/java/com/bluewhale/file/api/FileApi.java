@@ -28,7 +28,9 @@ import org.springframework.web.multipart.MultipartFile;
  * 文件服务 API 契约（上传/下载/预览/查询/删除；分片上传见 {@link FileChunkUploadApi}）。
  *
  * <p>本接口只声明 HTTP 契约（路径、方法、参数与返回 DTO），业务实现位于 web 适配层。
- * 路径统一版本化为 {@code /file/v1/**}，内网服务间接口见 {@link FileInternalApi}。</p>
+ * 路径统一版本化为 {@code /file/v1/**}，内网服务间接口见 {@link FileInternalApi}。
+ * 权限注解 {@code @RequirePermission} 按项目约定标注在实现类方法上（拦截器从
+ * {@code HandlerMethod} 读取，实现类即 MVC 处理器），契约层不承载权限语义。</p>
  *
  * @author BlueWhale
  */
@@ -50,19 +52,6 @@ public interface FileApi {
     Result<FileUploadResponse> upload(@RequestParam("file") MultipartFile file,
                                       @RequestParam(value = "bucket", required = false) String bucket,
                                       HttpServletRequest httpRequest);
-
-    /**
-     * 上传文件（内网服务间接口，外部经网关不可达）。
-     *
-     * @param file 上传的文件，必填
-     * @param bucket 目标桶名称，可选；为空时取配置的默认桶
-     * @param httpRequest 当前请求（用于读取网关 {@code X-User-Id}）
-     * @return 上传结果
-     */
-    @PostMapping("/internal/upload")
-    Result<FileUploadResponse> internalUpload(@RequestParam("file") MultipartFile file,
-                                              @RequestParam(value = "bucket", required = false) String bucket,
-                                              HttpServletRequest httpRequest);
 
     /**
      * 流式下载文件内容（支持 HTTP Range 分段）。
@@ -123,7 +112,7 @@ public interface FileApi {
      * 查询当前用户的个人存储配额与用量。
      *
      * @param httpRequest 当前请求（用于读取 {@code X-User-Id} 与 {@code X-Permission-Codes}）
-     * @return 配额响应；无用户态时返回不限配额
+     * @return 配额响应
      */
     @GetMapping("/quota")
     Result<FileQuotaResponse> quota(HttpServletRequest httpRequest);

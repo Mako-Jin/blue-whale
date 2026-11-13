@@ -4,13 +4,19 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
+import com.bluewhale.common.web.UserContext;
 import com.bluewhale.file.api.FileInternalApi;
 import com.bluewhale.file.assemble.FileAssembler;
-import com.bluewhale.file.config.FileProperties;
+import com.bluewhale.file.model.UploadContent;
+import com.bluewhale.file.model.UploadLimits;
+import com.bluewhale.file.model.command.UploadFileCommand;
 import com.bluewhale.file.model.query.FileChangesQuery;
 import com.bluewhale.file.model.response.FileChangeResponse;
+import com.bluewhale.file.model.response.FileUploadResponse;
 import com.bluewhale.file.model.result.FileInfoResult;
+import com.bluewhale.file.model.result.FileUploadResult;
 import com.bluewhale.file.service.FileInfoService;
+import com.bluewhale.file.service.support.FileUploadPolicy;
 import com.bluewhale.file.support.FileContentResponses;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -18,24 +24,23 @@ import org.springframework.core.io.Resource;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
+import java.io.IOException;
 import java.time.LocalDateTime;
 
 /**
- * 文件内网接口实现（Web 适配层）：只读变更流与归档锁定。
+ * 文件内网接口实现（Web 适配层）：内网上传、变更流与归档锁定。
  *
  * <p>服务内路径前缀 {@code /file/v1/internal}，供 whale-agent（知识库采集）与
- * whale-archive（归档锁定）调用；网关 {@code internal-deny} 统一返回 403，外部不可达，
- * 故不加权限码注解。网关屏蔽是部署侧配置而非代码侧保证，因此叠加第二道防线：配置
- * {@code whale.file.internal-token} 非空时，所有内网接口必须携带匹配的
- * {@code X-Internal-Token} 请求头（常量时间比对），否则 403。</p>
+ * whale-archive（归档锁定）调用；网关 {@code internal-deny} 统一返回 403，外部不可达。
+ * 内网来源校验由 common starter 的 {@code InternalTokenFilter} 统一拦截整段
+ * {@code /**}{@code /internal/**}（配置前缀 {@code bluewhale.internal-token}，默认开启，
+ * 非 dev 环境缺少令牌时启动失败），本类不再逐个方法手工校验。</p>
  *
  * @author BlueWhale
  */
@@ -43,12 +48,9 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class FileInternalController implements FileInternalApi {
 
-    /** 内网来源校验令牌请求头 */
-    private static final String INTERNAL_TOKEN_HEADER = "X-Internal-Token";
-
     private final FileInfoService fileInfoService;
 
-    private final FileProperties fileProperties;
+    private final FileUploadPolicy fileUploadPolicy;
 
     private final FileAssembler fileAssembler;
 
@@ -59,14 +61,12 @@ public class FileInternalController implements FileInternalApi {
             @RequestParam(value = "current", defaultValue = "1") long current,
             @RequestParam(value = "size", defaultValue = "100") long size,
             HttpServletRequest httpRequest) {
-        ensureInternalToken(httpRequest);
         return Result.ok(fileAssembler.toChangePage(
                 fileInfoService.changes(new FileChangesQuery(since, current, size))));
     }
 
     @Override
     public Result<FileChangeResponse> detail(@PathVariable Long id, HttpServletRequest httpRequest) {
-        ensureInternalToken(httpRequest);
         return Result.ok(fileAssembler.toChangeResponse(fileInfoService.getChangeDetail(id)));
     }
 
@@ -77,44 +77,54 @@ public class FileInternalController implements FileInternalApi {
                                             @RequestHeader(value = HttpHeaders.IF_RANGE, required = false)
                                             String ifRange,
                                             HttpServletRequest httpRequest) {
-        ensureInternalToken(httpRequest);
         FileInfoResult info = fileInfoService.getDetail(id, null, true);
         return FileContentResponses.build(fileInfoService, info, null, true, false, range, ifRange);
     }
 
     @Override
     public Result<Void> lock(@PathVariable Long id, HttpServletRequest httpRequest) {
-        ensureInternalToken(httpRequest);
         fileInfoService.lock(id);
         return Result.ok();
     }
 
     @Override
     public Result<Void> unlock(@PathVariable Long id, HttpServletRequest httpRequest) {
-        ensureInternalToken(httpRequest);
         fileInfoService.unlock(id);
         return Result.ok();
     }
 
+    @Override
+    public Result<FileUploadResponse> internalUpload(@RequestParam("file") MultipartFile file,
+                                                     @RequestParam(value = "bucket", required = false)
+                                                     String bucket,
+                                                     HttpServletRequest httpRequest) {
+        UploadLimits limits = fileUploadPolicy.defaults();
+        UploadContent content = toUploadContent(file, limits.maxSizeBytes());
+        FileUploadResult result = fileInfoService.upload(new UploadFileCommand(content, bucket,
+                UserContext.findUserId(httpRequest), limits));
+        return Result.ok(fileAssembler.toUploadResponse(result));
+    }
+
     /**
-     * 校验内网来源令牌：{@code whale.file.internal-token} 非空时，
-     * 请求必须携带匹配的 {@code X-Internal-Token}；缺失或不匹配返回 403。
+     * 将 Web 上传对象适配为应用层中立上传内容（Web 类型仅停留在接口层）。
      *
-     * <p>使用 {@link MessageDigest#isEqual} 常量时间比对，避免时序侧信道枚举令牌。</p>
+     * <p>先按 {@code MultipartFile.getSize()} 预检，超限时直接拒绝并提示走分片上传，
+     * 避免大文件 {@code getBytes()} 全量进入堆内存导致 OOM。</p>
      *
-     * @param httpRequest 当前请求
+     * @param file 上传的文件
+     * @param maxBytes 允许全量读入的最大字节数
+     * @return 上传内容
+     * @throws BizException 超出全量读入上限或读取内容失败时抛出
      */
-    private void ensureInternalToken(HttpServletRequest httpRequest) {
-        String expected = fileProperties.getInternalToken();
-        if (!StringUtils.hasText(expected)) {
-            return;
+    private static UploadContent toUploadContent(MultipartFile file, long maxBytes) {
+        if (file.getSize() > maxBytes) {
+            throw new BizException(ErrorCode.PARAM_ERROR,
+                    "文件大小超出普通上传上限，请使用分片上传接口");
         }
-        String provided = httpRequest.getHeader(INTERNAL_TOKEN_HEADER);
-        boolean matched = provided != null && MessageDigest.isEqual(
-                expected.getBytes(StandardCharsets.UTF_8),
-                provided.getBytes(StandardCharsets.UTF_8));
-        if (!matched) {
-            throw new BizException(ErrorCode.FORBIDDEN);
+        try {
+            return new UploadContent(file.getOriginalFilename(), file.getContentType(), file.getBytes());
+        } catch (IOException e) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR);
         }
     }
 }

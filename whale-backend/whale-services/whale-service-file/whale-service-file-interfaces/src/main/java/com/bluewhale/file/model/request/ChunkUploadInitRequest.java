@@ -3,6 +3,7 @@ package com.bluewhale.file.model.request;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 /**
@@ -28,6 +29,7 @@ public class ChunkUploadInitRequest {
     /** 目标桶名称；为空时取配置的默认桶 */
     private String bucket;
 
-    /** 续传会话 ID；为空时新建会话 */
+    /** 续传会话 ID（标准 UUID）；为空时新建会话 */
+    @Size(max = 36, message = "uploadId 长度不能超过 36")
     private String uploadId;
 }

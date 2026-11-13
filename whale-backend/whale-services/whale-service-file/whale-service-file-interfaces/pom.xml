@@ -14,7 +14,7 @@
     <artifactId>whale-service-file-interfaces</artifactId>
     <packaging>jar</packaging>
     <name>Whale Service File Interfaces</name>
-    <description>文件服务接口层 - REST 控制器与权限码头</description>
+    <description>文件服务接口层 - API 契约、请求/响应 DTO</description>
 
     <dependencies>
         <dependency>
@@ -25,13 +25,23 @@
             <groupId>com.bluewhale</groupId>
             <artifactId>whale-spring-boot-starter</artifactId>
         </dependency>
+        <!-- 契约层仅需 Web 注解/HTTP 类型与参数校验 API，不引入可部署 Web 运行时 -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-validation</artifactId>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>

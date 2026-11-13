@@ -5,15 +5,19 @@ import com.bluewhale.common.core.handler.GlobalExceptionHandler;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.file.assemble.FileAssembler;
 import com.bluewhale.file.config.FileProperties;
+import com.bluewhale.file.model.command.UploadFileCommand;
 import com.bluewhale.file.model.query.FileChangesQuery;
 import com.bluewhale.file.model.result.FileChangeResult;
 import com.bluewhale.file.model.result.FileInfoResult;
+import com.bluewhale.file.model.result.FileUploadResult;
 import com.bluewhale.file.service.FileInfoService;
+import com.bluewhale.file.service.support.FileUploadPolicy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
 import org.springframework.http.HttpHeaders;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.accept.ApiVersionStrategy;
@@ -35,6 +39,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -43,8 +48,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * {@link FileInternalController} 内网接口单元测试（standalone MockMvc）。
  *
- * <p>覆盖变更流（含 since 缺省）、变更详情、内容下载（含 416 越界）、归档锁定/解锁、
- * 下载文件名与 MIME 类型回落分支，以及 {@code X-Internal-Token} 来源令牌校验。</p>
+ * <p>覆盖内网上传（默认上限）、变更流（含 since 缺省）、变更详情、内容下载（含 416 越界）、
+ * 归档锁定/解锁与下载文件名/MIME 类型回落分支。内网来源令牌由全局过滤器统一校验，
+ * 不在本控制器单测内覆盖。</p>
  *
  * @author BlueWhale
  */
@@ -54,12 +60,12 @@ class FileInternalControllerTest {
 
     private final FileInfoService fileInfoService = mock(FileInfoService.class);
 
-    private final FileProperties fileProperties = new FileProperties();
+    private final FileUploadPolicy fileUploadPolicy = new FileUploadPolicy(new FileProperties());
 
     private final FileAssembler fileAssembler = Mappers.getMapper(FileAssembler.class);
 
     private final FileInternalController controller =
-            new FileInternalController(fileInfoService, fileProperties, fileAssembler);
+            new FileInternalController(fileInfoService, fileUploadPolicy, fileAssembler);
 
     private MockMvc mockMvc;
 
@@ -207,56 +213,20 @@ class FileInternalControllerTest {
     }
 
     @Test
-    @DisplayName("配置内网令牌后：缺失 X-Internal-Token 返回 403 且不调用服务")
-    void changesShouldRejectWhenTokenConfiguredAndMissing() throws Exception {
-        fileProperties.setInternalToken("secret-token");
+    @DisplayName("POST /file/v1/internal/upload：按全局默认上限登记并返回上传结果")
+    void internalUploadShouldUseDefaultLimits() throws Exception {
+        when(fileInfoService.upload(any(UploadFileCommand.class)))
+                .thenReturn(new FileUploadResult(9L, "stored.txt", "a.txt", "bluewhale",
+                        "2026/11/13/stored.txt", 3L, "text/plain", null));
 
-        mockMvc.perform(get("/file/v1/internal/changes"))
+        mockMvc.perform(multipart("/file/v1/internal/upload")
+                        .file(new MockMultipartFile("file", "a.txt", "text/plain",
+                                "abc".getBytes(StandardCharsets.UTF_8))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(ErrorCode.FORBIDDEN.getCode()));
+                .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()))
+                .andExpect(jsonPath("$.data.originalName").value("a.txt"));
 
-        verify(fileInfoService, never()).changes(any(FileChangesQuery.class));
-    }
-
-    @Test
-    @DisplayName("配置内网令牌后：令牌不匹配返回 403")
-    void changesShouldRejectWhenTokenMismatched() throws Exception {
-        fileProperties.setInternalToken("secret-token");
-
-        mockMvc.perform(get("/file/v1/internal/changes")
-                        .header("X-Internal-Token", "wrong-token"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(ErrorCode.FORBIDDEN.getCode()));
-
-        verify(fileInfoService, never()).changes(any(FileChangesQuery.class));
-    }
-
-    @Test
-    @DisplayName("配置内网令牌后：令牌匹配时正常放行")
-    void changesShouldAllowWhenTokenMatched() throws Exception {
-        fileProperties.setInternalToken("secret-token");
-        when(fileInfoService.changes(new FileChangesQuery(null, 1L, 100L)))
-                .thenReturn(PageResult.of(List.of(change(1)), 1L, 1L, 100L));
-
-        mockMvc.perform(get("/file/v1/internal/changes")
-                        .header("X-Internal-Token", "secret-token"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
-
-        verify(fileInfoService).changes(new FileChangesQuery(null, 1L, 100L));
-    }
-
-    @Test
-    @DisplayName("未配置内网令牌时：不校验来源，直接放行")
-    void changesShouldSkipTokenCheckWhenNotConfigured() throws Exception {
-        when(fileInfoService.changes(new FileChangesQuery(null, 1L, 100L)))
-                .thenReturn(PageResult.of(List.of(change(1)), 1L, 1L, 100L));
-
-        mockMvc.perform(get("/file/v1/internal/changes"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
-
-        verify(fileInfoService).changes(new FileChangesQuery(null, 1L, 100L));
+        verify(fileInfoService).upload(any(UploadFileCommand.class));
     }
 
     @Test
