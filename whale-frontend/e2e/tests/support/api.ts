@@ -103,18 +103,25 @@ export async function login(
   return data.accessToken;
 }
 
-/** 修改用户密码（PUT /user/{id}/password；CI 引导用：清除首登强制改密标记） */
-export async function changePassword(
+/**
+ * 自助改密（PUT /auth/v1/password）。
+ *
+ * <p>必须走「自助」端点而非 `PUT /user/v1/{id}/password`（那是管理员重置接口）：
+ * 首登强制改密状态下，auth 侧 `JwtAuthenticationFilter` 只放行
+ * `/auth/v1/password`、`/auth/v1/logout`、`/auth/v1/refresh`、`/auth/v1/me` 四条路径，
+ * 其余一律 403「首次登录或口令已到期，请先修改口令」——两个端点报错长得像，根因不同。</p>
+ */
+export async function changeOwnPassword(
   ctx: APIRequestContext,
   token: string,
-  userId: string | number,
-  password: string,
+  oldPassword: string,
+  newPassword: string,
 ): Promise<void> {
-  const response = await ctx.put(`${API_BASE_URL}/user/${userId}/password`, {
+  const response = await ctx.put(`${API_BASE_URL}/auth/v1/password`, {
     headers: { Authorization: `Bearer ${token}` },
-    data: { password },
+    data: { oldPassword, newPassword },
   });
-  await readEnvelope<void>(response, '修改密码');
+  await readEnvelope<void>(response, '修改口令');
 }
 
 /** GET /auth/v1/me（角色/权限码/菜单） */

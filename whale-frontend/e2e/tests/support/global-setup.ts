@@ -4,7 +4,7 @@ import { request } from '@playwright/test';
 import { API_BASE_URL } from '../../playwright.config';
 import {
   ADMIN_PASSWORD,
-  changePassword,
+  changeOwnPassword,
   fetchMe,
   login,
   loginFull,
@@ -23,11 +23,17 @@ export default async function globalSetup(): Promise<void> {
     let token: string;
     try {
       // CI 全新库每轮由 AdminPasswordInitializer 轮换 admin 口令并置 must_change_password=1，
-      // form/workflow designer 登录页遇该标记不跳转（弹强制改密框），导致相关用例集体超时；
-      // 引导：命中标记时用同口令走一次 API 改密清除标记，再重登取干净 token。
+      // form/workflow designer 登录页遇该标记不跳转（弹强制改密框），导致相关用例集体超时。
+      // 引导流程必须用「自助改密」端点（/auth/v1/password）：强制改密状态下 auth 侧只放行
+      // 该端点与 logout/refresh/me，管理员重置端点 /user/v1/{id}/password 会被 403 拦掉。
+      // 又因策略禁止「新口令与当前相同」，这里走两步：CI 口令 → 临时口令（清标记）→ 改回 CI 口令，
+      // 使后续用例仍可用 E2E_ADMIN_PASSWORD 登录。
       const session = await loginFull(ctx);
-      if (session.mustChangePassword && session.userId != null) {
-        await changePassword(ctx, session.accessToken, session.userId, ADMIN_PASSWORD);
+      if (session.mustChangePassword) {
+        const temporaryPassword = `${ADMIN_PASSWORD}Tmp1`;
+        await changeOwnPassword(ctx, session.accessToken, ADMIN_PASSWORD, temporaryPassword);
+        const tempToken = await login(ctx, undefined, temporaryPassword);
+        await changeOwnPassword(ctx, tempToken, temporaryPassword, ADMIN_PASSWORD);
         token = await login(ctx);
       } else {
         token = session.accessToken;
