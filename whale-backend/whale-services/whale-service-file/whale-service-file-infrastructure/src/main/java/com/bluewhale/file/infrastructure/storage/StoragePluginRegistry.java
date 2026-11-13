@@ -45,7 +45,12 @@ public class StoragePluginRegistry implements FileStorage, StoragePluginCatalog 
     public StoragePluginRegistry(List<StoragePlugin> pluginBeans, FileProperties fileProperties) {
         this.plugins = pluginBeans.stream()
                 .collect(Collectors.toMap(StoragePlugin::getType, plugin -> plugin,
-                        (left, right) -> left, TreeMap::new));
+                        (left, right) -> {
+                            // 同类型插件重复注册时保留先注册者，但必须告警，避免排障时误以为后注册插件生效
+                            log.warn("检测到重复的文件存储插件类型: {}，保留 {}，忽略 {}",
+                                    left.getType(), left.getClass().getName(), right.getClass().getName());
+                            return left;
+                        }, TreeMap::new));
         if (plugins.isEmpty()) {
             throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "未找到任何文件存储插件");
         }

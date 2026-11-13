@@ -1,7 +1,7 @@
 package com.bluewhale.file.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bluewhale.file.entity.FileInfo;
+import com.bluewhale.file.po.FileInfoPo;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
@@ -17,9 +17,12 @@ import java.util.List;
  * 以便及时移除对应索引；MyBatis-Plus 的通用查询会自动过滤逻辑删除行，无法满足该语义。
  * 变更详情同理，使用 {@link #selectByIdIncludingDeleted(Long)} 绕过逻辑删除过滤。</p>
  *
+ * <p><b>维护约定</b>：以下自定义 SQL 显式列出列清单（避免 {@code SELECT *} 带来的隐性耦合），
+ * {@code file_info} 新增映射字段时需同步更新这些 SQL，否则该字段在变更流/详情中读不到值。</p>
+ *
  * @author BlueWhale
  */
-public interface FileInfoMapper extends BaseMapper<FileInfo> {
+public interface FileInfoMapper extends BaseMapper<FileInfoPo> {
 
     /**
      * 查询文件变更（含逻辑删除行）。
@@ -33,9 +36,9 @@ public interface FileInfoMapper extends BaseMapper<FileInfo> {
             + "status, uploader_id, create_time, update_time, deleted FROM file_info "
             + "<where><if test='since != null'>update_time &gt; #{since}</if></where> "
             + "ORDER BY update_time ASC, id ASC LIMIT #{size} OFFSET #{offset}</script>")
-    List<FileInfo> selectChanges(@Param("since") LocalDateTime since,
-                                 @Param("offset") long offset,
-                                 @Param("size") long size);
+    List<FileInfoPo> selectChanges(@Param("since") LocalDateTime since,
+                                   @Param("offset") long offset,
+                                   @Param("size") long size);
 
     /**
      * 统计文件变更条数（含逻辑删除行）。
@@ -58,7 +61,7 @@ public interface FileInfoMapper extends BaseMapper<FileInfo> {
      */
     @Select("SELECT id, file_name, original_name, bucket, object_key, file_size, content_type, md5, "
             + "status, uploader_id, create_time, update_time, deleted FROM file_info WHERE id = #{id}")
-    FileInfo selectByIdIncludingDeleted(@Param("id") Long id);
+    FileInfoPo selectByIdIncludingDeleted(@Param("id") Long id);
 
     /**
      * 获取 MySQL 命名锁（行级配额临界区锚点）。

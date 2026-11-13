@@ -1,4 +1,4 @@
-package com.bluewhale.file.entity;
+package com.bluewhale.file.po;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.bluewhale.common.entity.BaseEntity;
@@ -16,7 +16,7 @@ import lombok.EqualsAndHashCode;
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("file_info")
-public class FileInfo extends BaseEntity {
+public class FileInfoPo extends BaseEntity {
 
     private static final long serialVersionUID = 1L;
 

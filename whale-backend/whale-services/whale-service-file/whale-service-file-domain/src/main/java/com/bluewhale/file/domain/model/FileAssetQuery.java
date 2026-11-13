@@ -1,4 +1,4 @@
-package com.bluewhale.file.domain.file.repository;
+package com.bluewhale.file.domain.model;
 
 import java.time.LocalDateTime;
 

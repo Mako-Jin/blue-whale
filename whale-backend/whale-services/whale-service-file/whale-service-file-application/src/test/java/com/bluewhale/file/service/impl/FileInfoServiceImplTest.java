@@ -5,9 +5,9 @@ import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.file.config.FileProperties;
-import com.bluewhale.file.domain.file.aggregate.FileAsset;
-import com.bluewhale.file.domain.file.repository.FileAssetPage;
-import com.bluewhale.file.domain.file.repository.FileAssetQuery;
+import com.bluewhale.file.domain.file.aggregate.FileAssetAggregate;
+import com.bluewhale.file.domain.model.FileAssetPage;
+import com.bluewhale.file.domain.model.FileAssetQuery;
 import com.bluewhale.file.domain.file.repository.FileAssetRepository;
 import com.bluewhale.file.domain.model.vo.FileStatus;
 import com.bluewhale.file.domain.storage.ChunkUploadMetadata;
@@ -100,9 +100,9 @@ class FileInfoServiceImplTest {
     @BeforeEach
     void setUp() {
         fileProperties.setChunkSizeBytes(TEST_CHUNK_SIZE);
-        when(fileAssetRepository.save(any(FileAsset.class)))
+        when(fileAssetRepository.save(any(FileAssetAggregate.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-        when(fileAssetRepository.saveWithQuotaCheck(any(FileAsset.class), anyLong()))
+        when(fileAssetRepository.saveWithQuotaCheck(any(FileAssetAggregate.class), anyLong()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
@@ -224,8 +224,8 @@ class FileInfoServiceImplTest {
      * @param size 文件字节数
      * @return 文件资产聚合根
      */
-    private static FileAsset existingFile(long size) {
-        return FileAsset.reconstitute(11L, "stored.pdf", "origin.pdf", "bluewhale",
+    private static FileAssetAggregate existingFile(long size) {
+        return FileAssetAggregate.reconstitute(11L, "stored.pdf", "origin.pdf", "bluewhale",
                 "2026/10/19/stored.pdf", size, "application/pdf",
                 "d41d8cd98f00b204e9800998ecf8427e", FileStatus.NORMAL, null, false,
                 LocalDateTime.of(2026, 10, 19, 10, 0), LocalDateTime.of(2026, 10, 19, 10, 0));
@@ -238,8 +238,8 @@ class FileInfoServiceImplTest {
      * @param status 文件状态
      * @return 文件资产聚合根
      */
-    private static FileAsset fileWithStatus(long id, FileStatus status) {
-        return FileAsset.reconstitute(id, null, "locked.pdf", "bluewhale", "2026/10/24/locked.pdf",
+    private static FileAssetAggregate fileWithStatus(long id, FileStatus status) {
+        return FileAssetAggregate.reconstitute(id, null, "locked.pdf", "bluewhale", "2026/10/24/locked.pdf",
                 12L, "application/pdf", null, status, UPLOADER_ID, false,
                 LocalDateTime.of(2026, 10, 24, 9, 0), LocalDateTime.of(2026, 10, 24, 9, 0));
     }
@@ -262,9 +262,9 @@ class FileInfoServiceImplTest {
             assertTrue(result.objectKey().endsWith(".pdf"));
             assertTrue(result.fileName().endsWith(".pdf"));
             verify(fileStorage).store(eq("bluewhale"), eq(result.objectKey()), any(InputStream.class));
-            ArgumentCaptor<FileAsset> captor = ArgumentCaptor.forClass(FileAsset.class);
+            ArgumentCaptor<FileAssetAggregate> captor = ArgumentCaptor.forClass(FileAssetAggregate.class);
             verify(fileAssetRepository).saveWithQuotaCheck(captor.capture(), eq(fileProperties.getQuotaBytes()));
-            FileAsset saved = captor.getValue();
+            FileAssetAggregate saved = captor.getValue();
             assertEquals(UPLOADER_ID, saved.getUploaderId());
             assertEquals(FileStatus.NORMAL, saved.getStatus());
             assertEquals("bluewhale", saved.getBucket());
@@ -285,7 +285,7 @@ class FileInfoServiceImplTest {
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         verify(fileStorage, never()).store(any(), any(), any());
-        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAsset.class), anyLong());
+        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAssetAggregate.class), anyLong());
     }
 
     @Test
@@ -303,7 +303,7 @@ class FileInfoServiceImplTest {
     @Test
     @DisplayName("getDetail：跨租户按不存在处理，避免泄露文件是否存在")
     void shouldHideCrossTenantFile() {
-        when(fileAssetRepository.findById(5L)).thenReturn(Optional.of(FileAsset.reconstitute(5L, "a.txt",
+        when(fileAssetRepository.findById(5L)).thenReturn(Optional.of(FileAssetAggregate.reconstitute(5L, "a.txt",
                 "a.txt", "bluewhale", "tenants/2/2026/10/24/a.txt", 3L, "text/plain", null,
                 FileStatus.NORMAL, null, false, LocalDateTime.now(), LocalDateTime.now())));
         TenantContext.set(1L);
@@ -320,7 +320,7 @@ class FileInfoServiceImplTest {
     @Test
     @DisplayName("getDetail：他人文件按不存在处理，持有管理权限可访问")
     void shouldHideOtherUploaderFileUnlessManage() {
-        FileAsset others = FileAsset.reconstitute(5L, "a.txt", "a.txt", "bluewhale",
+        FileAssetAggregate others = FileAssetAggregate.reconstitute(5L, "a.txt", "a.txt", "bluewhale",
                 "tenants/1/2026/10/24/a.txt", 3L, "text/plain", null, FileStatus.NORMAL, 8L, false,
                 LocalDateTime.now(), LocalDateTime.now());
         when(fileAssetRepository.findById(5L)).thenReturn(Optional.of(others));
@@ -340,7 +340,7 @@ class FileInfoServiceImplTest {
     @Test
     @DisplayName("getDetail：服务间上传（上传者为空）仅管理视角可见")
     void shouldHideServiceUploadFromNormalUser() {
-        FileAsset serviceUpload = FileAsset.reconstitute(6L, "a.txt", "a.txt", "bluewhale",
+        FileAssetAggregate serviceUpload = FileAssetAggregate.reconstitute(6L, "a.txt", "a.txt", "bluewhale",
                 "tenants/1/2026/10/24/a.txt", 3L, "text/plain", null, FileStatus.NORMAL, null, false,
                 LocalDateTime.now(), LocalDateTime.now());
         when(fileAssetRepository.findById(6L)).thenReturn(Optional.of(serviceUpload));
@@ -372,7 +372,7 @@ class FileInfoServiceImplTest {
     @Test
     @DisplayName("page：按条件调用仓储分页并映射结果")
     void shouldPageWithConditions() {
-        FileAsset asset = FileAsset.reconstitute(1L, "a.pdf", "报告.pdf", "bluewhale",
+        FileAssetAggregate asset = FileAssetAggregate.reconstitute(1L, "a.pdf", "报告.pdf", "bluewhale",
                 "2026/10/19/a.pdf", 10L, "application/pdf", null, FileStatus.NORMAL, null, false,
                 LocalDateTime.of(2026, 10, 19, 10, 0), LocalDateTime.of(2026, 10, 19, 10, 0));
         when(fileAssetRepository.page(any(FileAssetQuery.class)))
@@ -396,7 +396,7 @@ class FileInfoServiceImplTest {
     @Test
     @DisplayName("presignedUrl：默认 600 秒并回传存储生成的 URL")
     void shouldPresignWithDefaultExpiry() {
-        FileAsset asset = fileWithStatus(5L, FileStatus.NORMAL);
+        FileAssetAggregate asset = fileWithStatus(5L, FileStatus.NORMAL);
         when(fileAssetRepository.findById(5L)).thenReturn(Optional.of(asset));
         when(fileStorage.presignedDownloadUrl("bluewhale", "2026/10/24/locked.pdf", 600))
                 .thenReturn("http://127.0.0.1:9000/bluewhale/2026/10/24/locked.pdf?sign=x");
@@ -465,7 +465,7 @@ class FileInfoServiceImplTest {
         assertEquals("video/mp4", result.contentType());
         assertEquals(DigestUtils.md5DigestAsHex(expected), result.md5());
         assertTrue(result.objectKey().endsWith(".bin"));
-        ArgumentCaptor<FileAsset> captor = ArgumentCaptor.forClass(FileAsset.class);
+        ArgumentCaptor<FileAssetAggregate> captor = ArgumentCaptor.forClass(FileAssetAggregate.class);
         verify(fileAssetRepository).saveWithQuotaCheck(captor.capture(), eq(fileProperties.getQuotaBytes()));
         assertEquals(12L, captor.getValue().getFileSize());
         assertEquals(UPLOADER_ID, captor.getValue().getUploaderId());
@@ -502,7 +502,7 @@ class FileInfoServiceImplTest {
         assertTrue(ex.getMessage().contains("缺少分片索引"));
         assertTrue(ex.getMessage().contains("1"));
         verify(fileStorage, never()).store(any(), any(), any());
-        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAsset.class), anyLong());
+        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAssetAggregate.class), anyLong());
         assertTrue(sessionExists(init.uploadId()), "失败时保留分片供续传");
     }
 
@@ -524,7 +524,7 @@ class FileInfoServiceImplTest {
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertTrue(ex.getMessage().contains("超出上限"));
         verify(fileStorage, never()).store(any(), any(), any());
-        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAsset.class), anyLong());
+        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAssetAggregate.class), anyLong());
     }
 
     @Test
@@ -561,7 +561,7 @@ class FileInfoServiceImplTest {
         assertEquals("copy.pdf", result.file().originalName());
         assertEquals("application/pdf", result.file().contentType());
         assertEquals(Long.valueOf(123L), result.file().fileSize());
-        ArgumentCaptor<FileAsset> captor = ArgumentCaptor.forClass(FileAsset.class);
+        ArgumentCaptor<FileAssetAggregate> captor = ArgumentCaptor.forClass(FileAssetAggregate.class);
         verify(fileAssetRepository).saveWithQuotaCheck(captor.capture(), eq(fileProperties.getQuotaBytes()));
         assertEquals("2026/10/19/stored.pdf", captor.getValue().getObjectKey());
         assertEquals("d41d8cd98f00b204e9800998ecf8427e", captor.getValue().getMd5());
@@ -579,7 +579,7 @@ class FileInfoServiceImplTest {
                 rapidCommand("copy.pdf", "d41d8cd98f00b204e9800998ecf8427e", 123L, "application/pdf"));
 
         assertFalse(result.hit());
-        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAsset.class), anyLong());
+        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAssetAggregate.class), anyLong());
         verify(fileAssetRepository, never()).sumNormalSizeByUploader(anyLong());
         verify(fileStorage, never()).store(any(), any(), any());
     }
@@ -597,7 +597,7 @@ class FileInfoServiceImplTest {
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertTrue(ex.getMessage().contains("超出个人存储配额"));
-        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAsset.class), anyLong());
+        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAssetAggregate.class), anyLong());
     }
 
     @Test
@@ -638,7 +638,7 @@ class FileInfoServiceImplTest {
                 new UploadLimits(2147483648L, 8589934592L)));
 
         assertEquals(100L, result.fileSize());
-        ArgumentCaptor<FileAsset> captor = ArgumentCaptor.forClass(FileAsset.class);
+        ArgumentCaptor<FileAssetAggregate> captor = ArgumentCaptor.forClass(FileAssetAggregate.class);
         verify(fileAssetRepository).saveWithQuotaCheck(captor.capture(), eq(8589934592L));
         assertEquals("movie.mp4", captor.getValue().getOriginalName());
     }
@@ -695,7 +695,7 @@ class FileInfoServiceImplTest {
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertTrue(ex.getMessage().contains("超出上限"));
         verify(fileStorage, never()).store(any(), any(), any());
-        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAsset.class), anyLong());
+        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAssetAggregate.class), anyLong());
     }
 
     @Test
@@ -766,7 +766,7 @@ class FileInfoServiceImplTest {
 
         fileInfoService.lock(7L);
 
-        ArgumentCaptor<FileAsset> captor = ArgumentCaptor.forClass(FileAsset.class);
+        ArgumentCaptor<FileAssetAggregate> captor = ArgumentCaptor.forClass(FileAssetAggregate.class);
         verify(fileAssetRepository).save(captor.capture());
         assertEquals(7L, captor.getValue().getId());
         assertEquals(FileStatus.LOCKED, captor.getValue().getStatus());
@@ -779,7 +779,7 @@ class FileInfoServiceImplTest {
 
         fileInfoService.lock(7L);
 
-        verify(fileAssetRepository, never()).save(any(FileAsset.class));
+        verify(fileAssetRepository, never()).save(any(FileAssetAggregate.class));
     }
 
     @Test
@@ -791,7 +791,7 @@ class FileInfoServiceImplTest {
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertTrue(ex.getMessage().contains("已禁用"));
-        verify(fileAssetRepository, never()).save(any(FileAsset.class));
+        verify(fileAssetRepository, never()).save(any(FileAssetAggregate.class));
     }
 
     @Test
@@ -799,13 +799,13 @@ class FileInfoServiceImplTest {
     void shouldUnlockOnlyLockedFile() {
         when(fileAssetRepository.findById(7L)).thenReturn(Optional.of(fileWithStatus(7L, FileStatus.LOCKED)));
         fileInfoService.unlock(7L);
-        ArgumentCaptor<FileAsset> captor = ArgumentCaptor.forClass(FileAsset.class);
+        ArgumentCaptor<FileAssetAggregate> captor = ArgumentCaptor.forClass(FileAssetAggregate.class);
         verify(fileAssetRepository).save(captor.capture());
         assertEquals(FileStatus.NORMAL, captor.getValue().getStatus());
 
         when(fileAssetRepository.findById(8L)).thenReturn(Optional.of(fileWithStatus(8L, FileStatus.NORMAL)));
         fileInfoService.unlock(8L);
-        verify(fileAssetRepository, times(1)).save(any(FileAsset.class));
+        verify(fileAssetRepository, times(1)).save(any(FileAssetAggregate.class));
     }
 
     @Test
@@ -824,7 +824,7 @@ class FileInfoServiceImplTest {
     @Test
     @DisplayName("changes：按更新时间游标分页并回传状态与更新时间")
     void shouldListChangesWithCursor() {
-        FileAsset asset = FileAsset.reconstitute(7L, "locked.pdf", "locked.pdf", "bluewhale",
+        FileAssetAggregate asset = FileAssetAggregate.reconstitute(7L, "locked.pdf", "locked.pdf", "bluewhale",
                 "2026/10/24/locked.pdf", 12L, "application/pdf", null, FileStatus.LOCKED, null, false,
                 LocalDateTime.of(2026, 10, 24, 9, 0), LocalDateTime.of(2026, 10, 24, 10, 0));
         when(fileAssetRepository.findChanges(any(), anyLong(), anyLong()))
@@ -842,7 +842,7 @@ class FileInfoServiceImplTest {
     @Test
     @DisplayName("getChangeDetail：已逻辑删除文件仍可查询并返回 deleted=1")
     void shouldReturnChangeDetailForDeletedFile() {
-        FileAsset deleted = FileAsset.reconstitute(7L, "locked.pdf", "locked.pdf", "bluewhale",
+        FileAssetAggregate deleted = FileAssetAggregate.reconstitute(7L, "locked.pdf", "locked.pdf", "bluewhale",
                 "2026/10/24/locked.pdf", 12L, "application/pdf", null, FileStatus.NORMAL, null, true,
                 LocalDateTime.of(2026, 10, 24, 9, 0), LocalDateTime.of(2026, 10, 24, 10, 0));
         when(fileAssetRepository.findByIdIncludingDeleted(7L)).thenReturn(Optional.of(deleted));
@@ -858,7 +858,7 @@ class FileInfoServiceImplTest {
     @DisplayName("upload：仓储原子配额校验失败时补偿删除已写入对象，避免孤儿文件")
     void shouldCompensateStoredObjectWhenPersistRejected() throws IOException {
         fileProperties.setQuotaBytes(1000L);
-        when(fileAssetRepository.saveWithQuotaCheck(any(FileAsset.class), anyLong()))
+        when(fileAssetRepository.saveWithQuotaCheck(any(FileAssetAggregate.class), anyLong()))
                 .thenThrow(new BizException(ErrorCode.PARAM_ERROR.getCode(), "超出个人存储配额"));
         UploadContent file = uploadContent("race-lost".getBytes(StandardCharsets.UTF_8), "race.txt");
 
@@ -875,7 +875,7 @@ class FileInfoServiceImplTest {
     @DisplayName("upload：补偿删除失败不掩盖原始配额异常")
     void shouldKeepOriginalErrorWhenCompensationFails() throws IOException {
         fileProperties.setQuotaBytes(1000L);
-        when(fileAssetRepository.saveWithQuotaCheck(any(FileAsset.class), anyLong()))
+        when(fileAssetRepository.saveWithQuotaCheck(any(FileAssetAggregate.class), anyLong()))
                 .thenThrow(new BizException(ErrorCode.PARAM_ERROR.getCode(), "超出个人存储配额"));
         doAnswer(invocation -> {
             throw new BizException(ErrorCode.SYSTEM_ERROR);

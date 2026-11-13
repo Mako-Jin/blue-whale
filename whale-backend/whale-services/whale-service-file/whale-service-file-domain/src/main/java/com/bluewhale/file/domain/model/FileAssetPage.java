@@ -1,6 +1,6 @@
-package com.bluewhale.file.domain.file.repository;
+package com.bluewhale.file.domain.model;
 
-import com.bluewhale.file.domain.file.aggregate.FileAsset;
+import com.bluewhale.file.domain.file.aggregate.FileAssetAggregate;
 
 import java.util.List;
 
@@ -13,5 +13,5 @@ import java.util.List;
  * @param size 每页条数
  * @author BlueWhale
  */
-public record FileAssetPage(List<FileAsset> records, long total, long current, long size) {
+public record FileAssetPage(List<FileAssetAggregate> records, long total, long current, long size) {
 }

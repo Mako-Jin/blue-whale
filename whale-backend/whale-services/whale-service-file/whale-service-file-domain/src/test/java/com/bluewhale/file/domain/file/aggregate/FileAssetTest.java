@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * {@link FileAsset} 聚合不变量与状态迁移单元测试。
+ * {@link FileAssetAggregate} 聚合不变量与状态迁移单元测试。
  *
  * @author BlueWhale
  */
@@ -29,8 +29,8 @@ class FileAssetTest {
      * @param status 文件状态
      * @return 文件资产聚合根
      */
-    private static FileAsset asset(FileStatus status) {
-        return FileAsset.reconstitute(1L, "a.pdf", "报告.pdf", "bluewhale",
+    private static FileAssetAggregate asset(FileStatus status) {
+        return FileAssetAggregate.reconstitute(1L, "a.pdf", "报告.pdf", "bluewhale",
                 "tenants/1/2026/10/24/a.pdf", 12L, "application/pdf", "md5",
                 status, 9L, false, LocalDateTime.of(2026, 10, 24, 9, 0), LocalDateTime.of(2026, 10, 24, 9, 0));
     }
@@ -38,7 +38,7 @@ class FileAssetTest {
     @Test
     @DisplayName("register：登记正常状态文件，文件名由对象键尾段推导")
     void shouldRegisterNormalAsset() {
-        FileAsset asset = FileAsset.register("bluewhale", "tenants/1/2026/10/24/uuid.pdf",
+        FileAssetAggregate asset = FileAssetAggregate.register("bluewhale", "tenants/1/2026/10/24/uuid.pdf",
                 "报告.pdf", 12L, "application/pdf", "md5", 9L);
 
         assertEquals(FileStatus.NORMAL, asset.getStatus());
@@ -59,11 +59,11 @@ class FileAssetTest {
     @DisplayName("register：原始文件名为空或大小非正数时拒绝登记")
     void shouldRejectInvalidRegistration() {
         BizException blankName = assertThrows(BizException.class,
-                () -> FileAsset.register("bluewhale", "k", " ", 12L, null, null, null));
+                () -> FileAssetAggregate.register("bluewhale", "k", " ", 12L, null, null, null));
         assertEquals(ErrorCode.PARAM_ERROR.getCode(), blankName.getCode());
 
         BizException zeroSize = assertThrows(BizException.class,
-                () -> FileAsset.register("bluewhale", "k", "a.txt", 0L, null, null, null));
+                () -> FileAssetAggregate.register("bluewhale", "k", "a.txt", 0L, null, null, null));
         assertEquals(ErrorCode.PARAM_ERROR.getCode(), zeroSize.getCode());
     }
 
@@ -71,12 +71,12 @@ class FileAssetTest {
     @DisplayName("构造不变量：桶名或对象键为空时拒绝")
     void shouldRejectBlankBucketOrObjectKey() {
         BizException noBucket = assertThrows(BizException.class,
-                () -> FileAsset.reconstitute(1L, "a.txt", "a.txt", " ", "k", 1L, null, null,
+                () -> FileAssetAggregate.reconstitute(1L, "a.txt", "a.txt", " ", "k", 1L, null, null,
                         FileStatus.NORMAL, null, false, null, null));
         assertEquals(ErrorCode.PARAM_ERROR.getCode(), noBucket.getCode());
 
         BizException noKey = assertThrows(BizException.class,
-                () -> FileAsset.reconstitute(1L, "a.txt", "a.txt", "bluewhale", "", 1L, null, null,
+                () -> FileAssetAggregate.reconstitute(1L, "a.txt", "a.txt", "bluewhale", "", 1L, null, null,
                         FileStatus.NORMAL, null, false, null, null));
         assertEquals(ErrorCode.PARAM_ERROR.getCode(), noKey.getCode());
     }
@@ -84,7 +84,7 @@ class FileAssetTest {
     @Test
     @DisplayName("reconstitute：缺失状态按正常处理，缺失大小与文件名做归一化")
     void shouldNormalizeReconstitutedValues() {
-        FileAsset asset = FileAsset.reconstitute(2L, "", "", "bluewhale",
+        FileAssetAggregate asset = FileAssetAggregate.reconstitute(2L, "", "", "bluewhale",
                 "tenants/1/2026/10/24/b.bin", 0L, null, null,
                 null, null, false, null, null);
 
@@ -99,7 +99,7 @@ class FileAssetTest {
     @DisplayName("reconstitute：负数文件大小说明数据非法，拒绝静默归一化")
     void shouldRejectNegativeFileSizeOnReconstitute() {
         BizException ex = assertThrows(BizException.class,
-                () -> FileAsset.reconstitute(2L, "a.txt", "a.txt", "bluewhale", "k", -1L, null, null,
+                () -> FileAssetAggregate.reconstitute(2L, "a.txt", "a.txt", "bluewhale", "k", -1L, null, null,
                         FileStatus.NORMAL, null, false, null, null));
         assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), ex.getCode());
     }
@@ -107,9 +107,9 @@ class FileAssetTest {
     @Test
     @DisplayName("reuse：复用物理对象并覆盖原始文件名与 MIME 类型")
     void shouldReusePhysicalObject() {
-        FileAsset source = asset(FileStatus.LOCKED);
+        FileAssetAggregate source = asset(FileStatus.LOCKED);
 
-        FileAsset reused = FileAsset.reuse(source, "copy.pdf", "application/octet-stream", 7L);
+        FileAssetAggregate reused = FileAssetAggregate.reuse(source, "copy.pdf", "application/octet-stream", 7L);
 
         assertEquals("a.pdf", reused.getFileName());
         assertEquals("copy.pdf", reused.getOriginalName());
@@ -118,17 +118,17 @@ class FileAssetTest {
         assertEquals(FileStatus.NORMAL, reused.getStatus());
         assertEquals(7L, reused.getUploaderId());
 
-        FileAsset fallback = FileAsset.reuse(source, "copy.pdf", " ", 7L);
+        FileAssetAggregate fallback = FileAssetAggregate.reuse(source, "copy.pdf", " ", 7L);
         assertEquals("application/pdf", fallback.getContentType());
 
-        BizException ex = assertThrows(BizException.class, () -> FileAsset.reuse(null, "a", null, null));
+        BizException ex = assertThrows(BizException.class, () -> FileAssetAggregate.reuse(null, "a", null, null));
         assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), ex.getCode());
     }
 
     @Test
     @DisplayName("lock：正常文件锁定，已锁定幂等，禁用文件拒绝")
     void shouldLockOnlyNormalAsset() {
-        FileAsset normal = asset(FileStatus.NORMAL);
+        FileAssetAggregate normal = asset(FileStatus.NORMAL);
         assertTrue(normal.lock());
         assertEquals(FileStatus.LOCKED, normal.getStatus());
         assertFalse(normal.lock());
@@ -141,7 +141,7 @@ class FileAssetTest {
     @Test
     @DisplayName("unlock：已锁定恢复为正常，未锁定幂等，禁用文件拒绝")
     void shouldUnlockOnlyLockedAsset() {
-        FileAsset locked = asset(FileStatus.LOCKED);
+        FileAssetAggregate locked = asset(FileStatus.LOCKED);
         assertTrue(locked.unlock());
         assertEquals(FileStatus.NORMAL, locked.getStatus());
         assertFalse(locked.unlock());
@@ -154,9 +154,9 @@ class FileAssetTest {
     @Test
     @DisplayName("equals/hashCode：已落库聚合按主键判定相等，未落库按对象同一性")
     void shouldCompareIdentityByPrimaryKey() {
-        FileAsset one = asset(FileStatus.NORMAL);
-        FileAsset sameId = asset(FileStatus.LOCKED);
-        FileAsset other = FileAsset.reconstitute(2L, "a.pdf", "报告.pdf", "bluewhale",
+        FileAssetAggregate one = asset(FileStatus.NORMAL);
+        FileAssetAggregate sameId = asset(FileStatus.LOCKED);
+        FileAssetAggregate other = FileAssetAggregate.reconstitute(2L, "a.pdf", "报告.pdf", "bluewhale",
                 "tenants/1/2026/10/24/a.pdf", 12L, "application/pdf", "md5",
                 FileStatus.NORMAL, 9L, false, null, null);
 
@@ -164,8 +164,8 @@ class FileAssetTest {
         assertEquals(one.hashCode(), sameId.hashCode());
         assertFalse(one.equals(other));
 
-        FileAsset transientOne = FileAsset.register("bluewhale", "k1", "a.txt", 1L, null, null, 9L);
-        FileAsset transientTwo = FileAsset.register("bluewhale", "k2", "a.txt", 1L, null, null, 9L);
+        FileAssetAggregate transientOne = FileAssetAggregate.register("bluewhale", "k1", "a.txt", 1L, null, null, 9L);
+        FileAssetAggregate transientTwo = FileAssetAggregate.register("bluewhale", "k2", "a.txt", 1L, null, null, 9L);
         assertFalse(transientOne.equals(transientTwo));
     }
 
@@ -183,7 +183,7 @@ class FileAssetTest {
     @Test
     @DisplayName("isVisibleToTenant：无租户上下文可见，租户前缀匹配才可见")
     void shouldCheckTenantVisibility() {
-        FileAsset asset = asset(FileStatus.NORMAL);
+        FileAssetAggregate asset = asset(FileStatus.NORMAL);
 
         assertTrue(asset.isVisibleToTenant(null));
         assertTrue(asset.isVisibleToTenant(1L));
@@ -194,14 +194,14 @@ class FileAssetTest {
     @Test
     @DisplayName("assertVisibleTo：管理权限或上传者本人可见，跨租户与服务间上传对普通用户不可见")
     void shouldAssertRequesterVisibility() {
-        FileAsset asset = asset(FileStatus.NORMAL);
+        FileAssetAggregate asset = asset(FileStatus.NORMAL);
 
         asset.assertVisibleTo(9L, false, 1L);
         asset.assertVisibleTo(7L, true, 1L);
         assertNotFound(() -> asset.assertVisibleTo(7L, false, 1L));
         assertNotFound(() -> asset.assertVisibleTo(9L, false, 2L));
 
-        FileAsset serviceUpload = FileAsset.reconstitute(2L, "b.txt", "b.txt", "bluewhale",
+        FileAssetAggregate serviceUpload = FileAssetAggregate.reconstitute(2L, "b.txt", "b.txt", "bluewhale",
                 "tenants/1/2026/10/24/b.txt", 1L, null, null, FileStatus.NORMAL, null, false, null, null);
         assertNotFound(() -> serviceUpload.assertVisibleTo(9L, false, 1L));
         serviceUpload.assertVisibleTo(null, false, 1L);
@@ -211,11 +211,11 @@ class FileAssetTest {
     @Test
     @DisplayName("构造：MD5 统一归一化为小写，空白摘要归一化为 null")
     void shouldNormalizeMd5() {
-        FileAsset upper = FileAsset.register("bluewhale", "k", "a.txt", 1L, null,
+        FileAssetAggregate upper = FileAssetAggregate.register("bluewhale", "k", "a.txt", 1L, null,
                 " D41D8CD98F00B204E9800998ECF8427E ", 9L);
         assertEquals("d41d8cd98f00b204e9800998ecf8427e", upper.getMd5());
 
-        FileAsset blank = FileAsset.register("bluewhale", "k", "a.txt", 1L, null, "  ", 9L);
+        FileAssetAggregate blank = FileAssetAggregate.register("bluewhale", "k", "a.txt", 1L, null, "  ", 9L);
         assertNull(blank.getMd5());
     }
 

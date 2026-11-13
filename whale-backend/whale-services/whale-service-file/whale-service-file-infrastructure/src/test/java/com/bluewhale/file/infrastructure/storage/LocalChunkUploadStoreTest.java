@@ -136,6 +136,8 @@ class LocalChunkUploadStoreTest {
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertTrue(ex.getMessage().contains("缺少分片索引: 1"));
+        assertFalse(Files.exists(tempDir.resolve("tmp").resolve(sessionId.value()).resolve("merged.bin")),
+                "缺片失败时应清理合并半成品");
     }
 
     @Test

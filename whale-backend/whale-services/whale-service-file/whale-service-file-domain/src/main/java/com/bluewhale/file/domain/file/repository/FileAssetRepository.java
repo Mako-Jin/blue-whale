@@ -1,6 +1,8 @@
 package com.bluewhale.file.domain.file.repository;
 
-import com.bluewhale.file.domain.file.aggregate.FileAsset;
+import com.bluewhale.file.domain.file.aggregate.FileAssetAggregate;
+import com.bluewhale.file.domain.model.FileAssetPage;
+import com.bluewhale.file.domain.model.FileAssetQuery;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -22,7 +24,7 @@ public interface FileAssetRepository {
      * @param asset 文件资产聚合根
      * @return 回填主键后的文件资产聚合根
      */
-    FileAsset save(FileAsset asset);
+    FileAssetAggregate save(FileAssetAggregate asset);
 
     /**
      * 在个人配额内原子保存文件资产：配额校验与写入在同一临界区完成，避免并发上传穿透配额。
@@ -34,7 +36,7 @@ public interface FileAssetRepository {
      * @return 回填主键后的文件资产聚合根
      * @throws com.bluewhale.common.domain.exception.DomainException 超出配额时抛出 {@code PARAM_ERROR}
      */
-    FileAsset saveWithQuotaCheck(FileAsset asset, long quotaBytes);
+    FileAssetAggregate saveWithQuotaCheck(FileAssetAggregate asset, long quotaBytes);
 
     /**
      * 按主键查询未逻辑删除的文件资产
@@ -42,7 +44,7 @@ public interface FileAssetRepository {
      * @param id 文件ID
      * @return 文件资产；不存在或已逻辑删除时返回空
      */
-    Optional<FileAsset> findById(Long id);
+    Optional<FileAssetAggregate> findById(Long id);
 
     /**
      * 按主键查询文件资产（包含已逻辑删除的行，供变更详情使用）
@@ -50,7 +52,7 @@ public interface FileAssetRepository {
      * @param id 文件ID
      * @return 文件资产；不存在时返回空
      */
-    Optional<FileAsset> findByIdIncludingDeleted(Long id);
+    Optional<FileAssetAggregate> findByIdIncludingDeleted(Long id);
 
     /**
      * 按 MD5 + 大小查询可复用的正常文件（秒传去重依据，按主键升序取第一条）
@@ -61,7 +63,7 @@ public interface FileAssetRepository {
      * @param fileSize 文件大小（字节）
      * @return 可复用的文件资产；未命中时返回空
      */
-    Optional<FileAsset> findReusableByDigest(String md5, long fileSize);
+    Optional<FileAssetAggregate> findReusableByDigest(String md5, long fileSize);
 
     /**
      * 逻辑删除文件资产

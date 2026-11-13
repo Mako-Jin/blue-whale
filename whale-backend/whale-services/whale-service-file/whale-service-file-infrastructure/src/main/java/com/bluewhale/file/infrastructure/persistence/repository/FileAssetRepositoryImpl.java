@@ -5,12 +5,12 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
-import com.bluewhale.file.domain.file.aggregate.FileAsset;
-import com.bluewhale.file.domain.file.repository.FileAssetPage;
-import com.bluewhale.file.domain.file.repository.FileAssetQuery;
+import com.bluewhale.file.domain.file.aggregate.FileAssetAggregate;
+import com.bluewhale.file.domain.model.FileAssetPage;
+import com.bluewhale.file.domain.model.FileAssetQuery;
 import com.bluewhale.file.domain.file.repository.FileAssetRepository;
 import com.bluewhale.file.domain.model.vo.FileStatus;
-import com.bluewhale.file.entity.FileInfo;
+import com.bluewhale.file.po.FileInfoPo;
 import com.bluewhale.file.infrastructure.persistence.assembler.FileInfoPersistenceAssembler;
 import com.bluewhale.file.mapper.FileInfoMapper;
 import lombok.RequiredArgsConstructor;
@@ -38,7 +38,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class FileAssetRepositoryImpl implements FileAssetRepository {
 
-    /** 秒传去重查询的取条数上限：仅需第一条可复用记录 */
+    /** 秒传去重查询的取条数上限：仅需第一条可复用记录；必须是编译期常量，禁止拼接外部输入 */
     private static final String LIMIT_ONE = "LIMIT 1";
 
     /** 配额命名锁前缀：按上传用户维度串行化「统计已用量 + 写入」 */
@@ -50,8 +50,8 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
     private final FileInfoMapper fileInfoMapper;
 
     @Override
-    public FileAsset save(FileAsset asset) {
-        FileInfo po = FileInfoPersistenceAssembler.toPo(asset);
+    public FileAssetAggregate save(FileAssetAggregate asset) {
+        FileInfoPo po = FileInfoPersistenceAssembler.toPo(asset);
         if (po.getId() == null) {
             fileInfoMapper.insert(po);
         } else {
@@ -60,9 +60,16 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
         return FileInfoPersistenceAssembler.toDomain(po);
     }
 
+    /**
+     * 在配额临界区内保存文件元数据。
+     *
+     * <p>配额统计与写入用 MySQL 命名锁串行化，锁随事务完成（提交/回滚）后释放；本方法使用独立
+     * 事务（{@code REQUIRES_NEW}）让配额锁只覆盖临界区本身。调用方不得再包裹外层事务：本方法提交后
+     * 的写入不随外层回滚，会破坏「存储写入 + 元数据登记」的补偿一致性。</p>
+     */
     @Override
     @Transactional(rollbackFor = Exception.class, propagation = Propagation.REQUIRES_NEW)
-    public FileAsset saveWithQuotaCheck(FileAsset asset, long quotaBytes) {
+    public FileAssetAggregate saveWithQuotaCheck(FileAssetAggregate asset, long quotaBytes) {
         Long uploaderId = asset.getUploaderId();
         if (uploaderId == null || quotaBytes <= 0) {
             return save(asset);
@@ -73,52 +80,56 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
             throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "获取文件配额锁超时，请稍后重试");
         }
         boolean synchronizationActive = TransactionSynchronizationManager.isSynchronizationActive();
-        if (synchronizationActive) {
-            // 命名锁绑定当前连接：必须等事务提交/回滚后再释放，避免并发事务在提交前读到旧用量
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCompletion(int status) {
-                    releaseQuotaLockQuietly(lockName);
-                }
-            });
-        }
+        boolean releaseAfterCompletion = false;
         try {
+            if (synchronizationActive) {
+                // 命名锁绑定当前连接：必须等事务提交/回滚后再释放，避免并发事务在提交前读到旧用量
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCompletion(int status) {
+                        releaseQuotaLockQuietly(lockName);
+                    }
+                });
+                releaseAfterCompletion = true;
+            }
             long used = sumNormalSizeByUploader(uploaderId);
             if (used + asset.getFileSize() > quotaBytes) {
                 throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "超出个人存储配额");
             }
             return save(asset);
         } finally {
-            if (!synchronizationActive) {
+            // 非事务场景直接释放；事务同步注册失败（如事务已标记回滚）时 afterCompletion 不会触发，
+            // 同样在此兜底释放——RELEASE_LOCK 对未持有的锁返回 0，重复释放无害
+            if (!releaseAfterCompletion) {
                 releaseQuotaLockQuietly(lockName);
             }
         }
     }
 
     @Override
-    public Optional<FileAsset> findById(Long id) {
-        FileInfo po = fileInfoMapper.selectById(id);
+    public Optional<FileAssetAggregate> findById(Long id) {
+        FileInfoPo po = fileInfoMapper.selectById(id);
         return Optional.ofNullable(po).map(FileInfoPersistenceAssembler::toDomain);
     }
 
     @Override
-    public Optional<FileAsset> findByIdIncludingDeleted(Long id) {
-        FileInfo po = fileInfoMapper.selectByIdIncludingDeleted(id);
+    public Optional<FileAssetAggregate> findByIdIncludingDeleted(Long id) {
+        FileInfoPo po = fileInfoMapper.selectByIdIncludingDeleted(id);
         return Optional.ofNullable(po).map(FileInfoPersistenceAssembler::toDomain);
     }
 
     @Override
-    public Optional<FileAsset> findReusableByDigest(String md5, long fileSize) {
+    public Optional<FileAssetAggregate> findReusableByDigest(String md5, long fileSize) {
         if (!StringUtils.hasText(md5)) {
             return Optional.empty();
         }
         // 端口契约大小写不敏感：查询前统一归一化为小写，避免历史/外部写入的大写摘要查不到
         String normalized = md5.trim().toLowerCase(Locale.ROOT);
-        FileInfo po = fileInfoMapper.selectOne(new LambdaQueryWrapper<FileInfo>()
-                .eq(FileInfo::getMd5, normalized)
-                .eq(FileInfo::getFileSize, fileSize)
-                .eq(FileInfo::getStatus, FileStatus.NORMAL.getCode())
-                .orderByAsc(FileInfo::getId)
+        FileInfoPo po = fileInfoMapper.selectOne(new LambdaQueryWrapper<FileInfoPo>()
+                .eq(FileInfoPo::getMd5, normalized)
+                .eq(FileInfoPo::getFileSize, fileSize)
+                .eq(FileInfoPo::getStatus, FileStatus.NORMAL.getCode())
+                .orderByAsc(FileInfoPo::getId)
                 .last(LIMIT_ONE));
         return Optional.ofNullable(po).map(FileInfoPersistenceAssembler::toDomain);
     }
@@ -130,12 +141,13 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
 
     @Override
     public long sumNormalSizeByUploader(Long uploaderId) {
-        QueryWrapper<FileInfo> wrapper = new QueryWrapper<>();
+        QueryWrapper<FileInfoPo> wrapper = new QueryWrapper<>();
         wrapper.select("COALESCE(SUM(file_size), 0) AS total")
                 .eq("uploader_id", uploaderId)
                 .eq("status", FileStatus.NORMAL.getCode());
         List<Object> values;
         try {
+            // selectObjs 返回所查询列的值列表（每行一个元素）；无 GROUP BY 的聚合查询恒返回一行
             values = fileInfoMapper.selectObjs(wrapper);
         } catch (RuntimeException e) {
             throw new BizException(ErrorCode.SYSTEM_ERROR);
@@ -148,25 +160,29 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
 
     @Override
     public FileAssetPage page(FileAssetQuery query) {
-        LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
+        LambdaQueryWrapper<FileInfoPo> wrapper = new LambdaQueryWrapper<>();
         wrapper.like(StringUtils.hasText(query.originalName()),
-                FileInfo::getOriginalName, query.originalName());
-        wrapper.eq(StringUtils.hasText(query.bucket()), FileInfo::getBucket, query.bucket());
-        wrapper.ge(query.createTimeStart() != null, FileInfo::getCreateTime, query.createTimeStart());
-        wrapper.le(query.createTimeEnd() != null, FileInfo::getCreateTime, query.createTimeEnd());
-        wrapper.eq(query.uploaderId() != null, FileInfo::getUploaderId, query.uploaderId());
-        wrapper.orderByDesc(FileInfo::getCreateTime);
-        Page<FileInfo> page = fileInfoMapper.selectPage(new Page<>(query.current(), query.size()), wrapper);
-        List<FileAsset> records = page.getRecords().stream().map(FileInfoPersistenceAssembler::toDomain).toList();
+                FileInfoPo::getOriginalName, query.originalName());
+        wrapper.eq(StringUtils.hasText(query.bucket()), FileInfoPo::getBucket, query.bucket());
+        wrapper.ge(query.createTimeStart() != null, FileInfoPo::getCreateTime, query.createTimeStart());
+        wrapper.le(query.createTimeEnd() != null, FileInfoPo::getCreateTime, query.createTimeEnd());
+        wrapper.eq(query.uploaderId() != null, FileInfoPo::getUploaderId, query.uploaderId());
+        // 追加主键二级排序：create_time 相同的行（如批量导入）在分页边界需要稳定顺序，否则可能重复或遗漏
+        wrapper.orderByDesc(FileInfoPo::getCreateTime);
+        wrapper.orderByDesc(FileInfoPo::getId);
+        Page<FileInfoPo> page = fileInfoMapper.selectPage(new Page<>(query.current(), query.size()), wrapper);
+        List<FileAssetAggregate> records = page.getRecords().stream().map(FileInfoPersistenceAssembler::toDomain).toList();
         return new FileAssetPage(records, page.getTotal(), page.getCurrent(), page.getSize());
     }
 
     @Override
     public FileAssetPage findChanges(LocalDateTime since, long current, long size) {
         long pageCurrent = Math.max(current, 1L);
+        // 游标（since）先行过滤大部分数据，offset 只作用于 since 之后的剩余集；同一 since 下深度
+        // 翻页仍会扫描 offset 行，调用方应避免对同一 since 反复翻页
         long offset = (pageCurrent - 1) * size;
-        List<FileInfo> rows = fileInfoMapper.selectChanges(since, offset, size);
-        List<FileAsset> records = rows.stream().map(FileInfoPersistenceAssembler::toDomain).toList();
+        List<FileInfoPo> rows = fileInfoMapper.selectChanges(since, offset, size);
+        List<FileAssetAggregate> records = rows.stream().map(FileInfoPersistenceAssembler::toDomain).toList();
         return new FileAssetPage(records, fileInfoMapper.countChanges(since), pageCurrent, size);
     }
 

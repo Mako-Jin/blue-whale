@@ -5,9 +5,9 @@ import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.file.config.FileProperties;
-import com.bluewhale.file.domain.file.aggregate.FileAsset;
-import com.bluewhale.file.domain.file.repository.FileAssetPage;
-import com.bluewhale.file.domain.file.repository.FileAssetQuery;
+import com.bluewhale.file.domain.file.aggregate.FileAssetAggregate;
+import com.bluewhale.file.domain.model.FileAssetPage;
+import com.bluewhale.file.domain.model.FileAssetQuery;
 import com.bluewhale.file.domain.file.repository.FileAssetRepository;
 import com.bluewhale.file.domain.storage.ChunkUploadMetadata;
 import com.bluewhale.file.domain.storage.ChunkUploadSessionId;
@@ -54,6 +54,10 @@ import java.util.stream.IntStream;
  * 落库失败时通过补偿删除物理对象保证最终一致。不将存储写包进事务，是因为对象存储属非事务资源，
  * 数据库回滚无法撤销已写入的物理对象，包进事务只会在回滚后留下孤儿对象。仅在需要跨多次仓储调用
  * 保持原子性的方法（{@code delete}/{@code lock}/{@code unlock}）上声明应用层事务。</p>
+ *
+ * <p><b>约束</b>：{@code upload}/{@code completeChunkUpload} 不得声明或被外层事务包裹——
+ * {@code saveWithQuotaCheck} 的独立事务提交后不随外层回滚，若存在外层事务，其失败时元数据已落库
+ * 而补偿逻辑无法撤销，破坏「存储写入 + 元数据登记」的一致性。</p>
  *
  * @author BlueWhale
  */
@@ -115,12 +119,12 @@ public class FileInfoServiceImpl implements FileInfoService {
         validateDeclaredSize(command.size(), effective);
         // MD5 大小写由仓储端口归一化，应用层按调用方原值透传
         String md5 = command.md5();
-        FileAsset existing = fileAssetRepository.findReusableByDigest(md5, command.size()).orElse(null);
+        FileAssetAggregate existing = fileAssetRepository.findReusableByDigest(md5, command.size()).orElse(null);
         if (existing == null) {
             return new FileRapidUploadResult(false, null);
         }
         validateQuota(command.size(), command.uploaderId(), effective.quotaBytes());
-        FileAsset asset = FileAsset.reuse(existing, resolveOriginalName(command.fileName()),
+        FileAssetAggregate asset = FileAssetAggregate.reuse(existing, resolveOriginalName(command.fileName()),
                 command.contentType(), command.uploaderId());
         return new FileRapidUploadResult(true, toUploadResult(persistAsset(asset, effective)));
     }
@@ -157,7 +161,7 @@ public class FileInfoServiceImpl implements FileInfoService {
 
     @Override
     public FileChangeResult getChangeDetail(Long id) {
-        FileAsset asset = fileAssetRepository.findByIdIncludingDeleted(id)
+        FileAssetAggregate asset = fileAssetRepository.findByIdIncludingDeleted(id)
                 .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
         asset.assertVisibleToTenant(TenantContext.get());
         return toChangeResult(asset);
@@ -165,20 +169,20 @@ public class FileInfoServiceImpl implements FileInfoService {
 
     @Override
     public InputStream openContent(Long id, Long requesterId, boolean canManage) {
-        FileAsset asset = requireAccessibleFile(id, requesterId, canManage);
+        FileAssetAggregate asset = requireAccessibleFile(id, requesterId, canManage);
         return fileStorage.load(asset.getBucket(), asset.getObjectKey());
     }
 
     @Override
     public InputStream openContent(Long id, Long requesterId, boolean canManage, long offset, long length) {
-        FileAsset asset = requireAccessibleFile(id, requesterId, canManage);
+        FileAssetAggregate asset = requireAccessibleFile(id, requesterId, canManage);
         return fileStorage.load(asset.getBucket(), asset.getObjectKey(), offset, length);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id, Long requesterId, boolean canManage) {
-        FileAsset asset = requireAccessibleFile(id, requesterId, canManage);
+        FileAssetAggregate asset = requireAccessibleFile(id, requesterId, canManage);
         asset.assertDeletable();
         fileAssetRepository.deleteById(id);
     }
@@ -195,7 +199,7 @@ public class FileInfoServiceImpl implements FileInfoService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void lock(Long id) {
-        FileAsset asset = requireFile(id);
+        FileAssetAggregate asset = requireFile(id);
         if (!asset.lock()) {
             return;
         }
@@ -205,7 +209,7 @@ public class FileInfoServiceImpl implements FileInfoService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void unlock(Long id) {
-        FileAsset asset = requireFile(id);
+        FileAssetAggregate asset = requireFile(id);
         if (!asset.unlock()) {
             return;
         }
@@ -214,7 +218,7 @@ public class FileInfoServiceImpl implements FileInfoService {
 
     @Override
     public FilePresignedResult presignedUrl(Long id, Integer expiresSeconds, Long requesterId, boolean canManage) {
-        FileAsset asset = requireAccessibleFile(id, requesterId, canManage);
+        FileAssetAggregate asset = requireAccessibleFile(id, requesterId, canManage);
         int expires = resolveExpiresSeconds(expiresSeconds);
         return new FilePresignedResult(
                 fileStorage.presignedDownloadUrl(asset.getBucket(), asset.getObjectKey(), expires), expires);
@@ -322,7 +326,7 @@ public class FileInfoServiceImpl implements FileInfoService {
         String objectKey = buildObjectKey(name);
         fileStorage.store(resolvedBucket, objectKey, in);
         try {
-            FileAsset asset = FileAsset.register(resolvedBucket, objectKey, name, fileSize, contentType, md5, uploaderId);
+            FileAssetAggregate asset = FileAssetAggregate.register(resolvedBucket, objectKey, name, fileSize, contentType, md5, uploaderId);
             return toUploadResult(persistAsset(asset, limits));
         } catch (RuntimeException e) {
             // 落库失败（含配额超限）：补偿删除已写入的物理对象，避免产生孤儿文件
@@ -339,7 +343,7 @@ public class FileInfoServiceImpl implements FileInfoService {
      * @return 回填主键后的文件资产聚合根
      * @throws BizException 超出配额时抛出 {@code PARAM_ERROR}
      */
-    private FileAsset persistAsset(FileAsset asset, UploadLimits limits) {
+    private FileAssetAggregate persistAsset(FileAssetAggregate asset, UploadLimits limits) {
         return fileAssetRepository.saveWithQuotaCheck(asset, limits.quotaBytes());
     }
 
@@ -363,8 +367,8 @@ public class FileInfoServiceImpl implements FileInfoService {
      * @param id 文件ID
      * @return 文件资产聚合根
      */
-    private FileAsset requireFile(Long id) {
-        FileAsset asset = fileAssetRepository.findById(id)
+    private FileAssetAggregate requireFile(Long id) {
+        FileAssetAggregate asset = fileAssetRepository.findById(id)
                 .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
         asset.assertVisibleToTenant(TenantContext.get());
         return asset;
@@ -379,9 +383,9 @@ public class FileInfoServiceImpl implements FileInfoService {
      * @return 文件资产聚合根
      * @throws BizException 不可见时抛出 {@code NOT_FOUND}
      */
-    private FileAsset requireAccessibleFile(Long id, Long requesterId, boolean canManage) {
+    private FileAssetAggregate requireAccessibleFile(Long id, Long requesterId, boolean canManage) {
         // 复用 requireFile 保证租户校验恒定发生，不受领域方法内部实现调整影响
-        FileAsset asset = requireFile(id);
+        FileAssetAggregate asset = requireFile(id);
         asset.assertVisibleTo(requesterId, canManage, TenantContext.get());
         return asset;
     }
@@ -550,7 +554,7 @@ public class FileInfoServiceImpl implements FileInfoService {
      * @param asset 文件资产聚合根
      * @return 上传结果
      */
-    private static FileUploadResult toUploadResult(FileAsset asset) {
+    private static FileUploadResult toUploadResult(FileAssetAggregate asset) {
         return new FileUploadResult(asset.getId(), asset.getFileName(), asset.getOriginalName(),
                 asset.getBucket(), asset.getObjectKey(), asset.getFileSize(), asset.getContentType(),
                 asset.getMd5());
@@ -562,7 +566,7 @@ public class FileInfoServiceImpl implements FileInfoService {
      * @param asset 文件资产聚合根
      * @return 文件信息结果
      */
-    private static FileInfoResult toInfoResult(FileAsset asset) {
+    private static FileInfoResult toInfoResult(FileAssetAggregate asset) {
         return new FileInfoResult(asset.getId(), asset.getFileName(), asset.getOriginalName(),
                 asset.getBucket(), asset.getObjectKey(), asset.getFileSize(), asset.getContentType(),
                 asset.getMd5(), asset.getUploaderId(), asset.getCreateTime());
@@ -574,7 +578,7 @@ public class FileInfoServiceImpl implements FileInfoService {
      * @param asset 文件资产聚合根
      * @return 文件变更结果
      */
-    private static FileChangeResult toChangeResult(FileAsset asset) {
+    private static FileChangeResult toChangeResult(FileAssetAggregate asset) {
         return new FileChangeResult(asset.getId(), asset.getFileName(), asset.getOriginalName(),
                 asset.getBucket(), asset.getObjectKey(), asset.getFileSize(), asset.getContentType(),
                 asset.getMd5(), asset.getStatus().getCode(), asset.getUploaderId(),

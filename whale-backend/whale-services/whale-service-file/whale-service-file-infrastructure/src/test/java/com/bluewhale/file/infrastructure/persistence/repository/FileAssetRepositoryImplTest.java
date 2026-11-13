@@ -4,11 +4,11 @@ import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
-import com.bluewhale.file.domain.file.aggregate.FileAsset;
-import com.bluewhale.file.domain.file.repository.FileAssetPage;
-import com.bluewhale.file.domain.file.repository.FileAssetQuery;
+import com.bluewhale.file.domain.file.aggregate.FileAssetAggregate;
+import com.bluewhale.file.domain.model.FileAssetPage;
+import com.bluewhale.file.domain.model.FileAssetQuery;
 import com.bluewhale.file.domain.model.vo.FileStatus;
-import com.bluewhale.file.entity.FileInfo;
+import com.bluewhale.file.po.FileInfoPo;
 import com.bluewhale.file.mapper.FileInfoMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -51,8 +51,8 @@ class FileAssetRepositoryImplTest {
      * @param deleted 逻辑删除标记
      * @return 文件持久化对象
      */
-    private static FileInfo po(Long id, Integer deleted) {
-        FileInfo po = new FileInfo();
+    private static FileInfoPo po(Long id, Integer deleted) {
+        FileInfoPo po = new FileInfoPo();
         po.setId(id);
         po.setFileName("a.pdf");
         po.setOriginalName("报告.pdf");
@@ -72,51 +72,51 @@ class FileAssetRepositoryImplTest {
     @Test
     @DisplayName("save：无主键走新增，有主键走更新")
     void shouldInsertOrUpdate() {
-        FileAsset created = FileAsset.register("bluewhale", "tenants/1/2026/10/24/a.pdf",
+        FileAssetAggregate created = FileAssetAggregate.register("bluewhale", "tenants/1/2026/10/24/a.pdf",
                 "报告.pdf", 12L, "application/pdf", "md5", 9L);
 
-        FileAsset saved = repository.save(created);
+        FileAssetAggregate saved = repository.save(created);
 
-        verify(fileInfoMapper).insert(any(FileInfo.class));
+        verify(fileInfoMapper).insert(any(FileInfoPo.class));
         assertEquals("a.pdf", saved.getFileName());
         assertEquals(FileStatus.NORMAL, saved.getStatus());
 
-        FileAsset existing = FileAsset.reconstitute(3L, "a.pdf", "报告.pdf", "bluewhale",
+        FileAssetAggregate existing = FileAssetAggregate.reconstitute(3L, "a.pdf", "报告.pdf", "bluewhale",
                 "tenants/1/2026/10/24/a.pdf", 12L, "application/pdf", "md5", FileStatus.LOCKED,
                 9L, false, LocalDateTime.of(2026, 10, 24, 9, 0), LocalDateTime.of(2026, 10, 24, 10, 0));
         repository.save(existing);
 
-        verify(fileInfoMapper, times(1)).updateById(any(FileInfo.class));
-        verify(fileInfoMapper, times(1)).insert(ArgumentMatchers.any(FileInfo.class));
+        verify(fileInfoMapper, times(1)).updateById(any(FileInfoPo.class));
+        verify(fileInfoMapper, times(1)).insert(ArgumentMatchers.any(FileInfoPo.class));
     }
 
     @Test
     @DisplayName("saveWithQuotaCheck：无上传用户或不限配额时退化为普通保存")
     void shouldSaveWithoutQuotaGuard() {
-        FileAsset noUploader = FileAsset.register("bluewhale", "tenants/1/2026/10/24/a.pdf",
+        FileAssetAggregate noUploader = FileAssetAggregate.register("bluewhale", "tenants/1/2026/10/24/a.pdf",
                 "报告.pdf", 12L, "application/pdf", "md5", null);
-        FileAsset unlimited = FileAsset.register("bluewhale", "tenants/1/2026/10/24/b.pdf",
+        FileAssetAggregate unlimited = FileAssetAggregate.register("bluewhale", "tenants/1/2026/10/24/b.pdf",
                 "报告.pdf", 12L, "application/pdf", "md5", 9L);
 
         repository.saveWithQuotaCheck(noUploader, 1000L);
         repository.saveWithQuotaCheck(unlimited, 0L);
 
-        verify(fileInfoMapper, times(2)).insert(any(FileInfo.class));
+        verify(fileInfoMapper, times(2)).insert(any(FileInfoPo.class));
         verify(fileInfoMapper, never()).acquireNamedLock(anyString(), anyInt());
     }
 
     @Test
     @DisplayName("saveWithQuotaCheck：锁内统计用量后放行，无事务上下文时立即释放锁")
     void shouldSaveWithinQuotaGuard() {
-        FileAsset asset = quotaAsset(100L);
+        FileAssetAggregate asset = quotaAsset(100L);
         when(fileInfoMapper.acquireNamedLock("whale:file:quota:9", 5)).thenReturn(1);
-        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any()))
+        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfoPo>>any()))
                 .thenReturn(List.<Object>of(100L));
 
-        FileAsset saved = repository.saveWithQuotaCheck(asset, 1000L);
+        FileAssetAggregate saved = repository.saveWithQuotaCheck(asset, 1000L);
 
         assertEquals("a.pdf", saved.getFileName());
-        verify(fileInfoMapper).insert(any(FileInfo.class));
+        verify(fileInfoMapper).insert(any(FileInfoPo.class));
         verify(fileInfoMapper).releaseNamedLock("whale:file:quota:9");
     }
 
@@ -124,14 +124,14 @@ class FileAssetRepositoryImplTest {
     @DisplayName("saveWithQuotaCheck：超出配额时不落库并释放锁")
     void shouldRejectExceedingQuota() {
         when(fileInfoMapper.acquireNamedLock("whale:file:quota:9", 5)).thenReturn(1);
-        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any()))
+        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfoPo>>any()))
                 .thenReturn(List.<Object>of(950L));
 
         BizException ex = assertThrows(BizException.class,
                 () -> repository.saveWithQuotaCheck(quotaAsset(100L), 1000L));
 
         assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
-        verify(fileInfoMapper, never()).insert(any(FileInfo.class));
+        verify(fileInfoMapper, never()).insert(any(FileInfoPo.class));
         verify(fileInfoMapper).releaseNamedLock("whale:file:quota:9");
     }
 
@@ -148,8 +148,8 @@ class FileAssetRepositoryImplTest {
                 () -> repository.saveWithQuotaCheck(quotaAsset(100L), 1000L));
         assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), failed.getCode());
 
-        verify(fileInfoMapper, never()).selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any());
-        verify(fileInfoMapper, never()).insert(any(FileInfo.class));
+        verify(fileInfoMapper, never()).selectObjs(ArgumentMatchers.<Wrapper<FileInfoPo>>any());
+        verify(fileInfoMapper, never()).insert(any(FileInfoPo.class));
         verify(fileInfoMapper, never()).releaseNamedLock(anyString());
     }
 
@@ -157,7 +157,7 @@ class FileAssetRepositoryImplTest {
     @DisplayName("saveWithQuotaCheck：事务同步激活时延迟到事务完成后释放锁")
     void shouldReleaseQuotaLockAfterTransactionCompletion() {
         when(fileInfoMapper.acquireNamedLock("whale:file:quota:9", 5)).thenReturn(1);
-        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any()))
+        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfoPo>>any()))
                 .thenReturn(List.<Object>of(0L));
         TransactionSynchronizationManager.initSynchronization();
         try {
@@ -177,15 +177,15 @@ class FileAssetRepositoryImplTest {
     @DisplayName("saveWithQuotaCheck：释放锁失败仅告警，不影响保存结果")
     void shouldIgnoreReleaseFailure() {
         when(fileInfoMapper.acquireNamedLock("whale:file:quota:9", 5)).thenReturn(1);
-        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any()))
+        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfoPo>>any()))
                 .thenReturn(List.<Object>of(0L));
         when(fileInfoMapper.releaseNamedLock("whale:file:quota:9"))
                 .thenThrow(new IllegalStateException("connection closed"));
 
-        FileAsset saved = repository.saveWithQuotaCheck(quotaAsset(100L), 1000L);
+        FileAssetAggregate saved = repository.saveWithQuotaCheck(quotaAsset(100L), 1000L);
 
         assertEquals("a.pdf", saved.getFileName());
-        verify(fileInfoMapper).insert(any(FileInfo.class));
+        verify(fileInfoMapper).insert(any(FileInfoPo.class));
     }
 
     /**
@@ -194,8 +194,8 @@ class FileAssetRepositoryImplTest {
      * @param size 文件字节数
      * @return 文件资产聚合根
      */
-    private static FileAsset quotaAsset(long size) {
-        return FileAsset.register("bluewhale", "tenants/1/2026/10/24/a.pdf",
+    private static FileAssetAggregate quotaAsset(long size) {
+        return FileAssetAggregate.register("bluewhale", "tenants/1/2026/10/24/a.pdf",
                 "报告.pdf", size, "application/pdf", "md5", 9L);
     }
 
@@ -207,12 +207,12 @@ class FileAssetRepositoryImplTest {
         when(fileInfoMapper.selectByIdIncludingDeleted(3L)).thenReturn(po(3L, 1));
         when(fileInfoMapper.selectByIdIncludingDeleted(4L)).thenReturn(null);
 
-        Optional<FileAsset> found = repository.findById(1L);
+        Optional<FileAssetAggregate> found = repository.findById(1L);
         assertTrue(found.isPresent());
         assertEquals("a.pdf", found.get().getFileName());
         assertTrue(repository.findById(2L).isEmpty());
 
-        Optional<FileAsset> deleted = repository.findByIdIncludingDeleted(3L);
+        Optional<FileAssetAggregate> deleted = repository.findByIdIncludingDeleted(3L);
         assertTrue(deleted.isPresent());
         assertTrue(deleted.get().isDeleted());
         assertTrue(repository.findByIdIncludingDeleted(4L).isEmpty());
@@ -221,12 +221,12 @@ class FileAssetRepositoryImplTest {
     @Test
     @DisplayName("findById：空字段归一化（大小为空、状态为空、删除标记为空）")
     void shouldNormalizeNullColumns() {
-        FileInfo po = po(5L, null);
+        FileInfoPo po = po(5L, null);
         po.setFileSize(null);
         po.setStatus(null);
         when(fileInfoMapper.selectById(5L)).thenReturn(po);
 
-        FileAsset asset = repository.findById(5L).orElseThrow();
+        FileAssetAggregate asset = repository.findById(5L).orElseThrow();
 
         assertEquals(0L, asset.getFileSize());
         assertEquals(FileStatus.NORMAL, asset.getStatus());
@@ -236,14 +236,14 @@ class FileAssetRepositoryImplTest {
     @Test
     @DisplayName("findReusableByDigest：命中返回可复用聚合，未命中返回空")
     void shouldFindReusableByDigest() {
-        when(fileInfoMapper.selectOne(ArgumentMatchers.<Wrapper<FileInfo>>any())).thenReturn(po(1L, 0));
+        when(fileInfoMapper.selectOne(ArgumentMatchers.<Wrapper<FileInfoPo>>any())).thenReturn(po(1L, 0));
 
-        Optional<FileAsset> hit = repository.findReusableByDigest("md5", 12L);
+        Optional<FileAssetAggregate> hit = repository.findReusableByDigest("md5", 12L);
 
         assertTrue(hit.isPresent());
         assertEquals("tenants/1/2026/10/24/a.pdf", hit.get().getObjectKey());
 
-        when(fileInfoMapper.selectOne(ArgumentMatchers.<Wrapper<FileInfo>>any())).thenReturn(null);
+        when(fileInfoMapper.selectOne(ArgumentMatchers.<Wrapper<FileInfoPo>>any())).thenReturn(null);
         assertTrue(repository.findReusableByDigest("md5", 12L).isEmpty());
     }
 
@@ -258,7 +258,7 @@ class FileAssetRepositoryImplTest {
     @Test
     @DisplayName("sumNormalSizeByUploader：兼容数值、字符串、空结果")
     void shouldSumUsedBytes() {
-        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any()))
+        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfoPo>>any()))
                 .thenReturn(List.<Object>of(123L))
                 .thenReturn(List.<Object>of("456"))
                 .thenReturn(List.<Object>of())
@@ -273,7 +273,7 @@ class FileAssetRepositoryImplTest {
     @Test
     @DisplayName("sumNormalSizeByUploader：未知类型或查询异常抛系统错误")
     void shouldFailWhenSumUnreadable() {
-        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any()))
+        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfoPo>>any()))
                 .thenReturn(List.<Object>of("abc"))
                 .thenReturn(List.<Object>of(new Object()))
                 .thenThrow(new IllegalStateException("db down"));
@@ -291,11 +291,11 @@ class FileAssetRepositoryImplTest {
     @Test
     @DisplayName("page：分页转换聚合结果并回传分页元数据")
     void shouldPage() {
-        Page<FileInfo> page = new Page<>(1L, 10L);
+        Page<FileInfoPo> page = new Page<>(1L, 10L);
         page.setRecords(List.of(po(1L, 0)));
         page.setTotal(1L);
-        when(fileInfoMapper.selectPage(ArgumentMatchers.<Page<FileInfo>>any(),
-                ArgumentMatchers.<Wrapper<FileInfo>>any())).thenReturn(page);
+        when(fileInfoMapper.selectPage(ArgumentMatchers.<Page<FileInfoPo>>any(),
+                ArgumentMatchers.<Wrapper<FileInfoPo>>any())).thenReturn(page);
         LocalDateTime start = LocalDateTime.of(2026, 10, 1, 0, 0);
         LocalDateTime end = LocalDateTime.of(2026, 10, 31, 0, 0);
 
@@ -311,9 +311,9 @@ class FileAssetRepositoryImplTest {
     @Test
     @DisplayName("page：无查询条件时仍返回空页")
     void shouldPageWithoutConditions() {
-        Page<FileInfo> page = new Page<>(1L, 10L);
-        when(fileInfoMapper.selectPage(ArgumentMatchers.<Page<FileInfo>>any(),
-                ArgumentMatchers.<Wrapper<FileInfo>>any())).thenReturn(page);
+        Page<FileInfoPo> page = new Page<>(1L, 10L);
+        when(fileInfoMapper.selectPage(ArgumentMatchers.<Page<FileInfoPo>>any(),
+                ArgumentMatchers.<Wrapper<FileInfoPo>>any())).thenReturn(page);
 
         FileAssetPage result = repository.page(new FileAssetQuery(null, null, null, null, null, 1L, 10L));
 

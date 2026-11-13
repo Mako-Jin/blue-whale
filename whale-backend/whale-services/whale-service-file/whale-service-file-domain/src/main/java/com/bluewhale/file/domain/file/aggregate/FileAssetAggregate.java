@@ -4,6 +4,7 @@ import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.domain.exception.DomainException;
 import com.bluewhale.common.domain.model.Entity;
 import com.bluewhale.file.domain.model.vo.FileStatus;
+import lombok.Getter;
 
 import java.time.LocalDateTime;
 import java.util.Locale;
@@ -20,7 +21,8 @@ import java.util.Objects;
  *
  * @author BlueWhale
  */
-public class FileAsset implements Entity<Long> {
+@Getter
+public class FileAssetAggregate implements Entity<Long> {
 
     /** 对象键租户目录前缀：存储层按 {@code tenants/{tenantId}/...} 隔离 */
     private static final String TENANT_KEY_PREFIX = "tenants/";
@@ -31,43 +33,108 @@ public class FileAsset implements Entity<Long> {
     /** 对象键分隔符 */
     private static final char PATH_SEPARATOR = '/';
 
-    /** 主键（新建且未落库时为 {@code null}） */
+    /** 主键（新建且未落库时为 {@code null}）
+     * -- GETTER --
+     *  获取主键
+     *
+     * @return 主键（新建且未落库时为 {@code null}）
+     */
     private final Long id;
 
-    /** 存储文件名（系统按 {@code objectKey} 尾段生成） */
+    /** 存储文件名（系统按 {@code objectKey} 尾段生成）
+     * -- GETTER --
+     *  获取存储文件名
+     *
+     * @return 存储文件名
+     */
     private final String fileName;
 
-    /** 原始文件名（用户上传时的文件名） */
+    /** 原始文件名（用户上传时的文件名）
+     * -- GETTER --
+     *  获取原始文件名
+     *
+     * @return 原始文件名
+     */
     private final String originalName;
 
-    /** 对象存储桶名称 */
+    /** 对象存储桶名称
+     * -- GETTER --
+     *  获取对象存储桶名称
+     *
+     * @return 桶名称
+     */
     private final String bucket;
 
-    /** 对象存储键（桶内完整路径） */
+    /** 对象存储键（桶内完整路径）
+     * -- GETTER --
+     *  获取对象存储键
+     *
+     * @return 对象键
+     */
     private final String objectKey;
 
-    /** 文件大小（字节） */
+    /** 文件大小（字节）
+     * -- GETTER --
+     *  获取文件大小
+     *
+     * @return 文件大小（字节）
+     */
     private final long fileSize;
 
-    /** 文件 MIME 类型，可为 {@code null} */
+    /** 文件 MIME 类型，可为 {@code null}
+     * -- GETTER --
+     *  获取 MIME 类型
+     *
+     * @return MIME 类型，可为 {@code null}
+     */
     private final String contentType;
 
-    /** 文件 MD5 摘要（十六进制小写），可为 {@code null} */
+    /** 文件 MD5 摘要（十六进制小写），可为 {@code null}
+     * -- GETTER --
+     *  获取 MD5 摘要
+     *
+     * @return MD5 摘要（十六进制小写），可为 {@code null}
+     */
     private final String md5;
 
-    /** 上传用户 ID，可为 {@code null} */
+    /** 上传用户 ID，可为 {@code null}
+     * -- GETTER --
+     *  获取上传用户 ID
+     *
+     * @return 上传用户 ID，可为 {@code null}
+     */
     private final Long uploaderId;
 
-    /** 逻辑删除标记 */
+    /** 逻辑删除标记
+     * -- GETTER --
+     *  判断是否已逻辑删除
+     *
+     * @return 已逻辑删除时返回 {@code true}
+     */
     private final boolean deleted;
 
-    /** 创建时间 */
+    /** 创建时间
+     * -- GETTER --
+     *  获取创建时间
+     *
+     * @return 创建时间
+     */
     private final LocalDateTime createTime;
 
-    /** 文件状态 */
+    /** 文件状态
+     * -- GETTER --
+     *  获取文件状态
+     *
+     * @return 文件状态
+     */
     private FileStatus status;
 
-    /** 更新时间 */
+    /** 更新时间
+     * -- GETTER --
+     *  获取更新时间
+     *
+     * @return 更新时间
+     */
     private LocalDateTime updateTime;
 
     /**
@@ -87,9 +154,9 @@ public class FileAsset implements Entity<Long> {
      * @param createTime 创建时间
      * @param updateTime 更新时间
      */
-    private FileAsset(Long id, String fileName, String originalName, String bucket, String objectKey,
-                      long fileSize, String contentType, String md5, FileStatus status, Long uploaderId,
-                      boolean deleted, LocalDateTime createTime, LocalDateTime updateTime) {
+    private FileAssetAggregate(Long id, String fileName, String originalName, String bucket, String objectKey,
+                               long fileSize, String contentType, String md5, FileStatus status, Long uploaderId,
+                               boolean deleted, LocalDateTime createTime, LocalDateTime updateTime) {
         if (bucket == null || bucket.isBlank()) {
             throw new DomainException(ErrorCode.PARAM_ERROR, "对象存储桶名称不能为空");
         }
@@ -128,8 +195,8 @@ public class FileAsset implements Entity<Long> {
      * @return 新建的文件资产聚合根
      * @throws DomainException 原始文件名为空或文件大小非正数时抛出 {@code PARAM_ERROR}
      */
-    public static FileAsset register(String bucket, String objectKey, String originalName, long fileSize,
-                                     String contentType, String md5, Long uploaderId) {
+    public static FileAssetAggregate register(String bucket, String objectKey, String originalName, long fileSize,
+                                              String contentType, String md5, Long uploaderId) {
         if (originalName == null || originalName.isBlank()) {
             throw new DomainException(ErrorCode.PARAM_ERROR, "原始文件名不能为空");
         }
@@ -137,7 +204,7 @@ public class FileAsset implements Entity<Long> {
             throw new DomainException(ErrorCode.PARAM_ERROR, "文件大小必须大于 0");
         }
         LocalDateTime now = LocalDateTime.now();
-        return new FileAsset(null, null, originalName, bucket, objectKey, fileSize, contentType, md5,
+        return new FileAssetAggregate(null, null, originalName, bucket, objectKey, fileSize, contentType, md5,
                 FileStatus.NORMAL, uploaderId, false, now, now);
     }
 
@@ -151,14 +218,14 @@ public class FileAsset implements Entity<Long> {
      * @return 新建的文件资产聚合根
      * @throws DomainException 源文件资产为空时抛出 {@code SYSTEM_ERROR}
      */
-    public static FileAsset reuse(FileAsset source, String originalName, String contentType, Long uploaderId) {
+    public static FileAssetAggregate reuse(FileAssetAggregate source, String originalName, String contentType, Long uploaderId) {
         if (source == null) {
             throw new DomainException(ErrorCode.SYSTEM_ERROR, "复用的文件对象不能为空");
         }
         String resolvedContentType = contentType == null || contentType.isBlank()
                 ? source.contentType : contentType;
         LocalDateTime now = LocalDateTime.now();
-        return new FileAsset(null, source.fileName, originalName, source.bucket, source.objectKey, source.fileSize,
+        return new FileAssetAggregate(null, source.fileName, originalName, source.bucket, source.objectKey, source.fileSize,
                 resolvedContentType, source.md5, FileStatus.NORMAL, uploaderId, false, now, now);
     }
 
@@ -183,11 +250,11 @@ public class FileAsset implements Entity<Long> {
      * @param updateTime 更新时间
      * @return 还原的文件资产聚合根
      */
-    public static FileAsset reconstitute(Long id, String fileName, String originalName, String bucket,
-                                         String objectKey, long fileSize, String contentType, String md5,
-                                         FileStatus status, Long uploaderId, boolean deleted,
-                                         LocalDateTime createTime, LocalDateTime updateTime) {
-        return new FileAsset(id, fileName, originalName, bucket, objectKey, fileSize, contentType, md5,
+    public static FileAssetAggregate reconstitute(Long id, String fileName, String originalName, String bucket,
+                                                  String objectKey, long fileSize, String contentType, String md5,
+                                                  FileStatus status, Long uploaderId, boolean deleted,
+                                                  LocalDateTime createTime, LocalDateTime updateTime) {
+        return new FileAssetAggregate(id, fileName, originalName, bucket, objectKey, fileSize, contentType, md5,
                 status, uploaderId, deleted, createTime, updateTime);
     }
 
@@ -306,10 +373,10 @@ public class FileAsset implements Entity<Long> {
         if (this == other) {
             return true;
         }
-        if (!(other instanceof FileAsset)) {
+        if (!(other instanceof FileAssetAggregate)) {
             return false;
         }
-        FileAsset asset = (FileAsset) other;
+        FileAssetAggregate asset = (FileAssetAggregate) other;
         // 任一未落库则不按主键比较，退化为对象同一性（上方已处理 this == other）
         if (id == null || asset.id == null) {
             return false;
@@ -345,120 +412,4 @@ public class FileAsset implements Entity<Long> {
         return index >= 0 ? objectKey.substring(index + 1) : objectKey;
     }
 
-    /**
-     * 获取主键
-     *
-     * @return 主键（新建且未落库时为 {@code null}）
-     */
-    public Long getId() {
-        return id;
-    }
-
-    /**
-     * 获取存储文件名
-     *
-     * @return 存储文件名
-     */
-    public String getFileName() {
-        return fileName;
-    }
-
-    /**
-     * 获取原始文件名
-     *
-     * @return 原始文件名
-     */
-    public String getOriginalName() {
-        return originalName;
-    }
-
-    /**
-     * 获取对象存储桶名称
-     *
-     * @return 桶名称
-     */
-    public String getBucket() {
-        return bucket;
-    }
-
-    /**
-     * 获取对象存储键
-     *
-     * @return 对象键
-     */
-    public String getObjectKey() {
-        return objectKey;
-    }
-
-    /**
-     * 获取文件大小
-     *
-     * @return 文件大小（字节）
-     */
-    public long getFileSize() {
-        return fileSize;
-    }
-
-    /**
-     * 获取 MIME 类型
-     *
-     * @return MIME 类型，可为 {@code null}
-     */
-    public String getContentType() {
-        return contentType;
-    }
-
-    /**
-     * 获取 MD5 摘要
-     *
-     * @return MD5 摘要（十六进制小写），可为 {@code null}
-     */
-    public String getMd5() {
-        return md5;
-    }
-
-    /**
-     * 获取文件状态
-     *
-     * @return 文件状态
-     */
-    public FileStatus getStatus() {
-        return status;
-    }
-
-    /**
-     * 获取上传用户 ID
-     *
-     * @return 上传用户 ID，可为 {@code null}
-     */
-    public Long getUploaderId() {
-        return uploaderId;
-    }
-
-    /**
-     * 判断是否已逻辑删除
-     *
-     * @return 已逻辑删除时返回 {@code true}
-     */
-    public boolean isDeleted() {
-        return deleted;
-    }
-
-    /**
-     * 获取创建时间
-     *
-     * @return 创建时间
-     */
-    public LocalDateTime getCreateTime() {
-        return createTime;
-    }
-
-    /**
-     * 获取更新时间
-     *
-     * @return 更新时间
-     */
-    public LocalDateTime getUpdateTime() {
-        return updateTime;
-    }
 }

@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
@@ -23,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
 /**
@@ -76,18 +78,39 @@ public class LocalChunkUploadStore implements ChunkUploadStore {
     /** 会话保留时长（毫秒）；{@code <=0} 表示不清理 */
     private final long sessionTtlMillis;
 
-    /** 上次清理时间戳（毫秒），用于限频扫描 */
-    private volatile long lastPurgeAt;
+    /** 上次清理时间戳（毫秒），用于限频扫描；CAS 更新保证并发下只有一个线程执行清理 */
+    private final AtomicLong lastPurgeAt = new AtomicLong();
 
     /**
      * 以文件服务配置构造本机分片暂存实现
      *
+     * <p>构造时即校验存储根目录可创建、可写，配置错误在启动阶段暴露而非首次上传时才失败。</p>
+     *
      * @param fileProperties 文件服务配置（读取 {@code whale.file.storage.root} 与
      *                       {@code whale.file.chunk-upload-ttl-hours}）
+     * @throws BizException 根目录创建失败或不可写时抛出 {@code SYSTEM_ERROR}
      */
     public LocalChunkUploadStore(FileProperties fileProperties) {
         this.root = Paths.get(fileProperties.getStorage().getRoot()).toAbsolutePath().normalize();
         this.sessionTtlMillis = Math.max(fileProperties.getChunkUploadTtlHours(), 0L) * MILLIS_PER_HOUR;
+        ensureWritableRoot(root);
+    }
+
+    /**
+     * 确保存储根目录存在且可写
+     *
+     * @param root 存储根目录
+     * @throws BizException 目录创建失败或不可写时抛出 {@code SYSTEM_ERROR}
+     */
+    private static void ensureWritableRoot(Path root) {
+        try {
+            Files.createDirectories(root);
+        } catch (IOException e) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "文件存储根目录创建失败: " + root);
+        }
+        if (!Files.isWritable(root)) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "文件存储根目录不可写: " + root);
+        }
     }
 
     @Override
@@ -160,6 +183,30 @@ public class LocalChunkUploadStore implements ChunkUploadStore {
         Path dir = requireSession(sessionId);
         Path merged = dir.resolve(MERGED_FILE_NAME);
         try {
+            writeMerged(dir, merged, partCount);
+            // 流打开后不可再调用可失败逻辑：先取元数据/摘要/大小（失败时无流需要回收），
+            // Files.newInputStream 必须是最后一个可失败调用，否则会泄漏未关闭的流
+            String contentType = readMetaContentType(dir);
+            String md5 = md5Of(merged);
+            long size = Files.size(merged);
+            return new MergedChunkUpload(Files.newInputStream(merged), size, contentType, md5);
+        } catch (IOException e) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR);
+        }
+    }
+
+    /**
+     * 顺序拼接分片写入合并文件
+     *
+     * <p>失败（缺片或 IO 异常）时删除半成品，避免不完整的 {@code merged.bin} 长期占用磁盘。</p>
+     *
+     * @param dir 会话目录
+     * @param merged 合并文件路径
+     * @param partCount 分片总数
+     * @throws IOException 写入失败时抛出
+     */
+    private static void writeMerged(Path dir, Path merged, int partCount) throws IOException {
+        try {
             try (OutputStream out = Files.newOutputStream(merged)) {
                 for (int i = 0; i < partCount; i++) {
                     Path part = dir.resolve(PART_FILE_PREFIX + i);
@@ -169,14 +216,9 @@ public class LocalChunkUploadStore implements ChunkUploadStore {
                     Files.copy(part, out);
                 }
             }
-            // 流打开后不可再调用可失败逻辑：先取元数据/摘要/大小（失败时无流需要回收），
-            // Files.newInputStream 必须是最后一个可失败调用，否则会泄漏未关闭的流
-            String contentType = readMetaContentType(dir);
-            String md5 = md5Of(merged);
-            long size = Files.size(merged);
-            return new MergedChunkUpload(Files.newInputStream(merged), size, contentType, md5);
-        } catch (IOException e) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR);
+        } catch (IOException | RuntimeException e) {
+            deleteQuietly(merged);
+            throw e;
         }
     }
 
@@ -204,10 +246,14 @@ public class LocalChunkUploadStore implements ChunkUploadStore {
             return;
         }
         long now = System.currentTimeMillis();
-        if (now - lastPurgeAt < PURGE_INTERVAL_MILLIS) {
+        long previous = lastPurgeAt.get();
+        if (now - previous < PURGE_INTERVAL_MILLIS) {
             return;
         }
-        lastPurgeAt = now;
+        // CAS 抢占本轮清理权：并发初始化时只有一个线程真正扫描/删除，其余线程直接返回
+        if (!lastPurgeAt.compareAndSet(previous, now)) {
+            return;
+        }
         Path tmpRoot = root.resolve(TMP_DIR_NAME);
         if (!Files.isDirectory(tmpRoot)) {
             return;
@@ -237,7 +283,7 @@ public class LocalChunkUploadStore implements ChunkUploadStore {
     }
 
     /**
-     * 删除目录树（含子文件）
+     * 删除目录树（含子文件）；目录已被并发清理时静默忽略
      *
      * @param dir 目标目录
      * @throws IOException 删除失败时抛出
@@ -247,6 +293,21 @@ public class LocalChunkUploadStore implements ChunkUploadStore {
             for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
                 Files.deleteIfExists(path);
             }
+        } catch (NoSuchFileException e) {
+            // discard 与过期清理可能并发删除同一会话目录：目录已不存在视为删除成功
+        }
+    }
+
+    /**
+     * 尽力删除文件：失败仅告警
+     *
+     * @param path 目标文件
+     */
+    private static void deleteQuietly(Path path) {
+        try {
+            Files.deleteIfExists(path);
+        } catch (IOException e) {
+            log.warn("清理分片合并半成品失败: path={}", path, e);
         }
     }
 

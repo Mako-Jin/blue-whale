@@ -1,11 +1,11 @@
 package com.bluewhale.file.infrastructure.persistence.assembler;
 
-import com.bluewhale.file.domain.file.aggregate.FileAsset;
+import com.bluewhale.file.domain.file.aggregate.FileAssetAggregate;
 import com.bluewhale.file.domain.model.vo.FileStatus;
-import com.bluewhale.file.entity.FileInfo;
+import com.bluewhale.file.po.FileInfoPo;
 
 /**
- * FileAsset 聚合与其持久化对象（PO，{@link FileInfo}）的双向转换器（手写 Assembler）。
+ * FileAsset 聚合与其持久化对象（PO，{@link FileInfoPo}）的双向转换器（手写 Assembler）。
  *
  * <p>选择手写而非 MapStruct：需对文件大小、状态码与逻辑删除标记做空值归一化，
  * 显式转换更可控、可读。</p>
@@ -24,13 +24,14 @@ public final class FileInfoPersistenceAssembler {
     }
 
     /**
-     * PO → 领域对象：文件大小为空时按 0 归一化，状态码经 {@link FileStatus#fromCode(Integer)} 还原
+     * PO → 领域对象：文件大小为空时按 0 归一化（兼容存量缺失元数据；0 字节文件本身合法），
+     * 状态码经 {@link FileStatus#fromCode(Integer)} 还原
      *
      * @param po 文件持久化对象
      * @return 文件资产聚合根
      */
-    public static FileAsset toDomain(FileInfo po) {
-        return FileAsset.reconstitute(
+    public static FileAssetAggregate toDomain(FileInfoPo po) {
+        return FileAssetAggregate.reconstitute(
                 po.getId(),
                 po.getFileName(),
                 po.getOriginalName(),
@@ -52,8 +53,8 @@ public final class FileInfoPersistenceAssembler {
      * @param asset 文件资产聚合根
      * @return 文件持久化对象
      */
-    public static FileInfo toPo(FileAsset asset) {
-        FileInfo po = new FileInfo();
+    public static FileInfoPo toPo(FileAssetAggregate asset) {
+        FileInfoPo po = new FileInfoPo();
         po.setId(asset.getId());
         po.setFileName(asset.getFileName());
         po.setOriginalName(asset.getOriginalName());
