@@ -24,8 +24,18 @@ export interface FileInfoVO {
 export interface FilePageParams {
   originalName?: string;
   bucket?: string;
+  /** 是否仅查本人上传的文件（管理员「我的文件」视图） */
+  onlyMine?: boolean;
   current: number;
   size: number;
+}
+
+/** 个人存储配额（GET /file/v1/quota），后端 Long 序列化为字符串 */
+export interface FileQuotaVO {
+  usedBytes?: string;
+  quotaBytes?: string;
+  remainingBytes?: string;
+  unlimited?: boolean;
 }
 
 /** 上传接口返回的文件标识 */
@@ -43,6 +53,11 @@ interface FileUploadVO {
 
 export function pageFiles(params: FilePageParams): Promise<PageResult<FileInfoVO>> {
   return get<PageResult<FileInfoVO>>('/file/v1/page', { ...params });
+}
+
+/** 查询当前用户个人存储配额与用量 */
+export function getFileQuota(): Promise<FileQuotaVO> {
+  return get<FileQuotaVO>('/file/v1/quota');
 }
 
 export function deleteFile(id: string): Promise<void> {

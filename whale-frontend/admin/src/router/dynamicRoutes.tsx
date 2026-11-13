@@ -16,6 +16,7 @@ import AssistantUsageBoard from '../pages/assistant/UsageBoard';
 import ConfigItemList from '../pages/config/ItemList';
 import DeptList from '../pages/dept/DeptList';
 import FileList from '../pages/file/FileList';
+import MyFileList from '../pages/file/MyFileList';
 import GatewayAccessList from '../pages/gateway/AccessList';
 import JobList from '../pages/job/JobList';
 import MenuList from '../pages/menu/MenuList';
@@ -60,6 +61,7 @@ const COMPONENT_MAP: Record<
   | 'permission'
   | 'job'
   | 'file'
+  | 'file/mine'
   | 'gateway/access'
   | 'message/template'
   | 'message/announce'
@@ -95,6 +97,7 @@ const COMPONENT_MAP: Record<
   permission: PermissionList,
   job: JobList,
   file: FileList,
+  'file/mine': MyFileList,
   'gateway/access': GatewayAccessList,
   'message/template': TemplateList,
   'message/announce': AnnouncementList,

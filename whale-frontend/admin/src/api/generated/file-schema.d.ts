@@ -424,6 +424,8 @@ export interface components {
       createTimeStart?: string;
       /** Format: date-time */
       createTimeEnd?: string;
+      /** 是否仅查本人上传的文件（管理员「我的文件」视图） */
+      onlyMine?: boolean;
     };
     FileInfoVO: {
       id?: string;

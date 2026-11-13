@@ -144,8 +144,9 @@ public class FileInfoServiceImpl implements FileInfoService {
     public PageResult<FileInfoResult> page(FilePageQuery query) {
         long pageCurrent = clampPageCurrent(query.current());
         long size = clampPageSize(query.size());
-        // 无管理权限时仅可见本人上传的文件；服务间上传（uploaderId 为空）仅管理视角可见
-        Long uploaderFilter = query.canManage() ? null : query.requesterId();
+        // 无管理权限时仅可见本人上传的文件；服务间上传（uploaderId 为空）仅管理视角可见；
+        // onlyMine=true（管理员「我的文件」视图）时无论是否持管理权限都只查本人文件
+        Long uploaderFilter = query.canManage() && !query.onlyMine() ? null : query.requesterId();
         FileAssetQuery assetQuery = new FileAssetQuery(query.originalName(), query.bucket(),
                 query.createTimeStart(), query.createTimeEnd(), uploaderFilter,
                 pageCurrent, size);

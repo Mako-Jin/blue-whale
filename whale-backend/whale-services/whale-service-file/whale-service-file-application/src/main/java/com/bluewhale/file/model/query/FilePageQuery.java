@@ -13,9 +13,10 @@ import java.time.LocalDateTime;
  * @param createTimeEnd 创建时间止（含），可为 {@code null}
  * @param requesterId 调用者用户 ID
  * @param canManage 是否持有文件管理权限（可查看全租户文件）
+ * @param onlyMine 是否仅查本人上传的文件（管理员「我的文件」视图；无管理权限者恒为本人视图）
  * @author BlueWhale
  */
 public record FilePageQuery(long current, long size, String originalName, String bucket,
                             LocalDateTime createTimeStart, LocalDateTime createTimeEnd,
-                            Long requesterId, boolean canManage) {
+                            Long requesterId, boolean canManage, boolean onlyMine) {
 }

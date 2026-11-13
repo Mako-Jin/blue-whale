@@ -142,7 +142,8 @@ public class FileController implements FileApi {
         Long requesterId = UserContext.requireUserId(httpRequest);
         FilePageQuery query = new FilePageQuery(request.getCurrent(), request.getSize(),
                 request.getOriginalName(), request.getBucket(), request.getCreateTimeStart(),
-                request.getCreateTimeEnd(), requesterId, canManage(httpRequest));
+                request.getCreateTimeEnd(), requesterId, canManage(httpRequest),
+                Boolean.TRUE.equals(request.getOnlyMine()));
         return Result.ok(fileAssembler.toInfoPage(fileInfoService.page(query)));
     }
 

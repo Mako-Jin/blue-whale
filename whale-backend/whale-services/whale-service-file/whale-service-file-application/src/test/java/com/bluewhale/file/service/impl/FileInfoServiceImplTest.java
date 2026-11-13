@@ -362,7 +362,7 @@ class FileInfoServiceImplTest {
         when(fileAssetRepository.page(any(FileAssetQuery.class)))
                 .thenReturn(new FileAssetPage(List.of(), 0L, 1L, 10L));
 
-        fileInfoService.page(new FilePageQuery(1L, 10L, null, null, null, null, UPLOADER_ID, true));
+        fileInfoService.page(new FilePageQuery(1L, 10L, null, null, null, null, UPLOADER_ID, true, false));
 
         ArgumentCaptor<FileAssetQuery> captor = ArgumentCaptor.forClass(FileAssetQuery.class);
         verify(fileAssetRepository).page(captor.capture());
@@ -378,7 +378,7 @@ class FileInfoServiceImplTest {
         when(fileAssetRepository.page(any(FileAssetQuery.class)))
                 .thenReturn(new FileAssetPage(List.of(asset), 1L, 1L, 10L));
 
-        FilePageQuery query = new FilePageQuery(1L, 10L, "报告", "bluewhale", null, null, UPLOADER_ID, false);
+        FilePageQuery query = new FilePageQuery(1L, 10L, "报告", "bluewhale", null, null, UPLOADER_ID, false, false);
         PageResult<FileInfoResult> result = fileInfoService.page(query);
 
         assertEquals(1L, result.getTotal());
@@ -391,6 +391,19 @@ class FileInfoServiceImplTest {
         assertEquals("bluewhale", captor.getValue().bucket());
         assertEquals(Long.valueOf(UPLOADER_ID), captor.getValue().uploaderId());
         assertEquals(10L, captor.getValue().size());
+    }
+
+    @Test
+    @DisplayName("page：onlyMine=true 时持管理权限也只查本人上传的文件")
+    void shouldPageOnlyMineWhenManageAndOnlyMine() {
+        when(fileAssetRepository.page(any(FileAssetQuery.class)))
+                .thenReturn(new FileAssetPage(List.of(), 0L, 1L, 10L));
+
+        fileInfoService.page(new FilePageQuery(1L, 10L, null, null, null, null, UPLOADER_ID, true, true));
+
+        ArgumentCaptor<FileAssetQuery> captor = ArgumentCaptor.forClass(FileAssetQuery.class);
+        verify(fileAssetRepository).page(captor.capture());
+        assertEquals(Long.valueOf(UPLOADER_ID), captor.getValue().uploaderId());
     }
 
     @Test

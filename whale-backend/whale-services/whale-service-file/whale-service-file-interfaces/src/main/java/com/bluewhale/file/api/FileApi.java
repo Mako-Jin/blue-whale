@@ -120,7 +120,8 @@ public interface FileApi {
     /**
      * 分页查询文件元数据。
      *
-     * @param request 查询条件：originalName 模糊、bucket 等值、createTime 起止
+     * @param request 查询条件：originalName 模糊、bucket 等值、createTime 起止、
+     *                onlyMine 是否仅查本人上传的文件
      * @param httpRequest 当前请求（用于判定调用者归属与文件管理权限）
      * @return 文件分页结果
      */
