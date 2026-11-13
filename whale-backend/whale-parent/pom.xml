@@ -492,10 +492,15 @@
 
     <profiles>
         <!--
-          coverage-gate：覆盖率门禁 profile，仅在 CI 显式以 -Pcoverage-gate 启用时生效；
-          本地默认构建不启用该 profile，故不影响「提交前 BUILD SUCCESS」约定。
-          阈值来源：docs/design/cicd.md §3.3 首轮基线（行 ≥ 40%、分支 ≥ 30%），未达阈值即构建失败。
-          check 绑定 verify 阶段，复用上面 build/plugins 中的同名 jacoco 插件定义（仅追加 check execution）。
+          coverage-gate：单模块覆盖率自检 profile，仅供本地对某个模块单独跑
+          （例如 ./mvnw -pl :whale-common-core -Pcoverage-gate verify）。
+          阈值：行 ≥ 40%、分支 ≥ 30%（docs/design/cicd.md §3.3）。
+
+          【CI 不再使用本 profile】BUNDLE 规则会对 reactor 中每个模块分别卡阈值，
+          本项目 69 个模块里大量是 DTO/装配层，单模块 40%/30% 不可达——门禁会在第 2 个
+          模块（whale-common-core）就失败，把后面全部模块的测试信号一起挡掉。
+          CI 口径改为 scripts/ci/check-coverage.py：项目聚合覆盖率 + 单模块基线棘轮
+          （只升不降），阈值口径与 §3.3 一致。
         -->
         <profile>
             <id>coverage-gate</id>

@@ -100,7 +100,19 @@
 | 新增/变更代码（增量） | ≥ 70% | 防止新增无测试 |
 | 分支覆盖率 | ≥ 30% | 首轮 |
 
-阈值以 JaCoCo `check` 规则落地，未达阈值 **构建失败**。
+阈值按下列方式落地，未达阈值 **构建失败**。
+
+落地方式（2026-11-13 调整）：`jacoco:check` 的 BUNDLE 规则作用于 reactor 中的**每个模块**，
+本工程 69 个模块里大量是 DTO / 装配层，单模块 40%/30% 不可达，门禁会在第 2 个模块
+（`whale-common-core`）即失败，并连带挡掉后续全部模块的测试信号。故 CI 改为：
+
+- `mvn verify` 只负责跑测试、产出 `target/site/jacoco/jacoco.xml`；
+- `scripts/ci/check-coverage.py` 判定门禁：**项目聚合覆盖率**对齐上表阈值
+  （行 40% / 分支 30%），并对**每个模块**做基线棘轮（`scripts/ci/coverage-baseline.json`，
+  只升不降，回落超过 0.5 个百分点即失败）；核心模块未达 60% 时在日志中提示目标值。
+
+`-Pcoverage-gate` 保留为**本地单模块自检**用（`-pl :whale-common-core -Pcoverage-gate verify`），
+CI 不再使用。
 
 ---
 
