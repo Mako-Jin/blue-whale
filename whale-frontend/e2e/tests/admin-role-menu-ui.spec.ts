@@ -76,7 +76,8 @@ test('角色权限分配→用户角色分配→角色/菜单删除', async ({ p
 
   const user = await createUser(request, token, {
     username,
-    password: 'E2ePass123!',
+    // 口令策略最小长度 12（PasswordPolicy#requireLength），且不得包含用户名
+    password: 'E2ePassw0rd123!',
     nickname: `E2E用户${suffix}`,
     status: 1,
   });
