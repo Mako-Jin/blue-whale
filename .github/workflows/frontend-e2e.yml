@@ -48,6 +48,9 @@ jobs:
         uses: actions/checkout@v4
 
       # ---------- 中间件栈（复用已验证的 compose 编排） ----------
+      # 注意：docker compose 会对整个 compose 文件做变量插值，即使只 up 三个服务，
+      # 其它服务的 ${VAR:?...} 缺值也会直接报错退出。故 .env 必须覆盖全部必填变量
+      # （MYSQL_PASSWORD / NACOS_AUTH_TOKEN / RABBITMQ_* / GRAFANA_* / EMQX_DASHBOARD_PASSWORD）。
       - name: Write compose .env
         working-directory: infrastructure/docker
         run: |
@@ -68,6 +71,7 @@ jobs:
           RABBITMQ_USERNAME=ci_mq
           RABBITMQ_PASSWORD=ci_mq_pwd
           GRAFANA_ADMIN_PASSWORD=ci_grafana_pwd
+          EMQX_DASHBOARD_PASSWORD=ci_emqx_pwd
           SW_PROFILES_ACTIVE=dev
           TZ=Asia/Shanghai
           EOF
