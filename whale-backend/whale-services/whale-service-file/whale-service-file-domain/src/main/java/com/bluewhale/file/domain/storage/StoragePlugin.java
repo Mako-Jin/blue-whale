@@ -3,6 +3,7 @@ package com.bluewhale.file.domain.storage;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.domain.exception.DomainException;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -67,13 +68,16 @@ public interface StoragePlugin {
      * @param offset 起始偏移（字节，从 0 开始）
      * @param length 读取长度（字节），必须为正数
      * @return 仅包含请求区间的内容输入流，由调用方负责关闭
-     * @throws DomainException 读取失败或区间越过对象末尾时抛出 {@code SYSTEM_ERROR}
+     * @throws DomainException 区间越过对象末尾时抛出 {@code PARAM_ERROR}；其他读取失败抛出 {@code SYSTEM_ERROR}
      */
     default InputStream load(String bucket, String objectKey, long offset, long length) {
         InputStream in = load(bucket, objectKey);
         try {
             in.skipNBytes(offset);
             return new LimitedInputStream(in, length);
+        } catch (EOFException e) {
+            closeQuietly(in);
+            throw new DomainException(ErrorCode.PARAM_ERROR, "读取区间超出对象末尾");
         } catch (IOException e) {
             closeQuietly(in);
             throw new DomainException(ErrorCode.SYSTEM_ERROR);

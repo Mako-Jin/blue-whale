@@ -60,7 +60,8 @@ final class LimitedInputStream extends FilterInputStream {
 
     @Override
     public int available() throws IOException {
-        return (int) Math.min(in.available(), remaining);
+        // 先按 int 上限收敛再强转，避免 remaining 超出 Integer.MAX_VALUE 时溢出为负数
+        return (int) Math.min(in.available(), Math.min(remaining, Integer.MAX_VALUE));
     }
 
     @Override

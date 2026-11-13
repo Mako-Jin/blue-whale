@@ -4,6 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * {@link FileStatus} 状态码映射单元测试。
@@ -13,13 +14,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class FileStatusTest {
 
     @Test
-    @DisplayName("fromCode：已知状态码正确还原，缺失或未知按正常处理")
+    @DisplayName("fromCode：已知状态码正确还原，缺失按正常处理，未知非空码抛出异常")
     void shouldMapStatusCodes() {
         assertEquals(FileStatus.DISABLED, FileStatus.fromCode(0));
         assertEquals(FileStatus.NORMAL, FileStatus.fromCode(1));
         assertEquals(FileStatus.LOCKED, FileStatus.fromCode(2));
         assertEquals(FileStatus.NORMAL, FileStatus.fromCode(null));
-        assertEquals(FileStatus.NORMAL, FileStatus.fromCode(9));
+        assertThrows(com.bluewhale.common.domain.exception.DomainException.class,
+                () -> FileStatus.fromCode(9));
     }
 
     @Test

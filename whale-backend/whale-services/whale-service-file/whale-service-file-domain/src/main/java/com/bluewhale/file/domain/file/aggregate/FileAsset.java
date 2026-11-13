@@ -96,12 +96,15 @@ public class FileAsset implements Entity<Long> {
         if (objectKey == null || objectKey.isBlank()) {
             throw new DomainException(ErrorCode.PARAM_ERROR, "对象键不能为空");
         }
+        if (fileSize < 0) {
+            throw new DomainException(ErrorCode.SYSTEM_ERROR, "文件大小不能为负数: " + fileSize);
+        }
         this.id = id;
         this.fileName = fileName == null || fileName.isBlank() ? tailOf(objectKey) : fileName;
         this.originalName = originalName == null || originalName.isBlank() ? UNKNOWN_FILENAME : originalName;
         this.bucket = bucket;
         this.objectKey = objectKey;
-        this.fileSize = Math.max(fileSize, 0L);
+        this.fileSize = fileSize;
         this.contentType = contentType;
         // 摘要统一归一化为十六进制小写，避免大小写不同导致秒传查询失配或重复登记
         this.md5 = md5 == null || md5.isBlank() ? null : md5.trim().toLowerCase(Locale.ROOT);
@@ -208,11 +211,16 @@ public class FileAsset implements Entity<Long> {
     /**
      * 行为：解除归档锁定，状态恢复为正常
      *
-     * <p>幂等：未锁定文件返回 {@code false} 且不改变状态。</p>
+     * <p>幂等：未锁定文件返回 {@code false} 且不改变状态；禁用文件不属于可锁定状态，
+     * 解除锁定视为非法操作，与 {@link #lock()} 的行为保持对称。</p>
      *
      * @return 状态是否发生变化（需要持久化）
+     * @throws DomainException 文件已禁用时抛出 {@code PARAM_ERROR}
      */
     public boolean unlock() {
+        if (status == FileStatus.DISABLED) {
+            throw new DomainException(ErrorCode.PARAM_ERROR, "文件已禁用，不可解除锁定");
+        }
         if (status != FileStatus.LOCKED) {
             return false;
         }
@@ -224,6 +232,8 @@ public class FileAsset implements Entity<Long> {
     /**
      * 行为：删除前校验聚合可删除性
      *
+     * <p>仅归档锁定文件禁止删除；禁用只限制使用与锁定，不限制删除。</p>
+     *
      * @throws DomainException 文件已归档锁定时抛出 {@code PARAM_ERROR}
      */
     public void assertDeletable() {
@@ -234,6 +244,9 @@ public class FileAsset implements Entity<Long> {
 
     /**
      * 判断文件是否对指定租户可见：以对象键租户前缀为准，无租户上下文时不做限制
+     *
+     * <p>前缀约定为 {@code tenants/{tenantId}/}（含结尾分隔符），由对象键生成侧
+     * （{@code buildObjectKey}）保证；领域层只做前缀匹配，不解析键结构。</p>
      *
      * @param tenantId 当前租户 ID，可为 {@code null}
      * @return 可见时返回 {@code true}
@@ -251,6 +264,9 @@ public class FileAsset implements Entity<Long> {
      * <p>服务间上传（上传者为空）不向普通用户开放，仅管理视角与无用户态的内网调用可访问；
      * 不可见时统一按不存在处理，避免泄露文件是否存在。</p>
      *
+     * <p>{@code requesterId} 为 {@code null} 且 {@code canManage} 为 {@code false} 时，仅能访问
+     * 上传者为空的服务间上传文件；内网系统级访问用户文件必须显式传 {@code canManage=true}。</p>
+     *
      * @param requesterId 调用者用户 ID，可为 {@code null}（内网服务调用）
      * @param canManage 是否持有文件管理权限
      * @param tenantId 当前租户 ID，可为 {@code null}
@@ -258,7 +274,7 @@ public class FileAsset implements Entity<Long> {
      */
     public void assertVisibleTo(Long requesterId, boolean canManage, Long tenantId) {
         assertVisibleToTenant(tenantId);
-        if (canManage || Objects.equals(uploaderId, requesterId)) {
+        if (canManage || Objects.equals(this.uploaderId, requesterId)) {
             return;
         }
         throw new DomainException(ErrorCode.NOT_FOUND);
@@ -274,6 +290,34 @@ public class FileAsset implements Entity<Long> {
         if (!isVisibleToTenant(tenantId)) {
             throw new DomainException(ErrorCode.NOT_FOUND);
         }
+    }
+
+    /**
+     * 身份相等性：已落库实体按主键比较，新建未落库实体退化为对象同一性
+     *
+     * @param other 待比较对象
+     * @return 同一实体时返回 {@code true}
+     */
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (!(other instanceof FileAsset)) {
+            return false;
+        }
+        FileAsset asset = (FileAsset) other;
+        return id != null && id.equals(asset.id);
+    }
+
+    /**
+     * 身份哈希：与 {@link #equals(Object)} 保持一致，未落库实体使用对象标识哈希
+     *
+     * @return 哈希值
+     */
+    @Override
+    public int hashCode() {
+        return id == null ? System.identityHashCode(this) : id.hashCode();
     }
 
     /**

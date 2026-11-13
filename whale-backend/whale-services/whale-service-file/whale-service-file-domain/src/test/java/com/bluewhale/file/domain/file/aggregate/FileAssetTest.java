@@ -85,7 +85,7 @@ class FileAssetTest {
     @DisplayName("reconstitute：缺失状态按正常处理，缺失大小与文件名做归一化")
     void shouldNormalizeReconstitutedValues() {
         FileAsset asset = FileAsset.reconstitute(2L, "", "", "bluewhale",
-                "tenants/1/2026/10/24/b.bin", -1L, null, null,
+                "tenants/1/2026/10/24/b.bin", 0L, null, null,
                 null, null, false, null, null);
 
         assertEquals(FileStatus.NORMAL, asset.getStatus());
@@ -93,6 +93,15 @@ class FileAssetTest {
         assertEquals("b.bin", asset.getFileName());
         assertEquals("unknown", asset.getOriginalName());
         assertFalse(asset.isDeleted());
+    }
+
+    @Test
+    @DisplayName("reconstitute：负数文件大小说明数据非法，拒绝静默归一化")
+    void shouldRejectNegativeFileSizeOnReconstitute() {
+        BizException ex = assertThrows(BizException.class,
+                () -> FileAsset.reconstitute(2L, "a.txt", "a.txt", "bluewhale", "k", -1L, null, null,
+                        FileStatus.NORMAL, null, false, null, null));
+        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), ex.getCode());
     }
 
     @Test
@@ -130,12 +139,34 @@ class FileAssetTest {
     }
 
     @Test
-    @DisplayName("unlock：已锁定恢复为正常，未锁定幂等")
+    @DisplayName("unlock：已锁定恢复为正常，未锁定幂等，禁用文件拒绝")
     void shouldUnlockOnlyLockedAsset() {
         FileAsset locked = asset(FileStatus.LOCKED);
         assertTrue(locked.unlock());
         assertEquals(FileStatus.NORMAL, locked.getStatus());
         assertFalse(locked.unlock());
+
+        BizException ex = assertThrows(BizException.class, () -> asset(FileStatus.DISABLED).unlock());
+        assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
+        assertTrue(ex.getMessage().contains("已禁用"));
+    }
+
+    @Test
+    @DisplayName("equals/hashCode：已落库聚合按主键判定相等，未落库按对象同一性")
+    void shouldCompareIdentityByPrimaryKey() {
+        FileAsset one = asset(FileStatus.NORMAL);
+        FileAsset sameId = asset(FileStatus.LOCKED);
+        FileAsset other = FileAsset.reconstitute(2L, "a.pdf", "报告.pdf", "bluewhale",
+                "tenants/1/2026/10/24/a.pdf", 12L, "application/pdf", "md5",
+                FileStatus.NORMAL, 9L, false, null, null);
+
+        assertEquals(one, sameId);
+        assertEquals(one.hashCode(), sameId.hashCode());
+        assertFalse(one.equals(other));
+
+        FileAsset transientOne = FileAsset.register("bluewhale", "k1", "a.txt", 1L, null, null, 9L);
+        FileAsset transientTwo = FileAsset.register("bluewhale", "k2", "a.txt", 1L, null, null, 9L);
+        assertFalse(transientOne.equals(transientTwo));
     }
 
     @Test

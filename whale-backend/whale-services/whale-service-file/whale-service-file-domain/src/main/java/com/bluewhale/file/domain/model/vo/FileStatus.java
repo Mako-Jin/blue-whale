@@ -1,17 +1,20 @@
 package com.bluewhale.file.domain.model.vo;
 
+import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.domain.exception.DomainException;
 import com.bluewhale.common.domain.valueobject.ValueObject;
 
 /**
  * 文件状态值对象：与 {@code file_info.status} 列取值一一对应。
  *
- * <p>取值：{@code 0 禁用}、{@code 1 正常}、{@code 2 归档锁定}。归档锁定文件内容不可变更且禁止删除。</p>
+ * <p>取值：{@code 0 禁用}、{@code 1 正常}、{@code 2 归档锁定}。归档锁定文件内容不可变更且禁止删除；
+ * 禁用只限制使用与状态迁移，不限制删除。</p>
  *
  * @author BlueWhale
  */
 public enum FileStatus implements ValueObject {
 
-    /** 禁用：不可锁定、不可正常使用 */
+    /** 禁用：不可锁定、不可正常使用，允许删除 */
     DISABLED(0, "禁用"),
 
     /** 正常：可下载、可锁定、可删除 */
@@ -40,10 +43,12 @@ public enum FileStatus implements ValueObject {
     /**
      * 由落库状态码还原状态值对象
      *
-     * <p>缺失或未知状态码按 {@link #NORMAL} 处理，兼容存量数据中未显式写状态的行。</p>
+     * <p>缺失状态码按 {@link #NORMAL} 处理，兼容存量数据中未显式写状态的行；未知非空状态码
+     * 说明数据异常，直接抛出异常而非静默按正常处理，避免脏数据被当作可用文件误操作。</p>
      *
      * @param code 落库状态码，可为 {@code null}
      * @return 状态值对象
+     * @throws DomainException 状态码非空且未定义时抛出 {@code SYSTEM_ERROR}
      */
     public static FileStatus fromCode(Integer code) {
         if (code == null) {
@@ -54,7 +59,7 @@ public enum FileStatus implements ValueObject {
                 return status;
             }
         }
-        return NORMAL;
+        throw new DomainException(ErrorCode.SYSTEM_ERROR, "未知文件状态码: " + code);
     }
 
     /**

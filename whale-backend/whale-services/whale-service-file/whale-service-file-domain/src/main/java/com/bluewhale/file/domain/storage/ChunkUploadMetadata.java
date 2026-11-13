@@ -32,11 +32,14 @@ public record ChunkUploadMetadata(String fileName, String contentType, long size
     }
 
     /**
-     * 判断会话是否已登记生效上限
+     * 判断会话是否已完整登记生效上限
      *
-     * @return 已登记单文件上限时返回 {@code true}
+     * <p>单文件上限与配额必须同时登记才视为有效：任一为 {@link #LIMITS_NOT_RECORDED} 时，
+     * 视为未登记上限，complete 阶段整体回落当前策略，避免把哨兵值误当作“不限配额”。</p>
+     *
+     * @return 单文件上限与配额均已登记时返回 {@code true}
      */
     public boolean hasRecordedLimits() {
-        return maxSizeBytes > 0;
+        return maxSizeBytes > 0 && quotaBytes != LIMITS_NOT_RECORDED;
     }
 }
