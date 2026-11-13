@@ -14,13 +14,17 @@ import { createWorld } from './world/city';
 export interface AppProps {
   /** 读取 accessToken：有值才尝试连世界频道，否则只跑本地模拟 */
   getToken?: () => string | null;
+  /** 读取权限码：缺 sys:agent:chat 时城民只回本地台词（不发必然 403 的请求） */
+  getPermissions?: () => string[] | null;
 }
 
-export default function App({ getToken }: AppProps) {
+export default function App({ getToken, getPermissions }: AppProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   // 用 ref 持有 getToken：它只被世界频道惰性调用，不该因为 props 身份变化重建整个 3D 场景
   const tokenRef = useRef(getToken);
   tokenRef.current = getToken;
+  const permRef = useRef(getPermissions);
+  permRef.current = getPermissions;
 
   useEffect(() => {
     const host = hostRef.current;
@@ -36,6 +40,7 @@ export default function App({ getToken }: AppProps) {
         window.history.pushState(null, '', route);
       },
       getToken: () => tokenRef.current?.() ?? null,
+      getPermissions: () => permRef.current?.() ?? null,
     });
     return () => world.dispose();
   }, []);
@@ -85,15 +90,20 @@ export default function App({ getToken }: AppProps) {
         按 <b>E</b> 打开传送门
       </div>
 
+      <div className="bww-talk-hint" id="bww-talk-hint">
+        按 <b>F</b> 交谈
+      </div>
+
       <div className="bww-help">
         <div>
           <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 行走&ensp;<kbd>Shift</kbd> 疾行
         </div>
-        <div>拖拽 转视角&ensp;滚轮 远近&ensp;<kbd>E</kbd> 传送&ensp;<kbd>C</kbd> 形象&ensp;<kbd>M</kbd> 城图&ensp;<kbd>R</kbd> 复位</div>
+        <div>拖拽 转视角&ensp;滚轮 远近&ensp;<kbd>E</kbd> 传送&ensp;<kbd>F</kbd> 交谈&ensp;<kbd>T</kbd> 问小鲸宝&ensp;<kbd>C</kbd> 形象&ensp;<kbd>M</kbd> 城图&ensp;<kbd>R</kbd> 复位</div>
       </div>
 
       <div className="bww-toolbar">
         <button data-action="char" type="button">录名入城 · C</button>
+        <button data-action="pet" type="button">问小鲸宝 · T</button>
         <button data-action="map" type="button">城图显隐 · M</button>
         <button data-action="weather" type="button">天象：晴</button>
         <button data-action="season" type="button">时节：秋</button>
@@ -103,6 +113,8 @@ export default function App({ getToken }: AppProps) {
       </div>
 
       <div className="bww-char-panel" id="bww-char-panel" />
+
+      <div className="bww-chat-panel" id="bww-chat-panel" />
 
       <div className="bww-portal-panel" id="bww-portal-panel">
         <div className="bww-panel-inner">

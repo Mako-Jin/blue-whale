@@ -14,8 +14,9 @@
  *   5. 城图 canvas 真的画出了东西（非空白像素）
  *   6. 传送门面板能开且 9 张卡片可见
  *   7. 门洞可通行（正）+ 城墙挡人（负）——缺负向对照就分不清"门通了"和"碰撞全废了"
+ *   8. 问话链路（P3）：未登录判 offline → 走近出现 F 提示 → F 开面板 → 发问必有回应 → Esc 收起 → T 唤小鲸宝
  *
- * 需要 ?debug=1 才暴露 window.__bwwDebug / __bwwWarp（见 city.ts 末尾）。
+ * 需要 ?debug=1 才暴露 window.__bwwDebug / __bwwWarp / __bwwNpcAt / __bwwChatLog（见 city.ts 末尾）。
  */
 import { chromium } from '@playwright/test';
 
@@ -115,6 +116,60 @@ await page.evaluate(() => window.__bwwWarp(20, 51)); // 同一高度但贴墙
 await walk(6000);
 const blocked = await page.evaluate(() => window.__bwwDebug());
 ok(blocked.z > 49, `负：贴墙处被城墙挡住（z 51 → ${blocked.z}）`);
+
+/* 8. 城民问话（P3）：断言的是"接线对不对"，不是"AI 答得好不好"
+      本用例不带 token → 世界之脑必须判 offline（不发必然 403 的请求），
+      F 键走真实邻近判定（先 warp 到 NPC 身旁，不直接调 open），
+      发问后必须"有回应"（离线回落本地台词 + 一条说明），不能留空气泡。 */
+ok(blocked.brainMode === 'offline', `未登录时判为 offline（实际 ${blocked.brainMode}）`);
+ok(Boolean(blocked.brainReason), `offline 带人话原因（${blocked.brainReason}）`);
+
+const guardPos = await page.evaluate(() => window.__bwwNpcAt('guard-wei'));
+await page.evaluate(([x, z]) => window.__bwwWarp(x, z + 2.2), [guardPos.x, guardPos.z]);
+await page.waitForTimeout(420);
+const hintShown = await page.evaluate(() =>
+  document.getElementById('bww-talk-hint')?.classList.contains('bww-show'),
+);
+ok(hintShown === true, '走近城民弹出「按 F 交谈」提示');
+
+await page.keyboard.press('KeyF');
+await page.waitForTimeout(420);
+const opened = await page.evaluate(() => ({
+  chat: window.__bwwDebug().chat,
+  title: document.querySelector('#bww-chat-panel .bww-chat-name')?.textContent,
+  badge: document.querySelector('#bww-chat-panel .bww-chat-badge')?.textContent,
+}));
+ok(opened.chat.open === true && opened.chat.persona === 'guard-wei', 'F 打开卫临的问话面板');
+ok(opened.title === '卫临', `面板标题取 NPC 名（实际 ${opened.title}）`);
+ok(opened.badge === 'AI 未接入', `降级徽标可见（实际 ${opened.badge}）`);
+
+await page.locator('.bww-chat-input').fill('今天户部有几张异常工单？');
+await page.locator('.bww-chat-send').click();
+await page.waitForTimeout(900);
+const msgs = await page.evaluate(() => window.__bwwChatLog());
+ok(msgs.length >= 3, `对话留痕：开场白 + 问 + 答（实际 ${msgs.length} 条）`);
+ok(msgs.some((m) => m.who === 'me' && m.text.includes('异常工单')), '玩家问话入列');
+const answer = msgs.filter((m) => m.who === 'npc').pop();
+ok(Boolean(answer && answer.text.trim()), `离线也有回应（${answer?.text?.slice(0, 18) ?? '空'}…）`);
+const noteSeen = await page.evaluate(
+  () => document.querySelector('#bww-chat-panel .bww-chat-note')?.textContent ?? '',
+);
+ok(noteSeen.includes('中枢') || noteSeen.includes('接入'), `面板说明降级原因（${noteSeen.slice(0, 22)}…）`);
+
+// Esc 必须整块收起（输入框有焦点时也一样，否则用户被困在面板里）
+await page.keyboard.press('Escape');
+await page.waitForTimeout(320);
+const closed = await page.evaluate(() => window.__bwwDebug().chat);
+ok(closed.open === false, 'Esc 关闭问话面板');
+
+await page.keyboard.press('KeyT');
+await page.waitForTimeout(360);
+const petTitle = await page.evaluate(
+  () => document.querySelector('#bww-chat-panel .bww-chat-name')?.textContent,
+);
+ok(petTitle === '小鲸宝', `T 唤出小鲸宝（实际 ${petTitle}）`);
+await page.keyboard.press('Escape');
+await page.waitForTimeout(200);
 
 await browser.close();
 

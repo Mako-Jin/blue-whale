@@ -17,10 +17,12 @@
 import * as THREE from 'three';
 import { DEFAULT_AVATAR, createAvatar } from './avatar';
 import { loadProfile, saveProfile } from './profile';
-import { createNpcs } from './npc';
+import { NPCS, PET_PERSONA, createNpcs, npcPersona } from './npc';
 import { createWorldChannel } from './net';
 import { createMinimap } from './minimap';
 import { mountCharPanel } from './charpanel';
+import { createWorldBrain } from './brain';
+import { mountNpcChat } from './npcchat';
 import {
   CITY_GEOMETRY,
   MAIN_HALL,
@@ -36,6 +38,7 @@ import {
 } from './collision';
 import type { CharPanelHandle } from './charpanel';
 import type { AvatarParams } from './avatar';
+import type { NpcChatHandle } from './npcchat';
 
 export interface WorldOptions {
   /** 是否运行在 qiankun 基座内（决定传送门「进入」是否跳转 2D） */
@@ -44,6 +47,8 @@ export interface WorldOptions {
   navigate: (route: string) => void;
   /** 读取 accessToken（基座经 qiankun props 注入）；缺省时世界频道只跑本地模拟 */
   getToken?: () => string | null;
+  /** 读取权限码（基座经 qiankun props 注入）；缺 sys:agent:chat 时 NPC 只回本地台词 */
+  getPermissions?: () => string[] | null;
 }
 
 export interface WorldHandle {
@@ -1185,13 +1190,79 @@ if (charPanelEl) {
   });
 }
 
+/* ---- 城民问话（P3）：NPC / 小鲸宝 接 whale-agent ---- */
+const debugMode = new URLSearchParams(window.location.search).has('debug');
+/**
+ * 仅 ?debug=1 且非基座内：允许 e2e 从 sessionStorage 注入令牌，
+ * 用来验证「在线问数」整条链路（网关权限头 → SSE 流式）。正常使用不读该键。
+ */
+const debugToken = () =>
+  debugMode && !opts.poweredByQiankun ? window.sessionStorage.getItem('bww.debug.token') : null;
+
+const brain = createWorldBrain({
+  getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+  getPermissions: opts.getPermissions,
+});
+const chatEl = document.getElementById('bww-chat-panel');
+const npcChat: NpcChatHandle | null = chatEl
+  ? mountNpcChat(chatEl, {
+      brain,
+      onOpenChange: (open, persona) => {
+        setTalking(open && persona ? persona.id : null);
+        if (open) {
+          closePortalPanel();
+          charPanel?.close();
+        }
+      },
+    })
+  : null;
+
+/** 正在对话的 NPC：停步并转身看向玩家 */
+let talkingId = null;
+function setTalking(id) {
+  talkingId = id;
+  for (const n of npcs.list) {
+    n.hold = id === n.def.id;
+  }
+}
+
+function nearestNpc(maxDist = 5.2) {
+  let best = null;
+  let bestDist = maxDist;
+  for (const n of npcs.list) {
+    const d = Math.hypot(player.pos.x - n.pos.x, player.pos.z - n.pos.z);
+    if (d < bestDist) {
+      bestDist = d;
+      best = n;
+    }
+  }
+  return best;
+}
+
+function talkToNearestNpc() {
+  if (!npcChat) {
+    return;
+  }
+  const npc = nearestNpc();
+  if (!npc) {
+    showToast('四下无人', '走近城民再按 F 交谈');
+    return;
+  }
+  npcChat.open(npcPersona(npc.def));
+}
+
+function talkToPet() {
+  npcChat?.open(PET_PERSONA);
+}
+
 /* ---- NPC 搭话 ---- */
 let npcTalkCooldown = 0;
 const npcSayTimers = new Set();
 
 function updateNpcTalk(dt) {
   npcTalkCooldown -= dt;
-  if (npcTalkCooldown > 0 || disposed) {
+  // 正在问话：别让本地台词插进面板，也免得气泡跟着人走
+  if (npcTalkCooldown > 0 || disposed || npcChat?.isOpen()) {
     return;
   }
   for (const n of npcs.list) {
@@ -1226,6 +1297,31 @@ function updateActors(dt) {
   channel.update(dt);
   syncPeerRigs(dt);
   updateNpcTalk(dt);
+  // 对话对象转身面向玩家（hold 状态下 npc.update 不再改朝向，这里接管）
+  if (talkingId) {
+    const npc = npcs.list.find((n) => n.def.id === talkingId);
+    if (npc) {
+      const yaw = Math.atan2(player.pos.x - npc.pos.x, player.pos.z - npc.pos.z);
+      npc.yaw = yaw;
+      npc.handle.group.rotation.y = yaw;
+    }
+  }
+  updateTalkHint();
+}
+
+/* ---- 走近提示：按 F 交谈 ---- */
+const talkHint = document.getElementById('bww-talk-hint');
+function updateTalkHint() {
+  if (!talkHint) {
+    return;
+  }
+  const npc = npcChat?.isOpen() ? null : nearestNpc();
+  if (npc) {
+    talkHint.innerHTML = `按 <b>F</b> 与 <span>${npc.def.name}</span> 交谈`;
+    talkHint.classList.add('bww-show');
+  } else {
+    talkHint.classList.remove('bww-show');
+  }
 }
 
 /* ---- 名字标签投影 ---- */
@@ -1389,6 +1485,11 @@ renderer.domElement.addEventListener('wheel', (e) => {
 }, { passive: false });
 
 on(window, 'keydown', (e) => {
+  // 问话面板的输入框本身是 typing target：Esc 要能整块收起，而不是只让输入框失焦
+  if (e.code === 'Escape' && npcChat?.isOpen()) {
+    npcChat.close();
+    return;
+  }
   // 面板输入中不劫持按键，否则在姓名框里打 W 会驱动角色走路
   if (isTypingTarget(e.target)) {
     if (e.code === 'Escape' && e.target instanceof HTMLElement) {
@@ -1398,9 +1499,12 @@ on(window, 'keydown', (e) => {
   }
   keys.add(e.code);
   if (e.code === 'KeyE') togglePortalPanel();
+  if (e.code === 'KeyF') talkToNearestNpc();
+  if (e.code === 'KeyT') talkToPet();
   if (e.code === 'Escape') {
     closePortalPanel();
     charPanel?.close();
+    npcChat?.close();
   }
   if (e.code === 'KeyR') { cam.yaw = 0; cam.pitch = 0.44; cam.dist = 16; }
   if (e.code === 'KeyC') {
@@ -1563,6 +1667,7 @@ host.querySelectorAll('[data-action]').forEach((btn) => {
       showToast(world.daySpeed > 1 / 300 ? '时辰 · 常速' : '时辰 · 疾行');
     }
     if (a === 'portal') togglePortalPanel();
+    if (a === 'pet') talkToPet();
     if (a === 'char') {
       closePortalPanel();
       charPanel?.toggle();
@@ -1908,10 +2013,42 @@ if (!profileState.saved) {
       npcs: npcs.list.length,
       peers: channel.peers.length,
       profile: { ...profile },
+      brainMode: brain.mode,
+      brainReason: brain.reason,
+      chat: { open: Boolean(npcChat?.isOpen()), persona: npcChat?.personaId() ?? null },
+      online: channel.mode,
     });
     window.__bwwWarp = (x, z) => {
       player.pos.set(x, 0, z);
     };
+    /* 问话链路探针：定位到某个 NPC 身旁（真实走 F 键的邻近判定），或直接点名要问谁 */
+    window.__bwwNpcAt = (id) => {
+      const npc = npcs.list.find((n) => n.def.id === id) ?? null;
+      if (!npc) {
+        return null;
+      }
+      return { id: npc.def.id, name: npc.def.name, x: Number(npc.pos.x.toFixed(2)), z: Number(npc.pos.z.toFixed(2)) };
+    };
+    window.__bwwTalk = (id) => {
+      if (id === 'pet-whale') {
+        talkToPet();
+        return true;
+      }
+      const npc = npcs.list.find((n) => n.def.id === id);
+      if (!npc) {
+        return false;
+      }
+      npcChat?.open(npcPersona(npc.def));
+      return true;
+    };
+    window.__bwwAsk = (text) => {
+      npcChat?.ask(text);
+    };
+    window.__bwwChatLog = () =>
+      Array.from(document.querySelectorAll('#bww-chat-panel .bww-chat-msg')).map((el) => ({
+        who: el.className.includes('is-me') ? 'me' : 'npc',
+        text: el.textContent ?? '',
+      }));
   }
 
   function dispose() {
@@ -1926,6 +2063,8 @@ if (!profileState.saved) {
     npcSayTimers.clear();
     charPanel?.destroy();
     charPanel = null;
+    npcChat?.destroy();
+    brain.dispose();
     playerRig.dispose();
     npcs.dispose();
     channel.dispose();

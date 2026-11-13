@@ -229,7 +229,8 @@ export const apps: WhaleMicroApp[] = [
     props: platformProps(),
   },
   {
-    // 蓝鲸城 3D 主场景（独立新域：不调用后端接口，不影响既有 2D 子应用）
+    // 蓝鲸城 3D 主场景（独立新域：不写后端库、不影响既有 2D 子应用）
+    // P3 起城民问话复用既有 /agent/chat（只读问答，不再新增后端接口）
     name: 'whale-world',
     entry: subAppEntry('whale-world', import.meta.env.VITE_SUBAPP_ENTRY_WORLD),
     activeRule: '/world',

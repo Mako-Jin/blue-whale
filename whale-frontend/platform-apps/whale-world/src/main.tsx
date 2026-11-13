@@ -13,10 +13,11 @@ initAuditLogging();
 
 let root: ReactDOM.Root | null = null;
 
-/** qiankun 注入的 props（基座只用到 container 与 getToken） */
+/** qiankun 注入的 props（基座用到 container / getToken / getPermissions） */
 interface QiankunProps {
   container?: HTMLElement;
   getToken?: () => string | null;
+  getPermissions?: () => string[] | null;
 }
 
 function render(props?: QiankunProps) {
@@ -28,7 +29,7 @@ function render(props?: QiankunProps) {
     <ThemeProvider>
       <AntdApp>
         <ErrorBoundary>
-          <App getToken={props?.getToken} />
+          <App getToken={props?.getToken} getPermissions={props?.getPermissions} />
         </ErrorBoundary>
       </AntdApp>
     </ThemeProvider>,
