@@ -265,6 +265,11 @@ public class FileInfoServiceImpl implements FileInfoService {
     }
 
     @Override
+    public long chunkSizeBytes() {
+        return resolveChunkSize();
+    }
+
+    @Override
     public List<Integer> uploadChunkPart(String uploadId, int index, UploadContent part) {
         if (part == null || part.isEmpty() || index < 0) {
             throw new BizException(ErrorCode.PARAM_ERROR);

@@ -1,14 +1,14 @@
 package com.bluewhale.file.controller;
 
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.core.handler.GlobalExceptionHandler;
 import com.bluewhale.common.web.WebHeaders;
 import com.bluewhale.file.config.FileProperties;
-import com.bluewhale.file.dto.ChunkUploadInitRequest;
 import com.bluewhale.file.dto.FileRapidUploadRequest;
 import com.bluewhale.file.service.FileInfoService;
+import com.bluewhale.file.service.model.UploadContent;
 import com.bluewhale.file.service.model.UploadLimits;
 import com.bluewhale.file.service.support.FileUploadPolicy;
-import com.bluewhale.file.vo.ChunkUploadInitVO;
 import com.bluewhale.file.vo.FileInfoVO;
 import com.bluewhale.file.vo.FileQuotaVO;
 import com.bluewhale.file.vo.FileRapidUploadVO;
@@ -18,13 +18,13 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
@@ -36,6 +36,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -44,8 +45,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * {@link FileController} 控制器层单元测试（standalone MockMvc）。
  *
- * <p>覆盖在线预览的 {@code Content-Disposition} 分流、秒传接口响应、配额查询响应，
- * 以及 G1 按权限码的大文件上传策略解析（视频 2GB / 电影 4GB / 未命中仍 50MB）。</p>
+ * <p>覆盖在线预览的 {@code Content-Disposition} 分流（含 SVG 与 text/html 拒绝内联）、
+ * 普通上传全量读入预检、秒传接口响应、配额查询响应，以及 G1 上传策略的默认上限口径。</p>
  *
  * @author BlueWhale
  */
@@ -54,12 +55,6 @@ class FileControllerTest {
     private static final long FILE_ID = 7L;
     private static final long UPLOADER_ID = 9L;
     private static final String MD5 = "d41d8cd98f00b204e9800998ecf8427e";
-
-    /** 视频上传权限码：命中 2GB / 8GB 规则 */
-    private static final String VIDEO_UPLOAD_PERMISSION = "sys:video:upload";
-
-    /** 视频后台权限码：命中 4GB / 不限配额规则 */
-    private static final String MOVIE_MANAGE_PERMISSION = "sys:video:movie:manage";
 
     private final FileInfoService fileInfoService = mock(FileInfoService.class);
 
@@ -72,7 +67,7 @@ class FileControllerTest {
     private MockMvc mockMvc;
 
     /**
-     * 构建 standalone MockMvc：仅注册控制器与校验器，不装配权限拦截器
+     * 构建 standalone MockMvc：仅注册控制器、校验器与全局异常处理器，不装配权限拦截器
      */
     @BeforeEach
     void setUp() {
@@ -80,6 +75,7 @@ class FileControllerTest {
         validator.afterPropertiesSet();
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setValidator(validator)
+                .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }
 
@@ -314,75 +310,89 @@ class FileControllerTest {
                         .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"fileName\":\"copy.pdf\",\"md5\":\"not-a-md5\",\"size\":123}"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(ErrorCode.PARAM_ERROR.getCode()));
 
         verify(fileInfoService, never()).rapidUpload(any(FileRapidUploadRequest.class), eq(UPLOADER_ID),
                 any(UploadLimits.class));
     }
 
     @Test
-    @DisplayName("POST /file/upload/chunk/init：持有 sys:video:upload 时按 2GB / 8GB 初始化分片上传")
-    void initChunkUploadShouldApplyVideoPolicy() throws Exception {
-        ChunkUploadInitVO vo = new ChunkUploadInitVO();
-        vo.setUploadId("upload-video-1");
-        vo.setChunkSize(5242880L);
-        vo.setUploadedIndexes(List.of());
-        when(fileInfoService.initChunkUpload(any(ChunkUploadInitRequest.class), any(UploadLimits.class)))
-                .thenReturn(vo);
+    @DisplayName("GET /file/{id}/preview：SVG 可内嵌脚本，强制回落 attachment")
+    void previewSvgShouldFallbackToAttachment() throws Exception {
+        when(fileInfoService.getDetail(FILE_ID, UPLOADER_ID, false)).thenReturn(fileInfo("image/svg+xml"));
+        when(fileInfoService.openContent(FILE_ID, UPLOADER_ID, false))
+                .thenReturn(new ByteArrayInputStream("<svg/>".getBytes(StandardCharsets.UTF_8)));
 
-        mockMvc.perform(post("/file/upload/chunk/init")
+        mockMvc.perform(get("/file/{id}/preview", FILE_ID)
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID)))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, containsString("attachment")));
+    }
+
+    @Test
+    @DisplayName("GET /file/{id}/preview：text/html 可执行内联脚本，强制回落 attachment")
+    void previewTextHtmlShouldFallbackToAttachment() throws Exception {
+        when(fileInfoService.getDetail(FILE_ID, UPLOADER_ID, false)).thenReturn(fileInfo("text/html"));
+        when(fileInfoService.openContent(FILE_ID, UPLOADER_ID, false))
+                .thenReturn(new ByteArrayInputStream("<script/>".getBytes(StandardCharsets.UTF_8)));
+
+        mockMvc.perform(get("/file/{id}/preview", FILE_ID)
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID)))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, containsString("attachment")));
+    }
+
+    @Test
+    @DisplayName("GET /file/{id}/preview：带参数的 text/plain 忽略参数后仍 inline")
+    void previewShouldIgnoreMediaTypeParameters() throws Exception {
+        when(fileInfoService.getDetail(FILE_ID, UPLOADER_ID, false))
+                .thenReturn(fileInfo("text/plain; charset=utf-8"));
+        when(fileInfoService.openContent(FILE_ID, UPLOADER_ID, false))
+                .thenReturn(new ByteArrayInputStream("hello".getBytes(StandardCharsets.UTF_8)));
+
+        mockMvc.perform(get("/file/{id}/preview", FILE_ID)
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID)))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, containsString("inline")));
+    }
+
+    @Test
+    @DisplayName("POST /file/upload：超出全局默认上限时拒绝且不读取内容、不调用服务")
+    void uploadShouldRejectOversizeFileBeforeReading() throws Exception {
+        fileProperties.setMaxSizeBytes(10L);
+        MockMultipartFile file = new MockMultipartFile("file", "big.bin",
+                "application/octet-stream", new byte[11]);
+
+        mockMvc.perform(multipart("/file/upload").file(file)
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(ErrorCode.PARAM_ERROR.getCode()))
+                .andExpect(jsonPath("$.message").value("文件大小超出普通上传上限，请使用分片上传接口"));
+
+        verify(fileInfoService, never()).upload(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("POST /file/upload：未超限时按权限码配额口径委托服务")
+    void uploadShouldDelegateWithPermissionLimits() throws Exception {
+        fileProperties.setMaxSizeBytes(10L);
+        FileUploadVO uploaded = new FileUploadVO();
+        uploaded.setId(31L);
+        uploaded.setOriginalName("small.bin");
+        when(fileInfoService.upload(any(UploadContent.class), any(), eq(UPLOADER_ID), any(UploadLimits.class)))
+                .thenReturn(uploaded);
+        MockMultipartFile file = new MockMultipartFile("file", "small.bin",
+                "application/octet-stream", new byte[10]);
+
+        mockMvc.perform(multipart("/file/upload").file(file)
                         .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID))
-                        .header(WebHeaders.PERMISSION_CODES, VIDEO_UPLOAD_PERMISSION)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"fileName\":\"video.mp4\",\"size\":2147483648,\"contentType\":\"video/mp4\"}"))
+                        .header(WebHeaders.PERMISSION_CODES, "sys:video:upload"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()))
-                .andExpect(jsonPath("$.data.uploadId").value("upload-video-1"));
+                .andExpect(jsonPath("$.data.id").value(31));
 
-        verify(fileInfoService).initChunkUpload(any(ChunkUploadInitRequest.class),
+        verify(fileInfoService).upload(any(UploadContent.class), any(), eq(UPLOADER_ID),
                 eq(new UploadLimits(2147483648L, 8589934592L)));
-    }
-
-    @Test
-    @DisplayName("POST /file/upload/chunk/init：无视频权限时仍按默认 50MB / 1GB 校验")
-    void initChunkUploadShouldFallbackToDefaults() throws Exception {
-        ChunkUploadInitVO vo = new ChunkUploadInitVO();
-        vo.setUploadId("upload-plain-1");
-        vo.setChunkSize(5242880L);
-        vo.setUploadedIndexes(List.of());
-        when(fileInfoService.initChunkUpload(any(ChunkUploadInitRequest.class), any(UploadLimits.class)))
-                .thenReturn(vo);
-
-        mockMvc.perform(post("/file/upload/chunk/init")
-                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID))
-                        .header(WebHeaders.PERMISSION_CODES, "sys:file:upload")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"fileName\":\"report.pdf\",\"size\":5242880,\"contentType\":\"application/pdf\"}"))
-                .andExpect(status().isOk());
-
-        verify(fileInfoService).initChunkUpload(any(ChunkUploadInitRequest.class),
-                eq(fileUploadPolicy.defaults()));
-    }
-
-    @Test
-    @DisplayName("POST /file/upload/chunk/init：同时持有视频与电影权限时取 4GB / 不限配额")
-    void initChunkUploadShouldPickLargestRule() throws Exception {
-        ChunkUploadInitVO vo = new ChunkUploadInitVO();
-        vo.setUploadId("upload-movie-1");
-        vo.setChunkSize(5242880L);
-        vo.setUploadedIndexes(List.of());
-        when(fileInfoService.initChunkUpload(any(ChunkUploadInitRequest.class), any(UploadLimits.class)))
-                .thenReturn(vo);
-
-        mockMvc.perform(post("/file/upload/chunk/init")
-                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID))
-                        .header(WebHeaders.PERMISSION_CODES,
-                                VIDEO_UPLOAD_PERMISSION + "," + MOVIE_MANAGE_PERMISSION)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"fileName\":\"movie.mp4\",\"size\":4294967296,\"contentType\":\"video/mp4\"}"))
-                .andExpect(status().isOk());
-
-        verify(fileInfoService).initChunkUpload(any(ChunkUploadInitRequest.class),
-                eq(new UploadLimits(4294967296L, 0L)));
     }
 }

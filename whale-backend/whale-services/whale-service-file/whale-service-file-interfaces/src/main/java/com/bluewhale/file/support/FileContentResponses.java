@@ -1,5 +1,7 @@
 package com.bluewhale.file.support;
 
+import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.file.service.FileInfoService;
 import com.bluewhale.file.vo.FileInfoVO;
 import org.springframework.core.io.InputStreamResource;
@@ -14,6 +16,7 @@ import org.springframework.util.StringUtils;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * 文件内容响应构建：统一下载、预览与内网内容接口的响应头，并实现 HTTP Range 语义。
@@ -52,6 +55,13 @@ public final class FileContentResponses {
     /** 越界响应 Content-Range 格式 */
     private static final String CONTENT_RANGE_REFUSED_FORMAT = "bytes */%d";
 
+    /** 可内联预览的文本类型白名单：其余 text/*（如 text/html、text/xml）可执行内联脚本，强制 attachment */
+    private static final Set<String> PREVIEWABLE_TEXT_TYPES =
+            Set.of("text/plain", "text/csv", "text/markdown");
+
+    /** 禁止内联预览的类型：SVG 可内嵌 {@code <script>}，浏览器内联渲染会执行 */
+    private static final String SVG_TYPE = "image/svg+xml";
+
     /**
      * 私有构造：仅提供静态方法。
      */
@@ -73,7 +83,11 @@ public final class FileContentResponses {
     public static ResponseEntity<Resource> build(FileInfoService fileInfoService, FileInfoVO info,
                                                  Long requesterId, boolean canManage, boolean inline,
                                                  String rangeHeader, String ifRangeHeader) {
-        long size = info.getFileSize() == null ? 0L : info.getFileSize();
+        // fileSize 为 null 意味着元数据异常（正常登记不可能缺失），不能按空文件 0 字节响应
+        if (info.getFileSize() == null) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "文件元数据缺少大小信息: " + info.getId());
+        }
+        long size = info.getFileSize();
         String etag = buildEtag(info, size);
         HttpHeaders headers = baseHeaders(info, inline, etag);
         RequestedRange range = resolveRange(rangeHeader, ifRangeHeader, etag, size);
@@ -98,7 +112,11 @@ public final class FileContentResponses {
     }
 
     /**
-     * 判断 MIME 类型是否可在线预览：图片、音视频、文本与 PDF 为安全类型（不区分大小写）。
+     * 判断 MIME 类型是否可在线预览（不区分大小写，忽略 {@code ;} 之后的参数）：
+     * 图片（SVG 除外）、音视频、白名单文本与 PDF 为安全类型；其余类型回落 attachment。
+     *
+     * <p>{@code text/html}、{@code text/xml} 等文本类型可执行内联脚本，SVG 可内嵌
+     * {@code <script>}，均不允许内联渲染（nosniff 只防类型嗅探，不防同类型脚本执行）。</p>
      *
      * @param contentType 存储的 MIME 类型
      * @return 可安全内联预览时返回 {@code true}
@@ -108,11 +126,17 @@ public final class FileContentResponses {
             return false;
         }
         String type = contentType.trim().toLowerCase(Locale.ROOT);
-        return type.startsWith("image/")
-                || type.startsWith("video/")
-                || type.startsWith("audio/")
-                || type.startsWith("text/")
-                || type.equals("application/pdf");
+        int paramIndex = type.indexOf(';');
+        if (paramIndex >= 0) {
+            type = type.substring(0, paramIndex).trim();
+        }
+        if (SVG_TYPE.equals(type)) {
+            return false;
+        }
+        if (type.startsWith("image/") || type.startsWith("video/") || type.startsWith("audio/")) {
+            return true;
+        }
+        return PREVIEWABLE_TEXT_TYPES.contains(type) || type.equals("application/pdf");
     }
 
     /**
@@ -192,7 +216,12 @@ public final class FileContentResponses {
         if (endText.isEmpty()) {
             return RequestedRange.absent();
         }
-        long suffix = Long.parseLong(endText);
+        long suffix;
+        try {
+            suffix = Long.parseLong(endText);
+        } catch (NumberFormatException e) {
+            return RequestedRange.absent();
+        }
         if (suffix <= 0 || size <= 0) {
             return RequestedRange.unsatisfiable();
         }

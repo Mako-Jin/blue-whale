@@ -15,7 +15,8 @@ import java.util.List;
  * 文件存储插件运维接口。
  *
  * <p>只读展示已装配插件与当前活动插件，便于确认对象存储接入状态；
- * 插件启用仍由启动配置 {@code whale.file.storage.type} 决定，不提供运行时切换入口。</p>
+ * 插件启用仍由启动配置 {@code whale.file.storage.type} 决定，不提供运行时切换入口。
+ * 若未来新增切换类写接口，必须加 {@code sys:file:manage} 权限码并做二次确认，防止运维接口被滥用。</p>
  *
  * @author BlueWhale
  */

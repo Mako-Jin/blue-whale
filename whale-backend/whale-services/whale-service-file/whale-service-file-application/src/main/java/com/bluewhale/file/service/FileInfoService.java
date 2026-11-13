@@ -209,6 +209,13 @@ public interface FileInfoService {
     ChunkUploadInitVO initChunkUpload(ChunkUploadInitRequest request, UploadLimits limits);
 
     /**
+     * 生效的分片上传单片大小（{@code whale.file.chunk-size-bytes}，缺省 5MB）
+     *
+     * @return 单片最大字节数
+     */
+    long chunkSizeBytes();
+
+    /**
      * 上传单个分片（同索引重复上传覆盖）
      *
      * @param uploadId 上传会话 ID

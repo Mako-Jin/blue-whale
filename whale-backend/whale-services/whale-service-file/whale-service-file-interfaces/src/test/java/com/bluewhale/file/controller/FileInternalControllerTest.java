@@ -1,7 +1,9 @@
 package com.bluewhale.file.controller;
 
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.core.handler.GlobalExceptionHandler;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.file.config.FileProperties;
 import com.bluewhale.file.service.FileInfoService;
 import com.bluewhale.file.vo.FileChangeVO;
 import com.bluewhale.file.vo.FileInfoVO;
@@ -18,8 +20,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -31,7 +36,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * {@link FileInternalController} 内网接口单元测试（standalone MockMvc）。
  *
- * <p>覆盖变更流、变更详情、内容下载、归档锁定/解锁及下载文件名与 MIME 类型回落分支。</p>
+ * <p>覆盖变更流（含 since 缺省）、变更详情、内容下载（含 416 越界）、归档锁定/解锁、
+ * 下载文件名与 MIME 类型回落分支，以及 {@code X-Internal-Token} 来源令牌校验。</p>
  *
  * @author BlueWhale
  */
@@ -41,7 +47,10 @@ class FileInternalControllerTest {
 
     private final FileInfoService fileInfoService = mock(FileInfoService.class);
 
-    private final FileInternalController controller = new FileInternalController(fileInfoService);
+    private final FileProperties fileProperties = new FileProperties();
+
+    private final FileInternalController controller =
+            new FileInternalController(fileInfoService, fileProperties);
 
     private MockMvc mockMvc;
 
@@ -50,7 +59,9 @@ class FileInternalControllerTest {
      */
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
     }
 
     /**
@@ -160,6 +171,87 @@ class FileInternalControllerTest {
                 .andExpect(header().longValue(HttpHeaders.CONTENT_LENGTH, 2L));
 
         verify(fileInfoService).openContent(FILE_ID, null, true, 1L, 2L);
+    }
+
+    @Test
+    @DisplayName("GET /file/internal/changes：since 缺省时以 null 游标查询")
+    void changesShouldUseNullCursorWhenSinceMissing() throws Exception {
+        when(fileInfoService.changes(null, 1L, 100L))
+                .thenReturn(PageResult.of(List.of(change(1)), 1L, 1L, 100L));
+
+        mockMvc.perform(get("/file/internal/changes"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()))
+                .andExpect(jsonPath("$.data.total").value(1));
+
+        verify(fileInfoService).changes(null, 1L, 100L);
+    }
+
+    @Test
+    @DisplayName("GET /file/internal/{id}/content：Range 越界返回 416 且不读取内容")
+    void contentWithOutOfRangeShouldReturn416() throws Exception {
+        when(fileInfoService.getDetail(FILE_ID, null, true)).thenReturn(fileInfo("sample.mp3", "audio/mpeg"));
+
+        mockMvc.perform(get("/file/internal/{id}/content", FILE_ID)
+                        .header(HttpHeaders.RANGE, "bytes=5-9"))
+                .andExpect(status().isRequestedRangeNotSatisfiable())
+                .andExpect(header().string(HttpHeaders.CONTENT_RANGE, "bytes */5"));
+
+        verify(fileInfoService, never()).openContent(FILE_ID, null, true);
+        verify(fileInfoService, never()).openContent(eq(FILE_ID), eq(null), eq(true), anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("配置内网令牌后：缺失 X-Internal-Token 返回 403 且不调用服务")
+    void changesShouldRejectWhenTokenConfiguredAndMissing() throws Exception {
+        fileProperties.setInternalToken("secret-token");
+
+        mockMvc.perform(get("/file/internal/changes"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(ErrorCode.FORBIDDEN.getCode()));
+
+        verify(fileInfoService, never()).changes(any(), anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("配置内网令牌后：令牌不匹配返回 403")
+    void changesShouldRejectWhenTokenMismatched() throws Exception {
+        fileProperties.setInternalToken("secret-token");
+
+        mockMvc.perform(get("/file/internal/changes")
+                        .header("X-Internal-Token", "wrong-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(ErrorCode.FORBIDDEN.getCode()));
+
+        verify(fileInfoService, never()).changes(any(), anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("配置内网令牌后：令牌匹配时正常放行")
+    void changesShouldAllowWhenTokenMatched() throws Exception {
+        fileProperties.setInternalToken("secret-token");
+        when(fileInfoService.changes(null, 1L, 100L))
+                .thenReturn(PageResult.of(List.of(change(1)), 1L, 1L, 100L));
+
+        mockMvc.perform(get("/file/internal/changes")
+                        .header("X-Internal-Token", "secret-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
+
+        verify(fileInfoService).changes(null, 1L, 100L);
+    }
+
+    @Test
+    @DisplayName("未配置内网令牌时：不校验来源，直接放行")
+    void changesShouldSkipTokenCheckWhenNotConfigured() throws Exception {
+        when(fileInfoService.changes(null, 1L, 100L))
+                .thenReturn(PageResult.of(List.of(change(1)), 1L, 1L, 100L));
+
+        mockMvc.perform(get("/file/internal/changes"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
+
+        verify(fileInfoService).changes(null, 1L, 100L);
     }
 
     @Test

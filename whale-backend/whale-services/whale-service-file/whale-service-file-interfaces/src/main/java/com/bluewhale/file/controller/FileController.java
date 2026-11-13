@@ -6,8 +6,6 @@ import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.common.web.UserContext;
-import com.bluewhale.file.dto.ChunkUploadCompleteRequest;
-import com.bluewhale.file.dto.ChunkUploadInitRequest;
 import com.bluewhale.file.dto.FileQueryRequest;
 import com.bluewhale.file.dto.FileRapidUploadRequest;
 import com.bluewhale.file.service.FileInfoService;
@@ -15,7 +13,6 @@ import com.bluewhale.file.service.model.UploadContent;
 import com.bluewhale.file.service.model.UploadLimits;
 import com.bluewhale.file.service.support.FileUploadPolicy;
 import com.bluewhale.file.support.FileContentResponses;
-import com.bluewhale.file.vo.ChunkUploadInitVO;
 import com.bluewhale.file.vo.FileInfoVO;
 import com.bluewhale.file.vo.FilePresignedVO;
 import com.bluewhale.file.vo.FileQuotaVO;
@@ -23,6 +20,7 @@ import com.bluewhale.file.vo.FileRapidUploadVO;
 import com.bluewhale.file.vo.FileUploadVO;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
@@ -38,24 +36,31 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.List;
 
 /**
- * 文件服务接口。
+ * 文件服务接口（上传/下载/查询/删除；分片上传见 {@link FileChunkUploadController}）。
  *
  * <p>服务内路径 {@code /file/**}；经网关按 {@code Path=/file/**} 规则转发，外部路径与本文档一致。
  * 除 {@code POST /file/internal/upload} 外，全部接口受 {@code @RequirePermission("sys:file:*")} 保护
  * （AUTH-06：由网关权限码头 {@code X-Permission-Codes} + starter {@code RequirePermissionInterceptor} 判定）。
  * {@code POST /file/internal/upload} 为内网服务间接口，外部经网关不可达（网关侧对该路径 403 屏蔽）。</p>
  *
- * <p>G1 大文件上传策略：上传类接口按网关可信注入的 {@code X-Permission-Codes} 解析生效上限与配额
+ * <p>G1 大文件上传策略：分片上传按网关可信注入的 {@code X-Permission-Codes} 解析生效上限与配额
  * （视频 2GB / 8GB、电影 4GB / 不限、音乐 100MB），未命中规则仍按全局默认 50MB / 1GB 拒绝，
- * 避免为了视频上传而全局放宽全平台上限。</p>
+ * 避免为了视频上传而全局放宽全平台上限。普通上传接口为全量读入通道，
+ * 单文件硬顶全局默认上限（{@code whale.file.max-size-bytes}），更大的文件必须走分片上传；
+ * 权限码放宽仍作用于配额口径。</p>
+ *
+ * <p>用户语义约定：带 {@code @RequirePermission} 的接口必有登录态，统一用
+ * {@code UserContext.requireUserId}；{@code /internal/upload} 为系统内网调用（无用户态），
+ * {@code /quota} 面向"无用户态返回不限配额"的语义，二者用 {@code UserContext.findUserId}，
+ * 上传人缺失时记 {@code null}、归属为系统（配额不归属个人）。</p>
  *
  * @author BlueWhale
  */
 @RestController
 @RequestMapping("/file")
+@RequiredArgsConstructor
 public class FileController {
 
     /** 文件管理权限码：持有者可查看/下载/删除全租户文件 */
@@ -66,18 +71,10 @@ public class FileController {
     private final FileUploadPolicy fileUploadPolicy;
 
     /**
-     * 构造文件服务接口
-     *
-     * @param fileInfoService 文件信息服务
-     * @param fileUploadPolicy 按权限码解析生效上传上限的策略服务
-     */
-    public FileController(FileInfoService fileInfoService, FileUploadPolicy fileUploadPolicy) {
-        this.fileInfoService = fileInfoService;
-        this.fileUploadPolicy = fileUploadPolicy;
-    }
-
-    /**
      * 上传文件（外部接口）。
+     *
+     * <p>普通上传为全量读入通道，单文件上限取全局默认值（不随权限码放宽）；
+     * 更大的文件请使用分片上传接口。</p>
      *
      * @param file 上传的文件，必填
      * @param bucket 目标桶名称，可选；为空时取配置的默认桶
@@ -89,8 +86,7 @@ public class FileController {
     public Result<FileUploadVO> upload(@RequestParam("file") MultipartFile file,
                                        @RequestParam(value = "bucket", required = false) String bucket,
                                        HttpServletRequest httpRequest) {
-        Long uploaderId = resolveUploaderId(httpRequest);
-        return Result.ok(fileInfoService.upload(toUploadContent(file), bucket, uploaderId,
+        return Result.ok(doUpload(file, bucket, UserContext.requireUserId(httpRequest),
                 uploadLimits(httpRequest)));
     }
 
@@ -99,9 +95,11 @@ public class FileController {
      *
      * <p>仅供服务间内网调用（whale-job 归档导出、whale-audit 审计导出等），
      * 语义与 {@code POST /file/upload} 一致，但不加 {@code @RequirePermission}；
-     * 网关侧对该路径做 403 屏蔽，外部请求不可达。</p>
+     * 网关侧对该路径做 403 屏蔽，外部请求不可达。内网调用不携带用户权限码，
+     * 固定使用全局默认上限与配额，不参与 G1 按权限码放宽。</p>
      *
-     * <p>内网调用不携带用户权限码，固定使用全局默认上限与配额，不参与 G1 按权限码放宽。</p>
+     * <p>内网调用通常无用户态：请求头缺失 {@code X-User-Id} 时上传人记 {@code null}，
+     * 文件归属为系统（分页按人过滤不可见、配额不归属个人）。</p>
      *
      * @param file 上传的文件，必填
      * @param bucket 目标桶名称，可选；为空时取配置的默认桶
@@ -112,8 +110,7 @@ public class FileController {
     public Result<FileUploadVO> internalUpload(@RequestParam("file") MultipartFile file,
                                                @RequestParam(value = "bucket", required = false) String bucket,
                                                HttpServletRequest httpRequest) {
-        Long uploaderId = resolveUploaderId(httpRequest);
-        return Result.ok(fileInfoService.upload(toUploadContent(file), bucket, uploaderId,
+        return Result.ok(doUpload(file, bucket, UserContext.findUserId(httpRequest),
                 fileUploadPolicy.defaults()));
     }
 
@@ -179,69 +176,6 @@ public class FileController {
     }
 
     /**
-     * 初始化分片上传会话（支持传入既有 uploadId 续传）。
-     *
-     * <p>按当前请求权限码生效大文件上限（如持有 {@code sys:video:upload} 可初始化 2GB 分片上传），
-     * 并把生效上限随会话登记，供 complete 阶段取更严格者。</p>
-     *
-     * @param request 初始化请求：fileName、contentType、size、bucket（可选）、uploadId（可选，续传）
-     * @param httpRequest 当前请求（用于解析网关 {@code X-Permission-Codes} 生效上限）
-     * @return uploadId、分片大小与已上传分片索引
-     */
-    @PostMapping("/upload/chunk/init")
-    @RequirePermission("sys:file:upload")
-    public Result<ChunkUploadInitVO> initChunkUpload(@Valid @RequestBody ChunkUploadInitRequest request,
-                                                     HttpServletRequest httpRequest) {
-        return Result.ok(fileInfoService.initChunkUpload(request, uploadLimits(httpRequest)));
-    }
-
-    /**
-     * 上传单个分片（同一索引重复上传覆盖）。
-     *
-     * @param file 分片内容，必填
-     * @param uploadId 上传会话 ID
-     * @param index 分片索引（从 0 开始）
-     * @return 已上传分片索引（升序）
-     */
-    @PostMapping("/upload/chunk/part")
-    @RequirePermission("sys:file:upload")
-    public Result<List<Integer>> uploadChunkPart(@RequestParam("file") MultipartFile file,
-                                                 @RequestParam("uploadId") String uploadId,
-                                                 @RequestParam("index") int index) {
-        return Result.ok(fileInfoService.uploadChunkPart(uploadId, index, toUploadContent(file)));
-    }
-
-    /**
-     * 查询分片上传会话的已上传分片索引。
-     *
-     * @param uploadId 上传会话 ID
-     * @return 已上传分片索引（升序）
-     */
-    @GetMapping("/upload/chunk/{uploadId}/status")
-    @RequirePermission("sys:file:upload")
-    public Result<List<Integer>> chunkUploadStatus(@PathVariable String uploadId) {
-        return Result.ok(fileInfoService.chunkUploadStatus(uploadId));
-    }
-
-    /**
-     * 完成分片上传：校验完整性后合并落存储并登记元数据。
-     *
-     * <p>校验上限取「init 阶段登记的生效上限」与「当前请求权限码生效上限」中更严格者，
-     * 权限在传输过程中被回收时不会放大上限。</p>
-     *
-     * @param request 完成请求：uploadId、fileName、size、bucket（可选）
-     * @param httpRequest 当前请求（用于读取网关 {@code X-User-Id} 与 {@code X-Permission-Codes}）
-     * @return 上传结果，与普通上传接口一致
-     */
-    @PostMapping("/upload/chunk/complete")
-    @RequirePermission("sys:file:upload")
-    public Result<FileUploadVO> completeChunkUpload(@Valid @RequestBody ChunkUploadCompleteRequest request,
-                                                    HttpServletRequest httpRequest) {
-        return Result.ok(fileInfoService.completeChunkUpload(request,
-                resolveUploaderId(httpRequest), uploadLimits(httpRequest)));
-    }
-
-    /**
      * 秒传（哈希去重）：命中已有物理对象时仅登记新元数据，不重复上传内容。
      *
      * @param request 秒传请求：fileName、md5（32 位十六进制）、size、contentType（可选）
@@ -252,14 +186,15 @@ public class FileController {
     @RequirePermission("sys:file:upload")
     public Result<FileRapidUploadVO> rapidUpload(@Valid @RequestBody FileRapidUploadRequest request,
                                                  HttpServletRequest httpRequest) {
-        return Result.ok(fileInfoService.rapidUpload(request, resolveUploaderId(httpRequest),
+        return Result.ok(fileInfoService.rapidUpload(request, UserContext.requireUserId(httpRequest),
                 uploadLimits(httpRequest)));
     }
 
     /**
      * 查询当前用户的个人存储配额与用量。
      *
-     * <p>配额随当前请求权限码生效（如视频用户 8GB、电影管理员不限），与上传/秒传校验口径一致。</p>
+     * <p>配额随当前请求权限码生效（如视频用户 8GB、电影管理员不限），与上传/秒传校验口径一致；
+     * 无用户态时返回不限配额。</p>
      *
      * @param httpRequest 当前请求（用于读取网关 {@code X-User-Id} 与 {@code X-Permission-Codes}）
      * @return 配额视图对象；无用户态时返回不限配额
@@ -267,13 +202,14 @@ public class FileController {
     @GetMapping("/quota")
     @RequirePermission("sys:file:list")
     public Result<FileQuotaVO> quota(HttpServletRequest httpRequest) {
-        return Result.ok(fileInfoService.quota(resolveUploaderId(httpRequest), uploadLimits(httpRequest)));
+        return Result.ok(fileInfoService.quota(UserContext.findUserId(httpRequest), uploadLimits(httpRequest)));
     }
 
     /**
      * 分页查询文件元数据。
      *
-     * <p>默认仅返回调用者本人上传的文件；持有 {@code sys:file:manage} 时可查看全租户文件。</p>
+     * <p>默认仅返回调用者本人上传的文件；持有 {@code sys:file:manage} 时可查看全租户文件
+     * （服务间上传的上传人为空的文件保持租户可见）。</p>
      *
      * @param request 查询条件：originalName 模糊、bucket 等值、createTime 起止
      * @param httpRequest 当前请求（用于判定调用者归属与文件管理权限）
@@ -301,6 +237,20 @@ public class FileController {
     }
 
     /**
+     * 上传公共流程：全量读入预检（防大文件进入堆内存）后委托应用服务。
+     *
+     * @param file 上传的文件
+     * @param bucket 目标桶名称，可为 {@code null}
+     * @param uploaderId 上传用户 ID；内网系统调用可为 {@code null}
+     * @param limits 本次上传生效的上限与配额
+     * @return 上传结果
+     */
+    private FileUploadVO doUpload(MultipartFile file, String bucket, Long uploaderId, UploadLimits limits) {
+        UploadContent content = toUploadContent(file, fileUploadPolicy.defaults().maxSizeBytes());
+        return fileInfoService.upload(content, bucket, uploaderId, limits);
+    }
+
+    /**
      * 解析当前请求生效的上传上限与配额（G1 大文件上传策略）
      *
      * @param request 当前请求
@@ -321,23 +271,21 @@ public class FileController {
     }
 
     /**
-     * 解析上传用户 ID：以请求上下文（或网关 {@code X-User-Id}）为准，缺失或不可解析时返回 {@code null}
+     * 将 Web 上传对象适配为应用层中立上传内容（Web 类型仅停留在接口层）。
      *
-     * @param request 当前请求
-     * @return 上传用户ID；无有效值时返回 {@code null}
-     */
-    private static Long resolveUploaderId(HttpServletRequest request) {
-        return UserContext.findUserId(request);
-    }
-
-    /**
-     * 将 Web 上传对象适配为应用层中立上传内容（Web 类型仅停留在接口层）
+     * <p>先按 {@code MultipartFile.getSize()}（框架已解析的声明大小）预检，
+     * 超限时直接拒绝并提示走分片上传，避免大文件 {@code getBytes()} 全量进入堆内存导致 OOM。</p>
      *
      * @param file 上传的文件
+     * @param maxBytes 允许全量读入的最大字节数
      * @return 上传内容
-     * @throws BizException 读取内容失败时抛出 {@code SYSTEM_ERROR}
+     * @throws BizException 超出全量读入上限或读取内容失败时抛出
      */
-    private static UploadContent toUploadContent(MultipartFile file) {
+    private static UploadContent toUploadContent(MultipartFile file, long maxBytes) {
+        if (file.getSize() > maxBytes) {
+            throw new BizException(ErrorCode.PARAM_ERROR,
+                    "文件大小超出普通上传上限，请使用分片上传接口");
+        }
         try {
             return new UploadContent(file.getOriginalFilename(), file.getContentType(), file.getBytes());
         } catch (IOException e) {

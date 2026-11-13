@@ -34,6 +34,12 @@ public class FileProperties {
     private UploadPolicy uploadPolicy = new UploadPolicy();
 
     /**
+     * 内网接口来源校验令牌：非空时 {@code /file/internal/**} 必须携带匹配的 {@code X-Internal-Token}
+     * 请求头（网关屏蔽之外的第二道防线）；为空时不校验，仅依赖网关 {@code internal-deny} 屏蔽
+     */
+    private String internalToken = "";
+
+    /**
      * 上传策略配置项：按网关可信注入的 {@code X-Permission-Codes} 选择生效上限与配额，
      * 未命中任何规则时回落 {@code max-size-bytes} / {@code quota-bytes} 全局默认值。
      *
