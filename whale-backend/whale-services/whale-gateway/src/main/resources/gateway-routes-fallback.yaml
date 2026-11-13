@@ -3,14 +3,69 @@
 whale:
   gateway:
     dynamic-routes:
+      # 【必须一条路由一个 pattern】Gateway 的 Path 断言不会按逗号切分 args.patterns：
+      # 写成 `/a/**,/b/**` 会被当作**一整个** pattern 编译，这条路由永远不命中，
+      # 请求直接掉到静态资源 handler → 404「服务不可用」。
+      # 而 RouteDefinitionValidator 自己按逗号 split 校验，所以这种写法能通过校验、
+      # 只在真正转发时失效 —— 是最难查的一类（只有 Nacos 动态路由缺失时才走兜底，
+      # 平时被 Nacos 覆盖看不出来）。
+      # /social/v1/** 为三方登录（权限中心扩展 M2）：授权起始/渠道回调走浏览器跳转，
+      # 一次性登录码换令牌为短时效凭证交换；安全由 auth 服务白名单 + state 一次性消费保证
       - id: whale-service-auth
         uri: lb://whale-service-auth
         predicates:
           - name: Path
             args:
-              # /social/v1/** 为三方登录（权限中心扩展 M2）：授权起始/渠道回调走浏览器跳转，
-              # 一次性登录码换令牌为短时效凭证交换；安全由 auth 服务白名单 + state 一次性消费保证
-              patterns: /auth/v1/**,/auth/**,/user/**,/dept/**,/role/**,/menu/**,/permission/**,/social/v1/**
+              patterns: /auth/v1/**
+        filters: []
+      - id: whale-service-auth-root
+        uri: lb://whale-service-auth
+        predicates:
+          - name: Path
+            args:
+              patterns: /auth/**
+        filters: []
+      - id: whale-service-auth-user
+        uri: lb://whale-service-auth
+        predicates:
+          - name: Path
+            args:
+              patterns: /user/**
+        filters: []
+      - id: whale-service-auth-dept
+        uri: lb://whale-service-auth
+        predicates:
+          - name: Path
+            args:
+              patterns: /dept/**
+        filters: []
+      - id: whale-service-auth-role
+        uri: lb://whale-service-auth
+        predicates:
+          - name: Path
+            args:
+              patterns: /role/**
+        filters: []
+      - id: whale-service-auth-menu
+        uri: lb://whale-service-auth
+        predicates:
+          - name: Path
+            args:
+              patterns: /menu/**
+        filters: []
+      - id: whale-service-auth-permission
+        uri: lb://whale-service-auth
+        predicates:
+          - name: Path
+            args:
+              patterns: /permission/**
+        filters: []
+      - id: whale-service-auth-social
+        uri: lb://whale-service-auth
+        predicates:
+          - name: Path
+            args:
+              patterns: /social/v1/**
         filters: []
       - id: whale-service-auth-tenant
         uri: lb://whale-service-auth
@@ -24,7 +79,14 @@ whale:
         predicates:
           - name: Path
             args:
-              patterns: /brand/**,/oauth-client/**
+              patterns: /brand/**
+        filters: []
+      - id: whale-service-auth-oauth-client
+        uri: lb://whale-service-auth
+        predicates:
+          - name: Path
+            args:
+              patterns: /oauth-client/**
         filters: []
       # OAuth2.0 授权服务器（权限中心扩展 M1）：协议端点与发现文档
       - id: whale-service-auth-oauth2
@@ -32,7 +94,14 @@ whale:
         predicates:
           - name: Path
             args:
-              patterns: /oauth2/**,/.well-known/**
+              patterns: /oauth2/**
+        filters: []
+      - id: whale-service-auth-wellknown
+        uri: lb://whale-service-auth
+        predicates:
+          - name: Path
+            args:
+              patterns: /.well-known/**
         filters: []
       - id: whale-job
         uri: lb://whale-job
@@ -125,15 +194,24 @@ whale:
             args:
               patterns: /forum/**
         filters: []
+      # /im/ws 为 2D 聊天，/im/world 为 3D 蓝鲸城世界频道：两者都是原生 WS 升级，
+      # 显式走 ws 路由而不是让 /im/** 的 http 路由兜底转协议，避免以后改 http 路由时误伤。
+      # 同样一条路由只能挂一个 pattern（见文件头说明）。
       - id: whale-im-ws
         uri: lb:ws://whale-im
         order: -1
         predicates:
           - name: Path
             args:
-              # /im/ws 为 2D 聊天，/im/world 为 3D 蓝鲸城世界频道：两者都是原生 WS 升级，
-              # 显式走 ws 路由而不是让 /im/** 的 http 路由兜底转协议，避免以后改 http 路由时误伤
-              patterns: /im/ws,/im/world
+              patterns: /im/ws
+        filters: []
+      - id: whale-im-world-ws
+        uri: lb:ws://whale-im
+        order: -1
+        predicates:
+          - name: Path
+            args:
+              patterns: /im/world
         filters: []
       - id: whale-im
         uri: lb://whale-im
