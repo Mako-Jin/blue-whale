@@ -60,11 +60,15 @@ class ToolCallingAgentTest {
 
         assertEquals("whale-agent 端口为 8090 [S1]", result.content());
         assertEquals(1, result.evidence().size());
-        assertEquals(1, result.traces().size());
-        assertEquals(1, observed.size());
-        assertTrue(result.traces().get(0).success());
-        assertEquals("search_knowledge", result.traces().get(0).name());
+        // 8424c34f 起编排前先做一次预检索（step=0），因此轨迹是「预检索 + 模型那一次工具调用」。
+        assertEquals(2, result.traces().size());
+        assertEquals(0, result.traces().get(0).step());
         assertEquals(1, result.traces().get(0).evidenceCount());
+        // 预检索已登记同一路径，模型这次调用的证据全部被去重，不再新增。
+        assertEquals(0, result.traces().get(1).evidenceCount());
+        assertEquals(2, observed.size());
+        assertTrue(result.traces().get(1).success());
+        assertEquals("search_knowledge", result.traces().get(1).name());
         assertFalse(result.degraded());
         assertTrue(result.transcript().contains("S1"));
     }
@@ -79,9 +83,10 @@ class ToolCallingAgentTest {
                 .run(List.of(), "删除数据", null, null);
 
         assertEquals("无法执行写操作，给出只读结论", result.content());
-        assertEquals(1, result.traces().size());
-        assertFalse(result.traces().get(0).success());
-        assertTrue(result.traces().get(0).error().contains("未知工具"));
+        // 预检索（零命中，仍记一条轨迹）+ 未知工具那条失败轨迹。
+        assertEquals(2, result.traces().size());
+        assertFalse(result.traces().get(1).success());
+        assertTrue(result.traces().get(1).error().contains("未知工具"));
         assertTrue(result.evidence().isEmpty());
         assertFalse(result.degraded());
     }
@@ -99,9 +104,11 @@ class ToolCallingAgentTest {
                 .run(List.of(), "路线图", null, null);
 
         assertEquals(1, result.evidence().size());
-        assertEquals(2, result.traces().size());
+        // 预检索先命中并登记 S1；两次同参调用产出相同 dedupeKey，都被去重。
+        assertEquals(3, result.traces().size());
         assertEquals(1, result.traces().get(0).evidenceCount());
         assertEquals(0, result.traces().get(1).evidenceCount());
+        assertEquals(0, result.traces().get(2).evidenceCount());
     }
 
     @Test
@@ -116,7 +123,8 @@ class ToolCallingAgentTest {
         ToolCallingResult result = new ToolCallingAgent(llm, registry, properties)
                 .run(List.of(), "循环问题", null, null);
 
-        assertEquals(2, result.traces().size());
+        // 预检索 1 次 + 循环内 2 次（maxToolSteps=2），第 3 次调用不再发出。
+        assertEquals(3, result.traces().size());
         assertTrue(result.content().contains("最大步数"));
         assertFalse(result.degraded());
     }
@@ -127,8 +135,10 @@ class ToolCallingAgentTest {
                 .run(List.of(), "任意问题", null, null);
 
         assertTrue(result.degraded());
-        assertTrue(result.content().contains("模型调用失败"));
+        // 失败原因只留在 transcript（正文不再重复过程记录，见 ToolCallingAgent#fallback）
+        assertTrue(result.content().contains("模型暂时不可用"));
         assertTrue(result.content().contains("已检索到的资料"));
+        assertTrue(result.transcript().contains("模型调用失败"));
     }
 
     @Test
