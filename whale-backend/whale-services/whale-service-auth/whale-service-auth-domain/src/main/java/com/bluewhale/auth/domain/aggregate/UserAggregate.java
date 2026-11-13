@@ -49,6 +49,8 @@ public class UserAggregate implements Entity<Long> {
     private String avatar;
     private Long deptId;
     private int status;
+    /** 注册来源（SYSTEM 管理后台 / IMPORT 批量导入 / SOCIAL 三方开通），仅新建时确定，不随聚合更新 */
+    private String registerSource;
     private LocalDateTime lastLoginTime;
     private final LocalDateTime createTime;
     private LocalDateTime updateTime;
@@ -143,6 +145,41 @@ public class UserAggregate implements Entity<Long> {
     public static UserAggregate create(Long tenantId, Username username, EncryptedPassword password, String nickname,
                                        String phone, String email, Long deptId, Integer status) {
         return create(tenantId, username, password, nickname, phone, email, null, deptId, status);
+    }
+
+    /**
+     * 工厂方法（导入重载）：批量导入建号时登记注册来源（权限中心扩展 M4）
+     *
+     * <p>不改既有构造签名：先按标准工厂方法建聚合，再补登记 {@code registerSource}。
+     * 注册来源仅在创建时刻确定，聚合不提供修改入口。</p>
+     *
+     * @param tenantId 所属租户 ID
+     * @param username 用户名值对象
+     * @param password 口令密文值对象
+     * @param nickname 昵称
+     * @param phone 手机号
+     * @param email 邮箱
+     * @param avatar 头像地址
+     * @param deptId 所属部门 ID
+     * @param status 状态（1 启用 / 0 停用），为空时按启用处理
+     * @param registerSource 注册来源（IMPORT 等）
+     * @return 新建的用户聚合根
+     */
+    public static UserAggregate create(Long tenantId, Username username, EncryptedPassword password, String nickname,
+                                       String phone, String email, String avatar, Long deptId, Integer status,
+                                       String registerSource) {
+        UserAggregate user = create(tenantId, username, password, nickname, phone, email, avatar, deptId, status);
+        user.registerSource = registerSource;
+        return user;
+    }
+
+    /**
+     * 读取注册来源
+     *
+     * @return 注册来源；存量数据可能为 {@code null}
+     */
+    public String getRegisterSource() {
+        return registerSource;
     }
 
     /**

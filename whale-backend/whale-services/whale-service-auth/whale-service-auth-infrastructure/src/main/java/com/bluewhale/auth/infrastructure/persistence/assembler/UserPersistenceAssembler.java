@@ -74,6 +74,8 @@ public final class UserPersistenceAssembler {
         po.setAvatar(user.getAvatar());
         po.setDeptId(user.getDeptId());
         po.setStatus(user.getStatus());
+        // 注册来源仅新建时登记；updateById 对 null 字段走 MyBatis-Plus 忽略策略，不覆盖存量值
+        po.setRegisterSource(user.getRegisterSource());
         po.setLastLoginTime(user.getLastLoginTime());
         po.setCreateTime(user.getCreateTime());
         po.setUpdateTime(user.getUpdateTime());

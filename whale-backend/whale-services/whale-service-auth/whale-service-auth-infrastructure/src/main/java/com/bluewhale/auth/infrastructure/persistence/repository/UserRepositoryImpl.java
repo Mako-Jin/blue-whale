@@ -134,6 +134,19 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
+    public List<String> listExistingUsernames(Long tenantId, Collection<String> usernames) {
+        if (usernames == null || usernames.isEmpty()) {
+            return List.of();
+        }
+        // 仅取 username 列的单次 in 查询，替代逐行 existsByUsername（导入批次去重）
+        return userMapper.selectList(new LambdaQueryWrapper<SysUserPo>()
+                        .select(SysUserPo::getUsername)
+                        .eq(SysUserPo::getTenantId, tenantId)
+                        .in(SysUserPo::getUsername, usernames))
+                .stream().map(SysUserPo::getUsername).toList();
+    }
+
+    @Override
     public Optional<UserAggregate> findEnabledByEmail(Long tenantId, String email) {
         SysUserPo po = userMapper.selectOne(new LambdaQueryWrapper<SysUserPo>()
                 .eq(SysUserPo::getTenantId, tenantId)

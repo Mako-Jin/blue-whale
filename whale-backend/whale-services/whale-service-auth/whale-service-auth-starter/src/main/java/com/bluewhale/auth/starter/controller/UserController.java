@@ -9,6 +9,11 @@ import com.bluewhale.auth.application.model.command.UpdateUserCommand;
 import com.bluewhale.auth.application.model.query.UserPageQuery;
 import com.bluewhale.auth.application.service.UserPermissionAppService;
 import com.bluewhale.auth.application.model.command.ReplaceUserAttrsCommand;
+import com.bluewhale.auth.application.model.importexport.ExportResult;
+import com.bluewhale.auth.application.model.importexport.ImportPreviewResult;
+import com.bluewhale.auth.application.model.importexport.ImportRowError;
+import com.bluewhale.auth.application.model.importexport.ImportCommitResult;
+import com.bluewhale.auth.application.service.UserImportExportAppService;
 import com.bluewhale.auth.interfaces.api.UserApi;
 import com.bluewhale.auth.interfaces.dto.request.AssignRolesRequest;
 import com.bluewhale.auth.interfaces.dto.request.BindUserTenantRequest;
@@ -16,6 +21,8 @@ import com.bluewhale.auth.interfaces.dto.request.UpdateAttrsRequest;
 import com.bluewhale.auth.interfaces.dto.request.UserCreateRequest;
 import com.bluewhale.auth.interfaces.dto.request.UserStatusRequest;
 import com.bluewhale.auth.interfaces.dto.request.UserUpdateRequest;
+import com.bluewhale.auth.interfaces.dto.response.ImportCommitResponse;
+import com.bluewhale.auth.interfaces.dto.response.ImportPreviewResponse;
 import com.bluewhale.auth.interfaces.dto.response.ResetPasswordResponse;
 import com.bluewhale.auth.interfaces.dto.response.UserAttrResponse;
 import com.bluewhale.auth.interfaces.dto.response.UserResponse;
@@ -24,17 +31,24 @@ import com.bluewhale.auth.sdk.annotation.RequireReauth;
 import com.bluewhale.auth.starter.assemble.UserAssembler;
 import com.bluewhale.common.audit.annotation.AuditLog;
 import com.bluewhale.common.audit.enums.OperateType;
+import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.query.PageQuery;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.common.idempotent.annotation.Idempotent;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -49,6 +63,7 @@ public class UserController implements UserApi {
     private final UserAppService userAppService;
     private final UserPermissionAppService userPermissionAppService;
     private final TenantMembershipAppService tenantMembershipAppService;
+    private final UserImportExportAppService userImportExportAppService;
     private final UserAssembler userAssembler;
 
     /**
@@ -247,5 +262,96 @@ public class UserController implements UserApi {
     public Result<Void> unbindTenant(@PathVariable Long id, @PathVariable Long tenantId) {
         tenantMembershipAppService.unbindTenant(id, tenantId);
         return Result.ok();
+    }
+
+    /**
+     * 下载用户导入模板（权限中心扩展 M4）
+     *
+     * @return 模板 xlsx 字节流
+     */
+    @Override
+    @RequirePermission("sys:user:import")
+    public ResponseEntity<byte[]> importTemplate() {
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=user-import-template.xlsx")
+                .contentType(XLSX_MEDIA_TYPE)
+                .body(userImportExportAppService.template());
+    }
+
+    /**
+     * 导入预检：参数含上传文件，审计不记录请求参数（权限中心扩展 M4）
+     *
+     * @param file 用户导入文件（xlsx）
+     * @return 预检结果（存在错误时 batchId 为 {@code null}）
+     */
+    @Override
+    @RequirePermission("sys:user:import")
+    @AuditLog(operation = "导入用户预检", type = OperateType.IMPORT, recordParams = false)
+    public Result<ImportPreviewResponse> importPreview(@RequestParam("file") MultipartFile file) {
+        ImportPreviewResult result = userImportExportAppService.preview(toInputStream(file));
+        List<ImportPreviewResponse.RowError> errors = result.errors().stream()
+                .map(this::toRowError).toList();
+        return Result.ok(new ImportPreviewResponse(result.batchId(), result.totalRows(),
+                result.validCount(), errors));
+    }
+
+    /**
+     * 导入提交：统一临时口令为敏感信息，审计不记录请求参数（权限中心扩展 M4）
+     *
+     * @param batchId 预检返回的批次 ID
+     * @return 提交结果
+     */
+    @Override
+    @RequirePermission("sys:user:import")
+    @AuditLog(operation = "导入用户提交", type = OperateType.IMPORT, recordParams = false)
+    public Result<ImportCommitResponse> importCommit(@RequestParam String batchId) {
+        ImportCommitResult result = userImportExportAppService.commit(batchId);
+        return Result.ok(new ImportCommitResponse(result.totalRows(), result.successCount(),
+                result.skippedCount(), result.failedCount(), result.tempPassword()));
+    }
+
+    /**
+     * 导出用户：≤5 万行直传 xlsx，超限返回 whale-file 文件引用（权限中心扩展 M4）
+     *
+     * @param keyword 用户名/昵称/手机号模糊匹配关键字（可空）
+     * @return 直传分支为 xlsx 字节流；上传分支为 {@code Result<Map>}（含 {@code objectKey}）
+     */
+    @Override
+    @RequirePermission("sys:user:export")
+    @AuditLog(operation = "导出用户", type = OperateType.EXPORT, recordParams = false)
+    public ResponseEntity<?> export(@RequestParam(required = false) String keyword) {
+        ExportResult result = userImportExportAppService.export(keyword);
+        if (result.content() != null) {
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=users.xlsx")
+                    .contentType(XLSX_MEDIA_TYPE)
+                    .body(result.content());
+        }
+        return ResponseEntity.ok(Result.ok(result.remoteFile()));
+    }
+
+    /** xlsx 媒体类型（模板与导出共用） */
+    private static final MediaType XLSX_MEDIA_TYPE =
+            MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+
+    /**
+     * 上传文件 → 输入流（读取失败转为受控业务异常）
+     */
+    private static java.io.InputStream toInputStream(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "请上传用户导入文件");
+        }
+        try {
+            return file.getInputStream();
+        } catch (IOException e) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "读取上传文件失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 行级错误 → 响应项
+     */
+    private ImportPreviewResponse.RowError toRowError(ImportRowError error) {
+        return new ImportPreviewResponse.RowError(error.rowNo(), error.column(), error.message());
     }
 }

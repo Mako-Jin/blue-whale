@@ -8,6 +8,7 @@ import com.bluewhale.auth.application.model.command.CreateUserCommand;
 import com.bluewhale.auth.application.model.command.UpdateUserCommand;
 import com.bluewhale.auth.application.model.query.UserPageQuery;
 import com.bluewhale.auth.application.service.UserPermissionAppService;
+import com.bluewhale.auth.application.service.UserImportExportAppService;
 import com.bluewhale.auth.application.model.command.ReplaceUserAttrsCommand;
 import com.bluewhale.auth.interfaces.dto.request.AssignRolesRequest;
 import com.bluewhale.auth.interfaces.dto.request.UpdateAttrsRequest;
@@ -71,8 +72,9 @@ class UserControllerTest {
     private final UserAppService userAppService = mock(UserAppService.class);
     private final UserPermissionAppService userPermissionAppService = mock(UserPermissionAppService.class);
     private final TenantMembershipAppService tenantMembershipAppService = mock(TenantMembershipAppService.class);
+    private final UserImportExportAppService userImportExportAppService = mock(UserImportExportAppService.class);
     private final UserController controller = new UserController(userAppService, userPermissionAppService,
-            tenantMembershipAppService, Mappers.getMapper(UserAssembler.class));
+            tenantMembershipAppService, userImportExportAppService, Mappers.getMapper(UserAssembler.class));
 
     private MockMvc mockMvc;
 

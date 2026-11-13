@@ -98,6 +98,19 @@ public interface UserRepository {
     boolean existsByUsername(Long tenantId, String username);
 
     /**
+     * 批量查询用户名集合在指定租户内已存在的子集（用户导入预检/提交的批内去重，M4）
+     *
+     * <p>单次 {@code in} 查询替代逐行 {@link #existsByUsername}，避免导入批次 N+1；
+     * 竞态语义与 {@link #existsByUsername} 一致：真正的唯一性由 DB 唯一约束
+     * {@code uk_tenant_username(tenant_id, username)} 兜底。</p>
+     *
+     * @param tenantId 租户 ID
+     * @param usernames 用户名集合（空集合返回空列表）
+     * @return 已存在的用户名列表
+     */
+    List<String> listExistingUsernames(Long tenantId, Collection<String> usernames);
+
+    /**
      * 全量覆盖用户在当前租户内的角色关联（只清理并重建本租户角色的关联行）。
      *
      * <p><b>边界说明</b>：本方法为 {@code sys_user_role} 关联表端口，而非 User 聚合内部实体的

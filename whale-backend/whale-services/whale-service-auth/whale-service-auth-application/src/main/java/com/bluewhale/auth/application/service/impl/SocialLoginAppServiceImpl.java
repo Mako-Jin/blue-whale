@@ -1,6 +1,7 @@
 package com.bluewhale.auth.application.service.impl;
 
 import com.bluewhale.auth.application.event.DomainEventPublisher;
+import com.bluewhale.auth.application.model.TokenPayload;
 import com.bluewhale.auth.application.model.command.SocialAuthorizeCommand;
 import com.bluewhale.auth.application.model.command.SocialBindAuthorizeCommand;
 import com.bluewhale.auth.application.model.command.SocialCallbackCommand;
@@ -13,6 +14,7 @@ import com.bluewhale.auth.application.model.result.SocialCallbackResult;
 import com.bluewhale.auth.application.model.social.SocialLoginCodeRecord;
 import com.bluewhale.auth.application.model.social.SocialStateRecord;
 import com.bluewhale.auth.application.port.CurrentUserProvider;
+import com.bluewhale.auth.application.port.SessionLedgerPort;
 import com.bluewhale.auth.application.port.SocialAccountProvisioner;
 import com.bluewhale.auth.application.port.SocialIdentityProvider;
 import com.bluewhale.auth.application.port.SocialLoginCodeStore;
@@ -30,6 +32,7 @@ import com.bluewhale.auth.domain.event.AuthDomainEvent;
 import com.bluewhale.auth.domain.event.SocialBindingDomainEvent;
 import com.bluewhale.auth.domain.model.vo.SocialProfile;
 import com.bluewhale.auth.domain.model.vo.SocialProvider;
+import com.bluewhale.auth.domain.model.entity.LoginHistoryRecord;
 import com.bluewhale.auth.domain.repository.SocialBindingRepository;
 import com.bluewhale.auth.domain.repository.UserRepository;
 import com.bluewhale.common.core.exception.BizException;
@@ -88,6 +91,7 @@ public class SocialLoginAppServiceImpl implements SocialLoginAppService {
     private final TokenIssuer tokenIssuer;
     private final CurrentUserProvider currentUserProvider;
     private final DomainEventPublisher domainEventPublisher;
+    private final SessionLedgerPort sessionLedgerPort;
 
     /**
      * 构造函数：按渠道装配适配器映射（重复支持同一渠道视为装配错误）
@@ -106,6 +110,7 @@ public class SocialLoginAppServiceImpl implements SocialLoginAppService {
      * @param tokenIssuer 令牌签发端口
      * @param currentUserProvider 当前登录用户提供者
      * @param domainEventPublisher 领域事件发布器
+     * @param sessionLedgerPort 会话账本端口（M3 遗留补齐：三方登录记账）
      */
     public SocialLoginAppServiceImpl(SocialBindingRepository socialBindingRepository,
                                      UserRepository userRepository,
@@ -120,7 +125,8 @@ public class SocialLoginAppServiceImpl implements SocialLoginAppService {
                                      UserSessionQuery userSessionQuery,
                                      TokenIssuer tokenIssuer,
                                      CurrentUserProvider currentUserProvider,
-                                     DomainEventPublisher domainEventPublisher) {
+                                     DomainEventPublisher domainEventPublisher,
+                                     SessionLedgerPort sessionLedgerPort) {
         this.socialBindingRepository = socialBindingRepository;
         this.userRepository = userRepository;
         this.tenantConfigRepository = tenantConfigRepository;
@@ -136,6 +142,7 @@ public class SocialLoginAppServiceImpl implements SocialLoginAppService {
         this.tokenIssuer = tokenIssuer;
         this.currentUserProvider = currentUserProvider;
         this.domainEventPublisher = domainEventPublisher;
+        this.sessionLedgerPort = sessionLedgerPort;
     }
 
     /**
@@ -552,9 +559,31 @@ public class SocialLoginAppServiceImpl implements SocialLoginAppService {
                 user.tokenTenantId(), user.userId(), user.username(), UUID.randomUUID().toString());
         String accessToken = tokenIssuer.issueAccessToken(
                 user.tokenTenantId(), user.userId(), user.username(), roles, mustChange);
+        // M3 遗留补齐：三方登录接会话账本（与口令登录同构，降级由端口适配器整体保证）
+        recordSocialLedger(user, refreshToken, now);
         return new LoginResult(accessToken, "Bearer",
                 tokenIssuer.accessExpireSeconds(),
                 user.userId(), user.tokenTenantId(), user.username(), user.nickname(), roles,
                 mustChange, passwordExpired, expiresInDays, refreshToken);
+    }
+
+    /**
+     * 账本：记录一次成功的三方登录令牌签发
+     *
+     * <p>IP / UA / 设备指纹由 infrastructure 适配器从当前请求上下文解析；
+     * 本方法自身不做 try-catch——降级由 {@link SessionLedgerPort} 适配器整体保证。</p>
+     *
+     * @param user 登录用户快照
+     * @param refreshToken 新签发的 refreshToken 原文
+     * @param now 签发时刻
+     */
+    private void recordSocialLedger(com.bluewhale.auth.application.model.AuthenticatedUser user,
+                                    String refreshToken, LocalDateTime now) {
+        TokenPayload payload = tokenIssuer.parse(refreshToken);
+        sessionLedgerPort.recordLogin(new SessionLedgerPort.LoginLedgerEntry(
+                user.tokenTenantId(), user.userId(), user.username(), LoginHistoryRecord.TYPE_SOCIAL,
+                true, null, null, null, null, null, null, null, null,
+                payload == null ? null : payload.jti(), payload == null ? null : payload.familyId(),
+                now, now.plusSeconds(tokenIssuer.refreshExpireSeconds())));
     }
 }

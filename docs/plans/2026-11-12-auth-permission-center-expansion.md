@@ -393,7 +393,7 @@
 - **测试**：新增 7 个测试类（四聚合不变量 + 约束校验 + 继承防环 + 既有回归修补），starter 全量
   单测通过；ArchUnit 通过；domain/interfaces/infrastructure/starter checkstyle 0 违规
   （application 存量违规未改动）。
-- **实施偏差**：① 三方登录（`SocialLoginAppService`）未接会话账本，待 M4 补齐；
+- **实施偏差**：① 三方登录（`SocialLoginAppService`）未接会话账本，已在 M4 补齐（见 M4 实施记录）；
   ② 证件号明文查询按 `(userId, credentialId)` 定位单条；③ `sys_remember_me_token` 预留未接功能；
   ④ `ChangeType` 新增 `SESSION_REVOKED`/`DEVICE_TRUSTED`（`AuthDomainEventTest` 断言同步 10→12）。
 
@@ -407,6 +407,49 @@
   - 权限与审计：`sys:user:import/export`；`@AuditLog(type=IMPORT/EXPORT, recordParams=false)`，导入结果记录成功/失败行数。
 - 验收：1 万行导入在预检阶段全量报错定位到行/列；重复导入幂等（同名用户跳过并计入“已存在”）；导出文件表头与模板一致；无权限 403。
 - 测试：Excel 解析/写出适配器单测、行校验器参数化用例、分批事务回滚用例、导出流式内存上限用例。
+
+**实施记录（2026-11-13，已完成）**
+
+- **迁移**：`V24__user_import_export.sql`——仅新增权限点 2413（`sys:user:import`，`POST /user/v1/import/*`）
+  与 2414（`sys:user:export`，`POST /user/v1/export`），按 `perm_code` 判重 + `tenant_admin` 自动授予；
+  不建新表、不加菜单（导入导出挂在既有用户管理页面下）。
+- **domain**：`UserAggregate` 新增 `registerSource` 字段（非 final + getter）与带注册来源的
+  `create` 重载（不改既有构造签名）；`UserRepository` 新增 `listExistingUsernames`
+  （单次 `in` 查询替代导入批次的逐行 `existsByUsername`，N+1 消除）；`UserPersistenceAssembler`
+  补 `registerSource` 非空映射（insert 为 null 时走 DB 默认 SYSTEM）。
+- **application**：模型 6 record（`UserImportRow`/`UserExportRow`/`ImportRowError`/
+  `ImportPreviewResult`/`ImportCommitResult`/`ExportResult`，导入行保留单元格原文由校验器
+  统一解析报错到行列）；端口 4 个（`SpreadsheetReader`/`SpreadsheetWriter`/`ImportBatchStore`/
+  `ExportFileUploader`）；`UserImportExportAppService/Impl`（预检全量校验不落库、错误不截断；
+  提交 `TransactionTemplate` 每 500 行独立事务、事务内 `existsByUsername` 跳过计「已存在」、
+  行级失败隔离不拖垮整批；统一临时口令一次生成整批复用 + 强制首登改密 + `register_source=IMPORT`
+  + `ensureHomeMembership` + 口令历史 + `CREATED` 领域事件 + `replaceRoles`；导出流式分页，
+  当页角色一次批量查询）；`UserImportRowValidator`（必填/格式/批内重复/DB 批量查重降级/部门与
+  角色存在性，错误定位到行/列）。
+- **infrastructure**：`EasyExcelSpreadsheetReader`（`headRowNumber(0)` 读入、表头按名称归一化
+  匹配列序无关、物理行号保留、全空行跳过、超 1 万行拒绝）、`EasyExcelSpreadsheetWriter`
+  （模板表头+示例行；导出 `ExcelWriter` 流式分页写出，内存只留当前页）、`RedisImportBatchStore`
+  （`auth:import:batch:` 前缀，JSON 暂存含租户归属，TTL 30 分钟，提交时校验防跨租户）、
+  `WhaleFileUploadClient` + `UserExportProperties`（`whale.auth.export.file-service-url/bucket`，
+  沿用审计归档的 `POST /file/internal/upload` multipart + 内部令牌模式）；新增包均配
+  `package-info.java`；infra pom 引入 easyexcel（父 POM 统一管版本）。
+- **interfaces/starter**：`UserApi` 新增 4 端点（`GET /import/template` 字节流、
+  `POST /import/preview` multipart、`POST /import/commit`、`POST /export` 双形态响应）；
+  `UserController` 全部加 `@RequirePermission("sys:user:import"/"sys:user:export")`，
+  预检/提交/导出加 `@AuditLog(type=IMPORT/EXPORT, recordParams=false)`（口令与文件不入审计）。
+- **测试**：新增 4 个测试类——行校验器参数化用例（15 例）、服务用例（预检暂存/错误不暂存/
+  批次过期/同名跳过/行级失败隔离/501 行分两个事务/导出直传与上传分支/零数据拒绝）、
+  EasyExcel 读写适配器（表头归一化、列序无关、空行跳过行号不重排、超限拒绝、1005 行跨页
+  完整写出、表头与模板一致）；`SocialLoginAppServiceImplTest` 构造同步账本端口。
+  starter 全量单测通过；ArchUnit 全绿。
+- **M3 遗留偏差①已补齐**：`SocialLoginAppServiceImpl.buildLoginResult` 接入
+  `SessionLedgerPort.recordLogin`（`LoginHistoryRecord.TYPE_SOCIAL`，jti/familyId 从
+  refreshToken 解析，过期时间取 refreshExpireSeconds），降级口径与会话账本适配器一致。
+- **实施偏差**：① 超过 5 万行的导出**不走异步**（当前无异步任务基建），仍同步生成后上传
+  whale-file 返回 `objectKey`——保留原验收语义（前端拿 objectKey 下载），后续补异步基建时
+  再切换；② 导入预检存在任意行级错误时不暂存批次（batchId 为 null），须修正后整批重新上传，
+  而非暂存部分通过行；③ 导入预检的 DB 批量查重失败时降级跳过（提交侧事务内
+  `existsByUsername` + DB 唯一约束兜底），不阻断预检；④ 导出零数据直接抛业务异常，不生成空文件。
 
 ---
 

@@ -84,6 +84,8 @@ class SocialLoginAppServiceImplTest {
     private final TokenIssuer tokenIssuer = mock(TokenIssuer.class);
     private final CurrentUserProvider currentUserProvider = mock(CurrentUserProvider.class);
     private final DomainEventPublisher domainEventPublisher = mock(DomainEventPublisher.class);
+    private final com.bluewhale.auth.application.port.SessionLedgerPort sessionLedgerPort =
+            mock(com.bluewhale.auth.application.port.SessionLedgerPort.class);
     private final SocialIdentityProvider dingTalkProvider = mock(SocialIdentityProvider.class);
 
     private com.bluewhale.auth.application.service.impl.SocialLoginAppServiceImpl appService;
@@ -102,7 +104,7 @@ class SocialLoginAppServiceImplTest {
                 List.of(dingTalkProvider), socialStateStore, socialLoginCodeStore,
                 socialAccountProvisioner, socialWebConfig, tenantAppService,
                 tenantPasswordPolicyService, userSessionQuery, tokenIssuer,
-                currentUserProvider, domainEventPublisher);
+                currentUserProvider, domainEventPublisher, sessionLedgerPort);
     }
 
     /**

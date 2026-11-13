@@ -143,6 +143,7 @@ whale-service-auth/
 | 认证 | `SessionAppService` | 登录、刷新、当前用户、租户切换、登出 |
 | 口令 | `PasswordAppService`、`PasswordPolicyService`、`TenantPasswordPolicyService`、`TemporaryPasswordGenerator` | 自助改密、口令策略、历史与到期、临时口令 |
 | 用户 | `UserAppService`、`UserDirectoryAppService`、`UserLifecycleAppService` | 用户 CRUD、通讯录、入职/转正/调岗/离职/返聘 |
+| 用户导入导出 | `UserImportExportAppService`、`UserImportRowValidator` | 导入模板、预检（全量行级校验定位行列）、提交（≤500 行/独立事务、同名跳过、统一临时口令强制改密）、导出（≤5 万行直传 xlsx，超限上传 whale-file 返回 objectKey） |
 | 角色 / 菜单 / 权限 / 部门 | `RoleAppService`、`MenuAppService`、`PermissionAppService`、`DeptAppService` | 授权与基础数据管理 |
 | 租户 | `TenantAppService`、`TenantMembershipAppService`、`TenantProvisioningAppService` | 租户生命周期、成员与角色、开通编排 |
 | 用户属性 | `UserPermissionAppService` | ABAC 属性维护 |
@@ -175,13 +176,16 @@ whale-service-auth/
 | `GroupMemberEvaluator` | `GroupMemberEvaluatorImpl`（动态组过滤规则内存求值） |
 | `SessionLedgerPort` | `SessionLedgerAdapter`（登录/登出/轮换账本写入，失败降级告警不阻断） |
 | `RoleConstraintChecker` | `RoleConstraintCheckerImpl`（角色分配前互斥/基数校验） |
+| `SpreadsheetReader` / `SpreadsheetWriter` | `EasyExcelSpreadsheetReader` / `EasyExcelSpreadsheetWriter`（导入文件解析表头归一化匹配、模板与导出流式分页写出） |
+| `ImportBatchStore` | `RedisImportBatchStore`（预检批次暂存，TTL 30 分钟，租户归属校验） |
+| `ExportFileUploader` | `WhaleFileUploadClient`（超限导出上传 whale-file，`POST /file/internal/upload`） |
 
 ## 五、接口层
 
 | 控制器 | 基础路径 | 主要端点 |
 |---|---|---|
 | [`AuthController`](whale-service-auth-interfaces/src/main/java/com/bluewhale/auth/controller/AuthController.java) | `/auth` | `POST /login`、`POST /refresh`、`GET /me`、`PUT /password`、`GET /tenants`、`POST /tenant/switch`、`POST /logout` |
-| [`UserController`](whale-service-auth-interfaces/src/main/java/com/bluewhale/auth/controller/UserController.java) | `/user` | 分页 / 详情 / 更新 / 删除 / 重置口令 / 状态 / 角色分配 / 属性 / 租户绑定 |
+| [`UserController`](whale-service-auth-interfaces/src/main/java/com/bluewhale/auth/controller/UserController.java) | `/user` | 分页 / 详情 / 更新 / 删除 / 重置口令 / 状态 / 角色分配 / 属性 / 租户绑定 / 导入模板 / 导入预检与提交（M4）/ 导出 |
 | [`UserInternalController`](whale-service-auth-interfaces/src/main/java/com/bluewhale/auth/controller/UserInternalController.java) | `/user/internal` | `POST /exists`、`GET /directory`、`GET /by-role` |
 | [`UserLifecycleInternalController`](whale-service-auth-interfaces/src/main/java/com/bluewhale/auth/controller/UserLifecycleInternalController.java) | `/user/internal/lifecycle` | `POST` 人员生命周期动作 |
 | [`RoleController`](whale-service-auth-interfaces/src/main/java/com/bluewhale/auth/controller/RoleController.java) | `/role` | 分页 / 详情 / 更新 / 删除 / 权限分配与查询 |
@@ -304,7 +308,8 @@ whale-service-auth/
   （`sys_device` / `sys_login_history` / `sys_refresh_token` / `sys_remember_me_token`）。
 - Flyway 仅扫描 `classpath:db/migration`：`V1__baseline.sql` → `V2__password_lifecycle.sql` →
   `V3__tenant_password_policy.sql` → … → `V19`~`V23`（M3：档案 / 用户组 / 策略约束与角色继承 /
-  会话设备 / 口令历史扩展，`V20` 起含权限点与菜单种子）。
+  会话设备 / 口令历史扩展，`V20` 起含权限点与菜单种子）→ `V24`（M4：导入导出权限点
+  2413/2414 + `tenant_admin` 授予，不建新表）。
 - 存量库由 `baseline-on-migrate=true`、`baseline-version=1` 自动登记基线，不重放 V1；`clean` 已禁用。
 - `db/init.sql` 与 `db/migration-*.sql` 为手工 / 追溯脚本，不在 Flyway 扫描路径内。
 - 详细边界与校验 SQL 见 [`db/README.md`](whale-service-auth-starter/src/main/resources/db/README.md)。
@@ -333,6 +338,8 @@ whale-service-auth/
 | `WHALE_AUTH_MAIL_PROVISION_ENABLED` | 建用户后自动开邮箱 | `false` |
 | `SECURITY_DEGRADATION_FAIL_CLOSED` | Redis 不可用时安全优先拒绝 | `false` |
 | `WHALE_AUTH_PROFILE_CRYPTO_KEY` | 档案敏感字段 AES 密钥（Base64 或任意字符串，非合法 Base64 时 SHA-256 派生）；生产必须注入 | 开发默认密钥 |
+| `whale.auth.export.file-service-url` | M4 超限导出上传 whale-file 基址（服务直连） | `http://127.0.0.1:8085` |
+| `whale.auth.export.bucket` | M4 导出文件目标桶 | `bluewhale-user-export` |
 
 ## 十、构建与运行
 

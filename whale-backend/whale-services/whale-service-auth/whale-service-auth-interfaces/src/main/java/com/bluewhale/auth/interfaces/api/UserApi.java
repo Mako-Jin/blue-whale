@@ -6,6 +6,8 @@ import com.bluewhale.auth.interfaces.dto.request.UpdateAttrsRequest;
 import com.bluewhale.auth.interfaces.dto.request.UserCreateRequest;
 import com.bluewhale.auth.interfaces.dto.request.UserStatusRequest;
 import com.bluewhale.auth.interfaces.dto.request.UserUpdateRequest;
+import com.bluewhale.auth.interfaces.dto.response.ImportCommitResponse;
+import com.bluewhale.auth.interfaces.dto.response.ImportPreviewResponse;
 import com.bluewhale.auth.interfaces.dto.response.ResetPasswordResponse;
 import com.bluewhale.auth.interfaces.dto.response.UserAttrResponse;
 import com.bluewhale.auth.interfaces.dto.response.UserResponse;
@@ -13,6 +15,7 @@ import com.bluewhale.common.core.query.PageQuery;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
 import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,6 +24,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -156,4 +160,39 @@ public interface UserApi {
      */
     @DeleteMapping("/{id}/tenants/{tenantId}")
     Result<Void> unbindTenant(@PathVariable Long id, @PathVariable Long tenantId);
+
+    /**
+     * 下载用户导入模板（权限中心扩展 M4）
+     *
+     * @return 模板 xlsx 字节流
+     */
+    @GetMapping("/import/template")
+    ResponseEntity<byte[]> importTemplate();
+
+    /**
+     * 导入预检：上传 xlsx 全量校验，返回批次 ID 与行级错误清单（权限中心扩展 M4）
+     *
+     * @param file 用户导入文件（xlsx）
+     * @return 预检结果（存在错误时 batchId 为 {@code null}）
+     */
+    @PostMapping(value = "/import/preview", consumes = "multipart/form-data")
+    Result<ImportPreviewResponse> importPreview(@RequestParam("file") MultipartFile file);
+
+    /**
+     * 导入提交：按预检批次分批写入，返回成功/跳过/失败行数与统一临时口令（权限中心扩展 M4）
+     *
+     * @param batchId 预检返回的批次 ID
+     * @return 提交结果
+     */
+    @PostMapping("/import/commit")
+    Result<ImportCommitResponse> importCommit(@RequestParam String batchId);
+
+    /**
+     * 导出用户：≤5 万行返回 xlsx 字节流，超过返回 whale-file 文件引用（权限中心扩展 M4）
+     *
+     * @param keyword 用户名/昵称/手机号模糊匹配关键字（可空）
+     * @return 直传分支为 xlsx 字节流；上传分支为 {@code Result<Map>}（含 {@code objectKey}）
+     */
+    @PostMapping("/export")
+    ResponseEntity<?> export(@RequestParam(required = false) String keyword);
 }
