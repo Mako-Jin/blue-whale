@@ -43,6 +43,7 @@ import {
   collide as resolveCollide,
   createBlockers,
 } from './collision';
+import { createNavGrid } from './path';
 import type { CharPanelHandle } from './charpanel';
 import type { AvatarParams } from './avatar';
 import type { NpcChatHandle } from './npcchat';
@@ -1559,6 +1560,10 @@ function isTypingTarget(target) {
 renderer.domElement.addEventListener('pointerdown', (e) => {
   // 拖拽本身也是用户手势，顺手解锁音频（否则第一次听到声音要等到按键）
   kickAudio();
+  // 右键是"设目的地"，不参与转视角；否则右键一按就顺手把镜头也拖歪了
+  if (e.button === 2) {
+    return;
+  }
   dragging = true;
   lastPointer = { x: e.clientX, y: e.clientY };
   renderer.domElement.setPointerCapture(e.pointerId);
@@ -1581,6 +1586,34 @@ renderer.domElement.addEventListener('wheel', (e) => {
   e.preventDefault();
   cam.dist = clamp(cam.dist + e.deltaY * 0.014, 8, 48);
 }, { passive: false });
+
+/* 右键 = 设目的地。
+ * 落点用射线与 y=0 平面求交：城内 terrainHeight 恒为 0（缓坡权重从 96 米外才起），
+ * 所以这个平面在可达范围内就是地面本身；点在牌坊/宫殿顶上也能落到它脚下的广场。 */
+const pickRay = new THREE.Raycaster();
+const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const pickNdc = new THREE.Vector2();
+const pickHit = new THREE.Vector3();
+
+renderer.domElement.addEventListener('contextmenu', (e) => {
+  // 不拦就会弹浏览器菜单——游戏里右键变成"另存为图片"，等于这个功能不存在
+  e.preventDefault();
+  kickAudio();
+  const rect = renderer.domElement.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) {
+    return;
+  }
+  pickNdc.set(
+    ((e.clientX - rect.left) / rect.width) * 2 - 1,
+    -((e.clientY - rect.top) / rect.height) * 2 + 1,
+  );
+  pickRay.setFromCamera(pickNdc, camera);
+  if (!pickRay.ray.intersectPlane(groundPlane, pickHit)) {
+    // 视线打不到地面（相机接近平视且点在上半屏）：不动，别把落点算到身后去
+    return;
+  }
+  setWalkTarget(pickHit.x, pickHit.z);
+});
 
 on(window, 'keydown', (e) => {
   kickAudio();
@@ -1617,6 +1650,8 @@ on(window, 'keydown', (e) => {
     charPanel?.close();
     npcChat?.close();
     sayPanel?.close();
+    // Esc 也是"停步"：自动寻路中按一下就停在原地（标记会跟着淡出）
+    cancelAutoWalk('已停止寻路');
     // 导览中按 Esc 直接收工（不弹提示，HUD 消失本身就是反馈）
     if (guide.isActive()) {
       guide.stop();
@@ -1950,6 +1985,261 @@ function updateSky(dt) {
 }
 
 /* ==========================================================================
+ * 14.6 自动寻路（鼠标右键设目的地）
+ *
+ * <p>手一直按方向键跨城确实累。右键点地面即算一条绕开城墙与建筑的路，
+ * 角色自己走过去；任何方向键输入、Esc、或再点一次都会打断。</p>
+ *
+ * <p>几何全部来自 {@link createBlockers}，与碰撞推挤同源——两套几何各改各的
+ * 是"看得见却走不过去"的经典来源。</p>
+ * ========================================================================== */
+const BLOCKERS = createBlockers();
+
+/**
+ * 寻路边界与 updatePlayer 里的 clamp 取同一个数（OUTER - 4）。
+ * 若用更大的 WORLD_BOUND，A* 会把落点安排在贴墙外侧，玩家看着有标记却永远走不到。
+ */
+const nav = createNavGrid(BLOCKERS, { bound: OUTER - 4 });
+
+/** 自动行走速率（米/秒）：比步行快一点，跨城不至于等到烦 */
+const AUTO_SPEED = 12.5;
+
+/** 提前转向的距离（米）：转向是插值的，等到拐点上再急转会甩到墙上 */
+const TURN_AHEAD = 2.6;
+
+const autoWalk = {
+  active: false,
+  points: [] as Array<{ x: number; z: number }>,
+  index: 0,
+  /** 距上次"看它有没有真的在动"的秒数 */
+  idle: 0,
+  /** 上次采样时的位置，用位移判断是不是卡住（用节点推进判断会误伤长直段） */
+  lastX: 0,
+  lastZ: 0,
+  /** 本次寻路已经重算过几次，避免无限重试 */
+  retries: 0,
+  goal: { x: 0, z: 0 },
+};
+
+/* ---- 目的地光环：落地一圈脉冲 + 一道淡光柱，让"点哪儿"有回执 ----
+ * 尺寸是实机截图调出来的：最初 0.82~1.06 米、纯青色 0.9 的半透明环，
+ * 在草地上几乎看不见（颜色被地面吃掉），等于没有反馈。现在做成"厚环 + 外发光"，
+ * 外圈用 additive 混出光晕，远一点也认得出落点在哪。 */
+const markerMats = [];
+const markerRoot = new THREE.Group();
+markerRoot.visible = false;
+/** 造标记材质：基础透明度记在 userData 上，淡入淡出时按比例缩放（各层不同） */
+const mkMat = (baseOpacity, additive = false) => {
+  const m = new THREE.MeshBasicMaterial({
+    color: 0x9ff0ff,
+    transparent: true,
+    opacity: baseOpacity,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
+  });
+  m.userData.baseOpacity = baseOpacity;
+  markerMats.push(m);
+  return m;
+};
+const markerRing = new THREE.Mesh(new THREE.RingGeometry(0.92, 1.26, 56), mkMat(0.9));
+markerRing.rotation.x = -Math.PI / 2;
+const markerHalo = new THREE.Mesh(new THREE.RingGeometry(1.3, 1.46, 56), mkMat(0.55, true));
+markerHalo.rotation.x = -Math.PI / 2;
+markerHalo.position.y = 0.01;
+const markerCore = new THREE.Mesh(new THREE.CircleGeometry(0.34, 28), mkMat(0.4));
+markerCore.rotation.x = -Math.PI / 2;
+markerCore.position.y = 0.02;
+const markerBeam = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.14, 0.44, 6, 16, 1, true),
+  mkMat(0.2, true),
+);
+markerBeam.position.y = 3;
+markerRoot.add(markerRing, markerHalo, markerCore, markerBeam);
+scene.add(markerRoot);
+
+/** 标记透明度：出发淡入，抵达/取消淡出 */
+let markerFade = 0;
+
+function showMarker(x, z) {
+  markerRoot.position.set(x, terrainHeight(x, z) + 0.04, z);
+  markerRoot.visible = true;
+  markerFade = 0.001;
+}
+
+function updateWalkMarker(dt) {
+  if (!markerRoot.visible) {
+    return;
+  }
+  const target = autoWalk.active ? 1 : 0;
+  markerFade += (target - markerFade) * Math.min(1, dt * 6);
+  if (!autoWalk.active && markerFade < 0.02) {
+    markerRoot.visible = false;
+    return;
+  }
+  const pulse = 1 + Math.sin(clock.t * 5) * 0.07;
+  // 环是绕 x 轴躺平的，局部 x/y 就对应世界 x/z，所以缩 x/y 才是"绕地扩大"
+  markerRing.scale.set(pulse, pulse, 1);
+  markerHalo.scale.set(pulse, pulse, 1);
+  markerRing.rotation.z += dt * 0.7;
+  for (const m of markerMats) {
+    m.opacity = m.userData.baseOpacity * markerFade;
+  }
+}
+
+/**
+ * 设定自动寻路目的地（世界坐标）。
+ *
+ * @param x 落点 x（米）
+ * @param z 落点 z（米）
+ * @returns 是否成功起步
+ */
+function setWalkTarget(x, z) {
+  if (!Number.isFinite(x) || !Number.isFinite(z)) {
+    return false;
+  }
+  const from = { x: player.pos.x, z: player.pos.z };
+  const direct = Math.hypot(x - from.x, z - from.z);
+  if (direct < 1.2) {
+    showToast('就在脚下', '点远一点的地方');
+    return false;
+  }
+
+  const path = nav.findPath(from, { x, z });
+  if (!path || path.points.length === 0) {
+    showToast('过不去', '那道墙后面得先走城门');
+    return false;
+  }
+
+  autoWalk.active = true;
+  autoWalk.points = path.points;
+  autoWalk.index = 0;
+  autoWalk.idle = 0;
+  autoWalk.retries = 0;
+  autoWalk.lastX = player.pos.x;
+  autoWalk.lastZ = player.pos.z;
+  autoWalk.goal = { x: path.goal.x, z: path.goal.z };
+  showMarker(path.goal.x, path.goal.z);
+
+  const dist = Math.round(Math.hypot(path.goal.x - from.x, path.goal.z - from.z));
+  if (path.adjusted) {
+    showToast('已改道', `落点站不住，改到 ${Math.round(dist)} 米外的空地`);
+  } else {
+    showToast('自动寻路中', `${dist} 米 · 按方向键或 Esc 中断`);
+  }
+  return true;
+}
+
+/** 停止自动行走；返回是否原本在走（供 Esc 判断要不要消费这次按键） */
+function cancelAutoWalk(reason) {
+  if (!autoWalk.active) {
+    return false;
+  }
+  autoWalk.active = false;
+  autoWalk.points = [];
+  autoWalk.index = 0;
+  autoWalk.idle = 0;
+  if (reason) {
+    showToast('已停止', reason);
+  }
+  return true;
+}
+
+/** 抵达 */
+function finishAutoWalk() {
+  if (!autoWalk.active) {
+    return;
+  }
+  autoWalk.active = false;
+  autoWalk.points = [];
+  autoWalk.index = 0;
+  showToast('已抵达', '到了，主公');
+}
+
+/**
+ * 沿路径推进并把方向写进 moveDir。
+ *
+ * @returns 是否仍在自动行走（false 表示接下来按静止处理）
+ */
+function steerAutoWalk(dt, moveDir) {
+  if (!autoWalk.active) {
+    return false;
+  }
+  while (autoWalk.index < autoWalk.points.length) {
+    const pt = autoWalk.points[autoWalk.index];
+    const dx = pt.x - player.pos.x;
+    const dz = pt.z - player.pos.z;
+    const dist = Math.hypot(dx, dz);
+    const last = autoWalk.index === autoWalk.points.length - 1;
+    // 终点要求踩准一点（标记就落在那儿），中间拐点可以提前切，避免绕着拐点打转
+    const reach = last ? 0.5 : Math.max(0.8, player.speed * dt * 1.5);
+    if (dist > reach) {
+      moveDir.set(dx / dist, 0, dz / dist);
+      /* 临近拐点时把下一段方向混进来：速度与朝向都是插值过去的，
+         等踩到点再急转会冲过半个身位贴到墙上，接着被碰撞推回来，
+         表现就是"在墙角来回抽"。前瞻一点，拐得圆滑。 */
+      const next = autoWalk.points[autoWalk.index + 1];
+      if (next && dist < TURN_AHEAD) {
+        const ndx = next.x - player.pos.x;
+        const ndz = next.z - player.pos.z;
+        const nlen = Math.hypot(ndx, ndz);
+        if (nlen > 0.001) {
+          const w = (1 - dist / TURN_AHEAD) * 0.6;
+          const mx = (dx / dist) * (1 - w) + (ndx / nlen) * w;
+          const mz = (dz / dist) * (1 - w) + (ndz / nlen) * w;
+          const mlen = Math.hypot(mx, mz);
+          // 两段夹角接近 180° 时混合方向会趋近零向量，此时保持原方向更稳
+          if (mlen > 0.35) {
+            moveDir.set(mx / mlen, 0, mz / mlen);
+          }
+        }
+      }
+      return true;
+    }
+    autoWalk.index += 1;
+    autoWalk.idle = 0;
+  }
+  finishAutoWalk();
+  return false;
+}
+
+/**
+ * 卡住检测：推挤、拐角擦墙都可能让角色原地磨。
+ *
+ * <p><b>必须按"实际位移"判，不能按"路径节点推进"判</b>——拉直之后的两个拐点之间
+ * 可能隔着四十米直路，按节点推进计时会把正常长跑误判成卡住，然后在半路无端停下
+ * （这正是斜穿全城用例一度停在城门洞里的原因）。</p>
+ */
+function updateAutoWalkGuard(dt) {
+  if (!autoWalk.active) {
+    return;
+  }
+  autoWalk.idle += dt;
+  if (autoWalk.idle < 2) {
+    return;
+  }
+  autoWalk.idle = 0;
+  const moved = Math.hypot(player.pos.x - autoWalk.lastX, player.pos.z - autoWalk.lastZ);
+  autoWalk.lastX = player.pos.x;
+  autoWalk.lastZ = player.pos.z;
+  if (moved > 1.2) {
+    return; // 在动，只是这一段长
+  }
+  // 磨住了就按当前位置重算（起点变了，路也可能变）；两次都不行才放弃，
+  // 一次性放弃太容易把"擦墙角"这种小磕绊升级成"这功能不好用"
+  if (autoWalk.retries < 2) {
+    autoWalk.retries += 1;
+    const retry = nav.findPath({ x: player.pos.x, z: player.pos.z }, autoWalk.goal);
+    if (retry && retry.points.length > 0) {
+      autoWalk.points = retry.points;
+      autoWalk.index = 0;
+      return;
+    }
+  }
+  cancelAutoWalk('路上受阻，先停下');
+}
+
+/* ==========================================================================
  * 15. 主循环
  * ========================================================================== */
 const moveDir = new THREE.Vector3();
@@ -1962,13 +2252,20 @@ function updatePlayer(dt) {
   const right = new THREE.Vector3(-forward.z, 0, forward.x);
 
   moveDir.set(0, 0, 0);
-  if (keys.has('KeyW') || keys.has('ArrowUp')) moveDir.add(forward);
-  if (keys.has('KeyS') || keys.has('ArrowDown')) moveDir.sub(forward);
-  if (keys.has('KeyA') || keys.has('ArrowLeft')) moveDir.sub(right);
-  if (keys.has('KeyD') || keys.has('ArrowRight')) moveDir.add(right);
+  let manual = false;
+  if (keys.has('KeyW') || keys.has('ArrowUp')) { moveDir.add(forward); manual = true; }
+  if (keys.has('KeyS') || keys.has('ArrowDown')) { moveDir.sub(forward); manual = true; }
+  if (keys.has('KeyA') || keys.has('ArrowLeft')) { moveDir.sub(right); manual = true; }
+  if (keys.has('KeyD') || keys.has('ArrowRight')) { moveDir.add(right); manual = true; }
+
+  // 一按方向键就交还控制权：自动寻路是"省手"，不是"接管"
+  if (manual) {
+    cancelAutoWalk('已切回手动');
+  }
+  const auto = !manual && steerAutoWalk(dt, moveDir);
 
   const running = keys.has('ShiftLeft') || keys.has('ShiftRight');
-  const maxSpeed = running ? 16 : 7.5;
+  const maxSpeed = auto ? AUTO_SPEED : running ? 16 : 7.5;
   const moving = moveDir.lengthSq() > 0.001;
   if (moving) moveDir.normalize();
 
@@ -1995,6 +2292,11 @@ function updatePlayer(dt) {
 
   player.pos.y = terrainHeight(player.pos.x, player.pos.z);
 
+  // 走不动了就重算/放弃（必须在移动之后再判，否则第一帧就会被误判为卡住）
+  if (auto) {
+    updateAutoWalkGuard(dt);
+  }
+
   // 世界频道上报（内部按 10Hz 节流；单机模式下只更新本地缓存）
   channel.report(player.pos.x, player.pos.z, player.yaw, player.speed);
 
@@ -2006,8 +2308,6 @@ function updatePlayer(dt) {
 }
 
 /** 建筑碰撞：几何全部由 collision 模块按布局生成，这里只保留调用点 */
-const BLOCKERS = createBlockers();
-
 function collide(pos) {
   resolveCollide(BLOCKERS, pos);
 }
@@ -2180,6 +2480,7 @@ function animate() {
   updateSky(dt);
   updateWeather(dt);
   updatePlayer(dt);
+  updateWalkMarker(dt);
   // 脚步声跟速度走：静止时 update 内部会自己归零，不必在外面判
   audio.update(dt, player.speed, groundAt(player.pos.x, player.pos.z));
   updateActors(dt);
@@ -2257,7 +2558,40 @@ metrics.start();
     window.__bwwSpeeches = () =>
       [...document.querySelectorAll('#bww-speech .bww-speech')].map((el) => el.textContent ?? '');
     window.__bwwWarp = (x, z) => {
+      // 传送式挪位会作废现有路径，先停掉自动行走，否则会朝旧目标倒着走回去
+      cancelAutoWalk(null);
+      player.speed = 0;
       player.pos.set(x, 0, z);
+    };
+    /* 自动寻路探针：读状态，以及不经鼠标直接设目标（单独验算路） */
+    window.__bwwPath = () => ({
+      active: autoWalk.active,
+      index: autoWalk.index,
+      total: autoWalk.points.length,
+      goalX: Number(autoWalk.goal.x.toFixed(2)),
+      goalZ: Number(autoWalk.goal.z.toFixed(2)),
+      nextX: autoWalk.points[autoWalk.index] ? Number(autoWalk.points[autoWalk.index].x.toFixed(2)) : null,
+      nextZ: autoWalk.points[autoWalk.index] ? Number(autoWalk.points[autoWalk.index].z.toFixed(2)) : null,
+    });
+    window.__bwwWalkTo = (x, z) => setWalkTarget(x, z);
+    /* 目的地光环探针：e2e 断言"点了有回执、到了就消失"。视觉对不对仍需人眼，但
+       "根本没画出来"这种失败必须能被自动抓到。 */
+    window.__bwwMarker = () => ({
+      visible: markerRoot.visible,
+      x: Number(markerRoot.position.x.toFixed(2)),
+      z: Number(markerRoot.position.z.toFixed(2)),
+      fade: Number(markerFade.toFixed(2)),
+      opacity: Number((markerMats[0]?.opacity ?? 0).toFixed(2)),
+    });
+    /* 世界点 → 屏幕像素：e2e 要用真正的鼠标右键（而不是直接调函数）验证事件绑定 */
+    window.__bwwScreenOf = (x, z) => {
+      const v = new THREE.Vector3(x, terrainHeight(x, z), z).project(camera);
+      const rect = renderer.domElement.getBoundingClientRect();
+      return {
+        x: rect.left + ((v.x + 1) / 2) * rect.width,
+        y: rect.top + ((1 - v.y) / 2) * rect.height,
+        front: v.z < 1,
+      };
     };
     /* 声景探针：e2e 无法"听"，只能读状态（是否解锁、是否静音）与脚下地面判定 */
     window.__bwwAudio = () => ({

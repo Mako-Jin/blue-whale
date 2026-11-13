@@ -101,7 +101,7 @@ export default function App({ getToken, getPermissions }: AppProps) {
 
       <div className="bww-help">
         <div>
-          <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 行走&ensp;<kbd>Shift</kbd> 疾行
+          <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 行走&ensp;<kbd>Shift</kbd> 疾行&ensp;<kbd>右键</kbd> 点地自动寻路&ensp;<kbd>Esc</kbd> 停步
         </div>
         <div>拖拽 转视角&ensp;滚轮 远近&ensp;<kbd>E</kbd> 传送&ensp;<kbd>F</kbd> 交谈&ensp;<kbd>T</kbd> 问小鲸宝&ensp;<kbd>G</kbd> 导览&ensp;<kbd>Q</kbd> 喊话&ensp;<kbd>N</kbd> 静音&ensp;<kbd>C</kbd> 形象&ensp;<kbd>M</kbd> 城图&ensp;<kbd>R</kbd> 复位</div>
       </div>
