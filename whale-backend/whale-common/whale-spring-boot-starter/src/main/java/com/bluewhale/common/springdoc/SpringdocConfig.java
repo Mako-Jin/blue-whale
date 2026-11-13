@@ -30,7 +30,7 @@ import java.util.Map;
 @ConditionalOnClass(OpenApiCustomizer.class)
 public class SpringdocConfig {
 
-    private static final org.slf4j.Logger log =
+    private static final org.slf4j.Logger LOG =
             org.slf4j.LoggerFactory.getLogger(SpringdocConfig.class);
 
     /** OpenAPI 里 Jackson Long 对应的 format 标记 */
@@ -38,6 +38,11 @@ public class SpringdocConfig {
     private static final String TYPE_INTEGER = "integer";
     private static final String TYPE_STRING = "string";
 
+    /**
+     * 注册 Long→String 契约改写器
+     *
+     * @return OpenAPI 定制器
+     */
     @Bean
     public OpenApiCustomizer whaleLongToStringApiCustomizer() {
         return this::customise;
@@ -45,6 +50,11 @@ public class SpringdocConfig {
 
     private int rewritten = 0;
 
+    /**
+     * 遍历契约并改写全部 int64 字段，输出改写数量日志
+     *
+     * @param openApi OpenAPI 契约文档
+     */
     private void customise(OpenAPI openApi) {
         rewritten = 0;
         if (openApi.getComponents() != null && openApi.getComponents().getSchemas() != null) {
@@ -55,9 +65,14 @@ public class SpringdocConfig {
                 fixPathItem(item);
             }
         }
-        log.info("whaleLongToStringApiCustomizer: rewrote {} int64 fields", rewritten);
+        LOG.info("whaleLongToStringApiCustomizer: rewrote {} int64 fields", rewritten);
     }
 
+    /**
+     * 改写路径项：参数、请求体、响应中的内联 schema 全部下钻
+     *
+     * @param item 路径项
+     */
     private void fixPathItem(PathItem item) {
         if (item.getParameters() != null) {
             item.getParameters().forEach(this::fixParameter);
@@ -86,6 +101,11 @@ public class SpringdocConfig {
         }
     }
 
+    /**
+     * 改写单个参数的 schema
+     *
+     * @param p 参数（可空）
+     */
     private void fixParameter(Parameter p) {
         if (p != null && p.getSchema() != null) {
             fixSchema(p.getSchema());
