@@ -103,7 +103,7 @@ export default function App({ getToken, getPermissions }: AppProps) {
         <div>
           <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 行走&ensp;<kbd>Shift</kbd> 疾行
         </div>
-        <div>拖拽 转视角&ensp;滚轮 远近&ensp;<kbd>E</kbd> 传送&ensp;<kbd>F</kbd> 交谈&ensp;<kbd>T</kbd> 问小鲸宝&ensp;<kbd>G</kbd> 导览&ensp;<kbd>Q</kbd> 喊话&ensp;<kbd>C</kbd> 形象&ensp;<kbd>M</kbd> 城图&ensp;<kbd>R</kbd> 复位</div>
+        <div>拖拽 转视角&ensp;滚轮 远近&ensp;<kbd>E</kbd> 传送&ensp;<kbd>F</kbd> 交谈&ensp;<kbd>T</kbd> 问小鲸宝&ensp;<kbd>G</kbd> 导览&ensp;<kbd>Q</kbd> 喊话&ensp;<kbd>N</kbd> 静音&ensp;<kbd>C</kbd> 形象&ensp;<kbd>M</kbd> 城图&ensp;<kbd>R</kbd> 复位</div>
       </div>
 
       <div className="bww-toolbar">
@@ -116,6 +116,7 @@ export default function App({ getToken, getPermissions }: AppProps) {
         <button data-action="season" type="button">时节：秋</button>
         <button data-action="speed" type="button">时辰：常速</button>
         <button data-action="portal" type="button">传送门 · E</button>
+        <button data-action="sound" type="button">声：开</button>
         <button data-action="reset" type="button">视角复位 · R</button>
       </div>
 

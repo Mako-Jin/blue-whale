@@ -27,6 +27,8 @@ import { createGlyphs } from './glyphs';
 import { createWorldMetrics } from './metrics';
 import { createSpeech } from './speech';
 import { mountSayPanel } from './saypanel';
+import { createWorldAudio } from './audio';
+import type { GroundKind } from './audio';
 import { GUIDE_LINES, createGuide, fallbackLine } from './guide';
 import {
   CITY_GEOMETRY,
@@ -109,6 +111,11 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.02;
 host.appendChild(renderer.domElement);
 
+/* 工具栏、HUD、各种面板都是 #bww-scene 的**兄弟节点**（React 里同一层渲染），
+ * 不在 host 里面。所有按 data-action 找按钮的代码必须从页面根查，
+ * 否则 querySelectorAll 恒返回空——按钮看着在、点了没反应，而且不报任何错。 */
+const uiRoot = host.closest('.bww-page') ?? host.parentElement ?? host;
+
 const hemi = new THREE.HemisphereLight(0x9fc7ff, 0x2c2a20, 0.5);
 scene.add(hemi);
 
@@ -186,6 +193,16 @@ function terrainHeight(x, z) {
   const rmask = (1 - smooth(rd, 7, 36)) * out;
   h -= rmask * 14;
   return h;
+}
+
+/** 脚下是什么地面：只影响脚步音色，判错也不影响玩法，故用最省事的启发式。
+ *  玩家被限在城墙内（OUTER - 4 = 88 米），够不到 132 米外的河，所以没有"涉水"这一档。
+ *  城内也不是一整块铺装：中轴御道与环路是石板，其余是夯土与草地。 */
+function groundAt(x: number, z: number): GroundKind {
+  if (Math.abs(x) < 7) return 'stone';                      // 御道
+  const r = Math.sqrt(x * x + z * z);
+  if (Math.abs(r - CITY_GEOMETRY.ringRoadRadius) < 6) return 'stone'; // 环路
+  return 'grass';
 }
 
 const GROUND_SIZE = 760;
@@ -1075,6 +1092,33 @@ for (const n of npcs.list) {
   npcLabels.set(n.def.id, el);
 }
 
+/* ---- 城中声景 ----
+ * 浏览器禁止无手势播放，所以这里只建对象不出声，等第一次按键/点击再 unlock。
+ * 天气环境床先按当前天气设好目标值，解锁那一刻起就在正确音量上。 */
+const audio = createWorldAudio();
+audio.setWeather(world.weather);
+
+/** 首次交互：解锁音频并敲一声入城钟。
+ *  浏览器要求手势后才能出声，这声钟就是“开城门”；之后再按键不再响。 */
+let soundWelcomed = false;
+function kickAudio(): void {
+  audio.unlock();
+  if (soundWelcomed) return;
+  soundWelcomed = true;
+  // resume 是异步的，等一拍再敲，否则那一下会被丢在 suspended 里
+  setTimeout(() => audio.toll(), 280);
+}
+
+/** 静音开关：按钮与 N 键共用。文案必须跟着变，否则反复点不知道为什么还是没声 */
+function toggleSound(): void {
+  const muted = audio.toggleMuted();
+  showToast(muted ? '城中已静音' : '城中已开声',
+    muted ? '按 N 或点「声」恢复' : '钟声 · 雨声 · 脚步声');
+  uiRoot.querySelectorAll('[data-action="sound"]').forEach((b) => {
+    b.textContent = muted ? '声：静' : '声：开';
+  });
+}
+
 /* ---- 同城喊话：气泡层（面板要等频道建好才能发送，放在 channel 之后） ---- */
 const speechRoot = document.getElementById('bww-speech');
 const speech = speechRoot
@@ -1097,7 +1141,9 @@ const sayPanel = sayRoot
   ? mountSayPanel(sayRoot, {
     onSend: (text) => {
       const sent = channel.say(text);
-      if (!sent) {
+      if (sent) {
+        audio.speak();
+      } else {
         showToast('喊话未发出', '尚未连上同城频道，稍后再试');
       }
     },
@@ -1511,6 +1557,8 @@ function isTypingTarget(target) {
 }
 
 renderer.domElement.addEventListener('pointerdown', (e) => {
+  // 拖拽本身也是用户手势，顺手解锁音频（否则第一次听到声音要等到按键）
+  kickAudio();
   dragging = true;
   lastPointer = { x: e.clientX, y: e.clientY };
   renderer.domElement.setPointerCapture(e.pointerId);
@@ -1535,6 +1583,7 @@ renderer.domElement.addEventListener('wheel', (e) => {
 }, { passive: false });
 
 on(window, 'keydown', (e) => {
+  kickAudio();
   // 问话面板的输入框本身是 typing target：Esc 要能整块收起，而不是只让输入框失焦
   if (e.code === 'Escape' && npcChat?.isOpen()) {
     npcChat.close();
@@ -1580,6 +1629,7 @@ on(window, 'keydown', (e) => {
     charPanel?.toggle();
   }
   if (e.code === 'KeyM') toggleMap();
+  if (e.code === 'KeyN') toggleSound();
   const num = e.code.match(/^Digit([1-9])$/);
   if (num) {
     const idx = Number(num[1]) - 1;
@@ -1600,6 +1650,7 @@ function teleportTo(portal) {
   teleporting = true;
   closePortalPanel();
   fadeEl.style.opacity = '1';
+  audio.portal();
   setTimeout(() => {
     // 主门（数枢殿）落在门南侧、面朝北进皇城；宫殿门面向宫殿
     const yaw = portal.palace ? faceCenter(portal.x, portal.z) : Math.PI;
@@ -1765,13 +1816,14 @@ const portalLabels = portals.map((p) => {
 });
 
 /* 工具栏 */
-host.querySelectorAll('[data-action]').forEach((btn) => {
+uiRoot.querySelectorAll('[data-action]').forEach((btn) => {
   btn.addEventListener('click', () => {
     const a = btn.dataset.action;
     if (a === 'weather') {
       world.weather = (world.weather + 1) % 4;
+      audio.setWeather(world.weather);
       showToast(`天象 · ${WEATHER[world.weather]}`);
-      host.querySelectorAll('[data-action="weather"]').forEach((b) => {
+      uiRoot.querySelectorAll('[data-action="weather"]').forEach((b) => {
         b.textContent = `天象：${WEATHER[world.weather]}`;
       });
     }
@@ -1806,7 +1858,13 @@ host.querySelectorAll('[data-action]').forEach((btn) => {
     }
     if (a === 'map') toggleMap();
     if (a === 'reset') { cam.yaw = 0; cam.pitch = 0.44; cam.dist = 16; }
+    if (a === 'sound') toggleSound();
   });
+});
+
+// 静音偏好存在 localStorage，按钮文案得跟上；否则重进页面写着"声：开"其实还是静音
+uiRoot.querySelectorAll('[data-action="sound"]').forEach((b) => {
+  b.textContent = audio.isMuted() ? '声：静' : '声：开';
 });
 
 function applySeason() {
@@ -2122,6 +2180,8 @@ function animate() {
   updateSky(dt);
   updateWeather(dt);
   updatePlayer(dt);
+  // 脚步声跟速度走：静止时 update 内部会自己归零，不必在外面判
+  audio.update(dt, player.speed, groundAt(player.pos.x, player.pos.z));
   updateActors(dt);
   updateCamera(dt);
   updateWhale(dt);
@@ -2199,6 +2259,13 @@ metrics.start();
     window.__bwwWarp = (x, z) => {
       player.pos.set(x, 0, z);
     };
+    /* 声景探针：e2e 无法"听"，只能读状态（是否解锁、是否静音）与脚下地面判定 */
+    window.__bwwAudio = () => ({
+      ready: audio.isReady(),
+      muted: audio.isMuted(),
+      ground: groundAt(player.pos.x, player.pos.z),
+    });
+    window.__bwwSound = () => toggleSound();
     /* 导览探针：读进度与当前目标，以及不按键直接开始（e2e 走完整条路线用） */
     window.__bwwGuide = () => {
       const s = guide.status();
@@ -2273,6 +2340,7 @@ metrics.start();
     glyphs.dispose();
     sayPanel?.destroy();
     speech?.dispose();
+    audio.dispose();
     playerRig.dispose();
     npcs.dispose();
     channel.dispose();
