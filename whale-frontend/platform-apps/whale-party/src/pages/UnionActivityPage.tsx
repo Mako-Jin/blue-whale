@@ -344,8 +344,7 @@ export default function UnionActivityPage() {
       title: '名额',
       dataIndex: 'quota',
       width: 100,
-      render: (value: number, row) =>
-        value > 0 ? `${row.signupCount ?? 0} / ${value}` : '不限',
+      render: (value: number, row) => (value > 0 ? `${row.signupCount ?? 0} / ${value}` : '不限'),
     },
     {
       title: '状态',
@@ -384,7 +383,10 @@ export default function UnionActivityPage() {
             </Popconfirm>
           ) : null}
           {canManage && (row.status === 'DRAFT' || row.status === 'PUBLISHED') ? (
-            <Popconfirm title="取消为终态，已报名员工将看到活动取消，确认？" onConfirm={() => void cancel(row)}>
+            <Popconfirm
+              title="取消为终态，已报名员工将看到活动取消，确认？"
+              onConfirm={() => void cancel(row)}
+            >
               <Button type="link" size="small" danger>
                 取消
               </Button>
@@ -608,7 +610,11 @@ export default function UnionActivityPage() {
         }
       >
         <Form form={form} layout="vertical" preserve={false}>
-          <Form.Item name="title" label="活动标题" rules={[{ required: true, message: '请输入标题' }]}>
+          <Form.Item
+            name="title"
+            label="活动标题"
+            rules={[{ required: true, message: '请输入标题' }]}
+          >
             <Input maxLength={128} />
           </Form.Item>
           <Form.Item name="activityType" label="活动类型">

@@ -52,7 +52,9 @@ function openDialog(): Promise<string | null> {
           throw new Error('empty-password');
         }
         try {
-          const data = await post<{ token: string; expiresIn: number }>('/auth/v1/reauth', { password });
+          const data = await post<{ token: string; expiresIn: number }>('/auth/v1/reauth', {
+            password,
+          });
           resolve(data.token);
         } catch (error) {
           message.error(error instanceof ApiError ? error.message : '验证失败，请重试');

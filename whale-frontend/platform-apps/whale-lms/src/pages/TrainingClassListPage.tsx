@@ -3,7 +3,20 @@
 // 权限码与 migration-5.87-lms-m2.sql 对齐（sys:lms:training:*）。
 // 状态口径：仅草稿可编辑与删除；发布前必须有场次；已结课为终态。
 
-import { Button, DatePicker, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag, message } from 'antd';
+import {
+  Button,
+  DatePicker,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Popconfirm,
+  Select,
+  Space,
+  Table,
+  Tag,
+  message,
+} from 'antd';
 import type { Dayjs } from 'dayjs';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -180,7 +193,9 @@ export default function TrainingClassListPage() {
           {
             title: '培训班名称',
             dataIndex: 'title',
-            render: (text: string, row) => <a onClick={() => navigate(`/training/${row.id}`)}>{text}</a>,
+            render: (text: string, row) => (
+              <a onClick={() => navigate(`/training/${row.id}`)}>{text}</a>
+            ),
           },
           {
             title: '形式',
@@ -202,7 +217,8 @@ export default function TrainingClassListPage() {
             title: '已分配',
             dataIndex: 'assignedCount',
             width: 90,
-            render: (count: number, row) => (row.capacity ? `${count ?? 0}/${row.capacity}` : count ?? 0),
+            render: (count: number, row) =>
+              row.capacity ? `${count ?? 0}/${row.capacity}` : (count ?? 0),
           },
           {
             title: '状态',
@@ -222,14 +238,20 @@ export default function TrainingClassListPage() {
                   详情
                 </Button>
                 {canStatus && row.status === 'DRAFT' && (
-                  <Popconfirm title="确认发布？发布前需至少 1 个场次" onConfirm={() => void onStatus(row, 'PUBLISH')}>
+                  <Popconfirm
+                    title="确认发布？发布前需至少 1 个场次"
+                    onConfirm={() => void onStatus(row, 'PUBLISH')}
+                  >
                     <Button size="small" type="link">
                       发布
                     </Button>
                   </Popconfirm>
                 )}
                 {canStatus && row.status === 'PUBLISHED' && (
-                  <Popconfirm title="确认结课？结课后为终态，不可再分配与签到" onConfirm={() => void onStatus(row, 'CLOSE')}>
+                  <Popconfirm
+                    title="确认结课？结课后为终态，不可再分配与签到"
+                    onConfirm={() => void onStatus(row, 'CLOSE')}
+                  >
                     <Button size="small" type="link">
                       结课
                     </Button>
@@ -256,10 +278,18 @@ export default function TrainingClassListPage() {
         onOk={() => form.submit()}
       >
         <Form form={form} layout="vertical" onFinish={onCreate} initialValues={{ mode: 'OFFLINE' }}>
-          <Form.Item name="classCode" label="培训班编码" rules={[{ required: true, message: '请输入培训班编码' }]}>
+          <Form.Item
+            name="classCode"
+            label="培训班编码"
+            rules={[{ required: true, message: '请输入培训班编码' }]}
+          >
             <Input placeholder="如 TR-2026-001（自动大写归一）" />
           </Form.Item>
-          <Form.Item name="title" label="培训班名称" rules={[{ required: true, message: '请输入培训班名称' }]}>
+          <Form.Item
+            name="title"
+            label="培训班名称"
+            rules={[{ required: true, message: '请输入培训班名称' }]}
+          >
             <Input />
           </Form.Item>
           <Form.Item name="mode" label="形式">
@@ -274,7 +304,11 @@ export default function TrainingClassListPage() {
           <Form.Item name="lecturer" label="主讲讲师">
             <Input />
           </Form.Item>
-          <Form.Item name="period" label="起止日期" rules={[{ required: true, message: '请选择起止日期' }]}>
+          <Form.Item
+            name="period"
+            label="起止日期"
+            rules={[{ required: true, message: '请选择起止日期' }]}
+          >
             <DatePicker.RangePicker style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="location" label="培训地点">

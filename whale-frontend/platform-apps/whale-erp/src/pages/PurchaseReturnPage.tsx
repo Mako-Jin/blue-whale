@@ -91,7 +91,10 @@ export default function PurchaseReturnPage() {
     const values = await form.validateFields().catch(() => null);
     if (!values) return;
     const lines = Object.entries(returnQuantities)
-      .map(([orderLineNo, value]) => ({ orderLineNo: Number(orderLineNo), quantity: Number(value) }))
+      .map(([orderLineNo, value]) => ({
+        orderLineNo: Number(orderLineNo),
+        quantity: Number(value),
+      }))
       .filter((line) => line.quantity > 0);
     if (lines.length === 0) {
       message.warning('请至少填写一行退货数量');
@@ -148,7 +151,10 @@ export default function PurchaseReturnPage() {
             查看
           </Button>
           {record.status === 'DRAFT' && hasPermission('sys:erp:purchase-return:post') ? (
-            <Popconfirm title="过账后将出库并冲减应付，确认继续？" onConfirm={() => handlePost(record.id)}>
+            <Popconfirm
+              title="过账后将出库并冲减应付，确认继续？"
+              onConfirm={() => handlePost(record.id)}
+            >
               <Button type="link" size="small">
                 过账
               </Button>
@@ -181,7 +187,13 @@ export default function PurchaseReturnPage() {
     { title: '行', dataIndex: 'lineNo', key: 'lineNo', width: 60 },
     { title: '物料编码', dataIndex: 'itemCode', key: 'itemCode', width: 140 },
     { title: '物料名称', dataIndex: 'itemName', key: 'itemName' },
-    { title: '已收', dataIndex: 'receivedQuantity', key: 'receivedQuantity', width: 100, render: quantity },
+    {
+      title: '已收',
+      dataIndex: 'receivedQuantity',
+      key: 'receivedQuantity',
+      width: 100,
+      render: quantity,
+    },
     { title: '单价', dataIndex: 'unitPrice', key: 'unitPrice', width: 100, render: money },
     {
       title: '退货数量',
@@ -214,10 +226,16 @@ export default function PurchaseReturnPage() {
         <Button onClick={() => setStatus(undefined)} type={status ? 'default' : 'primary'}>
           全部
         </Button>
-        <Button onClick={() => setStatus('DRAFT')} type={status === 'DRAFT' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('DRAFT')}
+          type={status === 'DRAFT' ? 'primary' : 'default'}
+        >
           草稿
         </Button>
-        <Button onClick={() => setStatus('POSTED')} type={status === 'POSTED' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('POSTED')}
+          type={status === 'POSTED' ? 'primary' : 'default'}
+        >
           已过账
         </Button>
         {hasPermission('sys:erp:purchase-return:add') ? (
@@ -226,7 +244,12 @@ export default function PurchaseReturnPage() {
           </Button>
         ) : null}
       </Space>
-      <Table<PurchaseReturnView> rowKey="id" loading={loading} columns={columns} dataSource={data} />
+      <Table<PurchaseReturnView>
+        rowKey="id"
+        loading={loading}
+        columns={columns}
+        dataSource={data}
+      />
       <Modal
         open={createOpen}
         title="新增采购退货单"

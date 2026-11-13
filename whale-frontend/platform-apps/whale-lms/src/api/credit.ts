@@ -139,6 +139,11 @@ export function creditSummary(params: { userId?: number; periodYear?: number }) 
 }
 
 /** 我的学分台账 */
-export function myCredits(params: { sourceType?: string; periodYear?: number; current?: number; size?: number }) {
+export function myCredits(params: {
+  sourceType?: string;
+  periodYear?: number;
+  current?: number;
+  size?: number;
+}) {
   return http.get<PageData<CreditLedgerItem>>('/lms/credit/mine', { ...params });
 }

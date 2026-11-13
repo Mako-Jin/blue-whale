@@ -3,12 +3,7 @@
 import { Alert, App, Button, Card, Descriptions, Result, Space, Spin, Tag, Typography } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import {
-  favoriteContent,
-  fetchMovieDetail,
-  likeContent,
-  type MovieDetailView,
-} from '../api/video';
+import { favoriteContent, fetchMovieDetail, likeContent, type MovieDetailView } from '../api/video';
 import { hasPermission } from '../api/client';
 import ContentComments from '../components/ContentComments';
 import ContentCover from '../components/ContentCover';
@@ -42,7 +37,9 @@ export default function MovieDetailPage() {
         setDetail(data);
         setError(null);
       })
-      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : '电影加载失败'))
+      .catch((reason: unknown) =>
+        setError(reason instanceof Error ? reason.message : '电影加载失败'),
+      )
       .finally(() => setLoading(false));
   }, [movieId]);
 
@@ -123,7 +120,9 @@ export default function MovieDetailPage() {
 
       <Card styles={{ body: { padding: 0 } }}>
         <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-          <div style={{ flex: '1 1 640px', minWidth: 320, aspectRatio: '16 / 9', background: '#000' }}>
+          <div
+            style={{ flex: '1 1 640px', minWidth: 320, aspectRatio: '16 / 9', background: '#000' }}
+          >
             {detail.playable ? (
               <ContentPlayer contentId={detail.id} active fit="contain" />
             ) : (
@@ -149,7 +148,9 @@ export default function MovieDetailPage() {
             ) : null}
             <Space wrap size={6} style={{ marginTop: 12 }}>
               {detail.rating ? <Tag color="gold">{detail.rating} 分</Tag> : null}
-              <Tag color={detail.playable ? 'green' : 'default'}>{detail.playable ? '可播放' : '暂不可播'}</Tag>
+              <Tag color={detail.playable ? 'green' : 'default'}>
+                {detail.playable ? '可播放' : '暂不可播'}
+              </Tag>
               {detail.tags?.map((tag) => (
                 <Tag key={tag} color="blue">
                   {tag}
@@ -157,7 +158,9 @@ export default function MovieDetailPage() {
               ))}
             </Space>
             {detail.description ? (
-              <Typography.Paragraph style={{ marginTop: 12 }}>{detail.description}</Typography.Paragraph>
+              <Typography.Paragraph style={{ marginTop: 12 }}>
+                {detail.description}
+              </Typography.Paragraph>
             ) : null}
             <Descriptions column={1} size="small" style={{ marginTop: 12 }}>
               <Descriptions.Item label="导演">{detail.director || '-'}</Descriptions.Item>
@@ -166,9 +169,13 @@ export default function MovieDetailPage() {
                 {[detail.region, detail.language].filter(Boolean).join(' / ') || '-'}
               </Descriptions.Item>
               <Descriptions.Item label="上映日期">{detail.releaseDate || '-'}</Descriptions.Item>
-              <Descriptions.Item label="时长">{formatDuration(detail.durationMs)}</Descriptions.Item>
+              <Descriptions.Item label="时长">
+                {formatDuration(detail.durationMs)}
+              </Descriptions.Item>
               <Descriptions.Item label="播放">{formatCount(detail.playCount)}</Descriptions.Item>
-              <Descriptions.Item label="上架时间">{formatDateTime(detail.publishedAt)}</Descriptions.Item>
+              <Descriptions.Item label="上架时间">
+                {formatDateTime(detail.publishedAt)}
+              </Descriptions.Item>
             </Descriptions>
             <Space wrap>
               <Button onClick={() => void toggleLike()}>
@@ -197,7 +204,11 @@ export default function MovieDetailPage() {
       </Card>
 
       {collections.length > 0 ? (
-        <Card title="收录于片单" size="small" extra={<Typography.Text type="secondary">已上架片单</Typography.Text>}>
+        <Card
+          title="收录于片单"
+          size="small"
+          extra={<Typography.Text type="secondary">已上架片单</Typography.Text>}
+        >
           <Space wrap size={10}>
             {collections.map((item) => (
               <div

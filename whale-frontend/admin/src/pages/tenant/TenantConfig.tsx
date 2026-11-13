@@ -155,9 +155,10 @@ export default function TenantConfigList() {
         message="这里是本租户的默认值层"
         description={
           <span>
-            生效顺序为「用户配置 &gt; 租户配置 &gt; 消费方默认」：用户在自己的「通知偏好」页设置过则以
-            用户配置为准，否则回落到本页。键名至少两段并以业务域开头（如 notify.twin.alert），值必须是
-            合法 JSON（≤8KB）——auth 只负责存取，语义由消费方解释。
+            生效顺序为「用户配置 &gt; 租户配置 &gt;
+            消费方默认」：用户在自己的「通知偏好」页设置过则以
+            用户配置为准，否则回落到本页。键名至少两段并以业务域开头（如
+            notify.twin.alert），值必须是 合法 JSON（≤8KB）——auth 只负责存取，语义由消费方解释。
           </span>
         }
       />
@@ -241,7 +242,11 @@ export default function TenantConfigList() {
               },
             ]}
           >
-            <Input.TextArea rows={8} spellCheck={false} placeholder={'{\n  "channels": ["INAPP"]\n}'} />
+            <Input.TextArea
+              rows={8}
+              spellCheck={false}
+              placeholder={'{\n  "channels": ["INAPP"]\n}'}
+            />
           </Form.Item>
         </Form>
       </Modal>

@@ -171,7 +171,10 @@ export default function MrpRunPage() {
             查看
           </Button>
           {record.status !== 'RUNNING' && hasPermission('sys:erp:mrp:run') ? (
-            <Popconfirm title="按原需求行重新运算并生成新的运行记录，确认继续？" onConfirm={() => handleRerun(record.id)}>
+            <Popconfirm
+              title="按原需求行重新运算并生成新的运行记录，确认继续？"
+              onConfirm={() => handleRerun(record.id)}
+            >
               <Button type="link" size="small">
                 重跑
               </Button>
@@ -210,7 +213,13 @@ export default function MrpRunPage() {
       render: (_, record) => `${record.itemCode}${record.itemName ? ` ${record.itemName}` : ''}`,
     },
     { title: '层级', dataIndex: 'itemLevel', key: 'itemLevel', width: 80 },
-    { title: '毛需求', dataIndex: 'grossQuantity', key: 'grossQuantity', width: 110, render: quantity },
+    {
+      title: '毛需求',
+      dataIndex: 'grossQuantity',
+      key: 'grossQuantity',
+      width: 110,
+      render: quantity,
+    },
     {
       title: '可用量',
       dataIndex: 'availableQuantity',
@@ -234,13 +243,22 @@ export default function MrpRunPage() {
         <Button onClick={() => setStatus(undefined)} type={status ? 'default' : 'primary'}>
           全部
         </Button>
-        <Button onClick={() => setStatus('RUNNING')} type={status === 'RUNNING' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('RUNNING')}
+          type={status === 'RUNNING' ? 'primary' : 'default'}
+        >
           运行中
         </Button>
-        <Button onClick={() => setStatus('COMPLETED')} type={status === 'COMPLETED' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('COMPLETED')}
+          type={status === 'COMPLETED' ? 'primary' : 'default'}
+        >
           已完成
         </Button>
-        <Button onClick={() => setStatus('FAILED')} type={status === 'FAILED' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('FAILED')}
+          type={status === 'FAILED' ? 'primary' : 'default'}
+        >
           失败
         </Button>
         {hasPermission('sys:erp:mrp:run') ? (
@@ -295,7 +313,12 @@ export default function MrpRunPage() {
                       name={[field.name, 'quantity']}
                       rules={[{ required: true, message: '需求数量' }]}
                     >
-                      <InputNumber placeholder="需求数量" min={0.0001} precision={4} style={{ width: 120 }} />
+                      <InputNumber
+                        placeholder="需求数量"
+                        min={0.0001}
+                        precision={4}
+                        style={{ width: 120 }}
+                      />
                     </Form.Item>
                     <Form.Item
                       name={[field.name, 'dueDate']}
@@ -308,11 +331,7 @@ export default function MrpRunPage() {
                     </Button>
                   </Space>
                 ))}
-                <Button
-                  type="dashed"
-                  onClick={() => add({ quantity: 1, dueDate: dayjs() })}
-                  block
-                >
+                <Button type="dashed" onClick={() => add({ quantity: 1, dueDate: dayjs() })} block>
                   增加需求行
                 </Button>
               </Space>
@@ -347,7 +366,12 @@ export default function MrpRunPage() {
               </Descriptions.Item>
             </Descriptions>
             {detail.errorMessage ? (
-              <Alert type="error" showIcon message="运算失败原因" description={detail.errorMessage} />
+              <Alert
+                type="error"
+                showIcon
+                message="运算失败原因"
+                description={detail.errorMessage}
+              />
             ) : null}
             <Table<MrpRunLineView>
               rowKey="lineNo"

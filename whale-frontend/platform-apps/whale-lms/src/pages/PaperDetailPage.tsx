@@ -109,7 +109,9 @@ export default function PaperDetailPage() {
           },
         ],
       });
-      message.success(`已抽 ${result.picked} 道，当前共 ${result.questionCount} 题、总分 ${result.totalScore}（seed=${result.seed}）`);
+      message.success(
+        `已抽 ${result.picked} 道，当前共 ${result.questionCount} 题、总分 ${result.totalScore}（seed=${result.seed}）`,
+      );
       setGenerateOpen(false);
       generateForm.resetFields();
       await load();
@@ -176,9 +178,7 @@ export default function PaperDetailPage() {
         )}
         {canPublish && detail.status === 'PUBLISHED' && (
           <Popconfirm title="确认归档？归档后只读" onConfirm={() => void onArchive()}>
-            <Button size="small">
-              归档
-            </Button>
+            <Button size="small">归档</Button>
           </Popconfirm>
         )}
       </Space>
@@ -208,7 +208,7 @@ export default function PaperDetailPage() {
             title: '题型',
             dataIndex: 'type',
             width: 90,
-            render: (value?: string) => (value ? TYPE_LABEL[value] ?? value : '-'),
+            render: (value?: string) => (value ? (TYPE_LABEL[value] ?? value) : '-'),
           },
           { title: '题干', dataIndex: 'stem', ellipsis: true },
           { title: '分值', dataIndex: 'score', width: 80 },
@@ -216,7 +216,8 @@ export default function PaperDetailPage() {
             title: '来源',
             dataIndex: 'source',
             width: 90,
-            render: (value: string) => (value === 'RULE' ? <Tag color="blue">抽题</Tag> : <Tag>手工</Tag>),
+            render: (value: string) =>
+              value === 'RULE' ? <Tag color="blue">抽题</Tag> : <Tag>手工</Tag>,
           },
           {
             title: '操作',
@@ -240,7 +241,12 @@ export default function PaperDetailPage() {
         onCancel={() => setGenerateOpen(false)}
         onOk={() => generateForm.submit()}
       >
-        <Form form={generateForm} layout="vertical" onFinish={onGenerate} initialValues={{ count: 5 }}>
+        <Form
+          form={generateForm}
+          layout="vertical"
+          onFinish={onGenerate}
+          initialValues={{ count: 5 }}
+        >
           <Form.Item name="category" label="分类（留空不限）">
             <Input placeholder="如 安全生产" />
           </Form.Item>
@@ -260,13 +266,21 @@ export default function PaperDetailPage() {
               ]}
             />
           </Form.Item>
-          <Form.Item name="count" label="抽取数量" rules={[{ required: true, message: '请输入数量' }]}>
+          <Form.Item
+            name="count"
+            label="抽取数量"
+            rules={[{ required: true, message: '请输入数量' }]}
+          >
             <InputNumber min={1} max={100} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="score" label="每题分值（留空取题目默认分值）">
             <InputNumber min={0.1} step={0.5} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="seed" label="抽题种子（留空用试卷编码）" extra="换种子会重新洗牌；保持留空则重复生成结果一致">
+          <Form.Item
+            name="seed"
+            label="抽题种子（留空用试卷编码）"
+            extra="换种子会重新洗牌；保持留空则重复生成结果一致"
+          >
             <Input placeholder="如 2026-FINAL" />
           </Form.Item>
         </Form>
@@ -280,7 +294,11 @@ export default function PaperDetailPage() {
         onOk={() => addForm.submit()}
       >
         <Form form={addForm} layout="vertical" onFinish={onAdd}>
-          <Form.Item name="questionId" label="题目 ID" rules={[{ required: true, message: '请输入题目 ID' }]}>
+          <Form.Item
+            name="questionId"
+            label="题目 ID"
+            rules={[{ required: true, message: '请输入题目 ID' }]}
+          >
             <InputNumber min={1} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="score" label="本题分值（留空取题目默认分值）">

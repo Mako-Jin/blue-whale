@@ -58,8 +58,16 @@ export default function VideosPage() {
       return;
     }
     fetchCategories()
-      .then((list) => setCategories(list.filter((item) => item.contentTypeScope === 'ALL' || item.contentTypeScope === 'VIDEO')))
-      .catch((reason: unknown) => message.error(reason instanceof Error ? reason.message : '分类加载失败'));
+      .then((list) =>
+        setCategories(
+          list.filter(
+            (item) => item.contentTypeScope === 'ALL' || item.contentTypeScope === 'VIDEO',
+          ),
+        ),
+      )
+      .catch((reason: unknown) =>
+        message.error(reason instanceof Error ? reason.message : '分类加载失败'),
+      );
     fetchSeriesPage({ size: SERIES_LIMIT })
       .then((page) => {
         setSeries(page.records);
@@ -193,13 +201,18 @@ export default function VideosPage() {
           </Space>
         }
       >
-        {error ? <Alert style={{ marginBottom: 12 }} type="warning" showIcon message={error} /> : null}
+        {error ? (
+          <Alert style={{ marginBottom: 12 }} type="warning" showIcon message={error} />
+        ) : null}
         {loading && records.length === 0 ? (
           <div style={{ padding: 48, textAlign: 'center' }}>
             <Spin />
           </div>
         ) : records.length === 0 ? (
-          <Empty description={keyword ? '没有匹配的视频' : '还没有已发布的视频'} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          <Empty
+            description={keyword ? '没有匹配的视频' : '还没有已发布的视频'}
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+          />
         ) : (
           <Row gutter={[16, 16]}>
             {records.map((record) => (
@@ -223,7 +236,9 @@ export default function VideosPage() {
                       {record.seriesId && record.seriesId > 0 ? (
                         <Tag color="purple">第 {record.episodeNo || 1} 集</Tag>
                       ) : null}
-                      <Tag color={record.playable ? 'green' : 'default'}>{record.playable ? '可播放' : '暂不可播'}</Tag>
+                      <Tag color={record.playable ? 'green' : 'default'}>
+                        {record.playable ? '可播放' : '暂不可播'}
+                      </Tag>
                       {record.tags?.slice(0, 1).map((tag) => (
                         <Tag key={tag}>{tag}</Tag>
                       ))}

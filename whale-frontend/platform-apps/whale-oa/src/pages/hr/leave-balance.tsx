@@ -75,10 +75,7 @@ export default function LeaveBalanceCenter() {
 
   const canEdit = hasPermission('sys:oa:hr:balance:edit');
 
-  const typeMap = useMemo(
-    () => new Map(types.map((item) => [item.id, item.name])),
-    [types],
-  );
+  const typeMap = useMemo(() => new Map(types.map((item) => [item.id, item.name])), [types]);
 
   useEffect(() => {
     listEnabledLeaveTypes()

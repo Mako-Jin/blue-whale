@@ -208,10 +208,19 @@ export default function AttendanceCorrectionPage() {
         }
         return (
           <Space size={4}>
-            <Button type="link" size="small" onClick={() => void changeCorrection(record, 'APPROVED', '已通过')}>
+            <Button
+              type="link"
+              size="small"
+              onClick={() => void changeCorrection(record, 'APPROVED', '已通过')}
+            >
               通过
             </Button>
-            <Button type="link" size="small" danger onClick={() => void changeCorrection(record, 'REJECTED', '已驳回')}>
+            <Button
+              type="link"
+              size="small"
+              danger
+              onClick={() => void changeCorrection(record, 'REJECTED', '已驳回')}
+            >
               驳回
             </Button>
           </Space>
@@ -253,10 +262,18 @@ export default function AttendanceCorrectionPage() {
         }
         return (
           <Space size={4}>
-            <Button type="link" size="small" onClick={() => void changeException(record, 'CONFIRMED', '已确认')}>
+            <Button
+              type="link"
+              size="small"
+              onClick={() => void changeException(record, 'CONFIRMED', '已确认')}
+            >
               确认
             </Button>
-            <Button type="link" size="small" onClick={() => void changeException(record, 'WAIVED', '已豁免')}>
+            <Button
+              type="link"
+              size="small"
+              onClick={() => void changeException(record, 'WAIVED', '已豁免')}
+            >
               豁免
             </Button>
           </Space>
@@ -280,7 +297,10 @@ export default function AttendanceCorrectionPage() {
                     placeholder="状态"
                     style={{ width: 130 }}
                     value={correctionStatus || undefined}
-                    options={Object.entries(CORRECTION_META).map(([value, meta]) => ({ label: meta.text, value }))}
+                    options={Object.entries(CORRECTION_META).map(([value, meta]) => ({
+                      label: meta.text,
+                      value,
+                    }))}
                     onChange={(value) => {
                       setCorrectionStatus((value as OaAttendanceCorrectionStatus) ?? '');
                       setCorrectionPage(1);
@@ -338,7 +358,10 @@ export default function AttendanceCorrectionPage() {
                     placeholder="处理状态"
                     style={{ width: 130 }}
                     value={exceptionStatus || undefined}
-                    options={Object.entries(EXCEPTION_META).map(([value, meta]) => ({ label: meta.text, value }))}
+                    options={Object.entries(EXCEPTION_META).map(([value, meta]) => ({
+                      label: meta.text,
+                      value,
+                    }))}
                     onChange={(value) => {
                       setExceptionStatus((value as OaAttendanceExceptionStatus) ?? '');
                       setExceptionPage(1);
@@ -374,14 +397,29 @@ export default function AttendanceCorrectionPage() {
       >
         <Form form={form} layout="vertical">
           <Space size="middle" style={{ display: 'flex' }}>
-            <Form.Item name="workDate" label="补卡日期" rules={[{ required: true, message: '请选择补卡日期' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="workDate"
+              label="补卡日期"
+              rules={[{ required: true, message: '请选择补卡日期' }]}
+              style={{ flex: 1 }}
+            >
               <DatePicker style={{ width: '100%' }} />
             </Form.Item>
-            <Form.Item name="punchTime" label="补卡时间" rules={[{ required: true, message: '请选择补卡时间' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="punchTime"
+              label="补卡时间"
+              rules={[{ required: true, message: '请选择补卡时间' }]}
+              style={{ flex: 1 }}
+            >
               <DatePicker showTime style={{ width: '100%' }} />
             </Form.Item>
             <Form.Item name="punchType" label="补卡类型" style={{ flex: 1 }}>
-              <Select options={[{ label: '上班', value: 'IN' }, { label: '下班', value: 'OUT' }]} />
+              <Select
+                options={[
+                  { label: '上班', value: 'IN' },
+                  { label: '下班', value: 'OUT' },
+                ]}
+              />
             </Form.Item>
           </Space>
           <Form.Item name="userName" label="姓名">

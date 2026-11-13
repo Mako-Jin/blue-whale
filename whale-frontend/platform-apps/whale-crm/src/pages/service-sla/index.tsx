@@ -24,10 +24,7 @@ import {
   type ServiceCalendarView,
   type SlaPolicyView,
 } from '../../api/service';
-import {
-  TICKET_PRIORITY_LABEL,
-  TICKET_PRIORITY_OPTIONS,
-} from '../../utils/dict';
+import { TICKET_PRIORITY_LABEL, TICKET_PRIORITY_OPTIONS } from '../../utils/dict';
 
 /** 工作日历表单值 */
 interface CalendarFormValues {
@@ -191,10 +188,14 @@ export default function ServiceSlaPage() {
           {(fields) => (
             <Row gutter={12}>
               {fields.map((field) => {
-                const priority = policies[field.name]?.priority ?? TICKET_PRIORITY_OPTIONS[field.name]?.value;
+                const priority =
+                  policies[field.name]?.priority ?? TICKET_PRIORITY_OPTIONS[field.name]?.value;
                 return (
                   <Col span={8} key={field.key}>
-                    <Card size="small" title={TICKET_PRIORITY_LABEL[priority ?? ''] ?? priority ?? '优先级'}>
+                    <Card
+                      size="small"
+                      title={TICKET_PRIORITY_LABEL[priority ?? ''] ?? priority ?? '优先级'}
+                    >
                       <Form.Item name={[field.name, 'priority']} hidden>
                         <Input />
                       </Form.Item>
@@ -212,7 +213,11 @@ export default function ServiceSlaPage() {
                       >
                         <InputNumber min={1} max={720} precision={0} style={{ width: '100%' }} />
                       </Form.Item>
-                      <Form.Item name={[field.name, 'enabled']} label="启用" valuePropName="checked">
+                      <Form.Item
+                        name={[field.name, 'enabled']}
+                        label="启用"
+                        valuePropName="checked"
+                      >
                         <Switch />
                       </Form.Item>
                     </Card>
@@ -272,14 +277,22 @@ export default function ServiceSlaPage() {
             </Form.Item>
           </Col>
           <Col span={6}>
-            <Form.Item name="breakMinutes" label="午休分钟数" rules={[{ required: true, message: '请输入午休分钟数' }]}>
+            <Form.Item
+              name="breakMinutes"
+              label="午休分钟数"
+              rules={[{ required: true, message: '请输入午休分钟数' }]}
+            >
               <InputNumber min={0} max={480} precision={0} style={{ width: '100%' }} />
             </Form.Item>
           </Col>
         </Row>
         <Row gutter={12}>
           <Col span={12}>
-            <Form.Item name="weekdays" label="工作日" rules={[{ required: true, message: '请选择工作日' }]}>
+            <Form.Item
+              name="weekdays"
+              label="工作日"
+              rules={[{ required: true, message: '请选择工作日' }]}
+            >
               <Select mode="multiple" options={WEEKDAY_OPTIONS} placeholder="请选择工作日" />
             </Form.Item>
           </Col>
@@ -290,7 +303,11 @@ export default function ServiceSlaPage() {
           </Col>
           <Col span={6}>
             <Form.Item label=" " colon={false}>
-              <Button type="primary" loading={savingCalendar} onClick={() => void handleSaveCalendar()}>
+              <Button
+                type="primary"
+                loading={savingCalendar}
+                onClick={() => void handleSaveCalendar()}
+              >
                 保存日历
               </Button>
             </Form.Item>
@@ -300,7 +317,8 @@ export default function ServiceSlaPage() {
       {calendar && (
         <Typography.Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
           当前日历：{calendar.calendarCode} / {calendar.workdayStart}–{calendar.workdayEnd} / 午休
-          {calendar.breakMinutes} 分钟 / 工作日 {calendar.weekdays} / {calendar.enabled ? '启用' : '停用'}
+          {calendar.breakMinutes} 分钟 / 工作日 {calendar.weekdays} /{' '}
+          {calendar.enabled ? '启用' : '停用'}
         </Typography.Text>
       )}
       <Typography.Text type="secondary" style={{ display: 'block', marginTop: 8 }}>

@@ -59,7 +59,10 @@ type ActivityFormValues = Omit<ActivitySaveCommand, 'plannedDate'> & { plannedDa
  * @param depth 当前层级
  * @returns 选项列表
  */
-function flattenBranches(nodes: BranchTreeView[], depth = 0): Array<{ value: number; label: string }> {
+function flattenBranches(
+  nodes: BranchTreeView[],
+  depth = 0,
+): Array<{ value: number; label: string }> {
   return nodes.flatMap((node) => [
     { value: node.id, label: `${'　'.repeat(depth)}${node.branchCode} ${node.branchName}` },
     ...flattenBranches(node.children ?? [], depth + 1),
@@ -81,7 +84,9 @@ export default function ActivityPage() {
 
   const [signinOpen, setSigninOpen] = useState(false);
   const [signinTarget, setSigninTarget] = useState<ActivityView | null>(null);
-  const [signinChoices, setSigninChoices] = useState<Array<{ id: number; name: string; present: boolean }>>([]);
+  const [signinChoices, setSigninChoices] = useState<
+    Array<{ id: number; name: string; present: boolean }>
+  >([]);
   const [signinBusy, setSigninBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -185,7 +190,9 @@ export default function ActivityPage() {
     try {
       const detail = await getActivity(row.id);
       const members = await pageMember({ branchId: row.branchId, status: 'ACTIVE', size: 200 });
-      const existing = new Set((detail.signins ?? []).filter((item) => item.present).map((item) => item.memberId));
+      const existing = new Set(
+        (detail.signins ?? []).filter((item) => item.present).map((item) => item.memberId),
+      );
       setSigninTarget(detail);
       setSigninChoices(
         members.records.map((member) => ({
@@ -241,7 +248,11 @@ export default function ActivityPage() {
       dataIndex: 'statusLabel',
       width: 90,
       render: (_value, row) => (
-        <Tag color={row.status === 'ARCHIVED' ? 'default' : row.status === 'COMPLETED' ? 'green' : 'blue'}>
+        <Tag
+          color={
+            row.status === 'ARCHIVED' ? 'default' : row.status === 'COMPLETED' ? 'green' : 'blue'
+          }
+        >
           {row.statusLabel}
         </Tag>
       ),
@@ -261,7 +272,12 @@ export default function ActivityPage() {
             编辑
           </Button>
           {row.status !== 'ARCHIVED' ? (
-            <Button type="link" size="small" loading={signinBusy} onClick={() => void openSignin(row)}>
+            <Button
+              type="link"
+              size="small"
+              loading={signinBusy}
+              onClick={() => void openSignin(row)}
+            >
               签到
             </Button>
           ) : null}
@@ -343,16 +359,28 @@ export default function ActivityPage() {
         destroyOnClose
       >
         <Form form={form} layout="vertical" preserve={false}>
-          <Form.Item name="branchId" label="所属支部" rules={[{ required: true, message: '请选择支部' }]}>
+          <Form.Item
+            name="branchId"
+            label="所属支部"
+            rules={[{ required: true, message: '请选择支部' }]}
+          >
             <Select showSearch optionFilterProp="label" options={flattenBranches(tree)} />
           </Form.Item>
           <Form.Item name="activityType" label="类型">
             <Select options={TYPE_OPTIONS} />
           </Form.Item>
-          <Form.Item name="title" label="活动主题" rules={[{ required: true, message: '请输入主题' }]}>
+          <Form.Item
+            name="title"
+            label="活动主题"
+            rules={[{ required: true, message: '请输入主题' }]}
+          >
             <Input maxLength={200} />
           </Form.Item>
-          <Form.Item name="plannedDate" label="计划日期" rules={[{ required: true, message: '请选择日期' }]}>
+          <Form.Item
+            name="plannedDate"
+            label="计划日期"
+            rules={[{ required: true, message: '请选择日期' }]}
+          >
             <DatePicker style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="location" label="地点">
@@ -387,7 +415,9 @@ export default function ActivityPage() {
             value={signinChoices.filter((item) => item.present).map((item) => item.id)}
             onChange={(checked) => {
               const present = new Set(checked as number[]);
-              setSigninChoices((prev) => prev.map((item) => ({ ...item, present: present.has(item.id) })));
+              setSigninChoices((prev) =>
+                prev.map((item) => ({ ...item, present: present.has(item.id) })),
+              );
             }}
             options={signinChoices.map((item) => ({ label: item.name, value: item.id }))}
           />

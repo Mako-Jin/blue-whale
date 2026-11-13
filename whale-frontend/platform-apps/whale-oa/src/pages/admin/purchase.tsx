@@ -310,7 +310,10 @@ export default function PurchaseAdminPage() {
           placeholder="状态"
           style={{ width: 130 }}
           value={status || undefined}
-          options={Object.entries(STATUS_META).map(([value, meta]) => ({ label: meta.text, value }))}
+          options={Object.entries(STATUS_META).map(([value, meta]) => ({
+            label: meta.text,
+            value,
+          }))}
           onChange={(value) => {
             setStatus((value as OaAdministrativeStatus) ?? '');
             setCurrent(1);
@@ -358,7 +361,12 @@ export default function PurchaseAdminPage() {
       >
         <Form form={form} layout="vertical">
           <Space size="middle" style={{ display: 'flex' }}>
-            <Form.Item name="applicant" label="申请人" rules={[{ required: true, message: '请输入申请人' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="applicant"
+              label="申请人"
+              rules={[{ required: true, message: '请输入申请人' }]}
+              style={{ flex: 1 }}
+            >
               <Input maxLength={64} />
             </Form.Item>
             <Form.Item name="applicantId" label="申请人ID" style={{ flex: 1 }}>
@@ -368,7 +376,11 @@ export default function PurchaseAdminPage() {
               <InputNumber style={{ width: '100%' }} min={1} precision={0} />
             </Form.Item>
           </Space>
-          <Form.Item name="reason" label="采购事由" rules={[{ required: true, message: '请输入采购事由' }]}>
+          <Form.Item
+            name="reason"
+            label="采购事由"
+            rules={[{ required: true, message: '请输入采购事由' }]}
+          >
             <Input.TextArea rows={2} maxLength={512} showCount />
           </Form.Item>
           <Space size="middle" style={{ display: 'flex' }}>
@@ -400,7 +412,10 @@ export default function PurchaseAdminPage() {
               <Space direction="vertical" size="small" style={{ width: '100%' }}>
                 <Space>
                   <span>采购明细（合计由服务端重算）</span>
-                  <Button size="small" onClick={() => add({ itemCode: '', quantity: 1, unitPrice: 0 })}>
+                  <Button
+                    size="small"
+                    onClick={() => add({ itemCode: '', quantity: 1, unitPrice: 0 })}
+                  >
                     添加明细
                   </Button>
                 </Space>
@@ -419,13 +434,23 @@ export default function PurchaseAdminPage() {
                       name={[field.name, 'quantity']}
                       rules={[{ required: true, message: '数量必填' }]}
                     >
-                      <InputNumber style={{ width: 110 }} min={0.001} precision={3} placeholder="数量" />
+                      <InputNumber
+                        style={{ width: 110 }}
+                        min={0.001}
+                        precision={3}
+                        placeholder="数量"
+                      />
                     </Form.Item>
                     <Form.Item
                       name={[field.name, 'unitPrice']}
                       rules={[{ required: true, message: '单价必填' }]}
                     >
-                      <InputNumber style={{ width: 120 }} min={0} precision={2} placeholder="单价" />
+                      <InputNumber
+                        style={{ width: 120 }}
+                        min={0}
+                        precision={2}
+                        placeholder="单价"
+                      />
                     </Form.Item>
                     <Form.Item name={[field.name, 'supplierAdvice']}>
                       <Input style={{ width: 180 }} placeholder="供应商建议" maxLength={128} />

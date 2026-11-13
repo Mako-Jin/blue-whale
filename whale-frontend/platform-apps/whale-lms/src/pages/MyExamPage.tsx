@@ -36,29 +36,35 @@ export default function MyExamPage() {
   const [scorePage, setScorePage] = useState(1);
   const [loading, setLoading] = useState(false);
 
-  const loadAttempts = useCallback(async (page = attemptPage) => {
-    setLoading(true);
-    try {
-      const data = await myAttempts({ current: page, size: 10 });
-      setAttempts((data.records ?? []).map((item) => ({ ...item, key: String(item.id) })));
-      setAttemptTotal(data.total ?? 0);
-      setAttemptPage(page);
-    } finally {
-      setLoading(false);
-    }
-  }, [attemptPage]);
+  const loadAttempts = useCallback(
+    async (page = attemptPage) => {
+      setLoading(true);
+      try {
+        const data = await myAttempts({ current: page, size: 10 });
+        setAttempts((data.records ?? []).map((item) => ({ ...item, key: String(item.id) })));
+        setAttemptTotal(data.total ?? 0);
+        setAttemptPage(page);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [attemptPage],
+  );
 
-  const loadScores = useCallback(async (page = scorePage) => {
-    setLoading(true);
-    try {
-      const data = await myScores({ current: page, size: 10 });
-      setScores((data.records ?? []).map((item) => ({ ...item, key: String(item.id) })));
-      setScoreTotal(data.total ?? 0);
-      setScorePage(page);
-    } finally {
-      setLoading(false);
-    }
-  }, [scorePage]);
+  const loadScores = useCallback(
+    async (page = scorePage) => {
+      setLoading(true);
+      try {
+        const data = await myScores({ current: page, size: 10 });
+        setScores((data.records ?? []).map((item) => ({ ...item, key: String(item.id) })));
+        setScoreTotal(data.total ?? 0);
+        setScorePage(page);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [scorePage],
+  );
 
   useEffect(() => {
     void loadAttempts(1);
@@ -102,14 +108,19 @@ export default function MyExamPage() {
                     title: '得分',
                     dataIndex: 'totalScore',
                     width: 100,
-                    render: (value: number | undefined) => (value === undefined || value === null ? '-' : value),
+                    render: (value: number | undefined) =>
+                      value === undefined || value === null ? '-' : value,
                   },
                   {
                     title: '操作',
                     width: 140,
                     render: (_, row) => (
                       <Space size="small">
-                        <Button size="small" type="link" onClick={() => navigate(`/attempt/${row.id}`)}>
+                        <Button
+                          size="small"
+                          type="link"
+                          onClick={() => navigate(`/attempt/${row.id}`)}
+                        >
                           {row.status === 'IN_PROGRESS' ? '继续作答' : '查看结果'}
                         </Button>
                       </Space>

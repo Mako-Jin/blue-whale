@@ -3,17 +3,23 @@
 // 权限码与 migration-5.87-lms-m3a.sql 对齐（sys:lms:paper:*）。
 // 口径：仅草稿可编辑题目与删除；发布需至少 1 题且及格分不超总分。
 
-import { Button, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag, message } from 'antd';
+import {
+  Button,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Popconfirm,
+  Select,
+  Space,
+  Table,
+  Tag,
+  message,
+} from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { hasPermission } from '../api/client';
-import {
-  createPaper,
-  deletePaper,
-  pagePapers,
-  publishPaper,
-  type PaperItem,
-} from '../api/paper';
+import { createPaper, deletePaper, pagePapers, publishPaper, type PaperItem } from '../api/paper';
 
 /** 状态展示映射 */
 const STATUS_TAG: Record<string, { color: string; label: string }> = {
@@ -51,17 +57,20 @@ export default function PaperListPage() {
   const canPublish = hasPermission('sys:lms:paper:publish');
   const canDelete = hasPermission('sys:lms:paper:delete');
 
-  const load = useCallback(async (page = current, query = filters) => {
-    setLoading(true);
-    try {
-      const data = await pagePapers({ ...query, current: page, size: 10 });
-      setRows((data.records ?? []).map((item) => ({ ...item, key: String(item.id) })));
-      setTotal(data.total ?? 0);
-      setCurrent(page);
-    } finally {
-      setLoading(false);
-    }
-  }, [current, filters]);
+  const load = useCallback(
+    async (page = current, query = filters) => {
+      setLoading(true);
+      try {
+        const data = await pagePapers({ ...query, current: page, size: 10 });
+        setRows((data.records ?? []).map((item) => ({ ...item, key: String(item.id) })));
+        setTotal(data.total ?? 0);
+        setCurrent(page);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [current, filters],
+  );
 
   useEffect(() => {
     void load(1, {});
@@ -119,7 +128,10 @@ export default function PaperListPage() {
           placeholder="状态"
           allowClear
           style={{ width: 120 }}
-          options={Object.entries(STATUS_TAG).map(([value, item]) => ({ value, label: item.label }))}
+          options={Object.entries(STATUS_TAG).map(([value, item]) => ({
+            value,
+            label: item.label,
+          }))}
           onChange={(value) => {
             const next = { ...filters, status: value || undefined };
             setFilters(next);
@@ -143,7 +155,9 @@ export default function PaperListPage() {
           {
             title: '试卷名称',
             dataIndex: 'title',
-            render: (text: string, row) => <a onClick={() => navigate(`/paper/${row.id}`)}>{text}</a>,
+            render: (text: string, row) => (
+              <a onClick={() => navigate(`/paper/${row.id}`)}>{text}</a>
+            ),
           },
           { title: '时长(分钟)', dataIndex: 'durationMinutes', width: 110 },
           { title: '题数', dataIndex: 'questionCount', width: 80 },
@@ -167,7 +181,10 @@ export default function PaperListPage() {
                   详情
                 </Button>
                 {canPublish && row.status === 'DRAFT' && (
-                  <Popconfirm title="确认发布？发布后题目冻结且不可再改" onConfirm={() => void onPublish(row)}>
+                  <Popconfirm
+                    title="确认发布？发布后题目冻结且不可再改"
+                    onConfirm={() => void onPublish(row)}
+                  >
                     <Button size="small" type="link">
                       发布
                     </Button>
@@ -193,17 +210,38 @@ export default function PaperListPage() {
         onCancel={() => setCreateOpen(false)}
         onOk={() => form.submit()}
       >
-        <Form form={form} layout="vertical" onFinish={onCreate} initialValues={{ durationMinutes: 60, passScore: 60 }}>
-          <Form.Item name="paperCode" label="试卷编码" rules={[{ required: true, message: '请输入试卷编码' }]}>
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={onCreate}
+          initialValues={{ durationMinutes: 60, passScore: 60 }}
+        >
+          <Form.Item
+            name="paperCode"
+            label="试卷编码"
+            rules={[{ required: true, message: '请输入试卷编码' }]}
+          >
             <Input placeholder="如 PAPER-2026-001（自动大写归一）" />
           </Form.Item>
-          <Form.Item name="title" label="试卷名称" rules={[{ required: true, message: '请输入试卷名称' }]}>
+          <Form.Item
+            name="title"
+            label="试卷名称"
+            rules={[{ required: true, message: '请输入试卷名称' }]}
+          >
             <Input />
           </Form.Item>
-          <Form.Item name="durationMinutes" label="考试时长（分钟）" rules={[{ required: true, message: '请输入时长' }]}>
+          <Form.Item
+            name="durationMinutes"
+            label="考试时长（分钟）"
+            rules={[{ required: true, message: '请输入时长' }]}
+          >
             <InputNumber min={1} max={600} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="passScore" label="及格分" extra="总分由题目分值累加，发布时校验及格分不超总分">
+          <Form.Item
+            name="passScore"
+            label="及格分"
+            extra="总分由题目分值累加，发布时校验及格分不超总分"
+          >
             <InputNumber min={0} step={0.5} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="remark" label="备注">

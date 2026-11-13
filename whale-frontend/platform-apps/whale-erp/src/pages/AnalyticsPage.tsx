@@ -139,7 +139,9 @@ function CockpitTab() {
             <Button onClick={() => void invalidate()}>失效缓存</Button>
           </>
         ) : null}
-        {cockpit ? <Tag color={cockpit.status === 'ACTIVE' ? 'green' : 'orange'}>{cockpit.status}</Tag> : null}
+        {cockpit ? (
+          <Tag color={cockpit.status === 'ACTIVE' ? 'green' : 'orange'}>{cockpit.status}</Tag>
+        ) : null}
       </Space>
       <Row gutter={16}>
         <Col span={6}>
@@ -170,7 +172,8 @@ function CockpitTab() {
       </Row>
       {cockpit ? (
         <Card size="small">
-          快照号：{cockpit.snapshotNo}，统计截止：{cockpit.statDate}，刷新时间：{cockpit.refreshedAt}
+          快照号：{cockpit.snapshotNo}，统计截止：{cockpit.statDate}，刷新时间：
+          {cockpit.refreshedAt}
         </Card>
       ) : null}
     </Space>
@@ -188,12 +191,14 @@ function CubeTab() {
   const query = async () => {
     setLoading(true);
     try {
-      setResult(await queryCube({
-        dimensionType: dimension,
-        metricType: metric,
-        fromDate: range[0].format('YYYY-MM-DD'),
-        toDate: range[1].format('YYYY-MM-DD'),
-      }));
+      setResult(
+        await queryCube({
+          dimensionType: dimension,
+          metricType: metric,
+          fromDate: range[0].format('YYYY-MM-DD'),
+          toDate: range[1].format('YYYY-MM-DD'),
+        }),
+      );
     } catch (error) {
       message.error((error as Error).message);
     } finally {
@@ -302,7 +307,12 @@ function ReportTab() {
     if (record) {
       definitionForm.setFieldsValue(record);
     } else {
-      definitionForm.setFieldsValue({ reportType: 'CUSTOM', status: 'ENABLED', dimensionType: 'CUSTOMER', metricType: 'REVENUE' });
+      definitionForm.setFieldsValue({
+        reportType: 'CUSTOM',
+        status: 'ENABLED',
+        dimensionType: 'CUSTOMER',
+        metricType: 'REVENUE',
+      });
     }
     setDefinitionOpen(true);
   };
@@ -400,7 +410,9 @@ function ReportTab() {
       dataIndex: 'status',
       key: 'status',
       width: 90,
-      render: (value: string) => <Tag color={value === 'ENABLED' ? 'green' : 'default'}>{value}</Tag>,
+      render: (value: string) => (
+        <Tag color={value === 'ENABLED' ? 'green' : 'default'}>{value}</Tag>
+      ),
     },
     {
       title: '操作',
@@ -408,12 +420,18 @@ function ReportTab() {
       width: 260,
       render: (_, record) => (
         <Space>
-          <Button size="small" onClick={() => void execute(record)}>执行</Button>
+          <Button size="small" onClick={() => void execute(record)}>
+            执行
+          </Button>
           {hasPermission('sys:erp:bi:report:export') ? (
-            <Button size="small" onClick={() => void exportCsv(record)}>导出</Button>
+            <Button size="small" onClick={() => void exportCsv(record)}>
+              导出
+            </Button>
           ) : null}
           {hasPermission('sys:erp:bi:report:save') ? (
-            <Button size="small" onClick={() => openDefinition(record)}>编辑</Button>
+            <Button size="small" onClick={() => openDefinition(record)}>
+              编辑
+            </Button>
           ) : null}
         </Space>
       ),
@@ -434,10 +452,14 @@ function ReportTab() {
       render: (_, record) => (
         <Space>
           {hasPermission('sys:erp:bi:report:run') ? (
-            <Button size="small" onClick={() => void runSchedule(record)}>执行一次</Button>
+            <Button size="small" onClick={() => void runSchedule(record)}>
+              执行一次
+            </Button>
           ) : null}
           {hasPermission('sys:erp:bi:report:save') ? (
-            <Button size="small" onClick={() => openSchedule(record)}>编辑</Button>
+            <Button size="small" onClick={() => openSchedule(record)}>
+              编辑
+            </Button>
           ) : null}
         </Space>
       ),
@@ -448,7 +470,9 @@ function ReportTab() {
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
       <Space>
         {hasPermission('sys:erp:bi:report:save') ? (
-          <Button type="primary" onClick={() => openDefinition(null)}>新建报表</Button>
+          <Button type="primary" onClick={() => openDefinition(null)}>
+            新建报表
+          </Button>
         ) : null}
         {hasPermission('sys:erp:bi:report:save') ? (
           <Button onClick={() => openSchedule(null)}>新建计划</Button>
@@ -480,20 +504,37 @@ function ReportTab() {
         destroyOnClose
       >
         <Form form={definitionForm} layout="vertical">
-          <Form.Item name="reportNo" label="报表编号" rules={[{ required: true, message: '请输入报表编号' }]}>
+          <Form.Item
+            name="reportNo"
+            label="报表编号"
+            rules={[{ required: true, message: '请输入报表编号' }]}
+          >
             <Input disabled={Boolean(editingDefinition)} />
           </Form.Item>
-          <Form.Item name="reportName" label="报表名称" rules={[{ required: true, message: '请输入报表名称' }]}>
+          <Form.Item
+            name="reportName"
+            label="报表名称"
+            rules={[{ required: true, message: '请输入报表名称' }]}
+          >
             <Input />
           </Form.Item>
           <Form.Item name="dimensionType" label="维度" rules={[{ required: true }]}>
-            <Select options={Object.entries(DIMENSION_LABEL).map(([value, label]) => ({ value, label }))} />
+            <Select
+              options={Object.entries(DIMENSION_LABEL).map(([value, label]) => ({ value, label }))}
+            />
           </Form.Item>
           <Form.Item name="metricType" label="指标" rules={[{ required: true }]}>
-            <Select options={Object.entries(METRIC_LABEL).map(([value, label]) => ({ value, label }))} />
+            <Select
+              options={Object.entries(METRIC_LABEL).map(([value, label]) => ({ value, label }))}
+            />
           </Form.Item>
           <Form.Item name="status" label="状态">
-            <Select options={[{ value: 'ENABLED', label: '启用' }, { value: 'DISABLED', label: '停用' }]} />
+            <Select
+              options={[
+                { value: 'ENABLED', label: '启用' },
+                { value: 'DISABLED', label: '停用' },
+              ]}
+            />
           </Form.Item>
           <Form.Item name="remark" label="备注">
             <Input />
@@ -508,16 +549,32 @@ function ReportTab() {
         destroyOnClose
       >
         <Form form={scheduleForm} layout="vertical">
-          <Form.Item name="scheduleNo" label="计划编号" rules={[{ required: true, message: '请输入计划编号' }]}>
+          <Form.Item
+            name="scheduleNo"
+            label="计划编号"
+            rules={[{ required: true, message: '请输入计划编号' }]}
+          >
             <Input disabled={Boolean(editingSchedule)} />
           </Form.Item>
-          <Form.Item name="scheduleName" label="计划名称" rules={[{ required: true, message: '请输入计划名称' }]}>
+          <Form.Item
+            name="scheduleName"
+            label="计划名称"
+            rules={[{ required: true, message: '请输入计划名称' }]}
+          >
             <Input />
           </Form.Item>
-          <Form.Item name="reportNo" label="报表编号" rules={[{ required: true, message: '请输入报表编号' }]}>
+          <Form.Item
+            name="reportNo"
+            label="报表编号"
+            rules={[{ required: true, message: '请输入报表编号' }]}
+          >
             <Input />
           </Form.Item>
-          <Form.Item name="cronExpression" label="Cron 表达式" rules={[{ required: true, message: '请输入 Cron' }]}>
+          <Form.Item
+            name="cronExpression"
+            label="Cron 表达式"
+            rules={[{ required: true, message: '请输入 Cron' }]}
+          >
             <Input placeholder="0 8 * * *" />
           </Form.Item>
           <Form.Item name="channel" label="推送渠道">
@@ -533,7 +590,12 @@ function ReportTab() {
             <Input />
           </Form.Item>
           <Form.Item name="status" label="状态">
-            <Select options={[{ value: 'ENABLED', label: '启用' }, { value: 'DISABLED', label: '停用' }]} />
+            <Select
+              options={[
+                { value: 'ENABLED', label: '启用' },
+                { value: 'DISABLED', label: '停用' },
+              ]}
+            />
           </Form.Item>
         </Form>
       </Modal>
@@ -655,11 +717,12 @@ function AlertTab() {
       title: '操作',
       key: 'action',
       width: 120,
-      render: (_, record) => (
-        hasPermission('sys:erp:bi:alert:save')
-          ? <Button size="small" onClick={() => openRule(record)}>编辑</Button>
-          : null
-      ),
+      render: (_, record) =>
+        hasPermission('sys:erp:bi:alert:save') ? (
+          <Button size="small" onClick={() => openRule(record)}>
+            编辑
+          </Button>
+        ) : null,
     },
   ];
 
@@ -675,36 +738,52 @@ function AlertTab() {
     },
     { title: '对象', dataIndex: 'objectKey', key: 'objectKey', width: 160 },
     { title: '周期', dataIndex: 'periodCode', key: 'periodCode', width: 110 },
-    { title: '实际/阈值', key: 'metric', width: 130, render: (_, record) => `${record.metricValue} / ${record.thresholdValue}` },
+    {
+      title: '实际/阈值',
+      key: 'metric',
+      width: 130,
+      render: (_, record) => `${record.metricValue} / ${record.thresholdValue}`,
+    },
     {
       title: '级别',
       dataIndex: 'level',
       key: 'level',
       width: 90,
-      render: (value: string) => <Tag color={value === 'CRITICAL' ? 'red' : 'orange'}>{ALERT_LEVEL_LABEL[value] ?? value}</Tag>,
+      render: (value: string) => (
+        <Tag color={value === 'CRITICAL' ? 'red' : 'orange'}>
+          {ALERT_LEVEL_LABEL[value] ?? value}
+        </Tag>
+      ),
     },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
       width: 100,
-      render: (value: string) => <Tag color={value === 'OPEN' ? 'orange' : 'green'}>{ALERT_STATUS_LABEL[value] ?? value}</Tag>,
+      render: (value: string) => (
+        <Tag color={value === 'OPEN' ? 'orange' : 'green'}>
+          {ALERT_STATUS_LABEL[value] ?? value}
+        </Tag>
+      ),
     },
     { title: '触发时间', dataIndex: 'triggeredAt', key: 'triggeredAt', width: 170 },
     {
       title: '操作',
       key: 'action',
       width: 170,
-      render: (_, record) => (
+      render: (_, record) =>
         hasPermission('sys:erp:bi:alert:handle') && record.status !== 'CLOSED' ? (
           <Space>
             {record.status === 'OPEN' ? (
-              <Button size="small" onClick={() => void handleEvent(record.id, 'ack')}>确认</Button>
+              <Button size="small" onClick={() => void handleEvent(record.id, 'ack')}>
+                确认
+              </Button>
             ) : null}
-            <Button size="small" onClick={() => void handleEvent(record.id, 'close')}>关闭</Button>
+            <Button size="small" onClick={() => void handleEvent(record.id, 'close')}>
+              关闭
+            </Button>
           </Space>
-        ) : null
-      ),
+        ) : null,
     },
   ];
 
@@ -712,17 +791,31 @@ function AlertTab() {
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
       <Space>
         {hasPermission('sys:erp:bi:alert:save') ? (
-          <Button type="primary" onClick={() => openRule(null)}>新建规则</Button>
+          <Button type="primary" onClick={() => openRule(null)}>
+            新建规则
+          </Button>
         ) : null}
         {hasPermission('sys:erp:bi:alert:evaluate') ? (
           <Button onClick={() => void evaluate()}>立即评估</Button>
         ) : null}
       </Space>
       <Card title="预警规则" size="small">
-        <Table rowKey="ruleNo" loading={loading} columns={ruleColumns} dataSource={rules} pagination={false} />
+        <Table
+          rowKey="ruleNo"
+          loading={loading}
+          columns={ruleColumns}
+          dataSource={rules}
+          pagination={false}
+        />
       </Card>
       <Card title="预警事件" size="small">
-        <Table rowKey="id" loading={loading} columns={eventColumns} dataSource={events} pagination={false} />
+        <Table
+          rowKey="id"
+          loading={loading}
+          columns={eventColumns}
+          dataSource={events}
+          pagination={false}
+        />
       </Card>
       <Modal
         title={editingRule ? '编辑预警规则' : '新建预警规则'}
@@ -732,14 +825,24 @@ function AlertTab() {
         destroyOnClose
       >
         <Form form={ruleForm} layout="vertical">
-          <Form.Item name="ruleNo" label="规则编号" rules={[{ required: true, message: '请输入规则编号' }]}>
+          <Form.Item
+            name="ruleNo"
+            label="规则编号"
+            rules={[{ required: true, message: '请输入规则编号' }]}
+          >
             <Input disabled={Boolean(editingRule)} />
           </Form.Item>
-          <Form.Item name="ruleName" label="规则名称" rules={[{ required: true, message: '请输入规则名称' }]}>
+          <Form.Item
+            name="ruleName"
+            label="规则名称"
+            rules={[{ required: true, message: '请输入规则名称' }]}
+          >
             <Input />
           </Form.Item>
           <Form.Item name="ruleType" label="预警类型" rules={[{ required: true }]}>
-            <Select options={Object.entries(RULE_TYPE_LABEL).map(([value, label]) => ({ value, label }))} />
+            <Select
+              options={Object.entries(RULE_TYPE_LABEL).map(([value, label]) => ({ value, label }))}
+            />
           </Form.Item>
           <Form.Item name="thresholdValue" label="阈值（库存数量/超期天数）">
             <InputNumber style={{ width: '100%' }} min={0} />
@@ -754,13 +857,23 @@ function AlertTab() {
             />
           </Form.Item>
           <Form.Item name="level" label="级别">
-            <Select options={Object.entries(ALERT_LEVEL_LABEL).map(([value, label]) => ({ value, label }))} />
+            <Select
+              options={Object.entries(ALERT_LEVEL_LABEL).map(([value, label]) => ({
+                value,
+                label,
+              }))}
+            />
           </Form.Item>
           <Form.Item name="suggestion" label="计划建议">
             <Input.TextArea rows={2} placeholder="如：补货建议 / 催收计划" />
           </Form.Item>
           <Form.Item name="status" label="状态">
-            <Select options={[{ value: 'ENABLED', label: '启用' }, { value: 'DISABLED', label: '停用' }]} />
+            <Select
+              options={[
+                { value: 'ENABLED', label: '启用' },
+                { value: 'DISABLED', label: '停用' },
+              ]}
+            />
           </Form.Item>
         </Form>
       </Modal>

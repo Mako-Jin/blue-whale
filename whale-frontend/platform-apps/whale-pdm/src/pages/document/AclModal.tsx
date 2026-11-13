@@ -1,7 +1,19 @@
 // 图文档 ACL 弹窗：目录/文档共用，维护主体、动作与效果
 
 import { useCallback, useEffect, useState } from 'react';
-import { Button, Card, Empty, Form, Input, Modal, Popconfirm, Select, Table, Tag, message } from 'antd';
+import {
+  Button,
+  Card,
+  Empty,
+  Form,
+  Input,
+  Modal,
+  Popconfirm,
+  Select,
+  Table,
+  Tag,
+  message,
+} from 'antd';
 import type { TableProps } from 'antd';
 import {
   deleteAcl,
@@ -210,7 +222,11 @@ export default function AclModal({
     >
       {canManage ? (
         <Card size="small" title="新增规则" style={{ marginBottom: 12 }}>
-          <Form form={form} layout="inline" initialValues={{ subjectType: 'USER', action: 'VIEW', effect: 'DENY' }}>
+          <Form
+            form={form}
+            layout="inline"
+            initialValues={{ subjectType: 'USER', action: 'VIEW', effect: 'DENY' }}
+          >
             <Form.Item name="subjectType" label="主体类型">
               <Select
                 style={{ width: 120 }}

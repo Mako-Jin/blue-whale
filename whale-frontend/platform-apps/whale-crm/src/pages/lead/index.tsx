@@ -130,8 +130,8 @@ function LeadFormModal({ open, initial, onCancel, onSaved }: LeadFormModalProps)
         region: initial.region ?? undefined,
         contactName: initial.contactName ?? undefined,
         // 无敏感明文权限时不回填脱敏值，留空由后端保持原值
-        contactPhone: sensitiveVisible ? initial.contactPhone ?? undefined : undefined,
-        contactEmail: sensitiveVisible ? initial.contactEmail ?? undefined : undefined,
+        contactPhone: sensitiveVisible ? (initial.contactPhone ?? undefined) : undefined,
+        contactEmail: sensitiveVisible ? (initial.contactEmail ?? undefined) : undefined,
         ownerId: initial.ownerId ?? null,
         deptId: initial.deptId ?? null,
         remark: initial.remark ?? undefined,
@@ -220,7 +220,11 @@ function LeadFormModal({ open, initial, onCancel, onSaved }: LeadFormModalProps)
             name="contactPhone"
             label="联系电话"
             style={{ flex: 1 }}
-            extra={maskedPhone ? `当前：${initial?.contactPhone ?? '-'}（无明文权限，留空不修改）` : undefined}
+            extra={
+              maskedPhone
+                ? `当前：${initial?.contactPhone ?? '-'}（无明文权限，留空不修改）`
+                : undefined
+            }
           >
             <Input maxLength={30} />
           </Form.Item>
@@ -228,7 +232,11 @@ function LeadFormModal({ open, initial, onCancel, onSaved }: LeadFormModalProps)
             name="contactEmail"
             label="联系邮箱"
             style={{ flex: 1 }}
-            extra={maskedEmail ? `当前：${initial?.contactEmail ?? '-'}（无明文权限，留空不修改）` : undefined}
+            extra={
+              maskedEmail
+                ? `当前：${initial?.contactEmail ?? '-'}（无明文权限，留空不修改）`
+                : undefined
+            }
           >
             <Input maxLength={100} />
           </Form.Item>
@@ -299,7 +307,11 @@ function LeadStatusModal({ lead, onCancel, onSaved }: LeadStatusModalProps) {
       destroyOnClose
     >
       <Form form={form} layout="vertical" preserve={false}>
-        <Form.Item name="status" label="目标状态" rules={[{ required: true, message: '请选择目标状态' }]}>
+        <Form.Item
+          name="status"
+          label="目标状态"
+          rules={[{ required: true, message: '请选择目标状态' }]}
+        >
           <Select
             options={nextLeadStatuses(lead?.status).map((value) => ({
               value,
@@ -501,11 +513,7 @@ function LeadConvertModal({ lead, onCancel, onSaved }: LeadConvertModalProps) {
       destroyOnClose
     >
       <Form form={form} layout="vertical" preserve={false}>
-        <Form.Item
-          name="customerId"
-          label="既有客户 ID"
-          extra="留空则按线索联系信息新建客户"
-        >
+        <Form.Item name="customerId" label="既有客户 ID" extra="留空则按线索联系信息新建客户">
           <InputNumber min={1} precision={0} style={{ width: '100%' }} />
         </Form.Item>
         <Form.Item name="opportunityName" label="商机名称">
@@ -616,7 +624,12 @@ function LeadActivityDrawer({ lead, onClose, onChanged }: LeadActivityDrawerProp
       width: 170,
       render: (value?: string | null) => formatDateTime(value),
     },
-    { title: '操作人', dataIndex: 'createdBy', width: 110, render: (value?: number | null) => value ?? '-' },
+    {
+      title: '操作人',
+      dataIndex: 'createdBy',
+      width: 110,
+      render: (value?: number | null) => value ?? '-',
+    },
     {
       title: '记录时间',
       dataIndex: 'createTime',
@@ -747,7 +760,12 @@ export default function LeadList() {
   };
 
   const columns: TableProps<LeadView>['columns'] = [
-    { title: '线索编号', dataIndex: 'leadNo', width: 160, render: (value?: string | null) => value || '-' },
+    {
+      title: '线索编号',
+      dataIndex: 'leadNo',
+      width: 160,
+      render: (value?: string | null) => value || '-',
+    },
     { title: '线索名称', dataIndex: 'name', width: 180, ellipsis: true },
     {
       title: '联系人',
@@ -766,12 +784,29 @@ export default function LeadList() {
       dataIndex: 'status',
       width: 100,
       render: (value?: string | null) => (
-        <Tag color={LEAD_STATUS_COLOR[value ?? '']}>{LEAD_STATUS_LABEL[value ?? ''] ?? value ?? '-'}</Tag>
+        <Tag color={LEAD_STATUS_COLOR[value ?? '']}>
+          {LEAD_STATUS_LABEL[value ?? ''] ?? value ?? '-'}
+        </Tag>
       ),
     },
-    { title: '来源', dataIndex: 'source', width: 100, render: (value?: string | null) => value || '-' },
-    { title: '行业', dataIndex: 'industry', width: 100, render: (value?: string | null) => value || '-' },
-    { title: '负责人', dataIndex: 'ownerId', width: 100, render: (value?: number | null) => value ?? '-' },
+    {
+      title: '来源',
+      dataIndex: 'source',
+      width: 100,
+      render: (value?: string | null) => value || '-',
+    },
+    {
+      title: '行业',
+      dataIndex: 'industry',
+      width: 100,
+      render: (value?: string | null) => value || '-',
+    },
+    {
+      title: '负责人',
+      dataIndex: 'ownerId',
+      width: 100,
+      render: (value?: number | null) => value ?? '-',
+    },
     {
       title: '转化客户',
       dataIndex: 'customerId',
@@ -858,7 +893,12 @@ export default function LeadList() {
         ) : null
       }
     >
-      <Form form={form} layout="inline" onFinish={handleSearch} style={{ marginBottom: 16, rowGap: 12 }}>
+      <Form
+        form={form}
+        layout="inline"
+        onFinish={handleSearch}
+        style={{ marginBottom: 16, rowGap: 12 }}
+      >
         <Form.Item name="keyword">
           <Input placeholder="名称 / 编号 / 联系人" allowClear style={{ width: 200 }} />
         </Form.Item>

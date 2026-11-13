@@ -102,7 +102,9 @@ function renderRich(raw: string): string {
       if (heading) {
         return `<div class="bww-chat-h">${inline(heading[1])}</div>`;
       }
-      return inline(line) ? `<div class="bww-chat-p">${inline(line)}</div>` : '<div class="bww-chat-gap"></div>';
+      return inline(line)
+        ? `<div class="bww-chat-p">${inline(line)}</div>`
+        : '<div class="bww-chat-gap"></div>';
     })
     .join('');
 }
@@ -231,8 +233,7 @@ export function mountNpcChat(container: HTMLElement, options: NpcChatOptions): N
           card.state !== 'offer' && total > 0
             ? `<div class="bww-quest-bar"><i style="width:${Math.round((done / total) * 100)}%"></i></div>`
             : '';
-        const tag =
-          card.state === 'offer' ? '委托' : card.state === 'ready' ? '可回禀' : '进行中';
+        const tag = card.state === 'offer' ? '委托' : card.state === 'ready' ? '可回禀' : '进行中';
         const btn = card.action
           ? `<button type="button" class="bww-quest-act" data-quest="${escText(card.id)}" data-quest-action="${escText(card.action)}">${escText(card.action)}</button>`
           : '';

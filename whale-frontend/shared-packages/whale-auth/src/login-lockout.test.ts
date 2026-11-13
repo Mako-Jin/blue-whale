@@ -17,12 +17,16 @@ function apiError(code: number, data?: unknown): Error & { code: number; data?: 
 
 describe('parseLockoutSeconds', () => {
   it('42301 且带 retryAfterSeconds 时取该秒数（向上取整）', () => {
-    expect(parseLockoutSeconds(apiError(LOGIN_LOCKED_CODE, { retryAfterSeconds: 899.2 }))).toBe(900);
+    expect(parseLockoutSeconds(apiError(LOGIN_LOCKED_CODE, { retryAfterSeconds: 899.2 }))).toBe(
+      900,
+    );
     expect(parseLockoutSeconds(apiError(LOGIN_LOCKED_CODE, { retryAfterSeconds: 300 }))).toBe(300);
   });
 
   it('Jackson 3 把 Long 序列化成字符串，形如 "898" 也要解析（否则每次锁定都退化成兜底）', () => {
-    expect(parseLockoutSeconds(apiError(LOGIN_LOCKED_CODE, { retryAfterSeconds: '898' }))).toBe(898);
+    expect(parseLockoutSeconds(apiError(LOGIN_LOCKED_CODE, { retryAfterSeconds: '898' }))).toBe(
+      898,
+    );
   });
 
   it('42301 但缺 retryAfterSeconds 时按兜底秒数，绝不解锁成 0', () => {

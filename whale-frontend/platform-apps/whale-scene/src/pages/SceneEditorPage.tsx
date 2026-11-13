@@ -374,7 +374,11 @@ export default function SceneEditorPage() {
         if (!binding) {
           return <Tag>未绑定</Tag>;
         }
-        return <Tag color={binding.enabled ? 'green' : 'default'}>{binding.enabled ? '启用' : '停用'}</Tag>;
+        return (
+          <Tag color={binding.enabled ? 'green' : 'default'}>
+            {binding.enabled ? '启用' : '停用'}
+          </Tag>
+        );
       },
     },
     {
@@ -403,7 +407,7 @@ export default function SceneEditorPage() {
       width: 220,
       render: (_value, record) =>
         record.nodeId && record.nodeId > 0
-          ? nodeNameById.get(record.nodeId) ?? `节点 ${record.nodeId}`
+          ? (nodeNameById.get(record.nodeId) ?? `节点 ${record.nodeId}`)
           : '场景级',
     },
     {
@@ -435,7 +439,9 @@ export default function SceneEditorPage() {
         <Button
           type="link"
           danger
-          onClick={() => setRules((prev) => prev.filter((rule) => rule.localKey !== record.localKey))}
+          onClick={() =>
+            setRules((prev) => prev.filter((rule) => rule.localKey !== record.localKey))
+          }
         >
           移除
         </Button>
@@ -463,7 +469,9 @@ export default function SceneEditorPage() {
         }
         extra={
           <Space wrap>
-            {canEditScene ? <Button onClick={() => setSceneModalOpen(true)}>编辑场景</Button> : null}
+            {canEditScene ? (
+              <Button onClick={() => setSceneModalOpen(true)}>编辑场景</Button>
+            ) : null}
             {canPublish && scene?.status !== 'PUBLISHED' ? (
               <Button type="primary" onClick={handlePublish}>
                 发布
@@ -481,8 +489,12 @@ export default function SceneEditorPage() {
           <Descriptions.Item label="场景说明" span={2}>
             {scene?.description || '—'}
           </Descriptions.Item>
-          <Descriptions.Item label="布局版本">{scene?.layoutVersion ?? '尚未发布'}</Descriptions.Item>
-          <Descriptions.Item label="最近发布">{formatDateTime(scene?.publishedAt)}</Descriptions.Item>
+          <Descriptions.Item label="布局版本">
+            {scene?.layoutVersion ?? '尚未发布'}
+          </Descriptions.Item>
+          <Descriptions.Item label="最近发布">
+            {formatDateTime(scene?.publishedAt)}
+          </Descriptions.Item>
           <Descriptions.Item label="快照校验和" span={2}>
             {detail?.latestLayout?.checksum ? (
               <Typography.Text copyable style={{ fontSize: 12 }}>
@@ -593,7 +605,11 @@ export default function SceneEditorPage() {
             <Form<SceneVisibilityCommand>
               form={addRuleForm}
               layout="inline"
-              initialValues={{ nodeId: 0, subjectType: 'ROLE' as VisibilitySubjectType, effect: 'DENY' as VisibilityEffect }}
+              initialValues={{
+                nodeId: 0,
+                subjectType: 'ROLE' as VisibilitySubjectType,
+                effect: 'DENY' as VisibilityEffect,
+              }}
             >
               <Form.Item name="nodeId" label="作用节点">
                 <Select
@@ -700,7 +716,7 @@ export default function SceneEditorPage() {
       <BindingFormModal
         open={bindingModalOpen}
         node={bindingNode}
-        binding={bindingNode ? bindingByNodeId.get(bindingNode.id) ?? null : null}
+        binding={bindingNode ? (bindingByNodeId.get(bindingNode.id) ?? null) : null}
         onCancel={() => setBindingModalOpen(false)}
         onSaved={load}
       />

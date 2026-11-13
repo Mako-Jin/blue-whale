@@ -94,7 +94,14 @@ export function createPaper(body: {
 /** 编辑试卷（仅草稿） */
 export function updatePaper(
   id: number,
-  body: { paperCode: string; title: string; courseId?: number; durationMinutes: number; passScore?: number; remark?: string },
+  body: {
+    paperCode: string;
+    title: string;
+    courseId?: number;
+    durationMinutes: number;
+    passScore?: number;
+    remark?: string;
+  },
 ) {
   return http.put<void>(`/lms/paper/${id}`, body);
 }

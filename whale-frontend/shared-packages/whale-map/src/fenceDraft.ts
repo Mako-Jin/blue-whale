@@ -296,7 +296,10 @@ export function validateFenceDraft(state: FenceDraftState): string | null {
  */
 export function toFenceSaveParams(
   state: FenceDraftState,
-  base: Omit<FenceSaveParams, 'fenceType' | 'points' | 'centerLng' | 'centerLat' | 'radiusMeters' | 'coordType'>,
+  base: Omit<
+    FenceSaveParams,
+    'fenceType' | 'points' | 'centerLng' | 'centerLat' | 'radiusMeters' | 'coordType'
+  >,
 ): FenceSaveParams {
   if (state.shape === 'CIRCLE') {
     return {

@@ -90,7 +90,10 @@ interface ContentFormValues {
  * @param depth 当前层级
  * @returns 选项列表
  */
-function flattenBranches(nodes: BranchTreeView[], depth = 0): Array<{ value: number; label: string }> {
+function flattenBranches(
+  nodes: BranchTreeView[],
+  depth = 0,
+): Array<{ value: number; label: string }> {
   return nodes.flatMap((node) => [
     { value: node.id, label: `${'　'.repeat(depth)}${node.branchCode} ${node.branchName}` },
     ...flattenBranches(node.children ?? [], depth + 1),
@@ -213,7 +216,7 @@ export default function ContentPage() {
       body: values.body ?? null,
       attachmentFileIds: parseFileIds(values.attachments),
       visibility: values.visibility,
-      branchIds: values.visibility === 'BRANCHES' ? values.branchIds ?? [] : [],
+      branchIds: values.visibility === 'BRANCHES' ? (values.branchIds ?? []) : [],
       remark: values.remark ?? null,
     };
     try {
@@ -337,7 +340,9 @@ export default function ContentPage() {
       title: '状态',
       dataIndex: 'statusLabel',
       width: 90,
-      render: (_value, row) => <Tag color={STATUS_COLOR[row.status] ?? 'default'}>{row.statusLabel}</Tag>,
+      render: (_value, row) => (
+        <Tag color={STATUS_COLOR[row.status] ?? 'default'}>{row.statusLabel}</Tag>
+      ),
     },
     {
       title: '更新时间',
@@ -381,7 +386,10 @@ export default function ContentPage() {
             </>
           ) : null}
           {row.status === 'PUBLISHED' && canAudit ? (
-            <Popconfirm title="下线后读者不可见，历史与阅读数保留" onConfirm={() => void offline(row)}>
+            <Popconfirm
+              title="下线后读者不可见，历史与阅读数保留"
+              onConfirm={() => void offline(row)}
+            >
               <Button type="link" size="small" danger>
                 下线
               </Button>
@@ -466,7 +474,11 @@ export default function ContentPage() {
           <Form.Item name="title" label="标题" rules={[{ required: true, message: '请输入标题' }]}>
             <Input maxLength={200} showCount />
           </Form.Item>
-          <Form.Item name="category" label="分类" rules={[{ required: true, message: '请输入分类' }]}>
+          <Form.Item
+            name="category"
+            label="分类"
+            rules={[{ required: true, message: '请输入分类' }]}
+          >
             <Input maxLength={64} placeholder="如：理论学习 / 支部动态 / 通知公告" />
           </Form.Item>
           <Form.Item name="summary" label="摘要">
@@ -527,7 +539,8 @@ export default function ContentPage() {
       >
         <Timeline
           items={audits.map((audit) => ({
-            color: audit.action === 'REJECT' ? 'red' : audit.action === 'APPROVE' ? 'green' : 'blue',
+            color:
+              audit.action === 'REJECT' ? 'red' : audit.action === 'APPROVE' ? 'green' : 'blue',
             children: (
               <Space direction="vertical" size={2}>
                 <Typography.Text strong>{audit.actionLabel}</Typography.Text>

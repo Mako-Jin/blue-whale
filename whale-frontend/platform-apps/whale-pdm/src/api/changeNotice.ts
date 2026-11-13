@@ -57,7 +57,10 @@ export interface ChgNotifyLog {
 
 /** 分页查询变更通知 */
 export function pageChgNotices(query: ChgNoticeQuery): Promise<PageResult<ChgNotice>> {
-  return http.get<PageResult<ChgNotice>>('/pdm/change/notice/page', query as Record<string, unknown>);
+  return http.get<PageResult<ChgNotice>>(
+    '/pdm/change/notice/page',
+    query as Record<string, unknown>,
+  );
 }
 
 /** 变更通知详情 */

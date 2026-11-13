@@ -5,18 +5,7 @@
 // 标签筛选走服务端的 fm_thread_tag 精确匹配，不在前端对逗号串做 includes。
 
 import { useCallback, useEffect, useState } from 'react';
-import {
-  Button,
-  Card,
-  Empty,
-  Input,
-  List,
-  Segmented,
-  Select,
-  Space,
-  Tag,
-  Typography,
-} from 'antd';
+import { Button, Card, Empty, Input, List, Segmented, Select, Space, Tag, Typography } from 'antd';
 import {
   fetchTags,
   fetchThreads,
@@ -93,9 +82,7 @@ export default function DiscoveryPage({ boards, onOpenThread }: Props) {
       };
       const trimmed = keyword.trim();
       // 与列表页同一口径：有关键词走检索通道，否则走列表通道
-      const task = trimmed
-        ? searchThreads({ keyword: trimmed, ...params })
-        : fetchThreads(params);
+      const task = trimmed ? searchThreads({ keyword: trimmed, ...params }) : fetchThreads(params);
       task
         .then((data) => {
           setItems(data.records);

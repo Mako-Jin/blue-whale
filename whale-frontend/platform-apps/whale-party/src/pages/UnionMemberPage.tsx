@@ -158,7 +158,12 @@ export default function UnionMemberPage() {
     { title: '工号', dataIndex: 'employeeNo', width: 110 },
     { title: '姓名', dataIndex: 'memberName', width: 100 },
     { title: '所属部门', dataIndex: 'deptName', render: (value) => value ?? '—' },
-    { title: '入会日期', dataIndex: 'joinDate', width: 110, render: (value: string) => formatDate(value) },
+    {
+      title: '入会日期',
+      dataIndex: 'joinDate',
+      width: 110,
+      render: (value: string) => formatDate(value),
+    },
     {
       title: '会费基数',
       dataIndex: 'duesBase',
@@ -286,7 +291,11 @@ export default function UnionMemberPage() {
           >
             <Input maxLength={64} disabled={Boolean(editing)} />
           </Form.Item>
-          <Form.Item name="memberName" label="姓名" rules={[{ required: true, message: '请输入姓名' }]}>
+          <Form.Item
+            name="memberName"
+            label="姓名"
+            rules={[{ required: true, message: '请输入姓名' }]}
+          >
             <Input maxLength={64} />
           </Form.Item>
           <Form.Item name="userId" label="平台用户 ID（可选，关联后可按人查我的福利）">
@@ -300,7 +309,10 @@ export default function UnionMemberPage() {
             label="入会日期"
             rules={[{ required: true, message: '请选择入会日期' }]}
           >
-            <DatePicker style={{ width: '100%' }} disabledDate={(value) => value.isAfter(dayjs())} />
+            <DatePicker
+              style={{ width: '100%' }}
+              disabledDate={(value) => value.isAfter(dayjs())}
+            />
           </Form.Item>
           <Form.Item name="duesBase" label="会费基数">
             <InputNumber min={0} precision={2} style={{ width: '100%' }} />

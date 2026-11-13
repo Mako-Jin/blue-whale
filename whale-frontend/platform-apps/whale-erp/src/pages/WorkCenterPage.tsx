@@ -149,10 +149,16 @@ export default function WorkCenterPage() {
         <Button onClick={() => setStatus(undefined)} type={status ? 'default' : 'primary'}>
           全部
         </Button>
-        <Button onClick={() => setStatus('ENABLED')} type={status === 'ENABLED' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('ENABLED')}
+          type={status === 'ENABLED' ? 'primary' : 'default'}
+        >
           启用
         </Button>
-        <Button onClick={() => setStatus('DISABLED')} type={status === 'DISABLED' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('DISABLED')}
+          type={status === 'DISABLED' ? 'primary' : 'default'}
+        >
           停用
         </Button>
         {hasPermission('sys:erp:mfg:workcenter:add') ? (

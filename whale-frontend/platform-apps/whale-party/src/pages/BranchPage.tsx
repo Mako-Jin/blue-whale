@@ -105,7 +105,9 @@ export default function BranchPage() {
     const values = await form.validateFields();
     const payload: BranchSaveCommand = {
       ...values,
-      establishedDate: values.establishedDate ? values.establishedDate.format('YYYY-MM-DD') : undefined,
+      establishedDate: values.establishedDate
+        ? values.establishedDate.format('YYYY-MM-DD')
+        : undefined,
     };
     try {
       if (editing) {
@@ -231,7 +233,10 @@ export default function BranchPage() {
               placeholder="不选表示一级支部"
               options={[
                 { value: 0, label: '（一级支部）' },
-                ...tree.map((node) => ({ value: node.id, label: `${node.branchCode} ${node.branchName}` })),
+                ...tree.map((node) => ({
+                  value: node.id,
+                  label: `${node.branchCode} ${node.branchName}`,
+                })),
               ]}
             />
           </Form.Item>

@@ -114,7 +114,12 @@ export default function DeliverableCenter() {
   };
 
   const columns: TableProps<Deliverable>['columns'] = [
-    { title: '项目', dataIndex: 'projectName', width: 160, render: (v: string, row) => v || `#${row.projectId}` },
+    {
+      title: '项目',
+      dataIndex: 'projectName',
+      width: 160,
+      render: (v: string, row) => v || `#${row.projectId}`,
+    },
     { title: '任务', dataIndex: 'workItemName', width: 140, render: (v: string) => v || '-' },
     {
       title: '对象',
@@ -210,8 +215,16 @@ export default function DeliverableCenter() {
         onOk={() => void onCreate()}
         destroyOnClose
       >
-        <Form form={form} layout="vertical" initialValues={{ deliverableType: 'DESIGN', objectType: 'DOCUMENT' }}>
-          <Form.Item name="projectId" label="项目 ID" rules={[{ required: true, message: '请输入项目 ID' }]}>
+        <Form
+          form={form}
+          layout="vertical"
+          initialValues={{ deliverableType: 'DESIGN', objectType: 'DOCUMENT' }}
+        >
+          <Form.Item
+            name="projectId"
+            label="项目 ID"
+            rules={[{ required: true, message: '请输入项目 ID' }]}
+          >
             <InputNumber min={1} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="projectName" label="项目名称">
@@ -223,7 +236,11 @@ export default function DeliverableCenter() {
           <Form.Item name="objectType" label="对象类型" rules={[{ required: true }]}>
             <Select options={OBJECT_OPTIONS} />
           </Form.Item>
-          <Form.Item name="objectId" label="对象 ID" rules={[{ required: true, message: '请输入对象 ID' }]}>
+          <Form.Item
+            name="objectId"
+            label="对象 ID"
+            rules={[{ required: true, message: '请输入对象 ID' }]}
+          >
             <InputNumber min={1} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item

@@ -108,10 +108,11 @@ export function WhaleMap({
     let cancelled = false;
     setStatus('loading');
     setErrorText(null);
-    factoryRef.current(container, {
-      center: initialRef.current.center,
-      zoom: initialRef.current.zoom,
-    })
+    factoryRef
+      .current(container, {
+        center: initialRef.current.center,
+        zoom: initialRef.current.zoom,
+      })
       .then((engine) => {
         // 创建是异步的，期间组件可能已卸载；不在这里销毁就会留下一张挂在
         // 已移除 DOM 上的地图，SDK 自己也回收不掉（表现为内存持续增长）

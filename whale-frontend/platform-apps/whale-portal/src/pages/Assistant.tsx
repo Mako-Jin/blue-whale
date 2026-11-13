@@ -117,7 +117,9 @@ export default function Assistant() {
           value={assistantId}
           onChange={handleAssistantChange}
           options={assistants.map((item) => ({ value: item.id, label: item.name ?? item.code }))}
-          notFoundContent={<Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无已发布助手" />}
+          notFoundContent={
+            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无已发布助手" />
+          }
         />
         {sessionId ? <Tag color="green">会话已建立</Tag> : <Tag>发送首条消息时自动建会话</Tag>}
       </Space>
@@ -133,7 +135,10 @@ export default function Assistant() {
         }}
       >
         {items.length === 0 && (
-          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="向 AI 助手提问，答案会流式返回" />
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description="向 AI 助手提问，答案会流式返回"
+          />
         )}
         {items.map((item, index) => (
           <div
@@ -166,7 +171,12 @@ export default function Assistant() {
           onPressEnter={() => void send()}
           maxLength={2000}
         />
-        <Button type="primary" loading={streaming} disabled={!assistantId} onClick={() => void send()}>
+        <Button
+          type="primary"
+          loading={streaming}
+          disabled={!assistantId}
+          onClick={() => void send()}
+        >
           发送
         </Button>
       </Space.Compact>

@@ -168,11 +168,14 @@ export default function SeriesPanel() {
       message.success('系列已删除');
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '删除失败（存在已发布集数时需先移除集数）');
+      message.error(
+        error instanceof Error ? error.message : '删除失败（存在已发布集数时需先移除集数）',
+      );
     }
   };
 
-  const categoryName = (value?: string) => categories.find((item) => item.id === value)?.name ?? '-';
+  const categoryName = (value?: string) =>
+    categories.find((item) => item.id === value)?.name ?? '-';
 
   const columns: TableProps<SeriesView>['columns'] = [
     { title: 'ID', dataIndex: 'id', width: 80 },
@@ -181,7 +184,11 @@ export default function SeriesPanel() {
       dataIndex: 'coverUrl',
       width: 100,
       render: (value?: string) =>
-        value ? <Image src={value} alt="封面" width={72} height={40} style={{ objectFit: 'cover' }} /> : '-',
+        value ? (
+          <Image src={value} alt="封面" width={72} height={40} style={{ objectFit: 'cover' }} />
+        ) : (
+          '-'
+        ),
     },
     {
       title: '系列',
@@ -274,16 +281,27 @@ export default function SeriesPanel() {
         columns={columns}
         request={pageSeries}
         params={{ keyword, publishState, categoryId }}
-        onError={(error) => message.error(error instanceof Error ? error.message : '系列列表加载失败')}
+        onError={(error) =>
+          message.error(error instanceof Error ? error.message : '系列列表加载失败')
+        }
         search={
           <SearchForm
             items={[
-              { name: 'keyword', label: '关键词', element: <Input allowClear placeholder="系列标题" /> },
+              {
+                name: 'keyword',
+                label: '关键词',
+                element: <Input allowClear placeholder="系列标题" />,
+              },
               {
                 name: 'publishState',
                 label: '状态',
                 element: (
-                  <Select allowClear placeholder="全部" style={{ width: 120 }} options={PUBLISH_STATE_OPTIONS} />
+                  <Select
+                    allowClear
+                    placeholder="全部"
+                    style={{ width: 120 }}
+                    options={PUBLISH_STATE_OPTIONS}
+                  />
                 ),
               },
               {
@@ -296,7 +314,10 @@ export default function SeriesPanel() {
                     optionFilterProp="label"
                     placeholder="全部"
                     style={{ width: 160 }}
-                    options={categories.map((category) => ({ value: category.id, label: category.name }))}
+                    options={categories.map((category) => ({
+                      value: category.id,
+                      label: category.name,
+                    }))}
                   />
                 ),
               },
@@ -340,9 +361,17 @@ export default function SeriesPanel() {
             {coverFileId === '0' ? (
               <Typography.Text type="secondary">已清除封面（保存后生效）</Typography.Text>
             ) : coverFileId ? (
-              <Typography.Text type="secondary">已上传封面：{coverName || `文件 ID ${coverFileId}`}</Typography.Text>
+              <Typography.Text type="secondary">
+                已上传封面：{coverName || `文件 ID ${coverFileId}`}
+              </Typography.Text>
             ) : editing?.coverUrl ? (
-              <Image src={editing.coverUrl} width={160} height={90} style={{ objectFit: 'cover' }} alt="当前封面" />
+              <Image
+                src={editing.coverUrl}
+                width={160}
+                height={90}
+                style={{ objectFit: 'cover' }}
+                alt="当前封面"
+              />
             ) : (
               <Typography.Text type="secondary">暂无封面</Typography.Text>
             )}
@@ -356,7 +385,9 @@ export default function SeriesPanel() {
                 }}
               >
                 <Button loading={uploadingCover}>
-                  {coverFileId !== '0' && (coverFileId || editing?.coverUrl) ? '重新上传封面' : '上传封面'}
+                  {coverFileId !== '0' && (coverFileId || editing?.coverUrl)
+                    ? '重新上传封面'
+                    : '上传封面'}
                 </Button>
               </Upload>
               {editing?.coverUrl || (coverFileId && coverFileId !== '0') ? (
@@ -373,7 +404,11 @@ export default function SeriesPanel() {
             </Space>
           </Space>
         </Form.Item>
-        <Form.Item name="title" label="系列标题" rules={[{ required: true, message: '请输入系列标题' }]}>
+        <Form.Item
+          name="title"
+          label="系列标题"
+          rules={[{ required: true, message: '请输入系列标题' }]}
+        >
           <Input maxLength={200} showCount />
         </Form.Item>
         <Form.Item name="description" label="系列简介">
@@ -386,7 +421,10 @@ export default function SeriesPanel() {
             optionFilterProp="label"
             placeholder="选择分类"
             options={categories
-              .filter((category) => category.contentTypeScope === 'ALL' || category.contentTypeScope === 'VIDEO')
+              .filter(
+                (category) =>
+                  category.contentTypeScope === 'ALL' || category.contentTypeScope === 'VIDEO',
+              )
               .map((category) => ({ value: category.id, label: category.name }))}
           />
         </Form.Item>

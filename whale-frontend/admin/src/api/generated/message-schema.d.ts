@@ -4,962 +4,962 @@
  */
 
 export interface paths {
-    "/message/template/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["detail"];
-        put: operations["update"];
-        post?: never;
-        delete: operations["delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+  '/message/template/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/message/announce/{id}/revoke": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["revoke"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['detail'];
+    put: operations['update'];
+    post?: never;
+    delete: operations['delete'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/message/announce/{id}/revoke': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/message/template": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put: operations['revoke'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/message/template': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/message/record/{id}/retry": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["retry"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['create'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/message/record/{id}/retry': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/message/internal/send": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["send"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['retry'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/message/internal/send': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/message/internal/receipt": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["receipt"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['send'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/message/internal/receipt': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/message/internal/preferences/resolve": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["resolve"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['receipt'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/message/internal/preferences/resolve': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/message/inapp/{messageId}/read": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["markRead"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['resolve'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/message/inapp/{messageId}/read': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/message/announce": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["publish"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['markRead'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/message/announce': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/message/template/page": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["page"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['publish'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/message/template/page': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/message/record/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["detail_1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['page'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/message/record/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/message/record/page": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["page_1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['detail_1'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/message/record/page': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/message/inapp/unread-count": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["unreadCount"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['page_1'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/message/inapp/unread-count': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/message/inapp/page": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["page_2"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['unreadCount'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/message/inapp/page': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/message/announce/page": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["page_3"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['page_2'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/message/announce/page': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/message/announce/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete: operations["delete_1"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['page_3'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/message/announce/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete: operations['delete_1'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: {
-        MessageTemplateSaveRequest: {
-            templateCode: string;
-            templateName: string;
-            titleTemplate?: string;
-            contentTemplate?: string;
-            /** Format: int32 */
-            status?: number;
-            remark?: string;
-        };
-        MessageTemplateVO: {
-            id?: string;
-            templateCode?: string;
-            templateName?: string;
-            titleTemplate?: string;
-            contentTemplate?: string;
-            /** Format: int32 */
-            status?: number;
-            remark?: string;
-            /** Format: date-time */
-            createTime?: string;
-            /** Format: date-time */
-            updateTime?: string;
-        };
-        ResultMessageTemplateVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["MessageTemplateVO"];
-        };
-        ResultVoid: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: unknown;
-        };
-        MessageDeliveryVO: {
-            id?: string;
-            channel?: string;
-            recipient?: string;
-            status?: string;
-            providerMessageId?: string;
-            errorMessage?: string;
-            /** Format: int32 */
-            attempts?: number;
-            /** Format: date-time */
-            sentAt?: string;
-        };
-        ResultSendMessageResult: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["SendMessageResult"];
-        };
-        SendMessageResult: {
-            messageId?: string;
-            duplicate?: boolean;
-            status?: string;
-            deliveries?: components["schemas"]["MessageDeliveryVO"][];
-        };
-        MessageRecipient: {
-            userId?: string;
-            /** Format: email */
-            email?: string;
-            phone?: string;
-        };
-        SendMessageRequest: {
-            tenantId?: string;
-            bizType?: string;
-            bizId?: string;
-            idempotencyKey?: string;
-            templateCode?: string;
-            title?: string;
-            content?: string;
-            payload?: {
-                [key: string]: unknown;
-            };
-            channels: string[];
-            recipients: components["schemas"]["MessageRecipient"][];
-            callbackUrl?: string;
-        };
-        DeliveryReceiptItem: {
-            channel: string;
-            receiptId?: string;
-            providerMessageId?: string;
-            status: string;
-            /** Format: date-time */
-            receiptTime?: string;
-            errorCode?: string;
-            errorMessage?: string;
-            rawPayload?: string;
-        };
-        DeliveryReceiptRequest: {
-            tenantId?: string;
-            receipts: components["schemas"]["DeliveryReceiptItem"][];
-        };
-        ReceiptApplyResult: {
-            /** Format: int32 */
-            received?: number;
-            /** Format: int32 */
-            accepted?: number;
-            /** Format: int32 */
-            duplicated?: number;
-            /** Format: int32 */
-            unmatched?: number;
-            /** Format: int32 */
-            advanced?: number;
-            /** Format: int32 */
-            callbackQueued?: number;
-        };
-        ResultReceiptApplyResult: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["ReceiptApplyResult"];
-        };
-        Defaults: {
-            channels?: string[];
-            minLevel?: string;
-        };
-        PreferenceResolveRequest: {
-            tenantId: string;
-            bizType: string;
-            userIds: string[];
-            level?: string;
-            defaults?: components["schemas"]["Defaults"];
-            quietBypassLevels?: string[];
-        };
-        PreferenceDecisionVO: {
-            userId?: string;
-            channels?: string[];
-            quiet?: boolean;
-            suppressed?: boolean;
-            source?: string;
-        };
-        ResultListPreferenceDecisionVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["PreferenceDecisionVO"][];
-        };
-        AnnouncementPublishRequest: {
-            title: string;
-            content: string;
-            bizType?: string;
-        };
-        AnnouncementVO: {
-            id?: string;
-            recordId?: string;
-            title?: string;
-            content?: string;
-            bizType?: string;
-            status?: string;
-            publisherId?: string;
-            /** Format: date-time */
-            publishTime?: string;
-            /** Format: date-time */
-            createTime?: string;
-        };
-        ResultAnnouncementVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["AnnouncementVO"];
-        };
-        MessageTemplateQueryRequest: {
-            current?: string;
-            size?: string;
-            templateCode?: string;
-            templateName?: string;
-            /** Format: int32 */
-            status?: number;
-        };
-        PageResultMessageTemplateVO: {
-            records?: components["schemas"]["MessageTemplateVO"][];
-            total?: string;
-            size?: string;
-            current?: string;
-        };
-        ResultPageResultMessageTemplateVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["PageResultMessageTemplateVO"];
-        };
-        MessageRecordVO: {
-            id?: string;
-            bizType?: string;
-            bizId?: string;
-            templateCode?: string;
-            idempotencyKey?: string;
-            title?: string;
-            content?: string;
-            payloadJson?: string;
-            channels?: string;
-            status?: string;
-            /** Format: date-time */
-            createTime?: string;
-            deliveries?: components["schemas"]["MessageDeliveryVO"][];
-        };
-        ResultMessageRecordVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["MessageRecordVO"];
-        };
-        MessageRecordQueryRequest: {
-            current?: string;
-            size?: string;
-            bizType?: string;
-            bizId?: string;
-            status?: string;
-            channel?: string;
-        };
-        PageResultMessageRecordVO: {
-            records?: components["schemas"]["MessageRecordVO"][];
-            total?: string;
-            size?: string;
-            current?: string;
-        };
-        ResultPageResultMessageRecordVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["PageResultMessageRecordVO"];
-        };
-        ResultLong: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: string;
-        };
-        InAppMessageQueryRequest: {
-            current?: string;
-            size?: string;
-            /** Format: int32 */
-            readFlag?: number;
-        };
-        InAppMessageVO: {
-            deliveryId?: string;
-            messageId?: string;
-            title?: string;
-            content?: string;
-            bizType?: string;
-            bizId?: string;
-            deliveryStatus?: string;
-            /** Format: int32 */
-            readFlag?: number;
-            /** Format: date-time */
-            sentAt?: string;
-            /** Format: date-time */
-            createTime?: string;
-        };
-        PageResultInAppMessageVO: {
-            records?: components["schemas"]["InAppMessageVO"][];
-            total?: string;
-            size?: string;
-            current?: string;
-        };
-        ResultPageResultInAppMessageVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["PageResultInAppMessageVO"];
-        };
-        AnnouncementQueryRequest: {
-            current?: string;
-            size?: string;
-            status?: string;
-        };
-        PageResultAnnouncementVO: {
-            records?: components["schemas"]["AnnouncementVO"][];
-            total?: string;
-            size?: string;
-            current?: string;
-        };
-        ResultPageResultAnnouncementVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["PageResultAnnouncementVO"];
-        };
+  schemas: {
+    MessageTemplateSaveRequest: {
+      templateCode: string;
+      templateName: string;
+      titleTemplate?: string;
+      contentTemplate?: string;
+      /** Format: int32 */
+      status?: number;
+      remark?: string;
     };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+    MessageTemplateVO: {
+      id?: string;
+      templateCode?: string;
+      templateName?: string;
+      titleTemplate?: string;
+      contentTemplate?: string;
+      /** Format: int32 */
+      status?: number;
+      remark?: string;
+      /** Format: date-time */
+      createTime?: string;
+      /** Format: date-time */
+      updateTime?: string;
+    };
+    ResultMessageTemplateVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['MessageTemplateVO'];
+    };
+    ResultVoid: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: unknown;
+    };
+    MessageDeliveryVO: {
+      id?: string;
+      channel?: string;
+      recipient?: string;
+      status?: string;
+      providerMessageId?: string;
+      errorMessage?: string;
+      /** Format: int32 */
+      attempts?: number;
+      /** Format: date-time */
+      sentAt?: string;
+    };
+    ResultSendMessageResult: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['SendMessageResult'];
+    };
+    SendMessageResult: {
+      messageId?: string;
+      duplicate?: boolean;
+      status?: string;
+      deliveries?: components['schemas']['MessageDeliveryVO'][];
+    };
+    MessageRecipient: {
+      userId?: string;
+      /** Format: email */
+      email?: string;
+      phone?: string;
+    };
+    SendMessageRequest: {
+      tenantId?: string;
+      bizType?: string;
+      bizId?: string;
+      idempotencyKey?: string;
+      templateCode?: string;
+      title?: string;
+      content?: string;
+      payload?: {
+        [key: string]: unknown;
+      };
+      channels: string[];
+      recipients: components['schemas']['MessageRecipient'][];
+      callbackUrl?: string;
+    };
+    DeliveryReceiptItem: {
+      channel: string;
+      receiptId?: string;
+      providerMessageId?: string;
+      status: string;
+      /** Format: date-time */
+      receiptTime?: string;
+      errorCode?: string;
+      errorMessage?: string;
+      rawPayload?: string;
+    };
+    DeliveryReceiptRequest: {
+      tenantId?: string;
+      receipts: components['schemas']['DeliveryReceiptItem'][];
+    };
+    ReceiptApplyResult: {
+      /** Format: int32 */
+      received?: number;
+      /** Format: int32 */
+      accepted?: number;
+      /** Format: int32 */
+      duplicated?: number;
+      /** Format: int32 */
+      unmatched?: number;
+      /** Format: int32 */
+      advanced?: number;
+      /** Format: int32 */
+      callbackQueued?: number;
+    };
+    ResultReceiptApplyResult: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['ReceiptApplyResult'];
+    };
+    Defaults: {
+      channels?: string[];
+      minLevel?: string;
+    };
+    PreferenceResolveRequest: {
+      tenantId: string;
+      bizType: string;
+      userIds: string[];
+      level?: string;
+      defaults?: components['schemas']['Defaults'];
+      quietBypassLevels?: string[];
+    };
+    PreferenceDecisionVO: {
+      userId?: string;
+      channels?: string[];
+      quiet?: boolean;
+      suppressed?: boolean;
+      source?: string;
+    };
+    ResultListPreferenceDecisionVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PreferenceDecisionVO'][];
+    };
+    AnnouncementPublishRequest: {
+      title: string;
+      content: string;
+      bizType?: string;
+    };
+    AnnouncementVO: {
+      id?: string;
+      recordId?: string;
+      title?: string;
+      content?: string;
+      bizType?: string;
+      status?: string;
+      publisherId?: string;
+      /** Format: date-time */
+      publishTime?: string;
+      /** Format: date-time */
+      createTime?: string;
+    };
+    ResultAnnouncementVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['AnnouncementVO'];
+    };
+    MessageTemplateQueryRequest: {
+      current?: string;
+      size?: string;
+      templateCode?: string;
+      templateName?: string;
+      /** Format: int32 */
+      status?: number;
+    };
+    PageResultMessageTemplateVO: {
+      records?: components['schemas']['MessageTemplateVO'][];
+      total?: string;
+      size?: string;
+      current?: string;
+    };
+    ResultPageResultMessageTemplateVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PageResultMessageTemplateVO'];
+    };
+    MessageRecordVO: {
+      id?: string;
+      bizType?: string;
+      bizId?: string;
+      templateCode?: string;
+      idempotencyKey?: string;
+      title?: string;
+      content?: string;
+      payloadJson?: string;
+      channels?: string;
+      status?: string;
+      /** Format: date-time */
+      createTime?: string;
+      deliveries?: components['schemas']['MessageDeliveryVO'][];
+    };
+    ResultMessageRecordVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['MessageRecordVO'];
+    };
+    MessageRecordQueryRequest: {
+      current?: string;
+      size?: string;
+      bizType?: string;
+      bizId?: string;
+      status?: string;
+      channel?: string;
+    };
+    PageResultMessageRecordVO: {
+      records?: components['schemas']['MessageRecordVO'][];
+      total?: string;
+      size?: string;
+      current?: string;
+    };
+    ResultPageResultMessageRecordVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PageResultMessageRecordVO'];
+    };
+    ResultLong: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: string;
+    };
+    InAppMessageQueryRequest: {
+      current?: string;
+      size?: string;
+      /** Format: int32 */
+      readFlag?: number;
+    };
+    InAppMessageVO: {
+      deliveryId?: string;
+      messageId?: string;
+      title?: string;
+      content?: string;
+      bizType?: string;
+      bizId?: string;
+      deliveryStatus?: string;
+      /** Format: int32 */
+      readFlag?: number;
+      /** Format: date-time */
+      sentAt?: string;
+      /** Format: date-time */
+      createTime?: string;
+    };
+    PageResultInAppMessageVO: {
+      records?: components['schemas']['InAppMessageVO'][];
+      total?: string;
+      size?: string;
+      current?: string;
+    };
+    ResultPageResultInAppMessageVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PageResultInAppMessageVO'];
+    };
+    AnnouncementQueryRequest: {
+      current?: string;
+      size?: string;
+      status?: string;
+    };
+    PageResultAnnouncementVO: {
+      records?: components['schemas']['AnnouncementVO'][];
+      total?: string;
+      size?: string;
+      current?: string;
+    };
+    ResultPageResultAnnouncementVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PageResultAnnouncementVO'];
+    };
+  };
+  responses: never;
+  parameters: never;
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    detail: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultMessageTemplateVO"];
-                };
-            };
-        };
+  detail: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
     };
-    update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MessageTemplateSaveRequest"];
-            };
+        content: {
+          '*/*': components['schemas']['ResultMessageTemplateVO'];
         };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultMessageTemplateVO"];
-                };
-            };
-        };
+      };
     };
-    delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
+  };
+  update: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
     };
-    revoke: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['MessageTemplateSaveRequest'];
+      };
     };
-    create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MessageTemplateSaveRequest"];
-            };
+        content: {
+          '*/*': components['schemas']['ResultMessageTemplateVO'];
         };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultMessageTemplateVO"];
-                };
-            };
-        };
+      };
     };
-    retry: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultSendMessageResult"];
-                };
-            };
-        };
+  };
+  delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
     };
-    send: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SendMessageRequest"];
-            };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
         };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultSendMessageResult"];
-                };
-            };
-        };
+      };
     };
-    receipt: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DeliveryReceiptRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultReceiptApplyResult"];
-                };
-            };
-        };
+  };
+  revoke: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
     };
-    resolve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PreferenceResolveRequest"];
-            };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
         };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListPreferenceDecisionVO"];
-                };
-            };
-        };
+      };
     };
-    markRead: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                messageId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
+  };
+  create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    publish: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AnnouncementPublishRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultAnnouncementVO"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['MessageTemplateSaveRequest'];
+      };
     };
-    page: {
-        parameters: {
-            query: {
-                request: components["schemas"]["MessageTemplateQueryRequest"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPageResultMessageTemplateVO"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['ResultMessageTemplateVO'];
         };
+      };
     };
-    detail_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultMessageRecordVO"];
-                };
-            };
-        };
+  };
+  retry: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
     };
-    page_1: {
-        parameters: {
-            query: {
-                request: components["schemas"]["MessageRecordQueryRequest"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPageResultMessageRecordVO"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['ResultSendMessageResult'];
         };
+      };
     };
-    unreadCount: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultLong"];
-                };
-            };
-        };
+  };
+  send: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    page_2: {
-        parameters: {
-            query: {
-                request: components["schemas"]["InAppMessageQueryRequest"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPageResultInAppMessageVO"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SendMessageRequest'];
+      };
     };
-    page_3: {
-        parameters: {
-            query: {
-                request: components["schemas"]["AnnouncementQueryRequest"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPageResultAnnouncementVO"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['ResultSendMessageResult'];
         };
+      };
     };
-    delete_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
+  };
+  receipt: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DeliveryReceiptRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultReceiptApplyResult'];
+        };
+      };
+    };
+  };
+  resolve: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PreferenceResolveRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultListPreferenceDecisionVO'];
+        };
+      };
+    };
+  };
+  markRead: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        messageId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  publish: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AnnouncementPublishRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultAnnouncementVO'];
+        };
+      };
+    };
+  };
+  page: {
+    parameters: {
+      query: {
+        request: components['schemas']['MessageTemplateQueryRequest'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultPageResultMessageTemplateVO'];
+        };
+      };
+    };
+  };
+  detail_1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultMessageRecordVO'];
+        };
+      };
+    };
+  };
+  page_1: {
+    parameters: {
+      query: {
+        request: components['schemas']['MessageRecordQueryRequest'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultPageResultMessageRecordVO'];
+        };
+      };
+    };
+  };
+  unreadCount: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultLong'];
+        };
+      };
+    };
+  };
+  page_2: {
+    parameters: {
+      query: {
+        request: components['schemas']['InAppMessageQueryRequest'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultPageResultInAppMessageVO'];
+        };
+      };
+    };
+  };
+  page_3: {
+    parameters: {
+      query: {
+        request: components['schemas']['AnnouncementQueryRequest'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultPageResultAnnouncementVO'];
+        };
+      };
+    };
+  };
+  delete_1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
 }

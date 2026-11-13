@@ -4,19 +4,7 @@
 // - bindings：跳到场景编辑页的「入口绑定」页签
 // - visibility：跳到场景编辑页的「可见性」页签
 
-import {
-  App,
-  Button,
-  Card,
-  Form,
-  Input,
-  Modal,
-  Select,
-  Space,
-  Table,
-  Tag,
-  Typography,
-} from 'antd';
+import { App, Button, Card, Form, Input, Modal, Select, Space, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -42,7 +30,8 @@ const PAGE_TITLE: Record<SceneListMode, string> = {
 const PAGE_DESCRIPTION: Record<SceneListMode, string> = {
   manage: '维护城池场景、节点树与发布状态；发布前服务端会校验节点数、层级、环与入口合法性。',
   bindings: '选择场景后维护入口节点的跳转地址与所需权限码；入口仅保存跳转信息，不直连业务库。',
-  visibility: '选择场景后维护角色 / 用户 / 全体可见性规则；拒绝（DENY）优先，节点被拒绝时整棵子树隐藏。',
+  visibility:
+    '选择场景后维护角色 / 用户 / 全体可见性规则；拒绝（DENY）优先，节点被拒绝时整棵子树隐藏。',
 };
 
 export default function SceneListPage({ mode = 'manage' }: { mode?: SceneListMode }) {
@@ -295,7 +284,10 @@ export default function SceneListPage({ mode = 'manage' }: { mode?: SceneListMod
             label="场景标识"
             rules={[
               { required: true, message: '请输入场景标识' },
-              { pattern: /^[a-z][a-z0-9-]{1,63}$/, message: '2–64 位小写字母 / 数字 / 连字符，且以字母开头' },
+              {
+                pattern: /^[a-z][a-z0-9-]{1,63}$/,
+                message: '2–64 位小写字母 / 数字 / 连字符，且以字母开头',
+              },
             ]}
           >
             <Input placeholder="例如 bluewhale-city" />

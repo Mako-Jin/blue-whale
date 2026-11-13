@@ -599,8 +599,7 @@ export default function CustomerDetail() {
       title: '首要',
       dataIndex: 'primary',
       width: 90,
-      render: (value: boolean | null | undefined) =>
-        value ? <Tag color="blue">首要</Tag> : '-',
+      render: (value: boolean | null | undefined) => (value ? <Tag color="blue">首要</Tag> : '-'),
     },
     {
       title: '状态',
@@ -716,9 +715,14 @@ export default function CustomerDetail() {
       title: '渠道',
       dataIndex: 'channel',
       width: 100,
-      render: (value: string | null | undefined) => FOLLOW_UP_CHANNEL_LABEL[value ?? ''] ?? value ?? '-',
+      render: (value: string | null | undefined) =>
+        FOLLOW_UP_CHANNEL_LABEL[value ?? ''] ?? value ?? '-',
     },
-    { title: '跟进内容', dataIndex: 'content', render: (value: string | null | undefined) => value ?? '-' },
+    {
+      title: '跟进内容',
+      dataIndex: 'content',
+      render: (value: string | null | undefined) => value ?? '-',
+    },
     {
       title: '结果',
       dataIndex: 'result',
@@ -749,9 +753,21 @@ export default function CustomerDetail() {
     { key: 'customerCode', label: '客户编码', children: customer?.customerCode ?? '-' },
     { key: 'name', label: '客户名称', children: customer?.name ?? '-' },
     { key: 'shortName', label: '客户简称', children: customer?.shortName ?? '-' },
-    { key: 'level', label: '客户等级', children: CUSTOMER_LEVEL_LABEL[customer?.level ?? ''] ?? customer?.level ?? '-' },
-    { key: 'status', label: '客户状态', children: CUSTOMER_STATUS_LABEL[customer?.status ?? ''] ?? customer?.status ?? '-' },
-    { key: 'poolStatus', label: '归属状态', children: POOL_STATUS_LABEL[customer?.poolStatus ?? ''] ?? customer?.poolStatus ?? '-' },
+    {
+      key: 'level',
+      label: '客户等级',
+      children: CUSTOMER_LEVEL_LABEL[customer?.level ?? ''] ?? customer?.level ?? '-',
+    },
+    {
+      key: 'status',
+      label: '客户状态',
+      children: CUSTOMER_STATUS_LABEL[customer?.status ?? ''] ?? customer?.status ?? '-',
+    },
+    {
+      key: 'poolStatus',
+      label: '归属状态',
+      children: POOL_STATUS_LABEL[customer?.poolStatus ?? ''] ?? customer?.poolStatus ?? '-',
+    },
     { key: 'ownerId', label: '负责人', children: customer?.ownerId ?? '公海' },
     { key: 'deptId', label: '归属部门', children: customer?.deptId ?? '-' },
     { key: 'source', label: '客户来源', children: customer?.source ?? '-' },
@@ -764,7 +780,11 @@ export default function CustomerDetail() {
     { key: 'region', label: '区县', children: customer?.region ?? '-' },
     { key: 'address', label: '联系地址', children: customer?.address ?? '-' },
     { key: 'tags', label: '标签', children: customer?.tags ?? '-' },
-    { key: 'lastFollowUpAt', label: '最近跟进', children: formatDateTime(customer?.lastFollowUpAt) },
+    {
+      key: 'lastFollowUpAt',
+      label: '最近跟进',
+      children: formatDateTime(customer?.lastFollowUpAt),
+    },
     { key: 'createTime', label: '创建时间', children: formatDateTime(customer?.createTime) },
     { key: 'updateTime', label: '更新时间', children: formatDateTime(customer?.updateTime) },
   ];
@@ -835,7 +855,8 @@ export default function CustomerDetail() {
               {
                 key: 'sensitiveRemark',
                 label: '敏感备注',
-                children: overview?.profile.sensitiveRemark ?? detail?.profile.sensitiveRemark ?? '-',
+                children:
+                  overview?.profile.sensitiveRemark ?? detail?.profile.sensitiveRemark ?? '-',
               },
               {
                 key: 'decisionChain',
@@ -866,7 +887,8 @@ export default function CustomerDetail() {
           <Space direction="vertical" size={8} style={{ display: 'flex' }}>
             {overview.recentFollowUps.slice(0, 5).map((item) => (
               <Typography.Text key={item.id}>
-                {formatDateTime(item.createTime)} · {FOLLOW_UP_CHANNEL_LABEL[item.channel ?? ''] ?? item.channel ?? '-'} ·{' '}
+                {formatDateTime(item.createTime)} ·{' '}
+                {FOLLOW_UP_CHANNEL_LABEL[item.channel ?? ''] ?? item.channel ?? '-'} ·{' '}
                 {item.content ?? '-'}
               </Typography.Text>
             ))}
@@ -908,9 +930,7 @@ export default function CustomerDetail() {
             {
               key: 'basic',
               label: '基本信息',
-              children: (
-                <Descriptions bordered size="small" column={2} items={basicItems} />
-              ),
+              children: <Descriptions bordered size="small" column={2} items={basicItems} />,
             },
             {
               key: 'contacts',

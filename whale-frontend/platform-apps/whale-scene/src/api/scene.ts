@@ -229,7 +229,10 @@ export function offlineScene(id: number): Promise<SceneView> {
 }
 
 /** 新增节点 */
-export function createSceneNode(sceneId: number, command: SceneNodeSaveCommand): Promise<SceneNodeView> {
+export function createSceneNode(
+  sceneId: number,
+  command: SceneNodeSaveCommand,
+): Promise<SceneNodeView> {
   return http.post<SceneNodeView>(`/scene/${sceneId}/node`, command);
 }
 

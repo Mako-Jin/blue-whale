@@ -102,7 +102,11 @@ export default function AttendanceRulesPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [shiftList, ruleList, groupList] = await Promise.all([listShifts(), listRules(), listGroups()]);
+      const [shiftList, ruleList, groupList] = await Promise.all([
+        listShifts(),
+        listRules(),
+        listGroups(),
+      ]);
       setShifts(shiftList);
       setRules(ruleList);
       setGroups(groupList);
@@ -275,12 +279,17 @@ export default function AttendanceRulesPage() {
       title: '上下班时间',
       key: 'work',
       width: 160,
-      render: (_value, record) =>
-        `${timeText(record.workStart)} ~ ${timeText(record.workEnd)}`,
+      render: (_value, record) => `${timeText(record.workStart)} ~ ${timeText(record.workEnd)}`,
     },
     { title: '弹性(分)', dataIndex: 'flexMinutes', key: 'flexMinutes', width: 100 },
     { title: '休息(分)', dataIndex: 'breakMinutes', key: 'breakMinutes', width: 100 },
-    { title: '启用', dataIndex: 'enabled', key: 'enabled', width: 80, render: (value: number) => (value === 1 ? '是' : '否') },
+    {
+      title: '启用',
+      dataIndex: 'enabled',
+      key: 'enabled',
+      width: 80,
+      render: (value: number) => (value === 1 ? '是' : '否'),
+    },
     { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
     {
       title: '操作',
@@ -311,12 +320,46 @@ export default function AttendanceRulesPage() {
   const ruleColumns: TableProps<OaAttendanceRule>['columns'] = [
     { title: '编码', dataIndex: 'code', key: 'code', width: 130 },
     { title: '名称', dataIndex: 'name', key: 'name', width: 150 },
-    { title: '允许外勤', dataIndex: 'allowExternal', key: 'allowExternal', width: 100, render: (value: number) => (value === 1 ? '是' : '否') },
-    { title: '需定位', dataIndex: 'requireLocation', key: 'requireLocation', width: 100, render: (value: number) => (value === 1 ? '是' : '否') },
-    { title: '需设备', dataIndex: 'requireDevice', key: 'requireDevice', width: 100, render: (value: number) => (value === 1 ? '是' : '否') },
-    { title: '月补卡上限', dataIndex: 'maxCorrectionsPerMonth', key: 'maxCorrectionsPerMonth', width: 110 },
-    { title: '补卡窗口(天)', dataIndex: 'correctionWindowDays', key: 'correctionWindowDays', width: 120 },
-    { title: '启用', dataIndex: 'enabled', key: 'enabled', width: 80, render: (value: number) => (value === 1 ? '是' : '否') },
+    {
+      title: '允许外勤',
+      dataIndex: 'allowExternal',
+      key: 'allowExternal',
+      width: 100,
+      render: (value: number) => (value === 1 ? '是' : '否'),
+    },
+    {
+      title: '需定位',
+      dataIndex: 'requireLocation',
+      key: 'requireLocation',
+      width: 100,
+      render: (value: number) => (value === 1 ? '是' : '否'),
+    },
+    {
+      title: '需设备',
+      dataIndex: 'requireDevice',
+      key: 'requireDevice',
+      width: 100,
+      render: (value: number) => (value === 1 ? '是' : '否'),
+    },
+    {
+      title: '月补卡上限',
+      dataIndex: 'maxCorrectionsPerMonth',
+      key: 'maxCorrectionsPerMonth',
+      width: 110,
+    },
+    {
+      title: '补卡窗口(天)',
+      dataIndex: 'correctionWindowDays',
+      key: 'correctionWindowDays',
+      width: 120,
+    },
+    {
+      title: '启用',
+      dataIndex: 'enabled',
+      key: 'enabled',
+      width: 80,
+      render: (value: number) => (value === 1 ? '是' : '否'),
+    },
     {
       title: '操作',
       key: 'action',
@@ -358,7 +401,8 @@ export default function AttendanceRulesPage() {
       dataIndex: 'ruleId',
       key: 'ruleId',
       width: 140,
-      render: (value?: number) => (value ? rules.find((rule) => rule.id === value)?.name ?? value : '-'),
+      render: (value?: number) =>
+        value ? (rules.find((rule) => rule.id === value)?.name ?? value) : '-',
     },
     {
       title: '成员',
@@ -367,7 +411,13 @@ export default function AttendanceRulesPage() {
       render: (_value, record) =>
         (record.members ?? []).map((member) => member.userName || member.userId).join('、') || '-',
     },
-    { title: '启用', dataIndex: 'enabled', key: 'enabled', width: 80, render: (value: number) => (value === 1 ? '是' : '否') },
+    {
+      title: '启用',
+      dataIndex: 'enabled',
+      key: 'enabled',
+      width: 80,
+      render: (value: number) => (value === 1 ? '是' : '否'),
+    },
     {
       title: '操作',
       key: 'action',
@@ -413,7 +463,14 @@ export default function AttendanceRulesPage() {
                     刷新
                   </Button>
                 </Space>
-                <Table<OaAttendanceShift> rowKey="id" loading={loading} columns={shiftColumns} dataSource={shifts} scroll={{ x: 1100 }} pagination={false} />
+                <Table<OaAttendanceShift>
+                  rowKey="id"
+                  loading={loading}
+                  columns={shiftColumns}
+                  dataSource={shifts}
+                  scroll={{ x: 1100 }}
+                  pagination={false}
+                />
               </Space>
             ),
           },
@@ -432,7 +489,14 @@ export default function AttendanceRulesPage() {
                     刷新
                   </Button>
                 </Space>
-                <Table<OaAttendanceRule> rowKey="id" loading={loading} columns={ruleColumns} dataSource={rules} scroll={{ x: 1100 }} pagination={false} />
+                <Table<OaAttendanceRule>
+                  rowKey="id"
+                  loading={loading}
+                  columns={ruleColumns}
+                  dataSource={rules}
+                  scroll={{ x: 1100 }}
+                  pagination={false}
+                />
               </Space>
             ),
           },
@@ -451,7 +515,14 @@ export default function AttendanceRulesPage() {
                     刷新
                   </Button>
                 </Space>
-                <Table<OaAttendanceGroup> rowKey="id" loading={loading} columns={groupColumns} dataSource={groups} scroll={{ x: 1000 }} pagination={false} />
+                <Table<OaAttendanceGroup>
+                  rowKey="id"
+                  loading={loading}
+                  columns={groupColumns}
+                  dataSource={groups}
+                  scroll={{ x: 1000 }}
+                  pagination={false}
+                />
               </Space>
             ),
           },
@@ -467,14 +538,28 @@ export default function AttendanceRulesPage() {
       >
         <Form form={shiftForm} layout="vertical">
           <Space size="middle" style={{ display: 'flex' }}>
-            <Form.Item name="code" label="班次编码" rules={[{ required: true, message: '请输入班次编码' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="code"
+              label="班次编码"
+              rules={[{ required: true, message: '请输入班次编码' }]}
+              style={{ flex: 1 }}
+            >
               <Input maxLength={32} />
             </Form.Item>
-            <Form.Item name="name" label="班次名称" rules={[{ required: true, message: '请输入班次名称' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="name"
+              label="班次名称"
+              rules={[{ required: true, message: '请输入班次名称' }]}
+              style={{ flex: 1 }}
+            >
               <Input maxLength={64} />
             </Form.Item>
           </Space>
-          <Form.Item name="workRange" label="上下班时间" rules={[{ required: true, message: '请选择上下班时间' }]}>
+          <Form.Item
+            name="workRange"
+            label="上下班时间"
+            rules={[{ required: true, message: '请选择上下班时间' }]}
+          >
             <TimePicker.RangePicker style={{ width: '100%' }} format="HH:mm" />
           </Form.Item>
           <Space size="middle" style={{ display: 'flex' }}>
@@ -503,21 +588,46 @@ export default function AttendanceRulesPage() {
       >
         <Form form={ruleForm} layout="vertical">
           <Space size="middle" style={{ display: 'flex' }}>
-            <Form.Item name="code" label="规则编码" rules={[{ required: true, message: '请输入规则编码' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="code"
+              label="规则编码"
+              rules={[{ required: true, message: '请输入规则编码' }]}
+              style={{ flex: 1 }}
+            >
               <Input maxLength={32} />
             </Form.Item>
-            <Form.Item name="name" label="规则名称" rules={[{ required: true, message: '请输入规则名称' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="name"
+              label="规则名称"
+              rules={[{ required: true, message: '请输入规则名称' }]}
+              style={{ flex: 1 }}
+            >
               <Input maxLength={64} />
             </Form.Item>
           </Space>
           <Space size="middle" style={{ display: 'flex' }}>
-            <Form.Item name="allowExternal" label="允许外勤" valuePropName="checked" style={{ flex: 1 }}>
+            <Form.Item
+              name="allowExternal"
+              label="允许外勤"
+              valuePropName="checked"
+              style={{ flex: 1 }}
+            >
               <Switch />
             </Form.Item>
-            <Form.Item name="requireLocation" label="需定位" valuePropName="checked" style={{ flex: 1 }}>
+            <Form.Item
+              name="requireLocation"
+              label="需定位"
+              valuePropName="checked"
+              style={{ flex: 1 }}
+            >
               <Switch />
             </Form.Item>
-            <Form.Item name="requireDevice" label="需设备" valuePropName="checked" style={{ flex: 1 }}>
+            <Form.Item
+              name="requireDevice"
+              label="需设备"
+              valuePropName="checked"
+              style={{ flex: 1 }}
+            >
               <Switch />
             </Form.Item>
             <Form.Item name="enabled" label="启用" valuePropName="checked" style={{ flex: 1 }}>
@@ -548,15 +658,30 @@ export default function AttendanceRulesPage() {
       >
         <Form form={groupForm} layout="vertical">
           <Space size="middle" style={{ display: 'flex' }}>
-            <Form.Item name="code" label="考勤组编码" rules={[{ required: true, message: '请输入考勤组编码' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="code"
+              label="考勤组编码"
+              rules={[{ required: true, message: '请输入考勤组编码' }]}
+              style={{ flex: 1 }}
+            >
               <Input maxLength={32} />
             </Form.Item>
-            <Form.Item name="name" label="考勤组名称" rules={[{ required: true, message: '请输入考勤组名称' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="name"
+              label="考勤组名称"
+              rules={[{ required: true, message: '请输入考勤组名称' }]}
+              style={{ flex: 1 }}
+            >
               <Input maxLength={64} />
             </Form.Item>
           </Space>
           <Space size="middle" style={{ display: 'flex' }}>
-            <Form.Item name="shiftId" label="班次" rules={[{ required: true, message: '请选择班次' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="shiftId"
+              label="班次"
+              rules={[{ required: true, message: '请选择班次' }]}
+              style={{ flex: 1 }}
+            >
               <InputNumber style={{ width: '100%' }} min={1} precision={0} placeholder="班次ID" />
             </Form.Item>
             <Form.Item name="ruleId" label="规则ID" style={{ flex: 1 }}>
@@ -581,7 +706,12 @@ export default function AttendanceRulesPage() {
                       name={[field.name, 'userId']}
                       rules={[{ required: true, message: '用户ID' }]}
                     >
-                      <InputNumber style={{ width: 140 }} min={1} precision={0} placeholder="用户ID" />
+                      <InputNumber
+                        style={{ width: 140 }}
+                        min={1}
+                        precision={0}
+                        placeholder="用户ID"
+                      />
                     </Form.Item>
                     <Form.Item name={[field.name, 'userName']}>
                       <Input style={{ width: 180 }} placeholder="姓名" maxLength={64} />

@@ -112,21 +112,18 @@ function AuditPanel() {
   const [remark, setRemark] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const load = useCallback(
-    (page: number, type: 'THREAD' | 'POST') => {
-      setLoading(true);
-      fetchAuditPage(type, page, PAGE_SIZE)
-        .then((data) => {
-          setRows(data.records);
-          setTotal(data.total);
-        })
-        .catch((err: unknown) => {
-          message.error(err instanceof Error ? err.message : '加载待审队列失败');
-        })
-        .finally(() => setLoading(false));
-    },
-    [],
-  );
+  const load = useCallback((page: number, type: 'THREAD' | 'POST') => {
+    setLoading(true);
+    fetchAuditPage(type, page, PAGE_SIZE)
+      .then((data) => {
+        setRows(data.records);
+        setTotal(data.total);
+      })
+      .catch((err: unknown) => {
+        message.error(err instanceof Error ? err.message : '加载待审队列失败');
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   useEffect(() => {
     load(current, targetType);
@@ -326,10 +323,20 @@ function AppealPanel() {
   };
 
   const columns: ColumnsType<AppealItem> = [
-    { title: '申诉人', dataIndex: 'userId', width: 150, render: (value: string) => `鲸友 #${value}` },
+    {
+      title: '申诉人',
+      dataIndex: 'userId',
+      width: 150,
+      render: (value: string) => `鲸友 #${value}`,
+    },
     { title: '对象', width: 150, render: (_, row) => appealTargetLabel(row) },
     { title: '理由', dataIndex: 'reason', ellipsis: true },
-    { title: '状态', dataIndex: 'status', width: 100, render: (value: string) => appealStatusTag(value) },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      width: 100,
+      render: (value: string) => appealStatusTag(value),
+    },
     { title: '提交时间', dataIndex: 'createTime', width: 180 },
     {
       title: '操作',
@@ -434,7 +441,12 @@ function ReportPanel() {
   const [current, setCurrent] = useState(1);
   const [loading, setLoading] = useState(false);
   const [handling, setHandling] = useState<ReportItem | null>(null);
-  const [form] = Form.useForm<{ status: string; action: string; muteDays: number; remark: string }>();
+  const [form] = Form.useForm<{
+    status: string;
+    action: string;
+    muteDays: number;
+    remark: string;
+  }>();
   const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback((page: number, state: string) => {
@@ -531,7 +543,9 @@ function ReportPanel() {
           onClick={() => {
             flushNotify()
               .then((count) => message.success(`已补投 ${count} 条通知`))
-              .catch((err: unknown) => message.error(err instanceof Error ? err.message : '补投失败'));
+              .catch((err: unknown) =>
+                message.error(err instanceof Error ? err.message : '补投失败'),
+              );
           }}
         >
           补投通知
@@ -672,7 +686,9 @@ function WordPanel() {
                 message.success('已删除');
                 load(current, keyword);
               })
-              .catch((err: unknown) => message.error(err instanceof Error ? err.message : '删除失败'));
+              .catch((err: unknown) =>
+                message.error(err instanceof Error ? err.message : '删除失败'),
+              );
           }}
         >
           删除
@@ -698,7 +714,9 @@ function WordPanel() {
           onClick={() => {
             reloadSensitiveWords()
               .then((count) => message.success(`词库已重载，共 ${count} 条`))
-              .catch((err: unknown) => message.error(err instanceof Error ? err.message : '重载失败'));
+              .catch((err: unknown) =>
+                message.error(err instanceof Error ? err.message : '重载失败'),
+              );
           }}
         >
           重载缓存
@@ -723,7 +741,12 @@ function WordPanel() {
         showSizeChanger={false}
       />
 
-      <Form form={form} layout="inline" style={{ marginTop: 16 }} initialValues={{ action: 'BLOCK' }}>
+      <Form
+        form={form}
+        layout="inline"
+        style={{ marginTop: 16 }}
+        initialValues={{ action: 'BLOCK' }}
+      >
         <Form.Item name="word" rules={[{ required: true, message: '请输入敏感词' }]}>
           <Input placeholder="敏感词" style={{ width: 180 }} />
         </Form.Item>

@@ -163,7 +163,9 @@ export default function SealAdminPage() {
       setModalOpen(false);
       await load();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '用章申请保存失败（请确认印章授权有效）');
+      message.error(
+        error instanceof Error ? error.message : '用章申请保存失败（请确认印章授权有效）',
+      );
     } finally {
       setSaving(false);
     }
@@ -292,7 +294,10 @@ export default function SealAdminPage() {
           placeholder="状态"
           style={{ width: 130 }}
           value={status || undefined}
-          options={Object.entries(STATUS_META).map(([value, meta]) => ({ label: meta.text, value }))}
+          options={Object.entries(STATUS_META).map(([value, meta]) => ({
+            label: meta.text,
+            value,
+          }))}
           onChange={(value) => {
             setStatus((value as OaAdministrativeStatus) ?? '');
             setCurrent(1);
@@ -329,7 +334,12 @@ export default function SealAdminPage() {
       >
         <Form form={form} layout="vertical">
           <Space size="middle" style={{ display: 'flex' }}>
-            <Form.Item name="applicant" label="申请人" rules={[{ required: true, message: '请输入申请人' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="applicant"
+              label="申请人"
+              rules={[{ required: true, message: '请输入申请人' }]}
+              style={{ flex: 1 }}
+            >
               <Input maxLength={64} />
             </Form.Item>
             <Form.Item name="applicantId" label="申请人ID" style={{ flex: 1 }}>
@@ -356,7 +366,11 @@ export default function SealAdminPage() {
               <DatePicker showTime style={{ width: '100%' }} format="YYYY-MM-DD HH:mm" />
             </Form.Item>
           </Space>
-          <Form.Item name="reason" label="用章事由" rules={[{ required: true, message: '请输入用章事由' }]}>
+          <Form.Item
+            name="reason"
+            label="用章事由"
+            rules={[{ required: true, message: '请输入用章事由' }]}
+          >
             <Input.TextArea rows={3} maxLength={512} showCount />
           </Form.Item>
           <Form.List name="files">
@@ -370,11 +384,19 @@ export default function SealAdminPage() {
                 </Space>
                 {fields.map((field) => (
                   <Space key={field.key} size="small" align="baseline">
-                    <Form.Item name={[field.name, 'fileName']} rules={[{ required: true, message: '文件名称必填' }]}>
+                    <Form.Item
+                      name={[field.name, 'fileName']}
+                      rules={[{ required: true, message: '文件名称必填' }]}
+                    >
                       <Input style={{ width: 260 }} placeholder="文件名称" maxLength={128} />
                     </Form.Item>
                     <Form.Item name={[field.name, 'fileId']}>
-                      <InputNumber style={{ width: 160 }} min={1} precision={0} placeholder="文件ID（选填）" />
+                      <InputNumber
+                        style={{ width: 160 }}
+                        min={1}
+                        precision={0}
+                        placeholder="文件ID（选填）"
+                      />
                     </Form.Item>
                     <Button type="link" size="small" danger onClick={() => remove(field.name)}>
                       移除

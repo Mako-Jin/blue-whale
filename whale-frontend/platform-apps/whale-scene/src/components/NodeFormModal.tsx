@@ -115,9 +115,19 @@ export default function NodeFormModal({
           <Input placeholder="例如 oa-hall（场景内唯一）" />
         </Form.Item>
         <Form.Item name="parentKey" label="父节点">
-          <Select allowClear showSearch optionFilterProp="label" options={parentOptions} placeholder="不选则为根节点" />
+          <Select
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            options={parentOptions}
+            placeholder="不选则为根节点"
+          />
         </Form.Item>
-        <Form.Item name="nodeType" label="节点类型" rules={[{ required: true, message: '请选择节点类型' }]}>
+        <Form.Item
+          name="nodeType"
+          label="节点类型"
+          rules={[{ required: true, message: '请选择节点类型' }]}
+        >
           <Select options={NODE_TYPE_OPTIONS} />
         </Form.Item>
         <Form.Item
@@ -130,7 +140,11 @@ export default function NodeFormModal({
         >
           <Input placeholder="例如 协同办公" />
         </Form.Item>
-        <Form.Item name="icon" label="图标标识" rules={[{ max: 64, message: '图标标识不能超过 64 个字符' }]}>
+        <Form.Item
+          name="icon"
+          label="图标标识"
+          rules={[{ max: 64, message: '图标标识不能超过 64 个字符' }]}
+        >
           <Input placeholder="例如 oa / erp / doc，用于 2D 地图展示" />
         </Form.Item>
         <Form.Item name="x" label="2D 横坐标（0–1000）">

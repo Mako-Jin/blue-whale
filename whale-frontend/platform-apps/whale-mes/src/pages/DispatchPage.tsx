@@ -36,7 +36,10 @@ const TASK_STATUS_COLOR: Record<MesTaskStatus, string> = {
 };
 
 /** 任务状态筛选项 */
-const TASK_STATUS_FILTER = Object.entries(TASK_STATUS_LABEL).map(([value, label]) => ({ value, label }));
+const TASK_STATUS_FILTER = Object.entries(TASK_STATUS_LABEL).map(([value, label]) => ({
+  value,
+  label,
+}));
 
 /** 时间展示：ISO 转 `YYYY-MM-DD HH:mm` */
 function formatTime(value?: string): string {
@@ -71,7 +74,9 @@ export default function DispatchPage() {
       ]);
       setWorkOrders(pendingOrders);
       setTasks(taskPage.records);
-      setSelectedTaskIds((ids) => ids.filter((id) => taskPage.records.some((row) => row.id === id)));
+      setSelectedTaskIds((ids) =>
+        ids.filter((id) => taskPage.records.some((row) => row.id === id)),
+      );
     } finally {
       setLoading(false);
     }
@@ -111,7 +116,12 @@ export default function DispatchPage() {
       return;
     }
     try {
-      await dispatchMesTasks({ taskIds: selectedTaskIds, lineId, teamId, remark: remark || undefined });
+      await dispatchMesTasks({
+        taskIds: selectedTaskIds,
+        lineId,
+        teamId,
+        remark: remark || undefined,
+      });
       message.success('派工成功');
       setSelectedTaskIds([]);
       setRemark('');
@@ -166,7 +176,8 @@ export default function DispatchPage() {
       title: '工序',
       key: 'operation',
       width: 160,
-      render: (_, record) => `${record.operationCode ?? ''} ${record.operationName ?? ''}`.trim() || '-',
+      render: (_, record) =>
+        `${record.operationCode ?? ''} ${record.operationName ?? ''}`.trim() || '-',
     },
     { title: '工作中心', dataIndex: 'workCenterCode', key: 'workCenterCode', width: 130 },
     {
@@ -183,7 +194,9 @@ export default function DispatchPage() {
       width: 100,
       render: (value) => {
         const current = value as MesTaskStatus;
-        return <Tag color={TASK_STATUS_COLOR[current]}>{TASK_STATUS_LABEL[current] ?? current}</Tag>;
+        return (
+          <Tag color={TASK_STATUS_COLOR[current]}>{TASK_STATUS_LABEL[current] ?? current}</Tag>
+        );
       },
     },
     {
@@ -226,7 +239,10 @@ export default function DispatchPage() {
                 style={{ width: 200 }}
                 showSearch
                 optionFilterProp="label"
-                options={lineOptions.map((item) => ({ value: item.id, label: `${item.code} ${item.name}`.trim() }))}
+                options={lineOptions.map((item) => ({
+                  value: item.id,
+                  label: `${item.code} ${item.name}`.trim(),
+                }))}
                 value={lineId}
                 onChange={(value) => setLineId(value)}
               />
@@ -236,7 +252,10 @@ export default function DispatchPage() {
                 style={{ width: 200 }}
                 showSearch
                 optionFilterProp="label"
-                options={teamOptions.map((item) => ({ value: item.id, label: `${item.code} ${item.name}`.trim() }))}
+                options={teamOptions.map((item) => ({
+                  value: item.id,
+                  label: `${item.code} ${item.name}`.trim(),
+                }))}
                 value={teamId}
                 onChange={(value) => setTeamId(value)}
               />

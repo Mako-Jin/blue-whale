@@ -145,9 +145,7 @@ function MesShell() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route
               path="/work-order"
-              element={
-                <List refreshKey={refreshKey} onCreate={handleCreate} onEdit={handleEdit} />
-              }
+              element={<List refreshKey={refreshKey} onCreate={handleCreate} onEdit={handleEdit} />}
             />
             <Route path="/master-data" element={<MasterDataPage />} />
             <Route path="/dispatch" element={<DispatchPage />} />
@@ -165,7 +163,10 @@ function MesShell() {
             <Route path="/line-side/replenishment" element={<TracePage initialTab="replenish" />} />
             <Route path="/quality" element={<QualityPage initialTab="plan" />} />
             <Route path="/quality/plan" element={<QualityPage initialTab="plan" />} />
-            <Route path="/quality/first-article" element={<QualityPage initialTab="first-article" />} />
+            <Route
+              path="/quality/first-article"
+              element={<QualityPage initialTab="first-article" />}
+            />
             <Route path="/quality/ipqc" element={<QualityPage initialTab="ipqc" />} />
             <Route path="/quality/ncr" element={<QualityPage initialTab="ncr" />} />
             <Route path="/quality/disposition" element={<QualityPage initialTab="disposition" />} />
@@ -175,7 +176,10 @@ function MesShell() {
             <Route path="/equipment" element={<EquipmentPage initialTab="ledger" />} />
             <Route path="/equipment/ledger" element={<EquipmentPage initialTab="ledger" />} />
             <Route path="/equipment/status" element={<EquipmentPage initialTab="status" />} />
-            <Route path="/equipment/maintenance" element={<EquipmentPage initialTab="maintenance" />} />
+            <Route
+              path="/equipment/maintenance"
+              element={<EquipmentPage initialTab="maintenance" />}
+            />
             <Route path="/equipment/repair" element={<EquipmentPage initialTab="repair" />} />
             <Route path="/equipment/spare" element={<EquipmentPage initialTab="spare" />} />
             <Route path="/equipment/oee" element={<EquipmentPage initialTab="oee" />} />
@@ -190,7 +194,10 @@ function MesShell() {
             <Route path="/workforce/shift" element={<WorkforcePage initialTab="shift" />} />
             <Route path="/workforce/handover" element={<WorkforcePage initialTab="handover" />} />
             <Route path="/workforce/work-hour" element={<WorkforcePage initialTab="work-hour" />} />
-            <Route path="/workforce/performance" element={<WorkforcePage initialTab="performance" />} />
+            <Route
+              path="/workforce/performance"
+              element={<WorkforcePage initialTab="performance" />}
+            />
             <Route path="/workforce/skill" element={<WorkforcePage initialTab="skill" />} />
             <Route path="*" element={<Navigate to="/work-order" replace />} />
           </Routes>

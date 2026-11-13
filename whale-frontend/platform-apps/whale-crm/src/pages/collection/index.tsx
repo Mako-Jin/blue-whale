@@ -102,7 +102,10 @@ function PlanEditorModal({ open, contractId, onCancel, onSaved }: PlanEditorProp
   const [contractAmount, setContractAmount] = useState<number | null>(null);
   const [loadingAmount, setLoadingAmount] = useState(false);
   const installments = Form.useWatch('installments', form) as InstallmentFormValues[] | undefined;
-  const total = (installments ?? []).reduce((sum, item) => sum + (Number(item?.plannedAmount) || 0), 0);
+  const total = (installments ?? []).reduce(
+    (sum, item) => sum + (Number(item?.plannedAmount) || 0),
+    0,
+  );
 
   useEffect(() => {
     if (!open) {
@@ -123,7 +126,9 @@ function PlanEditorModal({ open, contractId, onCancel, onSaved }: PlanEditorProp
     setLoadingAmount(true);
     try {
       const contract = await getContract(id);
-      setContractAmount(contract.amount === null || contract.amount === undefined ? null : Number(contract.amount));
+      setContractAmount(
+        contract.amount === null || contract.amount === undefined ? null : Number(contract.amount),
+      );
     } catch (error) {
       setContractAmount(null);
       message.error(errorText(error));
@@ -193,7 +198,14 @@ function PlanEditorModal({ open, contractId, onCancel, onSaved }: PlanEditorProp
             {loadingAmount ? '读取中…' : formatAmount(contractAmount)}
           </Typography.Text>
           <Typography.Text>分期合计：</Typography.Text>
-          <Typography.Text strong type={contractAmount !== null && Math.abs(total - contractAmount) > 0.01 ? 'danger' : 'success'}>
+          <Typography.Text
+            strong
+            type={
+              contractAmount !== null && Math.abs(total - contractAmount) > 0.01
+                ? 'danger'
+                : 'success'
+            }
+          >
             {formatAmount(total)}
           </Typography.Text>
           {contractAmount !== null && Math.abs(total - contractAmount) > 0.01 && (
@@ -244,7 +256,10 @@ function PlanEditorModal({ open, contractId, onCancel, onSaved }: PlanEditorProp
                     title: '优先级',
                     width: 120,
                     render: (_, field) => (
-                      <Form.Item name={[field.name, 'priorityOverride']} style={{ marginBottom: 0 }}>
+                      <Form.Item
+                        name={[field.name, 'priorityOverride']}
+                        style={{ marginBottom: 0 }}
+                      >
                         <Select
                           allowClear
                           placeholder="按逾期自动"
@@ -309,9 +324,10 @@ function PromiseModal({ plan, onCancel, onSaved }: PromiseModalProps) {
       form.resetFields();
       form.setFieldsValue({
         promiseDate: plan.promiseDate ?? undefined,
-        promiseAmount: plan.promiseAmount === null || plan.promiseAmount === undefined
-          ? undefined
-          : Number(plan.promiseAmount),
+        promiseAmount:
+          plan.promiseAmount === null || plan.promiseAmount === undefined
+            ? undefined
+            : Number(plan.promiseAmount),
         remark: plan.remark ?? undefined,
       });
     }
@@ -423,7 +439,11 @@ function ActionModal({ plan, onCancel, onSaved }: ActionModalProps) {
       onCancel={onCancel}
     >
       <Form form={form} layout="vertical">
-        <Form.Item name="actionType" label="催收动作" rules={[{ required: true, message: '请选择催收动作' }]}>
+        <Form.Item
+          name="actionType"
+          label="催收动作"
+          rules={[{ required: true, message: '请选择催收动作' }]}
+        >
           <Select options={COLLECTION_ACTION_OPTIONS} />
         </Form.Item>
         <Form.Item name="content" label="催收内容">
@@ -481,7 +501,10 @@ export default function CollectionPage() {
     setDetailPlan(row);
     setDetailLoading(true);
     try {
-      const [fresh, actions] = await Promise.all([getCollection(row.id), listCollectionActions(row.id)]);
+      const [fresh, actions] = await Promise.all([
+        getCollection(row.id),
+        listCollectionActions(row.id),
+      ]);
       setDetailPlan(fresh);
       setDetailActions(actions);
     } catch (error) {
@@ -508,9 +531,24 @@ export default function CollectionPage() {
   };
 
   const columns: TableProps<CollectionPlanView>['columns'] = [
-    { title: '合同 ID', dataIndex: 'contractId', width: 100, render: (value?: number | null) => value ?? '-' },
-    { title: '客户 ID', dataIndex: 'customerId', width: 100, render: (value?: number | null) => value ?? '-' },
-    { title: '期次', dataIndex: 'installmentNo', width: 70, render: (value?: number | null) => value ?? '-' },
+    {
+      title: '合同 ID',
+      dataIndex: 'contractId',
+      width: 100,
+      render: (value?: number | null) => value ?? '-',
+    },
+    {
+      title: '客户 ID',
+      dataIndex: 'customerId',
+      width: 100,
+      render: (value?: number | null) => value ?? '-',
+    },
+    {
+      title: '期次',
+      dataIndex: 'installmentNo',
+      width: 70,
+      render: (value?: number | null) => value ?? '-',
+    },
     {
       title: '计划金额',
       dataIndex: 'plannedAmount',
@@ -518,7 +556,12 @@ export default function CollectionPage() {
       align: 'right',
       render: (value?: number | string | null) => formatAmount(value),
     },
-    { title: '计划回款日', dataIndex: 'plannedDate', width: 120, render: (value?: string | null) => value || '-' },
+    {
+      title: '计划回款日',
+      dataIndex: 'plannedDate',
+      width: 120,
+      render: (value?: string | null) => value || '-',
+    },
     {
       title: '逾期',
       dataIndex: 'overdueDays',
@@ -556,7 +599,12 @@ export default function CollectionPage() {
       width: 90,
       render: (value?: string | null) => COLLECTION_STATUS_LABEL[value ?? ''] ?? value ?? '-',
     },
-    { title: '负责人', dataIndex: 'ownerId', width: 90, render: (value?: number | null) => value ?? '-' },
+    {
+      title: '负责人',
+      dataIndex: 'ownerId',
+      width: 90,
+      render: (value?: number | null) => value ?? '-',
+    },
     {
       title: '操作',
       key: 'action',
@@ -599,7 +647,12 @@ export default function CollectionPage() {
         ) : null
       }
     >
-      <Form form={filterForm} layout="inline" onFinish={handleSearch} style={{ marginBottom: 16, rowGap: 12 }}>
+      <Form
+        form={filterForm}
+        layout="inline"
+        onFinish={handleSearch}
+        style={{ marginBottom: 16, rowGap: 12 }}
+      >
         <Form.Item name="contractId">
           <InputNumber min={1} precision={0} placeholder="合同 ID" style={{ width: 130 }} />
         </Form.Item>
@@ -607,7 +660,12 @@ export default function CollectionPage() {
           <InputNumber min={1} precision={0} placeholder="客户 ID" style={{ width: 130 }} />
         </Form.Item>
         <Form.Item name="status">
-          <Select placeholder="计划状态" allowClear style={{ width: 130 }} options={COLLECTION_STATUS_OPTIONS} />
+          <Select
+            placeholder="计划状态"
+            allowClear
+            style={{ width: 130 }}
+            options={COLLECTION_STATUS_OPTIONS}
+          />
         </Form.Item>
         <Form.Item name="overdueOnly">
           <Select
@@ -687,8 +745,12 @@ export default function CollectionPage() {
               <Descriptions.Item label="合同 ID">{detailPlan.contractId}</Descriptions.Item>
               <Descriptions.Item label="客户 ID">{detailPlan.customerId}</Descriptions.Item>
               <Descriptions.Item label="期次">{detailPlan.installmentNo}</Descriptions.Item>
-              <Descriptions.Item label="计划金额">{formatAmount(detailPlan.plannedAmount)}</Descriptions.Item>
-              <Descriptions.Item label="计划回款日">{detailPlan.plannedDate || '-'}</Descriptions.Item>
+              <Descriptions.Item label="计划金额">
+                {formatAmount(detailPlan.plannedAmount)}
+              </Descriptions.Item>
+              <Descriptions.Item label="计划回款日">
+                {detailPlan.plannedDate || '-'}
+              </Descriptions.Item>
               <Descriptions.Item label="状态">
                 {COLLECTION_STATUS_LABEL[detailPlan.status] ?? detailPlan.status}
               </Descriptions.Item>
@@ -700,8 +762,12 @@ export default function CollectionPage() {
               <Descriptions.Item label="逾期">
                 {detailPlan.overdueDays ? `${detailPlan.overdueDays} 天` : '-'}
               </Descriptions.Item>
-              <Descriptions.Item label="承诺还款日">{detailPlan.promiseDate || '-'}</Descriptions.Item>
-              <Descriptions.Item label="承诺金额">{formatAmount(detailPlan.promiseAmount)}</Descriptions.Item>
+              <Descriptions.Item label="承诺还款日">
+                {detailPlan.promiseDate || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="承诺金额">
+                {formatAmount(detailPlan.promiseAmount)}
+              </Descriptions.Item>
               <Descriptions.Item label="备注" span={2}>
                 {detailPlan.remark || '-'}
               </Descriptions.Item>
@@ -722,8 +788,17 @@ export default function CollectionPage() {
                   render: (value?: string | null) =>
                     COLLECTION_ACTION_LABEL[value ?? ''] ?? value ?? '-',
                 },
-                { title: '内容', dataIndex: 'content', render: (value?: string | null) => value || '-' },
-                { title: '承诺还款日', dataIndex: 'promiseDate', width: 120, render: (value?: string | null) => value || '-' },
+                {
+                  title: '内容',
+                  dataIndex: 'content',
+                  render: (value?: string | null) => value || '-',
+                },
+                {
+                  title: '承诺还款日',
+                  dataIndex: 'promiseDate',
+                  width: 120,
+                  render: (value?: string | null) => value || '-',
+                },
                 {
                   title: '承诺金额',
                   dataIndex: 'promiseAmount',

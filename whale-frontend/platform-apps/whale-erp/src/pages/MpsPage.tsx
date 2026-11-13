@@ -115,7 +115,13 @@ export default function MpsPage() {
   const columns: TableProps<MpsPlanView>['columns'] = [
     { title: '计划单号', dataIndex: 'planNo', key: 'planNo', width: 180 },
     { title: '计划期间', dataIndex: 'period', key: 'period', width: 110 },
-    { title: '总计划数量', dataIndex: 'totalPlanned', key: 'totalPlanned', width: 130, render: quantity },
+    {
+      title: '总计划数量',
+      dataIndex: 'totalPlanned',
+      key: 'totalPlanned',
+      width: 130,
+      render: quantity,
+    },
     {
       title: '状态',
       dataIndex: 'status',
@@ -135,7 +141,10 @@ export default function MpsPage() {
             查看
           </Button>
           {record.status === 'DRAFT' && hasPermission('sys:erp:mps:release') ? (
-            <Popconfirm title="下达后分录计划数量将固化，确认继续？" onConfirm={() => handleRelease(record.id)}>
+            <Popconfirm
+              title="下达后分录计划数量将固化，确认继续？"
+              onConfirm={() => handleRelease(record.id)}
+            >
               <Button type="link" size="small">
                 下达
               </Button>
@@ -158,7 +167,13 @@ export default function MpsPage() {
     { title: '物料编码', dataIndex: 'itemCode', key: 'itemCode', width: 140 },
     { title: '物料名称', dataIndex: 'itemName', key: 'itemName' },
     { title: '单位', dataIndex: 'uom', key: 'uom', width: 90 },
-    { title: '计划数量', dataIndex: 'plannedQuantity', key: 'plannedQuantity', width: 120, render: quantity },
+    {
+      title: '计划数量',
+      dataIndex: 'plannedQuantity',
+      key: 'plannedQuantity',
+      width: 120,
+      render: quantity,
+    },
     {
       title: '已下达数量',
       dataIndex: 'releasedQuantity',
@@ -180,13 +195,22 @@ export default function MpsPage() {
         <Button onClick={() => setStatus(undefined)} type={status ? 'default' : 'primary'}>
           全部
         </Button>
-        <Button onClick={() => setStatus('DRAFT')} type={status === 'DRAFT' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('DRAFT')}
+          type={status === 'DRAFT' ? 'primary' : 'default'}
+        >
           草稿
         </Button>
-        <Button onClick={() => setStatus('RELEASED')} type={status === 'RELEASED' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('RELEASED')}
+          type={status === 'RELEASED' ? 'primary' : 'default'}
+        >
           已下达
         </Button>
-        <Button onClick={() => setStatus('CANCELLED')} type={status === 'CANCELLED' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('CANCELLED')}
+          type={status === 'CANCELLED' ? 'primary' : 'default'}
+        >
           已取消
         </Button>
         {hasPermission('sys:erp:mps:add') ? (
@@ -205,7 +229,11 @@ export default function MpsPage() {
         destroyOnHidden
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="period" label="计划期间" rules={[{ required: true, message: '请选择计划期间' }]}>
+          <Form.Item
+            name="period"
+            label="计划期间"
+            rules={[{ required: true, message: '请选择计划期间' }]}
+          >
             <DatePicker picker="month" format="YYYY-MM" />
           </Form.Item>
           <Form.List name="lines">
@@ -232,7 +260,12 @@ export default function MpsPage() {
                       name={[field.name, 'plannedQuantity']}
                       rules={[{ required: true, message: '计划数量' }]}
                     >
-                      <InputNumber placeholder="计划数量" min={0.0001} precision={4} style={{ width: 120 }} />
+                      <InputNumber
+                        placeholder="计划数量"
+                        min={0.0001}
+                        precision={4}
+                        style={{ width: 120 }}
+                      />
                     </Form.Item>
                     <Form.Item name={[field.name, 'uom']}>
                       <Input placeholder="单位" style={{ width: 90 }} maxLength={16} />

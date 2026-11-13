@@ -167,7 +167,12 @@ function LedgerPanel({ onChanged }: { onChanged: () => Promise<void> }) {
   const [formOpen, setFormOpen] = useState(false);
   const [statusTarget, setStatusTarget] = useState<MesEquipment | null>(null);
   const [form] = Form.useForm<MesEquipmentInput>();
-  const [statusForm] = Form.useForm<{ toStatus: MesEquipmentStatus; operator?: string; reasonName?: string; remark?: string }>();
+  const [statusForm] = Form.useForm<{
+    toStatus: MesEquipmentStatus;
+    operator?: string;
+    reasonName?: string;
+    remark?: string;
+  }>();
   const canManage = hasPermission('sys:mes:equipment:manage');
   const canChangeStatus = hasPermission('sys:mes:equipment:status');
 
@@ -249,7 +254,12 @@ function LedgerPanel({ onChanged }: { onChanged: () => Promise<void> }) {
       width: 80,
       render: (value: number) => (value === 1 ? <Tag color="green">启用</Tag> : <Tag>停用</Tag>),
     },
-    { title: '保养周期', dataIndex: 'maintenanceCycleDays', key: 'maintenanceCycleDays', width: 100 },
+    {
+      title: '保养周期',
+      dataIndex: 'maintenanceCycleDays',
+      key: 'maintenanceCycleDays',
+      width: 100,
+    },
     {
       title: '操作',
       key: 'action',
@@ -326,12 +336,20 @@ function LedgerPanel({ onChanged }: { onChanged: () => Promise<void> }) {
         <Form form={form} layout="vertical">
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="equipmentCode" label="设备编码" rules={[{ required: true, message: '请输入设备编码' }]}>
+              <Form.Item
+                name="equipmentCode"
+                label="设备编码"
+                rules={[{ required: true, message: '请输入设备编码' }]}
+              >
                 <Input />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="equipmentName" label="设备名称" rules={[{ required: true, message: '请输入设备名称' }]}>
+              <Form.Item
+                name="equipmentName"
+                label="设备名称"
+                rules={[{ required: true, message: '请输入设备名称' }]}
+              >
                 <Input />
               </Form.Item>
             </Col>
@@ -405,7 +423,11 @@ function LedgerPanel({ onChanged }: { onChanged: () => Promise<void> }) {
         destroyOnHidden
       >
         <Form form={statusForm} layout="vertical">
-          <Form.Item name="toStatus" label="目标状态" rules={[{ required: true, message: '请选择目标状态' }]}>
+          <Form.Item
+            name="toStatus"
+            label="目标状态"
+            rules={[{ required: true, message: '请选择目标状态' }]}
+          >
             <Select options={EQUIPMENT_STATUS_FILTER} />
           </Form.Item>
           <Form.Item name="operator" label="操作人">
@@ -481,7 +503,8 @@ function StatusPanel({ equipment }: { equipment: MesEquipment[] }) {
       dataIndex: 'plannedFlag',
       key: 'plannedFlag',
       width: 100,
-      render: (value: number) => (value === 1 ? <Tag color="blue">计划</Tag> : <Tag color="red">非计划</Tag>),
+      render: (value: number) =>
+        value === 1 ? <Tag color="blue">计划</Tag> : <Tag color="red">非计划</Tag>,
     },
     {
       title: '开始时间',
@@ -548,7 +571,11 @@ function MaintenancePanel({ equipment }: { equipment: MesEquipment[] }) {
   const [accepting, setAccepting] = useState<MesMaintenanceOrder | null>(null);
   const [planForm] = Form.useForm();
   const [orderForm] = Form.useForm();
-  const [completeForm] = Form.useForm<{ completedBy?: string; checklistText: string; remark?: string }>();
+  const [completeForm] = Form.useForm<{
+    completedBy?: string;
+    checklistText: string;
+    remark?: string;
+  }>();
   const [acceptForm] = Form.useForm<{ acceptedBy?: string; conclusion: string }>();
   const canManage = hasPermission('sys:mes:equipment:maintenance');
 
@@ -662,7 +689,11 @@ function MaintenancePanel({ equipment }: { equipment: MesEquipment[] }) {
       dataIndex: 'status',
       key: 'status',
       width: 100,
-      render: (value: string) => <Tag color={value === 'ENABLED' ? 'green' : 'default'}>{value === 'ENABLED' ? '启用' : value}</Tag>,
+      render: (value: string) => (
+        <Tag color={value === 'ENABLED' ? 'green' : 'default'}>
+          {value === 'ENABLED' ? '启用' : value}
+        </Tag>
+      ),
     },
   ];
 
@@ -682,7 +713,9 @@ function MaintenancePanel({ equipment }: { equipment: MesEquipment[] }) {
       key: 'status',
       width: 100,
       render: (value: string) => (
-        <Tag color={MAINTENANCE_STATUS_COLOR[value]}>{MAINTENANCE_STATUS_LABEL[value] ?? value}</Tag>
+        <Tag color={MAINTENANCE_STATUS_COLOR[value]}>
+          {MAINTENANCE_STATUS_LABEL[value] ?? value}
+        </Tag>
       ),
     },
     { title: '执行人', dataIndex: 'assignee', key: 'assignee', width: 100 },
@@ -716,7 +749,10 @@ function MaintenancePanel({ equipment }: { equipment: MesEquipment[] }) {
               size="small"
               onClick={() => {
                 setAccepting(record);
-                acceptForm.setFieldsValue({ acceptedBy: record.completedBy, conclusion: '保养合格' });
+                acceptForm.setFieldsValue({
+                  acceptedBy: record.completedBy,
+                  conclusion: '保养合格',
+                });
               }}
             >
               验收
@@ -780,19 +816,38 @@ function MaintenancePanel({ equipment }: { equipment: MesEquipment[] }) {
         onOk={() => void submitPlan()}
         destroyOnHidden
       >
-        <Form form={planForm} layout="vertical" initialValues={{ maintenanceType: 'ROUTINE', status: 'ENABLED', cycleDays: 30 }}>
-          <Form.Item name="equipmentId" label="设备" rules={[{ required: true, message: '请选择设备' }]}>
+        <Form
+          form={planForm}
+          layout="vertical"
+          initialValues={{ maintenanceType: 'ROUTINE', status: 'ENABLED', cycleDays: 30 }}
+        >
+          <Form.Item
+            name="equipmentId"
+            label="设备"
+            rules={[{ required: true, message: '请选择设备' }]}
+          >
             <Select showSearch optionFilterProp="label" options={equipmentOptions(equipment)} />
           </Form.Item>
           <Form.Item name="maintenanceType" label="保养类型">
             <Select
-              options={Object.entries(MAINTENANCE_TYPE_LABEL).map(([value, label]) => ({ value, label }))}
+              options={Object.entries(MAINTENANCE_TYPE_LABEL).map(([value, label]) => ({
+                value,
+                label,
+              }))}
             />
           </Form.Item>
-          <Form.Item name="cycleDays" label="周期（天）" rules={[{ required: true, message: '请输入周期' }]}>
+          <Form.Item
+            name="cycleDays"
+            label="周期（天）"
+            rules={[{ required: true, message: '请输入周期' }]}
+          >
             <InputNumber min={1} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="checklist" label="保养项（分号分隔）" rules={[{ required: true, message: '请输入保养项' }]}>
+          <Form.Item
+            name="checklist"
+            label="保养项（分号分隔）"
+            rules={[{ required: true, message: '请输入保养项' }]}
+          >
             <Input.TextArea rows={2} placeholder="润滑;紧固;清洁" />
           </Form.Item>
           <Form.Item name="status" label="状态">
@@ -817,7 +872,11 @@ function MaintenancePanel({ equipment }: { equipment: MesEquipment[] }) {
         destroyOnHidden
       >
         <Form form={orderForm} layout="vertical">
-          <Form.Item name="planId" label="保养计划" rules={[{ required: true, message: '请选择保养计划' }]}>
+          <Form.Item
+            name="planId"
+            label="保养计划"
+            rules={[{ required: true, message: '请选择保养计划' }]}
+          >
             <Select
               showSearch
               optionFilterProp="label"
@@ -847,7 +906,11 @@ function MaintenancePanel({ equipment }: { equipment: MesEquipment[] }) {
         destroyOnHidden
       >
         <Form form={completeForm} layout="vertical">
-          <Form.Item name="completedBy" label="完工人员" rules={[{ required: true, message: '请输入完工人员' }]}>
+          <Form.Item
+            name="completedBy"
+            label="完工人员"
+            rules={[{ required: true, message: '请输入完工人员' }]}
+          >
             <Input />
           </Form.Item>
           <Form.Item
@@ -871,10 +934,18 @@ function MaintenancePanel({ equipment }: { equipment: MesEquipment[] }) {
         destroyOnHidden
       >
         <Form form={acceptForm} layout="vertical">
-          <Form.Item name="acceptedBy" label="验收人" rules={[{ required: true, message: '请输入验收人' }]}>
+          <Form.Item
+            name="acceptedBy"
+            label="验收人"
+            rules={[{ required: true, message: '请输入验收人' }]}
+          >
             <Input />
           </Form.Item>
-          <Form.Item name="conclusion" label="验收结论" rules={[{ required: true, message: '请输入验收结论' }]}>
+          <Form.Item
+            name="conclusion"
+            label="验收结论"
+            rules={[{ required: true, message: '请输入验收结论' }]}
+          >
             <Input.TextArea rows={2} />
           </Form.Item>
         </Form>
@@ -888,7 +959,10 @@ function RepairPanel({ equipment }: { equipment: MesEquipment[] }) {
   const [rows, setRows] = useState<MesRepairOrder[]>([]);
   const [loading, setLoading] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
-  const [action, setAction] = useState<{ type: 'assign' | 'start' | 'verify' | 'close'; order: MesRepairOrder } | null>(null);
+  const [action, setAction] = useState<{
+    type: 'assign' | 'start' | 'verify' | 'close';
+    order: MesRepairOrder;
+  } | null>(null);
   const [createForm] = Form.useForm();
   const [actionForm] = Form.useForm();
   const canRepair = hasPermission('sys:mes:equipment:repair');
@@ -1066,10 +1140,18 @@ function RepairPanel({ equipment }: { equipment: MesEquipment[] }) {
         destroyOnHidden
       >
         <Form form={createForm} layout="vertical" initialValues={{ severity: 'MAJOR' }}>
-          <Form.Item name="equipmentId" label="设备" rules={[{ required: true, message: '请选择设备' }]}>
+          <Form.Item
+            name="equipmentId"
+            label="设备"
+            rules={[{ required: true, message: '请选择设备' }]}
+          >
             <Select showSearch optionFilterProp="label" options={equipmentOptions(equipment)} />
           </Form.Item>
-          <Form.Item name="faultDesc" label="故障描述" rules={[{ required: true, message: '请输入故障描述' }]}>
+          <Form.Item
+            name="faultDesc"
+            label="故障描述"
+            rules={[{ required: true, message: '请输入故障描述' }]}
+          >
             <Input.TextArea rows={2} />
           </Form.Item>
           <Form.Item name="severity" label="严重度">
@@ -1099,7 +1181,11 @@ function RepairPanel({ equipment }: { equipment: MesEquipment[] }) {
       >
         <Form form={actionForm} layout="vertical">
           {action?.type === 'assign' && (
-            <Form.Item name="assignee" label="维修人" rules={[{ required: true, message: '请输入维修人' }]}>
+            <Form.Item
+              name="assignee"
+              label="维修人"
+              rules={[{ required: true, message: '请输入维修人' }]}
+            >
               <Input />
             </Form.Item>
           )}
@@ -1108,10 +1194,18 @@ function RepairPanel({ equipment }: { equipment: MesEquipment[] }) {
               <Form.Item name="repairDesc" label="维修说明">
                 <Input.TextArea rows={2} />
               </Form.Item>
-              <Form.Item name="verifiedBy" label="验证人" rules={[{ required: true, message: '请输入验证人' }]}>
+              <Form.Item
+                name="verifiedBy"
+                label="验证人"
+                rules={[{ required: true, message: '请输入验证人' }]}
+              >
                 <Input />
               </Form.Item>
-              <Form.Item name="verifyConclusion" label="验证结论" rules={[{ required: true, message: '请输入验证结论' }]}>
+              <Form.Item
+                name="verifyConclusion"
+                label="验证结论"
+                rules={[{ required: true, message: '请输入验证结论' }]}
+              >
                 <Input.TextArea rows={2} />
               </Form.Item>
             </>
@@ -1288,10 +1382,18 @@ function SparePanel() {
         destroyOnHidden
       >
         <Form form={partForm} layout="vertical" initialValues={{ status: 'ENABLED', uom: '件' }}>
-          <Form.Item name="partCode" label="备件编码" rules={[{ required: true, message: '请输入备件编码' }]}>
+          <Form.Item
+            name="partCode"
+            label="备件编码"
+            rules={[{ required: true, message: '请输入备件编码' }]}
+          >
             <Input />
           </Form.Item>
-          <Form.Item name="partName" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
+          <Form.Item
+            name="partName"
+            label="名称"
+            rules={[{ required: true, message: '请输入名称' }]}
+          >
             <Input />
           </Form.Item>
           <Form.Item name="spec" label="规格">
@@ -1325,17 +1427,28 @@ function SparePanel() {
         destroyOnHidden
       >
         <Form form={stockForm} layout="vertical" initialValues={{ warehouseCode: 'DEFAULT' }}>
-          <Form.Item name="partCode" label="备件编码" rules={[{ required: true, message: '请输入备件编码' }]}>
+          <Form.Item
+            name="partCode"
+            label="备件编码"
+            rules={[{ required: true, message: '请输入备件编码' }]}
+          >
             <Select
               showSearch
               optionFilterProp="label"
-              options={parts.map((item) => ({ value: item.partCode, label: `${item.partCode} ${item.partName}` }))}
+              options={parts.map((item) => ({
+                value: item.partCode,
+                label: `${item.partCode} ${item.partName}`,
+              }))}
             />
           </Form.Item>
           <Form.Item name="warehouseCode" label="仓库">
             <Input />
           </Form.Item>
-          <Form.Item name="quantity" label="数量" rules={[{ required: true, message: '请输入数量' }]}>
+          <Form.Item
+            name="quantity"
+            label="数量"
+            rules={[{ required: true, message: '请输入数量' }]}
+          >
             <InputNumber min={0.001} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="refNo" label="关联单号">
@@ -1425,7 +1538,9 @@ function OeePanel({ equipment }: { equipment: MesEquipment[] }) {
       dataIndex: 'oee',
       key: 'oee',
       width: 100,
-      render: (value) => <Tag color="green">{formatRate(value as number | string | undefined)}</Tag>,
+      render: (value) => (
+        <Tag color="green">{formatRate(value as number | string | undefined)}</Tag>
+      ),
     },
     {
       title: '计算时间',
@@ -1456,34 +1571,71 @@ function OeePanel({ equipment }: { equipment: MesEquipment[] }) {
           }}
           onFinish={() => void submit()}
         >
-          <Form.Item name="equipmentId" label="设备" rules={[{ required: true, message: '请选择设备' }]}>
-            <Select showSearch optionFilterProp="label" style={{ width: 200 }} options={equipmentOptions(equipment)} />
+          <Form.Item
+            name="equipmentId"
+            label="设备"
+            rules={[{ required: true, message: '请选择设备' }]}
+          >
+            <Select
+              showSearch
+              optionFilterProp="label"
+              style={{ width: 200 }}
+              options={equipmentOptions(equipment)}
+            />
           </Form.Item>
-          <Form.Item name="shiftDate" label="日期" rules={[{ required: true, message: '请选择日期' }]}>
+          <Form.Item
+            name="shiftDate"
+            label="日期"
+            rules={[{ required: true, message: '请选择日期' }]}
+          >
             <DatePicker />
           </Form.Item>
-          <Form.Item name="shiftCode" label="班次" rules={[{ required: true, message: '请输入班次' }]}>
+          <Form.Item
+            name="shiftCode"
+            label="班次"
+            rules={[{ required: true, message: '请输入班次' }]}
+          >
             <Input style={{ width: 90 }} />
           </Form.Item>
-          <Form.Item name="plannedMinutes" label="计划分钟" rules={[{ required: true, message: '请输入计划分钟' }]}>
+          <Form.Item
+            name="plannedMinutes"
+            label="计划分钟"
+            rules={[{ required: true, message: '请输入计划分钟' }]}
+          >
             <InputNumber min={1} style={{ width: 110 }} />
           </Form.Item>
           <Form.Item name="plannedDowntimeMinutes" label="计划停机">
             <InputNumber min={0} style={{ width: 110 }} />
           </Form.Item>
-          <Form.Item name="runMinutes" label="运行分钟" rules={[{ required: true, message: '请输入运行分钟' }]}>
+          <Form.Item
+            name="runMinutes"
+            label="运行分钟"
+            rules={[{ required: true, message: '请输入运行分钟' }]}
+          >
             <InputNumber min={0} style={{ width: 110 }} />
           </Form.Item>
           <Form.Item name="downtimeMinutes" label="停机分钟">
             <InputNumber min={0} style={{ width: 110 }} />
           </Form.Item>
-          <Form.Item name="totalCount" label="总产量" rules={[{ required: true, message: '请输入总产量' }]}>
+          <Form.Item
+            name="totalCount"
+            label="总产量"
+            rules={[{ required: true, message: '请输入总产量' }]}
+          >
             <InputNumber min={0} style={{ width: 110 }} />
           </Form.Item>
-          <Form.Item name="goodCount" label="合格产量" rules={[{ required: true, message: '请输入合格产量' }]}>
+          <Form.Item
+            name="goodCount"
+            label="合格产量"
+            rules={[{ required: true, message: '请输入合格产量' }]}
+          >
             <InputNumber min={0} style={{ width: 110 }} />
           </Form.Item>
-          <Form.Item name="idealCycleSeconds" label="理想节拍(秒)" rules={[{ required: true, message: '请输入理想节拍' }]}>
+          <Form.Item
+            name="idealCycleSeconds"
+            label="理想节拍(秒)"
+            rules={[{ required: true, message: '请输入理想节拍' }]}
+          >
             <InputNumber min={0.001} style={{ width: 120 }} />
           </Form.Item>
           <Form.Item>
@@ -1497,7 +1649,10 @@ function OeePanel({ equipment }: { equipment: MesEquipment[] }) {
         <Card size="small">
           <Row gutter={16}>
             <Col span={6}>
-              <Statistic title={`${latest.equipmentCode} 可用率`} value={formatRate(latest.availability)} />
+              <Statistic
+                title={`${latest.equipmentCode} 可用率`}
+                value={formatRate(latest.availability)}
+              />
             </Col>
             <Col span={6}>
               <Statistic title="性能" value={formatRate(latest.performance)} />
@@ -1555,7 +1710,12 @@ export default function EquipmentPage({ initialTab = 'ledger' }: { initialTab?: 
       <Typography.Title level={5} style={{ margin: 0 }}>
         设备与 OEE
       </Typography.Title>
-      <Tabs activeKey={tab} onChange={(key) => setTab(key as EquipmentTab)} items={items} destroyInactiveTabPane />
+      <Tabs
+        activeKey={tab}
+        onChange={(key) => setTab(key as EquipmentTab)}
+        items={items}
+        destroyInactiveTabPane
+      />
     </Space>
   );
 }

@@ -48,7 +48,7 @@ function bounceLabel(type?: string | null): string {
  * @returns 可直接赋给 srcDoc 的完整文档
  */
 function buildSrcDoc(html: string, allowImages: boolean): string {
-  const imgSrc = allowImages ? "data: cid: http: https:" : 'data: cid:';
+  const imgSrc = allowImages ? 'data: cid: http: https:' : 'data: cid:';
   const csp = [
     "default-src 'none'",
     `img-src ${imgSrc}`,
@@ -139,7 +139,9 @@ export default function MailReader({
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+      <div
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}
+      >
         <Spin tip="正在读取邮件正文…">
           <div style={{ width: 200, height: 60 }} />
         </Spin>
@@ -149,7 +151,9 @@ export default function MailReader({
 
   if (!message) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+      <div
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}
+      >
         <Empty description="从左侧选择一封邮件查看" image={Empty.PRESENTED_IMAGE_SIMPLE} />
       </div>
     );
@@ -160,7 +164,9 @@ export default function MailReader({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-      <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid #f0f0f0', flex: '0 0 auto' }}>
+      <div
+        style={{ padding: '16px 20px 12px', borderBottom: '1px solid #f0f0f0', flex: '0 0 auto' }}
+      >
         <Space style={{ width: '100%', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <Typography.Title level={5} style={{ margin: 0, flex: 1 }}>
             {message.subject || '(无主题)'}
@@ -169,11 +175,7 @@ export default function MailReader({
             <Button size="small" type="text" onClick={() => onToggleFlag(message)}>
               {message.flagged === 1 ? '★ 取消星标' : '☆ 加星标'}
             </Button>
-            <Button
-              size="small"
-              type="text"
-              onClick={() => onToggleSeen(message)}
-            >
+            <Button size="small" type="text" onClick={() => onToggleSeen(message)}>
               {message.seen === 1 ? '标为未读' : '标为已读'}
             </Button>
             <Button size="small" type="text" onClick={() => onReply(message)}>
@@ -186,7 +188,10 @@ export default function MailReader({
         </Space>
         <div style={{ marginTop: 8, color: '#57606a', fontSize: 13, lineHeight: 1.8 }}>
           <div>
-            发件人：{message.fromName ? `${message.fromName} <${message.fromAddr ?? ''}>` : message.fromAddr || '-'}
+            发件人：
+            {message.fromName
+              ? `${message.fromName} <${message.fromAddr ?? ''}>`
+              : message.fromAddr || '-'}
             <span style={{ marginLeft: 16 }}>
               {message.sentTime ? dayjs(message.sentTime).format('YYYY-MM-DD HH:mm') : '-'}
             </span>
@@ -216,9 +221,13 @@ export default function MailReader({
                   >
                     {bounceLabel(item.bounceType)}
                   </Tag>
-                  {item.statusCode ? <span style={{ marginLeft: 8 }}>{item.statusCode}</span> : null}
+                  {item.statusCode ? (
+                    <span style={{ marginLeft: 8 }}>{item.statusCode}</span>
+                  ) : null}
                   {item.diagnostic ? (
-                    <div style={{ color: '#57606a', wordBreak: 'break-all' }}>{item.diagnostic}</div>
+                    <div style={{ color: '#57606a', wordBreak: 'break-all' }}>
+                      {item.diagnostic}
+                    </div>
                   ) : null}
                 </div>
               ))}
@@ -255,7 +264,14 @@ export default function MailReader({
         ) : (
           <div style={{ padding: 20, height: '100%', overflow: 'auto' }}>
             {message.bodyText ? (
-              <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'inherit', margin: 0 }}>
+              <pre
+                style={{
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                  fontFamily: 'inherit',
+                  margin: 0,
+                }}
+              >
                 {message.bodyText}
               </pre>
             ) : (

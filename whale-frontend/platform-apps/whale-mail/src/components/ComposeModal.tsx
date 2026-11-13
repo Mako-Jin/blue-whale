@@ -4,7 +4,19 @@
 // 草稿仍**不保存附件**（`mail_draft` 不落附件引用），界面上明确提示，
 // 避免用户存了草稿以为附件还在。
 
-import { Alert, Button, Form, Input, Modal, Select, Space, Tag, Typography, Upload, message as toast } from 'antd';
+import {
+  Alert,
+  Button,
+  Form,
+  Input,
+  Modal,
+  Select,
+  Space,
+  Tag,
+  Typography,
+  Upload,
+  message as toast,
+} from 'antd';
 import { useEffect, useState } from 'react';
 import {
   createDraft,
@@ -288,7 +300,11 @@ export default function ComposeModal({
           ]}
           tooltip="输入后按回车添加，可粘贴多个地址（逗号或分号分隔）"
         >
-          <Select mode="tags" placeholder="name@example.com" tokenSeparators={[',', ';', '，', '；']} />
+          <Select
+            mode="tags"
+            placeholder="name@example.com"
+            tokenSeparators={[',', ';', '，', '；']}
+          />
         </Form.Item>
         <Space style={{ width: '100%' }} size={16}>
           <Form.Item name="cc" label="抄送" style={{ flex: 1 }}>

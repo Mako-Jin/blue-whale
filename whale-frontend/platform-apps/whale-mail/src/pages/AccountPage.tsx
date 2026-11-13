@@ -178,7 +178,11 @@ export default function AccountPage() {
       dataIndex: 'lastSyncTime',
       width: 170,
       render: (value: string | null) =>
-        value ? dayjs(value).format('YYYY-MM-DD HH:mm') : <Typography.Text type="secondary">从未</Typography.Text>,
+        value ? (
+          dayjs(value).format('YYYY-MM-DD HH:mm')
+        ) : (
+          <Typography.Text type="secondary">从未</Typography.Text>
+        ),
     },
     {
       title: '操作',
@@ -189,7 +193,12 @@ export default function AccountPage() {
           <Button size="small" type="link" onClick={() => openForm(row)}>
             编辑
           </Button>
-          <Button size="small" type="link" loading={syncingId === row.id} onClick={() => handleSync(row)}>
+          <Button
+            size="small"
+            type="link"
+            loading={syncingId === row.id}
+            onClick={() => handleSync(row)}
+          >
             同步
           </Button>
           <Popconfirm
@@ -300,7 +309,12 @@ export default function AccountPage() {
             <Form.Item name="imapPort" label="IMAP 端口" style={{ width: 140 }}>
               <InputNumber min={1} max={65535} style={{ width: '100%' }} placeholder="993" />
             </Form.Item>
-            <Form.Item name="imapSsl" label="IMAP SSL" valuePropName="checked" style={{ width: 100 }}>
+            <Form.Item
+              name="imapSsl"
+              label="IMAP SSL"
+              valuePropName="checked"
+              style={{ width: 100 }}
+            >
               <Switch />
             </Form.Item>
           </Space>
@@ -311,7 +325,12 @@ export default function AccountPage() {
             <Form.Item name="smtpPort" label="SMTP 端口" style={{ width: 140 }}>
               <InputNumber min={1} max={65535} style={{ width: '100%' }} placeholder="465" />
             </Form.Item>
-            <Form.Item name="smtpSsl" label="SMTP SSL" valuePropName="checked" style={{ width: 100 }}>
+            <Form.Item
+              name="smtpSsl"
+              label="SMTP SSL"
+              valuePropName="checked"
+              style={{ width: 100 }}
+            >
               <Switch />
             </Form.Item>
           </Space>

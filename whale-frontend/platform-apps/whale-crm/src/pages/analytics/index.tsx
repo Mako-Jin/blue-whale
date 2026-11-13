@@ -42,13 +42,7 @@ import {
 
 /** 分析 tab */
 export type AnalyticsTab =
-  | 'dashboard'
-  | 'funnel'
-  | 'customer'
-  | 'ranking'
-  | 'collection'
-  | 'snapshot'
-  | 'export';
+  'dashboard' | 'funnel' | 'customer' | 'ranking' | 'collection' | 'snapshot' | 'export';
 
 /**
  * 读取错误文案。
@@ -126,20 +120,57 @@ function DashboardPanel() {
   }, [load]);
 
   return (
-    <Card title="销售看板" extra={<Button onClick={() => void load()} loading={loading}>刷新</Button>}>
+    <Card
+      title="销售看板"
+      extra={
+        <Button onClick={() => void load()} loading={loading}>
+          刷新
+        </Button>
+      }
+    >
       {data ? (
         <>
           <Row gutter={[16, 16]}>
-            <Col xs={24} sm={12} md={6}><Card><Statistic title="今日新增线索" value={data.todayNewLeads} /></Card></Col>
-            <Col xs={24} sm={12} md={6}><Card><Statistic title="本周签单额" value={money(data.weekWonAmount)} /></Card></Col>
             <Col xs={24} sm={12} md={6}>
-              <Card><Statistic title="本月目标完成率" value={percent(data.targetCompletionRate)} /></Card>
+              <Card>
+                <Statistic title="今日新增线索" value={data.todayNewLeads} />
+              </Card>
             </Col>
-            <Col xs={24} sm={12} md={6}><Card><Statistic title="预测缺口" value={money(data.forecastGap)} /></Card></Col>
-            <Col xs={24} sm={12} md={6}><Card><Statistic title="本月赢单额" value={money(data.monthWonAmount)} /></Card></Col>
-            <Col xs={24} sm={12} md={6}><Card><Statistic title="加权管道金额" value={money(data.weightedPipelineAmount)} /></Card></Col>
-            <Col xs={24} sm={12} md={6}><Card><Statistic title="风险商机数" value={data.riskOpportunityCount} /></Card></Col>
-            <Col xs={24} sm={12} md={6}><Card><Statistic title="待办行动项" value={data.openActionCount} /></Card></Col>
+            <Col xs={24} sm={12} md={6}>
+              <Card>
+                <Statistic title="本周签单额" value={money(data.weekWonAmount)} />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Card>
+                <Statistic title="本月目标完成率" value={percent(data.targetCompletionRate)} />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Card>
+                <Statistic title="预测缺口" value={money(data.forecastGap)} />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Card>
+                <Statistic title="本月赢单额" value={money(data.monthWonAmount)} />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Card>
+                <Statistic title="加权管道金额" value={money(data.weightedPipelineAmount)} />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Card>
+                <Statistic title="风险商机数" value={data.riskOpportunityCount} />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Card>
+                <Statistic title="待办行动项" value={data.openActionCount} />
+              </Card>
+            </Col>
           </Row>
           <Typography.Text type="secondary" style={{ display: 'block', marginTop: 16 }}>
             统计日：{data.statDate || '今日'}；风险商机指停留超阈值或预计关闭日已过期的未结商机。
@@ -169,11 +200,25 @@ function FunnelPanel() {
   }, [load]);
 
   const columns: TableProps<FunnelViewData['stages'][number]>['columns'] = [
-    { title: '阶段', dataIndex: 'stageName', render: (value: string | null | undefined, row) => value || row.stage },
+    {
+      title: '阶段',
+      dataIndex: 'stageName',
+      render: (value: string | null | undefined, row) => value || row.stage,
+    },
     { title: '数量', dataIndex: 'count', width: 120 },
     { title: '金额', dataIndex: 'amount', width: 160, render: (value?: number) => money(value) },
-    { title: '转化率', dataIndex: 'conversionRate', width: 120, render: (value?: number) => percent(value) },
-    { title: '平均停留（天）', dataIndex: 'avgStayDays', width: 140, render: (value?: number) => value ?? '-' },
+    {
+      title: '转化率',
+      dataIndex: 'conversionRate',
+      width: 120,
+      render: (value?: number) => percent(value),
+    },
+    {
+      title: '平均停留（天）',
+      dataIndex: 'avgStayDays',
+      width: 140,
+      render: (value?: number) => value ?? '-',
+    },
   ];
 
   return (
@@ -183,9 +228,17 @@ function FunnelPanel() {
         style={{ marginBottom: 16 }}
         onFinish={(values) => void load(values.startDate || undefined, values.endDate || undefined)}
       >
-        <Form.Item name="startDate"><Input placeholder="开始日期 yyyy-MM-dd" style={{ width: 180 }} /></Form.Item>
-        <Form.Item name="endDate"><Input placeholder="结束日期 yyyy-MM-dd" style={{ width: 180 }} /></Form.Item>
-        <Form.Item><Button type="primary" htmlType="submit">查询</Button></Form.Item>
+        <Form.Item name="startDate">
+          <Input placeholder="开始日期 yyyy-MM-dd" style={{ width: 180 }} />
+        </Form.Item>
+        <Form.Item name="endDate">
+          <Input placeholder="结束日期 yyyy-MM-dd" style={{ width: 180 }} />
+        </Form.Item>
+        <Form.Item>
+          <Button type="primary" htmlType="submit">
+            查询
+          </Button>
+        </Form.Item>
       </Form>
       {data && (
         <>
@@ -234,7 +287,12 @@ function CustomerPanel() {
       title="客户分析"
       extra={
         <Space>
-          <Input placeholder="统计日 yyyy-MM-dd" value={statDate} onChange={(event) => setStatDate(event.target.value)} style={{ width: 180 }} />
+          <Input
+            placeholder="统计日 yyyy-MM-dd"
+            value={statDate}
+            onChange={(event) => setStatDate(event.target.value)}
+            style={{ width: 180 }}
+          />
           <Button onClick={() => void load(statDate)}>查询</Button>
         </Space>
       }
@@ -247,10 +305,18 @@ function CustomerPanel() {
             <Statistic title="TOP5 集中度" value={percent(data.top5Concentration)} />
           </Space>
           <Row gutter={[16, 16]}>
-            <Col xs={24} md={12}><DistributionTable title="等级分布" data={data.levelDistribution} /></Col>
-            <Col xs={24} md={12}><DistributionTable title="行业分布" data={data.industryDistribution} /></Col>
-            <Col xs={24} md={12}><DistributionTable title="来源分布" data={data.sourceDistribution} /></Col>
-            <Col xs={24} md={12}><DistributionTable title="区域分布" data={data.regionDistribution} /></Col>
+            <Col xs={24} md={12}>
+              <DistributionTable title="等级分布" data={data.levelDistribution} />
+            </Col>
+            <Col xs={24} md={12}>
+              <DistributionTable title="行业分布" data={data.industryDistribution} />
+            </Col>
+            <Col xs={24} md={12}>
+              <DistributionTable title="来源分布" data={data.sourceDistribution} />
+            </Col>
+            <Col xs={24} md={12}>
+              <DistributionTable title="区域分布" data={data.regionDistribution} />
+            </Col>
           </Row>
         </>
       ) : (
@@ -278,11 +344,26 @@ function RankingPanel() {
 
   const columns: TableProps<RankingRow>['columns'] = [
     { title: '排名', dataIndex: 'rank', width: 80 },
-    { title: '负责人', dataIndex: 'ownerName', width: 160, render: (value?: string, row?: RankingRow) => value || row?.ownerId || '-' },
-    { title: '签单额', dataIndex: 'wonAmount', width: 160, render: (value?: number) => money(value) },
+    {
+      title: '负责人',
+      dataIndex: 'ownerName',
+      width: 160,
+      render: (value?: string, row?: RankingRow) => value || row?.ownerId || '-',
+    },
+    {
+      title: '签单额',
+      dataIndex: 'wonAmount',
+      width: 160,
+      render: (value?: number) => money(value),
+    },
     { title: '赢单数', dataIndex: 'wonCount', width: 100 },
     { title: '合同数', dataIndex: 'contractCount', width: 100 },
-    { title: '回款率', dataIndex: 'collectionRate', width: 120, render: (value?: number) => percent(value) },
+    {
+      title: '回款率',
+      dataIndex: 'collectionRate',
+      width: 120,
+      render: (value?: number) => percent(value),
+    },
   ];
 
   return (
@@ -292,9 +373,17 @@ function RankingPanel() {
         style={{ marginBottom: 16 }}
         onFinish={(values) => void load(values.startDate || undefined, values.endDate || undefined)}
       >
-        <Form.Item name="startDate"><Input placeholder="开始日期 yyyy-MM-dd" style={{ width: 180 }} /></Form.Item>
-        <Form.Item name="endDate"><Input placeholder="结束日期 yyyy-MM-dd" style={{ width: 180 }} /></Form.Item>
-        <Form.Item><Button type="primary" htmlType="submit">查询</Button></Form.Item>
+        <Form.Item name="startDate">
+          <Input placeholder="开始日期 yyyy-MM-dd" style={{ width: 180 }} />
+        </Form.Item>
+        <Form.Item name="endDate">
+          <Input placeholder="结束日期 yyyy-MM-dd" style={{ width: 180 }} />
+        </Form.Item>
+        <Form.Item>
+          <Button type="primary" htmlType="submit">
+            查询
+          </Button>
+        </Form.Item>
       </Form>
       <Table<RankingRow> rowKey="rank" dataSource={rows} columns={columns} pagination={false} />
     </Card>
@@ -323,7 +412,12 @@ function CollectionPanel() {
       title="回款分析"
       extra={
         <Space>
-          <Input placeholder="统计日 yyyy-MM-dd" value={statDate} onChange={(event) => setStatDate(event.target.value)} style={{ width: 180 }} />
+          <Input
+            placeholder="统计日 yyyy-MM-dd"
+            value={statDate}
+            onChange={(event) => setStatDate(event.target.value)}
+            style={{ width: 180 }}
+          />
           <Button onClick={() => void load(statDate)}>查询</Button>
         </Space>
       }
@@ -339,7 +433,12 @@ function CollectionPanel() {
             <Col xs={24} md={12}>
               <DistributionTable
                 title="账龄分布（金额）"
-                data={Object.fromEntries(Object.entries(data.agingDistribution ?? {}).map(([key, value]) => [key, Number(value)]))}
+                data={Object.fromEntries(
+                  Object.entries(data.agingDistribution ?? {}).map(([key, value]) => [
+                    key,
+                    Number(value),
+                  ]),
+                )}
               />
             </Col>
             <Col xs={24} md={12}>
@@ -350,8 +449,20 @@ function CollectionPanel() {
                   dataSource={data.keyOverdueCustomers}
                   pagination={false}
                   columns={[
-                    { title: '客户', dataIndex: 'customerName', render: (value?: string, row?: CollectionAnalysisData['keyOverdueCustomers'][number]) => value || row?.customerId || '-' },
-                    { title: '逾期金额', dataIndex: 'overdueAmount', width: 140, render: (value?: number) => money(value) },
+                    {
+                      title: '客户',
+                      dataIndex: 'customerName',
+                      render: (
+                        value?: string,
+                        row?: CollectionAnalysisData['keyOverdueCustomers'][number],
+                      ) => value || row?.customerId || '-',
+                    },
+                    {
+                      title: '逾期金额',
+                      dataIndex: 'overdueAmount',
+                      width: 140,
+                      render: (value?: number) => money(value),
+                    },
                     { title: '逾期天数', dataIndex: 'days', width: 100 },
                   ]}
                 />
@@ -406,8 +517,17 @@ function SnapshotPanel() {
       title="指标快照"
       extra={
         <Space>
-          <Input placeholder="统计日（默认昨日）" value={statDate} onChange={(event) => setStatDate(event.target.value)} style={{ width: 200 }} />
-          {hasPermission('sys:crm:analytics:dashboard') && <Button type="primary" onClick={() => void generate()}>生成快照</Button>}
+          <Input
+            placeholder="统计日（默认昨日）"
+            value={statDate}
+            onChange={(event) => setStatDate(event.target.value)}
+            style={{ width: 200 }}
+          />
+          {hasPermission('sys:crm:analytics:dashboard') && (
+            <Button type="primary" onClick={() => void generate()}>
+              生成快照
+            </Button>
+          )}
         </Space>
       }
     >
@@ -433,8 +553,18 @@ function SnapshotPanel() {
           { title: '指标编码', dataIndex: 'metricCode', width: 200 },
           { title: '统计日', dataIndex: 'statDate', width: 120 },
           { title: '维度类型', dataIndex: 'dimensionType', width: 120 },
-          { title: '维度', dataIndex: 'dimensionId', width: 120, render: (value?: string) => value || 'TOTAL' },
-          { title: '指标值', dataIndex: 'metricValue', width: 160, render: (value?: number) => (value == null ? '-' : value) },
+          {
+            title: '维度',
+            dataIndex: 'dimensionId',
+            width: 120,
+            render: (value?: string) => value || 'TOTAL',
+          },
+          {
+            title: '指标值',
+            dataIndex: 'metricValue',
+            width: 160,
+            render: (value?: number) => (value == null ? '-' : value),
+          },
           { title: '附加信息', dataIndex: 'metricExtra', render: (value?: string) => value || '-' },
         ]}
       />
@@ -489,27 +619,45 @@ function ExportPanel() {
             { value: 'ACTION', label: '行动项明细' },
           ]}
         />
-        {hasPermission('sys:crm:export') && <Button type="primary" onClick={() => void handleCreate()}>创建导出</Button>}
-        {task && task.status === 'COMPLETED' && <Button type="primary" ghost onClick={() => void download()}>下载 CSV</Button>}
+        {hasPermission('sys:crm:export') && (
+          <Button type="primary" onClick={() => void handleCreate()}>
+            创建导出
+          </Button>
+        )}
+        {task && task.status === 'COMPLETED' && (
+          <Button type="primary" ghost onClick={() => void download()}>
+            下载 CSV
+          </Button>
+        )}
       </Space>
       {task && (
         <Descriptions bordered size="small" column={2}>
           <Descriptions.Item label="任务号">{task.exportNo}</Descriptions.Item>
           <Descriptions.Item label="类型">{task.exportType}</Descriptions.Item>
           <Descriptions.Item label="状态">
-            <Tag color={task.status === 'COMPLETED' ? 'success' : task.status === 'FAILED' ? 'red' : 'processing'}>
+            <Tag
+              color={
+                task.status === 'COMPLETED'
+                  ? 'success'
+                  : task.status === 'FAILED'
+                    ? 'red'
+                    : 'processing'
+              }
+            >
               {task.status}
             </Tag>
           </Descriptions.Item>
           <Descriptions.Item label="行数">{task.rowCount ?? '-'}</Descriptions.Item>
           <Descriptions.Item label="文件">{task.fileName || '-'}</Descriptions.Item>
           <Descriptions.Item label="文件 ID">{task.fileId ?? '-'}</Descriptions.Item>
-          <Descriptions.Item label="错误" span={2}>{task.error || '-'}</Descriptions.Item>
+          <Descriptions.Item label="错误" span={2}>
+            {task.error || '-'}
+          </Descriptions.Item>
         </Descriptions>
       )}
       <Typography.Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
-        单次导出上限由 whale.crm.analytics.export-max-rows 控制；手机号 / 邮箱默认脱敏。
-        导出文件由 whale-file 统一存储，点击“下载 CSV”按 fileId 拉取。
+        单次导出上限由 whale.crm.analytics.export-max-rows 控制；手机号 / 邮箱默认脱敏。 导出文件由
+        whale-file 统一存储，点击“下载 CSV”按 fileId 拉取。
       </Typography.Text>
     </Card>
   );

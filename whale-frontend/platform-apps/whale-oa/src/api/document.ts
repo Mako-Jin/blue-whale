@@ -7,13 +7,7 @@ export type OaDocType = 'OUTGOING' | 'INCOMING';
 
 /** 发文状态 */
 export type OaOutgoingStatus =
-  | 'DRAFT'
-  | 'PENDING'
-  | 'APPROVED'
-  | 'REJECTED'
-  | 'SIGNED'
-  | 'ISSUED'
-  | 'ARCHIVED';
+  'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'SIGNED' | 'ISSUED' | 'ARCHIVED';
 
 /** 收文状态 */
 export type OaIncomingStatus = 'REGISTERED' | 'REVIEWED' | 'FORWARDED' | 'COMPLETED' | 'ARCHIVED';
@@ -274,10 +268,7 @@ export function createOutgoingDoc(input: OaDocOutgoingInput): Promise<OaDocOutgo
 }
 
 /** 编辑发文 */
-export function updateOutgoingDoc(
-  id: number,
-  input: OaDocOutgoingInput,
-): Promise<OaDocOutgoing> {
+export function updateOutgoingDoc(id: number, input: OaDocOutgoingInput): Promise<OaDocOutgoing> {
   return http.put<OaDocOutgoing>(`/oa/document/outgoing/${id}`, input);
 }
 
@@ -330,10 +321,7 @@ export function createIncomingDoc(input: OaDocIncomingInput): Promise<OaDocIncom
 }
 
 /** 编辑收文 */
-export function updateIncomingDoc(
-  id: number,
-  input: OaDocIncomingInput,
-): Promise<OaDocIncoming> {
+export function updateIncomingDoc(id: number, input: OaDocIncomingInput): Promise<OaDocIncoming> {
   return http.put<OaDocIncoming>(`/oa/document/incoming/${id}`, input);
 }
 
@@ -370,7 +358,9 @@ export function archiveIncomingDoc(id: number): Promise<OaDocIncoming> {
 
 /** 分页查询归档映射 */
 export function pageArchiveRefs(params: OaDocQuery = {}): Promise<PageResult<OaDocArchiveRef>> {
-  return http.get<PageResult<OaDocArchiveRef>>(`/oa/document/archive/refs/page${buildQuery(params)}`);
+  return http.get<PageResult<OaDocArchiveRef>>(
+    `/oa/document/archive/refs/page${buildQuery(params)}`,
+  );
 }
 
 /** 重试归档 */

@@ -59,7 +59,10 @@ const EDUCATION_OPTIONS = [
  * @param depth 当前层级
  * @returns 选项列表
  */
-function flattenBranches(nodes: BranchTreeView[], depth = 0): Array<{ value: number; label: string }> {
+function flattenBranches(
+  nodes: BranchTreeView[],
+  depth = 0,
+): Array<{ value: number; label: string }> {
   return nodes.flatMap((node) => [
     { value: node.id, label: `${'　'.repeat(depth)}${node.branchCode} ${node.branchName}` },
     ...flattenBranches(node.children ?? [], depth + 1),
@@ -84,7 +87,12 @@ export default function MemberPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const page = await pageMember({ keyword: keyword || undefined, status, current, size: PAGE_SIZE });
+      const page = await pageMember({
+        keyword: keyword || undefined,
+        status,
+        current,
+        size: PAGE_SIZE,
+      });
       setRows(page.records);
       setTotal(Number(page.total));
     } catch (err) {
@@ -180,7 +188,9 @@ export default function MemberPage() {
       dataIndex: 'politicalLabel',
       width: 100,
       render: (_value, row) => (
-        <Tag color={row.politicalStatus === 'PROBATIONARY' ? 'gold' : 'blue'}>{row.politicalLabel}</Tag>
+        <Tag color={row.politicalStatus === 'PROBATIONARY' ? 'gold' : 'blue'}>
+          {row.politicalLabel}
+        </Tag>
       ),
     },
     { title: '入党日期', dataIndex: 'joinPartyDate', width: 110 },
@@ -200,7 +210,11 @@ export default function MemberPage() {
       dataIndex: 'statusLabel',
       width: 90,
       render: (_value, row) => (
-        <Tag color={row.status === 'ACTIVE' ? 'green' : row.status === 'TRANSFERRED' ? 'default' : 'red'}>
+        <Tag
+          color={
+            row.status === 'ACTIVE' ? 'green' : row.status === 'TRANSFERRED' ? 'default' : 'red'
+          }
+        >
           {row.statusLabel}
         </Tag>
       ),
@@ -307,10 +321,18 @@ export default function MemberPage() {
           >
             <Input maxLength={64} disabled={Boolean(editing)} />
           </Form.Item>
-          <Form.Item name="memberName" label="姓名" rules={[{ required: true, message: '请输入姓名' }]}>
+          <Form.Item
+            name="memberName"
+            label="姓名"
+            rules={[{ required: true, message: '请输入姓名' }]}
+          >
             <Input maxLength={64} />
           </Form.Item>
-          <Form.Item name="branchId" label="所属支部" rules={[{ required: true, message: '请选择支部' }]}>
+          <Form.Item
+            name="branchId"
+            label="所属支部"
+            rules={[{ required: true, message: '请选择支部' }]}
+          >
             <Select showSearch optionFilterProp="label" options={branchOptions} />
           </Form.Item>
           <Form.Item name="politicalStatus" label="政治面貌">

@@ -86,7 +86,9 @@ function CouponTemplateTab() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState({ current: 1, size: 10 });
-  const [filter, setFilter] = useState<{ keyword?: string; couponType?: string; status?: string }>({});
+  const [filter, setFilter] = useState<{ keyword?: string; couponType?: string; status?: string }>(
+    {},
+  );
   const [editing, setEditing] = useState<CouponView | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -357,7 +359,11 @@ function CouponTemplateTab() {
           >
             <Input maxLength={128} placeholder="如 满 100 减 20" />
           </Form.Item>
-          <Form.Item label="券类型" name="couponType" rules={[{ required: true, message: '请选择券类型' }]}>
+          <Form.Item
+            label="券类型"
+            name="couponType"
+            rules={[{ required: true, message: '请选择券类型' }]}
+          >
             <Select options={TYPE_OPTIONS} />
           </Form.Item>
           <Form.Item label="使用门槛（元）" name="thresholdAmount">
@@ -370,7 +376,13 @@ function CouponTemplateTab() {
                 name="discountRate"
                 rules={[{ required: true, message: '请填写折扣率' }]}
               >
-                <InputNumber min={0.01} max={0.99} step={0.05} precision={4} style={{ width: '100%' }} />
+                <InputNumber
+                  min={0.01}
+                  max={0.99}
+                  step={0.05}
+                  precision={4}
+                  style={{ width: '100%' }}
+                />
               </Form.Item>
               <Form.Item
                 label="折扣封顶（元）"
@@ -460,7 +472,9 @@ function MyCouponTab() {
       dataIndex: 'status',
       width: 100,
       render: (value: string) => (
-        <Tag color={COUPON_USER_STATUS_COLOR[value]}>{COUPON_USER_STATUS_LABEL[value] ?? value}</Tag>
+        <Tag color={COUPON_USER_STATUS_COLOR[value]}>
+          {COUPON_USER_STATUS_LABEL[value] ?? value}
+        </Tag>
       ),
     },
     {

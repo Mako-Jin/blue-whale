@@ -201,81 +201,93 @@ export default function RulePanel() {
   };
 
   const columns: ColumnsType<MailRule> = [
-      {
-        title: '顺序',
-        dataIndex: 'sortNo',
-        width: 70,
-        render: (value: number) => <Typography.Text type="secondary">{value}</Typography.Text>,
-      },
-      {
-        title: '规则',
-        dataIndex: 'name',
-        render: (_, row) => (
-          <Space direction="vertical" size={2}>
-            <Typography.Text strong>{row.name}</Typography.Text>
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              发件人 {renderCondition(row.matchFrom)} · 主题 {renderCondition(row.matchSubject)}
-            </Typography.Text>
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              收件人 {renderCondition(row.matchTo)}
-              {row.onlyWithAttachment ? ' · 仅含附件' : ''}
-            </Typography.Text>
-          </Space>
-        ),
-      },
-      {
-        title: '动作',
-        key: 'actions',
-        width: 240,
-        render: (_, row) => (
-          <Space size={4} wrap>
-            {row.actionFolderId ? <Tag color="blue">归入 {row.actionFolderName ?? '已下线文件夹'}</Tag> : null}
-            {row.actionMarkSeen ? <Tag>标记已读</Tag> : null}
-            {row.actionFlagged ? <Tag>加星标</Tag> : null}
-          </Space>
-        ),
-      },
-      {
-        title: '命中',
-        dataIndex: 'hitCount',
-        width: 130,
-        render: (value: number, row) => (
-          <Tooltip title={row.lastHitTime ? `最近 ${dayjs(row.lastHitTime).format('YYYY-MM-DD HH:mm')}` : '尚未命中'}>
-            <span>{value} 封</span>
-          </Tooltip>
-        ),
-      },
-      {
-        title: '启用',
-        dataIndex: 'enabled',
-        width: 80,
-        render: (value: boolean, row) => (
-          <Switch size="small" checked={value} onChange={(checked) => void handleToggle(row, checked)} />
-        ),
-      },
-      {
-        title: '操作',
-        key: 'ops',
-        width: 130,
-        render: (_, row) => (
-          <Space size={4}>
-            <Button size="small" type="link" onClick={() => openForm(row)}>
-              编辑
+    {
+      title: '顺序',
+      dataIndex: 'sortNo',
+      width: 70,
+      render: (value: number) => <Typography.Text type="secondary">{value}</Typography.Text>,
+    },
+    {
+      title: '规则',
+      dataIndex: 'name',
+      render: (_, row) => (
+        <Space direction="vertical" size={2}>
+          <Typography.Text strong>{row.name}</Typography.Text>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            发件人 {renderCondition(row.matchFrom)} · 主题 {renderCondition(row.matchSubject)}
+          </Typography.Text>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            收件人 {renderCondition(row.matchTo)}
+            {row.onlyWithAttachment ? ' · 仅含附件' : ''}
+          </Typography.Text>
+        </Space>
+      ),
+    },
+    {
+      title: '动作',
+      key: 'actions',
+      width: 240,
+      render: (_, row) => (
+        <Space size={4} wrap>
+          {row.actionFolderId ? (
+            <Tag color="blue">归入 {row.actionFolderName ?? '已下线文件夹'}</Tag>
+          ) : null}
+          {row.actionMarkSeen ? <Tag>标记已读</Tag> : null}
+          {row.actionFlagged ? <Tag>加星标</Tag> : null}
+        </Space>
+      ),
+    },
+    {
+      title: '命中',
+      dataIndex: 'hitCount',
+      width: 130,
+      render: (value: number, row) => (
+        <Tooltip
+          title={
+            row.lastHitTime
+              ? `最近 ${dayjs(row.lastHitTime).format('YYYY-MM-DD HH:mm')}`
+              : '尚未命中'
+          }
+        >
+          <span>{value} 封</span>
+        </Tooltip>
+      ),
+    },
+    {
+      title: '启用',
+      dataIndex: 'enabled',
+      width: 80,
+      render: (value: boolean, row) => (
+        <Switch
+          size="small"
+          checked={value}
+          onChange={(checked) => void handleToggle(row, checked)}
+        />
+      ),
+    },
+    {
+      title: '操作',
+      key: 'ops',
+      width: 130,
+      render: (_, row) => (
+        <Space size={4}>
+          <Button size="small" type="link" onClick={() => openForm(row)}>
+            编辑
+          </Button>
+          <Popconfirm
+            title="删除后已归类的邮件不会自动移回，确定删除该规则？"
+            okText="删除"
+            okButtonProps={{ danger: true }}
+            cancelText="取消"
+            onConfirm={() => handleRemove(row)}
+          >
+            <Button size="small" type="link" danger>
+              删除
             </Button>
-            <Popconfirm
-              title="删除后已归类的邮件不会自动移回，确定删除该规则？"
-              okText="删除"
-              okButtonProps={{ danger: true }}
-              cancelText="取消"
-              onConfirm={() => handleRemove(row)}
-            >
-              <Button size="small" type="link" danger>
-                删除
-              </Button>
-            </Popconfirm>
-          </Space>
-        ),
-      },
+          </Popconfirm>
+        </Space>
+      ),
+    },
   ];
 
   return (

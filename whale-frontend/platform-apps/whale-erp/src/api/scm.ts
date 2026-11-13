@@ -321,7 +321,9 @@ export function getCreditUsage(customerId: number): Promise<CreditUsageView> {
 export function pageStockBalances(
   params: ScmQueryParams = {},
 ): Promise<PageResult<StockBalanceView>> {
-  return http.get<PageResult<StockBalanceView>>(`/erp/scm/stock/balance/page?${buildQuery(params)}`);
+  return http.get<PageResult<StockBalanceView>>(
+    `/erp/scm/stock/balance/page?${buildQuery(params)}`,
+  );
 }
 
 /** 库存流水分页 */
@@ -487,7 +489,9 @@ export function cancelPurchaseReturn(id: number): Promise<PurchaseReturnView> {
 }
 
 /** 销售退货单分页 */
-export function pageSalesReturns(params: ScmQueryParams = {}): Promise<PageResult<SalesReturnView>> {
+export function pageSalesReturns(
+  params: ScmQueryParams = {},
+): Promise<PageResult<SalesReturnView>> {
   return http.get<PageResult<SalesReturnView>>(`/erp/scm/sales-return/page?${buildQuery(params)}`);
 }
 
@@ -798,9 +802,7 @@ export function compareSupplierPrices(
 
 /** 物料采购价格趋势（按月汇总） */
 export function priceTrend(itemId: number, months = 6): Promise<PriceTrendView[]> {
-  return http.get<PriceTrendView[]>(
-    `/erp/scm/price-list/trend?itemId=${itemId}&months=${months}`,
-  );
+  return http.get<PriceTrendView[]>(`/erp/scm/price-list/trend?itemId=${itemId}&months=${months}`);
 }
 
 /** 安全库存配置 */

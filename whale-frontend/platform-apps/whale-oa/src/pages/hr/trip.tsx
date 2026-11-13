@@ -173,17 +173,20 @@ export default function TripPage() {
   };
 
   const buildItineraries = (values: ItineraryFormValues[] | undefined, start: Dayjs, end: Dayjs) =>
-    (values ?? []).map((item, index) => ({
-      dayNo: index + 1,
-      tripDate: (item.tripDate ?? start).format('YYYY-MM-DD'),
-      fromPlace: item.fromPlace?.trim() ?? '',
-      toPlace: item.toPlace?.trim() ?? '',
-      transport: item.transport ?? 'TRAIN',
-      remark: item.remark?.trim() || undefined,
-    })).filter((item) => {
-      const inRange = !dayjs(item.tripDate).isBefore(start, 'day') && !dayjs(item.tripDate).isAfter(end, 'day');
-      return item.fromPlace !== '' && item.toPlace !== '' && inRange;
-    });
+    (values ?? [])
+      .map((item, index) => ({
+        dayNo: index + 1,
+        tripDate: (item.tripDate ?? start).format('YYYY-MM-DD'),
+        fromPlace: item.fromPlace?.trim() ?? '',
+        toPlace: item.toPlace?.trim() ?? '',
+        transport: item.transport ?? 'TRAIN',
+        remark: item.remark?.trim() || undefined,
+      }))
+      .filter((item) => {
+        const inRange =
+          !dayjs(item.tripDate).isBefore(start, 'day') && !dayjs(item.tripDate).isAfter(end, 'day');
+        return item.fromPlace !== '' && item.toPlace !== '' && inRange;
+      });
 
   const handleSave = async () => {
     const values = await form.validateFields();
@@ -325,7 +328,11 @@ export default function TripPage() {
         }
         if (record.status === 'PENDING' && canDelete) {
           actions.push(
-            <Popconfirm key="delete" title="确认删除该出差申请？" onConfirm={() => void handleDelete(record)}>
+            <Popconfirm
+              key="delete"
+              title="确认删除该出差申请？"
+              onConfirm={() => void handleDelete(record)}
+            >
               <Button type="link" size="small" danger>
                 删除
               </Button>
@@ -552,7 +559,12 @@ export default function TripPage() {
             label="报告内容"
             rules={[{ required: true, message: '请输入出差报告内容' }]}
           >
-            <Input.TextArea rows={6} maxLength={2048} showCount placeholder="出差成果、问题与后续计划" />
+            <Input.TextArea
+              rows={6}
+              maxLength={2048}
+              showCount
+              placeholder="出差成果、问题与后续计划"
+            />
           </Form.Item>
         </Form>
       </Modal>

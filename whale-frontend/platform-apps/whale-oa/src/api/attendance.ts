@@ -15,13 +15,7 @@ export type OaAttendanceSource = 'APP' | 'DEVICE' | 'WEB';
 
 /** 日报状态 */
 export type OaAttendanceDailyStatus =
-  | 'NORMAL'
-  | 'LATE'
-  | 'EARLY'
-  | 'LATE_AND_EARLY'
-  | 'ABSENT'
-  | 'LEAVE'
-  | 'OFFICIAL';
+  'NORMAL' | 'LATE' | 'EARLY' | 'LATE_AND_EARLY' | 'ABSENT' | 'LEAVE' | 'OFFICIAL';
 
 /** 异常类型 */
 export type OaAttendanceExceptionType = 'LATE' | 'EARLY' | 'ABSENT';
@@ -297,8 +291,12 @@ function buildQuery(params: object): string {
 }
 
 /** 分页查询打卡记录 */
-export function pageRecords(params: OaAttendanceRecordQuery = {}): Promise<PageResult<OaAttendanceRecord>> {
-  return http.get<PageResult<OaAttendanceRecord>>(`/oa/attendance/records/page${buildQuery(params)}`);
+export function pageRecords(
+  params: OaAttendanceRecordQuery = {},
+): Promise<PageResult<OaAttendanceRecord>> {
+  return http.get<PageResult<OaAttendanceRecord>>(
+    `/oa/attendance/records/page${buildQuery(params)}`,
+  );
 }
 
 /** 员工打卡 */
@@ -307,12 +305,18 @@ export function punch(input: OaAttendancePunchInput): Promise<OaAttendanceRecord
 }
 
 /** 分页查询考勤日报 */
-export function pageDaily(params: OaAttendanceDailyQuery = {}): Promise<PageResult<OaAttendanceDaily>> {
+export function pageDaily(
+  params: OaAttendanceDailyQuery = {},
+): Promise<PageResult<OaAttendanceDaily>> {
   return http.get<PageResult<OaAttendanceDaily>>(`/oa/attendance/daily/page${buildQuery(params)}`);
 }
 
 /** 按日期区间重算日报 */
-export function recalculateDaily(input: { dateFrom: string; dateTo: string; userId?: number }): Promise<number> {
+export function recalculateDaily(input: {
+  dateFrom: string;
+  dateTo: string;
+  userId?: number;
+}): Promise<number> {
   return http.post<number>('/oa/attendance/daily/recalculate', input);
 }
 
@@ -387,7 +391,10 @@ export function createLocation(input: OaAttendanceLocationInput): Promise<OaAtte
 }
 
 /** 更新打卡地点 */
-export function updateLocation(id: number, input: OaAttendanceLocationInput): Promise<OaAttendanceLocation> {
+export function updateLocation(
+  id: number,
+  input: OaAttendanceLocationInput,
+): Promise<OaAttendanceLocation> {
   return http.put<OaAttendanceLocation>(`/oa/attendance/locations/${id}`, input);
 }
 
@@ -407,7 +414,10 @@ export function createDevice(input: OaAttendanceDeviceInput): Promise<OaAttendan
 }
 
 /** 更新打卡设备 */
-export function updateDevice(id: number, input: OaAttendanceDeviceInput): Promise<OaAttendanceDevice> {
+export function updateDevice(
+  id: number,
+  input: OaAttendanceDeviceInput,
+): Promise<OaAttendanceDevice> {
   return http.put<OaAttendanceDevice>(`/oa/attendance/devices/${id}`, input);
 }
 
@@ -420,7 +430,9 @@ export function deleteDevice(id: number): Promise<void> {
 export function pageExceptions(
   params: OaAttendanceExceptionQuery = {},
 ): Promise<PageResult<OaAttendanceException>> {
-  return http.get<PageResult<OaAttendanceException>>(`/oa/attendance/exceptions/page${buildQuery(params)}`);
+  return http.get<PageResult<OaAttendanceException>>(
+    `/oa/attendance/exceptions/page${buildQuery(params)}`,
+  );
 }
 
 /** 处理考勤异常（确认或豁免） */
@@ -438,7 +450,9 @@ export function pageCorrections(
 }
 
 /** 提交补卡申请 */
-export function createCorrection(input: OaAttendanceCorrectionInput): Promise<OaAttendanceCorrection> {
+export function createCorrection(
+  input: OaAttendanceCorrectionInput,
+): Promise<OaAttendanceCorrection> {
   return http.post<OaAttendanceCorrection>('/oa/attendance/corrections', input);
 }
 

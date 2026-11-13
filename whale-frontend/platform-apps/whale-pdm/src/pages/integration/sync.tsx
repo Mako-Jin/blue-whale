@@ -43,7 +43,13 @@ export default function SyncCenter() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const page = await pageSyncLogs({ current, size, channel, status, bizNo: bizNo || undefined });
+      const page = await pageSyncLogs({
+        current,
+        size,
+        channel,
+        status,
+        bizNo: bizNo || undefined,
+      });
       setLogs(page.records);
       setTotal(Number(page.total));
     } catch (error) {

@@ -17,13 +17,7 @@ import {
   type TableProps,
 } from 'antd';
 import { useCallback, useRef, useState } from 'react';
-import {
-  AuthButton,
-  FormModal,
-  ProTable,
-  SearchForm,
-  type ProTableRef,
-} from '@bluewhale/whale-ui';
+import { AuthButton, FormModal, ProTable, SearchForm, type ProTableRef } from '@bluewhale/whale-ui';
 import {
   createDefinition,
   deleteDefinition,
@@ -80,7 +74,9 @@ export default function DefinitionList() {
 
   const [editing, setEditing] = useState<DefinitionVO | null>(null);
   const [formOpen, setFormOpen] = useState(false);
-  const [formInitial, setFormInitial] = useState<Partial<DefinitionFormValues> | undefined>(undefined);
+  const [formInitial, setFormInitial] = useState<Partial<DefinitionFormValues> | undefined>(
+    undefined,
+  );
   const [form] = Form.useForm<DefinitionFormValues>();
 
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -211,7 +207,13 @@ export default function DefinitionList() {
 
   const columns: TableProps<DefinitionVO>['columns'] = [
     { title: '编码', dataIndex: 'code', width: 160, ellipsis: true },
-    { title: '名称', dataIndex: 'name', width: 160, ellipsis: true, render: (v?: string) => v ?? '-' },
+    {
+      title: '名称',
+      dataIndex: 'name',
+      width: 160,
+      ellipsis: true,
+      render: (v?: string) => v ?? '-',
+    },
     { title: '描述', dataIndex: 'description', ellipsis: true, render: (v?: string) => v ?? '-' },
     {
       title: '工具',
@@ -293,7 +295,12 @@ export default function DefinitionList() {
                 name: 'status',
                 label: '状态',
                 element: (
-                  <Select allowClear options={STATUS_OPTIONS} placeholder="全部" style={{ width: 140 }} />
+                  <Select
+                    allowClear
+                    options={STATUS_OPTIONS}
+                    placeholder="全部"
+                    style={{ width: 140 }}
+                  />
                 ),
               },
             ]}
@@ -365,7 +372,12 @@ export default function DefinitionList() {
         open={toolsOpen}
         onClose={() => setToolsOpen(false)}
         extra={
-          <Button type="primary" size="small" loading={savingTools} onClick={() => void handleSaveTools()}>
+          <Button
+            type="primary"
+            size="small"
+            loading={savingTools}
+            onClick={() => void handleSaveTools()}
+          >
             保存授权
           </Button>
         }
@@ -388,7 +400,9 @@ export default function DefinitionList() {
                     checked={granted.includes(row.name)}
                     onChange={(event) => {
                       setGranted((prev) =>
-                        event.target.checked ? [...prev, row.name] : prev.filter((c) => c !== row.name),
+                        event.target.checked
+                          ? [...prev, row.name]
+                          : prev.filter((c) => c !== row.name),
                       );
                     }}
                   />

@@ -4,3992 +4,3992 @@
  */
 
 export interface paths {
-    "/user/v1/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["detail"];
-        put: operations["update"];
-        post?: never;
-        delete: operations["delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+  '/user/v1/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/user/v1/{id}/status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["changeStatus"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['detail'];
+    put: operations['update'];
+    post?: never;
+    delete: operations['delete'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/user/v1/{id}/status': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/user/v1/{id}/password": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["resetPassword"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put: operations['changeStatus'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/user/v1/{id}/password': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/user/v1/{id}/attrs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["attrs"];
-        put: operations["updateAttrs"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put: operations['resetPassword'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/user/v1/{id}/attrs': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/tenant/v1/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["detail_1"];
-        put: operations["update_1"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['attrs'];
+    put: operations['updateAttrs'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/tenant/v1/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/tenant/v1/{id}/status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["changeStatus_1"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['detail_1'];
+    put: operations['update_1'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/tenant/v1/{id}/status': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/tenant/v1/{id}/renew": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["renew"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put: operations['changeStatus_1'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/tenant/v1/{id}/renew': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/tenant/v1/password-policy": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["passwordPolicy"];
-        put: operations["updatePasswordPolicy"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put: operations['renew'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/tenant/v1/password-policy': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/tenant/v1/members/{userId}/roles": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["assignMemberRoles"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['passwordPolicy'];
+    put: operations['updatePasswordPolicy'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/tenant/v1/members/{userId}/roles': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/tenant/v1/config": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["list"];
-        put: operations["upsert"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put: operations['assignMemberRoles'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/tenant/v1/config': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/role/v1/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["detail_2"];
-        put: operations["update_2"];
-        post?: never;
-        delete: operations["delete_1"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['list'];
+    put: operations['upsert'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/role/v1/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/permission/v1/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["detail_3"];
-        put: operations["update_3"];
-        post?: never;
-        delete: operations["delete_2"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['detail_2'];
+    put: operations['update_2'];
+    post?: never;
+    delete: operations['delete_1'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/permission/v1/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/menu/v1/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["detail_4"];
-        put: operations["update_4"];
-        post?: never;
-        delete: operations["delete_3"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['detail_3'];
+    put: operations['update_3'];
+    post?: never;
+    delete: operations['delete_2'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/menu/v1/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/dept/v1/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["detail_5"];
-        put: operations["update_5"];
-        post?: never;
-        delete: operations["delete_4"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['detail_4'];
+    put: operations['update_4'];
+    post?: never;
+    delete: operations['delete_3'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/dept/v1/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/v1/user-config": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["list_1"];
-        put: operations["upsert_1"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['detail_5'];
+    put: operations['update_5'];
+    post?: never;
+    delete: operations['delete_4'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/v1/user-config': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/v1/password": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["changePassword"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['list_1'];
+    put: operations['upsert_1'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/v1/password': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/i18n/message/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["detail_6"];
-        put: operations["update_6"];
-        post?: never;
-        delete: operations["delete_5"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put: operations['changePassword'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/i18n/message/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/user/v1": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['detail_6'];
+    put: operations['update_6'];
+    post?: never;
+    delete: operations['delete_5'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/user/v1': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/user/v1/{id}/tenants": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["bindTenant"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['create'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/user/v1/{id}/tenants': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/user/v1/{id}/roles": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["roleIds"];
-        put?: never;
-        post: operations["assignRoles"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['bindTenant'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/user/v1/{id}/roles': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/user/v1/internal/lifecycle": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["apply"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['roleIds'];
+    put?: never;
+    post: operations['assignRoles'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/user/v1/internal/lifecycle': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/user/v1/internal/exists": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["exists"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['apply'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/user/v1/internal/exists': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/user/v1/internal/config/set": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["set"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['exists'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/user/v1/internal/config/set': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/user/v1/internal/config/batch-get": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["batchGet"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['set'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/user/v1/internal/config/batch-get': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/tenant/v1": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["create_1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['batchGet'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/tenant/v1': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/role/v1": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["create_2"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['create_1'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/role/v1': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/role/v1/{id}/permissions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["permissionIds"];
-        put?: never;
-        post: operations["assignPermissions"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['create_2'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/role/v1/{id}/permissions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/permission/v1": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["create_3"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['permissionIds'];
+    put?: never;
+    post: operations['assignPermissions'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/permission/v1': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/menu/v1": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["create_4"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['create_3'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/menu/v1': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/internal/job/{code}/run": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["run"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['create_4'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/internal/job/{code}/run': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/dept/v1": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["create_5"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['run'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/dept/v1': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/v1/tenant/switch": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["switchTenant"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['create_5'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/v1/tenant/switch': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/v1/refresh": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["refresh"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['switchTenant'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/v1/refresh': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/v1/reauth": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["reauth"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['refresh'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/v1/reauth': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/v1/logout": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["logout"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['reauth'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/v1/logout': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/v1/login": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["login"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['logout'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/v1/login': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/i18n/message": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["create_6"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['login'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/i18n/message': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/user/v1/page": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["page"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['create_6'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/user/v1/page': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/user/v1/internal/directory": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["directory"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['page'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/user/v1/internal/directory': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/user/v1/internal/by-role": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["byRole"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['directory'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/user/v1/internal/by-role': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/tenant/v1/page": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["page_1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['byRole'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/tenant/v1/page': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/tenant/v1/members": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["members"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['page_1'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/tenant/v1/members': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/tenant/v1/internal/enabled-ids": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["enabledIds"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['members'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/tenant/v1/internal/enabled-ids': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/role/v1/page": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["page_2"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['enabledIds'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/role/v1/page': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/permission/v1/page": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["page_3"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['page_2'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/permission/v1/page': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/menu/v1/tree": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["tree"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['page_3'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/menu/v1/tree': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/internal/job/{code}/log/latest": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["latestLog"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['tree'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/internal/job/{code}/log/latest': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/internal/job/codes": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["codes"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['latestLog'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/internal/job/codes': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/dept/v1/tree": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["tree_1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['codes'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/dept/v1/tree': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/dept/v1/internal/{id}/leader": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["leader"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['tree_1'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/dept/v1/internal/{id}/leader': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/dept/v1/internal/tree": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["tree_2"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['leader'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/dept/v1/internal/tree': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/v1/tenants": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["listTenants"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['tree_2'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/v1/tenants': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/v1/me": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["me"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['listTenants'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/v1/me': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/i18n/message/page": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["page_4"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['me'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/i18n/message/page': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/user/v1/{id}/tenants/{tenantId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete: operations["unbindTenant"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['page_4'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/user/v1/{id}/tenants/{tenantId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/v1/user-config/{configKey}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete: operations["delete_6"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post?: never;
+    delete: operations['unbindTenant'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/v1/user-config/{configKey}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete: operations['delete_6'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: {
-        ResultVoid: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: unknown;
-        };
-        UserUpdateRequest: {
-            password?: string;
-            nickname?: string;
-            phone?: string;
-            email?: string;
-            avatar?: string;
-            deptId?: string;
-            /** Format: int32 */
-            status?: number;
-        };
-        ResultUserVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["UserVO"];
-        };
-        UserVO: {
-            id?: string;
-            username?: string;
-            nickname?: string;
-            phone?: string;
-            email?: string;
-            avatar?: string;
-            deptId?: string;
-            /** Format: int32 */
-            status?: number;
-            mustChangePassword?: boolean;
-            /** Format: date-time */
-            passwordUpdatedTime?: string;
-            /** Format: date-time */
-            lastLoginTime?: string;
-            /** Format: date-time */
-            createTime?: string;
-            /** Format: date-time */
-            updateTime?: string;
-        };
-        UserStatusRequest: {
-            /** Format: int32 */
-            status: number;
-        };
-        ResetPasswordVO: {
-            userId?: string;
-            username?: string;
-            temporaryPassword?: string;
-            mustChangePassword?: boolean;
-        };
-        ResultResetPasswordVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["ResetPasswordVO"];
-        };
-        UpdateAttrsRequest: {
-            attrs: components["schemas"]["UserAttrItem"][];
-        };
-        UserAttrItem: {
-            permissionId: string;
-            attrKey: string;
-            attrValue: string;
-        };
-        TenantUpdateRequest: {
-            tenantName?: string;
-            quotaJson?: string;
-        };
-        ResultTenantVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["TenantVO"];
-        };
-        TenantVO: {
-            id?: string;
-            tenantCode?: string;
-            tenantName?: string;
-            tenantType?: string;
-            /** Format: int32 */
-            status?: number;
-            /** Format: date-time */
-            expireTime?: string;
-            quotaJson?: string;
-            /** Format: date-time */
-            createTime?: string;
-            /** Format: date-time */
-            updateTime?: string;
-        };
-        TenantStatusRequest: {
-            /** Format: int32 */
-            status: number;
-        };
-        TenantRenewRequest: {
-            /** Format: date-time */
-            expireTime: string;
-        };
-        TenantPasswordPolicyRequest: {
-            /** Format: int32 */
-            maxAgeDays: number;
-            /** Format: int32 */
-            warnDays: number;
-        };
-        ResultTenantPasswordPolicyVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["TenantPasswordPolicyVO"];
-        };
-        TenantPasswordPolicyVO: {
-            tenantId?: string;
-            /** Format: int32 */
-            maxAgeDays?: number;
-            /** Format: int32 */
-            warnDays?: number;
-            customized?: boolean;
-            /** Format: int32 */
-            defaultMaxAgeDays?: number;
-            /** Format: int32 */
-            defaultWarnDays?: number;
-        };
-        AssignRolesRequest: {
-            roleIds: string[];
-        };
-        SaveTenantConfigRequest: {
-            configKey: string;
-            configValue: string;
-        };
-        RoleUpdateRequest: {
-            roleName: string;
-            description?: string;
-            /** Format: int32 */
-            sortNo?: number;
-            /** Format: int32 */
-            status?: number;
-        };
-        ResultRoleVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["RoleVO"];
-        };
-        RoleVO: {
-            id?: string;
-            roleCode?: string;
-            roleName?: string;
-            description?: string;
-            /** Format: int32 */
-            sortNo?: number;
-            /** Format: int32 */
-            status?: number;
-            /** Format: date-time */
-            createTime?: string;
-            /** Format: date-time */
-            updateTime?: string;
-        };
-        PermissionRequest: {
-            parentId?: string;
-            permCode: string;
-            permName: string;
-            permType: string;
-            path?: string;
-            method?: string;
-            /** Format: int32 */
-            sortNo?: number;
-            /** Format: int32 */
-            status?: number;
-        };
-        MenuRequest: {
-            parentId?: string;
-            name: string;
-            path?: string;
-            component?: string;
-            icon?: string;
-            /** Format: int32 */
-            sort?: number;
-            menuType?: string;
-            permissionCode?: string;
-            /** Format: int32 */
-            visible?: number;
-            /** Format: int32 */
-            status?: number;
-        };
-        DeptRequest: {
-            parentId?: string;
-            deptName: string;
-            /** Format: int32 */
-            sort?: number;
-            leader?: string;
-            leaderUserId?: string;
-        };
-        SaveUserConfigRequest: {
-            configKey: string;
-            configValue: string;
-        };
-        ChangeOwnPasswordRequest: {
-            oldPassword: string;
-            newPassword: string;
-        };
-        I18nMessageSaveRequest: {
-            messageKey: string;
-            locale: string;
-            messageContent: string;
-            module?: string;
-            remark?: string;
-        };
-        I18nMessageVO: {
-            id?: string;
-            messageKey?: string;
-            locale?: string;
-            messageContent?: string;
-            module?: string;
-            remark?: string;
-            /** Format: date-time */
-            createTime?: string;
-            /** Format: date-time */
-            updateTime?: string;
-        };
-        ResultI18nMessageVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["I18nMessageVO"];
-        };
-        UserCreateRequest: {
-            username: string;
-            password: string;
-            nickname?: string;
-            phone?: string;
-            email?: string;
-            avatar?: string;
-            deptId?: string;
-            /** Format: int32 */
-            status?: number;
-        };
-        BindUserTenantRequest: {
-            tenantId: string;
-        };
-        UserLifecycleCommand: {
-            action?: string;
-            userId?: string;
-            username?: string;
-            nickname?: string;
-            deptId?: string;
-            phone?: string;
-            email?: string;
-        };
-        ResultUserLifecycleVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["UserLifecycleVO"];
-        };
-        UserLifecycleVO: {
-            userId?: string;
-            username?: string;
-            /** Format: int32 */
-            status?: number;
-            deptId?: string;
-            temporaryPassword?: string;
-        };
-        UserExistsRequest: {
-            userIds: string[];
-        };
-        ResultListLong: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: string[];
-        };
-        ConfigSetRequest: {
-            tenantId: string;
-            userId: string;
-            configKey: string;
-            configValue: string;
-            operatorId?: string;
-        };
-        ConfigBatchGetRequest: {
-            tenantId: string;
-            userIds: string[];
-            keys: string[];
-        };
-        ConfigBatchItemVO: {
-            userId?: string;
-            configKey?: string;
-            value?: string;
-            source?: string;
-        };
-        ResultListConfigBatchItemVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["ConfigBatchItemVO"][];
-        };
-        TenantCreateRequest: {
-            tenantCode: string;
-            tenantName: string;
-            /** Format: date-time */
-            expireTime?: string;
-            quotaJson?: string;
-            adminUsername: string;
-            adminPassword: string;
-            adminNickname?: string;
-        };
-        RoleCreateRequest: {
-            roleCode: string;
-            roleName: string;
-            description?: string;
-            /** Format: int32 */
-            sortNo?: number;
-            /** Format: int32 */
-            status?: number;
-        };
-        AssignPermissionsRequest: {
-            permissionIds: string[];
-        };
-        ResultString: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: string;
-        };
-        SwitchTenantRequest: {
-            tenantId: string;
-        };
-        LoginResponse: {
-            accessToken?: string;
-            tokenType?: string;
-            expiresIn?: string;
-            userId?: string;
-            tenantId?: string;
-            username?: string;
-            nickname?: string;
-            roles?: string[];
-            mustChangePassword?: boolean;
-            passwordExpired?: boolean;
-            passwordExpiresInDays?: string;
-        };
-        ResultLoginResponse: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["LoginResponse"];
-        };
-        ReauthRequest: {
-            password: string;
-        };
-        ReauthResponse: {
-            token?: string;
-            expiresIn?: string;
-        };
-        ResultReauthResponse: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["ReauthResponse"];
-        };
-        LoginRequest: {
-            tenantCode?: string;
-            username: string;
-            password: string;
-            captcha?: string;
-        };
-        ResultListUserAttrVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["UserAttrVO"][];
-        };
-        UserAttrVO: {
-            id?: string;
-            userId?: string;
-            permissionId?: string;
-            attrKey?: string;
-            attrValue?: string;
-        };
-        PageQuery: {
-            current?: string;
-            size?: string;
-        };
-        PageResultUserVO: {
-            records?: components["schemas"]["UserVO"][];
-            total?: string;
-            size?: string;
-            current?: string;
-        };
-        ResultPageResultUserVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["PageResultUserVO"];
-        };
-        PageResultUserDirectoryVO: {
-            records?: components["schemas"]["UserDirectoryVO"][];
-            total?: string;
-            size?: string;
-            current?: string;
-        };
-        ResultPageResultUserDirectoryVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["PageResultUserDirectoryVO"];
-        };
-        UserDirectoryVO: {
-            id?: string;
-            username?: string;
-            nickname?: string;
-            deptId?: string;
-            deptName?: string;
-            phone?: string;
-            email?: string;
-            avatar?: string;
-        };
-        ResultListUserDirectoryVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["UserDirectoryVO"][];
-        };
-        PageResultTenantVO: {
-            records?: components["schemas"]["TenantVO"][];
-            total?: string;
-            size?: string;
-            current?: string;
-        };
-        ResultPageResultTenantVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["PageResultTenantVO"];
-        };
-        ResultListTenantMemberVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["TenantMemberVO"][];
-        };
-        RoleItem: {
-            id?: string;
-            roleCode?: string;
-            roleName?: string;
-        };
-        TenantMemberVO: {
-            userId?: string;
-            username?: string;
-            nickname?: string;
-            phone?: string;
-            /** Format: int32 */
-            status?: number;
-            roles?: components["schemas"]["RoleItem"][];
-        };
-        ResultListTenantConfigEntry: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["TenantConfigEntry"][];
-        };
-        TenantConfigEntry: {
-            tenantId?: string;
-            configKey?: string;
-            configValue?: string;
-        };
-        PageResultRoleVO: {
-            records?: components["schemas"]["RoleVO"][];
-            total?: string;
-            size?: string;
-            current?: string;
-        };
-        ResultPageResultRoleVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["PageResultRoleVO"];
-        };
-        PermissionVO: {
-            id?: string;
-            parentId?: string;
-            permCode?: string;
-            permName?: string;
-            permType?: string;
-            path?: string;
-            method?: string;
-            /** Format: int32 */
-            sortNo?: number;
-            /** Format: int32 */
-            status?: number;
-            /** Format: date-time */
-            createTime?: string;
-            /** Format: date-time */
-            updateTime?: string;
-        };
-        ResultPermissionVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["PermissionVO"];
-        };
-        PageResultPermissionVO: {
-            records?: components["schemas"]["PermissionVO"][];
-            total?: string;
-            size?: string;
-            current?: string;
-        };
-        ResultPageResultPermissionVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["PageResultPermissionVO"];
-        };
-        MenuVO: {
-            id?: string;
-            parentId?: string;
-            name?: string;
-            path?: string;
-            component?: string;
-            icon?: string;
-            /** Format: int32 */
-            sort?: number;
-            menuType?: string;
-            permissionCode?: string;
-            /** Format: int32 */
-            visible?: number;
-            /** Format: int32 */
-            status?: number;
-            /** Format: date-time */
-            createTime?: string;
-            /** Format: date-time */
-            updateTime?: string;
-            children?: components["schemas"]["MenuVO"][];
-        };
-        ResultMenuVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["MenuVO"];
-        };
-        ResultListMenuVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["MenuVO"][];
-        };
-        ResultSetString: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: string[];
-        };
-        DeptVO: {
-            id?: string;
-            parentId?: string;
-            deptName?: string;
-            /** Format: int32 */
-            sort?: number;
-            leader?: string;
-            leaderUserId?: string;
-            /** Format: date-time */
-            createTime?: string;
-            /** Format: date-time */
-            updateTime?: string;
-            children?: components["schemas"]["DeptVO"][];
-        };
-        ResultDeptVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["DeptVO"];
-        };
-        ResultListDeptVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["DeptVO"][];
-        };
-        DeptLeaderVO: {
-            deptId?: string;
-            deptName?: string;
-            leaderUserId?: string;
-        };
-        ResultDeptLeaderVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["DeptLeaderVO"];
-        };
-        ResultListUserConfigVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["UserConfigVO"][];
-        };
-        UserConfigVO: {
-            configKey?: string;
-            configValue?: string;
-        };
-        ResultListTenantResponse: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["TenantResponse"][];
-        };
-        TenantResponse: {
-            tenantId?: string;
-            tenantCode?: string;
-            tenantName?: string;
-            current?: boolean;
-        };
-        CurrentUserResponse: {
-            tenantId?: string;
-            userId?: string;
-            username?: string;
-            nickname?: string;
-            roles?: string[];
-            permissions?: string[];
-            menus?: components["schemas"]["MenuResponse"][];
-        };
-        MenuResponse: {
-            id?: string;
-            parentId?: string;
-            name?: string;
-            path?: string;
-            component?: string;
-            icon?: string;
-            /** Format: int32 */
-            sort?: number;
-            menuType?: string;
-            permissionCode?: string;
-            /** Format: int32 */
-            visible?: number;
-            /** Format: int32 */
-            status?: number;
-            /** Format: date-time */
-            createTime?: string;
-            /** Format: date-time */
-            updateTime?: string;
-            children?: components["schemas"]["MenuResponse"][];
-        };
-        ResultCurrentUserResponse: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["CurrentUserResponse"];
-        };
-        I18nMessageQueryRequest: {
-            current?: string;
-            size?: string;
-            keyword?: string;
-            locale?: string;
-            module?: string;
-        };
-        PageResultI18nMessageVO: {
-            records?: components["schemas"]["I18nMessageVO"][];
-            total?: string;
-            size?: string;
-            current?: string;
-        };
-        ResultPageResultI18nMessageVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["PageResultI18nMessageVO"];
-        };
+  schemas: {
+    ResultVoid: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: unknown;
     };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+    UserUpdateRequest: {
+      password?: string;
+      nickname?: string;
+      phone?: string;
+      email?: string;
+      avatar?: string;
+      deptId?: string;
+      /** Format: int32 */
+      status?: number;
+    };
+    ResultUserVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['UserVO'];
+    };
+    UserVO: {
+      id?: string;
+      username?: string;
+      nickname?: string;
+      phone?: string;
+      email?: string;
+      avatar?: string;
+      deptId?: string;
+      /** Format: int32 */
+      status?: number;
+      mustChangePassword?: boolean;
+      /** Format: date-time */
+      passwordUpdatedTime?: string;
+      /** Format: date-time */
+      lastLoginTime?: string;
+      /** Format: date-time */
+      createTime?: string;
+      /** Format: date-time */
+      updateTime?: string;
+    };
+    UserStatusRequest: {
+      /** Format: int32 */
+      status: number;
+    };
+    ResetPasswordVO: {
+      userId?: string;
+      username?: string;
+      temporaryPassword?: string;
+      mustChangePassword?: boolean;
+    };
+    ResultResetPasswordVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['ResetPasswordVO'];
+    };
+    UpdateAttrsRequest: {
+      attrs: components['schemas']['UserAttrItem'][];
+    };
+    UserAttrItem: {
+      permissionId: string;
+      attrKey: string;
+      attrValue: string;
+    };
+    TenantUpdateRequest: {
+      tenantName?: string;
+      quotaJson?: string;
+    };
+    ResultTenantVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['TenantVO'];
+    };
+    TenantVO: {
+      id?: string;
+      tenantCode?: string;
+      tenantName?: string;
+      tenantType?: string;
+      /** Format: int32 */
+      status?: number;
+      /** Format: date-time */
+      expireTime?: string;
+      quotaJson?: string;
+      /** Format: date-time */
+      createTime?: string;
+      /** Format: date-time */
+      updateTime?: string;
+    };
+    TenantStatusRequest: {
+      /** Format: int32 */
+      status: number;
+    };
+    TenantRenewRequest: {
+      /** Format: date-time */
+      expireTime: string;
+    };
+    TenantPasswordPolicyRequest: {
+      /** Format: int32 */
+      maxAgeDays: number;
+      /** Format: int32 */
+      warnDays: number;
+    };
+    ResultTenantPasswordPolicyVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['TenantPasswordPolicyVO'];
+    };
+    TenantPasswordPolicyVO: {
+      tenantId?: string;
+      /** Format: int32 */
+      maxAgeDays?: number;
+      /** Format: int32 */
+      warnDays?: number;
+      customized?: boolean;
+      /** Format: int32 */
+      defaultMaxAgeDays?: number;
+      /** Format: int32 */
+      defaultWarnDays?: number;
+    };
+    AssignRolesRequest: {
+      roleIds: string[];
+    };
+    SaveTenantConfigRequest: {
+      configKey: string;
+      configValue: string;
+    };
+    RoleUpdateRequest: {
+      roleName: string;
+      description?: string;
+      /** Format: int32 */
+      sortNo?: number;
+      /** Format: int32 */
+      status?: number;
+    };
+    ResultRoleVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['RoleVO'];
+    };
+    RoleVO: {
+      id?: string;
+      roleCode?: string;
+      roleName?: string;
+      description?: string;
+      /** Format: int32 */
+      sortNo?: number;
+      /** Format: int32 */
+      status?: number;
+      /** Format: date-time */
+      createTime?: string;
+      /** Format: date-time */
+      updateTime?: string;
+    };
+    PermissionRequest: {
+      parentId?: string;
+      permCode: string;
+      permName: string;
+      permType: string;
+      path?: string;
+      method?: string;
+      /** Format: int32 */
+      sortNo?: number;
+      /** Format: int32 */
+      status?: number;
+    };
+    MenuRequest: {
+      parentId?: string;
+      name: string;
+      path?: string;
+      component?: string;
+      icon?: string;
+      /** Format: int32 */
+      sort?: number;
+      menuType?: string;
+      permissionCode?: string;
+      /** Format: int32 */
+      visible?: number;
+      /** Format: int32 */
+      status?: number;
+    };
+    DeptRequest: {
+      parentId?: string;
+      deptName: string;
+      /** Format: int32 */
+      sort?: number;
+      leader?: string;
+      leaderUserId?: string;
+    };
+    SaveUserConfigRequest: {
+      configKey: string;
+      configValue: string;
+    };
+    ChangeOwnPasswordRequest: {
+      oldPassword: string;
+      newPassword: string;
+    };
+    I18nMessageSaveRequest: {
+      messageKey: string;
+      locale: string;
+      messageContent: string;
+      module?: string;
+      remark?: string;
+    };
+    I18nMessageVO: {
+      id?: string;
+      messageKey?: string;
+      locale?: string;
+      messageContent?: string;
+      module?: string;
+      remark?: string;
+      /** Format: date-time */
+      createTime?: string;
+      /** Format: date-time */
+      updateTime?: string;
+    };
+    ResultI18nMessageVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['I18nMessageVO'];
+    };
+    UserCreateRequest: {
+      username: string;
+      password: string;
+      nickname?: string;
+      phone?: string;
+      email?: string;
+      avatar?: string;
+      deptId?: string;
+      /** Format: int32 */
+      status?: number;
+    };
+    BindUserTenantRequest: {
+      tenantId: string;
+    };
+    UserLifecycleCommand: {
+      action?: string;
+      userId?: string;
+      username?: string;
+      nickname?: string;
+      deptId?: string;
+      phone?: string;
+      email?: string;
+    };
+    ResultUserLifecycleVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['UserLifecycleVO'];
+    };
+    UserLifecycleVO: {
+      userId?: string;
+      username?: string;
+      /** Format: int32 */
+      status?: number;
+      deptId?: string;
+      temporaryPassword?: string;
+    };
+    UserExistsRequest: {
+      userIds: string[];
+    };
+    ResultListLong: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: string[];
+    };
+    ConfigSetRequest: {
+      tenantId: string;
+      userId: string;
+      configKey: string;
+      configValue: string;
+      operatorId?: string;
+    };
+    ConfigBatchGetRequest: {
+      tenantId: string;
+      userIds: string[];
+      keys: string[];
+    };
+    ConfigBatchItemVO: {
+      userId?: string;
+      configKey?: string;
+      value?: string;
+      source?: string;
+    };
+    ResultListConfigBatchItemVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['ConfigBatchItemVO'][];
+    };
+    TenantCreateRequest: {
+      tenantCode: string;
+      tenantName: string;
+      /** Format: date-time */
+      expireTime?: string;
+      quotaJson?: string;
+      adminUsername: string;
+      adminPassword: string;
+      adminNickname?: string;
+    };
+    RoleCreateRequest: {
+      roleCode: string;
+      roleName: string;
+      description?: string;
+      /** Format: int32 */
+      sortNo?: number;
+      /** Format: int32 */
+      status?: number;
+    };
+    AssignPermissionsRequest: {
+      permissionIds: string[];
+    };
+    ResultString: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: string;
+    };
+    SwitchTenantRequest: {
+      tenantId: string;
+    };
+    LoginResponse: {
+      accessToken?: string;
+      tokenType?: string;
+      expiresIn?: string;
+      userId?: string;
+      tenantId?: string;
+      username?: string;
+      nickname?: string;
+      roles?: string[];
+      mustChangePassword?: boolean;
+      passwordExpired?: boolean;
+      passwordExpiresInDays?: string;
+    };
+    ResultLoginResponse: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['LoginResponse'];
+    };
+    ReauthRequest: {
+      password: string;
+    };
+    ReauthResponse: {
+      token?: string;
+      expiresIn?: string;
+    };
+    ResultReauthResponse: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['ReauthResponse'];
+    };
+    LoginRequest: {
+      tenantCode?: string;
+      username: string;
+      password: string;
+      captcha?: string;
+    };
+    ResultListUserAttrVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['UserAttrVO'][];
+    };
+    UserAttrVO: {
+      id?: string;
+      userId?: string;
+      permissionId?: string;
+      attrKey?: string;
+      attrValue?: string;
+    };
+    PageQuery: {
+      current?: string;
+      size?: string;
+    };
+    PageResultUserVO: {
+      records?: components['schemas']['UserVO'][];
+      total?: string;
+      size?: string;
+      current?: string;
+    };
+    ResultPageResultUserVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PageResultUserVO'];
+    };
+    PageResultUserDirectoryVO: {
+      records?: components['schemas']['UserDirectoryVO'][];
+      total?: string;
+      size?: string;
+      current?: string;
+    };
+    ResultPageResultUserDirectoryVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PageResultUserDirectoryVO'];
+    };
+    UserDirectoryVO: {
+      id?: string;
+      username?: string;
+      nickname?: string;
+      deptId?: string;
+      deptName?: string;
+      phone?: string;
+      email?: string;
+      avatar?: string;
+    };
+    ResultListUserDirectoryVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['UserDirectoryVO'][];
+    };
+    PageResultTenantVO: {
+      records?: components['schemas']['TenantVO'][];
+      total?: string;
+      size?: string;
+      current?: string;
+    };
+    ResultPageResultTenantVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PageResultTenantVO'];
+    };
+    ResultListTenantMemberVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['TenantMemberVO'][];
+    };
+    RoleItem: {
+      id?: string;
+      roleCode?: string;
+      roleName?: string;
+    };
+    TenantMemberVO: {
+      userId?: string;
+      username?: string;
+      nickname?: string;
+      phone?: string;
+      /** Format: int32 */
+      status?: number;
+      roles?: components['schemas']['RoleItem'][];
+    };
+    ResultListTenantConfigEntry: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['TenantConfigEntry'][];
+    };
+    TenantConfigEntry: {
+      tenantId?: string;
+      configKey?: string;
+      configValue?: string;
+    };
+    PageResultRoleVO: {
+      records?: components['schemas']['RoleVO'][];
+      total?: string;
+      size?: string;
+      current?: string;
+    };
+    ResultPageResultRoleVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PageResultRoleVO'];
+    };
+    PermissionVO: {
+      id?: string;
+      parentId?: string;
+      permCode?: string;
+      permName?: string;
+      permType?: string;
+      path?: string;
+      method?: string;
+      /** Format: int32 */
+      sortNo?: number;
+      /** Format: int32 */
+      status?: number;
+      /** Format: date-time */
+      createTime?: string;
+      /** Format: date-time */
+      updateTime?: string;
+    };
+    ResultPermissionVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PermissionVO'];
+    };
+    PageResultPermissionVO: {
+      records?: components['schemas']['PermissionVO'][];
+      total?: string;
+      size?: string;
+      current?: string;
+    };
+    ResultPageResultPermissionVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PageResultPermissionVO'];
+    };
+    MenuVO: {
+      id?: string;
+      parentId?: string;
+      name?: string;
+      path?: string;
+      component?: string;
+      icon?: string;
+      /** Format: int32 */
+      sort?: number;
+      menuType?: string;
+      permissionCode?: string;
+      /** Format: int32 */
+      visible?: number;
+      /** Format: int32 */
+      status?: number;
+      /** Format: date-time */
+      createTime?: string;
+      /** Format: date-time */
+      updateTime?: string;
+      children?: components['schemas']['MenuVO'][];
+    };
+    ResultMenuVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['MenuVO'];
+    };
+    ResultListMenuVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['MenuVO'][];
+    };
+    ResultSetString: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: string[];
+    };
+    DeptVO: {
+      id?: string;
+      parentId?: string;
+      deptName?: string;
+      /** Format: int32 */
+      sort?: number;
+      leader?: string;
+      leaderUserId?: string;
+      /** Format: date-time */
+      createTime?: string;
+      /** Format: date-time */
+      updateTime?: string;
+      children?: components['schemas']['DeptVO'][];
+    };
+    ResultDeptVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['DeptVO'];
+    };
+    ResultListDeptVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['DeptVO'][];
+    };
+    DeptLeaderVO: {
+      deptId?: string;
+      deptName?: string;
+      leaderUserId?: string;
+    };
+    ResultDeptLeaderVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['DeptLeaderVO'];
+    };
+    ResultListUserConfigVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['UserConfigVO'][];
+    };
+    UserConfigVO: {
+      configKey?: string;
+      configValue?: string;
+    };
+    ResultListTenantResponse: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['TenantResponse'][];
+    };
+    TenantResponse: {
+      tenantId?: string;
+      tenantCode?: string;
+      tenantName?: string;
+      current?: boolean;
+    };
+    CurrentUserResponse: {
+      tenantId?: string;
+      userId?: string;
+      username?: string;
+      nickname?: string;
+      roles?: string[];
+      permissions?: string[];
+      menus?: components['schemas']['MenuResponse'][];
+    };
+    MenuResponse: {
+      id?: string;
+      parentId?: string;
+      name?: string;
+      path?: string;
+      component?: string;
+      icon?: string;
+      /** Format: int32 */
+      sort?: number;
+      menuType?: string;
+      permissionCode?: string;
+      /** Format: int32 */
+      visible?: number;
+      /** Format: int32 */
+      status?: number;
+      /** Format: date-time */
+      createTime?: string;
+      /** Format: date-time */
+      updateTime?: string;
+      children?: components['schemas']['MenuResponse'][];
+    };
+    ResultCurrentUserResponse: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['CurrentUserResponse'];
+    };
+    I18nMessageQueryRequest: {
+      current?: string;
+      size?: string;
+      keyword?: string;
+      locale?: string;
+      module?: string;
+    };
+    PageResultI18nMessageVO: {
+      records?: components['schemas']['I18nMessageVO'][];
+      total?: string;
+      size?: string;
+      current?: string;
+    };
+    ResultPageResultI18nMessageVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PageResultI18nMessageVO'];
+    };
+  };
+  responses: never;
+  parameters: never;
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    detail: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultUserVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UserUpdateRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultUserVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    changeStatus: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UserStatusRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    resetPassword: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultResetPasswordVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    attrs: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListUserAttrVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    updateAttrs: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateAttrsRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    detail_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultTenantVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    update_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TenantUpdateRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultTenantVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    changeStatus_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TenantStatusRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultTenantVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    renew: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TenantRenewRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultTenantVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    passwordPolicy: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultTenantPasswordPolicyVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    updatePasswordPolicy: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TenantPasswordPolicyRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultTenantPasswordPolicyVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    assignMemberRoles: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                userId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AssignRolesRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    list: {
-        parameters: {
-            query?: {
-                prefix?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListTenantConfigEntry"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    upsert: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SaveTenantConfigRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    detail_2: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultRoleVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    update_2: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RoleUpdateRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultRoleVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    delete_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    detail_3: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPermissionVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    update_3: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PermissionRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    delete_2: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    detail_4: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultMenuVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    update_4: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MenuRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    delete_3: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    detail_5: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultDeptVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    update_5: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DeptRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    delete_4: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    list_1: {
-        parameters: {
-            query?: {
-                prefix?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListUserConfigVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    upsert_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SaveUserConfigRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    changePassword: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ChangeOwnPasswordRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    detail_6: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultI18nMessageVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    update_6: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["I18nMessageSaveRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultI18nMessageVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    delete_5: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UserCreateRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultUserVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    bindTenant: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["BindUserTenantRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    roleIds: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListLong"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    assignRoles: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AssignRolesRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    apply: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UserLifecycleCommand"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultUserLifecycleVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    exists: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UserExistsRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListLong"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    set: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ConfigSetRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    batchGet: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ConfigBatchGetRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListConfigBatchItemVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    create_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TenantCreateRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultTenantVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    create_2: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RoleCreateRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultRoleVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    permissionIds: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListLong"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    assignPermissions: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AssignPermissionsRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    create_3: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PermissionRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    create_4: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MenuRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    run: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                code: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultString"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    create_5: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DeptRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    switchTenant: {
-        parameters: {
-            query?: never;
-            header?: {
-                Authorization?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SwitchTenantRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultLoginResponse"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    refresh: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultLoginResponse"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    reauth: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ReauthRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultReauthResponse"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    logout: {
-        parameters: {
-            query?: never;
-            header?: {
-                Authorization?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    login: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LoginRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultLoginResponse"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    create_6: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["I18nMessageSaveRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultI18nMessageVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    page: {
-        parameters: {
-            query: {
-                pageQuery: components["schemas"]["PageQuery"];
-                keyword?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPageResultUserVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    directory: {
-        parameters: {
-            query?: {
-                deptId?: string;
-                includeChildren?: boolean;
-                keyword?: string;
-                current?: string;
-                size?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPageResultUserDirectoryVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    byRole: {
-        parameters: {
-            query: {
-                roleCode: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListUserDirectoryVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    page_1: {
-        parameters: {
-            query: {
-                pageQuery: components["schemas"]["PageQuery"];
-                keyword?: string;
-                status?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPageResultTenantVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    members: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListTenantMemberVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    enabledIds: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListLong"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    page_2: {
-        parameters: {
-            query: {
-                pageQuery: components["schemas"]["PageQuery"];
-                keyword?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPageResultRoleVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    page_3: {
-        parameters: {
-            query: {
-                pageQuery: components["schemas"]["PageQuery"];
-                keyword?: string;
-                permType?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPageResultPermissionVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    tree: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListMenuVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    latestLog: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                code: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultString"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    codes: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultSetString"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    tree_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListDeptVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    leader: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultDeptLeaderVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    tree_2: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListDeptVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    listTenants: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListTenantResponse"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    me: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultCurrentUserResponse"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    page_4: {
-        parameters: {
-            query: {
-                request: components["schemas"]["I18nMessageQueryRequest"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPageResultI18nMessageVO"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    unbindTenant: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-                tenantId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
-    delete_6: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                configKey: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-            /** @description Precondition Required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
-    };
+  detail: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultUserVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  update: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UserUpdateRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultUserVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  changeStatus: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UserStatusRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  resetPassword: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultResetPasswordVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  attrs: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultListUserAttrVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  updateAttrs: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdateAttrsRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  detail_1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultTenantVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  update_1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TenantUpdateRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultTenantVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  changeStatus_1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TenantStatusRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultTenantVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  renew: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TenantRenewRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultTenantVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  passwordPolicy: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultTenantPasswordPolicyVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  updatePasswordPolicy: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TenantPasswordPolicyRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultTenantPasswordPolicyVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  assignMemberRoles: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        userId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AssignRolesRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  list: {
+    parameters: {
+      query?: {
+        prefix?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultListTenantConfigEntry'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  upsert: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SaveTenantConfigRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  detail_2: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultRoleVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  update_2: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RoleUpdateRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultRoleVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  delete_1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  detail_3: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultPermissionVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  update_3: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PermissionRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  delete_2: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  detail_4: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultMenuVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  update_4: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['MenuRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  delete_3: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  detail_5: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultDeptVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  update_5: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DeptRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  delete_4: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  list_1: {
+    parameters: {
+      query?: {
+        prefix?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultListUserConfigVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  upsert_1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SaveUserConfigRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  changePassword: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ChangeOwnPasswordRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  detail_6: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultI18nMessageVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  update_6: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['I18nMessageSaveRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultI18nMessageVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  delete_5: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UserCreateRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultUserVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  bindTenant: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['BindUserTenantRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  roleIds: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultListLong'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  assignRoles: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AssignRolesRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  apply: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UserLifecycleCommand'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultUserLifecycleVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  exists: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UserExistsRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultListLong'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  set: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ConfigSetRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  batchGet: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ConfigBatchGetRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultListConfigBatchItemVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  create_1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TenantCreateRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultTenantVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  create_2: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RoleCreateRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultRoleVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  permissionIds: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultListLong'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  assignPermissions: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AssignPermissionsRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  create_3: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PermissionRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  create_4: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['MenuRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  run: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        code: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultString'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  create_5: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DeptRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  switchTenant: {
+    parameters: {
+      query?: never;
+      header?: {
+        Authorization?: string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SwitchTenantRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultLoginResponse'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  refresh: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultLoginResponse'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  reauth: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ReauthRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultReauthResponse'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  logout: {
+    parameters: {
+      query?: never;
+      header?: {
+        Authorization?: string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  login: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['LoginRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultLoginResponse'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  create_6: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['I18nMessageSaveRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultI18nMessageVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  page: {
+    parameters: {
+      query: {
+        pageQuery: components['schemas']['PageQuery'];
+        keyword?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultPageResultUserVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  directory: {
+    parameters: {
+      query?: {
+        deptId?: string;
+        includeChildren?: boolean;
+        keyword?: string;
+        current?: string;
+        size?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultPageResultUserDirectoryVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  byRole: {
+    parameters: {
+      query: {
+        roleCode: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultListUserDirectoryVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  page_1: {
+    parameters: {
+      query: {
+        pageQuery: components['schemas']['PageQuery'];
+        keyword?: string;
+        status?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultPageResultTenantVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  members: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultListTenantMemberVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  enabledIds: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultListLong'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  page_2: {
+    parameters: {
+      query: {
+        pageQuery: components['schemas']['PageQuery'];
+        keyword?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultPageResultRoleVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  page_3: {
+    parameters: {
+      query: {
+        pageQuery: components['schemas']['PageQuery'];
+        keyword?: string;
+        permType?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultPageResultPermissionVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  tree: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultListMenuVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  latestLog: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        code: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultString'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  codes: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultSetString'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  tree_1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultListDeptVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  leader: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultDeptLeaderVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  tree_2: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultListDeptVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  listTenants: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultListTenantResponse'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  me: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultCurrentUserResponse'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  page_4: {
+    parameters: {
+      query: {
+        request: components['schemas']['I18nMessageQueryRequest'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultPageResultI18nMessageVO'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  unbindTenant: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        tenantId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  delete_6: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        configKey: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+      /** @description Precondition Required */
+      428: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
 }

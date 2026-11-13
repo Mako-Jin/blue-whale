@@ -208,7 +208,13 @@ export interface MrpRunView {
 /** MRP 运算入参 */
 export interface MrpRunInput {
   remark?: string;
-  lines: { itemCode: string; bomNo: string; versionNo: string; quantity: number; dueDate: string }[];
+  lines: {
+    itemCode: string;
+    bomNo: string;
+    versionNo: string;
+    quantity: number;
+    dueDate: string;
+  }[];
 }
 
 /** 生产计划查询参数 */
@@ -307,9 +313,7 @@ export function getProductionOrder(id: number): Promise<ProductionOrderView> {
 }
 
 /** 新增生产订单 */
-export function createProductionOrder(
-  input: ProductionOrderInput,
-): Promise<ProductionOrderView> {
+export function createProductionOrder(input: ProductionOrderInput): Promise<ProductionOrderView> {
   return http.post<ProductionOrderView>('/erp/mfg/production', input);
 }
 
@@ -437,12 +441,8 @@ export interface CrpView {
 }
 
 /** 工作中心分页 */
-export function pageWorkCenters(
-  params: MfgQueryParams = {},
-): Promise<PageResult<WorkCenterView>> {
-  return http.get<PageResult<WorkCenterView>>(
-    `/erp/mfg/work-centers/page?${buildQuery(params)}`,
-  );
+export function pageWorkCenters(params: MfgQueryParams = {}): Promise<PageResult<WorkCenterView>> {
+  return http.get<PageResult<WorkCenterView>>(`/erp/mfg/work-centers/page?${buildQuery(params)}`);
 }
 
 /** 全部工作中心（下拉用） */
@@ -456,10 +456,7 @@ export function createWorkCenter(input: WorkCenterInput): Promise<WorkCenterView
 }
 
 /** 编辑工作中心 */
-export function updateWorkCenter(
-  id: number,
-  input: WorkCenterInput,
-): Promise<WorkCenterView> {
+export function updateWorkCenter(id: number, input: WorkCenterInput): Promise<WorkCenterView> {
   return http.put<WorkCenterView>(`/erp/mfg/work-centers/${id}`, input);
 }
 
@@ -484,7 +481,10 @@ export function reportProductionOperation(
   stepNo: number,
   input: ProductionOperationReportInput,
 ): Promise<ProductionOrderView> {
-  return http.post<ProductionOrderView>(`/erp/mfg/production/${id}/operations/${stepNo}/report`, input);
+  return http.post<ProductionOrderView>(
+    `/erp/mfg/production/${id}/operations/${stepNo}/report`,
+    input,
+  );
 }
 
 /** 生产退料 */

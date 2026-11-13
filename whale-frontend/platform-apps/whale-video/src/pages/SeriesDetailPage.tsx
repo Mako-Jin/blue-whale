@@ -105,7 +105,12 @@ export default function SeriesDetailPage() {
       <Card styles={{ body: { padding: 0 } }}>
         <div style={{ display: 'flex', flexWrap: 'wrap' }}>
           <div style={{ flex: '0 0 320px', minWidth: 240 }}>
-            <ContentCover url={series.coverUrl} title={series.title} height={220} style={{ borderRadius: 0 }} />
+            <ContentCover
+              url={series.coverUrl}
+              title={series.title}
+              height={220}
+              style={{ borderRadius: 0 }}
+            />
           </div>
           <div style={{ flex: '1 1 320px', padding: 20 }}>
             <Space wrap align="center">
@@ -115,17 +120,27 @@ export default function SeriesDetailPage() {
               <Tag color="purple">{series.episodeCount} 集</Tag>
             </Space>
             {series.description ? (
-              <Typography.Paragraph style={{ marginTop: 12 }}>{series.description}</Typography.Paragraph>
+              <Typography.Paragraph style={{ marginTop: 12 }}>
+                {series.description}
+              </Typography.Paragraph>
             ) : null}
             <Space wrap size={16}>
-              <Typography.Text type="secondary">创作者：{series.creatorName || '-'}</Typography.Text>
-              <Typography.Text type="secondary">上架时间：{formatDateTime(series.publishedAt)}</Typography.Text>
+              <Typography.Text type="secondary">
+                创作者：{series.creatorName || '-'}
+              </Typography.Text>
+              <Typography.Text type="secondary">
+                上架时间：{formatDateTime(series.publishedAt)}
+              </Typography.Text>
             </Space>
           </div>
         </div>
       </Card>
 
-      <Card title="集数列表" size="small" extra={<Typography.Text type="secondary">仅展示已发布集数</Typography.Text>}>
+      <Card
+        title="集数列表"
+        size="small"
+        extra={<Typography.Text type="secondary">仅展示已发布集数</Typography.Text>}
+      >
         {episodes.length === 0 ? (
           <Empty description="该系列暂无已发布集数" image={Empty.PRESENTED_IMAGE_SIMPLE} />
         ) : (

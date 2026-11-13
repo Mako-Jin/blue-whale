@@ -161,15 +161,29 @@ function ReceivableTab() {
     { title: '单据日期', dataIndex: 'docDate', key: 'docDate', width: 110 },
     { title: '到期日', dataIndex: 'dueDate', key: 'dueDate', width: 110 },
     { title: '应收金额', dataIndex: 'amount', key: 'amount', width: 120, render: money },
-    { title: '已核销', dataIndex: 'settledAmount', key: 'settledAmount', width: 120, render: money },
+    {
+      title: '已核销',
+      dataIndex: 'settledAmount',
+      key: 'settledAmount',
+      width: 120,
+      render: money,
+    },
     { title: '坏账', dataIndex: 'badDebtAmount', key: 'badDebtAmount', width: 110, render: money },
-    { title: '未结余额', dataIndex: 'remainingAmount', key: 'remainingAmount', width: 120, render: money },
+    {
+      title: '未结余额',
+      dataIndex: 'remainingAmount',
+      key: 'remainingAmount',
+      width: 120,
+      render: money,
+    },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
       width: 110,
-      render: (value) => <Tag color={ledgerColor(String(value))}>{STATUS_LABEL[String(value)] ?? value}</Tag>,
+      render: (value) => (
+        <Tag color={ledgerColor(String(value))}>{STATUS_LABEL[String(value)] ?? value}</Tag>
+      ),
     },
     {
       title: '操作',
@@ -177,15 +191,22 @@ function ReceivableTab() {
       width: 170,
       render: (_, record) => (
         <Space size="small">
-          {record.status !== 'SETTLED' && record.status !== 'WRITTEN_OFF'
-            && hasPermission('sys:erp:receivable:settle') ? (
+          {record.status !== 'SETTLED' &&
+          record.status !== 'WRITTEN_OFF' &&
+          hasPermission('sys:erp:receivable:settle') ? (
             <Button type="link" size="small" onClick={() => setTarget({ kind: 'AR', record })}>
               核销
             </Button>
           ) : null}
-          {record.status !== 'SETTLED' && record.status !== 'WRITTEN_OFF'
-            && hasPermission('sys:erp:receivable:bad-debt') ? (
-            <Button type="link" size="small" danger onClick={() => setTarget({ kind: 'BAD', record })}>
+          {record.status !== 'SETTLED' &&
+          record.status !== 'WRITTEN_OFF' &&
+          hasPermission('sys:erp:receivable:bad-debt') ? (
+            <Button
+              type="link"
+              size="small"
+              danger
+              onClick={() => setTarget({ kind: 'BAD', record })}
+            >
               坏账
             </Button>
           ) : null}
@@ -218,7 +239,11 @@ function ReceivableTab() {
         destroyOnHidden
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="customerId" label="客户" rules={[{ required: true, message: '请选择客户' }]}>
+          <Form.Item
+            name="customerId"
+            label="客户"
+            rules={[{ required: true, message: '请选择客户' }]}
+          >
             <Select
               showSearch
               optionFilterProp="label"
@@ -236,7 +261,11 @@ function ReceivableTab() {
               <DatePicker />
             </Form.Item>
           </Space>
-          <Form.Item name="amount" label="应收金额" rules={[{ required: true, message: '请输入金额' }]}>
+          <Form.Item
+            name="amount"
+            label="应收金额"
+            rules={[{ required: true, message: '请输入金额' }]}
+          >
             <InputNumber min={0.01} precision={2} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="remark" label="备注">
@@ -350,14 +379,28 @@ function PayableTab() {
     { title: '单据日期', dataIndex: 'docDate', key: 'docDate', width: 110 },
     { title: '到期日', dataIndex: 'dueDate', key: 'dueDate', width: 110 },
     { title: '应付金额', dataIndex: 'amount', key: 'amount', width: 120, render: money },
-    { title: '已核销', dataIndex: 'settledAmount', key: 'settledAmount', width: 120, render: money },
-    { title: '未结余额', dataIndex: 'remainingAmount', key: 'remainingAmount', width: 120, render: money },
+    {
+      title: '已核销',
+      dataIndex: 'settledAmount',
+      key: 'settledAmount',
+      width: 120,
+      render: money,
+    },
+    {
+      title: '未结余额',
+      dataIndex: 'remainingAmount',
+      key: 'remainingAmount',
+      width: 120,
+      render: money,
+    },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
       width: 110,
-      render: (value) => <Tag color={ledgerColor(String(value))}>{STATUS_LABEL[String(value)] ?? value}</Tag>,
+      render: (value) => (
+        <Tag color={ledgerColor(String(value))}>{STATUS_LABEL[String(value)] ?? value}</Tag>
+      ),
     },
     {
       title: '操作',
@@ -396,7 +439,11 @@ function PayableTab() {
         destroyOnHidden
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="supplierId" label="供应商" rules={[{ required: true, message: '请选择供应商' }]}>
+          <Form.Item
+            name="supplierId"
+            label="供应商"
+            rules={[{ required: true, message: '请选择供应商' }]}
+          >
             <Select
               showSearch
               optionFilterProp="label"
@@ -414,7 +461,11 @@ function PayableTab() {
               <DatePicker />
             </Form.Item>
           </Space>
-          <Form.Item name="amount" label="应付金额" rules={[{ required: true, message: '请输入金额' }]}>
+          <Form.Item
+            name="amount"
+            label="应付金额"
+            rules={[{ required: true, message: '请输入金额' }]}
+          >
             <InputNumber min={0.01} precision={2} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="remark" label="备注">
@@ -430,7 +481,11 @@ function PayableTab() {
         destroyOnHidden
       >
         <Form form={settleForm} layout="vertical">
-          <Form.Item name="amount" label="付款金额" rules={[{ required: true, message: '请输入金额' }]}>
+          <Form.Item
+            name="amount"
+            label="付款金额"
+            rules={[{ required: true, message: '请输入金额' }]}
+          >
             <InputNumber min={0.01} precision={2} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="settleType" label="方式">
@@ -478,9 +533,27 @@ function AgingTab() {
     { title: '未结余额', dataIndex: 'total', key: 'total', width: 120, render: money },
     { title: '未到期', dataIndex: 'notDue', key: 'notDue', width: 110, render: money },
     { title: '1–30 天', dataIndex: 'overdue1To30', key: 'overdue1To30', width: 110, render: money },
-    { title: '31–60 天', dataIndex: 'overdue31To60', key: 'overdue31To60', width: 110, render: money },
-    { title: '61–90 天', dataIndex: 'overdue61To90', key: 'overdue61To90', width: 110, render: money },
-    { title: '90 天以上', dataIndex: 'overdueOver90', key: 'overdueOver90', width: 120, render: money },
+    {
+      title: '31–60 天',
+      dataIndex: 'overdue31To60',
+      key: 'overdue31To60',
+      width: 110,
+      render: money,
+    },
+    {
+      title: '61–90 天',
+      dataIndex: 'overdue61To90',
+      key: 'overdue61To90',
+      width: 110,
+      render: money,
+    },
+    {
+      title: '90 天以上',
+      dataIndex: 'overdueOver90',
+      key: 'overdueOver90',
+      width: 120,
+      render: money,
+    },
   ];
 
   return (

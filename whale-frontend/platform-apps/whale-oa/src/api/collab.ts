@@ -330,14 +330,16 @@ export function changeParticipantStatus(
   userId: number,
   status: OaParticipantStatus,
 ): Promise<OaMeetingParticipant> {
-  return http.put<OaMeetingParticipant>(
-    `/oa/meeting/${meetingId}/participants/${userId}/status`,
-    { status },
-  );
+  return http.put<OaMeetingParticipant>(`/oa/meeting/${meetingId}/participants/${userId}/status`, {
+    status,
+  });
 }
 
 /** 保存会议纪要（含行动项） */
-export function saveMeetingMinute(id: number, input: OaMeetingMinuteInput): Promise<OaMeetingDetail> {
+export function saveMeetingMinute(
+  id: number,
+  input: OaMeetingMinuteInput,
+): Promise<OaMeetingDetail> {
   return http.put<OaMeetingDetail>(`/oa/meeting/${id}/minute`, input);
 }
 
@@ -359,11 +361,13 @@ export function getNotice(id: number): Promise<OaNoticeDetail> {
 }
 
 /** 接收人候选 */
-export function listNoticeRecipients(params: {
-  keyword?: string;
-  deptId?: number;
-  limit?: number;
-} = {}): Promise<OaUserCandidate[]> {
+export function listNoticeRecipients(
+  params: {
+    keyword?: string;
+    deptId?: number;
+    limit?: number;
+  } = {},
+): Promise<OaUserCandidate[]> {
   return http.get<OaUserCandidate[]>(`/oa/notice/recipients${buildQuery(params)}`);
 }
 
@@ -400,7 +404,9 @@ export function getNoticeStats(id: number): Promise<OaNoticeDetail> {
 // ---------------------------------------------------------------- 任务
 
 /** 分页查询任务 */
-export function pageTasks(params: OaCollabQuery & { mine?: boolean } = {}): Promise<PageResult<OaTask>> {
+export function pageTasks(
+  params: OaCollabQuery & { mine?: boolean } = {},
+): Promise<PageResult<OaTask>> {
   return http.get<PageResult<OaTask>>(`/oa/task/page${buildQuery(params)}`);
 }
 

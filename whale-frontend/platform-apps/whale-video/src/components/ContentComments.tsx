@@ -2,12 +2,7 @@
 
 import { App, Button, Drawer, Empty, Input, List, Space, Spin, Typography } from 'antd';
 import { useEffect, useState } from 'react';
-import {
-  fetchComments,
-  likeComment,
-  submitComment,
-  type CommentView,
-} from '../api/video';
+import { fetchComments, likeComment, submitComment, type CommentView } from '../api/video';
 import { formatCount, formatDateTime } from '../utils/videoDisplay';
 
 export interface ContentCommentsProps {
@@ -24,7 +19,12 @@ function flattenReplies(comment: CommentView): CommentView[] {
   return comment.replies?.length ? comment.replies : [];
 }
 
-export default function ContentComments({ contentId, open, commentable, onClose }: ContentCommentsProps) {
+export default function ContentComments({
+  contentId,
+  open,
+  commentable,
+  onClose,
+}: ContentCommentsProps) {
   const { message } = App.useApp();
   const [records, setRecords] = useState<CommentView[]>([]);
   const [total, setTotal] = useState(0);
@@ -129,13 +129,20 @@ export default function ContentComments({ contentId, open, commentable, onClose 
               renderItem={(comment) => (
                 <List.Item
                   actions={[
-                    <Button key="like" type="link" size="small" onClick={() => void handleLike(comment)}>
+                    <Button
+                      key="like"
+                      type="link"
+                      size="small"
+                      onClick={() => void handleLike(comment)}
+                    >
                       {comment.liked ? '已赞' : '点赞'} {formatCount(comment.likeCount)}
                     </Button>,
                   ]}
                 >
                   <List.Item.Meta
-                    title={<Typography.Text type="secondary">用户 {comment.userId}</Typography.Text>}
+                    title={
+                      <Typography.Text type="secondary">用户 {comment.userId}</Typography.Text>
+                    }
                     description={
                       <>
                         <div>{comment.content}</div>

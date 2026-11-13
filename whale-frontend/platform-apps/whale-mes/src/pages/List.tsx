@@ -121,7 +121,9 @@ export default function List({ refreshKey, onCreate, onEdit }: ListProps) {
       render: (value) => {
         const current = value as MesWorkOrderPriority | undefined;
         if (!current) return '-';
-        return <Tag color={current === 'URGENT' ? 'red' : 'default'}>{PRIORITY_LABEL[current]}</Tag>;
+        return (
+          <Tag color={current === 'URGENT' ? 'red' : 'default'}>{PRIORITY_LABEL[current]}</Tag>
+        );
       },
     },
     {
@@ -160,8 +162,7 @@ export default function List({ refreshKey, onCreate, onEdit }: ListProps) {
               编辑
             </Button>
           ) : null}
-          {hasPermission('sys:mes:workorder:delete')
-          && DELETABLE_STATUS.includes(record.status) ? (
+          {hasPermission('sys:mes:workorder:delete') && DELETABLE_STATUS.includes(record.status) ? (
             <Popconfirm
               title="确认删除该工单？"
               okText="删除"

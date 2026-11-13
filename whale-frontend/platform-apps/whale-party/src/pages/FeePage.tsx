@@ -170,14 +170,20 @@ export default function FeePage() {
       dataIndex: 'outstandingAmount',
       width: 90,
       render: (value: number) =>
-        Number(value) > 0 ? <span style={{ color: '#cf1322' }}>¥{Number(value).toFixed(2)}</span> : '—',
+        Number(value) > 0 ? (
+          <span style={{ color: '#cf1322' }}>¥{Number(value).toFixed(2)}</span>
+        ) : (
+          '—'
+        ),
     },
     {
       title: '状态',
       dataIndex: 'statusLabel',
       width: 100,
       render: (_value, row) => (
-        <Tag color={row.status === 'PAID' ? 'green' : row.status === 'WAIVED' ? 'default' : 'orange'}>
+        <Tag
+          color={row.status === 'PAID' ? 'green' : row.status === 'WAIVED' ? 'default' : 'orange'}
+        >
           {row.statusLabel}
         </Tag>
       ),
@@ -211,16 +217,20 @@ export default function FeePage() {
       title: '基数区间',
       key: 'range',
       render: (_value, row) =>
-        `${Number(row.minBase).toFixed(2)} ~ ${row.maxBase === null || row.maxBase === undefined
-          ? '不限'
-          : Number(row.maxBase).toFixed(2)}`,
+        `${Number(row.minBase).toFixed(2)} ~ ${
+          row.maxBase === null || row.maxBase === undefined
+            ? '不限'
+            : Number(row.maxBase).toFixed(2)
+        }`,
     },
     { title: '比例', dataIndex: 'ratePercent', width: 90 },
     {
       title: '状态',
       dataIndex: 'status',
       width: 90,
-      render: (value: string) => <Tag color={value === 'ACTIVE' ? 'green' : 'default'}>{value}</Tag>,
+      render: (value: string) => (
+        <Tag color={value === 'ACTIVE' ? 'green' : 'default'}>{value}</Tag>
+      ),
     },
   ];
 

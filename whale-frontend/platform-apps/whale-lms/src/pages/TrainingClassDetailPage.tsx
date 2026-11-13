@@ -223,14 +223,20 @@ export default function TrainingClassDetailPage() {
         </Typography.Title>
         <Tag color={statusTag.color}>{statusTag.label}</Tag>
         {canStatus && isDraft && (
-          <Popconfirm title="确认发布？发布前需至少 1 个场次，发布后内容冻结" onConfirm={() => void onStatus('PUBLISH')}>
+          <Popconfirm
+            title="确认发布？发布前需至少 1 个场次，发布后内容冻结"
+            onConfirm={() => void onStatus('PUBLISH')}
+          >
             <Button type="primary" size="small">
               发布
             </Button>
           </Popconfirm>
         )}
         {canStatus && detail.status === 'PUBLISHED' && (
-          <Popconfirm title="确认结课？结课后不可再分配与签到" onConfirm={() => void onStatus('CLOSE')}>
+          <Popconfirm
+            title="确认结课？结课后不可再分配与签到"
+            onConfirm={() => void onStatus('CLOSE')}
+          >
             <Button size="small">结课</Button>
           </Popconfirm>
         )}
@@ -301,7 +307,10 @@ export default function TrainingClassDetailPage() {
                   </Button>
                 )}
                 {canSession && isDraft && (
-                  <Popconfirm title="确认删除该场次？" onConfirm={() => void onRemoveSession(row.id)}>
+                  <Popconfirm
+                    title="确认删除该场次？"
+                    onConfirm={() => void onRemoveSession(row.id)}
+                  >
                     <Button size="small" type="link" danger>
                       删除
                     </Button>
@@ -332,7 +341,8 @@ export default function TrainingClassDetailPage() {
         完成认定
         {completion && (
           <Typography.Text type="secondary" style={{ marginLeft: 8, fontWeight: 'normal' }}>
-            已认定 {completion.completed} / {completion.total} 人，完成率 {completion.completionRate}%
+            已认定 {completion.completed} / {completion.total} 人，完成率{' '}
+            {completion.completionRate}%
           </Typography.Text>
         )}
       </Typography.Title>
@@ -354,7 +364,8 @@ export default function TrainingClassDetailPage() {
             title: '课程进度',
             dataIndex: 'coursePercent',
             width: 110,
-            render: (percent?: number) => (percent === undefined || percent === null ? '-' : `${percent}%`),
+            render: (percent?: number) =>
+              percent === undefined || percent === null ? '-' : `${percent}%`,
           },
           {
             title: '认定',
@@ -396,7 +407,11 @@ export default function TrainingClassDetailPage() {
             dataIndex: 'checkinType',
             width: 100,
             render: (type: string) =>
-              type === 'SUPPLEMENT' ? <Tag color="orange">补签</Tag> : <Tag color="green">自助</Tag>,
+              type === 'SUPPLEMENT' ? (
+                <Tag color="orange">补签</Tag>
+              ) : (
+                <Tag color="green">自助</Tag>
+              ),
           },
           { title: '时间', dataIndex: 'checkinAt', width: 180 },
           { title: '操作人', dataIndex: 'operatorId', width: 90 },
@@ -412,10 +427,18 @@ export default function TrainingClassDetailPage() {
         onOk={() => sessionForm.submit()}
       >
         <Form form={sessionForm} layout="vertical" onFinish={onAddSession}>
-          <Form.Item name="title" label="场次主题" rules={[{ required: true, message: '请输入场次主题' }]}>
+          <Form.Item
+            name="title"
+            label="场次主题"
+            rules={[{ required: true, message: '请输入场次主题' }]}
+          >
             <Input />
           </Form.Item>
-          <Form.Item name="range" label="起止时间" rules={[{ required: true, message: '请选择起止时间' }]}>
+          <Form.Item
+            name="range"
+            label="起止时间"
+            rules={[{ required: true, message: '请选择起止时间' }]}
+          >
             <DatePicker.RangePicker showTime style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="hours" label="课时" rules={[{ required: true, message: '请输入课时' }]}>
@@ -437,7 +460,12 @@ export default function TrainingClassDetailPage() {
         onCancel={() => setAssignOpen(false)}
         onOk={() => assignForm.submit()}
       >
-        <Form form={assignForm} layout="vertical" onFinish={onAssign} initialValues={{ scopeType: 'USER' }}>
+        <Form
+          form={assignForm}
+          layout="vertical"
+          onFinish={onAssign}
+          initialValues={{ scopeType: 'USER' }}
+        >
           <Form.Item name="scopeType" label="分配范围（追溯标记）">
             <Select
               options={[
@@ -470,13 +498,21 @@ export default function TrainingClassDetailPage() {
         onOk={() => supplementForm.submit()}
       >
         <Form form={supplementForm} layout="vertical" onFinish={onSupplement}>
-          <Form.Item name="userId" label="学员用户 ID" rules={[{ required: true, message: '请输入学员用户 ID' }]}>
+          <Form.Item
+            name="userId"
+            label="学员用户 ID"
+            rules={[{ required: true, message: '请输入学员用户 ID' }]}
+          >
             <InputNumber min={1} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="username" label="学员用户名">
             <Input />
           </Form.Item>
-          <Form.Item name="remark" label="补签原因" rules={[{ required: true, message: '补签必须填写原因' }]}>
+          <Form.Item
+            name="remark"
+            label="补签原因"
+            rules={[{ required: true, message: '补签必须填写原因' }]}
+          >
             <Input.TextArea rows={2} maxLength={200} />
           </Form.Item>
         </Form>

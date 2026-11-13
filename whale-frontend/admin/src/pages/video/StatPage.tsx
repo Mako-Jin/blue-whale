@@ -62,7 +62,11 @@ export default function StatPage() {
       >
         <Space size={48} wrap>
           <Statistic title="内容总数" value={overview?.totalContent ?? 0} />
-          <Statistic title="已发布内容" value={overview?.publishedContent ?? 0} valueStyle={{ color: '#3f8600' }} />
+          <Statistic
+            title="已发布内容"
+            value={overview?.publishedContent ?? 0}
+            valueStyle={{ color: '#3f8600' }}
+          />
           <Statistic title="播放次数合计" value={overview?.totalPlayCount ?? 0} />
           <Statistic title="片单总数" value={overview?.collectionCount ?? 0} />
           <Statistic title="创作者总数" value={overview?.creatorCount ?? 0} />

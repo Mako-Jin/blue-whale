@@ -15,13 +15,7 @@ interface UploadModalProps {
   onDone: () => void;
 }
 
-export default function UploadModal({
-  open,
-  document,
-  mode,
-  onCancel,
-  onDone,
-}: UploadModalProps) {
+export default function UploadModal({ open, document, mode, onCancel, onDone }: UploadModalProps) {
   const [form] = Form.useForm<{ changeNote?: string }>();
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [submitting, setSubmitting] = useState(false);

@@ -86,7 +86,9 @@ function refundableShare(row: OrderLineView, quantity: number): number {
   const net = row.netAmount ?? row.amount ?? 0;
   const refunded = row.refundedQuantity ?? 0;
   const raw =
-    refunded + quantity >= total ? Math.max(0, net - (net * refunded) / total) : (net * quantity) / total;
+    refunded + quantity >= total
+      ? Math.max(0, net - (net * refunded) / total)
+      : (net * quantity) / total;
   return Math.round(raw * 100) / 100;
 }
 
@@ -264,7 +266,7 @@ export default function OrderDetailPage() {
 
   /** 本次申请退款金额预估（与后端同一算法：行实付额 × 数量占比） */
   const afterSalePreview = (order?.items ?? []).reduce((sum, row) => {
-    const qty = typeof row.id === 'number' ? afterSaleQty[row.id] ?? 0 : 0;
+    const qty = typeof row.id === 'number' ? (afterSaleQty[row.id] ?? 0) : 0;
     return sum + refundableShare(row, qty);
   }, 0);
 
@@ -475,12 +477,20 @@ export default function OrderDetailPage() {
               <Descriptions.Item label="结算方式">
                 {SETTLEMENT_LABEL[order.settlementType] ?? order.settlementType}
               </Descriptions.Item>
-              <Descriptions.Item label="买家">{order.buyerName || order.buyerUserId}</Descriptions.Item>
+              <Descriptions.Item label="买家">
+                {order.buyerName || order.buyerUserId}
+              </Descriptions.Item>
               <Descriptions.Item label="件数">{order.totalQuantity}</Descriptions.Item>
               <Descriptions.Item label="支付单号">{order.payNo || '-'}</Descriptions.Item>
-              <Descriptions.Item label="下单时间">{formatDateTime(order.createTime)}</Descriptions.Item>
-              <Descriptions.Item label="支付时间">{formatDateTime(order.payTime)}</Descriptions.Item>
-              <Descriptions.Item label="发货时间">{formatDateTime(order.shipTime)}</Descriptions.Item>
+              <Descriptions.Item label="下单时间">
+                {formatDateTime(order.createTime)}
+              </Descriptions.Item>
+              <Descriptions.Item label="支付时间">
+                {formatDateTime(order.payTime)}
+              </Descriptions.Item>
+              <Descriptions.Item label="发货时间">
+                {formatDateTime(order.shipTime)}
+              </Descriptions.Item>
               <Descriptions.Item label="完成时间">
                 {formatDateTime(order.completeTime)}
               </Descriptions.Item>
@@ -665,7 +675,9 @@ export default function OrderDetailPage() {
             onChange={(event) => setAfterSaleDescription(event.target.value)}
           />
           <div>
-            <Typography.Text style={{ display: 'block', marginBottom: 8 }}>凭证图片（最多 9 张）</Typography.Text>
+            <Typography.Text style={{ display: 'block', marginBottom: 8 }}>
+              凭证图片（最多 9 张）
+            </Typography.Text>
             <Upload
               accept="image/*"
               listType="picture-card"
@@ -711,7 +723,8 @@ export default function OrderDetailPage() {
                 title: '本次退数量',
                 width: 140,
                 render: (_: unknown, row) => {
-                  const refundable = row.refundableQuantity ?? (row.quantity ?? 0) - (row.refundedQuantity ?? 0);
+                  const refundable =
+                    row.refundableQuantity ?? (row.quantity ?? 0) - (row.refundedQuantity ?? 0);
                   if (typeof row.id !== 'number' || refundable <= 0) {
                     return <Typography.Text type="secondary">不可退</Typography.Text>;
                   }
@@ -722,7 +735,10 @@ export default function OrderDetailPage() {
                       precision={0}
                       value={afterSaleQty[row.id] ?? 0}
                       onChange={(value) =>
-                        setAfterSaleQty((prev) => ({ ...prev, [row.id as number]: Number(value ?? 0) }))
+                        setAfterSaleQty((prev) => ({
+                          ...prev,
+                          [row.id as number]: Number(value ?? 0),
+                        }))
                       }
                     />
                   );
@@ -732,7 +748,7 @@ export default function OrderDetailPage() {
                 title: '本次退款',
                 width: 110,
                 render: (_: unknown, row) => {
-                  const qty = typeof row.id === 'number' ? afterSaleQty[row.id] ?? 0 : 0;
+                  const qty = typeof row.id === 'number' ? (afterSaleQty[row.id] ?? 0) : 0;
                   return formatMoney(refundableShare(row, qty));
                 },
               },

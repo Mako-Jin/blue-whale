@@ -26,38 +26,14 @@ import type {
 } from './message';
 import type { MenuVO, MenuPayload } from './menu';
 import type { PermissionVO, PermissionPayload } from './permission';
-import type {
-  RoleVO,
-  RoleCreatePayload,
-  RoleUpdatePayload,
-} from './role';
-import type {
-  UserVO,
-  UserCreatePayload,
-  UserUpdatePayload,
-  ResetPasswordVO,
-} from './user';
+import type { RoleVO, RoleCreatePayload, RoleUpdatePayload } from './role';
+import type { UserVO, UserCreatePayload, UserUpdatePayload, ResetPasswordVO } from './user';
 import type { FileInfoVO } from './file';
 import type { DeptVO, DeptPayload } from './dept';
-import type {
-  TenantVO,
-  TenantMemberVO,
-  TenantPasswordPolicyVO,
-  TenantConfigEntry,
-} from './tenant';
+import type { TenantVO, TenantMemberVO, TenantPasswordPolicyVO, TenantConfigEntry } from './tenant';
 import type { MyTenantVO } from './auth';
-import type {
-  JobInfoVO,
-  JobLogVO,
-  JobDependencyVO,
-  JobAlertVO,
-} from './job';
-import type {
-  PayOrderVO,
-  PayTransactionVO,
-  PayReconcileVO,
-  PayOrderInput,
-} from './pay';
+import type { JobInfoVO, JobLogVO, JobDependencyVO, JobAlertVO } from './job';
+import type { PayOrderVO, PayTransactionVO, PayReconcileVO, PayOrderInput } from './pay';
 
 // ---- 类型工具 ---------------------------------------------------------------
 
@@ -69,9 +45,7 @@ export type SubsetOf<Hand, Schema> = Hand extends Schema ? true : false;
 
 /** 手写类型是否与后端 schema 完全等价（双向） */
 export type Equal<X, Y> =
-  (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2
-    ? true
-    : false;
+  (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2 ? true : false;
 
 type AuthSchemas = Auth['schemas'];
 type MsgSchemas = Msg['schemas'];
@@ -88,9 +62,7 @@ export type AssertUserCreate = Assert<
 export type AssertUserUpdate = Assert<
   SubsetOf<UserUpdatePayload, AuthSchemas['UserUpdateRequest']>
 >;
-export type AssertResetPassword = Assert<
-  SubsetOf<ResetPasswordVO, AuthSchemas['ResetPasswordVO']>
->;
+export type AssertResetPassword = Assert<SubsetOf<ResetPasswordVO, AuthSchemas['ResetPasswordVO']>>;
 
 // ---- 角色（/role/**） -------------------------------------------------------
 
@@ -105,12 +77,8 @@ export type AssertRoleUpdate = Assert<
 // ---- 菜单 / 权限点 ----------------------------------------------------------
 
 export type AssertMenuVO = Assert<SubsetOf<MenuVO, AuthSchemas['MenuVO']>>;
-export type AssertMenuPayload = Assert<
-  SubsetOf<MenuPayload, AuthSchemas['MenuRequest']>
->;
-export type AssertPermissionVO = Assert<
-  SubsetOf<PermissionVO, AuthSchemas['PermissionVO']>
->;
+export type AssertMenuPayload = Assert<SubsetOf<MenuPayload, AuthSchemas['MenuRequest']>>;
+export type AssertPermissionVO = Assert<SubsetOf<PermissionVO, AuthSchemas['PermissionVO']>>;
 export type AssertPermissionPayload = Assert<
   SubsetOf<PermissionPayload, AuthSchemas['PermissionRequest']>
 >;
@@ -123,45 +91,31 @@ export type AssertMessageTemplateVO = Assert<
 export type AssertMessageTemplateInput = Assert<
   SubsetOf<MessageTemplateInput, MsgSchemas['MessageTemplateSaveRequest']>
 >;
-export type AssertAnnouncementVO = Assert<
-  SubsetOf<AnnouncementVO, MsgSchemas['AnnouncementVO']>
->;
+export type AssertAnnouncementVO = Assert<SubsetOf<AnnouncementVO, MsgSchemas['AnnouncementVO']>>;
 export type AssertAnnouncementPublish = Assert<
   SubsetOf<AnnouncementPublishInput, MsgSchemas['AnnouncementPublishRequest']>
 >;
 
 // ---- 文件服务（/file/**） ----------------------------------------------------
 
-export type AssertFileInfoVO = Assert<
-  SubsetOf<FileInfoVO, FileSchemas['FileInfoVO']>
->;
+export type AssertFileInfoVO = Assert<SubsetOf<FileInfoVO, FileSchemas['FileInfoVO']>>;
 
 // ---- 定时任务（/job/**） -----------------------------------------------------
 
-export type AssertJobInfoVO = Assert<
-  SubsetOf<JobInfoVO, JobSchemas['JobInfoVO']>
->;
-export type AssertJobLogVO = Assert<
-  SubsetOf<JobLogVO, JobSchemas['JobLogVO']>
->;
+export type AssertJobInfoVO = Assert<SubsetOf<JobInfoVO, JobSchemas['JobInfoVO']>>;
+export type AssertJobLogVO = Assert<SubsetOf<JobLogVO, JobSchemas['JobLogVO']>>;
 export type AssertJobDependencyVO = Assert<
   SubsetOf<JobDependencyVO, JobSchemas['JobDependencyVO']>
 >;
-export type AssertJobAlertVO = Assert<
-  SubsetOf<JobAlertVO, JobSchemas['JobAlertVO']>
->;
+export type AssertJobAlertVO = Assert<SubsetOf<JobAlertVO, JobSchemas['JobAlertVO']>>;
 
 // ---- 支付（/pay/**） ---------------------------------------------------------
 
-export type AssertPayOrderVO = Assert<
-  SubsetOf<PayOrderVO, PaySchemas['PayOrderVO']>
->;
+export type AssertPayOrderVO = Assert<SubsetOf<PayOrderVO, PaySchemas['PayOrderVO']>>;
 export type AssertPayTransactionVO = Assert<
   SubsetOf<PayTransactionVO, PaySchemas['PayTransactionVO']>
 >;
-export type AssertPayReconcileVO = Assert<
-  SubsetOf<PayReconcileVO, PaySchemas['PayReconcileVO']>
->;
+export type AssertPayReconcileVO = Assert<SubsetOf<PayReconcileVO, PaySchemas['PayReconcileVO']>>;
 export type AssertPayOrderInput = Assert<
   SubsetOf<PayOrderInput, PaySchemas['PayOrderCreateRequest']>
 >;
@@ -169,70 +123,39 @@ export type AssertPayOrderInput = Assert<
 // ---- 部门（/dept/**） -------------------------------------------------------
 
 export type AssertDeptVO = Assert<SubsetOf<DeptVO, AuthSchemas['DeptVO']>>;
-export type AssertDeptPayload = Assert<
-  SubsetOf<DeptPayload, AuthSchemas['DeptRequest']>
->;
+export type AssertDeptPayload = Assert<SubsetOf<DeptPayload, AuthSchemas['DeptRequest']>>;
 
 // ---- 租户（/tenant/**、/auth/tenants） --------------------------------------
 
 export type AssertTenantVO = Assert<SubsetOf<TenantVO, AuthSchemas['TenantVO']>>;
-export type AssertTenantMemberVO = Assert<
-  SubsetOf<TenantMemberVO, AuthSchemas['TenantMemberVO']>
->;
+export type AssertTenantMemberVO = Assert<SubsetOf<TenantMemberVO, AuthSchemas['TenantMemberVO']>>;
 export type AssertTenantPasswordPolicyVO = Assert<
   SubsetOf<TenantPasswordPolicyVO, AuthSchemas['TenantPasswordPolicyVO']>
 >;
 export type AssertTenantConfigEntry = Assert<
   SubsetOf<TenantConfigEntry, AuthSchemas['TenantConfigEntry']>
 >;
-export type AssertMyTenantVO = Assert<
-  SubsetOf<MyTenantVO, AuthSchemas['TenantResponse']>
->;
+export type AssertMyTenantVO = Assert<SubsetOf<MyTenantVO, AuthSchemas['TenantResponse']>>;
 
 // ---- 关键口径钉死：Long 一律 string（防手工改回 number） ---------------------
 
-export type AssertUserVOIdIsString = Assert<
-  Equal<UserVO['id'], string>
->;
-export type AssertRoleVOIdIsString = Assert<
-  Equal<RoleVO['id'], string>
->;
-export type AssertMenuVOIdIsString = Assert<
-  Equal<MenuVO['id'], string>
->;
-export type AssertPermissionVOIdIsString = Assert<
-  Equal<PermissionVO['id'], string>
->;
-export type AssertMessageTemplateIdIsString = Assert<
-  Equal<MessageTemplateVO['id'], string>
->;
-export type AssertFileInfoIdIsString = Assert<
-  Equal<FileInfoVO['id'], string>
->;
-export type AssertJobInfoIdIsString = Assert<
-  Equal<JobInfoVO['id'], string>
->;
+export type AssertUserVOIdIsString = Assert<Equal<UserVO['id'], string>>;
+export type AssertRoleVOIdIsString = Assert<Equal<RoleVO['id'], string>>;
+export type AssertMenuVOIdIsString = Assert<Equal<MenuVO['id'], string>>;
+export type AssertPermissionVOIdIsString = Assert<Equal<PermissionVO['id'], string>>;
+export type AssertMessageTemplateIdIsString = Assert<Equal<MessageTemplateVO['id'], string>>;
+export type AssertFileInfoIdIsString = Assert<Equal<FileInfoVO['id'], string>>;
+export type AssertJobInfoIdIsString = Assert<Equal<JobInfoVO['id'], string>>;
 export type AssertDeptIdIsString = Assert<Equal<DeptVO['id'], string>>;
-export type AssertPayOrderIdIsString = Assert<
-  Equal<PayOrderVO['id'], string>
->;
+export type AssertPayOrderIdIsString = Assert<Equal<PayOrderVO['id'], string>>;
 /** 金额是 BigDecimal：运行时为 number（不走 Long→String），钉死防误改成 string */
-export type AssertPayAmountIsNumber = Assert<
-  Equal<PayOrderVO['amount'], number>
->;
+export type AssertPayAmountIsNumber = Assert<Equal<PayOrderVO['amount'], number>>;
 export type AssertTenantVOIdIsString = Assert<Equal<TenantVO['id'], string>>;
-export type AssertTenantMemberUserIdIsString = Assert<
-  Equal<TenantMemberVO['userId'], string>
->;
+export type AssertTenantMemberUserIdIsString = Assert<Equal<TenantMemberVO['userId'], string>>;
 export type AssertTenantMemberRoleIdIsString = Assert<
   Equal<TenantMemberVO['roles'][number]['id'], string>
 >;
-export type AssertMyTenantIdIsString = Assert<
-  Equal<MyTenantVO['tenantId'], string>
->;
+export type AssertMyTenantIdIsString = Assert<Equal<MyTenantVO['tenantId'], string>>;
 
 // eslint 不检查纯类型，防止被误清空：导出一个运行时空对象占位
 export const CONTRACT_CHECKS = true;
-
-
-

@@ -422,10 +422,7 @@ export function addKpi(id: number, input: KpiInput): Promise<PerformanceCycleVie
 }
 
 /** 录入考核结果 */
-export function appraise(
-  id: number,
-  input: AppraisalInput,
-): Promise<PerformanceCycleView> {
+export function appraise(id: number, input: AppraisalInput): Promise<PerformanceCycleView> {
   return http.post<PerformanceCycleView>(`/erp/hr/performance/${id}/appraise`, input);
 }
 

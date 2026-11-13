@@ -586,8 +586,12 @@ export default function ArchiveItemList({
         {preview?.kind === 'image' && (
           <img src={preview.url} alt={preview.fileName} style={{ width: '100%' }} />
         )}
-        {preview?.kind === 'video' && <video src={preview.url} controls style={{ width: '100%' }} />}
-        {preview?.kind === 'audio' && <audio src={preview.url} controls style={{ width: '100%' }} />}
+        {preview?.kind === 'video' && (
+          <video src={preview.url} controls style={{ width: '100%' }} />
+        )}
+        {preview?.kind === 'audio' && (
+          <audio src={preview.url} controls style={{ width: '100%' }} />
+        )}
         {preview && (preview.kind === 'pdf' || preview.kind === 'text') && (
           <iframe
             src={preview.url}

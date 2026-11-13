@@ -33,7 +33,13 @@
   z-index: 2;
   background:
     radial-gradient(120% 90% at 50% 45%, rgba(0, 0, 0, 0) 40%, rgba(2, 6, 10, 0.55) 100%),
-    linear-gradient(to bottom, rgba(4, 10, 16, 0.45) 0%, rgba(0, 0, 0, 0) 22%, rgba(0, 0, 0, 0) 78%, rgba(3, 8, 12, 0.6) 100%);
+    linear-gradient(
+      to bottom,
+      rgba(4, 10, 16, 0.45) 0%,
+      rgba(0, 0, 0, 0) 22%,
+      rgba(0, 0, 0, 0) 78%,
+      rgba(3, 8, 12, 0.6) 100%
+    );
 }
 
 .bww-labels {
@@ -136,7 +142,9 @@
   max-width: 330px;
   opacity: 0;
   transform: translateY(10px);
-  transition: opacity 0.45s ease, transform 0.45s ease;
+  transition:
+    opacity 0.45s ease,
+    transform 0.45s ease;
   pointer-events: none;
 }
 .bww-pet-bubble.bww-show {
@@ -170,7 +178,9 @@
   background: rgba(9, 26, 38, 0.82);
   border: 1px solid rgba(127, 216, 255, 0.28);
   border-radius: 3px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 0 24px rgba(127, 216, 255, 0.06);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.5),
+    inset 0 0 24px rgba(127, 216, 255, 0.06);
   backdrop-filter: blur(6px);
 }
 .bww-bubble-body::before {
@@ -207,7 +217,9 @@
   backdrop-filter: blur(6px);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.35s ease, transform 0.35s ease;
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s ease;
 }
 .bww-guide.bww-show {
   opacity: 1;
@@ -244,7 +256,9 @@
   border-radius: 999px;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.25s, transform 0.25s;
+  transition:
+    opacity 0.25s,
+    transform 0.25s;
   backdrop-filter: blur(6px);
 }
 .bww-portal-hint.bww-show {
@@ -342,7 +356,9 @@
   padding: 34px 38px 30px;
   background: linear-gradient(160deg, rgba(14, 28, 38, 0.96), rgba(7, 16, 22, 0.98));
   border: 1px solid rgba(216, 180, 90, 0.3);
-  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.7), inset 0 0 60px rgba(216, 180, 90, 0.04);
+  box-shadow:
+    0 30px 90px rgba(0, 0, 0, 0.7),
+    inset 0 0 60px rgba(216, 180, 90, 0.04);
   transform: translateY(14px) scale(0.985);
   transition: transform 0.32s cubic-bezier(0.2, 0.9, 0.3, 1);
 }
@@ -442,7 +458,9 @@
   z-index: 18;
   text-align: center;
   opacity: 0;
-  transition: opacity 0.3s, transform 0.3s;
+  transition:
+    opacity 0.3s,
+    transform 0.3s;
   pointer-events: none;
 }
 .bww-toast.bww-show {

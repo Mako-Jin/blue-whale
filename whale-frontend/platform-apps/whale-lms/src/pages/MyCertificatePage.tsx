@@ -7,7 +7,12 @@
 import { Card, Empty, Pagination, Select, Space, Tag, Typography } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import { hasPermission } from '../api/client';
-import { myCertificates, type CertSource, type CertStatus, type CertificateItem } from '../api/cert';
+import {
+  myCertificates,
+  type CertSource,
+  type CertStatus,
+  type CertificateItem,
+} from '../api/cert';
 
 const { Text, Title } = Typography;
 
@@ -36,17 +41,20 @@ export default function MyCertificatePage() {
 
   const canView = hasPermission('sys:lms:cert:mine');
 
-  const load = useCallback(async (page = 1, nextStatus = status) => {
-    setLoading(true);
-    try {
-      const data = await myCertificates({ status: nextStatus, current: page, size: 9 });
-      setItems(data.records ?? []);
-      setTotal(data.total ?? 0);
-      setCurrent(page);
-    } finally {
-      setLoading(false);
-    }
-  }, [status]);
+  const load = useCallback(
+    async (page = 1, nextStatus = status) => {
+      setLoading(true);
+      try {
+        const data = await myCertificates({ status: nextStatus, current: page, size: 9 });
+        setItems(data.records ?? []);
+        setTotal(data.total ?? 0);
+        setCurrent(page);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [status],
+  );
 
   useEffect(() => {
     if (canView) {
@@ -74,7 +82,10 @@ export default function MyCertificatePage() {
           placeholder="全部状态"
           allowClear
           style={{ width: 130 }}
-          options={Object.entries(STATUS_TAG).map(([value, item]) => ({ value, label: item.label }))}
+          options={Object.entries(STATUS_TAG).map(([value, item]) => ({
+            value,
+            label: item.label,
+          }))}
           onChange={(value) => {
             setStatus(value || undefined);
             void load(1, value || undefined);
@@ -85,7 +96,13 @@ export default function MyCertificatePage() {
       {items.length === 0 && !loading ? (
         <Empty description="还没有证书，完成课程或通过考试后可获得" />
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+            gap: 16,
+          }}
+        >
           {items.map((item) => {
             const tag = STATUS_TAG[item.status] ?? { color: 'default', label: item.status };
             return (
@@ -98,10 +115,17 @@ export default function MyCertificatePage() {
               >
                 <Space direction="vertical" size={4} style={{ width: '100%' }}>
                   <Text copyable={{ text: item.certNo }}>编号：{item.certNo}</Text>
-                  <Text type="secondary">来源：{SOURCE_LABEL[item.sourceType] ?? item.sourceType}</Text>
-                  <Text type="secondary">发证：{item.issuedAt?.replace('T', ' ').slice(0, 10) ?? '-'}</Text>
                   <Text type="secondary">
-                    有效期：{item.longTerm ? '长期有效' : `${item.validFrom?.slice(0, 10)} 至 ${item.validTo?.slice(0, 10)}`}
+                    来源：{SOURCE_LABEL[item.sourceType] ?? item.sourceType}
+                  </Text>
+                  <Text type="secondary">
+                    发证：{item.issuedAt?.replace('T', ' ').slice(0, 10) ?? '-'}
+                  </Text>
+                  <Text type="secondary">
+                    有效期：
+                    {item.longTerm
+                      ? '长期有效'
+                      : `${item.validFrom?.slice(0, 10)} 至 ${item.validTo?.slice(0, 10)}`}
                   </Text>
                   {item.status === 'REVOKED' && (
                     <Text type="danger">撤销原因：{item.revokeReason ?? '-'}</Text>
@@ -115,7 +139,12 @@ export default function MyCertificatePage() {
 
       {total > 9 && (
         <div style={{ marginTop: 16, textAlign: 'right' }}>
-          <Pagination current={current} total={total} pageSize={9} onChange={(page) => void load(page, status)} />
+          <Pagination
+            current={current}
+            total={total}
+            pageSize={9}
+            onChange={(page) => void load(page, status)}
+          />
         </div>
       )}
     </div>

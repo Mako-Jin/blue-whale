@@ -40,7 +40,9 @@ interface CredentialInfo {
 export default function DevicePage() {
   const { message } = App.useApp();
   const tableRef = useRef<ProTableRef>(null);
-  const [filters, setFilters] = useState<{ productId?: string; keyword?: string; status?: string }>({});
+  const [filters, setFilters] = useState<{ productId?: string; keyword?: string; status?: string }>(
+    {},
+  );
   const [products, setProducts] = useState<ProductVO[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -136,20 +138,27 @@ export default function DevicePage() {
   );
 
   const columns: TableProps<DeviceVO>['columns'] = [
-    { title: '设备名', dataIndex: 'deviceName', width: 160, render: (v: string) => <code>{v}</code> },
+    {
+      title: '设备名',
+      dataIndex: 'deviceName',
+      width: 160,
+      render: (v: string) => <code>{v}</code>,
+    },
     { title: '昵称', dataIndex: 'nickname', width: 140 },
     { title: '所属产品', dataIndex: 'productName', width: 160 },
     {
       title: '在线',
       dataIndex: 'online',
       width: 90,
-      render: (online: number) => (online === 1 ? <Tag color="success">在线</Tag> : <Tag>离线</Tag>),
+      render: (online: number) =>
+        online === 1 ? <Tag color="success">在线</Tag> : <Tag>离线</Tag>,
     },
     {
       title: '状态',
       dataIndex: 'status',
       width: 90,
-      render: (status: string) => (status === 'active' ? <Tag color="processing">启用</Tag> : <Tag>禁用</Tag>),
+      render: (status: string) =>
+        status === 'active' ? <Tag color="processing">启用</Tag> : <Tag>禁用</Tag>,
     },
     { title: '最近上报', dataIndex: 'lastReportTime', width: 180 },
     {
@@ -217,7 +226,11 @@ export default function DevicePage() {
                   />
                 ),
               },
-              { name: 'keyword', label: '关键字', element: <Input placeholder="设备名/昵称" allowClear /> },
+              {
+                name: 'keyword',
+                label: '关键字',
+                element: <Input placeholder="设备名/昵称" allowClear />,
+              },
               {
                 name: 'status',
                 label: '状态',
@@ -261,10 +274,17 @@ export default function DevicePage() {
         destroyOnHidden
       >
         <Form form={form} layout="vertical" style={{ marginTop: 12 }}>
-          <Form.Item name="productId" label="所属产品" rules={[{ required: true, message: '请选择产品' }]}>
+          <Form.Item
+            name="productId"
+            label="所属产品"
+            rules={[{ required: true, message: '请选择产品' }]}
+          >
             <Select
               placeholder="选择产品（已发布产品才能稳定接入）"
-              options={products.map((item) => ({ value: item.id, label: `${item.name}（${item.code}）` }))}
+              options={products.map((item) => ({
+                value: item.id,
+                label: `${item.name}（${item.code}）`,
+              }))}
             />
           </Form.Item>
           <Form.Item
@@ -272,7 +292,10 @@ export default function DevicePage() {
             label="设备名"
             rules={[
               { required: true, message: '请输入设备名' },
-              { pattern: /^[a-zA-Z0-9][a-zA-Z0-9._-]{1,63}$/, message: '字母/数字开头，允许字母/数字/点/下划线/连字符，2-64 位' },
+              {
+                pattern: /^[a-zA-Z0-9][a-zA-Z0-9._-]{1,63}$/,
+                message: '字母/数字开头，允许字母/数字/点/下划线/连字符，2-64 位',
+              },
             ]}
           >
             <Input placeholder="sensor-001" />
@@ -298,7 +321,11 @@ export default function DevicePage() {
         </Typography.Paragraph>
         <Descriptions column={1} size="small" bordered>
           <Descriptions.Item label="用户名">
-            <code>{credential?.productCode ? `${credential.productCode}/${credential.deviceName}` : credential?.deviceName}</code>
+            <code>
+              {credential?.productCode
+                ? `${credential.productCode}/${credential.deviceName}`
+                : credential?.deviceName}
+            </code>
           </Descriptions.Item>
           <Descriptions.Item label="设备名">
             <code>{credential?.deviceName}</code>
@@ -318,7 +345,9 @@ export default function DevicePage() {
         <Descriptions column={2} size="small" bordered style={{ marginBottom: 16 }}>
           <Descriptions.Item label="产品">{detail?.productName ?? '-'}</Descriptions.Item>
           <Descriptions.Item label="状态">{detail?.status}</Descriptions.Item>
-          <Descriptions.Item label="在线">{detail?.online === 1 ? '在线' : '离线'}</Descriptions.Item>
+          <Descriptions.Item label="在线">
+            {detail?.online === 1 ? '在线' : '离线'}
+          </Descriptions.Item>
           <Descriptions.Item label="影子版本">{shadow?.version ?? '-'}</Descriptions.Item>
           <Descriptions.Item label="最近上报">{detail?.lastReportTime ?? '-'}</Descriptions.Item>
           <Descriptions.Item label="影子更新">{shadow?.updatedTime ?? '-'}</Descriptions.Item>
@@ -368,7 +397,8 @@ export default function DevicePage() {
             {
               title: '取值',
               key: 'value',
-              render: (_, row) => (row.value === null || row.value === undefined ? row.valueText : row.value),
+              render: (_, row) =>
+                row.value === null || row.value === undefined ? row.valueText : row.value,
             },
             { title: '时间', dataIndex: 'ts', width: 200 },
           ]}

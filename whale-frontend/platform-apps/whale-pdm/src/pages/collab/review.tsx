@@ -291,12 +291,19 @@ export default function ReviewCenter() {
         }}
       />
 
-      <Drawer title={detail?.reviewNo} width={520} open={detail !== null} onClose={() => setDetail(null)}>
+      <Drawer
+        title={detail?.reviewNo}
+        width={520}
+        open={detail !== null}
+        onClose={() => setDetail(null)}
+      >
         {detail ? (
           <Descriptions column={1} size="small" bordered>
             <Descriptions.Item label="主题">{detail.title}</Descriptions.Item>
             <Descriptions.Item label="类型">{TYPE_META[detail.reviewType]}</Descriptions.Item>
-            <Descriptions.Item label="项目">{detail.projectName || detail.projectId || '-'}</Descriptions.Item>
+            <Descriptions.Item label="项目">
+              {detail.projectName || detail.projectId || '-'}
+            </Descriptions.Item>
             <Descriptions.Item label="对象">
               {detail.objectNo || '-'} {detail.objectVersionNo || ''}
             </Descriptions.Item>
@@ -305,7 +312,9 @@ export default function ReviewCenter() {
             <Descriptions.Item label="结论">
               {detail.conclusion ? CONCLUSION_META[detail.conclusion].text : '-'}
             </Descriptions.Item>
-            <Descriptions.Item label="结论说明">{detail.conclusionComment || '-'}</Descriptions.Item>
+            <Descriptions.Item label="结论说明">
+              {detail.conclusionComment || '-'}
+            </Descriptions.Item>
             <Descriptions.Item label="附件文档">
               {detail.attachmentDocumentId
                 ? `${detail.attachmentDocumentId} / ${detail.attachmentVersionNo || '-'}`
@@ -327,7 +336,11 @@ export default function ReviewCenter() {
           <Form.Item name="reviewType" label="评审类型" rules={[{ required: true }]}>
             <Select options={TYPE_OPTIONS} />
           </Form.Item>
-          <Form.Item name="title" label="评审主题" rules={[{ required: true, message: '请输入主题' }]}>
+          <Form.Item
+            name="title"
+            label="评审主题"
+            rules={[{ required: true, message: '请输入主题' }]}
+          >
             <Input />
           </Form.Item>
           <Form.Item name="projectId" label="项目 ID">
@@ -376,7 +389,11 @@ export default function ReviewCenter() {
         destroyOnClose
       >
         <Form form={closeForm} layout="vertical">
-          <Form.Item name="conclusion" label="评审结论" rules={[{ required: true, message: '请选择结论' }]}>
+          <Form.Item
+            name="conclusion"
+            label="评审结论"
+            rules={[{ required: true, message: '请选择结论' }]}
+          >
             <Select options={CONCLUSION_OPTIONS} />
           </Form.Item>
           <Form.Item name="conclusionComment" label="结论说明">

@@ -3,7 +3,20 @@
 // 权限码与 migration-5.87-lms-m3a.sql 对齐（sys:lms:question:*）。
 // 口径：草稿允许不完整；启用时后端强制校验选项与答案；被试卷引用的题不可删。
 
-import { Button, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, Tag, message } from 'antd';
+import {
+  Button,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Popconfirm,
+  Select,
+  Space,
+  Switch,
+  Table,
+  Tag,
+  message,
+} from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import { hasPermission } from '../api/client';
 import {
@@ -76,17 +89,20 @@ export default function QuestionListPage() {
   const type = Form.useWatch('type', form);
   const needsOptions = type === 'SINGLE' || type === 'MULTIPLE';
 
-  const load = useCallback(async (page = current, query = filters) => {
-    setLoading(true);
-    try {
-      const data = await pageQuestions({ ...query, current: page, size: 10 });
-      setRows((data.records ?? []).map((item) => ({ ...item, key: String(item.id) })));
-      setTotal(data.total ?? 0);
-      setCurrent(page);
-    } finally {
-      setLoading(false);
-    }
-  }, [current, filters]);
+  const load = useCallback(
+    async (page = current, query = filters) => {
+      setLoading(true);
+      try {
+        const data = await pageQuestions({ ...query, current: page, size: 10 });
+        setRows((data.records ?? []).map((item) => ({ ...item, key: String(item.id) })));
+        setTotal(data.total ?? 0);
+        setCurrent(page);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [current, filters],
+  );
 
   useEffect(() => {
     void load(1, {});
@@ -196,7 +212,10 @@ export default function QuestionListPage() {
           placeholder="状态"
           allowClear
           style={{ width: 120 }}
-          options={Object.entries(STATUS_TAG).map(([value, item]) => ({ value, label: item.label }))}
+          options={Object.entries(STATUS_TAG).map(([value, item]) => ({
+            value,
+            label: item.label,
+          }))}
           onChange={(value) => {
             const next = { ...filters, status: value || undefined };
             setFilters(next);
@@ -256,7 +275,11 @@ export default function QuestionListPage() {
                 )}
                 {canUpdate && row.status !== 'DISABLED' && (
                   <Popconfirm
-                    title={row.status === 'ACTIVE' ? '确认停用？停用后不再参与抽题' : '确认启用？启用前会校验选项与答案'}
+                    title={
+                      row.status === 'ACTIVE'
+                        ? '确认停用？停用后不再参与抽题'
+                        : '确认启用？启用前会校验选项与答案'
+                    }
                     onConfirm={() => void onToggle(row)}
                   >
                     <Button size="small" type="link">
@@ -265,7 +288,10 @@ export default function QuestionListPage() {
                   </Popconfirm>
                 )}
                 {canDelete && (
-                  <Popconfirm title="确认删除该题？被试卷引用时会被拒绝" onConfirm={() => void onDelete(row)}>
+                  <Popconfirm
+                    title="确认删除该题？被试卷引用时会被拒绝"
+                    onConfirm={() => void onDelete(row)}
+                  >
                     <Button size="small" type="link" danger>
                       删除
                     </Button>
@@ -295,13 +321,28 @@ export default function QuestionListPage() {
             >
               <Input placeholder="如 Q-2026-001（自动大写归一）" />
             </Form.Item>
-            <Form.Item name="category" label="分类" style={{ flex: 1 }} rules={[{ required: true, message: '请输入分类' }]}>
+            <Form.Item
+              name="category"
+              label="分类"
+              style={{ flex: 1 }}
+              rules={[{ required: true, message: '请输入分类' }]}
+            >
               <Input placeholder="如 安全生产" />
             </Form.Item>
           </Space>
           <Space size="middle" style={{ display: 'flex' }}>
-            <Form.Item name="type" label="题型" style={{ flex: 1 }} rules={[{ required: true, message: '请选择题型' }]}>
-              <Select options={Object.entries(TYPE_TAG).map(([value, item]) => ({ value, label: item.label }))} />
+            <Form.Item
+              name="type"
+              label="题型"
+              style={{ flex: 1 }}
+              rules={[{ required: true, message: '请选择题型' }]}
+            >
+              <Select
+                options={Object.entries(TYPE_TAG).map(([value, item]) => ({
+                  value,
+                  label: item.label,
+                }))}
+              />
             </Form.Item>
             <Form.Item name="difficulty" label="难度" style={{ flex: 1 }}>
               <Select
@@ -312,7 +353,12 @@ export default function QuestionListPage() {
                 ]}
               />
             </Form.Item>
-            <Form.Item name="defaultScore" label="默认分值" style={{ width: 120 }} rules={[{ required: true, message: '请输入分值' }]}>
+            <Form.Item
+              name="defaultScore"
+              label="默认分值"
+              style={{ width: 120 }}
+              rules={[{ required: true, message: '请输入分值' }]}
+            >
               <InputNumber min={0.1} step={0.5} style={{ width: '100%' }} />
             </Form.Item>
           </Space>
@@ -324,7 +370,11 @@ export default function QuestionListPage() {
               {(fields, { add, remove }) => (
                 <Form.Item label="选项（键唯一，答案按选项键填写）">
                   {fields.map((field) => (
-                    <Space key={field.key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
+                    <Space
+                      key={field.key}
+                      style={{ display: 'flex', marginBottom: 8 }}
+                      align="baseline"
+                    >
                       <Form.Item
                         name={[field.name, 'optionKey']}
                         rules={[{ required: true, message: '键' }]}
@@ -354,7 +404,9 @@ export default function QuestionListPage() {
           <Form.Item
             name="standardAnswer"
             label={type === 'MULTIPLE' ? '标准答案（多个选项键用逗号分隔）' : '标准答案'}
-            extra={type === 'JUDGE' ? '填 TRUE / FALSE（也接受 对 / 错）' : '草稿可留空，启用时必填'}
+            extra={
+              type === 'JUDGE' ? '填 TRUE / FALSE（也接受 对 / 错）' : '草稿可留空，启用时必填'
+            }
           >
             <Input placeholder={type === 'MULTIPLE' ? '如 A,C' : type === 'JUDGE' ? 'TRUE' : 'A'} />
           </Form.Item>
@@ -364,7 +416,12 @@ export default function QuestionListPage() {
           <Form.Item name="tags" label="标签（逗号分隔）">
             <Input placeholder="如 安全,新员工" />
           </Form.Item>
-          <Form.Item name="activate" label="保存后立即启用" valuePropName="checked" extra="启用会校验选项数量、答案归属与判断题取值">
+          <Form.Item
+            name="activate"
+            label="保存后立即启用"
+            valuePropName="checked"
+            extra="启用会校验选项数量、答案归属与判断题取值"
+          >
             <Switch />
           </Form.Item>
         </Form>

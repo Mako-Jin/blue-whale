@@ -4,815 +4,815 @@
  */
 
 export interface paths {
-    "/job/internal/executor/beat": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["beat"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+  '/job/internal/executor/beat': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/job/info/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["detail"];
-        put: operations["update"];
-        post?: never;
-        delete: operations["delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put: operations['beat'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/job/info/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/job/info/{id}/status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["changeStatus"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['detail'];
+    put: operations['update'];
+    post?: never;
+    delete: operations['delete'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/job/info/{id}/status': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/job/internal/executor/register": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["register"];
-        delete: operations["deregister"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put: operations['changeStatus'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/job/internal/executor/register': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/job/info": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['register'];
+    delete: operations['deregister'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/job/info': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/job/info/{id}/run": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["run"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['create'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/job/info/{id}/run': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/job/info/{id}/dependencies": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["dependencies"];
-        put?: never;
-        post: operations["saveDependencies"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['run'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/job/info/{id}/dependencies': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/job/log/{id}/detail": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["logDetail"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['dependencies'];
+    put?: never;
+    post: operations['saveDependencies'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/job/log/{id}/detail': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/job/log/page": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["logPage"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['logDetail'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/job/log/page': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/job/internal/executor/list": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["list"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['logPage'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/job/internal/executor/list': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/job/info/page": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["page"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['list'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/job/info/page': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/job/alert/page": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["alertPage"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['page'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/job/alert/page': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
+    get: operations['alertPage'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: {
-        ExecutorBeatRequest: {
-            tenantId?: string;
-            appName: string;
-            address: string;
-        };
-        ResultBoolean: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: boolean;
-        };
-        JobInfoUpdateRequest: {
-            jobName: string;
-            jobGroup?: string;
-            executorApp?: string;
-            jobCode?: string;
-            cronExpression: string;
-            handlerBean: string;
-            handlerParam?: string;
-            misfirePolicy?: string;
-            /** Format: int32 */
-            maxRetry?: number;
-            /** Format: int32 */
-            retryIntervalSeconds?: number;
-            /** Format: int32 */
-            shardTotal?: number;
-            /** Format: int32 */
-            status?: number;
-            remark?: string;
-        };
-        JobInfoVO: {
-            id?: string;
-            jobName?: string;
-            jobGroup?: string;
-            executorApp?: string;
-            jobCode?: string;
-            cronExpression?: string;
-            handlerBean?: string;
-            handlerParam?: string;
-            misfirePolicy?: string;
-            /** Format: int32 */
-            maxRetry?: number;
-            /** Format: int32 */
-            retryIntervalSeconds?: number;
-            /** Format: int32 */
-            shardTotal?: number;
-            /** Format: int32 */
-            status?: number;
-            remark?: string;
-            /** Format: date-time */
-            createTime?: string;
-            /** Format: date-time */
-            updateTime?: string;
-            /** Format: date-time */
-            nextFireTime?: string;
-        };
-        ResultJobInfoVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["JobInfoVO"];
-        };
-        JobStatusRequest: {
-            /** Format: int32 */
-            status: number;
-        };
-        ResultVoid: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: unknown;
-        };
-        ExecutorRegisterRequest: {
-            tenantId?: string;
-            appName: string;
-            address: string;
-            jobCodes?: string[];
-        };
-        JobInfoCreateRequest: {
-            jobName: string;
-            jobGroup?: string;
-            executorApp?: string;
-            jobCode?: string;
-            cronExpression: string;
-            handlerBean: string;
-            handlerParam?: string;
-            misfirePolicy?: string;
-            /** Format: int32 */
-            maxRetry?: number;
-            /** Format: int32 */
-            retryIntervalSeconds?: number;
-            /** Format: int32 */
-            shardTotal?: number;
-            /** Format: int32 */
-            status?: number;
-            remark?: string;
-        };
-        JobDependencySetRequest: {
-            upstreamJobIds?: string[];
-        };
-        JobDependencyVO: {
-            jobId?: string;
-            upstreamJobIds?: string[];
-            downstreamJobIds?: string[];
-        };
-        ResultJobDependencyVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["JobDependencyVO"];
-        };
-        ExecutorLogVO: {
-            logId?: string;
-            jobCode?: string;
-            executorApp?: string;
-            address?: string;
-            found?: boolean;
-            note?: string;
-            content?: string;
-        };
-        ResultExecutorLogVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["ExecutorLogVO"];
-        };
-        JobLogQueryRequest: {
-            current?: string;
-            size?: string;
-            jobId?: string;
-            /** Format: int32 */
-            status?: number;
-        };
-        JobLogVO: {
-            id?: string;
-            jobId?: string;
-            jobName?: string;
-            handlerBean?: string;
-            runId?: string;
-            triggerType?: string;
-            /** Format: date-time */
-            startTime?: string;
-            /** Format: date-time */
-            endTime?: string;
-            /** Format: int32 */
-            status?: number;
-            /** Format: int32 */
-            retryCount?: number;
-            /** Format: int32 */
-            shardIndex?: number;
-            errorMsg?: string;
-            result?: string;
-            /** Format: date-time */
-            createTime?: string;
-        };
-        PageResultJobLogVO: {
-            records?: components["schemas"]["JobLogVO"][];
-            total?: string;
-            size?: string;
-            current?: string;
-        };
-        ResultPageResultJobLogVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["PageResultJobLogVO"];
-        };
-        JobExecutorVO: {
-            appName?: string;
-            address?: string;
-            jobCodes?: string[];
-            /** Format: date-time */
-            lastBeat?: string;
-            online?: boolean;
-        };
-        ResultListJobExecutorVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["JobExecutorVO"][];
-        };
-        JobInfoQueryRequest: {
-            current?: string;
-            size?: string;
-            keyword?: string;
-            jobGroup?: string;
-            /** Format: int32 */
-            status?: number;
-        };
-        PageResultJobInfoVO: {
-            records?: components["schemas"]["JobInfoVO"][];
-            total?: string;
-            size?: string;
-            current?: string;
-        };
-        ResultPageResultJobInfoVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["PageResultJobInfoVO"];
-        };
-        JobAlertQueryRequest: {
-            current?: string;
-            size?: string;
-            jobId?: string;
-            level?: string;
-        };
-        JobAlertVO: {
-            id?: string;
-            jobId?: string;
-            jobName?: string;
-            logId?: string;
-            runId?: string;
-            level?: string;
-            channel?: string;
-            /** Format: int32 */
-            status?: number;
-            message?: string;
-            errorMsg?: string;
-            /** Format: date-time */
-            createTime?: string;
-        };
-        PageResultJobAlertVO: {
-            records?: components["schemas"]["JobAlertVO"][];
-            total?: string;
-            size?: string;
-            current?: string;
-        };
-        ResultPageResultJobAlertVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["PageResultJobAlertVO"];
-        };
+  schemas: {
+    ExecutorBeatRequest: {
+      tenantId?: string;
+      appName: string;
+      address: string;
     };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+    ResultBoolean: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: boolean;
+    };
+    JobInfoUpdateRequest: {
+      jobName: string;
+      jobGroup?: string;
+      executorApp?: string;
+      jobCode?: string;
+      cronExpression: string;
+      handlerBean: string;
+      handlerParam?: string;
+      misfirePolicy?: string;
+      /** Format: int32 */
+      maxRetry?: number;
+      /** Format: int32 */
+      retryIntervalSeconds?: number;
+      /** Format: int32 */
+      shardTotal?: number;
+      /** Format: int32 */
+      status?: number;
+      remark?: string;
+    };
+    JobInfoVO: {
+      id?: string;
+      jobName?: string;
+      jobGroup?: string;
+      executorApp?: string;
+      jobCode?: string;
+      cronExpression?: string;
+      handlerBean?: string;
+      handlerParam?: string;
+      misfirePolicy?: string;
+      /** Format: int32 */
+      maxRetry?: number;
+      /** Format: int32 */
+      retryIntervalSeconds?: number;
+      /** Format: int32 */
+      shardTotal?: number;
+      /** Format: int32 */
+      status?: number;
+      remark?: string;
+      /** Format: date-time */
+      createTime?: string;
+      /** Format: date-time */
+      updateTime?: string;
+      /** Format: date-time */
+      nextFireTime?: string;
+    };
+    ResultJobInfoVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['JobInfoVO'];
+    };
+    JobStatusRequest: {
+      /** Format: int32 */
+      status: number;
+    };
+    ResultVoid: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: unknown;
+    };
+    ExecutorRegisterRequest: {
+      tenantId?: string;
+      appName: string;
+      address: string;
+      jobCodes?: string[];
+    };
+    JobInfoCreateRequest: {
+      jobName: string;
+      jobGroup?: string;
+      executorApp?: string;
+      jobCode?: string;
+      cronExpression: string;
+      handlerBean: string;
+      handlerParam?: string;
+      misfirePolicy?: string;
+      /** Format: int32 */
+      maxRetry?: number;
+      /** Format: int32 */
+      retryIntervalSeconds?: number;
+      /** Format: int32 */
+      shardTotal?: number;
+      /** Format: int32 */
+      status?: number;
+      remark?: string;
+    };
+    JobDependencySetRequest: {
+      upstreamJobIds?: string[];
+    };
+    JobDependencyVO: {
+      jobId?: string;
+      upstreamJobIds?: string[];
+      downstreamJobIds?: string[];
+    };
+    ResultJobDependencyVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['JobDependencyVO'];
+    };
+    ExecutorLogVO: {
+      logId?: string;
+      jobCode?: string;
+      executorApp?: string;
+      address?: string;
+      found?: boolean;
+      note?: string;
+      content?: string;
+    };
+    ResultExecutorLogVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['ExecutorLogVO'];
+    };
+    JobLogQueryRequest: {
+      current?: string;
+      size?: string;
+      jobId?: string;
+      /** Format: int32 */
+      status?: number;
+    };
+    JobLogVO: {
+      id?: string;
+      jobId?: string;
+      jobName?: string;
+      handlerBean?: string;
+      runId?: string;
+      triggerType?: string;
+      /** Format: date-time */
+      startTime?: string;
+      /** Format: date-time */
+      endTime?: string;
+      /** Format: int32 */
+      status?: number;
+      /** Format: int32 */
+      retryCount?: number;
+      /** Format: int32 */
+      shardIndex?: number;
+      errorMsg?: string;
+      result?: string;
+      /** Format: date-time */
+      createTime?: string;
+    };
+    PageResultJobLogVO: {
+      records?: components['schemas']['JobLogVO'][];
+      total?: string;
+      size?: string;
+      current?: string;
+    };
+    ResultPageResultJobLogVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PageResultJobLogVO'];
+    };
+    JobExecutorVO: {
+      appName?: string;
+      address?: string;
+      jobCodes?: string[];
+      /** Format: date-time */
+      lastBeat?: string;
+      online?: boolean;
+    };
+    ResultListJobExecutorVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['JobExecutorVO'][];
+    };
+    JobInfoQueryRequest: {
+      current?: string;
+      size?: string;
+      keyword?: string;
+      jobGroup?: string;
+      /** Format: int32 */
+      status?: number;
+    };
+    PageResultJobInfoVO: {
+      records?: components['schemas']['JobInfoVO'][];
+      total?: string;
+      size?: string;
+      current?: string;
+    };
+    ResultPageResultJobInfoVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PageResultJobInfoVO'];
+    };
+    JobAlertQueryRequest: {
+      current?: string;
+      size?: string;
+      jobId?: string;
+      level?: string;
+    };
+    JobAlertVO: {
+      id?: string;
+      jobId?: string;
+      jobName?: string;
+      logId?: string;
+      runId?: string;
+      level?: string;
+      channel?: string;
+      /** Format: int32 */
+      status?: number;
+      message?: string;
+      errorMsg?: string;
+      /** Format: date-time */
+      createTime?: string;
+    };
+    PageResultJobAlertVO: {
+      records?: components['schemas']['JobAlertVO'][];
+      total?: string;
+      size?: string;
+      current?: string;
+    };
+    ResultPageResultJobAlertVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PageResultJobAlertVO'];
+    };
+  };
+  responses: never;
+  parameters: never;
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    beat: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ExecutorBeatRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultBoolean"];
-                };
-            };
-        };
+  beat: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    detail: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultJobInfoVO"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ExecutorBeatRequest'];
+      };
     };
-    update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["JobInfoUpdateRequest"];
-            };
+        content: {
+          '*/*': components['schemas']['ResultBoolean'];
         };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultJobInfoVO"];
-                };
-            };
-        };
+      };
     };
-    delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
+  };
+  detail: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
     };
-    changeStatus: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["JobStatusRequest"];
-            };
+        content: {
+          '*/*': components['schemas']['ResultJobInfoVO'];
         };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
+      };
     };
-    register: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ExecutorRegisterRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
+  };
+  update: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
     };
-    deregister: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ExecutorBeatRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['JobInfoUpdateRequest'];
+      };
     };
-    create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["JobInfoCreateRequest"];
-            };
+        content: {
+          '*/*': components['schemas']['ResultJobInfoVO'];
         };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultJobInfoVO"];
-                };
-            };
-        };
+      };
     };
-    run: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
+  };
+  delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
     };
-    dependencies: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultJobDependencyVO"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
         };
+      };
     };
-    saveDependencies: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["JobDependencySetRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultJobDependencyVO"];
-                };
-            };
-        };
+  };
+  changeStatus: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
     };
-    logDetail: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultExecutorLogVO"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['JobStatusRequest'];
+      };
     };
-    logPage: {
-        parameters: {
-            query: {
-                request: components["schemas"]["JobLogQueryRequest"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPageResultJobLogVO"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
         };
+      };
     };
-    list: {
-        parameters: {
-            query?: {
-                appName?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListJobExecutorVO"];
-                };
-            };
-        };
+  };
+  register: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    page: {
-        parameters: {
-            query: {
-                request: components["schemas"]["JobInfoQueryRequest"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPageResultJobInfoVO"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ExecutorRegisterRequest'];
+      };
     };
-    alertPage: {
-        parameters: {
-            query: {
-                request: components["schemas"]["JobAlertQueryRequest"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPageResultJobAlertVO"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
         };
+      };
     };
+  };
+  deregister: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ExecutorBeatRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['JobInfoCreateRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultJobInfoVO'];
+        };
+      };
+    };
+  };
+  run: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
+        };
+      };
+    };
+  };
+  dependencies: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultJobDependencyVO'];
+        };
+      };
+    };
+  };
+  saveDependencies: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['JobDependencySetRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultJobDependencyVO'];
+        };
+      };
+    };
+  };
+  logDetail: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultExecutorLogVO'];
+        };
+      };
+    };
+  };
+  logPage: {
+    parameters: {
+      query: {
+        request: components['schemas']['JobLogQueryRequest'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultPageResultJobLogVO'];
+        };
+      };
+    };
+  };
+  list: {
+    parameters: {
+      query?: {
+        appName?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultListJobExecutorVO'];
+        };
+      };
+    };
+  };
+  page: {
+    parameters: {
+      query: {
+        request: components['schemas']['JobInfoQueryRequest'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultPageResultJobInfoVO'];
+        };
+      };
+    };
+  };
+  alertPage: {
+    parameters: {
+      query: {
+        request: components['schemas']['JobAlertQueryRequest'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultPageResultJobAlertVO'];
+        };
+      };
+    };
+  };
 }

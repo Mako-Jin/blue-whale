@@ -106,7 +106,11 @@ function AttendanceModal({
     >
       <Form form={form} layout="vertical">
         <Space size="middle" wrap>
-          <Form.Item name="employeeNo" label="员工" rules={[{ required: true, message: '请选择员工' }]}>
+          <Form.Item
+            name="employeeNo"
+            label="员工"
+            rules={[{ required: true, message: '请选择员工' }]}
+          >
             <Select
               showSearch
               allowClear
@@ -189,9 +193,21 @@ export default function AttendancePage() {
     { title: '员工编号', dataIndex: 'employeeNo', key: 'employeeNo', width: 130 },
     { title: '考勤期间', dataIndex: 'period', key: 'period', width: 110 },
     { title: '应出勤天数', dataIndex: 'workDays', key: 'workDays', width: 110, render: quantity },
-    { title: '实际出勤天数', dataIndex: 'actualDays', key: 'actualDays', width: 120, render: quantity },
+    {
+      title: '实际出勤天数',
+      dataIndex: 'actualDays',
+      key: 'actualDays',
+      width: 120,
+      render: quantity,
+    },
     { title: '请假小时', dataIndex: 'leaveHours', key: 'leaveHours', width: 100, render: quantity },
-    { title: '加班小时', dataIndex: 'overtimeHours', key: 'overtimeHours', width: 100, render: quantity },
+    {
+      title: '加班小时',
+      dataIndex: 'overtimeHours',
+      key: 'overtimeHours',
+      width: 100,
+      render: quantity,
+    },
     { title: '缺勤天数', dataIndex: 'absentDays', key: 'absentDays', width: 100, render: quantity },
     { title: '备注', dataIndex: 'remark', key: 'remark' },
     {

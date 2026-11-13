@@ -293,7 +293,12 @@ export default function ProductPage() {
         <Typography.Link onClick={() => navigate(`/product/${row.id}`)}>{value}</Typography.Link>
       ),
     },
-    { title: '类目', dataIndex: 'categoryName', width: 140, render: (value?: string) => value || '-' },
+    {
+      title: '类目',
+      dataIndex: 'categoryName',
+      width: 140,
+      render: (value?: string) => value || '-',
+    },
     { title: '品牌', dataIndex: 'brand', width: 120, render: (value?: string) => value || '-' },
     {
       title: '状态',
@@ -328,7 +333,11 @@ export default function ProductPage() {
             </Button>
           )}
           {canManage && (
-            <Popconfirm title="删除商品" description="在售商品不可删除" onConfirm={() => handleRemove(row.id)}>
+            <Popconfirm
+              title="删除商品"
+              description="在售商品不可删除"
+              onConfirm={() => handleRemove(row.id)}
+            >
               <Button type="link" size="small" danger>
                 删除
               </Button>
@@ -366,7 +375,9 @@ export default function ProductPage() {
             placeholder="状态"
             style={{ width: 120 }}
             options={SPU_STATUS_OPTIONS}
-            onChange={(value?: string) => setQuery((prev) => ({ ...prev, status: value, current: 1 }))}
+            onChange={(value?: string) =>
+              setQuery((prev) => ({ ...prev, status: value, current: 1 }))
+            }
           />
           {canManage && (
             <Button type="primary" onClick={openCreate}>
@@ -472,19 +483,35 @@ export default function ProductPage() {
                       >
                         <Input maxLength={64} placeholder="如 SKU-1001-BK" />
                       </Form.Item>
-                      <Form.Item label="规格" name={[field.name, 'specText']} style={{ width: 200 }}>
+                      <Form.Item
+                        label="规格"
+                        name={[field.name, 'specText']}
+                        style={{ width: 200 }}
+                      >
                         <Input maxLength={64} placeholder="如 黑色 / M" />
                       </Form.Item>
                       <Form.Item label="状态" name={[field.name, 'status']} style={{ width: 110 }}>
                         <Select options={ENABLE_STATUS_OPTIONS} />
                       </Form.Item>
-                      <Form.Item label={PRICE_TYPE_LABEL.RETAIL} name={[field.name, 'retailPrice']} style={{ width: 130 }}>
+                      <Form.Item
+                        label={PRICE_TYPE_LABEL.RETAIL}
+                        name={[field.name, 'retailPrice']}
+                        style={{ width: 130 }}
+                      >
                         <InputNumber min={0} precision={2} style={{ width: '100%' }} />
                       </Form.Item>
-                      <Form.Item label={PRICE_TYPE_LABEL.B2B} name={[field.name, 'b2bPrice']} style={{ width: 130 }}>
+                      <Form.Item
+                        label={PRICE_TYPE_LABEL.B2B}
+                        name={[field.name, 'b2bPrice']}
+                        style={{ width: 130 }}
+                      >
                         <InputNumber min={0} precision={2} style={{ width: '100%' }} />
                       </Form.Item>
-                      <Form.Item label={PRICE_TYPE_LABEL.POINTS} name={[field.name, 'pointsPrice']} style={{ width: 130 }}>
+                      <Form.Item
+                        label={PRICE_TYPE_LABEL.POINTS}
+                        name={[field.name, 'pointsPrice']}
+                        style={{ width: 130 }}
+                      >
                         <InputNumber min={0} precision={0} style={{ width: '100%' }} />
                       </Form.Item>
                       <Form.Item label=" ">

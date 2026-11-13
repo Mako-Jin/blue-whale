@@ -188,9 +188,7 @@ function AccessRulePanel({ kind }: { kind: Kind }) {
       setEditorOpen(false);
       void load();
     } catch (error) {
-      message.error(
-        error instanceof Error ? error.message : editRecord ? '更新失败' : '创建失败',
-      );
+      message.error(error instanceof Error ? error.message : editRecord ? '更新失败' : '创建失败');
       throw error;
     }
   };
@@ -319,9 +317,7 @@ function AccessRulePanel({ kind }: { kind: Kind }) {
 
       <FormModal<RuleFormValues>
         open={editorOpen}
-        title={
-          editRecord ? `编辑${meta.title}：${editRecord.pathPattern}` : `新增${meta.title}`
-        }
+        title={editRecord ? `编辑${meta.title}：${editRecord.pathPattern}` : `新增${meta.title}`}
         form={editorForm}
         initialValues={editRecord ? toFormValues(editRecord) : { status: 1, sortNo: 0 }}
         onOk={handleSubmit}
@@ -370,7 +366,9 @@ export default function GatewayAccessList() {
     }));
 
   if (items.length === 0) {
-    return <Alert type="error" showIcon message="缺少网关访问名单的查询权限（sys:gateway:*:list）" />;
+    return (
+      <Alert type="error" showIcon message="缺少网关访问名单的查询权限（sys:gateway:*:list）" />
+    );
   }
 
   return <Tabs defaultActiveKey={items[0].key} items={items} destroyOnHidden />;

@@ -33,7 +33,14 @@ export interface AvatarParams {
 
 export const SKIN_TONES = ['#f2d7b8', '#e8c4a0', '#d9ac86', '#c08e63', '#9c6b45'];
 export const ROBE_COLORS = [
-  '#2b4a63', '#8f3a2c', '#3f6b57', '#5a4a7a', '#7a5a2e', '#7d8590', '#a3435a', '#2f5f78',
+  '#2b4a63',
+  '#8f3a2c',
+  '#3f6b57',
+  '#5a4a7a',
+  '#7a5a2e',
+  '#7d8590',
+  '#a3435a',
+  '#2f5f78',
 ];
 export const HAIR_COLORS = ['#15110f', '#241d19', '#41332a', '#6a5540'];
 
@@ -141,7 +148,10 @@ function buildBody(p: AvatarParams): Built {
   root.add(legL, legR);
 
   /* ---- 下裳（裙摆） ---- */
-  const skirt = new THREE.Mesh(new THREE.CylinderGeometry(0.42 * B, 0.62 * B, 0.94, 16, 1, true), robeMat);
+  const skirt = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.42 * B, 0.62 * B, 0.94, 16, 1, true),
+    robeMat,
+  );
   skirt.position.y = 1.02;
   skirt.castShadow = true;
   root.add(skirt);
@@ -158,11 +168,17 @@ function buildBody(p: AvatarParams): Built {
   root.add(belt);
 
   if (p.accessory === 1) {
-    const jade = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.022, 8, 14), mat('#8fd9c8', 0.35, 0.1));
+    const jade = new THREE.Mesh(
+      new THREE.TorusGeometry(0.07, 0.022, 8, 14),
+      mat('#8fd9c8', 0.35, 0.1),
+    );
     jade.position.set(0.32 * B, 1.3, 0.12);
     jade.rotation.x = Math.PI / 2;
     root.add(jade);
-    const tassel = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.22, 6), mat('#a3435a', 0.9));
+    const tassel = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.012, 0.012, 0.22, 6),
+      mat('#a3435a', 0.9),
+    );
     tassel.position.set(0.34 * B, 1.2, 0.14);
     root.add(tassel);
   }
@@ -304,7 +320,10 @@ function buildBody(p: AvatarParams): Built {
     const guard = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.12), goldMat);
     guard.position.y = 0.52;
     sword.add(guard);
-    const hilt = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.24, 8), mat('#4a3524', 0.85));
+    const hilt = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.032, 0.032, 0.24, 8),
+      mat('#4a3524', 0.85),
+    );
     hilt.position.y = 0.66;
     sword.add(hilt);
     root.add(sword);
@@ -353,7 +372,8 @@ export function createAvatar(params: AvatarParams): AvatarHandle {
       armR.rotation.z = -0.08 - (1 - swing) * 0.03;
 
       // 呼吸 + 步频起伏
-      const bob = Math.abs(Math.sin(phase)) * 0.07 * swing + Math.sin(t * 1.4) * 0.012 * (1 - swing);
+      const bob =
+        Math.abs(Math.sin(phase)) * 0.07 * swing + Math.sin(t * 1.4) * 0.012 * (1 - swing);
       built.root.position.y = bob;
       torso.scale.y = 1 + Math.sin(t * 1.4) * 0.012 * (1 - swing);
 
@@ -385,7 +405,10 @@ export interface AvatarPreview {
   dispose: () => void;
 }
 
-export function createAvatarPreview(canvas: HTMLCanvasElement, initial: AvatarParams): AvatarPreview {
+export function createAvatarPreview(
+  canvas: HTMLCanvasElement,
+  initial: AvatarParams,
+): AvatarPreview {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;

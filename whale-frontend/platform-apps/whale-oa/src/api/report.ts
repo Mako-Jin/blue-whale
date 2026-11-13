@@ -86,7 +86,9 @@ export function createReportSnapshot(code: string, period?: string) {
 }
 
 /** 快照分页 */
-export function pageReportSnapshots(params: { code?: string; current?: number; size?: number } = {}) {
+export function pageReportSnapshots(
+  params: { code?: string; current?: number; size?: number } = {},
+) {
   const search = new URLSearchParams();
   if (params.code) {
     search.set('code', params.code);

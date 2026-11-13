@@ -219,7 +219,8 @@ export default function ExpenseCategoryPage() {
       key: 'singleLimit',
       width: 130,
       align: 'right',
-      render: (value?: number) => (value === undefined || value === null ? '-' : Number(value).toFixed(2)),
+      render: (value?: number) =>
+        value === undefined || value === null ? '-' : Number(value).toFixed(2),
     },
     {
       title: '状态',
@@ -287,10 +288,20 @@ export default function ExpenseCategoryPage() {
       >
         <Form form={form} layout="vertical">
           <Space size="middle" style={{ display: 'flex' }}>
-            <Form.Item name="code" label="类别编码" rules={[{ required: true, message: '请输入类别编码' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="code"
+              label="类别编码"
+              rules={[{ required: true, message: '请输入类别编码' }]}
+              style={{ flex: 1 }}
+            >
               <Input maxLength={32} disabled={!!editing} />
             </Form.Item>
-            <Form.Item name="name" label="类别名称" rules={[{ required: true, message: '请输入类别名称' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="name"
+              label="类别名称"
+              rules={[{ required: true, message: '请输入类别名称' }]}
+              style={{ flex: 1 }}
+            >
               <Input maxLength={64} />
             </Form.Item>
           </Space>
@@ -360,7 +371,10 @@ export default function ExpenseCategoryPage() {
                       </Button>
                     ) : null}
                     {canDelete ? (
-                      <Popconfirm title="确认删除该标准？" onConfirm={() => void handleDeleteStandard(record)}>
+                      <Popconfirm
+                        title="确认删除该标准？"
+                        onConfirm={() => void handleDeleteStandard(record)}
+                      >
                         <Button type="link" size="small" danger>
                           删除
                         </Button>
@@ -383,10 +397,20 @@ export default function ExpenseCategoryPage() {
       >
         <Form form={standardForm} layout="vertical">
           <Space size="middle" style={{ display: 'flex' }}>
-            <Form.Item name="levelCode" label="级别编码" rules={[{ required: true, message: '请输入级别编码' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="levelCode"
+              label="级别编码"
+              rules={[{ required: true, message: '请输入级别编码' }]}
+              style={{ flex: 1 }}
+            >
               <Input maxLength={32} placeholder="如 DEFAULT / P1" />
             </Form.Item>
-            <Form.Item name="limitAmount" label="限额" rules={[{ required: true, message: '请输入限额' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="limitAmount"
+              label="限额"
+              rules={[{ required: true, message: '请输入限额' }]}
+              style={{ flex: 1 }}
+            >
               <InputNumber style={{ width: '100%' }} min={0} precision={2} />
             </Form.Item>
             <Form.Item name="enabled" label="启用" valuePropName="checked">

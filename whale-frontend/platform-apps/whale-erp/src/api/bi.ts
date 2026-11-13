@@ -269,11 +269,7 @@ export function updateReportDefinition(
 }
 
 /** 执行报表 */
-export function executeReport(
-  reportNo: string,
-  from?: string,
-  to?: string,
-): Promise<CubeResult> {
+export function executeReport(reportNo: string, from?: string, to?: string): Promise<CubeResult> {
   const search = new URLSearchParams();
   if (from) search.set('from', from);
   if (to) search.set('to', to);
@@ -353,7 +349,10 @@ export function evaluateAlerts(ruleNo?: string): Promise<AlertEvaluationView> {
 }
 
 /** 确认预警事件 */
-export function acknowledgeAlert(id: number, input: AlertHandleInput = {}): Promise<AlertEventView> {
+export function acknowledgeAlert(
+  id: number,
+  input: AlertHandleInput = {},
+): Promise<AlertEventView> {
   return http.post<AlertEventView>(`/erp/bi/alert/event/${id}/acknowledge`, input);
 }
 

@@ -121,7 +121,10 @@ export interface ProcessSopInput {
 
 /** 路线分页查询 */
 export function listProcessRoutes(params: ProcessRouteQuery): Promise<PageResult<ProcessRoute>> {
-  return http.get<PageResult<ProcessRoute>>('/pdm/process/route/page', params as Record<string, unknown>);
+  return http.get<PageResult<ProcessRoute>>(
+    '/pdm/process/route/page',
+    params as Record<string, unknown>,
+  );
 }
 
 /** 路线详情 */

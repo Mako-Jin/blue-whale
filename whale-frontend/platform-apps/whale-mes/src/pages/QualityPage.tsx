@@ -74,14 +74,7 @@ import { hasPermission } from '../utils/permission';
 
 /** 页签键 */
 export type QualityTab =
-  | 'plan'
-  | 'first-article'
-  | 'ipqc'
-  | 'ncr'
-  | 'disposition'
-  | 'rework'
-  | 'spc'
-  | 'board';
+  'plan' | 'first-article' | 'ipqc' | 'ncr' | 'disposition' | 'rework' | 'spc' | 'board';
 
 /** 检验类型文案 */
 const INSPECTION_TYPE_LABEL: Record<string, string> = {
@@ -172,13 +165,22 @@ const REWORK_STATUS_COLOR: Record<string, string> = {
 };
 
 /** 检验任务状态下拉项 */
-const TASK_STATUS_OPTIONS = Object.entries(TASK_STATUS_LABEL).map(([value, label]) => ({ value, label }));
+const TASK_STATUS_OPTIONS = Object.entries(TASK_STATUS_LABEL).map(([value, label]) => ({
+  value,
+  label,
+}));
 
 /** NCR 状态下拉项 */
-const NCR_STATUS_OPTIONS = Object.entries(NCR_STATUS_LABEL).map(([value, label]) => ({ value, label }));
+const NCR_STATUS_OPTIONS = Object.entries(NCR_STATUS_LABEL).map(([value, label]) => ({
+  value,
+  label,
+}));
 
 /** 处置类型下拉项 */
-const DISPOSITION_TYPE_OPTIONS = Object.entries(DISPOSITION_TYPE_LABEL).map(([value, label]) => ({ value, label }));
+const DISPOSITION_TYPE_OPTIONS = Object.entries(DISPOSITION_TYPE_LABEL).map(([value, label]) => ({
+  value,
+  label,
+}));
 
 /** 数量展示 */
 function formatQuantity(value?: number | string): string {
@@ -307,7 +309,9 @@ function PlanPanel() {
       key: 'status',
       width: 90,
       render: (value: string) => (
-        <Tag color={value === 'ENABLED' ? 'green' : 'default'}>{value === 'ENABLED' ? '启用' : '停用'}</Tag>
+        <Tag color={value === 'ENABLED' ? 'green' : 'default'}>
+          {value === 'ENABLED' ? '启用' : '停用'}
+        </Tag>
       ),
     },
     {
@@ -363,13 +367,26 @@ function PlanPanel() {
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="planName" label="计划名称" rules={[{ required: true, message: '请填写计划名称' }]}>
+              <Form.Item
+                name="planName"
+                label="计划名称"
+                rules={[{ required: true, message: '请填写计划名称' }]}
+              >
                 <Input maxLength={128} />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="inspectionType" label="检验类型" rules={[{ required: true, message: '请选择检验类型' }]}>
-                <Select options={Object.entries(INSPECTION_TYPE_LABEL).map(([value, label]) => ({ value, label }))} />
+              <Form.Item
+                name="inspectionType"
+                label="检验类型"
+                rules={[{ required: true, message: '请选择检验类型' }]}
+              >
+                <Select
+                  options={Object.entries(INSPECTION_TYPE_LABEL).map(([value, label]) => ({
+                    value,
+                    label,
+                  }))}
+                />
               </Form.Item>
             </Col>
             <Col span={8}>
@@ -388,7 +405,11 @@ function PlanPanel() {
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="sampleSize" label="抽样数量" rules={[{ required: true, message: '请填写抽样数量' }]}>
+              <Form.Item
+                name="sampleSize"
+                label="抽样数量"
+                rules={[{ required: true, message: '请填写抽样数量' }]}
+              >
                 <InputNumber min={1} max={200} style={{ width: '100%' }} />
               </Form.Item>
             </Col>
@@ -465,7 +486,10 @@ function PlanPanel() {
                     <Form.Item {...field} name={[field.name, 'inspectionMethod']}>
                       <Select
                         style={{ width: 110 }}
-                        options={Object.entries(INSPECTION_METHOD_LABEL).map(([value, label]) => ({ value, label }))}
+                        options={Object.entries(INSPECTION_METHOD_LABEL).map(([value, label]) => ({
+                          value,
+                          label,
+                        }))}
                       />
                     </Form.Item>
                     <Form.Item {...field} name={[field.name, 'standardText']}>
@@ -497,7 +521,9 @@ function PlanPanel() {
                 <Button
                   type="dashed"
                   block
-                  onClick={() => add({ itemNo: fields.length + 1, inspectionMethod: 'VISUAL', criticalFlag: 0 })}
+                  onClick={() =>
+                    add({ itemNo: fields.length + 1, inspectionMethod: 'VISUAL', criticalFlag: 0 })
+                  }
                 >
                   添加检验项
                 </Button>
@@ -536,7 +562,11 @@ function FirstArticleGateCard() {
   return (
     <Card title="首件门禁校验" size="small" loading={loading}>
       <Form form={form} layout="inline" onFinish={(values) => void query(values)}>
-        <Form.Item name="workOrderId" label="工单" rules={[{ required: true, message: '请选择工单' }]}>
+        <Form.Item
+          name="workOrderId"
+          label="工单"
+          rules={[{ required: true, message: '请选择工单' }]}
+        >
           <Select
             showSearch
             optionFilterProp="label"
@@ -563,7 +593,9 @@ function FirstArticleGateCard() {
           description={
             <Space wrap size="middle">
               <span>最近任务：{gate.taskNo ?? '-'}</span>
-              <span>状态：{gate.status ? TASK_STATUS_LABEL[gate.status] ?? gate.status : '-'}</span>
+              <span>
+                状态：{gate.status ? (TASK_STATUS_LABEL[gate.status] ?? gate.status) : '-'}
+              </span>
               <span>判定时间：{formatTime(gate.judgedAt)}</span>
             </Space>
           }
@@ -581,7 +613,13 @@ interface InspectionResultFormValues {
 }
 
 /** 首件 / IPQC 检验面板 */
-function InspectionPanel({ taskType, withGate = false }: { taskType: MesInspectionType; withGate?: boolean }) {
+function InspectionPanel({
+  taskType,
+  withGate = false,
+}: {
+  taskType: MesInspectionType;
+  withGate?: boolean;
+}) {
   const [tasks, setTasks] = useState<MesInspectionTask[]>([]);
   const [plans, setPlans] = useState<MesInspectionPlan[]>([]);
   const [loading, setLoading] = useState(false);
@@ -612,7 +650,9 @@ function InspectionPanel({ taskType, withGate = false }: { taskType: MesInspecti
 
   useEffect(() => {
     void (async () => {
-      setPlans((await pageMesInspectionPlans({ inspectionType: taskType, status: 'ENABLED' })).records);
+      setPlans(
+        (await pageMesInspectionPlans({ inspectionType: taskType, status: 'ENABLED' })).records,
+      );
     })();
   }, [taskType]);
 
@@ -640,8 +680,10 @@ function InspectionPanel({ taskType, withGate = false }: { taskType: MesInspecti
   const openResults = async (task: MesInspectionTask) => {
     setCurrentTask(task);
     const detail = await getMesInspectionTask(task.id);
-    const items = task.planId ? (await getMesInspectionPlan(task.planId)).items ?? [] : [];
-    const existing = new Map(detail.results.map((result) => [String(result.planItemId ?? ''), result]));
+    const items = task.planId ? ((await getMesInspectionPlan(task.planId)).items ?? []) : [];
+    const existing = new Map(
+      detail.results.map((result) => [String(result.planItemId ?? ''), result]),
+    );
     setPlanItems(items);
     resultForm.resetFields();
     resultForm.setFieldsValue({
@@ -724,7 +766,13 @@ function InspectionPanel({ taskType, withGate = false }: { taskType: MesInspecti
         <Tag color={TASK_STATUS_COLOR[value] ?? 'default'}>{TASK_STATUS_LABEL[value] ?? value}</Tag>
       ),
     },
-    { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160, render: (value?: string) => formatTime(value) },
+    {
+      title: '创建时间',
+      dataIndex: 'createTime',
+      key: 'createTime',
+      width: 160,
+      render: (value?: string) => formatTime(value),
+    },
     {
       title: '操作',
       key: 'action',
@@ -787,11 +835,18 @@ function InspectionPanel({ taskType, withGate = false }: { taskType: MesInspecti
         destroyOnClose
       >
         <Form form={createForm} layout="vertical">
-          <Form.Item name="planId" label="检验计划" rules={[{ required: true, message: '请选择检验计划' }]}>
+          <Form.Item
+            name="planId"
+            label="检验计划"
+            rules={[{ required: true, message: '请选择检验计划' }]}
+          >
             <Select
               showSearch
               optionFilterProp="label"
-              options={plans.map((plan) => ({ value: plan.id, label: `${plan.planNo} ${plan.planName}` }))}
+              options={plans.map((plan) => ({
+                value: plan.id,
+                label: `${plan.planNo} ${plan.planName}`,
+              }))}
             />
           </Form.Item>
           <Row gutter={16}>
@@ -869,11 +924,18 @@ function InspectionPanel({ taskType, withGate = false }: { taskType: MesInspecti
                   <Typography.Text strong>
                     {item.itemNo}. {item.itemName}
                   </Typography.Text>
-                  <Tag>{INSPECTION_METHOD_LABEL[item.inspectionMethod ?? ''] ?? item.inspectionMethod ?? '-'}</Tag>
-                  {item.standardText ? <Typography.Text type="secondary">{item.standardText}</Typography.Text> : null}
+                  <Tag>
+                    {INSPECTION_METHOD_LABEL[item.inspectionMethod ?? ''] ??
+                      item.inspectionMethod ??
+                      '-'}
+                  </Tag>
+                  {item.standardText ? (
+                    <Typography.Text type="secondary">{item.standardText}</Typography.Text>
+                  ) : null}
                   {item.minValue !== undefined || item.maxValue !== undefined ? (
                     <Typography.Text type="secondary">
-                      范围 {formatQuantity(item.minValue)} ~ {formatQuantity(item.maxValue)} {item.unit ?? ''}
+                      范围 {formatQuantity(item.minValue)} ~ {formatQuantity(item.maxValue)}{' '}
+                      {item.unit ?? ''}
                     </Typography.Text>
                   ) : null}
                   {item.criticalFlag === 1 ? <Tag color="red">关键项</Tag> : null}
@@ -928,13 +990,21 @@ function InspectionPanel({ taskType, withGate = false }: { taskType: MesInspecti
         destroyOnClose
       >
         <Form form={judgeForm} layout="vertical">
-          <Form.Item name="conclusion" label="判定结论" rules={[{ required: true, message: '请填写判定结论' }]}>
+          <Form.Item
+            name="conclusion"
+            label="判定结论"
+            rules={[{ required: true, message: '请填写判定结论' }]}
+          >
             <Input.TextArea rows={3} maxLength={255} />
           </Form.Item>
           <Form.Item name="judge" label="判定人">
             <Input maxLength={64} />
           </Form.Item>
-          <Alert type="info" showIcon message="检验项未全部录入不可判定；判定不合格将自动生成 NCR。" />
+          <Alert
+            type="info"
+            showIcon
+            message="检验项未全部录入不可判定；判定不合格将自动生成 NCR。"
+          />
         </Form>
       </Modal>
     </Space>
@@ -1057,7 +1127,8 @@ function NcrPanel() {
       title: '不良',
       key: 'defect',
       width: 160,
-      render: (_, record) => `${record.defectName ?? record.defectCode ?? '-'} × ${formatQuantity(record.defectQuantity)}`,
+      render: (_, record) =>
+        `${record.defectName ?? record.defectCode ?? '-'} × ${formatQuantity(record.defectQuantity)}`,
     },
     {
       title: '状态',
@@ -1068,7 +1139,13 @@ function NcrPanel() {
         <Tag color={NCR_STATUS_COLOR[value] ?? 'default'}>{NCR_STATUS_LABEL[value] ?? value}</Tag>
       ),
     },
-    { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160, render: (value?: string) => formatTime(value) },
+    {
+      title: '创建时间',
+      dataIndex: 'createTime',
+      key: 'createTime',
+      width: 160,
+      render: (value?: string) => formatTime(value),
+    },
     {
       title: '操作',
       key: 'action',
@@ -1157,7 +1234,11 @@ function NcrPanel() {
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="defectQuantity" label="不良数量" rules={[{ required: true, message: '请填写不良数量' }]}>
+              <Form.Item
+                name="defectQuantity"
+                label="不良数量"
+                rules={[{ required: true, message: '请填写不良数量' }]}
+              >
                 <InputNumber min={0.0001} style={{ width: '100%' }} />
               </Form.Item>
             </Col>
@@ -1190,11 +1271,19 @@ function NcrPanel() {
           <Form.Item name="ncrId" hidden>
             <Input />
           </Form.Item>
-          <Form.Item name="dispositionType" label="处置类型" rules={[{ required: true, message: '请选择处置类型' }]}>
+          <Form.Item
+            name="dispositionType"
+            label="处置类型"
+            rules={[{ required: true, message: '请选择处置类型' }]}
+          >
             <Select options={DISPOSITION_TYPE_OPTIONS} />
           </Form.Item>
           <Form.Item label="处置数量（须等于不良数量）">
-            <Form.Item name="quantity" noStyle rules={[{ required: true, message: '请填写处置数量' }]}>
+            <Form.Item
+              name="quantity"
+              noStyle
+              rules={[{ required: true, message: '请填写处置数量' }]}
+            >
               <InputNumber min={0.0001} style={{ width: '100%' }} />
             </Form.Item>
           </Form.Item>
@@ -1219,7 +1308,11 @@ function NcrPanel() {
         destroyOnClose
       >
         <Form form={closeForm} layout="vertical">
-          <Form.Item name="conclusion" label="关闭结论" rules={[{ required: true, message: '关闭 NCR 必须填写结论' }]}>
+          <Form.Item
+            name="conclusion"
+            label="关闭结论"
+            rules={[{ required: true, message: '关闭 NCR 必须填写结论' }]}
+          >
             <Input.TextArea rows={3} maxLength={255} />
           </Form.Item>
           <Form.Item name="closedBy" label="关闭人">
@@ -1255,7 +1348,9 @@ function DispositionPanel() {
   const execute = async (record: MesDisposition) => {
     try {
       await executeMesDisposition(record.id);
-      message.success(record.dispositionType === 'REWORK' ? '处置已执行，已生成返工单' : '处置已执行');
+      message.success(
+        record.dispositionType === 'REWORK' ? '处置已执行，已生成返工单' : '处置已执行',
+      );
       await load();
     } catch {
       message.error('执行失败：处置状态或 NCR 状态不可执行');
@@ -1272,7 +1367,13 @@ function DispositionPanel() {
       width: 110,
       render: (value: string) => <Tag color="blue">{DISPOSITION_TYPE_LABEL[value] ?? value}</Tag>,
     },
-    { title: '数量', dataIndex: 'quantity', key: 'quantity', width: 90, render: (value?: number | string) => formatQuantity(value) },
+    {
+      title: '数量',
+      dataIndex: 'quantity',
+      key: 'quantity',
+      width: 90,
+      render: (value?: number | string) => formatQuantity(value),
+    },
     { title: '原因', dataIndex: 'reason', key: 'reason', width: 200 },
     { title: '审批人', dataIndex: 'approvedBy', key: 'approvedBy', width: 110 },
     {
@@ -1286,14 +1387,25 @@ function DispositionPanel() {
         </Tag>
       ),
     },
-    { title: '执行时间', dataIndex: 'executedAt', key: 'executedAt', width: 160, render: (value?: string) => formatTime(value) },
+    {
+      title: '执行时间',
+      dataIndex: 'executedAt',
+      key: 'executedAt',
+      width: 160,
+      render: (value?: string) => formatTime(value),
+    },
     {
       title: '操作',
       key: 'action',
       width: 100,
       render: (_, record) =>
         canDisposition && record.status === 'CONFIRMED' ? (
-          <Popconfirm title="确认执行该处置？" okText="执行" cancelText="取消" onConfirm={() => execute(record)}>
+          <Popconfirm
+            title="确认执行该处置？"
+            okText="执行"
+            cancelText="取消"
+            onConfirm={() => execute(record)}
+          >
             <Button type="link" size="small">
               执行
             </Button>
@@ -1376,7 +1488,13 @@ function ReworkPanel() {
     { title: '工单编码', dataIndex: 'workOrderCode', key: 'workOrderCode', width: 140 },
     { title: '物料', dataIndex: 'itemName', key: 'itemName', width: 130 },
     { title: '批次号', dataIndex: 'batchNo', key: 'batchNo', width: 150 },
-    { title: '数量', dataIndex: 'quantity', key: 'quantity', width: 90, render: (value?: number | string) => formatQuantity(value) },
+    {
+      title: '数量',
+      dataIndex: 'quantity',
+      key: 'quantity',
+      width: 90,
+      render: (value?: number | string) => formatQuantity(value),
+    },
     { title: '原因', dataIndex: 'reason', key: 'reason', width: 180 },
     {
       title: '状态',
@@ -1384,11 +1502,25 @@ function ReworkPanel() {
       key: 'status',
       width: 100,
       render: (value: string) => (
-        <Tag color={REWORK_STATUS_COLOR[value] ?? 'default'}>{REWORK_STATUS_LABEL[value] ?? value}</Tag>
+        <Tag color={REWORK_STATUS_COLOR[value] ?? 'default'}>
+          {REWORK_STATUS_LABEL[value] ?? value}
+        </Tag>
       ),
     },
-    { title: '开工时间', dataIndex: 'startedAt', key: 'startedAt', width: 160, render: (value?: string) => formatTime(value) },
-    { title: '完工时间', dataIndex: 'completedAt', key: 'completedAt', width: 160, render: (value?: string) => formatTime(value) },
+    {
+      title: '开工时间',
+      dataIndex: 'startedAt',
+      key: 'startedAt',
+      width: 160,
+      render: (value?: string) => formatTime(value),
+    },
+    {
+      title: '完工时间',
+      dataIndex: 'completedAt',
+      key: 'completedAt',
+      width: 160,
+      render: (value?: string) => formatTime(value),
+    },
     {
       title: '操作',
       key: 'action',
@@ -1399,7 +1531,12 @@ function ReworkPanel() {
         }
         if (record.status === 'CREATED') {
           return (
-            <Popconfirm title="确认开工？" okText="开工" cancelText="取消" onConfirm={() => run(record, 'start')}>
+            <Popconfirm
+              title="确认开工？"
+              okText="开工"
+              cancelText="取消"
+              onConfirm={() => run(record, 'start')}
+            >
               <Button type="link" size="small">
                 开工
               </Button>
@@ -1408,7 +1545,12 @@ function ReworkPanel() {
         }
         if (record.status === 'IN_PROGRESS') {
           return (
-            <Popconfirm title="确认完工？" okText="完工" cancelText="取消" onConfirm={() => run(record, 'complete')}>
+            <Popconfirm
+              title="确认完工？"
+              okText="完工"
+              cancelText="取消"
+              onConfirm={() => run(record, 'complete')}
+            >
               <Button type="link" size="small">
                 完工
               </Button>
@@ -1464,18 +1606,49 @@ function SpcChart({ points, rule }: { points: MesSpcChartPoint[]; rule?: MesSpcR
   const min = Math.min(lcl, ...values);
   const max = Math.max(ucl, ...values);
   const span = max - min || 1;
-  const scaleX = (index: number) => pad + (index * (width - pad * 2)) / Math.max(points.length - 1, 1);
+  const scaleX = (index: number) =>
+    pad + (index * (width - pad * 2)) / Math.max(points.length - 1, 1);
   const scaleY = (value: number) => height - pad - ((value - min) / span) * (height - pad * 2);
   const linePath = values
-    .map((value, index) => `${index === 0 ? 'M' : 'L'}${scaleX(index).toFixed(1)},${scaleY(value).toFixed(1)}`)
+    .map(
+      (value, index) =>
+        `${index === 0 ? 'M' : 'L'}${scaleX(index).toFixed(1)},${scaleY(value).toFixed(1)}`,
+    )
     .join(' ');
 
   return (
     <div style={{ overflowX: 'auto' }}>
-      <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height} role="img" aria-label="Xbar 控制图">
-        <line x1={pad} y1={scaleY(ucl)} x2={width - pad} y2={scaleY(ucl)} stroke="#ff4d4f" strokeDasharray="5 4" />
-        <line x1={pad} y1={scaleY(cl)} x2={width - pad} y2={scaleY(cl)} stroke="#8c8c8c" strokeDasharray="3 3" />
-        <line x1={pad} y1={scaleY(lcl)} x2={width - pad} y2={scaleY(lcl)} stroke="#ff4d4f" strokeDasharray="5 4" />
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        width="100%"
+        height={height}
+        role="img"
+        aria-label="Xbar 控制图"
+      >
+        <line
+          x1={pad}
+          y1={scaleY(ucl)}
+          x2={width - pad}
+          y2={scaleY(ucl)}
+          stroke="#ff4d4f"
+          strokeDasharray="5 4"
+        />
+        <line
+          x1={pad}
+          y1={scaleY(cl)}
+          x2={width - pad}
+          y2={scaleY(cl)}
+          stroke="#8c8c8c"
+          strokeDasharray="3 3"
+        />
+        <line
+          x1={pad}
+          y1={scaleY(lcl)}
+          x2={width - pad}
+          y2={scaleY(lcl)}
+          stroke="#ff4d4f"
+          strokeDasharray="5 4"
+        />
         <text x={pad + 4} y={scaleY(ucl) - 6} fontSize={11} fill="#ff4d4f">
           UCL {ucl.toFixed(2)}
         </text>
@@ -1514,7 +1687,12 @@ function SpcPanel() {
   const [sampleOpen, setSampleOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<MesSpcRule | null>(null);
   const [ruleForm] = Form.useForm<MesSpcRuleInput>();
-  const [sampleForm] = Form.useForm<{ ruleId: string; subgroupNo: number; sampleSeq?: number; measuredValue: number }>();
+  const [sampleForm] = Form.useForm<{
+    ruleId: string;
+    subgroupNo: number;
+    sampleSeq?: number;
+    measuredValue: number;
+  }>();
   const canSpc = hasPermission('sys:mes:quality:spc');
 
   const loadRules = useCallback(async () => {
@@ -1536,7 +1714,9 @@ function SpcPanel() {
       setChartPoints([]);
       return;
     }
-    setChartPoints(await fetchMesSpcChart({ planItemId: rule.planItemId, ruleId: rule.id, limit: 30 }));
+    setChartPoints(
+      await fetchMesSpcChart({ planItemId: rule.planItemId, ruleId: rule.id, limit: 30 }),
+    );
   }, [rules, selectedRuleId]);
 
   const reload = useCallback(async () => {
@@ -1559,7 +1739,7 @@ function SpcPanel() {
   }, []);
 
   const loadPlanItems = async (planId?: string) => {
-    setItemOptions(planId ? (await getMesInspectionPlan(planId)).items ?? [] : []);
+    setItemOptions(planId ? ((await getMesInspectionPlan(planId)).items ?? []) : []);
   };
 
   const openRule = async (rule: MesSpcRule | null) => {
@@ -1669,7 +1849,9 @@ function SpcPanel() {
       key: 'alertAction',
       width: 100,
       render: (value: string) => (
-        <Tag color={value === 'BLOCK' ? 'red' : 'orange'}>{value === 'BLOCK' ? '阻断' : '预警'}</Tag>
+        <Tag color={value === 'BLOCK' ? 'red' : 'orange'}>
+          {value === 'BLOCK' ? '阻断' : '预警'}
+        </Tag>
       ),
     },
     {
@@ -1678,7 +1860,9 @@ function SpcPanel() {
       key: 'status',
       width: 90,
       render: (value: string) => (
-        <Tag color={value === 'ENABLED' ? 'green' : 'default'}>{value === 'ENABLED' ? '启用' : '停用'}</Tag>
+        <Tag color={value === 'ENABLED' ? 'green' : 'default'}>
+          {value === 'ENABLED' ? '启用' : '停用'}
+        </Tag>
       ),
     },
     {
@@ -1698,9 +1882,27 @@ function SpcPanel() {
     { title: '样本号', dataIndex: 'sampleNo', key: 'sampleNo', width: 160 },
     { title: '子组', dataIndex: 'subgroupNo', key: 'subgroupNo', width: 80 },
     { title: '序号', dataIndex: 'sampleSeq', key: 'sampleSeq', width: 80 },
-    { title: '实测值', dataIndex: 'measuredValue', key: 'measuredValue', width: 100, render: (value?: number | string) => formatQuantity(value) },
-    { title: '子组均值', dataIndex: 'subgroupXbar', key: 'subgroupXbar', width: 110, render: (value?: number | string) => formatQuantity(value) },
-    { title: '子组极差', dataIndex: 'subgroupRange', key: 'subgroupRange', width: 110, render: (value?: number | string) => formatQuantity(value) },
+    {
+      title: '实测值',
+      dataIndex: 'measuredValue',
+      key: 'measuredValue',
+      width: 100,
+      render: (value?: number | string) => formatQuantity(value),
+    },
+    {
+      title: '子组均值',
+      dataIndex: 'subgroupXbar',
+      key: 'subgroupXbar',
+      width: 110,
+      render: (value?: number | string) => formatQuantity(value),
+    },
+    {
+      title: '子组极差',
+      dataIndex: 'subgroupRange',
+      key: 'subgroupRange',
+      width: 110,
+      render: (value?: number | string) => formatQuantity(value),
+    },
     {
       title: '规则命中',
       dataIndex: 'alertFlag',
@@ -1709,7 +1911,13 @@ function SpcPanel() {
       render: (value: number) => (value === 1 ? <Tag color="red">命中</Tag> : <Tag>在控</Tag>),
     },
     { title: '命中规则', dataIndex: 'alertRule', key: 'alertRule', width: 140 },
-    { title: '采样时间', dataIndex: 'sampledAt', key: 'sampledAt', width: 160, render: (value?: string) => formatTime(value) },
+    {
+      title: '采样时间',
+      dataIndex: 'sampledAt',
+      key: 'sampledAt',
+      width: 160,
+      render: (value?: string) => formatTime(value),
+    },
   ];
 
   return (
@@ -1726,7 +1934,10 @@ function SpcPanel() {
               style={{ width: 260 }}
               value={selectedRuleId}
               onChange={(value) => setSelectedRuleId(value)}
-              options={rules.map((rule) => ({ value: rule.id, label: `${rule.ruleCode} ${rule.ruleName}` }))}
+              options={rules.map((rule) => ({
+                value: rule.id,
+                label: `${rule.ruleCode} ${rule.ruleName}`,
+              }))}
             />
             {canSpc ? (
               <Button type="primary" onClick={openSample} disabled={!selectedRuleId}>
@@ -1759,7 +1970,10 @@ function SpcPanel() {
         scroll={{ x: 1300 }}
         onRow={(record) => ({
           onClick: () => setSelectedRuleId(record.id),
-          style: { cursor: 'pointer', background: record.id === selectedRuleId ? '#e6f4ff' : undefined },
+          style: {
+            cursor: 'pointer',
+            background: record.id === selectedRuleId ? '#e6f4ff' : undefined,
+          },
         })}
       />
       <Typography.Title level={5} style={{ margin: 0 }}>
@@ -1791,7 +2005,11 @@ function SpcPanel() {
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="ruleName" label="规则名称" rules={[{ required: true, message: '请填写规则名称' }]}>
+              <Form.Item
+                name="ruleName"
+                label="规则名称"
+                rules={[{ required: true, message: '请填写规则名称' }]}
+              >
                 <Input maxLength={128} />
               </Form.Item>
             </Col>
@@ -1802,7 +2020,10 @@ function SpcPanel() {
                     showSearch
                     optionFilterProp="label"
                     placeholder="选择计划后加载检验项"
-                    options={plans.map((plan) => ({ value: plan.id, label: `${plan.planNo} ${plan.planName}` }))}
+                    options={plans.map((plan) => ({
+                      value: plan.id,
+                      label: `${plan.planNo} ${plan.planName}`,
+                    }))}
                     onChange={(value) => void loadPlanItems(value)}
                   />
                 </Form.Item>
@@ -1836,7 +2057,11 @@ function SpcPanel() {
               </Form.Item>
             </Col>
             <Col span={6}>
-              <Form.Item name="subgroupSize" label="子组大小" rules={[{ required: true, message: '请填写子组大小' }]}>
+              <Form.Item
+                name="subgroupSize"
+                label="子组大小"
+                rules={[{ required: true, message: '请填写子组大小' }]}
+              >
                 <InputNumber min={2} max={10} style={{ width: '100%' }} />
               </Form.Item>
             </Col>
@@ -1903,7 +2128,11 @@ function SpcPanel() {
         destroyOnClose
       >
         <Form form={sampleForm} layout="vertical">
-          <Form.Item name="ruleId" label="SPC 规则" rules={[{ required: true, message: '请选择规则' }]}>
+          <Form.Item
+            name="ruleId"
+            label="SPC 规则"
+            rules={[{ required: true, message: '请选择规则' }]}
+          >
             <Select
               showSearch
               optionFilterProp="label"
@@ -1913,17 +2142,29 @@ function SpcPanel() {
             />
           </Form.Item>
           <Space size="middle" wrap>
-            <Form.Item name="subgroupNo" label="子组号" rules={[{ required: true, message: '请填写子组号' }]}>
+            <Form.Item
+              name="subgroupNo"
+              label="子组号"
+              rules={[{ required: true, message: '请填写子组号' }]}
+            >
               <InputNumber min={1} style={{ width: 120 }} />
             </Form.Item>
             <Form.Item name="sampleSeq" label="样本序号">
               <InputNumber min={1} style={{ width: 120 }} />
             </Form.Item>
-            <Form.Item name="measuredValue" label="实测值" rules={[{ required: true, message: '请填写实测值' }]}>
+            <Form.Item
+              name="measuredValue"
+              label="实测值"
+              rules={[{ required: true, message: '请填写实测值' }]}
+            >
               <InputNumber style={{ width: 160 }} />
             </Form.Item>
           </Space>
-          <Alert type="info" showIcon message="子组满额后自动计算子组均值与极差，并按控制限判定、留痕。" />
+          <Alert
+            type="info"
+            showIcon
+            message="子组满额后自动计算子组均值与极差，并按控制限判定、留痕。"
+          />
         </Form>
       </Modal>
     </Space>
@@ -1970,7 +2211,11 @@ function BoardPanel() {
             <Statistic title="待检任务" value={board?.pendingTaskCount ?? 0} />
           </Col>
           <Col xs={24} sm={12} md={6}>
-            <Statistic title="不合格任务" value={board?.failedTaskCount ?? 0} valueStyle={{ color: '#cf1322' }} />
+            <Statistic
+              title="不合格任务"
+              value={board?.failedTaskCount ?? 0}
+              valueStyle={{ color: '#cf1322' }}
+            />
           </Col>
           <Col xs={24} sm={12} md={6}>
             <Statistic
@@ -1981,7 +2226,11 @@ function BoardPanel() {
             />
           </Col>
           <Col xs={24} sm={12} md={6}>
-            <Statistic title="未关闭 NCR" value={board?.ncrOpenCount ?? 0} valueStyle={{ color: '#d46b08' }} />
+            <Statistic
+              title="未关闭 NCR"
+              value={board?.ncrOpenCount ?? 0}
+              valueStyle={{ color: '#d46b08' }}
+            />
           </Col>
           <Col xs={24} sm={12} md={6}>
             <Statistic title="已关闭 NCR" value={board?.ncrClosedCount ?? 0} />
@@ -1993,7 +2242,11 @@ function BoardPanel() {
             <Statistic title="未完成返工单" value={board?.reworkOpenCount ?? 0} />
           </Col>
           <Col xs={24} sm={12} md={6}>
-            <Statistic title="SPC 命中样本" value={board?.spcAlertCount ?? 0} valueStyle={{ color: '#cf1322' }} />
+            <Statistic
+              title="SPC 命中样本"
+              value={board?.spcAlertCount ?? 0}
+              valueStyle={{ color: '#cf1322' }}
+            />
           </Col>
         </Row>
       </Card>
@@ -2011,7 +2264,11 @@ export default function QualityPage({ initialTab = 'plan' }: { initialTab?: Qual
 
   const items: TabsProps['items'] = [
     { key: 'plan', label: '检验计划', children: <PlanPanel /> },
-    { key: 'first-article', label: '首件检验', children: <InspectionPanel taskType="FIRST_ARTICLE" withGate /> },
+    {
+      key: 'first-article',
+      label: '首件检验',
+      children: <InspectionPanel taskType="FIRST_ARTICLE" withGate />,
+    },
     { key: 'ipqc', label: 'IPQC 巡检', children: <InspectionPanel taskType="IPQC" /> },
     { key: 'ncr', label: '不良品管理', children: <NcrPanel /> },
     { key: 'disposition', label: '处置管理', children: <DispositionPanel /> },

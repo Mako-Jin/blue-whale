@@ -256,7 +256,12 @@ function authHeaders(): HeadersInit {
 const INLINE_PREFIXES = ['image/', 'video/', 'audio/', 'text/'];
 
 /** 可内联预览的完整 MIME */
-const INLINE_TYPES = ['application/pdf', 'application/json', 'application/xml', 'application/xhtml+xml'];
+const INLINE_TYPES = [
+  'application/pdf',
+  'application/json',
+  'application/xml',
+  'application/xhtml+xml',
+];
 
 /** 在线预览类型 */
 export type ArchivePreviewKind = 'image' | 'video' | 'audio' | 'pdf' | 'text';

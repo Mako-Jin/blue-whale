@@ -1,15 +1,6 @@
 // ERP MRP 计划订单页：筛选、计划订单列表与需求追溯
 import { useCallback, useEffect, useState } from 'react';
-import {
-  Button,
-  Descriptions,
-  Drawer,
-  Input,
-  Space,
-  Table,
-  Tag,
-  message,
-} from 'antd';
+import { Button, Descriptions, Drawer, Input, Space, Table, Tag, message } from 'antd';
 import type { TableProps } from 'antd';
 import {
   getMrpPlannedOrder,
@@ -73,7 +64,13 @@ export default function MrpOrderPage() {
     },
     { title: '单位', dataIndex: 'uom', key: 'uom', width: 80 },
     { title: '层级', dataIndex: 'itemLevel', key: 'itemLevel', width: 80 },
-    { title: '毛需求', dataIndex: 'grossQuantity', key: 'grossQuantity', width: 110, render: quantity },
+    {
+      title: '毛需求',
+      dataIndex: 'grossQuantity',
+      key: 'grossQuantity',
+      width: 110,
+      render: quantity,
+    },
     {
       title: '可用量',
       dataIndex: 'availableQuantity',
@@ -153,7 +150,12 @@ export default function MrpOrderPage() {
           生成说明
         </Button>
       </Space>
-      <Table<MrpPlannedOrderView> rowKey="id" loading={loading} columns={columns} dataSource={data} />
+      <Table<MrpPlannedOrderView>
+        rowKey="id"
+        loading={loading}
+        columns={columns}
+        dataSource={data}
+      />
       <Drawer
         open={detailOpen}
         title={detail ? `计划订单 ${detail.orderNo}` : '计划订单'}
@@ -183,7 +185,9 @@ export default function MrpOrderPage() {
               </Descriptions.Item>
               <Descriptions.Item label="BOM 最小层级">{detail.itemLevel ?? '-'}</Descriptions.Item>
               <Descriptions.Item label="毛需求">{quantity(detail.grossQuantity)}</Descriptions.Item>
-              <Descriptions.Item label="可用量">{quantity(detail.availableQuantity)}</Descriptions.Item>
+              <Descriptions.Item label="可用量">
+                {quantity(detail.availableQuantity)}
+              </Descriptions.Item>
               <Descriptions.Item label="净需求">{quantity(detail.netQuantity)}</Descriptions.Item>
               <Descriptions.Item label="需求日期">{detail.needDate}</Descriptions.Item>
             </Descriptions>

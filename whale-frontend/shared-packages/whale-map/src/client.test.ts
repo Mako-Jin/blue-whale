@@ -26,7 +26,13 @@ describe('createMapClient 路径与参数', () => {
   });
 
   it('searchPoi 走 GET 并把关键词放进 query', async () => {
-    const { calls, client } = recorder({ items: [], total: 0, page: 1, size: 10, provider: 'tencent' });
+    const { calls, client } = recorder({
+      items: [],
+      total: 0,
+      page: 1,
+      size: 10,
+      provider: 'tencent',
+    });
     const page = await client.searchPoi('天安门', { city: '北京', page: 2, size: 20 });
     expect(calls[0].path).toBe('/map/poi/search');
     expect(calls[0].options?.method).toBe('GET');
@@ -41,7 +47,11 @@ describe('createMapClient 路径与参数', () => {
 
   it('打点路径对 bizType/bizId 做 URL 编码（含斜杠也不会切断路径）', async () => {
     const { calls, client } = recorder(null);
-    await client.saveLocation('CRM_CONTACT', 'a/b 1', { lng: 116.4, lat: 39.9, coordType: 'GCJ02' });
+    await client.saveLocation('CRM_CONTACT', 'a/b 1', {
+      lng: 116.4,
+      lat: 39.9,
+      coordType: 'GCJ02',
+    });
     expect(calls[0].path).toBe('/map/location/CRM_CONTACT/a%2Fb%201');
     expect(calls[0].options?.method).toBe('PUT');
   });
@@ -55,7 +65,13 @@ describe('createMapClient 路径与参数', () => {
 
   it('附近查询把可选参数放进 query', async () => {
     const { calls, client } = recorder([]);
-    await client.nearby({ lng: 116.4, lat: 39.9, bizType: 'OA_ATTEND', radiusMeters: 500, limit: 20 });
+    await client.nearby({
+      lng: 116.4,
+      lat: 39.9,
+      bizType: 'OA_ATTEND',
+      radiusMeters: 500,
+      limit: 20,
+    });
     expect(calls[0].path).toBe('/map/location/nearby');
     expect(calls[0].options?.query).toMatchObject({ radiusMeters: 500, limit: 20 });
   });
@@ -89,7 +105,11 @@ describe('createMapClient 路径与参数', () => {
       destinationLat: 39.95,
       mode: 'DRIVING',
     });
-    await client.distance({ originLng: 116.4, originLat: 39.9, targets: [{ lng: 116.5, lat: 39.95 }] });
+    await client.distance({
+      originLng: 116.4,
+      originLat: 39.9,
+      targets: [{ lng: 116.5, lat: 39.95 }],
+    });
     expect(calls[0].path).toBe('/map/route');
     expect(calls[1].path).toBe('/map/distance');
     expect(calls[0].options?.method).toBe('POST');

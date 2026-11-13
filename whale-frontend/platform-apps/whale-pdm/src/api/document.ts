@@ -211,11 +211,7 @@ export function checkOut(id: number): Promise<PdmDocument> {
 }
 
 /** 检入文档（仅检出人本人可操作） */
-export function checkIn(
-  id: number,
-  file: File,
-  changeNote?: string,
-): Promise<PdmDocumentVersion> {
+export function checkIn(id: number, file: File, changeNote?: string): Promise<PdmDocumentVersion> {
   const form = new FormData();
   form.append('file', file);
   const query = changeNote ? `?changeNote=${encodeURIComponent(changeNote)}` : '';
@@ -241,10 +237,7 @@ export function downloadVersion(
 }
 
 /** 查询目录或文档的 ACL 规则 */
-export function listAcl(
-  resourceType: AclResourceType,
-  resourceId: number,
-): Promise<PdmDocAcl[]> {
+export function listAcl(resourceType: AclResourceType, resourceId: number): Promise<PdmDocAcl[]> {
   return http.get<PdmDocAcl[]>('/pdm/acl', { resourceType, resourceId });
 }
 

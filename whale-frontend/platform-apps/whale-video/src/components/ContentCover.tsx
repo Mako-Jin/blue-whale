@@ -41,7 +41,14 @@ export default function ContentCover({ url, title, height = 160, style }: Conten
           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
         />
       ) : (
-        <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, padding: '0 12px', textAlign: 'center' }}>
+        <span
+          style={{
+            color: 'rgba(255,255,255,0.85)',
+            fontSize: 13,
+            padding: '0 12px',
+            textAlign: 'center',
+          }}
+        >
           {title}
         </span>
       )}

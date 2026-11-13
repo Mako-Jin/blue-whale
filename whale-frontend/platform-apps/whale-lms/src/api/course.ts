@@ -89,7 +89,10 @@ export function createCourse(body: {
 }
 
 /** 编辑课程 */
-export function updateCourse(id: number, body: { title: string; category?: string; description?: string; lecturer?: string }) {
+export function updateCourse(
+  id: number,
+  body: { title: string; category?: string; description?: string; lecturer?: string },
+) {
   return http.put<void>(`/lms/course/${id}`, body);
 }
 
@@ -104,7 +107,10 @@ export function deleteCourse(id: number) {
 }
 
 /** 新增章节 */
-export function addChapter(courseId: number, body: { title: string; sortNo?: number; remark?: string }) {
+export function addChapter(
+  courseId: number,
+  body: { title: string; sortNo?: number; remark?: string },
+) {
   return http.post<number>(`/lms/course/${courseId}/chapter`, body);
 }
 
@@ -114,7 +120,10 @@ export function removeChapter(chapterId: number) {
 }
 
 /** 新增课件 */
-export function addWare(chapterId: number, body: { name: string; wareType: string; fileRefId?: string; linkUrl?: string }) {
+export function addWare(
+  chapterId: number,
+  body: { name: string; wareType: string; fileRefId?: string; linkUrl?: string },
+) {
   return http.post<number>(`/lms/course/chapter/${chapterId}/ware`, body);
 }
 

@@ -216,7 +216,12 @@ function TicketFormModal({ open, onCancel, onSaved }: TicketFormModalProps) {
           </Form.Item>
         </Space>
         <Space size={12} style={{ display: 'flex' }}>
-          <Form.Item name="priority" label="优先级" rules={[{ required: true, message: '请选择优先级' }]} style={{ flex: 1 }}>
+          <Form.Item
+            name="priority"
+            label="优先级"
+            rules={[{ required: true, message: '请选择优先级' }]}
+            style={{ flex: 1 }}
+          >
             <Select options={TICKET_PRIORITY_OPTIONS} />
           </Form.Item>
           <Form.Item name="category" label="问题分类" style={{ flex: 1 }}>
@@ -229,7 +234,11 @@ function TicketFormModal({ open, onCancel, onSaved }: TicketFormModalProps) {
             <Input maxLength={64} />
           </Form.Item>
         </Space>
-        <Form.Item name="title" label="工单标题" rules={[{ required: true, message: '请输入工单标题' }]}>
+        <Form.Item
+          name="title"
+          label="工单标题"
+          rules={[{ required: true, message: '请输入工单标题' }]}
+        >
           <Input maxLength={200} showCount />
         </Form.Item>
         <Form.Item name="description" label="问题描述">
@@ -290,28 +299,46 @@ function TicketDetailDrawer({ ticketId, onClose }: TicketDetailDrawerProps) {
                 {TICKET_PRIORITY_LABEL[detail.priority as string] ?? detail.priority}
               </Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="客户">{detail.customerName || detail.customerCode || '-'}</Descriptions.Item>
+            <Descriptions.Item label="客户">
+              {detail.customerName || detail.customerCode || '-'}
+            </Descriptions.Item>
             <Descriptions.Item label="联系人">{detail.contactName || '-'}</Descriptions.Item>
-            <Descriptions.Item label="处理人">{detail.assigneeName || detail.assigneeId || '未分派'}</Descriptions.Item>
+            <Descriptions.Item label="处理人">
+              {detail.assigneeName || detail.assigneeId || '未分派'}
+            </Descriptions.Item>
             <Descriptions.Item label="产品编码">{detail.productCode || '-'}</Descriptions.Item>
             <Descriptions.Item label="序列号">{detail.serialNo || '-'}</Descriptions.Item>
             <Descriptions.Item label="ERP 订单号">{detail.erpOrderNo || '-'}</Descriptions.Item>
             <Descriptions.Item label="问题分类">{detail.category || '-'}</Descriptions.Item>
             <Descriptions.Item label="响应截止">
               {formatDateTime(detail.responseDeadline)}
-              {detail.responseOverdue && <Tag color="red" style={{ marginLeft: 8 }}>响应逾期</Tag>}
+              {detail.responseOverdue && (
+                <Tag color="red" style={{ marginLeft: 8 }}>
+                  响应逾期
+                </Tag>
+              )}
             </Descriptions.Item>
             <Descriptions.Item label="解决截止">
               {formatDateTime(detail.resolveDeadline)}
-              {detail.resolveOverdue && <Tag color="red" style={{ marginLeft: 8 }}>解决逾期</Tag>}
+              {detail.resolveOverdue && (
+                <Tag color="red" style={{ marginLeft: 8 }}>
+                  解决逾期
+                </Tag>
+              )}
             </Descriptions.Item>
-            <Descriptions.Item label="首次响应">{formatDateTime(detail.firstRespondedAt)}</Descriptions.Item>
+            <Descriptions.Item label="首次响应">
+              {formatDateTime(detail.firstRespondedAt)}
+            </Descriptions.Item>
             <Descriptions.Item label="累计暂停">
               {detail.pausedSeconds ? `${detail.pausedSeconds} 秒` : '-'}
             </Descriptions.Item>
             <Descriptions.Item label="重开次数">{detail.reopenCount ?? 0}</Descriptions.Item>
-            <Descriptions.Item label="解决时间">{formatDateTime(detail.resolvedAt)}</Descriptions.Item>
-            <Descriptions.Item label="关闭时间">{formatDateTime(detail.closedAt)}</Descriptions.Item>
+            <Descriptions.Item label="解决时间">
+              {formatDateTime(detail.resolvedAt)}
+            </Descriptions.Item>
+            <Descriptions.Item label="关闭时间">
+              {formatDateTime(detail.closedAt)}
+            </Descriptions.Item>
             <Descriptions.Item label="工单标题" span={2}>
               {detail.title}
             </Descriptions.Item>
@@ -327,13 +354,22 @@ function TicketDetailDrawer({ ticketId, onClose }: TicketDetailDrawerProps) {
           </Typography.Text>
           <Timeline
             items={(detail.actions ?? []).map((action) => ({
-              color: action.actionType === 'CLOSE' ? 'gray' : action.actionType === 'ESCALATE' ? 'red' : 'blue',
+              color:
+                action.actionType === 'CLOSE'
+                  ? 'gray'
+                  : action.actionType === 'ESCALATE'
+                    ? 'red'
+                    : 'blue',
               children: (
                 <Space direction="vertical" size={2}>
                   <Space size={8}>
                     <Tag>{TICKET_ACTION_LABEL[action.actionType] ?? action.actionType}</Tag>
-                    <Typography.Text type="secondary">{formatDateTime(action.createdAt)}</Typography.Text>
-                    <Typography.Text type="secondary">{action.operatorName || action.operatorId || '-'}</Typography.Text>
+                    <Typography.Text type="secondary">
+                      {formatDateTime(action.createdAt)}
+                    </Typography.Text>
+                    <Typography.Text type="secondary">
+                      {action.operatorName || action.operatorId || '-'}
+                    </Typography.Text>
                   </Space>
                   <Typography.Text>{action.content || '-'}</Typography.Text>
                   {action.fromStatus && (
@@ -409,7 +445,10 @@ export default function TicketPage() {
     setActionType(type);
     actionForm.resetFields();
     if (type === 'assign') {
-      actionForm.setFieldsValue({ assigneeId: row.assigneeId ?? undefined, assigneeName: row.assigneeName ?? undefined });
+      actionForm.setFieldsValue({
+        assigneeId: row.assigneeId ?? undefined,
+        assigneeName: row.assigneeName ?? undefined,
+      });
     } else if (type === 'close' || type === 'resolve') {
       actionForm.setFieldsValue({ solution: row.solution ?? undefined });
     }
@@ -520,18 +559,32 @@ export default function TicketPage() {
       dataIndex: 'priority',
       width: 100,
       render: (value?: string | null) => (
-        <Tag color={TICKET_PRIORITY_COLOR[value ?? '']}>{TICKET_PRIORITY_LABEL[value ?? ''] ?? value ?? '-'}</Tag>
+        <Tag color={TICKET_PRIORITY_COLOR[value ?? '']}>
+          {TICKET_PRIORITY_LABEL[value ?? ''] ?? value ?? '-'}
+        </Tag>
       ),
     },
     { title: '标题', dataIndex: 'title', width: 220, ellipsis: true },
-    { title: '客户', dataIndex: 'customerName', width: 170, render: (value?: string | null) => value || '-' },
-    { title: '处理人', dataIndex: 'assigneeName', width: 120, render: (value?: string | null) => value || '未分派' },
+    {
+      title: '客户',
+      dataIndex: 'customerName',
+      width: 170,
+      render: (value?: string | null) => value || '-',
+    },
+    {
+      title: '处理人',
+      dataIndex: 'assigneeName',
+      width: 120,
+      render: (value?: string | null) => value || '未分派',
+    },
     {
       title: '状态',
       dataIndex: 'status',
       width: 110,
       render: (value?: string | null) => (
-        <Tag color={TICKET_STATUS_COLOR[value ?? '']}>{TICKET_STATUS_LABEL[value ?? ''] ?? value ?? '-'}</Tag>
+        <Tag color={TICKET_STATUS_COLOR[value ?? '']}>
+          {TICKET_STATUS_LABEL[value ?? ''] ?? value ?? '-'}
+        </Tag>
       ),
     },
     {
@@ -569,20 +622,43 @@ export default function TicketPage() {
             <Button size="small" type="link" onClick={() => setDetailId(row.id)}>
               详情
             </Button>
-            {!finished && status !== 'RESOLVED' && hasPermission('sys:crm:ticket:assign') && actionButton(row, 'assign', '分派')}
-            {!finished && status !== 'RESOLVED' && status !== 'WAITING_CUSTOMER'
-              && hasPermission('sys:crm:ticket:handle') && actionButton(row, 'process', '处理')}
-            {!finished && hasPermission('sys:crm:ticket:handle') && actionButton(row, 'comment', '备注')}
-            {!finished && status !== 'RESOLVED' && status !== 'WAITING_CUSTOMER'
-              && hasPermission('sys:crm:ticket:handle') && actionButton(row, 'pause', '暂停')}
-            {status === 'WAITING_CUSTOMER' && hasPermission('sys:crm:ticket:handle') && actionButton(row, 'resume', '恢复')}
-            {!finished && hasPermission('sys:crm:ticket:handle') && actionButton(row, 'escalate', '升级')}
-            {!finished && status !== 'RESOLVED' && hasPermission('sys:crm:ticket:handle') && actionButton(row, 'resolve', '解决')}
-            {status === 'RESOLVED' && hasPermission('sys:crm:ticket:handle') && actionButton(row, 'close', '关闭')}
-            {(status === 'RESOLVED' || status === 'CLOSED') && hasPermission('sys:crm:ticket:handle')
-              && actionButton(row, 'reopen', '重开')}
-            {!finished && status !== 'RESOLVED' && hasPermission('sys:crm:ticket:handle')
-              && actionButton(row, 'cancel', '取消', true)}
+            {!finished &&
+              status !== 'RESOLVED' &&
+              hasPermission('sys:crm:ticket:assign') &&
+              actionButton(row, 'assign', '分派')}
+            {!finished &&
+              status !== 'RESOLVED' &&
+              status !== 'WAITING_CUSTOMER' &&
+              hasPermission('sys:crm:ticket:handle') &&
+              actionButton(row, 'process', '处理')}
+            {!finished &&
+              hasPermission('sys:crm:ticket:handle') &&
+              actionButton(row, 'comment', '备注')}
+            {!finished &&
+              status !== 'RESOLVED' &&
+              status !== 'WAITING_CUSTOMER' &&
+              hasPermission('sys:crm:ticket:handle') &&
+              actionButton(row, 'pause', '暂停')}
+            {status === 'WAITING_CUSTOMER' &&
+              hasPermission('sys:crm:ticket:handle') &&
+              actionButton(row, 'resume', '恢复')}
+            {!finished &&
+              hasPermission('sys:crm:ticket:handle') &&
+              actionButton(row, 'escalate', '升级')}
+            {!finished &&
+              status !== 'RESOLVED' &&
+              hasPermission('sys:crm:ticket:handle') &&
+              actionButton(row, 'resolve', '解决')}
+            {status === 'RESOLVED' &&
+              hasPermission('sys:crm:ticket:handle') &&
+              actionButton(row, 'close', '关闭')}
+            {(status === 'RESOLVED' || status === 'CLOSED') &&
+              hasPermission('sys:crm:ticket:handle') &&
+              actionButton(row, 'reopen', '重开')}
+            {!finished &&
+              status !== 'RESOLVED' &&
+              hasPermission('sys:crm:ticket:handle') &&
+              actionButton(row, 'cancel', '取消', true)}
           </Space>
         );
       },
@@ -600,15 +676,30 @@ export default function TicketPage() {
         )
       }
     >
-      <Form form={filterForm} layout="inline" onFinish={handleSearch} style={{ marginBottom: 16, rowGap: 12 }}>
+      <Form
+        form={filterForm}
+        layout="inline"
+        onFinish={handleSearch}
+        style={{ marginBottom: 16, rowGap: 12 }}
+      >
         <Form.Item name="keyword">
           <Input placeholder="工单号 / 标题 / 客户" allowClear style={{ width: 200 }} />
         </Form.Item>
         <Form.Item name="status">
-          <Select placeholder="状态" allowClear style={{ width: 140 }} options={TICKET_STATUS_OPTIONS} />
+          <Select
+            placeholder="状态"
+            allowClear
+            style={{ width: 140 }}
+            options={TICKET_STATUS_OPTIONS}
+          />
         </Form.Item>
         <Form.Item name="priority">
-          <Select placeholder="优先级" allowClear style={{ width: 130 }} options={TICKET_PRIORITY_OPTIONS} />
+          <Select
+            placeholder="优先级"
+            allowClear
+            style={{ width: 130 }}
+            options={TICKET_PRIORITY_OPTIONS}
+          />
         </Form.Item>
         <Form.Item name="customerId">
           <InputNumber min={1} precision={0} placeholder="客户 ID" style={{ width: 120 }} />
@@ -641,7 +732,8 @@ export default function TicketPage() {
         }}
       />
       <Typography.Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
-        D7 口径：P1 2h/8h、P2 4h/24h、P3 8h/72h；7×8 工作时段（09:00–18:00）。逾期为实时派生，不落定时任务。
+        D7 口径：P1 2h/8h、P2 4h/24h、P3 8h/72h；7×8
+        工作时段（09:00–18:00）。逾期为实时派生，不落定时任务。
       </Typography.Text>
 
       <TicketFormModal
@@ -666,7 +758,11 @@ export default function TicketPage() {
         <Form form={actionForm} layout="vertical" preserve={false}>
           {actionType === 'assign' && (
             <>
-              <Form.Item name="assigneeId" label="处理人 ID" rules={[{ required: true, message: '请输入处理人 ID' }]}>
+              <Form.Item
+                name="assigneeId"
+                label="处理人 ID"
+                rules={[{ required: true, message: '请输入处理人 ID' }]}
+              >
                 <InputNumber min={1} precision={0} style={{ width: '100%' }} />
               </Form.Item>
               <Form.Item name="assigneeName" label="处理人姓名">
@@ -684,7 +780,11 @@ export default function TicketPage() {
             </Form.Item>
           )}
           {actionType === 'pause' && (
-            <Form.Item name="reason" label="暂停原因" rules={[{ required: true, message: '请输入暂停原因' }]}>
+            <Form.Item
+              name="reason"
+              label="暂停原因"
+              rules={[{ required: true, message: '请输入暂停原因' }]}
+            >
               <Input.TextArea rows={2} maxLength={500} showCount />
             </Form.Item>
           )}

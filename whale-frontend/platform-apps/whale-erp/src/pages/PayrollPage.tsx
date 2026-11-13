@@ -68,15 +68,13 @@ function PayrollModal({
   };
 
   return (
-    <Modal
-      open={open}
-      title="新建薪资批次"
-      onOk={handleOk}
-      onCancel={onCancel}
-      destroyOnHidden
-    >
+    <Modal open={open} title="新建薪资批次" onOk={handleOk} onCancel={onCancel} destroyOnHidden>
       <Form form={form} layout="vertical">
-        <Form.Item name="month" label="薪资期间" rules={[{ required: true, message: '请选择薪资期间' }]}>
+        <Form.Item
+          name="month"
+          label="薪资期间"
+          rules={[{ required: true, message: '请选择薪资期间' }]}
+        >
           <DatePicker picker="month" format="YYYY-MM" />
         </Form.Item>
         <Form.Item name="remark" label="备注">
@@ -143,8 +141,20 @@ export default function PayrollPage() {
     },
     { title: '人数', dataIndex: 'employeeCount', key: 'employeeCount', width: 80 },
     { title: '应发合计', dataIndex: 'totalGross', key: 'totalGross', width: 130, render: money },
-    { title: '社保合计', dataIndex: 'totalSocialInsurance', key: 'totalSocialInsurance', width: 120, render: money },
-    { title: '公积金合计', dataIndex: 'totalHousingFund', key: 'totalHousingFund', width: 130, render: money },
+    {
+      title: '社保合计',
+      dataIndex: 'totalSocialInsurance',
+      key: 'totalSocialInsurance',
+      width: 120,
+      render: money,
+    },
+    {
+      title: '公积金合计',
+      dataIndex: 'totalHousingFund',
+      key: 'totalHousingFund',
+      width: 130,
+      render: money,
+    },
     { title: '个税合计', dataIndex: 'totalTax', key: 'totalTax', width: 120, render: money },
     { title: '实发合计', dataIndex: 'totalNet', key: 'totalNet', width: 130, render: money },
     {
@@ -196,8 +206,8 @@ export default function PayrollPage() {
               </Button>
             </Popconfirm>
           ) : null}
-          {['DRAFT', 'CALCULATED'].includes(record.status)
-          && hasPermission('sys:erp:hr:payroll:create') ? (
+          {['DRAFT', 'CALCULATED'].includes(record.status) &&
+          hasPermission('sys:erp:hr:payroll:create') ? (
             <Popconfirm
               title="确认取消该薪资批次？"
               onConfirm={() => act(cancelPayroll, record.id, '薪资批次已取消')}
@@ -219,10 +229,28 @@ export default function PayrollPage() {
     { title: '基本工资', dataIndex: 'baseSalary', key: 'baseSalary', width: 110, render: money },
     { title: '津贴', dataIndex: 'allowance', key: 'allowance', width: 100, render: money },
     { title: '加班费', dataIndex: 'overtimePay', key: 'overtimePay', width: 100, render: money },
-    { title: '请假扣款', dataIndex: 'leaveDeduction', key: 'leaveDeduction', width: 100, render: money },
-    { title: '缺勤扣款', dataIndex: 'absenceDeduction', key: 'absenceDeduction', width: 100, render: money },
+    {
+      title: '请假扣款',
+      dataIndex: 'leaveDeduction',
+      key: 'leaveDeduction',
+      width: 100,
+      render: money,
+    },
+    {
+      title: '缺勤扣款',
+      dataIndex: 'absenceDeduction',
+      key: 'absenceDeduction',
+      width: 100,
+      render: money,
+    },
     { title: '应发', dataIndex: 'grossPay', key: 'grossPay', width: 110, render: money },
-    { title: '社保', dataIndex: 'socialInsurance', key: 'socialInsurance', width: 100, render: money },
+    {
+      title: '社保',
+      dataIndex: 'socialInsurance',
+      key: 'socialInsurance',
+      width: 100,
+      render: money,
+    },
     { title: '公积金', dataIndex: 'housingFund', key: 'housingFund', width: 100, render: money },
     { title: '个税', dataIndex: 'tax', key: 'tax', width: 100, render: money },
     { title: '实发', dataIndex: 'netPay', key: 'netPay', width: 110, render: money },
@@ -314,7 +342,8 @@ export default function PayrollPage() {
           {myData.map((run) => (
             <Space key={run.id} direction="vertical" size="small" style={{ width: '100%' }}>
               <span>
-                {run.period}（{HR_STATUS_LABEL[run.status] ?? run.status}）实发 {money(run.totalNet)}
+                {run.period}（{HR_STATUS_LABEL[run.status] ?? run.status}）实发{' '}
+                {money(run.totalNet)}
               </span>
               <Table<PayslipView>
                 rowKey="id"

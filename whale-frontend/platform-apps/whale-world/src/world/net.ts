@@ -136,24 +136,57 @@ const LOCAL_SAY_LINES = [
 function seedPeers(): LocalPeer[] {
   return [
     {
-      id: 'peer-yun', name: '云中客', robe: '#2b4a63',
-      kind: 'circle', radius: 42, angle: 0.6, omega: 0.028,
-      x: 0, z: 0, yaw: 0, speed: 2.6,
+      id: 'peer-yun',
+      name: '云中客',
+      robe: '#2b4a63',
+      kind: 'circle',
+      radius: 42,
+      angle: 0.6,
+      omega: 0.028,
+      x: 0,
+      z: 0,
+      yaw: 0,
+      speed: 2.6,
     },
     {
-      id: 'peer-aRUO', name: '阿箬', robe: '#a3435a',
-      kind: 'circle', radius: 31, angle: 3.4, omega: -0.036,
-      x: 0, z: 0, yaw: 0, speed: 2.2,
+      id: 'peer-aRUO',
+      name: '阿箬',
+      robe: '#a3435a',
+      kind: 'circle',
+      radius: 31,
+      angle: 3.4,
+      omega: -0.036,
+      x: 0,
+      z: 0,
+      yaw: 0,
+      speed: 2.2,
     },
     {
-      id: 'peer-nanfeng', name: '南风', robe: '#8f3a2c',
-      kind: 'line', from: [3.4, 78], to: [3.4, 36], progress: 0.3, direction: 1,
-      x: 0, z: 0, yaw: 0, speed: 3.0,
+      id: 'peer-nanfeng',
+      name: '南风',
+      robe: '#8f3a2c',
+      kind: 'line',
+      from: [3.4, 78],
+      to: [3.4, 36],
+      progress: 0.3,
+      direction: 1,
+      x: 0,
+      z: 0,
+      yaw: 0,
+      speed: 3.0,
     },
     {
-      id: 'peer-changle', name: '长乐', robe: '#3f6b57',
-      kind: 'circle', radius: 85, angle: 5.1, omega: -0.02,
-      x: 0, z: 0, yaw: 0, speed: 2.4,
+      id: 'peer-changle',
+      name: '长乐',
+      robe: '#3f6b57',
+      kind: 'circle',
+      radius: 85,
+      angle: 5.1,
+      omega: -0.02,
+      x: 0,
+      z: 0,
+      yaw: 0,
+      speed: 2.4,
     },
   ];
 }
@@ -215,18 +248,28 @@ export function createWorldChannel(opts: WorldChannelOptions = {}): WorldChannel
   let lastSend = 0;
 
   /** 远端玩家：current 用于平滑，target 来自服务端最新增量 */
-  const remote = new Map<string, {
-    peer: PeerState;
-    tx: number;
-    tz: number;
-    tyaw: number;
-    seen: number;
-  }>();
+  const remote = new Map<
+    string,
+    {
+      peer: PeerState;
+      tx: number;
+      tz: number;
+      tyaw: number;
+      seen: number;
+    }
+  >();
 
   const now = () => Date.now();
 
   /** 上报缓存：服务端没连上时也记录，连上后立即带上最新位置 */
-  const self = { x: 0, z: 0, yaw: 0, speed: 0, name: opts.self?.name ?? '行者', robe: opts.self?.robe ?? '#2b4a63' };
+  const self = {
+    x: 0,
+    z: 0,
+    yaw: 0,
+    speed: 0,
+    name: opts.self?.name ?? '行者',
+    robe: opts.self?.robe ?? '#2b4a63',
+  };
 
   /** 自己在服务端的用户 id（snapshot 下发），用于区分"自己说的"与"别人说的" */
   let selfId = '';
@@ -269,9 +312,10 @@ export function createWorldChannel(opts: WorldChannelOptions = {}): WorldChannel
 
   const wsUrl = (ticket: string) => {
     const configured = import.meta.env.VITE_WORLD_WS_URL as string | undefined;
-    const base = configured && configured.length > 0
-      ? configured
-      : `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/im/world`;
+    const base =
+      configured && configured.length > 0
+        ? configured
+        : `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/im/world`;
     return `${base}?ticket=${encodeURIComponent(ticket)}`;
   };
 
@@ -553,7 +597,15 @@ export function createWorldChannel(opts: WorldChannelOptions = {}): WorldChannel
         send({ type: 'world.say', sceneKey, text: content });
         return true;
       }
-      emitSay({ from: 'self', name: self.name, text: content, x: self.x, z: self.z, at: now(), mine: true });
+      emitSay({
+        from: 'self',
+        name: self.name,
+        text: content,
+        x: self.x,
+        z: self.z,
+        at: now(),
+        mine: true,
+      });
       return true;
     },
     dispose() {

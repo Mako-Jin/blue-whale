@@ -120,7 +120,11 @@ export default function ProcessRouteCenter() {
   const [toolingForm] = Form.useForm<ProcessToolingInput>();
 
   const [sopModalOpen, setSopModalOpen] = useState(false);
-  const [sopForm] = Form.useForm<{ stepId: string; documentId: string; documentVersionNo: string }>();
+  const [sopForm] = Form.useForm<{
+    stepId: string;
+    documentId: string;
+    documentVersionNo: string;
+  }>();
 
   const canAdd = hasPermission('sys:pdm:process:add');
   const canEdit = hasPermission('sys:pdm:process:edit');
@@ -320,7 +324,9 @@ export default function ProcessRouteCenter() {
       title: 'SOP',
       width: 150,
       render: (_, step) =>
-        step.sop ? `${step.sop.documentTitle ?? `文档 ${step.sop.documentId}`} ${step.sop.documentVersionNo}` : '-',
+        step.sop
+          ? `${step.sop.documentTitle ?? `文档 ${step.sop.documentId}`} ${step.sop.documentVersionNo}`
+          : '-',
     },
     {
       title: '操作',
@@ -348,7 +354,11 @@ export default function ProcessRouteCenter() {
             <Button
               type="link"
               onClick={() => {
-                sopForm.setFieldsValue({ stepId: step.id, documentId: undefined, documentVersionNo: undefined });
+                sopForm.setFieldsValue({
+                  stepId: step.id,
+                  documentId: undefined,
+                  documentVersionNo: undefined,
+                });
                 setDocVersions([]);
                 setSopModalOpen(true);
               }}
@@ -390,11 +400,21 @@ export default function ProcessRouteCenter() {
   ];
 
   const toolingColumns: TableProps<(typeof toolingList)[number]>['columns'] = [
-    { title: '类型', dataIndex: 'toolingType', width: 90, render: (type: ToolingType) => TOOLING_LABEL[type] ?? type },
+    {
+      title: '类型',
+      dataIndex: 'toolingType',
+      width: 90,
+      render: (type: ToolingType) => TOOLING_LABEL[type] ?? type,
+    },
     { title: '工装编码', dataIndex: 'toolingCode' },
     { title: '规格', dataIndex: 'spec' },
     { title: '数量', dataIndex: 'quantity', width: 80 },
-    { title: '工序', width: 110, render: (_, tooling) => detail?.steps.find((step) => step.id === tooling.stepId)?.name ?? '路线级' },
+    {
+      title: '工序',
+      width: 110,
+      render: (_, tooling) =>
+        detail?.steps.find((step) => step.id === tooling.stepId)?.name ?? '路线级',
+    },
     {
       title: '操作',
       width: 90,
@@ -490,13 +510,25 @@ export default function ProcessRouteCenter() {
         />
       </Card>
 
-      <Modal title="新建工艺路线" open={createOpen} onOk={() => void submitCreate()} onCancel={() => setCreateOpen(false)}>
+      <Modal
+        title="新建工艺路线"
+        open={createOpen}
+        onOk={() => void submitCreate()}
+        onCancel={() => setCreateOpen(false)}
+      >
         <Form form={createForm} layout="vertical">
-          <Form.Item name="partId" label="零件/产品" rules={[{ required: true, message: '请选择零件' }]}>
+          <Form.Item
+            name="partId"
+            label="零件/产品"
+            rules={[{ required: true, message: '请选择零件' }]}
+          >
             <Select
               showSearch
               optionFilterProp="label"
-              options={parts.map((part) => ({ value: part.id, label: `${part.code} / ${part.name}` }))}
+              options={parts.map((part) => ({
+                value: part.id,
+                label: `${part.code} / ${part.name}`,
+              }))}
             />
           </Form.Item>
           <Form.Item name="routeNo" label="路线编号（留空按零件编码生成）">
@@ -517,7 +549,10 @@ export default function ProcessRouteCenter() {
           detail ? (
             <Space>
               {canRelease && detail.status === 'DRAFT' ? (
-                <Popconfirm title="发布后不可修改，并立即下发 MES。确认？" onConfirm={() => void submitRelease()}>
+                <Popconfirm
+                  title="发布后不可修改，并立即下发 MES。确认？"
+                  onConfirm={() => void submitRelease()}
+                >
                   <Button type="primary">发布</Button>
                 </Popconfirm>
               ) : null}
@@ -525,7 +560,10 @@ export default function ProcessRouteCenter() {
                 <Button onClick={() => void submitRetry()}>重试下发</Button>
               ) : null}
               {canWithdraw && detail.status === 'RELEASED' ? (
-                <Popconfirm title="撤回将作废路线并通知 MES 撤回。确认？" onConfirm={() => void submitWithdraw()}>
+                <Popconfirm
+                  title="撤回将作废路线并通知 MES 撤回。确认？"
+                  onConfirm={() => void submitWithdraw()}
+                >
                   <Button danger>撤回</Button>
                 </Popconfirm>
               ) : null}
@@ -538,7 +576,9 @@ export default function ProcessRouteCenter() {
             <Descriptions size="small" column={3} bordered>
               <Descriptions.Item label="零件">{`${detail.partCode} ${detail.partName ?? ''}`}</Descriptions.Item>
               <Descriptions.Item label="状态">
-                <Tag color={STATUS_META[detail.status]?.color}>{STATUS_META[detail.status]?.text}</Tag>
+                <Tag color={STATUS_META[detail.status]?.color}>
+                  {STATUS_META[detail.status]?.text}
+                </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="备注">{detail.remark ?? '-'}</Descriptions.Item>
               <Descriptions.Item label="发布人">{detail.releasedBy ?? '-'}</Descriptions.Item>
@@ -575,7 +615,13 @@ export default function ProcessRouteCenter() {
                 ) : null
               }
             >
-              <Table size="small" rowKey="id" columns={stepColumns} dataSource={detail.steps} pagination={false} />
+              <Table
+                size="small"
+                rowKey="id"
+                columns={stepColumns}
+                dataSource={detail.steps}
+                pagination={false}
+              />
             </Card>
 
             <Card
@@ -621,7 +667,11 @@ export default function ProcessRouteCenter() {
               </Form.Item>
             </Col>
             <Col span={16}>
-              <Form.Item name="name" label="工序名称" rules={[{ required: true, message: '请输入工序名称' }]}>
+              <Form.Item
+                name="name"
+                label="工序名称"
+                rules={[{ required: true, message: '请输入工序名称' }]}
+              >
                 <Input />
               </Form.Item>
             </Col>
@@ -658,9 +708,17 @@ export default function ProcessRouteCenter() {
         <Form form={toolingForm} layout="vertical">
           <Row gutter={12}>
             <Col span={12}>
-              <Form.Item name="toolingType" label="类型" initialValue="TOOL" rules={[{ required: true }]}>
+              <Form.Item
+                name="toolingType"
+                label="类型"
+                initialValue="TOOL"
+                rules={[{ required: true }]}
+              >
                 <Select
-                  options={Object.entries(TOOLING_LABEL).map(([value, label]) => ({ value, label }))}
+                  options={Object.entries(TOOLING_LABEL).map(([value, label]) => ({
+                    value,
+                    label,
+                  }))}
                 />
               </Form.Item>
             </Col>
@@ -670,7 +728,11 @@ export default function ProcessRouteCenter() {
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="toolingCode" label="工装编码" rules={[{ required: true, message: '请输入工装编码' }]}>
+          <Form.Item
+            name="toolingCode"
+            label="工装编码"
+            rules={[{ required: true, message: '请输入工装编码' }]}
+          >
             <Input />
           </Form.Item>
           <Row gutter={12}>
@@ -712,11 +774,18 @@ export default function ProcessRouteCenter() {
               }))}
             />
           </Form.Item>
-          <Form.Item name="documentId" label="SOP 文档" rules={[{ required: true, message: '请选择文档' }]}>
+          <Form.Item
+            name="documentId"
+            label="SOP 文档"
+            rules={[{ required: true, message: '请选择文档' }]}
+          >
             <Select
               showSearch
               optionFilterProp="label"
-              options={documents.map((doc) => ({ value: String(doc.id), label: `${doc.docNo} ${doc.title}` }))}
+              options={documents.map((doc) => ({
+                value: String(doc.id),
+                label: `${doc.docNo} ${doc.title}`,
+              }))}
               onChange={(value) => {
                 sopForm.setFieldsValue({ documentVersionNo: undefined });
                 setDocVersions([]);
@@ -732,7 +801,10 @@ export default function ProcessRouteCenter() {
             rules={[{ required: true, message: '请选择已发布版本' }]}
           >
             <Select
-              options={docVersions.map((version) => ({ value: version.versionNo, label: version.versionNo }))}
+              options={docVersions.map((version) => ({
+                value: version.versionNo,
+                label: version.versionNo,
+              }))}
             />
           </Form.Item>
         </Form>

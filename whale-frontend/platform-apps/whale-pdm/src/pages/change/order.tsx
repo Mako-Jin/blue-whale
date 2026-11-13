@@ -354,7 +354,13 @@ export default function ChangeOrderCenter() {
         return meta ? <Tag color={meta.color}>{meta.text}</Tag> : value;
       },
     },
-    { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 170, render: formatTime },
+    {
+      title: '创建时间',
+      dataIndex: 'createTime',
+      key: 'createTime',
+      width: 170,
+      render: formatTime,
+    },
     {
       title: '操作',
       key: 'action',
@@ -375,7 +381,10 @@ export default function ChangeOrderCenter() {
             </Button>
           ) : null}
           {canSubmit && record.status === 'ASSESSING' ? (
-            <Button type="link" onClick={async () => afterOrder(await submitChgOrder(record.id), '已提交审批')}>
+            <Button
+              type="link"
+              onClick={async () => afterOrder(await submitChgOrder(record.id), '已提交审批')}
+            >
               提交
             </Button>
           ) : null}
@@ -391,17 +400,26 @@ export default function ChangeOrderCenter() {
             </Button>
           ) : null}
           {canExecute && record.status === 'APPROVED' ? (
-            <Button type="link" onClick={async () => afterOrder(await executeChgOrder(record.id), '已开始执行')}>
+            <Button
+              type="link"
+              onClick={async () => afterOrder(await executeChgOrder(record.id), '已开始执行')}
+            >
               执行
             </Button>
           ) : null}
           {canExecute && record.status === 'EXECUTING' ? (
-            <Button type="link" onClick={async () => afterOrder(await completeChgOrder(record.id), '变更单已完成')}>
+            <Button
+              type="link"
+              onClick={async () => afterOrder(await completeChgOrder(record.id), '变更单已完成')}
+            >
               完成
             </Button>
           ) : null}
           {canEdit && CLOSABLE_STATUS.includes(record.status) ? (
-            <Button type="link" onClick={async () => afterOrder(await closeChgOrder(record.id), '已关闭')}>
+            <Button
+              type="link"
+              onClick={async () => afterOrder(await closeChgOrder(record.id), '已关闭')}
+            >
               关闭
             </Button>
           ) : null}
@@ -493,11 +511,17 @@ export default function ChangeOrderCenter() {
                 {detail.title}
               </Descriptions.Item>
               <Descriptions.Item label="状态">
-                <Tag color={STATUS_META[detail.status]?.color}>{STATUS_META[detail.status]?.text}</Tag>
+                <Tag color={STATUS_META[detail.status]?.color}>
+                  {STATUS_META[detail.status]?.text}
+                </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="来源 ECR">{detail.ecrId}</Descriptions.Item>
-              <Descriptions.Item label="影响对象">{detail.impactObjects?.length ?? 0} 项</Descriptions.Item>
-              <Descriptions.Item label="创建时间">{formatTime(detail.createTime)}</Descriptions.Item>
+              <Descriptions.Item label="影响对象">
+                {detail.impactObjects?.length ?? 0} 项
+              </Descriptions.Item>
+              <Descriptions.Item label="创建时间">
+                {formatTime(detail.createTime)}
+              </Descriptions.Item>
               <Descriptions.Item label="影响评估" span={2}>
                 {detail.impactAssessment || '-'}
               </Descriptions.Item>
@@ -510,9 +534,7 @@ export default function ChangeOrderCenter() {
             </Descriptions>
 
             <Space wrap>
-              {detailEditable ? (
-                <Button onClick={() => openEdit(detail)}>编辑</Button>
-              ) : null}
+              {detailEditable ? <Button onClick={() => openEdit(detail)}>编辑</Button> : null}
               {canEdit && detail.status === 'DRAFT' ? (
                 <Button onClick={() => openAssess(detail)}>影响评估</Button>
               ) : null}
@@ -536,17 +558,27 @@ export default function ChangeOrderCenter() {
                 </Button>
               ) : null}
               {canExecute && detail.status === 'APPROVED' ? (
-                <Button type="primary" onClick={async () => afterOrder(await executeChgOrder(detail.id), '已开始执行')}>
+                <Button
+                  type="primary"
+                  onClick={async () => afterOrder(await executeChgOrder(detail.id), '已开始执行')}
+                >
                   执行
                 </Button>
               ) : null}
               {canExecute && detail.status === 'EXECUTING' ? (
-                <Button onClick={async () => afterOrder(await completeChgOrder(detail.id), '变更单已完成')}>
+                <Button
+                  onClick={async () =>
+                    afterOrder(await completeChgOrder(detail.id), '变更单已完成')
+                  }
+                >
                   完成变更单
                 </Button>
               ) : null}
               {detailCanCancel ? (
-                <Button danger onClick={async () => afterOrder(await cancelChgOrder(detail.id), '已取消')}>
+                <Button
+                  danger
+                  onClick={async () => afterOrder(await cancelChgOrder(detail.id), '已取消')}
+                >
                   取消
                 </Button>
               ) : null}
@@ -608,7 +640,9 @@ export default function ChangeOrderCenter() {
                             编辑
                           </Button>
                         ) : null}
-                        {canExecute && detail.status === 'EXECUTING' && task.status === 'PENDING' ? (
+                        {canExecute &&
+                        detail.status === 'EXECUTING' &&
+                        task.status === 'PENDING' ? (
                           <Button
                             type="link"
                             onClick={() => {
@@ -667,14 +701,28 @@ export default function ChangeOrderCenter() {
               }))}
             />
           </Form.Item>
-          <Form.Item name="title" label="变更标题" rules={[{ required: true, message: '请输入变更标题' }]}>
+          <Form.Item
+            name="title"
+            label="变更标题"
+            rules={[{ required: true, message: '请输入变更标题' }]}
+          >
             <Input maxLength={200} placeholder="简要描述本次变更" />
           </Form.Item>
           <Form.Item name="impactAssessment" label="影响评估">
-            <Input.TextArea rows={3} maxLength={2000} showCount placeholder="评估受影响的零件、BOM 与文档" />
+            <Input.TextArea
+              rows={3}
+              maxLength={2000}
+              showCount
+              placeholder="评估受影响的零件、BOM 与文档"
+            />
           </Form.Item>
           <Form.Item name="executePlan" label="执行计划">
-            <Input.TextArea rows={3} maxLength={2000} showCount placeholder="按任务说明整体执行顺序" />
+            <Input.TextArea
+              rows={3}
+              maxLength={2000}
+              showCount
+              placeholder="按任务说明整体执行顺序"
+            />
           </Form.Item>
         </Form>
       </Modal>
@@ -692,10 +740,20 @@ export default function ChangeOrderCenter() {
             label="影响评估"
             rules={[{ required: true, message: '请填写影响评估' }]}
           >
-            <Input.TextArea rows={4} maxLength={2000} showCount placeholder="评估受影响的零件、BOM 与文档" />
+            <Input.TextArea
+              rows={4}
+              maxLength={2000}
+              showCount
+              placeholder="评估受影响的零件、BOM 与文档"
+            />
           </Form.Item>
           <Form.Item name="executePlan" label="执行计划">
-            <Input.TextArea rows={3} maxLength={2000} showCount placeholder="整体执行顺序与注意事项" />
+            <Input.TextArea
+              rows={3}
+              maxLength={2000}
+              showCount
+              placeholder="整体执行顺序与注意事项"
+            />
           </Form.Item>
         </Form>
       </Modal>
@@ -709,15 +767,28 @@ export default function ChangeOrderCenter() {
         destroyOnClose
       >
         <Form form={taskForm} layout="vertical">
-          <Form.Item name="taskName" label="任务名称" rules={[{ required: true, message: '请输入任务名称' }]}>
+          <Form.Item
+            name="taskName"
+            label="任务名称"
+            rules={[{ required: true, message: '请输入任务名称' }]}
+          >
             <Input maxLength={200} placeholder="如：更新零件图并发布 V1.2" />
           </Form.Item>
-          <Form.Item name="taskType" label="任务类型" rules={[{ required: true, message: '请输入任务类型' }]}>
+          <Form.Item
+            name="taskType"
+            label="任务类型"
+            rules={[{ required: true, message: '请输入任务类型' }]}
+          >
             <Input maxLength={32} placeholder="如 DESIGN / NOTICE" />
           </Form.Item>
           <Space wrap>
             <Form.Item name="targetType" label="目标对象类型">
-              <Select allowClear style={{ width: 140 }} options={OBJECT_TYPE_OPTIONS} placeholder="类型" />
+              <Select
+                allowClear
+                style={{ width: 140 }}
+                options={OBJECT_TYPE_OPTIONS}
+                placeholder="类型"
+              />
             </Form.Item>
             <Form.Item name="targetId" label="目标对象ID">
               <InputNumber style={{ width: 180 }} min={1} placeholder="对象ID" />
@@ -733,7 +804,12 @@ export default function ChangeOrderCenter() {
             </Form.Item>
           </Space>
           <Form.Item name="planDesc" label="执行说明">
-            <Input.TextArea rows={3} maxLength={500} showCount placeholder="单任务执行步骤与交付物" />
+            <Input.TextArea
+              rows={3}
+              maxLength={500}
+              showCount
+              placeholder="单任务执行步骤与交付物"
+            />
           </Form.Item>
         </Form>
       </Modal>

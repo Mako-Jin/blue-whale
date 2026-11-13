@@ -192,7 +192,13 @@ export default function ChangeCenter() {
         return meta ? <Tag color={meta.color}>{meta.text}</Tag> : value;
       },
     },
-    { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 170, render: formatTime },
+    {
+      title: '创建时间',
+      dataIndex: 'createTime',
+      key: 'createTime',
+      width: 170,
+      render: formatTime,
+    },
     {
       title: '操作',
       key: 'action',
@@ -332,7 +338,11 @@ export default function ChangeCenter() {
                         noStyle
                         rules={[{ required: true, message: '请选择类型' }]}
                       >
-                        <Select style={{ width: 110 }} options={OBJECT_TYPE_OPTIONS} placeholder="类型" />
+                        <Select
+                          style={{ width: 110 }}
+                          options={OBJECT_TYPE_OPTIONS}
+                          placeholder="类型"
+                        />
                       </Form.Item>
                       <Form.Item name={[field.name, 'objectId']} noStyle>
                         <InputNumber style={{ width: 140 }} placeholder="对象ID" min={1} />
@@ -384,10 +394,7 @@ export default function ChangeCenter() {
         </Form>
         {approveState?.action === 'approve' ? (
           <Space>
-            <Button
-              danger
-              onClick={() => setApproveState({ ...approveState, action: 'reject' })}
-            >
+            <Button danger onClick={() => setApproveState({ ...approveState, action: 'reject' })}>
               改为驳回
             </Button>
           </Space>

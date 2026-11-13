@@ -301,7 +301,8 @@ export default function CollabMeetingPage() {
       title: record?.title,
       roomId: record?.roomId,
       organizer: record?.organizer ?? user?.nickname ?? user?.username,
-      organizerId: record?.organizerId ?? (typeof user?.userId === 'number' ? user.userId : undefined),
+      organizerId:
+        record?.organizerId ?? (typeof user?.userId === 'number' ? user.userId : undefined),
       deptId: record?.deptId,
       timeRange: record
         ? [dayjs(record.startTime), dayjs(record.endTime)]
@@ -462,15 +463,33 @@ export default function CollabMeetingPage() {
   const meetingColumns: TableProps<OaMeeting>['columns'] = [
     { title: '会议单号', dataIndex: 'code', key: 'code', width: 160 },
     { title: '主题', dataIndex: 'title', key: 'title', ellipsis: true },
-    { title: '会议室', dataIndex: 'roomName', key: 'roomName', width: 130, render: (value?: string) => value ?? '-' },
-    { title: '组织人', dataIndex: 'organizer', key: 'organizer', width: 110, render: (value?: string) => value ?? '-' },
+    {
+      title: '会议室',
+      dataIndex: 'roomName',
+      key: 'roomName',
+      width: 130,
+      render: (value?: string) => value ?? '-',
+    },
+    {
+      title: '组织人',
+      dataIndex: 'organizer',
+      key: 'organizer',
+      width: 110,
+      render: (value?: string) => value ?? '-',
+    },
     {
       title: '会议时间',
       key: 'time',
       width: 300,
       render: (_value, record) => `${timeText(record.startTime)} ~ ${timeText(record.endTime)}`,
     },
-    { title: '参会人', dataIndex: 'participantCount', key: 'participantCount', width: 90, align: 'right' },
+    {
+      title: '参会人',
+      dataIndex: 'participantCount',
+      key: 'participantCount',
+      width: 90,
+      align: 'right',
+    },
     {
       title: '状态',
       dataIndex: 'status',
@@ -501,7 +520,10 @@ export default function CollabMeetingPage() {
             </Button>
           ) : null}
           {record.status === 'SCHEDULED' && canManage ? (
-            <Popconfirm title="确认取消该会议？" onConfirm={() => void changeStatus(record, 'CANCELLED')}>
+            <Popconfirm
+              title="确认取消该会议？"
+              onConfirm={() => void changeStatus(record, 'CANCELLED')}
+            >
               <Button type="link" size="small" danger>
                 取消
               </Button>
@@ -688,7 +710,11 @@ export default function CollabMeetingPage() {
               />
             </Form.Item>
           </Space>
-          <Form.Item name="timeRange" label="会议时间" rules={[{ required: true, message: '请选择会议时间' }]}>
+          <Form.Item
+            name="timeRange"
+            label="会议时间"
+            rules={[{ required: true, message: '请选择会议时间' }]}
+          >
             <DatePicker.RangePicker showTime style={{ width: '100%' }} format="YYYY-MM-DD HH:mm" />
           </Form.Item>
           <Space size="middle" style={{ display: 'flex' }}>
@@ -719,12 +745,21 @@ export default function CollabMeetingPage() {
                         rules={[{ required: true, message: '请输入用户ID' }]}
                         style={{ marginBottom: 0 }}
                       >
-                        <InputNumber placeholder="用户ID" min={1} precision={0} style={{ width: 130 }} />
+                        <InputNumber
+                          placeholder="用户ID"
+                          min={1}
+                          precision={0}
+                          style={{ width: 130 }}
+                        />
                       </Form.Item>
                       <Form.Item name={[field.name, 'userName']} style={{ marginBottom: 0 }}>
                         <Input placeholder="姓名" maxLength={64} style={{ width: 140 }} />
                       </Form.Item>
-                      <Form.Item name={[field.name, 'required']} initialValue={1} style={{ marginBottom: 0 }}>
+                      <Form.Item
+                        name={[field.name, 'required']}
+                        initialValue={1}
+                        style={{ marginBottom: 0 }}
+                      >
                         <Select
                           style={{ width: 100 }}
                           options={[
@@ -763,14 +798,20 @@ export default function CollabMeetingPage() {
                   <Descriptions column={2} bordered size="small">
                     <Descriptions.Item label="会议室">{detail.roomName ?? '-'}</Descriptions.Item>
                     <Descriptions.Item label="组织人">{detail.organizer ?? '-'}</Descriptions.Item>
-                    <Descriptions.Item label="开始时间">{timeText(detail.startTime)}</Descriptions.Item>
-                    <Descriptions.Item label="结束时间">{timeText(detail.endTime)}</Descriptions.Item>
+                    <Descriptions.Item label="开始时间">
+                      {timeText(detail.startTime)}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="结束时间">
+                      {timeText(detail.endTime)}
+                    </Descriptions.Item>
                     <Descriptions.Item label="状态">
                       <Tag color={MEETING_STATUS_META[detail.status]?.color ?? 'default'}>
                         {MEETING_STATUS_META[detail.status]?.text ?? detail.status}
                       </Tag>
                     </Descriptions.Item>
-                    <Descriptions.Item label="参会人数">{detail.participantCount ?? 0}</Descriptions.Item>
+                    <Descriptions.Item label="参会人数">
+                      {detail.participantCount ?? 0}
+                    </Descriptions.Item>
                     <Descriptions.Item label="议程" span={2}>
                       {detail.agenda || '-'}
                     </Descriptions.Item>
@@ -791,7 +832,12 @@ export default function CollabMeetingPage() {
                     dataSource={detail.participants}
                     columns={[
                       { title: '用户ID', dataIndex: 'userId', key: 'userId', width: 100 },
-                      { title: '姓名', dataIndex: 'userName', key: 'userName', render: (value?: string) => value ?? '-' },
+                      {
+                        title: '姓名',
+                        dataIndex: 'userName',
+                        key: 'userName',
+                        render: (value?: string) => value ?? '-',
+                      },
                       {
                         title: '必到',
                         dataIndex: 'required',
@@ -816,7 +862,9 @@ export default function CollabMeetingPage() {
                         width: 140,
                         render: (_value, record) => (
                           <Space size={4}>
-                            {canManage && detail.status !== 'CANCELLED' && record.status !== 'ATTENDED' ? (
+                            {canManage &&
+                            detail.status !== 'CANCELLED' &&
+                            record.status !== 'ATTENDED' ? (
                               <Button
                                 type="link"
                                 size="small"
@@ -825,7 +873,9 @@ export default function CollabMeetingPage() {
                                 出席
                               </Button>
                             ) : null}
-                            {canManage && detail.status !== 'CANCELLED' && record.status !== 'ABSENT' ? (
+                            {canManage &&
+                            detail.status !== 'CANCELLED' &&
+                            record.status !== 'ABSENT' ? (
                               <Button
                                 type="link"
                                 size="small"
@@ -867,19 +917,38 @@ export default function CollabMeetingPage() {
                                   rules={[{ required: true, message: '请输入行动项' }]}
                                   style={{ marginBottom: 0 }}
                                 >
-                                  <Input placeholder="行动项内容" maxLength={255} style={{ width: 200 }} />
+                                  <Input
+                                    placeholder="行动项内容"
+                                    maxLength={255}
+                                    style={{ width: 200 }}
+                                  />
                                 </Form.Item>
                                 <Form.Item
                                   name={[field.name, 'ownerId']}
                                   rules={[{ required: true, message: '请输入负责人ID' }]}
                                   style={{ marginBottom: 0 }}
                                 >
-                                  <InputNumber placeholder="负责人ID" min={1} precision={0} style={{ width: 120 }} />
+                                  <InputNumber
+                                    placeholder="负责人ID"
+                                    min={1}
+                                    precision={0}
+                                    style={{ width: 120 }}
+                                  />
                                 </Form.Item>
-                                <Form.Item name={[field.name, 'ownerName']} style={{ marginBottom: 0 }}>
-                                  <Input placeholder="负责人姓名" maxLength={64} style={{ width: 120 }} />
+                                <Form.Item
+                                  name={[field.name, 'ownerName']}
+                                  style={{ marginBottom: 0 }}
+                                >
+                                  <Input
+                                    placeholder="负责人姓名"
+                                    maxLength={64}
+                                    style={{ width: 120 }}
+                                  />
                                 </Form.Item>
-                                <Form.Item name={[field.name, 'dueDate']} style={{ marginBottom: 0 }}>
+                                <Form.Item
+                                  name={[field.name, 'dueDate']}
+                                  style={{ marginBottom: 0 }}
+                                >
                                   <DatePicker placeholder="截止日期" style={{ width: 130 }} />
                                 </Form.Item>
                                 <Form.Item
@@ -889,7 +958,12 @@ export default function CollabMeetingPage() {
                                 >
                                   <Checkbox>生成任务</Checkbox>
                                 </Form.Item>
-                                <Button type="link" size="small" danger onClick={() => remove(field.name)}>
+                                <Button
+                                  type="link"
+                                  size="small"
+                                  danger
+                                  onClick={() => remove(field.name)}
+                                >
                                   移除
                                 </Button>
                               </Space>

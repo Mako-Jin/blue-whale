@@ -188,7 +188,12 @@ export interface GradeDetail {
 }
 
 /** 考试分页 */
-export function pageExams(params: { keyword?: string; status?: string; current?: number; size?: number }) {
+export function pageExams(params: {
+  keyword?: string;
+  status?: string;
+  current?: number;
+  size?: number;
+}) {
   return http.get<PageData<ExamItem>>('/lms/exam/page', { ...params });
 }
 
@@ -233,7 +238,10 @@ export function attemptPaper(attemptId: number | string) {
 }
 
 /** 保存答案（整卷或增量） */
-export function saveAnswers(attemptId: number | string, body: { answers: { questionId: number; answer?: string }[]; switchCount?: number }) {
+export function saveAnswers(
+  attemptId: number | string,
+  body: { answers: { questionId: number; answer?: string }[]; switchCount?: number },
+) {
   return http.put<number>(`/lms/attempt/${attemptId}/answers`, body);
 }
 
@@ -243,7 +251,12 @@ export function submitAttempt(attemptId: number | string) {
 }
 
 /** 我的作答记录 */
-export function myAttempts(params: { examId?: number; status?: string; current?: number; size?: number }) {
+export function myAttempts(params: {
+  examId?: number;
+  status?: string;
+  current?: number;
+  size?: number;
+}) {
   return http.get<PageData<AttemptItem>>('/lms/attempt/mine', { ...params });
 }
 
@@ -268,6 +281,9 @@ export function gradeDetail(attemptId: number | string) {
 }
 
 /** 提交判分 */
-export function submitGrade(attemptId: number | string, body: { items: { questionId: number; score: number }[]; remark?: string }) {
+export function submitGrade(
+  attemptId: number | string,
+  body: { items: { questionId: number; score: number }[]; remark?: string },
+) {
   return http.post<ScoreItem>(`/lms/grade/${attemptId}`, body);
 }

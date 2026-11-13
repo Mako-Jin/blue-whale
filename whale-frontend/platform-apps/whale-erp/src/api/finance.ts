@@ -292,7 +292,11 @@ export function payableAging(): Promise<AgingRow[]> {
 }
 
 /** 科目明细账 */
-export function getLedger(accountCode: string, fromPeriod: string, toPeriod: string): Promise<Ledger> {
+export function getLedger(
+  accountCode: string,
+  fromPeriod: string,
+  toPeriod: string,
+): Promise<Ledger> {
   return http.get<Ledger>(
     `/erp/finance/report/ledger?${buildQuery({ accountCode, fromPeriod, toPeriod })}`,
   );

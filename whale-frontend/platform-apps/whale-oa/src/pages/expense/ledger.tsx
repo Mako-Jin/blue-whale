@@ -226,7 +226,10 @@ export default function ExpenseLedgerPage() {
           placeholder="状态"
           style={{ width: 120 }}
           value={status || undefined}
-          options={Object.entries(STATUS_META).map(([value, meta]) => ({ label: meta.text, value }))}
+          options={Object.entries(STATUS_META).map(([value, meta]) => ({
+            label: meta.text,
+            value,
+          }))}
           onChange={(value) => {
             setStatus((value as OaExpenseStatus) ?? '');
             setCurrent(1);
@@ -284,9 +287,15 @@ export default function ExpenseLedgerPage() {
               <Descriptions.Item label="事由" span={2}>
                 {detail.title}
               </Descriptions.Item>
-              <Descriptions.Item label="类别">{categoryName(detail.categoryCode)}</Descriptions.Item>
-              <Descriptions.Item label="合计">{Number(detail.totalAmount ?? 0).toFixed(2)}</Descriptions.Item>
-              <Descriptions.Item label="状态">{STATUS_META[detail.status]?.text ?? detail.status}</Descriptions.Item>
+              <Descriptions.Item label="类别">
+                {categoryName(detail.categoryCode)}
+              </Descriptions.Item>
+              <Descriptions.Item label="合计">
+                {Number(detail.totalAmount ?? 0).toFixed(2)}
+              </Descriptions.Item>
+              <Descriptions.Item label="状态">
+                {STATUS_META[detail.status]?.text ?? detail.status}
+              </Descriptions.Item>
               <Descriptions.Item label="ERP 推送">
                 {PUSH_META[detail.erpPushStatus]?.text ?? detail.erpPushStatus}
               </Descriptions.Item>
@@ -301,7 +310,11 @@ export default function ExpenseLedgerPage() {
               dataSource={detail.items ?? []}
               columns={[
                 { title: '行号', dataIndex: 'lineNo', width: 70 },
-                { title: '类别', dataIndex: 'categoryCode', render: (value: string) => categoryName(value) },
+                {
+                  title: '类别',
+                  dataIndex: 'categoryCode',
+                  render: (value: string) => categoryName(value),
+                },
                 { title: '日期', dataIndex: 'expenseDate', width: 110 },
                 { title: '金额', dataIndex: 'amount', width: 100, align: 'right' },
                 { title: '说明', dataIndex: 'description', ellipsis: true },

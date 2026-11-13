@@ -119,7 +119,13 @@ export default function ForecastPage() {
     { title: '批次号', dataIndex: 'batchNo', key: 'batchNo', width: 180 },
     { title: '预测期间', dataIndex: 'period', key: 'period', width: 110 },
     { title: '版本', dataIndex: 'version', key: 'version', width: 80 },
-    { title: '总数量', dataIndex: 'totalQuantity', key: 'totalQuantity', width: 120, render: quantity },
+    {
+      title: '总数量',
+      dataIndex: 'totalQuantity',
+      key: 'totalQuantity',
+      width: 120,
+      render: quantity,
+    },
     {
       title: '状态',
       dataIndex: 'status',
@@ -139,14 +145,17 @@ export default function ForecastPage() {
             查看
           </Button>
           {record.status === 'DRAFT' && hasPermission('sys:erp:forecast:publish') ? (
-            <Popconfirm title="发布后可用于主生产计划，确认继续？" onConfirm={() => handlePublish(record.id)}>
+            <Popconfirm
+              title="发布后可用于主生产计划，确认继续？"
+              onConfirm={() => handlePublish(record.id)}
+            >
               <Button type="link" size="small">
                 发布
               </Button>
             </Popconfirm>
           ) : null}
-          {(record.status === 'DRAFT' || record.status === 'PUBLISHED')
-          && hasPermission('sys:erp:forecast:cancel') ? (
+          {(record.status === 'DRAFT' || record.status === 'PUBLISHED') &&
+          hasPermission('sys:erp:forecast:cancel') ? (
             <Popconfirm title="确认取消该预测批次？" onConfirm={() => handleCancel(record.id)}>
               <Button type="link" size="small" danger>
                 取消
@@ -178,13 +187,22 @@ export default function ForecastPage() {
         <Button onClick={() => setStatus(undefined)} type={status ? 'default' : 'primary'}>
           全部
         </Button>
-        <Button onClick={() => setStatus('DRAFT')} type={status === 'DRAFT' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('DRAFT')}
+          type={status === 'DRAFT' ? 'primary' : 'default'}
+        >
           草稿
         </Button>
-        <Button onClick={() => setStatus('PUBLISHED')} type={status === 'PUBLISHED' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('PUBLISHED')}
+          type={status === 'PUBLISHED' ? 'primary' : 'default'}
+        >
           已发布
         </Button>
-        <Button onClick={() => setStatus('CANCELLED')} type={status === 'CANCELLED' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('CANCELLED')}
+          type={status === 'CANCELLED' ? 'primary' : 'default'}
+        >
           已取消
         </Button>
         {hasPermission('sys:erp:forecast:add') ? (
@@ -204,7 +222,11 @@ export default function ForecastPage() {
       >
         <Form form={form} layout="vertical">
           <Space size="large" wrap>
-            <Form.Item name="period" label="预测期间" rules={[{ required: true, message: '请选择预测期间' }]}>
+            <Form.Item
+              name="period"
+              label="预测期间"
+              rules={[{ required: true, message: '请选择预测期间' }]}
+            >
               <DatePicker picker="month" format="YYYY-MM" />
             </Form.Item>
             <Form.Item name="version" label="版本">
@@ -235,7 +257,12 @@ export default function ForecastPage() {
                       name={[field.name, 'quantity']}
                       rules={[{ required: true, message: '数量' }]}
                     >
-                      <InputNumber placeholder="数量" min={0.0001} precision={4} style={{ width: 120 }} />
+                      <InputNumber
+                        placeholder="数量"
+                        min={0.0001}
+                        precision={4}
+                        style={{ width: 120 }}
+                      />
                     </Form.Item>
                     <Form.Item name={[field.name, 'uom']}>
                       <Input placeholder="单位" style={{ width: 90 }} maxLength={16} />

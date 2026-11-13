@@ -231,7 +231,8 @@ function CampaignPanel() {
       title: '类型',
       dataIndex: 'campaignType',
       width: 100,
-      render: (value?: string) => CAMPAIGN_TYPE_OPTIONS.find((item) => item.value === value)?.label ?? value ?? '-',
+      render: (value?: string) =>
+        CAMPAIGN_TYPE_OPTIONS.find((item) => item.value === value)?.label ?? value ?? '-',
     },
     {
       title: '状态',
@@ -243,11 +244,36 @@ function CampaignPanel() {
         </Tag>
       ),
     },
-    { title: '预算', dataIndex: 'budget', width: 120, render: (value?: number) => (value == null ? '-' : value) },
-    { title: '实际费用', dataIndex: 'actualCost', width: 120, render: (value?: number) => (value == null ? '-' : value) },
-    { title: '人群数', dataIndex: 'audienceCount', width: 90, render: (value?: number) => value ?? '-' },
-    { title: '归因赢单额', dataIndex: 'attributedWonAmount', width: 130, render: (value?: number) => value ?? '-' },
-    { title: 'ROI', dataIndex: 'roi', width: 100, render: (value?: number) => (value == null ? '-' : value) },
+    {
+      title: '预算',
+      dataIndex: 'budget',
+      width: 120,
+      render: (value?: number) => (value == null ? '-' : value),
+    },
+    {
+      title: '实际费用',
+      dataIndex: 'actualCost',
+      width: 120,
+      render: (value?: number) => (value == null ? '-' : value),
+    },
+    {
+      title: '人群数',
+      dataIndex: 'audienceCount',
+      width: 90,
+      render: (value?: number) => value ?? '-',
+    },
+    {
+      title: '归因赢单额',
+      dataIndex: 'attributedWonAmount',
+      width: 130,
+      render: (value?: number) => value ?? '-',
+    },
+    {
+      title: 'ROI',
+      dataIndex: 'roi',
+      width: 100,
+      render: (value?: number) => (value == null ? '-' : value),
+    },
     {
       title: '操作',
       key: 'action',
@@ -256,14 +282,26 @@ function CampaignPanel() {
       render: (_, row) => (
         <Space size={0} wrap>
           {row.status === 'DRAFT' && hasPermission('sys:crm:campaign:status') && (
-            <Button size="small" type="link" onClick={() => void changeStatus(row, 'RUNNING')}>启动</Button>
+            <Button size="small" type="link" onClick={() => void changeStatus(row, 'RUNNING')}>
+              启动
+            </Button>
           )}
           {row.status === 'RUNNING' && hasPermission('sys:crm:campaign:status') && (
-            <Button size="small" type="link" onClick={() => void changeStatus(row, 'ENDED')}>结束</Button>
+            <Button size="small" type="link" onClick={() => void changeStatus(row, 'ENDED')}>
+              结束
+            </Button>
           )}
-          {(row.status === 'DRAFT' || row.status === 'RUNNING') && hasPermission('sys:crm:campaign:status') && (
-            <Button size="small" type="link" danger onClick={() => void changeStatus(row, 'CANCELLED')}>取消</Button>
-          )}
+          {(row.status === 'DRAFT' || row.status === 'RUNNING') &&
+            hasPermission('sys:crm:campaign:status') && (
+              <Button
+                size="small"
+                type="link"
+                danger
+                onClick={() => void changeStatus(row, 'CANCELLED')}
+              >
+                取消
+              </Button>
+            )}
           {hasPermission('sys:crm:campaign:audience') && (
             <Button
               size="small"
@@ -303,7 +341,15 @@ function CampaignPanel() {
       title="营销活动"
       extra={
         hasPermission('sys:crm:campaign:manage') && (
-          <Button type="primary" onClick={() => { form.resetFields(); setFormOpen(true); }}>新建活动</Button>
+          <Button
+            type="primary"
+            onClick={() => {
+              form.resetFields();
+              setFormOpen(true);
+            }}
+          >
+            新建活动
+          </Button>
         )
       }
     >
@@ -319,19 +365,33 @@ function CampaignPanel() {
           setPage((prev) => ({ ...prev, current: 1 }));
         }}
       >
-        <Form.Item name="keyword"><Input placeholder="活动编码 / 名称" allowClear style={{ width: 220 }} /></Form.Item>
+        <Form.Item name="keyword">
+          <Input placeholder="活动编码 / 名称" allowClear style={{ width: 220 }} />
+        </Form.Item>
         <Form.Item name="status">
           <Select
             placeholder="状态"
             allowClear
             style={{ width: 130 }}
-            options={Object.entries(CAMPAIGN_STATUS_MAP).map(([value, item]) => ({ value, label: item.label }))}
+            options={Object.entries(CAMPAIGN_STATUS_MAP).map(([value, item]) => ({
+              value,
+              label: item.label,
+            }))}
           />
         </Form.Item>
         <Form.Item name="campaignType">
-          <Select placeholder="类型" allowClear style={{ width: 120 }} options={CAMPAIGN_TYPE_OPTIONS} />
+          <Select
+            placeholder="类型"
+            allowClear
+            style={{ width: 120 }}
+            options={CAMPAIGN_TYPE_OPTIONS}
+          />
         </Form.Item>
-        <Form.Item><Button type="primary" htmlType="submit">查询</Button></Form.Item>
+        <Form.Item>
+          <Button type="primary" htmlType="submit">
+            查询
+          </Button>
+        </Form.Item>
       </Form>
       <Table<CampaignView>
         rowKey="id"
@@ -362,11 +422,20 @@ function CampaignPanel() {
         destroyOnClose
       >
         <Form form={form} layout="vertical" preserve={false}>
-          <Form.Item name="campaignName" label="活动名称" rules={[{ required: true, message: '请输入活动名称' }]}>
+          <Form.Item
+            name="campaignName"
+            label="活动名称"
+            rules={[{ required: true, message: '请输入活动名称' }]}
+          >
             <Input maxLength={200} showCount />
           </Form.Item>
           <Space size={12} style={{ display: 'flex' }}>
-            <Form.Item name="campaignType" label="活动类型" rules={[{ required: true, message: '请选择类型' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="campaignType"
+              label="活动类型"
+              rules={[{ required: true, message: '请选择类型' }]}
+              style={{ flex: 1 }}
+            >
               <Select options={CAMPAIGN_TYPE_OPTIONS} />
             </Form.Item>
             <Form.Item name="channel" label="渠道" style={{ flex: 1 }}>
@@ -424,14 +493,23 @@ function CampaignPanel() {
         okText="锁定快照"
         cancelText="关闭"
         onOk={() => void handleLock()}
-        onCancel={() => { setAudienceTarget(null); setPreview(null); }}
+        onCancel={() => {
+          setAudienceTarget(null);
+          setPreview(null);
+        }}
         destroyOnClose
       >
         <Form form={audienceForm} layout="vertical" preserve={false}>
           <Space size={12} style={{ display: 'flex' }}>
-            <Form.Item name="industries" label="行业" style={{ flex: 1 }}><Input allowClear /></Form.Item>
-            <Form.Item name="levels" label="客户等级" style={{ flex: 1 }}><Input placeholder="A/B/C/D" allowClear /></Form.Item>
-            <Form.Item name="sources" label="来源" style={{ flex: 1 }}><Input allowClear /></Form.Item>
+            <Form.Item name="industries" label="行业" style={{ flex: 1 }}>
+              <Input allowClear />
+            </Form.Item>
+            <Form.Item name="levels" label="客户等级" style={{ flex: 1 }}>
+              <Input placeholder="A/B/C/D" allowClear />
+            </Form.Item>
+            <Form.Item name="sources" label="来源" style={{ flex: 1 }}>
+              <Input allowClear />
+            </Form.Item>
           </Space>
           <Space size={12} style={{ display: 'flex' }}>
             <Form.Item name="lastFollowUpDays" label="未跟进天数 ≥" style={{ flex: 1 }}>
@@ -522,10 +600,25 @@ function NurturePanel() {
 
   const columns: TableProps<NurtureTaskView>['columns'] = [
     { title: '任务编号', dataIndex: 'taskNo', width: 190 },
-    { title: '客户', dataIndex: 'customerName', width: 180, render: (value?: string, row?: NurtureTaskView) => value || row?.customerId || '-' },
+    {
+      title: '客户',
+      dataIndex: 'customerName',
+      width: 180,
+      render: (value?: string, row?: NurtureTaskView) => value || row?.customerId || '-',
+    },
     { title: '渠道', dataIndex: 'channel', width: 100, render: (value?: string) => value ?? '-' },
-    { title: '计划日期', dataIndex: 'planDate', width: 120, render: (value?: string) => value ?? '-' },
-    { title: '执行人', dataIndex: 'assigneeName', width: 120, render: (value?: string) => value || '-' },
+    {
+      title: '计划日期',
+      dataIndex: 'planDate',
+      width: 120,
+      render: (value?: string) => value ?? '-',
+    },
+    {
+      title: '执行人',
+      dataIndex: 'assigneeName',
+      width: 120,
+      render: (value?: string) => value || '-',
+    },
     {
       title: '状态',
       dataIndex: 'status',
@@ -545,8 +638,17 @@ function NurturePanel() {
         <Space size={0}>
           {row.status === 'OPEN' && hasPermission('sys:crm:nurture:manage') && (
             <>
-              <Button size="small" type="link" onClick={() => void changeStatus(row, 'DONE')}>完成</Button>
-              <Button size="small" type="link" danger onClick={() => void changeStatus(row, 'CANCELLED')}>取消</Button>
+              <Button size="small" type="link" onClick={() => void changeStatus(row, 'DONE')}>
+                完成
+              </Button>
+              <Button
+                size="small"
+                type="link"
+                danger
+                onClick={() => void changeStatus(row, 'CANCELLED')}
+              >
+                取消
+              </Button>
             </>
           )}
         </Space>
@@ -559,7 +661,15 @@ function NurturePanel() {
       title="线索培育任务"
       extra={
         hasPermission('sys:crm:nurture:manage') && (
-          <Button type="primary" onClick={() => { form.resetFields(); setFormOpen(true); }}>新建培育任务</Button>
+          <Button
+            type="primary"
+            onClick={() => {
+              form.resetFields();
+              setFormOpen(true);
+            }}
+          >
+            新建培育任务
+          </Button>
         )
       }
     >
@@ -576,11 +686,20 @@ function NurturePanel() {
             placeholder="状态"
             allowClear
             style={{ width: 130 }}
-            options={Object.entries(NURTURE_STATUS_MAP).map(([value, item]) => ({ value, label: item.label }))}
+            options={Object.entries(NURTURE_STATUS_MAP).map(([value, item]) => ({
+              value,
+              label: item.label,
+            }))}
           />
         </Form.Item>
-        <Form.Item name="customerId"><InputNumber min={1} precision={0} placeholder="客户 ID" style={{ width: 130 }} /></Form.Item>
-        <Form.Item><Button type="primary" htmlType="submit">查询</Button></Form.Item>
+        <Form.Item name="customerId">
+          <InputNumber min={1} precision={0} placeholder="客户 ID" style={{ width: 130 }} />
+        </Form.Item>
+        <Form.Item>
+          <Button type="primary" htmlType="submit">
+            查询
+          </Button>
+        </Form.Item>
       </Form>
       <Table<NurtureTaskView>
         rowKey="id"
@@ -611,7 +730,12 @@ function NurturePanel() {
       >
         <Form form={form} layout="vertical" preserve={false}>
           <Space size={12} style={{ display: 'flex' }}>
-            <Form.Item name="customerId" label="客户 ID" rules={[{ required: true, message: '请输入客户 ID' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="customerId"
+              label="客户 ID"
+              rules={[{ required: true, message: '请输入客户 ID' }]}
+              style={{ flex: 1 }}
+            >
               <InputNumber min={1} precision={0} style={{ width: '100%' }} />
             </Form.Item>
             <Form.Item name="leadId" label="线索 ID" style={{ flex: 1 }}>
@@ -636,9 +760,13 @@ function NurturePanel() {
             <Form.Item name="assigneeId" label="执行人 ID" style={{ flex: 1 }}>
               <InputNumber min={1} precision={0} style={{ width: '100%' }} />
             </Form.Item>
-            <Form.Item name="assigneeName" label="执行人姓名" style={{ flex: 1 }}><Input maxLength={64} /></Form.Item>
+            <Form.Item name="assigneeName" label="执行人姓名" style={{ flex: 1 }}>
+              <Input maxLength={64} />
+            </Form.Item>
           </Space>
-          <Form.Item name="note" label="备注"><Input.TextArea rows={2} maxLength={500} showCount /></Form.Item>
+          <Form.Item name="note" label="备注">
+            <Input.TextArea rows={2} maxLength={500} showCount />
+          </Form.Item>
         </Form>
       </Modal>
     </Card>
@@ -690,7 +818,9 @@ function SendPanel() {
   const handleExecute = async (row: MarketingSendView) => {
     try {
       const result = await executeSend(row.id);
-      message.success(`执行完成：成功 ${result.sentCount ?? 0}，跳过 ${result.skippedCount ?? 0}，失败 ${result.failedCount ?? 0}`);
+      message.success(
+        `执行完成：成功 ${result.sentCount ?? 0}，跳过 ${result.skippedCount ?? 0}，失败 ${result.failedCount ?? 0}`,
+      );
       void loadData();
     } catch (error) {
       message.error(errorText(error));
@@ -701,7 +831,13 @@ function SendPanel() {
     { title: '批次号', dataIndex: 'sendNo', width: 190 },
     { title: '活动 ID', dataIndex: 'campaignId', width: 100 },
     { title: '渠道', dataIndex: 'channel', width: 100, render: (value?: string) => value ?? '-' },
-    { title: '主题', dataIndex: 'subject', width: 220, ellipsis: true, render: (value?: string) => value || '-' },
+    {
+      title: '主题',
+      dataIndex: 'subject',
+      width: 220,
+      ellipsis: true,
+      render: (value?: string) => value || '-',
+    },
     {
       title: '状态',
       dataIndex: 'status',
@@ -714,9 +850,24 @@ function SendPanel() {
     },
     { title: '总数', dataIndex: 'totalCount', width: 80, render: (value?: number) => value ?? '-' },
     { title: '成功', dataIndex: 'sentCount', width: 80, render: (value?: number) => value ?? '-' },
-    { title: '跳过', dataIndex: 'skippedCount', width: 80, render: (value?: number) => value ?? '-' },
-    { title: '失败', dataIndex: 'failedCount', width: 80, render: (value?: number) => value ?? '-' },
-    { title: '执行时间', dataIndex: 'executedAt', width: 180, render: (value?: string) => formatDateTime(value) },
+    {
+      title: '跳过',
+      dataIndex: 'skippedCount',
+      width: 80,
+      render: (value?: number) => value ?? '-',
+    },
+    {
+      title: '失败',
+      dataIndex: 'failedCount',
+      width: 80,
+      render: (value?: number) => value ?? '-',
+    },
+    {
+      title: '执行时间',
+      dataIndex: 'executedAt',
+      width: 180,
+      render: (value?: string) => formatDateTime(value),
+    },
     {
       title: '操作',
       key: 'action',
@@ -724,9 +875,13 @@ function SendPanel() {
       width: 160,
       render: (_, row) => (
         <Space size={0}>
-          <Button size="small" type="link" onClick={() => setDetail(row)}>明细</Button>
+          <Button size="small" type="link" onClick={() => setDetail(row)}>
+            明细
+          </Button>
           {row.status !== 'COMPLETED' && hasPermission('sys:crm:marketing:send') && (
-            <Button size="small" type="link" onClick={() => void handleExecute(row)}>执行</Button>
+            <Button size="small" type="link" onClick={() => void handleExecute(row)}>
+              执行
+            </Button>
           )}
         </Space>
       ),
@@ -738,7 +893,15 @@ function SendPanel() {
       title="批量触达"
       extra={
         hasPermission('sys:crm:marketing:send') && (
-          <Button type="primary" onClick={() => { form.resetFields(); setFormOpen(true); }}>新建触达任务</Button>
+          <Button
+            type="primary"
+            onClick={() => {
+              form.resetFields();
+              setFormOpen(true);
+            }}
+          >
+            新建触达任务
+          </Button>
         )
       }
     >
@@ -754,19 +917,28 @@ function SendPanel() {
           setPage((prev) => ({ ...prev, current: 1 }));
         }}
       >
-        <Form.Item name="campaignId"><InputNumber min={1} precision={0} placeholder="活动 ID" style={{ width: 130 }} /></Form.Item>
+        <Form.Item name="campaignId">
+          <InputNumber min={1} precision={0} placeholder="活动 ID" style={{ width: 130 }} />
+        </Form.Item>
         <Form.Item name="status">
           <Select
             placeholder="状态"
             allowClear
             style={{ width: 130 }}
-            options={Object.entries(SEND_STATUS_MAP).map(([value, item]) => ({ value, label: item.label }))}
+            options={Object.entries(SEND_STATUS_MAP).map(([value, item]) => ({
+              value,
+              label: item.label,
+            }))}
           />
         </Form.Item>
         <Form.Item name="channel">
           <Select placeholder="渠道" allowClear style={{ width: 120 }} options={CHANNEL_OPTIONS} />
         </Form.Item>
-        <Form.Item><Button type="primary" htmlType="submit">查询</Button></Form.Item>
+        <Form.Item>
+          <Button type="primary" htmlType="submit">
+            查询
+          </Button>
+        </Form.Item>
       </Form>
       <Table<MarketingSendView>
         rowKey="id"
@@ -799,23 +971,37 @@ function SendPanel() {
       >
         <Form form={form} layout="vertical" preserve={false}>
           <Space size={12} style={{ display: 'flex' }}>
-            <Form.Item name="campaignId" label="活动 ID" rules={[{ required: true, message: '请输入活动 ID' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="campaignId"
+              label="活动 ID"
+              rules={[{ required: true, message: '请输入活动 ID' }]}
+              style={{ flex: 1 }}
+            >
               <InputNumber min={1} precision={0} style={{ width: '100%' }} />
             </Form.Item>
             <Form.Item name="audienceId" label="人群快照 ID（可选）" style={{ flex: 1 }}>
               <InputNumber min={1} precision={0} style={{ width: '100%' }} />
             </Form.Item>
-            <Form.Item name="channel" label="渠道" rules={[{ required: true, message: '请选择渠道' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="channel"
+              label="渠道"
+              rules={[{ required: true, message: '请选择渠道' }]}
+              style={{ flex: 1 }}
+            >
               <Select options={CHANNEL_OPTIONS} />
             </Form.Item>
           </Space>
           <Space size={12} style={{ display: 'flex' }}>
-            <Form.Item name="templateCode" label="模板编码" style={{ flex: 1 }}><Input maxLength={64} /></Form.Item>
+            <Form.Item name="templateCode" label="模板编码" style={{ flex: 1 }}>
+              <Input maxLength={64} />
+            </Form.Item>
             <Form.Item name="contentRefDocId" label="内容文档 ID" style={{ flex: 1 }}>
               <InputNumber min={1} precision={0} style={{ width: '100%' }} />
             </Form.Item>
           </Space>
-          <Form.Item name="subject" label="主题"><Input maxLength={200} showCount /></Form.Item>
+          <Form.Item name="subject" label="主题">
+            <Input maxLength={200} showCount />
+          </Form.Item>
         </Form>
       </Modal>
 
@@ -830,12 +1016,20 @@ function SendPanel() {
           <>
             <Descriptions bordered size="small" column={2} style={{ marginBottom: 12 }}>
               <Descriptions.Item label="渠道">{detail.channel || '-'}</Descriptions.Item>
-              <Descriptions.Item label="状态">{SEND_STATUS_MAP[detail.status]?.label ?? detail.status}</Descriptions.Item>
+              <Descriptions.Item label="状态">
+                {SEND_STATUS_MAP[detail.status]?.label ?? detail.status}
+              </Descriptions.Item>
               <Descriptions.Item label="总数">{detail.totalCount ?? '-'}</Descriptions.Item>
               <Descriptions.Item label="成功 / 跳过 / 失败">
-                {(detail.sentCount ?? 0) + ' / ' + (detail.skippedCount ?? 0) + ' / ' + (detail.failedCount ?? 0)}
+                {(detail.sentCount ?? 0) +
+                  ' / ' +
+                  (detail.skippedCount ?? 0) +
+                  ' / ' +
+                  (detail.failedCount ?? 0)}
               </Descriptions.Item>
-              <Descriptions.Item label="错误信息" span={2}>{detail.lastError || '-'}</Descriptions.Item>
+              <Descriptions.Item label="错误信息" span={2}>
+                {detail.lastError || '-'}
+              </Descriptions.Item>
             </Descriptions>
             <Table
               size="small"
@@ -843,8 +1037,16 @@ function SendPanel() {
               dataSource={detail.items ?? []}
               pagination={false}
               columns={[
-                { title: '联系人', dataIndex: 'contactName', render: (value?: string) => value || '-' },
-                { title: '接收方', dataIndex: 'recipient', render: (value?: string) => value || '-' },
+                {
+                  title: '联系人',
+                  dataIndex: 'contactName',
+                  render: (value?: string) => value || '-',
+                },
+                {
+                  title: '接收方',
+                  dataIndex: 'recipient',
+                  render: (value?: string) => value || '-',
+                },
                 { title: '状态', dataIndex: 'status', width: 100 },
                 { title: '错误', dataIndex: 'error', render: (value?: string) => value || '-' },
               ]}
@@ -947,24 +1149,59 @@ function PartnerPanel() {
   const columns: TableProps<PartnerView>['columns'] = [
     { title: '伙伴编码', dataIndex: 'partnerCode', width: 170 },
     { title: '伙伴名称', dataIndex: 'partnerName', width: 200 },
-    { title: '类型', dataIndex: 'partnerType', width: 100, render: (value?: string) => value ?? '-' },
+    {
+      title: '类型',
+      dataIndex: 'partnerType',
+      width: 100,
+      render: (value?: string) => value ?? '-',
+    },
     { title: '等级', dataIndex: 'level', width: 80, render: (value?: string) => value || '-' },
     { title: '区域', dataIndex: 'region', width: 120, render: (value?: string) => value || '-' },
-    { title: '联系人', dataIndex: 'contactName', width: 120, render: (value?: string) => value || '-' },
+    {
+      title: '联系人',
+      dataIndex: 'contactName',
+      width: 120,
+      render: (value?: string) => value || '-',
+    },
     {
       title: '状态',
       dataIndex: 'status',
       width: 100,
-      render: (value?: string) => <Tag color={value === 'ENABLED' ? 'success' : 'default'}>{value === 'ENABLED' ? '启用' : '停用'}</Tag>,
+      render: (value?: string) => (
+        <Tag color={value === 'ENABLED' ? 'success' : 'default'}>
+          {value === 'ENABLED' ? '启用' : '停用'}
+        </Tag>
+      ),
     },
   ];
 
   const reportColumns: TableProps<PartnerReportView>['columns'] = [
     { title: '报单号', dataIndex: 'reportNo', width: 180 },
-    { title: '伙伴', dataIndex: 'partnerName', width: 160, render: (value?: string, row?: PartnerReportView) => value || row?.partnerId || '-' },
-    { title: '客户', dataIndex: 'customerName', width: 160, render: (value?: string, row?: PartnerReportView) => value || row?.customerId || '-' },
-    { title: '项目', dataIndex: 'projectName', width: 200, ellipsis: true, render: (value?: string) => value || '-' },
-    { title: '预计金额', dataIndex: 'estimatedAmount', width: 120, render: (value?: number) => value ?? '-' },
+    {
+      title: '伙伴',
+      dataIndex: 'partnerName',
+      width: 160,
+      render: (value?: string, row?: PartnerReportView) => value || row?.partnerId || '-',
+    },
+    {
+      title: '客户',
+      dataIndex: 'customerName',
+      width: 160,
+      render: (value?: string, row?: PartnerReportView) => value || row?.customerId || '-',
+    },
+    {
+      title: '项目',
+      dataIndex: 'projectName',
+      width: 200,
+      ellipsis: true,
+      render: (value?: string) => value || '-',
+    },
+    {
+      title: '预计金额',
+      dataIndex: 'estimatedAmount',
+      width: 120,
+      render: (value?: number) => value ?? '-',
+    },
     {
       title: '状态',
       dataIndex: 'status',
@@ -975,7 +1212,12 @@ function PartnerPanel() {
         </Tag>
       ),
     },
-    { title: '冲突原因', dataIndex: 'conflictReason', ellipsis: true, render: (value?: string) => value || '-' },
+    {
+      title: '冲突原因',
+      dataIndex: 'conflictReason',
+      ellipsis: true,
+      render: (value?: string) => value || '-',
+    },
     {
       title: '操作',
       key: 'action',
@@ -984,8 +1226,17 @@ function PartnerPanel() {
         <Space size={0}>
           {row.status === 'CONFLICT' && hasPermission('sys:crm:partner:report') && (
             <>
-              <Button size="small" type="link" onClick={() => void resolveReport(row, 'APPROVED')}>通过</Button>
-              <Button size="small" type="link" danger onClick={() => void resolveReport(row, 'REJECTED')}>驳回</Button>
+              <Button size="small" type="link" onClick={() => void resolveReport(row, 'APPROVED')}>
+                通过
+              </Button>
+              <Button
+                size="small"
+                type="link"
+                danger
+                onClick={() => void resolveReport(row, 'REJECTED')}
+              >
+                驳回
+              </Button>
             </>
           )}
         </Space>
@@ -1000,7 +1251,15 @@ function PartnerPanel() {
         style={{ marginBottom: 16 }}
         extra={
           hasPermission('sys:crm:partner:manage') && (
-            <Button type="primary" onClick={() => { form.resetFields(); setFormOpen(true); }}>新建伙伴</Button>
+            <Button
+              type="primary"
+              onClick={() => {
+                form.resetFields();
+                setFormOpen(true);
+              }}
+            >
+              新建伙伴
+            </Button>
           )
         }
       >
@@ -1008,20 +1267,32 @@ function PartnerPanel() {
           layout="inline"
           style={{ marginBottom: 16, rowGap: 12 }}
           onFinish={(values) => {
-            setFilters({ keyword: values.keyword || undefined, status: values.status || undefined });
+            setFilters({
+              keyword: values.keyword || undefined,
+              status: values.status || undefined,
+            });
             setPage((prev) => ({ ...prev, current: 1 }));
           }}
         >
-          <Form.Item name="keyword"><Input placeholder="编码 / 名称" allowClear style={{ width: 200 }} /></Form.Item>
+          <Form.Item name="keyword">
+            <Input placeholder="编码 / 名称" allowClear style={{ width: 200 }} />
+          </Form.Item>
           <Form.Item name="status">
             <Select
               placeholder="状态"
               allowClear
               style={{ width: 120 }}
-              options={[{ value: 'ENABLED', label: '启用' }, { value: 'DISABLED', label: '停用' }]}
+              options={[
+                { value: 'ENABLED', label: '启用' },
+                { value: 'DISABLED', label: '停用' },
+              ]}
             />
           </Form.Item>
-          <Form.Item><Button type="primary" htmlType="submit">查询</Button></Form.Item>
+          <Form.Item>
+            <Button type="primary" htmlType="submit">
+              查询
+            </Button>
+          </Form.Item>
         </Form>
         <Table<PartnerView>
           rowKey="id"
@@ -1043,7 +1314,14 @@ function PartnerPanel() {
         title="渠道报单"
         extra={
           hasPermission('sys:crm:partner:report') && (
-            <Button onClick={() => { reportForm.resetFields(); setReportFormOpen(true); }}>新建报单</Button>
+            <Button
+              onClick={() => {
+                reportForm.resetFields();
+                setReportFormOpen(true);
+              }}
+            >
+              新建报单
+            </Button>
           )
         }
       >
@@ -1062,7 +1340,8 @@ function PartnerPanel() {
           }}
         />
         <Typography.Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
-          同一客户同一项目存在有效报单时，新报单进入「冲突待裁决」，不自动覆盖；佣金结算不在 CRM 范围。
+          同一客户同一项目存在有效报单时，新报单进入「冲突待裁决」，不自动覆盖；佣金结算不在 CRM
+          范围。
         </Typography.Text>
       </Card>
 
@@ -1077,10 +1356,20 @@ function PartnerPanel() {
       >
         <Form form={form} layout="vertical" preserve={false}>
           <Space size={12} style={{ display: 'flex' }}>
-            <Form.Item name="partnerCode" label="伙伴编码" rules={[{ required: true, message: '请输入伙伴编码' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="partnerCode"
+              label="伙伴编码"
+              rules={[{ required: true, message: '请输入伙伴编码' }]}
+              style={{ flex: 1 }}
+            >
               <Input maxLength={64} />
             </Form.Item>
-            <Form.Item name="partnerName" label="伙伴名称" rules={[{ required: true, message: '请输入伙伴名称' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="partnerName"
+              label="伙伴名称"
+              rules={[{ required: true, message: '请输入伙伴名称' }]}
+              style={{ flex: 1 }}
+            >
               <Input maxLength={200} />
             </Form.Item>
           </Space>
@@ -1088,15 +1377,27 @@ function PartnerPanel() {
             <Form.Item name="partnerType" label="类型" style={{ flex: 1 }}>
               <Select
                 allowClear
-                options={[{ value: 'AGENT', label: '代理商' }, { value: 'DEALER', label: '经销商' }, { value: 'OTHER', label: '其他' }]}
+                options={[
+                  { value: 'AGENT', label: '代理商' },
+                  { value: 'DEALER', label: '经销商' },
+                  { value: 'OTHER', label: '其他' },
+                ]}
               />
             </Form.Item>
-            <Form.Item name="level" label="等级" style={{ flex: 1 }}><Input maxLength={16} /></Form.Item>
-            <Form.Item name="region" label="区域" style={{ flex: 1 }}><Input maxLength={64} /></Form.Item>
+            <Form.Item name="level" label="等级" style={{ flex: 1 }}>
+              <Input maxLength={16} />
+            </Form.Item>
+            <Form.Item name="region" label="区域" style={{ flex: 1 }}>
+              <Input maxLength={64} />
+            </Form.Item>
           </Space>
           <Space size={12} style={{ display: 'flex' }}>
-            <Form.Item name="contactName" label="联系人" style={{ flex: 1 }}><Input maxLength={64} /></Form.Item>
-            <Form.Item name="contactPhone" label="联系电话" style={{ flex: 1 }}><Input maxLength={32} /></Form.Item>
+            <Form.Item name="contactName" label="联系人" style={{ flex: 1 }}>
+              <Input maxLength={64} />
+            </Form.Item>
+            <Form.Item name="contactPhone" label="联系电话" style={{ flex: 1 }}>
+              <Input maxLength={32} />
+            </Form.Item>
           </Space>
         </Form>
       </Modal>
@@ -1112,17 +1413,29 @@ function PartnerPanel() {
       >
         <Form form={reportForm} layout="vertical" preserve={false}>
           <Space size={12} style={{ display: 'flex' }}>
-            <Form.Item name="partnerId" label="伙伴 ID" rules={[{ required: true, message: '请输入伙伴 ID' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="partnerId"
+              label="伙伴 ID"
+              rules={[{ required: true, message: '请输入伙伴 ID' }]}
+              style={{ flex: 1 }}
+            >
               <InputNumber min={1} precision={0} style={{ width: '100%' }} />
             </Form.Item>
-            <Form.Item name="customerId" label="客户 ID" rules={[{ required: true, message: '请输入客户 ID' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="customerId"
+              label="客户 ID"
+              rules={[{ required: true, message: '请输入客户 ID' }]}
+              style={{ flex: 1 }}
+            >
               <InputNumber min={1} precision={0} style={{ width: '100%' }} />
             </Form.Item>
             <Form.Item name="estimatedAmount" label="预计金额" style={{ flex: 1 }}>
               <InputNumber min={0} precision={2} style={{ width: '100%' }} />
             </Form.Item>
           </Space>
-          <Form.Item name="projectName" label="项目名称"><Input maxLength={200} /></Form.Item>
+          <Form.Item name="projectName" label="项目名称">
+            <Input maxLength={200} />
+          </Form.Item>
         </Form>
       </Modal>
     </>

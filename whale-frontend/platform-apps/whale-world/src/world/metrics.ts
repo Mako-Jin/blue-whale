@@ -132,7 +132,10 @@ function dig(source: unknown, path: string): unknown {
 
 /** 列表类响应取总条数：兼容本项目自研 PageResult 与 Spring Page 两种形态 */
 const totalOf = (data: unknown): unknown =>
-  dig(data, 'total') ?? dig(data, 'totalElements') ?? dig(data, 'records.length') ?? dig(data, 'content.length');
+  dig(data, 'total') ??
+  dig(data, 'totalElements') ??
+  dig(data, 'records.length') ??
+  dig(data, 'content.length');
 
 /* ---------------------------------------------------------------- 八路采集 */
 /*
@@ -187,7 +190,10 @@ const PROBES: ProbeSpec[] = [
         tone: num(dig(d, 'pendingApprovalCount')) > 0 ? 'warn' : 'good',
       },
       { label: '未读通告', value: formatCount(dig(d, 'unreadNoticeCount')) },
-      { label: '今日会议', value: formatCount((dig(d, 'todayMeetings') as unknown[] | undefined)?.length ?? 0) },
+      {
+        label: '今日会议',
+        value: formatCount((dig(d, 'todayMeetings') as unknown[] | undefined)?.length ?? 0),
+      },
     ],
   },
   {
@@ -223,7 +229,9 @@ const PROBES: ProbeSpec[] = [
     nodeKey: 'hanlin-academy',
     permission: 'sys:doc:space:list',
     url: '/doc/space/my',
-    extract: (d) => [{ label: '藏书阁', value: formatCount((d as unknown[] | undefined)?.length ?? 0) }],
+    extract: (d) => [
+      { label: '藏书阁', value: formatCount((d as unknown[] | undefined)?.length ?? 0) },
+    ],
   },
   {
     // 杏坛 = LMS：学员覆盖与学习完成率
@@ -343,15 +351,18 @@ export function createWorldMetrics(
       continue;
     }
     const hit = cached[probe.nodeKey];
-    cards.set(probe.nodeKey, hit
-      ? {
-        nodeKey: probe.nodeKey,
-        state: 'stale',
-        metrics: hit.metrics,
-        note: `上次 ${timeLabel(hit.updatedAt)}`,
-        updatedAt: hit.updatedAt,
-      }
-      : { nodeKey: probe.nodeKey, state: 'loading', metrics: [], note: '问询中', updatedAt: 0 });
+    cards.set(
+      probe.nodeKey,
+      hit
+        ? {
+            nodeKey: probe.nodeKey,
+            state: 'stale',
+            metrics: hit.metrics,
+            note: `上次 ${timeLabel(hit.updatedAt)}`,
+            updatedAt: hit.updatedAt,
+          }
+        : { nodeKey: probe.nodeKey, state: 'loading', metrics: [], note: '问询中', updatedAt: 0 },
+    );
   }
 
   let inflight: Promise<void> | null = null;
@@ -421,7 +432,8 @@ export function createWorldMetrics(
 
       const body: unknown = await response.json();
       // 统一响应体 { code, message, data }；个别老接口直接返数组，两种都要认
-      const wrapped = body && typeof body === 'object' && 'code' in (body as Record<string, unknown>);
+      const wrapped =
+        body && typeof body === 'object' && 'code' in (body as Record<string, unknown>);
       const code = wrapped ? num((body as Record<string, unknown>).code) : 0;
       if (wrapped && code !== 0) {
         const message = String((body as Record<string, unknown>).message ?? '业务拒绝');
@@ -455,7 +467,11 @@ export function createWorldMetrics(
         ? '问询超时'
         : (error instanceof Error && error.message ? error.message : '未接通').slice(0, 16);
       if (prev && prev.updatedAt > 0) {
-        cards.set(probe.nodeKey, { ...prev, state: 'stale', note: `${reason} · 上次 ${timeLabel(prev.updatedAt)}` });
+        cards.set(probe.nodeKey, {
+          ...prev,
+          state: 'stale',
+          note: `${reason} · 上次 ${timeLabel(prev.updatedAt)}`,
+        });
       } else {
         cards.set(probe.nodeKey, {
           nodeKey: probe.nodeKey,

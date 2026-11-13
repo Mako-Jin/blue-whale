@@ -617,7 +617,12 @@ export default function CollabDrivePage() {
                 <Button type="primary" onClick={openCreateFolder}>
                   新建文件夹
                 </Button>
-                <Upload multiple showUploadList={false} beforeUpload={beforeUpload} disabled={parentId === 0}>
+                <Upload
+                  multiple
+                  showUploadList={false}
+                  beforeUpload={beforeUpload}
+                  disabled={parentId === 0}
+                >
                   <Button icon={<UploadOutlined />} loading={uploading} disabled={parentId === 0}>
                     上传
                   </Button>

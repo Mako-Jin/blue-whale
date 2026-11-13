@@ -83,9 +83,12 @@ export default function CustomerToolsPage() {
         ...values,
         confirmPrimaryContactConflict: true,
       });
-      const rewritten = result.references && Object.keys(result.references).length > 0
-        ? Object.entries(result.references).map(([key, count]) => `${key} ${count}`).join('、')
-        : '无';
+      const rewritten =
+        result.references && Object.keys(result.references).length > 0
+          ? Object.entries(result.references)
+              .map(([key, count]) => `${key} ${count}`)
+              .join('、')
+          : '无';
       message.success(`合并完成：${rewritten}`);
       setMergePreview(null);
       mergeForm.resetFields();
@@ -119,7 +122,9 @@ export default function CustomerToolsPage() {
       }
       const result = await executeImport(csv);
       setImportResult(result);
-      message.success(`导入完成：新增 ${result.created}，跳过 ${result.skipped}，失败 ${result.failed}`);
+      message.success(
+        `导入完成：新增 ${result.created}，跳过 ${result.skipped}，失败 ${result.failed}`,
+      );
     } catch (error) {
       message.error(errorText(error));
     }
@@ -145,10 +150,18 @@ export default function CustomerToolsPage() {
           message="合并会把源客户的联系人、地址、画像、跟进及商机/合同/订单/回款/工单等引用迁移到目标客户，源客户置为 MERGED 且只读；操作不可撤销，请先预览。"
         />
         <Form form={mergeForm} layout="inline" style={{ rowGap: 12 }}>
-          <Form.Item name="sourceId" label="源客户 ID" rules={[{ required: true, message: '请输入源客户 ID' }]}>
+          <Form.Item
+            name="sourceId"
+            label="源客户 ID"
+            rules={[{ required: true, message: '请输入源客户 ID' }]}
+          >
             <InputNumber min={1} precision={0} style={{ width: 160 }} />
           </Form.Item>
-          <Form.Item name="targetId" label="目标客户 ID" rules={[{ required: true, message: '请输入目标客户 ID' }]}>
+          <Form.Item
+            name="targetId"
+            label="目标客户 ID"
+            rules={[{ required: true, message: '请输入目标客户 ID' }]}
+          >
             <InputNumber min={1} precision={0} style={{ width: 160 }} />
           </Form.Item>
           <Form.Item name="operatorNote" label="备注">
@@ -156,7 +169,10 @@ export default function CustomerToolsPage() {
           </Form.Item>
           <Form.Item>
             <Space>
-              <Button onClick={() => void handlePreviewMerge()} disabled={!hasPermission('sys:crm:customer:merge')}>
+              <Button
+                onClick={() => void handlePreviewMerge()}
+                disabled={!hasPermission('sys:crm:customer:merge')}
+              >
                 预览
               </Button>
               <Button
@@ -182,15 +198,24 @@ export default function CustomerToolsPage() {
               <Descriptions.Item label="目标客户">
                 {mergePreview.targetName || '-'}（{mergePreview.targetCode || '-'}）
               </Descriptions.Item>
-              <Descriptions.Item label="源状态">{mergePreview.sourceStatus || '-'}</Descriptions.Item>
-              <Descriptions.Item label="目标状态">{mergePreview.targetStatus || '-'}</Descriptions.Item>
+              <Descriptions.Item label="源状态">
+                {mergePreview.sourceStatus || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="目标状态">
+                {mergePreview.targetStatus || '-'}
+              </Descriptions.Item>
             </Descriptions>
-            <Typography.Text strong style={{ display: 'block', margin: '16px 0 8px' }}>引用数量</Typography.Text>
+            <Typography.Text strong style={{ display: 'block', margin: '16px 0 8px' }}>
+              引用数量
+            </Typography.Text>
             <Table
               size="small"
               rowKey="key"
               pagination={false}
-              dataSource={Object.entries(mergePreview.references).map(([key, value]) => ({ key, value }))}
+              dataSource={Object.entries(mergePreview.references).map(([key, value]) => ({
+                key,
+                value,
+              }))}
               columns={[
                 { title: '引用对象', dataIndex: 'key' },
                 { title: '数量', dataIndex: 'value', width: 120 },
@@ -222,10 +247,17 @@ export default function CustomerToolsPage() {
           placeholder="客户名称,简称,行业,来源,等级,官网,税号,省,市,区,地址,负责人ID,标签,手机,邮箱"
         />
         <Space style={{ marginTop: 12 }}>
-          <Button onClick={() => void handlePreviewImport()} disabled={!hasPermission('sys:crm:customer:import')}>
+          <Button
+            onClick={() => void handlePreviewImport()}
+            disabled={!hasPermission('sys:crm:customer:import')}
+          >
             预检
           </Button>
-          <Button type="primary" onClick={() => void handleImport()} disabled={!hasPermission('sys:crm:customer:import')}>
+          <Button
+            type="primary"
+            onClick={() => void handleImport()}
+            disabled={!hasPermission('sys:crm:customer:import')}
+          >
             执行导入
           </Button>
         </Space>
@@ -246,13 +278,20 @@ export default function CustomerToolsPage() {
               dataSource={importPreview.rows}
               columns={[
                 { title: '行号', dataIndex: 'rowNo', width: 80 },
-                { title: '客户名称', dataIndex: 'name', width: 220, render: (value?: string) => value || '-' },
+                {
+                  title: '客户名称',
+                  dataIndex: 'name',
+                  width: 220,
+                  render: (value?: string) => value || '-',
+                },
                 {
                   title: '状态',
                   dataIndex: 'status',
                   width: 110,
                   render: (value: string) => (
-                    <Tag color={value === 'OK' ? 'success' : value === 'DUPLICATE' ? 'orange' : 'red'}>
+                    <Tag
+                      color={value === 'OK' ? 'success' : value === 'DUPLICATE' ? 'orange' : 'red'}
+                    >
                       {value === 'OK' ? '可导入' : value === 'DUPLICATE' ? '重复' : '非法'}
                     </Tag>
                   ),
@@ -276,7 +315,11 @@ export default function CustomerToolsPage() {
         <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
           默认脱敏手机号、邮箱与税号；导出受数据范围与单次上限约束，并记录审计（不含敏感明文）。
         </Typography.Text>
-        <Button type="primary" onClick={() => void handleExport()} disabled={!hasPermission('sys:crm:customer:export')}>
+        <Button
+          type="primary"
+          onClick={() => void handleExport()}
+          disabled={!hasPermission('sys:crm:customer:export')}
+        >
           导出 CSV
         </Button>
       </Card>

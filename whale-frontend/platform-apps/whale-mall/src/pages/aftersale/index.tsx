@@ -187,9 +187,19 @@ export default function AfterSalePage() {
   const lineColumns: TableProps<AfterSaleLineView>['columns'] = [
     { title: '商品', dataIndex: 'spuName' },
     { title: 'SKU', dataIndex: 'skuCode', width: 160 },
-    { title: '单价', dataIndex: 'unitPrice', width: 110, render: (value: number) => formatMoney(value) },
+    {
+      title: '单价',
+      dataIndex: 'unitPrice',
+      width: 110,
+      render: (value: number) => formatMoney(value),
+    },
     { title: '本次退数量', dataIndex: 'quantity', width: 110 },
-    { title: '退金额', dataIndex: 'amount', width: 110, render: (value: number) => formatMoney(value) },
+    {
+      title: '退金额',
+      dataIndex: 'amount',
+      width: 110,
+      render: (value: number) => formatMoney(value),
+    },
   ];
 
   return (
@@ -285,11 +295,17 @@ export default function AfterSalePage() {
               <Descriptions.Item label="退款金额">
                 <Typography.Text strong>{formatMoney(detail.refundAmount)}</Typography.Text>
               </Descriptions.Item>
-              <Descriptions.Item label="申请时间">{formatDateTime(detail.createTime)}</Descriptions.Item>
+              <Descriptions.Item label="申请时间">
+                {formatDateTime(detail.createTime)}
+              </Descriptions.Item>
               <Descriptions.Item label="原因">{detail.reason || '-'}</Descriptions.Item>
               <Descriptions.Item label="审核人">{detail.auditUserName || '-'}</Descriptions.Item>
-              <Descriptions.Item label="审核时间">{formatDateTime(detail.auditTime)}</Descriptions.Item>
-              <Descriptions.Item label="退款完成">{formatDateTime(detail.refundTime)}</Descriptions.Item>
+              <Descriptions.Item label="审核时间">
+                {formatDateTime(detail.auditTime)}
+              </Descriptions.Item>
+              <Descriptions.Item label="退款完成">
+                {formatDateTime(detail.refundTime)}
+              </Descriptions.Item>
               <Descriptions.Item label="问题描述" span={2}>
                 {detail.description || '-'}
               </Descriptions.Item>
@@ -302,7 +318,13 @@ export default function AfterSalePage() {
                         .map((url) => url.trim())
                         .filter(Boolean)
                         .map((url) => (
-                          <Image key={url} src={url} width={64} height={64} style={{ objectFit: 'cover' }} />
+                          <Image
+                            key={url}
+                            src={url}
+                            width={64}
+                            height={64}
+                            style={{ objectFit: 'cover' }}
+                          />
                         ))}
                     </Space>
                   </Image.PreviewGroup>

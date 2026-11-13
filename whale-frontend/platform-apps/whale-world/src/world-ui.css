@@ -17,7 +17,9 @@
   border: 1px solid rgba(216, 180, 90, 0.25);
   border-radius: 3px;
   backdrop-filter: blur(7px);
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
 }
 .bww-map-panel.bww-hidden {
   opacity: 0;
@@ -61,9 +63,15 @@
   border-radius: 50%;
   margin-right: 3px;
 }
-.lg-player { background: #ff8a4c; }
-.lg-npc { background: #e8dcc0; }
-.lg-peer { background: #7fd8ff; }
+.lg-player {
+  background: #ff8a4c;
+}
+.lg-npc {
+  background: #e8dcc0;
+}
+.lg-peer {
+  background: #7fd8ff;
+}
 
 /* ---------- 名字标签（NPC / 其他玩家） ---------- */
 .bww-nlabel {
@@ -144,7 +152,9 @@
   overflow: hidden;
   background: linear-gradient(160deg, rgba(12, 24, 32, 0.97), rgba(8, 16, 22, 0.98));
   border: 1px solid rgba(216, 180, 90, 0.3);
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), inset 0 0 60px rgba(216, 180, 90, 0.04);
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.6),
+    inset 0 0 60px rgba(216, 180, 90, 0.04);
 }
 .bww-cp-stage {
   position: relative;
@@ -337,7 +347,9 @@
   cursor: pointer;
 }
 .bww-cp-sw.is-on {
-  box-shadow: 0 0 0 2px #0b1a24, 0 0 0 3px #e2c374;
+  box-shadow:
+    0 0 0 2px #0b1a24,
+    0 0 0 3px #e2c374;
 }
 .bww-cp-photo {
   display: flex;
@@ -455,7 +467,9 @@
   border-radius: 999px;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.25s, transform 0.25s;
+  transition:
+    opacity 0.25s,
+    transform 0.25s;
   backdrop-filter: blur(6px);
 }
 .bww-talk-hint.bww-show {
@@ -611,8 +625,13 @@
   animation: bww-chat-pulse 1.2s ease-in-out infinite;
 }
 @keyframes bww-chat-pulse {
-  0%, 100% { opacity: 0.25; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 .bww-chat-note {
   align-self: center;
@@ -675,8 +694,8 @@
   color: rgba(236, 223, 196, 0.32);
 }
 
-/* 富文本气泡：检索摘要带 Markdown（**粗体**/`代码`/列表），原样显示就是一堆星号 */
-.bww-chat-msg {
+/* 富文本气泡：检索摘要带 Markdown（**粗体**/
+`代码`/列表），原样显示就是一堆星号 */ .bww-chat-msg {
   flex-wrap: wrap;
 }
 .bww-chat-body .bww-chat-p {
@@ -895,7 +914,9 @@
   border: 1px solid rgba(216, 180, 90, 0.22);
   border-radius: 999px;
   cursor: pointer;
-  transition: border-color 0.18s, color 0.18s;
+  transition:
+    border-color 0.18s,
+    color 0.18s;
 }
 .bww-say-preset:hover {
   color: #ffe9b8;
@@ -955,30 +976,44 @@
   line-height: 1;
   font-weight: 700;
   color: #f2d488;
-  text-shadow: 0 0 10px rgba(216, 180, 90, 0.85), 0 1px 2px rgba(0, 0, 0, 0.9);
+  text-shadow:
+    0 0 10px rgba(216, 180, 90, 0.85),
+    0 1px 2px rgba(0, 0, 0, 0.9);
   pointer-events: none;
 }
 /* 可接：上下轻浮，像钉在空中的一枚金符 */
-.bww-nlabel[data-quest="offer"] .bww-nlabel-quest {
+.bww-nlabel[data-quest='offer'] .bww-nlabel-quest {
   animation: bwwQuestBob 1.8s ease-in-out infinite;
 }
 /* 可交：脉动金色，与"还在跑"的灰点明确区分 */
-.bww-nlabel[data-quest="ready"] .bww-nlabel-quest {
+.bww-nlabel[data-quest='ready'] .bww-nlabel-quest {
   color: #ffe6a0;
   animation: bwwQuestPulse 1.4s ease-in-out infinite;
 }
-.bww-nlabel[data-quest="active"] .bww-nlabel-quest {
+.bww-nlabel[data-quest='active'] .bww-nlabel-quest {
   font-size: 18px;
   color: rgba(216, 180, 90, 0.55);
   text-shadow: none;
 }
 @keyframes bwwQuestBob {
-  0%, 100% { transform: translateY(-50%); }
-  50% { transform: translateY(calc(-50% - 3px)); }
+  0%,
+  100% {
+    transform: translateY(-50%);
+  }
+  50% {
+    transform: translateY(calc(-50% - 3px));
+  }
 }
 @keyframes bwwQuestPulse {
-  0%, 100% { opacity: 0.55; text-shadow: 0 0 8px rgba(216, 180, 90, 0.6); }
-  50% { opacity: 1; text-shadow: 0 0 18px rgba(255, 226, 150, 0.95); }
+  0%,
+  100% {
+    opacity: 0.55;
+    text-shadow: 0 0 8px rgba(216, 180, 90, 0.6);
+  }
+  50% {
+    opacity: 1;
+    text-shadow: 0 0 18px rgba(255, 226, 150, 0.95);
+  }
 }
 
 /* ---------- 追踪面板（城图之下） ---------- */
@@ -996,7 +1031,9 @@
   opacity: 0;
   transform: translateX(-10px);
   pointer-events: none;
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
 }
 .bww-quest.bww-show {
   opacity: 1;

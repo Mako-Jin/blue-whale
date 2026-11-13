@@ -252,9 +252,7 @@ export function listBirthdays(date?: string): Promise<BirthdayCelebration[]> {
 }
 
 /** 分页查询祝福 */
-export function pageCultureWishes(
-  params: CultureWishQuery = {},
-): Promise<PageResult<CultureWish>> {
+export function pageCultureWishes(params: CultureWishQuery = {}): Promise<PageResult<CultureWish>> {
   return http.get<PageResult<CultureWish>>(`/oa/culture/wishes/page${buildQuery(params)}`);
 }
 
@@ -304,9 +302,7 @@ export function votePoll(id: number, optionIds: number[]): Promise<void> {
 }
 
 /** 分页查询建议 */
-export function pageSuggestions(
-  params: SuggestionQuery = {},
-): Promise<PageResult<Suggestion>> {
+export function pageSuggestions(params: SuggestionQuery = {}): Promise<PageResult<Suggestion>> {
   return http.get<PageResult<Suggestion>>(`/oa/suggestion/page${buildQuery(params)}`);
 }
 

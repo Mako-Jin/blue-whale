@@ -1,6 +1,17 @@
 // PDM 变更追溯页面：按业务/对象分页查询，按对象查看时间线（只读）
 import { useCallback, useEffect, useState } from 'react';
-import { Button, Card, Empty, InputNumber, Select, Space, Table, Tag, Timeline, message } from 'antd';
+import {
+  Button,
+  Card,
+  Empty,
+  InputNumber,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Timeline,
+  message,
+} from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
   getChgTraceTimeline,
@@ -31,7 +42,13 @@ export default function ChangeTracePage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await pageChgTraces({ current, size, bizType, objectType, objectId: objectId ?? undefined });
+      const result = await pageChgTraces({
+        current,
+        size,
+        bizType,
+        objectType,
+        objectId: objectId ?? undefined,
+      });
       setRows(result.records ?? []);
       setTotal(Number(result.total ?? 0));
     } catch (error) {
@@ -63,8 +80,18 @@ export default function ChangeTracePage() {
   };
 
   const columns: ColumnsType<ChgTrace> = [
-    { title: '时间', dataIndex: 'traceTime', width: 180, render: (value: string) => value?.replace('T', ' ') },
-    { title: '业务', dataIndex: 'bizType', width: 80, render: (value: string) => <Tag>{value}</Tag> },
+    {
+      title: '时间',
+      dataIndex: 'traceTime',
+      width: 180,
+      render: (value: string) => value?.replace('T', ' '),
+    },
+    {
+      title: '业务',
+      dataIndex: 'bizType',
+      width: 80,
+      render: (value: string) => <Tag>{value}</Tag>,
+    },
     { title: '业务编号', dataIndex: 'bizNo', width: 180 },
     { title: '对象', dataIndex: 'objectType', width: 100 },
     { title: '对象编码', dataIndex: 'objectCode', width: 160 },
@@ -73,7 +100,9 @@ export default function ChangeTracePage() {
       title: '版本变化',
       width: 180,
       render: (_, row) =>
-        row.fromVersion || row.toVersion ? `${row.fromVersion ?? '-'} → ${row.toVersion ?? '-'}` : '-',
+        row.fromVersion || row.toVersion
+          ? `${row.fromVersion ?? '-'} → ${row.toVersion ?? '-'}`
+          : '-',
     },
     { title: '说明', dataIndex: 'content' },
   ];
@@ -154,7 +183,8 @@ export default function ChangeTracePage() {
         ) : (
           <Timeline
             items={timeline.map((item) => ({
-              color: item.action === 'OBSOLETE' ? 'red' : item.action === 'EFFECTIVE' ? 'green' : 'blue',
+              color:
+                item.action === 'OBSOLETE' ? 'red' : item.action === 'EFFECTIVE' ? 'green' : 'blue',
               children: (
                 <div>
                   <div>

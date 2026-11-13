@@ -101,9 +101,20 @@ function CycleModal({
   };
 
   return (
-    <Modal open={open} title="新建绩效周期" width={560} onOk={handleOk} onCancel={onCancel} destroyOnHidden>
+    <Modal
+      open={open}
+      title="新建绩效周期"
+      width={560}
+      onOk={handleOk}
+      onCancel={onCancel}
+      destroyOnHidden
+    >
       <Form form={form} layout="vertical">
-        <Form.Item name="name" label="周期名称" rules={[{ required: true, message: '请输入周期名称' }]}>
+        <Form.Item
+          name="name"
+          label="周期名称"
+          rules={[{ required: true, message: '请输入周期名称' }]}
+        >
           <Input maxLength={64} />
         </Form.Item>
         <Space size="middle" wrap>
@@ -126,10 +137,16 @@ function CycleModal({
             />
           </Form.Item>
           <Form.Item name="startDate" label="开始日期" rules={[{ required: true }]}>
-            <DatePicker format="YYYY-MM-DD" disabledDate={(date) => date.isAfter(month.endOf('month'))} />
+            <DatePicker
+              format="YYYY-MM-DD"
+              disabledDate={(date) => date.isAfter(month.endOf('month'))}
+            />
           </Form.Item>
           <Form.Item name="endDate" label="结束日期" rules={[{ required: true }]}>
-            <DatePicker format="YYYY-MM-DD" disabledDate={(date) => date.isBefore(month.startOf('month'))} />
+            <DatePicker
+              format="YYYY-MM-DD"
+              disabledDate={(date) => date.isBefore(month.startOf('month'))}
+            />
           </Form.Item>
         </Space>
         <Form.Item name="remark" label="备注">
@@ -167,7 +184,11 @@ function KpiModal({
   return (
     <Modal open={open} title="新增绩效指标" onOk={handleOk} onCancel={onCancel} destroyOnHidden>
       <Form form={form} layout="vertical">
-        <Form.Item name="name" label="指标名称" rules={[{ required: true, message: '请输入指标名称' }]}>
+        <Form.Item
+          name="name"
+          label="指标名称"
+          rules={[{ required: true, message: '请输入指标名称' }]}
+        >
           <Input maxLength={64} />
         </Form.Item>
         <Space size="middle" wrap>
@@ -218,20 +239,27 @@ function AppraisalModal({
   };
 
   return (
-    <Modal open={open} title="录入考核结果" width={560} onOk={handleOk} onCancel={onCancel} destroyOnHidden>
+    <Modal
+      open={open}
+      title="录入考核结果"
+      width={560}
+      onOk={handleOk}
+      onCancel={onCancel}
+      destroyOnHidden
+    >
       <Form form={form} layout="vertical">
         <Space size="middle" wrap>
-          <Form.Item name="employeeNo" label="员工" rules={[{ required: true, message: '请选择员工' }]}>
+          <Form.Item
+            name="employeeNo"
+            label="员工"
+            rules={[{ required: true, message: '请选择员工' }]}
+          >
             <SelectEmployeeBasic employees={employees} />
           </Form.Item>
           <Form.Item name="kpiId" label="指标" rules={[{ required: true, message: '请选择指标' }]}>
             <SelectKpiBasic kpis={kpis} />
           </Form.Item>
-          <Form.Item
-            name="score"
-            label="得分"
-            rules={[{ required: true, message: '请输入得分' }]}
-          >
+          <Form.Item name="score" label="得分" rules={[{ required: true, message: '请输入得分' }]}>
             <InputNumber min={0} max={100} precision={2} style={{ width: 120 }} />
           </Form.Item>
         </Space>
@@ -378,7 +406,10 @@ export default function PerformancePage() {
             查看
           </Button>
           {record.status === 'IN_PROGRESS' && hasPermission('sys:erp:hr:performance:close') ? (
-            <Popconfirm title="关闭后不可再录入指标与考核，确认？" onConfirm={() => handleClose(record.id)}>
+            <Popconfirm
+              title="关闭后不可再录入指标与考核，确认？"
+              onConfirm={() => handleClose(record.id)}
+            >
               <Button type="link" size="small">
                 关闭
               </Button>

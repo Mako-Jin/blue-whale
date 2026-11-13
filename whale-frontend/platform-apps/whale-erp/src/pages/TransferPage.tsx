@@ -128,7 +128,13 @@ export default function TransferPage() {
     { title: '调拨日期', dataIndex: 'transferDate', key: 'transferDate', width: 110 },
     { title: '调出仓库', dataIndex: 'fromWarehouseName', key: 'fromWarehouseName' },
     { title: '调入仓库', dataIndex: 'toWarehouseName', key: 'toWarehouseName' },
-    { title: '总数量', dataIndex: 'totalQuantity', key: 'totalQuantity', width: 110, render: quantity },
+    {
+      title: '总数量',
+      dataIndex: 'totalQuantity',
+      key: 'totalQuantity',
+      width: 110,
+      render: quantity,
+    },
     { title: '总金额', dataIndex: 'totalAmount', key: 'totalAmount', width: 120, render: money },
     {
       title: '状态',
@@ -189,10 +195,16 @@ export default function TransferPage() {
         <Button onClick={() => setStatus(undefined)} type={status ? 'default' : 'primary'}>
           全部
         </Button>
-        <Button onClick={() => setStatus('DRAFT')} type={status === 'DRAFT' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('DRAFT')}
+          type={status === 'DRAFT' ? 'primary' : 'default'}
+        >
           草稿
         </Button>
-        <Button onClick={() => setStatus('POSTED')} type={status === 'POSTED' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('POSTED')}
+          type={status === 'POSTED' ? 'primary' : 'default'}
+        >
           已过账
         </Button>
         {hasPermission('sys:erp:transfer:add') ? (
@@ -212,7 +224,11 @@ export default function TransferPage() {
       >
         <Form form={form} layout="vertical">
           <Space size="large" wrap>
-            <Form.Item name="fromWarehouseId" label="调出仓库" rules={[{ required: true, message: '请选择调出仓库' }]}>
+            <Form.Item
+              name="fromWarehouseId"
+              label="调出仓库"
+              rules={[{ required: true, message: '请选择调出仓库' }]}
+            >
               <Select
                 showSearch
                 optionFilterProp="label"
@@ -223,7 +239,11 @@ export default function TransferPage() {
                 }))}
               />
             </Form.Item>
-            <Form.Item name="toWarehouseId" label="调入仓库" rules={[{ required: true, message: '请选择调入仓库' }]}>
+            <Form.Item
+              name="toWarehouseId"
+              label="调入仓库"
+              rules={[{ required: true, message: '请选择调入仓库' }]}
+            >
               <Select
                 showSearch
                 optionFilterProp="label"
@@ -262,7 +282,12 @@ export default function TransferPage() {
                       name={[field.name, 'quantity']}
                       rules={[{ required: true, message: '数量' }]}
                     >
-                      <InputNumber placeholder="数量" min={0.0001} precision={4} style={{ width: 120 }} />
+                      <InputNumber
+                        placeholder="数量"
+                        min={0.0001}
+                        precision={4}
+                        style={{ width: 120 }}
+                      />
                     </Form.Item>
                     <Form.Item name={[field.name, 'uom']}>
                       <Input placeholder="单位" style={{ width: 90 }} maxLength={16} />

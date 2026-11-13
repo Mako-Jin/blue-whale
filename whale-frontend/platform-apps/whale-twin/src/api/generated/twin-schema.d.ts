@@ -4,1815 +4,1815 @@
  */
 
 export interface paths {
-    "/twin/scenes/{sceneId}/markers/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["get"];
-        put: operations["update"];
-        post?: never;
-        delete: operations["delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+  '/twin/scenes/{sceneId}/markers/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/twin/scenes/{sceneId}/entities/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["get_1"];
-        put: operations["update_1"];
-        post?: never;
-        delete: operations["delete_1"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['get'];
+    put: operations['update'];
+    post?: never;
+    delete: operations['delete'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/twin/scenes/{sceneId}/entities/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/twin/scenes/{sceneId}/bindings/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["get_2"];
-        put: operations["update_2"];
-        post?: never;
-        delete: operations["delete_2"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['get_1'];
+    put: operations['update_1'];
+    post?: never;
+    delete: operations['delete_1'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/twin/scenes/{sceneId}/bindings/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/twin/scenes/{sceneId}/alert-notify": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getNotifySettings"];
-        put: operations["saveNotifySettings"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['get_2'];
+    put: operations['update_2'];
+    post?: never;
+    delete: operations['delete_2'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/twin/scenes/{sceneId}/alert-notify': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/twin/scenes/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["get_3"];
-        put: operations["update_3"];
-        post?: never;
-        delete: operations["delete_3"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['getNotifySettings'];
+    put: operations['saveNotifySettings'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/twin/scenes/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/twin/scenes": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['get_3'];
+    put: operations['update_3'];
+    post?: never;
+    delete: operations['delete_3'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/twin/scenes': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/twin/scenes/{sceneId}/snapshots/{id}/rollback": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["rollback"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['create'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/twin/scenes/{sceneId}/snapshots/{id}/rollback': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/twin/scenes/{sceneId}/markers": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["list"];
-        put?: never;
-        post: operations["create_1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['rollback'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/twin/scenes/{sceneId}/markers': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/twin/scenes/{sceneId}/entities": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["list_1"];
-        put?: never;
-        post: operations["create_2"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['list'];
+    put?: never;
+    post: operations['create_1'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/twin/scenes/{sceneId}/entities': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/twin/scenes/{sceneId}/bindings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["list_2"];
-        put?: never;
-        post: operations["create_3"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['list_1'];
+    put?: never;
+    post: operations['create_2'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/twin/scenes/{sceneId}/bindings': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/twin/scenes/{sceneId}/alerts/{alertId}/ack": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["ack"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['list_2'];
+    put?: never;
+    post: operations['create_3'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/twin/scenes/{sceneId}/alerts/{alertId}/ack': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/twin/scenes/{sceneId}/ai/insight": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["insight"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['ack'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/twin/scenes/{sceneId}/ai/insight': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/twin/scenes/{id}/publish": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["publish"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['insight'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/twin/scenes/{id}/publish': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/twin/scenes/{id}/disable": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["disable"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['publish'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/twin/scenes/{id}/disable': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/twin/scenes/{sceneId}/stream": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["stream"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['disable'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/twin/scenes/{sceneId}/stream': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/twin/scenes/{sceneId}/snapshots": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["list_3"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['stream'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/twin/scenes/{sceneId}/snapshots': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/twin/scenes/{sceneId}/snapshots/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["get_4"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['list_3'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/twin/scenes/{sceneId}/snapshots/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/twin/scenes/{sceneId}/entities/tree": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["tree"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['get_4'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/twin/scenes/{sceneId}/entities/tree': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/twin/scenes/{sceneId}/bindings/state": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["state"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['tree'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/twin/scenes/{sceneId}/bindings/state': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/twin/scenes/{sceneId}/alerts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["list_4"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['state'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/twin/scenes/{sceneId}/alerts': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/twin/scenes/{sceneId}/alerts/unresolved": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["unresolved"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['list_4'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/twin/scenes/{sceneId}/alerts/unresolved': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/twin/scenes/{sceneId}/alert-dispatches": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["listDispatches"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['unresolved'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/twin/scenes/{sceneId}/alert-dispatches': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/twin/scenes/{sceneId}/ai/insight/stream": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["insightStream"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['listDispatches'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/twin/scenes/{sceneId}/ai/insight/stream': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/twin/scenes/page": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["page"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['insightStream'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/twin/scenes/page': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/twin/internal/scene/overview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["overview"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['page'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/twin/internal/scene/overview': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/twin/alerts/unresolved": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["unresolved_1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['overview'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/twin/alerts/unresolved': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/twin/alerts/summary": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["summary"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['unresolved_1'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/twin/alerts/summary': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/twin/alert-notify/recipients": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["recipients"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['summary'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/twin/alert-notify/recipients': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/twin/alert-notify/departments": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["departments"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['recipients'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/twin/alert-notify/departments': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
+    get: operations['departments'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: {
-        MarkerSaveRequest: {
-            entityId?: string;
-            markerType: string;
-            content?: string;
-            positionJson?: string;
-            linkUrl?: string;
-            /** Format: int32 */
-            enabled?: number;
-        };
-        MarkerVO: {
-            id?: string;
-            sceneId?: string;
-            entityId?: string;
-            entityCode?: string;
-            entityName?: string;
-            markerType?: string;
-            content?: string;
-            positionJson?: string;
-            linkUrl?: string;
-            /** Format: int32 */
-            enabled?: number;
-            createTime?: string;
-        };
-        ResultMarkerVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["MarkerVO"];
-        };
-        EntitySaveRequest: {
-            entityCode: string;
-            name: string;
-            parentId?: string;
-            modelFileId?: string;
-            transformJson?: string;
-            extraConfig?: string;
-            /** Format: int32 */
-            sortOrder?: number;
-        };
-        EntityVO: {
-            id?: string;
-            sceneId?: string;
-            entityCode?: string;
-            name?: string;
-            parentId?: string;
-            modelFileId?: string;
-            transformJson?: string;
-            extraConfig?: string;
-            /** Format: int32 */
-            sortOrder?: number;
-            children?: components["schemas"]["EntityVO"][];
-        };
-        ResultEntityVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["EntityVO"];
-        };
-        BindingSaveRequest: {
-            entityId?: string;
-            sourceType: string;
-            bindKey: string;
-            propertyMap?: string;
-            /** Format: int32 */
-            pollIntervalMs?: number;
-            /** Format: int32 */
-            enabled?: number;
-        };
-        BindingVO: {
-            id?: string;
-            entityId?: string;
-            entityCode?: string;
-            entityName?: string;
-            sourceType?: string;
-            bindKey?: string;
-            propertyMap?: string;
-            /** Format: int32 */
-            pollIntervalMs?: number;
-            /** Format: int32 */
-            enabled?: number;
-            createTime?: string;
-        };
-        ResultBindingVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["BindingVO"];
-        };
-        TwinAlertNotifySettingsRequest: {
-            webhookEnabled?: boolean;
-            inappEnabled?: boolean;
-            minLevel?: string;
-            userIds?: string[];
-            recoveryEnabled?: boolean;
-            quietStart?: string;
-            quietEnd?: string;
-        };
-        ResultTwinAlertNotifySettingsVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["TwinAlertNotifySettingsVO"];
-        };
-        TwinAlertNotifySettingsVO: {
-            sceneId?: string;
-            webhookEnabled?: boolean;
-            inappEnabled?: boolean;
-            minLevel?: string;
-            recoveryEnabled?: boolean;
-            quietStart?: string;
-            quietEnd?: string;
-            userIds?: string[];
-            fallbackToCreator?: boolean;
-            effectiveWebhookEnabled?: boolean;
-            effectiveInappEnabled?: boolean;
-            effectiveMinLevel?: string;
-            effectiveRecoveryEnabled?: boolean;
-            effectiveQuietStart?: string;
-            effectiveQuietEnd?: string;
-            quietNow?: boolean;
-            quietCriticalBypass?: boolean;
-            globalMinLevel?: string;
-            globalRecoveryEnabled?: boolean;
-            globalQuietStart?: string;
-            globalQuietEnd?: string;
-            globalWebhookReady?: boolean;
-            globalInappEnabled?: boolean;
-        };
-        SceneSaveRequest: {
-            code: string;
-            name: string;
-            description?: string;
-            thumbnailFileId?: string;
-            sceneConfig?: string;
-        };
-        ResultSceneVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["SceneVO"];
-        };
-        SceneVO: {
-            id?: string;
-            code?: string;
-            name?: string;
-            description?: string;
-            thumbnailFileId?: string;
-            sceneConfig?: string;
-            /** Format: int32 */
-            version?: number;
-            status?: string;
-            entityCount?: string;
-            unresolvedAlerts?: string;
-            criticalAlerts?: string;
-            unackedAlerts?: string;
-            createdBy?: string;
-            createTime?: string;
-            updateTime?: string;
-        };
-        ResultSnapshotVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["SnapshotVO"];
-        };
-        SnapshotVO: {
-            id?: string;
-            sceneId?: string;
-            /** Format: int32 */
-            version?: number;
-            remark?: string;
-            publishedBy?: string;
-            publishTime?: string;
-            snapshotJson?: string;
-        };
-        ResultTwinAlertVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["TwinAlertVO"];
-        };
-        TwinAlertVO: {
-            id?: string;
-            sceneId?: string;
-            sceneCode?: string;
-            sceneName?: string;
-            entityId?: string;
-            entityCode?: string;
-            bindingId?: string;
-            stateKey?: string;
-            value?: string;
-            previousLevel?: string;
-            level?: string;
-            thresholds?: number[];
-            resolved?: boolean;
-            resolveTime?: string;
-            createTime?: string;
-            acked?: boolean;
-            ackTime?: string;
-            ackBy?: string;
-        };
-        InsightRequest: {
-            entityId?: string;
-            question?: string;
-        };
-        InsightVO: {
-            answer?: string;
-            degraded?: boolean;
-            /** Format: int32 */
-            tokens?: number;
-            /** Format: int32 */
-            elapsedMillis?: number;
-            sessionId?: string;
-            citations?: {
-                [key: string]: unknown;
-            }[];
-        };
-        ResultInsightVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["InsightVO"];
-        };
-        PublishRequest: {
-            remark?: string;
-        };
-        SseEmitter: {
-            timeout?: string;
-        };
-        ResultListSnapshotVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["SnapshotVO"][];
-        };
-        ResultListMarkerVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["MarkerVO"][];
-        };
-        ResultListEntityVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["EntityVO"][];
-        };
-        ResultListBindingVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["BindingVO"][];
-        };
-        BindingStateVO: {
-            bindingId?: string;
-            entityId?: string;
-            entityCode?: string;
-            sourceType?: string;
-            bindKey?: string;
-            online?: boolean;
-            values?: {
-                [key: string]: unknown;
-            };
-            ts?: string;
-        };
-        ResultListBindingStateVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["BindingStateVO"][];
-        };
-        ResultListTwinAlertVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["TwinAlertVO"][];
-        };
-        ResultListTwinAlertDispatchVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["TwinAlertDispatchVO"][];
-        };
-        TwinAlertDispatchVO: {
-            id?: string;
-            alertId?: string;
-            sceneId?: string;
-            stateKey?: string;
-            level?: string;
-            channel?: string;
-            target?: string;
-            status?: string;
-            messageId?: string;
-            errorMsg?: string;
-            createTime?: string;
-        };
-        PageResultSceneVO: {
-            records?: components["schemas"]["SceneVO"][];
-            total?: string;
-            size?: string;
-            current?: string;
-        };
-        ResultPageResultSceneVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["PageResultSceneVO"];
-        };
-        ResultMapStringObject: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: {
-                [key: string]: unknown;
-            };
-        };
-        ResultTwinAlertSummaryVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["TwinAlertSummaryVO"];
-        };
-        TwinAlertSummaryVO: {
-            unresolved?: string;
-            critical?: string;
-            warn?: string;
-            unacked?: string;
-        };
-        PageResultTwinNotifyRecipientVO: {
-            records?: components["schemas"]["TwinNotifyRecipientVO"][];
-            total?: string;
-            size?: string;
-            current?: string;
-        };
-        ResultPageResultTwinNotifyRecipientVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["PageResultTwinNotifyRecipientVO"];
-        };
-        TwinNotifyRecipientVO: {
-            id?: string;
-            name?: string;
-            username?: string;
-            deptName?: string;
-        };
-        ResultListTwinNotifyDeptVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["TwinNotifyDeptVO"][];
-        };
-        TwinNotifyDeptVO: {
-            id?: string;
-            name?: string;
-            children?: components["schemas"]["TwinNotifyDeptVO"][];
-        };
-        ResultVoid: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: unknown;
-        };
+  schemas: {
+    MarkerSaveRequest: {
+      entityId?: string;
+      markerType: string;
+      content?: string;
+      positionJson?: string;
+      linkUrl?: string;
+      /** Format: int32 */
+      enabled?: number;
     };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+    MarkerVO: {
+      id?: string;
+      sceneId?: string;
+      entityId?: string;
+      entityCode?: string;
+      entityName?: string;
+      markerType?: string;
+      content?: string;
+      positionJson?: string;
+      linkUrl?: string;
+      /** Format: int32 */
+      enabled?: number;
+      createTime?: string;
+    };
+    ResultMarkerVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['MarkerVO'];
+    };
+    EntitySaveRequest: {
+      entityCode: string;
+      name: string;
+      parentId?: string;
+      modelFileId?: string;
+      transformJson?: string;
+      extraConfig?: string;
+      /** Format: int32 */
+      sortOrder?: number;
+    };
+    EntityVO: {
+      id?: string;
+      sceneId?: string;
+      entityCode?: string;
+      name?: string;
+      parentId?: string;
+      modelFileId?: string;
+      transformJson?: string;
+      extraConfig?: string;
+      /** Format: int32 */
+      sortOrder?: number;
+      children?: components['schemas']['EntityVO'][];
+    };
+    ResultEntityVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['EntityVO'];
+    };
+    BindingSaveRequest: {
+      entityId?: string;
+      sourceType: string;
+      bindKey: string;
+      propertyMap?: string;
+      /** Format: int32 */
+      pollIntervalMs?: number;
+      /** Format: int32 */
+      enabled?: number;
+    };
+    BindingVO: {
+      id?: string;
+      entityId?: string;
+      entityCode?: string;
+      entityName?: string;
+      sourceType?: string;
+      bindKey?: string;
+      propertyMap?: string;
+      /** Format: int32 */
+      pollIntervalMs?: number;
+      /** Format: int32 */
+      enabled?: number;
+      createTime?: string;
+    };
+    ResultBindingVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['BindingVO'];
+    };
+    TwinAlertNotifySettingsRequest: {
+      webhookEnabled?: boolean;
+      inappEnabled?: boolean;
+      minLevel?: string;
+      userIds?: string[];
+      recoveryEnabled?: boolean;
+      quietStart?: string;
+      quietEnd?: string;
+    };
+    ResultTwinAlertNotifySettingsVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['TwinAlertNotifySettingsVO'];
+    };
+    TwinAlertNotifySettingsVO: {
+      sceneId?: string;
+      webhookEnabled?: boolean;
+      inappEnabled?: boolean;
+      minLevel?: string;
+      recoveryEnabled?: boolean;
+      quietStart?: string;
+      quietEnd?: string;
+      userIds?: string[];
+      fallbackToCreator?: boolean;
+      effectiveWebhookEnabled?: boolean;
+      effectiveInappEnabled?: boolean;
+      effectiveMinLevel?: string;
+      effectiveRecoveryEnabled?: boolean;
+      effectiveQuietStart?: string;
+      effectiveQuietEnd?: string;
+      quietNow?: boolean;
+      quietCriticalBypass?: boolean;
+      globalMinLevel?: string;
+      globalRecoveryEnabled?: boolean;
+      globalQuietStart?: string;
+      globalQuietEnd?: string;
+      globalWebhookReady?: boolean;
+      globalInappEnabled?: boolean;
+    };
+    SceneSaveRequest: {
+      code: string;
+      name: string;
+      description?: string;
+      thumbnailFileId?: string;
+      sceneConfig?: string;
+    };
+    ResultSceneVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['SceneVO'];
+    };
+    SceneVO: {
+      id?: string;
+      code?: string;
+      name?: string;
+      description?: string;
+      thumbnailFileId?: string;
+      sceneConfig?: string;
+      /** Format: int32 */
+      version?: number;
+      status?: string;
+      entityCount?: string;
+      unresolvedAlerts?: string;
+      criticalAlerts?: string;
+      unackedAlerts?: string;
+      createdBy?: string;
+      createTime?: string;
+      updateTime?: string;
+    };
+    ResultSnapshotVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['SnapshotVO'];
+    };
+    SnapshotVO: {
+      id?: string;
+      sceneId?: string;
+      /** Format: int32 */
+      version?: number;
+      remark?: string;
+      publishedBy?: string;
+      publishTime?: string;
+      snapshotJson?: string;
+    };
+    ResultTwinAlertVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['TwinAlertVO'];
+    };
+    TwinAlertVO: {
+      id?: string;
+      sceneId?: string;
+      sceneCode?: string;
+      sceneName?: string;
+      entityId?: string;
+      entityCode?: string;
+      bindingId?: string;
+      stateKey?: string;
+      value?: string;
+      previousLevel?: string;
+      level?: string;
+      thresholds?: number[];
+      resolved?: boolean;
+      resolveTime?: string;
+      createTime?: string;
+      acked?: boolean;
+      ackTime?: string;
+      ackBy?: string;
+    };
+    InsightRequest: {
+      entityId?: string;
+      question?: string;
+    };
+    InsightVO: {
+      answer?: string;
+      degraded?: boolean;
+      /** Format: int32 */
+      tokens?: number;
+      /** Format: int32 */
+      elapsedMillis?: number;
+      sessionId?: string;
+      citations?: {
+        [key: string]: unknown;
+      }[];
+    };
+    ResultInsightVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['InsightVO'];
+    };
+    PublishRequest: {
+      remark?: string;
+    };
+    SseEmitter: {
+      timeout?: string;
+    };
+    ResultListSnapshotVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['SnapshotVO'][];
+    };
+    ResultListMarkerVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['MarkerVO'][];
+    };
+    ResultListEntityVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['EntityVO'][];
+    };
+    ResultListBindingVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['BindingVO'][];
+    };
+    BindingStateVO: {
+      bindingId?: string;
+      entityId?: string;
+      entityCode?: string;
+      sourceType?: string;
+      bindKey?: string;
+      online?: boolean;
+      values?: {
+        [key: string]: unknown;
+      };
+      ts?: string;
+    };
+    ResultListBindingStateVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['BindingStateVO'][];
+    };
+    ResultListTwinAlertVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['TwinAlertVO'][];
+    };
+    ResultListTwinAlertDispatchVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['TwinAlertDispatchVO'][];
+    };
+    TwinAlertDispatchVO: {
+      id?: string;
+      alertId?: string;
+      sceneId?: string;
+      stateKey?: string;
+      level?: string;
+      channel?: string;
+      target?: string;
+      status?: string;
+      messageId?: string;
+      errorMsg?: string;
+      createTime?: string;
+    };
+    PageResultSceneVO: {
+      records?: components['schemas']['SceneVO'][];
+      total?: string;
+      size?: string;
+      current?: string;
+    };
+    ResultPageResultSceneVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PageResultSceneVO'];
+    };
+    ResultMapStringObject: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: {
+        [key: string]: unknown;
+      };
+    };
+    ResultTwinAlertSummaryVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['TwinAlertSummaryVO'];
+    };
+    TwinAlertSummaryVO: {
+      unresolved?: string;
+      critical?: string;
+      warn?: string;
+      unacked?: string;
+    };
+    PageResultTwinNotifyRecipientVO: {
+      records?: components['schemas']['TwinNotifyRecipientVO'][];
+      total?: string;
+      size?: string;
+      current?: string;
+    };
+    ResultPageResultTwinNotifyRecipientVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PageResultTwinNotifyRecipientVO'];
+    };
+    TwinNotifyRecipientVO: {
+      id?: string;
+      name?: string;
+      username?: string;
+      deptName?: string;
+    };
+    ResultListTwinNotifyDeptVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['TwinNotifyDeptVO'][];
+    };
+    TwinNotifyDeptVO: {
+      id?: string;
+      name?: string;
+      children?: components['schemas']['TwinNotifyDeptVO'][];
+    };
+    ResultVoid: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: unknown;
+    };
+  };
+  responses: never;
+  parameters: never;
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sceneId: string;
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultMarkerVO"];
-                };
-            };
-        };
+  get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sceneId: string;
+        id: string;
+      };
+      cookie?: never;
     };
-    update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sceneId: string;
-                id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MarkerSaveRequest"];
-            };
+        content: {
+          '*/*': components['schemas']['ResultMarkerVO'];
         };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultMarkerVO"];
-                };
-            };
-        };
+      };
     };
-    delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sceneId: string;
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
+  };
+  update: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sceneId: string;
+        id: string;
+      };
+      cookie?: never;
     };
-    get_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sceneId: string;
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultEntityVO"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['MarkerSaveRequest'];
+      };
     };
-    update_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sceneId: string;
-                id: string;
-            };
-            cookie?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["EntitySaveRequest"];
-            };
+        content: {
+          '*/*': components['schemas']['ResultMarkerVO'];
         };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultEntityVO"];
-                };
-            };
-        };
+      };
     };
-    delete_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sceneId: string;
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
-        };
+  };
+  delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sceneId: string;
+        id: string;
+      };
+      cookie?: never;
     };
-    get_2: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sceneId: string;
-                id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultBindingVO"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
         };
+      };
     };
-    update_2: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sceneId: string;
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["BindingSaveRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultBindingVO"];
-                };
-            };
-        };
+  };
+  get_1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sceneId: string;
+        id: string;
+      };
+      cookie?: never;
     };
-    delete_2: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sceneId: string;
-                id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['ResultEntityVO'];
         };
+      };
     };
-    getNotifySettings: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sceneId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultTwinAlertNotifySettingsVO"];
-                };
-            };
-        };
+  };
+  update_1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sceneId: string;
+        id: string;
+      };
+      cookie?: never;
     };
-    saveNotifySettings: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sceneId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TwinAlertNotifySettingsRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultTwinAlertNotifySettingsVO"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['EntitySaveRequest'];
+      };
     };
-    get_3: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultSceneVO"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['ResultEntityVO'];
         };
+      };
     };
-    update_3: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SceneSaveRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultSceneVO"];
-                };
-            };
-        };
+  };
+  delete_1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sceneId: string;
+        id: string;
+      };
+      cookie?: never;
     };
-    delete_3: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultVoid"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
         };
+      };
     };
-    create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SceneSaveRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultSceneVO"];
-                };
-            };
-        };
+  };
+  get_2: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sceneId: string;
+        id: string;
+      };
+      cookie?: never;
     };
-    rollback: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sceneId: string;
-                id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultSnapshotVO"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['ResultBindingVO'];
         };
+      };
     };
-    list: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sceneId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListMarkerVO"];
-                };
-            };
-        };
+  };
+  update_2: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sceneId: string;
+        id: string;
+      };
+      cookie?: never;
     };
-    create_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sceneId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MarkerSaveRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultMarkerVO"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['BindingSaveRequest'];
+      };
     };
-    list_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sceneId: string;
-            };
-            cookie?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListEntityVO"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['ResultBindingVO'];
         };
+      };
     };
-    create_2: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sceneId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["EntitySaveRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultEntityVO"];
-                };
-            };
-        };
+  };
+  delete_2: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sceneId: string;
+        id: string;
+      };
+      cookie?: never;
     };
-    list_2: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sceneId: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListBindingVO"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
         };
+      };
     };
-    create_3: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sceneId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["BindingSaveRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultBindingVO"];
-                };
-            };
-        };
+  };
+  getNotifySettings: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sceneId: string;
+      };
+      cookie?: never;
     };
-    ack: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sceneId: string;
-                alertId: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultTwinAlertVO"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['ResultTwinAlertNotifySettingsVO'];
         };
+      };
     };
-    insight: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sceneId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["InsightRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultInsightVO"];
-                };
-            };
-        };
+  };
+  saveNotifySettings: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sceneId: string;
+      };
+      cookie?: never;
     };
-    publish: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["PublishRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultSceneVO"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TwinAlertNotifySettingsRequest'];
+      };
     };
-    disable: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultSceneVO"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['ResultTwinAlertNotifySettingsVO'];
         };
+      };
     };
-    stream: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sceneId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/event-stream": components["schemas"]["SseEmitter"];
-                };
-            };
-        };
+  };
+  get_3: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
     };
-    list_3: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sceneId: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListSnapshotVO"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['ResultSceneVO'];
         };
+      };
     };
-    get_4: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sceneId: string;
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultSnapshotVO"];
-                };
-            };
-        };
+  };
+  update_3: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
     };
-    tree: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sceneId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListEntityVO"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SceneSaveRequest'];
+      };
     };
-    state: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sceneId: string;
-            };
-            cookie?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListBindingStateVO"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['ResultSceneVO'];
         };
+      };
     };
-    list_4: {
-        parameters: {
-            query?: {
-                level?: string;
-                resolved?: boolean;
-                acked?: boolean;
-                limit?: number;
-            };
-            header?: never;
-            path: {
-                sceneId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListTwinAlertVO"];
-                };
-            };
-        };
+  };
+  delete_3: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
     };
-    unresolved: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sceneId: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListTwinAlertVO"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['ResultVoid'];
         };
+      };
     };
-    listDispatches: {
-        parameters: {
-            query?: {
-                status?: string;
-                channel?: string;
-                limit?: number;
-            };
-            header?: never;
-            path: {
-                sceneId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListTwinAlertDispatchVO"];
-                };
-            };
-        };
+  };
+  create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    insightStream: {
-        parameters: {
-            query?: {
-                entityId?: string;
-                question?: string;
-            };
-            header?: never;
-            path: {
-                sceneId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/event-stream": components["schemas"]["SseEmitter"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SceneSaveRequest'];
+      };
     };
-    page: {
-        parameters: {
-            query?: {
-                keyword?: string;
-                status?: string;
-                current?: string;
-                size?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPageResultSceneVO"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['ResultSceneVO'];
         };
+      };
     };
-    overview: {
-        parameters: {
-            query?: {
-                sceneId?: string;
-                sceneCode?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultMapStringObject"];
-                };
-            };
-        };
+  };
+  rollback: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sceneId: string;
+        id: string;
+      };
+      cookie?: never;
     };
-    unresolved_1: {
-        parameters: {
-            query?: {
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListTwinAlertVO"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['ResultSnapshotVO'];
         };
+      };
     };
-    summary: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultTwinAlertSummaryVO"];
-                };
-            };
-        };
+  };
+  list: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sceneId: string;
+      };
+      cookie?: never;
     };
-    recipients: {
-        parameters: {
-            query?: {
-                keyword?: string;
-                deptId?: string;
-                current?: string;
-                size?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPageResultTwinNotifyRecipientVO"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['ResultListMarkerVO'];
         };
+      };
     };
-    departments: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListTwinNotifyDeptVO"];
-                };
-            };
-        };
+  };
+  create_1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sceneId: string;
+      };
+      cookie?: never;
     };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['MarkerSaveRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultMarkerVO'];
+        };
+      };
+    };
+  };
+  list_1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sceneId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultListEntityVO'];
+        };
+      };
+    };
+  };
+  create_2: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sceneId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['EntitySaveRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultEntityVO'];
+        };
+      };
+    };
+  };
+  list_2: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sceneId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultListBindingVO'];
+        };
+      };
+    };
+  };
+  create_3: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sceneId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['BindingSaveRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultBindingVO'];
+        };
+      };
+    };
+  };
+  ack: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sceneId: string;
+        alertId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultTwinAlertVO'];
+        };
+      };
+    };
+  };
+  insight: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sceneId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['InsightRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultInsightVO'];
+        };
+      };
+    };
+  };
+  publish: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['PublishRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultSceneVO'];
+        };
+      };
+    };
+  };
+  disable: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultSceneVO'];
+        };
+      };
+    };
+  };
+  stream: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sceneId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'text/event-stream': components['schemas']['SseEmitter'];
+        };
+      };
+    };
+  };
+  list_3: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sceneId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultListSnapshotVO'];
+        };
+      };
+    };
+  };
+  get_4: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sceneId: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultSnapshotVO'];
+        };
+      };
+    };
+  };
+  tree: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sceneId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultListEntityVO'];
+        };
+      };
+    };
+  };
+  state: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sceneId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultListBindingStateVO'];
+        };
+      };
+    };
+  };
+  list_4: {
+    parameters: {
+      query?: {
+        level?: string;
+        resolved?: boolean;
+        acked?: boolean;
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        sceneId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultListTwinAlertVO'];
+        };
+      };
+    };
+  };
+  unresolved: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sceneId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultListTwinAlertVO'];
+        };
+      };
+    };
+  };
+  listDispatches: {
+    parameters: {
+      query?: {
+        status?: string;
+        channel?: string;
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        sceneId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultListTwinAlertDispatchVO'];
+        };
+      };
+    };
+  };
+  insightStream: {
+    parameters: {
+      query?: {
+        entityId?: string;
+        question?: string;
+      };
+      header?: never;
+      path: {
+        sceneId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'text/event-stream': components['schemas']['SseEmitter'];
+        };
+      };
+    };
+  };
+  page: {
+    parameters: {
+      query?: {
+        keyword?: string;
+        status?: string;
+        current?: string;
+        size?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultPageResultSceneVO'];
+        };
+      };
+    };
+  };
+  overview: {
+    parameters: {
+      query?: {
+        sceneId?: string;
+        sceneCode?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultMapStringObject'];
+        };
+      };
+    };
+  };
+  unresolved_1: {
+    parameters: {
+      query?: {
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultListTwinAlertVO'];
+        };
+      };
+    };
+  };
+  summary: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultTwinAlertSummaryVO'];
+        };
+      };
+    };
+  };
+  recipients: {
+    parameters: {
+      query?: {
+        keyword?: string;
+        deptId?: string;
+        current?: string;
+        size?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultPageResultTwinNotifyRecipientVO'];
+        };
+      };
+    };
+  };
+  departments: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultListTwinNotifyDeptVO'];
+        };
+      };
+    };
+  };
 }

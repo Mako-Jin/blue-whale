@@ -159,10 +159,18 @@ function ToolModal({
     >
       <Form form={form} layout="vertical">
         <Space size="middle" wrap>
-          <Form.Item name="toolNo" label="量具编号" rules={[{ required: true, message: '请输入量具编号' }]}>
+          <Form.Item
+            name="toolNo"
+            label="量具编号"
+            rules={[{ required: true, message: '请输入量具编号' }]}
+          >
             <Input maxLength={64} disabled={initial !== null} style={{ width: 190 }} />
           </Form.Item>
-          <Form.Item name="name" label="量具名称" rules={[{ required: true, message: '请输入量具名称' }]}>
+          <Form.Item
+            name="name"
+            label="量具名称"
+            rules={[{ required: true, message: '请输入量具名称' }]}
+          >
             <Input maxLength={128} style={{ width: 220 }} />
           </Form.Item>
           <Form.Item name="toolType" label="量具类型">
@@ -334,7 +342,9 @@ function CalibrateModal({
       certificateNo: values.certificateNo,
       remark: values.remark,
     });
-    message.success(values.result === 'PASS' ? '校准合格，已顺延下次校准日期' : '校准不合格，量具状态需复核');
+    message.success(
+      values.result === 'PASS' ? '校准合格，已顺延下次校准日期' : '校准不合格，量具状态需复核',
+    );
     onSaved();
   };
 
@@ -346,14 +356,26 @@ function CalibrateModal({
     }));
 
   return (
-    <Modal open={open} title="登记校准记录" width={640} onOk={handleOk} onCancel={onCancel} destroyOnHidden>
+    <Modal
+      open={open}
+      title="登记校准记录"
+      width={640}
+      onOk={handleOk}
+      onCancel={onCancel}
+      destroyOnHidden
+    >
       <Form form={form} layout="vertical">
         <Space size="middle" wrap>
           <Form.Item name="toolNo" label="量具" rules={[{ required: true, message: '请选择量具' }]}>
             <ToolSelect tools={tools} />
           </Form.Item>
           <Form.Item name="planId" label="校准计划">
-            <Select allowClear placeholder="选择计划" style={{ width: 230 }} options={planOptions} />
+            <Select
+              allowClear
+              placeholder="选择计划"
+              style={{ width: 230 }}
+              options={planOptions}
+            />
           </Form.Item>
           <Form.Item
             name="calibrationDate"
@@ -504,13 +526,7 @@ function ToolTab({ notify }: { notify: () => void }) {
 }
 
 /** 校准计划页签 */
-function PlanTab({
-  tools,
-  notify,
-}: {
-  tools: MeasuringToolView[];
-  notify: () => void;
-}) {
+function PlanTab({ tools, notify }: { tools: MeasuringToolView[]; notify: () => void }) {
   const [data, setData] = useState<CalibrationPlanView[]>([]);
   const [loading, setLoading] = useState(false);
   const [keyword, setKeyword] = useState('');
@@ -771,7 +787,11 @@ export default function QcMetrologyPage() {
             />
           ),
         },
-        { key: 'record', label: '校准记录', children: <RecordTab tools={tools} plans={plans} ticket={ticket} /> },
+        {
+          key: 'record',
+          label: '校准记录',
+          children: <RecordTab tools={tools} plans={plans} ticket={ticket} />,
+        },
       ]}
     />
   );

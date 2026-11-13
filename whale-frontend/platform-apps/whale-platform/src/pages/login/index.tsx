@@ -5,11 +5,7 @@ import { useState } from 'react';
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { App, Alert, Button, Card, Form, Input } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import {
-  MustChangePasswordDialog,
-  formatRemaining,
-  useLoginLockout,
-} from '@bluewhale/whale-auth';
+import { MustChangePasswordDialog, formatRemaining, useLoginLockout } from '@bluewhale/whale-auth';
 import {
   clearAuth,
   fetchMe,
@@ -97,8 +93,16 @@ export default function LoginPage() {
             />
           </Form.Item>
           <Form.Item style={{ marginBottom: 0 }}>
-            <Button type="primary" htmlType="submit" block loading={loading} disabled={lockout.locked}>
-              {lockout.locked ? `已锁定，${formatRemaining(lockout.remainingSeconds)} 后可重试` : '登录'}
+            <Button
+              type="primary"
+              htmlType="submit"
+              block
+              loading={loading}
+              disabled={lockout.locked}
+            >
+              {lockout.locked
+                ? `已锁定，${formatRemaining(lockout.remainingSeconds)} 后可重试`
+                : '登录'}
             </Button>
           </Form.Item>
         </Form>

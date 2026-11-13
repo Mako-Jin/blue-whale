@@ -50,15 +50,8 @@ export function outOfChina(lng: number, lat: number): boolean {
 
 /** 纬度加偏分量 */
 function transformLat(x: number, y: number): number {
-  let ret =
-    -100.0 +
-    2.0 * x +
-    3.0 * y +
-    0.2 * y * y +
-    0.1 * x * y +
-    0.2 * Math.sqrt(Math.abs(x));
-  ret +=
-    ((20.0 * Math.sin(6.0 * x * Math.PI) + 20.0 * Math.sin(2.0 * x * Math.PI)) * 2.0) / 3.0;
+  let ret = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x));
+  ret += ((20.0 * Math.sin(6.0 * x * Math.PI) + 20.0 * Math.sin(2.0 * x * Math.PI)) * 2.0) / 3.0;
   ret += ((20.0 * Math.sin(y * Math.PI) + 40.0 * Math.sin((y / 3.0) * Math.PI)) * 2.0) / 3.0;
   ret +=
     ((160.0 * Math.sin((y / 12.0) * Math.PI) + 320.0 * Math.sin((y * Math.PI) / 30.0)) * 2.0) / 3.0;
@@ -68,8 +61,7 @@ function transformLat(x: number, y: number): number {
 /** 经度加偏分量 */
 function transformLng(x: number, y: number): number {
   let ret = 300.0 + x + 2.0 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * Math.sqrt(Math.abs(x));
-  ret +=
-    ((20.0 * Math.sin(6.0 * x * Math.PI) + 20.0 * Math.sin(2.0 * x * Math.PI)) * 2.0) / 3.0;
+  ret += ((20.0 * Math.sin(6.0 * x * Math.PI) + 20.0 * Math.sin(2.0 * x * Math.PI)) * 2.0) / 3.0;
   ret += ((20.0 * Math.sin(x * Math.PI) + 40.0 * Math.sin((x / 3.0) * Math.PI)) * 2.0) / 3.0;
   ret +=
     ((150.0 * Math.sin((x / 12.0) * Math.PI) + 300.0 * Math.sin((x / 30.0) * Math.PI)) * 2.0) / 3.0;
@@ -226,11 +218,7 @@ export function polygonPerimeter(points: GeoPoint[]): number {
  * 后端对圆围栏也是按中心 + 半径判定，这里只影响「画出来」，
  * 但离散成 64 边形在几公里尺度上的视觉偏差远小于半个像素。
  */
-export function circleToPolygon(
-  center: GeoPoint,
-  radiusMeters: number,
-  segments = 64,
-): GeoPoint[] {
+export function circleToPolygon(center: GeoPoint, radiusMeters: number, segments = 64): GeoPoint[] {
   const count = Math.max(8, Math.floor(segments));
   const result: GeoPoint[] = [];
   for (let i = 0; i < count; i++) {
@@ -257,7 +245,8 @@ export function offsetByBearing(
   const lat1 = (base.lat * Math.PI) / 180;
   const lng1 = (base.lng * Math.PI) / 180;
   const lat2 = Math.asin(
-    Math.sin(lat1) * Math.cos(angular) + Math.cos(lat1) * Math.sin(angular) * Math.cos(bearingRadians),
+    Math.sin(lat1) * Math.cos(angular) +
+      Math.cos(lat1) * Math.sin(angular) * Math.cos(bearingRadians),
   );
   const lng2 =
     lng1 +

@@ -439,10 +439,18 @@ export default function UnionProposalPage() {
         destroyOnClose
       >
         <Form form={createForm} layout="vertical" preserve={false}>
-          <Form.Item name="title" label="提案标题" rules={[{ required: true, message: '请输入标题' }]}>
+          <Form.Item
+            name="title"
+            label="提案标题"
+            rules={[{ required: true, message: '请输入标题' }]}
+          >
             <Input maxLength={200} showCount />
           </Form.Item>
-          <Form.Item name="content" label="提案内容" rules={[{ required: true, message: '请输入内容' }]}>
+          <Form.Item
+            name="content"
+            label="提案内容"
+            rules={[{ required: true, message: '请输入内容' }]}
+          >
             <Input.TextArea rows={6} maxLength={2000} showCount />
           </Form.Item>
         </Form>
@@ -461,7 +469,9 @@ export default function UnionProposalPage() {
             <Form.Item
               name="handler"
               label="承办人"
-              rules={actionMode === 'HANDLE' ? [{ required: true, message: '请填写承办人' }] : undefined}
+              rules={
+                actionMode === 'HANDLE' ? [{ required: true, message: '请填写承办人' }] : undefined
+              }
             >
               <Input maxLength={64} placeholder="办理部门 / 承办人" />
             </Form.Item>
@@ -487,12 +497,7 @@ export default function UnionProposalPage() {
         </Form>
       </Modal>
 
-      <Drawer
-        title="提案详情"
-        width={640}
-        open={detail !== null}
-        onClose={() => setDetail(null)}
-      >
+      <Drawer title="提案详情" width={640} open={detail !== null} onClose={() => setDetail(null)}>
         {detail ? (
           <Space direction="vertical" size={12} style={{ width: '100%' }}>
             <Descriptions size="small" column={2}>
@@ -503,11 +508,15 @@ export default function UnionProposalPage() {
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="提交人">{detail.submitterName ?? '—'}</Descriptions.Item>
-              <Descriptions.Item label="提交时间">{formatTime(detail.createTime)}</Descriptions.Item>
+              <Descriptions.Item label="提交时间">
+                {formatTime(detail.createTime)}
+              </Descriptions.Item>
               <Descriptions.Item label="承办人">{detail.handler ?? '—'}</Descriptions.Item>
               <Descriptions.Item label="立案时间">{formatTime(detail.filedAt)}</Descriptions.Item>
               <Descriptions.Item label="办理时间">{formatTime(detail.handledAt)}</Descriptions.Item>
-              <Descriptions.Item label="反馈时间">{formatTime(detail.feedbackAt)}</Descriptions.Item>
+              <Descriptions.Item label="反馈时间">
+                {formatTime(detail.feedbackAt)}
+              </Descriptions.Item>
               <Descriptions.Item label="评分">
                 {detail.rating ? <Rate disabled value={detail.rating} /> : '—'}
               </Descriptions.Item>

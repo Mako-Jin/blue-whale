@@ -30,7 +30,12 @@ import {
   type SalesOrderView,
 } from '../api/scm';
 import { listErpItems, type ErpItem } from '../api/erp';
-import { pageCustomers, pageWarehouses, type ErpCustomer, type ErpWarehouse } from '../api/masterdata';
+import {
+  pageCustomers,
+  pageWarehouses,
+  type ErpCustomer,
+  type ErpWarehouse,
+} from '../api/masterdata';
 import { hasPermission } from '../utils/permission';
 import { SCM_STATUS_LABEL, money, quantity, scmStatusColor } from '../utils/scm';
 
@@ -205,7 +210,13 @@ export default function SalesOrderPage() {
     { title: '单据日期', dataIndex: 'docDate', key: 'docDate', width: 110 },
     { title: '计划发货', dataIndex: 'deliveryDate', key: 'deliveryDate', width: 110 },
     { title: '订单金额', dataIndex: 'totalAmount', key: 'totalAmount', width: 120, render: money },
-    { title: '已发金额', dataIndex: 'shippedAmount', key: 'shippedAmount', width: 120, render: money },
+    {
+      title: '已发金额',
+      dataIndex: 'shippedAmount',
+      key: 'shippedAmount',
+      width: 120,
+      render: money,
+    },
     {
       title: '状态',
       dataIndex: 'status',
@@ -225,14 +236,17 @@ export default function SalesOrderPage() {
             查看
           </Button>
           {record.status === 'DRAFT' && hasPermission('sys:erp:sales:approve') ? (
-            <Popconfirm title="审核后订单不可修改，确认继续？" onConfirm={() => handleApprove(record.id)}>
+            <Popconfirm
+              title="审核后订单不可修改，确认继续？"
+              onConfirm={() => handleApprove(record.id)}
+            >
               <Button type="link" size="small">
                 审核
               </Button>
             </Popconfirm>
           ) : null}
-          {['APPROVED', 'PARTIALLY_SHIPPED'].includes(record.status)
-            && hasPermission('sys:erp:sales:ship') ? (
+          {['APPROVED', 'PARTIALLY_SHIPPED'].includes(record.status) &&
+          hasPermission('sys:erp:sales:ship') ? (
             <Button type="link" size="small" onClick={() => openShip(record.id)}>
               发货
             </Button>
@@ -278,13 +292,22 @@ export default function SalesOrderPage() {
         <Button onClick={() => setStatus(undefined)} type={status ? 'default' : 'primary'}>
           全部
         </Button>
-        <Button onClick={() => setStatus('DRAFT')} type={status === 'DRAFT' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('DRAFT')}
+          type={status === 'DRAFT' ? 'primary' : 'default'}
+        >
           草稿
         </Button>
-        <Button onClick={() => setStatus('APPROVED')} type={status === 'APPROVED' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('APPROVED')}
+          type={status === 'APPROVED' ? 'primary' : 'default'}
+        >
           已审核
         </Button>
-        <Button onClick={() => setStatus('SHIPPED')} type={status === 'SHIPPED' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('SHIPPED')}
+          type={status === 'SHIPPED' ? 'primary' : 'default'}
+        >
           已发货
         </Button>
         {hasPermission('sys:erp:sales:add') ? (
@@ -310,7 +333,11 @@ export default function SalesOrderPage() {
           }}
         >
           <Space size="large" wrap>
-            <Form.Item name="customerId" label="客户" rules={[{ required: true, message: '请选择客户' }]}>
+            <Form.Item
+              name="customerId"
+              label="客户"
+              rules={[{ required: true, message: '请选择客户' }]}
+            >
               <Select
                 showSearch
                 optionFilterProp="label"
@@ -321,7 +348,11 @@ export default function SalesOrderPage() {
                 }))}
               />
             </Form.Item>
-            <Form.Item name="warehouseId" label="发货仓库" rules={[{ required: true, message: '请选择仓库' }]}>
+            <Form.Item
+              name="warehouseId"
+              label="发货仓库"
+              rules={[{ required: true, message: '请选择仓库' }]}
+            >
               <Select
                 showSearch
                 optionFilterProp="label"
@@ -347,9 +378,11 @@ export default function SalesOrderPage() {
               style={{ marginBottom: 16 }}
               type={creditUsage.exceeded ? 'warning' : 'info'}
               showIcon
-              message={creditUsage.unlimited
-                ? `${creditUsage.customerName} 未设置信用额度（不限）`
-                : `${creditUsage.customerName} 信用额度 ${money(creditUsage.creditLimit)}，已占用 ${money(creditUsage.occupied)}（未结应收 ${money(creditUsage.outstanding)} + 在途预占 ${money(creditUsage.reserved)}），可用 ${money(creditUsage.available ?? 0)}`}
+              message={
+                creditUsage.unlimited
+                  ? `${creditUsage.customerName} 未设置信用额度（不限）`
+                  : `${creditUsage.customerName} 信用额度 ${money(creditUsage.creditLimit)}，已占用 ${money(creditUsage.occupied)}（未结应收 ${money(creditUsage.outstanding)} + 在途预占 ${money(creditUsage.reserved)}），可用 ${money(creditUsage.available ?? 0)}`
+              }
             />
           ) : null}
           <Form.List name="lines">
@@ -376,13 +409,23 @@ export default function SalesOrderPage() {
                       name={[field.name, 'quantity']}
                       rules={[{ required: true, message: '数量' }]}
                     >
-                      <InputNumber placeholder="数量" min={0.0001} precision={4} style={{ width: 120 }} />
+                      <InputNumber
+                        placeholder="数量"
+                        min={0.0001}
+                        precision={4}
+                        style={{ width: 120 }}
+                      />
                     </Form.Item>
                     <Form.Item
                       name={[field.name, 'unitPrice']}
                       rules={[{ required: true, message: '单价' }]}
                     >
-                      <InputNumber placeholder="单价" min={0.01} precision={2} style={{ width: 120 }} />
+                      <InputNumber
+                        placeholder="单价"
+                        min={0.01}
+                        precision={2}
+                        style={{ width: 120 }}
+                      />
                     </Form.Item>
                     <Form.Item name={[field.name, 'uom']}>
                       <Input placeholder="单位" style={{ width: 90 }} maxLength={16} />
@@ -452,7 +495,12 @@ export default function SalesOrderPage() {
               label={`第 ${line.lineNo} 行 ${line.itemCode}（剩余 ${quantity(remainingOf(line))}）`}
               rules={[{ required: true, message: '请输入本次发货数量' }]}
             >
-              <InputNumber min={0} max={remainingOf(line)} precision={4} style={{ width: '100%' }} />
+              <InputNumber
+                min={0}
+                max={remainingOf(line)}
+                precision={4}
+                style={{ width: '100%' }}
+              />
             </Form.Item>
           ))}
         </Form>

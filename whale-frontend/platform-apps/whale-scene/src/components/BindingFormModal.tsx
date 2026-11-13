@@ -87,7 +87,11 @@ export default function BindingFormModal({
       destroyOnHidden
     >
       <Form<NodeBindingSaveCommand> form={form} layout="vertical">
-        <Form.Item name="entryType" label="入口类型" rules={[{ required: true, message: '请选择入口类型' }]}>
+        <Form.Item
+          name="entryType"
+          label="入口类型"
+          rules={[{ required: true, message: '请选择入口类型' }]}
+        >
           <Select options={ENTRY_TYPE_OPTIONS} />
         </Form.Item>
         <Form.Item

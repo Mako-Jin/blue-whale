@@ -6,7 +6,20 @@
 // 口径：完成率的分母是「学习人数」而不是「在职人数」——完成率回答的是
 // 「已经开始学的人里多少学完了」，若把没开始的人塞进分母，它就和覆盖率重复了。
 
-import { Alert, Button, Card, Col, DatePicker, Progress, Row, Space, Statistic, Table, Tag, message } from 'antd';
+import {
+  Alert,
+  Button,
+  Card,
+  Col,
+  DatePicker,
+  Progress,
+  Row,
+  Space,
+  Statistic,
+  Table,
+  Tag,
+  message,
+} from 'antd';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
 import { useCallback, useEffect, useState } from 'react';
@@ -119,7 +132,12 @@ export default function AnalyticsPage() {
     { title: '覆盖率', dataIndex: 'coverageRate', width: 90, render: (v: number) => rate(v) },
     { title: '完成人数', dataIndex: 'learnerCompleted', width: 90 },
     { title: '完成率', dataIndex: 'completionRate', width: 90, render: (v: number) => rate(v) },
-    { title: '参考/通过', width: 110, render: (_: unknown, row: MetricSnapshotItem) => `${row.examTakerTotal}/${row.examPassedTotal}` },
+    {
+      title: '参考/通过',
+      width: 110,
+      render: (_: unknown, row: MetricSnapshotItem) =>
+        `${row.examTakerTotal}/${row.examPassedTotal}`,
+    },
     { title: '通过率', dataIndex: 'passRate', width: 90, render: (v: number) => rate(v) },
     { title: '学分总量', dataIndex: 'creditTotal', width: 100 },
     { title: '获分人数', dataIndex: 'creditEarners', width: 90 },
@@ -211,10 +229,15 @@ export default function AnalyticsPage() {
               <div style={{ color: '#8c8c8c' }}>暂无学分记录</div>
             ) : (
               (data?.creditDistribution ?? []).map((bucket) => {
-                const max = Math.max(...(data?.creditDistribution ?? []).map((item) => item.earners), 1);
+                const max = Math.max(
+                  ...(data?.creditDistribution ?? []).map((item) => item.earners),
+                  1,
+                );
                 return (
                   <div key={bucket.label} style={{ marginBottom: 12 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <div
+                      style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}
+                    >
                       <span>{bucket.label} 分</span>
                       <span style={{ color: '#8c8c8c' }}>{bucket.earners} 人</span>
                     </div>

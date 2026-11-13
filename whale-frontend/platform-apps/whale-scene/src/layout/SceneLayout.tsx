@@ -67,7 +67,10 @@ export default function SceneLayout() {
           onClick={({ key }) => navigate(key)}
           style={{ flex: 1, minWidth: 0, borderBottom: 'none' }}
         />
-        <Tag color={location.pathname.startsWith('/3d') ? 'green' : 'blue'} style={{ marginInlineEnd: 0 }}>
+        <Tag
+          color={location.pathname.startsWith('/3d') ? 'green' : 'blue'}
+          style={{ marginInlineEnd: 0 }}
+        >
           {location.pathname.startsWith('/3d') ? '3D 模式' : '2D 模式'}
         </Tag>
       </Header>

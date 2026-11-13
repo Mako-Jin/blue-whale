@@ -1,6 +1,18 @@
 // OA 公文 - 模板管理：红头、版记与正文模板维护
 import { useCallback, useEffect, useState } from 'react';
-import { App, Button, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag } from 'antd';
+import {
+  App,
+  Button,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Popconfirm,
+  Select,
+  Space,
+  Table,
+  Tag,
+} from 'antd';
 import type { TableProps } from 'antd';
 import {
   createDocumentTemplate,
@@ -241,7 +253,10 @@ export default function DocumentTemplatePage() {
           placeholder="状态"
           style={{ width: 120 }}
           value={status || undefined}
-          options={Object.entries(STATUS_META).map(([value, meta]) => ({ label: meta.text, value }))}
+          options={Object.entries(STATUS_META).map(([value, meta]) => ({
+            label: meta.text,
+            value,
+          }))}
           onChange={(value) => {
             setStatus(value ?? '');
             setCurrent(1);

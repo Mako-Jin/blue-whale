@@ -97,12 +97,14 @@ export default function FormModal({ open, initial, onCancel, onSaved }: FormModa
         reason: initial.reason,
         remark: initial.remark,
       });
-      setFileList((initial.attachments ?? []).map((attachment) => ({
-        uid: `ref-${attachment.id}`,
-        name: attachment.fileName,
-        status: 'done',
-        response: { refId: attachment.id } satisfies ExistingResponse,
-      })));
+      setFileList(
+        (initial.attachments ?? []).map((attachment) => ({
+          uid: `ref-${attachment.id}`,
+          name: attachment.fileName,
+          status: 'done',
+          response: { refId: attachment.id } satisfies ExistingResponse,
+        })),
+      );
     } else {
       form.resetFields();
       form.setFieldsValue({
@@ -130,8 +132,11 @@ export default function FormModal({ open, initial, onCancel, onSaved }: FormModa
     void (async () => {
       try {
         const uploaded = await uploadOaFile(file);
-        setFileList((prev) => prev.map((item) => (item.uid === file.uid
-          ? { ...item, status: 'done', response: uploaded } : item)));
+        setFileList((prev) =>
+          prev.map((item) =>
+            item.uid === file.uid ? { ...item, status: 'done', response: uploaded } : item,
+          ),
+        );
         options.onSuccess?.(uploaded);
       } catch (error) {
         setFileList((prev) => prev.filter((item) => item.uid !== file.uid));
@@ -143,10 +148,12 @@ export default function FormModal({ open, initial, onCancel, onSaved }: FormModa
 
   /** 受控列表变更：保留自定义上传写入的响应，避免 antd 回调覆盖 */
   const handleFileListChange: UploadProps['onChange'] = ({ fileList: next }) => {
-    setFileList((prev) => next.map((item) => {
-      const previous = prev.find((candidate) => candidate.uid === item.uid);
-      return previous?.response ? { ...item, response: previous.response } : item;
-    }));
+    setFileList((prev) =>
+      next.map((item) => {
+        const previous = prev.find((candidate) => candidate.uid === item.uid);
+        return previous?.response ? { ...item, response: previous.response } : item;
+      }),
+    );
   };
 
   const handleOk = async () => {
@@ -220,11 +227,7 @@ export default function FormModal({ open, initial, onCancel, onSaved }: FormModa
         >
           <Input placeholder="请输入申请人" maxLength={64} />
         </Form.Item>
-        <Form.Item
-          name="applicantId"
-          label="申请人用户ID"
-          extra="填用户ID后校验档案并冻结额度"
-        >
+        <Form.Item name="applicantId" label="申请人用户ID" extra="填用户ID后校验档案并冻结额度">
           <InputNumber style={{ width: '100%' }} min={1} precision={0} placeholder="选填" />
         </Form.Item>
         <Form.Item
@@ -274,10 +277,7 @@ export default function FormModal({ open, initial, onCancel, onSaved }: FormModa
         <Form.Item name="remark" label="备注">
           <Input.TextArea rows={2} maxLength={255} showCount placeholder="选填" />
         </Form.Item>
-        <Form.Item
-          label="附件"
-          extra="病假必须上传；最多 5 个，单个不超过 20MB"
-        >
+        <Form.Item label="附件" extra="病假必须上传；最多 5 个，单个不超过 20MB">
           <Upload
             multiple
             maxCount={MAX_ATTACHMENTS}

@@ -28,11 +28,7 @@ import {
   type CategorySavePayload,
 } from '../../api/mall';
 import { hasPermission } from '../../utils/permission';
-import {
-  ENABLE_STATUS_COLOR,
-  ENABLE_STATUS_LABEL,
-  ENABLE_STATUS_OPTIONS,
-} from '../../utils/dict';
+import { ENABLE_STATUS_COLOR, ENABLE_STATUS_LABEL, ENABLE_STATUS_OPTIONS } from '../../utils/dict';
 
 /** 上级类目下拉选项（含层级缩进，根级为「无（顶级类目）」） */
 interface ParentOption {

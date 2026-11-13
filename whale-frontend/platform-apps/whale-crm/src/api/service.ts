@@ -377,7 +377,10 @@ export interface SurveyStatsView {
 
 /** 分页查询问卷 */
 export function pageSurveys(query: SurveyPageQuery): Promise<PageResult<SatisfactionSurveyView>> {
-  return http.get<PageResult<SatisfactionSurveyView>>('/crm/satisfaction/page', query as Record<string, unknown>);
+  return http.get<PageResult<SatisfactionSurveyView>>(
+    '/crm/satisfaction/page',
+    query as Record<string, unknown>,
+  );
 }
 
 /** 满意度统计 */
@@ -396,7 +399,9 @@ export function sendSurvey(payload: SatisfactionSurveyInput): Promise<Satisfacti
 }
 
 /** 按一次性令牌提交答卷 */
-export function submitSurveyResponse(payload: SurveyResponseInput): Promise<SatisfactionSurveyView> {
+export function submitSurveyResponse(
+  payload: SurveyResponseInput,
+): Promise<SatisfactionSurveyView> {
   return http.post<SatisfactionSurveyView>('/crm/satisfaction/response', payload);
 }
 
@@ -480,7 +485,10 @@ export interface ReturnPageQuery {
 
 /** 退换货申请分页 */
 export function pageReturns(query: ReturnPageQuery): Promise<PageResult<ReturnRequestView>> {
-  return http.get<PageResult<ReturnRequestView>>('/crm/return/page', query as Record<string, unknown>);
+  return http.get<PageResult<ReturnRequestView>>(
+    '/crm/return/page',
+    query as Record<string, unknown>,
+  );
 }
 
 /** 退换货申请详情 */

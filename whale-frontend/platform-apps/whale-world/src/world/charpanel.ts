@@ -154,7 +154,10 @@ export function mountCharPanel(container: HTMLElement, opts: CharPanelOptions): 
     }
     for (const sw of Array.from(container.querySelectorAll<HTMLElement>('[data-swatch]'))) {
       const key = sw.dataset.swatch as 'skin' | 'robe' | 'hair';
-      sw.classList.toggle('is-on', params[key].toLowerCase() === (sw.dataset.color || '').toLowerCase());
+      sw.classList.toggle(
+        'is-on',
+        params[key].toLowerCase() === (sw.dataset.color || '').toLowerCase(),
+      );
     }
     for (const chip of Array.from(container.querySelectorAll<HTMLElement>('[data-chip]'))) {
       const key = chip.dataset.chip as 'hairStyle' | 'accessory';

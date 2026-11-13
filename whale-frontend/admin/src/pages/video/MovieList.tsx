@@ -278,7 +278,9 @@ export default function MovieList() {
       message.success('电影已发布');
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '发布失败（请检查授权是否仍在有效期）');
+      message.error(
+        error instanceof Error ? error.message : '发布失败（请检查授权是否仍在有效期）',
+      );
     }
   };
 
@@ -333,7 +335,11 @@ export default function MovieList() {
       dataIndex: 'posterUrl',
       width: 90,
       render: (value?: string) =>
-        value ? <Image src={value} alt="海报" width={56} height={78} style={{ objectFit: 'cover' }} /> : '-',
+        value ? (
+          <Image src={value} alt="海报" width={56} height={78} style={{ objectFit: 'cover' }} />
+        ) : (
+          '-'
+        ),
     },
     {
       title: '电影',
@@ -341,9 +347,12 @@ export default function MovieList() {
       render: (value: string, row) => (
         <Space direction="vertical" size={0}>
           <Typography.Text strong>{value}</Typography.Text>
-          {row.originalTitle ? <Typography.Text type="secondary">{row.originalTitle}</Typography.Text> : null}
+          {row.originalTitle ? (
+            <Typography.Text type="secondary">{row.originalTitle}</Typography.Text>
+          ) : null}
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            {row.director ? `导演：${row.director}` : '导演未填写'} · {formatDuration(row.durationMs)}
+            {row.director ? `导演：${row.director}` : '导演未填写'} ·{' '}
+            {formatDuration(row.durationMs)}
             {row.rating !== undefined && row.rating !== null ? ` · 评分 ${row.rating}` : ''}
           </Typography.Text>
         </Space>
@@ -399,8 +408,13 @@ export default function MovieList() {
               编辑
             </Button>
           ) : null}
-          {row.publishState !== 'PUBLISHED' && row.copyrightState !== 'TAKEDOWN' && has('sys:video:content:publish') ? (
-            <Popconfirm title="发布前将校验授权仍在有效期，确认发布？" onConfirm={() => void handlePublish(row)}>
+          {row.publishState !== 'PUBLISHED' &&
+          row.copyrightState !== 'TAKEDOWN' &&
+          has('sys:video:content:publish') ? (
+            <Popconfirm
+              title="发布前将校验授权仍在有效期，确认发布？"
+              onConfirm={() => void handlePublish(row)}
+            >
               <Button type="link" size="small">
                 发布
               </Button>
@@ -459,11 +473,17 @@ export default function MovieList() {
         columns={columns}
         request={pageMovies}
         params={{ keyword, categoryId, publishState, sortBy }}
-        onError={(error) => message.error(error instanceof Error ? error.message : '电影列表加载失败')}
+        onError={(error) =>
+          message.error(error instanceof Error ? error.message : '电影列表加载失败')
+        }
         search={
           <SearchForm
             items={[
-              { name: 'keyword', label: '关键词', element: <Input allowClear placeholder="标题 / 原始片名" /> },
+              {
+                name: 'keyword',
+                label: '关键词',
+                element: <Input allowClear placeholder="标题 / 原始片名" />,
+              },
               {
                 name: 'categoryId',
                 label: '分类',
@@ -474,7 +494,10 @@ export default function MovieList() {
                     optionFilterProp="label"
                     placeholder="全部"
                     style={{ width: 160 }}
-                    options={movieCategories.map((category) => ({ value: category.id, label: category.name }))}
+                    options={movieCategories.map((category) => ({
+                      value: category.id,
+                      label: category.name,
+                    }))}
                   />
                 ),
               },
@@ -482,14 +505,24 @@ export default function MovieList() {
                 name: 'publishState',
                 label: '状态',
                 element: (
-                  <Select allowClear placeholder="全部" style={{ width: 120 }} options={PUBLISH_STATE_OPTIONS} />
+                  <Select
+                    allowClear
+                    placeholder="全部"
+                    style={{ width: 120 }}
+                    options={PUBLISH_STATE_OPTIONS}
+                  />
                 ),
               },
               {
                 name: 'sortBy',
                 label: '排序',
                 element: (
-                  <Select allowClear placeholder="默认最新" style={{ width: 140 }} options={SORT_OPTIONS} />
+                  <Select
+                    allowClear
+                    placeholder="默认最新"
+                    style={{ width: 140 }}
+                    options={SORT_OPTIONS}
+                  />
                 ),
               },
             ]}
@@ -528,8 +561,10 @@ export default function MovieList() {
           durationMs: editing?.durationMs,
           width: editing?.width,
           height: editing?.height,
-          categoryId: editing?.categoryId && editing.categoryId !== '0' ? editing.categoryId : undefined,
-          creatorId: editing?.creatorId && editing.creatorId !== '0' ? editing.creatorId : undefined,
+          categoryId:
+            editing?.categoryId && editing.categoryId !== '0' ? editing.categoryId : undefined,
+          creatorId:
+            editing?.creatorId && editing.creatorId !== '0' ? editing.creatorId : undefined,
           originalTitle: editing?.originalTitle,
           director: editing?.director,
           actors: editing?.actors,
@@ -543,7 +578,11 @@ export default function MovieList() {
         onCancel={() => setModalOpen(false)}
       >
         <Typography.Text type="secondary">基础信息</Typography.Text>
-        <Form.Item name="title" label="电影标题" rules={[{ required: true, message: '请输入电影标题' }]}>
+        <Form.Item
+          name="title"
+          label="电影标题"
+          rules={[{ required: true, message: '请输入电影标题' }]}
+        >
           <Input maxLength={200} showCount />
         </Form.Item>
         <Form.Item name="subtitle" label="副标题">
@@ -564,10 +603,18 @@ export default function MovieList() {
               showSearch
               optionFilterProp="label"
               placeholder="选择分类"
-              options={movieCategories.map((category) => ({ value: category.id, label: category.name }))}
+              options={movieCategories.map((category) => ({
+                value: category.id,
+                label: category.name,
+              }))}
             />
           </Form.Item>
-          <Form.Item name="creatorId" label="创作者 ID" style={{ flex: 1 }} extra="可选，运营入库通常留空">
+          <Form.Item
+            name="creatorId"
+            label="创作者 ID"
+            style={{ flex: 1 }}
+            extra="可选，运营入库通常留空"
+          >
             <Input placeholder="留空表示未登记" />
           </Form.Item>
         </Space>
@@ -577,7 +624,11 @@ export default function MovieList() {
           name="videoFileId"
           label="视频文件 ID"
           rules={editing ? [] : [{ required: true, message: '请填写视频文件 ID' }]}
-          extra={editing ? '留空表示保留原视频文件；填写则替换并重新校验格式与大小' : '可上传视频或直接填写 whale-file 文件 ID'}
+          extra={
+            editing
+              ? '留空表示保留原视频文件；填写则替换并重新校验格式与大小'
+              : '可上传视频或直接填写 whale-file 文件 ID'
+          }
         >
           <Input placeholder="whale-file 文件 ID" />
         </Form.Item>
@@ -634,12 +685,7 @@ export default function MovieList() {
           <Form.Item name="language" label="语言" style={{ flex: 1 }}>
             <Input maxLength={64} placeholder="如 普通话" />
           </Form.Item>
-          <Form.Item
-            name="rating"
-            label="评分"
-            style={{ flex: 1 }}
-            extra="0.0 – 10.0，可留空"
-          >
+          <Form.Item name="rating" label="评分" style={{ flex: 1 }} extra="0.0 – 10.0，可留空">
             <InputNumber min={0} max={10} step={0.1} precision={1} style={{ width: '100%' }} />
           </Form.Item>
         </Space>
@@ -666,7 +712,12 @@ export default function MovieList() {
           >
             <Select placeholder="选择来源" options={LICENSE_SOURCE_OPTIONS} />
           </Form.Item>
-          <Form.Item name="licenseNo" label="授权编号" style={{ flex: 2 }} extra="授权合同 / 登记编号，可选">
+          <Form.Item
+            name="licenseNo"
+            label="授权编号"
+            style={{ flex: 2 }}
+            extra="授权合同 / 登记编号，可选"
+          >
             <Input maxLength={128} />
           </Form.Item>
         </Space>
@@ -695,9 +746,17 @@ export default function MovieList() {
             {posterFileId === '0' ? (
               <Typography.Text type="secondary">已清除海报（保存后生效）</Typography.Text>
             ) : posterFileId ? (
-              <Typography.Text type="secondary">已上传海报：{posterName || `文件 ID ${posterFileId}`}</Typography.Text>
+              <Typography.Text type="secondary">
+                已上传海报：{posterName || `文件 ID ${posterFileId}`}
+              </Typography.Text>
             ) : editing?.posterUrl ? (
-              <Image src={editing.posterUrl} width={96} height={134} style={{ objectFit: 'cover' }} alt="当前海报" />
+              <Image
+                src={editing.posterUrl}
+                width={96}
+                height={134}
+                style={{ objectFit: 'cover' }}
+                alt="当前海报"
+              />
             ) : (
               <Typography.Text type="secondary">暂无海报</Typography.Text>
             )}
@@ -719,7 +778,9 @@ export default function MovieList() {
                 }}
               >
                 <Button loading={uploadingPoster}>
-                  {posterFileId !== '0' && (posterFileId || editing?.posterUrl) ? '重新上传海报' : '上传海报'}
+                  {posterFileId !== '0' && (posterFileId || editing?.posterUrl)
+                    ? '重新上传海报'
+                    : '上传海报'}
                 </Button>
               </Upload>
               {editing?.posterUrl || (posterFileId && posterFileId !== '0') ? (
@@ -745,7 +806,13 @@ export default function MovieList() {
                 已上传背景图：{backdropName || `文件 ID ${backdropFileId}`}
               </Typography.Text>
             ) : editing?.backdropUrl ? (
-              <Image src={editing.backdropUrl} width={240} height={135} style={{ objectFit: 'cover' }} alt="当前背景图" />
+              <Image
+                src={editing.backdropUrl}
+                width={240}
+                height={135}
+                style={{ objectFit: 'cover' }}
+                alt="当前背景图"
+              />
             ) : (
               <Typography.Text type="secondary">暂无背景图</Typography.Text>
             )}
@@ -767,7 +834,9 @@ export default function MovieList() {
                 }}
               >
                 <Button loading={uploadingBackdrop}>
-                  {backdropFileId !== '0' && (backdropFileId || editing?.backdropUrl) ? '重新上传背景图' : '上传背景图'}
+                  {backdropFileId !== '0' && (backdropFileId || editing?.backdropUrl)
+                    ? '重新上传背景图'
+                    : '上传背景图'}
                 </Button>
               </Upload>
               {editing?.backdropUrl || (backdropFileId && backdropFileId !== '0') ? (

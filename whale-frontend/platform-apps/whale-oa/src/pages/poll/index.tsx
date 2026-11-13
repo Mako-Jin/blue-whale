@@ -159,7 +159,7 @@ export default function PollPage() {
       description: values.description?.trim() || undefined,
       multipleChoice: multiple,
       anonymous: values.anonymous,
-      maxChoices: multiple ? values.maxChoices ?? 2 : 1,
+      maxChoices: multiple ? (values.maxChoices ?? 2) : 1,
       startTime: values.timeRange?.[0].format('YYYY-MM-DDTHH:mm:ss'),
       endTime: values.timeRange?.[1].format('YYYY-MM-DDTHH:mm:ss'),
       options: values.options.map((item, index) => ({
@@ -239,7 +239,11 @@ export default function PollPage() {
       message.error('请选择投票选项');
       return;
     }
-    if (voteDetail.multipleChoice && voteDetail.maxChoices && selectedIds.length > voteDetail.maxChoices) {
+    if (
+      voteDetail.multipleChoice &&
+      voteDetail.maxChoices &&
+      selectedIds.length > voteDetail.maxChoices
+    ) {
       message.error(`最多选择 ${voteDetail.maxChoices} 项`);
       return;
     }
@@ -391,10 +395,20 @@ export default function PollPage() {
             <Input.TextArea rows={3} maxLength={1000} showCount placeholder="选填" />
           </Form.Item>
           <Space size="middle" style={{ display: 'flex' }}>
-            <Form.Item name="multipleChoice" label="多选" valuePropName="checked" style={{ flex: 1 }}>
+            <Form.Item
+              name="multipleChoice"
+              label="多选"
+              valuePropName="checked"
+              style={{ flex: 1 }}
+            >
               <Switch checkedChildren="多选" unCheckedChildren="单选" />
             </Form.Item>
-            <Form.Item name="anonymous" label="匿名投票" valuePropName="checked" style={{ flex: 1 }}>
+            <Form.Item
+              name="anonymous"
+              label="匿名投票"
+              valuePropName="checked"
+              style={{ flex: 1 }}
+            >
               <Switch />
             </Form.Item>
             <Form.Item

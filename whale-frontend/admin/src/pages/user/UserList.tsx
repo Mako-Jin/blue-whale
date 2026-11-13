@@ -364,7 +364,9 @@ export default function UserList() {
                 ]
           }
         >
-          <Input.Password placeholder={editRecord ? '留空表示不修改' : '至少 12 位，含大小写字母、数字和特殊字符'} />
+          <Input.Password
+            placeholder={editRecord ? '留空表示不修改' : '至少 12 位，含大小写字母、数字和特殊字符'}
+          />
         </Form.Item>
         <Form.Item name="nickname" label="昵称">
           <Input />

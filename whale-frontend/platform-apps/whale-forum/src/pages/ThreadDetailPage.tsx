@@ -208,7 +208,13 @@ export default function ThreadDetailPage({ threadId, onBack }: Props) {
         : await addReaction(threadId, type);
       setReaction(next);
       void message.success(
-        type === 'LIKE' ? (next.liked ? '已投花' : '已取消投花') : next.collected ? '已藏帖' : '已取消藏帖',
+        type === 'LIKE'
+          ? next.liked
+            ? '已投花'
+            : '已取消投花'
+          : next.collected
+            ? '已藏帖'
+            : '已取消藏帖',
       );
     } catch (err: unknown) {
       void message.error(err instanceof Error ? err.message : '操作失败');
@@ -311,9 +317,18 @@ export default function ThreadDetailPage({ threadId, onBack }: Props) {
       >
         <div className="forum-post-meta">
           <Space size={8}>
-            <Text strong>{thread.anonymous === 1 ? `匿名鲸友 ${thread.anonymousNo ?? ''}` : `鲸友 #${thread.authorId}`}</Text>
+            <Text strong>
+              {thread.anonymous === 1
+                ? `匿名鲸友 ${thread.anonymousNo ?? ''}`
+                : `鲸友 #${thread.authorId}`}
+            </Text>
             {thread.anonymous === 1 ? null : (
-              <Button size="small" type={authorFollowed ? 'primary' : 'default'} loading={followLoading} onClick={onToggleFollowAuthor}>
+              <Button
+                size="small"
+                type={authorFollowed ? 'primary' : 'default'}
+                loading={followLoading}
+                onClick={onToggleFollowAuthor}
+              >
                 {authorFollowed ? '已结契' : '结契关注'}
               </Button>
             )}
@@ -325,9 +340,7 @@ export default function ThreadDetailPage({ threadId, onBack }: Props) {
           // 服务端已白名单消毒（危险构造入库前拒绝），此处直接渲染
           dangerouslySetInnerHTML={{ __html: thread.content ?? '' }}
         />
-        {thread.tags ? (
-          <Paragraph type="secondary">标签：{thread.tags}</Paragraph>
-        ) : null}
+        {thread.tags ? <Paragraph type="secondary">标签：{thread.tags}</Paragraph> : null}
         <Space style={{ marginTop: 12 }}>
           <Button
             type={reaction?.liked ? 'primary' : 'default'}
@@ -370,7 +383,9 @@ export default function ThreadDetailPage({ threadId, onBack }: Props) {
             <div className="forum-post">
               <div className="forum-post-meta">
                 <Text strong>
-                  {item.anonymous === 1 ? `匿名鲸友 ${item.anonymousNo ?? ''}` : `鲸友 #${item.authorId}`}
+                  {item.anonymous === 1
+                    ? `匿名鲸友 ${item.anonymousNo ?? ''}`
+                    : `鲸友 #${item.authorId}`}
                 </Text>
                 <Text type="secondary">
                   {item.floor} 楼 · {item.createTime ?? ''}
@@ -388,16 +403,9 @@ export default function ThreadDetailPage({ threadId, onBack }: Props) {
                   )}
                 </div>
               ) : null}
-              <div
-                className="forum-rich-text"
-                dangerouslySetInnerHTML={{ __html: item.content }}
-              />
+              <div className="forum-rich-text" dangerouslySetInnerHTML={{ __html: item.content }} />
               {replyable && canReply ? (
-                <Button
-                  type="link"
-                  size="small"
-                  onClick={() => setQuote(item)}
-                >
+                <Button type="link" size="small" onClick={() => setQuote(item)}>
                   引用
                 </Button>
               ) : null}
@@ -467,11 +475,7 @@ export default function ThreadDetailPage({ threadId, onBack }: Props) {
           >
             <Input.TextArea rows={8} />
           </Form.Item>
-          <Form.Item
-            name="tags"
-            label="标签"
-            extra="逗号分隔，最多 10 个；清空表示删除全部标签"
-          >
+          <Form.Item name="tags" label="标签" extra="逗号分隔，最多 10 个；清空表示删除全部标签">
             <Input placeholder="如：报销,差旅" />
           </Form.Item>
           <Form.Item

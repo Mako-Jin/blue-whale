@@ -178,17 +178,21 @@ export default function PurchaseRequisitionPage() {
           <Button type="link" size="small" onClick={() => handleDetail(record.id)}>
             查看
           </Button>
-          {record.status === 'DRAFT'
-            && hasPermission('sys:erp:purchase-requisition:approve') ? (
-            <Popconfirm title="审核后申请单不可修改，确认继续？" onConfirm={() => handleApprove(record.id)}>
+          {record.status === 'DRAFT' && hasPermission('sys:erp:purchase-requisition:approve') ? (
+            <Popconfirm
+              title="审核后申请单不可修改，确认继续？"
+              onConfirm={() => handleApprove(record.id)}
+            >
               <Button type="link" size="small">
                 审核
               </Button>
             </Popconfirm>
           ) : null}
-          {record.status === 'APPROVED'
-            && hasPermission('sys:erp:purchase-requisition:convert') ? (
-            <Popconfirm title="转单后将生成采购订单草稿，确认继续？" onConfirm={() => handleConvert(record.id)}>
+          {record.status === 'APPROVED' && hasPermission('sys:erp:purchase-requisition:convert') ? (
+            <Popconfirm
+              title="转单后将生成采购订单草稿，确认继续？"
+              onConfirm={() => handleConvert(record.id)}
+            >
               <Button type="link" size="small">
                 转单
               </Button>
@@ -228,13 +232,22 @@ export default function PurchaseRequisitionPage() {
         <Button onClick={() => setStatus(undefined)} type={status ? 'default' : 'primary'}>
           全部
         </Button>
-        <Button onClick={() => setStatus('DRAFT')} type={status === 'DRAFT' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('DRAFT')}
+          type={status === 'DRAFT' ? 'primary' : 'default'}
+        >
           草稿
         </Button>
-        <Button onClick={() => setStatus('APPROVED')} type={status === 'APPROVED' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('APPROVED')}
+          type={status === 'APPROVED' ? 'primary' : 'default'}
+        >
           已审核
         </Button>
-        <Button onClick={() => setStatus('CONVERTED')} type={status === 'CONVERTED' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('CONVERTED')}
+          type={status === 'CONVERTED' ? 'primary' : 'default'}
+        >
           已转单
         </Button>
         {hasPermission('sys:erp:purchase-requisition:create') ? (
@@ -243,7 +256,12 @@ export default function PurchaseRequisitionPage() {
           </Button>
         ) : null}
       </Space>
-      <Table<PurchaseRequisitionView> rowKey="id" loading={loading} columns={columns} dataSource={data} />
+      <Table<PurchaseRequisitionView>
+        rowKey="id"
+        loading={loading}
+        columns={columns}
+        dataSource={data}
+      />
       <Modal
         open={createOpen}
         title="新增采购申请单"
@@ -318,13 +336,23 @@ export default function PurchaseRequisitionPage() {
                       name={[field.name, 'quantity']}
                       rules={[{ required: true, message: '数量' }]}
                     >
-                      <InputNumber placeholder="数量" min={0.0001} precision={4} style={{ width: 120 }} />
+                      <InputNumber
+                        placeholder="数量"
+                        min={0.0001}
+                        precision={4}
+                        style={{ width: 120 }}
+                      />
                     </Form.Item>
                     <Form.Item
                       name={[field.name, 'unitPrice']}
                       rules={[{ required: true, message: '预估单价' }]}
                     >
-                      <InputNumber placeholder="预估单价" min={0.01} precision={2} style={{ width: 120 }} />
+                      <InputNumber
+                        placeholder="预估单价"
+                        min={0.01}
+                        precision={2}
+                        style={{ width: 120 }}
+                      />
                     </Form.Item>
                     <Form.Item name={[field.name, 'uom']}>
                       <Input placeholder="单位" style={{ width: 90 }} maxLength={16} />

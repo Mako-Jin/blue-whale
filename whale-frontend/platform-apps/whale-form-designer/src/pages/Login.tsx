@@ -75,8 +75,16 @@ export default function LoginPage() {
             <Input.Password placeholder="密码（123456）" autoComplete="current-password" />
           </Form.Item>
           <Form.Item style={{ marginBottom: 0 }}>
-            <Button type="primary" htmlType="submit" block loading={loading} disabled={lockout.locked}>
-              {lockout.locked ? `已锁定，${formatRemaining(lockout.remainingSeconds)} 后可重试` : '登录'}
+            <Button
+              type="primary"
+              htmlType="submit"
+              block
+              loading={loading}
+              disabled={lockout.locked}
+            >
+              {lockout.locked
+                ? `已锁定，${formatRemaining(lockout.remainingSeconds)} 后可重试`
+                : '登录'}
             </Button>
           </Form.Item>
         </Form>

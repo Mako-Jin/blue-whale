@@ -35,10 +35,11 @@ export default defineConfig({
     // 一起被转发到网关，入口直接 401，基座与独立运行都是白屏且无报错。
     // 因此只匹配论坛真实的一级接口段。
     proxy: {
-      '^/forum/(meta|board|thread|post|hot|search|tag|profile|my|follow|exp|appeal|report|reaction|admin|internal)(/|$)': {
-        target: 'http://127.0.0.1:8080',
-        changeOrigin: true,
-      },
+      '^/forum/(meta|board|thread|post|hot|search|tag|profile|my|follow|exp|appeal|report|reaction|admin|internal)(/|$)':
+        {
+          target: 'http://127.0.0.1:8080',
+          changeOrigin: true,
+        },
       '^/file(/|$)': { target: 'http://127.0.0.1:8080', changeOrigin: true },
     },
   },

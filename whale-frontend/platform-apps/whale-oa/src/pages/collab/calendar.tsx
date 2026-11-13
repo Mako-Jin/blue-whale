@@ -167,7 +167,9 @@ export default function CollabCalendarPage() {
       key: `calendar-${entry.id}`,
       dateKey: dayjs(entry.startTime).format('YYYY-MM-DD'),
       title: entry.title,
-      timeText: entry.allDay ? '全天' : `${dayjs(entry.startTime).format('HH:mm')} - ${dayjs(entry.endTime).format('HH:mm')}`,
+      timeText: entry.allDay
+        ? '全天'
+        : `${dayjs(entry.startTime).format('HH:mm')} - ${dayjs(entry.endTime).format('HH:mm')}`,
       meeting: false,
       entry,
     }));
@@ -178,7 +180,9 @@ export default function CollabCalendarPage() {
       timeText: `${dayjs(meeting.startTime).format('HH:mm')} - ${dayjs(meeting.endTime).format('HH:mm')}`,
       meeting: true,
     }));
-    return [...fromEntries, ...fromMeetings].sort((left, right) => left.timeText.localeCompare(right.timeText));
+    return [...fromEntries, ...fromMeetings].sort((left, right) =>
+      left.timeText.localeCompare(right.timeText),
+    );
   }, [entries, meetings]);
 
   const openCreate = () => {
@@ -267,7 +271,10 @@ export default function CollabCalendarPage() {
     try {
       const data = await getCalendar(entry.id);
       shareForm.setFieldsValue({
-        users: (data.shares ?? []).map((item) => ({ userId: item.userId, userName: item.userName })),
+        users: (data.shares ?? []).map((item) => ({
+          userId: item.userId,
+          userName: item.userName,
+        })),
       });
       setShareModal(true);
     } catch (error) {
@@ -282,7 +289,10 @@ export default function CollabCalendarPage() {
     const values = await shareForm.validateFields();
     const users: OaCalendarShare[] = (values.users ?? [])
       .filter((item) => item?.userId !== undefined)
-      .map((item) => ({ userId: item.userId as number, userName: item.userName?.trim() || undefined }));
+      .map((item) => ({
+        userId: item.userId as number,
+        userName: item.userName?.trim() || undefined,
+      }));
     setSaving(true);
     try {
       await replaceCalendarShares(shareTarget.id, users);
@@ -298,7 +308,12 @@ export default function CollabCalendarPage() {
 
   const shareColumns: TableProps<OaCalendarShare>['columns'] = [
     { title: '用户ID', dataIndex: 'userId', key: 'userId', width: 100 },
-    { title: '姓名', dataIndex: 'userName', key: 'userName', render: (value?: string) => value ?? '-' },
+    {
+      title: '姓名',
+      dataIndex: 'userName',
+      key: 'userName',
+      render: (value?: string) => value ?? '-',
+    },
   ];
 
   return (
@@ -327,7 +342,10 @@ export default function CollabCalendarPage() {
             placeholder="可见性"
             style={{ width: 130 }}
             value={visibility || undefined}
-            options={Object.entries(VISIBILITY_META).map(([value, meta]) => ({ label: meta.text, value }))}
+            options={Object.entries(VISIBILITY_META).map(([value, meta]) => ({
+              label: meta.text,
+              value,
+            }))}
             onChange={(value) => setVisibility((value as OaCalendarVisibility) ?? '')}
           />
           {canManage ? (
@@ -390,7 +408,9 @@ export default function CollabCalendarPage() {
                   </Tooltip>
                 ))}
                 {list.length > 2 ? (
-                  <div style={{ fontSize: 12, color: '#999', padding: '0 4px' }}>+{list.length - 2}</div>
+                  <div style={{ fontSize: 12, color: '#999', padding: '0 4px' }}>
+                    +{list.length - 2}
+                  </div>
                 ) : null}
               </div>
             );
@@ -407,16 +427,27 @@ export default function CollabCalendarPage() {
         destroyOnClose
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="title" label="日程标题" rules={[{ required: true, message: '请输入日程标题' }]}>
+          <Form.Item
+            name="title"
+            label="日程标题"
+            rules={[{ required: true, message: '请输入日程标题' }]}
+          >
             <Input maxLength={128} />
           </Form.Item>
-          <Form.Item name="timeRange" label="时间" rules={[{ required: true, message: '请选择时间' }]}>
+          <Form.Item
+            name="timeRange"
+            label="时间"
+            rules={[{ required: true, message: '请选择时间' }]}
+          >
             <DatePicker.RangePicker showTime style={{ width: '100%' }} format="YYYY-MM-DD HH:mm" />
           </Form.Item>
           <Space size="middle" style={{ display: 'flex' }}>
             <Form.Item name="visibility" label="可见性" style={{ flex: 1 }}>
               <Select
-                options={Object.entries(VISIBILITY_META).map(([value, meta]) => ({ label: meta.text, value }))}
+                options={Object.entries(VISIBILITY_META).map(([value, meta]) => ({
+                  label: meta.text,
+                  value,
+                }))}
               />
             </Form.Item>
             <Form.Item name="remindMinutes" label="提醒" style={{ flex: 1 }}>
@@ -459,7 +490,12 @@ export default function CollabCalendarPage() {
                         rules={[{ required: true, message: '请输入用户ID' }]}
                         style={{ marginBottom: 0 }}
                       >
-                        <InputNumber placeholder="用户ID" min={1} precision={0} style={{ width: 140 }} />
+                        <InputNumber
+                          placeholder="用户ID"
+                          min={1}
+                          precision={0}
+                          style={{ width: 140 }}
+                        />
                       </Form.Item>
                       <Form.Item name={[field.name, 'userName']} style={{ marginBottom: 0 }}>
                         <Input placeholder="姓名" maxLength={64} style={{ width: 160 }} />
@@ -512,7 +548,9 @@ export default function CollabCalendarPage() {
                   {VISIBILITY_META[detail.visibility]?.text ?? detail.visibility}
                 </Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="所有者">{detail.ownerName ?? detail.ownerId}</Descriptions.Item>
+              <Descriptions.Item label="所有者">
+                {detail.ownerName ?? detail.ownerId}
+              </Descriptions.Item>
               <Descriptions.Item label="地点" span={2}>
                 {detail.location || '-'}
               </Descriptions.Item>

@@ -159,7 +159,10 @@ export default function AttendanceDailyPage() {
           placeholder="状态"
           style={{ width: 140 }}
           value={status || undefined}
-          options={Object.entries(STATUS_META).map(([value, meta]) => ({ label: meta.text, value }))}
+          options={Object.entries(STATUS_META).map(([value, meta]) => ({
+            label: meta.text,
+            value,
+          }))}
           onChange={(value) => {
             setStatus((value as OaAttendanceDailyStatus) ?? '');
             setCurrent(1);
@@ -213,7 +216,12 @@ export default function AttendanceDailyPage() {
             <DatePicker.RangePicker style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="userId" label="指定用户ID">
-            <InputNumber style={{ width: '100%' }} min={1} precision={0} placeholder="留空重算全部成员" />
+            <InputNumber
+              style={{ width: '100%' }}
+              min={1}
+              precision={0}
+              placeholder="留空重算全部成员"
+            />
           </Form.Item>
         </Form>
       </Modal>

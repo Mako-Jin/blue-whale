@@ -50,7 +50,11 @@ export default function CollectionsPage({ onOpenThread }: Props) {
                 <List.Item>
                   <Space size={8} wrap>
                     {item.status === 'SOLVED' ? <Tag color="green">已解决</Tag> : null}
-                    <Button type="link" style={{ padding: 0 }} onClick={() => onOpenThread(item.id)}>
+                    <Button
+                      type="link"
+                      style={{ padding: 0 }}
+                      onClick={() => onOpenThread(item.id)}
+                    >
                       {item.title}
                     </Button>
                     <Text type="secondary">

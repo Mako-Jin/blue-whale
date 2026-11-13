@@ -123,7 +123,12 @@ export default function CollabWorkbenchPage() {
                 {todayMeetings.map((meeting) => (
                   <div
                     key={meeting.id}
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 12,
+                    }}
                   >
                     <span
                       style={{
@@ -166,7 +171,12 @@ export default function CollabWorkbenchPage() {
                   return (
                     <div
                       key={task.id}
-                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 12,
+                      }}
                     >
                       <span
                         style={{
@@ -202,7 +212,12 @@ export default function CollabWorkbenchPage() {
                 {birthdays.map((item) => (
                   <div
                     key={item.userId}
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 12,
+                    }}
                   >
                     <span style={{ fontWeight: 500 }}>{item.employeeNo || item.userId}</span>
                     <Space size={8} style={{ whiteSpace: 'nowrap' }}>

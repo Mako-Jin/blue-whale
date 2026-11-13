@@ -190,10 +190,18 @@ function AccountTab() {
         destroyOnHidden
       >
         <Form form={form} layout="vertical" initialValues={{ leaf: true, status: 'ENABLED' }}>
-          <Form.Item name="code" label="科目编码" rules={[{ required: true, message: '请输入科目编码' }]}>
+          <Form.Item
+            name="code"
+            label="科目编码"
+            rules={[{ required: true, message: '请输入科目编码' }]}
+          >
             <Input placeholder="如 1001" maxLength={32} />
           </Form.Item>
-          <Form.Item name="name" label="科目名称" rules={[{ required: true, message: '请输入科目名称' }]}>
+          <Form.Item
+            name="name"
+            label="科目名称"
+            rules={[{ required: true, message: '请输入科目名称' }]}
+          >
             <Input placeholder="如 库存现金" maxLength={64} />
           </Form.Item>
           <Form.Item
@@ -202,7 +210,10 @@ function AccountTab() {
             rules={[{ required: true, message: '请选择科目类型' }]}
           >
             <Select
-              options={Object.entries(ACCOUNT_TYPE_LABEL).map(([value, label]) => ({ value, label }))}
+              options={Object.entries(ACCOUNT_TYPE_LABEL).map(([value, label]) => ({
+                value,
+                label,
+              }))}
             />
           </Form.Item>
           <Form.Item
@@ -450,10 +461,18 @@ function CustomerTab() {
         destroyOnHidden
       >
         <Form form={form} layout="vertical" initialValues={{ status: 'ENABLED', creditLimit: 0 }}>
-          <Form.Item name="code" label="客户编码" rules={[{ required: true, message: '请输入客户编码' }]}>
+          <Form.Item
+            name="code"
+            label="客户编码"
+            rules={[{ required: true, message: '请输入客户编码' }]}
+          >
             <Input placeholder="如 CUS-001" maxLength={32} />
           </Form.Item>
-          <Form.Item name="name" label="客户名称" rules={[{ required: true, message: '请输入客户名称' }]}>
+          <Form.Item
+            name="name"
+            label="客户名称"
+            rules={[{ required: true, message: '请输入客户名称' }]}
+          >
             <Input maxLength={128} />
           </Form.Item>
           <Form.Item name="shortName" label="客户简称">
@@ -511,7 +530,11 @@ function CustomerTab() {
                     label: '信用额度',
                     children: creditUsage.unlimited ? '不限' : amount(creditUsage.creditLimit),
                   },
-                  { key: 'outstanding', label: '未结应收', children: amount(creditUsage.outstanding) },
+                  {
+                    key: 'outstanding',
+                    label: '未结应收',
+                    children: amount(creditUsage.outstanding),
+                  },
                   { key: 'reserved', label: '在途预占', children: amount(creditUsage.reserved) },
                   { key: 'occupied', label: '已占用', children: amount(creditUsage.occupied) },
                   { key: 'available', label: '可用额度', children: amount(creditUsage.available) },
@@ -629,10 +652,18 @@ function WarehouseTab() {
         destroyOnHidden
       >
         <Form form={form} layout="vertical" initialValues={{ status: 'ENABLED' }}>
-          <Form.Item name="code" label="仓库编码" rules={[{ required: true, message: '请输入仓库编码' }]}>
+          <Form.Item
+            name="code"
+            label="仓库编码"
+            rules={[{ required: true, message: '请输入仓库编码' }]}
+          >
             <Input placeholder="如 WH-001" maxLength={32} />
           </Form.Item>
-          <Form.Item name="name" label="仓库名称" rules={[{ required: true, message: '请输入仓库名称' }]}>
+          <Form.Item
+            name="name"
+            label="仓库名称"
+            rules={[{ required: true, message: '请输入仓库名称' }]}
+          >
             <Input maxLength={64} />
           </Form.Item>
           <Form.Item name="manager" label="负责人">

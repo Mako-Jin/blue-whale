@@ -37,19 +37,22 @@ export default function MyCreditPage() {
   const [summary, setSummary] = useState<CreditSummary | null>(null);
   const canView = hasPermission('sys:lms:cert:mine');
 
-  const load = useCallback(async (page = 1, nextYear = periodYear) => {
-    setLoading(true);
-    try {
-      const data = await myCredits({ periodYear: nextYear, current: page, size: 10 });
-      setRows((data.records ?? []).map((item) => ({ ...item, key: String(item.id) })));
-      setTotal(data.total ?? 0);
-      setCurrent(page);
-      const summaryData = await creditSummary({ periodYear: nextYear });
-      setSummary(summaryData);
-    } finally {
-      setLoading(false);
-    }
-  }, [periodYear]);
+  const load = useCallback(
+    async (page = 1, nextYear = periodYear) => {
+      setLoading(true);
+      try {
+        const data = await myCredits({ periodYear: nextYear, current: page, size: 10 });
+        setRows((data.records ?? []).map((item) => ({ ...item, key: String(item.id) })));
+        setTotal(data.total ?? 0);
+        setCurrent(page);
+        const summaryData = await creditSummary({ periodYear: nextYear });
+        setSummary(summaryData);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [periodYear],
+  );
 
   useEffect(() => {
     if (canView) {
@@ -116,15 +119,18 @@ export default function MyCreditPage() {
         rowKey="key"
         loading={loading}
         dataSource={rows}
-        pagination={{ current, total, pageSize: 10, onChange: (page) => void load(page, periodYear) }}
+        pagination={{
+          current,
+          total,
+          pageSize: 10,
+          onChange: (page) => void load(page, periodYear),
+        }}
         columns={[
           {
             title: '来源',
             dataIndex: 'sourceType',
             width: 120,
-            render: (value: CreditSource) => (
-              <Tag>{SOURCE_LABEL[value] ?? value}</Tag>
-            ),
+            render: (value: CreditSource) => <Tag>{SOURCE_LABEL[value] ?? value}</Tag>,
           },
           { title: '来源对象', dataIndex: 'sourceId', width: 120, render: (value) => `#${value}` },
           { title: '命中规则', dataIndex: 'ruleCode', width: 160 },

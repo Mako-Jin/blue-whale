@@ -1,12 +1,7 @@
 // 视频展示工具：时长 / 时间 / 状态标签 / 计数格式化
 
 import { Tag, Tooltip } from 'antd';
-import type {
-  ContentType,
-  ContentVisibility,
-  CopyrightState,
-  PublishState,
-} from '../api/video';
+import type { ContentType, ContentVisibility, CopyrightState, PublishState } from '../api/video';
 
 /** 时长格式化为 mm:ss（超过 1 小时为 hh:mm:ss） */
 export function formatDuration(durationMs?: number): string {

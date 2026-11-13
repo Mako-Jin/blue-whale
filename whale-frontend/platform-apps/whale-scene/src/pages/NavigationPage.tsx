@@ -6,7 +6,12 @@
 import { Alert, App, Button, Card, Empty, Radio, Select, Space, Spin, Tag, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchNavigation, fetchSceneMeta, type NavigationSceneView, type SceneMeta } from '../api/scene';
+import {
+  fetchNavigation,
+  fetchSceneMeta,
+  type NavigationSceneView,
+  type SceneMeta,
+} from '../api/scene';
 import SceneMap2D, { SceneNavigationList } from '../components/SceneMap2D';
 
 type ViewMode = 'map' | 'list';

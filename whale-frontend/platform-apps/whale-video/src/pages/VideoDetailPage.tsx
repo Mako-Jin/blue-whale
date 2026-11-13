@@ -52,7 +52,9 @@ export default function VideoDetailPage() {
           setSeries(null);
         }
       })
-      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : '视频加载失败'))
+      .catch((reason: unknown) =>
+        setError(reason instanceof Error ? reason.message : '视频加载失败'),
+      )
       .finally(() => setLoading(false));
   }, [contentId]);
 
@@ -131,7 +133,9 @@ export default function VideoDetailPage() {
 
       <Card styles={{ body: { padding: 0 } }}>
         <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-          <div style={{ flex: '1 1 560px', minWidth: 320, aspectRatio: '16 / 9', background: '#000' }}>
+          <div
+            style={{ flex: '1 1 560px', minWidth: 320, aspectRatio: '16 / 9', background: '#000' }}
+          >
             {detail.playable ? (
               <ContentPlayer contentId={detail.id} active fit="contain" />
             ) : (
@@ -152,9 +156,13 @@ export default function VideoDetailPage() {
             <Typography.Title level={4} style={{ marginTop: 0 }}>
               {detail.title}
             </Typography.Title>
-            {detail.subtitle ? <Typography.Text type="secondary">{detail.subtitle}</Typography.Text> : null}
+            {detail.subtitle ? (
+              <Typography.Text type="secondary">{detail.subtitle}</Typography.Text>
+            ) : null}
             {detail.description ? (
-              <Typography.Paragraph style={{ marginTop: 12 }}>{detail.description}</Typography.Paragraph>
+              <Typography.Paragraph style={{ marginTop: 12 }}>
+                {detail.description}
+              </Typography.Paragraph>
             ) : null}
             {detail.tags?.length ? (
               <Space wrap style={{ marginBottom: 12 }}>
@@ -167,12 +175,21 @@ export default function VideoDetailPage() {
             ) : null}
             <Descriptions column={1} size="small" style={{ marginBottom: 16 }}>
               <Descriptions.Item label="创作者">{detail.creatorName || '-'}</Descriptions.Item>
-              <Descriptions.Item label="时长">{formatDuration(detail.durationMs)}</Descriptions.Item>
+              <Descriptions.Item label="时长">
+                {formatDuration(detail.durationMs)}
+              </Descriptions.Item>
               <Descriptions.Item label="播放">{formatCount(detail.playCount)}</Descriptions.Item>
-              <Descriptions.Item label="发布时间">{formatDateTime(detail.publishedAt)}</Descriptions.Item>
+              <Descriptions.Item label="发布时间">
+                {formatDateTime(detail.publishedAt)}
+              </Descriptions.Item>
               {detail.seriesId && detail.seriesId > 0 ? (
                 <Descriptions.Item label="所属系列">
-                  <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate(`/series/${detail.seriesId}`)}>
+                  <Button
+                    type="link"
+                    size="small"
+                    style={{ padding: 0 }}
+                    onClick={() => navigate(`/series/${detail.seriesId}`)}
+                  >
                     {series?.title ?? `系列 #${detail.seriesId}`} · 第 {detail.episodeNo || 1} 集
                   </Button>
                 </Descriptions.Item>
@@ -205,7 +222,11 @@ export default function VideoDetailPage() {
       </Card>
 
       {series && series.episodes?.length ? (
-        <Card title={`系列：${series.title}`} size="small" extra={<Typography.Text type="secondary">共 {series.episodes.length} 集</Typography.Text>}>
+        <Card
+          title={`系列：${series.title}`}
+          size="small"
+          extra={<Typography.Text type="secondary">共 {series.episodes.length} 集</Typography.Text>}
+        >
           <Space wrap size={10}>
             {series.episodes.map((episode) => {
               const active = episode.id === detail.id;

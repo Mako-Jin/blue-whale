@@ -304,12 +304,7 @@ export type EmployeeChangeType = 'ONBOARD' | 'REGULAR' | 'TRANSFER' | 'LEAVE' | 
 
 /** 人员异动状态 */
 export type EmployeeChangeStatus =
-  | 'DRAFT'
-  | 'SUBMITTED'
-  | 'APPROVED'
-  | 'REJECTED'
-  | 'EXECUTED'
-  | 'EXEC_FAILED';
+  'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'EXECUTED' | 'EXEC_FAILED';
 
 /** 离职清单任务状态 */
 export type EmployeeChangeTaskStatus = 'PENDING' | 'DONE';
@@ -439,11 +434,6 @@ export function executeChange(id: number): Promise<EmployeeChangeExecuteResult> 
 }
 
 /** 完成离职清单任务 */
-export function doneChangeTask(
-  changeId: number,
-  taskId: number,
-  remark?: string,
-): Promise<void> {
+export function doneChangeTask(changeId: number, taskId: number, remark?: string): Promise<void> {
   return http.put<void>(`/oa/hr/change/${changeId}/tasks/${taskId}/done`, { remark });
 }
-

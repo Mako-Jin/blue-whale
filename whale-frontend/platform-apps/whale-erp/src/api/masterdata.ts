@@ -173,7 +173,9 @@ export function saveCustomer(input: ErpCustomerInput): Promise<ErpCustomer> {
 
 /** 仓库分页 */
 export function pageWarehouses(params: PageParams = {}): Promise<PageResult<ErpWarehouse>> {
-  return http.get<PageResult<ErpWarehouse>>(`/erp/master-data/warehouse/page?${buildQuery(params)}`);
+  return http.get<PageResult<ErpWarehouse>>(
+    `/erp/master-data/warehouse/page?${buildQuery(params)}`,
+  );
 }
 
 /** 保存仓库 */

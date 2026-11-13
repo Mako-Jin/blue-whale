@@ -127,7 +127,12 @@ export default function Scene3DPage() {
       />
 
       {webglError ? (
-        <Alert type="warning" showIcon message="当前环境无法初始化 WebGL" description={webglError} />
+        <Alert
+          type="warning"
+          showIcon
+          message="当前环境无法初始化 WebGL"
+          description={webglError}
+        />
       ) : null}
       {error ? <Alert type="warning" showIcon message={error} /> : null}
 
@@ -152,7 +157,8 @@ export default function Scene3DPage() {
         extra={
           activeScene ? (
             <Typography.Text type="secondary">
-              布局版本 {activeScene.layoutVersion ?? '尚未发布'} · 可见节点 {activeScene.nodes?.length ?? 0} 个
+              布局版本 {activeScene.layoutVersion ?? '尚未发布'} · 可见节点{' '}
+              {activeScene.nodes?.length ?? 0} 个
             </Typography.Text>
           ) : null
         }

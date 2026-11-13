@@ -85,13 +85,7 @@ function errorText(error: unknown): string {
 }
 
 /** 规则弹窗 */
-function RuleModal({
-  open,
-  onCancel,
-}: {
-  open: boolean;
-  onCancel: () => void;
-}) {
+function RuleModal({ open, onCancel }: { open: boolean; onCancel: () => void }) {
   const [form] = Form.useForm<RuleFormValues>();
   const [rule, setRule] = useState<PoolRuleView | null>(null);
   const [loading, setLoading] = useState(false);
@@ -160,7 +154,8 @@ function RuleModal({
       <Space direction="vertical" size={4} style={{ display: 'flex', marginBottom: 12 }}>
         {rule && (
           <Typography.Text type="secondary">
-            当前规则：{rule.ruleName ?? '未命名'}；上次执行：{formatDateTime(rule.lastRunAt)}；上次回收：{rule.recycleCount ?? 0} 个客户
+            当前规则：{rule.ruleName ?? '未命名'}；上次执行：{formatDateTime(rule.lastRunAt)}
+            ；上次回收：{rule.recycleCount ?? 0} 个客户
           </Typography.Text>
         )}
         <Typography.Text type="secondary">
@@ -183,7 +178,12 @@ function RuleModal({
           </Form.Item>
         </Space>
         <Space size={12} style={{ display: 'flex' }}>
-          <Form.Item name="levels" label="适用等级" style={{ flex: 1 }} extra="多个用英文逗号分隔，如 C,D">
+          <Form.Item
+            name="levels"
+            label="适用等级"
+            style={{ flex: 1 }}
+            extra="多个用英文逗号分隔，如 C,D"
+          >
             <Input maxLength={32} />
           </Form.Item>
           <Form.Item name="deptId" label="适用部门 ID" style={{ flex: 1 }}>
@@ -364,11 +364,7 @@ export default function PoolList() {
       dataIndex: 'level',
       width: 100,
       render: (value: string | null | undefined) =>
-        value ? (
-          <Tag color="blue">{CUSTOMER_LEVEL_LABEL[value] ?? value}</Tag>
-        ) : (
-          '-'
-        ),
+        value ? <Tag color="blue">{CUSTOMER_LEVEL_LABEL[value] ?? value}</Tag> : '-',
     },
     {
       title: '行业',

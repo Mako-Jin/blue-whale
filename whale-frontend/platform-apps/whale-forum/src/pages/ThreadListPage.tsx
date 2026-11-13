@@ -166,7 +166,11 @@ export default function ThreadListPage({ board, onOpenThread }: Props) {
           {board.description ? <Paragraph type="secondary">{board.description}</Paragraph> : null}
         </div>
         <Space wrap>
-          <Button type={boardFollowed ? 'primary' : 'default'} loading={followLoading} onClick={onToggleFollowBoard}>
+          <Button
+            type={boardFollowed ? 'primary' : 'default'}
+            loading={followLoading}
+            onClick={onToggleFollowBoard}
+          >
             {boardFollowed ? '已结契' : '结契版块'}
           </Button>
           <Segmented
@@ -232,7 +236,9 @@ export default function ThreadListPage({ board, onOpenThread }: Props) {
                 description={
                   <Space size={12} wrap>
                     <Text type="secondary">
-                      {item.anonymous === 1 ? `匿名鲸友 ${item.anonymousNo ?? ''}` : `鲸友 #${item.authorId}`}
+                      {item.anonymous === 1
+                        ? `匿名鲸友 ${item.anonymousNo ?? ''}`
+                        : `鲸友 #${item.authorId}`}
                     </Text>
                     <Text type="secondary">{item.publishTime ?? item.lastReplyTime ?? ''}</Text>
                     <Text type="secondary">回复 {item.replyCount}</Text>
@@ -240,7 +246,9 @@ export default function ThreadListPage({ board, onOpenThread }: Props) {
                   </Space>
                 }
               />
-              {item.summary ? <Paragraph className="forum-thread-summary">{item.summary}</Paragraph> : null}
+              {item.summary ? (
+                <Paragraph className="forum-thread-summary">{item.summary}</Paragraph>
+              ) : null}
             </List.Item>
           )}
         />
@@ -260,7 +268,10 @@ export default function ThreadListPage({ board, onOpenThread }: Props) {
           <Form.Item
             name="title"
             label="标题"
-            rules={[{ required: true, message: '请输入标题' }, { max: 120, message: '标题不超过 120 字' }]}
+            rules={[
+              { required: true, message: '请输入标题' },
+              { max: 120, message: '标题不超过 120 字' },
+            ]}
           >
             <Input placeholder="一句话说清主题" />
           </Form.Item>

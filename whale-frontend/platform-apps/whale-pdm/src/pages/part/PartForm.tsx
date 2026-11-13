@@ -105,12 +105,20 @@ export default function PartForm({ open, initial, onCancel, onSaved }: PartFormP
       >
         <Row gutter={16}>
           <Col span={12}>
-            <Form.Item name="code" label="零件编码" rules={[{ required: true, message: '请输入零件编码' }]}>
+            <Form.Item
+              name="code"
+              label="零件编码"
+              rules={[{ required: true, message: '请输入零件编码' }]}
+            >
               <Input placeholder="如 P-1001" disabled={Boolean(initial)} />
             </Form.Item>
           </Col>
           <Col span={12}>
-            <Form.Item name="name" label="零件名称" rules={[{ required: true, message: '请输入零件名称' }]}>
+            <Form.Item
+              name="name"
+              label="零件名称"
+              rules={[{ required: true, message: '请输入零件名称' }]}
+            >
               <Input placeholder="请输入零件名称" />
             </Form.Item>
           </Col>

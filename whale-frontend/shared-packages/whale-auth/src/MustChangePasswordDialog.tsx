@@ -86,7 +86,11 @@ const inputStyle: CSSProperties = {
 const dangerStyle: CSSProperties = { color: '#ff4d4f', fontSize: 12, marginTop: 8 };
 const hintStyle: CSSProperties = { color: 'rgba(0, 0, 0, 0.45)', fontSize: 12, marginTop: 8 };
 
-export function MustChangePasswordDialog({ baseUrl = '', getToken, onSuccess }: MustChangePasswordDialogProps) {
+export function MustChangePasswordDialog({
+  baseUrl = '',
+  getToken,
+  onSuccess,
+}: MustChangePasswordDialogProps) {
   const [oldPassword, setOldPassword] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');

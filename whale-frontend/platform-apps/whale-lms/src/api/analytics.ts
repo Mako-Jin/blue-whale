@@ -74,7 +74,9 @@ export function getOverview(statDate?: string) {
 
 /** 刷新并落库某统计日快照（同日重跑覆盖） */
 export function refreshSnapshot(statDate?: string) {
-  return http.post<RefreshResult>(`/lms/analytics/refresh${statDate ? `?statDate=${statDate}` : ''}`);
+  return http.post<RefreshResult>(
+    `/lms/analytics/refresh${statDate ? `?statDate=${statDate}` : ''}`,
+  );
 }
 
 /** 历史快照分页 */

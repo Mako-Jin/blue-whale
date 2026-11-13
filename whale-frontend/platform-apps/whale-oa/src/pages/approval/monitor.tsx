@@ -84,8 +84,12 @@ export default function ApprovalMonitor() {
       dataIndex: 'status',
       width: 95,
       render: (value: number | undefined, row) => (
-        <Tag color={value === 1 ? 'success' : value === 2 ? 'error' : value === 3 ? 'default' : 'processing'}>
-          {row.statusName ?? (value === undefined ? '-' : INSTANCE_STATUS[value] ?? value)}
+        <Tag
+          color={
+            value === 1 ? 'success' : value === 2 ? 'error' : value === 3 ? 'default' : 'processing'
+          }
+        >
+          {row.statusName ?? (value === undefined ? '-' : (INSTANCE_STATUS[value] ?? value))}
         </Tag>
       ),
     },

@@ -144,7 +144,7 @@ export default function CalendarCenter() {
       dataIndex: 'workHours',
       key: 'workHours',
       width: 100,
-      render: (value?: number) => (value ?? 8),
+      render: (value?: number) => value ?? 8,
     },
     {
       title: '节假日名称',

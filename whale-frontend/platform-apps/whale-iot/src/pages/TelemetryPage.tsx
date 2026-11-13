@@ -75,7 +75,9 @@ export default function TelemetryPage() {
   useEffect(() => () => stopStream(), [stopStream]);
 
   const appendLine = useCallback((kind: StreamLine['kind'], text: string) => {
-    setLines((prev) => [{ kind, text, time: new Date().toLocaleTimeString() }, ...prev].slice(0, 200));
+    setLines((prev) =>
+      [{ kind, text, time: new Date().toLocaleTimeString() }, ...prev].slice(0, 200),
+    );
   }, []);
 
   const loadSnapshot = useCallback(
@@ -151,7 +153,10 @@ export default function TelemetryPage() {
       }
     }
     try {
-      const command = await deviceApi.sendCommand(deviceId, { identifier: values.identifier, params });
+      const command = await deviceApi.sendCommand(deviceId, {
+        identifier: values.identifier,
+        params,
+      });
       message.success(`指令已创建：${command.messageId ?? command.id}`);
       commandForm.resetFields();
       void loadSnapshot(deviceId);
@@ -167,7 +172,8 @@ export default function TelemetryPage() {
     <>
       <h2 className="iot-page-title">遥测与影子</h2>
       <p className="iot-page-desc">
-        选择设备后订阅实时流：遥测落库即刻推送，指令回执按 messageId 收敛（待投递 → 已下发 → 成功/失败）。
+        选择设备后订阅实时流：遥测落库即刻推送，指令回执按 messageId 收敛（待投递 → 已下发 →
+        成功/失败）。
       </p>
 
       <Space wrap style={{ marginBottom: 16 }}>
@@ -202,7 +208,10 @@ export default function TelemetryPage() {
         >
           刷新快照
         </Button>
-        <Badge status={streaming ? 'processing' : 'default'} text={streaming ? '订阅中' : '未订阅'} />
+        <Badge
+          status={streaming ? 'processing' : 'default'}
+          text={streaming ? '订阅中' : '未订阅'}
+        />
       </Space>
 
       <Row gutter={16}>
@@ -266,13 +275,24 @@ export default function TelemetryPage() {
             }
           >
             {lines.length === 0 ? (
-              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="订阅后实时显示遥测、事件与指令状态" />
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description="订阅后实时显示遥测、事件与指令状态"
+              />
             ) : (
               <div className="iot-stream-list">
                 {lines.map((line, index) => (
                   <div key={`${line.time}-${index}`}>
                     <Typography.Text type="secondary">{line.time}</Typography.Text>{' '}
-                    <Tag color={line.kind === 'command' ? 'processing' : line.kind === 'event' ? 'purple' : 'default'}>
+                    <Tag
+                      color={
+                        line.kind === 'command'
+                          ? 'processing'
+                          : line.kind === 'event'
+                            ? 'purple'
+                            : 'default'
+                      }
+                    >
                       {line.kind}
                     </Tag>
                     <span className="iot-mono">{line.text}</span>
@@ -304,8 +324,12 @@ export default function TelemetryPage() {
                   key: 'payload',
                   render: (_, row) => (
                     <span className="iot-mono">
-                      {row.params === undefined || row.params === null ? '-' : JSON.stringify(row.params)}
-                      {row.reply === undefined || row.reply === null ? '' : ` → ${JSON.stringify(row.reply)}`}
+                      {row.params === undefined || row.params === null
+                        ? '-'
+                        : JSON.stringify(row.params)}
+                      {row.reply === undefined || row.reply === null
+                        ? ''
+                        : ` → ${JSON.stringify(row.reply)}`}
                     </span>
                   ),
                 },

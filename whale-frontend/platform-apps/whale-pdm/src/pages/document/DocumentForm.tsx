@@ -80,7 +80,12 @@ export default function DocumentForm({
           label="所属目录"
           rules={[{ required: true, message: '请选择所属目录' }]}
         >
-          <Select options={folderOptions} placeholder="请选择目录" showSearch optionFilterProp="label" />
+          <Select
+            options={folderOptions}
+            placeholder="请选择目录"
+            showSearch
+            optionFilterProp="label"
+          />
         </Form.Item>
         <Form.Item name="docNo" label="文档编号">
           <Input placeholder="留空则自动生成，如 DOC-20261104-000001" disabled={Boolean(initial)} />

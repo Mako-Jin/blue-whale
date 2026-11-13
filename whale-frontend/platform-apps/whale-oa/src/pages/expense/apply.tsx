@@ -123,7 +123,14 @@ export default function ExpenseApplyPage() {
       applicant: user?.nickname ?? user?.username ?? '',
       applicantId: typeof user?.userId === 'number' ? user.userId : undefined,
       currency: 'CNY',
-      items: [{ categoryCode: undefined as unknown as string, expenseDate: dayjs(), amount: 0, taxAmount: 0 }],
+      items: [
+        {
+          categoryCode: undefined as unknown as string,
+          expenseDate: dayjs(),
+          amount: 0,
+          taxAmount: 0,
+        },
+      ],
       invoices: [],
     });
     setModalOpen(true);
@@ -302,7 +309,10 @@ export default function ExpenseApplyPage() {
           placeholder="状态"
           style={{ width: 130 }}
           value={status || undefined}
-          options={Object.entries(STATUS_META).map(([value, meta]) => ({ label: meta.text, value }))}
+          options={Object.entries(STATUS_META).map(([value, meta]) => ({
+            label: meta.text,
+            value,
+          }))}
           onChange={(value) => {
             setStatus((value as OaExpenseStatus) ?? '');
             setCurrent(1);
@@ -343,7 +353,12 @@ export default function ExpenseApplyPage() {
       >
         <Form form={form} layout="vertical">
           <Space size="middle" style={{ display: 'flex' }}>
-            <Form.Item name="applicant" label="申请人" rules={[{ required: true, message: '请输入申请人' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="applicant"
+              label="申请人"
+              rules={[{ required: true, message: '请输入申请人' }]}
+              style={{ flex: 1 }}
+            >
               <Input maxLength={64} />
             </Form.Item>
             <Form.Item name="applicantId" label="申请人ID" style={{ flex: 1 }}>
@@ -354,10 +369,20 @@ export default function ExpenseApplyPage() {
             </Form.Item>
           </Space>
           <Space size="middle" style={{ display: 'flex' }}>
-            <Form.Item name="categoryCode" label="费用类别" rules={[{ required: true, message: '请选择费用类别' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="categoryCode"
+              label="费用类别"
+              rules={[{ required: true, message: '请选择费用类别' }]}
+              style={{ flex: 1 }}
+            >
               <Select options={categoryOptions} placeholder="请选择" />
             </Form.Item>
-            <Form.Item name="title" label="报销事由" rules={[{ required: true, message: '请输入报销事由' }]} style={{ flex: 2 }}>
+            <Form.Item
+              name="title"
+              label="报销事由"
+              rules={[{ required: true, message: '请输入报销事由' }]}
+              style={{ flex: 2 }}
+            >
               <Input maxLength={128} />
             </Form.Item>
             <Form.Item name="currency" label="币种" style={{ flex: 1 }}>
@@ -369,7 +394,10 @@ export default function ExpenseApplyPage() {
               <Space direction="vertical" size="small" style={{ width: '100%' }}>
                 <Space>
                   <span>费用明细（合计由服务端重算）</span>
-                  <Button size="small" onClick={() => add({ expenseDate: dayjs(), amount: 0, taxAmount: 0 })}>
+                  <Button
+                    size="small"
+                    onClick={() => add({ expenseDate: dayjs(), amount: 0, taxAmount: 0 })}
+                  >
                     添加明细
                   </Button>
                 </Space>
@@ -381,14 +409,30 @@ export default function ExpenseApplyPage() {
                     >
                       <Select style={{ width: 200 }} options={categoryOptions} placeholder="类别" />
                     </Form.Item>
-                    <Form.Item name={[field.name, 'expenseDate']} rules={[{ required: true, message: '日期必填' }]}>
+                    <Form.Item
+                      name={[field.name, 'expenseDate']}
+                      rules={[{ required: true, message: '日期必填' }]}
+                    >
                       <DatePicker placeholder="日期" />
                     </Form.Item>
-                    <Form.Item name={[field.name, 'amount']} rules={[{ required: true, message: '金额必填' }]}>
-                      <InputNumber style={{ width: 130 }} min={0} precision={2} placeholder="金额" />
+                    <Form.Item
+                      name={[field.name, 'amount']}
+                      rules={[{ required: true, message: '金额必填' }]}
+                    >
+                      <InputNumber
+                        style={{ width: 130 }}
+                        min={0}
+                        precision={2}
+                        placeholder="金额"
+                      />
                     </Form.Item>
                     <Form.Item name={[field.name, 'taxAmount']}>
-                      <InputNumber style={{ width: 120 }} min={0} precision={2} placeholder="税额" />
+                      <InputNumber
+                        style={{ width: 120 }}
+                        min={0}
+                        precision={2}
+                        placeholder="税额"
+                      />
                     </Form.Item>
                     <Form.Item name={[field.name, 'description']}>
                       <Input style={{ width: 220 }} placeholder="说明" maxLength={255} />
@@ -412,7 +456,10 @@ export default function ExpenseApplyPage() {
                 </Space>
                 {fields.map((field) => (
                   <Space key={field.key} size="small" align="baseline" wrap>
-                    <Form.Item name={[field.name, 'invoiceNo']} rules={[{ required: true, message: '发票号必填' }]}>
+                    <Form.Item
+                      name={[field.name, 'invoiceNo']}
+                      rules={[{ required: true, message: '发票号必填' }]}
+                    >
                       <Input style={{ width: 170 }} placeholder="发票号" maxLength={64} />
                     </Form.Item>
                     <Form.Item name={[field.name, 'invoiceCode']}>
@@ -422,10 +469,20 @@ export default function ExpenseApplyPage() {
                       <DatePicker placeholder="开票日期" />
                     </Form.Item>
                     <Form.Item name={[field.name, 'amount']}>
-                      <InputNumber style={{ width: 120 }} min={0} precision={2} placeholder="金额" />
+                      <InputNumber
+                        style={{ width: 120 }}
+                        min={0}
+                        precision={2}
+                        placeholder="金额"
+                      />
                     </Form.Item>
                     <Form.Item name={[field.name, 'taxAmount']}>
-                      <InputNumber style={{ width: 110 }} min={0} precision={2} placeholder="税额" />
+                      <InputNumber
+                        style={{ width: 110 }}
+                        min={0}
+                        precision={2}
+                        placeholder="税额"
+                      />
                     </Form.Item>
                     <Button type="link" size="small" danger onClick={() => remove(field.name)}>
                       移除

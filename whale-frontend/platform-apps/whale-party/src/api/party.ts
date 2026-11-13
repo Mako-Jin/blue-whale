@@ -220,7 +220,11 @@ export function updateMember(id: number, command: MemberSaveCommand): Promise<Me
  * @param remark 转出说明
  * @returns 档案视图
  */
-export function transferMember(id: number, transferDate?: string, remark?: string): Promise<MemberView> {
+export function transferMember(
+  id: number,
+  transferDate?: string,
+  remark?: string,
+): Promise<MemberView> {
   return http.post<MemberView>(`/party/member/${id}/transfer`, { transferDate, remark });
 }
 
@@ -340,7 +344,11 @@ export function updateActivity(id: number, command: ActivitySaveCommand): Promis
  * @param summary 会议纪要
  * @returns 视图
  */
-export function completeActivity(id: number, heldDate?: string, summary?: string): Promise<ActivityView> {
+export function completeActivity(
+  id: number,
+  heldDate?: string,
+  summary?: string,
+): Promise<ActivityView> {
   const params = new URLSearchParams();
   if (heldDate) {
     params.set('heldDate', heldDate);
@@ -464,7 +472,10 @@ export function pageFeeBill(query: FeeBillQuery): Promise<PageResult<FeeBillView
  * @param branchId 支部 ID
  * @returns 生成结果
  */
-export function generateFeeBills(periodMonth: string, branchId?: number): Promise<FeeGenerateResult> {
+export function generateFeeBills(
+  periodMonth: string,
+  branchId?: number,
+): Promise<FeeGenerateResult> {
   const params = new URLSearchParams({ periodMonth });
   if (branchId) {
     params.set('branchId', String(branchId));
@@ -999,7 +1010,10 @@ export function createUnionMember(command: UnionMemberSaveCommand): Promise<Unio
  * @param command 保存命令
  * @returns 会员视图
  */
-export function updateUnionMember(id: number, command: UnionMemberSaveCommand): Promise<UnionMemberView> {
+export function updateUnionMember(
+  id: number,
+  command: UnionMemberSaveCommand,
+): Promise<UnionMemberView> {
   return http.put<UnionMemberView>(`/party/union/member/${id}`, command);
 }
 
@@ -1051,7 +1065,10 @@ export function createUnionRelief(command: UnionReliefSaveCommand): Promise<Unio
  * @param command 保存命令
  * @returns 申请视图
  */
-export function updateUnionRelief(id: number, command: UnionReliefSaveCommand): Promise<UnionReliefView> {
+export function updateUnionRelief(
+  id: number,
+  command: UnionReliefSaveCommand,
+): Promise<UnionReliefView> {
   return http.put<UnionReliefView>(`/party/union/relief/${id}`, command);
 }
 
@@ -1122,7 +1139,10 @@ export function createUnionWelfare(command: UnionWelfareSaveCommand): Promise<Un
  * @param command 保存命令
  * @returns 视图
  */
-export function updateUnionWelfare(id: number, command: UnionWelfareSaveCommand): Promise<UnionWelfareView> {
+export function updateUnionWelfare(
+  id: number,
+  command: UnionWelfareSaveCommand,
+): Promise<UnionWelfareView> {
   return http.put<UnionWelfareView>(`/party/union/welfare/${id}`, command);
 }
 
@@ -1133,7 +1153,10 @@ export function updateUnionWelfare(id: number, command: UnionWelfareSaveCommand)
  * @param command 发放名单
  * @returns 视图（issueCount 可能为空）
  */
-export function issueUnionWelfare(id: number, command: UnionWelfareIssueCommand): Promise<UnionWelfareView> {
+export function issueUnionWelfare(
+  id: number,
+  command: UnionWelfareIssueCommand,
+): Promise<UnionWelfareView> {
   return http.post<UnionWelfareView>(`/party/union/welfare/${id}/issue`, command);
 }
 
@@ -1148,7 +1171,9 @@ export function pageUnionWelfareItems(
   id: number,
   query: UnionWelfareItemQuery,
 ): Promise<PageResult<UnionWelfareItemView>> {
-  return http.get<PageResult<UnionWelfareItemView>>(`/party/union/welfare/${id}/items`, { ...query });
+  return http.get<PageResult<UnionWelfareItemView>>(`/party/union/welfare/${id}/items`, {
+    ...query,
+  });
 }
 
 /**
@@ -1177,7 +1202,9 @@ export function closeUnionWelfare(id: number): Promise<UnionWelfareView> {
  * @param query 查询条件
  * @returns 分页结果
  */
-export function pageMyUnionWelfares(query: UnionWelfareItemQuery): Promise<PageResult<UnionWelfareItemView>> {
+export function pageMyUnionWelfares(
+  query: UnionWelfareItemQuery,
+): Promise<PageResult<UnionWelfareItemView>> {
   return http.get<PageResult<UnionWelfareItemView>>('/party/union/welfare/my', { ...query });
 }
 
@@ -1187,7 +1214,9 @@ export function pageMyUnionWelfares(query: UnionWelfareItemQuery): Promise<PageR
  * @param query 查询条件
  * @returns 分页结果
  */
-export function pageUnionActivities(query: UnionActivityQuery): Promise<PageResult<UnionActivityView>> {
+export function pageUnionActivities(
+  query: UnionActivityQuery,
+): Promise<PageResult<UnionActivityView>> {
   return http.get<PageResult<UnionActivityView>>('/party/union/activity/page', { ...query });
 }
 
@@ -1218,7 +1247,10 @@ export function createUnionActivity(command: UnionActivitySaveCommand): Promise<
  * @param command 保存命令
  * @returns 视图
  */
-export function updateUnionActivity(id: number, command: UnionActivitySaveCommand): Promise<UnionActivityView> {
+export function updateUnionActivity(
+  id: number,
+  command: UnionActivitySaveCommand,
+): Promise<UnionActivityView> {
   return http.put<UnionActivityView>(`/party/union/activity/${id}`, command);
 }
 
@@ -1314,7 +1346,9 @@ export function cancelUnionActivitySignup(id: number): Promise<UnionSignupView> 
  * @param query 查询条件
  * @returns 分页结果
  */
-export function pageMyUnionActivities(query: UnionActivitySignupQuery): Promise<PageResult<UnionSignupView>> {
+export function pageMyUnionActivities(
+  query: UnionActivitySignupQuery,
+): Promise<PageResult<UnionSignupView>> {
   return http.get<PageResult<UnionSignupView>>('/party/union/activity/my', { ...query });
 }
 
@@ -1324,7 +1358,9 @@ export function pageMyUnionActivities(query: UnionActivitySignupQuery): Promise<
  * @param query 查询条件
  * @returns 分页结果
  */
-export function pageUnionProposals(query: UnionProposalQuery): Promise<PageResult<UnionProposalView>> {
+export function pageUnionProposals(
+  query: UnionProposalQuery,
+): Promise<PageResult<UnionProposalView>> {
   return http.get<PageResult<UnionProposalView>>('/party/union/proposal/page', { ...query });
 }
 
@@ -1495,7 +1531,10 @@ export interface NotifyLogQuery {
  * @param branchId 支部 ID
  * @returns 总览
  */
-export function getPartyOverview(statDate?: string, branchId?: number): Promise<MetricOverviewView> {
+export function getPartyOverview(
+  statDate?: string,
+  branchId?: number,
+): Promise<MetricOverviewView> {
   return http.get<MetricOverviewView>('/party/metric/overview', { statDate, branchId });
 }
 
@@ -1506,7 +1545,9 @@ export function getPartyOverview(statDate?: string, branchId?: number): Promise<
  * @returns 全租户指标
  */
 export function refreshPartyMetric(statDate?: string): Promise<MetricItemView[]> {
-  return http.post<MetricItemView[]>(`/party/metric/refresh${statDate ? `?statDate=${statDate}` : ''}`);
+  return http.post<MetricItemView[]>(
+    `/party/metric/refresh${statDate ? `?statDate=${statDate}` : ''}`,
+  );
 }
 
 /**
@@ -1526,7 +1567,9 @@ export function getUnionOverview(statDate?: string): Promise<MetricOverviewView>
  * @returns 指标
  */
 export function refreshUnionMetric(statDate?: string): Promise<MetricItemView[]> {
-  return http.post<MetricItemView[]>(`/party/union/metric/refresh${statDate ? `?statDate=${statDate}` : ''}`);
+  return http.post<MetricItemView[]>(
+    `/party/union/metric/refresh${statDate ? `?statDate=${statDate}` : ''}`,
+  );
 }
 
 /**

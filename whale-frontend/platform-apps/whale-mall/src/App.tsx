@@ -33,7 +33,9 @@ const MENU_ITEMS = [
 ];
 
 /** 当前账号可见的菜单 */
-const visibleItems = MENU_ITEMS.filter((item) => !item.permission || hasPermission(item.permission));
+const visibleItems = MENU_ITEMS.filter(
+  (item) => !item.permission || hasPermission(item.permission),
+);
 
 const menuItems: MenuProps['items'] = visibleItems.map(({ key, label }) => ({ key, label }));
 

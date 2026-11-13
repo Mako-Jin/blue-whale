@@ -124,7 +124,9 @@ export function streamChat(
       }
       switch (event) {
         case 'meta':
-          handlers.onMeta?.(parsed as { assistantId?: string; intent?: string; degraded?: boolean });
+          handlers.onMeta?.(
+            parsed as { assistantId?: string; intent?: string; degraded?: boolean },
+          );
           break;
         case 'delta':
           handlers.onDelta?.(String(parsed.text ?? ''));

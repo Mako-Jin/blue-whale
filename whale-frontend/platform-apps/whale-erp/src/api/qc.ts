@@ -418,9 +418,7 @@ function buildQuery(params: QcQueryParams): string {
 }
 
 /** 检验单分页 */
-export function pageInspections(
-  params: QcQueryParams = {},
-): Promise<PageResult<InspectionView>> {
+export function pageInspections(params: QcQueryParams = {}): Promise<PageResult<InspectionView>> {
   return http.get<PageResult<InspectionView>>(`/erp/qc/inspection/page?${buildQuery(params)}`);
 }
 
@@ -468,9 +466,7 @@ export function closeNcr(id: number, input: NcrCloseInput): Promise<NcrView> {
 }
 
 /** 质量成本分页 */
-export function pageQualityCost(
-  params: QcQueryParams = {},
-): Promise<PageResult<QualityCostView>> {
+export function pageQualityCost(params: QcQueryParams = {}): Promise<PageResult<QualityCostView>> {
   return http.get<PageResult<QualityCostView>>(`/erp/qc/quality-cost/page?${buildQuery(params)}`);
 }
 
@@ -485,7 +481,10 @@ export function createEquipment(input: EquipmentInput): Promise<EquipmentView> {
 }
 
 /** 编辑设备档案 */
-export function updateEquipment(equipmentNo: string, input: EquipmentInput): Promise<EquipmentView> {
+export function updateEquipment(
+  equipmentNo: string,
+  input: EquipmentInput,
+): Promise<EquipmentView> {
   return http.put<EquipmentView>(`/erp/qc/equipment/${equipmentNo}`, input);
 }
 
@@ -499,9 +498,7 @@ export function pageMaintenancePlans(
 }
 
 /** 新增保养计划 */
-export function createMaintenancePlan(
-  input: MaintenancePlanInput,
-): Promise<MaintenancePlanView> {
+export function createMaintenancePlan(input: MaintenancePlanInput): Promise<MaintenancePlanView> {
   return http.post<MaintenancePlanView>('/erp/qc/maintenance/plan', input);
 }
 
@@ -548,10 +545,10 @@ export function recordOee(input: OeeRecordInput): Promise<OeeRecordView> {
 }
 
 /** 量具分页 */
-export function pageTools(
-  params: QcQueryParams = {},
-): Promise<PageResult<MeasuringToolView>> {
-  return http.get<PageResult<MeasuringToolView>>(`/erp/qc/metrology/tool/page?${buildQuery(params)}`);
+export function pageTools(params: QcQueryParams = {}): Promise<PageResult<MeasuringToolView>> {
+  return http.get<PageResult<MeasuringToolView>>(
+    `/erp/qc/metrology/tool/page?${buildQuery(params)}`,
+  );
 }
 
 /** 新增量具 */
@@ -574,9 +571,7 @@ export function pageCalibrationPlans(
 }
 
 /** 新增校准计划 */
-export function createCalibrationPlan(
-  input: CalibrationPlanInput,
-): Promise<CalibrationPlanView> {
+export function createCalibrationPlan(input: CalibrationPlanInput): Promise<CalibrationPlanView> {
   return http.post<CalibrationPlanView>('/erp/qc/metrology/plan', input);
 }
 

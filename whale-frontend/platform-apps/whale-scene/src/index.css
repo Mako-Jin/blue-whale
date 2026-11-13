@@ -45,7 +45,9 @@ body {
   background: #fff;
   box-shadow: 0 2px 6px rgba(31, 56, 106, 0.08);
   cursor: pointer;
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  transition:
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .scene-map-node:hover,

@@ -25,7 +25,12 @@ import {
   type PreviewStatus,
   type PreviewType,
 } from '../../api/collab';
-import { listVersions, pageDocuments, type PdmDocument, type PdmDocumentVersion } from '../../api/document';
+import {
+  listVersions,
+  pageDocuments,
+  type PdmDocument,
+  type PdmDocumentVersion,
+} from '../../api/document';
 import { hasPermission } from '../../utils/permission';
 
 /** 预览状态文案与颜色 */
@@ -221,10 +226,24 @@ export default function PreviewCenter() {
       return <Empty description="选择文档与版本后发起预览" />;
     }
     if (job.status === 'UNSUPPORTED' || job.status === 'FAILED') {
-      return <Alert type="warning" showIcon message="无法在线预览" description={job.lastError ?? '未知原因'} />;
+      return (
+        <Alert
+          type="warning"
+          showIcon
+          message="无法在线预览"
+          description={job.lastError ?? '未知原因'}
+        />
+      );
     }
     if (job.status !== 'SUCCESS') {
-      return <Alert type="info" showIcon message="预览处理中" description={job.lastError ?? '请稍后重试'} />;
+      return (
+        <Alert
+          type="info"
+          showIcon
+          message="预览处理中"
+          description={job.lastError ?? '请稍后重试'}
+        />
+      );
     }
     if (job.viewerHint === 'STL' || job.viewerHint === 'GLTF') {
       return (
@@ -277,11 +296,19 @@ export default function PreviewCenter() {
               options={versionOptions}
               onChange={setVersionId}
             />
-            <Radio.Group value={previewType} onChange={(event) => setPreviewType(event.target.value)}>
+            <Radio.Group
+              value={previewType}
+              onChange={(event) => setPreviewType(event.target.value)}
+            >
               <Radio.Button value="2D">2D 图纸/文档</Radio.Button>
               <Radio.Button value="3D">3D 模型</Radio.Button>
             </Radio.Group>
-            <Button type="primary" disabled={!canCreate} loading={loading} onClick={() => void onCreate()}>
+            <Button
+              type="primary"
+              disabled={!canCreate}
+              loading={loading}
+              onClick={() => void onCreate()}
+            >
               发起预览
             </Button>
             {job ? (
@@ -291,8 +318,12 @@ export default function PreviewCenter() {
                     <Tag color={STATUS_META[job.status].color}>{STATUS_META[job.status].text}</Tag>
                     <Typography.Text type="secondary">重试 {job.retryCount} 次</Typography.Text>
                   </Space>
-                  {job.viewerHint ? <Typography.Text>查看器：{job.viewerHint}</Typography.Text> : null}
-                  {job.lastError ? <Typography.Text type="warning">{job.lastError}</Typography.Text> : null}
+                  {job.viewerHint ? (
+                    <Typography.Text>查看器：{job.viewerHint}</Typography.Text>
+                  ) : null}
+                  {job.lastError ? (
+                    <Typography.Text type="warning">{job.lastError}</Typography.Text>
+                  ) : null}
                   {job.status !== 'SUCCESS' && canRetry ? (
                     <Button size="small" onClick={() => void onRetry(job.id)}>
                       重试

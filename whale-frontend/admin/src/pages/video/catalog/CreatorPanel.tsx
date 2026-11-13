@@ -124,7 +124,13 @@ export default function CreatorPanel() {
       width: 80,
       render: (value?: string) =>
         value ? (
-          <Image src={value} alt="头像" width={40} height={40} style={{ objectFit: 'cover', borderRadius: 20 }} />
+          <Image
+            src={value}
+            alt="头像"
+            width={40}
+            height={40}
+            style={{ objectFit: 'cover', borderRadius: 20 }}
+          />
         ) : (
           <Avatar size={40}>创</Avatar>
         ),
@@ -177,10 +183,17 @@ export default function CreatorPanel() {
           ) : null}
           {has('sys:video:creator:manage') ? (
             <Popconfirm
-              title={row.status === 1 ? '停用后该创作者不可发布新内容，确认停用？' : '确认启用该创作者？'}
+              title={
+                row.status === 1 ? '停用后该创作者不可发布新内容，确认停用？' : '确认启用该创作者？'
+              }
               onConfirm={() => void toggleStatus(row, row.status !== 1)}
             >
-              <Button type="link" size="small" danger={row.status === 1} loading={actingId === row.id}>
+              <Button
+                type="link"
+                size="small"
+                danger={row.status === 1}
+                loading={actingId === row.id}
+              >
                 {row.status === 1 ? '停用' : '启用'}
               </Button>
             </Popconfirm>
@@ -199,15 +212,28 @@ export default function CreatorPanel() {
         columns={columns}
         request={pageCreators}
         params={{ keyword, status }}
-        onError={(error) => message.error(error instanceof Error ? error.message : '创作者列表加载失败')}
+        onError={(error) =>
+          message.error(error instanceof Error ? error.message : '创作者列表加载失败')
+        }
         search={
           <SearchForm
             items={[
-              { name: 'keyword', label: '关键词', element: <Input allowClear placeholder="创作者昵称" /> },
+              {
+                name: 'keyword',
+                label: '关键词',
+                element: <Input allowClear placeholder="创作者昵称" />,
+              },
               {
                 name: 'status',
                 label: '状态',
-                element: <Select allowClear placeholder="全部" style={{ width: 120 }} options={STATUS_OPTIONS} />,
+                element: (
+                  <Select
+                    allowClear
+                    placeholder="全部"
+                    style={{ width: 120 }}
+                    options={STATUS_OPTIONS}
+                  />
+                ),
               },
             ]}
             onSearch={(values) => {
@@ -240,9 +266,17 @@ export default function CreatorPanel() {
             {avatarFileId === '0' ? (
               <Typography.Text type="secondary">已清除头像（保存后生效）</Typography.Text>
             ) : avatarFileId ? (
-              <Typography.Text type="secondary">已上传头像：{avatarName || `文件 ID ${avatarFileId}`}</Typography.Text>
+              <Typography.Text type="secondary">
+                已上传头像：{avatarName || `文件 ID ${avatarFileId}`}
+              </Typography.Text>
             ) : editing?.avatarUrl ? (
-              <Image src={editing.avatarUrl} width={64} height={64} style={{ objectFit: 'cover', borderRadius: 32 }} alt="当前头像" />
+              <Image
+                src={editing.avatarUrl}
+                width={64}
+                height={64}
+                style={{ objectFit: 'cover', borderRadius: 32 }}
+                alt="当前头像"
+              />
             ) : (
               <Typography.Text type="secondary">暂无头像</Typography.Text>
             )}
@@ -256,7 +290,9 @@ export default function CreatorPanel() {
                 }}
               >
                 <Button loading={uploadingAvatar}>
-                  {avatarFileId !== '0' && (avatarFileId || editing?.avatarUrl) ? '重新上传头像' : '上传头像'}
+                  {avatarFileId !== '0' && (avatarFileId || editing?.avatarUrl)
+                    ? '重新上传头像'
+                    : '上传头像'}
                 </Button>
               </Upload>
               {editing?.avatarUrl || (avatarFileId && avatarFileId !== '0') ? (
@@ -273,13 +309,22 @@ export default function CreatorPanel() {
             </Space>
           </Space>
         </Form.Item>
-        <Form.Item name="displayName" label="创作者昵称" rules={[{ required: true, message: '请输入创作者昵称' }]}>
+        <Form.Item
+          name="displayName"
+          label="创作者昵称"
+          rules={[{ required: true, message: '请输入创作者昵称' }]}
+        >
           <Input maxLength={64} showCount />
         </Form.Item>
         <Form.Item name="bio" label="简介">
           <Input.TextArea maxLength={500} showCount autoSize={{ minRows: 3, maxRows: 6 }} />
         </Form.Item>
-        <Form.Item name="enabled" label="启用状态" valuePropName="checked" extra="停用后该创作者不可发布新内容">
+        <Form.Item
+          name="enabled"
+          label="启用状态"
+          valuePropName="checked"
+          extra="停用后该创作者不可发布新内容"
+        >
           <Switch checkedChildren="启用" unCheckedChildren="停用" />
         </Form.Item>
       </FormModal>

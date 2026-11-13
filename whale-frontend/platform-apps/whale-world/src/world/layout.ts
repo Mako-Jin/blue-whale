@@ -223,7 +223,19 @@ export const PALACE_COLLIDERS: ColliderSpec[] = PALACES.map((pal) => ({
 
 /** 三层城墙的几何参数（半边长 / 墙厚 / 门洞半宽） */
 export const WALL_RINGS = [
-  { half: CITY_GEOMETRY.outerWall, thick: CITY_GEOMETRY.wallThickness.outer, gate: GATE_HALF.outer },
-  { half: CITY_GEOMETRY.innerWall, thick: CITY_GEOMETRY.wallThickness.inner, gate: GATE_HALF.inner },
-  { half: CITY_GEOMETRY.royalWall, thick: CITY_GEOMETRY.wallThickness.royal, gate: GATE_HALF.royal },
+  {
+    half: CITY_GEOMETRY.outerWall,
+    thick: CITY_GEOMETRY.wallThickness.outer,
+    gate: GATE_HALF.outer,
+  },
+  {
+    half: CITY_GEOMETRY.innerWall,
+    thick: CITY_GEOMETRY.wallThickness.inner,
+    gate: GATE_HALF.inner,
+  },
+  {
+    half: CITY_GEOMETRY.royalWall,
+    thick: CITY_GEOMETRY.wallThickness.royal,
+    gate: GATE_HALF.royal,
+  },
 ] as const;

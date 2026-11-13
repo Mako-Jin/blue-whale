@@ -438,7 +438,12 @@ export default function CartPage() {
           <Button onClick={() => void openAdd()} disabled={!channelId}>
             加入购物车
           </Button>
-          <Button type="primary" loading={previewLoading} disabled={!channelId} onClick={openPreview}>
+          <Button
+            type="primary"
+            loading={previewLoading}
+            disabled={!channelId}
+            onClick={openPreview}
+          >
             去结算
           </Button>
         </Space>
@@ -508,9 +513,7 @@ export default function CartPage() {
                 <Typography.Text strong>优惠券</Typography.Text>
                 <Select
                   style={{ width: 420 }}
-                  placeholder={
-                    couponOptions.length === 0 ? '暂无可用优惠券' : '不使用优惠券'
-                  }
+                  placeholder={couponOptions.length === 0 ? '暂无可用优惠券' : '不使用优惠券'}
                   loading={previewLoading}
                   allowClear
                   disabled={couponOptions.length === 0}
@@ -525,7 +528,9 @@ export default function CartPage() {
               <Descriptions.Item label="商品总额">
                 {formatMoney(preview.goodsAmount, preview.currencyType)}
               </Descriptions.Item>
-              <Descriptions.Item label={preview.couponName ? `优惠（${preview.couponName}）` : '优惠'}>
+              <Descriptions.Item
+                label={preview.couponName ? `优惠（${preview.couponName}）` : '优惠'}
+              >
                 -{formatMoney(preview.discountAmount, preview.currencyType)}
               </Descriptions.Item>
               <Descriptions.Item label="运费">

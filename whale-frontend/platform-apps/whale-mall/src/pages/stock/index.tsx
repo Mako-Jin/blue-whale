@@ -110,11 +110,7 @@ export default function StockPage() {
       dataIndex: 'spuStatus',
       width: 110,
       render: (value?: string) =>
-        value ? (
-          <Tag color={SPU_STATUS_COLOR[value]}>{SPU_STATUS_LABEL[value] ?? value}</Tag>
-        ) : (
-          '-'
-        ),
+        value ? <Tag color={SPU_STATUS_COLOR[value]}>{SPU_STATUS_LABEL[value] ?? value}</Tag> : '-',
     },
     {
       title: '可售',
@@ -191,11 +187,7 @@ export default function StockPage() {
           填写增量：正数入库、负数出库；出库不能超过可售量。
         </Typography.Paragraph>
         <Form form={form} layout="vertical" preserve={false}>
-          <Form.Item
-            label="增量"
-            name="delta"
-            rules={[{ required: true, message: '请填写增量' }]}
-          >
+          <Form.Item label="增量" name="delta" rules={[{ required: true, message: '请填写增量' }]}>
             <InputNumber style={{ width: '100%' }} precision={0} />
           </Form.Item>
           <Form.Item label="备注" name="remark">

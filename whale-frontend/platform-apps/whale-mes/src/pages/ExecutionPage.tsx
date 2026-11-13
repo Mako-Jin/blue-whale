@@ -49,7 +49,13 @@ const TASK_STATUS_COLOR: Record<MesTaskStatus, string> = {
 };
 
 /** 执行筛选状态：只看可执行任务 */
-const EXECUTABLE_STATUS: MesTaskStatus[] = ['DISPATCHED', 'IN_PROGRESS', 'PAUSED', 'COMPLETED', 'SCRAPPED'];
+const EXECUTABLE_STATUS: MesTaskStatus[] = [
+  'DISPATCHED',
+  'IN_PROGRESS',
+  'PAUSED',
+  'COMPLETED',
+  'SCRAPPED',
+];
 
 /** 数量展示 */
 function formatQuantity(value?: number | string): string {
@@ -177,7 +183,8 @@ export default function ExecutionPage() {
       title: '工序',
       key: 'operation',
       width: 160,
-      render: (_, record) => `${record.operationCode ?? ''} ${record.operationName ?? ''}`.trim() || '-',
+      render: (_, record) =>
+        `${record.operationCode ?? ''} ${record.operationName ?? ''}`.trim() || '-',
     },
     {
       title: '已派工 / 已完工',
@@ -200,7 +207,9 @@ export default function ExecutionPage() {
       width: 100,
       render: (value) => {
         const current = value as MesTaskStatus;
-        return <Tag color={TASK_STATUS_COLOR[current]}>{TASK_STATUS_LABEL[current] ?? current}</Tag>;
+        return (
+          <Tag color={TASK_STATUS_COLOR[current]}>{TASK_STATUS_LABEL[current] ?? current}</Tag>
+        );
       },
     },
     {
@@ -245,9 +254,9 @@ export default function ExecutionPage() {
                 </Popconfirm>
               </>
             ) : null}
-            {record.status === 'DISPATCHED'
-            || record.status === 'IN_PROGRESS'
-            || record.status === 'PAUSED' ? (
+            {record.status === 'DISPATCHED' ||
+            record.status === 'IN_PROGRESS' ||
+            record.status === 'PAUSED' ? (
               <Button type="link" size="small" danger onClick={() => openScrap(record)}>
                 报废
               </Button>

@@ -36,7 +36,9 @@ export default function MailLayout() {
   const navigate = useNavigate();
 
   return (
-    <Layout style={{ height: '100%', background: '#f5f6f8', display: 'flex', flexDirection: 'column' }}>
+    <Layout
+      style={{ height: '100%', background: '#f5f6f8', display: 'flex', flexDirection: 'column' }}
+    >
       <Header
         style={{
           background: '#fff',

@@ -523,7 +523,10 @@ export default function IncomingDocPage() {
           placeholder="状态"
           style={{ width: 130 }}
           value={status || undefined}
-          options={Object.entries(STATUS_META).map(([value, meta]) => ({ label: meta.text, value }))}
+          options={Object.entries(STATUS_META).map(([value, meta]) => ({
+            label: meta.text,
+            value,
+          }))}
           onChange={(value) => {
             setStatus((value as OaIncomingStatus) ?? '');
             setCurrent(1);
@@ -720,9 +723,18 @@ export default function IncomingDocPage() {
                 },
                 { key: 'receivedDate', label: '收文日期', children: detail.receivedDate || '-' },
                 { key: 'dueDate', label: '办理期限', children: detail.dueDate || '-' },
-                { key: 'assignee', label: '承办人', children: detail.assigneeName ?? detail.assigneeId ?? '-' },
+                {
+                  key: 'assignee',
+                  label: '承办人',
+                  children: detail.assigneeName ?? detail.assigneeId ?? '-',
+                },
                 { key: 'handledAt', label: '办结时间', children: timeText(detail.handledAt) },
-                { key: 'archive', label: '档案条目', children: detail.archiveItemId || '-', span: 2 },
+                {
+                  key: 'archive',
+                  label: '档案条目',
+                  children: detail.archiveItemId || '-',
+                  span: 2,
+                },
                 {
                   key: 'instruction',
                   label: '批阅意见',

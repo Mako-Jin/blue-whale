@@ -253,9 +253,9 @@ export function createGlyphs(
       for (const slot of slots) {
         const card = cards.get(slot.palace.nodeKey);
         // 指纹只看影响牌面的字段：状态 + 数值 + 说明
-        const fingerprint = `${card?.state ?? 'loading'}|${card?.note ?? ''}|${
-          (card?.metrics ?? []).map((m) => `${m.label}:${m.value}:${m.tone ?? 'flat'}`).join(',')
-        }`;
+        const fingerprint = `${card?.state ?? 'loading'}|${card?.note ?? ''}|${(card?.metrics ?? [])
+          .map((m) => `${m.label}:${m.value}:${m.tone ?? 'flat'}`)
+          .join(',')}`;
         if (fingerprint === slot.painted) {
           continue;
         }

@@ -276,7 +276,9 @@ export function deleteDriver(id: number): Promise<void> {
 }
 
 /** 分页查询用车申请 */
-export function pageBookings(params: OaAdministrativeQuery = {}): Promise<PageResult<OaVehicleBooking>> {
+export function pageBookings(
+  params: OaAdministrativeQuery = {},
+): Promise<PageResult<OaVehicleBooking>> {
   return http.get<PageResult<OaVehicleBooking>>(`/oa/vehicle/bookings/page${buildQuery(params)}`);
 }
 
@@ -364,7 +366,9 @@ export function listAvailableSeals(userId?: number): Promise<OaSealInfo[]> {
 }
 
 /** 分页查询采购申请 */
-export function pagePurchases(params: OaAdministrativeQuery = {}): Promise<PageResult<OaPurchaseRequest>> {
+export function pagePurchases(
+  params: OaAdministrativeQuery = {},
+): Promise<PageResult<OaPurchaseRequest>> {
   return http.get<PageResult<OaPurchaseRequest>>(`/oa/purchase/page${buildQuery(params)}`);
 }
 

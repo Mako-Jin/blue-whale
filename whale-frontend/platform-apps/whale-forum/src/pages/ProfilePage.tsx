@@ -291,11 +291,7 @@ export default function ProfilePage({ boards, onOpenThread }: Props) {
             actions={
               item.status === 'REMOVED'
                 ? [
-                    <Button
-                      key="appeal"
-                      size="small"
-                      onClick={() => openAppeal('THREAD', item.id)}
-                    >
+                    <Button key="appeal" size="small" onClick={() => openAppeal('THREAD', item.id)}>
                       申诉
                     </Button>,
                   ]
@@ -591,7 +587,10 @@ export default function ProfilePage({ boards, onOpenThread }: Props) {
                 return false;
               }}
             >
-              <Button loading={appealUploading} disabled={appealMaterials.length >= APPEAL_MATERIAL_LIMIT}>
+              <Button
+                loading={appealUploading}
+                disabled={appealMaterials.length >= APPEAL_MATERIAL_LIMIT}
+              >
                 上传材料（{appealMaterials.length}/{APPEAL_MATERIAL_LIMIT}）
               </Button>
             </Upload>
@@ -605,7 +604,12 @@ export default function ProfilePage({ boards, onOpenThread }: Props) {
               renderItem={(item) => (
                 <List.Item
                   actions={[
-                    <Button key="remove" type="link" size="small" onClick={() => onRemoveMaterial(item.fileId)}>
+                    <Button
+                      key="remove"
+                      type="link"
+                      size="small"
+                      onClick={() => onRemoveMaterial(item.fileId)}
+                    >
                       移除
                     </Button>,
                   ]}

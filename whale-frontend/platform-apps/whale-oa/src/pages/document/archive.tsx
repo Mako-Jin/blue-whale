@@ -182,7 +182,10 @@ export default function DocumentArchivePage() {
           placeholder="归档状态"
           style={{ width: 130 }}
           value={status || undefined}
-          options={Object.entries(STATUS_META).map(([value, meta]) => ({ label: meta.text, value }))}
+          options={Object.entries(STATUS_META).map(([value, meta]) => ({
+            label: meta.text,
+            value,
+          }))}
           onChange={(value) => {
             setStatus((value as OaArchiveStatus) ?? '');
             setCurrent(1);

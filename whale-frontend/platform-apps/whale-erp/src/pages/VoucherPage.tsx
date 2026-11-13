@@ -133,7 +133,9 @@ export default function VoucherPage() {
       dataIndex: 'status',
       key: 'status',
       width: 100,
-      render: (value) => <Tag color={statusColor(String(value))}>{STATUS_LABEL[String(value)] ?? value}</Tag>,
+      render: (value) => (
+        <Tag color={statusColor(String(value))}>{STATUS_LABEL[String(value)] ?? value}</Tag>
+      ),
     },
     { title: '备注', dataIndex: 'remark', key: 'remark' },
     {
@@ -204,10 +206,16 @@ export default function VoucherPage() {
         <Button onClick={() => setStatus(undefined)} type={status ? 'default' : 'primary'}>
           全部
         </Button>
-        <Button onClick={() => setStatus('DRAFT')} type={status === 'DRAFT' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('DRAFT')}
+          type={status === 'DRAFT' ? 'primary' : 'default'}
+        >
           草稿
         </Button>
-        <Button onClick={() => setStatus('POSTED')} type={status === 'POSTED' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('POSTED')}
+          type={status === 'POSTED' ? 'primary' : 'default'}
+        >
           已记账
         </Button>
         {hasPermission('sys:erp:voucher:add') ? (
@@ -256,10 +264,20 @@ export default function VoucherPage() {
                       <Input placeholder="摘要" style={{ width: 240 }} />
                     </Form.Item>
                     <Form.Item name={[field.name, 'debitAmount']}>
-                      <InputNumber placeholder="借方" min={0} precision={2} style={{ width: 130 }} />
+                      <InputNumber
+                        placeholder="借方"
+                        min={0}
+                        precision={2}
+                        style={{ width: 130 }}
+                      />
                     </Form.Item>
                     <Form.Item name={[field.name, 'creditAmount']}>
-                      <InputNumber placeholder="贷方" min={0} precision={2} style={{ width: 130 }} />
+                      <InputNumber
+                        placeholder="贷方"
+                        min={0}
+                        precision={2}
+                        style={{ width: 130 }}
+                      />
                     </Form.Item>
                     <Button type="link" danger onClick={() => remove(field.name)}>
                       删除

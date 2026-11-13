@@ -87,10 +87,8 @@ export function FencePicker({
   readOnly = false,
   onChange,
 }: FencePickerProps) {
-  const [draft, dispatch] = useReducer(
-    fenceDraftReducer,
-    initialFence ?? null,
-    (seed) => (seed ? fenceToDraft(seed) : createFenceDraft()),
+  const [draft, dispatch] = useReducer(fenceDraftReducer, initialFence ?? null, (seed) =>
+    seed ? fenceToDraft(seed) : createFenceDraft(),
   );
   const [engine, setEngine] = useState<MapEngine | null>(null);
   const changeRef = useRef(onChange);
@@ -107,9 +105,7 @@ export function FencePicker({
       return;
     }
     loadedIdRef.current = fenceId;
-    dispatch(
-      initialFence ? { type: 'load', fence: initialFence } : { type: 'clear' },
-    );
+    dispatch(initialFence ? { type: 'load', fence: initialFence } : { type: 'clear' });
   }, [fenceId, initialFence]);
 
   const stats = useMemo(() => fenceDraftStats(draft), [draft]);

@@ -363,7 +363,11 @@ export default function OutgoingDocPage() {
     }
   };
 
-  const downloadAttachment = async (record: OaDocOutgoing, attachmentId: number, fileName: string) => {
+  const downloadAttachment = async (
+    record: OaDocOutgoing,
+    attachmentId: number,
+    fileName: string,
+  ) => {
     try {
       await downloadDocAttachment('OUTGOING', record.id, attachmentId, fileName);
     } catch (error) {
@@ -463,7 +467,9 @@ export default function OutgoingDocPage() {
               <>
                 <Popconfirm
                   title="确认审核通过？"
-                  onConfirm={() => void runAction(() => auditOutgoingDoc(record.id, true), '审核已通过')}
+                  onConfirm={() =>
+                    void runAction(() => auditOutgoingDoc(record.id, true), '审核已通过')
+                  }
                 >
                   <Button type="link" size="small">
                     通过
@@ -471,7 +477,9 @@ export default function OutgoingDocPage() {
                 </Popconfirm>
                 <Popconfirm
                   title="确认驳回该发文？"
-                  onConfirm={() => void runAction(() => auditOutgoingDoc(record.id, false), '已驳回')}
+                  onConfirm={() =>
+                    void runAction(() => auditOutgoingDoc(record.id, false), '已驳回')
+                  }
                 >
                   <Button type="link" size="small" danger>
                     驳回
@@ -535,7 +543,10 @@ export default function OutgoingDocPage() {
           placeholder="状态"
           style={{ width: 130 }}
           value={status || undefined}
-          options={Object.entries(STATUS_META).map(([value, meta]) => ({ label: meta.text, value }))}
+          options={Object.entries(STATUS_META).map(([value, meta]) => ({
+            label: meta.text,
+            value,
+          }))}
           onChange={(value) => {
             setStatus((value as OaOutgoingStatus) ?? '');
             setCurrent(1);
@@ -697,7 +708,11 @@ export default function OutgoingDocPage() {
               bordered
               items={[
                 { key: 'docNo', label: '文号', children: detail.docNo },
-                { key: 'status', label: '状态', children: STATUS_META[detail.status]?.text ?? detail.status },
+                {
+                  key: 'status',
+                  label: '状态',
+                  children: STATUS_META[detail.status]?.text ?? detail.status,
+                },
                 { key: 'title', label: '标题', children: detail.title, span: 2 },
                 {
                   key: 'docType',
@@ -714,7 +729,11 @@ export default function OutgoingDocPage() {
                   label: '紧急度',
                   children: URGENCY_META[detail.urgency]?.text ?? detail.urgency,
                 },
-                { key: 'drafter', label: '拟稿人', children: detail.drafterName ?? detail.drafterId },
+                {
+                  key: 'drafter',
+                  label: '拟稿人',
+                  children: detail.drafterName ?? detail.drafterId,
+                },
                 { key: 'template', label: '模板', children: detail.templateName || '-' },
                 {
                   key: 'mainRecipients',
@@ -736,7 +755,12 @@ export default function OutgoingDocPage() {
                   label: '审批实例',
                   children: detail.approvalInstanceId ?? '-',
                 },
-                { key: 'archive', label: '档案条目', children: detail.archiveItemId || '-', span: 2 },
+                {
+                  key: 'archive',
+                  label: '档案条目',
+                  children: detail.archiveItemId || '-',
+                  span: 2,
+                },
                 { key: 'remark', label: '备注', children: detail.remark || '-', span: 2 },
                 { key: 'content', label: '正文', children: detail.content || '-', span: 2 },
               ]}
@@ -783,13 +807,21 @@ export default function OutgoingDocPage() {
                       label: '归档状态',
                       children: detail.archiveRef.status,
                     },
-                    { key: 'item', label: '档案条目', children: detail.archiveRef.archiveItemId || '-' },
+                    {
+                      key: 'item',
+                      label: '档案条目',
+                      children: detail.archiveRef.archiveItemId || '-',
+                    },
                     {
                       key: 'source',
                       label: '来源ID',
                       children: detail.archiveRef.sourceId || '-',
                     },
-                    { key: 'pushedAt', label: '推送时间', children: timeText(detail.archiveRef.pushedAt) },
+                    {
+                      key: 'pushedAt',
+                      label: '推送时间',
+                      children: timeText(detail.archiveRef.pushedAt),
+                    },
                     {
                       key: 'error',
                       label: '失败原因',

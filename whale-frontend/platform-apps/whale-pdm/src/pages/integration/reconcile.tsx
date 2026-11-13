@@ -113,8 +113,18 @@ export default function ReconcileCenter() {
     { title: '类型', dataIndex: 'bizType', width: 90 },
     { title: '业务编号', dataIndex: 'bizNo', width: 180 },
     { title: '版本', dataIndex: 'versionNo', width: 90, render: (value?: string) => value || '-' },
-    { title: 'PDM 状态', dataIndex: 'localStatus', width: 120, render: (value?: string) => value || '-' },
-    { title: '外部状态', dataIndex: 'remoteStatus', width: 120, render: (value?: string) => value || '-' },
+    {
+      title: 'PDM 状态',
+      dataIndex: 'localStatus',
+      width: 120,
+      render: (value?: string) => value || '-',
+    },
+    {
+      title: '外部状态',
+      dataIndex: 'remoteStatus',
+      width: 120,
+      render: (value?: string) => value || '-',
+    },
     {
       title: '结论',
       dataIndex: 'matchStatus',
@@ -136,7 +146,12 @@ export default function ReconcileCenter() {
           '-'
         ),
     },
-    { title: '对账时间', dataIndex: 'checkedAt', width: 170, render: (value?: string) => value || '-' },
+    {
+      title: '对账时间',
+      dataIndex: 'checkedAt',
+      width: 170,
+      render: (value?: string) => value || '-',
+    },
     {
       title: '操作',
       key: 'action',

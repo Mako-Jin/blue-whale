@@ -283,7 +283,11 @@ export default function CollectionPanel() {
       dataIndex: 'coverUrl',
       width: 100,
       render: (value?: string) =>
-        value ? <Image src={value} alt="封面" width={72} height={40} style={{ objectFit: 'cover' }} /> : '-',
+        value ? (
+          <Image src={value} alt="封面" width={72} height={40} style={{ objectFit: 'cover' }} />
+        ) : (
+          '-'
+        ),
     },
     {
       title: '片单',
@@ -365,7 +369,11 @@ export default function CollectionPanel() {
       dataIndex: 'posterUrl',
       width: 90,
       render: (value?: string) =>
-        value ? <Image src={value} alt="海报" width={48} height={66} style={{ objectFit: 'cover' }} /> : '-',
+        value ? (
+          <Image src={value} alt="海报" width={48} height={66} style={{ objectFit: 'cover' }} />
+        ) : (
+          '-'
+        ),
     },
     {
       title: '电影',
@@ -373,7 +381,9 @@ export default function CollectionPanel() {
       render: (value: string, row) => (
         <Space direction="vertical" size={0}>
           <Typography.Text strong>{value}</Typography.Text>
-          {row.originalTitle ? <Typography.Text type="secondary">{row.originalTitle}</Typography.Text> : null}
+          {row.originalTitle ? (
+            <Typography.Text type="secondary">{row.originalTitle}</Typography.Text>
+          ) : null}
         </Space>
       ),
     },
@@ -387,7 +397,7 @@ export default function CollectionPanel() {
       title: '评分',
       dataIndex: 'rating',
       width: 80,
-      render: (value?: number) => (value ?? 0) > 0 ? value : '-',
+      render: (value?: number) => ((value ?? 0) > 0 ? value : '-'),
     },
     {
       title: '可播',
@@ -417,7 +427,9 @@ export default function CollectionPanel() {
       render: (value: string, row) => (
         <Space direction="vertical" size={0}>
           <Typography.Text strong>{value}</Typography.Text>
-          {row.originalTitle ? <Typography.Text type="secondary">{row.originalTitle}</Typography.Text> : null}
+          {row.originalTitle ? (
+            <Typography.Text type="secondary">{row.originalTitle}</Typography.Text>
+          ) : null}
         </Space>
       ),
     },
@@ -463,16 +475,27 @@ export default function CollectionPanel() {
         columns={columns}
         request={pageCollections}
         params={{ keyword, publishState }}
-        onError={(error) => message.error(error instanceof Error ? error.message : '片单列表加载失败')}
+        onError={(error) =>
+          message.error(error instanceof Error ? error.message : '片单列表加载失败')
+        }
         search={
           <SearchForm
             items={[
-              { name: 'keyword', label: '关键词', element: <Input allowClear placeholder="片单标题" /> },
+              {
+                name: 'keyword',
+                label: '关键词',
+                element: <Input allowClear placeholder="片单标题" />,
+              },
               {
                 name: 'publishState',
                 label: '状态',
                 element: (
-                  <Select allowClear placeholder="全部" style={{ width: 120 }} options={PUBLISH_STATE_OPTIONS} />
+                  <Select
+                    allowClear
+                    placeholder="全部"
+                    style={{ width: 120 }}
+                    options={PUBLISH_STATE_OPTIONS}
+                  />
                 ),
               },
             ]}
@@ -511,9 +534,17 @@ export default function CollectionPanel() {
             {coverFileId === '0' ? (
               <Typography.Text type="secondary">已清除封面（保存后生效）</Typography.Text>
             ) : coverFileId ? (
-              <Typography.Text type="secondary">已上传封面：{coverName || `文件 ID ${coverFileId}`}</Typography.Text>
+              <Typography.Text type="secondary">
+                已上传封面：{coverName || `文件 ID ${coverFileId}`}
+              </Typography.Text>
             ) : editing?.coverUrl ? (
-              <Image src={editing.coverUrl} width={160} height={90} style={{ objectFit: 'cover' }} alt="当前封面" />
+              <Image
+                src={editing.coverUrl}
+                width={160}
+                height={90}
+                style={{ objectFit: 'cover' }}
+                alt="当前封面"
+              />
             ) : (
               <Typography.Text type="secondary">暂无封面</Typography.Text>
             )}
@@ -527,7 +558,9 @@ export default function CollectionPanel() {
                 }}
               >
                 <Button loading={uploadingCover}>
-                  {coverFileId !== '0' && (coverFileId || editing?.coverUrl) ? '重新上传封面' : '上传封面'}
+                  {coverFileId !== '0' && (coverFileId || editing?.coverUrl)
+                    ? '重新上传封面'
+                    : '上传封面'}
                 </Button>
               </Upload>
               {editing?.coverUrl || (coverFileId && coverFileId !== '0') ? (
@@ -544,7 +577,11 @@ export default function CollectionPanel() {
             </Space>
           </Space>
         </Form.Item>
-        <Form.Item name="title" label="片单标题" rules={[{ required: true, message: '请输入片单标题' }]}>
+        <Form.Item
+          name="title"
+          label="片单标题"
+          rules={[{ required: true, message: '请输入片单标题' }]}
+        >
           <Input maxLength={200} showCount />
         </Form.Item>
         <Form.Item name="description" label="片单简介">
@@ -565,7 +602,9 @@ export default function CollectionPanel() {
         }}
         extra={
           <Space>
-            <Typography.Text type="secondary">共 {current?.itemCount ?? items.length} 部（上限 200）</Typography.Text>
+            <Typography.Text type="secondary">
+              共 {current?.itemCount ?? items.length} 部（上限 200）
+            </Typography.Text>
             {has('sys:video:movie:manage') ? (
               <Button type="primary" onClick={openPicker}>
                 添加电影
@@ -623,7 +662,9 @@ export default function CollectionPanel() {
           loading={pickerLoading}
           columns={pickerColumns}
           dataSource={pickerMovies}
-          locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无已发布电影" /> }}
+          locale={{
+            emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无已发布电影" />,
+          }}
           pagination={{
             current: pickerPage,
             pageSize: PICKER_PAGE_SIZE,

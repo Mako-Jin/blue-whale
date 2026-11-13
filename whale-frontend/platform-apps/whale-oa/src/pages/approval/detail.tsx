@@ -77,8 +77,10 @@ function formatTime(value?: string): string {
 
 /** 状态标签 */
 function StatusTag({ status, statusName }: { status?: number; statusName?: string }) {
-  const text = statusName ?? (status === undefined ? '-' : INSTANCE_STATUS[status] ?? String(status));
-  const color = status === 1 ? 'success' : status === 2 ? 'error' : status === 3 ? 'default' : 'processing';
+  const text =
+    statusName ?? (status === undefined ? '-' : (INSTANCE_STATUS[status] ?? String(status)));
+  const color =
+    status === 1 ? 'success' : status === 2 ? 'error' : status === 3 ? 'default' : 'processing';
   return <Tag color={color}>{text}</Tag>;
 }
 
@@ -100,7 +102,9 @@ export default function ApprovalDetailDrawer({
   const [detail, setDetail] = useState<ApprovalDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [action, setAction] = useState<{ kind: ActionKind; task?: ApprovalTimelineTask } | null>(null);
+  const [action, setAction] = useState<{ kind: ActionKind; task?: ApprovalTimelineTask } | null>(
+    null,
+  );
   const [submitting, setSubmitting] = useState(false);
   const [comment, setComment] = useState('');
   const [targetUser, setTargetUser] = useState('');
@@ -158,7 +162,10 @@ export default function ApprovalDetailDrawer({
         }
         await transferTask(instanceId, action.task!.id, targetUser.trim());
       } else if (action.kind === 'add-sign') {
-        const list = assignees.split(',').map((item) => item.trim()).filter(Boolean);
+        const list = assignees
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean);
         if (list.length === 0) {
           message.warning('请输入加签账号，多个账号用逗号分隔');
           return;
@@ -229,11 +236,19 @@ export default function ApprovalDetailDrawer({
             <Descriptions.Item label="审批状态">
               <StatusTag status={detail.instance.status} statusName={detail.instance.statusName} />
             </Descriptions.Item>
-            <Descriptions.Item label="流程定义">{detail.instance.definitionCode ?? '-'}</Descriptions.Item>
+            <Descriptions.Item label="流程定义">
+              {detail.instance.definitionCode ?? '-'}
+            </Descriptions.Item>
             <Descriptions.Item label="发起人">{detail.instance.initiator ?? '-'}</Descriptions.Item>
-            <Descriptions.Item label="当前节点">{detail.instance.currentNodeKey ?? '-'}</Descriptions.Item>
-            <Descriptions.Item label="发起时间">{formatTime(detail.instance.createTime)}</Descriptions.Item>
-            <Descriptions.Item label="更新时间">{formatTime(detail.instance.updateTime)}</Descriptions.Item>
+            <Descriptions.Item label="当前节点">
+              {detail.instance.currentNodeKey ?? '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="发起时间">
+              {formatTime(detail.instance.createTime)}
+            </Descriptions.Item>
+            <Descriptions.Item label="更新时间">
+              {formatTime(detail.instance.updateTime)}
+            </Descriptions.Item>
             {detail.instance.businessCode ? (
               <Descriptions.Item label="业务单号">{detail.instance.businessCode}</Descriptions.Item>
             ) : null}
@@ -245,7 +260,9 @@ export default function ApprovalDetailDrawer({
           {detail.businessDetail ? (
             <Card size="small" title="业务信息">
               {detail.businessDetail.summary ? (
-                <div style={{ marginBottom: 8, fontWeight: 500 }}>{detail.businessDetail.summary}</div>
+                <div style={{ marginBottom: 8, fontWeight: 500 }}>
+                  {detail.businessDetail.summary}
+                </div>
               ) : null}
               <Descriptions column={2} size="small">
                 {(detail.businessDetail.fields ?? []).map((field, index) => (
@@ -330,7 +347,7 @@ export default function ApprovalDetailDrawer({
             <span style={{ color: '#999' }}>
               业务状态：
               {detail.businessDetail?.status
-                ? LOCAL_STATUS[detail.businessDetail.status] ?? detail.businessDetail.status
+                ? (LOCAL_STATUS[detail.businessDetail.status] ?? detail.businessDetail.status)
                 : '-'}
             </span>
           )}

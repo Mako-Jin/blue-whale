@@ -129,8 +129,10 @@ function QuoteFormModal({ open, initial, onCancel, onSaved }: QuoteFormModalProp
           productName: line.productName ?? '',
           specification: line.specification ?? undefined,
           unit: line.unit ?? undefined,
-          quantity: line.quantity === null || line.quantity === undefined ? 1 : Number(line.quantity),
-          unitPrice: line.unitPrice === null || line.unitPrice === undefined ? 0 : Number(line.unitPrice),
+          quantity:
+            line.quantity === null || line.quantity === undefined ? 1 : Number(line.quantity),
+          unitPrice:
+            line.unitPrice === null || line.unitPrice === undefined ? 0 : Number(line.unitPrice),
           discountRate:
             line.discountRate === null || line.discountRate === undefined
               ? 0
@@ -213,7 +215,12 @@ function QuoteFormModal({ open, initial, onCancel, onSaved }: QuoteFormModalProp
             rules={[{ required: true, message: '请输入关联商机 ID' }]}
             style={{ flex: 1 }}
           >
-            <InputNumber min={1} precision={0} style={{ width: '100%' }} disabled={Boolean(initial)} />
+            <InputNumber
+              min={1}
+              precision={0}
+              style={{ width: '100%' }}
+              disabled={Boolean(initial)}
+            />
           </Form.Item>
           <Form.Item
             name="title"
@@ -408,16 +415,37 @@ function QuoteDetailDrawer({ quote, onClose }: QuoteDetailDrawerProps) {
 
   const current = detail ?? quote;
   const lineColumns: TableProps<QuoteLineView>['columns'] = [
-    { title: '行号', dataIndex: 'lineNo', width: 70, render: (value?: number | null) => value ?? '-' },
-    { title: '产品名称', dataIndex: 'productName', width: 160, render: (value?: string | null) => value || '-' },
+    {
+      title: '行号',
+      dataIndex: 'lineNo',
+      width: 70,
+      render: (value?: number | null) => value ?? '-',
+    },
+    {
+      title: '产品名称',
+      dataIndex: 'productName',
+      width: 160,
+      render: (value?: string | null) => value || '-',
+    },
     {
       title: '规格',
       dataIndex: 'specification',
       width: 110,
       render: (value?: string | null) => value || '-',
     },
-    { title: '单位', dataIndex: 'unit', width: 70, render: (value?: string | null) => value || '-' },
-    { title: '数量', dataIndex: 'quantity', width: 90, align: 'right', render: (value?: number | string | null) => value ?? '-' },
+    {
+      title: '单位',
+      dataIndex: 'unit',
+      width: 70,
+      render: (value?: string | null) => value || '-',
+    },
+    {
+      title: '数量',
+      dataIndex: 'quantity',
+      width: 90,
+      align: 'right',
+      render: (value?: number | string | null) => value ?? '-',
+    },
     {
       title: '单价',
       dataIndex: 'unitPrice',
@@ -448,7 +476,12 @@ function QuoteDetailDrawer({ quote, onClose }: QuoteDetailDrawerProps) {
       align: 'right',
       render: (value?: number | string | null) => formatAmount(value),
     },
-    { title: '备注', dataIndex: 'remark', width: 140, render: (value?: string | null) => value || '-' },
+    {
+      title: '备注',
+      dataIndex: 'remark',
+      width: 140,
+      render: (value?: string | null) => value || '-',
+    },
   ];
 
   return (
@@ -473,12 +506,22 @@ function QuoteDetailDrawer({ quote, onClose }: QuoteDetailDrawerProps) {
             <Descriptions.Item label="客户 ID">{current.customerId ?? '-'}</Descriptions.Item>
             <Descriptions.Item label="币种">{current.currency ?? '-'}</Descriptions.Item>
             <Descriptions.Item label="有效期至">{current.validUntil ?? '-'}</Descriptions.Item>
-            <Descriptions.Item label="未税金额">{formatAmount(current.subtotalAmount)}</Descriptions.Item>
+            <Descriptions.Item label="未税金额">
+              {formatAmount(current.subtotalAmount)}
+            </Descriptions.Item>
             <Descriptions.Item label="税额">{formatAmount(current.taxAmount)}</Descriptions.Item>
-            <Descriptions.Item label="整单优惠">{formatAmount(current.discountAmount)}</Descriptions.Item>
-            <Descriptions.Item label="价税合计">{formatAmount(current.totalAmount)}</Descriptions.Item>
-            <Descriptions.Item label="提交时间">{formatDateTime(current.submittedAt)}</Descriptions.Item>
-            <Descriptions.Item label="审批时间">{formatDateTime(current.approvedAt)}</Descriptions.Item>
+            <Descriptions.Item label="整单优惠">
+              {formatAmount(current.discountAmount)}
+            </Descriptions.Item>
+            <Descriptions.Item label="价税合计">
+              {formatAmount(current.totalAmount)}
+            </Descriptions.Item>
+            <Descriptions.Item label="提交时间">
+              {formatDateTime(current.submittedAt)}
+            </Descriptions.Item>
+            <Descriptions.Item label="审批时间">
+              {formatDateTime(current.approvedAt)}
+            </Descriptions.Item>
             <Descriptions.Item label="备注" span={2}>
               {current.remark || '-'}
             </Descriptions.Item>
@@ -574,9 +617,19 @@ export default function QuotePage() {
   };
 
   const columns: TableProps<QuoteView>['columns'] = [
-    { title: '报价编号', dataIndex: 'quoteNo', width: 170, render: (value?: string | null) => value || '-' },
+    {
+      title: '报价编号',
+      dataIndex: 'quoteNo',
+      width: 170,
+      render: (value?: string | null) => value || '-',
+    },
     { title: '标题', dataIndex: 'title', width: 180, ellipsis: true },
-    { title: '版本', dataIndex: 'version', width: 70, render: (value?: number | null) => `v${value ?? 1}` },
+    {
+      title: '版本',
+      dataIndex: 'version',
+      width: 70,
+      render: (value?: number | null) => `v${value ?? 1}`,
+    },
     {
       title: '状态',
       dataIndex: 'status',
@@ -587,7 +640,12 @@ export default function QuotePage() {
         </Tag>
       ),
     },
-    { title: '客户 ID', dataIndex: 'customerId', width: 110, render: (value?: number | null) => value ?? '-' },
+    {
+      title: '客户 ID',
+      dataIndex: 'customerId',
+      width: 110,
+      render: (value?: number | null) => value ?? '-',
+    },
     {
       title: '商机 ID',
       dataIndex: 'opportunityId',
@@ -601,9 +659,24 @@ export default function QuotePage() {
       align: 'right',
       render: (value?: number | string | null) => formatAmount(value),
     },
-    { title: '币种', dataIndex: 'currency', width: 80, render: (value?: string | null) => value || '-' },
-    { title: '有效期至', dataIndex: 'validUntil', width: 120, render: (value?: string | null) => value || '-' },
-    { title: '负责人', dataIndex: 'ownerId', width: 100, render: (value?: number | null) => value ?? '-' },
+    {
+      title: '币种',
+      dataIndex: 'currency',
+      width: 80,
+      render: (value?: string | null) => value || '-',
+    },
+    {
+      title: '有效期至',
+      dataIndex: 'validUntil',
+      width: 120,
+      render: (value?: string | null) => value || '-',
+    },
+    {
+      title: '负责人',
+      dataIndex: 'ownerId',
+      width: 100,
+      render: (value?: number | null) => value ?? '-',
+    },
     {
       title: '提交时间',
       dataIndex: 'submittedAt',
@@ -680,7 +753,12 @@ export default function QuotePage() {
         ) : null
       }
     >
-      <Form form={form} layout="inline" onFinish={handleSearch} style={{ marginBottom: 16, rowGap: 12 }}>
+      <Form
+        form={form}
+        layout="inline"
+        onFinish={handleSearch}
+        style={{ marginBottom: 16, rowGap: 12 }}
+      >
         <Form.Item name="keyword">
           <Input placeholder="报价编号 / 标题" allowClear style={{ width: 190 }} />
         </Form.Item>
@@ -691,7 +769,12 @@ export default function QuotePage() {
           <InputNumber min={1} precision={0} placeholder="客户 ID" style={{ width: 130 }} />
         </Form.Item>
         <Form.Item name="status">
-          <Select placeholder="报价状态" allowClear style={{ width: 130 }} options={QUOTE_STATUS_OPTIONS} />
+          <Select
+            placeholder="报价状态"
+            allowClear
+            style={{ width: 130 }}
+            options={QUOTE_STATUS_OPTIONS}
+          />
         </Form.Item>
         <Form.Item name="ownerId">
           <InputNumber min={1} precision={0} placeholder="负责人 ID" style={{ width: 130 }} />

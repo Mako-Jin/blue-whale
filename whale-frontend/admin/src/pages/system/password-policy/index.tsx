@@ -80,7 +80,10 @@ export default function PasswordPolicy() {
 
   return (
     <Space direction="vertical" size={16} style={{ display: 'flex' }}>
-      <Card title="口令策略" extra={policy?.customized ? <Tag color="blue">已自定义</Tag> : <Tag>沿用全局默认</Tag>}>
+      <Card
+        title="口令策略"
+        extra={policy?.customized ? <Tag color="blue">已自定义</Tag> : <Tag>沿用全局默认</Tag>}
+      >
         <Alert
           type="info"
           showIcon
@@ -88,10 +91,16 @@ export default function PasswordPolicy() {
           message="口令到期后将强制用户在登录后修改口令；管理员重置口令时系统生成一次性临时口令，仅在重置结果中展示一次。"
         />
         <Descriptions column={2} size="small" style={{ marginBottom: 16 }}>
-          <Descriptions.Item label="生效口令有效期">{policy?.maxAgeDays ?? '-'} 天</Descriptions.Item>
+          <Descriptions.Item label="生效口令有效期">
+            {policy?.maxAgeDays ?? '-'} 天
+          </Descriptions.Item>
           <Descriptions.Item label="生效到期提醒">{policy?.warnDays ?? '-'} 天</Descriptions.Item>
-          <Descriptions.Item label="全局默认有效期">{policy?.defaultMaxAgeDays ?? '-'} 天</Descriptions.Item>
-          <Descriptions.Item label="全局默认提醒">{policy?.defaultWarnDays ?? '-'} 天</Descriptions.Item>
+          <Descriptions.Item label="全局默认有效期">
+            {policy?.defaultMaxAgeDays ?? '-'} 天
+          </Descriptions.Item>
+          <Descriptions.Item label="全局默认提醒">
+            {policy?.defaultWarnDays ?? '-'} 天
+          </Descriptions.Item>
         </Descriptions>
         <Form<PolicyFormValues>
           form={form}

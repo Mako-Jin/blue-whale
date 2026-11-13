@@ -3,7 +3,20 @@
 // 只支持三种能一眼算清的规则：全免 / 固定 / 满额包邮。按件数、按重量、
 // 多模板累加都需要商品级模板与叠加计算，属于另一套模型，页面刻意不提供入口。
 import { useCallback, useEffect, useState } from 'react';
-import { Button, Card, Form, Input, InputNumber, Modal, Select, Space, Table, Tag, Typography, message } from 'antd';
+import {
+  Button,
+  Card,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Typography,
+  message,
+} from 'antd';
 import type { TableProps } from 'antd';
 import {
   changeFreightTemplateStatus,
@@ -44,7 +57,9 @@ export default function FreightTemplatePage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState({ current: 1, size: 10 });
-  const [filter, setFilter] = useState<{ keyword?: string; chargeType?: string; status?: string }>({});
+  const [filter, setFilter] = useState<{ keyword?: string; chargeType?: string; status?: string }>(
+    {},
+  );
   const [editing, setEditing] = useState<FreightTemplateView | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -271,7 +286,11 @@ export default function FreightTemplatePage() {
           >
             <Input maxLength={64} placeholder="如 零售满 99 包邮" />
           </Form.Item>
-          <Form.Item label="计费方式" name="chargeType" rules={[{ required: true, message: '请选择计费方式' }]}>
+          <Form.Item
+            label="计费方式"
+            name="chargeType"
+            rules={[{ required: true, message: '请选择计费方式' }]}
+          >
             <Select options={CHARGE_TYPE_OPTIONS} />
           </Form.Item>
           {chargeType !== 'FREE' && (

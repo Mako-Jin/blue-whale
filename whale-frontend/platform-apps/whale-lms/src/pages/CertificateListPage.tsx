@@ -4,7 +4,19 @@
 // 发证依据由所选模板决定：模板为「考试通过」时必须填作答记录 ID，
 // 服务端会核实该次作答属于持证人且成绩及格——前端只做必填提示，不重复判断能否发证。
 
-import { Button, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag, message } from 'antd';
+import {
+  Button,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Popconfirm,
+  Select,
+  Space,
+  Table,
+  Tag,
+  message,
+} from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import { hasPermission } from '../api/client';
 import {
@@ -70,17 +82,25 @@ export default function CertificateListPage() {
   const selected = templates.find((item) => item.id === templateId);
   const basis: CertSource = selected?.issueBasis ?? 'MANUAL';
 
-  const load = useCallback(async (page = 1, nextKeyword = keyword, nextStatus = status) => {
-    setLoading(true);
-    try {
-      const data = await pageCertificates({ keyword: nextKeyword, status: nextStatus, current: page, size: 10 });
-      setRows((data.records ?? []).map((item) => ({ ...item, key: String(item.id) })));
-      setTotal(data.total ?? 0);
-      setCurrent(page);
-    } finally {
-      setLoading(false);
-    }
-  }, [keyword, status]);
+  const load = useCallback(
+    async (page = 1, nextKeyword = keyword, nextStatus = status) => {
+      setLoading(true);
+      try {
+        const data = await pageCertificates({
+          keyword: nextKeyword,
+          status: nextStatus,
+          current: page,
+          size: 10,
+        });
+        setRows((data.records ?? []).map((item) => ({ ...item, key: String(item.id) })));
+        setTotal(data.total ?? 0);
+        setCurrent(page);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [keyword, status],
+  );
 
   useEffect(() => {
     void load(1, undefined, undefined);
@@ -150,7 +170,10 @@ export default function CertificateListPage() {
           placeholder="状态"
           allowClear
           style={{ width: 130 }}
-          options={Object.entries(STATUS_TAG).map(([value, item]) => ({ value, label: item.label }))}
+          options={Object.entries(STATUS_TAG).map(([value, item]) => ({
+            value,
+            label: item.label,
+          }))}
           onChange={(value) => {
             setStatus(value || undefined);
             void load(1, keyword, value || undefined);
@@ -167,11 +190,21 @@ export default function CertificateListPage() {
         rowKey="key"
         loading={loading}
         dataSource={rows}
-        pagination={{ current, total, pageSize: 10, onChange: (page) => void load(page, keyword, status) }}
+        pagination={{
+          current,
+          total,
+          pageSize: 10,
+          onChange: (page) => void load(page, keyword, status),
+        }}
         columns={[
           { title: '证书编号', dataIndex: 'certNo', width: 190 },
           { title: '证书名称', dataIndex: 'templateName' },
-          { title: '持证人', dataIndex: 'username', width: 120, render: (value, row) => value ?? `#${row.userId}` },
+          {
+            title: '持证人',
+            dataIndex: 'username',
+            width: 120,
+            render: (value, row) => value ?? `#${row.userId}`,
+          },
           {
             title: '来源',
             dataIndex: 'sourceType',
@@ -188,7 +221,7 @@ export default function CertificateListPage() {
             title: '有效期至',
             dataIndex: 'validTo',
             width: 130,
-            render: (value: string, row) => (row.longTerm ? '长期' : value?.slice(0, 10) ?? '-'),
+            render: (value: string, row) => (row.longTerm ? '长期' : (value?.slice(0, 10) ?? '-')),
           },
           {
             title: '状态',
@@ -210,7 +243,10 @@ export default function CertificateListPage() {
                   </Button>
                 )}
                 {canAdjust && (row.status === 'ACTIVE' || row.status === 'EXPIRED') && (
-                  <Popconfirm title="确认换发？原证书将标记为「已换发」，新证书按模板有效期重新起算" onConfirm={() => void onRenew(row)}>
+                  <Popconfirm
+                    title="确认换发？原证书将标记为「已换发」，新证书按模板有效期重新起算"
+                    onConfirm={() => void onRenew(row)}
+                  >
                     <Button size="small" type="link">
                       换发
                     </Button>
@@ -232,7 +268,11 @@ export default function CertificateListPage() {
         width={620}
       >
         <Form form={form} layout="vertical" onFinish={onIssue}>
-          <Form.Item name="templateId" label="证书模板" rules={[{ required: true, message: '请选择模板' }]}>
+          <Form.Item
+            name="templateId"
+            label="证书模板"
+            rules={[{ required: true, message: '请选择模板' }]}
+          >
             <Select
               placeholder="选择启用的模板"
               options={templates.map((item) => ({

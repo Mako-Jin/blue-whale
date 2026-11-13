@@ -130,7 +130,12 @@ export default function OrderPage() {
         <Typography.Link onClick={() => navigate(`/order/${row.id}`)}>{value}</Typography.Link>
       ),
     },
-    { title: '渠道', dataIndex: 'channelCode', width: 150, render: (value?: string) => value || '-' },
+    {
+      title: '渠道',
+      dataIndex: 'channelCode',
+      width: 150,
+      render: (value?: string) => value || '-',
+    },
     {
       title: '形态',
       dataIndex: 'mode',

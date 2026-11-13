@@ -76,19 +76,23 @@ export function qiankunReactPreambleFix(): PreamblePlugin {
             if (def1) parts.push(`default: ${def1}`);
             if (def2) parts.push(`default: ${def2}`);
             if (ns) parts.push(`...${ns}`);
-            imports.push({ bindings: parts.length ? `const {${parts.join(', ')}} = mod;` : '', url });
+            imports.push({
+              bindings: parts.length ? `const {${parts.join(', ')}} = mod;` : '',
+              url,
+            });
             return '';
           });
           // 仅处理「单条静态 import」形态（plugin-react 预导即此形态）；其余形态保持原样
           if (imports.length !== 1 || !imports[0].url) return whole;
           // 与 vite-plugin-qiankun 的 publicPath 注入保持一致（沙箱内动态改写资源前缀）
-          const publicPath = "(window.proxy ? (window.proxy.__INJECTED_PUBLIC_PATH_BY_QIANKUN__ + '..') : '')";
+          const publicPath =
+            "(window.proxy ? (window.proxy.__INJECTED_PUBLIC_PATH_BY_QIANKUN__ + '..') : '')";
           const { bindings, url } = imports[0];
           return (
-            '<script>\n'
-            + `import(${publicPath} + '${url}')`
-            + `.then(function (mod) {\n${bindings}\n${rest.trim()}\n});\n`
-            + '</script>'
+            '<script>\n' +
+            `import(${publicPath} + '${url}')` +
+            `.then(function (mod) {\n${bindings}\n${rest.trim()}\n});\n` +
+            '</script>'
           );
         });
       },

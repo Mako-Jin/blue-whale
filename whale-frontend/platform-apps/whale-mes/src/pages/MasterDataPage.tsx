@@ -132,7 +132,11 @@ const STATUS_REMARK_FIELDS: FieldConfig[] = [
 
 /** 状态标签 */
 function StatusTag({ status }: { status: string }) {
-  return <Tag color={status === 'ENABLED' ? 'green' : 'default'}>{status === 'ENABLED' ? '启用' : '禁用'}</Tag>;
+  return (
+    <Tag color={status === 'ENABLED' ? 'green' : 'default'}>
+      {status === 'ENABLED' ? '启用' : '禁用'}
+    </Tag>
+  );
 }
 
 /** 上级引用展示：编码 + 名称，未命中时回退为 ID */

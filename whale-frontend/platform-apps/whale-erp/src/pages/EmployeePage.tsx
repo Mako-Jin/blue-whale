@@ -141,10 +141,18 @@ function OrgModal({
       destroyOnHidden
     >
       <Form form={form} layout="vertical">
-        <Form.Item name="code" label="组织编码" rules={[{ required: true, message: '请输入组织编码' }]}>
+        <Form.Item
+          name="code"
+          label="组织编码"
+          rules={[{ required: true, message: '请输入组织编码' }]}
+        >
           <Input disabled={initial !== null} maxLength={32} />
         </Form.Item>
-        <Form.Item name="name" label="组织名称" rules={[{ required: true, message: '请输入组织名称' }]}>
+        <Form.Item
+          name="name"
+          label="组织名称"
+          rules={[{ required: true, message: '请输入组织名称' }]}
+        >
           <Input maxLength={64} />
         </Form.Item>
         <Form.Item name="parentCode" label="上级组织">
@@ -241,7 +249,11 @@ function EmployeeModal({
               ]}
             />
           </Form.Item>
-          <Form.Item name="orgCode" label="所属组织" rules={[{ required: true, message: '请选择组织' }]}>
+          <Form.Item
+            name="orgCode"
+            label="所属组织"
+            rules={[{ required: true, message: '请选择组织' }]}
+          >
             <Select
               showSearch
               optionFilterProp="label"
@@ -436,7 +448,11 @@ function ChangeModal({
     >
       <Form form={form} layout="vertical">
         <Space size="middle" wrap>
-          <Form.Item name="employeeNo" label="员工" rules={[{ required: true, message: '请选择员工' }]}>
+          <Form.Item
+            name="employeeNo"
+            label="员工"
+            rules={[{ required: true, message: '请选择员工' }]}
+          >
             <Select
               showSearch
               optionFilterProp="label"
@@ -450,7 +466,10 @@ function ChangeModal({
           <Form.Item name="changeType" label="异动类型" rules={[{ required: true }]}>
             <Select
               style={{ width: 140 }}
-              options={Object.entries(CHANGE_TYPE_LABEL).map(([value, label]) => ({ value, label }))}
+              options={Object.entries(CHANGE_TYPE_LABEL).map(([value, label]) => ({
+                value,
+                label,
+              }))}
             />
           </Form.Item>
           <Form.Item

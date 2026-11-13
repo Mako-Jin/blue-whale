@@ -63,7 +63,9 @@ function toInput(values: NoticeFormValues): ChgNoticeInput {
     ecoId: values.ecoId,
     title: values.title.trim(),
     content: values.content,
-    notifyTargets: (values.notifyTargets ?? []).map((item) => Number(item)).filter((item) => !Number.isNaN(item)),
+    notifyTargets: (values.notifyTargets ?? [])
+      .map((item) => Number(item))
+      .filter((item) => !Number.isNaN(item)),
     notifyChannels: values.notifyChannels ?? [],
     effectiveFrom,
   };
@@ -110,8 +112,11 @@ export default function ChangeNoticePage() {
   const loadOrders = useCallback(async () => {
     try {
       const result = await pageChgOrders({ current: 1, size: 200 });
-      setOrders((result.records ?? []).filter((item) =>
-        ['APPROVED', 'EXECUTING', 'COMPLETED', 'CLOSED'].includes(item.status)));
+      setOrders(
+        (result.records ?? []).filter((item) =>
+          ['APPROVED', 'EXECUTING', 'COMPLETED', 'CLOSED'].includes(item.status),
+        ),
+      );
     } catch {
       setOrders([]);
     }
@@ -185,7 +190,12 @@ export default function ChangeNoticePage() {
 
   const columns: ColumnsType<ChgNotice> = [
     { title: '通知编号', dataIndex: 'noticeNo', width: 200 },
-    { title: '来源变更单', dataIndex: 'ecoNo', width: 180, render: (value: string) => value || '-' },
+    {
+      title: '来源变更单',
+      dataIndex: 'ecoNo',
+      width: 180,
+      render: (value: string) => value || '-',
+    },
     { title: '标题', dataIndex: 'title' },
     {
       title: '生效日期',
@@ -212,17 +222,27 @@ export default function ChangeNoticePage() {
             </Button>
           )}
           {row.status === 'DRAFT' && hasPermission('sys:pdm:change:notice:notify') && (
-            <Button size="small" type="primary" onClick={() => void runAction(notifyChgNotice, '已发送通知', row.id)}>
+            <Button
+              size="small"
+              type="primary"
+              onClick={() => void runAction(notifyChgNotice, '已发送通知', row.id)}
+            >
               通知
             </Button>
           )}
           {row.status === 'NOTIFIED' && hasPermission('sys:pdm:change:notice:notify') && (
-            <Button size="small" onClick={() => void runAction(retryChgNotice, '已重试投递', row.id)}>
+            <Button
+              size="small"
+              onClick={() => void runAction(retryChgNotice, '已重试投递', row.id)}
+            >
               重试
             </Button>
           )}
           {row.status === 'NOTIFIED' && hasPermission('sys:pdm:change:notice:effective') && (
-            <Popconfirm title="确认生效？生效后旧版本将置为作废" onConfirm={() => void runAction(effectiveChgNotice, '已生效', row.id)}>
+            <Popconfirm
+              title="确认生效？生效后旧版本将置为作废"
+              onConfirm={() => void runAction(effectiveChgNotice, '已生效', row.id)}
+            >
               <Button size="small" danger>
                 生效
               </Button>
@@ -239,7 +259,10 @@ export default function ChangeNoticePage() {
             </Button>
           )}
           {row.status === 'DRAFT' && hasPermission('sys:pdm:change:notice:edit') && (
-            <Popconfirm title="确认取消该通知？" onConfirm={() => void runAction(cancelChgNotice, '已取消', row.id)}>
+            <Popconfirm
+              title="确认取消该通知？"
+              onConfirm={() => void runAction(cancelChgNotice, '已取消', row.id)}
+            >
               <Button size="small" type="link" danger>
                 取消
               </Button>
@@ -291,7 +314,10 @@ export default function ChangeNoticePage() {
             style={{ width: 140 }}
             value={status}
             onChange={(value) => setStatus(value)}
-            options={Object.entries(STATUS_META).map(([value, meta]) => ({ value, label: meta.text }))}
+            options={Object.entries(STATUS_META).map(([value, meta]) => ({
+              value,
+              label: meta.text,
+            }))}
           />
           <Button type="primary" onClick={() => void load()}>
             查询
@@ -329,15 +355,26 @@ export default function ChangeNoticePage() {
         destroyOnClose
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="ecoId" label="来源变更单" rules={[{ required: true, message: '请选择变更单' }]}>
+          <Form.Item
+            name="ecoId"
+            label="来源变更单"
+            rules={[{ required: true, message: '请选择变更单' }]}
+          >
             <Select
               showSearch
               optionFilterProp="label"
               placeholder="仅已审批通过的变更单"
-              options={orders.map((item) => ({ value: Number(item.id), label: `${item.ecoNo} ${item.title}` }))}
+              options={orders.map((item) => ({
+                value: Number(item.id),
+                label: `${item.ecoNo} ${item.title}`,
+              }))}
             />
           </Form.Item>
-          <Form.Item name="title" label="通知标题" rules={[{ required: true, message: '请输入标题' }]}>
+          <Form.Item
+            name="title"
+            label="通知标题"
+            rules={[{ required: true, message: '请输入标题' }]}
+          >
             <Input maxLength={200} />
           </Form.Item>
           <Form.Item name="content" label="通知内容">
@@ -372,7 +409,9 @@ export default function ChangeNoticePage() {
               dataIndex: 'status',
               width: 90,
               render: (value: string) => (
-                <Tag color={value === 'SUCCESS' ? 'green' : 'red'}>{value === 'SUCCESS' ? '成功' : '失败'}</Tag>
+                <Tag color={value === 'SUCCESS' ? 'green' : 'red'}>
+                  {value === 'SUCCESS' ? '成功' : '失败'}
+                </Tag>
               ),
             },
             { title: '重试', dataIndex: 'retryCount', width: 70 },
@@ -385,8 +424,12 @@ export default function ChangeNoticePage() {
       {editing && (
         <Descriptions style={{ marginTop: 16 }} title="当前通知" column={3}>
           <Descriptions.Item label="编号">{editing.noticeNo}</Descriptions.Item>
-          <Descriptions.Item label="状态">{STATUS_META[editing.status]?.text ?? editing.status}</Descriptions.Item>
-          <Descriptions.Item label="影响对象">{editing.impactObjects?.length ?? 0} 项</Descriptions.Item>
+          <Descriptions.Item label="状态">
+            {STATUS_META[editing.status]?.text ?? editing.status}
+          </Descriptions.Item>
+          <Descriptions.Item label="影响对象">
+            {editing.impactObjects?.length ?? 0} 项
+          </Descriptions.Item>
         </Descriptions>
       )}
     </div>

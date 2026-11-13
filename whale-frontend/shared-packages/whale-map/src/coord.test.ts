@@ -19,10 +19,7 @@ describe('wgs84ToGcj02', () => {
   it('北京地区加偏量落在 300–800 米之间', () => {
     const gcj = wgs84ToGcj02(TIANANMEN_WGS84);
     // 用 WGS84 度量偏移：把两个点都当 WGS84 传给 haversine，避免再走一次转换
-    const shift = distanceMeters(
-      TIANANMEN_WGS84,
-      point(gcj.lng, gcj.lat, 'WGS84'),
-    );
+    const shift = distanceMeters(TIANANMEN_WGS84, point(gcj.lng, gcj.lat, 'WGS84'));
     expect(shift).toBeGreaterThan(300);
     expect(shift).toBeLessThan(800);
   });
@@ -52,10 +49,7 @@ describe('gcj02ToWgs84', () => {
 
   it('反算出的点比 GCJ 点更靠近真实位置', () => {
     const gcj = wgs84ToGcj02(TIANANMEN_WGS84);
-    const toTrue = distanceMeters(
-      point(gcj.lng, gcj.lat, 'WGS84'),
-      TIANANMEN_WGS84,
-    );
+    const toTrue = distanceMeters(point(gcj.lng, gcj.lat, 'WGS84'), TIANANMEN_WGS84);
     const back = gcj02ToWgs84(gcj);
     const afterInverse = distanceMeters(point(back.lng, back.lat, 'WGS84'), TIANANMEN_WGS84);
     expect(afterInverse).toBeLessThan(toTrue);

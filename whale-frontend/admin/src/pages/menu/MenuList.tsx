@@ -213,7 +213,9 @@ export default function MenuList() {
             allowClear
             treeDefaultExpandAll
             placeholder="不选则为顶级菜单"
-            treeData={[{ value: '0', title: '顶级菜单', children: toOptions(menus, editRecord?.id) }]}
+            treeData={[
+              { value: '0', title: '顶级菜单', children: toOptions(menus, editRecord?.id) },
+            ]}
           />
         </Form.Item>
         <Form.Item

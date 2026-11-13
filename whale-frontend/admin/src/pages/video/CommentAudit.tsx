@@ -97,7 +97,12 @@ export default function CommentAudit() {
       width: 80,
       render: (value?: number) => value ?? 0,
     },
-    { title: '评论时间', dataIndex: 'createTime', width: 180, render: (value?: string) => value ?? '-' },
+    {
+      title: '评论时间',
+      dataIndex: 'createTime',
+      width: 180,
+      render: (value?: string) => value ?? '-',
+    },
     {
       title: '操作',
       key: 'actions',
@@ -153,7 +158,14 @@ export default function CommentAudit() {
             {
               name: 'status',
               label: '状态',
-              element: <Select allowClear placeholder="全部状态" style={{ minWidth: 140 }} options={STATUS_OPTIONS} />,
+              element: (
+                <Select
+                  allowClear
+                  placeholder="全部状态"
+                  style={{ minWidth: 140 }}
+                  options={STATUS_OPTIONS}
+                />
+              ),
             },
           ]}
           onSearch={(values) => setStatus((values.status as CommentStatus) || undefined)}

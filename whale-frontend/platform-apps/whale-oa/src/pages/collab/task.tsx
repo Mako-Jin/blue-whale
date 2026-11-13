@@ -250,7 +250,13 @@ export default function CollabTaskPage() {
 
   const columns: TableProps<OaTask>['columns'] = [
     { title: '任务标题', dataIndex: 'title', key: 'title', ellipsis: true },
-    { title: '负责人', dataIndex: 'ownerName', key: 'ownerName', width: 110, render: (value?: string) => value ?? '-' },
+    {
+      title: '负责人',
+      dataIndex: 'ownerName',
+      key: 'ownerName',
+      width: 110,
+      render: (value?: string) => value ?? '-',
+    },
     {
       title: '优先级',
       dataIndex: 'priority',
@@ -271,7 +277,13 @@ export default function CollabTaskPage() {
         return <Tag color={meta.color}>{meta.text}</Tag>;
       },
     },
-    { title: '截止日期', dataIndex: 'dueDate', key: 'dueDate', width: 120, render: (value?: string) => value ?? '-' },
+    {
+      title: '截止日期',
+      dataIndex: 'dueDate',
+      key: 'dueDate',
+      width: 120,
+      render: (value?: string) => value ?? '-',
+    },
     {
       title: '来源',
       dataIndex: 'source',
@@ -309,7 +321,10 @@ export default function CollabTaskPage() {
             </Button>
           ) : null}
           {canManage && record.status !== 'DONE' && record.status !== 'CANCELLED' ? (
-            <Popconfirm title="确认取消该任务？" onConfirm={() => void changeStatus(record, 'CANCELLED')}>
+            <Popconfirm
+              title="确认取消该任务？"
+              onConfirm={() => void changeStatus(record, 'CANCELLED')}
+            >
               <Button type="link" size="small" danger>
                 取消
               </Button>
@@ -356,7 +371,10 @@ export default function CollabTaskPage() {
             placeholder="状态"
             style={{ width: 130 }}
             value={status || undefined}
-            options={Object.entries(TASK_STATUS_META).map(([value, meta]) => ({ label: meta.text, value }))}
+            options={Object.entries(TASK_STATUS_META).map(([value, meta]) => ({
+              label: meta.text,
+              value,
+            }))}
             onChange={(value) => {
               setStatus((value as OaTaskStatus) ?? '');
               setPage(1);
@@ -367,7 +385,10 @@ export default function CollabTaskPage() {
             placeholder="优先级"
             style={{ width: 120 }}
             value={priority || undefined}
-            options={Object.entries(PRIORITY_META).map(([value, meta]) => ({ label: meta.text, value }))}
+            options={Object.entries(PRIORITY_META).map(([value, meta]) => ({
+              label: meta.text,
+              value,
+            }))}
             onChange={(value) => {
               setPriority((value as OaTaskPriority) ?? '');
               setPage(1);
@@ -415,7 +436,11 @@ export default function CollabTaskPage() {
         destroyOnClose
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="title" label="任务标题" rules={[{ required: true, message: '请输入任务标题' }]}>
+          <Form.Item
+            name="title"
+            label="任务标题"
+            rules={[{ required: true, message: '请输入任务标题' }]}
+          >
             <Input maxLength={128} />
           </Form.Item>
           <Form.Item name="description" label="任务描述">
@@ -435,7 +460,10 @@ export default function CollabTaskPage() {
             </Form.Item>
             <Form.Item name="priority" label="优先级" style={{ flex: 1 }}>
               <Select
-                options={Object.entries(PRIORITY_META).map(([value, meta]) => ({ label: meta.text, value }))}
+                options={Object.entries(PRIORITY_META).map(([value, meta]) => ({
+                  label: meta.text,
+                  value,
+                }))}
               />
             </Form.Item>
           </Space>
@@ -444,7 +472,9 @@ export default function CollabTaskPage() {
               <DatePicker style={{ width: '100%' }} />
             </Form.Item>
             <Form.Item name="source" label="来源" style={{ flex: 1 }}>
-              <Select options={Object.entries(SOURCE_META).map(([value, label]) => ({ label, value }))} />
+              <Select
+                options={Object.entries(SOURCE_META).map(([value, label]) => ({ label, value }))}
+              />
             </Form.Item>
             <Form.Item name="sourceId" label="来源业务ID" style={{ flex: 1 }}>
               <InputNumber style={{ width: '100%' }} min={1} precision={0} />

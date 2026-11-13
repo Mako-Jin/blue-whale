@@ -55,40 +55,40 @@ export default function UsageBoard() {
           message.error(error instanceof Error ? error.message : '用量看板加载失败')
         }
         search={
-        <SearchForm
-          items={[
-            {
-              name: 'assistantId',
-              label: '助手ID',
-              element: <Input allowClear placeholder="助手ID（数字）" style={{ width: 160 }} />,
-            },
-            {
-              name: 'range',
-              label: '日期范围',
-              element: (
-                <RangePicker
-                  allowEmpty={[true, true]}
-                  onChange={(dates) => {
-                    setStartDate(dates?.[0] ? dates[0].format('YYYY-MM-DD') : undefined);
-                    setEndDate(dates?.[1] ? dates[1].format('YYYY-MM-DD') : undefined);
-                    tableRef.current?.reload();
-                  }}
-                />
-              ),
-            },
-          ]}
-          onSearch={(values) => {
-            setAssistantId((values.assistantId as string) || undefined);
-            tableRef.current?.reload();
-          }}
-          onReset={() => {
-            setAssistantId(undefined);
-            setStartDate(undefined);
-            setEndDate(undefined);
-          }}
-        />
-      }
-    />
+          <SearchForm
+            items={[
+              {
+                name: 'assistantId',
+                label: '助手ID',
+                element: <Input allowClear placeholder="助手ID（数字）" style={{ width: 160 }} />,
+              },
+              {
+                name: 'range',
+                label: '日期范围',
+                element: (
+                  <RangePicker
+                    allowEmpty={[true, true]}
+                    onChange={(dates) => {
+                      setStartDate(dates?.[0] ? dates[0].format('YYYY-MM-DD') : undefined);
+                      setEndDate(dates?.[1] ? dates[1].format('YYYY-MM-DD') : undefined);
+                      tableRef.current?.reload();
+                    }}
+                  />
+                ),
+              },
+            ]}
+            onSearch={(values) => {
+              setAssistantId((values.assistantId as string) || undefined);
+              tableRef.current?.reload();
+            }}
+            onReset={() => {
+              setAssistantId(undefined);
+              setStartDate(undefined);
+              setEndDate(undefined);
+            }}
+          />
+        }
+      />
     </>
   );
 }

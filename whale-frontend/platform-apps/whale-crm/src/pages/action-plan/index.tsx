@@ -112,14 +112,34 @@ export default function ActionPlanPage() {
       render: (value?: string) => <Tag color={PRIORITY_COLOR[value ?? '']}>{value ?? '-'}</Tag>,
     },
     { title: '标题', dataIndex: 'title', width: 240, ellipsis: true },
-    { title: '客户', dataIndex: 'customerName', width: 160, render: (value?: string, row?: ActionItem) => value || row?.customerId || '-' },
-    { title: '建议', dataIndex: 'suggestion', width: 240, ellipsis: true, render: (value?: string) => value || '-' },
-    { title: '截止日期', dataIndex: 'dueDate', width: 120, render: (value?: string) => value || '-' },
+    {
+      title: '客户',
+      dataIndex: 'customerName',
+      width: 160,
+      render: (value?: string, row?: ActionItem) => value || row?.customerId || '-',
+    },
+    {
+      title: '建议',
+      dataIndex: 'suggestion',
+      width: 240,
+      ellipsis: true,
+      render: (value?: string) => value || '-',
+    },
+    {
+      title: '截止日期',
+      dataIndex: 'dueDate',
+      width: 120,
+      render: (value?: string) => value || '-',
+    },
     {
       title: '状态',
       dataIndex: 'status',
       width: 100,
-      render: (value?: string) => <Tag color={value === 'OPEN' ? 'processing' : 'default'}>{value === 'OPEN' ? '待处理' : '已关闭'}</Tag>,
+      render: (value?: string) => (
+        <Tag color={value === 'OPEN' ? 'processing' : 'default'}>
+          {value === 'OPEN' ? '待处理' : '已关闭'}
+        </Tag>
+      ),
     },
     {
       title: '操作',
@@ -128,7 +148,16 @@ export default function ActionPlanPage() {
       render: (_, row) => (
         <Space size={0}>
           {row.status === 'OPEN' && hasPermission('sys:crm:action:plan') && (
-            <Button size="small" type="link" onClick={() => { setTarget(row); form.resetFields(); }}>关闭</Button>
+            <Button
+              size="small"
+              type="link"
+              onClick={() => {
+                setTarget(row);
+                form.resetFields();
+              }}
+            >
+              关闭
+            </Button>
           )}
         </Space>
       ),
@@ -170,7 +199,10 @@ export default function ActionPlanPage() {
             placeholder="规则"
             allowClear
             style={{ width: 220 }}
-            options={rules.map((rule) => ({ value: rule.ruleCode, label: rule.ruleName || rule.ruleCode }))}
+            options={rules.map((rule) => ({
+              value: rule.ruleCode,
+              label: rule.ruleName || rule.ruleCode,
+            }))}
           />
         </Form.Item>
         <Form.Item name="status">
@@ -178,7 +210,10 @@ export default function ActionPlanPage() {
             placeholder="状态"
             allowClear
             style={{ width: 120 }}
-            options={[{ value: 'OPEN', label: '待处理' }, { value: 'CLOSED', label: '已关闭' }]}
+            options={[
+              { value: 'OPEN', label: '待处理' },
+              { value: 'CLOSED', label: '已关闭' },
+            ]}
           />
         </Form.Item>
         <Form.Item name="priority">
@@ -186,11 +221,21 @@ export default function ActionPlanPage() {
             placeholder="优先级"
             allowClear
             style={{ width: 110 }}
-            options={[{ value: 'P1', label: 'P1' }, { value: 'P2', label: 'P2' }, { value: 'P3', label: 'P3' }]}
+            options={[
+              { value: 'P1', label: 'P1' },
+              { value: 'P2', label: 'P2' },
+              { value: 'P3', label: 'P3' },
+            ]}
           />
         </Form.Item>
-        <Form.Item name="customerId"><InputNumber min={1} precision={0} placeholder="客户 ID" style={{ width: 130 }} /></Form.Item>
-        <Form.Item><Button type="primary" htmlType="submit">查询</Button></Form.Item>
+        <Form.Item name="customerId">
+          <InputNumber min={1} precision={0} placeholder="客户 ID" style={{ width: 130 }} />
+        </Form.Item>
+        <Form.Item>
+          <Button type="primary" htmlType="submit">
+            查询
+          </Button>
+        </Form.Item>
       </Form>
       <Table<ActionItem>
         rowKey="id"
@@ -207,17 +252,23 @@ export default function ActionPlanPage() {
           onChange: (current, size) => setPage({ current, size }),
         }}
       />
-      <Typography.Text strong style={{ display: 'block', margin: '20px 0 8px' }}>规则清单</Typography.Text>
+      <Typography.Text strong style={{ display: 'block', margin: '20px 0 8px' }}>
+        规则清单
+      </Typography.Text>
       <List
         size="small"
         dataSource={rules}
         renderItem={(rule) => (
           <List.Item>
             <Space>
-              <Tag color={rule.enabled ? 'success' : 'default'}>{rule.enabled ? '启用' : '停用'}</Tag>
+              <Tag color={rule.enabled ? 'success' : 'default'}>
+                {rule.enabled ? '启用' : '停用'}
+              </Tag>
               <Typography.Text strong>{rule.ruleName || rule.ruleCode}</Typography.Text>
               <Typography.Text type="secondary">{rule.ruleType}</Typography.Text>
-              <Typography.Text type="secondary">阈值 {rule.thresholdDays ?? '-'} 天</Typography.Text>
+              <Typography.Text type="secondary">
+                阈值 {rule.thresholdDays ?? '-'} 天
+              </Typography.Text>
             </Space>
             <Typography.Text type="secondary">{rule.description || ''}</Typography.Text>
           </List.Item>
@@ -234,7 +285,11 @@ export default function ActionPlanPage() {
         destroyOnClose
       >
         <Form form={form} layout="vertical" preserve={false}>
-          <Form.Item name="reason" label="关闭原因" rules={[{ required: true, message: '请输入关闭原因' }]}>
+          <Form.Item
+            name="reason"
+            label="关闭原因"
+            rules={[{ required: true, message: '请输入关闭原因' }]}
+          >
             <Input.TextArea rows={3} maxLength={500} showCount />
           </Form.Item>
         </Form>

@@ -90,7 +90,12 @@ function BarcodePanel() {
   const [generateOpen, setGenerateOpen] = useState(false);
   const [ruleOpen, setRuleOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<MesBarcodeRule | null>(null);
-  const [generateForm] = Form.useForm<{ ruleId: string; batchId: string; quantity: number; remark?: string }>();
+  const [generateForm] = Form.useForm<{
+    ruleId: string;
+    batchId: string;
+    quantity: number;
+    remark?: string;
+  }>();
   const [ruleForm] = Form.useForm<{
     ruleCode: string;
     ruleName: string;
@@ -271,7 +276,11 @@ function BarcodePanel() {
         {hasPermission('sys:mes:trace:barcode') ? (
           <Button onClick={() => openRule(null)}>新增规则</Button>
         ) : null}
-        <Button type="primary" onClick={openGenerate} disabled={!hasPermission('sys:mes:trace:barcode')}>
+        <Button
+          type="primary"
+          onClick={openGenerate}
+          disabled={!hasPermission('sys:mes:trace:barcode')}
+        >
           生成条码
         </Button>
       </Space>
@@ -311,14 +320,22 @@ function BarcodePanel() {
         destroyOnClose
       >
         <Form form={generateForm} layout="vertical">
-          <Form.Item name="ruleId" label="条码规则" rules={[{ required: true, message: '请选择规则' }]}>
+          <Form.Item
+            name="ruleId"
+            label="条码规则"
+            rules={[{ required: true, message: '请选择规则' }]}
+          >
             <Select
               options={rules
                 .filter((rule) => rule.status === 'ENABLED')
                 .map((rule) => ({ value: rule.id, label: `${rule.ruleCode} ${rule.ruleName}` }))}
             />
           </Form.Item>
-          <Form.Item name="batchId" label="绑定批次" rules={[{ required: true, message: '请选择批次' }]}>
+          <Form.Item
+            name="batchId"
+            label="绑定批次"
+            rules={[{ required: true, message: '请选择批次' }]}
+          >
             <Select
               showSearch
               optionFilterProp="label"
@@ -328,7 +345,11 @@ function BarcodePanel() {
               }))}
             />
           </Form.Item>
-          <Form.Item name="quantity" label="生成数量" rules={[{ required: true, message: '请填写数量' }]}>
+          <Form.Item
+            name="quantity"
+            label="生成数量"
+            rules={[{ required: true, message: '请填写数量' }]}
+          >
             <InputNumber min={1} max={1000} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="remark" label="备注">
@@ -346,23 +367,45 @@ function BarcodePanel() {
         destroyOnClose
       >
         <Form form={ruleForm} layout="vertical">
-          <Form.Item name="ruleCode" label="规则编码" rules={[{ required: true, message: '请填写规则编码' }]}>
+          <Form.Item
+            name="ruleCode"
+            label="规则编码"
+            rules={[{ required: true, message: '请填写规则编码' }]}
+          >
             <Input maxLength={64} />
           </Form.Item>
-          <Form.Item name="ruleName" label="规则名称" rules={[{ required: true, message: '请填写规则名称' }]}>
+          <Form.Item
+            name="ruleName"
+            label="规则名称"
+            rules={[{ required: true, message: '请填写规则名称' }]}
+          >
             <Input maxLength={128} />
           </Form.Item>
-          <Form.Item name="prefix" label="条码前缀" rules={[{ required: true, message: '请填写前缀' }]}>
+          <Form.Item
+            name="prefix"
+            label="条码前缀"
+            rules={[{ required: true, message: '请填写前缀' }]}
+          >
             <Input maxLength={32} />
           </Form.Item>
           <Form.Item name="codeType" label="码制">
-            <Select options={[{ value: 'CODE128', label: 'Code128' }, { value: 'QR', label: 'QR' }]} />
+            <Select
+              options={[
+                { value: 'CODE128', label: 'Code128' },
+                { value: 'QR', label: 'QR' },
+              ]}
+            />
           </Form.Item>
           <Form.Item name="serialLength" label="流水号长度">
             <InputNumber min={4} max={12} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="status" label="状态">
-            <Select options={[{ value: 'ENABLED', label: '启用' }, { value: 'DISABLED', label: '停用' }]} />
+            <Select
+              options={[
+                { value: 'ENABLED', label: '启用' },
+                { value: 'DISABLED', label: '停用' },
+              ]}
+            />
           </Form.Item>
           <Form.Item name="remark" label="备注">
             <Input.TextArea rows={2} maxLength={255} />
@@ -415,7 +458,9 @@ function BatchPanel() {
         sourceType: values.sourceType,
         quantity: values.quantity,
         uom: values.uom || undefined,
-        productionDate: values.productionDate ? dayjs(values.productionDate).format('YYYY-MM-DD') : undefined,
+        productionDate: values.productionDate
+          ? dayjs(values.productionDate).format('YYYY-MM-DD')
+          : undefined,
         remark: values.remark || undefined,
       };
       await createMesBatch(input);
@@ -503,18 +548,20 @@ function BatchPanel() {
           style={{ width: 200 }}
           onSearch={(value) => setBatchNo(value || undefined)}
         />
-        <Button onClick={() => {
-          createForm.resetFields();
-          createForm.setFieldsValue({ batchType: 'RAW', sourceType: 'PRODUCTION' });
-          setCreateOpen(true);
-        }}
+        <Button
+          onClick={() => {
+            createForm.resetFields();
+            createForm.setFieldsValue({ batchType: 'RAW', sourceType: 'PRODUCTION' });
+            setCreateOpen(true);
+          }}
         >
           批次建档
         </Button>
-        <Button onClick={() => {
-          linkForm.resetFields();
-          setLinkOpen(true);
-        }}
+        <Button
+          onClick={() => {
+            linkForm.resetFields();
+            setLinkOpen(true);
+          }}
         >
           谱系建链
         </Button>
@@ -539,21 +586,30 @@ function BatchPanel() {
           <Form.Item name="batchNo" label="批次号（空则自动生成）">
             <Input maxLength={64} />
           </Form.Item>
-          <Form.Item name="itemCode" label="物料编码" rules={[{ required: true, message: '请填写物料编码' }]}>
+          <Form.Item
+            name="itemCode"
+            label="物料编码"
+            rules={[{ required: true, message: '请填写物料编码' }]}
+          >
             <Input maxLength={64} />
           </Form.Item>
           <Form.Item name="itemName" label="物料名称">
             <Input maxLength={128} />
           </Form.Item>
           <Form.Item name="batchType" label="批次类型">
-            <Select options={[
-              { value: 'RAW', label: '来料' },
-              { value: 'SEMI', label: '半成品' },
-              { value: 'FINISHED', label: '成品' },
-            ]}
+            <Select
+              options={[
+                { value: 'RAW', label: '来料' },
+                { value: 'SEMI', label: '半成品' },
+                { value: 'FINISHED', label: '成品' },
+              ]}
             />
           </Form.Item>
-          <Form.Item name="quantity" label="批次数量" rules={[{ required: true, message: '请填写数量' }]}>
+          <Form.Item
+            name="quantity"
+            label="批次数量"
+            rules={[{ required: true, message: '请填写数量' }]}
+          >
             <InputNumber min={0.0001} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="uom" label="计量单位">
@@ -577,13 +633,25 @@ function BatchPanel() {
         destroyOnClose
       >
         <Form form={linkForm} layout="vertical">
-          <Form.Item name="parentBatchNo" label="上级批次号（被消耗）" rules={[{ required: true, message: '请填写上级批次号' }]}>
+          <Form.Item
+            name="parentBatchNo"
+            label="上级批次号（被消耗）"
+            rules={[{ required: true, message: '请填写上级批次号' }]}
+          >
             <Input maxLength={64} />
           </Form.Item>
-          <Form.Item name="childBatchNo" label="下级批次号（产出）" rules={[{ required: true, message: '请填写下级批次号' }]}>
+          <Form.Item
+            name="childBatchNo"
+            label="下级批次号（产出）"
+            rules={[{ required: true, message: '请填写下级批次号' }]}
+          >
             <Input maxLength={64} />
           </Form.Item>
-          <Form.Item name="quantity" label="消耗数量" rules={[{ required: true, message: '请填写消耗数量' }]}>
+          <Form.Item
+            name="quantity"
+            label="消耗数量"
+            rules={[{ required: true, message: '请填写消耗数量' }]}
+          >
             <InputNumber min={0.0001} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="uom" label="计量单位">
@@ -777,7 +845,8 @@ function StockPanel() {
       title: '库存 / 安全库存',
       key: 'quantity',
       width: 150,
-      render: (_, record) => `${formatQuantity(record.quantity)} / ${formatQuantity(record.safetyQuantity)}`,
+      render: (_, record) =>
+        `${formatQuantity(record.quantity)} / ${formatQuantity(record.safetyQuantity)}`,
     },
     {
       title: '状态',
@@ -821,10 +890,16 @@ function StockPanel() {
           onChange={(value) => setLineId(value)}
           options={lines.map((item) => ({ value: item.id, label: `${item.code} ${item.name}` }))}
         />
-        <Button disabled={!hasPermission('sys:mes:trace:line-side')} onClick={() => openModal('inbound')}>
+        <Button
+          disabled={!hasPermission('sys:mes:trace:line-side')}
+          onClick={() => openModal('inbound')}
+        >
           入库
         </Button>
-        <Button disabled={!hasPermission('sys:mes:trace:line-side')} onClick={() => openModal('issue')}>
+        <Button
+          disabled={!hasPermission('sys:mes:trace:line-side')}
+          onClick={() => openModal('issue')}
+        >
           领用
         </Button>
       </Space>
@@ -857,12 +932,25 @@ function StockPanel() {
       >
         <Form form={form} layout="vertical">
           <Form.Item name="lineId" label="产线" rules={[{ required: true, message: '请选择产线' }]}>
-            <Select options={lines.map((item) => ({ value: item.id, label: `${item.code} ${item.name}` }))} />
+            <Select
+              options={lines.map((item) => ({
+                value: item.id,
+                label: `${item.code} ${item.name}`,
+              }))}
+            />
           </Form.Item>
-          <Form.Item name="warehouseCode" label="线边仓编码" rules={[{ required: true, message: '请填写线边仓编码' }]}>
+          <Form.Item
+            name="warehouseCode"
+            label="线边仓编码"
+            rules={[{ required: true, message: '请填写线边仓编码' }]}
+          >
             <Input maxLength={64} />
           </Form.Item>
-          <Form.Item name="itemCode" label="物料编码" rules={[{ required: true, message: '请填写物料编码' }]}>
+          <Form.Item
+            name="itemCode"
+            label="物料编码"
+            rules={[{ required: true, message: '请填写物料编码' }]}
+          >
             <Input maxLength={64} />
           </Form.Item>
           <Form.Item name="itemName" label="物料名称">
@@ -871,7 +959,11 @@ function StockPanel() {
           <Form.Item name="batchNo" label="批次号">
             <Input maxLength={64} />
           </Form.Item>
-          <Form.Item name="quantity" label="数量" rules={[{ required: true, message: '请填写数量' }]}>
+          <Form.Item
+            name="quantity"
+            label="数量"
+            rules={[{ required: true, message: '请填写数量' }]}
+          >
             <InputNumber min={0.0001} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="uom" label="计量单位">
@@ -1011,18 +1103,35 @@ function ReplenishPanel() {
       >
         <Form form={form} layout="vertical">
           <Form.Item name="lineId" label="产线" rules={[{ required: true, message: '请选择产线' }]}>
-            <Select options={lines.map((item) => ({ value: item.id, label: `${item.code} ${item.name}` }))} />
+            <Select
+              options={lines.map((item) => ({
+                value: item.id,
+                label: `${item.code} ${item.name}`,
+              }))}
+            />
           </Form.Item>
-          <Form.Item name="warehouseCode" label="线边仓编码" rules={[{ required: true, message: '请填写线边仓编码' }]}>
+          <Form.Item
+            name="warehouseCode"
+            label="线边仓编码"
+            rules={[{ required: true, message: '请填写线边仓编码' }]}
+          >
             <Input maxLength={64} />
           </Form.Item>
-          <Form.Item name="itemCode" label="物料编码" rules={[{ required: true, message: '请填写物料编码' }]}>
+          <Form.Item
+            name="itemCode"
+            label="物料编码"
+            rules={[{ required: true, message: '请填写物料编码' }]}
+          >
             <Input maxLength={64} />
           </Form.Item>
           <Form.Item name="itemName" label="物料名称">
             <Input maxLength={128} />
           </Form.Item>
-          <Form.Item name="quantity" label="叫料数量" rules={[{ required: true, message: '请填写数量' }]}>
+          <Form.Item
+            name="quantity"
+            label="叫料数量"
+            rules={[{ required: true, message: '请填写数量' }]}
+          >
             <InputNumber min={0.0001} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="uom" label="计量单位">
@@ -1050,7 +1159,12 @@ function ScanPanel() {
   const [loading, setLoading] = useState(false);
   const [ruleOpen, setRuleOpen] = useState(false);
   const [editing, setEditing] = useState<MesScanRule | null>(null);
-  const [scanForm] = Form.useForm<{ barcodeValue: string; stationCode?: string; operationCode?: string; scanNo?: string }>();
+  const [scanForm] = Form.useForm<{
+    barcodeValue: string;
+    stationCode?: string;
+    operationCode?: string;
+    scanNo?: string;
+  }>();
   const [ruleForm] = Form.useForm();
 
   const load = useCallback(async () => {
@@ -1122,7 +1236,9 @@ function ScanPanel() {
       key: 'action',
       width: 90,
       render: (value: string) => (
-        <Tag color={value === 'BLOCK' ? 'red' : 'orange'}>{value === 'BLOCK' ? '阻断' : '告警'}</Tag>
+        <Tag color={value === 'BLOCK' ? 'red' : 'orange'}>
+          {value === 'BLOCK' ? '阻断' : '告警'}
+        </Tag>
       ),
     },
     {
@@ -1168,7 +1284,11 @@ function ScanPanel() {
           <Input placeholder="扫码幂等键（可选）" style={{ width: 180 }} />
         </Form.Item>
         <Form.Item>
-          <Button type="primary" disabled={!hasPermission('sys:mes:trace:scan')} onClick={submitScan}>
+          <Button
+            type="primary"
+            disabled={!hasPermission('sys:mes:trace:scan')}
+            onClick={submitScan}
+          >
             校验
           </Button>
         </Form.Item>
@@ -1208,10 +1328,18 @@ function ScanPanel() {
         destroyOnClose
       >
         <Form form={ruleForm} layout="vertical">
-          <Form.Item name="ruleCode" label="规则编码" rules={[{ required: true, message: '请填写规则编码' }]}>
+          <Form.Item
+            name="ruleCode"
+            label="规则编码"
+            rules={[{ required: true, message: '请填写规则编码' }]}
+          >
             <Input maxLength={64} />
           </Form.Item>
-          <Form.Item name="ruleName" label="规则名称" rules={[{ required: true, message: '请填写规则名称' }]}>
+          <Form.Item
+            name="ruleName"
+            label="规则名称"
+            rules={[{ required: true, message: '请填写规则名称' }]}
+          >
             <Input maxLength={128} />
           </Form.Item>
           <Form.Item name="stationCode" label="适用工位（空表示不限）">
@@ -1224,10 +1352,20 @@ function ScanPanel() {
             <Input maxLength={64} />
           </Form.Item>
           <Form.Item name="action" label="命中处理">
-            <Select options={[{ value: 'BLOCK', label: '阻断' }, { value: 'WARN', label: '告警' }]} />
+            <Select
+              options={[
+                { value: 'BLOCK', label: '阻断' },
+                { value: 'WARN', label: '告警' },
+              ]}
+            />
           </Form.Item>
           <Form.Item name="status" label="状态">
-            <Select options={[{ value: 'ENABLED', label: '启用' }, { value: 'DISABLED', label: '停用' }]} />
+            <Select
+              options={[
+                { value: 'ENABLED', label: '启用' },
+                { value: 'DISABLED', label: '停用' },
+              ]}
+            />
           </Form.Item>
           <Form.Item name="remark" label="备注">
             <Input.TextArea rows={2} maxLength={255} />
@@ -1256,10 +1394,6 @@ export default function TracePage({ initialTab = 'barcode' }: { initialTab?: Tra
   ];
 
   return (
-    <Tabs
-      activeKey={activeKey}
-      onChange={(key) => setActiveKey(key as TraceTab)}
-      items={items}
-    />
+    <Tabs activeKey={activeKey} onChange={(key) => setActiveKey(key as TraceTab)} items={items} />
   );
 }

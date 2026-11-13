@@ -119,9 +119,13 @@ export default function ProductDetailPage() {
                   {SPU_STATUS_LABEL[detail.status] ?? detail.status}
                 </Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="类目">{detail.categoryName || detail.categoryId}</Descriptions.Item>
+              <Descriptions.Item label="类目">
+                {detail.categoryName || detail.categoryId}
+              </Descriptions.Item>
               <Descriptions.Item label="品牌">{detail.brand || '-'}</Descriptions.Item>
-              <Descriptions.Item label="更新时间">{formatDateTime(detail.updateTime)}</Descriptions.Item>
+              <Descriptions.Item label="更新时间">
+                {formatDateTime(detail.updateTime)}
+              </Descriptions.Item>
               <Descriptions.Item label="主图" span={3}>
                 {detail.mainImage ? (
                   <Typography.Link href={detail.mainImage} target="_blank">

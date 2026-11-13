@@ -148,7 +148,13 @@ export interface QuestSystem {
   /** 清空进度（调试 / 重置用） */
   reset: () => void;
   /** 供 e2e 断言的状态快照 */
-  snapshot: () => Array<{ id: string; title: string; giver: string; state: QuestState; steps: boolean[] }>;
+  snapshot: () => Array<{
+    id: string;
+    title: string;
+    giver: string;
+    state: QuestState;
+    steps: boolean[];
+  }>;
 }
 
 const emptyProgress = (): QuestProgress => ({ state: 'available', steps: [] });
@@ -280,7 +286,12 @@ export function createQuestSystem(defs: QuestDef[] = QUESTS): QuestSystem {
         }
         if (changed && p.steps.every(Boolean)) {
           p.state = 'ready';
-          events.push({ kind: 'ready', quest: def, stepIndex: def.steps.length - 1, label: def.report });
+          events.push({
+            kind: 'ready',
+            quest: def,
+            stepIndex: def.steps.length - 1,
+            label: def.report,
+          });
         }
       }
       if (events.length > 0) {
@@ -290,7 +301,10 @@ export function createQuestSystem(defs: QuestDef[] = QUESTS): QuestSystem {
     },
     reset() {
       for (const def of defs) {
-        progress.set(def.id, { state: 'available', steps: new Array(def.steps.length).fill(false) });
+        progress.set(def.id, {
+          state: 'available',
+          steps: new Array(def.steps.length).fill(false),
+        });
       }
       try {
         window.localStorage.removeItem(SAVE_KEY);
@@ -301,7 +315,13 @@ export function createQuestSystem(defs: QuestDef[] = QUESTS): QuestSystem {
     snapshot() {
       return defs.map((def) => {
         const p = progress.get(def.id) ?? emptyProgress();
-        return { id: def.id, title: def.title, giver: def.giver, state: p.state, steps: [...p.steps] };
+        return {
+          id: def.id,
+          title: def.title,
+          giver: def.giver,
+          state: p.state,
+          steps: [...p.steps],
+        };
       });
     },
   };

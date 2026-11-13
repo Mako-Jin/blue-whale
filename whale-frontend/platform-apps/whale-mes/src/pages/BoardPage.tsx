@@ -76,7 +76,8 @@ export default function BoardPage() {
       title: '工序',
       key: 'operation',
       width: 160,
-      render: (_, record) => `${record.operationCode ?? ''} ${record.operationName ?? ''}`.trim() || '-',
+      render: (_, record) =>
+        `${record.operationCode ?? ''} ${record.operationName ?? ''}`.trim() || '-',
     },
     {
       title: '计划数量',
@@ -92,7 +93,9 @@ export default function BoardPage() {
       width: 100,
       render: (value) => {
         const current = value as MesTaskStatus;
-        return <Tag color={TASK_STATUS_COLOR[current]}>{TASK_STATUS_LABEL[current] ?? current}</Tag>;
+        return (
+          <Tag color={TASK_STATUS_COLOR[current]}>{TASK_STATUS_LABEL[current] ?? current}</Tag>
+        );
       },
     },
   ];
@@ -111,7 +114,10 @@ export default function BoardPage() {
           optionFilterProp="label"
           value={lineId}
           onChange={(value) => setLineId(value)}
-          options={lineOptions.map((item) => ({ value: item.id, label: `${item.code} ${item.name}`.trim() }))}
+          options={lineOptions.map((item) => ({
+            value: item.id,
+            label: `${item.code} ${item.name}`.trim(),
+          }))}
         />
         <Select
           allowClear
@@ -121,7 +127,10 @@ export default function BoardPage() {
           optionFilterProp="label"
           value={teamId}
           onChange={(value) => setTeamId(value)}
-          options={teamOptions.map((item) => ({ value: item.id, label: `${item.code} ${item.name}`.trim() }))}
+          options={teamOptions.map((item) => ({
+            value: item.id,
+            label: `${item.code} ${item.name}`.trim(),
+          }))}
         />
       </Space>
       <Card loading={loading}>

@@ -195,7 +195,11 @@ export default function MesReconcilePage() {
       key: 'mismatch',
       width: 100,
       render: (_, record) =>
-        record.completedMismatch ? <Tag color="red">数量不一致</Tag> : <Tag color="green">一致</Tag>,
+        record.completedMismatch ? (
+          <Tag color="red">数量不一致</Tag>
+        ) : (
+          <Tag color="green">一致</Tag>
+        ),
     },
     {
       title: '同步状态',
@@ -244,12 +248,12 @@ export default function MesReconcilePage() {
               拉取
             </Button>
           ) : null}
-          {hasPermission('sys:erp:mes:complete')
-          && (record.completedMismatch || record.callbackRejected) ? (
+          {hasPermission('sys:erp:mes:complete') &&
+          (record.completedMismatch || record.callbackRejected) ? (
             <Button size="small" type="primary" onClick={() => openApply(record)}>
               确认入库
             </Button>
-            ) : null}
+          ) : null}
         </Space>
       ),
     },
@@ -402,12 +406,18 @@ export default function MesReconcilePage() {
           <>
             <Descriptions column={2} size="small" bordered>
               <Descriptions.Item label="ERP 状态">{detail.order.status}</Descriptions.Item>
-              <Descriptions.Item label="MES 状态">{detail.progress?.mesStatus ?? '-'}</Descriptions.Item>
+              <Descriptions.Item label="MES 状态">
+                {detail.progress?.mesStatus ?? '-'}
+              </Descriptions.Item>
               <Descriptions.Item label="MES 工单">
                 {detail.order.mesWorkOrderCode ?? detail.progress?.workOrderCode ?? '-'}
               </Descriptions.Item>
-              <Descriptions.Item label="最近同步">{formatTime(detail.order.mesSyncedAt)}</Descriptions.Item>
-              <Descriptions.Item label="ERP 已完工">{quantity(detail.order.completedQuantity)}</Descriptions.Item>
+              <Descriptions.Item label="最近同步">
+                {formatTime(detail.order.mesSyncedAt)}
+              </Descriptions.Item>
+              <Descriptions.Item label="ERP 已完工">
+                {quantity(detail.order.completedQuantity)}
+              </Descriptions.Item>
               <Descriptions.Item label="MES 已完工">
                 {quantity(detail.progress?.completedQuantity)}
               </Descriptions.Item>

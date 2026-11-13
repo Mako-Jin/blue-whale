@@ -82,7 +82,8 @@ export default function UploadPage() {
   const [accepting, setAccepting] = useState(false);
   const [contentSource, setContentSource] = useState<ContentSource>('ORIGINAL');
 
-  const [contentType, setContentType] = useState<Extract<ContentType, 'SHORT_VIDEO' | 'VIDEO'>>('SHORT_VIDEO');
+  const [contentType, setContentType] =
+    useState<Extract<ContentType, 'SHORT_VIDEO' | 'VIDEO'>>('SHORT_VIDEO');
   const [categories, setCategories] = useState<CategoryView[]>([]);
   const [tags, setTags] = useState<TagView[]>([]);
   const [seriesList, setSeriesList] = useState<SeriesView[]>([]);
@@ -162,7 +163,9 @@ export default function UploadPage() {
     try {
       const metadata = await readVideoMetadata(file);
       const uploaded = await uploadVideoFile(file, (uploadedBytes, totalBytes) => {
-        setUploadPercent(totalBytes > 0 ? Math.min(Math.round((uploadedBytes / totalBytes) * 100), 99) : 0);
+        setUploadPercent(
+          totalBytes > 0 ? Math.min(Math.round((uploadedBytes / totalBytes) * 100), 99) : 0,
+        );
       });
       setVideoFileId(uploaded.id);
       setVideoName(uploaded.originalName ?? file.name);
@@ -268,7 +271,10 @@ export default function UploadPage() {
   }
 
   const categoryOptions = categories
-    .filter((category) => category.contentTypeScope === 'ALL' || category.contentTypeScope === contentType)
+    .filter(
+      (category) =>
+        category.contentTypeScope === 'ALL' || category.contentTypeScope === contentType,
+    )
     .map((category) => ({ value: category.id, label: category.name }));
 
   return (
@@ -294,8 +300,8 @@ export default function UploadPage() {
         />
         {meta ? (
           <Typography.Paragraph type="secondary">
-            允许格式 {meta.contentTypes.join(' / ')}；短视频上限 {formatBytes(meta.shortMaxBytes)}、视频上限{' '}
-            {formatBytes(meta.videoMaxBytes)}；票据有效期 {meta.playTicketTtlSeconds}s。
+            允许格式 {meta.contentTypes.join(' / ')}；短视频上限 {formatBytes(meta.shortMaxBytes)}
+            、视频上限 {formatBytes(meta.videoMaxBytes)}；票据有效期 {meta.playTicketTtlSeconds}s。
           </Typography.Paragraph>
         ) : null}
 
@@ -326,7 +332,9 @@ export default function UploadPage() {
                     return false;
                   }}
                 >
-                  <Button loading={uploadingVideo}>{videoFileId ? '重新上传视频' : '选择视频文件'}</Button>
+                  <Button loading={uploadingVideo}>
+                    {videoFileId ? '重新上传视频' : '选择视频文件'}
+                  </Button>
                 </Upload>
                 {videoName ? (
                   <Typography.Text>
@@ -337,7 +345,9 @@ export default function UploadPage() {
                   </Typography.Text>
                 ) : null}
               </Space>
-              {uploadingVideo || uploadPercent > 0 ? <Progress percent={uploadPercent} size="small" /> : null}
+              {uploadingVideo || uploadPercent > 0 ? (
+                <Progress percent={uploadPercent} size="small" />
+              ) : null}
             </Space>
           </Form.Item>
 
@@ -351,7 +361,9 @@ export default function UploadPage() {
                   return false;
                 }}
               >
-                <Button loading={uploadingCover}>{coverFileId ? '重新上传封面' : '选择封面图片'}</Button>
+                <Button loading={uploadingCover}>
+                  {coverFileId ? '重新上传封面' : '选择封面图片'}
+                </Button>
               </Upload>
               {coverName ? <Typography.Text>{coverName}</Typography.Text> : null}
             </Space>
@@ -364,7 +376,12 @@ export default function UploadPage() {
             <Input maxLength={200} placeholder="可选" />
           </Form.Item>
           <Form.Item name="description" label="简介">
-            <Input.TextArea maxLength={2000} showCount autoSize={{ minRows: 3, maxRows: 6 }} placeholder="作品简介" />
+            <Input.TextArea
+              maxLength={2000}
+              showCount
+              autoSize={{ minRows: 3, maxRows: 6 }}
+              placeholder="作品简介"
+            />
           </Form.Item>
           <Form.Item name="categoryId" label="分类">
             <Select allowClear placeholder="选择分类" options={categoryOptions} />
@@ -385,11 +402,23 @@ export default function UploadPage() {
                   }))}
                 />
               </Form.Item>
-              <Form.Item noStyle shouldUpdate={(previous, next) => previous.seriesId !== next.seriesId}>
+              <Form.Item
+                noStyle
+                shouldUpdate={(previous, next) => previous.seriesId !== next.seriesId}
+              >
                 {({ getFieldValue }) =>
                   getFieldValue('seriesId') ? (
-                    <Form.Item name="episodeNo" label="集数" rules={[{ required: true, message: '请输入集数' }]}>
-                      <InputNumber min={1} precision={0} style={{ width: 160 }} placeholder="第几集" />
+                    <Form.Item
+                      name="episodeNo"
+                      label="集数"
+                      rules={[{ required: true, message: '请输入集数' }]}
+                    >
+                      <InputNumber
+                        min={1}
+                        precision={0}
+                        style={{ width: 160 }}
+                        placeholder="第几集"
+                      />
                     </Form.Item>
                   ) : null
                 }
@@ -397,7 +426,12 @@ export default function UploadPage() {
             </>
           ) : null}
           <Form.Item name="tagIds" label="标签">
-            <Select mode="multiple" allowClear placeholder="选择标签" options={tags.map((tag) => ({ value: tag.id, label: tag.name }))} />
+            <Select
+              mode="multiple"
+              allowClear
+              placeholder="选择标签"
+              options={tags.map((tag) => ({ value: tag.id, label: tag.name }))}
+            />
           </Form.Item>
           <Form.Item name="visibility" label="可见性" rules={[{ required: true }]}>
             <Radio.Group>
@@ -406,7 +440,11 @@ export default function UploadPage() {
             </Radio.Group>
           </Form.Item>
           <Form.Item label="内容来源" required>
-            <Select value={contentSource} onChange={(value) => setContentSource(value)} options={SOURCE_OPTIONS} />
+            <Select
+              value={contentSource}
+              onChange={(value) => setContentSource(value)}
+              options={SOURCE_OPTIONS}
+            />
           </Form.Item>
           <Form.Item name="publishNow" valuePropName="checked">
             <Checkbox>提交后立即发布（关闭则保存为草稿）</Checkbox>
@@ -432,7 +470,9 @@ export default function UploadPage() {
         okText="确认签署"
         cancelText="稍后"
       >
-        <Typography.Paragraph type="secondary">版本 {declaration?.version ?? '-'}</Typography.Paragraph>
+        <Typography.Paragraph type="secondary">
+          版本 {declaration?.version ?? '-'}
+        </Typography.Paragraph>
         <div
           style={{
             maxHeight: 320,
@@ -451,7 +491,11 @@ export default function UploadPage() {
           onChange={(value) => setContentSource(value)}
           options={SOURCE_OPTIONS}
         />
-        <Checkbox style={{ marginTop: 12 }} checked={agreed} onChange={(event) => setAgreed(event.target.checked)}>
+        <Checkbox
+          style={{ marginTop: 12 }}
+          checked={agreed}
+          onChange={(event) => setAgreed(event.target.checked)}
+        >
           我已阅读并承诺内容合法、版权无争议，且对上传内容独立承担全部责任
         </Checkbox>
       </Modal>

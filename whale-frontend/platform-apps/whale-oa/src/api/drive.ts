@@ -142,10 +142,7 @@ export function listDriveAcls(folderId: number): Promise<OaDriveAcl[]> {
 }
 
 /** 替换文件夹授权 */
-export function replaceDriveAcls(
-  folderId: number,
-  entries: OaDriveAcl[],
-): Promise<OaDriveAcl[]> {
+export function replaceDriveAcls(folderId: number, entries: OaDriveAcl[]): Promise<OaDriveAcl[]> {
   return http.put<OaDriveAcl[]>(`/oa/drive/folders/${folderId}/acls`, { entries });
 }
 

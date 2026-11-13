@@ -56,25 +56,30 @@ export const NPCS: NpcDef[] = [
     name: '卫临',
     role: '御前侍卫',
     place: '皇城·御道',
-    brief: '掌城门钥与宵禁、巡防布岗、门禁与告警的规矩；能查告警、门禁相关的接口清单、配置与制度文档。',
+    brief:
+      '掌城门钥与宵禁、巡防布岗、门禁与告警的规矩；能查告警、门禁相关的接口清单、配置与制度文档。',
     route: [
       [-3.2, 80],
       [-3.2, 34],
     ],
     speed: 2.2,
-    lines: [
-      '御道清静，主公慢行。',
-      '夜里巡城，灯影最配这城墙。',
-      '城门钥在我这儿，要出城说一声。',
-    ],
-    appearance: { robe: '#3f5f78', hairStyle: 2, accessory: 2, beard: true, height: 1.06, build: 1.06 },
+    lines: ['御道清静，主公慢行。', '夜里巡城，灯影最配这城墙。', '城门钥在我这儿，要出城说一声。'],
+    appearance: {
+      robe: '#3f5f78',
+      hairStyle: 2,
+      accessory: 2,
+      beard: true,
+      height: 1.06,
+      build: 1.06,
+    },
   },
   {
     id: 'clerk-shen',
     name: '沈文昭',
     role: '户部主事',
     place: '内城·户部',
-    brief: '掌钱粮账目：订单、合同、应收应付、库存与工单的章程；能查 ERP/CRM 的接口、表结构与业务文档。',
+    brief:
+      '掌钱粮账目：订单、合同、应收应付、库存与工单的章程；能查 ERP/CRM 的接口、表结构与业务文档。',
     route: [
       [26, 78],
       [8, 78],
@@ -87,14 +92,22 @@ export const NPCS: NpcDef[] = [
       '仓里新到的粮，数目对得上。',
       '城里的买卖，如今都走市舶司的账。',
     ],
-    appearance: { robe: '#7a5a2e', hairStyle: 0, accessory: 1, beard: true, height: 0.98, build: 0.98 },
+    appearance: {
+      robe: '#7a5a2e',
+      hairStyle: 0,
+      accessory: 1,
+      beard: true,
+      height: 0.98,
+      build: 0.98,
+    },
   },
   {
     id: 'peddler-chen',
     name: '陈九',
     role: '货郎',
     place: '外城·市集',
-    brief: '走南闯北的买卖人：商城的商品、价格、活动与履约流程；能查商城的接口、配置与上架规则文档。',
+    brief:
+      '走南闯北的买卖人：商城的商品、价格、活动与履约流程；能查商城的接口、配置与上架规则文档。',
     route: [
       [2.8, -32],
       [2.8, -72],
@@ -125,7 +138,14 @@ export const NPCS: NpcDef[] = [
       '皇城里的灯，比别处暖一些。',
       '公主要在数枢殿议事么？我把灯挑亮。',
     ],
-    appearance: { robe: '#a3435a', hairStyle: 1, accessory: 1, height: 0.95, build: 0.92, faceWidth: 0.96 },
+    appearance: {
+      robe: '#a3435a',
+      hairStyle: 1,
+      accessory: 1,
+      height: 0.95,
+      build: 0.92,
+      faceWidth: 0.96,
+    },
   },
   {
     id: 'watcher-luan',
@@ -140,12 +160,15 @@ export const NPCS: NpcDef[] = [
       [0, -40],
     ],
     speed: 1.3,
-    lines: [
-      '天干物燥，小心火烛。',
-      '更鼓敲过三巡，主公早些歇息。',
-      '冬夜风硬，城头的旗都冻住了。',
-    ],
-    appearance: { robe: '#5a4a7a', hairStyle: 0, accessory: 0, beard: true, height: 0.93, build: 1.12 },
+    lines: ['天干物燥，小心火烛。', '更鼓敲过三巡，主公早些歇息。', '冬夜风硬，城头的旗都冻住了。'],
+    appearance: {
+      robe: '#5a4a7a',
+      hairStyle: 0,
+      accessory: 0,
+      beard: true,
+      height: 0.93,
+      build: 1.12,
+    },
   },
   {
     id: 'guard-han',

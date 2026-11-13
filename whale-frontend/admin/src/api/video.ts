@@ -385,9 +385,7 @@ export function getCollection(id: string): Promise<MovieCollectionAdminDetailVie
 }
 
 /** 新增片单草稿 */
-export function createCollection(
-  input: CollectionSaveInput,
-): Promise<MovieCollectionAdminView> {
+export function createCollection(input: CollectionSaveInput): Promise<MovieCollectionAdminView> {
   return post<MovieCollectionAdminView>('/video/admin/collections', input);
 }
 
@@ -462,9 +460,6 @@ export function pageCreators(params: CreatorQuery): Promise<PageResult<CreatorAd
 }
 
 /** 编辑创作者资料与状态 */
-export function updateCreator(
-  id: string,
-  input: CreatorUpdateInput,
-): Promise<CreatorAdminView> {
+export function updateCreator(id: string, input: CreatorUpdateInput): Promise<CreatorAdminView> {
   return put<CreatorAdminView>(`/video/admin/creator/${id}`, input);
 }

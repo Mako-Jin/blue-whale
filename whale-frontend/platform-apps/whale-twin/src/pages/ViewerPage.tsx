@@ -148,9 +148,10 @@ function resolveEmissive(
 }
 
 /** 从属性映射读取告警规则预填值（取首个带阈值的条目；无则空对象） */
-function readAlertRules(
-  json: string | null | undefined,
-): { confirmSeconds?: number; recoveryDelta?: number } {
+function readAlertRules(json: string | null | undefined): {
+  confirmSeconds?: number;
+  recoveryDelta?: number;
+} {
   for (const entry of Object.values(parsePropertyMap(json))) {
     if (entry && typeof entry === 'object' && Array.isArray(entry.thresholds)) {
       return { confirmSeconds: entry.confirmSeconds, recoveryDelta: entry.recoveryDelta };
@@ -238,7 +239,11 @@ function parseMarkerPosition(json: string | null | undefined): [number, number, 
   if (!json) return null;
   try {
     const parsed = JSON.parse(json) as unknown;
-    if (Array.isArray(parsed) && parsed.length === 3 && parsed.every((n) => typeof n === 'number')) {
+    if (
+      Array.isArray(parsed) &&
+      parsed.length === 3 &&
+      parsed.every((n) => typeof n === 'number')
+    ) {
       return [parsed[0], parsed[1], parsed[2]];
     }
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
@@ -255,7 +260,14 @@ function parseMarkerPosition(json: string | null | undefined): [number, number, 
 }
 
 /** 画布圆角矩形路径 */
-function traceRoundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
+function traceRoundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+): void {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
   ctx.arcTo(x + w, y, x + w, y + h, r);
@@ -547,30 +559,33 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
   }, [picking, message]);
 
   /** 按绑定映射与实时态给实体上自发光色 */
-  const applyLiveColor = useCallback((state: BindingStateVO, propertyMap: string | null | undefined) => {
-    const holder = holdersRef.current.get(state.entityId);
-    if (!holder) return;
-    const emissive = resolveEmissive(state, parsePropertyMap(propertyMap));
-    holder.traverse((child) => {
-      const mesh = child as Mesh;
-      const isMesh = (child as unknown as { isMesh?: boolean }).isMesh === true;
-      if (!isMesh) return;
-      const material = mesh.material as MeshStandardMaterial | MeshStandardMaterial[];
-      const list = Array.isArray(material) ? material : [material];
-      for (const mat of list) {
-        if (!mat || !(mat as MeshStandardMaterial).emissive) continue;
-        const userData = mesh.userData as Record<string, unknown>;
-        if (!userData.__baseEmissive) {
-          userData.__baseEmissive = mat.emissive.clone();
+  const applyLiveColor = useCallback(
+    (state: BindingStateVO, propertyMap: string | null | undefined) => {
+      const holder = holdersRef.current.get(state.entityId);
+      if (!holder) return;
+      const emissive = resolveEmissive(state, parsePropertyMap(propertyMap));
+      holder.traverse((child) => {
+        const mesh = child as Mesh;
+        const isMesh = (child as unknown as { isMesh?: boolean }).isMesh === true;
+        if (!isMesh) return;
+        const material = mesh.material as MeshStandardMaterial | MeshStandardMaterial[];
+        const list = Array.isArray(material) ? material : [material];
+        for (const mat of list) {
+          if (!mat || !(mat as MeshStandardMaterial).emissive) continue;
+          const userData = mesh.userData as Record<string, unknown>;
+          if (!userData.__baseEmissive) {
+            userData.__baseEmissive = mat.emissive.clone();
+          }
+          if (emissive === null) {
+            mat.emissive.copy(userData.__baseEmissive as Color);
+          } else {
+            mat.emissive.setHex(emissive);
+          }
         }
-        if (emissive === null) {
-          mat.emissive.copy(userData.__baseEmissive as Color);
-        } else {
-          mat.emissive.setHex(emissive);
-        }
-      }
-    });
-  }, []);
+      });
+    },
+    [],
+  );
 
   /** 用一批实时态刷新面板与 3D 颜色 */
   const mergeStates = useCallback(
@@ -940,8 +955,7 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
       entityId: String(values.entityId),
       sourceType: values.sourceType,
       bindKey,
-      propertyMap: applyAlertRules(
-        values.propertyMap, values.confirmSeconds, values.recoveryDelta),
+      propertyMap: applyAlertRules(values.propertyMap, values.confirmSeconds, values.recoveryDelta),
       pollIntervalMs: values.pollIntervalMs ?? 5000,
       enabled: values.enabled === false ? 0 : 1,
     };
@@ -1096,14 +1110,26 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
             placeholder="选择场景"
             style={{ width: '100%' }}
             value={sceneId ?? undefined}
-            options={scenes.map((scene) => ({ value: scene.id, label: `${scene.name}（${scene.code}）` }))}
+            options={scenes.map((scene) => ({
+              value: scene.id,
+              label: `${scene.name}（${scene.code}）`,
+            }))}
             onChange={(value) => setSceneId(value)}
           />
           <Space wrap>
-            <Button size="small" type="primary" disabled={!sceneId} onClick={() => openCreate(null)}>
+            <Button
+              size="small"
+              type="primary"
+              disabled={!sceneId}
+              onClick={() => openCreate(null)}
+            >
               新建根实体
             </Button>
-            <Button size="small" disabled={!selected} onClick={() => selected && openEdit(selected)}>
+            <Button
+              size="small"
+              disabled={!selected}
+              onClick={() => selected && openEdit(selected)}
+            >
               编辑选中
             </Button>
             <Button size="small" disabled={!sceneId} onClick={openBindingCreate}>
@@ -1125,7 +1151,13 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
                 停止实时
               </Button>
             ) : (
-              <Button size="small" type="primary" ghost disabled={!sceneId} onClick={() => void startStream()}>
+              <Button
+                size="small"
+                type="primary"
+                ghost
+                disabled={!sceneId}
+                onClick={() => void startStream()}
+              >
                 订阅实时
               </Button>
             )}
@@ -1200,13 +1232,20 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
             label="编码"
             rules={[
               { required: true, message: '请输入实体编码' },
-              { pattern: /^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/, message: '字母开头的字母/数字/下划线/中划线' },
+              {
+                pattern: /^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/,
+                message: '字母开头的字母/数字/下划线/中划线',
+              },
             ]}
             extra={selected ? '编码创建后不可修改' : '场景内唯一，如 boiler-01'}
           >
             <Input disabled={!!selected} placeholder="boiler-01" />
           </Form.Item>
-          <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入实体名称' }]}>
+          <Form.Item
+            name="name"
+            label="名称"
+            rules={[{ required: true, message: '请输入实体名称' }]}
+          >
             <Input placeholder="1号锅炉" maxLength={128} />
           </Form.Item>
           <Form.Item name="parentId" label="父节点">
@@ -1221,7 +1260,11 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
                 }))}
             />
           </Form.Item>
-          <Form.Item name="modelFileId" label="模型文件ID" extra="whale-file 文件ID（GLB/GLTF），留空显示占位体">
+          <Form.Item
+            name="modelFileId"
+            label="模型文件ID"
+            extra="whale-file 文件ID（GLB/GLTF），留空显示占位体"
+          >
             <Input style={{ width: '100%' }} placeholder="文件ID（雪花 ID，字符串）" />
           </Form.Item>
           <Form.Item
@@ -1265,7 +1308,11 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
         }
       >
         <Form<BindingFormValues> form={bindingForm} layout="vertical">
-          <Form.Item name="entityId" label="绑定实体" rules={[{ required: true, message: '请选择实体' }]}>
+          <Form.Item
+            name="entityId"
+            label="绑定实体"
+            rules={[{ required: true, message: '请选择实体' }]}
+          >
             <Select
               placeholder="选择实体"
               options={flatEntities.map((item) => ({
@@ -1295,7 +1342,11 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
                   <Input placeholder="/iot/internal/device/state?deviceId=1" />
                 </Form.Item>
               ) : (
-                <Form.Item name="deviceId" label="IoT 设备" rules={[{ required: true, message: '请选择设备' }]}>
+                <Form.Item
+                  name="deviceId"
+                  label="IoT 设备"
+                  rules={[{ required: true, message: '请选择设备' }]}
+                >
                   <Select
                     showSearch
                     optionFilterProp="label"
@@ -1328,18 +1379,41 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
                 },
               },
             ]}
-            extra={'{"temperature":{"stateKey":"color","thresholds":[50,80]}} —— thresholds 驱动变色（低于 t1 绿 / t1~t2 橙 / 高于 t2 红）'}
+            extra={
+              '{"temperature":{"stateKey":"color","thresholds":[50,80]}} —— thresholds 驱动变色（低于 t1 绿 / t1~t2 橙 / 高于 t2 红）'
+            }
           >
-            <Input.TextArea rows={3} placeholder='{"temperature":{"stateKey":"color","thresholds":[50,80]}}' />
+            <Input.TextArea
+              rows={3}
+              placeholder='{"temperature":{"stateKey":"color","thresholds":[50,80]}}'
+            />
           </Form.Item>
-          <Form.Item name="confirmSeconds" label="告警确认时长（秒）" extra="越界持续该秒数才告警，滤除瞬时毛刺（0 = 立即告警）；应用到属性映射内全部阈值键">
+          <Form.Item
+            name="confirmSeconds"
+            label="告警确认时长（秒）"
+            extra="越界持续该秒数才告警，滤除瞬时毛刺（0 = 立即告警）；应用到属性映射内全部阈值键"
+          >
             <InputNumber style={{ width: 180 }} min={0} max={3600} precision={0} />
           </Form.Item>
-          <Form.Item name="recoveryDelta" label="恢复回差" extra="恢复需跌破 阈值−回差，防临界值附近反复告警/恢复（0 = 关闭）">
+          <Form.Item
+            name="recoveryDelta"
+            label="恢复回差"
+            extra="恢复需跌破 阈值−回差，防临界值附近反复告警/恢复（0 = 关闭）"
+          >
             <InputNumber style={{ width: 180 }} min={0} precision={2} />
           </Form.Item>
-          <Form.Item name="pollIntervalMs" label="轮询间隔（毫秒）" extra="最小 1000；实际受服务端 tick 粒度约束">
-            <InputNumber style={{ width: 180 }} min={1000} max={3600000} step={1000} precision={0} />
+          <Form.Item
+            name="pollIntervalMs"
+            label="轮询间隔（毫秒）"
+            extra="最小 1000；实际受服务端 tick 粒度约束"
+          >
+            <InputNumber
+              style={{ width: 180 }}
+              min={1000}
+              max={3600000}
+              step={1000}
+              precision={0}
+            />
           </Form.Item>
           <Form.Item name="enabled" label="启用" valuePropName="checked">
             <Switch />
@@ -1350,9 +1424,7 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
           {bindings.map((binding) => (
             <div key={binding.id} className="twin-live-item">
               <Badge status={binding.enabled === 1 ? 'success' : 'default'} />
-              <span className="twin-live-code">
-                {binding.entityName ?? binding.entityCode}
-              </span>
+              <span className="twin-live-code">{binding.entityName ?? binding.entityCode}</span>
               <span className="twin-live-value">
                 {binding.sourceType === 'iot_device' ? '设备' : '接口'} {binding.bindKey} ·{' '}
                 {binding.pollIntervalMs}ms
@@ -1443,7 +1515,11 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
           >
             <Input.TextArea rows={2} placeholder='{"x":0,"y":2,"z":0}' />
             <Space size="small" style={{ marginTop: 6 }}>
-              <Button size="small" type={picking ? 'primary' : 'default'} onClick={() => setPicking((v) => !v)}>
+              <Button
+                size="small"
+                type={picking ? 'primary' : 'default'}
+                onClick={() => setPicking((v) => !v)}
+              >
                 {picking ? '退出拾取' : '拾取坐标（点击模型表面）'}
               </Button>
               {picking && <Tag color="processing">拾取中，Esc 取消</Tag>}
@@ -1497,9 +1573,7 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
         width={480}
         open={alertDrawerOpen}
         onClose={() => setAlertDrawerOpen(false)}
-        extra={
-          <Button onClick={() => void loadAlerts(alertFilter)}>刷新</Button>
-        }
+        extra={<Button onClick={() => void loadAlerts(alertFilter)}>刷新</Button>}
       >
         <Radio.Group
           value={alertFilter}
@@ -1550,16 +1624,12 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
                     <span>.{item.stateKey}</span>
                     <span>= {item.value ?? '-'}</span>
                     {item.thresholds?.length ? (
-                      <span className="twin-live-off">
-                        阈值 [{item.thresholds.join(', ')}]
-                      </span>
+                      <span className="twin-live-off">阈值 [{item.thresholds.join(', ')}]</span>
                     ) : null}
                   </Space>
                   <div className="twin-live-off">
                     {item.createTime ?? '-'}
-                    {item.resolved
-                      ? ` · 已恢复（${item.resolveTime ?? '-'}）`
-                      : ' · 未恢复'}
+                    {item.resolved ? ` · 已恢复（${item.resolveTime ?? '-'}）` : ' · 未恢复'}
                     {item.acked
                       ? ` · 确认于 ${item.ackTime ?? '-'}${item.ackBy ? `（用户 ${item.ackBy}）` : ''}`
                       : ''}
@@ -1633,7 +1703,8 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
         )}
         {!insightText && !insightStreaming && !insightMeta && (
           <div style={{ marginTop: 12, color: 'rgba(128,128,128,0.9)', fontSize: 12 }}>
-            将把{selected ? '选中实体' : '整场景'}的实时绑定状态发给 AI 助手流式解读；内网令牌留在服务端，不经前端。
+            将把{selected ? '选中实体' : '整场景'}的实时绑定状态发给 AI
+            助手流式解读；内网令牌留在服务端，不经前端。
           </div>
         )}
         {insightStreaming && !insightText && (

@@ -328,18 +328,27 @@ export function updateCampaignRoi(
 }
 
 /** 人群预览 */
-export function previewAudience(id: number, criteria: AudienceCriteria): Promise<AudiencePreviewView> {
+export function previewAudience(
+  id: number,
+  criteria: AudienceCriteria,
+): Promise<AudiencePreviewView> {
   return http.post<AudiencePreviewView>(`/crm/campaign/${id}/audience/preview`, { criteria });
 }
 
 /** 锁定人群快照 */
-export function lockAudience(id: number, criteria: AudienceCriteria): Promise<CampaignAudienceView> {
+export function lockAudience(
+  id: number,
+  criteria: AudienceCriteria,
+): Promise<CampaignAudienceView> {
   return http.post<CampaignAudienceView>(`/crm/campaign/${id}/audience/lock`, { criteria });
 }
 
 /** 分页查询培育任务 */
 export function pageNurture(query: NurtureQuery): Promise<PageResult<NurtureTaskView>> {
-  return http.get<PageResult<NurtureTaskView>>('/crm/nurture/page', query as Record<string, unknown>);
+  return http.get<PageResult<NurtureTaskView>>(
+    '/crm/nurture/page',
+    query as Record<string, unknown>,
+  );
 }
 
 /** 新建培育任务 */
@@ -359,7 +368,10 @@ export function changeNurtureStatus(id: number, status: string): Promise<Nurture
 
 /** 分页查询触达任务 */
 export function pageSends(query: MarketingSendQuery): Promise<PageResult<MarketingSendView>> {
-  return http.get<PageResult<MarketingSendView>>('/crm/marketing-send/page', query as Record<string, unknown>);
+  return http.get<PageResult<MarketingSendView>>(
+    '/crm/marketing-send/page',
+    query as Record<string, unknown>,
+  );
 }
 
 /** 触达任务详情 */
@@ -393,7 +405,9 @@ export function updatePartner(id: number, input: PartnerSaveInput): Promise<Part
 }
 
 /** 分页查询渠道报单 */
-export function pagePartnerReports(query: PartnerReportQuery): Promise<PageResult<PartnerReportView>> {
+export function pagePartnerReports(
+  query: PartnerReportQuery,
+): Promise<PageResult<PartnerReportView>> {
   return http.get<PageResult<PartnerReportView>>(
     '/crm/partner/report/page',
     query as Record<string, unknown>,

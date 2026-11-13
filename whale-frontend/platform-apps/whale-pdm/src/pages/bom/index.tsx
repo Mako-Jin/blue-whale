@@ -96,7 +96,13 @@ export default function BomLibrary() {
     { title: 'BOM 编号', dataIndex: 'bomNo', key: 'bomNo', width: 160 },
     { title: '产品编码', dataIndex: 'productCode', key: 'productCode', width: 140 },
     { title: '产品名称', dataIndex: 'productName', key: 'productName' },
-    { title: '视图', dataIndex: 'view', key: 'view', width: 100, render: (value: BomView) => VIEW_OPTIONS.find((item) => item.value === value)?.label ?? value },
+    {
+      title: '视图',
+      dataIndex: 'view',
+      key: 'view',
+      width: 100,
+      render: (value: BomView) => VIEW_OPTIONS.find((item) => item.value === value)?.label ?? value,
+    },
     { title: '版本', dataIndex: 'versionNo', key: 'versionNo', width: 90 },
     {
       title: '状态',

@@ -97,10 +97,7 @@ interface ReportFormValues {
 
 /** 剩余未领数量 */
 function remainingOf(material: ProductionMaterialView): number {
-  return Math.max(
-    Number(material.requiredQuantity ?? 0) - Number(material.issuedQuantity ?? 0),
-    0,
-  );
+  return Math.max(Number(material.requiredQuantity ?? 0) - Number(material.issuedQuantity ?? 0), 0);
 }
 
 /** 生产订单页 */
@@ -220,7 +217,10 @@ export default function ProductionPage() {
     setCompleteTarget(order);
     completeForm.resetFields();
     completeForm.setFieldsValue({
-      quantity: Math.max(Number(order.plannedQuantity ?? 0) - Number(order.completedQuantity ?? 0), 0),
+      quantity: Math.max(
+        Number(order.plannedQuantity ?? 0) - Number(order.completedQuantity ?? 0),
+        0,
+      ),
       completeDate: dayjs(),
     });
   };
@@ -337,7 +337,13 @@ export default function ProductionPage() {
       key: 'item',
       render: (_, record) => `${record.itemCode}${record.itemName ? ` ${record.itemName}` : ''}`,
     },
-    { title: '计划数量', dataIndex: 'plannedQuantity', key: 'plannedQuantity', width: 110, render: quantity },
+    {
+      title: '计划数量',
+      dataIndex: 'plannedQuantity',
+      key: 'plannedQuantity',
+      width: 110,
+      render: quantity,
+    },
     {
       title: '已完工',
       dataIndex: 'completedQuantity',
@@ -371,14 +377,17 @@ export default function ProductionPage() {
             查看
           </Button>
           {record.status === 'DRAFT' && hasPermission('sys:erp:production:release') ? (
-            <Popconfirm title="下达后可开始领料，确认继续？" onConfirm={() => handleRelease(record.id)}>
+            <Popconfirm
+              title="下达后可开始领料，确认继续？"
+              onConfirm={() => handleRelease(record.id)}
+            >
               <Button type="link" size="small">
                 下达
               </Button>
             </Popconfirm>
           ) : null}
-          {(record.status === 'RELEASED' || record.status === 'IN_PROGRESS')
-          && hasPermission('sys:erp:production:issue') ? (
+          {(record.status === 'RELEASED' || record.status === 'IN_PROGRESS') &&
+          hasPermission('sys:erp:production:issue') ? (
             <Button type="link" size="small" onClick={() => openIssue(record.id)}>
               领料
             </Button>
@@ -389,14 +398,17 @@ export default function ProductionPage() {
             </Button>
           ) : null}
           {record.status === 'COMPLETED' && hasPermission('sys:erp:production:close') ? (
-            <Popconfirm title="结案后不可再操作，确认继续？" onConfirm={() => handleClose(record.id)}>
+            <Popconfirm
+              title="结案后不可再操作，确认继续？"
+              onConfirm={() => handleClose(record.id)}
+            >
               <Button type="link" size="small">
                 结案
               </Button>
             </Popconfirm>
           ) : null}
-          {(record.status === 'DRAFT' || record.status === 'RELEASED')
-          && hasPermission('sys:erp:production:cancel') ? (
+          {(record.status === 'DRAFT' || record.status === 'RELEASED') &&
+          hasPermission('sys:erp:production:cancel') ? (
             <Popconfirm title="确认取消该生产订单？" onConfirm={() => handleCancel(record.id)}>
               <Button type="link" size="small" danger>
                 取消
@@ -482,15 +494,22 @@ export default function ProductionPage() {
       width: 100,
       render: quantity,
     },
-    { title: '状态', dataIndex: 'status', key: 'status', width: 90, render: (value) => value ?? '-' },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 90,
+      render: (value) => value ?? '-',
+    },
     {
       title: '操作',
       key: 'action',
       width: 90,
       render: (_, record) => {
-        const reportable = detail
-          && (detail.status === 'RELEASED' || detail.status === 'IN_PROGRESS')
-          && hasPermission('sys:erp:production:operation:report');
+        const reportable =
+          detail &&
+          (detail.status === 'RELEASED' || detail.status === 'IN_PROGRESS') &&
+          hasPermission('sys:erp:production:operation:report');
         return reportable ? (
           <Button type="link" size="small" onClick={() => openReport(record)}>
             报工
@@ -607,16 +626,28 @@ export default function ProductionPage() {
         <Button onClick={() => setStatus(undefined)} type={status ? 'default' : 'primary'}>
           全部
         </Button>
-        <Button onClick={() => setStatus('DRAFT')} type={status === 'DRAFT' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('DRAFT')}
+          type={status === 'DRAFT' ? 'primary' : 'default'}
+        >
           草稿
         </Button>
-        <Button onClick={() => setStatus('RELEASED')} type={status === 'RELEASED' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('RELEASED')}
+          type={status === 'RELEASED' ? 'primary' : 'default'}
+        >
           已下达
         </Button>
-        <Button onClick={() => setStatus('IN_PROGRESS')} type={status === 'IN_PROGRESS' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('IN_PROGRESS')}
+          type={status === 'IN_PROGRESS' ? 'primary' : 'default'}
+        >
           生产中
         </Button>
-        <Button onClick={() => setStatus('COMPLETED')} type={status === 'COMPLETED' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('COMPLETED')}
+          type={status === 'COMPLETED' ? 'primary' : 'default'}
+        >
           已完工
         </Button>
         {hasPermission('sys:erp:production:add') ? (
@@ -625,7 +656,12 @@ export default function ProductionPage() {
           </Button>
         ) : null}
       </Space>
-      <Table<ProductionOrderView> rowKey="id" loading={loading} columns={columns} dataSource={data} />
+      <Table<ProductionOrderView>
+        rowKey="id"
+        loading={loading}
+        columns={columns}
+        dataSource={data}
+      />
       <Modal
         open={createOpen}
         title="新增生产订单"
@@ -636,7 +672,11 @@ export default function ProductionPage() {
       >
         <Form form={form} layout="vertical">
           <Space size="large" wrap>
-            <Form.Item name="itemCode" label="产出物料" rules={[{ required: true, message: '请选择产出物料' }]}>
+            <Form.Item
+              name="itemCode"
+              label="产出物料"
+              rules={[{ required: true, message: '请选择产出物料' }]}
+            >
               <Select
                 showSearch
                 optionFilterProp="label"
@@ -719,7 +759,12 @@ export default function ProductionPage() {
                       name={[field.name, 'requiredQuantity']}
                       rules={[{ required: true, message: '需求数量' }]}
                     >
-                      <InputNumber placeholder="需求数量" min={0.0001} precision={4} style={{ width: 120 }} />
+                      <InputNumber
+                        placeholder="需求数量"
+                        min={0.0001}
+                        precision={4}
+                        style={{ width: 120 }}
+                      />
                     </Form.Item>
                     <Form.Item name={[field.name, 'uom']}>
                       <Input placeholder="单位" style={{ width: 90 }} maxLength={16} />
@@ -754,7 +799,9 @@ export default function ProductionPage() {
         {detail ? (
           <Space direction="vertical" size="middle" style={{ width: '100%' }}>
             <Space size="large" wrap>
-              <span>产出：{detail.itemCode} {detail.itemName}</span>
+              <span>
+                产出：{detail.itemCode} {detail.itemName}
+              </span>
               <span>状态：{SCM_STATUS_LABEL[detail.status] ?? detail.status}</span>
               <span>计划：{quantity(detail.plannedQuantity)}</span>
               <span>已完工：{quantity(detail.completedQuantity)}</span>
@@ -770,11 +817,12 @@ export default function ProductionPage() {
             </Space>
             <Space size="large" wrap>
               <span>
-                工艺：{detail.routingNo ?? '-'} / {detail.routingVersion ?? '-'}（{detail.routingStatus ?? 'NONE'}）
+                工艺：{detail.routingNo ?? '-'} / {detail.routingVersion ?? '-'}（
+                {detail.routingStatus ?? 'NONE'}）
               </span>
-              {detail.routingStatus !== 'SNAPSHOT'
-              && (detail.status === 'DRAFT' || detail.status === 'RELEASED')
-              && hasPermission('sys:erp:production:operation:sync') ? (
+              {detail.routingStatus !== 'SNAPSHOT' &&
+              (detail.status === 'DRAFT' || detail.status === 'RELEASED') &&
+              hasPermission('sys:erp:production:operation:sync') ? (
                 <Button size="small" onClick={handleSyncRouting}>
                   同步工艺
                 </Button>
@@ -888,7 +936,8 @@ export default function ProductionPage() {
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
           <span>
             {adjustMode === 'return'
-              ? '退料按已领成本比例回冲领料仓并冲减材料成本' : '报废仅扣减已领数量与成本，不回库存'}
+              ? '退料按已领成本比例回冲领料仓并冲减材料成本'
+              : '报废仅扣减已领数量与成本，不回库存'}
           </span>
           <Table<AdjustLineState>
             rowKey="lineNo"

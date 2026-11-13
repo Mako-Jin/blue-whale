@@ -208,8 +208,18 @@ function ForecastAdjustmentDrawer({
       align: 'right',
       render: (value?: number | string | null) => formatAmount(value),
     },
-    { title: '原因', dataIndex: 'reason', ellipsis: true, render: (value?: string | null) => value || '-' },
-    { title: '操作人', dataIndex: 'operatorId', width: 100, render: (value?: number | null) => value ?? '-' },
+    {
+      title: '原因',
+      dataIndex: 'reason',
+      ellipsis: true,
+      render: (value?: string | null) => value || '-',
+    },
+    {
+      title: '操作人',
+      dataIndex: 'operatorId',
+      width: 100,
+      render: (value?: number | null) => value ?? '-',
+    },
     {
       title: '调整时间',
       dataIndex: 'adjustedAt',
@@ -306,7 +316,12 @@ function GenerateModal({
           <Select options={FORECAST_SCOPE_TYPE_OPTIONS} />
         </Form.Item>
         <Space size={12} style={{ display: 'flex' }}>
-          <Form.Item name="ownerId" label="负责人 ID" style={{ flex: 1 }} extra="范围=按负责人时填写">
+          <Form.Item
+            name="ownerId"
+            label="负责人 ID"
+            style={{ flex: 1 }}
+            extra="范围=按负责人时填写"
+          >
             <InputNumber min={1} precision={0} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="deptId" label="部门 ID" style={{ flex: 1 }} extra="范围=按部门时填写">
@@ -357,7 +372,9 @@ function ForecastAdjustModal({
       COMMIT: snapshot.commitAmount,
     };
     const current = amounts[value];
-    form.setFieldsValue({ amount: current === null || current === undefined ? 0 : Number(current) });
+    form.setFieldsValue({
+      amount: current === null || current === undefined ? 0 : Number(current),
+    });
   };
 
   const handleOk = async () => {
@@ -395,7 +412,11 @@ function ForecastAdjustModal({
       destroyOnClose
     >
       <Form form={form} layout="vertical" preserve={false}>
-        <Form.Item name="fieldCode" label="调整字段" rules={[{ required: true, message: '请选择调整字段' }]}>
+        <Form.Item
+          name="fieldCode"
+          label="调整字段"
+          rules={[{ required: true, message: '请选择调整字段' }]}
+        >
           <Select options={FORECAST_FIELD_OPTIONS} onChange={handleFieldChange} />
         </Form.Item>
         <Form.Item
@@ -465,7 +486,12 @@ function ForecastTab() {
   };
 
   const columns: TableProps<ForecastSnapshotView>['columns'] = [
-    { title: '周期', dataIndex: 'period', width: 110, render: (value?: string | null) => value || '-' },
+    {
+      title: '周期',
+      dataIndex: 'period',
+      width: 110,
+      render: (value?: string | null) => value || '-',
+    },
     {
       title: '类型',
       dataIndex: 'periodType',
@@ -555,15 +581,30 @@ function ForecastTab() {
           </Button>
         )}
       </Space>
-      <Form form={form} layout="inline" onFinish={handleSearch} style={{ marginBottom: 16, rowGap: 12 }}>
+      <Form
+        form={form}
+        layout="inline"
+        onFinish={handleSearch}
+        style={{ marginBottom: 16, rowGap: 12 }}
+      >
         <Form.Item name="period">
           <Input placeholder="周期 yyyy-MM / yyyy-Qn" allowClear style={{ width: 200 }} />
         </Form.Item>
         <Form.Item name="periodType">
-          <Select placeholder="周期类型" allowClear style={{ width: 120 }} options={FORECAST_PERIOD_TYPE_OPTIONS} />
+          <Select
+            placeholder="周期类型"
+            allowClear
+            style={{ width: 120 }}
+            options={FORECAST_PERIOD_TYPE_OPTIONS}
+          />
         </Form.Item>
         <Form.Item name="scopeType">
-          <Select placeholder="统计范围" allowClear style={{ width: 120 }} options={FORECAST_SCOPE_TYPE_OPTIONS} />
+          <Select
+            placeholder="统计范围"
+            allowClear
+            style={{ width: 120 }}
+            options={FORECAST_SCOPE_TYPE_OPTIONS}
+          />
         </Form.Item>
         <Form.Item name="ownerId">
           <InputNumber min={1} precision={0} placeholder="负责人 ID" style={{ width: 130 }} />
@@ -675,8 +716,18 @@ function TargetDetailDrawer({
       align: 'right',
       render: (value?: number | string | null) => formatAmount(value),
     },
-    { title: '原因', dataIndex: 'reason', ellipsis: true, render: (value?: string | null) => value || '-' },
-    { title: '操作人', dataIndex: 'operatorId', width: 100, render: (value?: number | null) => value ?? '-' },
+    {
+      title: '原因',
+      dataIndex: 'reason',
+      ellipsis: true,
+      render: (value?: string | null) => value || '-',
+    },
+    {
+      title: '操作人',
+      dataIndex: 'operatorId',
+      width: 100,
+      render: (value?: number | null) => value ?? '-',
+    },
     {
       title: '调整时间',
       dataIndex: 'adjustedAt',
@@ -695,7 +746,9 @@ function TargetDetailDrawer({
       {target && (
         <>
           <Descriptions bordered size="small" column={2} style={{ marginBottom: 16 }}>
-            <Descriptions.Item label="周期">{completion?.period ?? target.period ?? '-'}</Descriptions.Item>
+            <Descriptions.Item label="周期">
+              {completion?.period ?? target.period ?? '-'}
+            </Descriptions.Item>
             <Descriptions.Item label="周期类型">
               {FORECAST_PERIOD_TYPE_LABEL[target.periodType ?? ''] ?? target.periodType ?? '-'}
             </Descriptions.Item>
@@ -708,7 +761,9 @@ function TargetDetailDrawer({
             <Descriptions.Item label="已达成金额">
               {formatAmount(completion?.achievedAmount)}
             </Descriptions.Item>
-            <Descriptions.Item label="达成商机数">{completion?.achievedCount ?? 0}</Descriptions.Item>
+            <Descriptions.Item label="达成商机数">
+              {completion?.achievedCount ?? 0}
+            </Descriptions.Item>
             <Descriptions.Item label="完成率">
               {completion?.completionRate === null || completion?.completionRate === undefined
                 ? '-'
@@ -810,7 +865,12 @@ function TargetCreateModal({
           <Select options={FORECAST_SCOPE_TYPE_OPTIONS} />
         </Form.Item>
         <Space size={12} style={{ display: 'flex' }}>
-          <Form.Item name="ownerId" label="负责人 ID" style={{ flex: 1 }} extra="范围=按负责人时填写">
+          <Form.Item
+            name="ownerId"
+            label="负责人 ID"
+            style={{ flex: 1 }}
+            extra="范围=按负责人时填写"
+          >
             <InputNumber min={1} precision={0} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="deptId" label="部门 ID" style={{ flex: 1 }} extra="范围=按部门时填写">
@@ -970,7 +1030,12 @@ function TargetTab() {
   };
 
   const columns: TableProps<SalesTargetView>['columns'] = [
-    { title: '周期', dataIndex: 'period', width: 110, render: (value?: string | null) => value || '-' },
+    {
+      title: '周期',
+      dataIndex: 'period',
+      width: 110,
+      render: (value?: string | null) => value || '-',
+    },
     {
       title: '类型',
       dataIndex: 'periodType',
@@ -990,7 +1055,12 @@ function TargetTab() {
       align: 'right',
       render: (value?: number | string | null) => formatAmount(value),
     },
-    { title: '备注', dataIndex: 'remark', ellipsis: true, render: (value?: string | null) => value || '-' },
+    {
+      title: '备注',
+      dataIndex: 'remark',
+      ellipsis: true,
+      render: (value?: string | null) => value || '-',
+    },
     {
       title: '创建时间',
       dataIndex: 'createTime',
@@ -1039,15 +1109,30 @@ function TargetTab() {
           </Button>
         )}
       </Space>
-      <Form form={form} layout="inline" onFinish={handleSearch} style={{ marginBottom: 16, rowGap: 12 }}>
+      <Form
+        form={form}
+        layout="inline"
+        onFinish={handleSearch}
+        style={{ marginBottom: 16, rowGap: 12 }}
+      >
         <Form.Item name="period">
           <Input placeholder="周期 yyyy-MM / yyyy-Qn" allowClear style={{ width: 200 }} />
         </Form.Item>
         <Form.Item name="periodType">
-          <Select placeholder="周期类型" allowClear style={{ width: 120 }} options={FORECAST_PERIOD_TYPE_OPTIONS} />
+          <Select
+            placeholder="周期类型"
+            allowClear
+            style={{ width: 120 }}
+            options={FORECAST_PERIOD_TYPE_OPTIONS}
+          />
         </Form.Item>
         <Form.Item name="scopeType">
-          <Select placeholder="统计范围" allowClear style={{ width: 120 }} options={FORECAST_SCOPE_TYPE_OPTIONS} />
+          <Select
+            placeholder="统计范围"
+            allowClear
+            style={{ width: 120 }}
+            options={FORECAST_SCOPE_TYPE_OPTIONS}
+          />
         </Form.Item>
         <Form.Item name="ownerId">
           <InputNumber min={1} precision={0} placeholder="负责人 ID" style={{ width: 130 }} />

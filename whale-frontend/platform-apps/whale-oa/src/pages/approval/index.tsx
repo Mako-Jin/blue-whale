@@ -7,18 +7,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Button, Card, Empty, Input, Space, Table, Tabs, Tag, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import ApprovalDetailDrawer from './detail';
-import {
-  markCcRead,
-  pageApproved,
-  pageCc,
-  pageInitiated,
-  pagePending,
-} from '../../api/approval';
-import type {
-  ApprovalCcRow,
-  ApprovalInstanceRow,
-  ApprovalTaskRow,
-} from '../../api/approval';
+import { markCcRead, pageApproved, pageCc, pageInitiated, pagePending } from '../../api/approval';
+import type { ApprovalCcRow, ApprovalInstanceRow, ApprovalTaskRow } from '../../api/approval';
 
 /** 当前页签 */
 type CenterTab = 'initiated' | 'pending' | 'approved' | 'cc';
@@ -74,7 +64,8 @@ function fromInstance(row: ApprovalInstanceRow): CenterRow {
     workflowInstanceId: row.workflowInstanceId,
     title: row.businessTitle ?? row.title,
     initiator: row.initiator,
-    statusText: row.statusName ?? (row.status === undefined ? undefined : INSTANCE_STATUS[row.status]),
+    statusText:
+      row.statusName ?? (row.status === undefined ? undefined : INSTANCE_STATUS[row.status]),
     nodeName: row.currentNodeKey,
     createTime: row.createTime,
   };
@@ -87,7 +78,9 @@ function fromTask(row: ApprovalTaskRow, kind: 'pending' | 'approved'): CenterRow
     workflowInstanceId: row.instanceId,
     title: row.businessTitle,
     initiator: row.initiatorName,
-    statusText: row.instanceStatus ? LOCAL_STATUS[row.instanceStatus] ?? row.instanceStatus : undefined,
+    statusText: row.instanceStatus
+      ? (LOCAL_STATUS[row.instanceStatus] ?? row.instanceStatus)
+      : undefined,
     nodeName: row.nodeName,
     createTime: row.createTime,
     canOperate: row.canOperate,
@@ -101,7 +94,9 @@ function fromCc(row: ApprovalCcRow): CenterRow {
     workflowInstanceId: row.instanceId,
     title: row.businessTitle,
     initiator: row.initiatorName,
-    statusText: row.instanceStatus ? LOCAL_STATUS[row.instanceStatus] ?? row.instanceStatus : undefined,
+    statusText: row.instanceStatus
+      ? (LOCAL_STATUS[row.instanceStatus] ?? row.instanceStatus)
+      : undefined,
     nodeName: row.nodeName,
     createTime: row.createTime,
     readFlag: row.readFlag,
@@ -256,7 +251,9 @@ export default function ApprovalCenter() {
         loading={loading}
         columns={columns}
         dataSource={rows}
-        rowClassName={(row) => (activeTab === 'cc' && row.readFlag === 0 ? 'approval-unread-row' : '')}
+        rowClassName={(row) =>
+          activeTab === 'cc' && row.readFlag === 0 ? 'approval-unread-row' : ''
+        }
         locale={{
           emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无审批记录" />,
         }}

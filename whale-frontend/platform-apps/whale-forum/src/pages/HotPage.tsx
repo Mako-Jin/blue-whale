@@ -4,7 +4,19 @@
 // 所以这里不做轮询，只在手动刷新后重新拉取。
 
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Button, Card, Empty, List, Segmented, Space, Spin, Tag, Typography, message } from 'antd';
+import {
+  Alert,
+  Button,
+  Card,
+  Empty,
+  List,
+  Segmented,
+  Space,
+  Spin,
+  Tag,
+  Typography,
+  message,
+} from 'antd';
 import { fetchHot, refreshHot, type HotItem } from '../api/forum';
 import { hasPermission } from '../api/client';
 
@@ -86,7 +98,11 @@ export default function HotPage({ onOpenThread }: Props) {
             dataSource={items}
             locale={{
               emptyText: (
-                <Empty description={window === '24h' ? '近 24 小时还没有上榜的帖子' : '近 7 天还没有上榜的帖子'} />
+                <Empty
+                  description={
+                    window === '24h' ? '近 24 小时还没有上榜的帖子' : '近 7 天还没有上榜的帖子'
+                  }
+                />
               ),
             }}
             renderItem={(item) => (
@@ -94,7 +110,11 @@ export default function HotPage({ onOpenThread }: Props) {
                 <Space size={12} align="start" style={{ width: '100%' }}>
                   <Tag color={item.rankNo <= 3 ? 'gold' : undefined}>{item.rankNo}</Tag>
                   <div style={{ flex: 1 }}>
-                    <Button type="link" style={{ padding: 0 }} onClick={() => onOpenThread(item.threadId)}>
+                    <Button
+                      type="link"
+                      style={{ padding: 0 }}
+                      onClick={() => onOpenThread(item.threadId)}
+                    >
                       {item.title}
                     </Button>
                     <div>

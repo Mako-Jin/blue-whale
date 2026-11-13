@@ -243,7 +243,10 @@ function InspectionCreateModal({
                   >
                     <Input placeholder="检验项名称" maxLength={64} style={{ width: 220 }} />
                   </Form.Item>
-                  <Form.Item name={[field.name, 'standardValue']} label={field.name === 0 ? '标准值' : ''}>
+                  <Form.Item
+                    name={[field.name, 'standardValue']}
+                    label={field.name === 0 ? '标准值' : ''}
+                  >
                     <Input placeholder="标准值/规格" maxLength={64} style={{ width: 220 }} />
                   </Form.Item>
                   <Button type="link" size="small" onClick={() => remove(field.name)}>
@@ -318,7 +321,8 @@ function RecordModal({
       title: '标准值',
       key: 'standardValue',
       render: (_, record) =>
-        (inspection?.items ?? []).find((item) => item.lineNo === record.lineNo)?.standardValue ?? '-',
+        (inspection?.items ?? []).find((item) => item.lineNo === record.lineNo)?.standardValue ??
+        '-',
     },
     {
       title: '实测值',
@@ -415,7 +419,14 @@ function NcrCreateModal({
   };
 
   return (
-    <Modal open={open} title="登记不合格品单" width={640} onOk={handleOk} onCancel={onCancel} destroyOnHidden>
+    <Modal
+      open={open}
+      title="登记不合格品单"
+      width={640}
+      onOk={handleOk}
+      onCancel={onCancel}
+      destroyOnHidden
+    >
       <Form form={form} layout="vertical">
         <Space size="middle" wrap>
           <Form.Item name="sourceType" label="来源类型">
@@ -672,23 +683,23 @@ function InspectionTab({ notify }: { notify: () => void }) {
           <Button type="link" size="small" onClick={() => void refreshDetail(record.id)}>
             查看
           </Button>
-          {['DRAFT', 'INSPECTING'].includes(record.status)
-            && hasPermission('sys:erp:qc:inspection:record') ? (
-              <Button type="link" size="small" onClick={() => setRecording(record)}>
-                录入
+          {['DRAFT', 'INSPECTING'].includes(record.status) &&
+          hasPermission('sys:erp:qc:inspection:record') ? (
+            <Button type="link" size="small" onClick={() => setRecording(record)}>
+              录入
+            </Button>
+          ) : null}
+          {['DRAFT', 'INSPECTING'].includes(record.status) &&
+          hasPermission('sys:erp:qc:inspection:judge') ? (
+            <Popconfirm
+              title="判定后不可修改，检验不合格将自动生成不合格品单，确认？"
+              onConfirm={() => void handleJudge(record)}
+            >
+              <Button type="link" size="small">
+                判定
               </Button>
-            ) : null}
-          {['DRAFT', 'INSPECTING'].includes(record.status)
-            && hasPermission('sys:erp:qc:inspection:judge') ? (
-              <Popconfirm
-                title="判定后不可修改，检验不合格将自动生成不合格品单，确认？"
-                onConfirm={() => void handleJudge(record)}
-              >
-                <Button type="link" size="small">
-                  判定
-                </Button>
-              </Popconfirm>
-            ) : null}
+            </Popconfirm>
+          ) : null}
         </Space>
       ),
     },
@@ -784,9 +795,7 @@ function InspectionTab({ notify }: { notify: () => void }) {
               <Descriptions.Item label="量具">{detail.toolNo ?? '-'}</Descriptions.Item>
               <Descriptions.Item label="检验员">{detail.inspector ?? '-'}</Descriptions.Item>
               <Descriptions.Item label="检验日期">{detail.inspectDate}</Descriptions.Item>
-              <Descriptions.Item label="关联不合格品单">
-                {detail.ncrId ?? '-'}
-              </Descriptions.Item>
+              <Descriptions.Item label="关联不合格品单">{detail.ncrId ?? '-'}</Descriptions.Item>
               <Descriptions.Item label="备注" span={2}>
                 {detail.remark ?? '-'}
               </Descriptions.Item>
@@ -869,7 +878,7 @@ function NcrTab({ ticket }: { ticket: number }) {
       dataIndex: 'disposition',
       key: 'disposition',
       width: 110,
-      render: (value) => (value ? DISPOSITION_LABEL[String(value)] ?? value : '-'),
+      render: (value) => (value ? (DISPOSITION_LABEL[String(value)] ?? value) : '-'),
     },
     {
       title: '质量成本',
@@ -884,9 +893,7 @@ function NcrTab({ ticket }: { ticket: number }) {
       key: 'status',
       width: 100,
       render: (value) => (
-        <Tag color={qcStatusColor(String(value))}>
-          {NCR_STATUS_LABEL[String(value)] ?? value}
-        </Tag>
+        <Tag color={qcStatusColor(String(value))}>{NCR_STATUS_LABEL[String(value)] ?? value}</Tag>
       ),
     },
     {
@@ -1002,7 +1009,7 @@ function CostTab({ ticket }: { ticket: number }) {
       dataIndex: 'sourceType',
       key: 'sourceType',
       width: 130,
-      render: (value) => (value ? QC_SOURCE_LABEL[String(value)] ?? value : '-'),
+      render: (value) => (value ? (QC_SOURCE_LABEL[String(value)] ?? value) : '-'),
     },
     { title: '来源单据', dataIndex: 'sourceNo', key: 'sourceNo' },
     {

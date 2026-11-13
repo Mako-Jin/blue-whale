@@ -65,7 +65,10 @@ export async function request<T>(url: string, init?: RequestInit): Promise<T> {
 export const http = {
   get: <T>(url: string, query?: Record<string, unknown>) => client.get<T>(url, query),
   post: <T>(url: string, body?: unknown) =>
-    request<T>(url, { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) }),
+    request<T>(url, {
+      method: 'POST',
+      body: body === undefined ? undefined : JSON.stringify(body),
+    }),
   put: <T>(url: string, body?: unknown) =>
     request<T>(url, { method: 'PUT', body: JSON.stringify(body) }),
   del: <T>(url: string) => request<T>(url, { method: 'DELETE' }),

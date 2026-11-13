@@ -184,10 +184,7 @@ export function composePersona(persona: BrainPersona): string {
  * 剥掉这类 JSON 片段；剥完只剩「需要检索。」这类空话时判为无内容，交给上层回落本地台词。
  */
 export function sanitizeAnswer(raw: string): string {
-  const stripped = raw.replace(
-    /\{[\s\S]{0,400}?"name"\s*:\s*"[a-z_]+"[\s\S]{0,400}?\}\s*/gi,
-    '',
-  );
+  const stripped = raw.replace(/\{[\s\S]{0,400}?"name"\s*:\s*"[a-z_]+"[\s\S]{0,400}?\}\s*/gi, '');
   const rest = stripped.replace(/^\s*需要检索[。.]?\s*/, '').trim();
   return rest.length >= 4 ? rest : '';
 }

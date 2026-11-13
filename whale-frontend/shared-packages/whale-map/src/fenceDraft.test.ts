@@ -169,7 +169,9 @@ describe('isSelfIntersecting', () => {
   });
 
   it('正常四边形不自交', () => {
-    expect(isSelfIntersecting([at(0, 0), at(0.002, 0), at(0.002, 0.002), at(0, 0.002)])).toBe(false);
+    expect(isSelfIntersecting([at(0, 0), at(0.002, 0), at(0.002, 0.002), at(0, 0.002)])).toBe(
+      false,
+    );
   });
 
   it('三点与三角形永远不自交', () => {

@@ -106,15 +106,17 @@ function PriceListTab({ priceType }: { priceType: PriceType }) {
       listErpItems(),
       priceType === 'SALES'
         ? pageCustomers({ size: 100 }).then((page) =>
-          page.records.map((item) => ({
-            value: item.id,
-            label: `${item.code} ${item.name}`,
-          })))
+            page.records.map((item) => ({
+              value: item.id,
+              label: `${item.code} ${item.name}`,
+            })),
+          )
         : listErpSuppliers().then((list) =>
-          list.map((item) => ({
-            value: Number(item.id),
-            label: `${item.code} ${item.name}`,
-          }))),
+            list.map((item) => ({
+              value: Number(item.id),
+              label: `${item.code} ${item.name}`,
+            })),
+          ),
     ]);
     setItems(itemList);
     setPartners(partnerOptions);
@@ -223,10 +225,16 @@ function PriceListTab({ priceType }: { priceType: PriceType }) {
         <Button onClick={() => setStatus(undefined)} type={status ? 'default' : 'primary'}>
           全部
         </Button>
-        <Button onClick={() => setStatus('ENABLED')} type={status === 'ENABLED' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('ENABLED')}
+          type={status === 'ENABLED' ? 'primary' : 'default'}
+        >
           启用
         </Button>
-        <Button onClick={() => setStatus('DISABLED')} type={status === 'DISABLED' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('DISABLED')}
+          type={status === 'DISABLED' ? 'primary' : 'default'}
+        >
           停用
         </Button>
         {hasPermission('sys:erp:price-list:create') ? (
@@ -238,9 +246,11 @@ function PriceListTab({ priceType }: { priceType: PriceType }) {
       <Table<PriceListView> rowKey="id" loading={loading} columns={columns} dataSource={data} />
       <Modal
         open={open}
-        title={editing
-          ? `编辑${priceType === 'SALES' ? '销售价' : '采购价'}`
-          : `新增${priceType === 'SALES' ? '销售价' : '采购价'}`}
+        title={
+          editing
+            ? `编辑${priceType === 'SALES' ? '销售价' : '采购价'}`
+            : `新增${priceType === 'SALES' ? '销售价' : '采购价'}`
+        }
         width={720}
         onOk={handleSave}
         onCancel={() => setOpen(false)}
@@ -275,7 +285,11 @@ function PriceListTab({ priceType }: { priceType: PriceType }) {
                 }))}
               />
             </Form.Item>
-            <Form.Item name="price" label="单价" rules={[{ required: true, message: '请输入单价' }]}>
+            <Form.Item
+              name="price"
+              label="单价"
+              rules={[{ required: true, message: '请输入单价' }]}
+            >
               <InputNumber min={0.0001} precision={4} style={{ width: 140 }} />
             </Form.Item>
             <Form.Item name="currency" label="币种">

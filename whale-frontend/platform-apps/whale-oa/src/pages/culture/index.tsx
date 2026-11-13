@@ -418,11 +418,7 @@ export default function CulturePage() {
         destroyOnClose
       >
         <Form form={form} layout="vertical">
-          <Form.Item
-            name="title"
-            label="标题"
-            rules={[{ required: true, message: '请输入标题' }]}
-          >
+          <Form.Item name="title" label="标题" rules={[{ required: true, message: '请输入标题' }]}>
             <Input maxLength={128} />
           </Form.Item>
           <Space size="middle" style={{ display: 'flex' }}>

@@ -97,17 +97,20 @@ function RulePanel() {
   const [editing, setEditing] = useState<CreditRuleItem | null>(null);
   const canManage = hasPermission('sys:lms:credit:manage');
 
-  const load = useCallback(async (page = 1, nextKeyword = keyword) => {
-    setLoading(true);
-    try {
-      const data = await pageCreditRules({ keyword: nextKeyword, current: page, size: 10 });
-      setRows((data.records ?? []).map((item) => ({ ...item, key: String(item.id) })));
-      setTotal(data.total ?? 0);
-      setCurrent(page);
-    } finally {
-      setLoading(false);
-    }
-  }, [keyword]);
+  const load = useCallback(
+    async (page = 1, nextKeyword = keyword) => {
+      setLoading(true);
+      try {
+        const data = await pageCreditRules({ keyword: nextKeyword, current: page, size: 10 });
+        setRows((data.records ?? []).map((item) => ({ ...item, key: String(item.id) })));
+        setTotal(data.total ?? 0);
+        setCurrent(page);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [keyword],
+  );
 
   useEffect(() => {
     void load(1, undefined);
@@ -212,7 +215,9 @@ function RulePanel() {
                 )}
                 {canManage && (
                   <Popconfirm
-                    title={row.status === 'ENABLED' ? '停用后不再参与新的记账，确认？' : '确认启用？'}
+                    title={
+                      row.status === 'ENABLED' ? '停用后不再参与新的记账，确认？' : '确认启用？'
+                    }
                     onConfirm={async () => {
                       await changeCreditRuleStatus(row.id, row.status !== 'ENABLED');
                       message.success('状态已更新');
@@ -254,17 +259,37 @@ function RulePanel() {
         width={560}
       >
         <Form form={form} layout="vertical" onFinish={onSubmit}>
-          <Form.Item name="ruleCode" label="规则编码" rules={[{ required: true, message: '请输入规则编码' }]}>
+          <Form.Item
+            name="ruleCode"
+            label="规则编码"
+            rules={[{ required: true, message: '请输入规则编码' }]}
+          >
             <Input placeholder="如 EXAM-SAFETY（自动大写归一）" />
           </Form.Item>
-          <Form.Item name="name" label="规则名称" rules={[{ required: true, message: '请输入规则名称' }]}>
+          <Form.Item
+            name="name"
+            label="规则名称"
+            rules={[{ required: true, message: '请输入规则名称' }]}
+          >
             <Input placeholder="如 安全生产考试通过计 5 分" />
           </Form.Item>
           <Space size="middle" style={{ display: 'flex' }}>
-            <Form.Item name="sourceType" label="学分来源" style={{ flex: 1 }} rules={[{ required: true }]}>
-              <Select options={Object.entries(SOURCE_LABEL).map(([value, label]) => ({ value, label }))} />
+            <Form.Item
+              name="sourceType"
+              label="学分来源"
+              style={{ flex: 1 }}
+              rules={[{ required: true }]}
+            >
+              <Select
+                options={Object.entries(SOURCE_LABEL).map(([value, label]) => ({ value, label }))}
+              />
             </Form.Item>
-            <Form.Item name="credit" label="单次学分" style={{ flex: 1 }} rules={[{ required: true, message: '请输入学分' }]}>
+            <Form.Item
+              name="credit"
+              label="单次学分"
+              style={{ flex: 1 }}
+              rules={[{ required: true, message: '请输入学分' }]}
+            >
               <InputNumber min={0.1} max={999.9} step={0.5} style={{ width: '100%' }} />
             </Form.Item>
           </Space>
@@ -298,19 +323,27 @@ function LedgerPanel() {
   const [saving, setSaving] = useState(false);
   const canManage = hasPermission('sys:lms:credit:manage');
 
-  const load = useCallback(async (page = 1, nextUserId = userId, nextYear = periodYear) => {
-    setLoading(true);
-    try {
-      const data = await pageCredits({ userId: nextUserId, periodYear: nextYear, current: page, size: 10 });
-      setRows((data.records ?? []).map((item) => ({ ...item, key: String(item.id) })));
-      setTotal(data.total ?? 0);
-      setCurrent(page);
-      const summaryData = await creditSummary({ userId: nextUserId, periodYear: nextYear });
-      setSummary(summaryData);
-    } finally {
-      setLoading(false);
-    }
-  }, [userId, periodYear]);
+  const load = useCallback(
+    async (page = 1, nextUserId = userId, nextYear = periodYear) => {
+      setLoading(true);
+      try {
+        const data = await pageCredits({
+          userId: nextUserId,
+          periodYear: nextYear,
+          current: page,
+          size: 10,
+        });
+        setRows((data.records ?? []).map((item) => ({ ...item, key: String(item.id) })));
+        setTotal(data.total ?? 0);
+        setCurrent(page);
+        const summaryData = await creditSummary({ userId: nextUserId, periodYear: nextYear });
+        setSummary(summaryData);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [userId, periodYear],
+  );
 
   useEffect(() => {
     void load(1, undefined, new Date().getFullYear());
@@ -343,7 +376,11 @@ function LedgerPanel() {
         <Col span={6}>
           <Card size="small">
             <Statistic
-              title={userId ? `学员 #${userId} 年度学分（${periodYear ?? '全部'}）` : `我的年度学分（${periodYear ?? '全部'}）`}
+              title={
+                userId
+                  ? `学员 #${userId} 年度学分（${periodYear ?? '全部'}）`
+                  : `我的年度学分（${periodYear ?? '全部'}）`
+              }
               value={summary?.totalCredit ?? 0}
               precision={1}
             />
@@ -399,7 +436,12 @@ function LedgerPanel() {
         rowKey="key"
         loading={loading}
         dataSource={rows}
-        pagination={{ current, total, pageSize: 10, onChange: (page) => void load(page, userId, periodYear) }}
+        pagination={{
+          current,
+          total,
+          pageSize: 10,
+          onChange: (page) => void load(page, userId, periodYear),
+        }}
         columns={[
           {
             title: '学员',
@@ -438,7 +480,12 @@ function LedgerPanel() {
       >
         <Form form={form} layout="vertical" onFinish={onAccrue}>
           <Space size="middle" style={{ display: 'flex' }}>
-            <Form.Item name="userId" label="学员用户 ID" style={{ flex: 1 }} rules={[{ required: true, message: '请输入学员 ID' }]}>
+            <Form.Item
+              name="userId"
+              label="学员用户 ID"
+              style={{ flex: 1 }}
+              rules={[{ required: true, message: '请输入学员 ID' }]}
+            >
               <InputNumber min={1} style={{ width: '100%' }} />
             </Form.Item>
             <Form.Item name="username" label="学员用户名" style={{ flex: 1 }}>
@@ -446,8 +493,15 @@ function LedgerPanel() {
             </Form.Item>
           </Space>
           <Space size="middle" style={{ display: 'flex' }}>
-            <Form.Item name="sourceType" label="学分来源" style={{ flex: 1 }} rules={[{ required: true }]}>
-              <Select options={Object.entries(SOURCE_LABEL).map(([value, label]) => ({ value, label }))} />
+            <Form.Item
+              name="sourceType"
+              label="学分来源"
+              style={{ flex: 1 }}
+              rules={[{ required: true }]}
+            >
+              <Select
+                options={Object.entries(SOURCE_LABEL).map(([value, label]) => ({ value, label }))}
+              />
             </Form.Item>
             <Form.Item
               name="sourceId"
@@ -459,7 +513,11 @@ function LedgerPanel() {
               <InputNumber min={1} style={{ width: '100%' }} />
             </Form.Item>
           </Space>
-          <Form.Item name="occurredAt" label="业务发生时间" extra="跨年补记请填业务实际发生时间，年度汇总按此归集">
+          <Form.Item
+            name="occurredAt"
+            label="业务发生时间"
+            extra="跨年补记请填业务实际发生时间，年度汇总按此归集"
+          >
             <DatePicker showTime style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="remark" label="备注">

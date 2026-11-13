@@ -183,7 +183,11 @@ export default function StockPage() {
         destroyOnHidden
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="itemCode" label="物料" rules={[{ required: true, message: '请选择物料' }]}>
+          <Form.Item
+            name="itemCode"
+            label="物料"
+            rules={[{ required: true, message: '请选择物料' }]}
+          >
             <Select
               showSearch
               optionFilterProp="label"
@@ -193,7 +197,11 @@ export default function StockPage() {
               }))}
             />
           </Form.Item>
-          <Form.Item name="warehouseId" label="仓库" rules={[{ required: true, message: '请选择仓库' }]}>
+          <Form.Item
+            name="warehouseId"
+            label="仓库"
+            rules={[{ required: true, message: '请选择仓库' }]}
+          >
             <Select
               showSearch
               optionFilterProp="label"

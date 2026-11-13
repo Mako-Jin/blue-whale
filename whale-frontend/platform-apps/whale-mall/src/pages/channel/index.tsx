@@ -108,7 +108,11 @@ export default function ChannelPage() {
   useEffect(() => {
     void (async () => {
       try {
-        const result = await pageFreightTemplate({ current: 1, size: TEMPLATE_PAGE_SIZE, status: 'ACTIVE' });
+        const result = await pageFreightTemplate({
+          current: 1,
+          size: TEMPLATE_PAGE_SIZE,
+          status: 'ACTIVE',
+        });
         setTemplates(result.records ?? []);
       } catch {
         setTemplates([]);
@@ -216,7 +220,7 @@ export default function ChannelPage() {
       render: (value?: number) =>
         value === undefined || value === null
           ? '不收运费'
-          : templates.find((item) => item.id === value)?.templateName ?? `#${value}`,
+          : (templates.find((item) => item.id === value)?.templateName ?? `#${value}`),
     },
     {
       title: '状态',

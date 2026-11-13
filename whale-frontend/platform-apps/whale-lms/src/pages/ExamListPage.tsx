@@ -4,7 +4,21 @@
 // 考试只能引用「已发布」试卷：下拉只列已发布卷，服务端也会再校验一次。
 // 学员端看不到草稿考试（后端按角色强制过滤 status=PUBLISHED）。
 
-import { Button, Checkbox, DatePicker, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag, message } from 'antd';
+import {
+  Button,
+  Checkbox,
+  DatePicker,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Popconfirm,
+  Select,
+  Space,
+  Table,
+  Tag,
+  message,
+} from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -68,17 +82,20 @@ export default function ExamListPage() {
   const canDelete = hasPermission('sys:lms:exam:delete');
   const canAttempt = hasPermission('sys:lms:attempt:start');
 
-  const load = useCallback(async (page = current, query = filters) => {
-    setLoading(true);
-    try {
-      const data = await pageExams({ ...query, current: page, size: 10 });
-      setRows((data.records ?? []).map((item) => ({ ...item, key: String(item.id) })));
-      setTotal(data.total ?? 0);
-      setCurrent(page);
-    } finally {
-      setLoading(false);
-    }
-  }, [current, filters]);
+  const load = useCallback(
+    async (page = current, query = filters) => {
+      setLoading(true);
+      try {
+        const data = await pageExams({ ...query, current: page, size: 10 });
+        setRows((data.records ?? []).map((item) => ({ ...item, key: String(item.id) })));
+        setTotal(data.total ?? 0);
+        setCurrent(page);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [current, filters],
+  );
 
   useEffect(() => {
     void load(1, {});
@@ -160,7 +177,10 @@ export default function ExamListPage() {
           placeholder="状态"
           allowClear
           style={{ width: 120 }}
-          options={Object.entries(STATUS_TAG).map(([value, item]) => ({ value, label: item.label }))}
+          options={Object.entries(STATUS_TAG).map(([value, item]) => ({
+            value,
+            label: item.label,
+          }))}
           onChange={(value) => {
             const next = { ...filters, status: value || undefined };
             setFilters(next);
@@ -193,7 +213,8 @@ export default function ExamListPage() {
             width: 300,
             render: (_, row) => (
               <span>
-                {dayjs(row.startTime).format('YYYY-MM-DD HH:mm')} ~ {dayjs(row.endTime).format('YYYY-MM-DD HH:mm')}
+                {dayjs(row.startTime).format('YYYY-MM-DD HH:mm')} ~{' '}
+                {dayjs(row.endTime).format('YYYY-MM-DD HH:mm')}
               </span>
             ),
           },
@@ -217,14 +238,20 @@ export default function ExamListPage() {
                   </Button>
                 )}
                 {canPublish && row.status === 'DRAFT' && (
-                  <Popconfirm title="确认发布？发布后配置不可修改" onConfirm={() => void onPublish(row)}>
+                  <Popconfirm
+                    title="确认发布？发布后配置不可修改"
+                    onConfirm={() => void onPublish(row)}
+                  >
                     <Button size="small" type="link">
                       发布
                     </Button>
                   </Popconfirm>
                 )}
                 {canPublish && row.status === 'PUBLISHED' && (
-                  <Popconfirm title="确认结课？结课后不再接受作答" onConfirm={() => void onClose(row)}>
+                  <Popconfirm
+                    title="确认结课？结课后不再接受作答"
+                    onConfirm={() => void onClose(row)}
+                  >
                     <Button size="small" type="link">
                       结课
                     </Button>
@@ -255,12 +282,26 @@ export default function ExamListPage() {
           form={form}
           layout="vertical"
           onFinish={onCreate}
-          initialValues={{ durationMinutes: 60, maxAttempts: 1, shuffle: true, passScore: 60, switchLimit: 0 }}
+          initialValues={{
+            durationMinutes: 60,
+            maxAttempts: 1,
+            shuffle: true,
+            passScore: 60,
+            switchLimit: 0,
+          }}
         >
-          <Form.Item name="examCode" label="考试编码" rules={[{ required: true, message: '请输入考试编码' }]}>
+          <Form.Item
+            name="examCode"
+            label="考试编码"
+            rules={[{ required: true, message: '请输入考试编码' }]}
+          >
             <Input placeholder="如 EXAM-2026-001（自动大写归一）" />
           </Form.Item>
-          <Form.Item name="title" label="考试名称" rules={[{ required: true, message: '请输入考试名称' }]}>
+          <Form.Item
+            name="title"
+            label="考试名称"
+            rules={[{ required: true, message: '请输入考试名称' }]}
+          >
             <Input />
           </Form.Item>
           <Form.Item
@@ -278,18 +319,38 @@ export default function ExamListPage() {
             />
           </Form.Item>
           <Space size="middle" style={{ display: 'flex' }}>
-            <Form.Item name="startTime" label="开考时间" rules={[{ required: true, message: '请选择开考时间' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="startTime"
+              label="开考时间"
+              rules={[{ required: true, message: '请选择开考时间' }]}
+              style={{ flex: 1 }}
+            >
               <DatePicker showTime style={{ width: '100%' }} />
             </Form.Item>
-            <Form.Item name="endTime" label="截止时间" rules={[{ required: true, message: '请选择截止时间' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="endTime"
+              label="截止时间"
+              rules={[{ required: true, message: '请选择截止时间' }]}
+              style={{ flex: 1 }}
+            >
               <DatePicker showTime style={{ width: '100%' }} />
             </Form.Item>
           </Space>
           <Space size="middle" style={{ display: 'flex' }}>
-            <Form.Item name="durationMinutes" label="单次时长（分钟）" rules={[{ required: true, message: '请输入时长' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="durationMinutes"
+              label="单次时长（分钟）"
+              rules={[{ required: true, message: '请输入时长' }]}
+              style={{ flex: 1 }}
+            >
               <InputNumber min={1} max={600} style={{ width: '100%' }} />
             </Form.Item>
-            <Form.Item name="maxAttempts" label="可考次数" rules={[{ required: true, message: '请输入次数' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="maxAttempts"
+              label="可考次数"
+              rules={[{ required: true, message: '请输入次数' }]}
+              style={{ flex: 1 }}
+            >
               <InputNumber min={1} max={20} style={{ width: '100%' }} />
             </Form.Item>
             <Form.Item name="passScore" label="及格分" style={{ flex: 1 }}>

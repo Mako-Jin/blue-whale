@@ -153,13 +153,21 @@ export function syncContracts(customerId: number): Promise<number> {
 }
 
 /** 标记合同续约 */
-export function markContractRenewal(id: number, payload: ContractRenewalInput): Promise<ContractView> {
+export function markContractRenewal(
+  id: number,
+  payload: ContractRenewalInput,
+): Promise<ContractView> {
   return http.put<ContractView>(`/crm/contract/${id}/renewal`, payload);
 }
 
 /** 回款计划分页 */
-export function pageCollections(query: CollectionPageQuery): Promise<PageResult<CollectionPlanView>> {
-  return http.get<PageResult<CollectionPlanView>>('/crm/collection/page', query as Record<string, unknown>);
+export function pageCollections(
+  query: CollectionPageQuery,
+): Promise<PageResult<CollectionPlanView>> {
+  return http.get<PageResult<CollectionPlanView>>(
+    '/crm/collection/page',
+    query as Record<string, unknown>,
+  );
 }
 
 /** 回款计划详情 */
@@ -168,17 +176,25 @@ export function getCollection(id: number): Promise<CollectionPlanView> {
 }
 
 /** 按合同整批保存回款分期 */
-export function saveCollectionPlan(payload: CollectionPlanSaveInput): Promise<CollectionPlanView[]> {
+export function saveCollectionPlan(
+  payload: CollectionPlanSaveInput,
+): Promise<CollectionPlanView[]> {
   return http.put<CollectionPlanView[]>('/crm/collection/plan', payload);
 }
 
 /** 登记承诺还款 */
-export function promiseCollection(id: number, payload: CollectionPromiseInput): Promise<CollectionPlanView> {
+export function promiseCollection(
+  id: number,
+  payload: CollectionPromiseInput,
+): Promise<CollectionPlanView> {
   return http.post<CollectionPlanView>(`/crm/collection/${id}/promise`, payload);
 }
 
 /** 追加催收记录 */
-export function addCollectionAction(id: number, payload: CollectionActionInput): Promise<CollectionActionView> {
+export function addCollectionAction(
+  id: number,
+  payload: CollectionActionInput,
+): Promise<CollectionActionView> {
   return http.post<CollectionActionView>(`/crm/collection/${id}/action`, payload);
 }
 

@@ -17,12 +17,7 @@ import {
 } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  FormModal,
-  ProTable,
-  SearchForm,
-  type ProTableRef,
-} from '@bluewhale/whale-ui';
+import { FormModal, ProTable, SearchForm, type ProTableRef } from '@bluewhale/whale-ui';
 import {
   deleteShortVideo,
   deleteVideo,
@@ -143,7 +138,7 @@ export default function MinePage() {
       height: editing.height,
       sizeBytes: editing.sizeBytes,
       categoryId: values.categoryId,
-      seriesId: contentType === 'VIDEO' ? values.seriesId ?? 0 : 0,
+      seriesId: contentType === 'VIDEO' ? (values.seriesId ?? 0) : 0,
       episodeNo: contentType === 'VIDEO' && values.seriesId ? values.episodeNo : 0,
       tagIds: values.tagIds?.length ? values.tagIds : undefined,
       visibility: values.visibility,
@@ -205,7 +200,10 @@ export default function MinePage() {
   }
 
   const categoryOptions = categories
-    .filter((category) => category.contentTypeScope === 'ALL' || category.contentTypeScope === contentType)
+    .filter(
+      (category) =>
+        category.contentTypeScope === 'ALL' || category.contentTypeScope === contentType,
+    )
     .map((category) => ({ value: category.id, label: category.name }));
 
   // 当前作品所属系列可能已下架而不在可选列表中，仍需回填展示
@@ -213,7 +211,11 @@ export default function MinePage() {
     value: item.id,
     label: `${item.title}（${item.episodeCount} 集）`,
   }));
-  if (editing?.seriesId && editing.seriesId > 0 && !seriesList.some((item) => item.id === editing.seriesId)) {
+  if (
+    editing?.seriesId &&
+    editing.seriesId > 0 &&
+    !seriesList.some((item) => item.id === editing.seriesId)
+  ) {
     seriesOptions.unshift({ value: editing.seriesId, label: `系列 #${editing.seriesId}` });
   }
 
@@ -247,14 +249,24 @@ export default function MinePage() {
                 name: 'visibility',
                 label: '可见性',
                 element: (
-                  <Select allowClear placeholder="全部" style={{ width: 120 }} options={VISIBILITY_OPTIONS} />
+                  <Select
+                    allowClear
+                    placeholder="全部"
+                    style={{ width: 120 }}
+                    options={VISIBILITY_OPTIONS}
+                  />
                 ),
               },
               {
                 name: 'publishState',
                 label: '状态',
                 element: (
-                  <Select allowClear placeholder="全部" style={{ width: 120 }} options={PUBLISH_STATE_OPTIONS} />
+                  <Select
+                    allowClear
+                    placeholder="全部"
+                    style={{ width: 120 }}
+                    options={PUBLISH_STATE_OPTIONS}
+                  />
                 ),
               },
             ]}
@@ -282,7 +294,9 @@ export default function MinePage() {
             render: (value: string, row) => (
               <Space direction="vertical" size={0}>
                 <Typography.Text strong>{value}</Typography.Text>
-                {row.subtitle ? <Typography.Text type="secondary">{row.subtitle}</Typography.Text> : null}
+                {row.subtitle ? (
+                  <Typography.Text type="secondary">{row.subtitle}</Typography.Text>
+                ) : null}
                 {row.seriesId && row.seriesId > 0 ? (
                   <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                     系列 #{row.seriesId} · 第 {row.episodeNo || 1} 集
@@ -342,11 +356,19 @@ export default function MinePage() {
                   编辑
                 </Button>
                 {row.publishState === 'PUBLISHED' ? (
-                  <Button type="link" size="small" onClick={() => void handlePublishToggle(row, false)}>
+                  <Button
+                    type="link"
+                    size="small"
+                    onClick={() => void handlePublishToggle(row, false)}
+                  >
                     下架
                   </Button>
                 ) : (
-                  <Button type="link" size="small" onClick={() => void handlePublishToggle(row, true)}>
+                  <Button
+                    type="link"
+                    size="small"
+                    onClick={() => void handlePublishToggle(row, true)}
+                  >
                     发布
                   </Button>
                 )}
@@ -410,11 +432,23 @@ export default function MinePage() {
             <Form.Item name="seriesId" label="所属系列">
               <Select allowClear placeholder="不加入系列" options={seriesOptions} />
             </Form.Item>
-            <Form.Item noStyle shouldUpdate={(previous, next) => previous.seriesId !== next.seriesId}>
+            <Form.Item
+              noStyle
+              shouldUpdate={(previous, next) => previous.seriesId !== next.seriesId}
+            >
               {({ getFieldValue }) =>
                 getFieldValue('seriesId') ? (
-                  <Form.Item name="episodeNo" label="集数" rules={[{ required: true, message: '请输入集数' }]}>
-                    <InputNumber min={1} precision={0} style={{ width: 160 }} placeholder="第几集" />
+                  <Form.Item
+                    name="episodeNo"
+                    label="集数"
+                    rules={[{ required: true, message: '请输入集数' }]}
+                  >
+                    <InputNumber
+                      min={1}
+                      precision={0}
+                      style={{ width: 160 }}
+                      placeholder="第几集"
+                    />
                   </Form.Item>
                 ) : null
               }

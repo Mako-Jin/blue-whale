@@ -2,7 +2,21 @@
 //
 // 发布态课程内容冻结（后端强校验），界面在 PUBLISHED 态隐藏编辑入口。
 
-import { Button, Card, Collapse, Empty, Form, Input, Modal, Popconfirm, Progress, Select, Space, Tag, message } from 'antd';
+import {
+  Button,
+  Card,
+  Collapse,
+  Empty,
+  Form,
+  Input,
+  Modal,
+  Popconfirm,
+  Progress,
+  Select,
+  Space,
+  Tag,
+  message,
+} from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -61,7 +75,12 @@ export default function CourseDetailPage() {
     await load();
   };
 
-  const onAddWare = async (values: { name: string; wareType: string; fileRefId?: string; linkUrl?: string }) => {
+  const onAddWare = async (values: {
+    name: string;
+    wareType: string;
+    fileRefId?: string;
+    linkUrl?: string;
+  }) => {
     if (!wareTarget) {
       return;
     }
@@ -149,7 +168,8 @@ export default function CourseDetailPage() {
       <Card
         title={`章节课件（${detail.chapterCount}）`}
         extra={
-          canChapter && editable && (
+          canChapter &&
+          editable && (
             <Button size="small" type="primary" onClick={() => setChapterOpen(true)}>
               新增章节
             </Button>
@@ -202,7 +222,9 @@ export default function CourseDetailPage() {
               ),
               children: (
                 <Space direction="vertical" style={{ width: '100%' }} size={8}>
-                  {chapter.wares.length === 0 && <Empty description="暂无课件" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
+                  {chapter.wares.length === 0 && (
+                    <Empty description="暂无课件" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                  )}
                   {chapter.wares.map((ware) => (
                     <Space key={ware.id} style={{ width: '100%', justifyContent: 'space-between' }}>
                       <Space size={8}>
@@ -213,7 +235,9 @@ export default function CourseDetailPage() {
                             打开外链
                           </a>
                         )}
-                        {ware.fileRefId && <span style={{ color: '#999' }}>文件引用：{ware.fileRefId}</span>}
+                        {ware.fileRefId && (
+                          <span style={{ color: '#999' }}>文件引用：{ware.fileRefId}</span>
+                        )}
                       </Space>
                       {canWare && editable && (
                         <Popconfirm
@@ -250,7 +274,11 @@ export default function CourseDetailPage() {
         onOk={() => chapterForm.submit()}
       >
         <Form form={chapterForm} layout="vertical" onFinish={onAddChapter}>
-          <Form.Item name="title" label="章节标题" rules={[{ required: true, message: '请输入章节标题' }]}>
+          <Form.Item
+            name="title"
+            label="章节标题"
+            rules={[{ required: true, message: '请输入章节标题' }]}
+          >
             <Input />
           </Form.Item>
           <Form.Item name="remark" label="备注">
@@ -266,10 +294,18 @@ export default function CourseDetailPage() {
         onOk={() => wareForm.submit()}
       >
         <Form form={wareForm} layout="vertical" onFinish={onAddWare}>
-          <Form.Item name="name" label="课件名称" rules={[{ required: true, message: '请输入课件名称' }]}>
+          <Form.Item
+            name="name"
+            label="课件名称"
+            rules={[{ required: true, message: '请输入课件名称' }]}
+          >
             <Input />
           </Form.Item>
-          <Form.Item name="wareType" label="类型" rules={[{ required: true, message: '请选择类型' }]}>
+          <Form.Item
+            name="wareType"
+            label="类型"
+            rules={[{ required: true, message: '请选择类型' }]}
+          >
             <Select
               options={[
                 { value: 'DOCUMENT', label: '文档' },
@@ -282,11 +318,19 @@ export default function CourseDetailPage() {
           <Form.Item noStyle shouldUpdate={(prev, next) => prev.wareType !== next.wareType}>
             {({ getFieldValue }) =>
               getFieldValue('wareType') === 'LINK' ? (
-                <Form.Item name="linkUrl" label="外部链接" rules={[{ required: true, message: '请输入 URL' }]}>
+                <Form.Item
+                  name="linkUrl"
+                  label="外部链接"
+                  rules={[{ required: true, message: '请输入 URL' }]}
+                >
                   <Input placeholder="https://" />
                 </Form.Item>
               ) : (
-                <Form.Item name="fileRefId" label="whale-file 文件引用 ID" rules={[{ required: true, message: '请输入文件引用 ID' }]}>
+                <Form.Item
+                  name="fileRefId"
+                  label="whale-file 文件引用 ID"
+                  rules={[{ required: true, message: '请输入文件引用 ID' }]}
+                >
                   <Input placeholder="先经 whale-file 上传取得引用 ID（M1 暂手填，M5 接上传控件）" />
                 </Form.Item>
               )

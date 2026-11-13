@@ -4,7 +4,13 @@ import { Alert, App, Button, Card, Col, Empty, Result, Row, Space, Tag, Typograp
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchHome, fetchMeta, type HomeView, type PublicContentView, type VideoMeta } from '../api/video';
+import {
+  fetchHome,
+  fetchMeta,
+  type HomeView,
+  type PublicContentView,
+  type VideoMeta,
+} from '../api/video';
 import { hasPermission } from '../api/client';
 import { formatCount, formatDuration } from '../utils/videoDisplay';
 
@@ -86,21 +92,33 @@ export default function HomePage() {
         records={home?.shorts}
         emptyText="还没有短视频，上传第一条吧"
         onOpen={(record) => navigate(`/shorts/${record.id}`)}
-        extra={<Button type="link" onClick={() => navigate('/shorts')}>全部短视频</Button>}
+        extra={
+          <Button type="link" onClick={() => navigate('/shorts')}>
+            全部短视频
+          </Button>
+        }
       />
       <ContentSection
         title="视频"
         records={home?.videos}
         emptyText="还没有视频，稍后再来看看"
         onOpen={() => navigate('/videos')}
-        extra={<Button type="link" onClick={() => navigate('/videos')}>全部视频</Button>}
+        extra={
+          <Button type="link" onClick={() => navigate('/videos')}>
+            全部视频
+          </Button>
+        }
       />
       <ContentSection
         title="电影"
         records={home?.movies}
         emptyText="还没有已上架电影"
         onOpen={() => navigate('/movies')}
-        extra={<Button type="link" onClick={() => navigate('/movies')}>全部电影</Button>}
+        extra={
+          <Button type="link" onClick={() => navigate('/movies')}>
+            全部电影
+          </Button>
+        }
       />
 
       {meta ? (
@@ -111,7 +129,9 @@ export default function HomePage() {
             <Typography.Text type="secondary">
               票据有效期：{meta.playTicketTtlSeconds}s（建议 {meta.playTicketRefreshSeconds}s 刷新）
             </Typography.Text>
-            <Typography.Text type="secondary">评论先审：{meta.commentPreAudit ? '是' : '否'}</Typography.Text>
+            <Typography.Text type="secondary">
+              评论先审：{meta.commentPreAudit ? '是' : '否'}
+            </Typography.Text>
           </Space>
         </Card>
       ) : null}
@@ -148,7 +168,9 @@ function ContentSection({
                     {formatCount(record.playCount)} 次播放
                   </Typography.Text>
                   <Space size={4}>
-                    <Tag color={record.playable ? 'green' : 'default'}>{record.playable ? '可播放' : '暂不可播'}</Tag>
+                    <Tag color={record.playable ? 'green' : 'default'}>
+                      {record.playable ? '可播放' : '暂不可播'}
+                    </Tag>
                     {record.tags?.slice(0, 1).map((tag) => (
                       <Tag key={tag}>{tag}</Tag>
                     ))}

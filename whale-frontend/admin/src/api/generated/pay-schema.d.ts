@@ -4,843 +4,843 @@
  */
 
 export interface paths {
-    "/pay/order": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+  '/pay/order': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/pay/order/{id}/refund": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["refund"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['create'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/pay/order/{id}/refund': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/pay/order/{id}/pay": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["pay"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['refund'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/pay/order/{id}/pay': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/pay/order/{id}/cancel": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["cancel"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['pay'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/pay/order/{id}/cancel': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/pay/notify/{id}/retry": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["retry"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['cancel'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/pay/notify/{id}/retry': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/pay/internal/refund": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["refund_1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['retry'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/pay/internal/refund': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/pay/internal/order": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["create_1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['refund_1'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/pay/internal/order': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/pay/internal/order/{orderNo}/pay": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["pay_1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['create_1'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/pay/internal/order/{orderNo}/pay': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/pay/internal/order/{orderNo}/cancel": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["cancel_1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['pay_1'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/pay/internal/order/{orderNo}/cancel': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/pay/refund/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["detail"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post: operations['cancel_1'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/pay/refund/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/pay/refund/page": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["page"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['detail'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/pay/refund/page': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/pay/order/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["detail_1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['page'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/pay/order/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/pay/order/{id}/transactions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["transactions"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['detail_1'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/pay/order/{id}/transactions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/pay/order/{id}/reconcile": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["reconcile"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['transactions'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/pay/order/{id}/reconcile': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/pay/order/page": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["page_1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['reconcile'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/pay/order/page': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/pay/notify/page": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["notifyPage"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['page_1'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/pay/notify/page': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/pay/internal/order/{orderNo}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getByOrderNo"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['notifyPage'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/pay/internal/order/{orderNo}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
+    get: operations['getByOrderNo'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: {
-        PayOrderCreateRequest: {
-            orderNo: string;
-            businessKey?: string;
-            amount: number;
-            currency: string;
-            channel?: string;
-            remark?: string;
-        };
-        PayOrderVO: {
-            id?: string;
-            orderNo?: string;
-            businessKey?: string;
-            amount?: number;
-            currency?: string;
-            channel?: string;
-            status?: string;
-            /** Format: date-time */
-            payTime?: string;
-            channelTradeNo?: string;
-            refundAmount?: number;
-            /** Format: date-time */
-            refundTime?: string;
-            remark?: string;
-            /** Format: date-time */
-            createTime?: string;
-            /** Format: date-time */
-            updateTime?: string;
-        };
-        ResultPayOrderVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["PayOrderVO"];
-        };
-        ResultBoolean: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: boolean;
-        };
-        PayInternalRefundRequest: {
-            payOrderNo: string;
-            refundNo?: string;
-            amount: number;
-            reason?: string;
-        };
-        PayRefundVO: {
-            id?: string;
-            refundNo?: string;
-            payOrderId?: string;
-            payOrderNo?: string;
-            amount?: number;
-            reason?: string;
-            status?: string;
-            channelRefundNo?: string;
-            /** Format: date-time */
-            refundTime?: string;
-            remark?: string;
-            /** Format: date-time */
-            createTime?: string;
-        };
-        ResultPayRefundVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["PayRefundVO"];
-        };
-        PayInternalCreateRequest: {
-            orderNo: string;
-            bizType: string;
-            amount: number;
-            currency?: string;
-            channel?: string;
-            notifyUrl: string;
-            remark?: string;
-        };
-        PageResultPayRefundVO: {
-            records?: components["schemas"]["PayRefundVO"][];
-            total?: string;
-            size?: string;
-            current?: string;
-        };
-        ResultPageResultPayRefundVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["PageResultPayRefundVO"];
-        };
-        PayTransactionVO: {
-            id?: string;
-            orderId?: string;
-            orderNo?: string;
-            type?: string;
-            channel?: string;
-            amount?: number;
-            currency?: string;
-            providerTradeNo?: string;
-            status?: string;
-            errorMessage?: string;
-            /** Format: date-time */
-            createTime?: string;
-        };
-        ResultListPayTransactionVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["PayTransactionVO"][];
-        };
-        PayReconcileVO: {
-            orderId?: string;
-            orderNo?: string;
-            localStatus?: string;
-            channelStatus?: string;
-            consistent?: boolean;
-            providerTradeNo?: string;
-            /** Format: date-time */
-            checkedAt?: string;
-        };
-        ResultPayReconcileVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["PayReconcileVO"];
-        };
-        PayOrderQueryRequest: {
-            current?: string;
-            size?: string;
-            keyword?: string;
-            status?: string;
-            channel?: string;
-        };
-        PageResultPayOrderVO: {
-            records?: components["schemas"]["PayOrderVO"][];
-            total?: string;
-            size?: string;
-            current?: string;
-        };
-        ResultPageResultPayOrderVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["PageResultPayOrderVO"];
-        };
-        PageResultPayNotifyTaskVO: {
-            records?: components["schemas"]["PayNotifyTaskVO"][];
-            total?: string;
-            size?: string;
-            current?: string;
-        };
-        PayNotifyTaskVO: {
-            id?: string;
-            bizType?: string;
-            bizOrderNo?: string;
-            event?: string;
-            notifyUrl?: string;
-            status?: string;
-            /** Format: int32 */
-            retryCount?: number;
-            /** Format: date-time */
-            nextRetryAt?: string;
-            lastError?: string;
-            /** Format: date-time */
-            createTime?: string;
-        };
-        ResultPageResultPayNotifyTaskVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["PageResultPayNotifyTaskVO"];
-        };
+  schemas: {
+    PayOrderCreateRequest: {
+      orderNo: string;
+      businessKey?: string;
+      amount: number;
+      currency: string;
+      channel?: string;
+      remark?: string;
     };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+    PayOrderVO: {
+      id?: string;
+      orderNo?: string;
+      businessKey?: string;
+      amount?: number;
+      currency?: string;
+      channel?: string;
+      status?: string;
+      /** Format: date-time */
+      payTime?: string;
+      channelTradeNo?: string;
+      refundAmount?: number;
+      /** Format: date-time */
+      refundTime?: string;
+      remark?: string;
+      /** Format: date-time */
+      createTime?: string;
+      /** Format: date-time */
+      updateTime?: string;
+    };
+    ResultPayOrderVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PayOrderVO'];
+    };
+    ResultBoolean: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: boolean;
+    };
+    PayInternalRefundRequest: {
+      payOrderNo: string;
+      refundNo?: string;
+      amount: number;
+      reason?: string;
+    };
+    PayRefundVO: {
+      id?: string;
+      refundNo?: string;
+      payOrderId?: string;
+      payOrderNo?: string;
+      amount?: number;
+      reason?: string;
+      status?: string;
+      channelRefundNo?: string;
+      /** Format: date-time */
+      refundTime?: string;
+      remark?: string;
+      /** Format: date-time */
+      createTime?: string;
+    };
+    ResultPayRefundVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PayRefundVO'];
+    };
+    PayInternalCreateRequest: {
+      orderNo: string;
+      bizType: string;
+      amount: number;
+      currency?: string;
+      channel?: string;
+      notifyUrl: string;
+      remark?: string;
+    };
+    PageResultPayRefundVO: {
+      records?: components['schemas']['PayRefundVO'][];
+      total?: string;
+      size?: string;
+      current?: string;
+    };
+    ResultPageResultPayRefundVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PageResultPayRefundVO'];
+    };
+    PayTransactionVO: {
+      id?: string;
+      orderId?: string;
+      orderNo?: string;
+      type?: string;
+      channel?: string;
+      amount?: number;
+      currency?: string;
+      providerTradeNo?: string;
+      status?: string;
+      errorMessage?: string;
+      /** Format: date-time */
+      createTime?: string;
+    };
+    ResultListPayTransactionVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PayTransactionVO'][];
+    };
+    PayReconcileVO: {
+      orderId?: string;
+      orderNo?: string;
+      localStatus?: string;
+      channelStatus?: string;
+      consistent?: boolean;
+      providerTradeNo?: string;
+      /** Format: date-time */
+      checkedAt?: string;
+    };
+    ResultPayReconcileVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PayReconcileVO'];
+    };
+    PayOrderQueryRequest: {
+      current?: string;
+      size?: string;
+      keyword?: string;
+      status?: string;
+      channel?: string;
+    };
+    PageResultPayOrderVO: {
+      records?: components['schemas']['PayOrderVO'][];
+      total?: string;
+      size?: string;
+      current?: string;
+    };
+    ResultPageResultPayOrderVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PageResultPayOrderVO'];
+    };
+    PageResultPayNotifyTaskVO: {
+      records?: components['schemas']['PayNotifyTaskVO'][];
+      total?: string;
+      size?: string;
+      current?: string;
+    };
+    PayNotifyTaskVO: {
+      id?: string;
+      bizType?: string;
+      bizOrderNo?: string;
+      event?: string;
+      notifyUrl?: string;
+      status?: string;
+      /** Format: int32 */
+      retryCount?: number;
+      /** Format: date-time */
+      nextRetryAt?: string;
+      lastError?: string;
+      /** Format: date-time */
+      createTime?: string;
+    };
+    ResultPageResultPayNotifyTaskVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PageResultPayNotifyTaskVO'];
+    };
+  };
+  responses: never;
+  parameters: never;
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PayOrderCreateRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPayOrderVO"];
-                };
-            };
-        };
+  create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    refund: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPayOrderVO"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PayOrderCreateRequest'];
+      };
     };
-    pay: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPayOrderVO"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['ResultPayOrderVO'];
         };
+      };
     };
-    cancel: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPayOrderVO"];
-                };
-            };
-        };
+  };
+  refund: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
     };
-    retry: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultBoolean"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['ResultPayOrderVO'];
         };
+      };
     };
-    refund_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PayInternalRefundRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPayRefundVO"];
-                };
-            };
-        };
+  };
+  pay: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
     };
-    create_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PayInternalCreateRequest"];
-            };
+        content: {
+          '*/*': components['schemas']['ResultPayOrderVO'];
         };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPayOrderVO"];
-                };
-            };
-        };
+      };
     };
-    pay_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                orderNo: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPayOrderVO"];
-                };
-            };
-        };
+  };
+  cancel: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
     };
-    cancel_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                orderNo: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPayOrderVO"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['ResultPayOrderVO'];
         };
+      };
     };
-    detail: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPayRefundVO"];
-                };
-            };
-        };
+  };
+  retry: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
     };
-    page: {
-        parameters: {
-            query?: {
-                keyword?: string;
-                current?: string;
-                size?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPageResultPayRefundVO"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['ResultBoolean'];
         };
+      };
     };
-    detail_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPayOrderVO"];
-                };
-            };
-        };
+  };
+  refund_1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    transactions: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultListPayTransactionVO"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PayInternalRefundRequest'];
+      };
     };
-    reconcile: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPayReconcileVO"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['ResultPayRefundVO'];
         };
+      };
     };
-    page_1: {
-        parameters: {
-            query: {
-                request: components["schemas"]["PayOrderQueryRequest"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPageResultPayOrderVO"];
-                };
-            };
-        };
+  };
+  create_1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    notifyPage: {
-        parameters: {
-            query?: {
-                status?: string;
-                current?: string;
-                size?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPageResultPayNotifyTaskVO"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PayInternalCreateRequest'];
+      };
     };
-    getByOrderNo: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                orderNo: string;
-            };
-            cookie?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ResultPayOrderVO"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['ResultPayOrderVO'];
         };
+      };
     };
+  };
+  pay_1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        orderNo: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultPayOrderVO'];
+        };
+      };
+    };
+  };
+  cancel_1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        orderNo: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultPayOrderVO'];
+        };
+      };
+    };
+  };
+  detail: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultPayRefundVO'];
+        };
+      };
+    };
+  };
+  page: {
+    parameters: {
+      query?: {
+        keyword?: string;
+        current?: string;
+        size?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultPageResultPayRefundVO'];
+        };
+      };
+    };
+  };
+  detail_1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultPayOrderVO'];
+        };
+      };
+    };
+  };
+  transactions: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultListPayTransactionVO'];
+        };
+      };
+    };
+  };
+  reconcile: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultPayReconcileVO'];
+        };
+      };
+    };
+  };
+  page_1: {
+    parameters: {
+      query: {
+        request: components['schemas']['PayOrderQueryRequest'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultPageResultPayOrderVO'];
+        };
+      };
+    };
+  };
+  notifyPage: {
+    parameters: {
+      query?: {
+        status?: string;
+        current?: string;
+        size?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultPageResultPayNotifyTaskVO'];
+        };
+      };
+    };
+  };
+  getByOrderNo: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        orderNo: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ResultPayOrderVO'];
+        };
+      };
+    };
+  };
 }

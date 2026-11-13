@@ -35,15 +35,26 @@ export default function MyLearningPage() {
         rowKey="key"
         loading={loading}
         dataSource={rows}
-        pagination={{ current, pageSize: 10, total: rows.length, onChange: (page) => void load(page) }}
+        pagination={{
+          current,
+          pageSize: 10,
+          total: rows.length,
+          onChange: (page) => void load(page),
+        }}
         expandable={{
           expandedRowRender: (row) =>
             row.chapters && row.chapters.length > 0 ? (
               <Space direction="vertical" style={{ width: '100%' }} size={8}>
                 {row.chapters.map((chapter) => (
-                  <Space key={chapter.chapterId} style={{ width: '100%', justifyContent: 'space-between' }}>
+                  <Space
+                    key={chapter.chapterId}
+                    style={{ width: '100%', justifyContent: 'space-between' }}
+                  >
                     <span>{chapter.chapterTitle}</span>
-                    <Progress percent={chapter.percent} style={{ width: 240, marginInlineEnd: 24 }} />
+                    <Progress
+                      percent={chapter.percent}
+                      style={{ width: 240, marginInlineEnd: 24 }}
+                    />
                   </Space>
                 ))}
               </Space>

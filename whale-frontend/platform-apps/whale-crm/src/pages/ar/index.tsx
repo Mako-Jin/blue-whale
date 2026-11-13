@@ -93,7 +93,9 @@ export default function ArPage() {
       if (result.message) {
         message.info(result.message);
       } else {
-        message.success(`同步完成：成功 ${result.synced}，跳过 ${result.skipped}，失败 ${result.failed}`);
+        message.success(
+          `同步完成：成功 ${result.synced}，跳过 ${result.skipped}，失败 ${result.failed}`,
+        );
       }
       void loadData();
     } catch (error) {
@@ -104,10 +106,31 @@ export default function ArPage() {
   };
 
   const columns: TableProps<ArSnapshotView>['columns'] = [
-    { title: '客户编码', dataIndex: 'customerCode', width: 140, fixed: 'left', render: (value?: string | null) => value || '-' },
-    { title: '客户名称', dataIndex: 'customerName', width: 180, render: (value?: string | null) => value || '-' },
-    { title: '快照日期', dataIndex: 'snapshotDate', width: 120, render: (value?: string | null) => value || '-' },
-    { title: '币种', dataIndex: 'currency', width: 80, render: (value?: string | null) => value || '-' },
+    {
+      title: '客户编码',
+      dataIndex: 'customerCode',
+      width: 140,
+      fixed: 'left',
+      render: (value?: string | null) => value || '-',
+    },
+    {
+      title: '客户名称',
+      dataIndex: 'customerName',
+      width: 180,
+      render: (value?: string | null) => value || '-',
+    },
+    {
+      title: '快照日期',
+      dataIndex: 'snapshotDate',
+      width: 120,
+      render: (value?: string | null) => value || '-',
+    },
+    {
+      title: '币种',
+      dataIndex: 'currency',
+      width: 80,
+      render: (value?: string | null) => value || '-',
+    },
     {
       title: '未结单数',
       dataIndex: 'receivableCount',
@@ -157,7 +180,12 @@ export default function ArPage() {
       align: 'right',
       render: (value?: number | string | null) => formatAmount(value),
     },
-    { title: '来源', dataIndex: 'source', width: 90, render: (value?: string | null) => value || '-' },
+    {
+      title: '来源',
+      dataIndex: 'source',
+      width: 90,
+      render: (value?: string | null) => value || '-',
+    },
     {
       title: '最近同步',
       dataIndex: 'lastSyncAt',
@@ -177,7 +205,12 @@ export default function ArPage() {
         )
       }
     >
-      <Form form={filterForm} layout="inline" onFinish={handleSearch} style={{ marginBottom: 16, rowGap: 12 }}>
+      <Form
+        form={filterForm}
+        layout="inline"
+        onFinish={handleSearch}
+        style={{ marginBottom: 16, rowGap: 12 }}
+      >
         <Form.Item name="keyword">
           <Input placeholder="客户编码 / 名称" allowClear style={{ width: 200 }} />
         </Form.Item>

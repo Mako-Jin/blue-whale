@@ -93,19 +93,22 @@ export default function ProductPage() {
     }
   };
 
-  const openModel = useCallback(async (record: ProductVO) => {
-    setModelProduct(record);
-    setModelLoading(true);
-    try {
-      const items = await productApi.thingModel(record.id);
-      setModelJson(JSON.stringify(items ?? [], null, 2));
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : '物模型加载失败');
-      setModelJson('[]');
-    } finally {
-      setModelLoading(false);
-    }
-  }, [message]);
+  const openModel = useCallback(
+    async (record: ProductVO) => {
+      setModelProduct(record);
+      setModelLoading(true);
+      try {
+        const items = await productApi.thingModel(record.id);
+        setModelJson(JSON.stringify(items ?? [], null, 2));
+      } catch (error) {
+        message.error(error instanceof Error ? error.message : '物模型加载失败');
+        setModelJson('[]');
+      } finally {
+        setModelLoading(false);
+      }
+    },
+    [message],
+  );
 
   const saveModel = async () => {
     if (!modelProduct) {
@@ -187,7 +190,8 @@ export default function ProductPage() {
     <>
       <h2 className="iot-page-title">产品与物模型</h2>
       <p className="iot-page-desc">
-        产品是接入契约的载体：先建产品（草稿）→ 编辑物模型 → 发布 → 注册设备。已发布产品的物模型需先停用才能修改。
+        产品是接入契约的载体：先建产品（草稿）→ 编辑物模型 → 发布 →
+        注册设备。已发布产品的物模型需先停用才能修改。
       </p>
       <ProTable<ProductVO, { keyword?: string; status?: string }>
         ref={tableRef}
@@ -206,7 +210,11 @@ export default function ProductPage() {
         search={
           <SearchForm
             items={[
-              { name: 'keyword', label: '关键字', element: <Input placeholder="名称/编码" allowClear /> },
+              {
+                name: 'keyword',
+                label: '关键字',
+                element: <Input placeholder="名称/编码" allowClear />,
+              },
               {
                 name: 'status',
                 label: '状态',
@@ -224,7 +232,9 @@ export default function ProductPage() {
                 ),
               },
             ]}
-            onSearch={(values) => setFilters({ keyword: values.keyword as string, status: values.status as string })}
+            onSearch={(values) =>
+              setFilters({ keyword: values.keyword as string, status: values.status as string })
+            }
             onReset={() => setFilters({})}
           />
         }
@@ -250,13 +260,20 @@ export default function ProductPage() {
             label="产品编码"
             rules={[
               { required: !editing, message: '请输入产品编码' },
-              { pattern: /^[a-z][a-z0-9-]{1,63}$/, message: '小写字母开头的小写字母/数字/连字符，2-64 位' },
+              {
+                pattern: /^[a-z][a-z0-9-]{1,63}$/,
+                message: '小写字母开头的小写字母/数字/连字符，2-64 位',
+              },
             ]}
             extra={editing ? '编码创建后不可修改' : '如 temp-sensor-v1，设备三元组的第一段'}
           >
             <Input disabled={Boolean(editing)} placeholder="temp-sensor-v1" />
           </Form.Item>
-          <Form.Item name="name" label="产品名称" rules={[{ required: true, message: '请输入产品名称' }]}>
+          <Form.Item
+            name="name"
+            label="产品名称"
+            rules={[{ required: true, message: '请输入产品名称' }]}
+          >
             <Input placeholder="温湿度传感器" maxLength={128} />
           </Form.Item>
           <Form.Item name="description" label="描述">
@@ -280,7 +297,8 @@ export default function ProductPage() {
         }
       >
         <Typography.Paragraph type="secondary" style={{ fontSize: 12 }}>
-          整包覆盖式保存：数组每项 {`{ kind: property|event|service, identifier, name, dataType, spec, required }`}。
+          整包覆盖式保存：数组每项{' '}
+          {`{ kind: property|event|service, identifier, name, dataType, spec, required }`}。
           property 的 dataType 决定上报分流（int/double 存数值列，其余存文本列）。
         </Typography.Paragraph>
         {modelJson !== '[]' && (

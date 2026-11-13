@@ -194,7 +194,13 @@ export default function PurchaseOrderPage() {
     { title: '单据日期', dataIndex: 'docDate', key: 'docDate', width: 110 },
     { title: '预计到货', dataIndex: 'expectedDate', key: 'expectedDate', width: 110 },
     { title: '订单金额', dataIndex: 'totalAmount', key: 'totalAmount', width: 120, render: money },
-    { title: '已收金额', dataIndex: 'receivedAmount', key: 'receivedAmount', width: 120, render: money },
+    {
+      title: '已收金额',
+      dataIndex: 'receivedAmount',
+      key: 'receivedAmount',
+      width: 120,
+      render: money,
+    },
     {
       title: '状态',
       dataIndex: 'status',
@@ -214,14 +220,17 @@ export default function PurchaseOrderPage() {
             查看
           </Button>
           {record.status === 'DRAFT' && hasPermission('sys:erp:purchase:approve') ? (
-            <Popconfirm title="审核后订单不可修改，确认继续？" onConfirm={() => handleApprove(record.id)}>
+            <Popconfirm
+              title="审核后订单不可修改，确认继续？"
+              onConfirm={() => handleApprove(record.id)}
+            >
               <Button type="link" size="small">
                 审核
               </Button>
             </Popconfirm>
           ) : null}
-          {['APPROVED', 'PARTIALLY_RECEIVED'].includes(record.status)
-            && hasPermission('sys:erp:purchase:receive') ? (
+          {['APPROVED', 'PARTIALLY_RECEIVED'].includes(record.status) &&
+          hasPermission('sys:erp:purchase:receive') ? (
             <Button type="link" size="small" onClick={() => openReceive(record.id)}>
               收货
             </Button>
@@ -267,13 +276,22 @@ export default function PurchaseOrderPage() {
         <Button onClick={() => setStatus(undefined)} type={status ? 'default' : 'primary'}>
           全部
         </Button>
-        <Button onClick={() => setStatus('DRAFT')} type={status === 'DRAFT' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('DRAFT')}
+          type={status === 'DRAFT' ? 'primary' : 'default'}
+        >
           草稿
         </Button>
-        <Button onClick={() => setStatus('APPROVED')} type={status === 'APPROVED' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('APPROVED')}
+          type={status === 'APPROVED' ? 'primary' : 'default'}
+        >
           已审核
         </Button>
-        <Button onClick={() => setStatus('RECEIVED')} type={status === 'RECEIVED' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('RECEIVED')}
+          type={status === 'RECEIVED' ? 'primary' : 'default'}
+        >
           已收货
         </Button>
         {hasPermission('sys:erp:purchase:add') ? (
@@ -308,7 +326,11 @@ export default function PurchaseOrderPage() {
                 }))}
               />
             </Form.Item>
-            <Form.Item name="warehouseId" label="收货仓库" rules={[{ required: true, message: '请选择仓库' }]}>
+            <Form.Item
+              name="warehouseId"
+              label="收货仓库"
+              rules={[{ required: true, message: '请选择仓库' }]}
+            >
               <Select
                 showSearch
                 optionFilterProp="label"
@@ -353,13 +375,23 @@ export default function PurchaseOrderPage() {
                       name={[field.name, 'quantity']}
                       rules={[{ required: true, message: '数量' }]}
                     >
-                      <InputNumber placeholder="数量" min={0.0001} precision={4} style={{ width: 120 }} />
+                      <InputNumber
+                        placeholder="数量"
+                        min={0.0001}
+                        precision={4}
+                        style={{ width: 120 }}
+                      />
                     </Form.Item>
                     <Form.Item
                       name={[field.name, 'unitPrice']}
                       rules={[{ required: true, message: '单价' }]}
                     >
-                      <InputNumber placeholder="单价" min={0.01} precision={2} style={{ width: 120 }} />
+                      <InputNumber
+                        placeholder="单价"
+                        min={0.01}
+                        precision={2}
+                        style={{ width: 120 }}
+                      />
                     </Form.Item>
                     <Form.Item name={[field.name, 'uom']}>
                       <Input placeholder="单位" style={{ width: 90 }} maxLength={16} />

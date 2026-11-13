@@ -124,7 +124,11 @@ export default function ChatWorkbenchPage() {
     }
     setBusy(true);
     setQuestion('');
-    setItems((prev) => [...prev, { role: 'user', content: text }, { role: 'assistant', content: '', streaming: true }]);
+    setItems((prev) => [
+      ...prev,
+      { role: 'user', content: text },
+      { role: 'assistant', content: '', streaming: true },
+    ]);
     scrollToEnd();
     try {
       await streamChat(current.id, text, {
@@ -254,7 +258,9 @@ export default function ChatWorkbenchPage() {
       <main className="asst-main">
         <div className="asst-main-header">
           <h3 className="asst-main-title">
-            {current ? `${current.assistantName ?? '助手'} · ${current.title || '新会话'}` : '选择或新建会话'}
+            {current
+              ? `${current.assistantName ?? '助手'} · ${current.title || '新会话'}`
+              : '选择或新建会话'}
           </h3>
         </div>
         <div className="asst-messages" ref={messagesRef}>
@@ -292,7 +298,12 @@ export default function ChatWorkbenchPage() {
             onPressEnter={() => void handleAsk()}
             allowClear
           />
-          <Button type="primary" loading={busy} disabled={!current} onClick={() => void handleAsk()}>
+          <Button
+            type="primary"
+            loading={busy}
+            disabled={!current}
+            onClick={() => void handleAsk()}
+          >
             发送
           </Button>
         </div>

@@ -111,10 +111,14 @@ function SurveyDetailDrawer({ surveyId, onClose }: SurveyDetailDrawerProps) {
             </Descriptions.Item>
             <Descriptions.Item label="工单 ID">{detail.ticketId}</Descriptions.Item>
             <Descriptions.Item label="状态">
-              <Tag color={SURVEY_STATUS_COLOR[detail.status]}>{SURVEY_STATUS_LABEL[detail.status] ?? detail.status}</Tag>
+              <Tag color={SURVEY_STATUS_COLOR[detail.status]}>
+                {SURVEY_STATUS_LABEL[detail.status] ?? detail.status}
+              </Tag>
             </Descriptions.Item>
             <Descriptions.Item label="发送时间">{formatDateTime(detail.sentAt)}</Descriptions.Item>
-            <Descriptions.Item label="有效期至">{formatDateTime(detail.expiresAt)}</Descriptions.Item>
+            <Descriptions.Item label="有效期至">
+              {formatDateTime(detail.expiresAt)}
+            </Descriptions.Item>
             <Descriptions.Item label="答卷时间">{formatDateTime(detail.usedAt)}</Descriptions.Item>
           </Descriptions>
           {detail.response ? (
@@ -125,11 +129,21 @@ function SurveyDetailDrawer({ surveyId, onClose }: SurveyDetailDrawerProps) {
               <Descriptions bordered size="small" column={2}>
                 <Descriptions.Item label="总分">{detail.response.score ?? '-'}</Descriptions.Item>
                 <Descriptions.Item label="低分">
-                  {detail.response.lowScore ? <Tag color="red">低分</Tag> : <Tag color="green">正常</Tag>}
+                  {detail.response.lowScore ? (
+                    <Tag color="red">低分</Tag>
+                  ) : (
+                    <Tag color="green">正常</Tag>
+                  )}
                 </Descriptions.Item>
-                <Descriptions.Item label="响应速度">{detail.response.speedScore ?? '-'}</Descriptions.Item>
-                <Descriptions.Item label="服务态度">{detail.response.attitudeScore ?? '-'}</Descriptions.Item>
-                <Descriptions.Item label="专业程度">{detail.response.professionalScore ?? '-'}</Descriptions.Item>
+                <Descriptions.Item label="响应速度">
+                  {detail.response.speedScore ?? '-'}
+                </Descriptions.Item>
+                <Descriptions.Item label="服务态度">
+                  {detail.response.attitudeScore ?? '-'}
+                </Descriptions.Item>
+                <Descriptions.Item label="专业程度">
+                  {detail.response.professionalScore ?? '-'}
+                </Descriptions.Item>
                 <Descriptions.Item label="需回访">
                   {detail.response.followUpRequired ? <Tag color="orange">需回访</Tag> : '否'}
                 </Descriptions.Item>
@@ -336,7 +350,11 @@ export default function SatisfactionPage() {
             </Button>
           )}
           {hasPermission('sys:crm:survey:manage') && row.status === 'SENT' && (
-            <Popconfirm title="作废问卷" description="作废后令牌立即失效" onConfirm={() => void handleRevoke(row)}>
+            <Popconfirm
+              title="作废问卷"
+              description="作废后令牌立即失效"
+              onConfirm={() => void handleRevoke(row)}
+            >
               <Button size="small" type="link" danger>
                 作废
               </Button>
@@ -376,12 +394,22 @@ export default function SatisfactionPage() {
         </Col>
       </Row>
 
-      <Form form={filterForm} layout="inline" onFinish={handleSearch} style={{ marginBottom: 16, rowGap: 12 }}>
+      <Form
+        form={filterForm}
+        layout="inline"
+        onFinish={handleSearch}
+        style={{ marginBottom: 16, rowGap: 12 }}
+      >
         <Form.Item name="ticketId">
           <InputNumber min={1} precision={0} placeholder="工单 ID" style={{ width: 140 }} />
         </Form.Item>
         <Form.Item name="status">
-          <Select placeholder="状态" allowClear style={{ width: 130 }} options={SURVEY_STATUS_OPTIONS} />
+          <Select
+            placeholder="状态"
+            allowClear
+            style={{ width: 130 }}
+            options={SURVEY_STATUS_OPTIONS}
+          />
         </Form.Item>
         <Form.Item>
           <Space>
@@ -409,7 +437,8 @@ export default function SatisfactionPage() {
         }}
       />
       <Typography.Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
-        CLOSED 工单关闭后自动生成待答卷；令牌一次性、默认 7 天有效；低分（总分 ≤3 或任一维度 ≤2）自动追加工单回访动作。
+        CLOSED 工单关闭后自动生成待答卷；令牌一次性、默认 7 天有效；低分（总分 ≤3 或任一维度
+        ≤2）自动追加工单回访动作。
       </Typography.Text>
 
       <SurveyDetailDrawer surveyId={detailId} onClose={() => setDetailId(null)} />
@@ -425,10 +454,16 @@ export default function SatisfactionPage() {
         destroyOnClose
       >
         <Form form={sendForm} layout="vertical" preserve={false}>
-          <Form.Item name="ticketId" label="工单 ID" rules={[{ required: true, message: '请输入工单 ID' }]}>
+          <Form.Item
+            name="ticketId"
+            label="工单 ID"
+            rules={[{ required: true, message: '请输入工单 ID' }]}
+          >
             <InputNumber min={1} precision={0} style={{ width: '100%' }} />
           </Form.Item>
-          <Typography.Text type="secondary">仅已关闭（CLOSED）工单允许生成；重发会作废原待答卷令牌。</Typography.Text>
+          <Typography.Text type="secondary">
+            仅已关闭（CLOSED）工单允许生成；重发会作废原待答卷令牌。
+          </Typography.Text>
         </Form>
       </Modal>
 
@@ -462,11 +497,20 @@ export default function SatisfactionPage() {
         destroyOnClose
       >
         <Form form={responseForm} layout="vertical" preserve={false}>
-          <Form.Item name="token" label="一次性令牌" rules={[{ required: true, message: '请输入令牌' }]}>
+          <Form.Item
+            name="token"
+            label="一次性令牌"
+            rules={[{ required: true, message: '请输入令牌' }]}
+          >
             <Input maxLength={128} />
           </Form.Item>
           <Space size={12} style={{ display: 'flex' }}>
-            <Form.Item name="score" label="总分（1–5）" rules={[{ required: true, message: '请输入总分' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="score"
+              label="总分（1–5）"
+              rules={[{ required: true, message: '请输入总分' }]}
+              style={{ flex: 1 }}
+            >
               <InputNumber min={1} max={5} precision={0} style={{ width: '100%' }} />
             </Form.Item>
             <Form.Item name="speedScore" label="响应速度" style={{ flex: 1 }}>

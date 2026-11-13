@@ -41,7 +41,9 @@ export default function ShortDetailPage() {
         setDetail(data);
         setError(null);
       })
-      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : '内容加载失败'))
+      .catch((reason: unknown) =>
+        setError(reason instanceof Error ? reason.message : '内容加载失败'),
+      )
       .finally(() => setLoading(false));
   }, [contentId]);
 
@@ -140,9 +142,13 @@ export default function ShortDetailPage() {
             <Typography.Title level={4} style={{ marginTop: 0 }}>
               {detail.title}
             </Typography.Title>
-            {detail.subtitle ? <Typography.Text type="secondary">{detail.subtitle}</Typography.Text> : null}
+            {detail.subtitle ? (
+              <Typography.Text type="secondary">{detail.subtitle}</Typography.Text>
+            ) : null}
             {detail.description ? (
-              <Typography.Paragraph style={{ marginTop: 12 }}>{detail.description}</Typography.Paragraph>
+              <Typography.Paragraph style={{ marginTop: 12 }}>
+                {detail.description}
+              </Typography.Paragraph>
             ) : null}
             {detail.tags?.length ? (
               <Space wrap style={{ marginBottom: 12 }}>
@@ -155,12 +161,18 @@ export default function ShortDetailPage() {
             ) : null}
             <Descriptions column={1} size="small" style={{ marginBottom: 16 }}>
               <Descriptions.Item label="创作者">{detail.creatorName || '-'}</Descriptions.Item>
-              <Descriptions.Item label="时长">{formatDuration(detail.durationMs)}</Descriptions.Item>
+              <Descriptions.Item label="时长">
+                {formatDuration(detail.durationMs)}
+              </Descriptions.Item>
               <Descriptions.Item label="播放">{formatCount(detail.playCount)}</Descriptions.Item>
-              <Descriptions.Item label="发布时间">{formatDateTime(detail.publishedAt)}</Descriptions.Item>
+              <Descriptions.Item label="发布时间">
+                {formatDateTime(detail.publishedAt)}
+              </Descriptions.Item>
             </Descriptions>
             <Space wrap>
-              <Button onClick={() => void toggleLike()}>{detail.liked ? '已点赞' : '点赞'} {formatCount(detail.likeCount)}</Button>
+              <Button onClick={() => void toggleLike()}>
+                {detail.liked ? '已点赞' : '点赞'} {formatCount(detail.likeCount)}
+              </Button>
               <Button onClick={() => void toggleFavorite()}>
                 {detail.favorited ? '已收藏' : '收藏'} {formatCount(detail.favoriteCount)}
               </Button>

@@ -119,7 +119,8 @@ export default function UnionReliefPage() {
   }, [members]);
 
   const memberOptions = useMemo(
-    () => members.map((item) => ({ value: item.id, label: `${item.memberName}（${item.memberNo}）` })),
+    () =>
+      members.map((item) => ({ value: item.id, label: `${item.memberName}（${item.memberNo}）` })),
     [members],
   );
 
@@ -296,10 +297,7 @@ export default function UnionReliefPage() {
               </Button>
             ) : null}
             {row.status === 'APPROVED' ? (
-              <Popconfirm
-                title="确认已向会员发放该笔慰问金？"
-                onConfirm={() => void pay(row)}
-              >
+              <Popconfirm title="确认已向会员发放该笔慰问金？" onConfirm={() => void pay(row)}>
                 <Button type="link" size="small">
                   登记发放
                 </Button>
@@ -419,11 +417,7 @@ export default function UnionReliefPage() {
           >
             <Select options={RELIEF_TYPE_OPTIONS} />
           </Form.Item>
-          <Form.Item
-            name="amount"
-            label="金额"
-            rules={[{ required: true, message: '请输入金额' }]}
-          >
+          <Form.Item name="amount" label="金额" rules={[{ required: true, message: '请输入金额' }]}>
             <InputNumber min={0.01} precision={2} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item

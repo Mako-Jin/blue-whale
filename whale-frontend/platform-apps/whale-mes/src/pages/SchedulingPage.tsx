@@ -163,7 +163,12 @@ export default function SchedulingPage() {
       dataIndex: 'planNo',
       width: 170,
       render: (value: string, record) => (
-        <Button type="link" size="small" style={{ padding: 0 }} onClick={() => void handleDetail(record)}>
+        <Button
+          type="link"
+          size="small"
+          style={{ padding: 0 }}
+          onClick={() => void handleDetail(record)}
+        >
           {value}
         </Button>
       ),
@@ -174,10 +179,22 @@ export default function SchedulingPage() {
       title: '状态',
       dataIndex: 'status',
       width: 100,
-      render: (value: MesScheduleStatus) => <Tag color={STATUS_COLOR[value]}>{STATUS_LABEL[value]}</Tag>,
+      render: (value: MesScheduleStatus) => (
+        <Tag color={STATUS_COLOR[value]}>{STATUS_LABEL[value]}</Tag>
+      ),
     },
-    { title: '排程人', dataIndex: 'plannedBy', width: 120, render: (value?: string) => value || '-' },
-    { title: '创建时间', dataIndex: 'createTime', width: 170, render: (value?: string) => formatTime(value) },
+    {
+      title: '排程人',
+      dataIndex: 'plannedBy',
+      width: 120,
+      render: (value?: string) => value || '-',
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'createTime',
+      width: 170,
+      render: (value?: string) => formatTime(value),
+    },
     { title: '备注', dataIndex: 'remark', render: (value?: string) => value || '-' },
     {
       title: '操作',
@@ -186,12 +203,18 @@ export default function SchedulingPage() {
       render: (_, record) =>
         record.status === 'DRAFT' && canManage ? (
           <Space size="small">
-            <Popconfirm title="锁定后作为执行依据，不可再取消？" onConfirm={() => void handleLock(record)}>
+            <Popconfirm
+              title="锁定后作为执行依据，不可再取消？"
+              onConfirm={() => void handleLock(record)}
+            >
               <Button type="link" size="small">
                 锁定
               </Button>
             </Popconfirm>
-            <Popconfirm title="取消排程并释放全部时段？" onConfirm={() => void handleCancel(record)}>
+            <Popconfirm
+              title="取消排程并释放全部时段？"
+              onConfirm={() => void handleCancel(record)}
+            >
               <Button type="link" size="small" danger>
                 取消
               </Button>
@@ -208,7 +231,12 @@ export default function SchedulingPage() {
   const slotColumns: TableProps<MesScheduleSlot>['columns'] = [
     { title: '排程日期', dataIndex: 'scheduleDate', width: 120 },
     { title: '工作中心', dataIndex: 'workCenterCode', width: 120 },
-    { title: '任务编号', dataIndex: 'taskNo', width: 150, render: (value?: string) => value || '-' },
+    {
+      title: '任务编号',
+      dataIndex: 'taskNo',
+      width: 150,
+      render: (value?: string) => value || '-',
+    },
     {
       title: '工序',
       dataIndex: 'operationName',
@@ -220,7 +248,8 @@ export default function SchedulingPage() {
       title: '状态',
       dataIndex: 'status',
       width: 100,
-      render: (value: string) => (value === 'RESERVED' ? <Tag color="blue">已预留</Tag> : <Tag>已释放</Tag>),
+      render: (value: string) =>
+        value === 'RESERVED' ? <Tag color="blue">已预留</Tag> : <Tag>已释放</Tag>,
     },
   ];
 
@@ -294,7 +323,11 @@ export default function SchedulingPage() {
           <Form.Item name="planDate" label="排程起始日期">
             <DatePicker style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="days" label="排程天数" rules={[{ required: true, message: '请填写排程天数' }]}>
+          <Form.Item
+            name="days"
+            label="排程天数"
+            rules={[{ required: true, message: '请填写排程天数' }]}
+          >
             <InputNumber min={1} max={30} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="plannedBy" label="排程人">
@@ -311,30 +344,32 @@ export default function SchedulingPage() {
       >
         <Spin spinning={detailLoading}>
           {detail && (
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-            <Descriptions size="small" column={2} bordered>
-              <Descriptions.Item label="工单编码">{detail.workOrderCode || '-'}</Descriptions.Item>
-              <Descriptions.Item label="排程日期">{detail.planDate}</Descriptions.Item>
-              <Descriptions.Item label="状态">
-                <Tag color={STATUS_COLOR[detail.status]}>{STATUS_LABEL[detail.status]}</Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="排程人">{detail.plannedBy || '-'}</Descriptions.Item>
-              <Descriptions.Item label="创建时间" span={2}>
-                {formatTime(detail.createTime)}
-              </Descriptions.Item>
-              <Descriptions.Item label="备注" span={2}>
-                {detail.remark || '-'}
-              </Descriptions.Item>
-            </Descriptions>
-            <Table
-              rowKey="id"
-              size="small"
-              columns={slotColumns}
-              dataSource={detail.slots ?? []}
-              pagination={false}
-            />
-          </Space>
-        )}
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              <Descriptions size="small" column={2} bordered>
+                <Descriptions.Item label="工单编码">
+                  {detail.workOrderCode || '-'}
+                </Descriptions.Item>
+                <Descriptions.Item label="排程日期">{detail.planDate}</Descriptions.Item>
+                <Descriptions.Item label="状态">
+                  <Tag color={STATUS_COLOR[detail.status]}>{STATUS_LABEL[detail.status]}</Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="排程人">{detail.plannedBy || '-'}</Descriptions.Item>
+                <Descriptions.Item label="创建时间" span={2}>
+                  {formatTime(detail.createTime)}
+                </Descriptions.Item>
+                <Descriptions.Item label="备注" span={2}>
+                  {detail.remark || '-'}
+                </Descriptions.Item>
+              </Descriptions>
+              <Table
+                rowKey="id"
+                size="small"
+                columns={slotColumns}
+                dataSource={detail.slots ?? []}
+                pagination={false}
+              />
+            </Space>
+          )}
         </Spin>
       </Drawer>
     </Space>

@@ -147,9 +147,10 @@ const PERFORMANCE_LEVEL_LABEL: Record<string, string> = {
 };
 
 /** 绩效层级下拉项 */
-const PERFORMANCE_LEVEL_OPTIONS = Object.entries(PERFORMANCE_LEVEL_LABEL).map(
-  ([value, label]) => ({ value, label }),
-);
+const PERFORMANCE_LEVEL_OPTIONS = Object.entries(PERFORMANCE_LEVEL_LABEL).map(([value, label]) => ({
+  value,
+  label,
+}));
 
 /** 技能状态文案 */
 const SKILL_STATUS_LABEL: Record<string, string> = {
@@ -376,8 +377,7 @@ function TeamMemberPanel() {
       dataIndex: 'primaryOperator',
       key: 'primaryOperator',
       width: 100,
-      render: (value: number) =>
-        value === 1 ? <Tag color="blue">主操作</Tag> : <Tag>普通</Tag>,
+      render: (value: number) => (value === 1 ? <Tag color="blue">主操作</Tag> : <Tag>普通</Tag>),
     },
     {
       title: '技能等级',
@@ -492,10 +492,18 @@ function TeamMemberPanel() {
           <Form.Item name="teamId" label="班组" rules={[{ required: true, message: '请选择班组' }]}>
             <Select showSearch optionFilterProp="label" options={masterDataOptions(teams)} />
           </Form.Item>
-          <Form.Item name="employeeId" label="员工 ID" rules={[{ required: true, message: '请输入员工 ID' }]}>
+          <Form.Item
+            name="employeeId"
+            label="员工 ID"
+            rules={[{ required: true, message: '请输入员工 ID' }]}
+          >
             <InputNumber min={1} precision={0} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="employeeName" label="员工姓名" rules={[{ required: true, message: '请输入员工姓名' }]}>
+          <Form.Item
+            name="employeeName"
+            label="员工姓名"
+            rules={[{ required: true, message: '请输入员工姓名' }]}
+          >
             <Input maxLength={64} />
           </Form.Item>
           <Form.Item name="primaryOperator" label="是否主操作员">
@@ -677,8 +685,7 @@ function ShiftPanel() {
       dataIndex: 'primaryOperator',
       key: 'primaryOperator',
       width: 90,
-      render: (value: number) =>
-        value === 1 ? <Tag color="blue">是</Tag> : <Tag>否</Tag>,
+      render: (value: number) => (value === 1 ? <Tag color="blue">是</Tag> : <Tag>否</Tag>),
     },
     {
       title: '开始时间',
@@ -795,16 +802,28 @@ function ShiftPanel() {
         width={640}
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="shiftDate" label="排班日期" rules={[{ required: true, message: '请选择排班日期' }]}>
+          <Form.Item
+            name="shiftDate"
+            label="排班日期"
+            rules={[{ required: true, message: '请选择排班日期' }]}
+          >
             <DatePicker style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="shiftCode" label="班次编码" rules={[{ required: true, message: '请选择班次' }]}>
+          <Form.Item
+            name="shiftCode"
+            label="班次编码"
+            rules={[{ required: true, message: '请选择班次' }]}
+          >
             <Select showSearch optionFilterProp="label" options={codeOptions(shifts)} />
           </Form.Item>
           <Form.Item name="teamId" label="班组" rules={[{ required: true, message: '请选择班组' }]}>
             <Select showSearch optionFilterProp="label" options={masterDataOptions(teams)} />
           </Form.Item>
-          <Form.Item name="stationId" label="工位" rules={[{ required: true, message: '请选择工位' }]}>
+          <Form.Item
+            name="stationId"
+            label="工位"
+            rules={[{ required: true, message: '请选择工位' }]}
+          >
             <Select showSearch optionFilterProp="label" options={masterDataOptions(stations)} />
           </Form.Item>
           <Form.Item name="workCenterId" label="工作中心">
@@ -815,10 +834,18 @@ function ShiftPanel() {
               options={masterDataOptions(workCenters)}
             />
           </Form.Item>
-          <Form.Item name="employeeId" label="员工 ID" rules={[{ required: true, message: '请输入员工 ID' }]}>
+          <Form.Item
+            name="employeeId"
+            label="员工 ID"
+            rules={[{ required: true, message: '请输入员工 ID' }]}
+          >
             <InputNumber min={1} precision={0} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="employeeName" label="员工姓名" rules={[{ required: true, message: '请输入员工姓名' }]}>
+          <Form.Item
+            name="employeeName"
+            label="员工姓名"
+            rules={[{ required: true, message: '请输入员工姓名' }]}
+          >
             <Input maxLength={64} />
           </Form.Item>
           <Form.Item name="primaryOperator" label="是否主操作">
@@ -1093,7 +1120,11 @@ function HandoverPanel() {
           >
             <Select showSearch optionFilterProp="label" options={codeOptions(shifts)} />
           </Form.Item>
-          <Form.Item name="handoverDate" label="交接日期" rules={[{ required: true, message: '请选择交接日期' }]}>
+          <Form.Item
+            name="handoverDate"
+            label="交接日期"
+            rules={[{ required: true, message: '请选择交接日期' }]}
+          >
             <DatePicker style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="fromEmployeeId" label="交班人 ID">
@@ -1108,7 +1139,11 @@ function HandoverPanel() {
           <Form.Item name="toEmployeeName" label="接班人姓名">
             <Input maxLength={64} />
           </Form.Item>
-          <Form.Item name="content" label="交接内容" rules={[{ required: true, message: '请输入交接内容' }]}>
+          <Form.Item
+            name="content"
+            label="交接内容"
+            rules={[{ required: true, message: '请输入交接内容' }]}
+          >
             <Input.TextArea rows={3} maxLength={1000} />
           </Form.Item>
           <Form.Item name="pendingIssues" label="遗留问题">
@@ -1128,7 +1163,11 @@ function HandoverPanel() {
         destroyOnHidden
       >
         <Form form={confirmForm} layout="vertical">
-          <Form.Item name="confirmedBy" label="确认人" rules={[{ required: true, message: '请输入确认人' }]}>
+          <Form.Item
+            name="confirmedBy"
+            label="确认人"
+            rules={[{ required: true, message: '请输入确认人' }]}
+          >
             <Input maxLength={64} />
           </Form.Item>
         </Form>
@@ -1378,22 +1417,42 @@ function WorkHourPanel() {
         width={640}
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="employeeId" label="员工 ID" rules={[{ required: true, message: '请输入员工 ID' }]}>
+          <Form.Item
+            name="employeeId"
+            label="员工 ID"
+            rules={[{ required: true, message: '请输入员工 ID' }]}
+          >
             <InputNumber min={1} precision={0} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="employeeName" label="员工姓名" rules={[{ required: true, message: '请输入员工姓名' }]}>
+          <Form.Item
+            name="employeeName"
+            label="员工姓名"
+            rules={[{ required: true, message: '请输入员工姓名' }]}
+          >
             <Input maxLength={64} />
           </Form.Item>
-          <Form.Item name="workDate" label="工作日期" rules={[{ required: true, message: '请选择工作日期' }]}>
+          <Form.Item
+            name="workDate"
+            label="工作日期"
+            rules={[{ required: true, message: '请选择工作日期' }]}
+          >
             <DatePicker style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="taskId" label="任务" rules={[{ required: true, message: '请选择任务' }]}>
             <Select showSearch optionFilterProp="label" options={taskOptions(tasks)} />
           </Form.Item>
-          <Form.Item name="startAt" label="开始时间" rules={[{ required: true, message: '请选择开始时间' }]}>
+          <Form.Item
+            name="startAt"
+            label="开始时间"
+            rules={[{ required: true, message: '请选择开始时间' }]}
+          >
             <DatePicker showTime style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="endAt" label="结束时间" rules={[{ required: true, message: '请选择结束时间' }]}>
+          <Form.Item
+            name="endAt"
+            label="结束时间"
+            rules={[{ required: true, message: '请选择结束时间' }]}
+          >
             <DatePicker showTime style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="pauseSeconds" label="暂停秒数">
@@ -1584,11 +1643,7 @@ function PerformancePanel() {
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
       {periodLocked && (
-        <Alert
-          type="warning"
-          showIcon
-          message="该期间月度绩效已锁定，禁止重算与重复锁定"
-        />
+        <Alert type="warning" showIcon message="该期间月度绩效已锁定，禁止重算与重复锁定" />
       )}
       <Space wrap>
         <Select
@@ -1666,7 +1721,11 @@ function PerformancePanel() {
         destroyOnHidden
       >
         <Form form={lockForm} layout="vertical">
-          <Form.Item name="lockedBy" label="锁定人" rules={[{ required: true, message: '请输入锁定人' }]}>
+          <Form.Item
+            name="lockedBy"
+            label="锁定人"
+            rules={[{ required: true, message: '请输入锁定人' }]}
+          >
             <Input maxLength={64} />
           </Form.Item>
         </Form>
@@ -1805,11 +1864,7 @@ function SkillPanel() {
       key: 'status',
       width: 100,
       render: (value: string) => (
-        <Tag
-          color={
-            value === 'ENABLED' ? 'green' : value === 'EXPIRED' ? 'orange' : 'default'
-          }
-        >
+        <Tag color={value === 'ENABLED' ? 'green' : value === 'EXPIRED' ? 'orange' : 'default'}>
           {SKILL_STATUS_LABEL[value] ?? value}
         </Tag>
       ),
@@ -1891,16 +1946,32 @@ function SkillPanel() {
         width={640}
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="employeeId" label="员工 ID" rules={[{ required: true, message: '请输入员工 ID' }]}>
+          <Form.Item
+            name="employeeId"
+            label="员工 ID"
+            rules={[{ required: true, message: '请输入员工 ID' }]}
+          >
             <InputNumber min={1} precision={0} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="employeeName" label="员工姓名" rules={[{ required: true, message: '请输入员工姓名' }]}>
+          <Form.Item
+            name="employeeName"
+            label="员工姓名"
+            rules={[{ required: true, message: '请输入员工姓名' }]}
+          >
             <Input maxLength={64} />
           </Form.Item>
-          <Form.Item name="skillCode" label="技能编码" rules={[{ required: true, message: '请输入技能编码' }]}>
+          <Form.Item
+            name="skillCode"
+            label="技能编码"
+            rules={[{ required: true, message: '请输入技能编码' }]}
+          >
             <Input maxLength={64} />
           </Form.Item>
-          <Form.Item name="skillName" label="技能名称" rules={[{ required: true, message: '请输入技能名称' }]}>
+          <Form.Item
+            name="skillName"
+            label="技能名称"
+            rules={[{ required: true, message: '请输入技能名称' }]}
+          >
             <Input maxLength={128} />
           </Form.Item>
           <Form.Item name="skillLevel" label="技能等级">

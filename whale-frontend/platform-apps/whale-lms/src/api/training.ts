@@ -150,7 +150,15 @@ export function deleteTrainingClass(id: number) {
 /** 新增场次（仅草稿） */
 export function addSession(
   classId: number,
-  body: { sessionNo?: number; title: string; startTime: string; endTime: string; location?: string; lecturer?: string; hours: number },
+  body: {
+    sessionNo?: number;
+    title: string;
+    startTime: string;
+    endTime: string;
+    location?: string;
+    lecturer?: string;
+    hours: number;
+  },
 ) {
   return http.post<number>(`/lms/training/${classId}/session`, body);
 }
@@ -179,7 +187,10 @@ export function checkin(sessionId: number) {
 }
 
 /** 补签（需留原因） */
-export function supplementCheckin(sessionId: number, body: { userId: number; username?: string; remark: string }) {
+export function supplementCheckin(
+  sessionId: number,
+  body: { userId: number; username?: string; remark: string },
+) {
   return http.post<CheckinItem>(`/lms/training/session/${sessionId}/checkin/supplement`, body);
 }
 

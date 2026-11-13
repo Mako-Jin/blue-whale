@@ -393,7 +393,9 @@ export function createHttpClient<TLogin extends LoginData = LoginData>(
       if (allowReauth && config.onReauthRequired) {
         const reauthToken = await config.onReauthRequired();
         if (reauthToken) {
-          const retryHeaders = new Headers((options.headers ?? undefined) as HeadersInit | undefined);
+          const retryHeaders = new Headers(
+            (options.headers ?? undefined) as HeadersInit | undefined,
+          );
           retryHeaders.set(REAUTH_HEADER, reauthToken);
           return send<T>(path, { ...options, headers: retryHeaders }, allowRefresh, false);
         }

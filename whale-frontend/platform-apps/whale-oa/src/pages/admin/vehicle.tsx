@@ -121,7 +121,12 @@ export default function VehicleAdminPage() {
   const [vehicleForm] = Form.useForm<VehicleFormValues>();
   const [driverForm] = Form.useForm<DriverFormValues>();
   const [dispatchForm] = Form.useForm<{ vehicleId: number; driverId: number }>();
-  const [returnForm] = Form.useForm<{ startMileage: number; endMileage: number; fuelCost?: number; remark?: string }>();
+  const [returnForm] = Form.useForm<{
+    startMileage: number;
+    endMileage: number;
+    fuelCost?: number;
+    remark?: string;
+  }>();
 
   const canAdd = hasPermission('sys:oa:vehicle:add');
   const canEdit = hasPermission('sys:oa:vehicle:edit');
@@ -178,8 +183,9 @@ export default function VehicleAdminPage() {
     setEditingBooking(record);
     bookingForm.resetFields();
     bookingForm.setFieldsValue({
-      applicant: record?.applicant ?? (user?.nickname ?? user?.username ?? ''),
-      applicantId: record?.applicantId ?? (typeof user?.userId === 'number' ? user.userId : undefined),
+      applicant: record?.applicant ?? user?.nickname ?? user?.username ?? '',
+      applicantId:
+        record?.applicantId ?? (typeof user?.userId === 'number' ? user.userId : undefined),
       deptId: record?.deptId,
       timeRange: record
         ? [dayjs(record.startTime), dayjs(record.endTime)]
@@ -405,7 +411,7 @@ export default function VehicleAdminPage() {
       key: 'vehicleId',
       width: 120,
       render: (value?: number) =>
-        value ? vehicles.find((item) => item.id === value)?.plateNo ?? value : '-',
+        value ? (vehicles.find((item) => item.id === value)?.plateNo ?? value) : '-',
     },
     {
       title: '司机',
@@ -413,7 +419,7 @@ export default function VehicleAdminPage() {
       key: 'driverId',
       width: 110,
       render: (value?: number) =>
-        value ? drivers.find((item) => item.id === value)?.name ?? value : '-',
+        value ? (drivers.find((item) => item.id === value)?.name ?? value) : '-',
     },
     {
       title: '状态',
@@ -484,7 +490,9 @@ export default function VehicleAdminPage() {
       key: 'status',
       width: 90,
       render: (value?: string) => (
-        <Tag color={value === 'ENABLED' ? 'success' : 'default'}>{value === 'ENABLED' ? '启用' : '停用'}</Tag>
+        <Tag color={value === 'ENABLED' ? 'success' : 'default'}>
+          {value === 'ENABLED' ? '启用' : '停用'}
+        </Tag>
       ),
     },
     { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
@@ -533,7 +541,9 @@ export default function VehicleAdminPage() {
       key: 'status',
       width: 90,
       render: (value?: string) => (
-        <Tag color={value === 'ENABLED' ? 'success' : 'default'}>{value === 'ENABLED' ? '启用' : '停用'}</Tag>
+        <Tag color={value === 'ENABLED' ? 'success' : 'default'}>
+          {value === 'ENABLED' ? '启用' : '停用'}
+        </Tag>
       ),
     },
     { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
@@ -596,7 +606,10 @@ export default function VehicleAdminPage() {
                     placeholder="状态"
                     style={{ width: 130 }}
                     value={bookingStatus || undefined}
-                    options={Object.entries(STATUS_META).map(([value, meta]) => ({ label: meta.text, value }))}
+                    options={Object.entries(STATUS_META).map(([value, meta]) => ({
+                      label: meta.text,
+                      value,
+                    }))}
                     onChange={(value) => {
                       setBookingStatus((value as OaAdministrativeStatus) ?? '');
                       setBookingPage(1);
@@ -690,7 +703,12 @@ export default function VehicleAdminPage() {
       >
         <Form form={bookingForm} layout="vertical">
           <Space size="middle" style={{ display: 'flex' }}>
-            <Form.Item name="applicant" label="申请人" rules={[{ required: true, message: '请输入申请人' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="applicant"
+              label="申请人"
+              rules={[{ required: true, message: '请输入申请人' }]}
+              style={{ flex: 1 }}
+            >
               <Input maxLength={64} />
             </Form.Item>
             <Form.Item name="applicantId" label="申请人ID" style={{ flex: 1 }}>
@@ -700,7 +718,11 @@ export default function VehicleAdminPage() {
               <InputNumber style={{ width: '100%' }} min={1} precision={0} />
             </Form.Item>
           </Space>
-          <Form.Item name="timeRange" label="用车时间" rules={[{ required: true, message: '请选择用车时间' }]}>
+          <Form.Item
+            name="timeRange"
+            label="用车时间"
+            rules={[{ required: true, message: '请选择用车时间' }]}
+          >
             <DatePicker.RangePicker showTime style={{ width: '100%' }} format="YYYY-MM-DD HH:mm" />
           </Form.Item>
           <Space size="middle" style={{ display: 'flex' }}>
@@ -728,18 +750,32 @@ export default function VehicleAdminPage() {
         destroyOnClose
       >
         <Form form={dispatchForm} layout="vertical">
-          <Form.Item name="vehicleId" label="车辆" rules={[{ required: true, message: '请选择车辆' }]}>
+          <Form.Item
+            name="vehicleId"
+            label="车辆"
+            rules={[{ required: true, message: '请选择车辆' }]}
+          >
             <Select
               options={vehicles
                 .filter((item) => item.status === 'ENABLED')
-                .map((item) => ({ label: `${item.plateNo}（${item.seats ?? '-'}座）`, value: item.id }))}
+                .map((item) => ({
+                  label: `${item.plateNo}（${item.seats ?? '-'}座）`,
+                  value: item.id,
+                }))}
             />
           </Form.Item>
-          <Form.Item name="driverId" label="司机" rules={[{ required: true, message: '请选择司机' }]}>
+          <Form.Item
+            name="driverId"
+            label="司机"
+            rules={[{ required: true, message: '请选择司机' }]}
+          >
             <Select
               options={drivers
                 .filter((item) => item.status === 'ENABLED')
-                .map((item) => ({ label: `${item.name}（${item.licenseType ?? '-'}）`, value: item.id }))}
+                .map((item) => ({
+                  label: `${item.name}（${item.licenseType ?? '-'}）`,
+                  value: item.id,
+                }))}
             />
           </Form.Item>
         </Form>
@@ -754,10 +790,20 @@ export default function VehicleAdminPage() {
       >
         <Form form={returnForm} layout="vertical">
           <Space size="middle" style={{ display: 'flex' }}>
-            <Form.Item name="startMileage" label="出车里程" rules={[{ required: true, message: '请输入出车里程' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="startMileage"
+              label="出车里程"
+              rules={[{ required: true, message: '请输入出车里程' }]}
+              style={{ flex: 1 }}
+            >
               <InputNumber style={{ width: '100%' }} min={0} precision={1} />
             </Form.Item>
-            <Form.Item name="endMileage" label="回车里程" rules={[{ required: true, message: '请输入回车里程' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="endMileage"
+              label="回车里程"
+              rules={[{ required: true, message: '请输入回车里程' }]}
+              style={{ flex: 1 }}
+            >
               <InputNumber style={{ width: '100%' }} min={0} precision={1} />
             </Form.Item>
             <Form.Item name="fuelCost" label="油费" style={{ flex: 1 }}>
@@ -779,7 +825,12 @@ export default function VehicleAdminPage() {
       >
         <Form form={vehicleForm} layout="vertical">
           <Space size="middle" style={{ display: 'flex' }}>
-            <Form.Item name="plateNo" label="车牌号" rules={[{ required: true, message: '请输入车牌号' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="plateNo"
+              label="车牌号"
+              rules={[{ required: true, message: '请输入车牌号' }]}
+              style={{ flex: 1 }}
+            >
               <Input maxLength={32} />
             </Form.Item>
             <Form.Item name="vehicleType" label="车型" style={{ flex: 1 }}>
@@ -797,7 +848,12 @@ export default function VehicleAdminPage() {
               <DatePicker style={{ width: '100%' }} />
             </Form.Item>
             <Form.Item name="status" label="状态" style={{ flex: 1 }}>
-              <Select options={[{ label: '启用', value: 'ENABLED' }, { label: '停用', value: 'DISABLED' }]} />
+              <Select
+                options={[
+                  { label: '启用', value: 'ENABLED' },
+                  { label: '停用', value: 'DISABLED' },
+                ]}
+              />
             </Form.Item>
           </Space>
           <Form.Item name="remark" label="备注">
@@ -815,18 +871,33 @@ export default function VehicleAdminPage() {
       >
         <Form form={driverForm} layout="vertical">
           <Space size="middle" style={{ display: 'flex' }}>
-            <Form.Item name="name" label="姓名" rules={[{ required: true, message: '请输入姓名' }]} style={{ flex: 1 }}>
+            <Form.Item
+              name="name"
+              label="姓名"
+              rules={[{ required: true, message: '请输入姓名' }]}
+              style={{ flex: 1 }}
+            >
               <Input maxLength={64} />
             </Form.Item>
             <Form.Item name="phone" label="手机号" style={{ flex: 1 }}>
               <Input maxLength={32} />
             </Form.Item>
             <Form.Item name="status" label="状态" style={{ flex: 1 }}>
-              <Select options={[{ label: '启用', value: 'ENABLED' }, { label: '停用', value: 'DISABLED' }]} />
+              <Select
+                options={[
+                  { label: '启用', value: 'ENABLED' },
+                  { label: '停用', value: 'DISABLED' },
+                ]}
+              />
             </Form.Item>
           </Space>
           <Space size="middle" style={{ display: 'flex' }}>
-            <Form.Item name="licenseNo" label="驾驶证号" rules={[{ required: true, message: '请输入驾驶证号' }]} style={{ flex: 2 }}>
+            <Form.Item
+              name="licenseNo"
+              label="驾驶证号"
+              rules={[{ required: true, message: '请输入驾驶证号' }]}
+              style={{ flex: 2 }}
+            >
               <Input maxLength={64} />
             </Form.Item>
             <Form.Item name="licenseType" label="准驾车型" style={{ flex: 1 }}>

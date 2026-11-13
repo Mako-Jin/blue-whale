@@ -184,7 +184,8 @@ export default function ContentList() {
       title: '版权',
       dataIndex: 'copyrightState',
       width: 110,
-      render: (value: CopyrightState | undefined, row) => renderCopyrightState(value, row.takedownReason),
+      render: (value: CopyrightState | undefined, row) =>
+        renderCopyrightState(value, row.takedownReason),
     },
     {
       title: '可见性',
@@ -264,30 +265,51 @@ export default function ContentList() {
         columns={columns}
         request={pageContents}
         params={{ keyword, contentType, publishState, visibility, categoryId }}
-        onError={(error) => message.error(error instanceof Error ? error.message : '内容列表加载失败')}
+        onError={(error) =>
+          message.error(error instanceof Error ? error.message : '内容列表加载失败')
+        }
         search={
           <SearchForm
             items={[
-              { name: 'keyword', label: '关键词', element: <Input allowClear placeholder="标题 / 副标题" /> },
+              {
+                name: 'keyword',
+                label: '关键词',
+                element: <Input allowClear placeholder="标题 / 副标题" />,
+              },
               {
                 name: 'contentType',
                 label: '类型',
                 element: (
-                  <Select allowClear placeholder="全部" style={{ width: 120 }} options={CONTENT_TYPE_OPTIONS} />
+                  <Select
+                    allowClear
+                    placeholder="全部"
+                    style={{ width: 120 }}
+                    options={CONTENT_TYPE_OPTIONS}
+                  />
                 ),
               },
               {
                 name: 'publishState',
                 label: '状态',
                 element: (
-                  <Select allowClear placeholder="全部" style={{ width: 120 }} options={PUBLISH_STATE_OPTIONS} />
+                  <Select
+                    allowClear
+                    placeholder="全部"
+                    style={{ width: 120 }}
+                    options={PUBLISH_STATE_OPTIONS}
+                  />
                 ),
               },
               {
                 name: 'visibility',
                 label: '可见性',
                 element: (
-                  <Select allowClear placeholder="全部" style={{ width: 120 }} options={VISIBILITY_OPTIONS} />
+                  <Select
+                    allowClear
+                    placeholder="全部"
+                    style={{ width: 120 }}
+                    options={VISIBILITY_OPTIONS}
+                  />
                 ),
               },
               {
@@ -300,7 +322,10 @@ export default function ContentList() {
                     optionFilterProp="label"
                     placeholder="全部"
                     style={{ width: 160 }}
-                    options={categories.map((category) => ({ value: category.id, label: category.name }))}
+                    options={categories.map((category) => ({
+                      value: category.id,
+                      label: category.name,
+                    }))}
                   />
                 ),
               },

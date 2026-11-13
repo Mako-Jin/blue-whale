@@ -232,9 +232,7 @@ export default function MailPage() {
         setDetail(data);
         if (data.seen !== 1) {
           // 打开即已读：只做乐观更新，失败不回滚（下次同步会纠正）
-          setRows((prev) =>
-            prev.map((row) => (row.id === data.id ? { ...row, seen: 1 } : row)),
-          );
+          setRows((prev) => prev.map((row) => (row.id === data.id ? { ...row, seen: 1 } : row)));
           await markSeen(data.id, true);
           void loadUnread();
         }
@@ -305,8 +303,12 @@ export default function MailPage() {
     const next = target.flagged !== 1;
     try {
       await markFlagged(target.id, next);
-      setDetail((prev) => (prev && prev.id === target.id ? { ...prev, flagged: next ? 1 : 0 } : prev));
-      setRows((prev) => prev.map((row) => (row.id === target.id ? { ...row, flagged: next ? 1 : 0 } : row)));
+      setDetail((prev) =>
+        prev && prev.id === target.id ? { ...prev, flagged: next ? 1 : 0 } : prev,
+      );
+      setRows((prev) =>
+        prev.map((row) => (row.id === target.id ? { ...row, flagged: next ? 1 : 0 } : row)),
+      );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '星标操作失败');
     }
@@ -318,7 +320,9 @@ export default function MailPage() {
     try {
       await markSeen(target.id, next);
       setDetail((prev) => (prev && prev.id === target.id ? { ...prev, seen: next ? 1 : 0 } : prev));
-      setRows((prev) => prev.map((row) => (row.id === target.id ? { ...row, seen: next ? 1 : 0 } : row)));
+      setRows((prev) =>
+        prev.map((row) => (row.id === target.id ? { ...row, seen: next ? 1 : 0 } : row)),
+      );
       void loadUnread();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '已读状态更新失败');
@@ -393,7 +397,8 @@ export default function MailPage() {
   const renderFolder = (folder: MailFolder) => {
     const active = activeFolder ? folder.id === activeFolder.id : folder.folderCode === folderCode;
     // 与后端 MailMessageServiceImpl#folderKey 对齐：自定义文件夹按 id 分桶，否则角标会互相覆盖
-    const badgeKey = folder.folderType === 'CUSTOM' ? `${folder.folderCode}:${folder.id}` : folder.folderCode;
+    const badgeKey =
+      folder.folderType === 'CUSTOM' ? `${folder.folderCode}:${folder.id}` : folder.folderCode;
     const badge = unread.byFolder[badgeKey] ?? folder.unreadCount ?? 0;
     return (
       <div
@@ -533,19 +538,30 @@ export default function MailPage() {
             </div>
           ) : localDraftView ? (
             drafts.length === 0 ? (
-              <Empty style={{ marginTop: 48 }} image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有本机草稿" />
+              <Empty
+                style={{ marginTop: 48 }}
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description="没有本机草稿"
+              />
             ) : (
               drafts.map((draft) => (
                 <div
                   key={draft.id}
                   onClick={() => openCompose({ draft })}
-                  style={{ padding: '10px 12px', borderBottom: '1px solid #f5f5f5', cursor: 'pointer' }}
+                  style={{
+                    padding: '10px 12px',
+                    borderBottom: '1px solid #f5f5f5',
+                    cursor: 'pointer',
+                  }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                     <Typography.Text strong ellipsis style={{ flex: 1 }}>
                       {draft.subject || '(无主题)'}
                     </Typography.Text>
-                    <Typography.Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+                    <Typography.Text
+                      type="secondary"
+                      style={{ fontSize: 12, whiteSpace: 'nowrap' }}
+                    >
                       {formatListTime(draft.updateTime)}
                     </Typography.Text>
                   </div>
@@ -568,7 +584,11 @@ export default function MailPage() {
               ))
             )
           ) : rows.length === 0 ? (
-            <Empty style={{ marginTop: 48 }} image={Empty.PRESENTED_IMAGE_SIMPLE} description="这个文件夹没有邮件" />
+            <Empty
+              style={{ marginTop: 48 }}
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description="这个文件夹没有邮件"
+            />
           ) : (
             rows.map((row) => {
               const active = row.id === selectedId;
@@ -592,12 +612,18 @@ export default function MailPage() {
                     >
                       {row.fromName || row.fromAddr || '(未知发件人)'}
                     </Typography.Text>
-                    <Typography.Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+                    <Typography.Text
+                      type="secondary"
+                      style={{ fontSize: 12, whiteSpace: 'nowrap' }}
+                    >
                       {formatListTime(row.sentTime)}
                     </Typography.Text>
                   </div>
                   <div style={{ marginTop: 2 }}>
-                    <Typography.Text ellipsis style={{ fontSize: 13, fontWeight: row.seen !== 1 ? 600 : 400 }}>
+                    <Typography.Text
+                      ellipsis
+                      style={{ fontSize: 13, fontWeight: row.seen !== 1 ? 600 : 400 }}
+                    >
                       {row.subject || '(无主题)'}
                     </Typography.Text>
                   </div>
@@ -611,7 +637,9 @@ export default function MailPage() {
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {row.flagged === 1 ? <span style={{ color: '#faad14', marginRight: 4 }}>★</span> : null}
+                    {row.flagged === 1 ? (
+                      <span style={{ color: '#faad14', marginRight: 4 }}>★</span>
+                    ) : null}
                     {row.hasAttachment === 1 ? <span style={{ marginRight: 4 }}>📎</span> : null}
                     {row.preview || ''}
                   </div>
@@ -637,11 +665,15 @@ export default function MailPage() {
       {/* 第三栏：阅读区 */}
       <div style={{ ...PANE_STYLE, flex: 1, minWidth: 0 }}>
         {localDraftView ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description="点击左侧草稿继续编辑"
-            />
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '100%',
+            }}
+          >
+            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="点击左侧草稿继续编辑" />
           </div>
         ) : (
           <MailReader

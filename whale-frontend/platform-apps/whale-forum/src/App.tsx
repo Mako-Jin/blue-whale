@@ -199,9 +199,7 @@ export default function App() {
           >
             管理台
           </button>
-          <Text type="secondary">
-            论坛经验 {expTotal ?? '—'} · 人发帖 · 内容沉淀 · 知识复用
-          </Text>
+          <Text type="secondary">论坛经验 {expTotal ?? '—'} · 人发帖 · 内容沉淀 · 知识复用</Text>
         </div>
       </aside>
 

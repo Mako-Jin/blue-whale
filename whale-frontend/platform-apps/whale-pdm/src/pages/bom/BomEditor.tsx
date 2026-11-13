@@ -231,7 +231,9 @@ export default function BomEditor({ open, bomId, onClose, onChanged }: BomEditor
       return new Set<string>();
     }
     return new Set(
-      bom.lines.filter((line) => line.parentPartId === parentPartId).map((line) => line.childPartId),
+      bom.lines
+        .filter((line) => line.parentPartId === parentPartId)
+        .map((line) => line.childPartId),
     );
   }, [bom, parentPartId]);
 
@@ -463,7 +465,10 @@ export default function BomEditor({ open, bomId, onClose, onChanged }: BomEditor
             发布记录
           </Button>
           {canRelease && isDraft ? (
-            <Popconfirm title="发布后结构不可修改，确认发布？" onConfirm={() => void handleRelease()}>
+            <Popconfirm
+              title="发布后结构不可修改，确认发布？"
+              onConfirm={() => void handleRelease()}
+            >
               <Button type="primary">发布</Button>
             </Popconfirm>
           ) : null}
@@ -520,11 +525,7 @@ export default function BomEditor({ open, bomId, onClose, onChanged }: BomEditor
             />
           </Form.Item>
           <Space size="middle" style={{ width: '100%' }}>
-            <Form.Item
-              name="qty"
-              label="用量"
-              rules={[{ required: true, message: '请输入用量' }]}
-            >
+            <Form.Item name="qty" label="用量" rules={[{ required: true, message: '请输入用量' }]}>
               <InputNumber min={0.000001} step={1} style={{ width: 160 }} />
             </Form.Item>
             <Form.Item name="uom" label="单位">

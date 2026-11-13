@@ -173,40 +173,40 @@ function initialKey(): string {
 function pageOfKey(key: string): PageKind {
   if (key.startsWith('supplier')) return 'supplier';
   if (
-    key === 'masterdata'
-    || key === 'voucher'
-    || key === 'arap'
-    || key === 'report'
-    || key === 'purchase'
-    || key === 'sales'
-    || key === 'stock'
-    || key === 'transfer'
-    || key === 'stocktake'
-    || key === 'purchase-return'
-    || key === 'sales-return'
-    || key === 'purchase-requisition'
-    || key === 'sales-quotation'
-    || key === 'price-list'
-    || key === 'safety-stock'
-    || key === 'forecast'
-    || key === 'mps'
-    || key === 'production'
-    || key === 'work-center'
-    || key === 'crp'
-    || key === 'mes-reconcile'
-    || key === 'mrp-run'
-    || key === 'mrp-order'
-    || key === 'hr-employee'
-    || key === 'hr-attendance'
-    || key === 'hr-payroll'
-    || key === 'hr-performance'
-    || key === 'qc-inspection'
-    || key === 'qc-equipment'
-    || key === 'qc-metrology'
-    || key === 'bi-cockpit'
-    || key === 'bi-cube'
-    || key === 'bi-report'
-    || key === 'bi-alert'
+    key === 'masterdata' ||
+    key === 'voucher' ||
+    key === 'arap' ||
+    key === 'report' ||
+    key === 'purchase' ||
+    key === 'sales' ||
+    key === 'stock' ||
+    key === 'transfer' ||
+    key === 'stocktake' ||
+    key === 'purchase-return' ||
+    key === 'sales-return' ||
+    key === 'purchase-requisition' ||
+    key === 'sales-quotation' ||
+    key === 'price-list' ||
+    key === 'safety-stock' ||
+    key === 'forecast' ||
+    key === 'mps' ||
+    key === 'production' ||
+    key === 'work-center' ||
+    key === 'crp' ||
+    key === 'mes-reconcile' ||
+    key === 'mrp-run' ||
+    key === 'mrp-order' ||
+    key === 'hr-employee' ||
+    key === 'hr-attendance' ||
+    key === 'hr-payroll' ||
+    key === 'hr-performance' ||
+    key === 'qc-inspection' ||
+    key === 'qc-equipment' ||
+    key === 'qc-metrology' ||
+    key === 'bi-cockpit' ||
+    key === 'bi-cube' ||
+    key === 'bi-report' ||
+    key === 'bi-alert'
   ) {
     return key;
   }
@@ -301,9 +301,7 @@ export default function App() {
     <BrowserRouter basename="/erp">
       <Layout style={{ minHeight: '100%' }}>
         <Header style={{ display: 'flex', alignItems: 'center', color: '#fff' }}>
-          <span style={{ fontSize: 16, fontWeight: 600 }}>
-            Whale ERP - {PAGE_TITLE[page]}
-          </span>
+          <span style={{ fontSize: 16, fontWeight: 600 }}>Whale ERP - {PAGE_TITLE[page]}</span>
         </Header>
         <Layout>
           <Sider width={200} theme="light">

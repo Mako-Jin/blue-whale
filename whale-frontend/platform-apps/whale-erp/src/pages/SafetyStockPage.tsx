@@ -80,10 +80,12 @@ function SafetyStockConfigTab() {
 
   useEffect(() => {
     void pageWarehouses({ size: 100 }).then((page) => {
-      setWarehouses(page.records.map((warehouse: ErpWarehouse) => ({
-        value: warehouse.id,
-        label: `${warehouse.code} ${warehouse.name}`,
-      })));
+      setWarehouses(
+        page.records.map((warehouse: ErpWarehouse) => ({
+          value: warehouse.id,
+          label: `${warehouse.code} ${warehouse.name}`,
+        })),
+      );
     });
     void listErpItems().then(setItems);
   }, []);
@@ -297,10 +299,12 @@ function ShortageTab() {
 
   useEffect(() => {
     void pageWarehouses({ size: 100 }).then((page) => {
-      setWarehouses(page.records.map((warehouse: ErpWarehouse) => ({
-        value: warehouse.id,
-        label: `${warehouse.code} ${warehouse.name}`,
-      })));
+      setWarehouses(
+        page.records.map((warehouse: ErpWarehouse) => ({
+          value: warehouse.id,
+          label: `${warehouse.code} ${warehouse.name}`,
+        })),
+      );
     });
   }, []);
 
@@ -379,10 +383,12 @@ function IdleTab() {
 
   useEffect(() => {
     void pageWarehouses({ size: 100 }).then((page) => {
-      setWarehouses(page.records.map((warehouse: ErpWarehouse) => ({
-        value: warehouse.id,
-        label: `${warehouse.code} ${warehouse.name}`,
-      })));
+      setWarehouses(
+        page.records.map((warehouse: ErpWarehouse) => ({
+          value: warehouse.id,
+          label: `${warehouse.code} ${warehouse.name}`,
+        })),
+      );
     });
   }, []);
 

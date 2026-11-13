@@ -38,7 +38,9 @@ export default function CrpPage() {
   }, [from, to, code]);
 
   useEffect(() => {
-    listAllWorkCenters().then(setCenters).catch(() => setCenters([]));
+    listAllWorkCenters()
+      .then(setCenters)
+      .catch(() => setCenters([]));
   }, []);
 
   useEffect(() => {

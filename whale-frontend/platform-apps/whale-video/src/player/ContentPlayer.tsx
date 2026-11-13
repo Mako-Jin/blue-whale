@@ -57,7 +57,10 @@ export default function ContentPlayer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressRef = useRef(0);
   const lastReportRef = useRef(0);
-  const prefetchedRef = useRef({ ticket: prefetchedTicket ?? null, at: prefetchedAt ?? Date.now() });
+  const prefetchedRef = useRef({
+    ticket: prefetchedTicket ?? null,
+    at: prefetchedAt ?? Date.now(),
+  });
 
   const [ticket, setTicket] = useState<PlayTicket | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -379,17 +382,34 @@ export default function ContentPlayer({
 
       {error && ticket ? (
         <div style={{ ...centerStyle, top: 24, bottom: 'auto', left: 16, right: 16 }}>
-          <span style={{ color: '#fff', background: 'rgba(0,0,0,0.55)', padding: '6px 12px', borderRadius: 6 }}>
+          <span
+            style={{
+              color: '#fff',
+              background: 'rgba(0,0,0,0.55)',
+              padding: '6px 12px',
+              borderRadius: 6,
+            }}
+          >
             {error}
           </span>
         </div>
       ) : null}
 
       <div style={bottomBarStyle}>
-        <button type="button" style={controlStyle} onClick={togglePlay} aria-label={paused ? '播放' : '暂停'}>
+        <button
+          type="button"
+          style={controlStyle}
+          onClick={togglePlay}
+          aria-label={paused ? '播放' : '暂停'}
+        >
           {paused ? '▶' : '⏸'}
         </button>
-        <button type="button" style={controlStyle} onClick={toggleMute} aria-label={muted ? '取消静音' : '静音'}>
+        <button
+          type="button"
+          style={controlStyle}
+          onClick={toggleMute}
+          aria-label={muted ? '取消静音' : '静音'}
+        >
           {muted ? '🔇' : '🔊'}
         </button>
         <span style={timeStyle}>

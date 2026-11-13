@@ -4,7 +4,20 @@
 // 并禁用输入，避免教师误以为可以改分（后端也会拒绝并返回 42049）。
 // 每次提交都会生成新的成绩版本，重判同样走这里，备注里写清原因即可。
 
-import { Button, Card, Descriptions, Drawer, Empty, Input, InputNumber, Space, Table, Tag, Typography, message } from 'antd';
+import {
+  Button,
+  Card,
+  Descriptions,
+  Drawer,
+  Empty,
+  Input,
+  InputNumber,
+  Space,
+  Table,
+  Tag,
+  Typography,
+  message,
+} from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import { hasPermission } from '../api/client';
 import {
@@ -41,17 +54,20 @@ export default function GradePage() {
 
   const canGrade = hasPermission('sys:lms:grade:submit');
 
-  const load = useCallback(async (page = current) => {
-    setLoading(true);
-    try {
-      const data = await pendingGrades({ current: page, size: 10 });
-      setRows((data.records ?? []).map((item) => ({ ...item, key: String(item.id) })));
-      setTotal(data.total ?? 0);
-      setCurrent(page);
-    } finally {
-      setLoading(false);
-    }
-  }, [current]);
+  const load = useCallback(
+    async (page = current) => {
+      setLoading(true);
+      try {
+        const data = await pendingGrades({ current: page, size: 10 });
+        setRows((data.records ?? []).map((item) => ({ ...item, key: String(item.id) })));
+        setTotal(data.total ?? 0);
+        setCurrent(page);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [current],
+  );
 
   useEffect(() => {
     void load(1);
@@ -123,13 +139,20 @@ export default function GradePage() {
             title: '待判',
             dataIndex: 'pendingGradeCount',
             width: 90,
-            render: (value: number) => <Tag color={value > 0 ? 'orange' : 'green'}>{value ?? 0} 题</Tag>,
+            render: (value: number) => (
+              <Tag color={value > 0 ? 'orange' : 'green'}>{value ?? 0} 题</Tag>
+            ),
           },
           {
             title: '操作',
             width: 120,
             render: (_, row) => (
-              <Button size="small" type="link" disabled={!canGrade} onClick={() => void openDetail(row)}>
+              <Button
+                size="small"
+                type="link"
+                disabled={!canGrade}
+                onClick={() => void openDetail(row)}
+              >
                 判分
               </Button>
             ),
@@ -174,7 +197,9 @@ export default function GradePage() {
                   <Typography.Text type="secondary">（满分 {item.maxScore}）</Typography.Text>
                 </Space>
                 <Descriptions column={1} size="small">
-                  <Descriptions.Item label="学员作答">{item.answer || '（未作答）'}</Descriptions.Item>
+                  <Descriptions.Item label="学员作答">
+                    {item.answer || '（未作答）'}
+                  </Descriptions.Item>
                   <Descriptions.Item label="标准答案">
                     {item.standardAnswer || '（主观题无标准答案）'}
                   </Descriptions.Item>

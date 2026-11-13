@@ -81,7 +81,12 @@ export default function ContentPortalPage() {
       width: 100,
       render: (value: string) => <Tag>{value}</Tag>,
     },
-    { title: '阅读人数', dataIndex: 'readCount', width: 100, render: (value: number) => `${value ?? 0} 人` },
+    {
+      title: '阅读人数',
+      dataIndex: 'readCount',
+      width: 100,
+      render: (value: number) => `${value ?? 0} 人`,
+    },
     {
       title: '发布时间',
       dataIndex: 'publishedAt',
@@ -158,7 +163,9 @@ export default function ContentPortalPage() {
                   : '—'}
               </Descriptions.Item>
             </Descriptions>
-            {detail.summary ? <Typography.Text type="secondary">{detail.summary}</Typography.Text> : null}
+            {detail.summary ? (
+              <Typography.Text type="secondary">{detail.summary}</Typography.Text>
+            ) : null}
             <Typography.Paragraph style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>
               {detail.body || '（暂无正文）'}
             </Typography.Paragraph>

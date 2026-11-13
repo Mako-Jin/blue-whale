@@ -22,10 +22,21 @@ export const SCM_STATUS_LABEL: Record<string, string> = {
 
 /** 单据状态颜色 */
 export function scmStatusColor(status: string): string {
-  if (status === 'RECEIVED' || status === 'SHIPPED' || status === 'POSTED'
-    || status === 'PUBLISHED' || status === 'COMPLETED') return 'green';
-  if (status === 'PARTIALLY_RECEIVED' || status === 'PARTIALLY_SHIPPED'
-    || status === 'IN_PROGRESS' || status === 'RUNNING') return 'orange';
+  if (
+    status === 'RECEIVED' ||
+    status === 'SHIPPED' ||
+    status === 'POSTED' ||
+    status === 'PUBLISHED' ||
+    status === 'COMPLETED'
+  )
+    return 'green';
+  if (
+    status === 'PARTIALLY_RECEIVED' ||
+    status === 'PARTIALLY_SHIPPED' ||
+    status === 'IN_PROGRESS' ||
+    status === 'RUNNING'
+  )
+    return 'orange';
   if (status === 'CANCELLED' || status === 'FAILED') return 'red';
   if (status === 'APPROVED' || status === 'RELEASED' || status === 'PLANNED') return 'blue';
   return 'default';

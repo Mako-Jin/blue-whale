@@ -4,7 +4,20 @@
 // 渠道开关集 + 静默时段（HH:mm，可跨零点）+ 最低级别阈值；站内信不受静默与阈值限制。
 // 保存失败只提示，不影响页面其余部分；删除即恢复「按平台默认放行」。
 
-import { Alert, App, Button, Card, Checkbox, Col, Input, Popconfirm, Row, Select, Space, Spin } from 'antd';
+import {
+  Alert,
+  App,
+  Button,
+  Card,
+  Checkbox,
+  Col,
+  Input,
+  Popconfirm,
+  Row,
+  Select,
+  Space,
+  Spin,
+} from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import {
   deleteNotifyPreference,
@@ -140,7 +153,9 @@ function PreferenceSection({
         </Popconfirm>
       }
     >
-      <p style={{ color: 'var(--ant-color-text-secondary, #8f959e)', marginTop: 0 }}>{description}</p>
+      <p style={{ color: 'var(--ant-color-text-secondary, #8f959e)', marginTop: 0 }}>
+        {description}
+      </p>
       <Row gutter={[16, 12]}>
         <Col span={24}>
           <Space wrap>
@@ -235,7 +250,9 @@ export default function NotificationPreferences() {
   return (
     <div style={{ padding: 24 }}>
       <h2 style={{ marginTop: 0 }}>通知偏好</h2>
-      {loadError && <Alert type="warning" showIcon message={loadError} style={{ marginBottom: 16 }} />}
+      {loadError && (
+        <Alert type="warning" showIcon message={loadError} style={{ marginBottom: 16 }} />
+      )}
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         {BIZ_SECTIONS.map((section) => (
           <PreferenceSection

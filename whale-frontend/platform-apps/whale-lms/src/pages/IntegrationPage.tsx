@@ -96,7 +96,9 @@ function MemberPanel() {
     try {
       const result = await syncMembers();
       setLastSync(result);
-      message.success(`同步完成：新增 ${result.created}，更新 ${result.updated}，跳过 ${result.skipped}`);
+      message.success(
+        `同步完成：新增 ${result.created}，更新 ${result.updated}，跳过 ${result.skipped}`,
+      );
       await load();
     } catch (error) {
       message.error(error instanceof Error ? error.message : '同步失败');
@@ -136,7 +138,10 @@ function MemberPanel() {
             setStatus(value);
             setCurrent(1);
           }}
-          options={Object.entries(MEMBER_STATUS).map(([value, item]) => ({ value, label: item.label }))}
+          options={Object.entries(MEMBER_STATUS).map(([value, item]) => ({
+            value,
+            label: item.label,
+          }))}
         />
       </Space>
       {lastSync && (
@@ -170,7 +175,9 @@ function MemberPanel() {
             dataIndex: 'status',
             width: 100,
             render: (value: string) => (
-              <Tag color={MEMBER_STATUS[value]?.color ?? 'default'}>{MEMBER_STATUS[value]?.label ?? value}</Tag>
+              <Tag color={MEMBER_STATUS[value]?.color ?? 'default'}>
+                {MEMBER_STATUS[value]?.label ?? value}
+              </Tag>
             ),
           },
           {
@@ -248,7 +255,10 @@ function NotifyPanel() {
             setSendStatus(value);
             setCurrent(1);
           }}
-          options={Object.entries(SEND_STATUS).map(([value, item]) => ({ value, label: item.label }))}
+          options={Object.entries(SEND_STATUS).map(([value, item]) => ({
+            value,
+            label: item.label,
+          }))}
         />
         <Input
           allowClear
@@ -289,7 +299,9 @@ function NotifyPanel() {
             dataIndex: 'sendStatus',
             width: 120,
             render: (value: string) => (
-              <Tag color={SEND_STATUS[value]?.color ?? 'default'}>{SEND_STATUS[value]?.label ?? value}</Tag>
+              <Tag color={SEND_STATUS[value]?.color ?? 'default'}>
+                {SEND_STATUS[value]?.label ?? value}
+              </Tag>
             ),
           },
           { title: '失败原因', dataIndex: 'failReason', width: 200 },
@@ -369,7 +381,10 @@ function UrgePanel() {
       </Space>
 
       {preview && (
-        <Card size="small" title={`培训班 ${preview.classCode ?? preview.classId}（未完成 ${preview.pendingCount} 人）`}>
+        <Card
+          size="small"
+          title={`培训班 ${preview.classCode ?? preview.classId}（未完成 ${preview.pendingCount} 人）`}
+        >
           <Row gutter={16}>
             <Col span={4}>
               <Statistic title="因离职跳过" value={preview.skippedOffboard} />
@@ -378,10 +393,15 @@ function UrgePanel() {
               <Statistic title="未收录跳过" value={preview.skippedUnrecorded} />
             </Col>
             <Col span={8}>
-              <Statistic title="可催办人数" value={preview.pendingCount - preview.skippedOffboard - preview.skippedUnrecorded} />
+              <Statistic
+                title="可催办人数"
+                value={preview.pendingCount - preview.skippedOffboard - preview.skippedUnrecorded}
+              />
             </Col>
           </Row>
-          {preview.error && <Alert type="warning" showIcon message={preview.error} style={{ marginTop: 12 }} />}
+          {preview.error && (
+            <Alert type="warning" showIcon message={preview.error} style={{ marginTop: 12 }} />
+          )}
         </Card>
       )}
 

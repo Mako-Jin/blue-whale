@@ -326,11 +326,7 @@ export default function SuggestionPage() {
         destroyOnClose
       >
         <Form form={form} layout="vertical">
-          <Form.Item
-            name="title"
-            label="标题"
-            rules={[{ required: true, message: '请输入标题' }]}
-          >
+          <Form.Item name="title" label="标题" rules={[{ required: true, message: '请输入标题' }]}>
             <Input maxLength={128} />
           </Form.Item>
           <Form.Item
@@ -379,8 +375,7 @@ export default function SuggestionPage() {
                 {
                   key: 'status',
                   label: '状态',
-                  children:
-                    SUGGESTION_STATUS_META[detail.status]?.text ?? detail.status,
+                  children: SUGGESTION_STATUS_META[detail.status]?.text ?? detail.status,
                 },
                 ...(detail.anonymous
                   ? []

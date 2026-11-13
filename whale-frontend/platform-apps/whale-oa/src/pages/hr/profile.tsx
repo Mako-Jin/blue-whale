@@ -177,8 +177,20 @@ export default function ProfileCenter() {
       width: 140,
       render: (value?: string) => value || '-',
     },
-    { title: '部门ID', dataIndex: 'deptId', key: 'deptId', width: 120, render: (value?: number) => value || '-' },
-    { title: '入职', dataIndex: 'hireDate', key: 'hireDate', width: 120, render: (value?: string) => value || '-' },
+    {
+      title: '部门ID',
+      dataIndex: 'deptId',
+      key: 'deptId',
+      width: 120,
+      render: (value?: number) => value || '-',
+    },
+    {
+      title: '入职',
+      dataIndex: 'hireDate',
+      key: 'hireDate',
+      width: 120,
+      render: (value?: string) => value || '-',
+    },
     {
       title: '转正',
       dataIndex: 'regularDate',
@@ -186,7 +198,13 @@ export default function ProfileCenter() {
       width: 120,
       render: (value?: string) => value || '-',
     },
-    { title: '生日', dataIndex: 'birthday', key: 'birthday', width: 120, render: (value?: string) => value || '-' },
+    {
+      title: '生日',
+      dataIndex: 'birthday',
+      key: 'birthday',
+      width: 120,
+      render: (value?: string) => value || '-',
+    },
     {
       title: '状态',
       dataIndex: 'employmentStatus',
@@ -308,7 +326,12 @@ export default function ProfileCenter() {
             label="用户ID"
             rules={[{ required: true, message: '请输入用户ID' }]}
           >
-            <InputNumber style={{ width: '100%' }} min={1} precision={0} disabled={Boolean(editing)} />
+            <InputNumber
+              style={{ width: '100%' }}
+              min={1}
+              precision={0}
+              disabled={Boolean(editing)}
+            />
           </Form.Item>
           <Form.Item name="employeeNo" label="工号">
             <Input placeholder="选填" maxLength={64} />

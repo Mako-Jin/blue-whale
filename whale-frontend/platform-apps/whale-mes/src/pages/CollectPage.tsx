@@ -173,11 +173,23 @@ function DevicePanel() {
         onOk={() => void submit()}
         destroyOnHidden
       >
-        <Form form={form} layout="vertical" initialValues={{ deviceType: 'GATEWAY', protocol: 'REST', status: 'OFFLINE' }}>
-          <Form.Item name="deviceCode" label="设备编码" rules={[{ required: true, message: '请输入设备编码' }]}>
+        <Form
+          form={form}
+          layout="vertical"
+          initialValues={{ deviceType: 'GATEWAY', protocol: 'REST', status: 'OFFLINE' }}
+        >
+          <Form.Item
+            name="deviceCode"
+            label="设备编码"
+            rules={[{ required: true, message: '请输入设备编码' }]}
+          >
             <Input />
           </Form.Item>
-          <Form.Item name="deviceName" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
+          <Form.Item
+            name="deviceName"
+            label="名称"
+            rules={[{ required: true, message: '请输入名称' }]}
+          >
             <Input />
           </Form.Item>
           <Form.Item name="deviceType" label="类型">
@@ -233,7 +245,13 @@ function DevicePanel() {
 }
 
 /** 采集点 */
-function PointPanel({ devices, equipment }: { devices: MesCollectDevice[]; equipment: MesEquipment[] }) {
+function PointPanel({
+  devices,
+  equipment,
+}: {
+  devices: MesCollectDevice[];
+  equipment: MesEquipment[];
+}) {
   const [rows, setRows] = useState<MesCollectPoint[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
@@ -269,7 +287,12 @@ function PointPanel({ devices, equipment }: { devices: MesCollectDevice[]; equip
     { title: '设备编码', dataIndex: 'equipmentCode', key: 'equipmentCode', width: 140 },
     { title: '指标类型', dataIndex: 'metricType', key: 'metricType', width: 110 },
     { title: '单位', dataIndex: 'unit', key: 'unit', width: 80 },
-    { title: '采集间隔(秒)', dataIndex: 'collectIntervalSeconds', key: 'collectIntervalSeconds', width: 120 },
+    {
+      title: '采集间隔(秒)',
+      dataIndex: 'collectIntervalSeconds',
+      key: 'collectIntervalSeconds',
+      width: 120,
+    },
     {
       title: '启用',
       dataIndex: 'enabled',
@@ -333,11 +356,23 @@ function PointPanel({ devices, equipment }: { devices: MesCollectDevice[]; equip
         onOk={() => void submit()}
         destroyOnHidden
       >
-        <Form form={form} layout="vertical" initialValues={{ metricType: 'METRIC', collectIntervalSeconds: 60, enabled: 1 }}>
-          <Form.Item name="pointCode" label="采集点编码" rules={[{ required: true, message: '请输入采集点编码' }]}>
+        <Form
+          form={form}
+          layout="vertical"
+          initialValues={{ metricType: 'METRIC', collectIntervalSeconds: 60, enabled: 1 }}
+        >
+          <Form.Item
+            name="pointCode"
+            label="采集点编码"
+            rules={[{ required: true, message: '请输入采集点编码' }]}
+          >
             <Input />
           </Form.Item>
-          <Form.Item name="pointName" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
+          <Form.Item
+            name="pointName"
+            label="名称"
+            rules={[{ required: true, message: '请输入名称' }]}
+          >
             <Input />
           </Form.Item>
           <Form.Item name="deviceId" label="采集设备">
@@ -345,7 +380,10 @@ function PointPanel({ devices, equipment }: { devices: MesCollectDevice[]; equip
               allowClear
               showSearch
               optionFilterProp="label"
-              options={devices.map((item) => ({ value: item.id, label: `${item.deviceCode} ${item.deviceName}` }))}
+              options={devices.map((item) => ({
+                value: item.id,
+                label: `${item.deviceCode} ${item.deviceName}`,
+              }))}
             />
           </Form.Item>
           <Form.Item name="deviceCode" label="采集设备编码">
@@ -356,7 +394,10 @@ function PointPanel({ devices, equipment }: { devices: MesCollectDevice[]; equip
               allowClear
               showSearch
               optionFilterProp="label"
-              options={equipment.map((item) => ({ value: item.id, label: `${item.equipmentCode} ${item.equipmentName}` }))}
+              options={equipment.map((item) => ({
+                value: item.id,
+                label: `${item.equipmentCode} ${item.equipmentName}`,
+              }))}
             />
           </Form.Item>
           <Form.Item name="operationCode" label="工序编码">
@@ -444,7 +485,10 @@ function SamplePanel({ points }: { points: MesCollectPoint[] }) {
           placeholder="采集点"
           style={{ width: 220 }}
           value={pointCode}
-          options={points.map((item) => ({ value: item.pointCode, label: `${item.pointCode} ${item.pointName}` }))}
+          options={points.map((item) => ({
+            value: item.pointCode,
+            label: `${item.pointCode} ${item.pointName}`,
+          }))}
           onChange={(value) => setPointCode(value)}
         />
         <Button onClick={() => void load()}>查询</Button>
@@ -562,11 +606,23 @@ function BoardPanel() {
         onOk={() => void submit()}
         destroyOnHidden
       >
-        <Form form={form} layout="vertical" initialValues={{ refreshSeconds: 30, status: 'ENABLED' }}>
-          <Form.Item name="boardCode" label="看板编码" rules={[{ required: true, message: '请输入看板编码' }]}>
+        <Form
+          form={form}
+          layout="vertical"
+          initialValues={{ refreshSeconds: 30, status: 'ENABLED' }}
+        >
+          <Form.Item
+            name="boardCode"
+            label="看板编码"
+            rules={[{ required: true, message: '请输入看板编码' }]}
+          >
             <Input />
           </Form.Item>
-          <Form.Item name="boardName" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
+          <Form.Item
+            name="boardName"
+            label="名称"
+            rules={[{ required: true, message: '请输入名称' }]}
+          >
             <Input />
           </Form.Item>
           <Row gutter={16}>
@@ -616,8 +672,12 @@ function BoardPanel() {
           <>
             <Descriptions size="small" column={2} bordered style={{ marginBottom: 12 }}>
               <Descriptions.Item label="看板">{boardData.board.boardName}</Descriptions.Item>
-              <Descriptions.Item label="刷新间隔">{boardData.board.refreshSeconds} 秒</Descriptions.Item>
-              <Descriptions.Item label="生成时间">{formatTime(boardData.generatedAt)}</Descriptions.Item>
+              <Descriptions.Item label="刷新间隔">
+                {boardData.board.refreshSeconds} 秒
+              </Descriptions.Item>
+              <Descriptions.Item label="生成时间">
+                {formatTime(boardData.generatedAt)}
+              </Descriptions.Item>
             </Descriptions>
             <Table<MesMetricSample>
               rowKey="id"
@@ -756,19 +816,33 @@ function ArchivePanel() {
         <Form
           form={form}
           layout="vertical"
-          initialValues={{ tableName: 'mes_cl_metric_sample', retentionDays: 365, archiveBatchSize: 1000, cronExpr: '0 0 2 * * ?', status: 'ENABLED' }}
+          initialValues={{
+            tableName: 'mes_cl_metric_sample',
+            retentionDays: 365,
+            archiveBatchSize: 1000,
+            cronExpr: '0 0 2 * * ?',
+            status: 'ENABLED',
+          }}
         >
-          <Form.Item name="policyCode" label="策略编码" rules={[{ required: true, message: '请输入策略编码' }]}>
+          <Form.Item
+            name="policyCode"
+            label="策略编码"
+            rules={[{ required: true, message: '请输入策略编码' }]}
+          >
             <Input />
           </Form.Item>
-          <Form.Item name="tableName" label="目标表" rules={[{ required: true, message: '请输入目标表' }]}>
-            <Select
-              options={[
-                { value: 'mes_cl_metric_sample', label: 'mes_cl_metric_sample' },
-              ]}
-            />
+          <Form.Item
+            name="tableName"
+            label="目标表"
+            rules={[{ required: true, message: '请输入目标表' }]}
+          >
+            <Select options={[{ value: 'mes_cl_metric_sample', label: 'mes_cl_metric_sample' }]} />
           </Form.Item>
-          <Form.Item name="retentionDays" label="保留天数" rules={[{ required: true, message: '请输入保留天数' }]}>
+          <Form.Item
+            name="retentionDays"
+            label="保留天数"
+            rules={[{ required: true, message: '请输入保留天数' }]}
+          >
             <InputNumber min={1} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="archiveBatchSize" label="批次大小">
@@ -822,7 +896,11 @@ export default function CollectPage({ initialTab = 'device' }: { initialTab?: Co
 
   const items: TabsProps['items'] = [
     { key: 'device', label: '采集设备', children: <DevicePanel /> },
-    { key: 'point', label: '采集点', children: <PointPanel devices={devices} equipment={equipment} /> },
+    {
+      key: 'point',
+      label: '采集点',
+      children: <PointPanel devices={devices} equipment={equipment} />,
+    },
     { key: 'sample', label: '样本明细', children: <SamplePanel points={points} /> },
     { key: 'board', label: '采集看板', children: <BoardPanel /> },
     { key: 'archive', label: '归档策略', children: <ArchivePanel /> },
@@ -833,7 +911,12 @@ export default function CollectPage({ initialTab = 'device' }: { initialTab?: Co
       <Typography.Title level={5} style={{ margin: 0 }}>
         数据采集
       </Typography.Title>
-      <Tabs activeKey={tab} onChange={(key) => setTab(key as CollectTab)} items={items} destroyInactiveTabPane />
+      <Tabs
+        activeKey={tab}
+        onChange={(key) => setTab(key as CollectTab)}
+        items={items}
+        destroyInactiveTabPane
+      />
     </Space>
   );
 }

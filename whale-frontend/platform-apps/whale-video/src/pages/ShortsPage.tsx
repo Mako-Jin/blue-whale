@@ -62,7 +62,13 @@ export default function ShortsPage() {
       return;
     }
     fetchCategories()
-      .then((list) => setCategories(list.filter((item) => item.contentTypeScope === 'ALL' || item.contentTypeScope === 'SHORT_VIDEO')))
+      .then((list) =>
+        setCategories(
+          list.filter(
+            (item) => item.contentTypeScope === 'ALL' || item.contentTypeScope === 'SHORT_VIDEO',
+          ),
+        ),
+      )
       .catch((error) => message.error(error instanceof Error ? error.message : '分类加载失败'));
   }, [canBrowse, message]);
 
@@ -96,7 +102,9 @@ export default function ShortsPage() {
           setActiveIndex(0);
         }
         if (fresh.length > 0) {
-          const batch = await createPlayTickets(fresh.slice(0, 20).map((record) => record.id)).catch(() => ({
+          const batch = await createPlayTickets(
+            fresh.slice(0, 20).map((record) => record.id),
+          ).catch(() => ({
             tickets: [] as PlayTicket[],
             rejectedContentIds: [] as number[],
           }));
@@ -155,7 +163,9 @@ export default function ShortsPage() {
       },
       { root: container, threshold: 0.6 },
     );
-    container.querySelectorAll('[data-slide-index]').forEach((element) => observer.observe(element));
+    container
+      .querySelectorAll('[data-slide-index]')
+      .forEach((element) => observer.observe(element));
     return () => observer.disconnect();
   }, [records]);
 
@@ -198,7 +208,10 @@ export default function ShortsPage() {
       setRecords((previous) =>
         previous.map((item) =>
           item.id === content.id
-            ? { ...item, favoriteCount: Math.max((item.favoriteCount ?? 0) + (current ? -1 : 1), 0) }
+            ? {
+                ...item,
+                favoriteCount: Math.max((item.favoriteCount ?? 0) + (current ? -1 : 1), 0),
+              }
             : item,
         ),
       );
@@ -266,7 +279,14 @@ export default function ShortsPage() {
         }}
       >
         {records.length === 0 && !loading ? (
-          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div
+            style={{
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
             <Empty description="还没有短视频，去上传第一条吧" />
           </div>
         ) : null}
@@ -294,7 +314,9 @@ export default function ShortsPage() {
 
               <div style={bottomInfoStyle}>
                 <Space size={6} wrap>
-                  <Typography.Text style={{ color: '#fff', fontWeight: 600 }}>{record.title}</Typography.Text>
+                  <Typography.Text style={{ color: '#fff', fontWeight: 600 }}>
+                    {record.title}
+                  </Typography.Text>
                   {record.tags?.slice(0, 3).map((tag) => (
                     <Tag key={tag} color="blue">
                       {tag}
@@ -302,7 +324,10 @@ export default function ShortsPage() {
                   ))}
                 </Space>
                 {record.description ? (
-                  <Typography.Paragraph style={{ color: 'rgba(255,255,255,0.85)', margin: '6px 0 0' }} ellipsis={{ rows: 2 }}>
+                  <Typography.Paragraph
+                    style={{ color: 'rgba(255,255,255,0.85)', margin: '6px 0 0' }}
+                    ellipsis={{ rows: 2 }}
+                  >
                     {record.description}
                   </Typography.Paragraph>
                 ) : null}
@@ -312,7 +337,12 @@ export default function ShortsPage() {
               </div>
 
               <div style={actionColumnStyle}>
-                <ActionButton label="点赞" icon={interactions[record.id]?.liked ? '❤️' : '🤍'} value={formatCount(record.likeCount)} onClick={() => void toggleLike(record)} />
+                <ActionButton
+                  label="点赞"
+                  icon={interactions[record.id]?.liked ? '❤️' : '🤍'}
+                  value={formatCount(record.likeCount)}
+                  onClick={() => void toggleLike(record)}
+                />
                 <ActionButton
                   label="收藏"
                   icon={interactions[record.id]?.favorited ? '⭐' : '☆'}
@@ -331,7 +361,12 @@ export default function ShortsPage() {
                     openComments(record.id);
                   }}
                 />
-                <ActionButton label="详情" icon="ℹ️" value="查看" onClick={() => navigate(`/shorts/${record.id}`)} />
+                <ActionButton
+                  label="详情"
+                  icon="ℹ️"
+                  value="查看"
+                  onClick={() => navigate(`/shorts/${record.id}`)}
+                />
               </div>
             </div>
           );
@@ -366,7 +401,13 @@ function ActionButton({
   onClick: () => void;
 }) {
   return (
-    <button type="button" aria-label={label} title={label} onClick={onClick} style={actionButtonStyle}>
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      style={actionButtonStyle}
+    >
       <span style={{ fontSize: 20, lineHeight: '24px' }}>{icon}</span>
       <span style={{ fontSize: 11 }}>{value}</span>
     </button>

@@ -65,7 +65,9 @@ export default function App({ getToken, getPermissions }: AppProps) {
         <div className="bww-meta">
           <div id="bww-hud-time">—</div>
           <div id="bww-hud-date">—</div>
-          <div id="bww-hud-online" className="bww-hint">同屏 — 人</div>
+          <div id="bww-hud-online" className="bww-hint">
+            同屏 — 人
+          </div>
           <div className="bww-hint">皇城 · 内城 · 外城 · 八方宫署</div>
         </div>
       </header>
@@ -77,9 +79,17 @@ export default function App({ getToken, getPermissions }: AppProps) {
         </div>
         <canvas className="bww-minimap" id="bww-minimap" width="180" height="180" />
         <div className="bww-map-legend">
-          <span><i className="lg-player" />你</span>
-          <span><i className="lg-npc" />城民</span>
-          <span><i className="lg-peer" />在线</span>
+          <span>
+            <i className="lg-player" />你
+          </span>
+          <span>
+            <i className="lg-npc" />
+            城民
+          </span>
+          <span>
+            <i className="lg-peer" />
+            在线
+          </span>
         </div>
       </div>
 
@@ -88,7 +98,9 @@ export default function App({ getToken, getPermissions }: AppProps) {
 
       <div className="bww-pet-bubble" id="bww-pet-bubble">
         <div className="bww-who">小鲸宝</div>
-        <div className="bww-bubble-body" id="bww-pet-text">……</div>
+        <div className="bww-bubble-body" id="bww-pet-text">
+          ……
+        </div>
       </div>
 
       {/* 导览进度条：只在导览中显示，写清第几站、下一站叫什么、怎么退出 */}
@@ -104,23 +116,53 @@ export default function App({ getToken, getPermissions }: AppProps) {
 
       <div className="bww-help">
         <div>
-          <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 行走&ensp;<kbd>Shift</kbd> 疾行&ensp;<kbd>右键</kbd> 点地自动寻路&ensp;<kbd>Esc</kbd> 停步
+          <kbd>W</kbd>
+          <kbd>A</kbd>
+          <kbd>S</kbd>
+          <kbd>D</kbd> 行走&ensp;<kbd>Shift</kbd> 疾行&ensp;<kbd>右键</kbd> 点地自动寻路&ensp;
+          <kbd>Esc</kbd> 停步
         </div>
-        <div>拖拽 转视角&ensp;滚轮 远近&ensp;<kbd>E</kbd> 传送&ensp;<kbd>F</kbd> 交谈&ensp;<kbd>T</kbd> 问小鲸宝&ensp;<kbd>G</kbd> 导览&ensp;<kbd>Q</kbd> 喊话&ensp;<kbd>N</kbd> 静音&ensp;<kbd>C</kbd> 形象&ensp;<kbd>M</kbd> 城图&ensp;<kbd>R</kbd> 复位</div>
+        <div>
+          拖拽 转视角&ensp;滚轮 远近&ensp;<kbd>E</kbd> 传送&ensp;<kbd>F</kbd> 交谈&ensp;<kbd>T</kbd>{' '}
+          问小鲸宝&ensp;<kbd>G</kbd> 导览&ensp;<kbd>Q</kbd> 喊话&ensp;<kbd>N</kbd> 静音&ensp;
+          <kbd>C</kbd> 形象&ensp;<kbd>M</kbd> 城图&ensp;<kbd>R</kbd> 复位
+        </div>
       </div>
 
       <div className="bww-toolbar">
-        <button data-action="char" type="button">录名入城 · C</button>
-        <button data-action="say" type="button">同城喊话 · Q</button>
-        <button data-action="pet" type="button">问小鲸宝 · T</button>
-        <button data-action="guide" type="button">带路导览 · G</button>
-        <button data-action="map" type="button">城图显隐 · M</button>
-        <button data-action="weather" type="button">天象：晴</button>
-        <button data-action="season" type="button">时节：秋</button>
-        <button data-action="speed" type="button">时辰：常速</button>
-        <button data-action="portal" type="button">传送门 · E</button>
-        <button data-action="sound" type="button">声：开</button>
-        <button data-action="reset" type="button">视角复位 · R</button>
+        <button data-action="char" type="button">
+          录名入城 · C
+        </button>
+        <button data-action="say" type="button">
+          同城喊话 · Q
+        </button>
+        <button data-action="pet" type="button">
+          问小鲸宝 · T
+        </button>
+        <button data-action="guide" type="button">
+          带路导览 · G
+        </button>
+        <button data-action="map" type="button">
+          城图显隐 · M
+        </button>
+        <button data-action="weather" type="button">
+          天象：晴
+        </button>
+        <button data-action="season" type="button">
+          时节：秋
+        </button>
+        <button data-action="speed" type="button">
+          时辰：常速
+        </button>
+        <button data-action="portal" type="button">
+          传送门 · E
+        </button>
+        <button data-action="sound" type="button">
+          声：开
+        </button>
+        <button data-action="reset" type="button">
+          视角复位 · R
+        </button>
       </div>
 
       <div className="bww-char-panel" id="bww-char-panel" />

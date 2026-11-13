@@ -135,7 +135,8 @@ function InvoiceFormModal({ open, initial, onCancel, onSaved }: InvoiceFormModal
           specification: item.specification ?? undefined,
           quantity: Number(item.quantity ?? 1),
           unitPrice: Number(item.unitPrice ?? 0),
-          taxRate: item.taxRate === null || item.taxRate === undefined ? undefined : Number(item.taxRate),
+          taxRate:
+            item.taxRate === null || item.taxRate === undefined ? undefined : Number(item.taxRate),
           remark: item.remark ?? undefined,
         })),
       });
@@ -220,7 +221,12 @@ function InvoiceFormModal({ open, initial, onCancel, onSaved }: InvoiceFormModal
             rules={[{ required: true, message: '请输入来源单据 ID' }]}
             style={{ flex: 1 }}
           >
-            <InputNumber min={1} precision={0} disabled={Boolean(initial)} style={{ width: '100%' }} />
+            <InputNumber
+              min={1}
+              precision={0}
+              disabled={Boolean(initial)}
+              style={{ width: '100%' }}
+            />
           </Form.Item>
           <Form.Item
             name="amount"
@@ -355,7 +361,12 @@ function InvoiceFormModal({ open, initial, onCancel, onSaved }: InvoiceFormModal
                   },
                 ]}
               />
-              <Button type="dashed" block style={{ marginTop: 8 }} onClick={() => add({ quantity: 1, unitPrice: 0 })}>
+              <Button
+                type="dashed"
+                block
+                style={{ marginTop: 8 }}
+                onClick={() => add({ quantity: 1, unitPrice: 0 })}
+              >
                 新增明细
               </Button>
             </>
@@ -415,10 +426,14 @@ function InvoiceDetailDrawer({ invoiceId, onClose }: InvoiceDetailDrawerProps) {
               {INVOICE_REQUEST_TYPE_LABEL[detail.requestType ?? ''] ?? detail.requestType ?? '-'}
             </Descriptions.Item>
             <Descriptions.Item label="原申请 ID">{detail.originInvoiceId ?? '-'}</Descriptions.Item>
-            <Descriptions.Item label="客户">{detail.customerName || detail.customerCode || '-'}</Descriptions.Item>
+            <Descriptions.Item label="客户">
+              {detail.customerName || detail.customerCode || '-'}
+            </Descriptions.Item>
             <Descriptions.Item label="合同编号">{detail.contractNo || '-'}</Descriptions.Item>
             <Descriptions.Item label="申请金额">{formatAmount(detail.amount)}</Descriptions.Item>
-            <Descriptions.Item label="可开票余额">{formatAmount(detail.availableAmount)}</Descriptions.Item>
+            <Descriptions.Item label="可开票余额">
+              {formatAmount(detail.availableAmount)}
+            </Descriptions.Item>
             <Descriptions.Item label="发票类型">
               {INVOICE_TYPE_LABEL[detail.invoiceType ?? ''] ?? detail.invoiceType ?? '-'}
             </Descriptions.Item>
@@ -429,13 +444,19 @@ function InvoiceDetailDrawer({ invoiceId, onClose }: InvoiceDetailDrawerProps) {
             <Descriptions.Item label="纳税人识别号">{detail.taxNo || '-'}</Descriptions.Item>
             <Descriptions.Item label="发票代码">{detail.invoiceCode || '-'}</Descriptions.Item>
             <Descriptions.Item label="发票号码">{detail.invoiceNumber || '-'}</Descriptions.Item>
-            <Descriptions.Item label="实际开票金额">{formatAmount(detail.issuedAmount)}</Descriptions.Item>
-            <Descriptions.Item label="开票时间">{formatDateTime(detail.issuedAt)}</Descriptions.Item>
+            <Descriptions.Item label="实际开票金额">
+              {formatAmount(detail.issuedAmount)}
+            </Descriptions.Item>
+            <Descriptions.Item label="开票时间">
+              {formatDateTime(detail.issuedAt)}
+            </Descriptions.Item>
             <Descriptions.Item label="快递公司">{detail.courier || '-'}</Descriptions.Item>
             <Descriptions.Item label="运单号">{detail.trackingNo || '-'}</Descriptions.Item>
             <Descriptions.Item label="寄送时间">{formatDateTime(detail.sentAt)}</Descriptions.Item>
             <Descriptions.Item label="红冲原因">{detail.redFlushReason || '-'}</Descriptions.Item>
-            <Descriptions.Item label="红冲时间">{formatDateTime(detail.redFlushedAt)}</Descriptions.Item>
+            <Descriptions.Item label="红冲时间">
+              {formatDateTime(detail.redFlushedAt)}
+            </Descriptions.Item>
             <Descriptions.Item label="备注" span={2}>
               {detail.remark || '-'}
             </Descriptions.Item>
@@ -450,8 +471,18 @@ function InvoiceDetailDrawer({ invoiceId, onClose }: InvoiceDetailDrawerProps) {
             dataSource={detail.items ?? []}
             columns={[
               { title: '行号', dataIndex: 'lineNo', width: 60 },
-              { title: '项目名称', dataIndex: 'itemName', width: 160, render: (value) => value || '-' },
-              { title: '规格', dataIndex: 'specification', width: 120, render: (value) => value || '-' },
+              {
+                title: '项目名称',
+                dataIndex: 'itemName',
+                width: 160,
+                render: (value) => value || '-',
+              },
+              {
+                title: '规格',
+                dataIndex: 'specification',
+                width: 120,
+                render: (value) => value || '-',
+              },
               {
                 title: '数量',
                 dataIndex: 'quantity',
@@ -504,7 +535,12 @@ export default function InvoicePage() {
   const [detailId, setDetailId] = useState<number | null>(null);
   const [actionTarget, setActionTarget] = useState<InvoiceView | null>(null);
   const [actionType, setActionType] = useState<'issue' | 'send' | 'redFlush' | null>(null);
-  const [issueForm] = Form.useForm<{ invoiceCode?: string; invoiceNumber?: string; issuedAmount: number; taxAmount?: number }>();
+  const [issueForm] = Form.useForm<{
+    invoiceCode?: string;
+    invoiceNumber?: string;
+    issuedAmount: number;
+    taxAmount?: number;
+  }>();
   const [sendForm] = Form.useForm<{ courier: string; trackingNo: string }>();
   const [redFlushForm] = Form.useForm<{ amount: number; reason: string }>();
 
@@ -560,12 +596,16 @@ export default function InvoicePage() {
         invoiceCode: row.invoiceCode ?? undefined,
         invoiceNumber: row.invoiceNumber ?? undefined,
         issuedAmount: Number(row.amount ?? 0),
-        taxAmount: row.taxAmount === null || row.taxAmount === undefined ? undefined : Number(row.taxAmount),
+        taxAmount:
+          row.taxAmount === null || row.taxAmount === undefined ? undefined : Number(row.taxAmount),
       });
     } else if (type === 'send') {
       sendForm.setFieldsValue({ courier: row.courier ?? '', trackingNo: row.trackingNo ?? '' });
     } else {
-      redFlushForm.setFieldsValue({ amount: Number(row.issuedAmount ?? row.amount ?? 0), reason: '' });
+      redFlushForm.setFieldsValue({
+        amount: Number(row.issuedAmount ?? row.amount ?? 0),
+        reason: '',
+      });
     }
   };
 
@@ -613,8 +653,18 @@ export default function InvoicePage() {
         </Tag>
       ),
     },
-    { title: '客户', dataIndex: 'customerName', width: 170, render: (value?: string | null) => value || '-' },
-    { title: '客户编码', dataIndex: 'customerCode', width: 130, render: (value?: string | null) => value || '-' },
+    {
+      title: '客户',
+      dataIndex: 'customerName',
+      width: 170,
+      render: (value?: string | null) => value || '-',
+    },
+    {
+      title: '客户编码',
+      dataIndex: 'customerCode',
+      width: 130,
+      render: (value?: string | null) => value || '-',
+    },
     {
       title: '申请金额',
       dataIndex: 'amount',
@@ -632,14 +682,24 @@ export default function InvoicePage() {
         </Tag>
       ),
     },
-    { title: '发票号码', dataIndex: 'invoiceNumber', width: 150, render: (value?: string | null) => value || '-' },
+    {
+      title: '发票号码',
+      dataIndex: 'invoiceNumber',
+      width: 150,
+      render: (value?: string | null) => value || '-',
+    },
     {
       title: '开票时间',
       dataIndex: 'issuedAt',
       width: 170,
       render: (value?: string | null) => formatDateTime(value),
     },
-    { title: '运单号', dataIndex: 'trackingNo', width: 150, render: (value?: string | null) => value || '-' },
+    {
+      title: '运单号',
+      dataIndex: 'trackingNo',
+      width: 150,
+      render: (value?: string | null) => value || '-',
+    },
     {
       title: '操作',
       key: 'action',
@@ -662,17 +722,18 @@ export default function InvoicePage() {
               编辑
             </Button>
           )}
-          {(row.status === 'DRAFT' || row.status === 'REJECTED') && hasPermission('sys:crm:invoice:submit') && (
-            <Popconfirm
-              title="提交审批"
-              description="提交后进入审批流程，草稿不可再编辑。"
-              onConfirm={() => void runAction(() => submitInvoice(row.id), '已提交审批')}
-            >
-              <Button size="small" type="link">
-                提交
-              </Button>
-            </Popconfirm>
-          )}
+          {(row.status === 'DRAFT' || row.status === 'REJECTED') &&
+            hasPermission('sys:crm:invoice:submit') && (
+              <Popconfirm
+                title="提交审批"
+                description="提交后进入审批流程，草稿不可再编辑。"
+                onConfirm={() => void runAction(() => submitInvoice(row.id), '已提交审批')}
+              >
+                <Button size="small" type="link">
+                  提交
+                </Button>
+              </Popconfirm>
+            )}
           {row.status === 'APPROVED' && hasPermission('sys:crm:invoice:issue') && (
             <Button size="small" type="link" onClick={() => openAction(row, 'issue')}>
               开票
@@ -683,22 +744,24 @@ export default function InvoicePage() {
               寄送
             </Button>
           )}
-          {(row.status === 'ISSUED' || row.status === 'SENT') && hasPermission('sys:crm:invoice:red-flush') && (
-            <Button size="small" type="link" danger onClick={() => openAction(row, 'redFlush')}>
-              红冲
-            </Button>
-          )}
-          {(row.status === 'DRAFT' || row.status === 'REJECTED') && hasPermission('sys:crm:invoice:create') && (
-            <Popconfirm
-              title="取消申请"
-              description="取消后不可恢复。"
-              onConfirm={() => void runAction(() => cancelInvoice(row.id), '申请已取消')}
-            >
-              <Button size="small" type="link" danger>
-                取消
+          {(row.status === 'ISSUED' || row.status === 'SENT') &&
+            hasPermission('sys:crm:invoice:red-flush') && (
+              <Button size="small" type="link" danger onClick={() => openAction(row, 'redFlush')}>
+                红冲
               </Button>
-            </Popconfirm>
-          )}
+            )}
+          {(row.status === 'DRAFT' || row.status === 'REJECTED') &&
+            hasPermission('sys:crm:invoice:create') && (
+              <Popconfirm
+                title="取消申请"
+                description="取消后不可恢复。"
+                onConfirm={() => void runAction(() => cancelInvoice(row.id), '申请已取消')}
+              >
+                <Button size="small" type="link" danger>
+                  取消
+                </Button>
+              </Popconfirm>
+            )}
         </Space>
       ),
     },
@@ -721,7 +784,12 @@ export default function InvoicePage() {
         )
       }
     >
-      <Form form={filterForm} layout="inline" onFinish={handleSearch} style={{ marginBottom: 16, rowGap: 12 }}>
+      <Form
+        form={filterForm}
+        layout="inline"
+        onFinish={handleSearch}
+        style={{ marginBottom: 16, rowGap: 12 }}
+      >
         <Form.Item name="keyword">
           <Input placeholder="申请单号 / 发票号码" allowClear style={{ width: 200 }} />
         </Form.Item>
@@ -732,7 +800,12 @@ export default function InvoicePage() {
           <InputNumber min={1} precision={0} placeholder="合同台账 ID" style={{ width: 130 }} />
         </Form.Item>
         <Form.Item name="status">
-          <Select placeholder="状态" allowClear style={{ width: 140 }} options={INVOICE_STATUS_OPTIONS} />
+          <Select
+            placeholder="状态"
+            allowClear
+            style={{ width: 140 }}
+            options={INVOICE_STATUS_OPTIONS}
+          />
         </Form.Item>
         <Form.Item name="requestType">
           <Select
@@ -797,10 +870,18 @@ export default function InvoicePage() {
           <Form.Item name="invoiceCode" label="发票代码">
             <Input maxLength={20} />
           </Form.Item>
-          <Form.Item name="invoiceNumber" label="发票号码" rules={[{ required: true, message: '请输入发票号码' }]}>
+          <Form.Item
+            name="invoiceNumber"
+            label="发票号码"
+            rules={[{ required: true, message: '请输入发票号码' }]}
+          >
             <Input maxLength={30} />
           </Form.Item>
-          <Form.Item name="issuedAmount" label="实际开票金额" rules={[{ required: true, message: '请输入开票金额' }]}>
+          <Form.Item
+            name="issuedAmount"
+            label="实际开票金额"
+            rules={[{ required: true, message: '请输入开票金额' }]}
+          >
             <InputNumber min={0} precision={2} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="taxAmount" label="税额">
@@ -819,10 +900,18 @@ export default function InvoicePage() {
         destroyOnClose
       >
         <Form form={sendForm} layout="vertical" preserve={false}>
-          <Form.Item name="courier" label="快递公司" rules={[{ required: true, message: '请输入快递公司' }]}>
+          <Form.Item
+            name="courier"
+            label="快递公司"
+            rules={[{ required: true, message: '请输入快递公司' }]}
+          >
             <Input maxLength={50} />
           </Form.Item>
-          <Form.Item name="trackingNo" label="运单号" rules={[{ required: true, message: '请输入运单号' }]}>
+          <Form.Item
+            name="trackingNo"
+            label="运单号"
+            rules={[{ required: true, message: '请输入运单号' }]}
+          >
             <Input maxLength={50} />
           </Form.Item>
         </Form>
@@ -838,10 +927,18 @@ export default function InvoicePage() {
         destroyOnClose
       >
         <Form form={redFlushForm} layout="vertical" preserve={false}>
-          <Form.Item name="amount" label="红冲金额" rules={[{ required: true, message: '请输入红冲金额' }]}>
+          <Form.Item
+            name="amount"
+            label="红冲金额"
+            rules={[{ required: true, message: '请输入红冲金额' }]}
+          >
             <InputNumber min={0} precision={2} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="reason" label="红冲原因" rules={[{ required: true, message: '请输入红冲原因' }]}>
+          <Form.Item
+            name="reason"
+            label="红冲原因"
+            rules={[{ required: true, message: '请输入红冲原因' }]}
+          >
             <Input.TextArea rows={2} maxLength={200} showCount />
           </Form.Item>
         </Form>

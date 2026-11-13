@@ -7,7 +7,23 @@
 // 倒计时归零自动交卷一次：服务端对超时交卷仍按截止时刻记账（见 ExamAttempt#submit），
 // 所以这里不需要在前端做「超时禁止交卷」的拦截。
 
-import { Alert, Button, Card, Checkbox, Descriptions, Empty, Input, Progress, Radio, Result, Space, Spin, Tag, Typography, message } from 'antd';
+import {
+  Alert,
+  Button,
+  Card,
+  Checkbox,
+  Descriptions,
+  Empty,
+  Input,
+  Progress,
+  Radio,
+  Result,
+  Space,
+  Spin,
+  Tag,
+  Typography,
+  message,
+} from 'antd';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -144,7 +160,9 @@ export default function ExamAttemptPage() {
     if (total === 0) {
       return 0;
     }
-    const filled = (paper?.questions ?? []).filter((item) => (answers[item.questionId] ?? '').trim() !== '').length;
+    const filled = (paper?.questions ?? []).filter(
+      (item) => (answers[item.questionId] ?? '').trim() !== '',
+    ).length;
     return Math.round((filled / total) * 100);
   }, [answers, paper]);
 
@@ -204,9 +222,13 @@ export default function ExamAttemptPage() {
                 </Typography.Text>
               </Space>
               <Descriptions column={1} size="small">
-                <Descriptions.Item label="我的作答">{item.answer || '（未作答）'}</Descriptions.Item>
+                <Descriptions.Item label="我的作答">
+                  {item.answer || '（未作答）'}
+                </Descriptions.Item>
                 <Descriptions.Item label="得分">
-                  {item.graded ? `${item.score ?? 0} / ${item.maxScore}` : `待判分（满分 ${item.maxScore}）`}
+                  {item.graded
+                    ? `${item.score ?? 0} / ${item.maxScore}`
+                    : `待判分（满分 ${item.maxScore}）`}
                 </Descriptions.Item>
               </Descriptions>
               {item.graded && item.correct !== undefined && item.correct !== null && (
@@ -231,7 +253,12 @@ export default function ExamAttemptPage() {
             <Button size="small" onClick={() => void onSave()} loading={saving}>
               保存
             </Button>
-            <Button size="small" type="primary" loading={submitting} onClick={() => void doSubmit()}>
+            <Button
+              size="small"
+              type="primary"
+              loading={submitting}
+              onClick={() => void doSubmit()}
+            >
               交卷
             </Button>
           </Space>
@@ -239,7 +266,13 @@ export default function ExamAttemptPage() {
       >
         <Space direction="vertical" style={{ width: '100%' }}>
           <Progress percent={progressPercent} size="small" format={(value) => `已答 ${value}%`} />
-          {paper.shuffle && <Alert type="info" showIcon message="本场考试题序已按你的作答随机排列，交卷后判分与题序无关" />}
+          {paper.shuffle && (
+            <Alert
+              type="info"
+              showIcon
+              message="本场考试题序已按你的作答随机排列，交卷后判分与题序无关"
+            />
+          )}
         </Space>
       </Card>
 
@@ -258,27 +291,41 @@ export default function ExamAttemptPage() {
               maxLength={2000}
               placeholder="请输入作答"
               value={answers[item.questionId] ?? ''}
-              onChange={(event) => setAnswers((prev) => ({ ...prev, [item.questionId]: event.target.value }))}
+              onChange={(event) =>
+                setAnswers((prev) => ({ ...prev, [item.questionId]: event.target.value }))
+              }
             />
           )}
           {item.type === 'MULTIPLE' && (
             <Checkbox.Group
               value={(answers[item.questionId] ?? '').split(',').filter(Boolean)}
-              onChange={(values) => setAnswers((prev) => ({ ...prev, [item.questionId]: values.join(',') }))}
-              options={item.options.map((option) => ({ value: option.optionKey, label: `${option.optionKey}. ${option.content}` }))}
+              onChange={(values) =>
+                setAnswers((prev) => ({ ...prev, [item.questionId]: values.join(',') }))
+              }
+              options={item.options.map((option) => ({
+                value: option.optionKey,
+                label: `${option.optionKey}. ${option.content}`,
+              }))}
             />
           )}
           {item.type === 'SINGLE' && (
             <Radio.Group
               value={answers[item.questionId] ?? ''}
-              onChange={(event) => setAnswers((prev) => ({ ...prev, [item.questionId]: event.target.value }))}
-              options={item.options.map((option) => ({ value: option.optionKey, label: `${option.optionKey}. ${option.content}` }))}
+              onChange={(event) =>
+                setAnswers((prev) => ({ ...prev, [item.questionId]: event.target.value }))
+              }
+              options={item.options.map((option) => ({
+                value: option.optionKey,
+                label: `${option.optionKey}. ${option.content}`,
+              }))}
             />
           )}
           {item.type === 'JUDGE' && (
             <Radio.Group
               value={answers[item.questionId] ?? ''}
-              onChange={(event) => setAnswers((prev) => ({ ...prev, [item.questionId]: event.target.value }))}
+              onChange={(event) =>
+                setAnswers((prev) => ({ ...prev, [item.questionId]: event.target.value }))
+              }
               options={JUDGE_OPTIONS}
             />
           )}

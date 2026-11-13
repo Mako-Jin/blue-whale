@@ -129,7 +129,9 @@ export default function CollabNoticePage() {
 
   const searchCandidates = async (value?: string) => {
     try {
-      setCandidates(await listNoticeRecipients({ keyword: value?.trim() || undefined, limit: 100 }));
+      setCandidates(
+        await listNoticeRecipients({ keyword: value?.trim() || undefined, limit: 100 }),
+      );
     } catch (error) {
       message.error(error instanceof Error ? error.message : '通讯录候选查询失败');
     }
@@ -258,7 +260,13 @@ export default function CollabNoticePage() {
         return <Tag color={meta.color}>{meta.text}</Tag>;
       },
     },
-    { title: '范围值', dataIndex: 'scopeValue', key: 'scopeValue', width: 110, render: (value?: string) => value ?? '-' },
+    {
+      title: '范围值',
+      dataIndex: 'scopeValue',
+      key: 'scopeValue',
+      width: 110,
+      render: (value?: string) => value ?? '-',
+    },
     {
       title: '状态',
       dataIndex: 'status',
@@ -269,7 +277,13 @@ export default function CollabNoticePage() {
         return <Tag color={meta.color}>{meta.text}</Tag>;
       },
     },
-    { title: '发布人', dataIndex: 'publisher', key: 'publisher', width: 110, render: (value?: string) => value ?? '-' },
+    {
+      title: '发布人',
+      dataIndex: 'publisher',
+      key: 'publisher',
+      width: 110,
+      render: (value?: string) => value ?? '-',
+    },
     {
       title: '发布时间',
       dataIndex: 'publishTime',
@@ -282,7 +296,9 @@ export default function CollabNoticePage() {
       key: 'readStat',
       width: 110,
       render: (_value, record) =>
-        record.recipientCount === undefined ? '-' : `${record.readCount ?? 0}/${record.recipientCount}`,
+        record.recipientCount === undefined
+          ? '-'
+          : `${record.readCount ?? 0}/${record.recipientCount}`,
     },
     {
       title: '阅读状态',
@@ -331,7 +347,12 @@ export default function CollabNoticePage() {
 
   const recipientColumns: TableProps<OaNoticeRecipient>['columns'] = [
     { title: '用户ID', dataIndex: 'userId', key: 'userId', width: 100 },
-    { title: '姓名', dataIndex: 'userName', key: 'userName', render: (value?: string) => value ?? '-' },
+    {
+      title: '姓名',
+      dataIndex: 'userName',
+      key: 'userName',
+      render: (value?: string) => value ?? '-',
+    },
     {
       title: '阅读状态',
       dataIndex: 'readFlag',
@@ -380,7 +401,10 @@ export default function CollabNoticePage() {
             placeholder="状态"
             style={{ width: 130 }}
             value={status || undefined}
-            options={Object.entries(NOTICE_STATUS_META).map(([value, meta]) => ({ label: meta.text, value }))}
+            options={Object.entries(NOTICE_STATUS_META).map(([value, meta]) => ({
+              label: meta.text,
+              value,
+            }))}
             onChange={(value) => {
               setStatus((value as OaNoticeStatus) ?? '');
               setPage(1);
@@ -391,7 +415,10 @@ export default function CollabNoticePage() {
             placeholder="范围"
             style={{ width: 130 }}
             value={scopeType || undefined}
-            options={Object.entries(SCOPE_META).map(([value, meta]) => ({ label: meta.text, value }))}
+            options={Object.entries(SCOPE_META).map(([value, meta]) => ({
+              label: meta.text,
+              value,
+            }))}
             onChange={(value) => {
               setScopeType((value as OaNoticeScopeType) ?? '');
               setPage(1);
@@ -445,13 +472,13 @@ export default function CollabNoticePage() {
           <Space size="middle" style={{ display: 'flex' }}>
             <Form.Item name="scopeType" label="发布范围" style={{ flex: 1 }}>
               <Select
-                options={Object.entries(SCOPE_META).map(([value, meta]) => ({ label: meta.text, value }))}
+                options={Object.entries(SCOPE_META).map(([value, meta]) => ({
+                  label: meta.text,
+                  value,
+                }))}
               />
             </Form.Item>
-            <Form.Item
-              noStyle
-              shouldUpdate={(prev, next) => prev.scopeType !== next.scopeType}
-            >
+            <Form.Item noStyle shouldUpdate={(prev, next) => prev.scopeType !== next.scopeType}>
               {({ getFieldValue }) =>
                 getFieldValue('scopeType') === 'ALL' ? null : (
                   <Form.Item

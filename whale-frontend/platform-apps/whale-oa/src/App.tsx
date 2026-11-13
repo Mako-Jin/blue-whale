@@ -58,7 +58,11 @@ const MENU_ITEMS = [
   { key: '/attendance/punch', label: '打卡记录', permission: 'sys:oa:attendance:record:list' },
   { key: '/attendance/daily', label: '考勤日报', permission: 'sys:oa:attendance:daily:list' },
   { key: '/attendance/rules', label: '考勤配置', permission: 'sys:oa:attendance:config:list' },
-  { key: '/attendance/correction', label: '补卡与异常', permission: 'sys:oa:attendance:config:list' },
+  {
+    key: '/attendance/correction',
+    label: '补卡与异常',
+    permission: 'sys:oa:attendance:config:list',
+  },
   { key: '/expense/apply', label: '报销申请', permission: 'sys:oa:expense:list' },
   { key: '/expense/ledger', label: '报销台账', permission: 'sys:oa:expense:list' },
   { key: '/expense/category', label: '费用类别', permission: 'sys:oa:expense:category:list' },
@@ -88,9 +92,8 @@ const menuItems: MenuProps['items'] = MENU_ITEMS.filter(
 ).map(({ key, label }) => ({ key, label }));
 
 /** 默认落地页：首个可见菜单，避免无审批权限的用户落到 403 页面 */
-const DEFAULT_PATH = MENU_ITEMS.find(
-  (item) => !item.permission || hasPermission(item.permission),
-)?.key ?? '/approval';
+const DEFAULT_PATH =
+  MENU_ITEMS.find((item) => !item.permission || hasPermission(item.permission))?.key ?? '/approval';
 
 function OaLayout() {
   const location = useLocation();

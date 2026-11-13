@@ -190,7 +190,10 @@ export function pageSnapshots(query: {
 
 /** 行动项分页 */
 export function pageActionItems(query: ActionItemQuery): Promise<PageResult<ActionItem>> {
-  return http.get<PageResult<ActionItem>>('/crm/action-plan/page', query as Record<string, unknown>);
+  return http.get<PageResult<ActionItem>>(
+    '/crm/action-plan/page',
+    query as Record<string, unknown>,
+  );
 }
 
 /** 生成行动项 */

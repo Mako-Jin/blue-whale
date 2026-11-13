@@ -207,7 +207,8 @@ export default function RulePage() {
       title: '状态',
       dataIndex: 'enabled',
       width: 90,
-      render: (enabled: number) => (enabled === 1 ? <Tag color="success">启用</Tag> : <Tag>停用</Tag>),
+      render: (enabled: number) =>
+        enabled === 1 ? <Tag color="success">启用</Tag> : <Tag>停用</Tag>,
     },
     { title: '触发次数', dataIndex: 'firedCount', width: 100 },
     { title: '最近触发', dataIndex: 'lastFiredTime', width: 180 },
@@ -239,7 +240,8 @@ export default function RulePage() {
     <>
       <h2 className="iot-page-title">规则引擎</h2>
       <p className="iot-page-desc">
-        条件满足 <b>连续 durationSec 秒</b> 才触发，触发后按静默期去重；告警落 whale-alert 告警记录（source=iot）。
+        条件满足 <b>连续 durationSec 秒</b> 才触发，触发后按静默期去重；告警落 whale-alert
+        告警记录（source=iot）。
       </p>
       <ProTable<RuleVO, { productId?: string; keyword?: string }>
         ref={tableRef}
@@ -270,10 +272,17 @@ export default function RulePage() {
                   />
                 ),
               },
-              { name: 'keyword', label: '关键字', element: <Input placeholder="规则名称" allowClear /> },
+              {
+                name: 'keyword',
+                label: '关键字',
+                element: <Input placeholder="规则名称" allowClear />,
+              },
             ]}
             onSearch={(values) =>
-              setFilters({ productId: values.productId as string, keyword: values.keyword as string })
+              setFilters({
+                productId: values.productId as string,
+                keyword: values.keyword as string,
+              })
             }
             onReset={() => setFilters({})}
           />
@@ -296,11 +305,20 @@ export default function RulePage() {
         destroyOnHidden
       >
         <Form form={form} layout="vertical" style={{ marginTop: 12 }}>
-          <Form.Item name="name" label="规则名称" rules={[{ required: true, message: '请输入规则名称' }]}>
+          <Form.Item
+            name="name"
+            label="规则名称"
+            rules={[{ required: true, message: '请输入规则名称' }]}
+          >
             <Input placeholder="温度持续超限" maxLength={128} />
           </Form.Item>
           <Space size={12} style={{ display: 'flex' }}>
-            <Form.Item name="productId" label="限定产品" style={{ flex: 1 }} extra="留空表示全部产品">
+            <Form.Item
+              name="productId"
+              label="限定产品"
+              style={{ flex: 1 }}
+              extra="留空表示全部产品"
+            >
               <Select
                 allowClear
                 placeholder="全部产品"
@@ -308,7 +326,12 @@ export default function RulePage() {
                 onChange={() => form.setFieldValue('deviceId', undefined)}
               />
             </Form.Item>
-            <Form.Item name="deviceId" label="限定设备" style={{ flex: 1 }} extra="留空表示产品下全部设备">
+            <Form.Item
+              name="deviceId"
+              label="限定设备"
+              style={{ flex: 1 }}
+              extra="留空表示产品下全部设备"
+            >
               <Select
                 allowClear
                 placeholder="全部设备"
@@ -333,7 +356,12 @@ export default function RulePage() {
                 options={['>', '>=', '<', '<=', '==', '!='].map((op) => ({ value: op, label: op }))}
               />
             </Form.Item>
-            <Form.Item name="value" label="阈值" style={{ width: 120 }} rules={[{ required: true }]}>
+            <Form.Item
+              name="value"
+              label="阈值"
+              style={{ width: 120 }}
+              rules={[{ required: true }]}
+            >
               <InputNumber style={{ width: '100%' }} />
             </Form.Item>
             <Form.Item name="durationSec" label="持续(秒)" style={{ width: 120 }} extra="0=即时">
@@ -351,15 +379,15 @@ export default function RulePage() {
                 ]}
               />
             </Form.Item>
-            <Form.Item name="silenceSeconds" label="静默期(秒)" style={{ flex: 1 }} extra="留空取全局默认（300s）">
+            <Form.Item
+              name="silenceSeconds"
+              label="静默期(秒)"
+              style={{ flex: 1 }}
+              extra="留空取全局默认（300s）"
+            >
               <InputNumber min={0} max={86400} style={{ width: '100%' }} />
             </Form.Item>
-            <Form.Item
-              name="enabled"
-              label="启用"
-              valuePropName="checked"
-              style={{ width: 100 }}
-            >
+            <Form.Item name="enabled" label="启用" valuePropName="checked" style={{ width: 100 }}>
               <Switch />
             </Form.Item>
           </Space>

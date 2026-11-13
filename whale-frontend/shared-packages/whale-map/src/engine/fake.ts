@@ -30,7 +30,9 @@ export interface FakeMapEngine extends MapEngine {
  * @param initial 初始中心与缩放
  * @returns 内存引擎
  */
-export function createFakeEngine(initial: { center?: GeoPoint; zoom?: number } = {}): FakeMapEngine {
+export function createFakeEngine(
+  initial: { center?: GeoPoint; zoom?: number } = {},
+): FakeMapEngine {
   let center = initial.center ?? null;
   let zoom = initial.zoom ?? 15;
   let markers: MapMarker[] = [];

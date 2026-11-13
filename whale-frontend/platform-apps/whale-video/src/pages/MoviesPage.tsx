@@ -70,7 +70,11 @@ export default function MoviesPage() {
     }
     fetchCategories()
       .then((list) =>
-        setCategories(list.filter((item) => item.contentTypeScope === 'ALL' || item.contentTypeScope === 'MOVIE')),
+        setCategories(
+          list.filter(
+            (item) => item.contentTypeScope === 'ALL' || item.contentTypeScope === 'MOVIE',
+          ),
+        ),
       )
       .catch(() => setCategories([]));
     fetchCollectionPage({ size: COLLECTION_LIMIT })
@@ -260,13 +264,18 @@ export default function MoviesPage() {
           </Space>
         }
       >
-        {error ? <Alert style={{ marginBottom: 12 }} type="warning" showIcon message={error} /> : null}
+        {error ? (
+          <Alert style={{ marginBottom: 12 }} type="warning" showIcon message={error} />
+        ) : null}
         {loading && records.length === 0 ? (
           <div style={{ padding: 48, textAlign: 'center' }}>
             <Spin />
           </div>
         ) : records.length === 0 ? (
-          <Empty description={keyword ? '没有匹配的电影' : '还没有已上架的电影'} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          <Empty
+            description={keyword ? '没有匹配的电影' : '还没有已上架的电影'}
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+          />
         ) : (
           <Row gutter={[16, 16]}>
             {records.map((record) => (
@@ -283,7 +292,11 @@ export default function MoviesPage() {
                       {record.title}
                     </Typography.Text>
                     {record.originalTitle ? (
-                      <Typography.Text type="secondary" ellipsis style={{ display: 'block', fontSize: 12 }}>
+                      <Typography.Text
+                        type="secondary"
+                        ellipsis
+                        style={{ display: 'block', fontSize: 12 }}
+                      >
                         {record.originalTitle}
                       </Typography.Text>
                     ) : null}

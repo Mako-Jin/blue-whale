@@ -147,7 +147,12 @@ export default function ShipmentPage() {
       dataIndex: 'shipmentNo',
       width: 190,
       render: (value: string, row) => (
-        <Button type="link" size="small" style={{ padding: 0 }} onClick={() => void openDetail(row)}>
+        <Button
+          type="link"
+          size="small"
+          style={{ padding: 0 }}
+          onClick={() => void openDetail(row)}
+        >
           {value}
         </Button>
       ),

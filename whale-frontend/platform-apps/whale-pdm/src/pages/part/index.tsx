@@ -116,7 +116,12 @@ export default function PartLibrary() {
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<PartCategory | null>(null);
   const [categoryParentId, setCategoryParentId] = useState<string>('0');
-  const [categoryForm] = Form.useForm<{ code: string; name: string; sortNo?: number; remark?: string }>();
+  const [categoryForm] = Form.useForm<{
+    code: string;
+    name: string;
+    sortNo?: number;
+    remark?: string;
+  }>();
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingPart, setEditingPart] = useState<PdmPart | null>(null);
@@ -188,7 +193,9 @@ export default function PartLibrary() {
       key: 'status',
       width: 80,
       render: (value: PdmPart['status']) => (
-        <Tag color={value === 'ENABLED' ? 'green' : 'default'}>{value === 'ENABLED' ? '启用' : '停用'}</Tag>
+        <Tag color={value === 'ENABLED' ? 'green' : 'default'}>
+          {value === 'ENABLED' ? '启用' : '停用'}
+        </Tag>
       ),
     },
     {
@@ -378,7 +385,9 @@ export default function PartLibrary() {
                 value,
                 label: config.text,
               }))}
-              onChange={(value) => setFilters((prev) => ({ ...prev, sourceType: value as SourceType }))}
+              onChange={(value) =>
+                setFilters((prev) => ({ ...prev, sourceType: value as SourceType }))
+              }
             />
             <Select
               allowClear
@@ -471,10 +480,18 @@ export default function PartLibrary() {
         destroyOnClose
       >
         <Form form={categoryForm} layout="vertical">
-          <Form.Item name="code" label="分类编码" rules={[{ required: true, message: '请输入分类编码' }]}>
+          <Form.Item
+            name="code"
+            label="分类编码"
+            rules={[{ required: true, message: '请输入分类编码' }]}
+          >
             <Input placeholder="如 BOLT" />
           </Form.Item>
-          <Form.Item name="name" label="分类名称" rules={[{ required: true, message: '请输入分类名称' }]}>
+          <Form.Item
+            name="name"
+            label="分类名称"
+            rules={[{ required: true, message: '请输入分类名称' }]}
+          >
             <Input placeholder="如 螺栓" />
           </Form.Item>
           <Form.Item name="sortNo" label="排序号">

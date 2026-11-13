@@ -33,7 +33,11 @@ const MENU_ITEMS = [
   { key: '/change/notice', label: '变更通知（ECN）', permission: 'sys:pdm:change:notice:list' },
   { key: '/change/trace', label: '变更追溯', permission: 'sys:pdm:change:trace:list' },
   { key: '/process/route', label: '工艺路线', permission: 'sys:pdm:process:list' },
-  { key: '/collab/deliverable', label: '项目交付物', permission: 'sys:pdm:collab:deliverable:list' },
+  {
+    key: '/collab/deliverable',
+    label: '项目交付物',
+    permission: 'sys:pdm:collab:deliverable:list',
+  },
   { key: '/collab/review', label: '研发评审', permission: 'sys:pdm:collab:review:list' },
   { key: '/collab/preview', label: '在线预览', permission: 'sys:pdm:collab:preview:list' },
   { key: '/integration/sync', label: '同步记录', permission: 'sys:pdm:int:sync:list' },

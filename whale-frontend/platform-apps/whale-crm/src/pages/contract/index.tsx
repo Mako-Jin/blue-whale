@@ -198,8 +198,19 @@ export default function ContractPage() {
   };
 
   const columns: TableProps<ContractView>['columns'] = [
-    { title: '合同编号', dataIndex: 'contractNo', width: 170, render: (value?: string | null) => value || '-' },
-    { title: '标题', dataIndex: 'title', width: 200, ellipsis: true, render: (value?: string | null) => value || '-' },
+    {
+      title: '合同编号',
+      dataIndex: 'contractNo',
+      width: 170,
+      render: (value?: string | null) => value || '-',
+    },
+    {
+      title: '标题',
+      dataIndex: 'title',
+      width: 200,
+      ellipsis: true,
+      render: (value?: string | null) => value || '-',
+    },
     {
       title: '客户 ID',
       dataIndex: 'customerId',
@@ -213,7 +224,12 @@ export default function ContractPage() {
       align: 'right',
       render: (value?: number | string | null) => formatAmount(value),
     },
-    { title: '状态', dataIndex: 'status', width: 110, render: (value?: string | null) => value || '-' },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      width: 110,
+      render: (value?: string | null) => value || '-',
+    },
     {
       title: '生效日期',
       dataIndex: 'effectiveDate',
@@ -249,7 +265,12 @@ export default function ContractPage() {
         </Tag>
       ),
     },
-    { title: '负责人', dataIndex: 'ownerId', width: 90, render: (value?: number | null) => value ?? '-' },
+    {
+      title: '负责人',
+      dataIndex: 'ownerId',
+      width: 90,
+      render: (value?: number | null) => value ?? '-',
+    },
     {
       title: '最近同步',
       dataIndex: 'lastSyncAt',
@@ -297,7 +318,12 @@ export default function ContractPage() {
       />
       {tabKey === 'ledger' ? (
         <>
-          <Form form={filterForm} layout="inline" onFinish={handleSearch} style={{ marginBottom: 16, rowGap: 12 }}>
+          <Form
+            form={filterForm}
+            layout="inline"
+            onFinish={handleSearch}
+            style={{ marginBottom: 16, rowGap: 12 }}
+          >
             <Form.Item name="keyword">
               <Input placeholder="合同编号 / 标题" allowClear style={{ width: 190 }} />
             </Form.Item>
@@ -450,9 +476,13 @@ export default function ContractPage() {
                 ? '-'
                 : `${detail.daysToExpire} 天`}
             </Descriptions.Item>
-            <Descriptions.Item label="最近同步">{formatDateTime(detail.lastSyncAt)}</Descriptions.Item>
+            <Descriptions.Item label="最近同步">
+              {formatDateTime(detail.lastSyncAt)}
+            </Descriptions.Item>
             <Descriptions.Item label="续约负责人">{detail.renewalOwnerId ?? '-'}</Descriptions.Item>
-            <Descriptions.Item label="续约时间">{formatDateTime(detail.renewalAt)}</Descriptions.Item>
+            <Descriptions.Item label="续约时间">
+              {formatDateTime(detail.renewalAt)}
+            </Descriptions.Item>
             <Descriptions.Item label="续约备注" span={2}>
               {detail.renewalRemark || '-'}
             </Descriptions.Item>

@@ -156,7 +156,8 @@ function ReturnFormModal({ open, initial, onCancel, onSaved }: ReturnFormModalPr
         reason: initial.reason ?? undefined,
         lines: (initial.items ?? []).map((item) => ({
           orderLineNo: item.orderLineNo ?? 0,
-          quantity: item.quantity === null || item.quantity === undefined ? 1 : Number(item.quantity),
+          quantity:
+            item.quantity === null || item.quantity === undefined ? 1 : Number(item.quantity),
         })),
       });
       if (initial.orderId) {
@@ -234,7 +235,11 @@ function ReturnFormModal({ open, initial, onCancel, onSaved }: ReturnFormModalPr
             <Select
               options={[
                 { value: 'RETURN', label: RETURN_TYPE_LABEL.RETURN },
-                { value: 'EXCHANGE', label: `${RETURN_TYPE_LABEL.EXCHANGE}（暂未开放）`, disabled: true },
+                {
+                  value: 'EXCHANGE',
+                  label: `${RETURN_TYPE_LABEL.EXCHANGE}（暂未开放）`,
+                  disabled: true,
+                },
               ]}
             />
           </Form.Item>
@@ -415,7 +420,9 @@ function ReturnDetailDrawer({ returnId, onClose, onRefresh }: ReturnDetailDrawer
             <Descriptions.Item label="ERP 退货单号">{detail.erpReturnNo || '-'}</Descriptions.Item>
             <Descriptions.Item label="客户编码">{detail.customerCode || '-'}</Descriptions.Item>
             <Descriptions.Item label="客户名称">{detail.customerName || '-'}</Descriptions.Item>
-            <Descriptions.Item label="退货总额">{formatAmount(detail.totalAmount)}</Descriptions.Item>
+            <Descriptions.Item label="退货总额">
+              {formatAmount(detail.totalAmount)}
+            </Descriptions.Item>
             <Descriptions.Item label="下发尝试次数">{detail.pushAttempts ?? '-'}</Descriptions.Item>
             <Descriptions.Item label="ERP 退货单状态">{detail.erpStatus || '-'}</Descriptions.Item>
             <Descriptions.Item label="最近失败原因">{detail.lastError || '-'}</Descriptions.Item>
@@ -434,8 +441,18 @@ function ReturnDetailDrawer({ returnId, onClose, onRefresh }: ReturnDetailDrawer
             columns={[
               { title: '行号', dataIndex: 'lineNo', width: 60 },
               { title: '订单行号', dataIndex: 'orderLineNo', width: 90 },
-              { title: '物料编码', dataIndex: 'itemCode', width: 130, render: (value) => value || '-' },
-              { title: '物料名称', dataIndex: 'itemName', width: 160, render: (value) => value || '-' },
+              {
+                title: '物料编码',
+                dataIndex: 'itemCode',
+                width: 130,
+                render: (value) => value || '-',
+              },
+              {
+                title: '物料名称',
+                dataIndex: 'itemName',
+                width: 160,
+                render: (value) => value || '-',
+              },
               {
                 title: '退货数量',
                 dataIndex: 'quantity',
@@ -548,7 +565,12 @@ export default function ReturnPage() {
         <Tag>{RETURN_TYPE_LABEL[value ?? ''] ?? value ?? '-'}</Tag>
       ),
     },
-    { title: '客户编码', dataIndex: 'customerCode', width: 130, render: (value?: string | null) => value || '-' },
+    {
+      title: '客户编码',
+      dataIndex: 'customerCode',
+      width: 130,
+      render: (value?: string | null) => value || '-',
+    },
     {
       title: '商务订单 ID',
       dataIndex: 'orderId',
@@ -669,7 +691,12 @@ export default function ReturnPage() {
         )
       }
     >
-      <Form form={filterForm} layout="inline" onFinish={handleSearch} style={{ marginBottom: 16, rowGap: 12 }}>
+      <Form
+        form={filterForm}
+        layout="inline"
+        onFinish={handleSearch}
+        style={{ marginBottom: 16, rowGap: 12 }}
+      >
         <Form.Item name="keyword">
           <Input placeholder="申请单号 / 原因" allowClear style={{ width: 200 }} />
         </Form.Item>
@@ -680,7 +707,12 @@ export default function ReturnPage() {
           <InputNumber min={1} precision={0} placeholder="客户 ID" style={{ width: 130 }} />
         </Form.Item>
         <Form.Item name="status">
-          <Select placeholder="申请状态" allowClear style={{ width: 140 }} options={RETURN_STATUS_OPTIONS} />
+          <Select
+            placeholder="申请状态"
+            allowClear
+            style={{ width: 140 }}
+            options={RETURN_STATUS_OPTIONS}
+          />
         </Form.Item>
         <Form.Item>
           <Space>
@@ -707,7 +739,8 @@ export default function ReturnPage() {
         }}
       />
       <Typography.Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
-        审批由 workflow 负责；退货过账（库存 / 应收 / 凭证）归 ERP，CRM 通过 outbox 幂等下发并按申请单号对账。
+        审批由 workflow 负责；退货过账（库存 / 应收 / 凭证）归 ERP，CRM 通过 outbox
+        幂等下发并按申请单号对账。
       </Typography.Text>
 
       <ReturnFormModal

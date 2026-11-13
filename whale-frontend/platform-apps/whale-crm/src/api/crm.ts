@@ -384,18 +384,12 @@ export function listContacts(customerId: number): Promise<ContactView[]> {
 }
 
 /** 新建联系人 */
-export function createContact(
-  customerId: number,
-  input: ContactSaveInput,
-): Promise<ContactView> {
+export function createContact(customerId: number, input: ContactSaveInput): Promise<ContactView> {
   return http.post<ContactView>(`/crm/customer/${customerId}/contact`, input);
 }
 
 /** 编辑联系人 */
-export function updateContact(
-  contactId: number,
-  input: ContactSaveInput,
-): Promise<ContactView> {
+export function updateContact(contactId: number, input: ContactSaveInput): Promise<ContactView> {
   return http.put<ContactView>(`/crm/customer/contact/${contactId}`, input);
 }
 
@@ -464,10 +458,7 @@ export function releasePoolCustomer(id: number, remark?: string): Promise<Custom
 }
 
 /** 分配客户负责人 */
-export function assignPoolCustomer(
-  id: number,
-  input: PoolAssignInput,
-): Promise<CustomerView> {
+export function assignPoolCustomer(id: number, input: PoolAssignInput): Promise<CustomerView> {
   return http.post<CustomerView>(`/crm/pool/${id}/assign`, input);
 }
 
@@ -791,9 +782,7 @@ export function getOpportunity(id: number): Promise<OpportunityView> {
 }
 
 /** 商机阶段历史 */
-export function listOpportunityStageHistory(
-  id: number,
-): Promise<OpportunityStageHistoryView[]> {
+export function listOpportunityStageHistory(id: number): Promise<OpportunityStageHistoryView[]> {
   return http.get<OpportunityStageHistoryView[]>(`/crm/opportunity/${id}/history`);
 }
 
@@ -987,9 +976,7 @@ export interface ForecastAdjustInput {
 }
 
 /** 预测快照分页 */
-export function pageForecasts(
-  query: ForecastPageQuery,
-): Promise<PageResult<ForecastSnapshotView>> {
+export function pageForecasts(query: ForecastPageQuery): Promise<PageResult<ForecastSnapshotView>> {
   return http.get<PageResult<ForecastSnapshotView>>('/crm/forecast/page', { ...query });
 }
 
@@ -1102,9 +1089,7 @@ export function getSalesTargetCompletion(id: number): Promise<TargetCompletionVi
 }
 
 /** 销售目标调整记录 */
-export function listSalesTargetAdjustments(
-  id: number,
-): Promise<SalesTargetAdjustmentView[]> {
+export function listSalesTargetAdjustments(id: number): Promise<SalesTargetAdjustmentView[]> {
   return http.get<SalesTargetAdjustmentView[]>(`/crm/sales-target/${id}/adjustments`);
 }
 

@@ -5,7 +5,13 @@
 import { Button, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, message } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { changeCourseStatus, createCourse, deleteCourse, pageCourses, type CourseItem } from '../api/course';
+import {
+  changeCourseStatus,
+  createCourse,
+  deleteCourse,
+  pageCourses,
+  type CourseItem,
+} from '../api/course';
 import { hasPermission } from '../api/client';
 
 /** 状态展示映射 */
@@ -58,7 +64,12 @@ export default function CourseListPage() {
 
   const refresh = () => load(current, filters);
 
-  const onCreate = async (values: { courseCode?: string; title: string; category?: string; lecturer?: string }) => {
+  const onCreate = async (values: {
+    courseCode?: string;
+    title: string;
+    category?: string;
+    lecturer?: string;
+  }) => {
     setCreating(true);
     try {
       await createCourse(values);
@@ -152,21 +163,30 @@ export default function CourseListPage() {
                   详情
                 </Button>
                 {canStatus && row.status === 'DRAFT' && (
-                  <Popconfirm title="确认发布？发布前需至少 1 个章节" onConfirm={() => void onStatus(row, 'PUBLISH')}>
+                  <Popconfirm
+                    title="确认发布？发布前需至少 1 个章节"
+                    onConfirm={() => void onStatus(row, 'PUBLISH')}
+                  >
                     <Button size="small" type="link">
                       发布
                     </Button>
                   </Popconfirm>
                 )}
                 {canStatus && row.status === 'PUBLISHED' && (
-                  <Popconfirm title="确认归档下架？" onConfirm={() => void onStatus(row, 'ARCHIVE')}>
+                  <Popconfirm
+                    title="确认归档下架？"
+                    onConfirm={() => void onStatus(row, 'ARCHIVE')}
+                  >
                     <Button size="small" type="link">
                       归档
                     </Button>
                   </Popconfirm>
                 )}
                 {canDelete && row.status !== 'PUBLISHED' && (
-                  <Popconfirm title="确认删除课程及其章节课件？" onConfirm={() => void onDelete(row)}>
+                  <Popconfirm
+                    title="确认删除课程及其章节课件？"
+                    onConfirm={() => void onDelete(row)}
+                  >
                     <Button size="small" type="link" danger>
                       删除
                     </Button>
@@ -186,10 +206,18 @@ export default function CourseListPage() {
         onOk={() => form.submit()}
       >
         <Form form={form} layout="vertical" onFinish={onCreate}>
-          <Form.Item name="courseCode" label="课程编码" rules={[{ required: true, message: '请输入课程编码' }]}>
+          <Form.Item
+            name="courseCode"
+            label="课程编码"
+            rules={[{ required: true, message: '请输入课程编码' }]}
+          >
             <Input placeholder="如 SAFE-01（自动大写归一）" />
           </Form.Item>
-          <Form.Item name="title" label="课程名称" rules={[{ required: true, message: '请输入课程名称' }]}>
+          <Form.Item
+            name="title"
+            label="课程名称"
+            rules={[{ required: true, message: '请输入课程名称' }]}
+          >
             <Input />
           </Form.Item>
           <Form.Item name="category" label="分类">

@@ -148,7 +148,11 @@ function KbFormModal({ open, record, onCancel, onSaved }: KbFormModalProps) {
       destroyOnClose
     >
       <Form form={form} layout="vertical" preserve={false}>
-        <Form.Item name="title" label="FAQ 标题" rules={[{ required: true, message: '请输入 FAQ 标题' }]}>
+        <Form.Item
+          name="title"
+          label="FAQ 标题"
+          rules={[{ required: true, message: '请输入 FAQ 标题' }]}
+        >
           <Input maxLength={255} showCount />
         </Form.Item>
         <Space size={12} style={{ display: 'flex' }}>
@@ -257,7 +261,12 @@ export default function KbPage() {
 
   const columns: TableProps<KbRefView>['columns'] = [
     { title: 'FAQ 标题', dataIndex: 'title', width: 260, ellipsis: true },
-    { title: '分类', dataIndex: 'category', width: 120, render: (value?: string | null) => value || '-' },
+    {
+      title: '分类',
+      dataIndex: 'category',
+      width: 120,
+      render: (value?: string | null) => value || '-',
+    },
     {
       title: '标签',
       dataIndex: 'productTags',
@@ -284,7 +293,9 @@ export default function KbPage() {
           <Typography.Text>{row.docId ? `#${row.docId}` : '未关联'}</Typography.Text>
           {row.docVersion ? <Tag>v{row.docVersion}</Tag> : null}
           {row.docId ? (
-            <Tag color={row.docAvailable ? 'green' : 'red'}>{row.docAvailable ? '可用' : '不可用'}</Tag>
+            <Tag color={row.docAvailable ? 'green' : 'red'}>
+              {row.docAvailable ? '可用' : '不可用'}
+            </Tag>
           ) : null}
         </Space>
       ),
@@ -300,7 +311,9 @@ export default function KbPage() {
       dataIndex: 'status',
       width: 100,
       render: (value?: string | null) => (
-        <Tag color={KB_STATUS_COLOR[value ?? '']}>{KB_STATUS_LABEL[value ?? ''] ?? value ?? '-'}</Tag>
+        <Tag color={KB_STATUS_COLOR[value ?? '']}>
+          {KB_STATUS_LABEL[value ?? ''] ?? value ?? '-'}
+        </Tag>
       ),
     },
     {
@@ -328,7 +341,11 @@ export default function KbPage() {
             </Button>
           )}
           {hasPermission('sys:crm:kb:manage') && (
-            <Popconfirm title="删除知识引用" description="仅删除 CRM 元数据，不删除 whale-doc 正文" onConfirm={() => void handleDelete(row)}>
+            <Popconfirm
+              title="删除知识引用"
+              description="仅删除 CRM 元数据，不删除 whale-doc 正文"
+              onConfirm={() => void handleDelete(row)}
+            >
               <Button size="small" type="link" danger>
                 删除
               </Button>
@@ -356,7 +373,12 @@ export default function KbPage() {
         )
       }
     >
-      <Form form={filterForm} layout="inline" onFinish={handleSearch} style={{ marginBottom: 16, rowGap: 12 }}>
+      <Form
+        form={filterForm}
+        layout="inline"
+        onFinish={handleSearch}
+        style={{ marginBottom: 16, rowGap: 12 }}
+      >
         <Form.Item name="keyword">
           <Input placeholder="标题 / 产品标签 / 故障标签" allowClear style={{ width: 240 }} />
         </Form.Item>
@@ -364,10 +386,20 @@ export default function KbPage() {
           <Input placeholder="分类" allowClear style={{ width: 140 }} />
         </Form.Item>
         <Form.Item name="visibleScope">
-          <Select placeholder="可见范围" allowClear style={{ width: 140 }} options={KB_VISIBLE_SCOPE_OPTIONS} />
+          <Select
+            placeholder="可见范围"
+            allowClear
+            style={{ width: 140 }}
+            options={KB_VISIBLE_SCOPE_OPTIONS}
+          />
         </Form.Item>
         <Form.Item name="status">
-          <Select placeholder="状态" allowClear style={{ width: 120 }} options={KB_STATUS_OPTIONS} />
+          <Select
+            placeholder="状态"
+            allowClear
+            style={{ width: 120 }}
+            options={KB_STATUS_OPTIONS}
+          />
         </Form.Item>
         <Form.Item>
           <Space>

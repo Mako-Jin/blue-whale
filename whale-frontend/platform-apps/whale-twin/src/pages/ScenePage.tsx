@@ -85,9 +85,8 @@ interface DeptTreeNode {
  */
 function toDeptTreeData(nodes: TwinNotifyDeptVO[]): DeptTreeNode[] {
   return nodes.map((node) => {
-    const children = node.children && node.children.length > 0
-      ? toDeptTreeData(node.children)
-      : undefined;
+    const children =
+      node.children && node.children.length > 0 ? toDeptTreeData(node.children) : undefined;
     return { title: node.name, value: node.id, children };
   });
 }
@@ -637,7 +636,12 @@ export default function ScenePage({ onOpenViewer }: Props) {
           <Button size="small" type="link" onClick={() => onOpenViewer(scene.id)}>
             查看
           </Button>
-          <Button size="small" type="link" disabled={scene.status === 'published'} onClick={() => openEdit(scene)}>
+          <Button
+            size="small"
+            type="link"
+            disabled={scene.status === 'published'}
+            onClick={() => openEdit(scene)}
+          >
             编辑
           </Button>
           <Button size="small" type="link" onClick={() => void toggleStatus(scene)}>
@@ -777,13 +781,20 @@ export default function ScenePage({ onOpenViewer }: Props) {
             label="编码"
             rules={[
               { required: true, message: '请输入场景编码' },
-              { pattern: /^[a-z][a-z0-9-]{1,63}$/, message: '小写字母开头的字母/数字/中划线，2-64 位' },
+              {
+                pattern: /^[a-z][a-z0-9-]{1,63}$/,
+                message: '小写字母开头的字母/数字/中划线，2-64 位',
+              },
             ]}
             extra={editing ? '编码创建后不可修改' : '租户内唯一，如 plant-demo'}
           >
             <Input disabled={!!editing} placeholder="plant-demo" />
           </Form.Item>
-          <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入场景名称' }]}>
+          <Form.Item
+            name="name"
+            label="名称"
+            rules={[{ required: true, message: '请输入场景名称' }]}
+          >
             <Input placeholder="示范厂区" maxLength={128} />
           </Form.Item>
           <Form.Item name="description" label="描述">
@@ -813,7 +824,11 @@ export default function ScenePage({ onOpenViewer }: Props) {
       </Drawer>
       {/* 发布确认弹窗（M3：发布说明冻结进快照） */}
       <Modal
-        title={publishTarget ? `发布场景：${publishTarget.name}（v${publishTarget.version}）` : '发布场景'}
+        title={
+          publishTarget
+            ? `发布场景：${publishTarget.name}（v${publishTarget.version}）`
+            : '发布场景'
+        }
         open={!!publishTarget}
         onOk={() => void confirmPublish()}
         okText="发布"
@@ -853,11 +868,7 @@ export default function ScenePage({ onOpenViewer }: Props) {
                 description="当前实体/绑定/标注将被快照内容整包替换"
                 onConfirm={() => void rollback(snapshot)}
               >
-                <Button
-                  size="small"
-                  type="link"
-                  disabled={snapshotScene?.status === 'published'}
-                >
+                <Button size="small" type="link" disabled={snapshotScene?.status === 'published'}>
                   回滚
                 </Button>
               </Popconfirm>
@@ -897,7 +908,9 @@ export default function ScenePage({ onOpenViewer }: Props) {
         title={
           <Space>
             <span>全局告警（未恢复）</span>
-            {summary && <Tag color={summary.critical > 0 ? 'red' : 'orange'}>{summary.unresolved}</Tag>}
+            {summary && (
+              <Tag color={summary.critical > 0 ? 'red' : 'orange'}>{summary.unresolved}</Tag>
+            )}
           </Space>
         }
         width={560}
@@ -941,7 +954,9 @@ export default function ScenePage({ onOpenViewer }: Props) {
               { label: '严重', value: 'critical' },
               { label: '预警', value: 'warn' },
             ]}
-            onChange={(event) => setOverviewLevel(event.target.value as 'all' | 'critical' | 'warn')}
+            onChange={(event) =>
+              setOverviewLevel(event.target.value as 'all' | 'critical' | 'warn')
+            }
           />
           <Checkbox
             checked={overviewUnackedOnly}
@@ -1024,7 +1039,8 @@ export default function ScenePage({ onOpenViewer }: Props) {
         )}
         {overviewSceneMissing > 0 && (
           <p style={{ color: '#faad14', marginTop: 12, marginBottom: 0 }}>
-            该场景还有 {overviewSceneMissing} 条未恢复告警不在本次加载范围内，请在查看器告警中心查看。
+            该场景还有 {overviewSceneMissing}{' '}
+            条未恢复告警不在本次加载范围内，请在查看器告警中心查看。
           </p>
         )}
       </Drawer>
@@ -1087,7 +1103,8 @@ export default function ScenePage({ onOpenViewer }: Props) {
                 <Radio value="critical">仅严重</Radio>
               </Radio.Group>
               <div className="twin-live-off" style={{ marginTop: 4 }}>
-                实际生效：{notifySettings.effectiveMinLevel === 'critical' ? '仅严重' : '预警及以上'}
+                实际生效：
+                {notifySettings.effectiveMinLevel === 'critical' ? '仅严重' : '预警及以上'}
               </div>
             </div>
             <div>
@@ -1162,7 +1179,9 @@ export default function ScenePage({ onOpenViewer }: Props) {
               </Space>
               <div className="twin-live-off" style={{ marginTop: 4 }}>
                 可跨零点；静默期只拦预警，
-                {notifySettings.quietCriticalBypass ? '严重告警照常外发。' : '严重告警也会被拦（全局已关穿透）。'}
+                {notifySettings.quietCriticalBypass
+                  ? '严重告警照常外发。'
+                  : '严重告警也会被拦（全局已关穿透）。'}
               </div>
             </div>
           </Space>

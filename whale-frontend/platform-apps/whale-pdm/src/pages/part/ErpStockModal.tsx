@@ -2,11 +2,26 @@
 import { useEffect, useState } from 'react';
 import { Alert, Descriptions, Modal, Table, Tag } from 'antd';
 import type { TableProps } from 'antd';
-import { getPartErpStock, type PartErpStock, type PartErpWarehouse, type PdmPart } from '../../api/part';
+import {
+  getPartErpStock,
+  type PartErpStock,
+  type PartErpWarehouse,
+  type PdmPart,
+} from '../../api/part';
 
 const WAREHOUSE_COLUMNS: TableProps<PartErpWarehouse>['columns'] = [
-  { title: '仓库ID', dataIndex: 'warehouseId', width: 100, render: (value?: string) => value || '—' },
-  { title: '仓库编码', dataIndex: 'warehouseCode', width: 140, render: (value?: string) => value || '—' },
+  {
+    title: '仓库ID',
+    dataIndex: 'warehouseId',
+    width: 100,
+    render: (value?: string) => value || '—',
+  },
+  {
+    title: '仓库编码',
+    dataIndex: 'warehouseCode',
+    width: 140,
+    render: (value?: string) => value || '—',
+  },
   { title: '仓库名称', dataIndex: 'warehouseName', render: (value?: string) => value || '—' },
   { title: '数量', dataIndex: 'quantity', width: 120 },
 ];
@@ -48,7 +63,9 @@ export default function ErpStockModal({ part, onClose }: ErpStockModalProps) {
         <Descriptions.Item label="ERP 物料编码">{data?.erpItemCode || '—'}</Descriptions.Item>
         <Descriptions.Item label="物料状态">
           {data?.itemExists ? (
-            <Tag color={data.itemStatus === 'ENABLED' ? 'green' : 'default'}>{data.itemStatus || '存在'}</Tag>
+            <Tag color={data.itemStatus === 'ENABLED' ? 'green' : 'default'}>
+              {data.itemStatus || '存在'}
+            </Tag>
           ) : (
             <Tag>未同步</Tag>
           )}

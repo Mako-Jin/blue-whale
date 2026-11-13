@@ -162,7 +162,10 @@ export default function StocktakePage() {
             查看
           </Button>
           {record.status === 'DRAFT' && hasPermission('sys:erp:stocktake:post') ? (
-            <Popconfirm title="过账后将生成差异流水与凭证，确认继续？" onConfirm={() => handlePost(record.id)}>
+            <Popconfirm
+              title="过账后将生成差异流水与凭证，确认继续？"
+              onConfirm={() => handlePost(record.id)}
+            >
               <Button type="link" size="small">
                 过账
               </Button>
@@ -183,7 +186,13 @@ export default function StocktakePage() {
   const countedColumns: TableProps<CountedRow>['columns'] = [
     { title: '物料编码', dataIndex: 'itemCode', key: 'itemCode', width: 140 },
     { title: '物料名称', dataIndex: 'itemName', key: 'itemName' },
-    { title: '账面数量', dataIndex: 'bookQuantity', key: 'bookQuantity', width: 110, render: quantity },
+    {
+      title: '账面数量',
+      dataIndex: 'bookQuantity',
+      key: 'bookQuantity',
+      width: 110,
+      render: quantity,
+    },
     {
       title: '实盘数量',
       dataIndex: 'countedQuantity',
@@ -220,8 +229,20 @@ export default function StocktakePage() {
     { title: '物料编码', dataIndex: 'itemCode', key: 'itemCode', width: 140 },
     { title: '物料名称', dataIndex: 'itemName', key: 'itemName' },
     { title: '单位', dataIndex: 'uom', key: 'uom', width: 80 },
-    { title: '账面数量', dataIndex: 'bookQuantity', key: 'bookQuantity', width: 110, render: quantity },
-    { title: '实盘数量', dataIndex: 'countedQuantity', key: 'countedQuantity', width: 110, render: quantity },
+    {
+      title: '账面数量',
+      dataIndex: 'bookQuantity',
+      key: 'bookQuantity',
+      width: 110,
+      render: quantity,
+    },
+    {
+      title: '实盘数量',
+      dataIndex: 'countedQuantity',
+      key: 'countedQuantity',
+      width: 110,
+      render: quantity,
+    },
     { title: '差异', dataIndex: 'difference', key: 'difference', width: 100, render: quantity },
     { title: '单位成本', dataIndex: 'unitCost', key: 'unitCost', width: 110, render: money },
     { title: '金额', dataIndex: 'amount', key: 'amount', width: 110, render: money },
@@ -239,10 +260,16 @@ export default function StocktakePage() {
         <Button onClick={() => setStatus(undefined)} type={status ? 'default' : 'primary'}>
           全部
         </Button>
-        <Button onClick={() => setStatus('DRAFT')} type={status === 'DRAFT' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('DRAFT')}
+          type={status === 'DRAFT' ? 'primary' : 'default'}
+        >
           草稿
         </Button>
-        <Button onClick={() => setStatus('POSTED')} type={status === 'POSTED' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('POSTED')}
+          type={status === 'POSTED' ? 'primary' : 'default'}
+        >
           已过账
         </Button>
         {hasPermission('sys:erp:stocktake:add') ? (
@@ -262,7 +289,11 @@ export default function StocktakePage() {
       >
         <Form form={form} layout="vertical">
           <Space size="large" wrap>
-            <Form.Item name="warehouseId" label="盘点仓库" rules={[{ required: true, message: '请选择仓库' }]}>
+            <Form.Item
+              name="warehouseId"
+              label="盘点仓库"
+              rules={[{ required: true, message: '请选择仓库' }]}
+            >
               <Select
                 showSearch
                 optionFilterProp="label"

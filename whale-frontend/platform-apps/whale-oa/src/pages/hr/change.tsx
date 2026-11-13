@@ -293,7 +293,9 @@ export default function EmployeeChangePage() {
           </Button>
           {canManage ? (
             <>
-              {record.status === 'DRAFT' || record.status === 'REJECTED' || record.status === 'EXEC_FAILED' ? (
+              {record.status === 'DRAFT' ||
+              record.status === 'REJECTED' ||
+              record.status === 'EXEC_FAILED' ? (
                 <Button type="link" size="small" onClick={() => void openEdit(record)}>
                   编辑
                 </Button>
@@ -331,7 +333,11 @@ export default function EmployeeChangePage() {
           value={query.changeType}
           options={Object.entries(TYPE_META).map(([value, label]) => ({ value, label }))}
           onChange={(value) =>
-            setQuery((prev) => ({ ...prev, current: 1, changeType: value as EmployeeChangeType | undefined }))
+            setQuery((prev) => ({
+              ...prev,
+              current: 1,
+              changeType: value as EmployeeChangeType | undefined,
+            }))
           }
         />
         <Select
@@ -339,9 +345,16 @@ export default function EmployeeChangePage() {
           placeholder="状态"
           style={{ width: 130 }}
           value={query.status}
-          options={Object.entries(STATUS_META).map(([value, meta]) => ({ value, label: meta.text }))}
+          options={Object.entries(STATUS_META).map(([value, meta]) => ({
+            value,
+            label: meta.text,
+          }))}
           onChange={(value) =>
-            setQuery((prev) => ({ ...prev, current: 1, status: value as EmployeeChangeStatus | undefined }))
+            setQuery((prev) => ({
+              ...prev,
+              current: 1,
+              status: value as EmployeeChangeStatus | undefined,
+            }))
           }
         />
         {canManage ? (
@@ -377,17 +390,30 @@ export default function EmployeeChangePage() {
         destroyOnClose
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="changeType" label="异动类型" rules={[{ required: true, message: '请选择异动类型' }]}>
+          <Form.Item
+            name="changeType"
+            label="异动类型"
+            rules={[{ required: true, message: '请选择异动类型' }]}
+          >
             <Select
               options={Object.entries(TYPE_META).map(([value, label]) => ({ value, label }))}
               disabled={Boolean(editing)}
             />
           </Form.Item>
-          <Form.Item name="employeeName" label="员工姓名" rules={[{ required: true, message: '请输入员工姓名' }]}>
+          <Form.Item
+            name="employeeName"
+            label="员工姓名"
+            rules={[{ required: true, message: '请输入员工姓名' }]}
+          >
             <Input maxLength={64} />
           </Form.Item>
           <Form.Item name="userId" label="员工用户ID">
-            <InputNumber style={{ width: '100%' }} min={1} precision={0} placeholder="入职建号时选填" />
+            <InputNumber
+              style={{ width: '100%' }}
+              min={1}
+              precision={0}
+              placeholder="入职建号时选填"
+            />
           </Form.Item>
           <Form.Item name="username" label="登录账号">
             <Input maxLength={64} placeholder="入职未建号时填写" />
@@ -404,18 +430,28 @@ export default function EmployeeChangePage() {
             <Form.Item name="fromStatus" label="原在职状态" style={{ flex: 1 }}>
               <Select
                 allowClear
-                options={Object.entries(EMPLOYMENT_META).map(([value, label]) => ({ value, label }))}
+                options={Object.entries(EMPLOYMENT_META).map(([value, label]) => ({
+                  value,
+                  label,
+                }))}
               />
             </Form.Item>
             <Form.Item name="toStatus" label="目标在职状态" style={{ flex: 1 }}>
               <Select
                 allowClear
                 placeholder="留空按类型默认"
-                options={Object.entries(EMPLOYMENT_META).map(([value, label]) => ({ value, label }))}
+                options={Object.entries(EMPLOYMENT_META).map(([value, label]) => ({
+                  value,
+                  label,
+                }))}
               />
             </Form.Item>
           </Space>
-          <Form.Item name="effectiveDate" label="生效日期" rules={[{ required: true, message: '请选择生效日期' }]}>
+          <Form.Item
+            name="effectiveDate"
+            label="生效日期"
+            rules={[{ required: true, message: '请选择生效日期' }]}
+          >
             <DatePicker style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="reason" label="异动原因">
@@ -436,15 +472,25 @@ export default function EmployeeChangePage() {
           <Space direction="vertical" size="middle" style={{ width: '100%' }}>
             <Descriptions column={2} size="small" bordered>
               <Descriptions.Item label="员工">{detail.employeeName}</Descriptions.Item>
-              <Descriptions.Item label="状态">{STATUS_META[detail.status]?.text ?? detail.status}</Descriptions.Item>
+              <Descriptions.Item label="状态">
+                {STATUS_META[detail.status]?.text ?? detail.status}
+              </Descriptions.Item>
               <Descriptions.Item label="生效日期">{detail.effectiveDate || '-'}</Descriptions.Item>
               <Descriptions.Item label="申请人">{detail.applicantName || '-'}</Descriptions.Item>
               <Descriptions.Item label="原部门">{detail.fromDeptId ?? '-'}</Descriptions.Item>
               <Descriptions.Item label="目标部门">{detail.toDeptId ?? '-'}</Descriptions.Item>
-              <Descriptions.Item label="原状态">{detail.fromStatus ? EMPLOYMENT_META[detail.fromStatus] : '-'}</Descriptions.Item>
-              <Descriptions.Item label="目标状态">{detail.toStatus ? EMPLOYMENT_META[detail.toStatus] : '-'}</Descriptions.Item>
-              <Descriptions.Item label="原因" span={2}>{detail.reason || '-'}</Descriptions.Item>
-              <Descriptions.Item label="执行结果" span={2}>{detail.executeResult || '-'}</Descriptions.Item>
+              <Descriptions.Item label="原状态">
+                {detail.fromStatus ? EMPLOYMENT_META[detail.fromStatus] : '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="目标状态">
+                {detail.toStatus ? EMPLOYMENT_META[detail.toStatus] : '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="原因" span={2}>
+                {detail.reason || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="执行结果" span={2}>
+                {detail.executeResult || '-'}
+              </Descriptions.Item>
             </Descriptions>
             {detail.tasks && detail.tasks.length > 0 ? (
               <Table<EmployeeChangeTask>
@@ -471,7 +517,11 @@ export default function EmployeeChangePage() {
                     width: 100,
                     render: (_value, task) =>
                       canManage && task.status === 'PENDING' ? (
-                        <Button type="link" size="small" onClick={() => void finishTask(detail.id, task)}>
+                        <Button
+                          type="link"
+                          size="small"
+                          onClick={() => void finishTask(detail.id, task)}
+                        >
                           完成
                         </Button>
                       ) : null,

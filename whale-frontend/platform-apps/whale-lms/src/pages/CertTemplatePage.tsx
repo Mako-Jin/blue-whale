@@ -4,7 +4,19 @@
 // 口径：模板决定发证前校验什么——「考试通过」发证时服务端会核实成绩，
 // 前端在这里只负责把依据说清楚，不重复实现校验。
 
-import { Button, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag, message } from 'antd';
+import {
+  Button,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Popconfirm,
+  Select,
+  Space,
+  Table,
+  Tag,
+  message,
+} from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import { hasPermission } from '../api/client';
 import {
@@ -62,17 +74,25 @@ export default function CertTemplatePage() {
 
   const canManage = hasPermission('sys:lms:cert:template');
 
-  const load = useCallback(async (page = 1, nextKeyword = keyword, nextStatus = status) => {
-    setLoading(true);
-    try {
-      const data = await pageCertTemplates({ keyword: nextKeyword, status: nextStatus, current: page, size: 10 });
-      setRows((data.records ?? []).map((item) => ({ ...item, key: String(item.id) })));
-      setTotal(data.total ?? 0);
-      setCurrent(page);
-    } finally {
-      setLoading(false);
-    }
-  }, [keyword, status]);
+  const load = useCallback(
+    async (page = 1, nextKeyword = keyword, nextStatus = status) => {
+      setLoading(true);
+      try {
+        const data = await pageCertTemplates({
+          keyword: nextKeyword,
+          status: nextStatus,
+          current: page,
+          size: 10,
+        });
+        setRows((data.records ?? []).map((item) => ({ ...item, key: String(item.id) })));
+        setTotal(data.total ?? 0);
+        setCurrent(page);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [keyword, status],
+  );
 
   useEffect(() => {
     void load(1, undefined, undefined);
@@ -83,7 +103,12 @@ export default function CertTemplatePage() {
   const openCreate = () => {
     setEditing(null);
     form.resetFields();
-    form.setFieldsValue({ issueBasis: 'MANUAL', validMonths: 0, certPrefix: 'CERT', category: 'GENERAL' });
+    form.setFieldsValue({
+      issueBasis: 'MANUAL',
+      validMonths: 0,
+      certPrefix: 'CERT',
+      category: 'GENERAL',
+    });
     setOpen(true);
   };
 
@@ -147,7 +172,10 @@ export default function CertTemplatePage() {
           placeholder="状态"
           allowClear
           style={{ width: 120 }}
-          options={Object.entries(STATUS_TAG).map(([value, item]) => ({ value, label: item.label }))}
+          options={Object.entries(STATUS_TAG).map(([value, item]) => ({
+            value,
+            label: item.label,
+          }))}
           onChange={(value) => {
             setStatus(value || undefined);
             void load(1, keyword, value || undefined);
@@ -164,7 +192,12 @@ export default function CertTemplatePage() {
         rowKey="key"
         loading={loading}
         dataSource={rows}
-        pagination={{ current, total, pageSize: 10, onChange: (page) => void load(page, keyword, status) }}
+        pagination={{
+          current,
+          total,
+          pageSize: 10,
+          onChange: (page) => void load(page, keyword, status),
+        }}
         columns={[
           { title: '模板编码', dataIndex: 'templateCode', width: 150 },
           { title: '证书名称', dataIndex: 'name' },
@@ -202,7 +235,11 @@ export default function CertTemplatePage() {
                 )}
                 {canManage && (
                   <Popconfirm
-                    title={row.status === 'ENABLED' ? '停用后不可用于新的发证，确认？' : '确认启用该模板？'}
+                    title={
+                      row.status === 'ENABLED'
+                        ? '停用后不可用于新的发证，确认？'
+                        : '确认启用该模板？'
+                    }
                     onConfirm={() => void onToggle(row)}
                   >
                     <Button size="small" type="link">
@@ -211,7 +248,10 @@ export default function CertTemplatePage() {
                   </Popconfirm>
                 )}
                 {canManage && (
-                  <Popconfirm title="确认删除该模板？（已发过证的模板会被拒绝）" onConfirm={() => void onDelete(row)}>
+                  <Popconfirm
+                    title="确认删除该模板？（已发过证的模板会被拒绝）"
+                    onConfirm={() => void onDelete(row)}
+                  >
                     <Button size="small" type="link" danger>
                       删除
                     </Button>
@@ -233,10 +273,18 @@ export default function CertTemplatePage() {
         width={640}
       >
         <Form form={form} layout="vertical" onFinish={onSubmit}>
-          <Form.Item name="templateCode" label="模板编码" rules={[{ required: true, message: '请输入模板编码' }]}>
+          <Form.Item
+            name="templateCode"
+            label="模板编码"
+            rules={[{ required: true, message: '请输入模板编码' }]}
+          >
             <Input placeholder="如 CERT-SAFETY（自动大写归一）" />
           </Form.Item>
-          <Form.Item name="name" label="证书名称" rules={[{ required: true, message: '请输入证书名称' }]}>
+          <Form.Item
+            name="name"
+            label="证书名称"
+            rules={[{ required: true, message: '请输入证书名称' }]}
+          >
             <Input placeholder="如 安全生产培训合格证" />
           </Form.Item>
           <Space size="middle" style={{ display: 'flex' }}>
@@ -255,15 +303,29 @@ export default function CertTemplatePage() {
             </Form.Item>
           </Space>
           <Space size="middle" style={{ display: 'flex' }}>
-            <Form.Item name="validMonths" label="有效期（月）" style={{ flex: 1 }} extra="0 表示长期有效">
+            <Form.Item
+              name="validMonths"
+              label="有效期（月）"
+              style={{ flex: 1 }}
+              extra="0 表示长期有效"
+            >
               <InputNumber min={0} max={600} style={{ width: '100%' }} />
             </Form.Item>
-            <Form.Item name="certPrefix" label="编号前缀" style={{ flex: 1 }} extra="2–16 位大写字母或数字">
+            <Form.Item
+              name="certPrefix"
+              label="编号前缀"
+              style={{ flex: 1 }}
+              extra="2–16 位大写字母或数字"
+            >
               <Input placeholder="CERT" />
             </Form.Item>
           </Space>
           <Form.Item name="content" label="证书正文">
-            <Input.TextArea rows={3} maxLength={4000} placeholder="可写颁发词，编号与持证人由系统填充" />
+            <Input.TextArea
+              rows={3}
+              maxLength={4000}
+              placeholder="可写颁发词，编号与持证人由系统填充"
+            />
           </Form.Item>
           <Form.Item name="remark" label="备注">
             <Input.TextArea rows={2} maxLength={500} />

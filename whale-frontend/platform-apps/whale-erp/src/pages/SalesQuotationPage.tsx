@@ -27,7 +27,12 @@ import {
   type SalesQuotationView,
 } from '../api/scm';
 import { listErpItems, type ErpItem } from '../api/erp';
-import { pageCustomers, pageWarehouses, type ErpCustomer, type ErpWarehouse } from '../api/masterdata';
+import {
+  pageCustomers,
+  pageWarehouses,
+  type ErpCustomer,
+  type ErpWarehouse,
+} from '../api/masterdata';
 import { hasPermission } from '../utils/permission';
 import { SCM_STATUS_LABEL, money, quantity, scmStatusColor } from '../utils/scm';
 
@@ -187,7 +192,10 @@ export default function SalesQuotationPage() {
             </Popconfirm>
           ) : null}
           {record.status === 'ACCEPTED' && hasPermission('sys:erp:sales-quotation:convert') ? (
-            <Popconfirm title="转单后将生成销售订单草稿，确认继续？" onConfirm={() => handleConvert(record.id)}>
+            <Popconfirm
+              title="转单后将生成销售订单草稿，确认继续？"
+              onConfirm={() => handleConvert(record.id)}
+            >
               <Button type="link" size="small">
                 转单
               </Button>
@@ -227,13 +235,22 @@ export default function SalesQuotationPage() {
         <Button onClick={() => setStatus(undefined)} type={status ? 'default' : 'primary'}>
           全部
         </Button>
-        <Button onClick={() => setStatus('DRAFT')} type={status === 'DRAFT' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('DRAFT')}
+          type={status === 'DRAFT' ? 'primary' : 'default'}
+        >
           草稿
         </Button>
-        <Button onClick={() => setStatus('ACCEPTED')} type={status === 'ACCEPTED' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('ACCEPTED')}
+          type={status === 'ACCEPTED' ? 'primary' : 'default'}
+        >
           已接受
         </Button>
-        <Button onClick={() => setStatus('CONVERTED')} type={status === 'CONVERTED' ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setStatus('CONVERTED')}
+          type={status === 'CONVERTED' ? 'primary' : 'default'}
+        >
           已转单
         </Button>
         {hasPermission('sys:erp:sales-quotation:create') ? (
@@ -242,7 +259,12 @@ export default function SalesQuotationPage() {
           </Button>
         ) : null}
       </Space>
-      <Table<SalesQuotationView> rowKey="id" loading={loading} columns={columns} dataSource={data} />
+      <Table<SalesQuotationView>
+        rowKey="id"
+        loading={loading}
+        columns={columns}
+        dataSource={data}
+      />
       <Modal
         open={createOpen}
         title="新增销售报价单"
@@ -253,7 +275,11 @@ export default function SalesQuotationPage() {
       >
         <Form form={form} layout="vertical">
           <Space size="large" wrap>
-            <Form.Item name="customerId" label="客户" rules={[{ required: true, message: '请选择客户' }]}>
+            <Form.Item
+              name="customerId"
+              label="客户"
+              rules={[{ required: true, message: '请选择客户' }]}
+            >
               <Select
                 showSearch
                 optionFilterProp="label"
@@ -313,13 +339,23 @@ export default function SalesQuotationPage() {
                       name={[field.name, 'quantity']}
                       rules={[{ required: true, message: '数量' }]}
                     >
-                      <InputNumber placeholder="数量" min={0.0001} precision={4} style={{ width: 120 }} />
+                      <InputNumber
+                        placeholder="数量"
+                        min={0.0001}
+                        precision={4}
+                        style={{ width: 120 }}
+                      />
                     </Form.Item>
                     <Form.Item
                       name={[field.name, 'unitPrice']}
                       rules={[{ required: true, message: '报价单价' }]}
                     >
-                      <InputNumber placeholder="报价单价" min={0.01} precision={2} style={{ width: 120 }} />
+                      <InputNumber
+                        placeholder="报价单价"
+                        min={0.01}
+                        precision={2}
+                        style={{ width: 120 }}
+                      />
                     </Form.Item>
                     <Form.Item name={[field.name, 'uom']}>
                       <Input placeholder="单位" style={{ width: 90 }} maxLength={16} />

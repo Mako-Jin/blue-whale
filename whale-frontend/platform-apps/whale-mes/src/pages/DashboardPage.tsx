@@ -1,6 +1,19 @@
 // MES 综合看板：生产 / 质量 / 设备 / 人员四域聚合，支持 SSE 实时推送与 CSV 导出
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Button, Card, Col, Row, Select, Space, Statistic, Switch, Tag, Typography, message } from 'antd';
+import {
+  Alert,
+  Button,
+  Card,
+  Col,
+  Row,
+  Select,
+  Space,
+  Statistic,
+  Switch,
+  Tag,
+  Typography,
+  message,
+} from 'antd';
 import {
   exportMesDashboard,
   fetchMesDashboard,
@@ -119,7 +132,10 @@ export default function DashboardPage() {
           optionFilterProp="label"
           value={lineId}
           onChange={(value) => setLineId(value)}
-          options={lineOptions.map((item) => ({ value: item.id, label: `${item.code} ${item.name}`.trim() }))}
+          options={lineOptions.map((item) => ({
+            value: item.id,
+            label: `${item.code} ${item.name}`.trim(),
+          }))}
         />
         <Select
           allowClear
@@ -129,7 +145,10 @@ export default function DashboardPage() {
           optionFilterProp="label"
           value={teamId}
           onChange={(value) => setTeamId(value)}
-          options={teamOptions.map((item) => ({ value: item.id, label: `${item.code} ${item.name}`.trim() }))}
+          options={teamOptions.map((item) => ({
+            value: item.id,
+            label: `${item.code} ${item.name}`.trim(),
+          }))}
         />
         <Space size={4}>
           <span>实时推送</span>
@@ -155,7 +174,10 @@ export default function DashboardPage() {
             <Statistic title="今日目标" value={formatValue(dashboard?.production.targetQuantity)} />
           </Col>
           <Col xs={12} md={6}>
-            <Statistic title="今日完工" value={formatValue(dashboard?.production.completedQuantity)} />
+            <Statistic
+              title="今日完工"
+              value={formatValue(dashboard?.production.completedQuantity)}
+            />
           </Col>
           <Col xs={12} md={6}>
             <Statistic title="今日不良" value={formatValue(dashboard?.production.defectQuantity)} />
@@ -225,7 +247,11 @@ export default function DashboardPage() {
           <Col xs={12} md={6}>
             <Statistic
               title="平均 OEE"
-              value={dashboard?.equipment.avgOee !== undefined ? Number(dashboard.equipment.avgOee) * 100 : 0}
+              value={
+                dashboard?.equipment.avgOee !== undefined
+                  ? Number(dashboard.equipment.avgOee) * 100
+                  : 0
+              }
               suffix="%"
               precision={2}
             />

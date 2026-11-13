@@ -62,7 +62,7 @@ export default defineConfig({
     headers: {
       'Access-Control-Allow-Origin': '*',
     },
-      proxy: API_PROXY,
+    proxy: API_PROXY,
   },
   // 产物预览（8125，e2e 跑这上面）同样要能打到网关，否则「在线问数」冒烟只能跑 dev
   preview: {

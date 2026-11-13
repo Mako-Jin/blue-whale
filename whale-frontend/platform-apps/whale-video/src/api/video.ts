@@ -534,7 +534,10 @@ export function fetchMyFavorites(query?: PageQuery): Promise<{
 }
 
 /** 评论分页 */
-export function fetchComments(contentId: number, query?: PageQuery): Promise<{
+export function fetchComments(
+  contentId: number,
+  query?: PageQuery,
+): Promise<{
   records: CommentView[];
   total: number;
   current: number;
@@ -564,7 +567,10 @@ export function fetchDeclaration(): Promise<UploadDeclaration> {
 }
 
 /** 签署当前上传声明（同一版本重复签署幂等） */
-export function acceptDeclaration(version: string, contentSource: ContentSource): Promise<UploadDeclaration> {
+export function acceptDeclaration(
+  version: string,
+  contentSource: ContentSource,
+): Promise<UploadDeclaration> {
   return http.post<UploadDeclaration>('/video/declaration/accept', { version, contentSource });
 }
 

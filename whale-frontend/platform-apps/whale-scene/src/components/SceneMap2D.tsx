@@ -5,7 +5,12 @@
 
 import { Empty } from 'antd';
 import type { NavigationNodeView, NavigationSceneView } from '../api/scene';
-import { nodeGlyph, openNavigationEntry, resolveNodePosition, sortNodes } from '../utils/sceneDisplay';
+import {
+  nodeGlyph,
+  openNavigationEntry,
+  resolveNodePosition,
+  sortNodes,
+} from '../utils/sceneDisplay';
 
 export default function SceneMap2D({ scene }: { scene: NavigationSceneView }) {
   const nodes = sortNodes(scene.nodes ?? []);

@@ -146,18 +146,26 @@ function buildQuery(params: object): string {
 }
 
 /** 我发起的审批分页 */
-export function pageInitiated(params: ApprovalQuery = {}): Promise<PageResult<ApprovalInstanceRow>> {
-  return http.get<PageResult<ApprovalInstanceRow>>(`/oa/approval/center/initiated/page${buildQuery(params)}`);
+export function pageInitiated(
+  params: ApprovalQuery = {},
+): Promise<PageResult<ApprovalInstanceRow>> {
+  return http.get<PageResult<ApprovalInstanceRow>>(
+    `/oa/approval/center/initiated/page${buildQuery(params)}`,
+  );
 }
 
 /** 待我审批分页 */
 export function pagePending(params: ApprovalQuery = {}): Promise<PageResult<ApprovalTaskRow>> {
-  return http.get<PageResult<ApprovalTaskRow>>(`/oa/approval/center/pending/page${buildQuery(params)}`);
+  return http.get<PageResult<ApprovalTaskRow>>(
+    `/oa/approval/center/pending/page${buildQuery(params)}`,
+  );
 }
 
 /** 我已审批分页 */
 export function pageApproved(params: ApprovalQuery = {}): Promise<PageResult<ApprovalTaskRow>> {
-  return http.get<PageResult<ApprovalTaskRow>>(`/oa/approval/center/approved/page${buildQuery(params)}`);
+  return http.get<PageResult<ApprovalTaskRow>>(
+    `/oa/approval/center/approved/page${buildQuery(params)}`,
+  );
 }
 
 /** 抄送我的分页 */
@@ -254,7 +262,9 @@ export function markCcRead(ccId: number): Promise<void> {
 
 /** 流程监控分页 */
 export function pageMonitor(params: ApprovalQuery = {}): Promise<PageResult<ApprovalInstanceRow>> {
-  return http.get<PageResult<ApprovalInstanceRow>>(`/oa/approval/monitor/page${buildQuery(params)}`);
+  return http.get<PageResult<ApprovalInstanceRow>>(
+    `/oa/approval/monitor/page${buildQuery(params)}`,
+  );
 }
 
 /** 流程监控详情（只读） */

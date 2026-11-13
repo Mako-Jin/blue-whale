@@ -105,7 +105,12 @@ export default function CollectionDetailPage() {
       <Card styles={{ body: { padding: 0 } }}>
         <div style={{ display: 'flex', flexWrap: 'wrap' }}>
           <div style={{ flex: '0 0 320px', minWidth: 240 }}>
-            <ContentCover url={collection.coverUrl} title={collection.title} height={200} style={{ borderRadius: 0 }} />
+            <ContentCover
+              url={collection.coverUrl}
+              title={collection.title}
+              height={200}
+              style={{ borderRadius: 0 }}
+            />
           </div>
           <div style={{ flex: '1 1 320px', padding: 20 }}>
             <Typography.Title level={4} style={{ marginTop: 0 }}>
@@ -115,16 +120,24 @@ export default function CollectionDetailPage() {
               <Tag color={collection.publishState === 'PUBLISHED' ? 'green' : 'default'}>
                 {collection.itemCount} 部电影
               </Tag>
-              <Typography.Text type="secondary">上架时间：{formatDateTime(collection.publishedAt)}</Typography.Text>
+              <Typography.Text type="secondary">
+                上架时间：{formatDateTime(collection.publishedAt)}
+              </Typography.Text>
             </Space>
             {collection.description ? (
-              <Typography.Paragraph style={{ marginTop: 12 }}>{collection.description}</Typography.Paragraph>
+              <Typography.Paragraph style={{ marginTop: 12 }}>
+                {collection.description}
+              </Typography.Paragraph>
             ) : null}
           </div>
         </div>
       </Card>
 
-      <Card title="片单内电影" size="small" extra={<Typography.Text type="secondary">仅展示当前可见电影</Typography.Text>}>
+      <Card
+        title="片单内电影"
+        size="small"
+        extra={<Typography.Text type="secondary">仅展示当前可见电影</Typography.Text>}
+      >
         {items.length === 0 ? (
           <Empty description="该片单暂无可见电影" image={Empty.PRESENTED_IMAGE_SIMPLE} />
         ) : (
@@ -143,7 +156,11 @@ export default function CollectionDetailPage() {
                       {item.title}
                     </Typography.Text>
                     <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                      {[item.region, formatDuration(item.durationMs), `${formatCount(item.playCount)} 次播放`]
+                      {[
+                        item.region,
+                        formatDuration(item.durationMs),
+                        `${formatCount(item.playCount)} 次播放`,
+                      ]
                         .filter(Boolean)
                         .join(' · ')}
                     </Typography.Text>

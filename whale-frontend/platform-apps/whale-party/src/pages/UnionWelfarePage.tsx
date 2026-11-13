@@ -243,7 +243,10 @@ export default function UnionWelfarePage() {
       message.warning('未填写会员 ID，将按全量在册会员发放');
     }
     try {
-      const view = await issueUnionWelfare(issueTarget.id, ids.length > 0 ? { memberIds: ids } : {});
+      const view = await issueUnionWelfare(
+        issueTarget.id,
+        ids.length > 0 ? { memberIds: ids } : {},
+      );
       message.success(
         view.issueCount !== null && view.issueCount !== undefined
           ? `已发放，共 ${view.issueCount} 人`
@@ -304,7 +307,8 @@ export default function UnionWelfarePage() {
       title: '发放人数',
       dataIndex: 'issueCount',
       width: 90,
-      render: (value?: number | null) => (value === null || value === undefined ? '—' : `${value} 人`),
+      render: (value?: number | null) =>
+        value === null || value === undefined ? '—' : `${value} 人`,
     },
     {
       title: '发放时间',
@@ -379,7 +383,10 @@ export default function UnionWelfarePage() {
       width: 90,
       render: (_value, row) =>
         canManage && detailTarget?.status === 'ISSUED' && row.signStatus === 'UNSIGNED' ? (
-          <Popconfirm title={`确认 ${row.memberName} 已签收？`} onConfirm={() => void signItem(row)}>
+          <Popconfirm
+            title={`确认 ${row.memberName} 已签收？`}
+            onConfirm={() => void signItem(row)}
+          >
             <Button type="link" size="small">
               签收
             </Button>
@@ -541,7 +548,9 @@ export default function UnionWelfarePage() {
           <Space size={8} wrap>
             <Tag color="green">已签 {signedTotal}</Tag>
             <Tag color="orange">未签 {unsignedTotal}</Tag>
-            <Typography.Text type="secondary">合计 {signedTotal + unsignedTotal} 人</Typography.Text>
+            <Typography.Text type="secondary">
+              合计 {signedTotal + unsignedTotal} 人
+            </Typography.Text>
             <Select
               allowClear
               placeholder="全部签收状态"

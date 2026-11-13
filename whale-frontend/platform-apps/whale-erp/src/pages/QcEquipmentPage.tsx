@@ -180,7 +180,11 @@ function EquipmentModal({
           >
             <Input maxLength={64} disabled={initial !== null} style={{ width: 200 }} />
           </Form.Item>
-          <Form.Item name="name" label="设备名称" rules={[{ required: true, message: '请输入设备名称' }]}>
+          <Form.Item
+            name="name"
+            label="设备名称"
+            rules={[{ required: true, message: '请输入设备名称' }]}
+          >
             <Input maxLength={128} style={{ width: 220 }} />
           </Form.Item>
           <Form.Item name="equipmentType" label="设备类型">
@@ -275,7 +279,11 @@ function PlanModal({
     >
       <Form form={form} layout="vertical">
         <Space size="middle" wrap>
-          <Form.Item name="equipmentNo" label="设备" rules={[{ required: true, message: '请选择设备' }]}>
+          <Form.Item
+            name="equipmentNo"
+            label="设备"
+            rules={[{ required: true, message: '请选择设备' }]}
+          >
             <EquipmentSelect equipment={equipment} />
           </Form.Item>
           <Form.Item
@@ -354,14 +362,30 @@ function OrderModal({
     }));
 
   return (
-    <Modal open={open} title="新增保养工单" width={640} onOk={handleOk} onCancel={onCancel} destroyOnHidden>
+    <Modal
+      open={open}
+      title="新增保养工单"
+      width={640}
+      onOk={handleOk}
+      onCancel={onCancel}
+      destroyOnHidden
+    >
       <Form form={form} layout="vertical">
         <Space size="middle" wrap>
-          <Form.Item name="equipmentNo" label="设备" rules={[{ required: true, message: '请选择设备' }]}>
+          <Form.Item
+            name="equipmentNo"
+            label="设备"
+            rules={[{ required: true, message: '请选择设备' }]}
+          >
             <EquipmentSelect equipment={equipment} />
           </Form.Item>
           <Form.Item name="planId" label="保养计划">
-            <Select allowClear placeholder="选择计划" style={{ width: 220 }} options={planOptions} />
+            <Select
+              allowClear
+              placeholder="选择计划"
+              style={{ width: 220 }}
+              options={planOptions}
+            />
           </Form.Item>
           <Form.Item name="maintenanceType" label="保养类型" rules={[{ required: true }]}>
             <Select
@@ -372,7 +396,11 @@ function OrderModal({
               }))}
             />
           </Form.Item>
-          <Form.Item name="planDate" label="计划日期" rules={[{ required: true, message: '请选择计划日期' }]}>
+          <Form.Item
+            name="planDate"
+            label="计划日期"
+            rules={[{ required: true, message: '请选择计划日期' }]}
+          >
             <DatePicker format="YYYY-MM-DD" />
           </Form.Item>
         </Space>
@@ -491,13 +519,28 @@ function OeeModal({
   };
 
   return (
-    <Modal open={open} title="回传 OEE 数据" width={640} onOk={handleOk} onCancel={onCancel} destroyOnHidden>
+    <Modal
+      open={open}
+      title="回传 OEE 数据"
+      width={640}
+      onOk={handleOk}
+      onCancel={onCancel}
+      destroyOnHidden
+    >
       <Form form={form} layout="vertical">
         <Space size="middle" wrap>
-          <Form.Item name="equipmentNo" label="设备" rules={[{ required: true, message: '请选择设备' }]}>
+          <Form.Item
+            name="equipmentNo"
+            label="设备"
+            rules={[{ required: true, message: '请选择设备' }]}
+          >
             <EquipmentSelect equipment={equipment} />
           </Form.Item>
-          <Form.Item name="recordDate" label="统计日期" rules={[{ required: true, message: '请选择日期' }]}>
+          <Form.Item
+            name="recordDate"
+            label="统计日期"
+            rules={[{ required: true, message: '请选择日期' }]}
+          >
             <DatePicker format="YYYY-MM-DD" />
           </Form.Item>
           <Form.Item
@@ -648,13 +691,7 @@ function EquipmentTab() {
 }
 
 /** 保养计划页签 */
-function PlanTab({
-  equipment,
-  notify,
-}: {
-  equipment: EquipmentView[];
-  notify: () => void;
-}) {
+function PlanTab({ equipment, notify }: { equipment: EquipmentView[]; notify: () => void }) {
   const [data, setData] = useState<MaintenancePlanView[]>([]);
   const [loading, setLoading] = useState(false);
   const [keyword, setKeyword] = useState('');
@@ -840,12 +877,12 @@ function OrderTab({
       key: 'action',
       width: 120,
       render: (_, record) =>
-        ['OPEN', 'IN_PROGRESS'].includes(record.status)
-          && hasPermission('sys:erp:qc:maintenance:complete') ? (
-            <Button type="link" size="small" onClick={() => setCompleting(record)}>
-              完成
-            </Button>
-          ) : null,
+        ['OPEN', 'IN_PROGRESS'].includes(record.status) &&
+        hasPermission('sys:erp:qc:maintenance:complete') ? (
+          <Button type="link" size="small" onClick={() => setCompleting(record)}>
+            完成
+          </Button>
+        ) : null,
     },
   ];
 
@@ -909,13 +946,7 @@ function OrderTab({
 }
 
 /** OEE 页签 */
-function OeeTab({
-  equipment,
-  ticket,
-}: {
-  equipment: EquipmentView[];
-  ticket: number;
-}) {
+function OeeTab({ equipment, ticket }: { equipment: EquipmentView[]; ticket: number }) {
   const [data, setData] = useState<OeeRecordView[]>([]);
   const [loading, setLoading] = useState(false);
   const [keyword, setKeyword] = useState('');
@@ -941,7 +972,13 @@ function OeeTab({
   const columns: TableProps<OeeRecordView>['columns'] = [
     { title: '设备编码', dataIndex: 'equipmentNo', key: 'equipmentNo', width: 150 },
     { title: '统计日期', dataIndex: 'recordDate', key: 'recordDate', width: 120 },
-    { title: '计划分钟', dataIndex: 'plannedMinutes', key: 'plannedMinutes', width: 110, render: quantity },
+    {
+      title: '计划分钟',
+      dataIndex: 'plannedMinutes',
+      key: 'plannedMinutes',
+      width: 110,
+      render: quantity,
+    },
     { title: '运行分钟', dataIndex: 'runMinutes', key: 'runMinutes', width: 110, render: quantity },
     { title: '实际产量', dataIndex: 'outputQty', key: 'outputQty', width: 110, render: quantity },
     { title: '合格产量', dataIndex: 'goodQty', key: 'goodQty', width: 110, render: quantity },
@@ -1056,7 +1093,11 @@ export default function QcEquipmentPage() {
             />
           ),
         },
-        { key: 'oee', label: 'OEE 记录', children: <OeeTab equipment={equipment} ticket={ticket} /> },
+        {
+          key: 'oee',
+          label: 'OEE 记录',
+          children: <OeeTab equipment={equipment} ticket={ticket} />,
+        },
       ]}
     />
   );

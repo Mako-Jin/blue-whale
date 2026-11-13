@@ -128,8 +128,10 @@ function OrderFormModal({ open, initial, onCancel, onSaved }: OrderFormModalProp
           itemName: line.itemName ?? undefined,
           specification: line.specification ?? undefined,
           uom: line.uom ?? undefined,
-          quantity: line.quantity === null || line.quantity === undefined ? 1 : Number(line.quantity),
-          unitPrice: line.unitPrice === null || line.unitPrice === undefined ? 0 : Number(line.unitPrice),
+          quantity:
+            line.quantity === null || line.quantity === undefined ? 1 : Number(line.quantity),
+          unitPrice:
+            line.unitPrice === null || line.unitPrice === undefined ? 0 : Number(line.unitPrice),
           remark: line.remark ?? undefined,
         })),
       });
@@ -179,8 +181,8 @@ function OrderFormModal({ open, initial, onCancel, onSaved }: OrderFormModalProp
       } else {
         const payload: SalesOrderCreateInput = {
           sourceType: values.sourceType,
-          sourceId: values.sourceType === 'CONTRACT' ? values.sourceId ?? null : null,
-          customerId: values.sourceType === 'MANUAL' ? values.customerId ?? null : null,
+          sourceId: values.sourceType === 'CONTRACT' ? (values.sourceId ?? null) : null,
+          customerId: values.sourceType === 'MANUAL' ? (values.customerId ?? null) : null,
           title: values.title,
           currency: values.currency,
           remark: values.remark,
@@ -304,7 +306,10 @@ function OrderFormModal({ open, initial, onCancel, onSaved }: OrderFormModalProp
                         title: '规格',
                         width: 110,
                         render: (_, field) => (
-                          <Form.Item name={[field.name, 'specification']} style={{ marginBottom: 0 }}>
+                          <Form.Item
+                            name={[field.name, 'specification']}
+                            style={{ marginBottom: 0 }}
+                          >
                             <Input maxLength={50} />
                           </Form.Item>
                         ),
@@ -358,7 +363,12 @@ function OrderFormModal({ open, initial, onCancel, onSaved }: OrderFormModalProp
                         width: 60,
                         fixed: 'right',
                         render: (_, field) => (
-                          <Button size="small" type="link" danger onClick={() => remove(field.name)}>
+                          <Button
+                            size="small"
+                            type="link"
+                            danger
+                            onClick={() => remove(field.name)}
+                          >
                             删除
                           </Button>
                         ),
@@ -434,14 +444,22 @@ function OrderDetailDrawer({ orderId, onClose }: OrderDetailDrawerProps) {
             <Descriptions.Item label="来源单据">{detail.sourceOrderNo || '-'}</Descriptions.Item>
             <Descriptions.Item label="客户 ID">{detail.customerId}</Descriptions.Item>
             <Descriptions.Item label="客户编码">{detail.customerCode || '-'}</Descriptions.Item>
-            <Descriptions.Item label="订单金额">{formatAmount(detail.totalAmount)}</Descriptions.Item>
+            <Descriptions.Item label="订单金额">
+              {formatAmount(detail.totalAmount)}
+            </Descriptions.Item>
             <Descriptions.Item label="币种">{detail.currency || '-'}</Descriptions.Item>
             <Descriptions.Item label="ERP 订单号">{detail.erpOrderNo || '-'}</Descriptions.Item>
             <Descriptions.Item label="ERP 履约状态">{detail.erpStatus || '-'}</Descriptions.Item>
             <Descriptions.Item label="下发尝试次数">{detail.pushAttempts ?? '-'}</Descriptions.Item>
-            <Descriptions.Item label="下发成功时间">{formatDateTime(detail.pushedAt)}</Descriptions.Item>
-            <Descriptions.Item label="提交审批时间">{formatDateTime(detail.submittedAt)}</Descriptions.Item>
-            <Descriptions.Item label="审批通过时间">{formatDateTime(detail.approvedAt)}</Descriptions.Item>
+            <Descriptions.Item label="下发成功时间">
+              {formatDateTime(detail.pushedAt)}
+            </Descriptions.Item>
+            <Descriptions.Item label="提交审批时间">
+              {formatDateTime(detail.submittedAt)}
+            </Descriptions.Item>
+            <Descriptions.Item label="审批通过时间">
+              {formatDateTime(detail.approvedAt)}
+            </Descriptions.Item>
             <Descriptions.Item label="最近失败原因" span={2}>
               {detail.lastPushError || '-'}
             </Descriptions.Item>
@@ -459,14 +477,24 @@ function OrderDetailDrawer({ orderId, onClose }: OrderDetailDrawerProps) {
             dataSource={detail.lines ?? []}
             columns={[
               { title: '行号', dataIndex: 'lineNo', width: 60 },
-              { title: '物料编码', dataIndex: 'itemCode', width: 130, render: (value) => value || '-' },
-              { title: '物料名称', dataIndex: 'itemName', width: 160, render: (value) => value || '-' },
+              {
+                title: '物料编码',
+                dataIndex: 'itemCode',
+                width: 130,
+                render: (value) => value || '-',
+              },
+              {
+                title: '物料名称',
+                dataIndex: 'itemName',
+                width: 160,
+                render: (value) => value || '-',
+              },
               {
                 title: '数量',
                 dataIndex: 'quantity',
                 width: 90,
                 align: 'right',
-                render: (value) => (value ?? '-'),
+                render: (value) => value ?? '-',
               },
               {
                 title: '单价',
@@ -581,8 +609,19 @@ export default function OrderPage() {
         <Tag>{ORDER_SOURCE_LABEL[value ?? ''] ?? value ?? '-'}</Tag>
       ),
     },
-    { title: '客户编码', dataIndex: 'customerCode', width: 130, render: (value?: string | null) => value || '-' },
-    { title: '标题', dataIndex: 'title', width: 200, ellipsis: true, render: (value?: string | null) => value || '-' },
+    {
+      title: '客户编码',
+      dataIndex: 'customerCode',
+      width: 130,
+      render: (value?: string | null) => value || '-',
+    },
+    {
+      title: '标题',
+      dataIndex: 'title',
+      width: 200,
+      ellipsis: true,
+      render: (value?: string | null) => value || '-',
+    },
     {
       title: '订单金额',
       dataIndex: 'totalAmount',
@@ -600,8 +639,18 @@ export default function OrderPage() {
         </Tag>
       ),
     },
-    { title: 'ERP 订单号', dataIndex: 'erpOrderNo', width: 170, render: (value?: string | null) => value || '-' },
-    { title: 'ERP 状态', dataIndex: 'erpStatus', width: 120, render: (value?: string | null) => value || '-' },
+    {
+      title: 'ERP 订单号',
+      dataIndex: 'erpOrderNo',
+      width: 170,
+      render: (value?: string | null) => value || '-',
+    },
+    {
+      title: 'ERP 状态',
+      dataIndex: 'erpStatus',
+      width: 120,
+      render: (value?: string | null) => value || '-',
+    },
     {
       title: '尝试',
       dataIndex: 'pushAttempts',
@@ -631,41 +680,43 @@ export default function OrderPage() {
               编辑
             </Button>
           )}
-          {(row.status === 'DRAFT' || row.status === 'REJECTED') && hasPermission('sys:crm:order:submit') && (
-            <Popconfirm
-              title="提交审批"
-              description="提交后将进入审批流程，草稿不可再编辑。"
-              onConfirm={() =>
-                void runAction(() => submitOrder(row.id), '已提交审批')
-              }
-            >
-              <Button size="small" type="link">
-                提交
-              </Button>
-            </Popconfirm>
-          )}
-          {(row.status === 'APPROVED' || row.status === 'PUSH_FAILED') && hasPermission('sys:crm:order:retry') && (
-            <Popconfirm
-              title="重试下发"
-              description="将重置 outbox 并尽快重试下发 ERP。"
-              onConfirm={() => void runAction(() => retryOrder(row.id), '已重置下发任务')}
-            >
-              <Button size="small" type="link">
-                重试
-              </Button>
-            </Popconfirm>
-          )}
-          {row.status !== 'CANCELLED' && row.status !== 'PUSHED' && hasPermission('sys:crm:order:cancel') && (
-            <Popconfirm
-              title="取消订单"
-              description="取消后不可恢复；已下发订单将请求 ERP 取消原单。"
-              onConfirm={() => void runAction(() => cancelOrder(row.id), '订单已取消')}
-            >
-              <Button size="small" type="link" danger>
-                取消
-              </Button>
-            </Popconfirm>
-          )}
+          {(row.status === 'DRAFT' || row.status === 'REJECTED') &&
+            hasPermission('sys:crm:order:submit') && (
+              <Popconfirm
+                title="提交审批"
+                description="提交后将进入审批流程，草稿不可再编辑。"
+                onConfirm={() => void runAction(() => submitOrder(row.id), '已提交审批')}
+              >
+                <Button size="small" type="link">
+                  提交
+                </Button>
+              </Popconfirm>
+            )}
+          {(row.status === 'APPROVED' || row.status === 'PUSH_FAILED') &&
+            hasPermission('sys:crm:order:retry') && (
+              <Popconfirm
+                title="重试下发"
+                description="将重置 outbox 并尽快重试下发 ERP。"
+                onConfirm={() => void runAction(() => retryOrder(row.id), '已重置下发任务')}
+              >
+                <Button size="small" type="link">
+                  重试
+                </Button>
+              </Popconfirm>
+            )}
+          {row.status !== 'CANCELLED' &&
+            row.status !== 'PUSHED' &&
+            hasPermission('sys:crm:order:cancel') && (
+              <Popconfirm
+                title="取消订单"
+                description="取消后不可恢复；已下发订单将请求 ERP 取消原单。"
+                onConfirm={() => void runAction(() => cancelOrder(row.id), '订单已取消')}
+              >
+                <Button size="small" type="link" danger>
+                  取消
+                </Button>
+              </Popconfirm>
+            )}
         </Space>
       ),
     },
@@ -689,7 +740,12 @@ export default function OrderPage() {
         </Space>
       }
     >
-      <Form form={filterForm} layout="inline" onFinish={handleSearch} style={{ marginBottom: 16, rowGap: 12 }}>
+      <Form
+        form={filterForm}
+        layout="inline"
+        onFinish={handleSearch}
+        style={{ marginBottom: 16, rowGap: 12 }}
+      >
         <Form.Item name="keyword">
           <Input placeholder="订单编号 / 标题" allowClear style={{ width: 200 }} />
         </Form.Item>
@@ -729,7 +785,8 @@ export default function OrderPage() {
         }}
       />
       <Typography.Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
-        审批由 workflow 负责，履约 / 发货 / 库存 / 应收归 ERP；CRM 通过 outbox 幂等下发并按 CRM 单号对账。
+        审批由 workflow 负责，履约 / 发货 / 库存 / 应收归 ERP；CRM 通过 outbox 幂等下发并按 CRM
+        单号对账。
       </Typography.Text>
 
       <OrderFormModal

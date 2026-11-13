@@ -34,11 +34,7 @@ import {
   type OpportunityView,
 } from '../../api/crm';
 import { hasPermission } from '../../utils/permission';
-import {
-  OPPORTUNITY_STAGE_COLOR,
-  OPPORTUNITY_STAGE_LABEL,
-  formatDateTime,
-} from '../../utils/dict';
+import { OPPORTUNITY_STAGE_COLOR, OPPORTUNITY_STAGE_LABEL, formatDateTime } from '../../utils/dict';
 
 /** 筛选条件 */
 interface OpportunityFilterValues {
@@ -155,7 +151,8 @@ function OpportunityFormModal({ open, initial, onCancel, onSaved }: OpportunityF
       form.setFieldsValue({
         customerId: initial.customerId ?? null,
         name: initial.name,
-        amount: initial.amount === null || initial.amount === undefined ? null : Number(initial.amount),
+        amount:
+          initial.amount === null || initial.amount === undefined ? null : Number(initial.amount),
         expectedCloseDate: initial.expectedCloseDate ?? undefined,
         source: initial.source ?? undefined,
         competitor: initial.competitor ?? undefined,
@@ -225,7 +222,12 @@ function OpportunityFormModal({ open, initial, onCancel, onSaved }: OpportunityF
             rules={initial ? [] : [{ required: true, message: '请输入客户 ID' }]}
             style={{ flex: 1 }}
           >
-            <InputNumber min={1} precision={0} style={{ width: '100%' }} disabled={Boolean(initial)} />
+            <InputNumber
+              min={1}
+              precision={0}
+              style={{ width: '100%' }}
+              disabled={Boolean(initial)}
+            />
           </Form.Item>
           <Form.Item
             name="name"
@@ -304,7 +306,10 @@ function StageModal({ opportunity, onCancel, onSaved }: StageModalProps) {
     setSaving(true);
     try {
       const values = await form.validateFields();
-      if (values.stage === 'WON' && (values.amount === null || values.amount === undefined || values.amount <= 0)) {
+      if (
+        values.stage === 'WON' &&
+        (values.amount === null || values.amount === undefined || values.amount <= 0)
+      ) {
         message.error('转为赢单需填写大于 0 的商机金额');
         return;
       }
@@ -429,7 +434,8 @@ function StageHistoryDrawer({ opportunity, onClose }: StageHistoryDrawerProps) {
       title: '概率',
       dataIndex: 'probability',
       width: 90,
-      render: (value?: number | string | null) => (value === null || value === undefined ? '-' : `${value}%`),
+      render: (value?: number | string | null) =>
+        value === null || value === undefined ? '-' : `${value}%`,
     },
     {
       title: '输单原因',
@@ -437,7 +443,12 @@ function StageHistoryDrawer({ opportunity, onClose }: StageHistoryDrawerProps) {
       ellipsis: true,
       render: (value?: string | null) => value || '-',
     },
-    { title: '操作人', dataIndex: 'operatorId', width: 100, render: (value?: number | null) => value ?? '-' },
+    {
+      title: '操作人',
+      dataIndex: 'operatorId',
+      width: 100,
+      render: (value?: number | null) => value ?? '-',
+    },
     {
       title: '变更时间',
       dataIndex: 'changedAt',
@@ -543,7 +554,12 @@ function OpportunityFunnelTab() {
 
   return (
     <>
-      <Form form={form} layout="inline" onFinish={handleSearch} style={{ marginBottom: 16, rowGap: 12 }}>
+      <Form
+        form={form}
+        layout="inline"
+        onFinish={handleSearch}
+        style={{ marginBottom: 16, rowGap: 12 }}
+      >
         <Form.Item name="ownerId">
           <InputNumber min={1} precision={0} placeholder="负责人 ID" style={{ width: 140 }} />
         </Form.Item>
@@ -596,7 +612,11 @@ function OpportunityListTab() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await pageOpportunities({ ...filters, current: page.current, size: page.size });
+      const result = await pageOpportunities({
+        ...filters,
+        current: page.current,
+        size: page.size,
+      });
       setRows(result.records);
       setTotal(Number(result.total));
     } catch (error) {
@@ -630,7 +650,12 @@ function OpportunityListTab() {
 
   const columns: TableProps<OpportunityView>['columns'] = [
     { title: '商机名称', dataIndex: 'name', width: 180, ellipsis: true },
-    { title: '客户 ID', dataIndex: 'customerId', width: 110, render: (value?: number | null) => value ?? '-' },
+    {
+      title: '客户 ID',
+      dataIndex: 'customerId',
+      width: 110,
+      render: (value?: number | null) => value ?? '-',
+    },
     {
       title: '金额',
       dataIndex: 'amount',
@@ -661,7 +686,12 @@ function OpportunityListTab() {
       width: 120,
       render: (value?: string | null) => value || '-',
     },
-    { title: '负责人', dataIndex: 'ownerId', width: 100, render: (value?: number | null) => value ?? '-' },
+    {
+      title: '负责人',
+      dataIndex: 'ownerId',
+      width: 100,
+      render: (value?: number | null) => value ?? '-',
+    },
     {
       title: '下次行动',
       dataIndex: 'nextActionAt',
@@ -725,7 +755,12 @@ function OpportunityListTab() {
           </Button>
         )}
       </Space>
-      <Form form={form} layout="inline" onFinish={handleSearch} style={{ marginBottom: 16, rowGap: 12 }}>
+      <Form
+        form={form}
+        layout="inline"
+        onFinish={handleSearch}
+        style={{ marginBottom: 16, rowGap: 12 }}
+      >
         <Form.Item name="keyword">
           <Input placeholder="商机名称" allowClear style={{ width: 180 }} />
         </Form.Item>

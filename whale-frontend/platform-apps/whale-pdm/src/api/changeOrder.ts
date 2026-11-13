@@ -143,8 +143,14 @@ export function executeChgOrder(id: string): Promise<ChgOrder> {
 }
 
 /** 完成任务并登记结果版本号 */
-export function completeChgTask(id: string, taskId: string, resultVersionNo: string): Promise<ChgOrder> {
-  return http.post<ChgOrder>(`/pdm/change/order/${id}/tasks/${taskId}/complete`, { resultVersionNo });
+export function completeChgTask(
+  id: string,
+  taskId: string,
+  resultVersionNo: string,
+): Promise<ChgOrder> {
+  return http.post<ChgOrder>(`/pdm/change/order/${id}/tasks/${taskId}/complete`, {
+    resultVersionNo,
+  });
 }
 
 /** 完成变更单 */

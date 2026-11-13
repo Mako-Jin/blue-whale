@@ -130,10 +130,7 @@ export default function OvertimePage() {
       applicant: record.applicant,
       applicantId: record.applicantId,
       overtimeDate: dayjs(record.overtimeDate),
-      timeRange: [
-        dayjs(`2000-01-01 ${record.startTime}`),
-        dayjs(`2000-01-01 ${record.endTime}`),
-      ],
+      timeRange: [dayjs(`2000-01-01 ${record.startTime}`), dayjs(`2000-01-01 ${record.endTime}`)],
       compensation: record.compensation,
       projectName: record.projectName,
       reason: record.reason,
@@ -353,7 +350,12 @@ export default function OvertimePage() {
             <Input maxLength={64} />
           </Form.Item>
           <Form.Item name="applicantId" label="申请人用户ID">
-            <InputNumber style={{ width: '100%' }} min={1} precision={0} placeholder="选填，用于档案校验与调休入账" />
+            <InputNumber
+              style={{ width: '100%' }}
+              min={1}
+              precision={0}
+              placeholder="选填，用于档案校验与调休入账"
+            />
           </Form.Item>
           <Form.Item
             name="overtimeDate"

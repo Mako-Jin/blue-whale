@@ -117,9 +117,7 @@ export function createGuide(stops: GuideStop[]): GuideHandle {
       index = 0;
       done = false;
       active = stops.length > 0;
-      return active
-        ? `主公随我来。先绕八方宫署看一圈，最后进数枢殿看全城的账。`
-        : '';
+      return active ? `主公随我来。先绕八方宫署看一圈，最后进数枢殿看全城的账。` : '';
     },
 
     stop() {

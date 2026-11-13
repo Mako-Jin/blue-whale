@@ -110,7 +110,9 @@ function LedgerTab() {
       </Space>
       {ledger ? (
         <Space size="large">
-          <span>科目：{ledger.accountCode} {ledger.accountName}</span>
+          <span>
+            科目：{ledger.accountCode} {ledger.accountName}
+          </span>
           <span>期初：{money(ledger.openingBalance)}</span>
           <span>本期借方：{money(ledger.debitTotal)}</span>
           <span>本期贷方：{money(ledger.creditTotal)}</span>

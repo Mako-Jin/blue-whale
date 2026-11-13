@@ -40,7 +40,9 @@ function rowKeyOf(record: Record<string, unknown>): string {
 }
 
 /** 通用报表表格列 */
-function buildColumns(columns: OaReportResult['columns']): TableProps<Record<string, unknown>>['columns'] {
+function buildColumns(
+  columns: OaReportResult['columns'],
+): TableProps<Record<string, unknown>>['columns'] {
   return columns.map((column) => ({
     title: column.label,
     dataIndex: column.key,
@@ -221,9 +223,7 @@ export default function ReportPage() {
         title="数据报表"
         extra={
           <Space>
-            {canManage ? (
-              <Button onClick={() => setSnapshotOpen(true)}>生成快照</Button>
-            ) : null}
+            {canManage ? <Button onClick={() => setSnapshotOpen(true)}>生成快照</Button> : null}
             {canExport ? <Button onClick={handleExport}>导出 CSV</Button> : null}
           </Space>
         }
