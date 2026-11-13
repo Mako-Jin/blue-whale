@@ -15,7 +15,6 @@ import com.bluewhale.common.core.result.PageResult;
 import org.mapstruct.Mapper;
 
 import java.util.List;
-import com.bluewhale.auth.application.model.command.UserLifecycleCommand;
 
 /**
  * 用户接口装配器：application 视图对象 → interfaces 响应 DTO。

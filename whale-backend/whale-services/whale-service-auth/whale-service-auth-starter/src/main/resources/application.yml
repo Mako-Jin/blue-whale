@@ -86,6 +86,10 @@ whale:
       secret: ${JWT_SECRET:bluewhale-jwt-secret-2026-please-change-in-production}
       expire-minutes: 120
       refresh-expire-minutes: 1440
+    # OAuth2.0 授权服务器（权限中心扩展 M1）：issuer 对外可见地址，须与网关/前端访问域名一致，
+    # 否则发现文档（/.well-known/oauth-authorization-server）返回的端点不可达。
+    oauth2:
+      issuer: ${OAUTH2_ISSUER:http://localhost:8081}
     # V-03 认证 Cookie：refresh 令牌（whale_refresh_token，HttpOnly）与 CSRF（whale_csrf，前端可读）
     # 走 Cookie 下发，响应体不再返回 refreshToken。secure 为 Cookie Secure 标记开关：
     # HTTPS 站点必须开启（生产经 WHALE_AUTH_COOKIE_SECURE=true），dev 走 HTTP 联调默认关闭。

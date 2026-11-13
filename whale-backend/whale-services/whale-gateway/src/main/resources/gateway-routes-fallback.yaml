@@ -24,6 +24,14 @@ whale:
             args:
               patterns: /brand/**,/oauth-client/**
         filters: []
+      # OAuth2.0 授权服务器（权限中心扩展 M1）：协议端点与发现文档
+      - id: whale-service-auth-oauth2
+        uri: lb://whale-service-auth
+        predicates:
+          - name: Path
+            args:
+              patterns: /oauth2/**,/.well-known/**
+        filters: []
       - id: whale-job
         uri: lb://whale-job
         predicates:

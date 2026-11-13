@@ -1,7 +1,6 @@
 package com.bluewhale.auth.infrastructure.security;
 
 import com.bluewhale.auth.domain.repository.RoleRepository;
-import com.bluewhale.auth.domain.repository.RoleRepository.UserTenantRef;
 import com.bluewhale.auth.domain.repository.UserRepository;
 import com.bluewhale.auth.infrastructure.config.PermissionCacheProperties;
 import com.bluewhale.auth.infrastructure.cache.AuthPermissionCacheInvalidator;

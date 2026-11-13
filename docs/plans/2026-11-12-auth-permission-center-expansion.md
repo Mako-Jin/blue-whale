@@ -300,6 +300,27 @@
 - 验收：Postman/curl 完成 `authorize → code → token → 调用受保护接口 → refresh → revoke` 全链路；PKCE 错误、redirect 不匹配、client 禁用均被拒；scope 超集被裁剪。
 - 测试：`OAuth2AuthorizationAppServiceTest`、`RedisAuthorizationCodeStoreTest`（并发消费仅一次）、控制器契约测试；网关端到端冒烟脚本置于 `scripts/smoke`。
 
+**实施记录（2026-11-13，已完成）**
+
+| 项 | 落地内容 |
+|---|---|
+| 前置 spike | Spring Boot 4.0.8 BOM 直接管理 `org.springframework.security:spring-security-oauth2-authorization-server:7.0.7`（与 Security 7 同源），**兼容**，走官方实现而非自研 |
+| 依赖 | `whale-service-auth-infrastructure` 引入 `spring-security-oauth2-authorization-server`；不引 Boot starter，避免其默认表单登录链覆盖既有 JWT 链 |
+| 装配 | `OAuth2AuthorizationServerConfig`：独立 `SecurityFilterChain`（最高优先级 + 协议端点 matcher）、HS256 `JWKSource`、`JwtDecoder`、`AuthorizationServerSettings`、JDBC 授权/确认服务 |
+| 客户端桥接 | `OAuth2ClientRegisteredClientAdapter`：`sys_oauth_client` → `RegisteredClient`；`save()` 直接拒绝（唯一事实源在领域服务）；停用客户端返回 `null`（协议层等价不存在） |
+| 令牌同构 | `OAuth2TokenClaimsCustomizer`：复用 `whale.auth.jwt.secret` 与 `userId/tenantId/username/roles/tokenType/jti` 声明；`perm` = 请求 scope ∩ 用户权限码（超管不裁剪） |
+| 状态存储 | `V17__oauth2_server.sql`：官方 schema 的 `oauth2_authorization` / `oauth2_authorization_consent`，多实例共享 |
+| 网关 | 新路由 `whale-service-auth-oauth2`（`/oauth2/**`、`/.well-known/**`）；`token/revoke/introspect/jwks` 与发现文档入白名单，`authorize` 仍须 JWT；纳入熔断名单 |
+| 测试 | `OAuth2ClientRegisteredClientAdapterTest`（4）、`OAuth2ScopePermissionClipperTest`（3）；auth starter 全量 604 用例、网关 157 用例、ArchUnit 9 条全绿 |
+| 冒烟 | `scripts/smoke/bw-auth-oauth2-m1-smoke.ps1`：JWKS → 元数据 → client_credentials 换票 → 内省 → 撤销 → 错误密钥 |
+
+> 偏差说明（相对本节原设计）：
+> 1. **端点路径保留协议标准形式**（`/oauth2/authorize|token|revoke|introspect|jwks`），未使用 `/oauth2/v1/**`：协议端点不参与业务 API 版本约定，标准路径可最大化与三方客户端互通；网关按 `/oauth2/**` 路由。
+> 2. **授权码存储采用 JDBC** 而非 Redis：官方 `JdbcOAuth2AuthorizationService` 的 `OAuth2Authorization` 含多层嵌套结构，跨 Jackson 版本序列化风险高；JDBC 多实例共享、可观测性更好，Redis 化留作后续性能优化。
+> 3. **scope 裁剪落在 `perm` 声明**：框架在自定义器之后写入 `scope` 声明，无法覆盖；`scope` 保持「客户端注册值」，资源侧细粒度鉴权读 `perm`（等价语义，见 §6.1）。
+> 4. **授权码模式的浏览器跳转**：`/oauth2/authorize` 依赖请求头 JWT，纯 302 浏览器导航无法携带；前端需通过同源 `fetch` 携带 Bearer 后读取 Location，或后续里程碑补「登录页回跳」适配。
+> 5. **审计**：签发以结构化日志落 `[OAUTH2]` 前缀；撤销端点暂无切面钩子，DB 审计待 M3 与 `@AuditLog` 统一接入。
+
 ### M2 三方登录（R3）
 
 - 任务：`sys_user_social_binding`；`SocialLoginAppService`；`SocialIdentityProvider` 端口 + 首批适配器（**渠道优先级待确认，见 §九-2**）；state/nonce/PKCE 存 Redis；三种落地：已绑定→直接登录、同邮箱未绑定→要求先登录再绑定、无记录→按租户 `self_register_enabled` 自动建号（`register_source=SOCIAL`）。

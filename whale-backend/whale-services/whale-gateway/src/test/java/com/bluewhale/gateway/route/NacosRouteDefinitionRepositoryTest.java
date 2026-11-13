@@ -386,7 +386,7 @@ class NacosRouteDefinitionRepositoryTest {
 
         List<RouteDefinition> routes = repository.convert(content);
 
-        assertEquals(38, routes.size());
+        assertEquals(39, routes.size());
         assertTrue(RouteDefinitionValidator.validateAll(routes).isEmpty());
     }
 

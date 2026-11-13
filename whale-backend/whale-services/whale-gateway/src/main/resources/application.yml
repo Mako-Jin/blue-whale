@@ -62,6 +62,14 @@ whale:
       - /auth/v1/refresh
       # 登录页品牌解析（权限中心扩展 M0）：登录前渲染品牌，免 JWT
       - /brand/v1/resolve
+      # OAuth2.0 授权服务器（权限中心扩展 M1）：令牌/撤销/内省/JWKS/发现文档均为协议端点，
+      # 客户端凭据由框架在服务内校验（client_secret_basic|post），网关不再叠加 JWT；
+      # /oauth2/authorize 涉及用户授权，仍须 JWT，故不放行。
+      - /oauth2/token
+      - /oauth2/revoke
+      - /oauth2/introspect
+      - /oauth2/jwks
+      - /.well-known/**
       - /actuator/**
       - /v3/api-docs/**
       - /doc.html
@@ -188,6 +196,7 @@ whale:
       apply-to-routes:
         - whale-service-auth
         - whale-service-auth-brand
+        - whale-service-auth-oauth2
         - whale-job
         - whale-file
         - whale-audit

@@ -10,7 +10,7 @@
 | 默认端口 | `8081`（`SERVER_PORT` 可覆盖） |
 | 数据库 | MySQL `bluewhale_auth` |
 | 缓存 / 锁 | Redis + Redisson（令牌黑名单、刷新轮换、权限缓存广播） |
-| 网关前缀 | `/auth/**`、`/user/**`、`/dept/**`、`/role/**`、`/menu/**`、`/permission/**`、`/tenant/**`、`/brand/**`、`/oauth-client/**` |
+| 网关前缀 | `/auth/**`、`/user/**`、`/dept/**`、`/role/**`、`/menu/**`、`/permission/**`、`/tenant/**`、`/brand/**`、`/oauth-client/**`、`/oauth2/**`、`/.well-known/**` |
 | 契约文档 | `/v3/api-docs`、`/swagger-ui.html`（仅服务直连端口，网关未放行） |
 
 技术选型与版本以 [whale-parent/pom.xml](../../whale-parent/pom.xml) 为唯一事实源，本文不硬编码版本号。
@@ -193,6 +193,30 @@ whale-service-auth/
   需与网关保持一致。
 - **口令生命周期**：默认 90 天到期、提前 7 天提醒、最近 5 次不可复用、最小 12 位且含四类字符；
   新建或管理员重置后强制首登改密。租户可通过 `PUT /tenant/password-policy` 覆盖有效期。
+
+### 6.1 OAuth2.0 授权服务器（M1）
+
+基于 Spring Security 7 内置的 Spring Authorization Server，与业务令牌共用同一 HS256 密钥与声明结构，
+资源侧（网关、业务服务）无需区分令牌来源。
+
+| 端点 | 说明 |
+|---|---|
+| `GET/POST /oauth2/authorize` | 授权码模式入口；须携带业务 JWT（未认证返回统一 401 JSON） |
+| `POST /oauth2/token` | `authorization_code`（PKCE 可选）/ `client_credentials` / `refresh_token` |
+| `POST /oauth2/revoke` | 撤销访问令牌或刷新令牌 |
+| `POST /oauth2/introspect` | 令牌内省，返回 `active` 与声明 |
+| `GET /oauth2/jwks` | HS256 对称密钥 JWK 集 |
+| `GET /.well-known/oauth-authorization-server` | 授权服务器元数据 |
+
+- **客户端事实源**：`sys_oauth_client`（`OAuthClientAppService` 维护注册、轮换、停用）；框架侧只读，
+  停用客户端在协议层等价于不存在。
+- **令牌同构**：访问令牌携带 `userId`/`tenantId`/`username`/`roles`/`tokenType`/`jti`，与 `/auth/login` 一致；
+  `perm` 声明为「请求 scope ∩ 用户权限码」（超管不裁剪），资源侧做细粒度鉴权应读 `perm`。
+- **状态存储**：授权码 / 令牌状态落 `oauth2_authorization`、`oauth2_authorization_consent`（Flyway `V17`），
+  多实例共享数据库，重启不掉线。
+- **网关**：`/oauth2/**`、`/.well-known/**` 新增路由 `whale-service-auth-oauth2`；`token`/`revoke`/`introspect`/
+  `jwks` 与发现文档免 JWT，`authorize` 仍须 JWT。
+- **冒烟**：`scripts/smoke/bw-auth-oauth2-m1-smoke.ps1`（client_credentials → introspect → revoke → 错误密钥）。
 
 ## 七、权限模型与缓存
 
