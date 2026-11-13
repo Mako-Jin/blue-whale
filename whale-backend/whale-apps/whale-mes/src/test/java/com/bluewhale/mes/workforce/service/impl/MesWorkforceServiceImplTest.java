@@ -8,6 +8,8 @@ import com.bluewhale.mes.dispatch.entity.MesWorkOrderTask;
 import com.bluewhale.mes.dispatch.mapper.MesWorkOrderTaskMapper;
 import com.bluewhale.mes.execution.entity.MesProductionReport;
 import com.bluewhale.mes.execution.mapper.MesProductionReportMapper;
+import com.bluewhale.mes.masterdata.entity.MesRoutingOperation;
+import com.bluewhale.mes.masterdata.entity.MesRoutingSnapshot;
 import com.bluewhale.mes.masterdata.entity.MesStation;
 import com.bluewhale.mes.masterdata.entity.MesTeam;
 import com.bluewhale.mes.masterdata.mapper.MesRoutingOperationMapper;
@@ -109,12 +111,22 @@ class MesWorkforceServiceImplTest {
     /**
      * 初始化 MyBatis-Plus 表元数据
      */
+    /**
+     * 注册本类用到的全部实体 TableInfo（MyBatis-Plus 的 lambda 列缓存）。
+     *
+     * <p>单测无 Spring/MyBatis 会话，{@code LambdaQueryWrapper} 的 {@code ::getXxx} 依赖
+     * {@link TableInfoHelper} 里的元数据；漏注册的实体会抛
+     * {@code can not find lambda cache for this entity}。而该缓存是 JVM 级共享的，
+     * 之前是否有别的测试先初始化过它取决于执行顺序 —— 因此必须在本类显式全量注册，
+     * 不能依赖「本地能过」（CI 与本地用例顺序不同，曾因此单点飘红）。</p>
+     */
     @BeforeAll
     static void initTableInfo() {
         MybatisConfiguration configuration = new MybatisConfiguration();
         MapperBuilderAssistant assistant = new MapperBuilderAssistant(configuration, "");
         for (Class<?> type : List.of(MesTeamMember.class, MesShiftAssignment.class, MesHandover.class,
-                MesWorkHour.class, MesPerformanceStat.class, MesSkillMatrix.class)) {
+                MesWorkHour.class, MesPerformanceStat.class, MesSkillMatrix.class,
+                MesProductionReport.class, MesRoutingOperation.class, MesRoutingSnapshot.class)) {
             TableInfoHelper.initTableInfo(assistant, type);
         }
     }
