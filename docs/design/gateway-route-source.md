@@ -2,7 +2,7 @@
 
 | 项 | 内容 |
 |---|---|
-| 状态 | Phase 0/1 已落地（2026-11-13）；Phase 2（DB 覆盖层）待需求触发，未启动 |
+| 状态 | Phase 0/1/2 已落地（2026-11-13）；Phase 2 运行时验收（停用 ≤60s 生效取证）待真机重启后执行 |
 | 关联需求 | REQ-ARCH-003（服务自持一级前缀）、REQ-CONFIG（路由配置治理） |
 | 落点 | `whale-gateway`（路由解析/校验/治理端点）、`whale-service-auth`（Phase 2 覆盖数据） |
 | 台账 | [whale-gateway-backlog GW-10](../plans/whale-gateway-backlog.md) |
@@ -60,20 +60,22 @@
 4. 冒烟：登录、刷新、登出、各服务一级路径、内网 403、限流/熔断降级。
 5. 回滚：治理端点 `POST /actuator/routeGovernance` 固定上一版路由；或移除 Nacos 中对应路由，自动回落到兜底。
 
-## 5. DB 业务覆盖层（Phase 2，未启动）
+## 5. DB 业务覆盖层（Phase 2，已落地 2026-11-13）
 
-触发条件（满足其一再启动）：运营后台需要不经 Nacos 发布流程开关路由；需要按时间窗口临时启停；需要与租户/权限联动。
+实现与设计存档一致：
 
-设计要点：
-
-- 表 `sys_gateway_route_override`（auth 库，Flyway 新版本）：
+- 表 `sys_gateway_route_override`（auth 库，`V27__gateway_route_override.sql`，权限点号段 2364–2367）：
   `route_id`（PK）、`enabled`、`effective_from`、`effective_to`、`version`、`remark`、审计字段。
-- auth 暴露只读内部接口 `GET /auth/v1/internal/gateway/route-overrides`（`X-Internal-Token`），返回 `{version, items[]}`；
-  写操作走管理端接口 + 权限码 + 审计（停用等于全站 404，需二次确认）。
-- 网关 `RouteOverrideProvider`：60s 拉取、失败保留旧快照、防重入、内容签名不变不重建；**不引入 JDBC**。
-- 合并位置：`NacosRouteDefinitionRepository.loadRouteDefinitions()` 末尾，只过滤 `enabled=false` / 不在窗口内的路由；
-  未知 `route_id` 忽略并计 `gateway.routes.override{result="orphan"}`，不改变 predicates/filters。
-- 变更识别优先级：60s 拉取 + 版本/签名比对 ＞ 内部刷新端点（令牌 + 审计）＞ MQ ＞ CDC；后两者暂不引入。
+- auth 暴露只读内部接口 `GET /auth/v1/internal/gateway/route-overrides`（`X-Internal-Token`），
+  返回**全部条目**（含停用与窗口外条目），生效判定由网关按当前时间执行——时间窗口随时间推移
+  自动进入/退出生效态，无需重新下发；写操作走管理端接口 + 权限码 `sys:gateway:route-override:*` + 审计
+  （停用等于全站 404，需二次确认）。
+- 网关 `RouteOverrideProvider`（60s `@Scheduled` 拉取、失败保留旧快照、防重入、内容等价静默跳过、
+  快照变化发布 `RefreshRoutesEvent` 立即重载）；**不引入 JDBC**，配置 `whale.gateway.route-override.*`。
+- 合并位置：`NacosRouteDefinitionRepository.loadRouteDefinitions()` 末尾 `applyOverrides()`——基础候选
+  （兜底 ∪ Nacos 合并）先经覆盖过滤再入快照，只过滤 `enabled=false` / 不在窗口内的路由，不改写
+  predicates/filters；孤儿 `route_id` 忽略并计 `gateway.routes.override{result="orphan"}`（按集合变化计一次，
+  不随刷新重复累加），不阻断路由刷新。
 
 ## 6. 观测与排障
 
@@ -91,15 +93,16 @@ Phase 1（已完成）：
 - [x] 治理端点可看到 order 与条目数。
 - [x] 网关全量单测通过、checkstyle 0 违规。
 
-Phase 2（启动后）：
+Phase 2（代码已落地，运行时取证待真机重启后执行）：
 
-- [ ] 后台停用一条路由 ≤60s 生效，恢复同样 ≤60s。
-- [ ] auth 不可用不影响既有路由；覆盖快照失败保留。
-- [ ] 孤儿 `route_id` 可观测且不阻断刷新。
-- [ ] Nacos 回滚不撤销 DB 覆盖（两者语义独立）。
+- [ ] 后台停用一条路由 ≤60s 生效，恢复同样 ≤60s（单测已覆盖过滤语义与事件发布，待真机取证）。
+- [x] auth 不可用不影响既有路由；覆盖快照失败保留（`RouteOverrideProviderTest`）。
+- [x] 孤儿 `route_id` 可观测且不阻断刷新（`NacosRouteDefinitionRepositoryTest`，指标按集合变化计一次）。
+- [x] Nacos 回滚不撤销 DB 覆盖（覆盖过滤在 `replaceSnapshot` 之外的最终投影，两者语义独立）。
 
 ## 8. 变更记录
 
 | 日期 | 变更 |
 |---|---|
 | 2026-11-13 | 初版：现状核对、权威矩阵与 D1~D5 决策；Phase 1 落地 order 解析、重复 id 拒绝、签名纳入 order、治理端点补字段；Phase 2 设计存档 |
+| 2026-11-13 | **Phase 2 落地**：`V27` 建表 `sys_gateway_route_override` + 权限点 2364–2367；auth 聚合/仓储/应用服务/管理端+内部接口；网关 `RouteOverrideProperties/Rule/Client/Provider` + 仓库 `applyOverrides` 合并过滤与孤儿指标。网关单测 28+7 绿、auth starter 全量绿（含迁移守卫） |

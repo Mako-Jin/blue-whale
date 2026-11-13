@@ -25,11 +25,14 @@ import reactor.core.publisher.Mono;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -99,10 +102,19 @@ public class NacosRouteDefinitionRepository implements RouteDefinitionRepository
     /** 动态路由配置被整体拒绝的计数指标名（G3） */
     private static final String METER_REJECTED = "gateway.routes.rejected";
 
+    /** 路由覆盖孤儿条目计数指标名（GW-10 Phase 2：route_id 在当前路由中不存在，已忽略） */
+    private static final String METER_OVERRIDE = "gateway.routes.override";
+
     /** 指标 dataId 标签名 */
     private static final String TAG_DATA_ID = "dataId";
 
+    /** 指标 result 标签名 */
+    private static final String TAG_RESULT = "result";
+
     private final ObjectProvider<NacosConfigManager> configManagerProvider;
+
+    /** 路由业务属性覆盖提供者（GW-10 Phase 2）：允许缺失，缺失时覆盖层不生效 */
+    private final ObjectProvider<RouteOverrideProvider> overrideProvider;
 
     private final ApplicationEventPublisher eventPublisher;
 
@@ -136,6 +148,9 @@ public class NacosRouteDefinitionRepository implements RouteDefinitionRepository
     /** 因校验失败被整体拒绝的配置次数（G3 指标） */
     private final AtomicLong rejectedCount = new AtomicLong();
 
+    /** 上一次识别出的孤儿覆盖 route_id 集合（集合变化时才计指标/告警，避免每次路由刷新重复计数） */
+    private volatile Set<String> lastOrphanIds = Set.of();
+
     /**
      * 构造 Nacos 动态路由仓库
      *
@@ -145,30 +160,36 @@ public class NacosRouteDefinitionRepository implements RouteDefinitionRepository
      * 早期只有一个构造器时能自动选中，加第二个的同时漏了注解，问题只在"重建镜像"时才暴露。</p>
      *
      * @param configManagerProvider Nacos 配置管理器提供者（允许缺失，缺失时仅使用兜底路由）
+     * @param overrideProvider      路由业务属性覆盖提供者（允许缺失，缺失时覆盖层不生效）
      * @param eventPublisher        应用事件发布器，用于发布路由刷新事件
      * @param meterRegistryProvider Micrometer 指标注册表提供者，缺省时返回 {@code null} 表示不采集指标
      */
     @Autowired
     public NacosRouteDefinitionRepository(ObjectProvider<NacosConfigManager> configManagerProvider,
+                                          ObjectProvider<RouteOverrideProvider> overrideProvider,
                                           ApplicationEventPublisher eventPublisher,
                                           ObjectProvider<MeterRegistry> meterRegistryProvider) {
-        this(configManagerProvider, eventPublisher, meterRegistryProvider, DEFAULT_FALLBACK_LOCATION, true);
+        this(configManagerProvider, overrideProvider, eventPublisher, meterRegistryProvider,
+                DEFAULT_FALLBACK_LOCATION, true);
     }
 
     /**
      * 构造 Nacos 动态路由仓库（可指定兜底路由位置，供测试隔离使用）
      *
      * @param configManagerProvider Nacos 配置管理器提供者（允许缺失，缺失时仅使用兜底路由）
+     * @param overrideProvider      路由业务属性覆盖提供者（允许缺失，缺失时覆盖层不生效）
      * @param eventPublisher        应用事件发布器，用于发布路由刷新事件
      * @param meterRegistryProvider Micrometer 指标注册表提供者，缺省时返回 {@code null} 表示不采集指标
      * @param fallbackLocation      兜底路由文件位置（Spring Resource 表达式）
      * @param fallbackEnabled       是否启用兜底路由
      */
     NacosRouteDefinitionRepository(ObjectProvider<NacosConfigManager> configManagerProvider,
+                                   ObjectProvider<RouteOverrideProvider> overrideProvider,
                                    ApplicationEventPublisher eventPublisher,
                                    ObjectProvider<MeterRegistry> meterRegistryProvider,
                                    String fallbackLocation, boolean fallbackEnabled) {
         this.configManagerProvider = configManagerProvider;
+        this.overrideProvider = overrideProvider;
         this.eventPublisher = eventPublisher;
         this.meterRegistryProvider = meterRegistryProvider;
         this.fallbackLocation = fallbackLocation;
@@ -219,11 +240,20 @@ public class NacosRouteDefinitionRepository implements RouteDefinitionRepository
     }
 
     /**
-     * 读取 Nacos 动态路由并与兜底路由按 id 合并；读取异常/配置非法时降级，不抛异常
+     * 读取 Nacos 动态路由并与兜底路由按 id 合并，再经业务属性覆盖过滤；读取异常/配置非法时降级，不抛异常
      *
-     * @return 合并后的路由定义列表；Nacos 不可用时为兜底路由
+     * @return 过滤后的路由定义列表；Nacos 不可用时为兜底路由（同样经过覆盖过滤）
      */
     private List<RouteDefinition> loadRouteDefinitions() {
+        return replaceSnapshot(applyOverrides(computeBaseCandidate()));
+    }
+
+    /**
+     * 计算未经覆盖过滤的基础路由候选（兜底 + Nacos 动态路由按 id 合并，Nacos 优先）
+     *
+     * @return 基础路由候选；Nacos 不可用/配置非法时为既有快照或兜底路由
+     */
+    private List<RouteDefinition> computeBaseCandidate() {
         List<RouteDefinition> fallback = loadFallbackRoutes();
         String content;
         try {
@@ -235,7 +265,7 @@ public class NacosRouteDefinitionRepository implements RouteDefinitionRepository
         }
         List<RouteDefinition> parsed = convert(content);
         if (parsed.isEmpty()) {
-            return replaceSnapshot(fallback);
+            return fallback;
         }
         List<String> errors = RouteDefinitionValidator.validateAll(parsed);
         if (!errors.isEmpty()) {
@@ -254,17 +284,79 @@ public class NacosRouteDefinitionRepository implements RouteDefinitionRepository
                     rejected, mergedErrors);
             return degrade(fallback);
         }
-        return replaceSnapshot(merged);
+        return merged;
     }
 
     /**
      * Nacos 侧不可用时的降级：已有快照保持不变，首次加载则采用兜底路由
      *
      * @param fallback 兜底路由
-     * @return 生效的路由定义
+     * @return 基础路由候选
      */
     private List<RouteDefinition> degrade(List<RouteDefinition> fallback) {
-        return currentRoutes.isEmpty() ? replaceSnapshot(fallback) : currentRoutes;
+        return currentRoutes.isEmpty() ? fallback : currentRoutes;
+    }
+
+    /**
+     * 应用业务属性覆盖过滤（GW-10 Phase 2）：停用/窗口外的路由从候选中移除。
+     *
+     * <p>只过滤，不改写 predicates/filters；覆盖提供者缺失或开关关闭时原样返回。
+     * 孤儿 {@code route_id}（当前候选中不存在同名路由）忽略并按集合变化计指标，
+     * 不阻断路由刷新——DB 覆盖与 Nacos 路由发布是相互独立的运维动作。</p>
+     *
+     * @param candidate 基础路由候选
+     * @return 覆盖过滤后的路由定义列表
+     */
+    private List<RouteDefinition> applyOverrides(List<RouteDefinition> candidate) {
+        RouteOverrideProvider provider = overrideProvider.getIfAvailable();
+        Map<String, RouteOverrideRule> overrides =
+                provider == null || !provider.isOverrideEnabled() ? Map.of() : provider.overrides();
+        if (overrides.isEmpty()) {
+            countOrphans(Set.of());
+            return candidate;
+        }
+        List<RouteDefinition> filtered = new ArrayList<>(candidate.size());
+        Set<String> matchedIds = new TreeSet<>();
+        LocalDateTime now = LocalDateTime.now();
+        for (RouteDefinition route : candidate) {
+            RouteOverrideRule override = overrides.get(route.getId());
+            if (override == null) {
+                filtered.add(route);
+                continue;
+            }
+            matchedIds.add(route.getId());
+            if (override.isEffectiveAt(now)) {
+                filtered.add(route);
+            } else {
+                log.info("路由被业务覆盖停用（enabled=false 或不在生效窗口内），从生效路由中移除: id={}, version={}",
+                        route.getId(), override.version());
+            }
+        }
+        Set<String> orphanIds = new TreeSet<>(overrides.keySet());
+        orphanIds.removeAll(matchedIds);
+        countOrphans(orphanIds);
+        return filtered;
+    }
+
+    /**
+     * 记录孤儿覆盖条目：集合相对上一次发生变化时输出告警并累加指标，避免每次路由刷新重复计数
+     *
+     * @param orphans 当前孤儿 route_id 集合（可为空，空集合用于复位）
+     */
+    private void countOrphans(Set<String> orphans) {
+        if (orphans.equals(lastOrphanIds)) {
+            return;
+        }
+        lastOrphanIds = Set.copyOf(orphans);
+        if (orphans.isEmpty()) {
+            return;
+        }
+        log.warn("路由覆盖存在孤儿条目（网关当前无同名路由，已忽略）: routeIds={}", orphans);
+        MeterRegistry meterRegistry = meterRegistryProvider.getIfAvailable();
+        if (meterRegistry == null) {
+            return;
+        }
+        meterRegistry.counter(METER_OVERRIDE, TAG_RESULT, "orphan").increment(orphans.size());
     }
 
     /**

@@ -2,6 +2,7 @@ package com.bluewhale.gateway.route;
 
 import com.alibaba.cloud.nacos.NacosConfigManager;
 import com.alibaba.nacos.api.config.ConfigService;
+import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,11 +19,14 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.ClassPathResource;
 
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -195,6 +199,9 @@ class NacosRouteDefinitionRepositoryTest {
     @Mock
     private ConfigService configService;
 
+    @Mock
+    private RouteOverrideProvider routeOverrideProvider;
+
     private NacosRouteDefinitionRepository repository;
 
     private MeterRegistry registry;
@@ -202,7 +209,8 @@ class NacosRouteDefinitionRepositoryTest {
     @BeforeEach
     void setUp() {
         registry = new SimpleMeterRegistry();
-        // 既有用例只关注 Nacos 侧行为，关闭兜底路由以隔离断言
+        // 既有用例只关注 Nacos 侧行为，关闭兜底路由以隔离断言；
+        // 覆盖提供者默认桩（isOverrideEnabled=false）不参与路由过滤
         repository = createRepository(NacosRouteDefinitionRepository.DEFAULT_FALLBACK_LOCATION, false);
     }
 
@@ -214,8 +222,9 @@ class NacosRouteDefinitionRepositoryTest {
      * @return 被测仓库实例
      */
     private NacosRouteDefinitionRepository createRepository(String fallbackLocation, boolean fallbackEnabled) {
-        return new NacosRouteDefinitionRepository(configManagerProvider, eventPublisher,
-                new StubMeterProvider(registry), fallbackLocation, fallbackEnabled);
+        return new NacosRouteDefinitionRepository(configManagerProvider,
+                new StubProvider<>(routeOverrideProvider), eventPublisher,
+                new StubProvider<>(registry), fallbackLocation, fallbackEnabled);
     }
 
     @Test
@@ -505,6 +514,85 @@ class NacosRouteDefinitionRepositoryTest {
         verify(eventPublisher, never()).publishEvent(any(RefreshRoutesEvent.class));
     }
 
+    @Test
+    @DisplayName("GW-10 P2 覆盖：停用路由从生效列表中移除")
+    void shouldFilterDisabledRouteByOverride() throws Exception {
+        stubConfig(VALID_CONTENT);
+        when(routeOverrideProvider.isOverrideEnabled()).thenReturn(true);
+        when(routeOverrideProvider.overrides()).thenReturn(Map.of("whale-demo",
+                new RouteOverrideRule("whale-demo", false, null, null, 1L)));
+
+        List<RouteDefinition> definitions = repository.getRouteDefinitions().collectList().block();
+
+        assertTrue(definitions.isEmpty(), "停用覆盖应使路由全站下线");
+    }
+
+    @Test
+    @DisplayName("GW-10 P2 覆盖：生效窗口外的路由移除，窗口内保留")
+    void shouldFilterRouteByEffectiveWindow() throws Exception {
+        stubConfig(VALID_CONTENT);
+        when(routeOverrideProvider.isOverrideEnabled()).thenReturn(true);
+        LocalDateTime now = LocalDateTime.now();
+        when(routeOverrideProvider.overrides()).thenReturn(Map.of("whale-demo",
+                new RouteOverrideRule("whale-demo", true, now.plusSeconds(3600), null, 2L)));
+
+        List<RouteDefinition> before = repository.getRouteDefinitions().collectList().block();
+        assertTrue(before.isEmpty(), "窗口未开始时路由不应生效");
+
+        when(routeOverrideProvider.overrides()).thenReturn(Map.of("whale-demo",
+                new RouteOverrideRule("whale-demo", true, now.minusSeconds(3600), now.plusSeconds(3600), 3L)));
+        List<RouteDefinition> inside = repository.getRouteDefinitions().collectList().block();
+        assertEquals(1, inside.size(), "窗口内路由应恢复生效");
+    }
+
+    @Test
+    @DisplayName("GW-10 P2 覆盖：孤儿 route_id 忽略且不阻断刷新，按集合变化计一次指标")
+    void shouldIgnoreOrphanOverrideAndCountOnce() throws Exception {
+        stubConfig(VALID_CONTENT, VALID_CONTENT);
+        when(routeOverrideProvider.isOverrideEnabled()).thenReturn(true);
+        when(routeOverrideProvider.overrides()).thenReturn(Map.of("not-exist",
+                new RouteOverrideRule("not-exist", false, null, null, 1L)));
+
+        List<RouteDefinition> first = repository.getRouteDefinitions().collectList().block();
+        List<RouteDefinition> second = repository.getRouteDefinitions().collectList().block();
+
+        assertEquals(1, first.size());
+        assertEquals(1, second.size(), "孤儿覆盖不应阻断路由刷新");
+        Counter counter = registry.find("gateway.routes.override").tag("result", "orphan").counter();
+        assertNotNull(counter, "孤儿条目应计指标");
+        assertEquals(1.0d, counter.count(), "孤儿集合未变化时不重复计数");
+    }
+
+    @Test
+    @DisplayName("GW-10 P2 覆盖：覆盖层关闭时不过滤路由")
+    void shouldSkipOverrideWhenDisabled() throws Exception {
+        stubConfig(VALID_CONTENT);
+        // isOverrideEnabled=false 时路由仓库不应触碰覆盖快照
+        when(routeOverrideProvider.isOverrideEnabled()).thenReturn(false);
+
+        List<RouteDefinition> definitions = repository.getRouteDefinitions().collectList().block();
+
+        assertEquals(1, definitions.size());
+        verify(routeOverrideProvider, never()).overrides();
+    }
+
+    @Test
+    @DisplayName("GW-10 P2 覆盖：覆盖提供者缺失时不过滤路由")
+    void shouldSkipOverrideWhenProviderMissing() throws Exception {
+        stubConfig(VALID_CONTENT);
+        NacosRouteDefinitionRepository orphanlessRepository =
+                new NacosRouteDefinitionRepository(configManagerProvider, new StubProvider<>(null),
+                        eventPublisher, new StubProvider<>(registry),
+                        NacosRouteDefinitionRepository.DEFAULT_FALLBACK_LOCATION, false);
+        when(configManagerProvider.getIfAvailable()).thenReturn(configManager);
+        when(configManager.getConfigService()).thenReturn(configService);
+        when(configService.getConfig(anyString(), anyString(), anyLong())).thenReturn(VALID_CONTENT);
+
+        List<RouteDefinition> definitions = orphanlessRepository.getRouteDefinitions().collectList().block();
+
+        assertEquals(1, definitions.size());
+    }
+
     /**
      * 桩化 Nacos 配置读取，按调用顺序依次返回给定配置内容
      *
@@ -525,27 +613,28 @@ class NacosRouteDefinitionRepositoryTest {
     }
 
     /**
-     * 测试用 {@link ObjectProvider} 桩：{@code getIfAvailable()} 返回给定的指标注册表。
+     * 测试用 {@link ObjectProvider} 桩：{@code getIfAvailable()} 返回给定实例（可为 {@code null}）。
      *
+     * @param <T> 提供的 Bean 类型
      * @author BlueWhale
      */
-    private static final class StubMeterProvider implements ObjectProvider<MeterRegistry> {
+    private static final class StubProvider<T> implements ObjectProvider<T> {
 
-        /** 待返回的指标注册表，可为 {@code null} */
-        private final MeterRegistry registry;
+        /** 待返回的实例，可为 {@code null} */
+        private final T value;
 
         /**
-         * 构造指标注册表提供者桩
+         * 构造提供者桩
          *
-         * @param registry 待返回的指标注册表，{@code null} 表示不存在
+         * @param value 待返回的实例，{@code null} 表示不存在
          */
-        private StubMeterProvider(MeterRegistry registry) {
-            this.registry = registry;
+        private StubProvider(T value) {
+            this.value = value;
         }
 
         @Override
-        public MeterRegistry getIfAvailable() {
-            return registry;
+        public T getIfAvailable() {
+            return value;
         }
     }
 }

@@ -122,6 +122,18 @@ whale:
       #     - /some/hot/path/**
       # 变更后 @ConfigurationProperties 重新绑定，下一个请求即生效（不受 enabled 开关影响）。
       emergency-blacklist: []
+    # GW-10 Phase 2 路由业务属性覆盖：DB 不存路由定义（权威源 Nacos、冷备本地 YAML），
+    #   只存 enabled/生效窗口，表落 whale-service-auth 库，经内部只读接口 60s 快照拉取；
+    #   快照变更即发布 RefreshRoutesEvent 重载路由（≤60s 生效、不重启），auth 不可用保留旧快照。
+    route-override:
+      enabled: ${WHALE_GATEWAY_ROUTE_OVERRIDE_ENABLED:true}
+      uri: ${WHALE_GATEWAY_ROUTE_OVERRIDE_URI:lb://whale-service-auth/auth/v1/internal/gateway/route-overrides}
+      refresh-interval-ms: ${WHALE_GATEWAY_ROUTE_OVERRIDE_REFRESH_INTERVAL_MS:60000}
+      initial-delay-ms: ${WHALE_GATEWAY_ROUTE_OVERRIDE_INITIAL_DELAY_MS:5000}
+      timeout-millis: ${WHALE_GATEWAY_ROUTE_OVERRIDE_TIMEOUT_MILLIS:800}
+      # 与服务侧 InternalTokenFilter 共享令牌（生产必须配置 WHALE_INTERNAL_TOKEN）
+      internal-token: ${WHALE_INTERNAL_TOKEN:}
+      internal-token-header: X-Internal-Token
     # P1-13 路由治理端点鉴权：/actuator/routeGovernance 不受 JWT 保护（actuator 端点不经过网关路由链），
     # 且含写操作（回滚路由），必须携带 X-Governance-Token；令牌未配置时一律 403（fail-closed），
     # 生产通过环境变量 WHALE_GATEWAY_GOVERNANCE_TOKEN 显式启用。health/info/prometheus 仍匿名可用。
