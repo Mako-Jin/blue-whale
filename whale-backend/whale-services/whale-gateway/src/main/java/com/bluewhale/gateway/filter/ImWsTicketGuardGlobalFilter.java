@@ -34,8 +34,14 @@ import java.util.Set;
 @Component
 public class ImWsTicketGuardGlobalFilter implements GlobalFilter, Ordered {
 
-    /** 需要 ticket 的 WebSocket 握手路径（与 application.yml 中 WS 路由一致） */
-    private static final Set<String> WS_PATHS = Set.of("/im/ws", "/doc/ws");
+    /**
+     * 需要 ticket 的 WebSocket 握手路径（与 application.yml 中 WS 路由一致）。
+     *
+     * <p>{@code /im/world} 是 3D 蓝鲸城的世界频道端点，与 {@code /im/ws} 共用
+     * {@code WsTicketService} 的一次性 ticket；不在这里登记的话，缺 ticket 的客户端
+     * 会先被协议升级、再被下游拒绝，中间那一瞬的 101 会让前端误判"已连上"。</p>
+     */
+    private static final Set<String> WS_PATHS = Set.of("/im/ws", "/im/world", "/doc/ws");
 
     /** 一次性凭证查询参数名 */
     private static final String TICKET_PARAM = "ticket";

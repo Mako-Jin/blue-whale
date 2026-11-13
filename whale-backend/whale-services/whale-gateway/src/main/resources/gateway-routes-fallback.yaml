@@ -131,7 +131,9 @@ whale:
         predicates:
           - name: Path
             args:
-              patterns: /im/ws
+              # /im/ws 为 2D 聊天，/im/world 为 3D 蓝鲸城世界频道：两者都是原生 WS 升级，
+              # 显式走 ws 路由而不是让 /im/** 的 http 路由兜底转协议，避免以后改 http 路由时误伤
+              patterns: /im/ws,/im/world
         filters: []
       - id: whale-im
         uri: lb://whale-im

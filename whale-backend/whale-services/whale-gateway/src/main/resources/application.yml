@@ -88,6 +88,10 @@ whale:
       # Wave 5.52 WebIM WebSocket 升级：浏览器 WS 无法携带 Authorization 头，
       # 鉴权改由 60s 一次性 ticket（POST /im/ws-ticket 已走标准 JWT）；URL 中严禁出现 JWT。
       - /im/ws
+      # 3D 蓝鲸城世界频道（/im/world）：与 /im/ws 同一套 ticket 口径，握手同样无法带 Authorization。
+      # 漏加这条的后果是「能连上但永远是单机」——网关先回 401，前端 net.ts 静默退回本地模拟，
+      # 画面里其他玩家全是假的，且没有任何报错，只在 console 里留一行 warn。
+      - /im/world
       # Wave 5.74 M2 文档实时协作 WS 升级：同上，ticket 由 POST /doc/ws-ticket 签发
       - /doc/ws
       # Wave 5.75 / 5.77 音视频流：<audio>/<video> 标签无法携带 Authorization 头，

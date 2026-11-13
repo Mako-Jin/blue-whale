@@ -47,6 +47,9 @@ public final class WorldPeer {
     /** 待广播标记：本周期被限流丢弃的帧会让它置位，下一次放行时一并带走 */
     private boolean dirty;
 
+    /** 最近一次发言的时间戳（毫秒，用于发言限流；与位置帧限流各算各的） */
+    private long lastSayAt;
+
     /**
      * 构造玩家状态。
      *
@@ -189,5 +192,20 @@ public final class WorldPeer {
     /** @param value 是否待广播 */
     public void setDirty(boolean value) {
         this.dirty = value;
+    }
+
+    /** @return 最近发言时间 */
+    public long getLastSayAt() {
+        return lastSayAt;
+    }
+
+    /** @param value 最近发言时间 */
+    public void setLastSayAt(long value) {
+        this.lastSayAt = value;
+    }
+
+    /** @return 显示名（喊话气泡上要挂它） */
+    public String getName() {
+        return name;
     }
 }

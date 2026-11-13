@@ -51,6 +51,8 @@ export default function App({ getToken, getPermissions }: AppProps) {
       <div className="bww-vignette" />
 
       <div className="bww-labels" id="bww-labels" />
+      {/* 同城喊话气泡层：每个气泡单独一排，按世界坐标投影到屏幕 */}
+      <div className="bww-speech-layer" id="bww-speech" />
 
       <header className="bww-hud">
         <div className="bww-brand">
@@ -98,11 +100,12 @@ export default function App({ getToken, getPermissions }: AppProps) {
         <div>
           <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 行走&ensp;<kbd>Shift</kbd> 疾行
         </div>
-        <div>拖拽 转视角&ensp;滚轮 远近&ensp;<kbd>E</kbd> 传送&ensp;<kbd>F</kbd> 交谈&ensp;<kbd>T</kbd> 问小鲸宝&ensp;<kbd>C</kbd> 形象&ensp;<kbd>M</kbd> 城图&ensp;<kbd>R</kbd> 复位</div>
+        <div>拖拽 转视角&ensp;滚轮 远近&ensp;<kbd>E</kbd> 传送&ensp;<kbd>F</kbd> 交谈&ensp;<kbd>T</kbd> 问小鲸宝&ensp;<kbd>Q</kbd> 喊话&ensp;<kbd>C</kbd> 形象&ensp;<kbd>M</kbd> 城图&ensp;<kbd>R</kbd> 复位</div>
       </div>
 
       <div className="bww-toolbar">
         <button data-action="char" type="button">录名入城 · C</button>
+        <button data-action="say" type="button">同城喊话 · Q</button>
         <button data-action="pet" type="button">问小鲸宝 · T</button>
         <button data-action="map" type="button">城图显隐 · M</button>
         <button data-action="weather" type="button">天象：晴</button>
@@ -113,6 +116,8 @@ export default function App({ getToken, getPermissions }: AppProps) {
       </div>
 
       <div className="bww-char-panel" id="bww-char-panel" />
+
+      <div className="bww-say-panel" id="bww-say-panel" />
 
       <div className="bww-chat-panel" id="bww-chat-panel" />
 

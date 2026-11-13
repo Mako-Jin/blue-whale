@@ -167,4 +167,69 @@ class WorldChannelServiceTest {
         assertFalse(service.sceneKeysOf(1L).contains("city"), "超时玩家应已退场");
         assertTrue(service.sceneKeysOf(3L).contains("city"), "新玩家应仍在场");
     }
+
+    @Test
+    @DisplayName("喊话广播给兴趣区内的人，也回显给自己")
+    void sayShouldReachAoiAndSelf() {
+        WorldChannelService service = service();
+        service.join("city", 1L, "甲", "#112233", 0D, 0D, 0D);
+        service.join("city", 2L, "近邻", "#112233", 10D, 0D, 0D);
+        // 190,190 距原点约 269 米，超出 120 米兴趣区
+        service.join("city", 3L, "远客", "#112233", 190D, 190D, 0D);
+
+        WorldChannelService.UpdateOutcome outcome = service.say("city", 1L, "见过主公");
+        assertNull(outcome.error(), "正常喊话不应报错");
+        assertTrue(outcome.hasBroadcast(), "应该有广播");
+
+        List<Long> recipients = outcome.broadcast().recipients();
+        assertTrue(recipients.contains(1L), "要回显给自己（否则玩家以为没说出去）");
+        assertTrue(recipients.contains(2L), "兴趣区内的人应收到");
+        assertFalse(recipients.contains(3L), "兴趣区外的人不应收到");
+
+        Map<String, Object> frame = outcome.broadcast().frame();
+        assertEquals(WorldFrames.TYPE_SAY, frame.get("type"));
+        assertEquals("见过主公", frame.get("text"));
+        assertEquals("甲", frame.get("name"), "气泡要带发言人名字");
+    }
+
+    @Test
+    @DisplayName("喊话空内容被拒、超长被截断")
+    void sayShouldRejectEmptyAndTrimLong() {
+        WorldChannelService service = service();
+        service.join("city", 1L, "甲", "#112233", 0D, 0D, 0D);
+
+        assertEquals(WorldFrames.CODE_BAD_SAY, service.say("city", 1L, "   ").error().get("code"),
+                "纯空白应被拒");
+
+        now.addAndGet(2_000L);
+        String longText = "言".repeat(200);
+        WorldChannelService.UpdateOutcome outcome = service.say("city", 1L, longText);
+        assertNull(outcome.error(), "超长只截断不拒发");
+        assertEquals(120, ((String) outcome.broadcast().frame().get("text")).length(), "应截断到 120 字");
+    }
+
+    @Test
+    @DisplayName("1.5 秒内第二次喊话被限流，过了窗口即可再说")
+    void sayShouldBeRateLimited() {
+        WorldChannelService service = service();
+        service.join("city", 1L, "甲", "#112233", 0D, 0D, 0D);
+
+        assertNull(service.say("city", 1L, "第一句").error(), "首句应放行");
+
+        now.addAndGet(500L);
+        WorldChannelService.UpdateOutcome second = service.say("city", 1L, "第二句");
+        assertEquals(WorldFrames.CODE_SAY_LIMITED, second.error().get("code"), "500ms 内应被限流");
+
+        now.addAndGet(1_200L);
+        assertNull(service.say("city", 1L, "第三句").error(), "累计 1.7 秒后应放行");
+    }
+
+    @Test
+    @DisplayName("未进场景就喊话被拒")
+    void sayShouldRequireJoin() {
+        WorldChannelService service = service();
+        WorldChannelService.UpdateOutcome outcome = service.say("city", 9L, "有人吗");
+        assertNotNull(outcome.error(), "未进场景不应成功");
+        assertEquals(WorldFrames.CODE_NOT_JOINED, outcome.error().get("code"));
+    }
 }

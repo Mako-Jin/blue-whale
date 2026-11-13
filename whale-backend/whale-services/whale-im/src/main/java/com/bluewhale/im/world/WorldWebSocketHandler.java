@@ -102,6 +102,7 @@ public class WorldWebSocketHandler extends TextWebSocketHandler {
         switch (type) {
             case WorldFrames.TYPE_JOIN -> handleJoin(userId, node, sceneKey);
             case WorldFrames.TYPE_FRAME -> handleFrame(userId, node, sceneKey);
+            case WorldFrames.TYPE_SAY -> handleSay(userId, node, sceneKey);
             case "ping" -> handlePing(userId, sceneKey);
             default -> registry.send(userId, WorldFrames.error(WorldFrames.CODE_BAD_FRAME, "不支持的帧类型: " + type));
         }
@@ -152,6 +153,26 @@ public class WorldWebSocketHandler extends TextWebSocketHandler {
                 number(node, "z", Double.NaN),
                 number(node, "yaw", 0D),
                 number(node, "speed", 0D));
+        if (outcome.error() != null) {
+            registry.send(userId, outcome.error());
+            return;
+        }
+        if (outcome.hasBroadcast()) {
+            WorldChannelService.Broadcast cast = outcome.broadcast();
+            registry.send(cast.recipients(), cast.frame());
+        }
+    }
+
+    /**
+     * 处理同城喊话。
+     *
+     * @param userId   用户ID
+     * @param node     帧
+     * @param sceneKey 场景标识
+     */
+    private void handleSay(long userId, JsonNode node, String sceneKey) {
+        String key = sceneKey == null ? "" : sceneKey;
+        WorldChannelService.UpdateOutcome outcome = channelService.say(key, userId, text(node, "text"));
         if (outcome.error() != null) {
             registry.send(userId, outcome.error());
             return;

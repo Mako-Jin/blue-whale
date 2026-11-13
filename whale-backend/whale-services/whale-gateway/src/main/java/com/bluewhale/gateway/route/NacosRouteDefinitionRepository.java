@@ -6,6 +6,7 @@ import com.alibaba.nacos.api.exception.NacosException;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.context.environment.EnvironmentChangeEvent;
 import org.springframework.cloud.gateway.event.RefreshRoutesEvent;
 import org.springframework.cloud.gateway.filter.FilterDefinition;
@@ -138,10 +139,16 @@ public class NacosRouteDefinitionRepository implements RouteDefinitionRepository
     /**
      * 构造 Nacos 动态路由仓库
      *
+     * <p><b>必须显式标注 {@code @Autowired}</b>：本类有"正式"与"测试用（可指定兜底位置）"两个构造器，
+     * Spring 在存在多个构造器且无一标注时不会去猜，而是去找无参构造，找不到就直接
+     * {@code BeanInstantiationException: No default constructor found} 把网关整个启崩。
+     * 早期只有一个构造器时能自动选中，加第二个的同时漏了注解，问题只在"重建镜像"时才暴露。</p>
+     *
      * @param configManagerProvider Nacos 配置管理器提供者（允许缺失，缺失时仅使用兜底路由）
      * @param eventPublisher        应用事件发布器，用于发布路由刷新事件
      * @param meterRegistryProvider Micrometer 指标注册表提供者，缺省时返回 {@code null} 表示不采集指标
      */
+    @Autowired
     public NacosRouteDefinitionRepository(ObjectProvider<NacosConfigManager> configManagerProvider,
                                           ApplicationEventPublisher eventPublisher,
                                           ObjectProvider<MeterRegistry> meterRegistryProvider) {

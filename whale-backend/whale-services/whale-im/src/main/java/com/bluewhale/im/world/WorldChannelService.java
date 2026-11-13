@@ -50,6 +50,12 @@ public class WorldChannelService {
     /** 客户端最小帧间隔（毫秒）：约 60Hz 上限，防刷 */
     private static final long MIN_FRAME_INTERVAL_MS = 16L;
 
+    /** 单条喊话最大字符数（超出截断而不是拒发：多打一个字就发不出去太挫） */
+    private static final int MAX_SAY_CHARS = 120;
+
+    /** 喊话最小间隔（毫秒）：1.5 秒一条，够打招呼但刷不成屏 */
+    private static final long SAY_INTERVAL_MS = 1_500L;
+
     /** 坐标合法上限（米）：城池 ±150，留余量；越界视为脏帧 */
     private static final double COORD_LIMIT = 200D;
 
@@ -232,6 +238,47 @@ public class WorldChannelService {
         peer.setDirty(false);
         return new UpdateOutcome(null,
                 new Broadcast(audience(sceneKey, userId, x, z), WorldFrames.delta(List.of(peer.toFrame()))));
+    }
+
+    /**
+     * 同城喊话：广播给兴趣区内的人（含发言人自己）。
+     *
+     * <p>为什么把发言人也算进接收者：客户端收到服务端回显才算"说出去了"，
+     * 本地先显示、再等服务端确认的写法，一旦被限流会出现"我说了但别人没听见"的错觉。</p>
+     *
+     * <p>三种拒绝各用各的码：未进场景（{@link WorldFrames#CODE_NOT_JOINED}）、
+     * 空内容（{@link WorldFrames#CODE_BAD_SAY}）、太频（{@link WorldFrames#CODE_SAY_LIMITED}）。
+     * 太频不静默丢弃——玩家会以为卡了，明确告诉他"太快了"更省事。</p>
+     *
+     * @param sceneKey 场景标识
+     * @param userId   用户ID
+     * @param text     喊话内容
+     * @return 喊话结果（成功时 broadcast 非空）
+     */
+    public UpdateOutcome say(String sceneKey, long userId, String text) {
+        SceneState state = scenes.get(sceneKey);
+        WorldPeer peer = state == null ? null : state.peers.get(userId);
+        if (peer == null) {
+            return new UpdateOutcome(WorldFrames.error(WorldFrames.CODE_NOT_JOINED, "尚未进入场景"), null);
+        }
+        String content = text == null ? "" : text.trim().replaceAll("[\\p{Cntrl}&&[^\\n]]", "");
+        if (content.isEmpty()) {
+            return new UpdateOutcome(WorldFrames.error(WorldFrames.CODE_BAD_SAY, "不能说空话"), null);
+        }
+        if (content.length() > MAX_SAY_CHARS) {
+            content = content.substring(0, MAX_SAY_CHARS);
+        }
+        long now = clock.getAsLong();
+        if (peer.getLastSayAt() != 0L && now - peer.getLastSayAt() < SAY_INTERVAL_MS) {
+            return new UpdateOutcome(WorldFrames.error(WorldFrames.CODE_SAY_LIMITED, "说得太快了"), null);
+        }
+        peer.setLastSayAt(now);
+
+        // 接收者 = AOI 内其他人 + 自己
+        List<Long> recipients = new ArrayList<>(audience(sceneKey, userId, peer.getX(), peer.getZ()));
+        recipients.add(userId);
+        return new UpdateOutcome(null, new Broadcast(recipients,
+                WorldFrames.say(userId, peer.getName(), content, peer.getX(), peer.getZ(), now)));
     }
 
     /**

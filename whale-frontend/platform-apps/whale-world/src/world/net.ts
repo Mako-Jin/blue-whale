@@ -31,6 +31,20 @@ export interface PeerState {
   speed: number;
 }
 
+/** 一句同城喊话 */
+export interface WorldSay {
+  /** 发言人 id（本地模拟是 peer-xxx，联机是用户 id） */
+  from: string;
+  name: string;
+  text: string;
+  /** 发言时的世界坐标：气泡挂在这里，不跟着人飘 */
+  x: number;
+  z: number;
+  at: number;
+  /** 是不是自己说的（自己说的话气泡用另一种颜色） */
+  mine: boolean;
+}
+
 export interface WorldChannel {
   /** local：本地模拟；ws：已连上服务端 */
   readonly mode: 'local' | 'ws';
@@ -41,6 +55,13 @@ export interface WorldChannel {
   report: (x: number, z: number, yaw: number, speed: number) => void;
   /** 改动自身档案（改名/换衣）：已在场景内时重新 join 一次，让别人看到新形象 */
   setSelf: (self: { name?: string; robe?: string }) => void;
+  /**
+   * 说一句（同城喊话）。
+   *
+   * @param text 内容
+   * @returns 是否已发出（本地模拟恒为 true；联机未连上时为 false，由调用方决定是否本地回显）
+   */
+  say: (text: string) => boolean;
   dispose: () => void;
 }
 
@@ -53,6 +74,8 @@ export interface WorldChannelOptions {
   self?: { name?: string; robe?: string };
   /** 上行帧率（Hz），默认 10 */
   hz?: number;
+  /** 收到喊话（含自己说的回显） */
+  onSay?: (message: WorldSay) => void;
 }
 
 interface CirclePeer extends PeerState {
@@ -79,6 +102,13 @@ interface InboundFrame {
   ids?: unknown;
   code?: string;
   message?: string;
+  from?: unknown;
+  name?: unknown;
+  text?: unknown;
+  x?: unknown;
+  z?: unknown;
+  at?: unknown;
+  selfId?: unknown;
 }
 
 /** 上行帧间隔（毫秒） */
@@ -89,6 +119,18 @@ const REMOTE_TIMEOUT = 15_000;
 
 /** 重连退避（毫秒） */
 const RETRY_DELAYS = [1500, 4000, 9000];
+
+/** 本地模拟的"路人闲话"：单机时也有声气，否则"多人同屏"看着像空城 */
+const LOCAL_SAY_LINES = [
+  '主公万安。',
+  '今日城里热闹得很。',
+  '听说户部在盘账，走一趟看看？',
+  '数枢殿的灯还亮着呢。',
+  '这雨要下到几时…',
+  '刚从市舶司回来，货都出清了。',
+  '兵部那边好像响了号子。',
+  '御道上风大，主公慢行。',
+];
 
 /** 本地模拟的"其他玩家"：分布在环路、内环与中轴，速度略有差异 */
 function seedPeers(): LocalPeer[] {
@@ -185,6 +227,16 @@ export function createWorldChannel(opts: WorldChannelOptions = {}): WorldChannel
 
   /** 上报缓存：服务端没连上时也记录，连上后立即带上最新位置 */
   const self = { x: 0, z: 0, yaw: 0, speed: 0, name: opts.self?.name ?? '行者', robe: opts.self?.robe ?? '#2b4a63' };
+
+  /** 自己在服务端的用户 id（snapshot 下发），用于区分"自己说的"与"别人说的" */
+  let selfId = '';
+
+  /** 本地模拟的路人闲话倒计时（毫秒） */
+  let localSayTimer = 14_000 + Math.random() * 12_000;
+
+  const emitSay = (message: WorldSay) => {
+    opts.onSay?.(message);
+  };
 
   /**
    * 换一次性 ticket。
@@ -345,11 +397,29 @@ export function createWorldChannel(opts: WorldChannelOptions = {}): WorldChannel
         // 全量：先按快照重置，再切模式（避免旧模拟玩家残留）
         remote.clear();
         applyPeers(frame.peers);
+        selfId = String(frame.selfId ?? '');
         mode = 'ws';
         return;
       }
       if (frame.type === 'world.delta') {
         applyPeers(frame.peers);
+        return;
+      }
+      if (frame.type === 'world.say') {
+        const from = String(frame.from ?? '');
+        const text = String(frame.text ?? '');
+        if (!from || !text) {
+          return;
+        }
+        emitSay({
+          from,
+          name: String(frame.name ?? '过客'),
+          text,
+          x: Number(frame.x ?? 0),
+          z: Number(frame.z ?? 0),
+          at: Number(frame.at ?? now()),
+          mine: from === selfId,
+        });
         return;
       }
       if (frame.type === 'world.leave') {
@@ -398,6 +468,22 @@ export function createWorldChannel(opts: WorldChannelOptions = {}): WorldChannel
           } else {
             applyLine(p, dt);
           }
+        }
+        // 路人偶尔说一句：单机开发时也要有"城里有人"的感觉，
+        // 间隔给得比较长（20–40 秒），否则一进场就吵得像菜市场
+        localSayTimer -= dt * 1_000;
+        if (localSayTimer <= 0 && localPeers.length > 0) {
+          localSayTimer = 20_000 + Math.random() * 20_000;
+          const speaker = localPeers[Math.floor(Math.random() * localPeers.length)];
+          emitSay({
+            from: speaker.id,
+            name: speaker.name,
+            text: LOCAL_SAY_LINES[Math.floor(Math.random() * LOCAL_SAY_LINES.length)],
+            x: speaker.x,
+            z: speaker.z,
+            at: now(),
+            mine: false,
+          });
         }
         return;
       }
@@ -456,6 +542,19 @@ export function createWorldChannel(opts: WorldChannelOptions = {}): WorldChannel
           yaw: self.yaw,
         });
       }
+    },
+    say(text) {
+      const content = text.trim();
+      if (!content) {
+        return false;
+      }
+      if (mode === 'ws') {
+        // 由服务端回显：本地先显示会让"说了但别人没听见"看不出来
+        send({ type: 'world.say', sceneKey, text: content });
+        return true;
+      }
+      emitSay({ from: 'self', name: self.name, text: content, x: self.x, z: self.z, at: now(), mine: true });
+      return true;
     },
     dispose() {
       closed = true;

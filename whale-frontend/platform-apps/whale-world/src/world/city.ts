@@ -25,6 +25,8 @@ import { createWorldBrain } from './brain';
 import { mountNpcChat } from './npcchat';
 import { createGlyphs } from './glyphs';
 import { createWorldMetrics } from './metrics';
+import { createSpeech } from './speech';
+import { mountSayPanel } from './saypanel';
 import {
   CITY_GEOMETRY,
   MAIN_HALL,
@@ -1072,11 +1074,43 @@ for (const n of npcs.list) {
   npcLabels.set(n.def.id, el);
 }
 
+/* ---- 同城喊话：气泡层（面板要等频道建好才能发送，放在 channel 之后） ---- */
+const speechRoot = document.getElementById('bww-speech');
+const speech = speechRoot
+  ? createSpeech(speechRoot, {
+    camera,
+    size: () => ({ w: renderer.domElement.clientWidth, h: renderer.domElement.clientHeight }),
+    groundAt: terrainHeight,
+  })
+  : null;
+
 /* ---- 其他玩家（world 帧协议；连不上自动退回本地模拟） ---- */
 const channel = createWorldChannel({
   getToken: opts.getToken,
   self: { name: profile.name, robe: profile.robe },
+  onSay: (message) => speech?.say(message),
 });
+
+const sayRoot = document.getElementById('bww-say-panel');
+const sayPanel = sayRoot
+  ? mountSayPanel(sayRoot, {
+    onSend: (text) => {
+      const sent = channel.say(text);
+      if (!sent) {
+        showToast('喊话未发出', '尚未连上同城频道，稍后再试');
+      }
+    },
+    onOpenChange: (open) => {
+      if (open) {
+        closePortalPanel();
+        charPanel?.close();
+        npcChat?.close();
+      }
+      // 发言时停下脚步：一边打字一边跑会让人以为你在逃
+      player.speed = 0;
+    },
+  })
+  : null;
 
 /** 由 id 派生稳定的形象差异，避免所有人长一样 */
 function hashOf(value: string): number {
@@ -1505,6 +1539,11 @@ on(window, 'keydown', (e) => {
     npcChat.close();
     return;
   }
+  // 喊话面板同理：Esc 收面板（输入框有焦点时也要整块收起）
+  if (e.code === 'Escape' && sayPanel?.isOpen()) {
+    sayPanel.close();
+    return;
+  }
   // 面板输入中不劫持按键，否则在姓名框里打 W 会驱动角色走路
   if (isTypingTarget(e.target)) {
     if (e.code === 'Escape' && e.target instanceof HTMLElement) {
@@ -1516,10 +1555,17 @@ on(window, 'keydown', (e) => {
   if (e.code === 'KeyE') togglePortalPanel();
   if (e.code === 'KeyF') talkToNearestNpc();
   if (e.code === 'KeyT') talkToPet();
+  if (e.code === 'KeyQ') {
+    closePortalPanel();
+    charPanel?.close();
+    npcChat?.close();
+    sayPanel?.toggle();
+  }
   if (e.code === 'Escape') {
     closePortalPanel();
     charPanel?.close();
     npcChat?.close();
+    sayPanel?.close();
   }
   if (e.code === 'KeyR') { cam.yaw = 0; cam.pitch = 0.44; cam.dist = 16; }
   if (e.code === 'KeyC') {
@@ -1683,8 +1729,15 @@ host.querySelectorAll('[data-action]').forEach((btn) => {
     }
     if (a === 'portal') togglePortalPanel();
     if (a === 'pet') talkToPet();
+    if (a === 'say') {
+      closePortalPanel();
+      charPanel?.close();
+      npcChat?.close();
+      sayPanel?.toggle();
+    }
     if (a === 'char') {
       closePortalPanel();
+      sayPanel?.close();
       charPanel?.toggle();
     }
     if (a === 'map') toggleMap();
@@ -1987,6 +2040,8 @@ function animate() {
   renderer.render(scene, camera);
   updateLabels();
   updateNameLabels();
+  // 气泡要在 render 之后投影：此时相机矩阵已是最新
+  speech?.update();
   updateMinimap();
 }
 
@@ -2046,6 +2101,10 @@ metrics.start();
       }));
     /* 导出牌面位图：牌立着但远处读不清时，直接看画出来的那张图 */
     window.__bwwGlyphFace = (nodeKey) => glyphs.faceOf(nodeKey);
+    /* 喊话探针：不经过 UI 直接发一句（验证通道），以及读当前屏幕上的气泡 */
+    window.__bwwSay = (text) => channel.say(text);
+    window.__bwwSpeeches = () =>
+      [...document.querySelectorAll('#bww-speech .bww-speech')].map((el) => el.textContent ?? '');
     window.__bwwWarp = (x, z) => {
       player.pos.set(x, 0, z);
     };
@@ -2106,6 +2165,8 @@ metrics.start();
     brain.dispose();
     metrics.dispose();
     glyphs.dispose();
+    sayPanel?.destroy();
+    speech?.dispose();
     playerRig.dispose();
     npcs.dispose();
     channel.dispose();
