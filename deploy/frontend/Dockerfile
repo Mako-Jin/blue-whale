@@ -25,13 +25,15 @@ RUN corepack enable
 
 WORKDIR /build
 
-COPY frontend ./
+# 拷贝前端 workspace 内容到 /build。目录名是 whale-frontend/（历史文档/注释里的 frontend/ 是重命名前的旧名），
+# 写错会以 "failed to calculate checksum … \"/frontend\": not found" 形式在 buildx 阶段失败
+COPY whale-frontend ./
 
 # 全量安装依赖（含 devDependencies，vite/tsc 构建需要）
 RUN pnpm install --frozen-lockfile
 
 # 构建目标应用及其 workspace 依赖（@bluewhale/whale-ui 等需先构建）
-# 注意：COPY frontend ./ 拷贝的是目录内容，workspace 直接位于 /build
+# 注意：COPY whale-frontend ./ 拷贝的是目录内容，workspace 直接位于 /build
 RUN pnpm turbo run build --filter="${APP_NAME}..." \
     && mkdir -p /out \
     && cp -r "${APP_DIR}/dist/." /out/
