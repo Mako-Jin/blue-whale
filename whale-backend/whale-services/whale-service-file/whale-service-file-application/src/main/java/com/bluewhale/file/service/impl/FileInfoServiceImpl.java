@@ -51,8 +51,9 @@ import java.util.stream.IntStream;
  *
  * <p><b>事务边界</b>：写库事务由仓储端口保证——{@code saveWithQuotaCheck} 自带
  * {@code REQUIRES_NEW} 事务，配额统计与写入处于同一临界区；外部存储写入不参与数据库事务，
- * 落库失败时通过补偿删除物理对象保证最终一致。仅在需要跨多次仓储调用保持原子性的方法
- * （{@code delete}/{@code lock}/{@code unlock}）上声明应用层事务。</p>
+ * 落库失败时通过补偿删除物理对象保证最终一致。不将存储写包进事务，是因为对象存储属非事务资源，
+ * 数据库回滚无法撤销已写入的物理对象，包进事务只会在回滚后留下孤儿对象。仅在需要跨多次仓储调用
+ * 保持原子性的方法（{@code delete}/{@code lock}/{@code unlock}）上声明应用层事务。</p>
  *
  * @author BlueWhale
  */
@@ -127,6 +128,7 @@ public class FileInfoServiceImpl implements FileInfoService {
     @Override
     public FileQuotaResult quota(Long uploaderId, UploadLimits limits) {
         long quota = effectiveLimits(limits).quotaBytes();
+        // 防御性兜底：Web 入口经 requireUserId 不会为 null，内网直调或无配额时按不限处理
         if (uploaderId == null || quota <= 0) {
             return new FileQuotaResult(0L, quota, 0L, true);
         }
@@ -136,12 +138,13 @@ public class FileInfoServiceImpl implements FileInfoService {
 
     @Override
     public PageResult<FileInfoResult> page(FilePageQuery query) {
+        long pageCurrent = clampPageCurrent(query.current());
         long size = clampPageSize(query.size());
         // 无管理权限时仅可见本人上传的文件；服务间上传（uploaderId 为空）仅管理视角可见
         Long uploaderFilter = query.canManage() ? null : query.requesterId();
         FileAssetQuery assetQuery = new FileAssetQuery(query.originalName(), query.bucket(),
                 query.createTimeStart(), query.createTimeEnd(), uploaderFilter,
-                query.current(), size);
+                pageCurrent, size);
         FileAssetPage page = fileAssetRepository.page(assetQuery);
         List<FileInfoResult> records = page.records().stream().map(FileInfoServiceImpl::toInfoResult).toList();
         return PageResult.of(records, page.total(), page.current(), page.size());
@@ -182,7 +185,7 @@ public class FileInfoServiceImpl implements FileInfoService {
 
     @Override
     public PageResult<FileChangeResult> changes(FileChangesQuery query) {
-        long pageCurrent = Math.max(query.current(), 1L);
+        long pageCurrent = clampPageCurrent(query.current());
         long pageSize = clampPageSize(query.size());
         FileAssetPage page = fileAssetRepository.findChanges(query.since(), pageCurrent, pageSize);
         List<FileChangeResult> records = page.records().stream().map(FileInfoServiceImpl::toChangeResult).toList();
@@ -265,6 +268,7 @@ public class FileInfoServiceImpl implements FileInfoService {
         UploadLimits effective = UploadLimits.tighten(effectiveLimits(command.limits()),
                 recordedLimits(chunkUploadStore.metadata(sessionId)));
         validateDeclaredSize(size, effective);
+        // 配额失败保留分片供配额释放后续传；放弃或长期未完成的会话由暂存端口按 TTL 清理
         validateQuota(size, command.uploaderId(), effective.quotaBytes());
         int expectedCount = expectedChunkCount(size);
         List<Integer> uploaded = chunkUploadStore.uploadedPartIndexes(sessionId);
@@ -299,7 +303,7 @@ public class FileInfoServiceImpl implements FileInfoService {
      * @param originalName 原始文件名
      * @param contentType MIME 类型，可为 {@code null}
      * @param fileSize 内容字节数
-     * @param md5 内容 MD5 摘要（十六进制小写）
+     * @param md5 内容 MD5 摘要（十六进制小写）；<b>必须与 {@code in} 内容一致，由调用方保证</b>
      * @param bucket 目标桶名称；为空时取配置的默认桶
      * @param uploaderId 上传用户 ID；无登录态时可为 {@code null}
      * @param limits 生效的上传上限与配额
@@ -376,8 +380,8 @@ public class FileInfoServiceImpl implements FileInfoService {
      * @throws BizException 不可见时抛出 {@code NOT_FOUND}
      */
     private FileAsset requireAccessibleFile(Long id, Long requesterId, boolean canManage) {
-        FileAsset asset = fileAssetRepository.findById(id)
-                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
+        // 复用 requireFile 保证租户校验恒定发生，不受领域方法内部实现调整影响
+        FileAsset asset = requireFile(id);
         asset.assertVisibleTo(requesterId, canManage, TenantContext.get());
         return asset;
     }
@@ -393,6 +397,16 @@ public class FileInfoServiceImpl implements FileInfoService {
             return DEFAULT_EXPIRES_SECONDS;
         }
         return Math.min(expiresSeconds, MAX_EXPIRES_SECONDS);
+    }
+
+    /**
+     * 收敛页码：至少为 1，避免负偏移量传入仓储
+     *
+     * @param current 调用方请求的页码
+     * @return 生效的页码
+     */
+    private static long clampPageCurrent(long current) {
+        return Math.max(current, 1L);
     }
 
     /**
@@ -515,6 +529,9 @@ public class FileInfoServiceImpl implements FileInfoService {
 
     /**
      * 生成对象键：{@code tenants/{tenantId}/yyyy/MM/dd/<uuid>.<ext>}
+     *
+     * <p>租户段取 {@link TenantContext#segment()}：无租户上下文时返回未知租户标识 {@code 0}，
+     * 不会产生空段或双斜杠；此类对象键仅对内网无租户态调用可见。</p>
      *
      * @param originalName 原始文件名（仅用于提取扩展名，不参与对象键路径，客户端伪造文件名无法穿越路径）
      * @return 对象键

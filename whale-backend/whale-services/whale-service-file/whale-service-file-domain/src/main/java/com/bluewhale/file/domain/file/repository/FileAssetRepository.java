@@ -17,6 +17,8 @@ public interface FileAssetRepository {
     /**
      * 保存文件资产聚合（无主键时新增，有主键时按主键更新）
      *
+     * <p>聚合在构造时已将 MD5 归一化为十六进制小写，实现按聚合值原样落库即可。</p>
+     *
      * @param asset 文件资产聚合根
      * @return 回填主键后的文件资产聚合根
      */

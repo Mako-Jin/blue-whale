@@ -58,6 +58,9 @@ public interface ChunkUploadStore {
     /**
      * 按索引顺序合并分片，并计算合并结果的字节数与 MD5 摘要
      *
+     * <p>实现契约：返回结果的 {@code contentType} 必须取自 {@link #initialize} 登记的会话元数据，
+     * 不得在合并阶段自行推断，避免与 init 登记值漂移。</p>
+     *
      * @param sessionId 会话标识
      * @param partCount 期望的分片数量
      * @return 合并结果（内容流由调用方关闭）
