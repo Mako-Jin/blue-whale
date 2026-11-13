@@ -45,13 +45,13 @@ async function ensureAcmeMembership(request: APIRequestContext): Promise<string>
   const headers = { Authorization: `Bearer ${token}` };
 
   const page = await unwrap<{ records: TenantPageItem[] }>(
-    await request.get(`${API_BASE_URL}/tenant/page?current=1&size=50`, { headers }),
+    await request.get(`${API_BASE_URL}/tenant/v1/page?current=1&size=50`, { headers }),
     '查询租户分页',
   );
   let acme = page.records.find((item) => item.tenantCode === ACME_CODE);
   if (!acme) {
     acme = await unwrap<TenantPageItem>(
-      await request.post(`${API_BASE_URL}/tenant`, {
+      await request.post(`${API_BASE_URL}/tenant/v1`, {
         headers,
         data: {
           tenantCode: ACME_CODE,
@@ -73,7 +73,7 @@ async function ensureAcmeMembership(request: APIRequestContext): Promise<string>
   if (!myTenants.some((item) => String(item.tenantId) === acmeId)) {
     // 雪花 ID 超 Number.MAX_SAFE_INTEGER，必须以字符串原样传递（Jackson 可反序列化为 Long）
     await unwrap<null>(
-      await request.post(`${API_BASE_URL}/user/${ADMIN_USER_ID}/tenants`, {
+      await request.post(`${API_BASE_URL}/user/v1/${ADMIN_USER_ID}/tenants`, {
         headers,
         data: { tenantId: acmeId },
       }),

@@ -294,7 +294,7 @@ export async function createRole(
   token: string,
   payload: Record<string, unknown>,
 ): Promise<RoleRecord> {
-  const response = await ctx.post(`${API_BASE_URL}/role`, {
+  const response = await ctx.post(`${API_BASE_URL}/role/v1`, {
     headers: { Authorization: `Bearer ${token}` },
     data: payload,
   });
@@ -307,7 +307,7 @@ export async function pageRoleRecords(
   keyword: string,
 ): Promise<PageResult<RoleRecord>> {
   const response = await ctx.get(
-    `${API_BASE_URL}/role/page?current=1&size=20&keyword=${encodeURIComponent(keyword)}`,
+    `${API_BASE_URL}/role/v1/page?current=1&size=20&keyword=${encodeURIComponent(keyword)}`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
   return readEnvelope<PageResult<RoleRecord>>(response, '查询角色');
@@ -318,7 +318,7 @@ export async function rolePermissionIds(
   token: string,
   roleId: number,
 ): Promise<number[]> {
-  const response = await ctx.get(`${API_BASE_URL}/role/${roleId}/permissions`, {
+  const response = await ctx.get(`${API_BASE_URL}/role/v1/${roleId}/permissions`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return readEnvelope<number[]>(response, '查询角色权限');
@@ -334,7 +334,7 @@ export async function pagePermissionRecords(
   ctx: APIRequestContext,
   token: string,
 ): Promise<PageResult<PermissionRecord>> {
-  const response = await ctx.get(`${API_BASE_URL}/permission/page?current=1&size=200`, {
+  const response = await ctx.get(`${API_BASE_URL}/permission/v1/page?current=1&size=200`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return readEnvelope<PageResult<PermissionRecord>>(response, '查询权限');
@@ -352,7 +352,7 @@ export async function createMenu(
   token: string,
   payload: Record<string, unknown>,
 ): Promise<void> {
-  const response = await ctx.post(`${API_BASE_URL}/menu`, {
+  const response = await ctx.post(`${API_BASE_URL}/menu/v1`, {
     headers: { Authorization: `Bearer ${token}` },
     data: payload,
   });
@@ -363,7 +363,7 @@ export async function treeMenuRecords(
   ctx: APIRequestContext,
   token: string,
 ): Promise<MenuRecord[]> {
-  const response = await ctx.get(`${API_BASE_URL}/menu/tree`, {
+  const response = await ctx.get(`${API_BASE_URL}/menu/v1/tree`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return readEnvelope<MenuRecord[]>(response, '查询菜单树');
@@ -379,7 +379,7 @@ export async function createUser(
   token: string,
   payload: Record<string, unknown>,
 ): Promise<UserRecord> {
-  const response = await ctx.post(`${API_BASE_URL}/user`, {
+  const response = await ctx.post(`${API_BASE_URL}/user/v1`, {
     headers: { Authorization: `Bearer ${token}` },
     data: payload,
   });
@@ -391,7 +391,7 @@ export async function userRoleIds(
   token: string,
   userId: number,
 ): Promise<number[]> {
-  const response = await ctx.get(`${API_BASE_URL}/user/${userId}/roles`, {
+  const response = await ctx.get(`${API_BASE_URL}/user/v1/${userId}/roles`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return readEnvelope<number[]>(response, '查询用户角色');
