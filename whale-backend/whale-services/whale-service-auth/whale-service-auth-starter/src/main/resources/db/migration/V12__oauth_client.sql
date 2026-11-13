@@ -10,7 +10,7 @@
 -- 本脚本（幂等）：
 --   1. 建表 sys_oauth_client；
 --   2. 内置 Web 客户端种子（secret 哈希，见下方说明）；
---   3. 权限点 sys:oauth:client:list/add/edit/secret/delete（号段 2344–2348）；
+--   3. 权限点 sys:oauth:client:list/add/edit/secret/delete（号段 2374–2378）；
 --   4. 授予 tenant_admin（按 perm_code 联查）。
 --
 -- 内置客户端说明：
@@ -19,7 +19,7 @@
 --   redirect_uri  = http://localhost:5173/oauth/callback,http://localhost:3000/oauth/callback
 --   轮换方式：POST /oauth/client/v1/{id}/secret，旧密钥立即失效。
 --
--- 号段登记：2344 list、2345 add、2346 edit、2347 secret、2348 delete。
+-- 号段登记：2374 list、2375 add、2376 edit、2377 secret、2378 delete。
 -- =============================================================================
 
 -- ---------------------------------------------------------------------
@@ -64,27 +64,27 @@ WHERE NOT EXISTS (SELECT 1 FROM sys_oauth_client WHERE client_id = 'bluewhale-we
 -- 3. 权限点（判重键：perm_code）
 -- ---------------------------------------------------------------------
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 2344, 0, 'sys:oauth:client:list', '查询 OAuth 客户端', 'API', '/oauth-client/page,/oauth-client/*', 'GET', 2344, 1
+SELECT 2374, 0, 'sys:oauth:client:list', '查询 OAuth 客户端', 'API', '/oauth-client/page,/oauth-client/*', 'GET', 2374, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE perm_code = 'sys:oauth:client:list');
 
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 2345, 0, 'sys:oauth:client:add', '注册 OAuth 客户端', 'API', '/oauth-client', 'POST', 2345, 1
+SELECT 2375, 0, 'sys:oauth:client:add', '注册 OAuth 客户端', 'API', '/oauth-client', 'POST', 2375, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE perm_code = 'sys:oauth:client:add');
 
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 2346, 0, 'sys:oauth:client:edit', '编辑 OAuth 客户端', 'API', '/oauth-client/*', 'PUT', 2346, 1
+SELECT 2376, 0, 'sys:oauth:client:edit', '编辑 OAuth 客户端', 'API', '/oauth-client/*', 'PUT', 2376, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE perm_code = 'sys:oauth:client:edit');
 
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 2347, 0, 'sys:oauth:client:secret', '轮换客户端密钥', 'API', '/oauth-client/*/secret', 'POST', 2347, 1
+SELECT 2377, 0, 'sys:oauth:client:secret', '轮换客户端密钥', 'API', '/oauth-client/*/secret', 'POST', 2377, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE perm_code = 'sys:oauth:client:secret');
 
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 2348, 0, 'sys:oauth:client:delete', '停用 OAuth 客户端', 'API', '/oauth-client/*', 'DELETE', 2348, 1
+SELECT 2378, 0, 'sys:oauth:client:delete', '停用 OAuth 客户端', 'API', '/oauth-client/*', 'DELETE', 2378, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE perm_code = 'sys:oauth:client:delete');
 

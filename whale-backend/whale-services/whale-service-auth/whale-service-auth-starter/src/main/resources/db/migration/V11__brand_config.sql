@@ -10,12 +10,12 @@
 -- 本脚本（幂等）：
 --   1. 建表 sys_brand_config；
 --   2. 平台默认品牌种子（target_type=PLATFORM, target_id=0, domain=''）；
---   3. 权限点 sys:brand:list/add/edit/delete（号段 2340–2343，判重键 perm_code）；
+--   3. 权限点 sys:brand:list/add/edit/delete（号段 2370–2373，判重键 perm_code）；
 --   4. 授予 tenant_admin（按 perm_code 联查，绝不按 id）；
 --   5. 平台租户「品牌配置」菜单，并复制到已有业务租户。
 --
--- 号段登记：2340–2348 = 品牌配置 / OAuth 客户端（2340 list、2341 add、2342 edit、
---           2343 delete；2344–2348 见 V12）。
+-- 号段登记：2370–2348 = 品牌配置 / OAuth 客户端（2370 list、2371 add、2372 edit、
+--           2373 delete；2344–2348 见 V12）。
 -- =============================================================================
 
 -- ---------------------------------------------------------------------
@@ -62,22 +62,22 @@ WHERE NOT EXISTS (
 -- 3. 权限点（判重键：perm_code —— 主键撞号不得让整条语句静默跳过）
 -- ---------------------------------------------------------------------
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 2340, 0, 'sys:brand:list', '查询品牌配置', 'API', '/brand/page,/brand/*', 'GET', 2340, 1
+SELECT 2370, 0, 'sys:brand:list', '查询品牌配置', 'API', '/brand/page,/brand/*', 'GET', 2370, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE perm_code = 'sys:brand:list');
 
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 2341, 0, 'sys:brand:add', '新增品牌配置', 'API', '/brand', 'POST', 2341, 1
+SELECT 2371, 0, 'sys:brand:add', '新增品牌配置', 'API', '/brand', 'POST', 2371, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE perm_code = 'sys:brand:add');
 
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 2342, 0, 'sys:brand:edit', '编辑品牌配置', 'API', '/brand/*', 'PUT', 2342, 1
+SELECT 2372, 0, 'sys:brand:edit', '编辑品牌配置', 'API', '/brand/*', 'PUT', 2372, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE perm_code = 'sys:brand:edit');
 
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 2343, 0, 'sys:brand:delete', '删除品牌配置', 'API', '/brand/*', 'DELETE', 2343, 1
+SELECT 2373, 0, 'sys:brand:delete', '删除品牌配置', 'API', '/brand/*', 'DELETE', 2373, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE perm_code = 'sys:brand:delete');
 

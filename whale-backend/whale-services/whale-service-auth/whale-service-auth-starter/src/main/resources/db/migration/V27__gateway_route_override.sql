@@ -14,7 +14,7 @@
 --   网关经 GET /auth/v1/internal/gateway/route-overrides（60s 快照）读取，
 --   不引入 JDBC；auth 不可用时保留上一份覆盖快照。
 --
--- 号段登记：2364–2367 = 网关路由覆盖管理。
+-- 号段登记：2384–2387 = 网关路由覆盖管理。
 -- =============================================================================
 
 -- ---------------------------------------------------------------------
@@ -36,25 +36,25 @@ CREATE TABLE IF NOT EXISTS sys_gateway_route_override (
 -- 2. 权限点（判重键：perm_code；管理端 CRUD，本轮不建菜单）
 -- ---------------------------------------------------------------------
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 2364, 0, 'sys:gateway:route-override:list', '查询网关路由覆盖', 'API',
-       '/auth/v1/gateway/route-overrides', 'GET', 2364, 1
+SELECT 2384, 0, 'sys:gateway:route-override:list', '查询网关路由覆盖', 'API',
+       '/auth/v1/gateway/route-overrides', 'GET', 2384, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE perm_code = 'sys:gateway:route-override:list');
 
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 2365, 0, 'sys:gateway:route-override:add', '新增网关路由覆盖', 'API',
-       '/auth/v1/gateway/route-overrides', 'POST', 2365, 1
+SELECT 2385, 0, 'sys:gateway:route-override:add', '新增网关路由覆盖', 'API',
+       '/auth/v1/gateway/route-overrides', 'POST', 2385, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE perm_code = 'sys:gateway:route-override:add');
 
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 2366, 0, 'sys:gateway:route-override:edit', '编辑网关路由覆盖', 'API',
-       '/auth/v1/gateway/route-overrides/*', 'PUT', 2366, 1
+SELECT 2386, 0, 'sys:gateway:route-override:edit', '编辑网关路由覆盖', 'API',
+       '/auth/v1/gateway/route-overrides/*', 'PUT', 2386, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE perm_code = 'sys:gateway:route-override:edit');
 
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 2367, 0, 'sys:gateway:route-override:delete', '删除网关路由覆盖', 'API',
-       '/auth/v1/gateway/route-overrides/*', 'DELETE', 2367, 1
+SELECT 2387, 0, 'sys:gateway:route-override:delete', '删除网关路由覆盖', 'API',
+       '/auth/v1/gateway/route-overrides/*', 'DELETE', 2387, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE perm_code = 'sys:gateway:route-override:delete');
