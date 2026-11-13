@@ -23,6 +23,8 @@ import { createMinimap } from './minimap';
 import { mountCharPanel } from './charpanel';
 import { createWorldBrain } from './brain';
 import { mountNpcChat } from './npcchat';
+import { createGlyphs } from './glyphs';
+import { createWorldMetrics } from './metrics';
 import {
   CITY_GEOMETRY,
   MAIN_HALL,
@@ -1199,6 +1201,19 @@ const debugMode = new URLSearchParams(window.location.search).has('debug');
 const debugToken = () =>
   debugMode && !opts.poweredByQiankun ? window.sessionStorage.getItem('bww.debug.token') : null;
 
+/* ---- 殿前牌坊：八殿各挂一块，写该殿所辖系统的实况 ---- */
+const glyphs = createGlyphs(PALACES, terrainHeight);
+scene.add(glyphs.group);
+
+const metrics = createWorldMetrics(PALACES, {
+  // 与问话共用同一套令牌/权限来源；debug 注入的令牌也让牌坊受益
+  getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+  getPermissions: opts.getPermissions,
+  onChange: (cards) => glyphs.update(cards),
+});
+// 先把"问询中/上次 xx:xx"的初始态画上去：牌子一开始就该是块牌子，而不是空白木板
+glyphs.update(metrics.cards);
+
 const brain = createWorldBrain({
   getToken: () => debugToken() ?? opts.getToken?.() ?? null,
   getPermissions: opts.getPermissions,
@@ -2004,6 +2019,9 @@ if (!profileState.saved) {
   }, 2100);
 }
 
+/* 城情采集：进场景即问一遍，之后每 60 秒一次（页面不可见时自动跳过） */
+metrics.start();
+
   /* 仅 ?debug=1 时暴露最小调试接口：给 e2e 断言玩家坐标用，不影响正常路径 */
   if (new URLSearchParams(window.location.search).has('debug')) {
     window.__bwwDebug = () => ({
@@ -2018,8 +2036,29 @@ if (!profileState.saved) {
       chat: { open: Boolean(npcChat?.isOpen()), persona: npcChat?.personaId() ?? null },
       online: channel.mode,
     });
+    /* 牌坊状态探针：给 e2e 断言"哪个殿拿到了真数、哪个殿降级了" */
+    window.__bwwGlyphs = () =>
+      [...metrics.cards.values()].map((card) => ({
+        nodeKey: card.nodeKey,
+        state: card.state,
+        note: card.note,
+        metrics: card.metrics.map((m) => `${m.label}=${m.value}`),
+      }));
+    /* 导出牌面位图：牌立着但远处读不清时，直接看画出来的那张图 */
+    window.__bwwGlyphFace = (nodeKey) => glyphs.faceOf(nodeKey);
     window.__bwwWarp = (x, z) => {
       player.pos.set(x, 0, z);
+    };
+    /* 直接定轨道相机：e2e 需要"站在某点、朝某处看"的确定视角，靠拖拽估算角度不可靠。
+       注意这里的 yaw 是**相机**绕玩家的方位（cam.yaw），不是角色朝向（player.yaw） */
+    window.__bwwLook = (yaw, pitch, dist) => {
+      cam.yaw = yaw;
+      if (typeof pitch === 'number') {
+        cam.pitch = clamp(pitch, 0.08, 1.15);
+      }
+      if (typeof dist === 'number') {
+        cam.dist = Math.max(3, dist);
+      }
     };
     /* 问话链路探针：定位到某个 NPC 身旁（真实走 F 键的邻近判定），或直接点名要问谁 */
     window.__bwwNpcAt = (id) => {
@@ -2065,6 +2104,8 @@ if (!profileState.saved) {
     charPanel = null;
     npcChat?.destroy();
     brain.dispose();
+    metrics.dispose();
+    glyphs.dispose();
     playerRig.dispose();
     npcs.dispose();
     channel.dispose();

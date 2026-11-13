@@ -6,8 +6,30 @@ import path from 'node:path';
 
 const microAppName = 'whale-world';
 
-const AGENT_PROXY = {
-  '^/agent(/|$)': { target: 'http://127.0.0.1:8080', changeOrigin: true },
+const GATEWAY = 'http://127.0.0.1:8080';
+
+/**
+ * 走网关的代理表。
+ *
+ * <p>网关不剥前缀（服务自持一级前缀，如 {@code @RequestMapping("/erp/bi/cockpit")} 就是对外路径），
+ * 所以这里只做原样转发。内嵌基座时由基座代理；独立跑 8124 / 预览跑 8125 时必须自己代理，
+ * 否则请求落到 SPA 回退页，拿到的是 index.html 而不是 JSON——表现为「所有牌都说未接通」，
+ * 但网络面板里 HTTP 状态是 200，极易误判。</p>
+ */
+const API_PROXY = {
+  // 城民问话
+  '^/agent(/|$)': { target: GATEWAY, changeOrigin: true },
+  // 殿前牌坊取数：八座殿对应的八个业务系统
+  '^/erp(/|$)': { target: GATEWAY, changeOrigin: true },
+  '^/mes(/|$)': { target: GATEWAY, changeOrigin: true },
+  '^/oa(/|$)': { target: GATEWAY, changeOrigin: true },
+  '^/crm(/|$)': { target: GATEWAY, changeOrigin: true },
+  '^/lms(/|$)': { target: GATEWAY, changeOrigin: true },
+  '^/mall(/|$)': { target: GATEWAY, changeOrigin: true },
+  '^/doc(/|$)': { target: GATEWAY, changeOrigin: true },
+  '^/iot(/|$)': { target: GATEWAY, changeOrigin: true },
+  '^/alert(/|$)': { target: GATEWAY, changeOrigin: true },
+  '^/monitor(/|$)': { target: GATEWAY, changeOrigin: true },
 };
 
 export default defineConfig({
@@ -31,14 +53,12 @@ export default defineConfig({
     headers: {
       'Access-Control-Allow-Origin': '*',
     },
-    // 城中城民问话走网关的 /agent（whale-agent，网关不剥前缀）。
-    // 内嵌基座时由基座 vite 代理转发；独立跑 8124 时必须自己代理，否则落到 SPA 回退 → 404/HTML。
-    proxy: AGENT_PROXY,
+      proxy: API_PROXY,
   },
   // 产物预览（8125，e2e 跑这上面）同样要能打到网关，否则「在线问数」冒烟只能跑 dev
   preview: {
     port: 8125,
-    proxy: AGENT_PROXY,
+    proxy: API_PROXY,
   },
   base: '/world',
   build: {

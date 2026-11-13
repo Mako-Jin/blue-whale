@@ -38,6 +38,13 @@ const GATEWAY_PREFIXES = [
   // 员工论坛（Wave 6.43）：子应用 base 与 API 一级前缀同为 /forum，
   // 基座必须转发（文档导航由 gatewayBypass 旁路给 SPA），否则内嵌场景下接口落到前端回退
   '/forum',
+  // 以下四个此前缺失：2D 子应用各自 dev 端口自代理，所以没人发现；
+  // 但 3D 城（/world）与基座同源取数时有 CRM/MALL/LMS/DOC 的概览接口，
+  // 不补就会落到 SPA 回退——HTTP 200 + 返回 index.html，牌坊全判「未接通」
+  '/crm',
+  '/mall',
+  '/lms',
+  '/doc',
 ];
 
 interface ProxyRequest {
