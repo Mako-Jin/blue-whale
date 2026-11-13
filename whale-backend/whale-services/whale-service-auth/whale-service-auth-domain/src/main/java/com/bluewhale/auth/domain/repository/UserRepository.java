@@ -76,6 +76,15 @@ public interface UserRepository {
     Optional<UserAggregate> findByTenantIdAndUsername(Long tenantId, String username);
 
     /**
+     * 按租户与邮箱查询启用用户（三方登录「同邮箱」匹配，权限中心扩展 M2）
+     *
+     * @param tenantId 租户 ID
+     * @param email 邮箱（精确匹配，大小写不敏感）
+     * @return 启用用户聚合；不存在或已停用/删除时返回空
+     */
+    Optional<UserAggregate> findEnabledByEmail(Long tenantId, String email);
+
+    /**
      * 判断用户名在指定租户内是否已存在（供用户唯一性不变量跨聚合校验）
      *
      * <p><b>并发说明</b>：本方法为「先查后插」的友好预检，存在竞态窗口；真正的唯一性由

@@ -62,6 +62,12 @@ whale:
       - /auth/v1/refresh
       # 登录页品牌解析（权限中心扩展 M0）：登录前渲染品牌，免 JWT
       - /brand/v1/resolve
+      # 三方登录（权限中心扩展 M2）：授权起始/渠道回调为浏览器跳转链路、一次性登录码换令牌为
+      # 短时效凭证交换，均免 JWT；state 一次性消费 + 登录码防重放在 auth 服务侧保证。
+      # 绑定/解绑/绑定列表（/social/v1/bind*、/social/v1/bindings）不在白名单，仍须 JWT。
+      - /social/v1/*/authorize
+      - /social/v1/*/callback
+      - /social/v1/login
       # OAuth2.0 授权服务器（权限中心扩展 M1）：令牌/撤销/内省/JWKS/发现文档均为协议端点，
       # 客户端凭据由框架在服务内校验（client_secret_basic|post），网关不再叠加 JWT；
       # /oauth2/authorize 涉及用户授权，仍须 JWT，故不放行。

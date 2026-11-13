@@ -90,6 +90,30 @@ whale:
     # 否则发现文档（/.well-known/oauth-authorization-server）返回的端点不可达。
     oauth2:
       issuer: ${OAUTH2_ISSUER:http://localhost:8081}
+    # 三方登录（权限中心扩展 M2：钉钉 / 飞书 / 企业微信）。总开关默认关闭；
+    # 渠道凭据属敏感信息，生产经环境变量 / Nacos 注入，切勿硬编码。
+    # callback-base-url 为服务侧接收渠道回调的对外基地址（经网关时填网关地址）；
+    # frontend-base-url 为三方登录完成后 302 回跳的前端回调页（回跳路径须以 / 开头，防开放重定向）。
+    social:
+      enabled: ${WHALE_AUTH_SOCIAL_ENABLED:false}
+      state-ttl-seconds: 300
+      login-code-ttl-seconds: 60
+      callback-base-url: ${WHALE_AUTH_SOCIAL_CALLBACK_BASE_URL:http://localhost:8081}
+      frontend-base-url: ${WHALE_AUTH_SOCIAL_FRONTEND_BASE_URL:http://localhost:5173/social/callback}
+      providers:
+        dingtalk:
+          enabled: ${WHALE_AUTH_SOCIAL_DINGTALK_ENABLED:false}
+          client-id: ${WHALE_AUTH_SOCIAL_DINGTALK_CLIENT_ID:}
+          client-secret: ${WHALE_AUTH_SOCIAL_DINGTALK_CLIENT_SECRET:}
+        feishu:
+          enabled: ${WHALE_AUTH_SOCIAL_FEISHU_ENABLED:false}
+          client-id: ${WHALE_AUTH_SOCIAL_FEISHU_CLIENT_ID:}
+          client-secret: ${WHALE_AUTH_SOCIAL_FEISHU_CLIENT_SECRET:}
+        wecom:
+          enabled: ${WHALE_AUTH_SOCIAL_WECOM_ENABLED:false}
+          client-id: ${WHALE_AUTH_SOCIAL_WECOM_CORP_ID:}
+          client-secret: ${WHALE_AUTH_SOCIAL_WECOM_CORP_SECRET:}
+          agent-id: ${WHALE_AUTH_SOCIAL_WECOM_AGENT_ID:}
     # V-03 认证 Cookie：refresh 令牌（whale_refresh_token，HttpOnly）与 CSRF（whale_csrf，前端可读）
     # 走 Cookie 下发，响应体不再返回 refreshToken。secure 为 Cookie Secure 标记开关：
     # HTTPS 站点必须开启（生产经 WHALE_AUTH_COOKIE_SECURE=true），dev 走 HTTP 联调默认关闭。

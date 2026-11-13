@@ -12,7 +12,7 @@ import com.bluewhale.common.domain.event.DomainEvent;
  */
 public sealed interface AuthDomainEvent extends DomainEvent
         permits UserDomainEvent, RoleDomainEvent, PermissionDomainEvent, MenuDomainEvent,
-        DeptDomainEvent, UserPermissionDomainEvent {
+        DeptDomainEvent, UserPermissionDomainEvent, SocialBindingDomainEvent {
 
     /**
      * 聚合根标识

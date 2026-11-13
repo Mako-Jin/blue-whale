@@ -327,6 +327,35 @@
 - 验收：微信/钉钉/飞书（或确认的渠道）完成扫码登录；重复回调幂等；解绑后不能登录；自动建号受租户开关约束；全链路产生 `sys_login_history` 与审计。
 - 测试：provider 适配器用 WireMock 桩；绑定冲突、state 过期、code 重放用例；`SysUser` 唯一约束回归。
 
+**实施记录（2026-11-13，已完成）**
+
+| 项 | 落地内容 |
+|---|---|
+| 渠道确认 | §九-2 决策：首批 **钉钉 + 飞书 + 企业微信**（用户确认，2026-11-13）；通用 OIDC（GitHub/Google）不在本期 |
+| 迁移脚本 | `V18__social_binding.sql`：`sys_user_social_binding`（`uk_provider_user` 唯一键 + `idx_tenant_user`）+ `sys_user` 补 `register_source`（SYSTEM/IMPORT/SOCIAL）/`registered_at` 两列（information_schema 判存，幂等可重放） |
+| 领域层 | `SocialBindingAggregate`（不变量：`(provider, providerUserId)` 全局唯一、同用户同渠道至多一条有效绑定、解绑后不得登录）、`SocialBindingRepository`、值对象 `SocialProvider`/`ProviderUserId`/`SocialProfile`、`SocialBindingDomainEvent`（加入 `AuthDomainEvent` sealed permits） |
+| 应用层 | `SocialLoginAppService`（startLogin/startBind/completeCallback/exchangeLoginCode/listBindings/unbind）+ 端口 `SocialIdentityProvider`（buildAuthorizeUrl/exchange）、`SocialStateStore`、`SocialLoginCodeStore`、`SocialAccountProvisioner`、`SocialWebConfig` |
+| 基础设施 | `SocialBindingRepositoryImpl` + PO/Mapper/装配器；适配器 `DingTalkSocialIdentityProvider`（新版 `/v1.0/oauth2`，用户令牌经 `x-api-ci` 头）、`FeishuSocialIdentityProvider`（`authen/v2` 换票）、`WeComSocialIdentityProvider`（`wwlogin` + `gettoken`/`auth/getuserinfo`），共享 `AbstractHttpSocialIdentityProvider`（RestClient）；`RedisSocialStateStore`/`RedisSocialLoginCodeStore`（TTL + 原子 delete 一次性消费）；`SocialAccountProvisionerImpl`（随机临时口令 + `register_source=SOCIAL` + 用户名冲突追加随机后缀）；`SocialLoginProperties`（`whale.auth.social.*`，总开关与各渠道默认关闭） |
+| 接口层 | `SocialApi` 契约（`/social/v{version}`）+ `SocialController`：authorize / callback（302 回前端）/ login（一次性码换令牌 + Cookie）/ bind/authorize / unbind / bindings |
+| 安全/网关 | SecurityConfig 放行 `/social/v1/*/authorize`、`/social/v1/*/callback`、`/social/v1/login`；网关 `whale-service-auth` 路由追加 `/social/v1/**` 前缀、白名单放行同三路径（绑定/解绑/绑定列表仍须 JWT）；路由数不变（157 网关用例无需改断言） |
+| 测试 | `SocialBindingAggregateTest`（6）、`SocialValueObjectsTest`（6）、`SocialLoginAppServiceImplTest`（15）、`SocialRedisStoresTest`（5）、`SocialIdentityProvidersTest`（8，MockRestServiceServer 桩）、`SocialControllerTest`（8）；auth starter 全量 652 用例、ArchUnit 9 条全绿、网关 157 用例全绿 |
+
+> 偏差说明（相对本节原设计）：
+> 1. **回调 302 + 一次性登录码换令牌**（而非回调内直接签发 Cookie）：三方浏览器导航无法携带自定义头，
+>    且避免在 GET 回调里写认证 Cookie（CSRF/CORS 复杂度）；前端凭 `code` 调 `POST /social/v1/login` 换令牌。
+> 2. **绑定意图复用同一条回调链路**：state 载荷以 `bindUserId` 区分登录/绑定意图，回调端点只有一个；
+>    绑定授权入口单独走 `POST /social/v1/bind/authorize`（须 JWT），避免免 JWT 的 authorize 端点被用于绑定。
+> 3. **适配器桩用 MockRestServiceServer** 而非 WireMock：无需新增依赖，`bindTo(RestClient.Builder)` 覆盖
+>    出站调用断言（URL/方法/头/响应）。
+> 4. **自动建号不经 `UserAggregate`**：新增 `SocialAccountProvisioner` 出站端口直接落库（随机口令用户不可知、
+>    登录全走三方），避免为 `register_source` 扩展聚合构造器带来的既有用户链路改动。
+> 5. **nonce/PKCE 字段预留未启用**：三渠道均为纯 OAuth2（非 OIDC），`state` 已覆盖 CSRF 防护；nonce 字段
+>    留在 `SocialStateRecord`，后续接通用 OIDC 渠道时启用。
+> 6. **`sys_login_history` 与审计接入顺延至 M3**：登录历史表属 M3「会话设备」聚合，本期以结构化日志
+>    （`[三方登录]` 相关 info/warn）先行，M3 落表后统一接入。
+> 7. **application 模块存量 checkstyle 违规 26 处**（ReauthAppService / UserConfigBatchService 等既有文件
+>    未使用导入、Javadoc 标签），非本期引入，未改动；本期新增代码 checkstyle 全部通过。
+
 ### M3 身份档案 / 用户组 / 策略 / 会话设备（R1 主体）
 
 - 任务：`UserProfile` 聚合与 7 张子表、`UserGroup`、`PermissionStrategy`、`RoleConstraint`、`Role` 继承增强、`sys_device/sys_login_history/sys_refresh_token/sys_remember_me_token`；登录/刷新/登出/切换租户时写入登录历史、设备、refresh 记录；角色分配接入约束校验；密码历史补 `is_active/expires_at`。

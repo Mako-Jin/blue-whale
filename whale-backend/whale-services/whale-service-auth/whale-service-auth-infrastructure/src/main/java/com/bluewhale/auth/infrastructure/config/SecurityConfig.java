@@ -52,6 +52,10 @@ public class SecurityConfig {
                         .requestMatchers("/auth/v1/login", "/auth/v1/refresh", "/auth/v1/logout",
                                 // 登录页品牌解析：登录前必须可访问，仅返回品牌渲染字段
                                 "/brand/v1/resolve",
+                                // 三方登录（权限中心扩展 M2）：授权起始/渠道回调为浏览器跳转链路，
+                                // 一次性登录码换令牌为无 JWT 的短时效凭证交换，均免登录；
+                                // 绑定/解绑/绑定列表不在白名单内，仍须 JWT。
+                                "/social/v1/*/authorize", "/social/v1/*/callback", "/social/v1/login",
                                 "/tenant/v1/internal/**", "/user/v1/internal/**", "/dept/v1/internal/**",
                                 // 网关白名单下发（网关定时拉取）：内网令牌由 InternalTokenFilter 校验，
                                 // 外部访问由网关 internal-deny 统一 403

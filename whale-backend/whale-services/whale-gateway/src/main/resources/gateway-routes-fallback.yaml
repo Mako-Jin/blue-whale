@@ -8,7 +8,9 @@ whale:
         predicates:
           - name: Path
             args:
-              patterns: /auth/v1/**,/auth/**,/user/**,/dept/**,/role/**,/menu/**,/permission/**
+              # /social/v1/** 为三方登录（权限中心扩展 M2）：授权起始/渠道回调走浏览器跳转，
+              # 一次性登录码换令牌为短时效凭证交换；安全由 auth 服务白名单 + state 一次性消费保证
+              patterns: /auth/v1/**,/auth/**,/user/**,/dept/**,/role/**,/menu/**,/permission/**,/social/v1/**
         filters: []
       - id: whale-service-auth-tenant
         uri: lb://whale-service-auth

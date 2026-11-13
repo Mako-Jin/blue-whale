@@ -134,6 +134,16 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
+    public Optional<UserAggregate> findEnabledByEmail(Long tenantId, String email) {
+        SysUserPo po = userMapper.selectOne(new LambdaQueryWrapper<SysUserPo>()
+                .eq(SysUserPo::getTenantId, tenantId)
+                .eq(SysUserPo::getEmail, email)
+                .eq(SysUserPo::getStatus, 1)
+                .last("limit 1"));
+        return Optional.ofNullable(po).map(UserPersistenceAssembler::toDomain);
+    }
+
+    @Override
     @Transactional(propagation = Propagation.MANDATORY)
     public void replaceRoles(Long userId, List<Long> roleIds) {
         // 一人多租户：只清理当前租户角色的关联行，避免误删该用户在其他租户的角色；

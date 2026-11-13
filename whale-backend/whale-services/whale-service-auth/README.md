@@ -10,7 +10,7 @@
 | 默认端口 | `8081`（`SERVER_PORT` 可覆盖） |
 | 数据库 | MySQL `bluewhale_auth` |
 | 缓存 / 锁 | Redis + Redisson（令牌黑名单、刷新轮换、权限缓存广播） |
-| 网关前缀 | `/auth/**`、`/user/**`、`/dept/**`、`/role/**`、`/menu/**`、`/permission/**`、`/tenant/**`、`/brand/**`、`/oauth-client/**`、`/oauth2/**`、`/.well-known/**` |
+| 网关前缀 | `/auth/**`、`/user/**`、`/dept/**`、`/role/**`、`/menu/**`、`/permission/**`、`/tenant/**`、`/brand/**`、`/oauth-client/**`、`/oauth2/**`、`/social/**`、`/.well-known/**` |
 | 契约文档 | `/v3/api-docs`、`/swagger-ui.html`（仅服务直连端口，网关未放行） |
 
 技术选型与版本以 [whale-parent/pom.xml](../../whale-parent/pom.xml) 为唯一事实源，本文不硬编码版本号。
@@ -125,11 +125,13 @@ whale-service-auth/
 | `UserRoleAssignment` / `RolePermissionAssignment` | 聚合内实体，维护授权关系 | 随所属聚合仓储持久化 |
 | `BrandConfig`（`sys_brand_config`，扩展 M0） | 作用域仅 `PLATFORM`/`TENANT`/`COMPANY`；同 `(targetType,targetId,domain)` 唯一；仅启用品牌参与登录页解析；主题色须为十六进制 | `BrandConfigRepository` |
 | `OAuthClient`（`sys_oauth_client`，扩展 M0） | `clientId` 全局唯一；密钥只存 BCrypt 哈希；授权码模式必须有回调白名单且禁止通配；停用后不得换票 | `OAuthClientRepository` |
+| `SocialBinding`（`sys_user_social_binding`，扩展 M2） | `(provider, providerUserId)` 全局唯一；一个用户在同一渠道下至多一条有效绑定；解绑后（`status=0`）不得再作为登录入口 | `SocialBindingRepository` |
 
-值对象：`Username`、`EncryptedPassword`、`RoleCode`、`PermCode`、`ClientId`、`RedirectUriSet`、`ScopeSet`、`GrantType` —— 把格式与合法性校验收敛在领域内。
+值对象：`Username`、`EncryptedPassword`、`RoleCode`、`PermCode`、`ClientId`、`RedirectUriSet`、`ScopeSet`、`GrantType`、
+`SocialProvider`（渠道枚举）、`ProviderUserId`、`SocialProfile` —— 把格式与合法性校验收敛在领域内。
 
 领域事件：`AuthDomainEvent` 为 `sealed interface`，派生出 `UserDomainEvent`、`RoleDomainEvent`、`MenuDomainEvent`、
-`PermissionDomainEvent`、`DeptDomainEvent`、`UserPermissionDomainEvent`，变更类型由 `ChangeType` 枚举表达，
+`PermissionDomainEvent`、`DeptDomainEvent`、`UserPermissionDomainEvent`、`SocialBindingDomainEvent`，变更类型由 `ChangeType` 枚举表达，
 用于权限缓存失效与审计。
 
 ## 四、应用层
@@ -144,6 +146,7 @@ whale-service-auth/
 | 角色 / 菜单 / 权限 / 部门 | `RoleAppService`、`MenuAppService`、`PermissionAppService`、`DeptAppService` | 授权与基础数据管理 |
 | 租户 | `TenantAppService`、`TenantMembershipAppService`、`TenantProvisioningAppService` | 租户生命周期、成员与角色、开通编排 |
 | 用户属性 | `UserPermissionAppService` | ABAC 属性维护 |
+| 三方登录 | `SocialLoginAppService` | 钉钉/飞书/企业微信授权起始、回调三态裁决（直登 / 同邮箱要求先绑定 / 受租户开关约束自动建号）、一次性登录码换令牌、绑定管理 |
 
 ### 4.2 出站端口（由 infrastructure 实现）
 
@@ -159,6 +162,9 @@ whale-service-auth/
 | `PasswordHasher` | `PasswordHasherAdapter` |
 | `TenantStatusSyncPort` | `TenantStatusCache` |
 | `PasswordExpiryQuery` / `TenantPasswordPolicyRepository` | `PasswordExpiryQueryImpl` / `TenantPasswordPolicyRepositoryImpl` |
+| `SocialIdentityProvider` | `DingTalk/Feishu/WeComSocialIdentityProvider`（RestClient，渠道协议适配） |
+| `SocialStateStore` / `SocialLoginCodeStore` | `RedisSocialStateStore` / `RedisSocialLoginCodeStore`（state 与一次性登录码，TTL + 一次性消费） |
+| `SocialAccountProvisioner` / `SocialWebConfig` | `SocialAccountProvisionerImpl`（register_source=SOCIAL 自动建号）/ `SocialWebConfigAdapter` |
 
 ## 五、接口层
 
@@ -174,6 +180,7 @@ whale-service-auth/
 | [`DeptController`](whale-service-auth-interfaces/src/main/java/com/bluewhale/auth/controller/DeptController.java) | `/dept` | 树 / 详情 / 更新 / 删除 |
 | [`DeptInternalController`](whale-service-auth-interfaces/src/main/java/com/bluewhale/auth/controller/DeptInternalController.java) | `/dept/internal` | `GET /tree`、`GET /{id}/leader` |
 | [`TenantController`](whale-service-auth-interfaces/src/main/java/com/bluewhale/auth/controller/TenantController.java) | `/tenant` | 分页 / 详情 / 更新 / 状态 / 续期 / 成员与角色 / 口令策略 / 内部启用租户列表 |
+| [`SocialController`](whale-service-auth-starter/src/main/java/com/bluewhale/auth/starter/controller/SocialController.java) | `/social` | `GET /{provider}/authorize`、`GET /{provider}/callback`（302 回前端）、`POST /login`（一次性码换令牌）、`POST /bind/authorize`、`DELETE /bind/{provider}`、`GET /bindings` |
 
 > `/user/internal/**`、`/dept/internal/**`、`/tenant/internal/**` 属内网接口，已列入网关 `internal-deny`，
 > 外部经网关访问返回 403；调用方须经 Nacos 服务发现直连。
@@ -217,6 +224,27 @@ whale-service-auth/
 - **网关**：`/oauth2/**`、`/.well-known/**` 新增路由 `whale-service-auth-oauth2`；`token`/`revoke`/`introspect`/
   `jwks` 与发现文档免 JWT，`authorize` 仍须 JWT。
 - **冒烟**：`scripts/smoke/bw-auth-oauth2-m1-smoke.ps1`（client_credentials → introspect → revoke → 错误密钥）。
+
+### 6.2 三方登录绑定（M2：钉钉 / 飞书 / 企业微信）
+
+授权起始 → 渠道扫码 → 回调裁决 → 前端换令牌四段式链路；绑定事实源为 `sys_user_social_binding`（Flyway `V18`），
+`sys_user` 扩展 `register_source` / `registered_at` 两列（自动建号落 `SOCIAL`）。
+
+| 端点 | 免 JWT | 说明 |
+|---|---|---|
+| `GET /social/v1/{provider}/authorize` | 是 | 登录意图：按租户编码解析租户，生成 state（Redis TTL 300s）与渠道授权页 URL |
+| `GET /social/v1/{provider}/callback` | 是 | 渠道 302 回调：state 一次性消费 → 换票 → 三态裁决 → 302 回前端（`code=一次性登录码` 或 `error=失败标记`） |
+| `POST /social/v1/login` | 是 | 一次性登录码（TTL 60s，防重放）换令牌；refreshToken 走 HttpOnly Cookie |
+| `POST /social/v1/bind/authorize` | 否 | 绑定意图：为当前登录用户发起渠道授权（同渠道已绑定则拒绝） |
+| `DELETE /social/v1/bind/{provider}` | 否 | 解绑：`status=0`，该三方身份不再可登录 |
+| `GET /social/v1/bindings` | 否 | 当前用户有效绑定列表（账号设置页） |
+
+- **三态裁决**（计划 §7-4）：① 绑定生效 → 直登；② 三方邮箱命中本租户既有账号 → 要求先口令登录再绑定
+  （防三方邮箱接管账号）；③ 无记录 → 受租户配置 `auth.social.self_register_enabled`（默认关闭）约束自动建号。
+- **安全语义**：state 与登录码均一次性（原子消费防重放）；回跳路径必须为站内相对路径（防开放重定向）；
+  渠道总开关 `whale.auth.social.enabled` 与各渠道 `providers.<name>.enabled` 默认关闭，凭据经环境变量注入。
+- **适配器**：钉钉（`/v1.0/oauth2` 新版协议，`x-api-ci` 头）、飞书（`authen/v2` 换票 + `authen/v1/user_info`）、
+  企业微信（`wwlogin` 授权 + `gettoken`/`auth/getuserinfo`），统一由 `SocialIdentityProvider` 端口隔离。
 
 ## 七、权限模型与缓存
 

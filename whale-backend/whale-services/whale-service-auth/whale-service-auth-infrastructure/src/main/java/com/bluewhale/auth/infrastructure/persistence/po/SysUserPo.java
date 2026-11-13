@@ -38,6 +38,10 @@ public class SysUserPo implements Serializable {
     /** 状态：1 启用 / 0 停用 */
     private Integer status;
     private LocalDateTime lastLoginTime;
+    /** 注册来源：SYSTEM 管理员创建 / IMPORT 导入 / SOCIAL 三方自动建号（M2） */
+    private String registerSource;
+    /** 注册时间（三方自动建号时写入；管理员创建为 NULL） */
+    private LocalDateTime registeredAt;
     private Integer deleted;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
