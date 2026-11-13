@@ -28,7 +28,7 @@ public class MinioStorageAutoConfiguration {
      * @return 由端点与凭据构建的 {@link MinioClient} 实例
      */
     @Bean
-    @ConditionalOnMissingBean
+    @ConditionalOnMissingBean(MinioClient.class)
     public MinioClient minioClient(MinioStorageProperties properties) {
         MinioClient.Builder builder = MinioClient.builder()
                 .endpoint(properties.getEndpoint())

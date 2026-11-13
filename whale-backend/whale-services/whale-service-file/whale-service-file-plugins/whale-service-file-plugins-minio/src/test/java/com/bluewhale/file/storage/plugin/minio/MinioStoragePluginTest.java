@@ -1,5 +1,7 @@
 package com.bluewhale.file.storage.plugin.minio;
 
+import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import io.minio.BucketExistsArgs;
 import io.minio.GetObjectArgs;
 import io.minio.GetObjectResponse;
@@ -8,7 +10,9 @@ import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
+import io.minio.errors.ErrorResponseException;
 import io.minio.http.Method;
+import io.minio.messages.ErrorResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -115,20 +120,43 @@ class MinioStoragePluginTest {
     }
 
     @Test
-    @DisplayName("presignedDownloadUrl：以 GET + 指定过期秒数生成预签名 URL，桶为空回退默认桶")
-    void shouldPresignDownloadUrl() throws Exception {
-        String expected = "http://127.0.0.1:9000/bluewhale/2026/10/19/a.txt?X-Amz-Signature=x";
-        when(minioClient.getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class))).thenReturn(expected);
+    @DisplayName("load：仅对象/桶不存在映射 NOT_FOUND，权限拒绝映射 SYSTEM_ERROR")
+    void shouldDistinguishLoadErrors() throws Exception {
+        ErrorResponseException missing = errorResponse("NoSuchKey");
+        when(minioClient.getObject(any(GetObjectArgs.class))).thenThrow(missing);
+        assertEquals(ErrorCode.NOT_FOUND.getCode(), assertThrows(BizException.class,
+                () -> plugin.load("mybucket", "missing.txt")).getCode());
 
-        String url = plugin.presignedDownloadUrl(null, "2026/10/19/a.txt", 600);
+        ErrorResponseException denied = errorResponse("AccessDenied");
+        when(minioClient.getObject(any(GetObjectArgs.class))).thenThrow(denied);
+        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), assertThrows(BizException.class,
+                () -> plugin.load("mybucket", "a.txt")).getCode());
+    }
 
-        assertEquals(expected, url);
+    @Test
+    @DisplayName("presignedDownloadUrl：超过 7 天的有效期截断到上限")
+    void shouldClampPresignedExpiry() throws Exception {
+        when(minioClient.getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class))).thenReturn("url");
+
+        plugin.presignedDownloadUrl("mybucket", "a.txt", 9999999);
+
         ArgumentCaptor<GetPresignedObjectUrlArgs> captor =
                 ArgumentCaptor.forClass(GetPresignedObjectUrlArgs.class);
         verify(minioClient).getPresignedObjectUrl(captor.capture());
-        assertEquals(Method.GET, captor.getValue().method());
-        assertEquals(600, captor.getValue().expiry());
-        assertEquals("bluewhale", captor.getValue().bucket());
-        assertEquals("2026/10/19/a.txt", captor.getValue().object());
+        assertEquals(604800, captor.getValue().expiry());
+    }
+
+    /**
+     * 构造带指定错误码的 SDK 错误响应异常。
+     *
+     * @param code SDK 错误码
+     * @return 桩化的错误响应异常
+     */
+    private static ErrorResponseException errorResponse(String code) {
+        ErrorResponseException exception = mock(ErrorResponseException.class);
+        ErrorResponse response = mock(ErrorResponse.class);
+        when(exception.errorResponse()).thenReturn(response);
+        when(response.code()).thenReturn(code);
+        return exception;
     }
 }

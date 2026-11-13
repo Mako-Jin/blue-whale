@@ -106,6 +106,31 @@ class LocalStoragePluginTest {
     }
 
     @Test
+    @DisplayName("参数校验：桶名为空或含 .. 段、对象键为空白时抛参数错误")
+    void shouldRejectBlankBucketOrObjectKey() {
+        byte[] content = "x".getBytes(StandardCharsets.UTF_8);
+
+        assertEquals(ErrorCode.PARAM_ERROR.getCode(), assertThrows(BizException.class,
+                () -> plugin.store(null, "a.txt", new ByteArrayInputStream(content))).getCode());
+        assertEquals(ErrorCode.PARAM_ERROR.getCode(), assertThrows(BizException.class,
+                () -> plugin.store(" ", "a.txt", new ByteArrayInputStream(content))).getCode());
+        assertEquals(ErrorCode.PARAM_ERROR.getCode(), assertThrows(BizException.class,
+                () -> plugin.store("..", "a.txt", new ByteArrayInputStream(content))).getCode());
+        assertEquals(ErrorCode.PARAM_ERROR.getCode(), assertThrows(BizException.class,
+                () -> plugin.load("bluewhale", " ")).getCode());
+    }
+
+    @Test
+    @DisplayName("合法文件名：含连续点但不含 .. 路径段时正常落盘")
+    void shouldAllowDotsInsideFileName() {
+        byte[] content = "x".getBytes(StandardCharsets.UTF_8);
+
+        plugin.store("bluewhale", "report..2024.pdf", new ByteArrayInputStream(content));
+
+        assertTrue(Files.exists(tempDir.resolve("bluewhale").resolve("report..2024.pdf")));
+    }
+
+    @Test
     @DisplayName("presignedDownloadUrl：本地插件不支持，抛参数错误")
     void shouldRejectPresign() {
         BizException ex = assertThrows(BizException.class,

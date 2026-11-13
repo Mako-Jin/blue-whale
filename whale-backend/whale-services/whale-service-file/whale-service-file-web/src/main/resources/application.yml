@@ -76,8 +76,9 @@ whale:
     storage:
       # 活动存储插件类型：local（本地磁盘，默认）| minio（MinIO/S3 兼容对象存储）
       type: ${WHALE_FILE_STORAGE_TYPE:local}
-      # 本地插件根目录，同时作为分片上传临时目录根：按 ${root}/${bucket}/${objectKey} 落盘
-      root: ${WHALE_FILE_STORAGE_ROOT:D:/data/whale-file}
+      # 本地插件根目录，同时作为分片上传临时目录根：按 ${root}/${bucket}/${objectKey} 落盘。
+      # 默认相对进程工作目录（跨平台），生产环境建议通过环境变量配置绝对路径。
+      root: ${WHALE_FILE_STORAGE_ROOT:./data/whale-file}
     # MinIO/S3 插件配置：endpoint 非空时插件自动装配；type=minio 时选为活动插件。
     # 生产/联调通过环境变量注入，凭据不入仓。
     minio:

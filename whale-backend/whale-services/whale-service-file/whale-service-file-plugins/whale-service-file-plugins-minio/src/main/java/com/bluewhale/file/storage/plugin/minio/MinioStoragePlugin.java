@@ -24,8 +24,9 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>以传入的 {@code bucket} 作为桶名（为空时回退 {@link MinioStorageProperties#getBucket()}），
  * {@code objectKey} 作为对象键；写入前按配置自动创建缺失桶，使 job/audit 归档等
- * 独立桶无需人工预建。所有 SDK 受检异常统一包装为 {@link BizException}，
- * 读取缺失对象抛出 {@link ErrorCode#NOT_FOUND}，其余抛出 {@link ErrorCode#SYSTEM_ERROR}。</p>
+ * 独立桶无需人工预建。所有 SDK 受检异常统一包装为 {@link BizException}：读取时仅对象/桶不存在
+ * 映射为 {@link ErrorCode#NOT_FOUND}（权限、服务端错误等仍为 {@link ErrorCode#SYSTEM_ERROR}）。
+ * {@code load} 返回的流由调用方关闭，否则会耗尽 SDK 连接。</p>
  *
  * @author BlueWhale
  */
@@ -36,6 +37,15 @@ public class MinioStoragePlugin implements StoragePlugin {
 
     /** MinIO 分片大小：10MB；流长度未知时用于分片上传 */
     private static final long PART_SIZE = 10485760L;
+
+    /** 预签名 URL 有效期上限（秒）：MinIO/S3 最长 7 天，超出会被 SDK 拒绝 */
+    private static final int MAX_PRESIGNED_EXPIRY_SECONDS = 604800;
+
+    /** 对象不存在的 SDK 错误码 */
+    private static final String NO_SUCH_KEY = "NoSuchKey";
+
+    /** 桶不存在的 SDK 错误码 */
+    private static final String NO_SUCH_BUCKET = "NoSuchBucket";
 
     private final MinioClient minioClient;
 
@@ -81,6 +91,13 @@ public class MinioStoragePlugin implements StoragePlugin {
                     .stream(in, -1, PART_SIZE)
                     .build();
             minioClient.putObject(args);
+        } catch (ErrorResponseException e) {
+            // 桶可能已被外部删除：清掉缓存，后续写入重新探测/创建；当前失败无重试，
+            // 避免在流可能已被消费的情况下重放导致写入不完整内容
+            if (NO_SUCH_BUCKET.equals(errorCode(e))) {
+                knownBuckets.remove(resolvedBucket);
+            }
+            throw new BizException(ErrorCode.SYSTEM_ERROR);
         } catch (Exception e) {
             throw new BizException(ErrorCode.SYSTEM_ERROR);
         }
@@ -95,7 +112,7 @@ public class MinioStoragePlugin implements StoragePlugin {
                     .build();
             return minioClient.getObject(args);
         } catch (ErrorResponseException e) {
-            throw new BizException(ErrorCode.NOT_FOUND);
+            throw notFoundOrSystemError(e);
         } catch (Exception e) {
             throw new BizException(ErrorCode.SYSTEM_ERROR);
         }
@@ -112,7 +129,7 @@ public class MinioStoragePlugin implements StoragePlugin {
                     .build();
             return minioClient.getObject(args);
         } catch (ErrorResponseException e) {
-            throw new BizException(ErrorCode.NOT_FOUND);
+            throw notFoundOrSystemError(e);
         } catch (Exception e) {
             throw new BizException(ErrorCode.SYSTEM_ERROR);
         }
@@ -138,7 +155,8 @@ public class MinioStoragePlugin implements StoragePlugin {
                     .method(Method.GET)
                     .bucket(resolveBucket(bucket))
                     .object(objectKey)
-                    .expiry(expiresSeconds, TimeUnit.SECONDS)
+                    // 插件层兜底截断到 S3 上限，避免绕过应用层直接调用时被 SDK 以参数异常拒绝
+                    .expiry(Math.min(expiresSeconds, MAX_PRESIGNED_EXPIRY_SECONDS), TimeUnit.SECONDS)
                     .build();
             return minioClient.getPresignedObjectUrl(args);
         } catch (Exception e) {
@@ -151,12 +169,37 @@ public class MinioStoragePlugin implements StoragePlugin {
      *
      * @param bucket 调用方传入的桶名称
      * @return 非空的桶名称
+     * @throws BizException 传入桶名与默认桶均为空时抛出 {@code PARAM_ERROR}
      */
     private String resolveBucket(String bucket) {
-        if (StringUtils.hasText(bucket)) {
-            return bucket;
+        String resolved = StringUtils.hasText(bucket) ? bucket : properties.getBucket();
+        if (!StringUtils.hasText(resolved)) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "对象存储桶名未配置");
         }
-        return properties.getBucket();
+        return resolved;
+    }
+
+    /**
+     * 将 SDK 错误响应映射为业务异常：仅对象/桶不存在视为 {@code NOT_FOUND}，
+     * 权限拒绝、服务端错误等仍为 {@code SYSTEM_ERROR}，避免 403 被误报成“文件不存在”。
+     *
+     * @param e SDK 错误响应异常
+     * @return 待抛出的业务异常
+     */
+    private static BizException notFoundOrSystemError(ErrorResponseException e) {
+        return NO_SUCH_KEY.equals(errorCode(e)) || NO_SUCH_BUCKET.equals(errorCode(e))
+                ? new BizException(ErrorCode.NOT_FOUND)
+                : new BizException(ErrorCode.SYSTEM_ERROR);
+    }
+
+    /**
+     * 提取 SDK 错误码，响应体缺失时返回 {@code null}。
+     *
+     * @param e SDK 错误响应异常
+     * @return 错误码（如 {@code NoSuchKey}），无法解析时返回 {@code null}
+     */
+    private static String errorCode(ErrorResponseException e) {
+        return e.errorResponse() == null ? null : e.errorResponse().code();
     }
 
     /**
@@ -169,6 +212,7 @@ public class MinioStoragePlugin implements StoragePlugin {
      * @throws BizException 桶初始化失败时抛出 {@code SYSTEM_ERROR}
      */
     private void ensureBucket(String bucket) {
+        // 关闭自动建桶时不缓存：桶由外部管理、可能随时被删除，缓存会掩盖真实的 NoSuchBucket
         if (!properties.isAutoCreateBucket() || knownBuckets.contains(bucket)) {
             return;
         }

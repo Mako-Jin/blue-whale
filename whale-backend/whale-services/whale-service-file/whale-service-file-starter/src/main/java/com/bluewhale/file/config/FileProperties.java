@@ -116,8 +116,11 @@ public class FileProperties {
         /** 活动存储插件类型：{@code local}（本地磁盘）或 {@code minio}（对象存储），默认 {@code local} */
         private String type = "local";
 
-        /** 本地插件根目录及分片临时目录根，按 {@code ${root}/${bucket}/${objectKey}} 落盘 */
-        private String root = "D:/data/whale-file";
+        /**
+         * 本地插件根目录及分片临时目录根，按 {@code ${root}/${bucket}/${objectKey}} 落盘；
+         * 默认相对进程工作目录，跨平台可用，生产环境应显式配置绝对路径
+         */
+        private String root = "./data/whale-file";
     }
 
     /**
