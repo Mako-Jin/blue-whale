@@ -68,10 +68,7 @@ RUN set -eu; \
     done; \
     [ "${ok}" = "1" ]; \
     mkdir -p /out; \
-    jar=$(find "whale-backend/${MODULE_PATH}/target" -maxdepth 1 -type f -name '*-exec.jar' | head -n 1); \
-    if [ -z "${jar}" ]; then \
-        jar=$(find "whale-backend/${MODULE_PATH}/target" -maxdepth 1 -type f -name '*.jar' ! -name '*.original' | head -n 1); \
-    fi; \
+    jar=$(find "whale-backend/${MODULE_PATH}/target" -maxdepth 1 -type f -name '*.jar' ! -name '*.original' | head -n 1); \
     test -n "${jar}"; \
     cp "${jar}" /out/app.jar; \
     ls -l /out/app.jar

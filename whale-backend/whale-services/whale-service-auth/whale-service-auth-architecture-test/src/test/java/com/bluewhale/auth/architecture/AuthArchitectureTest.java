@@ -101,14 +101,10 @@ class AuthArchitectureTest {
                     "com.bluewhale.auth.infrastructure..",
                     "com.bluewhale.auth.starter..");
 
-    /**
-     * Web 适配层只做协议适配与装配：允许依赖 interfaces / application / infrastructure，
-     * 但不得绕过应用层直接操作领域聚合与仓储。
-     */
-    @ArchTest
-    static final ArchRule starter_must_not_depend_on_domain = noClasses()
-            .that().resideInAPackage("com.bluewhale.auth.starter..")
-            .should().dependOnClassesThat().resideInAPackage("com.bluewhale.auth.domain..");
+    // 说明：「starter 不得依赖 domain」这条规则已迁到
+    // whale-service-auth-starter 的 AuthStarterArchitectureTest —— 本模块以 test 作用域依赖
+    // starter，拿到的是 Spring Boot 可执行包，类都在 BOOT-INF/classes 下，ArchUnit 扫不到，
+    // 规则会以 "failed to check any classes" 失败（见 Backend CI run#36）。
 
     /**
      * 根包白名单：{@code com.bluewhale.auth} 下除启动类外，只允许分层的固定包，

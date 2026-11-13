@@ -149,29 +149,22 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- 架构守护：starter 不得依赖 domain（规则见 AuthStarterArchitectureTest）。
+             放在本模块是因为 fat jar 的类在 BOOT-INF/classes，外部模块的 ArchUnit 扫不到。 -->
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <version>${archunit.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
         <finalName>whale-service-auth</finalName>
         <plugins>
-            <!--
-              classifier=exec：把 Spring Boot 可执行包（fat jar）作为附加构件，主构件保持普通 jar。
-
-              原因：不加 classifier 时 repackage 会用 fat jar 顶替主构件，本模块被
-              whale-service-auth-architecture-test 以 test 作用域依赖后，ArchUnit 拿到的是
-              fat jar——类都在 BOOT-INF/classes 下，importer 一个都扫不到，
-              规则报 "failed to check any classes"（CI Backend run#36 实证）。
-
-              产物：target/whale-service-auth.jar（普通 jar，供依赖）
-                    target/whale-service-auth-exec.jar（fat jar，供部署）
-              Docker 侧见 deploy/backend/sample/Dockerfile 的 jar 选择逻辑（优先 -exec.jar）。
-            -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <classifier>exec</classifier>
-                </configuration>
             </plugin>
         </plugins>
     </build>

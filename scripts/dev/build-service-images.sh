@@ -107,12 +107,7 @@ for name in "${TARGETS[@]}"; do
     echo "未知服务：$name（用 --list 查看可用服务名）" >&2
     exit 1
   fi
-  # Spring Boot 可执行包带 -exec classifier（见 whale-service-auth-starter 的 pom 注释），
-  # 主构件是普通 jar。这里必须优先取 -exec.jar，否则会把不可执行的普通 jar 打进镜像。
-  jar="$(ls "$ROOT/$module_dir"/target/*-exec.jar 2>/dev/null | head -1 || true)"
-  if [ -z "$jar" ]; then
-    jar="$(ls "$ROOT/$module_dir"/target/*.jar 2>/dev/null | grep -v 'sources\|javadoc\|original-' | head -1 || true)"
-  fi
+  jar="$(ls "$ROOT/$module_dir"/target/*.jar 2>/dev/null | grep -v 'sources\|javadoc\|original-' | head -1 || true)"
   if [ -z "$jar" ]; then
     echo "缺少 jar：$module_dir/target/*.jar，先执行 mvn package" >&2
     exit 1
