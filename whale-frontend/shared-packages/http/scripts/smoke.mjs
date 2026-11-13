@@ -2,7 +2,8 @@
 //
 // 运行：pnpm --filter @bluewhale/http build && node scripts/smoke.mjs
 
-/* global document */
+// document 等浏览器/Node 全局已由 whale-frontend/eslint.config.js 统一声明，
+// 此处不再重复写 /* global document */（否则触发 no-redeclare）。
 
 import assert from 'node:assert/strict';
 import { createHttpClient } from '../dist/index.mjs';
