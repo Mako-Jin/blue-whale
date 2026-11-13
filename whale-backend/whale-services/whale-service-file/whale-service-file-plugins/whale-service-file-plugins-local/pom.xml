@@ -20,12 +20,15 @@
         <dependency>
             <groupId>com.bluewhale</groupId>
             <artifactId>whale-service-file-domain</artifactId>
-            <version>${project.version}</version>
         </dependency>
+        <!-- 仅需通用异常契约与 Spring Boot 自动装配注解，不引入 starter 全家桶 -->
         <dependency>
             <groupId>com.bluewhale</groupId>
-            <artifactId>whale-spring-boot-starter</artifactId>
-            <version>${project.version}</version>
+            <artifactId>whale-common-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

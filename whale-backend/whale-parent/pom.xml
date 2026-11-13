@@ -402,6 +402,25 @@
                     <!-- 不硬编码 skipTests：字面量 false 会覆盖命令行 -DskipTests，
                          导致镜像构建等场景仍执行单测（默认即 false，无需声明） -->
                 </plugin>
+                <!--
+                  依赖环境守门：校验 JDK / Maven 版本基线。
+                  有意不启用 dependencyConvergence——Spring Boot 4 依赖树庞大，收敛检查噪音极大会误报失败。
+                -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <version>3.5.0</version>
+                    <configuration>
+                        <rules>
+                            <requireJavaVersion>
+                                <version>${java.version}</version>
+                            </requireJavaVersion>
+                            <requireMavenVersion>
+                                <version>[3.8,)</version>
+                            </requireMavenVersion>
+                        </rules>
+                    </configuration>
+                </plugin>
             </plugins>
         </pluginManagement>
 
@@ -448,6 +467,22 @@
                         <phase>test</phase>
                         <goals>
                             <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--
+              Enforcer 绑定 validate：全模块继承执行，校验 JDK/Maven 版本基线（规则见上方 pluginManagement）。
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>enforce-versions</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>enforce</goal>
                         </goals>
                     </execution>
                 </executions>

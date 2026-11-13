@@ -20,18 +20,20 @@
         <dependency>
             <groupId>com.bluewhale</groupId>
             <artifactId>whale-service-file-domain</artifactId>
-            <version>${project.version}</version>
         </dependency>
+        <!-- 仅需通用异常契约与 Spring Boot 自动装配注解，不引入 starter 全家桶 -->
         <dependency>
             <groupId>com.bluewhale</groupId>
-            <artifactId>whale-spring-boot-starter</artifactId>
-            <version>${project.version}</version>
+            <artifactId>whale-common-core</artifactId>
         </dependency>
-        <!-- MinIO / S3 兼容对象存储：仅配置 whale.file.minio.endpoint 时装配插件 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+        </dependency>
+        <!-- MinIO / S3 兼容对象存储：仅配置 whale.file.minio.endpoint 时装配插件，版本由根 POM 统一管理 -->
         <dependency>
             <groupId>io.minio</groupId>
             <artifactId>minio</artifactId>
-            <version>${minio.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

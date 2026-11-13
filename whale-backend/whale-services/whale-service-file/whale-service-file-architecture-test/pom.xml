@@ -27,31 +27,26 @@
         <dependency>
             <groupId>com.bluewhale</groupId>
             <artifactId>whale-service-file-domain</artifactId>
-            <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.bluewhale</groupId>
             <artifactId>whale-service-file-application</artifactId>
-            <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.bluewhale</groupId>
             <artifactId>whale-service-file-interfaces</artifactId>
-            <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.bluewhale</groupId>
             <artifactId>whale-service-file-infrastructure</artifactId>
-            <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.tngtech.archunit</groupId>
             <artifactId>archunit-junit5</artifactId>
-            <version>${archunit.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>

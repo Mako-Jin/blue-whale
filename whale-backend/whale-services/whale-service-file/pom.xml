@@ -32,33 +32,120 @@
         <minio.version>8.5.12</minio.version>
         <!-- 架构守护测试：校验分层依赖方向 -->
         <archunit.version>1.4.1</archunit.version>
+        <!--
+          Kotlin stdlib 锁定版本：MinIO 经 okhttp 传递引入 kotlin-stdlib-jdk8；Spring Boot BOM 经 kotlin-bom
+          默认将其管理为本地离线仓库不可用的版本，此处锁定为本地可用版本，保证 mvn -o 离线构建可解析。
+        -->
+        <kotlin.version>1.9.0</kotlin.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
-            <!--
-              MinIO 经 okhttp 传递引入 kotlin-stdlib-jdk8；Spring Boot BOM 经 kotlin-bom 默认将其管理为本地离线仓库
-              不可用的版本，此处直接锁定为本地可用版本，保证 mvn -o 离线构建可解析。
-            -->
+            <!-- 内部平台模块（版本与工程同步，子模块引用时免写 version） -->
+            <dependency>
+                <groupId>com.bluewhale</groupId>
+                <artifactId>whale-common-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.bluewhale</groupId>
+                <artifactId>whale-common-domain</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.bluewhale</groupId>
+                <artifactId>whale-spring-boot-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.bluewhale</groupId>
+                <artifactId>whale-tools</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.bluewhale</groupId>
+                <artifactId>whale-i18n-sdk</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <!-- 本服务各分层模块 -->
+            <dependency>
+                <groupId>com.bluewhale</groupId>
+                <artifactId>whale-service-file-domain</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.bluewhale</groupId>
+                <artifactId>whale-service-file-application</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.bluewhale</groupId>
+                <artifactId>whale-service-file-infrastructure</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.bluewhale</groupId>
+                <artifactId>whale-service-file-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.bluewhale</groupId>
+                <artifactId>whale-service-file-interfaces</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.bluewhale</groupId>
+                <artifactId>whale-service-file-plugins-local</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.bluewhale</groupId>
+                <artifactId>whale-service-file-plugins-minio</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.bluewhale</groupId>
+                <artifactId>whale-service-file-plugins-oss</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.bluewhale</groupId>
+                <artifactId>whale-service-file-plugins-rustfs</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <!-- 三方依赖：与 properties 形成「属性 → 管理 → 引用」闭环 -->
+            <dependency>
+                <groupId>io.minio</groupId>
+                <artifactId>minio</artifactId>
+                <version>${minio.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.tngtech.archunit</groupId>
+                <artifactId>archunit-junit5</artifactId>
+                <version>${archunit.version}</version>
+            </dependency>
+            <!-- Kotlin stdlib 锁定（原因见上方 properties 注释） -->
             <dependency>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-stdlib-jdk8</artifactId>
-                <version>1.9.0</version>
+                <version>${kotlin.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-stdlib-jdk7</artifactId>
-                <version>1.9.0</version>
+                <version>${kotlin.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-stdlib</artifactId>
-                <version>1.9.0</version>
+                <version>${kotlin.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-stdlib-common</artifactId>
-                <version>1.9.0</version>
+                <version>${kotlin.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
