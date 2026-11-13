@@ -9,6 +9,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * <p>与既有配置键保持兼容：{@code whale.file.storage.root} 同时被本地插件与服务侧分片临时目录复用；
  * {@code whale.file.storage.type} 不在此声明，由服务侧插件注册表读取（Spring Boot 自动忽略未知字段）。</p>
  *
+ * <p>该键在配置层 {@code FileProperties.Storage.root} 中另有一份声明（配置层与插件层不可互相依赖），
+ * <b>修改默认值时必须两处同步</b>。</p>
+ *
  * @author BlueWhale
  */
 @Data
