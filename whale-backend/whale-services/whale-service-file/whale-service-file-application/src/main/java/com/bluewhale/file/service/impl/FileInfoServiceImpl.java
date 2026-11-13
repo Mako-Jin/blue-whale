@@ -43,13 +43,16 @@ import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.IntStream;
 
 /**
  * 文件信息服务实现
+ *
+ * <p><b>事务边界</b>：写库事务由仓储端口保证——{@code saveWithQuotaCheck} 自带
+ * {@code REQUIRES_NEW} 事务，配额统计与写入处于同一临界区；外部存储写入不参与数据库事务，
+ * 落库失败时通过补偿删除物理对象保证最终一致。仅在需要跨多次仓储调用保持原子性的方法
+ * （{@code delete}/{@code lock}/{@code unlock}）上声明应用层事务。</p>
  *
  * @author BlueWhale
  */
@@ -94,10 +97,12 @@ public class FileInfoServiceImpl implements FileInfoService {
             throw new BizException(ErrorCode.PARAM_ERROR);
         }
         UploadLimits effective = effectiveLimits(command.limits());
+        // 预检提前失败，避免无谓的 MD5 计算；上限的最终校验统一在 persistFile
         if (content.size() > effective.maxSizeBytes()) {
             throw new BizException(ErrorCode.PARAM_ERROR);
         }
         validateQuota(content.size(), command.uploaderId(), effective.quotaBytes());
+        // 普通上传仅面向接口层已按上限预检的小文件，内容此时已全量在内存，直接计算摘要
         byte[] bytes = content.content();
         return persistFile(new ByteArrayInputStream(bytes), content.originalName(), content.contentType(),
                 bytes.length, DigestUtils.md5DigestAsHex(bytes), command.bucket(), command.uploaderId(), effective);
@@ -107,7 +112,8 @@ public class FileInfoServiceImpl implements FileInfoService {
     public FileRapidUploadResult rapidUpload(RapidUploadCommand command) {
         UploadLimits effective = effectiveLimits(command.limits());
         validateDeclaredSize(command.size(), effective);
-        String md5 = command.md5().toLowerCase(Locale.ROOT);
+        // MD5 大小写由仓储端口归一化，应用层按调用方原值透传
+        String md5 = command.md5();
         FileAsset existing = fileAssetRepository.findReusableByDigest(md5, command.size()).orElse(null);
         if (existing == null) {
             return new FileRapidUploadResult(false, null);
@@ -130,8 +136,8 @@ public class FileInfoServiceImpl implements FileInfoService {
 
     @Override
     public PageResult<FileInfoResult> page(FilePageQuery query) {
-        long size = Math.min(Math.max(query.size(), 1L), MAX_PAGE_SIZE);
-        // 无管理权限时仅可见本人上传的文件；服务间上传（uploaderId 为空）保持租户可见
+        long size = clampPageSize(query.size());
+        // 无管理权限时仅可见本人上传的文件；服务间上传（uploaderId 为空）仅管理视角可见
         Long uploaderFilter = query.canManage() ? null : query.requesterId();
         FileAssetQuery assetQuery = new FileAssetQuery(query.originalName(), query.bucket(),
                 query.createTimeStart(), query.createTimeEnd(), uploaderFilter,
@@ -150,7 +156,7 @@ public class FileInfoServiceImpl implements FileInfoService {
     public FileChangeResult getChangeDetail(Long id) {
         FileAsset asset = fileAssetRepository.findByIdIncludingDeleted(id)
                 .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
-        ensureTenantVisible(asset);
+        asset.assertVisibleToTenant(TenantContext.get());
         return toChangeResult(asset);
     }
 
@@ -177,7 +183,7 @@ public class FileInfoServiceImpl implements FileInfoService {
     @Override
     public PageResult<FileChangeResult> changes(FileChangesQuery query) {
         long pageCurrent = Math.max(query.current(), 1L);
-        long pageSize = Math.min(Math.max(query.size(), 1L), MAX_PAGE_SIZE);
+        long pageSize = clampPageSize(query.size());
         FileAssetPage page = fileAssetRepository.findChanges(query.since(), pageCurrent, pageSize);
         List<FileChangeResult> records = page.records().stream().map(FileInfoServiceImpl::toChangeResult).toList();
         return PageResult.of(records, page.total(), page.current(), page.size());
@@ -356,53 +362,24 @@ public class FileInfoServiceImpl implements FileInfoService {
     private FileAsset requireFile(Long id) {
         FileAsset asset = fileAssetRepository.findById(id)
                 .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
-        ensureTenantVisible(asset);
+        asset.assertVisibleToTenant(TenantContext.get());
         return asset;
     }
 
     /**
-     * 查询文件资产并校验调用者可见性：不存在、跨租户或跨用户越权均按 {@code NOT_FOUND} 处理，
-     * 避免泄露文件是否存在。
+     * 查询文件资产并校验请求者可见性，不存在、跨租户或越权时统一抛出 {@code NOT_FOUND}
      *
      * @param id 文件ID
-     * @param requesterId 调用者用户 ID
+     * @param requesterId 调用者用户 ID，可为 {@code null}（内网服务调用）
      * @param canManage 是否持有文件管理权限
      * @return 文件资产聚合根
      * @throws BizException 不可见时抛出 {@code NOT_FOUND}
      */
     private FileAsset requireAccessibleFile(Long id, Long requesterId, boolean canManage) {
-        FileAsset asset = requireFile(id);
-        ensureAccessible(asset, requesterId, canManage);
+        FileAsset asset = fileAssetRepository.findById(id)
+                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
+        asset.assertVisibleTo(requesterId, canManage, TenantContext.get());
         return asset;
-    }
-
-    /**
-     * 校验文件归属：管理权限可访问全租户文件；上传者本人可访问；服务间上传（上传者为空）
-     * 维持租户内可见。
-     *
-     * @param asset 文件资产聚合根
-     * @param requesterId 调用者用户 ID
-     * @param canManage 是否持有文件管理权限
-     * @throws BizException 越权访问时抛出 {@code NOT_FOUND}
-     */
-    private static void ensureAccessible(FileAsset asset, Long requesterId, boolean canManage) {
-        if (canManage || asset.getUploaderId() == null
-                || Objects.equals(asset.getUploaderId(), requesterId)) {
-            return;
-        }
-        throw new BizException(ErrorCode.NOT_FOUND);
-    }
-
-    /**
-     * 校验文件资产对当前租户可见，跨租户按不存在处理以避免泄露文件是否存在
-     *
-     * @param asset 文件资产聚合根
-     * @throws BizException 跨租户访问时抛出 {@code NOT_FOUND}
-     */
-    private static void ensureTenantVisible(FileAsset asset) {
-        if (!asset.isVisibleToTenant(TenantContext.get())) {
-            throw new BizException(ErrorCode.NOT_FOUND);
-        }
     }
 
     /**
@@ -416,6 +393,16 @@ public class FileInfoServiceImpl implements FileInfoService {
             return DEFAULT_EXPIRES_SECONDS;
         }
         return Math.min(expiresSeconds, MAX_EXPIRES_SECONDS);
+    }
+
+    /**
+     * 收敛分页大小：至少 1 条，最多 {@link #MAX_PAGE_SIZE} 条，供所有分页入口复用
+     *
+     * @param size 调用方请求的每页条数
+     * @return 生效的每页条数
+     */
+    private static long clampPageSize(long size) {
+        return Math.min(Math.max(size, 1L), MAX_PAGE_SIZE);
     }
 
     /**
@@ -529,7 +516,7 @@ public class FileInfoServiceImpl implements FileInfoService {
     /**
      * 生成对象键：{@code tenants/{tenantId}/yyyy/MM/dd/<uuid>.<ext>}
      *
-     * @param originalName 原始文件名（用于提取扩展名）
+     * @param originalName 原始文件名（仅用于提取扩展名，不参与对象键路径，客户端伪造文件名无法穿越路径）
      * @return 对象键
      */
     private static String buildObjectKey(String originalName) {

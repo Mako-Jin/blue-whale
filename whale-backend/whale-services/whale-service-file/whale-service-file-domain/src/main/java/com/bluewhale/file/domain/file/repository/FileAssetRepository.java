@@ -53,7 +53,9 @@ public interface FileAssetRepository {
     /**
      * 按 MD5 + 大小查询可复用的正常文件（秒传去重依据，按主键升序取第一条）
      *
-     * @param md5 MD5 摘要（十六进制小写）
+     * <p>入参摘要大小写不敏感：实现内部统一归一化为小写后查询；空白摘要直接视为未命中。</p>
+     *
+     * @param md5 MD5 摘要（十六进制，大小写不敏感）
      * @param fileSize 文件大小（字节）
      * @return 可复用的文件资产；未命中时返回空
      */

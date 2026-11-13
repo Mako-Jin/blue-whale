@@ -5,12 +5,14 @@ import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.file.domain.model.vo.FileStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 
 import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -156,5 +158,43 @@ class FileAssetTest {
         assertTrue(asset.isVisibleToTenant(1L));
         assertFalse(asset.isVisibleToTenant(2L));
         assertFalse(asset.isVisibleToTenant(12L));
+    }
+
+    @Test
+    @DisplayName("assertVisibleTo：管理权限或上传者本人可见，跨租户与服务间上传对普通用户不可见")
+    void shouldAssertRequesterVisibility() {
+        FileAsset asset = asset(FileStatus.NORMAL);
+
+        asset.assertVisibleTo(9L, false, 1L);
+        asset.assertVisibleTo(7L, true, 1L);
+        assertNotFound(() -> asset.assertVisibleTo(7L, false, 1L));
+        assertNotFound(() -> asset.assertVisibleTo(9L, false, 2L));
+
+        FileAsset serviceUpload = FileAsset.reconstitute(2L, "b.txt", "b.txt", "bluewhale",
+                "tenants/1/2026/10/24/b.txt", 1L, null, null, FileStatus.NORMAL, null, false, null, null);
+        assertNotFound(() -> serviceUpload.assertVisibleTo(9L, false, 1L));
+        serviceUpload.assertVisibleTo(null, false, 1L);
+        serviceUpload.assertVisibleTo(9L, true, 1L);
+    }
+
+    @Test
+    @DisplayName("构造：MD5 统一归一化为小写，空白摘要归一化为 null")
+    void shouldNormalizeMd5() {
+        FileAsset upper = FileAsset.register("bluewhale", "k", "a.txt", 1L, null,
+                " D41D8CD98F00B204E9800998ECF8427E ", 9L);
+        assertEquals("d41d8cd98f00b204e9800998ecf8427e", upper.getMd5());
+
+        FileAsset blank = FileAsset.register("bluewhale", "k", "a.txt", 1L, null, "  ", 9L);
+        assertNull(blank.getMd5());
+    }
+
+    /**
+     * 断言操作抛出 {@code NOT_FOUND}
+     *
+     * @param executable 待执行操作
+     */
+    private static void assertNotFound(Executable executable) {
+        BizException ex = assertThrows(BizException.class, executable);
+        assertEquals(ErrorCode.NOT_FOUND.getCode(), ex.getCode());
     }
 }

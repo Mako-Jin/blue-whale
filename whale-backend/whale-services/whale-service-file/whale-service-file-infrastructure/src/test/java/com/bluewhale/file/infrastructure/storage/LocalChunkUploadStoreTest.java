@@ -18,6 +18,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -170,6 +171,31 @@ class LocalChunkUploadStoreTest {
     @DisplayName("exists：未初始化会话返回 false")
     void shouldReportMissingSession() {
         assertFalse(store.exists(ChunkUploadSessionId.random()));
+    }
+
+    @Test
+    @DisplayName("initialize：清理超过保留期的暂存会话，保留活跃会话")
+    void shouldPurgeExpiredSessionsOnInitialize() throws IOException {
+        FileProperties properties = new FileProperties();
+        properties.getStorage().setRoot(tempDir.toString());
+        properties.setChunkUploadTtlHours(1L);
+        LocalChunkUploadStore ttlStore = new LocalChunkUploadStore(properties);
+        ChunkUploadSessionId expired = ChunkUploadSessionId.random();
+        ChunkUploadSessionId active = ChunkUploadSessionId.random();
+        ttlStore.initialize(expired, metadata(12L));
+        ttlStore.initialize(active, metadata(12L));
+
+        Path expiredDir = tempDir.resolve("tmp").resolve(expired.value());
+        long stale = System.currentTimeMillis() - 2 * 3_600_000L;
+        Files.setLastModifiedTime(expiredDir, FileTime.fromMillis(stale));
+        Files.setLastModifiedTime(expiredDir.resolve("meta.properties"), FileTime.fromMillis(stale));
+
+        // 使用新实例，保证本次初始化不被限频跳过
+        LocalChunkUploadStore sweeper = new LocalChunkUploadStore(properties);
+        sweeper.initialize(ChunkUploadSessionId.random(), metadata(12L));
+
+        assertFalse(sweeper.exists(expired));
+        assertTrue(sweeper.exists(active));
     }
 
     @Test

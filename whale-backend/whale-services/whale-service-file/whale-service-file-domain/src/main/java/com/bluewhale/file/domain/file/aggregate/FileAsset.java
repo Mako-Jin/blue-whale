@@ -6,6 +6,8 @@ import com.bluewhale.common.domain.model.Entity;
 import com.bluewhale.file.domain.model.vo.FileStatus;
 
 import java.time.LocalDateTime;
+import java.util.Locale;
+import java.util.Objects;
 
 /**
  * FileAsset 聚合根（对应 {@code file_info}）。
@@ -101,7 +103,8 @@ public class FileAsset implements Entity<Long> {
         this.objectKey = objectKey;
         this.fileSize = Math.max(fileSize, 0L);
         this.contentType = contentType;
-        this.md5 = md5;
+        // 摘要统一归一化为十六进制小写，避免大小写不同导致秒传查询失配或重复登记
+        this.md5 = md5 == null || md5.isBlank() ? null : md5.trim().toLowerCase(Locale.ROOT);
         this.status = status == null ? FileStatus.NORMAL : status;
         this.uploaderId = uploaderId;
         this.deleted = deleted;
@@ -240,6 +243,37 @@ public class FileAsset implements Entity<Long> {
             return true;
         }
         return objectKey.startsWith(TENANT_KEY_PREFIX + tenantId + PATH_SEPARATOR);
+    }
+
+    /**
+     * 行为：校验请求者可见性——跨租户不可见；管理权限可访问全租户文件；其余仅上传者本人可访问。
+     *
+     * <p>服务间上传（上传者为空）不向普通用户开放，仅管理视角与无用户态的内网调用可访问；
+     * 不可见时统一按不存在处理，避免泄露文件是否存在。</p>
+     *
+     * @param requesterId 调用者用户 ID，可为 {@code null}（内网服务调用）
+     * @param canManage 是否持有文件管理权限
+     * @param tenantId 当前租户 ID，可为 {@code null}
+     * @throws DomainException 不可见时抛出 {@code NOT_FOUND}
+     */
+    public void assertVisibleTo(Long requesterId, boolean canManage, Long tenantId) {
+        assertVisibleToTenant(tenantId);
+        if (canManage || Objects.equals(uploaderId, requesterId)) {
+            return;
+        }
+        throw new DomainException(ErrorCode.NOT_FOUND);
+    }
+
+    /**
+     * 行为：校验文件对指定租户可见，跨租户按不存在处理
+     *
+     * @param tenantId 当前租户 ID，可为 {@code null}
+     * @throws DomainException 跨租户时抛出 {@code NOT_FOUND}
+     */
+    public void assertVisibleToTenant(Long tenantId) {
+        if (!isVisibleToTenant(tenantId)) {
+            throw new DomainException(ErrorCode.NOT_FOUND);
+        }
     }
 
     /**

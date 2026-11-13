@@ -24,6 +24,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 /**
@@ -108,8 +109,13 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
 
     @Override
     public Optional<FileAsset> findReusableByDigest(String md5, long fileSize) {
+        if (!StringUtils.hasText(md5)) {
+            return Optional.empty();
+        }
+        // 端口契约大小写不敏感：查询前统一归一化为小写，避免历史/外部写入的大写摘要查不到
+        String normalized = md5.trim().toLowerCase(Locale.ROOT);
         FileInfo po = fileInfoMapper.selectOne(new LambdaQueryWrapper<FileInfo>()
-                .eq(FileInfo::getMd5, md5)
+                .eq(FileInfo::getMd5, normalized)
                 .eq(FileInfo::getFileSize, fileSize)
                 .eq(FileInfo::getStatus, FileStatus.NORMAL.getCode())
                 .orderByAsc(FileInfo::getId)

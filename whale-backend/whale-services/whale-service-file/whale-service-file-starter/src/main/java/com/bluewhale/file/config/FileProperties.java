@@ -27,6 +27,12 @@ public class FileProperties {
     /** 分片上传分片大小，默认 5242880（即 5MB） */
     private long chunkSizeBytes = 5242880L;
 
+    /**
+     * 分片上传会话保留时长（小时），默认 24；超过后由默认暂存实现在初始化新会话时限频清理，
+     * 避免中途放弃或终态失败的暂存数据永久占用磁盘。{@code <=0} 表示关闭清理。
+     */
+    private long chunkUploadTtlHours = 24L;
+
     /** 单用户存储配额字节数，默认 1073741824（即 1GB）；{@code <=0} 表示不限 */
     private long quotaBytes = 1073741824L;
 

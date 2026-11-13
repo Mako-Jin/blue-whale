@@ -240,7 +240,7 @@ class FileInfoServiceImplTest {
      */
     private static FileAsset fileWithStatus(long id, FileStatus status) {
         return FileAsset.reconstitute(id, null, "locked.pdf", "bluewhale", "2026/10/24/locked.pdf",
-                12L, "application/pdf", null, status, null, false,
+                12L, "application/pdf", null, status, UPLOADER_ID, false,
                 LocalDateTime.of(2026, 10, 24, 9, 0), LocalDateTime.of(2026, 10, 24, 9, 0));
     }
 
@@ -332,6 +332,25 @@ class FileInfoServiceImplTest {
 
             FileInfoResult managed = fileInfoService.getDetail(5L, UPLOADER_ID, true);
             assertEquals(Long.valueOf(8L), managed.uploaderId());
+        } finally {
+            TenantContext.clear();
+        }
+    }
+
+    @Test
+    @DisplayName("getDetail：服务间上传（上传者为空）仅管理视角可见")
+    void shouldHideServiceUploadFromNormalUser() {
+        FileAsset serviceUpload = FileAsset.reconstitute(6L, "a.txt", "a.txt", "bluewhale",
+                "tenants/1/2026/10/24/a.txt", 3L, "text/plain", null, FileStatus.NORMAL, null, false,
+                LocalDateTime.now(), LocalDateTime.now());
+        when(fileAssetRepository.findById(6L)).thenReturn(Optional.of(serviceUpload));
+        TenantContext.set(1L);
+        try {
+            BizException ex = assertThrows(BizException.class,
+                    () -> fileInfoService.getDetail(6L, UPLOADER_ID, false));
+            assertEquals(NOT_FOUND_CODE, ex.getCode());
+
+            assertNull(fileInfoService.getDetail(6L, UPLOADER_ID, true).uploaderId());
         } finally {
             TenantContext.clear();
         }
@@ -529,7 +548,7 @@ class FileInfoServiceImplTest {
     @Test
     @DisplayName("rapidUpload：命中已有对象时复用 bucket/objectKey 仅登记新元数据，不写存储")
     void shouldRapidUploadHitWithoutStoring() {
-        when(fileAssetRepository.findReusableByDigest("d41d8cd98f00b204e9800998ecf8427e", 123L))
+        when(fileAssetRepository.findReusableByDigest("D41D8CD98F00B204E9800998ECF8427E", 123L))
                 .thenReturn(Optional.of(existingFile(123L)));
 
         FileRapidUploadResult result = fileInfoService.rapidUpload(

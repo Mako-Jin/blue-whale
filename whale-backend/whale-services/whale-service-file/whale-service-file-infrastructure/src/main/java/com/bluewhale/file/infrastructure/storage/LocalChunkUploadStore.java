@@ -64,20 +64,35 @@ public class LocalChunkUploadStore implements ChunkUploadStore {
     /** 元数据键：初始化时生效的个人配额（G1 大文件上传策略；{@code <=0} 表示不限） */
     private static final String META_KEY_QUOTA_BYTES = "quotaBytes";
 
+    /** 毫秒/小时：用于换算会话保留时长 */
+    private static final long MILLIS_PER_HOUR = 3_600_000L;
+
+    /** 过期会话清理的最小间隔（毫秒）：避免每次初始化都全量扫描暂存目录 */
+    private static final long PURGE_INTERVAL_MILLIS = MILLIS_PER_HOUR;
+
     /** 暂存根目录（归一化后的绝对路径） */
     private final Path root;
+
+    /** 会话保留时长（毫秒）；{@code <=0} 表示不清理 */
+    private final long sessionTtlMillis;
+
+    /** 上次清理时间戳（毫秒），用于限频扫描 */
+    private volatile long lastPurgeAt;
 
     /**
      * 以文件服务配置构造本机分片暂存实现
      *
-     * @param fileProperties 文件服务配置（读取 {@code whale.file.storage.root}）
+     * @param fileProperties 文件服务配置（读取 {@code whale.file.storage.root} 与
+     *                       {@code whale.file.chunk-upload-ttl-hours}）
      */
     public LocalChunkUploadStore(FileProperties fileProperties) {
         this.root = Paths.get(fileProperties.getStorage().getRoot()).toAbsolutePath().normalize();
+        this.sessionTtlMillis = Math.max(fileProperties.getChunkUploadTtlHours(), 0L) * MILLIS_PER_HOUR;
     }
 
     @Override
     public void initialize(ChunkUploadSessionId sessionId, ChunkUploadMetadata metadata) {
+        purgeExpiredQuietly();
         Path dir = resolve(sessionId);
         try {
             Files.createDirectories(dir);
@@ -171,12 +186,84 @@ public class LocalChunkUploadStore implements ChunkUploadStore {
         if (!Files.exists(dir)) {
             return;
         }
+        try {
+            deleteTree(dir);
+        } catch (IOException e) {
+            log.warn("清理分片上传暂存目录失败: session={}", sessionId.value(), e);
+        }
+    }
+
+    /**
+     * 清理超过保留期的暂存会话：限频执行，失败仅告警，不影响新会话初始化。
+     *
+     * <p>清理动作挂在初始化入口，避免引入定时任务依赖；会话目录与元数据文件的最近修改时间
+     * 用于判断活跃度，读取失败时保守跳过，避免误删正在续传的会话。</p>
+     */
+    private void purgeExpiredQuietly() {
+        if (sessionTtlMillis <= 0) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now - lastPurgeAt < PURGE_INTERVAL_MILLIS) {
+            return;
+        }
+        lastPurgeAt = now;
+        Path tmpRoot = root.resolve(TMP_DIR_NAME);
+        if (!Files.isDirectory(tmpRoot)) {
+            return;
+        }
+        long expireBefore = now - sessionTtlMillis;
+        try (Stream<Path> dirs = Files.list(tmpRoot)) {
+            dirs.filter(Files::isDirectory)
+                    .filter(dir -> lastActiveAt(dir) < expireBefore)
+                    .forEach(this::discardQuietly);
+        } catch (IOException e) {
+            log.warn("扫描分片上传暂存目录失败: root={}", tmpRoot, e);
+        }
+    }
+
+    /**
+     * 尽力删除过期会话目录
+     *
+     * @param dir 会话目录
+     */
+    private void discardQuietly(Path dir) {
+        try {
+            deleteTree(dir);
+            log.info("已清理过期分片上传会话: {}", dir.getFileName());
+        } catch (IOException e) {
+            log.warn("清理过期分片上传会话失败: dir={}", dir, e);
+        }
+    }
+
+    /**
+     * 删除目录树（含子文件）
+     *
+     * @param dir 目标目录
+     * @throws IOException 删除失败时抛出
+     */
+    private static void deleteTree(Path dir) throws IOException {
         try (Stream<Path> paths = Files.walk(dir)) {
             for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
                 Files.deleteIfExists(path);
             }
+        }
+    }
+
+    /**
+     * 计算会话最近活跃时间：取会话目录与元数据文件修改时间的较大值
+     *
+     * @param dir 会话目录
+     * @return 最近活跃时间戳（毫秒）；读取失败时返回 {@link Long#MAX_VALUE} 表示不清理
+     */
+    private static long lastActiveAt(Path dir) {
+        try {
+            long dirTime = Files.getLastModifiedTime(dir).toMillis();
+            Path meta = dir.resolve(META_FILE_NAME);
+            long metaTime = Files.exists(meta) ? Files.getLastModifiedTime(meta).toMillis() : dirTime;
+            return Math.max(dirTime, metaTime);
         } catch (IOException e) {
-            log.warn("清理分片上传暂存目录失败: session={}", sessionId.value(), e);
+            return Long.MAX_VALUE;
         }
     }
 
