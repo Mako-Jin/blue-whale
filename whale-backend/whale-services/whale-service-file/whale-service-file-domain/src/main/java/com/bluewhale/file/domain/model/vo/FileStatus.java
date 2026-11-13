@@ -46,6 +46,9 @@ public enum FileStatus implements ValueObject {
      * <p>缺失状态码按 {@link #NORMAL} 处理，兼容存量数据中未显式写状态的行；未知非空状态码
      * 说明数据异常，直接抛出异常而非静默按正常处理，避免脏数据被当作可用文件误操作。</p>
      *
+     * <p>本方法仅用于持久化重建场景，未知码视为数据异常；外部传入状态值的校验应在接口层完成，
+     * 不应复用本方法做用户参数校验。</p>
+     *
      * @param code 落库状态码，可为 {@code null}
      * @return 状态值对象
      * @throws DomainException 状态码非空且未定义时抛出 {@code SYSTEM_ERROR}

@@ -37,6 +37,9 @@ public record ChunkUploadMetadata(String fileName, String contentType, long size
      * <p>单文件上限与配额必须同时登记才视为有效：任一为 {@link #LIMITS_NOT_RECORDED} 时，
      * 视为未登记上限，complete 阶段整体回落当前策略，避免把哨兵值误当作“不限配额”。</p>
      *
+     * <p>两者对 0 的处理不对称源于业务语义：单文件上限 {@code 0} 不是有效上限，故判 {@code > 0}；
+     * 配额 {@code 0} 表示“不限配额”，是有效登记值，故只排除 {@link #LIMITS_NOT_RECORDED}。</p>
+     *
      * @return 单文件上限与配额均已登记时返回 {@code true}
      */
     public boolean hasRecordedLimits() {

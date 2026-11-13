@@ -165,6 +165,9 @@ public class FileAsset implements Entity<Long> {
     /**
      * 重建方法：由持久化数据还原文件资产聚合根
      *
+     * <p>大小语义与新建不同：允许 {@code fileSize = 0} 以兼容存量空文件；负数视为数据异常，
+     * 抛 {@code SYSTEM_ERROR} 而非静默归一。</p>
+     *
      * @param id 主键
      * @param fileName 存储文件名
      * @param originalName 原始文件名
@@ -307,7 +310,11 @@ public class FileAsset implements Entity<Long> {
             return false;
         }
         FileAsset asset = (FileAsset) other;
-        return id != null && id.equals(asset.id);
+        // 任一未落库则不按主键比较，退化为对象同一性（上方已处理 this == other）
+        if (id == null || asset.id == null) {
+            return false;
+        }
+        return id.equals(asset.id);
     }
 
     /**
