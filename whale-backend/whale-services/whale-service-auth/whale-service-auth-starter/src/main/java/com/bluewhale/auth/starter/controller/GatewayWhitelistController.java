@@ -97,6 +97,7 @@ public class GatewayWhitelistController implements GatewayWhitelistApi {
      */
     private SaveGatewayAccessRuleCommand toCommand(GatewayAccessRuleRequest request) {
         return new SaveGatewayAccessRuleCommand(request.getPathPattern(), request.getHttpMethod(),
-                request.getStatus(), request.getSortNo(), request.getRemark());
+                request.getScope(), request.getTenantId(), request.getStatus(), request.getSortNo(),
+                request.getRemark());
     }
 }

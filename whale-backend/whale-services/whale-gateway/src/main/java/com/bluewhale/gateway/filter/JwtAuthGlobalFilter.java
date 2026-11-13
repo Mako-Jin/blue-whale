@@ -197,6 +197,14 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
                             log.warn("令牌命中登出黑名单: path={}", path);
                             return unauthorized(exchange, REASON_BLACKLISTED);
                         }
+                        // GW-08 租户级白名单：命中绑定租户的放行规则时，跳过租户状态、成员/用户撤销
+                        // 与强制改密校验（登出黑名单已在上方校验），注入身份头放行。
+                        if (accessListProvider.matchesTenantWhitelist(path, request.getMethod().name(), tenantId)) {
+                            log.info("命中租户级白名单，跳过存量治理校验: path={}, method={}, tenantId={}",
+                                    path, request.getMethod().name(), tenantId);
+                            ServerHttpRequest mutatedRequest = withIdentityHeaders(request, claims, tenantId);
+                            return chain.filter(exchange.mutate().request(mutatedRequest).build());
+                        }
                         return tenantStatusChecker.isUnavailable(tenantId)
                                 .flatMap(unavailable -> {
                                     if (Boolean.TRUE.equals(unavailable)) {

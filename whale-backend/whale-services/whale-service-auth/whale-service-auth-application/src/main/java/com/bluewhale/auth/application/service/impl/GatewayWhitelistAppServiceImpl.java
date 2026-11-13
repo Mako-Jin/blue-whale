@@ -18,7 +18,7 @@ import java.util.List;
  * 网关白名单应用服务实现。
  *
  * <p>下发查询不加事务；管理端写操作按用例加事务。删除为物理删除，
- * 避免逻辑删除长期占用 {@code (path_pattern, http_method, scope)} 唯一键。</p>
+ * 避免逻辑删除长期占用 {@code (path_pattern, http_method, scope, tenant_id)} 唯一键。</p>
  *
  * @author BlueWhale
  */
@@ -29,7 +29,7 @@ public class GatewayWhitelistAppServiceImpl implements GatewayWhitelistAppServic
     private final GatewayWhitelistRepository gatewayWhitelistRepository;
 
     /**
-     * 查询全部启用的平台级白名单
+     * 查询全部启用的白名单（平台级 + 租户级）
      *
      * @return 白名单视图对象列表
      */
@@ -64,9 +64,10 @@ public class GatewayWhitelistAppServiceImpl implements GatewayWhitelistAppServic
     @Transactional(rollbackFor = Exception.class)
     public void create(SaveGatewayAccessRuleCommand command) {
         GatewayWhitelistAggregate rule = GatewayWhitelistAggregate.create(command.pathPattern(),
-                command.httpMethod(), command.status(), command.sortNo(), command.remark());
+                command.httpMethod(), command.scope(), command.tenantId(), command.status(), command.sortNo(),
+                command.remark());
         if (gatewayWhitelistRepository.existsRule(rule.getPathPattern(), rule.getHttpMethod(), rule.getScope(),
-                null)) {
+                rule.getTenantId(), null)) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "该路径与方法已存在白名单条目");
         }
         gatewayWhitelistRepository.save(rule);
@@ -88,7 +89,7 @@ public class GatewayWhitelistAppServiceImpl implements GatewayWhitelistAppServic
         GatewayWhitelistAggregate updated = current.applyUpdate(command.pathPattern(), command.httpMethod(),
                 command.status(), command.sortNo(), command.remark());
         if (gatewayWhitelistRepository.existsRule(updated.getPathPattern(), updated.getHttpMethod(),
-                updated.getScope(), id)) {
+                updated.getScope(), updated.getTenantId(), id)) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "该路径与方法已存在白名单条目");
         }
         gatewayWhitelistRepository.save(updated);

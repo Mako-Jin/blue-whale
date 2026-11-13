@@ -8,15 +8,15 @@ import java.util.Optional;
 /**
  * 网关白名单聚合仓储端口：契约定义于领域层，由 {@code infrastructure} 适配实现。
  *
- * <p>{@code sys_gateway_whitelist} 为平台级全局表，网关拉取不携带租户上下文，
- * 本仓储不参与租户行级过滤。</p>
+ * <p>{@code sys_gateway_whitelist} 为平台级全局表（含租户维度条目：{@code scope='TENANT'}
+ * 时按 {@code tenant_id} 绑定），网关拉取不携带租户上下文，本仓储不参与租户行级过滤。</p>
  *
  * @author BlueWhale
  */
 public interface GatewayWhitelistRepository {
 
     /**
-     * 查询全部启用的平台级白名单，按 {@code sort_no}、主键升序
+     * 查询全部启用的白名单（平台级 + 租户级），按 {@code sort_no}、主键升序
      *
      * @return 启用的白名单聚合列表；无数据时返回空列表
      */
@@ -54,13 +54,14 @@ public interface GatewayWhitelistRepository {
     void deleteById(Long id);
 
     /**
-     * 判断同路径 + 方法 + 作用域是否已存在条目
+     * 判断同路径 + 方法 + 作用域 + 租户是否已存在条目
      *
      * @param pathPattern 路径
      * @param httpMethod HTTP 方法
      * @param scope 作用域
+     * @param tenantId 租户 ID（平台级传 0）
      * @param excludeId 需要排除的主键（更新场景），可为 {@code null}
      * @return 已存在返回 {@code true}
      */
-    boolean existsRule(String pathPattern, String httpMethod, String scope, Long excludeId);
+    boolean existsRule(String pathPattern, String httpMethod, String scope, Long tenantId, Long excludeId);
 }

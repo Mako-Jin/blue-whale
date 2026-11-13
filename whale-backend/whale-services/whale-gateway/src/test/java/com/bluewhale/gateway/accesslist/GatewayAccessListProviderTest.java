@@ -48,7 +48,7 @@ class GatewayAccessListProviderTest {
     @DisplayName("refresh：白名单拉取成功后命中远程规则")
     void shouldReplaceWhitelistOnSuccess() {
         when(client.fetchWhitelist())
-                .thenReturn(Mono.just(List.of(new GatewayAccessListRule("/demo/open/**", "*"))));
+                .thenReturn(Mono.just(List.of(GatewayAccessListRule.platform("/demo/open/**", "*"))));
 
         provider.refresh();
 
@@ -60,7 +60,7 @@ class GatewayAccessListProviderTest {
     @DisplayName("refresh：白名单拉取成功但为空时清空快照（回落本地配置）")
     void shouldClearWhitelistOnEmptyResult() {
         when(client.fetchWhitelist())
-                .thenReturn(Mono.just(List.of(new GatewayAccessListRule("/demo/open/**", "*"))));
+                .thenReturn(Mono.just(List.of(GatewayAccessListRule.platform("/demo/open/**", "*"))));
         provider.refresh();
         assertTrue(provider.matchesWhitelist(PATH, "GET"));
 
@@ -74,7 +74,7 @@ class GatewayAccessListProviderTest {
     @DisplayName("refresh：白名单拉取失败时保留上一份快照")
     void shouldKeepWhitelistOnFailure() {
         when(client.fetchWhitelist())
-                .thenReturn(Mono.just(List.of(new GatewayAccessListRule("/demo/open/**", "*"))));
+                .thenReturn(Mono.just(List.of(GatewayAccessListRule.platform("/demo/open/**", "*"))));
         provider.refresh();
 
         when(client.fetchWhitelist()).thenReturn(Mono.error(new IllegalStateException("auth unavailable")));
@@ -87,7 +87,7 @@ class GatewayAccessListProviderTest {
     @DisplayName("matchesWhitelist：方法不匹配时不放行")
     void shouldNotMatchWhitelistWhenMethodDiffers() {
         when(client.fetchWhitelist())
-                .thenReturn(Mono.just(List.of(new GatewayAccessListRule("/demo/open/**", "GET"))));
+                .thenReturn(Mono.just(List.of(GatewayAccessListRule.platform("/demo/open/**", "GET"))));
         provider.refresh();
 
         assertTrue(provider.matchesWhitelist(PATH, "GET"));
@@ -98,7 +98,7 @@ class GatewayAccessListProviderTest {
     @DisplayName("refresh：黑名单拉取成功后命中封禁规则")
     void shouldReplaceBlacklistOnSuccess() {
         when(client.fetchBlacklist())
-                .thenReturn(Mono.just(List.of(new GatewayAccessListRule("/pay/**", "*"))));
+                .thenReturn(Mono.just(List.of(GatewayAccessListRule.platform("/pay/**", "*"))));
 
         provider.refresh();
 
@@ -110,7 +110,7 @@ class GatewayAccessListProviderTest {
     @DisplayName("refresh：黑名单拉取成功但为空时解除全部封禁")
     void shouldClearBlacklistOnEmptyResult() {
         when(client.fetchBlacklist())
-                .thenReturn(Mono.just(List.of(new GatewayAccessListRule("/pay/**", "*"))));
+                .thenReturn(Mono.just(List.of(GatewayAccessListRule.platform("/pay/**", "*"))));
         provider.refresh();
         assertTrue(provider.matchesBlacklist("/pay/v1/order", "POST"));
 
@@ -124,7 +124,7 @@ class GatewayAccessListProviderTest {
     @DisplayName("refresh：黑名单拉取失败时保留上一份封禁快照")
     void shouldKeepBlacklistOnFailure() {
         when(client.fetchBlacklist())
-                .thenReturn(Mono.just(List.of(new GatewayAccessListRule("/pay/**", "*"))));
+                .thenReturn(Mono.just(List.of(GatewayAccessListRule.platform("/pay/**", "*"))));
         provider.refresh();
 
         when(client.fetchBlacklist()).thenReturn(Mono.error(new IllegalStateException("auth unavailable")));
@@ -138,7 +138,7 @@ class GatewayAccessListProviderTest {
     void shouldRefreshBlacklistIndependently() {
         when(client.fetchWhitelist()).thenReturn(Mono.error(new IllegalStateException("timeout")));
         when(client.fetchBlacklist())
-                .thenReturn(Mono.just(List.of(new GatewayAccessListRule("/pay/**", "*"))));
+                .thenReturn(Mono.just(List.of(GatewayAccessListRule.platform("/pay/**", "*"))));
 
         provider.refresh();
 
@@ -198,5 +198,37 @@ class GatewayAccessListProviderTest {
         verifyNoInteractions(client);
         assertFalse(provider.matchesWhitelist(PATH, "GET"));
         assertFalse(provider.matchesBlacklist(PATH, "GET"));
+    }
+
+    @Test
+    @DisplayName("matchesWhitelist：租户级规则不参与平台级匹配（免认证放行不受租户规则影响）")
+    void tenantScopedRuleShouldNotAffectPlatformWhitelist() {
+        when(client.fetchWhitelist())
+                .thenReturn(Mono.just(List.of(new GatewayAccessListRule("/demo/open/**", "*", "TENANT", 5L))));
+
+        provider.refresh();
+
+        // 免认证放行判定不携带租户上下文，租户级规则只在已验签令牌场景参与匹配
+        assertFalse(provider.matchesWhitelist(PATH, "GET"));
+    }
+
+    @Test
+    @DisplayName("matchesTenantWhitelist：绑定租户的令牌命中租户级与平台级规则")
+    void tenantWhitelistShouldMatchScopedAndPlatformRules() {
+        when(client.fetchWhitelist()).thenReturn(Mono.just(List.of(
+                new GatewayAccessListRule("/demo/open/**", "*", "TENANT", 5L),
+                GatewayAccessListRule.platform("/demo/platform/**", "*"))));
+
+        provider.refresh();
+
+        // 租户 5：命中租户级规则
+        assertTrue(provider.matchesTenantWhitelist(PATH, "GET", "5"));
+        // 租户 6：不命中租户 5 的规则
+        assertFalse(provider.matchesTenantWhitelist(PATH, "GET", "6"));
+        // 平台级规则对所有租户生效
+        assertTrue(provider.matchesTenantWhitelist("/demo/platform/ping", "GET", "6"));
+        // 租户 ID 非法时不匹配租户级规则
+        assertFalse(provider.matchesTenantWhitelist(PATH, "GET", "not-a-number"));
+        assertFalse(provider.matchesTenantWhitelist(PATH, "GET", null));
     }
 }

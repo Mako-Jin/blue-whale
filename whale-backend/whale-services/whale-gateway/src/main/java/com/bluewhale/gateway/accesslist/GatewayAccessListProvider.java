@@ -76,7 +76,7 @@ public class GatewayAccessListProvider {
      * @return 命中任一封禁规则返回 {@code true}
      */
     public boolean matchesBlacklist(String path, String method) {
-        return matchesEmergencyBlacklist(path) || matches(blacklist.get(), path, method);
+        return matchesEmergencyBlacklist(path) || matches(blacklist.get(), path, method, null);
     }
 
     /**
@@ -102,34 +102,82 @@ public class GatewayAccessListProvider {
     }
 
     /**
-     * 判断请求是否命中远程白名单快照
+     * 判断请求是否命中远程白名单快照（仅平台级规则，免认证放行语义不变）
      *
      * @param path   请求路径
      * @param method 请求方法（如 {@code GET}），可空
      * @return 命中任一放行规则返回 {@code true}
      */
     public boolean matchesWhitelist(String path, String method) {
-        return matches(whitelist.get(), path, method);
+        return matches(whitelist.get(), path, method, null);
+    }
+
+    /**
+     * 判断携带指定租户令牌的请求是否命中白名单（平台级 ∪ 该租户的租户级规则，GW-08）
+     *
+     * <p>调用方保证 {@code tenantId} 来自已验签的 accessToken 载荷；无令牌或令牌未验签
+     * 不得调用本方法。命中租户级规则意味着：网关跳过租户状态、成员/用户撤销与强制改密
+     * 校验直接放行（登出黑名单仍在调用方先行校验）。</p>
+     *
+     * @param path     请求路径
+     * @param method   请求方法（如 {@code GET}），可空
+     * @param tenantId 已验签令牌中的租户 ID（字符串形式），可空
+     * @return 命中返回 {@code true}
+     */
+    public boolean matchesTenantWhitelist(String path, String method, String tenantId) {
+        List<GatewayAccessListRule> rules = whitelist.get();
+        if (matches(rules, path, method, null)) {
+            return true;
+        }
+        Long tenantIdValue = parseTenantId(tenantId);
+        return tenantIdValue != null && matches(rules, path, method, tenantIdValue);
     }
 
     /**
      * 在给定规则快照中匹配路径与方法
      *
-     * @param rules  规则快照
-     * @param path   请求路径
-     * @param method 请求方法
+     * @param rules            规则快照
+     * @param path             请求路径
+     * @param method           请求方法
+     * @param tenantIdFilter   租户过滤：{@code null} 只匹配平台级规则；否则匹配绑定该租户的租户级规则
      * @return 命中返回 {@code true}
      */
-    private boolean matches(List<GatewayAccessListRule> rules, String path, String method) {
+    private boolean matches(List<GatewayAccessListRule> rules, String path, String method, Long tenantIdFilter) {
         if (path == null) {
             return false;
         }
         for (GatewayAccessListRule rule : rules) {
+            if (tenantIdFilter == null) {
+                if (!rule.isPlatformScoped()) {
+                    continue;
+                }
+            } else {
+                if (!rule.isTenantScoped() || !tenantIdFilter.equals(rule.tenantId())) {
+                    continue;
+                }
+            }
             if (rule.matchesMethod(method) && pathMatcher.match(rule.pathPattern(), path)) {
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * 解析租户 ID 字符串为长整型
+     *
+     * @param tenantId 租户 ID 字符串，可空
+     * @return 长整型租户 ID；空或非法返回 {@code null}
+     */
+    private static Long parseTenantId(String tenantId) {
+        if (tenantId == null || tenantId.isBlank()) {
+            return null;
+        }
+        try {
+            return Long.parseLong(tenantId.trim());
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 
     /**

@@ -22,8 +22,10 @@ public class SysGatewayWhitelistPo implements Serializable {
     private String pathPattern;
     /** HTTP 方法：* 表示不限 */
     private String httpMethod;
-    /** 作用域：PLATFORM 平台 */
+    /** 作用域：PLATFORM 平台 / TENANT 租户 */
     private String scope;
+    /** 租户 ID：0 平台级 / >0 绑定租户 */
+    private Long tenantId;
     /** 来源：MIGRATION / MANUAL */
     private String source;
     /** 备注（放行原因） */

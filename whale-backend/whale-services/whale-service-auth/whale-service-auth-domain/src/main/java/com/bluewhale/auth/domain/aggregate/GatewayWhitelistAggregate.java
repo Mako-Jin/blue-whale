@@ -23,8 +23,14 @@ import java.util.Locale;
  */
 public class GatewayWhitelistAggregate implements Entity<Long> {
 
-    /** 作用域：平台级（当前唯一参与下发的范围） */
+    /** 作用域：平台级（对全部租户生效，tenant_id=0） */
     public static final String SCOPE_PLATFORM = "PLATFORM";
+
+    /** 作用域：租户级（仅对绑定租户的令牌生效） */
+    public static final String SCOPE_TENANT = "TENANT";
+
+    /** 租户维度占位值：平台级条目的 {@code tenantId} 固定为 0（便于唯一键判重） */
+    public static final long TENANT_PLATFORM = 0L;
 
     /** 来源：管理端手工维护 */
     public static final String SOURCE_MANUAL = "MANUAL";
@@ -45,6 +51,7 @@ public class GatewayWhitelistAggregate implements Entity<Long> {
     private final String pathPattern;
     private final String httpMethod;
     private final String scope;
+    private final Long tenantId;
     private final String source;
     private final String remark;
     private final int status;
@@ -59,6 +66,7 @@ public class GatewayWhitelistAggregate implements Entity<Long> {
      * @param pathPattern 免鉴权路径（Ant 通配）
      * @param httpMethod HTTP 方法，空值归一为 {@link #HTTP_METHOD_ANY}
      * @param scope 作用域
+     * @param tenantId 租户 ID（平台级为 0）
      * @param source 来源
      * @param remark 备注
      * @param status 状态
@@ -66,8 +74,8 @@ public class GatewayWhitelistAggregate implements Entity<Long> {
      * @param createTime 创建时间
      * @param updateTime 更新时间
      */
-    private GatewayWhitelistAggregate(Long id, String pathPattern, String httpMethod, String scope, String source,
-                                      String remark, int status, int sortNo,
+    private GatewayWhitelistAggregate(Long id, String pathPattern, String httpMethod, String scope, Long tenantId,
+                                      String source, String remark, int status, int sortNo,
                                       LocalDateTime createTime, LocalDateTime updateTime) {
         if (pathPattern == null || pathPattern.isBlank()) {
             throw new DomainException(ErrorCode.PARAM_ERROR, "白名单路径不能为空");
@@ -79,11 +87,20 @@ public class GatewayWhitelistAggregate implements Entity<Long> {
         if (status != STATUS_ENABLED && status != STATUS_DISABLED) {
             throw new DomainException(ErrorCode.PARAM_ERROR, "状态值非法，仅支持 1（启用）/ 0（停用）");
         }
+        String normalizedScope = scope == null || scope.isBlank() ? SCOPE_PLATFORM : scope.trim();
+        long normalizedTenantId = tenantId == null ? TENANT_PLATFORM : tenantId;
+        if (SCOPE_TENANT.equals(normalizedScope) && normalizedTenantId <= TENANT_PLATFORM) {
+            throw new DomainException(ErrorCode.PARAM_ERROR, "租户级白名单必须绑定大于 0 的租户 ID");
+        }
+        if (!SCOPE_TENANT.equals(normalizedScope) && normalizedTenantId != TENANT_PLATFORM) {
+            throw new DomainException(ErrorCode.PARAM_ERROR, "平台级白名单不允许绑定租户 ID");
+        }
         this.id = id;
         this.pathPattern = normalizedPath;
         this.httpMethod = httpMethod == null || httpMethod.isBlank()
                 ? HTTP_METHOD_ANY : httpMethod.trim().toUpperCase(Locale.ROOT);
-        this.scope = scope == null || scope.isBlank() ? SCOPE_PLATFORM : scope.trim();
+        this.scope = normalizedScope;
+        this.tenantId = normalizedTenantId;
         this.source = source;
         this.remark = remark;
         this.status = status;
@@ -93,7 +110,7 @@ public class GatewayWhitelistAggregate implements Entity<Long> {
     }
 
     /**
-     * 工厂方法：管理端新增白名单条目（来源固定 {@link #SOURCE_MANUAL}）
+     * 工厂方法：管理端新增平台级白名单条目（来源固定 {@link #SOURCE_MANUAL}）
      *
      * @param pathPattern 免鉴权路径（Ant 通配）
      * @param httpMethod HTTP 方法，空值表示不限
@@ -104,8 +121,25 @@ public class GatewayWhitelistAggregate implements Entity<Long> {
      */
     public static GatewayWhitelistAggregate create(String pathPattern, String httpMethod, Integer status,
                                                    Integer sortNo, String remark) {
+        return create(pathPattern, httpMethod, SCOPE_PLATFORM, TENANT_PLATFORM, status, sortNo, remark);
+    }
+
+    /**
+     * 工厂方法：管理端新增白名单条目（支持租户维度，来源固定 {@link #SOURCE_MANUAL}）
+     *
+     * @param pathPattern 免鉴权路径（Ant 通配）
+     * @param httpMethod HTTP 方法，空值表示不限
+     * @param scope 作用域（{@link #SCOPE_PLATFORM} / {@link #SCOPE_TENANT}）
+     * @param tenantId 租户 ID：平台级传 0，租户级必须大于 0
+     * @param status 状态，空值默认启用
+     * @param sortNo 排序号，空值按 0 处理
+     * @param remark 备注（放行原因）
+     * @return 新建的白名单聚合
+     */
+    public static GatewayWhitelistAggregate create(String pathPattern, String httpMethod, String scope,
+                                                   Long tenantId, Integer status, Integer sortNo, String remark) {
         LocalDateTime now = LocalDateTime.now();
-        return new GatewayWhitelistAggregate(null, pathPattern, httpMethod, SCOPE_PLATFORM, SOURCE_MANUAL, remark,
+        return new GatewayWhitelistAggregate(null, pathPattern, httpMethod, scope, tenantId, SOURCE_MANUAL, remark,
                 status == null ? STATUS_ENABLED : status, sortNo == null ? 0 : sortNo, now, now);
     }
 
@@ -116,13 +150,14 @@ public class GatewayWhitelistAggregate implements Entity<Long> {
      * @param pathPattern 免鉴权路径
      * @param httpMethod HTTP 方法
      * @param scope 作用域
+     * @param tenantId 租户 ID（平台级传 0 或 {@code null}）
      * @param status 状态
      * @param sortNo 排序号
      * @return 网关白名单聚合
      */
     public static GatewayWhitelistAggregate reconstitute(Long id, String pathPattern, String httpMethod,
-                                                         String scope, Integer status, Integer sortNo) {
-        return reconstitute(id, pathPattern, httpMethod, scope, null, null, status, sortNo, null, null);
+                                                         String scope, Long tenantId, Integer status, Integer sortNo) {
+        return reconstitute(id, pathPattern, httpMethod, scope, tenantId, null, null, status, sortNo, null, null);
     }
 
     /**
@@ -132,6 +167,7 @@ public class GatewayWhitelistAggregate implements Entity<Long> {
      * @param pathPattern 免鉴权路径
      * @param httpMethod HTTP 方法
      * @param scope 作用域
+     * @param tenantId 租户 ID（平台级传 0 或 {@code null}）
      * @param source 来源
      * @param remark 备注
      * @param status 状态
@@ -141,10 +177,10 @@ public class GatewayWhitelistAggregate implements Entity<Long> {
      * @return 网关白名单聚合
      */
     public static GatewayWhitelistAggregate reconstitute(Long id, String pathPattern, String httpMethod,
-                                                         String scope, String source, String remark, Integer status,
-                                                         Integer sortNo, LocalDateTime createTime,
+                                                         String scope, Long tenantId, String source, String remark,
+                                                         Integer status, Integer sortNo, LocalDateTime createTime,
                                                          LocalDateTime updateTime) {
-        return new GatewayWhitelistAggregate(id, pathPattern, httpMethod, scope, source, remark,
+        return new GatewayWhitelistAggregate(id, pathPattern, httpMethod, scope, tenantId, source, remark,
                 status == null ? STATUS_DISABLED : status, sortNo == null ? 0 : sortNo, createTime, updateTime);
     }
 
@@ -162,7 +198,7 @@ public class GatewayWhitelistAggregate implements Entity<Long> {
                                                  Integer sortNo, String remark) {
         return new GatewayWhitelistAggregate(id,
                 pathPattern == null || pathPattern.isBlank() ? this.pathPattern : pathPattern,
-                httpMethod, scope, source,
+                httpMethod, scope, tenantId, source,
                 remark == null ? this.remark : remark,
                 status == null ? this.status : status,
                 sortNo == null ? this.sortNo : sortNo,
@@ -213,6 +249,15 @@ public class GatewayWhitelistAggregate implements Entity<Long> {
      */
     public String getScope() {
         return scope;
+    }
+
+    /**
+     * 获取租户 ID
+     *
+     * @return 租户 ID：0 平台级 / &gt;0 绑定租户
+     */
+    public Long getTenantId() {
+        return tenantId;
     }
 
     /**

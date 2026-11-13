@@ -99,6 +99,6 @@ public class GatewayBlacklistController implements GatewayBlacklistApi {
      */
     private SaveGatewayAccessRuleCommand toCommand(GatewayAccessRuleRequest request) {
         return new SaveGatewayAccessRuleCommand(request.getPathPattern(), request.getHttpMethod(),
-                request.getStatus(), request.getSortNo(), request.getRemark());
+                null, null, request.getStatus(), request.getSortNo(), request.getRemark());
     }
 }

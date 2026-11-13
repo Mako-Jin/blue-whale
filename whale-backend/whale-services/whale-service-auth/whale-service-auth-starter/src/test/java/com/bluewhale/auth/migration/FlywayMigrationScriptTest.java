@@ -80,6 +80,20 @@ class FlywayMigrationScriptTest {
             "删除 V6 遗留的 id=37 重复「租户配置」行；仅在存在同 (tenant_id, path) 的另一行时删除");
 
     /**
+     * 已登记的 DROP 语句白名单：脚本名 → 理由。
+     *
+     * <p>DROP 属于结构性破坏，仅允许两类场景：①经评审批准的表结构下线（数据已确认
+     * 不再需要或已备份）；②唯一键重建必须先 DROP 旧索引。登记理由必须写清背景，
+     * 防止白名单被随手复用。</p>
+     */
+    private static final Map<String, String> ALLOWED_DROP_SCRIPTS = Map.of(
+            "V25__drop_local_log_tables.sql",
+            "审计/观测日志表下线（2026-11-13 决策）：审计统一汇聚 whale-audit，本地兜底关闭；"
+                    + "存量数据已备份至 .toolchains/backup 后删除五张 append-only 日志表",
+            "V26__gateway_whitelist_tenant.sql",
+            "GW-08 租户维度：唯一键扩展到 tenant_id 必须先 DROP 旧索引 uk_gateway_whitelist 再重建");
+
+    /**
      * 迁移脚本命名与目录完整性校验
      *
      * @throws IOException 读取脚本目录失败
@@ -108,7 +122,8 @@ class FlywayMigrationScriptTest {
     /**
      * 破坏性语句校验：迁移脚本不允许 DROP / TRUNCATE / DELETE
      *
-     * <p>例外：{@link #ALLOWED_DELETE_SCRIPTS} 登记过的脚本允许 DELETE，但仍必须带 WHERE 谓词。</p>
+     * <p>例外：{@link #ALLOWED_DELETE_SCRIPTS} 登记过的脚本允许 DELETE，但仍必须带 WHERE 谓词；
+     * {@link #ALLOWED_DROP_SCRIPTS} 登记过的脚本允许 DROP（结构性变更经评审批准）。</p>
      *
      * @throws IOException 读取脚本失败
      */
@@ -124,8 +139,11 @@ class FlywayMigrationScriptTest {
                 if (statement.startsWith("--") || statement.isEmpty()) {
                     continue;
                 }
-                assertFalse(statement.startsWith("DROP "),
-                        fileName + " 含 DROP 语句：" + line);
+                if (statement.startsWith("DROP ")) {
+                    assertTrue(ALLOWED_DROP_SCRIPTS.containsKey(fileName),
+                            fileName + " 含 DROP 语句且未登记例外：" + line);
+                    continue;
+                }
                 assertFalse(statement.startsWith("TRUNCATE "),
                         fileName + " 含 TRUNCATE 语句：" + line);
                 if (statement.startsWith("DELETE ")) {
@@ -150,10 +168,14 @@ class FlywayMigrationScriptTest {
         Set<String> names = migrationScripts().stream()
                 .map(script -> script.getFileName().toString())
                 .collect(Collectors.toSet());
-        for (Map.Entry<String, String> entry : ALLOWED_DELETE_SCRIPTS.entrySet()) {
-            assertTrue(names.contains(entry.getKey()), "白名单脚本不存在：" + entry.getKey());
-            assertFalse(entry.getValue().isBlank(), "白名单必须写明理由：" + entry.getKey());
-        }
+        assertTrue(names.containsAll(ALLOWED_DELETE_SCRIPTS.keySet()),
+                "DELETE 白名单脚本不存在：" + names + " vs " + ALLOWED_DELETE_SCRIPTS.keySet());
+        ALLOWED_DELETE_SCRIPTS.forEach((script, reason) ->
+                assertFalse(reason.isBlank(), "DELETE 白名单必须写明理由：" + script));
+        assertTrue(names.containsAll(ALLOWED_DROP_SCRIPTS.keySet()),
+                "DROP 白名单脚本不存在：" + names + " vs " + ALLOWED_DROP_SCRIPTS.keySet());
+        ALLOWED_DROP_SCRIPTS.forEach((script, reason) ->
+                assertFalse(reason.isBlank(), "DROP 白名单必须写明理由：" + script));
     }
 
     /**

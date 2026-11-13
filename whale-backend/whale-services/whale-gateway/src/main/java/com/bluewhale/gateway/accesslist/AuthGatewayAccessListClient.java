@@ -42,6 +42,12 @@ public class AuthGatewayAccessListClient {
     /** 名单项中的方法字段名 */
     private static final String FIELD_HTTP_METHOD = "httpMethod";
 
+    /** 名单项中的作用域字段名（GW-08 租户维度） */
+    private static final String FIELD_SCOPE = "scope";
+
+    /** 名单项中的租户 ID 字段名（GW-08 租户维度） */
+    private static final String FIELD_TENANT_ID = "tenantId";
+
     /** 成功业务码 */
     private static final int SUCCESS_CODE = 0;
 
@@ -104,7 +110,7 @@ public class AuthGatewayAccessListClient {
     }
 
     /**
-     * 解析响应体：仅接受 {@code code=0}，提取 {@code data[].pathPattern/httpMethod}。
+     * 解析响应体：仅接受 {@code code=0}，提取 {@code data[].pathPattern/httpMethod/scope/tenantId}。
      *
      * <p>业务码非 0 视为失败（抛出异常），避免把错误信封当作「空名单」清空快照。</p>
      *
@@ -133,7 +139,8 @@ public class AuthGatewayAccessListClient {
             if (!StringUtils.hasText(pathPattern)) {
                 continue;
             }
-            rules.add(new GatewayAccessListRule(pathPattern.trim(), stringify(row.get(FIELD_HTTP_METHOD))));
+            rules.add(new GatewayAccessListRule(pathPattern.trim(), stringify(row.get(FIELD_HTTP_METHOD)),
+                    stringify(row.get(FIELD_SCOPE)), longOrNull(row.get(FIELD_TENANT_ID))));
         }
         log.debug("拉取网关访问名单成功: {} 条", rules.size());
         return rules;
@@ -147,5 +154,25 @@ public class AuthGatewayAccessListClient {
      */
     private static String stringify(Object value) {
         return value == null ? "" : String.valueOf(value);
+    }
+
+    /**
+     * 空安全长整型转换
+     *
+     * @param value 原始值
+     * @return 长整型值；缺失或非法返回 {@code null}
+     */
+    private static Long longOrNull(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            try {
+                return Long.parseLong(text.trim());
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
     }
 }

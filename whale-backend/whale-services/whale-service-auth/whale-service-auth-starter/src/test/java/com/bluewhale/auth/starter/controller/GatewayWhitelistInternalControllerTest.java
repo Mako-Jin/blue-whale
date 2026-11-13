@@ -61,16 +61,20 @@ class GatewayWhitelistInternalControllerTest {
     @DisplayName("listEnabled：返回白名单路径与方法")
     void shouldReturnWhitelistItems() throws Exception {
         when(gatewayWhitelistAppService.listEnabled()).thenReturn(List.of(
-                new GatewayWhitelistVO("/auth/v1/login", "*"),
-                new GatewayWhitelistVO("/music/stream/**", "GET")));
+                new GatewayWhitelistVO("/auth/v1/login", "*", "PLATFORM", 0L),
+                new GatewayWhitelistVO("/music/stream/**", "GET", "TENANT", 5L)));
 
         mockMvc.perform(get("/auth/v1/internal/gateway/whitelist"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data[0].pathPattern").value("/auth/v1/login"))
                 .andExpect(jsonPath("$.data[0].httpMethod").value("*"))
+                .andExpect(jsonPath("$.data[0].scope").value("PLATFORM"))
+                .andExpect(jsonPath("$.data[0].tenantId").value(0))
                 .andExpect(jsonPath("$.data[1].pathPattern").value("/music/stream/**"))
-                .andExpect(jsonPath("$.data[1].httpMethod").value("GET"));
+                .andExpect(jsonPath("$.data[1].httpMethod").value("GET"))
+                .andExpect(jsonPath("$.data[1].scope").value("TENANT"))
+                .andExpect(jsonPath("$.data[1].tenantId").value(5));
     }
 
     @Test

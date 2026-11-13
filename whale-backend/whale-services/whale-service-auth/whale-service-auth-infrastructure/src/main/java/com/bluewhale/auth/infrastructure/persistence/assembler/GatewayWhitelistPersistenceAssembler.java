@@ -24,7 +24,7 @@ public final class GatewayWhitelistPersistenceAssembler {
      */
     public static GatewayWhitelistAggregate toDomain(SysGatewayWhitelistPo po) {
         return GatewayWhitelistAggregate.reconstitute(po.getId(), po.getPathPattern(), po.getHttpMethod(),
-                po.getScope(), po.getSource(), po.getRemark(), po.getStatus(), po.getSortNo(),
+                po.getScope(), po.getTenantId(), po.getSource(), po.getRemark(), po.getStatus(), po.getSortNo(),
                 po.getCreateTime(), po.getUpdateTime());
     }
 
@@ -40,6 +40,7 @@ public final class GatewayWhitelistPersistenceAssembler {
         po.setPathPattern(rule.getPathPattern());
         po.setHttpMethod(rule.getHttpMethod());
         po.setScope(rule.getScope());
+        po.setTenantId(rule.getTenantId());
         po.setSource(rule.getSource());
         po.setRemark(rule.getRemark());
         po.setStatus(rule.getStatus());

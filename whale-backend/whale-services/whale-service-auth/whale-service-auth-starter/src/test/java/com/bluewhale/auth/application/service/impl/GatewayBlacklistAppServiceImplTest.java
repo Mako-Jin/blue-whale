@@ -82,7 +82,7 @@ class GatewayBlacklistAppServiceImplTest {
                 .thenReturn(true);
 
         BizException exception = assertThrows(BizException.class,
-                () -> service.create(new SaveGatewayAccessRuleCommand("/pay/**", null, null, null, "重复")));
+                () -> service.create(new SaveGatewayAccessRuleCommand("/pay/**", null, null, null, null, null, "重复")));
 
         assertTrue(exception.getMessage().contains("已存在"));
         verify(gatewayBlacklistRepository, never()).save(any());
@@ -97,7 +97,7 @@ class GatewayBlacklistAppServiceImplTest {
         when(gatewayBlacklistRepository.existsRule(eq("/pay/**"), eq("POST"), eq("PLATFORM"), eq(9L)))
                 .thenReturn(false);
 
-        service.update(9L, new SaveGatewayAccessRuleCommand("/pay/**", "post", 0, 5, "误封解除"));
+        service.update(9L, new SaveGatewayAccessRuleCommand("/pay/**", "post", null, null, 0, 5, "误封解除"));
 
         verify(gatewayBlacklistRepository).save(org.mockito.ArgumentMatchers.argThat(rule ->
                 "POST".equals(rule.getHttpMethod()) && rule.getStatus() == 0 && "误封解除".equals(rule.getRemark())));

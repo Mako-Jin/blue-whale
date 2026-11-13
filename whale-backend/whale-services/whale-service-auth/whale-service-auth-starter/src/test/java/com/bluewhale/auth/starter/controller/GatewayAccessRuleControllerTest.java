@@ -73,7 +73,7 @@ class GatewayAccessRuleControllerTest {
     @DisplayName("白名单列表：返回管理字段")
     void shouldReturnWhitelistRules() throws Exception {
         when(gatewayWhitelistAppService.list(null)).thenReturn(List.of(
-                new GatewayAccessRuleVO(1L, "/auth/v1/login", "*", "PLATFORM", "MIGRATION", "登录放行",
+                new GatewayAccessRuleVO(1L, "/auth/v1/login", "*", "PLATFORM", 0L, "MIGRATION", "登录放行",
                         1, 1, null, null)));
 
         mockMvc.perform(get("/auth/v1/gateway/whitelist"))

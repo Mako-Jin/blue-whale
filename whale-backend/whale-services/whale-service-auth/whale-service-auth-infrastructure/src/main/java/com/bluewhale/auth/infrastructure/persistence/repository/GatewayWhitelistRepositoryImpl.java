@@ -24,7 +24,7 @@ public class GatewayWhitelistRepositoryImpl implements GatewayWhitelistRepositor
     private final SysGatewayWhitelistMapper gatewayWhitelistMapper;
 
     /**
-     * 查询全部启用的平台级白名单
+     * 查询全部启用的白名单（平台级 + 租户级）
      *
      * @return 启用的白名单聚合列表
      */
@@ -33,14 +33,13 @@ public class GatewayWhitelistRepositoryImpl implements GatewayWhitelistRepositor
         List<SysGatewayWhitelistPo> records = gatewayWhitelistMapper.selectList(
                 new LambdaQueryWrapper<SysGatewayWhitelistPo>()
                         .eq(SysGatewayWhitelistPo::getStatus, GatewayWhitelistAggregate.STATUS_ENABLED)
-                        .eq(SysGatewayWhitelistPo::getScope, GatewayWhitelistAggregate.SCOPE_PLATFORM)
                         .orderByAsc(SysGatewayWhitelistPo::getSortNo)
                         .orderByAsc(SysGatewayWhitelistPo::getId));
         return records.stream().map(GatewayWhitelistPersistenceAssembler::toDomain).toList();
     }
 
     /**
-     * 管理端查询白名单（含停用项）
+     * 管理端查询白名单（含停用项，平台级 + 租户级）
      *
      * @param status 状态过滤；{@code null} 表示全部
      * @return 白名单聚合列表
@@ -50,7 +49,6 @@ public class GatewayWhitelistRepositoryImpl implements GatewayWhitelistRepositor
         List<SysGatewayWhitelistPo> records = gatewayWhitelistMapper.selectList(
                 new LambdaQueryWrapper<SysGatewayWhitelistPo>()
                         .eq(status != null, SysGatewayWhitelistPo::getStatus, status)
-                        .eq(SysGatewayWhitelistPo::getScope, GatewayWhitelistAggregate.SCOPE_PLATFORM)
                         .orderByAsc(SysGatewayWhitelistPo::getSortNo)
                         .orderByAsc(SysGatewayWhitelistPo::getId));
         return records.stream().map(GatewayWhitelistPersistenceAssembler::toDomain).toList();
@@ -96,21 +94,23 @@ public class GatewayWhitelistRepositoryImpl implements GatewayWhitelistRepositor
     }
 
     /**
-     * 判断同路径 + 方法 + 作用域是否已存在条目
+     * 判断同路径 + 方法 + 作用域 + 租户是否已存在条目
      *
      * @param pathPattern 路径
      * @param httpMethod HTTP 方法
      * @param scope 作用域
+     * @param tenantId 租户 ID（平台级传 0）
      * @param excludeId 需要排除的主键（更新场景），可为 {@code null}
      * @return 已存在返回 {@code true}
      */
     @Override
-    public boolean existsRule(String pathPattern, String httpMethod, String scope, Long excludeId) {
+    public boolean existsRule(String pathPattern, String httpMethod, String scope, Long tenantId, Long excludeId) {
         Long count = gatewayWhitelistMapper.selectCount(
                 new LambdaQueryWrapper<SysGatewayWhitelistPo>()
                         .eq(SysGatewayWhitelistPo::getPathPattern, pathPattern)
                         .eq(SysGatewayWhitelistPo::getHttpMethod, httpMethod)
                         .eq(SysGatewayWhitelistPo::getScope, scope)
+                        .eq(SysGatewayWhitelistPo::getTenantId, tenantId)
                         .ne(excludeId != null, SysGatewayWhitelistPo::getId, excludeId));
         return count != null && count > 0;
     }
