@@ -27,9 +27,15 @@ dist/
 next/
 .cache/
 # Playwright E2E 产物
+# 2026-11-13：前端目录已由 frontend/ 重命名为 whale-frontend/，旧路径规则从此失效，
+# 导致 41 个 report 产物（17MB，含 .zip）被误入库并被 ESLint 扫描（4127 条 no-undef）。
+# 两个路径都保留，避免旧分支/旧引用回潮。
 frontend/e2e/test-results/
 frontend/e2e/playwright-report/
 frontend/e2e/.playwright/
+whale-frontend/e2e/test-results/
+whale-frontend/e2e/playwright-report/
+whale-frontend/e2e/.playwright/
 .parcel-cache/
 .vite/
 eslint.config.*.cache

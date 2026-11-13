@@ -37,6 +37,11 @@ jobs:
       - name: Maven Wrapper Executable
         run: chmod +x mvnw
 
+      # .mvn/jvm.config 用相对路径 -Djava.io.tmpdir=tmp（Windows 绝对路径在 Linux 上会被
+      # 按转义拆词，导致 "Could not find or load main class mp"）。runner 上该目录不入库，须先建。
+      - name: Prepare JVM Temp Directory
+        run: mkdir -p tmp
+
       # coverage-gate profile：行 ≥ 40% / 分支 ≥ 30%（whale-parent），
       # verify 同时完成单测、覆盖率报告与打包，未达阈值直接失败（REQ-CICD-001）。
       # 根聚合 POM 已于 2026-11-10 移除（ec20f819），构建入口统一为 whale-backend/pom.xml，
@@ -44,8 +49,11 @@ jobs:
       - name: Maven Verify + Coverage Gate
         run: ./mvnw -B -ntp -f whale-backend/pom.xml -Pcoverage-gate verify
 
+      # 诊断产物不是质量门禁：artifact 存储配额耗尽（"Artifact storage quota has been hit"）
+      # 不应把整条流水线判红，否则真失败会被噪音淹没。
       - name: Upload JaCoCo Reports
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: jacoco-reports
@@ -54,6 +62,7 @@ jobs:
 
       - name: Upload JAR Artifact
         if: inputs.upload_jars && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: backend-jars

@@ -29,6 +29,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      # 未开通 Code Security 的私有仓，sarif 上报仍会 403；action 内部已按需降级。
+      security-events: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,6 +41,11 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # artifact 存储配额耗尽时，action 内部上传 results.sarif 会让整个 job 崩在
+          # ArtifactHttpClient（日志里表现为 dist/index.js 抛栈，与泄漏无关）。
+          # 泄漏判定看本步日志即可，报告改由 trivy 作业的 SARIF 通道留档。
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: false
+          GITLEAKS_ENABLE_SUMMARY: false
 
   dependency-review:
     name: Dependency Review
@@ -86,6 +93,7 @@ jobs:
 
       - name: Upload audit report
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: pnpm-audit
@@ -133,6 +141,7 @@ jobs:
 
       - name: Upload Trivy report
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: trivy-fs-sarif
@@ -174,6 +183,7 @@ jobs:
 
       - name: Upload dependency-check report
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: backend-dependency-check

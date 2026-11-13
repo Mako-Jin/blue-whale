@@ -1,4 +1,4 @@
-﻿﻿# 部署契约静态检查（V-08 / V-09）
+﻿# 部署契约静态检查（V-08 / V-09）
 #
 # 目的：在不依赖 Docker 守护进程的情况下，提前拦住三类部署回归：
 #   1) 前端镜像与同名后端服务共用 GHCR package / cache scope；
@@ -90,8 +90,8 @@ if ($frontendSection) {
     }
 }
 
-Assert-Contract '后端镜像 26 项' ($backendServices.Count -eq 26) "count=$($backendServices.Count)"
-Assert-Contract '前端镜像 18 项' ($frontendImages.Count -eq 18) "count=$($frontendImages.Count)"
+Assert-Contract '后端镜像 28 项' ($backendServices.Count -eq 28) "count=$($backendServices.Count)"
+Assert-Contract '前端镜像 19 项' ($frontendImages.Count -eq 19) "count=$($frontendImages.Count)"
 Assert-Contract '前端按冲突项使用 whale-frontend/ 命名空间' `
     ($workflow.Contains("matrix.namespace == 'frontend'") -and $workflow.Contains("'whale-frontend/'"))
 Assert-Contract '后端 cache scope 使用 be- 前缀' `
@@ -107,6 +107,7 @@ $expectedCollisions = @(
     'whale-doc'
     'whale-erp'
     'whale-im'
+    'whale-mail'
     'whale-mes'
     'whale-music'
     'whale-oa'
@@ -117,8 +118,8 @@ $expectedCollisions = @(
 ) | Sort-Object
 $actualCollisions = @($frontendImages | Where-Object { $backendServices -contains $_ } | Sort-Object)
 $collisionDiff = @(Compare-Object -ReferenceObject $actualCollisions -DifferenceObject $expectedCollisions)
-Assert-Contract '前端/后端同名项为预期 12 项' `
-    ($actualCollisions.Count -eq 12 -and $collisionDiff.Count -eq 0) `
+Assert-Contract '前端/后端同名项为预期 13 项' `
+    ($actualCollisions.Count -eq 13 -and $collisionDiff.Count -eq 0) `
     "actual=$($actualCollisions -join ',')"
 foreach ($image in $frontendImages) {
     $namespace = if ($frontendNamespaces.ContainsKey($image)) { $frontendNamespaces[$image] } else { '<missing>' }
