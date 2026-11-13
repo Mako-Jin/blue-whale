@@ -1,0 +1,207 @@
+{
+  "note": "覆盖率基线：只升不降。校验脚本 scripts/ci/check-coverage.py；目标阈值见 docs/design/cicd.md §3.3（行 40% / 分支 30%）",
+  "generated_at": "2026-11-13T15:53:08Z",
+  "target": {
+    "line": 0.4,
+    "branch": 0.3
+  },
+  "tolerance": 0.005,
+  "total": {
+    "line": 0.4984,
+    "branch": 0.442
+  },
+  "modules": {
+    "whale-apps/whale-contract": {
+      "line": 0.4189,
+      "branch": 0.3051
+    },
+    "whale-apps/whale-crm": {
+      "line": 0.3663,
+      "branch": 0.3336
+    },
+    "whale-apps/whale-erp": {
+      "line": 0.4929,
+      "branch": 0.4588
+    },
+    "whale-apps/whale-lms": {
+      "line": 0.4218,
+      "branch": 0.4431
+    },
+    "whale-apps/whale-mall": {
+      "line": 0.507,
+      "branch": 0.481
+    },
+    "whale-apps/whale-mes": {
+      "line": 0.474,
+      "branch": 0.3357
+    },
+    "whale-apps/whale-oa": {
+      "line": 0.3225,
+      "branch": 0.2895
+    },
+    "whale-apps/whale-party": {
+      "line": 0.4167,
+      "branch": 0.3634
+    },
+    "whale-apps/whale-pdm": {
+      "line": 0.6369,
+      "branch": 0.4835
+    },
+    "whale-apps/whale-pm": {
+      "line": 0.6631,
+      "branch": 0.5453
+    },
+    "whale-common/whale-common-core": {
+      "line": 0.9762,
+      "branch": 1.0
+    },
+    "whale-common/whale-common-domain": {
+      "line": 0.9423,
+      "branch": 0.9545
+    },
+    "whale-common/whale-config-crypto": {
+      "line": 0.8503,
+      "branch": 0.7442
+    },
+    "whale-common/whale-security": {
+      "line": 0.8677,
+      "branch": 0.7063
+    },
+    "whale-common/whale-spring-boot-starter": {
+      "line": 0.5716,
+      "branch": 0.5453
+    },
+    "whale-common/whale-tools": {
+      "line": 0.4898,
+      "branch": 0.3333
+    },
+    "whale-ops/whale-alert": {
+      "line": 0.7912,
+      "branch": 0.5738
+    },
+    "whale-ops/whale-audit": {
+      "line": 0.8377,
+      "branch": 0.7254
+    },
+    "whale-ops/whale-monitor": {
+      "line": 0.8,
+      "branch": 0.875
+    },
+    "whale-registry/whale-config": {
+      "line": 0.8798,
+      "branch": 0.7067
+    },
+    "whale-sdk/whale-auth-sdk": {
+      "line": 1.0,
+      "branch": 0.0
+    },
+    "whale-sdk/whale-i18n-sdk": {
+      "line": 0.7234,
+      "branch": 0.6531
+    },
+    "whale-services/whale-agent": {
+      "line": 0.4745,
+      "branch": 0.3849
+    },
+    "whale-services/whale-archive": {
+      "line": 0.6804,
+      "branch": 0.5471
+    },
+    "whale-services/whale-assistant": {
+      "line": 0.5,
+      "branch": 0.4312
+    },
+    "whale-services/whale-doc": {
+      "line": 0.5253,
+      "branch": 0.5269
+    },
+    "whale-services/whale-form": {
+      "line": 0.7462,
+      "branch": 0.5808
+    },
+    "whale-services/whale-forum": {
+      "line": 0.5851,
+      "branch": 0.4877
+    },
+    "whale-services/whale-im": {
+      "line": 0.7214,
+      "branch": 0.5803
+    },
+    "whale-services/whale-iot": {
+      "line": 0.7006,
+      "branch": 0.5548
+    },
+    "whale-services/whale-job": {
+      "line": 0.5938,
+      "branch": 0.4902
+    },
+    "whale-services/whale-mail": {
+      "line": 0.2138,
+      "branch": 0.1942
+    },
+    "whale-services/whale-map": {
+      "line": 0.5451,
+      "branch": 0.4706
+    },
+    "whale-services/whale-message": {
+      "line": 0.6084,
+      "branch": 0.5121
+    },
+    "whale-services/whale-music": {
+      "line": 0.5489,
+      "branch": 0.5517
+    },
+    "whale-services/whale-pay": {
+      "line": 0.6655,
+      "branch": 0.5476
+    },
+    "whale-services/whale-scene": {
+      "line": 0.6489,
+      "branch": 0.67
+    },
+    "whale-services/whale-service-auth/whale-service-auth-starter": {
+      "line": 0.3868,
+      "branch": 0.3239
+    },
+    "whale-services/whale-service-file/whale-service-file-application": {
+      "line": 0.9132,
+      "branch": 0.7632
+    },
+    "whale-services/whale-service-file/whale-service-file-domain": {
+      "line": 0.6713,
+      "branch": 0.7614
+    },
+    "whale-services/whale-service-file/whale-service-file-infrastructure": {
+      "line": 0.885,
+      "branch": 0.8367
+    },
+    "whale-services/whale-service-file/whale-service-file-plugins/whale-service-file-plugins-local": {
+      "line": 0.75,
+      "branch": 0.85
+    },
+    "whale-services/whale-service-file/whale-service-file-plugins/whale-service-file-plugins-minio": {
+      "line": 0.5644,
+      "branch": 0.4286
+    },
+    "whale-services/whale-service-file/whale-service-file-web": {
+      "line": 0.8,
+      "branch": 0.5714
+    },
+    "whale-services/whale-service-gateway": {
+      "line": 0.7829,
+      "branch": 0.6576
+    },
+    "whale-services/whale-twin": {
+      "line": 0.77,
+      "branch": 0.6939
+    },
+    "whale-services/whale-video": {
+      "line": 0.3679,
+      "branch": 0.3465
+    },
+    "whale-services/whale-workflow": {
+      "line": 0.7498,
+      "branch": 0.5967
+    }
+  }
+}
