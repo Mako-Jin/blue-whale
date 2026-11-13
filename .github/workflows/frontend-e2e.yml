@@ -35,7 +35,9 @@ env:
   CI_MYSQL_USER: whale_user
   CI_MYSQL_PASSWORD: ci_user_pwd_e2e
   CI_REDIS_PASSWORD: ci_redis_pwd_e2e
-  CI_ADMIN_INIT_PASSWORD: E2eAdmin#CIPass2026
+  # 口令策略（PasswordPolicy#requireNotWeakOrUsername）禁止「口令含用户名」，
+  # 用户名是 admin，所以这里不能出现 admin 字样；同时需满足大小写+数字+特殊字符。
+  CI_ADMIN_INIT_PASSWORD: E2e#WhalePass2026
 
 jobs:
   e2e:
