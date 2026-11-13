@@ -4,6 +4,7 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.internaltoken.InternalTokenSupport;
 import com.bluewhale.common.web.WebHeaders;
+import com.bluewhale.scene.application.port.ScenePreferencePort;
 import com.bluewhale.scene.application.support.SceneViewModes;
 import com.bluewhale.scene.application.view.ScenePreferenceView;
 import com.bluewhale.scene.config.SceneProperties;
@@ -41,7 +42,7 @@ import java.util.Optional;
  */
 @Slf4j
 @Component
-public class AuthScenePreferenceClient {
+public class AuthScenePreferenceClient implements ScenePreferencePort {
 
     /** 用户偏好在 auth 配置表中的键（反域名小写点号口径，见 auth ConfigKeyValidator） */
     public static final String CONFIG_KEY = "scene.view";
@@ -89,6 +90,7 @@ public class AuthScenePreferenceClient {
      * @param userId   用户 ID
      * @return 偏好视图；未配置或读取失败返回 {@link Optional#empty()}（调用方回落默认）
      */
+    @Override
     public Optional<ScenePreferenceView> read(Long tenantId, Long userId) {
         if (tenantId == null || userId == null) {
             return Optional.empty();
@@ -125,6 +127,7 @@ public class AuthScenePreferenceClient {
      * @param preference      偏好视图（viewMode 必须已校验）
      * @param operatorId      操作人用户 ID
      */
+    @Override
     public void write(Long tenantId, Long userId, ScenePreferenceView preference, Long operatorId) {
         Map<String, Object> value = new LinkedHashMap<>();
         value.put("viewMode", preference.getViewMode());
