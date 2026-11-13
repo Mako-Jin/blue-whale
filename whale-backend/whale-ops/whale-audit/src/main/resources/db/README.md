@@ -26,8 +26,10 @@ Flyway 只扫描 `classpath:db/migration`（见 `application.yml` 的 `spring.fl
 
 ## 后续折叠（阶段 4 待办）
 
-- `db/migration-5.54-tenant-logs.sql` 声明「`bluewhale_audit` / `bluewhale_auth` 两库同构」；
-  auth 侧同名变更已由 auth 的 `V1` 覆盖，audit 侧由本 `V1` 覆盖，**不需要**再执行该历史脚本。
+- ~~`db/migration-5.54-tenant-logs.sql` 声明「`bluewhale_audit` / `bluewhale_auth` 两库同构」~~
+  **已失效（2026-11-13）**：auth 侧日志表已由 auth 的 `V25__drop_local_log_tables.sql` 全部删除，
+  审计/观测日志统一汇聚本库（`whale.audit.forward` + whale-audit 多实例兜底），
+  两库不再同构；本库的 7 张表是唯一的日志落库点。
 - 若后续新增日志表/索引，一律新增 `V2__*.sql` 及以上版本，并把 `init.sql` 同步为新空库入口。
 
 ## 常用校验

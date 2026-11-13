@@ -300,8 +300,11 @@ whale-service-auth/
 
 - 库：`bluewhale_auth`。核心表：`sys_user`、`sys_role`、`sys_menu`、`sys_permission`、`sys_dept`、
   `sys_tenant`、`sys_user_role`、`sys_role_permission`、`sys_user_permission`、`sys_user_tenant`、
-  `sys_password_history`、`sys_tenant_password_policy`；日志表：`audit_log`、`api_log`、`outbound_log`、
-  `frontend_log`、`behavior_log`。i18n starter 启动时幂等创建 `sys_i18n_message`。
+  `sys_password_history`、`sys_tenant_password_policy`。i18n starter 启动时幂等创建 `sys_i18n_message`。
+- 审计/观测日志表（`audit_log`、`api_log`、`outbound_log`、`frontend_log`、`behavior_log`）已于
+  `V25__drop_local_log_tables.sql` 下线：审计记录转发 `whale-audit`（本地兜底关闭，可靠性由
+  whale-audit 多实例承担）；接口观测采集关闭（`whale.log.api.enabled=false`）；前端/行为日志
+  由前端 SDK 直报 whale-audit，与 auth 本地无关。
 - 权限中心扩展表（M3）：档案 7 张（`sys_user_profile` + contact / credential / education / employment /
   emergency_contact / secret_question）、用户组 2 张（`sys_user_group` / `sys_user_group_member`）、
   策略与约束 2 张（`sys_permission_strategy` / `sys_role_constraint`）、会话设备 4 张
@@ -377,7 +380,9 @@ Windows 使用 `mvnw.cmd`。启动前至少设置 `MYSQL_PASSWORD`；生产环�
 
 - `GET /actuator/health`、`GET /actuator/info`
 - `GET /actuator/prometheus`：已开启 `http.server.requests` 直方图，供登录 P95 等 SLO 查询。
-- 审计：优先转发 `whale-audit`，转发失败回退本地 `audit_log`；开启 MQ 后优先投递 RabbitMQ。
+- 审计：转发 `whale-audit`（`whale.audit.forward`），本地兜底已关闭
+  （`local-fallback=false`，V25 已删本地 `audit_log`，可靠性由 whale-audit 多实例承担）；
+  开启 MQ 后优先投递 RabbitMQ。
 
 ## 十三、相关文档
 

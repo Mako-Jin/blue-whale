@@ -54,7 +54,8 @@ class AuditLogAspectTest {
             Runnable::run,
             environment,
             null,
-            null);
+            null,
+            true);
 
     @AfterEach
     void clearRequestContext() {
@@ -224,7 +225,8 @@ class AuditLogAspectTest {
                 Runnable::run,
                 environment,
                 null,
-                forwarder);
+                forwarder,
+                true);
 
         mockRequest("POST", "/user", false);
         ProceedingJoinPoint joinPoint = joinPoint(SampleService.class, "createUser", new Object[]{null});
@@ -246,7 +248,8 @@ class AuditLogAspectTest {
                 Runnable::run,
                 environment,
                 null,
-                forwarder);
+                forwarder,
+                true);
 
         mockRequest("POST", "/user", false);
         ProceedingJoinPoint joinPoint = joinPoint(SampleService.class, "createUser", new Object[]{null});
@@ -256,6 +259,29 @@ class AuditLogAspectTest {
 
         verify(forwarder).forward(any(AuditLogRecord.class));
         verify(auditLogMapper).insert(any(AuditLogRecord.class));
+    }
+
+    @Test
+    void shouldDiscardRecordWhenForwardFailsAndLocalFallbackDisabled() throws Throwable {
+        AuditLogForwarder forwarder = mock(AuditLogForwarder.class);
+        when(forwarder.forward(any())).thenReturn(false);
+        AuditLogAspect forwardingAspect = new AuditLogAspect(
+                auditLogMapper,
+                new SensitiveDataMasker(JsonMapper.builder().build()),
+                Runnable::run,
+                environment,
+                null,
+                forwarder,
+                false);
+
+        mockRequest("POST", "/user", false);
+        ProceedingJoinPoint joinPoint = joinPoint(SampleService.class, "createUser", new Object[]{null});
+        when(joinPoint.proceed()).thenReturn(Result.ok());
+
+        forwardingAspect.around(joinPoint, annotation("createUser", CreatePayload.class));
+
+        verify(forwarder).forward(any(AuditLogRecord.class));
+        verify(auditLogMapper, never()).insert(any(AuditLogRecord.class));
     }
 
     @Test
@@ -269,7 +295,8 @@ class AuditLogAspectTest {
                 Runnable::run,
                 environment,
                 publisher,
-                forwarder);
+                forwarder,
+                true);
 
         mockRequest("POST", "/user", false);
         ProceedingJoinPoint joinPoint = joinPoint(SampleService.class, "createUser", new Object[]{null});
@@ -294,7 +321,8 @@ class AuditLogAspectTest {
                 Runnable::run,
                 environment,
                 publisher,
-                forwarder);
+                forwarder,
+                true);
 
         mockRequest("POST", "/user", false);
         ProceedingJoinPoint joinPoint = joinPoint(SampleService.class, "createUser", new Object[]{null});
@@ -319,7 +347,8 @@ class AuditLogAspectTest {
                 Runnable::run,
                 environment,
                 publisher,
-                forwarder);
+                forwarder,
+                true);
 
         mockRequest("POST", "/user", false);
         ProceedingJoinPoint joinPoint = joinPoint(SampleService.class, "createUser", new Object[]{null});

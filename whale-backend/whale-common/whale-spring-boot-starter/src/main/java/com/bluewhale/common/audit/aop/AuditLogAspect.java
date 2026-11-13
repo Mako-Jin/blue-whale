@@ -102,6 +102,8 @@ public class AuditLogAspect {
     private final AuditLogMqPublisher auditLogMqPublisher;
     /** 审计转发器；未开启转发时为 {@code null}，此时直接本地落库 */
     private final AuditLogForwarder auditLogForwarder;
+    /** 转发失败是否回退本地落库；false 适用于本地不建 audit_log 表、审计由 whale-audit 兜底的服务 */
+    private final boolean localFallback;
 
     /** SpEL 解析器（线程安全，复用单例） */
     private final ExpressionParser expressionParser = new SpelExpressionParser();
@@ -118,19 +120,22 @@ public class AuditLogAspect {
      * @param environment Spring 环境，用于读取应用名
      * @param auditLogMqPublisher 审计 MQ 发布器，可为 {@code null}（未开启 MQ 汇聚）
      * @param auditLogForwarder 审计转发器，可为 {@code null}（未开启跨库汇聚）
+     * @param localFallback 转发失败是否回退本地落库
      */
     public AuditLogAspect(AuditLogMapper auditLogMapper,
                           SensitiveDataMasker sensitiveDataMasker,
                           Executor auditLogExecutor,
                           Environment environment,
                           AuditLogMqPublisher auditLogMqPublisher,
-                          AuditLogForwarder auditLogForwarder) {
+                          AuditLogForwarder auditLogForwarder,
+                          boolean localFallback) {
         this.auditLogMapper = auditLogMapper;
         this.sensitiveDataMasker = sensitiveDataMasker;
         this.auditLogExecutor = auditLogExecutor;
         this.environment = environment;
         this.auditLogMqPublisher = auditLogMqPublisher;
         this.auditLogForwarder = auditLogForwarder;
+        this.localFallback = localFallback;
     }
 
     /**
@@ -193,6 +198,11 @@ public class AuditLogAspect {
                     return;
                 }
                 if (auditLogForwarder != null && auditLogForwarder.forward(record)) {
+                    return;
+                }
+                if (auditLogForwarder != null && !localFallback) {
+                    log.warn("审计日志转发失败且本地兜底已关闭（whale.audit.forward.local-fallback=false），"
+                            + "本次记录丢弃: operation={}", record.getOperation());
                     return;
                 }
                 try {

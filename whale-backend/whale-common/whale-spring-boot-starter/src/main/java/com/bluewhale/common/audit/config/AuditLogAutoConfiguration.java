@@ -125,12 +125,15 @@ public class AuditLogAutoConfiguration {
                                          @Qualifier("auditLogExecutor") Executor auditLogExecutor,
                                          Environment environment,
                                          ObjectProvider<AuditLogForwarder> auditLogForwarderProvider,
-                                         ObjectProvider<AuditLogMqPublisher> auditLogMqPublisherProvider) {
+                                         ObjectProvider<AuditLogMqPublisher> auditLogMqPublisherProvider,
+                                         AuditLogForwardProperties forwardProperties) {
         AuditLogMapper auditLogMapper = auditLogMapperProvider.getIfAvailable();
         if (auditLogMapper == null) {
             return null;
         }
+        AuditLogForwarder auditLogForwarder = auditLogForwarderProvider.getIfAvailable();
         return new AuditLogAspect(auditLogMapper, sensitiveDataMasker, auditLogExecutor, environment,
-                auditLogMqPublisherProvider.getIfAvailable(), auditLogForwarderProvider.getIfAvailable());
+                auditLogMqPublisherProvider.getIfAvailable(), auditLogForwarder,
+                auditLogForwarder != null && forwardProperties.isLocalFallback());
     }
 }

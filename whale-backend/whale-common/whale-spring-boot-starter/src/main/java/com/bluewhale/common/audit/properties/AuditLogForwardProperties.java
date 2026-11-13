@@ -24,4 +24,11 @@ public class AuditLogForwardProperties {
 
     /** 连接与读取超时（毫秒）：超时即回退本地落库 */
     private int timeoutMillis = 800;
+
+    /**
+     * 转发失败是否回退本地落库（默认 {@code true}，保证不丢审计）。
+     * <p>本地已不建 {@code audit_log} 表的服务（审计由 whale-audit 多实例兜底）应显式关闭，
+     * 避免 fallback insert 持续报错。</p>
+     */
+    private boolean localFallback = true;
 }

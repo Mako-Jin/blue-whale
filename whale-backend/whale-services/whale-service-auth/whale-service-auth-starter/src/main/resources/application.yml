@@ -152,19 +152,27 @@ whale:
     # 空值时 infrastructure 适配器使用开发默认密钥兜底（仅限本地联调，禁止生产依赖兜底值）。
     profile:
       crypto-key: ${WHALE_AUTH_PROFILE_CRYPTO_KEY:}
-  # P1-3 审计跨库汇聚：auth 为试点服务，审计记录优先转发 whale-audit:9101，
-  # 转发失败自动回退本地 bluewhale_auth.audit_log，不丢记录。
+  # P1-3 审计跨库汇聚：审计记录转发 whale-audit:9101。
+  # 2026-11-13 决策：auth 本地不再建 audit_log（V25 已删表），兜底由 whale-audit 多实例承担，
+  # local-fallback 显式关闭；转发失败时丢弃并告警，可靠性依赖 whale-audit 部署口径。
   audit:
     forward:
       enabled: ${WHALE_AUDIT_FORWARD_ENABLED:true}
       url: ${WHALE_AUDIT_FORWARD_URL:http://127.0.0.1:9101}
       timeout-millis: ${WHALE_AUDIT_FORWARD_TIMEOUT_MILLIS:800}
+      local-fallback: ${WHALE_AUDIT_FORWARD_LOCAL_FALLBACK:false}
     # AUTH-10 审计 MQ 汇聚（生产端）：默认关闭；开启后审计记录优先投递 RabbitMQ，
     # 投递失败自动回退 HTTP 转发（forward）与本地落库，不丢记录。
     mq:
       publish-enabled: ${WHALE_AUDIT_MQ_PUBLISH_ENABLED:false}
       exchange: ${WHALE_AUDIT_MQ_EXCHANGE:bluewhale.audit.exchange}
       routing-key: ${WHALE_AUDIT_MQ_ROUTING_KEY:audit.log}
+
+  # 接口观测日志（ApiLogFilter）：auth 本地不建 api_log（V25 已删表），显式关闭本地采集；
+  # 观测汇聚由 whale-audit 承担（其自身 api_log 经同款过滤器落 whale-audit 库）。
+  log:
+    api:
+      enabled: ${WHALE_LOG_API_ENABLED:false}
 
   # 建用户后自动开邮箱（Wave 5.89 M2）：监听 UserDomainEvent.CREATED，异步回调 whale-mail 内网代开。
   # 默认关闭——邮件是可选能力，不能让「建用户」依赖邮件服务的健康度。
