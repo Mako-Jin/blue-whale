@@ -1,5 +1,6 @@
 package com.bluewhale.auth.domain.aggregate;
 
+import com.bluewhale.auth.domain.model.vo.InheritStrategy;
 import com.bluewhale.auth.domain.model.vo.RoleCode;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.domain.exception.DomainException;
@@ -36,6 +37,14 @@ public class RoleAggregate implements Entity<Long> {
     private String description;
     private int sortNo;
     private int status;
+    /** 父角色 ID（0 表示顶级，继承链不得成环——跨聚合链路由应用层校验，聚合内拒绝自指） */
+    private Long parentId;
+    /** 角色层级（顶级为 1，子角色只能由父角色 +1） */
+    private int roleLevel;
+    /** 继承策略 */
+    private InheritStrategy inheritStrategy;
+    /** 角色分类（GENERAL / BUSINESS / SYSTEM） */
+    private String category;
     private final LocalDateTime createTime;
     private LocalDateTime updateTime;
 
@@ -73,6 +82,10 @@ public class RoleAggregate implements Entity<Long> {
         this.description = description;
         this.sortNo = sortNo;
         this.status = status;
+        this.parentId = 0L;
+        this.roleLevel = 1;
+        this.inheritStrategy = InheritStrategy.NONE;
+        this.category = "GENERAL";
         this.createTime = createTime;
         this.updateTime = updateTime;
     }
@@ -286,5 +299,135 @@ public class RoleAggregate implements Entity<Long> {
      */
     public LocalDateTime getUpdateTime() {
         return updateTime;
+    }
+
+    /**
+     * 由持久化数据还原角色聚合根（含继承扩展字段，权限中心扩展 M3）
+     *
+     * @param id 角色 ID
+     * @param tenantId 所属租户 ID
+     * @param roleCode 角色编码值对象
+     * @param roleName 角色名称
+     * @param description 角色描述
+     * @param sortNo 排序号
+     * @param status 状态（1 启用 / 0 停用）
+     * @param parentId 父角色 ID（0 表示顶级）
+     * @param roleLevel 角色层级
+     * @param inheritStrategy 继承策略字符串（FULL / INCREMENT / OVERRIDE / NONE，空值回落 NONE）
+     * @param category 角色分类（空值回落 GENERAL）
+     * @param createTime 创建时间
+     * @param updateTime 更新时间
+     * @return 还原的角色聚合根
+     */
+    public static RoleAggregate reconstituteWithHierarchy(Long id, Long tenantId, RoleCode roleCode,
+                                                          String roleName, String description, Integer sortNo,
+                                                          Integer status, Long parentId, Integer roleLevel,
+                                                          String inheritStrategy, String category,
+                                                          LocalDateTime createTime, LocalDateTime updateTime) {
+        RoleAggregate role = reconstitute(id, tenantId, roleCode, roleName, description, sortNo, status,
+                createTime, updateTime);
+        role.parentId = parentId == null ? 0L : parentId;
+        role.roleLevel = roleLevel == null || roleLevel < 1 ? 1 : roleLevel;
+        role.inheritStrategy = InheritStrategy.of(inheritStrategy);
+        role.category = category == null || category.isBlank() ? "GENERAL" : category.trim();
+        return role;
+    }
+
+    /**
+     * 行为：挂载到父角色（继承扩展 M3）。
+     *
+     * <p>聚合内不变量：拒绝自指、层级只能由父角色 +1；父角色存在性与「继承链不成环」
+     * 跨聚合校验由应用层沿 {@code parentId} 链完成（{@code RoleRepository#findById}）。</p>
+     *
+     * @param parent 父角色聚合
+     * @throws DomainException 自指或父角色为空时抛出
+     */
+    public void attachParent(RoleAggregate parent) {
+        if (parent == null || parent.getId() == null) {
+            throw new DomainException(ErrorCode.PARAM_ERROR, "父角色不能为空");
+        }
+        if (id != null && id.equals(parent.getId())) {
+            throw new DomainException(ErrorCode.PARAM_ERROR, "父角色不能是自身（继承链不得成环）");
+        }
+        this.parentId = parent.getId();
+        this.roleLevel = parent.roleLevel + 1;
+        this.updateTime = LocalDateTime.now();
+    }
+
+    /**
+     * 行为：解除父角色（回到顶级，层级重置为 1）
+     */
+    public void detachParent() {
+        this.parentId = 0L;
+        this.roleLevel = 1;
+        this.updateTime = LocalDateTime.now();
+    }
+
+    /**
+     * 行为：变更继承策略
+     *
+     * @param strategy 继承策略字符串（FULL / INCREMENT / OVERRIDE / NONE）
+     */
+    public void changeInheritStrategy(String strategy) {
+        this.inheritStrategy = InheritStrategy.of(strategy);
+        this.updateTime = LocalDateTime.now();
+    }
+
+    /**
+     * 行为：变更角色分类
+     *
+     * @param category 分类（GENERAL / BUSINESS / SYSTEM）
+     */
+    public void changeCategory(String category) {
+        if (category == null || category.isBlank()) {
+            throw new DomainException(ErrorCode.PARAM_ERROR, "角色分类不能为空");
+        }
+        this.category = category.trim();
+        this.updateTime = LocalDateTime.now();
+    }
+
+    /**
+     * 判断是否顶级角色
+     *
+     * @return 顶级（无父角色）返回 {@code true}
+     */
+    public boolean isTopLevel() {
+        return parentId == null || parentId == 0L;
+    }
+
+    /**
+     * 获取父角色 ID
+     *
+     * @return 父角色 ID（0 表示顶级）
+     */
+    public Long getParentId() {
+        return parentId;
+    }
+
+    /**
+     * 获取角色层级
+     *
+     * @return 层级（顶级为 1）
+     */
+    public int getRoleLevel() {
+        return roleLevel;
+    }
+
+    /**
+     * 获取继承策略
+     *
+     * @return 继承策略枚举
+     */
+    public InheritStrategy getInheritStrategy() {
+        return inheritStrategy;
+    }
+
+    /**
+     * 获取角色分类
+     *
+     * @return 分类编码
+     */
+    public String getCategory() {
+        return category;
     }
 }

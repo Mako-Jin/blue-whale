@@ -12,7 +12,9 @@ import com.bluewhale.common.domain.event.DomainEvent;
  */
 public sealed interface AuthDomainEvent extends DomainEvent
         permits UserDomainEvent, RoleDomainEvent, PermissionDomainEvent, MenuDomainEvent,
-        DeptDomainEvent, UserPermissionDomainEvent, SocialBindingDomainEvent {
+        DeptDomainEvent, UserPermissionDomainEvent, SocialBindingDomainEvent,
+        UserProfileDomainEvent, UserGroupDomainEvent, PermissionStrategyDomainEvent,
+        RoleConstraintDomainEvent, RoleHierarchyDomainEvent, SessionDomainEvent {
 
     /**
      * 聚合根标识
@@ -57,6 +59,10 @@ public sealed interface AuthDomainEvent extends DomainEvent
         /** 角色-权限分配全量覆盖（{@code sys_role_permission} 重建） */
         PERMISSIONS_ASSIGNED,
         /** 用户 ABAC 属性全量覆盖（{@code sys_user_permission} 重建） */
-        ATTRS_REPLACED
+        ATTRS_REPLACED,
+        /** 会话吊销（管理端强制下线 / 记录级撤销） */
+        SESSION_REVOKED,
+        /** 设备信任变更（标记信任 / 取消信任） */
+        DEVICE_TRUSTED
     }
 }

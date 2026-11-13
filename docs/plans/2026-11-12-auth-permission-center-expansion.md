@@ -366,6 +366,36 @@
   - 动态用户组成员由 `filters` 计算且不可手工改。
 - 测试：各聚合不变量单测、`SessionAppService` 回归（登录/刷新/登出链路不得因落库变慢而破坏）、策略优先级与互斥约束用例、Flyway 存量库迁移测试。
 
+**实施记录（2026-11-13，已完成）**
+
+- **迁移**：`V19~V23` 五个脚本（档案 7 张 / 用户组 2 张 / 策略+约束 2 张并补 `sys_role` 继承列与
+  `sys_user_role.subject_type` / 会话设备 4 张 / 口令历史补 `is_active/expires_at/change_source`），
+  幂等写法（判存补列、`perm_code` 判重），含 2390-2412 号段权限点与菜单种子、`tenant_admin` 自动授予。
+- **domain**：`UserProfileAggregate`（六类子档案整体替换 + 主类型唯一 + 单类 50 条上限）、
+  `UserGroupAggregate`（STATIC/DYNAMIC，动态组必带 `GroupFilters`，成员上限 5000）、
+  `PermissionStrategyAggregate`（GRANT/DENY、租户内唯一默认、目标上限 200）、
+  `RoleConstraintAggregate`（MUTEX≥2、CARDINALITY `max_assign` 边界）、`RoleAggregate`
+  新增 `reconstituteWithHierarchy` 与 attachParent/detachParent（不改既有构造签名）、
+  会话账本 4 类记录实体。
+- **application**：6 组 AppService + 端口 `SensitiveFieldCipher`/`GroupMemberEvaluator`/
+  `SessionLedgerPort`/`RoleConstraintChecker`；`SessionAppServiceImpl` 在登录（成功/失败）、刷新轮换、
+  切换租户、登出四处埋账本（ADR #7：适配器整体降级告警，不阻断登录）；
+  `UserAppServiceImpl.assignRoles` 落库前接 `RoleConstraintChecker`（整体替换口径）；
+  角色继承 `ensureNoCycle` 沿父链防环（上限 50 层）。
+- **infrastructure**：15 PO + 15 Mapper + 5 装配器 + 5 仓储（档案级联写：子表物理删后重插；
+  账本仓储按 `revoked=0 且未过期` 过滤）+ `AesSensitiveFieldCipher`（AES-GCM，非合法 Base64
+  密钥走 SHA-256 派生）+ `SessionLedgerAdapter`（`RequestContextHolder` 解析 IP/UA/指纹，
+  缺省回退 `SHA-256(ip|ua)`；写入失败 `log.warn`）。
+- **interfaces/starter**：6 组 Api + DTO + Controller/Assembler（`/user-profile/v1`、`/user-group/v1`、
+  `/perm-strategy/v1`、`/role-constraint/v1`、`/session/v1`、`/login-history/v1`），网关 fallback
+  路由新增 6 条 pattern；配置项 `whale.auth.profile.crypto-key`（`WHALE_AUTH_PROFILE_CRYPTO_KEY`）。
+- **测试**：新增 7 个测试类（四聚合不变量 + 约束校验 + 继承防环 + 既有回归修补），starter 全量
+  单测通过；ArchUnit 通过；domain/interfaces/infrastructure/starter checkstyle 0 违规
+  （application 存量违规未改动）。
+- **实施偏差**：① 三方登录（`SocialLoginAppService`）未接会话账本，待 M4 补齐；
+  ② 证件号明文查询按 `(userId, credentialId)` 定位单条；③ `sys_remember_me_token` 预留未接功能；
+  ④ `ChangeType` 新增 `SESSION_REVOKED`/`DEVICE_TRUSTED`（`AuthDomainEventTest` 断言同步 10→12）。
+
 ### M4 用户导入导出（R4）
 
 - 任务：

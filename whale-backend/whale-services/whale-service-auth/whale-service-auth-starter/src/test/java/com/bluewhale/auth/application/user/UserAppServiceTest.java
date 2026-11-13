@@ -19,6 +19,7 @@ import com.bluewhale.auth.domain.repository.UserRepository;
 import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.auth.application.model.vo.ResetPasswordVO;
 import com.bluewhale.auth.application.model.vo.UserVO;
+import com.bluewhale.auth.application.port.RoleConstraintChecker;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
@@ -86,6 +87,9 @@ class UserAppServiceTest {
 
     @Mock
     private TenantMembershipAppService tenantMembershipAppService;
+
+    @Mock
+    private RoleConstraintChecker roleConstraintChecker;
 
     @InjectMocks
     private UserAppServiceImpl userAppService;

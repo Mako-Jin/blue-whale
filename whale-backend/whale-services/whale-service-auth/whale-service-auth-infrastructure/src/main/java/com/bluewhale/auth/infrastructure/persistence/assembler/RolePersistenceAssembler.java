@@ -25,11 +25,14 @@ public final class RolePersistenceAssembler {
     /**
      * PO → 领域对象：{@code sortNo}/{@code status} 为空时按 0 / 启用归一化
      *
+     * <p>权限中心扩展 M3：角色携带层级（parentId/roleLevel）、继承策略与类别，
+     * 走 {@code reconstituteWithHierarchy} 重建。</p>
+     *
      * @param po 角色持久化对象
      * @return 角色聚合根
      */
     public static RoleAggregate toDomain(SysRolePo po) {
-        return RoleAggregate.reconstitute(
+        return RoleAggregate.reconstituteWithHierarchy(
                 po.getId(),
                 po.getTenantId(),
                 RoleCode.of(po.getRoleCode()),
@@ -37,6 +40,10 @@ public final class RolePersistenceAssembler {
                 po.getDescription(),
                 po.getSortNo(),
                 po.getStatus(),
+                po.getParentId(),
+                po.getRoleLevel(),
+                po.getInheritStrategy(),
+                po.getCategory(),
                 po.getCreateTime(),
                 po.getUpdateTime());
     }
@@ -56,6 +63,10 @@ public final class RolePersistenceAssembler {
         po.setDescription(role.getDescription());
         po.setSortNo(role.getSortNo());
         po.setStatus(role.getStatus());
+        po.setParentId(role.getParentId());
+        po.setRoleLevel(role.getRoleLevel());
+        po.setInheritStrategy(role.getInheritStrategy().name());
+        po.setCategory(role.getCategory());
         po.setCreateTime(role.getCreateTime());
         po.setUpdateTime(role.getUpdateTime());
         return po;

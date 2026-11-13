@@ -103,6 +103,14 @@ whale:
             args:
               patterns: /.well-known/**
         filters: []
+      # 权限中心扩展 M3：用户档案 / 用户组 / 权限策略 / 角色约束 / 会话管理 / 登录历史
+      - id: whale-service-auth-m3
+        uri: lb://whale-service-auth
+        predicates:
+          - name: Path
+            args:
+              patterns: /user-profile/v1/**,/user-group/v1/**,/perm-strategy/v1/**,/role-constraint/v1/**,/session/v1/**,/login-history/v1/**
+        filters: []
       - id: whale-job
         uri: lb://whale-job
         predicates:

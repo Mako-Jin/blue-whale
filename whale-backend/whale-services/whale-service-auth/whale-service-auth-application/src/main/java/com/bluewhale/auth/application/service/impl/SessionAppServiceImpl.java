@@ -19,6 +19,7 @@ import com.bluewhale.auth.application.port.PasswordHasher;
 import com.bluewhale.auth.application.port.RefreshRotationPolicy;
 import com.bluewhale.auth.application.port.RefreshTokenRotationStore;
 import com.bluewhale.auth.application.port.SecurityAlarmPort;
+import com.bluewhale.auth.application.port.SessionLedgerPort;
 import com.bluewhale.auth.application.port.TokenBlacklist;
 import com.bluewhale.auth.application.port.TokenIssuer;
 import com.bluewhale.auth.application.port.UserAccessRevocationPort;
@@ -34,6 +35,8 @@ import com.bluewhale.auth.application.service.TenantAppService;
 import com.bluewhale.auth.application.service.TenantMembershipAppService;
 import com.bluewhale.auth.application.service.TenantPasswordPolicyService;
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
+import com.bluewhale.auth.domain.model.entity.LoginHistoryRecord;
+import com.bluewhale.auth.domain.model.entity.RefreshTokenRecord;
 import com.bluewhale.auth.domain.aggregate.UserAggregate;
 import com.bluewhale.auth.domain.repository.UserRepository;
 import com.bluewhale.common.core.exception.BizException;
@@ -93,6 +96,8 @@ public class SessionAppServiceImpl implements SessionAppService {
     /** 登录失败锁定（与二次认证共用同一计数，Wave 6.27） */
     private final LoginLockService loginLockService;
     private final SecurityAlarmPort securityAlarmPort;
+    /** 会话账本（M3，ADR #7）：写入失败降级告警，不阻断登录（适配器内降级） */
+    private final SessionLedgerPort sessionLedgerPort;
 
     /**
      * 登录：按（租户, 用户名, 密码）完成凭据校验并签发一对令牌。
@@ -112,6 +117,7 @@ public class SessionAppServiceImpl implements SessionAppService {
         } catch (InvalidCredentialException e) {
             // 只对「口令错」计数；本次失败到达上限时由 recordFailure 抛锁定异常
             loginLockService.recordFailure(tenantId, command.username());
+            recordLoginFailure(tenantId, command.username(), "用户名或密码错误");
             throw e;
         }
         loginLockService.clear(tenantId, command.username());
@@ -122,7 +128,7 @@ public class SessionAppServiceImpl implements SessionAppService {
             userRepository.save(entity);
         });
         // 每次登录生成独立 familyId（AUTH-39）：该次会话后续所有轮换令牌共用，复用检测时整族吊销
-        return buildLoginResult(user, UUID.randomUUID().toString());
+        return buildLoginResult(user, UUID.randomUUID().toString(), LoginHistoryRecord.TYPE_PASSWORD);
     }
 
     /**
@@ -159,7 +165,9 @@ public class SessionAppServiceImpl implements SessionAppService {
         AuthenticatedUser user = loadEnabledUser(userId, tenantId);
         requireRefreshNotRevoked(userId, tenantId, payload);
         consumeRotatingToken(refreshToken, payload, familyId);
-        return buildLoginResult(user, familyId);
+        // 账本：轮换开启且旧令牌被消费时标记 ROTATED（Redis 仍是实时校验源，账本仅可见性）
+        recordSessionEnd(payload, RefreshTokenRecord.REASON_ROTATED, LoginHistoryRecord.TYPE_REFRESH);
+        return buildLoginResult(user, familyId, LoginHistoryRecord.TYPE_REFRESH);
     }
 
     /**
@@ -197,7 +205,7 @@ public class SessionAppServiceImpl implements SessionAppService {
         invalidateSwitchTokens(command.authorization(), command.currentRefreshToken());
         log.info("用户切换租户: userId={}, fromTenantId={}, toTenantId={}",
             current.userId(), current.tokenTenantId(), targetTenantId);
-        return buildLoginResult(switched, UUID.randomUUID().toString());
+        return buildLoginResult(switched, UUID.randomUUID().toString(), LoginHistoryRecord.TYPE_SWITCH);
     }
 
     /**
@@ -219,6 +227,8 @@ public class SessionAppServiceImpl implements SessionAppService {
         } else {
             log.debug("登出请求未携带 refreshToken，仅失效 accessToken");
         }
+        // 账本（M3，ADR #7）：记录 LOGOUT 事件并标记 refreshToken 记录已撤销；失败降级告警
+        recordLogoutLedger(command.refreshToken());
     }
 
     /**
@@ -364,6 +374,11 @@ public class SessionAppServiceImpl implements SessionAppService {
             return;
         }
         tokenBlacklist.add(refreshToken);
+        TokenPayload endPayload = tokenIssuer.parse(refreshToken);
+        if (endPayload != null) {
+            // 账本（M3）：旧租户会话结束（LOGOUT 语义，事件类型 SWITCH）；失败降级告警
+            recordSessionEnd(endPayload, RefreshTokenRecord.REASON_LOGOUT, LoginHistoryRecord.TYPE_SWITCH);
+        }
         if (!refreshRotationPolicy.isEnabled()) {
             return;
         }
@@ -427,9 +442,10 @@ public class SessionAppServiceImpl implements SessionAppService {
      *
      * @param user 登录用户
      * @param familyId 令牌 family 标识（登录时新生成，轮换时沿用）；为 {@code null} 时 refreshToken 不含该 claim
+     * @param loginType 账本事件类型（PASSWORD / SOCIAL / SWITCH / REFRESH）
      * @return 登录结果（响应体载荷不含 refreshToken）
      */
-    private LoginResult buildLoginResult(AuthenticatedUser user, String familyId) {
+    private LoginResult buildLoginResult(AuthenticatedUser user, String familyId, String loginType) {
         // REQ-SEC-023：有效期按用户所属租户的生效策略计算，未配置时回退全局默认
         int maxAgeDays = tenantPasswordPolicyService.maxAgeDays(user.tokenTenantId());
         LocalDateTime now = LocalDateTime.now();
@@ -442,11 +458,92 @@ public class SessionAppServiceImpl implements SessionAppService {
             user.tokenTenantId(), user.userId(), user.username(), familyId);
         String accessToken = tokenIssuer.issueAccessToken(
             user.tokenTenantId(), user.userId(), user.username(), roles, mustChange);
+        // 账本（M3，ADR #7）：签发 refreshToken 记录 + 登录历史；写入失败降级告警不阻断
+        recordLedgerIssue(user, loginType, refreshToken, now);
         // T-03 / REQ-SEC-023：强制首登改密或口令到期，登录/刷新/切换结果统一透出该标记
         return new LoginResult(
             accessToken, "Bearer", tokenIssuer.accessExpireSeconds(),
             user.userId(), user.tokenTenantId(), user.username(), user.nickname(), roles,
             mustChange, passwordExpired, expiresInDays, refreshToken);
+    }
+
+    /**
+     * 账本：记录一次成功的令牌签发（登录 / 刷新 / 切换租户）
+     *
+     * <p>IP / UA / 设备指纹由 infrastructure 适配器从当前请求上下文解析（异步测试线程为空）。
+     * 本方法自身不做 try-catch——降级由 {@link SessionLedgerPort} 适配器整体保证（ADR #7）。</p>
+     *
+     * @param user 登录用户
+     * @param loginType 账本事件类型
+     * @param refreshToken 新签发的 refreshToken 原文
+     * @param now 签发时刻
+     */
+    private void recordLedgerIssue(AuthenticatedUser user, String loginType, String refreshToken,
+                                   LocalDateTime now) {
+        TokenPayload payload = tokenIssuer.parse(refreshToken);
+        sessionLedgerPort.recordLogin(new SessionLedgerPort.LoginLedgerEntry(
+            user.tokenTenantId(), user.userId(), user.username(), loginType,
+            true, null, null, null, null, null, null, null, null,
+            payload == null ? null : payload.jti(), familyIdOf(payload),
+            now, now.plusSeconds(tokenIssuer.refreshExpireSeconds())));
+    }
+
+    /**
+     * 账本：记录一次口令认证失败
+     *
+     * @param tenantId 租户 ID
+     * @param username 用户名
+     * @param reason 失败原因
+     */
+    private void recordLoginFailure(Long tenantId, String username, String reason) {
+        sessionLedgerPort.recordLogin(new SessionLedgerPort.LoginLedgerEntry(
+            tenantId, null, username, LoginHistoryRecord.TYPE_PASSWORD,
+            false, reason, null, null, null, null, null, null, null,
+            null, null, null, null));
+    }
+
+    /**
+     * 账本：标记 refreshToken 会话结束并记录对应事件
+     *
+     * @param payload refreshToken 载荷
+     * @param reason 撤销原因（LOGOUT / ROTATED）
+     * @param loginType 账本事件类型（LOGOUT / SWITCH / REFRESH）
+     */
+    private void recordSessionEnd(TokenPayload payload, String reason, String loginType) {
+        sessionLedgerPort.recordSessionEnd(new SessionLedgerPort.SessionEndEntry(
+            payload.tenantId(), payload.userId(), payload.subject(),
+            payload.jti(), reason, loginType));
+    }
+
+    /**
+     * 账本：登出——解析 refreshToken 载荷记录 LOGOUT 事件（无 refreshToken 时用当前登录人）
+     *
+     * @param refreshToken 登出请求携带的 refreshToken（可空）
+     */
+    private void recordLogoutLedger(String refreshToken) {
+        TokenPayload payload = StringUtils.hasText(refreshToken) ? tokenIssuer.parse(refreshToken) : null;
+        if (payload != null) {
+            recordSessionEnd(payload, RefreshTokenRecord.REASON_LOGOUT, LoginHistoryRecord.TYPE_LOGOUT);
+            return;
+        }
+        AuthenticatedUser current = currentUserProvider.current();
+        if (current == null) {
+            // 无当前用户上下文（如测试直调或系统态登出）：账本尽力而为，跳过
+            return;
+        }
+        sessionLedgerPort.recordSessionEnd(new SessionLedgerPort.SessionEndEntry(
+            current.tokenTenantId(), current.userId(), current.username(),
+            null, RefreshTokenRecord.REASON_LOGOUT, LoginHistoryRecord.TYPE_LOGOUT));
+    }
+
+    /**
+     * 提取载荷中的 familyId（可空）
+     *
+     * @param payload 令牌载荷（可空）
+     * @return familyId；载荷为空时返回 {@code null}
+     */
+    private static String familyIdOf(TokenPayload payload) {
+        return payload == null ? null : payload.familyId();
     }
 
 }

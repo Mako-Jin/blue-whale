@@ -8,6 +8,7 @@ import com.bluewhale.auth.application.model.command.UpdateUserCommand;
 import com.bluewhale.auth.application.model.query.UserPageQuery;
 import com.bluewhale.auth.application.model.vo.ResetPasswordVO;
 import com.bluewhale.auth.application.model.vo.UserVO;
+import com.bluewhale.auth.application.port.RoleConstraintChecker;
 import com.bluewhale.auth.application.service.PasswordPolicyService;
 import com.bluewhale.auth.application.service.TenantMembershipAppService;
 import com.bluewhale.auth.application.service.UserAppService;
@@ -66,6 +67,9 @@ public class UserAppServiceImpl implements UserAppService {
     /** 用户-租户关系服务（一人多租户：新建账号写首页关系） */
     private final TenantMembershipAppService tenantMembershipAppService;
 
+    /** 角色约束校验端口（M3：互斥/基数约束，分配角色前校验） */
+    private final RoleConstraintChecker roleConstraintChecker;
+
     /**
      * 构造器注入
      *
@@ -75,18 +79,21 @@ public class UserAppServiceImpl implements UserAppService {
      * @param temporaryPasswordGenerator 临时口令生成器
      * @param domainEventPublisher 领域事件发布端口
      * @param tenantMembershipAppService 用户-租户关系服务
+     * @param roleConstraintChecker 角色约束校验端口
      */
     public UserAppServiceImpl(UserRepository userRepository, RoleRepository roleRepository,
                           PasswordPolicyService passwordPolicyService,
                           TemporaryPasswordGenerator temporaryPasswordGenerator,
                           DomainEventPublisher domainEventPublisher,
-                          TenantMembershipAppService tenantMembershipAppService) {
+                          TenantMembershipAppService tenantMembershipAppService,
+                          RoleConstraintChecker roleConstraintChecker) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordPolicyService = passwordPolicyService;
         this.temporaryPasswordGenerator = temporaryPasswordGenerator;
         this.domainEventPublisher = domainEventPublisher;
         this.tenantMembershipAppService = tenantMembershipAppService;
+        this.roleConstraintChecker = roleConstraintChecker;
     }
 
     /**
@@ -279,6 +286,8 @@ public class UserAppServiceImpl implements UserAppService {
         if (!normalized.isEmpty() && roleRepository.countByIds(normalized) != normalized.size()) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "存在无效的角色ID");
         }
+        // M3：互斥/基数约束校验（整体替换口径，违约时抛带约束名的业务异常）
+        roleConstraintChecker.checkAssignRoles(TenantContext.requireId(), id, normalized);
         userRepository.replaceRoles(id, normalized);
         // 用户角色变更后发布事件，由监听器在提交后失效其权限缓存
         domainEventPublisher.publish(new UserDomainEvent(id, ChangeType.ROLES_ASSIGNED));

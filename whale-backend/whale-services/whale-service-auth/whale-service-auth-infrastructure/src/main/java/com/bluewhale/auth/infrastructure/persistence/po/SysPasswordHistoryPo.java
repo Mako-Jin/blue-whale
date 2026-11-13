@@ -26,5 +26,11 @@ public class SysPasswordHistoryPo implements Serializable {
     private Long userId;
     /** BCrypt 口令密文 */
     private String password;
+    /** 是否当前生效口令：1 是（仅最后一条为 1，其余为 0） */
+    private Integer isActive;
+    /** 口令到期时间（租户策略到期口径快照，可空） */
+    private LocalDateTime expiresAt;
+    /** 变更来源：LEGACY 存量 / USER_CHANGE 用户自改 / ADMIN_RESET 管理员重置 / SOCIAL_BIND 三方绑定设密 */
+    private String changeSource;
     private LocalDateTime createTime;
 }

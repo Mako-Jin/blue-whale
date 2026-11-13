@@ -35,6 +35,7 @@ import com.bluewhale.auth.application.port.PasswordHasher;
 import com.bluewhale.auth.domain.repository.UserRepository;
 import com.bluewhale.auth.application.model.vo.MenuVO;
 import com.bluewhale.auth.application.port.SecurityAlarmPort;
+import com.bluewhale.auth.application.port.SessionLedgerPort;
 import com.bluewhale.common.core.exception.BizException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -141,6 +142,9 @@ class SessionAppServiceTest {
 
     @Mock
     private SecurityAlarmPort securityAlarmPort;
+
+    @Mock
+    private SessionLedgerPort sessionLedgerPort;
 
     @InjectMocks
     private SessionAppServiceImpl sessionAppService;

@@ -147,6 +147,12 @@ whale-service-auth/
 | 租户 | `TenantAppService`、`TenantMembershipAppService`、`TenantProvisioningAppService` | 租户生命周期、成员与角色、开通编排 |
 | 用户属性 | `UserPermissionAppService` | ABAC 属性维护 |
 | 三方登录 | `SocialLoginAppService` | 钉钉/飞书/企业微信授权起始、回调三态裁决（直登 / 同邮箱要求先绑定 / 受租户开关约束自动建号）、一次性登录码换令牌、绑定管理 |
+| 身份档案 | `UserProfileAppService` | 联系方式 / 证件 / 教育 / 工作经历 / 紧急联系人 / 密保问题六类子档案整体替换（加密存储、掩码回显） |
+| 用户组 | `UserGroupAppService` | 静态 / 动态组管理、父子层级防环、动态组重算成员（`GroupMemberEvaluator`） |
+| 权限策略 | `PermissionStrategyAppService` | 角色-资源 GRANT/DENY 授权策略、附加条件、租户内唯一默认策略 |
+| 角色约束 | `RoleConstraintAppService`、`RoleConstraintChecker` | 互斥（MUTEX）/ 基数（CARDINALITY）约束维护与分配前校验 |
+| 角色继承 | `RoleHierarchyAppService` | 父角色挂载 / 解除（防环、同租户校验）、继承策略与层级维护 |
+| 会话设备 | `SessionManageAppService` | 在线会话分页、强制下线（吊销 + 时间戳撤销）、登录历史与设备记录 |
 
 ### 4.2 出站端口（由 infrastructure 实现）
 
@@ -165,6 +171,10 @@ whale-service-auth/
 | `SocialIdentityProvider` | `DingTalk/Feishu/WeComSocialIdentityProvider`（RestClient，渠道协议适配） |
 | `SocialStateStore` / `SocialLoginCodeStore` | `RedisSocialStateStore` / `RedisSocialLoginCodeStore`（state 与一次性登录码，TTL + 一次性消费） |
 | `SocialAccountProvisioner` / `SocialWebConfig` | `SocialAccountProvisionerImpl`（register_source=SOCIAL 自动建号）/ `SocialWebConfigAdapter` |
+| `SensitiveFieldCipher` | `AesSensitiveFieldCipher`（AES-GCM，档案证件号/密保答案加密，密钥见配置项） |
+| `GroupMemberEvaluator` | `GroupMemberEvaluatorImpl`（动态组过滤规则内存求值） |
+| `SessionLedgerPort` | `SessionLedgerAdapter`（登录/登出/轮换账本写入，失败降级告警不阻断） |
+| `RoleConstraintChecker` | `RoleConstraintCheckerImpl`（角色分配前互斥/基数校验） |
 
 ## 五、接口层
 
@@ -181,6 +191,12 @@ whale-service-auth/
 | [`DeptInternalController`](whale-service-auth-interfaces/src/main/java/com/bluewhale/auth/controller/DeptInternalController.java) | `/dept/internal` | `GET /tree`、`GET /{id}/leader` |
 | [`TenantController`](whale-service-auth-interfaces/src/main/java/com/bluewhale/auth/controller/TenantController.java) | `/tenant` | 分页 / 详情 / 更新 / 状态 / 续期 / 成员与角色 / 口令策略 / 内部启用租户列表 |
 | [`SocialController`](whale-service-auth-starter/src/main/java/com/bluewhale/auth/starter/controller/SocialController.java) | `/social` | `GET /{provider}/authorize`、`GET /{provider}/callback`（302 回前端）、`POST /login`（一次性码换令牌）、`POST /bind/authorize`、`DELETE /bind/{provider}`、`GET /bindings` |
+| [`UserProfileController`](whale-service-auth-starter/src/main/java/com/bluewhale/auth/starter/controller/UserProfileController.java) | `/user-profile/v1` | 档案查看 / 保存 / 删除、证件明文查询（`GET /{userId}/credentials/{credentialId}`，须 `credential-view` 权限） |
+| [`UserGroupController`](whale-service-auth-starter/src/main/java/com/bluewhale/auth/starter/controller/UserGroupController.java) | `/user-group/v1` | 分页 / 新增 / 编辑 / 删除、组成员查看与整体替换 |
+| [`PermissionStrategyController`](whale-service-auth-starter/src/main/java/com/bluewhale/auth/starter/controller/PermissionStrategyController.java) | `/perm-strategy/v1` | 分页 / 新增 / 编辑 / 删除 / 默认策略标记 |
+| [`RoleConstraintController`](whale-service-auth-starter/src/main/java/com/bluewhale/auth/starter/controller/RoleConstraintController.java) | `/role-constraint/v1` | 分页 / 新增 / 编辑 / 删除 |
+| [`SessionController`](whale-service-auth-starter/src/main/java/com/bluewhale/auth/starter/controller/SessionController.java) | `/session/v1` | 会话分页、`DELETE /{jti}` 强制下线 |
+| [`LoginHistoryController`](whale-service-auth-starter/src/main/java/com/bluewhale/auth/starter/controller/LoginHistoryController.java) | `/login-history/v1` | 登录历史分页、CSV 导出 |
 
 > `/user/internal/**`、`/dept/internal/**`、`/tenant/internal/**` 属内网接口，已列入网关 `internal-deny`，
 > 外部经网关访问返回 403；调用方须经 Nacos 服务发现直连。
@@ -246,6 +262,20 @@ whale-service-auth/
 - **适配器**：钉钉（`/v1.0/oauth2` 新版协议，`x-api-ci` 头）、飞书（`authen/v2` 换票 + `authen/v1/user_info`）、
   企业微信（`wwlogin` 授权 + `gettoken`/`auth/getuserinfo`），统一由 `SocialIdentityProvider` 端口隔离。
 
+### 6.3 会话账本与设备管理（M3）
+
+登录 / 刷新轮换 / 切换租户 / 登出四类事件写入会话账本（`sys_login_history` + `sys_refresh_token` + `sys_device`），
+供「在线会话」与「登录历史」页面查询。要点：
+
+- **降级口径（ADR #7）**：账本写入失败仅 `log.warn`（`scene=auth:session:ledger`）告警，**不阻断登录**；
+  Redis 仍是实时会话校验源，账本仅承担可见性与审计。
+- **IP / UA / 设备指纹**：由 infrastructure 适配器从 `RequestContextHolder` 解析，无请求上下文（内部调用 /
+  定时任务）时留空；指纹缺省回退 `SHA-256(ip|ua)`。
+- **强制下线**：`DELETE /session/v1/{jti}` 将对应 refreshToken 标记 `revoked`（`ADMIN_REVOKE`），
+  同时写用户级撤销时刻（时间戳撤销即时生效），再发 `SESSION_REVOKED` 领域事件。
+- **三方登录未接账本**（实施偏差）：`SocialLoginAppService` 的三方直登 / 换令牌暂不写登录历史，待 M4 补齐。
+- **预留表**：`sys_remember_me_token` 已建（Flyway `V22`），「记住我」功能暂未接入。
+
 ## 七、权限模型与缓存
 
 权限层级：**系统 > 菜单 > 接口 > 按钮 > 数据 > 属性**。
@@ -253,6 +283,12 @@ whale-service-auth/
 - RBAC：用户 → 角色 → 权限点；`GET /auth/me` 返回角色、权限码与可见菜单树，供前端动态路由与按钮级渲染。
 - ABAC：`sys_user_permission` 与 `UserPermissionAttribute` 承载用户级属性，用于数据行与字段级控制。
 - 超管：`super_admin` 直接获得全量启用权限码与可见菜单。
+- 角色继承（M3）：`sys_role.parent_id / role_level / inherit_strategy` 支持父子角色与权限继承
+  （FULL / PARTIAL / NONE），挂载时沿父链防环。
+- 权限策略（M3）：`sys_permission_strategy` 以「角色集合 × 资源集合」表达 GRANT / DENY，
+  可附加 eq/ne/in/like 生效条件；租户内可标记唯一默认策略。
+- 角色约束（M3）：`sys_role_constraint` 支持 MUTEX（互斥，覆盖 ≥2 角色）与 CARDINALITY（基数，
+  `max_assign` ≤ 角色数）；`UserAppService.assignRoles` 落库前整体替换口径校验。
 - 权限缓存：默认 TTL 5 分钟，本地批量删除 + Redisson `RTopic` 跨实例广播；Redis 断连期间待失效 Key
   进入待处理集合并可持久化到 `pending-file`，由定时任务在恢复后重对齐。
 
@@ -262,8 +298,13 @@ whale-service-auth/
   `sys_tenant`、`sys_user_role`、`sys_role_permission`、`sys_user_permission`、`sys_user_tenant`、
   `sys_password_history`、`sys_tenant_password_policy`；日志表：`audit_log`、`api_log`、`outbound_log`、
   `frontend_log`、`behavior_log`。i18n starter 启动时幂等创建 `sys_i18n_message`。
+- 权限中心扩展表（M3）：档案 7 张（`sys_user_profile` + contact / credential / education / employment /
+  emergency_contact / secret_question）、用户组 2 张（`sys_user_group` / `sys_user_group_member`）、
+  策略与约束 2 张（`sys_permission_strategy` / `sys_role_constraint`）、会话设备 4 张
+  （`sys_device` / `sys_login_history` / `sys_refresh_token` / `sys_remember_me_token`）。
 - Flyway 仅扫描 `classpath:db/migration`：`V1__baseline.sql` → `V2__password_lifecycle.sql` →
-  `V3__tenant_password_policy.sql`。
+  `V3__tenant_password_policy.sql` → … → `V19`~`V23`（M3：档案 / 用户组 / 策略约束与角色继承 /
+  会话设备 / 口令历史扩展，`V20` 起含权限点与菜单种子）。
 - 存量库由 `baseline-on-migrate=true`、`baseline-version=1` 自动登记基线，不重放 V1；`clean` 已禁用。
 - `db/init.sql` 与 `db/migration-*.sql` 为手工 / 追溯脚本，不在 Flyway 扫描路径内。
 - 详细边界与校验 SQL 见 [`db/README.md`](whale-service-auth-starter/src/main/resources/db/README.md)。
@@ -291,6 +332,7 @@ whale-service-auth/
 | `WHALE_AUDIT_MQ_PUBLISH_ENABLED` | 审计优先投递 RabbitMQ | `false` |
 | `WHALE_AUTH_MAIL_PROVISION_ENABLED` | 建用户后自动开邮箱 | `false` |
 | `SECURITY_DEGRADATION_FAIL_CLOSED` | Redis 不可用时安全优先拒绝 | `false` |
+| `WHALE_AUTH_PROFILE_CRYPTO_KEY` | 档案敏感字段 AES 密钥（Base64 或任意字符串，非合法 Base64 时 SHA-256 派生）；生产必须注入 | 开发默认密钥 |
 
 ## 十、构建与运行
 

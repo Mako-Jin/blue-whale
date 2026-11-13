@@ -148,6 +148,10 @@ whale:
       # 容器部署建议把 pending-file 挂到持久卷（多实例共用一个文件时重复 Key 自动去重）
       pending-persistence-enabled: ${PERMISSION_CACHE_PENDING_PERSISTENCE:true}
       pending-file: ${PERMISSION_CACHE_PENDING_FILE:${java.io.tmpdir}/bluewhale-auth-permission-pending.keys}
+    # 权限中心扩展 M3 档案敏感字段加密密钥（证件号 / 密保答案）：生产经环境变量注入，
+    # 空值时 infrastructure 适配器使用开发默认密钥兜底（仅限本地联调，禁止生产依赖兜底值）。
+    profile:
+      crypto-key: ${WHALE_AUTH_PROFILE_CRYPTO_KEY:}
   # P1-3 审计跨库汇聚：auth 为试点服务，审计记录优先转发 whale-audit:9101，
   # 转发失败自动回退本地 bluewhale_auth.audit_log，不丢记录。
   audit:
