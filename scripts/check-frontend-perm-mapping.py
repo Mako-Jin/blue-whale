@@ -72,6 +72,24 @@ KNOWN_UNROUTED_MENUS = {
     ("10", "/agent/chat"),
 }
 
+#: 已知「后端菜单已定义、admin 前端页面尚未实现」的基线（2026-11-13 登记）。
+#:
+#: 这 7 个菜单由权限中心扩展系列迁移引入（V11/V19/V20/V21/V22），后端接口与菜单种子齐全，
+#: 但 whale-frontend/admin 下没有对应页面组件（连权限码引用都没有），
+#: 运行时点进去只会落到 UnmatchedPage 的「页面未配置」。
+#:
+#: 登记为基线**不等于已交付**：补页面时请同步删除本清单条目，门禁会自动恢复 FAIL。
+#: 排查方法：`ls whale-frontend/admin/src/pages/system` 只有 password-policy。
+KNOWN_UNROUTED_PATHS = {
+    "/system/brand": "品牌配置（V11__brand_config.sql）",
+    "/system/user-profile": "身份档案（V19__user_profile.sql）",
+    "/system/user-group": "用户组（V20__user_group.sql）",
+    "/system/perm-strategy": "权限策略（V21__permission_policy.sql）",
+    "/system/role-constraint": "角色约束（V21__permission_policy.sql）",
+    "/system/session": "会话与设备（V22__session_device.sql）",
+    "/system/login-history": "登录历史（V22__session_device.sql）",
+}
+
 #: 前端扫描排除目录
 FRONTEND_EXCLUDES = {"node_modules", "dist", "build", ".turbo", "coverage"}
 
@@ -576,6 +594,14 @@ def main() -> int:
                     "WARN",
                     f"菜单 #{menu.menu_id}「{menu.name}」path={menu.path} 未挂载到任何前端"
                     f"（已知基线，whale-agent 待接入基座，{menu.source.name}）",
+                )
+            )
+        elif (menu.path or "") in KNOWN_UNROUTED_PATHS:
+            findings.append(
+                Finding(
+                    "WARN",
+                    f"菜单 #{menu.menu_id}「{menu.name}」path={menu.path} 未挂载到任何前端"
+                    f"（已知基线：admin 页面待补，{KNOWN_UNROUTED_PATHS[menu.path]}）",
                 )
             )
         else:
