@@ -78,7 +78,18 @@ jobs:
 
       - name: Start middleware (mysql/redis/nacos)
         working-directory: infrastructure/docker
-        run: docker compose up -d --wait mysql redis nacos
+        run: docker compose up -d --wait --wait-timeout 300 mysql redis nacos
+
+      # --wait 只会输出 "container bw-nacos is unhealthy"，真正原因在容器日志里
+      # （口令错 / 端口占用 / 镜像内没有 curl / DB 未初始化）。
+      - name: Dump middleware logs on failure
+        if: failure()
+        working-directory: infrastructure/docker
+        run: |
+          for c in bw-mysql bw-redis bw-nacos; do
+            echo "===== $c ====="
+            docker logs "$c" --tail 80 2>&1 || true
+          done
 
       # Nacos v3 全新实例需先初始化内置管理员（auth_admin_request=true 引导流程）。
       # healthy 判定早于 auth 插件就绪，首跑 run#9 曾偶发 "User not found!" 被静默吞掉，

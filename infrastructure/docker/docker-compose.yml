@@ -111,7 +111,10 @@ services:
       MYSQL_SERVICE_PORT: ${MYSQL_PORT:-3306}
       MYSQL_SERVICE_DB_NAME: ${NACOS_DB_NAME:-bluewhale_nacos}
       MYSQL_SERVICE_USER: ${NACOS_DB_USER:-root}
-      MYSQL_SERVICE_PASSWORD: ${NACOS_DB_PASSWORD:-}
+      # 空口令会让 Nacos 起不来（healthcheck 一直 unhealthy，日志里是 Access denied），
+      # 因为 mysql 服务用 MYSQL_ROOT_PASSWORD 初始化，root 口令不可能为空。
+      # 未单独配置 NACOS_DB_PASSWORD 时回退到 root 口令，二者口径保持一致。
+      MYSQL_SERVICE_PASSWORD: ${NACOS_DB_PASSWORD:-${MYSQL_ROOT_PASSWORD:-}}
       # allowPublicKeyRetrieval 必需：MySQL 8 的 caching_sha2_password 走非 SSL 连接
       MYSQL_SERVICE_DB_PARAM: "characterEncoding=utf8&connectTimeout=3000&socketTimeout=5000&autoReconnect=true&useUnicode=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai"
       # 堆压到 256/512：8G VM 里要和 22 个 Spring 服务共存，1G 堆会把余量吃到红线以下
