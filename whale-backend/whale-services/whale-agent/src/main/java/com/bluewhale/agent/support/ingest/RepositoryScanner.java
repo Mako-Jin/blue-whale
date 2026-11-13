@@ -46,7 +46,7 @@ public class RepositoryScanner {
 
     /** 仅当位于仓库根时排除的目录（本地工具链与缓存，.gitignore 已忽略、不入仓） */
     private static final Set<String> ROOT_EXCLUDED_DIRS = Set.of(
-            "tools", "work", ".workbuddy", ".toolchains", ".cache", ".turbo", ".pnpm-store");
+            "tools", "work", "tmp", ".workbuddy", ".toolchains", ".cache", ".turbo", ".pnpm-store");
 
     /** 排除文件名（锁文件与产物） */
     private static final Set<String> EXCLUDED_FILES = Set.of(

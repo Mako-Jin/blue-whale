@@ -123,7 +123,11 @@ async function waitForAnswer(page, timeout = 75_000) {
   await page.locator('.bww-chat-input').fill('户部今天有几张异常工单？');
   await page.locator('.bww-chat-send').click();
   const answer = await waitForAnswer(page);
-  ok(answer.text.length > 10, `拿到应答（${answer.text.length} 字）：${answer.text.slice(0, 40)}…`);
+  // 「这个我查不到」也是合格回答（知识库里没有实时业务数字），不能只按字数判
+  const substantive = answer.text.length > 10 || /查不到|答不上|没有凭据/.test(answer.text);
+  ok(substantive, `拿到应答（${answer.text.length} 字）：${answer.text.slice(0, 40)}…`);
+  // 回归：小模型曾把 tool_calls 当正文吐出来（"需要检索。{"name":"search_knowledge"...}"）
+  ok(!/"name"\s*:\s*"search_knowledge"/.test(answer.text), '回答里没有把工具调用当正文');
   const degradedNote = (answer.notes ?? []).find((n) => n.includes('摘要') || n.includes('不可用'));
   console.log(degradedNote ? `INFO  服务端降级：${degradedNote}` : 'INFO  模型正常应答（无降级提示）');
 
@@ -135,7 +139,8 @@ async function waitForAnswer(page, timeout = 75_000) {
   await page.locator('.bww-chat-send').click();
   await page.waitForTimeout(1200);
   const answer2 = await waitForAnswer(page);
-  ok(answer2.text.length > 2, `二次追问有回应（${answer2.text.slice(0, 24)}…）`);
+  // 「中枢那头出了岔子」是失败兜底文案 —— 出现即说明这一问没打通，不能被当成"有回应"
+  ok(answer2.text.length > 2 && !answer2.text.includes('岔子'), `二次追问有回应（${answer2.text.slice(0, 24)}…）`);
   const notes2 = await page.evaluate(
     () => document.querySelectorAll('#bww-chat-panel .bww-chat-note').length,
   );

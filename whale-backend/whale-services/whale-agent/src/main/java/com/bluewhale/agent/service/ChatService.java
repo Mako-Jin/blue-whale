@@ -73,6 +73,12 @@ public class ChatService {
     /** 单条历史消息最大字符数（控制提示词体积） */
     private static final int HISTORY_MESSAGE_LIMIT = 1500;
 
+    /** 直答模式的证据条数上限（本地小模型 CPU 预填慢，少而准） */
+    private static final int COMPACT_EVIDENCE_TOP_K = 3;
+
+    /** 直答模式单条证据字符上限 */
+    private static final int COMPACT_CHUNK_CHARS = 500;
+
     private final AgentConversationService conversationService;
 
     private final FactRetriever factRetriever;
@@ -114,7 +120,10 @@ public class ChatService {
         AgentConversation conversation = conversationService.resolve(
                 request.getConversationId(), userId, question, scope);
         SseEmitter emitter = new SseEmitter(EMITTER_TIMEOUT_MILLIS);
-        executor.submit(() -> answer(conversation, question, scope, includeRuntime, permissionCodes, emitter));
+        boolean direct = request.isDirectMode();
+        String persona = request.getPersona();
+        executor.submit(() -> answer(conversation, question, scope, includeRuntime, permissionCodes,
+                direct, persona, emitter));
         return emitter;
     }
 
@@ -126,10 +135,13 @@ public class ChatService {
      * @param scope          检索范围
      * @param includeRuntime 是否包含运行时事实
      * @param permissionCodes 权限码（逗号分隔）
+     * @param direct         是否直答模式（跳过自主编排的工具轮次）
+     * @param persona        角色设定（仅直答模式生效，可空）
      * @param emitter        SSE 发射器
      */
     private void answer(AgentConversation conversation, String question, String scope,
-                        boolean includeRuntime, String permissionCodes, SseEmitter emitter) {
+                        boolean includeRuntime, String permissionCodes, boolean direct, String persona,
+                        SseEmitter emitter) {
         KnowledgePermissionContext.set(WebHeaders.splitCodes(permissionCodes), conversation.getUserId());
         long start = System.currentTimeMillis();
         try {
@@ -139,7 +151,9 @@ public class ChatService {
                     question, null, 0);
 
             boolean modelAvailable = llmClient.available();
-            boolean agentic = modelAvailable && properties.getQa().isAgenticEnabled();
+            // direct：调用方明确要求「一段话答完」，不进工具轮次（小参数模型在工具轮次里
+            // 会把 tool_calls 当正文吐出来，回答只剩「需要检索。」）
+            boolean agentic = modelAvailable && properties.getQa().isAgenticEnabled() && !direct;
             List<Citation> citations;
             StringBuilder answer = new StringBuilder();
             boolean degraded = !modelAvailable;
@@ -153,19 +167,19 @@ public class ChatService {
                     answer.append(result.content());
                     degraded = result.degraded();
                 } else {
-                    citations = collectCitations(question, scope, intent, includeRuntime);
+                    citations = collectCitations(question, scope, intent, includeRuntime, false);
                     answer.append(summary(question, citations));
                     degraded = true;
                 }
                 send(emitter, "delta", Map.of("text", answer.toString()));
             } else {
-                citations = collectCitations(question, scope, intent, includeRuntime);
+                citations = collectCitations(question, scope, intent, includeRuntime, direct);
                 send(emitter, "meta", meta(conversation, intent, degraded, citations));
                 if (degraded) {
                     answer.append(summary(question, citations));
                     send(emitter, "delta", Map.of("text", answer.toString()));
                 } else {
-                    degraded = stream(question, citations, history, answer, emitter);
+                    degraded = stream(question, citations, history, persona, answer, emitter);
                 }
             }
             if (answer.length() == 0) {
@@ -239,13 +253,14 @@ public class ChatService {
      * @param question  问题
      * @param citations 证据
      * @param history   历史消息
+     * @param persona   角色设定（可空）
      * @param answer    回答缓冲
      * @param emitter   SSE 发射器
      * @return 最终是否处于降级状态
      */
     private boolean stream(String question, List<Citation> citations, List<ChatMessage> history,
-                           StringBuilder answer, SseEmitter emitter) {
-        List<ChatMessage> messages = promptAssembler.assemble(question, citations, history);
+                           String persona, StringBuilder answer, SseEmitter emitter) {
+        List<ChatMessage> messages = promptAssembler.assemble(question, citations, history, persona);
         try {
             llmClient.stream(messages, delta -> {
                 answer.append(delta);
@@ -274,6 +289,24 @@ public class ChatService {
      */
     private List<Citation> collectCitations(String question, String scope, QuestionIntent intent,
                                             boolean includeRuntime) {
+        return collectCitations(question, scope, intent, includeRuntime, false);
+    }
+
+    /**
+     * 召回证据（可控紧凑度）。
+     *
+     * <p>紧凑模式给直答模式用：本地小模型在 CPU 上做 prompt 预填很慢，8 条 1200 字的证据
+     * 能把单轮拖到 80 秒以上，而且长证据会淹没答案。压到 3 条 500 字，实测延迟降到可对话范围。</p>
+     *
+     * @param question       问题
+     * @param scope          检索范围
+     * @param intent         意图
+     * @param includeRuntime 是否包含运行时事实
+     * @param compact        是否紧凑证据（直答模式）
+     * @return 通过校验的引用
+     */
+    private List<Citation> collectCitations(String question, String scope, QuestionIntent intent,
+                                            boolean includeRuntime, boolean compact) {
         List<Citation> citations = new ArrayList<>();
         int seq = 1;
         if (intent != QuestionIntent.SEMANTIC) {
@@ -286,9 +319,13 @@ public class ChatService {
         Set<String> kinds = indexKinds(scope);
         boolean needChunks = intent != QuestionIntent.STRUCTURED || citations.isEmpty();
         if (needChunks && (scope == null || !kinds.isEmpty())) {
-            List<SearchHit> hits = searchService.search(question,
-                    properties.getQa().getEvidenceTopK(), kinds);
-            int maxChars = properties.getQa().getMaxChunkChars();
+            int topK = compact
+                    ? Math.min(COMPACT_EVIDENCE_TOP_K, properties.getQa().getEvidenceTopK())
+                    : properties.getQa().getEvidenceTopK();
+            List<SearchHit> hits = searchService.search(question, topK, kinds);
+            int maxChars = compact
+                    ? Math.min(COMPACT_CHUNK_CHARS, properties.getQa().getMaxChunkChars())
+                    : properties.getQa().getMaxChunkChars();
             for (SearchHit hit : hits) {
                 citations.add(new Citation("S" + seq++, "chunk", hit.getPath(), hit.getTitle(),
                         hit.getStartLine(), hit.getEndLine(),

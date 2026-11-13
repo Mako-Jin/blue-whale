@@ -64,6 +64,11 @@ public class LangchainChatService {
      */
     public SseEmitter chat(ChatRequest request, Long userId, String permissionCodes) {
         String question = request.getQuestion().trim();
+        if (request.isDirectMode()) {
+            // 直答模式只在 Java 内置编排里实现；不静默忽略——否则调用方以为换了模式，
+            // 实际回答仍由 Python 侧自主编排产生（同一类"改了配置却没生效"）
+            log.warn("直答模式（mode=direct）仅在 legacy 引擎生效，当前 engine=langchain，按默认编排处理");
+        }
         String scope = AgentConversationService.normalizeScope(request.getScope());
         AgentConversation conversation = conversationService.resolve(
                 request.getConversationId(), userId, question, scope);

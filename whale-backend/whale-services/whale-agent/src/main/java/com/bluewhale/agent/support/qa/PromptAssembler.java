@@ -28,6 +28,15 @@ public class PromptAssembler {
             5. 使用简体中文与 Markdown，先给结论，再列依据，避免冗长复述。
             """;
 
+    /** 角色设定模板（直答模式专用：3D 城的 NPC 问话要有人设口吻） */
+    private static final String PERSONA_TEMPLATE = """
+            【角色设定】本次对话中你以第一人称扮演：%s
+            按该身份的自称与口吻说话，回答不超过三句话，把结论说成人话；
+            不要罗列证据清单、不要大段复述原文，引用编号缀在句末即可。
+            只依据【证据】里明确写到的内容回答：证据里没有写到的路径、端口、数字一律不许猜，
+            直接说「这个我查不到」——说查不到不算丢人，编错了才算。
+            """;
+
     /**
      * 组装消息列表。
      *
@@ -37,8 +46,28 @@ public class PromptAssembler {
      * @return OpenAI 消息列表
      */
     public List<ChatMessage> assemble(String question, List<Citation> citations, List<ChatMessage> history) {
+        return assemble(question, citations, history, null);
+    }
+
+    /**
+     * 组装消息列表（可带角色设定）。
+     *
+     * <p>角色设定单独占一条 system 消息、位于总规则之后：小模型更容易记住「最近的一条 system」，
+     * 但同时显式声明总规则优先，避免角色扮演把「不得编造」挤掉。</p>
+     *
+     * @param question  用户问题
+     * @param citations 证据引用（已按编号排序）
+     * @param history   历史消息（已是 user/assistant 角色）
+     * @param persona   角色设定（可空）
+     * @return OpenAI 消息列表
+     */
+    public List<ChatMessage> assemble(String question, List<Citation> citations, List<ChatMessage> history,
+                                      String persona) {
         List<ChatMessage> messages = new ArrayList<>();
         messages.add(ChatMessage.system(SYSTEM_PROMPT));
+        if (persona != null && !persona.isBlank()) {
+            messages.add(ChatMessage.system(PERSONA_TEMPLATE.formatted(persona.strip())));
+        }
         messages.addAll(history);
         messages.add(ChatMessage.user(userContent(question, citations)));
         return messages;

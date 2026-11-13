@@ -17,12 +17,13 @@
  *      否则每个 NPC 每句问话都要吃一次 403，网关与 agent 日志会被刷穿。
  *   2. 判定 offline 后写入 reason，面板据此显示「AI 未接入，先听我本地台词」，
  *      而不是留一个永远转圈的「思索中」。
- *   3. 模型侧可能降级（本机就没配 LLM key，服务端回 `模型暂时不可用` + 检索摘要，
- *      done.degraded=true）。这不算失败：照常显示，只在气泡上标一句提示。
+ *   3. 模型侧可能降级（服务端回 `模型暂时不可用` + 检索摘要，done.degraded=true）。
+ *      这不算失败：照常显示，只在气泡上标一句提示。
  *
- * 人设注入：`/agent/chat` 没有 systemPrompt 入参，首轮把身份写进问题前缀，
- * 同一人设续聊时只发原问题（conversationId 已带上下文，重复人设反而干扰）。
- * 若日后接 whale-assistant（有 asst_definition.systemPrompt），只需换 ask() 的实现。
+ * 走 `mode=direct` 而不是默认的自主编排：本机是 qwen2.5:1.5B，在工具轮次里会把
+ * tool_calls 当正文吐出来，最终回答只剩一句「需要检索。」+ 一段 JSON。直答模式让
+ * 后端「召回证据 → 单轮生成」，小模型也能成段作答。人设走独立的 `persona` 字段
+ * （后端作为一条 system 消息注入），不再塞进问题文本——问题保持原样，检索不被污染。
  * ========================================================================== */
 
 /** 能问话的人设：NPC 与宠物都实现它 */
@@ -81,7 +82,9 @@ export interface WorldBrainOptions {
 const CHAT_PERMISSION = 'sys:agent:chat';
 
 const DEFAULT_ENDPOINT = '/agent/chat';
-const DEFAULT_TIMEOUT = 60_000;
+/** 单次问答整体超时：本机 1.5B 在 CPU 上首问（含模型加载）常到 30–60 秒，
+ *  卡 60 秒会把正常回答判成超时；后端 SSE emitter 上限是 180 秒，这里留足余量 */
+const DEFAULT_TIMEOUT = 120_000;
 
 /** 工具编码 → 中文动作，用于「正在查…」提示；未收录的按原样显示 */
 const TOOL_LABELS: Record<string, string> = {
@@ -160,19 +163,33 @@ function parseJson(raw: string): Record<string, unknown> | null {
 }
 
 /**
- * 首轮提问：**问题在前，人设在后**。
- * 后端先拿整段文本做知识检索，问题若被"你是某某"的设定挤到后面，
- * 召回会明显跑偏（实测把「户部工单」检索成了 CRM 设计文档）。人设只做语气与边界约束。
+ * 人设文本（发给后端的 `persona` 字段，作为 system 消息注入）。
+ *
+ * 只写「我是谁、管什么」，不写「怎么答」——回答规则由后端系统提示统一约束，
+ * 前端再叠一层措辞要求会把小模型的指令遵循挤爆（实测会退化成复述指令）。
  */
-export function composeFirstQuestion(persona: BrainPersona, question: string): string {
+export function composePersona(persona: BrainPersona): string {
   const place = persona.place ? `，驻${persona.place}` : '';
   return [
-    question,
-    '',
-    `（以上问话请以蓝鲸城${persona.role}「${persona.name}」${place}的身份回答：`,
-    `你的职责范围是${persona.brief}`,
-    '用第一人称、古风而简洁的中文，三句话内说完；问到具体数字/单据/设备时先查再答，查不到就直说「这个我查不到」，不要编造。）',
+    `蓝鲸城的${persona.role}「${persona.name}」${place}。职责范围：${persona.brief}`,
+    // 知识库只有文档/代码/表结构，没有实时业务数据。不写这句，1.5B 会顺着问题的框架
+    // 编出「今天没有异常工单」这种像模像样的假数（实测踩过）。
+    '提醒：你手上只有平台的资料（文档、接口、配置、表结构），看不到实时业务数字；' +
+      '被问到「今天有多少」「现在几张」这类，就说明要另去殿里查账，不要编。',
   ].join('\n');
+}
+
+/**
+ * 兜底清洗：小模型偶尔把工具调用当正文吐出来（`需要检索。{"name":"search_knowledge",...}`）。
+ * 剥掉这类 JSON 片段；剥完只剩「需要检索。」这类空话时判为无内容，交给上层回落本地台词。
+ */
+export function sanitizeAnswer(raw: string): string {
+  const stripped = raw.replace(
+    /\{[\s\S]{0,400}?"name"\s*:\s*"[a-z_]+"[\s\S]{0,400}?\}\s*/gi,
+    '',
+  );
+  const rest = stripped.replace(/^\s*需要检索[。.]?\s*/, '').trim();
+  return rest.length >= 4 ? rest : '';
 }
 
 export function createWorldBrain(options: WorldBrainOptions = {}): WorldBrain {
@@ -246,8 +263,6 @@ export function createWorldBrain(options: WorldBrainOptions = {}): WorldBrain {
     }, timeoutMillis);
 
     const conversationId = sessions.get(input.persona.id) ?? '';
-    const first = !conversationId;
-    const question = first ? composeFirstQuestion(input.persona, input.question) : input.question;
 
     let text = '';
     let degraded = false;
@@ -260,7 +275,12 @@ export function createWorldBrain(options: WorldBrainOptions = {}): WorldBrain {
           Accept: 'text/event-stream',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ conversationId: conversationId || undefined, question }),
+        body: JSON.stringify({
+          conversationId: conversationId || undefined,
+          question: input.question,
+          mode: 'direct',
+          persona: composePersona(input.persona),
+        }),
         signal: controller.signal,
         credentials: 'include',
       });
@@ -325,11 +345,13 @@ export function createWorldBrain(options: WorldBrainOptions = {}): WorldBrain {
       }
       feed(decoder.decode());
 
-      if (!text.trim()) {
-        // 2xx 但一个字都没吐：当失败处理，别让面板留个空气泡
-        throw new BrainError('http', '问答无内容返回');
+      const answer = sanitizeAnswer(text);
+      if (!answer) {
+        // 2xx 但吐的都是"需要检索。{...}"这类半成品：当失败处理，
+        // 让面板回落本地台词，别把工具调用当回答摆给玩家
+        throw new BrainError('http', '模型未按要求作答');
       }
-      return { text, degraded, conversationId: sessions.get(input.persona.id) ?? '' };
+      return { text: answer, degraded, conversationId: sessions.get(input.persona.id) ?? '' };
     } catch (error) {
       const aborted = controller.signal.aborted;
       if (!aborted) {
