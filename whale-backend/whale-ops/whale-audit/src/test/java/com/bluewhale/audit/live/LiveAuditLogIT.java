@@ -98,7 +98,8 @@ class LiveAuditLogIT {
         mapper = new SqlSessionTemplate(buildSqlSessionFactory()).getMapper(AuditLogMapper.class);
         SensitiveDataMasker masker = new SensitiveDataMasker(JsonMapper.builder().build());
         MockEnvironment environment = new MockEnvironment().withProperty("spring.application.name", "whale-live");
-        aspect = new AuditLogAspect(mapper, masker, Runnable::run, environment, null, null);
+        // 本 IT 校验「真实落库」，故 localFallback=true；MQ/转发器不接（null），直接走本地 insert
+        aspect = new AuditLogAspect(mapper, masker, Runnable::run, environment, null, null, true);
         AspectJProxyFactory proxyFactory = new AspectJProxyFactory(new AuditSampleService());
         proxyFactory.addAspect(aspect);
         sampleService = proxyFactory.getProxy();
