@@ -76,7 +76,10 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
         }
         String lockName = QUOTA_LOCK_PREFIX + uploaderId;
         Integer acquired = fileInfoMapper.acquireNamedLock(lockName, QUOTA_LOCK_TIMEOUT_SECONDS);
-        if (acquired == null || acquired != 1) {
+        if (acquired == null) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "获取文件配额锁失败，请稍后重试");
+        }
+        if (acquired != 1) {
             throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "获取文件配额锁超时，请稍后重试");
         }
         boolean synchronizationActive = TransactionSynchronizationManager.isSynchronizationActive();

@@ -286,18 +286,20 @@ public class FileInfoServiceImpl implements FileInfoService {
         if (uploaded.size() != expectedCount) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "分片数量与文件大小不匹配");
         }
+        FileUploadResult result;
         try (MergedChunkUpload merged = chunkUploadStore.merge(sessionId, expectedCount)) {
             if (merged.size() != size) {
                 throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "分片总大小与声明大小不一致");
             }
-            FileUploadResult result = persistFile(merged.content(), command.fileName(), merged.contentType(),
+            result = persistFile(merged.content(), command.fileName(), merged.contentType(),
                     size, merged.md5(), command.bucket(), command.uploaderId(), effective);
-            // 仅在合并落存储成功后清理暂存数据；失败时保留分片供客户端续传/重试
-            chunkUploadStore.discard(sessionId);
-            return result;
         } catch (IOException e) {
             throw new BizException(ErrorCode.SYSTEM_ERROR);
         }
+        // 仅在合并落存储成功后清理暂存数据；失败时保留分片供客户端续传/重试。
+        // 必须在合并流关闭后执行：Windows 下删除被占用文件会失败，导致暂存目录残留
+        chunkUploadStore.discard(sessionId);
+        return result;
     }
 
     /**
