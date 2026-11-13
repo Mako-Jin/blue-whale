@@ -104,12 +104,48 @@ whale:
               patterns: /.well-known/**
         filters: []
       # 权限中心扩展 M3：用户档案 / 用户组 / 权限策略 / 角色约束 / 会话管理 / 登录历史
-      - id: whale-service-auth-m3
+      # （一条路由只能挂一个 pattern，Gateway 的 Path 断言不按逗号切分）
+      - id: whale-service-auth-user-profile
         uri: lb://whale-service-auth
         predicates:
           - name: Path
             args:
-              patterns: /user-profile/v1/**,/user-group/v1/**,/perm-strategy/v1/**,/role-constraint/v1/**,/session/v1/**,/login-history/v1/**
+              patterns: /user-profile/v1/**
+        filters: []
+      - id: whale-service-auth-user-group
+        uri: lb://whale-service-auth
+        predicates:
+          - name: Path
+            args:
+              patterns: /user-group/v1/**
+        filters: []
+      - id: whale-service-auth-perm-strategy
+        uri: lb://whale-service-auth
+        predicates:
+          - name: Path
+            args:
+              patterns: /perm-strategy/v1/**
+        filters: []
+      - id: whale-service-auth-role-constraint
+        uri: lb://whale-service-auth
+        predicates:
+          - name: Path
+            args:
+              patterns: /role-constraint/v1/**
+        filters: []
+      - id: whale-service-auth-session
+        uri: lb://whale-service-auth
+        predicates:
+          - name: Path
+            args:
+              patterns: /session/v1/**
+        filters: []
+      - id: whale-service-auth-login-history
+        uri: lb://whale-service-auth
+        predicates:
+          - name: Path
+            args:
+              patterns: /login-history/v1/**
         filters: []
       - id: whale-job
         uri: lb://whale-job

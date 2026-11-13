@@ -388,7 +388,8 @@
   缺省回退 `SHA-256(ip|ua)`；写入失败 `log.warn`）。
 - **interfaces/starter**：6 组 Api + DTO + Controller/Assembler（`/user-profile/v1`、`/user-group/v1`、
   `/perm-strategy/v1`、`/role-constraint/v1`、`/session/v1`、`/login-history/v1`），网关 fallback
-  路由新增 6 条 pattern；配置项 `whale.auth.profile.crypto-key`（`WHALE_AUTH_PROFILE_CRYPTO_KEY`）。
+  新增 6 条单 pattern 路由（Gateway Path 断言不按逗号切分，一条路由只能挂一个 pattern）；
+  配置项 `whale.auth.profile.crypto-key`（`WHALE_AUTH_PROFILE_CRYPTO_KEY`）。
 - **测试**：新增 7 个测试类（四聚合不变量 + 约束校验 + 继承防环 + 既有回归修补），starter 全量
   单测通过；ArchUnit 通过；domain/interfaces/infrastructure/starter checkstyle 0 违规
   （application 存量违规未改动）。

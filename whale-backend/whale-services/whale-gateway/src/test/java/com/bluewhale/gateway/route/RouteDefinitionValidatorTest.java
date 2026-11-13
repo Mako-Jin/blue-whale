@@ -47,7 +47,7 @@ class RouteDefinitionValidatorTest {
     @DisplayName("validate：合法路由（lb + Path 一级前缀 + 空过滤器）通过校验")
     void shouldAcceptValidRoute() {
         assertTrue(RouteDefinitionValidator.isValid(route("whale-demo", "lb://whale-demo", "/demo/**")));
-        assertTrue(RouteDefinitionValidator.isValid(route("whale-http", "http://127.0.0.1:9000", "/a,/b/**")));
+        assertTrue(RouteDefinitionValidator.isValid(route("whale-http", "http://127.0.0.1:9000", "/b/**")));
     }
 
     @Test
