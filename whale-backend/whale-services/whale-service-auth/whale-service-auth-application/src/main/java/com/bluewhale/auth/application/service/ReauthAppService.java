@@ -1,13 +1,8 @@
 package com.bluewhale.auth.application.service;
 
-import com.bluewhale.auth.application.model.AuthenticatedUser;
 import com.bluewhale.auth.application.model.result.ReauthResult;
 import com.bluewhale.auth.application.port.CredentialAuthenticator;
-import com.bluewhale.auth.application.port.CurrentUserProvider;
-import com.bluewhale.auth.application.port.ReauthTokenStore;
 import com.bluewhale.common.core.exception.BizException;
-import com.bluewhale.common.core.exception.ErrorCode;
-import org.springframework.util.StringUtils;
 
 /**
  * 二次认证应用服务（Wave 6.22）

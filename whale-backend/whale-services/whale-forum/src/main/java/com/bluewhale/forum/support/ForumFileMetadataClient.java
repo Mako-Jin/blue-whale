@@ -23,7 +23,7 @@ import java.util.Optional;
 /**
  * whale-file 内网元数据客户端，用于申诉材料归属校验。
  *
- * <p>读取 {@code GET /file/internal/{id}}：文件字节归 whale-file，论坛只落 {@code fileId}，
+ * <p>读取 {@code GET /file/v1/internal/{id}}：文件字节归 whale-file，论坛只落 {@code fileId}，
  * 但落引用的前提是「文件确实存在、未删除、状态正常，且上传人是当前用户」——
  * 否则用户可以把自己的申诉挂到别人的文件上，复核人点开就等于替攻击者取了一次文件。</p>
  *
@@ -43,10 +43,10 @@ public class ForumFileMetadataClient {
     private static final int NOT_DELETED = 0;
 
     /** 内网元数据路径 */
-    private static final String METADATA_PATH = "/file/internal/%d";
+    private static final String METADATA_PATH = "/file/v1/internal/%d";
 
     /** 内网内容路径（支持 Range，代理预览只需完整字节） */
-    private static final String CONTENT_PATH = "/file/internal/%d/content";
+    private static final String CONTENT_PATH = "/file/v1/internal/%d/content";
 
     private final ForumProperties properties;
 

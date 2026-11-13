@@ -1,6 +1,5 @@
 package com.bluewhale.auth.application.service;
 
-import com.bluewhale.auth.application.port.LoginAttemptStore;
 import com.bluewhale.auth.application.security.AccountLockedException;
 import com.bluewhale.common.core.exception.BizException;
 

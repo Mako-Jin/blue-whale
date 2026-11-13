@@ -42,11 +42,11 @@ interface FileUploadVO {
 }
 
 export function pageFiles(params: FilePageParams): Promise<PageResult<FileInfoVO>> {
-  return get<PageResult<FileInfoVO>>('/file/page', { ...params });
+  return get<PageResult<FileInfoVO>>('/file/v1/page', { ...params });
 }
 
 export function deleteFile(id: string): Promise<void> {
-  return del<void>(`/file/${id}`);
+  return del<void>(`/file/v1/${id}`);
 }
 
 /** 构造仅含 Authorization 的请求头（token 缺失时不加） */
@@ -63,7 +63,7 @@ export async function uploadFile(file: File, bucket?: string): Promise<FileUploa
     formData.append('bucket', bucket);
   }
 
-  const response = await fetch('/file/upload', {
+  const response = await fetch('/file/v1/upload', {
     method: 'POST',
     headers: authHeaders(),
     body: formData,
@@ -77,7 +77,7 @@ export async function uploadFile(file: File, bucket?: string): Promise<FileUploa
 
 /** 下载文件：取 blob 后用临时 <a download> 触发保存 */
 export async function downloadFile(id: string, filename?: string): Promise<void> {
-  const response = await fetch(`/file/${id}/download`, {
+  const response = await fetch(`/file/v1/${id}/download`, {
     method: 'GET',
     headers: authHeaders(),
   });

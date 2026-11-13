@@ -142,7 +142,7 @@ foreach ($pair in @(@{ n = 'music'; u = "$musicBase/actuator/health" },
 }
 
 # 1) 上传测试音频
-$upload = Send-Upload -Uri "$fileBase/file/upload" -Path $audioPath -ContentType 'audio/mpeg'
+$upload = Send-Upload -Uri "$fileBase/file/v1/upload" -Path $audioPath -ContentType 'audio/mpeg'
 Check '1.upload' $upload
 $fileId = [long]$upload.data.id
 
@@ -251,7 +251,7 @@ $null = Invoke-MusicApi -Method 'Post' -Path "/music/comment/$replyId/hide"
 $null = Invoke-MusicApi -Method 'Post' -Path "/music/comment/$($xssComment.data.id)/hide"
 $delSong = Invoke-MusicApi -Method 'Delete' -Path "/music/song/$songId"
 Check '10.deleteSong' $delSong
-$delFile = Invoke-Api -Method 'Delete' -Uri "$fileBase/file/$fileId" -Headers $h
+$delFile = Invoke-Api -Method 'Delete' -Uri "$fileBase/file/v1/$fileId" -Headers $h
 Assert '10.deleteFile' ($delFile.code -eq 0 -or $delFile.code -eq 404) "code=$($delFile.code)"
 
 Remove-Item -Path $audioPath -ErrorAction SilentlyContinue

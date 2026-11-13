@@ -44,16 +44,16 @@ import java.util.Map;
 public class FileArchiveClient {
 
     /** 内网上传路径 */
-    private static final String UPLOAD_PATH = "/file/internal/upload";
+    private static final String UPLOAD_PATH = "/file/v1/internal/upload";
 
     /** 内网元数据路径模板 */
-    private static final String DETAIL_PATH = "/file/internal/{id}";
+    private static final String DETAIL_PATH = "/file/v1/internal/{id}";
 
     /** 内网锁定路径模板 */
-    private static final String LOCK_PATH = "/file/internal/{id}/lock";
+    private static final String LOCK_PATH = "/file/v1/internal/{id}/lock";
 
     /** 内网内容流路径模板（URI 拼接形态） */
-    private static final String CONTENT_URI_TEMPLATE = "/file/internal/%d/content";
+    private static final String CONTENT_URI_TEMPLATE = "/file/v1/internal/%d/content";
 
     /** multipart 文件字段名 */
     private static final String PARAM_FILE = "file";

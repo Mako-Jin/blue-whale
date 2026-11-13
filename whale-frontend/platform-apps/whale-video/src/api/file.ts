@@ -36,7 +36,7 @@ export async function uploadFile(file: File, bucket?: string): Promise<FileUploa
   if (bucket) {
     formData.append('bucket', bucket);
   }
-  const result = await upload<FileUploadVO>('/file/upload', formData);
+  const result = await upload<FileUploadVO>('/file/v1/upload', formData);
   if (!result?.id) {
     throw new Error('上传成功但未返回文件标识');
   }
@@ -54,7 +54,7 @@ export async function uploadVideoFile(
   file: File,
   onProgress?: (uploadedBytes: number, totalBytes: number) => void,
 ): Promise<FileUploadVO> {
-  const init = await http.post<ChunkUploadInitVO>('/file/upload/chunk/init', {
+  const init = await http.post<ChunkUploadInitVO>('/file/v1/upload/chunk/init', {
     fileName: file.name,
     contentType: file.type || 'application/octet-stream',
     size: file.size,
@@ -76,11 +76,11 @@ export async function uploadVideoFile(
     formData.append('file', slice, file.name);
     formData.append('uploadId', init.uploadId);
     formData.append('index', String(index));
-    await upload<number[]>('/file/upload/chunk/part', formData);
+    await upload<number[]>('/file/v1/upload/chunk/part', formData);
     uploaded.add(index);
     onProgress?.(Math.min((index + 1) * chunkSize, file.size), file.size);
   }
-  const result = await http.post<FileUploadVO>('/file/upload/chunk/complete', {
+  const result = await http.post<FileUploadVO>('/file/v1/upload/chunk/complete', {
     uploadId: init.uploadId,
     fileName: file.name,
     size: file.size,

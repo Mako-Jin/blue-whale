@@ -41,7 +41,7 @@ public class DocumentFileGatewayImpl implements DocumentFileGateway {
         try {
             byte[] content = InternalTokenSupport.restClient()
                     .get()
-                    .uri(baseUrl() + "/file/internal/" + fileId + "/content")
+                    .uri(baseUrl() + "/file/v1/internal/" + fileId + "/content")
                     .headers(headers -> addTenantHeader(headers))
                     .retrieve()
                     .body(byte[].class);

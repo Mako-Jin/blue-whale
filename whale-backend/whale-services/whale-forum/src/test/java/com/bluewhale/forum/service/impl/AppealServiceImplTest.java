@@ -256,7 +256,7 @@ class AppealServiceImplTest {
 
         assertThat(vo.getMaterials()).hasSize(1);
         assertThat(vo.getMaterials().get(0).getFileName()).isEqualTo("证据.png");
-        assertThat(vo.getMaterials().get(0).getDownloadUrl()).isEqualTo("/file/801/download");
+        assertThat(vo.getMaterials().get(0).getDownloadUrl()).isEqualTo("/file/v1/801/download");
         ArgumentCaptor<ForumAppealMaterial> captor = ArgumentCaptor.forClass(ForumAppealMaterial.class);
         verify(materialMapper).insert(captor.capture());
         assertThat(captor.getValue().getFileId()).isEqualTo(801L);

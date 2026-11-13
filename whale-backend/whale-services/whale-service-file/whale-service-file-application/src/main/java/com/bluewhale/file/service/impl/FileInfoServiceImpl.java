@@ -14,20 +14,22 @@ import com.bluewhale.file.domain.storage.ChunkUploadSessionId;
 import com.bluewhale.file.domain.storage.ChunkUploadStore;
 import com.bluewhale.file.domain.storage.FileStorage;
 import com.bluewhale.file.domain.storage.MergedChunkUpload;
-import com.bluewhale.file.dto.ChunkUploadCompleteRequest;
-import com.bluewhale.file.dto.ChunkUploadInitRequest;
-import com.bluewhale.file.dto.FileQueryRequest;
-import com.bluewhale.file.dto.FileRapidUploadRequest;
+import com.bluewhale.file.model.UploadContent;
+import com.bluewhale.file.model.UploadLimits;
+import com.bluewhale.file.model.command.ChunkUploadCompleteCommand;
+import com.bluewhale.file.model.command.ChunkUploadInitCommand;
+import com.bluewhale.file.model.command.RapidUploadCommand;
+import com.bluewhale.file.model.command.UploadFileCommand;
+import com.bluewhale.file.model.query.FileChangesQuery;
+import com.bluewhale.file.model.query.FilePageQuery;
+import com.bluewhale.file.model.result.ChunkUploadInitResult;
+import com.bluewhale.file.model.result.FileChangeResult;
+import com.bluewhale.file.model.result.FileInfoResult;
+import com.bluewhale.file.model.result.FilePresignedResult;
+import com.bluewhale.file.model.result.FileQuotaResult;
+import com.bluewhale.file.model.result.FileRapidUploadResult;
+import com.bluewhale.file.model.result.FileUploadResult;
 import com.bluewhale.file.service.FileInfoService;
-import com.bluewhale.file.service.model.UploadContent;
-import com.bluewhale.file.service.model.UploadLimits;
-import com.bluewhale.file.vo.ChunkUploadInitVO;
-import com.bluewhale.file.vo.FileChangeVO;
-import com.bluewhale.file.vo.FileInfoVO;
-import com.bluewhale.file.vo.FilePresignedVO;
-import com.bluewhale.file.vo.FileQuotaVO;
-import com.bluewhale.file.vo.FileRapidUploadVO;
-import com.bluewhale.file.vo.FileUploadVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -39,7 +41,6 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
@@ -87,97 +88,70 @@ public class FileInfoServiceImpl implements FileInfoService {
     private final FileProperties fileProperties;
 
     @Override
-    public FileUploadVO upload(UploadContent content, String bucket, Long uploaderId) {
-        return upload(content, bucket, uploaderId, null);
-    }
-
-    @Override
-    public FileUploadVO upload(UploadContent content, String bucket, Long uploaderId, UploadLimits limits) {
+    public FileUploadResult upload(UploadFileCommand command) {
+        UploadContent content = command.content();
         if (content == null || content.isEmpty()) {
             throw new BizException(ErrorCode.PARAM_ERROR);
         }
-        UploadLimits effective = effectiveLimits(limits);
+        UploadLimits effective = effectiveLimits(command.limits());
         if (content.size() > effective.maxSizeBytes()) {
             throw new BizException(ErrorCode.PARAM_ERROR);
         }
-        validateQuota(content.size(), uploaderId, effective.quotaBytes());
+        validateQuota(content.size(), command.uploaderId(), effective.quotaBytes());
         byte[] bytes = content.content();
         return persistFile(new ByteArrayInputStream(bytes), content.originalName(), content.contentType(),
-                bytes.length, DigestUtils.md5DigestAsHex(bytes), bucket, uploaderId, effective);
+                bytes.length, DigestUtils.md5DigestAsHex(bytes), command.bucket(), command.uploaderId(), effective);
     }
 
     @Override
-    public FileRapidUploadVO rapidUpload(FileRapidUploadRequest request, Long uploaderId) {
-        return rapidUpload(request, uploaderId, null);
-    }
-
-    @Override
-    public FileRapidUploadVO rapidUpload(FileRapidUploadRequest request, Long uploaderId, UploadLimits limits) {
-        UploadLimits effective = effectiveLimits(limits);
-        validateDeclaredSize(request.getSize(), effective);
-        String md5 = request.getMd5().toLowerCase(Locale.ROOT);
-        FileRapidUploadVO vo = new FileRapidUploadVO();
-        FileAsset existing = fileAssetRepository.findReusableByDigest(md5, request.getSize()).orElse(null);
+    public FileRapidUploadResult rapidUpload(RapidUploadCommand command) {
+        UploadLimits effective = effectiveLimits(command.limits());
+        validateDeclaredSize(command.size(), effective);
+        String md5 = command.md5().toLowerCase(Locale.ROOT);
+        FileAsset existing = fileAssetRepository.findReusableByDigest(md5, command.size()).orElse(null);
         if (existing == null) {
-            vo.setHit(false);
-            return vo;
+            return new FileRapidUploadResult(false, null);
         }
-        validateQuota(request.getSize(), uploaderId, effective.quotaBytes());
-        FileAsset asset = FileAsset.reuse(existing, resolveOriginalName(request.getFileName()),
-                request.getContentType(), uploaderId);
-        FileAsset saved = persistAsset(asset, effective);
-        vo.setHit(true);
-        vo.setFile(toUploadVo(saved));
-        return vo;
+        validateQuota(command.size(), command.uploaderId(), effective.quotaBytes());
+        FileAsset asset = FileAsset.reuse(existing, resolveOriginalName(command.fileName()),
+                command.contentType(), command.uploaderId());
+        return new FileRapidUploadResult(true, toUploadResult(persistAsset(asset, effective)));
     }
 
     @Override
-    public FileQuotaVO quota(Long uploaderId) {
-        return quota(uploaderId, null);
-    }
-
-    @Override
-    public FileQuotaVO quota(Long uploaderId, UploadLimits limits) {
-        FileQuotaVO vo = new FileQuotaVO();
+    public FileQuotaResult quota(Long uploaderId, UploadLimits limits) {
         long quota = effectiveLimits(limits).quotaBytes();
-        vo.setQuotaBytes(quota);
         if (uploaderId == null || quota <= 0) {
-            vo.setUsedBytes(0L);
-            vo.setRemainingBytes(0L);
-            vo.setUnlimited(true);
-            return vo;
+            return new FileQuotaResult(0L, quota, 0L, true);
         }
         long used = fileAssetRepository.sumNormalSizeByUploader(uploaderId);
-        vo.setUsedBytes(used);
-        vo.setRemainingBytes(Math.max(quota - used, 0L));
-        vo.setUnlimited(false);
-        return vo;
+        return new FileQuotaResult(used, quota, Math.max(quota - used, 0L), false);
     }
 
     @Override
-    public PageResult<FileInfoVO> page(FileQueryRequest request, Long requesterId, boolean canManage) {
-        long size = Math.min(Math.max(request.getSize(), 1L), MAX_PAGE_SIZE);
+    public PageResult<FileInfoResult> page(FilePageQuery query) {
+        long size = Math.min(Math.max(query.size(), 1L), MAX_PAGE_SIZE);
         // 无管理权限时仅可见本人上传的文件；服务间上传（uploaderId 为空）保持租户可见
-        Long uploaderFilter = canManage ? null : requesterId;
-        FileAssetQuery query = new FileAssetQuery(request.getOriginalName(), request.getBucket(),
-                request.getCreateTimeStart(), request.getCreateTimeEnd(), uploaderFilter,
-                request.getCurrent(), size);
-        FileAssetPage page = fileAssetRepository.page(query);
-        List<FileInfoVO> records = page.records().stream().map(FileInfoServiceImpl::toVo).toList();
+        Long uploaderFilter = query.canManage() ? null : query.requesterId();
+        FileAssetQuery assetQuery = new FileAssetQuery(query.originalName(), query.bucket(),
+                query.createTimeStart(), query.createTimeEnd(), uploaderFilter,
+                query.current(), size);
+        FileAssetPage page = fileAssetRepository.page(assetQuery);
+        List<FileInfoResult> records = page.records().stream().map(FileInfoServiceImpl::toInfoResult).toList();
         return PageResult.of(records, page.total(), page.current(), page.size());
     }
 
     @Override
-    public FileInfoVO getDetail(Long id, Long requesterId, boolean canManage) {
-        return toVo(requireAccessibleFile(id, requesterId, canManage));
+    public FileInfoResult getDetail(Long id, Long requesterId, boolean canManage) {
+        return toInfoResult(requireAccessibleFile(id, requesterId, canManage));
     }
 
     @Override
-    public FileChangeVO getChangeDetail(Long id) {
+    public FileChangeResult getChangeDetail(Long id) {
         FileAsset asset = fileAssetRepository.findByIdIncludingDeleted(id)
                 .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
         ensureTenantVisible(asset);
-        return toChangeVo(asset);
+        return toChangeResult(asset);
     }
 
     @Override
@@ -201,11 +175,11 @@ public class FileInfoServiceImpl implements FileInfoService {
     }
 
     @Override
-    public PageResult<FileChangeVO> changes(LocalDateTime since, long current, long size) {
-        long pageCurrent = Math.max(current, 1L);
-        long pageSize = Math.min(Math.max(size, 1L), MAX_PAGE_SIZE);
-        FileAssetPage page = fileAssetRepository.findChanges(since, pageCurrent, pageSize);
-        List<FileChangeVO> records = page.records().stream().map(FileInfoServiceImpl::toChangeVo).toList();
+    public PageResult<FileChangeResult> changes(FileChangesQuery query) {
+        long pageCurrent = Math.max(query.current(), 1L);
+        long pageSize = Math.min(Math.max(query.size(), 1L), MAX_PAGE_SIZE);
+        FileAssetPage page = fileAssetRepository.findChanges(query.since(), pageCurrent, pageSize);
+        List<FileChangeResult> records = page.records().stream().map(FileInfoServiceImpl::toChangeResult).toList();
         return PageResult.of(records, page.total(), page.current(), page.size());
     }
 
@@ -230,38 +204,28 @@ public class FileInfoServiceImpl implements FileInfoService {
     }
 
     @Override
-    public FilePresignedVO presignedUrl(Long id, Integer expiresSeconds, Long requesterId, boolean canManage) {
+    public FilePresignedResult presignedUrl(Long id, Integer expiresSeconds, Long requesterId, boolean canManage) {
         FileAsset asset = requireAccessibleFile(id, requesterId, canManage);
         int expires = resolveExpiresSeconds(expiresSeconds);
-        FilePresignedVO vo = new FilePresignedVO();
-        vo.setUrl(fileStorage.presignedDownloadUrl(asset.getBucket(), asset.getObjectKey(), expires));
-        vo.setExpiresSeconds(expires);
-        return vo;
+        return new FilePresignedResult(
+                fileStorage.presignedDownloadUrl(asset.getBucket(), asset.getObjectKey(), expires), expires);
     }
 
     @Override
-    public ChunkUploadInitVO initChunkUpload(ChunkUploadInitRequest request) {
-        return initChunkUpload(request, null);
-    }
-
-    @Override
-    public ChunkUploadInitVO initChunkUpload(ChunkUploadInitRequest request, UploadLimits limits) {
-        long size = request.getSize();
-        UploadLimits effective = effectiveLimits(limits);
+    public ChunkUploadInitResult initChunkUpload(ChunkUploadInitCommand command) {
+        long size = command.size();
+        UploadLimits effective = effectiveLimits(command.limits());
         validateDeclaredSize(size, effective);
-        ChunkUploadSessionId sessionId = StringUtils.hasText(request.getUploadId())
-                ? ChunkUploadSessionId.of(request.getUploadId())
+        ChunkUploadSessionId sessionId = StringUtils.hasText(command.uploadId())
+                ? ChunkUploadSessionId.of(command.uploadId())
                 : ChunkUploadSessionId.random();
         // 同一会话重复 init 时保留既有分片，实现断点续传；生效上限随会话登记，
         // 供 complete 阶段与当前上限取更严格者，防止两阶段绕过
         chunkUploadStore.initialize(sessionId,
-                new ChunkUploadMetadata(request.getFileName(), request.getContentType(), size,
+                new ChunkUploadMetadata(command.fileName(), command.contentType(), size,
                         effective.maxSizeBytes(), effective.quotaBytes()));
-        ChunkUploadInitVO vo = new ChunkUploadInitVO();
-        vo.setUploadId(sessionId.value());
-        vo.setChunkSize(resolveChunkSize());
-        vo.setUploadedIndexes(chunkUploadStore.uploadedPartIndexes(sessionId));
-        return vo;
+        return new ChunkUploadInitResult(sessionId.value(), resolveChunkSize(),
+                chunkUploadStore.uploadedPartIndexes(sessionId));
     }
 
     @Override
@@ -288,20 +252,14 @@ public class FileInfoServiceImpl implements FileInfoService {
     }
 
     @Override
-    public FileUploadVO completeChunkUpload(ChunkUploadCompleteRequest request, Long uploaderId) {
-        return completeChunkUpload(request, uploaderId, null);
-    }
-
-    @Override
-    public FileUploadVO completeChunkUpload(ChunkUploadCompleteRequest request, Long uploaderId,
-                                            UploadLimits limits) {
-        long size = request.getSize();
-        ChunkUploadSessionId sessionId = requireSession(request.getUploadId());
+    public FileUploadResult completeChunkUpload(ChunkUploadCompleteCommand command) {
+        long size = command.size();
+        ChunkUploadSessionId sessionId = requireSession(command.uploadId());
         // complete 阶段同时校验「init 登记的生效上限」与「当前请求的上限」，任一阶段权限被回收都失败
-        UploadLimits effective = UploadLimits.tighten(effectiveLimits(limits),
+        UploadLimits effective = UploadLimits.tighten(effectiveLimits(command.limits()),
                 recordedLimits(chunkUploadStore.metadata(sessionId)));
         validateDeclaredSize(size, effective);
-        validateQuota(size, uploaderId, effective.quotaBytes());
+        validateQuota(size, command.uploaderId(), effective.quotaBytes());
         int expectedCount = expectedChunkCount(size);
         List<Integer> uploaded = chunkUploadStore.uploadedPartIndexes(sessionId);
         List<Integer> missing = IntStream.range(0, expectedCount)
@@ -318,11 +276,11 @@ public class FileInfoServiceImpl implements FileInfoService {
             if (merged.size() != size) {
                 throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "分片总大小与声明大小不一致");
             }
-            FileUploadVO vo = persistFile(merged.content(), request.getFileName(), merged.contentType(),
-                    size, merged.md5(), request.getBucket(), uploaderId, effective);
+            FileUploadResult result = persistFile(merged.content(), command.fileName(), merged.contentType(),
+                    size, merged.md5(), command.bucket(), command.uploaderId(), effective);
             // 仅在合并落存储成功后清理暂存数据；失败时保留分片供客户端续传/重试
             chunkUploadStore.discard(sessionId);
-            return vo;
+            return result;
         } catch (IOException e) {
             throw new BizException(ErrorCode.SYSTEM_ERROR);
         }
@@ -339,12 +297,12 @@ public class FileInfoServiceImpl implements FileInfoService {
      * @param bucket 目标桶名称；为空时取配置的默认桶
      * @param uploaderId 上传用户 ID；无登录态时可为 {@code null}
      * @param limits 生效的上传上限与配额
-     * @return 上传结果视图对象
+     * @return 上传结果
      * @throws BizException 大小超限时抛出 {@code PARAM_ERROR}
      */
-    private FileUploadVO persistFile(InputStream in, String originalName, String contentType,
-                                     long fileSize, String md5, String bucket, Long uploaderId,
-                                     UploadLimits limits) {
+    private FileUploadResult persistFile(InputStream in, String originalName, String contentType,
+                                         long fileSize, String md5, String bucket, Long uploaderId,
+                                         UploadLimits limits) {
         if (fileSize > limits.maxSizeBytes()) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "文件大小超出上限");
         }
@@ -355,7 +313,7 @@ public class FileInfoServiceImpl implements FileInfoService {
         fileStorage.store(resolvedBucket, objectKey, in);
         try {
             FileAsset asset = FileAsset.register(resolvedBucket, objectKey, name, fileSize, contentType, md5, uploaderId);
-            return toUploadVo(persistAsset(asset, limits));
+            return toUploadResult(persistAsset(asset, limits));
         } catch (RuntimeException e) {
             // 落库失败（含配额超限）：补偿删除已写入的物理对象，避免产生孤儿文件
             deleteStoredQuietly(resolvedBucket, objectKey);
@@ -583,66 +541,39 @@ public class FileInfoServiceImpl implements FileInfoService {
     }
 
     /**
-     * 文件资产转上传结果视图对象
+     * 文件资产转上传结果
      *
      * @param asset 文件资产聚合根
-     * @return 上传结果视图对象
+     * @return 上传结果
      */
-    private static FileUploadVO toUploadVo(FileAsset asset) {
-        FileUploadVO vo = new FileUploadVO();
-        vo.setId(asset.getId());
-        vo.setFileName(asset.getFileName());
-        vo.setOriginalName(asset.getOriginalName());
-        vo.setBucket(asset.getBucket());
-        vo.setObjectKey(asset.getObjectKey());
-        vo.setFileSize(asset.getFileSize());
-        vo.setContentType(asset.getContentType());
-        vo.setMd5(asset.getMd5());
-        return vo;
+    private static FileUploadResult toUploadResult(FileAsset asset) {
+        return new FileUploadResult(asset.getId(), asset.getFileName(), asset.getOriginalName(),
+                asset.getBucket(), asset.getObjectKey(), asset.getFileSize(), asset.getContentType(),
+                asset.getMd5());
     }
 
     /**
-     * 文件资产转信息视图对象
+     * 文件资产转信息结果
      *
      * @param asset 文件资产聚合根
-     * @return 文件信息视图对象
+     * @return 文件信息结果
      */
-    private static FileInfoVO toVo(FileAsset asset) {
-        FileInfoVO vo = new FileInfoVO();
-        vo.setId(asset.getId());
-        vo.setFileName(asset.getFileName());
-        vo.setOriginalName(asset.getOriginalName());
-        vo.setBucket(asset.getBucket());
-        vo.setObjectKey(asset.getObjectKey());
-        vo.setFileSize(asset.getFileSize());
-        vo.setContentType(asset.getContentType());
-        vo.setMd5(asset.getMd5());
-        vo.setUploaderId(asset.getUploaderId());
-        vo.setCreateTime(asset.getCreateTime());
-        return vo;
+    private static FileInfoResult toInfoResult(FileAsset asset) {
+        return new FileInfoResult(asset.getId(), asset.getFileName(), asset.getOriginalName(),
+                asset.getBucket(), asset.getObjectKey(), asset.getFileSize(), asset.getContentType(),
+                asset.getMd5(), asset.getUploaderId(), asset.getCreateTime());
     }
 
     /**
-     * 文件资产转变更流视图对象
+     * 文件资产转变更流结果
      *
      * @param asset 文件资产聚合根
-     * @return 文件变更视图对象
+     * @return 文件变更结果
      */
-    private static FileChangeVO toChangeVo(FileAsset asset) {
-        FileChangeVO vo = new FileChangeVO();
-        vo.setId(asset.getId());
-        vo.setFileName(asset.getFileName());
-        vo.setOriginalName(asset.getOriginalName());
-        vo.setBucket(asset.getBucket());
-        vo.setObjectKey(asset.getObjectKey());
-        vo.setFileSize(asset.getFileSize());
-        vo.setContentType(asset.getContentType());
-        vo.setMd5(asset.getMd5());
-        vo.setStatus(asset.getStatus().getCode());
-        vo.setUploaderId(asset.getUploaderId());
-        vo.setDeleted(asset.isDeleted() ? 1 : 0);
-        vo.setCreateTime(asset.getCreateTime());
-        vo.setUpdateTime(asset.getUpdateTime());
-        return vo;
+    private static FileChangeResult toChangeResult(FileAsset asset) {
+        return new FileChangeResult(asset.getId(), asset.getFileName(), asset.getOriginalName(),
+                asset.getBucket(), asset.getObjectKey(), asset.getFileSize(), asset.getContentType(),
+                asset.getMd5(), asset.getStatus().getCode(), asset.getUploaderId(),
+                asset.isDeleted() ? 1 : 0, asset.getCreateTime(), asset.getUpdateTime());
     }
 }

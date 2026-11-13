@@ -129,11 +129,22 @@ public class RoleHierarchyAppServiceImpl implements RoleHierarchyAppService {
         }
     }
 
+    /**
+     * 按主键加载角色，不存在时抛业务异常。
+     *
+     * @param roleId 角色主键
+     * @return 角色聚合根
+     */
     private RoleAggregate require(Long roleId) {
         return roleRepository.findById(roleId)
                 .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "角色不存在"));
     }
 
+    /**
+     * 发布角色层级领域事件，供角色树缓存失效与审计消费。
+     *
+     * @param role 角色聚合根
+     */
     private void publish(RoleAggregate role) {
         domainEventPublisher.publish(new RoleHierarchyDomainEvent(role.getId(), role.getTenantId(),
                 AuthDomainEvent.ChangeType.UPDATED, System.currentTimeMillis()));

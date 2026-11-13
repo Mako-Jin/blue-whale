@@ -7,7 +7,7 @@ import java.io.Serializable;
 /**
  * 归档上传结果视图对象，对应 whale-file {@code Result<FileUploadVO>} 响应中的 {@code data}。
  *
- * <p>字段名为 whale-file 冻结的 JSON 契约（见 {@code POST /file/internal/upload}），
+ * <p>字段名为 whale-file 冻结的 JSON 契约（见 {@code POST /file/v1/internal/upload}），
  * 本服务不依赖 whale-file 模块，故在此本地镜像以便反序列化；归档仅需 {@code bucket}
  * 与 {@code objectKey} 用于回执，其余字段保留完整契约。</p>
  *

@@ -2,10 +2,6 @@ package com.bluewhale.auth.application.model.vo;
 
 import com.bluewhale.auth.application.port.SensitiveFieldCipher;
 import com.bluewhale.auth.domain.aggregate.UserProfileAggregate;
-import com.bluewhale.auth.domain.model.entity.UserEducation;
-import com.bluewhale.auth.domain.model.entity.UserEmergencyContact;
-import com.bluewhale.auth.domain.model.entity.UserEmployment;
-import com.bluewhale.auth.domain.model.entity.UserProfileContact;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;

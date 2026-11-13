@@ -1,7 +1,7 @@
 package com.bluewhale.file.service.support;
 
 import com.bluewhale.file.config.FileProperties;
-import com.bluewhale.file.service.model.UploadLimits;
+import com.bluewhale.file.model.UploadLimits;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 

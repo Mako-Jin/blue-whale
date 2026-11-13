@@ -20,7 +20,7 @@ import java.util.Map;
 /**
  * 文件服务内网客户端（知识库采集用）。
  *
- * <p>仅调用 {@code /file/internal/**}，服务间直连、不经网关；统一响应体仅 {@code code=0}
+ * <p>仅调用 {@code /file/v1/internal/**}，服务间直连、不经网关；统一响应体仅 {@code code=0}
  * 视为成功。变更流按 {@code update_time,id} 升序返回，调用方以返回记录的最大
  * {@code updateTime} 作为下一轮游标。</p>
  *
@@ -31,13 +31,13 @@ import java.util.Map;
 public class FileKnowledgeClient {
 
     /** 变更流路径 */
-    private static final String CHANGES_PATH = "/file/internal/changes";
+    private static final String CHANGES_PATH = "/file/v1/internal/changes";
 
     /** 文件元数据路径模板 */
-    private static final String DETAIL_PATH = "/file/internal/{id}";
+    private static final String DETAIL_PATH = "/file/v1/internal/{id}";
 
     /** 文件内容路径模板 */
-    private static final String CONTENT_PATH = "/file/internal/{id}/content";
+    private static final String CONTENT_PATH = "/file/v1/internal/{id}/content";
 
     /** 兼容的时间格式（文件服务可能按空格分隔输出） */
     private static final DateTimeFormatter SPACE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");

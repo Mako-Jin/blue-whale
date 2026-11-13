@@ -2,7 +2,7 @@ package com.bluewhale.file.service.impl;
 
 import com.bluewhale.file.domain.storage.StoragePluginCatalog;
 import com.bluewhale.file.domain.storage.StoragePluginInfo;
-import com.bluewhale.file.vo.StoragePluginVO;
+import com.bluewhale.file.model.result.StoragePluginResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -31,14 +31,14 @@ class StoragePluginServiceImplTest {
                 new StoragePluginInfo("minio", "MinIO", true)));
         StoragePluginServiceImpl service = new StoragePluginServiceImpl(catalog);
 
-        List<StoragePluginVO> plugins = service.plugins();
+        List<StoragePluginResult> plugins = service.plugins();
 
         assertEquals(2, plugins.size());
-        assertEquals("local", plugins.get(0).getType());
-        assertEquals("Local", plugins.get(0).getDisplayName());
-        assertFalse(plugins.get(0).isPresignedSupported());
-        assertFalse(plugins.get(0).isActive());
-        assertEquals("minio", plugins.get(1).getType());
-        assertTrue(plugins.get(1).isActive());
+        assertEquals("local", plugins.get(0).type());
+        assertEquals("Local", plugins.get(0).displayName());
+        assertFalse(plugins.get(0).presignedSupported());
+        assertFalse(plugins.get(0).active());
+        assertEquals("minio", plugins.get(1).type());
+        assertTrue(plugins.get(1).active());
     }
 }

@@ -57,7 +57,7 @@ Set-Content -LiteralPath $insidePath -Encoding utf8 `
 
 # 3) 上传到白名单外的桶（default-deny 应跳过）
 $outsideBucket = "kb-private-$stamp"
-$outsideUpload = Invoke-RestMethod -Method Post -Uri "$fileService/file/internal/upload" `
+$outsideUpload = Invoke-RestMethod -Method Post -Uri "$fileService/file/v1/internal/upload" `
     -Headers $internalHeaders -Form @{ file = Get-Item -LiteralPath $outsidePath; bucket = $outsideBucket }
 Assert '3.uploadOutside' ($outsideUpload.code -eq 0 -and $null -ne $outsideUpload.data.id `
         -and $outsideUpload.data.bucket -eq $outsideBucket) `
@@ -78,7 +78,7 @@ Assert '7.searchOutsideEmpty' (@($outsideHits.data | Where-Object { $_.path -eq 
     "(hits=$(@($outsideHits.data).Count))"
 
 # 4) 上传到白名单内的默认业务桶（应入库并可检索）
-$insideUpload = Invoke-RestMethod -Method Post -Uri "$fileService/file/internal/upload" `
+$insideUpload = Invoke-RestMethod -Method Post -Uri "$fileService/file/v1/internal/upload" `
     -Headers $internalHeaders -Form @{ file = Get-Item -LiteralPath $insidePath; bucket = 'bluewhale' }
 Assert '8.uploadInside' ($insideUpload.code -eq 0 -and $null -ne $insideUpload.data.id `
         -and $insideUpload.data.bucket -eq 'bluewhale') `
@@ -106,7 +106,7 @@ Assert '13.reindexOutsideIdempotent' ($outsideAgain.code -eq 0 -and $outsideAgai
 # 6) 收尾：删除文件元数据（失败不影响断言）
 foreach ($fileId in @($outsideFileId, $insideFileId)) {
     try {
-        Invoke-Api Delete "$base/file/$fileId" | Out-Null
+        Invoke-Api Delete "$base/file/v1/$fileId" | Out-Null
     } catch {
         Write-Host "WARN cleanup file $fileId failed: $($_.Exception.Message)"
     }

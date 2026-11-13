@@ -62,6 +62,11 @@ public class ForumMetaController {
         return Result.ok(view);
     }
 
+    /**
+     * 把配置项收敛为前端可见的限额视图，避免把 properties 对象整体下发。
+     *
+     * @return 论坛限额视图
+     */
     private ForumMetaVO.Limits limits() {
         ForumMetaVO.Limits limits = new ForumMetaVO.Limits();
         limits.setMaxTitleLength(properties.getMaxTitleLength());

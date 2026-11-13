@@ -381,7 +381,7 @@ public class AppealServiceImpl implements AppealService {
         vo.setFileName(material.getFileName());
         vo.setFileSize(material.getFileSize());
         vo.setContentType(material.getContentType());
-        vo.setDownloadUrl("/file/" + material.getFileId() + "/download");
+        vo.setDownloadUrl("/file/v1/" + material.getFileId() + "/download");
         return vo;
     }
 

@@ -169,6 +169,11 @@ public class SessionManageAppServiceImpl implements SessionManageAppService {
         return PageResult.of(records, page.total(), current, size);
     }
 
+    /**
+     * 校验目标记录属于当前登录租户，跨租户操作直接拒绝。
+     *
+     * @param recordTenantId 目标记录的租户主键
+     */
     private void ensureSameTenant(Long recordTenantId) {
         Long currentTenantId = currentUserProvider.current().tokenTenantId();
         if (!currentTenantId.equals(recordTenantId)) {

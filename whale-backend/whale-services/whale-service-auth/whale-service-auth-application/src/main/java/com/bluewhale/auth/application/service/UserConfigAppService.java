@@ -2,8 +2,6 @@ package com.bluewhale.auth.application.service;
 
 import com.bluewhale.auth.application.model.command.SaveUserConfigCommand;
 import com.bluewhale.auth.application.model.vo.UserConfigVO;
-import com.bluewhale.auth.application.port.UserConfigRepository;
-import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.Optional;

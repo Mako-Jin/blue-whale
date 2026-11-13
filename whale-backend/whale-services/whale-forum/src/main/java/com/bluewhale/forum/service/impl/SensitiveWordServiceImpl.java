@@ -291,18 +291,39 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
 
         private int size;
 
+        /**
+         * 返回 Trie 根节点，供匹配时从根开始遍历。
+         *
+         * @return Trie 根节点
+         */
         Node root() {
             return root;
         }
 
+        /**
+         * 判断词库是否为空（未装载任何敏感词）。
+         *
+         * @return 空词库返回 true
+         */
         boolean isEmpty() {
             return size == 0;
         }
 
+        /**
+         * 返回已装载的敏感词数量。
+         *
+         * @return 敏感词条数
+         */
         int size() {
             return size;
         }
 
+        /**
+         * 写入一个敏感词：按小写字符逐层挂到 Trie 上，末节点记录原词与命中动作。
+         *
+         * @param word 敏感词原文
+         * @param action 命中后的处置动作
+         */
         void put(String word, String action) {
             Node node = root;
             String lower = word.toLowerCase();

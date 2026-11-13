@@ -22,9 +22,9 @@ import java.util.Map;
 /**
  * whale-file 内网文件端口实现（分析导出场景）。
  *
- * <p>上传走 {@code POST /file/internal/upload}（multipart：{@code file} + {@code bucket}），
+ * <p>上传走 {@code POST /file/v1/internal/upload}（multipart：{@code file} + {@code bucket}），
  * 显式携带 {@code X-Tenant-Id}（缺失按默认租户 1 兜底，保证 objectKey 租户前缀正确）
- * 与 {@code X-User-Id}（导出文件归属发起人）；下载走 {@code GET /file/internal/{id}/content}。</p>
+ * 与 {@code X-User-Id}（导出文件归属发起人）；下载走 {@code GET /file/v1/internal/{id}/content}。</p>
  *
  * @author BlueWhale
  */
@@ -33,10 +33,10 @@ import java.util.Map;
 public class AnalyticsFilePortImpl implements AnalyticsFilePort {
 
     /** 内网上传路径 */
-    private static final String UPLOAD_PATH = "/file/internal/upload";
+    private static final String UPLOAD_PATH = "/file/v1/internal/upload";
 
     /** 内网内容路径 */
-    private static final String CONTENT_PATH = "/file/internal/{id}/content";
+    private static final String CONTENT_PATH = "/file/v1/internal/{id}/content";
 
     /** 成功业务码 */
     private static final int CODE_SUCCESS = 0;

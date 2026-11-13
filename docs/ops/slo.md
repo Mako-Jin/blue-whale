@@ -58,8 +58,8 @@ histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{u
 
 - 播放链路口径：`POST /music/play/ticket` 签发绑定 `租户 + 用户 + 歌曲` 的票据（TTL 120s，可配置），
   `GET /music/stream/{songId}?ticket=...` 每次开流都复核可见性与版权状态，再以 `InputStreamResource`
-  代理 whale-file `/file/internal/{id}/content`，因此该端点耗时即「校验 + 开流 + 首字节」；
-  上游内容接口的耗时计入本端点直方图，`whale-file` 侧同名 URI（`uri="/file/internal/{id}/content"`）可用于拆分两跳。
+  代理 whale-file `/file/v1/internal/{id}/content`，因此该端点耗时即「校验 + 开流 + 首字节」；
+  上游内容接口的耗时计入本端点直方图，`whale-file` 侧同名 URI（`uri="/file/v1/internal/{id}/content"`）可用于拆分两跳。
 - 容量口径：SLO-8 的 50 并发验收见 `scripts/smoke/bw-music-m5-load.ps1`；
   该脚本直连 8096（不经网关），并发探针用共享 HttpClient + 异步栅栏 + 每请求独立计时。
 

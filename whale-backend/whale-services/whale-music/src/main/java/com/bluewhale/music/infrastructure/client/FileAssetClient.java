@@ -22,7 +22,7 @@ import java.util.Optional;
 /**
  * 文件资产元数据客户端（M5-2 上传白名单校验）。
  *
- * <p>调用 {@code GET /file/internal/{id}} 读取 MIME 类型、字节数与可用状态；
+ * <p>调用 {@code GET /file/v1/internal/{id}} 读取 MIME 类型、字节数与可用状态；
  * 文件不存在返回空，其他失败按系统异常 fail-closed（无法校验即拒绝入库）。</p>
  *
  * @author BlueWhale
@@ -51,7 +51,7 @@ public class FileAssetClient implements FileAssetPort {
         try {
             response = InternalTokenSupport.restClient()
                     .get()
-                    .uri(baseUrl() + "/file/internal/" + fileId)
+                    .uri(baseUrl() + "/file/v1/internal/" + fileId)
                     .headers(headers -> {
                         if (tenantId != null) {
                             headers.set(WebHeaders.TENANT_ID, String.valueOf(tenantId));

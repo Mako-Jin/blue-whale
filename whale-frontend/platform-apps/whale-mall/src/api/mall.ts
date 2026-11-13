@@ -580,11 +580,11 @@ export interface MallUploadedFile {
 export function uploadAfterSaleImage(file: File): Promise<string> {
   const formData = new FormData();
   formData.append('file', file);
-  return http.upload<MallUploadedFile>('/file/upload', formData).then((result) => {
+  return http.upload<MallUploadedFile>('/file/v1/upload', formData).then((result) => {
     if (!result?.id) {
       throw new Error('上传成功但未返回文件标识');
     }
-    return `/file/${result.id}/download`;
+    return `/file/v1/${result.id}/download`;
   });
 }
 

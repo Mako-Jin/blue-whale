@@ -435,7 +435,7 @@ $env:GATEWAY_BASE='http://127.0.0.1:8080'
 | 流式首字节 | 50 并发 × 20 次 × 5 轮，取轮 P95 中位数 | 181.9–220.5ms（最差轮 296.1ms） | < 300ms |
 
 - 15 轮并发样本全部 HTTP 200，`errors=0`；三次运行（含收尾复验）均通过三条 URI 直方图桶断言。
-- 服务端两跳实测（同一时刻）：`whale-file` `/file/internal/{id}/content` 50 请求 sum 0.95s（mean 19.0ms）；
+- 服务端两跳实测（同一时刻）：`whale-file` `/file/v1/internal/{id}/content` 50 请求 sum 0.95s（mean 19.0ms）；
   `whale-music` `/music/stream/{songId}` 50 请求 sum 2.97s（mean 59.5ms）——客户端观测的 ~220ms
   大部分来自本机客户端排队，服务端未饱和。
 

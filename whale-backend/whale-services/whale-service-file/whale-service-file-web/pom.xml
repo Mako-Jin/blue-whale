@@ -97,6 +97,11 @@
             <groupId>com.bluewhale</groupId>
             <artifactId>whale-i18n-sdk</artifactId>
         </dependency>
+        <!-- Web 适配层：应用层结果 → 接口层响应 的 MapStruct 装配 -->
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

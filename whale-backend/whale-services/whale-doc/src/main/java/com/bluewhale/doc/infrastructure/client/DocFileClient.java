@@ -21,7 +21,7 @@ import java.util.Map;
 /**
  * whale-file 内网客户端：附件上传与内容读取。
  *
- * <p>只调用网关屏蔽的 {@code /file/internal/**}，文档服务负责页面与附件的归属校验，
+ * <p>只调用网关屏蔽的 {@code /file/v1/internal/**}，文档服务负责页面与附件的归属校验，
  * 不向前端暴露内网通道。</p>
  *
  * @author BlueWhale
@@ -60,7 +60,7 @@ public class DocFileClient {
         body.add("bucket", bucket);
         Map<?, ?> response = InternalTokenSupport.restClient()
                 .post()
-                .uri(baseUrl() + "/file/internal/upload")
+                .uri(baseUrl() + "/file/v1/internal/upload")
                 .header("X-User-Id", String.valueOf(userId))
                 .header("X-Tenant-Id", String.valueOf(tenantId))
                 .contentType(MediaType.MULTIPART_FORM_DATA)
@@ -98,7 +98,7 @@ public class DocFileClient {
         body.add("bucket", bucket);
         Map<?, ?> response = InternalTokenSupport.restClient()
                 .post()
-                .uri(baseUrl() + "/file/internal/upload")
+                .uri(baseUrl() + "/file/v1/internal/upload")
                 .header("X-User-Id", String.valueOf(userId))
                 .header("X-Tenant-Id", String.valueOf(tenantId))
                 .contentType(MediaType.MULTIPART_FORM_DATA)
@@ -122,7 +122,7 @@ public class DocFileClient {
     public byte[] content(Long fileId) {
         byte[] bytes = InternalTokenSupport.restClient()
                 .get()
-                .uri(baseUrl() + "/file/internal/{id}/content", fileId)
+                .uri(baseUrl() + "/file/v1/internal/{id}/content", fileId)
                 .retrieve()
                 .body(byte[].class);
         if (bytes == null) {

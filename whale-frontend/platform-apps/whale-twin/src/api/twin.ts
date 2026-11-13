@@ -70,12 +70,10 @@ export interface Paged<T> {
 // ---- 场景 ----
 
 export const sceneApi = {
-  page: (query?: Record<string, unknown>) =>
-    http.get<Paged<SceneVO>>('/twin/scenes/page', query),
+  page: (query?: Record<string, unknown>) => http.get<Paged<SceneVO>>('/twin/scenes/page', query),
   get: (id: string) => http.get<SceneVO>(`/twin/scenes/${id}`),
   create: (body: SceneSaveRequest) => http.post<SceneVO>('/twin/scenes', body),
-  update: (id: string, body: SceneSaveRequest) =>
-    http.put<SceneVO>(`/twin/scenes/${id}`, body),
+  update: (id: string, body: SceneSaveRequest) => http.put<SceneVO>(`/twin/scenes/${id}`, body),
   publish: (id: string, body?: { remark?: string }) =>
     http.post<SceneVO>(`/twin/scenes/${id}/publish`, body ?? {}),
   disable: (id: string) => http.post<SceneVO>(`/twin/scenes/${id}/disable`),
@@ -91,8 +89,7 @@ export const entityApi = {
     http.post<EntityVO>(`/twin/scenes/${sceneId}/entities`, body),
   update: (sceneId: string, id: string, body: EntitySaveRequest) =>
     http.put<EntityVO>(`/twin/scenes/${sceneId}/entities/${id}`, body),
-  remove: (sceneId: string, id: string) =>
-    http.del<void>(`/twin/scenes/${sceneId}/entities/${id}`),
+  remove: (sceneId: string, id: string) => http.del<void>(`/twin/scenes/${sceneId}/entities/${id}`),
 };
 
 /**
@@ -106,7 +103,7 @@ export const entityApi = {
  */
 export async function fetchModelUrl(fileId: string): Promise<string> {
   const token = getToken();
-  const response = await fetch(`/file/${fileId}/preview`, {
+  const response = await fetch(`/file/v1/${fileId}/preview`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!response.ok) {
@@ -173,10 +170,8 @@ export const bindingApi = {
     http.post<BindingVO>(`/twin/scenes/${sceneId}/bindings`, body),
   update: (sceneId: string, id: string, body: BindingSaveRequest) =>
     http.put<BindingVO>(`/twin/scenes/${sceneId}/bindings/${id}`, body),
-  remove: (sceneId: string, id: string) =>
-    http.del<void>(`/twin/scenes/${sceneId}/bindings/${id}`),
-  state: (sceneId: string) =>
-    http.get<BindingStateVO[]>(`/twin/scenes/${sceneId}/bindings/state`),
+  remove: (sceneId: string, id: string) => http.del<void>(`/twin/scenes/${sceneId}/bindings/${id}`),
+  state: (sceneId: string) => http.get<BindingStateVO[]>(`/twin/scenes/${sceneId}/bindings/state`),
 };
 
 /** 拉取 IoT 设备精简列表（绑定选择器；失败返回空数组不打断查看器） */
@@ -255,8 +250,7 @@ export interface TwinAlertSummaryVO {
  */
 export const alertOverviewApi = {
   /** 跨场景未恢复列表（默认 100，上限 200） */
-  unresolved: (limit?: number) =>
-    http.get<TwinAlertVO[]>('/twin/alerts/unresolved', { limit }),
+  unresolved: (limit?: number) => http.get<TwinAlertVO[]>('/twin/alerts/unresolved', { limit }),
   summary: () => http.get<TwinAlertSummaryVO>('/twin/alerts/summary'),
 };
 
@@ -470,8 +464,7 @@ export const markerApi = {
     http.post<MarkerVO>(`/twin/scenes/${sceneId}/markers`, body),
   update: (sceneId: string, id: string, body: MarkerSaveRequest) =>
     http.put<MarkerVO>(`/twin/scenes/${sceneId}/markers/${id}`, body),
-  remove: (sceneId: string, id: string) =>
-    http.del<void>(`/twin/scenes/${sceneId}/markers/${id}`),
+  remove: (sceneId: string, id: string) => http.del<void>(`/twin/scenes/${sceneId}/markers/${id}`),
 };
 
 // ---- 发布快照（M3）----

@@ -76,7 +76,7 @@ public class AuditLogController {
      * <p>入参复用分页查询 DTO {@link AuditLogQueryRequest}（时间范围 / 用户 / 模块 / 操作类型 / 结果 / traceId）；
      * 行数上限由 {@code whale.audit.export.max-rows} 控制，超限仅取上限行并告警。</p>
      *
-     * <p>CSV 生成后经 whale-file 内网接口 {@code POST /file/internal/upload}
+     * <p>CSV 生成后经 whale-file 内网接口 {@code POST /file/v1/internal/upload}
      * （{@code bucket=bluewhale-audit-archive}）上传；返回 {@code data} 字段与 whale-file 的
      * {@code FileUploadVO} 对齐（{@code id/fileName/originalName/bucket/objectKey/fileSize/contentType/md5}），
      * 本模块不重复定义该类型，以 {@code Map} 承载。</p>

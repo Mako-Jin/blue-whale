@@ -21,8 +21,8 @@ import java.util.Optional;
 /**
  * 文件服务网关实现。
  *
- * <p>调用 whale-file 内网接口 {@code GET /file/internal/{id}} 读取元数据，
- * {@code GET /file/internal/{id}/content} 读取内容；服务不可达时按不可用失败。</p>
+ * <p>调用 whale-file 内网接口 {@code GET /file/v1/internal/{id}} 读取元数据，
+ * {@code GET /file/v1/internal/{id}/content} 读取内容；服务不可达时按不可用失败。</p>
  *
  * @author BlueWhale
  */
@@ -51,7 +51,7 @@ public class DriveFileGatewayImpl implements DriveFileGateway {
         try {
             response = InternalTokenSupport.restClient()
                     .get()
-                    .uri(baseUrl() + "/file/internal/" + fileId)
+                    .uri(baseUrl() + "/file/v1/internal/" + fileId)
                     .headers(headers -> addTenantHeader(headers))
                     .retrieve()
                     .body(Map.class);
@@ -94,7 +94,7 @@ public class DriveFileGatewayImpl implements DriveFileGateway {
         try {
             return InternalTokenSupport.restClient()
                     .get()
-                    .uri(baseUrl() + "/file/internal/" + fileId + "/content")
+                    .uri(baseUrl() + "/file/v1/internal/" + fileId + "/content")
                     .headers(headers -> addTenantHeader(headers))
                     .retrieve()
                     .body(byte[].class);

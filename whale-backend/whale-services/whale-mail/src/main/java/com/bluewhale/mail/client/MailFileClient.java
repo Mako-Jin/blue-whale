@@ -34,10 +34,10 @@ import java.util.Map;
 public class MailFileClient {
 
     /** 内网 multipart 上传路径 */
-    private static final String UPLOAD_PATH = "/file/internal/upload";
+    private static final String UPLOAD_PATH = "/file/v1/internal/upload";
 
     /** 内网内容流路径模板 */
-    private static final String CONTENT_URI_TEMPLATE = "/file/internal/%d/content";
+    private static final String CONTENT_URI_TEMPLATE = "/file/v1/internal/%d/content";
 
     /** multipart 文件字段名 */
     private static final String PARAM_FILE = "file";

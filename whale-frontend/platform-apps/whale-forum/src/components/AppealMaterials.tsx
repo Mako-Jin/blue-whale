@@ -17,7 +17,7 @@ function isImage(material: AppealMaterial): boolean {
 }
 
 function downloadHref(material: AppealMaterial): string {
-  return material.downloadUrl ?? `/file/${material.fileId}/download`;
+  return material.downloadUrl ?? `/file/v1/${material.fileId}/download`;
 }
 
 /** 单份材料：图片显示缩略图，其余或加载失败降级为文件名链接 */
@@ -127,11 +127,7 @@ function MaterialThumb({ material }: { material: AppealMaterial }) {
  *
  * @param materials 服务端返回的材料快照（无材料时返回 null）
  */
-export default function AppealMaterials({
-  materials,
-}: {
-  materials?: AppealMaterial[] | null;
-}) {
+export default function AppealMaterials({ materials }: { materials?: AppealMaterial[] | null }) {
   if (!materials || materials.length === 0) {
     return null;
   }

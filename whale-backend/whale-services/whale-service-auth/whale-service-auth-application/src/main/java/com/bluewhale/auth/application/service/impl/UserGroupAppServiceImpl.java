@@ -208,29 +208,65 @@ public class UserGroupAppServiceImpl implements UserGroupAppService {
         }
     }
 
+    /**
+     * 按主键加载用户组，不存在时抛业务异常。
+     *
+     * @param id 用户组主键
+     * @return 用户组聚合根
+     */
     private UserGroupAggregate require(Long id) {
         return userGroupRepository.findById(id)
                 .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "用户组不存在"));
     }
 
+    /**
+     * 按入参状态同步用户组状态；仅处理「停用」。
+     *
+     * @param group 用户组聚合根
+     * @param status 目标状态，为空表示不调整
+     */
     private void applyStatus(UserGroupAggregate group, Integer status) {
         if (status != null && status == UserGroupAggregate.STATUS_DISABLED) {
             group.changeStatus(UserGroupAggregate.STATUS_DISABLED);
         }
     }
 
+    /**
+     * 判断用户组是否为动态组（成员由过滤条件实时计算，而不是手工维护）。
+     *
+     * @param category 用户组类别
+     * @return 动态组返回 true
+     */
     private boolean isDynamic(String category) {
         return UserGroupAggregate.CATEGORY_DYNAMIC.equals(category);
     }
 
+    /**
+     * 把过滤条件 JSON 解析为过滤条件对象。
+     *
+     * @param filtersJson 过滤条件 JSON 文本
+     * @return 过滤条件对象
+     */
     private GroupFilters parseFilters(String filtersJson) {
         return userGroupRepository.parseFilters(filtersJson);
     }
 
+    /**
+     * 把过滤条件对象序列化为 JSON 文本。
+     *
+     * @param filters 过滤条件对象
+     * @return 过滤条件 JSON 文本
+     */
     private String serializeFilters(GroupFilters filters) {
         return userGroupRepository.serializeFilters(filters);
     }
 
+    /**
+     * 发布用户组领域事件，供成员缓存失效与审计消费。
+     *
+     * @param group 用户组聚合根
+     * @param type 领域事件变更类型
+     */
     private void publish(UserGroupAggregate group, com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType type) {
         domainEventPublisher.publish(new UserGroupDomainEvent(group.getId(), group.getTenantId(), type,
                 System.currentTimeMillis()));

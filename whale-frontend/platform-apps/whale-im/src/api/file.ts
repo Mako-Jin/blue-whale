@@ -37,7 +37,7 @@ export async function uploadFile(file: File, bucket = 'im'): Promise<UploadedFil
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch('/file/upload', { method: 'POST', headers, body: form });
+  const response = await fetch('/file/v1/upload', { method: 'POST', headers, body: form });
   const payload = (await response.json()) as UploadResult;
   if (!response.ok || payload.code !== 0) {
     logger.warn('附件上传失败', payload?.message);
@@ -48,11 +48,11 @@ export async function uploadFile(file: File, bucket = 'im'): Promise<UploadedFil
 
 /** 拉取图片预览字节流（携带鉴权头，避免 <img src> 无法带 token） */
 export async function previewBlob(fileId: string): Promise<Blob> {
-  const result = await downloadBlob(`/file/${fileId}/preview`);
+  const result = await downloadBlob(`/file/v1/${fileId}/preview`);
   return result.blob;
 }
 
 /** 下载附件并返回文件名 */
 export async function downloadFile(fileId: string): Promise<{ blob: Blob; filename: string }> {
-  return downloadBlob(`/file/${fileId}/download`);
+  return downloadBlob(`/file/v1/${fileId}/download`);
 }

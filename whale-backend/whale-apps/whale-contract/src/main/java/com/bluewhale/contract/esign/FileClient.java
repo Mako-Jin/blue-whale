@@ -18,7 +18,7 @@ import java.util.Map;
 /**
  * whale-file 内网客户端：下载正文 / 上传签章件。
  *
- * <p>统一走 {@code /file/internal/**}，网关已对 {@code /file/internal/**} 做 403 屏蔽，
+ * <p>统一走 {@code /file/v1/internal/**}，网关已对 {@code /file/v1/internal/**} 做 403 屏蔽，
  * 因此服务间调用无需透传权限码，避免签署链路的权限放大。</p>
  *
  * @author BlueWhale
@@ -27,10 +27,10 @@ import java.util.Map;
 public class FileClient {
 
     /** 内网下载路径 */
-    private static final String CONTENT_PATH = "/file/internal/{id}/content";
+    private static final String CONTENT_PATH = "/file/v1/internal/{id}/content";
 
     /** 内网上传路径 */
-    private static final String UPLOAD_PATH = "/file/internal/upload";
+    private static final String UPLOAD_PATH = "/file/v1/internal/upload";
 
     /** 统一响应体状态码字段 */
     private static final String FIELD_CODE = "code";

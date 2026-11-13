@@ -106,7 +106,7 @@ function Send-Upload {
         $fileContent.Headers.ContentType = [System.Net.Http.Headers.MediaTypeHeaderValue]::Parse($ContentType)
         $form = New-Object System.Net.Http.MultipartFormDataContent
         $form.Add($fileContent, 'file', [System.IO.Path]::GetFileName($Path))
-        $request = New-Object System.Net.Http.HttpRequestMessage([System.Net.Http.HttpMethod]::Post, "$fileBase/file/upload")
+        $request = New-Object System.Net.Http.HttpRequestMessage([System.Net.Http.HttpMethod]::Post, "$fileBase/file/v1/upload")
         $request.Content = $form
         foreach ($key in $Headers.Keys) {
             $null = $request.Headers.TryAddWithoutValidation($key, $Headers[$key])
@@ -386,10 +386,10 @@ $otherPlaylistAdd = Invoke-MusicApi -Method 'Post' -Path "/music/playlist/$playl
 Assert-Code '4.privatePlaylistAddSong' $otherPlaylistAdd 40405
 
 if ($gatewayBase) {
-    $internalProbe = Send-Probe -Method 'Get' -Path "/file/internal/$audioFileId" -Base $gatewayBase
+    $internalProbe = Send-Probe -Method 'Get' -Path "/file/v1/internal/$audioFileId" -Base $gatewayBase
     Assert '4.internalDeny' ($internalProbe.Status -eq 403) "status=$($internalProbe.Status)"
 } else {
-    Write-Host 'SKIP 4.internalDeny（未设置 GATEWAY_BASE，/file/internal 由网关注入 403）'
+    Write-Host 'SKIP 4.internalDeny（未设置 GATEWAY_BASE，/file/v1/internal 由网关注入 403）'
 }
 
 # 5) 播放票据：绑定租户 / 用户 / 歌曲，流式每次复核可见性与版权状态
@@ -518,7 +518,7 @@ foreach ($songId in $createdSongs) {
 $delArtist = Invoke-MusicApi -Method 'Delete' -Path "/music/artist/$artistId"
 Check '7.deleteArtist' $delArtist
 foreach ($file in $uploadedFiles) {
-    $delFile = Invoke-Api -Method 'Delete' -Uri "$fileBase/file/$($file.Id)" -Headers $file.Headers
+    $delFile = Invoke-Api -Method 'Delete' -Uri "$fileBase/file/v1/$($file.Id)" -Headers $file.Headers
     Assert "7.deleteFile[$($file.Id)]" ($delFile.code -eq 0 -or $delFile.code -eq 404) "code=$($delFile.code)"
 }
 

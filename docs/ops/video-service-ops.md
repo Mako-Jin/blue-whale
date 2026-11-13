@@ -152,7 +152,7 @@ curl -H "Authorization: Bearer <token>" http://127.0.0.1:8080/video/home
 | `sys:video:movie:manage`（运营入库电影） | 4GB | 不限（0） | `WHALE_FILE_UPLOAD_POLICY_MOVIE_MAX_SIZE_BYTES` / `..._QUOTA_BYTES` |
 
 > `whale-file` 的 multipart 单请求上限仍为 50MB（`max-file-size`），因此 2GB / 4GB 视频
-> **必须走分片上传**（`/file/upload/chunk/*`）；前端上传中心已按分片实现，改变阈值时
+> **必须走分片上传**（`/file/v1/upload/chunk/*`）；前端上传中心已按分片实现，改变阈值时
 > 需同步 `WHALE_VIDEO_*_MAX_BYTES`、`WHALE_FILE_UPLOAD_POLICY_*` 与前端提示。
 
 ### 3.2 播放与流式

@@ -132,25 +132,11 @@ public class ThreadServiceImpl implements ThreadService {
         assertPostRate(actor.userId());
 
         // 敏感词：BLOCK 直接拒绝（留痕后抛 30031），REPLACE 打码，PENDING 转待审
-        SensitiveWordService.ScanResult titleScan = sensitiveWordService.scan(title);
-        SensitiveWordService.ScanResult contentScan = sensitiveWordService.scan(content);
-        if (titleScan.hit()) {
-            sensitiveWordService.recordHit("THREAD", null, actor.userId(), titleScan);
-        }
-        if (contentScan.hit()) {
-            sensitiveWordService.recordHit("THREAD", null, actor.userId(), contentScan);
-        }
-        if (SensitiveWordService.ScanResult.BLOCK.equals(titleScan.action())
-                || SensitiveWordService.ScanResult.BLOCK.equals(contentScan.action())) {
-            throw new BizException(ForumErrorCodes.SENSITIVE_BLOCKED, "内容包含不允许发布的词，请修改后重试");
-        }
-        title = titleScan.text();
-        content = contentScan.text();
+        ScanOutcome scanned = scanAndRecord(actor, title, content);
+        title = scanned.title();
+        content = scanned.content();
 
-        boolean auditRequired = board.getAuditMode() != null && board.getAuditMode() == 1
-                || SensitiveWordService.ScanResult.PENDING.equals(titleScan.action())
-                || SensitiveWordService.ScanResult.PENDING.equals(contentScan.action())
-                || isNewUser(actor);
+        boolean auditRequired = isAuditRequired(board, scanned.pending(), actor);
         ForumThread thread = new ForumThread();
         thread.setId(IdWorker.getId());
         thread.setTenantId(tenantId);
@@ -370,20 +356,11 @@ public class ThreadServiceImpl implements ThreadService {
         ForumBoard board = boardService.requireVisibleBoard(thread.getBoardId(), actor);
         boolean manager = actor.hasPermission(ForumPermissions.MANAGE_DISPOSE)
                 || actor.hasPermission(ForumPermissions.MANAGE_BOARD);
-        if (!manager) {
-            if (!actor.userId().equals(thread.getAuthorId())) {
-                throw new BizException(ForumErrorCodes.NOT_THREAD_OWNER, "只能编辑自己发布的帖子");
-            }
-            assertEditWindow(thread);
-        }
-        if (STATUS_PENDING.equals(thread.getStatus()) && !manager) {
-            throw new BizException(ForumErrorCodes.THREAD_STATE_ILLEGAL, "帖子审核中，暂不可编辑");
-        }
+        assertEditable(thread, actor, manager);
         String newTitle = request.getTitle() == null ? null : validateTitle(request.getTitle());
         String newContent = request.getContent() == null ? null : validateContent(request.getContent());
-        boolean tagsProvided = request.getTags() != null;
-        List<String> newTags = tagsProvided ? normalizeTags(request.getTags()) : null;
-        if (newTitle == null && newContent == null && !tagsProvided) {
+        List<String> newTags = request.getTags() == null ? null : normalizeTags(request.getTags());
+        if (newTitle == null && newContent == null && newTags == null) {
             throw new BizException(ErrorCode.PARAM_ERROR, "标题、正文与标签不能同时为空");
         }
 
@@ -397,6 +374,49 @@ public class ThreadServiceImpl implements ThreadService {
         history.setCreateTime(LocalDateTime.now());
         editHistoryMapper.insert(history);
 
+        applyEdits(thread, newTitle, newContent, newTags);
+        if (shouldReaudit(board, thread, manager)) {
+            // 发布态编辑必须退回待审：否则审核通过后改正文即可绕过审核
+            thread.setStatus(STATUS_PENDING);
+            thread.setPublishTime(null);
+        }
+        threadMapper.updateById(thread);
+        if (newTags != null) {
+            // 整体重建而不是差量比对：并发编辑下差量会漏行，单帖标签最多十来个
+            syncTags(thread.getId(), thread.getTenantId(), newTags);
+        }
+        return toDetailVO(thread, board, actor);
+    }
+
+    /**
+     * 校验当前用户可编辑该帖：管理角色放行；作者需在编辑窗口内，且待审帖不可编辑。
+     *
+     * @param thread 目标帖子
+     * @param actor 操作人
+     * @param manager 是否具备管理权限
+     */
+    private void assertEditable(ForumThread thread, ForumActor actor, boolean manager) {
+        if (manager) {
+            return;
+        }
+        if (!actor.userId().equals(thread.getAuthorId())) {
+            throw new BizException(ForumErrorCodes.NOT_THREAD_OWNER, "只能编辑自己发布的帖子");
+        }
+        assertEditWindow(thread);
+        if (STATUS_PENDING.equals(thread.getStatus())) {
+            throw new BizException(ForumErrorCodes.THREAD_STATE_ILLEGAL, "帖子审核中，暂不可编辑");
+        }
+    }
+
+    /**
+     * 把本次编辑落到实体：标题、正文（连同检索文本与摘要一起刷新）、标签。
+     *
+     * @param thread 目标帖子
+     * @param newTitle 新标题，null 表示不改
+     * @param newContent 新正文，null 表示不改
+     * @param newTags 新标签，null 表示不改
+     */
+    private void applyEdits(ForumThread thread, String newTitle, String newContent, List<String> newTags) {
         if (newTitle != null) {
             thread.setTitle(newTitle);
         }
@@ -405,22 +425,22 @@ public class ThreadServiceImpl implements ThreadService {
             thread.setContentText(RichTextSanitizer.summarize(newContent, properties.getSearchTextLength()));
             thread.setSummary(RichTextSanitizer.summarize(newContent, properties.getSummaryLength()));
         }
-        if (tagsProvided) {
+        if (newTags != null) {
             thread.setTags(newTags.isEmpty() ? null : String.join(",", newTags));
         }
-        boolean auditRequired = board.getAuditMode() != null && board.getAuditMode() == 1;
-        if (auditRequired && properties.isAuditOnEdit() && !manager
-                && !STATUS_PENDING.equals(thread.getStatus())) {
-            // 发布态编辑必须退回待审：否则审核通过后改正文即可绕过审核
-            thread.setStatus(STATUS_PENDING);
-            thread.setPublishTime(null);
-        }
-        threadMapper.updateById(thread);
-        if (tagsProvided) {
-            // 整体重建而不是差量比对：并发编辑下差量会漏行，单帖标签最多十来个
-            syncTags(thread.getId(), thread.getTenantId(), newTags);
-        }
-        return toDetailVO(thread, board, actor);
+    }
+
+    /**
+     * 判断编辑后是否要退回待审：版块强制审核、编辑也需审核、非管理角色、且当前已发布。
+     *
+     * @param board 目标版块
+     * @param thread 目标帖子
+     * @param manager 是否具备管理权限
+     * @return 需要退回待审返回 true
+     */
+    private boolean shouldReaudit(ForumBoard board, ForumThread thread, boolean manager) {
+        boolean boardAudit = board.getAuditMode() != null && board.getAuditMode() == 1;
+        return boardAudit && properties.isAuditOnEdit() && !manager && !STATUS_PENDING.equals(thread.getStatus());
     }
 
     @Override
@@ -748,5 +768,54 @@ public class ThreadServiceImpl implements ThreadService {
         vo.setCollectCount(thread.getCollectCount());
         vo.setLastReplyTime(thread.getLastReplyTime());
         vo.setPublishTime(thread.getPublishTime());
+    }
+
+    /**
+     * 敏感词扫描结果：打码后的标题与正文，以及是否因 PENDING 需要转人工审核。
+     *
+     * @param title 打码后的标题
+     * @param content 打码后的正文
+     * @param pending 是否命中「转待审」动作
+     * @author BlueWhale
+     */
+    private record ScanOutcome(String title, String content, boolean pending) {
+    }
+
+    /**
+     * 扫描标题与正文并留痕；命中 BLOCK 时直接拒绝发布。
+     *
+     * @param actor 发帖人
+     * @param title 原始标题
+     * @param content 原始正文
+     * @return 打码后的文本与待审标记
+     */
+    private ScanOutcome scanAndRecord(ForumActor actor, String title, String content) {
+        SensitiveWordService.ScanResult titleScan = sensitiveWordService.scan(title);
+        SensitiveWordService.ScanResult contentScan = sensitiveWordService.scan(content);
+        if (titleScan.hit()) {
+            sensitiveWordService.recordHit("THREAD", null, actor.userId(), titleScan);
+        }
+        if (contentScan.hit()) {
+            sensitiveWordService.recordHit("THREAD", null, actor.userId(), contentScan);
+        }
+        if (SensitiveWordService.ScanResult.BLOCK.equals(titleScan.action())
+                || SensitiveWordService.ScanResult.BLOCK.equals(contentScan.action())) {
+            throw new BizException(ForumErrorCodes.SENSITIVE_BLOCKED, "内容包含不允许发布的词，请修改后重试");
+        }
+        boolean pending = SensitiveWordService.ScanResult.PENDING.equals(titleScan.action())
+                || SensitiveWordService.ScanResult.PENDING.equals(contentScan.action());
+        return new ScanOutcome(titleScan.text(), contentScan.text(), pending);
+    }
+
+    /**
+     * 判断新帖是否需要人工审核：版块强制审核、命中转待审词、或新用户发帖。
+     *
+     * @param board 目标版块
+     * @param pendingByWord 是否命中「转待审」敏感词
+     * @param actor 发帖人
+     * @return 需要审核返回 true
+     */
+    private boolean isAuditRequired(ForumBoard board, boolean pendingByWord, ForumActor actor) {
+        return (board.getAuditMode() != null && board.getAuditMode() == 1) || pendingByWord || isNewUser(actor);
     }
 }

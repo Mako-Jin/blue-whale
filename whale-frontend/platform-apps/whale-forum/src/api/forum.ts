@@ -500,10 +500,7 @@ export function addFollow(targetType: FollowTargetType, targetId: string): Promi
 }
 
 /** 取关 */
-export function removeFollow(
-  targetType: FollowTargetType,
-  targetId: string,
-): Promise<FollowState> {
+export function removeFollow(targetType: FollowTargetType, targetId: string): Promise<FollowState> {
   return request<FollowState>(`/forum/follow/${targetType}/${targetId}`, { method: 'DELETE' });
 }
 
@@ -584,13 +581,15 @@ export interface UploadedFile {
 export function uploadAppealMaterial(file: File): Promise<UploadedFile> {
   const formData = new FormData();
   formData.append('file', file);
-  return request<UploadedFile>('/file/upload', { method: 'POST', body: formData }).then((result) => {
-    const id = result?.id === undefined || result?.id === null ? '' : String(result.id);
-    if (!id) {
-      throw new Error('上传成功但未返回文件标识');
-    }
-    return { ...result, id };
-  });
+  return request<UploadedFile>('/file/v1/upload', { method: 'POST', body: formData }).then(
+    (result) => {
+      const id = result?.id === undefined || result?.id === null ? '' : String(result.id);
+      if (!id) {
+        throw new Error('上传成功但未返回文件标识');
+      }
+      return { ...result, id };
+    },
+  );
 }
 
 /** 提交申诉 */

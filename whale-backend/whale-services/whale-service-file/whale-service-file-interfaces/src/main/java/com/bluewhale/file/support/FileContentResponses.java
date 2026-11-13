@@ -2,8 +2,8 @@ package com.bluewhale.file.support;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.file.model.result.FileInfoResult;
 import com.bluewhale.file.service.FileInfoService;
-import com.bluewhale.file.vo.FileInfoVO;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ContentDisposition;
@@ -80,14 +80,14 @@ public final class FileContentResponses {
      * @param ifRangeHeader 请求的 {@code If-Range} 头，可为 {@code null}
      * @return 文件内容响应：200 全量、206 分段或 416 越界
      */
-    public static ResponseEntity<Resource> build(FileInfoService fileInfoService, FileInfoVO info,
+    public static ResponseEntity<Resource> build(FileInfoService fileInfoService, FileInfoResult info,
                                                  Long requesterId, boolean canManage, boolean inline,
                                                  String rangeHeader, String ifRangeHeader) {
         // fileSize 为 null 意味着元数据异常（正常登记不可能缺失），不能按空文件 0 字节响应
-        if (info.getFileSize() == null) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "文件元数据缺少大小信息: " + info.getId());
+        if (info.fileSize() == null) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "文件元数据缺少大小信息: " + info.id());
         }
-        long size = info.getFileSize();
+        long size = info.fileSize();
         String etag = buildEtag(info, size);
         HttpHeaders headers = baseHeaders(info, inline, etag);
         RequestedRange range = resolveRange(rangeHeader, ifRangeHeader, etag, size);
@@ -101,13 +101,13 @@ public final class FileContentResponses {
             headers.set(HttpHeaders.CONTENT_RANGE,
                     String.format(CONTENT_RANGE_FORMAT, range.start(), range.end(), size));
             return new ResponseEntity<>(
-                    new InputStreamResource(fileInfoService.openContent(info.getId(), requesterId,
+                    new InputStreamResource(fileInfoService.openContent(info.id(), requesterId,
                             canManage, range.start(), range.length())),
                     headers, HttpStatus.PARTIAL_CONTENT);
         }
         headers.setContentLength(size);
         return new ResponseEntity<>(
-                new InputStreamResource(fileInfoService.openContent(info.getId(), requesterId, canManage)),
+                new InputStreamResource(fileInfoService.openContent(info.id(), requesterId, canManage)),
                 headers, HttpStatus.OK);
     }
 
@@ -147,13 +147,13 @@ public final class FileContentResponses {
      * @param etag 响应 ETag
      * @return 响应头
      */
-    private static HttpHeaders baseHeaders(FileInfoVO info, boolean inline, String etag) {
+    private static HttpHeaders baseHeaders(FileInfoResult info, boolean inline, String etag) {
         HttpHeaders headers = new HttpHeaders();
         headers.set(HttpHeaders.ACCEPT_RANGES, ACCEPT_RANGES_VALUE);
         headers.setETag(etag);
-        headers.set(HttpHeaders.CONTENT_DISPOSITION, buildContentDisposition(info.getOriginalName(), inline));
+        headers.set(HttpHeaders.CONTENT_DISPOSITION, buildContentDisposition(info.originalName(), inline));
         headers.set(NOSNIFF_HEADER, NOSNIFF_VALUE);
-        headers.setContentType(resolveMediaType(info.getContentType()));
+        headers.setContentType(resolveMediaType(info.contentType()));
         return headers;
     }
 
@@ -250,8 +250,8 @@ public final class FileContentResponses {
      * @param size 文件总字节数
      * @return 带引号的 ETag
      */
-    private static String buildEtag(FileInfoVO info, long size) {
-        String token = StringUtils.hasText(info.getMd5()) ? info.getMd5() : info.getId() + "-" + size;
+    private static String buildEtag(FileInfoResult info, long size) {
+        String token = StringUtils.hasText(info.md5()) ? info.md5() : info.id() + "-" + size;
         return "\"" + token + "\"";
     }
 

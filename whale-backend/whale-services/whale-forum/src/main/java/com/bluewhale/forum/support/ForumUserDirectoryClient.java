@@ -130,6 +130,34 @@ public class ForumUserDirectoryClient {
      */
     @SuppressWarnings("unchecked")
     private Long findOne(String name, Long tenantId) {
+        Map<String, Object> page = fetchDirectory(name, tenantId);
+        if (page == null) {
+            return null;
+        }
+        if (!(page.get("records") instanceof List<?> records)) {
+            return null;
+        }
+        for (Object item : records) {
+            if (item instanceof Map<?, ?> row) {
+                Long id = matchId((Map<String, Object>) row, name);
+                if (id != null) {
+                    return id;
+                }
+            }
+        }
+        log.debug("通讯录未精确命中：name={}, records={}", name, records.size());
+        return null;
+    }
+
+    /**
+     * 请求通讯录并返回分页数据体；非成功响应（含空响应）返回 {@code null}。
+     *
+     * @param name 昵称/账号
+     * @param tenantId 租户ID
+     * @return 通讯录分页数据体，失败返回 {@code null}
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> fetchDirectory(String name, Long tenantId) {
         String uri = UriComponentsBuilder.fromUriString(properties.getAuthBaseUrl() + DIRECTORY_PATH)
                 .queryParam("keyword", name)
                 .queryParam("current", 1)
@@ -156,33 +184,44 @@ public class ForumUserDirectoryClient {
         if (!(response.get("data") instanceof Map<?, ?> page)) {
             return null;
         }
-        if (!(page.get("records") instanceof List<?> records)) {
+        return (Map<String, Object>) page;
+    }
+
+    /**
+     * 判断该用户是否与目标昵称/账号精确匹配，匹配则解析出用户ID。
+     *
+     * @param user 通讯录单条记录
+     * @param name 昵称/账号
+     * @return 用户ID；不匹配或无法解析返回 {@code null}
+     */
+    private Long matchId(Map<String, Object> user, String name) {
+        boolean nicknameHit = name.equalsIgnoreCase(String.valueOf(user.get("nickname")));
+        boolean usernameHit = name.equalsIgnoreCase(String.valueOf(user.get("username")));
+        if (!nicknameHit && !usernameHit) {
             return null;
         }
-        for (Object item : records) {
-            if (!(item instanceof Map<?, ?> row)) {
-                continue;
-            }
-            Map<String, Object> user = (Map<String, Object>) row;
-            if (!name.equalsIgnoreCase(String.valueOf(user.get("nickname")))
-                    && !name.equalsIgnoreCase(String.valueOf(user.get("username")))) {
-                continue;
-            }
-            Object id = user.get("id");
-            if (id instanceof Number number) {
-                return number.longValue();
-            }
-            // 平台约定长整型一律序列化为字符串（前端 JS 精度），auth 通讯录的 id 正是字符串；
-            // 只认 Number 会让「记录查到了但没命中」——日志里 records=2 却解析为空。
-            if (id instanceof String text && !text.isBlank()) {
-                try {
-                    return Long.valueOf(text.trim());
-                } catch (NumberFormatException ignored) {
-                    return null;
-                }
+        return toUserId(user.get("id"));
+    }
+
+    /**
+     * 把通讯录返回的 id 解析为长整型；平台长整型可能以字符串下发。
+     *
+     * @param id 原始 id（Number 或 String）
+     * @return 用户ID；无法解析返回 {@code null}
+     */
+    private Long toUserId(Object id) {
+        if (id instanceof Number number) {
+            return number.longValue();
+        }
+        // 平台约定长整型一律序列化为字符串（前端 JS 精度），auth 通讯录的 id 正是字符串；
+        // 只认 Number 会让「记录查到了但没命中」——日志里 records=2 却解析为空。
+        if (id instanceof String text && !text.isBlank()) {
+            try {
+                return Long.valueOf(text.trim());
+            } catch (NumberFormatException ignored) {
+                return null;
             }
         }
-        log.debug("通讯录未精确命中：name={}, records={}", name, records.size());
         return null;
     }
 }

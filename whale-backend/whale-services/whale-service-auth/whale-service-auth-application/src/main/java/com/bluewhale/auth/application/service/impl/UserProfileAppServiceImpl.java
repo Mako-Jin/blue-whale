@@ -131,11 +131,23 @@ public class UserProfileAppServiceImpl implements UserProfileAppService {
                 System.currentTimeMillis()));
     }
 
+    /**
+     * 按用户主键加载身份档案聚合根，不存在时抛业务异常。
+     *
+     * @param userId 用户主键
+     * @return 身份档案聚合根
+     */
     private UserProfileAggregate require(Long userId) {
         return userProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "用户尚未建立身份档案"));
     }
 
+    /**
+     * 把联系方式入参转换为领域对象；排序号缺省为 0。
+     *
+     * @param items 联系方式入参，允许为空
+     * @return 联系方式领域对象列表
+     */
     private List<UserProfileContact> toContacts(List<SaveUserProfileCommand.ContactItem> items) {
         return items == null ? List.of() : items.stream()
                 .map(i -> UserProfileContact.create(i.contactType(), i.contactValue(),
@@ -143,6 +155,12 @@ public class UserProfileAppServiceImpl implements UserProfileAppService {
                 .toList();
     }
 
+    /**
+     * 把证件入参转换为领域对象，证件号在落库前加密。
+     *
+     * @param items 证件入参，允许为空
+     * @return 证件领域对象列表
+     */
     private List<UserCredential> toCredentials(List<SaveUserProfileCommand.CredentialItem> items) {
         return items == null ? List.of() : items.stream()
                 .map(i -> UserCredential.create(i.credentialType(),
@@ -151,6 +169,12 @@ public class UserProfileAppServiceImpl implements UserProfileAppService {
                 .toList();
     }
 
+    /**
+     * 把教育经历入参转换为领域对象。
+     *
+     * @param items 教育经历入参，允许为空
+     * @return 教育经历领域对象列表
+     */
     private List<UserEducation> toEducations(List<SaveUserProfileCommand.EducationItem> items) {
         return items == null ? List.of() : items.stream()
                 .map(i -> UserEducation.create(i.school(), i.major(), i.degree(),
@@ -158,6 +182,12 @@ public class UserProfileAppServiceImpl implements UserProfileAppService {
                 .toList();
     }
 
+    /**
+     * 把工作经历入参转换为领域对象。
+     *
+     * @param items 工作经历入参，允许为空
+     * @return 工作经历领域对象列表
+     */
     private List<UserEmployment> toEmployments(List<SaveUserProfileCommand.EmploymentItem> items) {
         return items == null ? List.of() : items.stream()
                 .map(i -> UserEmployment.create(i.company(), i.department(), i.position(),
@@ -165,12 +195,24 @@ public class UserProfileAppServiceImpl implements UserProfileAppService {
                 .toList();
     }
 
+    /**
+     * 把紧急联系人入参转换为领域对象。
+     *
+     * @param items 紧急联系人入参，允许为空
+     * @return 紧急联系人领域对象列表
+     */
     private List<UserEmergencyContact> toEmergencyContacts(List<SaveUserProfileCommand.EmergencyContactItem> items) {
         return items == null ? List.of() : items.stream()
                 .map(i -> UserEmergencyContact.create(i.contactName(), i.relationship(), i.phone(), i.sortNo()))
                 .toList();
     }
 
+    /**
+     * 把密保问题入参转换为领域对象，答案在落库前加密。
+     *
+     * @param items 密保问题入参，允许为空
+     * @return 密保问题领域对象列表
+     */
     private List<UserSecretQuestion> toSecretQuestions(List<SaveUserProfileCommand.SecretQuestionItem> items) {
         return items == null ? List.of() : items.stream()
                 .map(i -> UserSecretQuestion.create(i.question(),

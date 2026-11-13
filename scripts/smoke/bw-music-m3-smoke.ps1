@@ -1,4 +1,4 @@
-﻿﻿﻿# Wave 5.75 M3 歌单与发现冒烟：
+﻿# Wave 5.75 M3 歌单与发现冒烟：
 #   上传测试音频 → 建歌手 / 歌曲 → 上架 → 首页聚合 → 热门 / 新歌榜 → 搜索 →
 #   用户歌单（私有越权 / 加歌幂等 / 重排 / 移除）→ 官方歌单（运营加歌 / 用户无权维护）→ 清理。
 # 前置：whale-music(8096)、whale-file(8085)、MySQL、Redis、Nacos 就绪。
@@ -143,7 +143,7 @@ foreach ($pair in @(@{ n = 'music'; u = "$musicBase/actuator/health" },
 }
 
 # 1) 上传测试音频
-$upload = Send-Upload -Uri "$fileBase/file/upload" -Path $audioPath -ContentType 'audio/mpeg'
+$upload = Send-Upload -Uri "$fileBase/file/v1/upload" -Path $audioPath -ContentType 'audio/mpeg'
 Check '1.upload' $upload
 $fileId = [long]$upload.data.id
 
@@ -260,7 +260,7 @@ $delPlaylist = Invoke-MusicApi -Method 'Delete' -Path "/music/playlist/$playlist
 Check '10.deletePlaylist' $delPlaylist
 $delSong = Invoke-MusicApi -Method 'Delete' -Path "/music/song/$songId"
 Check '10.deleteSong' $delSong
-$delFile = Invoke-Api -Method 'Delete' -Uri "$fileBase/file/$fileId" -Headers $h
+$delFile = Invoke-Api -Method 'Delete' -Uri "$fileBase/file/v1/$fileId" -Headers $h
 Assert '10.deleteFile' ($delFile.code -eq 0 -or $delFile.code -eq 404) "code=$($delFile.code)"
 
 Remove-Item -Path $audioPath -ErrorAction SilentlyContinue

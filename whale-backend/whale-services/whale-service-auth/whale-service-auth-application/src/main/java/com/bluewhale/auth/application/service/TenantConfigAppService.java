@@ -2,7 +2,6 @@ package com.bluewhale.auth.application.service;
 
 import com.bluewhale.auth.application.model.TenantConfigEntry;
 import com.bluewhale.auth.application.model.command.SaveTenantConfigCommand;
-import com.bluewhale.auth.application.port.TenantConfigRepository;
 
 import java.util.List;
 

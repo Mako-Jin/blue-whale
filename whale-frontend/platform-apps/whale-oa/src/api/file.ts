@@ -14,5 +14,5 @@ export interface UploadedFile {
 export function uploadOaFile(file: File): Promise<UploadedFile> {
   const formData = new FormData();
   formData.append('file', file);
-  return http.upload<UploadedFile>('/file/upload', formData);
+  return http.upload<UploadedFile>('/file/v1/upload', formData);
 }

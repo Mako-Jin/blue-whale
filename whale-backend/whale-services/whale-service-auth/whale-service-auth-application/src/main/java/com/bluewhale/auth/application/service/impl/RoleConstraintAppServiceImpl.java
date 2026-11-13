@@ -128,11 +128,23 @@ public class RoleConstraintAppServiceImpl implements RoleConstraintAppService {
         return PageResult.of(records, page.total(), current, size);
     }
 
+    /**
+     * 按主键加载角色约束，不存在时抛业务异常。
+     *
+     * @param id 角色约束主键
+     * @return 角色约束聚合根
+     */
     private RoleConstraintAggregate require(Long id) {
         return constraintRepository.findById(id)
                 .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "角色约束不存在"));
     }
 
+    /**
+     * 校验约束引用的角色都属于当前租户；任一角色缺失即拒绝保存。
+     *
+     * @param tenantId 租户主键
+     * @param roleIds 约束引用的角色主键集合，允许为空
+     */
     private void requireRolesExist(Long tenantId, List<Long> roleIds) {
         if (roleIds == null || roleIds.isEmpty()) {
             return;
@@ -148,6 +160,12 @@ public class RoleConstraintAppServiceImpl implements RoleConstraintAppService {
         }
     }
 
+    /**
+     * 发布角色约束领域事件，供授权判定缓存失效与审计消费。
+     *
+     * @param constraint 角色约束聚合根
+     * @param type 领域事件变更类型
+     */
     private void publish(RoleConstraintAggregate constraint,
                          com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType type) {
         domainEventPublisher.publish(new RoleConstraintDomainEvent(constraint.getId(),

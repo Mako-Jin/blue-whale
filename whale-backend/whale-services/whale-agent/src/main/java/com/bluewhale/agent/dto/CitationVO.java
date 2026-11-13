@@ -77,7 +77,7 @@ public class CitationVO {
                 .factKey(citation.factKey())
                 .score(citation.score())
                 .fileId(citation.fileId())
-                .downloadUrl(citation.fileId() == null ? null : "/file/" + citation.fileId() + "/download")
+                .downloadUrl(citation.fileId() == null ? null : "/file/v1/" + citation.fileId() + "/download")
                 .url(citation.url())
                 .build();
     }

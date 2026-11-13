@@ -112,7 +112,7 @@ function Send-VideoUpload {
         $form = New-Object System.Net.Http.MultipartFormDataContent
         $form.Add($fileContent, 'file', [System.IO.Path]::GetFileName($Path))
         $request = New-Object System.Net.Http.HttpRequestMessage(
-            [System.Net.Http.HttpMethod]::Post, ($fileBase + '/file/upload'))
+            [System.Net.Http.HttpMethod]::Post, ($fileBase + '/file/v1/upload'))
         $request.Content = $form
         foreach ($key in $Headers.Keys) {
             $null = $request.Headers.TryAddWithoutValidation($key, $Headers[$key])
@@ -367,7 +367,7 @@ foreach ($content in $createdContents) {
         "code=$($deleted.Result.code) body=$($deleted.BodyText)"
 }
 foreach ($file in $uploadedFiles) {
-    $delFile = Send-VideoProbe -Method 'Delete' -Path "/file/$($file.Id)" -Headers $file.Headers -BaseUri $fileBase
+    $delFile = Send-VideoProbe -Method 'Delete' -Path "/file/v1/$($file.Id)" -Headers $file.Headers -BaseUri $fileBase
     Assert "9.deleteFile[$($file.Id)]" ($null -ne $delFile.Result -and
         ([int]$delFile.Result.code -eq 0 -or [int]$delFile.Result.code -eq 404)) `
         "code=$($delFile.Result.code) body=$($delFile.BodyText)"

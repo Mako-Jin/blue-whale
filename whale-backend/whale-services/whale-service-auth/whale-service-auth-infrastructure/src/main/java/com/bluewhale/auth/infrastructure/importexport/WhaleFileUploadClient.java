@@ -18,7 +18,7 @@ import java.util.Map;
 /**
  * {@link ExportFileUploader} 的 whale-file 实现（权限中心扩展 M4）。
  *
- * <p>沿用审计归档上传模式（{@code POST /file/internal/upload}，multipart，
+ * <p>沿用审计归档上传模式（{@code POST /file/v1/internal/upload}，multipart，
  * 服务间直连不经网关、无 JWT / 权限码头要求）；返回 {@code data} 与 whale-file 的
  * {@code FileUploadVO} 对齐（含 {@code objectKey}/{@code bucket}/{@code fileSize} 等）。</p>
  *
@@ -28,7 +28,7 @@ import java.util.Map;
 public class WhaleFileUploadClient implements ExportFileUploader {
 
     /** 上传接口路径 */
-    private static final String UPLOAD_PATH = "/file/internal/upload";
+    private static final String UPLOAD_PATH = "/file/v1/internal/upload";
 
     /** multipart 文件字段名 */
     private static final String PARAM_FILE = "file";

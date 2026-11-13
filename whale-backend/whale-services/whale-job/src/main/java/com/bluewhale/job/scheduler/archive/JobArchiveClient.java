@@ -15,9 +15,9 @@ import org.springframework.web.client.RestClient;
 /**
  * 归档文件上传客户端。
  *
- * <p>向 whale-file 内网上传接口 {@code POST {fileServiceUrl}/file/internal/upload}
+ * <p>向 whale-file 内网上传接口 {@code POST {fileServiceUrl}/file/v1/internal/upload}
  * 以 {@code multipart/form-data} 投递归档文件；该接口不经网关、无鉴权码头，
- * 由服务间内网直连（网关侧对 {@code /file/internal/**} 已做 403 屏蔽）。
+ * 由服务间内网直连（网关侧对 {@code /file/v1/internal/**} 已做 403 屏蔽）。
  * 使用 Spring {@link RestClient}，不引入新依赖。</p>
  *
  * <p>所有失败（网络异常、响应体缺失、业务码非 0）统一转为 {@link BizException}，
@@ -29,7 +29,7 @@ import org.springframework.web.client.RestClient;
 public class JobArchiveClient {
 
     /** 归档上传路径（whale-file 内网服务间接口） */
-    private static final String UPLOAD_PATH = "/file/internal/upload";
+    private static final String UPLOAD_PATH = "/file/v1/internal/upload";
 
     /** multipart 表单文件字段名 */
     private static final String FORM_FILE_FIELD = "file";

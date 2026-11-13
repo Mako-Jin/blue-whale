@@ -20,7 +20,7 @@ import java.util.Optional;
 /**
  * OA 共享的 whale-file 内网元数据客户端。
  *
- * <p>读取 {@code GET /file/internal/{id}} 元数据，供附件归属校验使用；
+ * <p>读取 {@code GET /file/v1/internal/{id}} 元数据，供附件归属校验使用；
  * 请求显式携带 {@code X-Tenant-Id}，避免 whale-file 侧因租户上下文缺失而跳过租户过滤。</p>
  *
  * @author BlueWhale
@@ -56,7 +56,7 @@ public class OaFileMetadataClient implements FileMetadataGateway {
         try {
             var request = InternalTokenSupport.restClient()
                     .get()
-                    .uri(baseUrl() + "/file/internal/" + fileId);
+                    .uri(baseUrl() + "/file/v1/internal/" + fileId);
             Long tenantId = TenantContext.get();
             if (tenantId != null) {
                 request = request.header(HEADER_TENANT_ID, String.valueOf(tenantId));

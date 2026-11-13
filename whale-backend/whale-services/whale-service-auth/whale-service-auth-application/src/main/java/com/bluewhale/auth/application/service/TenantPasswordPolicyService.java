@@ -3,16 +3,8 @@ package com.bluewhale.auth.application.service;
 import com.bluewhale.auth.application.model.TenantPasswordPolicy;
 import com.bluewhale.auth.application.model.command.UpdateTenantPasswordPolicyCommand;
 import com.bluewhale.auth.application.model.vo.TenantPasswordPolicyVO;
-import com.bluewhale.auth.application.port.PasswordPolicyConfig;
-import com.bluewhale.auth.application.port.TenantPasswordPolicyRepository;
-import com.bluewhale.common.core.exception.BizException;
-import com.bluewhale.common.core.exception.ErrorCode;
-import com.bluewhale.common.tenant.TenantContext;
 
-import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * 租户口令策略服务（REQ-SEC-023）：租户管理员配置本租户口令有效期，未配置时回退全局默认。

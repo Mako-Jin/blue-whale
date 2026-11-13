@@ -19,7 +19,7 @@ import java.util.Map;
  * 审计归档文件上传客户端（AUTH-08）。
  *
  * <p>以 Spring 6 {@link RestClient} 直接调用 whale-file 内网接口
- * {@code POST /file/internal/upload}（{@code multipart/form-data}，字段 {@code file} 与 {@code bucket}），
+ * {@code POST /file/v1/internal/upload}（{@code multipart/form-data}，字段 {@code file} 与 {@code bucket}），
  * 服务间直连不经网关、无 JWT / 权限码头要求；网关已对该路径做 403 屏蔽，外部不可达。</p>
  *
  * <p>返回 {@code data} 字段与 whale-file 的 {@code FileUploadVO} 对齐：
@@ -35,7 +35,7 @@ import java.util.Map;
 public class AuditArchiveClient {
 
     /** 上传接口路径 */
-    private static final String UPLOAD_PATH = "/file/internal/upload";
+    private static final String UPLOAD_PATH = "/file/v1/internal/upload";
 
     /** multipart 文件字段名 */
     private static final String PARAM_FILE = "file";

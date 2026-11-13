@@ -39,6 +39,9 @@ public final class MentionParser {
     /** 昵称尾部可能粘上的 ASCII 标点（句号/逗号/问号/叹号/斜杠/反斜杠） */
     private static final String TRIMMABLE_TAIL = ".,?!:;/\\";
 
+    /**
+     * 私有构造器：本类仅提供静态解析方法，不允许实例化。
+     */
     private MentionParser() {
     }
 

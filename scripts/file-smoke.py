@@ -75,7 +75,7 @@ def main():
     print("=== A 上传 ===")
     content = f"bluewhale file smoke {RUN}\n".encode()
     body, ctype = multipart("file", f"smoke-{RUN}.txt", content)
-    meta, data = request("POST", "/file/upload", body, ctype)
+    meta, data = request("POST", "/file/v1/upload", body, ctype)
     upload = data.get("data") or {}
     ok = meta["status"] == 200 and data.get("code") == 0 and upload.get("id")
     record("file.upload", bool(ok), f"http={meta['status']} code={data.get('code')} size={upload.get('fileSize')}")
@@ -90,37 +90,37 @@ def main():
 
     print("=== B 下载 ===")
     if file_id:
-        meta, payload = request("GET", f"/file/{file_id}/download", raw=True)
+        meta, payload = request("GET", f"/file/v1/{file_id}/download", raw=True)
         record("file.download", meta["status"] == 200 and payload == content,
                f"http={meta['status']} bytes={len(payload)}")
         record("file.download.disposition", "attachment" in meta["disposition"].lower(),
                meta["disposition"] or "(缺失)")
-        meta, _ = request("GET", f"/file/{file_id}/preview", raw=True)
+        meta, _ = request("GET", f"/file/v1/{file_id}/preview", raw=True)
         record("file.preview", meta["status"] == 200, f"http={meta['status']}")
     else:
         record("file.download", False, "SKIP 无 fileId")
 
     print("=== C 预签名 / 配额 ===")
     if file_id:
-        meta, data = request("GET", f"/file/{file_id}/presigned")
+        meta, data = request("GET", f"/file/v1/{file_id}/presigned")
         # local 存储插件不支持预签名（服务端明确返回「当前存储插件不支持预签名下载: local」），
         # 这是配置限制而非缺陷：只有接了对象存储才应通过。
         unsupported = data.get("code") == 400 and "不支持预签名" in (data.get("message") or "")
         record("file.presigned", meta["status"] == 200 and (data.get("code") == 0 or unsupported),
                f"http={meta['status']} code={data.get('code')}"
                + ("（local 插件不支持，按预期跳过）" if unsupported else ""))
-    meta, data = request("GET", "/file/quota")
+    meta, data = request("GET", "/file/v1/quota")
     record("file.quota", meta["status"] == 200 and data.get("code") == 0,
            f"http={meta['status']} code={data.get('code')}")
 
     print("=== D 内网入口（job/audit 导出走它）===")
     body, ctype = multipart("file", f"internal-{RUN}.txt", content)
-    meta, data = request("POST", "/file/internal/upload", body, ctype)
+    meta, data = request("POST", "/file/v1/internal/upload", body, ctype)
     record("file.internalUpload", meta["status"] == 200 and data.get("code") == 0,
            f"http={meta['status']} code={data.get('code')}")
 
     print("=== E 负向契约 ===")
-    meta, data = request("GET", "/file/999999999/download", raw=True)
+    meta, data = request("GET", "/file/v1/999999999/download", raw=True)
     code = None
     try:
         code = json.loads(data.decode("utf-8")).get("code")

@@ -21,7 +21,7 @@ export async function uploadFile(file: File, bucket?: string): Promise<FileUploa
   if (bucket) {
     formData.append('bucket', bucket);
   }
-  const result = await upload<FileUploadVO>('/file/upload', formData);
+  const result = await upload<FileUploadVO>('/file/v1/upload', formData);
   if (!result?.id) {
     throw new Error('上传成功但未返回文件标识');
   }
@@ -52,7 +52,7 @@ export function readAudioDuration(file: File): Promise<number | undefined> {
 /** 带鉴权的文件下载响应（M1 仅用于封面预览，失败不阻塞主流程） */
 export async function fetchFileBlob(fileId: number): Promise<Blob> {
   const token = getToken();
-  const response = await fetch(`/file/${fileId}/download`, {
+  const response = await fetch(`/file/v1/${fileId}/download`, {
     method: 'GET',
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });

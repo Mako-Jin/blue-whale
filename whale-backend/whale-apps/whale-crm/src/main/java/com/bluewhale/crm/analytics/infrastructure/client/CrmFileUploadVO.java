@@ -7,7 +7,7 @@ import java.io.Serializable;
 /**
  * whale-file 上传结果（{@code Result<FileUploadVO>} 中 {@code data} 的本地镜像）。
  *
- * <p>字段名对应 whale-file 冻结的 JSON 契约（{@code POST /file/internal/upload}），
+ * <p>字段名对应 whale-file 冻结的 JSON 契约（{@code POST /file/v1/internal/upload}），
  * 本服务不依赖 whale-file 模块，故在此本地镜像；导出只需要 {@code id} 与 {@code fileName}。</p>
  *
  * @author BlueWhale

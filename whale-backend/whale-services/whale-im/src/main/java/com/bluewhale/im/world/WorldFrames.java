@@ -73,6 +73,9 @@ public final class WorldFrames {
     /** 错误码：喊话太频 */
     public static final String CODE_SAY_LIMITED = "SAY_LIMITED";
 
+    /**
+     * 私有构造器：本类仅作为帧协议字段与错误码容器，不允许实例化。
+     */
     private WorldFrames() {
     }
 

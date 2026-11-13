@@ -75,7 +75,7 @@ function Send-AudioUpload {
         $fileContent.Headers.ContentType = [System.Net.Http.Headers.MediaTypeHeaderValue]::Parse('audio/mpeg')
         $form = New-Object System.Net.Http.MultipartFormDataContent
         $form.Add($fileContent, 'file', [System.IO.Path]::GetFileName($audioPath))
-        $request = New-Object System.Net.Http.HttpRequestMessage([System.Net.Http.HttpMethod]::Post, "$fileBase/file/upload")
+        $request = New-Object System.Net.Http.HttpRequestMessage([System.Net.Http.HttpMethod]::Post, "$fileBase/file/v1/upload")
         $request.Content = $form
         foreach ($key in $h.Keys) {
             $null = $request.Headers.TryAddWithoutValidation($key, $h[$key])
@@ -377,7 +377,7 @@ $deleted = Invoke-MusicApi -Method 'Delete' -Path "/music/song/$songId"
 Check '6.deleteSong' $deleted
 $delArtist = Invoke-MusicApi -Method 'Delete' -Path "/music/artist/$artistId"
 Check '6.deleteArtist' $delArtist
-$delFile = Invoke-Api -Method 'Delete' -Uri "$fileBase/file/$fileId" -Headers $h
+$delFile = Invoke-Api -Method 'Delete' -Uri "$fileBase/file/v1/$fileId" -Headers $h
 Assert '6.deleteFile' ($delFile.code -eq 0 -or $delFile.code -eq 404) "code=$($delFile.code)"
 Remove-Item -Path $audioPath -ErrorAction SilentlyContinue
 

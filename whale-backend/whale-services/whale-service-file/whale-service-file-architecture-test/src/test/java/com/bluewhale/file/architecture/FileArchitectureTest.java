@@ -19,13 +19,13 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 @AnalyzeClasses(packages = "com.bluewhale.file", importOptions = ImportOption.DoNotIncludeTests.class)
 class FileArchitectureTest {
 
-    /** 领域层禁止依赖的包：其它文件服务层、插件实现、持久化与 Web 框架 */
+    /** 领域层禁止依赖的包：接口契约、应用层模型/服务、插件实现、持久化与 Web 框架 */
     private static final String[] DOMAIN_FORBIDDEN_PACKAGES = {
             "com.bluewhale.file.infrastructure..",
             "com.bluewhale.file.application..",
             "com.bluewhale.file.service..",
-            "com.bluewhale.file.dto..",
-            "com.bluewhale.file.vo..",
+            "com.bluewhale.file.model..",
+            "com.bluewhale.file.api..",
             "com.bluewhale.file.controller..",
             "com.bluewhale.file.entity..",
             "com.bluewhale.file.mapper..",
@@ -44,13 +44,14 @@ class FileArchitectureTest {
     @ArchTest
     static final ArchRule application_must_not_depend_on_infrastructure_or_web = noClasses()
             .that().resideInAnyPackage("com.bluewhale.file.service..",
-                    "com.bluewhale.file.dto..",
-                    "com.bluewhale.file.vo..")
+                    "com.bluewhale.file.model..")
             .should().dependOnClassesThat().resideInAnyPackage(
                     "com.bluewhale.file.infrastructure..",
                     "com.bluewhale.file.entity..",
                     "com.bluewhale.file.mapper..",
+                    "com.bluewhale.file.api..",
                     "com.bluewhale.file.controller..",
+                    "com.bluewhale.file.support..",
                     "com.bluewhale.file.storage.plugin..",
                     "com.baomidou..",
                     "org.apache.ibatis..",
@@ -66,7 +67,9 @@ class FileArchitectureTest {
 
     @ArchTest
     static final ArchRule interfaces_must_not_depend_on_infrastructure_or_persistence = noClasses()
-            .that().resideInAPackage("com.bluewhale.file.controller..")
+            .that().resideInAnyPackage("com.bluewhale.file.api..",
+                    "com.bluewhale.file.model.request..",
+                    "com.bluewhale.file.model.response..")
             .should().dependOnClassesThat().resideInAnyPackage(
                     "com.bluewhale.file.infrastructure..",
                     "com.bluewhale.file.entity..",

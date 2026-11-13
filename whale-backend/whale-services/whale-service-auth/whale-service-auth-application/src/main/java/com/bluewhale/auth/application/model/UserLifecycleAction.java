@@ -6,7 +6,6 @@ package com.bluewhale.auth.application.model;
  * <p>取代散落在 {@code UserLifecycleAppServiceImpl} 中的 {@code ACTION_*} 字符串常量，
  * 非法动作在映射处统一 400，避免裸字符串 switch 的拼写漂移。</p>
  *
- * @param nameText 动作名（即枚举名，供文案拼接）
  * @author BlueWhale
  */
 public enum UserLifecycleAction {

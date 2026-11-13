@@ -146,7 +146,7 @@ foreach ($pair in @(@{ n = 'music'; u = "$musicBase/actuator/health" },
 }
 
 # 1) 上传测试音频（M2 流式内容的真实来源）
-$upload = Send-Upload -Uri "$fileBase/file/upload" -Path $audioPath -ContentType 'audio/mpeg'
+$upload = Send-Upload -Uri "$fileBase/file/v1/upload" -Path $audioPath -ContentType 'audio/mpeg'
 Check '1.upload' $upload
 $fileId = [long]$upload.data.id
 Assert '1.uploadSize' ([long]$upload.data.fileSize -eq $testAudioBytes) "size=$($upload.data.fileSize)"
@@ -265,7 +265,7 @@ Assert '10.ticketBlocked' ($reticket.code -eq 40403) "code=$($reticket.code)"
 # 11) 清理（歌曲 / 歌手逻辑删除，文件物理删除）
 Invoke-MusicApi -Method 'Delete' -Path "/music/song/$songId" | Out-Null
 Invoke-MusicApi -Method 'Delete' -Path "/music/artist/$artistId" | Out-Null
-$fileDelete = Invoke-Api -Method 'Delete' -Uri "$fileBase/file/$fileId" -Headers $h
+$fileDelete = Invoke-Api -Method 'Delete' -Uri "$fileBase/file/v1/$fileId" -Headers $h
 Check '11.fileDelete' $fileDelete
 Remove-Item $audioPath -Force -ErrorAction SilentlyContinue
 

@@ -125,7 +125,7 @@ class DocFileClientTest {
         assertThat(result.originalName()).isEqualTo("a.txt");
         assertThat(result.contentType()).isEqualTo("text/plain");
         assertThat(result.fileSize()).isEqualTo(5L);
-        assertThat(last.path()).isEqualTo("/file/internal/upload");
+        assertThat(last.path()).isEqualTo("/file/v1/internal/upload");
         assertThat(new String(last.body(), StandardCharsets.UTF_8)).contains("filename=\"a.txt\"");
         assertThat(last.headers().get("X-User-Id")).containsExactly("7");
         assertThat(last.headers().get("X-Tenant-Id")).containsExactly("3");
@@ -232,7 +232,7 @@ class DocFileClientTest {
         responder = exchange -> bytes(exchange, "raw".getBytes(StandardCharsets.UTF_8));
 
         assertThat(client.content(42L)).isEqualTo("raw".getBytes(StandardCharsets.UTF_8));
-        assertThat(last.path()).isEqualTo("/file/internal/42/content");
+        assertThat(last.path()).isEqualTo("/file/v1/internal/42/content");
     }
 
     @Test

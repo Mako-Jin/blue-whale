@@ -24,7 +24,7 @@ import java.time.Duration;
 import java.util.List;
 
 /**
- * 音频内容客户端：直连 whale-file 内网内容接口 {@code /file/internal/{id}/content}。
+ * 音频内容客户端：直连 whale-file 内网内容接口 {@code /file/v1/internal/{id}/content}。
  *
  * <p>使用 JDK {@link HttpClient} 而非 RestClient，保证响应体以流式形态返回、
  * 不被整体缓冲；Range / If-Range 原样透传，响应头（Content-Length / Content-Range /
@@ -50,7 +50,7 @@ public class FileAudioContentClient implements AudioContentRepository {
             .build();
 
     /** 内容接口模板 */
-    private static final String CONTENT_PATH = "/file/internal/%d/content";
+    private static final String CONTENT_PATH = "/file/v1/internal/%d/content";
 
     private final DiscoveryClient discoveryClient;
 

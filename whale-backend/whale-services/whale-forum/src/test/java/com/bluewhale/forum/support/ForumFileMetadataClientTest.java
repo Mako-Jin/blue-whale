@@ -30,7 +30,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
  */
 class ForumFileMetadataClientTest {
 
-    private static final String FILE_URL = "http://127.0.0.1:8085/file/internal/801";
+    private static final String FILE_URL = "http://127.0.0.1:8085/file/v1/internal/801";
 
     private MockRestServiceServer server;
 
@@ -116,7 +116,7 @@ class ForumFileMetadataClientTest {
     @Test
     @DisplayName("代理预览：读取内网内容并保留 MIME 类型")
     void loadsContent() {
-        server.expect(requestTo("http://127.0.0.1:8085/file/internal/801/content"))
+        server.expect(requestTo("http://127.0.0.1:8085/file/v1/internal/801/content"))
                 .andExpect(method(HttpMethod.GET))
                 .andExpect(header("X-Tenant-Id", "1"))
                 .andRespond(withSuccess(new byte[]{1, 2, 3}, MediaType.IMAGE_PNG));
@@ -130,7 +130,7 @@ class ForumFileMetadataClientTest {
     @Test
     @DisplayName("代理预览：内容 404 折算为材料不存在")
     void contentMissingIsNotFound() {
-        server.expect(requestTo("http://127.0.0.1:8085/file/internal/801/content"))
+        server.expect(requestTo("http://127.0.0.1:8085/file/v1/internal/801/content"))
                 .andRespond(withStatus(HttpStatus.NOT_FOUND));
 
         assertThatThrownBy(() -> client.loadContent(801L))

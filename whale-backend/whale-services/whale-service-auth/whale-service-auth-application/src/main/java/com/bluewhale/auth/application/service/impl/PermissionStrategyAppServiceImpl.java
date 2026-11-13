@@ -148,6 +148,14 @@ public class PermissionStrategyAppServiceImpl implements PermissionStrategyAppSe
                 com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType.UPDATED);
     }
 
+    /**
+     * 保存策略并处理默认策略的唯一性：标记为默认时先清除同租户内其他默认策略，再落库并发布领域事件。
+     *
+     * @param strategy 待保存的权限策略聚合根
+     * @param conditionJson 策略条件的 JSON 表示，用于回填视图对象
+     * @param type 领域事件变更类型
+     * @return 保存后的策略视图对象
+     */
     private PermissionStrategyVO saveAndClearDefault(PermissionStrategyAggregate strategy,
                                                      String conditionJson,
                                                      com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType type) {
@@ -159,11 +167,23 @@ public class PermissionStrategyAppServiceImpl implements PermissionStrategyAppSe
         return PermissionStrategyVO.from(saved, conditionJson);
     }
 
+    /**
+     * 按主键加载策略，不存在时抛业务异常。
+     *
+     * @param id 策略主键
+     * @return 权限策略聚合根
+     */
     private PermissionStrategyAggregate require(Long id) {
         return strategyRepository.findById(id)
                 .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "权限策略不存在"));
     }
 
+    /**
+     * 校验策略引用的角色都属于当前租户；任一角色缺失即拒绝保存。
+     *
+     * @param tenantId 租户主键
+     * @param roleIds 策略引用的角色主键集合，允许为空（表示不限制角色）
+     */
     private void requireRolesExist(Long tenantId, List<Long> roleIds) {
         if (roleIds == null || roleIds.isEmpty()) {
             return;
@@ -179,20 +199,44 @@ public class PermissionStrategyAppServiceImpl implements PermissionStrategyAppSe
         }
     }
 
+    /**
+     * 按入参状态同步聚合根状态；仅处理「停用」，启用走默认策略逻辑。
+     *
+     * @param strategy 权限策略聚合根
+     * @param status 目标状态，为空表示不调整
+     */
     private void applyStatus(PermissionStrategyAggregate strategy, Integer status) {
         if (status != null && status == PermissionStrategyAggregate.STATUS_DISABLED) {
             strategy.changeStatus(PermissionStrategyAggregate.STATUS_DISABLED);
         }
     }
 
+    /**
+     * 把条件 JSON 解析为条件对象列表。
+     *
+     * @param conditionJson 条件 JSON 文本
+     * @return 条件对象列表
+     */
     private List<StrategyCondition> parseConditions(String conditionJson) {
         return strategyRepository.parseConditions(conditionJson);
     }
 
+    /**
+     * 把聚合根上的条件对象序列化为 JSON 文本。
+     *
+     * @param strategy 权限策略聚合根
+     * @return 条件 JSON 文本
+     */
     private String serializeConditions(PermissionStrategyAggregate strategy) {
         return strategyRepository.serializeConditions(strategy.getConditions());
     }
 
+    /**
+     * 发布权限策略领域事件，供缓存刷新与审计消费。
+     *
+     * @param strategy 权限策略聚合根
+     * @param type 领域事件变更类型
+     */
     private void publish(PermissionStrategyAggregate strategy,
                          com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType type) {
         domainEventPublisher.publish(new PermissionStrategyDomainEvent(strategy.getId(),

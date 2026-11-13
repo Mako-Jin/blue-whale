@@ -214,7 +214,7 @@ def upload_file(name, who, filename, content, content_type):
     uploader = dict(who)
     uploader["X-Permission-Codes"] = "super_admin"
     body, ctype = multipart("file", filename, content, content_type)
-    data = call(name, "POST", "/file/upload", who=uploader, base=FILE_BASE,
+    data = call(name, "POST", "/file/v1/upload", who=uploader, base=FILE_BASE,
                 content=body, content_type=ctype)
     return (data or {}).get("id")
 

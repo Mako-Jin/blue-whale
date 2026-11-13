@@ -110,6 +110,9 @@ public final class SessionVOs {
         }
     }
 
+    /**
+     * 私有构造器：本类仅作为静态视图嵌套容器，不允许实例化。
+     */
     private SessionVOs() {
     }
 }

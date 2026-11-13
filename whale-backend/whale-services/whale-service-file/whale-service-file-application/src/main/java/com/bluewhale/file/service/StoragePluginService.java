@@ -1,6 +1,6 @@
 package com.bluewhale.file.service;
 
-import com.bluewhale.file.vo.StoragePluginVO;
+import com.bluewhale.file.model.result.StoragePluginResult;
 
 import java.util.List;
 
@@ -18,5 +18,5 @@ public interface StoragePluginService {
      *
      * @return 插件清单（含类型、展示名、预签名能力与是否活动）
      */
-    List<StoragePluginVO> plugins();
+    List<StoragePluginResult> plugins();
 }

@@ -97,7 +97,7 @@ function New-SignedFile($name) {
     $content = "%PDF-1.4`n1 0 obj<</Type/Catalog>>endobj`ntrailer<</Root 1 0 R>>`n%%EOF`n$name"
     [System.IO.File]::WriteAllBytes($path, [Text.Encoding]::UTF8.GetBytes($content))
     $sha = (Get-FileHash -Algorithm SHA256 -Path $path).Hash.ToLower()
-    $uploaded = Invoke-RestMethod -Method Post -Uri "$fileBase/file/internal/upload" -Form @{
+    $uploaded = Invoke-RestMethod -Method Post -Uri "$fileBase/file/v1/internal/upload" -Form @{
         file   = Get-Item $path
         bucket = 'contract'
     }

@@ -114,7 +114,7 @@ Assert '12.contractSigned' ($signed.data.contractStatus -eq 'SIGNED')
 # 6) 签章件实际哈希与记录一致（直连文件服务内网接口）
 $signedFileId = $signed.data.signedFileId
 $tmp = Join-Path $env:TEMP "bw-contract-m2-$([guid]::NewGuid().ToString('N')).pdf"
-Invoke-WebRequest -Method Get -Uri "$fileBase/file/internal/$signedFileId/content" -OutFile $tmp | Out-Null
+Invoke-WebRequest -Method Get -Uri "$fileBase/file/v1/internal/$signedFileId/content" -OutFile $tmp | Out-Null
 $actualHash = (Get-FileHash -Algorithm SHA256 -Path $tmp).Hash.ToLower()
 Assert '13.fileHashMatched' ($actualHash -eq $signed.data.signedSha256)
 Remove-Item $tmp -Force

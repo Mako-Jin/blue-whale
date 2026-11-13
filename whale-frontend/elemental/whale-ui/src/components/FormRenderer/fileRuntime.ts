@@ -19,7 +19,7 @@ function buildAuthHeaders(token?: string): Record<string, string> {
 export async function defaultUpload(file: File, runtime: FileRuntime): Promise<WhaleUploadedFile> {
   const body = new FormData();
   body.append('file', file);
-  const response = await fetch(`${runtime.apiBaseUrl ?? ''}/file/upload`, {
+  const response = await fetch(`${runtime.apiBaseUrl ?? ''}/file/v1/upload`, {
     method: 'POST',
     headers: buildAuthHeaders(runtime.authToken),
     body,
@@ -47,7 +47,7 @@ export async function defaultDownload(
   file: WhaleUploadedFile,
   runtime: FileRuntime,
 ): Promise<void> {
-  const response = await fetch(`${runtime.apiBaseUrl ?? ''}/file/${file.id}/download`, {
+  const response = await fetch(`${runtime.apiBaseUrl ?? ''}/file/v1/${file.id}/download`, {
     headers: buildAuthHeaders(runtime.authToken),
   });
   if (!response.ok) {

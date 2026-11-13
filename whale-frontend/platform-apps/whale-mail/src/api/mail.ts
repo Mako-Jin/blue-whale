@@ -306,7 +306,7 @@ export function sendMail(body: MailSendCommand): Promise<void> {
  * @returns 上传结果
  */
 export function uploadAttachment(file: File): Promise<UploadedFile> {
-  return uploadForm<UploadedFile>('/file/upload', file);
+  return uploadForm<UploadedFile>('/file/v1/upload', file);
 }
 
 /**

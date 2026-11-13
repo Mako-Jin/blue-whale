@@ -50,6 +50,9 @@ public final class ForumPermissions {
     /** 运维动作：检索索引重建、计数对账（只给租户管理员，版主不该有能力重算全站计数） */
     public static final String MANAGE_OPS = "sys:forum:manage:ops";
 
+    /**
+     * 私有构造器：本类仅作为权限码常量容器，不允许实例化。
+     */
     private ForumPermissions() {
     }
 }

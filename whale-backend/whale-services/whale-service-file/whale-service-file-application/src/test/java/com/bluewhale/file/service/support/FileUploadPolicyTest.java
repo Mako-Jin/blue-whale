@@ -1,7 +1,7 @@
 package com.bluewhale.file.service.support;
 
 import com.bluewhale.file.config.FileProperties;
-import com.bluewhale.file.service.model.UploadLimits;
+import com.bluewhale.file.model.UploadLimits;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

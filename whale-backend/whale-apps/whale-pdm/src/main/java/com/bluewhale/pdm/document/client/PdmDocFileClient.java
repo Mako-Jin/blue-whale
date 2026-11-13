@@ -19,7 +19,7 @@ import java.util.Map;
 /**
  * whale-file 内网客户端：图文档文件上传与内容读取
  *
- * <p>只调用网关屏蔽的 {@code /file/internal/**}；文件字节由文件服务保存，
+ * <p>只调用网关屏蔽的 {@code /file/v1/internal/**}；文件字节由文件服务保存，
  * PDM 只存文件 ID、文件名、大小与校验和。</p>
  *
  * @author BlueWhale
@@ -58,7 +58,7 @@ public class PdmDocFileClient {
         body.add("bucket", BUCKET);
         Map<?, ?> response = InternalTokenSupport.restClient()
                 .post()
-                .uri(baseUrl() + "/file/internal/upload")
+                .uri(baseUrl() + "/file/v1/internal/upload")
                 .header("X-User-Id", String.valueOf(userId))
                 .header("X-Tenant-Id", String.valueOf(tenantId))
                 .contentType(MediaType.MULTIPART_FORM_DATA)
@@ -82,7 +82,7 @@ public class PdmDocFileClient {
     public byte[] content(Long fileId) {
         byte[] bytes = InternalTokenSupport.restClient()
                 .get()
-                .uri(baseUrl() + "/file/internal/{id}/content", fileId)
+                .uri(baseUrl() + "/file/v1/internal/{id}/content", fileId)
                 .retrieve()
                 .body(byte[].class);
         if (bytes == null) {
