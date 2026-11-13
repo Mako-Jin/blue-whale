@@ -86,7 +86,7 @@ class LocalChunkUploadStoreTest {
 
         assertTrue(store.exists(sessionId));
         assertEquals(List.of(0), store.uploadedPartIndexes(sessionId));
-        assertTrue(Files.isDirectory(tempDir.resolve("tmp").resolve(sessionId.value())));
+        assertTrue(Files.isDirectory(tempDir.resolve(".chunk-upload").resolve(sessionId.value())));
     }
 
     @Test
@@ -97,7 +97,7 @@ class LocalChunkUploadStoreTest {
 
         storePart(sessionId, 1, " whale!");
         storePart(sessionId, 0, "hello");
-        Files.writeString(tempDir.resolve("tmp").resolve(sessionId.value()).resolve("notes.txt"), "x");
+        Files.writeString(tempDir.resolve(".chunk-upload").resolve(sessionId.value()).resolve("notes.txt"), "x");
 
         assertEquals(List.of(0, 1), store.uploadedPartIndexes(sessionId));
     }
@@ -136,7 +136,7 @@ class LocalChunkUploadStoreTest {
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertTrue(ex.getMessage().contains("缺少分片索引: 1"));
-        assertFalse(Files.exists(tempDir.resolve("tmp").resolve(sessionId.value()).resolve("merged.bin")),
+        assertFalse(Files.exists(tempDir.resolve(".chunk-upload").resolve(sessionId.value()).resolve("merged.bin")),
                 "缺片失败时应清理合并半成品");
     }
 
@@ -164,7 +164,7 @@ class LocalChunkUploadStoreTest {
         store.discard(sessionId);
 
         assertFalse(store.exists(sessionId));
-        assertFalse(Files.exists(tempDir.resolve("tmp").resolve(sessionId.value())));
+        assertFalse(Files.exists(tempDir.resolve(".chunk-upload").resolve(sessionId.value())));
 
         store.discard(sessionId);
     }
@@ -187,7 +187,7 @@ class LocalChunkUploadStoreTest {
         ttlStore.initialize(expired, metadata(12L));
         ttlStore.initialize(active, metadata(12L));
 
-        Path expiredDir = tempDir.resolve("tmp").resolve(expired.value());
+        Path expiredDir = tempDir.resolve(".chunk-upload").resolve(expired.value());
         long stale = System.currentTimeMillis() - 2 * 3_600_000L;
         Files.setLastModifiedTime(expiredDir, FileTime.fromMillis(stale));
         Files.setLastModifiedTime(expiredDir.resolve("meta.properties"), FileTime.fromMillis(stale));

@@ -28,7 +28,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
 /**
- * 分片上传暂存端口的本机磁盘实现：按 {@code ${whale.file.storage.root}/tmp/${uploadId}} 组织会话目录。
+ * 分片上传暂存端口的本机磁盘实现：按 {@code ${whale.file.storage.root}/.chunk-upload/${uploadId}}
+ * 组织会话目录。暂存目录名以点开头（同时不是合法 S3 桶名），避免与 {@code ${root}/${bucket}}
+ * 的本地存储桶命名空间冲突。
  *
  * <p>会话目录内保存分片（{@code part-<index>}）、合并文件（{@code merged.bin}）与会话元数据
  * （{@code meta.properties}）。所有路径均基于已校验的 UUID 会话标识归一化，并做根目录越界防护。</p>
@@ -40,7 +42,7 @@ import java.util.stream.Stream;
 public class LocalChunkUploadStore implements ChunkUploadStore {
 
     /** 分片临时目录名（位于存储根目录下） */
-    private static final String TMP_DIR_NAME = "tmp";
+    private static final String TMP_DIR_NAME = ".chunk-upload";
 
     /** 分片文件名前缀，分片文件名为 {@code part-<index>} */
     private static final String PART_FILE_PREFIX = "part-";
@@ -329,7 +331,7 @@ public class LocalChunkUploadStore implements ChunkUploadStore {
     }
 
     /**
-     * 解析会话暂存目录 {@code ${root}/tmp/${uploadId}}，并做根目录越界防护
+     * 解析会话暂存目录 {@code ${root}/.chunk-upload/${uploadId}}，并做根目录越界防护
      *
      * @param sessionId 会话标识
      * @return 归一化后的会话目录

@@ -54,6 +54,9 @@ public class MinioStoragePlugin implements StoragePlugin {
     /** 已确认存在的桶，避免每次写入都探测 */
     private final Set<String> knownBuckets = ConcurrentHashMap.newKeySet();
 
+    /** 建桶临界区专用锁对象：不与集合实例共用锁语义，避免缓存实现变更时失效 */
+    private final Object bucketLock = new Object();
+
     /**
      * 以客户端与配置构造对象存储插件。
      *
@@ -187,7 +190,8 @@ public class MinioStoragePlugin implements StoragePlugin {
      * @return 待抛出的业务异常
      */
     private static BizException notFoundOrSystemError(ErrorResponseException e) {
-        return NO_SUCH_KEY.equals(errorCode(e)) || NO_SUCH_BUCKET.equals(errorCode(e))
+        String code = errorCode(e);
+        return NO_SUCH_KEY.equals(code) || NO_SUCH_BUCKET.equals(code)
                 ? new BizException(ErrorCode.NOT_FOUND)
                 : new BizException(ErrorCode.SYSTEM_ERROR);
     }
@@ -216,7 +220,7 @@ public class MinioStoragePlugin implements StoragePlugin {
         if (!properties.isAutoCreateBucket() || knownBuckets.contains(bucket)) {
             return;
         }
-        synchronized (knownBuckets) {
+        synchronized (bucketLock) {
             if (knownBuckets.contains(bucket)) {
                 return;
             }
