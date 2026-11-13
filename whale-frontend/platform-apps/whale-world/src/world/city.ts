@@ -27,6 +27,7 @@ import { createGlyphs } from './glyphs';
 import { createWorldMetrics } from './metrics';
 import { createSpeech } from './speech';
 import { mountSayPanel } from './saypanel';
+import { GUIDE_LINES, createGuide, fallbackLine } from './guide';
 import {
   CITY_GEOMETRY,
   MAIN_HALL,
@@ -1555,6 +1556,7 @@ on(window, 'keydown', (e) => {
   if (e.code === 'KeyE') togglePortalPanel();
   if (e.code === 'KeyF') talkToNearestNpc();
   if (e.code === 'KeyT') talkToPet();
+  if (e.code === 'KeyG') toggleGuide();
   if (e.code === 'KeyQ') {
     closePortalPanel();
     charPanel?.close();
@@ -1566,6 +1568,11 @@ on(window, 'keydown', (e) => {
     charPanel?.close();
     npcChat?.close();
     sayPanel?.close();
+    // 导览中按 Esc 直接收工（不弹提示，HUD 消失本身就是反馈）
+    if (guide.isActive()) {
+      guide.stop();
+      renderGuideHud();
+    }
   }
   if (e.code === 'KeyR') { cam.yaw = 0; cam.pitch = 0.44; cam.dist = 16; }
   if (e.code === 'KeyC') {
@@ -1627,6 +1634,7 @@ const toast = document.getElementById('bww-toast');
 const toastTitle = document.getElementById('bww-toast-title');
 const toastSub = document.getElementById('bww-toast-sub');
 const hudOnline = document.getElementById('bww-hud-online');
+const guideHud = document.getElementById('bww-guide');
 
 const SHICHEN = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
 const SEASONS = ['春', '夏', '秋', '冬'];
@@ -1657,6 +1665,58 @@ function whaleSay(text) {
   petBubble.classList.add('bww-show');
   clearTimeout(whaleSay.timer);
   whaleSay.timer = setTimeout(() => petBubble.classList.remove('bww-show'), 5200);
+}
+
+/* ---- 带路导览：小鲸宝领着绕八方宫署走一圈，最后进数枢殿 ---- */
+// 站点顺序直接用 PALACES 的既有顺序（就是传送门数字键 2–9 的顺序，天然是绕环一圈），
+// 末尾补数枢殿：八殿是并列的业务入口，先走完再看总账才讲得通。
+const GUIDE_STOPS = [
+  ...PALACES.map((p) => ({
+    nodeKey: p.nodeKey,
+    name: p.name,
+    line: GUIDE_LINES[p.nodeKey] ?? fallbackLine(p.name, p.sub),
+    x: p.portal.x,
+    z: p.portal.z,
+  })),
+  {
+    nodeKey: MAIN_PORTAL.nodeKey,
+    name: MAIN_PORTAL.name,
+    line: GUIDE_LINES[MAIN_PORTAL.nodeKey] ?? fallbackLine(MAIN_PORTAL.name, MAIN_PORTAL.sub),
+    x: MAIN_PORTAL.x,
+    z: MAIN_PORTAL.z,
+  },
+];
+const guide = createGuide(GUIDE_STOPS);
+
+function renderGuideHud() {
+  if (!guideHud) {
+    return;
+  }
+  const s = guide.status();
+  if (!s.active) {
+    guideHud.classList.remove('bww-show');
+    return;
+  }
+  // 走完最后一站会立刻 done，index 已等于 total，夹一下避免显示「10/9」。
+  // 文案写「下一站」而不是只写站名：到站瞬间进度已经指向下一站，而鲸鱼还在讲这一站，
+  // 只写站名会出现「鲸鱼讲兵部、面板写翰林院」的错位，加个动词就不会误读了。
+  const step = Math.min(s.index + 1, s.total);
+  guideHud.innerHTML = `<b>导览 ${step}/${s.total}</b><span>下一站 · ${s.name}</span><i>按 G 结束</i>`;
+  guideHud.classList.add('bww-show');
+}
+
+function toggleGuide() {
+  if (guide.isActive()) {
+    guide.stop();
+    renderGuideHud();
+    whaleSay('那就先到这儿。主公想再走，按 G 唤我。');
+    return;
+  }
+  const intro = guide.start();
+  if (intro) {
+    whaleSay(intro);
+  }
+  renderGuideHud();
 }
 
 // 传送面板
@@ -1729,6 +1789,10 @@ host.querySelectorAll('[data-action]').forEach((btn) => {
     }
     if (a === 'portal') togglePortalPanel();
     if (a === 'pet') talkToPet();
+    if (a === 'guide') {
+      closePortalPanel();
+      toggleGuide();
+    }
     if (a === 'say') {
       closePortalPanel();
       charPanel?.close();
@@ -1923,15 +1987,39 @@ function updateCamera(dt) {
 }
 
 function updateWhale(dt) {
-  const off = new THREE.Vector3(3.0, 3.1, 2.6).applyAxisAngle(Y_AXIS, player.yaw);
   const t = clock.t;
-  const target = player.pos.clone().add(off);
+  const guiding = guide.isActive();
+
+  // 导览时鲸鱼不再是"跟着玩家"，而是"领着玩家"：先飞到该站等，主公到了再讲解、再走下一站
+  let tick = null;
+  if (guiding) {
+    tick = guide.update(player.pos.x, player.pos.z, whale.position.x, whale.position.z);
+    if (tick.signal) {
+      whaleSay(tick.signal.stop.line);
+      renderGuideHud();
+      if (tick.signal.kind === 'done') {
+        showToast('导览结束', '八方宫署走完，往后主公自己认路');
+      }
+    }
+  }
+
+  const target = new THREE.Vector3();
+  if (guiding && tick?.target) {
+    const gx = tick.target.x;
+    const gz = tick.target.z;
+    target.set(gx, terrainHeight(gx, gz) + 3.2, gz);
+  } else {
+    const off = new THREE.Vector3(3.0, 3.1, 2.6).applyAxisAngle(Y_AXIS, player.yaw);
+    target.copy(player.pos).add(off);
+  }
   target.y += Math.sin(t * 1.4) * 0.42;
 
   whale.position.lerp(target, 1 - Math.exp(-dt * 2.6));
 
-  // 朝向移动方向
-  const desired = Math.atan2(player.pos.x - whale.position.x, player.pos.z - whale.position.z);
+  // 朝向：领路时朝目标飞，平时的朝向仍看着主公
+  const faceX = guiding && tick?.target ? target.x : player.pos.x;
+  const faceZ = guiding && tick?.target ? target.z : player.pos.z;
+  const desired = Math.atan2(faceX - whale.position.x, faceZ - whale.position.z);
   let diff = desired - whale.rotation.y;
   while (diff > Math.PI) diff -= Math.PI * 2;
   while (diff < -Math.PI) diff += Math.PI * 2;
@@ -1941,7 +2029,10 @@ function updateWhale(dt) {
   whale.rotation.x = Math.sin(t * 1.1) * 0.05;
   if (whaleTail) whaleTail.rotation.x = Math.sin(t * 2.2) * 0.42;
 
-  // 定时说话
+  // 定时说话：导览中闭嘴，否则闲聊会把讲解词顶掉
+  if (guiding) {
+    return;
+  }
   whaleTimer -= dt;
   if (whaleTimer <= 0) {
     whaleTimer = 16 + Math.random() * 12;
@@ -2108,6 +2199,21 @@ metrics.start();
     window.__bwwWarp = (x, z) => {
       player.pos.set(x, 0, z);
     };
+    /* 导览探针：读进度与当前目标，以及不按键直接开始（e2e 走完整条路线用） */
+    window.__bwwGuide = () => {
+      const s = guide.status();
+      return {
+        active: s.active,
+        index: s.index,
+        total: s.total,
+        name: s.name,
+        targetX: Number(s.targetX.toFixed(2)),
+        targetZ: Number(s.targetZ.toFixed(2)),
+        done: s.done,
+      };
+    };
+    window.__bwwGuideStops = () =>
+      GUIDE_STOPS.map((s) => ({ nodeKey: s.nodeKey, name: s.name, x: s.x, z: s.z }));
     /* 直接定轨道相机：e2e 需要"站在某点、朝某处看"的确定视角，靠拖拽估算角度不可靠。
        注意这里的 yaw 是**相机**绕玩家的方位（cam.yaw），不是角色朝向（player.yaw） */
     window.__bwwLook = (yaw, pitch, dist) => {

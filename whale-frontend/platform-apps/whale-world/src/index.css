@@ -184,6 +184,50 @@
   opacity: 0.7;
 }
 
+/* 带路导览进度：放左上角品牌下方。
+   不放顶部居中——那是 toast 的位置（top:96px, z-index 18），
+   一放就叠成一团乱字：导览中"到站提示"与进度条会同时在场，重叠后两边都读不了。 */
+.bww-guide {
+  position: absolute;
+  left: 28px;
+  top: 96px;
+  transform: translateY(-8px);
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 16px;
+  border-radius: 999px;
+  font-size: 12px;
+  letter-spacing: 1.4px;
+  color: #efe3c6;
+  background: rgba(8, 20, 28, 0.78);
+  border: 1px solid rgba(216, 180, 90, 0.42);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+.bww-guide.bww-show {
+  opacity: 1;
+  transform: translateY(0);
+}
+.bww-guide b {
+  font-weight: 500;
+  color: rgba(216, 180, 90, 0.95);
+  letter-spacing: 2px;
+}
+.bww-guide span {
+  color: #f6ecd8;
+}
+.bww-guide i {
+  font-style: normal;
+  font-size: 10.5px;
+  letter-spacing: 1.2px;
+  color: rgba(236, 223, 196, 0.45);
+}
+
 /* 传送提示 */
 .bww-portal-hint {
   position: absolute;
@@ -499,6 +543,16 @@
     right: 14px;
     bottom: 78px;
     max-width: none;
+  }
+  .bww-guide {
+    left: 14px;
+    top: 82px;
+    gap: 8px;
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+  .bww-guide i {
+    display: none;
   }
   .bww-hud {
     padding: 14px 16px 0;
