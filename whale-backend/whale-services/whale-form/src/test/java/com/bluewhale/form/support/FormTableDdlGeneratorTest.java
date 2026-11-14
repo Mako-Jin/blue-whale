@@ -151,6 +151,15 @@ class FormTableDdlGeneratorTest {
     }
 
     @Test
+    @DisplayName("columnDef：注释中的反斜杠与单引号均被转义，避免 DDL 越界")
+    void shouldEscapeComment() {
+        assertEquals("`path` VARCHAR(255) DEFAULT NULL COMMENT '路径\\\\'",
+                FormTableDdlGenerator.columnDef(column("path", "路径\\", "text", 255)));
+        assertEquals("`memo` VARCHAR(255) DEFAULT NULL COMMENT 'a\\\\''b'",
+                FormTableDdlGenerator.columnDef(column("memo", "a\\'b", "text", 255)));
+    }
+
+    @Test
     @DisplayName("alterAdd / alterModify：前缀正确且以 columnDef 结尾")
     void shouldGenerateAddAndModifyAlter() {
         String table = "form_data_fm_a_v1";

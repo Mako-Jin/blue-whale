@@ -438,13 +438,18 @@ public final class FormTableDdlGenerator {
     }
 
     /**
-     * 转义注释文本中的单引号并截断超长内容
+     * 转义注释文本中的反斜杠与单引号，并截断超长内容
+     *
+     * <p>MySQL 默认 {@code sql_mode} 下反斜杠是字符串转义符，仅双写单引号（{@code ''}）不足以封闭字面量：
+     * 以 {@code \} 结尾的注释会吞掉闭合引号导致 DDL 语法错误，构造输入还可越出注释边界。
+     * 故必须先转义反斜杠、再转义单引号。</p>
      *
      * @param text 原始注释文本，可为 {@code null}
      * @return 转义并截断后的注释文本
      */
     private static String escapeComment(String text) {
-        String value = text == null ? "" : text.replace("'", "''").replace('\n', ' ').replace('\r', ' ');
+        String value = text == null ? "" : text.replace("\\", "\\\\").replace("'", "''")
+                .replace('\n', ' ').replace('\r', ' ');
         return value.length() > MAX_COMMENT_LENGTH ? value.substring(0, MAX_COMMENT_LENGTH) : value;
     }
 

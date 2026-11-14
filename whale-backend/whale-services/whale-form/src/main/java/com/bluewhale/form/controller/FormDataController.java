@@ -35,7 +35,7 @@ import java.nio.charset.StandardCharsets;
  * <p>服务内路径前缀 {@code /form/data}；经网关按 {@code Path=/form/**} 规则转发，
  * 外部路径与本文档一致。全部接口受 {@code @RequirePermission("sys:form:data:*")} 保护
  * （AUTH-06：由网关权限码头 {@code X-Permission-Codes} + starter {@code RequirePermissionInterceptor} 判定）。
- * 租户ID 由请求头 {@code X-Tenant-Id} 解析（缺省 1）。</p>
+ * 租户ID 由网关注入的请求头 {@code X-Tenant-Id} 解析，缺失或非法一律拒绝（{@code FormTenantConfig} 统一守卫）。</p>
  *
  * @author BlueWhale
  */

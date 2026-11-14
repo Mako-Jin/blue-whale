@@ -20,6 +20,7 @@ import com.bluewhale.form.support.FormSchemaParser;
 import com.bluewhale.form.support.FormTableDdlGenerator;
 import com.bluewhale.form.vo.FormTableRegistryVO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -92,7 +93,11 @@ public class FormPublishServiceImpl implements FormPublishService {
         registry.setFieldCount(fields.size());
         registry.setSchemaJson(definition.getSchemaJson());
         registry.setStatus(STATUS_NORMAL);
-        formTableRegistryMapper.insert(registry);
+        try {
+            formTableRegistryMapper.insert(registry);
+        } catch (DuplicateKeyException e) {
+            throw duplicatePublishError();
+        }
         return toVo(registry);
     }
 
@@ -161,7 +166,11 @@ public class FormPublishServiceImpl implements FormPublishService {
             registry.setPhysicalTable(table);
             registry.setFieldCount(columns.size());
             registry.setStatus(STATUS_NORMAL);
-            formTableRegistryMapper.insert(registry);
+            try {
+                formTableRegistryMapper.insert(registry);
+            } catch (DuplicateKeyException e) {
+                throw duplicatePublishError();
+            }
         } else {
             registry.setFieldCount(columns.size());
             formTableRegistryMapper.updateById(registry);
@@ -328,6 +337,15 @@ public class FormPublishServiceImpl implements FormPublishService {
         if (count != null && count > 0) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "该表单版本已发布，如需变更请修改版本号后重新发布");
         }
+    }
+
+    /**
+     * 构造并发发布冲突异常（唯一约束兜底，避免重复登记）
+     *
+     * @return 参数错误业务异常
+     */
+    private static BizException duplicatePublishError() {
+        return new BizException(ErrorCode.PARAM_ERROR.getCode(), "该表单版本已发布或正在发布，请刷新后重试");
     }
 
     /**

@@ -30,7 +30,7 @@ public class FormInternalController {
      * 表单归档详情：表单数据（含结构化字段）+ 字段定义。
      *
      * @param id 表单数据ID
-     * @param httpRequest 当前请求（读取 {@code X-Tenant-Id} 解析租户，缺省 1）
+     * @param httpRequest 当前请求（读取 {@code X-Tenant-Id} 解析租户，缺失即拒绝）
      * @return 归档详情
      */
     @GetMapping("/data/{id}")
