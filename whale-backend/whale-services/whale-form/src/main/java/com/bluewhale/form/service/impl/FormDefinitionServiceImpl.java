@@ -75,9 +75,6 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
     /** 表单结构定义最大长度（字符数）：64KB */
     private static final int MAX_SCHEMA_LENGTH = 65536;
 
-    /** 单页最大条数：防止深度分页拖垮数据库 */
-    private static final long MAX_PAGE_SIZE = 200L;
-
     /** 复制编码后缀 */
     private static final String COPY_CODE_SUFFIX = "_copy";
 
@@ -87,8 +84,8 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
     /** 复制编码的最大尝试次数 */
     private static final int MAX_COPY_ATTEMPTS = 100;
 
-    /** 表单编码最大长度 */
-    private static final int MAX_CODE_LENGTH = 64;
+    /** 表单编码最大长度（与物理表名可发布规则对齐） */
+    private static final int MAX_CODE_LENGTH = 40;
 
     /** 表单名称最大长度 */
     private static final int MAX_NAME_LENGTH = 128;
@@ -111,6 +108,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public FormDefinitionVO create(FormDefinitionSaveRequest request) {
+        assertStructureSource(request);
         assertCodeUnique(request.getCode(), null);
         FormDefinition entity = new FormDefinition();
         entity.setCode(request.getCode());
@@ -140,6 +138,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public FormDefinitionVO update(Long id, FormDefinitionSaveRequest request) {
+        assertStructureSource(request);
         FormDefinition entity = requireForm(id);
         int expectedVersion = entity.getVersion() == null ? DEFAULT_VERSION : entity.getVersion();
         if (!entity.getCode().equals(request.getCode())) {
@@ -216,10 +215,9 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
         wrapper.eq(StringUtils.hasText(request.getCode()), FormDefinition::getCode, request.getCode());
         wrapper.eq(request.getStatus() != null, FormDefinition::getStatus, request.getStatus());
         wrapper.orderByDesc(FormDefinition::getCreateTime);
-        long size = Math.min(Math.max(request.getSize(), 1L), MAX_PAGE_SIZE);
-        Page<FormDefinition> page = formDefinitionMapper.selectPage(new Page<>(request.getCurrent(), size), wrapper);
+        Page<FormDefinition> page = formDefinitionMapper.selectPage(request.toPage(), wrapper);
         List<FormDefinitionVO> records = page.getRecords().stream()
-                .map(entity -> toVo(entity, null)).toList();
+                .map(FormConverter.INSTANCE::toDefinitionSummaryVo).toList();
         return PageResult.of(records, page.getTotal(), page.getCurrent(), page.getSize());
     }
 
@@ -290,14 +288,25 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
             assertCodeUnique(request.getCode(), null);
             return request.getCode();
         }
-        String base = sourceCode + COPY_CODE_SUFFIX;
         for (int i = 1; i <= MAX_COPY_ATTEMPTS; i++) {
-            String candidate = i == 1 ? base : base + i;
-            if (candidate.length() <= MAX_CODE_LENGTH && isCodeAvailable(candidate)) {
+            String suffix = i == 1 ? COPY_CODE_SUFFIX : COPY_CODE_SUFFIX + i;
+            String candidate = truncateCode(sourceCode, MAX_CODE_LENGTH - suffix.length()) + suffix;
+            if (isCodeAvailable(candidate)) {
                 return candidate;
             }
         }
         throw paramError("无法生成唯一表单编码");
+    }
+
+    /**
+     * 按最大长度截断编码（复制编码需保证不超过物理表名可发布长度）
+     *
+     * @param code 源编码
+     * @param maxLength 允许的最大长度
+     * @return 截断后的编码
+     */
+    private static String truncateCode(String code, int maxLength) {
+        return code.length() <= maxLength ? code : code.substring(0, maxLength);
     }
 
     /**
@@ -589,6 +598,21 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
     private static void validateSchemaSize(String schemaJson) {
         if (schemaJson != null && schemaJson.length() > MAX_SCHEMA_LENGTH) {
             throw paramError("表单结构定义长度不能超过 65536 字符");
+        }
+    }
+
+    /**
+     * 校验结构来源互斥：元数据模型以 {@code fields} 为准，旧模型以 {@code schemaJson} 为准，
+     * 同时提交会产生两套互相覆盖的结构来源。
+     *
+     * @param request 表单保存请求
+     * @throws BizException 同时提交 {@code fields} 与 {@code schemaJson} 时抛出 {@code PARAM_ERROR}
+     */
+    private static void assertStructureSource(FormDefinitionSaveRequest request) {
+        boolean hasFields = request.getFields() != null && !request.getFields().isEmpty();
+        boolean hasSchema = request.getSchemaJson() != null && !request.getSchemaJson().isBlank();
+        if (hasFields && hasSchema) {
+            throw paramError("fields 与 schemaJson 不能同时提交");
         }
     }
 

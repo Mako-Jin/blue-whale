@@ -76,9 +76,6 @@ public class FormDataServiceImpl implements FormDataService {
     /** 表单数据最大长度（字符数）：64KB */
     private static final int MAX_DATA_LENGTH = 65536;
 
-    /** 单页最大条数：防止深度分页拖垮数据库 */
-    private static final long MAX_PAGE_SIZE = 200L;
-
     /** 导出单次最大条数 */
     private static final long EXPORT_MAX_ROWS = 5000L;
 
@@ -254,8 +251,9 @@ public class FormDataServiceImpl implements FormDataService {
     @Override
     public PageResult<FormDataVO> page(FormDataQueryRequest request, Long tenantId) {
         List<FormDataFilter> filters = parseFilters(request.getFilters());
-        long size = Math.min(Math.max(request.getSize(), 1L), MAX_PAGE_SIZE);
-        long current = Math.max(request.getCurrent(), 1L);
+        Page<FormData> query = request.toPage();
+        long current = query.getCurrent();
+        long size = query.getSize();
         if (!filters.isEmpty()) {
             if (!StringUtils.hasText(request.getDefinitionCode())) {
                 throw paramError("动态字段条件检索需先指定表单编码");
@@ -273,7 +271,7 @@ public class FormDataServiceImpl implements FormDataService {
         wrapper.eq(StringUtils.hasText(request.getBizKey()), FormData::getBizKey, request.getBizKey());
         wrapper.eq(StringUtils.hasText(request.getSubmitter()), FormData::getSubmitter, request.getSubmitter());
         wrapper.orderByDesc(FormData::getCreateTime);
-        Page<FormData> page = formDataMapper.selectPage(new Page<>(current, size), wrapper);
+        Page<FormData> page = formDataMapper.selectPage(query, wrapper);
         List<FormDataVO> records = page.getRecords().stream().map(entity -> toVo(entity, null)).toList();
         return PageResult.of(records, page.getTotal(), page.getCurrent(), page.getSize());
     }

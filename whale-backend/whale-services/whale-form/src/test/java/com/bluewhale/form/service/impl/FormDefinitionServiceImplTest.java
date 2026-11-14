@@ -126,6 +126,21 @@ class FormDefinitionServiceImplTest {
     }
 
     @Test
+    @DisplayName("create：fields 与 schemaJson 同时提交抛参数错误且不落库")
+    void shouldRejectFieldsAndSchemaJsonTogether() {
+        FormDefinitionSaveRequest request = saveRequest("form_a", "A表单");
+        FormFieldConfigDTO field = new FormFieldConfigDTO();
+        field.setFieldLabel("名称");
+        request.setFields(List.of(field));
+        request.setSchemaJson("{}");
+
+        BizException ex = assertThrows(BizException.class, () -> formDefinitionService.create(request));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        verify(formDefinitionMapper, never()).insert(any(FormDefinition.class));
+    }
+
+    @Test
     @DisplayName("create：编码已存在时抛参数错误且不落库")
     void shouldRejectDuplicateCode() {
         when(formDefinitionMapper.selectCount(ArgumentMatchers.<Wrapper<FormDefinition>>any())).thenReturn(1L);

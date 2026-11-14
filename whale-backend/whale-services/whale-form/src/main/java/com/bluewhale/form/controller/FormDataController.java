@@ -99,7 +99,8 @@ public class FormDataController {
      */
     @GetMapping("/page")
     @RequirePermission("sys:form:data:list")
-    public Result<PageResult<FormDataVO>> page(FormDataQueryRequest request, HttpServletRequest httpRequest) {
+    public Result<PageResult<FormDataVO>> page(@Valid FormDataQueryRequest request,
+                                               HttpServletRequest httpRequest) {
         return Result.ok(formDataService.page(request, TenantResolver.resolve(httpRequest)));
     }
 

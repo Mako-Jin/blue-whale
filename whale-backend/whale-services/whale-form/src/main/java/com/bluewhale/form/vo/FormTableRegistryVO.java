@@ -42,8 +42,11 @@ public class FormTableRegistryVO implements Serializable {
     /** 动态字段数量 */
     private Integer fieldCount;
 
-    /** 状态：1 生效 / 0 废弃 */
+    /** 状态：1 生效 / 0 废弃 / 3 发布失败 */
     private Integer status;
+
+    /** 最近一次发布失败原因（成功发布后清空；仅 status=3 时有值） */
+    private String lastError;
 
     /** 创建时间 */
     private LocalDateTime createTime;

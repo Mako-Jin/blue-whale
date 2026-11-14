@@ -180,6 +180,37 @@ class FormTableDefinitionServiceImplTest {
     }
 
     @Test
+    @DisplayName("create：required=1 且 nullable=1 抛参数错误")
+    void shouldRejectRequiredNullableConflict() {
+        when(formTableDefinitionMapper.selectCount(ArgumentMatchers.<Wrapper<FormTableDefinition>>any()))
+                .thenReturn(0L);
+        FormColumnMetaDTO dto = column("amount", "number");
+        dto.setRequired(1);
+        dto.setNullable(1);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> formTableDefinitionService.create(saveRequest(List.of(dto))));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        verify(formColumnMetaMapper, never()).insert(any(FormColumnMeta.class));
+    }
+
+    @Test
+    @DisplayName("create：required=1 未指定 nullable 时推导为非空")
+    void shouldDeriveNullableFromRequired() {
+        when(formTableDefinitionMapper.selectCount(ArgumentMatchers.<Wrapper<FormTableDefinition>>any()))
+                .thenReturn(0L);
+        FormColumnMetaDTO dto = column("amount", "number");
+        dto.setRequired(1);
+
+        formTableDefinitionService.create(saveRequest(List.of(dto)));
+
+        ArgumentCaptor<FormColumnMeta> captor = ArgumentCaptor.forClass(FormColumnMeta.class);
+        verify(formColumnMetaMapper).insert(captor.capture());
+        assertEquals(Integer.valueOf(0), captor.getValue().getNullable());
+    }
+
+    @Test
     @DisplayName("update：同编码列就地合并并保留原主键")
     void shouldKeepExistingColumnId() {
         when(formTableDefinitionMapper.selectById(10L)).thenReturn(tableDefinition());

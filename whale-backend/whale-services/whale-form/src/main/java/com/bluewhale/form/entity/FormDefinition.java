@@ -20,7 +20,7 @@ public class FormDefinition extends BaseEntity {
 
     private static final long serialVersionUID = 1L;
 
-    /** 表单编码（业务唯一；因逻辑删除不建唯一索引，唯一性由服务层前置校验保证） */
+    /** 表单编码（业务唯一；规则 {@code ^[a-z][a-z0-9_]{0,39}$}，因逻辑删除不建唯一索引，唯一性由服务层前置校验保证） */
     private String code;
 
     /** 表单名称 */

@@ -55,9 +55,6 @@ public class FormTableDefinitionServiceImpl implements FormTableDefinitionServic
     /** 版本号默认值 */
     private static final int DEFAULT_VERSION = 1;
 
-    /** 单页最大条数 */
-    private static final long MAX_PAGE_SIZE = 200L;
-
     private final FormTableDefinitionMapper formTableDefinitionMapper;
 
     private final FormColumnMetaMapper formColumnMetaMapper;
@@ -132,9 +129,8 @@ public class FormTableDefinitionServiceImpl implements FormTableDefinitionServic
         wrapper.eq(StringUtils.hasText(request.getCode()), FormTableDefinition::getTableCode, request.getCode());
         wrapper.eq(request.getStatus() != null, FormTableDefinition::getStatus, request.getStatus());
         wrapper.orderByDesc(FormTableDefinition::getCreateTime);
-        long size = Math.min(Math.max(request.getSize(), 1L), MAX_PAGE_SIZE);
         Page<FormTableDefinition> page =
-                formTableDefinitionMapper.selectPage(new Page<>(request.getCurrent(), size), wrapper);
+                formTableDefinitionMapper.selectPage(request.toPage(), wrapper);
         List<FormTableDefinitionVO> records =
                 page.getRecords().stream().map(entity -> toVo(entity, null)).toList();
         return PageResult.of(records, page.getTotal(), page.getCurrent(), page.getSize());
@@ -176,12 +172,10 @@ public class FormTableDefinitionServiceImpl implements FormTableDefinitionServic
         if (dtos != null) {
             Set<String> codes = new HashSet<>();
             for (FormColumnMetaDTO dto : dtos) {
-                FormSchemaParser.assertColumnCode(dto.getColumnCode());
+                validateColumn(dto);
                 if (!codes.add(dto.getColumnCode())) {
                     throw paramError("列编码重复：" + dto.getColumnCode());
                 }
-                FormDataType.assertAllowed(dto.getDataType(), dto.getColumnCode());
-                FormDataType.mysqlType(dto.getDataType(), dto.getLength(), dto.getPrecision(), dto.getScale());
                 FormColumnMeta column = existingByCode.get(dto.getColumnCode());
                 if (column == null) {
                     column = applyColumn(new FormColumnMeta(), dto, tableDefinitionId, version);
@@ -236,6 +230,42 @@ public class FormTableDefinitionServiceImpl implements FormTableDefinitionServic
     }
 
     /**
+     * 列请求统一校验：编码白名单、存储类型/长度参数、必填与非空语义
+     *
+     * @param dto 列请求
+     * @throws BizException 任一校验不通过时抛出 {@code PARAM_ERROR}
+     */
+    private static void validateColumn(FormColumnMetaDTO dto) {
+        FormSchemaParser.assertColumnCode(dto.getColumnCode());
+        FormDataType.assertAllowed(dto.getDataType(), dto.getColumnCode());
+        FormDataType.mysqlType(dto.getDataType(), dto.getLength(), dto.getPrecision(), dto.getScale());
+        assertRequiredNullable(dto);
+    }
+
+    /**
+     * 校验「必填 ⇔ 非空」一致性：{@code required=1} 时 {@code nullable} 必须为 0；
+     * {@code nullable=0} 时也必须声明为必填，避免物理列 {@code NOT NULL} 但服务层不校验导致写入失败。
+     *
+     * <p>{@code nullable} 缺省时由 {@code required} 推导（必填列物理表为 {@code NOT NULL}），
+     * 避免元数据声明必填但物理列允许 NULL 的双重语义。</p>
+     *
+     * @param dto 列请求
+     * @throws BizException 必填与非空语义冲突时抛出 {@code PARAM_ERROR}
+     */
+    private static void assertRequiredNullable(FormColumnMetaDTO dto) {
+        int required = dto.getRequired() == null ? 0 : dto.getRequired();
+        if (dto.getNullable() == null) {
+            return;
+        }
+        if (required == STATUS_NORMAL && dto.getNullable() != 0) {
+            throw paramError("列 " + dto.getColumnCode() + " 为必填时必须设置为非空（nullable=0）");
+        }
+        if (required != STATUS_NORMAL && dto.getNullable() == 0) {
+            throw paramError("列 " + dto.getColumnCode() + " 为非空时必须同时设置为必填（required=1）");
+        }
+    }
+
+    /**
      * 逐列校验并落库（新建表定义时使用），返回新列实体列表
      *
      * @param tableDefinitionId 表定义ID
@@ -252,12 +282,10 @@ public class FormTableDefinitionServiceImpl implements FormTableDefinitionServic
         }
         Set<String> codes = new HashSet<>();
         for (FormColumnMetaDTO dto : dtos) {
-            FormSchemaParser.assertColumnCode(dto.getColumnCode());
+            validateColumn(dto);
             if (!codes.add(dto.getColumnCode())) {
                 throw paramError("列编码重复：" + dto.getColumnCode());
             }
-            FormDataType.assertAllowed(dto.getDataType(), dto.getColumnCode());
-            FormDataType.mysqlType(dto.getDataType(), dto.getLength(), dto.getPrecision(), dto.getScale());
             FormColumnMeta column = applyColumn(new FormColumnMeta(), dto, tableDefinitionId, version);
             formColumnMetaMapper.insert(column);
             result.add(column);
@@ -284,8 +312,9 @@ public class FormTableDefinitionServiceImpl implements FormTableDefinitionServic
         column.setLength(dto.getLength());
         column.setPrecision(dto.getPrecision());
         column.setScale(dto.getScale());
-        column.setNullable(dto.getNullable() == null ? 1 : dto.getNullable());
-        column.setRequired(dto.getRequired() == null ? 0 : dto.getRequired());
+        int required = dto.getRequired() == null ? 0 : dto.getRequired();
+        column.setRequired(required);
+        column.setNullable(dto.getNullable() == null ? (required == STATUS_NORMAL ? 0 : 1) : dto.getNullable());
         column.setDefaultValue(dto.getDefaultValue());
         column.setRemark(dto.getRemark());
         column.setSortNo(dto.getSortNo() == null ? 0 : dto.getSortNo());

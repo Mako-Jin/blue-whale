@@ -101,7 +101,7 @@ public class FormController {
      */
     @GetMapping("/definition/page")
     @RequirePermission("sys:form:list")
-    public Result<PageResult<FormDefinitionVO>> page(FormQueryRequest request) {
+    public Result<PageResult<FormDefinitionVO>> page(@Valid FormQueryRequest request) {
         return Result.ok(formDefinitionService.page(request));
     }
 

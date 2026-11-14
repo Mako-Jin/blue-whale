@@ -151,6 +151,16 @@ class FormTableDdlGeneratorTest {
     }
 
     @Test
+    @DisplayName("columnDef：nullable=0 生成 NOT NULL，与服务层必填校验对齐")
+    void shouldDefineNotNullColumn() {
+        FormColumnMeta meta = column("amount", "金额", "number", null);
+        meta.setNullable(0);
+
+        assertEquals("`amount` DECIMAL(18,4) NOT NULL COMMENT '金额'",
+                FormTableDdlGenerator.columnDef(meta));
+    }
+
+    @Test
     @DisplayName("columnDef：注释中的反斜杠与单引号均被转义，避免 DDL 越界")
     void shouldEscapeComment() {
         assertEquals("`path` VARCHAR(255) DEFAULT NULL COMMENT '路径\\\\'",

@@ -99,7 +99,7 @@ public class FormTableDefinitionController {
      */
     @GetMapping("/page")
     @RequirePermission("sys:form:table:list")
-    public Result<PageResult<FormTableDefinitionVO>> page(FormQueryRequest request) {
+    public Result<PageResult<FormTableDefinitionVO>> page(@Valid FormQueryRequest request) {
         return Result.ok(formTableDefinitionService.page(request));
     }
 

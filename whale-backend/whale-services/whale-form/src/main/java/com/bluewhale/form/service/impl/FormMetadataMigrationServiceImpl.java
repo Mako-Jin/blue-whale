@@ -171,8 +171,8 @@ public class FormMetadataMigrationServiceImpl implements FormMetadataMigrationSe
         column.setColumnName(field.getLabel());
         column.setDataType(field.getType());
         column.setLength(field.getMaxLength());
-        column.setNullable(STATUS_NORMAL);
         column.setRequired(field.isRequired() ? STATUS_NORMAL : 0);
+        column.setNullable(field.isRequired() ? 0 : STATUS_NORMAL);
         column.setSortNo(sortNo);
         column.setStatus(STATUS_NORMAL);
         formColumnMetaMapper.insert(column);

@@ -71,6 +71,16 @@ public interface FormConverter {
     FormDefinitionVO toDefinitionVo(FormDefinition entity);
 
     /**
+     * 表单定义实体转分页摘要视图对象（不含 schemaJson 大字段，列表场景使用）
+     *
+     * @param entity 表单定义实体
+     * @return 表单定义视图对象（schemaJson/fields 为空）
+     */
+    @Mapping(target = "fields", ignore = true)
+    @Mapping(target = "schemaJson", ignore = true)
+    FormDefinitionVO toDefinitionSummaryVo(FormDefinition entity);
+
+    /**
      * 表单注册表实体转视图对象
      *
      * @param entity 注册表实体

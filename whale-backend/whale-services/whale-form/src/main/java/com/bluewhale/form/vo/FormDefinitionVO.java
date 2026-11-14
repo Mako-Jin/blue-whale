@@ -1,5 +1,6 @@
 package com.bluewhale.form.vo;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -28,7 +29,8 @@ public class FormDefinitionVO implements Serializable {
     /** 所属表定义ID（元数据模型；{@code null} 为旧模型） */
     private Long tableDefinitionId;
 
-    /** 表单结构定义（发布快照 JSON 文本） */
+    /** 表单结构定义（发布快照 JSON 文本；分页摘要不返回，为空时不序列化） */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private String schemaJson;
 
     /** 版本号 */

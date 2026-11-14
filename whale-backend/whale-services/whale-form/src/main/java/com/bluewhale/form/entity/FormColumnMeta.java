@@ -34,7 +34,7 @@ public class FormColumnMeta extends BaseEntity {
     /** 列名称（业务名） */
     private String columnName;
 
-    /** 存储类型：text / textarea / number / date / datetime / select / bool */
+    /** 存储类型：text / textarea / number / date / datetime / select / bool / attachment / subtable */
     private String dataType;
 
     /** 长度（{@code text} 生效；缺省 255，范围 1..2000） */
@@ -47,10 +47,10 @@ public class FormColumnMeta extends BaseEntity {
     /** 小数位（{@code number} 生效；缺省 4） */
     private Integer scale;
 
-    /** 能否为空：1 可空 / 0 非空 */
+    /** 能否为空：1 可空 / 0 非空（0 时物理列生成 NOT NULL） */
     private Integer nullable;
 
-    /** 是否必填：1 必填 / 0 非必填（服务层校验） */
+    /** 是否必填：1 必填 / 0 非必填（服务层校验；为 1 时 nullable 必须为 0） */
     private Integer required;
 
     /** 默认值 */

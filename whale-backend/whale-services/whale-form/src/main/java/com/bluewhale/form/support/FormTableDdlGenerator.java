@@ -41,6 +41,9 @@ public final class FormTableDdlGenerator {
     /** 单表自动索引数量上限（控制写放大，超出按列顺序截断） */
     public static final int MAX_AUTO_INDEXES = 16;
 
+    /** 列可空标识：0 非空（物理列生成 {@code NOT NULL}） */
+    private static final int NULLABLE_NO = 0;
+
     /** 文本列可建全列索引的最大长度（utf8mb4 下 191*4=764 字节，兼容 767 字节索引前缀限制） */
     public static final int MAX_INDEXED_TEXT_LENGTH = 191;
 
@@ -136,16 +139,21 @@ public final class FormTableDdlGenerator {
     }
 
     /**
-     * 单个动态列的定义片段（列名 + MySQL 类型 + 注释）
+     * 单个动态列的定义片段（列名 + MySQL 类型 + 可空性 + 注释）
+     *
+     * <p>{@code nullable=0} 的列生成 {@code NOT NULL}，与元数据的必填语义保持一致；
+     * 其余列沿用 {@code DEFAULT NULL}。</p>
      *
      * @param column 列元数据
      * @return 形如 {@code `code` VARCHAR(255) DEFAULT NULL COMMENT '名称'} 的定义文本
      * @throws BizException 存储类型/参数非法时抛出 {@code PARAM_ERROR}
      */
     public static String columnDef(FormColumnMeta column) {
+        String nullability = column.getNullable() != null && column.getNullable() == NULLABLE_NO
+                ? " NOT NULL" : " DEFAULT NULL";
         return "`" + column.getColumnCode() + "` " + FormDataType.mysqlType(
                 column.getDataType(), column.getLength(), column.getPrecision(), column.getScale())
-                + " DEFAULT NULL COMMENT '" + escapeComment(column.getColumnName()) + "'";
+                + nullability + " COMMENT '" + escapeComment(column.getColumnName()) + "'";
     }
 
     /**
