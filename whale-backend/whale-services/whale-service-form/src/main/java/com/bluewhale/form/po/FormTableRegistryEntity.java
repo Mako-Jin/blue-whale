@@ -1,4 +1,4 @@
-package com.bluewhale.form.entity;
+package com.bluewhale.form.po;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.bluewhale.common.entity.BaseEntity;
