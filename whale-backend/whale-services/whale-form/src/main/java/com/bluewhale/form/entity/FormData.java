@@ -47,6 +47,9 @@ public class FormData extends BaseEntity {
     /** 业务键（可选，用于关联外部业务单据） */
     private String bizKey;
 
+    /** 客户端幂等键（可选，租户 + 表单编码内唯一） */
+    private String clientRequestId;
+
     /** 表单数据（JSON 文本，最长 64KB，即 65536 字符） */
     private String dataJson;
 

@@ -28,4 +28,8 @@ public class FormDataSubmitRequest implements Serializable {
     /** 业务键（可选，最长 64） */
     @Size(max = 64, message = "业务键长度不能超过 64")
     private String bizKey;
+
+    /** 客户端幂等键（可选，最长 64；相同键重复提交返回首次提交结果） */
+    @Size(max = 64, message = "客户端请求ID长度不能超过 64")
+    private String clientRequestId;
 }

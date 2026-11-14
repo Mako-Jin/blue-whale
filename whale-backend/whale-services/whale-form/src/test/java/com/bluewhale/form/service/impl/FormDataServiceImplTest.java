@@ -22,6 +22,7 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DuplicateKeyException;
 
 import java.util.List;
 
@@ -31,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -121,6 +123,37 @@ class FormDataServiceImplTest {
         return request;
     }
 
+    /**
+     * 构造携带幂等键的提交请求桩对象。
+     *
+     * @param definitionId 表单定义ID
+     * @param dataJson 表单数据JSON
+     * @param clientRequestId 客户端幂等键
+     * @return 提交请求
+     */
+    private static FormDataSubmitRequest submitRequest(Long definitionId, String dataJson, String clientRequestId) {
+        FormDataSubmitRequest request = submitRequest(definitionId, dataJson);
+        request.setClientRequestId(clientRequestId);
+        return request;
+    }
+
+    /**
+     * 构造已落库的表单数据桩对象。
+     *
+     * @param id 主键ID
+     * @param dataJson 表单数据JSON
+     * @return 表单数据实体
+     */
+    private static FormData existingData(Long id, String dataJson) {
+        FormData entity = new FormData();
+        entity.setId(id);
+        entity.setTenantId(TENANT);
+        entity.setDefinitionCode(CODE);
+        entity.setDefinitionVersion(1);
+        entity.setDataJson(dataJson);
+        return entity;
+    }
+
     @Test
     @DisplayName("submit：定义存在且版本已发布时双写主表与物理表")
     void shouldSubmitWhenPublished() {
@@ -137,6 +170,54 @@ class FormDataServiceImplTest {
         assertEquals(1, captor.getValue().getDefinitionVersion().intValue());
         verify(formDataEngine).insert(eq(TABLE), any(FormData.class), anyList(), anyMap());
         assertEquals("张三", vo.getFields().get("name"));
+    }
+
+    @Test
+    @DisplayName("submit：幂等键已存在时返回首次提交结果，不重复落库")
+    void shouldReturnExistingWhenClientRequestIdHit() {
+        when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
+        when(formDataMapper.selectOne(ArgumentMatchers.<Wrapper<FormData>>any()))
+                .thenReturn(existingData(7L, "{\"name\":\"张三\"}"));
+
+        FormDataVO vo = formDataService.submit(submitRequest(10L, "{\"name\":\"张三\"}", "req-1"), "lisi", TENANT);
+
+        assertEquals(7L, vo.getId().longValue());
+        assertEquals("张三", vo.getFields().get("name"));
+        verify(formDataMapper, never()).insert(any(FormData.class));
+        verify(formDataEngine, never()).insert(anyString(), any(FormData.class), anyList(), anyMap());
+    }
+
+    @Test
+    @DisplayName("submit：并发唯一键冲突时回查并返回首次提交结果")
+    void shouldReturnExistingWhenDuplicateKey() {
+        when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistry>>any()))
+                .thenReturn(registry());
+        when(formDataMapper.selectOne(ArgumentMatchers.<Wrapper<FormData>>any()))
+                .thenReturn(null, existingData(7L, "{\"name\":\"张三\"}"));
+        when(formDataMapper.insert(any(FormData.class))).thenThrow(new DuplicateKeyException("uk"));
+
+        FormDataVO vo = formDataService.submit(submitRequest(10L, "{\"name\":\"张三\"}", "req-1"), "lisi", TENANT);
+
+        assertEquals(7L, vo.getId().longValue());
+        verify(formDataEngine, never()).insert(anyString(), any(FormData.class), anyList(), anyMap());
+    }
+
+    @Test
+    @DisplayName("submit：幂等键被软删记录占用时返回明确参数错误")
+    void shouldThrowWhenClientRequestIdOccupiedByDeletedRecord() {
+        when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistry>>any()))
+                .thenReturn(registry());
+        when(formDataMapper.selectOne(ArgumentMatchers.<Wrapper<FormData>>any())).thenReturn(null);
+        when(formDataMapper.insert(any(FormData.class))).thenThrow(new DuplicateKeyException("uk"));
+
+        BizException ex = assertThrows(BizException.class,
+                () -> formDataService.submit(submitRequest(10L, "{\"name\":\"张三\"}", "req-1"), "lisi", TENANT));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        assertEquals("客户端请求ID已被占用，请重新生成 clientRequestId", ex.getMessage());
+        verify(formDataEngine, never()).insert(anyString(), any(FormData.class), anyList(), anyMap());
     }
 
     @Test

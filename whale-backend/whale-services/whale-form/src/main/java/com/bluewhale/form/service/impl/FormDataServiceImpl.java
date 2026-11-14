@@ -30,6 +30,7 @@ import com.bluewhale.form.vo.FormDataVO;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -118,6 +119,11 @@ public class FormDataServiceImpl implements FormDataService {
     @Transactional(rollbackFor = Exception.class)
     public FormDataVO submit(FormDataSubmitRequest request, String submitter, Long tenantId) {
         FormDefinition definition = requireDefinition(request.getDefinitionId());
+        String clientRequestId = normalizeClientRequestId(request.getClientRequestId());
+        FormData existing = findByClientRequestId(tenantId, definition.getCode(), clientRequestId);
+        if (existing != null) {
+            return toVo(existing, parseDataQuietly(existing.getDataJson()));
+        }
         validateDataSize(request.getDataJson());
         Integer formVersion = definition.getVersion() == null ? DEFAULT_VERSION : definition.getVersion();
         FormTableDefinition table = definition.getTableDefinitionId() == null
@@ -135,6 +141,7 @@ public class FormDataServiceImpl implements FormDataService {
         entity.setDefinitionCode(definition.getCode());
         entity.setDefinitionVersion(formVersion);
         entity.setBizKey(request.getBizKey());
+        entity.setClientRequestId(clientRequestId);
         entity.setDataJson(request.getDataJson());
         entity.setSubmitter(submitter);
         entity.setStatus(STATUS_NORMAL);
@@ -144,9 +151,47 @@ public class FormDataServiceImpl implements FormDataService {
             entity.setTableVersion(routeVersion);
             entity.setFormDefinitionId(definition.getId());
         }
-        formDataMapper.insert(entity);
+        try {
+            formDataMapper.insert(entity);
+        } catch (DuplicateKeyException e) {
+            // 并发重复提交：唯一键兜底后回查首次提交结果；软删记录占用键时无匹配则给出明确提示
+            FormData duplicated = findByClientRequestId(tenantId, definition.getCode(), clientRequestId);
+            if (duplicated == null) {
+                throw paramError("客户端请求ID已被占用，请重新生成 clientRequestId");
+            }
+            return toVo(duplicated, parseDataQuietly(duplicated.getDataJson()));
+        }
         formDataEngine.insert(registry.getPhysicalTable(), entity, fields, data);
         return toVo(entity, data);
+    }
+
+    /**
+     * 归一化客户端幂等键：空白视为未提供
+     *
+     * @param clientRequestId 原始幂等键
+     * @return 去空白后的幂等键；未提供返回 {@code null}
+     */
+    private static String normalizeClientRequestId(String clientRequestId) {
+        return StringUtils.hasText(clientRequestId) ? clientRequestId.trim() : null;
+    }
+
+    /**
+     * 按（租户, 表单编码, 幂等键）查询已提交记录
+     *
+     * @param tenantId 租户ID
+     * @param definitionCode 表单编码
+     * @param clientRequestId 幂等键（{@code null} 表示未启用幂等）
+     * @return 已存在的表单数据；未命中返回 {@code null}
+     */
+    private FormData findByClientRequestId(Long tenantId, String definitionCode, String clientRequestId) {
+        if (clientRequestId == null) {
+            return null;
+        }
+        LambdaQueryWrapper<FormData> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormData::getTenantId, tenantId);
+        wrapper.eq(FormData::getDefinitionCode, definitionCode);
+        wrapper.eq(FormData::getClientRequestId, clientRequestId);
+        return formDataMapper.selectOne(wrapper);
     }
 
     @Override

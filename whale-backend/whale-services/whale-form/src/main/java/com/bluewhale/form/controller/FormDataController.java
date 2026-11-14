@@ -126,7 +126,7 @@ public class FormDataController {
      * @return 带 {@code Content-Disposition} 的文件响应
      */
     @GetMapping("/export")
-    @RequirePermission("sys:form:data:list")
+    @RequirePermission("sys:form:data:export")
     public ResponseEntity<byte[]> export(FormDataQueryRequest request,
                                          @RequestParam(defaultValue = "csv") String format,
                                          HttpServletRequest httpRequest) {
