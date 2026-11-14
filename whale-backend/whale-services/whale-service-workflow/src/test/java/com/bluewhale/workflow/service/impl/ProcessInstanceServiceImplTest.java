@@ -128,10 +128,28 @@ class ProcessInstanceServiceImplTest {
         return request;
     }
 
+    /**
+     * 构造已发布版本快照桩对象。
+     *
+     * @param definitionId 流程定义ID
+     * @param json 快照 JSON
+     * @return 已发布快照
+     */
+    private static ProcessDefinitionVersionPo publishedSnapshot(Long definitionId, String json) {
+        ProcessDefinitionVersionPo snapshot = new ProcessDefinitionVersionPo();
+        snapshot.setDefinitionId(definitionId);
+        snapshot.setVersion(1);
+        snapshot.setDefinitionJson(json);
+        snapshot.setPublishStatus(1);
+        return snapshot;
+    }
+
     @Test
     @DisplayName("start：定义存在且含节点时建实例并生成首节点待办")
     void shouldStartWhenDefinitionValid() {
         when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, TWO_NODE_JSON));
+        when(processDefinitionVersionMapper.selectList(ArgumentMatchers.<Wrapper<ProcessDefinitionVersionPo>>any()))
+                .thenReturn(List.of(publishedSnapshot(10L, TWO_NODE_JSON)));
 
         ProcessInstanceVO vo = processInstanceService.start(startRequest(10L), "zhangsan");
 
@@ -170,12 +188,27 @@ class ProcessInstanceServiceImplTest {
     @DisplayName("start：定义无有效节点抛参数错误且不落库")
     void shouldThrowWhenDefinitionHasNoNode() {
         when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, "{\"nodes\":[]}"));
+        when(processDefinitionVersionMapper.selectList(ArgumentMatchers.<Wrapper<ProcessDefinitionVersionPo>>any()))
+                .thenReturn(List.of(publishedSnapshot(10L, "{\"nodes\":[]}")));
 
         BizException ex = assertThrows(BizException.class,
                 () -> processInstanceService.start(startRequest(10L), "zhangsan"));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertEquals("流程定义缺少有效审批节点", ex.getMessage());
+        verify(processInstanceMapper, never()).insert(any(ProcessInstancePo.class));
+    }
+
+    @Test
+    @DisplayName("start：定义未发布时拒绝发起")
+    void shouldRejectStartWhenDefinitionUnpublished() {
+        when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, TWO_NODE_JSON));
+
+        BizException ex = assertThrows(BizException.class,
+                () -> processInstanceService.start(startRequest(10L), "zhangsan"));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        assertEquals("流程定义未发布，无法发起", ex.getMessage());
         verify(processInstanceMapper, never()).insert(any(ProcessInstancePo.class));
     }
 
@@ -284,6 +317,8 @@ class ProcessInstanceServiceImplTest {
     @DisplayName("start：规范化定义透传开始事件并以节点键记录当前状态")
     void shouldStartNormalizedAtFirstUserTaskKey() {
         when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, NORMALIZED_JSON));
+        when(processDefinitionVersionMapper.selectList(ArgumentMatchers.<Wrapper<ProcessDefinitionVersionPo>>any()))
+                .thenReturn(List.of(publishedSnapshot(10L, NORMALIZED_JSON)));
 
         ProcessInstanceVO vo = processInstanceService.start(startRequest(10L), "zhangsan");
 
@@ -319,6 +354,8 @@ class ProcessInstanceServiceImplTest {
     @DisplayName("start：无审批节点时实例直接置为已通过且不生成待办")
     void shouldApproveInstanceWithoutUserTask() {
         when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, START_END_JSON));
+        when(processDefinitionVersionMapper.selectList(ArgumentMatchers.<Wrapper<ProcessDefinitionVersionPo>>any()))
+                .thenReturn(List.of(publishedSnapshot(10L, START_END_JSON)));
 
         ProcessInstanceVO vo = processInstanceService.start(startRequest(10L), "zhangsan");
 

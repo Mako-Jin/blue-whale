@@ -40,6 +40,9 @@ Flyway 只扫描 `classpath:db/migration`（见 `application.yml` 的 `spring.fl
   `assignee`，因此不能留空。
 - 种子主键固定在 `9000000000000001xx` 段，低于当前雪花算法的时间戳段（约 `1.7e18`），
   不会与业务新增 ID 冲突；如需扩充种子请沿用该段并保持不重复。
+- 发起实例要求定义存在「已发布」版本快照（`process_definition_version.publish_status=1`）；
+  无已发布快照默认拒绝发起，存量定义确需继续运行时可设置
+  `bluewhale.workflow.allow-unpublished-start=true`（会按定义当前内容发起并打 `warn`）。
 
 ## 历史脚本注释口径
 

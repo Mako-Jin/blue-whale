@@ -60,7 +60,8 @@ public class ApproveCommand {
         }
         ProcessModel model = ProcessModelParser.parse(instanceModelLoader.resolveInstanceJson(instance));
         Map<String, Object> merged = ProcessVariables.merge(instance.getVariablesJson(), variables);
-        if (variables != null && !variables.isEmpty()) {
+        boolean variablesChanged = variables != null && !variables.isEmpty();
+        if (variablesChanged) {
             instance.setVariablesJson(ProcessVariables.write(merged));
         }
         String nodeKey = resolveCurrentKey(task, model, instance);
@@ -69,14 +70,13 @@ public class ApproveCommand {
             processInstanceMapper.updateById(instance);
             return;
         }
-        String remaining = removeActiveKey(instance.getActiveNodeKeys(), nodeKey);
+        // 并行分支可能同时审批：以旧的活动节点集合为条件更新，避免互相覆盖
+        String remaining = taskCommandSupport.removeActiveKey(instance, nodeKey);
         if (!remaining.isEmpty()) {
-            instance.setActiveNodeKeys(remaining);
-            processInstanceMapper.updateById(instance);
+            if (variablesChanged) {
+                processInstanceMapper.updateById(instance);
+            }
             return;
-        }
-        if (instance.getActiveNodeKeys() != null && !instance.getActiveNodeKeys().isBlank()) {
-            instance.setActiveNodeKeys(null);
         }
         TransitionResult result = new StateMachine(model, merged).approve(nodeKey);
         applyResult(instance, model, result);
@@ -138,31 +138,6 @@ public class ApproveCommand {
             instance.setCurrentNodeKey(result.getState());
         }
         processInstanceMapper.updateById(instance);
-    }
-
-    /**
-     * 从并行活动节点键串中移除指定节点键。
-     *
-     * @param activeNodeKeys 逗号分隔的活动节点键，可为 {@code null}
-     * @param nodeKey 待移除节点键
-     * @return 剩余键串（无剩余返回空串）
-     */
-    private static String removeActiveKey(String activeNodeKeys, String nodeKey) {
-        if (activeNodeKeys == null || activeNodeKeys.isBlank()) {
-            return "";
-        }
-        StringBuilder remaining = new StringBuilder();
-        for (String part : activeNodeKeys.split(",")) {
-            String key = part.trim();
-            if (key.isEmpty() || key.equals(nodeKey)) {
-                continue;
-            }
-            if (remaining.length() > 0) {
-                remaining.append(',');
-            }
-            remaining.append(key);
-        }
-        return remaining.toString();
     }
 
     /**

@@ -35,6 +35,7 @@ import com.bluewhale.workflow.vo.ProcessInstanceVO;
 import com.bluewhale.workflow.vo.ProcessTaskVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -56,6 +57,10 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
 
     /** 批量状态查询单次上限 */
     private static final int MAX_BATCH_SIZE = 100;
+
+    /** 是否允许未发布定义发起：默认关闭，仅存量数据需要时显式开启 */
+    @Value("${bluewhale.workflow.allow-unpublished-start:false}")
+    private boolean allowUnpublishedStart;
 
     private final ProcessDefinitionMapper processDefinitionMapper;
 
@@ -215,6 +220,14 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
                                             String initiator, Map<String, Object> variables,
                                             Map<String, List<String>> assigneeOverrides, List<String> ccAccounts) {
         ProcessDefinitionVersionPo published = findPublishedSnapshot(definition.getId());
+        if (published == null && !allowUnpublishedStart) {
+            // 草稿内容可能正在编辑，默认不允许新实例落到未发布定义上
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "流程定义未发布，无法发起");
+        }
+        if (published == null) {
+            log.warn("流程定义无已发布快照，按定义当前内容发起: definitionId={}, code={}",
+                    definition.getId(), definition.getCode());
+        }
         String definitionJson = published == null ? definition.getDefinitionJson() : published.getDefinitionJson();
         ProcessModel model = ProcessModelParser.parse(definitionJson);
         Map<String, List<String>> normalizedOverrides = AssigneeOverrides.normalize(model, assigneeOverrides);

@@ -12,6 +12,9 @@ import com.bluewhale.workflow.support.WorkflowConstants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.Arrays;
+import java.util.stream.Collectors;
+
 /**
  * 待办任务命令层共享支撑：任务/实例校验与待办取消。
  *
@@ -20,6 +23,9 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class TaskCommandSupport {
+
+    /** 活动节点 CAS 重试次数（含首次） */
+    private static final int CAS_RETRY_TIMES = 2;
 
     private final ProcessTaskMapper processTaskMapper;
 
@@ -75,6 +81,56 @@ public class TaskCommandSupport {
                 .eq(ProcessTaskPo::getId, task.getId())
                 .eq(ProcessTaskPo::getStatus, WorkflowConstants.TASK_PENDING);
         return processTaskMapper.update(update, wrapper) > 0;
+    }
+
+    /**
+     * 以「活动节点集合仍为读取时的值」为条件移除指定节点键（CAS）。
+     *
+     * <p>并行分支同时审批时，两个事务可能读到相同的 {@code active_node_keys}；
+     * 本方法用旧值作为 WHERE 条件，失败后重读实例重试一次，避免后写覆盖先写。</p>
+     *
+     * @param instance 运行中的实例（读取时的快照，方法内会更新其活动节点字段）
+     * @param nodeKey  要移除的节点键
+     * @return 移除后剩余的活动节点键（逗号分隔；空串表示已无并行分支）
+     * @throws BizException 重试后仍被并发修改
+     */
+    public String removeActiveKey(ProcessInstancePo instance, String nodeKey) {
+        if (instance.getActiveNodeKeys() == null) {
+            // 单待办实例无并行分支，无需条件更新
+            return "";
+        }
+        for (int attempt = 0; attempt < CAS_RETRY_TIMES; attempt++) {
+            String expected = instance.getActiveNodeKeys();
+            String remaining = removeKey(expected, nodeKey);
+            LambdaUpdateWrapper<ProcessInstancePo> wrapper = new LambdaUpdateWrapper<ProcessInstancePo>()
+                    .set(ProcessInstancePo::getActiveNodeKeys, remaining.isEmpty() ? null : remaining)
+                    .eq(ProcessInstancePo::getId, instance.getId())
+                    .eq(ProcessInstancePo::getActiveNodeKeys, expected);
+            if (processInstanceMapper.update(null, wrapper) > 0) {
+                instance.setActiveNodeKeys(remaining.isEmpty() ? null : remaining);
+                return remaining;
+            }
+            ProcessInstancePo latest = requireRunningInstance(instance.getId());
+            instance.setActiveNodeKeys(latest.getActiveNodeKeys());
+        }
+        throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "流程实例状态已变更，请重试");
+    }
+
+    /**
+     * 从逗号分隔的活动节点键中移除指定键
+     *
+     * @param keys    活动节点键（可空）
+     * @param nodeKey 要移除的节点键
+     * @return 剩余节点键（逗号分隔；无剩余返回空串）
+     */
+    private static String removeKey(String keys, String nodeKey) {
+        if (keys == null || keys.isBlank()) {
+            return "";
+        }
+        return Arrays.stream(keys.split(","))
+                .map(String::trim)
+                .filter(key -> !key.isEmpty() && !key.equals(nodeKey))
+                .collect(Collectors.joining(","));
     }
 
     /**

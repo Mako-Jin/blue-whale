@@ -1,5 +1,6 @@
 package com.bluewhale.workflow.service.impl.task;
 
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.workflow.request.ApprovalRequest;
@@ -19,8 +20,10 @@ import java.util.Locale;
  * 内网系统完成任务命令：供第三方签章回调等异步场景推进流程。
  *
  * <p>按任务状态做幂等：已同意且再次 APPROVE、已驳回且再次 REJECT 均直接返回；
- * 其余非待办状态一律拒绝。操作来源写入 {@code operator_id/operator_type/operator_source}，
- * 复用既有 {@link ApproveCommand} / {@link RejectCommand} 保持流程推进语义一致。</p>
+ * 请求携带 {@code eventId} 时另以 {@code process_task.last_event_id} 落库占位，
+ * 同一事件重复回调直接返回幂等；其余非待办状态一律拒绝。操作来源写入
+ * {@code operator_id/operator_type/operator_source}，复用既有
+ * {@link ApproveCommand} / {@link RejectCommand} 保持流程推进语义一致。</p>
  *
  * @author BlueWhale
  */
@@ -69,6 +72,9 @@ public class CompleteCommand {
             return;
         }
         requirePending(task.getStatus());
+        if (!claimEvent(id, command.getEventId())) {
+            return;
+        }
         markOperator(task, command);
         if (ACTION_REJECT.equals(action)) {
             rejectCommand.reject(id, command.getComment());
@@ -111,13 +117,49 @@ public class CompleteCommand {
     }
 
     /**
+     * 以「仍为待办且该事件未使用」为条件占位事件ID。
+     *
+     * @param id      任务ID
+     * @param eventId 回调事件ID（可空，为空时不做事件级幂等）
+     * @return 占位成功返回 {@code true}；同一事件已占位返回 {@code false}
+     * @throws BizException 任务已处理或事件ID已被其它请求占用
+     */
+    private boolean claimEvent(Long id, String eventId) {
+        if (!StringUtils.hasText(eventId)) {
+            return true;
+        }
+        String trimmed = eventId.trim();
+        LambdaUpdateWrapper<ProcessTaskPo> wrapper = new LambdaUpdateWrapper<ProcessTaskPo>()
+                .set(ProcessTaskPo::getLastEventId, trimmed)
+                .eq(ProcessTaskPo::getId, id)
+                .eq(ProcessTaskPo::getStatus, WorkflowConstants.TASK_PENDING)
+                .and(condition -> condition.isNull(ProcessTaskPo::getLastEventId)
+                        .or().ne(ProcessTaskPo::getLastEventId, trimmed));
+        if (processTaskMapper.update(null, wrapper) > 0) {
+            return true;
+        }
+        ProcessTaskPo latest = processTaskMapper.selectById(id);
+        if (latest != null && trimmed.equals(latest.getLastEventId())) {
+            log.info("内网完成任务事件幂等返回: taskId={}, eventId={}", id, trimmed);
+            return false;
+        }
+        throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "任务已处理");
+    }
+
+    /**
      * 记录系统操作来源。
      */
     private void markOperator(ProcessTaskPo task, TaskCompleteRequest command) {
-        task.setOperatorId(parseOperatorId(command.getOperatorId()));
-        task.setOperatorType(resolveOperatorType(command.getOperatorType()));
-        task.setOperatorSource(StringUtils.hasText(command.getSource()) ? command.getSource() : DEFAULT_SOURCE);
-        processTaskMapper.updateById(task);
+        ProcessTaskPo update = new ProcessTaskPo();
+        update.setOperatorId(parseOperatorId(command.getOperatorId()));
+        update.setOperatorType(resolveOperatorType(command.getOperatorType()));
+        update.setOperatorSource(StringUtils.hasText(command.getSource()) ? command.getSource() : DEFAULT_SOURCE);
+        LambdaUpdateWrapper<ProcessTaskPo> wrapper = new LambdaUpdateWrapper<ProcessTaskPo>()
+                .eq(ProcessTaskPo::getId, task.getId())
+                .eq(ProcessTaskPo::getStatus, WorkflowConstants.TASK_PENDING);
+        if (processTaskMapper.update(update, wrapper) == 0) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "任务已处理");
+        }
     }
 
     /**

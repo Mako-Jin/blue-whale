@@ -103,7 +103,7 @@ class WorkflowFlywayMigrationScriptTest {
     @DisplayName("init.sql 同步 V2~V11 的增量列、唯一键与索引")
     void initScriptShouldCoverIncrementalChanges() throws IOException {
         String initSql = Files.readString(INIT_SCRIPT, StandardCharsets.UTF_8);
-        for (String token : List.of("operator_id", "operator_type", "operator_source",
+        for (String token : List.of("operator_id", "operator_type", "operator_source", "last_event_id",
                 "assignee_overrides_json", "finished_at", "active_code", "window_bucket",
                 "uk_cc", "uk_tenant_active_code", "uk_urge_window", "idx_status_finished")) {
             assertTrue(initSql.contains(token), "init.sql 应同步增量结构：" + token);

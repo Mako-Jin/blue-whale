@@ -70,4 +70,7 @@ public class ProcessTaskPo extends BaseEntity {
 
     /** 操作来源：ESIGN_CALLBACK / MANUAL / SCHEDULER 等 */
     private String operatorSource;
+
+    /** 最近一次内网完成事件ID（同一事件重复回调时用于幂等） */
+    private String lastEventId;
 }
