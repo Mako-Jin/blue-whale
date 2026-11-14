@@ -23,7 +23,8 @@ import java.util.List;
  * @param educations 教育经历列表（可空列表）
  * @param employments 工作经历列表（可空列表）
  * @param emergencyContacts 紧急联系人列表（可空列表）
- * @param secretQuestions 密保问题列表（可空列表）
+ * @param secretQuestions 密保问题列表；{@code null} 表示未提供——保留既有问答（密保答案
+ *                        脱敏视图永不回传，管理端无法回填明文），空列表表示清空
  * @author BlueWhale
  */
 public record SaveUserProfileCommand(Long userId, String gender, LocalDate birthDate, String birthPlace,

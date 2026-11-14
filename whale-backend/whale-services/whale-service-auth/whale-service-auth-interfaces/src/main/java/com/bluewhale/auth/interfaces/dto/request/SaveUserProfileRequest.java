@@ -85,8 +85,7 @@ public class SaveUserProfileRequest {
         @Size(max = 32, message = "联系方式类型长度不能超过 32")
         private String contactType;
 
-        /** 值 */
-        @NotBlank(message = "联系方式值不能为空")
+        /** 值（带 id 且留空时表示「保留原值」；新增行必填由应用服务校验） */
         @Size(max = 255, message = "联系方式值长度不能超过 255")
         private String contactValue;
 
@@ -117,8 +116,7 @@ public class SaveUserProfileRequest {
         @Size(max = 32, message = "证件类型长度不能超过 32")
         private String credentialType;
 
-        /** 证件号明文 */
-        @NotBlank(message = "证件号不能为空")
+        /** 证件号明文（带 id 且留空时表示「保留原值」；新增行必填由应用服务校验） */
         @Size(max = 64, message = "证件号长度不能超过 64")
         private String credentialNo;
 

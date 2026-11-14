@@ -67,7 +67,16 @@ public class UserProfileRepositoryImpl implements UserProfileRepository {
     public UserProfileAggregate save(UserProfileAggregate profile) {
         SysUserProfilePo po = UserProfilePersistenceAssembler.toPo(profile);
         if (po.getId() == null) {
-            profileMapper.insert(po);
+            // 唯一键 uk_profile_user(user_id) 不含 deleted：删档后再建档必须复活历史行，
+            // 否则 INSERT 直接撞唯一键（表现为「删了档案就再也建不回来」）
+            Long historicalId = profileMapper.selectAnyIdByUserId(profile.getUserId());
+            if (historicalId != null) {
+                po.setId(historicalId);
+                profileMapper.reviveById(historicalId);
+                profileMapper.updateById(po);
+            } else {
+                profileMapper.insert(po);
+            }
         } else {
             profileMapper.updateById(po);
         }

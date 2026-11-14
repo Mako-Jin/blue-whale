@@ -14,12 +14,20 @@ import ArchiveSyncStatus from '../pages/archive/SyncStatus';
 import AssistantDefinitionList from '../pages/assistant/DefinitionList';
 import AssistantUsageBoard from '../pages/assistant/UsageBoard';
 import ConfigItemList from '../pages/config/ItemList';
+import BrandList from '../pages/system/brand/BrandList';
 import DeptList from '../pages/dept/DeptList';
 import FileList from '../pages/file/FileList';
 import MyFileList from '../pages/file/MyFileList';
 import GatewayAccessList from '../pages/gateway/AccessList';
 import JobList from '../pages/job/JobList';
+import LoginHistoryList from '../pages/system/login-history/LoginHistoryList';
 import MenuList from '../pages/menu/MenuList';
+import OAuthClientList from '../pages/system/oauth-client/OAuthClientList';
+import PermStrategyList from '../pages/system/perm-strategy/PermStrategyList';
+import RoleConstraintList from '../pages/system/role-constraint/RoleConstraintList';
+import SessionList from '../pages/system/session/SessionList';
+import UserGroupList from '../pages/system/user-group/UserGroupList';
+import UserProfilePage from '../pages/system/user-profile/UserProfilePage';
 import AnnouncementList from '../pages/message/AnnouncementList';
 import TemplateList from '../pages/message/TemplateList';
 import OrderList from '../pages/pay/OrderList';
@@ -84,7 +92,15 @@ const COMPONENT_MAP: Record<
   | 'video/catalog'
   | 'video/comment-audit'
   | 'video/stat'
-  | 'password-policy',
+  | 'password-policy'
+  | 'system/brand'
+  | 'system/user-profile'
+  | 'system/user-group'
+  | 'system/perm-strategy'
+  | 'system/role-constraint'
+  | 'system/session'
+  | 'system/login-history'
+  | 'system/oauth-client',
   ComponentType
 > = {
   user: UserList,
@@ -121,6 +137,14 @@ const COMPONENT_MAP: Record<
   'video/comment-audit': VideoCommentAudit,
   'video/stat': VideoStatPage,
   'password-policy': PasswordPolicy,
+  'system/brand': BrandList,
+  'system/user-profile': UserProfilePage,
+  'system/user-group': UserGroupList,
+  'system/perm-strategy': PermStrategyList,
+  'system/role-constraint': RoleConstraintList,
+  'system/session': SessionList,
+  'system/login-history': LoginHistoryList,
+  'system/oauth-client': OAuthClientList,
 };
 
 type ComponentKey = keyof typeof COMPONENT_MAP;

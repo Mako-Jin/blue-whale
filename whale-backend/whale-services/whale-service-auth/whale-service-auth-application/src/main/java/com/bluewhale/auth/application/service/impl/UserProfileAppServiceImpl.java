@@ -57,12 +57,18 @@ public class UserProfileAppServiceImpl implements UserProfileAppService {
                 .orElseGet(() -> UserProfileAggregate.create(tenantId, command.userId()));
         profile.updateBasic(command.gender(), command.birthDate(), command.birthPlace(), command.homeAddress(),
                 command.nation(), command.politicalStatus(), command.maritalStatus(), command.remarks());
-        profile.replaceContacts(toContacts(command.contacts()));
-        profile.replaceCredentials(toCredentials(command.credentials()));
+        profile.replaceContacts(toContacts(command.contacts(), profile.getContacts()));
+        profile.replaceCredentials(toCredentials(command.credentials(), profile.getCredentials()));
         profile.replaceEducations(toEducations(command.educations()));
         profile.replaceEmployments(toEmployments(command.employments()));
-        profile.replaceEmergencyContacts(toEmergencyContacts(command.emergencyContacts()));
-        profile.replaceSecretQuestions(toSecretQuestions(command.secretQuestions()));
+        profile.replaceEmergencyContacts(
+                toEmergencyContacts(command.emergencyContacts(), profile.getEmergencyContacts()));
+        if (command.secretQuestions() == null) {
+            // 密保答案脱敏视图永不回传，管理端无法回填明文：入参为 null（未提供）时保留既有问答，
+            // 防止整体替换把已有密保静默清空；显式空列表仍表示清空（用户自助场景可重录）
+        } else {
+            profile.replaceSecretQuestions(toSecretQuestions(command.secretQuestions()));
+        }
         UserProfileAggregate saved = userProfileRepository.save(profile);
         domainEventPublisher.publish(new UserProfileDomainEvent(saved.getId(), saved.getTenantId(),
                 saved.getUserId(), com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType.UPDATED,
@@ -145,27 +151,52 @@ public class UserProfileAppServiceImpl implements UserProfileAppService {
     /**
      * 把联系方式入参转换为领域对象；排序号缺省为 0。
      *
+     * <p>脱敏口径：读端 {@code contactValue} 为掩码，管理端无法回填明文——条目携带 id 且
+     * 值留空时保留既有值（清空请整行删除），避免掩码覆盖明文。</p>
+     *
      * @param items 联系方式入参，允许为空
+     * @param existing 既有联系方式列表（按 id 回填保留值）
      * @return 联系方式领域对象列表
      */
-    private List<UserProfileContact> toContacts(List<SaveUserProfileCommand.ContactItem> items) {
+    private List<UserProfileContact> toContacts(List<SaveUserProfileCommand.ContactItem> items,
+                                                List<UserProfileContact> existing) {
         return items == null ? List.of() : items.stream()
-                .map(i -> UserProfileContact.create(i.contactType(), i.contactValue(),
-                        i.primary(), i.verified(), i.sortNo() == null ? 0 : i.sortNo()))
+                .map(i -> {
+                    if (i.id() == null && (i.contactValue() == null || i.contactValue().isBlank())) {
+                        // 新增行必须给明文；带 id 的行留空才表示「保留原值」（DTO 层已放宽 @NotBlank）
+                        throw new BizException(ErrorCode.PARAM_ERROR, "联系方式值不能为空");
+                    }
+                    String value = resolveSensitive(i.id(), i.contactValue(), existing,
+                            UserProfileContact::getId, UserProfileContact::getContactValue);
+                    return UserProfileContact.create(i.contactType(), value,
+                            i.primary(), i.verified(), i.sortNo() == null ? 0 : i.sortNo());
+                })
                 .toList();
     }
 
     /**
      * 把证件入参转换为领域对象，证件号在落库前加密。
      *
+     * <p>脱敏口径：条目携带 id 且证件号留空时保留既有密文（清空请整行删除）。</p>
+     *
      * @param items 证件入参，允许为空
+     * @param existing 既有证件列表（按 id 回填保留值）
      * @return 证件领域对象列表
      */
-    private List<UserCredential> toCredentials(List<SaveUserProfileCommand.CredentialItem> items) {
+    private List<UserCredential> toCredentials(List<SaveUserProfileCommand.CredentialItem> items,
+                                               List<UserCredential> existing) {
         return items == null ? List.of() : items.stream()
-                .map(i -> UserCredential.create(i.credentialType(),
-                        sensitiveFieldCipher.encrypt(i.credentialNo()), i.holderName(),
-                        i.primary(), i.issueDate(), i.expiryDate()))
+                .map(i -> {
+                    if (i.id() == null && (i.credentialNo() == null || i.credentialNo().isBlank())) {
+                        // 新增行必须给明文；带 id 的行留空才表示「保留既有密文」
+                        throw new BizException(ErrorCode.PARAM_ERROR, "证件号不能为空");
+                    }
+                    String encryptedNo = resolveSensitive(i.id(), i.credentialNo(), existing,
+                            UserCredential::getId, UserCredential::getCredentialNoEncrypted,
+                            sensitiveFieldCipher::encrypt);
+                    return UserCredential.create(i.credentialType(),
+                            encryptedNo, i.holderName(), i.primary(), i.issueDate(), i.expiryDate());
+                })
                 .toList();
     }
 
@@ -198,13 +229,58 @@ public class UserProfileAppServiceImpl implements UserProfileAppService {
     /**
      * 把紧急联系人入参转换为领域对象。
      *
+     * <p>脱敏口径：条目携带 id 且电话留空时保留既有电话（清空请整行删除）。</p>
+     *
      * @param items 紧急联系人入参，允许为空
+     * @param existing 既有紧急联系人列表（按 id 回填保留值）
      * @return 紧急联系人领域对象列表
      */
-    private List<UserEmergencyContact> toEmergencyContacts(List<SaveUserProfileCommand.EmergencyContactItem> items) {
+    private List<UserEmergencyContact> toEmergencyContacts(List<SaveUserProfileCommand.EmergencyContactItem> items,
+                                                           List<UserEmergencyContact> existing) {
         return items == null ? List.of() : items.stream()
-                .map(i -> UserEmergencyContact.create(i.contactName(), i.relationship(), i.phone(), i.sortNo()))
+                .map(i -> {
+                    String phone = resolveSensitive(i.id(), i.phone(), existing,
+                            UserEmergencyContact::getId, UserEmergencyContact::phone);
+                    return UserEmergencyContact.create(i.contactName(), i.relationship(), phone, i.sortNo());
+                })
                 .toList();
+    }
+
+    /**
+     * 敏感字段保留值解析：条目携带 id 且明文留空时回填既有值，否则用新值。
+     *
+     * @param id 条目 id（null 表示新增行，直接用新值）
+     * @param newValue 新明文值（可空）
+     * @param existing 既有条目列表
+     * @param idGetter 既有条目 id 访问器
+     * @param valueGetter 既有条目值访问器
+     * @param <E> 既有条目类型
+     * @return 新值非空用新值；新值留空且命中既有条目用既有值；否则原样返回（null）
+     */
+    private <E> String resolveSensitive(Long id, String newValue, List<E> existing,
+                                        java.util.function.Function<E, Long> idGetter,
+                                        java.util.function.Function<E, String> valueGetter) {
+        return resolveSensitive(id, newValue, existing, idGetter, valueGetter, String::toString);
+    }
+
+    /**
+     * 敏感字段保留值解析（带新值变换）：同上，但新值先经 {@code encryptor} 变换（如加密）。
+     */
+    private <E> String resolveSensitive(Long id, String newValue, List<E> existing,
+                                        java.util.function.Function<E, Long> idGetter,
+                                        java.util.function.Function<E, String> valueGetter,
+                                        java.util.function.Function<String, String> encryptor) {
+        if (newValue != null && !newValue.isBlank()) {
+            return encryptor.apply(newValue);
+        }
+        if (id == null) {
+            return newValue;
+        }
+        return existing.stream()
+                .filter(e -> id.equals(idGetter.apply(e)))
+                .findFirst()
+                .map(valueGetter)
+                .orElse(newValue);
     }
 
     /**

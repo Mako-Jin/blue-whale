@@ -30,11 +30,20 @@ public class TenantSqlProperties {
      *
      * <p>另含调度锁表 {@code pdm_chg_job_lock}：锁键全局唯一、无租户维度，
      * 插件若自动追加 {@code tenant_id} 会因列不存在直接报 {@code Unknown column}。</p>
+     *
+     * <p>权限中心的平台级表同样无 {@code tenant_id} 列（2026-11-14 补）：
+     * {@code sys_brand_config} 用 {@code target_type/target_id} 表达作用域，
+     * {@code sys_oauth_client} 是平台级客户端注册，{@code sys_gateway_blacklist} /
+     * {@code sys_gateway_route_override} 是网关全局策略，
+     * {@code oauth2_authorization*} 是 OAuth2 协议会话（按 client_id 全局唯一）。</p>
      */
     private List<String> ignoreTables = List.of(
             "sys_tenant", "sys_permission", "sys_i18n_message",
             "sys_user_role", "sys_role_permission", "sys_user_permission", "sys_user_tenant",
             "audit_archive_watermark", "audit_mq_message",
             "pdm_chg_job_lock",
-            "agent_fact", "agent_index_meta");
+            "agent_fact", "agent_index_meta",
+            "sys_brand_config", "sys_oauth_client",
+            "sys_gateway_blacklist", "sys_gateway_route_override",
+            "oauth2_authorization", "oauth2_authorization_consent");
 }
