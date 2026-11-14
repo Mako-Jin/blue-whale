@@ -4,6 +4,7 @@ import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.slf4j.MDC;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
@@ -23,10 +24,11 @@ class RequestContextFilterTest {
     @AfterEach
     void clearContext() {
         RequestContextHolder.clear();
+        MDC.remove(RequestContextFilter.MDC_TRACE_ID);
     }
 
     @Test
-    @DisplayName("过滤器：解析网关注入头并在链内绑定上下文，结束后清理")
+    @DisplayName("过滤器：解析网关注入头并在链内绑定上下文与 MDC，结束后清理")
     void shouldBindHeadersAndClearAfterChain() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.addHeader("X-User-Id", "12");
@@ -34,7 +36,11 @@ class RequestContextFilterTest {
         request.addHeader("X-Tenant-Id", "3");
         request.addHeader("X-Trace-Id", "trace-1");
         AtomicReference<RequestContext> seen = new AtomicReference<>();
-        FilterChain chain = (req, res) -> seen.set(RequestContextHolder.get());
+        AtomicReference<String> mdcTraceId = new AtomicReference<>();
+        FilterChain chain = (req, res) -> {
+            seen.set(RequestContextHolder.get());
+            mdcTraceId.set(MDC.get(RequestContextFilter.MDC_TRACE_ID));
+        };
 
         new RequestContextFilter().doFilter(request, new MockHttpServletResponse(), chain);
 
@@ -43,7 +49,9 @@ class RequestContextFilterTest {
         assertEquals("alice", seen.get().username());
         assertEquals(Long.valueOf(3L), seen.get().tenantId());
         assertEquals("trace-1", seen.get().traceId());
+        assertEquals("trace-1", mdcTraceId.get());
         assertNull(RequestContextHolder.get());
+        assertNull(MDC.get(RequestContextFilter.MDC_TRACE_ID));
     }
 
     @Test
