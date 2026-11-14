@@ -66,6 +66,32 @@ public final class FormSchemaParser {
      * @throws BizException 定义为空、非法 JSON、缺 {@code fields} 或字段校验不通过时抛出 {@code PARAM_ERROR}
      */
     public static List<FormField> parse(String schemaJson) {
+        return parseInternal(schemaJson, true);
+    }
+
+    /**
+     * 解析物理表结构快照为字段列表（宽松模式）
+     *
+     * <p>表级快照由 {@link FormMetadataCompiler#compileTable} 生成，只描述物理列，不含子表子字段。
+     * 该模式允许 {@code subtable} 字段缺少 {@code children}（解析为空列表），用于按记录版本
+     * 回读物理列；表单级校验仍应使用 {@link #parse(String)}。</p>
+     *
+     * @param schemaJson 物理表结构快照 JSON
+     * @return 按定义顺序排列的字段列表（非空）
+     * @throws BizException 定义为空、非法 JSON、缺 {@code fields} 或字段基础校验不通过时抛出 {@code PARAM_ERROR}
+     */
+    public static List<FormField> parseStorage(String schemaJson) {
+        return parseInternal(schemaJson, false);
+    }
+
+    /**
+     * 解析入口：按是否严格校验子表 children 分派
+     *
+     * @param schemaJson 结构定义 JSON
+     * @param requireSubtableChildren 是否要求 subtable 配置非空 children
+     * @return 按定义顺序排列的字段列表（非空）
+     */
+    private static List<FormField> parseInternal(String schemaJson, boolean requireSubtableChildren) {
         if (!StringUtils.hasText(schemaJson)) {
             throw paramError("表单结构定义为空，无法解析");
         }
@@ -82,7 +108,7 @@ public final class FormSchemaParser {
         List<FormField> result = new ArrayList<>();
         Set<String> keys = new HashSet<>();
         for (JsonNode node : fieldsNode) {
-            result.add(parseField(node, keys));
+            result.add(parseField(node, keys, requireSubtableChildren));
         }
         return result;
     }
@@ -107,10 +133,11 @@ public final class FormSchemaParser {
      *
      * @param node 字段 JSON 节点
      * @param keys 已出现的字段 key 集合（用于重复性校验）
+     * @param requireSubtableChildren 是否要求 subtable 配置非空 children
      * @return 字段定义值对象
      * @throws BizException 字段校验不通过时抛出 {@code PARAM_ERROR}
      */
-    private static FormField parseField(JsonNode node, Set<String> keys) {
+    private static FormField parseField(JsonNode node, Set<String> keys, boolean requireSubtableChildren) {
         String key = text(node, "key");
         if (!StringUtils.hasText(key) || !KEY_PATTERN.matcher(key).matches()) {
             throw paramError("字段 key 非法（需匹配 ^[a-z][a-z0-9_]{0,63}$）：" + key);
@@ -138,7 +165,7 @@ public final class FormSchemaParser {
             parseAttachment(node, key, field);
         }
         if (FormDataType.SUBTABLE.equals(type)) {
-            parseSubtable(node, key, field);
+            parseSubtable(node, key, field, requireSubtableChildren);
         }
         field.setOptions(readOptions(node));
         return field;
@@ -168,18 +195,37 @@ public final class FormSchemaParser {
      * @param node 字段 JSON 节点
      * @param key 字段 key（错误提示）
      * @param field 目标字段
-     * @throws BizException children 缺失、为空、子字段非法或行数配置非法时抛出 {@code PARAM_ERROR}
+     * @param requireChildren 是否要求非空 children
+     * @throws BizException children 缺失（严格模式）、为空、子字段非法或行数配置非法时抛出 {@code PARAM_ERROR}
      */
-    private static void parseSubtable(JsonNode node, String key, FormField field) {
+    private static void parseSubtable(JsonNode node, String key, FormField field, boolean requireChildren) {
         JsonNode childrenNode = node.get("children");
         if (childrenNode == null || !childrenNode.isArray() || childrenNode.isEmpty()) {
-            throw paramError("subtable 字段必须配置非空的 children：" + key);
+            if (requireChildren) {
+                throw paramError("subtable 字段必须配置非空的 children：" + key);
+            }
+            field.setChildren(List.of());
+            applySubtableRows(node, key, field);
+            return;
         }
         List<FormField> children = new ArrayList<>();
         Set<String> childKeys = new HashSet<>();
         for (JsonNode childNode : childrenNode) {
             children.add(parseChild(childNode, childKeys));
         }
+        field.setChildren(children);
+        applySubtableRows(node, key, field);
+    }
+
+    /**
+     * 解析子表行数配置（minRows / maxRows）
+     *
+     * @param node 字段 JSON 节点
+     * @param key 字段 key（错误提示）
+     * @param field 目标字段
+     * @throws BizException 行数配置为负或 minRows 大于 maxRows 时抛出 {@code PARAM_ERROR}
+     */
+    private static void applySubtableRows(JsonNode node, String key, FormField field) {
         int minRows = node.path("minRows").asInt(0);
         int maxRows = node.path("maxRows").asInt(0);
         if (minRows < 0 || maxRows < 0) {
@@ -188,7 +234,6 @@ public final class FormSchemaParser {
         if (maxRows > 0 && minRows > maxRows) {
             throw paramError("subtable 字段 minRows 不能大于 maxRows：" + key);
         }
-        field.setChildren(children);
         field.setMinRows(minRows);
         field.setMaxRows(maxRows);
     }

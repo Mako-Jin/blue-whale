@@ -151,6 +151,27 @@ class FormSchemaParserTest {
     }
 
     @Test
+    @DisplayName("parseStorage：subtable 无 children 时可解析（表级快照）")
+    void shouldParseStorageWithoutSubtableChildren() {
+        List<FormField> fields = FormSchemaParser.parseStorage(
+                "{\"fields\":[{\"key\":\"lines\",\"label\":\"明细\",\"type\":\"subtable\",\"minRows\":1}]}");
+
+        assertEquals(1, fields.size());
+        assertEquals("subtable", fields.get(0).getType());
+        assertTrue(fields.get(0).getChildren().isEmpty());
+        assertEquals(1, fields.get(0).getMinRows().intValue());
+    }
+
+    @Test
+    @DisplayName("parseStorage：仍校验字段 key/type 白名单")
+    void shouldRejectInvalidFieldInStorageMode() {
+        BizException ex = assertThrows(BizException.class,
+                () -> FormSchemaParser.parseStorage("{\"fields\":[{\"key\":\"Name\",\"type\":\"text\"}]}"));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+    }
+
+    @Test
     @DisplayName("parse：subtable children 缺失抛参数错误")
     void shouldThrowWhenSubtableChildrenMissing() {
         BizException ex = assertThrows(BizException.class,

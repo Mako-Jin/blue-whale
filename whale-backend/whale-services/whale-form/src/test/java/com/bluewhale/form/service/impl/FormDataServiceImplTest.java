@@ -6,6 +6,7 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.form.dto.FormDataQueryRequest;
 import com.bluewhale.form.dto.FormDataSubmitRequest;
+import com.bluewhale.form.dto.FormDataUpdateRequest;
 import com.bluewhale.form.entity.FormData;
 import com.bluewhale.form.entity.FormDefinition;
 import com.bluewhale.form.entity.FormTableRegistry;
@@ -14,6 +15,7 @@ import com.bluewhale.form.mapper.FormDataMapper;
 import com.bluewhale.form.mapper.FormDefinitionMapper;
 import com.bluewhale.form.mapper.FormTableRegistryMapper;
 import com.bluewhale.form.support.FormDataEngine;
+import com.bluewhale.form.support.FormField;
 import com.bluewhale.form.vo.FormDataVO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -340,6 +342,48 @@ class FormDataServiceImplTest {
 
         assertEquals(1L, vo.getId());
         assertEquals("张三", vo.getFields().get("name"));
+    }
+
+    @Test
+    @DisplayName("getDetail：表级快照含无 children 的 subtable 时仍可回读")
+    void shouldGetDetailWithStorageSnapshotSubtable() {
+        FormData entity = existingData(1L, "{}");
+        entity.setDefinitionId(10L);
+        when(formDataMapper.selectById(1L)).thenReturn(entity);
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistry>>any()))
+                .thenReturn(registryWithSchema(
+                        "{\"fields\":[{\"key\":\"lines\",\"label\":\"明细\",\"type\":\"subtable\"}]}"));
+        when(formDataEngine.selectFields(eq(TABLE), eq(1L), eq(TENANT), anyList()))
+                .thenReturn(java.util.Map.of());
+
+        FormDataVO vo = formDataService.getDetail(1L, TENANT);
+
+        assertEquals(1L, vo.getId());
+    }
+
+    @Test
+    @DisplayName("update：必填校验与物理写入只使用当前视图字段，不触碰表级其他列")
+    @SuppressWarnings("unchecked")
+    void shouldUpdateWithViewFieldsOnly() {
+        FormData entity = existingData(1L, "{\"remark\":\"旧\"}");
+        entity.setDefinitionId(10L);
+        when(formDataMapper.selectById(1L)).thenReturn(entity);
+        FormDefinition definition = definition(10L);
+        definition.setSchemaJson("{\"fields\":[{\"key\":\"remark\",\"label\":\"备注\",\"type\":\"text\"}]}");
+        when(formDefinitionMapper.selectById(10L)).thenReturn(definition);
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistry>>any()))
+                .thenReturn(registryWithSchema("{\"fields\":["
+                        + "{\"key\":\"amount\",\"label\":\"金额\",\"type\":\"number\",\"required\":true},"
+                        + "{\"key\":\"remark\",\"label\":\"备注\",\"type\":\"text\"}]}"));
+        FormDataUpdateRequest request = new FormDataUpdateRequest();
+        request.setDataJson("{\"remark\":\"新\"}");
+
+        formDataService.update(1L, request, TENANT);
+
+        ArgumentCaptor<List<FormField>> captor = ArgumentCaptor.forClass(List.class);
+        verify(formDataEngine).update(eq(TABLE), any(FormData.class), captor.capture(), anyMap());
+        assertEquals(1, captor.getValue().size());
+        assertEquals("remark", captor.getValue().get(0).getKey());
     }
 
     @Test

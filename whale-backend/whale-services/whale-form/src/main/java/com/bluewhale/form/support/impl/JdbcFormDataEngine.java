@@ -16,6 +16,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -526,18 +529,31 @@ public class JdbcFormDataEngine implements FormDataEngine {
     }
 
     /**
-     * 日期/日期时间条件值校验（仅接受 {@code yyyy-MM-dd} 或 {@code yyyy-MM-dd HH:mm[:ss]}）
+     * 日期/日期时间条件值校验（仅接受 {@code yyyy-MM-dd} 或 {@code yyyy-MM-dd HH:mm[:ss]}，并校验真实日历值）
      *
      * @param field 字段定义
      * @param value 原始条件值
      * @return 校验后的文本
-     * @throws BizException 格式非法时抛出 {@code PARAM_ERROR}
+     * @throws BizException 格式非法或日期不存在时抛出 {@code PARAM_ERROR}
      */
     private static Object coerceDate(FormField field, Object value) {
         String text = scalarValue(field, value).trim();
         Pattern pattern = FormDataType.DATE.equals(field.getType()) ? DATE_PATTERN : DATETIME_PATTERN;
         if (!pattern.matcher(text).matches()) {
             throw paramError("字段 " + labelOf(field) + " 的日期值格式非法：" + text);
+        }
+        try {
+            if (FormDataType.DATE.equals(field.getType())) {
+                LocalDate.parse(text);
+            } else {
+                String normalized = text.replace(' ', 'T');
+                if (normalized.length() == 16) {
+                    normalized = normalized + ":00";
+                }
+                LocalDateTime.parse(normalized);
+            }
+        } catch (DateTimeParseException e) {
+            throw paramError("字段 " + labelOf(field) + " 的日期值不存在：" + text);
         }
         return text;
     }

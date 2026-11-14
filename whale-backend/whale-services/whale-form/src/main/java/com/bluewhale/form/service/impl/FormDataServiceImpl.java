@@ -212,16 +212,19 @@ public class FormDataServiceImpl implements FormDataService {
     @Transactional(rollbackFor = Exception.class)
     public FormDataVO update(Long id, FormDataUpdateRequest request, Long tenantId) {
         FormData entity = requireData(id, tenantId);
-        requireDefinition(entity.getDefinitionId());
+        FormDefinition definition = requireDefinition(entity.getDefinitionId());
         validateDataSize(request.getDataJson());
         FormTableRegistry registry = requireRegistry(routeCodeOf(entity), routeVersionOf(entity));
-        List<FormField> fields = FormSchemaParser.parse(schemaOf(registry));
+        List<FormField> tableFields = FormSchemaParser.parseStorage(schemaOf(registry));
+        List<FormField> viewFields = StringUtils.hasText(definition.getSchemaJson())
+                ? FormSchemaParser.parse(definition.getSchemaJson()) : tableFields;
         Map<String, Object> merged = new LinkedHashMap<>(parseDataQuietly(entity.getDataJson()));
         merged.putAll(parseData(request.getDataJson()));
-        validateFields(fields, merged);
+        assertKnownFields(tableFields, merged);
+        validateValues(viewFields, merged);
         entity.setDataJson(writeData(merged));
         formDataMapper.updateById(entity);
-        formDataEngine.update(registry.getPhysicalTable(), entity, fields, merged);
+        formDataEngine.update(registry.getPhysicalTable(), entity, writableFields(viewFields, tableFields), merged);
         return toVo(entity, merged);
     }
 
@@ -229,7 +232,7 @@ public class FormDataServiceImpl implements FormDataService {
     public FormDataVO getDetail(Long id, Long tenantId) {
         FormData entity = requireData(id, tenantId);
         FormTableRegistry registry = requireRegistry(routeCodeOf(entity), routeVersionOf(entity));
-        List<FormField> fields = FormSchemaParser.parse(schemaOf(registry));
+        List<FormField> fields = FormSchemaParser.parseStorage(schemaOf(registry));
         Map<String, Object> data =
                 formDataEngine.selectFields(registry.getPhysicalTable(), entity.getId(), tenantId, fields);
         return toVo(entity, data);
@@ -239,7 +242,7 @@ public class FormDataServiceImpl implements FormDataService {
     public FormArchiveVO getArchiveDetail(Long id, Long tenantId) {
         FormData entity = requireData(id, tenantId);
         FormTableRegistry registry = requireRegistry(routeCodeOf(entity), routeVersionOf(entity));
-        List<FormField> fields = FormSchemaParser.parse(schemaOf(registry));
+        List<FormField> fields = FormSchemaParser.parseStorage(schemaOf(registry));
         Map<String, Object> data =
                 formDataEngine.selectFields(registry.getPhysicalTable(), entity.getId(), tenantId, fields);
         FormArchiveVO vo = new FormArchiveVO();
@@ -528,7 +531,7 @@ public class FormDataServiceImpl implements FormDataService {
      */
     private List<FormField> fieldsOf(FormTableRegistry registry) {
         String schema = schemaOf(registry);
-        return StringUtils.hasText(schema) ? FormSchemaParser.parse(schema) : null;
+        return StringUtils.hasText(schema) ? FormSchemaParser.parseStorage(schema) : null;
     }
 
     /**
@@ -552,6 +555,7 @@ public class FormDataServiceImpl implements FormDataService {
         LambdaQueryWrapper<FormColumnMeta> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(FormColumnMeta::getTableDefinitionId, registry.getTableDefinitionId());
         wrapper.eq(FormColumnMeta::getTableVersion, registry.getTableVersion());
+        wrapper.eq(FormColumnMeta::getStatus, STATUS_NORMAL);
         wrapper.orderByAsc(FormColumnMeta::getSortNo);
         List<FormColumnMeta> columns = formColumnMetaMapper.selectList(wrapper).stream()
                 .filter(column -> physical.containsKey(column.getColumnCode()))
@@ -808,6 +812,18 @@ public class FormDataServiceImpl implements FormDataService {
      * @throws BizException 校验不通过时抛出 {@code PARAM_ERROR}
      */
     private static void validateFields(List<FormField> fields, Map<String, Object> data) {
+        assertKnownFields(fields, data);
+        validateValues(fields, data);
+    }
+
+    /**
+     * 校验未知字段：数据中出现、但不在结构定义内的 key 抛参数错误
+     *
+     * @param fields 结构定义字段列表（字段白名单）
+     * @param data 字段值映射
+     * @throws BizException 出现未知字段时抛出 {@code PARAM_ERROR}
+     */
+    private static void assertKnownFields(List<FormField> fields, Map<String, Object> data) {
         Set<String> allowed = new HashSet<>();
         for (FormField field : fields) {
             allowed.add(field.getKey());
@@ -817,6 +833,16 @@ public class FormDataServiceImpl implements FormDataService {
                 throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "字段 " + key + " 不在表单结构定义中");
             }
         }
+    }
+
+    /**
+     * 校验字段必填与取值（不校验未知字段）
+     *
+     * @param fields 结构定义字段列表
+     * @param data 字段值映射
+     * @throws BizException 必填缺失或取值不合规时抛出 {@code PARAM_ERROR}
+     */
+    private static void validateValues(List<FormField> fields, Map<String, Object> data) {
         for (FormField field : fields) {
             Object value = data.get(field.getKey());
             if (field.isRequired() && isBlank(value)) {
@@ -827,6 +853,21 @@ public class FormDataServiceImpl implements FormDataService {
             }
             validateFieldValue(field, value);
         }
+    }
+
+    /**
+     * 取可写入物理表的字段：视图字段与物理表列的交集（视图新增字段尚未落到该表版本时自动跳过）
+     *
+     * @param viewFields 视图结构字段
+     * @param tableFields 物理表结构字段
+     * @return 可写入的字段列表
+     */
+    private static List<FormField> writableFields(List<FormField> viewFields, List<FormField> tableFields) {
+        Set<String> physicalKeys = new HashSet<>();
+        for (FormField field : tableFields) {
+            physicalKeys.add(field.getKey());
+        }
+        return viewFields.stream().filter(field -> physicalKeys.contains(field.getKey())).toList();
     }
 
     /**

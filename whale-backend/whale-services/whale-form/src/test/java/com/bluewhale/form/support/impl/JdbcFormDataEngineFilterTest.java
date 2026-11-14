@@ -165,12 +165,12 @@ class JdbcFormDataEngineFilterTest {
     }
 
     @Test
-    @DisplayName("数值条件值非法时抛参数错误")
-    void shouldRejectInvalidNumberValue() {
+    @DisplayName("日期不存在时抛参数错误")
+    void shouldRejectNonExistentDateValue() {
         BizException ex = assertThrows(BizException.class, () -> engine.countByFilters(TABLE, TENANT,
-                List.of(field("amount", "number")), List.of(filter("amount", "gte", "abc")), null, null));
+                List.of(field("day", "date")), List.of(filter("day", "eq", "2024-02-31")), null, null));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
-        assertTrue(ex.getMessage().contains("数值格式非法"));
+        assertTrue(ex.getMessage().contains("日期值不存在"));
     }
 }
