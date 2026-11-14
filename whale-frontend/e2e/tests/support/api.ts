@@ -138,7 +138,7 @@ export async function createTableDefinition(
   token: string,
   payload: Record<string, unknown>,
 ): Promise<TableDefinitionRecord> {
-  const response = await ctx.post(`${API_BASE_URL}/form/table-definition`, {
+  const response = await ctx.post(`${API_BASE_URL}/form/v1/table-definition`, {
     headers: { Authorization: `Bearer ${token}` },
     data: payload,
   });
@@ -151,7 +151,7 @@ export async function publishTableDefinition(
   token: string,
   id: string,
 ): Promise<void> {
-  const response = await ctx.post(`${API_BASE_URL}/form/table-definition/${id}/publish`, {
+  const response = await ctx.post(`${API_BASE_URL}/form/v1/table-definition/${id}/publish`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   await readEnvelope<void>(response, '发布表定义');
@@ -164,7 +164,7 @@ export async function submitFormData(
   definitionId: string,
   dataJson: string,
 ): Promise<FormDataRecord> {
-  const response = await ctx.post(`${API_BASE_URL}/form/data`, {
+  const response = await ctx.post(`${API_BASE_URL}/form/v1/data`, {
     headers: { Authorization: `Bearer ${token}` },
     data: { definitionId, dataJson },
   });
@@ -178,7 +178,7 @@ export async function pageTableDefinitionsByCode(
   code: string,
 ): Promise<TableDefinitionRecord> {
   const response = await ctx.get(
-    `${API_BASE_URL}/form/table-definition/page?current=1&size=50&code=${encodeURIComponent(code)}`,
+    `${API_BASE_URL}/form/v1/table-definition/page?current=1&size=50&code=${encodeURIComponent(code)}`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
   const data = await readEnvelope<PageResult<TableDefinitionRecord>>(response, '查询表定义');
@@ -195,7 +195,7 @@ export async function tableDefinitionDetail(
   token: string,
   id: string,
 ): Promise<TableDefinitionDetail> {
-  const response = await ctx.get(`${API_BASE_URL}/form/table-definition/${id}`, {
+  const response = await ctx.get(`${API_BASE_URL}/form/v1/table-definition/${id}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return readEnvelope<TableDefinitionDetail>(response, '查询表定义详情');
@@ -211,7 +211,7 @@ export async function createFormDefinition(
   token: string,
   payload: Record<string, unknown>,
 ): Promise<FormDefinitionRecord> {
-  const response = await ctx.post(`${API_BASE_URL}/form/definition`, {
+  const response = await ctx.post(`${API_BASE_URL}/form/v1/definition`, {
     headers: { Authorization: `Bearer ${token}` },
     data: payload,
   });
@@ -234,7 +234,7 @@ export async function formDefinitionDetail(
   token: string,
   id: string,
 ): Promise<FormDefinitionDetail> {
-  const response = await ctx.get(`${API_BASE_URL}/form/definition/${id}`, {
+  const response = await ctx.get(`${API_BASE_URL}/form/v1/definition/${id}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return readEnvelope<FormDefinitionDetail>(response, '查询表单定义详情');
@@ -247,7 +247,7 @@ export async function pageFormData(
   definitionCode: string,
 ): Promise<PageResult<FormDataRecord>> {
   const response = await ctx.get(
-    `${API_BASE_URL}/form/data/page?current=1&size=20&definitionCode=${encodeURIComponent(
+    `${API_BASE_URL}/form/v1/data/page?current=1&size=20&definitionCode=${encodeURIComponent(
       definitionCode,
     )}`,
     { headers: { Authorization: `Bearer ${token}` } },
@@ -261,7 +261,7 @@ export async function formDataDetail(
   token: string,
   id: string,
 ): Promise<FormDataDetail> {
-  const response = await ctx.get(`${API_BASE_URL}/form/data/${id}`, {
+  const response = await ctx.get(`${API_BASE_URL}/form/v1/data/${id}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return readEnvelope<FormDataDetail>(response, '查询表单数据详情');

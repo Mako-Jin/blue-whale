@@ -90,7 +90,7 @@ public final class PlatformOperationCatalog {
                 PERMISSION_FORM,
                 "form",
                 "POST",
-                "/form/definition",
+                "/form/v1/definition",
                 List.of("code", "name"),
                 List.of("code", "name", "remark"),
                 "创建表单定义",

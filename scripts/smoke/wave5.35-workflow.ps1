@@ -208,11 +208,11 @@ if (@(Get-PendingTask $flowInst).Count -ne 0) { throw "转办/回退流程未结
 Write-Host "OK   转办/委派/回退流程闭环"
 
 # ---------- 6. 审批时修改表单 ----------
-$formUpdate = Api 'Put' '/form/data/2112153326590074882' @{
+$formUpdate = Api 'Put' '/form/v1/data/2112153326590074882' @{
     dataJson = '{"name":"李四","grade":"B"}'
 }
 Check '审批时修改表单数据' $formUpdate
-Write-Host "OK   表单数据 PUT /form/data/{id}"
+Write-Host "OK   表单数据 PUT /form/v1/data/{id}"
 
 # ---------- 7. 网关路由治理端点 ----------
 $gov = Api 'Get' '/actuator/routeGovernance' $null

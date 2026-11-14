@@ -20,7 +20,7 @@
         <module>whale-service-auth</module>
         <module>whale-job</module>
         <module>whale-workflow</module>
-        <module>whale-form</module>
+        <module>whale-service-form</module>
         <module>whale-service-file</module>
         <module>whale-pay</module>
         <module>whale-service-gateway</module>

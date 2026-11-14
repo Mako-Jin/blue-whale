@@ -556,10 +556,10 @@ VALUES
 INSERT INTO sys_permission
     (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
 VALUES
-    (36, 0, 'sys:form:add', '新增表单定义', 'API', '/form/definition', 'POST', 36, 1),
-    (37, 0, 'sys:form:edit', '修改表单定义', 'API', '/form/definition/**', 'PUT', 37, 1),
-    (38, 0, 'sys:form:delete', '删除表单定义', 'API', '/form/definition/{id}', 'DELETE', 38, 1),
-    (39, 0, 'sys:form:list', '查询表单定义', 'API', '/form/definition/**', 'GET', 39, 1);
+    (36, 0, 'sys:form:add', '新增表单定义', 'API', '/form/v1/definition', 'POST', 36, 1),
+    (37, 0, 'sys:form:edit', '修改表单定义', 'API', '/form/v1/definition/**', 'PUT', 37, 1),
+    (38, 0, 'sys:form:delete', '删除表单定义', 'API', '/form/v1/definition/{id}', 'DELETE', 38, 1),
+    (39, 0, 'sys:form:list', '查询表单定义', 'API', '/form/v1/definition/**', 'GET', 39, 1);
 
 -- 工作流服务权限点：与 whale-workflow 接口 @RequirePermission("sys:workflow:*") 一一对应
 INSERT INTO sys_permission
@@ -584,25 +584,25 @@ VALUES
 INSERT INTO sys_permission
     (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
 VALUES
-    (49, 0, 'sys:form:data:submit', '提交表单数据', 'API', '/form/data', 'POST', 49, 1),
-    (50, 0, 'sys:form:data:list', '查询表单数据', 'API', '/form/data/**', 'GET', 50, 1),
-    (51, 0, 'sys:form:data:delete', '删除表单数据', 'API', '/form/data/{id}', 'DELETE', 51, 1);
+    (49, 0, 'sys:form:data:submit', '提交表单数据', 'API', '/form/v1/data', 'POST', 49, 1),
+    (50, 0, 'sys:form:data:list', '查询表单数据', 'API', '/form/v1/data/**', 'GET', 50, 1),
+    (51, 0, 'sys:form:data:delete', '删除表单数据', 'API', '/form/v1/data/{id}', 'DELETE', 51, 1);
 
 -- 表单服务权限点（发布）：与 whale-form @RequirePermission("sys:form:publish") 对应
 INSERT INTO sys_permission
     (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
 VALUES
-    (52, 0, 'sys:form:publish', '发布表单定义', 'API', '/form/definition/{id}/publish', 'POST', 52, 1);
+    (52, 0, 'sys:form:publish', '发布表单定义', 'API', '/form/v1/definition/{id}/publish', 'POST', 52, 1);
 
 -- 表单服务权限点（表定义，元数据模型）：与 whale-form @RequirePermission("sys:form:table:*") 一一对应
 INSERT INTO sys_permission
     (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
 VALUES
-    (53, 0, 'sys:form:table:add', '新增表定义', 'API', '/form/table-definition', 'POST', 53, 1),
-    (54, 0, 'sys:form:table:edit', '修改表定义', 'API', '/form/table-definition/**', 'PUT', 54, 1),
-    (55, 0, 'sys:form:table:delete', '删除表定义', 'API', '/form/table-definition/{id}', 'DELETE', 55, 1),
-    (56, 0, 'sys:form:table:list', '查询表定义', 'API', '/form/table-definition/**', 'GET', 56, 1),
-    (57, 0, 'sys:form:table:publish', '发布表定义', 'API', '/form/table-definition/{id}/publish', 'POST', 57, 1);
+    (53, 0, 'sys:form:table:add', '新增表定义', 'API', '/form/v1/table-definition', 'POST', 53, 1),
+    (54, 0, 'sys:form:table:edit', '修改表定义', 'API', '/form/v1/table-definition/**', 'PUT', 54, 1),
+    (55, 0, 'sys:form:table:delete', '删除表定义', 'API', '/form/v1/table-definition/{id}', 'DELETE', 55, 1),
+    (56, 0, 'sys:form:table:list', '查询表定义', 'API', '/form/v1/table-definition/**', 'GET', 56, 1),
+    (57, 0, 'sys:form:table:publish', '发布表定义', 'API', '/form/v1/table-definition/{id}/publish', 'POST', 57, 1);
 
 -- 工作流服务权限点（定义校验 + BPMN 导入）：与 whale-workflow 接口 @RequirePermission("sys:workflow:*") 一一对应
 INSERT INTO sys_permission
@@ -657,7 +657,7 @@ VALUES
     (74, 0, 'sys:workflow:task:transfer', '转办待办任务', 'API', '/workflow/task/{id}/transfer', 'PUT', 74, 1),
     (75, 0, 'sys:workflow:task:delegate', '委派待办任务', 'API', '/workflow/task/{id}/{delegate|resolve}', 'PUT', 75, 1),
     (76, 0, 'sys:workflow:task:rollback', '回退待办任务', 'API', '/workflow/task/{id}/rollback', 'POST', 76, 1),
-    (77, 0, 'sys:form:data:edit', '修改表单数据', 'API', '/form/data/{id}', 'PUT', 77, 1),
+    (77, 0, 'sys:form:data:edit', '修改表单数据', 'API', '/form/v1/data/{id}', 'PUT', 77, 1),
     (78, 0, 'sys:workflow:task:addsign', '加签待办任务', 'API', '/workflow/task/{id}/add-sign', 'POST', 78, 1);
 
 -- Wave 5.47 平台与项目知识 Agent 权限点：与 whale-agent 接口 @RequirePermission("sys:agent:*") 一一对应

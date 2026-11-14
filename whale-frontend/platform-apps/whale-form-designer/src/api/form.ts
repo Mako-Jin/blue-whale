@@ -1,5 +1,5 @@
 // whale-form 契约层（F1 冻结）：类型字段名与后端 DTO/VO 严格一致，禁止改名；
-// 所有请求方法均为对 http.ts 的薄封装，路径前缀 /form/table-definition、/form/definition、/form/data。
+// 所有请求方法均为对 http.ts 的薄封装，路径前缀 /form/v1/table-definition、/form/v1/definition、/form/v1/data。
 
 import { del, downloadBlob, get, post, put, type PageResult } from './client';
 
@@ -144,7 +144,7 @@ export interface PageParams {
   [key: string]: unknown;
 }
 
-/** 提交表单数据入参（POST /form/data）：dataJson 为 JSON 文本，键必须为 schema 内的字段 */
+/** 提交表单数据入参（POST /form/v1/data）：dataJson 为 JSON 文本，键必须为 schema 内的字段 */
 export interface FormDataSubmitParams {
   definitionId: Id;
   dataJson: string;
@@ -165,38 +165,38 @@ export interface DataFilter {
   value?: unknown;
 }
 
-/** 表定义 API（服务内前缀 /form/table-definition） */
+/** 表定义 API（服务内前缀 /form/v1/table-definition） */
 export const tableDefinitionApi = {
   page: (query?: PageParams) =>
-    get<PageResult<TableDefinition>>('/form/table-definition/page', query),
-  detail: (id: Id) => get<TableDefinition>(`/form/table-definition/${id}`),
-  create: (data: TableDefinition) => post<TableDefinition>('/form/table-definition', data),
+    get<PageResult<TableDefinition>>('/form/v1/table-definition/page', query),
+  detail: (id: Id) => get<TableDefinition>(`/form/v1/table-definition/${id}`),
+  create: (data: TableDefinition) => post<TableDefinition>('/form/v1/table-definition', data),
   update: (id: Id, data: TableDefinition) =>
-    put<TableDefinition>(`/form/table-definition/${id}`, data),
-  remove: (id: Id) => del<void>(`/form/table-definition/${id}`),
-  publish: (id: Id) => post<void>(`/form/table-definition/${id}/publish`),
+    put<TableDefinition>(`/form/v1/table-definition/${id}`, data),
+  remove: (id: Id) => del<void>(`/form/v1/table-definition/${id}`),
+  publish: (id: Id) => post<void>(`/form/v1/table-definition/${id}/publish`),
 };
 
-/** 表单视图 API（服务内前缀 /form/definition） */
+/** 表单视图 API（服务内前缀 /form/v1/definition） */
 export const formApi = {
-  page: (query?: PageParams) => get<PageResult<FormDefinition>>('/form/definition/page', query),
-  detail: (id: Id) => get<FormDefinition>(`/form/definition/${id}`),
-  create: (data: FormDefinition) => post<FormDefinition>('/form/definition', data),
-  update: (id: Id, data: FormDefinition) => put<FormDefinition>(`/form/definition/${id}`, data),
-  remove: (id: Id) => del<void>(`/form/definition/${id}`),
-  publish: (id: Id) => post<void>(`/form/definition/${id}/publish`),
-  // 下拉数据源：列出表定义（复用后端 GET /form/table-definition/page）
+  page: (query?: PageParams) => get<PageResult<FormDefinition>>('/form/v1/definition/page', query),
+  detail: (id: Id) => get<FormDefinition>(`/form/v1/definition/${id}`),
+  create: (data: FormDefinition) => post<FormDefinition>('/form/v1/definition', data),
+  update: (id: Id, data: FormDefinition) => put<FormDefinition>(`/form/v1/definition/${id}`, data),
+  remove: (id: Id) => del<void>(`/form/v1/definition/${id}`),
+  publish: (id: Id) => post<void>(`/form/v1/definition/${id}/publish`),
+  // 下拉数据源：列出表定义（复用后端 GET /form/v1/table-definition/page）
   tables: (query?: PageParams) =>
-    get<PageResult<TableDefinition>>('/form/table-definition/page', query),
+    get<PageResult<TableDefinition>>('/form/v1/table-definition/page', query),
 };
 
-/** 表单数据 API（服务内前缀 /form/data） */
+/** 表单数据 API（服务内前缀 /form/v1/data） */
 export const formDataApi = {
-  page: (query?: PageParams) => get<PageResult<FormDataItem>>('/form/data/page', query),
-  detail: (id: Id) => get<FormDataItem>(`/form/data/${id}`),
-  create: (data: FormDataSubmitParams) => post<FormDataItem>('/form/data', data),
-  remove: (id: Id) => del<void>(`/form/data/${id}`),
+  page: (query?: PageParams) => get<PageResult<FormDataItem>>('/form/v1/data/page', query),
+  detail: (id: Id) => get<FormDataItem>(`/form/v1/data/${id}`),
+  create: (data: FormDataSubmitParams) => post<FormDataItem>('/form/v1/data', data),
+  remove: (id: Id) => del<void>(`/form/v1/data/${id}`),
   // 导出为原始字节流（响应非 JSON 信封），definitionCode 必填
   export: (query: PageParams & { definitionCode: string; format?: ExportFormat }) =>
-    downloadBlob('/form/data/export', query),
+    downloadBlob('/form/v1/data/export', query),
 };

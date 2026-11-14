@@ -32,9 +32,9 @@ test.afterAll(async ({ request }) => {
   }
   // 尽力清理，避免反复执行污染数据库；失败不影响用例结论
   const cleanups = [
-    dataId ? `/form/data/${dataId}` : '',
-    formId ? `/form/definition/${formId}` : '',
-    tableId ? `/form/table-definition/${tableId}` : '',
+    dataId ? `/form/v1/data/${dataId}` : '',
+    formId ? `/form/v1/definition/${formId}` : '',
+    tableId ? `/form/v1/table-definition/${tableId}` : '',
   ].filter((path) => path.length > 0);
   for (const path of cleanups) {
     await deleteResource(request, token, path);

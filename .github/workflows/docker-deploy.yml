@@ -67,7 +67,7 @@ jobs:
           - { service: whale-service-auth, module: whale-services/whale-service-auth/whale-service-auth-starter, port: 8081 }
           - { service: whale-job, module: whale-services/whale-job, port: 8082 }
           - { service: whale-workflow, module: whale-services/whale-workflow, port: 8083 }
-          - { service: whale-form, module: whale-services/whale-form, port: 8084 }
+          - { service: whale-form, module: whale-services/whale-service-form, port: 8084 }
           - { service: whale-file, module: whale-services/whale-service-file/whale-service-file-web, port: 8085 }
           - { service: whale-pay, module: whale-services/whale-pay, port: 8086 }
           - { service: whale-agent, module: whale-services/whale-agent, port: 8090, assets: true }

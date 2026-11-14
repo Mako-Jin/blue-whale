@@ -30,9 +30,9 @@ test.afterAll(async ({ request }) => {
     return;
   }
   const cleanups = [
-    ...dataIds.map((id) => `/form/data/${id}`),
-    formId ? `/form/definition/${formId}` : '',
-    tableId ? `/form/table-definition/${tableId}` : '',
+    ...dataIds.map((id) => `/form/v1/data/${id}`),
+    formId ? `/form/v1/definition/${formId}` : '',
+    tableId ? `/form/v1/table-definition/${tableId}` : '',
   ].filter((path) => path.length > 0);
   for (const path of cleanups) {
     await deleteResource(request, token, path);
@@ -387,7 +387,7 @@ test('动态字段筛选：between 数值/日期/日期时间区间 / in 选项�
 
   // 12) API 对账：同一 filters 经网关命中数与 UI 一致
   const apiResponse = await request.get(
-    `${API_BASE_URL}/form/data/page?current=1&size=10&definitionCode=${encodeURIComponent(
+    `${API_BASE_URL}/form/v1/data/page?current=1&size=10&definitionCode=${encodeURIComponent(
       formCode,
     )}&filters=${encodeURIComponent(JSON.stringify([{ field: 'memo', op: 'in', value: ['beta', 'omega'] }]))}`,
     { headers: { Authorization: `Bearer ${token}` } },
@@ -398,7 +398,7 @@ test('动态字段筛选：between 数值/日期/日期时间区间 / in 选项�
   expect(Number(envelope.data.total)).toBe(2);
 
   const dateResponse = await request.get(
-    `${API_BASE_URL}/form/data/page?current=1&size=10&definitionCode=${encodeURIComponent(
+    `${API_BASE_URL}/form/v1/data/page?current=1&size=10&definitionCode=${encodeURIComponent(
       formCode,
     )}&filters=${encodeURIComponent(
       JSON.stringify([{ field: 'due_date', op: 'between', value: ['2026-03-01', '2026-12-31'] }]),
@@ -414,7 +414,7 @@ test('动态字段筛选：between 数值/日期/日期时间区间 / in 选项�
   expect(Number(dateEnvelope.data.total)).toBe(3);
 
   const dateTimeResponse = await request.get(
-    `${API_BASE_URL}/form/data/page?current=1&size=10&definitionCode=${encodeURIComponent(
+    `${API_BASE_URL}/form/v1/data/page?current=1&size=10&definitionCode=${encodeURIComponent(
       formCode,
     )}&filters=${encodeURIComponent(
       JSON.stringify([
@@ -432,7 +432,7 @@ test('动态字段筛选：between 数值/日期/日期时间区间 / in 选项�
   expect(Number(dateTimeEnvelope.data.total)).toBe(3);
 
   const inDateResponse = await request.get(
-    `${API_BASE_URL}/form/data/page?current=1&size=10&definitionCode=${encodeURIComponent(
+    `${API_BASE_URL}/form/v1/data/page?current=1&size=10&definitionCode=${encodeURIComponent(
       formCode,
     )}&filters=${encodeURIComponent(
       JSON.stringify([{ field: 'due_date', op: 'in', value: ['2026-03-01', '2026-12-01'] }]),

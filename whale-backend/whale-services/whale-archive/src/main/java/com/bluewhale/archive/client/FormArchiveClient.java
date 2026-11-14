@@ -15,7 +15,7 @@ import java.util.Map;
 /**
  * 表单服务内网客户端。
  *
- * <p>调用 {@code /form/internal/data/{id}} 读取表单值与字段定义；从当前
+ * <p>调用 {@code /form/v1/internal/data/{id}} 读取表单值与字段定义；从当前
  * {@link TenantContext} 取租户并传递 {@code X-Tenant-Id}；数据不存在（404）时返回
  * {@code null}，由档案侧按「无表单」降级。</p>
  *
@@ -25,7 +25,7 @@ import java.util.Map;
 public class FormArchiveClient {
 
     /** 表单归档详情路径模板 */
-    private static final String DETAIL_PATH = "/form/internal/data/{id}";
+    private static final String DETAIL_PATH = "/form/v1/internal/data/{id}";
 
     /** 租户请求头 */
     private static final String HEADER_TENANT = "X-Tenant-Id";

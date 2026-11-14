@@ -1,5 +1,5 @@
 // whale-form 契约层（工作流侧只读消费，自 whale-form-designer 的 api/form.ts 照搬）：
-// 类型字段名与后端 DTO/VO 严格一致，禁止改名；路径前缀 /form/definition、/form/data。
+// 类型字段名与后端 DTO/VO 严格一致，禁止改名；路径前缀 /form/v1/definition、/form/v1/data。
 
 import { get, post, put, type PageResult } from './client';
 
@@ -98,27 +98,27 @@ export type PageParams = {
   [key: string]: unknown;
 };
 
-/** 提交表单数据入参（POST /form/data）：dataJson 为 JSON 文本，键必须为 schema 内的字段 */
+/** 提交表单数据入参（POST /form/v1/data）：dataJson 为 JSON 文本，键必须为 schema 内的字段 */
 export interface FormDataSubmitParams {
   definitionId: Id;
   dataJson: string;
   bizKey?: string;
 }
 
-/** 修改表单数据入参（PUT /form/data/{id}）：dataJson 为 JSON 文本，未提交字段由服务端保留原值 */
+/** 修改表单数据入参（PUT /form/v1/data/{id}）：dataJson 为 JSON 文本，未提交字段由服务端保留原值 */
 export interface FormDataUpdateParams {
   dataJson: string;
 }
 
-/** 表单定义 API（服务内前缀 /form/definition） */
+/** 表单定义 API（服务内前缀 /form/v1/definition） */
 export const formApi = {
-  page: (query?: PageParams) => get<PageResult<FormDefinition>>('/form/definition/page', query),
-  detail: (id: Id) => get<FormDefinition>(`/form/definition/${id}`),
+  page: (query?: PageParams) => get<PageResult<FormDefinition>>('/form/v1/definition/page', query),
+  detail: (id: Id) => get<FormDefinition>(`/form/v1/definition/${id}`),
 };
 
-/** 表单数据 API（服务内前缀 /form/data） */
+/** 表单数据 API（服务内前缀 /form/v1/data） */
 export const formDataApi = {
-  create: (data: FormDataSubmitParams) => post<FormDataItem>('/form/data', data),
-  detail: (id: Id) => get<FormDataItem>(`/form/data/${id}`),
-  update: (id: Id, data: FormDataUpdateParams) => put<FormDataItem>(`/form/data/${id}`, data),
+  create: (data: FormDataSubmitParams) => post<FormDataItem>('/form/v1/data', data),
+  detail: (id: Id) => get<FormDataItem>(`/form/v1/data/${id}`),
+  update: (id: Id, data: FormDataUpdateParams) => put<FormDataItem>(`/form/v1/data/${id}`, data),
 };

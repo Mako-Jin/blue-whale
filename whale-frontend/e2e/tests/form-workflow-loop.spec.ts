@@ -49,9 +49,9 @@ test.afterAll(async ({ request }) => {
   }
   const cleanups = [
     definitionId ? `/workflow/definition/${definitionId}` : '',
-    formDataId ? `/form/data/${formDataId}` : '',
-    formId ? `/form/definition/${formId}` : '',
-    tableId ? `/form/table-definition/${tableId}` : '',
+    formDataId ? `/form/v1/data/${formDataId}` : '',
+    formId ? `/form/v1/definition/${formId}` : '',
+    tableId ? `/form/v1/table-definition/${tableId}` : '',
   ].filter((path) => path.length > 0);
   for (const path of cleanups) {
     await deleteResource(request, token, path);

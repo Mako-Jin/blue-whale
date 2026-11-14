@@ -132,7 +132,7 @@ class PlatformOpServiceTest {
         assertThat(record.getConfirmedBy()).isEqualTo(USER_ID);
         assertThat(record.getResultCode()).isZero();
         assertThat(record.getElapsedMs()).isNotNull();
-        verify(invoker).invoke(eq("http://127.0.0.1:8084/form/definition"),
+        verify(invoker).invoke(eq("http://127.0.0.1:8084/form/v1/definition"),
                 anyMap(), eq(USER_ID), eq("sys:agent:chat,sys:ai:ops:form"));
     }
 

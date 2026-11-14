@@ -30,8 +30,8 @@ test.afterAll(async ({ request }) => {
     return;
   }
   for (const path of [
-    formId ? `/form/definition/${formId}` : '',
-    tableId ? `/form/table-definition/${tableId}` : '',
+    formId ? `/form/v1/definition/${formId}` : '',
+    tableId ? `/form/v1/table-definition/${tableId}` : '',
   ].filter((item) => item.length > 0)) {
     await deleteResource(request, token, path);
   }
