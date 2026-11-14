@@ -1,5 +1,7 @@
 package com.bluewhale.workflow.service.impl.task;
 
+import com.bluewhale.common.audit.annotation.AuditLog;
+import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.workflow.po.ProcessTaskPo;
@@ -32,6 +34,8 @@ public class DelegateCommand {
      * @param id 任务ID
      * @param targetUser 目标人账号
      */
+    @AuditLog(operation = "委派任务", type = OperateType.UPDATE,
+            targetType = "process_task", targetId = "#id")
     @Transactional(rollbackFor = Exception.class)
     public void delegate(Long id, String targetUser) {
         ProcessTaskPo task = taskCommandSupport.requirePendingTask(id);

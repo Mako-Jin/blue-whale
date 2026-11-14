@@ -55,6 +55,9 @@ logging:
   level:
     # 生产默认 info；本地需要 SQL/流程细节时通过 LOG_LEVEL_BLUEWHALE=debug 覆盖
     com.bluewhale: ${LOG_LEVEL_BLUEWHALE:info}
+  pattern:
+    # 日志行首输出网关透传的 traceId（RequestContextFilter 写入 MDC，缺失输出 -）
+    level: "%5p [%X{traceId:-}]"
 
 # AUTH-06：启用 starter 的 RequirePermissionInterceptor（默认 false，须显式开启），
 # 按网关注入的 X-Permission-Codes 判定本服务流程定义接口的 sys:workflow:* 权限。

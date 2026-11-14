@@ -2,6 +2,8 @@ package com.bluewhale.workflow.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bluewhale.common.audit.annotation.AuditLog;
+import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
@@ -219,6 +221,8 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
     }
 
     @Override
+    @AuditLog(operation = "发布流程定义", type = OperateType.UPDATE,
+            targetType = "process_definition", targetId = "#id")
     @Transactional(rollbackFor = Exception.class)
     public ProcessDefinitionVO publish(Long id, Integer version) {
         ProcessDefinitionPo definition = requireProcess(id);
@@ -236,6 +240,8 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
     }
 
     @Override
+    @AuditLog(operation = "迁移流程定义实例", type = OperateType.UPDATE,
+            targetType = "process_definition", targetId = "#id", recordParams = false)
     @Transactional(rollbackFor = Exception.class)
     public DefinitionMigrationVO migrate(Long id, DefinitionMigrationRequest request) {
         requireProcess(id);

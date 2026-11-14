@@ -1,5 +1,7 @@
 package com.bluewhale.workflow.service.impl.task;
 
+import com.bluewhale.common.audit.annotation.AuditLog;
+import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.workflow.po.ProcessTaskPo;
@@ -28,6 +30,8 @@ public class TransferCommand {
      * @param targetUser 目标人账号
      */
     @Transactional(rollbackFor = Exception.class)
+    @AuditLog(operation = "转办任务", type = OperateType.UPDATE,
+            targetType = "process_task", targetId = "#id")
     public void transfer(Long id, String targetUser) {
         ProcessTaskPo task = taskCommandSupport.requirePendingTask(id);
         String target = requireTargetUser(targetUser);

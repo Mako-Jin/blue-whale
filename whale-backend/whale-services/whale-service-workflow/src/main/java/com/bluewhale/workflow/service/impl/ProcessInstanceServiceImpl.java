@@ -2,6 +2,8 @@ package com.bluewhale.workflow.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bluewhale.common.audit.annotation.AuditLog;
+import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
@@ -158,6 +160,8 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @AuditLog(operation = "撤销流程实例", type = OperateType.UPDATE,
+            targetType = "process_instance", targetId = "#id")
     public void cancel(Long id, String operator) {
         ProcessInstancePo instance = requireRunningInstance(id);
         String who = operator == null ? "" : operator.trim();
