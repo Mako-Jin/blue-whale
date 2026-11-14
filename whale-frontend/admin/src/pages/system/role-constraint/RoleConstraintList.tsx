@@ -152,11 +152,7 @@ export default function RoleConstraintList() {
       dataIndex: 'constraintType',
       width: 130,
       render: (value: string | undefined) =>
-        value === 'CARDINALITY' ? (
-          <Tag color="purple">基数</Tag>
-        ) : (
-          <Tag color="volcano">互斥</Tag>
-        ),
+        value === 'CARDINALITY' ? <Tag color="purple">基数</Tag> : <Tag color="volcano">互斥</Tag>,
     },
     {
       title: '约束角色',
@@ -229,7 +225,12 @@ export default function RoleConstraintList() {
                 name: 'constraintType',
                 label: '类型',
                 element: (
-                  <Select allowClear options={TYPE_OPTIONS} placeholder="全部" style={{ width: 180 }} />
+                  <Select
+                    allowClear
+                    options={TYPE_OPTIONS}
+                    placeholder="全部"
+                    style={{ width: 180 }}
+                  />
                 ),
               },
             ]}
@@ -293,11 +294,7 @@ export default function RoleConstraintList() {
           >
             {({ getFieldValue }) =>
               getFieldValue('constraintType') === 'CARDINALITY' ? (
-                <Form.Item
-                  name="maxAssign"
-                  label="最大持有"
-                  extra="最多可同时持有的角色数"
-                >
+                <Form.Item name="maxAssign" label="最大持有" extra="最多可同时持有的角色数">
                   <InputNumber min={1} style={{ width: 120 }} />
                 </Form.Item>
               ) : null

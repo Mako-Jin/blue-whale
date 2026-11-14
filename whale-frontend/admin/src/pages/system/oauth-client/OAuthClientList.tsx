@@ -79,9 +79,7 @@ function showSecretModal(modal: ReturnType<typeof Modal.useModal>[0], result: OA
         <Paragraph copyable style={{ marginBottom: 8 }}>
           client_id: {result.clientId}
         </Paragraph>
-        <Paragraph copyable>
-          client_secret: {result.clientSecret}
-        </Paragraph>
+        <Paragraph copyable>client_secret: {result.clientSecret}</Paragraph>
         <Alert
           style={{ marginTop: 12 }}
           type="warning"
@@ -197,7 +195,10 @@ export default function OAuthClientList() {
         value?.length ? (
           <Space size={4} wrap>
             {value.slice(0, 2).map((uri) => (
-              <Tag key={uri} style={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <Tag
+                key={uri}
+                style={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}
+              >
                 {uri}
               </Tag>
             ))}
@@ -288,7 +289,12 @@ export default function OAuthClientList() {
                 name: 'status',
                 label: '状态',
                 element: (
-                  <Select allowClear options={STATUS_OPTIONS} placeholder="全部" style={{ width: 120 }} />
+                  <Select
+                    allowClear
+                    options={STATUS_OPTIONS}
+                    placeholder="全部"
+                    style={{ width: 120 }}
+                  />
                 ),
               },
             ]}
@@ -340,7 +346,12 @@ export default function OAuthClientList() {
           extra="逐条输入后回车；精确匹配，支持 https 或自定义 scheme"
           rules={[{ required: true, message: '至少填写一个回调地址' }]}
         >
-          <Select mode="tags" allowClear open={false} placeholder="https://app.example.com/callback" />
+          <Select
+            mode="tags"
+            allowClear
+            open={false}
+            placeholder="https://app.example.com/callback"
+          />
         </Form.Item>
         <Form.Item
           name="grantTypes"
@@ -350,7 +361,12 @@ export default function OAuthClientList() {
           <Select mode="multiple" options={GRANT_TYPES} />
         </Form.Item>
         <Form.Item name="scopes" label="授权范围">
-          <Select mode="multiple" allowClear options={SCOPE_OPTIONS} placeholder="openid / profile ..." />
+          <Select
+            mode="multiple"
+            allowClear
+            options={SCOPE_OPTIONS}
+            placeholder="openid / profile ..."
+          />
         </Form.Item>
         <Space style={{ display: 'flex' }}>
           <Form.Item name="accessTokenTtl" label="Access TTL" extra="秒">

@@ -148,32 +148,35 @@ export default function UserProfilePage() {
     }
   };
 
-  const applyProfile = useCallback((data: UserProfileVO) => {
-    setProfile(data);
-    basicForm.setFieldsValue({
-      gender: data.gender,
-      birthDate: data.birthDate ? dayjs(data.birthDate) : undefined,
-      birthPlace: data.birthPlace,
-      homeAddress: data.homeAddress,
-      nation: data.nation,
-      politicalStatus: data.politicalStatus,
-      maritalStatus: data.maritalStatus,
-      remarks: data.remarks,
-    });
-    // 联系方式读端的 contactValue 是掩码：转存到 contactValueMasked，明文位清空，
-    // 避免「原样回传掩码 → 服务端当明文加密」把真实号码覆盖掉。
-    setContacts(
-      (data.contacts ?? []).map((row) => ({
-        ...row,
-        contactValueMasked: row.contactValue,
-        contactValue: undefined,
-      })),
-    );
-    setCredentials(data.credentials ?? []);
-    setEducations(data.educations ?? []);
-    setEmployments(data.employments ?? []);
-    setEmergencyContacts(data.emergencyContacts ?? []);
-  }, [basicForm]);
+  const applyProfile = useCallback(
+    (data: UserProfileVO) => {
+      setProfile(data);
+      basicForm.setFieldsValue({
+        gender: data.gender,
+        birthDate: data.birthDate ? dayjs(data.birthDate) : undefined,
+        birthPlace: data.birthPlace,
+        homeAddress: data.homeAddress,
+        nation: data.nation,
+        politicalStatus: data.politicalStatus,
+        maritalStatus: data.maritalStatus,
+        remarks: data.remarks,
+      });
+      // 联系方式读端的 contactValue 是掩码：转存到 contactValueMasked，明文位清空，
+      // 避免「原样回传掩码 → 服务端当明文加密」把真实号码覆盖掉。
+      setContacts(
+        (data.contacts ?? []).map((row) => ({
+          ...row,
+          contactValueMasked: row.contactValue,
+          contactValue: undefined,
+        })),
+      );
+      setCredentials(data.credentials ?? []);
+      setEducations(data.educations ?? []);
+      setEmployments(data.employments ?? []);
+      setEmergencyContacts(data.emergencyContacts ?? []);
+    },
+    [basicForm],
+  );
 
   const loadProfile = async (targetUserId: string) => {
     setProfileLoading(true);
@@ -335,7 +338,9 @@ export default function UserProfilePage() {
             size="small"
             style={{ width: 220 }}
             placeholder={keepHint(row.id)}
-            onChange={(e) => mutateRow(setContacts, index, { contactValue: e.target.value || undefined })}
+            onChange={(e) =>
+              mutateRow(setContacts, index, { contactValue: e.target.value || undefined })
+            }
           />
         </Space>
       ),
@@ -452,7 +457,9 @@ export default function UserProfilePage() {
           size="small"
           style={{ width: 120 }}
           value={toDay(value)}
-          onChange={(next) => mutateRow(setCredentials, index, { issueDate: toDateStr(next ?? undefined) })}
+          onChange={(next) =>
+            mutateRow(setCredentials, index, { issueDate: toDateStr(next ?? undefined) })
+          }
         />
       ),
     },
@@ -465,7 +472,9 @@ export default function UserProfilePage() {
           size="small"
           style={{ width: 120 }}
           value={toDay(value)}
-          onChange={(next) => mutateRow(setCredentials, index, { expiryDate: toDateStr(next ?? undefined) })}
+          onChange={(next) =>
+            mutateRow(setCredentials, index, { expiryDate: toDateStr(next ?? undefined) })
+          }
         />
       ),
     },
@@ -537,7 +546,9 @@ export default function UserProfilePage() {
           size="small"
           style={{ width: 120 }}
           value={toDay(value)}
-          onChange={(next) => mutateRow(setEducations, index, { startDate: toDateStr(next ?? undefined) })}
+          onChange={(next) =>
+            mutateRow(setEducations, index, { startDate: toDateStr(next ?? undefined) })
+          }
         />
       ),
     },
@@ -550,7 +561,9 @@ export default function UserProfilePage() {
           size="small"
           style={{ width: 120 }}
           value={toDay(value)}
-          onChange={(next) => mutateRow(setEducations, index, { endDate: toDateStr(next ?? undefined) })}
+          onChange={(next) =>
+            mutateRow(setEducations, index, { endDate: toDateStr(next ?? undefined) })
+          }
         />
       ),
     },
@@ -641,7 +654,9 @@ export default function UserProfilePage() {
           size="small"
           style={{ width: 120 }}
           value={toDay(value)}
-          onChange={(next) => mutateRow(setEmployments, index, { startDate: toDateStr(next ?? undefined) })}
+          onChange={(next) =>
+            mutateRow(setEmployments, index, { startDate: toDateStr(next ?? undefined) })
+          }
         />
       ),
     },
@@ -654,7 +669,9 @@ export default function UserProfilePage() {
           size="small"
           style={{ width: 120 }}
           value={toDay(value)}
-          onChange={(next) => mutateRow(setEmployments, index, { endDate: toDateStr(next ?? undefined) })}
+          onChange={(next) =>
+            mutateRow(setEmployments, index, { endDate: toDateStr(next ?? undefined) })
+          }
         />
       ),
     },
@@ -707,7 +724,9 @@ export default function UserProfilePage() {
             size="small"
             style={{ width: 180 }}
             placeholder={keepHint(row.id)}
-            onChange={(e) => mutateRow(setEmergencyContacts, index, { phone: e.target.value || undefined })}
+            onChange={(e) =>
+              mutateRow(setEmergencyContacts, index, { phone: e.target.value || undefined })
+            }
           />
         </Space>
       ),
@@ -731,7 +750,12 @@ export default function UserProfilePage() {
       key: 'action',
       width: 70,
       render: (_, row) => (
-        <Button type="link" size="small" danger onClick={() => removeRow(setEmergencyContacts, row)}>
+        <Button
+          type="link"
+          size="small"
+          danger
+          onClick={() => removeRow(setEmergencyContacts, row)}
+        >
           移除
         </Button>
       ),
@@ -881,7 +905,13 @@ export default function UserProfilePage() {
                 onClick={() =>
                   setContacts((prev) => [
                     ...prev,
-                    { contactType: 'MOBILE', contactValue: undefined, primary: false, verified: false, sortNo: prev.length },
+                    {
+                      contactType: 'MOBILE',
+                      contactValue: undefined,
+                      primary: false,
+                      verified: false,
+                      sortNo: prev.length,
+                    },
                   ])
                 }
               >
@@ -913,7 +943,12 @@ export default function UserProfilePage() {
                 onClick={() =>
                   setCredentials((prev) => [
                     ...prev,
-                    { credentialType: 'ID_CARD', credentialNo: undefined, primary: false, sortNo: prev.length },
+                    {
+                      credentialType: 'ID_CARD',
+                      credentialNo: undefined,
+                      primary: false,
+                      sortNo: prev.length,
+                    },
                   ])
                 }
               >
@@ -948,7 +983,10 @@ export default function UserProfilePage() {
               <Table
                 size="small"
                 rowKey={(row) => row.id ?? row.question}
-                columns={[{ title: '问题', dataIndex: 'question' }, { title: '排序', dataIndex: 'sortNo', width: 80 }]}
+                columns={[
+                  { title: '问题', dataIndex: 'question' },
+                  { title: '排序', dataIndex: 'sortNo', width: 80 },
+                ]}
                 dataSource={profile.secretQuestions}
                 pagination={false}
               />
@@ -957,7 +995,12 @@ export default function UserProfilePage() {
 
           <Card>
             <Space>
-              <AuthButton perm="sys:user:profile:save" type="primary" loading={saving} onClick={() => void handleSave()}>
+              <AuthButton
+                perm="sys:user:profile:save"
+                type="primary"
+                loading={saving}
+                onClick={() => void handleSave()}
+              >
                 保存档案
               </AuthButton>
               {has('sys:user:profile:delete') && (
@@ -974,7 +1017,11 @@ export default function UserProfilePage() {
 }
 
 /** 按 index 原位更新行字段（不改变数组引用其余元素） */
-function mutateRow<T>(setter: (updater: (prev: T[]) => T[]) => void, index: number, patch: Partial<T>) {
+function mutateRow<T>(
+  setter: (updater: (prev: T[]) => T[]) => void,
+  index: number,
+  patch: Partial<T>,
+) {
   setter((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
 }
 

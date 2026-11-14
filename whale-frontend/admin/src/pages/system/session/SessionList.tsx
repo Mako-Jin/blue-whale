@@ -3,12 +3,7 @@
 
 import { App, Button, Input, Popconfirm, Select, Space, Tag, type TableProps } from 'antd';
 import { useRef, useState } from 'react';
-import {
-  ProTable,
-  SearchForm,
-  usePermission,
-  type ProTableRef,
-} from '@bluewhale/whale-ui';
+import { ProTable, SearchForm, usePermission, type ProTableRef } from '@bluewhale/whale-ui';
 import { pageSessions, revokeSession, type SessionVO } from '../../../api/session';
 
 type SessionQuery = { userId?: string; onlyActive?: boolean };
@@ -100,9 +95,7 @@ export default function SessionList() {
       rowKey="jti"
       title="会话与设备"
       columns={columns}
-      request={(params) =>
-        pageSessions({ ...params, onlyActive, userId })
-      }
+      request={(params) => pageSessions({ ...params, onlyActive, userId })}
       params={{ userId }}
       onError={(error) => showError(error, '会话列表加载失败')}
       search={
@@ -116,10 +109,15 @@ export default function SessionList() {
             {
               name: 'onlyActive',
               label: '仅活跃',
-              element: <Select style={{ width: 120 }} options={[
-                { value: true, label: '仅活跃' },
-                { value: false, label: '全部' },
-              ]} />,
+              element: (
+                <Select
+                  style={{ width: 120 }}
+                  options={[
+                    { value: true, label: '仅活跃' },
+                    { value: false, label: '全部' },
+                  ]}
+                />
+              ),
             },
           ]}
           onSearch={(values) => {

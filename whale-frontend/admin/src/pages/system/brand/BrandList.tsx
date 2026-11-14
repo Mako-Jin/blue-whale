@@ -242,14 +242,24 @@ export default function BrandList() {
                 name: 'targetType',
                 label: '作用域',
                 element: (
-                  <Select allowClear options={TARGET_TYPES} placeholder="全部" style={{ width: 160 }} />
+                  <Select
+                    allowClear
+                    options={TARGET_TYPES}
+                    placeholder="全部"
+                    style={{ width: 160 }}
+                  />
                 ),
               },
               {
                 name: 'status',
                 label: '状态',
                 element: (
-                  <Select allowClear options={STATUS_OPTIONS} placeholder="全部" style={{ width: 120 }} />
+                  <Select
+                    allowClear
+                    options={STATUS_OPTIONS}
+                    placeholder="全部"
+                    style={{ width: 120 }}
+                  />
                 ),
               },
             ]}

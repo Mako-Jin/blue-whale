@@ -3,12 +3,7 @@
 
 import { App, Button, Input, Select, Space, Tag, type TableProps } from 'antd';
 import { useRef, useState } from 'react';
-import {
-  ProTable,
-  SearchForm,
-  usePermission,
-  type ProTableRef,
-} from '@bluewhale/whale-ui';
+import { ProTable, SearchForm, usePermission, type ProTableRef } from '@bluewhale/whale-ui';
 import {
   exportLoginHistories,
   pageLoginHistories,
@@ -139,7 +134,12 @@ export default function LoginHistoryList() {
               name: 'result',
               label: '结果',
               element: (
-                <Select allowClear options={RESULT_OPTIONS} placeholder="全部" style={{ width: 140 }} />
+                <Select
+                  allowClear
+                  options={RESULT_OPTIONS}
+                  placeholder="全部"
+                  style={{ width: 140 }}
+                />
               ),
             },
             {

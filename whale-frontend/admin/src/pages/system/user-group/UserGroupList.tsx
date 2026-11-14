@@ -53,11 +53,7 @@ function renderStatus(status: number | undefined) {
 
 function renderCategory(category: string | undefined) {
   if (!category) return '-';
-  return category === 'DYNAMIC' ? (
-    <Tag color="purple">动态规则</Tag>
-  ) : (
-    <Tag color="blue">静态</Tag>
-  );
+  return category === 'DYNAMIC' ? <Tag color="purple">动态规则</Tag> : <Tag color="blue">静态</Tag>;
 }
 
 interface UserGroupFormValues {
@@ -288,7 +284,12 @@ export default function UserGroupList() {
                 name: 'category',
                 label: '类别',
                 element: (
-                  <Select allowClear options={CATEGORY_OPTIONS} placeholder="全部" style={{ width: 160 }} />
+                  <Select
+                    allowClear
+                    options={CATEGORY_OPTIONS}
+                    placeholder="全部"
+                    style={{ width: 160 }}
+                  />
                 ),
               },
             ]}
@@ -339,16 +340,13 @@ export default function UserGroupList() {
         >
           <Select options={CATEGORY_OPTIONS} />
         </Form.Item>
-        <Form.Item
-          noStyle
-          shouldUpdate={(prev, next) => prev.category !== next.category}
-        >
+        <Form.Item noStyle shouldUpdate={(prev, next) => prev.category !== next.category}>
           {({ getFieldValue }) =>
             getFieldValue('category') === 'DYNAMIC' ? (
               <Form.Item
                 name="filtersJson"
                 label="动态规则"
-                extra="JSON 规则，如 [{&quot;field&quot;:&quot;deptId&quot;,&quot;op&quot;:&quot;eq&quot;,&quot;value&quot;:5}]"
+                extra='JSON 规则，如 [{"field":"deptId","op":"eq","value":5}]'
               >
                 <Input.TextArea rows={3} placeholder='[{"field":"deptId","op":"eq","value":5}]' />
               </Form.Item>

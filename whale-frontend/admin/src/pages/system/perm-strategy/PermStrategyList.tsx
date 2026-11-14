@@ -177,8 +177,7 @@ export default function PermStrategyList() {
       title: '默认',
       dataIndex: 'defaultStrategy',
       width: 70,
-      render: (value: boolean | undefined) =>
-        value ? <Tag color="gold">默认</Tag> : '-',
+      render: (value: boolean | undefined) => (value ? <Tag color="gold">默认</Tag> : '-'),
     },
     {
       title: '生效角色',
@@ -298,11 +297,7 @@ export default function PermStrategyList() {
             <InputNumber min={0} style={{ width: 100 }} />
           </Form.Item>
         </Space>
-        <Form.Item
-          name="roleIds"
-          label="生效角色"
-          extra="策略只对该组角色生效；留空表示全角色"
-        >
+        <Form.Item name="roleIds" label="生效角色" extra="策略只对该组角色生效；留空表示全角色">
           <Select
             mode="multiple"
             allowClear

@@ -11,13 +11,17 @@
 --   - sys_permission 判重键 = perm_code（uk_perm_code），已存在则跳过；
 --   - 授权按 perm_code 联查角色现有 sys:form:data:list 归属，
 --     主键 MD5 派生 + NOT EXISTS 判重，可重复执行。
+--
+-- 权限编号 : 2420 = 表单数据导出（sys:form:data:export）
+--            原取值 281 与 migration-5.75-music.sql 的 sys:music:artist:list 争用，
+--            号段扫描（Code Quality · 权限/菜单号段）判 ERROR，故改为 2420。
 -- =============================================================================
 
 -- ---------------------------------------------------------------------
 -- 1. 权限点：表单数据导出
 -- ---------------------------------------------------------------------
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 281, 0, 'sys:form:data:export', '导出表单数据', 'API', '/form/data/export', 'GET', 281, 1
+SELECT 2420, 0, 'sys:form:data:export', '导出表单数据', 'API', '/form/data/export', 'GET', 2420, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE perm_code = 'sys:form:data:export');
 
