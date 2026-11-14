@@ -15,6 +15,7 @@ import com.bluewhale.workflow.mapper.ProcessDefinitionVersionMapper;
 import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
 import com.bluewhale.workflow.service.WorkflowArchiveReadService;
+import com.bluewhale.workflow.support.WorkflowConstants;
 import com.bluewhale.workflow.vo.ApprovedInstanceVO;
 import com.bluewhale.workflow.vo.ArchiveInstanceDetailVO;
 import com.bluewhale.workflow.vo.ProcessTaskVO;
@@ -36,15 +37,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class WorkflowArchiveReadServiceImpl implements WorkflowArchiveReadService {
 
-    /** 实例状态：已通过 */
-    private static final int INSTANCE_APPROVED = 1;
-
-    /** 版本快照发布状态：已发布 */
-    private static final int PUBLISH_PUBLISHED = 1;
-
-    /** 单页最大条数：防止深度分页拖垮数据库 */
-    private static final long MAX_PAGE_SIZE = 200L;
-
     private final ProcessDefinitionMapper processDefinitionMapper;
 
     private final ProcessDefinitionVersionMapper processDefinitionVersionMapper;
@@ -56,10 +48,10 @@ public class WorkflowArchiveReadServiceImpl implements WorkflowArchiveReadServic
     @Override
     public PageResult<ApprovedInstanceVO> approved(LocalDateTime updatedAfter, LocalDateTime updatedBefore,
                                                    long current, long size) {
-        long pageCurrent = Math.max(current, 1L);
-        long pageSize = Math.min(Math.max(size, 1L), MAX_PAGE_SIZE);
+        long pageCurrent = Math.min(Math.max(current, 1L), WorkflowConstants.MAX_PAGE_CURRENT);
+        long pageSize = Math.min(Math.max(size, 1L), WorkflowConstants.MAX_PAGE_SIZE);
         LambdaQueryWrapper<ProcessInstance> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ProcessInstance::getStatus, INSTANCE_APPROVED);
+        wrapper.eq(ProcessInstance::getStatus, WorkflowConstants.INSTANCE_APPROVED);
         wrapper.gt(updatedAfter != null, ProcessInstance::getUpdateTime, updatedAfter);
         wrapper.le(updatedBefore != null, ProcessInstance::getUpdateTime, updatedBefore);
         wrapper.orderByAsc(ProcessInstance::getUpdateTime);
@@ -133,7 +125,7 @@ public class WorkflowArchiveReadServiceImpl implements WorkflowArchiveReadServic
     private ProcessDefinitionVersion findPublishedSnapshot(Long definitionId) {
         LambdaQueryWrapper<ProcessDefinitionVersion> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ProcessDefinitionVersion::getDefinitionId, definitionId);
-        wrapper.eq(ProcessDefinitionVersion::getPublishStatus, PUBLISH_PUBLISHED);
+        wrapper.eq(ProcessDefinitionVersion::getPublishStatus, WorkflowConstants.PUBLISH_PUBLISHED);
         wrapper.orderByDesc(ProcessDefinitionVersion::getVersion);
         List<ProcessDefinitionVersion> snapshots = processDefinitionVersionMapper.selectList(wrapper);
         return snapshots.isEmpty() ? null : snapshots.get(0);

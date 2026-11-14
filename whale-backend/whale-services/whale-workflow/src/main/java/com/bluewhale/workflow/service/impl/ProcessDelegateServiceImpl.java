@@ -10,6 +10,7 @@ import com.bluewhale.workflow.dto.DelegateRuleSaveRequest;
 import com.bluewhale.workflow.entity.ProcessDelegate;
 import com.bluewhale.workflow.mapper.ProcessDelegateMapper;
 import com.bluewhale.workflow.service.ProcessDelegateService;
+import com.bluewhale.workflow.support.WorkflowConstants;
 import com.bluewhale.workflow.vo.DelegateRuleVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,25 +28,15 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class ProcessDelegateServiceImpl implements ProcessDelegateService {
 
-    /** 单页最大条数 */
-    private static final int MAX_PAGE_SIZE = 200;
-
-    /** 默认每页条数 */
-    private static final long DEFAULT_PAGE_SIZE = 10L;
-
-    /** 启用状态 */
-    private static final int ENABLED = 1;
-
-    /** 默认启用 */
-    private static final int DEFAULT_ENABLED = 1;
-
     /** 代理规则 Mapper */
     private final ProcessDelegateMapper processDelegateMapper;
 
     @Override
     public PageResult<DelegateRuleVO> page(String fromAccount, long current, long size) {
-        long safeCurrent = Math.max(1L, current);
-        long safeSize = size <= 0 ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
+        long safeCurrent = Math.min(Math.max(current, 1L), WorkflowConstants.MAX_PAGE_CURRENT);
+        long safeSize = size <= 0
+                ? WorkflowConstants.DEFAULT_PAGE_SIZE
+                : Math.min(size, WorkflowConstants.MAX_PAGE_SIZE);
         LambdaQueryWrapper<ProcessDelegate> wrapper = new LambdaQueryWrapper<ProcessDelegate>()
                 .eq(hasText(fromAccount), ProcessDelegate::getFromAccount, fromAccount)
                 .orderByDesc(ProcessDelegate::getCreateTime)
@@ -91,7 +82,7 @@ public class ProcessDelegateServiceImpl implements ProcessDelegateService {
             return Optional.empty();
         }
         List<ProcessDelegate> rules = processDelegateMapper.selectList(new LambdaQueryWrapper<ProcessDelegate>()
-                .eq(ProcessDelegate::getEnabled, ENABLED)
+                .eq(ProcessDelegate::getEnabled, WorkflowConstants.DELEGATE_ENABLED)
                 .eq(ProcessDelegate::getDefinitionCode, definitionCode.trim())
                 .eq(ProcessDelegate::getFromAccount, account.trim())
                 .le(ProcessDelegate::getStartTime, now)
@@ -124,7 +115,8 @@ public class ProcessDelegateServiceImpl implements ProcessDelegateService {
         entity.setToAccount(toAccount);
         entity.setStartTime(request.getStartTime());
         entity.setEndTime(request.getEndTime());
-        entity.setEnabled(request.getEnabled() == null || request.getEnabled() ? DEFAULT_ENABLED : 0);
+        entity.setEnabled(request.getEnabled() == null || request.getEnabled()
+                ? WorkflowConstants.DELEGATE_ENABLED : WorkflowConstants.DELEGATE_DISABLED);
         entity.setRemark(request.getRemark());
     }
 

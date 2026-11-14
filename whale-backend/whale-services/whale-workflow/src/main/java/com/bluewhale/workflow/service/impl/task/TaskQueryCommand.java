@@ -7,6 +7,7 @@ import com.bluewhale.workflow.converter.WorkflowConverter;
 import com.bluewhale.workflow.dto.ProcessTaskQueryRequest;
 import com.bluewhale.workflow.entity.ProcessTask;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
+import com.bluewhale.workflow.support.WorkflowConstants;
 import com.bluewhale.workflow.vo.ProcessTaskVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -21,12 +22,6 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 public class TaskQueryCommand {
-
-    /** 任务状态：已同意 */
-    private static final int TASK_APPROVED = 1;
-
-    /** 任务状态：已驳回 */
-    private static final int TASK_REJECTED = 2;
 
     private final ProcessTaskMapper processTaskMapper;
 
@@ -43,12 +38,14 @@ public class TaskQueryCommand {
         wrapper.eq(request.getInstanceId() != null, ProcessTask::getInstanceId, request.getInstanceId());
         wrapper.eq(request.getOperatorId() != null, ProcessTask::getOperatorId, request.getOperatorId());
         if (Boolean.TRUE.equals(request.getHandled())) {
-            wrapper.in(ProcessTask::getStatus, List.of(TASK_APPROVED, TASK_REJECTED));
+            wrapper.in(ProcessTask::getStatus,
+                    List.of(WorkflowConstants.TASK_APPROVED, WorkflowConstants.TASK_REJECTED));
         }
         applyActorFilter(wrapper, request);
         wrapper.orderByDesc(ProcessTask::getCreateTime);
-        long size = Math.min(Math.max(request.getSize(), 1L), TaskConstants.MAX_PAGE_SIZE);
-        Page<ProcessTask> page = processTaskMapper.selectPage(new Page<>(request.getCurrent(), size), wrapper);
+        long current = Math.min(Math.max(request.getCurrent(), 1L), WorkflowConstants.MAX_PAGE_CURRENT);
+        long size = Math.min(Math.max(request.getSize(), 1L), WorkflowConstants.MAX_PAGE_SIZE);
+        Page<ProcessTask> page = processTaskMapper.selectPage(new Page<>(current, size), wrapper);
         List<ProcessTaskVO> records = page.getRecords().stream().map(TaskQueryCommand::toVo).toList();
         return PageResult.of(records, page.getTotal(), page.getCurrent(), page.getSize());
     }

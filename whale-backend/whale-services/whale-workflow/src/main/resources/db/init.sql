@@ -7,8 +7,7 @@
 -- 存储引擎   : InnoDB
 -- 公共字段   : id BIGINT（雪花算法生成）、create_time、update_time、
 --              deleted TINYINT（逻辑删除：0 未删除 / 1 已删除）
--- 说明       : code 因逻辑删除无法建唯一索引，其业务唯一性由服务层前置校验保证
---              （存在则抛 BizException(PARAM_ERROR, "流程编码已存在")）；
+-- 说明       : code 的租户内唯一性由服务层前置校验 + active_code 生成列唯一键双重保证；
 --              definition_json 为流程定义 JSON（节点与流转），最长 64KB（65536 字符）
 -- =====================================================================
 
@@ -19,7 +18,7 @@ DROP TABLE IF EXISTS process_definition;
 CREATE TABLE process_definition (
     id               BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
     tenant_id        BIGINT        NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
-    code             VARCHAR(64)   NOT NULL               COMMENT '流程编码（租户内唯一，逻辑删除冲突由服务层前置校验）',
+    code             VARCHAR(64)   NOT NULL               COMMENT '流程编码（租户内唯一：服务层前置校验 + active_code 唯一键）',
     name             VARCHAR(128)  NOT NULL               COMMENT '流程名称',
     definition_json  MEDIUMTEXT    NULL                   COMMENT '流程定义JSON（节点与流转，最长64KB）',
     version          INT           NOT NULL DEFAULT 1     COMMENT '版本号',
@@ -28,7 +27,10 @@ CREATE TABLE process_definition (
     create_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted          TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    active_code      VARCHAR(64)   GENERATED ALWAYS AS (IF(deleted = 0, code, NULL)) STORED
+                                                          COMMENT '活跃编码（逻辑删除后为 NULL，用于唯一约束）',
     PRIMARY KEY (id),
+    UNIQUE KEY uk_tenant_active_code (tenant_id, active_code),
     KEY idx_tenant_code (tenant_id, code)
 ) COMMENT='流程定义表';
 

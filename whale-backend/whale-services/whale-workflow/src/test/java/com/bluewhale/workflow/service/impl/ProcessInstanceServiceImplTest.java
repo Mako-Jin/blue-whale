@@ -19,6 +19,7 @@ import com.bluewhale.workflow.service.ProcessCcService;
 import com.bluewhale.workflow.service.impl.task.TaskActivationCommand;
 import com.bluewhale.workflow.service.impl.task.TaskCommandSupport;
 import com.bluewhale.workflow.support.ProcessModel;
+import com.bluewhale.workflow.support.WorkflowMetrics;
 import com.bluewhale.workflow.support.machine.TransitionResult;
 import com.bluewhale.workflow.vo.ProcessInstanceVO;
 import org.junit.jupiter.api.DisplayName;
@@ -90,6 +91,9 @@ class ProcessInstanceServiceImplTest {
 
     @Mock
     private ProcessCcService processCcService;
+
+    @Mock
+    private WorkflowMetrics workflowMetrics;
 
     @InjectMocks
     private ProcessInstanceServiceImpl processInstanceService;

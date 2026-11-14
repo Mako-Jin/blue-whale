@@ -4,6 +4,7 @@ import com.bluewhale.workflow.entity.ProcessTask;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
 import com.bluewhale.workflow.support.ProcessModelNode;
 import com.bluewhale.workflow.support.ProcessNodeType;
+import com.bluewhale.workflow.support.WorkflowConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,9 +38,9 @@ class CounterSignCommandTest {
     @Test
     @DisplayName("RATIO：已取消任务不参与分母，达成阈值时收敛同节点待办")
     void shouldIgnoreCanceledTasksInRatioDenominator() {
-        ProcessTask approved = task(TaskConstants.TASK_APPROVED);
-        ProcessTask pending = task(TaskConstants.TASK_PENDING);
-        ProcessTask canceled = task(TaskConstants.TASK_CANCELED);
+        ProcessTask approved = task(WorkflowConstants.TASK_APPROVED);
+        ProcessTask pending = task(WorkflowConstants.TASK_PENDING);
+        ProcessTask canceled = task(WorkflowConstants.TASK_CANCELED);
         when(processTaskMapper.selectList(any())).thenReturn(List.of(approved, pending, canceled));
 
         boolean wait = counterSignCommand.awaitSameNode(5L, "t1", counterSignNode("RATIO:50"));
@@ -51,8 +52,8 @@ class CounterSignCommandTest {
     @Test
     @DisplayName("RATIO：未达阈值时继续等待且不取消待办")
     void shouldWaitWhenRatioNotSatisfied() {
-        ProcessTask approved = task(TaskConstants.TASK_APPROVED);
-        ProcessTask pending = task(TaskConstants.TASK_PENDING);
+        ProcessTask approved = task(WorkflowConstants.TASK_APPROVED);
+        ProcessTask pending = task(WorkflowConstants.TASK_PENDING);
         when(processTaskMapper.selectList(any())).thenReturn(List.of(approved, pending));
 
         boolean wait = counterSignCommand.awaitSameNode(5L, "t1", counterSignNode("RATIO:80"));

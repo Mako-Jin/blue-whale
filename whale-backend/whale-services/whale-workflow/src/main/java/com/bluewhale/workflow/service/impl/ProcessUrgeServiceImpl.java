@@ -14,8 +14,11 @@ import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
 import com.bluewhale.workflow.mapper.ProcessUrgeMapper;
 import com.bluewhale.workflow.service.ProcessUrgeService;
+import com.bluewhale.workflow.support.WorkflowConstants;
+import com.bluewhale.workflow.support.WorkflowMetrics;
 import com.bluewhale.workflow.vo.ProcessUrgeVO;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
@@ -28,6 +31,7 @@ import java.util.List;
  *
  * @author BlueWhale
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ProcessUrgeServiceImpl implements ProcessUrgeService {
@@ -39,12 +43,6 @@ public class ProcessUrgeServiceImpl implements ProcessUrgeService {
     private static final DateTimeFormatter WINDOW_BUCKET_FORMATTER =
             DateTimeFormatter.ofPattern("yyyyMMddHH");
 
-    /** 单页最大条数 */
-    private static final int MAX_PAGE_SIZE = 200;
-
-    /** 默认每页条数 */
-    private static final long DEFAULT_PAGE_SIZE = 10L;
-
     /** 催办记录 Mapper */
     private final ProcessUrgeMapper processUrgeMapper;
 
@@ -53,6 +51,9 @@ public class ProcessUrgeServiceImpl implements ProcessUrgeService {
 
     /** 待办任务 Mapper */
     private final ProcessTaskMapper processTaskMapper;
+
+    /** 业务指标 */
+    private final WorkflowMetrics workflowMetrics;
 
     @Override
     public void urge(Long instanceId, UrgeRequest request) {
@@ -73,6 +74,7 @@ public class ProcessUrgeServiceImpl implements ProcessUrgeService {
                 .eq(ProcessUrge::getUrger, urger)
                 .ge(ProcessUrge::getCreateTime, now.minusHours(FREQUENCY_WINDOW_HOURS)));
         if (recent != null && recent > 0) {
+            workflowMetrics.recordUrge(WorkflowMetrics.URGE_THROTTLED);
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "催办过于频繁，1 小时内仅允许一次");
         }
         ProcessUrge entity = new ProcessUrge();
@@ -86,14 +88,20 @@ public class ProcessUrgeServiceImpl implements ProcessUrgeService {
             processUrgeMapper.insert(entity);
         } catch (DuplicateKeyException e) {
             // 唯一键 (tenant_id, instance_id, urger, window_bucket) 兜底并发绕过
+            workflowMetrics.recordUrge(WorkflowMetrics.URGE_THROTTLED);
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "催办过于频繁，1 小时内仅允许一次");
         }
+        workflowMetrics.recordUrge(WorkflowMetrics.URGE_SUBMITTED);
+        log.info("流程催办已提交: instanceId={}, taskId={}, urger={}",
+                instanceId, request.getTaskId(), urger);
     }
 
     @Override
     public PageResult<ProcessUrgeVO> page(Long instanceId, long current, long size) {
-        long safeCurrent = Math.max(1L, current);
-        long safeSize = size <= 0 ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
+        long safeCurrent = Math.min(Math.max(current, 1L), WorkflowConstants.MAX_PAGE_CURRENT);
+        long safeSize = size <= 0
+                ? WorkflowConstants.DEFAULT_PAGE_SIZE
+                : Math.min(size, WorkflowConstants.MAX_PAGE_SIZE);
         LambdaQueryWrapper<ProcessUrge> wrapper = new LambdaQueryWrapper<ProcessUrge>()
                 .eq(ProcessUrge::getInstanceId, instanceId)
                 .orderByDesc(ProcessUrge::getCreateTime)

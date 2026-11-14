@@ -10,21 +10,22 @@ import com.bluewhale.workflow.dto.ProcessCcQueryRequest;
 import com.bluewhale.workflow.entity.ProcessCc;
 import com.bluewhale.workflow.mapper.ProcessCcMapper;
 import com.bluewhale.workflow.service.ProcessCcService;
+import com.bluewhale.workflow.support.WorkflowConstants;
 import com.bluewhale.workflow.vo.ProcessCcVO;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * 流程抄送服务实现。
  *
  * @author BlueWhale
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ProcessCcServiceImpl implements ProcessCcService {
@@ -35,16 +36,7 @@ public class ProcessCcServiceImpl implements ProcessCcService {
     /** 发起级抄送节点名 */
     public static final String START_NODE_NAME = "发起抄送";
 
-    /** 单页最大条数 */
-    private static final int MAX_PAGE_SIZE = 200;
-
-    /** 默认每页条数 */
-    private static final long DEFAULT_PAGE_SIZE = 10L;
-
-    /** 已读标记 */
-    private static final int READ_FLAG_READ = 1;
-
-    /** 候选收件人上限（用户 ID + 账号双口径下每人占两个名额，超限显式报错而非静默截断） */
+    /** 候选收件人上限（账号口径下超限显式报错而非静默截断） */
     private static final int MAX_RECIPIENT_CANDIDATES = 100;
 
     /** 抄送 Mapper */
@@ -53,8 +45,10 @@ public class ProcessCcServiceImpl implements ProcessCcService {
     @Override
     public PageResult<ProcessCcVO> page(ProcessCcQueryRequest query) {
         ProcessCcQueryRequest condition = query == null ? new ProcessCcQueryRequest() : query;
-        long current = Math.max(1L, condition.getCurrent());
-        long size = condition.getSize() <= 0 ? DEFAULT_PAGE_SIZE : Math.min(condition.getSize(), MAX_PAGE_SIZE);
+        long current = Math.min(Math.max(condition.getCurrent(), 1L), WorkflowConstants.MAX_PAGE_CURRENT);
+        long size = condition.getSize() <= 0
+                ? WorkflowConstants.DEFAULT_PAGE_SIZE
+                : Math.min(condition.getSize(), WorkflowConstants.MAX_PAGE_SIZE);
         List<String> candidates = normalizeCandidates(condition.getRecipientCandidates());
         boolean hasCandidates = !candidates.isEmpty();
         LambdaQueryWrapper<ProcessCc> wrapper = new LambdaQueryWrapper<ProcessCc>()
@@ -86,26 +80,17 @@ public class ProcessCcServiceImpl implements ProcessCcService {
         if (cc == null) {
             throw new BizException(ErrorCode.NOT_FOUND.getCode(), "抄送记录不存在");
         }
-        if (cc.getReadFlag() != null && cc.getReadFlag() == READ_FLAG_READ) {
+        if (cc.getReadFlag() != null && cc.getReadFlag() == WorkflowConstants.CC_READ) {
             return;
         }
-        cc.setReadFlag(READ_FLAG_READ);
+        cc.setReadFlag(WorkflowConstants.CC_READ);
         cc.setReadTime(LocalDateTime.now());
         processCcMapper.updateById(cc);
     }
 
     @Override
-    public void createStartCc(Long instanceId, List<Long> ccUserIds) {
-        if (ccUserIds == null || ccUserIds.isEmpty()) {
-            return;
-        }
-        Set<String> recipients = new LinkedHashSet<>();
-        for (Long userId : ccUserIds) {
-            if (userId != null) {
-                recipients.add(String.valueOf(userId));
-            }
-        }
-        createNodeCc(instanceId, START_NODE_KEY, START_NODE_NAME, List.copyOf(recipients));
+    public void createStartCc(Long instanceId, List<String> ccAccounts) {
+        createNodeCc(instanceId, START_NODE_KEY, START_NODE_NAME, ccAccounts);
     }
 
     @Override
@@ -122,20 +107,21 @@ public class ProcessCcServiceImpl implements ProcessCcService {
             cc.setNodeKey(nodeKey);
             cc.setNodeName(nodeName);
             cc.setRecipient(recipient.trim());
-            cc.setReadFlag(0);
+            cc.setReadFlag(WorkflowConstants.CC_UNREAD);
             try {
                 processCcMapper.insert(cc);
             } catch (DuplicateKeyException ignored) {
                 // 唯一键命中视为已抄送，保持幂等
+                log.debug("抄送记录已存在，忽略重复写入: instanceId={}, nodeKey={}, recipient={}",
+                        instanceId, nodeKey, cc.getRecipient());
             }
         }
     }
 
     /**
-     * 规范化候选收件人：去空、trim、去重；超过上限时显式报错，绝不静默截断
-     * （静默截断会导致双口径候选漏人——用户 ID 与账号同时传入时同一人占两个名额）。
+     * 规范化候选收件人：去空、trim、去重；超过上限时显式报错，绝不静默截断。
      *
-     * @param values 原始候选值
+     * @param values 原始候选值（账号）
      * @return 规范化后的候选列表；无有效值时返回空列表
      */
     private static List<String> normalizeCandidates(List<String> values) {

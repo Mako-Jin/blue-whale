@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 转办命令：任务审批人改为目标人，原审批人记入 {@code ownerId}。
+ * 转办命令：任务审批人改为目标人，原始责任人保留在 {@code ownerId}。
  *
  * @author BlueWhale
  */

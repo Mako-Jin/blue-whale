@@ -30,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -50,6 +51,22 @@ class ProcessCcServiceImplTest {
     @BeforeAll
     static void initTableInfo() {
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), ProcessCc.class);
+    }
+
+    @Test
+    @DisplayName("createStartCc：收件人账号统一按 START 节点落库")
+    void shouldCreateStartCcWithAccounts() {
+        processCcService.createStartCc(9L, List.of("zhangsan", "lisi"));
+
+        ArgumentCaptor<ProcessCc> captor = ArgumentCaptor.forClass(ProcessCc.class);
+        verify(processCcMapper, times(2)).insert(captor.capture());
+        assertEquals(List.of("zhangsan", "lisi"),
+                captor.getAllValues().stream().map(ProcessCc::getRecipient).toList());
+        captor.getAllValues().forEach(cc -> {
+            assertEquals("START", cc.getNodeKey());
+            assertEquals("发起抄送", cc.getNodeName());
+            assertEquals(9L, cc.getInstanceId());
+        });
     }
 
     @Test

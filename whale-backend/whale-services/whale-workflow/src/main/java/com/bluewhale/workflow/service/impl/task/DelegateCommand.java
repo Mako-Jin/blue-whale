@@ -4,6 +4,7 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.workflow.entity.ProcessTask;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
+import com.bluewhale.workflow.support.WorkflowConstants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +32,9 @@ public class DelegateCommand {
     public void delegate(Long id, String targetUser) {
         ProcessTask task = taskCommandSupport.requirePendingTask(id);
         String target = requireTargetUser(targetUser);
+        if (task.getOwnerId() == null || task.getOwnerId().isBlank()) {
+            task.setOwnerId(task.getAssignee());
+        }
         if (task.getDelegateFrom() == null || task.getDelegateFrom().isBlank()) {
             task.setDelegateFrom(task.getAssignee());
         }
@@ -51,7 +55,7 @@ public class DelegateCommand {
         if (origin == null || origin.isBlank()) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "任务不是委派任务");
         }
-        task.setStatus(TaskConstants.TASK_CANCELED);
+        task.setStatus(WorkflowConstants.TASK_CANCELED);
         task.setComment(comment);
         processTaskMapper.updateById(task);
         ProcessTask restored = new ProcessTask();
@@ -64,9 +68,10 @@ public class DelegateCommand {
         restored.setParentNodeKey(task.getParentNodeKey());
         restored.setSignType(task.getSignType());
         restored.setSignPolicy(task.getSignPolicy());
-        restored.setOwnerId(task.getOwnerId());
+        restored.setOwnerId(task.getOwnerId() == null || task.getOwnerId().isBlank()
+                ? origin : task.getOwnerId());
         restored.setAssignee(origin);
-        restored.setStatus(TaskConstants.TASK_PENDING);
+        restored.setStatus(WorkflowConstants.TASK_PENDING);
         processTaskMapper.insert(restored);
     }
 

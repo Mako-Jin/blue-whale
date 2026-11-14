@@ -42,7 +42,7 @@ public class InternalProcessStartRequest implements Serializable {
     /** 审批人覆盖（可选，nodeKey → 账号列表） */
     private Map<String, List<String>> assigneeOverrides;
 
-    /** 发起级抄送人用户ID（可选，最多 100 个） */
+    /** 发起级抄送人账号（可选，最多 100 个） */
     @Size(max = 100, message = "发起级抄送人不能超过 100 个")
-    private List<Long> ccUserIds;
+    private List<@Size(max = 64, message = "抄送人账号长度不能超过 64") String> ccAccounts;
 }

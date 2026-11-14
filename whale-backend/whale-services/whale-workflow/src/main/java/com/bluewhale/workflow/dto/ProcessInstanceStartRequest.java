@@ -38,7 +38,7 @@ public class ProcessInstanceStartRequest implements Serializable {
     /** 审批人覆盖（可选，nodeKey → 账号列表；只允许用户任务/抄送节点，单节点最多 20 人） */
     private Map<String, List<String>> assigneeOverrides;
 
-    /** 发起级抄送人用户ID（可选，最多 100 个；只发通知，不产生待办） */
+    /** 发起级抄送人账号（可选，最多 100 个；只发通知，不产生待办） */
     @Size(max = 100, message = "发起级抄送人不能超过 100 个")
-    private List<Long> ccUserIds;
+    private List<@Size(max = 64, message = "抄送人账号长度不能超过 64") String> ccAccounts;
 }

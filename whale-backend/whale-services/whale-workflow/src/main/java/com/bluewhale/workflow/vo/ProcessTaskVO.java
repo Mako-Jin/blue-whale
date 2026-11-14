@@ -45,7 +45,7 @@ public class ProcessTaskVO implements Serializable {
     /** 会签策略快照 */
     private String signPolicy;
 
-    /** 任务归属人（转办后仍为原审批人） */
+    /** 原始责任人（首次创建任务时的审批人；转办、委派、加签后保持不变） */
     private String ownerId;
 
     /** 委派来源人（非委派为空） */

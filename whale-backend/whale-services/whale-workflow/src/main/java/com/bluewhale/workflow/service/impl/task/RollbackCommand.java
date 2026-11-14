@@ -8,6 +8,7 @@ import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
 import com.bluewhale.workflow.support.ProcessModel;
 import com.bluewhale.workflow.support.ProcessModelNode;
 import com.bluewhale.workflow.support.ProcessModelParser;
+import com.bluewhale.workflow.support.WorkflowConstants;
 import com.bluewhale.workflow.support.machine.TransitionResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -48,7 +49,7 @@ public class RollbackCommand {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "回退目标必须为审批节点");
         }
         taskCommandSupport.cancelPendingTasks(instance.getId());
-        instance.setStatus(TaskConstants.INSTANCE_RUNNING);
+        instance.setStatus(WorkflowConstants.INSTANCE_RUNNING);
         instance.setCurrentIndex(model.indexOf(target.getKey()));
         instance.setCurrentNodeKey(target.getKey());
         instance.setActiveNodeKeys(null);

@@ -8,6 +8,7 @@ import com.bluewhale.workflow.entity.ProcessInstance;
 import com.bluewhale.workflow.entity.ProcessTask;
 import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
+import com.bluewhale.workflow.support.WorkflowConstants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -35,7 +36,7 @@ public class TaskCommandSupport {
         if (task == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
-        if (task.getStatus() == null || task.getStatus() != TaskConstants.TASK_PENDING) {
+        if (task.getStatus() == null || task.getStatus() != WorkflowConstants.TASK_PENDING) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "任务已处理");
         }
         return task;
@@ -52,7 +53,7 @@ public class TaskCommandSupport {
         if (instance == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
-        if (instance.getStatus() == null || instance.getStatus() != TaskConstants.INSTANCE_RUNNING) {
+        if (instance.getStatus() == null || instance.getStatus() != WorkflowConstants.INSTANCE_RUNNING) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "实例非运行中");
         }
         return instance;
@@ -72,7 +73,7 @@ public class TaskCommandSupport {
         update.setComment(comment);
         LambdaUpdateWrapper<ProcessTask> wrapper = new LambdaUpdateWrapper<ProcessTask>()
                 .eq(ProcessTask::getId, task.getId())
-                .eq(ProcessTask::getStatus, TaskConstants.TASK_PENDING);
+                .eq(ProcessTask::getStatus, WorkflowConstants.TASK_PENDING);
         return processTaskMapper.update(update, wrapper) > 0;
     }
 
@@ -83,10 +84,10 @@ public class TaskCommandSupport {
      */
     public void cancelPendingTasks(Long instanceId) {
         ProcessTask update = new ProcessTask();
-        update.setStatus(TaskConstants.TASK_CANCELED);
+        update.setStatus(WorkflowConstants.TASK_CANCELED);
         LambdaQueryWrapper<ProcessTask> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ProcessTask::getInstanceId, instanceId);
-        wrapper.eq(ProcessTask::getStatus, TaskConstants.TASK_PENDING);
+        wrapper.eq(ProcessTask::getStatus, WorkflowConstants.TASK_PENDING);
         processTaskMapper.update(update, wrapper);
     }
 }

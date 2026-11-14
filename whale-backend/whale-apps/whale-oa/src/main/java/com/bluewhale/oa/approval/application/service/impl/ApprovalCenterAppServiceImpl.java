@@ -36,7 +36,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -511,20 +510,16 @@ public class ApprovalCenterAppServiceImpl implements ApprovalCenterAppService {
     }
 
     /**
-     * 构造抄送收件人候选（账号 + 用户ID文本）。
+     * 构造抄送收件人候选（统一账号口径）。
      *
      * @param actor 当前用户
      * @return 候选列表
      */
     private List<String> recipientCandidates(ApprovalActor actor) {
-        List<String> candidates = new ArrayList<>(2);
-        if (StringUtils.hasText(actor.getUsername())) {
-            candidates.add(actor.getUsername());
+        if (!StringUtils.hasText(actor.getUsername())) {
+            return List.of();
         }
-        if (actor.getUserId() != null) {
-            candidates.add(String.valueOf(actor.getUserId()));
-        }
-        return candidates;
+        return List.of(actor.getUsername());
     }
 
     /**

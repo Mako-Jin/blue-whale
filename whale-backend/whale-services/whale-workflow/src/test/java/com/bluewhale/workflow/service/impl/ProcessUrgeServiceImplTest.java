@@ -9,6 +9,7 @@ import com.bluewhale.workflow.entity.ProcessUrge;
 import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
 import com.bluewhale.workflow.mapper.ProcessUrgeMapper;
+import com.bluewhale.workflow.support.WorkflowMetrics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -43,6 +44,9 @@ class ProcessUrgeServiceImplTest {
 
     @Mock
     private ProcessTaskMapper processTaskMapper;
+
+    @Mock
+    private WorkflowMetrics workflowMetrics;
 
     @InjectMocks
     private ProcessUrgeServiceImpl processUrgeService;

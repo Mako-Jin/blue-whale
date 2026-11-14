@@ -11,6 +11,7 @@ import com.bluewhale.workflow.support.AssigneeOverrides;
 import com.bluewhale.workflow.support.ProcessModel;
 import com.bluewhale.workflow.support.ProcessModelNode;
 import com.bluewhale.workflow.support.ProcessNodeType;
+import com.bluewhale.workflow.support.WorkflowConstants;
 import com.bluewhale.workflow.support.machine.TransitionResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -151,12 +152,13 @@ public class TaskActivationCommand {
         task.setFormId(node.getFormId());
         task.setFormCode(node.getFormCode());
         task.setAssignee(assignee);
+        task.setOwnerId(account);
         task.setDelegateFrom(delegateFrom);
-        task.setStatus(TaskConstants.TASK_PENDING);
+        task.setStatus(WorkflowConstants.TASK_PENDING);
         if (node.getType() == ProcessNodeType.COUNTER_SIGN) {
             task.setSignType(ProcessNodeType.COUNTER_SIGN.name());
             task.setSignPolicy(node.getCounterSignPolicy() == null || node.getCounterSignPolicy().isBlank()
-                    ? TaskConstants.POLICY_ALL : node.getCounterSignPolicy());
+                    ? WorkflowConstants.POLICY_ALL : node.getCounterSignPolicy());
         }
         processTaskMapper.insert(task);
     }

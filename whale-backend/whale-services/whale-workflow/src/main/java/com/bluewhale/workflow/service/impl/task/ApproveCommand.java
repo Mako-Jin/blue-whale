@@ -10,6 +10,7 @@ import com.bluewhale.workflow.support.ProcessModel;
 import com.bluewhale.workflow.support.ProcessModelNode;
 import com.bluewhale.workflow.support.ProcessModelParser;
 import com.bluewhale.workflow.support.ProcessVariables;
+import com.bluewhale.workflow.support.WorkflowConstants;
 import com.bluewhale.workflow.support.machine.StateMachine;
 import com.bluewhale.workflow.support.machine.TransitionResult;
 import lombok.RequiredArgsConstructor;
@@ -50,9 +51,9 @@ public class ApproveCommand {
         Map<String, Object> variables = request == null ? null : request.getVariables();
         ProcessTask task = taskCommandSupport.requirePendingTask(id);
         ProcessInstance instance = taskCommandSupport.requireRunningInstance(task.getInstanceId());
-        task.setStatus(TaskConstants.TASK_APPROVED);
+        task.setStatus(WorkflowConstants.TASK_APPROVED);
         task.setComment(comment);
-        if (!taskCommandSupport.transitionFromPending(task, TaskConstants.TASK_APPROVED, comment)) {
+        if (!taskCommandSupport.transitionFromPending(task, WorkflowConstants.TASK_APPROVED, comment)) {
             // 并发场景下状态已被其它请求推进，避免重复推进状态机
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "任务已处理");
         }
@@ -129,7 +130,7 @@ public class ApproveCommand {
             taskActivationCommand.activate(instance, model, result);
             return;
         }
-        instance.setStatus(TaskConstants.INSTANCE_APPROVED);
+        instance.setStatus(WorkflowConstants.INSTANCE_APPROVED);
         instance.setActiveNodeKeys(null);
         if (result.getState() != null) {
             instance.setCurrentNodeKey(result.getState());

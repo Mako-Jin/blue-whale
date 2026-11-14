@@ -15,10 +15,10 @@ public class WorkflowCcQuery {
     /** 流程实例ID */
     private Long instanceId;
 
-    /** 收件人（单值） */
+    /** 收件人账号（单值） */
     private String recipient;
 
-    /** 候选收件人（非空时优先于单值） */
+    /** 候选收件人账号（非空时优先于单值） */
     private List<String> recipientCandidates;
 
     /** 已读标记 */

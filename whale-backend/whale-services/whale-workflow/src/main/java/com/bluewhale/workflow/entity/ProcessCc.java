@@ -30,7 +30,7 @@ public class ProcessCc extends BaseEntity {
     /** 抄送节点名称 */
     private String nodeName;
 
-    /** 收件人（账号或用户ID文本） */
+    /** 收件人账号（发起级与节点级统一口径） */
     private String recipient;
 
     /** 已读标记：0 未读 / 1 已读 */

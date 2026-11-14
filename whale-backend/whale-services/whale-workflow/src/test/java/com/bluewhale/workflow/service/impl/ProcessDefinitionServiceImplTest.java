@@ -15,6 +15,7 @@ import com.bluewhale.workflow.mapper.ProcessDefinitionMapper;
 import com.bluewhale.workflow.mapper.ProcessDefinitionVersionMapper;
 import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
+import com.bluewhale.workflow.support.WorkflowMetrics;
 import com.bluewhale.workflow.vo.DefinitionMigrationVO;
 import com.bluewhale.workflow.vo.ProcessDefinitionVO;
 import com.bluewhale.workflow.vo.ProcessDefinitionVersionVO;
@@ -26,6 +27,7 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DuplicateKeyException;
 
 import java.io.Serializable;
 import java.util.List;
@@ -70,6 +72,9 @@ class ProcessDefinitionServiceImplTest {
     @Mock
     private ProcessTaskMapper processTaskMapper;
 
+    @Mock
+    private WorkflowMetrics workflowMetrics;
+
     @InjectMocks
     private ProcessDefinitionServiceImpl processDefinitionService;
 
@@ -101,6 +106,21 @@ class ProcessDefinitionServiceImplTest {
         assertEquals(1, captor.getValue().getVersion().intValue());
         assertEquals(1, captor.getValue().getStatus().intValue());
         assertEquals("wf-a", vo.getCode());
+    }
+
+    @Test
+    @DisplayName("create：并发写入触发唯一键冲突时转换为编码已存在")
+    void shouldConvertDuplicateKeyToBizException() {
+        when(processDefinitionMapper.selectCount(ArgumentMatchers.<Wrapper<ProcessDefinition>>any())).thenReturn(0L);
+        when(processDefinitionMapper.insert(any(ProcessDefinition.class)))
+                .thenThrow(new DuplicateKeyException("uk_tenant_active_code"));
+
+        BizException ex = assertThrows(BizException.class,
+                () -> processDefinitionService.create(saveRequest("wf-a", "A流程")));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        assertEquals("流程编码已存在", ex.getMessage());
+        verify(workflowMetrics).recordCodeConflict();
     }
 
     @Test

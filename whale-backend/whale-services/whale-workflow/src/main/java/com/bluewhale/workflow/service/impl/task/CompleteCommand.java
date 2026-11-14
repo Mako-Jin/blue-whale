@@ -6,6 +6,7 @@ import com.bluewhale.workflow.dto.ApprovalRequest;
 import com.bluewhale.workflow.dto.TaskCompleteRequest;
 import com.bluewhale.workflow.entity.ProcessTask;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
+import com.bluewhale.workflow.support.WorkflowConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -95,16 +96,16 @@ public class CompleteCommand {
             return false;
         }
         if (ACTION_APPROVE.equals(action)) {
-            return status == TaskConstants.TASK_APPROVED;
+            return status == WorkflowConstants.TASK_APPROVED;
         }
-        return status == TaskConstants.TASK_REJECTED;
+        return status == WorkflowConstants.TASK_REJECTED;
     }
 
     /**
      * 校验任务仍为待办状态。
      */
     private void requirePending(Integer status) {
-        if (status == null || status != TaskConstants.TASK_PENDING) {
+        if (status == null || status != WorkflowConstants.TASK_PENDING) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "任务已处理");
         }
     }

@@ -26,12 +26,15 @@ import com.bluewhale.workflow.support.ProcessModel;
 import com.bluewhale.workflow.support.ProcessModelNode;
 import com.bluewhale.workflow.support.ProcessModelParser;
 import com.bluewhale.workflow.support.ProcessVariables;
+import com.bluewhale.workflow.support.WorkflowConstants;
+import com.bluewhale.workflow.support.WorkflowMetrics;
 import com.bluewhale.workflow.support.machine.StateMachine;
 import com.bluewhale.workflow.support.machine.TransitionResult;
 import com.bluewhale.workflow.vo.InstanceStatusVO;
 import com.bluewhale.workflow.vo.ProcessInstanceVO;
 import com.bluewhale.workflow.vo.ProcessTaskVO;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -46,27 +49,13 @@ import java.util.stream.Collectors;
  *
  * @author BlueWhale
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ProcessInstanceServiceImpl implements ProcessInstanceService {
 
-    /** 实例状态：运行中 */
-    private static final int INSTANCE_RUNNING = 0;
-
-    /** 实例状态：已通过 */
-    private static final int INSTANCE_APPROVED = 1;
-
-    /** 实例状态：已撤销 */
-    private static final int INSTANCE_CANCELED = 3;
-
-    /** 单页最大条数：防止深度分页拖垮数据库 */
-    private static final long MAX_PAGE_SIZE = 200L;
-
     /** 批量状态查询单次上限 */
     private static final int MAX_BATCH_SIZE = 100;
-
-    /** 版本快照发布状态：已发布 */
-    private static final int PUBLISH_PUBLISHED = 1;
 
     private final ProcessDefinitionMapper processDefinitionMapper;
 
@@ -82,6 +71,8 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
 
     private final ProcessCcService processCcService;
 
+    private final WorkflowMetrics workflowMetrics;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ProcessInstanceVO start(ProcessInstanceStartRequest request, String initiator) {
@@ -90,7 +81,7 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
         return startInstance(definition, request.getTitle(), request.getBusinessKey(), initiator,
-                request.getVariables(), request.getAssigneeOverrides(), request.getCcUserIds());
+                request.getVariables(), request.getAssigneeOverrides(), request.getCcAccounts());
     }
 
     @Override
@@ -101,7 +92,7 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
             throw new BizException(ErrorCode.NOT_FOUND.getCode(), "流程定义不存在：" + request.getDefinitionCode());
         }
         return startInstance(definition, request.getTitle(), request.getBusinessKey(), request.getInitiator(),
-                request.getVariables(), request.getAssigneeOverrides(), request.getCcUserIds());
+                request.getVariables(), request.getAssigneeOverrides(), request.getCcAccounts());
     }
 
     @Override
@@ -126,10 +117,11 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
         wrapper.eq(StringUtils.hasText(request.getInitiator()), ProcessInstance::getInitiator,
                 request.getInitiator());
         wrapper.orderByDesc(ProcessInstance::getCreateTime);
-        long size = Math.min(Math.max(request.getSize(), 1L), MAX_PAGE_SIZE);
-        Page<ProcessInstance> page = processInstanceMapper.selectPage(new Page<>(request.getCurrent(), size), wrapper);
+        long current = Math.min(Math.max(request.getCurrent(), 1L), WorkflowConstants.MAX_PAGE_CURRENT);
+        long size = Math.min(Math.max(request.getSize(), 1L), WorkflowConstants.MAX_PAGE_SIZE);
+        Page<ProcessInstance> page = processInstanceMapper.selectPage(new Page<>(current, size), wrapper);
         List<ProcessInstanceVO> records = page.getRecords().stream().map(ProcessInstanceServiceImpl::toVo).toList();
-        return PageResult.of(records, page.getTotal(), page.getCurrent(), page.getSize());
+        return PageResult.of(records, page.getTotal(), current, size);
     }
 
     @Override
@@ -185,10 +177,12 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
      * @param instance 运行中的流程实例
      */
     private void doCancel(ProcessInstance instance) {
-        instance.setStatus(INSTANCE_CANCELED);
+        instance.setStatus(WorkflowConstants.INSTANCE_CANCELED);
         instance.setActiveNodeKeys(null);
         processInstanceMapper.updateById(instance);
         taskCommandSupport.cancelPendingTasks(instance.getId());
+        workflowMetrics.recordInstanceAction(WorkflowMetrics.INSTANCE_CANCEL);
+        log.info("流程实例已撤销: instanceId={}, definitionCode={}", instance.getId(), instance.getDefinitionCode());
     }
 
     /**
@@ -199,7 +193,7 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
      */
     private ProcessInstance requireRunningInstance(Long id) {
         ProcessInstance instance = requireInstance(id);
-        if (instance.getStatus() == null || instance.getStatus() != INSTANCE_RUNNING) {
+        if (instance.getStatus() == null || instance.getStatus() != WorkflowConstants.INSTANCE_RUNNING) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "实例非运行中");
         }
         return instance;
@@ -214,12 +208,12 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
      * @param initiator 发起人账号
      * @param variables 流程变量
      * @param assigneeOverrides 审批人覆盖
-     * @param ccUserIds 发起级抄送人
+     * @param ccAccounts 发起级抄送人账号
      * @return 流程实例视图对象
      */
     private ProcessInstanceVO startInstance(ProcessDefinition definition, String title, String businessKey,
                                             String initiator, Map<String, Object> variables,
-                                            Map<String, List<String>> assigneeOverrides, List<Long> ccUserIds) {
+                                            Map<String, List<String>> assigneeOverrides, List<String> ccAccounts) {
         ProcessDefinitionVersion published = findPublishedSnapshot(definition.getId());
         String definitionJson = published == null ? definition.getDefinitionJson() : published.getDefinitionJson();
         ProcessModel model = ProcessModelParser.parse(definitionJson);
@@ -232,7 +226,7 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
         instance.setDefinitionVersion(published == null ? definition.getVersion() : published.getVersion());
         instance.setTitle(title);
         instance.setBusinessKey(businessKey);
-        instance.setStatus(result.isUserTask() ? INSTANCE_RUNNING : INSTANCE_APPROVED);
+        instance.setStatus(result.isUserTask() ? WorkflowConstants.INSTANCE_RUNNING : WorkflowConstants.INSTANCE_APPROVED);
         instance.setCurrentIndex(result.isUserTask() ? model.indexOf(result.getState()) : 0);
         instance.setCurrentNodeKey(result.isUserTask() ? result.getState() : null);
         instance.setInitiator(initiator);
@@ -241,7 +235,10 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
         instance.setAssigneeOverridesJson(AssigneeOverrides.write(normalizedOverrides));
         processInstanceMapper.insert(instance);
         taskActivationCommand.activate(instance, model, result);
-        processCcService.createStartCc(instance.getId(), ccUserIds);
+        processCcService.createStartCc(instance.getId(), ccAccounts);
+        workflowMetrics.recordInstanceAction(WorkflowMetrics.INSTANCE_START);
+        log.info("流程实例已发起: instanceId={}, definitionCode={}, initiator={}, status={}",
+                instance.getId(), instance.getDefinitionCode(), initiator, instance.getStatus());
         return toVo(instance);
     }
 
@@ -275,7 +272,7 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
     private ProcessDefinitionVersion findPublishedSnapshot(Long definitionId) {
         LambdaQueryWrapper<ProcessDefinitionVersion> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ProcessDefinitionVersion::getDefinitionId, definitionId);
-        wrapper.eq(ProcessDefinitionVersion::getPublishStatus, PUBLISH_PUBLISHED);
+        wrapper.eq(ProcessDefinitionVersion::getPublishStatus, WorkflowConstants.PUBLISH_PUBLISHED);
         wrapper.orderByDesc(ProcessDefinitionVersion::getVersion);
         List<ProcessDefinitionVersion> snapshots = processDefinitionVersionMapper.selectList(wrapper);
         return snapshots.isEmpty() ? null : snapshots.get(0);

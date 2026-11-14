@@ -40,9 +40,9 @@ public interface ProcessCcService {
      * 写入发起级抄送（节点键固定为 {@code START}）。
      *
      * @param instanceId 流程实例ID
-     * @param ccUserIds 收件人用户ID
+     * @param ccAccounts 收件人账号
      */
-    void createStartCc(Long instanceId, List<Long> ccUserIds);
+    void createStartCc(Long instanceId, List<String> ccAccounts);
 
     /**
      * 写入节点级抄送。
@@ -50,7 +50,7 @@ public interface ProcessCcService {
      * @param instanceId 流程实例ID
      * @param nodeKey 抄送节点键
      * @param nodeName 抄送节点名称
-     * @param recipients 收件人
+     * @param recipients 收件人账号
      */
     void createNodeCc(Long instanceId, String nodeKey, String nodeName, List<String> recipients);
 }

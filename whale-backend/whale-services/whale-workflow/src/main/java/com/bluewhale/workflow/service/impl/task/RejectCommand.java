@@ -5,6 +5,7 @@ import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.workflow.entity.ProcessInstance;
 import com.bluewhale.workflow.entity.ProcessTask;
 import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
+import com.bluewhale.workflow.support.WorkflowConstants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,12 +33,12 @@ public class RejectCommand {
     public void reject(Long id, String comment) {
         ProcessTask task = taskCommandSupport.requirePendingTask(id);
         ProcessInstance instance = taskCommandSupport.requireRunningInstance(task.getInstanceId());
-        task.setStatus(TaskConstants.TASK_REJECTED);
+        task.setStatus(WorkflowConstants.TASK_REJECTED);
         task.setComment(comment);
-        if (!taskCommandSupport.transitionFromPending(task, TaskConstants.TASK_REJECTED, comment)) {
+        if (!taskCommandSupport.transitionFromPending(task, WorkflowConstants.TASK_REJECTED, comment)) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "任务已处理");
         }
-        instance.setStatus(TaskConstants.INSTANCE_REJECTED);
+        instance.setStatus(WorkflowConstants.INSTANCE_REJECTED);
         instance.setActiveNodeKeys(null);
         processInstanceMapper.updateById(instance);
         taskCommandSupport.cancelPendingTasks(instance.getId());

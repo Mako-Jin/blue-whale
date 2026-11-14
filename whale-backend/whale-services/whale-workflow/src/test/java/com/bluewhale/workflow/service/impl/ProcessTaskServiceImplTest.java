@@ -29,6 +29,7 @@ import com.bluewhale.workflow.service.impl.task.TaskActivationCommand;
 import com.bluewhale.workflow.service.impl.task.TaskCommandSupport;
 import com.bluewhale.workflow.service.impl.task.TaskQueryCommand;
 import com.bluewhale.workflow.service.impl.task.TransferCommand;
+import com.bluewhale.workflow.support.WorkflowMetrics;
 import com.bluewhale.workflow.vo.ProcessTaskVO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -110,6 +111,9 @@ class ProcessTaskServiceImplTest {
     @Mock
     private ProcessCcService processCcService;
 
+    @Mock
+    private WorkflowMetrics workflowMetrics;
+
     private ProcessTaskService processTaskService;
 
     /**
@@ -133,7 +137,8 @@ class ProcessTaskServiceImplTest {
                 new DelegateCommand(processTaskMapper, support),
                 new RollbackCommand(processInstanceMapper, support, activationCommand, loader),
                 new AddSignCommand(processTaskMapper, support),
-                new CompleteCommand(processTaskMapper, approveCommand, rejectCommand));
+                new CompleteCommand(processTaskMapper, approveCommand, rejectCommand),
+                workflowMetrics);
     }
 
     /**

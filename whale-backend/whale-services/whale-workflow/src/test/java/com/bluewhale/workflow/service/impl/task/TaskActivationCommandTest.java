@@ -79,6 +79,7 @@ class TaskActivationCommandTest {
         ArgumentCaptor<ProcessTask> captor = ArgumentCaptor.forClass(ProcessTask.class);
         verify(processTaskMapper).insert(captor.capture());
         assertEquals("manager", captor.getValue().getAssignee());
+        assertEquals("manager", captor.getValue().getOwnerId());
         assertNull(captor.getValue().getDelegateFrom());
         verify(processCcService).createNodeCc(eq(1L), eq("cc1"), eq("抄送财务"),
                 eq(List.of("fin01", "fin02")));
@@ -106,6 +107,7 @@ class TaskActivationCommandTest {
         ArgumentCaptor<ProcessTask> captor = ArgumentCaptor.forClass(ProcessTask.class);
         verify(processTaskMapper).insert(captor.capture());
         assertEquals("zhaoliu", captor.getValue().getAssignee());
+        assertEquals("manager", captor.getValue().getOwnerId());
         assertEquals("manager", captor.getValue().getDelegateFrom());
         verify(processDelegateService, times(1)).resolveActive(anyString(), anyString(), any());
     }

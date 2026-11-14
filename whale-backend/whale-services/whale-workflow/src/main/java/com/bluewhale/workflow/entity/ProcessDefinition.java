@@ -20,7 +20,7 @@ public class ProcessDefinition extends BaseEntity {
 
     private static final long serialVersionUID = 1L;
 
-    /** 流程编码（业务唯一；因逻辑删除不建唯一索引，唯一性由服务层前置校验保证） */
+    /** 流程编码（业务唯一；由服务层前置校验 + active_code 生成列唯一键保证） */
     private String code;
 
     /** 流程名称 */

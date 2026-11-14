@@ -20,10 +20,10 @@ public class ProcessCcQueryRequest extends PageQuery {
     /** 流程实例ID（可选） */
     private Long instanceId;
 
-    /** 收件人（账号或用户ID文本，可选） */
+    /** 收件人账号（可选） */
     private String recipient;
 
-    /** 候选收件人（账号或用户ID文本，可选；非空时优先于 {@link #recipient}） */
+    /** 候选收件人账号（可选；非空时优先于 {@link #recipient}） */
     private List<String> recipientCandidates;
 
     /** 已读标记：0 未读 / 1 已读（可选） */

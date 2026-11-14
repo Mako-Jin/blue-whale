@@ -24,10 +24,14 @@ import com.bluewhale.workflow.support.ProcessModelNode;
 import com.bluewhale.workflow.support.ProcessModelParser;
 import com.bluewhale.workflow.support.ProcessModelValidator;
 import com.bluewhale.workflow.support.ValidationReport;
+import com.bluewhale.workflow.support.WorkflowConstants;
+import com.bluewhale.workflow.support.WorkflowMetrics;
 import com.bluewhale.workflow.vo.DefinitionMigrationVO;
 import com.bluewhale.workflow.vo.ProcessDefinitionVO;
 import com.bluewhale.workflow.vo.ProcessDefinitionVersionVO;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -40,33 +44,16 @@ import java.util.Objects;
  *
  * @author BlueWhale
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
-
-    /** 流程状态：正常 */
-    private static final int STATUS_NORMAL = 1;
 
     /** 流程版本号默认值 */
     private static final int DEFAULT_VERSION = 1;
 
     /** 流程定义 JSON 最大长度（字符数）：64KB */
     private static final int MAX_DEFINITION_LENGTH = 65536;
-
-    /** 单页最大条数：防止深度分页拖垮数据库 */
-    private static final long MAX_PAGE_SIZE = 200L;
-
-    /** 快照发布状态：草稿 */
-    private static final int PUBLISH_DRAFT = 0;
-
-    /** 快照发布状态：已发布 */
-    private static final int PUBLISH_PUBLISHED = 1;
-
-    /** 实例状态：运行中 */
-    private static final int INSTANCE_RUNNING = 0;
-
-    /** 任务状态：待办 */
-    private static final int TASK_PENDING = 0;
 
     private final ProcessDefinitionMapper processDefinitionMapper;
 
@@ -75,6 +62,8 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
     private final ProcessInstanceMapper processInstanceMapper;
 
     private final ProcessTaskMapper processTaskMapper;
+
+    private final WorkflowMetrics workflowMetrics;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -86,10 +75,17 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
         entity.setName(request.getName());
         entity.setDefinitionJson(request.getDefinitionJson());
         entity.setVersion(request.getVersion() == null ? DEFAULT_VERSION : request.getVersion());
-        entity.setStatus(request.getStatus() == null ? STATUS_NORMAL : request.getStatus());
+        entity.setStatus(request.getStatus() == null ? WorkflowConstants.DEFINITION_ENABLED : request.getStatus());
         entity.setRemark(request.getRemark());
-        processDefinitionMapper.insert(entity);
-        saveSnapshot(entity.getId(), entity.getVersion(), entity.getDefinitionJson(), PUBLISH_PUBLISHED);
+        try {
+            processDefinitionMapper.insert(entity);
+        } catch (DuplicateKeyException e) {
+            workflowMetrics.recordCodeConflict();
+            log.warn("流程编码并发冲突: code={}", request.getCode());
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "流程编码已存在");
+        }
+        saveSnapshot(entity.getId(), entity.getVersion(), entity.getDefinitionJson(),
+                WorkflowConstants.PUBLISH_PUBLISHED);
         return toVo(entity);
     }
 
@@ -135,10 +131,17 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
             entity.setStatus(request.getStatus());
         }
         entity.setRemark(request.getRemark());
-        processDefinitionMapper.updateById(entity);
+        try {
+            processDefinitionMapper.updateById(entity);
+        } catch (DuplicateKeyException e) {
+            workflowMetrics.recordCodeConflict();
+            log.warn("流程编码并发冲突: definitionId={}, code={}", entity.getId(), request.getCode());
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "流程编码已存在");
+        }
         if (jsonChanged) {
             // 内容变更只写草稿快照；发布态仅由 publish() 显式切换，避免绕过发布流程产生多个已发布版本
-            saveSnapshot(entity.getId(), entity.getVersion(), entity.getDefinitionJson(), PUBLISH_DRAFT);
+            saveSnapshot(entity.getId(), entity.getVersion(), entity.getDefinitionJson(),
+                    WorkflowConstants.PUBLISH_DRAFT);
         }
         return toVo(entity);
     }
@@ -171,7 +174,7 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
     private void rejectPublishedTargetVersion(Long definitionId, int targetVersion) {
         ProcessDefinitionVersion target = findSnapshot(definitionId, targetVersion);
         if (target != null && target.getPublishStatus() != null
-                && target.getPublishStatus() == PUBLISH_PUBLISHED) {
+                && target.getPublishStatus() == WorkflowConstants.PUBLISH_PUBLISHED) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "目标版本已发布，内容变更请使用新版本号");
         }
     }
@@ -195,10 +198,11 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
         wrapper.eq(StringUtils.hasText(request.getCode()), ProcessDefinition::getCode, request.getCode());
         wrapper.eq(request.getStatus() != null, ProcessDefinition::getStatus, request.getStatus());
         wrapper.orderByDesc(ProcessDefinition::getCreateTime);
-        long size = Math.min(Math.max(request.getSize(), 1L), MAX_PAGE_SIZE);
-        Page<ProcessDefinition> page = processDefinitionMapper.selectPage(new Page<>(request.getCurrent(), size), wrapper);
+        long current = Math.min(Math.max(request.getCurrent(), 1L), WorkflowConstants.MAX_PAGE_CURRENT);
+        long size = Math.min(Math.max(request.getSize(), 1L), WorkflowConstants.MAX_PAGE_SIZE);
+        Page<ProcessDefinition> page = processDefinitionMapper.selectPage(new Page<>(current, size), wrapper);
         List<ProcessDefinitionVO> records = page.getRecords().stream().map(ProcessDefinitionServiceImpl::toVo).toList();
-        return PageResult.of(records, page.getTotal(), page.getCurrent(), page.getSize());
+        return PageResult.of(records, page.getTotal(), current, size);
     }
 
     @Override
@@ -216,12 +220,15 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
     public ProcessDefinitionVO publish(Long id, Integer version) {
         ProcessDefinition definition = requireProcess(id);
         ProcessDefinitionVersion snapshot = requireSnapshot(id, version);
-        snapshot.setPublishStatus(PUBLISH_PUBLISHED);
+        snapshot.setPublishStatus(WorkflowConstants.PUBLISH_PUBLISHED);
         processDefinitionVersionMapper.updateById(snapshot);
         clearOtherPublished(id, snapshot.getId());
         definition.setVersion(snapshot.getVersion());
         definition.setDefinitionJson(snapshot.getDefinitionJson());
         processDefinitionMapper.updateById(definition);
+        workflowMetrics.recordDefinitionPublish();
+        log.info("流程定义已发布: definitionId={}, code={}, version={}",
+                definition.getId(), definition.getCode(), snapshot.getVersion());
         return toVo(definition);
     }
 
@@ -308,10 +315,10 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
     private void clearOtherPublished(Long definitionId, Long keepId) {
         LambdaQueryWrapper<ProcessDefinitionVersion> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ProcessDefinitionVersion::getDefinitionId, definitionId);
-        wrapper.eq(ProcessDefinitionVersion::getPublishStatus, PUBLISH_PUBLISHED);
+        wrapper.eq(ProcessDefinitionVersion::getPublishStatus, WorkflowConstants.PUBLISH_PUBLISHED);
         wrapper.ne(ProcessDefinitionVersion::getId, keepId);
         for (ProcessDefinitionVersion other : processDefinitionVersionMapper.selectList(wrapper)) {
-            other.setPublishStatus(PUBLISH_DRAFT);
+            other.setPublishStatus(WorkflowConstants.PUBLISH_DRAFT);
             processDefinitionVersionMapper.updateById(other);
         }
     }
@@ -343,7 +350,7 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
      */
     private void migrateInstance(ProcessInstance instance, int targetVersion, ProcessModel targetModel,
                                  DefinitionMigrationVO vo) {
-        if (instance.getStatus() == null || instance.getStatus() != INSTANCE_RUNNING
+        if (instance.getStatus() == null || instance.getStatus() != WorkflowConstants.INSTANCE_RUNNING
                 || Objects.equals(instance.getDefinitionVersion(), targetVersion)) {
             vo.setSkipped(vo.getSkipped() + 1);
             return;
@@ -446,7 +453,7 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
     private void updatePendingTasks(ProcessInstance instance, ProcessModel targetModel, int oldIndex) {
         LambdaQueryWrapper<ProcessTask> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ProcessTask::getInstanceId, instance.getId());
-        wrapper.eq(ProcessTask::getStatus, TASK_PENDING);
+        wrapper.eq(ProcessTask::getStatus, WorkflowConstants.TASK_PENDING);
         for (ProcessTask task : processTaskMapper.selectList(wrapper)) {
             String key = task.getNodeKey();
             if (!StringUtils.hasText(key) && Objects.equals(task.getNodeIndex(), oldIndex)) {

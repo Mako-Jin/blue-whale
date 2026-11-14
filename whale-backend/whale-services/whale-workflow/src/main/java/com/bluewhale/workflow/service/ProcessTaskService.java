@@ -40,7 +40,7 @@ public interface ProcessTaskService {
     void reject(Long id, String comment);
 
     /**
-     * 转办：任务审批人改为目标人，原审批人记入 {@code ownerId}
+     * 转办：任务审批人改为目标人，原始责任人保留在 {@code ownerId}
      *
      * @param id 任务ID
      * @param targetUser 目标人账号

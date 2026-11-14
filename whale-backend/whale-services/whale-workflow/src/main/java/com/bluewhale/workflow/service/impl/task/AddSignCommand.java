@@ -6,6 +6,7 @@ import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.workflow.entity.ProcessTask;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
 import com.bluewhale.workflow.support.ProcessNodeType;
+import com.bluewhale.workflow.support.WorkflowConstants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,11 +40,11 @@ public class AddSignCommand {
         taskCommandSupport.requireRunningInstance(task.getInstanceId());
         List<String> targets = normalizeAddSigners(assignees);
         boolean counterSign = ProcessNodeType.COUNTER_SIGN.name().equals(task.getSignType());
-        if (counterSign && !TaskConstants.POLICY_ALL.equals(policyOfTask(task))) {
+        if (counterSign && !WorkflowConstants.POLICY_ALL.equals(policyOfTask(task))) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "ANY/RATIO 会签节点不支持加签");
         }
         for (ProcessTask existing : listTasksOfNode(task)) {
-            if (existing.getStatus() != null && existing.getStatus() == TaskConstants.TASK_CANCELED) {
+            if (existing.getStatus() != null && existing.getStatus() == WorkflowConstants.TASK_CANCELED) {
                 continue;
             }
             if (existing.getAssignee() != null && targets.contains(existing.getAssignee())) {
@@ -61,10 +62,10 @@ public class AddSignCommand {
             added.setFormCode(task.getFormCode());
             added.setParentNodeKey(task.getParentNodeKey());
             added.setAssignee(target);
-            added.setStatus(TaskConstants.TASK_PENDING);
-            added.setOwnerId(task.getAssignee());
-            added.setSignType(counterSign ? ProcessNodeType.COUNTER_SIGN.name() : TaskConstants.SIGN_TYPE_ADD_SIGN);
-            added.setSignPolicy(counterSign ? TaskConstants.POLICY_ALL : null);
+            added.setStatus(WorkflowConstants.TASK_PENDING);
+            added.setOwnerId(originalOwner(task));
+            added.setSignType(counterSign ? ProcessNodeType.COUNTER_SIGN.name() : WorkflowConstants.SIGN_TYPE_ADD_SIGN);
+            added.setSignPolicy(counterSign ? WorkflowConstants.POLICY_ALL : null);
             processTaskMapper.insert(added);
         }
     }
@@ -86,7 +87,7 @@ public class AddSignCommand {
                 continue;
             }
             String target = raw.trim();
-            if (target.length() > TaskConstants.MAX_ASSIGNEE_LENGTH) {
+            if (target.length() > WorkflowConstants.MAX_ASSIGNEE_LENGTH) {
                 throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "加签人账号长度不能超过 64");
             }
             unique.add(target);
@@ -94,10 +95,21 @@ public class AddSignCommand {
         if (unique.isEmpty()) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "加签人不能为空");
         }
-        if (unique.size() > TaskConstants.MAX_ADD_SIGNERS) {
+        if (unique.size() > WorkflowConstants.MAX_ADD_SIGNERS) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "单次最多加签 10 人");
         }
         return new ArrayList<>(unique);
+    }
+
+    /**
+     * 读取原始责任人：优先 {@code ownerId}，历史数据缺失时回落当前审批人。
+     *
+     * @param task 当前待办任务
+     * @return 原始责任人账号
+     */
+    private static String originalOwner(ProcessTask task) {
+        return task.getOwnerId() == null || task.getOwnerId().isBlank()
+                ? task.getAssignee() : task.getOwnerId();
     }
 
     /**
@@ -108,7 +120,7 @@ public class AddSignCommand {
      */
     private static String policyOfTask(ProcessTask task) {
         String policy = task.getSignPolicy();
-        return policy == null || policy.isBlank() ? TaskConstants.POLICY_ALL : policy.trim().toUpperCase();
+        return policy == null || policy.isBlank() ? WorkflowConstants.POLICY_ALL : policy.trim().toUpperCase();
     }
 
     /**
