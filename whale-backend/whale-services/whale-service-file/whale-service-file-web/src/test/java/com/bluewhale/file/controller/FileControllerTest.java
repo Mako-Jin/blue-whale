@@ -205,6 +205,39 @@ class FileControllerTest {
     }
 
     @Test
+    @DisplayName("GET /file/v1/page：onlyMine 与 sys:file:manage 一并透传到查询（管理员「我的文件」视图）")
+    void pageShouldPassOnlyMineAndManagePermission() throws Exception {
+        when(fileInfoService.page(any(FilePageQuery.class)))
+                .thenReturn(com.bluewhale.common.core.result.PageResult.of(List.of(fileInfo("application/pdf")),
+                        1L, 1L, 10L));
+
+        mockMvc.perform(get("/file/v1/page")
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID))
+                        .header(WebHeaders.PERMISSION_CODES, "sys:file:manage")
+                        .param("onlyMine", "true"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<FilePageQuery> captor = ArgumentCaptor.forClass(FilePageQuery.class);
+        verify(fileInfoService).page(captor.capture());
+        assertEquals(true, captor.getValue().canManage());
+        assertEquals(true, captor.getValue().onlyMine());
+    }
+
+    @Test
+    @DisplayName("GET /file/v1/{id}/presigned：透传过期秒数并返回预签名地址")
+    void presignedShouldReturnUrlAndExpiry() throws Exception {
+        when(fileInfoService.presignedUrl(FILE_ID, 600, UPLOADER_ID, false))
+                .thenReturn(new com.bluewhale.file.model.result.FilePresignedResult("https://s3.example/x", 600));
+
+        mockMvc.perform(get("/file/v1/{id}/presigned", FILE_ID)
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID))
+                        .param("expiresSeconds", "600"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.url").value("https://s3.example/x"))
+                .andExpect(jsonPath("$.data.expiresSeconds").value(600));
+    }
+
+    @Test
     @DisplayName("GET /file/v1/{id}/preview：MIME 类型大小写不敏感，text/plain 仍 inline")
     void previewShouldMatchContentTypeCaseInsensitively() throws Exception {
         when(fileInfoService.getDetail(FILE_ID, UPLOADER_ID, false)).thenReturn(fileInfo("TEXT/PLAIN"));

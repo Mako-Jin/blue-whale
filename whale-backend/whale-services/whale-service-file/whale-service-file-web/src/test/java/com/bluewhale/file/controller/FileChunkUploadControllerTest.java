@@ -36,6 +36,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -184,5 +185,19 @@ class FileChunkUploadControllerTest {
                 .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
 
         verify(fileInfoService).uploadChunkPart(eq("upload-1"), eq(0), any(UploadContent.class));
+    }
+
+    @Test
+    @DisplayName("GET /file/v1/upload/chunk/{uploadId}/status：返回已上传分片索引")
+    void chunkStatusShouldReturnUploadedIndexes() throws Exception {
+        when(fileInfoService.chunkUploadStatus("upload-1")).thenReturn(List.of(0, 2));
+
+        mockMvc.perform(get("/file/v1/upload/chunk/{uploadId}/status", "upload-1")
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0]").value(0))
+                .andExpect(jsonPath("$.data[1]").value(2));
+
+        verify(fileInfoService).chunkUploadStatus("upload-1");
     }
 }
