@@ -338,6 +338,29 @@ public final class ProcessModelValidator {
             checkCounterSign(report, item, nodeType, key);
             checkCcTask(report, item, nodeType, key);
             checkUserTaskForm(report, item, nodeType, key);
+            checkNodeTimeout(report, item, key);
+        }
+    }
+
+    /**
+     * 校验节点超时时长：缺省合法；非数字、非正整数或超出上限均报错。
+     *
+     * @param report 校验报告
+     * @param item 节点 JSON
+     * @param key 节点键（定位用，可为 {@code null}）
+     */
+    private static void checkNodeTimeout(ValidationReport report, JsonNode item, String key) {
+        JsonNode value = item.get("timeoutHours");
+        if (value == null || value.isNull()) {
+            return;
+        }
+        if (!value.isNumber() || !value.canConvertToInt()) {
+            report.add(ValidationIssue.of(ValidationCode.NODE_TIMEOUT_INVALID, key));
+            return;
+        }
+        int hours = value.asInt();
+        if (hours <= 0 || hours > ProcessModelParser.MAX_TIMEOUT_HOURS) {
+            report.add(ValidationIssue.of(ValidationCode.NODE_TIMEOUT_INVALID, key));
         }
     }
 

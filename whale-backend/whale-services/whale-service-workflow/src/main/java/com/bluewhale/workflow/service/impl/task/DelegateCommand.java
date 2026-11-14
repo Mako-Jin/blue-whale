@@ -80,6 +80,8 @@ public class DelegateCommand {
                 ? origin : task.getOwnerId());
         restored.setAssignee(origin);
         restored.setStatus(WorkflowConstants.TASK_PENDING);
+        // 委派处理完成后回到原审批人，仍沿用该节点原到期时间
+        restored.setDueAt(task.getDueAt());
         processTaskMapper.insert(restored);
     }
 

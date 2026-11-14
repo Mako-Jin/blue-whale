@@ -240,4 +240,31 @@ class ProcessModelParserTest {
         assertNull(node.getX());
         assertNull(node.getY());
     }
+
+    @Test
+    @DisplayName("normalized：timeoutHours 被读入，缺省为 null")
+    void shouldReadNodeTimeout() {
+        ProcessModel withTimeout = ProcessModelParser.parse(
+                "{\"type\":\"stateMachine\",\"nodes\":[{\"key\":\"t1\",\"type\":\"USER_TASK\","
+                        + "\"assignee\":\"a\",\"timeoutHours\":48}]}");
+        ProcessModelNode absent = ProcessModelParser.parse(NORMALIZED_MODEL).node("t1");
+
+        assertEquals(48, withTimeout.node("t1").getTimeoutHours().intValue());
+        assertNull(absent.getTimeoutHours());
+    }
+
+    @Test
+    @DisplayName("normalized：timeoutHours 非正数或超上限抛 NODE_TIMEOUT_INVALID")
+    void shouldRejectInvalidNodeTimeout() {
+        ProcessModelException zero = assertThrows(ProcessModelException.class, () -> ProcessModelParser.parse(
+                "{\"type\":\"stateMachine\",\"nodes\":[{\"key\":\"t1\",\"type\":\"USER_TASK\","
+                        + "\"assignee\":\"a\",\"timeoutHours\":0}]}"));
+        ProcessModelException tooLarge = assertThrows(ProcessModelException.class, () -> ProcessModelParser.parse(
+                "{\"type\":\"stateMachine\",\"nodes\":[{\"key\":\"t1\",\"type\":\"USER_TASK\","
+                        + "\"assignee\":\"a\",\"timeoutHours\":"
+                        + (ProcessModelParser.MAX_TIMEOUT_HOURS + 1) + "}]}"));
+
+        assertEquals(ValidationCode.NODE_TIMEOUT_INVALID, zero.getValidationCode());
+        assertEquals(ValidationCode.NODE_TIMEOUT_INVALID, tooLarge.getValidationCode());
+    }
 }

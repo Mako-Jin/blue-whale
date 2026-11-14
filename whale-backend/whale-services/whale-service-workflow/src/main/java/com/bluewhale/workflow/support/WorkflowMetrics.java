@@ -53,6 +53,15 @@ public class WorkflowMetrics {
     /** 催办结果：频控拒绝 */
     public static final String URGE_THROTTLED = "THROTTLED";
 
+    /** 超时提醒结果：已投递 */
+    public static final String REMINDER_SENT = "SENT";
+
+    /** 超时提醒结果：跳过（账号解析不到或配置关闭） */
+    public static final String REMINDER_SKIPPED = "SKIPPED";
+
+    /** 超时提醒结果：投递失败 */
+    public static final String REMINDER_FAILED = "FAILED";
+
     /** 指标注册中心 */
     private final MeterRegistry registry;
 
@@ -120,6 +129,34 @@ public class WorkflowMetrics {
     public void recordCodeConflict() {
         Counter.builder("workflow.definition.code.conflict")
                 .description("流程编码唯一键并发冲突次数")
+                .register(registry)
+                .increment();
+    }
+
+    /**
+     * 记录一轮超时扫描命中的待办数。
+     *
+     * @param count 命中的待办数（0 不记录，避免空转产生噪声）
+     */
+    public void recordTaskOverdue(int count) {
+        if (count <= 0) {
+            return;
+        }
+        Counter.builder("workflow.task.overdue")
+                .description("超时扫描命中的待办任务数")
+                .register(registry)
+                .increment(count);
+    }
+
+    /**
+     * 记录一次超时提醒结果。
+     *
+     * @param result 结果（{@link #REMINDER_SENT} / {@link #REMINDER_SKIPPED} / {@link #REMINDER_FAILED}）
+     */
+    public void recordOverdueReminder(String result) {
+        Counter.builder("workflow.task.overdue.reminder")
+                .description("超时待办提醒结果次数")
+                .tag("result", result)
                 .register(registry)
                 .increment();
     }

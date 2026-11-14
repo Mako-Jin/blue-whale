@@ -18,10 +18,13 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -54,6 +57,16 @@ class TaskActivationCommandTest {
             + "{\"key\":\"f1\",\"from\":\"start\",\"to\":\"cc1\"},"
             + "{\"key\":\"f2\",\"from\":\"cc1\",\"to\":\"t1\"},"
             + "{\"key\":\"f3\",\"from\":\"t1\",\"to\":\"end\"}]}";
+
+    /** 含超时配置的用户任务流程定义 */
+    private static final String MODEL_WITH_TIMEOUT = "{\"nodes\":["
+            + "{\"key\":\"start\",\"type\":\"START_EVENT\"},"
+            + "{\"key\":\"t1\",\"type\":\"USER_TASK\",\"name\":\"部门审批\",\"assignee\":\"manager\","
+            + "\"timeoutHours\":24},"
+            + "{\"key\":\"end\",\"type\":\"END_EVENT\"}],"
+            + "\"flows\":["
+            + "{\"key\":\"f1\",\"from\":\"start\",\"to\":\"t1\"},"
+            + "{\"key\":\"f2\",\"from\":\"t1\",\"to\":\"end\"}]}";
 
     @Mock
     private ProcessTaskMapper processTaskMapper;
@@ -125,6 +138,32 @@ class TaskActivationCommandTest {
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertTrue(ex.getMessage().contains("t1"));
         verify(processTaskMapper, never()).insert(any(ProcessTaskPo.class));
+    }
+
+    @Test
+    @DisplayName("activate：节点未配置超时时 dueAt 为空")
+    void shouldLeaveDueAtNullWithoutTimeout() {
+        taskActivationCommand.activate(instance(null), model(), result());
+
+        ArgumentCaptor<ProcessTaskPo> captor = ArgumentCaptor.forClass(ProcessTaskPo.class);
+        verify(processTaskMapper).insert(captor.capture());
+        assertNull(captor.getValue().getDueAt());
+    }
+
+    @Test
+    @DisplayName("activate：节点配置 timeoutHours 时按创建时间推算 dueAt")
+    void shouldSetDueAtFromNodeTimeout() {
+        ProcessModel model = ProcessModelParser.parse(MODEL_WITH_TIMEOUT);
+        LocalDateTime before = LocalDateTime.now();
+
+        taskActivationCommand.activate(instance(null), model,
+                TransitionResult.at(List.of(model.node("t1"))));
+
+        ArgumentCaptor<ProcessTaskPo> captor = ArgumentCaptor.forClass(ProcessTaskPo.class);
+        verify(processTaskMapper).insert(captor.capture());
+        LocalDateTime dueAt = captor.getValue().getDueAt();
+        assertNotNull(dueAt);
+        assertFalse(dueAt.isBefore(before.plusHours(24)), "到期时间应不早于创建时间 + 24 小时");
     }
 
     /**

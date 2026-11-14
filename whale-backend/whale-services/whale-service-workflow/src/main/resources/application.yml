@@ -92,3 +92,14 @@ bluewhale:
   workflow:
     # 未发布定义默认禁止发起；存量未发布定义确需继续发起时显式置 true（启动后按定义当前内容发起并打 warn）
     allow-unpublished-start: ${WORKFLOW_ALLOW_UNPUBLISHED_START:false}
+    timeout:
+      # 超时扫描 cron（也可由调度中心按 job code=workflow.task.overdue 触发）
+      scan-cron: '${WORKFLOW_TIMEOUT_SCAN_CRON:0 */10 * * * *}'
+      # 单次扫描上限，避免一次拉全表
+      scan-limit: ${WORKFLOW_TIMEOUT_SCAN_LIMIT:500}
+      # 是否发送站内信提醒：默认关闭，开启前必须保证 auth / message 内网地址可达
+      notify-enabled: ${WORKFLOW_TIMEOUT_NOTIFY_ENABLED:false}
+      auth-base-url: ${WORKFLOW_AUTH_BASE_URL:http://127.0.0.1:8081}
+      message-base-url: ${WORKFLOW_MESSAGE_BASE_URL:http://127.0.0.1:8094}
+      connect-timeout-millis: ${WORKFLOW_TIMEOUT_CONNECT_TIMEOUT:800}
+      read-timeout-millis: ${WORKFLOW_TIMEOUT_READ_TIMEOUT:1500}

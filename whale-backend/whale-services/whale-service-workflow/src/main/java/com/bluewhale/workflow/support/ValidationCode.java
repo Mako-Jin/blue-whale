@@ -129,7 +129,10 @@ public enum ValidationCode {
     NODE_GROUP_UNKNOWN(ValidationLevel.ERROR, "节点引用了不存在的分组"),
 
     /** 分组数超出上限 */
-    TOO_MANY_GROUPS(ValidationLevel.ERROR, "分组数超出上限");
+    TOO_MANY_GROUPS(ValidationLevel.ERROR, "分组数超出上限"),
+
+    /** 节点超时时长非法（须为正整数且不超过上限） */
+    NODE_TIMEOUT_INVALID(ValidationLevel.ERROR, "节点超时时长不合法");
 
     /** 级别 */
     private final ValidationLevel level;

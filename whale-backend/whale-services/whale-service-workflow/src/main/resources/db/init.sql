@@ -111,6 +111,7 @@ CREATE TABLE process_task (
     operator_type VARCHAR(16)   DEFAULT NULL           COMMENT '操作类型：USER 用户 / SYSTEM 系统/回调',
     operator_source VARCHAR(64) DEFAULT NULL           COMMENT '操作来源：ESIGN_CALLBACK / MANUAL / SCHEDULER 等',
     last_event_id VARCHAR(64)  DEFAULT NULL           COMMENT '最近一次内网完成事件ID（同一事件重复回调时用于幂等）',
+    due_at       DATETIME      DEFAULT NULL           COMMENT '到期时间（节点配置超时时长时由创建时间推算；为空表示不设超时）',
     create_time  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted      TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
@@ -118,7 +119,8 @@ CREATE TABLE process_task (
     KEY idx_tenant_id (tenant_id),
     KEY idx_instance_id (instance_id),
     KEY idx_assignee (assignee),
-    KEY idx_status (status)
+    KEY idx_status (status),
+    KEY idx_status_due_at (status, due_at)
 ) COMMENT='待办任务表';
 
 -- ---------------------------------------------------------------------

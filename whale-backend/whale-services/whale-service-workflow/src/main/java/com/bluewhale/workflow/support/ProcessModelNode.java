@@ -36,6 +36,9 @@ public class ProcessModelNode {
     /** 绑定的表单编码（仅 {@link ProcessNodeType#USER_TASK} 有意义，非空时须匹配 {@code ^[A-Za-z0-9_-]{1,64}$}；可空） */
     private String formCode;
 
+    /** 节点超时时长（小时，可选）：创建待办时换算为到期时间，仅用于提醒与统计，不自动推进流程 */
+    private Integer timeoutHours;
+
     /** 画布横坐标（自由画布设计器持久化用，可空） */
     private Integer x;
 

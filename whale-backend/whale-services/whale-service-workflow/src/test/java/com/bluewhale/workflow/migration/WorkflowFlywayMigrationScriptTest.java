@@ -95,16 +95,17 @@ class WorkflowFlywayMigrationScriptTest {
     }
 
     /**
-     * 增量同步：V2~V11 新增的列 / 唯一键 / 索引必须全部体现在 init.sql
+     * 增量同步：V2~V13 新增的列 / 唯一键 / 索引必须全部体现在 init.sql
      *
      * @throws IOException 读取脚本失败
      */
     @Test
-    @DisplayName("init.sql 同步 V2~V11 的增量列、唯一键与索引")
+    @DisplayName("init.sql 同步 V2~V13 的增量列、唯一键与索引")
     void initScriptShouldCoverIncrementalChanges() throws IOException {
         String initSql = Files.readString(INIT_SCRIPT, StandardCharsets.UTF_8);
         for (String token : List.of("operator_id", "operator_type", "operator_source", "last_event_id",
                 "assignee_overrides_json", "finished_at", "active_code", "window_bucket",
+                "due_at", "idx_status_due_at",
                 "uk_cc", "uk_tenant_active_code", "uk_urge_window", "idx_status_finished")) {
             assertTrue(initSql.contains(token), "init.sql 应同步增量结构：" + token);
         }

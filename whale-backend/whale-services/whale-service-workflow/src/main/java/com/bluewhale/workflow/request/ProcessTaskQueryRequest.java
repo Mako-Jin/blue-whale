@@ -35,6 +35,9 @@ public class ProcessTaskQueryRequest extends PageQuery {
     /** 是否只看已处理：true 仅返回已同意/已驳回 */
     private Boolean handled;
 
+    /** 是否只看已超时：true 仅返回待办且 {@code due_at} 已到期的任务 */
+    private Boolean overdue;
+
     /** 「我审批的」视角账号（与 {@code actorId} 组合为 assignee OR operator_id；与 {@code assignee} 同时传时 AND 生效） */
     @Size(max = 64, message = "操作人账号长度不能超过 64")
     private String actorAccount;

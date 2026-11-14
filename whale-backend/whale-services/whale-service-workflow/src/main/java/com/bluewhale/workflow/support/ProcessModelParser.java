@@ -36,6 +36,9 @@ public final class ProcessModelParser {
     /** 分组数上限 */
     public static final int MAX_GROUPS = 50;
 
+    /** 节点超时时长上限（小时，一年）：防止误配成超大值导致告警永不触发 */
+    public static final int MAX_TIMEOUT_HOURS = 8760;
+
     /** 定义类型文本 */
     private static final String FIELD_TYPE = "type";
 
@@ -254,6 +257,7 @@ public final class ProcessModelParser {
         node.setFormCode(text(item, "formCode"));
         node.setAssignees(readAssignees(item));
         node.setCounterSignPolicy(text(item, "counterSignPolicy"));
+        node.setTimeoutHours(readTimeoutHours(item, key));
         node.setX(integer(item, "x"));
         node.setY(integer(item, "y"));
         node.setGroupKey(text(item, "groupKey"));
@@ -302,6 +306,23 @@ public final class ProcessModelParser {
             }
         }
         return assignees;
+    }
+
+    /**
+     * 读取并校验节点超时时长。
+     *
+     * @param item 节点 JSON
+     * @param key 节点键（定位用）
+     * @return 超时时长；未配置返回 {@code null}
+     * @throws ProcessModelException 非正整数或超出上限时抛出
+     */
+    private static Integer readTimeoutHours(JsonNode item, String key) {
+        Integer hours = integer(item, "timeoutHours");
+        if (hours != null && (hours <= 0 || hours > MAX_TIMEOUT_HOURS)) {
+            throw new ProcessModelException(ValidationCode.NODE_TIMEOUT_INVALID,
+                    "流程定义非法：" + ValidationCode.NODE_TIMEOUT_INVALID.name(), key);
+        }
+        return hours;
     }
 
     /**

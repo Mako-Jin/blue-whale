@@ -5,6 +5,8 @@ import com.bluewhale.common.entity.BaseEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import java.time.LocalDateTime;
+
 /**
  * 待办任务实体，对应表 {@code process_task}。
  *
@@ -73,4 +75,7 @@ public class ProcessTaskPo extends BaseEntity {
 
     /** 最近一次内网完成事件ID（同一事件重复回调时用于幂等） */
     private String lastEventId;
+
+    /** 到期时间（节点配置 {@code timeoutHours} 时由创建时间推算；为空表示不设超时） */
+    private LocalDateTime dueAt;
 }

@@ -402,4 +402,29 @@ class ProcessModelValidatorTest {
 
         assertTrue(hasError(report, ValidationCode.FLOW_KEY_MISSING));
     }
+
+    @Test
+    @DisplayName("节点超时时长：0 与超出上限均报 NODE_TIMEOUT_INVALID")
+    void shouldRejectInvalidNodeTimeout() {
+        ValidationReport zero = ProcessModelValidator.validate(
+                "{\"type\":\"stateMachine\",\"nodes\":[{\"key\":\"t1\",\"type\":\"USER_TASK\","
+                        + "\"assignee\":\"a\",\"timeoutHours\":0}]}");
+        ValidationReport tooLarge = ProcessModelValidator.validate(
+                "{\"type\":\"stateMachine\",\"nodes\":[{\"key\":\"t1\",\"type\":\"USER_TASK\","
+                        + "\"assignee\":\"a\",\"timeoutHours\":"
+                        + (ProcessModelParser.MAX_TIMEOUT_HOURS + 1) + "}]}");
+
+        assertTrue(hasError(zero, ValidationCode.NODE_TIMEOUT_INVALID));
+        assertTrue(hasError(tooLarge, ValidationCode.NODE_TIMEOUT_INVALID));
+    }
+
+    @Test
+    @DisplayName("节点超时时长：正整数不产生错误")
+    void shouldAcceptPositiveNodeTimeout() {
+        ValidationReport report = ProcessModelValidator.validate(
+                "{\"type\":\"stateMachine\",\"nodes\":[{\"key\":\"t1\",\"type\":\"USER_TASK\","
+                        + "\"assignee\":\"a\",\"timeoutHours\":24}]}");
+
+        assertFalse(hasError(report, ValidationCode.NODE_TIMEOUT_INVALID));
+    }
 }

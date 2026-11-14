@@ -136,9 +136,10 @@ public class TaskActivationCommand {
     private void createTask(ProcessInstancePo instance, int nodeIndex, ProcessModelNode node, String account) {
         String assignee = account;
         String delegateFrom = null;
+        LocalDateTime now = LocalDateTime.now();
         if (account != null && !account.isBlank()) {
             Optional<String> delegate = processDelegateService.resolveActive(
-                    instance.getDefinitionCode(), account, LocalDateTime.now());
+                    instance.getDefinitionCode(), account, now);
             if (delegate.isPresent() && !delegate.get().isBlank() && !delegate.get().equals(account)) {
                 delegateFrom = account;
                 assignee = delegate.get().trim();
@@ -155,11 +156,24 @@ public class TaskActivationCommand {
         task.setOwnerId(account);
         task.setDelegateFrom(delegateFrom);
         task.setStatus(WorkflowConstants.TASK_PENDING);
+        task.setDueAt(dueAt(node, now));
         if (node.getType() == ProcessNodeType.COUNTER_SIGN) {
             task.setSignType(ProcessNodeType.COUNTER_SIGN.name());
             task.setSignPolicy(node.getCounterSignPolicy() == null || node.getCounterSignPolicy().isBlank()
                     ? WorkflowConstants.POLICY_ALL : node.getCounterSignPolicy());
         }
         processTaskMapper.insert(task);
+    }
+
+    /**
+     * 按节点超时时长推算到期时间。
+     *
+     * @param node 审批节点
+     * @param now 待办创建时间
+     * @return 到期时间；节点未配置超时返回 {@code null}
+     */
+    private static LocalDateTime dueAt(ProcessModelNode node, LocalDateTime now) {
+        Integer hours = node.getTimeoutHours();
+        return hours == null || hours <= 0 ? null : now.plusHours(hours);
     }
 }

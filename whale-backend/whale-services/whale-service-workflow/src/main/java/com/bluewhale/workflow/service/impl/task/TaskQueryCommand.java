@@ -12,6 +12,7 @@ import com.bluewhale.workflow.vo.ProcessTaskVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -40,6 +41,11 @@ public class TaskQueryCommand {
         if (Boolean.TRUE.equals(request.getHandled())) {
             wrapper.in(ProcessTaskPo::getStatus,
                     List.of(WorkflowConstants.TASK_APPROVED, WorkflowConstants.TASK_REJECTED));
+        }
+        if (Boolean.TRUE.equals(request.getOverdue())) {
+            wrapper.eq(ProcessTaskPo::getStatus, WorkflowConstants.TASK_PENDING)
+                    .isNotNull(ProcessTaskPo::getDueAt)
+                    .le(ProcessTaskPo::getDueAt, LocalDateTime.now());
         }
         applyActorFilter(wrapper, request);
         wrapper.orderByDesc(ProcessTaskPo::getCreateTime);

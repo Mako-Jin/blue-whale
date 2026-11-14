@@ -64,6 +64,8 @@ public class AddSignCommand {
             added.setAssignee(target);
             added.setStatus(WorkflowConstants.TASK_PENDING);
             added.setOwnerId(target);
+            // 加签沿用同节点的到期时间，避免节点 SLA 因追加审批人而被悄悄放宽
+            added.setDueAt(task.getDueAt());
             added.setSignType(counterSign ? ProcessNodeType.COUNTER_SIGN.name() : WorkflowConstants.SIGN_TYPE_ADD_SIGN);
             added.setSignPolicy(counterSign ? WorkflowConstants.POLICY_ALL : null);
             processTaskMapper.insert(added);

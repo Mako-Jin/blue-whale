@@ -69,6 +69,9 @@ public class ProcessTaskVO implements Serializable {
     /** 审批意见 */
     private String comment;
 
+    /** 到期时间（节点配置超时时长时非空） */
+    private LocalDateTime dueAt;
+
     /** 创建时间 */
     private LocalDateTime createTime;
 
