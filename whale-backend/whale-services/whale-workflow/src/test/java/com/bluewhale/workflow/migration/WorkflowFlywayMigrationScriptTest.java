@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Flyway 迁移脚本基线校验（REQ-SEC-022，workflow 库）。
  *
  * <p>校验项：版本命名/唯一递增、无 {@code DROP}/{@code TRUNCATE}/{@code DELETE}、
- * {@code V1} 建表集合与 {@code init.sql} 一致、{@code V2} 补齐任务操作来源列。
+ * 全部迁移脚本建表并集与 {@code init.sql} 一致、关键增量列/索引/唯一键在 {@code init.sql} 中同步。
  *
  * @author BlueWhale
  */
@@ -72,28 +72,50 @@ class WorkflowFlywayMigrationScriptTest {
     }
 
     /**
-     * 基线一致性：V1 建表集合与 init.sql 一致，且 V2 补齐任务操作来源列
+     * 最终结构一致性：全部迁移脚本建表并集与 init.sql 一致
      *
      * @throws IOException 读取脚本失败
      */
     @Test
-    @DisplayName("V1 基线表集合一致且 V2 含任务操作来源列")
-    void baselineShouldMatchInitAndV2ShouldAddOperatorColumns() throws IOException {
-        Set<String> initTables = extractTables(INIT_SCRIPT);
-        Set<String> baselineTables = extractTables(MIGRATION_DIR.resolve("V1__baseline.sql"));
-        assertFalse(initTables.isEmpty(), "init.sql 未解析到建表语句");
-        assertEquals(initTables, baselineTables, "V1 基线与 init.sql 的建表集合不一致");
-        assertEquals(5, baselineTables.size(), "workflow 基线应包含 5 张表");
-        for (String table : List.of("process_definition", "process_definition_version",
-                "process_instance", "process_task", "api_log")) {
-            assertTrue(baselineTables.contains(table), "基线必须包含表：" + table);
+    @DisplayName("init.sql 与 Flyway 全量迁移后的表集合一致")
+    void initScriptShouldMatchFlywayFinalTables() throws IOException {
+        Set<String> flywayTables = new java.util.LinkedHashSet<>();
+        for (Path script : migrationScripts()) {
+            flywayTables.addAll(extractTables(script));
         }
+        Set<String> initTables = extractTables(INIT_SCRIPT);
+        assertFalse(initTables.isEmpty(), "init.sql 未解析到建表语句");
+        assertEquals(flywayTables, initTables, "init.sql 与 Flyway 迁移后的表集合不一致");
+        assertEquals(9, initTables.size(), "workflow 最终结构应包含 9 张表");
+        for (String table : List.of("process_definition", "process_definition_version",
+                "process_instance", "process_task", "api_log",
+                "process_cc", "process_delegate", "process_urge", "audit_log")) {
+            assertTrue(initTables.contains(table), "最终结构必须包含表：" + table);
+        }
+    }
+
+    /**
+     * 增量同步：V2~V11 新增的列 / 唯一键 / 索引必须全部体现在 init.sql
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("init.sql 同步 V2~V11 的增量列、唯一键与索引")
+    void initScriptShouldCoverIncrementalChanges() throws IOException {
+        String initSql = Files.readString(INIT_SCRIPT, StandardCharsets.UTF_8);
+        for (String token : List.of("operator_id", "operator_type", "operator_source",
+                "assignee_overrides_json", "finished_at", "active_code", "window_bucket",
+                "uk_cc", "uk_tenant_active_code", "uk_urge_window", "idx_status_finished")) {
+            assertTrue(initSql.contains(token), "init.sql 应同步增量结构：" + token);
+        }
+        String instanceBlock = initSql.substring(initSql.indexOf("CREATE TABLE process_instance"),
+                initSql.indexOf("COMMENT='流程实例表'"));
+        assertFalse(instanceBlock.contains("idx_status "),
+                "process_instance 不应再建已被 idx_status_finished 覆盖的 idx_status");
         String v2 = Files.readString(MIGRATION_DIR.resolve("V2__task_operator.sql"), StandardCharsets.UTF_8);
         for (String column : List.of("operator_id", "operator_type", "operator_source")) {
             assertTrue(v2.contains(column), "V2 应补齐列：" + column);
         }
-        String initSql = Files.readString(INIT_SCRIPT, StandardCharsets.UTF_8);
-        assertTrue(initSql.contains("operator_source"), "手工初始化脚本应与 Flyway 最终结构一致");
     }
 
     /**

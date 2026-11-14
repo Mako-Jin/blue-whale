@@ -9,6 +9,10 @@
 --              deleted TINYINT（逻辑删除：0 未删除 / 1 已删除）
 -- 说明       : code 的租户内唯一性由服务层前置校验 + active_code 生成列唯一键双重保证；
 --              definition_json 为流程定义 JSON（节点与流转），最长 64KB（65536 字符）
+-- 结构口径   : 本脚本与 Flyway V1~V11 迁移后的最终结构一致（9 张表），单测门禁校验；
+--              增量变更必须同时新增 db/migration/V<版本>__*.sql 并同步本文件
+-- 警告       : 本脚本含 DROP TABLE，仅用于空库 / 本地一次性初始化；
+--              禁止在存量库或生产环境重放，存量库请走 Flyway 增量迁移
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
@@ -70,6 +74,7 @@ CREATE TABLE process_instance (
     current_index       INT           NOT NULL DEFAULT 0     COMMENT '当前审批节点下标（0 起）',
     current_node_key    VARCHAR(64)   DEFAULT NULL           COMMENT '当前审批节点键（规范化定义；为空时回落 current_index）',
     active_node_keys    VARCHAR(512)  DEFAULT NULL           COMMENT '并行分支活动节点键（逗号分隔；为空表示单待办）',
+    assignee_overrides_json TEXT      DEFAULT NULL           COMMENT '发起时审批人覆盖快照（nodeKey -> 账号列表 JSON）',
     variables_json      TEXT          DEFAULT NULL           COMMENT '流程变量快照（JSON，供条件选路重放）',
     initiator           VARCHAR(64)   DEFAULT NULL           COMMENT '发起人账号',
     create_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -78,7 +83,6 @@ CREATE TABLE process_instance (
     PRIMARY KEY (id),
     KEY idx_tenant_id (tenant_id),
     KEY idx_definition_id (definition_id),
-    KEY idx_status (status),
     KEY idx_status_finished (status, finished_at)
 ) COMMENT='流程实例表';
 
@@ -146,3 +150,106 @@ CREATE TABLE api_log (
     KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_biz_status (biz_status)
 ) COMMENT='后端接口日志表';
+
+-- ---------------------------------------------------------------------
+-- 流程抄送表（V3）：CC 节点与发起级抄送统一落库，不生成待办
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS process_cc;
+CREATE TABLE process_cc (
+    id           BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id    BIGINT        NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
+    instance_id  BIGINT        NOT NULL               COMMENT '所属流程实例ID',
+    node_key     VARCHAR(64)   NOT NULL               COMMENT '抄送节点键；发起级抄送固定为 START',
+    node_name    VARCHAR(128)  DEFAULT NULL           COMMENT '抄送节点名称',
+    recipient    VARCHAR(64)   NOT NULL               COMMENT '收件人账号（发起级与节点级统一口径）',
+    read_flag    TINYINT       NOT NULL DEFAULT 0     COMMENT '已读标记：0 未读 / 1 已读',
+    read_time    DATETIME      DEFAULT NULL           COMMENT '已读时间',
+    create_time  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted      TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_cc (tenant_id, instance_id, node_key, recipient),
+    KEY idx_cc_recipient (tenant_id, recipient, read_flag),
+    KEY idx_cc_instance (tenant_id, instance_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='流程抄送表';
+
+-- ---------------------------------------------------------------------
+-- 流程代理规则表（V3）：按流程 + 时间段，任务创建时单次改派（禁止链式）
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS process_delegate;
+CREATE TABLE process_delegate (
+    id               BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id        BIGINT        NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
+    definition_code  VARCHAR(64)   NOT NULL               COMMENT '流程编码（精确匹配）',
+    from_account     VARCHAR(64)   NOT NULL               COMMENT '委托人账号',
+    to_account       VARCHAR(64)   NOT NULL               COMMENT '代理人账号',
+    start_time       DATETIME      NOT NULL               COMMENT '生效开始时间',
+    end_time         DATETIME      NOT NULL               COMMENT '生效结束时间',
+    enabled          TINYINT       NOT NULL DEFAULT 1     COMMENT '状态：1 启用 / 0 停用',
+    remark           VARCHAR(255)  DEFAULT NULL           COMMENT '备注',
+    create_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted          TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    PRIMARY KEY (id),
+    KEY idx_delegate_from (tenant_id, from_account, enabled),
+    KEY idx_delegate_def (tenant_id, definition_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='流程代理规则表';
+
+-- ---------------------------------------------------------------------
+-- 流程催办记录表（V3 建表 + V8 频控时间窗）
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS process_urge;
+CREATE TABLE process_urge (
+    id              BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id       BIGINT        NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
+    instance_id     BIGINT        NOT NULL               COMMENT '流程实例ID',
+    task_id         BIGINT        DEFAULT NULL           COMMENT '指定催办任务ID；为空表示实例级催办',
+    urger           VARCHAR(64)   NOT NULL               COMMENT '催办人账号',
+    target_account  VARCHAR(64)   DEFAULT NULL           COMMENT '被催办人账号；为空表示全部待办',
+    comment         VARCHAR(255)  DEFAULT NULL           COMMENT '催办说明',
+    window_bucket   VARCHAR(16)   DEFAULT NULL           COMMENT '频控时间窗（创建时间截断到小时 yyyyMMddHH；服务端强制非空，NULL 仅为 V8 历史去重残留）',
+    create_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted         TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_urge_window (tenant_id, instance_id, urger, window_bucket),
+    KEY idx_urge_freq (tenant_id, instance_id, urger, create_time),
+    KEY idx_urge_task (task_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='流程催办记录表';
+
+-- ---------------------------------------------------------------------
+-- 操作审计日志表（V7）：whale-common 审计切面写库依赖
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS audit_log;
+CREATE TABLE audit_log (
+    id             BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    trace_id       VARCHAR(64)   DEFAULT NULL           COMMENT '链路追踪ID（跨服务调用串联）',
+    user_id        BIGINT        DEFAULT NULL           COMMENT '操作用户ID（匿名访问为 NULL）',
+    tenant_id      BIGINT        DEFAULT NULL           COMMENT '租户ID（网关可信注入）',
+    username       VARCHAR(64)   DEFAULT NULL           COMMENT '操作用户名（冗余存储，用户删除后仍可追溯）',
+    module         VARCHAR(64)   DEFAULT NULL           COMMENT '业务模块，如 whale-crm',
+    operation      VARCHAR(128)  DEFAULT NULL           COMMENT '操作描述',
+    operate_type   VARCHAR(32)   DEFAULT NULL           COMMENT '操作类型：CREATE/UPDATE/DELETE/QUERY/OTHER 等',
+    method         VARCHAR(255)  DEFAULT NULL           COMMENT '请求方法（全限定类名.方法名）',
+    request_uri    VARCHAR(255)  DEFAULT NULL           COMMENT '请求URI',
+    http_method    VARCHAR(16)   DEFAULT NULL           COMMENT 'HTTP 方法：GET/POST/PUT/DELETE',
+    target_type    VARCHAR(64)   DEFAULT NULL           COMMENT '操作对象类型，如 crm_customer',
+    target_id      VARCHAR(64)   DEFAULT NULL           COMMENT '操作对象ID',
+    request_params TEXT          NULL                   COMMENT '请求参数（JSON，敏感字段已脱敏）',
+    result_body    TEXT          NULL                   COMMENT '返回体（JSON，脱敏 + 截断）',
+    response_code  INT           DEFAULT NULL           COMMENT '响应状态码',
+    biz_status     TINYINT       NOT NULL DEFAULT 1     COMMENT '业务结果：1 成功 / 0 失败',
+    error_msg      VARCHAR(512)  DEFAULT NULL           COMMENT '失败原因（异常类名 + 消息，已脱敏）',
+    ip             VARCHAR(64)   DEFAULT NULL           COMMENT '操作IP地址（兼容 IPv6）',
+    user_agent     VARCHAR(512)  DEFAULT NULL           COMMENT '用户代理（浏览器/客户端标识）',
+    cost_ms        BIGINT        DEFAULT NULL           COMMENT '接口耗时（毫秒）',
+    create_time    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间（即操作发生时间）',
+    PRIMARY KEY (id),
+    KEY idx_trace_id (trace_id),
+    KEY idx_user_id (user_id),
+    KEY idx_module (module),
+    KEY idx_operate_type (operate_type),
+    KEY idx_biz_status (biz_status),
+    KEY idx_tenant_time (tenant_id, create_time),
+    KEY idx_create_time (create_time)
+) COMMENT='操作审计日志表';
