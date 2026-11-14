@@ -247,4 +247,17 @@ class FormTableDefinitionServiceImplTest {
 
         verify(formColumnMetaMapper).deleteById(100L);
     }
+
+    @Test
+    @DisplayName("delete：表定义被表单引用时拒绝删除")
+    void shouldRejectDeleteWhenReferenced() {
+        when(formTableDefinitionMapper.selectById(10L)).thenReturn(tableDefinition());
+        when(formDefinitionMapper.selectCount(ArgumentMatchers.<Wrapper<FormDefinition>>any())).thenReturn(2L);
+
+        BizException ex = assertThrows(BizException.class, () -> formTableDefinitionService.delete(10L));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        verify(formTableDefinitionMapper, never()).deleteById(anyLong());
+        verify(formColumnMetaMapper, never()).delete(ArgumentMatchers.<Wrapper<FormColumnMeta>>any());
+    }
 }

@@ -66,6 +66,48 @@ public final class FormMetadataCompiler {
     }
 
     /**
+     * 编译表定义层的「表级 schema」快照：按列元数据生成全部物理列字段，供发布时写入
+     * {@code form_table_registry.schema_json}，作为该表版本读旧数据的结构来源。
+     *
+     * <p>与视图编译的区别：没有字段配置，故没有控件/选项/联动等视图级扩展；附件与子表仅保留
+     * 存储类型（附件默认多文件、子表无列约束），用于解析历史数据时确定 key 与基础类型。</p>
+     *
+     * @param columns 该表版本下的列元数据（调用方需按 {@code sortNo} 升序排列）
+     * @return {@code schema_json} 文本
+     * @throws BizException 无可用列时抛出 {@code PARAM_ERROR}
+     */
+    public static String compileTable(List<FormColumnMeta> columns) {
+        ArrayNode fields = MAPPER.createArrayNode();
+        for (FormColumnMeta column : columns) {
+            ObjectNode node = MAPPER.createObjectNode();
+            node.put("key", column.getColumnCode());
+            node.put("label", StringUtils.hasText(column.getColumnName())
+                    ? column.getColumnName() : column.getColumnCode());
+            node.put("type", column.getDataType());
+            node.put("required", column.getRequired() != null && column.getRequired() == 1);
+            if (FormDataType.TEXT.equals(column.getDataType())) {
+                node.put("maxLength",
+                        column.getLength() == null ? FormDataType.DEFAULT_TEXT_LENGTH : column.getLength());
+            }
+            if (FormDataType.ATTACHMENT.equals(column.getDataType())) {
+                node.put("multiple", true);
+                node.put("maxCount", 0);
+            }
+            if (FormDataType.SUBTABLE.equals(column.getDataType())) {
+                node.put("minRows", 0);
+                node.put("maxRows", 0);
+            }
+            fields.add(node);
+        }
+        if (fields.isEmpty()) {
+            throw paramError("表定义无可发布的列");
+        }
+        ObjectNode root = MAPPER.createObjectNode();
+        root.set(FormSchemaParser.KEY_FIELDS, fields);
+        return root.toString();
+    }
+
+    /**
      * 第一阶段：收集全部数据字段 key，并校验关联列存在且不重复引用
      *
      * @param configs 字段配置列表

@@ -108,6 +108,11 @@ public class FormTableDefinitionServiceImpl implements FormTableDefinitionServic
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
         requireTableDefinition(id);
+        Long referenced = formDefinitionMapper.selectCount(new LambdaQueryWrapper<FormDefinition>()
+                .eq(FormDefinition::getTableDefinitionId, id));
+        if (referenced != null && referenced > 0) {
+            throw paramError("表定义正被 " + referenced + " 个表单引用，请先解除引用后再删除");
+        }
         formTableDefinitionMapper.deleteById(id);
         LambdaQueryWrapper<FormColumnMeta> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(FormColumnMeta::getTableDefinitionId, id);

@@ -9,6 +9,7 @@ import com.bluewhale.form.dto.FormDataSubmitRequest;
 import com.bluewhale.form.entity.FormData;
 import com.bluewhale.form.entity.FormDefinition;
 import com.bluewhale.form.entity.FormTableRegistry;
+import com.bluewhale.form.mapper.FormColumnMetaMapper;
 import com.bluewhale.form.mapper.FormDataMapper;
 import com.bluewhale.form.mapper.FormDefinitionMapper;
 import com.bluewhale.form.mapper.FormTableRegistryMapper;
@@ -60,6 +61,9 @@ class FormDataServiceImplTest {
 
     @Mock
     private FormTableRegistryMapper formTableRegistryMapper;
+
+    @Mock
+    private FormColumnMetaMapper formColumnMetaMapper;
 
     @Mock
     private FormDataEngine formDataEngine;
@@ -152,6 +156,37 @@ class FormDataServiceImplTest {
         entity.setDefinitionVersion(1);
         entity.setDataJson(dataJson);
         return entity;
+    }
+
+    @Test
+    @DisplayName("submit：顶层基础字段类型不符返回参数错误且不落库")
+    void shouldRejectTopLevelTypeMismatch() {
+        when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistry>>any()))
+                .thenReturn(registryWithSchema(
+                        "{\"fields\":[{\"key\":\"age\",\"label\":\"年龄\",\"type\":\"number\",\"required\":true}]}"));
+
+        BizException ex = assertThrows(BizException.class,
+                () -> formDataService.submit(submitRequest(10L, "{\"age\":\"abc\"}"), "lisi", TENANT));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        verify(formDataMapper, never()).insert(any(FormData.class));
+        verify(formDataEngine, never()).insert(anyString(), any(FormData.class), anyList(), anyMap());
+    }
+
+    @Test
+    @DisplayName("submit：日期字段格式非法返回参数错误")
+    void shouldRejectInvalidDateValue() {
+        when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistry>>any()))
+                .thenReturn(registryWithSchema(
+                        "{\"fields\":[{\"key\":\"birthday\",\"label\":\"生日\",\"type\":\"date\",\"required\":true}]}"));
+
+        BizException ex = assertThrows(BizException.class,
+                () -> formDataService.submit(submitRequest(10L, "{\"birthday\":\"2026-13-01\"}"), "lisi", TENANT));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        verify(formDataMapper, never()).insert(any(FormData.class));
     }
 
     @Test

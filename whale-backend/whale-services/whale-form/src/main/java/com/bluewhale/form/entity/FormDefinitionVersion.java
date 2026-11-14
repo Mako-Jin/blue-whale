@@ -31,8 +31,11 @@ public class FormDefinitionVersion implements Serializable {
     /** 表单定义ID */
     private Long definitionId;
 
-    /** 版本号 */
+    /** 版本号（发布版本，可被多次编辑共享） */
     private Integer version;
+
+    /** 快照序号（同一表单定义内单调递增，每次保存/回滚新增一条，不复用） */
+    private Long snapshotSeq;
 
     /** 定义 + 字段 + 选项的完整快照 JSON */
     private String snapshotJson;

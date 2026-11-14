@@ -148,6 +148,9 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
         }
         entity.setName(request.getName());
         if (request.getVersion() != null) {
+            if (request.getVersion() < expectedVersion) {
+                throw paramError("版本号只能递增，不能从 " + expectedVersion + " 回退到 " + request.getVersion());
+            }
             entity.setVersion(request.getVersion());
         }
         if (request.getStatus() != null) {
@@ -248,7 +251,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
         requireForm(id);
         LambdaQueryWrapper<FormDefinitionVersion> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(FormDefinitionVersion::getDefinitionId, id);
-        wrapper.orderByDesc(FormDefinitionVersion::getVersion);
+        wrapper.orderByDesc(FormDefinitionVersion::getSnapshotSeq);
         wrapper.orderByDesc(FormDefinitionVersion::getId);
         return formDefinitionVersionMapper.selectList(wrapper).stream()
                 .map(FormDefinitionServiceImpl::toVersionVo).toList();
@@ -263,7 +266,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
         JsonNode definition = root.path("definition");
         restoreDefinition(entity, definition);
         int currentVersion = entity.getVersion() == null ? DEFAULT_VERSION : entity.getVersion();
-        entity.setVersion(currentVersion + 1);
+        entity.setVersion(nextDefinitionVersion(id, currentVersion));
         deleteFields(id);
         List<FormFieldConfig> configs = restoreFields(id, root.path("fields"));
         if (entity.getTableDefinitionId() != null) {
@@ -671,8 +674,8 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
     /**
      * 回填字段配置的关联列信息（列编码 / 存储类型 / 必填 / 长度），供设计器一次请求还原画布
      *
-     * <p>按 {@code tableDefinitionId} 一次查全列建 Map，无 N+1；纯布局字段（{@code columnMetaId == null}）
-     * 或旧模型（{@code tableDefinitionId == null}）直接跳过。</p>
+     * <p>按字段引用的列ID一次 {@code IN} 查询建 Map，无 N+1 且不随表定义列数放大；
+     * 纯布局字段（{@code columnMetaId == null}）或旧模型（{@code tableDefinitionId == null}）直接跳过。</p>
      *
      * @param fields 字段配置视图对象列表（可空）
      * @param tableDefinitionId 所属表定义ID（可空）
@@ -681,8 +684,16 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
         if (fields == null || fields.isEmpty() || tableDefinitionId == null) {
             return;
         }
+        Set<Long> columnIds = fields.stream()
+                .map(FormFieldConfigVO::getColumnMetaId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (columnIds.isEmpty()) {
+            return;
+        }
         LambdaQueryWrapper<FormColumnMeta> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(FormColumnMeta::getTableDefinitionId, tableDefinitionId);
+        wrapper.in(FormColumnMeta::getId, columnIds);
         Map<Long, FormColumnMeta> columnMap = formColumnMetaMapper.selectList(wrapper).stream()
                 .collect(Collectors.toMap(FormColumnMeta::getId, Function.identity()));
         for (FormFieldConfigVO field : fields) {
@@ -849,20 +860,58 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
     }
 
     /**
-     * 写入当前版本的快照（先删除同定义同版本的旧快照）
+     * 追加一条当前版本的快照（append-only，不覆盖历史）
+     *
+     * <p>版本号表示发布版本，同一版本可以被多次编辑；每次保存都按 {@code snapshot_seq}
+     * 追加一条，保留完整编辑轨迹。回滚产生的版本号由
+     * {@link #nextDefinitionVersion(Long, int)} 保证不复用。</p>
      *
      * @param entity 表单定义实体（版本号需已确定）
      */
     private void writeVersionSnapshot(FormDefinition entity) {
-        LambdaQueryWrapper<FormDefinitionVersion> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FormDefinitionVersion::getDefinitionId, entity.getId());
-        wrapper.eq(FormDefinitionVersion::getVersion, entity.getVersion());
-        formDefinitionVersionMapper.delete(wrapper);
         FormDefinitionVersion snapshot = new FormDefinitionVersion();
         snapshot.setDefinitionId(entity.getId());
         snapshot.setVersion(entity.getVersion());
+        snapshot.setSnapshotSeq(nextSnapshotSeq(entity.getId()));
         snapshot.setSnapshotJson(buildSnapshot(entity));
         formDefinitionVersionMapper.insert(snapshot);
+    }
+
+    /**
+     * 计算下一个快照序号（同定义内单调递增）
+     *
+     * @param definitionId 表单定义ID
+     * @return 下一个快照序号
+     */
+    private Long nextSnapshotSeq(Long definitionId) {
+        LambdaQueryWrapper<FormDefinitionVersion> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormDefinitionVersion::getDefinitionId, definitionId);
+        wrapper.select(FormDefinitionVersion::getSnapshotSeq);
+        wrapper.orderByDesc(FormDefinitionVersion::getSnapshotSeq);
+        wrapper.last("LIMIT 1");
+        List<FormDefinitionVersion> latest = formDefinitionVersionMapper.selectList(wrapper);
+        Long max = latest.isEmpty() || latest.get(0).getSnapshotSeq() == null
+                ? 0L : latest.get(0).getSnapshotSeq();
+        return max + 1;
+    }
+
+    /**
+     * 计算回滚后的新版本号：取「当前版本」与「历史快照最大版本」的较大者加一，保证版本号永不复用
+     *
+     * @param definitionId 表单定义ID
+     * @param currentVersion 当前版本号
+     * @return 新版本号
+     */
+    private int nextDefinitionVersion(Long definitionId, int currentVersion) {
+        LambdaQueryWrapper<FormDefinitionVersion> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormDefinitionVersion::getDefinitionId, definitionId);
+        wrapper.select(FormDefinitionVersion::getVersion);
+        wrapper.orderByDesc(FormDefinitionVersion::getVersion);
+        wrapper.last("LIMIT 1");
+        List<FormDefinitionVersion> latest = formDefinitionVersionMapper.selectList(wrapper);
+        int maxSnapshot = latest.isEmpty() || latest.get(0).getVersion() == null
+                ? 0 : latest.get(0).getVersion();
+        return Math.max(currentVersion, maxSnapshot) + 1;
     }
 
     /**
@@ -970,6 +1019,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
     private static FormDefinitionVersionVO toVersionVo(FormDefinitionVersion snapshot) {
         FormDefinitionVersionVO vo = new FormDefinitionVersionVO();
         vo.setVersion(snapshot.getVersion());
+        vo.setSnapshotSeq(snapshot.getSnapshotSeq());
         vo.setCreateTime(snapshot.getCreateTime());
         return vo;
     }

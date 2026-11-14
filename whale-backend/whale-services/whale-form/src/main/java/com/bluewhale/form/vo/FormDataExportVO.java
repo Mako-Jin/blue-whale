@@ -24,4 +24,7 @@ public class FormDataExportVO implements Serializable {
 
     /** 响应 Content-Type */
     private String contentType;
+
+    /** 是否因超出单次导出上限而被截断 */
+    private boolean truncated;
 }

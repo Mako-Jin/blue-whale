@@ -19,6 +19,7 @@ import com.bluewhale.form.support.FormDataEngine;
 import com.bluewhale.form.support.FormDataType;
 import com.bluewhale.form.support.FormDdlAuditor;
 import com.bluewhale.form.support.FormField;
+import com.bluewhale.form.support.FormMetadataCompiler;
 import com.bluewhale.form.support.FormRegistryStatusMarker;
 import com.bluewhale.form.support.FormSchemaParser;
 import com.bluewhale.form.support.FormTableDdlGenerator;
@@ -30,6 +31,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -177,6 +179,7 @@ public class FormPublishServiceImpl implements FormPublishService {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "表定义无可发布的列，请先维护列元数据");
         }
         String table = FormTableDdlGenerator.tableName(definition.getTableCode(), version);
+        String schemaSnapshot = FormMetadataCompiler.compileTable(columns);
         FormTableRegistry registry = findRegistry(definition.getTableCode(), version);
         Map<String, String> existing = formDataEngine.describeColumns(table);
         try {
@@ -199,6 +202,7 @@ public class FormPublishServiceImpl implements FormPublishService {
             registry.setTableVersion(version);
             registry.setPhysicalTable(table);
             registry.setFieldCount(columns.size());
+            registry.setSchemaJson(schemaSnapshot);
             registry.setStatus(STATUS_NORMAL);
             try {
                 formTableRegistryMapper.insert(registry);
@@ -207,6 +211,7 @@ public class FormPublishServiceImpl implements FormPublishService {
             }
         } else {
             registry.setFieldCount(columns.size());
+            registry.setSchemaJson(schemaSnapshot);
             registry.setStatus(STATUS_NORMAL);
             registry.setLastError(null);
             formTableRegistryMapper.updateById(registry);
@@ -232,13 +237,15 @@ public class FormPublishServiceImpl implements FormPublishService {
             target.add(code);
             String currentType = existing.get(code);
             if (currentType == null) {
-                executeDdl(DEFINITION_TYPE_TABLE, definitionId, table, FormTableDdlGenerator.alterAdd(table, column));
+                executeDdlTolerant(DEFINITION_TYPE_TABLE, definitionId, table,
+                        FormTableDdlGenerator.alterAdd(table, column));
                 continue;
             }
             String wantedType = FormTableDdlGenerator.normalizeType(FormDataType.mysqlType(
                     column.getDataType(), column.getLength(), column.getPrecision(), column.getScale()));
             if (!wantedType.equals(currentType)) {
-                executeDdl(DEFINITION_TYPE_TABLE, definitionId, table, FormTableDdlGenerator.alterModify(table, column));
+                executeDdlTolerant(DEFINITION_TYPE_TABLE, definitionId, table,
+                        FormTableDdlGenerator.alterModify(table, column));
             }
         }
         for (String code : existing.keySet()) {
@@ -246,7 +253,8 @@ public class FormPublishServiceImpl implements FormPublishService {
                     || metadataCodes.contains(code)) {
                 continue;
             }
-            executeDdl(DEFINITION_TYPE_TABLE, definitionId, table, FormTableDdlGenerator.alterDrop(table, code));
+            executeDdlTolerant(DEFINITION_TYPE_TABLE, definitionId, table,
+                    FormTableDdlGenerator.alterDrop(table, code));
         }
     }
 
@@ -264,16 +272,53 @@ public class FormPublishServiceImpl implements FormPublishService {
         Set<String> existing = formDataEngine.describeIndexes(table);
         for (Map.Entry<String, String> entry : desired.entrySet()) {
             if (!existing.contains(entry.getKey())) {
-                executeDdl(DEFINITION_TYPE_TABLE, definitionId, table,
+                executeDdlTolerant(DEFINITION_TYPE_TABLE, definitionId, table,
                         FormTableDdlGenerator.alterAddIndex(table, entry.getValue()));
             }
         }
         for (String name : existing) {
             if (name.startsWith(FormTableDdlGenerator.AUTO_INDEX_PREFIX) && !desired.containsKey(name)) {
-                executeDdl(DEFINITION_TYPE_TABLE, definitionId, table,
+                executeDdlTolerant(DEFINITION_TYPE_TABLE, definitionId, table,
                         FormTableDdlGenerator.alterDropIndex(table, name));
             }
         }
+    }
+
+    /**
+     * 执行增量 DDL：并发发布时另一实例可能已完成同一变更，重复列/索引/已不存在等错误视为幂等成功。
+     *
+     * <p>MySQL DDL 无法用事务串行化，多实例同时发布同一表版本时，后到者会收到
+     * {@code Duplicate column name} / {@code Duplicate key name} / {@code check that column/key exists}。
+     * 这些错误说明目标结构已达成，吞掉即可收敛；其他错误仍原样抛出。</p>
+     *
+     * @param definitionType 定义类型（FORM / TABLE）
+     * @param definitionId 定义ID
+     * @param physicalTable 物理表名
+     * @param ddl DDL 语句
+     */
+    private void executeDdlTolerant(String definitionType, Long definitionId, String physicalTable, String ddl) {
+        try {
+            executeDdl(definitionType, definitionId, physicalTable, ddl);
+        } catch (RuntimeException e) {
+            if (isConvergentDdlError(e)) {
+                log.warn("并发发布已由其他实例完成，忽略重复 DDL: table={}, ddl={}", physicalTable, ddl);
+                return;
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * 判断 DDL 错误是否属于「目标结构已达成」的并发收敛场景
+     *
+     * @param e DDL 执行异常
+     * @return 可忽略返回 {@code true}
+     */
+    private static boolean isConvergentDdlError(RuntimeException e) {
+        String message = e.getMessage() == null ? "" : e.getMessage().toLowerCase(Locale.ROOT);
+        return message.contains("duplicate column name")
+                || message.contains("duplicate key name")
+                || message.contains("check that column/key exists");
     }
 
     /**

@@ -134,9 +134,12 @@ public class FormDataController {
                 formDataService.export(request, TenantResolver.resolve(httpRequest), format);
         String filename = URLEncoder.encode(exported.getFilename(), StandardCharsets.UTF_8)
                 .replace("+", "%20");
-        return ResponseEntity.ok()
+        ResponseEntity.BodyBuilder builder = ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_TYPE, exported.getContentType())
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
-                .body(exported.getContent());
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"");
+        if (exported.isTruncated()) {
+            builder.header("X-Export-Truncated", "true");
+        }
+        return builder.body(exported.getContent());
     }
 }

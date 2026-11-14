@@ -443,7 +443,7 @@ class FormDefinitionServiceImplTest {
         assertEquals(1, captor.getValue().getVersion().intValue());
         assertTrue(captor.getValue().getSnapshotJson().contains("\"code\":\"form-a\""));
         assertTrue(captor.getValue().getSnapshotJson().contains("\"fields\":[]"));
-        verify(formDefinitionVersionMapper).delete(ArgumentMatchers.<Wrapper<FormDefinitionVersion>>any());
+        assertEquals(1L, captor.getValue().getSnapshotSeq().longValue());
     }
 
     @Test
@@ -463,6 +463,24 @@ class FormDefinitionServiceImplTest {
         verify(formDefinitionVersionMapper).insert(captor.capture());
         assertEquals(2, captor.getValue().getVersion().intValue());
         assertEquals(2, entity.getVersion().intValue());
+    }
+
+    @Test
+    @DisplayName("update：版本号回退抛参数错误且不落库")
+    void shouldRejectVersionDowngrade() {
+        FormDefinition entity = sourceDefinition(1L, "form-a", "A表单");
+        entity.setVersion(3);
+        when(formDefinitionMapper.selectById(1L)).thenReturn(entity);
+        FormDefinitionSaveRequest request = saveRequest("form-a", "A表单");
+        request.setVersion(2);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> formDefinitionService.update(1L, request));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        verify(formDefinitionMapper, never()).update(any(FormDefinition.class),
+                ArgumentMatchers.<Wrapper<FormDefinition>>any());
+        verify(formDefinitionVersionMapper, never()).insert(any(FormDefinitionVersion.class));
     }
 
     @Test

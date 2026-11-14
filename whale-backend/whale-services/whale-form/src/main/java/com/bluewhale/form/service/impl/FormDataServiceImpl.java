@@ -11,9 +11,11 @@ import com.bluewhale.form.dto.FormDataQueryRequest;
 import com.bluewhale.form.dto.FormDataSubmitRequest;
 import com.bluewhale.form.dto.FormDataUpdateRequest;
 import com.bluewhale.form.entity.FormData;
+import com.bluewhale.form.entity.FormColumnMeta;
 import com.bluewhale.form.entity.FormDefinition;
 import com.bluewhale.form.entity.FormTableDefinition;
 import com.bluewhale.form.entity.FormTableRegistry;
+import com.bluewhale.form.mapper.FormColumnMetaMapper;
 import com.bluewhale.form.mapper.FormDataMapper;
 import com.bluewhale.form.mapper.FormDefinitionMapper;
 import com.bluewhale.form.mapper.FormTableDefinitionMapper;
@@ -23,6 +25,7 @@ import com.bluewhale.form.support.FormDataEngine;
 import com.bluewhale.form.support.FormDataExportSupport;
 import com.bluewhale.form.support.FormDataType;
 import com.bluewhale.form.support.FormField;
+import com.bluewhale.form.support.FormMetadataCompiler;
 import com.bluewhale.form.support.FormSchemaParser;
 import com.bluewhale.form.vo.FormArchiveVO;
 import com.bluewhale.form.vo.FormDataExportVO;
@@ -36,8 +39,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigInteger;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -95,6 +100,13 @@ public class FormDataServiceImpl implements FormDataService {
     /** 过滤字段名字符白名单（与物理表列名规则一致） */
     private static final Pattern FILTER_FIELD_PATTERN = Pattern.compile("^[a-z][a-z0-9_]{0,63}$");
 
+    /** 日期值格式（yyyy-MM-dd） */
+    private static final Pattern DATE_VALUE_PATTERN = Pattern.compile("^\\d{4}-\\d{2}-\\d{2}$");
+
+    /** 日期时间值格式（yyyy-MM-dd HH:mm[:ss] 或 yyyy-MM-ddTHH:mm[:ss]） */
+    private static final Pattern DATETIME_VALUE_PATTERN =
+            Pattern.compile("^\\d{4}-\\d{2}-\\d{2}[ T]\\d{2}:\\d{2}(:\\d{2})?$");
+
     /** 导出文件名时间戳格式 */
     private static final DateTimeFormatter FILE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
@@ -112,6 +124,8 @@ public class FormDataServiceImpl implements FormDataService {
     private final FormTableDefinitionMapper formTableDefinitionMapper;
 
     private final FormTableRegistryMapper formTableRegistryMapper;
+
+    private final FormColumnMetaMapper formColumnMetaMapper;
 
     private final FormDataEngine formDataEngine;
 
@@ -201,9 +215,7 @@ public class FormDataServiceImpl implements FormDataService {
         requireDefinition(entity.getDefinitionId());
         validateDataSize(request.getDataJson());
         FormTableRegistry registry = requireRegistry(routeCodeOf(entity), routeVersionOf(entity));
-        String schema = entity.getTableCode() == null
-                ? registry.getSchemaJson() : requireDefinition(entity.getDefinitionId()).getSchemaJson();
-        List<FormField> fields = FormSchemaParser.parse(schema);
+        List<FormField> fields = FormSchemaParser.parse(schemaOf(registry));
         Map<String, Object> merged = new LinkedHashMap<>(parseDataQuietly(entity.getDataJson()));
         merged.putAll(parseData(request.getDataJson()));
         validateFields(fields, merged);
@@ -217,9 +229,7 @@ public class FormDataServiceImpl implements FormDataService {
     public FormDataVO getDetail(Long id, Long tenantId) {
         FormData entity = requireData(id, tenantId);
         FormTableRegistry registry = requireRegistry(routeCodeOf(entity), routeVersionOf(entity));
-        String schema = entity.getTableCode() == null
-                ? registry.getSchemaJson() : requireDefinition(entity.getDefinitionId()).getSchemaJson();
-        List<FormField> fields = FormSchemaParser.parse(schema);
+        List<FormField> fields = FormSchemaParser.parse(schemaOf(registry));
         Map<String, Object> data =
                 formDataEngine.selectFields(registry.getPhysicalTable(), entity.getId(), tenantId, fields);
         return toVo(entity, data);
@@ -229,9 +239,7 @@ public class FormDataServiceImpl implements FormDataService {
     public FormArchiveVO getArchiveDetail(Long id, Long tenantId) {
         FormData entity = requireData(id, tenantId);
         FormTableRegistry registry = requireRegistry(routeCodeOf(entity), routeVersionOf(entity));
-        String schema = entity.getTableCode() == null
-                ? registry.getSchemaJson() : requireDefinition(entity.getDefinitionId()).getSchemaJson();
-        List<FormField> fields = FormSchemaParser.parse(schema);
+        List<FormField> fields = FormSchemaParser.parse(schemaOf(registry));
         Map<String, Object> data =
                 formDataEngine.selectFields(registry.getPhysicalTable(), entity.getId(), tenantId, fields);
         FormArchiveVO vo = new FormArchiveVO();
@@ -285,9 +293,19 @@ public class FormDataServiceImpl implements FormDataService {
         FormDefinition definition = requireDefinitionByCode(request.getDefinitionCode());
         List<FormField> fields = FormSchemaParser.parse(definition.getSchemaJson());
         List<FormDataFilter> filters = parseFilters(request.getFilters());
-        List<FormData> exportData = filters.isEmpty()
-                ? listExportData(request, tenantId)
-                : selectByFilters(definition, request, filters, tenantId, 0L, EXPORT_MAX_ROWS).rows();
+        boolean truncated;
+        List<FormData> exportData;
+        if (filters.isEmpty()) {
+            exportData = listExportData(request, tenantId, EXPORT_MAX_ROWS + 1);
+            truncated = exportData.size() > EXPORT_MAX_ROWS;
+            if (truncated) {
+                exportData = new ArrayList<>(exportData.subList(0, (int) EXPORT_MAX_ROWS));
+            }
+        } else {
+            FilteredRows matched = selectByFilters(definition, request, filters, tenantId, 0L, EXPORT_MAX_ROWS + 1);
+            exportData = matched.rows();
+            truncated = matched.total() > exportData.size();
+        }
         List<String> keys = new ArrayList<>();
         List<String> headers = new ArrayList<>(BASE_EXPORT_HEADERS);
         for (FormField field : fields) {
@@ -304,7 +322,7 @@ public class FormDataServiceImpl implements FormDataService {
         byte[] content = FORMAT_XLSX.equals(exportFormat)
                 ? FormDataExportSupport.xlsx(definition.getName(), headers, rows)
                 : FormDataExportSupport.csv(headers, rows);
-        return new FormDataExportVO(content, filename, FormDataExportSupport.contentType(exportFormat));
+        return new FormDataExportVO(content, filename, FormDataExportSupport.contentType(exportFormat), truncated);
     }
 
     /**
@@ -399,14 +417,14 @@ public class FormDataServiceImpl implements FormDataService {
      * @param tenantId 租户ID
      * @return 表单数据实体列表
      */
-    private List<FormData> listExportData(FormDataQueryRequest request, Long tenantId) {
+    private List<FormData> listExportData(FormDataQueryRequest request, Long tenantId, long limit) {
         LambdaQueryWrapper<FormData> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(FormData::getTenantId, tenantId);
         wrapper.eq(FormData::getDefinitionCode, request.getDefinitionCode());
         wrapper.eq(StringUtils.hasText(request.getBizKey()), FormData::getBizKey, request.getBizKey());
         wrapper.eq(StringUtils.hasText(request.getSubmitter()), FormData::getSubmitter, request.getSubmitter());
         wrapper.orderByDesc(FormData::getCreateTime);
-        Page<FormData> page = formDataMapper.selectPage(new Page<>(1L, EXPORT_MAX_ROWS), wrapper);
+        Page<FormData> page = formDataMapper.selectPage(new Page<>(1L, limit), wrapper);
         return page.getRecords();
     }
 
@@ -439,7 +457,7 @@ public class FormDataServiceImpl implements FormDataService {
         long total = 0L;
         boolean usable = false;
         for (FormTableRegistry registry : tables) {
-            List<FormField> fields = fieldsOf(registry, definition);
+            List<FormField> fields = fieldsOf(registry);
             if (fields == null || !containsAllFields(fields, filters)) {
                 continue;
             }
@@ -503,21 +521,42 @@ public class FormDataServiceImpl implements FormDataService {
     }
 
     /**
-     * 取物理表对应版本的字段定义：优先使用登记内的 schema 快照；元数据模型回落当前表单定义 schema
+     * 取物理表对应版本的字段定义：优先使用发布时写入登记的 schema 快照
      *
      * @param registry 物理表登记
-     * @param definition 表单定义
      * @return 字段列表；无法确定该版本结构时返回 {@code null}（该版本不参与过滤）
      */
-    private static List<FormField> fieldsOf(FormTableRegistry registry, FormDefinition definition) {
+    private List<FormField> fieldsOf(FormTableRegistry registry) {
+        String schema = schemaOf(registry);
+        return StringUtils.hasText(schema) ? FormSchemaParser.parse(schema) : null;
+    }
+
+    /**
+     * 取物理表版本的 schema：优先发布时写入的快照；存量登记无快照时，按该表版本的列元数据
+     * 即时重编译兜底，并只保留物理表实际存在的列（避免读到未发布的元数据列）。
+     *
+     * <p><b>重编译时机</b>：仅在读取存量（无快照）登记时兜底；正常路径由表定义发布时
+     * 写入快照，视图编辑只重编译表单自身 schema，不触碰物理表快照。</p>
+     *
+     * @param registry 物理表登记
+     * @return schema_json 文本；无法确定时返回 {@code null}
+     */
+    private String schemaOf(FormTableRegistry registry) {
         if (StringUtils.hasText(registry.getSchemaJson())) {
-            return FormSchemaParser.parse(registry.getSchemaJson());
+            return registry.getSchemaJson();
         }
-        if (registry.getTableDefinitionId() != null
-                && registry.getTableDefinitionId().equals(definition.getTableDefinitionId())) {
-            return FormSchemaParser.parse(definition.getSchemaJson());
+        if (registry.getTableDefinitionId() == null) {
+            return null;
         }
-        return null;
+        Map<String, String> physical = formDataEngine.describeColumns(registry.getPhysicalTable());
+        LambdaQueryWrapper<FormColumnMeta> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormColumnMeta::getTableDefinitionId, registry.getTableDefinitionId());
+        wrapper.eq(FormColumnMeta::getTableVersion, registry.getTableVersion());
+        wrapper.orderByAsc(FormColumnMeta::getSortNo);
+        List<FormColumnMeta> columns = formColumnMetaMapper.selectList(wrapper).stream()
+                .filter(column -> physical.containsKey(column.getColumnCode()))
+                .toList();
+        return columns.isEmpty() ? null : FormMetadataCompiler.compileTable(columns);
     }
 
     /**
@@ -791,11 +830,11 @@ public class FormDataServiceImpl implements FormDataService {
     }
 
     /**
-     * 校验附件/子表等复合字段的值形态；基础字段保持既有宽松校验
+     * 校验字段值：复合字段按形态校验，基础字段校验类型与日期格式
      *
      * @param field 字段定义
      * @param value 字段值
-     * @throws BizException 值形态不合规时抛出 {@code PARAM_ERROR}
+     * @throws BizException 值形态或类型不合规时抛出 {@code PARAM_ERROR}
      */
     private static void validateFieldValue(FormField field, Object value) {
         if (FormDataType.ATTACHMENT.equals(field.getType())) {
@@ -804,6 +843,42 @@ public class FormDataServiceImpl implements FormDataService {
         }
         if (FormDataType.SUBTABLE.equals(field.getType())) {
             validateSubtable(field, value);
+            return;
+        }
+        if (!matchesType(field.getType(), value)) {
+            throw paramError("字段 " + field.getLabel() + " 的值类型不符");
+        }
+        if (FormDataType.DATE.equals(field.getType()) || FormDataType.DATETIME.equals(field.getType())) {
+            validateTemporalValue(field, String.valueOf(value));
+        }
+    }
+
+    /**
+     * 校验日期/日期时间值的格式与真实日历值
+     *
+     * @param field 字段定义
+     * @param text 字段值文本
+     * @throws BizException 格式非法或日期不存在时抛出 {@code PARAM_ERROR}
+     */
+    private static void validateTemporalValue(FormField field, String text) {
+        try {
+            if (FormDataType.DATE.equals(field.getType())) {
+                if (!DATE_VALUE_PATTERN.matcher(text).matches()) {
+                    throw paramError("字段 " + field.getLabel() + " 的日期格式应为 yyyy-MM-dd");
+                }
+                LocalDate.parse(text);
+                return;
+            }
+            if (!DATETIME_VALUE_PATTERN.matcher(text).matches()) {
+                throw paramError("字段 " + field.getLabel() + " 的日期时间格式应为 yyyy-MM-dd HH:mm[:ss]");
+            }
+            String normalized = text.replace(' ', 'T');
+            if (normalized.length() == 16) {
+                normalized = normalized + ":00";
+            }
+            LocalDateTime.parse(normalized);
+        } catch (DateTimeParseException e) {
+            throw paramError("字段 " + field.getLabel() + " 的日期时间值不合法");
         }
     }
 

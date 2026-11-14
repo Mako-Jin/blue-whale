@@ -222,7 +222,9 @@ class FormPublishServiceImplTest {
         ArgumentCaptor<String> ddlCaptor = ArgumentCaptor.forClass(String.class);
         verify(formDataEngine).executeDdl(ddlCaptor.capture());
         assertTrue(ddlCaptor.getValue().contains("CREATE TABLE IF NOT EXISTS `form_data_biz_order_v1`"));
-        verify(formTableRegistryMapper).insert(any(FormTableRegistry.class));
+        ArgumentCaptor<FormTableRegistry> registryCaptor = ArgumentCaptor.forClass(FormTableRegistry.class);
+        verify(formTableRegistryMapper).insert(registryCaptor.capture());
+        assertTrue(registryCaptor.getValue().getSchemaJson().contains("\"amount\""));
         verify(formTableRegistryMapper, never()).updateById(any(FormTableRegistry.class));
         assertEquals(2, vo.getFieldCount().intValue());
     }
