@@ -35,6 +35,18 @@ public final class FormDataExportSupport {
     /** 单列字母上限（26 列一组，足够覆盖表单数据列） */
     private static final int ALPHABET = 26;
 
+    /** XLSX 列宽下限（字符数） */
+    private static final int MIN_COLUMN_WIDTH = 10;
+
+    /** XLSX 列宽上限（字符数） */
+    private static final int MAX_COLUMN_WIDTH = 50;
+
+    /** XLSX 列宽相对表头显示宽度的冗余 */
+    private static final int COLUMN_WIDTH_PADDING = 4;
+
+    /** 宽字符（CJK 等）起始码点近似值 */
+    private static final int WIDE_CHAR_START = 0x2E80;
+
     /** 工具类不允许实例化 */
     private FormDataExportSupport() {
     }
@@ -132,7 +144,7 @@ public final class FormDataExportSupport {
     private static String escapeCsv(String value) {
         String text = neutralizeFormula(value == null ? "" : value);
         boolean quoted = text.indexOf(CSV_SEPARATOR) >= 0 || text.indexOf('"') >= 0
-                || text.indexOf('\n') >= 0 || text.indexOf('\r') >= 0
+                || text.indexOf('\n') >= 0 || text.indexOf('\r') >= 0 || text.indexOf('\t') >= 0
                 || text.startsWith(" ") || text.endsWith(" ");
         if (!quoted) {
             return text;
@@ -257,6 +269,7 @@ public final class FormDataExportSupport {
         StringBuilder builder = new StringBuilder();
         builder.append("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>")
                 .append("<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">")
+                .append(columnWidths(headers))
                 .append("<sheetData>");
         appendSheetRow(builder, 1, headers);
         int rowIndex = 2;
@@ -266,6 +279,44 @@ public final class FormDataExportSupport {
         }
         builder.append("</sheetData></worksheet>");
         return builder.toString();
+    }
+
+    /**
+     * 构造 {@code <cols>} 列宽定义（按表头显示宽度估算，避免长文本显示为截断）
+     *
+     * @param headers 表头
+     * @return 列宽定义片段；无表头时返回空串
+     */
+    private static String columnWidths(List<String> headers) {
+        if (headers.isEmpty()) {
+            return "";
+        }
+        StringBuilder builder = new StringBuilder("<cols>");
+        for (int index = 0; index < headers.size(); index++) {
+            int width = Math.min(Math.max(displayWidth(headers.get(index)) + COLUMN_WIDTH_PADDING,
+                    MIN_COLUMN_WIDTH), MAX_COLUMN_WIDTH);
+            int column = index + 1;
+            builder.append("<col min=\"").append(column).append("\" max=\"").append(column)
+                    .append("\" width=\"").append(width).append("\" customWidth=\"1\"/>");
+        }
+        return builder.append("</cols>").toString();
+    }
+
+    /**
+     * 估算文本显示宽度（CJK 等宽字符按 2 个字符宽度计）
+     *
+     * @param text 文本（可空）
+     * @return 显示宽度
+     */
+    private static int displayWidth(String text) {
+        if (text == null) {
+            return 0;
+        }
+        int width = 0;
+        for (int index = 0; index < text.length(); index++) {
+            width += text.charAt(index) >= WIDE_CHAR_START ? 2 : 1;
+        }
+        return width;
     }
 
     /**

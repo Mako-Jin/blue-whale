@@ -96,7 +96,7 @@ class JdbcFormDataEngineFilterTest {
         assertTrue(sql.contains("`biz_key` = ?"));
         assertTrue(sql.contains("`submitter` = ?"));
         assertTrue(sql.contains("`amount` >= ?"));
-        assertTrue(sql.contains("`name` LIKE ?"));
+        assertTrue(sql.contains("`name` LIKE ? ESCAPE '!'"));
         assertTrue(sql.contains("`stage` IN (?, ?)"));
         Object[] params = paramsCaptor.getValue();
         assertEquals(7, params.length);
@@ -162,6 +162,19 @@ class JdbcFormDataEngineFilterTest {
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertTrue(ex.getMessage().contains("不支持操作符"));
+    }
+
+    @Test
+    @DisplayName("countByFilters：empty/notEmpty 别名归一为 IS NULL / IS NOT NULL")
+    void shouldAcceptLinkageNullAliases() {
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
+
+        engine.countByFilters(TABLE, TENANT, List.of(field("name", "text")),
+                List.of(filter("name", "empty", null)), null, null);
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).queryForObject(sqlCaptor.capture(), eq(Long.class), any(Object[].class));
+        assertTrue(sqlCaptor.getValue().contains("`name` IS NULL"));
     }
 
     @Test

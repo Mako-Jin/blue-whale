@@ -3,8 +3,12 @@ package com.bluewhale.form.support;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -32,5 +36,34 @@ class FormDataExportSupportTest {
         assertFalse(text.contains("'normal"));
         assertFalse(text.contains("'-3.14"));
         assertFalse(text.contains("'+100"));
+    }
+
+    @Test
+    @DisplayName("csv：含制表符的单元格加引号")
+    void shouldQuoteCellWithTab() {
+        byte[] content = FormDataExportSupport.csv(List.of("字段"),
+                List.of(List.of("a\tb")));
+        String text = new String(content, StandardCharsets.UTF_8);
+
+        assertTrue(text.contains("\"a\tb\""));
+    }
+
+    @Test
+    @DisplayName("xlsx：按表头生成列宽定义")
+    void shouldWriteColumnWidths() throws IOException {
+        byte[] content = FormDataExportSupport.xlsx("表单", List.of("金额", "备注说明"), List.of());
+        String sheetXml = "";
+        try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(content))) {
+            ZipEntry entry;
+            while ((entry = zip.getNextEntry()) != null) {
+                if ("xl/worksheets/sheet1.xml".equals(entry.getName())) {
+                    sheetXml = new String(zip.readAllBytes(), StandardCharsets.UTF_8);
+                }
+            }
+        }
+
+        assertTrue(sheetXml.contains("<cols>"));
+        assertTrue(sheetXml.contains("<col min=\"1\" max=\"1\""));
+        assertTrue(sheetXml.contains("<sheetData>"));
     }
 }

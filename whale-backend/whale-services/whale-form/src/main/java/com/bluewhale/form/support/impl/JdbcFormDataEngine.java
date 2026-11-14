@@ -8,7 +8,6 @@ import com.bluewhale.form.support.FormDataEngine;
 import com.bluewhale.form.support.FormDataType;
 import com.bluewhale.form.support.FormField;
 import com.bluewhale.form.support.FormTableDdlGenerator;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -235,8 +234,7 @@ public class JdbcFormDataEngine implements FormDataEngine {
             return value;
         }
         try {
-            return MAPPER.readValue(text, new TypeReference<List<Object>>() {
-            });
+            return MAPPER.readValue(text, Object.class);
         } catch (Exception e) {
             return value;
         }
@@ -326,7 +324,7 @@ public class JdbcFormDataEngine implements FormDataEngine {
                 sql.append(" AND `").append(fieldKey).append("` IS NOT NULL");
                 break;
             case "like":
-                sql.append(" AND `").append(fieldKey).append("` LIKE ?");
+                sql.append(" AND `").append(fieldKey).append("` LIKE ? ESCAPE '!'");
                 params.add("%" + escapeLike(scalarValue(field, value)) + "%");
                 break;
             case "in":
@@ -394,12 +392,29 @@ public class JdbcFormDataEngine implements FormDataEngine {
      */
     private static String normalizeOp(String op) {
         String raw = StringUtils.hasText(op) ? op.trim() : OP_EQ;
+        String normalized = normalizeAlias(raw);
         for (String candidate : FILTER_OPS) {
-            if (candidate.equalsIgnoreCase(raw)) {
+            if (candidate.equalsIgnoreCase(normalized)) {
                 return candidate;
             }
         }
         throw paramError("不支持的条件操作符：" + op);
+    }
+
+    /**
+     * 归一化联动规则的空值操作符别名（empty → isNull、notEmpty → notNull）
+     *
+     * @param op 原始操作符
+     * @return 归一化后的操作符
+     */
+    private static String normalizeAlias(String op) {
+        if ("empty".equalsIgnoreCase(op)) {
+            return "isNull";
+        }
+        if ("notEmpty".equalsIgnoreCase(op)) {
+            return "notNull";
+        }
+        return op;
     }
 
     /**
@@ -559,13 +574,13 @@ public class JdbcFormDataEngine implements FormDataEngine {
     }
 
     /**
-     * 转义 LIKE 通配符（{@code %}、{@code _}、{@code \}）
+     * 转义 LIKE 通配符（以 {@code !} 为转义符，SQL 显式 {@code ESCAPE '!'}，不依赖 sql_mode 的反斜杠语义）
      *
      * @param text 原始文本
      * @return 转义后的文本
      */
     private static String escapeLike(String text) {
-        return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+        return text.replace("!", "!!").replace("%", "!%").replace("_", "!_");
     }
 
     /**

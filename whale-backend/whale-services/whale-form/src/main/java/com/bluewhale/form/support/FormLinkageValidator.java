@@ -16,6 +16,9 @@ import java.util.regex.Pattern;
  * 结构形如 {@code {"action":"show|hide|require|disable","logic":"and|or",
  * "conditions":[{"field":"other_key","operator":"eq|ne|in|notIn|gt|lt|empty|notEmpty","value":"..."}]}}。</p>
  *
+ * <p>空值操作符同时接受 {@code empty/notEmpty} 与过滤查询侧的 {@code isNull/notNull} 两套命名，
+ * 避免前后端对同一语义使用不同操作符。</p>
+ *
  * @author BlueWhale
  */
 public final class FormLinkageValidator {
@@ -26,9 +29,9 @@ public final class FormLinkageValidator {
     /** 允许的条件逻辑 */
     private static final Set<String> LOGICS = Set.of("and", "or");
 
-    /** 允许的条件操作符 */
+    /** 允许的条件操作符（isNull/notNull 为 empty/notEmpty 的等价别名） */
     private static final Set<String> OPERATORS =
-            Set.of("eq", "ne", "in", "notIn", "gt", "lt", "empty", "notEmpty");
+            Set.of("eq", "ne", "in", "notIn", "gt", "lt", "empty", "notEmpty", "isNull", "notNull");
 
     /** 条件对象允许的键 */
     private static final Set<String> CONDITION_KEYS = Set.of("field", "operator", "value");

@@ -44,11 +44,6 @@ public final class FormTableDdlGenerator {
     /** 文本列可建全列索引的最大长度（utf8mb4 下 191*4=764 字节，兼容 767 字节索引前缀限制） */
     public static final int MAX_INDEXED_TEXT_LENGTH = 191;
 
-    /** 物理表公共列（与 {@link FormSchemaParser} 保留列一致，永不参与增量变更） */
-    private static final Set<String> RESERVED_COLUMNS = Set.of(
-            "id", "tenant_id", "definition_id", "definition_version", "biz_key",
-            "submitter", "status", "create_time", "update_time", "deleted");
-
     /** 工具类不允许实例化 */
     private FormTableDdlGenerator() {
     }
@@ -352,7 +347,7 @@ public final class FormTableDdlGenerator {
      * @return 公共列名集合
      */
     public static Set<String> reservedColumns() {
-        return RESERVED_COLUMNS;
+        return FormReservedColumns.keys();
     }
 
     /**

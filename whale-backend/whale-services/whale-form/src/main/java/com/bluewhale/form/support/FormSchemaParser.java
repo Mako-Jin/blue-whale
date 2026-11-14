@@ -40,11 +40,6 @@ public final class FormSchemaParser {
             FormDataType.DATETIME, FormDataType.SELECT, FormDataType.BOOL,
             FormDataType.ATTACHMENT, FormDataType.SUBTABLE);
 
-    /** 物理表保留列（动态字段 key 不得命中） */
-    private static final Set<String> RESERVED_KEYS = Set.of(
-            "id", "tenant_id", "definition_id", "definition_version", "biz_key",
-            "submitter", "status", "create_time", "update_time", "deleted");
-
     /** text 字段默认长度 */
     static final int DEFAULT_TEXT_LENGTH = 255;
 
@@ -123,7 +118,7 @@ public final class FormSchemaParser {
         if (!StringUtils.hasText(columnCode) || !KEY_PATTERN.matcher(columnCode).matches()) {
             throw paramError("列编码非法（需匹配 ^[a-z][a-z0-9_]{0,63}$）：" + columnCode);
         }
-        if (RESERVED_KEYS.contains(columnCode)) {
+        if (FormReservedColumns.isReserved(columnCode)) {
             throw paramError("列编码与保留列冲突：" + columnCode);
         }
     }
@@ -142,7 +137,7 @@ public final class FormSchemaParser {
         if (!StringUtils.hasText(key) || !KEY_PATTERN.matcher(key).matches()) {
             throw paramError("字段 key 非法（需匹配 ^[a-z][a-z0-9_]{0,63}$）：" + key);
         }
-        if (RESERVED_KEYS.contains(key)) {
+        if (FormReservedColumns.isReserved(key)) {
             throw paramError("字段 key 与保留列冲突：" + key);
         }
         if (!keys.add(key)) {
