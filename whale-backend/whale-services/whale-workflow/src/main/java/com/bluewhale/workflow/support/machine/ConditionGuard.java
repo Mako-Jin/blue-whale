@@ -16,7 +16,8 @@ import java.util.Map;
  *
  * <p>安全约束：使用 {@link SimpleEvaluationContext}（只读数据绑定 + {@link MapAccessor}），
  * 禁用 Bean 引用、类型引用、构造器与任意方法调用；表达式长度上限 {@value #MAX_EXPRESSION_LENGTH}。
- * 变量既支持直接按键读取（{@code amount > 100}），也支持 {@code #amount > 100}。</p>
+ * 变量既支持直接按键读取（{@code amount > 100}，走 root Map），也支持 {@code #amount > 100}
+ * （仅当表达式含 {@code #} 时才注入 SpEL 变量，避免无谓的全量 setVariable）。</p>
  *
  * <p>语法校验与运行期求值分离：{@link #isValid(String)} 只解析不求值，供定义校验器使用；
  * {@link #accept(GuardContext, ProcessModelFlow)} 在运行期求值，非法表达式或求值异常统一抛
@@ -97,7 +98,9 @@ public final class ConditionGuard implements Guard {
         SimpleEvaluationContext evaluationContext = SimpleEvaluationContext
                 .forPropertyAccessors(new MapAccessor())
                 .build();
-        variables.forEach(evaluationContext::setVariable);
+        if (source.indexOf('#') >= 0) {
+            variables.forEach(evaluationContext::setVariable);
+        }
         try {
             Boolean matched = expression.getValue(evaluationContext, variables, Boolean.class);
             return Boolean.TRUE.equals(matched);

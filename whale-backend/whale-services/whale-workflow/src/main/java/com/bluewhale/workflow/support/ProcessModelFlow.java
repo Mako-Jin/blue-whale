@@ -19,7 +19,7 @@ public class ProcessModelFlow {
     /** 目标节点键 */
     private String to;
 
-    /** 条件表达式文本（本轮仅保留往返，运行期不参与选路） */
+    /** 条件表达式文本（运行期参与条件选路；支持直接键名与 #变量 两种写法） */
     private String condition;
 
     /** 是否为默认流转（排他网关多分支的兜底分支） */

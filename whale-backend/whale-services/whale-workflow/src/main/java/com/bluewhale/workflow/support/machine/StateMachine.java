@@ -1,7 +1,5 @@
 package com.bluewhale.workflow.support.machine;
 
-import com.bluewhale.common.core.exception.BizException;
-import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.workflow.support.ProcessModel;
 import com.bluewhale.workflow.support.ProcessModelException;
 import com.bluewhale.workflow.support.ProcessModelFlow;
@@ -12,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -21,7 +20,8 @@ import java.util.Map;
  * <p>选路规则（Wave 5.35 起）：</p>
  * <ol>
  *   <li>出流为空 → 终止；</li>
- *   <li>出流唯一 → 该流（若带条件且求值为假，则视为终止）；</li>
+ *   <li>出流唯一 → 该流（若带条件且求值为假，抛 {@link ValidationCode#NO_MATCHING_FLOW}，
+ *       避免把「未走通」误判为终态通过）；</li>
  *   <li>多出流且存在条件 → 按定义顺序求值，唯一命中即为所选；命中多个取首个并告警；
  *       全部未命中则回落 {@code isDefault}；仍无则抛 {@link ValidationCode#NO_MATCHING_FLOW}；</li>
  *   <li>多出流且无条件（legacy） → 取 {@code isDefault}，缺省抛
@@ -30,14 +30,18 @@ import java.util.Map;
  *
  * <p>{@link #advance(String)} 从给定状态起，把 {@code START_EVENT}/网关作为透传节点逐跳跳过，
  * 停在首个审批类节点（{@code USER_TASK}/{@code COUNTER_SIGN}）或终止态；并行网关多出流（fork）
- * 时逐分支推进并汇总全部审批节点。单次推进的透传跳数上限 {@link #MAX_GATEWAY_HOPS}。</p>
+ * 时逐分支推进并汇总全部审批节点。单分支透传跳数上限 {@link #MAX_GATEWAY_HOPS}，
+ * 单次推进总访问步数上限 {@link #MAX_TRACE_STEPS}，防止并行嵌套导致路径爆炸。</p>
  *
  * @author BlueWhale
  */
 public class StateMachine {
 
-    /** 单次推进的透传（网关/事件）跳数上限 */
+    /** 单分支透传（网关/事件）跳数上限 */
     public static final int MAX_GATEWAY_HOPS = 16;
+
+    /** 单次推进总访问步数上限（限制并行分支与路径组合的爆炸） */
+    public static final int MAX_TRACE_STEPS = 1024;
 
     /** 超限文案 */
     private static final String HOPS_EXCEEDED_MESSAGE = "网关流转超出上限";
@@ -50,6 +54,9 @@ public class StateMachine {
 
     /** 流程变量（条件守卫求值） */
     private final Map<String, Object> variables;
+
+    /** 条件表达式 → 守卫缓存（同一状态机内避免重复解析 SpEL） */
+    private final Map<String, Guard> guardCache = new HashMap<>();
 
     /**
      * 构造状态机（无流程变量，兼容旧调用）。
@@ -103,8 +110,9 @@ public class StateMachine {
      *
      * @param nodeKey 节点键
      * @param guardContext 守卫上下文（携带流程变量）
-     * @return 选中迁移；无出流或无匹配返回 {@code null}
-     * @throws ProcessModelException 多分支无条件且缺默认流转、或条件均未命中且无默认流转时抛出
+     * @return 选中迁移；无出流返回 {@code null}
+     * @throws ProcessModelException 唯一出流条件为假、多分支无条件且缺默认流转、
+     *         或条件均未命中且无默认流转时抛出
      */
     public Transition pickTransition(String nodeKey, GuardContext guardContext) {
         List<Transition> transitions = transitions(nodeKey);
@@ -115,7 +123,8 @@ public class StateMachine {
             Transition only = transitions.get(0);
             String condition = only.getFlow().getCondition();
             if (hasText(condition) && !only.matches(guardContext)) {
-                return null;
+                throw new ProcessModelException(ValidationCode.NO_MATCHING_FLOW,
+                        "唯一出流条件未命中：" + nodeKey, nodeKey);
             }
             return only;
         }
@@ -161,7 +170,8 @@ public class StateMachine {
     public TransitionResult advance(String fromKey) {
         List<ProcessModelNode> active = new ArrayList<>();
         List<ProcessModelNode> ccNodes = new ArrayList<>();
-        String last = trace(fromKey, 0, active, ccNodes);
+        int[] steps = {0};
+        String last = trace(fromKey, 0, active, ccNodes, steps);
         if (active.isEmpty()) {
             return TransitionResult.terminated(last, model.node(last));
         }
@@ -198,14 +208,21 @@ public class StateMachine {
      * 不加入审批节点列表，因此不会产生待办。</p>
      *
      * @param key 当前节点键
-     * @param hops 已消耗透传跳数
+     * @param hops 已消耗透传跳数（单分支）
      * @param active 审批节点收集器
      * @param ccNodes 抄送节点收集器
+     * @param steps 单次推进总访问步数（跨分支共享）
      * @return 最后停留的节点键
      */
-    private String trace(String key, int hops, List<ProcessModelNode> active, List<ProcessModelNode> ccNodes) {
+    private String trace(String key, int hops, List<ProcessModelNode> active,
+                         List<ProcessModelNode> ccNodes, int[] steps) {
         if (hops > MAX_GATEWAY_HOPS) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), HOPS_EXCEEDED_MESSAGE);
+            throw new ProcessModelException(ValidationCode.GATEWAY_HOPS_EXCEEDED,
+                    HOPS_EXCEEDED_MESSAGE, key);
+        }
+        if (++steps[0] > MAX_TRACE_STEPS) {
+            throw new ProcessModelException(ValidationCode.GATEWAY_HOPS_EXCEEDED,
+                    HOPS_EXCEEDED_MESSAGE, key);
         }
         ProcessModelNode node = model.node(key);
         if (node == null) {
@@ -227,7 +244,7 @@ public class StateMachine {
         }
         if (node.getType() == ProcessNodeType.PARALLEL_GATEWAY && transitions.size() > 1) {
             for (Transition transition : transitions) {
-                trace(transition.to(), hops + 1, active, ccNodes);
+                trace(transition.to(), hops + 1, active, ccNodes, steps);
             }
             return key;
         }
@@ -235,7 +252,7 @@ public class StateMachine {
         if (picked == null) {
             return key;
         }
-        return trace(picked.to(), hops + 1, active, ccNodes);
+        return trace(picked.to(), hops + 1, active, ccNodes, steps);
     }
 
     /**
@@ -255,9 +272,9 @@ public class StateMachine {
      * @param flow 流转
      * @return 守卫实例
      */
-    private static Guard guardOf(ProcessModelFlow flow) {
+    private Guard guardOf(ProcessModelFlow flow) {
         if (hasText(flow.getCondition())) {
-            return ConditionGuard.of(flow.getCondition());
+            return guardCache.computeIfAbsent(flow.getCondition(), ConditionGuard::of);
         }
         return Boolean.TRUE.equals(flow.getIsDefault()) ? DefaultFlowGuard.INSTANCE : AlwaysGuard.INSTANCE;
     }

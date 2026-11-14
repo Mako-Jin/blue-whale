@@ -4,6 +4,7 @@ import com.bluewhale.workflow.support.ProcessModel;
 import com.bluewhale.workflow.support.ProcessModelException;
 import com.bluewhale.workflow.support.ProcessModelFlow;
 import com.bluewhale.workflow.support.ProcessModelGroup;
+import com.bluewhale.workflow.support.ProcessModelKeys;
 import com.bluewhale.workflow.support.ProcessModelNode;
 import com.bluewhale.workflow.support.ProcessModelParser;
 import com.bluewhale.workflow.support.ProcessNodeType;
@@ -19,17 +20,16 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 /**
  * BPMN 2.0 XML 解析器：把 BPMN XML 映射为规范化 {@link ProcessModel}。
  *
- * <p>映射见冻结契约 §3.4：{@code startEvent/endEvent/userTask/exclusiveGateway}
- * 四种节点 + {@code sequenceFlow}；{@code assignee} 读任意前缀的同名属性；
- * 网关 {@code default} 属性映射为流转 {@code isDefault}；BPMN-DI 的
- * {@code BPMNShape/bpmnElement} + {@code dc:Bounds} 回读为节点画布坐标 {@code x/y}；
- * {@code documentation}、{@code extensionElements} 忽略；不支持元素抛
- * {@code BPMN_UNSUPPORTED_ELEMENT} 并点名元素。</p>
+ * <p>映射见冻结契约 §3.4：{@code startEvent/endEvent/userTask/exclusiveGateway/parallelGateway}
+ * 以及抄送节点约定的 {@code manualTask}；{@code assignee} 读任意前缀的同名属性，
+ * 抄送人从 {@code assignees}（逗号分隔）回读；网关 {@code default} 属性映射为流转
+ * {@code isDefault}；BPMN-DI 的 {@code BPMNShape/bpmnElement} + {@code dc:Bounds}
+ * 回读为节点画布坐标 {@code x/y}；{@code documentation}、{@code extensionElements} 忽略；
+ * 不支持元素抛 {@code BPMN_UNSUPPORTED_ELEMENT} 并点名元素。</p>
  *
  * @author BlueWhale
  */
@@ -38,9 +38,6 @@ public final class BpmnXmlParser {
     /** 元素名 → 节点类型映射 */
     private static final Map<String, ProcessNodeType> NODE_TYPES = new LinkedHashMap<>();
 
-    /** 分组键合法字符集（与规范化 JSON 的 key 规则一致） */
-    private static final Pattern KEY_PATTERN = Pattern.compile("^[A-Za-z0-9_-]{1,64}$");
-
     /** 忽略（非错误）的元素名：其子树整体跳过 */
     private static final Set<String> IGNORED = Set.of(
             "BPMNDiagram", "BPMNPlane", "BPMNShape", "BPMNEdge", "documentation", "extensionElements",
@@ -48,7 +45,7 @@ public final class BpmnXmlParser {
 
     /** 不支持的元素名：导入即报错并点名 */
     private static final Set<String> UNSUPPORTED = Set.of(
-            "serviceTask", "scriptTask", "manualTask", "inclusiveGateway",
+            "serviceTask", "scriptTask", "inclusiveGateway",
             "eventBasedGateway", "subProcess", "callActivity", "boundaryEvent",
             "intermediateCatchEvent", "intermediateThrowEvent", "timerEventDefinition");
 
@@ -58,6 +55,8 @@ public final class BpmnXmlParser {
         NODE_TYPES.put("userTask", ProcessNodeType.USER_TASK);
         NODE_TYPES.put("exclusiveGateway", ProcessNodeType.EXCLUSIVE_GATEWAY);
         NODE_TYPES.put("parallelGateway", ProcessNodeType.PARALLEL_GATEWAY);
+        // 与 BpmnXmlWriter 的 CC_TASK → manualTask 映射保持一致，保证导出可回读
+        NODE_TYPES.put("manualTask", ProcessNodeType.CC_TASK);
     }
 
     /** 工具类不允许实例化 */
@@ -178,8 +177,31 @@ public final class BpmnXmlParser {
         if (type == ProcessNodeType.USER_TASK) {
             node.setFormCode(attribute(element, "formKey"));
             node.setFormId(attribute(element, "formId"));
+        } else if (type == ProcessNodeType.CC_TASK) {
+            node.setAssignees(readAssignees(element));
         }
         return node;
+    }
+
+    /**
+     * 读取抄送人列表（{@code assignees} 逗号分隔）。
+     *
+     * @param element 节点元素
+     * @return 抄送人账号列表，缺失返回 {@code null}
+     */
+    private static List<String> readAssignees(Element element) {
+        String raw = attribute(element, "assignees");
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        List<String> assignees = new ArrayList<>();
+        for (String part : raw.split(",")) {
+            String account = part.trim();
+            if (!account.isEmpty()) {
+                assignees.add(account);
+            }
+        }
+        return assignees.isEmpty() ? null : assignees;
     }
 
     /**
@@ -187,12 +209,23 @@ public final class BpmnXmlParser {
      *
      * @param element sequenceFlow 元素
      * @return 流程模型流转
+     * @throws ProcessModelException 缺少 id 或 sourceRef/targetRef 时抛出
      */
     private static ProcessModelFlow readFlow(Element element) {
+        String key = attribute(element, "id");
+        if (key == null || key.isBlank()) {
+            throw new ProcessModelException(ValidationCode.FLOW_KEY_MISSING, "BPMN 流转缺少 id");
+        }
+        String from = attribute(element, "sourceRef");
+        String to = attribute(element, "targetRef");
+        if (from == null || from.isBlank() || to == null || to.isBlank()) {
+            throw new ProcessModelException(ValidationCode.FLOW_REFERENCE_MISSING,
+                    "BPMN 流转缺少 sourceRef/targetRef：" + key.trim(), key.trim());
+        }
         ProcessModelFlow flow = new ProcessModelFlow();
-        flow.setKey(attribute(element, "id"));
-        flow.setFrom(attribute(element, "sourceRef"));
-        flow.setTo(attribute(element, "targetRef"));
+        flow.setKey(key.trim());
+        flow.setFrom(from.trim());
+        flow.setTo(to.trim());
         flow.setCondition(conditionText(element));
         flow.setIsDefault(false);
         return flow;
@@ -244,7 +277,8 @@ public final class BpmnXmlParser {
      */
     private static void readLane(Element lane, ProcessModel model) {
         String key = attribute(lane, "id");
-        if (key == null || !KEY_PATTERN.matcher(key.trim()).matches() || model.group(key.trim()) != null) {
+        if (key == null || !ProcessModelKeys.KEY_PATTERN.matcher(key.trim()).matches()
+                || model.group(key.trim()) != null) {
             return;
         }
         ProcessModelGroup group = new ProcessModelGroup();

@@ -44,17 +44,6 @@ class ProcessModelValidatorTest {
         return report.getErrors().stream().anyMatch(issue -> issue.getCode() == code);
     }
 
-    /**
-     * 判定报告警告集是否含指定校验码。
-     *
-     * @param report 校验报告
-     * @param code 校验码
-     * @return 含该码返回 {@code true}
-     */
-    private static boolean hasWarning(ValidationReport report, ValidationCode code) {
-        return report.getWarnings().stream().anyMatch(issue -> issue.getCode() == code);
-    }
-
     @Test
     @DisplayName("空定义：mode=LEGACY 且报 MISSING_NODES")
     void shouldRejectBlank() {
@@ -93,13 +82,13 @@ class ProcessModelValidatorTest {
     }
 
     @Test
-    @DisplayName("合法规范化：valid=true 且合法条件不再产生 CONDITION_IGNORED 警告")
+    @DisplayName("合法规范化：valid=true 且无警告")
     void shouldPassNormalizedWithCondition() {
         ValidationReport report = ProcessModelValidator.validate(NORMALIZED_VALID);
 
         assertTrue(report.isValid());
         assertEquals(ValidationReport.MODE_NORMALIZED, report.getMode());
-        assertFalse(hasWarning(report, ValidationCode.CONDITION_IGNORED));
+        assertTrue(report.getWarnings().isEmpty());
     }
 
     @Test
@@ -372,5 +361,45 @@ class ProcessModelValidatorTest {
         assertTrue(report.isValid());
         assertFalse(hasError(report, ValidationCode.USER_TASK_FORM_CODE_INVALID));
         assertFalse(hasError(report, ValidationCode.USER_TASK_FORM_INCOMPLETE));
+    }
+
+    @Test
+    @DisplayName("validateModel：节点 key 重复报 NODE_KEY_DUPLICATE")
+    void shouldRejectDuplicateModelNodeKeys() {
+        ProcessModel model = new ProcessModel();
+        ProcessModelNode first = new ProcessModelNode();
+        first.setKey("t1");
+        first.setType(ProcessNodeType.USER_TASK);
+        ProcessModelNode duplicate = new ProcessModelNode();
+        duplicate.setKey("t1");
+        duplicate.setType(ProcessNodeType.USER_TASK);
+        model.getNodes().add(first);
+        model.getNodes().add(duplicate);
+
+        ValidationReport report = ProcessModelValidator.validateModel(model, ValidationReport.MODE_BPMN);
+
+        assertTrue(hasError(report, ValidationCode.NODE_KEY_DUPLICATE));
+    }
+
+    @Test
+    @DisplayName("validateModel：流转 key 缺失报 FLOW_KEY_MISSING")
+    void shouldRejectModelFlowWithoutKey() {
+        ProcessModel model = new ProcessModel();
+        ProcessModelNode start = new ProcessModelNode();
+        start.setKey("start");
+        start.setType(ProcessNodeType.START_EVENT);
+        ProcessModelNode end = new ProcessModelNode();
+        end.setKey("end");
+        end.setType(ProcessNodeType.END_EVENT);
+        model.getNodes().add(start);
+        model.getNodes().add(end);
+        ProcessModelFlow flow = new ProcessModelFlow();
+        flow.setFrom("start");
+        flow.setTo("end");
+        model.getFlows().add(flow);
+
+        ValidationReport report = ProcessModelValidator.validateModel(model, ValidationReport.MODE_BPMN);
+
+        assertTrue(hasError(report, ValidationCode.FLOW_KEY_MISSING));
     }
 }

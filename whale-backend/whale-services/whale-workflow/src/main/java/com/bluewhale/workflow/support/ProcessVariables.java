@@ -4,6 +4,8 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -20,6 +22,9 @@ public final class ProcessVariables {
 
     /** 变量 JSON 长度上限（字符数）：64KB */
     public static final int MAX_JSON_LENGTH = 65536;
+
+    /** 日志 */
+    private static final Logger LOG = LoggerFactory.getLogger(ProcessVariables.class);
 
     /** JSON 解析器（线程安全） */
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -68,6 +73,8 @@ public final class ProcessVariables {
                     });
             return parsed == null ? new LinkedHashMap<>() : new LinkedHashMap<>(parsed);
         } catch (Exception e) {
+            LOG.warn("流程变量 JSON 解析失败，按空变量处理：length={}, error={}",
+                    variablesJson.length(), e.getClass().getSimpleName());
             return new LinkedHashMap<>();
         }
     }

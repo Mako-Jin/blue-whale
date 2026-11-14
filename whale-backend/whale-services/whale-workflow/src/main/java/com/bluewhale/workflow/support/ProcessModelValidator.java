@@ -33,9 +33,6 @@ public final class ProcessModelValidator {
     /** legacy 非法定义的固定文案（与 {@link ProcessNodeParser} 一致） */
     private static final String LEGACY_INVALID_MESSAGE = "流程定义缺少有效审批节点";
 
-    /** 节点键合法字符集 */
-    private static final Pattern KEY_PATTERN = Pattern.compile("^[A-Za-z0-9_-]{1,64}$");
-
     /** 审批节点表单编码合法字符集（字母/数字/下划线/连字符，1~64 字符） */
     private static final Pattern FORM_CODE_PATTERN = Pattern.compile("^[A-Za-z0-9_-]{1,64}$");
 
@@ -148,7 +145,7 @@ public final class ProcessModelValidator {
         Set<String> groupKeys = new LinkedHashSet<>();
         for (JsonNode item : groupsNode) {
             String key = text(item, "key");
-            if (key == null || key.isBlank() || !KEY_PATTERN.matcher(key.trim()).matches()) {
+            if (key == null || key.isBlank() || !ProcessModelKeys.KEY_PATTERN.matcher(key.trim()).matches()) {
                 report.add(ValidationIssue.of(ValidationCode.GROUP_KEY_INVALID,
                         key == null || key.isBlank() ? "分组缺少 key" : "分组 key 不合法：" + key,
                         key == null || key.isBlank() ? null : key));
@@ -182,7 +179,10 @@ public final class ProcessModelValidator {
     }
 
     /**
-     * 校验已构建的流程模型（供 BPMN 导入复用，模型键/引用已由解析器保证）。
+     * 校验已构建的流程模型（BPMN 导入路径）。
+     *
+     * <p>不假设解析器已保证唯一性：显式复核节点 key 重复/缺失/非法、流转 key
+     * 缺失/重复、引用缺失与自环，避免 BPMN 导入绕过结构化校验。</p>
      *
      * @param model 流程模型
      * @param mode 定义模式（{@link ValidationReport#MODE_BPMN}）
@@ -195,18 +195,69 @@ public final class ProcessModelValidator {
             report.add(ValidationIssue.of(ValidationCode.MISSING_NODES, LEGACY_INVALID_MESSAGE, null));
             return report;
         }
-        Graph graph = new Graph();
-        for (ProcessModelNode node : model.getNodes()) {
-            graph.getNodeKeys().add(node.getKey());
-            graph.getTypes().put(node.getKey(), node.getType());
-        }
-        for (ProcessModelFlow flow : model.getFlows()) {
-            addEdge(graph, flow);
-            checkCondition(report, flow.getCondition(), flow.getKey());
-        }
+        Graph graph = checkModelNodes(report, model);
+        checkModelFlows(report, model, graph);
         checkModelGroups(report, model);
         checkGraph(report, graph);
         return report;
+    }
+
+    /**
+     * 复核模型节点：key 缺失/非法/重复与类型缺失。
+     *
+     * @param report 校验报告
+     * @param model 流程模型
+     * @return 已填充节点键与类型的图结构
+     */
+    private static Graph checkModelNodes(ValidationReport report, ProcessModel model) {
+        Graph graph = new Graph();
+        for (ProcessModelNode node : model.getNodes()) {
+            String key = node.getKey();
+            if (key == null || key.isBlank()) {
+                report.add(ValidationIssue.of(ValidationCode.NODE_KEY_MISSING, null));
+                continue;
+            }
+            String trimmed = key.trim();
+            if (!ProcessModelKeys.KEY_PATTERN.matcher(trimmed).matches()) {
+                report.add(ValidationIssue.of(ValidationCode.NODE_KEY_INVALID, trimmed));
+            }
+            if (!graph.getNodeKeys().add(trimmed)) {
+                report.add(ValidationIssue.of(ValidationCode.NODE_KEY_DUPLICATE, trimmed));
+                continue;
+            }
+            if (node.getType() == null) {
+                report.add(ValidationIssue.of(ValidationCode.UNKNOWN_NODE_TYPE, trimmed));
+            }
+            graph.getTypes().put(trimmed, node.getType());
+        }
+        return graph;
+    }
+
+    /**
+     * 复核模型流转：key 缺失/重复、引用缺失、自环与条件语法。
+     *
+     * @param report 校验报告
+     * @param model 流程模型
+     * @param graph 已填充节点信息的图结构
+     */
+    private static void checkModelFlows(ValidationReport report, ProcessModel model, Graph graph) {
+        Set<String> flowKeys = new LinkedHashSet<>();
+        for (ProcessModelFlow flow : model.getFlows()) {
+            String key = flow.getKey();
+            if (key == null || key.isBlank()) {
+                report.add(ValidationIssue.of(ValidationCode.FLOW_KEY_MISSING, null));
+            } else if (!flowKeys.add(key.trim())) {
+                report.add(ValidationIssue.of(ValidationCode.FLOW_KEY_DUPLICATE, key.trim()));
+            }
+            if (!referenceValid(graph, flow.getFrom(), flow.getTo())) {
+                report.add(ValidationIssue.of(ValidationCode.FLOW_REFERENCE_MISSING, key));
+            }
+            if (flow.getFrom() != null && flow.getFrom().equals(flow.getTo())) {
+                report.add(ValidationIssue.of(ValidationCode.FLOW_SELF_LOOP, flow.getFrom()));
+            }
+            addEdge(graph, flow);
+            checkCondition(report, flow.getCondition(), flow.getKey());
+        }
     }
 
     /**
@@ -383,13 +434,13 @@ public final class ProcessModelValidator {
             report.add(ValidationIssue.of(ValidationCode.NODE_KEY_MISSING, "第 " + index + " 个节点"));
             return;
         }
-        if (!KEY_PATTERN.matcher(key).matches()) {
+        if (!ProcessModelKeys.KEY_PATTERN.matcher(key).matches()) {
             report.add(ValidationIssue.of(ValidationCode.NODE_KEY_INVALID, key));
         }
     }
 
     /**
-     * 校验流转数组：key 重复、引用缺失、自环、条件警告。
+     * 校验流转数组：key 缺失/重复、引用缺失、自环、条件警告。
      *
      * @param report 校验报告
      * @param flowsNode 流转 JSON 数组，可为 {@code null}
@@ -429,7 +480,9 @@ public final class ProcessModelValidator {
      */
     private static void checkFlow(ValidationReport report, JsonNode item, Graph graph, Set<String> flowKeys) {
         String key = text(item, "key");
-        if (key != null && !key.isBlank() && !flowKeys.add(key.trim())) {
+        if (key == null || key.isBlank()) {
+            report.add(ValidationIssue.of(ValidationCode.FLOW_KEY_MISSING, null));
+        } else if (!flowKeys.add(key.trim())) {
             report.add(ValidationIssue.of(ValidationCode.FLOW_KEY_DUPLICATE, key.trim()));
         }
         String from = text(item, "from");
@@ -545,7 +598,8 @@ public final class ProcessModelValidator {
     }
 
     /**
-     * 环检测：DFS 三色标记，命中回边报 {@code CYCLE_DETECTED}。
+     * 环检测：DFS 三色标记，命中首个回边即报 {@code CYCLE_DETECTED} 并返回
+     * （仅报首个环，避免同一子图重复报错导致报告膨胀）。
      *
      * @param report 校验报告
      * @param graph 图结构

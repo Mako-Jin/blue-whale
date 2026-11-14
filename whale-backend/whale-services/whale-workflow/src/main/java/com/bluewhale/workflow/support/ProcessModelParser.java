@@ -4,8 +4,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
-import java.util.regex.Pattern;
+import java.util.Set;
 
 /**
  * 流程模型解析器：把 {@code definition_json} 解析为 {@link ProcessModel}。
@@ -49,9 +50,6 @@ public final class ProcessModelParser {
 
     /** legacy 非法定义的固定文案（与 {@link ProcessNodeParser} 完全一致） */
     private static final String LEGACY_INVALID_MESSAGE = "流程定义缺少有效审批节点";
-
-    /** 节点键合法字符集（字母/数字/下划线/连字符，1~64 字符） */
-    private static final Pattern KEY_PATTERN = Pattern.compile("^[A-Za-z0-9_-]{1,64}$");
 
     /** JSON 解析器（Jackson 2，线程安全可复用，与既有 support 代码一致） */
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -105,10 +103,23 @@ public final class ProcessModelParser {
         }
         ProcessModel model = new ProcessModel();
         model.setLegacy(true);
+        Set<String> usedKeys = new HashSet<>();
+        for (ProcessNodeParser.Node source : parsed) {
+            if (source.getKey() != null && !source.getKey().isBlank()) {
+                usedKeys.add(source.getKey().trim());
+            }
+        }
         for (int i = 0; i < parsed.size(); i++) {
             ProcessNodeParser.Node source = parsed.get(i);
             ProcessModelNode node = new ProcessModelNode();
-            String key = source.getKey() == null || source.getKey().isBlank() ? "n" + (i + 1) : source.getKey();
+            String key;
+            if (source.getKey() == null || source.getKey().isBlank()) {
+                // 合成 key 必须避开已显式声明的 key，避免 reindex 时后者覆盖前者
+                key = ProcessModelKeys.uniqueKey("n" + (i + 1), usedKeys);
+            } else {
+                key = source.getKey().trim();
+            }
+            usedKeys.add(key);
             node.setKey(key);
             node.setType(ProcessNodeType.USER_TASK);
             node.setName(source.getName());
@@ -202,7 +213,7 @@ public final class ProcessModelParser {
      */
     private static ProcessModelGroup readGroup(JsonNode item) {
         String key = text(item, "key");
-        if (key == null || !KEY_PATTERN.matcher(key.trim()).matches()) {
+        if (key == null || !ProcessModelKeys.KEY_PATTERN.matcher(key.trim()).matches()) {
             throw new ProcessModelException(ValidationCode.GROUP_KEY_INVALID,
                     "流程定义非法：" + ValidationCode.GROUP_KEY_INVALID.name(), key);
         }
@@ -225,7 +236,7 @@ public final class ProcessModelParser {
             throw new ProcessModelException(ValidationCode.NODE_KEY_MISSING,
                     "流程定义非法：" + ValidationCode.NODE_KEY_MISSING.name());
         }
-        if (!KEY_PATTERN.matcher(key.trim()).matches()) {
+        if (!ProcessModelKeys.KEY_PATTERN.matcher(key.trim()).matches()) {
             throw new ProcessModelException(ValidationCode.NODE_KEY_INVALID,
                     "流程定义非法：" + ValidationCode.NODE_KEY_INVALID.name(), key);
         }

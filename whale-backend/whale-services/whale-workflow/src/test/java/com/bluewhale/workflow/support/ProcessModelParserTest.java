@@ -61,6 +61,20 @@ class ProcessModelParserTest {
     }
 
     @Test
+    @DisplayName("legacy：合成 key 与显式 key 冲突时追加后缀")
+    void shouldAvoidSyntheticKeyCollision() {
+        ProcessModel model = ProcessModelParser.parse("{\"nodes\":["
+                + "{\"name\":\"一级\",\"assignee\":\"a\"},"
+                + "{\"key\":\"n1\",\"name\":\"二级\",\"assignee\":\"b\"}]}");
+
+        assertEquals(2, model.getNodes().size());
+        assertEquals("n1_2", model.getNodes().get(0).getKey());
+        assertEquals("n1", model.getNodes().get(1).getKey());
+        assertEquals("n1_2", model.node("n1_2").getKey());
+        assertEquals("二级", model.node("n1").getName());
+    }
+
+    @Test
     @DisplayName("legacy：nodes 为空沿用「流程定义缺少有效审批节点」且 code=400")
     void shouldRejectLegacyEmptyNodes() {
         BizException ex = assertThrows(BizException.class, () -> ProcessModelParser.parse("{\"nodes\":[]}"));

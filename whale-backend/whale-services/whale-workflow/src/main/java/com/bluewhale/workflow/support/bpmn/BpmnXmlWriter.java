@@ -13,9 +13,11 @@ import java.util.List;
  * BPMN 2.0 XML 写出器：把规范化 {@link ProcessModel} 序列化为 BPMN XML。
  *
  * <p>与 {@link BpmnXmlParser} 对称：{@code assignee} 统一写 plain 属性；
- * 网关默认流转写 {@code default="flowId"}（偏差点见冻结契约 §3.4）。
- * 节点带画布坐标时追加 {@code bpmndi:BPMNDiagram}（形状 + {@code dc:Bounds}），
- * 无坐标则不输出图形信息；{@code documentation} / {@code extensionElements} 不输出。</p>
+ * 抄送节点（{@code CC_TASK}）写为 {@code manualTask} 并以 {@code assignees}
+ * 逗号分隔属性保留抄送人，保证导出后可回读；网关默认流转写 {@code default="flowId"}
+ * （偏差点见冻结契约 §3.4）。节点带画布坐标时追加 {@code bpmndi:BPMNDiagram}
+ * （形状 + {@code dc:Bounds}），无坐标则不输出图形信息；{@code documentation} /
+ * {@code extensionElements} 不输出。</p>
  *
  * @author BlueWhale
  */
@@ -289,6 +291,10 @@ public final class BpmnXmlWriter {
         }
         if (node.isUserTask() && node.getFormId() != null && !node.getFormId().isBlank()) {
             xml.append(" formId=\"").append(escape(node.getFormId())).append('"');
+        }
+        if (node.getType() == ProcessNodeType.CC_TASK
+                && node.getAssignees() != null && !node.getAssignees().isEmpty()) {
+            xml.append(" assignees=\"").append(escape(String.join(",", node.getAssignees()))).append('"');
         }
         if (defaultFlowId != null) {
             xml.append(" default=\"").append(escape(defaultFlowId)).append('"');

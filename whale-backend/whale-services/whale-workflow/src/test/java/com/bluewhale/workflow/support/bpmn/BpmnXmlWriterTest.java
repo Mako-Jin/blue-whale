@@ -6,6 +6,8 @@ import com.bluewhale.workflow.support.ProcessNodeType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -112,6 +114,24 @@ class BpmnXmlWriterTest {
         assertTrue(out.contains("<conditionExpression"));
         assertTrue(out.contains("amount&gt;100"));
         assertEquals("amount>100", BpmnXmlParser.parse(out).getFlows().get(0).getCondition());
+    }
+
+    @Test
+    @DisplayName("write + parse：CC_TASK 以 manualTask 往返并保留 assignees")
+    void shouldRoundTripCcTask() {
+        String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+                + "<definitions xmlns=\"http://www.omg.org/spec/BPMN/20100524/MODEL\">"
+                + "<process id=\"p1\"><startEvent id=\"start\"/>"
+                + "<manualTask id=\"cc1\" name=\"抄送\" assignees=\"a,b\"/>"
+                + "<sequenceFlow id=\"f1\" sourceRef=\"start\" targetRef=\"cc1\"/></process></definitions>";
+        ProcessModel source = BpmnXmlParser.parse(xml);
+
+        String out = BpmnXmlWriter.write(source, "p1", "示例");
+        ProcessModel reparsed = BpmnXmlParser.parse(out);
+
+        ProcessModelNode cc = reparsed.node("cc1");
+        assertEquals(ProcessNodeType.CC_TASK, cc.getType());
+        assertEquals(List.of("a", "b"), cc.getAssignees());
     }
 
     /**

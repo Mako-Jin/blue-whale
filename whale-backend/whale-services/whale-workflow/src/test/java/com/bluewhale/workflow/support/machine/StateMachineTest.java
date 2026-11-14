@@ -8,6 +8,8 @@ import com.bluewhale.workflow.support.ValidationCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -163,6 +165,44 @@ class StateMachineTest {
 
         assertEquals(400, ex.getCode());
         assertEquals("网关流转超出上限", ex.getMessage());
+        assertEquals(ValidationCode.GATEWAY_HOPS_EXCEEDED, ((ProcessModelException) ex).getValidationCode());
+    }
+
+    @Test
+    @DisplayName("approve：单出流条件不满足抛 NO_MATCHING_FLOW，不得静默判定通过")
+    void shouldRejectSingleConditionalFlowWhenNotMatched() {
+        String json = "{\"type\":\"stateMachine\",\"nodes\":["
+                + "{\"key\":\"start\",\"type\":\"START_EVENT\"},"
+                + "{\"key\":\"t1\",\"type\":\"USER_TASK\",\"assignee\":\"a\"},"
+                + "{\"key\":\"end\",\"type\":\"END_EVENT\"}],"
+                + "\"flows\":[{\"key\":\"f1\",\"from\":\"start\",\"to\":\"t1\"},"
+                + "{\"key\":\"f2\",\"from\":\"t1\",\"to\":\"end\",\"condition\":\"amount > 100\"}]}";
+        StateMachine machine = new StateMachine(ProcessModelParser.parse(json), Map.of("amount", 50));
+
+        ProcessModelException ex = assertThrows(ProcessModelException.class, () -> machine.approve("t1"));
+
+        assertEquals(ValidationCode.NO_MATCHING_FLOW, ex.getValidationCode());
+    }
+
+    @Test
+    @DisplayName("start：并行分支汇合到同一节点只保留一份审批节点")
+    void shouldDeduplicateParallelForkToSameNode() {
+        String json = "{\"type\":\"stateMachine\",\"nodes\":["
+                + "{\"key\":\"start\",\"type\":\"START_EVENT\"},"
+                + "{\"key\":\"pg\",\"type\":\"PARALLEL_GATEWAY\"},"
+                + "{\"key\":\"t1\",\"type\":\"USER_TASK\",\"assignee\":\"a\"},"
+                + "{\"key\":\"end\",\"type\":\"END_EVENT\"}],"
+                + "\"flows\":[{\"key\":\"f1\",\"from\":\"start\",\"to\":\"pg\"},"
+                + "{\"key\":\"f2\",\"from\":\"pg\",\"to\":\"t1\"},"
+                + "{\"key\":\"f3\",\"from\":\"pg\",\"to\":\"t1\"},"
+                + "{\"key\":\"f4\",\"from\":\"t1\",\"to\":\"end\"}]}";
+        StateMachine machine = new StateMachine(ProcessModelParser.parse(json));
+
+        TransitionResult result = machine.start();
+
+        assertTrue(result.isUserTask());
+        assertEquals(1, result.getNodes().size());
+        assertEquals("t1", result.getState());
     }
 
     @Test

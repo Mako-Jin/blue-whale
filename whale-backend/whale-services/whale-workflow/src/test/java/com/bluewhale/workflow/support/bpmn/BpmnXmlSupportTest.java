@@ -44,6 +44,16 @@ class BpmnXmlSupportTest {
     }
 
     @Test
+    @DisplayName("DOCTYPE 中间插入换行/制表符仍被预判拦截")
+    void shouldRejectDoctypeWithWhitespaceBypass() {
+        String xml = "<?xml version=\"1.0\"?><!DOC\n\tTYPE foo><foo/>";
+
+        ProcessModelException ex = assertThrows(ProcessModelException.class, () -> BpmnXmlSupport.parse(xml));
+
+        assertEquals(ValidationCode.XML_DOCTYPE_FORBIDDEN, ex.getValidationCode());
+    }
+
+    @Test
     @DisplayName("超长文本：报 XML_TOO_LARGE")
     void shouldRejectTooLarge() {
         String xml = "<a>" + "x".repeat(BpmnXmlSupport.MAX_BPMN_XML_LENGTH) + "</a>";

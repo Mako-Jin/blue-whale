@@ -4,7 +4,7 @@ package com.bluewhale.workflow.support;
  * 流程定义校验码：错误码与警告码的权威枚举。
  *
  * <p>错误码（{@link ValidationLevel#ERROR}）使 {@code valid=false}；警告码
- * （{@link ValidationLevel#WARNING}）仅提示不阻断。XML 侧 6 个码由
+ * （{@link ValidationLevel#WARNING}）仅提示不阻断。XML 侧校验码由
  * {@code support.bpmn.BpmnXmlParser} / {@code BpmnXmlSupport} 产出。</p>
  *
  * @author BlueWhale
@@ -46,6 +46,9 @@ public enum ValidationCode {
 
     /** 流转 key 重复 */
     FLOW_KEY_DUPLICATE(ValidationLevel.ERROR, "流转 key 重复"),
+
+    /** 流转缺少 key */
+    FLOW_KEY_MISSING(ValidationLevel.ERROR, "流转缺少 key"),
 
     /** 流转引用了不存在的节点 */
     FLOW_REFERENCE_MISSING(ValidationLevel.ERROR, "流转引用了不存在的节点"),
@@ -104,6 +107,9 @@ public enum ValidationCode {
     /** 多分支条件均未命中且无默认流转（运行期） */
     NO_MATCHING_FLOW(ValidationLevel.ERROR, "无匹配的流转分支"),
 
+    /** 单次推进的网关透传跳数/步数超出上限 */
+    GATEWAY_HOPS_EXCEEDED(ValidationLevel.ERROR, "网关流转超出上限"),
+
     /** 会签节点缺少 assignees */
     COUNTER_SIGN_ASSIGNEES_REQUIRED(ValidationLevel.ERROR, "会签节点缺少 assignees"),
 
@@ -123,10 +129,7 @@ public enum ValidationCode {
     NODE_GROUP_UNKNOWN(ValidationLevel.ERROR, "节点引用了不存在的分组"),
 
     /** 分组数超出上限 */
-    TOO_MANY_GROUPS(ValidationLevel.ERROR, "分组数超出上限"),
-
-    /** 流转条件本轮不参与选路（警告，仅 legacy 兼容保留） */
-    CONDITION_IGNORED(ValidationLevel.WARNING, "流转条件本轮不参与选路，已忽略");
+    TOO_MANY_GROUPS(ValidationLevel.ERROR, "分组数超出上限");
 
     /** 级别 */
     private final ValidationLevel level;

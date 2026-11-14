@@ -79,8 +79,10 @@ public final class BpmnXmlSupport {
             factory.setFeature("http://apache.org/xml/features/xinclude", false);
             factory.setXIncludeAware(false);
             factory.setExpandEntityReferences(false);
-            factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-            factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+            // ACCESS_EXTERNAL_* 属于可选属性，部分 JDK 实现不认识；失败不阻断，
+            // 因为 disallow-doctype-decl + 外部实体关闭已构成主防线
+            setAttributeQuietly(factory, XMLConstants.ACCESS_EXTERNAL_DTD, "");
+            setAttributeQuietly(factory, XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
             return factory.newDocumentBuilder();
         } catch (Exception e) {
             throw new ProcessModelException(ValidationCode.XML_NOT_WELL_FORMED, "XML 解析器加固失败");
@@ -88,12 +90,27 @@ public final class BpmnXmlSupport {
     }
 
     /**
-     * 判断文本是否含 DOCTYPE 声明（大小写不敏感，容忍空白）。
+     * 设置解析器可选属性；实现不支持时静默降级。
+     *
+     * @param factory 文档构建工厂
+     * @param name 属性名
+     * @param value 属性值
+     */
+    private static void setAttributeQuietly(DocumentBuilderFactory factory, String name, String value) {
+        try {
+            factory.setAttribute(name, value);
+        } catch (IllegalArgumentException ignored) {
+            // 部分 JDK 不支持 ACCESS_EXTERNAL_* 属性，主防线已由其他加固项覆盖
+        }
+    }
+
+    /**
+     * 判断文本是否含 DOCTYPE 声明（大小写不敏感，去除全部空白字符）。
      *
      * @param xml XML 文本
      * @return 含 DOCTYPE 返回 {@code true}
      */
     private static boolean containsDoctype(String xml) {
-        return xml.toUpperCase().replace(" ", "").contains(DOCTYPE_TOKEN);
+        return xml.toUpperCase().replaceAll("\\s+", "").contains(DOCTYPE_TOKEN);
     }
 }

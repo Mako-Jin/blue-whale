@@ -3,13 +3,16 @@ package com.bluewhale.workflow.support.machine;
 import com.bluewhale.workflow.support.ProcessModelNode;
 import lombok.Getter;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 迁移结果：状态机一次推进后停留的状态。
  *
- * <p>{@link #getNodes()} 为该次推进抵达的全部审批节点（order 与定义顺序一致）：
- * 单节点为 1 条，并行网关 fork 后可多于 1 条；为空表示流程终止（到达结束事件或无出流）。</p>
+ * <p>{@link #getNodes()} 为该次推进抵达的全部审批节点（order 与定义顺序一致，按 nodeKey 去重）：
+ * 单节点为 1 条，并行网关 fork 后多于 1 条；为空表示流程终止（到达结束事件或无出流）。
+ * 并行分支汇合到同一节点时只保留首个节点，避免重复创建待办。</p>
  *
  * @author BlueWhale
  */
@@ -45,8 +48,8 @@ public class TransitionResult {
         this.state = state;
         this.node = node;
         this.terminated = terminated;
-        this.nodes = nodes == null ? List.of() : List.copyOf(nodes);
-        this.ccNodes = ccNodes == null ? List.of() : List.copyOf(ccNodes);
+        this.nodes = distinct(nodes);
+        this.ccNodes = distinct(ccNodes);
     }
 
     /**
@@ -79,11 +82,12 @@ public class TransitionResult {
      * @return 迁移结果
      */
     public static TransitionResult at(List<ProcessModelNode> nodes, List<ProcessModelNode> ccNodes) {
-        if (nodes == null || nodes.isEmpty()) {
+        List<ProcessModelNode> distinctNodes = distinct(nodes);
+        if (distinctNodes.isEmpty()) {
             return terminated(null, null);
         }
-        ProcessModelNode first = nodes.get(0);
-        return new TransitionResult(first.getKey(), first, false, nodes, ccNodes);
+        ProcessModelNode first = distinctNodes.get(0);
+        return new TransitionResult(first.getKey(), first, false, distinctNodes, ccNodes);
     }
 
     /**
@@ -104,5 +108,27 @@ public class TransitionResult {
      */
     public boolean isUserTask() {
         return !terminated && !nodes.isEmpty();
+    }
+
+    /**
+     * 按节点 key 去重并保持首次出现顺序；key 为空时按对象身份视为不同节点。
+     *
+     * @param source 原始节点列表，可为 {@code null}
+     * @return 去重后的不可变列表
+     */
+    private static List<ProcessModelNode> distinct(List<ProcessModelNode> source) {
+        if (source == null || source.isEmpty()) {
+            return List.of();
+        }
+        Map<String, ProcessModelNode> unique = new LinkedHashMap<>();
+        for (ProcessModelNode node : source) {
+            if (node == null) {
+                continue;
+            }
+            String key = node.getKey() == null
+                    ? "#" + System.identityHashCode(node) : node.getKey();
+            unique.putIfAbsent(key, node);
+        }
+        return List.copyOf(unique.values());
     }
 }

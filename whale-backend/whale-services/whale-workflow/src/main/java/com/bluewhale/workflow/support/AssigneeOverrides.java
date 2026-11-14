@@ -4,6 +4,8 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -26,6 +28,9 @@ public final class AssigneeOverrides {
 
     /** 账号长度上限 */
     public static final int MAX_ACCOUNT_LENGTH = 64;
+
+    /** 日志 */
+    private static final Logger LOG = LoggerFactory.getLogger(AssigneeOverrides.class);
 
     /** JSON 解析器 */
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -50,6 +55,8 @@ public final class AssigneeOverrides {
                     });
             return parsed == null ? Map.of() : parsed;
         } catch (Exception ex) {
+            LOG.warn("审批人覆盖快照解析失败，按空覆盖处理：length={}, error={}",
+                    json.length(), ex.getClass().getSimpleName());
             return Map.of();
         }
     }

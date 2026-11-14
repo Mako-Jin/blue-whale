@@ -9,6 +9,8 @@ import com.bluewhale.workflow.support.ValidationCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -258,5 +260,47 @@ class BpmnXmlParserTest {
 
         assertNull(node.getFormCode());
         assertNull(node.getFormId());
+    }
+
+    @Test
+    @DisplayName("parse：manualTask 映射为 CC_TASK 并回读 assignees")
+    void shouldParseManualTaskAsCcTask() {
+        String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+                + "<definitions xmlns=\"http://www.omg.org/spec/BPMN/20100524/MODEL\">"
+                + "<process id=\"p1\"><startEvent id=\"start\"/>"
+                + "<manualTask id=\"cc1\" name=\"抄送\" assignees=\"a,b\"/>"
+                + "<sequenceFlow id=\"f1\" sourceRef=\"start\" targetRef=\"cc1\"/></process></definitions>";
+
+        ProcessModel model = BpmnXmlParser.parse(xml);
+
+        ProcessModelNode cc = model.node("cc1");
+        assertEquals(ProcessNodeType.CC_TASK, cc.getType());
+        assertEquals(List.of("a", "b"), cc.getAssignees());
+    }
+
+    @Test
+    @DisplayName("parse：sequenceFlow 缺 sourceRef/targetRef 抛 FLOW_REFERENCE_MISSING")
+    void shouldRejectFlowWithoutReference() {
+        String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+                + "<definitions xmlns=\"http://www.omg.org/spec/BPMN/20100524/MODEL\">"
+                + "<process id=\"p1\"><startEvent id=\"start\"/>"
+                + "<sequenceFlow id=\"f1\" sourceRef=\"start\"/></process></definitions>";
+
+        ProcessModelException ex = assertThrows(ProcessModelException.class, () -> BpmnXmlParser.parse(xml));
+
+        assertEquals(ValidationCode.FLOW_REFERENCE_MISSING, ex.getValidationCode());
+    }
+
+    @Test
+    @DisplayName("parse：sequenceFlow 缺 id 抛 FLOW_KEY_MISSING")
+    void shouldRejectFlowWithoutId() {
+        String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+                + "<definitions xmlns=\"http://www.omg.org/spec/BPMN/20100524/MODEL\">"
+                + "<process id=\"p1\"><startEvent id=\"start\"/><endEvent id=\"end\"/>"
+                + "<sequenceFlow sourceRef=\"start\" targetRef=\"end\"/></process></definitions>";
+
+        ProcessModelException ex = assertThrows(ProcessModelException.class, () -> BpmnXmlParser.parse(xml));
+
+        assertEquals(ValidationCode.FLOW_KEY_MISSING, ex.getValidationCode());
     }
 }
