@@ -44,7 +44,7 @@ public class ProcessModelController {
      */
     @PostMapping("/definition/validate")
     @RequirePermission("sys:workflow:definition:validate")
-    public Result<ProcessDefinitionValidateVO> validate(@RequestBody DefinitionValidateRequest request) {
+    public Result<ProcessDefinitionValidateVO> validate(@Valid @RequestBody DefinitionValidateRequest request) {
         return Result.ok(processModelService.validate(request));
     }
 

@@ -43,6 +43,9 @@ public class ProcessInstanceVO implements Serializable {
     /** 当前审批节点键（规范化定义；为空时回落 {@code currentIndex}） */
     private String currentNodeKey;
 
+    /** 当前并行活动节点键集合（逗号分隔；无并行分支时为空） */
+    private String activeNodeKeys;
+
     /** 发起人账号 */
     private String initiator;
 

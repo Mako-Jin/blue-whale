@@ -27,6 +27,7 @@ public class ProcessDefinitionSaveRequest implements Serializable {
     private String name;
 
     /** 流程定义（JSON 文本，节点与流转，最长 64KB；超限由服务层校验抛参数错误） */
+    @NotBlank(message = "流程定义不能为空")
     private String definitionJson;
 
     /** 版本号；为空时新增取默认 1，更新时保持不变 */

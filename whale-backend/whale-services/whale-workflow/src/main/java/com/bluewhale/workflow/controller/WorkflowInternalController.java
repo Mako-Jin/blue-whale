@@ -2,6 +2,7 @@ package com.bluewhale.workflow.controller;
 
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
+import com.bluewhale.common.web.WebHeaders;
 import com.bluewhale.workflow.dto.InternalProcessStartRequest;
 import com.bluewhale.workflow.dto.ProcessInstanceQueryRequest;
 import com.bluewhale.workflow.service.ProcessInstanceService;
@@ -10,9 +11,11 @@ import com.bluewhale.workflow.vo.ApprovedInstanceVO;
 import com.bluewhale.workflow.vo.ArchiveInstanceDetailVO;
 import com.bluewhale.workflow.vo.InstanceStatusVO;
 import com.bluewhale.workflow.vo.ProcessInstanceVO;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -48,7 +51,11 @@ public class WorkflowInternalController {
      * @return 流程实例视图对象
      */
     @PostMapping("/start")
-    public Result<ProcessInstanceVO> start(@Valid @RequestBody InternalProcessStartRequest request) {
+    public Result<ProcessInstanceVO> start(@Valid @RequestBody InternalProcessStartRequest request,
+                                           HttpServletRequest httpRequest) {
+        if (!StringUtils.hasText(request.getInitiator())) {
+            request.setInitiator(WebHeaders.username(httpRequest));
+        }
         return Result.ok(processInstanceService.startByCode(request));
     }
 

@@ -55,6 +55,9 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
     /** 流程定义 JSON 最大长度（字符数）：64KB */
     private static final int MAX_DEFINITION_LENGTH = 65536;
 
+    /** 迁移失败明细最大保留条数 */
+    private static final int MAX_MIGRATION_FAILURES = 100;
+
     private final ProcessDefinitionMapper processDefinitionMapper;
 
     private final ProcessDefinitionVersionMapper processDefinitionVersionMapper;
@@ -359,7 +362,9 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
         String missing = missingNode(keys, targetModel);
         if (missing != null) {
             vo.setFailed(vo.getFailed() + 1);
-            vo.getFailures().add(instance.getId() + ": " + missing);
+            if (vo.getFailures().size() < MAX_MIGRATION_FAILURES) {
+                vo.getFailures().add(instance.getId() + ": " + missing);
+            }
             return;
         }
         int oldIndex = instance.getCurrentIndex() == null ? 0 : instance.getCurrentIndex();

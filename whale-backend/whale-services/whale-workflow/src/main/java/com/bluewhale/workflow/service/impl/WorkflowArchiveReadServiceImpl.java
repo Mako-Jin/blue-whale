@@ -28,8 +28,8 @@ import java.util.List;
 /**
  * 流程实例归档只读服务实现。
  *
- * <p>办结时间取 {@code process_instance.update_time}：平台未维护独立的办结时间列，
- * 审批通过时状态与更新时间同事务写入，足以支撑档案保管到期计算。</p>
+ * <p>办结时间优先取 {@code process_instance.finished_at}（审批通过时写入）；
+ * 历史数据该列为空时回落 {@code update_time}，保证档案到期计算不中断。</p>
  *
  * @author BlueWhale
  */
@@ -52,9 +52,9 @@ public class WorkflowArchiveReadServiceImpl implements WorkflowArchiveReadServic
         long pageSize = Math.min(Math.max(size, 1L), WorkflowConstants.MAX_PAGE_SIZE);
         LambdaQueryWrapper<ProcessInstance> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ProcessInstance::getStatus, WorkflowConstants.INSTANCE_APPROVED);
-        wrapper.gt(updatedAfter != null, ProcessInstance::getUpdateTime, updatedAfter);
-        wrapper.le(updatedBefore != null, ProcessInstance::getUpdateTime, updatedBefore);
-        wrapper.orderByAsc(ProcessInstance::getUpdateTime);
+        wrapper.gt(updatedAfter != null, ProcessInstance::getFinishedAt, updatedAfter);
+        wrapper.le(updatedBefore != null, ProcessInstance::getFinishedAt, updatedBefore);
+        wrapper.orderByAsc(ProcessInstance::getFinishedAt);
         wrapper.orderByAsc(ProcessInstance::getId);
         Page<ProcessInstance> page = processInstanceMapper.selectPage(new Page<>(pageCurrent, pageSize), wrapper);
         List<ApprovedInstanceVO> records = page.getRecords().stream()
@@ -70,7 +70,7 @@ public class WorkflowArchiveReadServiceImpl implements WorkflowArchiveReadServic
             throw new BizException(ErrorCode.NOT_FOUND);
         }
         ArchiveInstanceDetailVO vo = WorkflowConverter.INSTANCE.toArchiveDetailVo(instance);
-        vo.setFinishedAt(instance.getUpdateTime());
+        vo.setFinishedAt(resolveFinishedAt(instance));
         vo.setDefinitionJson(resolveDefinitionJson(instance));
         vo.setTasks(listTasks(id));
         return vo;
@@ -155,8 +155,18 @@ public class WorkflowArchiveReadServiceImpl implements WorkflowArchiveReadServic
      */
     private static ApprovedInstanceVO toApprovedVo(ProcessInstance entity) {
         ApprovedInstanceVO vo = WorkflowConverter.INSTANCE.toApprovedVo(entity);
-        vo.setFinishedAt(entity.getUpdateTime());
+        vo.setFinishedAt(resolveFinishedAt(entity));
         return vo;
+    }
+
+    /**
+     * 解析办结时间：优先独立字段，历史数据为空时回落更新时间。
+     *
+     * @param instance 流程实例
+     * @return 办结时间
+     */
+    private static LocalDateTime resolveFinishedAt(ProcessInstance instance) {
+        return instance.getFinishedAt() != null ? instance.getFinishedAt() : instance.getUpdateTime();
     }
 
     /**

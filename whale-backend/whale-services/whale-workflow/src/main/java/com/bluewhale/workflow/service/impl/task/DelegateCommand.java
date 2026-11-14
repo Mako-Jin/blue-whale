@@ -12,6 +12,10 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 委派命令：把任务临时交给目标人处理，并由原审批人完成确认。
  *
+ * <p>委派链只保留首位委托人：{@code delegateFrom} 首次写入后不再覆盖，
+ * 二次委派时 {@code resolve} 回到首位委托人；{@code ownerId} 保持任务创建时的
+ * 原始审批人不变。</p>
+ *
  * @author BlueWhale
  */
 @Component

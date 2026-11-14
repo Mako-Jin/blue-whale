@@ -5,6 +5,8 @@ import com.bluewhale.common.entity.BaseEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import java.time.LocalDateTime;
+
 /**
  * 流程实例实体，对应表 {@code process_instance}。
  *
@@ -37,6 +39,9 @@ public class ProcessInstance extends BaseEntity {
 
     /** 状态：0 运行中 / 1 已通过 / 2 已驳回 / 3 已撤销 */
     private Integer status;
+
+    /** 办结时间（审批通过时写入；历史数据为空时归档侧回落 update_time） */
+    private LocalDateTime finishedAt;
 
     /** 当前审批节点下标（0 起） */
     private Integer currentIndex;

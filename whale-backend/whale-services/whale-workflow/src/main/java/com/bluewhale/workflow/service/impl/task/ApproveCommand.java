@@ -17,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -132,6 +133,7 @@ public class ApproveCommand {
         }
         instance.setStatus(WorkflowConstants.INSTANCE_APPROVED);
         instance.setActiveNodeKeys(null);
+        instance.setFinishedAt(LocalDateTime.now());
         if (result.getState() != null) {
             instance.setCurrentNodeKey(result.getState());
         }

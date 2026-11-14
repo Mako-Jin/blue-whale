@@ -1,7 +1,10 @@
 package com.bluewhale.workflow.controller;
 
+import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
+import com.bluewhale.common.web.WebHeaders;
 import com.bluewhale.workflow.dto.ApprovalRequest;
 import com.bluewhale.workflow.dto.ProcessTaskQueryRequest;
 import com.bluewhale.workflow.dto.TaskAddSignRequest;
@@ -13,8 +16,10 @@ import com.bluewhale.workflow.service.ProcessTaskService;
 import com.bluewhale.workflow.service.ProcessUrgeService;
 import com.bluewhale.workflow.vo.ProcessTaskVO;
 import com.bluewhale.workflow.vo.ProcessUrgeVO;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -50,7 +55,7 @@ public class WorkflowInternalTaskController {
      * @return 空结果
      */
     @PostMapping("/{id}/complete")
-    public Result<Void> complete(@PathVariable Long id, @RequestBody TaskCompleteRequest request) {
+    public Result<Void> complete(@PathVariable Long id, @Valid @RequestBody TaskCompleteRequest request) {
         processTaskService.completeInternal(id, request);
         return Result.ok();
     }
@@ -164,11 +169,18 @@ public class WorkflowInternalTaskController {
      * 催办流程实例（1 小时内同人仅允许一次）。
      *
      * @param instanceId 流程实例ID
-     * @param request 催办请求
+     * @param request 催办请求（催办人由 X-Username 覆盖）
+     * @param httpRequest HTTP 请求（读取身份头）
      * @return 空结果
      */
     @PostMapping("/{instanceId}/urge")
-    public Result<Void> urge(@PathVariable Long instanceId, @Valid @RequestBody UrgeRequest request) {
+    public Result<Void> urge(@PathVariable Long instanceId, @Valid @RequestBody UrgeRequest request,
+                             HttpServletRequest httpRequest) {
+        String urger = WebHeaders.username(httpRequest);
+        if (!StringUtils.hasText(urger)) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "催办人身份缺失");
+        }
+        request.setUrger(urger);
         processUrgeService.urge(instanceId, request);
         return Result.ok();
     }

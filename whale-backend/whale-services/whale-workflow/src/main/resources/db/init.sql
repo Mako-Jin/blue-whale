@@ -66,6 +66,7 @@ CREATE TABLE process_instance (
     title               VARCHAR(128)  NOT NULL               COMMENT '实例标题',
     business_key        VARCHAR(64)   DEFAULT NULL           COMMENT '业务键（可选）',
     status              TINYINT       NOT NULL DEFAULT 0     COMMENT '状态：0 运行中 / 1 已通过 / 2 已驳回 / 3 已撤销',
+    finished_at         DATETIME      DEFAULT NULL           COMMENT '办结时间（审批通过时写入；历史数据为空时归档侧回落 update_time）',
     current_index       INT           NOT NULL DEFAULT 0     COMMENT '当前审批节点下标（0 起）',
     current_node_key    VARCHAR(64)   DEFAULT NULL           COMMENT '当前审批节点键（规范化定义；为空时回落 current_index）',
     active_node_keys    VARCHAR(512)  DEFAULT NULL           COMMENT '并行分支活动节点键（逗号分隔；为空表示单待办）',
@@ -77,7 +78,8 @@ CREATE TABLE process_instance (
     PRIMARY KEY (id),
     KEY idx_tenant_id (tenant_id),
     KEY idx_definition_id (definition_id),
-    KEY idx_status (status)
+    KEY idx_status (status),
+    KEY idx_status_finished (status, finished_at)
 ) COMMENT='流程实例表';
 
 -- ---------------------------------------------------------------------

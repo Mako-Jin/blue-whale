@@ -56,7 +56,7 @@ public class ProcessTask extends BaseEntity {
     /** 会签策略快照：{@code ALL} / {@code ANY} / {@code RATIO:n} */
     private String signPolicy;
 
-    /** 原始责任人（首次创建任务时的审批人；转办、委派、加签后保持不变） */
+    /** 原始责任人（该任务首次创建时的审批人，代理改派前；转办、委派后保持不变） */
     private String ownerId;
 
     /** 委派来源人（委派任务记录原审批人；非委派为空） */

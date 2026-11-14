@@ -52,6 +52,7 @@ public class ProcessDelegateServiceImpl implements ProcessDelegateService {
     public DelegateRuleVO create(DelegateRuleSaveRequest request) {
         ProcessDelegate entity = new ProcessDelegate();
         apply(entity, request);
+        ensureNoOverlap(entity);
         processDelegateMapper.insert(entity);
         return WorkflowConverter.INSTANCE.toDelegateVo(entity);
     }
@@ -63,6 +64,7 @@ public class ProcessDelegateServiceImpl implements ProcessDelegateService {
             throw new BizException(ErrorCode.NOT_FOUND.getCode(), "代理规则不存在");
         }
         apply(entity, request);
+        ensureNoOverlap(entity);
         processDelegateMapper.updateById(entity);
         return WorkflowConverter.INSTANCE.toDelegateVo(entity);
     }
@@ -118,6 +120,30 @@ public class ProcessDelegateServiceImpl implements ProcessDelegateService {
         entity.setEnabled(request.getEnabled() == null || request.getEnabled()
                 ? WorkflowConstants.DELEGATE_ENABLED : WorkflowConstants.DELEGATE_DISABLED);
         entity.setRemark(request.getRemark());
+    }
+
+    /**
+     * 校验同流程定义、同委托人的启用规则时间段不重叠。
+     *
+     * <p>重叠判定：{@code existing.start < new.end && existing.end > new.start}；
+     * 边界相接（start == existing.end）不算重叠。</p>
+     *
+     * @param entity 待保存规则
+     */
+    private void ensureNoOverlap(ProcessDelegate entity) {
+        if (entity.getEnabled() == null || entity.getEnabled() != WorkflowConstants.DELEGATE_ENABLED) {
+            return;
+        }
+        LambdaQueryWrapper<ProcessDelegate> wrapper = new LambdaQueryWrapper<ProcessDelegate>()
+                .eq(ProcessDelegate::getEnabled, WorkflowConstants.DELEGATE_ENABLED)
+                .eq(ProcessDelegate::getDefinitionCode, entity.getDefinitionCode())
+                .eq(ProcessDelegate::getFromAccount, entity.getFromAccount())
+                .ne(entity.getId() != null, ProcessDelegate::getId, entity.getId())
+                .lt(ProcessDelegate::getStartTime, entity.getEndTime())
+                .gt(ProcessDelegate::getEndTime, entity.getStartTime());
+        if (processDelegateMapper.selectCount(wrapper) > 0) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "代理生效时间段与其他规则重叠");
+        }
     }
 
     /**

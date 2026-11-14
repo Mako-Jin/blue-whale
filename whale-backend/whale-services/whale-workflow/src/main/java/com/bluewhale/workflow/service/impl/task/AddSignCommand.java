@@ -63,7 +63,7 @@ public class AddSignCommand {
             added.setParentNodeKey(task.getParentNodeKey());
             added.setAssignee(target);
             added.setStatus(WorkflowConstants.TASK_PENDING);
-            added.setOwnerId(originalOwner(task));
+            added.setOwnerId(target);
             added.setSignType(counterSign ? ProcessNodeType.COUNTER_SIGN.name() : WorkflowConstants.SIGN_TYPE_ADD_SIGN);
             added.setSignPolicy(counterSign ? WorkflowConstants.POLICY_ALL : null);
             processTaskMapper.insert(added);
@@ -99,17 +99,6 @@ public class AddSignCommand {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "单次最多加签 10 人");
         }
         return new ArrayList<>(unique);
-    }
-
-    /**
-     * 读取原始责任人：优先 {@code ownerId}，历史数据缺失时回落当前审批人。
-     *
-     * @param task 当前待办任务
-     * @return 原始责任人账号
-     */
-    private static String originalOwner(ProcessTask task) {
-        return task.getOwnerId() == null || task.getOwnerId().isBlank()
-                ? task.getAssignee() : task.getOwnerId();
     }
 
     /**

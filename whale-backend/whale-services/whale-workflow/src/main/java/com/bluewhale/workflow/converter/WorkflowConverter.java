@@ -24,8 +24,8 @@ import org.mapstruct.factory.Mappers;
  * 工作流实体与 VO 的映射器。
  *
  * <p>替代 {@code BeanUtils.copyProperties} 反射拷贝（审计 P2）：编译期校验字段
- * 对齐；派生字段（tasks/finishedAt/definitionJson）由调用方显式设置，在此声明
- * ignore 以保持映射输出干净。</p>
+ * 对齐；派生字段（tasks/definitionJson）由调用方显式设置，在此声明 ignore
+ * 以保持映射输出干净；{@code finishedAt} 与实体同名字段自动映射。</p>
  * @author BlueWhale
  */
 @Mapper
@@ -74,17 +74,15 @@ public interface WorkflowConverter {
      * @return 归档详情视图对象
      */
     @Mapping(target = "definitionJson", ignore = true)
-    @Mapping(target = "finishedAt", ignore = true)
     @Mapping(target = "tasks", ignore = true)
     ArchiveInstanceDetailVO toArchiveDetailVo(ProcessInstance entity);
 
     /**
-     * 归档实例实体转已通过摘要视图对象（finishedAt 由调用方回填）
+     * 归档实例实体转已通过摘要视图对象（finishedAt 同名字段自动映射）
      *
      * @param entity 流程实例实体
      * @return 已通过实例摘要视图对象
      */
-    @Mapping(target = "finishedAt", ignore = true)
     ApprovedInstanceVO toApprovedVo(ProcessInstance entity);
 
     /**

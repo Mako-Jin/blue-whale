@@ -49,7 +49,7 @@ public class ArchiveInstanceDetailVO implements Serializable {
     /** 定义快照 JSON（模型定义原文） */
     private String definitionJson;
 
-    /** 办结时间（取实例更新时间） */
+    /** 办结时间（优先独立字段，历史数据为空时回落更新时间） */
     private LocalDateTime finishedAt;
 
     /** 创建时间 */

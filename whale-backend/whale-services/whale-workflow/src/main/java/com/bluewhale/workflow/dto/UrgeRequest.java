@@ -1,6 +1,5 @@
 package com.bluewhale.workflow.dto;
 
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -19,8 +18,7 @@ public class UrgeRequest implements Serializable {
     /** 指定任务ID（可选；为空表示实例级催办） */
     private Long taskId;
 
-    /** 催办人账号（必填） */
-    @NotBlank(message = "催办人不能为空")
+    /** 催办人账号（服务端以 X-Username 覆盖，请求体值不采信；最长 64） */
     @Size(max = 64, message = "催办人账号长度不能超过 64")
     private String urger;
 

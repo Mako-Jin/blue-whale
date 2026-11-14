@@ -8,8 +8,8 @@ import java.time.LocalDateTime;
 /**
  * 已通过流程实例摘要视图对象（档案同步内网接口契约）。
  *
- * <p>{@code finishedAt} 取实例 {@code updateTime}：审批通过时实例状态与更新时间同事务落库，
- * 平台未单独维护办结时间字段，故以此作为办结时刻，档案侧仅用于计算保管到期日。</p>
+ * <p>{@code finishedAt} 取实例独立办结时间 {@code process_instance.finished_at}：
+ * 审批通过时写入；历史数据为空时归档侧回落 {@code update_time}，保证保管到期日可计算。</p>
  *
  * @author BlueWhale
  */

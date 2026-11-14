@@ -45,11 +45,23 @@ public class ProcessTaskVO implements Serializable {
     /** 会签策略快照 */
     private String signPolicy;
 
-    /** 原始责任人（首次创建任务时的审批人；转办、委派、加签后保持不变） */
+    /** 原始责任人（该任务首次创建时的审批人，代理改派前；转办、委派后保持不变） */
     private String ownerId;
 
     /** 委派来源人（非委派为空） */
     private String delegateFrom;
+
+    /** 并行分支父节点键（fork 网关键；非并行任务为空） */
+    private String parentNodeKey;
+
+    /** 实际完成人用户ID（内网系统完成时记录） */
+    private Long operatorId;
+
+    /** 操作类型：USER 用户 / SYSTEM 系统或回调 */
+    private String operatorType;
+
+    /** 操作来源：ESIGN_CALLBACK / MANUAL / SCHEDULER 等 */
+    private String operatorSource;
 
     /** 状态：0 待办 / 1 已同意 / 2 已驳回 / 3 已取消 */
     private Integer status;

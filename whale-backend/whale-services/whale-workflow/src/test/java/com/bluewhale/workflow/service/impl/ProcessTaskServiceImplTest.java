@@ -468,7 +468,7 @@ class ProcessTaskServiceImplTest {
         for (ProcessTask added : captor.getAllValues()) {
             assertEquals(0, added.getStatus().intValue());
             assertEquals("ADD_SIGN", added.getSignType());
-            assertEquals("admin", added.getOwnerId());
+            assertEquals(added.getAssignee(), added.getOwnerId());
             assertEquals("t1", added.getNodeKey());
             assertEquals("一级审批", added.getNodeName());
         }

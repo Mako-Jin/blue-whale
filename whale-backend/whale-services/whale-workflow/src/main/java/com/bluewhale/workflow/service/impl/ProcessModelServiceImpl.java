@@ -162,6 +162,7 @@ public class ProcessModelServiceImpl implements ProcessModelService {
         step.setNodeKey(node.getKey());
         step.setNodeName(node.getName());
         step.setNodeType(node.getType() == null ? null : node.getType().name());
+        step.setAssignees(List.of());
         if (incoming != null) {
             step.setFlowKey(incoming.getKey());
             step.setCondition(incoming.getCondition());
@@ -170,7 +171,7 @@ public class ProcessModelServiceImpl implements ProcessModelService {
         if (node.getType() == ProcessNodeType.USER_TASK) {
             step.setAssignee(node.getAssignee());
         } else if (node.getType() == ProcessNodeType.COUNTER_SIGN) {
-            step.setAssignees(node.getAssignees());
+            step.setAssignees(node.getAssignees() == null ? List.of() : node.getAssignees());
             step.setCounterSignPolicy(node.getCounterSignPolicy());
         }
         return step;
