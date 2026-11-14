@@ -6,10 +6,10 @@ import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.form.model.dto.FormColumnMetaDTO;
 import com.bluewhale.form.model.request.FormTableDefinitionSaveRequest;
-import com.bluewhale.form.entity.FormColumnMetaEntity;
-import com.bluewhale.form.entity.FormDefinitionEntity;
-import com.bluewhale.form.entity.FormFieldConfigEntity;
-import com.bluewhale.form.entity.FormTableDefinitionEntity;
+import com.bluewhale.form.po.FormColumnMetaPo;
+import com.bluewhale.form.po.FormDefinitionPo;
+import com.bluewhale.form.po.FormFieldConfigPo;
+import com.bluewhale.form.po.FormTableDefinitionPo;
 import com.bluewhale.form.mapper.FormColumnMetaMapper;
 import com.bluewhale.form.mapper.FormDefinitionMapper;
 import com.bluewhale.form.mapper.FormFieldConfigMapper;
@@ -73,10 +73,10 @@ class FormTableDefinitionServiceImplTest {
     @BeforeAll
     static void initLambdaCache() {
         MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "");
-        TableInfoHelper.initTableInfo(assistant, FormTableDefinitionEntity.class);
-        TableInfoHelper.initTableInfo(assistant, FormColumnMetaEntity.class);
-        TableInfoHelper.initTableInfo(assistant, FormFieldConfigEntity.class);
-        TableInfoHelper.initTableInfo(assistant, FormDefinitionEntity.class);
+        TableInfoHelper.initTableInfo(assistant, FormTableDefinitionPo.class);
+        TableInfoHelper.initTableInfo(assistant, FormColumnMetaPo.class);
+        TableInfoHelper.initTableInfo(assistant, FormFieldConfigPo.class);
+        TableInfoHelper.initTableInfo(assistant, FormDefinitionPo.class);
     }
 
     /**
@@ -113,8 +113,8 @@ class FormTableDefinitionServiceImplTest {
      *
      * @return 表定义实体
      */
-    private static FormTableDefinitionEntity tableDefinition() {
-        FormTableDefinitionEntity entity = new FormTableDefinitionEntity();
+    private static FormTableDefinitionPo tableDefinition() {
+        FormTableDefinitionPo entity = new FormTableDefinitionPo();
         entity.setId(10L);
         entity.setTableCode("biz_order");
         entity.setTableName("业务订单");
@@ -129,8 +129,8 @@ class FormTableDefinitionServiceImplTest {
      * @param code 列编码
      * @return 列元数据实体
      */
-    private static FormColumnMetaEntity existingColumn(Long id, String code) {
-        FormColumnMetaEntity column = new FormColumnMetaEntity();
+    private static FormColumnMetaPo existingColumn(Long id, String code) {
+        FormColumnMetaPo column = new FormColumnMetaPo();
         column.setId(id);
         column.setTableDefinitionId(10L);
         column.setColumnCode(code);
@@ -140,14 +140,14 @@ class FormTableDefinitionServiceImplTest {
     @Test
     @DisplayName("create：编码唯一时落库表定义并逐列落库")
     void shouldCreateTableAndColumns() {
-        when(formTableDefinitionMapper.selectCount(ArgumentMatchers.<Wrapper<FormTableDefinitionEntity>>any()))
+        when(formTableDefinitionMapper.selectCount(ArgumentMatchers.<Wrapper<FormTableDefinitionPo>>any()))
                 .thenReturn(0L);
 
         FormTableDefinitionVO vo = formTableDefinitionService.create(
                 saveRequest(List.of(column("amount", "number"), column("remark", "text"))));
 
-        verify(formTableDefinitionMapper).insert(any(FormTableDefinitionEntity.class));
-        verify(formColumnMetaMapper, times(2)).insert(any(FormColumnMetaEntity.class));
+        verify(formTableDefinitionMapper).insert(any(FormTableDefinitionPo.class));
+        verify(formColumnMetaMapper, times(2)).insert(any(FormColumnMetaPo.class));
         assertEquals("biz_order", vo.getTableCode());
         assertEquals(2, vo.getColumns().size());
     }
@@ -155,34 +155,34 @@ class FormTableDefinitionServiceImplTest {
     @Test
     @DisplayName("create：表编码已存在抛参数错误且不落库")
     void shouldRejectDuplicateTableCode() {
-        when(formTableDefinitionMapper.selectCount(ArgumentMatchers.<Wrapper<FormTableDefinitionEntity>>any()))
+        when(formTableDefinitionMapper.selectCount(ArgumentMatchers.<Wrapper<FormTableDefinitionPo>>any()))
                 .thenReturn(1L);
 
         BizException ex = assertThrows(BizException.class,
                 () -> formTableDefinitionService.create(saveRequest(List.of(column("amount", "number")))));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
-        verify(formTableDefinitionMapper, never()).insert(any(FormTableDefinitionEntity.class));
-        verify(formColumnMetaMapper, never()).insert(any(FormColumnMetaEntity.class));
+        verify(formTableDefinitionMapper, never()).insert(any(FormTableDefinitionPo.class));
+        verify(formColumnMetaMapper, never()).insert(any(FormColumnMetaPo.class));
     }
 
     @Test
     @DisplayName("create：非法存储类型抛参数错误")
     void shouldRejectInvalidDataType() {
-        when(formTableDefinitionMapper.selectCount(ArgumentMatchers.<Wrapper<FormTableDefinitionEntity>>any()))
+        when(formTableDefinitionMapper.selectCount(ArgumentMatchers.<Wrapper<FormTableDefinitionPo>>any()))
                 .thenReturn(0L);
 
         BizException ex = assertThrows(BizException.class,
                 () -> formTableDefinitionService.create(saveRequest(List.of(column("amount", "bad_type")))));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
-        verify(formColumnMetaMapper, never()).insert(any(FormColumnMetaEntity.class));
+        verify(formColumnMetaMapper, never()).insert(any(FormColumnMetaPo.class));
     }
 
     @Test
     @DisplayName("create：required=1 且 nullable=1 抛参数错误")
     void shouldRejectRequiredNullableConflict() {
-        when(formTableDefinitionMapper.selectCount(ArgumentMatchers.<Wrapper<FormTableDefinitionEntity>>any()))
+        when(formTableDefinitionMapper.selectCount(ArgumentMatchers.<Wrapper<FormTableDefinitionPo>>any()))
                 .thenReturn(0L);
         FormColumnMetaDTO dto = column("amount", "number");
         dto.setRequired(1);
@@ -192,20 +192,20 @@ class FormTableDefinitionServiceImplTest {
                 () -> formTableDefinitionService.create(saveRequest(List.of(dto))));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
-        verify(formColumnMetaMapper, never()).insert(any(FormColumnMetaEntity.class));
+        verify(formColumnMetaMapper, never()).insert(any(FormColumnMetaPo.class));
     }
 
     @Test
     @DisplayName("create：required=1 未指定 nullable 时推导为非空")
     void shouldDeriveNullableFromRequired() {
-        when(formTableDefinitionMapper.selectCount(ArgumentMatchers.<Wrapper<FormTableDefinitionEntity>>any()))
+        when(formTableDefinitionMapper.selectCount(ArgumentMatchers.<Wrapper<FormTableDefinitionPo>>any()))
                 .thenReturn(0L);
         FormColumnMetaDTO dto = column("amount", "number");
         dto.setRequired(1);
 
         formTableDefinitionService.create(saveRequest(List.of(dto)));
 
-        ArgumentCaptor<FormColumnMetaEntity> captor = ArgumentCaptor.forClass(FormColumnMetaEntity.class);
+        ArgumentCaptor<FormColumnMetaPo> captor = ArgumentCaptor.forClass(FormColumnMetaPo.class);
         verify(formColumnMetaMapper).insert(captor.capture());
         assertEquals(Integer.valueOf(0), captor.getValue().getNullable());
     }
@@ -214,12 +214,12 @@ class FormTableDefinitionServiceImplTest {
     @DisplayName("update：同编码列就地合并并保留原主键")
     void shouldKeepExistingColumnId() {
         when(formTableDefinitionMapper.selectById(10L)).thenReturn(tableDefinition());
-        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaEntity>>any()))
+        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaPo>>any()))
                 .thenReturn(List.of(existingColumn(100L, "amount")));
 
         formTableDefinitionService.update(10L, saveRequest(List.of(column("amount", "text"))));
 
-        ArgumentCaptor<FormColumnMetaEntity> captor = ArgumentCaptor.forClass(FormColumnMetaEntity.class);
+        ArgumentCaptor<FormColumnMetaPo> captor = ArgumentCaptor.forClass(FormColumnMetaPo.class);
         verify(formColumnMetaMapper).updateById(captor.capture());
         assertEquals(100L, captor.getValue().getId());
         verify(formColumnMetaMapper, never()).deleteById(anyLong());
@@ -229,13 +229,13 @@ class FormTableDefinitionServiceImplTest {
     @DisplayName("update：新增列落库")
     void shouldInsertNewColumn() {
         when(formTableDefinitionMapper.selectById(10L)).thenReturn(tableDefinition());
-        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaEntity>>any()))
+        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaPo>>any()))
                 .thenReturn(List.of(existingColumn(100L, "amount")));
 
         formTableDefinitionService.update(10L,
                 saveRequest(List.of(column("amount", "text"), column("remark", "text"))));
 
-        ArgumentCaptor<FormColumnMetaEntity> captor = ArgumentCaptor.forClass(FormColumnMetaEntity.class);
+        ArgumentCaptor<FormColumnMetaPo> captor = ArgumentCaptor.forClass(FormColumnMetaPo.class);
         verify(formColumnMetaMapper).insert(captor.capture());
         assertEquals("remark", captor.getValue().getColumnCode());
     }
@@ -244,18 +244,18 @@ class FormTableDefinitionServiceImplTest {
     @DisplayName("update：待删列被表单视图引用抛参数错误且不删除")
     void shouldRejectDeletingReferencedColumn() {
         when(formTableDefinitionMapper.selectById(10L)).thenReturn(tableDefinition());
-        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaEntity>>any()))
+        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaPo>>any()))
                 .thenReturn(List.of(existingColumn(100L, "amount")));
-        FormFieldConfigEntity config = new FormFieldConfigEntity();
+        FormFieldConfigPo config = new FormFieldConfigPo();
         config.setFormId(5L);
         config.setColumnMetaId(100L);
-        when(formFieldConfigMapper.selectList(ArgumentMatchers.<Wrapper<FormFieldConfigEntity>>any()))
+        when(formFieldConfigMapper.selectList(ArgumentMatchers.<Wrapper<FormFieldConfigPo>>any()))
                 .thenReturn(List.of(config));
-        FormDefinitionEntity form = new FormDefinitionEntity();
+        FormDefinitionPo form = new FormDefinitionPo();
         form.setId(5L);
         form.setName("订单表单");
         form.setTableDefinitionId(10L);
-        when(formDefinitionMapper.selectList(ArgumentMatchers.<Wrapper<FormDefinitionEntity>>any()))
+        when(formDefinitionMapper.selectList(ArgumentMatchers.<Wrapper<FormDefinitionPo>>any()))
                 .thenReturn(List.of(form));
 
         BizException ex = assertThrows(BizException.class,
@@ -269,9 +269,9 @@ class FormTableDefinitionServiceImplTest {
     @DisplayName("update：待删列未被引用则逻辑删除")
     void shouldDeleteUnreferencedColumn() {
         when(formTableDefinitionMapper.selectById(10L)).thenReturn(tableDefinition());
-        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaEntity>>any()))
+        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaPo>>any()))
                 .thenReturn(List.of(existingColumn(100L, "amount")));
-        when(formFieldConfigMapper.selectList(ArgumentMatchers.<Wrapper<FormFieldConfigEntity>>any()))
+        when(formFieldConfigMapper.selectList(ArgumentMatchers.<Wrapper<FormFieldConfigPo>>any()))
                 .thenReturn(List.of());
 
         formTableDefinitionService.update(10L, saveRequest(List.of(column("remark", "text"))));
@@ -283,12 +283,12 @@ class FormTableDefinitionServiceImplTest {
     @DisplayName("delete：表定义被表单引用时拒绝删除")
     void shouldRejectDeleteWhenReferenced() {
         when(formTableDefinitionMapper.selectById(10L)).thenReturn(tableDefinition());
-        when(formDefinitionMapper.selectCount(ArgumentMatchers.<Wrapper<FormDefinitionEntity>>any())).thenReturn(2L);
+        when(formDefinitionMapper.selectCount(ArgumentMatchers.<Wrapper<FormDefinitionPo>>any())).thenReturn(2L);
 
         BizException ex = assertThrows(BizException.class, () -> formTableDefinitionService.delete(10L));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         verify(formTableDefinitionMapper, never()).deleteById(anyLong());
-        verify(formColumnMetaMapper, never()).delete(ArgumentMatchers.<Wrapper<FormColumnMetaEntity>>any());
+        verify(formColumnMetaMapper, never()).delete(ArgumentMatchers.<Wrapper<FormColumnMetaPo>>any());
     }
 }

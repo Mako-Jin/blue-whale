@@ -2,13 +2,13 @@ package com.bluewhale.form.service.impl;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
-import com.bluewhale.form.entity.FormColumnMetaEntity;
-import com.bluewhale.form.entity.FormDataEntity;
-import com.bluewhale.form.entity.FormDefinitionEntity;
-import com.bluewhale.form.entity.FormFieldConfigEntity;
-import com.bluewhale.form.entity.FormFieldOptionEntity;
-import com.bluewhale.form.entity.FormTableDefinitionEntity;
-import com.bluewhale.form.entity.FormTableRegistryEntity;
+import com.bluewhale.form.po.FormColumnMetaPo;
+import com.bluewhale.form.po.FormDataPo;
+import com.bluewhale.form.po.FormDefinitionPo;
+import com.bluewhale.form.po.FormFieldConfigPo;
+import com.bluewhale.form.po.FormFieldOptionPo;
+import com.bluewhale.form.po.FormTableDefinitionPo;
+import com.bluewhale.form.po.FormTableRegistryPo;
 import com.bluewhale.form.mapper.FormColumnMetaMapper;
 import com.bluewhale.form.mapper.FormDataMapper;
 import com.bluewhale.form.mapper.FormDefinitionMapper;
@@ -78,9 +78,9 @@ class FormMetadataMigrationServiceImplTest {
     @BeforeAll
     static void initTableInfoCache() {
         MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "");
-        TableInfoHelper.initTableInfo(assistant, FormDefinitionEntity.class);
-        TableInfoHelper.initTableInfo(assistant, FormTableRegistryEntity.class);
-        TableInfoHelper.initTableInfo(assistant, FormDataEntity.class);
+        TableInfoHelper.initTableInfo(assistant, FormDefinitionPo.class);
+        TableInfoHelper.initTableInfo(assistant, FormTableRegistryPo.class);
+        TableInfoHelper.initTableInfo(assistant, FormDataPo.class);
     }
 
     /**
@@ -90,8 +90,8 @@ class FormMetadataMigrationServiceImplTest {
      * @param schemaJson 结构定义
      * @return 表单定义实体
      */
-    private static FormDefinitionEntity legacyForm(String code, String schemaJson) {
-        FormDefinitionEntity form = new FormDefinitionEntity();
+    private static FormDefinitionPo legacyForm(String code, String schemaJson) {
+        FormDefinitionPo form = new FormDefinitionPo();
         form.setId(10L);
         form.setCode(code);
         form.setName("A表单");
@@ -109,10 +109,10 @@ class FormMetadataMigrationServiceImplTest {
         int migrated = migrationService.migrateLegacy();
 
         assertEquals(1, migrated);
-        verify(formTableDefinitionMapper).insert(any(FormTableDefinitionEntity.class));
-        verify(formColumnMetaMapper, times(2)).insert(any(FormColumnMetaEntity.class));
-        verify(formFieldConfigMapper, times(2)).insert(any(FormFieldConfigEntity.class));
-        verify(formFieldOptionMapper, times(2)).insert(any(FormFieldOptionEntity.class));
+        verify(formTableDefinitionMapper).insert(any(FormTableDefinitionPo.class));
+        verify(formColumnMetaMapper, times(2)).insert(any(FormColumnMetaPo.class));
+        verify(formFieldConfigMapper, times(2)).insert(any(FormFieldConfigPo.class));
+        verify(formFieldOptionMapper, times(2)).insert(any(FormFieldOptionPo.class));
         verify(formDefinitionMapper).update(ArgumentMatchers.isNull(), ArgumentMatchers.any());
         verify(formTableRegistryMapper).update(ArgumentMatchers.isNull(), ArgumentMatchers.any());
         verify(formDataMapper).update(ArgumentMatchers.isNull(), ArgumentMatchers.any());
@@ -127,7 +127,7 @@ class FormMetadataMigrationServiceImplTest {
         int migrated = migrationService.migrateLegacy();
 
         assertEquals(0, migrated);
-        verify(formTableDefinitionMapper, never()).insert(any(FormTableDefinitionEntity.class));
-        verify(formColumnMetaMapper, never()).insert(any(FormColumnMetaEntity.class));
+        verify(formTableDefinitionMapper, never()).insert(any(FormTableDefinitionPo.class));
+        verify(formColumnMetaMapper, never()).insert(any(FormColumnMetaPo.class));
     }
 }

@@ -1,7 +1,7 @@
 package com.bluewhale.workflow.service.impl.task;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.bluewhale.workflow.entity.ProcessTask;
+import com.bluewhale.workflow.po.ProcessTaskPo;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
 import com.bluewhale.workflow.support.ProcessModelNode;
 import com.bluewhale.workflow.support.ProcessNodeType;
@@ -46,10 +46,10 @@ public class CounterSignCommand {
      * @return 满足返回 {@code true}
      */
     private boolean counterSignSatisfied(Long instanceId, String nodeKey, ProcessModelNode node) {
-        LambdaQueryWrapper<ProcessTask> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ProcessTask::getInstanceId, instanceId);
-        wrapper.eq(ProcessTask::getNodeKey, nodeKey);
-        List<ProcessTask> tasks = processTaskMapper.selectList(wrapper);
+        LambdaQueryWrapper<ProcessTaskPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ProcessTaskPo::getInstanceId, instanceId);
+        wrapper.eq(ProcessTaskPo::getNodeKey, nodeKey);
+        List<ProcessTaskPo> tasks = processTaskMapper.selectList(wrapper);
         // 仅统计有效任务：已取消任务（加签取消/上一轮 RATIO 收敛）不参与分母，避免阈值被永久放大
         long total = tasks.stream().filter(CounterSignCommand::isEffective).count();
         long approved = tasks.stream().filter(item -> isStatus(item, WorkflowConstants.TASK_APPROVED)).count();
@@ -104,7 +104,7 @@ public class CounterSignCommand {
      * @param task 任务
      * @return 已同意 / 待办 / 已驳回返回 {@code true}
      */
-    private static boolean isEffective(ProcessTask task) {
+    private static boolean isEffective(ProcessTaskPo task) {
         return isStatus(task, WorkflowConstants.TASK_APPROVED)
                 || isStatus(task, WorkflowConstants.TASK_PENDING)
                 || isStatus(task, WorkflowConstants.TASK_REJECTED);
@@ -117,7 +117,7 @@ public class CounterSignCommand {
      * @param status 状态值
      * @return 相等返回 {@code true}
      */
-    private static boolean isStatus(ProcessTask task, int status) {
+    private static boolean isStatus(ProcessTaskPo task, int status) {
         return task.getStatus() != null && task.getStatus() == status;
     }
 
@@ -128,12 +128,12 @@ public class CounterSignCommand {
      * @param nodeKey 节点键
      */
     private void cancelPendingTasksOfNode(Long instanceId, String nodeKey) {
-        ProcessTask update = new ProcessTask();
+        ProcessTaskPo update = new ProcessTaskPo();
         update.setStatus(WorkflowConstants.TASK_CANCELED);
-        LambdaQueryWrapper<ProcessTask> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ProcessTask::getInstanceId, instanceId);
-        wrapper.eq(ProcessTask::getNodeKey, nodeKey);
-        wrapper.eq(ProcessTask::getStatus, WorkflowConstants.TASK_PENDING);
+        LambdaQueryWrapper<ProcessTaskPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ProcessTaskPo::getInstanceId, instanceId);
+        wrapper.eq(ProcessTaskPo::getNodeKey, nodeKey);
+        wrapper.eq(ProcessTaskPo::getStatus, WorkflowConstants.TASK_PENDING);
         processTaskMapper.update(update, wrapper);
     }
 
@@ -148,10 +148,10 @@ public class CounterSignCommand {
         if (nodeKey == null || nodeKey.isBlank()) {
             return false;
         }
-        LambdaQueryWrapper<ProcessTask> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ProcessTask::getInstanceId, instanceId);
-        wrapper.eq(ProcessTask::getNodeKey, nodeKey);
-        wrapper.eq(ProcessTask::getStatus, WorkflowConstants.TASK_PENDING);
+        LambdaQueryWrapper<ProcessTaskPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ProcessTaskPo::getInstanceId, instanceId);
+        wrapper.eq(ProcessTaskPo::getNodeKey, nodeKey);
+        wrapper.eq(ProcessTaskPo::getStatus, WorkflowConstants.TASK_PENDING);
         Long pending = processTaskMapper.selectCount(wrapper);
         return pending != null && pending > 0;
     }

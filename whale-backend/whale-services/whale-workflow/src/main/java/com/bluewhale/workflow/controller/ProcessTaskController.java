@@ -3,11 +3,11 @@ package com.bluewhale.workflow.controller;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
-import com.bluewhale.workflow.dto.ApprovalRequest;
-import com.bluewhale.workflow.dto.ProcessTaskQueryRequest;
-import com.bluewhale.workflow.dto.TaskAddSignRequest;
-import com.bluewhale.workflow.dto.TaskRollbackRequest;
-import com.bluewhale.workflow.dto.TaskTransferRequest;
+import com.bluewhale.workflow.request.ApprovalRequest;
+import com.bluewhale.workflow.request.ProcessTaskQueryRequest;
+import com.bluewhale.workflow.request.TaskAddSignRequest;
+import com.bluewhale.workflow.request.TaskRollbackRequest;
+import com.bluewhale.workflow.request.TaskTransferRequest;
 import com.bluewhale.workflow.service.ProcessTaskService;
 import com.bluewhale.workflow.vo.ProcessTaskVO;
 import jakarta.validation.Valid;
@@ -23,14 +23,14 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 待办任务管理接口。
  *
- * <p>服务内路径前缀 {@code /workflow/task}；经网关按 {@code Path=/workflow/**} 规则转发，
+ * <p>服务内路径前缀 {@code /workflow/v1/task}；经网关按 {@code Path=/workflow/**} 规则转发，
  * 外部路径与本文档一致。全部接口受 {@code @RequirePermission("sys:workflow:task:*")} 保护
  * （AUTH-06：由网关权限码头 {@code X-Permission-Codes} + starter {@code RequirePermissionInterceptor} 判定）。</p>
  *
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/workflow/task")
+@RequestMapping(path = "/workflow/v{version}/task", version = "1")
 @RequiredArgsConstructor
 public class ProcessTaskController {
 

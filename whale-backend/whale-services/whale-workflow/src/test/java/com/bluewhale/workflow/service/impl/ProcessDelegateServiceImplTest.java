@@ -2,8 +2,8 @@ package com.bluewhale.workflow.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.common.core.exception.BizException;
-import com.bluewhale.workflow.dto.DelegateRuleSaveRequest;
-import com.bluewhale.workflow.entity.ProcessDelegate;
+import com.bluewhale.workflow.request.DelegateRuleSaveRequest;
+import com.bluewhale.workflow.po.ProcessDelegatePo;
 import com.bluewhale.workflow.mapper.ProcessDelegateMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -42,7 +42,7 @@ class ProcessDelegateServiceImplTest {
     @Test
     @DisplayName("resolveActive：命中生效规则返回代理人")
     void shouldResolveActiveDelegate() {
-        ProcessDelegate rule = new ProcessDelegate();
+        ProcessDelegatePo rule = new ProcessDelegatePo();
         rule.setToAccount("zhaoliu");
         when(processDelegateMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(rule));
 
@@ -87,7 +87,7 @@ class ProcessDelegateServiceImplTest {
 
         processDelegateService.create(request);
 
-        verify(processDelegateMapper).insert(any(ProcessDelegate.class));
+        verify(processDelegateMapper).insert(any(ProcessDelegatePo.class));
     }
 
     /**

@@ -3,10 +3,10 @@ package com.bluewhale.workflow.controller;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
-import com.bluewhale.workflow.dto.DefinitionMigrationRequest;
-import com.bluewhale.workflow.dto.DefinitionPublishRequest;
-import com.bluewhale.workflow.dto.ProcessDefinitionSaveRequest;
-import com.bluewhale.workflow.dto.ProcessQueryRequest;
+import com.bluewhale.workflow.request.DefinitionMigrationRequest;
+import com.bluewhale.workflow.request.DefinitionPublishRequest;
+import com.bluewhale.workflow.request.ProcessDefinitionSaveRequest;
+import com.bluewhale.workflow.request.ProcessQueryRequest;
 import com.bluewhale.workflow.service.ProcessDefinitionService;
 import com.bluewhale.workflow.vo.DefinitionMigrationVO;
 import com.bluewhale.workflow.vo.ProcessDefinitionVO;
@@ -27,14 +27,14 @@ import java.util.List;
 /**
  * 流程定义管理接口。
  *
- * <p>服务内路径前缀 {@code /workflow}；经网关按 {@code Path=/workflow/**} 规则转发，外部路径与本文档一致。
+ * <p>服务内路径前缀 {@code /workflow/v1}；经网关按 {@code Path=/workflow/**} 规则转发，外部路径与本文档一致。
  * 全部接口受 {@code @RequirePermission("sys:workflow:*")} 保护
  * （AUTH-06：由网关权限码头 {@code X-Permission-Codes} + starter {@code RequirePermissionInterceptor} 判定）。</p>
  *
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/workflow")
+@RequestMapping(path = "/workflow/v{version}", version = "1")
 @RequiredArgsConstructor
 public class WorkflowController {
 

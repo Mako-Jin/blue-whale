@@ -20,8 +20,8 @@ import java.util.Map;
 /**
  * whale-workflow 内网审批客户端。
  *
- * <p>发起审批走 {@code POST /workflow/instance}（身份与权限码头由当前请求透传）；
- * 审批结果同步走 {@code GET /workflow/internal/instance/{id}/detail}（内网只读，无权限码）。</p>
+ * <p>发起审批走 {@code POST /workflow/v1/instance}（身份与权限码头由当前请求透传）；
+ * 审批结果同步走 {@code GET /workflow/v1/internal/instance/{id}/detail}（内网只读，无权限码）。</p>
  *
  * @author BlueWhale
  */
@@ -29,13 +29,13 @@ import java.util.Map;
 public class ContractApprovalClient {
 
     /** 发起流程实例路径 */
-    private static final String START_PATH = "/workflow/instance";
+    private static final String START_PATH = "/workflow/v1/instance";
 
     /** 撤销流程实例路径 */
-    private static final String CANCEL_PATH = "/workflow/instance/{id}/cancel";
+    private static final String CANCEL_PATH = "/workflow/v1/instance/{id}/cancel";
 
     /** 实例归档详情路径（内网） */
-    private static final String DETAIL_PATH = "/workflow/internal/instance/{id}/detail";
+    private static final String DETAIL_PATH = "/workflow/v1/internal/instance/{id}/detail";
 
     /** 统一响应体状态码字段 */
     private static final String FIELD_CODE = "code";

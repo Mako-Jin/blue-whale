@@ -1,6 +1,6 @@
 package com.bluewhale.form.support;
 
-import com.bluewhale.form.entity.FormTableRegistryEntity;
+import com.bluewhale.form.po.FormTableRegistryPo;
 import com.bluewhale.form.mapper.FormTableRegistryMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -35,7 +35,7 @@ public class FormRegistryStatusMarker {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
     public void markFailed(Long registryId, String errorMessage) {
-        FormTableRegistryEntity update = new FormTableRegistryEntity();
+        FormTableRegistryPo update = new FormTableRegistryPo();
         update.setId(registryId);
         update.setStatus(STATUS_FAILED);
         update.setLastError(truncate(errorMessage));

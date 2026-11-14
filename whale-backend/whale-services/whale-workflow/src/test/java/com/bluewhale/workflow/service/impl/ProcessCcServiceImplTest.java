@@ -6,8 +6,8 @@ import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
-import com.bluewhale.workflow.dto.ProcessCcQueryRequest;
-import com.bluewhale.workflow.entity.ProcessCc;
+import com.bluewhale.workflow.po.ProcessCcPo;
+import com.bluewhale.workflow.request.ProcessCcQueryRequest;
 import com.bluewhale.workflow.mapper.ProcessCcMapper;
 import com.bluewhale.workflow.vo.ProcessCcVO;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
@@ -50,7 +50,7 @@ class ProcessCcServiceImplTest {
 
     @BeforeAll
     static void initTableInfo() {
-        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), ProcessCc.class);
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), ProcessCcPo.class);
     }
 
     @Test
@@ -58,10 +58,10 @@ class ProcessCcServiceImplTest {
     void shouldCreateStartCcWithAccounts() {
         processCcService.createStartCc(9L, List.of("zhangsan", "lisi"));
 
-        ArgumentCaptor<ProcessCc> captor = ArgumentCaptor.forClass(ProcessCc.class);
+        ArgumentCaptor<ProcessCcPo> captor = ArgumentCaptor.forClass(ProcessCcPo.class);
         verify(processCcMapper, times(2)).insert(captor.capture());
         assertEquals(List.of("zhangsan", "lisi"),
-                captor.getAllValues().stream().map(ProcessCc::getRecipient).toList());
+                captor.getAllValues().stream().map(ProcessCcPo::getRecipient).toList());
         captor.getAllValues().forEach(cc -> {
             assertEquals("START", cc.getNodeKey());
             assertEquals("发起抄送", cc.getNodeName());
@@ -74,17 +74,17 @@ class ProcessCcServiceImplTest {
     void shouldQueryByNormalizedCandidates() {
         ProcessCcQueryRequest query = new ProcessCcQueryRequest();
         query.setRecipientCandidates(List.of("u1", " 42 ", "u1", " ", "u2"));
-        ProcessCc cc = new ProcessCc();
+        ProcessCcPo cc = new ProcessCcPo();
         cc.setId(1L);
         cc.setRecipient("u1");
-        Page<ProcessCc> page = new Page<>(1, 10, false);
+        Page<ProcessCcPo> page = new Page<>(1, 10, false);
         page.setRecords(List.of(cc));
         page.setTotal(1);
         when(processCcMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class))).thenReturn(page);
 
         List<ProcessCcVO> records = processCcService.page(query).getRecords();
 
-        ArgumentCaptor<LambdaQueryWrapper<ProcessCc>> captor = wrapperCaptor();
+        ArgumentCaptor<LambdaQueryWrapper<ProcessCcPo>> captor = wrapperCaptor();
         verify(processCcMapper).selectPage(any(Page.class), captor.capture());
         String sql = captor.getValue().getSqlSegment();
         assertTrue(sql.contains("recipient IN"));
@@ -107,14 +107,14 @@ class ProcessCcServiceImplTest {
         }
         ProcessCcQueryRequest query = new ProcessCcQueryRequest();
         query.setRecipientCandidates(candidates);
-        Page<ProcessCc> page = new Page<>(1, 10, false);
+        Page<ProcessCcPo> page = new Page<>(1, 10, false);
         page.setRecords(List.of());
         page.setTotal(0);
         when(processCcMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class))).thenReturn(page);
 
         processCcService.page(query);
 
-        ArgumentCaptor<LambdaQueryWrapper<ProcessCc>> captor = wrapperCaptor();
+        ArgumentCaptor<LambdaQueryWrapper<ProcessCcPo>> captor = wrapperCaptor();
         verify(processCcMapper).selectPage(any(Page.class), captor.capture());
         // MyBatis-Plus 的 IN 片段惰性求值：先渲染 SQL 才会注册参数，再断言参数值
         String sql = captor.getValue().getSqlSegment();
@@ -145,14 +145,14 @@ class ProcessCcServiceImplTest {
     void shouldFallbackToSingleRecipient() {
         ProcessCcQueryRequest query = new ProcessCcQueryRequest();
         query.setRecipient("42");
-        Page<ProcessCc> page = new Page<>(1, 10, false);
+        Page<ProcessCcPo> page = new Page<>(1, 10, false);
         page.setRecords(List.of());
         page.setTotal(0);
         when(processCcMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class))).thenReturn(page);
 
         processCcService.page(query);
 
-        ArgumentCaptor<LambdaQueryWrapper<ProcessCc>> captor = wrapperCaptor();
+        ArgumentCaptor<LambdaQueryWrapper<ProcessCcPo>> captor = wrapperCaptor();
         verify(processCcMapper).selectPage(any(Page.class), captor.capture());
         String sql = captor.getValue().getSqlSegment();
         assertTrue(sql.contains("recipient ="));
@@ -162,7 +162,7 @@ class ProcessCcServiceImplTest {
     @Test
     @DisplayName("get：存在时返回抄送视图")
     void shouldGetCcById() {
-        ProcessCc cc = new ProcessCc();
+        ProcessCcPo cc = new ProcessCcPo();
         cc.setId(7L);
         cc.setInstanceId(100L);
         cc.setRecipient("u1");
@@ -184,7 +184,7 @@ class ProcessCcServiceImplTest {
         BizException ex = assertThrows(BizException.class, () -> processCcService.get(9L));
 
         assertEquals(ErrorCode.NOT_FOUND.getCode(), ex.getCode());
-        verify(processCcMapper, never()).insert(any(ProcessCc.class));
+        verify(processCcMapper, never()).insert(any(ProcessCcPo.class));
     }
 
     /**
@@ -193,7 +193,7 @@ class ProcessCcServiceImplTest {
      * @return 捕获器
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private static ArgumentCaptor<LambdaQueryWrapper<ProcessCc>> wrapperCaptor() {
+    private static ArgumentCaptor<LambdaQueryWrapper<ProcessCcPo>> wrapperCaptor() {
         return (ArgumentCaptor) ArgumentCaptor.forClass(LambdaQueryWrapper.class);
     }
 }

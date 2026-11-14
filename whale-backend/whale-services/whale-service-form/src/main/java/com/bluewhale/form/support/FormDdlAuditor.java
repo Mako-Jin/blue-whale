@@ -2,7 +2,7 @@ package com.bluewhale.form.support;
 
 import com.bluewhale.common.context.RequestContextHolder;
 import com.bluewhale.common.tenant.TenantContext;
-import com.bluewhale.form.entity.FormDdlAuditEntity;
+import com.bluewhale.form.po.FormDdlAuditPo;
 import com.bluewhale.form.mapper.FormDdlAuditMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -75,7 +75,7 @@ public class FormDdlAuditor {
      */
     private void doRecord(String definitionType, Long definitionId, String physicalTable, String ddl,
                           int success, String errorMessage) {
-        FormDdlAuditEntity audit = new FormDdlAuditEntity();
+        FormDdlAuditPo audit = new FormDdlAuditPo();
         audit.setTenantId(TenantContext.get());
         audit.setDefinitionType(definitionType);
         audit.setDefinitionId(definitionId);

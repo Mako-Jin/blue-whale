@@ -19,7 +19,7 @@ import lombok.EqualsAndHashCode;
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("form_table_registry")
-public class FormTableRegistryEntity extends BaseEntity {
+public class FormTableRegistryPo extends BaseEntity {
 
     private static final long serialVersionUID = 1L;
 

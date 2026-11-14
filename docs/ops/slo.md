@@ -20,7 +20,7 @@ sum(rate(http_server_requests_seconds_count{uri="/form/data",method="POST",appli
 ## SLO-3 审批流转时延：P95 < 1000ms
 
 ```promql
-histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri=~"/workflow/task/.*",application="whale-workflow"}[5m])))
+histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri=~"/workflow/v1/task/.*",application="whale-workflow"}[5m])))
 ```
 
 ## SLO-4 文档保存时延：P95 < 500ms

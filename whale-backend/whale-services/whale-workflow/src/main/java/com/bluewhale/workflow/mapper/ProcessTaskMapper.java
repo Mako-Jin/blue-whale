@@ -1,7 +1,7 @@
 package com.bluewhale.workflow.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bluewhale.workflow.entity.ProcessTask;
+import com.bluewhale.workflow.po.ProcessTaskPo;
 
 /**
  * 待办任务 Mapper。
@@ -10,5 +10,5 @@ import com.bluewhale.workflow.entity.ProcessTask;
  *
  * @author BlueWhale
  */
-public interface ProcessTaskMapper extends BaseMapper<ProcessTask> {
+public interface ProcessTaskMapper extends BaseMapper<ProcessTaskPo> {
 }

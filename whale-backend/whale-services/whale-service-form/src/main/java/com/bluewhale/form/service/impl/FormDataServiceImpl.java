@@ -10,11 +10,11 @@ import com.bluewhale.form.model.dto.FormDataFilter;
 import com.bluewhale.form.model.request.FormDataQueryRequest;
 import com.bluewhale.form.model.request.FormDataSubmitRequest;
 import com.bluewhale.form.model.request.FormDataUpdateRequest;
-import com.bluewhale.form.entity.FormColumnMetaEntity;
-import com.bluewhale.form.entity.FormDataEntity;
-import com.bluewhale.form.entity.FormDefinitionEntity;
-import com.bluewhale.form.entity.FormTableDefinitionEntity;
-import com.bluewhale.form.entity.FormTableRegistryEntity;
+import com.bluewhale.form.po.FormColumnMetaPo;
+import com.bluewhale.form.po.FormDataPo;
+import com.bluewhale.form.po.FormDefinitionPo;
+import com.bluewhale.form.po.FormTableDefinitionPo;
+import com.bluewhale.form.po.FormTableRegistryPo;
 import com.bluewhale.form.mapper.FormColumnMetaMapper;
 import com.bluewhale.form.mapper.FormDataMapper;
 import com.bluewhale.form.mapper.FormDefinitionMapper;
@@ -129,24 +129,24 @@ public class FormDataServiceImpl implements FormDataService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public FormDataVO submit(FormDataSubmitRequest request, String submitter, Long tenantId) {
-        FormDefinitionEntity definition = requireDefinition(request.getDefinitionId());
+        FormDefinitionPo definition = requireDefinition(request.getDefinitionId());
         String clientRequestId = normalizeClientRequestId(request.getClientRequestId());
-        FormDataEntity existing = findByClientRequestId(tenantId, definition.getCode(), clientRequestId);
+        FormDataPo existing = findByClientRequestId(tenantId, definition.getCode(), clientRequestId);
         if (existing != null) {
             return toVo(existing, parseDataQuietly(existing.getDataJson()));
         }
         validateDataSize(request.getDataJson());
         Integer formVersion = definition.getVersion() == null ? DEFAULT_VERSION : definition.getVersion();
-        FormTableDefinitionEntity table = definition.getTableDefinitionId() == null
+        FormTableDefinitionPo table = definition.getTableDefinitionId() == null
                 ? null : requireTableDefinition(definition.getTableDefinitionId());
         String routeCode = table == null ? definition.getCode() : table.getTableCode();
         Integer routeVersion = table == null ? formVersion : tableVersionOf(table);
-        FormTableRegistryEntity registry = requireRegistry(routeCode, routeVersion);
+        FormTableRegistryPo registry = requireRegistry(routeCode, routeVersion);
         String schema = table == null ? registry.getSchemaJson() : definition.getSchemaJson();
         List<FormField> fields = FormSchemaParser.parse(schema);
         Map<String, Object> data = parseData(request.getDataJson());
         validateFields(fields, data);
-        FormDataEntity entity = new FormDataEntity();
+        FormDataPo entity = new FormDataPo();
         entity.setTenantId(tenantId);
         entity.setDefinitionId(definition.getId());
         entity.setDefinitionCode(definition.getCode());
@@ -166,7 +166,7 @@ public class FormDataServiceImpl implements FormDataService {
             formDataMapper.insert(entity);
         } catch (DuplicateKeyException e) {
             // 并发重复提交：唯一键兜底后回查首次提交结果；软删记录占用键时无匹配则给出明确提示
-            FormDataEntity duplicated = findByClientRequestId(tenantId, definition.getCode(), clientRequestId);
+            FormDataPo duplicated = findByClientRequestId(tenantId, definition.getCode(), clientRequestId);
             if (duplicated == null) {
                 throw paramError("客户端请求ID已被占用，请重新生成 clientRequestId");
             }
@@ -194,24 +194,24 @@ public class FormDataServiceImpl implements FormDataService {
      * @param clientRequestId 幂等键（{@code null} 表示未启用幂等）
      * @return 已存在的表单数据；未命中返回 {@code null}
      */
-    private FormDataEntity findByClientRequestId(Long tenantId, String definitionCode, String clientRequestId) {
+    private FormDataPo findByClientRequestId(Long tenantId, String definitionCode, String clientRequestId) {
         if (clientRequestId == null) {
             return null;
         }
-        LambdaQueryWrapper<FormDataEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FormDataEntity::getTenantId, tenantId);
-        wrapper.eq(FormDataEntity::getDefinitionCode, definitionCode);
-        wrapper.eq(FormDataEntity::getClientRequestId, clientRequestId);
+        LambdaQueryWrapper<FormDataPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormDataPo::getTenantId, tenantId);
+        wrapper.eq(FormDataPo::getDefinitionCode, definitionCode);
+        wrapper.eq(FormDataPo::getClientRequestId, clientRequestId);
         return formDataMapper.selectOne(wrapper);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public FormDataVO update(Long id, FormDataUpdateRequest request, Long tenantId) {
-        FormDataEntity entity = requireData(id, tenantId);
-        FormDefinitionEntity definition = requireDefinition(entity.getDefinitionId());
+        FormDataPo entity = requireData(id, tenantId);
+        FormDefinitionPo definition = requireDefinition(entity.getDefinitionId());
         validateDataSize(request.getDataJson());
-        FormTableRegistryEntity registry = requireRegistry(routeCodeOf(entity), routeVersionOf(entity));
+        FormTableRegistryPo registry = requireRegistry(routeCodeOf(entity), routeVersionOf(entity));
         List<FormField> tableFields = FormSchemaParser.parseStorage(schemaOf(registry));
         List<FormField> viewFields = StringUtils.hasText(definition.getSchemaJson())
                 ? FormSchemaParser.parse(definition.getSchemaJson()) : tableFields;
@@ -227,8 +227,8 @@ public class FormDataServiceImpl implements FormDataService {
 
     @Override
     public FormDataVO getDetail(Long id, Long tenantId) {
-        FormDataEntity entity = requireData(id, tenantId);
-        FormTableRegistryEntity registry = requireRegistry(routeCodeOf(entity), routeVersionOf(entity));
+        FormDataPo entity = requireData(id, tenantId);
+        FormTableRegistryPo registry = requireRegistry(routeCodeOf(entity), routeVersionOf(entity));
         List<FormField> fields = FormSchemaParser.parseStorage(schemaOf(registry));
         Map<String, Object> data =
                 formDataEngine.selectFields(registry.getPhysicalTable(), entity.getId(), tenantId, fields);
@@ -237,8 +237,8 @@ public class FormDataServiceImpl implements FormDataService {
 
     @Override
     public FormArchiveVO getArchiveDetail(Long id, Long tenantId) {
-        FormDataEntity entity = requireData(id, tenantId);
-        FormTableRegistryEntity registry = requireRegistry(routeCodeOf(entity), routeVersionOf(entity));
+        FormDataPo entity = requireData(id, tenantId);
+        FormTableRegistryPo registry = requireRegistry(routeCodeOf(entity), routeVersionOf(entity));
         List<FormField> fields = FormSchemaParser.parseStorage(schemaOf(registry));
         Map<String, Object> data =
                 formDataEngine.selectFields(registry.getPhysicalTable(), entity.getId(), tenantId, fields);
@@ -251,27 +251,27 @@ public class FormDataServiceImpl implements FormDataService {
     @Override
     public PageResult<FormDataVO> page(FormDataQueryRequest request, Long tenantId) {
         List<FormDataFilter> filters = parseFilters(request.getFilters());
-        Page<FormDataEntity> query = request.toPage();
+        Page<FormDataPo> query = request.toPage();
         long current = query.getCurrent();
         long size = query.getSize();
         if (!filters.isEmpty()) {
             if (!StringUtils.hasText(request.getDefinitionCode())) {
                 throw paramError("动态字段条件检索需先指定表单编码");
             }
-            FormDefinitionEntity definition = requireDefinitionByCode(request.getDefinitionCode());
+            FormDefinitionPo definition = requireDefinitionByCode(request.getDefinitionCode());
             FilteredRows matched = selectByFilters(definition, request, filters, tenantId,
                     (current - 1) * size, size);
             List<FormDataVO> filtered = matched.rows().stream().map(entity -> toVo(entity, null)).toList();
             return PageResult.of(filtered, matched.total(), current, size);
         }
-        LambdaQueryWrapper<FormDataEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FormDataEntity::getTenantId, tenantId);
-        wrapper.eq(StringUtils.hasText(request.getDefinitionCode()), FormDataEntity::getDefinitionCode,
+        LambdaQueryWrapper<FormDataPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormDataPo::getTenantId, tenantId);
+        wrapper.eq(StringUtils.hasText(request.getDefinitionCode()), FormDataPo::getDefinitionCode,
                 request.getDefinitionCode());
-        wrapper.eq(StringUtils.hasText(request.getBizKey()), FormDataEntity::getBizKey, request.getBizKey());
-        wrapper.eq(StringUtils.hasText(request.getSubmitter()), FormDataEntity::getSubmitter, request.getSubmitter());
-        wrapper.orderByDesc(FormDataEntity::getCreateTime);
-        Page<FormDataEntity> page = formDataMapper.selectPage(query, wrapper);
+        wrapper.eq(StringUtils.hasText(request.getBizKey()), FormDataPo::getBizKey, request.getBizKey());
+        wrapper.eq(StringUtils.hasText(request.getSubmitter()), FormDataPo::getSubmitter, request.getSubmitter());
+        wrapper.orderByDesc(FormDataPo::getCreateTime);
+        Page<FormDataPo> page = formDataMapper.selectPage(query, wrapper);
         List<FormDataVO> records = page.getRecords().stream().map(entity -> toVo(entity, null)).toList();
         return PageResult.of(records, page.getTotal(), page.getCurrent(), page.getSize());
     }
@@ -279,9 +279,9 @@ public class FormDataServiceImpl implements FormDataService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id, Long tenantId) {
-        FormDataEntity entity = requireData(id, tenantId);
+        FormDataPo entity = requireData(id, tenantId);
         formDataMapper.deleteById(id);
-        FormTableRegistryEntity registry = requireRegistry(routeCodeOf(entity), routeVersionOf(entity));
+        FormTableRegistryPo registry = requireRegistry(routeCodeOf(entity), routeVersionOf(entity));
         formDataEngine.logicDelete(registry.getPhysicalTable(), id, tenantId);
     }
 
@@ -291,11 +291,11 @@ public class FormDataServiceImpl implements FormDataService {
         if (!StringUtils.hasText(request.getDefinitionCode())) {
             throw paramError("请先指定表单编码后再导出");
         }
-        FormDefinitionEntity definition = requireDefinitionByCode(request.getDefinitionCode());
+        FormDefinitionPo definition = requireDefinitionByCode(request.getDefinitionCode());
         List<FormField> fields = FormSchemaParser.parse(definition.getSchemaJson());
         List<FormDataFilter> filters = parseFilters(request.getFilters());
         boolean truncated;
-        List<FormDataEntity> exportData;
+        List<FormDataPo> exportData;
         if (filters.isEmpty()) {
             exportData = listExportData(request, tenantId, EXPORT_MAX_ROWS + 1);
             truncated = exportData.size() > EXPORT_MAX_ROWS;
@@ -315,7 +315,7 @@ public class FormDataServiceImpl implements FormDataService {
         }
         appendLegacyColumns(keys, headers, exportData);
         List<List<String>> rows = new ArrayList<>();
-        for (FormDataEntity entity : exportData) {
+        for (FormDataPo entity : exportData) {
             rows.add(exportRow(entity, keys));
         }
         String filename = "form-data-" + definition.getCode() + "-"
@@ -350,9 +350,9 @@ public class FormDataServiceImpl implements FormDataService {
      * @param exportData 待导出数据
      */
     private static void appendLegacyColumns(List<String> keys, List<String> headers,
-                                            List<FormDataEntity> exportData) {
+                                            List<FormDataPo> exportData) {
         Set<String> known = new HashSet<>(keys);
-        for (FormDataEntity entity : exportData) {
+        for (FormDataPo entity : exportData) {
             for (String key : parseDataQuietly(entity.getDataJson()).keySet()) {
                 if (known.add(key)) {
                     keys.add(key);
@@ -369,7 +369,7 @@ public class FormDataServiceImpl implements FormDataService {
      * @param keys 动态字段编码列表
      * @return 单元格文本列表
      */
-    private static List<String> exportRow(FormDataEntity entity, List<String> keys) {
+    private static List<String> exportRow(FormDataPo entity, List<String> keys) {
         List<String> row = new ArrayList<>();
         row.add(String.valueOf(entity.getId()));
         row.add(entity.getDefinitionCode());
@@ -418,14 +418,14 @@ public class FormDataServiceImpl implements FormDataService {
      * @param tenantId 租户ID
      * @return 表单数据实体列表
      */
-    private List<FormDataEntity> listExportData(FormDataQueryRequest request, Long tenantId, long limit) {
-        LambdaQueryWrapper<FormDataEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FormDataEntity::getTenantId, tenantId);
-        wrapper.eq(FormDataEntity::getDefinitionCode, request.getDefinitionCode());
-        wrapper.eq(StringUtils.hasText(request.getBizKey()), FormDataEntity::getBizKey, request.getBizKey());
-        wrapper.eq(StringUtils.hasText(request.getSubmitter()), FormDataEntity::getSubmitter, request.getSubmitter());
-        wrapper.orderByDesc(FormDataEntity::getCreateTime);
-        Page<FormDataEntity> page = formDataMapper.selectPage(new Page<>(1L, limit), wrapper);
+    private List<FormDataPo> listExportData(FormDataQueryRequest request, Long tenantId, long limit) {
+        LambdaQueryWrapper<FormDataPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormDataPo::getTenantId, tenantId);
+        wrapper.eq(FormDataPo::getDefinitionCode, request.getDefinitionCode());
+        wrapper.eq(StringUtils.hasText(request.getBizKey()), FormDataPo::getBizKey, request.getBizKey());
+        wrapper.eq(StringUtils.hasText(request.getSubmitter()), FormDataPo::getSubmitter, request.getSubmitter());
+        wrapper.orderByDesc(FormDataPo::getCreateTime);
+        Page<FormDataPo> page = formDataMapper.selectPage(new Page<>(1L, limit), wrapper);
         return page.getRecords();
     }
 
@@ -443,10 +443,10 @@ public class FormDataServiceImpl implements FormDataService {
      * @param limit 条数
      * @return 当页实体与命中总数
      */
-    private FilteredRows selectByFilters(FormDefinitionEntity definition, FormDataQueryRequest request,
+    private FilteredRows selectByFilters(FormDefinitionPo definition, FormDataQueryRequest request,
                                          List<FormDataFilter> filters, Long tenantId, long offset, long limit) {
         assertFilterFieldsDefined(definition, filters);
-        List<FormTableRegistryEntity> tables = listFilterTables(definition);
+        List<FormTableRegistryPo> tables = listFilterTables(definition);
         if (tables.isEmpty()) {
             throw paramError("表单未发布，暂不支持动态字段检索");
         }
@@ -457,7 +457,7 @@ public class FormDataServiceImpl implements FormDataService {
         Set<Long> ids = new LinkedHashSet<>();
         long total = 0L;
         boolean usable = false;
-        for (FormTableRegistryEntity registry : tables) {
+        for (FormTableRegistryPo registry : tables) {
             List<FormField> fields = fieldsOf(registry);
             if (fields == null || !containsAllFields(fields, filters)) {
                 continue;
@@ -471,7 +471,7 @@ public class FormDataServiceImpl implements FormDataService {
         if (!usable) {
             throw paramError("过滤字段在当前已发布版本中不可用");
         }
-        List<FormDataEntity> ordered = loadOrdered(ids);
+        List<FormDataPo> ordered = loadOrdered(ids);
         int from = (int) Math.min(offset, ordered.size());
         int to = (int) Math.min(offset + limit, ordered.size());
         return new FilteredRows(new ArrayList<>(ordered.subList(from, to)), total);
@@ -483,23 +483,23 @@ public class FormDataServiceImpl implements FormDataService {
      * @param ids 物理表命中的记录ID（按各表创建时间倒序）
      * @return 排序后的实体列表
      */
-    private List<FormDataEntity> loadOrdered(Set<Long> ids) {
+    private List<FormDataPo> loadOrdered(Set<Long> ids) {
         if (ids.isEmpty()) {
             return List.of();
         }
-        Map<Long, FormDataEntity> byId = new LinkedHashMap<>();
-        for (FormDataEntity entity : formDataMapper.selectBatchIds(ids)) {
+        Map<Long, FormDataPo> byId = new LinkedHashMap<>();
+        for (FormDataPo entity : formDataMapper.selectBatchIds(ids)) {
             byId.put(entity.getId(), entity);
         }
-        List<FormDataEntity> ordered = new ArrayList<>(ids.size());
+        List<FormDataPo> ordered = new ArrayList<>(ids.size());
         for (Long id : ids) {
-            FormDataEntity entity = byId.get(id);
+            FormDataPo entity = byId.get(id);
             if (entity != null) {
                 ordered.add(entity);
             }
         }
-        ordered.sort(Comparator.comparing(FormDataEntity::getCreateTime, Comparator.nullsLast(Comparator.naturalOrder()))
-                .thenComparing(FormDataEntity::getId, Comparator.nullsLast(Comparator.naturalOrder()))
+        ordered.sort(Comparator.comparing(FormDataPo::getCreateTime, Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(FormDataPo::getId, Comparator.nullsLast(Comparator.naturalOrder()))
                 .reversed());
         return ordered;
     }
@@ -510,14 +510,14 @@ public class FormDataServiceImpl implements FormDataService {
      * @param definition 表单定义
      * @return 物理表登记列表
      */
-    private List<FormTableRegistryEntity> listFilterTables(FormDefinitionEntity definition) {
-        LambdaQueryWrapper<FormTableRegistryEntity> wrapper = new LambdaQueryWrapper<>();
+    private List<FormTableRegistryPo> listFilterTables(FormDefinitionPo definition) {
+        LambdaQueryWrapper<FormTableRegistryPo> wrapper = new LambdaQueryWrapper<>();
         if (definition.getTableDefinitionId() == null) {
-            wrapper.eq(FormTableRegistryEntity::getDefinitionCode, definition.getCode());
+            wrapper.eq(FormTableRegistryPo::getDefinitionCode, definition.getCode());
         } else {
-            wrapper.eq(FormTableRegistryEntity::getTableDefinitionId, definition.getTableDefinitionId());
+            wrapper.eq(FormTableRegistryPo::getTableDefinitionId, definition.getTableDefinitionId());
         }
-        wrapper.eq(FormTableRegistryEntity::getStatus, STATUS_NORMAL);
+        wrapper.eq(FormTableRegistryPo::getStatus, STATUS_NORMAL);
         return formTableRegistryMapper.selectList(wrapper);
     }
 
@@ -527,7 +527,7 @@ public class FormDataServiceImpl implements FormDataService {
      * @param registry 物理表登记
      * @return 字段列表；无法确定该版本结构时返回 {@code null}（该版本不参与过滤）
      */
-    private List<FormField> fieldsOf(FormTableRegistryEntity registry) {
+    private List<FormField> fieldsOf(FormTableRegistryPo registry) {
         String schema = schemaOf(registry);
         return StringUtils.hasText(schema) ? FormSchemaParser.parseStorage(schema) : null;
     }
@@ -542,7 +542,7 @@ public class FormDataServiceImpl implements FormDataService {
      * @param registry 物理表登记
      * @return schema_json 文本；无法确定时返回 {@code null}
      */
-    private String schemaOf(FormTableRegistryEntity registry) {
+    private String schemaOf(FormTableRegistryPo registry) {
         if (StringUtils.hasText(registry.getSchemaJson())) {
             return registry.getSchemaJson();
         }
@@ -550,12 +550,12 @@ public class FormDataServiceImpl implements FormDataService {
             return null;
         }
         Map<String, String> physical = formDataEngine.describeColumns(registry.getPhysicalTable());
-        LambdaQueryWrapper<FormColumnMetaEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FormColumnMetaEntity::getTableDefinitionId, registry.getTableDefinitionId());
-        wrapper.eq(FormColumnMetaEntity::getTableVersion, registry.getTableVersion());
-        wrapper.eq(FormColumnMetaEntity::getStatus, STATUS_NORMAL);
-        wrapper.orderByAsc(FormColumnMetaEntity::getSortNo);
-        List<FormColumnMetaEntity> columns = formColumnMetaMapper.selectList(wrapper).stream()
+        LambdaQueryWrapper<FormColumnMetaPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormColumnMetaPo::getTableDefinitionId, registry.getTableDefinitionId());
+        wrapper.eq(FormColumnMetaPo::getTableVersion, registry.getTableVersion());
+        wrapper.eq(FormColumnMetaPo::getStatus, STATUS_NORMAL);
+        wrapper.orderByAsc(FormColumnMetaPo::getSortNo);
+        List<FormColumnMetaPo> columns = formColumnMetaMapper.selectList(wrapper).stream()
                 .filter(column -> physical.containsKey(column.getColumnCode()))
                 .toList();
         return columns.isEmpty() ? null : FormMetadataCompiler.compileTable(columns);
@@ -588,7 +588,7 @@ public class FormDataServiceImpl implements FormDataService {
      * @param filters 过滤条件
      * @throws BizException 字段不存在或类型不支持时抛出 {@code PARAM_ERROR}
      */
-    private static void assertFilterFieldsDefined(FormDefinitionEntity definition, List<FormDataFilter> filters) {
+    private static void assertFilterFieldsDefined(FormDefinitionPo definition, List<FormDataFilter> filters) {
         Map<String, FormField> fieldMap = new LinkedHashMap<>();
         for (FormField field : FormSchemaParser.parse(definition.getSchemaJson())) {
             fieldMap.put(field.getKey(), field);
@@ -647,7 +647,7 @@ public class FormDataServiceImpl implements FormDataService {
      * @param rows 当页实体
      * @param total 命中总数
      */
-    private record FilteredRows(List<FormDataEntity> rows, long total) {
+    private record FilteredRows(List<FormDataPo> rows, long total) {
     }
 
     /**
@@ -657,10 +657,10 @@ public class FormDataServiceImpl implements FormDataService {
      * @return 表单定义实体
      * @throws BizException 编码无匹配定义时抛出 {@code PARAM_ERROR}
      */
-    private FormDefinitionEntity requireDefinitionByCode(String code) {
-        LambdaQueryWrapper<FormDefinitionEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FormDefinitionEntity::getCode, code);
-        List<FormDefinitionEntity> definitions = formDefinitionMapper.selectList(wrapper);
+    private FormDefinitionPo requireDefinitionByCode(String code) {
+        LambdaQueryWrapper<FormDefinitionPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormDefinitionPo::getCode, code);
+        List<FormDefinitionPo> definitions = formDefinitionMapper.selectList(wrapper);
         if (definitions.isEmpty()) {
             throw paramError("表单编码不存在：" + code);
         }
@@ -676,8 +676,8 @@ public class FormDataServiceImpl implements FormDataService {
      * @param definitionId 表单定义ID
      * @return 表单定义实体
      */
-    private FormDefinitionEntity requireDefinition(Long definitionId) {
-        FormDefinitionEntity definition = formDefinitionMapper.selectById(definitionId);
+    private FormDefinitionPo requireDefinition(Long definitionId) {
+        FormDefinitionPo definition = formDefinitionMapper.selectById(definitionId);
         if (definition == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
@@ -690,8 +690,8 @@ public class FormDataServiceImpl implements FormDataService {
      * @param tableDefinitionId 表定义ID
      * @return 表定义实体
      */
-    private FormTableDefinitionEntity requireTableDefinition(Long tableDefinitionId) {
-        FormTableDefinitionEntity table = formTableDefinitionMapper.selectById(tableDefinitionId);
+    private FormTableDefinitionPo requireTableDefinition(Long tableDefinitionId) {
+        FormTableDefinitionPo table = formTableDefinitionMapper.selectById(tableDefinitionId);
         if (table == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
@@ -704,7 +704,7 @@ public class FormDataServiceImpl implements FormDataService {
      * @param entity 表单数据实体
      * @return 路由编码
      */
-    private static String routeCodeOf(FormDataEntity entity) {
+    private static String routeCodeOf(FormDataPo entity) {
         return entity.getTableCode() == null ? entity.getDefinitionCode() : entity.getTableCode();
     }
 
@@ -714,7 +714,7 @@ public class FormDataServiceImpl implements FormDataService {
      * @param entity 表单数据实体
      * @return 路由版本
      */
-    private static Integer routeVersionOf(FormDataEntity entity) {
+    private static Integer routeVersionOf(FormDataPo entity) {
         return entity.getTableCode() == null ? entity.getDefinitionVersion() : entity.getTableVersion();
     }
 
@@ -724,7 +724,7 @@ public class FormDataServiceImpl implements FormDataService {
      * @param table 表定义实体
      * @return 表定义版本
      */
-    private static int tableVersionOf(FormTableDefinitionEntity table) {
+    private static int tableVersionOf(FormTableDefinitionPo table) {
         return table.getVersion() == null ? DEFAULT_VERSION : table.getVersion();
     }
 
@@ -737,17 +737,17 @@ public class FormDataServiceImpl implements FormDataService {
      * @return 物理表登记实体
      * @throws BizException 未发布时抛出 {@code PARAM_ERROR}
      */
-    private FormTableRegistryEntity requireRegistry(String code, Integer version) {
-        LambdaQueryWrapper<FormTableRegistryEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FormTableRegistryEntity::getTableCode, code);
-        wrapper.eq(FormTableRegistryEntity::getTableVersion, version);
-        wrapper.eq(FormTableRegistryEntity::getStatus, STATUS_NORMAL);
-        FormTableRegistryEntity registry = formTableRegistryMapper.selectOne(wrapper);
+    private FormTableRegistryPo requireRegistry(String code, Integer version) {
+        LambdaQueryWrapper<FormTableRegistryPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormTableRegistryPo::getTableCode, code);
+        wrapper.eq(FormTableRegistryPo::getTableVersion, version);
+        wrapper.eq(FormTableRegistryPo::getStatus, STATUS_NORMAL);
+        FormTableRegistryPo registry = formTableRegistryMapper.selectOne(wrapper);
         if (registry == null) {
-            LambdaQueryWrapper<FormTableRegistryEntity> legacy = new LambdaQueryWrapper<>();
-            legacy.eq(FormTableRegistryEntity::getDefinitionCode, code);
-            legacy.eq(FormTableRegistryEntity::getDefinitionVersion, version);
-            legacy.eq(FormTableRegistryEntity::getStatus, STATUS_NORMAL);
+            LambdaQueryWrapper<FormTableRegistryPo> legacy = new LambdaQueryWrapper<>();
+            legacy.eq(FormTableRegistryPo::getDefinitionCode, code);
+            legacy.eq(FormTableRegistryPo::getDefinitionVersion, version);
+            legacy.eq(FormTableRegistryPo::getStatus, STATUS_NORMAL);
             registry = formTableRegistryMapper.selectOne(legacy);
         }
         if (registry == null) {
@@ -763,8 +763,8 @@ public class FormDataServiceImpl implements FormDataService {
      * @param tenantId 租户ID
      * @return 表单数据实体
      */
-    private FormDataEntity requireData(Long id, Long tenantId) {
-        FormDataEntity entity = formDataMapper.selectById(id);
+    private FormDataPo requireData(Long id, Long tenantId) {
+        FormDataPo entity = formDataMapper.selectById(id);
         if (entity == null || !tenantId.equals(entity.getTenantId())) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
@@ -1121,7 +1121,7 @@ public class FormDataServiceImpl implements FormDataService {
      * @param fields 结构化字段值（列表查询传 {@code null}）
      * @return 表单数据视图对象
      */
-    private static FormDataVO toVo(FormDataEntity entity, Map<String, Object> fields) {
+    private static FormDataVO toVo(FormDataPo entity, Map<String, Object> fields) {
         FormDataVO vo = FormConverter.INSTANCE.toDataVo(entity);
         vo.setFields(fields);
         return vo;

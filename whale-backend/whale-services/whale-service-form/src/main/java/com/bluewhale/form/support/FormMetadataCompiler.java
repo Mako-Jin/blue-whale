@@ -2,9 +2,9 @@ package com.bluewhale.form.support;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
-import com.bluewhale.form.entity.FormColumnMetaEntity;
-import com.bluewhale.form.entity.FormFieldConfigEntity;
-import com.bluewhale.form.entity.FormFieldOptionEntity;
+import com.bluewhale.form.po.FormColumnMetaPo;
+import com.bluewhale.form.po.FormFieldConfigPo;
+import com.bluewhale.form.po.FormFieldOptionPo;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -19,8 +19,8 @@ import java.util.Set;
 /**
  * 表单元数据 → {@code schema_json} 发布快照编译器。
  *
- * <p>把表单视图层的字段配置（{@link FormFieldConfigEntity}，含选项 {@link FormFieldOptionEntity}）与表定义层的
- * 列元数据（{@link FormColumnMetaEntity}）编译为 Wave 5.27 冻结的 {@code schema_json} 结构
+ * <p>把表单视图层的字段配置（{@link FormFieldConfigPo}，含选项 {@link FormFieldOptionPo}）与表定义层的
+ * 列元数据（{@link FormColumnMetaPo}）编译为 Wave 5.27 冻结的 {@code schema_json} 结构
  * （{@code {"fields":[{"key","label","type","widget","required","maxLength","options"}]}}）。
  * 该快照是发布产物（供动态引擎与前端渲染读取），元数据表才是唯一真源。</p>
  *
@@ -46,15 +46,15 @@ public final class FormMetadataCompiler {
      * @return {@code schema_json} 文本
      * @throws BizException 无数据字段、关联列缺失或重复引用列时抛出 {@code PARAM_ERROR}
      */
-    public static String compile(List<FormFieldConfigEntity> configs, Map<Long, FormColumnMetaEntity> columns,
-                                 Map<Long, List<FormFieldOptionEntity>> options) {
+    public static String compile(List<FormFieldConfigPo> configs, Map<Long, FormColumnMetaPo> columns,
+                                 Map<Long, List<FormFieldOptionPo>> options) {
         Set<String> keys = collectKeys(configs, columns);
         ArrayNode fields = MAPPER.createArrayNode();
-        for (FormFieldConfigEntity config : configs) {
+        for (FormFieldConfigPo config : configs) {
             if (config.getColumnMetaId() == null) {
                 continue;
             }
-            FormColumnMetaEntity column = columns.get(config.getColumnMetaId());
+            FormColumnMetaPo column = columns.get(config.getColumnMetaId());
             fields.add(toFieldNode(config, column, options.get(config.getId()), keys));
         }
         if (fields.isEmpty()) {
@@ -76,9 +76,9 @@ public final class FormMetadataCompiler {
      * @return {@code schema_json} 文本
      * @throws BizException 无可用列时抛出 {@code PARAM_ERROR}
      */
-    public static String compileTable(List<FormColumnMetaEntity> columns) {
+    public static String compileTable(List<FormColumnMetaPo> columns) {
         ArrayNode fields = MAPPER.createArrayNode();
-        for (FormColumnMetaEntity column : columns) {
+        for (FormColumnMetaPo column : columns) {
             ObjectNode node = MAPPER.createObjectNode();
             node.put("key", column.getColumnCode());
             node.put("label", StringUtils.hasText(column.getColumnName())
@@ -115,13 +115,13 @@ public final class FormMetadataCompiler {
      * @return 数据字段 key 集合
      * @throws BizException 关联列缺失或重复引用列时抛出 {@code PARAM_ERROR}
      */
-    private static Set<String> collectKeys(List<FormFieldConfigEntity> configs, Map<Long, FormColumnMetaEntity> columns) {
+    private static Set<String> collectKeys(List<FormFieldConfigPo> configs, Map<Long, FormColumnMetaPo> columns) {
         Set<String> keys = new HashSet<>();
-        for (FormFieldConfigEntity config : configs) {
+        for (FormFieldConfigPo config : configs) {
             if (config.getColumnMetaId() == null) {
                 continue;
             }
-            FormColumnMetaEntity column = columns.get(config.getColumnMetaId());
+            FormColumnMetaPo column = columns.get(config.getColumnMetaId());
             if (column == null) {
                 throw paramError("字段配置关联的列不存在：" + config.getColumnMetaId());
             }
@@ -141,8 +141,8 @@ public final class FormMetadataCompiler {
      * @param allKeys 本表单全部数据字段 key 集合（联动校验用）
      * @return schema 字段节点
      */
-    private static ObjectNode toFieldNode(FormFieldConfigEntity config, FormColumnMetaEntity column,
-                                          List<FormFieldOptionEntity> options, Set<String> allKeys) {
+    private static ObjectNode toFieldNode(FormFieldConfigPo config, FormColumnMetaPo column,
+                                          List<FormFieldOptionPo> options, Set<String> allKeys) {
         ObjectNode node = MAPPER.createObjectNode();
         String label = StringUtils.hasText(config.getFieldLabel()) ? config.getFieldLabel() : column.getColumnName();
         node.put("key", column.getColumnCode());
@@ -156,7 +156,7 @@ public final class FormMetadataCompiler {
         }
         if (options != null && !options.isEmpty()) {
             ArrayNode optionArray = node.putArray("options");
-            for (FormFieldOptionEntity option : options) {
+            for (FormFieldOptionPo option : options) {
                 optionArray.add(option.getOptionValue());
             }
         }

@@ -1,7 +1,7 @@
 package com.bluewhale.form.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bluewhale.form.entity.FormDefinitionEntity;
+import com.bluewhale.form.po.FormDefinitionPo;
 
 /**
  * 表单定义 Mapper。
@@ -10,5 +10,5 @@ import com.bluewhale.form.entity.FormDefinitionEntity;
  *
  * @author BlueWhale
  */
-public interface FormDefinitionMapper extends BaseMapper<FormDefinitionEntity> {
+public interface FormDefinitionMapper extends BaseMapper<FormDefinitionPo> {
 }

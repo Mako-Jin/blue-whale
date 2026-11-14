@@ -1,7 +1,7 @@
 package com.bluewhale.workflow.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bluewhale.workflow.entity.ProcessCc;
+import com.bluewhale.workflow.po.ProcessCcPo;
 
 /**
  * 流程抄送 Mapper。
@@ -10,5 +10,5 @@ import com.bluewhale.workflow.entity.ProcessCc;
  *
  * @author BlueWhale
  */
-public interface ProcessCcMapper extends BaseMapper<ProcessCc> {
+public interface ProcessCcMapper extends BaseMapper<ProcessCcPo> {
 }

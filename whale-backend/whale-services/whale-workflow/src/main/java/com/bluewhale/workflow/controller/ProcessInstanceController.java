@@ -4,8 +4,8 @@ import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.common.web.WebHeaders;
-import com.bluewhale.workflow.dto.ProcessInstanceQueryRequest;
-import com.bluewhale.workflow.dto.ProcessInstanceStartRequest;
+import com.bluewhale.workflow.request.ProcessInstanceQueryRequest;
+import com.bluewhale.workflow.request.ProcessInstanceStartRequest;
 import com.bluewhale.workflow.service.ProcessInstanceService;
 import com.bluewhale.workflow.vo.ProcessInstanceVO;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,14 +21,14 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 流程实例管理接口。
  *
- * <p>服务内路径前缀 {@code /workflow/instance}；经网关按 {@code Path=/workflow/**} 规则转发，
+ * <p>服务内路径前缀 {@code /workflow/v1/instance}；经网关按 {@code Path=/workflow/**} 规则转发，
  * 外部路径与本文档一致。全部接口受 {@code @RequirePermission("sys:workflow:instance:*")} 保护
  * （AUTH-06：由网关权限码头 {@code X-Permission-Codes} + starter {@code RequirePermissionInterceptor} 判定）。</p>
  *
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/workflow/instance")
+@RequestMapping(path = "/workflow/v{version}/instance", version = "1")
 @RequiredArgsConstructor
 public class ProcessInstanceController {
 

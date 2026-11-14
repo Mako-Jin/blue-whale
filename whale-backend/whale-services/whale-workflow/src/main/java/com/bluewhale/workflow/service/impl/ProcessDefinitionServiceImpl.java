@@ -6,14 +6,14 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.workflow.converter.WorkflowConverter;
-import com.bluewhale.workflow.dto.DefinitionEnsureRequest;
-import com.bluewhale.workflow.dto.DefinitionMigrationRequest;
-import com.bluewhale.workflow.dto.ProcessDefinitionSaveRequest;
-import com.bluewhale.workflow.dto.ProcessQueryRequest;
-import com.bluewhale.workflow.entity.ProcessDefinition;
-import com.bluewhale.workflow.entity.ProcessDefinitionVersion;
-import com.bluewhale.workflow.entity.ProcessInstance;
-import com.bluewhale.workflow.entity.ProcessTask;
+import com.bluewhale.workflow.request.DefinitionEnsureRequest;
+import com.bluewhale.workflow.request.DefinitionMigrationRequest;
+import com.bluewhale.workflow.request.ProcessDefinitionSaveRequest;
+import com.bluewhale.workflow.request.ProcessQueryRequest;
+import com.bluewhale.workflow.po.ProcessDefinitionPo;
+import com.bluewhale.workflow.po.ProcessDefinitionVersionPo;
+import com.bluewhale.workflow.po.ProcessInstancePo;
+import com.bluewhale.workflow.po.ProcessTaskPo;
 import com.bluewhale.workflow.mapper.ProcessDefinitionMapper;
 import com.bluewhale.workflow.mapper.ProcessDefinitionVersionMapper;
 import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
@@ -73,7 +73,7 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
     public ProcessDefinitionVO create(ProcessDefinitionSaveRequest request) {
         assertCodeUnique(request.getCode(), null);
         validateDefinitionSize(request.getDefinitionJson());
-        ProcessDefinition entity = new ProcessDefinition();
+        ProcessDefinitionPo entity = new ProcessDefinitionPo();
         entity.setCode(request.getCode());
         entity.setName(request.getName());
         entity.setDefinitionJson(request.getDefinitionJson());
@@ -96,7 +96,7 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
     @Transactional(rollbackFor = Exception.class)
     public ProcessDefinitionVO ensure(DefinitionEnsureRequest request) {
         String code = request.getCode().trim();
-        ProcessDefinition existing = findDefinitionByCode(code);
+        ProcessDefinitionPo existing = findDefinitionByCode(code);
         if (existing != null) {
             return toVo(existing);
         }
@@ -115,7 +115,7 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ProcessDefinitionVO update(Long id, ProcessDefinitionSaveRequest request) {
-        ProcessDefinition entity = requireProcess(id);
+        ProcessDefinitionPo entity = requireProcess(id);
         if (!entity.getCode().equals(request.getCode())) {
             assertCodeUnique(request.getCode(), id);
             entity.setCode(request.getCode());
@@ -175,7 +175,7 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
      * @throws BizException 目标版本已发布时抛出 {@code PARAM_ERROR}
      */
     private void rejectPublishedTargetVersion(Long definitionId, int targetVersion) {
-        ProcessDefinitionVersion target = findSnapshot(definitionId, targetVersion);
+        ProcessDefinitionVersionPo target = findSnapshot(definitionId, targetVersion);
         if (target != null && target.getPublishStatus() != null
                 && target.getPublishStatus() == WorkflowConstants.PUBLISH_PUBLISHED) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "目标版本已发布，内容变更请使用新版本号");
@@ -196,14 +196,14 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
 
     @Override
     public PageResult<ProcessDefinitionVO> page(ProcessQueryRequest request) {
-        LambdaQueryWrapper<ProcessDefinition> wrapper = new LambdaQueryWrapper<>();
-        wrapper.like(StringUtils.hasText(request.getName()), ProcessDefinition::getName, request.getName());
-        wrapper.eq(StringUtils.hasText(request.getCode()), ProcessDefinition::getCode, request.getCode());
-        wrapper.eq(request.getStatus() != null, ProcessDefinition::getStatus, request.getStatus());
-        wrapper.orderByDesc(ProcessDefinition::getCreateTime);
+        LambdaQueryWrapper<ProcessDefinitionPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.like(StringUtils.hasText(request.getName()), ProcessDefinitionPo::getName, request.getName());
+        wrapper.eq(StringUtils.hasText(request.getCode()), ProcessDefinitionPo::getCode, request.getCode());
+        wrapper.eq(request.getStatus() != null, ProcessDefinitionPo::getStatus, request.getStatus());
+        wrapper.orderByDesc(ProcessDefinitionPo::getCreateTime);
         long current = Math.min(Math.max(request.getCurrent(), 1L), WorkflowConstants.MAX_PAGE_CURRENT);
         long size = Math.min(Math.max(request.getSize(), 1L), WorkflowConstants.MAX_PAGE_SIZE);
-        Page<ProcessDefinition> page = processDefinitionMapper.selectPage(new Page<>(current, size), wrapper);
+        Page<ProcessDefinitionPo> page = processDefinitionMapper.selectPage(new Page<>(current, size), wrapper);
         List<ProcessDefinitionVO> records = page.getRecords().stream().map(ProcessDefinitionServiceImpl::toVo).toList();
         return PageResult.of(records, page.getTotal(), current, size);
     }
@@ -211,9 +211,9 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
     @Override
     public List<ProcessDefinitionVersionVO> versions(Long id) {
         requireProcess(id);
-        LambdaQueryWrapper<ProcessDefinitionVersion> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ProcessDefinitionVersion::getDefinitionId, id);
-        wrapper.orderByDesc(ProcessDefinitionVersion::getVersion);
+        LambdaQueryWrapper<ProcessDefinitionVersionPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ProcessDefinitionVersionPo::getDefinitionId, id);
+        wrapper.orderByDesc(ProcessDefinitionVersionPo::getVersion);
         return processDefinitionVersionMapper.selectList(wrapper).stream()
                 .map(ProcessDefinitionServiceImpl::toVersionVo).toList();
     }
@@ -221,8 +221,8 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ProcessDefinitionVO publish(Long id, Integer version) {
-        ProcessDefinition definition = requireProcess(id);
-        ProcessDefinitionVersion snapshot = requireSnapshot(id, version);
+        ProcessDefinitionPo definition = requireProcess(id);
+        ProcessDefinitionVersionPo snapshot = requireSnapshot(id, version);
         snapshot.setPublishStatus(WorkflowConstants.PUBLISH_PUBLISHED);
         processDefinitionVersionMapper.updateById(snapshot);
         clearOtherPublished(id, snapshot.getId());
@@ -240,12 +240,12 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
     public DefinitionMigrationVO migrate(Long id, DefinitionMigrationRequest request) {
         requireProcess(id);
         int targetVersion = request.getTargetVersion();
-        ProcessDefinitionVersion snapshot = requireSnapshot(id, targetVersion);
+        ProcessDefinitionVersionPo snapshot = requireSnapshot(id, targetVersion);
         ProcessModel targetModel = ProcessModelParser.parse(snapshot.getDefinitionJson());
         DefinitionMigrationVO vo = new DefinitionMigrationVO();
         vo.setDefinitionId(id);
         vo.setTargetVersion(targetVersion);
-        for (ProcessInstance instance : listInstances(id, request.getInstanceIds())) {
+        for (ProcessInstancePo instance : listInstances(id, request.getInstanceIds())) {
             migrateInstance(instance, targetVersion, targetModel, vo);
         }
         return vo;
@@ -260,9 +260,9 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
      * @param publishStatus 发布状态：0 草稿 / 1 已发布
      */
     private void saveSnapshot(Long definitionId, Integer version, String definitionJson, int publishStatus) {
-        ProcessDefinitionVersion existing = findSnapshot(definitionId, version);
+        ProcessDefinitionVersionPo existing = findSnapshot(definitionId, version);
         if (existing == null) {
-            ProcessDefinitionVersion snapshot = new ProcessDefinitionVersion();
+            ProcessDefinitionVersionPo snapshot = new ProcessDefinitionVersionPo();
             snapshot.setDefinitionId(definitionId);
             snapshot.setVersion(version);
             snapshot.setDefinitionJson(definitionJson);
@@ -282,14 +282,14 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
      * @param version 版本号
      * @return 快照实体，不存在返回 {@code null}
      */
-    private ProcessDefinitionVersion findSnapshot(Long definitionId, Integer version) {
+    private ProcessDefinitionVersionPo findSnapshot(Long definitionId, Integer version) {
         if (definitionId == null || version == null) {
             return null;
         }
-        LambdaQueryWrapper<ProcessDefinitionVersion> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ProcessDefinitionVersion::getDefinitionId, definitionId);
-        wrapper.eq(ProcessDefinitionVersion::getVersion, version);
-        List<ProcessDefinitionVersion> snapshots = processDefinitionVersionMapper.selectList(wrapper);
+        LambdaQueryWrapper<ProcessDefinitionVersionPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ProcessDefinitionVersionPo::getDefinitionId, definitionId);
+        wrapper.eq(ProcessDefinitionVersionPo::getVersion, version);
+        List<ProcessDefinitionVersionPo> snapshots = processDefinitionVersionMapper.selectList(wrapper);
         return snapshots.isEmpty() ? null : snapshots.get(0);
     }
 
@@ -301,8 +301,8 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
      * @return 快照实体
      * @throws BizException 版本不存在时抛出 {@code PARAM_ERROR}
      */
-    private ProcessDefinitionVersion requireSnapshot(Long definitionId, Integer version) {
-        ProcessDefinitionVersion snapshot = findSnapshot(definitionId, version);
+    private ProcessDefinitionVersionPo requireSnapshot(Long definitionId, Integer version) {
+        ProcessDefinitionVersionPo snapshot = findSnapshot(definitionId, version);
         if (snapshot == null) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "流程版本不存在：" + version);
         }
@@ -316,11 +316,11 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
      * @param keepId 需保留发布态的快照ID
      */
     private void clearOtherPublished(Long definitionId, Long keepId) {
-        LambdaQueryWrapper<ProcessDefinitionVersion> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ProcessDefinitionVersion::getDefinitionId, definitionId);
-        wrapper.eq(ProcessDefinitionVersion::getPublishStatus, WorkflowConstants.PUBLISH_PUBLISHED);
-        wrapper.ne(ProcessDefinitionVersion::getId, keepId);
-        for (ProcessDefinitionVersion other : processDefinitionVersionMapper.selectList(wrapper)) {
+        LambdaQueryWrapper<ProcessDefinitionVersionPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ProcessDefinitionVersionPo::getDefinitionId, definitionId);
+        wrapper.eq(ProcessDefinitionVersionPo::getPublishStatus, WorkflowConstants.PUBLISH_PUBLISHED);
+        wrapper.ne(ProcessDefinitionVersionPo::getId, keepId);
+        for (ProcessDefinitionVersionPo other : processDefinitionVersionMapper.selectList(wrapper)) {
             other.setPublishStatus(WorkflowConstants.PUBLISH_DRAFT);
             processDefinitionVersionMapper.updateById(other);
         }
@@ -333,13 +333,13 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
      * @param instanceIds 实例ID列表，可为空
      * @return 实例列表
      */
-    private List<ProcessInstance> listInstances(Long definitionId, List<Long> instanceIds) {
-        LambdaQueryWrapper<ProcessInstance> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ProcessInstance::getDefinitionId, definitionId);
+    private List<ProcessInstancePo> listInstances(Long definitionId, List<Long> instanceIds) {
+        LambdaQueryWrapper<ProcessInstancePo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ProcessInstancePo::getDefinitionId, definitionId);
         if (instanceIds != null && !instanceIds.isEmpty()) {
-            wrapper.in(ProcessInstance::getId, instanceIds);
+            wrapper.in(ProcessInstancePo::getId, instanceIds);
         }
-        wrapper.orderByAsc(ProcessInstance::getId);
+        wrapper.orderByAsc(ProcessInstancePo::getId);
         return processInstanceMapper.selectList(wrapper);
     }
 
@@ -351,7 +351,7 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
      * @param targetModel 目标版本流程模型
      * @param vo 迁移结果累加器
      */
-    private void migrateInstance(ProcessInstance instance, int targetVersion, ProcessModel targetModel,
+    private void migrateInstance(ProcessInstancePo instance, int targetVersion, ProcessModel targetModel,
                                  DefinitionMigrationVO vo) {
         if (instance.getStatus() == null || instance.getStatus() != WorkflowConstants.INSTANCE_RUNNING
                 || Objects.equals(instance.getDefinitionVersion(), targetVersion)) {
@@ -383,7 +383,7 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
      * @param instance 流程实例
      * @return 节点键列表，无法解析返回空列表
      */
-    private List<String> activeKeys(ProcessInstance instance) {
+    private List<String> activeKeys(ProcessInstancePo instance) {
         if (StringUtils.hasText(instance.getActiveNodeKeys())) {
             return List.of(instance.getActiveNodeKeys().split(","));
         }
@@ -397,7 +397,7 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
      * @param instance 流程实例
      * @return 节点键，无法解析返回 {@code null}
      */
-    private String resolveInstanceKey(ProcessInstance instance) {
+    private String resolveInstanceKey(ProcessInstancePo instance) {
         if (StringUtils.hasText(instance.getCurrentNodeKey())) {
             return instance.getCurrentNodeKey();
         }
@@ -416,12 +416,12 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
      * @param instance 流程实例
      * @return 流程定义JSON，均缺失返回 {@code null}
      */
-    private String instanceDefinitionJson(ProcessInstance instance) {
-        ProcessDefinitionVersion snapshot = findSnapshot(instance.getDefinitionId(), instance.getDefinitionVersion());
+    private String instanceDefinitionJson(ProcessInstancePo instance) {
+        ProcessDefinitionVersionPo snapshot = findSnapshot(instance.getDefinitionId(), instance.getDefinitionVersion());
         if (snapshot != null) {
             return snapshot.getDefinitionJson();
         }
-        ProcessDefinition definition = processDefinitionMapper.selectById(instance.getDefinitionId());
+        ProcessDefinitionPo definition = processDefinitionMapper.selectById(instance.getDefinitionId());
         return definition == null ? null : definition.getDefinitionJson();
     }
 
@@ -455,11 +455,11 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
      * @param targetModel 目标版本流程模型
      * @param oldIndex 迁移前的节点下标
      */
-    private void updatePendingTasks(ProcessInstance instance, ProcessModel targetModel, int oldIndex) {
-        LambdaQueryWrapper<ProcessTask> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ProcessTask::getInstanceId, instance.getId());
-        wrapper.eq(ProcessTask::getStatus, WorkflowConstants.TASK_PENDING);
-        for (ProcessTask task : processTaskMapper.selectList(wrapper)) {
+    private void updatePendingTasks(ProcessInstancePo instance, ProcessModel targetModel, int oldIndex) {
+        LambdaQueryWrapper<ProcessTaskPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ProcessTaskPo::getInstanceId, instance.getId());
+        wrapper.eq(ProcessTaskPo::getStatus, WorkflowConstants.TASK_PENDING);
+        for (ProcessTaskPo task : processTaskMapper.selectList(wrapper)) {
             String key = task.getNodeKey();
             if (!StringUtils.hasText(key) && Objects.equals(task.getNodeIndex(), oldIndex)) {
                 key = instance.getCurrentNodeKey();
@@ -483,12 +483,12 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
      * @param code 流程编码
      * @return 流程定义，不存在返回 {@code null}
      */
-    private ProcessDefinition findDefinitionByCode(String code) {
-        LambdaQueryWrapper<ProcessDefinition> wrapper = new LambdaQueryWrapper<ProcessDefinition>()
-                .eq(ProcessDefinition::getCode, code)
-                .orderByDesc(ProcessDefinition::getId)
+    private ProcessDefinitionPo findDefinitionByCode(String code) {
+        LambdaQueryWrapper<ProcessDefinitionPo> wrapper = new LambdaQueryWrapper<ProcessDefinitionPo>()
+                .eq(ProcessDefinitionPo::getCode, code)
+                .orderByDesc(ProcessDefinitionPo::getId)
                 .last("LIMIT 1");
-        List<ProcessDefinition> definitions = processDefinitionMapper.selectList(wrapper);
+        List<ProcessDefinitionPo> definitions = processDefinitionMapper.selectList(wrapper);
         return definitions.isEmpty() ? null : definitions.get(0);
     }
 
@@ -498,8 +498,8 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
      * @param id 流程定义ID
      * @return 流程定义实体
      */
-    private ProcessDefinition requireProcess(Long id) {
-        ProcessDefinition entity = processDefinitionMapper.selectById(id);
+    private ProcessDefinitionPo requireProcess(Long id) {
+        ProcessDefinitionPo entity = processDefinitionMapper.selectById(id);
         if (entity == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
@@ -513,9 +513,9 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
      * @param excludeId 需排除的当前记录ID（更新时传入，新增传 {@code null}）
      */
     private void assertCodeUnique(String code, Long excludeId) {
-        LambdaQueryWrapper<ProcessDefinition> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ProcessDefinition::getCode, code);
-        wrapper.ne(excludeId != null, ProcessDefinition::getId, excludeId);
+        LambdaQueryWrapper<ProcessDefinitionPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ProcessDefinitionPo::getCode, code);
+        wrapper.ne(excludeId != null, ProcessDefinitionPo::getId, excludeId);
         Long count = processDefinitionMapper.selectCount(wrapper);
         if (count != null && count > 0) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "流程编码已存在");
@@ -540,7 +540,7 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
      * @param entity 流程定义实体
      * @return 流程定义视图对象
      */
-    private static ProcessDefinitionVO toVo(ProcessDefinition entity) {
+    private static ProcessDefinitionVO toVo(ProcessDefinitionPo entity) {
         return WorkflowConverter.INSTANCE.toDefinitionVo(entity);
     }
 
@@ -550,7 +550,7 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
      * @param entity 版本快照实体
      * @return 版本快照视图对象
      */
-    private static ProcessDefinitionVersionVO toVersionVo(ProcessDefinitionVersion entity) {
+    private static ProcessDefinitionVersionVO toVersionVo(ProcessDefinitionVersionPo entity) {
         return WorkflowConverter.INSTANCE.toDefinitionVersionVo(entity);
     }
 }

@@ -436,7 +436,7 @@ export async function pageWorkflowDefinitions(
 ): Promise<PageResult<WorkflowDefinitionRecord>> {
   const query = code ? `&code=${encodeURIComponent(code)}` : '';
   const response = await ctx.get(
-    `${API_BASE_URL}/workflow/definition/page?current=1&size=50${query}`,
+    `${API_BASE_URL}/workflow/v1/definition/page?current=1&size=50${query}`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
   return readEnvelope<PageResult<WorkflowDefinitionRecord>>(response, '查询流程定义');
@@ -448,7 +448,7 @@ export async function createWorkflowDefinition(
   token: string,
   payload: Record<string, unknown>,
 ): Promise<WorkflowDefinitionRecord> {
-  const response = await ctx.post(`${API_BASE_URL}/workflow/definition`, {
+  const response = await ctx.post(`${API_BASE_URL}/workflow/v1/definition`, {
     headers: { Authorization: `Bearer ${token}` },
     data: payload,
   });
@@ -462,7 +462,7 @@ export async function findWorkflowInstanceByTitle(
   title: string,
 ): Promise<WorkflowInstanceRecord> {
   const response = await ctx.get(
-    `${API_BASE_URL}/workflow/instance/page?current=1&size=20&title=${encodeURIComponent(title)}`,
+    `${API_BASE_URL}/workflow/v1/instance/page?current=1&size=20&title=${encodeURIComponent(title)}`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
   const data = await readEnvelope<PageResult<WorkflowInstanceRecord>>(response, '查询流程实例');
@@ -479,7 +479,7 @@ export async function workflowInstanceDetail(
   token: string,
   id: string,
 ): Promise<WorkflowInstanceRecord> {
-  const response = await ctx.get(`${API_BASE_URL}/workflow/instance/${id}`, {
+  const response = await ctx.get(`${API_BASE_URL}/workflow/v1/instance/${id}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return readEnvelope<WorkflowInstanceRecord>(response, '查询流程实例详情');
@@ -492,7 +492,7 @@ export async function cancelWorkflowInstance(
   id: string,
 ): Promise<void> {
   try {
-    await ctx.post(`${API_BASE_URL}/workflow/instance/${id}/cancel`, {
+    await ctx.post(`${API_BASE_URL}/workflow/v1/instance/${id}/cancel`, {
       headers: { Authorization: `Bearer ${token}` },
     });
   } catch {

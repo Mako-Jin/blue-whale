@@ -5,7 +5,7 @@
 //   - code === 0 表示成功（取 body.data），否则 throw ApiError。
 // token 从基座注入的读取器获取（V-03：基座 accessToken 为内存态，经 qiankun
 // props 共享，不再有 token 的 localStorage），拼到 `Authorization: Bearer <token>` 头。
-// 前端统一使用相对路径请求（如 `/workflow/task/page`），
+// 前端统一使用相对路径请求（如 `/workflow/v1/task/page`），
 // 由 dev server / 生产 Nginx 经网关 8080 代理到对应后端服务。
 
 import { createHttpClient, type HttpOptions } from '@bluewhale/http';

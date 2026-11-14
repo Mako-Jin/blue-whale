@@ -4,8 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
-import com.bluewhale.workflow.entity.ProcessInstance;
-import com.bluewhale.workflow.entity.ProcessTask;
+import com.bluewhale.workflow.po.ProcessInstancePo;
+import com.bluewhale.workflow.po.ProcessTaskPo;
 import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
 import com.bluewhale.workflow.support.WorkflowConstants;
@@ -31,8 +31,8 @@ public class TaskCommandSupport {
      * @param id 任务ID
      * @return 待办任务实体
      */
-    public ProcessTask requirePendingTask(Long id) {
-        ProcessTask task = processTaskMapper.selectById(id);
+    public ProcessTaskPo requirePendingTask(Long id) {
+        ProcessTaskPo task = processTaskMapper.selectById(id);
         if (task == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
@@ -48,8 +48,8 @@ public class TaskCommandSupport {
      * @param instanceId 流程实例ID
      * @return 流程实例实体
      */
-    public ProcessInstance requireRunningInstance(Long instanceId) {
-        ProcessInstance instance = processInstanceMapper.selectById(instanceId);
+    public ProcessInstancePo requireRunningInstance(Long instanceId) {
+        ProcessInstancePo instance = processInstanceMapper.selectById(instanceId);
         if (instance == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
@@ -67,13 +67,13 @@ public class TaskCommandSupport {
      * @param comment 审批意见，可为 {@code null}
      * @return 推进成功返回 {@code true}；状态已被并发修改返回 {@code false}
      */
-    public boolean transitionFromPending(ProcessTask task, int targetStatus, String comment) {
-        ProcessTask update = new ProcessTask();
+    public boolean transitionFromPending(ProcessTaskPo task, int targetStatus, String comment) {
+        ProcessTaskPo update = new ProcessTaskPo();
         update.setStatus(targetStatus);
         update.setComment(comment);
-        LambdaUpdateWrapper<ProcessTask> wrapper = new LambdaUpdateWrapper<ProcessTask>()
-                .eq(ProcessTask::getId, task.getId())
-                .eq(ProcessTask::getStatus, WorkflowConstants.TASK_PENDING);
+        LambdaUpdateWrapper<ProcessTaskPo> wrapper = new LambdaUpdateWrapper<ProcessTaskPo>()
+                .eq(ProcessTaskPo::getId, task.getId())
+                .eq(ProcessTaskPo::getStatus, WorkflowConstants.TASK_PENDING);
         return processTaskMapper.update(update, wrapper) > 0;
     }
 
@@ -83,11 +83,11 @@ public class TaskCommandSupport {
      * @param instanceId 流程实例ID
      */
     public void cancelPendingTasks(Long instanceId) {
-        ProcessTask update = new ProcessTask();
+        ProcessTaskPo update = new ProcessTaskPo();
         update.setStatus(WorkflowConstants.TASK_CANCELED);
-        LambdaQueryWrapper<ProcessTask> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ProcessTask::getInstanceId, instanceId);
-        wrapper.eq(ProcessTask::getStatus, WorkflowConstants.TASK_PENDING);
+        LambdaQueryWrapper<ProcessTaskPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ProcessTaskPo::getInstanceId, instanceId);
+        wrapper.eq(ProcessTaskPo::getStatus, WorkflowConstants.TASK_PENDING);
         processTaskMapper.update(update, wrapper);
     }
 }

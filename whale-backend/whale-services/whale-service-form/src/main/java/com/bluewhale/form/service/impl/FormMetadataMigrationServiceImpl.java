@@ -3,13 +3,13 @@ package com.bluewhale.form.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.bluewhale.common.core.exception.BizException;
-import com.bluewhale.form.entity.FormColumnMetaEntity;
-import com.bluewhale.form.entity.FormDataEntity;
-import com.bluewhale.form.entity.FormDefinitionEntity;
-import com.bluewhale.form.entity.FormFieldConfigEntity;
-import com.bluewhale.form.entity.FormFieldOptionEntity;
-import com.bluewhale.form.entity.FormTableDefinitionEntity;
-import com.bluewhale.form.entity.FormTableRegistryEntity;
+import com.bluewhale.form.po.FormColumnMetaPo;
+import com.bluewhale.form.po.FormDataPo;
+import com.bluewhale.form.po.FormDefinitionPo;
+import com.bluewhale.form.po.FormFieldConfigPo;
+import com.bluewhale.form.po.FormFieldOptionPo;
+import com.bluewhale.form.po.FormTableDefinitionPo;
+import com.bluewhale.form.po.FormTableRegistryPo;
 import com.bluewhale.form.mapper.FormColumnMetaMapper;
 import com.bluewhale.form.mapper.FormDataMapper;
 import com.bluewhale.form.mapper.FormDefinitionMapper;
@@ -79,12 +79,12 @@ public class FormMetadataMigrationServiceImpl implements FormMetadataMigrationSe
     @Override
     @Transactional(rollbackFor = Exception.class)
     public int migrateLegacy() {
-        LambdaQueryWrapper<FormDefinitionEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.isNull(FormDefinitionEntity::getTableDefinitionId);
-        wrapper.isNotNull(FormDefinitionEntity::getSchemaJson);
-        List<FormDefinitionEntity> forms = formDefinitionMapper.selectList(wrapper);
+        LambdaQueryWrapper<FormDefinitionPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.isNull(FormDefinitionPo::getTableDefinitionId);
+        wrapper.isNotNull(FormDefinitionPo::getSchemaJson);
+        List<FormDefinitionPo> forms = formDefinitionMapper.selectList(wrapper);
         int migrated = 0;
-        for (FormDefinitionEntity form : forms) {
+        for (FormDefinitionPo form : forms) {
             if (StringUtils.hasText(form.getSchemaJson()) && migrateOne(form)) {
                 migrated++;
             }
@@ -98,7 +98,7 @@ public class FormMetadataMigrationServiceImpl implements FormMetadataMigrationSe
      * @param form 表单定义实体
      * @return 实际迁移返回 {@code true}；编码不可作物理表名而跳过时返回 {@code false}
      */
-    private boolean migrateOne(FormDefinitionEntity form) {
+    private boolean migrateOne(FormDefinitionPo form) {
         try {
             FormTableDdlGenerator.assertPublishableCode(form.getCode());
         } catch (BizException e) {
@@ -106,7 +106,7 @@ public class FormMetadataMigrationServiceImpl implements FormMetadataMigrationSe
         }
         List<FormField> fields = FormSchemaParser.parse(form.getSchemaJson());
         Map<String, List<String>> options = parseOptions(form.getSchemaJson());
-        FormTableDefinitionEntity table = ensureTableDefinition(form);
+        FormTableDefinitionPo table = ensureTableDefinition(form);
         migrateFields(form, table, fields, options);
         backfill(form, table);
         return true;
@@ -118,14 +118,14 @@ public class FormMetadataMigrationServiceImpl implements FormMetadataMigrationSe
      * @param form 表单定义实体
      * @return 表定义实体
      */
-    private FormTableDefinitionEntity ensureTableDefinition(FormDefinitionEntity form) {
-        LambdaQueryWrapper<FormTableDefinitionEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FormTableDefinitionEntity::getTableCode, form.getCode());
-        List<FormTableDefinitionEntity> existing = formTableDefinitionMapper.selectList(wrapper);
+    private FormTableDefinitionPo ensureTableDefinition(FormDefinitionPo form) {
+        LambdaQueryWrapper<FormTableDefinitionPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormTableDefinitionPo::getTableCode, form.getCode());
+        List<FormTableDefinitionPo> existing = formTableDefinitionMapper.selectList(wrapper);
         if (!existing.isEmpty()) {
             return existing.get(0);
         }
-        FormTableDefinitionEntity table = new FormTableDefinitionEntity();
+        FormTableDefinitionPo table = new FormTableDefinitionPo();
         table.setTableCode(form.getCode());
         table.setTableName(form.getName());
         table.setVersion(versionOf(form));
@@ -143,13 +143,13 @@ public class FormMetadataMigrationServiceImpl implements FormMetadataMigrationSe
      * @param fields 字段列表（来自于 {@code schema_json}）
      * @param options 字段选项映射（key 为字段 key）
      */
-    private void migrateFields(FormDefinitionEntity form, FormTableDefinitionEntity table, List<FormField> fields,
+    private void migrateFields(FormDefinitionPo form, FormTableDefinitionPo table, List<FormField> fields,
                                Map<String, List<String>> options) {
         Integer version = versionOf(form);
         for (int index = 0; index < fields.size(); index++) {
             FormField field = fields.get(index);
-            FormColumnMetaEntity column = insertColumn(table, version, field, index);
-            FormFieldConfigEntity config = insertFieldConfig(form, field, column.getId(), index);
+            FormColumnMetaPo column = insertColumn(table, version, field, index);
+            FormFieldConfigPo config = insertFieldConfig(form, field, column.getId(), index);
             insertOptions(config.getId(), options.get(field.getKey()));
         }
     }
@@ -163,8 +163,8 @@ public class FormMetadataMigrationServiceImpl implements FormMetadataMigrationSe
      * @param sortNo 排序号
      * @return 已落库的列元数据实体（含主键）
      */
-    private FormColumnMetaEntity insertColumn(FormTableDefinitionEntity table, Integer version, FormField field, int sortNo) {
-        FormColumnMetaEntity column = new FormColumnMetaEntity();
+    private FormColumnMetaPo insertColumn(FormTableDefinitionPo table, Integer version, FormField field, int sortNo) {
+        FormColumnMetaPo column = new FormColumnMetaPo();
         column.setTableDefinitionId(table.getId());
         column.setTableVersion(version);
         column.setColumnCode(field.getKey());
@@ -188,8 +188,8 @@ public class FormMetadataMigrationServiceImpl implements FormMetadataMigrationSe
      * @param sortNo 排序号
      * @return 已落库的字段配置实体（含主键）
      */
-    private FormFieldConfigEntity insertFieldConfig(FormDefinitionEntity form, FormField field, Long columnMetaId, int sortNo) {
-        FormFieldConfigEntity config = new FormFieldConfigEntity();
+    private FormFieldConfigPo insertFieldConfig(FormDefinitionPo form, FormField field, Long columnMetaId, int sortNo) {
+        FormFieldConfigPo config = new FormFieldConfigPo();
         config.setFormId(form.getId());
         config.setColumnMetaId(columnMetaId);
         config.setFieldLabel(field.getLabel());
@@ -214,7 +214,7 @@ public class FormMetadataMigrationServiceImpl implements FormMetadataMigrationSe
             return;
         }
         for (int index = 0; index < values.size(); index++) {
-            FormFieldOptionEntity option = new FormFieldOptionEntity();
+            FormFieldOptionPo option = new FormFieldOptionPo();
             option.setFieldConfigId(fieldConfigId);
             option.setOptionLabel(values.get(index));
             option.setOptionValue(values.get(index));
@@ -230,26 +230,26 @@ public class FormMetadataMigrationServiceImpl implements FormMetadataMigrationSe
      * @param form 表单定义实体
      * @param table 表定义实体
      */
-    private void backfill(FormDefinitionEntity form, FormTableDefinitionEntity table) {
+    private void backfill(FormDefinitionPo form, FormTableDefinitionPo table) {
         Integer version = versionOf(form);
-        LambdaUpdateWrapper<FormDefinitionEntity> formUpdate = new LambdaUpdateWrapper<>();
-        formUpdate.eq(FormDefinitionEntity::getId, form.getId());
-        formUpdate.set(FormDefinitionEntity::getTableDefinitionId, table.getId());
+        LambdaUpdateWrapper<FormDefinitionPo> formUpdate = new LambdaUpdateWrapper<>();
+        formUpdate.eq(FormDefinitionPo::getId, form.getId());
+        formUpdate.set(FormDefinitionPo::getTableDefinitionId, table.getId());
         formDefinitionMapper.update(null, formUpdate);
 
-        LambdaUpdateWrapper<FormTableRegistryEntity> registryUpdate = new LambdaUpdateWrapper<>();
-        registryUpdate.eq(FormTableRegistryEntity::getDefinitionId, form.getId());
-        registryUpdate.set(FormTableRegistryEntity::getTableDefinitionId, table.getId());
-        registryUpdate.set(FormTableRegistryEntity::getTableCode, form.getCode());
-        registryUpdate.set(FormTableRegistryEntity::getTableVersion, version);
+        LambdaUpdateWrapper<FormTableRegistryPo> registryUpdate = new LambdaUpdateWrapper<>();
+        registryUpdate.eq(FormTableRegistryPo::getDefinitionId, form.getId());
+        registryUpdate.set(FormTableRegistryPo::getTableDefinitionId, table.getId());
+        registryUpdate.set(FormTableRegistryPo::getTableCode, form.getCode());
+        registryUpdate.set(FormTableRegistryPo::getTableVersion, version);
         formTableRegistryMapper.update(null, registryUpdate);
 
-        LambdaUpdateWrapper<FormDataEntity> dataUpdate = new LambdaUpdateWrapper<>();
-        dataUpdate.eq(FormDataEntity::getDefinitionId, form.getId());
-        dataUpdate.set(FormDataEntity::getTableDefinitionId, table.getId());
-        dataUpdate.set(FormDataEntity::getTableCode, form.getCode());
-        dataUpdate.set(FormDataEntity::getTableVersion, version);
-        dataUpdate.set(FormDataEntity::getFormDefinitionId, form.getId());
+        LambdaUpdateWrapper<FormDataPo> dataUpdate = new LambdaUpdateWrapper<>();
+        dataUpdate.eq(FormDataPo::getDefinitionId, form.getId());
+        dataUpdate.set(FormDataPo::getTableDefinitionId, table.getId());
+        dataUpdate.set(FormDataPo::getTableCode, form.getCode());
+        dataUpdate.set(FormDataPo::getTableVersion, version);
+        dataUpdate.set(FormDataPo::getFormDefinitionId, form.getId());
         formDataMapper.update(null, dataUpdate);
     }
 
@@ -290,7 +290,7 @@ public class FormMetadataMigrationServiceImpl implements FormMetadataMigrationSe
      * @param form 表单定义实体
      * @return 表单定义版本
      */
-    private static int versionOf(FormDefinitionEntity form) {
+    private static int versionOf(FormDefinitionPo form) {
         return form.getVersion() == null ? DEFAULT_VERSION : form.getVersion();
     }
 }

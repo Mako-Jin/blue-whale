@@ -2,7 +2,7 @@ package com.bluewhale.workflow.service.impl.task;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
-import com.bluewhale.workflow.entity.ProcessTask;
+import com.bluewhale.workflow.po.ProcessTaskPo;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
 import com.bluewhale.workflow.support.WorkflowConstants;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +34,7 @@ public class DelegateCommand {
      */
     @Transactional(rollbackFor = Exception.class)
     public void delegate(Long id, String targetUser) {
-        ProcessTask task = taskCommandSupport.requirePendingTask(id);
+        ProcessTaskPo task = taskCommandSupport.requirePendingTask(id);
         String target = requireTargetUser(targetUser);
         if (task.getOwnerId() == null || task.getOwnerId().isBlank()) {
             task.setOwnerId(task.getAssignee());
@@ -54,7 +54,7 @@ public class DelegateCommand {
      */
     @Transactional(rollbackFor = Exception.class)
     public void resolve(Long id, String comment) {
-        ProcessTask task = taskCommandSupport.requirePendingTask(id);
+        ProcessTaskPo task = taskCommandSupport.requirePendingTask(id);
         String origin = task.getDelegateFrom();
         if (origin == null || origin.isBlank()) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "任务不是委派任务");
@@ -62,7 +62,7 @@ public class DelegateCommand {
         task.setStatus(WorkflowConstants.TASK_CANCELED);
         task.setComment(comment);
         processTaskMapper.updateById(task);
-        ProcessTask restored = new ProcessTask();
+        ProcessTaskPo restored = new ProcessTaskPo();
         restored.setInstanceId(task.getInstanceId());
         restored.setNodeIndex(task.getNodeIndex());
         restored.setNodeName(task.getNodeName());

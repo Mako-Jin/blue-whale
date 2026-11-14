@@ -1,7 +1,7 @@
 package com.bluewhale.workflow.service;
 
 import com.bluewhale.common.core.result.PageResult;
-import com.bluewhale.workflow.dto.DelegateRuleSaveRequest;
+import com.bluewhale.workflow.request.DelegateRuleSaveRequest;
 import com.bluewhale.workflow.vo.DelegateRuleVO;
 
 import java.time.LocalDateTime;

@@ -1,7 +1,7 @@
 package com.bluewhale.workflow.service;
 
 import com.bluewhale.common.core.result.PageResult;
-import com.bluewhale.workflow.dto.UrgeRequest;
+import com.bluewhale.workflow.request.UrgeRequest;
 import com.bluewhale.workflow.vo.ProcessUrgeVO;
 
 /**

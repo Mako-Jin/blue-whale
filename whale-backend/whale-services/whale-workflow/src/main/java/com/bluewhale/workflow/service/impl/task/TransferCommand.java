@@ -2,7 +2,7 @@ package com.bluewhale.workflow.service.impl.task;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
-import com.bluewhale.workflow.entity.ProcessTask;
+import com.bluewhale.workflow.po.ProcessTaskPo;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -29,7 +29,7 @@ public class TransferCommand {
      */
     @Transactional(rollbackFor = Exception.class)
     public void transfer(Long id, String targetUser) {
-        ProcessTask task = taskCommandSupport.requirePendingTask(id);
+        ProcessTaskPo task = taskCommandSupport.requirePendingTask(id);
         String target = requireTargetUser(targetUser);
         if (task.getOwnerId() == null || task.getOwnerId().isBlank()) {
             task.setOwnerId(task.getAssignee());

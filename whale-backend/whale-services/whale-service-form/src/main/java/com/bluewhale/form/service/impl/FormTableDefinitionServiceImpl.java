@@ -9,10 +9,10 @@ import com.bluewhale.form.converter.FormConverter;
 import com.bluewhale.form.model.dto.FormColumnMetaDTO;
 import com.bluewhale.form.model.request.FormQueryRequest;
 import com.bluewhale.form.model.request.FormTableDefinitionSaveRequest;
-import com.bluewhale.form.entity.FormColumnMetaEntity;
-import com.bluewhale.form.entity.FormDefinitionEntity;
-import com.bluewhale.form.entity.FormFieldConfigEntity;
-import com.bluewhale.form.entity.FormTableDefinitionEntity;
+import com.bluewhale.form.po.FormColumnMetaPo;
+import com.bluewhale.form.po.FormDefinitionPo;
+import com.bluewhale.form.po.FormFieldConfigPo;
+import com.bluewhale.form.po.FormTableDefinitionPo;
 import com.bluewhale.form.mapper.FormColumnMetaMapper;
 import com.bluewhale.form.mapper.FormDefinitionMapper;
 import com.bluewhale.form.mapper.FormFieldConfigMapper;
@@ -68,21 +68,21 @@ public class FormTableDefinitionServiceImpl implements FormTableDefinitionServic
     public FormTableDefinitionVO create(FormTableDefinitionSaveRequest request) {
         FormTableDdlGenerator.assertPublishableCode(request.getTableCode());
         assertTableCodeUnique(request.getTableCode(), null);
-        FormTableDefinitionEntity entity = new FormTableDefinitionEntity();
+        FormTableDefinitionPo entity = new FormTableDefinitionPo();
         entity.setTableCode(request.getTableCode());
         entity.setTableName(request.getTableName());
         entity.setVersion(request.getVersion() == null ? DEFAULT_VERSION : request.getVersion());
         entity.setRemark(request.getRemark());
         entity.setStatus(request.getStatus() == null ? STATUS_NORMAL : request.getStatus());
         formTableDefinitionMapper.insert(entity);
-        List<FormColumnMetaEntity> columns = persistColumns(entity.getId(), entity.getVersion(), request.getColumns());
+        List<FormColumnMetaPo> columns = persistColumns(entity.getId(), entity.getVersion(), request.getColumns());
         return toVo(entity, columns);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public FormTableDefinitionVO update(Long id, FormTableDefinitionSaveRequest request) {
-        FormTableDefinitionEntity entity = requireTableDefinition(id);
+        FormTableDefinitionPo entity = requireTableDefinition(id);
         FormTableDdlGenerator.assertPublishableCode(request.getTableCode());
         if (!entity.getTableCode().equals(request.getTableCode())) {
             assertTableCodeUnique(request.getTableCode(), id);
@@ -97,7 +97,7 @@ public class FormTableDefinitionServiceImpl implements FormTableDefinitionServic
             entity.setStatus(request.getStatus());
         }
         formTableDefinitionMapper.updateById(entity);
-        List<FormColumnMetaEntity> columns = mergeColumns(entity.getId(), entity.getVersion(), request.getColumns());
+        List<FormColumnMetaPo> columns = mergeColumns(entity.getId(), entity.getVersion(), request.getColumns());
         return toVo(entity, columns);
     }
 
@@ -105,31 +105,31 @@ public class FormTableDefinitionServiceImpl implements FormTableDefinitionServic
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
         requireTableDefinition(id);
-        Long referenced = formDefinitionMapper.selectCount(new LambdaQueryWrapper<FormDefinitionEntity>()
-                .eq(FormDefinitionEntity::getTableDefinitionId, id));
+        Long referenced = formDefinitionMapper.selectCount(new LambdaQueryWrapper<FormDefinitionPo>()
+                .eq(FormDefinitionPo::getTableDefinitionId, id));
         if (referenced != null && referenced > 0) {
             throw paramError("表定义正被 " + referenced + " 个表单引用，请先解除引用后再删除");
         }
         formTableDefinitionMapper.deleteById(id);
-        LambdaQueryWrapper<FormColumnMetaEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FormColumnMetaEntity::getTableDefinitionId, id);
+        LambdaQueryWrapper<FormColumnMetaPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormColumnMetaPo::getTableDefinitionId, id);
         formColumnMetaMapper.delete(wrapper);
     }
 
     @Override
     public FormTableDefinitionVO getDetail(Long id) {
-        FormTableDefinitionEntity entity = requireTableDefinition(id);
+        FormTableDefinitionPo entity = requireTableDefinition(id);
         return toVo(entity, listColumns(entity.getId()));
     }
 
     @Override
     public PageResult<FormTableDefinitionVO> page(FormQueryRequest request) {
-        LambdaQueryWrapper<FormTableDefinitionEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.like(StringUtils.hasText(request.getName()), FormTableDefinitionEntity::getTableName, request.getName());
-        wrapper.eq(StringUtils.hasText(request.getCode()), FormTableDefinitionEntity::getTableCode, request.getCode());
-        wrapper.eq(request.getStatus() != null, FormTableDefinitionEntity::getStatus, request.getStatus());
-        wrapper.orderByDesc(FormTableDefinitionEntity::getCreateTime);
-        Page<FormTableDefinitionEntity> page =
+        LambdaQueryWrapper<FormTableDefinitionPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.like(StringUtils.hasText(request.getName()), FormTableDefinitionPo::getTableName, request.getName());
+        wrapper.eq(StringUtils.hasText(request.getCode()), FormTableDefinitionPo::getTableCode, request.getCode());
+        wrapper.eq(request.getStatus() != null, FormTableDefinitionPo::getStatus, request.getStatus());
+        wrapper.orderByDesc(FormTableDefinitionPo::getCreateTime);
+        Page<FormTableDefinitionPo> page =
                 formTableDefinitionMapper.selectPage(request.toPage(), wrapper);
         List<FormTableDefinitionVO> records =
                 page.getRecords().stream().map(entity -> toVo(entity, null)).toList();
@@ -142,10 +142,10 @@ public class FormTableDefinitionServiceImpl implements FormTableDefinitionServic
      * @param tableDefinitionId 表定义ID
      * @return 列元数据列表
      */
-    private List<FormColumnMetaEntity> listColumns(Long tableDefinitionId) {
-        LambdaQueryWrapper<FormColumnMetaEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FormColumnMetaEntity::getTableDefinitionId, tableDefinitionId);
-        wrapper.orderByAsc(FormColumnMetaEntity::getSortNo);
+    private List<FormColumnMetaPo> listColumns(Long tableDefinitionId) {
+        LambdaQueryWrapper<FormColumnMetaPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormColumnMetaPo::getTableDefinitionId, tableDefinitionId);
+        wrapper.orderByAsc(FormColumnMetaPo::getSortNo);
         return formColumnMetaMapper.selectList(wrapper);
     }
 
@@ -162,12 +162,12 @@ public class FormTableDefinitionServiceImpl implements FormTableDefinitionServic
      * @return 合并后的列实体列表（入参为空时返回空列表）
      * @throws BizException 列编码/存储类型/参数非法、重复，或待删列被表单视图引用时抛出 {@code PARAM_ERROR}
      */
-    private List<FormColumnMetaEntity> mergeColumns(Long tableDefinitionId, Integer version,
-                                                    List<FormColumnMetaDTO> dtos) {
-        List<FormColumnMetaEntity> existing = listColumns(tableDefinitionId);
-        Map<String, FormColumnMetaEntity> existingByCode = existing.stream().collect(Collectors.toMap(
-                FormColumnMetaEntity::getColumnCode, Function.identity(), (first, second) -> first, LinkedHashMap::new));
-        List<FormColumnMetaEntity> result = new ArrayList<>();
+    private List<FormColumnMetaPo> mergeColumns(Long tableDefinitionId, Integer version,
+                                                List<FormColumnMetaDTO> dtos) {
+        List<FormColumnMetaPo> existing = listColumns(tableDefinitionId);
+        Map<String, FormColumnMetaPo> existingByCode = existing.stream().collect(Collectors.toMap(
+                FormColumnMetaPo::getColumnCode, Function.identity(), (first, second) -> first, LinkedHashMap::new));
+        List<FormColumnMetaPo> result = new ArrayList<>();
         Set<String> kept = new HashSet<>();
         if (dtos != null) {
             Set<String> codes = new HashSet<>();
@@ -176,9 +176,9 @@ public class FormTableDefinitionServiceImpl implements FormTableDefinitionServic
                 if (!codes.add(dto.getColumnCode())) {
                     throw paramError("列编码重复：" + dto.getColumnCode());
                 }
-                FormColumnMetaEntity column = existingByCode.get(dto.getColumnCode());
+                FormColumnMetaPo column = existingByCode.get(dto.getColumnCode());
                 if (column == null) {
-                    column = applyColumn(new FormColumnMetaEntity(), dto, tableDefinitionId, version);
+                    column = applyColumn(new FormColumnMetaPo(), dto, tableDefinitionId, version);
                     formColumnMetaMapper.insert(column);
                 } else {
                     applyColumn(column, dto, tableDefinitionId, version);
@@ -188,7 +188,7 @@ public class FormTableDefinitionServiceImpl implements FormTableDefinitionServic
                 result.add(column);
             }
         }
-        for (FormColumnMetaEntity column : existing) {
+        for (FormColumnMetaPo column : existing) {
             if (!kept.contains(column.getColumnCode())) {
                 assertColumnNotReferenced(column, tableDefinitionId);
                 formColumnMetaMapper.deleteById(column.getId());
@@ -207,18 +207,18 @@ public class FormTableDefinitionServiceImpl implements FormTableDefinitionServic
      * @param tableDefinitionId 表定义ID
      * @throws BizException 存在引用时抛出 {@code PARAM_ERROR}
      */
-    private void assertColumnNotReferenced(FormColumnMetaEntity column, Long tableDefinitionId) {
-        LambdaQueryWrapper<FormFieldConfigEntity> configWrapper = new LambdaQueryWrapper<>();
-        configWrapper.eq(FormFieldConfigEntity::getColumnMetaId, column.getId());
-        List<FormFieldConfigEntity> configs = formFieldConfigMapper.selectList(configWrapper);
+    private void assertColumnNotReferenced(FormColumnMetaPo column, Long tableDefinitionId) {
+        LambdaQueryWrapper<FormFieldConfigPo> configWrapper = new LambdaQueryWrapper<>();
+        configWrapper.eq(FormFieldConfigPo::getColumnMetaId, column.getId());
+        List<FormFieldConfigPo> configs = formFieldConfigMapper.selectList(configWrapper);
         if (configs.isEmpty()) {
             return;
         }
-        Set<Long> formIds = configs.stream().map(FormFieldConfigEntity::getFormId).collect(Collectors.toSet());
-        LambdaQueryWrapper<FormDefinitionEntity> formWrapper = new LambdaQueryWrapper<>();
-        formWrapper.in(FormDefinitionEntity::getId, formIds);
-        formWrapper.eq(FormDefinitionEntity::getTableDefinitionId, tableDefinitionId);
-        List<FormDefinitionEntity> forms = formDefinitionMapper.selectList(formWrapper);
+        Set<Long> formIds = configs.stream().map(FormFieldConfigPo::getFormId).collect(Collectors.toSet());
+        LambdaQueryWrapper<FormDefinitionPo> formWrapper = new LambdaQueryWrapper<>();
+        formWrapper.in(FormDefinitionPo::getId, formIds);
+        formWrapper.eq(FormDefinitionPo::getTableDefinitionId, tableDefinitionId);
+        List<FormDefinitionPo> forms = formDefinitionMapper.selectList(formWrapper);
         if (forms.isEmpty()) {
             return;
         }
@@ -274,9 +274,9 @@ public class FormTableDefinitionServiceImpl implements FormTableDefinitionServic
      * @return 新列实体列表（入参为空时返回空列表）
      * @throws BizException 列编码/存储类型/参数非法或重复时抛出 {@code PARAM_ERROR}
      */
-    private List<FormColumnMetaEntity> persistColumns(Long tableDefinitionId, Integer version,
-                                                      List<FormColumnMetaDTO> dtos) {
-        List<FormColumnMetaEntity> result = new ArrayList<>();
+    private List<FormColumnMetaPo> persistColumns(Long tableDefinitionId, Integer version,
+                                                  List<FormColumnMetaDTO> dtos) {
+        List<FormColumnMetaPo> result = new ArrayList<>();
         if (dtos == null) {
             return result;
         }
@@ -286,7 +286,7 @@ public class FormTableDefinitionServiceImpl implements FormTableDefinitionServic
             if (!codes.add(dto.getColumnCode())) {
                 throw paramError("列编码重复：" + dto.getColumnCode());
             }
-            FormColumnMetaEntity column = applyColumn(new FormColumnMetaEntity(), dto, tableDefinitionId, version);
+            FormColumnMetaPo column = applyColumn(new FormColumnMetaPo(), dto, tableDefinitionId, version);
             formColumnMetaMapper.insert(column);
             result.add(column);
         }
@@ -302,8 +302,8 @@ public class FormTableDefinitionServiceImpl implements FormTableDefinitionServic
      * @param version 表版本
      * @return 写入后的列实体
      */
-    private static FormColumnMetaEntity applyColumn(FormColumnMetaEntity column, FormColumnMetaDTO dto,
-                                                    Long tableDefinitionId, Integer version) {
+    private static FormColumnMetaPo applyColumn(FormColumnMetaPo column, FormColumnMetaDTO dto,
+                                                Long tableDefinitionId, Integer version) {
         column.setTableDefinitionId(tableDefinitionId);
         column.setTableVersion(version);
         column.setColumnCode(dto.getColumnCode());
@@ -328,8 +328,8 @@ public class FormTableDefinitionServiceImpl implements FormTableDefinitionServic
      * @param id 表定义ID
      * @return 表定义实体
      */
-    private FormTableDefinitionEntity requireTableDefinition(Long id) {
-        FormTableDefinitionEntity entity = formTableDefinitionMapper.selectById(id);
+    private FormTableDefinitionPo requireTableDefinition(Long id) {
+        FormTableDefinitionPo entity = formTableDefinitionMapper.selectById(id);
         if (entity == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
@@ -343,9 +343,9 @@ public class FormTableDefinitionServiceImpl implements FormTableDefinitionServic
      * @param excludeId 需排除的当前记录ID（新增传 {@code null}）
      */
     private void assertTableCodeUnique(String tableCode, Long excludeId) {
-        LambdaQueryWrapper<FormTableDefinitionEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FormTableDefinitionEntity::getTableCode, tableCode);
-        wrapper.ne(excludeId != null, FormTableDefinitionEntity::getId, excludeId);
+        LambdaQueryWrapper<FormTableDefinitionPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormTableDefinitionPo::getTableCode, tableCode);
+        wrapper.ne(excludeId != null, FormTableDefinitionPo::getId, excludeId);
         Long count = formTableDefinitionMapper.selectCount(wrapper);
         if (count != null && count > 0) {
             throw paramError("表编码已存在");
@@ -359,7 +359,7 @@ public class FormTableDefinitionServiceImpl implements FormTableDefinitionServic
      * @param columns 列实体列表（列表查询可传 {@code null}）
      * @return 表定义视图对象
      */
-    private static FormTableDefinitionVO toVo(FormTableDefinitionEntity entity, List<FormColumnMetaEntity> columns) {
+    private static FormTableDefinitionVO toVo(FormTableDefinitionPo entity, List<FormColumnMetaPo> columns) {
         FormTableDefinitionVO vo = FormConverter.INSTANCE.toTableDefinitionVo(entity);
         if (columns != null) {
             vo.setColumns(columns.stream().map(FormTableDefinitionServiceImpl::toColumnVo).toList());
@@ -373,7 +373,7 @@ public class FormTableDefinitionServiceImpl implements FormTableDefinitionServic
      * @param entity 列实体
      * @return 列视图对象
      */
-    private static FormColumnMetaVO toColumnVo(FormColumnMetaEntity entity) {
+    private static FormColumnMetaVO toColumnVo(FormColumnMetaPo entity) {
         return FormConverter.INSTANCE.toColumnMetaVo(entity);
     }
 

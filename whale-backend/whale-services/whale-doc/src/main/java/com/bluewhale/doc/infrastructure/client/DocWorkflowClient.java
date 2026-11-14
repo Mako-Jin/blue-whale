@@ -58,7 +58,7 @@ public class DocWorkflowClient {
         body.put("variables", variables);
         RestClient.RequestBodySpec spec = InternalTokenSupport.restClient()
                 .post()
-                .uri(baseUrl() + "/workflow/instance")
+                .uri(baseUrl() + "/workflow/v1/instance")
                 .contentType(MediaType.APPLICATION_JSON);
         spec = applyOperatorHeaders(spec, operator);
         Map<String, Object> response = spec.body(body).retrieve()
@@ -76,7 +76,7 @@ public class DocWorkflowClient {
     public Integer fetchStatus(Long instanceId) {
         Map<String, Object> response = InternalTokenSupport.restClient()
                 .get()
-                .uri(baseUrl() + "/workflow/internal/instance/{id}/detail", instanceId)
+                .uri(baseUrl() + "/workflow/v1/internal/instance/{id}/detail", instanceId)
                 .retrieve()
                 .body(new ParameterizedTypeReference<Map<String, Object>>() {
                 });

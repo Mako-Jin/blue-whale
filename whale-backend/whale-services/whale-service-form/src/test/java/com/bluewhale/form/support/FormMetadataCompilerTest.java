@@ -1,9 +1,9 @@
 package com.bluewhale.form.support;
 
 import com.bluewhale.common.core.exception.BizException;
-import com.bluewhale.form.entity.FormColumnMetaEntity;
-import com.bluewhale.form.entity.FormFieldConfigEntity;
-import com.bluewhale.form.entity.FormFieldOptionEntity;
+import com.bluewhale.form.po.FormColumnMetaPo;
+import com.bluewhale.form.po.FormFieldConfigPo;
+import com.bluewhale.form.po.FormFieldOptionPo;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -36,9 +36,9 @@ class FormMetadataCompilerTest {
      * @param required 是否必填
      * @return 列元数据
      */
-    private static FormColumnMetaEntity column(Long id, String code, String name, String dataType, Integer length,
-                                               Integer required) {
-        FormColumnMetaEntity column = new FormColumnMetaEntity();
+    private static FormColumnMetaPo column(Long id, String code, String name, String dataType, Integer length,
+                                           Integer required) {
+        FormColumnMetaPo column = new FormColumnMetaPo();
         column.setId(id);
         column.setColumnCode(code);
         column.setColumnName(name);
@@ -58,9 +58,9 @@ class FormMetadataCompilerTest {
      * @param showInForm 表单显示
      * @return 字段配置
      */
-    private static FormFieldConfigEntity config(Long id, Long columnMetaId, String label, String widgetType,
+    private static FormFieldConfigPo config(Long id, Long columnMetaId, String label, String widgetType,
                                                 Integer showInForm) {
-        FormFieldConfigEntity config = new FormFieldConfigEntity();
+        FormFieldConfigPo config = new FormFieldConfigPo();
         config.setId(id);
         config.setColumnMetaId(columnMetaId);
         config.setFieldLabel(label);
@@ -75,8 +75,8 @@ class FormMetadataCompilerTest {
      * @param value 选项值
      * @return 选项实体
      */
-    private static FormFieldOptionEntity option(String value) {
-        FormFieldOptionEntity option = new FormFieldOptionEntity();
+    private static FormFieldOptionPo option(String value) {
+        FormFieldOptionPo option = new FormFieldOptionPo();
         option.setOptionValue(value);
         return option;
     }
@@ -84,12 +84,12 @@ class FormMetadataCompilerTest {
     @Test
     @DisplayName("compile：按字段配置编译出 key/label/type/widget/required/maxLength/options")
     void shouldCompileFields() throws Exception {
-        FormColumnMetaEntity nameColumn = column(1L, "name", "姓名", "text", 50, 1);
-        FormColumnMetaEntity statusColumn = column(2L, "status", "状态", "select", null, 0);
-        FormFieldConfigEntity nameConfig = config(11L, 1L, "姓名", "text", 1);
-        FormFieldConfigEntity statusConfig = config(12L, 2L, "状态", "radio", 1);
-        Map<Long, FormColumnMetaEntity> columns = Map.of(1L, nameColumn, 2L, statusColumn);
-        Map<Long, List<FormFieldOptionEntity>> options = Map.of(12L, List.of(option("A"), option("B")));
+        FormColumnMetaPo nameColumn = column(1L, "name", "姓名", "text", 50, 1);
+        FormColumnMetaPo statusColumn = column(2L, "status", "状态", "select", null, 0);
+        FormFieldConfigPo nameConfig = config(11L, 1L, "姓名", "text", 1);
+        FormFieldConfigPo statusConfig = config(12L, 2L, "状态", "radio", 1);
+        Map<Long, FormColumnMetaPo> columns = Map.of(1L, nameColumn, 2L, statusColumn);
+        Map<Long, List<FormFieldOptionPo>> options = Map.of(12L, List.of(option("A"), option("B")));
 
         String json = FormMetadataCompiler.compile(List.of(nameConfig, statusConfig), columns, options);
 
@@ -106,7 +106,7 @@ class FormMetadataCompilerTest {
     @Test
     @DisplayName("compile：仅布局字段（columnMetaId 为空）抛参数错误")
     void shouldThrowWhenOnlyLayoutFields() {
-        FormFieldConfigEntity layout = config(11L, null, "标题", null, 1);
+        FormFieldConfigPo layout = config(11L, null, "标题", null, 1);
 
         BizException ex = assertThrows(BizException.class,
                 () -> FormMetadataCompiler.compile(List.of(layout), Map.of(), Map.of()));
@@ -117,9 +117,9 @@ class FormMetadataCompilerTest {
     @Test
     @DisplayName("compile：同一表单重复引用同一列抛参数错误")
     void shouldThrowWhenDuplicateColumn() {
-        FormColumnMetaEntity column = column(1L, "name", "姓名", "text", 50, 0);
-        FormFieldConfigEntity first = config(11L, 1L, "姓名", "text", 1);
-        FormFieldConfigEntity second = config(12L, 1L, "姓名2", "text", 1);
+        FormColumnMetaPo column = column(1L, "name", "姓名", "text", 50, 0);
+        FormFieldConfigPo first = config(11L, 1L, "姓名", "text", 1);
+        FormFieldConfigPo second = config(12L, 1L, "姓名2", "text", 1);
 
         BizException ex = assertThrows(BizException.class,
                 () -> FormMetadataCompiler.compile(List.of(first, second), Map.of(1L, column), Map.of()));
@@ -130,12 +130,12 @@ class FormMetadataCompilerTest {
     @Test
     @DisplayName("compile：合法 linkage 原样写入 schema 字段节点")
     void shouldWriteLinkageNode() throws Exception {
-        FormColumnMetaEntity nameColumn = column(1L, "name", "姓名", "text", 50, 0);
-        FormColumnMetaEntity statusColumn = column(2L, "status", "状态", "select", null, 0);
-        FormFieldConfigEntity nameConfig = config(11L, 1L, "姓名", "text", 1);
+        FormColumnMetaPo nameColumn = column(1L, "name", "姓名", "text", 50, 0);
+        FormColumnMetaPo statusColumn = column(2L, "status", "状态", "select", null, 0);
+        FormFieldConfigPo nameConfig = config(11L, 1L, "姓名", "text", 1);
         nameConfig.setValidateJson("{\"linkage\":{\"action\":\"show\",\"logic\":\"or\","
                 + "\"conditions\":[{\"field\":\"status\",\"operator\":\"eq\",\"value\":\"A\"}]}}");
-        FormFieldConfigEntity statusConfig = config(12L, 2L, "状态", "select", 1);
+        FormFieldConfigPo statusConfig = config(12L, 2L, "状态", "select", 1);
 
         String json = FormMetadataCompiler.compile(List.of(nameConfig, statusConfig),
                 Map.of(1L, nameColumn, 2L, statusColumn), Map.of());
@@ -149,8 +149,8 @@ class FormMetadataCompilerTest {
     @Test
     @DisplayName("compile：linkage 动作非法抛参数错误")
     void shouldRejectInvalidLinkageAction() {
-        FormColumnMetaEntity nameColumn = column(1L, "name", "姓名", "text", 50, 0);
-        FormFieldConfigEntity nameConfig = config(11L, 1L, "姓名", "text", 1);
+        FormColumnMetaPo nameColumn = column(1L, "name", "姓名", "text", 50, 0);
+        FormFieldConfigPo nameConfig = config(11L, 1L, "姓名", "text", 1);
         nameConfig.setValidateJson("{\"linkage\":{\"action\":\"toggle\","
                 + "\"conditions\":[{\"field\":\"name\",\"operator\":\"eq\",\"value\":\"A\"}]}}");
 
@@ -163,8 +163,8 @@ class FormMetadataCompilerTest {
     @Test
     @DisplayName("compile：linkage 引用不存在的字段抛参数错误")
     void shouldRejectLinkageUnknownField() {
-        FormColumnMetaEntity nameColumn = column(1L, "name", "姓名", "text", 50, 0);
-        FormFieldConfigEntity nameConfig = config(11L, 1L, "姓名", "text", 1);
+        FormColumnMetaPo nameColumn = column(1L, "name", "姓名", "text", 50, 0);
+        FormFieldConfigPo nameConfig = config(11L, 1L, "姓名", "text", 1);
         nameConfig.setValidateJson("{\"linkage\":{\"action\":\"hide\","
                 + "\"conditions\":[{\"field\":\"missing\",\"operator\":\"empty\"}]}}");
 
@@ -177,8 +177,8 @@ class FormMetadataCompilerTest {
     @Test
     @DisplayName("compile：linkage 自引用抛参数错误")
     void shouldRejectLinkageSelfReference() {
-        FormColumnMetaEntity nameColumn = column(1L, "name", "姓名", "text", 50, 0);
-        FormFieldConfigEntity nameConfig = config(11L, 1L, "姓名", "text", 1);
+        FormColumnMetaPo nameColumn = column(1L, "name", "姓名", "text", 50, 0);
+        FormFieldConfigPo nameConfig = config(11L, 1L, "姓名", "text", 1);
         nameConfig.setValidateJson("{\"linkage\":{\"action\":\"disable\","
                 + "\"conditions\":[{\"field\":\"name\",\"operator\":\"notEmpty\"}]}}");
 
@@ -191,12 +191,12 @@ class FormMetadataCompilerTest {
     @Test
     @DisplayName("compile：linkage 的 in 取值为空抛参数错误")
     void shouldRejectLinkageEmptyInValue() {
-        FormColumnMetaEntity nameColumn = column(1L, "name", "姓名", "text", 50, 0);
-        FormColumnMetaEntity statusColumn = column(2L, "status", "状态", "select", null, 0);
-        FormFieldConfigEntity nameConfig = config(11L, 1L, "姓名", "text", 1);
+        FormColumnMetaPo nameColumn = column(1L, "name", "姓名", "text", 50, 0);
+        FormColumnMetaPo statusColumn = column(2L, "status", "状态", "select", null, 0);
+        FormFieldConfigPo nameConfig = config(11L, 1L, "姓名", "text", 1);
         nameConfig.setValidateJson("{\"linkage\":{\"action\":\"require\","
                 + "\"conditions\":[{\"field\":\"status\",\"operator\":\"in\",\"value\":\"\"}]}}");
-        FormFieldConfigEntity statusConfig = config(12L, 2L, "状态", "select", 1);
+        FormFieldConfigPo statusConfig = config(12L, 2L, "状态", "select", 1);
 
         BizException ex = assertThrows(BizException.class, () -> FormMetadataCompiler.compile(
                 List.of(nameConfig, statusConfig), Map.of(1L, nameColumn, 2L, statusColumn), Map.of()));
@@ -207,12 +207,12 @@ class FormMetadataCompilerTest {
     @Test
     @DisplayName("compile：linkage 条件含未知键抛参数错误")
     void shouldRejectLinkageUnknownConditionKey() {
-        FormColumnMetaEntity nameColumn = column(1L, "name", "姓名", "text", 50, 0);
-        FormColumnMetaEntity statusColumn = column(2L, "status", "状态", "select", null, 0);
-        FormFieldConfigEntity nameConfig = config(11L, 1L, "姓名", "text", 1);
+        FormColumnMetaPo nameColumn = column(1L, "name", "姓名", "text", 50, 0);
+        FormColumnMetaPo statusColumn = column(2L, "status", "状态", "select", null, 0);
+        FormFieldConfigPo nameConfig = config(11L, 1L, "姓名", "text", 1);
         nameConfig.setValidateJson("{\"linkage\":{\"action\":\"show\","
                 + "\"conditions\":[{\"field\":\"status\",\"operator\":\"eq\",\"value\":\"A\",\"extra\":1}]}}");
-        FormFieldConfigEntity statusConfig = config(12L, 2L, "状态", "select", 1);
+        FormFieldConfigPo statusConfig = config(12L, 2L, "状态", "select", 1);
 
         BizException ex = assertThrows(BizException.class, () -> FormMetadataCompiler.compile(
                 List.of(nameConfig, statusConfig), Map.of(1L, nameColumn, 2L, statusColumn), Map.of()));

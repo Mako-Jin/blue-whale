@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @TableName("form_ddl_audit")
-public class FormDdlAuditEntity {
+public class FormDdlAuditPo {
 
     /** 主键ID */
     @TableId(type = IdType.AUTO)

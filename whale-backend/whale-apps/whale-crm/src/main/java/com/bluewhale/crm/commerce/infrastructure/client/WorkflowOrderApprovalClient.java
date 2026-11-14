@@ -21,7 +21,7 @@ import java.util.Map;
 /**
  * whale-workflow 商务订单审批客户端。
  *
- * <p>发起审批走 {@code POST /workflow/instance}，身份与权限码头由当前请求透传。</p>
+ * <p>发起审批走 {@code POST /workflow/v1/instance}，身份与权限码头由当前请求透传。</p>
  *
  * @author BlueWhale
  */
@@ -29,7 +29,7 @@ import java.util.Map;
 public class WorkflowOrderApprovalClient implements OrderApprovalPort {
 
     /** 发起流程实例路径 */
-    private static final String START_PATH = "/workflow/instance";
+    private static final String START_PATH = "/workflow/v1/instance";
 
     /** 统一响应体状态码字段 */
     private static final String FIELD_CODE = "code";

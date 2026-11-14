@@ -1,15 +1,14 @@
 package com.bluewhale.workflow.service.impl.task;
 
 import com.bluewhale.common.core.exception.BizException;
-import com.bluewhale.workflow.entity.ProcessInstance;
-import com.bluewhale.workflow.entity.ProcessTask;
+import com.bluewhale.workflow.po.ProcessInstancePo;
+import com.bluewhale.workflow.po.ProcessTaskPo;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
 import com.bluewhale.workflow.service.ProcessCcService;
 import com.bluewhale.workflow.service.ProcessDelegateService;
 import com.bluewhale.workflow.support.ProcessModel;
 import com.bluewhale.workflow.support.ProcessModelNode;
 import com.bluewhale.workflow.support.ProcessModelParser;
-import com.bluewhale.workflow.support.ProcessNodeType;
 import com.bluewhale.workflow.support.machine.TransitionResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -71,12 +70,12 @@ class TaskActivationCommandTest {
     @Test
     @DisplayName("activate：静态审批人建 1 条待办，抄送节点只写抄送")
     void shouldCreateOneTaskAndWriteCc() {
-        ProcessInstance instance = instance(null);
+        ProcessInstancePo instance = instance(null);
         TransitionResult result = result();
 
         taskActivationCommand.activate(instance, model(), result);
 
-        ArgumentCaptor<ProcessTask> captor = ArgumentCaptor.forClass(ProcessTask.class);
+        ArgumentCaptor<ProcessTaskPo> captor = ArgumentCaptor.forClass(ProcessTaskPo.class);
         verify(processTaskMapper).insert(captor.capture());
         assertEquals("manager", captor.getValue().getAssignee());
         assertEquals("manager", captor.getValue().getOwnerId());
@@ -88,23 +87,23 @@ class TaskActivationCommandTest {
     @Test
     @DisplayName("activate：审批人覆盖生成多条待办")
     void shouldCreateTasksForOverrides() {
-        ProcessInstance instance = instance("{\"t1\":[\"lisi\",\"lisi2\"]}");
+        ProcessInstancePo instance = instance("{\"t1\":[\"lisi\",\"lisi2\"]}");
 
         taskActivationCommand.activate(instance, model(), result());
 
-        verify(processTaskMapper, times(2)).insert(any(ProcessTask.class));
+        verify(processTaskMapper, times(2)).insert(any(ProcessTaskPo.class));
     }
 
     @Test
     @DisplayName("activate：代理命中时改派并记录 delegateFrom")
     void shouldDelegateTaskOnce() {
-        ProcessInstance instance = instance(null);
+        ProcessInstancePo instance = instance(null);
         when(processDelegateService.resolveActive(eq("wf"), eq("manager"), any()))
                 .thenReturn(Optional.of("zhaoliu"));
 
         taskActivationCommand.activate(instance, model(), result());
 
-        ArgumentCaptor<ProcessTask> captor = ArgumentCaptor.forClass(ProcessTask.class);
+        ArgumentCaptor<ProcessTaskPo> captor = ArgumentCaptor.forClass(ProcessTaskPo.class);
         verify(processTaskMapper).insert(captor.capture());
         assertEquals("zhaoliu", captor.getValue().getAssignee());
         assertEquals("manager", captor.getValue().getOwnerId());
@@ -125,7 +124,7 @@ class TaskActivationCommandTest {
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertTrue(ex.getMessage().contains("t1"));
-        verify(processTaskMapper, never()).insert(any(ProcessTask.class));
+        verify(processTaskMapper, never()).insert(any(ProcessTaskPo.class));
     }
 
     /**
@@ -134,8 +133,8 @@ class TaskActivationCommandTest {
      * @param overridesJson 审批人覆盖 JSON
      * @return 流程实例
      */
-    private static ProcessInstance instance(String overridesJson) {
-        ProcessInstance instance = new ProcessInstance();
+    private static ProcessInstancePo instance(String overridesJson) {
+        ProcessInstancePo instance = new ProcessInstancePo();
         instance.setId(1L);
         instance.setDefinitionCode("wf");
         instance.setAssigneeOverridesJson(overridesJson);

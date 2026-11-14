@@ -18,7 +18,7 @@ import java.util.Map;
 /**
  * 工作流服务内网客户端。
  *
- * <p>调用 {@code /workflow/internal/instance/**} 拉取审批通过实例与归档详情；
+ * <p>调用 {@code /workflow/v1/internal/instance/**} 拉取审批通过实例与归档详情；
  * 服务间直连、不经网关、无权限码头。</p>
  *
  * @author BlueWhale
@@ -27,10 +27,10 @@ import java.util.Map;
 public class WorkflowArchiveClient {
 
     /** 已通过实例分页路径 */
-    private static final String APPROVED_PATH = "/workflow/internal/instance/approved";
+    private static final String APPROVED_PATH = "/workflow/v1/internal/instance/approved";
 
     /** 实例归档详情路径模板 */
-    private static final String DETAIL_PATH = "/workflow/internal/instance/{id}/detail";
+    private static final String DETAIL_PATH = "/workflow/v1/internal/instance/{id}/detail";
 
     /** 拉取已通过实例动作描述 */
     private static final String ACTION_APPROVED = "拉取已通过实例";

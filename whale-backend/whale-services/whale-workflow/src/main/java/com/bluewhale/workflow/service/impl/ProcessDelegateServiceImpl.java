@@ -6,8 +6,8 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.workflow.converter.WorkflowConverter;
-import com.bluewhale.workflow.dto.DelegateRuleSaveRequest;
-import com.bluewhale.workflow.entity.ProcessDelegate;
+import com.bluewhale.workflow.request.DelegateRuleSaveRequest;
+import com.bluewhale.workflow.po.ProcessDelegatePo;
 import com.bluewhale.workflow.mapper.ProcessDelegateMapper;
 import com.bluewhale.workflow.service.ProcessDelegateService;
 import com.bluewhale.workflow.support.WorkflowConstants;
@@ -37,11 +37,11 @@ public class ProcessDelegateServiceImpl implements ProcessDelegateService {
         long safeSize = size <= 0
                 ? WorkflowConstants.DEFAULT_PAGE_SIZE
                 : Math.min(size, WorkflowConstants.MAX_PAGE_SIZE);
-        LambdaQueryWrapper<ProcessDelegate> wrapper = new LambdaQueryWrapper<ProcessDelegate>()
-                .eq(hasText(fromAccount), ProcessDelegate::getFromAccount, fromAccount)
-                .orderByDesc(ProcessDelegate::getCreateTime)
-                .orderByDesc(ProcessDelegate::getId);
-        Page<ProcessDelegate> page = processDelegateMapper.selectPage(new Page<>(safeCurrent, safeSize, false), wrapper);
+        LambdaQueryWrapper<ProcessDelegatePo> wrapper = new LambdaQueryWrapper<ProcessDelegatePo>()
+                .eq(hasText(fromAccount), ProcessDelegatePo::getFromAccount, fromAccount)
+                .orderByDesc(ProcessDelegatePo::getCreateTime)
+                .orderByDesc(ProcessDelegatePo::getId);
+        Page<ProcessDelegatePo> page = processDelegateMapper.selectPage(new Page<>(safeCurrent, safeSize, false), wrapper);
         List<DelegateRuleVO> records = page.getRecords().stream()
                 .map(WorkflowConverter.INSTANCE::toDelegateVo)
                 .toList();
@@ -50,7 +50,7 @@ public class ProcessDelegateServiceImpl implements ProcessDelegateService {
 
     @Override
     public DelegateRuleVO create(DelegateRuleSaveRequest request) {
-        ProcessDelegate entity = new ProcessDelegate();
+        ProcessDelegatePo entity = new ProcessDelegatePo();
         apply(entity, request);
         ensureNoOverlap(entity);
         processDelegateMapper.insert(entity);
@@ -59,7 +59,7 @@ public class ProcessDelegateServiceImpl implements ProcessDelegateService {
 
     @Override
     public DelegateRuleVO update(Long id, DelegateRuleSaveRequest request) {
-        ProcessDelegate entity = processDelegateMapper.selectById(id);
+        ProcessDelegatePo entity = processDelegateMapper.selectById(id);
         if (entity == null) {
             throw new BizException(ErrorCode.NOT_FOUND.getCode(), "代理规则不存在");
         }
@@ -71,7 +71,7 @@ public class ProcessDelegateServiceImpl implements ProcessDelegateService {
 
     @Override
     public void delete(Long id) {
-        ProcessDelegate entity = processDelegateMapper.selectById(id);
+        ProcessDelegatePo entity = processDelegateMapper.selectById(id);
         if (entity == null) {
             throw new BizException(ErrorCode.NOT_FOUND.getCode(), "代理规则不存在");
         }
@@ -83,14 +83,14 @@ public class ProcessDelegateServiceImpl implements ProcessDelegateService {
         if (!hasText(definitionCode) || !hasText(account)) {
             return Optional.empty();
         }
-        List<ProcessDelegate> rules = processDelegateMapper.selectList(new LambdaQueryWrapper<ProcessDelegate>()
-                .eq(ProcessDelegate::getEnabled, WorkflowConstants.DELEGATE_ENABLED)
-                .eq(ProcessDelegate::getDefinitionCode, definitionCode.trim())
-                .eq(ProcessDelegate::getFromAccount, account.trim())
-                .le(ProcessDelegate::getStartTime, now)
-                .ge(ProcessDelegate::getEndTime, now)
-                .orderByDesc(ProcessDelegate::getStartTime)
-                .orderByDesc(ProcessDelegate::getId)
+        List<ProcessDelegatePo> rules = processDelegateMapper.selectList(new LambdaQueryWrapper<ProcessDelegatePo>()
+                .eq(ProcessDelegatePo::getEnabled, WorkflowConstants.DELEGATE_ENABLED)
+                .eq(ProcessDelegatePo::getDefinitionCode, definitionCode.trim())
+                .eq(ProcessDelegatePo::getFromAccount, account.trim())
+                .le(ProcessDelegatePo::getStartTime, now)
+                .ge(ProcessDelegatePo::getEndTime, now)
+                .orderByDesc(ProcessDelegatePo::getStartTime)
+                .orderByDesc(ProcessDelegatePo::getId)
                 .last("LIMIT 1"));
         return rules.isEmpty() ? Optional.empty() : Optional.of(rules.get(0).getToAccount());
     }
@@ -101,7 +101,7 @@ public class ProcessDelegateServiceImpl implements ProcessDelegateService {
      * @param entity 规则实体
      * @param request 保存请求
      */
-    private static void apply(ProcessDelegate entity, DelegateRuleSaveRequest request) {
+    private static void apply(ProcessDelegatePo entity, DelegateRuleSaveRequest request) {
         String definitionCode = request.getDefinitionCode().trim();
         String fromAccount = request.getFromAccount().trim();
         String toAccount = request.getToAccount().trim();
@@ -130,17 +130,17 @@ public class ProcessDelegateServiceImpl implements ProcessDelegateService {
      *
      * @param entity 待保存规则
      */
-    private void ensureNoOverlap(ProcessDelegate entity) {
+    private void ensureNoOverlap(ProcessDelegatePo entity) {
         if (entity.getEnabled() == null || entity.getEnabled() != WorkflowConstants.DELEGATE_ENABLED) {
             return;
         }
-        LambdaQueryWrapper<ProcessDelegate> wrapper = new LambdaQueryWrapper<ProcessDelegate>()
-                .eq(ProcessDelegate::getEnabled, WorkflowConstants.DELEGATE_ENABLED)
-                .eq(ProcessDelegate::getDefinitionCode, entity.getDefinitionCode())
-                .eq(ProcessDelegate::getFromAccount, entity.getFromAccount())
-                .ne(entity.getId() != null, ProcessDelegate::getId, entity.getId())
-                .lt(ProcessDelegate::getStartTime, entity.getEndTime())
-                .gt(ProcessDelegate::getEndTime, entity.getStartTime());
+        LambdaQueryWrapper<ProcessDelegatePo> wrapper = new LambdaQueryWrapper<ProcessDelegatePo>()
+                .eq(ProcessDelegatePo::getEnabled, WorkflowConstants.DELEGATE_ENABLED)
+                .eq(ProcessDelegatePo::getDefinitionCode, entity.getDefinitionCode())
+                .eq(ProcessDelegatePo::getFromAccount, entity.getFromAccount())
+                .ne(entity.getId() != null, ProcessDelegatePo::getId, entity.getId())
+                .lt(ProcessDelegatePo::getStartTime, entity.getEndTime())
+                .gt(ProcessDelegatePo::getEndTime, entity.getStartTime());
         if (processDelegateMapper.selectCount(wrapper) > 0) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "代理生效时间段与其他规则重叠");
         }

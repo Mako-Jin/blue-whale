@@ -6,13 +6,13 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.workflow.converter.WorkflowConverter;
-import com.bluewhale.workflow.dto.InternalProcessStartRequest;
-import com.bluewhale.workflow.dto.ProcessInstanceQueryRequest;
-import com.bluewhale.workflow.dto.ProcessInstanceStartRequest;
-import com.bluewhale.workflow.entity.ProcessDefinition;
-import com.bluewhale.workflow.entity.ProcessDefinitionVersion;
-import com.bluewhale.workflow.entity.ProcessInstance;
-import com.bluewhale.workflow.entity.ProcessTask;
+import com.bluewhale.workflow.request.InternalProcessStartRequest;
+import com.bluewhale.workflow.request.ProcessInstanceQueryRequest;
+import com.bluewhale.workflow.request.ProcessInstanceStartRequest;
+import com.bluewhale.workflow.po.ProcessDefinitionPo;
+import com.bluewhale.workflow.po.ProcessDefinitionVersionPo;
+import com.bluewhale.workflow.po.ProcessInstancePo;
+import com.bluewhale.workflow.po.ProcessTaskPo;
 import com.bluewhale.workflow.mapper.ProcessDefinitionMapper;
 import com.bluewhale.workflow.mapper.ProcessDefinitionVersionMapper;
 import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
@@ -76,7 +76,7 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ProcessInstanceVO start(ProcessInstanceStartRequest request, String initiator) {
-        ProcessDefinition definition = processDefinitionMapper.selectById(request.getDefinitionId());
+        ProcessDefinitionPo definition = processDefinitionMapper.selectById(request.getDefinitionId());
         if (definition == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
@@ -87,7 +87,7 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ProcessInstanceVO startByCode(InternalProcessStartRequest request) {
-        ProcessDefinition definition = findDefinitionByCode(request.getDefinitionCode());
+        ProcessDefinitionPo definition = findDefinitionByCode(request.getDefinitionCode());
         if (definition == null) {
             throw new BizException(ErrorCode.NOT_FOUND.getCode(), "流程定义不存在：" + request.getDefinitionCode());
         }
@@ -97,29 +97,29 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
 
     @Override
     public ProcessInstanceVO getDetail(Long id) {
-        ProcessInstance instance = requireInstance(id);
+        ProcessInstancePo instance = requireInstance(id);
         ProcessInstanceVO vo = toVo(instance);
-        LambdaQueryWrapper<ProcessTask> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ProcessTask::getInstanceId, id);
-        wrapper.orderByAsc(ProcessTask::getNodeIndex);
-        wrapper.orderByAsc(ProcessTask::getCreateTime);
+        LambdaQueryWrapper<ProcessTaskPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ProcessTaskPo::getInstanceId, id);
+        wrapper.orderByAsc(ProcessTaskPo::getNodeIndex);
+        wrapper.orderByAsc(ProcessTaskPo::getCreateTime);
         vo.setTasks(processTaskMapper.selectList(wrapper).stream().map(ProcessInstanceServiceImpl::toTaskVo).toList());
         return vo;
     }
 
     @Override
     public PageResult<ProcessInstanceVO> page(ProcessInstanceQueryRequest request) {
-        LambdaQueryWrapper<ProcessInstance> wrapper = new LambdaQueryWrapper<>();
-        wrapper.like(StringUtils.hasText(request.getTitle()), ProcessInstance::getTitle, request.getTitle());
-        wrapper.eq(request.getStatus() != null, ProcessInstance::getStatus, request.getStatus());
-        wrapper.eq(StringUtils.hasText(request.getDefinitionCode()), ProcessInstance::getDefinitionCode,
+        LambdaQueryWrapper<ProcessInstancePo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.like(StringUtils.hasText(request.getTitle()), ProcessInstancePo::getTitle, request.getTitle());
+        wrapper.eq(request.getStatus() != null, ProcessInstancePo::getStatus, request.getStatus());
+        wrapper.eq(StringUtils.hasText(request.getDefinitionCode()), ProcessInstancePo::getDefinitionCode,
                 request.getDefinitionCode());
-        wrapper.eq(StringUtils.hasText(request.getInitiator()), ProcessInstance::getInitiator,
+        wrapper.eq(StringUtils.hasText(request.getInitiator()), ProcessInstancePo::getInitiator,
                 request.getInitiator());
-        wrapper.orderByDesc(ProcessInstance::getCreateTime);
+        wrapper.orderByDesc(ProcessInstancePo::getCreateTime);
         long current = Math.min(Math.max(request.getCurrent(), 1L), WorkflowConstants.MAX_PAGE_CURRENT);
         long size = Math.min(Math.max(request.getSize(), 1L), WorkflowConstants.MAX_PAGE_SIZE);
-        Page<ProcessInstance> page = processInstanceMapper.selectPage(new Page<>(current, size), wrapper);
+        Page<ProcessInstancePo> page = processInstanceMapper.selectPage(new Page<>(current, size), wrapper);
         List<ProcessInstanceVO> records = page.getRecords().stream().map(ProcessInstanceServiceImpl::toVo).toList();
         return PageResult.of(records, page.getTotal(), current, size);
     }
@@ -137,10 +137,10 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
         if (ids.isEmpty()) {
             return List.of();
         }
-        LambdaQueryWrapper<ProcessInstance> wrapper = new LambdaQueryWrapper<ProcessInstance>()
-                .in(ProcessInstance::getId, ids);
+        LambdaQueryWrapper<ProcessInstancePo> wrapper = new LambdaQueryWrapper<ProcessInstancePo>()
+                .in(ProcessInstancePo::getId, ids);
         List<InstanceStatusVO> result = new ArrayList<>();
-        for (ProcessInstance instance : processInstanceMapper.selectList(wrapper)) {
+        for (ProcessInstancePo instance : processInstanceMapper.selectList(wrapper)) {
             InstanceStatusVO vo = new InstanceStatusVO();
             vo.setId(instance.getId());
             vo.setBusinessKey(instance.getBusinessKey());
@@ -154,7 +154,7 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void cancel(Long id, String operator) {
-        ProcessInstance instance = requireRunningInstance(id);
+        ProcessInstancePo instance = requireRunningInstance(id);
         String who = operator == null ? "" : operator.trim();
         if (who.isEmpty()) {
             throw new BizException(ErrorCode.UNAUTHORIZED);
@@ -176,7 +176,7 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
      *
      * @param instance 运行中的流程实例
      */
-    private void doCancel(ProcessInstance instance) {
+    private void doCancel(ProcessInstancePo instance) {
         instance.setStatus(WorkflowConstants.INSTANCE_CANCELED);
         instance.setActiveNodeKeys(null);
         processInstanceMapper.updateById(instance);
@@ -191,8 +191,8 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
      * @param id 流程实例ID
      * @return 运行中的流程实例
      */
-    private ProcessInstance requireRunningInstance(Long id) {
-        ProcessInstance instance = requireInstance(id);
+    private ProcessInstancePo requireRunningInstance(Long id) {
+        ProcessInstancePo instance = requireInstance(id);
         if (instance.getStatus() == null || instance.getStatus() != WorkflowConstants.INSTANCE_RUNNING) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "实例非运行中");
         }
@@ -211,16 +211,16 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
      * @param ccAccounts 发起级抄送人账号
      * @return 流程实例视图对象
      */
-    private ProcessInstanceVO startInstance(ProcessDefinition definition, String title, String businessKey,
+    private ProcessInstanceVO startInstance(ProcessDefinitionPo definition, String title, String businessKey,
                                             String initiator, Map<String, Object> variables,
                                             Map<String, List<String>> assigneeOverrides, List<String> ccAccounts) {
-        ProcessDefinitionVersion published = findPublishedSnapshot(definition.getId());
+        ProcessDefinitionVersionPo published = findPublishedSnapshot(definition.getId());
         String definitionJson = published == null ? definition.getDefinitionJson() : published.getDefinitionJson();
         ProcessModel model = ProcessModelParser.parse(definitionJson);
         Map<String, List<String>> normalizedOverrides = AssigneeOverrides.normalize(model, assigneeOverrides);
         String variablesJson = ProcessVariables.write(variables);
         TransitionResult result = new StateMachine(model, variables).start();
-        ProcessInstance instance = new ProcessInstance();
+        ProcessInstancePo instance = new ProcessInstancePo();
         instance.setDefinitionId(definition.getId());
         instance.setDefinitionCode(definition.getCode());
         instance.setDefinitionVersion(published == null ? definition.getVersion() : published.getVersion());
@@ -248,15 +248,15 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
      * @param code 流程编码
      * @return 流程定义，不存在返回 {@code null}
      */
-    private ProcessDefinition findDefinitionByCode(String code) {
+    private ProcessDefinitionPo findDefinitionByCode(String code) {
         if (code == null || code.isBlank()) {
             return null;
         }
-        LambdaQueryWrapper<ProcessDefinition> wrapper = new LambdaQueryWrapper<ProcessDefinition>()
-                .eq(ProcessDefinition::getCode, code.trim())
-                .orderByDesc(ProcessDefinition::getId)
+        LambdaQueryWrapper<ProcessDefinitionPo> wrapper = new LambdaQueryWrapper<ProcessDefinitionPo>()
+                .eq(ProcessDefinitionPo::getCode, code.trim())
+                .orderByDesc(ProcessDefinitionPo::getId)
                 .last("LIMIT 1");
-        List<ProcessDefinition> definitions = processDefinitionMapper.selectList(wrapper);
+        List<ProcessDefinitionPo> definitions = processDefinitionMapper.selectList(wrapper);
         return definitions.isEmpty() ? null : definitions.get(0);
     }
 
@@ -269,12 +269,12 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
      * @param definitionId 流程定义ID
      * @return 已发布快照，不存在返回 {@code null}
      */
-    private ProcessDefinitionVersion findPublishedSnapshot(Long definitionId) {
-        LambdaQueryWrapper<ProcessDefinitionVersion> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ProcessDefinitionVersion::getDefinitionId, definitionId);
-        wrapper.eq(ProcessDefinitionVersion::getPublishStatus, WorkflowConstants.PUBLISH_PUBLISHED);
-        wrapper.orderByDesc(ProcessDefinitionVersion::getVersion);
-        List<ProcessDefinitionVersion> snapshots = processDefinitionVersionMapper.selectList(wrapper);
+    private ProcessDefinitionVersionPo findPublishedSnapshot(Long definitionId) {
+        LambdaQueryWrapper<ProcessDefinitionVersionPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ProcessDefinitionVersionPo::getDefinitionId, definitionId);
+        wrapper.eq(ProcessDefinitionVersionPo::getPublishStatus, WorkflowConstants.PUBLISH_PUBLISHED);
+        wrapper.orderByDesc(ProcessDefinitionVersionPo::getVersion);
+        List<ProcessDefinitionVersionPo> snapshots = processDefinitionVersionMapper.selectList(wrapper);
         return snapshots.isEmpty() ? null : snapshots.get(0);
     }
 
@@ -294,8 +294,8 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
      * @param id 流程实例ID
      * @return 流程实例实体
      */
-    private ProcessInstance requireInstance(Long id) {
-        ProcessInstance entity = processInstanceMapper.selectById(id);
+    private ProcessInstancePo requireInstance(Long id) {
+        ProcessInstancePo entity = processInstanceMapper.selectById(id);
         if (entity == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
@@ -308,7 +308,7 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
      * @param entity 流程实例实体
      * @return 流程实例视图对象
      */
-    private static ProcessInstanceVO toVo(ProcessInstance entity) {
+    private static ProcessInstanceVO toVo(ProcessInstancePo entity) {
         return WorkflowConverter.INSTANCE.toInstanceVo(entity);
     }
 
@@ -318,7 +318,7 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
      * @param entity 待办任务实体
      * @return 待办任务视图对象
      */
-    private static ProcessTaskVO toTaskVo(ProcessTask entity) {
+    private static ProcessTaskVO toTaskVo(ProcessTaskPo entity) {
         return WorkflowConverter.INSTANCE.toTaskVo(entity);
     }
 }

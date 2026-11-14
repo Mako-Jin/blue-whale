@@ -6,10 +6,10 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.workflow.converter.WorkflowConverter;
-import com.bluewhale.workflow.entity.ProcessDefinition;
-import com.bluewhale.workflow.entity.ProcessDefinitionVersion;
-import com.bluewhale.workflow.entity.ProcessInstance;
-import com.bluewhale.workflow.entity.ProcessTask;
+import com.bluewhale.workflow.po.ProcessDefinitionPo;
+import com.bluewhale.workflow.po.ProcessDefinitionVersionPo;
+import com.bluewhale.workflow.po.ProcessInstancePo;
+import com.bluewhale.workflow.po.ProcessTaskPo;
 import com.bluewhale.workflow.mapper.ProcessDefinitionMapper;
 import com.bluewhale.workflow.mapper.ProcessDefinitionVersionMapper;
 import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
@@ -50,13 +50,13 @@ public class WorkflowArchiveReadServiceImpl implements WorkflowArchiveReadServic
                                                    long current, long size) {
         long pageCurrent = Math.min(Math.max(current, 1L), WorkflowConstants.MAX_PAGE_CURRENT);
         long pageSize = Math.min(Math.max(size, 1L), WorkflowConstants.MAX_PAGE_SIZE);
-        LambdaQueryWrapper<ProcessInstance> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ProcessInstance::getStatus, WorkflowConstants.INSTANCE_APPROVED);
-        wrapper.gt(updatedAfter != null, ProcessInstance::getFinishedAt, updatedAfter);
-        wrapper.le(updatedBefore != null, ProcessInstance::getFinishedAt, updatedBefore);
-        wrapper.orderByAsc(ProcessInstance::getFinishedAt);
-        wrapper.orderByAsc(ProcessInstance::getId);
-        Page<ProcessInstance> page = processInstanceMapper.selectPage(new Page<>(pageCurrent, pageSize), wrapper);
+        LambdaQueryWrapper<ProcessInstancePo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ProcessInstancePo::getStatus, WorkflowConstants.INSTANCE_APPROVED);
+        wrapper.gt(updatedAfter != null, ProcessInstancePo::getFinishedAt, updatedAfter);
+        wrapper.le(updatedBefore != null, ProcessInstancePo::getFinishedAt, updatedBefore);
+        wrapper.orderByAsc(ProcessInstancePo::getFinishedAt);
+        wrapper.orderByAsc(ProcessInstancePo::getId);
+        Page<ProcessInstancePo> page = processInstanceMapper.selectPage(new Page<>(pageCurrent, pageSize), wrapper);
         List<ApprovedInstanceVO> records = page.getRecords().stream()
                 .map(WorkflowArchiveReadServiceImpl::toApprovedVo)
                 .toList();
@@ -65,7 +65,7 @@ public class WorkflowArchiveReadServiceImpl implements WorkflowArchiveReadServic
 
     @Override
     public ArchiveInstanceDetailVO detail(Long id) {
-        ProcessInstance instance = processInstanceMapper.selectById(id);
+        ProcessInstancePo instance = processInstanceMapper.selectById(id);
         if (instance == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
@@ -82,19 +82,19 @@ public class WorkflowArchiveReadServiceImpl implements WorkflowArchiveReadServic
      * @param instance 流程实例实体
      * @return 定义快照 JSON；定义不存在时返回 {@code null}
      */
-    private String resolveDefinitionJson(ProcessInstance instance) {
+    private String resolveDefinitionJson(ProcessInstancePo instance) {
         Long definitionId = instance.getDefinitionId();
         if (definitionId == null) {
             return null;
         }
-        ProcessDefinitionVersion snapshot = findVersionSnapshot(definitionId, instance.getDefinitionVersion());
+        ProcessDefinitionVersionPo snapshot = findVersionSnapshot(definitionId, instance.getDefinitionVersion());
         if (snapshot == null) {
             snapshot = findPublishedSnapshot(definitionId);
         }
         if (snapshot != null) {
             return snapshot.getDefinitionJson();
         }
-        ProcessDefinition definition = processDefinitionMapper.selectById(definitionId);
+        ProcessDefinitionPo definition = processDefinitionMapper.selectById(definitionId);
         return definition == null ? null : definition.getDefinitionJson();
     }
 
@@ -105,14 +105,14 @@ public class WorkflowArchiveReadServiceImpl implements WorkflowArchiveReadServic
      * @param version 版本号，可为 {@code null}
      * @return 版本快照；不存在返回 {@code null}
      */
-    private ProcessDefinitionVersion findVersionSnapshot(Long definitionId, Integer version) {
+    private ProcessDefinitionVersionPo findVersionSnapshot(Long definitionId, Integer version) {
         if (version == null) {
             return null;
         }
-        LambdaQueryWrapper<ProcessDefinitionVersion> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ProcessDefinitionVersion::getDefinitionId, definitionId);
-        wrapper.eq(ProcessDefinitionVersion::getVersion, version);
-        List<ProcessDefinitionVersion> snapshots = processDefinitionVersionMapper.selectList(wrapper);
+        LambdaQueryWrapper<ProcessDefinitionVersionPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ProcessDefinitionVersionPo::getDefinitionId, definitionId);
+        wrapper.eq(ProcessDefinitionVersionPo::getVersion, version);
+        List<ProcessDefinitionVersionPo> snapshots = processDefinitionVersionMapper.selectList(wrapper);
         return snapshots.isEmpty() ? null : snapshots.get(0);
     }
 
@@ -122,12 +122,12 @@ public class WorkflowArchiveReadServiceImpl implements WorkflowArchiveReadServic
      * @param definitionId 流程定义ID
      * @return 已发布快照；不存在返回 {@code null}
      */
-    private ProcessDefinitionVersion findPublishedSnapshot(Long definitionId) {
-        LambdaQueryWrapper<ProcessDefinitionVersion> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ProcessDefinitionVersion::getDefinitionId, definitionId);
-        wrapper.eq(ProcessDefinitionVersion::getPublishStatus, WorkflowConstants.PUBLISH_PUBLISHED);
-        wrapper.orderByDesc(ProcessDefinitionVersion::getVersion);
-        List<ProcessDefinitionVersion> snapshots = processDefinitionVersionMapper.selectList(wrapper);
+    private ProcessDefinitionVersionPo findPublishedSnapshot(Long definitionId) {
+        LambdaQueryWrapper<ProcessDefinitionVersionPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ProcessDefinitionVersionPo::getDefinitionId, definitionId);
+        wrapper.eq(ProcessDefinitionVersionPo::getPublishStatus, WorkflowConstants.PUBLISH_PUBLISHED);
+        wrapper.orderByDesc(ProcessDefinitionVersionPo::getVersion);
+        List<ProcessDefinitionVersionPo> snapshots = processDefinitionVersionMapper.selectList(wrapper);
         return snapshots.isEmpty() ? null : snapshots.get(0);
     }
 
@@ -138,10 +138,10 @@ public class WorkflowArchiveReadServiceImpl implements WorkflowArchiveReadServic
      * @return 任务视图对象列表
      */
     private List<ProcessTaskVO> listTasks(Long instanceId) {
-        LambdaQueryWrapper<ProcessTask> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ProcessTask::getInstanceId, instanceId);
-        wrapper.orderByAsc(ProcessTask::getNodeIndex);
-        wrapper.orderByAsc(ProcessTask::getCreateTime);
+        LambdaQueryWrapper<ProcessTaskPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ProcessTaskPo::getInstanceId, instanceId);
+        wrapper.orderByAsc(ProcessTaskPo::getNodeIndex);
+        wrapper.orderByAsc(ProcessTaskPo::getCreateTime);
         return processTaskMapper.selectList(wrapper).stream()
                 .map(WorkflowArchiveReadServiceImpl::toTaskVo)
                 .toList();
@@ -153,7 +153,7 @@ public class WorkflowArchiveReadServiceImpl implements WorkflowArchiveReadServic
      * @param entity 流程实例实体
      * @return 已通过实例摘要视图对象
      */
-    private static ApprovedInstanceVO toApprovedVo(ProcessInstance entity) {
+    private static ApprovedInstanceVO toApprovedVo(ProcessInstancePo entity) {
         ApprovedInstanceVO vo = WorkflowConverter.INSTANCE.toApprovedVo(entity);
         vo.setFinishedAt(resolveFinishedAt(entity));
         return vo;
@@ -165,7 +165,7 @@ public class WorkflowArchiveReadServiceImpl implements WorkflowArchiveReadServic
      * @param instance 流程实例
      * @return 办结时间
      */
-    private static LocalDateTime resolveFinishedAt(ProcessInstance instance) {
+    private static LocalDateTime resolveFinishedAt(ProcessInstancePo instance) {
         return instance.getFinishedAt() != null ? instance.getFinishedAt() : instance.getUpdateTime();
     }
 
@@ -175,7 +175,7 @@ public class WorkflowArchiveReadServiceImpl implements WorkflowArchiveReadServic
      * @param entity 待办任务实体
      * @return 待办任务视图对象
      */
-    private static ProcessTaskVO toTaskVo(ProcessTask entity) {
+    private static ProcessTaskVO toTaskVo(ProcessTaskPo entity) {
         return WorkflowConverter.INSTANCE.toTaskVo(entity);
     }
 }

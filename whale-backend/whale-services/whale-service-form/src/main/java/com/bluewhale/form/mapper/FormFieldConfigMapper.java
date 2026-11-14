@@ -1,7 +1,7 @@
 package com.bluewhale.form.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bluewhale.form.entity.FormFieldConfigEntity;
+import com.bluewhale.form.po.FormFieldConfigPo;
 
 /**
  * 表单字段配置 Mapper。
@@ -10,5 +10,5 @@ import com.bluewhale.form.entity.FormFieldConfigEntity;
  *
  * @author BlueWhale
  */
-public interface FormFieldConfigMapper extends BaseMapper<FormFieldConfigEntity> {
+public interface FormFieldConfigMapper extends BaseMapper<FormFieldConfigPo> {
 }

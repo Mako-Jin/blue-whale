@@ -18,7 +18,7 @@ import java.util.Map;
 /**
  * whale-workflow 流程实例状态批量查询客户端（审批结果对账用）。
  *
- * <p>走内网令牌直连 {@code GET /workflow/internal/instance/status}，单次最多 100 个实例；
+ * <p>走内网令牌直连 {@code GET /workflow/v1/internal/instance/status}，单次最多 100 个实例；
  * whale-workflow 实例办结后没有主动回调实现，本客户端是对账拉取链路的查询端。</p>
  *
  * @author BlueWhale
@@ -28,7 +28,7 @@ import java.util.Map;
 public class WorkflowInstanceStatusClient implements WorkflowStatusPort {
 
     /** 批量状态查询路径 */
-    private static final String STATUS_PATH = "/workflow/internal/instance/status";
+    private static final String STATUS_PATH = "/workflow/v1/internal/instance/status";
 
     /** 批量查询单次上限（与 workflow 侧约束一致） */
     public static final int MAX_BATCH_SIZE = 100;

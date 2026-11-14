@@ -4,12 +4,12 @@ import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.result.PageResult;
-import com.bluewhale.workflow.dto.ApprovalRequest;
-import com.bluewhale.workflow.dto.ProcessTaskQueryRequest;
-import com.bluewhale.workflow.entity.ProcessDefinition;
-import com.bluewhale.workflow.entity.ProcessDefinitionVersion;
-import com.bluewhale.workflow.entity.ProcessInstance;
-import com.bluewhale.workflow.entity.ProcessTask;
+import com.bluewhale.workflow.request.ApprovalRequest;
+import com.bluewhale.workflow.request.ProcessTaskQueryRequest;
+import com.bluewhale.workflow.po.ProcessDefinitionPo;
+import com.bluewhale.workflow.po.ProcessDefinitionVersionPo;
+import com.bluewhale.workflow.po.ProcessInstancePo;
+import com.bluewhale.workflow.po.ProcessTaskPo;
 import com.bluewhale.workflow.mapper.ProcessDefinitionMapper;
 import com.bluewhale.workflow.mapper.ProcessDefinitionVersionMapper;
 import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
@@ -149,8 +149,8 @@ class ProcessTaskServiceImplTest {
      * @param status 任务状态
      * @return 待办任务实体
      */
-    private static ProcessTask pendingTask(Long id, Long instanceId, int status) {
-        ProcessTask task = new ProcessTask();
+    private static ProcessTaskPo pendingTask(Long id, Long instanceId, int status) {
+        ProcessTaskPo task = new ProcessTaskPo();
         task.setId(id);
         task.setInstanceId(instanceId);
         task.setNodeIndex(0);
@@ -168,8 +168,8 @@ class ProcessTaskServiceImplTest {
      * @param currentIndex 当前节点下标
      * @return 流程实例实体
      */
-    private static ProcessInstance instance(Long id, Long definitionId, int status, int currentIndex) {
-        ProcessInstance instance = new ProcessInstance();
+    private static ProcessInstancePo instance(Long id, Long definitionId, int status, int currentIndex) {
+        ProcessInstancePo instance = new ProcessInstancePo();
         instance.setId(id);
         instance.setDefinitionId(definitionId);
         instance.setStatus(status);
@@ -187,8 +187,8 @@ class ProcessTaskServiceImplTest {
      * @param currentNodeKey 当前节点键
      * @return 流程实例实体
      */
-    private static ProcessInstance keyedInstance(Long id, Long definitionId, int status, int currentIndex, String currentNodeKey) {
-        ProcessInstance instance = instance(id, definitionId, status, currentIndex);
+    private static ProcessInstancePo keyedInstance(Long id, Long definitionId, int status, int currentIndex, String currentNodeKey) {
+        ProcessInstancePo instance = instance(id, definitionId, status, currentIndex);
         instance.setCurrentNodeKey(currentNodeKey);
         return instance;
     }
@@ -200,8 +200,8 @@ class ProcessTaskServiceImplTest {
      * @param definitionJson 流程定义JSON
      * @return 流程定义实体
      */
-    private static ProcessDefinition definition(Long id, String definitionJson) {
-        ProcessDefinition definition = new ProcessDefinition();
+    private static ProcessDefinitionPo definition(Long id, String definitionJson) {
+        ProcessDefinitionPo definition = new ProcessDefinitionPo();
         definition.setId(id);
         definition.setDefinitionJson(definitionJson);
         return definition;
@@ -210,12 +210,12 @@ class ProcessTaskServiceImplTest {
     @Test
     @DisplayName("approve：非末节点同意后推进下标并生成下一节点待办")
     void shouldAdvanceWhenApproveNotLastNode() {
-        ProcessTask task = pendingTask(100L, 5L, 0);
-        ProcessInstance instance = instance(5L, 10L, 0, 0);
+        ProcessTaskPo task = pendingTask(100L, 5L, 0);
+        ProcessInstancePo instance = instance(5L, 10L, 0, 0);
         when(processTaskMapper.selectById(100L)).thenReturn(task);
         when(processInstanceMapper.selectById(5L)).thenReturn(instance);
         when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, TWO_NODE_JSON));
-        when(processTaskMapper.update(any(ProcessTask.class), ArgumentMatchers.<Wrapper<ProcessTask>>any()))
+        when(processTaskMapper.update(any(ProcessTaskPo.class), ArgumentMatchers.<Wrapper<ProcessTaskPo>>any()))
                 .thenReturn(1);
 
         ApprovalRequest approval = new ApprovalRequest();
@@ -224,11 +224,11 @@ class ProcessTaskServiceImplTest {
 
         assertEquals(1, task.getStatus().intValue());
         assertEquals("同意", task.getComment());
-        verify(processTaskMapper).update(any(ProcessTask.class), ArgumentMatchers.<Wrapper<ProcessTask>>any());
+        verify(processTaskMapper).update(any(ProcessTaskPo.class), ArgumentMatchers.<Wrapper<ProcessTaskPo>>any());
         assertEquals(1, instance.getCurrentIndex().intValue());
         assertEquals(0, instance.getStatus().intValue());
         verify(processInstanceMapper).updateById(instance);
-        ArgumentCaptor<ProcessTask> captor = ArgumentCaptor.forClass(ProcessTask.class);
+        ArgumentCaptor<ProcessTaskPo> captor = ArgumentCaptor.forClass(ProcessTaskPo.class);
         verify(processTaskMapper).insert(captor.capture());
         assertEquals(1, captor.getValue().getNodeIndex().intValue());
         assertEquals("user", captor.getValue().getAssignee());
@@ -238,26 +238,26 @@ class ProcessTaskServiceImplTest {
     @Test
     @DisplayName("approve：优先按实例锁定版本的快照推进")
     void shouldPreferSnapshotOnApprove() {
-        ProcessTask task = pendingTask(100L, 5L, 0);
+        ProcessTaskPo task = pendingTask(100L, 5L, 0);
         task.setNodeKey("t1");
-        ProcessInstance instance = keyedInstance(5L, 10L, 0, 1, "t1");
+        ProcessInstancePo instance = keyedInstance(5L, 10L, 0, 1, "t1");
         instance.setDefinitionVersion(1);
         when(processTaskMapper.selectById(100L)).thenReturn(task);
         when(processInstanceMapper.selectById(5L)).thenReturn(instance);
-        ProcessDefinitionVersion snapshot = new ProcessDefinitionVersion();
+        ProcessDefinitionVersionPo snapshot = new ProcessDefinitionVersionPo();
         snapshot.setDefinitionId(10L);
         snapshot.setVersion(1);
         snapshot.setDefinitionJson(NORMALIZED_JSON);
-        when(processDefinitionVersionMapper.selectList(ArgumentMatchers.<Wrapper<ProcessDefinitionVersion>>any()))
+        when(processDefinitionVersionMapper.selectList(ArgumentMatchers.<Wrapper<ProcessDefinitionVersionPo>>any()))
                 .thenReturn(List.of(snapshot));
-        when(processTaskMapper.update(any(ProcessTask.class), ArgumentMatchers.<Wrapper<ProcessTask>>any()))
+        when(processTaskMapper.update(any(ProcessTaskPo.class), ArgumentMatchers.<Wrapper<ProcessTaskPo>>any()))
                 .thenReturn(1);
 
         processTaskService.approve(100L, null);
 
         assertEquals(2, instance.getCurrentIndex().intValue());
         assertEquals("t2", instance.getCurrentNodeKey());
-        ArgumentCaptor<ProcessTask> captor = ArgumentCaptor.forClass(ProcessTask.class);
+        ArgumentCaptor<ProcessTaskPo> captor = ArgumentCaptor.forClass(ProcessTaskPo.class);
         verify(processTaskMapper).insert(captor.capture());
         assertEquals("user", captor.getValue().getAssignee());
     }
@@ -265,12 +265,12 @@ class ProcessTaskServiceImplTest {
     @Test
     @DisplayName("approve：末节点同意后实例置为已通过且不再生成待办")
     void shouldApproveInstanceWhenLastNode() {
-        ProcessTask task = pendingTask(100L, 5L, 0);
-        ProcessInstance instance = instance(5L, 10L, 0, 0);
+        ProcessTaskPo task = pendingTask(100L, 5L, 0);
+        ProcessInstancePo instance = instance(5L, 10L, 0, 0);
         when(processTaskMapper.selectById(100L)).thenReturn(task);
         when(processInstanceMapper.selectById(5L)).thenReturn(instance);
         when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, ONE_NODE_JSON));
-        when(processTaskMapper.update(any(ProcessTask.class), ArgumentMatchers.<Wrapper<ProcessTask>>any()))
+        when(processTaskMapper.update(any(ProcessTaskPo.class), ArgumentMatchers.<Wrapper<ProcessTaskPo>>any()))
                 .thenReturn(1);
 
         processTaskService.approve(100L, null);
@@ -278,27 +278,27 @@ class ProcessTaskServiceImplTest {
         assertEquals(1, task.getStatus().intValue());
         assertEquals(1, instance.getStatus().intValue());
         verify(processInstanceMapper).updateById(instance);
-        verify(processTaskMapper, never()).insert(any(ProcessTask.class));
+        verify(processTaskMapper, never()).insert(any(ProcessTaskPo.class));
     }
 
     @Test
     @DisplayName("approve：任务已处理抛参数错误且不推进")
     void shouldThrowWhenApproveHandledTask() {
-        ProcessTask task = pendingTask(100L, 5L, 1);
+        ProcessTaskPo task = pendingTask(100L, 5L, 1);
         when(processTaskMapper.selectById(100L)).thenReturn(task);
 
         BizException ex = assertThrows(BizException.class, () -> processTaskService.approve(100L, null));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertEquals("任务已处理", ex.getMessage());
-        verify(processTaskMapper, never()).updateById(any(ProcessTask.class));
+        verify(processTaskMapper, never()).updateById(any(ProcessTaskPo.class));
     }
 
     @Test
     @DisplayName("approve：实例非运行中抛参数错误且不推进")
     void shouldThrowWhenApproveOnNotRunningInstance() {
-        ProcessTask task = pendingTask(100L, 5L, 0);
-        ProcessInstance instance = instance(5L, 10L, 1, 0);
+        ProcessTaskPo task = pendingTask(100L, 5L, 0);
+        ProcessInstancePo instance = instance(5L, 10L, 1, 0);
         when(processTaskMapper.selectById(100L)).thenReturn(task);
         when(processInstanceMapper.selectById(5L)).thenReturn(instance);
 
@@ -306,17 +306,17 @@ class ProcessTaskServiceImplTest {
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertEquals("实例非运行中", ex.getMessage());
-        verify(processTaskMapper, never()).updateById(any(ProcessTask.class));
+        verify(processTaskMapper, never()).updateById(any(ProcessTaskPo.class));
     }
 
     @Test
     @DisplayName("reject：驳回后实例置为已驳回并取消其余待办")
     void shouldRejectInstanceAndCancelOthers() {
-        ProcessTask task = pendingTask(100L, 5L, 0);
-        ProcessInstance instance = instance(5L, 10L, 0, 0);
+        ProcessTaskPo task = pendingTask(100L, 5L, 0);
+        ProcessInstancePo instance = instance(5L, 10L, 0, 0);
         when(processTaskMapper.selectById(100L)).thenReturn(task);
         when(processInstanceMapper.selectById(5L)).thenReturn(instance);
-        when(processTaskMapper.update(any(ProcessTask.class), ArgumentMatchers.<Wrapper<ProcessTask>>any()))
+        when(processTaskMapper.update(any(ProcessTaskPo.class), ArgumentMatchers.<Wrapper<ProcessTaskPo>>any()))
                 .thenReturn(1);
 
         processTaskService.reject(100L, "不同意");
@@ -326,18 +326,18 @@ class ProcessTaskServiceImplTest {
         assertEquals(2, instance.getStatus().intValue());
         verify(processInstanceMapper).updateById(instance);
         verify(processTaskMapper, times(2))
-                .update(any(ProcessTask.class), ArgumentMatchers.<Wrapper<ProcessTask>>any());
+                .update(any(ProcessTaskPo.class), ArgumentMatchers.<Wrapper<ProcessTaskPo>>any());
     }
 
     @Test
     @DisplayName("page：按条件调用分页查询并映射结果")
     void shouldPageWithConditions() {
-        ProcessTask task = pendingTask(100L, 5L, 0);
-        Page<ProcessTask> page = new Page<>(1L, 10L);
+        ProcessTaskPo task = pendingTask(100L, 5L, 0);
+        Page<ProcessTaskPo> page = new Page<>(1L, 10L);
         page.setRecords(List.of(task));
         page.setTotal(1L);
-        when(processTaskMapper.selectPage(ArgumentMatchers.<Page<ProcessTask>>any(),
-                ArgumentMatchers.<Wrapper<ProcessTask>>any())).thenReturn(page);
+        when(processTaskMapper.selectPage(ArgumentMatchers.<Page<ProcessTaskPo>>any(),
+                ArgumentMatchers.<Wrapper<ProcessTaskPo>>any())).thenReturn(page);
         ProcessTaskQueryRequest request = new ProcessTaskQueryRequest();
         request.setAssignee("admin");
         request.setStatus(0);
@@ -353,17 +353,17 @@ class ProcessTaskServiceImplTest {
     @Test
     @DisplayName("approve：以 current_node_key 为准推进（不依赖 currentIndex）")
     void shouldAdvanceByCurrentNodeKey() {
-        ProcessTask task = pendingTask(100L, 5L, 0);
-        ProcessInstance instance = keyedInstance(5L, 10L, 0, 2, "t1");
+        ProcessTaskPo task = pendingTask(100L, 5L, 0);
+        ProcessInstancePo instance = keyedInstance(5L, 10L, 0, 2, "t1");
         when(processTaskMapper.selectById(100L)).thenReturn(task);
         when(processInstanceMapper.selectById(5L)).thenReturn(instance);
         when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, NORMALIZED_JSON));
-        when(processTaskMapper.update(any(ProcessTask.class), ArgumentMatchers.<Wrapper<ProcessTask>>any()))
+        when(processTaskMapper.update(any(ProcessTaskPo.class), ArgumentMatchers.<Wrapper<ProcessTaskPo>>any()))
                 .thenReturn(1);
 
         processTaskService.approve(100L, null);
 
-        ArgumentCaptor<ProcessTask> captor = ArgumentCaptor.forClass(ProcessTask.class);
+        ArgumentCaptor<ProcessTaskPo> captor = ArgumentCaptor.forClass(ProcessTaskPo.class);
         verify(processTaskMapper).insert(captor.capture());
         assertEquals("user", captor.getValue().getAssignee());
         assertEquals("t2", instance.getCurrentNodeKey());
@@ -374,17 +374,17 @@ class ProcessTaskServiceImplTest {
     @Test
     @DisplayName("approve：current_node_key 为空时回落 currentIndex 解析")
     void shouldFallbackToCurrentIndex() {
-        ProcessTask task = pendingTask(100L, 5L, 0);
-        ProcessInstance instance = instance(5L, 10L, 0, 1);
+        ProcessTaskPo task = pendingTask(100L, 5L, 0);
+        ProcessInstancePo instance = instance(5L, 10L, 0, 1);
         when(processTaskMapper.selectById(100L)).thenReturn(task);
         when(processInstanceMapper.selectById(5L)).thenReturn(instance);
         when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, NORMALIZED_JSON));
-        when(processTaskMapper.update(any(ProcessTask.class), ArgumentMatchers.<Wrapper<ProcessTask>>any()))
+        when(processTaskMapper.update(any(ProcessTaskPo.class), ArgumentMatchers.<Wrapper<ProcessTaskPo>>any()))
                 .thenReturn(1);
 
         processTaskService.approve(100L, null);
 
-        ArgumentCaptor<ProcessTask> captor = ArgumentCaptor.forClass(ProcessTask.class);
+        ArgumentCaptor<ProcessTaskPo> captor = ArgumentCaptor.forClass(ProcessTaskPo.class);
         verify(processTaskMapper).insert(captor.capture());
         assertEquals("user", captor.getValue().getAssignee());
         assertEquals("t2", instance.getCurrentNodeKey());
@@ -393,35 +393,35 @@ class ProcessTaskServiceImplTest {
     @Test
     @DisplayName("approve：末节点以节点键推进到结束事件并置为已通过")
     void shouldApproveInstanceWhenKeyedLastNode() {
-        ProcessTask task = pendingTask(100L, 5L, 0);
-        ProcessInstance instance = keyedInstance(5L, 10L, 0, 2, "t2");
+        ProcessTaskPo task = pendingTask(100L, 5L, 0);
+        ProcessInstancePo instance = keyedInstance(5L, 10L, 0, 2, "t2");
         when(processTaskMapper.selectById(100L)).thenReturn(task);
         when(processInstanceMapper.selectById(5L)).thenReturn(instance);
         when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, NORMALIZED_JSON));
-        when(processTaskMapper.update(any(ProcessTask.class), ArgumentMatchers.<Wrapper<ProcessTask>>any()))
+        when(processTaskMapper.update(any(ProcessTaskPo.class), ArgumentMatchers.<Wrapper<ProcessTaskPo>>any()))
                 .thenReturn(1);
 
         processTaskService.approve(100L, null);
 
         assertEquals(1, instance.getStatus().intValue());
         assertEquals("end", instance.getCurrentNodeKey());
-        verify(processTaskMapper, never()).insert(any(ProcessTask.class));
+        verify(processTaskMapper, never()).insert(any(ProcessTaskPo.class));
     }
 
     @Test
     @DisplayName("approve：生成下一节点待办时回填 nodeKey/formId/formCode")
     void shouldBackfillNodeKeyAndFormOnCreateTask() {
-        ProcessTask task = pendingTask(100L, 5L, 0);
-        ProcessInstance instance = keyedInstance(5L, 10L, 0, 1, "t1");
+        ProcessTaskPo task = pendingTask(100L, 5L, 0);
+        ProcessInstancePo instance = keyedInstance(5L, 10L, 0, 1, "t1");
         when(processTaskMapper.selectById(100L)).thenReturn(task);
         when(processInstanceMapper.selectById(5L)).thenReturn(instance);
         when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, FORM_JSON));
-        when(processTaskMapper.update(any(ProcessTask.class), ArgumentMatchers.<Wrapper<ProcessTask>>any()))
+        when(processTaskMapper.update(any(ProcessTaskPo.class), ArgumentMatchers.<Wrapper<ProcessTaskPo>>any()))
                 .thenReturn(1);
 
         processTaskService.approve(100L, null);
 
-        ArgumentCaptor<ProcessTask> captor = ArgumentCaptor.forClass(ProcessTask.class);
+        ArgumentCaptor<ProcessTaskPo> captor = ArgumentCaptor.forClass(ProcessTaskPo.class);
         verify(processTaskMapper).insert(captor.capture());
         assertEquals("t2", captor.getValue().getNodeKey());
         assertEquals("2112355156699869186", captor.getValue().getFormId());
@@ -431,17 +431,17 @@ class ProcessTaskServiceImplTest {
     @Test
     @DisplayName("approve：legacy 无 key 节点生成待办时 nodeKey 合成 n{i+1}")
     void shouldSynthesizeNodeKeyForLegacyOnCreateTask() {
-        ProcessTask task = pendingTask(100L, 5L, 0);
-        ProcessInstance instance = instance(5L, 10L, 0, 0);
+        ProcessTaskPo task = pendingTask(100L, 5L, 0);
+        ProcessInstancePo instance = instance(5L, 10L, 0, 0);
         when(processTaskMapper.selectById(100L)).thenReturn(task);
         when(processInstanceMapper.selectById(5L)).thenReturn(instance);
         when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, LEGACY_NO_KEY_JSON));
-        when(processTaskMapper.update(any(ProcessTask.class), ArgumentMatchers.<Wrapper<ProcessTask>>any()))
+        when(processTaskMapper.update(any(ProcessTaskPo.class), ArgumentMatchers.<Wrapper<ProcessTaskPo>>any()))
                 .thenReturn(1);
 
         processTaskService.approve(100L, null);
 
-        ArgumentCaptor<ProcessTask> captor = ArgumentCaptor.forClass(ProcessTask.class);
+        ArgumentCaptor<ProcessTaskPo> captor = ArgumentCaptor.forClass(ProcessTaskPo.class);
         verify(processTaskMapper).insert(captor.capture());
         assertEquals("n2", captor.getValue().getNodeKey());
         assertNull(captor.getValue().getFormId());
@@ -451,21 +451,21 @@ class ProcessTaskServiceImplTest {
     @Test
     @DisplayName("addSign：为当前节点追加去重后的加签待办，归属人为发起加签人")
     void shouldAddSignTasks() {
-        ProcessTask task = pendingTask(100L, 5L, 0);
+        ProcessTaskPo task = pendingTask(100L, 5L, 0);
         task.setNodeKey("t1");
         task.setNodeName("一级审批");
         when(processTaskMapper.selectById(100L)).thenReturn(task);
         when(processInstanceMapper.selectById(5L)).thenReturn(instance(5L, 10L, 0, 0));
-        when(processTaskMapper.selectList(ArgumentMatchers.<Wrapper<ProcessTask>>any()))
+        when(processTaskMapper.selectList(ArgumentMatchers.<Wrapper<ProcessTaskPo>>any()))
                 .thenReturn(List.of(task));
 
         processTaskService.addSign(100L, List.of(" lisi ", "wangwu", "lisi"));
 
-        ArgumentCaptor<ProcessTask> captor = ArgumentCaptor.forClass(ProcessTask.class);
+        ArgumentCaptor<ProcessTaskPo> captor = ArgumentCaptor.forClass(ProcessTaskPo.class);
         verify(processTaskMapper, times(2)).insert(captor.capture());
         assertEquals(List.of("lisi", "wangwu"),
-                captor.getAllValues().stream().map(ProcessTask::getAssignee).toList());
-        for (ProcessTask added : captor.getAllValues()) {
+                captor.getAllValues().stream().map(ProcessTaskPo::getAssignee).toList());
+        for (ProcessTaskPo added : captor.getAllValues()) {
             assertEquals(0, added.getStatus().intValue());
             assertEquals("ADD_SIGN", added.getSignType());
             assertEquals(added.getAssignee(), added.getOwnerId());
@@ -477,11 +477,11 @@ class ProcessTaskServiceImplTest {
     @Test
     @DisplayName("addSign：加签人已在本节点任务中抛参数错误")
     void shouldThrowWhenAddSignExistingAssignee() {
-        ProcessTask task = pendingTask(100L, 5L, 0);
+        ProcessTaskPo task = pendingTask(100L, 5L, 0);
         task.setNodeKey("t1");
         when(processTaskMapper.selectById(100L)).thenReturn(task);
         when(processInstanceMapper.selectById(5L)).thenReturn(instance(5L, 10L, 0, 0));
-        when(processTaskMapper.selectList(ArgumentMatchers.<Wrapper<ProcessTask>>any()))
+        when(processTaskMapper.selectList(ArgumentMatchers.<Wrapper<ProcessTaskPo>>any()))
                 .thenReturn(List.of(task));
 
         BizException ex = assertThrows(BizException.class,
@@ -489,13 +489,13 @@ class ProcessTaskServiceImplTest {
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertEquals("加签人已在本节点任务中：admin", ex.getMessage());
-        verify(processTaskMapper, never()).insert(any(ProcessTask.class));
+        verify(processTaskMapper, never()).insert(any(ProcessTaskPo.class));
     }
 
     @Test
     @DisplayName("addSign：ANY 会签节点不支持加签")
     void shouldRejectAddSignOnAnyCounterSign() {
-        ProcessTask task = pendingTask(100L, 5L, 0);
+        ProcessTaskPo task = pendingTask(100L, 5L, 0);
         task.setNodeKey("t1");
         task.setSignType("COUNTER_SIGN");
         task.setSignPolicy("ANY");
@@ -507,27 +507,27 @@ class ProcessTaskServiceImplTest {
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertEquals("ANY/RATIO 会签节点不支持加签", ex.getMessage());
-        verify(processTaskMapper, never()).insert(any(ProcessTask.class));
+        verify(processTaskMapper, never()).insert(any(ProcessTaskPo.class));
     }
 
     @Test
     @DisplayName("approve：同节点仍有待办（加签）时等待不推进")
     void shouldWaitWhenSameNodeHasPendingTask() {
-        ProcessTask task = pendingTask(100L, 5L, 0);
+        ProcessTaskPo task = pendingTask(100L, 5L, 0);
         task.setNodeKey("t1");
-        ProcessInstance instance = keyedInstance(5L, 10L, 0, 1, "t1");
+        ProcessInstancePo instance = keyedInstance(5L, 10L, 0, 1, "t1");
         when(processTaskMapper.selectById(100L)).thenReturn(task);
         when(processInstanceMapper.selectById(5L)).thenReturn(instance);
         when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, NORMALIZED_JSON));
-        when(processTaskMapper.selectCount(ArgumentMatchers.<Wrapper<ProcessTask>>any()))
+        when(processTaskMapper.selectCount(ArgumentMatchers.<Wrapper<ProcessTaskPo>>any()))
                 .thenReturn(1L);
-        when(processTaskMapper.update(any(ProcessTask.class), ArgumentMatchers.<Wrapper<ProcessTask>>any()))
+        when(processTaskMapper.update(any(ProcessTaskPo.class), ArgumentMatchers.<Wrapper<ProcessTaskPo>>any()))
                 .thenReturn(1);
 
         processTaskService.approve(100L, null);
 
         assertEquals(1, task.getStatus().intValue());
-        verify(processTaskMapper, never()).insert(any(ProcessTask.class));
+        verify(processTaskMapper, never()).insert(any(ProcessTaskPo.class));
         assertEquals("t1", instance.getCurrentNodeKey());
         assertEquals(0, instance.getStatus().intValue());
     }

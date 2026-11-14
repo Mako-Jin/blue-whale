@@ -83,7 +83,7 @@ class InternalTokenFilterTest {
     @DisplayName("filter：任意服务前缀的 internal 段路径均受保护（/**/internal/**）")
     void shouldProtectAnyPathWithInternalSegment() throws Exception {
         assertEquals(403, doFilter("/im/internal/notify", null).getStatus());
-        assertEquals(403, doFilter("/workflow/internal/task/1/complete", "bad").getStatus());
+        assertEquals(403, doFilter("/workflow/v1/internal/task/1/complete", "bad").getStatus());
     }
 
     @Test

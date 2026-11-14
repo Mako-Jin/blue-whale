@@ -57,7 +57,7 @@ test.afterAll(async ({ request }) => {
     }
   }
   if (definitionId) {
-    await deleteResource(request, token, `/workflow/definition/${definitionId}`);
+    await deleteResource(request, token, `/workflow/v1/definition/${definitionId}`);
   }
 });
 

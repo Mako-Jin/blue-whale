@@ -1,7 +1,7 @@
 package com.bluewhale.workflow.controller;
 
 import com.bluewhale.common.core.result.Result;
-import com.bluewhale.workflow.dto.DefinitionEnsureRequest;
+import com.bluewhale.workflow.request.DefinitionEnsureRequest;
 import com.bluewhale.workflow.service.ProcessDefinitionService;
 import com.bluewhale.workflow.vo.ProcessDefinitionVO;
 import jakarta.validation.Valid;
@@ -14,13 +14,13 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 流程定义内网接口：按编码幂等 ensure。
  *
- * <p>服务内路径前缀 {@code /workflow/internal/definition}；网关 {@code internal-deny} 对
- * {@code /workflow/internal/**} 统一返回 403，外部不可达，故不加权限码注解。</p>
+ * <p>服务内路径前缀 {@code /workflow/v1/internal/definition}；网关 {@code internal-deny} 对
+ * {@code /workflow/v1/internal/**} 统一返回 403，外部不可达，故不加权限码注解。</p>
  *
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/workflow/internal/definition")
+@RequestMapping(path = "/workflow/v{version}/internal/definition", version = "1")
 @RequiredArgsConstructor
 public class WorkflowInternalDefinitionController {
 

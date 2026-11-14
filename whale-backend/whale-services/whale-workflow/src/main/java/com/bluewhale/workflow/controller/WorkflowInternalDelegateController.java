@@ -2,7 +2,7 @@ package com.bluewhale.workflow.controller;
 
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
-import com.bluewhale.workflow.dto.DelegateRuleSaveRequest;
+import com.bluewhale.workflow.request.DelegateRuleSaveRequest;
 import com.bluewhale.workflow.service.ProcessDelegateService;
 import com.bluewhale.workflow.vo.DelegateRuleVO;
 import jakarta.validation.Valid;
@@ -20,13 +20,13 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 流程代理规则内网接口。
  *
- * <p>服务内路径前缀 {@code /workflow/internal/delegate}；网关 {@code internal-deny} 对
- * {@code /workflow/internal/**} 统一返回 403，外部不可达，故不加权限码注解。</p>
+ * <p>服务内路径前缀 {@code /workflow/v1/internal/delegate}；网关 {@code internal-deny} 对
+ * {@code /workflow/v1/internal/**} 统一返回 403，外部不可达，故不加权限码注解。</p>
  *
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/workflow/internal/delegate")
+@RequestMapping(path = "/workflow/v{version}/internal/delegate", version = "1")
 @RequiredArgsConstructor
 public class WorkflowInternalDelegateController {
 

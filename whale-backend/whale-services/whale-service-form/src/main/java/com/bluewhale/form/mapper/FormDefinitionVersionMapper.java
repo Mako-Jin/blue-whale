@@ -1,7 +1,7 @@
 package com.bluewhale.form.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bluewhale.form.entity.FormDefinitionVersionEntity;
+import com.bluewhale.form.po.FormDefinitionVersionPo;
 
 /**
  * 表单定义版本快照 Mapper。
@@ -11,5 +11,5 @@ import com.bluewhale.form.entity.FormDefinitionVersionEntity;
  *
  * @author BlueWhale
  */
-public interface FormDefinitionVersionMapper extends BaseMapper<FormDefinitionVersionEntity> {
+public interface FormDefinitionVersionMapper extends BaseMapper<FormDefinitionVersionPo> {
 }

@@ -1,9 +1,9 @@
 package com.bluewhale.workflow.service;
 
 import com.bluewhale.common.core.result.PageResult;
-import com.bluewhale.workflow.dto.InternalProcessStartRequest;
-import com.bluewhale.workflow.dto.ProcessInstanceQueryRequest;
-import com.bluewhale.workflow.dto.ProcessInstanceStartRequest;
+import com.bluewhale.workflow.request.InternalProcessStartRequest;
+import com.bluewhale.workflow.request.ProcessInstanceQueryRequest;
+import com.bluewhale.workflow.request.ProcessInstanceStartRequest;
 import com.bluewhale.workflow.vo.InstanceStatusVO;
 import com.bluewhale.workflow.vo.ProcessInstanceVO;
 

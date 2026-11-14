@@ -1,7 +1,7 @@
 package com.bluewhale.workflow.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bluewhale.workflow.entity.ProcessDefinition;
+import com.bluewhale.workflow.po.ProcessDefinitionPo;
 
 /**
  * 流程定义 Mapper。
@@ -10,5 +10,5 @@ import com.bluewhale.workflow.entity.ProcessDefinition;
  *
  * @author BlueWhale
  */
-public interface ProcessDefinitionMapper extends BaseMapper<ProcessDefinition> {
+public interface ProcessDefinitionMapper extends BaseMapper<ProcessDefinitionPo> {
 }

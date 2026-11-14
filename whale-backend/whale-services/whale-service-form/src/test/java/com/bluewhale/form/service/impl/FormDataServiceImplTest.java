@@ -7,9 +7,9 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.form.model.request.FormDataQueryRequest;
 import com.bluewhale.form.model.request.FormDataSubmitRequest;
 import com.bluewhale.form.model.request.FormDataUpdateRequest;
-import com.bluewhale.form.entity.FormDataEntity;
-import com.bluewhale.form.entity.FormDefinitionEntity;
-import com.bluewhale.form.entity.FormTableRegistryEntity;
+import com.bluewhale.form.po.FormDataPo;
+import com.bluewhale.form.po.FormDefinitionPo;
+import com.bluewhale.form.po.FormTableRegistryPo;
 import com.bluewhale.form.mapper.FormColumnMetaMapper;
 import com.bluewhale.form.mapper.FormDataMapper;
 import com.bluewhale.form.mapper.FormDefinitionMapper;
@@ -79,8 +79,8 @@ class FormDataServiceImplTest {
      * @param id 表单定义ID
      * @return 表单定义实体
      */
-    private static FormDefinitionEntity definition(Long id) {
-        FormDefinitionEntity definition = new FormDefinitionEntity();
+    private static FormDefinitionPo definition(Long id) {
+        FormDefinitionPo definition = new FormDefinitionPo();
         definition.setId(id);
         definition.setCode(CODE);
         definition.setVersion(1);
@@ -92,8 +92,8 @@ class FormDataServiceImplTest {
      *
      * @return 登记实体
      */
-    private static FormTableRegistryEntity registry() {
-        FormTableRegistryEntity registry = new FormTableRegistryEntity();
+    private static FormTableRegistryPo registry() {
+        FormTableRegistryPo registry = new FormTableRegistryPo();
         registry.setDefinitionId(10L);
         registry.setDefinitionCode(CODE);
         registry.setDefinitionVersion(1);
@@ -108,8 +108,8 @@ class FormDataServiceImplTest {
      * @param schemaJson 表单结构定义
      * @return 登记实体
      */
-    private static FormTableRegistryEntity registryWithSchema(String schemaJson) {
-        FormTableRegistryEntity registry = registry();
+    private static FormTableRegistryPo registryWithSchema(String schemaJson) {
+        FormTableRegistryPo registry = registry();
         registry.setSchemaJson(schemaJson);
         return registry;
     }
@@ -150,8 +150,8 @@ class FormDataServiceImplTest {
      * @param dataJson 表单数据JSON
      * @return 表单数据实体
      */
-    private static FormDataEntity existingData(Long id, String dataJson) {
-        FormDataEntity entity = new FormDataEntity();
+    private static FormDataPo existingData(Long id, String dataJson) {
+        FormDataPo entity = new FormDataPo();
         entity.setId(id);
         entity.setTenantId(TENANT);
         entity.setDefinitionCode(CODE);
@@ -164,7 +164,7 @@ class FormDataServiceImplTest {
     @DisplayName("submit：顶层基础字段类型不符返回参数错误且不落库")
     void shouldRejectTopLevelTypeMismatch() {
         when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(registryWithSchema(
                         "{\"fields\":[{\"key\":\"age\",\"label\":\"年龄\",\"type\":\"number\",\"required\":true}]}"));
 
@@ -172,15 +172,15 @@ class FormDataServiceImplTest {
                 () -> formDataService.submit(submitRequest(10L, "{\"age\":\"abc\"}"), "lisi", TENANT));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
-        verify(formDataMapper, never()).insert(any(FormDataEntity.class));
-        verify(formDataEngine, never()).insert(anyString(), any(FormDataEntity.class), anyList(), anyMap());
+        verify(formDataMapper, never()).insert(any(FormDataPo.class));
+        verify(formDataEngine, never()).insert(anyString(), any(FormDataPo.class), anyList(), anyMap());
     }
 
     @Test
     @DisplayName("submit：日期字段格式非法返回参数错误")
     void shouldRejectInvalidDateValue() {
         when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(registryWithSchema(
                         "{\"fields\":[{\"key\":\"birthday\",\"label\":\"生日\",\"type\":\"date\",\"required\":true}]}"));
 
@@ -188,24 +188,24 @@ class FormDataServiceImplTest {
                 () -> formDataService.submit(submitRequest(10L, "{\"birthday\":\"2026-13-01\"}"), "lisi", TENANT));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
-        verify(formDataMapper, never()).insert(any(FormDataEntity.class));
+        verify(formDataMapper, never()).insert(any(FormDataPo.class));
     }
 
     @Test
     @DisplayName("submit：定义存在且版本已发布时双写主表与物理表")
     void shouldSubmitWhenPublished() {
         when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(registry());
 
         FormDataVO vo = formDataService.submit(submitRequest(10L, "{\"name\":\"张三\"}"), "lisi", TENANT);
 
-        ArgumentCaptor<FormDataEntity> captor = ArgumentCaptor.forClass(FormDataEntity.class);
+        ArgumentCaptor<FormDataPo> captor = ArgumentCaptor.forClass(FormDataPo.class);
         verify(formDataMapper).insert(captor.capture());
         assertEquals(TENANT, captor.getValue().getTenantId());
         assertEquals(CODE, captor.getValue().getDefinitionCode());
         assertEquals(1, captor.getValue().getDefinitionVersion().intValue());
-        verify(formDataEngine).insert(eq(TABLE), any(FormDataEntity.class), anyList(), anyMap());
+        verify(formDataEngine).insert(eq(TABLE), any(FormDataPo.class), anyList(), anyMap());
         assertEquals("张三", vo.getFields().get("name"));
     }
 
@@ -213,62 +213,62 @@ class FormDataServiceImplTest {
     @DisplayName("submit：幂等键已存在时返回首次提交结果，不重复落库")
     void shouldReturnExistingWhenClientRequestIdHit() {
         when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
-        when(formDataMapper.selectOne(ArgumentMatchers.<Wrapper<FormDataEntity>>any()))
+        when(formDataMapper.selectOne(ArgumentMatchers.<Wrapper<FormDataPo>>any()))
                 .thenReturn(existingData(7L, "{\"name\":\"张三\"}"));
 
         FormDataVO vo = formDataService.submit(submitRequest(10L, "{\"name\":\"张三\"}", "req-1"), "lisi", TENANT);
 
         assertEquals(7L, vo.getId().longValue());
         assertEquals("张三", vo.getFields().get("name"));
-        verify(formDataMapper, never()).insert(any(FormDataEntity.class));
-        verify(formDataEngine, never()).insert(anyString(), any(FormDataEntity.class), anyList(), anyMap());
+        verify(formDataMapper, never()).insert(any(FormDataPo.class));
+        verify(formDataEngine, never()).insert(anyString(), any(FormDataPo.class), anyList(), anyMap());
     }
 
     @Test
     @DisplayName("submit：并发唯一键冲突时回查并返回首次提交结果")
     void shouldReturnExistingWhenDuplicateKey() {
         when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(registry());
-        when(formDataMapper.selectOne(ArgumentMatchers.<Wrapper<FormDataEntity>>any()))
+        when(formDataMapper.selectOne(ArgumentMatchers.<Wrapper<FormDataPo>>any()))
                 .thenReturn(null, existingData(7L, "{\"name\":\"张三\"}"));
-        when(formDataMapper.insert(any(FormDataEntity.class))).thenThrow(new DuplicateKeyException("uk"));
+        when(formDataMapper.insert(any(FormDataPo.class))).thenThrow(new DuplicateKeyException("uk"));
 
         FormDataVO vo = formDataService.submit(submitRequest(10L, "{\"name\":\"张三\"}", "req-1"), "lisi", TENANT);
 
         assertEquals(7L, vo.getId().longValue());
-        verify(formDataEngine, never()).insert(anyString(), any(FormDataEntity.class), anyList(), anyMap());
+        verify(formDataEngine, never()).insert(anyString(), any(FormDataPo.class), anyList(), anyMap());
     }
 
     @Test
     @DisplayName("submit：幂等键被软删记录占用时返回明确参数错误")
     void shouldThrowWhenClientRequestIdOccupiedByDeletedRecord() {
         when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(registry());
-        when(formDataMapper.selectOne(ArgumentMatchers.<Wrapper<FormDataEntity>>any())).thenReturn(null);
-        when(formDataMapper.insert(any(FormDataEntity.class))).thenThrow(new DuplicateKeyException("uk"));
+        when(formDataMapper.selectOne(ArgumentMatchers.<Wrapper<FormDataPo>>any())).thenReturn(null);
+        when(formDataMapper.insert(any(FormDataPo.class))).thenThrow(new DuplicateKeyException("uk"));
 
         BizException ex = assertThrows(BizException.class,
                 () -> formDataService.submit(submitRequest(10L, "{\"name\":\"张三\"}", "req-1"), "lisi", TENANT));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertEquals("客户端请求ID已被占用，请重新生成 clientRequestId", ex.getMessage());
-        verify(formDataEngine, never()).insert(anyString(), any(FormDataEntity.class), anyList(), anyMap());
+        verify(formDataEngine, never()).insert(anyString(), any(FormDataPo.class), anyList(), anyMap());
     }
 
     @Test
     @DisplayName("submit：当前版本未发布抛参数错误且不落库")
     void shouldThrowWhenNotPublished() {
         when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(null);
 
         BizException ex = assertThrows(BizException.class,
                 () -> formDataService.submit(submitRequest(10L, "{\"name\":\"张三\"}"), "lisi", TENANT));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
-        verify(formDataMapper, never()).insert(any(FormDataEntity.class));
+        verify(formDataMapper, never()).insert(any(FormDataPo.class));
     }
 
     @Test
@@ -280,7 +280,7 @@ class FormDataServiceImplTest {
                 () -> formDataService.submit(submitRequest(99L, "{}"), "lisi", TENANT));
 
         assertEquals(NOT_FOUND_CODE, ex.getCode());
-        verify(formDataMapper, never()).insert(any(FormDataEntity.class));
+        verify(formDataMapper, never()).insert(any(FormDataPo.class));
     }
 
     @Test
@@ -300,7 +300,7 @@ class FormDataServiceImplTest {
     @DisplayName("submit：未知字段抛参数错误")
     void shouldThrowWhenUnknownField() {
         when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(registry());
 
         BizException ex = assertThrows(BizException.class,
@@ -314,7 +314,7 @@ class FormDataServiceImplTest {
     @DisplayName("submit：必填字段缺失抛参数错误")
     void shouldThrowWhenRequiredMissing() {
         when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(registry());
 
         BizException ex = assertThrows(BizException.class,
@@ -327,13 +327,13 @@ class FormDataServiceImplTest {
     @Test
     @DisplayName("getDetail：租户匹配时返回主记录 + 物理表字段")
     void shouldGetDetail() {
-        FormDataEntity entity = new FormDataEntity();
+        FormDataPo entity = new FormDataPo();
         entity.setId(1L);
         entity.setTenantId(TENANT);
         entity.setDefinitionCode(CODE);
         entity.setDefinitionVersion(1);
         when(formDataMapper.selectById(1L)).thenReturn(entity);
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(registry());
         when(formDataEngine.selectFields(eq(TABLE), eq(1L), eq(TENANT), anyList()))
                 .thenReturn(java.util.Map.of("name", "张三"));
@@ -347,10 +347,10 @@ class FormDataServiceImplTest {
     @Test
     @DisplayName("getDetail：表级快照含无 children 的 subtable 时仍可回读")
     void shouldGetDetailWithStorageSnapshotSubtable() {
-        FormDataEntity entity = existingData(1L, "{}");
+        FormDataPo entity = existingData(1L, "{}");
         entity.setDefinitionId(10L);
         when(formDataMapper.selectById(1L)).thenReturn(entity);
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(registryWithSchema(
                         "{\"fields\":[{\"key\":\"lines\",\"label\":\"明细\",\"type\":\"subtable\"}]}"));
         when(formDataEngine.selectFields(eq(TABLE), eq(1L), eq(TENANT), anyList()))
@@ -365,13 +365,13 @@ class FormDataServiceImplTest {
     @DisplayName("update：必填校验与物理写入只使用当前视图字段，不触碰表级其他列")
     @SuppressWarnings("unchecked")
     void shouldUpdateWithViewFieldsOnly() {
-        FormDataEntity entity = existingData(1L, "{\"remark\":\"旧\"}");
+        FormDataPo entity = existingData(1L, "{\"remark\":\"旧\"}");
         entity.setDefinitionId(10L);
         when(formDataMapper.selectById(1L)).thenReturn(entity);
-        FormDefinitionEntity definition = definition(10L);
+        FormDefinitionPo definition = definition(10L);
         definition.setSchemaJson("{\"fields\":[{\"key\":\"remark\",\"label\":\"备注\",\"type\":\"text\"}]}");
         when(formDefinitionMapper.selectById(10L)).thenReturn(definition);
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(registryWithSchema("{\"fields\":["
                         + "{\"key\":\"amount\",\"label\":\"金额\",\"type\":\"number\",\"required\":true},"
                         + "{\"key\":\"remark\",\"label\":\"备注\",\"type\":\"text\"}]}"));
@@ -381,7 +381,7 @@ class FormDataServiceImplTest {
         formDataService.update(1L, request, TENANT);
 
         ArgumentCaptor<List<FormField>> captor = ArgumentCaptor.forClass(List.class);
-        verify(formDataEngine).update(eq(TABLE), any(FormDataEntity.class), captor.capture(), anyMap());
+        verify(formDataEngine).update(eq(TABLE), any(FormDataPo.class), captor.capture(), anyMap());
         assertEquals(1, captor.getValue().size());
         assertEquals("remark", captor.getValue().get(0).getKey());
     }
@@ -389,7 +389,7 @@ class FormDataServiceImplTest {
     @Test
     @DisplayName("getDetail：跨租户访问抛 NOT_FOUND")
     void shouldThrowWhenCrossTenant() {
-        FormDataEntity entity = new FormDataEntity();
+        FormDataPo entity = new FormDataPo();
         entity.setId(1L);
         entity.setTenantId(2L);
         when(formDataMapper.selectById(1L)).thenReturn(entity);
@@ -402,13 +402,13 @@ class FormDataServiceImplTest {
     @Test
     @DisplayName("delete：主表与物理表双逻辑删除")
     void shouldDeleteBoth() {
-        FormDataEntity entity = new FormDataEntity();
+        FormDataPo entity = new FormDataPo();
         entity.setId(7L);
         entity.setTenantId(TENANT);
         entity.setDefinitionCode(CODE);
         entity.setDefinitionVersion(1);
         when(formDataMapper.selectById(7L)).thenReturn(entity);
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(registry());
 
         formDataService.delete(7L, TENANT);
@@ -431,14 +431,14 @@ class FormDataServiceImplTest {
     @Test
     @DisplayName("page：按租户与条件分页查询")
     void shouldPageWithConditions() {
-        FormDataEntity entity = new FormDataEntity();
+        FormDataPo entity = new FormDataPo();
         entity.setId(1L);
         entity.setSubmitter("lisi");
-        Page<FormDataEntity> page = new Page<>(1L, 10L);
+        Page<FormDataPo> page = new Page<>(1L, 10L);
         page.setRecords(List.of(entity));
         page.setTotal(1L);
-        when(formDataMapper.selectPage(ArgumentMatchers.<Page<FormDataEntity>>any(),
-                ArgumentMatchers.<Wrapper<FormDataEntity>>any())).thenReturn(page);
+        when(formDataMapper.selectPage(ArgumentMatchers.<Page<FormDataPo>>any(),
+                ArgumentMatchers.<Wrapper<FormDataPo>>any())).thenReturn(page);
         FormDataQueryRequest request = new FormDataQueryRequest();
         request.setDefinitionCode(CODE);
         request.setSubmitter("lisi");
@@ -453,7 +453,7 @@ class FormDataServiceImplTest {
     @DisplayName("submit：attachment 值为数字数组时通过")
     void shouldSubmitAttachmentArray() {
         when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(registryWithSchema("{\"fields\":[{\"key\":\"files\",\"label\":\"附件\","
                         + "\"type\":\"attachment\",\"multiple\":true,\"maxCount\":3}]}"));
 
@@ -468,7 +468,7 @@ class FormDataServiceImplTest {
     @DisplayName("submit：attachment 值非数组抛参数错误")
     void shouldThrowWhenAttachmentNotArray() {
         when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(registryWithSchema("{\"fields\":[{\"key\":\"files\",\"label\":\"附件\","
                         + "\"type\":\"attachment\"}]}"));
 
@@ -476,14 +476,14 @@ class FormDataServiceImplTest {
                 () -> formDataService.submit(submitRequest(10L, "{\"files\":\"211\"}"), "lisi", TENANT));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
-        verify(formDataMapper, never()).insert(any(FormDataEntity.class));
+        verify(formDataMapper, never()).insert(any(FormDataPo.class));
     }
 
     @Test
     @DisplayName("submit：attachment 数组元素为字符串抛参数错误")
     void shouldThrowWhenAttachmentElementNotNumber() {
         when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(registryWithSchema("{\"fields\":[{\"key\":\"files\",\"label\":\"附件\","
                         + "\"type\":\"attachment\"}]}"));
 
@@ -497,7 +497,7 @@ class FormDataServiceImplTest {
     @DisplayName("submit：attachment 超过 maxCount 抛参数错误")
     void shouldThrowWhenAttachmentExceedsMaxCount() {
         when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(registryWithSchema("{\"fields\":[{\"key\":\"files\",\"label\":\"附件\","
                         + "\"type\":\"attachment\",\"maxCount\":1}]}"));
 
@@ -523,7 +523,7 @@ class FormDataServiceImplTest {
     @DisplayName("submit：subtable 合法行通过且忽略空行")
     void shouldSubmitSubtableAndIgnoreEmptyRows() {
         when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(registryWithSchema(subtableSchema(1)));
 
         FormDataVO vo = formDataService.submit(submitRequest(10L,
@@ -538,7 +538,7 @@ class FormDataServiceImplTest {
     @DisplayName("submit：subtable 行必填子字段缺失抛参数错误")
     void shouldThrowWhenSubtableRequiredMissing() {
         when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(registryWithSchema(subtableSchema(0)));
 
         BizException ex = assertThrows(BizException.class,
@@ -553,7 +553,7 @@ class FormDataServiceImplTest {
     @DisplayName("submit：subtable 子字段类型不符抛参数错误")
     void shouldThrowWhenSubtableTypeMismatch() {
         when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(registryWithSchema(subtableSchema(0)));
 
         BizException ex = assertThrows(BizException.class,
@@ -567,7 +567,7 @@ class FormDataServiceImplTest {
     @DisplayName("submit：subtable 超过 maxRows 抛参数错误")
     void shouldThrowWhenSubtableExceedsMaxRows() {
         when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(registryWithSchema(subtableSchema(1)));
 
         BizException ex = assertThrows(BizException.class,
@@ -582,7 +582,7 @@ class FormDataServiceImplTest {
     @DisplayName("submit：subtable 行不是对象抛参数错误")
     void shouldThrowWhenSubtableRowNotObject() {
         when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(registryWithSchema(subtableSchema(0)));
 
         BizException ex = assertThrows(BizException.class,
@@ -608,8 +608,8 @@ class FormDataServiceImplTest {
      * @param minute 创建时间分钟（用于排序断言）
      * @return 数据实体
      */
-    private static FormDataEntity data(Long id, int minute) {
-        FormDataEntity entity = new FormDataEntity();
+    private static FormDataPo data(Long id, int minute) {
+        FormDataPo entity = new FormDataPo();
         entity.setId(id);
         entity.setTenantId(TENANT);
         entity.setDefinitionCode(CODE);
@@ -620,11 +620,11 @@ class FormDataServiceImplTest {
     @Test
     @DisplayName("page：动态字段条件检索按物理表命中回捞并按创建时间倒序")
     void shouldPageWithDynamicFilters() {
-        FormDefinitionEntity definition = definition(10L);
+        FormDefinitionPo definition = definition(10L);
         definition.setSchemaJson(filterSchema());
-        when(formDefinitionMapper.selectList(ArgumentMatchers.<Wrapper<FormDefinitionEntity>>any()))
+        when(formDefinitionMapper.selectList(ArgumentMatchers.<Wrapper<FormDefinitionPo>>any()))
                 .thenReturn(List.of(definition));
-        when(formTableRegistryMapper.selectList(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectList(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(List.of(registryWithSchema(filterSchema())));
         when(formDataEngine.countByFilters(eq(TABLE), eq(TENANT), anyList(), anyList(),
                 ArgumentMatchers.<String>any(), ArgumentMatchers.<String>any())).thenReturn(2L);
@@ -647,9 +647,9 @@ class FormDataServiceImplTest {
     @Test
     @DisplayName("page：过滤字段不在表单结构定义中抛参数错误")
     void shouldThrowWhenFilterFieldMissing() {
-        FormDefinitionEntity definition = definition(10L);
+        FormDefinitionPo definition = definition(10L);
         definition.setSchemaJson(filterSchema());
-        when(formDefinitionMapper.selectList(ArgumentMatchers.<Wrapper<FormDefinitionEntity>>any()))
+        when(formDefinitionMapper.selectList(ArgumentMatchers.<Wrapper<FormDefinitionPo>>any()))
                 .thenReturn(List.of(definition));
         FormDataQueryRequest request = new FormDataQueryRequest();
         request.setDefinitionCode(CODE);

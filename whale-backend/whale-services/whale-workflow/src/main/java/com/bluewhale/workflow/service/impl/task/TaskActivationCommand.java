@@ -2,8 +2,8 @@ package com.bluewhale.workflow.service.impl.task;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
-import com.bluewhale.workflow.entity.ProcessInstance;
-import com.bluewhale.workflow.entity.ProcessTask;
+import com.bluewhale.workflow.po.ProcessInstancePo;
+import com.bluewhale.workflow.po.ProcessTaskPo;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
 import com.bluewhale.workflow.service.ProcessCcService;
 import com.bluewhale.workflow.service.ProcessDelegateService;
@@ -53,7 +53,7 @@ public class TaskActivationCommand {
      * @param model 流程模型
      * @param result 迁移结果
      */
-    public void activate(ProcessInstance instance, ProcessModel model, TransitionResult result) {
+    public void activate(ProcessInstancePo instance, ProcessModel model, TransitionResult result) {
         if (!result.isUserTask()) {
             return;
         }
@@ -74,7 +74,7 @@ public class TaskActivationCommand {
      * @param node 审批节点
      * @param overrides 审批人覆盖
      */
-    private void createNodeTasks(ProcessInstance instance, ProcessModel model,
+    private void createNodeTasks(ProcessInstancePo instance, ProcessModel model,
                                  ProcessModelNode node, Map<String, List<String>> overrides) {
         int nodeIndex = model.indexOf(node.getKey());
         List<String> override = overrides.get(node.getKey());
@@ -118,7 +118,7 @@ public class TaskActivationCommand {
      * @param node 抄送节点
      * @param overrides 审批人覆盖
      */
-    private void createNodeCc(ProcessInstance instance, ProcessModelNode node,
+    private void createNodeCc(ProcessInstancePo instance, ProcessModelNode node,
                               Map<String, List<String>> overrides) {
         List<String> override = overrides.get(node.getKey());
         List<String> recipients = override != null && !override.isEmpty() ? override : node.getAssignees();
@@ -133,7 +133,7 @@ public class TaskActivationCommand {
      * @param node 审批节点
      * @param account 原始审批人账号
      */
-    private void createTask(ProcessInstance instance, int nodeIndex, ProcessModelNode node, String account) {
+    private void createTask(ProcessInstancePo instance, int nodeIndex, ProcessModelNode node, String account) {
         String assignee = account;
         String delegateFrom = null;
         if (account != null && !account.isBlank()) {
@@ -144,7 +144,7 @@ public class TaskActivationCommand {
                 assignee = delegate.get().trim();
             }
         }
-        ProcessTask task = new ProcessTask();
+        ProcessTaskPo task = new ProcessTaskPo();
         task.setInstanceId(instance.getId());
         task.setNodeIndex(nodeIndex);
         task.setNodeName(node.getName());

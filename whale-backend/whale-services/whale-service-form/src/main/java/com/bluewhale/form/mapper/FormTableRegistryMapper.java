@@ -1,7 +1,7 @@
 package com.bluewhale.form.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bluewhale.form.entity.FormTableRegistryEntity;
+import com.bluewhale.form.po.FormTableRegistryPo;
 
 /**
  * 表单物理表登记 Mapper。
@@ -10,5 +10,5 @@ import com.bluewhale.form.entity.FormTableRegistryEntity;
  *
  * @author BlueWhale
  */
-public interface FormTableRegistryMapper extends BaseMapper<FormTableRegistryEntity> {
+public interface FormTableRegistryMapper extends BaseMapper<FormTableRegistryPo> {
 }

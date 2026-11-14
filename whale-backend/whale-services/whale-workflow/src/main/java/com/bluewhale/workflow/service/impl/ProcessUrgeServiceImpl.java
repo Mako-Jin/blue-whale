@@ -6,10 +6,10 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.workflow.converter.WorkflowConverter;
-import com.bluewhale.workflow.dto.UrgeRequest;
-import com.bluewhale.workflow.entity.ProcessInstance;
-import com.bluewhale.workflow.entity.ProcessTask;
-import com.bluewhale.workflow.entity.ProcessUrge;
+import com.bluewhale.workflow.request.UrgeRequest;
+import com.bluewhale.workflow.po.ProcessInstancePo;
+import com.bluewhale.workflow.po.ProcessTaskPo;
+import com.bluewhale.workflow.po.ProcessUrgePo;
 import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
 import com.bluewhale.workflow.mapper.ProcessUrgeMapper;
@@ -57,27 +57,27 @@ public class ProcessUrgeServiceImpl implements ProcessUrgeService {
 
     @Override
     public void urge(Long instanceId, UrgeRequest request) {
-        ProcessInstance instance = processInstanceMapper.selectById(instanceId);
+        ProcessInstancePo instance = processInstanceMapper.selectById(instanceId);
         if (instance == null) {
             throw new BizException(ErrorCode.NOT_FOUND.getCode(), "流程实例不存在");
         }
         if (request.getTaskId() != null) {
-            ProcessTask task = processTaskMapper.selectById(request.getTaskId());
+            ProcessTaskPo task = processTaskMapper.selectById(request.getTaskId());
             if (task == null || !instanceId.equals(task.getInstanceId())) {
                 throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "催办任务不属于该流程实例");
             }
         }
         String urger = request.getUrger().trim();
         LocalDateTime now = LocalDateTime.now();
-        Long recent = processUrgeMapper.selectCount(new LambdaQueryWrapper<ProcessUrge>()
-                .eq(ProcessUrge::getInstanceId, instanceId)
-                .eq(ProcessUrge::getUrger, urger)
-                .ge(ProcessUrge::getCreateTime, now.minusHours(FREQUENCY_WINDOW_HOURS)));
+        Long recent = processUrgeMapper.selectCount(new LambdaQueryWrapper<ProcessUrgePo>()
+                .eq(ProcessUrgePo::getInstanceId, instanceId)
+                .eq(ProcessUrgePo::getUrger, urger)
+                .ge(ProcessUrgePo::getCreateTime, now.minusHours(FREQUENCY_WINDOW_HOURS)));
         if (recent != null && recent > 0) {
             workflowMetrics.recordUrge(WorkflowMetrics.URGE_THROTTLED);
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "催办过于频繁，1 小时内仅允许一次");
         }
-        ProcessUrge entity = new ProcessUrge();
+        ProcessUrgePo entity = new ProcessUrgePo();
         entity.setInstanceId(instanceId);
         entity.setTaskId(request.getTaskId());
         entity.setUrger(urger);
@@ -102,11 +102,11 @@ public class ProcessUrgeServiceImpl implements ProcessUrgeService {
         long safeSize = size <= 0
                 ? WorkflowConstants.DEFAULT_PAGE_SIZE
                 : Math.min(size, WorkflowConstants.MAX_PAGE_SIZE);
-        LambdaQueryWrapper<ProcessUrge> wrapper = new LambdaQueryWrapper<ProcessUrge>()
-                .eq(ProcessUrge::getInstanceId, instanceId)
-                .orderByDesc(ProcessUrge::getCreateTime)
-                .orderByDesc(ProcessUrge::getId);
-        Page<ProcessUrge> page = processUrgeMapper.selectPage(new Page<>(safeCurrent, safeSize, false), wrapper);
+        LambdaQueryWrapper<ProcessUrgePo> wrapper = new LambdaQueryWrapper<ProcessUrgePo>()
+                .eq(ProcessUrgePo::getInstanceId, instanceId)
+                .orderByDesc(ProcessUrgePo::getCreateTime)
+                .orderByDesc(ProcessUrgePo::getId);
+        Page<ProcessUrgePo> page = processUrgeMapper.selectPage(new Page<>(safeCurrent, safeSize, false), wrapper);
         List<ProcessUrgeVO> records = page.getRecords().stream()
                 .map(WorkflowConverter.INSTANCE::toUrgeVo)
                 .toList();

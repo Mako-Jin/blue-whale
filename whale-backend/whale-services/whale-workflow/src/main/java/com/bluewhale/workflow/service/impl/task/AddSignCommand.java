@@ -3,7 +3,7 @@ package com.bluewhale.workflow.service.impl.task;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
-import com.bluewhale.workflow.entity.ProcessTask;
+import com.bluewhale.workflow.po.ProcessTaskPo;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
 import com.bluewhale.workflow.support.ProcessNodeType;
 import com.bluewhale.workflow.support.WorkflowConstants;
@@ -36,14 +36,14 @@ public class AddSignCommand {
      */
     @Transactional(rollbackFor = Exception.class)
     public void addSign(Long id, List<String> assignees) {
-        ProcessTask task = taskCommandSupport.requirePendingTask(id);
+        ProcessTaskPo task = taskCommandSupport.requirePendingTask(id);
         taskCommandSupport.requireRunningInstance(task.getInstanceId());
         List<String> targets = normalizeAddSigners(assignees);
         boolean counterSign = ProcessNodeType.COUNTER_SIGN.name().equals(task.getSignType());
         if (counterSign && !WorkflowConstants.POLICY_ALL.equals(policyOfTask(task))) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "ANY/RATIO 会签节点不支持加签");
         }
-        for (ProcessTask existing : listTasksOfNode(task)) {
+        for (ProcessTaskPo existing : listTasksOfNode(task)) {
             if (existing.getStatus() != null && existing.getStatus() == WorkflowConstants.TASK_CANCELED) {
                 continue;
             }
@@ -53,7 +53,7 @@ public class AddSignCommand {
             }
         }
         for (String target : targets) {
-            ProcessTask added = new ProcessTask();
+            ProcessTaskPo added = new ProcessTaskPo();
             added.setInstanceId(task.getInstanceId());
             added.setNodeIndex(task.getNodeIndex());
             added.setNodeName(task.getNodeName());
@@ -107,7 +107,7 @@ public class AddSignCommand {
      * @param task 待办任务
      * @return 大写的策略文本
      */
-    private static String policyOfTask(ProcessTask task) {
+    private static String policyOfTask(ProcessTaskPo task) {
         String policy = task.getSignPolicy();
         return policy == null || policy.isBlank() ? WorkflowConstants.POLICY_ALL : policy.trim().toUpperCase();
     }
@@ -118,13 +118,13 @@ public class AddSignCommand {
      * @param task 当前待办任务
      * @return 同节点任务列表
      */
-    private List<ProcessTask> listTasksOfNode(ProcessTask task) {
-        LambdaQueryWrapper<ProcessTask> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ProcessTask::getInstanceId, task.getInstanceId());
+    private List<ProcessTaskPo> listTasksOfNode(ProcessTaskPo task) {
+        LambdaQueryWrapper<ProcessTaskPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ProcessTaskPo::getInstanceId, task.getInstanceId());
         if (task.getNodeKey() != null && !task.getNodeKey().isBlank()) {
-            wrapper.eq(ProcessTask::getNodeKey, task.getNodeKey());
+            wrapper.eq(ProcessTaskPo::getNodeKey, task.getNodeKey());
         } else {
-            wrapper.eq(ProcessTask::getNodeIndex, task.getNodeIndex());
+            wrapper.eq(ProcessTaskPo::getNodeIndex, task.getNodeIndex());
         }
         return processTaskMapper.selectList(wrapper);
     }

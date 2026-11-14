@@ -1,6 +1,6 @@
 // workflow.ts —— 工作流待办 API 层
 //
-// 后端接口：GET /workflow/task/page（经网关 8080 代理到 whale-workflow）。
+// 后端接口：GET /workflow/v1/task/page（经网关 8080 代理到 whale-workflow）。
 // 查询失败（服务未启动 / 未授权 / 网络异常）时返回空数组并记录日志，保证门户页面可用。
 
 import { createLogger } from '@bluewhale/whale-common-tools';
@@ -77,7 +77,7 @@ export async function pageMyTaskPage(
 ): Promise<PageResult<WorkflowTask>> {
   try {
     const page = await http.get<PageResult<WorkflowTask>>(
-      `/workflow/task/page${buildQuery(params)}`,
+      `/workflow/v1/task/page${buildQuery(params)}`,
     );
     return {
       records: page?.records ?? [],
@@ -101,20 +101,20 @@ export async function pageMyTask(params: WorkflowTaskQuery = {}): Promise<Workfl
 
 /** 统计运行中的流程实例数（status=0），失败时抛错由调用方降级展示 */
 export async function countRunningInstances(): Promise<number> {
-  const page = await http.get<PageResult<unknown>>('/workflow/instance/page?status=0&pageSize=1');
+  const page = await http.get<PageResult<unknown>>('/workflow/v1/instance/page?status=0&pageSize=1');
   return page?.total ?? 0;
 }
 
 /** 同意待办任务（可选审批意见） */
 export async function approveTask(id: number, comment?: string): Promise<void> {
-  await http.post<void>(`/workflow/task/${id}/approve`, {
+  await http.post<void>(`/workflow/v1/task/${id}/approve`, {
     comment: comment?.trim() || undefined,
   });
 }
 
 /** 驳回待办任务（可选审批意见） */
 export async function rejectTask(id: number, comment?: string): Promise<void> {
-  await http.post<void>(`/workflow/task/${id}/reject`, {
+  await http.post<void>(`/workflow/v1/task/${id}/reject`, {
     comment: comment?.trim() || undefined,
   });
 }

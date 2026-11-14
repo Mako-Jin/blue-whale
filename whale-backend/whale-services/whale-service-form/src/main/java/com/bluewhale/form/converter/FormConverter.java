@@ -1,12 +1,12 @@
 package com.bluewhale.form.converter;
 
-import com.bluewhale.form.entity.FormColumnMetaEntity;
-import com.bluewhale.form.entity.FormDataEntity;
-import com.bluewhale.form.entity.FormDefinitionEntity;
-import com.bluewhale.form.entity.FormFieldConfigEntity;
-import com.bluewhale.form.entity.FormFieldOptionEntity;
-import com.bluewhale.form.entity.FormTableDefinitionEntity;
-import com.bluewhale.form.entity.FormTableRegistryEntity;
+import com.bluewhale.form.po.FormColumnMetaPo;
+import com.bluewhale.form.po.FormDataPo;
+import com.bluewhale.form.po.FormDefinitionPo;
+import com.bluewhale.form.po.FormFieldConfigPo;
+import com.bluewhale.form.po.FormFieldOptionPo;
+import com.bluewhale.form.po.FormTableDefinitionPo;
+import com.bluewhale.form.po.FormTableRegistryPo;
 import com.bluewhale.form.model.vo.FormColumnMetaVO;
 import com.bluewhale.form.model.vo.FormDataVO;
 import com.bluewhale.form.model.vo.FormDefinitionVO;
@@ -38,7 +38,7 @@ public interface FormConverter {
      * @return 表单数据视图对象
      */
     @Mapping(target = "fields", ignore = true)
-    FormDataVO toDataVo(FormDataEntity entity);
+    FormDataVO toDataVo(FormDataPo entity);
 
     /**
      * 字段配置实体转视图对象（选项由调用方装配）
@@ -51,7 +51,7 @@ public interface FormConverter {
     @Mapping(target = "maxLength", ignore = true)
     @Mapping(target = "options", ignore = true)
     @Mapping(target = "required", ignore = true)
-    FormFieldConfigVO toFieldConfigVo(FormFieldConfigEntity config);
+    FormFieldConfigVO toFieldConfigVo(FormFieldConfigPo config);
 
     /**
      * 字段选项实体转视图对象
@@ -59,7 +59,7 @@ public interface FormConverter {
      * @param option 选项实体
      * @return 选项视图对象
      */
-    FormFieldOptionVO toOptionVo(FormFieldOptionEntity option);
+    FormFieldOptionVO toOptionVo(FormFieldOptionPo option);
 
     /**
      * 表单定义实体转视图对象（字段列表由调用方装配）
@@ -68,7 +68,7 @@ public interface FormConverter {
      * @return 表单定义视图对象
      */
     @Mapping(target = "fields", ignore = true)
-    FormDefinitionVO toDefinitionVo(FormDefinitionEntity entity);
+    FormDefinitionVO toDefinitionVo(FormDefinitionPo entity);
 
     /**
      * 表单定义实体转分页摘要视图对象（不含 schemaJson 大字段，列表场景使用）
@@ -78,7 +78,7 @@ public interface FormConverter {
      */
     @Mapping(target = "fields", ignore = true)
     @Mapping(target = "schemaJson", ignore = true)
-    FormDefinitionVO toDefinitionSummaryVo(FormDefinitionEntity entity);
+    FormDefinitionVO toDefinitionSummaryVo(FormDefinitionPo entity);
 
     /**
      * 表单注册表实体转视图对象
@@ -86,7 +86,7 @@ public interface FormConverter {
      * @param entity 注册表实体
      * @return 注册表视图对象
      */
-    FormTableRegistryVO toRegistryVo(FormTableRegistryEntity entity);
+    FormTableRegistryVO toRegistryVo(FormTableRegistryPo entity);
 
     /**
      * 表单物理表定义实体转视图对象（列元数据由调用方装配）
@@ -95,7 +95,7 @@ public interface FormConverter {
      * @return 物理表定义视图对象
      */
     @Mapping(target = "columns", ignore = true)
-    FormTableDefinitionVO toTableDefinitionVo(FormTableDefinitionEntity entity);
+    FormTableDefinitionVO toTableDefinitionVo(FormTableDefinitionPo entity);
 
     /**
      * 列元数据实体转视图对象
@@ -103,7 +103,7 @@ public interface FormConverter {
      * @param entity 列元数据实体
      * @return 列元数据视图对象
      */
-    FormColumnMetaVO toColumnMetaVo(FormColumnMetaEntity entity);
+    FormColumnMetaVO toColumnMetaVo(FormColumnMetaPo entity);
 
     /**
      * 复制字段配置实体（表单复制场景：主键与审计字段由调用方清空后重新落库）
@@ -111,5 +111,5 @@ public interface FormConverter {
      * @param source 源字段配置
      * @return 新字段配置实体（同字段拷贝）
      */
-    FormFieldConfigEntity toNewConfig(FormFieldConfigEntity source);
+    FormFieldConfigPo toNewConfig(FormFieldConfigPo source);
 }

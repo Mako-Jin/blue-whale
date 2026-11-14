@@ -20,7 +20,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @TableName("form_definition_version")
-public class FormDefinitionVersionEntity implements Serializable {
+public class FormDefinitionVersionPo implements Serializable {
 
     private static final long serialVersionUID = 1L;
 

@@ -2,10 +2,10 @@ package com.bluewhale.workflow.service.impl;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
-import com.bluewhale.workflow.dto.BpmnImportRequest;
-import com.bluewhale.workflow.dto.DefinitionSimulateRequest;
-import com.bluewhale.workflow.dto.DefinitionValidateRequest;
-import com.bluewhale.workflow.dto.ProcessDefinitionSaveRequest;
+import com.bluewhale.workflow.request.BpmnImportRequest;
+import com.bluewhale.workflow.request.DefinitionSimulateRequest;
+import com.bluewhale.workflow.request.DefinitionValidateRequest;
+import com.bluewhale.workflow.request.ProcessDefinitionSaveRequest;
 import com.bluewhale.workflow.service.ProcessDefinitionService;
 import com.bluewhale.workflow.service.ProcessModelService;
 import com.bluewhale.workflow.support.ProcessModel;

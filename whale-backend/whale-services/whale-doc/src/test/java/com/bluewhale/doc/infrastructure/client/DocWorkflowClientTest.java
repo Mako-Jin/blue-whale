@@ -104,7 +104,7 @@ class DocWorkflowClientTest {
         Long instanceId = client.start(1L, "发布", "page-1", Map.of("k", "v"), operator());
 
         assertThat(instanceId).isEqualTo(123L);
-        assertThat(last.path()).isEqualTo("/workflow/instance");
+        assertThat(last.path()).isEqualTo("/workflow/v1/instance");
         String body = new String(last.body(), StandardCharsets.UTF_8);
         assertThat(body).contains("\"definitionId\":1").contains("\"title\":\"发布\"")
                 .contains("\"businessKey\":\"page-1\"").contains("\"k\":\"v\"");
@@ -189,7 +189,7 @@ class DocWorkflowClientTest {
         responder = exchange -> json(exchange, "{\"code\":0,\"data\":{\"status\":1}}");
 
         assertThat(client.fetchStatus(5L)).isEqualTo(1);
-        assertThat(last.path()).isEqualTo("/workflow/internal/instance/5/detail");
+        assertThat(last.path()).isEqualTo("/workflow/v1/internal/instance/5/detail");
     }
 
     @Test

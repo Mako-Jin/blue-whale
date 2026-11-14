@@ -11,14 +11,14 @@ import lombok.EqualsAndHashCode;
  *
  * <p>记录表的列：编码、名称、<b>存储类型</b>{@code dataType}、长度、精度、是否可空、是否必填、
  * 默认值、备注、排序。存储类型驱动物理表 DDL 生成；前端控件类型由表单视图层的
- * {@link FormFieldConfigEntity#getWidgetType()} 决定（二者解耦）。</p>
+ * {@link FormFieldConfigPo#getWidgetType()} 决定（二者解耦）。</p>
  *
  * @author BlueWhale
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("form_column_meta")
-public class FormColumnMetaEntity extends BaseEntity {
+public class FormColumnMetaPo extends BaseEntity {
 
     private static final long serialVersionUID = 1L;
 

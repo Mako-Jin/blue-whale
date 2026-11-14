@@ -3,7 +3,7 @@ package com.bluewhale.form.support;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.tenant.TenantContext;
-import com.bluewhale.form.entity.FormColumnMetaEntity;
+import com.bluewhale.form.po.FormColumnMetaPo;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
  * 表单物理表 DDL 生成器。
  *
  * <p>表名规则为 {@code form_data_{code}_v{version}}；动态列类型可由 {@link FormField}（旧模型，来自
- * {@code schema_json}）或 {@link FormColumnMetaEntity}（元数据模型，来自列元数据）映射得到。
+ * {@code schema_json}）或 {@link FormColumnMetaPo}（元数据模型，来自列元数据）映射得到。
  * 生成的 DDL 仅包含受校验的标识符（列名取自白名单），不含任何用户输入的直接拼接，故可在发布路径安全执行。</p>
  *
  * @author BlueWhale
@@ -128,9 +128,9 @@ public final class FormTableDdlGenerator {
      * @throws BizException 列类型/参数非法时抛出 {@code PARAM_ERROR}
      */
     public static String generateFromColumns(String table, String tableCode, Integer version,
-                                             List<FormColumnMetaEntity> columns) {
+                                             List<FormColumnMetaPo> columns) {
         List<String> defs = baseColumnDefs();
-        for (FormColumnMetaEntity column : columns) {
+        for (FormColumnMetaPo column : columns) {
             defs.add(columnDef(column));
         }
         defs.addAll(baseIndexDefs());
@@ -148,7 +148,7 @@ public final class FormTableDdlGenerator {
      * @return 形如 {@code `code` VARCHAR(255) DEFAULT NULL COMMENT '名称'} 的定义文本
      * @throws BizException 存储类型/参数非法时抛出 {@code PARAM_ERROR}
      */
-    public static String columnDef(FormColumnMetaEntity column) {
+    public static String columnDef(FormColumnMetaPo column) {
         String nullability = column.getNullable() != null && column.getNullable() == NULLABLE_NO
                 ? " NOT NULL" : " DEFAULT NULL";
         return "`" + column.getColumnCode() + "` " + FormDataType.mysqlType(
@@ -163,7 +163,7 @@ public final class FormTableDdlGenerator {
      * @param column 待新增列元数据
      * @return {@code ALTER TABLE} 语句
      */
-    public static String alterAdd(String table, FormColumnMetaEntity column) {
+    public static String alterAdd(String table, FormColumnMetaPo column) {
         return "ALTER TABLE `" + table + "` ADD COLUMN " + columnDef(column);
     }
 
@@ -174,7 +174,7 @@ public final class FormTableDdlGenerator {
      * @param column 目标列元数据
      * @return {@code ALTER TABLE} 语句
      */
-    public static String alterModify(String table, FormColumnMetaEntity column) {
+    public static String alterModify(String table, FormColumnMetaPo column) {
         return "ALTER TABLE `" + table + "` MODIFY COLUMN " + columnDef(column);
     }
 
@@ -273,9 +273,9 @@ public final class FormTableDdlGenerator {
      * @param columns 列元数据列表
      * @return 索引定义列表（不含不合格列）
      */
-    public static List<String> autoIndexDefs(List<FormColumnMetaEntity> columns) {
+    public static List<String> autoIndexDefs(List<FormColumnMetaPo> columns) {
         List<String> defs = new ArrayList<>();
-        for (FormColumnMetaEntity column : columns) {
+        for (FormColumnMetaPo column : columns) {
             if (defs.size() >= MAX_AUTO_INDEXES) {
                 break;
             }
@@ -319,9 +319,9 @@ public final class FormTableDdlGenerator {
      * @param columns 列元数据列表
      * @return 索引名 → 列编码映射（保持列顺序）
      */
-    public static Map<String, String> autoIndexes(List<FormColumnMetaEntity> columns) {
+    public static Map<String, String> autoIndexes(List<FormColumnMetaPo> columns) {
         Map<String, String> indexes = new LinkedHashMap<>();
-        for (FormColumnMetaEntity column : columns) {
+        for (FormColumnMetaPo column : columns) {
             if (indexes.size() >= MAX_AUTO_INDEXES) {
                 break;
             }

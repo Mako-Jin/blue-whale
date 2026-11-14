@@ -1,7 +1,7 @@
 package com.bluewhale.form.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bluewhale.form.entity.FormFieldOptionEntity;
+import com.bluewhale.form.po.FormFieldOptionPo;
 
 /**
  * 字段选项 Mapper。
@@ -10,5 +10,5 @@ import com.bluewhale.form.entity.FormFieldOptionEntity;
  *
  * @author BlueWhale
  */
-public interface FormFieldOptionMapper extends BaseMapper<FormFieldOptionEntity> {
+public interface FormFieldOptionMapper extends BaseMapper<FormFieldOptionPo> {
 }

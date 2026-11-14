@@ -1,7 +1,7 @@
 package com.bluewhale.form.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bluewhale.form.entity.FormColumnMetaEntity;
+import com.bluewhale.form.po.FormColumnMetaPo;
 
 /**
  * 列元数据 Mapper。
@@ -10,5 +10,5 @@ import com.bluewhale.form.entity.FormColumnMetaEntity;
  *
  * @author BlueWhale
  */
-public interface FormColumnMetaMapper extends BaseMapper<FormColumnMetaEntity> {
+public interface FormColumnMetaMapper extends BaseMapper<FormColumnMetaPo> {
 }

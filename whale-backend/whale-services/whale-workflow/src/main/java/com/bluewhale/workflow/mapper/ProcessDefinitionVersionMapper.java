@@ -1,7 +1,7 @@
 package com.bluewhale.workflow.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bluewhale.workflow.entity.ProcessDefinitionVersion;
+import com.bluewhale.workflow.po.ProcessDefinitionVersionPo;
 
 /**
  * 流程定义版本快照 Mapper。
@@ -10,5 +10,5 @@ import com.bluewhale.workflow.entity.ProcessDefinitionVersion;
  *
  * @author BlueWhale
  */
-public interface ProcessDefinitionVersionMapper extends BaseMapper<ProcessDefinitionVersion> {
+public interface ProcessDefinitionVersionMapper extends BaseMapper<ProcessDefinitionVersionPo> {
 }

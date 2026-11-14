@@ -2,10 +2,10 @@ package com.bluewhale.form.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.bluewhale.common.core.exception.BizException;
-import com.bluewhale.form.entity.FormColumnMetaEntity;
-import com.bluewhale.form.entity.FormDefinitionEntity;
-import com.bluewhale.form.entity.FormTableDefinitionEntity;
-import com.bluewhale.form.entity.FormTableRegistryEntity;
+import com.bluewhale.form.po.FormColumnMetaPo;
+import com.bluewhale.form.po.FormDefinitionPo;
+import com.bluewhale.form.po.FormTableDefinitionPo;
+import com.bluewhale.form.po.FormTableRegistryPo;
 import com.bluewhale.form.mapper.FormColumnMetaMapper;
 import com.bluewhale.form.mapper.FormDefinitionMapper;
 import com.bluewhale.form.mapper.FormTableDefinitionMapper;
@@ -81,8 +81,8 @@ class FormPublishServiceImplTest {
      * @param code 表单编码
      * @return 表单定义实体
      */
-    private static FormDefinitionEntity definition(Long id, String code) {
-        FormDefinitionEntity definition = new FormDefinitionEntity();
+    private static FormDefinitionPo definition(Long id, String code) {
+        FormDefinitionPo definition = new FormDefinitionPo();
         definition.setId(id);
         definition.setCode(code);
         definition.setVersion(1);
@@ -97,8 +97,8 @@ class FormPublishServiceImplTest {
      * @param tableCode 表编码
      * @return 表定义实体
      */
-    private static FormTableDefinitionEntity tableDefinition(Long id, String tableCode) {
-        FormTableDefinitionEntity definition = new FormTableDefinitionEntity();
+    private static FormTableDefinitionPo tableDefinition(Long id, String tableCode) {
+        FormTableDefinitionPo definition = new FormTableDefinitionPo();
         definition.setId(id);
         definition.setTableCode(tableCode);
         definition.setVersion(1);
@@ -114,8 +114,8 @@ class FormPublishServiceImplTest {
      * @param length 长度
      * @return 列元数据
      */
-    private static FormColumnMetaEntity column(String code, String name, String dataType, Integer length) {
-        FormColumnMetaEntity column = new FormColumnMetaEntity();
+    private static FormColumnMetaPo column(String code, String name, String dataType, Integer length) {
+        FormColumnMetaPo column = new FormColumnMetaPo();
         column.setColumnCode(code);
         column.setColumnName(name);
         column.setDataType(dataType);
@@ -127,7 +127,7 @@ class FormPublishServiceImplTest {
     @DisplayName("publish：解析 schema 建物理表并登记 registry")
     void shouldPublish() {
         when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L, "fm_a"));
-        when(formTableRegistryMapper.selectCount(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectCount(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(0L);
 
         FormTableRegistryVO vo = formPublishService.publish(10L);
@@ -136,7 +136,7 @@ class FormPublishServiceImplTest {
         verify(formDataEngine).executeDdl(ddlCaptor.capture());
         assertTrue(ddlCaptor.getValue().contains("CREATE TABLE IF NOT EXISTS `form_data_fm_a_v1`"));
         assertTrue(ddlCaptor.getValue().contains("`name` VARCHAR(255)"));
-        verify(formTableRegistryMapper).insert(any(FormTableRegistryEntity.class));
+        verify(formTableRegistryMapper).insert(any(FormTableRegistryPo.class));
         assertEquals("form_data_fm_a_v1", vo.getPhysicalTable());
         assertEquals(1, vo.getFieldCount().intValue());
     }
@@ -145,7 +145,7 @@ class FormPublishServiceImplTest {
     @DisplayName("publish：同编码同版本已发布抛参数错误且不建表")
     void shouldThrowWhenAlreadyPublished() {
         when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L, "fm_a"));
-        when(formTableRegistryMapper.selectCount(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectCount(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(1L);
 
         BizException ex = assertThrows(BizException.class, () -> formPublishService.publish(10L));
@@ -179,7 +179,7 @@ class FormPublishServiceImplTest {
     @DisplayName("publish：DDL 失败时写入失败审计并原样抛出，不登记 registry")
     void shouldRecordDdlFailure() {
         when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L, "fm_a"));
-        when(formTableRegistryMapper.selectCount(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any())).thenReturn(0L);
+        when(formTableRegistryMapper.selectCount(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any())).thenReturn(0L);
         doThrow(new IllegalStateException("ddl boom")).when(formDataEngine).executeDdl(anyString());
 
         IllegalStateException ex = assertThrows(IllegalStateException.class,
@@ -187,17 +187,17 @@ class FormPublishServiceImplTest {
 
         assertEquals("ddl boom", ex.getMessage());
         verify(formDdlAuditor).recordFailure(eq("FORM"), eq(10L), anyString(), anyString(), eq("ddl boom"));
-        verify(formTableRegistryMapper, never()).insert(any(FormTableRegistryEntity.class));
+        verify(formTableRegistryMapper, never()).insert(any(FormTableRegistryPo.class));
     }
 
     @Test
     @DisplayName("listTables：返回该定义已发布登记列表")
     void shouldListTables() {
-        FormTableRegistryEntity registry = new FormTableRegistryEntity();
+        FormTableRegistryPo registry = new FormTableRegistryPo();
         registry.setDefinitionId(10L);
         registry.setPhysicalTable("form_data_fm_a_v1");
         when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L, "fm_a"));
-        when(formTableRegistryMapper.selectList(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectList(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(List.of(registry));
 
         List<FormTableRegistryVO> tables = formPublishService.listTables(10L);
@@ -210,11 +210,11 @@ class FormPublishServiceImplTest {
     @DisplayName("publishTableDefinition：物理表不存在则建表并登记 registry")
     void shouldCreateTableWhenPhysicalMissing() {
         when(formTableDefinitionMapper.selectById(11L)).thenReturn(tableDefinition(11L, "biz_order"));
-        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaEntity>>any()))
+        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaPo>>any()))
                 .thenReturn(List.of(column("amount", "金额", "number", null),
                         column("remark", "备注", "text", 255)));
         when(formDataEngine.describeColumns("form_data_biz_order_v1")).thenReturn(Map.of());
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(null);
 
         FormTableRegistryVO vo = formPublishService.publishTableDefinition(11L);
@@ -222,10 +222,10 @@ class FormPublishServiceImplTest {
         ArgumentCaptor<String> ddlCaptor = ArgumentCaptor.forClass(String.class);
         verify(formDataEngine).executeDdl(ddlCaptor.capture());
         assertTrue(ddlCaptor.getValue().contains("CREATE TABLE IF NOT EXISTS `form_data_biz_order_v1`"));
-        ArgumentCaptor<FormTableRegistryEntity> registryCaptor = ArgumentCaptor.forClass(FormTableRegistryEntity.class);
+        ArgumentCaptor<FormTableRegistryPo> registryCaptor = ArgumentCaptor.forClass(FormTableRegistryPo.class);
         verify(formTableRegistryMapper).insert(registryCaptor.capture());
         assertTrue(registryCaptor.getValue().getSchemaJson().contains("\"amount\""));
-        verify(formTableRegistryMapper, never()).updateById(any(FormTableRegistryEntity.class));
+        verify(formTableRegistryMapper, never()).updateById(any(FormTableRegistryPo.class));
         assertEquals(2, vo.getFieldCount().intValue());
     }
 
@@ -233,12 +233,12 @@ class FormPublishServiceImplTest {
     @DisplayName("publishTableDefinition：物理表缺列则 ADD COLUMN")
     void shouldAlterAddMissingColumn() {
         when(formTableDefinitionMapper.selectById(11L)).thenReturn(tableDefinition(11L, "biz_order"));
-        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaEntity>>any()))
+        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaPo>>any()))
                 .thenReturn(List.of(column("amount", "金额", "text", 255),
                         column("remark", "备注", "text", 255)));
         when(formDataEngine.describeColumns("form_data_biz_order_v1"))
                 .thenReturn(Map.of("amount", "varchar(255)"));
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(null);
 
         formPublishService.publishTableDefinition(11L);
@@ -246,20 +246,20 @@ class FormPublishServiceImplTest {
         ArgumentCaptor<String> ddlCaptor = ArgumentCaptor.forClass(String.class);
         verify(formDataEngine).executeDdl(ddlCaptor.capture());
         assertTrue(ddlCaptor.getValue().contains("ADD COLUMN `remark`"));
-        verify(formTableRegistryMapper).insert(any(FormTableRegistryEntity.class));
+        verify(formTableRegistryMapper).insert(any(FormTableRegistryPo.class));
     }
 
     @Test
     @DisplayName("publishTableDefinition：列类型不一致则 MODIFY COLUMN")
     void shouldAlterModifyChangedColumn() {
         when(formTableDefinitionMapper.selectById(11L)).thenReturn(tableDefinition(11L, "biz_order"));
-        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaEntity>>any()))
+        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaPo>>any()))
                 .thenReturn(List.of(column("amount", "金额", "text", 255)));
         when(formDataEngine.describeColumns("form_data_biz_order_v1"))
                 .thenReturn(Map.of("amount", "varchar(64)"));
-        FormTableRegistryEntity registry = new FormTableRegistryEntity();
+        FormTableRegistryPo registry = new FormTableRegistryPo();
         registry.setId(1L);
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(registry);
 
         formPublishService.publishTableDefinition(11L);
@@ -274,11 +274,11 @@ class FormPublishServiceImplTest {
     @DisplayName("publishTableDefinition：元数据外的非公共列则 DROP COLUMN")
     void shouldAlterDropOrphanColumn() {
         when(formTableDefinitionMapper.selectById(11L)).thenReturn(tableDefinition(11L, "biz_order"));
-        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaEntity>>any()))
+        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaPo>>any()))
                 .thenReturn(List.of(column("amount", "金额", "text", 255)));
         when(formDataEngine.describeColumns("form_data_biz_order_v1"))
                 .thenReturn(Map.of("amount", "varchar(255)", "legacy", "varchar(255)"));
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(null);
 
         formPublishService.publishTableDefinition(11L);
@@ -292,11 +292,11 @@ class FormPublishServiceImplTest {
     @DisplayName("publishTableDefinition：物理表公共列不参与 DROP")
     void shouldNotDropReservedColumn() {
         when(formTableDefinitionMapper.selectById(11L)).thenReturn(tableDefinition(11L, "biz_order"));
-        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaEntity>>any()))
+        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaPo>>any()))
                 .thenReturn(List.of(column("amount", "金额", "text", 255)));
         when(formDataEngine.describeColumns("form_data_biz_order_v1"))
                 .thenReturn(Map.of("amount", "varchar(64)", "create_time", "datetime"));
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(null);
 
         formPublishService.publishTableDefinition(11L);
@@ -310,16 +310,16 @@ class FormPublishServiceImplTest {
     @Test
     @DisplayName("publishTableDefinition：停用（status=0）列仍在元数据中，保物理列不下发 DROP")
     void shouldNotDropDisabledColumn() {
-        FormColumnMetaEntity disabled = column("legacy", "历史列", "text", 255);
+        FormColumnMetaPo disabled = column("legacy", "历史列", "text", 255);
         disabled.setStatus(0);
         when(formTableDefinitionMapper.selectById(11L)).thenReturn(tableDefinition(11L, "biz_order"));
         // 第 1 次 selectList（listPublishColumns，仅 status=1）→ 目标列；第 2 次（listMetadataCodes，不限状态）→ 含停用列
-        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaEntity>>any()))
+        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaPo>>any()))
                 .thenReturn(List.of(column("amount", "金额", "text", 255)), List.of(
                         column("amount", "金额", "text", 255), disabled));
         when(formDataEngine.describeColumns("form_data_biz_order_v1"))
                 .thenReturn(Map.of("amount", "varchar(255)", "legacy", "varchar(255)"));
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(null);
 
         formPublishService.publishTableDefinition(11L);
@@ -331,7 +331,7 @@ class FormPublishServiceImplTest {
     @DisplayName("publishTableDefinition：无列元数据抛参数错误且不执行 DDL")
     void shouldThrowWhenNoColumns() {
         when(formTableDefinitionMapper.selectById(11L)).thenReturn(tableDefinition(11L, "biz_order"));
-        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaEntity>>any()))
+        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaPo>>any()))
                 .thenReturn(List.of());
 
         BizException ex = assertThrows(BizException.class,
@@ -345,19 +345,19 @@ class FormPublishServiceImplTest {
     @DisplayName("publishTableDefinition：登记已存在则刷新列数走 updateById")
     void shouldUpdateExistingRegistry() {
         when(formTableDefinitionMapper.selectById(11L)).thenReturn(tableDefinition(11L, "biz_order"));
-        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaEntity>>any()))
+        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaPo>>any()))
                 .thenReturn(List.of(column("amount", "金额", "text", 255)));
         when(formDataEngine.describeColumns("form_data_biz_order_v1"))
                 .thenReturn(Map.of("amount", "varchar(255)"));
-        FormTableRegistryEntity registry = new FormTableRegistryEntity();
+        FormTableRegistryPo registry = new FormTableRegistryPo();
         registry.setId(1L);
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(registry);
 
         FormTableRegistryVO vo = formPublishService.publishTableDefinition(11L);
 
         verify(formTableRegistryMapper).updateById(registry);
-        verify(formTableRegistryMapper, never()).insert(any(FormTableRegistryEntity.class));
+        verify(formTableRegistryMapper, never()).insert(any(FormTableRegistryPo.class));
         verify(formDataEngine, never()).executeDdl(anyString());
         assertEquals(1, vo.getFieldCount().intValue());
     }
@@ -366,13 +366,13 @@ class FormPublishServiceImplTest {
     @DisplayName("publishTableDefinition：存量表缺字段级索引则 ADD INDEX")
     void shouldAddMissingAutoIndex() {
         when(formTableDefinitionMapper.selectById(11L)).thenReturn(tableDefinition(11L, "biz_order"));
-        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaEntity>>any()))
+        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaPo>>any()))
                 .thenReturn(List.of(column("amount", "金额", "number", null)));
         when(formDataEngine.describeColumns("form_data_biz_order_v1"))
                 .thenReturn(Map.of("amount", "decimal(18,4)"));
         when(formDataEngine.describeIndexes("form_data_biz_order_v1"))
                 .thenReturn(Set.of("PRIMARY", "idx_tenant_id", "idx_biz_key"));
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(null);
 
         formPublishService.publishTableDefinition(11L);
@@ -387,13 +387,13 @@ class FormPublishServiceImplTest {
     @DisplayName("publishTableDefinition：列不再满足索引条件则回收自动索引")
     void shouldDropStaleAutoIndex() {
         when(formTableDefinitionMapper.selectById(11L)).thenReturn(tableDefinition(11L, "biz_order"));
-        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaEntity>>any()))
+        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaPo>>any()))
                 .thenReturn(List.of(column("remark", "备注", "textarea", null)));
         when(formDataEngine.describeColumns("form_data_biz_order_v1"))
                 .thenReturn(Map.of("remark", "text"));
         when(formDataEngine.describeIndexes("form_data_biz_order_v1"))
                 .thenReturn(Set.of("PRIMARY", "idx_f_remark", "idx_tenant_id"));
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(null);
 
         formPublishService.publishTableDefinition(11L);
@@ -408,13 +408,13 @@ class FormPublishServiceImplTest {
     @DisplayName("publishTableDefinition：索引已对齐时不重复下发 DDL")
     void shouldSkipAlignedAutoIndex() {
         when(formTableDefinitionMapper.selectById(11L)).thenReturn(tableDefinition(11L, "biz_order"));
-        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaEntity>>any()))
+        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaPo>>any()))
                 .thenReturn(List.of(column("amount", "金额", "number", null)));
         when(formDataEngine.describeColumns("form_data_biz_order_v1"))
                 .thenReturn(Map.of("amount", "decimal(18,4)"));
         when(formDataEngine.describeIndexes("form_data_biz_order_v1"))
                 .thenReturn(Set.of("PRIMARY", "idx_f_amount"));
-        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryEntity>>any()))
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
                 .thenReturn(null);
 
         formPublishService.publishTableDefinition(11L);

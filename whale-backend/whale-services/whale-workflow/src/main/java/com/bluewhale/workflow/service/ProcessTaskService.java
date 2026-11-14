@@ -1,9 +1,9 @@
 package com.bluewhale.workflow.service;
 
 import com.bluewhale.common.core.result.PageResult;
-import com.bluewhale.workflow.dto.ApprovalRequest;
-import com.bluewhale.workflow.dto.ProcessTaskQueryRequest;
-import com.bluewhale.workflow.dto.TaskCompleteRequest;
+import com.bluewhale.workflow.request.ApprovalRequest;
+import com.bluewhale.workflow.request.ProcessTaskQueryRequest;
+import com.bluewhale.workflow.request.TaskCompleteRequest;
 import com.bluewhale.workflow.vo.ProcessTaskVO;
 
 import java.util.List;

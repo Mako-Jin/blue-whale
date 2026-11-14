@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
  * 流程实例归档只读服务（内网接口专用）。
  *
  * <p>仅供档案服务（whale-archive）增量拉取「审批通过」实例并生成不可变快照，
- * 不含任何写操作；外部经网关不可达（网关 {@code internal-deny} 对 {@code /workflow/internal/**} 返回 403）。</p>
+ * 不含任何写操作；外部经网关不可达（网关 {@code internal-deny} 对 {@code /workflow/v1/internal/**} 返回 403）。</p>
  *
  * @author BlueWhale
  */

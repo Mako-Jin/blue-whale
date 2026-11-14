@@ -27,7 +27,7 @@ import java.util.Map;
 public class WorkflowApprovalClient {
 
     /** 发起流程实例路径 */
-    private static final String START_PATH = "/workflow/instance";
+    private static final String START_PATH = "/workflow/v1/instance";
 
     /** 统一响应体状态码字段 */
     private static final String FIELD_CODE = "code";

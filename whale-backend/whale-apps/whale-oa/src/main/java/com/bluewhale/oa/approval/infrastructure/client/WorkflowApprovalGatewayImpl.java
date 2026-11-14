@@ -79,7 +79,7 @@ public class WorkflowApprovalGatewayImpl implements WorkflowApprovalGateway {
 
     @Override
     public PageResult<WorkflowTaskSnapshot> pageTasks(WorkflowTaskQuery query) {
-        UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(baseUrl() + "/workflow/internal/task/page");
+        UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(baseUrl() + "/workflow/v1/internal/task/page");
         add(builder, "assignee", query.getAssignee());
         add(builder, "status", query.getStatus());
         add(builder, "instanceId", query.getInstanceId());
@@ -94,7 +94,7 @@ public class WorkflowApprovalGatewayImpl implements WorkflowApprovalGateway {
 
     @Override
     public PageResult<WorkflowInstanceSnapshot> pageInstances(WorkflowInstanceQuery query) {
-        UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(baseUrl() + "/workflow/internal/instance/page");
+        UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(baseUrl() + "/workflow/v1/internal/instance/page");
         add(builder, "title", query.getTitle());
         add(builder, "status", query.getStatus());
         add(builder, "definitionCode", query.getDefinitionCode());
@@ -106,13 +106,13 @@ public class WorkflowApprovalGatewayImpl implements WorkflowApprovalGateway {
 
     @Override
     public WorkflowInstanceSnapshot getInstance(Long instanceId) {
-        Map<String, Object> data = requireData(get("/workflow/internal/instance/" + instanceId));
+        Map<String, Object> data = requireData(get("/workflow/v1/internal/instance/" + instanceId));
         return objectMapper.convertValue(data, WorkflowInstanceSnapshot.class);
     }
 
     @Override
     public PageResult<WorkflowCcSnapshot> pageCcs(WorkflowCcQuery query) {
-        UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(baseUrl() + "/workflow/internal/cc/page");
+        UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(baseUrl() + "/workflow/v1/internal/cc/page");
         add(builder, "instanceId", query.getInstanceId());
         List<String> candidates = query.getRecipientCandidates();
         if (candidates != null && !candidates.isEmpty()) {
@@ -137,7 +137,7 @@ public class WorkflowApprovalGatewayImpl implements WorkflowApprovalGateway {
             return List.of();
         }
         UriComponentsBuilder builder = UriComponentsBuilder
-                .fromUriString(baseUrl() + "/workflow/internal/instance/status");
+                .fromUriString(baseUrl() + "/workflow/v1/internal/instance/status");
         builder.queryParam("instanceIds", ids.toArray());
         Map<String, Object> response = get(builder.build().encode().toUri().toString());
         Object data = requireSuccess(response);
@@ -147,13 +147,13 @@ public class WorkflowApprovalGatewayImpl implements WorkflowApprovalGateway {
 
     @Override
     public WorkflowCcSnapshot getCc(Long ccId) {
-        Map<String, Object> data = requireData(get("/workflow/internal/cc/" + ccId));
+        Map<String, Object> data = requireData(get("/workflow/v1/internal/cc/" + ccId));
         return objectMapper.convertValue(data, WorkflowCcSnapshot.class);
     }
 
     @Override
     public void markCcRead(Long ccId) {
-        post("/workflow/internal/cc/" + ccId + "/read", null);
+        post("/workflow/v1/internal/cc/" + ccId + "/read", null);
     }
 
     @Override
@@ -166,22 +166,22 @@ public class WorkflowApprovalGatewayImpl implements WorkflowApprovalGateway {
         body.put("source", OPERATOR_SOURCE);
         body.put("comment", comment);
         body.put("variables", variables);
-        post("/workflow/internal/task/" + taskId + "/complete", body);
+        post("/workflow/v1/internal/task/" + taskId + "/complete", body);
     }
 
     @Override
     public void transferTask(Long taskId, String targetUser) {
-        put("/workflow/internal/task/" + taskId + "/transfer", Map.of("targetUser", targetUser));
+        put("/workflow/v1/internal/task/" + taskId + "/transfer", Map.of("targetUser", targetUser));
     }
 
     @Override
     public void addSign(Long taskId, List<String> assignees) {
-        post("/workflow/internal/task/" + taskId + "/add-sign", Map.of("assignees", assignees));
+        post("/workflow/v1/internal/task/" + taskId + "/add-sign", Map.of("assignees", assignees));
     }
 
     @Override
     public void rollbackTask(Long taskId, String targetNodeKey) {
-        post("/workflow/internal/task/" + taskId + "/rollback", Map.of("targetNodeKey", targetNodeKey));
+        post("/workflow/v1/internal/task/" + taskId + "/rollback", Map.of("targetNodeKey", targetNodeKey));
     }
 
     @Override
@@ -190,17 +190,17 @@ public class WorkflowApprovalGatewayImpl implements WorkflowApprovalGateway {
         body.put("urger", urger);
         body.put("targetAccount", targetAccount);
         body.put("comment", comment);
-        post("/workflow/internal/task/" + instanceId + "/urge", body);
+        post("/workflow/v1/internal/task/" + instanceId + "/urge", body);
     }
 
     @Override
     public void cancelInstance(Long instanceId) {
-        post("/workflow/internal/instance/" + instanceId + "/cancel", null);
+        post("/workflow/v1/internal/instance/" + instanceId + "/cancel", null);
     }
 
     @Override
     public PageResult<WorkflowDelegateRuleSnapshot> pageDelegateRules(String fromAccount, long current, long size) {
-        UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(baseUrl() + "/workflow/internal/delegate/page");
+        UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(baseUrl() + "/workflow/v1/internal/delegate/page");
         add(builder, "fromAccount", fromAccount);
         addPage(builder, current, size);
         return page(builder, new TypeReference<PageResult<WorkflowDelegateRuleSnapshot>>() {
@@ -209,19 +209,19 @@ public class WorkflowApprovalGatewayImpl implements WorkflowApprovalGateway {
 
     @Override
     public WorkflowDelegateRuleSnapshot createDelegateRule(WorkflowDelegateCommand command) {
-        Map<String, Object> data = requireData(post("/workflow/internal/delegate", delegateBody(command)));
+        Map<String, Object> data = requireData(post("/workflow/v1/internal/delegate", delegateBody(command)));
         return objectMapper.convertValue(data, WorkflowDelegateRuleSnapshot.class);
     }
 
     @Override
     public WorkflowDelegateRuleSnapshot updateDelegateRule(Long id, WorkflowDelegateCommand command) {
-        Map<String, Object> data = requireData(put("/workflow/internal/delegate/" + id, delegateBody(command)));
+        Map<String, Object> data = requireData(put("/workflow/v1/internal/delegate/" + id, delegateBody(command)));
         return objectMapper.convertValue(data, WorkflowDelegateRuleSnapshot.class);
     }
 
     @Override
     public void deleteDelegateRule(Long id) {
-        delete("/workflow/internal/delegate/" + id);
+        delete("/workflow/v1/internal/delegate/" + id);
     }
 
     /**

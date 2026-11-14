@@ -1,7 +1,7 @@
 package com.bluewhale.form.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bluewhale.form.entity.FormDdlAuditEntity;
+import com.bluewhale.form.po.FormDdlAuditPo;
 
 /**
  * 表单物理表 DDL 审计 Mapper。
@@ -10,5 +10,5 @@ import com.bluewhale.form.entity.FormDdlAuditEntity;
  *
  * @author BlueWhale
  */
-public interface FormDdlAuditMapper extends BaseMapper<FormDdlAuditEntity> {
+public interface FormDdlAuditMapper extends BaseMapper<FormDdlAuditPo> {
 }

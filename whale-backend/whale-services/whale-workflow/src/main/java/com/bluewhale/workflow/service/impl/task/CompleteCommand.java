@@ -2,9 +2,9 @@ package com.bluewhale.workflow.service.impl.task;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
-import com.bluewhale.workflow.dto.ApprovalRequest;
-import com.bluewhale.workflow.dto.TaskCompleteRequest;
-import com.bluewhale.workflow.entity.ProcessTask;
+import com.bluewhale.workflow.request.ApprovalRequest;
+import com.bluewhale.workflow.request.TaskCompleteRequest;
+import com.bluewhale.workflow.po.ProcessTaskPo;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
 import com.bluewhale.workflow.support.WorkflowConstants;
 import lombok.RequiredArgsConstructor;
@@ -58,7 +58,7 @@ public class CompleteCommand {
      */
     @Transactional(rollbackFor = Exception.class)
     public void complete(Long id, TaskCompleteRequest request) {
-        ProcessTask task = processTaskMapper.selectById(id);
+        ProcessTaskPo task = processTaskMapper.selectById(id);
         if (task == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
@@ -113,7 +113,7 @@ public class CompleteCommand {
     /**
      * 记录系统操作来源。
      */
-    private void markOperator(ProcessTask task, TaskCompleteRequest command) {
+    private void markOperator(ProcessTaskPo task, TaskCompleteRequest command) {
         task.setOperatorId(parseOperatorId(command.getOperatorId()));
         task.setOperatorType(resolveOperatorType(command.getOperatorType()));
         task.setOperatorSource(StringUtils.hasText(command.getSource()) ? command.getSource() : DEFAULT_SOURCE);

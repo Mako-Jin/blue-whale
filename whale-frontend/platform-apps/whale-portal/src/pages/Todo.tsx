@@ -1,5 +1,5 @@
 // 我的待办：antd Table 展示待办分页结果（任务名 / 流程实例 / 节点 / 创建时间 / 操作）
-// 「去处理」打开审批抽屉，可填写意见后同意 / 驳回（POST /workflow/task/{id}/approve|reject）
+// 「去处理」打开审批抽屉，可填写意见后同意 / 驳回（POST /workflow/v1/task/{id}/approve|reject）
 import { useCallback, useEffect, useState } from 'react';
 import { App, Button, Descriptions, Drawer, Input, Space, Table, Tag } from 'antd';
 import type { TableProps } from 'antd';

@@ -1,7 +1,7 @@
 package com.bluewhale.workflow.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bluewhale.workflow.entity.ProcessInstance;
+import com.bluewhale.workflow.po.ProcessInstancePo;
 
 /**
  * 流程实例 Mapper。
@@ -10,5 +10,5 @@ import com.bluewhale.workflow.entity.ProcessInstance;
  *
  * @author BlueWhale
  */
-public interface ProcessInstanceMapper extends BaseMapper<ProcessInstance> {
+public interface ProcessInstanceMapper extends BaseMapper<ProcessInstancePo> {
 }

@@ -1,12 +1,12 @@
 package com.bluewhale.workflow.converter;
 
-import com.bluewhale.workflow.entity.ProcessCc;
-import com.bluewhale.workflow.entity.ProcessDefinition;
-import com.bluewhale.workflow.entity.ProcessDefinitionVersion;
-import com.bluewhale.workflow.entity.ProcessDelegate;
-import com.bluewhale.workflow.entity.ProcessInstance;
-import com.bluewhale.workflow.entity.ProcessTask;
-import com.bluewhale.workflow.entity.ProcessUrge;
+import com.bluewhale.workflow.po.ProcessCcPo;
+import com.bluewhale.workflow.po.ProcessDefinitionPo;
+import com.bluewhale.workflow.po.ProcessDefinitionVersionPo;
+import com.bluewhale.workflow.po.ProcessDelegatePo;
+import com.bluewhale.workflow.po.ProcessInstancePo;
+import com.bluewhale.workflow.po.ProcessTaskPo;
+import com.bluewhale.workflow.po.ProcessUrgePo;
 import com.bluewhale.workflow.vo.ApprovedInstanceVO;
 import com.bluewhale.workflow.vo.ArchiveInstanceDetailVO;
 import com.bluewhale.workflow.vo.DelegateRuleVO;
@@ -40,7 +40,7 @@ public interface WorkflowConverter {
      * @param entity 流程定义实体
      * @return 流程定义视图对象
      */
-    ProcessDefinitionVO toDefinitionVo(ProcessDefinition entity);
+    ProcessDefinitionVO toDefinitionVo(ProcessDefinitionPo entity);
 
     /**
      * 版本快照实体转视图对象
@@ -48,7 +48,7 @@ public interface WorkflowConverter {
      * @param entity 版本快照实体
      * @return 版本快照视图对象
      */
-    ProcessDefinitionVersionVO toDefinitionVersionVo(ProcessDefinitionVersion entity);
+    ProcessDefinitionVersionVO toDefinitionVersionVo(ProcessDefinitionVersionPo entity);
 
     /**
      * 流程实例实体转视图对象（tasks 由调用方按需装配）
@@ -57,7 +57,7 @@ public interface WorkflowConverter {
      * @return 流程实例视图对象
      */
     @Mapping(target = "tasks", ignore = true)
-    ProcessInstanceVO toInstanceVo(ProcessInstance entity);
+    ProcessInstanceVO toInstanceVo(ProcessInstancePo entity);
 
     /**
      * 任务实体转视图对象
@@ -65,7 +65,7 @@ public interface WorkflowConverter {
      * @param entity 待办任务实体
      * @return 任务视图对象
      */
-    ProcessTaskVO toTaskVo(ProcessTask entity);
+    ProcessTaskVO toTaskVo(ProcessTaskPo entity);
 
     /**
      * 归档实例实体转详情视图对象（派生字段由调用方装配）
@@ -75,7 +75,7 @@ public interface WorkflowConverter {
      */
     @Mapping(target = "definitionJson", ignore = true)
     @Mapping(target = "tasks", ignore = true)
-    ArchiveInstanceDetailVO toArchiveDetailVo(ProcessInstance entity);
+    ArchiveInstanceDetailVO toArchiveDetailVo(ProcessInstancePo entity);
 
     /**
      * 归档实例实体转已通过摘要视图对象（finishedAt 同名字段自动映射）
@@ -83,7 +83,7 @@ public interface WorkflowConverter {
      * @param entity 流程实例实体
      * @return 已通过实例摘要视图对象
      */
-    ApprovedInstanceVO toApprovedVo(ProcessInstance entity);
+    ApprovedInstanceVO toApprovedVo(ProcessInstancePo entity);
 
     /**
      * 抄送实体转视图对象
@@ -91,7 +91,7 @@ public interface WorkflowConverter {
      * @param entity 抄送实体
      * @return 抄送视图对象
      */
-    ProcessCcVO toCcVo(ProcessCc entity);
+    ProcessCcVO toCcVo(ProcessCcPo entity);
 
     /**
      * 代理规则实体转视图对象
@@ -99,7 +99,7 @@ public interface WorkflowConverter {
      * @param entity 代理规则实体
      * @return 代理规则视图对象
      */
-    DelegateRuleVO toDelegateVo(ProcessDelegate entity);
+    DelegateRuleVO toDelegateVo(ProcessDelegatePo entity);
 
     /**
      * 催办记录实体转视图对象
@@ -107,5 +107,5 @@ public interface WorkflowConverter {
      * @param entity 催办记录实体
      * @return 催办记录视图对象
      */
-    ProcessUrgeVO toUrgeVo(ProcessUrge entity);
+    ProcessUrgeVO toUrgeVo(ProcessUrgePo entity);
 }

@@ -40,10 +40,10 @@ public class WorkflowReliefApprovalGateway implements ReliefApprovalGateway {
     private static final String SERVICE_NAME = "whale-workflow";
 
     /** 发起实例路径 */
-    private static final String START_PATH = "/workflow/internal/instance/start";
+    private static final String START_PATH = "/workflow/v1/internal/instance/start";
 
     /** 批量状态路径 */
-    private static final String STATUS_PATH = "/workflow/internal/instance/status";
+    private static final String STATUS_PATH = "/workflow/v1/internal/instance/status";
 
     private final DiscoveryClient discoveryClient;
 

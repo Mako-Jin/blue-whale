@@ -5,12 +5,12 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
-import com.bluewhale.workflow.dto.ProcessInstanceQueryRequest;
-import com.bluewhale.workflow.dto.ProcessInstanceStartRequest;
-import com.bluewhale.workflow.entity.ProcessDefinition;
-import com.bluewhale.workflow.entity.ProcessDefinitionVersion;
-import com.bluewhale.workflow.entity.ProcessInstance;
-import com.bluewhale.workflow.entity.ProcessTask;
+import com.bluewhale.workflow.request.ProcessInstanceQueryRequest;
+import com.bluewhale.workflow.request.ProcessInstanceStartRequest;
+import com.bluewhale.workflow.po.ProcessDefinitionPo;
+import com.bluewhale.workflow.po.ProcessDefinitionVersionPo;
+import com.bluewhale.workflow.po.ProcessInstancePo;
+import com.bluewhale.workflow.po.ProcessTaskPo;
 import com.bluewhale.workflow.mapper.ProcessDefinitionMapper;
 import com.bluewhale.workflow.mapper.ProcessDefinitionVersionMapper;
 import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
@@ -105,8 +105,8 @@ class ProcessInstanceServiceImplTest {
      * @param definitionJson 流程定义JSON
      * @return 流程定义实体
      */
-    private static ProcessDefinition definition(Long id, String definitionJson) {
-        ProcessDefinition definition = new ProcessDefinition();
+    private static ProcessDefinitionPo definition(Long id, String definitionJson) {
+        ProcessDefinitionPo definition = new ProcessDefinitionPo();
         definition.setId(id);
         definition.setCode("wf-a");
         definition.setVersion(1);
@@ -135,7 +135,7 @@ class ProcessInstanceServiceImplTest {
 
         ProcessInstanceVO vo = processInstanceService.start(startRequest(10L), "zhangsan");
 
-        ArgumentCaptor<ProcessInstance> instanceCaptor = ArgumentCaptor.forClass(ProcessInstance.class);
+        ArgumentCaptor<ProcessInstancePo> instanceCaptor = ArgumentCaptor.forClass(ProcessInstancePo.class);
         verify(processInstanceMapper).insert(instanceCaptor.capture());
         assertEquals(10L, instanceCaptor.getValue().getDefinitionId());
         assertEquals("wf-a", instanceCaptor.getValue().getDefinitionCode());
@@ -161,8 +161,8 @@ class ProcessInstanceServiceImplTest {
                 () -> processInstanceService.start(startRequest(99L), "zhangsan"));
 
         assertEquals(NOT_FOUND_CODE, ex.getCode());
-        verify(processInstanceMapper, never()).insert(any(ProcessInstance.class));
-        verify(taskActivationCommand, never()).activate(any(ProcessInstance.class),
+        verify(processInstanceMapper, never()).insert(any(ProcessInstancePo.class));
+        verify(taskActivationCommand, never()).activate(any(ProcessInstancePo.class),
                 any(ProcessModel.class), any(TransitionResult.class));
     }
 
@@ -176,22 +176,22 @@ class ProcessInstanceServiceImplTest {
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertEquals("流程定义缺少有效审批节点", ex.getMessage());
-        verify(processInstanceMapper, never()).insert(any(ProcessInstance.class));
+        verify(processInstanceMapper, never()).insert(any(ProcessInstancePo.class));
     }
 
     @Test
     @DisplayName("getDetail：返回实例详情并附带任务列表")
     void shouldGetDetailWithTasks() {
-        ProcessInstance instance = new ProcessInstance();
+        ProcessInstancePo instance = new ProcessInstancePo();
         instance.setId(1L);
         instance.setStatus(0);
         when(processInstanceMapper.selectById(1L)).thenReturn(instance);
-        ProcessTask task = new ProcessTask();
+        ProcessTaskPo task = new ProcessTaskPo();
         task.setId(100L);
         task.setInstanceId(1L);
         task.setNodeIndex(0);
         task.setAssignee("admin");
-        when(processTaskMapper.selectList(ArgumentMatchers.<Wrapper<ProcessTask>>any())).thenReturn(List.of(task));
+        when(processTaskMapper.selectList(ArgumentMatchers.<Wrapper<ProcessTaskPo>>any())).thenReturn(List.of(task));
 
         ProcessInstanceVO vo = processInstanceService.getDetail(1L);
 
@@ -213,7 +213,7 @@ class ProcessInstanceServiceImplTest {
     @Test
     @DisplayName("cancel：发起人撤销运行中实例并取消其余待办")
     void shouldCancelWhenRunning() {
-        ProcessInstance instance = new ProcessInstance();
+        ProcessInstancePo instance = new ProcessInstancePo();
         instance.setId(5L);
         instance.setStatus(0);
         instance.setInitiator("alice");
@@ -229,7 +229,7 @@ class ProcessInstanceServiceImplTest {
     @Test
     @DisplayName("cancel：非发起人撤销被拒绝")
     void shouldRejectCancelByNonInitiator() {
-        ProcessInstance instance = new ProcessInstance();
+        ProcessInstancePo instance = new ProcessInstancePo();
         instance.setId(5L);
         instance.setStatus(0);
         instance.setInitiator("alice");
@@ -239,13 +239,13 @@ class ProcessInstanceServiceImplTest {
                 () -> processInstanceService.cancel(5L, "bob"));
 
         assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
-        verify(processInstanceMapper, never()).updateById(any(ProcessInstance.class));
+        verify(processInstanceMapper, never()).updateById(any(ProcessInstancePo.class));
     }
 
     @Test
     @DisplayName("cancel：非运行中实例抛参数错误且不更新")
     void shouldThrowWhenCancelNotRunning() {
-        ProcessInstance instance = new ProcessInstance();
+        ProcessInstancePo instance = new ProcessInstancePo();
         instance.setId(5L);
         instance.setStatus(1);
         when(processInstanceMapper.selectById(5L)).thenReturn(instance);
@@ -254,20 +254,20 @@ class ProcessInstanceServiceImplTest {
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertEquals("实例非运行中", ex.getMessage());
-        verify(processInstanceMapper, never()).updateById(any(ProcessInstance.class));
+        verify(processInstanceMapper, never()).updateById(any(ProcessInstancePo.class));
     }
 
     @Test
     @DisplayName("page：按条件调用分页查询并映射结果")
     void shouldPageWithConditions() {
-        ProcessInstance instance = new ProcessInstance();
+        ProcessInstancePo instance = new ProcessInstancePo();
         instance.setId(1L);
         instance.setStatus(0);
-        Page<ProcessInstance> page = new Page<>(1L, 10L);
+        Page<ProcessInstancePo> page = new Page<>(1L, 10L);
         page.setRecords(List.of(instance));
         page.setTotal(1L);
-        when(processInstanceMapper.selectPage(ArgumentMatchers.<Page<ProcessInstance>>any(),
-                ArgumentMatchers.<Wrapper<ProcessInstance>>any())).thenReturn(page);
+        when(processInstanceMapper.selectPage(ArgumentMatchers.<Page<ProcessInstancePo>>any(),
+                ArgumentMatchers.<Wrapper<ProcessInstancePo>>any())).thenReturn(page);
         ProcessInstanceQueryRequest request = new ProcessInstanceQueryRequest();
         request.setTitle("报销");
         request.setStatus(0);
@@ -287,7 +287,7 @@ class ProcessInstanceServiceImplTest {
 
         ProcessInstanceVO vo = processInstanceService.start(startRequest(10L), "zhangsan");
 
-        ArgumentCaptor<ProcessInstance> instanceCaptor = ArgumentCaptor.forClass(ProcessInstance.class);
+        ArgumentCaptor<ProcessInstancePo> instanceCaptor = ArgumentCaptor.forClass(ProcessInstancePo.class);
         verify(processInstanceMapper).insert(instanceCaptor.capture());
         assertEquals(0, instanceCaptor.getValue().getStatus().intValue());
         assertEquals(1, instanceCaptor.getValue().getCurrentIndex().intValue());
@@ -301,12 +301,12 @@ class ProcessInstanceServiceImplTest {
     @DisplayName("start：优先使用锁定版本的快照 JSON")
     void shouldPreferSnapshotJsonOnStart() {
         when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, TWO_NODE_JSON));
-        ProcessDefinitionVersion snapshot = new ProcessDefinitionVersion();
+        ProcessDefinitionVersionPo snapshot = new ProcessDefinitionVersionPo();
         snapshot.setDefinitionId(10L);
         snapshot.setVersion(1);
         snapshot.setDefinitionJson(NORMALIZED_JSON);
         snapshot.setPublishStatus(1);
-        when(processDefinitionVersionMapper.selectList(ArgumentMatchers.<Wrapper<ProcessDefinitionVersion>>any()))
+        when(processDefinitionVersionMapper.selectList(ArgumentMatchers.<Wrapper<ProcessDefinitionVersionPo>>any()))
                 .thenReturn(List.of(snapshot));
 
         ProcessInstanceVO vo = processInstanceService.start(startRequest(10L), "zhangsan");
@@ -323,8 +323,8 @@ class ProcessInstanceServiceImplTest {
         ProcessInstanceVO vo = processInstanceService.start(startRequest(10L), "zhangsan");
 
         assertEquals(1, vo.getStatus().intValue());
-        verify(processInstanceMapper).insert(any(ProcessInstance.class));
-        verify(taskActivationCommand).activate(any(ProcessInstance.class),
+        verify(processInstanceMapper).insert(any(ProcessInstancePo.class));
+        verify(taskActivationCommand).activate(any(ProcessInstancePo.class),
                 any(ProcessModel.class), any(TransitionResult.class));
     }
 }

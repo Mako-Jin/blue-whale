@@ -2,8 +2,8 @@ package com.bluewhale.workflow.service.impl.task;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
-import com.bluewhale.workflow.entity.ProcessInstance;
-import com.bluewhale.workflow.entity.ProcessTask;
+import com.bluewhale.workflow.po.ProcessInstancePo;
+import com.bluewhale.workflow.po.ProcessTaskPo;
 import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
 import com.bluewhale.workflow.support.ProcessModel;
 import com.bluewhale.workflow.support.ProcessModelNode;
@@ -41,8 +41,8 @@ public class RollbackCommand {
      */
     @Transactional(rollbackFor = Exception.class)
     public void rollback(Long id, String targetNodeKey) {
-        ProcessTask task = taskCommandSupport.requirePendingTask(id);
-        ProcessInstance instance = taskCommandSupport.requireRunningInstance(task.getInstanceId());
+        ProcessTaskPo task = taskCommandSupport.requirePendingTask(id);
+        ProcessInstancePo instance = taskCommandSupport.requireRunningInstance(task.getInstanceId());
         ProcessModel model = ProcessModelParser.parse(instanceModelLoader.resolveInstanceJson(instance));
         ProcessModelNode target = model.node(targetNodeKey);
         if (target == null || target.getType() == null || !target.getType().isApproval()) {

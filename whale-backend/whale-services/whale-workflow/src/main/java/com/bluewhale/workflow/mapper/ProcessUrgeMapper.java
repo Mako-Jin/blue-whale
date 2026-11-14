@@ -1,7 +1,7 @@
 package com.bluewhale.workflow.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bluewhale.workflow.entity.ProcessUrge;
+import com.bluewhale.workflow.po.ProcessUrgePo;
 
 /**
  * 流程催办 Mapper。
@@ -12,5 +12,5 @@ import com.bluewhale.workflow.entity.ProcessUrge;
  *
  * @author BlueWhale
  */
-public interface ProcessUrgeMapper extends BaseMapper<ProcessUrge> {
+public interface ProcessUrgeMapper extends BaseMapper<ProcessUrgePo> {
 }

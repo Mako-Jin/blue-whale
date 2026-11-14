@@ -2,8 +2,8 @@ package com.bluewhale.workflow.service.impl.task;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
-import com.bluewhale.workflow.entity.ProcessInstance;
-import com.bluewhale.workflow.entity.ProcessTask;
+import com.bluewhale.workflow.po.ProcessInstancePo;
+import com.bluewhale.workflow.po.ProcessTaskPo;
 import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
 import com.bluewhale.workflow.support.WorkflowConstants;
 import lombok.RequiredArgsConstructor;
@@ -31,8 +31,8 @@ public class RejectCommand {
      */
     @Transactional(rollbackFor = Exception.class)
     public void reject(Long id, String comment) {
-        ProcessTask task = taskCommandSupport.requirePendingTask(id);
-        ProcessInstance instance = taskCommandSupport.requireRunningInstance(task.getInstanceId());
+        ProcessTaskPo task = taskCommandSupport.requirePendingTask(id);
+        ProcessInstancePo instance = taskCommandSupport.requireRunningInstance(task.getInstanceId());
         task.setStatus(WorkflowConstants.TASK_REJECTED);
         task.setComment(comment);
         if (!taskCommandSupport.transitionFromPending(task, WorkflowConstants.TASK_REJECTED, comment)) {

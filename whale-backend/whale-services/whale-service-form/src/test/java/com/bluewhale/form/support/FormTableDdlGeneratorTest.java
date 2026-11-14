@@ -2,7 +2,7 @@ package com.bluewhale.form.support;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.tenant.TenantContext;
-import com.bluewhale.form.entity.FormColumnMetaEntity;
+import com.bluewhale.form.po.FormColumnMetaPo;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -101,7 +101,7 @@ class FormTableDdlGeneratorTest {
     @Test
     @DisplayName("autoIndexes：按列顺序采集、跳过不可索引列、上限 16 个")
     void shouldCollectAutoIndexes() {
-        List<FormColumnMetaEntity> columns = new ArrayList<>();
+        List<FormColumnMetaPo> columns = new ArrayList<>();
         for (int i = 0; i < 20; i++) {
             columns.add(column("n" + i, "数值" + i, "number", null));
         }
@@ -153,7 +153,7 @@ class FormTableDdlGeneratorTest {
     @Test
     @DisplayName("columnDef：nullable=0 生成 NOT NULL，与服务层必填校验对齐")
     void shouldDefineNotNullColumn() {
-        FormColumnMetaEntity meta = column("amount", "金额", "number", null);
+        FormColumnMetaPo meta = column("amount", "金额", "number", null);
         meta.setNullable(0);
 
         assertEquals("`amount` DECIMAL(18,4) NOT NULL COMMENT '金额'",
@@ -173,7 +173,7 @@ class FormTableDdlGeneratorTest {
     @DisplayName("alterAdd / alterModify：前缀正确且以 columnDef 结尾")
     void shouldGenerateAddAndModifyAlter() {
         String table = "form_data_fm_a_v1";
-        FormColumnMetaEntity meta = column("remark", "备注", "text", 255);
+        FormColumnMetaPo meta = column("remark", "备注", "text", 255);
         String def = FormTableDdlGenerator.columnDef(meta);
 
         assertEquals("ALTER TABLE `" + table + "` ADD COLUMN " + def,
@@ -242,8 +242,8 @@ class FormTableDdlGeneratorTest {
      * @param length 长度
      * @return 列元数据
      */
-    private static FormColumnMetaEntity column(String code, String name, String dataType, Integer length) {
-        FormColumnMetaEntity column = new FormColumnMetaEntity();
+    private static FormColumnMetaPo column(String code, String name, String dataType, Integer length) {
+        FormColumnMetaPo column = new FormColumnMetaPo();
         column.setColumnCode(code);
         column.setColumnName(name);
         column.setDataType(dataType);

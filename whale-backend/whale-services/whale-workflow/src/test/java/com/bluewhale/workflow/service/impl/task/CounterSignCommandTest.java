@@ -1,6 +1,6 @@
 package com.bluewhale.workflow.service.impl.task;
 
-import com.bluewhale.workflow.entity.ProcessTask;
+import com.bluewhale.workflow.po.ProcessTaskPo;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
 import com.bluewhale.workflow.support.ProcessModelNode;
 import com.bluewhale.workflow.support.ProcessNodeType;
@@ -38,28 +38,28 @@ class CounterSignCommandTest {
     @Test
     @DisplayName("RATIO：已取消任务不参与分母，达成阈值时收敛同节点待办")
     void shouldIgnoreCanceledTasksInRatioDenominator() {
-        ProcessTask approved = task(WorkflowConstants.TASK_APPROVED);
-        ProcessTask pending = task(WorkflowConstants.TASK_PENDING);
-        ProcessTask canceled = task(WorkflowConstants.TASK_CANCELED);
+        ProcessTaskPo approved = task(WorkflowConstants.TASK_APPROVED);
+        ProcessTaskPo pending = task(WorkflowConstants.TASK_PENDING);
+        ProcessTaskPo canceled = task(WorkflowConstants.TASK_CANCELED);
         when(processTaskMapper.selectList(any())).thenReturn(List.of(approved, pending, canceled));
 
         boolean wait = counterSignCommand.awaitSameNode(5L, "t1", counterSignNode("RATIO:50"));
 
         assertFalse(wait);
-        verify(processTaskMapper).update(any(ProcessTask.class), any());
+        verify(processTaskMapper).update(any(ProcessTaskPo.class), any());
     }
 
     @Test
     @DisplayName("RATIO：未达阈值时继续等待且不取消待办")
     void shouldWaitWhenRatioNotSatisfied() {
-        ProcessTask approved = task(WorkflowConstants.TASK_APPROVED);
-        ProcessTask pending = task(WorkflowConstants.TASK_PENDING);
+        ProcessTaskPo approved = task(WorkflowConstants.TASK_APPROVED);
+        ProcessTaskPo pending = task(WorkflowConstants.TASK_PENDING);
         when(processTaskMapper.selectList(any())).thenReturn(List.of(approved, pending));
 
         boolean wait = counterSignCommand.awaitSameNode(5L, "t1", counterSignNode("RATIO:80"));
 
         assertTrue(wait);
-        verify(processTaskMapper, never()).update(any(ProcessTask.class), any());
+        verify(processTaskMapper, never()).update(any(ProcessTaskPo.class), any());
     }
 
     /**
@@ -68,8 +68,8 @@ class CounterSignCommandTest {
      * @param status 任务状态
      * @return 任务实体
      */
-    private static ProcessTask task(int status) {
-        ProcessTask task = new ProcessTask();
+    private static ProcessTaskPo task(int status) {
+        ProcessTaskPo task = new ProcessTaskPo();
         task.setInstanceId(5L);
         task.setNodeKey("t1");
         task.setStatus(status);

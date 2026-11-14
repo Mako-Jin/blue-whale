@@ -1,5 +1,5 @@
 // whale-workflow 契约层（Wave 5.32 冻结）：类型字段名与后端 controller/dto/vo 严格一致，禁止改名；
-// 所有请求方法均为对 http.ts 的薄封装，服务内路径前缀 /workflow/definition、/workflow/instance、/workflow/task。
+// 所有请求方法均为对 http.ts 的薄封装，服务内路径前缀 /workflow/v1/definition、/workflow/v1/instance、/workflow/v1/task。
 
 import { del, downloadBlob, get, post, put, type PageResult } from './client';
 
@@ -85,7 +85,7 @@ export interface ProcessDefinition {
   updateTime?: string;
 }
 
-/** 保存流程定义入参（POST /workflow/definition、PUT /workflow/definition/{id}） */
+/** 保存流程定义入参（POST /workflow/v1/definition、PUT /workflow/v1/definition/{id}） */
 export interface DefinitionSaveRequest {
   code: string;
   name: string;
@@ -109,12 +109,12 @@ export interface ProcessDefinitionVersion {
   updateTime?: string;
 }
 
-/** 发布指定版本入参（POST /workflow/definition/{id}/publish） */
+/** 发布指定版本入参（POST /workflow/v1/definition/{id}/publish） */
 export interface DefinitionPublishRequest {
   version: number;
 }
 
-/** 实例版本迁移入参（POST /workflow/definition/{id}/migrate） */
+/** 实例版本迁移入参（POST /workflow/v1/definition/{id}/migrate） */
 export interface DefinitionMigrationRequest {
   /** 目标版本号（须存在对应快照） */
   targetVersion: number;
@@ -156,7 +156,7 @@ export interface ProcessInstance {
   tasks?: ProcessTask[];
 }
 
-/** 发起流程入参（POST /workflow/instance） */
+/** 发起流程入参（POST /workflow/v1/instance） */
 export interface InstanceStartRequest {
   definitionId: Id;
   title: string;
@@ -218,7 +218,7 @@ export interface ProcessDefinitionValidate {
   flowCount: number;
 }
 
-/** 校验入参（POST /workflow/definition/validate；definitionJson 与 bpmnXml 二选一） */
+/** 校验入参（POST /workflow/v1/definition/validate；definitionJson 与 bpmnXml 二选一） */
 export interface DefinitionValidateRequest {
   definitionJson?: string;
   bpmnXml?: string;
@@ -248,7 +248,7 @@ export interface SimulateStep {
   counterSignPolicy?: string | null;
 }
 
-/** 选路模拟入参（POST /workflow/definition/simulate） */
+/** 选路模拟入参（POST /workflow/v1/definition/simulate） */
 export interface DefinitionSimulateRequest {
   /** 流程定义 JSON（规范化或 legacy） */
   definitionJson: string;
@@ -278,7 +278,7 @@ export interface ProcessDefinitionSimulate {
   errorMessage?: string | null;
 }
 
-/** BPMN 导入入参（POST /workflow/definition/bpmn） */
+/** BPMN 导入入参（POST /workflow/v1/definition/bpmn） */
 export interface BpmnImportRequest {
   code: string;
   name: string;
@@ -297,22 +297,22 @@ export interface ApprovalRequest {
   formDataId?: Id | number;
 }
 
-/** 转办 / 委派入参（PUT /workflow/task/{id}/transfer、/delegate） */
+/** 转办 / 委派入参（PUT /workflow/v1/task/{id}/transfer、/delegate） */
 export interface TaskTransferRequest {
   targetUser: string;
 }
 
-/** 回退入参（POST /workflow/task/{id}/rollback） */
+/** 回退入参（POST /workflow/v1/task/{id}/rollback） */
 export interface TaskRollbackRequest {
   targetNodeKey: string;
 }
 
-/** 加签入参（POST /workflow/task/{id}/add-sign；单次最多 10 人） */
+/** 加签入参（POST /workflow/v1/task/{id}/add-sign；单次最多 10 人） */
 export interface TaskAddSignRequest {
   assignees: string[];
 }
 
-/** 流程定义分页查询条件（GET /workflow/definition/page） */
+/** 流程定义分页查询条件（GET /workflow/v1/definition/page） */
 export type DefinitionQuery = {
   current?: number;
   size?: number;
@@ -324,7 +324,7 @@ export type DefinitionQuery = {
   status?: number;
 };
 
-/** 流程实例分页查询条件（GET /workflow/instance/page） */
+/** 流程实例分页查询条件（GET /workflow/v1/instance/page） */
 export type InstanceQuery = {
   current?: number;
   size?: number;
@@ -336,7 +336,7 @@ export type InstanceQuery = {
   definitionCode?: string;
 };
 
-/** 待办任务分页查询条件（GET /workflow/task/page） */
+/** 待办任务分页查询条件（GET /workflow/v1/task/page） */
 export type TaskQuery = {
   current?: number;
   size?: number;
@@ -348,56 +348,56 @@ export type TaskQuery = {
   instanceId?: Id;
 };
 
-/** 流程定义管理 API（服务内前缀 /workflow/definition） */
+/** 流程定义管理 API（服务内前缀 /workflow/v1/definition） */
 export const workflowApi = {
   definitionPage: (query?: DefinitionQuery) =>
-    get<PageResult<ProcessDefinition>>('/workflow/definition/page', query),
-  definitionDetail: (id: Id) => get<ProcessDefinition>(`/workflow/definition/${id}`),
+    get<PageResult<ProcessDefinition>>('/workflow/v1/definition/page', query),
+  definitionDetail: (id: Id) => get<ProcessDefinition>(`/workflow/v1/definition/${id}`),
   definitionCreate: (data: DefinitionSaveRequest) =>
-    post<ProcessDefinition>('/workflow/definition', data),
+    post<ProcessDefinition>('/workflow/v1/definition', data),
   definitionUpdate: (id: Id, data: DefinitionSaveRequest) =>
-    put<ProcessDefinition>(`/workflow/definition/${id}`, data),
-  definitionRemove: (id: Id) => del<void>(`/workflow/definition/${id}`),
+    put<ProcessDefinition>(`/workflow/v1/definition/${id}`, data),
+  definitionRemove: (id: Id) => del<void>(`/workflow/v1/definition/${id}`),
   // 校验：内容非法返回 valid=false（非异常），errors[] 按 refKey 映射画布元素
   definitionValidate: (data: DefinitionValidateRequest) =>
-    post<ProcessDefinitionValidate>('/workflow/definition/validate', data),
+    post<ProcessDefinitionValidate>('/workflow/v1/definition/validate', data),
   // 选路模拟：按流程变量预演走向，不创建实例（错误落在 VO 字段而非异常）
   definitionSimulate: (data: DefinitionSimulateRequest) =>
-    post<ProcessDefinitionSimulate>('/workflow/definition/simulate', data),
+    post<ProcessDefinitionSimulate>('/workflow/v1/definition/simulate', data),
   definitionBpmnImport: (data: BpmnImportRequest) =>
-    post<ProcessDefinition>('/workflow/definition/bpmn', data),
+    post<ProcessDefinition>('/workflow/v1/definition/bpmn', data),
   // BPMN 导出为原始字节流（响应非 JSON 信封），文件名从 Content-Disposition 解析
-  definitionBpmnExport: (id: Id) => downloadBlob(`/workflow/definition/${id}/bpmn`),
+  definitionBpmnExport: (id: Id) => downloadBlob(`/workflow/v1/definition/${id}/bpmn`),
   // 版本快照：版本号倒序；publishStatus 0 草稿 / 1 已发布
   definitionVersions: (id: Id) =>
-    get<ProcessDefinitionVersion[]>(`/workflow/definition/${id}/versions`),
+    get<ProcessDefinitionVersion[]>(`/workflow/v1/definition/${id}/versions`),
   // 发布指定版本：切换定义表内容，新实例按该版本发起
   definitionPublish: (id: Id, data: DefinitionPublishRequest) =>
-    post<ProcessDefinition>(`/workflow/definition/${id}/publish`, data),
+    post<ProcessDefinition>(`/workflow/v1/definition/${id}/publish`, data),
   // 迁移运行中实例到目标版本（instanceIds 为空表示全部运行中实例）
   definitionMigrate: (id: Id, data: DefinitionMigrationRequest) =>
-    post<DefinitionMigrationResult>(`/workflow/definition/${id}/migrate`, data),
+    post<DefinitionMigrationResult>(`/workflow/v1/definition/${id}/migrate`, data),
 
-  // 流程实例 API（服务内前缀 /workflow/instance）
+  // 流程实例 API（服务内前缀 /workflow/v1/instance）
   instancePage: (query?: InstanceQuery) =>
-    get<PageResult<ProcessInstance>>('/workflow/instance/page', query),
-  instanceDetail: (id: Id) => get<ProcessInstance>(`/workflow/instance/${id}`),
-  instanceStart: (data: InstanceStartRequest) => post<ProcessInstance>('/workflow/instance', data),
-  instanceCancel: (id: Id) => post<void>(`/workflow/instance/${id}/cancel`),
+    get<PageResult<ProcessInstance>>('/workflow/v1/instance/page', query),
+  instanceDetail: (id: Id) => get<ProcessInstance>(`/workflow/v1/instance/${id}`),
+  instanceStart: (data: InstanceStartRequest) => post<ProcessInstance>('/workflow/v1/instance', data),
+  instanceCancel: (id: Id) => post<void>(`/workflow/v1/instance/${id}/cancel`),
 
-  // 待办任务 API（服务内前缀 /workflow/task）
-  taskPage: (query?: TaskQuery) => get<PageResult<ProcessTask>>('/workflow/task/page', query),
-  taskApprove: (id: Id, data?: ApprovalRequest) => post<void>(`/workflow/task/${id}/approve`, data),
-  taskReject: (id: Id, data?: ApprovalRequest) => post<void>(`/workflow/task/${id}/reject`, data),
+  // 待办任务 API（服务内前缀 /workflow/v1/task）
+  taskPage: (query?: TaskQuery) => get<PageResult<ProcessTask>>('/workflow/v1/task/page', query),
+  taskApprove: (id: Id, data?: ApprovalRequest) => post<void>(`/workflow/v1/task/${id}/approve`, data),
+  taskReject: (id: Id, data?: ApprovalRequest) => post<void>(`/workflow/v1/task/${id}/reject`, data),
   taskTransfer: (id: Id, data: TaskTransferRequest) =>
-    put<void>(`/workflow/task/${id}/transfer`, data),
+    put<void>(`/workflow/v1/task/${id}/transfer`, data),
   taskDelegate: (id: Id, data: TaskTransferRequest) =>
-    put<void>(`/workflow/task/${id}/delegate`, data),
+    put<void>(`/workflow/v1/task/${id}/delegate`, data),
   /** 完成委派：被委派人处理完，任务交回委派人 */
-  taskResolve: (id: Id, data?: ApprovalRequest) => put<void>(`/workflow/task/${id}/resolve`, data),
+  taskResolve: (id: Id, data?: ApprovalRequest) => put<void>(`/workflow/v1/task/${id}/resolve`, data),
   taskRollback: (id: Id, data: TaskRollbackRequest) =>
-    post<void>(`/workflow/task/${id}/rollback`, data),
+    post<void>(`/workflow/v1/task/${id}/rollback`, data),
   /** 加签：为当前节点追加同级审批人，追加人全部同意后节点才完成 */
   taskAddSign: (id: Id, data: TaskAddSignRequest) =>
-    post<void>(`/workflow/task/${id}/add-sign`, data),
+    post<void>(`/workflow/v1/task/${id}/add-sign`, data),
 };

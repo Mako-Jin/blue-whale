@@ -1,4 +1,4 @@
-package com.bluewhale.workflow.entity;
+package com.bluewhale.workflow.po;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.bluewhale.common.entity.BaseEntity;
@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("process_delegate")
-public class ProcessDelegate extends BaseEntity {
+public class ProcessDelegatePo extends BaseEntity {
 
     private static final long serialVersionUID = 1L;
 

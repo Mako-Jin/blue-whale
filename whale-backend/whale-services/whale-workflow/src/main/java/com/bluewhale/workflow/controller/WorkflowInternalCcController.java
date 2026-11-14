@@ -2,7 +2,7 @@ package com.bluewhale.workflow.controller;
 
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
-import com.bluewhale.workflow.dto.ProcessCcQueryRequest;
+import com.bluewhale.workflow.request.ProcessCcQueryRequest;
 import com.bluewhale.workflow.service.ProcessCcService;
 import com.bluewhale.workflow.vo.ProcessCcVO;
 import lombok.RequiredArgsConstructor;
@@ -15,13 +15,13 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 流程抄送内网接口。
  *
- * <p>服务内路径前缀 {@code /workflow/internal/cc}；网关 {@code internal-deny} 对
- * {@code /workflow/internal/**} 统一返回 403，外部不可达，故不加权限码注解。</p>
+ * <p>服务内路径前缀 {@code /workflow/v1/internal/cc}；网关 {@code internal-deny} 对
+ * {@code /workflow/v1/internal/**} 统一返回 403，外部不可达，故不加权限码注解。</p>
  *
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/workflow/internal/cc")
+@RequestMapping(path = "/workflow/v{version}/internal/cc", version = "1")
 @RequiredArgsConstructor
 public class WorkflowInternalCcController {
 

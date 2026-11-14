@@ -3,7 +3,7 @@ package com.bluewhale.form.support.impl;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.form.model.dto.FormDataFilter;
-import com.bluewhale.form.entity.FormDataEntity;
+import com.bluewhale.form.po.FormDataPo;
 import com.bluewhale.form.support.FormDataEngine;
 import com.bluewhale.form.support.FormDataType;
 import com.bluewhale.form.support.FormField;
@@ -105,7 +105,7 @@ public class JdbcFormDataEngine implements FormDataEngine {
     }
 
     @Override
-    public void insert(String table, FormDataEntity record, List<FormField> fields, Map<String, Object> data) {
+    public void insert(String table, FormDataPo record, List<FormField> fields, Map<String, Object> data) {
         String target = assertTable(table);
         List<String> columns = new ArrayList<>();
         List<Object> values = new ArrayList<>();
@@ -133,7 +133,7 @@ public class JdbcFormDataEngine implements FormDataEngine {
     }
 
     @Override
-    public void update(String table, FormDataEntity record, List<FormField> fields, Map<String, Object> data) {
+    public void update(String table, FormDataPo record, List<FormField> fields, Map<String, Object> data) {
         String target = assertTable(table);
         if (fields.isEmpty()) {
             return;

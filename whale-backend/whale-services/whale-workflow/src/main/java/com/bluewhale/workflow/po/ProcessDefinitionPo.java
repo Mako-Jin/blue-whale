@@ -1,4 +1,4 @@
-package com.bluewhale.workflow.entity;
+package com.bluewhale.workflow.po;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.bluewhale.common.entity.BaseEntity;
@@ -16,7 +16,7 @@ import lombok.EqualsAndHashCode;
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("process_definition")
-public class ProcessDefinition extends BaseEntity {
+public class ProcessDefinitionPo extends BaseEntity {
 
     private static final long serialVersionUID = 1L;
 

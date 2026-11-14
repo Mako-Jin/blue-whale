@@ -1,8 +1,8 @@
 package com.bluewhale.workflow.service;
 
-import com.bluewhale.workflow.dto.BpmnImportRequest;
-import com.bluewhale.workflow.dto.DefinitionSimulateRequest;
-import com.bluewhale.workflow.dto.DefinitionValidateRequest;
+import com.bluewhale.workflow.request.BpmnImportRequest;
+import com.bluewhale.workflow.request.DefinitionSimulateRequest;
+import com.bluewhale.workflow.request.DefinitionValidateRequest;
 import com.bluewhale.workflow.vo.ProcessDefinitionSimulateVO;
 import com.bluewhale.workflow.vo.ProcessDefinitionValidateVO;
 import com.bluewhale.workflow.vo.ProcessDefinitionVO;

@@ -6,8 +6,8 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.workflow.converter.WorkflowConverter;
-import com.bluewhale.workflow.dto.ProcessCcQueryRequest;
-import com.bluewhale.workflow.entity.ProcessCc;
+import com.bluewhale.workflow.po.ProcessCcPo;
+import com.bluewhale.workflow.request.ProcessCcQueryRequest;
 import com.bluewhale.workflow.mapper.ProcessCcMapper;
 import com.bluewhale.workflow.service.ProcessCcService;
 import com.bluewhale.workflow.support.WorkflowConstants;
@@ -51,14 +51,14 @@ public class ProcessCcServiceImpl implements ProcessCcService {
                 : Math.min(condition.getSize(), WorkflowConstants.MAX_PAGE_SIZE);
         List<String> candidates = normalizeCandidates(condition.getRecipientCandidates());
         boolean hasCandidates = !candidates.isEmpty();
-        LambdaQueryWrapper<ProcessCc> wrapper = new LambdaQueryWrapper<ProcessCc>()
-                .eq(condition.getInstanceId() != null, ProcessCc::getInstanceId, condition.getInstanceId())
-                .eq(!hasCandidates && hasText(condition.getRecipient()), ProcessCc::getRecipient, condition.getRecipient())
-                .in(hasCandidates, ProcessCc::getRecipient, candidates)
-                .eq(condition.getReadFlag() != null, ProcessCc::getReadFlag, condition.getReadFlag())
-                .orderByDesc(ProcessCc::getCreateTime)
-                .orderByDesc(ProcessCc::getId);
-        Page<ProcessCc> page = processCcMapper.selectPage(new Page<>(current, size, false), wrapper);
+        LambdaQueryWrapper<ProcessCcPo> wrapper = new LambdaQueryWrapper<ProcessCcPo>()
+                .eq(condition.getInstanceId() != null, ProcessCcPo::getInstanceId, condition.getInstanceId())
+                .eq(!hasCandidates && hasText(condition.getRecipient()), ProcessCcPo::getRecipient, condition.getRecipient())
+                .in(hasCandidates, ProcessCcPo::getRecipient, candidates)
+                .eq(condition.getReadFlag() != null, ProcessCcPo::getReadFlag, condition.getReadFlag())
+                .orderByDesc(ProcessCcPo::getCreateTime)
+                .orderByDesc(ProcessCcPo::getId);
+        Page<ProcessCcPo> page = processCcMapper.selectPage(new Page<>(current, size, false), wrapper);
         List<ProcessCcVO> records = page.getRecords().stream()
                 .map(WorkflowConverter.INSTANCE::toCcVo)
                 .toList();
@@ -67,7 +67,7 @@ public class ProcessCcServiceImpl implements ProcessCcService {
 
     @Override
     public ProcessCcVO get(Long id) {
-        ProcessCc cc = processCcMapper.selectById(id);
+        ProcessCcPo cc = processCcMapper.selectById(id);
         if (cc == null) {
             throw new BizException(ErrorCode.NOT_FOUND.getCode(), "抄送记录不存在");
         }
@@ -76,7 +76,7 @@ public class ProcessCcServiceImpl implements ProcessCcService {
 
     @Override
     public void markRead(Long id) {
-        ProcessCc cc = processCcMapper.selectById(id);
+        ProcessCcPo cc = processCcMapper.selectById(id);
         if (cc == null) {
             throw new BizException(ErrorCode.NOT_FOUND.getCode(), "抄送记录不存在");
         }
@@ -102,7 +102,7 @@ public class ProcessCcServiceImpl implements ProcessCcService {
             if (recipient == null || recipient.isBlank()) {
                 continue;
             }
-            ProcessCc cc = new ProcessCc();
+            ProcessCcPo cc = new ProcessCcPo();
             cc.setInstanceId(instanceId);
             cc.setNodeKey(nodeKey);
             cc.setNodeName(nodeName);

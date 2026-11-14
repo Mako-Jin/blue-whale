@@ -48,7 +48,7 @@ test.afterAll(async ({ request }) => {
     }
   }
   const cleanups = [
-    definitionId ? `/workflow/definition/${definitionId}` : '',
+    definitionId ? `/workflow/v1/definition/${definitionId}` : '',
     formDataId ? `/form/v1/data/${formDataId}` : '',
     formId ? `/form/v1/definition/${formId}` : '',
     tableId ? `/form/v1/table-definition/${tableId}` : '',

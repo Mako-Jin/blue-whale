@@ -2,9 +2,9 @@ package com.bluewhale.workflow.service.impl.task;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
-import com.bluewhale.workflow.dto.ApprovalRequest;
-import com.bluewhale.workflow.entity.ProcessInstance;
-import com.bluewhale.workflow.entity.ProcessTask;
+import com.bluewhale.workflow.request.ApprovalRequest;
+import com.bluewhale.workflow.po.ProcessInstancePo;
+import com.bluewhale.workflow.po.ProcessTaskPo;
 import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
 import com.bluewhale.workflow.support.ProcessModel;
 import com.bluewhale.workflow.support.ProcessModelNode;
@@ -50,8 +50,8 @@ public class ApproveCommand {
     public void approve(Long id, ApprovalRequest request) {
         String comment = request == null ? null : request.getComment();
         Map<String, Object> variables = request == null ? null : request.getVariables();
-        ProcessTask task = taskCommandSupport.requirePendingTask(id);
-        ProcessInstance instance = taskCommandSupport.requireRunningInstance(task.getInstanceId());
+        ProcessTaskPo task = taskCommandSupport.requirePendingTask(id);
+        ProcessInstancePo instance = taskCommandSupport.requireRunningInstance(task.getInstanceId());
         task.setStatus(WorkflowConstants.TASK_APPROVED);
         task.setComment(comment);
         if (!taskCommandSupport.transitionFromPending(task, WorkflowConstants.TASK_APPROVED, comment)) {
@@ -91,7 +91,7 @@ public class ApproveCommand {
      * @param instance 流程实例
      * @return 当前节点键，无法解析返回 {@code null}
      */
-    private static String resolveCurrentKey(ProcessTask task, ProcessModel model, ProcessInstance instance) {
+    private static String resolveCurrentKey(ProcessTaskPo task, ProcessModel model, ProcessInstancePo instance) {
         if (task.getNodeKey() != null && !task.getNodeKey().isBlank()) {
             return task.getNodeKey();
         }
@@ -105,7 +105,7 @@ public class ApproveCommand {
      * @param instance 流程实例
      * @return 当前节点键，无法解析返回 {@code null}
      */
-    private static String resolveCurrentKey(ProcessModel model, ProcessInstance instance) {
+    private static String resolveCurrentKey(ProcessModel model, ProcessInstancePo instance) {
         if (instance.getCurrentNodeKey() != null && !instance.getCurrentNodeKey().isBlank()) {
             return instance.getCurrentNodeKey();
         }
@@ -121,7 +121,7 @@ public class ApproveCommand {
      * @param model 流程模型
      * @param result 迁移结果
      */
-    private void applyResult(ProcessInstance instance, ProcessModel model, TransitionResult result) {
+    private void applyResult(ProcessInstancePo instance, ProcessModel model, TransitionResult result) {
         if (result.isUserTask()) {
             int nextIndex = model.indexOf(result.getState());
             instance.setCurrentIndex(nextIndex);

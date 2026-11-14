@@ -17,7 +17,7 @@ import lombok.EqualsAndHashCode;
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("form_field_config")
-public class FormFieldConfigEntity extends BaseEntity {
+public class FormFieldConfigPo extends BaseEntity {
 
     private static final long serialVersionUID = 1L;
 

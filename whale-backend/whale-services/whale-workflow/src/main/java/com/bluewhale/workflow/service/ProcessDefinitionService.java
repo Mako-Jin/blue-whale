@@ -1,10 +1,10 @@
 package com.bluewhale.workflow.service;
 
 import com.bluewhale.common.core.result.PageResult;
-import com.bluewhale.workflow.dto.DefinitionEnsureRequest;
-import com.bluewhale.workflow.dto.DefinitionMigrationRequest;
-import com.bluewhale.workflow.dto.ProcessDefinitionSaveRequest;
-import com.bluewhale.workflow.dto.ProcessQueryRequest;
+import com.bluewhale.workflow.request.DefinitionEnsureRequest;
+import com.bluewhale.workflow.request.DefinitionMigrationRequest;
+import com.bluewhale.workflow.request.ProcessDefinitionSaveRequest;
+import com.bluewhale.workflow.request.ProcessQueryRequest;
 import com.bluewhale.workflow.vo.DefinitionMigrationVO;
 import com.bluewhale.workflow.vo.ProcessDefinitionVO;
 import com.bluewhale.workflow.vo.ProcessDefinitionVersionVO;

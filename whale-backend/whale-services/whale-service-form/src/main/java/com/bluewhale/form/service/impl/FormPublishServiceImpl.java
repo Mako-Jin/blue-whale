@@ -6,10 +6,10 @@ import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.form.converter.FormConverter;
-import com.bluewhale.form.entity.FormColumnMetaEntity;
-import com.bluewhale.form.entity.FormDefinitionEntity;
-import com.bluewhale.form.entity.FormTableDefinitionEntity;
-import com.bluewhale.form.entity.FormTableRegistryEntity;
+import com.bluewhale.form.po.FormColumnMetaPo;
+import com.bluewhale.form.po.FormDefinitionPo;
+import com.bluewhale.form.po.FormTableDefinitionPo;
+import com.bluewhale.form.po.FormTableRegistryPo;
 import com.bluewhale.form.mapper.FormColumnMetaMapper;
 import com.bluewhale.form.mapper.FormDefinitionMapper;
 import com.bluewhale.form.mapper.FormTableDefinitionMapper;
@@ -93,7 +93,7 @@ public class FormPublishServiceImpl implements FormPublishService {
     @AuditLog(module = "form", operation = "发布表单物理表", type = OperateType.UPDATE,
             targetType = "form_definition", targetId = "#definitionId")
     public FormTableRegistryVO publish(Long definitionId) {
-        FormDefinitionEntity definition = requireDefinition(definitionId);
+        FormDefinitionPo definition = requireDefinition(definitionId);
         if (definition.getTableDefinitionId() == null) {
             return publishLegacy(definition);
         }
@@ -106,7 +106,7 @@ public class FormPublishServiceImpl implements FormPublishService {
      * @param definition 表单定义实体
      * @return 物理表登记视图对象
      */
-    private FormTableRegistryVO publishLegacy(FormDefinitionEntity definition) {
+    private FormTableRegistryVO publishLegacy(FormDefinitionPo definition) {
         FormTableDdlGenerator.assertPublishableCode(definition.getCode());
         Integer version = definition.getVersion() == null ? DEFAULT_VERSION : definition.getVersion();
         assertNotPublished(definition.getCode(), version);
@@ -114,7 +114,7 @@ public class FormPublishServiceImpl implements FormPublishService {
         String table = FormTableDdlGenerator.tableName(definition.getCode(), version);
         executeDdl(DEFINITION_TYPE_FORM, definition.getId(), table,
                 FormTableDdlGenerator.generate(table, definition.getCode(), version, fields));
-        FormTableRegistryEntity registry = new FormTableRegistryEntity();
+        FormTableRegistryPo registry = new FormTableRegistryPo();
         registry.setDefinitionId(definition.getId());
         registry.setDefinitionCode(definition.getCode());
         registry.setDefinitionVersion(version);
@@ -136,19 +136,19 @@ public class FormPublishServiceImpl implements FormPublishService {
      * @param definition 表单定义实体（已含 {@code tableDefinitionId}）
      * @return 所属表定义的物理表登记视图对象
      */
-    private FormTableRegistryVO publishMetadata(FormDefinitionEntity definition) {
+    private FormTableRegistryVO publishMetadata(FormDefinitionPo definition) {
         return ensurePublished(requireTableDefinition(definition.getTableDefinitionId()));
     }
 
     @Override
     public List<FormTableRegistryVO> listTables(Long definitionId) {
-        FormDefinitionEntity definition = requireDefinition(definitionId);
+        FormDefinitionPo definition = requireDefinition(definitionId);
         if (definition.getTableDefinitionId() != null) {
             return listTablesByTableDefinition(definition.getTableDefinitionId());
         }
-        LambdaQueryWrapper<FormTableRegistryEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FormTableRegistryEntity::getDefinitionId, definitionId);
-        wrapper.orderByDesc(FormTableRegistryEntity::getDefinitionVersion);
+        LambdaQueryWrapper<FormTableRegistryPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormTableRegistryPo::getDefinitionId, definitionId);
+        wrapper.orderByDesc(FormTableRegistryPo::getDefinitionVersion);
         return formTableRegistryMapper.selectList(wrapper).stream().map(FormPublishServiceImpl::toVo).toList();
     }
 
@@ -171,16 +171,16 @@ public class FormPublishServiceImpl implements FormPublishService {
      * @return 物理表登记视图对象（新建时 insert，已存在时刷新列数）
      * @throws BizException 编码非法、无可发布列或待删列被表单视图引用时抛出 {@code PARAM_ERROR}
      */
-    private FormTableRegistryVO ensurePublished(FormTableDefinitionEntity definition) {
+    private FormTableRegistryVO ensurePublished(FormTableDefinitionPo definition) {
         FormTableDdlGenerator.assertPublishableCode(definition.getTableCode());
         Integer version = definition.getVersion() == null ? DEFAULT_VERSION : definition.getVersion();
-        List<FormColumnMetaEntity> columns = listPublishColumns(definition.getId(), version);
+        List<FormColumnMetaPo> columns = listPublishColumns(definition.getId(), version);
         if (columns.isEmpty()) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "表定义无可发布的列，请先维护列元数据");
         }
         String table = FormTableDdlGenerator.tableName(definition.getTableCode(), version);
         String schemaSnapshot = FormMetadataCompiler.compileTable(columns);
-        FormTableRegistryEntity registry = findRegistry(definition.getTableCode(), version);
+        FormTableRegistryPo registry = findRegistry(definition.getTableCode(), version);
         Map<String, String> existing = formDataEngine.describeColumns(table);
         try {
             if (existing.isEmpty()) {
@@ -196,7 +196,7 @@ public class FormPublishServiceImpl implements FormPublishService {
             throw e;
         }
         if (registry == null) {
-            registry = new FormTableRegistryEntity();
+            registry = new FormTableRegistryPo();
             registry.setTableDefinitionId(definition.getId());
             registry.setTableCode(definition.getTableCode());
             registry.setTableVersion(version);
@@ -229,10 +229,10 @@ public class FormPublishServiceImpl implements FormPublishService {
      * @param metadataCodes 该表定义指定版本下**仍存在**的列编码集合（不限状态）：
      *                      仅「元数据已逻辑删除」的列才允许 DROP，「停用（status=0）」列保留物理列
      */
-    private void applyAlter(Long definitionId, String table, List<FormColumnMetaEntity> columns,
+    private void applyAlter(Long definitionId, String table, List<FormColumnMetaPo> columns,
                             Map<String, String> existing, Set<String> metadataCodes) {
         Set<String> target = new LinkedHashSet<>();
-        for (FormColumnMetaEntity column : columns) {
+        for (FormColumnMetaPo column : columns) {
             String code = column.getColumnCode();
             target.add(code);
             String currentType = existing.get(code);
@@ -267,7 +267,7 @@ public class FormPublishServiceImpl implements FormPublishService {
      * @param table 物理表名
      * @param columns 目标列元数据（已按排序号升序）
      */
-    private void syncIndexes(Long definitionId, String table, List<FormColumnMetaEntity> columns) {
+    private void syncIndexes(Long definitionId, String table, List<FormColumnMetaPo> columns) {
         Map<String, String> desired = FormTableDdlGenerator.autoIndexes(columns);
         Set<String> existing = formDataEngine.describeIndexes(table);
         for (Map.Entry<String, String> entry : desired.entrySet()) {
@@ -380,7 +380,7 @@ public class FormPublishServiceImpl implements FormPublishService {
      * @param registry 已有登记（新建登记尚未落库时为空）
      * @param errorMessage 失败原因
      */
-    private void markPublishedFailed(FormTableRegistryEntity registry, String errorMessage) {
+    private void markPublishedFailed(FormTableRegistryPo registry, String errorMessage) {
         if (registry == null || registry.getId() == null) {
             return;
         }
@@ -402,20 +402,20 @@ public class FormPublishServiceImpl implements FormPublishService {
      * @return 列编码集合（按查询顺序）
      */
     private Set<String> listMetadataCodes(Long tableDefinitionId, Integer version) {
-        LambdaQueryWrapper<FormColumnMetaEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FormColumnMetaEntity::getTableDefinitionId, tableDefinitionId);
-        wrapper.eq(FormColumnMetaEntity::getTableVersion, version);
+        LambdaQueryWrapper<FormColumnMetaPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormColumnMetaPo::getTableDefinitionId, tableDefinitionId);
+        wrapper.eq(FormColumnMetaPo::getTableVersion, version);
         return formColumnMetaMapper.selectList(wrapper).stream()
-                .map(FormColumnMetaEntity::getColumnCode)
+                .map(FormColumnMetaPo::getColumnCode)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     @Override
     public List<FormTableRegistryVO> listTablesByTableDefinition(Long tableDefinitionId) {
         requireTableDefinition(tableDefinitionId);
-        LambdaQueryWrapper<FormTableRegistryEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FormTableRegistryEntity::getTableDefinitionId, tableDefinitionId);
-        wrapper.orderByDesc(FormTableRegistryEntity::getTableVersion);
+        LambdaQueryWrapper<FormTableRegistryPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormTableRegistryPo::getTableDefinitionId, tableDefinitionId);
+        wrapper.orderByDesc(FormTableRegistryPo::getTableVersion);
         return formTableRegistryMapper.selectList(wrapper).stream().map(FormPublishServiceImpl::toVo).toList();
     }
 
@@ -426,12 +426,12 @@ public class FormPublishServiceImpl implements FormPublishService {
      * @param version 表版本
      * @return 可发布列元数据列表
      */
-    private List<FormColumnMetaEntity> listPublishColumns(Long tableDefinitionId, Integer version) {
-        LambdaQueryWrapper<FormColumnMetaEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FormColumnMetaEntity::getTableDefinitionId, tableDefinitionId);
-        wrapper.eq(FormColumnMetaEntity::getTableVersion, version);
-        wrapper.eq(FormColumnMetaEntity::getStatus, COLUMN_STATUS_NORMAL);
-        wrapper.orderByAsc(FormColumnMetaEntity::getSortNo);
+    private List<FormColumnMetaPo> listPublishColumns(Long tableDefinitionId, Integer version) {
+        LambdaQueryWrapper<FormColumnMetaPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormColumnMetaPo::getTableDefinitionId, tableDefinitionId);
+        wrapper.eq(FormColumnMetaPo::getTableVersion, version);
+        wrapper.eq(FormColumnMetaPo::getStatus, COLUMN_STATUS_NORMAL);
+        wrapper.orderByAsc(FormColumnMetaPo::getSortNo);
         return formColumnMetaMapper.selectList(wrapper);
     }
 
@@ -441,8 +441,8 @@ public class FormPublishServiceImpl implements FormPublishService {
      * @param tableDefinitionId 表定义ID
      * @return 表定义实体
      */
-    private FormTableDefinitionEntity requireTableDefinition(Long tableDefinitionId) {
-        FormTableDefinitionEntity definition = formTableDefinitionMapper.selectById(tableDefinitionId);
+    private FormTableDefinitionPo requireTableDefinition(Long tableDefinitionId) {
+        FormTableDefinitionPo definition = formTableDefinitionMapper.selectById(tableDefinitionId);
         if (definition == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
@@ -456,10 +456,10 @@ public class FormPublishServiceImpl implements FormPublishService {
      * @param version 表版本
      * @return 物理表登记实体；不存在时返回 {@code null}
      */
-    private FormTableRegistryEntity findRegistry(String tableCode, Integer version) {
-        LambdaQueryWrapper<FormTableRegistryEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FormTableRegistryEntity::getTableCode, tableCode);
-        wrapper.eq(FormTableRegistryEntity::getTableVersion, version);
+    private FormTableRegistryPo findRegistry(String tableCode, Integer version) {
+        LambdaQueryWrapper<FormTableRegistryPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormTableRegistryPo::getTableCode, tableCode);
+        wrapper.eq(FormTableRegistryPo::getTableVersion, version);
         return formTableRegistryMapper.selectOne(wrapper);
     }
 
@@ -469,8 +469,8 @@ public class FormPublishServiceImpl implements FormPublishService {
      * @param definitionId 表单定义ID
      * @return 表单定义实体
      */
-    private FormDefinitionEntity requireDefinition(Long definitionId) {
-        FormDefinitionEntity definition = formDefinitionMapper.selectById(definitionId);
+    private FormDefinitionPo requireDefinition(Long definitionId) {
+        FormDefinitionPo definition = formDefinitionMapper.selectById(definitionId);
         if (definition == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
@@ -485,10 +485,10 @@ public class FormPublishServiceImpl implements FormPublishService {
      * @throws BizException 已发布时抛出 {@code PARAM_ERROR}
      */
     private void assertNotPublished(String code, Integer version) {
-        LambdaQueryWrapper<FormTableRegistryEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FormTableRegistryEntity::getDefinitionCode, code);
-        wrapper.eq(FormTableRegistryEntity::getDefinitionVersion, version);
-        wrapper.ne(FormTableRegistryEntity::getStatus, FormRegistryStatusMarker.STATUS_FAILED);
+        LambdaQueryWrapper<FormTableRegistryPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormTableRegistryPo::getDefinitionCode, code);
+        wrapper.eq(FormTableRegistryPo::getDefinitionVersion, version);
+        wrapper.ne(FormTableRegistryPo::getStatus, FormRegistryStatusMarker.STATUS_FAILED);
         Long count = formTableRegistryMapper.selectCount(wrapper);
         if (count != null && count > 0) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "该表单版本已发布，如需变更请修改版本号后重新发布");
@@ -510,7 +510,7 @@ public class FormPublishServiceImpl implements FormPublishService {
      * @param entity 登记实体
      * @return 登记视图对象
      */
-    private static FormTableRegistryVO toVo(FormTableRegistryEntity entity) {
+    private static FormTableRegistryVO toVo(FormTableRegistryPo entity) {
         return FormConverter.INSTANCE.toRegistryVo(entity);
     }
 }

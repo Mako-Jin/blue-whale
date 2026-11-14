@@ -2,10 +2,10 @@ package com.bluewhale.workflow.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.common.core.exception.BizException;
-import com.bluewhale.workflow.dto.UrgeRequest;
-import com.bluewhale.workflow.entity.ProcessInstance;
-import com.bluewhale.workflow.entity.ProcessTask;
-import com.bluewhale.workflow.entity.ProcessUrge;
+import com.bluewhale.workflow.request.UrgeRequest;
+import com.bluewhale.workflow.po.ProcessInstancePo;
+import com.bluewhale.workflow.po.ProcessTaskPo;
+import com.bluewhale.workflow.po.ProcessUrgePo;
 import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
 import com.bluewhale.workflow.mapper.ProcessUrgeMapper;
@@ -54,14 +54,14 @@ class ProcessUrgeServiceImplTest {
     @Test
     @DisplayName("urge：首次催办落库")
     void shouldInsertWhenFirstUrge() {
-        ProcessInstance instance = new ProcessInstance();
+        ProcessInstancePo instance = new ProcessInstancePo();
         instance.setId(1L);
         when(processInstanceMapper.selectById(1L)).thenReturn(instance);
         when(processUrgeMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
 
         processUrgeService.urge(1L, request(null));
 
-        ArgumentCaptor<ProcessUrge> captor = ArgumentCaptor.forClass(ProcessUrge.class);
+        ArgumentCaptor<ProcessUrgePo> captor = ArgumentCaptor.forClass(ProcessUrgePo.class);
         verify(processUrgeMapper).insert(captor.capture());
         assertEquals("zhangsan", captor.getValue().getUrger());
         assertEquals(1L, captor.getValue().getInstanceId());
@@ -70,7 +70,7 @@ class ProcessUrgeServiceImplTest {
     @Test
     @DisplayName("urge：1 小时内二次催办抛 400 且不落库")
     void shouldThrowWhenUrgeTooFrequent() {
-        ProcessInstance instance = new ProcessInstance();
+        ProcessInstancePo instance = new ProcessInstancePo();
         instance.setId(1L);
         when(processInstanceMapper.selectById(1L)).thenReturn(instance);
         when(processUrgeMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(1L);
@@ -78,7 +78,7 @@ class ProcessUrgeServiceImplTest {
         BizException ex = assertThrows(BizException.class, () -> processUrgeService.urge(1L, request(null)));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
-        verify(processUrgeMapper, never()).insert(any(ProcessUrge.class));
+        verify(processUrgeMapper, never()).insert(any(ProcessUrgePo.class));
     }
 
     @Test
@@ -92,9 +92,9 @@ class ProcessUrgeServiceImplTest {
     @Test
     @DisplayName("urge：任务不属于实例抛 400")
     void shouldThrowWhenTaskNotBelongToInstance() {
-        ProcessInstance instance = new ProcessInstance();
+        ProcessInstancePo instance = new ProcessInstancePo();
         instance.setId(1L);
-        ProcessTask task = new ProcessTask();
+        ProcessTaskPo task = new ProcessTaskPo();
         task.setInstanceId(2L);
         when(processInstanceMapper.selectById(1L)).thenReturn(instance);
         when(processTaskMapper.selectById(9L)).thenReturn(task);

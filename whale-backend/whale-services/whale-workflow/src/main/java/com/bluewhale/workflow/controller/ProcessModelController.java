@@ -2,9 +2,9 @@ package com.bluewhale.workflow.controller;
 
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.common.core.result.Result;
-import com.bluewhale.workflow.dto.BpmnImportRequest;
-import com.bluewhale.workflow.dto.DefinitionSimulateRequest;
-import com.bluewhale.workflow.dto.DefinitionValidateRequest;
+import com.bluewhale.workflow.request.BpmnImportRequest;
+import com.bluewhale.workflow.request.DefinitionSimulateRequest;
+import com.bluewhale.workflow.request.DefinitionValidateRequest;
 import com.bluewhale.workflow.service.ProcessModelService;
 import com.bluewhale.workflow.vo.ProcessDefinitionSimulateVO;
 import com.bluewhale.workflow.vo.ProcessDefinitionValidateVO;
@@ -23,14 +23,14 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 流程模型接口：定义校验 / BPMN 导入 / BPMN 导出。
  *
- * <p>服务内路径前缀 {@code /workflow}；经网关按 {@code Path=/workflow/**} 规则转发，外部路径与本文档一致。
+ * <p>服务内路径前缀 {@code /workflow/v1/model}；经网关按 {@code Path=/workflow/**} 规则转发，外部路径与本文档一致。
  * 校验与导入受 {@code @RequirePermission("sys:workflow:definition:*")} 保护，导出复用
  * {@code sys:workflow:list}（先例：whale-form 5.30 导出复用 {@code sys:form:data:list}）。</p>
  *
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/workflow")
+@RequestMapping(path = "/workflow/v{version}/model", version = "1")
 @RequiredArgsConstructor
 public class ProcessModelController {
 

@@ -21,7 +21,7 @@ import java.util.Map;
 /**
  * whale-workflow 审批客户端实现
  *
- * <p>调用 {@code POST /workflow/instance} 发起审批；未配置流程定义或工作流不可用时
+ * <p>调用 {@code POST /workflow/v1/instance} 发起审批；未配置流程定义或工作流不可用时
  * 抛出业务异常，由调用方降级为人工审批。</p>
  *
  * @author BlueWhale
@@ -59,7 +59,7 @@ public class PdmChgWorkflowClientImpl implements PdmChgWorkflowClient {
         body.put("variables", variables);
         Map<String, Object> response = InternalTokenSupport.restClient()
                 .post()
-                .uri(baseUrl() + "/workflow/instance")
+                .uri(baseUrl() + "/workflow/v1/instance")
                 .header(WebHeaders.USER_ID, String.valueOf(userId))
                 .header(WebHeaders.TENANT_ID, String.valueOf(tenantId))
                 .contentType(MediaType.APPLICATION_JSON)

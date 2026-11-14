@@ -1,4 +1,4 @@
-package com.bluewhale.workflow.dto;
+package com.bluewhale.workflow.request;
 
 import com.bluewhale.common.core.query.PageQuery;
 import jakarta.validation.constraints.Size;

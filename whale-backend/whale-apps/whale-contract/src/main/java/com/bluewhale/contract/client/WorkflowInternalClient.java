@@ -18,7 +18,7 @@ import java.util.Map;
 /**
  * whale-workflow 任务内网完成客户端。
  *
- * <p>调用 {@code POST /workflow/internal/task/{id}/complete}，供第三方签章回调到达后
+ * <p>调用 {@code POST /workflow/v1/internal/task/{id}/complete}，供第三方签章回调到达后
  * 推进签署节点（Wave 5.61 §5.3 方案 B）；服务端按任务状态幂等，重复调用不会重复推进。</p>
  *
  * @author BlueWhale
@@ -27,7 +27,7 @@ import java.util.Map;
 public class WorkflowInternalClient {
 
     /** 内网完成任务路径 */
-    private static final String COMPLETE_PATH = "/workflow/internal/task/{id}/complete";
+    private static final String COMPLETE_PATH = "/workflow/v1/internal/task/{id}/complete";
 
     /** 统一响应体状态码字段 */
     private static final String FIELD_CODE = "code";

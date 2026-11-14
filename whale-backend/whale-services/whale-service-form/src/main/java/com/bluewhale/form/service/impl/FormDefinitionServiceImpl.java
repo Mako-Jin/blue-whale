@@ -12,12 +12,12 @@ import com.bluewhale.form.model.request.FormDefinitionSaveRequest;
 import com.bluewhale.form.model.dto.FormFieldConfigDTO;
 import com.bluewhale.form.model.dto.FormFieldOptionDTO;
 import com.bluewhale.form.model.request.FormQueryRequest;
-import com.bluewhale.form.entity.FormColumnMetaEntity;
-import com.bluewhale.form.entity.FormDefinitionEntity;
-import com.bluewhale.form.entity.FormDefinitionVersionEntity;
-import com.bluewhale.form.entity.FormFieldConfigEntity;
-import com.bluewhale.form.entity.FormFieldOptionEntity;
-import com.bluewhale.form.entity.FormTableDefinitionEntity;
+import com.bluewhale.form.po.FormColumnMetaPo;
+import com.bluewhale.form.po.FormDefinitionPo;
+import com.bluewhale.form.po.FormDefinitionVersionPo;
+import com.bluewhale.form.po.FormFieldConfigPo;
+import com.bluewhale.form.po.FormFieldOptionPo;
+import com.bluewhale.form.po.FormTableDefinitionPo;
 import com.bluewhale.form.mapper.FormColumnMetaMapper;
 import com.bluewhale.form.mapper.FormDefinitionMapper;
 import com.bluewhale.form.mapper.FormDefinitionVersionMapper;
@@ -110,13 +110,13 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
     public FormDefinitionVO create(FormDefinitionSaveRequest request) {
         assertStructureSource(request);
         assertCodeUnique(request.getCode(), null);
-        FormDefinitionEntity entity = new FormDefinitionEntity();
+        FormDefinitionPo entity = new FormDefinitionPo();
         entity.setCode(request.getCode());
         entity.setName(request.getName());
         entity.setVersion(request.getVersion() == null ? DEFAULT_VERSION : request.getVersion());
         entity.setStatus(request.getStatus() == null ? STATUS_NORMAL : request.getStatus());
         entity.setRemark(request.getRemark());
-        FormTableDefinitionEntity table = null;
+        FormTableDefinitionPo table = null;
         if (request.getTableDefinitionId() != null) {
             table = requireTableDefinition(request.getTableDefinitionId());
             entity.setTableDefinitionId(table.getId());
@@ -127,7 +127,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
         }
         formDefinitionMapper.insert(entity);
         if (table != null) {
-            List<FormFieldConfigEntity> configs = persistFields(entity.getId(), request.getFields());
+            List<FormFieldConfigPo> configs = persistFields(entity.getId(), request.getFields());
             entity.setSchemaJson(compileSnapshot(table, configs));
             formDefinitionMapper.updateById(entity);
         }
@@ -139,7 +139,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
     @Transactional(rollbackFor = Exception.class)
     public FormDefinitionVO update(Long id, FormDefinitionSaveRequest request) {
         assertStructureSource(request);
-        FormDefinitionEntity entity = requireForm(id);
+        FormDefinitionPo entity = requireForm(id);
         int expectedVersion = entity.getVersion() == null ? DEFAULT_VERSION : entity.getVersion();
         if (!entity.getCode().equals(request.getCode())) {
             assertCodeUnique(request.getCode(), id);
@@ -156,7 +156,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
             entity.setStatus(request.getStatus());
         }
         entity.setRemark(request.getRemark());
-        FormTableDefinitionEntity table = null;
+        FormTableDefinitionPo table = null;
         if (request.getTableDefinitionId() != null) {
             table = requireTableDefinition(request.getTableDefinitionId());
             entity.setTableDefinitionId(table.getId());
@@ -167,7 +167,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
             entity.setSchemaJson(request.getSchemaJson());
         }
         if (table != null) {
-            List<FormFieldConfigEntity> configs = replaceFields(entity.getId(), request.getFields());
+            List<FormFieldConfigPo> configs = replaceFields(entity.getId(), request.getFields());
             entity.setSchemaJson(compileSnapshot(table, configs));
         } else {
             deleteFields(entity.getId());
@@ -184,10 +184,10 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @param expectedVersion 读取时的版本号，作为更新条件
      * @throws BizException 版本已被他人修改时抛出 {@code PARAM_ERROR}
      */
-    private void updateWithVersionGuard(FormDefinitionEntity entity, int expectedVersion) {
-        LambdaUpdateWrapper<FormDefinitionEntity> wrapper = new LambdaUpdateWrapper<>();
-        wrapper.eq(FormDefinitionEntity::getId, entity.getId());
-        wrapper.eq(FormDefinitionEntity::getVersion, expectedVersion);
+    private void updateWithVersionGuard(FormDefinitionPo entity, int expectedVersion) {
+        LambdaUpdateWrapper<FormDefinitionPo> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(FormDefinitionPo::getId, entity.getId());
+        wrapper.eq(FormDefinitionPo::getVersion, expectedVersion);
         int rows = formDefinitionMapper.update(entity, wrapper);
         if (rows == 0) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "表单已被并发修改，请刷新后重试");
@@ -204,18 +204,18 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
 
     @Override
     public FormDefinitionVO getDetail(Long id) {
-        FormDefinitionEntity entity = requireForm(id);
+        FormDefinitionPo entity = requireForm(id);
         return toDetailVo(entity, listFields(id));
     }
 
     @Override
     public PageResult<FormDefinitionVO> page(FormQueryRequest request) {
-        LambdaQueryWrapper<FormDefinitionEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.like(StringUtils.hasText(request.getName()), FormDefinitionEntity::getName, request.getName());
-        wrapper.eq(StringUtils.hasText(request.getCode()), FormDefinitionEntity::getCode, request.getCode());
-        wrapper.eq(request.getStatus() != null, FormDefinitionEntity::getStatus, request.getStatus());
-        wrapper.orderByDesc(FormDefinitionEntity::getCreateTime);
-        Page<FormDefinitionEntity> page = formDefinitionMapper.selectPage(request.toPage(), wrapper);
+        LambdaQueryWrapper<FormDefinitionPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.like(StringUtils.hasText(request.getName()), FormDefinitionPo::getName, request.getName());
+        wrapper.eq(StringUtils.hasText(request.getCode()), FormDefinitionPo::getCode, request.getCode());
+        wrapper.eq(request.getStatus() != null, FormDefinitionPo::getStatus, request.getStatus());
+        wrapper.orderByDesc(FormDefinitionPo::getCreateTime);
+        Page<FormDefinitionPo> page = formDefinitionMapper.selectPage(request.toPage(), wrapper);
         List<FormDefinitionVO> records = page.getRecords().stream()
                 .map(FormConverter.INSTANCE::toDefinitionSummaryVo).toList();
         return PageResult.of(records, page.getTotal(), page.getCurrent(), page.getSize());
@@ -224,8 +224,8 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public FormDefinitionVO copy(Long id, FormDefinitionCopyRequest request) {
-        FormDefinitionEntity source = requireForm(id);
-        FormDefinitionEntity entity = new FormDefinitionEntity();
+        FormDefinitionPo source = requireForm(id);
+        FormDefinitionPo entity = new FormDefinitionPo();
         entity.setCode(resolveCopyCode(source.getCode(), request));
         entity.setName(resolveCopyName(source.getName(), request));
         entity.setTableDefinitionId(source.getTableDefinitionId());
@@ -234,9 +234,9 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
         entity.setStatus(STATUS_NORMAL);
         entity.setRemark(source.getRemark());
         formDefinitionMapper.insert(entity);
-        List<FormFieldConfigEntity> configs = copyFields(entity.getId(), source.getId());
+        List<FormFieldConfigPo> configs = copyFields(entity.getId(), source.getId());
         if (source.getTableDefinitionId() != null) {
-            FormTableDefinitionEntity table = requireTableDefinition(source.getTableDefinitionId());
+            FormTableDefinitionPo table = requireTableDefinition(source.getTableDefinitionId());
             entity.setSchemaJson(compileSnapshot(table, configs));
             formDefinitionMapper.updateById(entity);
         }
@@ -247,10 +247,10 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
     @Override
     public List<FormDefinitionVersionVO> listVersions(Long id) {
         requireForm(id);
-        LambdaQueryWrapper<FormDefinitionVersionEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FormDefinitionVersionEntity::getDefinitionId, id);
-        wrapper.orderByDesc(FormDefinitionVersionEntity::getSnapshotSeq);
-        wrapper.orderByDesc(FormDefinitionVersionEntity::getId);
+        LambdaQueryWrapper<FormDefinitionVersionPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormDefinitionVersionPo::getDefinitionId, id);
+        wrapper.orderByDesc(FormDefinitionVersionPo::getSnapshotSeq);
+        wrapper.orderByDesc(FormDefinitionVersionPo::getId);
         return formDefinitionVersionMapper.selectList(wrapper).stream()
                 .map(FormDefinitionServiceImpl::toVersionVo).toList();
     }
@@ -258,15 +258,15 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public FormDefinitionVO rollback(Long id, Integer version) {
-        FormDefinitionEntity entity = requireForm(id);
-        FormDefinitionVersionEntity snapshot = findSnapshot(id, version);
+        FormDefinitionPo entity = requireForm(id);
+        FormDefinitionVersionPo snapshot = findSnapshot(id, version);
         JsonNode root = parseSnapshot(snapshot.getSnapshotJson());
         JsonNode definition = root.path("definition");
         restoreDefinition(entity, definition);
         int currentVersion = entity.getVersion() == null ? DEFAULT_VERSION : entity.getVersion();
         entity.setVersion(nextDefinitionVersion(id, currentVersion));
         deleteFields(id);
-        List<FormFieldConfigEntity> configs = restoreFields(id, root.path("fields"));
+        List<FormFieldConfigPo> configs = restoreFields(id, root.path("fields"));
         if (entity.getTableDefinitionId() != null) {
             entity.setSchemaJson(recompile(entity.getTableDefinitionId(), configs, entity.getSchemaJson()));
         }
@@ -331,8 +331,8 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @return 未被占用返回 {@code true}
      */
     private boolean isCodeAvailable(String code) {
-        LambdaQueryWrapper<FormDefinitionEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FormDefinitionEntity::getCode, code);
+        LambdaQueryWrapper<FormDefinitionPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormDefinitionPo::getCode, code);
         Long count = formDefinitionMapper.selectCount(wrapper);
         return count == null || count == 0;
     }
@@ -344,12 +344,12 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @param sourceFormId 源表单定义ID
      * @return 新字段配置列表
      */
-    private List<FormFieldConfigEntity> copyFields(Long targetFormId, Long sourceFormId) {
-        List<FormFieldConfigEntity> sources = listConfigs(sourceFormId);
-        Map<Long, List<FormFieldOptionEntity>> optionMap = loadOptions(sources);
-        List<FormFieldConfigEntity> result = new ArrayList<>();
-        for (FormFieldConfigEntity source : sources) {
-            FormFieldConfigEntity config = FormConverter.INSTANCE.toNewConfig(source);
+    private List<FormFieldConfigPo> copyFields(Long targetFormId, Long sourceFormId) {
+        List<FormFieldConfigPo> sources = listConfigs(sourceFormId);
+        Map<Long, List<FormFieldOptionPo>> optionMap = loadOptions(sources);
+        List<FormFieldConfigPo> result = new ArrayList<>();
+        for (FormFieldConfigPo source : sources) {
+            FormFieldConfigPo config = FormConverter.INSTANCE.toNewConfig(source);
             config.setId(null);
             config.setFormId(targetFormId);
             config.setCreateTime(null);
@@ -368,10 +368,10 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @param formId 表单定义ID
      * @return 字段配置列表
      */
-    private List<FormFieldConfigEntity> listConfigs(Long formId) {
-        LambdaQueryWrapper<FormFieldConfigEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FormFieldConfigEntity::getFormId, formId);
-        wrapper.orderByAsc(FormFieldConfigEntity::getSortNo);
+    private List<FormFieldConfigPo> listConfigs(Long formId) {
+        LambdaQueryWrapper<FormFieldConfigPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormFieldConfigPo::getFormId, formId);
+        wrapper.orderByAsc(FormFieldConfigPo::getSortNo);
         return formFieldConfigMapper.selectList(wrapper);
     }
 
@@ -381,12 +381,12 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @param fieldConfigId 目标字段配置ID
      * @param options 源选项实体列表（可空）
      */
-    private void persistRawOptions(Long fieldConfigId, List<FormFieldOptionEntity> options) {
+    private void persistRawOptions(Long fieldConfigId, List<FormFieldOptionPo> options) {
         if (options == null) {
             return;
         }
-        for (FormFieldOptionEntity source : options) {
-            FormFieldOptionEntity option = new FormFieldOptionEntity();
+        for (FormFieldOptionPo source : options) {
+            FormFieldOptionPo option = new FormFieldOptionPo();
             option.setFieldConfigId(fieldConfigId);
             option.setOptionLabel(source.getOptionLabel());
             option.setOptionValue(source.getOptionValue());
@@ -403,13 +403,13 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @param dtos 字段配置请求列表（可空）
      * @return 已落库的字段配置列表
      */
-    private List<FormFieldConfigEntity> persistFields(Long formId, List<FormFieldConfigDTO> dtos) {
-        List<FormFieldConfigEntity> result = new ArrayList<>();
+    private List<FormFieldConfigPo> persistFields(Long formId, List<FormFieldConfigDTO> dtos) {
+        List<FormFieldConfigPo> result = new ArrayList<>();
         if (dtos == null) {
             return result;
         }
         for (FormFieldConfigDTO dto : dtos) {
-            FormFieldConfigEntity config = toConfig(dto, formId);
+            FormFieldConfigPo config = toConfig(dto, formId);
             formFieldConfigMapper.insert(config);
             persistOptions(config.getId(), dto.getOptions());
             result.add(config);
@@ -424,7 +424,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @param dtos 字段配置请求列表
      * @return 新字段配置列表
      */
-    private List<FormFieldConfigEntity> replaceFields(Long formId, List<FormFieldConfigDTO> dtos) {
+    private List<FormFieldConfigPo> replaceFields(Long formId, List<FormFieldConfigDTO> dtos) {
         deleteFields(formId);
         return persistFields(formId, dtos);
     }
@@ -435,13 +435,13 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @param formId 表单定义ID
      */
     private void deleteFields(Long formId) {
-        LambdaQueryWrapper<FormFieldConfigEntity> configWrapper = new LambdaQueryWrapper<>();
-        configWrapper.eq(FormFieldConfigEntity::getFormId, formId);
-        List<FormFieldConfigEntity> configs = formFieldConfigMapper.selectList(configWrapper);
+        LambdaQueryWrapper<FormFieldConfigPo> configWrapper = new LambdaQueryWrapper<>();
+        configWrapper.eq(FormFieldConfigPo::getFormId, formId);
+        List<FormFieldConfigPo> configs = formFieldConfigMapper.selectList(configWrapper);
         if (!configs.isEmpty()) {
-            List<Long> configIds = configs.stream().map(FormFieldConfigEntity::getId).toList();
-            LambdaQueryWrapper<FormFieldOptionEntity> optionWrapper = new LambdaQueryWrapper<>();
-            optionWrapper.in(FormFieldOptionEntity::getFieldConfigId, configIds);
+            List<Long> configIds = configs.stream().map(FormFieldConfigPo::getId).toList();
+            LambdaQueryWrapper<FormFieldOptionPo> optionWrapper = new LambdaQueryWrapper<>();
+            optionWrapper.in(FormFieldOptionPo::getFieldConfigId, configIds);
             formFieldOptionMapper.delete(optionWrapper);
         }
         formFieldConfigMapper.delete(configWrapper);
@@ -458,7 +458,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
             return;
         }
         for (FormFieldOptionDTO dto : dtos) {
-            FormFieldOptionEntity option = new FormFieldOptionEntity();
+            FormFieldOptionPo option = new FormFieldOptionPo();
             option.setFieldConfigId(fieldConfigId);
             option.setOptionLabel(dto.getOptionLabel());
             option.setOptionValue(dto.getOptionValue());
@@ -476,21 +476,21 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @return {@code schema_json} 文本
      * @throws BizException 控件类型非法、引用了非本表的列或无有效数据字段时抛出 {@code PARAM_ERROR}
      */
-    private String compileSnapshot(FormTableDefinitionEntity table, List<FormFieldConfigEntity> configs) {
-        List<FormFieldConfigEntity> active = configs.stream()
+    private String compileSnapshot(FormTableDefinitionPo table, List<FormFieldConfigPo> configs) {
+        List<FormFieldConfigPo> active = configs.stream()
                 .filter(config -> config.getShowInForm() == null || config.getShowInForm() == STATUS_NORMAL)
                 .toList();
         Set<Long> columnIds = active.stream()
-                .map(FormFieldConfigEntity::getColumnMetaId)
+                .map(FormFieldConfigPo::getColumnMetaId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
-        for (FormFieldConfigEntity config : active) {
+        for (FormFieldConfigPo config : active) {
             if (config.getColumnMetaId() != null) {
                 FormWidgetType.assertAllowed(config.getWidgetType(), config.getFieldLabel());
             }
         }
-        Map<Long, FormColumnMetaEntity> columns = loadColumns(table.getId(), columnIds);
-        Map<Long, List<FormFieldOptionEntity>> options = loadOptions(configs);
+        Map<Long, FormColumnMetaPo> columns = loadColumns(table.getId(), columnIds);
+        Map<Long, List<FormFieldOptionPo>> options = loadOptions(configs);
         return FormMetadataCompiler.compile(active, columns, options);
     }
 
@@ -501,15 +501,15 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @param ids 列元数据ID集合（可空）
      * @return 列元数据映射（key 为列元数据ID）
      */
-    private Map<Long, FormColumnMetaEntity> loadColumns(Long tableDefinitionId, Set<Long> ids) {
+    private Map<Long, FormColumnMetaPo> loadColumns(Long tableDefinitionId, Set<Long> ids) {
         if (ids.isEmpty()) {
             return Map.of();
         }
-        LambdaQueryWrapper<FormColumnMetaEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FormColumnMetaEntity::getTableDefinitionId, tableDefinitionId);
-        wrapper.in(FormColumnMetaEntity::getId, ids);
+        LambdaQueryWrapper<FormColumnMetaPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormColumnMetaPo::getTableDefinitionId, tableDefinitionId);
+        wrapper.in(FormColumnMetaPo::getId, ids);
         return formColumnMetaMapper.selectList(wrapper).stream()
-                .collect(Collectors.toMap(FormColumnMetaEntity::getId, Function.identity()));
+                .collect(Collectors.toMap(FormColumnMetaPo::getId, Function.identity()));
     }
 
     /**
@@ -518,16 +518,16 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @param configs 字段配置列表
      * @return 选项映射（key 为字段配置ID）
      */
-    private Map<Long, List<FormFieldOptionEntity>> loadOptions(List<FormFieldConfigEntity> configs) {
+    private Map<Long, List<FormFieldOptionPo>> loadOptions(List<FormFieldConfigPo> configs) {
         if (configs.isEmpty()) {
             return Map.of();
         }
-        List<Long> configIds = configs.stream().map(FormFieldConfigEntity::getId).toList();
-        LambdaQueryWrapper<FormFieldOptionEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(FormFieldOptionEntity::getFieldConfigId, configIds);
-        wrapper.orderByAsc(FormFieldOptionEntity::getSortNo);
+        List<Long> configIds = configs.stream().map(FormFieldConfigPo::getId).toList();
+        LambdaQueryWrapper<FormFieldOptionPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(FormFieldOptionPo::getFieldConfigId, configIds);
+        wrapper.orderByAsc(FormFieldOptionPo::getSortNo);
         return formFieldOptionMapper.selectList(wrapper).stream()
-                .collect(Collectors.groupingBy(FormFieldOptionEntity::getFieldConfigId));
+                .collect(Collectors.groupingBy(FormFieldOptionPo::getFieldConfigId));
     }
 
     /**
@@ -537,11 +537,11 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @return 字段配置视图对象列表
      */
     private List<FormFieldConfigVO> listFields(Long formId) {
-        LambdaQueryWrapper<FormFieldConfigEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FormFieldConfigEntity::getFormId, formId);
-        wrapper.orderByAsc(FormFieldConfigEntity::getSortNo);
-        List<FormFieldConfigEntity> configs = formFieldConfigMapper.selectList(wrapper);
-        Map<Long, List<FormFieldOptionEntity>> optionMap = loadOptions(configs);
+        LambdaQueryWrapper<FormFieldConfigPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormFieldConfigPo::getFormId, formId);
+        wrapper.orderByAsc(FormFieldConfigPo::getSortNo);
+        List<FormFieldConfigPo> configs = formFieldConfigMapper.selectList(wrapper);
+        Map<Long, List<FormFieldOptionPo>> optionMap = loadOptions(configs);
         return configs.stream().map(config -> toFieldVo(config, optionMap.get(config.getId()))).toList();
     }
 
@@ -551,8 +551,8 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @param id 表单定义ID
      * @return 表单定义实体
      */
-    private FormDefinitionEntity requireForm(Long id) {
-        FormDefinitionEntity entity = formDefinitionMapper.selectById(id);
+    private FormDefinitionPo requireForm(Long id) {
+        FormDefinitionPo entity = formDefinitionMapper.selectById(id);
         if (entity == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
@@ -565,8 +565,8 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @param tableDefinitionId 表定义ID
      * @return 表定义实体
      */
-    private FormTableDefinitionEntity requireTableDefinition(Long tableDefinitionId) {
-        FormTableDefinitionEntity table = formTableDefinitionMapper.selectById(tableDefinitionId);
+    private FormTableDefinitionPo requireTableDefinition(Long tableDefinitionId) {
+        FormTableDefinitionPo table = formTableDefinitionMapper.selectById(tableDefinitionId);
         if (table == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
@@ -580,9 +580,9 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @param excludeId 需排除的当前记录ID（更新时传入，新增传 {@code null}）
      */
     private void assertCodeUnique(String code, Long excludeId) {
-        LambdaQueryWrapper<FormDefinitionEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FormDefinitionEntity::getCode, code);
-        wrapper.ne(excludeId != null, FormDefinitionEntity::getId, excludeId);
+        LambdaQueryWrapper<FormDefinitionPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormDefinitionPo::getCode, code);
+        wrapper.ne(excludeId != null, FormDefinitionPo::getId, excludeId);
         Long count = formDefinitionMapper.selectCount(wrapper);
         if (count != null && count > 0) {
             throw paramError("表单编码已存在");
@@ -623,8 +623,8 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @param formId 表单定义ID
      * @return 字段配置实体
      */
-    private static FormFieldConfigEntity toConfig(FormFieldConfigDTO dto, Long formId) {
-        FormFieldConfigEntity config = new FormFieldConfigEntity();
+    private static FormFieldConfigPo toConfig(FormFieldConfigDTO dto, Long formId) {
+        FormFieldConfigPo config = new FormFieldConfigPo();
         config.setFormId(formId);
         config.setColumnMetaId(dto.getColumnMetaId());
         config.setFieldLabel(dto.getFieldLabel());
@@ -649,7 +649,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @param options 选项实体列表（可空）
      * @return 字段配置视图对象
      */
-    private static FormFieldConfigVO toFieldVo(FormFieldConfigEntity config, List<FormFieldOptionEntity> options) {
+    private static FormFieldConfigVO toFieldVo(FormFieldConfigPo config, List<FormFieldOptionPo> options) {
         FormFieldConfigVO vo = FormConverter.INSTANCE.toFieldConfigVo(config);
         if (options != null) {
             vo.setOptions(options.stream().map(FormDefinitionServiceImpl::toOptionVo).toList());
@@ -663,7 +663,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @param option 选项实体
      * @return 选项视图对象
      */
-    private static FormFieldOptionVO toOptionVo(FormFieldOptionEntity option) {
+    private static FormFieldOptionVO toOptionVo(FormFieldOptionPo option) {
         return FormConverter.INSTANCE.toOptionVo(option);
     }
 
@@ -674,7 +674,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @param fields 字段配置视图对象列表（分页/旧模型可传 {@code null}）
      * @return 表单定义视图对象
      */
-    private static FormDefinitionVO toVo(FormDefinitionEntity entity, List<FormFieldConfigVO> fields) {
+    private static FormDefinitionVO toVo(FormDefinitionPo entity, List<FormFieldConfigVO> fields) {
         FormDefinitionVO vo = FormConverter.INSTANCE.toDefinitionVo(entity);
         if (fields != null) {
             vo.setFields(fields);
@@ -689,7 +689,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @param fields 字段配置视图对象列表（可空）
      * @return 表单定义视图对象（字段已回填 {@code columnCode/dataType/required/maxLength}）
      */
-    private FormDefinitionVO toDetailVo(FormDefinitionEntity entity, List<FormFieldConfigVO> fields) {
+    private FormDefinitionVO toDetailVo(FormDefinitionPo entity, List<FormFieldConfigVO> fields) {
         FormDefinitionVO vo = toVo(entity, fields);
         enrichColumnInfo(vo.getFields(), entity.getTableDefinitionId());
         return vo;
@@ -715,13 +715,13 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
         if (columnIds.isEmpty()) {
             return;
         }
-        LambdaQueryWrapper<FormColumnMetaEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FormColumnMetaEntity::getTableDefinitionId, tableDefinitionId);
-        wrapper.in(FormColumnMetaEntity::getId, columnIds);
-        Map<Long, FormColumnMetaEntity> columnMap = formColumnMetaMapper.selectList(wrapper).stream()
-                .collect(Collectors.toMap(FormColumnMetaEntity::getId, Function.identity()));
+        LambdaQueryWrapper<FormColumnMetaPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormColumnMetaPo::getTableDefinitionId, tableDefinitionId);
+        wrapper.in(FormColumnMetaPo::getId, columnIds);
+        Map<Long, FormColumnMetaPo> columnMap = formColumnMetaMapper.selectList(wrapper).stream()
+                .collect(Collectors.toMap(FormColumnMetaPo::getId, Function.identity()));
         for (FormFieldConfigVO field : fields) {
-            FormColumnMetaEntity column = field.getColumnMetaId() == null ? null : columnMap.get(field.getColumnMetaId());
+            FormColumnMetaPo column = field.getColumnMetaId() == null ? null : columnMap.get(field.getColumnMetaId());
             if (column == null) {
                 continue;
             }
@@ -739,15 +739,15 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @param version 版本号
      * @return 版本快照实体
      */
-    private FormDefinitionVersionEntity findSnapshot(Long definitionId, Integer version) {
+    private FormDefinitionVersionPo findSnapshot(Long definitionId, Integer version) {
         if (version == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
-        LambdaQueryWrapper<FormDefinitionVersionEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FormDefinitionVersionEntity::getDefinitionId, definitionId);
-        wrapper.eq(FormDefinitionVersionEntity::getVersion, version);
-        wrapper.orderByDesc(FormDefinitionVersionEntity::getId);
-        List<FormDefinitionVersionEntity> snapshots = formDefinitionVersionMapper.selectList(wrapper);
+        LambdaQueryWrapper<FormDefinitionVersionPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormDefinitionVersionPo::getDefinitionId, definitionId);
+        wrapper.eq(FormDefinitionVersionPo::getVersion, version);
+        wrapper.orderByDesc(FormDefinitionVersionPo::getId);
+        List<FormDefinitionVersionPo> snapshots = formDefinitionVersionMapper.selectList(wrapper);
         if (snapshots.isEmpty()) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
@@ -780,7 +780,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @param entity 待恢复的表单定义实体
      * @param definition 快照的定义节点
      */
-    private void restoreDefinition(FormDefinitionEntity entity, JsonNode definition) {
+    private void restoreDefinition(FormDefinitionPo entity, JsonNode definition) {
         String code = textOrNull(definition, "code");
         if (StringUtils.hasText(code) && !Objects.equals(code, entity.getCode())) {
             assertCodeUnique(code, null);
@@ -801,13 +801,13 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @param fields 快照字段数组
      * @return 新字段配置列表
      */
-    private List<FormFieldConfigEntity> restoreFields(Long formId, JsonNode fields) {
-        List<FormFieldConfigEntity> result = new ArrayList<>();
+    private List<FormFieldConfigPo> restoreFields(Long formId, JsonNode fields) {
+        List<FormFieldConfigPo> result = new ArrayList<>();
         if (fields == null || !fields.isArray()) {
             return result;
         }
         for (JsonNode node : fields) {
-            FormFieldConfigEntity config = snapshotToConfig(formId, node);
+            FormFieldConfigPo config = snapshotToConfig(formId, node);
             formFieldConfigMapper.insert(config);
             restoreOptions(config.getId(), node.path("options"));
             result.add(config);
@@ -822,8 +822,8 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @param node 快照字段节点
      * @return 字段配置实体
      */
-    private static FormFieldConfigEntity snapshotToConfig(Long formId, JsonNode node) {
-        FormFieldConfigEntity config = new FormFieldConfigEntity();
+    private static FormFieldConfigPo snapshotToConfig(Long formId, JsonNode node) {
+        FormFieldConfigPo config = new FormFieldConfigPo();
         config.setFormId(formId);
         config.setColumnMetaId(longOrNull(node, "columnMetaId"));
         config.setFieldLabel(textOrNull(node, "fieldLabel"));
@@ -852,7 +852,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
             return;
         }
         for (JsonNode node : options) {
-            FormFieldOptionEntity option = new FormFieldOptionEntity();
+            FormFieldOptionPo option = new FormFieldOptionPo();
             option.setFieldConfigId(fieldConfigId);
             option.setOptionLabel(textOrNull(node, "optionLabel"));
             option.setOptionValue(textOrNull(node, "optionValue"));
@@ -872,7 +872,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @param snapshotSchema 快照中的 schema JSON（可空）
      * @return {@code schema_json} 文本
      */
-    private String recompile(Long tableDefinitionId, List<FormFieldConfigEntity> configs, String snapshotSchema) {
+    private String recompile(Long tableDefinitionId, List<FormFieldConfigPo> configs, String snapshotSchema) {
         try {
             return compileSnapshot(requireTableDefinition(tableDefinitionId), configs);
         } catch (BizException e) {
@@ -892,8 +892,8 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      *
      * @param entity 表单定义实体（版本号需已确定）
      */
-    private void writeVersionSnapshot(FormDefinitionEntity entity) {
-        FormDefinitionVersionEntity snapshot = new FormDefinitionVersionEntity();
+    private void writeVersionSnapshot(FormDefinitionPo entity) {
+        FormDefinitionVersionPo snapshot = new FormDefinitionVersionPo();
         snapshot.setDefinitionId(entity.getId());
         snapshot.setVersion(entity.getVersion());
         snapshot.setSnapshotSeq(nextSnapshotSeq(entity.getId()));
@@ -908,12 +908,12 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @return 下一个快照序号
      */
     private Long nextSnapshotSeq(Long definitionId) {
-        LambdaQueryWrapper<FormDefinitionVersionEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FormDefinitionVersionEntity::getDefinitionId, definitionId);
-        wrapper.select(FormDefinitionVersionEntity::getSnapshotSeq);
-        wrapper.orderByDesc(FormDefinitionVersionEntity::getSnapshotSeq);
+        LambdaQueryWrapper<FormDefinitionVersionPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormDefinitionVersionPo::getDefinitionId, definitionId);
+        wrapper.select(FormDefinitionVersionPo::getSnapshotSeq);
+        wrapper.orderByDesc(FormDefinitionVersionPo::getSnapshotSeq);
         wrapper.last("LIMIT 1");
-        List<FormDefinitionVersionEntity> latest = formDefinitionVersionMapper.selectList(wrapper);
+        List<FormDefinitionVersionPo> latest = formDefinitionVersionMapper.selectList(wrapper);
         Long max = latest.isEmpty() || latest.get(0).getSnapshotSeq() == null
                 ? 0L : latest.get(0).getSnapshotSeq();
         return max + 1;
@@ -927,12 +927,12 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @return 新版本号
      */
     private int nextDefinitionVersion(Long definitionId, int currentVersion) {
-        LambdaQueryWrapper<FormDefinitionVersionEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FormDefinitionVersionEntity::getDefinitionId, definitionId);
-        wrapper.select(FormDefinitionVersionEntity::getVersion);
-        wrapper.orderByDesc(FormDefinitionVersionEntity::getVersion);
+        LambdaQueryWrapper<FormDefinitionVersionPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormDefinitionVersionPo::getDefinitionId, definitionId);
+        wrapper.select(FormDefinitionVersionPo::getVersion);
+        wrapper.orderByDesc(FormDefinitionVersionPo::getVersion);
         wrapper.last("LIMIT 1");
-        List<FormDefinitionVersionEntity> latest = formDefinitionVersionMapper.selectList(wrapper);
+        List<FormDefinitionVersionPo> latest = formDefinitionVersionMapper.selectList(wrapper);
         int maxSnapshot = latest.isEmpty() || latest.get(0).getVersion() == null
                 ? 0 : latest.get(0).getVersion();
         return Math.max(currentVersion, maxSnapshot) + 1;
@@ -944,7 +944,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @param entity 表单定义实体
      * @return 快照 JSON 文本
      */
-    private String buildSnapshot(FormDefinitionEntity entity) {
+    private String buildSnapshot(FormDefinitionPo entity) {
         ObjectNode root = SNAPSHOT_MAPPER.createObjectNode();
         ObjectNode definition = root.putObject("definition");
         definition.put("code", entity.getCode());
@@ -954,10 +954,10 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
         definition.put("version", entity.getVersion());
         definition.put("status", entity.getStatus());
         definition.put("remark", entity.getRemark());
-        List<FormFieldConfigEntity> configs = listConfigs(entity.getId());
-        Map<Long, List<FormFieldOptionEntity>> optionMap = loadOptions(configs);
+        List<FormFieldConfigPo> configs = listConfigs(entity.getId());
+        Map<Long, List<FormFieldOptionPo>> optionMap = loadOptions(configs);
         ArrayNode fields = root.putArray("fields");
-        for (FormFieldConfigEntity config : configs) {
+        for (FormFieldConfigPo config : configs) {
             fields.add(toSnapshotField(config, optionMap.get(config.getId())));
         }
         return root.toString();
@@ -970,7 +970,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @param options 选项列表（可空）
      * @return 快照字段节点
      */
-    private static ObjectNode toSnapshotField(FormFieldConfigEntity config, List<FormFieldOptionEntity> options) {
+    private static ObjectNode toSnapshotField(FormFieldConfigPo config, List<FormFieldOptionPo> options) {
         ObjectNode node = SNAPSHOT_MAPPER.createObjectNode();
         node.put("columnMetaId", config.getColumnMetaId());
         node.put("fieldLabel", config.getFieldLabel());
@@ -989,7 +989,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
         if (options == null) {
             return node;
         }
-        for (FormFieldOptionEntity option : options) {
+        for (FormFieldOptionPo option : options) {
             ObjectNode optionNode = optionArray.addObject();
             optionNode.put("optionLabel", option.getOptionLabel());
             optionNode.put("optionValue", option.getOptionValue());
@@ -1040,7 +1040,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @param snapshot 版本快照实体
      * @return 版本快照视图对象
      */
-    private static FormDefinitionVersionVO toVersionVo(FormDefinitionVersionEntity snapshot) {
+    private static FormDefinitionVersionVO toVersionVo(FormDefinitionVersionPo snapshot) {
         FormDefinitionVersionVO vo = new FormDefinitionVersionVO();
         vo.setVersion(snapshot.getVersion());
         vo.setSnapshotSeq(snapshot.getSnapshotSeq());

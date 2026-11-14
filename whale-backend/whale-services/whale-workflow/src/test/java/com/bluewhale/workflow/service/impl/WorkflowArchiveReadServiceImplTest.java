@@ -3,9 +3,9 @@ package com.bluewhale.workflow.service.impl;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.result.PageResult;
-import com.bluewhale.workflow.entity.ProcessDefinitionVersion;
-import com.bluewhale.workflow.entity.ProcessInstance;
-import com.bluewhale.workflow.entity.ProcessTask;
+import com.bluewhale.workflow.po.ProcessDefinitionVersionPo;
+import com.bluewhale.workflow.po.ProcessInstancePo;
+import com.bluewhale.workflow.po.ProcessTaskPo;
 import com.bluewhale.workflow.mapper.ProcessDefinitionMapper;
 import com.bluewhale.workflow.mapper.ProcessDefinitionVersionMapper;
 import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
@@ -66,8 +66,8 @@ class WorkflowArchiveReadServiceImplTest {
     @Test
     @DisplayName("approved：办结时间取更新时间，分页参数收敛到上限")
     void shouldMapApprovedInstancesAndClampPageSize() {
-        ProcessInstance instance = instance();
-        Page<ProcessInstance> page = new Page<>(1L, 200L);
+        ProcessInstancePo instance = instance();
+        Page<ProcessInstancePo> page = new Page<>(1L, 200L);
         page.setRecords(List.of(instance));
         page.setTotal(1L);
         when(processInstanceMapper.selectPage(any(), any())).thenReturn(page);
@@ -77,7 +77,7 @@ class WorkflowArchiveReadServiceImplTest {
         assertEquals(1L, result.getTotal());
         assertEquals(FINISHED_AT, result.getRecords().get(0).getFinishedAt());
         assertEquals("DOC_APPROVE", result.getRecords().get(0).getDefinitionCode());
-        ArgumentCaptor<Page<ProcessInstance>> captor = ArgumentCaptor.forClass(Page.class);
+        ArgumentCaptor<Page<ProcessInstancePo>> captor = ArgumentCaptor.forClass(Page.class);
         verify(processInstanceMapper).selectPage(captor.capture(), any());
         assertEquals(1L, captor.getValue().getCurrent());
         assertEquals(200L, captor.getValue().getSize());
@@ -88,7 +88,7 @@ class WorkflowArchiveReadServiceImplTest {
     void shouldReturnDetailWithDefinitionAndTasks() {
         when(processInstanceMapper.selectById(7L)).thenReturn(instance());
         when(processDefinitionVersionMapper.selectList(any())).thenReturn(List.of(version()));
-        ProcessTask task = new ProcessTask();
+        ProcessTaskPo task = new ProcessTaskPo();
         task.setId(1L);
         task.setInstanceId(7L);
         task.setNodeName("部门审批");
@@ -116,8 +116,8 @@ class WorkflowArchiveReadServiceImplTest {
      *
      * @return 实例实体
      */
-    private static ProcessInstance instance() {
-        ProcessInstance instance = new ProcessInstance();
+    private static ProcessInstancePo instance() {
+        ProcessInstancePo instance = new ProcessInstancePo();
         instance.setId(7L);
         instance.setDefinitionId(3L);
         instance.setDefinitionCode("DOC_APPROVE");
@@ -134,8 +134,8 @@ class WorkflowArchiveReadServiceImplTest {
      *
      * @return 版本快照
      */
-    private static ProcessDefinitionVersion version() {
-        ProcessDefinitionVersion version = new ProcessDefinitionVersion();
+    private static ProcessDefinitionVersionPo version() {
+        ProcessDefinitionVersionPo version = new ProcessDefinitionVersionPo();
         version.setId(1L);
         version.setDefinitionId(3L);
         version.setVersion(2);

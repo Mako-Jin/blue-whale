@@ -1,4 +1,4 @@
-package com.bluewhale.workflow.dto;
+package com.bluewhale.workflow.request;
 
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;

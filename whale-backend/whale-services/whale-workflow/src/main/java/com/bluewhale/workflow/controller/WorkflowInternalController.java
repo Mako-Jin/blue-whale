@@ -3,8 +3,8 @@ package com.bluewhale.workflow.controller;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.common.web.WebHeaders;
-import com.bluewhale.workflow.dto.InternalProcessStartRequest;
-import com.bluewhale.workflow.dto.ProcessInstanceQueryRequest;
+import com.bluewhale.workflow.request.InternalProcessStartRequest;
+import com.bluewhale.workflow.request.ProcessInstanceQueryRequest;
 import com.bluewhale.workflow.service.ProcessInstanceService;
 import com.bluewhale.workflow.service.WorkflowArchiveReadService;
 import com.bluewhale.workflow.vo.ApprovedInstanceVO;
@@ -30,13 +30,13 @@ import java.util.List;
 /**
  * 流程实例归档内网接口（只读）。
  *
- * <p>服务内路径前缀 {@code /workflow/internal}，供档案服务（whale-archive）增量拉取已审批实例；
- * 网关 {@code internal-deny} 对 {@code /workflow/internal/**} 统一返回 403，外部不可达，故不加权限码注解。</p>
+ * <p>服务内路径前缀 {@code /workflow/v1/internal}，供档案服务（whale-archive）增量拉取已审批实例；
+ * 网关 {@code internal-deny} 对 {@code /workflow/v1/internal/**} 统一返回 403，外部不可达，故不加权限码注解。</p>
  *
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/workflow/internal/instance")
+@RequestMapping(path = "/workflow/v{version}/internal/instance", version = "1")
 @RequiredArgsConstructor
 public class WorkflowInternalController {
 

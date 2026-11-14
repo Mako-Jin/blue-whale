@@ -8,8 +8,8 @@ import lombok.EqualsAndHashCode;
 /**
  * 表定义实体，对应表 {@code form_table_definition}（三层模型的表定义层）。
  *
- * <p>描述一张业务表（编码 + 版本）；其列定义见 {@link FormColumnMetaEntity}，可被多张表单视图
- * （{@link FormDefinitionEntity}）共享（表:表单 = 1:N）。物理表名 {@code form_data_{tableCode}_v{version}}
+ * <p>描述一张业务表（编码 + 版本）；其列定义见 {@link FormColumnMetaPo}，可被多张表单视图
+ * （{@link FormDefinitionPo}）共享（表:表单 = 1:N）。物理表名 {@code form_data_{tableCode}_v{version}}
  * 由本实体决定。</p>
  *
  * @author BlueWhale
@@ -17,7 +17,7 @@ import lombok.EqualsAndHashCode;
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("form_table_definition")
-public class FormTableDefinitionEntity extends BaseEntity {
+public class FormTableDefinitionPo extends BaseEntity {
 
     private static final long serialVersionUID = 1L;
 
