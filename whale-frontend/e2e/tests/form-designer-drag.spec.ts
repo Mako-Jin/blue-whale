@@ -52,7 +52,8 @@ test('数据字段拖入画布并保存', async ({ page, request }, testInfo) =>
         columnName: '姓名',
         dataType: 'text',
         length: 128,
-        nullable: 1,
+        // 必填列必须非空：后端建表校验会拒绝 required=1 且 nullable=1 的组合
+        nullable: 0,
         required: 1,
         sortNo: 1,
         status: 1,

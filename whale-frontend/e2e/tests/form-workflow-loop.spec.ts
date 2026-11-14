@@ -72,7 +72,8 @@ test('表单填报→发起流程→审批通过', async ({ page, request }) => 
         columnName: '姓名',
         dataType: 'text',
         length: 128,
-        nullable: 1,
+        // 必填列必须非空：后端建表校验会拒绝 required=1 且 nullable=1 的组合
+        nullable: 0,
         required: 1,
         sortNo: 1,
         status: 1,
