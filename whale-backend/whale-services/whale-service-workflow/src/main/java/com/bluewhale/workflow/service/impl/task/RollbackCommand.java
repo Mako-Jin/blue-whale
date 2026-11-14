@@ -8,6 +8,7 @@ import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
 import com.bluewhale.workflow.support.ProcessModel;
 import com.bluewhale.workflow.support.ProcessModelNode;
 import com.bluewhale.workflow.support.ProcessModelParser;
+import com.bluewhale.workflow.support.ProcessPaths;
 import com.bluewhale.workflow.support.WorkflowConstants;
 import com.bluewhale.workflow.support.machine.TransitionResult;
 import lombok.RequiredArgsConstructor;
@@ -48,6 +49,15 @@ public class RollbackCommand {
         if (target == null || target.getType() == null || !target.getType().isApproval()) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "回退目标必须为审批节点");
         }
+        String currentKey = resolveCurrentKey(task, model, instance);
+        if (target.getKey().equals(currentKey)) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "不能回退到当前节点");
+        }
+        boolean ancestor = ProcessPaths.ancestorApprovalNodes(model, currentKey).stream()
+                .anyMatch(item -> item.getKey().equals(target.getKey()));
+        if (!ancestor) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "只能回退到当前节点的上游审批节点");
+        }
         taskCommandSupport.cancelPendingTasks(instance.getId());
         instance.setStatus(WorkflowConstants.INSTANCE_RUNNING);
         instance.setCurrentIndex(model.indexOf(target.getKey()));
@@ -55,5 +65,25 @@ public class RollbackCommand {
         instance.setActiveNodeKeys(null);
         processInstanceMapper.updateById(instance);
         taskActivationCommand.activate(instance, model, TransitionResult.at(List.of(target)));
+    }
+
+    /**
+     * 解析任务对应的节点键：优先任务快照，其次实例当前节点，最后回落下标。
+     *
+     * @param task 待办任务
+     * @param model 流程模型
+     * @param instance 流程实例
+     * @return 节点键；无法解析返回 {@code null}
+     */
+    private static String resolveCurrentKey(ProcessTaskPo task, ProcessModel model, ProcessInstancePo instance) {
+        if (task.getNodeKey() != null && !task.getNodeKey().isBlank()) {
+            return task.getNodeKey();
+        }
+        if (instance.getCurrentNodeKey() != null && !instance.getCurrentNodeKey().isBlank()) {
+            return instance.getCurrentNodeKey();
+        }
+        int index = instance.getCurrentIndex() == null ? 0 : instance.getCurrentIndex();
+        ProcessModelNode node = model.nodeAt(index);
+        return node == null ? null : node.getKey();
     }
 }

@@ -283,15 +283,7 @@ public final class BpmnXmlWriter {
         if (node.getName() != null && !node.getName().isBlank()) {
             xml.append(" name=\"").append(escape(node.getName())).append('"');
         }
-        if (node.isUserTask() && node.getAssignee() != null) {
-            xml.append(" assignee=\"").append(escape(node.getAssignee())).append('"');
-        }
-        if (node.isUserTask() && node.getFormCode() != null && !node.getFormCode().isBlank()) {
-            xml.append(" formKey=\"").append(escape(node.getFormCode())).append('"');
-        }
-        if (node.isUserTask() && node.getFormId() != null && !node.getFormId().isBlank()) {
-            xml.append(" formId=\"").append(escape(node.getFormId())).append('"');
-        }
+        appendApprovalAttributes(xml, node);
         if (node.getType() == ProcessNodeType.CC_TASK
                 && node.getAssignees() != null && !node.getAssignees().isEmpty()) {
             xml.append(" assignees=\"").append(escape(String.join(",", node.getAssignees()))).append('"');
@@ -300,6 +292,30 @@ public final class BpmnXmlWriter {
             xml.append(" default=\"").append(escape(defaultFlowId)).append('"');
         }
         xml.append("/>\n");
+    }
+
+    /**
+     * 写出审批节点的专属属性（审批人、表单绑定、超时时长）。
+     *
+     * @param xml 输出缓冲
+     * @param node 流程模型节点
+     */
+    private static void appendApprovalAttributes(StringBuilder xml, ProcessModelNode node) {
+        if (!node.isUserTask()) {
+            return;
+        }
+        if (node.getAssignee() != null) {
+            xml.append(" assignee=\"").append(escape(node.getAssignee())).append('"');
+        }
+        if (node.getFormCode() != null && !node.getFormCode().isBlank()) {
+            xml.append(" formKey=\"").append(escape(node.getFormCode())).append('"');
+        }
+        if (node.getFormId() != null && !node.getFormId().isBlank()) {
+            xml.append(" formId=\"").append(escape(node.getFormId())).append('"');
+        }
+        if (node.getTimeoutHours() != null && node.getTimeoutHours() > 0) {
+            xml.append(" timeoutHours=\"").append(node.getTimeoutHours()).append('"');
+        }
     }
 
     /**

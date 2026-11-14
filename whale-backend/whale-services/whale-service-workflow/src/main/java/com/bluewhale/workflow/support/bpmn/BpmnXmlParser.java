@@ -180,7 +180,29 @@ public final class BpmnXmlParser {
         } else if (type == ProcessNodeType.CC_TASK) {
             node.setAssignees(readAssignees(element));
         }
+        if (type.isApproval()) {
+            node.setTimeoutHours(readTimeoutHours(element));
+        }
         return node;
+    }
+
+    /**
+     * 读取节点超时时长（自定义属性 {@code timeoutHours}，非法值静默忽略）。
+     *
+     * @param element 节点元素
+     * @return 超时时长（小时）；缺失、非数字、非正数或超上限返回 {@code null}
+     */
+    private static Integer readTimeoutHours(Element element) {
+        String raw = attribute(element, "timeoutHours");
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            int hours = Integer.parseInt(raw.trim());
+            return hours > 0 && hours <= ProcessModelParser.MAX_TIMEOUT_HOURS ? hours : null;
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 
     /**

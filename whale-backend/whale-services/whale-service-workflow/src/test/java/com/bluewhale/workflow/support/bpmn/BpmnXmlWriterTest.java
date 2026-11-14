@@ -10,6 +10,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -219,5 +220,40 @@ class BpmnXmlWriterTest {
 
         assertEquals("bw_d29_form", reparsed.node("t1").getFormCode());
         assertEquals("2112355156699869186", reparsed.node("t1").getFormId());
+    }
+
+    @Test
+    @DisplayName("write + parse：timeoutHours 往返一致")
+    void shouldRoundTripNodeTimeout() {
+        String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+                + "<definitions xmlns=\"http://www.omg.org/spec/BPMN/20100524/MODEL\" targetNamespace=\"http://bw\">"
+                + "<process id=\"p1\"><startEvent id=\"start\"/>"
+                + "<userTask id=\"t1\" assignee=\"a\" timeoutHours=\"24\"/>"
+                + "<sequenceFlow id=\"f1\" sourceRef=\"start\" targetRef=\"t1\"/></process></definitions>";
+        ProcessModel source = BpmnXmlParser.parse(xml);
+
+        String out = BpmnXmlWriter.write(source, "p1", "示例");
+        ProcessModel reparsed = BpmnXmlParser.parse(out);
+
+        assertEquals(Integer.valueOf(24), source.node("t1").getTimeoutHours());
+        assertTrue(out.contains("timeoutHours=\"24\""));
+        assertEquals(Integer.valueOf(24), reparsed.node("t1").getTimeoutHours());
+    }
+
+    @Test
+    @DisplayName("parse：timeoutHours 非法值静默忽略")
+    void shouldIgnoreInvalidTimeout() {
+        String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+                + "<definitions xmlns=\"http://www.omg.org/spec/BPMN/20100524/MODEL\" targetNamespace=\"http://bw\">"
+                + "<process id=\"p1\"><startEvent id=\"start\"/>"
+                + "<userTask id=\"t1\" assignee=\"a\" timeoutHours=\"abc\"/>"
+                + "<userTask id=\"t2\" assignee=\"b\" timeoutHours=\"0\"/>"
+                + "<sequenceFlow id=\"f1\" sourceRef=\"start\" targetRef=\"t1\"/>"
+                + "<sequenceFlow id=\"f2\" sourceRef=\"t1\" targetRef=\"t2\"/></process></definitions>";
+
+        ProcessModel model = BpmnXmlParser.parse(xml);
+
+        assertNull(model.node("t1").getTimeoutHours());
+        assertNull(model.node("t2").getTimeoutHours());
     }
 }
