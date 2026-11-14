@@ -159,16 +159,36 @@ class FormDefinitionServiceImplTest {
         when(formDefinitionMapper.selectById(1L)).thenReturn(entity);
         when(formFieldConfigMapper.selectList(ArgumentMatchers.<Wrapper<FormFieldConfig>>any()))
                 .thenReturn(List.of());
+        when(formDefinitionMapper.update(any(FormDefinition.class),
+                ArgumentMatchers.<Wrapper<FormDefinition>>any())).thenReturn(1);
         FormDefinitionSaveRequest request = saveRequest("form-a", "A表单新版");
         request.setSchemaJson("{\"fields\":[]}");
         request.setRemark("备注");
 
         FormDefinitionVO vo = formDefinitionService.update(1L, request);
 
-        verify(formDefinitionMapper).updateById(entity);
+        verify(formDefinitionMapper).update(any(FormDefinition.class),
+                ArgumentMatchers.<Wrapper<FormDefinition>>any());
         assertEquals("A表单新版", entity.getName());
         assertEquals("{\"fields\":[]}", entity.getSchemaJson());
         assertEquals("备注", vo.getRemark());
+    }
+
+    @Test
+    @DisplayName("update：版本号已被并发修改时抛参数错误")
+    void shouldRejectConcurrentUpdate() {
+        FormDefinition entity = new FormDefinition();
+        entity.setId(1L);
+        entity.setCode("form-a");
+        entity.setVersion(2);
+        when(formDefinitionMapper.selectById(1L)).thenReturn(entity);
+        when(formDefinitionMapper.update(any(FormDefinition.class),
+                ArgumentMatchers.<Wrapper<FormDefinition>>any())).thenReturn(0);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> formDefinitionService.update(1L, saveRequest("form-a", "A表单新版")));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
     }
 
     @Test
@@ -434,6 +454,8 @@ class FormDefinitionServiceImplTest {
         when(formDefinitionMapper.selectById(1L)).thenReturn(entity);
         when(formFieldConfigMapper.selectList(ArgumentMatchers.<Wrapper<FormFieldConfig>>any()))
                 .thenReturn(List.of());
+        when(formDefinitionMapper.update(any(FormDefinition.class),
+                ArgumentMatchers.<Wrapper<FormDefinition>>any())).thenReturn(1);
 
         formDefinitionService.update(1L, saveRequest("form-a", "A表单新版"));
 
@@ -464,6 +486,8 @@ class FormDefinitionServiceImplTest {
                 ArgumentMatchers.<Wrapper<FormDefinitionVersion>>any())).thenReturn(List.of(snapshot));
         when(formFieldConfigMapper.selectList(ArgumentMatchers.<Wrapper<FormFieldConfig>>any()))
                 .thenReturn(List.of());
+        when(formDefinitionMapper.update(any(FormDefinition.class),
+                ArgumentMatchers.<Wrapper<FormDefinition>>any())).thenReturn(1);
 
         FormDefinitionVO vo = formDefinitionService.rollback(1L, 2);
 
@@ -471,7 +495,8 @@ class FormDefinitionServiceImplTest {
         assertEquals("{\"fields\":[]}", entity.getSchemaJson());
         assertEquals(4, entity.getVersion().intValue());
         assertEquals(4, vo.getVersion().intValue());
-        verify(formDefinitionMapper).updateById(entity);
+        verify(formDefinitionMapper).update(any(FormDefinition.class),
+                ArgumentMatchers.<Wrapper<FormDefinition>>any());
         ArgumentCaptor<FormFieldConfig> configCaptor = ArgumentCaptor.forClass(FormFieldConfig.class);
         verify(formFieldConfigMapper).insert(configCaptor.capture());
         assertEquals("标题", configCaptor.getValue().getFieldLabel());

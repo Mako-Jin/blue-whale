@@ -1,6 +1,7 @@
 package com.bluewhale.form.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -140,6 +141,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
     @Transactional(rollbackFor = Exception.class)
     public FormDefinitionVO update(Long id, FormDefinitionSaveRequest request) {
         FormDefinition entity = requireForm(id);
+        int expectedVersion = entity.getVersion() == null ? DEFAULT_VERSION : entity.getVersion();
         if (!entity.getCode().equals(request.getCode())) {
             assertCodeUnique(request.getCode(), id);
             entity.setCode(request.getCode());
@@ -162,16 +164,32 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
             validateSchemaSize(request.getSchemaJson());
             entity.setSchemaJson(request.getSchemaJson());
         }
-        formDefinitionMapper.updateById(entity);
         if (table != null) {
             List<FormFieldConfig> configs = replaceFields(entity.getId(), request.getFields());
             entity.setSchemaJson(compileSnapshot(table, configs));
-            formDefinitionMapper.updateById(entity);
         } else {
             deleteFields(entity.getId());
         }
+        updateWithVersionGuard(entity, expectedVersion);
         writeVersionSnapshot(entity);
         return toDetailVo(entity, table == null ? null : listFields(entity.getId()));
+    }
+
+    /**
+     * 按读取时的版本号做条件更新（CAS），防止并发发布/回滚/编辑相互覆盖
+     *
+     * @param entity 待更新实体（其 version 字段可能已被业务改写）
+     * @param expectedVersion 读取时的版本号，作为更新条件
+     * @throws BizException 版本已被他人修改时抛出 {@code PARAM_ERROR}
+     */
+    private void updateWithVersionGuard(FormDefinition entity, int expectedVersion) {
+        LambdaUpdateWrapper<FormDefinition> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(FormDefinition::getId, entity.getId());
+        wrapper.eq(FormDefinition::getVersion, expectedVersion);
+        int rows = formDefinitionMapper.update(entity, wrapper);
+        if (rows == 0) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "表单已被并发修改，请刷新后重试");
+        }
     }
 
     @Override
@@ -251,7 +269,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
         if (entity.getTableDefinitionId() != null) {
             entity.setSchemaJson(recompile(entity.getTableDefinitionId(), configs, entity.getSchemaJson()));
         }
-        formDefinitionMapper.updateById(entity);
+        updateWithVersionGuard(entity, currentVersion);
         writeVersionSnapshot(entity);
         return toDetailVo(entity, listFields(id));
     }

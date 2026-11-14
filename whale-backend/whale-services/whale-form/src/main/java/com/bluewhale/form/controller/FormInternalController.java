@@ -15,7 +15,9 @@ import org.springframework.web.bind.annotation.RestController;
  * 表单数据内网接口（只读）。
  *
  * <p>服务内路径前缀 {@code /form/internal}，供档案服务（whale-archive）读取表单值与字段定义；
- * 网关 {@code internal-deny} 对 {@code /form/internal/**} 统一返回 403，外部不可达，故不加权限码注解。</p>
+ * 除网关 {@code internal-deny} 统一 403 外，服务端还按 {@code bluewhale.internal-token.path-patterns}
+ * 校验 {@code X-Internal-Token}（档案侧经 {@code InternalTokenSupport} 自动附加），形成双重防护，
+ * 故不额外加权限码注解。</p>
  *
  * @author BlueWhale
  */

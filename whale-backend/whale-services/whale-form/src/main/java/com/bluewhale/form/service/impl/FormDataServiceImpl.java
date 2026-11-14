@@ -44,6 +44,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -74,6 +75,12 @@ public class FormDataServiceImpl implements FormDataService {
 
     /** 导出单次最大条数 */
     private static final long EXPORT_MAX_ROWS = 5000L;
+
+    /** 导出格式：CSV */
+    private static final String FORMAT_CSV = "csv";
+
+    /** 导出格式：XLSX */
+    private static final String FORMAT_XLSX = "xlsx";
 
     /** 动态字段条件最大个数 */
     private static final int MAX_FILTERS = 10;
@@ -226,51 +233,79 @@ public class FormDataServiceImpl implements FormDataService {
 
     @Override
     public FormDataExportVO export(FormDataQueryRequest request, Long tenantId, String format) {
+        String exportFormat = normalizeExportFormat(format);
         if (!StringUtils.hasText(request.getDefinitionCode())) {
             throw paramError("请先指定表单编码后再导出");
         }
         FormDefinition definition = requireDefinitionByCode(request.getDefinitionCode());
         List<FormField> fields = FormSchemaParser.parse(definition.getSchemaJson());
-        List<String> headers = exportHeaders(fields);
         List<FormDataFilter> filters = parseFilters(request.getFilters());
         List<FormData> exportData = filters.isEmpty()
                 ? listExportData(request, tenantId)
                 : selectByFilters(definition, request, filters, tenantId, 0L, EXPORT_MAX_ROWS).rows();
+        List<String> keys = new ArrayList<>();
+        List<String> headers = new ArrayList<>(BASE_EXPORT_HEADERS);
+        for (FormField field : fields) {
+            keys.add(field.getKey());
+            headers.add(StringUtils.hasText(field.getLabel()) ? field.getLabel() : field.getKey());
+        }
+        appendLegacyColumns(keys, headers, exportData);
         List<List<String>> rows = new ArrayList<>();
         for (FormData entity : exportData) {
-            rows.add(exportRow(entity, fields));
+            rows.add(exportRow(entity, keys));
         }
-        String extension = FormDataExportSupport.extension(format);
         String filename = "form-data-" + definition.getCode() + "-"
-                + LocalDateTime.now().format(FILE_TIME_FORMATTER) + "." + extension;
-        byte[] content = "xlsx".equalsIgnoreCase(format)
+                + LocalDateTime.now().format(FILE_TIME_FORMATTER) + "." + exportFormat;
+        byte[] content = FORMAT_XLSX.equals(exportFormat)
                 ? FormDataExportSupport.xlsx(definition.getName(), headers, rows)
                 : FormDataExportSupport.csv(headers, rows);
-        return new FormDataExportVO(content, filename, FormDataExportSupport.contentType(format));
+        return new FormDataExportVO(content, filename, FormDataExportSupport.contentType(exportFormat));
     }
 
     /**
-     * 组装导出表头：公共列 + 表单视图数据字段（按 {@code schema_json} 中的字段顺序）
+     * 校验并归一化导出格式（仅接受 csv / xlsx）
      *
-     * @param fields 数据字段列表
-     * @return 表头文本列表
+     * @param format 原始格式参数
+     * @return 小写格式标识
+     * @throws BizException 格式缺失或不受支持时抛出 {@code PARAM_ERROR}
      */
-    private static List<String> exportHeaders(List<FormField> fields) {
-        List<String> headers = new ArrayList<>(BASE_EXPORT_HEADERS);
-        for (FormField field : fields) {
-            headers.add(StringUtils.hasText(field.getLabel()) ? field.getLabel() : field.getKey());
+    private static String normalizeExportFormat(String format) {
+        String value = format == null ? "" : format.trim().toLowerCase(Locale.ROOT);
+        if (!FORMAT_CSV.equals(value) && !FORMAT_XLSX.equals(value)) {
+            throw paramError("导出格式仅支持 csv 或 xlsx");
         }
-        return headers;
+        return value;
+    }
+
+    /**
+     * 追加历史版本独有字段列：导出按表单编码跨版本取数，当前 schema 之外的字段以字段编码作为表头，
+     * 避免历史版本数据静默丢失
+     *
+     * @param keys 动态字段编码列表（就地追加）
+     * @param headers 表头列表（就地追加）
+     * @param exportData 待导出数据
+     */
+    private static void appendLegacyColumns(List<String> keys, List<String> headers,
+                                            List<FormData> exportData) {
+        Set<String> known = new HashSet<>(keys);
+        for (FormData entity : exportData) {
+            for (String key : parseDataQuietly(entity.getDataJson()).keySet()) {
+                if (known.add(key)) {
+                    keys.add(key);
+                    headers.add(key);
+                }
+            }
+        }
     }
 
     /**
      * 组装单条导出数据行：公共列 + 动态列值（取自 {@code dataJson}，缺失输出空串）
      *
      * @param entity 表单数据实体
-     * @param fields 数据字段列表
+     * @param keys 动态字段编码列表
      * @return 单元格文本列表
      */
-    private static List<String> exportRow(FormData entity, List<FormField> fields) {
+    private static List<String> exportRow(FormData entity, List<String> keys) {
         List<String> row = new ArrayList<>();
         row.add(String.valueOf(entity.getId()));
         row.add(entity.getDefinitionCode());
@@ -281,8 +316,8 @@ public class FormDataServiceImpl implements FormDataService {
         row.add(entity.getCreateTime() == null ? "" : entity.getCreateTime().toString());
         row.add(entity.getStatus() == null ? "" : String.valueOf(entity.getStatus()));
         Map<String, Object> data = parseDataQuietly(entity.getDataJson());
-        for (FormField field : fields) {
-            row.add(formatCell(data.get(field.getKey())));
+        for (String key : keys) {
+            row.add(formatCell(data.get(key)));
         }
         return row;
     }
@@ -620,11 +655,13 @@ public class FormDataServiceImpl implements FormDataService {
         LambdaQueryWrapper<FormTableRegistry> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(FormTableRegistry::getTableCode, code);
         wrapper.eq(FormTableRegistry::getTableVersion, version);
+        wrapper.eq(FormTableRegistry::getStatus, STATUS_NORMAL);
         FormTableRegistry registry = formTableRegistryMapper.selectOne(wrapper);
         if (registry == null) {
             LambdaQueryWrapper<FormTableRegistry> legacy = new LambdaQueryWrapper<>();
             legacy.eq(FormTableRegistry::getDefinitionCode, code);
             legacy.eq(FormTableRegistry::getDefinitionVersion, version);
+            legacy.eq(FormTableRegistry::getStatus, STATUS_NORMAL);
             registry = formTableRegistryMapper.selectOne(legacy);
         }
         if (registry == null) {

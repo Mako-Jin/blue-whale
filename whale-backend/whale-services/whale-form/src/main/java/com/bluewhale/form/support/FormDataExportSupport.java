@@ -2,6 +2,7 @@ package com.bluewhale.form.support;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.zip.ZipEntry;
@@ -120,13 +121,16 @@ public final class FormDataExportSupport {
     }
 
     /**
-     * 转义单个 CSV 单元格（含逗号/引号/换行/前后空格时加引号并双写内部引号）
+     * 转义单个 CSV 单元格（公式注入中和 + 含逗号/引号/换行/前后空格时加引号并双写内部引号）
+     *
+     * <p>以 {@code = + - @}、制表符或回车开头的文本会被 Excel/WPS 识别为公式；此处统一前置单引号
+     * 作为文本前缀（纯数值的 {@code +/-} 数字不受影响，避免破坏负数与正数）。</p>
      *
      * @param value 原始值（可空）
      * @return 转义后的单元格文本
      */
     private static String escapeCsv(String value) {
-        String text = value == null ? "" : value;
+        String text = neutralizeFormula(value == null ? "" : value);
         boolean quoted = text.indexOf(CSV_SEPARATOR) >= 0 || text.indexOf('"') >= 0
                 || text.indexOf('\n') >= 0 || text.indexOf('\r') >= 0
                 || text.startsWith(" ") || text.endsWith(" ");
@@ -134,6 +138,40 @@ public final class FormDataExportSupport {
             return text;
         }
         return '"' + text.replace("\"", "\"\"") + '"';
+    }
+
+    /**
+     * 中和 CSV 公式注入：公式起始字符前置单引号，数值不受影响
+     *
+     * @param text 原始单元格文本
+     * @return 中和后的文本
+     */
+    private static String neutralizeFormula(String text) {
+        if (text.isEmpty()) {
+            return text;
+        }
+        char first = text.charAt(0);
+        boolean formulaStart = first == '=' || first == '@' || first == '\t' || first == '\r';
+        boolean numeric = (first == '+' || first == '-') && isNumeric(text);
+        if (formulaStart || ((first == '+' || first == '-') && !numeric)) {
+            return "'" + text;
+        }
+        return text;
+    }
+
+    /**
+     * 判断文本是否为可解析的十进制数值
+     *
+     * @param text 待判断文本
+     * @return 数值返回 {@code true}
+     */
+    private static boolean isNumeric(String text) {
+        try {
+            new BigDecimal(text.trim());
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     /**

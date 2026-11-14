@@ -50,6 +50,9 @@ public class FormTableRegistry extends BaseEntity {
     /** 发布时的表单结构定义快照（JSON 文本，读旧版本数据的列来源） */
     private String schemaJson;
 
-    /** 状态：1 生效 / 0 废弃 */
+    /** 状态：1 生效 / 0 废弃 / 3 发布失败 */
     private Integer status;
+
+    /** 最近一次发布失败原因（成功发布后清空） */
+    private String lastError;
 }

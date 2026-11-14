@@ -1,6 +1,8 @@
 package com.bluewhale.form.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.bluewhale.common.audit.annotation.AuditLog;
+import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.form.converter.FormConverter;
@@ -15,14 +17,16 @@ import com.bluewhale.form.mapper.FormTableRegistryMapper;
 import com.bluewhale.form.service.FormPublishService;
 import com.bluewhale.form.support.FormDataEngine;
 import com.bluewhale.form.support.FormDataType;
+import com.bluewhale.form.support.FormDdlAuditor;
 import com.bluewhale.form.support.FormField;
+import com.bluewhale.form.support.FormRegistryStatusMarker;
 import com.bluewhale.form.support.FormSchemaParser;
 import com.bluewhale.form.support.FormTableDdlGenerator;
 import com.bluewhale.form.vo.FormTableRegistryVO;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -40,11 +44,18 @@ import java.util.stream.Collectors;
  * @author BlueWhale
  */
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class FormPublishServiceImpl implements FormPublishService {
 
     /** 登记状态：生效 */
     private static final int STATUS_NORMAL = 1;
+
+    /** 定义类型：旧模型（表单 schema 直接建表） */
+    private static final String DEFINITION_TYPE_FORM = "FORM";
+
+    /** 定义类型：元数据模型（表定义 + 列元数据） */
+    private static final String DEFINITION_TYPE_TABLE = "TABLE";
 
     /** 版本号默认值 */
     private static final int DEFAULT_VERSION = 1;
@@ -62,8 +73,23 @@ public class FormPublishServiceImpl implements FormPublishService {
 
     private final FormDataEngine formDataEngine;
 
+    private final FormDdlAuditor formDdlAuditor;
+
+    private final FormRegistryStatusMarker formRegistryStatusMarker;
+
+    /**
+     * 发布表单物理表。
+     *
+     * <p>此处刻意<b>不加声明式事务</b>：MySQL 的 CREATE/ALTER 会隐式提交，事务注解无法保护
+     * 「DDL 已生效、登记写入失败」的场景。可靠性由 DDL 审计（独立事务逐条留痕）与
+     * 失败状态标记（独立事务写 registry）共同保证，异常不再依赖回滚。</p>
+     *
+     * @param definitionId 表单定义ID
+     * @return 物理表登记视图对象
+     */
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @AuditLog(module = "form", operation = "发布表单物理表", type = OperateType.UPDATE,
+            targetType = "form_definition", targetId = "#definitionId")
     public FormTableRegistryVO publish(Long definitionId) {
         FormDefinition definition = requireDefinition(definitionId);
         if (definition.getTableDefinitionId() == null) {
@@ -84,7 +110,8 @@ public class FormPublishServiceImpl implements FormPublishService {
         assertNotPublished(definition.getCode(), version);
         List<FormField> fields = FormSchemaParser.parse(definition.getSchemaJson());
         String table = FormTableDdlGenerator.tableName(definition.getCode(), version);
-        formDataEngine.executeDdl(FormTableDdlGenerator.generate(table, definition.getCode(), version, fields));
+        executeDdl(DEFINITION_TYPE_FORM, definition.getId(), table,
+                FormTableDdlGenerator.generate(table, definition.getCode(), version, fields));
         FormTableRegistry registry = new FormTableRegistry();
         registry.setDefinitionId(definition.getId());
         registry.setDefinitionCode(definition.getCode());
@@ -124,7 +151,8 @@ public class FormPublishServiceImpl implements FormPublishService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @AuditLog(module = "form", operation = "发布表定义物理表", type = OperateType.UPDATE,
+            targetType = "form_table_definition", targetId = "#tableDefinitionId")
     public FormTableRegistryVO publishTableDefinition(Long tableDefinitionId) {
         return ensurePublished(requireTableDefinition(tableDefinitionId));
     }
@@ -149,15 +177,21 @@ public class FormPublishServiceImpl implements FormPublishService {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "表定义无可发布的列，请先维护列元数据");
         }
         String table = FormTableDdlGenerator.tableName(definition.getTableCode(), version);
-        Map<String, String> existing = formDataEngine.describeColumns(table);
-        if (existing.isEmpty()) {
-            formDataEngine.executeDdl(
-                    FormTableDdlGenerator.generateFromColumns(table, definition.getTableCode(), version, columns));
-        } else {
-            applyAlter(table, columns, existing, listMetadataCodes(definition.getId(), version));
-            syncIndexes(table, columns);
-        }
         FormTableRegistry registry = findRegistry(definition.getTableCode(), version);
+        Map<String, String> existing = formDataEngine.describeColumns(table);
+        try {
+            if (existing.isEmpty()) {
+                executeDdl(DEFINITION_TYPE_TABLE, definition.getId(), table,
+                        FormTableDdlGenerator.generateFromColumns(table, definition.getTableCode(), version, columns));
+            } else {
+                applyAlter(definition.getId(), table, columns, existing,
+                        listMetadataCodes(definition.getId(), version));
+                syncIndexes(definition.getId(), table, columns);
+            }
+        } catch (RuntimeException e) {
+            markPublishedFailed(registry, e.getMessage());
+            throw e;
+        }
         if (registry == null) {
             registry = new FormTableRegistry();
             registry.setTableDefinitionId(definition.getId());
@@ -173,6 +207,8 @@ public class FormPublishServiceImpl implements FormPublishService {
             }
         } else {
             registry.setFieldCount(columns.size());
+            registry.setStatus(STATUS_NORMAL);
+            registry.setLastError(null);
             formTableRegistryMapper.updateById(registry);
         }
         return toVo(registry);
@@ -181,27 +217,28 @@ public class FormPublishServiceImpl implements FormPublishService {
     /**
      * 对比目标列元数据与物理表现有列，逐条执行增量 DDL
      *
+     * @param definitionId 表定义ID（审计用）
      * @param table 物理表名
      * @param columns 目标列元数据（已按排序号升序）
      * @param existing 物理表现有列（列名 → 归一化列类型）
      * @param metadataCodes 该表定义指定版本下**仍存在**的列编码集合（不限状态）：
      *                      仅「元数据已逻辑删除」的列才允许 DROP，「停用（status=0）」列保留物理列
      */
-    private void applyAlter(String table, List<FormColumnMeta> columns, Map<String, String> existing,
-                            Set<String> metadataCodes) {
+    private void applyAlter(Long definitionId, String table, List<FormColumnMeta> columns,
+                            Map<String, String> existing, Set<String> metadataCodes) {
         Set<String> target = new LinkedHashSet<>();
         for (FormColumnMeta column : columns) {
             String code = column.getColumnCode();
             target.add(code);
             String currentType = existing.get(code);
             if (currentType == null) {
-                formDataEngine.executeDdl(FormTableDdlGenerator.alterAdd(table, column));
+                executeDdl(DEFINITION_TYPE_TABLE, definitionId, table, FormTableDdlGenerator.alterAdd(table, column));
                 continue;
             }
             String wantedType = FormTableDdlGenerator.normalizeType(FormDataType.mysqlType(
                     column.getDataType(), column.getLength(), column.getPrecision(), column.getScale()));
             if (!wantedType.equals(currentType)) {
-                formDataEngine.executeDdl(FormTableDdlGenerator.alterModify(table, column));
+                executeDdl(DEFINITION_TYPE_TABLE, definitionId, table, FormTableDdlGenerator.alterModify(table, column));
             }
         }
         for (String code : existing.keySet()) {
@@ -209,7 +246,7 @@ public class FormPublishServiceImpl implements FormPublishService {
                     || metadataCodes.contains(code)) {
                 continue;
             }
-            formDataEngine.executeDdl(FormTableDdlGenerator.alterDrop(table, code));
+            executeDdl(DEFINITION_TYPE_TABLE, definitionId, table, FormTableDdlGenerator.alterDrop(table, code));
         }
     }
 
@@ -218,21 +255,94 @@ public class FormPublishServiceImpl implements FormPublishService {
      *
      * <p>仅管理 {@code idx_f_} 前缀的索引，公共索引与人工索引不动；新建表时索引已随 DDL 生成，无需再对齐。</p>
      *
+     * @param definitionId 表定义ID（审计用）
      * @param table 物理表名
      * @param columns 目标列元数据（已按排序号升序）
      */
-    private void syncIndexes(String table, List<FormColumnMeta> columns) {
+    private void syncIndexes(Long definitionId, String table, List<FormColumnMeta> columns) {
         Map<String, String> desired = FormTableDdlGenerator.autoIndexes(columns);
         Set<String> existing = formDataEngine.describeIndexes(table);
         for (Map.Entry<String, String> entry : desired.entrySet()) {
             if (!existing.contains(entry.getKey())) {
-                formDataEngine.executeDdl(FormTableDdlGenerator.alterAddIndex(table, entry.getValue()));
+                executeDdl(DEFINITION_TYPE_TABLE, definitionId, table,
+                        FormTableDdlGenerator.alterAddIndex(table, entry.getValue()));
             }
         }
         for (String name : existing) {
             if (name.startsWith(FormTableDdlGenerator.AUTO_INDEX_PREFIX) && !desired.containsKey(name)) {
-                formDataEngine.executeDdl(FormTableDdlGenerator.alterDropIndex(table, name));
+                executeDdl(DEFINITION_TYPE_TABLE, definitionId, table,
+                        FormTableDdlGenerator.alterDropIndex(table, name));
             }
+        }
+    }
+
+    /**
+     * 执行一条 DDL 并写入审计（成功/失败均留痕）
+     *
+     * @param definitionType 定义类型（FORM / TABLE）
+     * @param definitionId 定义ID
+     * @param physicalTable 物理表名
+     * @param ddl DDL 语句
+     * @throws RuntimeException DDL 执行失败时原样抛出
+     */
+    private void executeDdl(String definitionType, Long definitionId, String physicalTable, String ddl) {
+        try {
+            formDataEngine.executeDdl(ddl);
+        } catch (RuntimeException e) {
+            recordDdlFailure(definitionType, definitionId, physicalTable, ddl, e);
+            throw e;
+        }
+        recordDdlSuccess(definitionType, definitionId, physicalTable, ddl);
+    }
+
+    /**
+     * 记录 DDL 成功审计（审计失败不影响发布主流程）
+     *
+     * @param definitionType 定义类型
+     * @param definitionId 定义ID
+     * @param physicalTable 物理表名
+     * @param ddl DDL 语句
+     */
+    private void recordDdlSuccess(String definitionType, Long definitionId, String physicalTable, String ddl) {
+        try {
+            formDdlAuditor.recordSuccess(definitionType, definitionId, physicalTable, ddl);
+        } catch (RuntimeException e) {
+            log.warn("表单 DDL 审计写入失败：{}", e.getMessage());
+        }
+    }
+
+    /**
+     * 记录 DDL 失败审计（审计失败不影响异常抛出）
+     *
+     * @param definitionType 定义类型
+     * @param definitionId 定义ID
+     * @param physicalTable 物理表名
+     * @param ddl DDL 语句
+     * @param error 执行异常
+     */
+    private void recordDdlFailure(String definitionType, Long definitionId, String physicalTable, String ddl,
+                                  RuntimeException error) {
+        try {
+            formDdlAuditor.recordFailure(definitionType, definitionId, physicalTable, ddl, error.getMessage());
+        } catch (RuntimeException e) {
+            log.warn("表单 DDL 审计写入失败：{}", e.getMessage());
+        }
+    }
+
+    /**
+     * 发布失败时把已有登记标记为失败（独立事务，避免被回滚吞掉）
+     *
+     * @param registry 已有登记（新建登记尚未落库时为空）
+     * @param errorMessage 失败原因
+     */
+    private void markPublishedFailed(FormTableRegistry registry, String errorMessage) {
+        if (registry == null || registry.getId() == null) {
+            return;
+        }
+        try {
+            formRegistryStatusMarker.markFailed(registry.getId(), errorMessage);
+        } catch (RuntimeException e) {
+            log.warn("表单发布失败状态标记写入失败：{}", e.getMessage());
         }
     }
 
@@ -333,6 +443,7 @@ public class FormPublishServiceImpl implements FormPublishService {
         LambdaQueryWrapper<FormTableRegistry> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(FormTableRegistry::getDefinitionCode, code);
         wrapper.eq(FormTableRegistry::getDefinitionVersion, version);
+        wrapper.ne(FormTableRegistry::getStatus, FormRegistryStatusMarker.STATUS_FAILED);
         Long count = formTableRegistryMapper.selectCount(wrapper);
         if (count != null && count > 0) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "该表单版本已发布，如需变更请修改版本号后重新发布");

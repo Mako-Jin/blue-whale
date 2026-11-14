@@ -11,6 +11,8 @@ import com.bluewhale.form.mapper.FormDefinitionMapper;
 import com.bluewhale.form.mapper.FormTableDefinitionMapper;
 import com.bluewhale.form.mapper.FormTableRegistryMapper;
 import com.bluewhale.form.support.FormDataEngine;
+import com.bluewhale.form.support.FormDdlAuditor;
+import com.bluewhale.form.support.FormRegistryStatusMarker;
 import com.bluewhale.form.vo.FormTableRegistryVO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,6 +33,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -60,6 +64,12 @@ class FormPublishServiceImplTest {
 
     @Mock
     private FormDataEngine formDataEngine;
+
+    @Mock
+    private FormDdlAuditor formDdlAuditor;
+
+    @Mock
+    private FormRegistryStatusMarker formRegistryStatusMarker;
 
     @InjectMocks
     private FormPublishServiceImpl formPublishService;
@@ -163,6 +173,21 @@ class FormPublishServiceImplTest {
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         verify(formDataEngine, never()).executeDdl(anyString());
+    }
+
+    @Test
+    @DisplayName("publish：DDL 失败时写入失败审计并原样抛出，不登记 registry")
+    void shouldRecordDdlFailure() {
+        when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L, "fm_a"));
+        when(formTableRegistryMapper.selectCount(ArgumentMatchers.<Wrapper<FormTableRegistry>>any())).thenReturn(0L);
+        doThrow(new IllegalStateException("ddl boom")).when(formDataEngine).executeDdl(anyString());
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> formPublishService.publish(10L));
+
+        assertEquals("ddl boom", ex.getMessage());
+        verify(formDdlAuditor).recordFailure(eq("FORM"), eq(10L), anyString(), anyString(), eq("ddl boom"));
+        verify(formTableRegistryMapper, never()).insert(any(FormTableRegistry.class));
     }
 
     @Test
