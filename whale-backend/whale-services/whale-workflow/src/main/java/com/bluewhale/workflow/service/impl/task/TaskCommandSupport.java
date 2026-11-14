@@ -1,6 +1,7 @@
 package com.bluewhale.workflow.service.impl.task;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.workflow.entity.ProcessInstance;
@@ -55,6 +56,24 @@ public class TaskCommandSupport {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "实例非运行中");
         }
         return instance;
+    }
+
+    /**
+     * 以「仍为待办」为条件推进任务状态（CAS）：并发请求下仅有一个调用方成功。
+     *
+     * @param task 待推进的任务（需已校验为待办）
+     * @param targetStatus 目标状态
+     * @param comment 审批意见，可为 {@code null}
+     * @return 推进成功返回 {@code true}；状态已被并发修改返回 {@code false}
+     */
+    public boolean transitionFromPending(ProcessTask task, int targetStatus, String comment) {
+        ProcessTask update = new ProcessTask();
+        update.setStatus(targetStatus);
+        update.setComment(comment);
+        LambdaUpdateWrapper<ProcessTask> wrapper = new LambdaUpdateWrapper<ProcessTask>()
+                .eq(ProcessTask::getId, task.getId())
+                .eq(ProcessTask::getStatus, TaskConstants.TASK_PENDING);
+        return processTaskMapper.update(update, wrapper) > 0;
     }
 
     /**

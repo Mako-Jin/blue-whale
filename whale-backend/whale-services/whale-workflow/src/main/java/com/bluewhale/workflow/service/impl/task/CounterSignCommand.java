@@ -49,7 +49,8 @@ public class CounterSignCommand {
         wrapper.eq(ProcessTask::getInstanceId, instanceId);
         wrapper.eq(ProcessTask::getNodeKey, nodeKey);
         List<ProcessTask> tasks = processTaskMapper.selectList(wrapper);
-        long total = tasks.size();
+        // 仅统计有效任务：已取消任务（加签取消/上一轮 RATIO 收敛）不参与分母，避免阈值被永久放大
+        long total = tasks.stream().filter(CounterSignCommand::isEffective).count();
         long approved = tasks.stream().filter(item -> isStatus(item, TaskConstants.TASK_APPROVED)).count();
         long pending = tasks.stream().filter(item -> isStatus(item, TaskConstants.TASK_PENDING)).count();
         String policy = policyOf(node);
@@ -94,6 +95,18 @@ public class CounterSignCommand {
         } catch (NumberFormatException e) {
             return TaskConstants.PERCENT_BASE;
         }
+    }
+
+    /**
+     * 判断任务是否为参与会签统计的有效任务（排除已取消）。
+     *
+     * @param task 任务
+     * @return 已同意 / 待办 / 已驳回返回 {@code true}
+     */
+    private static boolean isEffective(ProcessTask task) {
+        return isStatus(task, TaskConstants.TASK_APPROVED)
+                || isStatus(task, TaskConstants.TASK_PENDING)
+                || isStatus(task, TaskConstants.TASK_REJECTED);
     }
 
     /**

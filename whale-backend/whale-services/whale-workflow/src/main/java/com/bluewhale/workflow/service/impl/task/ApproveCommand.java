@@ -1,10 +1,11 @@
 package com.bluewhale.workflow.service.impl.task;
 
+import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.workflow.dto.ApprovalRequest;
 import com.bluewhale.workflow.entity.ProcessInstance;
 import com.bluewhale.workflow.entity.ProcessTask;
 import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
-import com.bluewhale.workflow.mapper.ProcessTaskMapper;
 import com.bluewhale.workflow.support.ProcessModel;
 import com.bluewhale.workflow.support.ProcessModelNode;
 import com.bluewhale.workflow.support.ProcessModelParser;
@@ -26,8 +27,6 @@ import java.util.Map;
 @Component
 @RequiredArgsConstructor
 public class ApproveCommand {
-
-    private final ProcessTaskMapper processTaskMapper;
 
     private final ProcessInstanceMapper processInstanceMapper;
 
@@ -53,7 +52,10 @@ public class ApproveCommand {
         ProcessInstance instance = taskCommandSupport.requireRunningInstance(task.getInstanceId());
         task.setStatus(TaskConstants.TASK_APPROVED);
         task.setComment(comment);
-        processTaskMapper.updateById(task);
+        if (!taskCommandSupport.transitionFromPending(task, TaskConstants.TASK_APPROVED, comment)) {
+            // 并发场景下状态已被其它请求推进，避免重复推进状态机
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "任务已处理");
+        }
         ProcessModel model = ProcessModelParser.parse(instanceModelLoader.resolveInstanceJson(instance));
         Map<String, Object> merged = ProcessVariables.merge(instance.getVariablesJson(), variables);
         if (variables != null && !variables.isEmpty()) {

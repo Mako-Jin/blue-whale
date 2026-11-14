@@ -124,23 +124,56 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
         validateDefinitionSize(request.getDefinitionJson());
         int previousVersion = entity.getVersion() == null ? DEFAULT_VERSION : entity.getVersion();
         boolean jsonChanged = !Objects.equals(entity.getDefinitionJson(), request.getDefinitionJson());
+        int targetVersion = resolveUpdateVersion(request.getVersion(), previousVersion, jsonChanged);
+        if (jsonChanged) {
+            rejectPublishedTargetVersion(entity.getId(), targetVersion);
+        }
         entity.setName(request.getName());
         entity.setDefinitionJson(request.getDefinitionJson());
-        if (request.getVersion() != null) {
-            entity.setVersion(request.getVersion());
-        } else if (jsonChanged) {
-            entity.setVersion(previousVersion + 1);
-        }
+        entity.setVersion(targetVersion);
         if (request.getStatus() != null) {
             entity.setStatus(request.getStatus());
         }
         entity.setRemark(request.getRemark());
         processDefinitionMapper.updateById(entity);
         if (jsonChanged) {
-            int publishStatus = entity.getVersion() == previousVersion ? PUBLISH_PUBLISHED : PUBLISH_DRAFT;
-            saveSnapshot(entity.getId(), entity.getVersion(), entity.getDefinitionJson(), publishStatus);
+            // 内容变更只写草稿快照；发布态仅由 publish() 显式切换，避免绕过发布流程产生多个已发布版本
+            saveSnapshot(entity.getId(), entity.getVersion(), entity.getDefinitionJson(), PUBLISH_DRAFT);
         }
         return toVo(entity);
+    }
+
+    /**
+     * 解析更新后的目标版本号：内容变更时版本号必须前进，避免覆盖当前已发布版本。
+     *
+     * @param requestVersion 请求显式指定的版本号，可为 {@code null}
+     * @param previousVersion 更新前的版本号
+     * @param jsonChanged 流程定义内容是否变更
+     * @return 目标版本号
+     */
+    private static int resolveUpdateVersion(Integer requestVersion, int previousVersion, boolean jsonChanged) {
+        int targetVersion = requestVersion == null
+                ? (jsonChanged ? previousVersion + 1 : previousVersion)
+                : requestVersion;
+        if (jsonChanged && targetVersion == previousVersion) {
+            targetVersion = previousVersion + 1;
+        }
+        return targetVersion;
+    }
+
+    /**
+     * 拒绝把内容变更写入已发布快照：已发布内容只能通过 publish() 切换。
+     *
+     * @param definitionId 流程定义ID
+     * @param targetVersion 目标版本号
+     * @throws BizException 目标版本已发布时抛出 {@code PARAM_ERROR}
+     */
+    private void rejectPublishedTargetVersion(Long definitionId, int targetVersion) {
+        ProcessDefinitionVersion target = findSnapshot(definitionId, targetVersion);
+        if (target != null && target.getPublishStatus() != null
+                && target.getPublishStatus() == PUBLISH_PUBLISHED) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "目标版本已发布，内容变更请使用新版本号");
+        }
     }
 
     @Override

@@ -149,6 +149,29 @@ class ProcessDefinitionServiceImplTest {
     }
 
     @Test
+    @DisplayName("update：内容变更但版本号未前进时自动递增并只写草稿快照")
+    void shouldBumpVersionAndWriteDraftWhenJsonChangedWithSameVersion() {
+        ProcessDefinition entity = new ProcessDefinition();
+        entity.setId(1L);
+        entity.setCode("wf-a");
+        entity.setVersion(3);
+        entity.setDefinitionJson("{\"nodes\":[{\"key\":\"a\"}]}");
+        when(processDefinitionMapper.selectById(1L)).thenReturn(entity);
+        ProcessDefinitionSaveRequest request = saveRequest("wf-a", "A流程");
+        request.setDefinitionJson("{\"nodes\":[{\"key\":\"b\"}]}");
+        request.setVersion(3);
+
+        processDefinitionService.update(1L, request);
+
+        assertEquals(4, entity.getVersion().intValue());
+        ArgumentCaptor<ProcessDefinitionVersion> captor = ArgumentCaptor.forClass(ProcessDefinitionVersion.class);
+        verify(processDefinitionVersionMapper).insert(captor.capture());
+        assertEquals(4, captor.getValue().getVersion().intValue());
+        // 快照发布状态必须为草稿（0），发布态只能由 publish() 显式切换
+        assertEquals(0, captor.getValue().getPublishStatus().intValue());
+    }
+
+    @Test
     @DisplayName("update：ID 不存在抛 NOT_FOUND 且不更新")
     void shouldThrowWhenUpdateMissing() {
         when(processDefinitionMapper.selectById(99L)).thenReturn(null);

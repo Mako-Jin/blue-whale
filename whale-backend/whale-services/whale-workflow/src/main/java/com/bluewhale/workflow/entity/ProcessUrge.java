@@ -31,4 +31,7 @@ public class ProcessUrge extends BaseEntity {
 
     /** 催办说明 */
     private String comment;
+
+    /** 频控时间窗（创建时间截断到小时，形如 {@code yyyyMMddHH}），用于唯一键防并发绕过 */
+    private String windowBucket;
 }

@@ -38,6 +38,7 @@ import org.springframework.util.StringUtils;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -198,8 +199,11 @@ public class ProcessModelServiceImpl implements ProcessModelService {
         /** 路径收集器 */
         private final List<SimulateStepVO> steps;
 
-        /** 已访问节点（防重入） */
-        private final Set<String> visited = new HashSet<>();
+        /** 节点推进结果缓存：并行分支汇合到同一节点时复用首次模拟结果，避免被误判为跳过 */
+        private final Map<String, SimulationOutcome> nodeOutcomes = new HashMap<>();
+
+        /** 当前递归路径上的节点（用于环检测） */
+        private final Set<String> visiting = new HashSet<>();
 
         /** 最近一次访问的节点键 */
         private String currentKey;
@@ -235,18 +239,38 @@ public class ProcessModelServiceImpl implements ProcessModelService {
          * @return 推进结果
          */
         private SimulationOutcome walk(String nodeKey, ProcessModelFlow incoming) {
+            SimulationOutcome cached = nodeOutcomes.get(nodeKey);
+            if (cached != null) {
+                return cached;
+            }
             ProcessModelNode node = model.node(nodeKey);
             if (node == null) {
                 return SimulationOutcome.stopped(currentKey);
             }
-            if (!visited.add(nodeKey)) {
+            if (!visiting.add(nodeKey)) {
                 return SimulationOutcome.skippedResult();
             }
+            SimulationOutcome outcome;
             if (steps.size() >= MAX_SIMULATE_STEPS) {
-                return SimulationOutcome.stopped(nodeKey);
+                outcome = SimulationOutcome.stopped(nodeKey);
+            } else {
+                currentKey = nodeKey;
+                steps.add(toStep(steps.size() + 1, node, incoming));
+                outcome = advance(node);
             }
-            currentKey = nodeKey;
-            steps.add(toStep(steps.size() + 1, node, incoming));
+            visiting.remove(nodeKey);
+            nodeOutcomes.put(nodeKey, outcome);
+            return outcome;
+        }
+
+        /**
+         * 从当前节点继续推进（结束事件 / 无出流 / 并行网关 / 按守卫选路）。
+         *
+         * @param node 当前节点
+         * @return 推进结果
+         */
+        private SimulationOutcome advance(ProcessModelNode node) {
+            String nodeKey = node.getKey();
             if (node.getType() == ProcessNodeType.END_EVENT) {
                 return SimulationOutcome.reachedEnd(nodeKey);
             }

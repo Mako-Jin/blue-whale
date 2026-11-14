@@ -3,6 +3,7 @@ package com.bluewhale.workflow.service.impl;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.workflow.dto.ProcessInstanceQueryRequest;
 import com.bluewhale.workflow.dto.ProcessInstanceStartRequest;
@@ -206,18 +207,35 @@ class ProcessInstanceServiceImplTest {
     }
 
     @Test
-    @DisplayName("cancel：运行中实例撤销并取消其余待办")
+    @DisplayName("cancel：发起人撤销运行中实例并取消其余待办")
     void shouldCancelWhenRunning() {
         ProcessInstance instance = new ProcessInstance();
         instance.setId(5L);
         instance.setStatus(0);
+        instance.setInitiator("alice");
         when(processInstanceMapper.selectById(5L)).thenReturn(instance);
 
-        processInstanceService.cancel(5L);
+        processInstanceService.cancel(5L, "alice");
 
         verify(processInstanceMapper).updateById(instance);
         assertEquals(3, instance.getStatus().intValue());
         verify(taskCommandSupport).cancelPendingTasks(5L);
+    }
+
+    @Test
+    @DisplayName("cancel：非发起人撤销被拒绝")
+    void shouldRejectCancelByNonInitiator() {
+        ProcessInstance instance = new ProcessInstance();
+        instance.setId(5L);
+        instance.setStatus(0);
+        instance.setInitiator("alice");
+        when(processInstanceMapper.selectById(5L)).thenReturn(instance);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> processInstanceService.cancel(5L, "bob"));
+
+        assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
+        verify(processInstanceMapper, never()).updateById(any(ProcessInstance.class));
     }
 
     @Test
@@ -228,7 +246,7 @@ class ProcessInstanceServiceImplTest {
         instance.setStatus(1);
         when(processInstanceMapper.selectById(5L)).thenReturn(instance);
 
-        BizException ex = assertThrows(BizException.class, () -> processInstanceService.cancel(5L));
+        BizException ex = assertThrows(BizException.class, () -> processInstanceService.cancel(5L, "alice"));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertEquals("实例非运行中", ex.getMessage());

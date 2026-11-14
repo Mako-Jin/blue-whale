@@ -122,9 +122,9 @@ class ProcessTaskServiceImplTest {
         CounterSignCommand counterSignCommand = new CounterSignCommand(processTaskMapper);
         TaskActivationCommand activationCommand = new TaskActivationCommand(
                 processTaskMapper, processDelegateService, processCcService);
-        ApproveCommand approveCommand = new ApproveCommand(processTaskMapper, processInstanceMapper, support,
+        ApproveCommand approveCommand = new ApproveCommand(processInstanceMapper, support,
                 loader, counterSignCommand, activationCommand);
-        RejectCommand rejectCommand = new RejectCommand(processTaskMapper, processInstanceMapper, support);
+        RejectCommand rejectCommand = new RejectCommand(processInstanceMapper, support);
         processTaskService = new ProcessTaskServiceImpl(
                 new TaskQueryCommand(processTaskMapper),
                 approveCommand,
@@ -210,6 +210,8 @@ class ProcessTaskServiceImplTest {
         when(processTaskMapper.selectById(100L)).thenReturn(task);
         when(processInstanceMapper.selectById(5L)).thenReturn(instance);
         when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, TWO_NODE_JSON));
+        when(processTaskMapper.update(any(ProcessTask.class), ArgumentMatchers.<Wrapper<ProcessTask>>any()))
+                .thenReturn(1);
 
         ApprovalRequest approval = new ApprovalRequest();
         approval.setComment("同意");
@@ -217,7 +219,7 @@ class ProcessTaskServiceImplTest {
 
         assertEquals(1, task.getStatus().intValue());
         assertEquals("同意", task.getComment());
-        verify(processTaskMapper).updateById(task);
+        verify(processTaskMapper).update(any(ProcessTask.class), ArgumentMatchers.<Wrapper<ProcessTask>>any());
         assertEquals(1, instance.getCurrentIndex().intValue());
         assertEquals(0, instance.getStatus().intValue());
         verify(processInstanceMapper).updateById(instance);
@@ -243,6 +245,8 @@ class ProcessTaskServiceImplTest {
         snapshot.setDefinitionJson(NORMALIZED_JSON);
         when(processDefinitionVersionMapper.selectList(ArgumentMatchers.<Wrapper<ProcessDefinitionVersion>>any()))
                 .thenReturn(List.of(snapshot));
+        when(processTaskMapper.update(any(ProcessTask.class), ArgumentMatchers.<Wrapper<ProcessTask>>any()))
+                .thenReturn(1);
 
         processTaskService.approve(100L, null);
 
@@ -261,6 +265,8 @@ class ProcessTaskServiceImplTest {
         when(processTaskMapper.selectById(100L)).thenReturn(task);
         when(processInstanceMapper.selectById(5L)).thenReturn(instance);
         when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, ONE_NODE_JSON));
+        when(processTaskMapper.update(any(ProcessTask.class), ArgumentMatchers.<Wrapper<ProcessTask>>any()))
+                .thenReturn(1);
 
         processTaskService.approve(100L, null);
 
@@ -305,15 +311,17 @@ class ProcessTaskServiceImplTest {
         ProcessInstance instance = instance(5L, 10L, 0, 0);
         when(processTaskMapper.selectById(100L)).thenReturn(task);
         when(processInstanceMapper.selectById(5L)).thenReturn(instance);
+        when(processTaskMapper.update(any(ProcessTask.class), ArgumentMatchers.<Wrapper<ProcessTask>>any()))
+                .thenReturn(1);
 
         processTaskService.reject(100L, "不同意");
 
         assertEquals(2, task.getStatus().intValue());
         assertEquals("不同意", task.getComment());
-        verify(processTaskMapper).updateById(task);
         assertEquals(2, instance.getStatus().intValue());
         verify(processInstanceMapper).updateById(instance);
-        verify(processTaskMapper).update(any(ProcessTask.class), ArgumentMatchers.<Wrapper<ProcessTask>>any());
+        verify(processTaskMapper, times(2))
+                .update(any(ProcessTask.class), ArgumentMatchers.<Wrapper<ProcessTask>>any());
     }
 
     @Test
@@ -345,6 +353,8 @@ class ProcessTaskServiceImplTest {
         when(processTaskMapper.selectById(100L)).thenReturn(task);
         when(processInstanceMapper.selectById(5L)).thenReturn(instance);
         when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, NORMALIZED_JSON));
+        when(processTaskMapper.update(any(ProcessTask.class), ArgumentMatchers.<Wrapper<ProcessTask>>any()))
+                .thenReturn(1);
 
         processTaskService.approve(100L, null);
 
@@ -364,6 +374,8 @@ class ProcessTaskServiceImplTest {
         when(processTaskMapper.selectById(100L)).thenReturn(task);
         when(processInstanceMapper.selectById(5L)).thenReturn(instance);
         when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, NORMALIZED_JSON));
+        when(processTaskMapper.update(any(ProcessTask.class), ArgumentMatchers.<Wrapper<ProcessTask>>any()))
+                .thenReturn(1);
 
         processTaskService.approve(100L, null);
 
@@ -381,6 +393,8 @@ class ProcessTaskServiceImplTest {
         when(processTaskMapper.selectById(100L)).thenReturn(task);
         when(processInstanceMapper.selectById(5L)).thenReturn(instance);
         when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, NORMALIZED_JSON));
+        when(processTaskMapper.update(any(ProcessTask.class), ArgumentMatchers.<Wrapper<ProcessTask>>any()))
+                .thenReturn(1);
 
         processTaskService.approve(100L, null);
 
@@ -397,6 +411,8 @@ class ProcessTaskServiceImplTest {
         when(processTaskMapper.selectById(100L)).thenReturn(task);
         when(processInstanceMapper.selectById(5L)).thenReturn(instance);
         when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, FORM_JSON));
+        when(processTaskMapper.update(any(ProcessTask.class), ArgumentMatchers.<Wrapper<ProcessTask>>any()))
+                .thenReturn(1);
 
         processTaskService.approve(100L, null);
 
@@ -415,6 +431,8 @@ class ProcessTaskServiceImplTest {
         when(processTaskMapper.selectById(100L)).thenReturn(task);
         when(processInstanceMapper.selectById(5L)).thenReturn(instance);
         when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, LEGACY_NO_KEY_JSON));
+        when(processTaskMapper.update(any(ProcessTask.class), ArgumentMatchers.<Wrapper<ProcessTask>>any()))
+                .thenReturn(1);
 
         processTaskService.approve(100L, null);
 
@@ -498,6 +516,8 @@ class ProcessTaskServiceImplTest {
         when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, NORMALIZED_JSON));
         when(processTaskMapper.selectCount(ArgumentMatchers.<Wrapper<ProcessTask>>any()))
                 .thenReturn(1L);
+        when(processTaskMapper.update(any(ProcessTask.class), ArgumentMatchers.<Wrapper<ProcessTask>>any()))
+                .thenReturn(1);
 
         processTaskService.approve(100L, null);
 

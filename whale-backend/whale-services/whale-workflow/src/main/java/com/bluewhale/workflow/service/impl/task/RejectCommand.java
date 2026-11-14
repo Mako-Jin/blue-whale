@@ -1,9 +1,10 @@
 package com.bluewhale.workflow.service.impl.task;
 
+import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.workflow.entity.ProcessInstance;
 import com.bluewhale.workflow.entity.ProcessTask;
 import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
-import com.bluewhale.workflow.mapper.ProcessTaskMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,8 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 @RequiredArgsConstructor
 public class RejectCommand {
-
-    private final ProcessTaskMapper processTaskMapper;
 
     private final ProcessInstanceMapper processInstanceMapper;
 
@@ -35,7 +34,9 @@ public class RejectCommand {
         ProcessInstance instance = taskCommandSupport.requireRunningInstance(task.getInstanceId());
         task.setStatus(TaskConstants.TASK_REJECTED);
         task.setComment(comment);
-        processTaskMapper.updateById(task);
+        if (!taskCommandSupport.transitionFromPending(task, TaskConstants.TASK_REJECTED, comment)) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "任务已处理");
+        }
         instance.setStatus(TaskConstants.INSTANCE_REJECTED);
         instance.setActiveNodeKeys(null);
         processInstanceMapper.updateById(instance);

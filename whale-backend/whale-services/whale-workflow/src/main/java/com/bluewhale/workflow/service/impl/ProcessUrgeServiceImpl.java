@@ -16,9 +16,11 @@ import com.bluewhale.workflow.mapper.ProcessUrgeMapper;
 import com.bluewhale.workflow.service.ProcessUrgeService;
 import com.bluewhale.workflow.vo.ProcessUrgeVO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
@@ -32,6 +34,10 @@ public class ProcessUrgeServiceImpl implements ProcessUrgeService {
 
     /** 频控窗口（小时） */
     private static final long FREQUENCY_WINDOW_HOURS = 1L;
+
+    /** 频控时间窗格式（创建时间截断到小时） */
+    private static final DateTimeFormatter WINDOW_BUCKET_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyyMMddHH");
 
     /** 单页最大条数 */
     private static final int MAX_PAGE_SIZE = 200;
@@ -75,7 +81,13 @@ public class ProcessUrgeServiceImpl implements ProcessUrgeService {
         entity.setUrger(urger);
         entity.setTargetAccount(blankToNull(request.getTargetAccount()));
         entity.setComment(blankToNull(request.getComment()));
-        processUrgeMapper.insert(entity);
+        entity.setWindowBucket(now.format(WINDOW_BUCKET_FORMATTER));
+        try {
+            processUrgeMapper.insert(entity);
+        } catch (DuplicateKeyException e) {
+            // 唯一键 (tenant_id, instance_id, urger, window_bucket) 兜底并发绕过
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "催办过于频繁，1 小时内仅允许一次");
+        }
     }
 
     @Override

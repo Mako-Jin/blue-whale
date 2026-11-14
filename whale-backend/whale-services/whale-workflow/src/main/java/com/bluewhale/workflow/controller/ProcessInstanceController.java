@@ -73,15 +73,16 @@ public class ProcessInstanceController {
     }
 
     /**
-     * 撤销流程实例。
+     * 撤销流程实例（仅发起人本人可撤销）。
      *
      * @param id 流程实例ID
+     * @param httpRequest 当前请求（用于读取网关 {@code X-Username} 校验发起人）
      * @return 空结果
      */
     @PostMapping("/{id}/cancel")
     @RequirePermission("sys:workflow:instance:cancel")
-    public Result<Void> cancel(@PathVariable Long id) {
-        processInstanceService.cancel(id);
+    public Result<Void> cancel(@PathVariable Long id, HttpServletRequest httpRequest) {
+        processInstanceService.cancel(id, WebHeaders.username(httpRequest));
         return Result.ok();
     }
 }

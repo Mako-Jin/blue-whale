@@ -82,7 +82,7 @@ public class WorkflowInternalController {
      */
     @PostMapping("/{id}/cancel")
     public Result<Void> cancel(@PathVariable Long id) {
-        processInstanceService.cancel(id);
+        processInstanceService.cancelInternal(id);
         return Result.ok();
     }
 

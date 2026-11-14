@@ -161,15 +161,48 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void cancel(Long id) {
+    public void cancel(Long id, String operator) {
+        ProcessInstance instance = requireRunningInstance(id);
+        String who = operator == null ? "" : operator.trim();
+        if (who.isEmpty()) {
+            throw new BizException(ErrorCode.UNAUTHORIZED);
+        }
+        if (!who.equals(instance.getInitiator())) {
+            throw new BizException(ErrorCode.FORBIDDEN.getCode(), "仅发起人可撤销该流程实例");
+        }
+        doCancel(instance);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void cancelInternal(Long id) {
+        doCancel(requireRunningInstance(id));
+    }
+
+    /**
+     * 执行撤销：实例置为已撤销并取消全部待办。
+     *
+     * @param instance 运行中的流程实例
+     */
+    private void doCancel(ProcessInstance instance) {
+        instance.setStatus(INSTANCE_CANCELED);
+        instance.setActiveNodeKeys(null);
+        processInstanceMapper.updateById(instance);
+        taskCommandSupport.cancelPendingTasks(instance.getId());
+    }
+
+    /**
+     * 查询运行中的流程实例：不存在抛 {@code NOT_FOUND}，非运行中抛参数错误。
+     *
+     * @param id 流程实例ID
+     * @return 运行中的流程实例
+     */
+    private ProcessInstance requireRunningInstance(Long id) {
         ProcessInstance instance = requireInstance(id);
         if (instance.getStatus() == null || instance.getStatus() != INSTANCE_RUNNING) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "实例非运行中");
         }
-        instance.setStatus(INSTANCE_CANCELED);
-        instance.setActiveNodeKeys(null);
-        processInstanceMapper.updateById(instance);
-        taskCommandSupport.cancelPendingTasks(id);
+        return instance;
     }
 
     /**

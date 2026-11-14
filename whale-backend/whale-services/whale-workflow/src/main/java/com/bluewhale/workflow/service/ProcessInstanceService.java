@@ -58,9 +58,17 @@ public interface ProcessInstanceService {
     PageResult<ProcessInstanceVO> page(ProcessInstanceQueryRequest request);
 
     /**
-     * 撤销流程实例：仅运行中可撤销，其待办全部置「已取消」
+     * 撤销流程实例：仅运行中可撤销，且仅发起人本人可撤销，其待办全部置「已取消」
+     *
+     * @param id 流程实例ID
+     * @param operator 当前操作人账号
+     */
+    void cancel(Long id, String operator);
+
+    /**
+     * 内网撤销流程实例（服务间调用，不做发起人校验，由内网令牌保护）
      *
      * @param id 流程实例ID
      */
-    void cancel(Long id);
+    void cancelInternal(Long id);
 }
