@@ -1,6 +1,6 @@
 {
   "note": "覆盖率基线：只升不降。校验脚本 scripts/ci/check-coverage.py；目标阈值见 docs/design/cicd.md §3.3（行 40% / 分支 30%）",
-  "generated_at": "2026-11-13T15:53:08Z",
+  "generated_at": "2026-11-14T02:45:43Z",
   "target": {
     "line": 0.4,
     "branch": 0.3
@@ -17,7 +17,7 @@
     },
     "whale-apps/whale-crm": {
       "line": 0.3663,
-      "branch": 0.3336
+      "branch": 0.3341
     },
     "whale-apps/whale-erp": {
       "line": 0.4929,
@@ -68,12 +68,12 @@
       "branch": 0.7063
     },
     "whale-common/whale-spring-boot-starter": {
-      "line": 0.5716,
-      "branch": 0.5453
+      "line": 0.6227,
+      "branch": 0.5791
     },
     "whale-common/whale-tools": {
-      "line": 0.4898,
-      "branch": 0.3333
+      "line": 1.0,
+      "branch": 1.0
     },
     "whale-ops/whale-alert": {
       "line": 0.7912,
@@ -117,7 +117,7 @@
     },
     "whale-services/whale-form": {
       "line": 0.7462,
-      "branch": 0.5808
+      "branch": 0.5832
     },
     "whale-services/whale-forum": {
       "line": 0.5851,
@@ -165,7 +165,7 @@
     },
     "whale-services/whale-service-file/whale-service-file-application": {
       "line": 0.9132,
-      "branch": 0.7632
+      "branch": 0.7672
     },
     "whale-services/whale-service-file/whale-service-file-domain": {
       "line": 0.6713,

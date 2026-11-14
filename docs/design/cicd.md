@@ -111,6 +111,11 @@
   （行 40% / 分支 30%），并对**每个模块**做基线棘轮（`scripts/ci/coverage-baseline.json`，
   只升不降，回落超过 0.5 个百分点即失败）；核心模块未达 60% 时在日志中提示目标值。
 
+核心模块达标记录（2026-11-14）：`whale-common` 与 `whale-i18n-sdk` 全部 ≥ 60%——
+starter 62.27%（补 `DataSourcePasswordGuard` / `TenantContextFilter` / `LocalLogSink` /
+`OutboundLogRestTemplateCustomizer` / `RestApiElapsedAspect` / `MybatisPlusConfig` 六个类的单测，
+原 57.16%）、`whale-tools` 100%（补 `AssertX` / `IdUtils` / `StatusEnum`，原 48.98%）。
+
 `-Pcoverage-gate` 保留为**本地单模块自检**用（`-pl :whale-common-core -Pcoverage-gate verify`），
 CI 不再使用。
 
