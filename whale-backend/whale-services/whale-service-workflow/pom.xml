@@ -11,7 +11,7 @@
         <relativePath>../../whale-parent/pom.xml</relativePath>
     </parent>
 
-    <artifactId>whale-workflow</artifactId>
+    <artifactId>whale-service-workflow</artifactId>
     <name>Whale Workflow</name>
     <description>工作流管理服务</description>
 
