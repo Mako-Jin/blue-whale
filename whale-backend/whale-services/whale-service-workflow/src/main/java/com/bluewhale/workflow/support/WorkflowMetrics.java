@@ -29,6 +29,9 @@ public class WorkflowMetrics {
     /** 任务动作：驳回 */
     public static final String TASK_REJECT = "REJECT";
 
+    /** 任务动作：驳回并退回（实例保持运行中） */
+    public static final String TASK_RETURN = "RETURN";
+
     /** 任务动作：转办 */
     public static final String TASK_TRANSFER = "TRANSFER";
 

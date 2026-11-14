@@ -6,10 +6,12 @@ import com.bluewhale.common.core.result.Result;
 import com.bluewhale.workflow.request.ApprovalRequest;
 import com.bluewhale.workflow.request.ProcessTaskQueryRequest;
 import com.bluewhale.workflow.request.TaskAddSignRequest;
+import com.bluewhale.workflow.request.TaskRejectRequest;
 import com.bluewhale.workflow.request.TaskRollbackRequest;
 import com.bluewhale.workflow.request.TaskTransferRequest;
 import com.bluewhale.workflow.service.ProcessTaskService;
 import com.bluewhale.workflow.vo.ProcessTaskVO;
+import com.bluewhale.workflow.vo.TaskRejectOptionsVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -63,17 +65,29 @@ public class ProcessTaskController {
     }
 
     /**
-     * 驳回任务（实例驳回并取消其余待办）。
+     * 驳回任务（退回语义）：按目标退回发起人或上游审批节点，实例保持运行中。
      *
      * @param id 任务ID
-     * @param request 审批意见请求，可为空
+     * @param request 驳回目标与意见
      * @return 空结果
      */
     @PostMapping("/{id}/reject")
     @RequirePermission("sys:workflow:task:approve")
-    public Result<Void> reject(@PathVariable Long id, @RequestBody(required = false) ApprovalRequest request) {
-        processTaskService.reject(id, request == null ? null : request.getComment());
+    public Result<Void> reject(@PathVariable Long id, @Valid @RequestBody TaskRejectRequest request) {
+        processTaskService.returnTask(id, request);
         return Result.ok();
+    }
+
+    /**
+     * 查询当前任务可用的驳回（退回）选项。
+     *
+     * @param id 任务ID
+     * @return 驳回选项
+     */
+    @GetMapping("/{id}/reject-options")
+    @RequirePermission("sys:workflow:task:approve")
+    public Result<TaskRejectOptionsVO> rejectOptions(@PathVariable Long id) {
+        return Result.ok(processTaskService.rejectOptions(id));
     }
 
     /**

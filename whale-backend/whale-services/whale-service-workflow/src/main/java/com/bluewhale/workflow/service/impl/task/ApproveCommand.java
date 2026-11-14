@@ -64,6 +64,12 @@ public class ApproveCommand {
         if (variablesChanged) {
             instance.setVariablesJson(ProcessVariables.write(merged));
         }
+        if (WorkflowConstants.RESUBMIT_NODE_KEY.equals(task.getNodeKey())) {
+            // 发起人重新提交：不审批入口节点，直接从入口推进到首个审批节点
+            TransitionResult result = new StateMachine(model, merged).advance(model.entryKey());
+            applyResult(instance, model, result);
+            return;
+        }
         String nodeKey = resolveCurrentKey(task, model, instance);
         ProcessModelNode node = model.node(nodeKey);
         if (counterSignCommand.awaitSameNode(instance.getId(), nodeKey, node)) {

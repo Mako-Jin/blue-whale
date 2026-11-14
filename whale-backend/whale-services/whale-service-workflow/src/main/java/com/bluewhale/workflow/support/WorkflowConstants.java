@@ -88,6 +88,12 @@ public final class WorkflowConstants {
     /** 审批人账号最大长度 */
     public static final int MAX_ASSIGNEE_LENGTH = 64;
 
+    /** 发起人重新提交的虚拟节点键（不属于流程定义，仅用于待办展示与同意后从入口继续推进） */
+    public static final String RESUBMIT_NODE_KEY = "__resubmit__";
+
+    /** 发起人重新提交的待办名称 */
+    public static final String RESUBMIT_NODE_NAME = "重新提交";
+
     /** 常量类不允许实例化 */
     private WorkflowConstants() {
     }

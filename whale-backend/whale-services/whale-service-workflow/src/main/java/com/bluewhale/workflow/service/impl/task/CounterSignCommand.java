@@ -38,6 +38,52 @@ public class CounterSignCommand {
     }
 
     /**
+     * 会签节点驳回后是否需要退回（按策略判定）。
+     *
+     * <p>调用时驳回任务已置为「已驳回」，因此 {@code pending} 不含本次驳回人：</p>
+     * <ul>
+     *   <li>{@code ALL}（缺省）：一人驳回即失败，立即退回；</li>
+     *   <li>{@code ANY}：已有人同意或仍有待办则继续等待；全部驳回才失败；</li>
+     *   <li>{@code RATIO:n}：若同意 + 待办已无法达到阈值则立即失败，否则继续等待。</li>
+     * </ul>
+     *
+     * @param instanceId 流程实例ID
+     * @param nodeKey 会签节点键
+     * @param node 会签节点
+     * @return 需要退回返回 {@code true}；仍需等待返回 {@code false}
+     */
+    public boolean shouldReturnOnReject(Long instanceId, String nodeKey, ProcessModelNode node) {
+        List<ProcessTaskPo> tasks = tasksOfNode(instanceId, nodeKey);
+        long total = tasks.stream().filter(CounterSignCommand::isEffective).count();
+        long approved = tasks.stream().filter(item -> isStatus(item, WorkflowConstants.TASK_APPROVED)).count();
+        long pending = tasks.stream().filter(item -> isStatus(item, WorkflowConstants.TASK_PENDING)).count();
+        String policy = policyOf(node);
+        if (policy.startsWith(WorkflowConstants.POLICY_RATIO_PREFIX)) {
+            long required = total * parseRatio(policy);
+            return approved * WorkflowConstants.PERCENT_BASE < required
+                    && (approved + pending) * WorkflowConstants.PERCENT_BASE < required;
+        }
+        if (WorkflowConstants.POLICY_ANY.equals(policy)) {
+            return approved == 0 && pending == 0;
+        }
+        return true;
+    }
+
+    /**
+     * 查询同节点全部任务。
+     *
+     * @param instanceId 流程实例ID
+     * @param nodeKey 节点键
+     * @return 任务列表
+     */
+    private List<ProcessTaskPo> tasksOfNode(Long instanceId, String nodeKey) {
+        LambdaQueryWrapper<ProcessTaskPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ProcessTaskPo::getInstanceId, instanceId);
+        wrapper.eq(ProcessTaskPo::getNodeKey, nodeKey);
+        return processTaskMapper.selectList(wrapper);
+    }
+
+    /**
      * 会签策略判定：节点待办是否已满足完成条件（ANY/RATIO 达成时取消其余待办）。
      *
      * @param instanceId 流程实例ID
@@ -46,10 +92,7 @@ public class CounterSignCommand {
      * @return 满足返回 {@code true}
      */
     private boolean counterSignSatisfied(Long instanceId, String nodeKey, ProcessModelNode node) {
-        LambdaQueryWrapper<ProcessTaskPo> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ProcessTaskPo::getInstanceId, instanceId);
-        wrapper.eq(ProcessTaskPo::getNodeKey, nodeKey);
-        List<ProcessTaskPo> tasks = processTaskMapper.selectList(wrapper);
+        List<ProcessTaskPo> tasks = tasksOfNode(instanceId, nodeKey);
         // 仅统计有效任务：已取消任务（加签取消/上一轮 RATIO 收敛）不参与分母，避免阈值被永久放大
         long total = tasks.stream().filter(CounterSignCommand::isEffective).count();
         long approved = tasks.stream().filter(item -> isStatus(item, WorkflowConstants.TASK_APPROVED)).count();

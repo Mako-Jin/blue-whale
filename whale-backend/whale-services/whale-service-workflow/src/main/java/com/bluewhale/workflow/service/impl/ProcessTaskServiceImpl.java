@@ -4,17 +4,21 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.workflow.request.ApprovalRequest;
 import com.bluewhale.workflow.request.ProcessTaskQueryRequest;
 import com.bluewhale.workflow.request.TaskCompleteRequest;
+import com.bluewhale.workflow.request.TaskRejectRequest;
 import com.bluewhale.workflow.service.ProcessTaskService;
 import com.bluewhale.workflow.service.impl.task.AddSignCommand;
 import com.bluewhale.workflow.service.impl.task.ApproveCommand;
 import com.bluewhale.workflow.service.impl.task.CompleteCommand;
 import com.bluewhale.workflow.service.impl.task.DelegateCommand;
 import com.bluewhale.workflow.service.impl.task.RejectCommand;
+import com.bluewhale.workflow.service.impl.task.ReturnCommand;
 import com.bluewhale.workflow.service.impl.task.RollbackCommand;
 import com.bluewhale.workflow.service.impl.task.TaskQueryCommand;
+import com.bluewhale.workflow.service.impl.task.TaskRejectOptionsCommand;
 import com.bluewhale.workflow.service.impl.task.TransferCommand;
 import com.bluewhale.workflow.support.WorkflowMetrics;
 import com.bluewhale.workflow.vo.ProcessTaskVO;
+import com.bluewhale.workflow.vo.TaskRejectOptionsVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -39,6 +43,10 @@ public class ProcessTaskServiceImpl implements ProcessTaskService {
     private final ApproveCommand approveCommand;
 
     private final RejectCommand rejectCommand;
+
+    private final ReturnCommand returnCommand;
+
+    private final TaskRejectOptionsCommand taskRejectOptionsCommand;
 
     private final TransferCommand transferCommand;
 
@@ -67,6 +75,17 @@ public class ProcessTaskServiceImpl implements ProcessTaskService {
     public void reject(Long id, String comment) {
         rejectCommand.reject(id, comment);
         recordAction(WorkflowMetrics.TASK_REJECT, id);
+    }
+
+    @Override
+    public void returnTask(Long id, TaskRejectRequest request) {
+        returnCommand.returnTask(id, request);
+        recordAction(WorkflowMetrics.TASK_RETURN, id);
+    }
+
+    @Override
+    public TaskRejectOptionsVO rejectOptions(Long id) {
+        return taskRejectOptionsCommand.options(id);
     }
 
     @Override

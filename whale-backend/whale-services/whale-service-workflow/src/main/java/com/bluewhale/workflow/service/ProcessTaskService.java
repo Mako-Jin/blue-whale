@@ -4,7 +4,9 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.workflow.request.ApprovalRequest;
 import com.bluewhale.workflow.request.ProcessTaskQueryRequest;
 import com.bluewhale.workflow.request.TaskCompleteRequest;
+import com.bluewhale.workflow.request.TaskRejectRequest;
 import com.bluewhale.workflow.vo.ProcessTaskVO;
+import com.bluewhale.workflow.vo.TaskRejectOptionsVO;
 
 import java.util.List;
 
@@ -32,12 +34,28 @@ public interface ProcessTaskService {
     void approve(Long id, ApprovalRequest request);
 
     /**
-     * 驳回任务：实例「已驳回」，同实例其余待办置「已取消」
+     * 驳回任务（内网终止语义）：实例「已驳回」，同实例其余待办置「已取消」
      *
      * @param id 任务ID
      * @param comment 审批意见，可为 {@code null}
      */
     void reject(Long id, String comment);
+
+    /**
+     * 驳回并退回：按目标退回发起人或上游审批节点，实例保持运行中
+     *
+     * @param id 任务ID
+     * @param request 退回请求（目标必填；会签节点忽略目标、按策略处理）
+     */
+    void returnTask(Long id, TaskRejectRequest request);
+
+    /**
+     * 查询当前任务可用的驳回（退回）选项
+     *
+     * @param id 任务ID
+     * @return 驳回选项
+     */
+    TaskRejectOptionsVO rejectOptions(Long id);
 
     /**
      * 转办：任务审批人改为目标人，原始责任人保留在 {@code ownerId}

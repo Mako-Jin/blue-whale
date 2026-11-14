@@ -24,10 +24,12 @@ import com.bluewhale.workflow.service.impl.task.CounterSignCommand;
 import com.bluewhale.workflow.service.impl.task.DelegateCommand;
 import com.bluewhale.workflow.service.impl.task.InstanceModelLoader;
 import com.bluewhale.workflow.service.impl.task.RejectCommand;
+import com.bluewhale.workflow.service.impl.task.ReturnCommand;
 import com.bluewhale.workflow.service.impl.task.RollbackCommand;
 import com.bluewhale.workflow.service.impl.task.TaskActivationCommand;
 import com.bluewhale.workflow.service.impl.task.TaskCommandSupport;
 import com.bluewhale.workflow.service.impl.task.TaskQueryCommand;
+import com.bluewhale.workflow.service.impl.task.TaskRejectOptionsCommand;
 import com.bluewhale.workflow.service.impl.task.TransferCommand;
 import com.bluewhale.workflow.support.WorkflowMetrics;
 import com.bluewhale.workflow.vo.ProcessTaskVO;
@@ -129,10 +131,14 @@ class ProcessTaskServiceImplTest {
         ApproveCommand approveCommand = new ApproveCommand(processInstanceMapper, support,
                 loader, counterSignCommand, activationCommand);
         RejectCommand rejectCommand = new RejectCommand(processInstanceMapper, support);
+        ReturnCommand returnCommand = new ReturnCommand(processInstanceMapper, processTaskMapper,
+                support, loader, activationCommand, counterSignCommand);
         processTaskService = new ProcessTaskServiceImpl(
                 new TaskQueryCommand(processTaskMapper),
                 approveCommand,
                 rejectCommand,
+                returnCommand,
+                new TaskRejectOptionsCommand(processTaskMapper, support, loader),
                 new TransferCommand(processTaskMapper, support),
                 new DelegateCommand(processTaskMapper, support),
                 new RollbackCommand(processInstanceMapper, support, activationCommand, loader),
