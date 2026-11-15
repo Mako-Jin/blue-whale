@@ -11,6 +11,7 @@ import com.bluewhale.file.domain.model.FileAssetQuery;
 import com.bluewhale.file.domain.model.FileRecycleItem;
 import com.bluewhale.file.domain.model.FileRecyclePage;
 import com.bluewhale.file.domain.model.FileRecycleQuery;
+import com.bluewhale.file.domain.model.vo.StorageQuota;
 import com.bluewhale.file.domain.file.repository.FileAssetRepository;
 import com.bluewhale.file.domain.content.FileSignatureInspector;
 import com.bluewhale.file.domain.storage.ChunkUploadMetadata;
@@ -133,7 +134,7 @@ public class FileInfoServiceImpl implements FileInfoService {
         // 先按魔数校验真实类型（失败不产生配额查询与摘要计算），再进入配额与落库流程
         byte[] bytes = content.content();
         fileContentPolicy.validate(content.originalName(), headerOf(bytes));
-        validateQuota(content.size(), command.uploaderId(), effective.quotaBytes());
+        validateQuota(content.size(), command.uploaderId(), resolveBucket(command.bucket()), effective.quotaBytes());
         long startedAt = System.nanoTime();
         try {
             FileUploadResult result = persistFile(new ByteArrayInputStream(bytes), content.originalName(),
@@ -158,7 +159,8 @@ public class FileInfoServiceImpl implements FileInfoService {
             fileMetrics.recordUpload("rapid", command.size(), 0L, "miss");
             return new FileRapidUploadResult(false, null);
         }
-        validateQuota(command.size(), command.uploaderId(), effective.quotaBytes());
+        // 秒传复用已有物理对象，桶维度按源文件所在桶计量
+        validateQuota(command.size(), command.uploaderId(), existing.getBucket(), effective.quotaBytes());
         FileAssetAggregate asset = FileAssetAggregate.reuse(existing, resolveOriginalName(command.fileName()),
                 command.contentType(), command.uploaderId());
         long startedAt = System.nanoTime();
@@ -281,7 +283,7 @@ public class FileInfoServiceImpl implements FileInfoService {
             return;
         }
         try {
-            fileAssetRepository.restoreWithQuotaCheck(id, effectiveLimits(limits).quotaBytes());
+            fileAssetRepository.restoreWithQuotaCheck(id, quotaOf(effectiveLimits(limits).quotaBytes()));
             fileMetrics.recordRestore(true);
         } catch (RuntimeException e) {
             fileMetrics.recordRestore(false);
@@ -410,7 +412,7 @@ public class FileInfoServiceImpl implements FileInfoService {
                 recordedLimits(chunkUploadStore.metadata(sessionId)));
         validateDeclaredSize(size, effective);
         // 配额失败保留分片供配额释放后续传；放弃或长期未完成的会话由暂存端口按 TTL 清理
-        validateQuota(size, command.uploaderId(), effective.quotaBytes());
+        validateQuota(size, command.uploaderId(), resolveBucket(command.bucket()), effective.quotaBytes());
         int expectedCount = expectedChunkCount(size);
         List<Integer> uploaded = chunkUploadStore.uploadedPartIndexes(sessionId);
         List<Integer> missing = IntStream.range(0, expectedCount)
@@ -497,8 +499,7 @@ public class FileInfoServiceImpl implements FileInfoService {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "文件大小超出上限");
         }
         String name = resolveOriginalName(originalName);
-        String resolvedBucket = StringUtils.hasText(bucket)
-                ? bucket : fileProperties.getBucket().getDefault();
+        String resolvedBucket = resolveBucket(bucket);
         String objectKey = buildObjectKey(name);
         fileStorage.store(resolvedBucket, objectKey, in);
         try {
@@ -521,7 +522,7 @@ public class FileInfoServiceImpl implements FileInfoService {
      * @throws BizException 超出配额时抛出 {@code PARAM_ERROR}
      */
     private FileAssetAggregate persistAsset(FileAssetAggregate asset, UploadLimits limits) {
-        return fileAssetRepository.saveWithQuotaCheck(asset, limits.quotaBytes());
+        return fileAssetRepository.saveWithQuotaCheck(asset, quotaOf(limits.quotaBytes()));
     }
 
     /**
@@ -685,24 +686,71 @@ public class FileInfoServiceImpl implements FileInfoService {
     }
 
     /**
-     * 乐观预检个人存储配额：不限配额或无用户态时直接放行，否则提前拒绝明显超配额的写入。
+     * 乐观预检存储配额：个人、租户、桶三个维度依次校验，未配置上限或缺少对应上下文时跳过该维度。
      *
      * <p>并发安全由仓储端口 {@code saveWithQuotaCheck} 的临界区保证，本方法仅用于快速失败、
-     * 避免无谓的存储写入。</p>
+     * 避免无谓的存储写入。租户/桶维度只在存在租户上下文时校验：无租户态时租户拦截器不追加条件，
+     * 聚合统计会跨租户，按全局用量拒绝会误伤内网调用。</p>
      *
      * @param incomingSize 本次拟写入的字节数
      * @param uploaderId 上传用户 ID；无登录态时为 {@code null}
-     * @param quota 生效的个人配额；{@code <=0} 表示不限
-     * @throws BizException 超出个人存储配额时抛出 {@code PARAM_ERROR}
+     * @param bucket 生效的目标桶名称
+     * @param userQuota 生效的个人配额；{@code <=0} 表示不限
+     * @throws BizException 超出任一维度配额时抛出 {@code PARAM_ERROR}
      */
-    private void validateQuota(long incomingSize, Long uploaderId, long quota) {
-        if (quota <= 0 || uploaderId == null) {
+    private void validateQuota(long incomingSize, Long uploaderId, String bucket, long userQuota) {
+        if (userQuota > 0 && uploaderId != null) {
+            guardQuota(fileAssetRepository.sumNormalSizeByUploader(uploaderId), incomingSize, userQuota,
+                    "超出个人存储配额");
+        }
+        if (TenantContext.get() == null) {
             return;
         }
-        long used = fileAssetRepository.sumNormalSizeByUploader(uploaderId);
-        if (used + incomingSize > quota) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "超出个人存储配额");
+        long tenantQuota = fileProperties.getQuota().getTenantBytes();
+        if (tenantQuota > 0) {
+            guardQuota(fileAssetRepository.sumNormalSizeByTenant(), incomingSize, tenantQuota, "超出租户存储配额");
         }
+        long bucketQuota = fileProperties.getQuota().getBucketBytes();
+        if (bucketQuota > 0) {
+            guardQuota(fileAssetRepository.sumNormalSizeByBucket(bucket), incomingSize, bucketQuota,
+                    "超出桶存储配额: " + bucket);
+        }
+    }
+
+    /**
+     * 校验单个维度的配额
+     *
+     * @param usedBytes 该维度已用字节数
+     * @param incomingSize 本次拟写入的字节数
+     * @param limitBytes 该维度上限
+     * @param message 超限提示文案
+     * @throws BizException 超出上限时抛出 {@code PARAM_ERROR}
+     */
+    private static void guardQuota(long usedBytes, long incomingSize, long limitBytes, String message) {
+        if (usedBytes + incomingSize > limitBytes) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), message);
+        }
+    }
+
+    /**
+     * 组装三维配额：个人维度取本次请求的生效配额，租户与桶维度取服务配置。
+     *
+     * @param userQuotaBytes 生效的个人配额；{@code <=0} 表示不限
+     * @return 配额值对象
+     */
+    private StorageQuota quotaOf(long userQuotaBytes) {
+        return new StorageQuota(userQuotaBytes, fileProperties.getQuota().getTenantBytes(),
+                fileProperties.getQuota().getBucketBytes());
+    }
+
+    /**
+     * 解析生效的桶名称：请求未指定时回落配置的默认桶
+     *
+     * @param bucket 请求指定的桶名称，可为 {@code null}；空白视为未指定
+     * @return 生效的桶名称
+     */
+    private String resolveBucket(String bucket) {
+        return StringUtils.hasText(bucket) ? bucket : fileProperties.getBucket().getDefault();
     }
 
     /**

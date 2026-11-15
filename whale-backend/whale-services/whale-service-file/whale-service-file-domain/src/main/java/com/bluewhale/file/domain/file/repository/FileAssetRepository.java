@@ -7,6 +7,7 @@ import com.bluewhale.file.domain.model.FileObjectRef;
 import com.bluewhale.file.domain.model.FileRecycleItem;
 import com.bluewhale.file.domain.model.FileRecyclePage;
 import com.bluewhale.file.domain.model.FileRecycleQuery;
+import com.bluewhale.file.domain.model.vo.StorageQuota;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,16 +33,17 @@ public interface FileAssetRepository {
     FileAssetAggregate save(FileAssetAggregate asset);
 
     /**
-     * 在个人配额内原子保存文件资产：配额校验与写入在同一临界区完成，避免并发上传穿透配额。
+     * 在配额内原子保存文件资产：配额校验与写入在同一临界区完成，避免并发上传穿透配额。
      *
-     * <p>不限配额（{@code quotaBytes <= 0}）或无上传用户时退化为普通保存。</p>
+     * <p>个人、租户、桶三个维度中只有配置了正数上限的维度参与校验与加锁；
+     * 全部不限时退化为普通保存。多维命名锁按「个人 → 租户 → 桶」固定顺序获取，避免死锁。</p>
      *
      * @param asset 文件资产聚合根
-     * @param quotaBytes 单用户配额字节数；{@code <=0} 表示不限
+     * @param quota 生效的配额上限
      * @return 回填主键后的文件资产聚合根
-     * @throws com.bluewhale.common.domain.exception.DomainException 超出配额时抛出 {@code PARAM_ERROR}
+     * @throws com.bluewhale.common.domain.exception.DomainException 超出任一维度配额时抛出 {@code PARAM_ERROR}
      */
-    FileAssetAggregate saveWithQuotaCheck(FileAssetAggregate asset, long quotaBytes);
+    FileAssetAggregate saveWithQuotaCheck(FileAssetAggregate asset, StorageQuota quota);
 
     /**
      * 按主键查询未逻辑删除的文件资产
@@ -104,6 +106,24 @@ public interface FileAssetRepository {
     long sumNormalSizeByUploader(Long uploaderId);
 
     /**
+     * 统计当前租户的已用存储字节数（仅统计状态正常且未逻辑删除的文件）
+     *
+     * <p>租户条件由 MyBatis 租户拦截器追加；无租户上下文时拦截器不追加条件，
+     * 调用方不得在无租户态下使用本方法做租户维度校验。</p>
+     *
+     * @return 已用字节数；无记录时返回 0
+     */
+    long sumNormalSizeByTenant();
+
+    /**
+     * 统计当前租户指定桶的已用存储字节数（仅统计状态正常且未逻辑删除的文件）
+     *
+     * @param bucket 桶名称
+     * @return 已用字节数；无记录时返回 0
+     */
+    long sumNormalSizeByBucket(String bucket);
+
+    /**
      * 按条件分页查询文件资产（过滤逻辑删除行）
      *
      * @param query 分页查询条件
@@ -160,14 +180,15 @@ public interface FileAssetRepository {
     List<FileObjectRef> findAllObjectRefs();
 
     /**
-     * 在个人配额内恢复逻辑删除的文件：配额校验与 {@code deleted} 置 0 在同一命名锁临界区完成。
+     * 在配额内恢复逻辑删除的文件：配额校验与 {@code deleted} 置 0 在同一命名锁临界区完成。
      *
-     * <p>幂等：目标不存在或已恢复时返回 {@code false}，不抛异常。</p>
+     * <p>配额维度与顺序同 {@link #saveWithQuotaCheck}；待恢复行的上传者、桶与大小从数据库读取。
+     * 幂等：目标不存在或已恢复时返回 {@code false}，不抛异常。</p>
      *
      * @param id 文件ID
-     * @param quotaBytes 单用户配额字节数；{@code <=0} 表示不限
+     * @param quota 生效的配额上限
      * @return 是否实际恢复（{@code false} 表示已恢复或目标不存在）
-     * @throws com.bluewhale.common.domain.exception.DomainException 超出配额时抛出 {@code PARAM_ERROR}
+     * @throws com.bluewhale.common.domain.exception.DomainException 超出任一维度配额时抛出 {@code PARAM_ERROR}
      */
-    boolean restoreWithQuotaCheck(Long id, long quotaBytes);
+    boolean restoreWithQuotaCheck(Long id, StorageQuota quota);
 }

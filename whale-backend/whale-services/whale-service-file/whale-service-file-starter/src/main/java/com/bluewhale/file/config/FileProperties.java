@@ -66,6 +66,9 @@ public class FileProperties {
     /** 上传内容安全配置 */
     private Security security = new Security();
 
+    /** 租户级与桶级配额配置（个人配额见 {@link #quotaBytes}） */
+    private Quota quota = new Quota();
+
     /**
      * 上传策略配置项：按网关可信注入的 {@code X-Permission-Codes} 选择生效上限与配额，
      * 未命中任何规则时回落 {@code max-size-bytes} / {@code quota-bytes} 全局默认值。
@@ -279,6 +282,25 @@ public class FileProperties {
          * <p>配置文件显式声明该列表会整体覆盖默认值；空列表表示不禁用任何类型。</p>
          */
         private List<String> blockedTypes = new ArrayList<>(List.of("EXE", "ELF", "MACHO"));
+    }
+
+    /**
+     * 租户级与桶级配额配置项（前缀 {@code whale.file.quota}）。
+     *
+     * <p>与个人配额 {@code whale.file.quota-bytes} 一起组成三个校验维度：个人按上传者统计，
+     * 租户按租户内正常文件总量统计，桶按租户内单个桶的字节数统计。默认均为 0（不限），
+     * 升级后不改变既有行为；桶配额只在存在租户上下文时生效。</p>
+     *
+     * @author BlueWhale
+     */
+    @Data
+    public static class Quota {
+
+        /** 租户级配额字节数，默认 0；{@code <=0} 表示不限 */
+        private long tenantBytes = 0L;
+
+        /** 单桶配额字节数（租户内计量），默认 0；{@code <=0} 表示不限 */
+        private long bucketBytes = 0L;
     }
 
     /**

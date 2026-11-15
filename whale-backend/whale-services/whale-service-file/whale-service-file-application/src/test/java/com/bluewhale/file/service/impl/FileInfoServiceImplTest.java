@@ -12,6 +12,7 @@ import com.bluewhale.file.domain.model.FileRecyclePage;
 import com.bluewhale.file.domain.model.FileRecycleQuery;
 import com.bluewhale.file.domain.file.repository.FileAssetRepository;
 import com.bluewhale.file.domain.model.vo.FileStatus;
+import com.bluewhale.file.domain.model.vo.StorageQuota;
 import com.bluewhale.file.domain.storage.ChunkUploadMetadata;
 import com.bluewhale.file.domain.storage.ChunkUploadSessionId;
 import com.bluewhale.file.domain.storage.ChunkUploadStore;
@@ -122,8 +123,18 @@ class FileInfoServiceImplTest {
         when(storagePluginCatalog.activeType()).thenReturn("local");
         when(fileAssetRepository.save(any(FileAssetAggregate.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-        when(fileAssetRepository.saveWithQuotaCheck(any(FileAssetAggregate.class), anyLong()))
+        when(fileAssetRepository.saveWithQuotaCheck(any(FileAssetAggregate.class), any(StorageQuota.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
+    }
+
+    /**
+     * 构造仅启用个人维度的配额
+     *
+     * @param userBytes 个人配额字节数
+     * @return 配额值对象
+     */
+    private static StorageQuota userQuota(long userBytes) {
+        return new StorageQuota(userBytes, 0L, 0L);
     }
 
     /**
@@ -283,7 +294,7 @@ class FileInfoServiceImplTest {
             assertTrue(result.fileName().endsWith(".pdf"));
             verify(fileStorage).store(eq("bluewhale"), eq(result.objectKey()), any(InputStream.class));
             ArgumentCaptor<FileAssetAggregate> captor = ArgumentCaptor.forClass(FileAssetAggregate.class);
-            verify(fileAssetRepository).saveWithQuotaCheck(captor.capture(), eq(fileProperties.getQuotaBytes()));
+            verify(fileAssetRepository).saveWithQuotaCheck(captor.capture(), eq(userQuota(fileProperties.getQuotaBytes())));
             FileAssetAggregate saved = captor.getValue();
             assertEquals(UPLOADER_ID, saved.getUploaderId());
             assertEquals(FileStatus.NORMAL, saved.getStatus());
@@ -306,7 +317,7 @@ class FileInfoServiceImplTest {
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         verify(fileStorage, never()).store(any(), any(), any());
-        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAssetAggregate.class), anyLong());
+        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAssetAggregate.class), any(StorageQuota.class));
     }
 
     @Test
@@ -320,7 +331,7 @@ class FileInfoServiceImplTest {
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertTrue(ex.getMessage().contains("禁止上传可执行文件"));
         verify(fileStorage, never()).store(any(), any(), any());
-        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAssetAggregate.class), anyLong());
+        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAssetAggregate.class), any(StorageQuota.class));
     }
 
     @Test
@@ -528,7 +539,7 @@ class FileInfoServiceImplTest {
         assertEquals(DigestUtils.md5DigestAsHex(expected), result.md5());
         assertTrue(result.objectKey().endsWith(".bin"));
         ArgumentCaptor<FileAssetAggregate> captor = ArgumentCaptor.forClass(FileAssetAggregate.class);
-        verify(fileAssetRepository).saveWithQuotaCheck(captor.capture(), eq(fileProperties.getQuotaBytes()));
+        verify(fileAssetRepository).saveWithQuotaCheck(captor.capture(), eq(userQuota(fileProperties.getQuotaBytes())));
         assertEquals(12L, captor.getValue().getFileSize());
         assertEquals(UPLOADER_ID, captor.getValue().getUploaderId());
         assertFalse(sessionExists(init.uploadId()), "合并成功后应清理暂存会话");
@@ -564,7 +575,7 @@ class FileInfoServiceImplTest {
         assertTrue(ex.getMessage().contains("缺少分片索引"));
         assertTrue(ex.getMessage().contains("1"));
         verify(fileStorage, never()).store(any(), any(), any());
-        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAssetAggregate.class), anyLong());
+        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAssetAggregate.class), any(StorageQuota.class));
         assertTrue(sessionExists(init.uploadId()), "失败时保留分片供续传");
     }
 
@@ -586,7 +597,7 @@ class FileInfoServiceImplTest {
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertTrue(ex.getMessage().contains("超出上限"));
         verify(fileStorage, never()).store(any(), any(), any());
-        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAssetAggregate.class), anyLong());
+        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAssetAggregate.class), any(StorageQuota.class));
     }
 
     @Test
@@ -624,7 +635,7 @@ class FileInfoServiceImplTest {
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertTrue(ex.getMessage().contains("文件内容与扩展名不匹配"));
         verify(fileStorage, never()).store(any(), any(), any());
-        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAssetAggregate.class), anyLong());
+        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAssetAggregate.class), any(StorageQuota.class));
         assertTrue(sessionExists(init.uploadId()), "失败时保留分片供续传");
     }
 
@@ -645,7 +656,7 @@ class FileInfoServiceImplTest {
         assertEquals("application/pdf", result.file().contentType());
         assertEquals(Long.valueOf(123L), result.file().fileSize());
         ArgumentCaptor<FileAssetAggregate> captor = ArgumentCaptor.forClass(FileAssetAggregate.class);
-        verify(fileAssetRepository).saveWithQuotaCheck(captor.capture(), eq(fileProperties.getQuotaBytes()));
+        verify(fileAssetRepository).saveWithQuotaCheck(captor.capture(), eq(userQuota(fileProperties.getQuotaBytes())));
         assertEquals("2026/10/19/stored.pdf", captor.getValue().getObjectKey());
         assertEquals("d41d8cd98f00b204e9800998ecf8427e", captor.getValue().getMd5());
         assertEquals(UPLOADER_ID, captor.getValue().getUploaderId());
@@ -662,7 +673,7 @@ class FileInfoServiceImplTest {
                 rapidCommand("copy.pdf", "d41d8cd98f00b204e9800998ecf8427e", 123L, "application/pdf"));
 
         assertFalse(result.hit());
-        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAssetAggregate.class), anyLong());
+        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAssetAggregate.class), any(StorageQuota.class));
         verify(fileAssetRepository, never()).sumNormalSizeByUploader(anyLong());
         verify(fileStorage, never()).store(any(), any(), any());
     }
@@ -680,7 +691,7 @@ class FileInfoServiceImplTest {
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertTrue(ex.getMessage().contains("超出个人存储配额"));
-        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAssetAggregate.class), anyLong());
+        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAssetAggregate.class), any(StorageQuota.class));
     }
 
     @Test
@@ -696,6 +707,65 @@ class FileInfoServiceImplTest {
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertTrue(ex.getMessage().contains("超出个人存储配额"));
         verify(fileStorage, never()).store(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("upload：超出配置的租户配额时拒绝且不写存储")
+    void shouldRejectUploadWhenTenantQuotaExceeded() throws IOException {
+        fileProperties.getQuota().setTenantBytes(100L);
+        when(fileAssetRepository.sumNormalSizeByTenant()).thenReturn(90L);
+        UploadContent file = uploadContent(new byte[20], "tenant.bin");
+        TenantContext.set(1L);
+        try {
+            BizException ex = assertThrows(BizException.class,
+                    () -> fileInfoService.upload(uploadCommand(file, null, UPLOADER_ID)));
+
+            assertEquals(PARAM_ERROR_CODE, ex.getCode());
+            assertTrue(ex.getMessage().contains("超出租户存储配额"));
+        } finally {
+            TenantContext.clear();
+        }
+        verify(fileStorage, never()).store(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("upload：超出配置的桶配额时拒绝且不写存储")
+    void shouldRejectUploadWhenBucketQuotaExceeded() throws IOException {
+        fileProperties.getQuota().setBucketBytes(100L);
+        when(fileAssetRepository.sumNormalSizeByBucket("archive")).thenReturn(95L);
+        UploadContent file = uploadContent(new byte[10], "bucket.bin");
+        TenantContext.set(1L);
+        try {
+            BizException ex = assertThrows(BizException.class,
+                    () -> fileInfoService.upload(uploadCommand(file, "archive", UPLOADER_ID)));
+
+            assertEquals(PARAM_ERROR_CODE, ex.getCode());
+            assertTrue(ex.getMessage().contains("超出桶存储配额"));
+        } finally {
+            TenantContext.clear();
+        }
+        verify(fileStorage, never()).store(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("upload：把个人/租户/桶三个维度组装为配额对象传给仓储")
+    void shouldAssembleThreeDimensionQuota() throws IOException {
+        fileProperties.getQuota().setTenantBytes(1000L);
+        fileProperties.getQuota().setBucketBytes(2000L);
+        UploadContent file = uploadContent("small".getBytes(StandardCharsets.UTF_8), "a.txt");
+        TenantContext.set(1L);
+        try {
+            fileInfoService.upload(uploadCommand(file, null, UPLOADER_ID));
+        } finally {
+            TenantContext.clear();
+        }
+
+        ArgumentCaptor<StorageQuota> captor = ArgumentCaptor.forClass(StorageQuota.class);
+        verify(fileAssetRepository).saveWithQuotaCheck(any(FileAssetAggregate.class), captor.capture());
+        StorageQuota quota = captor.getValue();
+        assertEquals(fileProperties.getQuotaBytes(), quota.userBytes());
+        assertEquals(1000L, quota.tenantBytes());
+        assertEquals(2000L, quota.bucketBytes());
     }
 
     @Test
@@ -722,7 +792,7 @@ class FileInfoServiceImplTest {
 
         assertEquals(100L, result.fileSize());
         ArgumentCaptor<FileAssetAggregate> captor = ArgumentCaptor.forClass(FileAssetAggregate.class);
-        verify(fileAssetRepository).saveWithQuotaCheck(captor.capture(), eq(8589934592L));
+        verify(fileAssetRepository).saveWithQuotaCheck(captor.capture(), eq(userQuota(8589934592L)));
         assertEquals("movie.mp4", captor.getValue().getOriginalName());
     }
 
@@ -778,7 +848,7 @@ class FileInfoServiceImplTest {
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertTrue(ex.getMessage().contains("超出上限"));
         verify(fileStorage, never()).store(any(), any(), any());
-        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAssetAggregate.class), anyLong());
+        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAssetAggregate.class), any(StorageQuota.class));
     }
 
     @Test
@@ -921,7 +991,7 @@ class FileInfoServiceImplTest {
             TenantContext.clear();
         }
 
-        verify(fileAssetRepository, never()).restoreWithQuotaCheck(anyLong(), anyLong());
+        verify(fileAssetRepository, never()).restoreWithQuotaCheck(anyLong(), any(StorageQuota.class));
     }
 
     @Test
@@ -931,7 +1001,7 @@ class FileInfoServiceImplTest {
                 "tenants/1/2026/10/24/a.txt", 12L, "text/plain", null, FileStatus.NORMAL, UPLOADER_ID, true,
                 LocalDateTime.now(), LocalDateTime.now(), "local");
         when(fileAssetRepository.findByIdIncludingDeleted(7L)).thenReturn(Optional.of(deleted));
-        when(fileAssetRepository.restoreWithQuotaCheck(7L, 5000L)).thenReturn(true);
+        when(fileAssetRepository.restoreWithQuotaCheck(7L, userQuota(5000L))).thenReturn(true);
         TenantContext.set(1L);
         try {
             fileInfoService.restore(7L, UPLOADER_ID, false, new UploadLimits(100L, 5000L));
@@ -939,7 +1009,31 @@ class FileInfoServiceImplTest {
             TenantContext.clear();
         }
 
-        verify(fileAssetRepository).restoreWithQuotaCheck(7L, 5000L);
+        verify(fileAssetRepository).restoreWithQuotaCheck(7L, userQuota(5000L));
+    }
+
+    @Test
+    @DisplayName("restore：恢复时把租户与桶维度的配额一并传入仓储")
+    void shouldPassTenantAndBucketQuotaOnRestore() {
+        fileProperties.getQuota().setTenantBytes(1000L);
+        fileProperties.getQuota().setBucketBytes(2000L);
+        FileAssetAggregate deleted = FileAssetAggregate.reconstitute(7L, "a.txt", "a.txt", "bluewhale",
+                "tenants/1/2026/10/24/a.txt", 12L, "text/plain", null, FileStatus.NORMAL, UPLOADER_ID, true,
+                LocalDateTime.now(), LocalDateTime.now(), "local");
+        when(fileAssetRepository.findByIdIncludingDeleted(7L)).thenReturn(Optional.of(deleted));
+        when(fileAssetRepository.restoreWithQuotaCheck(eq(7L), any(StorageQuota.class))).thenReturn(true);
+        TenantContext.set(1L);
+        try {
+            fileInfoService.restore(7L, UPLOADER_ID, false, new UploadLimits(100L, 5000L));
+        } finally {
+            TenantContext.clear();
+        }
+
+        ArgumentCaptor<StorageQuota> captor = ArgumentCaptor.forClass(StorageQuota.class);
+        verify(fileAssetRepository).restoreWithQuotaCheck(eq(7L), captor.capture());
+        assertEquals(5000L, captor.getValue().userBytes());
+        assertEquals(1000L, captor.getValue().tenantBytes());
+        assertEquals(2000L, captor.getValue().bucketBytes());
     }
 
     @Test
@@ -1047,7 +1141,7 @@ class FileInfoServiceImplTest {
     @DisplayName("upload：仓储原子配额校验失败时补偿删除已写入对象，避免孤儿文件")
     void shouldCompensateStoredObjectWhenPersistRejected() throws IOException {
         fileProperties.setQuotaBytes(1000L);
-        when(fileAssetRepository.saveWithQuotaCheck(any(FileAssetAggregate.class), anyLong()))
+        when(fileAssetRepository.saveWithQuotaCheck(any(FileAssetAggregate.class), any(StorageQuota.class)))
                 .thenThrow(new BizException(ErrorCode.PARAM_ERROR.getCode(), "超出个人存储配额"));
         UploadContent file = uploadContent("race-lost".getBytes(StandardCharsets.UTF_8), "race.txt");
 
@@ -1064,7 +1158,7 @@ class FileInfoServiceImplTest {
     @DisplayName("upload：补偿删除失败不掩盖原始配额异常")
     void shouldKeepOriginalErrorWhenCompensationFails() throws IOException {
         fileProperties.setQuotaBytes(1000L);
-        when(fileAssetRepository.saveWithQuotaCheck(any(FileAssetAggregate.class), anyLong()))
+        when(fileAssetRepository.saveWithQuotaCheck(any(FileAssetAggregate.class), any(StorageQuota.class)))
                 .thenThrow(new BizException(ErrorCode.PARAM_ERROR.getCode(), "超出个人存储配额"));
         doAnswer(invocation -> {
             throw new BizException(ErrorCode.SYSTEM_ERROR);

@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.file.domain.file.aggregate.FileAssetAggregate;
 import com.bluewhale.file.domain.model.FileAssetPage;
 import com.bluewhale.file.domain.model.FileAssetQuery;
@@ -14,6 +15,7 @@ import com.bluewhale.file.domain.model.FileRecyclePage;
 import com.bluewhale.file.domain.model.FileRecycleQuery;
 import com.bluewhale.file.domain.file.repository.FileAssetRepository;
 import com.bluewhale.file.domain.model.vo.FileStatus;
+import com.bluewhale.file.domain.model.vo.StorageQuota;
 import com.bluewhale.file.po.FileInfoPo;
 import com.bluewhale.file.infrastructure.persistence.assembler.FileInfoPersistenceAssembler;
 import com.bluewhale.file.mapper.FileInfoMapper;
@@ -28,6 +30,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -50,6 +53,15 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
 
     /** 配额命名锁前缀：按上传用户维度串行化「统计已用量 + 写入」 */
     private static final String QUOTA_LOCK_PREFIX = "whale:file:quota:";
+
+    /** 租户配额命名锁前缀：按租户维度串行化 */
+    private static final String TENANT_QUOTA_LOCK_PREFIX = "whale:file:quota:tenant:";
+
+    /** 桶配额命名锁前缀：按租户内的桶维度串行化 */
+    private static final String BUCKET_QUOTA_LOCK_PREFIX = "whale:file:quota:bucket:";
+
+    /** 单次写入最多获取的配额锁数量（个人 / 租户 / 桶） */
+    private static final int MAX_QUOTA_LOCK_SCOPES = 3;
 
     /** 配额命名锁等待上限（秒）：超时快速失败，避免请求长时间挂起 */
     private static final int QUOTA_LOCK_TIMEOUT_SECONDS = 5;
@@ -81,42 +93,138 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
      */
     @Override
     @Transactional(rollbackFor = Exception.class, propagation = Propagation.REQUIRES_NEW)
-    public FileAssetAggregate saveWithQuotaCheck(FileAssetAggregate asset, long quotaBytes) {
-        Long uploaderId = asset.getUploaderId();
-        if (uploaderId == null || quotaBytes <= 0) {
+    public FileAssetAggregate saveWithQuotaCheck(FileAssetAggregate asset, StorageQuota quota) {
+        if (quota == null || !quota.hasAnyLimit()) {
             return save(asset);
         }
-        String lockName = QUOTA_LOCK_PREFIX + uploaderId;
-        return withQuotaLock(lockName, "save", () -> {
-            long used = sumNormalSizeByUploader(uploaderId);
-            if (used + asset.getFileSize() > quotaBytes) {
-                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "超出个人存储配额");
-            }
-            return save(asset);
-        });
+        return withQuotaGuard(asset.getUploaderId(), asset.getBucket(), asset.getFileSize(), quota, "save",
+                () -> save(asset));
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class, propagation = Propagation.REQUIRES_NEW)
-    public boolean restoreWithQuotaCheck(Long id, long quotaBytes) {
+    public boolean restoreWithQuotaCheck(Long id, StorageQuota quota) {
         FileInfoPo po = fileInfoMapper.selectByIdIncludingDeleted(id);
         if (po == null || po.getDeleted() == null || po.getDeleted() == 0) {
             // 已恢复或目标不存在：幂等返回 false，由应用层按成功处理
             return false;
         }
-        Long uploaderId = po.getUploaderId();
-        long size = po.getFileSize() == null ? 0L : po.getFileSize();
-        if (uploaderId == null || quotaBytes <= 0) {
+        if (quota == null || !quota.hasAnyLimit()) {
             return restore(id);
         }
-        String lockName = QUOTA_LOCK_PREFIX + uploaderId;
-        return withQuotaLock(lockName, "restore", () -> {
-            long used = sumNormalSizeByUploader(uploaderId);
-            if (used + size > quotaBytes) {
-                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "超出个人存储配额");
-            }
-            return restore(id);
+        long size = po.getFileSize() == null ? 0L : po.getFileSize();
+        return withQuotaGuard(po.getUploaderId(), po.getBucket(), size, quota, "restore", () -> restore(id));
+    }
+
+    /**
+     * 在所需维度的命名锁内校验配额后执行动作。
+     *
+     * <p>只有「配置了正数上限」且「上下文具备该维度」时才取锁：个人维度要求上传者非空；
+     * 租户与桶维度要求存在租户上下文——无租户态时租户拦截器不追加条件，聚合统计会跨租户，
+     * 因此这两维直接跳过，内网无租户态调用不受限制。</p>
+     *
+     * @param uploaderId 上传者 ID，可为 {@code null}
+     * @param bucket 目标桶名称
+     * @param incomingSize 本次写入的字节数
+     * @param quota 生效的配额上限
+     * @param operation 操作标识（指标标签）
+     * @param action 通过配额校验后执行的动作
+     * @param <T> 返回类型
+     * @return 动作执行结果
+     */
+    private <T> T withQuotaGuard(Long uploaderId, String bucket, long incomingSize, StorageQuota quota,
+                                 String operation, Supplier<T> action) {
+        List<String> lockNames = quotaLockNames(uploaderId, bucket, quota);
+        if (lockNames.isEmpty()) {
+            return action.get();
+        }
+        return withNestedQuotaLocks(lockNames, 0, operation, () -> {
+            assertWithinQuota(incomingSize, uploaderId, bucket, quota);
+            return action.get();
         });
+    }
+
+    /**
+     * 按固定顺序逐层获取配额命名锁，避免多维度并发时形成锁等待环。
+     *
+     * @param lockNames 按获取顺序排列的锁名称
+     * @param index 当前层级
+     * @param operation 操作标识（指标标签）
+     * @param action 全部锁获取后执行的动作
+     * @param <T> 返回类型
+     * @return 动作执行结果
+     */
+    private <T> T withNestedQuotaLocks(List<String> lockNames, int index, String operation, Supplier<T> action) {
+        if (index >= lockNames.size()) {
+            return action.get();
+        }
+        return withQuotaLock(lockNames.get(index), operation,
+                () -> withNestedQuotaLocks(lockNames, index + 1, operation, action));
+    }
+
+    /**
+     * 计算本次写入需要获取的配额锁，顺序固定为「个人 → 租户 → 桶」。
+     *
+     * @param uploaderId 上传者 ID，可为 {@code null}
+     * @param bucket 目标桶名称
+     * @param quota 生效的配额上限
+     * @return 锁名称列表；无需限制时返回空列表
+     */
+    private static List<String> quotaLockNames(Long uploaderId, String bucket, StorageQuota quota) {
+        List<String> names = new ArrayList<>(MAX_QUOTA_LOCK_SCOPES);
+        if (quota.userLimited() && uploaderId != null) {
+            names.add(QUOTA_LOCK_PREFIX + uploaderId);
+        }
+        if (TenantContext.get() == null) {
+            return names;
+        }
+        if (quota.tenantLimited()) {
+            names.add(TENANT_QUOTA_LOCK_PREFIX + TenantContext.get());
+        }
+        if (quota.bucketLimited()) {
+            names.add(BUCKET_QUOTA_LOCK_PREFIX + bucket);
+        }
+        return names;
+    }
+
+    /**
+     * 依次校验三个维度：已用量 + 本次写入量不得超过上限。
+     *
+     * @param incomingSize 本次写入的字节数
+     * @param uploaderId 上传者 ID，可为 {@code null}
+     * @param bucket 目标桶名称
+     * @param quota 生效的配额上限
+     * @throws BizException 任一维度超限时抛出 {@code PARAM_ERROR}
+     */
+    private void assertWithinQuota(long incomingSize, Long uploaderId, String bucket, StorageQuota quota) {
+        if (quota.userLimited() && uploaderId != null) {
+            guardQuota(sumNormalSizeByUploader(uploaderId), incomingSize, quota.userBytes(), "超出个人存储配额");
+        }
+        if (TenantContext.get() == null) {
+            return;
+        }
+        if (quota.tenantLimited()) {
+            guardQuota(sumNormalSizeByTenant(), incomingSize, quota.tenantBytes(), "超出租户存储配额");
+        }
+        if (quota.bucketLimited()) {
+            guardQuota(sumNormalSizeByBucket(bucket), incomingSize, quota.bucketBytes(),
+                    "超出桶存储配额: " + bucket);
+        }
+    }
+
+    /**
+     * 校验单个维度的配额
+     *
+     * @param usedBytes 已用字节数
+     * @param incomingSize 本次写入字节数
+     * @param limitBytes 该维度上限
+     * @param message 超限提示文案
+     * @throws BizException 超出上限时抛出 {@code PARAM_ERROR}
+     */
+    private static void guardQuota(long usedBytes, long incomingSize, long limitBytes, String message) {
+        if (usedBytes + incomingSize > limitBytes) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), message);
+        }
     }
 
     /**
@@ -218,10 +326,45 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
 
     @Override
     public long sumNormalSizeByUploader(Long uploaderId) {
+        QueryWrapper<FileInfoPo> wrapper = normalSizeWrapper();
+        wrapper.eq("uploader_id", uploaderId);
+        return sumNormalSize(wrapper);
+    }
+
+    @Override
+    public long sumNormalSizeByTenant() {
+        return sumNormalSize(normalSizeWrapper());
+    }
+
+    @Override
+    public long sumNormalSizeByBucket(String bucket) {
+        QueryWrapper<FileInfoPo> wrapper = normalSizeWrapper();
+        wrapper.eq("bucket", bucket);
+        return sumNormalSize(wrapper);
+    }
+
+    /**
+     * 构造「正常文件字节数合计」查询骨架，各维度按需追加条件。
+     *
+     * <p>租户条件不在此显式追加，由 {@code TenantLineInnerInterceptor} 统一注入。</p>
+     *
+     * @return 查询条件
+     */
+    private static QueryWrapper<FileInfoPo> normalSizeWrapper() {
         QueryWrapper<FileInfoPo> wrapper = new QueryWrapper<>();
         wrapper.select("COALESCE(SUM(file_size), 0) AS total")
-                .eq("uploader_id", uploaderId)
                 .eq("status", FileStatus.NORMAL.getCode());
+        return wrapper;
+    }
+
+    /**
+     * 执行聚合查询并把结果规整为字节数
+     *
+     * @param wrapper 聚合查询条件（必须选择单列合计值）
+     * @return 合计字节数；无记录或空值时返回 0
+     * @throws BizException 查询失败或结果类型异常时抛出 {@code SYSTEM_ERROR}
+     */
+    private long sumNormalSize(QueryWrapper<FileInfoPo> wrapper) {
         List<Object> values;
         try {
             // selectObjs 返回所查询列的值列表（每行一个元素）；无 GROUP BY 的聚合查询恒返回一行

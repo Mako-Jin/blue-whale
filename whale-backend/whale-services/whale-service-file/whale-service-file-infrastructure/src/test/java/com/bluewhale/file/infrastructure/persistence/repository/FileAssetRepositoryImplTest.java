@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.file.domain.file.aggregate.FileAssetAggregate;
 import com.bluewhale.file.domain.model.FileAssetPage;
 import com.bluewhale.file.domain.model.FileAssetQuery;
@@ -11,12 +12,14 @@ import com.bluewhale.file.domain.model.FileRecycleItem;
 import com.bluewhale.file.domain.model.FileRecyclePage;
 import com.bluewhale.file.domain.model.FileRecycleQuery;
 import com.bluewhale.file.domain.model.vo.FileStatus;
+import com.bluewhale.file.domain.model.vo.StorageQuota;
 import com.bluewhale.file.po.FileInfoPo;
 import com.bluewhale.file.mapper.FileInfoMapper;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
+import org.mockito.InOrder;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -32,6 +35,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -105,8 +109,8 @@ class FileAssetRepositoryImplTest {
         FileAssetAggregate unlimited = FileAssetAggregate.register("bluewhale", "tenants/1/2026/10/24/b.pdf",
                 "报告.pdf", 12L, "application/pdf", "md5", 9L, "local");
 
-        repository.saveWithQuotaCheck(noUploader, 1000L);
-        repository.saveWithQuotaCheck(unlimited, 0L);
+        repository.saveWithQuotaCheck(noUploader, userQuota(1000L));
+        repository.saveWithQuotaCheck(unlimited, unlimitedQuota());
 
         verify(fileInfoMapper, times(2)).insert(any(FileInfoPo.class));
         verify(fileInfoMapper, never()).acquireNamedLock(anyString(), anyInt());
@@ -120,7 +124,7 @@ class FileAssetRepositoryImplTest {
         when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfoPo>>any()))
                 .thenReturn(List.<Object>of(100L));
 
-        FileAssetAggregate saved = repository.saveWithQuotaCheck(asset, 1000L);
+        FileAssetAggregate saved = repository.saveWithQuotaCheck(asset, userQuota(1000L));
 
         assertEquals("a.pdf", saved.getFileName());
         verify(fileInfoMapper).insert(any(FileInfoPo.class));
@@ -135,7 +139,7 @@ class FileAssetRepositoryImplTest {
                 .thenReturn(List.<Object>of(950L));
 
         BizException ex = assertThrows(BizException.class,
-                () -> repository.saveWithQuotaCheck(quotaAsset(100L), 1000L));
+                () -> repository.saveWithQuotaCheck(quotaAsset(100L), userQuota(1000L)));
 
         assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
         verify(fileInfoMapper, never()).insert(any(FileInfoPo.class));
@@ -148,11 +152,11 @@ class FileAssetRepositoryImplTest {
         when(fileInfoMapper.acquireNamedLock("whale:file:quota:9", 5)).thenReturn(0).thenReturn(null);
 
         BizException timeout = assertThrows(BizException.class,
-                () -> repository.saveWithQuotaCheck(quotaAsset(100L), 1000L));
+                () -> repository.saveWithQuotaCheck(quotaAsset(100L), userQuota(1000L)));
         assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), timeout.getCode());
 
         BizException failed = assertThrows(BizException.class,
-                () -> repository.saveWithQuotaCheck(quotaAsset(100L), 1000L));
+                () -> repository.saveWithQuotaCheck(quotaAsset(100L), userQuota(1000L)));
         assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), failed.getCode());
 
         verify(fileInfoMapper, never()).selectObjs(ArgumentMatchers.<Wrapper<FileInfoPo>>any());
@@ -168,7 +172,7 @@ class FileAssetRepositoryImplTest {
                 .thenReturn(List.<Object>of(0L));
         TransactionSynchronizationManager.initSynchronization();
         try {
-            repository.saveWithQuotaCheck(quotaAsset(100L), 1000L);
+            repository.saveWithQuotaCheck(quotaAsset(100L), userQuota(1000L));
             verify(fileInfoMapper, never()).releaseNamedLock(anyString());
 
             TransactionSynchronizationManager.getSynchronizations()
@@ -189,10 +193,88 @@ class FileAssetRepositoryImplTest {
         when(fileInfoMapper.releaseNamedLock("whale:file:quota:9"))
                 .thenThrow(new IllegalStateException("connection closed"));
 
-        FileAssetAggregate saved = repository.saveWithQuotaCheck(quotaAsset(100L), 1000L);
+        FileAssetAggregate saved = repository.saveWithQuotaCheck(quotaAsset(100L), userQuota(1000L));
 
         assertEquals("a.pdf", saved.getFileName());
         verify(fileInfoMapper).insert(any(FileInfoPo.class));
+    }
+
+    @Test
+    @DisplayName("saveWithQuotaCheck：租户维度超限时拒绝并释放租户锁")
+    void shouldRejectWhenTenantQuotaExceeded() {
+        when(fileInfoMapper.acquireNamedLock("whale:file:quota:tenant:1", 5)).thenReturn(1);
+        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfoPo>>any()))
+                .thenReturn(List.<Object>of(950L));
+        TenantContext.set(1L);
+        try {
+            BizException ex = assertThrows(BizException.class,
+                    () -> repository.saveWithQuotaCheck(quotaAsset(100L), new StorageQuota(0L, 1000L, 0L)));
+
+            assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
+            assertTrue(ex.getMessage().contains("超出租户存储配额"));
+        } finally {
+            TenantContext.clear();
+        }
+        verify(fileInfoMapper, never()).insert(any(FileInfoPo.class));
+        verify(fileInfoMapper).releaseNamedLock("whale:file:quota:tenant:1");
+    }
+
+    @Test
+    @DisplayName("saveWithQuotaCheck：桶维度超限时拒绝并释放桶锁")
+    void shouldRejectWhenBucketQuotaExceeded() {
+        when(fileInfoMapper.acquireNamedLock("whale:file:quota:bucket:bluewhale", 5)).thenReturn(1);
+        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfoPo>>any()))
+                .thenReturn(List.<Object>of(990L));
+        TenantContext.set(1L);
+        try {
+            BizException ex = assertThrows(BizException.class,
+                    () -> repository.saveWithQuotaCheck(quotaAsset(100L), new StorageQuota(0L, 0L, 1000L)));
+
+            assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
+            assertTrue(ex.getMessage().contains("超出桶存储配额"));
+        } finally {
+            TenantContext.clear();
+        }
+        verify(fileInfoMapper, never()).insert(any(FileInfoPo.class));
+        verify(fileInfoMapper).releaseNamedLock("whale:file:quota:bucket:bluewhale");
+    }
+
+    @Test
+    @DisplayName("saveWithQuotaCheck：三个维度按个人 → 租户 → 桶的固定顺序取锁")
+    void shouldAcquireQuotaLocksInFixedOrder() {
+        when(fileInfoMapper.acquireNamedLock(anyString(), anyInt())).thenReturn(1);
+        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfoPo>>any()))
+                .thenReturn(List.<Object>of(0L));
+        TenantContext.set(1L);
+        try {
+            repository.saveWithQuotaCheck(quotaAsset(100L), new StorageQuota(1000L, 1000L, 1000L));
+        } finally {
+            TenantContext.clear();
+        }
+
+        InOrder order = inOrder(fileInfoMapper);
+        order.verify(fileInfoMapper).acquireNamedLock("whale:file:quota:9", 5);
+        order.verify(fileInfoMapper).acquireNamedLock("whale:file:quota:tenant:1", 5);
+        order.verify(fileInfoMapper).acquireNamedLock("whale:file:quota:bucket:bluewhale", 5);
+    }
+
+    /**
+     * 构造仅启用个人维度的配额
+     *
+     * @param userBytes 个人配额字节数
+     * @return 配额值对象
+     */
+    private static StorageQuota userQuota(long userBytes) {
+        return new StorageQuota(userBytes, 0L, 0L);
+    }
+
+    /**
+     * 构造三个维度均不限的配额
+     *
+     * @return 配额值对象
+     */
+    private static StorageQuota unlimitedQuota() {
+        return new StorageQuota(0L, 0L, 0L);
     }
 
     /**
@@ -316,8 +398,8 @@ class FileAssetRepositoryImplTest {
         when(fileInfoMapper.selectByIdIncludingDeleted(1L)).thenReturn(null);
         when(fileInfoMapper.selectByIdIncludingDeleted(2L)).thenReturn(po(2L, 0));
 
-        assertFalse(repository.restoreWithQuotaCheck(1L, 1000L));
-        assertFalse(repository.restoreWithQuotaCheck(2L, 1000L));
+        assertFalse(repository.restoreWithQuotaCheck(1L, userQuota(1000L)));
+        assertFalse(repository.restoreWithQuotaCheck(2L, userQuota(1000L)));
 
         verify(fileInfoMapper, never()).acquireNamedLock(anyString(), anyInt());
         verify(fileInfoMapper, never()).restoreById(anyLong());
@@ -332,7 +414,7 @@ class FileAssetRepositoryImplTest {
                 .thenReturn(List.<Object>of(100L));
         when(fileInfoMapper.restoreById(1L)).thenReturn(1);
 
-        assertTrue(repository.restoreWithQuotaCheck(1L, 1000L));
+        assertTrue(repository.restoreWithQuotaCheck(1L, userQuota(1000L)));
 
         verify(fileInfoMapper).restoreById(1L);
         verify(fileInfoMapper).releaseNamedLock("whale:file:quota:9");
@@ -346,7 +428,7 @@ class FileAssetRepositoryImplTest {
         when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfoPo>>any()))
                 .thenReturn(List.<Object>of(999L));
 
-        BizException ex = assertThrows(BizException.class, () -> repository.restoreWithQuotaCheck(1L, 1000L));
+        BizException ex = assertThrows(BizException.class, () -> repository.restoreWithQuotaCheck(1L, userQuota(1000L)));
 
         assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
         verify(fileInfoMapper, never()).restoreById(anyLong());
@@ -366,6 +448,16 @@ class FileAssetRepositoryImplTest {
         assertEquals(456L, repository.sumNormalSizeByUploader(9L));
         assertEquals(0L, repository.sumNormalSizeByUploader(9L));
         assertEquals(0L, repository.sumNormalSizeByUploader(9L));
+    }
+
+    @Test
+    @DisplayName("sumNormalSizeByTenant/ByBucket：返回聚合结果")
+    void shouldSumByTenantAndBucket() {
+        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfoPo>>any()))
+                .thenReturn(List.<Object>of(321L));
+
+        assertEquals(321L, repository.sumNormalSizeByTenant());
+        assertEquals(321L, repository.sumNormalSizeByBucket("bluewhale"));
     }
 
     @Test

@@ -96,6 +96,12 @@ whale:
     max-size-bytes: ${WHALE_FILE_MAX_SIZE_BYTES:52428800}
     # 单用户存储配额（全局默认），默认 1GB（1073741824）；0 表示不限
     quota-bytes: ${WHALE_FILE_QUOTA_BYTES:1073741824}
+    # 租户级与桶级配额：与上面的个人配额组成三个校验维度，任一维度超限整体拒绝。
+    # 默认 0（不限），升级后行为不变；租户/桶维度只在存在租户上下文时生效，
+    # 桶维度按租户内的单个桶计量。校验与写入在同一命名锁临界区内完成。
+    quota:
+      tenant-bytes: ${WHALE_FILE_QUOTA_TENANT_BYTES:0}
+      bucket-bytes: ${WHALE_FILE_QUOTA_BUCKET_BYTES:0}
     # 分片上传分片大小，默认 5MB
     chunk-size-bytes: ${WHALE_FILE_CHUNK_SIZE_BYTES:5242880}
     # 分片上传会话保留时长（小时）：过期会话在下次初始化新会话时清理，避免中途放弃的暂存永久占用磁盘

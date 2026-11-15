@@ -35,6 +35,7 @@ CREATE TABLE file_info (
     PRIMARY KEY (id),
     KEY idx_tenant_id (tenant_id),
     KEY idx_tenant_md5 (tenant_id, md5),
+    KEY idx_tenant_bucket (tenant_id, bucket),
     KEY idx_uploader_id (uploader_id)
 ) COMMENT='文件信息表';
 
