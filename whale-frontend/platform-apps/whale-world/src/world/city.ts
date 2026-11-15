@@ -197,7 +197,7 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   // 红线：城占 x∈[-92,92]，支流中线必须 |x|≥150，否则河道会贴/穿城墙。
   const TRIBS = [
     { x: (z) => -168 + Math.sin(z * 0.021) * 12, joinZ: -186 }, // 西支·玉溪
-    { x: (z) => 155 + Math.sin(z * 0.017) * 10, joinZ: -198 }, // 中支·清溪（城东南侧）
+    { x: (z) => 155 + Math.sin(z * 0.017) * 10, joinZ: -153 }, // 中支·清溪（城东南侧；joinZ=主河在中线处的实算 z，勿拍脑袋定）
     { x: (z) => 226 + Math.sin(z * 0.024) * 14, joinZ: -174 }, // 东支·云川
   ];
 
