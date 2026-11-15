@@ -156,6 +156,8 @@ public final class FormMetadataCompiler {
         if (column.getSensitive() != null && column.getSensitive() == 1) {
             node.put("sensitive", true);
         }
+        putRoleCodes(node, "visibleRoles", config.getVisibleRoles());
+        putRoleCodes(node, "editableRoles", config.getEditableRoles());
         if (FormDataType.TEXT.equals(column.getDataType())) {
             node.put("maxLength",
                     column.getLength() == null ? FormDataType.DEFAULT_TEXT_LENGTH : column.getLength());
@@ -169,6 +171,27 @@ public final class FormMetadataCompiler {
         applyFieldExtras(node, column.getDataType(), config.getValidateJson(), label,
                 column.getColumnCode(), allKeys);
         return node;
+    }
+
+    /**
+     * 把字段级角色编码写入 schema 字段节点（非法或空文本忽略，保持发布可用）
+     *
+     * @param node 字段节点
+     * @param name 节点名（{@code visibleRoles} / {@code editableRoles}）
+     * @param roleJson 角色编码 JSON 数组文本（可空）
+     */
+    private static void putRoleCodes(ObjectNode node, String name, String roleJson) {
+        if (!StringUtils.hasText(roleJson)) {
+            return;
+        }
+        try {
+            JsonNode roles = MAPPER.readTree(roleJson);
+            if (roles != null && roles.isArray() && !roles.isEmpty()) {
+                node.set(name, roles);
+            }
+        } catch (Exception e) {
+            // 角色配置非法时不阻断发布：退化为「不限制角色」，避免历史脏数据导致表单无法发布
+        }
     }
 
     /**

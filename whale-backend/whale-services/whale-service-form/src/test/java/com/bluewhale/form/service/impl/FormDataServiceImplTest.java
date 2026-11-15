@@ -11,6 +11,7 @@ import com.bluewhale.form.po.FormDataPo;
 import com.bluewhale.form.po.FormDefinitionPo;
 import com.bluewhale.form.po.FormTableRegistryPo;
 import com.bluewhale.form.mapper.FormColumnMetaMapper;
+import com.bluewhale.form.mapper.FormAttachmentRefMapper;
 import com.bluewhale.form.mapper.FormDataHistoryMapper;
 import com.bluewhale.form.mapper.FormDataMapper;
 import com.bluewhale.form.mapper.FormDefinitionMapper;
@@ -77,6 +78,9 @@ class FormDataServiceImplTest {
 
     @Mock
     private FormDataHistoryMapper formDataHistoryMapper;
+
+    @Mock
+    private FormAttachmentRefMapper formAttachmentRefMapper;
 
     @Mock
     private FormDataHistoryRecorder formDataHistoryRecorder;

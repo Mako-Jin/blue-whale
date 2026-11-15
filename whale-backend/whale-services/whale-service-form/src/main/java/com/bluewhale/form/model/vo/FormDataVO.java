@@ -4,6 +4,7 @@ import lombok.Data;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -39,6 +40,9 @@ public class FormDataVO implements Serializable {
 
     /** 结构化字段值（详情/提交返回；列表为 {@code null}） */
     private Map<String, Object> fields;
+
+    /** 当前角色下不可编辑的字段编码（详情/提交/修改返回；无则空列表） */
+    private List<String> readonlyFields;
 
     /** 提交人账号 */
     private String submitter;

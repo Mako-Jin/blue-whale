@@ -80,10 +80,16 @@
     **边界**：运维按需查询，不做启动阻塞自检，不自动修复。
 
 
-### 批次 4（安全与权限深化，已落地 / 部分暂缓）
+### 批次 4（安全与权限深化，已全部落地）
 
 已落地（详见 [whale-form-security-hardening.md](./whale-form-security-hardening.md)）：
 
+6. 字段级权限：`form_field_config.visible_roles/editable_roles`（V14，JSON 数组文本，空为不限制），
+   编译快照写入字段节点；`X-User-Roles` 经拦截器写入 `FormRoleContext`；详情/归档详情按角色裁剪字段并返回
+   `readonlyFields`，导出按角色裁剪列，提交/修改对不可编辑字段做强校验；未携带角色头（内网调用）不限制。
+3. 附件引用表：`form_attachment_ref`（V15）在提交/导入/修改时重建、删除数据时清理；
+   `GET /form/v1/data/attachment-refs?attachmentId=...` 反查（单次 200 条）。
+   **子表条件检索仍不支持**，作为产品边界保留。
 22. 导出脱敏：`form_column_meta.sensitive`（V13）+ 编译快照写入字段节点 + 导出按标记掩码
     （≥11 位保留前 3 后 4、≥7 位保留前 2 后 2、其余 `***`）；入库与详情保持原值。
 23. 多版本检索 DoS：动态字段检索只让最近 3 个版本的物理表参与，避免版本数放大查询次数；
@@ -98,11 +104,6 @@
 
 21. `X-Username` 可信边界：只允许网关写入并覆盖，服务不直接暴露公网；后续可改为 JWT 解析。
 14. DDL 权限收敛：生产应用账号只允许 `form_data_*` 前缀表的 DDL，或走 DBA 独立通道。
-
-暂缓（保持产品边界，不假装支持）：
-
-6. 字段级权限：`visibleRoles/editableRoles` 涉及 VO 裁剪、导出裁剪、校验跳过，单独立项。
-3. 附件引用表 + 子表检索：明确不支持按子表条件检索与附件反查，需能力时单独立项。
 
 ## 四、批次 1 详细设计
 

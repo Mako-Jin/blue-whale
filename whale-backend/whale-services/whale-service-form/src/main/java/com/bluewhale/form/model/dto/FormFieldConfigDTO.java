@@ -47,6 +47,14 @@ public class FormFieldConfigDTO implements Serializable {
     @Max(value = 1, message = "editable 仅允许 0 或 1")
     private Integer editable;
 
+    /** 可见角色编码（JSON 字符串数组文本，如 {@code ["admin","hr"]}；空表示不限制） */
+    @Size(max = 512, message = "可见角色长度不能超过 512")
+    private String visibleRoles;
+
+    /** 可编辑角色编码（JSON 字符串数组文本；空表示不限制） */
+    @Size(max = 512, message = "可编辑角色长度不能超过 512")
+    private String editableRoles;
+
     /** 排序号 */
     @Min(value = 0, message = "排序号不能小于 0")
     private Integer sortNo;

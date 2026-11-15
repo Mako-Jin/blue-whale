@@ -649,6 +649,44 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
     }
 
     /**
+     * 归一化字段级角色编码：仅接受 JSON 字符串数组，去重后回写；空数组归一为 {@code null}（不限制）
+     *
+     * @param raw 原始角色 JSON 文本
+     * @param label 业务标签（用于错误提示）
+     * @return 归一化后的 JSON 数组文本；未配置返回 {@code null}
+     * @throws BizException 非 JSON 字符串数组或角色编码过长时抛出 {@code PARAM_ERROR}
+     */
+    private static String normalizeRoleCodes(String raw, String label) {
+        if (!StringUtils.hasText(raw)) {
+            return null;
+        }
+        String text = raw.trim();
+        FormJson.assertDepth(text, label);
+        try {
+            JsonNode node = SNAPSHOT_MAPPER.readTree(text);
+            if (node == null || !node.isArray()) {
+                throw paramError(label + "格式应为 JSON 字符串数组");
+            }
+            Set<String> codes = new LinkedHashSet<>();
+            for (JsonNode item : node) {
+                if (!item.isTextual() || !StringUtils.hasText(item.asText())) {
+                    throw paramError(label + "中的角色编码必须为非空字符串");
+                }
+                String code = item.asText().trim();
+                if (code.length() > 64) {
+                    throw paramError(label + "中的角色编码不能超过 64 字符");
+                }
+                codes.add(code);
+            }
+            return codes.isEmpty() ? null : SNAPSHOT_MAPPER.writeValueAsString(codes);
+        } catch (BizException e) {
+            throw e;
+        } catch (Exception e) {
+            throw paramError(label + "格式应为 JSON 字符串数组");
+        }
+    }
+
+    /**
      * 校验并规整标签：必须为 JSON 字符串数组文本
      *
      * @param tags 原始标签文本（可空）
@@ -695,6 +733,8 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
         config.setShowInList(dto.getShowInList() == null ? STATUS_NORMAL : dto.getShowInList());
         config.setShowInForm(dto.getShowInForm() == null ? STATUS_NORMAL : dto.getShowInForm());
         config.setEditable(dto.getEditable() == null ? STATUS_NORMAL : dto.getEditable());
+        config.setVisibleRoles(normalizeRoleCodes(dto.getVisibleRoles(), "可见角色"));
+        config.setEditableRoles(normalizeRoleCodes(dto.getEditableRoles(), "可编辑角色"));
         config.setSortNo(dto.getSortNo() == null ? 0 : dto.getSortNo());
         config.setColSpan(dto.getColSpan() == null ? DEFAULT_COL_SPAN : dto.getColSpan());
         config.setPlaceholder(dto.getPlaceholder());

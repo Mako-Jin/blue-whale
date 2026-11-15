@@ -40,6 +40,12 @@ public class FormFieldConfigVO implements Serializable {
     /** 是否允许编辑：1 可编辑 / 0 只读 */
     private Integer editable;
 
+    /** 可见角色编码（JSON 字符串数组文本；空表示不限制） */
+    private String visibleRoles;
+
+    /** 可编辑角色编码（JSON 字符串数组文本；空表示不限制） */
+    private String editableRoles;
+
     /** 排序号 */
     private Integer sortNo;
 

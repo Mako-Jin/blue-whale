@@ -3,6 +3,8 @@ package com.bluewhale.form.config;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.tenant.TenantContext;
+import com.bluewhale.common.web.WebHeaders;
+import com.bluewhale.form.support.FormRoleContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Configuration;
@@ -32,7 +34,7 @@ public class FormTenantConfig implements WebMvcConfigurer {
     }
 
     /**
-     * 租户守卫拦截器：上下文缺失即拒绝请求
+     * 租户与角色守卫拦截器：租户上下文缺失即拒绝请求；角色头写入线程上下文供字段级权限使用
      */
     static final class TenantGuardInterceptor implements HandlerInterceptor {
 
@@ -41,7 +43,14 @@ public class FormTenantConfig implements WebMvcConfigurer {
             if (TenantContext.get() == null) {
                 throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "缺少租户上下文");
             }
+            FormRoleContext.set(WebHeaders.splitCodes(WebHeaders.header(request, WebHeaders.USER_ROLES)));
             return true;
+        }
+
+        @Override
+        public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler,
+                                    Exception ex) {
+            FormRoleContext.clear();
         }
     }
 }

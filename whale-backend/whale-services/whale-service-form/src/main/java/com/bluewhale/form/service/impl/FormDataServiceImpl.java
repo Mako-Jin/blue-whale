@@ -14,12 +14,14 @@ import com.bluewhale.form.model.request.FormDataQueryRequest;
 import com.bluewhale.form.model.request.FormDataSubmitRequest;
 import com.bluewhale.form.model.request.FormDataUpdateRequest;
 import com.bluewhale.form.po.FormColumnMetaPo;
+import com.bluewhale.form.po.FormAttachmentRefPo;
 import com.bluewhale.form.po.FormDataHistoryPo;
 import com.bluewhale.form.po.FormDataPo;
 import com.bluewhale.form.po.FormDefinitionPo;
 import com.bluewhale.form.po.FormTableDefinitionPo;
 import com.bluewhale.form.po.FormTableRegistryPo;
 import com.bluewhale.form.mapper.FormColumnMetaMapper;
+import com.bluewhale.form.mapper.FormAttachmentRefMapper;
 import com.bluewhale.form.mapper.FormDataHistoryMapper;
 import com.bluewhale.form.mapper.FormDataMapper;
 import com.bluewhale.form.mapper.FormDefinitionMapper;
@@ -32,12 +34,14 @@ import com.bluewhale.form.support.FormDataHistoryRecorder;
 import com.bluewhale.form.support.FormDataImportSupport;
 import com.bluewhale.form.support.FormDataType;
 import com.bluewhale.form.support.FormField;
+import com.bluewhale.form.support.FormFieldPermission;
 import com.bluewhale.form.support.FormJson;
 import com.bluewhale.form.support.FormMetadataCache;
 import com.bluewhale.form.support.FormMetadataCompiler;
 import com.bluewhale.form.support.FormMetrics;
 import com.bluewhale.form.support.FormSchemaParser;
 import com.bluewhale.form.model.vo.FormArchiveVO;
+import com.bluewhale.form.model.vo.FormAttachmentRefVO;
 import com.bluewhale.form.model.vo.FormDataExportVO;
 import com.bluewhale.form.model.vo.FormDataHistoryVO;
 import com.bluewhale.form.model.vo.FormDataImportFailRowVO;
@@ -68,6 +72,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -115,6 +120,9 @@ public class FormDataServiceImpl implements FormDataService {
 
     /** 变更历史单次最多返回条数 */
     private static final int HISTORY_MAX_ROWS = 200;
+
+    /** 附件反查单次最多返回条数 */
+    private static final int ATTACHMENT_REF_MAX_ROWS = 200;
 
     /** 业务状态：审批中 */
     private static final int BIZ_PENDING = 2;
@@ -165,6 +173,8 @@ public class FormDataServiceImpl implements FormDataService {
     private final FormColumnMetaMapper formColumnMetaMapper;
 
     private final FormDataHistoryMapper formDataHistoryMapper;
+
+    private final FormAttachmentRefMapper formAttachmentRefMapper;
 
     private final FormDataHistoryRecorder formDataHistoryRecorder;
 
@@ -226,6 +236,7 @@ public class FormDataServiceImpl implements FormDataService {
         List<FormField> fields = FormSchemaParser.parse(schema);
         Map<String, Object> data = parseData(dataJson);
         validateFields(fields, data);
+        assertNonEditableAbsent(fields, data);
         FormDataPo entity = new FormDataPo();
         entity.setTenantId(tenantId);
         entity.setDefinitionId(definition.getId());
@@ -246,8 +257,9 @@ public class FormDataServiceImpl implements FormDataService {
         formDataMapper.insert(entity);
         formDataEngine.insert(registry.getPhysicalTable(), entity, fields, data);
         formDataHistoryRecorder.recordCreate(entity);
+        syncAttachmentRefs(entity, fields, data);
         eventPublisher.publishEvent(FormDataChangedEvent.of(entity, FormDataChangedEvent.CREATE, submitter));
-        return toVo(entity, data);
+        return toVoWithPermissions(entity, data, fields);
     }
 
     /**
@@ -290,38 +302,47 @@ public class FormDataServiceImpl implements FormDataService {
         List<FormField> tableFields = FormSchemaParser.parseStorage(schemaOf(registry));
         List<FormField> viewFields = StringUtils.hasText(definition.getSchemaJson())
                 ? FormSchemaParser.parse(definition.getSchemaJson()) : tableFields;
-        Map<String, Object> merged = new LinkedHashMap<>(parseDataQuietly(entity.getDataJson()));
+        Map<String, Object> before = parseDataQuietly(entity.getDataJson());
+        Map<String, Object> merged = new LinkedHashMap<>(before);
         merged.putAll(parseData(request.getDataJson()));
         assertKnownFields(tableFields, merged);
         validateValues(viewFields, merged);
+        assertNonEditableUnchanged(viewFields, before, merged);
         String beforeJson = entity.getDataJson();
         entity.setDataJson(writeData(merged));
         formDataMapper.updateById(entity);
         formDataEngine.update(registry.getPhysicalTable(), entity, writableFields(viewFields, tableFields), merged);
         formDataHistoryRecorder.recordUpdate(entity, beforeJson);
+        syncAttachmentRefs(entity, tableFields, merged);
         eventPublisher.publishEvent(FormDataChangedEvent.of(entity, FormDataChangedEvent.UPDATE, null));
-        return toVo(entity, merged);
+        return toVoWithPermissions(entity, merged, viewFields);
     }
 
     @Override
     public FormDataVO getDetail(Long id, Long tenantId) {
         FormDataPo entity = requireData(id, tenantId);
         FormTableRegistryPo registry = requireRegistry(routeCodeOf(entity), routeVersionOf(entity));
-        List<FormField> fields = FormSchemaParser.parseStorage(schemaOf(registry));
+        List<FormField> allFields = FormSchemaParser.parseStorage(schemaOf(registry));
+        List<FormField> fields = visibleFields(allFields);
         Map<String, Object> data =
                 formDataEngine.selectFields(registry.getPhysicalTable(), entity.getId(), tenantId, fields);
-        return toVo(entity, data);
+        FormDataVO vo = toVo(entity, data);
+        vo.setReadonlyFields(readonlyFields(allFields));
+        return vo;
     }
 
     @Override
     public FormArchiveVO getArchiveDetail(Long id, Long tenantId) {
         FormDataPo entity = requireData(id, tenantId);
         FormTableRegistryPo registry = requireRegistry(routeCodeOf(entity), routeVersionOf(entity));
-        List<FormField> fields = FormSchemaParser.parseStorage(schemaOf(registry));
+        List<FormField> allFields = FormSchemaParser.parseStorage(schemaOf(registry));
+        List<FormField> fields = visibleFields(allFields);
         Map<String, Object> data =
                 formDataEngine.selectFields(registry.getPhysicalTable(), entity.getId(), tenantId, fields);
+        FormDataVO dataVo = toVo(entity, data);
+        dataVo.setReadonlyFields(readonlyFields(allFields));
         FormArchiveVO vo = new FormArchiveVO();
-        vo.setData(toVo(entity, data));
+        vo.setData(dataVo);
         vo.setFieldDefinitions(fields);
         return vo;
     }
@@ -365,6 +386,7 @@ public class FormDataServiceImpl implements FormDataService {
         formDataMapper.deleteById(id);
         FormTableRegistryPo registry = requireRegistry(routeCodeOf(entity), routeVersionOf(entity));
         formDataEngine.logicDelete(registry.getPhysicalTable(), id, tenantId);
+        deleteAttachmentRefs(id, tenantId);
         eventPublisher.publishEvent(FormDataChangedEvent.of(entity, FormDataChangedEvent.DELETE, null));
     }
 
@@ -378,6 +400,27 @@ public class FormDataServiceImpl implements FormDataService {
         wrapper.last("LIMIT " + HISTORY_MAX_ROWS);
         return formDataHistoryMapper.selectList(wrapper).stream()
                 .map(FormConverter.INSTANCE::toHistoryVo).toList();
+    }
+
+    @Override
+    public List<FormAttachmentRefVO> listAttachmentRefs(String attachmentId, Long tenantId) {
+        Long fileId = parseAttachmentId(attachmentId);
+        if (fileId == null) {
+            throw paramError("附件ID必须为数字");
+        }
+        LambdaQueryWrapper<FormAttachmentRefPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormAttachmentRefPo::getTenantId, tenantId);
+        wrapper.eq(FormAttachmentRefPo::getAttachmentId, fileId);
+        wrapper.orderByDesc(FormAttachmentRefPo::getCreateTime);
+        wrapper.last("LIMIT " + ATTACHMENT_REF_MAX_ROWS);
+        return formAttachmentRefMapper.selectList(wrapper).stream().map(ref -> {
+            FormAttachmentRefVO vo = new FormAttachmentRefVO();
+            vo.setDataId(ref.getDataId());
+            vo.setDefinitionCode(ref.getDefinitionCode());
+            vo.setFieldKey(ref.getFieldKey());
+            vo.setAttachmentId(ref.getAttachmentId());
+            return vo;
+        }).toList();
     }
 
     @Override
@@ -706,7 +749,7 @@ public class FormDataServiceImpl implements FormDataService {
             throw paramError("请先指定表单编码后再导出");
         }
         FormDefinitionPo definition = requireDefinitionByCode(request.getDefinitionCode());
-        List<FormField> fields = FormSchemaParser.parse(definition.getSchemaJson());
+        List<FormField> fields = visibleFields(FormSchemaParser.parse(definition.getSchemaJson()));
         List<FormDataFilter> filters = parseFilters(request.getFilters());
         boolean truncated;
         List<FormDataPo> exportData;
@@ -807,6 +850,190 @@ public class FormDataServiceImpl implements FormDataService {
             row.add(sensitiveKeys.contains(key) ? FormDataExportSupport.maskSensitive(cell) : cell);
         }
         return row;
+    }
+
+    /**
+     * 按当前请求角色过滤字段可见性
+     *
+     * @param fields 全部字段
+     * @return 当前角色可见的字段
+     */
+    private static List<FormField> visibleFields(List<FormField> fields) {
+        return fields.stream().filter(FormFieldPermission::visible).toList();
+    }
+
+    /**
+     * 计算当前角色下不可编辑的字段编码
+     *
+     * @param fields 全部字段
+     * @return 不可编辑字段编码列表；无则返回空列表
+     */
+    private static List<String> readonlyFields(List<FormField> fields) {
+        return fields.stream().filter(field -> !FormFieldPermission.editable(field))
+                .map(FormField::getKey).toList();
+    }
+
+    /**
+     * 组装视图对象并按当前角色裁剪字段值与标记只读字段
+     *
+     * @param entity 表单数据实体
+     * @param data 字段值映射
+     * @param fields 全部字段定义
+     * @return 表单数据视图对象
+     */
+    private static FormDataVO toVoWithPermissions(FormDataPo entity, Map<String, Object> data,
+                                                  List<FormField> fields) {
+        FormDataVO vo = toVo(entity, data);
+        Map<String, Object> visibleData = new LinkedHashMap<>();
+        for (FormField field : fields) {
+            if (FormFieldPermission.visible(field) && data.containsKey(field.getKey())) {
+                visibleData.put(field.getKey(), data.get(field.getKey()));
+            }
+        }
+        vo.setFields(visibleData);
+        vo.setReadonlyFields(readonlyFields(fields));
+        return vo;
+    }
+
+    /**
+     * 提交时校验：当前角色不可编辑的字段不允许携带非空值
+     *
+     * @param fields 字段定义
+     * @param data 提交数据
+     * @throws BizException 携带不可编辑字段的非空值时抛出 {@code PARAM_ERROR}
+     */
+    private static void assertNonEditableAbsent(List<FormField> fields, Map<String, Object> data) {
+        for (FormField field : fields) {
+            if (FormFieldPermission.editable(field) || !hasValue(data.get(field.getKey()))) {
+                continue;
+            }
+            throw paramError("字段 " + field.getLabel() + " 当前角色不可编辑");
+        }
+    }
+
+    /**
+     * 修改时校验：当前角色不可编辑的字段值不允许发生变化
+     *
+     * @param fields 字段定义
+     * @param before 变更前数据
+     * @param merged 合并后数据
+     * @throws BizException 不可编辑字段值发生变化时抛出 {@code PARAM_ERROR}
+     */
+    private static void assertNonEditableUnchanged(List<FormField> fields, Map<String, Object> before,
+                                                   Map<String, Object> merged) {
+        for (FormField field : fields) {
+            if (FormFieldPermission.editable(field)) {
+                continue;
+            }
+            String key = field.getKey();
+            if (!Objects.equals(before.get(key), merged.get(key))) {
+                throw paramError("字段 " + field.getLabel() + " 当前角色不可编辑");
+            }
+        }
+    }
+
+    /**
+     * 判断字段值是否非空（空字符串、空集合、空映射视为未填写）
+     *
+     * @param value 字段值
+     * @return 非空返回 {@code true}
+     */
+    private static boolean hasValue(Object value) {
+        if (value == null) {
+            return false;
+        }
+        if (value instanceof String text) {
+            return StringUtils.hasText(text);
+        }
+        if (value instanceof Collection<?> collection) {
+            return !collection.isEmpty();
+        }
+        if (value instanceof Map<?, ?> map) {
+            return !map.isEmpty();
+        }
+        return true;
+    }
+
+    /**
+     * 重建表单数据的附件引用索引（先清理后按当前附件字段写入）
+     *
+     * @param entity 表单数据实体
+     * @param fields 字段定义（存储层全量字段）
+     * @param data 字段值映射
+     */
+    private void syncAttachmentRefs(FormDataPo entity, List<FormField> fields, Map<String, Object> data) {
+        deleteAttachmentRefs(entity.getId(), entity.getTenantId());
+        for (FormField field : fields) {
+            if (!FormDataType.ATTACHMENT.equals(field.getType())) {
+                continue;
+            }
+            Object value = data.get(field.getKey());
+            if (!(value instanceof Collection<?> files)) {
+                continue;
+            }
+            Set<Long> attachmentIds = new LinkedHashSet<>();
+            for (Object item : files) {
+                Long attachmentId = toAttachmentId(item);
+                if (attachmentId != null) {
+                    attachmentIds.add(attachmentId);
+                }
+            }
+            for (Long attachmentId : attachmentIds) {
+                FormAttachmentRefPo ref = new FormAttachmentRefPo();
+                ref.setTenantId(entity.getTenantId());
+                ref.setDataId(entity.getId());
+                ref.setDefinitionCode(entity.getDefinitionCode());
+                ref.setFieldKey(field.getKey());
+                ref.setAttachmentId(attachmentId);
+                formAttachmentRefMapper.insert(ref);
+            }
+        }
+    }
+
+    /**
+     * 清理表单数据的全部附件引用索引
+     *
+     * @param dataId 表单数据ID
+     * @param tenantId 租户ID
+     */
+    private void deleteAttachmentRefs(Long dataId, Long tenantId) {
+        LambdaQueryWrapper<FormAttachmentRefPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormAttachmentRefPo::getTenantId, tenantId);
+        wrapper.eq(FormAttachmentRefPo::getDataId, dataId);
+        formAttachmentRefMapper.delete(wrapper);
+    }
+
+    /**
+     * 把附件值元素转为文件ID
+     *
+     * @param item 附件值元素（数字或数字文本）
+     * @return 文件ID；非数字返回 {@code null}
+     */
+    private static Long toAttachmentId(Object item) {
+        if (item instanceof Number number) {
+            return number.longValue();
+        }
+        if (item instanceof String text) {
+            return parseAttachmentId(text);
+        }
+        return null;
+    }
+
+    /**
+     * 解析附件ID文本
+     *
+     * @param text 附件ID文本
+     * @return 文件ID；空或非数字返回 {@code null}
+     */
+    private static Long parseAttachmentId(String text) {
+        if (!StringUtils.hasText(text)) {
+            return null;
+        }
+        try {
+            return Long.parseLong(text.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     /**

@@ -2,6 +2,7 @@ package com.bluewhale.form.service.impl;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.form.mapper.FormColumnMetaMapper;
+import com.bluewhale.form.mapper.FormAttachmentRefMapper;
 import com.bluewhale.form.mapper.FormDataHistoryMapper;
 import com.bluewhale.form.mapper.FormDataMapper;
 import com.bluewhale.form.mapper.FormDefinitionMapper;
@@ -59,6 +60,9 @@ class FormDataExportSensitiveTest {
 
     @Mock
     private FormDataHistoryMapper formDataHistoryMapper;
+
+    @Mock
+    private FormAttachmentRefMapper formAttachmentRefMapper;
 
     @Mock
     private FormDataHistoryRecorder formDataHistoryRecorder;

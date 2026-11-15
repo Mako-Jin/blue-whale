@@ -155,6 +155,8 @@ public final class FormSchemaParser {
         field.setType(type);
         field.setRequired(node.path("required").asBoolean(false));
         field.setSensitive(node.path("sensitive").asBoolean(false));
+        field.setVisibleRoles(readStringArray(node, "visibleRoles"));
+        field.setEditableRoles(readStringArray(node, "editableRoles"));
         if (FormDataType.TEXT.equals(type)) {
             field.setMaxLength(parseMaxLength(node, key));
         }
@@ -303,6 +305,27 @@ public final class FormSchemaParser {
             options.add(option.asText());
         }
         return options;
+    }
+
+    /**
+     * 读取节点上的字符串数组属性（缺失、非数组或空数组返回 {@code null}）
+     *
+     * @param node 字段 JSON 节点
+     * @param name 属性名
+     * @return 字符串列表；缺失时返回 {@code null}
+     */
+    private static List<String> readStringArray(JsonNode node, String name) {
+        JsonNode arrayNode = node.get(name);
+        if (arrayNode == null || !arrayNode.isArray() || arrayNode.isEmpty()) {
+            return null;
+        }
+        List<String> values = new ArrayList<>();
+        for (JsonNode item : arrayNode) {
+            if (item.isTextual() && StringUtils.hasText(item.asText())) {
+                values.add(item.asText());
+            }
+        }
+        return values.isEmpty() ? null : values;
     }
 
     /**

@@ -11,6 +11,7 @@ import com.bluewhale.form.model.request.FormDataUpdateRequest;
 import com.bluewhale.form.service.FormDataService;
 import com.bluewhale.form.support.TenantResolver;
 import com.bluewhale.form.model.vo.FormDataExportVO;
+import com.bluewhale.form.model.vo.FormAttachmentRefVO;
 import com.bluewhale.form.model.vo.FormDataHistoryVO;
 import com.bluewhale.form.model.vo.FormDataImportResultVO;
 import com.bluewhale.form.model.vo.FormDataVO;
@@ -94,6 +95,21 @@ public class FormDataController {
     @RequirePermission("sys:form:data:list")
     public Result<FormDataVO> detail(@PathVariable Long id, HttpServletRequest httpRequest) {
         return Result.ok(formDataService.getDetail(id, TenantResolver.resolve(httpRequest)));
+    }
+
+    /**
+     * 按附件ID反查引用该附件的表单数据（附件引用索引，单次最多 200 条）。
+     *
+     * @param attachmentId 文件ID（数字）
+     * @param httpRequest 当前请求（读取 {@code X-Tenant-Id} 解析租户）
+     * @return 附件引用列表
+     */
+    @GetMapping("/attachment-refs")
+    @RequirePermission("sys:form:data:list")
+    public Result<List<FormAttachmentRefVO>> attachmentRefs(@RequestParam String attachmentId,
+                                                            HttpServletRequest httpRequest) {
+        return Result.ok(formDataService.listAttachmentRefs(attachmentId,
+                TenantResolver.resolve(httpRequest)));
     }
 
     /**

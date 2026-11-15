@@ -7,6 +7,7 @@ import com.bluewhale.form.model.request.FormDataQueryRequest;
 import com.bluewhale.form.model.request.FormDataSubmitRequest;
 import com.bluewhale.form.model.request.FormDataUpdateRequest;
 import com.bluewhale.form.model.vo.FormArchiveVO;
+import com.bluewhale.form.model.vo.FormAttachmentRefVO;
 import com.bluewhale.form.model.vo.FormDataExportVO;
 import com.bluewhale.form.model.vo.FormDataHistoryVO;
 import com.bluewhale.form.model.vo.FormDataImportResultVO;
@@ -103,6 +104,15 @@ public interface FormDataService {
      * @return 变更历史列表（无记录返回空列表）
      */
     List<FormDataHistoryVO> listHistory(Long id, Long tenantId);
+
+    /**
+     * 按附件ID反查引用该附件的表单数据（附件引用索引，单次最多 200 条）
+     *
+     * @param attachmentId 文件ID（数字文本）
+     * @param tenantId 租户ID
+     * @return 附件引用列表；无引用返回空列表
+     */
+    List<FormAttachmentRefVO> listAttachmentRefs(String attachmentId, Long tenantId);
 
     /**
      * 发起审批：登记外部工作流实例ID 并把业务状态置为「审批中」

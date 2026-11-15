@@ -26,7 +26,8 @@ class FormContractTest {
     /** 表单数据契约字段（新增字段可追加，已有字段不得改名/删除） */
     private static final List<String> DATA_FIELDS = List.of(
             "id", "tenantId", "definitionId", "definitionCode", "definitionVersion", "bizKey", "dataJson",
-            "fields", "submitter", "status", "bizStatus", "processInstanceId", "createTime", "updateTime");
+            "fields", "readonlyFields", "submitter", "status", "bizStatus", "processInstanceId",
+            "createTime", "updateTime");
 
     /** 表单定义契约字段 */
     private static final List<String> DEFINITION_FIELDS = List.of(

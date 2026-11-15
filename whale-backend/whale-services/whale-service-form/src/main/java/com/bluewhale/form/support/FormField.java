@@ -30,6 +30,12 @@ public class FormField {
     /** 是否敏感字段（仅影响导出脱敏，入库与详情保持原值） */
     private boolean sensitive;
 
+    /** 可见角色编码（空表示不限制） */
+    private List<String> visibleRoles;
+
+    /** 可编辑角色编码（空表示不限制） */
+    private List<String> editableRoles;
+
     /** 文本最大长度（仅 text 生效，1..2000，缺省 255） */
     private Integer maxLength;
 
