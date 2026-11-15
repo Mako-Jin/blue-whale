@@ -65,6 +65,14 @@ public class FileAssetAggregate implements Entity<Long> {
      */
     private final String bucket;
 
+    /** 落盘时的存储插件类型（如 {@code local}、{@code minio}），历史数据可为 {@code null}
+     * -- GETTER --
+     *  获取落盘时的存储插件类型
+     *
+     * @return 存储插件类型，可为 {@code null}
+     */
+    private final String storageType;
+
     /** 对象存储键（桶内完整路径）
      * -- GETTER --
      *  获取对象存储键
@@ -153,10 +161,11 @@ public class FileAssetAggregate implements Entity<Long> {
      * @param deleted 逻辑删除标记
      * @param createTime 创建时间
      * @param updateTime 更新时间
+     * @param storageType 落盘时的存储插件类型，可为 {@code null}
      */
     private FileAssetAggregate(Long id, String fileName, String originalName, String bucket, String objectKey,
                                long fileSize, String contentType, String md5, FileStatus status, Long uploaderId,
-                               boolean deleted, LocalDateTime createTime, LocalDateTime updateTime) {
+                               boolean deleted, LocalDateTime createTime, LocalDateTime updateTime, String storageType) {
         if (bucket == null || bucket.isBlank()) {
             throw new DomainException(ErrorCode.PARAM_ERROR, "对象存储桶名称不能为空");
         }
@@ -171,6 +180,7 @@ public class FileAssetAggregate implements Entity<Long> {
         this.originalName = originalName == null || originalName.isBlank() ? UNKNOWN_FILENAME : originalName;
         this.bucket = bucket;
         this.objectKey = objectKey;
+        this.storageType = storageType == null || storageType.isBlank() ? null : storageType.trim();
         this.fileSize = fileSize;
         this.contentType = contentType;
         // 摘要统一归一化为十六进制小写，避免大小写不同导致秒传查询失配或重复登记
@@ -192,11 +202,12 @@ public class FileAssetAggregate implements Entity<Long> {
      * @param contentType MIME 类型，可为 {@code null}
      * @param md5 MD5 摘要（十六进制小写）
      * @param uploaderId 上传用户 ID，可为 {@code null}
+     * @param storageType 落盘时的存储插件类型
      * @return 新建的文件资产聚合根
      * @throws DomainException 原始文件名为空或文件大小非正数时抛出 {@code PARAM_ERROR}
      */
     public static FileAssetAggregate register(String bucket, String objectKey, String originalName, long fileSize,
-                                              String contentType, String md5, Long uploaderId) {
+                                              String contentType, String md5, Long uploaderId, String storageType) {
         if (originalName == null || originalName.isBlank()) {
             throw new DomainException(ErrorCode.PARAM_ERROR, "原始文件名不能为空");
         }
@@ -205,7 +216,7 @@ public class FileAssetAggregate implements Entity<Long> {
         }
         LocalDateTime now = LocalDateTime.now();
         return new FileAssetAggregate(null, null, originalName, bucket, objectKey, fileSize, contentType, md5,
-                FileStatus.NORMAL, uploaderId, false, now, now);
+                FileStatus.NORMAL, uploaderId, false, now, now, storageType);
     }
 
     /**
@@ -226,7 +237,7 @@ public class FileAssetAggregate implements Entity<Long> {
                 ? source.contentType : contentType;
         LocalDateTime now = LocalDateTime.now();
         return new FileAssetAggregate(null, source.fileName, originalName, source.bucket, source.objectKey, source.fileSize,
-                resolvedContentType, source.md5, FileStatus.NORMAL, uploaderId, false, now, now);
+                resolvedContentType, source.md5, FileStatus.NORMAL, uploaderId, false, now, now, source.storageType);
     }
 
     /**
@@ -248,14 +259,15 @@ public class FileAssetAggregate implements Entity<Long> {
      * @param deleted 逻辑删除标记
      * @param createTime 创建时间
      * @param updateTime 更新时间
+     * @param storageType 落盘时的存储插件类型，可为 {@code null}
      * @return 还原的文件资产聚合根
      */
     public static FileAssetAggregate reconstitute(Long id, String fileName, String originalName, String bucket,
                                                   String objectKey, long fileSize, String contentType, String md5,
                                                   FileStatus status, Long uploaderId, boolean deleted,
-                                                  LocalDateTime createTime, LocalDateTime updateTime) {
+                                                  LocalDateTime createTime, LocalDateTime updateTime, String storageType) {
         return new FileAssetAggregate(id, fileName, originalName, bucket, objectKey, fileSize, contentType, md5,
-                status, uploaderId, deleted, createTime, updateTime);
+                status, uploaderId, deleted, createTime, updateTime, storageType);
     }
 
     /**

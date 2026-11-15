@@ -9,12 +9,14 @@ import com.bluewhale.file.model.command.RapidUploadCommand;
 import com.bluewhale.file.model.command.UploadFileCommand;
 import com.bluewhale.file.model.query.FileChangesQuery;
 import com.bluewhale.file.model.query.FilePageQuery;
+import com.bluewhale.file.model.query.FileRecyclePageQuery;
 import com.bluewhale.file.model.result.ChunkUploadInitResult;
 import com.bluewhale.file.model.result.FileChangeResult;
 import com.bluewhale.file.model.result.FileInfoResult;
 import com.bluewhale.file.model.result.FilePresignedResult;
 import com.bluewhale.file.model.result.FileQuotaResult;
 import com.bluewhale.file.model.result.FileRapidUploadResult;
+import com.bluewhale.file.model.result.FileRecycleResult;
 import com.bluewhale.file.model.result.FileUploadResult;
 
 import java.io.InputStream;
@@ -143,6 +145,28 @@ public interface FileInfoService {
      * @param canManage 是否持有文件管理权限
      */
     void delete(Long id, Long requesterId, boolean canManage);
+
+    /**
+     * 分页查询回收站文件（已逻辑删除）
+     *
+     * <p>无管理权限时仅返回本人上传的文件；管理权限可查看全租户回收站。</p>
+     *
+     * @param query 回收站查询条件与调用者可见范围
+     * @return 回收站分页结果
+     */
+    PageResult<FileRecycleResult> recyclePage(FileRecyclePageQuery query);
+
+    /**
+     * 恢复回收站文件：重新占用个人配额并清除逻辑删除标记
+     *
+     * <p>幂等：文件已恢复或不存在时按成功返回。超出配额时抛 {@code PARAM_ERROR}。</p>
+     *
+     * @param id 文件ID
+     * @param requesterId 调用者用户 ID
+     * @param canManage 是否持有文件管理权限
+     * @param limits 生效的上传上限与配额；为 {@code null} 时使用全局默认配额
+     */
+    void restore(Long id, Long requesterId, boolean canManage, UploadLimits limits);
 
     /**
      * 生成预签名下载 URL（仅支持预签名能力的对象存储插件可用）

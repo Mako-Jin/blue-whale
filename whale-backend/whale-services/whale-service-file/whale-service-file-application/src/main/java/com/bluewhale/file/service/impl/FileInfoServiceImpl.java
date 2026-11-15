@@ -8,12 +8,15 @@ import com.bluewhale.file.config.FileProperties;
 import com.bluewhale.file.domain.file.aggregate.FileAssetAggregate;
 import com.bluewhale.file.domain.model.FileAssetPage;
 import com.bluewhale.file.domain.model.FileAssetQuery;
+import com.bluewhale.file.domain.model.FileRecycleQuery;
 import com.bluewhale.file.domain.file.repository.FileAssetRepository;
 import com.bluewhale.file.domain.storage.ChunkUploadMetadata;
 import com.bluewhale.file.domain.storage.ChunkUploadSessionId;
 import com.bluewhale.file.domain.storage.ChunkUploadStore;
 import com.bluewhale.file.domain.storage.FileStorage;
 import com.bluewhale.file.domain.storage.MergedChunkUpload;
+import com.bluewhale.file.domain.storage.StoragePluginCatalog;
+import com.bluewhale.file.metrics.FileMetrics;
 import com.bluewhale.file.model.UploadContent;
 import com.bluewhale.file.model.UploadLimits;
 import com.bluewhale.file.model.command.ChunkUploadCompleteCommand;
@@ -22,12 +25,14 @@ import com.bluewhale.file.model.command.RapidUploadCommand;
 import com.bluewhale.file.model.command.UploadFileCommand;
 import com.bluewhale.file.model.query.FileChangesQuery;
 import com.bluewhale.file.model.query.FilePageQuery;
+import com.bluewhale.file.model.query.FileRecyclePageQuery;
 import com.bluewhale.file.model.result.ChunkUploadInitResult;
 import com.bluewhale.file.model.result.FileChangeResult;
 import com.bluewhale.file.model.result.FileInfoResult;
 import com.bluewhale.file.model.result.FilePresignedResult;
 import com.bluewhale.file.model.result.FileQuotaResult;
 import com.bluewhale.file.model.result.FileRapidUploadResult;
+import com.bluewhale.file.model.result.FileRecycleResult;
 import com.bluewhale.file.model.result.FileUploadResult;
 import com.bluewhale.file.service.FileInfoService;
 import lombok.RequiredArgsConstructor;
@@ -95,6 +100,10 @@ public class FileInfoServiceImpl implements FileInfoService {
 
     private final FileProperties fileProperties;
 
+    private final StoragePluginCatalog storagePluginCatalog;
+
+    private final FileMetrics fileMetrics;
+
     @Override
     public FileUploadResult upload(UploadFileCommand command) {
         UploadContent content = command.content();
@@ -109,8 +118,17 @@ public class FileInfoServiceImpl implements FileInfoService {
         validateQuota(content.size(), command.uploaderId(), effective.quotaBytes());
         // 普通上传仅面向接口层已按上限预检的小文件，内容此时已全量在内存，直接计算摘要
         byte[] bytes = content.content();
-        return persistFile(new ByteArrayInputStream(bytes), content.originalName(), content.contentType(),
-                bytes.length, DigestUtils.md5DigestAsHex(bytes), command.bucket(), command.uploaderId(), effective);
+        long startedAt = System.nanoTime();
+        try {
+            FileUploadResult result = persistFile(new ByteArrayInputStream(bytes), content.originalName(),
+                    content.contentType(), bytes.length, DigestUtils.md5DigestAsHex(bytes), command.bucket(),
+                    command.uploaderId(), effective);
+            fileMetrics.recordUpload("multipart", bytes.length, System.nanoTime() - startedAt, "success");
+            return result;
+        } catch (RuntimeException e) {
+            fileMetrics.recordUpload("multipart", bytes.length, System.nanoTime() - startedAt, "failure");
+            throw e;
+        }
     }
 
     @Override
@@ -121,12 +139,21 @@ public class FileInfoServiceImpl implements FileInfoService {
         String md5 = command.md5();
         FileAssetAggregate existing = fileAssetRepository.findReusableByDigest(md5, command.size()).orElse(null);
         if (existing == null) {
+            fileMetrics.recordUpload("rapid", command.size(), 0L, "miss");
             return new FileRapidUploadResult(false, null);
         }
         validateQuota(command.size(), command.uploaderId(), effective.quotaBytes());
         FileAssetAggregate asset = FileAssetAggregate.reuse(existing, resolveOriginalName(command.fileName()),
                 command.contentType(), command.uploaderId());
-        return new FileRapidUploadResult(true, toUploadResult(persistAsset(asset, effective)));
+        long startedAt = System.nanoTime();
+        try {
+            FileUploadResult result = toUploadResult(persistAsset(asset, effective));
+            fileMetrics.recordUpload("rapid", command.size(), System.nanoTime() - startedAt, "success");
+            return new FileRapidUploadResult(true, result);
+        } catch (RuntimeException e) {
+            fileMetrics.recordUpload("rapid", command.size(), System.nanoTime() - startedAt, "failure");
+            throw e;
+        }
     }
 
     @Override
@@ -171,13 +198,20 @@ public class FileInfoServiceImpl implements FileInfoService {
     @Override
     public InputStream openContent(Long id, Long requesterId, boolean canManage) {
         FileAssetAggregate asset = requireAccessibleFile(id, requesterId, canManage);
-        return fileStorage.load(asset.getBucket(), asset.getObjectKey());
+        long startedAt = System.nanoTime();
+        InputStream content = fileStorage.load(asset.getBucket(), asset.getObjectKey(), asset.getStorageType());
+        fileMetrics.recordDownload(asset.getFileSize(), System.nanoTime() - startedAt);
+        return content;
     }
 
     @Override
     public InputStream openContent(Long id, Long requesterId, boolean canManage, long offset, long length) {
         FileAssetAggregate asset = requireAccessibleFile(id, requesterId, canManage);
-        return fileStorage.load(asset.getBucket(), asset.getObjectKey(), offset, length);
+        long startedAt = System.nanoTime();
+        InputStream content = fileStorage.load(asset.getBucket(), asset.getObjectKey(), offset, length,
+                asset.getStorageType());
+        fileMetrics.recordDownload(length, System.nanoTime() - startedAt);
+        return content;
     }
 
     @Override
@@ -186,6 +220,40 @@ public class FileInfoServiceImpl implements FileInfoService {
         FileAssetAggregate asset = requireAccessibleFile(id, requesterId, canManage);
         asset.assertDeletable();
         fileAssetRepository.deleteById(id);
+    }
+
+    @Override
+    public PageResult<FileRecycleResult> recyclePage(FileRecyclePageQuery query) {
+        long pageCurrent = clampPageCurrent(query.current());
+        long pageSize = clampPageSize(query.size());
+        // 无管理权限时仅可见本人上传的已删文件；管理视角可查看全租户回收站
+        Long uploaderFilter = query.canManage() ? null : query.requesterId();
+        FileAssetPage page = fileAssetRepository.pageRecycle(new FileRecycleQuery(query.originalName(),
+                query.bucket(), uploaderFilter, pageCurrent, pageSize));
+        List<FileRecycleResult> records = page.records().stream()
+                .map(FileInfoServiceImpl::toRecycleResult)
+                .toList();
+        return PageResult.of(records, page.total(), page.current(), page.size());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void restore(Long id, Long requesterId, boolean canManage, UploadLimits limits) {
+        FileAssetAggregate asset = fileAssetRepository.findByIdIncludingDeleted(id)
+                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
+        asset.assertVisibleTo(requesterId, canManage, TenantContext.get());
+        if (!asset.isDeleted()) {
+            // 幂等：已恢复的文件重复调用按成功处理
+            fileMetrics.recordRestore(true);
+            return;
+        }
+        try {
+            fileAssetRepository.restoreWithQuotaCheck(id, effectiveLimits(limits).quotaBytes());
+            fileMetrics.recordRestore(true);
+        } catch (RuntimeException e) {
+            fileMetrics.recordRestore(false);
+            throw e;
+        }
     }
 
     @Override
@@ -222,7 +290,8 @@ public class FileInfoServiceImpl implements FileInfoService {
         FileAssetAggregate asset = requireAccessibleFile(id, requesterId, canManage);
         int expires = resolveExpiresSeconds(expiresSeconds);
         return new FilePresignedResult(
-                fileStorage.presignedDownloadUrl(asset.getBucket(), asset.getObjectKey(), expires), expires);
+                fileStorage.presignedDownloadUrl(asset.getBucket(), asset.getObjectKey(), expires,
+                        asset.getStorageType()), expires);
     }
 
     @Override
@@ -288,14 +357,20 @@ public class FileInfoServiceImpl implements FileInfoService {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "分片数量与文件大小不匹配");
         }
         FileUploadResult result;
+        long startedAt = System.nanoTime();
         try (MergedChunkUpload merged = chunkUploadStore.merge(sessionId, expectedCount)) {
             if (merged.size() != size) {
                 throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "分片总大小与声明大小不一致");
             }
             result = persistFile(merged.content(), command.fileName(), merged.contentType(),
                     size, merged.md5(), command.bucket(), command.uploaderId(), effective);
+            fileMetrics.recordUpload("chunk", size, System.nanoTime() - startedAt, "success");
         } catch (IOException e) {
+            fileMetrics.recordUpload("chunk", size, System.nanoTime() - startedAt, "failure");
             throw new BizException(ErrorCode.SYSTEM_ERROR);
+        } catch (RuntimeException e) {
+            fileMetrics.recordUpload("chunk", size, System.nanoTime() - startedAt, "failure");
+            throw e;
         }
         // 仅在合并落存储成功后清理暂存数据；失败时保留分片供客户端续传/重试。
         // 必须在合并流关闭后执行：Windows 下删除被占用文件会失败，导致暂存目录残留
@@ -329,7 +404,8 @@ public class FileInfoServiceImpl implements FileInfoService {
         String objectKey = buildObjectKey(name);
         fileStorage.store(resolvedBucket, objectKey, in);
         try {
-            FileAssetAggregate asset = FileAssetAggregate.register(resolvedBucket, objectKey, name, fileSize, contentType, md5, uploaderId);
+            FileAssetAggregate asset = FileAssetAggregate.register(resolvedBucket, objectKey, name, fileSize,
+                    contentType, md5, uploaderId, storagePluginCatalog.activeType());
             return toUploadResult(persistAsset(asset, limits));
         } catch (RuntimeException e) {
             // 落库失败（含配额超限）：补偿删除已写入的物理对象，避免产生孤儿文件
@@ -573,6 +649,18 @@ public class FileInfoServiceImpl implements FileInfoService {
         return new FileInfoResult(asset.getId(), asset.getFileName(), asset.getOriginalName(),
                 asset.getBucket(), asset.getObjectKey(), asset.getFileSize(), asset.getContentType(),
                 asset.getMd5(), asset.getUploaderId(), asset.getCreateTime());
+    }
+
+    /**
+     * 文件资产转回收站结果
+     *
+     * @param asset 文件资产聚合根
+     * @return 回收站结果
+     */
+    private static FileRecycleResult toRecycleResult(FileAssetAggregate asset) {
+        return new FileRecycleResult(asset.getId(), asset.getFileName(), asset.getOriginalName(),
+                asset.getBucket(), asset.getFileSize(), asset.getContentType(), asset.getStatus().getCode(),
+                asset.getUploaderId(), asset.getCreateTime(), asset.getUpdateTime());
     }
 
     /**

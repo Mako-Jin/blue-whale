@@ -2,6 +2,7 @@ package com.bluewhale.file.storage.plugin.minio;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.file.domain.storage.StorageHealth;
 import com.bluewhale.file.domain.storage.StoragePlugin;
 import io.minio.BucketExistsArgs;
 import io.minio.GetObjectArgs;
@@ -164,6 +165,28 @@ public class MinioStoragePlugin implements StoragePlugin {
             return minioClient.getPresignedObjectUrl(args);
         } catch (Exception e) {
             throw new BizException(ErrorCode.SYSTEM_ERROR);
+        }
+    }
+
+    /**
+     * 探测对象存储可用性：配置了默认桶时探测桶是否存在，否则以 {@code listBuckets} 验证连通性。
+     *
+     * @return 健康状态
+     */
+    @Override
+    public StorageHealth health() {
+        try {
+            String bucket = properties.getBucket();
+            if (StringUtils.hasText(bucket)) {
+                boolean exists = minioClient.bucketExists(BucketExistsArgs.builder().bucket(bucket).build());
+                return exists
+                        ? StorageHealth.up("对象存储默认桶可用: " + bucket)
+                        : StorageHealth.down("对象存储默认桶不存在: " + bucket);
+            }
+            minioClient.listBuckets();
+            return StorageHealth.up("对象存储连接正常");
+        } catch (Exception e) {
+            return StorageHealth.down("对象存储不可达: " + e.getMessage());
         }
     }
 

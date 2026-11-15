@@ -8,6 +8,7 @@ import com.bluewhale.file.config.FileProperties;
 import com.bluewhale.file.domain.file.aggregate.FileAssetAggregate;
 import com.bluewhale.file.domain.model.FileAssetPage;
 import com.bluewhale.file.domain.model.FileAssetQuery;
+import com.bluewhale.file.domain.model.FileRecycleQuery;
 import com.bluewhale.file.domain.file.repository.FileAssetRepository;
 import com.bluewhale.file.domain.model.vo.FileStatus;
 import com.bluewhale.file.domain.storage.ChunkUploadMetadata;
@@ -15,6 +16,8 @@ import com.bluewhale.file.domain.storage.ChunkUploadSessionId;
 import com.bluewhale.file.domain.storage.ChunkUploadStore;
 import com.bluewhale.file.domain.storage.FileStorage;
 import com.bluewhale.file.domain.storage.MergedChunkUpload;
+import com.bluewhale.file.domain.storage.StoragePluginCatalog;
+import com.bluewhale.file.metrics.FileMetrics;
 import com.bluewhale.file.model.UploadContent;
 import com.bluewhale.file.model.UploadLimits;
 import com.bluewhale.file.model.command.ChunkUploadCompleteCommand;
@@ -23,13 +26,16 @@ import com.bluewhale.file.model.command.RapidUploadCommand;
 import com.bluewhale.file.model.command.UploadFileCommand;
 import com.bluewhale.file.model.query.FileChangesQuery;
 import com.bluewhale.file.model.query.FilePageQuery;
+import com.bluewhale.file.model.query.FileRecyclePageQuery;
 import com.bluewhale.file.model.result.ChunkUploadInitResult;
 import com.bluewhale.file.model.result.FileChangeResult;
 import com.bluewhale.file.model.result.FileInfoResult;
 import com.bluewhale.file.model.result.FilePresignedResult;
 import com.bluewhale.file.model.result.FileQuotaResult;
 import com.bluewhale.file.model.result.FileRapidUploadResult;
+import com.bluewhale.file.model.result.FileRecycleResult;
 import com.bluewhale.file.model.result.FileUploadResult;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -91,8 +97,13 @@ class FileInfoServiceImplTest {
 
     private final ChunkUploadStore chunkUploadStore = new InMemoryChunkUploadStore();
 
-    private final FileInfoServiceImpl fileInfoService =
-            new FileInfoServiceImpl(fileAssetRepository, fileStorage, chunkUploadStore, fileProperties);
+    private final StoragePluginCatalog storagePluginCatalog = mock(StoragePluginCatalog.class);
+
+    private final FileMetrics fileMetrics =
+            new FileMetrics(new SimpleMeterRegistry(), chunkUploadStore, storagePluginCatalog);
+
+    private final FileInfoServiceImpl fileInfoService = new FileInfoServiceImpl(fileAssetRepository, fileStorage,
+            chunkUploadStore, fileProperties, storagePluginCatalog, fileMetrics);
 
     /**
      * 设置较小分片大小，并让仓储保存回填入参聚合。
@@ -100,6 +111,7 @@ class FileInfoServiceImplTest {
     @BeforeEach
     void setUp() {
         fileProperties.setChunkSizeBytes(TEST_CHUNK_SIZE);
+        when(storagePluginCatalog.activeType()).thenReturn("local");
         when(fileAssetRepository.save(any(FileAssetAggregate.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
         when(fileAssetRepository.saveWithQuotaCheck(any(FileAssetAggregate.class), anyLong()))
@@ -228,7 +240,7 @@ class FileInfoServiceImplTest {
         return FileAssetAggregate.reconstitute(11L, "stored.pdf", "origin.pdf", "bluewhale",
                 "2026/10/19/stored.pdf", size, "application/pdf",
                 "d41d8cd98f00b204e9800998ecf8427e", FileStatus.NORMAL, null, false,
-                LocalDateTime.of(2026, 10, 19, 10, 0), LocalDateTime.of(2026, 10, 19, 10, 0));
+                LocalDateTime.of(2026, 10, 19, 10, 0), LocalDateTime.of(2026, 10, 19, 10, 0), "local");
     }
 
     /**
@@ -241,7 +253,7 @@ class FileInfoServiceImplTest {
     private static FileAssetAggregate fileWithStatus(long id, FileStatus status) {
         return FileAssetAggregate.reconstitute(id, null, "locked.pdf", "bluewhale", "2026/10/24/locked.pdf",
                 12L, "application/pdf", null, status, UPLOADER_ID, false,
-                LocalDateTime.of(2026, 10, 24, 9, 0), LocalDateTime.of(2026, 10, 24, 9, 0));
+                LocalDateTime.of(2026, 10, 24, 9, 0), LocalDateTime.of(2026, 10, 24, 9, 0), "local");
     }
 
     @Test
@@ -268,6 +280,7 @@ class FileInfoServiceImplTest {
             assertEquals(UPLOADER_ID, saved.getUploaderId());
             assertEquals(FileStatus.NORMAL, saved.getStatus());
             assertEquals("bluewhale", saved.getBucket());
+            assertEquals("local", saved.getStorageType());
             assertTrue(saved.getFileName().endsWith(".pdf"));
         } finally {
             TenantContext.clear();
@@ -297,7 +310,7 @@ class FileInfoServiceImplTest {
                 () -> fileInfoService.openContent(99L, UPLOADER_ID, false));
 
         assertEquals(NOT_FOUND_CODE, ex.getCode());
-        verify(fileStorage, never()).load(any(), any());
+        verify(fileStorage, never()).load(any(), any(), any());
     }
 
     @Test
@@ -305,7 +318,7 @@ class FileInfoServiceImplTest {
     void shouldHideCrossTenantFile() {
         when(fileAssetRepository.findById(5L)).thenReturn(Optional.of(FileAssetAggregate.reconstitute(5L, "a.txt",
                 "a.txt", "bluewhale", "tenants/2/2026/10/24/a.txt", 3L, "text/plain", null,
-                FileStatus.NORMAL, null, false, LocalDateTime.now(), LocalDateTime.now())));
+                FileStatus.NORMAL, null, false, LocalDateTime.now(), LocalDateTime.now(), null)));
         TenantContext.set(1L);
         try {
             BizException ex = assertThrows(BizException.class,
@@ -322,7 +335,7 @@ class FileInfoServiceImplTest {
     void shouldHideOtherUploaderFileUnlessManage() {
         FileAssetAggregate others = FileAssetAggregate.reconstitute(5L, "a.txt", "a.txt", "bluewhale",
                 "tenants/1/2026/10/24/a.txt", 3L, "text/plain", null, FileStatus.NORMAL, 8L, false,
-                LocalDateTime.now(), LocalDateTime.now());
+                LocalDateTime.now(), LocalDateTime.now(), null);
         when(fileAssetRepository.findById(5L)).thenReturn(Optional.of(others));
         TenantContext.set(1L);
         try {
@@ -342,7 +355,7 @@ class FileInfoServiceImplTest {
     void shouldHideServiceUploadFromNormalUser() {
         FileAssetAggregate serviceUpload = FileAssetAggregate.reconstitute(6L, "a.txt", "a.txt", "bluewhale",
                 "tenants/1/2026/10/24/a.txt", 3L, "text/plain", null, FileStatus.NORMAL, null, false,
-                LocalDateTime.now(), LocalDateTime.now());
+                LocalDateTime.now(), LocalDateTime.now(), null);
         when(fileAssetRepository.findById(6L)).thenReturn(Optional.of(serviceUpload));
         TenantContext.set(1L);
         try {
@@ -374,7 +387,7 @@ class FileInfoServiceImplTest {
     void shouldPageWithConditions() {
         FileAssetAggregate asset = FileAssetAggregate.reconstitute(1L, "a.pdf", "报告.pdf", "bluewhale",
                 "2026/10/19/a.pdf", 10L, "application/pdf", null, FileStatus.NORMAL, null, false,
-                LocalDateTime.of(2026, 10, 19, 10, 0), LocalDateTime.of(2026, 10, 19, 10, 0));
+                LocalDateTime.of(2026, 10, 19, 10, 0), LocalDateTime.of(2026, 10, 19, 10, 0), null);
         when(fileAssetRepository.page(any(FileAssetQuery.class)))
                 .thenReturn(new FileAssetPage(List.of(asset), 1L, 1L, 10L));
 
@@ -411,7 +424,7 @@ class FileInfoServiceImplTest {
     void shouldPresignWithDefaultExpiry() {
         FileAssetAggregate asset = fileWithStatus(5L, FileStatus.NORMAL);
         when(fileAssetRepository.findById(5L)).thenReturn(Optional.of(asset));
-        when(fileStorage.presignedDownloadUrl("bluewhale", "2026/10/24/locked.pdf", 600))
+        when(fileStorage.presignedDownloadUrl("bluewhale", "2026/10/24/locked.pdf", 600, "local"))
                 .thenReturn("http://127.0.0.1:9000/bluewhale/2026/10/24/locked.pdf?sign=x");
 
         FilePresignedResult result = fileInfoService.presignedUrl(5L, null, UPLOADER_ID, false);
@@ -424,20 +437,20 @@ class FileInfoServiceImplTest {
     @DisplayName("presignedUrl：有效期超过 3600 秒时截断为 3600")
     void shouldClampPresignExpiry() {
         when(fileAssetRepository.findById(5L)).thenReturn(Optional.of(fileWithStatus(5L, FileStatus.NORMAL)));
-        when(fileStorage.presignedDownloadUrl("bluewhale", "2026/10/24/locked.pdf", 3600))
+        when(fileStorage.presignedDownloadUrl("bluewhale", "2026/10/24/locked.pdf", 3600, "local"))
                 .thenReturn("http://x");
 
         FilePresignedResult result = fileInfoService.presignedUrl(5L, 9999, UPLOADER_ID, false);
 
         assertEquals(Integer.valueOf(3600), result.expiresSeconds());
-        verify(fileStorage).presignedDownloadUrl("bluewhale", "2026/10/24/locked.pdf", 3600);
+        verify(fileStorage).presignedDownloadUrl("bluewhale", "2026/10/24/locked.pdf", 3600, "local");
     }
 
     @Test
     @DisplayName("presignedUrl：local 存储不支持预签名，透传参数错误")
     void shouldRejectPresignWhenStorageUnsupported() {
         when(fileAssetRepository.findById(5L)).thenReturn(Optional.of(fileWithStatus(5L, FileStatus.NORMAL)));
-        when(fileStorage.presignedDownloadUrl(anyString(), anyString(), anyInt()))
+        when(fileStorage.presignedDownloadUrl(anyString(), anyString(), anyInt(), anyString()))
                 .thenThrow(new BizException(ErrorCode.PARAM_ERROR.getCode(), "当前存储插件不支持预签名下载"));
 
         BizException ex = assertThrows(BizException.class,
@@ -822,6 +835,57 @@ class FileInfoServiceImplTest {
     }
 
     @Test
+    @DisplayName("recyclePage：管理视角不限上传者，普通用户仅查本人已删文件")
+    void shouldPageRecycleByVisibility() {
+        when(fileAssetRepository.pageRecycle(any(FileRecycleQuery.class)))
+                .thenReturn(new FileAssetPage(List.of(), 0L, 1L, 10L));
+
+        fileInfoService.recyclePage(new FileRecyclePageQuery("报告", "bluewhale", UPLOADER_ID, true, 1L, 10L));
+        fileInfoService.recyclePage(new FileRecyclePageQuery(null, null, UPLOADER_ID, false, 1L, 10L));
+
+        ArgumentCaptor<FileRecycleQuery> captor = ArgumentCaptor.forClass(FileRecycleQuery.class);
+        verify(fileAssetRepository, times(2)).pageRecycle(captor.capture());
+        assertNull(captor.getAllValues().get(0).uploaderId());
+        assertEquals(Long.valueOf(UPLOADER_ID), captor.getAllValues().get(1).uploaderId());
+        assertEquals("报告", captor.getAllValues().get(0).originalName());
+    }
+
+    @Test
+    @DisplayName("restore：已恢复文件幂等成功，不再触发配额校验")
+    void shouldRestoreIdempotently() {
+        FileAssetAggregate restored = FileAssetAggregate.reconstitute(7L, "a.txt", "a.txt", "bluewhale",
+                "tenants/1/2026/10/24/a.txt", 12L, "text/plain", null, FileStatus.NORMAL, UPLOADER_ID, false,
+                LocalDateTime.now(), LocalDateTime.now(), "local");
+        when(fileAssetRepository.findByIdIncludingDeleted(7L)).thenReturn(Optional.of(restored));
+        TenantContext.set(1L);
+        try {
+            fileInfoService.restore(7L, UPLOADER_ID, false, new UploadLimits(100L, 5000L));
+        } finally {
+            TenantContext.clear();
+        }
+
+        verify(fileAssetRepository, never()).restoreWithQuotaCheck(anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("restore：已删文件按生效配额恢复")
+    void shouldRestoreDeletedFileWithQuota() {
+        FileAssetAggregate deleted = FileAssetAggregate.reconstitute(7L, "a.txt", "a.txt", "bluewhale",
+                "tenants/1/2026/10/24/a.txt", 12L, "text/plain", null, FileStatus.NORMAL, UPLOADER_ID, true,
+                LocalDateTime.now(), LocalDateTime.now(), "local");
+        when(fileAssetRepository.findByIdIncludingDeleted(7L)).thenReturn(Optional.of(deleted));
+        when(fileAssetRepository.restoreWithQuotaCheck(7L, 5000L)).thenReturn(true);
+        TenantContext.set(1L);
+        try {
+            fileInfoService.restore(7L, UPLOADER_ID, false, new UploadLimits(100L, 5000L));
+        } finally {
+            TenantContext.clear();
+        }
+
+        verify(fileAssetRepository).restoreWithQuotaCheck(7L, 5000L);
+    }
+
+    @Test
     @DisplayName("delete：归档锁定文件禁止删除")
     void shouldRejectDeletingLockedFile() {
         when(fileAssetRepository.findById(7L)).thenReturn(Optional.of(fileWithStatus(7L, FileStatus.LOCKED)));
@@ -839,7 +903,7 @@ class FileInfoServiceImplTest {
     void shouldListChangesWithCursor() {
         FileAssetAggregate asset = FileAssetAggregate.reconstitute(7L, "locked.pdf", "locked.pdf", "bluewhale",
                 "2026/10/24/locked.pdf", 12L, "application/pdf", null, FileStatus.LOCKED, null, false,
-                LocalDateTime.of(2026, 10, 24, 9, 0), LocalDateTime.of(2026, 10, 24, 10, 0));
+                LocalDateTime.of(2026, 10, 24, 9, 0), LocalDateTime.of(2026, 10, 24, 10, 0), null);
         when(fileAssetRepository.findChanges(any(), anyLong(), anyLong()))
                 .thenReturn(new FileAssetPage(List.of(asset), 1L, 1L, 200L));
 
@@ -857,7 +921,7 @@ class FileInfoServiceImplTest {
     void shouldReturnChangeDetailForDeletedFile() {
         FileAssetAggregate deleted = FileAssetAggregate.reconstitute(7L, "locked.pdf", "locked.pdf", "bluewhale",
                 "2026/10/24/locked.pdf", 12L, "application/pdf", null, FileStatus.NORMAL, null, true,
-                LocalDateTime.of(2026, 10, 24, 9, 0), LocalDateTime.of(2026, 10, 24, 10, 0));
+                LocalDateTime.of(2026, 10, 24, 9, 0), LocalDateTime.of(2026, 10, 24, 10, 0), null);
         when(fileAssetRepository.findByIdIncludingDeleted(7L)).thenReturn(Optional.of(deleted));
 
         FileChangeResult result = fileInfoService.getChangeDetail(7L);

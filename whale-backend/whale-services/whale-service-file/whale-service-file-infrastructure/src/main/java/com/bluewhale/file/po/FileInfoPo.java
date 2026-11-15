@@ -29,6 +29,9 @@ public class FileInfoPo extends BaseEntity {
     /** 对象存储桶名称 */
     private String bucket;
 
+    /** 落盘时的存储插件类型（local/minio）；历史数据可为空 */
+    private String storageType;
+
     /** 对象存储键（桶内完整路径，形如 {@code yyyy/MM/dd/<uuid>.<ext>}） */
     private String objectKey;
 

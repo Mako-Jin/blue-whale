@@ -114,4 +114,16 @@ public interface StoragePlugin {
      * @return 预签名下载 URL
      */
     String presignedDownloadUrl(String bucket, String objectKey, int expiresSeconds);
+
+    /**
+     * 探测介质可用性，供 {@code /actuator/health} 汇总。
+     *
+     * <p>默认实现返回可用，兼容未实现探测能力的第三方插件；内置 local / minio 插件均覆盖本方法，
+     * 分别校验本地根目录可写与对象存储连接/默认桶存在。</p>
+     *
+     * @return 健康状态
+     */
+    default StorageHealth health() {
+        return StorageHealth.up("插件未提供健康检查");
+    }
 }

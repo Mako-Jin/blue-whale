@@ -9,9 +9,11 @@ import com.bluewhale.file.model.UploadLimits;
 import com.bluewhale.file.model.command.RapidUploadCommand;
 import com.bluewhale.file.model.command.UploadFileCommand;
 import com.bluewhale.file.model.query.FilePageQuery;
+import com.bluewhale.file.model.query.FileRecyclePageQuery;
 import com.bluewhale.file.model.result.FileInfoResult;
 import com.bluewhale.file.model.result.FileQuotaResult;
 import com.bluewhale.file.model.result.FileRapidUploadResult;
+import com.bluewhale.file.model.result.FileRecycleResult;
 import com.bluewhale.file.model.result.FileUploadResult;
 import com.bluewhale.file.service.FileInfoService;
 import com.bluewhale.file.service.support.FileUploadPolicy;
@@ -33,6 +35,7 @@ import org.springframework.web.accept.SemanticApiVersionParser;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.hamcrest.Matchers.containsString;
@@ -221,6 +224,48 @@ class FileControllerTest {
         verify(fileInfoService).page(captor.capture());
         assertEquals(true, captor.getValue().canManage());
         assertEquals(true, captor.getValue().onlyMine());
+    }
+
+    @Test
+    @DisplayName("GET /file/v1/recycle/page：Request 转 Query 并返回回收站分页")
+    void recyclePageShouldConvertRequest() throws Exception {
+        when(fileInfoService.recyclePage(any(FileRecyclePageQuery.class)))
+                .thenReturn(com.bluewhale.common.core.result.PageResult.of(List.of(
+                        new FileRecycleResult(FILE_ID, "stored.pdf", "sample.pdf", "bluewhale", 5L,
+                                "application/pdf", 1, UPLOADER_ID,
+                                LocalDateTime.of(2026, 10, 19, 10, 0), LocalDateTime.of(2026, 10, 19, 11, 0))),
+                        1L, 1L, 10L));
+
+        mockMvc.perform(get("/file/v1/recycle/page")
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID))
+                        .param("current", "1")
+                        .param("size", "10")
+                        .param("originalName", "sample")
+                        .param("bucket", "bluewhale"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.records[0].originalName").value("sample.pdf"))
+                .andExpect(jsonPath("$.data.records[0].updateTime").exists());
+
+        ArgumentCaptor<FileRecyclePageQuery> captor = ArgumentCaptor.forClass(FileRecyclePageQuery.class);
+        verify(fileInfoService).recyclePage(captor.capture());
+        assertEquals("sample", captor.getValue().originalName());
+        assertEquals("bluewhale", captor.getValue().bucket());
+        assertEquals(UPLOADER_ID, captor.getValue().requesterId());
+        assertEquals(false, captor.getValue().canManage());
+    }
+
+    @Test
+    @DisplayName("POST /file/v1/{id}/restore：透传调用者、管理权限与生效配额")
+    void restoreShouldDelegate() throws Exception {
+        mockMvc.perform(post("/file/v1/{id}/restore", FILE_ID)
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID))
+                        .header(WebHeaders.PERMISSION_CODES, "sys:file:manage"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<UploadLimits> captor = ArgumentCaptor.forClass(UploadLimits.class);
+        verify(fileInfoService).restore(eq(FILE_ID), eq(UPLOADER_ID), eq(true), captor.capture());
+        assertEquals(fileProperties.getQuotaBytes(), captor.getValue().quotaBytes());
     }
 
     @Test

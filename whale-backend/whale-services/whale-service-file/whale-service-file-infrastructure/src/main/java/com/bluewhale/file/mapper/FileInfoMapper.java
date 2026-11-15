@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.bluewhale.file.po.FileInfoPo;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,7 +33,7 @@ public interface FileInfoMapper extends BaseMapper<FileInfoPo> {
      * @param size 每页条数
      * @return 变更记录（按更新时间、ID 升序）
      */
-    @Select("<script>SELECT id, file_name, original_name, bucket, object_key, file_size, content_type, md5, "
+    @Select("<script>SELECT id, file_name, original_name, bucket, storage_type, object_key, file_size, content_type, md5, "
             + "status, uploader_id, create_time, update_time, deleted FROM file_info "
             + "<where><if test='since != null'>update_time &gt; #{since}</if></where> "
             + "ORDER BY update_time ASC, id ASC LIMIT #{size} OFFSET #{offset}</script>")
@@ -59,9 +60,71 @@ public interface FileInfoMapper extends BaseMapper<FileInfoPo> {
      * @param id 文件ID
      * @return 文件记录（含已逻辑删除行）；不存在时返回 {@code null}
      */
-    @Select("SELECT id, file_name, original_name, bucket, object_key, file_size, content_type, md5, "
+    @Select("SELECT id, file_name, original_name, bucket, storage_type, object_key, file_size, content_type, md5, "
             + "status, uploader_id, create_time, update_time, deleted FROM file_info WHERE id = #{id}")
     FileInfoPo selectByIdIncludingDeleted(@Param("id") Long id);
+
+    /**
+     * 分页查询回收站文件（含逻辑删除行，仅 {@code deleted = 1}）。
+     *
+     * @param originalName 原始文件名模糊条件，可为 {@code null}
+     * @param bucket 桶名称等值条件，可为 {@code null}
+     * @param uploaderId 上传人ID等值条件，可为 {@code null}
+     * @param offset 偏移量
+     * @param size 每页条数
+     * @return 回收站记录（按更新时间、ID 倒序）
+     */
+    @Select("<script>SELECT id, file_name, original_name, bucket, storage_type, object_key, file_size, content_type, md5, "
+            + "status, uploader_id, create_time, update_time, deleted FROM file_info WHERE deleted = 1 "
+            + "<if test='originalName != null and originalName != \"\"'>"
+            + "AND original_name LIKE CONCAT('%', #{originalName}, '%') </if>"
+            + "<if test='bucket != null and bucket != \"\"'>AND bucket = #{bucket} </if>"
+            + "<if test='uploaderId != null'>AND uploader_id = #{uploaderId} </if>"
+            + "ORDER BY update_time DESC, id DESC LIMIT #{size} OFFSET #{offset}</script>")
+    List<FileInfoPo> selectRecyclePage(@Param("originalName") String originalName,
+                                       @Param("bucket") String bucket,
+                                       @Param("uploaderId") Long uploaderId,
+                                       @Param("offset") long offset,
+                                       @Param("size") long size);
+
+    /**
+     * 统计回收站文件条数（{@code deleted = 1}）。
+     *
+     * @param originalName 原始文件名模糊条件，可为 {@code null}
+     * @param bucket 桶名称等值条件，可为 {@code null}
+     * @param uploaderId 上传人ID等值条件，可为 {@code null}
+     * @return 条数
+     */
+    @Select("<script>SELECT COUNT(*) FROM file_info WHERE deleted = 1 "
+            + "<if test='originalName != null and originalName != \"\"'>"
+            + "AND original_name LIKE CONCAT('%', #{originalName}, '%') </if>"
+            + "<if test='bucket != null and bucket != \"\"'>AND bucket = #{bucket} </if>"
+            + "<if test='uploaderId != null'>AND uploader_id = #{uploaderId} </if>"
+            + "</script>")
+    long countRecycle(@Param("originalName") String originalName,
+                      @Param("bucket") String bucket,
+                      @Param("uploaderId") Long uploaderId);
+
+    /**
+     * 恢复逻辑删除的文件（{@code deleted} 置 0）。
+     *
+     * @param id 文件ID
+     * @return 受影响行数（已恢复或不存在时为 0）
+     */
+    @Update("UPDATE file_info SET deleted = 0, update_time = NOW() WHERE id = #{id} AND deleted = 1")
+    int restoreById(@Param("id") Long id);
+
+    /**
+     * 回填历史文件的落盘存储插件类型（仅处理空值行）。
+     *
+     * <p>启动期无租户上下文，租户插件按既有约定跳过追加租户条件，可覆盖全部存量行；
+     * 不修改 {@code update_time}，避免变更流产生无意义的增量。</p>
+     *
+     * @param storageType 当前活动插件类型
+     * @return 回填行数
+     */
+    @Update("UPDATE file_info SET storage_type = #{storageType} WHERE storage_type IS NULL")
+    int backfillStorageType(@Param("storageType") String storageType);
 
     /**
      * 获取 MySQL 命名锁（行级配额临界区锚点）。

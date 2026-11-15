@@ -3,6 +3,7 @@ package com.bluewhale.file.infrastructure.storage;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.file.config.FileProperties;
+import com.bluewhale.file.domain.storage.StorageHealth;
 import com.bluewhale.file.domain.storage.StoragePlugin;
 import com.bluewhale.file.domain.storage.StoragePluginInfo;
 import org.junit.jupiter.api.DisplayName;
@@ -11,8 +12,10 @@ import org.junit.jupiter.api.Test;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -101,6 +104,54 @@ class StoragePluginRegistryTest {
         StoragePluginRegistry minioRegistry = new StoragePluginRegistry(List.of(minio), properties("minio"));
 
         assertEquals("http://signed", minioRegistry.presignedDownloadUrl("b", "k", 600));
+    }
+
+    @Test
+    @DisplayName("按落盘存储类型路由读取，空类型回落活动插件")
+    void shouldRouteByStorageType() {
+        StoragePlugin local = plugin("local", false);
+        StoragePlugin minio = plugin("minio", true);
+        StoragePluginRegistry registry = new StoragePluginRegistry(List.of(local, minio), properties("minio"));
+        InputStream localContent = mock(InputStream.class);
+        InputStream localRange = mock(InputStream.class);
+        InputStream activeContent = mock(InputStream.class);
+        when(local.load("b", "k")).thenReturn(localContent);
+        when(local.load("b", "k", 0L, 10L)).thenReturn(localRange);
+        when(minio.load("b", "k")).thenReturn(activeContent);
+
+        assertSame(localContent, registry.load("b", "k", "local"));
+        assertSame(localRange, registry.load("b", "k", 0L, 10L, " local "));
+        // 切换活动插件后，未标注存储类型的历史行仍走活动插件
+        assertSame(activeContent, registry.load("b", "k", null));
+    }
+
+    @Test
+    @DisplayName("落盘存储类型对应的插件未装配时抛系统错误并列出可用插件")
+    void shouldRejectMissingStorageType() {
+        StoragePlugin local = plugin("local", false);
+        StoragePluginRegistry registry = new StoragePluginRegistry(List.of(local), properties("local"));
+
+        BizException ex = assertThrows(BizException.class, () -> registry.load("b", "k", "oss"));
+
+        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), ex.getCode());
+        assertTrue(ex.getMessage().contains("oss"));
+        assertTrue(ex.getMessage().contains("local"));
+    }
+
+    @Test
+    @DisplayName("健康检查：逐插件探测，单插件异常降级为 DOWN 不中断")
+    void shouldAggregatePluginHealth() {
+        StoragePlugin local = plugin("local", false);
+        StoragePlugin minio = plugin("minio", true);
+        when(local.health()).thenReturn(StorageHealth.up("ok"));
+        when(minio.health()).thenThrow(new IllegalStateException("connection refused"));
+        StoragePluginRegistry registry = new StoragePluginRegistry(List.of(local, minio), properties("local"));
+
+        Map<String, StorageHealth> health = registry.health();
+
+        assertTrue(health.get("local").up());
+        assertFalse(health.get("minio").up());
+        assertTrue(health.get("minio").message().contains("connection refused"));
     }
 
     @Test

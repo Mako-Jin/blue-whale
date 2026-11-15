@@ -32,6 +32,11 @@
             <groupId>com.bluewhale</groupId>
             <artifactId>whale-spring-boot-starter</artifactId>
         </dependency>
+        <!-- 配额命名锁等待耗时指标 -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

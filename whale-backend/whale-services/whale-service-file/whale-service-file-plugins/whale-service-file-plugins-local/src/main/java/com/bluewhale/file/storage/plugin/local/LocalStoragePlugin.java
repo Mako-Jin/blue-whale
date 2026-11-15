@@ -2,6 +2,7 @@ package com.bluewhale.file.storage.plugin.local;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.file.domain.storage.StorageHealth;
 import com.bluewhale.file.domain.storage.StoragePlugin;
 import org.springframework.util.StringUtils;
 
@@ -103,6 +104,17 @@ public class LocalStoragePlugin implements StoragePlugin {
     @Override
     public String presignedDownloadUrl(String bucket, String objectKey, int expiresSeconds) {
         throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "本地存储插件不支持预签名下载");
+    }
+
+    @Override
+    public StorageHealth health() {
+        if (!Files.isDirectory(root)) {
+            return StorageHealth.down("本地存储根目录不存在: " + root);
+        }
+        if (!Files.isWritable(root)) {
+            return StorageHealth.down("本地存储根目录不可写: " + root);
+        }
+        return StorageHealth.up("本地存储可用: " + root);
     }
 
     /**

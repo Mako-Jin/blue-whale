@@ -13,12 +13,15 @@ import com.bluewhale.file.model.UploadLimits;
 import com.bluewhale.file.model.command.RapidUploadCommand;
 import com.bluewhale.file.model.command.UploadFileCommand;
 import com.bluewhale.file.model.query.FilePageQuery;
+import com.bluewhale.file.model.query.FileRecyclePageQuery;
 import com.bluewhale.file.model.request.FilePageRequest;
 import com.bluewhale.file.model.request.FileRapidUploadRequest;
+import com.bluewhale.file.model.request.FileRecyclePageRequest;
 import com.bluewhale.file.model.response.FileInfoResponse;
 import com.bluewhale.file.model.response.FilePresignedResponse;
 import com.bluewhale.file.model.response.FileQuotaResponse;
 import com.bluewhale.file.model.response.FileRapidUploadResponse;
+import com.bluewhale.file.model.response.FileRecycleResponse;
 import com.bluewhale.file.model.response.FileUploadResponse;
 import com.bluewhale.file.model.result.FileInfoResult;
 import com.bluewhale.file.model.result.FileUploadResult;
@@ -145,6 +148,24 @@ public class FileController implements FileApi {
                 request.getCreateTimeEnd(), requesterId, canManage(httpRequest),
                 Boolean.TRUE.equals(request.getOnlyMine()));
         return Result.ok(fileAssembler.toInfoPage(fileInfoService.page(query)));
+    }
+
+    @Override
+    @RequirePermission("sys:file:list")
+    public Result<PageResult<FileRecycleResponse>> recyclePage(FileRecyclePageRequest request,
+                                                               HttpServletRequest httpRequest) {
+        FileRecyclePageQuery query = new FileRecyclePageQuery(request.getOriginalName(), request.getBucket(),
+                UserContext.requireUserId(httpRequest), canManage(httpRequest),
+                request.getCurrent(), request.getSize());
+        return Result.ok(fileAssembler.toRecyclePage(fileInfoService.recyclePage(query)));
+    }
+
+    @Override
+    @RequirePermission("sys:file:delete")
+    public Result<Void> restore(@PathVariable Long id, HttpServletRequest httpRequest) {
+        fileInfoService.restore(id, UserContext.requireUserId(httpRequest), canManage(httpRequest),
+                uploadLimits(httpRequest));
+        return Result.ok();
     }
 
     @Override

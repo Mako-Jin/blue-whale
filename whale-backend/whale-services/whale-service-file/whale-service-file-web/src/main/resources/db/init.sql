@@ -21,6 +21,7 @@ CREATE TABLE file_info (
     file_name     VARCHAR(255)  NOT NULL               COMMENT '存储文件名（系统生成的唯一名称）',
     original_name VARCHAR(255)  NOT NULL               COMMENT '原始文件名（用户上传时的文件名）',
     bucket        VARCHAR(64)   NOT NULL               COMMENT '对象存储桶名称',
+    storage_type  VARCHAR(32)   DEFAULT NULL           COMMENT '落盘时的存储插件类型（local/minio）；存量由启动期回填',
     object_key    VARCHAR(512)  NOT NULL               COMMENT '对象存储键（桶内完整路径）',
     file_size     BIGINT        NOT NULL DEFAULT 0     COMMENT '文件大小（字节）',
     content_type  VARCHAR(128)  DEFAULT NULL           COMMENT '文件MIME类型，如 image/png',

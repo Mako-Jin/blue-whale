@@ -4,10 +4,12 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.file.model.request.FilePageRequest;
 import com.bluewhale.file.model.request.FileRapidUploadRequest;
+import com.bluewhale.file.model.request.FileRecyclePageRequest;
 import com.bluewhale.file.model.response.FileInfoResponse;
 import com.bluewhale.file.model.response.FilePresignedResponse;
 import com.bluewhale.file.model.response.FileQuotaResponse;
 import com.bluewhale.file.model.response.FileRapidUploadResponse;
+import com.bluewhale.file.model.response.FileRecycleResponse;
 import com.bluewhale.file.model.response.FileUploadResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -127,6 +129,32 @@ public interface FileApi {
      */
     @GetMapping("/page")
     Result<PageResult<FileInfoResponse>> page(FilePageRequest request, HttpServletRequest httpRequest);
+
+    /**
+     * 分页查询回收站文件（已逻辑删除）。
+     *
+     * <p>无管理权限时仅返回本人上传的文件；持有 {@code sys:file:manage} 可查看全租户回收站。
+     * 表未单独记录删除时间，返回的 {@code updateTime} 是最后一次业务更新时间。</p>
+     *
+     * @param request 查询条件：originalName 模糊、bucket 等值
+     * @param httpRequest 当前请求（用于判定调用者归属与文件管理权限）
+     * @return 回收站分页结果
+     */
+    @GetMapping("/recycle/page")
+    Result<PageResult<FileRecycleResponse>> recyclePage(FileRecyclePageRequest request,
+                                                        HttpServletRequest httpRequest);
+
+    /**
+     * 恢复回收站文件：重新占用个人配额并清除逻辑删除标记。
+     *
+     * <p>幂等：文件已恢复或不存在时按成功返回；超出个人存储配额时返回参数错误。</p>
+     *
+     * @param id 文件ID
+     * @param httpRequest 当前请求（用于判定调用者归属、文件管理权限与生效配额）
+     * @return 空结果
+     */
+    @PostMapping("/{id}/restore")
+    Result<Void> restore(@PathVariable Long id, HttpServletRequest httpRequest);
 
     /**
      * 删除文件元数据（逻辑删除，物理对象保留）。

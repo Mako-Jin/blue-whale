@@ -8,11 +8,13 @@ import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.file.domain.file.aggregate.FileAssetAggregate;
 import com.bluewhale.file.domain.model.FileAssetPage;
 import com.bluewhale.file.domain.model.FileAssetQuery;
+import com.bluewhale.file.domain.model.FileRecycleQuery;
 import com.bluewhale.file.domain.file.repository.FileAssetRepository;
 import com.bluewhale.file.domain.model.vo.FileStatus;
 import com.bluewhale.file.po.FileInfoPo;
 import com.bluewhale.file.infrastructure.persistence.assembler.FileInfoPersistenceAssembler;
 import com.bluewhale.file.mapper.FileInfoMapper;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
@@ -26,6 +28,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 /**
  * {@link FileAssetRepository} 的 MyBatis-Plus 实现：以 {@link FileInfoMapper} 完成 PO 读写，
@@ -47,7 +51,12 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
     /** 配额命名锁等待上限（秒）：超时快速失败，避免请求长时间挂起 */
     private static final int QUOTA_LOCK_TIMEOUT_SECONDS = 5;
 
+    /** 配额命名锁获取耗时指标名 */
+    private static final String QUOTA_LOCK_TIMER = "file.quota.lock";
+
     private final FileInfoMapper fileInfoMapper;
+
+    private final MeterRegistry meterRegistry;
 
     @Override
     public FileAssetAggregate save(FileAssetAggregate asset) {
@@ -75,7 +84,55 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
             return save(asset);
         }
         String lockName = QUOTA_LOCK_PREFIX + uploaderId;
+        return withQuotaLock(lockName, "save", () -> {
+            long used = sumNormalSizeByUploader(uploaderId);
+            if (used + asset.getFileSize() > quotaBytes) {
+                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "超出个人存储配额");
+            }
+            return save(asset);
+        });
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class, propagation = Propagation.REQUIRES_NEW)
+    public boolean restoreWithQuotaCheck(Long id, long quotaBytes) {
+        FileInfoPo po = fileInfoMapper.selectByIdIncludingDeleted(id);
+        if (po == null || po.getDeleted() == null || po.getDeleted() == 0) {
+            // 已恢复或目标不存在：幂等返回 false，由应用层按成功处理
+            return false;
+        }
+        Long uploaderId = po.getUploaderId();
+        long size = po.getFileSize() == null ? 0L : po.getFileSize();
+        if (uploaderId == null || quotaBytes <= 0) {
+            return restore(id);
+        }
+        String lockName = QUOTA_LOCK_PREFIX + uploaderId;
+        return withQuotaLock(lockName, "restore", () -> {
+            long used = sumNormalSizeByUploader(uploaderId);
+            if (used + size > quotaBytes) {
+                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "超出个人存储配额");
+            }
+            return restore(id);
+        });
+    }
+
+    /**
+     * 在 MySQL 命名锁临界区内执行配额相关操作，并记录锁获取耗时。
+     *
+     * <p>命名锁与会话（连接）绑定，必须等事务提交/回滚后再释放；非事务场景直接释放。
+     * 事务同步注册失败（如事务已标记回滚）时 afterCompletion 不会触发，由 finally 兜底释放。</p>
+     *
+     * @param lockName 锁名称
+     * @param operation 操作标识（指标标签）
+     * @param action 临界区动作
+     * @param <T> 返回类型
+     * @return 临界区执行结果
+     */
+    private <T> T withQuotaLock(String lockName, String operation, Supplier<T> action) {
+        long startedAt = System.nanoTime();
         Integer acquired = fileInfoMapper.acquireNamedLock(lockName, QUOTA_LOCK_TIMEOUT_SECONDS);
+        meterRegistry.timer(QUOTA_LOCK_TIMER, "op", operation)
+                .record(System.nanoTime() - startedAt, TimeUnit.NANOSECONDS);
         if (acquired == null) {
             throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "获取文件配额锁失败，请稍后重试");
         }
@@ -95,18 +152,22 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
                 });
                 releaseAfterCompletion = true;
             }
-            long used = sumNormalSizeByUploader(uploaderId);
-            if (used + asset.getFileSize() > quotaBytes) {
-                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "超出个人存储配额");
-            }
-            return save(asset);
+            return action.get();
         } finally {
-            // 非事务场景直接释放；事务同步注册失败（如事务已标记回滚）时 afterCompletion 不会触发，
-            // 同样在此兜底释放——RELEASE_LOCK 对未持有的锁返回 0，重复释放无害
             if (!releaseAfterCompletion) {
                 releaseQuotaLockQuietly(lockName);
             }
         }
+    }
+
+    /**
+     * 恢复逻辑删除行
+     *
+     * @param id 文件ID
+     * @return 是否实际恢复
+     */
+    private boolean restore(Long id) {
+        return fileInfoMapper.restoreById(id) > 0;
     }
 
     @Override
@@ -187,6 +248,18 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
         List<FileInfoPo> rows = fileInfoMapper.selectChanges(since, offset, size);
         List<FileAssetAggregate> records = rows.stream().map(FileInfoPersistenceAssembler::toDomain).toList();
         return new FileAssetPage(records, fileInfoMapper.countChanges(since), pageCurrent, size);
+    }
+
+    @Override
+    public FileAssetPage pageRecycle(FileRecycleQuery query) {
+        long pageCurrent = Math.max(query.current(), 1L);
+        long pageSize = Math.max(query.size(), 1L);
+        long offset = (pageCurrent - 1) * pageSize;
+        List<FileInfoPo> rows = fileInfoMapper.selectRecyclePage(query.originalName(), query.bucket(),
+                query.uploaderId(), offset, pageSize);
+        List<FileAssetAggregate> records = rows.stream().map(FileInfoPersistenceAssembler::toDomain).toList();
+        long total = fileInfoMapper.countRecycle(query.originalName(), query.bucket(), query.uploaderId());
+        return new FileAssetPage(records, total, pageCurrent, pageSize);
     }
 
     /**

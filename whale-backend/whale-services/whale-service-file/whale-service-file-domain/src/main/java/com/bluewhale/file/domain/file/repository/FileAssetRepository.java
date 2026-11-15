@@ -3,6 +3,7 @@ package com.bluewhale.file.domain.file.repository;
 import com.bluewhale.file.domain.file.aggregate.FileAssetAggregate;
 import com.bluewhale.file.domain.model.FileAssetPage;
 import com.bluewhale.file.domain.model.FileAssetQuery;
+import com.bluewhale.file.domain.model.FileRecycleQuery;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -99,4 +100,27 @@ public interface FileAssetRepository {
      * @return 文件资产分页结果
      */
     FileAssetPage findChanges(LocalDateTime since, long current, long size);
+
+    /**
+     * 分页查询回收站文件（仅逻辑删除行）
+     *
+     * <p>排序固定为 {@code update_time DESC, id DESC}；表未记录删除时间，
+     * 返回的更新时间是最后一次业务更新时间。</p>
+     *
+     * @param query 回收站查询条件
+     * @return 文件资产分页结果
+     */
+    FileAssetPage pageRecycle(FileRecycleQuery query);
+
+    /**
+     * 在个人配额内恢复逻辑删除的文件：配额校验与 {@code deleted} 置 0 在同一命名锁临界区完成。
+     *
+     * <p>幂等：目标不存在或已恢复时返回 {@code false}，不抛异常。</p>
+     *
+     * @param id 文件ID
+     * @param quotaBytes 单用户配额字节数；{@code <=0} 表示不限
+     * @return 是否实际恢复（{@code false} 表示已恢复或目标不存在）
+     * @throws com.bluewhale.common.domain.exception.DomainException 超出配额时抛出 {@code PARAM_ERROR}
+     */
+    boolean restoreWithQuotaCheck(Long id, long quotaBytes);
 }

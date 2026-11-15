@@ -44,7 +44,8 @@ public final class FileInfoPersistenceAssembler {
                 po.getUploaderId(),
                 po.getDeleted() != null && po.getDeleted() == DELETED_FLAG,
                 po.getCreateTime(),
-                po.getUpdateTime());
+                po.getUpdateTime(),
+                po.getStorageType());
     }
 
     /**
@@ -59,6 +60,7 @@ public final class FileInfoPersistenceAssembler {
         po.setFileName(asset.getFileName());
         po.setOriginalName(asset.getOriginalName());
         po.setBucket(asset.getBucket());
+        po.setStorageType(asset.getStorageType());
         po.setObjectKey(asset.getObjectKey());
         po.setFileSize(asset.getFileSize());
         po.setContentType(asset.getContentType());

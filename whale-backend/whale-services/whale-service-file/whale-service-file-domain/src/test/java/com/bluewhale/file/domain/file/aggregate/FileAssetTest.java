@@ -32,19 +32,21 @@ class FileAssetTest {
     private static FileAssetAggregate asset(FileStatus status) {
         return FileAssetAggregate.reconstitute(1L, "a.pdf", "报告.pdf", "bluewhale",
                 "tenants/1/2026/10/24/a.pdf", 12L, "application/pdf", "md5",
-                status, 9L, false, LocalDateTime.of(2026, 10, 24, 9, 0), LocalDateTime.of(2026, 10, 24, 9, 0));
+                status, 9L, false, LocalDateTime.of(2026, 10, 24, 9, 0), LocalDateTime.of(2026, 10, 24, 9, 0),
+                "local");
     }
 
     @Test
     @DisplayName("register：登记正常状态文件，文件名由对象键尾段推导")
     void shouldRegisterNormalAsset() {
         FileAssetAggregate asset = FileAssetAggregate.register("bluewhale", "tenants/1/2026/10/24/uuid.pdf",
-                "报告.pdf", 12L, "application/pdf", "md5", 9L);
+                "报告.pdf", 12L, "application/pdf", "md5", 9L, "local");
 
         assertEquals(FileStatus.NORMAL, asset.getStatus());
         assertEquals("uuid.pdf", asset.getFileName());
         assertEquals("报告.pdf", asset.getOriginalName());
         assertEquals("bluewhale", asset.getBucket());
+        assertEquals("local", asset.getStorageType());
         assertEquals("tenants/1/2026/10/24/uuid.pdf", asset.getObjectKey());
         assertEquals(12L, asset.getFileSize());
         assertEquals("application/pdf", asset.getContentType());
@@ -59,11 +61,11 @@ class FileAssetTest {
     @DisplayName("register：原始文件名为空或大小非正数时拒绝登记")
     void shouldRejectInvalidRegistration() {
         BizException blankName = assertThrows(BizException.class,
-                () -> FileAssetAggregate.register("bluewhale", "k", " ", 12L, null, null, null));
+                () -> FileAssetAggregate.register("bluewhale", "k", " ", 12L, null, null, null, null));
         assertEquals(ErrorCode.PARAM_ERROR.getCode(), blankName.getCode());
 
         BizException zeroSize = assertThrows(BizException.class,
-                () -> FileAssetAggregate.register("bluewhale", "k", "a.txt", 0L, null, null, null));
+                () -> FileAssetAggregate.register("bluewhale", "k", "a.txt", 0L, null, null, null, null));
         assertEquals(ErrorCode.PARAM_ERROR.getCode(), zeroSize.getCode());
     }
 
@@ -72,12 +74,12 @@ class FileAssetTest {
     void shouldRejectBlankBucketOrObjectKey() {
         BizException noBucket = assertThrows(BizException.class,
                 () -> FileAssetAggregate.reconstitute(1L, "a.txt", "a.txt", " ", "k", 1L, null, null,
-                        FileStatus.NORMAL, null, false, null, null));
+                        FileStatus.NORMAL, null, false, null, null, null));
         assertEquals(ErrorCode.PARAM_ERROR.getCode(), noBucket.getCode());
 
         BizException noKey = assertThrows(BizException.class,
                 () -> FileAssetAggregate.reconstitute(1L, "a.txt", "a.txt", "bluewhale", "", 1L, null, null,
-                        FileStatus.NORMAL, null, false, null, null));
+                        FileStatus.NORMAL, null, false, null, null, null));
         assertEquals(ErrorCode.PARAM_ERROR.getCode(), noKey.getCode());
     }
 
@@ -86,7 +88,7 @@ class FileAssetTest {
     void shouldNormalizeReconstitutedValues() {
         FileAssetAggregate asset = FileAssetAggregate.reconstitute(2L, "", "", "bluewhale",
                 "tenants/1/2026/10/24/b.bin", 0L, null, null,
-                null, null, false, null, null);
+                null, null, false, null, null, null);
 
         assertEquals(FileStatus.NORMAL, asset.getStatus());
         assertEquals(0L, asset.getFileSize());
@@ -100,7 +102,7 @@ class FileAssetTest {
     void shouldRejectNegativeFileSizeOnReconstitute() {
         BizException ex = assertThrows(BizException.class,
                 () -> FileAssetAggregate.reconstitute(2L, "a.txt", "a.txt", "bluewhale", "k", -1L, null, null,
-                        FileStatus.NORMAL, null, false, null, null));
+                        FileStatus.NORMAL, null, false, null, null, null));
         assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), ex.getCode());
     }
 
@@ -117,6 +119,7 @@ class FileAssetTest {
         assertEquals("application/octet-stream", reused.getContentType());
         assertEquals(FileStatus.NORMAL, reused.getStatus());
         assertEquals(7L, reused.getUploaderId());
+        assertEquals("local", reused.getStorageType());
 
         FileAssetAggregate fallback = FileAssetAggregate.reuse(source, "copy.pdf", " ", 7L);
         assertEquals("application/pdf", fallback.getContentType());
@@ -158,14 +161,16 @@ class FileAssetTest {
         FileAssetAggregate sameId = asset(FileStatus.LOCKED);
         FileAssetAggregate other = FileAssetAggregate.reconstitute(2L, "a.pdf", "报告.pdf", "bluewhale",
                 "tenants/1/2026/10/24/a.pdf", 12L, "application/pdf", "md5",
-                FileStatus.NORMAL, 9L, false, null, null);
+                FileStatus.NORMAL, 9L, false, null, null, "local");
 
         assertEquals(one, sameId);
         assertEquals(one.hashCode(), sameId.hashCode());
         assertFalse(one.equals(other));
 
-        FileAssetAggregate transientOne = FileAssetAggregate.register("bluewhale", "k1", "a.txt", 1L, null, null, 9L);
-        FileAssetAggregate transientTwo = FileAssetAggregate.register("bluewhale", "k2", "a.txt", 1L, null, null, 9L);
+        FileAssetAggregate transientOne = FileAssetAggregate.register("bluewhale", "k1", "a.txt", 1L, null, null, 9L,
+                "local");
+        FileAssetAggregate transientTwo = FileAssetAggregate.register("bluewhale", "k2", "a.txt", 1L, null, null, 9L,
+                "local");
         assertFalse(transientOne.equals(transientTwo));
     }
 
@@ -202,7 +207,7 @@ class FileAssetTest {
         assertNotFound(() -> asset.assertVisibleTo(9L, false, 2L));
 
         FileAssetAggregate serviceUpload = FileAssetAggregate.reconstitute(2L, "b.txt", "b.txt", "bluewhale",
-                "tenants/1/2026/10/24/b.txt", 1L, null, null, FileStatus.NORMAL, null, false, null, null);
+                "tenants/1/2026/10/24/b.txt", 1L, null, null, FileStatus.NORMAL, null, false, null, null, null);
         assertNotFound(() -> serviceUpload.assertVisibleTo(9L, false, 1L));
         serviceUpload.assertVisibleTo(null, false, 1L);
         serviceUpload.assertVisibleTo(9L, true, 1L);
@@ -212,10 +217,11 @@ class FileAssetTest {
     @DisplayName("构造：MD5 统一归一化为小写，空白摘要归一化为 null")
     void shouldNormalizeMd5() {
         FileAssetAggregate upper = FileAssetAggregate.register("bluewhale", "k", "a.txt", 1L, null,
-                " D41D8CD98F00B204E9800998ECF8427E ", 9L);
+                " D41D8CD98F00B204E9800998ECF8427E ", 9L, "local");
         assertEquals("d41d8cd98f00b204e9800998ecf8427e", upper.getMd5());
 
-        FileAssetAggregate blank = FileAssetAggregate.register("bluewhale", "k", "a.txt", 1L, null, "  ", 9L);
+        FileAssetAggregate blank = FileAssetAggregate.register("bluewhale", "k", "a.txt", 1L, null, "  ", 9L,
+                "local");
         assertNull(blank.getMd5());
     }
 

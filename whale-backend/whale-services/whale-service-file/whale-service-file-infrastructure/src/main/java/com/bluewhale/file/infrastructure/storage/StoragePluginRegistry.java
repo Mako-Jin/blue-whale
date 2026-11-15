@@ -4,11 +4,13 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.file.config.FileProperties;
 import com.bluewhale.file.domain.storage.FileStorage;
+import com.bluewhale.file.domain.storage.StorageHealth;
 import com.bluewhale.file.domain.storage.StoragePlugin;
 import com.bluewhale.file.domain.storage.StoragePluginCatalog;
 import com.bluewhale.file.domain.storage.StoragePluginInfo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.io.InputStream;
 import java.util.List;
@@ -80,13 +82,13 @@ public class StoragePluginRegistry implements FileStorage, StoragePluginCatalog 
     }
 
     @Override
-    public InputStream load(String bucket, String objectKey) {
-        return active.load(bucket, objectKey);
+    public InputStream load(String bucket, String objectKey, String storageType) {
+        return pluginFor(storageType).load(bucket, objectKey);
     }
 
     @Override
-    public InputStream load(String bucket, String objectKey, long offset, long length) {
-        return active.load(bucket, objectKey, offset, length);
+    public InputStream load(String bucket, String objectKey, long offset, long length, String storageType) {
+        return pluginFor(storageType).load(bucket, objectKey, offset, length);
     }
 
     @Override
@@ -95,11 +97,46 @@ public class StoragePluginRegistry implements FileStorage, StoragePluginCatalog 
     }
 
     @Override
-    public String presignedDownloadUrl(String bucket, String objectKey, int expiresSeconds) {
-        if (!active.supportsPresigned()) {
+    public String presignedDownloadUrl(String bucket, String objectKey, int expiresSeconds, String storageType) {
+        StoragePlugin plugin = pluginFor(storageType);
+        if (!plugin.supportsPresigned()) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
-                    "当前存储插件不支持预签名下载: " + active.getType());
+                    "当前存储插件不支持预签名下载: " + plugin.getType());
         }
-        return active.presignedDownloadUrl(bucket, objectKey, expiresSeconds);
+        return plugin.presignedDownloadUrl(bucket, objectKey, expiresSeconds);
+    }
+
+    @Override
+    public Map<String, StorageHealth> health() {
+        Map<String, StorageHealth> result = new TreeMap<>();
+        plugins.forEach((type, plugin) -> {
+            try {
+                StorageHealth health = plugin.health();
+                result.put(type, health == null ? StorageHealth.down("插件未返回健康状态") : health);
+            } catch (RuntimeException e) {
+                // 单插件健康探测异常不得拖垮整体健康端点，降级为该插件 DOWN 并保留原因
+                result.put(type, StorageHealth.down("健康检查异常: " + e.getMessage()));
+            }
+        });
+        return result;
+    }
+
+    /**
+     * 按落盘时的插件类型选择插件：类型为空回落活动插件。
+     *
+     * @param storageType 落盘时的插件类型，可为 {@code null}
+     * @return 插件实例
+     * @throws BizException 类型对应的插件未装配时抛出 {@code SYSTEM_ERROR}
+     */
+    private StoragePlugin pluginFor(String storageType) {
+        if (!StringUtils.hasText(storageType)) {
+            return active;
+        }
+        StoragePlugin plugin = plugins.get(storageType.trim());
+        if (plugin == null) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(),
+                    "文件记录的存储插件不可用: " + storageType + "，可用插件: " + plugins.keySet());
+        }
+        return plugin;
     }
 }

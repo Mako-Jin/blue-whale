@@ -74,4 +74,22 @@ public interface ChunkUploadStore {
      * @param sessionId 会话标识
      */
     void discard(ChunkUploadSessionId sessionId);
+
+    /**
+     * 判断暂存介质是否可写，供健康检查使用
+     *
+     * @return 可写时返回 {@code true}；默认实现假定可用
+     */
+    default boolean writable() {
+        return true;
+    }
+
+    /**
+     * 统计当前活跃会话数量，供指标采集使用
+     *
+     * @return 会话数量；默认实现返回 0
+     */
+    default long sessionCount() {
+        return 0L;
+    }
 }

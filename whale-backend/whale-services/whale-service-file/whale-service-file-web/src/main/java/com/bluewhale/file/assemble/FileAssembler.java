@@ -7,6 +7,7 @@ import com.bluewhale.file.model.result.FileInfoResult;
 import com.bluewhale.file.model.result.FilePresignedResult;
 import com.bluewhale.file.model.result.FileQuotaResult;
 import com.bluewhale.file.model.result.FileRapidUploadResult;
+import com.bluewhale.file.model.result.FileRecycleResult;
 import com.bluewhale.file.model.result.FileUploadResult;
 import com.bluewhale.file.model.response.ChunkUploadInitResponse;
 import com.bluewhale.file.model.response.FileChangeResponse;
@@ -14,6 +15,7 @@ import com.bluewhale.file.model.response.FileInfoResponse;
 import com.bluewhale.file.model.response.FilePresignedResponse;
 import com.bluewhale.file.model.response.FileQuotaResponse;
 import com.bluewhale.file.model.response.FileRapidUploadResponse;
+import com.bluewhale.file.model.response.FileRecycleResponse;
 import com.bluewhale.file.model.response.FileUploadResponse;
 import org.mapstruct.Mapper;
 
@@ -102,6 +104,17 @@ public interface FileAssembler {
      */
     default PageResult<FileChangeResponse> toChangePage(PageResult<FileChangeResult> page) {
         return PageResult.of(page.getRecords().stream().map(this::toChangeResponse).toList(),
+                page.getTotal(), page.getCurrent(), page.getSize());
+    }
+
+    /**
+     * 回收站分页结果转响应分页
+     *
+     * @param page 回收站分页结果
+     * @return 回收站响应分页
+     */
+    default PageResult<FileRecycleResponse> toRecyclePage(PageResult<FileRecycleResult> page) {
+        return PageResult.of(page.getRecords().stream().map(FileRecycleResponse::from).toList(),
                 page.getTotal(), page.getCurrent(), page.getSize());
     }
 }

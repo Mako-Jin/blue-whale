@@ -7,9 +7,11 @@ import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.file.domain.file.aggregate.FileAssetAggregate;
 import com.bluewhale.file.domain.model.FileAssetPage;
 import com.bluewhale.file.domain.model.FileAssetQuery;
+import com.bluewhale.file.domain.model.FileRecycleQuery;
 import com.bluewhale.file.domain.model.vo.FileStatus;
 import com.bluewhale.file.po.FileInfoPo;
 import com.bluewhale.file.mapper.FileInfoMapper;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
@@ -26,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -42,7 +45,8 @@ class FileAssetRepositoryImplTest {
 
     private final FileInfoMapper fileInfoMapper = mock(FileInfoMapper.class);
 
-    private final FileAssetRepositoryImpl repository = new FileAssetRepositoryImpl(fileInfoMapper);
+    private final FileAssetRepositoryImpl repository =
+            new FileAssetRepositoryImpl(fileInfoMapper, new SimpleMeterRegistry());
 
     /**
      * 构造指定主键与逻辑删除标记的文件持久化对象。
@@ -73,7 +77,7 @@ class FileAssetRepositoryImplTest {
     @DisplayName("save：无主键走新增，有主键走更新")
     void shouldInsertOrUpdate() {
         FileAssetAggregate created = FileAssetAggregate.register("bluewhale", "tenants/1/2026/10/24/a.pdf",
-                "报告.pdf", 12L, "application/pdf", "md5", 9L);
+                "报告.pdf", 12L, "application/pdf", "md5", 9L, "local");
 
         FileAssetAggregate saved = repository.save(created);
 
@@ -83,7 +87,8 @@ class FileAssetRepositoryImplTest {
 
         FileAssetAggregate existing = FileAssetAggregate.reconstitute(3L, "a.pdf", "报告.pdf", "bluewhale",
                 "tenants/1/2026/10/24/a.pdf", 12L, "application/pdf", "md5", FileStatus.LOCKED,
-                9L, false, LocalDateTime.of(2026, 10, 24, 9, 0), LocalDateTime.of(2026, 10, 24, 10, 0));
+                9L, false, LocalDateTime.of(2026, 10, 24, 9, 0), LocalDateTime.of(2026, 10, 24, 10, 0),
+                "local");
         repository.save(existing);
 
         verify(fileInfoMapper, times(1)).updateById(any(FileInfoPo.class));
@@ -94,9 +99,9 @@ class FileAssetRepositoryImplTest {
     @DisplayName("saveWithQuotaCheck：无上传用户或不限配额时退化为普通保存")
     void shouldSaveWithoutQuotaGuard() {
         FileAssetAggregate noUploader = FileAssetAggregate.register("bluewhale", "tenants/1/2026/10/24/a.pdf",
-                "报告.pdf", 12L, "application/pdf", "md5", null);
+                "报告.pdf", 12L, "application/pdf", "md5", null, "local");
         FileAssetAggregate unlimited = FileAssetAggregate.register("bluewhale", "tenants/1/2026/10/24/b.pdf",
-                "报告.pdf", 12L, "application/pdf", "md5", 9L);
+                "报告.pdf", 12L, "application/pdf", "md5", 9L, "local");
 
         repository.saveWithQuotaCheck(noUploader, 1000L);
         repository.saveWithQuotaCheck(unlimited, 0L);
@@ -196,7 +201,7 @@ class FileAssetRepositoryImplTest {
      */
     private static FileAssetAggregate quotaAsset(long size) {
         return FileAssetAggregate.register("bluewhale", "tenants/1/2026/10/24/a.pdf",
-                "报告.pdf", size, "application/pdf", "md5", 9L);
+                "报告.pdf", size, "application/pdf", "md5", 9L, "local");
     }
 
     @Test
@@ -253,6 +258,65 @@ class FileAssetRepositoryImplTest {
         repository.deleteById(7L);
 
         verify(fileInfoMapper).deleteById(7L);
+    }
+
+    @Test
+    @DisplayName("pageRecycle：仅查逻辑删除行，透传筛选条件并回填分页元数据")
+    void shouldPageRecycle() {
+        when(fileInfoMapper.selectRecyclePage("报告", "bluewhale", 9L, 10L, 10L))
+                .thenReturn(List.of(po(1L, 1), po(2L, 1)));
+        when(fileInfoMapper.countRecycle("报告", "bluewhale", 9L)).thenReturn(22L);
+
+        FileAssetPage page = repository.pageRecycle(new FileRecycleQuery("报告", "bluewhale", 9L, 2L, 10L));
+
+        assertEquals(22L, page.total());
+        assertEquals(2L, page.current());
+        assertEquals(10L, page.size());
+        assertEquals(2, page.records().size());
+        assertTrue(page.records().get(0).isDeleted());
+    }
+
+    @Test
+    @DisplayName("restoreWithQuotaCheck：目标不存在或未删除时幂等返回 false，不获取锁")
+    void shouldSkipRestoreWhenNotDeleted() {
+        when(fileInfoMapper.selectByIdIncludingDeleted(1L)).thenReturn(null);
+        when(fileInfoMapper.selectByIdIncludingDeleted(2L)).thenReturn(po(2L, 0));
+
+        assertFalse(repository.restoreWithQuotaCheck(1L, 1000L));
+        assertFalse(repository.restoreWithQuotaCheck(2L, 1000L));
+
+        verify(fileInfoMapper, never()).acquireNamedLock(anyString(), anyInt());
+        verify(fileInfoMapper, never()).restoreById(anyLong());
+    }
+
+    @Test
+    @DisplayName("restoreWithQuotaCheck：配额内恢复，锁内统计后清除删除标记并释放锁")
+    void shouldRestoreWithinQuota() {
+        when(fileInfoMapper.selectByIdIncludingDeleted(1L)).thenReturn(po(1L, 1));
+        when(fileInfoMapper.acquireNamedLock("whale:file:quota:9", 5)).thenReturn(1);
+        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfoPo>>any()))
+                .thenReturn(List.<Object>of(100L));
+        when(fileInfoMapper.restoreById(1L)).thenReturn(1);
+
+        assertTrue(repository.restoreWithQuotaCheck(1L, 1000L));
+
+        verify(fileInfoMapper).restoreById(1L);
+        verify(fileInfoMapper).releaseNamedLock("whale:file:quota:9");
+    }
+
+    @Test
+    @DisplayName("restoreWithQuotaCheck：超出配额时不恢复并释放锁")
+    void shouldRejectRestoreExceedingQuota() {
+        when(fileInfoMapper.selectByIdIncludingDeleted(1L)).thenReturn(po(1L, 1));
+        when(fileInfoMapper.acquireNamedLock("whale:file:quota:9", 5)).thenReturn(1);
+        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfoPo>>any()))
+                .thenReturn(List.<Object>of(999L));
+
+        BizException ex = assertThrows(BizException.class, () -> repository.restoreWithQuotaCheck(1L, 1000L));
+
+        assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
+        verify(fileInfoMapper, never()).restoreById(anyLong());
+        verify(fileInfoMapper).releaseNamedLock("whale:file:quota:9");
     }
 
     @Test

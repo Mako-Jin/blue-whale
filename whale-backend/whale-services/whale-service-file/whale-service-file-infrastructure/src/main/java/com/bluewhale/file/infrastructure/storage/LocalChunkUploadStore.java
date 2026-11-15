@@ -237,6 +237,25 @@ public class LocalChunkUploadStore implements ChunkUploadStore {
         }
     }
 
+    @Override
+    public boolean writable() {
+        return Files.isWritable(root);
+    }
+
+    @Override
+    public long sessionCount() {
+        Path tmpRoot = root.resolve(TMP_DIR_NAME);
+        if (!Files.isDirectory(tmpRoot)) {
+            return 0L;
+        }
+        try (Stream<Path> dirs = Files.list(tmpRoot)) {
+            return dirs.filter(Files::isDirectory).count();
+        } catch (IOException e) {
+            // 指标采集失败不得影响业务与健康端点，按 0 上报
+            return 0L;
+        }
+    }
+
     /**
      * 清理超过保留期的暂存会话：限频执行，失败仅告警，不影响新会话初始化。
      *

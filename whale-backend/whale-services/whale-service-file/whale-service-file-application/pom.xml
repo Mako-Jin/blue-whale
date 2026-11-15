@@ -32,6 +32,11 @@
             <groupId>com.bluewhale</groupId>
             <artifactId>whale-spring-boot-starter</artifactId>
         </dependency>
+        <!-- 业务指标（FileMetrics）：仅依赖 Micrometer API，注册中心由 web 模块的 actuator 提供 -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
