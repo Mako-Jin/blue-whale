@@ -23,12 +23,15 @@ import com.bluewhale.file.model.UploadContent;
 import com.bluewhale.file.model.UploadLimits;
 import com.bluewhale.file.model.command.ChunkUploadCompleteCommand;
 import com.bluewhale.file.model.command.ChunkUploadInitCommand;
+import com.bluewhale.file.model.command.FileBatchDeleteCommand;
 import com.bluewhale.file.model.command.RapidUploadCommand;
 import com.bluewhale.file.model.command.UploadFileCommand;
 import com.bluewhale.file.model.query.FileChangesQuery;
 import com.bluewhale.file.model.query.FilePageQuery;
 import com.bluewhale.file.model.query.FileRecyclePageQuery;
 import com.bluewhale.file.model.result.ChunkUploadInitResult;
+import com.bluewhale.file.model.result.FileBatchDeleteItemResult;
+import com.bluewhale.file.model.result.FileBatchDeleteResult;
 import com.bluewhale.file.model.result.FileChangeResult;
 import com.bluewhale.file.model.result.FileInfoResult;
 import com.bluewhale.file.model.result.FilePresignedResult;
@@ -49,7 +52,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.IntStream;
 
@@ -222,6 +228,23 @@ public class FileInfoServiceImpl implements FileInfoService {
         FileAssetAggregate asset = requireAccessibleFile(id, requesterId, canManage);
         asset.assertDeletable();
         fileAssetRepository.deleteById(id);
+    }
+
+    @Override
+    public FileBatchDeleteResult batchDelete(FileBatchDeleteCommand command) {
+        List<Long> ids = distinctIds(command.ids());
+        int maxFiles = fileProperties.getBatch().getMaxFiles();
+        if (ids.isEmpty()) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "文件ID列表不能为空");
+        }
+        if (ids.size() > maxFiles) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "单次最多批量删除 " + maxFiles + " 个文件");
+        }
+        List<FileBatchDeleteItemResult> items = new ArrayList<>(ids.size());
+        for (Long id : ids) {
+            items.add(deleteOne(id, command.requesterId(), command.canManage()));
+        }
+        return new FileBatchDeleteResult(items);
     }
 
     @Override
@@ -503,6 +526,49 @@ public class FileInfoServiceImpl implements FileInfoService {
         FileAssetAggregate asset = requireFile(id);
         asset.assertVisibleTo(requesterId, canManage, TenantContext.get());
         return asset;
+    }
+
+    /**
+     * 批量删除单项：异常收敛为单项失败原因，不中断整批
+     *
+     * <p>本方法不声明事务，条件更新随调用即时提交；越权、不存在与归档锁定均只影响当前项。
+     * 异常消息取业务异常自带文案，保证前端能区分「不存在」与「已锁定」。</p>
+     *
+     * @param id 文件ID
+     * @param requesterId 调用者用户 ID
+     * @param canManage 是否持有文件管理权限
+     * @return 单项删除结果
+     */
+    private FileBatchDeleteItemResult deleteOne(Long id, Long requesterId, boolean canManage) {
+        try {
+            FileAssetAggregate asset = requireAccessibleFile(id, requesterId, canManage);
+            asset.assertDeletable();
+            fileAssetRepository.deleteById(id);
+            return new FileBatchDeleteItemResult(id, true, null);
+        } catch (BizException e) {
+            return new FileBatchDeleteItemResult(id, false, e.getMessage());
+        }
+    }
+
+    /**
+     * 去重并校验批量操作的文件ID：保留请求顺序，拒绝空 ID
+     *
+     * @param ids 请求的文件ID列表，可为 {@code null}
+     * @return 去重后的文件ID列表
+     * @throws BizException 列表为空或含空 ID 时抛出 {@code PARAM_ERROR}
+     */
+    private static List<Long> distinctIds(List<Long> ids) {
+        if (ids == null) {
+            return List.of();
+        }
+        Set<Long> unique = new LinkedHashSet<>(ids.size());
+        for (Long id : ids) {
+            if (id == null) {
+                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "文件ID不能为空");
+            }
+            unique.add(id);
+        }
+        return List.copyOf(unique);
     }
 
     /**

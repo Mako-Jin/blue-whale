@@ -121,6 +121,11 @@ whale:
     share:
       default-expire-hours: ${WHALE_FILE_SHARE_DEFAULT_EXPIRE_HOURS:168}
       max-expire-hours: ${WHALE_FILE_SHARE_MAX_EXPIRE_HOURS:720}
+    # 批量操作：删除与打包共用文件数上限；打包只限制未压缩总字节数，超限整体拒绝以
+    # 避免产出残缺压缩包。流式写出不落本地临时文件，响应为分块传输、无 Content-Length。
+    batch:
+      max-files: ${WHALE_FILE_BATCH_MAX_FILES:100}
+      max-zip-bytes: ${WHALE_FILE_BATCH_MAX_ZIP_BYTES:4294967296}
     # G1 大文件上传策略：按网关注入的 X-Permission-Codes 选择生效的单文件上限与配额，
     # 未命中任何规则时回落上面的 max-size-bytes / quota-bytes 默认值（普通业务仍 50MB / 1GB）。
     # 同一请求命中多条规则时取 max-size-bytes 最大的一条；quota-bytes 缺省表示沿用配额默认值，

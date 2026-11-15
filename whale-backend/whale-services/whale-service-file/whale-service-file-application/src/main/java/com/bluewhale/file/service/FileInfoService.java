@@ -5,12 +5,14 @@ import com.bluewhale.file.model.UploadContent;
 import com.bluewhale.file.model.UploadLimits;
 import com.bluewhale.file.model.command.ChunkUploadCompleteCommand;
 import com.bluewhale.file.model.command.ChunkUploadInitCommand;
+import com.bluewhale.file.model.command.FileBatchDeleteCommand;
 import com.bluewhale.file.model.command.RapidUploadCommand;
 import com.bluewhale.file.model.command.UploadFileCommand;
 import com.bluewhale.file.model.query.FileChangesQuery;
 import com.bluewhale.file.model.query.FilePageQuery;
 import com.bluewhale.file.model.query.FileRecyclePageQuery;
 import com.bluewhale.file.model.result.ChunkUploadInitResult;
+import com.bluewhale.file.model.result.FileBatchDeleteResult;
 import com.bluewhale.file.model.result.FileChangeResult;
 import com.bluewhale.file.model.result.FileInfoResult;
 import com.bluewhale.file.model.result.FilePresignedResult;
@@ -145,6 +147,18 @@ public interface FileInfoService {
      * @param canManage 是否持有文件管理权限
      */
     void delete(Long id, Long requesterId, boolean canManage);
+
+    /**
+     * 批量逻辑删除文件元数据：逐项独立处理并返回逐项结果
+     *
+     * <p>去重后按请求顺序处理，文件数超过 {@code whale.file.batch.max-files} 时整体拒绝；
+     * 单项不存在、越权或归档锁定只记入该项失败原因，不影响其余项。本方法不声明事务，
+     * 每项的读取与条件更新各自提交。</p>
+     *
+     * @param command 批量删除命令（文件ID列表、调用者与管理权限）
+     * @return 逐项删除结果
+     */
+    FileBatchDeleteResult batchDelete(FileBatchDeleteCommand command);
 
     /**
      * 分页查询回收站文件（已逻辑删除）

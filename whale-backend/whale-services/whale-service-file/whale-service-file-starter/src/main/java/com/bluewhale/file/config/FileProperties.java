@@ -60,6 +60,9 @@ public class FileProperties {
     /** 分享链接配置 */
     private Share share = new Share();
 
+    /** 批量操作配置 */
+    private Batch batch = new Batch();
+
     /**
      * 上传策略配置项：按网关可信注入的 {@code X-Permission-Codes} 选择生效上限与配额，
      * 未命中任何规则时回落 {@code max-size-bytes} / {@code quota-bytes} 全局默认值。
@@ -230,6 +233,26 @@ public class FileProperties {
         /** 有效期上限（小时），默认 720（30 天），超出截断 */
         @Min(value = 1, message = "whale.file.share.max-expire-hours 必须大于 0")
         private long maxExpireHours = 720L;
+    }
+
+    /**
+     * 批量操作配置项（前缀 {@code whale.file.batch}）。
+     *
+     * <p>批量删除与打包下载共用文件数上限，避免单请求承担过大的数据库往返与响应体；
+     * 打包体积只限制未压缩总字节数，超出上限整体拒绝而不是截断，避免产出残缺压缩包。</p>
+     *
+     * @author BlueWhale
+     */
+    @Data
+    public static class Batch {
+
+        /** 单次批量删除/打包的最大文件数，默认 100 */
+        @Min(value = 1, message = "whale.file.batch.max-files 必须大于 0")
+        private int maxFiles = 100;
+
+        /** 打包下载的未压缩总字节上限，默认 4294967296（即 4GB） */
+        @Min(value = 1, message = "whale.file.batch.max-zip-bytes 必须大于 0")
+        private long maxZipBytes = 4294967296L;
     }
 
     /**

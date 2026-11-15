@@ -23,12 +23,14 @@ import com.bluewhale.file.model.UploadContent;
 import com.bluewhale.file.model.UploadLimits;
 import com.bluewhale.file.model.command.ChunkUploadCompleteCommand;
 import com.bluewhale.file.model.command.ChunkUploadInitCommand;
+import com.bluewhale.file.model.command.FileBatchDeleteCommand;
 import com.bluewhale.file.model.command.RapidUploadCommand;
 import com.bluewhale.file.model.command.UploadFileCommand;
 import com.bluewhale.file.model.query.FileChangesQuery;
 import com.bluewhale.file.model.query.FilePageQuery;
 import com.bluewhale.file.model.query.FileRecyclePageQuery;
 import com.bluewhale.file.model.result.ChunkUploadInitResult;
+import com.bluewhale.file.model.result.FileBatchDeleteResult;
 import com.bluewhale.file.model.result.FileChangeResult;
 import com.bluewhale.file.model.result.FileInfoResult;
 import com.bluewhale.file.model.result.FilePresignedResult;
@@ -51,6 +53,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -1033,6 +1036,68 @@ class FileInfoServiceImplTest {
                 () -> fileInfoService.chunkUploadStatus(ChunkUploadSessionId.random().value()));
         assertEquals(PARAM_ERROR_CODE, missing.getCode());
         assertTrue(missing.getMessage().contains("上传会话不存在或已失效"));
+    }
+
+    @Test
+    @DisplayName("batchDelete：重复 ID 去重后逐项成功并返回计数")
+    void shouldBatchDeleteDistinctIds() {
+        when(fileAssetRepository.findById(1L)).thenReturn(Optional.of(fileWithStatus(1L, FileStatus.NORMAL)));
+        when(fileAssetRepository.findById(2L)).thenReturn(Optional.of(fileWithStatus(2L, FileStatus.NORMAL)));
+
+        FileBatchDeleteResult result = fileInfoService.batchDelete(
+                new FileBatchDeleteCommand(List.of(1L, 2L, 1L), UPLOADER_ID, false));
+
+        assertEquals(2, result.items().size());
+        assertEquals(2, result.successCount());
+        assertEquals(0, result.failureCount());
+        verify(fileAssetRepository).deleteById(1L);
+        verify(fileAssetRepository).deleteById(2L);
+    }
+
+    @Test
+    @DisplayName("batchDelete：不存在与归档锁定逐项失败，不阻断其余项")
+    void shouldReportPerItemBatchDeleteFailures() {
+        when(fileAssetRepository.findById(1L)).thenReturn(Optional.of(fileWithStatus(1L, FileStatus.NORMAL)));
+        when(fileAssetRepository.findById(2L)).thenReturn(Optional.empty());
+        when(fileAssetRepository.findById(3L)).thenReturn(Optional.of(fileWithStatus(3L, FileStatus.LOCKED)));
+
+        FileBatchDeleteResult result = fileInfoService.batchDelete(
+                new FileBatchDeleteCommand(List.of(1L, 2L, 3L), UPLOADER_ID, false));
+
+        assertEquals(1, result.successCount());
+        assertEquals(2, result.failureCount());
+        assertFalse(result.items().get(1).success());
+        assertFalse(result.items().get(2).success());
+        assertTrue(result.items().get(2).message().contains("禁止删除"));
+        verify(fileAssetRepository).deleteById(1L);
+        verify(fileAssetRepository, never()).deleteById(2L);
+        verify(fileAssetRepository, never()).deleteById(3L);
+    }
+
+    @Test
+    @DisplayName("batchDelete：空列表与超过配置上限整体拒绝")
+    void shouldRejectEmptyOrOversizedBatchDelete() {
+        BizException empty = assertThrows(BizException.class,
+                () -> fileInfoService.batchDelete(new FileBatchDeleteCommand(List.of(), UPLOADER_ID, false)));
+        assertEquals(PARAM_ERROR_CODE, empty.getCode());
+
+        fileProperties.getBatch().setMaxFiles(1);
+        BizException oversized = assertThrows(BizException.class,
+                () -> fileInfoService.batchDelete(
+                        new FileBatchDeleteCommand(List.of(1L, 2L), UPLOADER_ID, false)));
+        assertEquals(PARAM_ERROR_CODE, oversized.getCode());
+        verify(fileAssetRepository, never()).deleteById(anyLong());
+    }
+
+    @Test
+    @DisplayName("batchDelete：含空 ID 时整体拒绝")
+    void shouldRejectNullIdInBatchDelete() {
+        BizException ex = assertThrows(BizException.class,
+                () -> fileInfoService.batchDelete(
+                        new FileBatchDeleteCommand(Arrays.asList(1L, null), UPLOADER_ID, false)));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        verify(fileAssetRepository, never()).deleteById(anyLong());
     }
 
     /**
