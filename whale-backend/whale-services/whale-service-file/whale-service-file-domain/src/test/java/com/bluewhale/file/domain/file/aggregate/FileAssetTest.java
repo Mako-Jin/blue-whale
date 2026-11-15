@@ -53,6 +53,8 @@ class FileAssetTest {
         assertEquals("md5", asset.getMd5());
         assertEquals(9L, asset.getUploaderId());
         assertFalse(asset.isDeleted());
+        assertNull(asset.getParentId());
+        assertEquals(1, asset.getVersion());
         assertNotNull(asset.getCreateTime());
         assertNotNull(asset.getUpdateTime());
     }
@@ -280,6 +282,85 @@ class FileAssetTest {
         FileAssetAggregate blank = FileAssetAggregate.register("bluewhale", "k", "a.txt", 1L, null, "  ", 9L,
                 "local");
         assertNull(blank.getMd5());
+    }
+
+    @Test
+    @DisplayName("registerVersion：新版本继承根文件桶与存储类型，记录根ID与版本号")
+    void shouldRegisterVersion() {
+        FileAssetAggregate root = asset(FileStatus.NORMAL);
+
+        FileAssetAggregate version = FileAssetAggregate.registerVersion(root, 2,
+                "tenants/1/2026/10/25/b.pdf", "报告-v2.pdf", 20L, "application/pdf",
+                " D41D8CD98F00B204E9800998ECF8427E ", 9L, "local");
+
+        assertEquals(1L, version.getParentId());
+        assertEquals(2, version.getVersion());
+        assertEquals("bluewhale", version.getBucket());
+        assertEquals("tenants/1/2026/10/25/b.pdf", version.getObjectKey());
+        assertEquals("b.pdf", version.getFileName());
+        assertEquals("报告-v2.pdf", version.getOriginalName());
+        assertEquals("d41d8cd98f00b204e9800998ecf8427e", version.getMd5());
+        assertEquals(FileStatus.NORMAL, version.getStatus());
+    }
+
+    @Test
+    @DisplayName("registerVersion：根文件未落库、版本号非法、名称空或大小非正数时拒绝")
+    void shouldRejectInvalidVersionRegistration() {
+        FileAssetAggregate root = asset(FileStatus.NORMAL);
+        FileAssetAggregate transientRoot = FileAssetAggregate.register("bluewhale", "k", "a.txt", 1L,
+                null, null, 9L, "local");
+
+        BizException noRoot = assertThrows(BizException.class,
+                () -> FileAssetAggregate.registerVersion(null, 2, "k", "a.txt", 1L, null, null, 9L, "local"));
+        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), noRoot.getCode());
+
+        BizException transientError = assertThrows(BizException.class,
+                () -> FileAssetAggregate.registerVersion(transientRoot, 2, "k", "a.txt", 1L, null, null, 9L,
+                        "local"));
+        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), transientError.getCode());
+
+        BizException badVersion = assertThrows(BizException.class,
+                () -> FileAssetAggregate.registerVersion(root, 1, "k", "a.txt", 1L, null, null, 9L, "local"));
+        assertEquals(ErrorCode.PARAM_ERROR.getCode(), badVersion.getCode());
+
+        BizException blankName = assertThrows(BizException.class,
+                () -> FileAssetAggregate.registerVersion(root, 2, "k", " ", 1L, null, null, 9L, "local"));
+        assertEquals(ErrorCode.PARAM_ERROR.getCode(), blankName.getCode());
+
+        BizException zeroSize = assertThrows(BizException.class,
+                () -> FileAssetAggregate.registerVersion(root, 2, "k", "a.txt", 0L, null, null, 9L, "local"));
+        assertEquals(ErrorCode.PARAM_ERROR.getCode(), zeroSize.getCode());
+    }
+
+    @Test
+    @DisplayName("registerVersion：根文件禁用或归档锁定时拒绝追加版本")
+    void shouldRejectVersionOnImmutableRoot() {
+        BizException locked = assertThrows(BizException.class,
+                () -> FileAssetAggregate.registerVersion(asset(FileStatus.LOCKED), 2, "k", "a.txt", 1L, null,
+                        null, 9L, "local"));
+        assertEquals(ErrorCode.PARAM_ERROR.getCode(), locked.getCode());
+        assertTrue(locked.getMessage().contains("不允许上传新版本"));
+
+        BizException disabled = assertThrows(BizException.class,
+                () -> FileAssetAggregate.registerVersion(asset(FileStatus.DISABLED), 2, "k", "a.txt", 1L, null,
+                        null, 9L, "local"));
+        assertEquals(ErrorCode.PARAM_ERROR.getCode(), disabled.getCode());
+    }
+
+    @Test
+    @DisplayName("reconstitute：保留版本归属，版本行版本号必须大于根版本")
+    void shouldPreserveVersionOnReconstitute() {
+        FileAssetAggregate version = FileAssetAggregate.reconstitute(2L, "b.pdf", "报告-v2.pdf", "bluewhale",
+                "tenants/1/2026/10/25/b.pdf", 20L, "application/pdf", "md5", FileStatus.NORMAL, 9L, false,
+                LocalDateTime.of(2026, 10, 25, 9, 0), LocalDateTime.of(2026, 10, 25, 9, 0), "local", 1L, 2);
+
+        assertEquals(1L, version.getParentId());
+        assertEquals(2, version.getVersion());
+
+        BizException badVersion = assertThrows(BizException.class,
+                () -> FileAssetAggregate.reconstitute(2L, "b.pdf", "报告-v2.pdf", "bluewhale", "k", 20L, null,
+                        null, FileStatus.NORMAL, 9L, false, null, null, null, 1L, 1));
+        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), badVersion.getCode());
     }
 
     /**

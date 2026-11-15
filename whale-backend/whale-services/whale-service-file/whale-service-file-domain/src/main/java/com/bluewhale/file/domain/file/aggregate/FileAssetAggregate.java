@@ -113,6 +113,22 @@ public class FileAssetAggregate implements Entity<Long> {
      */
     private final Long uploaderId;
 
+    /** 版本组根文件 ID；根版本为 {@code null}
+     * -- GETTER --
+     *  获取版本组根文件 ID
+     *
+     * @return 根文件 ID；根版本返回 {@code null}
+     */
+    private final Long parentId;
+
+    /** 版本号：根版本为 1，新版本依次递增
+     * -- GETTER --
+     *  获取版本号
+     *
+     * @return 版本号
+     */
+    private final int version;
+
     /** 逻辑删除标记
      * -- GETTER --
      *  判断是否已逻辑删除
@@ -162,19 +178,18 @@ public class FileAssetAggregate implements Entity<Long> {
      * @param createTime 创建时间
      * @param updateTime 更新时间
      * @param storageType 落盘时的存储插件类型，可为 {@code null}
+     * @param parentId 版本组根文件 ID；根版本为 {@code null}
+     * @param version 版本号
      */
     private FileAssetAggregate(Long id, String fileName, String originalName, String bucket, String objectKey,
                                long fileSize, String contentType, String md5, FileStatus status, Long uploaderId,
-                               boolean deleted, LocalDateTime createTime, LocalDateTime updateTime, String storageType) {
-        if (bucket == null || bucket.isBlank()) {
-            throw new DomainException(ErrorCode.PARAM_ERROR, "对象存储桶名称不能为空");
-        }
-        if (objectKey == null || objectKey.isBlank()) {
-            throw new DomainException(ErrorCode.PARAM_ERROR, "对象键不能为空");
-        }
+                               boolean deleted, LocalDateTime createTime, LocalDateTime updateTime, String storageType,
+                               Long parentId, int version) {
+        validateStorageLocation(bucket, objectKey);
         if (fileSize < 0) {
             throw new DomainException(ErrorCode.SYSTEM_ERROR, "文件大小不能为负数: " + fileSize);
         }
+        validateVersion(parentId, version);
         this.id = id;
         this.fileName = fileName == null || fileName.isBlank() ? tailOf(objectKey) : fileName;
         this.originalName = originalName == null || originalName.isBlank() ? UNKNOWN_FILENAME : originalName;
@@ -187,6 +202,8 @@ public class FileAssetAggregate implements Entity<Long> {
         this.md5 = md5 == null || md5.isBlank() ? null : md5.trim().toLowerCase(Locale.ROOT);
         this.status = status == null ? FileStatus.NORMAL : status;
         this.uploaderId = uploaderId;
+        this.parentId = parentId;
+        this.version = version;
         this.deleted = deleted;
         this.createTime = createTime;
         this.updateTime = updateTime;
@@ -216,7 +233,43 @@ public class FileAssetAggregate implements Entity<Long> {
         }
         LocalDateTime now = LocalDateTime.now();
         return new FileAssetAggregate(null, null, originalName, bucket, objectKey, fileSize, contentType, md5,
-                FileStatus.NORMAL, uploaderId, false, now, now, storageType);
+                FileStatus.NORMAL, uploaderId, false, now, now, storageType, null, 1);
+    }
+
+    /**
+     * 工厂方法：基于版本组根文件登记新版本（继承桶与存储类型，parentId 指向根文件）
+     *
+     * @param root 版本组根文件（必须已落库，且状态为正常）
+     * @param version 新版本号（组内最大值 + 1，必须大于根版本）
+     * @param objectKey 新版本对象存储键
+     * @param originalName 原始文件名
+     * @param fileSize 文件大小（字节）
+     * @param contentType MIME 类型，可为 {@code null}
+     * @param md5 MD5 摘要（十六进制小写）
+     * @param uploaderId 上传用户 ID，可为 {@code null}
+     * @param storageType 落盘时的存储插件类型
+     * @return 新建的版本行聚合根
+     * @throws DomainException 根文件为空、未落库、版本号非法或非正常状态时抛出
+     */
+    public static FileAssetAggregate registerVersion(FileAssetAggregate root, int version, String objectKey,
+                                                     String originalName, long fileSize, String contentType,
+                                                     String md5, Long uploaderId, String storageType) {
+        if (root == null || root.id == null) {
+            throw new DomainException(ErrorCode.SYSTEM_ERROR, "版本组根文件必须已落库");
+        }
+        if (version < 2) {
+            throw new DomainException(ErrorCode.PARAM_ERROR, "版本号必须大于根版本");
+        }
+        if (originalName == null || originalName.isBlank()) {
+            throw new DomainException(ErrorCode.PARAM_ERROR, "原始文件名不能为空");
+        }
+        if (fileSize <= 0) {
+            throw new DomainException(ErrorCode.PARAM_ERROR, "文件大小必须大于 0");
+        }
+        root.assertVersionUploadable();
+        LocalDateTime now = LocalDateTime.now();
+        return new FileAssetAggregate(null, null, originalName, root.bucket, objectKey, fileSize, contentType, md5,
+                FileStatus.NORMAL, uploaderId, false, now, now, storageType, root.id, version);
     }
 
     /**
@@ -237,7 +290,8 @@ public class FileAssetAggregate implements Entity<Long> {
                 ? source.contentType : contentType;
         LocalDateTime now = LocalDateTime.now();
         return new FileAssetAggregate(null, source.fileName, originalName, source.bucket, source.objectKey, source.fileSize,
-                resolvedContentType, source.md5, FileStatus.NORMAL, uploaderId, false, now, now, source.storageType);
+                resolvedContentType, source.md5, FileStatus.NORMAL, uploaderId, false, now, now, source.storageType,
+                null, 1);
     }
 
     /**
@@ -266,8 +320,54 @@ public class FileAssetAggregate implements Entity<Long> {
                                                   String objectKey, long fileSize, String contentType, String md5,
                                                   FileStatus status, Long uploaderId, boolean deleted,
                                                   LocalDateTime createTime, LocalDateTime updateTime, String storageType) {
+        return reconstitute(id, fileName, originalName, bucket, objectKey, fileSize, contentType, md5, status,
+                uploaderId, deleted, createTime, updateTime, storageType, null, 1);
+    }
+
+    /**
+     * 重建方法：由持久化数据还原文件资产聚合根（带版本归属）
+     *
+     * <p>大小语义与新建不同：允许 {@code fileSize = 0} 以兼容存量空文件；负数视为数据异常，
+     * 抛 {@code SYSTEM_ERROR} 而非静默归一。</p>
+     *
+     * @param id 主键
+     * @param fileName 存储文件名
+     * @param originalName 原始文件名
+     * @param bucket 对象存储桶名称
+     * @param objectKey 对象存储键
+     * @param fileSize 文件大小（字节）
+     * @param contentType MIME 类型，可为 {@code null}
+     * @param md5 MD5 摘要，可为 {@code null}
+     * @param status 文件状态
+     * @param uploaderId 上传用户 ID，可为 {@code null}
+     * @param deleted 逻辑删除标记
+     * @param createTime 创建时间
+     * @param updateTime 更新时间
+     * @param storageType 落盘时的存储插件类型，可为 {@code null}
+     * @param parentId 版本组根文件 ID；根版本为 {@code null}
+     * @param version 版本号
+     * @return 还原的文件资产聚合根
+     */
+    public static FileAssetAggregate reconstitute(Long id, String fileName, String originalName, String bucket,
+                                                  String objectKey, long fileSize, String contentType, String md5,
+                                                  FileStatus status, Long uploaderId, boolean deleted,
+                                                  LocalDateTime createTime, LocalDateTime updateTime, String storageType,
+                                                  Long parentId, int version) {
         return new FileAssetAggregate(id, fileName, originalName, bucket, objectKey, fileSize, contentType, md5,
-                status, uploaderId, deleted, createTime, updateTime, storageType);
+                status, uploaderId, deleted, createTime, updateTime, storageType, parentId, version);
+    }
+
+    /**
+     * 行为：创建新版本前校验根文件可追加版本
+     *
+     * <p>仅正常状态可追加版本；禁用与归档锁定代表文件不可变，统一拒绝。</p>
+     *
+     * @throws DomainException 文件非正常状态时抛出 {@code PARAM_ERROR}
+     */
+    public void assertVersionUploadable() {
+        if (status != FileStatus.NORMAL) {
+            throw new DomainException(ErrorCode.PARAM_ERROR, "文件当前状态不允许上传新版本");
+        }
     }
 
     /**
@@ -502,6 +602,38 @@ public class FileAssetAggregate implements Entity<Long> {
      */
     private void touch() {
         this.updateTime = LocalDateTime.now();
+    }
+
+    /**
+     * 校验存储定位：桶名与对象键均不可为空
+     *
+     * @param bucket 对象存储桶名称
+     * @param objectKey 对象存储键
+     * @throws DomainException 任一为空时抛出 {@code PARAM_ERROR}
+     */
+    private static void validateStorageLocation(String bucket, String objectKey) {
+        if (bucket == null || bucket.isBlank()) {
+            throw new DomainException(ErrorCode.PARAM_ERROR, "对象存储桶名称不能为空");
+        }
+        if (objectKey == null || objectKey.isBlank()) {
+            throw new DomainException(ErrorCode.PARAM_ERROR, "对象键不能为空");
+        }
+    }
+
+    /**
+     * 校验版本归属：版本号至少为 1，版本行版本号必须大于根版本
+     *
+     * @param parentId 版本组根文件 ID；根版本为 {@code null}
+     * @param version 版本号
+     * @throws DomainException 版本号非法时抛出 {@code SYSTEM_ERROR}
+     */
+    private static void validateVersion(Long parentId, int version) {
+        if (version < 1) {
+            throw new DomainException(ErrorCode.SYSTEM_ERROR, "版本号非法: " + version);
+        }
+        if (parentId != null && version < 2) {
+            throw new DomainException(ErrorCode.SYSTEM_ERROR, "版本行版本号必须大于根版本: " + version);
+        }
     }
 
     /**

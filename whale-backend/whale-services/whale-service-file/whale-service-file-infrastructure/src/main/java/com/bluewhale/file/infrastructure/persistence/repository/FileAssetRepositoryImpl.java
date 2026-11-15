@@ -294,6 +294,19 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
     }
 
     @Override
+    public Optional<FileAssetAggregate> findLatestVersion(Long rootId) {
+        return Optional.ofNullable(fileInfoMapper.selectLatestVersion(rootId))
+                .map(FileInfoPersistenceAssembler::toDomain);
+    }
+
+    @Override
+    public List<FileAssetAggregate> findVersions(Long rootId) {
+        return fileInfoMapper.selectVersions(rootId).stream()
+                .map(FileInfoPersistenceAssembler::toDomain)
+                .toList();
+    }
+
+    @Override
     public Optional<FileAssetAggregate> findReusableByDigest(String md5, long fileSize) {
         if (!StringUtils.hasText(md5)) {
             return Optional.empty();
@@ -387,6 +400,8 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
         wrapper.ge(query.createTimeStart() != null, FileInfoPo::getCreateTime, query.createTimeStart());
         wrapper.le(query.createTimeEnd() != null, FileInfoPo::getCreateTime, query.createTimeEnd());
         wrapper.eq(query.uploaderId() != null, FileInfoPo::getUploaderId, query.uploaderId());
+        // 文件列表只展示版本组根文件：版本行通过版本列表接口查询，避免重复条目污染分页
+        wrapper.isNull(FileInfoPo::getParentId);
         // 追加主键二级排序：create_time 相同的行（如批量导入）在分页边界需要稳定顺序，否则可能重复或遗漏
         wrapper.orderByDesc(FileInfoPo::getCreateTime);
         wrapper.orderByDesc(FileInfoPo::getId);

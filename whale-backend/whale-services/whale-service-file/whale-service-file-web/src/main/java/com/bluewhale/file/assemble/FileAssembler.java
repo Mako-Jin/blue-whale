@@ -9,6 +9,7 @@ import com.bluewhale.file.model.result.FileQuotaResult;
 import com.bluewhale.file.model.result.FileRapidUploadResult;
 import com.bluewhale.file.model.result.FileRecycleResult;
 import com.bluewhale.file.model.result.FileUploadResult;
+import com.bluewhale.file.model.result.FileVersionResult;
 import com.bluewhale.file.model.response.ChunkUploadInitResponse;
 import com.bluewhale.file.model.response.FileChangeResponse;
 import com.bluewhale.file.model.response.FileInfoResponse;
@@ -17,6 +18,7 @@ import com.bluewhale.file.model.response.FileQuotaResponse;
 import com.bluewhale.file.model.response.FileRapidUploadResponse;
 import com.bluewhale.file.model.response.FileRecycleResponse;
 import com.bluewhale.file.model.response.FileUploadResponse;
+import com.bluewhale.file.model.response.FileVersionResponse;
 import org.mapstruct.Mapper;
 
 /**
@@ -36,6 +38,14 @@ public interface FileAssembler {
      * @return 上传响应
      */
     FileUploadResponse toUploadResponse(FileUploadResult result);
+
+    /**
+     * 文件版本结果转版本响应
+     *
+     * @param result 文件版本结果
+     * @return 文件版本响应
+     */
+    FileVersionResponse toVersionResponse(FileVersionResult result);
 
     /**
      * 文件信息结果转响应

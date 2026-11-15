@@ -28,6 +28,8 @@ CREATE TABLE file_info (
     md5           VARCHAR(32)   DEFAULT NULL           COMMENT '文件MD5摘要（用于去重/秒传/完整性校验）',
     status        TINYINT       NOT NULL DEFAULT 1     COMMENT '状态：1 正常 / 0 禁用 / 2 归档锁定',
     uploader_id   BIGINT        DEFAULT NULL           COMMENT '上传用户ID（逻辑关联 sys_user.id）',
+    parent_id     BIGINT        DEFAULT NULL           COMMENT '版本组根文件ID；根版本为 NULL',
+    version       INT           NOT NULL DEFAULT 1     COMMENT '版本号：根版本为 1，新版本依次递增',
     create_time   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted       TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
@@ -36,7 +38,8 @@ CREATE TABLE file_info (
     KEY idx_tenant_id (tenant_id),
     KEY idx_tenant_md5 (tenant_id, md5),
     KEY idx_tenant_bucket (tenant_id, bucket),
-    KEY idx_uploader_id (uploader_id)
+    KEY idx_uploader_id (uploader_id),
+    KEY idx_parent_version (parent_id, version)
 ) COMMENT='文件信息表';
 
 -- ---------------------------------------------------------------------

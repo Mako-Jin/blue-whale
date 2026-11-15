@@ -35,7 +35,7 @@ public interface FileInfoMapper extends BaseMapper<FileInfoPo> {
      * @return 变更记录（按更新时间、ID 升序）
      */
     @Select("<script>SELECT id, file_name, original_name, bucket, storage_type, object_key, file_size, content_type, md5, "
-            + "status, uploader_id, create_time, update_time, deleted, delete_time FROM file_info "
+            + "status, uploader_id, parent_id, version, create_time, update_time, deleted, delete_time FROM file_info "
             + "<where><if test='since != null'>update_time &gt; #{since}</if></where> "
             + "ORDER BY update_time ASC, id ASC LIMIT #{size} OFFSET #{offset}</script>")
     List<FileInfoPo> selectChanges(@Param("since") LocalDateTime since,
@@ -62,8 +62,34 @@ public interface FileInfoMapper extends BaseMapper<FileInfoPo> {
      * @return 文件记录（含已逻辑删除行）；不存在时返回 {@code null}
      */
     @Select("SELECT id, file_name, original_name, bucket, storage_type, object_key, file_size, content_type, md5, "
-            + "status, uploader_id, create_time, update_time, deleted, delete_time FROM file_info WHERE id = #{id}")
+            + "status, uploader_id, parent_id, version, create_time, update_time, deleted, delete_time FROM file_info WHERE id = #{id}")
     FileInfoPo selectByIdIncludingDeleted(@Param("id") Long id);
+
+    /**
+     * 查询版本组内版本号最大的一行（含逻辑删除行）。
+     *
+     * <p>包含逻辑删除行是为了保证版本号单调递增：已删除版本占用的序号不再复用，
+     * 避免版本列表出现重复版本号。</p>
+     *
+     * @param rootId 版本组根文件ID
+     * @return 版本号最大的文件记录；不存在时返回 {@code null}
+     */
+    @Select("SELECT id, file_name, original_name, bucket, storage_type, object_key, file_size, content_type, md5, "
+            + "status, uploader_id, parent_id, version, create_time, update_time, deleted, delete_time FROM file_info "
+            + "WHERE (id = #{rootId} OR parent_id = #{rootId}) ORDER BY version DESC, id DESC LIMIT 1")
+    FileInfoPo selectLatestVersion(@Param("rootId") Long rootId);
+
+    /**
+     * 查询版本组内全部未删除版本（含根版本）。
+     *
+     * @param rootId 版本组根文件ID
+     * @return 版本记录（按版本号、ID 倒序）
+     */
+    @Select("SELECT id, file_name, original_name, bucket, storage_type, object_key, file_size, content_type, md5, "
+            + "status, uploader_id, parent_id, version, create_time, update_time, deleted, delete_time FROM file_info "
+            + "WHERE deleted = 0 AND (id = #{rootId} OR parent_id = #{rootId}) "
+            + "ORDER BY version DESC, id DESC")
+    List<FileInfoPo> selectVersions(@Param("rootId") Long rootId);
 
     /**
      * 分页查询回收站文件（含逻辑删除行，仅 {@code deleted = 1}）。
@@ -76,7 +102,7 @@ public interface FileInfoMapper extends BaseMapper<FileInfoPo> {
      * @return 回收站记录（按删除时间、ID 倒序）
      */
     @Select("<script>SELECT id, file_name, original_name, bucket, storage_type, object_key, file_size, content_type, md5, "
-            + "status, uploader_id, create_time, update_time, deleted, delete_time FROM file_info WHERE deleted = 1 "
+            + "status, uploader_id, parent_id, version, create_time, update_time, deleted, delete_time FROM file_info WHERE deleted = 1 "
             + "<if test='originalName != null and originalName != \"\"'>"
             + "AND original_name LIKE CONCAT('%', #{originalName}, '%') </if>"
             + "<if test='bucket != null and bucket != \"\"'>AND bucket = #{bucket} </if>"
@@ -157,7 +183,7 @@ public interface FileInfoMapper extends BaseMapper<FileInfoPo> {
      * @return 到期记录（按删除时间、ID 升序）
      */
     @Select("SELECT id, file_name, original_name, bucket, storage_type, object_key, file_size, content_type, md5, "
-            + "status, uploader_id, create_time, update_time, deleted, delete_time FROM file_info "
+            + "status, uploader_id, parent_id, version, create_time, update_time, deleted, delete_time FROM file_info "
             + "WHERE deleted = 1 AND delete_time IS NOT NULL AND delete_time < #{cutoff} "
             + "ORDER BY delete_time ASC, id ASC LIMIT #{size}")
     List<FileInfoPo> selectExpiredRecycle(@Param("cutoff") LocalDateTime cutoff, @Param("size") long size);

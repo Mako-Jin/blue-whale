@@ -52,6 +52,12 @@ public class FileInfoPo extends BaseEntity {
     /** 上传用户 ID（逻辑关联 sys_user.id） */
     private Long uploaderId;
 
+    /** 版本组根文件 ID；根版本为 {@code null} */
+    private Long parentId;
+
+    /** 版本号：根版本为 1，新版本依次递增 */
+    private Integer version;
+
     /** 逻辑删除时间；恢复时置空（{@code deleted} 继承自 {@link BaseEntity}） */
     private LocalDateTime deleteTime;
 }

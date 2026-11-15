@@ -62,6 +62,26 @@ public interface FileAssetRepository {
     Optional<FileAssetAggregate> findByIdIncludingDeleted(Long id);
 
     /**
+     * 查询版本组内版本号最大的一行（包含逻辑删除行）
+     *
+     * <p>包含逻辑删除行保证版本号单调递增：已删除版本占用的序号不再复用。</p>
+     *
+     * @param rootId 版本组根文件ID
+     * @return 版本号最大的文件资产；不存在时返回空
+     */
+    Optional<FileAssetAggregate> findLatestVersion(Long rootId);
+
+    /**
+     * 查询版本组内全部未删除版本（包含根版本）
+     *
+     * <p>排序固定为 {@code version DESC, id DESC}。</p>
+     *
+     * @param rootId 版本组根文件ID
+     * @return 版本组文件资产
+     */
+    List<FileAssetAggregate> findVersions(Long rootId);
+
+    /**
      * 按 MD5 + 大小查询可复用的正常文件（秒传去重依据，按主键升序取第一条）
      *
      * <p>入参摘要大小写不敏感：实现内部统一归一化为小写后查询；空白摘要直接视为未命中。</p>

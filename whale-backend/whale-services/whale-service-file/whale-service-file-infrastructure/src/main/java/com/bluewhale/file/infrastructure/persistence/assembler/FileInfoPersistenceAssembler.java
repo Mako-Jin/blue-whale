@@ -46,7 +46,9 @@ public final class FileInfoPersistenceAssembler {
                 po.getDeleted() != null && po.getDeleted() == DELETED_FLAG,
                 po.getCreateTime(),
                 po.getUpdateTime(),
-                po.getStorageType());
+                po.getStorageType(),
+                po.getParentId(),
+                po.getVersion() == null ? 1 : po.getVersion());
     }
 
     /**
@@ -80,6 +82,8 @@ public final class FileInfoPersistenceAssembler {
         po.setMd5(asset.getMd5());
         po.setStatus(asset.getStatus().getCode());
         po.setUploaderId(asset.getUploaderId());
+        po.setParentId(asset.getParentId());
+        po.setVersion(asset.getVersion());
         po.setDeleted(asset.isDeleted() ? DELETED_FLAG : 0);
         po.setCreateTime(asset.getCreateTime());
         po.setUpdateTime(asset.getUpdateTime());

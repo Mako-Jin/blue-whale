@@ -43,6 +43,7 @@ import com.bluewhale.file.model.result.FileQuotaResult;
 import com.bluewhale.file.model.result.FileRapidUploadResult;
 import com.bluewhale.file.model.result.FileRecycleResult;
 import com.bluewhale.file.model.result.FileUploadResult;
+import com.bluewhale.file.model.result.FileVersionResult;
 import com.bluewhale.file.service.FileInfoService;
 import com.bluewhale.file.service.support.CdnUrlRewriter;
 import com.bluewhale.file.service.support.FileContentPolicy;
@@ -151,6 +152,58 @@ public class FileInfoServiceImpl implements FileInfoService {
             fileMetrics.recordUpload("multipart", bytes.length, System.nanoTime() - startedAt, "failure");
             throw e;
         }
+    }
+
+    @Override
+    public FileVersionResult uploadVersion(Long id, UploadContent content, Long requesterId, boolean canManage,
+                                           UploadLimits limits) {
+        if (content == null || content.isEmpty()) {
+            throw new BizException(ErrorCode.PARAM_ERROR);
+        }
+        UploadLimits effective = effectiveLimits(limits);
+        if (content.size() > effective.maxSizeBytes()) {
+            throw new BizException(ErrorCode.PARAM_ERROR);
+        }
+        FileAssetAggregate root = resolveVersionRoot(id, requesterId, canManage);
+        root.assertVersionUploadable();
+        byte[] bytes = content.content();
+        String name = resolveOriginalName(content.originalName());
+        // 与普通上传一致：先按魔数校验真实类型，再进入配额与落库流程
+        fileContentPolicy.validate(name, headerOf(bytes));
+        validateQuota(bytes.length, requesterId, root.getBucket(), effective.quotaBytes());
+        // 版本号取组内最大值 + 1；查询含已删除行，保证删除版本后序号不复用
+        int nextVersion = fileAssetRepository.findLatestVersion(root.getId())
+                .map(latest -> latest.getVersion() + 1)
+                .orElse(root.getVersion() + 1);
+        String objectKey = buildObjectKey(name);
+        long startedAt = System.nanoTime();
+        try {
+            fileStorage.store(root.getBucket(), objectKey, new ByteArrayInputStream(bytes));
+            FileVersionResult result;
+            try {
+                FileAssetAggregate version = FileAssetAggregate.registerVersion(root, nextVersion, objectKey, name,
+                        bytes.length, content.contentType(), DigestUtils.md5DigestAsHex(bytes), requesterId,
+                        storagePluginCatalog.activeType());
+                result = toVersionResult(persistAsset(version, effective));
+            } catch (RuntimeException e) {
+                // 落库失败（含配额超限）：补偿删除已写入的物理对象，避免产生孤儿文件
+                deleteStoredQuietly(root.getBucket(), objectKey);
+                throw e;
+            }
+            fileMetrics.recordUpload("version", bytes.length, System.nanoTime() - startedAt, "success");
+            return result;
+        } catch (RuntimeException e) {
+            fileMetrics.recordUpload("version", bytes.length, System.nanoTime() - startedAt, "failure");
+            throw e;
+        }
+    }
+
+    @Override
+    public List<FileVersionResult> versions(Long id, Long requesterId, boolean canManage) {
+        FileAssetAggregate root = resolveVersionRoot(id, requesterId, canManage);
+        return fileAssetRepository.findVersions(root.getId()).stream()
+                .map(FileInfoServiceImpl::toVersionResult)
+                .toList();
     }
 
     @Override
@@ -579,6 +632,24 @@ public class FileInfoServiceImpl implements FileInfoService {
     }
 
     /**
+     * 解析版本组根文件并校验可见性：传入版本行时回溯到 {@code parentId} 指向的根文件
+     *
+     * <p>可见性以根文件为准，避免通过「本人上传的版本行」绕过根文件归属校验。</p>
+     *
+     * @param id 文件ID（根文件或任一版本行）
+     * @param requesterId 调用者用户 ID
+     * @param canManage 是否持有文件管理权限
+     * @return 版本组根文件
+     * @throws BizException 根文件不存在、跨租户或越权时抛出 {@code NOT_FOUND}
+     */
+    private FileAssetAggregate resolveVersionRoot(Long id, Long requesterId, boolean canManage) {
+        FileAssetAggregate asset = requireFile(id);
+        FileAssetAggregate root = asset.getParentId() == null ? asset : requireFile(asset.getParentId());
+        root.assertVisibleTo(requesterId, canManage, TenantContext.get());
+        return root;
+    }
+
+    /**
      * 批量删除单项：异常收敛为单项失败原因，不中断整批
      *
      * <p>本方法不声明事务，条件更新随调用即时提交；越权、不存在与归档锁定均只影响当前项。
@@ -866,6 +937,19 @@ public class FileInfoServiceImpl implements FileInfoService {
         return new FileInfoResult(asset.getId(), asset.getFileName(), asset.getOriginalName(),
                 asset.getBucket(), asset.getObjectKey(), asset.getFileSize(), asset.getContentType(),
                 asset.getMd5(), asset.getUploaderId(), asset.getCreateTime());
+    }
+
+    /**
+     * 文件资产转版本结果
+     *
+     * @param asset 文件资产聚合根
+     * @return 文件版本结果
+     */
+    private static FileVersionResult toVersionResult(FileAssetAggregate asset) {
+        return new FileVersionResult(asset.getId(), asset.getParentId(), asset.getVersion(),
+                asset.getFileName(), asset.getOriginalName(), asset.getBucket(), asset.getObjectKey(),
+                asset.getFileSize(), asset.getContentType(), asset.getMd5(), asset.getUploaderId(),
+                asset.getCreateTime());
     }
 
     /**

@@ -42,6 +42,7 @@ import com.bluewhale.file.model.result.FileQuotaResult;
 import com.bluewhale.file.model.result.FileRapidUploadResult;
 import com.bluewhale.file.model.result.FileRecycleResult;
 import com.bluewhale.file.model.result.FileUploadResult;
+import com.bluewhale.file.model.result.FileVersionResult;
 import com.bluewhale.file.service.support.FileContentPolicy;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
@@ -283,6 +284,22 @@ class FileInfoServiceImplTest {
         return FileAssetAggregate.reconstitute(id, null, "locked.pdf", "bluewhale", "2026/10/24/locked.pdf",
                 12L, "application/pdf", null, status, UPLOADER_ID, false,
                 LocalDateTime.of(2026, 10, 24, 9, 0), LocalDateTime.of(2026, 10, 24, 9, 0), "local");
+    }
+
+    /**
+     * 构造带版本归属的文件聚合。
+     *
+     * @param id 主键
+     * @param parentId 版本组根文件 ID；根版本为 {@code null}
+     * @param version 版本号
+     * @param status 文件状态
+     * @return 文件资产聚合根
+     */
+    private static FileAssetAggregate fileWithVersion(long id, Long parentId, int version, FileStatus status) {
+        return FileAssetAggregate.reconstitute(id, "a.txt", "a.txt", "bluewhale",
+                "tenants/1/2026/10/25/a.txt", 12L, "text/plain", null, status, UPLOADER_ID, false,
+                LocalDateTime.of(2026, 10, 25, 9, 0), LocalDateTime.of(2026, 10, 25, 9, 0), "local",
+                parentId, version);
     }
 
     @Test
@@ -1345,6 +1362,96 @@ class FileInfoServiceImplTest {
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         verify(fileAssetRepository, never()).deleteById(anyLong());
+    }
+
+    @Test
+    @DisplayName("uploadVersion：写入根文件桶并登记组内最大版本号 + 1 的新版本")
+    void shouldUploadNextVersion() {
+        FileAssetAggregate root = fileWithVersion(1L, null, 1, FileStatus.NORMAL);
+        when(fileAssetRepository.findById(1L)).thenReturn(Optional.of(root));
+        when(fileAssetRepository.findLatestVersion(1L)).thenReturn(Optional.of(root));
+
+        FileVersionResult result = fileInfoService.uploadVersion(1L,
+                uploadContent("v2-body".getBytes(StandardCharsets.UTF_8), "report-v2.pdf"), UPLOADER_ID, false,
+                null);
+
+        assertEquals(1L, result.parentId());
+        assertEquals(2, result.version());
+        assertEquals("bluewhale", result.bucket());
+        verify(fileStorage).store(eq("bluewhale"), eq(result.objectKey()), any(InputStream.class));
+        ArgumentCaptor<FileAssetAggregate> captor = ArgumentCaptor.forClass(FileAssetAggregate.class);
+        verify(fileAssetRepository).saveWithQuotaCheck(captor.capture(), any(StorageQuota.class));
+        assertEquals(1L, captor.getValue().getParentId());
+        assertEquals(2, captor.getValue().getVersion());
+    }
+
+    @Test
+    @DisplayName("uploadVersion：传入版本行时回溯根文件并递增组内最大版本号")
+    void shouldUploadVersionByVersionId() {
+        FileAssetAggregate root = fileWithVersion(1L, null, 1, FileStatus.NORMAL);
+        FileAssetAggregate version2 = fileWithVersion(2L, 1L, 2, FileStatus.NORMAL);
+        when(fileAssetRepository.findById(2L)).thenReturn(Optional.of(version2));
+        when(fileAssetRepository.findById(1L)).thenReturn(Optional.of(root));
+        when(fileAssetRepository.findLatestVersion(1L)).thenReturn(Optional.of(version2));
+
+        FileVersionResult result = fileInfoService.uploadVersion(2L,
+                uploadContent("v3-body".getBytes(StandardCharsets.UTF_8), "report-v3.pdf"), UPLOADER_ID, false,
+                null);
+
+        assertEquals(1L, result.parentId());
+        assertEquals(3, result.version());
+        verify(fileStorage).store(eq("bluewhale"), eq(result.objectKey()), any(InputStream.class));
+    }
+
+    @Test
+    @DisplayName("uploadVersion：归档锁定文件拒绝追加版本且不写存储")
+    void shouldRejectVersionForLockedFile() {
+        when(fileAssetRepository.findById(7L))
+                .thenReturn(Optional.of(fileWithVersion(7L, null, 1, FileStatus.LOCKED)));
+
+        BizException ex = assertThrows(BizException.class, () -> fileInfoService.uploadVersion(7L,
+                uploadContent("v2-body".getBytes(StandardCharsets.UTF_8), "report-v2.pdf"), UPLOADER_ID, false,
+                null));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        verify(fileStorage, never()).store(anyString(), anyString(), any(InputStream.class));
+        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAssetAggregate.class),
+                any(StorageQuota.class));
+    }
+
+    @Test
+    @DisplayName("uploadVersion：个人配额不足时拒绝且不写存储")
+    void shouldRejectVersionWhenQuotaExceeded() {
+        when(fileAssetRepository.findById(1L))
+                .thenReturn(Optional.of(fileWithVersion(1L, null, 1, FileStatus.NORMAL)));
+        when(fileAssetRepository.sumNormalSizeByUploader(UPLOADER_ID)).thenReturn(100L);
+
+        BizException ex = assertThrows(BizException.class, () -> fileInfoService.uploadVersion(1L,
+                uploadContent("v2-body".getBytes(StandardCharsets.UTF_8), "report-v2.pdf"), UPLOADER_ID, false,
+                new UploadLimits(1024L, 100L)));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        verify(fileStorage, never()).store(anyString(), anyString(), any(InputStream.class));
+    }
+
+    @Test
+    @DisplayName("versions：按根文件返回版本组，传入版本行时回溯根文件")
+    void shouldListVersionsOfRoot() {
+        FileAssetAggregate root = fileWithVersion(1L, null, 1, FileStatus.NORMAL);
+        FileAssetAggregate version2 = fileWithVersion(2L, 1L, 2, FileStatus.NORMAL);
+        when(fileAssetRepository.findById(2L)).thenReturn(Optional.of(version2));
+        when(fileAssetRepository.findById(1L)).thenReturn(Optional.of(root));
+        when(fileAssetRepository.findVersions(1L)).thenReturn(List.of(version2, root));
+
+        List<FileVersionResult> versions = fileInfoService.versions(2L, UPLOADER_ID, false);
+
+        assertEquals(2, versions.size());
+        assertEquals(2, versions.get(0).version());
+        assertEquals(1L, versions.get(0).parentId());
+        assertEquals(1, versions.get(1).version());
+
+        BizException notFound = assertThrows(BizException.class, () -> fileInfoService.versions(2L, 8L, false));
+        assertEquals(NOT_FOUND_CODE, notFound.getCode());
     }
 
     /**

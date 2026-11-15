@@ -1,6 +1,8 @@
 package com.bluewhale.file.infrastructure.persistence.repository;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -16,8 +18,10 @@ import com.bluewhale.file.domain.model.vo.StorageQuota;
 import com.bluewhale.file.po.FileInfoPo;
 import com.bluewhale.file.mapper.FileInfoMapper;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.InOrder;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -509,6 +513,47 @@ class FileAssetRepositoryImplTest {
 
         assertTrue(result.records().isEmpty());
         assertEquals(0L, result.total());
+    }
+
+    @Test
+    @DisplayName("findLatestVersion/findVersions：映射版本归属并透传根文件ID")
+    void shouldFindVersions() {
+        FileInfoPo root = po(1L, 0);
+        FileInfoPo version2 = po(2L, 0);
+        version2.setParentId(1L);
+        version2.setVersion(2);
+        when(fileInfoMapper.selectLatestVersion(1L)).thenReturn(version2);
+        when(fileInfoMapper.selectVersions(1L)).thenReturn(List.of(version2, root));
+
+        FileAssetAggregate latest = repository.findLatestVersion(1L).orElseThrow();
+        assertEquals(2, latest.getVersion());
+        assertEquals(1L, latest.getParentId());
+
+        List<FileAssetAggregate> versions = repository.findVersions(1L);
+        assertEquals(2, versions.size());
+        assertEquals(2, versions.get(0).getVersion());
+        assertEquals(1, versions.get(1).getVersion());
+
+        when(fileInfoMapper.selectLatestVersion(2L)).thenReturn(null);
+        assertTrue(repository.findLatestVersion(2L).isEmpty());
+    }
+
+    @Test
+    @DisplayName("page：只查询版本组根文件，版本行不进入文件列表")
+    void shouldPageOnlyRootFiles() {
+        Page<FileInfoPo> page = new Page<>(1L, 10L);
+        when(fileInfoMapper.selectPage(ArgumentMatchers.<Page<FileInfoPo>>any(),
+                ArgumentMatchers.<Wrapper<FileInfoPo>>any())).thenReturn(page);
+
+        repository.page(new FileAssetQuery(null, null, null, null, null, 1L, 10L));
+
+        // Lambda 列解析依赖 MyBatis-Plus 实体元数据，单测无 Spring 容器时需手动初始化
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), FileInfoPo.class);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Wrapper<FileInfoPo>> captor = ArgumentCaptor.forClass(Wrapper.class);
+        verify(fileInfoMapper).selectPage(ArgumentMatchers.<Page<FileInfoPo>>any(), captor.capture());
+        assertTrue(captor.getValue().getSqlSegment().contains("parent_id IS NULL"),
+                "文件列表应过滤版本行：" + captor.getValue().getSqlSegment());
     }
 
     @Test

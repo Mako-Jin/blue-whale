@@ -20,6 +20,7 @@ import com.bluewhale.file.model.result.FileQuotaResult;
 import com.bluewhale.file.model.result.FileRapidUploadResult;
 import com.bluewhale.file.model.result.FileRecycleResult;
 import com.bluewhale.file.model.result.FileUploadResult;
+import com.bluewhale.file.model.result.FileVersionResult;
 
 import java.io.InputStream;
 import java.util.List;
@@ -38,6 +39,34 @@ public interface FileInfoService {
      * @return 上传结果
      */
     FileUploadResult upload(UploadFileCommand command);
+
+    /**
+     * 上传文件新版本：写入新物理对象并登记版本行，版本号取组内最大值 + 1
+     *
+     * <p>传入版本行时回溯到版本组根文件；桶沿用根文件。仅正常状态文件可追加版本，
+     * 新版本按既有个人/租户/桶配额口径计量。</p>
+     *
+     * @param id 文件ID（根文件或任一版本行）
+     * @param content 版本内容
+     * @param requesterId 调用者用户 ID（同时作为新版本上传者）
+     * @param canManage 是否持有文件管理权限
+     * @param limits 生效的上传上限与配额
+     * @return 新版本结果
+     */
+    FileVersionResult uploadVersion(Long id, UploadContent content, Long requesterId, boolean canManage,
+                                    UploadLimits limits);
+
+    /**
+     * 查询文件的版本组（包含根版本）
+     *
+     * <p>传入版本行时回溯到版本组根文件；按版本号倒序返回，不包含已逻辑删除的版本。</p>
+     *
+     * @param id 文件ID（根文件或任一版本行）
+     * @param requesterId 调用者用户 ID
+     * @param canManage 是否持有文件管理权限
+     * @return 版本组结果
+     */
+    List<FileVersionResult> versions(Long id, Long requesterId, boolean canManage);
 
     /**
      * 秒传（哈希去重）：按 MD5 + 大小匹配已有物理对象，命中时仅登记新元数据、不复制物理对象
