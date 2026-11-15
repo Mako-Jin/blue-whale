@@ -17,6 +17,7 @@ import com.bluewhale.file.model.result.FileRecycleResult;
 import com.bluewhale.file.model.result.FileUploadResult;
 import com.bluewhale.file.service.FileInfoService;
 import com.bluewhale.file.service.support.FileUploadPolicy;
+import com.bluewhale.file.service.support.UploadPolicyRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -75,7 +76,8 @@ class FileControllerTest {
 
     private final FileProperties fileProperties = new FileProperties();
 
-    private final FileUploadPolicy fileUploadPolicy = new FileUploadPolicy(fileProperties);
+    private final FileUploadPolicy fileUploadPolicy =
+            new FileUploadPolicy(fileProperties, new UploadPolicyRegistry(fileProperties));
 
     private final FileAssembler fileAssembler = Mappers.getMapper(FileAssembler.class);
 

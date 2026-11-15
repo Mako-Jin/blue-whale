@@ -15,6 +15,9 @@ import java.util.Collection;
  * {@code whale.file.max-size-bytes} / {@code whale.file.quota-bytes} 全局默认值，
  * 因此普通上传仍保持 50MB / 1GB 的默认约束。</p>
  *
+ * <p>规则集合来自 {@link UploadPolicyRegistry}，支持运行时整表热更新；开关
+ * {@code whale.file.upload-policy.enabled} 与全局默认值仍只来自启动配置。</p>
+ *
  * @author BlueWhale
  */
 @Component
@@ -25,13 +28,17 @@ public class FileUploadPolicy {
 
     private final FileProperties fileProperties;
 
+    private final UploadPolicyRegistry uploadPolicyRegistry;
+
     /**
      * 构造上传策略服务
      *
-     * @param fileProperties 文件服务配置（读取 {@code whale.file.upload-policy.*}）
+     * @param fileProperties 文件服务配置（读取 {@code whale.file.upload-policy.enabled} 与全局默认值）
+     * @param uploadPolicyRegistry 生效规则注册表（支持运行时热更新）
      */
-    public FileUploadPolicy(FileProperties fileProperties) {
+    public FileUploadPolicy(FileProperties fileProperties, UploadPolicyRegistry uploadPolicyRegistry) {
         this.fileProperties = fileProperties;
+        this.uploadPolicyRegistry = uploadPolicyRegistry;
     }
 
     /**
@@ -47,7 +54,7 @@ public class FileUploadPolicy {
         }
         boolean superAdmin = permissionCodes.contains(SUPER_ADMIN);
         FileProperties.Rule matched = null;
-        for (FileProperties.Rule rule : fileProperties.getUploadPolicy().getRules()) {
+        for (FileProperties.Rule rule : uploadPolicyRegistry.rules()) {
             if (rule == null || !StringUtils.hasText(rule.getPermission()) || rule.getMaxSizeBytes() <= 0) {
                 continue;
             }

@@ -6,7 +6,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -37,6 +36,8 @@ class FileUploadPolicyTest {
 
     private FileProperties fileProperties;
 
+    private UploadPolicyRegistry uploadPolicyRegistry;
+
     private FileUploadPolicy policy;
 
     /**
@@ -45,7 +46,8 @@ class FileUploadPolicyTest {
     @BeforeEach
     void setUp() {
         fileProperties = new FileProperties();
-        policy = new FileUploadPolicy(fileProperties);
+        uploadPolicyRegistry = new UploadPolicyRegistry(fileProperties);
+        policy = new FileUploadPolicy(fileProperties, uploadPolicyRegistry);
     }
 
     @Test
@@ -95,9 +97,7 @@ class FileUploadPolicyTest {
     @Test
     @DisplayName("规则未配置配额：沿用全局默认配额")
     void shouldInheritDefaultQuotaWhenRuleOmitsIt() {
-        fileProperties.getUploadPolicy().getRules().clear();
-        fileProperties.getUploadPolicy().getRules().add(
-                FileProperties.Rule.of("sys:file:upload", 104857600L, null));
+        uploadPolicyRegistry.replace(List.of(FileProperties.Rule.of("sys:file:upload", 104857600L, null)));
 
         UploadLimits limits = policy.resolve(Set.of("sys:file:upload"));
 
@@ -117,16 +117,30 @@ class FileUploadPolicyTest {
     }
 
     @Test
-    @DisplayName("非法规则（权限码为空或上限非正）被忽略，不放大上限")
+    @DisplayName("启动配置中的非法规则（权限码为空或上限非正）被忽略，不放大上限")
     void shouldIgnoreInvalidRules() {
-        List<FileProperties.Rule> rules = new ArrayList<>();
-        rules.add(FileProperties.Rule.of(" ", 4294967296L, 0L));
-        rules.add(FileProperties.Rule.of("sys:video:upload", 0L, 0L));
-        fileProperties.getUploadPolicy().setRules(rules);
+        FileProperties invalidProperties = new FileProperties();
+        invalidProperties.getUploadPolicy().setRules(List.of(
+                FileProperties.Rule.of(" ", 4294967296L, 0L),
+                FileProperties.Rule.of("sys:video:upload", 0L, 0L)));
+        FileUploadPolicy invalidPolicy = new FileUploadPolicy(invalidProperties,
+                new UploadPolicyRegistry(invalidProperties));
 
-        UploadLimits limits = policy.resolve(Set.of("sys:video:upload"));
+        UploadLimits limits = invalidPolicy.resolve(Set.of("sys:video:upload"));
 
         assertEquals(DEFAULT_MAX_SIZE, limits.maxSizeBytes());
         assertEquals(DEFAULT_QUOTA, limits.quotaBytes());
+    }
+
+    @Test
+    @DisplayName("热更新规则后按新规则解析，被替换掉的旧规则不再生效")
+    void shouldApplyReplacedRules() {
+        uploadPolicyRegistry.replace(List.of(FileProperties.Rule.of("sys:file:upload", 209715200L, null)));
+
+        UploadLimits videoLimits = policy.resolve(Set.of("sys:video:upload"));
+        UploadLimits replacedLimits = policy.resolve(Set.of("sys:file:upload"));
+
+        assertEquals(DEFAULT_MAX_SIZE, videoLimits.maxSizeBytes());
+        assertEquals(209715200L, replacedLimits.maxSizeBytes());
     }
 }
