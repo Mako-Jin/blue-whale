@@ -57,4 +57,12 @@ public class FormDefinitionSaveRequest implements Serializable {
     /** 备注（最长 255） */
     @Size(max = 255, message = "备注长度不能超过 255")
     private String remark;
+
+    /** 表单分类（最长 64；空白视为不分类） */
+    @Size(max = 64, message = "表单分类长度不能超过 64")
+    private String category;
+
+    /** 标签（JSON 字符串数组文本，如 {@code ["报销","财务"]}，最长 512；空白视为无标签） */
+    @Size(max = 512, message = "标签长度不能超过 512")
+    private String tags;
 }

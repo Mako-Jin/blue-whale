@@ -7,6 +7,8 @@ import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.form.converter.FormConverter;
 import com.bluewhale.form.model.dto.FormDataFilter;
+import com.bluewhale.form.model.request.FormDataApprovalCallbackRequest;
+import com.bluewhale.form.model.request.FormDataApprovalStartRequest;
 import com.bluewhale.form.model.request.FormDataQueryRequest;
 import com.bluewhale.form.model.request.FormDataSubmitRequest;
 import com.bluewhale.form.model.request.FormDataUpdateRequest;
@@ -26,20 +28,26 @@ import com.bluewhale.form.service.FormDataService;
 import com.bluewhale.form.support.FormDataEngine;
 import com.bluewhale.form.support.FormDataExportSupport;
 import com.bluewhale.form.support.FormDataHistoryRecorder;
+import com.bluewhale.form.support.FormDataImportSupport;
 import com.bluewhale.form.support.FormDataType;
 import com.bluewhale.form.support.FormField;
 import com.bluewhale.form.support.FormMetadataCompiler;
+import com.bluewhale.form.support.FormMetrics;
 import com.bluewhale.form.support.FormSchemaParser;
 import com.bluewhale.form.model.vo.FormArchiveVO;
 import com.bluewhale.form.model.vo.FormDataExportVO;
 import com.bluewhale.form.model.vo.FormDataHistoryVO;
+import com.bluewhale.form.model.vo.FormDataImportFailRowVO;
+import com.bluewhale.form.model.vo.FormDataImportResultVO;
 import com.bluewhale.form.model.vo.FormDataVO;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
 import java.math.BigInteger;
@@ -101,6 +109,24 @@ public class FormDataServiceImpl implements FormDataService {
     /** 变更历史单次最多返回条数 */
     private static final int HISTORY_MAX_ROWS = 200;
 
+    /** 业务状态：审批中 */
+    private static final int BIZ_PENDING = 2;
+
+    /** 业务状态：已通过 */
+    private static final int BIZ_APPROVED = 3;
+
+    /** 业务状态：已驳回 */
+    private static final int BIZ_REJECTED = 4;
+
+    /** 审批结果：通过 */
+    private static final String APPROVAL_APPROVED = "APPROVED";
+
+    /** 审批结果：驳回 */
+    private static final String APPROVAL_REJECTED = "REJECTED";
+
+    /** 单次导入最大数据行数 */
+    private static final int IMPORT_MAX_ROWS = 1000;
+
     /** 过滤字段名字符白名单（与物理表列名规则一致） */
     private static final Pattern FILTER_FIELD_PATTERN = Pattern.compile("^[a-z][a-z0-9_]{0,63}$");
 
@@ -137,6 +163,10 @@ public class FormDataServiceImpl implements FormDataService {
 
     private final FormDataEngine formDataEngine;
 
+    private final FormMetrics formMetrics;
+
+    private final PlatformTransactionManager transactionManager;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public FormDataVO submit(FormDataSubmitRequest request, String submitter, Long tenantId) {
@@ -146,35 +176,9 @@ public class FormDataServiceImpl implements FormDataService {
         if (existing != null) {
             return toVo(existing, parseDataQuietly(existing.getDataJson()));
         }
-        validateDataSize(request.getDataJson());
-        Integer formVersion = definition.getVersion() == null ? DEFAULT_VERSION : definition.getVersion();
-        FormTableDefinitionPo table = definition.getTableDefinitionId() == null
-                ? null : requireTableDefinition(definition.getTableDefinitionId());
-        String routeCode = table == null ? definition.getCode() : table.getTableCode();
-        Integer routeVersion = table == null ? formVersion : tableVersionOf(table);
-        FormTableRegistryPo registry = requireRegistry(routeCode, routeVersion);
-        String schema = table == null ? registry.getSchemaJson() : definition.getSchemaJson();
-        List<FormField> fields = FormSchemaParser.parse(schema);
-        Map<String, Object> data = parseData(request.getDataJson());
-        validateFields(fields, data);
-        FormDataPo entity = new FormDataPo();
-        entity.setTenantId(tenantId);
-        entity.setDefinitionId(definition.getId());
-        entity.setDefinitionCode(definition.getCode());
-        entity.setDefinitionVersion(formVersion);
-        entity.setBizKey(request.getBizKey());
-        entity.setClientRequestId(clientRequestId);
-        entity.setDataJson(request.getDataJson());
-        entity.setSubmitter(submitter);
-        entity.setStatus(STATUS_NORMAL);
-        if (table != null) {
-            entity.setTableDefinitionId(table.getId());
-            entity.setTableCode(table.getTableCode());
-            entity.setTableVersion(routeVersion);
-            entity.setFormDefinitionId(definition.getId());
-        }
         try {
-            formDataMapper.insert(entity);
+            return doInsert(definition, request.getDataJson(), request.getBizKey(), clientRequestId,
+                    submitter, tenantId);
         } catch (DuplicateKeyException e) {
             // 并发重复提交：唯一键兜底后回查首次提交结果；软删记录占用键时无匹配则给出明确提示
             FormDataPo duplicated = findByClientRequestId(tenantId, definition.getCode(), clientRequestId);
@@ -183,6 +187,52 @@ public class FormDataServiceImpl implements FormDataService {
             }
             return toVo(duplicated, parseDataQuietly(duplicated.getDataJson()));
         }
+    }
+
+    /**
+     * 插入一条表单数据（校验 + 双写主表与物理表 + 提交留痕）
+     *
+     * <p>供单条提交与批量导入复用；幂等键冲突不在此处兜底，由调用方决定处理方式。</p>
+     *
+     * @param definition 表单定义
+     * @param dataJson 表单数据JSON
+     * @param bizKey 业务键
+     * @param clientRequestId 客户端幂等键
+     * @param submitter 提交人
+     * @param tenantId 租户ID
+     * @return 表单数据视图对象
+     */
+    private FormDataVO doInsert(FormDefinitionPo definition, String dataJson, String bizKey,
+                                String clientRequestId, String submitter, Long tenantId) {
+        validateDataSize(dataJson);
+        Integer formVersion = definition.getVersion() == null ? DEFAULT_VERSION : definition.getVersion();
+        FormTableDefinitionPo table = definition.getTableDefinitionId() == null
+                ? null : requireTableDefinition(definition.getTableDefinitionId());
+        String routeCode = table == null ? definition.getCode() : table.getTableCode();
+        Integer routeVersion = table == null ? formVersion : tableVersionOf(table);
+        FormTableRegistryPo registry = requireRegistry(routeCode, routeVersion);
+        String schema = table == null ? registry.getSchemaJson() : definition.getSchemaJson();
+        List<FormField> fields = FormSchemaParser.parse(schema);
+        Map<String, Object> data = parseData(dataJson);
+        validateFields(fields, data);
+        FormDataPo entity = new FormDataPo();
+        entity.setTenantId(tenantId);
+        entity.setDefinitionId(definition.getId());
+        entity.setDefinitionCode(definition.getCode());
+        entity.setDefinitionVersion(formVersion);
+        entity.setBizKey(bizKey);
+        entity.setClientRequestId(clientRequestId);
+        entity.setDataJson(dataJson);
+        entity.setSubmitter(submitter);
+        entity.setStatus(STATUS_NORMAL);
+        entity.setBizStatus(BIZ_APPROVED);
+        if (table != null) {
+            entity.setTableDefinitionId(table.getId());
+            entity.setTableCode(table.getTableCode());
+            entity.setTableVersion(routeVersion);
+            entity.setFormDefinitionId(definition.getId());
+        }
+        formDataMapper.insert(entity);
         formDataEngine.insert(registry.getPhysicalTable(), entity, fields, data);
         formDataHistoryRecorder.recordCreate(entity);
         return toVo(entity, data);
@@ -221,6 +271,7 @@ public class FormDataServiceImpl implements FormDataService {
     @Transactional(rollbackFor = Exception.class)
     public FormDataVO update(Long id, FormDataUpdateRequest request, Long tenantId) {
         FormDataPo entity = requireData(id, tenantId);
+        assertNotPending(entity, "修改");
         FormDefinitionPo definition = requireDefinition(entity.getDefinitionId());
         validateDataSize(request.getDataJson());
         FormTableRegistryPo registry = requireRegistry(routeCodeOf(entity), routeVersionOf(entity));
@@ -273,8 +324,10 @@ public class FormDataServiceImpl implements FormDataService {
                 throw paramError("动态字段条件检索需先指定表单编码");
             }
             FormDefinitionPo definition = requireDefinitionByCode(request.getDefinitionCode());
+            long start = System.nanoTime();
             FilteredRows matched = selectByFilters(definition, request, filters, tenantId,
                     (current - 1) * size, size);
+            formMetrics.filterQuery(System.nanoTime() - start);
             List<FormDataVO> filtered = matched.rows().stream().map(entity -> toVo(entity, null)).toList();
             return PageResult.of(filtered, matched.total(), current, size);
         }
@@ -294,6 +347,7 @@ public class FormDataServiceImpl implements FormDataService {
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id, Long tenantId) {
         FormDataPo entity = requireData(id, tenantId);
+        assertNotPending(entity, "删除");
         formDataHistoryRecorder.recordDelete(entity);
         formDataMapper.deleteById(id);
         FormTableRegistryPo registry = requireRegistry(routeCodeOf(entity), routeVersionOf(entity));
@@ -310,6 +364,323 @@ public class FormDataServiceImpl implements FormDataService {
         wrapper.last("LIMIT " + HISTORY_MAX_ROWS);
         return formDataHistoryMapper.selectList(wrapper).stream()
                 .map(FormConverter.INSTANCE::toHistoryVo).toList();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public FormDataVO startApproval(Long id, FormDataApprovalStartRequest request, Long tenantId) {
+        FormDataPo entity = requireData(id, tenantId);
+        String instanceId = request.getProcessInstanceId().trim();
+        if (isPending(entity)) {
+            if (instanceId.equals(entity.getProcessInstanceId())) {
+                return toVo(entity, parseDataQuietly(entity.getDataJson()));
+            }
+            throw paramError("该表单数据已在审批中，流程实例：" + entity.getProcessInstanceId());
+        }
+        int before = bizStatusOf(entity);
+        entity.setBizStatus(BIZ_PENDING);
+        entity.setProcessInstanceId(instanceId);
+        formDataMapper.updateById(entity);
+        formDataHistoryRecorder.recordApproval(entity, before, null);
+        return toVo(entity, parseDataQuietly(entity.getDataJson()));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void handleApprovalCallback(FormDataApprovalCallbackRequest request, Long tenantId) {
+        String result = normalizeApprovalResult(request.getResult());
+        LambdaQueryWrapper<FormDataPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormDataPo::getProcessInstanceId, request.getProcessInstanceId().trim());
+        wrapper.eq(FormDataPo::getTenantId, tenantId);
+        FormDataPo entity = formDataMapper.selectOne(wrapper);
+        if (entity == null) {
+            throw new BizException(ErrorCode.NOT_FOUND);
+        }
+        if (!isPending(entity)) {
+            // 幂等：终态回调重复投递直接返回，避免重复改状态与留痕
+            return;
+        }
+        int before = BIZ_PENDING;
+        entity.setBizStatus(APPROVAL_APPROVED.equals(result) ? BIZ_APPROVED : BIZ_REJECTED);
+        formDataMapper.updateById(entity);
+        formDataHistoryRecorder.recordApproval(entity, before, request.getComment());
+    }
+
+    @Override
+    public FormDataImportResultVO importData(String definitionCode, byte[] content, boolean partial,
+                                             String submitter, Long tenantId) {
+        if (!StringUtils.hasText(definitionCode)) {
+            throw paramError("请先指定表单编码后再导入");
+        }
+        if (content == null || content.length == 0) {
+            throw paramError("导入文件不能为空");
+        }
+        FormDefinitionPo definition = requireDefinitionByCode(definitionCode);
+        List<FormField> fields = FormSchemaParser.parse(definition.getSchemaJson());
+        List<List<String>> rows = FormDataImportSupport.parseCsv(content);
+        if (rows.size() < 2) {
+            throw paramError("导入文件没有数据行");
+        }
+        FormField[] columns = mapHeaderColumns(rows.get(0), fields);
+        List<List<String>> dataRows = rows.subList(1, rows.size());
+        if (dataRows.size() > IMPORT_MAX_ROWS) {
+            throw paramError("单次导入最多 " + IMPORT_MAX_ROWS + " 行");
+        }
+        FormDataImportResultVO result = partial
+                ? importPartially(definition, columns, dataRows, submitter, tenantId)
+                : importStrictly(definition, columns, dataRows, submitter, tenantId);
+        result.setTotalCount(dataRows.size());
+        return result;
+    }
+
+    @Override
+    public byte[] importTemplate(String definitionCode) {
+        if (!StringUtils.hasText(definitionCode)) {
+            throw paramError("请先指定表单编码后再下载模板");
+        }
+        FormDefinitionPo definition = requireDefinitionByCode(definitionCode);
+        List<String> headers = FormSchemaParser.parse(definition.getSchemaJson()).stream()
+                .filter(field -> FormDataImportSupport.importable(field.getType()))
+                .map(field -> StringUtils.hasText(field.getLabel()) ? field.getLabel() : field.getKey())
+                .toList();
+        if (headers.isEmpty()) {
+            throw paramError("该表单没有支持批量导入的字段");
+        }
+        return FormDataImportSupport.template(headers);
+    }
+
+    /**
+     * 部分成功导入：逐行独立事务，失败行回显错误
+     *
+     * @param definition 表单定义
+     * @param columns 表头映射后的字段（未匹配列为 {@code null}）
+     * @param dataRows 数据行
+     * @param submitter 提交人
+     * @param tenantId 租户ID
+     * @return 导入结果
+     */
+    private FormDataImportResultVO importPartially(FormDefinitionPo definition, FormField[] columns,
+                                                   List<List<String>> dataRows, String submitter,
+                                                   Long tenantId) {
+        TransactionTemplate template = new TransactionTemplate(transactionManager);
+        int success = 0;
+        List<FormDataImportFailRowVO> failRows = new ArrayList<>();
+        for (int index = 0; index < dataRows.size(); index++) {
+            List<String> row = dataRows.get(index);
+            List<String> errors = new ArrayList<>();
+            Map<String, Object> data = convertRow(columns, row, errors);
+            if (errors.isEmpty() && data.isEmpty()) {
+                continue;
+            }
+            if (errors.isEmpty()) {
+                try {
+                    template.executeWithoutResult(status ->
+                            doInsert(definition, writeData(data), null, null, submitter, tenantId));
+                    success++;
+                    continue;
+                } catch (BizException e) {
+                    errors.add(e.getMessage());
+                }
+            }
+            failRows.add(failRow(index + 2, errors));
+        }
+        return importResult(success, failRows);
+    }
+
+    /**
+     * 整批导入：全部行同一事务，任一行失败则整体回滚并只回显该行错误
+     *
+     * @param definition 表单定义
+     * @param columns 表头映射后的字段
+     * @param dataRows 数据行
+     * @param submitter 提交人
+     * @param tenantId 租户ID
+     * @return 导入结果（整体回滚时成功数为 0）
+     */
+    private FormDataImportResultVO importStrictly(FormDefinitionPo definition, FormField[] columns,
+                                                  List<List<String>> dataRows, String submitter,
+                                                  Long tenantId) {
+        TransactionTemplate template = new TransactionTemplate(transactionManager);
+        List<FormDataImportFailRowVO> failRows = new ArrayList<>();
+        try {
+            template.executeWithoutResult(status -> {
+                for (int index = 0; index < dataRows.size(); index++) {
+                    List<String> row = dataRows.get(index);
+                    List<String> errors = new ArrayList<>();
+                    Map<String, Object> data = convertRow(columns, row, errors);
+                    if (errors.isEmpty() && data.isEmpty()) {
+                        continue;
+                    }
+                    if (!errors.isEmpty()) {
+                        failRows.add(failRow(index + 2, errors));
+                        throw new ImportAbortException();
+                    }
+                    try {
+                        doInsert(definition, writeData(data), null, null, submitter, tenantId);
+                    } catch (BizException e) {
+                        failRows.add(failRow(index + 2, List.of(e.getMessage())));
+                        throw new ImportAbortException();
+                    }
+                }
+            });
+        } catch (ImportAbortException e) {
+            return importResult(0, failRows);
+        }
+        return importResult(dataRows.size(), List.of());
+    }
+
+    /**
+     * 把一行文本按列映射转换为字段值映射（转换失败的错误写入 {@code errors}）
+     *
+     * @param columns 列对应的字段定义
+     * @param row 单元格文本
+     * @param errors 错误收集容器
+     * @return 字段值映射
+     */
+    private static Map<String, Object> convertRow(FormField[] columns, List<String> row, List<String> errors) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        for (int column = 0; column < columns.length; column++) {
+            FormField field = columns[column];
+            if (field == null) {
+                continue;
+            }
+            String cell = column < row.size() ? row.get(column) : "";
+            try {
+                Object value = FormDataImportSupport.convert(field, cell);
+                if (value != null) {
+                    data.put(field.getKey(), value);
+                }
+            } catch (IllegalArgumentException e) {
+                errors.add(e.getMessage());
+            }
+        }
+        return data;
+    }
+
+    /**
+     * 表头映射：按字段显示名精确匹配，未命中再按字段编码匹配；未知列忽略（兼容导出回填文件）
+     *
+     * @param headers 表头单元格
+     * @param fields 表单字段定义
+     * @return 与表头等长的字段数组（忽略列为 {@code null}）
+     */
+    private static FormField[] mapHeaderColumns(List<String> headers, List<FormField> fields) {
+        Map<String, FormField> byLabel = new LinkedHashMap<>();
+        Map<String, FormField> byKey = new LinkedHashMap<>();
+        for (FormField field : fields) {
+            if (StringUtils.hasText(field.getLabel())) {
+                byLabel.put(field.getLabel().trim(), field);
+            }
+            byKey.put(field.getKey(), field);
+        }
+        FormField[] columns = new FormField[headers.size()];
+        Set<String> used = new HashSet<>();
+        for (int index = 0; index < headers.size(); index++) {
+            String header = headers.get(index) == null ? "" : headers.get(index).trim();
+            if (header.isEmpty()) {
+                continue;
+            }
+            FormField field = byLabel.getOrDefault(header, byKey.get(header));
+            if (field == null) {
+                continue;
+            }
+            if (!FormDataImportSupport.importable(field.getType())) {
+                throw paramError("字段 " + header + " 不支持批量导入");
+            }
+            if (!used.add(field.getKey())) {
+                throw paramError("导入表头存在重复列：" + header);
+            }
+            columns[index] = field;
+        }
+        if (used.isEmpty()) {
+            throw paramError("导入表头未匹配到任何可导入字段，请先下载模板");
+        }
+        return columns;
+    }
+
+    /**
+     * 构造失败行
+     *
+     * @param rowNo 文件行号
+     * @param errors 错误原因
+     * @return 失败行视图对象
+     */
+    private static FormDataImportFailRowVO failRow(int rowNo, List<String> errors) {
+        FormDataImportFailRowVO failRow = new FormDataImportFailRowVO();
+        failRow.setRowNo(rowNo);
+        failRow.setErrors(errors);
+        return failRow;
+    }
+
+    /**
+     * 构造导入结果
+     *
+     * @param successCount 成功行数
+     * @param failRows 失败行
+     * @return 导入结果视图对象
+     */
+    private static FormDataImportResultVO importResult(int successCount, List<FormDataImportFailRowVO> failRows) {
+        FormDataImportResultVO result = new FormDataImportResultVO();
+        result.setSuccessCount(successCount);
+        result.setFailCount(failRows.size());
+        result.setFailRows(failRows);
+        return result;
+    }
+
+    /**
+     * 校验审批状态：审批中禁止修改/删除
+     *
+     * @param entity 表单数据
+     * @param action 动作名称（用于错误提示）
+     * @throws BizException 审批中时抛出 {@code PARAM_ERROR}
+     */
+    private static void assertNotPending(FormDataPo entity, String action) {
+        if (isPending(entity)) {
+            throw paramError("表单数据审批中，不可" + action);
+        }
+    }
+
+    /**
+     * 判断是否审批中
+     *
+     * @param entity 表单数据
+     * @return 审批中返回 {@code true}
+     */
+    private static boolean isPending(FormDataPo entity) {
+        return entity.getBizStatus() != null && entity.getBizStatus() == BIZ_PENDING;
+    }
+
+    /**
+     * 取业务状态（空值按已通过处理，兼容升级前数据）
+     *
+     * @param entity 表单数据
+     * @return 业务状态
+     */
+    private static int bizStatusOf(FormDataPo entity) {
+        return entity.getBizStatus() == null ? BIZ_APPROVED : entity.getBizStatus();
+    }
+
+    /**
+     * 归一化审批结果（仅接受 APPROVED / REJECTED，忽略大小写）
+     *
+     * @param result 原始结果
+     * @return 大写结果
+     * @throws BizException 结果非法时抛出 {@code PARAM_ERROR}
+     */
+    private static String normalizeApprovalResult(String result) {
+        String value = result == null ? "" : result.trim().toUpperCase(Locale.ROOT);
+        if (!APPROVAL_APPROVED.equals(value) && !APPROVAL_REJECTED.equals(value)) {
+            throw paramError("审批结果仅支持 APPROVED 或 REJECTED");
+        }
+        return value;
+    }
+
+    /**
+     * 导入严格模式回滚标记异常（仅用于事务控制，不对外暴露）
+     */
+    private static final class ImportAbortException extends RuntimeException {
+
+        private static final long serialVersionUID = 1L;
     }
 
     @Override
@@ -345,6 +716,7 @@ public class FormDataServiceImpl implements FormDataService {
         for (FormDataPo entity : exportData) {
             rows.add(exportRow(entity, keys));
         }
+        formMetrics.exportRows(rows.size());
         String filename = "form-data-" + definition.getCode() + "-"
                 + LocalDateTime.now().format(FILE_TIME_FORMATTER) + "." + exportFormat;
         byte[] content = FORMAT_XLSX.equals(exportFormat)

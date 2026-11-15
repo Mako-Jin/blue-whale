@@ -14,6 +14,7 @@ import com.bluewhale.form.po.FormReconcileDiffPo;
 import com.bluewhale.form.po.FormTableRegistryPo;
 import com.bluewhale.form.service.FormReconcileService;
 import com.bluewhale.form.support.FormDataEngine;
+import com.bluewhale.form.support.FormMetrics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -67,6 +68,9 @@ class FormReconcileServiceImplTest {
 
     @Mock
     private FormDataEngine formDataEngine;
+
+    @Mock
+    private FormMetrics formMetrics;
 
     @InjectMocks
     private FormReconcileServiceImpl reconcileService;

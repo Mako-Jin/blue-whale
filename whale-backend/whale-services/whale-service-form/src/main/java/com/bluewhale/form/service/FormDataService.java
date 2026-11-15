@@ -1,12 +1,15 @@
 package com.bluewhale.form.service;
 
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.form.model.request.FormDataApprovalCallbackRequest;
+import com.bluewhale.form.model.request.FormDataApprovalStartRequest;
 import com.bluewhale.form.model.request.FormDataQueryRequest;
 import com.bluewhale.form.model.request.FormDataSubmitRequest;
 import com.bluewhale.form.model.request.FormDataUpdateRequest;
 import com.bluewhale.form.model.vo.FormArchiveVO;
 import com.bluewhale.form.model.vo.FormDataExportVO;
 import com.bluewhale.form.model.vo.FormDataHistoryVO;
+import com.bluewhale.form.model.vo.FormDataImportResultVO;
 import com.bluewhale.form.model.vo.FormDataVO;
 
 import java.util.List;
@@ -100,4 +103,45 @@ public interface FormDataService {
      * @return 变更历史列表（无记录返回空列表）
      */
     List<FormDataHistoryVO> listHistory(Long id, Long tenantId);
+
+    /**
+     * 发起审批：登记外部工作流实例ID 并把业务状态置为「审批中」
+     *
+     * <p>审批状态机由外部工作流承载，本模块只做登记与只读判定。审批中的记录不可修改、不可删除。</p>
+     *
+     * @param id 表单数据ID
+     * @param request 发起审批请求（流程实例ID）
+     * @param tenantId 租户ID
+     * @return 表单数据视图对象（业务状态已更新）
+     */
+    FormDataVO startApproval(Long id, FormDataApprovalStartRequest request, Long tenantId);
+
+    /**
+     * 处理审批结果回调（内网接口）：通过置 3、驳回置 4，非审批中状态幂等返回
+     *
+     * @param request 回调请求（流程实例ID + 结果）
+     * @param tenantId 租户ID
+     */
+    void handleApprovalCallback(FormDataApprovalCallbackRequest request, Long tenantId);
+
+    /**
+     * 批量导入表单数据（CSV，首行表头匹配字段显示名或字段编码）
+     *
+     * @param definitionCode 表单编码
+     * @param content CSV 文件内容
+     * @param partial {@code true} 逐行独立事务（部分成功）；{@code false} 整批事务（任一失败全部回滚）
+     * @param submitter 提交人账号
+     * @param tenantId 租户ID
+     * @return 导入结果（总数、成功数、失败行明细）
+     */
+    FormDataImportResultVO importData(String definitionCode, byte[] content, boolean partial,
+                                      String submitter, Long tenantId);
+
+    /**
+     * 生成导入模板（CSV，表头为可导入字段的显示名）
+     *
+     * @param definitionCode 表单编码
+     * @return 模板 CSV 字节流（UTF-8 + BOM）
+     */
+    byte[] importTemplate(String definitionCode);
 }

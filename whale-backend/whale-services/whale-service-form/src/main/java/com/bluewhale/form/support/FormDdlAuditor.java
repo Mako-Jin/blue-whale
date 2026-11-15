@@ -35,6 +35,8 @@ public class FormDdlAuditor {
 
     private final FormDdlAuditMapper formDdlAuditMapper;
 
+    private final FormMetrics formMetrics;
+
     /**
      * 记录一条 DDL 执行审计（独立事务，调用方负责兜底异常）
      *
@@ -61,6 +63,7 @@ public class FormDdlAuditor {
     public void recordFailure(String definitionType, Long definitionId, String physicalTable, String ddl,
                               String errorMessage) {
         doRecord(definitionType, definitionId, physicalTable, ddl, FAILURE, errorMessage);
+        formMetrics.ddlAuditFailed();
     }
 
     /**

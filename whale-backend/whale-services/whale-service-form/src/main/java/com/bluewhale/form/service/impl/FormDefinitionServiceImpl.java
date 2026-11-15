@@ -90,6 +90,9 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
     /** 表单名称最大长度 */
     private static final int MAX_NAME_LENGTH = 128;
 
+    /** 标签格式错误提示 */
+    private static final String TAGS_FORMAT_MESSAGE = "标签格式应为 JSON 字符串数组";
+
     /** 版本快照 JSON 序列化器 */
     private static final ObjectMapper SNAPSHOT_MAPPER = new ObjectMapper();
 
@@ -116,6 +119,8 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
         entity.setVersion(request.getVersion() == null ? DEFAULT_VERSION : request.getVersion());
         entity.setStatus(request.getStatus() == null ? STATUS_NORMAL : request.getStatus());
         entity.setRemark(request.getRemark());
+        entity.setCategory(normalizeCategory(request.getCategory()));
+        entity.setTags(normalizeTags(request.getTags()));
         FormTableDefinitionPo table = null;
         if (request.getTableDefinitionId() != null) {
             table = requireTableDefinition(request.getTableDefinitionId());
@@ -156,6 +161,8 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
             entity.setStatus(request.getStatus());
         }
         entity.setRemark(request.getRemark());
+        entity.setCategory(normalizeCategory(request.getCategory()));
+        entity.setTags(normalizeTags(request.getTags()));
         FormTableDefinitionPo table = null;
         if (request.getTableDefinitionId() != null) {
             table = requireTableDefinition(request.getTableDefinitionId());
@@ -214,6 +221,8 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
         wrapper.like(StringUtils.hasText(request.getName()), FormDefinitionPo::getName, request.getName());
         wrapper.eq(StringUtils.hasText(request.getCode()), FormDefinitionPo::getCode, request.getCode());
         wrapper.eq(request.getStatus() != null, FormDefinitionPo::getStatus, request.getStatus());
+        String category = normalizeCategory(request.getCategory());
+        wrapper.eq(category != null, FormDefinitionPo::getCategory, category);
         wrapper.orderByDesc(FormDefinitionPo::getCreateTime);
         Page<FormDefinitionPo> page = formDefinitionMapper.selectPage(request.toPage(), wrapper);
         List<FormDefinitionVO> records = page.getRecords().stream()
@@ -613,6 +622,46 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
         boolean hasSchema = request.getSchemaJson() != null && !request.getSchemaJson().isBlank();
         if (hasFields && hasSchema) {
             throw paramError("fields 与 schemaJson 不能同时提交");
+        }
+    }
+
+    /**
+     * 规整表单分类：去首尾空白，空白视为不分类
+     *
+     * @param category 原始分类
+     * @return 规整后的分类；空白时为 {@code null}
+     */
+    private static String normalizeCategory(String category) {
+        return StringUtils.hasText(category) ? category.trim() : null;
+    }
+
+    /**
+     * 校验并规整标签：必须为 JSON 字符串数组文本
+     *
+     * @param tags 原始标签文本（可空）
+     * @return 规整后的标签文本；空白时为 {@code null}
+     * @throws BizException 无法解析为 JSON 字符串数组时抛出 {@code PARAM_ERROR}
+     */
+    private static String normalizeTags(String tags) {
+        if (!StringUtils.hasText(tags)) {
+            return null;
+        }
+        String text = tags.trim();
+        try {
+            JsonNode node = SNAPSHOT_MAPPER.readTree(text);
+            if (node == null || !node.isArray()) {
+                throw paramError(TAGS_FORMAT_MESSAGE);
+            }
+            for (JsonNode tag : node) {
+                if (!tag.isTextual()) {
+                    throw paramError(TAGS_FORMAT_MESSAGE);
+                }
+            }
+            return text;
+        } catch (BizException e) {
+            throw e;
+        } catch (Exception e) {
+            throw paramError(TAGS_FORMAT_MESSAGE);
         }
     }
 

@@ -23,4 +23,7 @@ public class FormQueryRequest extends PageQuery {
 
     /** 状态：1 正常 / 0 禁用（精确匹配） */
     private Integer status;
+
+    /** 表单分类（精确匹配；空白不过滤） */
+    private String category;
 }

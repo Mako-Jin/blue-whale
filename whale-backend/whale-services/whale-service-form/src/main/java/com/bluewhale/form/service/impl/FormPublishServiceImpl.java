@@ -21,6 +21,7 @@ import com.bluewhale.form.support.FormDataType;
 import com.bluewhale.form.support.FormDdlAuditor;
 import com.bluewhale.form.support.FormField;
 import com.bluewhale.form.support.FormMetadataCompiler;
+import com.bluewhale.form.support.FormMetrics;
 import com.bluewhale.form.support.FormRegistryStatusMarker;
 import com.bluewhale.form.support.FormSchemaParser;
 import com.bluewhale.form.support.FormTableDdlGenerator;
@@ -81,6 +82,8 @@ public class FormPublishServiceImpl implements FormPublishService {
 
     private final FormRegistryStatusMarker formRegistryStatusMarker;
 
+    private final FormMetrics formMetrics;
+
     /**
      * 发布表单物理表。
      *
@@ -95,13 +98,44 @@ public class FormPublishServiceImpl implements FormPublishService {
     @AuditLog(module = "form", operation = "发布表单物理表", type = OperateType.UPDATE,
             targetType = "form_definition", targetId = "#definitionId")
     public FormTableRegistryVO publish(Long definitionId) {
-        return publish(definitionId, false);
+        return publishMeasured(definitionId, false);
     }
 
     @Override
     @AuditLog(module = "form", operation = "发布表单物理表", type = OperateType.UPDATE,
             targetType = "form_definition", targetId = "#definitionId")
     public FormTableRegistryVO publish(Long definitionId, boolean force) {
+        return publishMeasured(definitionId, force);
+    }
+
+    /**
+     * 计时并上报发布指标：成功记录耗时与成功计数，失败记录失败计数后原样抛出。
+     *
+     * @param definitionId 表单定义ID
+     * @param force 存在列类型收窄时是否强制发布
+     * @return 物理表登记视图对象
+     * @throws RuntimeException 发布失败时原样抛出
+     */
+    private FormTableRegistryVO publishMeasured(Long definitionId, boolean force) {
+        long start = System.nanoTime();
+        try {
+            FormTableRegistryVO vo = doPublish(definitionId, force);
+            formMetrics.publishSucceeded(System.nanoTime() - start);
+            return vo;
+        } catch (RuntimeException e) {
+            formMetrics.publishFailed();
+            throw e;
+        }
+    }
+
+    /**
+     * 发布表单物理表本体（不含指标埋点）
+     *
+     * @param definitionId 表单定义ID
+     * @param force 存在列类型收窄时是否强制发布
+     * @return 物理表登记视图对象
+     */
+    private FormTableRegistryVO doPublish(Long definitionId, boolean force) {
         FormDefinitionPo definition = requireDefinition(definitionId);
         if (definition.getTableDefinitionId() == null) {
             return publishLegacy(definition);
@@ -165,13 +199,44 @@ public class FormPublishServiceImpl implements FormPublishService {
     @AuditLog(module = "form", operation = "发布表定义物理表", type = OperateType.UPDATE,
             targetType = "form_table_definition", targetId = "#tableDefinitionId")
     public FormTableRegistryVO publishTableDefinition(Long tableDefinitionId) {
-        return publishTableDefinition(tableDefinitionId, false);
+        return publishTableDefinitionMeasured(tableDefinitionId, false);
     }
 
     @Override
     @AuditLog(module = "form", operation = "发布表定义物理表", type = OperateType.UPDATE,
             targetType = "form_table_definition", targetId = "#tableDefinitionId")
     public FormTableRegistryVO publishTableDefinition(Long tableDefinitionId, boolean force) {
+        return publishTableDefinitionMeasured(tableDefinitionId, force);
+    }
+
+    /**
+     * 计时并上报表定义发布指标：成功记录耗时与成功计数，失败记录失败计数后原样抛出。
+     *
+     * @param tableDefinitionId 表定义ID
+     * @param force 存在列类型收窄时是否强制发布
+     * @return 物理表登记视图对象
+     * @throws RuntimeException 发布失败时原样抛出
+     */
+    private FormTableRegistryVO publishTableDefinitionMeasured(Long tableDefinitionId, boolean force) {
+        long start = System.nanoTime();
+        try {
+            FormTableRegistryVO vo = doPublishTableDefinition(tableDefinitionId, force);
+            formMetrics.publishSucceeded(System.nanoTime() - start);
+            return vo;
+        } catch (RuntimeException e) {
+            formMetrics.publishFailed();
+            throw e;
+        }
+    }
+
+    /**
+     * 发布表定义物理表本体（不含指标埋点）
+     *
+     * @param tableDefinitionId 表定义ID
+     * @param force 存在列类型收窄时是否强制发布
+     * @return 物理表登记视图对象
+     */
+    private FormTableRegistryVO doPublishTableDefinition(Long tableDefinitionId, boolean force) {
         return ensurePublished(requireTableDefinition(tableDefinitionId), force);
     }
 
@@ -212,6 +277,8 @@ public class FormPublishServiceImpl implements FormPublishService {
             }
         } catch (RuntimeException e) {
             markPublishedFailed(registry, e.getMessage());
+            log.error("[ALERT] 表单物理表发布失败，需人工介入：table={}, definitionId={}",
+                    table, definition.getId(), e);
             throw e;
         }
         if (registry == null) {

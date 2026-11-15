@@ -18,6 +18,7 @@ import com.bluewhale.form.mapper.FormTableRegistryMapper;
 import com.bluewhale.form.support.FormDataEngine;
 import com.bluewhale.form.support.FormDataHistoryRecorder;
 import com.bluewhale.form.support.FormField;
+import com.bluewhale.form.support.FormMetrics;
 import com.bluewhale.form.model.vo.FormDataVO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.transaction.PlatformTransactionManager;
 
 import java.util.List;
 
@@ -74,6 +76,12 @@ class FormDataServiceImplTest {
 
     @Mock
     private FormDataHistoryRecorder formDataHistoryRecorder;
+
+    @Mock
+    private FormMetrics formMetrics;
+
+    @Mock
+    private PlatformTransactionManager transactionManager;
 
     @Mock
     private FormDataEngine formDataEngine;

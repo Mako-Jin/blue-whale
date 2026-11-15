@@ -4,6 +4,7 @@ import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.common.web.WebHeaders;
+import com.bluewhale.form.model.request.FormDataApprovalStartRequest;
 import com.bluewhale.form.model.request.FormDataQueryRequest;
 import com.bluewhale.form.model.request.FormDataSubmitRequest;
 import com.bluewhale.form.model.request.FormDataUpdateRequest;
@@ -11,6 +12,7 @@ import com.bluewhale.form.service.FormDataService;
 import com.bluewhale.form.support.TenantResolver;
 import com.bluewhale.form.model.vo.FormDataExportVO;
 import com.bluewhale.form.model.vo.FormDataHistoryVO;
+import com.bluewhale.form.model.vo.FormDataImportResultVO;
 import com.bluewhale.form.model.vo.FormDataVO;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -26,7 +28,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -104,6 +108,60 @@ public class FormDataController {
     public Result<List<FormDataHistoryVO>> history(@PathVariable Long id,
                                                    HttpServletRequest httpRequest) {
         return Result.ok(formDataService.listHistory(id, TenantResolver.resolve(httpRequest)));
+    }
+
+    /**
+     * 发起审批：登记外部工作流实例ID 并把业务状态置为审批中（审批中不可修改/删除）。
+     *
+     * @param id 表单数据ID
+     * @param request 发起审批请求（流程实例ID）
+     * @param httpRequest 当前请求（读取 {@code X-Tenant-Id} 解析租户）
+     * @return 表单数据视图对象
+     */
+    @PostMapping("/{id}/approval")
+    @RequirePermission("sys:form:data:edit")
+    public Result<FormDataVO> startApproval(@PathVariable Long id,
+                                            @Valid @RequestBody FormDataApprovalStartRequest request,
+                                            HttpServletRequest httpRequest) {
+        return Result.ok(formDataService.startApproval(id, request, TenantResolver.resolve(httpRequest)));
+    }
+
+    /**
+     * 下载批量导入模板（CSV，表头为可导入字段的显示名）。
+     *
+     * @param definitionCode 表单编码
+     * @return 模板 CSV 文件
+     */
+    @GetMapping("/import/template")
+    @RequirePermission("sys:form:data:import")
+    public ResponseEntity<byte[]> importTemplate(@RequestParam String definitionCode) {
+        byte[] content = formDataService.importTemplate(definitionCode);
+        String filename = URLEncoder.encode("form-import-" + definitionCode + ".csv",
+                StandardCharsets.UTF_8).replace("+", "%20");
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, "text/csv;charset=UTF-8")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .body(content);
+    }
+
+    /**
+     * 批量导入表单数据（CSV，首行表头匹配字段显示名或字段编码）。
+     *
+     * @param file CSV 文件
+     * @param definitionCode 表单编码
+     * @param partial {@code true} 逐行独立事务（部分成功，默认）；{@code false} 整批事务
+     * @param httpRequest 当前请求（读取 {@code X-Username} 回填提交人、{@code X-Tenant-Id} 解析租户）
+     * @return 导入结果（总数 / 成功数 / 失败行明细）
+     * @throws IOException 读取上传文件失败
+     */
+    @PostMapping("/import")
+    @RequirePermission("sys:form:data:import")
+    public Result<FormDataImportResultVO> importData(@RequestParam("file") MultipartFile file,
+                                                     @RequestParam String definitionCode,
+                                                     @RequestParam(defaultValue = "true") boolean partial,
+                                                     HttpServletRequest httpRequest) throws IOException {
+        return Result.ok(formDataService.importData(definitionCode, file.getBytes(), partial,
+                WebHeaders.username(httpRequest), TenantResolver.resolve(httpRequest)));
     }
 
     /**

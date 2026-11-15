@@ -12,6 +12,7 @@ import com.bluewhale.form.mapper.FormTableDefinitionMapper;
 import com.bluewhale.form.mapper.FormTableRegistryMapper;
 import com.bluewhale.form.support.FormDataEngine;
 import com.bluewhale.form.support.FormDdlAuditor;
+import com.bluewhale.form.support.FormMetrics;
 import com.bluewhale.form.support.FormRegistryStatusMarker;
 import com.bluewhale.form.model.vo.FormTableRegistryVO;
 import org.junit.jupiter.api.DisplayName;
@@ -71,6 +72,9 @@ class FormPublishServiceImplTest {
 
     @Mock
     private FormRegistryStatusMarker formRegistryStatusMarker;
+
+    @Mock
+    private FormMetrics formMetrics;
 
     @InjectMocks
     private FormPublishServiceImpl formPublishService;

@@ -16,6 +16,7 @@ import com.bluewhale.form.po.FormTableRegistryPo;
 import com.bluewhale.form.service.FormReconcileService;
 import com.bluewhale.form.support.FormDataEngine;
 import com.bluewhale.form.support.FormField;
+import com.bluewhale.form.support.FormMetrics;
 import com.bluewhale.form.support.FormSchemaParser;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -82,6 +83,8 @@ public class FormReconcileServiceImpl implements FormReconcileService {
     private final FormDataMapper formDataMapper;
 
     private final FormDataEngine formDataEngine;
+
+    private final FormMetrics formMetrics;
 
     /**
      * 对指定租户执行一次主从数据对账并逐表登记差异（不加事务：跨表循环、可重入、逐条登记）。
@@ -157,6 +160,7 @@ public class FormReconcileServiceImpl implements FormReconcileService {
             log.warn("单批次差异登记达到上限 {} 条，本次停止登记 tenantId={} batch={}",
                     MAX_DIFFS_PER_BATCH, tenantId, batchNo);
         }
+        formMetrics.dualWriteMismatch(diffCount);
         return new ReconcileSummary(batchNo, tableCount, diffCount, truncated);
     }
 

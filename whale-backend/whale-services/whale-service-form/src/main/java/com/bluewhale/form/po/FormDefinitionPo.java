@@ -1,5 +1,7 @@
 package com.bluewhale.form.po;
 
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.bluewhale.common.entity.BaseEntity;
 import lombok.Data;
@@ -40,4 +42,12 @@ public class FormDefinitionPo extends BaseEntity {
 
     /** 备注 */
     private String remark;
+
+    /** 表单分类（最长 64，便于分页按分类等值过滤） */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private String category;
+
+    /** 标签（JSON 字符串数组文本，如 {@code ["报销","财务"]}，最长 512） */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private String tags;
 }

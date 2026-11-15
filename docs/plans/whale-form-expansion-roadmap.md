@@ -37,16 +37,23 @@
 | 13 | 主表/物理表对账 | `form_reconcile_diff` 表 + 每日对账 Job + 差异分页 + 人工修复接口 |
 | 17 | 关键路径单测补强 | `escapeComment` 恶意输入/截断、`in`/`between` 参数顺序与上限 |
 
-### 批次 2（产品纵深，待排期）
+### 批次 2（产品纵深，已落地）
 
 1. 审批接线（外部工作流）：`form_data.biz_status`（1 草稿 / 2 审批中 / 3 已通过 / 4 已驳回）、
-   `process_instance_id`、审批中 `update` 直接拒绝；工作流回调接口（内网 + 内部令牌）。
-4. 批量导入：`POST /form/v1/data/import`，模板列头来自 schema，逐行复用 `validateFields`，
-   返回 `{successCount, failRows:[{rowNo, errors}]}`，部分成功策略可选。
-12. 业务指标：`form_publish_total{result}`、`form_publish_duration_seconds`、`form_ddl_audit_failure_total`、
-   `form_data_dual_write_mismatch_total`、`form_export_rows`、`form_filter_query_duration`。
-15. 发布失败告警：失败事件 + 指标告警规则（复用批次 1 的失败登记）。
-5. 表单模板/分类/标签：`category` + `tags`，列表按分类过滤。
+   `process_instance_id`；审批中 `update` / `delete` 直接拒绝；`POST /form/v1/data/{id}/approval` 发起、
+   内网 `/form/v1/internal/data/approval-callback` 回调推进状态（幂等），状态流转写 `form_data_history`（`APPROVAL`）。
+   存量与未接入审批的数据默认 3（已通过），升级后行为不变。
+4. 批量导入：`GET /form/v1/data/import/template` 下载模板、`POST /form/v1/data/import` 导入 CSV
+   （首行表头匹配字段显示名或编码，未知列忽略）；逐行复用提交校验与双写；
+   `partial=true`（默认）逐行独立事务、失败行回显 `{rowNo, errors}`，`partial=false` 整批回滚；
+   单次上限 1000 行。**边界**：XLSX 导入需引入 POI，本期只做 CSV（与导出 CSV 闭环），
+   附件/子表字段不支持导入并在表头匹配时直接拒绝。
+12. 业务指标（`FormMetrics`）：`form_publish_total{result}`、`form_publish_duration_seconds`、
+   `form_publish_failure_total`、`form_ddl_audit_failure_total`、`form_export_rows`、
+   `form_filter_query_duration`、`form_data_dual_write_mismatch_total`（对账差异数）。
+15. 发布失败告警：失败计数 + `[ALERT]` error 日志（含表名/定义ID/异常），供 Prometheus 告警规则或日志采集触发。
+5. 表单模板/分类/标签：`form_definition.category` + `tags`（JSON 数组文本），列表按 `category` 过滤；
+   `tags` 非法 JSON 数组直接拒绝。
 
 ### 批次 3（性能与架构，待排期）
 
@@ -160,10 +167,12 @@
 
 ## 五、验收与上线注意
 
-- 构建：`mvn -o -pl whale-services/whale-service-form test` → 179 项测试全部通过（新增 37 项），
-  `checkstyle:check` 通过。
-- 迁移：form 库新增 `V8`（变更历史）、`V9`（对账差异）；auth 库新增 `V32`（对账权限码 2421，
-  不自动授权任何角色）。
-- 兼容：`publish` 不传 `force` 与升级前行为一致；仅当存在列收窄时需要显式确认。
+- 构建：`mvn -o -pl whale-services/whale-service-form test` → 208 项测试全部通过（批次 1 新增 37 项、
+  批次 2 再新增 29 项），`checkstyle:check` 通过。
+- 迁移：form 库新增 `V8`（变更历史）、`V9`（对账差异）、`V10`（审批状态）、`V11`（分类/标签）；
+  auth 库新增 `V32`（对账权限码 2421）、`V33`（导入权限码 2422），均不自动授权任何角色。
+- 兼容：`publish` 不传 `force` 与升级前行为一致；`biz_status` 默认 3，未接入审批的数据可正常编辑。
+- 已知修正：迁移脚本单测原先按文件名字典序断言版本递增，导致两位版本号（V10/V11）误报；
+  已改为按版本号数值升序断言（与 Flyway 排序一致）。
 - 风险：对账 Job 默认开启，首次上线建议先手动触发一次
   `POST /form/v1/data/reconcile/run` 观察差异量与耗时，再交给定时任务。

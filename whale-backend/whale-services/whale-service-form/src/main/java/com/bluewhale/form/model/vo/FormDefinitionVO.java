@@ -42,6 +42,12 @@ public class FormDefinitionVO implements Serializable {
     /** 备注 */
     private String remark;
 
+    /** 表单分类 */
+    private String category;
+
+    /** 标签（JSON 字符串数组文本，如 {@code ["报销","财务"]}） */
+    private String tags;
+
     /** 创建时间 */
     private LocalDateTime createTime;
 

@@ -2,6 +2,7 @@ package com.bluewhale.form.service.impl;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
@@ -150,6 +151,43 @@ class FormDefinitionServiceImplTest {
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         verify(formDefinitionMapper, never()).insert(any(FormDefinitionPo.class));
+    }
+
+    @Test
+    @DisplayName("create：分类去首尾空白、标签按 JSON 字符串数组文本落库")
+    void shouldPersistCategoryAndTagsOnCreate() {
+        when(formDefinitionMapper.selectCount(ArgumentMatchers.<Wrapper<FormDefinitionPo>>any())).thenReturn(0L);
+        FormDefinitionSaveRequest request = saveRequest("form-a", "A表单");
+        request.setCategory("  财务  ");
+        request.setTags("[\"报销\",\"财务\"]");
+
+        formDefinitionService.create(request);
+
+        ArgumentCaptor<FormDefinitionPo> captor = ArgumentCaptor.forClass(FormDefinitionPo.class);
+        verify(formDefinitionMapper).insert(captor.capture());
+        assertEquals("财务", captor.getValue().getCategory());
+        assertEquals("[\"报销\",\"财务\"]", captor.getValue().getTags());
+    }
+
+    @Test
+    @DisplayName("page：分类非空时下推 category 等值条件（去首尾空白）")
+    void shouldFilterPageByCategory() {
+        Page<FormDefinitionPo> page = new Page<>(1L, 10L);
+        page.setRecords(List.of());
+        page.setTotal(0L);
+        when(formDefinitionMapper.selectPage(ArgumentMatchers.<Page<FormDefinitionPo>>any(),
+                ArgumentMatchers.<Wrapper<FormDefinitionPo>>any())).thenReturn(page);
+        FormQueryRequest request = new FormQueryRequest();
+        request.setCategory("  财务 ");
+
+        formDefinitionService.page(request);
+
+        verify(formDefinitionMapper).selectPage(ArgumentMatchers.<Page<FormDefinitionPo>>any(),
+                ArgumentMatchers.argThat(wrapper -> {
+                    LambdaQueryWrapper<FormDefinitionPo> query = (LambdaQueryWrapper<FormDefinitionPo>) wrapper;
+                    return query.getSqlSegment().contains("category")
+                            && query.getParamNameValuePairs().containsValue("财务");
+                }));
     }
 
     @Test

@@ -39,6 +39,9 @@ public class FormDataHistoryRecorder {
     /** 变更类型：删除 */
     public static final String DELETE = "DELETE";
 
+    /** 变更类型：审批状态流转 */
+    public static final String APPROVAL = "APPROVAL";
+
     /** 变更字段串最大长度（与列宽一致） */
     private static final int MAX_CHANGED_KEYS_LENGTH = 1024;
 
@@ -82,6 +85,30 @@ public class FormDataHistoryRecorder {
     public void recordDelete(FormDataPo entity) {
         FormDataHistoryPo history = base(entity, DELETE);
         history.setBeforeJson(entity.getDataJson());
+        history.setOperator(operatorOf(entity.getSubmitter()));
+        formDataHistoryMapper.insert(history);
+    }
+
+    /**
+     * 记录审批状态流转留痕（外部工作流驱动，仅记录状态与流程实例）
+     *
+     * @param entity 状态已变更的表单数据实体
+     * @param beforeBizStatus 变更前业务状态
+     * @param comment 审批意见（可为空）
+     */
+    public void recordApproval(FormDataPo entity, int beforeBizStatus, String comment) {
+        FormDataHistoryPo history = base(entity, APPROVAL);
+        Map<String, Object> before = new LinkedHashMap<>();
+        before.put("bizStatus", beforeBizStatus);
+        Map<String, Object> after = new LinkedHashMap<>();
+        after.put("bizStatus", entity.getBizStatus());
+        after.put("processInstanceId", entity.getProcessInstanceId());
+        if (StringUtils.hasText(comment)) {
+            after.put("comment", comment);
+        }
+        history.setBeforeJson(writeQuietly(before));
+        history.setAfterJson(writeQuietly(after));
+        history.setChangedKeys("bizStatus");
         history.setOperator(operatorOf(entity.getSubmitter()));
         formDataHistoryMapper.insert(history);
     }
@@ -157,6 +184,20 @@ public class FormDataHistoryRecorder {
             return data == null ? new LinkedHashMap<>() : data;
         } catch (Exception e) {
             return new LinkedHashMap<>();
+        }
+    }
+
+    /**
+     * 序列化状态快照（失败抛出非受检异常，由事务回滚兜底）
+     *
+     * @param snapshot 状态快照
+     * @return JSON 文本
+     */
+    private static String writeQuietly(Map<String, Object> snapshot) {
+        try {
+            return MAPPER.writeValueAsString(snapshot);
+        } catch (Exception e) {
+            throw new IllegalStateException("审批留痕序列化失败", e);
         }
     }
 }

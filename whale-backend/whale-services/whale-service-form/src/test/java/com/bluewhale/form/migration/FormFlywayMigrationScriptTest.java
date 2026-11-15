@@ -51,9 +51,11 @@ class FormFlywayMigrationScriptTest {
     void scriptsShouldBeVersionedAndNonDestructive() throws IOException {
         List<Path> scripts = migrationScripts();
         assertFalse(scripts.isEmpty(), "db/migration 目录下应至少存在一个迁移脚本");
-        List<Long> versions = scripts.stream().map(FormFlywayMigrationScriptTest::versionOf).collect(Collectors.toList());
+        List<Long> versions = scripts.stream().map(FormFlywayMigrationScriptTest::versionOf)
+                .sorted().collect(Collectors.toList());
         assertEquals(versions.size(), Set.copyOf(versions).size(), "版本号不可重复：" + versions);
         for (int i = 1; i < versions.size(); i++) {
+            // Flyway 按版本号数值排序执行，文件系统字典序不参与；此处按数值校验严格递增
             assertTrue(versions.get(i) > versions.get(i - 1), "脚本版本号必须严格递增：" + versions);
         }
         for (Path script : scripts) {

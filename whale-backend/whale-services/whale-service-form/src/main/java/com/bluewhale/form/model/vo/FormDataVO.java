@@ -46,6 +46,12 @@ public class FormDataVO implements Serializable {
     /** 状态：1 有效 / 0 作废 */
     private Integer status;
 
+    /** 业务状态：1 草稿 / 2 审批中 / 3 已通过 / 4 已驳回 */
+    private Integer bizStatus;
+
+    /** 外部工作流实例ID（审批中时非空） */
+    private String processInstanceId;
+
     /** 创建时间 */
     private LocalDateTime createTime;
 

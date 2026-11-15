@@ -1,13 +1,17 @@
 package com.bluewhale.form.controller;
 
 import com.bluewhale.common.core.result.Result;
+import com.bluewhale.form.model.request.FormDataApprovalCallbackRequest;
 import com.bluewhale.form.service.FormDataService;
 import com.bluewhale.form.support.TenantResolver;
 import com.bluewhale.form.model.vo.FormArchiveVO;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -38,5 +42,22 @@ public class FormInternalController {
     @GetMapping("/data/{id}")
     public Result<FormArchiveVO> data(@PathVariable Long id, HttpServletRequest httpRequest) {
         return Result.ok(formDataService.getArchiveDetail(id, TenantResolver.resolve(httpRequest)));
+    }
+
+    /**
+     * 审批结果回调：工作流实例结束后推进表单业务状态（通过 → 3，驳回 → 4）。
+     *
+     * <p>仅内网可达（网关 internal-deny + {@code X-Internal-Token} 双重防护）；
+     * 重复投递幂等，非审批中状态直接忽略。</p>
+     *
+     * @param request 回调请求（流程实例ID + 结果）
+     * @param httpRequest 当前请求（读取 {@code X-Tenant-Id} 解析租户）
+     * @return 空结果
+     */
+    @PostMapping("/data/approval-callback")
+    public Result<Void> approvalCallback(@Valid @RequestBody FormDataApprovalCallbackRequest request,
+                                         HttpServletRequest httpRequest) {
+        formDataService.handleApprovalCallback(request, TenantResolver.resolve(httpRequest));
+        return Result.ok();
     }
 }
