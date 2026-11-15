@@ -1,6 +1,7 @@
 package com.bluewhale.file.infrastructure.persistence.assembler;
 
 import com.bluewhale.file.domain.file.aggregate.FileAssetAggregate;
+import com.bluewhale.file.domain.model.FileRecycleItem;
 import com.bluewhale.file.domain.model.vo.FileStatus;
 import com.bluewhale.file.po.FileInfoPo;
 
@@ -46,6 +47,18 @@ public final class FileInfoPersistenceAssembler {
                 po.getCreateTime(),
                 po.getUpdateTime(),
                 po.getStorageType());
+    }
+
+    /**
+     * PO → 回收站投影：保留删除时间与存储定位，供列表展示与到期物理清理使用
+     *
+     * @param po 文件持久化对象（含逻辑删除行）
+     * @return 回收站投影
+     */
+    public static FileRecycleItem toRecycleItem(FileInfoPo po) {
+        return new FileRecycleItem(po.getId(), po.getFileName(), po.getOriginalName(), po.getBucket(),
+                po.getStorageType(), po.getObjectKey(), po.getFileSize(), po.getContentType(), po.getStatus(),
+                po.getUploaderId(), po.getCreateTime(), po.getUpdateTime(), po.getDeleteTime());
     }
 
     /**

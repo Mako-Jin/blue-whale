@@ -3,9 +3,12 @@ package com.bluewhale.file.domain.file.repository;
 import com.bluewhale.file.domain.file.aggregate.FileAssetAggregate;
 import com.bluewhale.file.domain.model.FileAssetPage;
 import com.bluewhale.file.domain.model.FileAssetQuery;
+import com.bluewhale.file.domain.model.FileRecycleItem;
+import com.bluewhale.file.domain.model.FileRecyclePage;
 import com.bluewhale.file.domain.model.FileRecycleQuery;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -67,11 +70,29 @@ public interface FileAssetRepository {
     Optional<FileAssetAggregate> findReusableByDigest(String md5, long fileSize);
 
     /**
-     * 逻辑删除文件资产
+     * 逻辑删除文件资产（同时记录删除时间）
+     *
+     * <p>仅对未删除行生效，重复调用不改变结果（幂等）。</p>
      *
      * @param id 文件ID
      */
     void deleteById(Long id);
+
+    /**
+     * 更新原始文件名（不改变对象键与存储文件名）
+     *
+     * @param id 文件ID
+     * @param originalName 新的原始文件名
+     */
+    void updateOriginalName(Long id, String originalName);
+
+    /**
+     * 更新桶名称（物理对象已迁移到目标桶后调用）
+     *
+     * @param id 文件ID
+     * @param bucket 目标桶名称
+     */
+    void updateBucket(Long id, String bucket);
 
     /**
      * 统计指定上传者的已用存储字节数（仅统计状态正常且未逻辑删除的文件）
@@ -104,13 +125,31 @@ public interface FileAssetRepository {
     /**
      * 分页查询回收站文件（仅逻辑删除行）
      *
-     * <p>排序固定为 {@code update_time DESC, id DESC}；表未记录删除时间，
-     * 返回的更新时间是最后一次业务更新时间。</p>
+     * <p>排序固定为 {@code delete_time DESC, id DESC}；历史数据删除时间为空时排在其后。</p>
      *
      * @param query 回收站查询条件
-     * @return 文件资产分页结果
+     * @return 回收站分页结果
      */
-    FileAssetPage pageRecycle(FileRecycleQuery query);
+    FileRecyclePage pageRecycle(FileRecycleQuery query);
+
+    /**
+     * 查询删除时间早于截止时间的回收站记录（供到期物理清理分批处理）
+     *
+     * @param cutoff 截止时间（不含）
+     * @param limit 单批最大条数
+     * @return 到期记录（按删除时间、ID 升序）
+     */
+    List<FileRecycleItem> findExpiredRecycle(LocalDateTime cutoff, long limit);
+
+    /**
+     * 物理删除已逻辑删除的元数据行（到期清理使用）
+     *
+     * <p>条件带 {@code deleted = 1}，并发恢复后不会误删；返回 {@code false} 表示已被恢复或已清理。</p>
+     *
+     * @param id 文件ID
+     * @return 是否实际删除
+     */
+    boolean purgeById(Long id);
 
     /**
      * 在个人配额内恢复逻辑删除的文件：配额校验与 {@code deleted} 置 0 在同一命名锁临界区完成。

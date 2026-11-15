@@ -51,6 +51,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -233,7 +234,8 @@ class FileControllerTest {
                 .thenReturn(com.bluewhale.common.core.result.PageResult.of(List.of(
                         new FileRecycleResult(FILE_ID, "stored.pdf", "sample.pdf", "bluewhale", 5L,
                                 "application/pdf", 1, UPLOADER_ID,
-                                LocalDateTime.of(2026, 10, 19, 10, 0), LocalDateTime.of(2026, 10, 19, 11, 0))),
+                                LocalDateTime.of(2026, 10, 19, 10, 0), LocalDateTime.of(2026, 10, 19, 11, 0),
+                                LocalDateTime.of(2026, 10, 19, 11, 0))),
                         1L, 1L, 10L));
 
         mockMvc.perform(get("/file/v1/recycle/page")
@@ -266,6 +268,31 @@ class FileControllerTest {
         ArgumentCaptor<UploadLimits> captor = ArgumentCaptor.forClass(UploadLimits.class);
         verify(fileInfoService).restore(eq(FILE_ID), eq(UPLOADER_ID), eq(true), captor.capture());
         assertEquals(fileProperties.getQuotaBytes(), captor.getValue().quotaBytes());
+    }
+
+    @Test
+    @DisplayName("PUT /file/v1/{id}/rename：透传新名称与调用者身份")
+    void renameShouldDelegate() throws Exception {
+        mockMvc.perform(put("/file/v1/{id}/rename", FILE_ID)
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"originalName\":\"新名称.pdf\"}"))
+                .andExpect(status().isOk());
+
+        verify(fileInfoService).rename(FILE_ID, "新名称.pdf", UPLOADER_ID, false);
+    }
+
+    @Test
+    @DisplayName("PUT /file/v1/{id}/move：透传目标桶，管理权限生效")
+    void moveShouldDelegate() throws Exception {
+        mockMvc.perform(put("/file/v1/{id}/move", FILE_ID)
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID))
+                        .header(WebHeaders.PERMISSION_CODES, "sys:file:manage")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"bucket\":\"archive\"}"))
+                .andExpect(status().isOk());
+
+        verify(fileInfoService).move(FILE_ID, "archive", UPLOADER_ID, true);
     }
 
     @Test

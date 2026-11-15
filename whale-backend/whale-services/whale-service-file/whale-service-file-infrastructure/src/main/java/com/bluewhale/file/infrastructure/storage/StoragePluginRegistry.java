@@ -92,8 +92,13 @@ public class StoragePluginRegistry implements FileStorage, StoragePluginCatalog 
     }
 
     @Override
-    public void delete(String bucket, String objectKey) {
-        active.delete(bucket, objectKey);
+    public void delete(String bucket, String objectKey, String storageType) {
+        pluginFor(storageType).delete(bucket, objectKey);
+    }
+
+    @Override
+    public void move(String bucket, String objectKey, String targetBucket, String storageType) {
+        pluginFor(storageType).move(bucket, objectKey, targetBucket);
     }
 
     @Override

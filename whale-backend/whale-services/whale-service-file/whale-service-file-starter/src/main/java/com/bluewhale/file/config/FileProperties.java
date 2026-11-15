@@ -51,6 +51,9 @@ public class FileProperties {
     /** 按权限码生效的上传策略（G1 大文件上传）：只放宽持有指定权限码的请求 */
     private UploadPolicy uploadPolicy = new UploadPolicy();
 
+    /** 回收站与到期物理清理配置 */
+    private Recycle recycle = new Recycle();
+
     /**
      * 上传策略配置项：按网关可信注入的 {@code X-Permission-Codes} 选择生效上限与配额，
      * 未命中任何规则时回落 {@code max-size-bytes} / {@code quota-bytes} 全局默认值。
@@ -155,6 +158,28 @@ public class FileProperties {
          * <b>修改默认值时必须两处同步</b>。</p>
          */
         private String root = "./data/whale-file";
+    }
+
+    /**
+     * 回收站配置项（前缀 {@code whale.file.recycle}）。
+     *
+     * <p>到期清理任务由 {@code @Scheduled(cron = "${whale.file.recycle.purge-cron:0 30 3 * * ?}")}
+     * 驱动，因此 cron 只从环境绑定；本类承载开关、保留天数与批大小。</p>
+     *
+     * @author BlueWhale
+     */
+    @Data
+    public static class Recycle {
+
+        /** 是否启用到期物理清理；关闭后任务空跑 */
+        private boolean purgeEnabled = true;
+
+        /** 逻辑删除后的保留天数，默认 30；{@code <=0} 表示不自动清理（无限期保留） */
+        private long retentionDays = 30L;
+
+        /** 单批清理条数，默认 200；避免一次扫描过多记录长时间占用连接 */
+        @Min(value = 1, message = "whale.file.recycle.purge-batch-size 必须大于 0")
+        private int purgeBatchSize = 200;
     }
 
     /**

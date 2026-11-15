@@ -5,6 +5,8 @@ import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.file.domain.storage.StorageHealth;
 import com.bluewhale.file.domain.storage.StoragePlugin;
 import io.minio.BucketExistsArgs;
+import io.minio.CopyObjectArgs;
+import io.minio.CopySource;
 import io.minio.GetObjectArgs;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MakeBucketArgs;
@@ -149,6 +151,34 @@ public class MinioStoragePlugin implements StoragePlugin {
             minioClient.removeObject(args);
         } catch (Exception e) {
             throw new BizException(ErrorCode.SYSTEM_ERROR);
+        }
+    }
+
+    @Override
+    public void move(String bucket, String objectKey, String targetBucket) {
+        String sourceBucket = resolveBucket(bucket);
+        String destBucket = resolveBucket(targetBucket);
+        ensureBucket(destBucket);
+        try {
+            minioClient.copyObject(CopyObjectArgs.builder()
+                    .bucket(destBucket)
+                    .object(objectKey)
+                    .source(CopySource.builder().bucket(sourceBucket).object(objectKey).build())
+                    .build());
+        } catch (ErrorResponseException e) {
+            throw notFoundOrSystemError(e);
+        } catch (Exception e) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR);
+        }
+        try {
+            minioClient.removeObject(RemoveObjectArgs.builder()
+                    .bucket(sourceBucket)
+                    .object(objectKey)
+                    .build());
+        } catch (Exception e) {
+            // 复制已成功但源对象删除失败：两份对象共存，元数据仍指向源桶，
+            // 读取不受影响；由运维按日志清理目标桶残留
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "源对象删除失败: " + objectKey);
         }
     }
 

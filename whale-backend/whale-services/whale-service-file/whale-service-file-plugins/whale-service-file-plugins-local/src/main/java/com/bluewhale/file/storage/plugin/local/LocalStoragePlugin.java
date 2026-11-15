@@ -102,6 +102,24 @@ public class LocalStoragePlugin implements StoragePlugin {
     }
 
     @Override
+    public void move(String bucket, String objectKey, String targetBucket) {
+        Path source = resolve(bucket, objectKey);
+        Path target = resolve(targetBucket, objectKey);
+        if (!Files.exists(source)) {
+            throw new BizException(ErrorCode.NOT_FOUND);
+        }
+        try {
+            Path parent = target.getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
+            Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException e) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR);
+        }
+    }
+
+    @Override
     public String presignedDownloadUrl(String bucket, String objectKey, int expiresSeconds) {
         throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "本地存储插件不支持预签名下载");
     }

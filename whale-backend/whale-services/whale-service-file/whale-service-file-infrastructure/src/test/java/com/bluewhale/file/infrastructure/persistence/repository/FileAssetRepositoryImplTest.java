@@ -7,6 +7,8 @@ import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.file.domain.file.aggregate.FileAssetAggregate;
 import com.bluewhale.file.domain.model.FileAssetPage;
 import com.bluewhale.file.domain.model.FileAssetQuery;
+import com.bluewhale.file.domain.model.FileRecycleItem;
+import com.bluewhale.file.domain.model.FileRecyclePage;
 import com.bluewhale.file.domain.model.FileRecycleQuery;
 import com.bluewhale.file.domain.model.vo.FileStatus;
 import com.bluewhale.file.po.FileInfoPo;
@@ -253,11 +255,21 @@ class FileAssetRepositoryImplTest {
     }
 
     @Test
-    @DisplayName("deleteById：委派逻辑删除")
+    @DisplayName("deleteById：走自定义逻辑删除以记录删除时间")
     void shouldDeleteById() {
         repository.deleteById(7L);
 
-        verify(fileInfoMapper).deleteById(7L);
+        verify(fileInfoMapper).markDeletedById(7L);
+    }
+
+    @Test
+    @DisplayName("updateOriginalName / updateBucket：委派元数据更新")
+    void shouldUpdateMetadata() {
+        repository.updateOriginalName(7L, "新名称.pdf");
+        repository.updateBucket(7L, "archive");
+
+        verify(fileInfoMapper).updateOriginalName(7L, "新名称.pdf");
+        verify(fileInfoMapper).updateBucket(7L, "archive");
     }
 
     @Test
@@ -267,13 +279,35 @@ class FileAssetRepositoryImplTest {
                 .thenReturn(List.of(po(1L, 1), po(2L, 1)));
         when(fileInfoMapper.countRecycle("报告", "bluewhale", 9L)).thenReturn(22L);
 
-        FileAssetPage page = repository.pageRecycle(new FileRecycleQuery("报告", "bluewhale", 9L, 2L, 10L));
+        FileRecyclePage page = repository.pageRecycle(new FileRecycleQuery("报告", "bluewhale", 9L, 2L, 10L));
 
         assertEquals(22L, page.total());
         assertEquals(2L, page.current());
         assertEquals(10L, page.size());
         assertEquals(2, page.records().size());
-        assertTrue(page.records().get(0).isDeleted());
+        assertEquals("a.pdf", page.records().get(0).fileName());
+    }
+
+    @Test
+    @DisplayName("findExpiredRecycle：按截止时间与批大小查询，返回含存储定位的投影")
+    void shouldFindExpiredRecycle() {
+        LocalDateTime cutoff = LocalDateTime.of(2026, 10, 1, 0, 0);
+        when(fileInfoMapper.selectExpiredRecycle(cutoff, 20L)).thenReturn(List.of(po(3L, 1)));
+
+        List<FileRecycleItem> items = repository.findExpiredRecycle(cutoff, 20L);
+
+        assertEquals(1, items.size());
+        assertEquals(3L, items.get(0).id());
+    }
+
+    @Test
+    @DisplayName("purgeById：物理删除命中时返回 true，未命中返回 false")
+    void shouldPurgeById() {
+        when(fileInfoMapper.purgeById(3L)).thenReturn(1);
+        when(fileInfoMapper.purgeById(4L)).thenReturn(0);
+
+        assertTrue(repository.purgeById(3L));
+        assertFalse(repository.purgeById(4L));
     }
 
     @Test

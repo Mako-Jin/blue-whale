@@ -14,9 +14,11 @@ import com.bluewhale.file.model.command.RapidUploadCommand;
 import com.bluewhale.file.model.command.UploadFileCommand;
 import com.bluewhale.file.model.query.FilePageQuery;
 import com.bluewhale.file.model.query.FileRecyclePageQuery;
+import com.bluewhale.file.model.request.FileMoveRequest;
 import com.bluewhale.file.model.request.FilePageRequest;
 import com.bluewhale.file.model.request.FileRapidUploadRequest;
 import com.bluewhale.file.model.request.FileRecyclePageRequest;
+import com.bluewhale.file.model.request.FileRenameRequest;
 import com.bluewhale.file.model.response.FileInfoResponse;
 import com.bluewhale.file.model.response.FilePresignedResponse;
 import com.bluewhale.file.model.response.FileQuotaResponse;
@@ -165,6 +167,22 @@ public class FileController implements FileApi {
     public Result<Void> restore(@PathVariable Long id, HttpServletRequest httpRequest) {
         fileInfoService.restore(id, UserContext.requireUserId(httpRequest), canManage(httpRequest),
                 uploadLimits(httpRequest));
+        return Result.ok();
+    }
+
+    @Override
+    @RequirePermission("sys:file:upload")
+    public Result<Void> rename(@PathVariable Long id, FileRenameRequest request, HttpServletRequest httpRequest) {
+        fileInfoService.rename(id, request.getOriginalName(), UserContext.requireUserId(httpRequest),
+                canManage(httpRequest));
+        return Result.ok();
+    }
+
+    @Override
+    @RequirePermission("sys:file:manage")
+    public Result<Void> move(@PathVariable Long id, FileMoveRequest request, HttpServletRequest httpRequest) {
+        fileInfoService.move(id, request.getBucket(), UserContext.requireUserId(httpRequest),
+                canManage(httpRequest));
         return Result.ok();
     }
 

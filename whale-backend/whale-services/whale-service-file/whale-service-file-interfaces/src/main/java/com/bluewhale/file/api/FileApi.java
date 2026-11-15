@@ -2,9 +2,11 @@ package com.bluewhale.file.api;
 
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
+import com.bluewhale.file.model.request.FileMoveRequest;
 import com.bluewhale.file.model.request.FilePageRequest;
 import com.bluewhale.file.model.request.FileRapidUploadRequest;
 import com.bluewhale.file.model.request.FileRecyclePageRequest;
+import com.bluewhale.file.model.request.FileRenameRequest;
 import com.bluewhale.file.model.response.FileInfoResponse;
 import com.bluewhale.file.model.response.FilePresignedResponse;
 import com.bluewhale.file.model.response.FileQuotaResponse;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -157,7 +160,35 @@ public interface FileApi {
     Result<Void> restore(@PathVariable Long id, HttpServletRequest httpRequest);
 
     /**
-     * 删除文件元数据（逻辑删除，物理对象保留）。
+     * 重命名文件原始文件名（不改变对象键与存储文件名）。
+     *
+     * <p>仅正常状态文件可重命名；新名称与当前名称相同时按成功返回。</p>
+     *
+     * @param id 文件ID
+     * @param request 新名称
+     * @param httpRequest 当前请求（用于判定调用者归属与文件管理权限）
+     * @return 空结果
+     */
+    @PutMapping("/{id}/rename")
+    Result<Void> rename(@PathVariable Long id, @Valid @RequestBody FileRenameRequest request,
+                        HttpServletRequest httpRequest);
+
+    /**
+     * 跨桶移动文件：先迁移物理对象，成功后再更新元数据桶名。
+     *
+     * <p>仅正常状态文件可移动；目标桶与当前桶相同时按成功返回。</p>
+     *
+     * @param id 文件ID
+     * @param request 目标桶
+     * @param httpRequest 当前请求（用于判定调用者归属与文件管理权限）
+     * @return 空结果
+     */
+    @PutMapping("/{id}/move")
+    Result<Void> move(@PathVariable Long id, @Valid @RequestBody FileMoveRequest request,
+                      HttpServletRequest httpRequest);
+
+    /**
+     * 删除文件元数据（逻辑删除并记录删除时间，物理对象保留至回收站到期清理）。
      *
      * @param id 文件ID
      * @param httpRequest 当前请求（用于判定调用者归属与文件管理权限）

@@ -8,6 +8,8 @@ import com.bluewhale.file.config.FileProperties;
 import com.bluewhale.file.domain.file.aggregate.FileAssetAggregate;
 import com.bluewhale.file.domain.model.FileAssetPage;
 import com.bluewhale.file.domain.model.FileAssetQuery;
+import com.bluewhale.file.domain.model.FileRecycleItem;
+import com.bluewhale.file.domain.model.FileRecyclePage;
 import com.bluewhale.file.domain.model.FileRecycleQuery;
 import com.bluewhale.file.domain.file.repository.FileAssetRepository;
 import com.bluewhale.file.domain.storage.ChunkUploadMetadata;
@@ -228,7 +230,7 @@ public class FileInfoServiceImpl implements FileInfoService {
         long pageSize = clampPageSize(query.size());
         // 无管理权限时仅可见本人上传的已删文件；管理视角可查看全租户回收站
         Long uploaderFilter = query.canManage() ? null : query.requesterId();
-        FileAssetPage page = fileAssetRepository.pageRecycle(new FileRecycleQuery(query.originalName(),
+        FileRecyclePage page = fileAssetRepository.pageRecycle(new FileRecycleQuery(query.originalName(),
                 query.bucket(), uploaderFilter, pageCurrent, pageSize));
         List<FileRecycleResult> records = page.records().stream()
                 .map(FileInfoServiceImpl::toRecycleResult)
@@ -252,6 +254,40 @@ public class FileInfoServiceImpl implements FileInfoService {
             fileMetrics.recordRestore(true);
         } catch (RuntimeException e) {
             fileMetrics.recordRestore(false);
+            throw e;
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void rename(Long id, String originalName, Long requesterId, boolean canManage) {
+        FileAssetAggregate asset = requireAccessibleFile(id, requesterId, canManage);
+        if (!asset.rename(originalName)) {
+            return;
+        }
+        fileAssetRepository.updateOriginalName(id, asset.getOriginalName());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void move(Long id, String targetBucket, Long requesterId, boolean canManage) {
+        FileAssetAggregate asset = requireAccessibleFile(id, requesterId, canManage);
+        String sourceBucket = asset.getBucket();
+        if (!asset.moveTo(targetBucket)) {
+            return;
+        }
+        // 先迁物理对象：失败时元数据不变，文件仍可下载
+        fileStorage.move(sourceBucket, asset.getObjectKey(), asset.getBucket(), asset.getStorageType());
+        try {
+            fileAssetRepository.updateBucket(id, asset.getBucket());
+        } catch (RuntimeException e) {
+            // 元数据更新失败：尽力回迁，避免元数据与对象长时间错位；回迁失败仅告警由人工介入
+            try {
+                fileStorage.move(asset.getBucket(), asset.getObjectKey(), sourceBucket, asset.getStorageType());
+            } catch (RuntimeException rollbackError) {
+                log.error("文件移动元数据失败且物理回迁失败，需人工核对: id={}, bucket={}->{}",
+                        id, sourceBucket, asset.getBucket(), rollbackError);
+            }
             throw e;
         }
     }
@@ -652,15 +688,15 @@ public class FileInfoServiceImpl implements FileInfoService {
     }
 
     /**
-     * 文件资产转回收站结果
+     * 回收站投影转结果
      *
-     * @param asset 文件资产聚合根
+     * @param item 回收站投影
      * @return 回收站结果
      */
-    private static FileRecycleResult toRecycleResult(FileAssetAggregate asset) {
-        return new FileRecycleResult(asset.getId(), asset.getFileName(), asset.getOriginalName(),
-                asset.getBucket(), asset.getFileSize(), asset.getContentType(), asset.getStatus().getCode(),
-                asset.getUploaderId(), asset.getCreateTime(), asset.getUpdateTime());
+    private static FileRecycleResult toRecycleResult(FileRecycleItem item) {
+        return new FileRecycleResult(item.id(), item.fileName(), item.originalName(), item.bucket(),
+                item.fileSize(), item.contentType(), item.status(), item.uploaderId(),
+                item.createTime(), item.updateTime(), item.deleteTime());
     }
 
     /**

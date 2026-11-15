@@ -31,6 +31,7 @@ CREATE TABLE file_info (
     create_time   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted       TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    delete_time   DATETIME      DEFAULT NULL           COMMENT '逻辑删除时间；恢复时置空',
     PRIMARY KEY (id),
     KEY idx_tenant_id (tenant_id),
     KEY idx_tenant_md5 (tenant_id, md5),

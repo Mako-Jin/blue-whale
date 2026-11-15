@@ -1,5 +1,6 @@
 package com.bluewhale.file.domain.storage;
 
+import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.domain.exception.DomainException;
 
@@ -104,6 +105,21 @@ public interface StoragePlugin {
      * @param objectKey 桶内对象键
      */
     void delete(String bucket, String objectKey);
+
+    /**
+     * 把文件内容移动到目标桶（对象键不变）。
+     *
+     * <p>内置 local / minio 插件分别以文件移动、复制后删除实现；未实现该能力的插件默认显式失败，
+     * 避免上层误以为移动成功而只改了元数据。</p>
+     *
+     * @param bucket 源桶名称
+     * @param objectKey 桶内对象键
+     * @param targetBucket 目标桶名称
+     * @throws BizException 当前插件不支持移动时抛出 {@code PARAM_ERROR}
+     */
+    default void move(String bucket, String objectKey, String targetBucket) {
+        throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "当前存储插件不支持文件移动: " + getType());
+    }
 
     /**
      * 生成预签名下载 URL。

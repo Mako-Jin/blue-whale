@@ -38,6 +38,8 @@ class FileMetricsTest {
         metrics.recordDownload(20L, 2_000_000L);
         metrics.recordRestore(true);
         metrics.recordRestore(false);
+        metrics.recordPurge(true);
+        metrics.recordPurge(false);
 
         assertEquals(1.0, registry.get("file.upload")
                 .tag("mode", "multipart").tag("result", "success").counter().count());
@@ -51,6 +53,8 @@ class FileMetricsTest {
         assertEquals(20.0, registry.get("file.download.size").summary().totalAmount());
         assertEquals(1.0, registry.get("file.recycle.restore").tag("result", "success").counter().count());
         assertEquals(1.0, registry.get("file.recycle.restore").tag("result", "failure").counter().count());
+        assertEquals(1.0, registry.get("file.recycle.purged").tag("result", "success").counter().count());
+        assertEquals(1.0, registry.get("file.recycle.purged").tag("result", "failure").counter().count());
         assertEquals(3.0, registry.get("file.chunk.session.active").gauge().value());
         assertEquals(1.0, registry.get("file.storage.plugin.active").tag("type", "local").gauge().value());
         assertEquals(0.0, registry.get("file.storage.plugin.active").tag("type", "minio").gauge().value());

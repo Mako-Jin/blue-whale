@@ -49,21 +49,21 @@ public class FileAssetAggregate implements Entity<Long> {
      */
     private final String fileName;
 
-    /** 原始文件名（用户上传时的文件名）
+    /** 原始文件名（用户上传时的文件名，可由重命名行为修改）
      * -- GETTER --
      *  获取原始文件名
      *
      * @return 原始文件名
      */
-    private final String originalName;
+    private String originalName;
 
-    /** 对象存储桶名称
+    /** 对象存储桶名称（可由跨桶移动行为修改）
      * -- GETTER --
      *  获取对象存储桶名称
      *
      * @return 桶名称
      */
-    private final String bucket;
+    private String bucket;
 
     /** 落盘时的存储插件类型（如 {@code local}、{@code minio}），历史数据可为 {@code null}
      * -- GETTER --
@@ -322,6 +322,84 @@ public class FileAssetAggregate implements Entity<Long> {
         if (status == FileStatus.LOCKED) {
             throw new DomainException(ErrorCode.PARAM_ERROR, "文件已归档锁定，禁止删除");
         }
+    }
+
+    /**
+     * 行为：重命名原始文件名（不改变存储文件名与对象键）
+     *
+     * <p>仅正常状态可重命名；禁用与归档锁定代表元数据不可变，统一拒绝。</p>
+     *
+     * @param newName 新的原始文件名
+     * @return 是否发生变化（需要持久化）；与当前名称相同返回 {@code false}
+     * @throws DomainException 名称为空或文件非正常状态时抛出 {@code PARAM_ERROR}
+     */
+    public boolean rename(String newName) {
+        if (newName == null || newName.isBlank()) {
+            throw new DomainException(ErrorCode.PARAM_ERROR, "原始文件名不能为空");
+        }
+        assertMutable("重命名");
+        String normalized = newName.trim();
+        if (normalized.equals(this.originalName)) {
+            return false;
+        }
+        this.originalName = normalized;
+        touch();
+        return true;
+    }
+
+    /**
+     * 行为：移动到目标桶（对象键不变）
+     *
+     * <p>仅正常状态可移动；桶名拒绝路径分隔符与父目录段，避免拼接出越权路径。
+     * 物理对象迁移由应用层先于本行为完成（或在其失败时回迁）。</p>
+     *
+     * @param targetBucket 目标桶名称
+     * @return 是否发生变化（需要持久化）；目标与当前相同返回 {@code false}
+     * @throws DomainException 桶名为空、含非法字符或文件非正常状态时抛出 {@code PARAM_ERROR}
+     */
+    public boolean moveTo(String targetBucket) {
+        if (targetBucket == null || targetBucket.isBlank()) {
+            throw new DomainException(ErrorCode.PARAM_ERROR, "目标桶名称不能为空");
+        }
+        assertMutable("移动");
+        String normalized = targetBucket.trim();
+        if (normalized.indexOf(PATH_SEPARATOR) >= 0 || normalized.indexOf('\\') >= 0
+                || hasParentSegment(normalized)) {
+            throw new DomainException(ErrorCode.PARAM_ERROR, "目标桶名称非法");
+        }
+        if (normalized.equals(this.bucket)) {
+            return false;
+        }
+        this.bucket = normalized;
+        touch();
+        return true;
+    }
+
+    /**
+     * 校验文件元数据是否可变：仅正常状态允许改名/移动
+     *
+     * @param operation 操作名称，用于异常信息
+     * @throws DomainException 文件非正常状态时抛出 {@code PARAM_ERROR}
+     */
+    private void assertMutable(String operation) {
+        if (status != FileStatus.NORMAL) {
+            throw new DomainException(ErrorCode.PARAM_ERROR, "文件当前状态不允许" + operation);
+        }
+    }
+
+    /**
+     * 判断桶名是否含 {@code ..} 段（同时兼容 Windows 的 {@code \} 分隔符）
+     *
+     * @param bucket 桶名
+     * @return 含父目录段时返回 {@code true}
+     */
+    private static boolean hasParentSegment(String bucket) {
+        for (String segment : bucket.split("[/\\\\]")) {
+            if ("..".equals(segment)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

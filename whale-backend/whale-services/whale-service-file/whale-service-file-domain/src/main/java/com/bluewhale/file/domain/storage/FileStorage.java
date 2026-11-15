@@ -79,12 +79,49 @@ public interface FileStorage {
     InputStream load(String bucket, String objectKey, long offset, long length, String storageType);
 
     /**
-     * 删除文件内容。
+     * 删除文件内容（使用当前活动插件）。
      *
      * @param bucket 桶名称
      * @param objectKey 桶内对象键
      */
-    void delete(String bucket, String objectKey);
+    default void delete(String bucket, String objectKey) {
+        delete(bucket, objectKey, null);
+    }
+
+    /**
+     * 按落盘时的存储插件类型删除文件内容。
+     *
+     * <p>回收站到期清理必须先按文件落盘介质删除对象，再删元数据；对象不存在视为成功（幂等）。</p>
+     *
+     * @param bucket 桶名称
+     * @param objectKey 桶内对象键
+     * @param storageType 落盘时的插件类型，可为 {@code null}（回落活动插件）
+     */
+    void delete(String bucket, String objectKey, String storageType);
+
+    /**
+     * 移动文件内容到目标桶（使用当前活动插件）。
+     *
+     * @param bucket 源桶名称
+     * @param objectKey 桶内对象键（移动前后不变）
+     * @param targetBucket 目标桶名称
+     */
+    default void move(String bucket, String objectKey, String targetBucket) {
+        move(bucket, objectKey, targetBucket, null);
+    }
+
+    /**
+     * 按落盘时的存储插件类型把文件内容移动到目标桶。
+     *
+     * <p>对象键保持不变；目标桶内的既有同名对象按插件语义处理（本地覆盖、对象存储覆盖写）。</p>
+     *
+     * @param bucket 源桶名称
+     * @param objectKey 桶内对象键
+     * @param targetBucket 目标桶名称
+     * @param storageType 落盘时的插件类型，可为 {@code null}（回落活动插件）
+     * @throws DomainException 插件未装配、源对象不存在或不支持移动时抛出
+     */
+    void move(String bucket, String objectKey, String targetBucket, String storageType);
 
     /**
      * 生成预签名下载 URL（使用当前活动插件）。

@@ -4,7 +4,7 @@
 
 | 路径 | 用途 | 执行方式 |
 |---|---|---|
-| `db/migration/` | **Flyway 版本化迁移**（`V1__baseline.sql` 建表，`V2` 审计日志，`V3` 文件落盘存储类型） | file 服务（`whale-service-file-web` 启动模块）启动时由 Flyway 自动执行，记录于 `flyway_schema_history` |
+| `db/migration/` | **Flyway 版本化迁移**（`V1__baseline.sql` 建表，`V2` 审计日志，`V3` 文件落盘存储类型，`V4` 逻辑删除时间） | file 服务（`whale-service-file-web` 启动模块）启动时由 Flyway 自动执行，记录于 `flyway_schema_history` |
 | `db/init.sql` | 全新建库的手工初始化脚本（与 `db/migration/V1` 同源，含 `DROP TABLE`） | 仅用于本地/一次性空库手工执行；**不要**在存量库重放 |
 | `db/migration-5.54-tenant-business.sql` | 历史 Wave 增量脚本（`file_info` 租户字段） | 手工按序执行，仅供追溯，**不参与 Flyway 扫描** |
 
@@ -34,7 +34,9 @@ SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()
 SELECT COUNT(*) FROM file_info;
 SHOW COLUMNS FROM file_info LIKE 'tenant_id';
 SHOW COLUMNS FROM file_info LIKE 'storage_type';
+SHOW COLUMNS FROM file_info LIKE 'delete_time';
 SELECT COUNT(*) FROM file_info WHERE storage_type IS NULL;
+SELECT COUNT(*) FROM file_info WHERE deleted = 1 AND delete_time IS NULL;
 ```
 
 ## 运维开关

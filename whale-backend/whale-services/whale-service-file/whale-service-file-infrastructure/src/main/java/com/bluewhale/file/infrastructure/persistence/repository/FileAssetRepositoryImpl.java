@@ -8,6 +8,8 @@ import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.file.domain.file.aggregate.FileAssetAggregate;
 import com.bluewhale.file.domain.model.FileAssetPage;
 import com.bluewhale.file.domain.model.FileAssetQuery;
+import com.bluewhale.file.domain.model.FileRecycleItem;
+import com.bluewhale.file.domain.model.FileRecyclePage;
 import com.bluewhale.file.domain.model.FileRecycleQuery;
 import com.bluewhale.file.domain.file.repository.FileAssetRepository;
 import com.bluewhale.file.domain.model.vo.FileStatus;
@@ -200,7 +202,17 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
 
     @Override
     public void deleteById(Long id) {
-        fileInfoMapper.deleteById(id);
+        fileInfoMapper.markDeletedById(id);
+    }
+
+    @Override
+    public void updateOriginalName(Long id, String originalName) {
+        fileInfoMapper.updateOriginalName(id, originalName);
+    }
+
+    @Override
+    public void updateBucket(Long id, String bucket) {
+        fileInfoMapper.updateBucket(id, bucket);
     }
 
     @Override
@@ -251,15 +263,28 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
     }
 
     @Override
-    public FileAssetPage pageRecycle(FileRecycleQuery query) {
+    public FileRecyclePage pageRecycle(FileRecycleQuery query) {
         long pageCurrent = Math.max(query.current(), 1L);
         long pageSize = Math.max(query.size(), 1L);
         long offset = (pageCurrent - 1) * pageSize;
         List<FileInfoPo> rows = fileInfoMapper.selectRecyclePage(query.originalName(), query.bucket(),
                 query.uploaderId(), offset, pageSize);
-        List<FileAssetAggregate> records = rows.stream().map(FileInfoPersistenceAssembler::toDomain).toList();
+        List<FileRecycleItem> records = rows.stream().map(FileInfoPersistenceAssembler::toRecycleItem).toList();
         long total = fileInfoMapper.countRecycle(query.originalName(), query.bucket(), query.uploaderId());
-        return new FileAssetPage(records, total, pageCurrent, pageSize);
+        return new FileRecyclePage(records, total, pageCurrent, pageSize);
+    }
+
+    @Override
+    public List<FileRecycleItem> findExpiredRecycle(LocalDateTime cutoff, long limit) {
+        long batchSize = Math.max(limit, 1L);
+        return fileInfoMapper.selectExpiredRecycle(cutoff, batchSize).stream()
+                .map(FileInfoPersistenceAssembler::toRecycleItem)
+                .toList();
+    }
+
+    @Override
+    public boolean purgeById(Long id) {
+        return fileInfoMapper.purgeById(id) > 0;
     }
 
     /**

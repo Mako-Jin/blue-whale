@@ -186,6 +186,63 @@ class FileAssetTest {
     }
 
     @Test
+    @DisplayName("rename：正常状态可改名，对象键与存储文件名不变")
+    void shouldRenameOriginalName() {
+        FileAssetAggregate target = asset(FileStatus.NORMAL);
+        String objectKey = target.getObjectKey();
+        String fileName = target.getFileName();
+
+        assertTrue(target.rename("  新报告.pdf  "));
+
+        assertEquals("新报告.pdf", target.getOriginalName());
+        assertEquals(objectKey, target.getObjectKey());
+        assertEquals(fileName, target.getFileName());
+        assertFalse(target.rename("新报告.pdf"));
+    }
+
+    @Test
+    @DisplayName("rename：空名称或非正常状态拒绝改名")
+    void shouldRejectInvalidRename() {
+        BizException blank = assertThrows(BizException.class, () -> asset(FileStatus.NORMAL).rename(" "));
+        assertEquals(ErrorCode.PARAM_ERROR.getCode(), blank.getCode());
+
+        BizException locked = assertThrows(BizException.class, () -> asset(FileStatus.LOCKED).rename("b.pdf"));
+        assertEquals(ErrorCode.PARAM_ERROR.getCode(), locked.getCode());
+    }
+
+    @Test
+    @DisplayName("moveTo：正常状态可跨桶移动，对象键不变")
+    void shouldMoveToTargetBucket() {
+        FileAssetAggregate target = asset(FileStatus.NORMAL);
+        String objectKey = target.getObjectKey();
+
+        assertTrue(target.moveTo(" archive "));
+
+        assertEquals("archive", target.getBucket());
+        assertEquals(objectKey, target.getObjectKey());
+        assertFalse(target.moveTo("archive"));
+    }
+
+    @Test
+    @DisplayName("moveTo：空白、含路径分隔符或父目录段的目标桶拒绝移动")
+    void shouldRejectIllegalBucket() {
+        BizException blank = assertThrows(BizException.class, () -> asset(FileStatus.NORMAL).moveTo(" "));
+        assertEquals(ErrorCode.PARAM_ERROR.getCode(), blank.getCode());
+
+        BizException separator = assertThrows(BizException.class,
+                () -> asset(FileStatus.NORMAL).moveTo("tenant/archive"));
+        assertEquals(ErrorCode.PARAM_ERROR.getCode(), separator.getCode());
+
+        BizException parent = assertThrows(BizException.class,
+                () -> asset(FileStatus.NORMAL).moveTo(".."));
+        assertEquals(ErrorCode.PARAM_ERROR.getCode(), parent.getCode());
+
+        BizException locked = assertThrows(BizException.class,
+                () -> asset(FileStatus.LOCKED).moveTo("archive"));
+        assertEquals(ErrorCode.PARAM_ERROR.getCode(), locked.getCode());
+    }
+
+    @Test
     @DisplayName("isVisibleToTenant：无租户上下文可见，租户前缀匹配才可见")
     void shouldCheckTenantVisibility() {
         FileAssetAggregate asset = asset(FileStatus.NORMAL);

@@ -38,6 +38,9 @@ public class FileMetrics {
     /** 回收站恢复指标名 */
     private static final String RESTORE = "file.recycle.restore";
 
+    /** 回收站到期清理指标名 */
+    private static final String PURGE = "file.recycle.purged";
+
     private final MeterRegistry registry;
 
     /**
@@ -128,6 +131,19 @@ public class FileMetrics {
     public void recordRestore(boolean success) {
         Counter.builder(RESTORE)
                 .description("回收站文件恢复次数")
+                .tag("result", success ? "success" : "failure")
+                .register(registry)
+                .increment();
+    }
+
+    /**
+     * 记录一次回收站到期物理清理。
+     *
+     * @param success 单条记录是否清理成功（物理对象删除 + 元数据物理删除）
+     */
+    public void recordPurge(boolean success) {
+        Counter.builder(PURGE)
+                .description("回收站到期物理清理条数")
                 .tag("result", success ? "success" : "failure")
                 .register(registry)
                 .increment();

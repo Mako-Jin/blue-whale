@@ -8,6 +8,7 @@ import com.bluewhale.file.config.FileProperties;
 import com.bluewhale.file.domain.file.aggregate.FileAssetAggregate;
 import com.bluewhale.file.domain.model.FileAssetPage;
 import com.bluewhale.file.domain.model.FileAssetQuery;
+import com.bluewhale.file.domain.model.FileRecyclePage;
 import com.bluewhale.file.domain.model.FileRecycleQuery;
 import com.bluewhale.file.domain.file.repository.FileAssetRepository;
 import com.bluewhale.file.domain.model.vo.FileStatus;
@@ -69,6 +70,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -838,7 +840,7 @@ class FileInfoServiceImplTest {
     @DisplayName("recyclePage：管理视角不限上传者，普通用户仅查本人已删文件")
     void shouldPageRecycleByVisibility() {
         when(fileAssetRepository.pageRecycle(any(FileRecycleQuery.class)))
-                .thenReturn(new FileAssetPage(List.of(), 0L, 1L, 10L));
+                .thenReturn(new FileRecyclePage(List.of(), 0L, 1L, 10L));
 
         fileInfoService.recyclePage(new FileRecyclePageQuery("报告", "bluewhale", UPLOADER_ID, true, 1L, 10L));
         fileInfoService.recyclePage(new FileRecyclePageQuery(null, null, UPLOADER_ID, false, 1L, 10L));
@@ -883,6 +885,61 @@ class FileInfoServiceImplTest {
         }
 
         verify(fileAssetRepository).restoreWithQuotaCheck(7L, 5000L);
+    }
+
+    @Test
+    @DisplayName("rename：仅更新原始文件名，不触碰存储定位")
+    void shouldRenameOriginalName() {
+        when(fileAssetRepository.findById(7L)).thenReturn(Optional.of(fileWithStatus(7L, FileStatus.NORMAL)));
+
+        fileInfoService.rename(7L, "新名称.pdf", UPLOADER_ID, false);
+
+        verify(fileAssetRepository).updateOriginalName(7L, "新名称.pdf");
+    }
+
+    @Test
+    @DisplayName("rename：名称未变化时不产生更新")
+    void shouldSkipRenameWhenUnchanged() {
+        when(fileAssetRepository.findById(7L)).thenReturn(Optional.of(fileWithStatus(7L, FileStatus.NORMAL)));
+
+        fileInfoService.rename(7L, "locked.pdf", UPLOADER_ID, false);
+
+        verify(fileAssetRepository, never()).updateOriginalName(anyLong(), anyString());
+    }
+
+    @Test
+    @DisplayName("move：先迁物理对象再更新桶名")
+    void shouldMoveObjectThenUpdateBucket() {
+        when(fileAssetRepository.findById(7L)).thenReturn(Optional.of(fileWithStatus(7L, FileStatus.NORMAL)));
+
+        fileInfoService.move(7L, "archive", UPLOADER_ID, false);
+
+        verify(fileStorage).move("bluewhale", "2026/10/24/locked.pdf", "archive", "local");
+        verify(fileAssetRepository).updateBucket(7L, "archive");
+    }
+
+    @Test
+    @DisplayName("move：元数据更新失败时回迁物理对象")
+    void shouldCompensateWhenBucketUpdateFails() {
+        when(fileAssetRepository.findById(7L)).thenReturn(Optional.of(fileWithStatus(7L, FileStatus.NORMAL)));
+        doThrow(new BizException(ErrorCode.SYSTEM_ERROR)).when(fileAssetRepository).updateBucket(7L, "archive");
+
+        assertThrows(BizException.class, () -> fileInfoService.move(7L, "archive", UPLOADER_ID, false));
+
+        verify(fileStorage).move("bluewhale", "2026/10/24/locked.pdf", "archive", "local");
+        verify(fileStorage).move("archive", "2026/10/24/locked.pdf", "bluewhale", "local");
+    }
+
+    @Test
+    @DisplayName("move：归档锁定文件禁止移动，且不触达存储")
+    void shouldRejectMovingLockedFile() {
+        when(fileAssetRepository.findById(7L)).thenReturn(Optional.of(fileWithStatus(7L, FileStatus.LOCKED)));
+
+        BizException ex = assertThrows(BizException.class,
+                () -> fileInfoService.move(7L, "archive", UPLOADER_ID, false));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        verify(fileStorage, never()).move(anyString(), anyString(), anyString(), any());
     }
 
     @Test

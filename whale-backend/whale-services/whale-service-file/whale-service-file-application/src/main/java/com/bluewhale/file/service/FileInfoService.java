@@ -169,6 +169,31 @@ public interface FileInfoService {
     void restore(Long id, Long requesterId, boolean canManage, UploadLimits limits);
 
     /**
+     * 重命名文件原始文件名（不改变对象键与存储文件名）
+     *
+     * <p>幂等：新名称与当前名称相同时不产生更新；仅正常状态文件可重命名。</p>
+     *
+     * @param id 文件ID
+     * @param originalName 新的原始文件名
+     * @param requesterId 调用者用户 ID
+     * @param canManage 是否持有文件管理权限
+     */
+    void rename(Long id, String originalName, Long requesterId, boolean canManage);
+
+    /**
+     * 跨桶移动文件：先迁移物理对象，再更新元数据桶名
+     *
+     * <p>幂等：目标桶与当前桶相同时不产生变更；仅正常状态文件可移动。
+     * 物理迁移失败时不改元数据；元数据更新失败时尽力回迁物理对象。</p>
+     *
+     * @param id 文件ID
+     * @param targetBucket 目标桶名称
+     * @param requesterId 调用者用户 ID
+     * @param canManage 是否持有文件管理权限
+     */
+    void move(Long id, String targetBucket, Long requesterId, boolean canManage);
+
+    /**
      * 生成预签名下载 URL（仅支持预签名能力的对象存储插件可用）
      *
      * @param id 文件ID

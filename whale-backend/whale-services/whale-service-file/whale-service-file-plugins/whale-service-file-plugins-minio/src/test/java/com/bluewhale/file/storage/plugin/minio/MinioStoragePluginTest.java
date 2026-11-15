@@ -3,6 +3,7 @@ package com.bluewhale.file.storage.plugin.minio;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import io.minio.BucketExistsArgs;
+import io.minio.CopyObjectArgs;
 import io.minio.GetObjectArgs;
 import io.minio.GetObjectResponse;
 import io.minio.GetPresignedObjectUrlArgs;
@@ -54,6 +55,21 @@ class MinioStoragePluginTest {
         properties = new MinioStorageProperties();
         properties.setBucket("bluewhale");
         plugin = new MinioStoragePlugin(minioClient, properties);
+    }
+
+    @Test
+    @DisplayName("move：复制到目标桶后删除源对象")
+    void shouldCopyThenRemoveSource() throws Exception {
+        when(minioClient.bucketExists(any(BucketExistsArgs.class))).thenReturn(true);
+
+        plugin.move("bluewhale", "tenants/1/a.txt", "archive");
+
+        ArgumentCaptor<CopyObjectArgs> copyCaptor = ArgumentCaptor.forClass(CopyObjectArgs.class);
+        verify(minioClient).copyObject(copyCaptor.capture());
+        assertEquals("archive", copyCaptor.getValue().bucket());
+        ArgumentCaptor<RemoveObjectArgs> removeCaptor = ArgumentCaptor.forClass(RemoveObjectArgs.class);
+        verify(minioClient).removeObject(removeCaptor.capture());
+        assertEquals("bluewhale", removeCaptor.getValue().bucket());
     }
 
     @Test

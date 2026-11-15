@@ -43,6 +43,27 @@ class LocalStoragePluginTest {
     }
 
     @Test
+    @DisplayName("move：迁移到目标桶且对象键不变，源对象被移除")
+    void shouldMoveToTargetBucket() throws IOException {
+        byte[] content = "hello".getBytes(StandardCharsets.UTF_8);
+        plugin.store("bluewhale", "tenants/1/a.txt", new ByteArrayInputStream(content));
+
+        plugin.move("bluewhale", "tenants/1/a.txt", "archive");
+
+        assertFalse(Files.exists(tempDir.resolve("bluewhale/tenants/1/a.txt")));
+        assertArrayEquals(content, Files.readAllBytes(tempDir.resolve("archive/tenants/1/a.txt")));
+    }
+
+    @Test
+    @DisplayName("move：源对象不存在时抛出 NOT_FOUND")
+    void shouldRejectMoveMissingSource() {
+        BizException ex = assertThrows(BizException.class,
+                () -> plugin.move("bluewhale", "tenants/1/missing.txt", "archive"));
+
+        assertEquals(ErrorCode.NOT_FOUND.getCode(), ex.getCode());
+    }
+
+    @Test
     @DisplayName("插件元信息：type=local、展示名非空、不支持预签名")
     void shouldExposeMetadata() {
         assertEquals(LocalStoragePlugin.TYPE, plugin.getType());

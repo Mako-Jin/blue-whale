@@ -2,6 +2,7 @@ package com.bluewhale.file.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.bluewhale.file.po.FileInfoPo;
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
@@ -34,7 +35,7 @@ public interface FileInfoMapper extends BaseMapper<FileInfoPo> {
      * @return 变更记录（按更新时间、ID 升序）
      */
     @Select("<script>SELECT id, file_name, original_name, bucket, storage_type, object_key, file_size, content_type, md5, "
-            + "status, uploader_id, create_time, update_time, deleted FROM file_info "
+            + "status, uploader_id, create_time, update_time, deleted, delete_time FROM file_info "
             + "<where><if test='since != null'>update_time &gt; #{since}</if></where> "
             + "ORDER BY update_time ASC, id ASC LIMIT #{size} OFFSET #{offset}</script>")
     List<FileInfoPo> selectChanges(@Param("since") LocalDateTime since,
@@ -61,7 +62,7 @@ public interface FileInfoMapper extends BaseMapper<FileInfoPo> {
      * @return 文件记录（含已逻辑删除行）；不存在时返回 {@code null}
      */
     @Select("SELECT id, file_name, original_name, bucket, storage_type, object_key, file_size, content_type, md5, "
-            + "status, uploader_id, create_time, update_time, deleted FROM file_info WHERE id = #{id}")
+            + "status, uploader_id, create_time, update_time, deleted, delete_time FROM file_info WHERE id = #{id}")
     FileInfoPo selectByIdIncludingDeleted(@Param("id") Long id);
 
     /**
@@ -72,15 +73,15 @@ public interface FileInfoMapper extends BaseMapper<FileInfoPo> {
      * @param uploaderId 上传人ID等值条件，可为 {@code null}
      * @param offset 偏移量
      * @param size 每页条数
-     * @return 回收站记录（按更新时间、ID 倒序）
+     * @return 回收站记录（按删除时间、ID 倒序）
      */
     @Select("<script>SELECT id, file_name, original_name, bucket, storage_type, object_key, file_size, content_type, md5, "
-            + "status, uploader_id, create_time, update_time, deleted FROM file_info WHERE deleted = 1 "
+            + "status, uploader_id, create_time, update_time, deleted, delete_time FROM file_info WHERE deleted = 1 "
             + "<if test='originalName != null and originalName != \"\"'>"
             + "AND original_name LIKE CONCAT('%', #{originalName}, '%') </if>"
             + "<if test='bucket != null and bucket != \"\"'>AND bucket = #{bucket} </if>"
             + "<if test='uploaderId != null'>AND uploader_id = #{uploaderId} </if>"
-            + "ORDER BY update_time DESC, id DESC LIMIT #{size} OFFSET #{offset}</script>")
+            + "ORDER BY delete_time DESC, id DESC LIMIT #{size} OFFSET #{offset}</script>")
     List<FileInfoPo> selectRecyclePage(@Param("originalName") String originalName,
                                        @Param("bucket") String bucket,
                                        @Param("uploaderId") Long uploaderId,
@@ -106,13 +107,71 @@ public interface FileInfoMapper extends BaseMapper<FileInfoPo> {
                       @Param("uploaderId") Long uploaderId);
 
     /**
-     * 恢复逻辑删除的文件（{@code deleted} 置 0）。
+     * 恢复逻辑删除的文件（{@code deleted} 置 0 并清空删除时间）。
      *
      * @param id 文件ID
      * @return 受影响行数（已恢复或不存在时为 0）
      */
-    @Update("UPDATE file_info SET deleted = 0, update_time = NOW() WHERE id = #{id} AND deleted = 1")
+    @Update("UPDATE file_info SET deleted = 0, delete_time = NULL, update_time = NOW() "
+            + "WHERE id = #{id} AND deleted = 1")
     int restoreById(@Param("id") Long id);
+
+    /**
+     * 逻辑删除文件并记录删除时间。
+     *
+     * <p>条件带 {@code deleted = 0}，重复删除不产生额外变更（幂等）。</p>
+     *
+     * @param id 文件ID
+     * @return 受影响行数（已删除或不存在时为 0）
+     */
+    @Update("UPDATE file_info SET deleted = 1, delete_time = NOW(), update_time = NOW() "
+            + "WHERE id = #{id} AND deleted = 0")
+    int markDeletedById(@Param("id") Long id);
+
+    /**
+     * 更新原始文件名（不改变对象键、存储文件名）。
+     *
+     * @param id 文件ID
+     * @param originalName 新的原始文件名
+     * @return 受影响行数
+     */
+    @Update("UPDATE file_info SET original_name = #{originalName}, update_time = NOW() "
+            + "WHERE id = #{id} AND deleted = 0")
+    int updateOriginalName(@Param("id") Long id, @Param("originalName") String originalName);
+
+    /**
+     * 更新桶名称（物理对象已迁到目标桶）。
+     *
+     * @param id 文件ID
+     * @param bucket 目标桶名称
+     * @return 受影响行数
+     */
+    @Update("UPDATE file_info SET bucket = #{bucket}, update_time = NOW() WHERE id = #{id} AND deleted = 0")
+    int updateBucket(@Param("id") Long id, @Param("bucket") String bucket);
+
+    /**
+     * 查询删除时间早于截止时间的回收站记录（到期物理清理）。
+     *
+     * @param cutoff 截止时间（不含）
+     * @param size 单批最大条数
+     * @return 到期记录（按删除时间、ID 升序）
+     */
+    @Select("SELECT id, file_name, original_name, bucket, storage_type, object_key, file_size, content_type, md5, "
+            + "status, uploader_id, create_time, update_time, deleted, delete_time FROM file_info "
+            + "WHERE deleted = 1 AND delete_time IS NOT NULL AND delete_time < #{cutoff} "
+            + "ORDER BY delete_time ASC, id ASC LIMIT #{size}")
+    List<FileInfoPo> selectExpiredRecycle(@Param("cutoff") LocalDateTime cutoff, @Param("size") long size);
+
+    /**
+     * 物理删除已逻辑删除的元数据行（到期清理）。
+     *
+     * <p>条件带 {@code deleted = 1}：并发恢复后自动失效，不会误删被用户找回的文件。</p>
+     *
+     * @param id 文件ID
+     * @return 受影响行数
+     */
+    @Delete("DELETE FROM file_info WHERE id = #{id} AND deleted = 1")
+    int purgeById(@Param("id") Long id);
 
     /**
      * 回填历史文件的落盘存储插件类型（仅处理空值行）。
