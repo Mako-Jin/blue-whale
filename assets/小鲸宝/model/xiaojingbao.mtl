@@ -1,0 +1,9 @@
+# 小鲸宝 · 静态网格材质（配合 ../atlas_diffuse.jpg 使用）
+newmtl xiaojingbao
+Ka 1.000 1.000 1.000
+Kd 1.000 1.000 1.000
+Ks 0.180 0.180 0.180
+Ns 36.0
+d 1.0
+illum 2
+map_Kd ../atlas_diffuse.jpg
