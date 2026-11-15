@@ -11,6 +11,8 @@
  *  - 角色系统（avatar.ts / profile.ts / charpanel.ts）：参数化捏脸 + 照片取色
  *  - NPC 生态（npc.ts）与多人同屏骨架（net.ts，本地模拟，P2 换 whale-im 帧协议）
  *  - 城图小地图（minimap.ts）
+ * P2 地形：城外按「虚拟都城（圣京）分层制作参考」规格重塑 —— 南岭主脉 / 东山丘陵
+ * （东关垭口）/ 冲积平原田块 / 北江江湾 / 三条北向支流 / 滩湿地（详见 §1 注释）。
  * TODO(P2)：拆分本文件的城墙/宫殿/天气等子系统为独立模块并补全类型。
  * ========================================================================== */
 
@@ -174,28 +176,75 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   }
 
   /* ==========================================================================
-   * 1. 地形
+   * 1. 地形 —— 按「虚拟都城（圣京）分层制作参考」规格重塑城外（视觉层）
+   * 五步工序：① 起南岭与东山丘陵 → ② 塑中央平原与台地 → ③ 做北江与支流凹陷
+   *           → ④ 分植被遮罩 → ⑤ 放置城池与关隘（⑤即既有蓝鲸城，见 §4+）
+   * 高度层：江面 0 / 平原 -3~+6 / 台地(城内) 恒 0 / 丘陵 6~18 / 南岭主脉 14~46
+   * 水系层：北江沿北部平原东西向，「江湾」在城东北向城凸；三条支流自南岭垭口向北汇流
+   * 地貌层：南岭主脉 / 东山丘陵（东关垭口）/ 江北冲积平原 / 河湾阶地 / 滩湿地
+   * 坐标约定与城图一致：-z 为北、+z 为南、+x 为东。
+   * 红线：城内（max(|x|,|z|) < 96）terrainHeight 恒为 0 —— 落点拾取/角色/相机
+   * 都依赖 y=0 平面，改地形只许动城外权重 out 的部分。
    * ========================================================================== */
 
-  const RIVER_Z = (x) => -132 + Math.sin(x * 0.018) * 14;
+  // 高斯权重（江湾凸出、东关垭口豁口用）
+  const gauss = (t) => Math.exp(-t * t);
+
+  // 北江：沿北部平原东西向；x≈130 处向城凸出成「江湾」（仍离外墙 ~54m）
+  const NORTH_RIVER = (x) => -200 + Math.sin(x * 0.011) * 16 + 34 * gauss((x - 130) / 85);
+
+  // 支流：自南岭垭口向北汇入北江（中线 x 随 z 变化；joinZ 为汇入口纬度）。
+  // 红线：城占 x∈[-92,92]，支流中线必须 |x|≥150，否则河道会贴/穿城墙。
+  const TRIBS = [
+    { x: (z) => -168 + Math.sin(z * 0.021) * 12, joinZ: -186 }, // 西支·玉溪
+    { x: (z) => 155 + Math.sin(z * 0.017) * 10, joinZ: -198 }, // 中支·清溪（城东南侧）
+    { x: (z) => 226 + Math.sin(z * 0.024) * 14, joinZ: -174 }, // 东支·云川
+  ];
+
+  /** 到任意河道的平面距离（河谷切槽 / 植被避让 / 滩涂遮罩共用） */
+  function riverDist(x, z) {
+    let d = Math.abs(z - NORTH_RIVER(x));
+    for (const t of TRIBS) {
+      if (z > t.joinZ - 20) d = Math.min(d, Math.abs(x - t.x(z)));
+    }
+    return d;
+  }
 
   function terrainHeight(x, z) {
     const d = Math.max(Math.abs(x), Math.abs(z));
-    const out = smooth(d, 96, 150); // 城外权重
-    const far = smooth(d, 175, 320); // 远山权重
+    const out = smooth(d, 96, 150); // 城外权重：城内恒 0
+    if (out <= 0) return 0;
     let h = 0;
-    const hills =
-      Math.sin(x * 0.031 + 1.7) * Math.cos(z * 0.026) * 5.5 +
-      Math.sin(x * 0.012 - z * 0.017) * 9 +
-      Math.cos(z * 0.048) * 2.2;
-    h += out * (hills + 3.2);
-    h +=
-      far *
-      (16 + Math.sin(x * 0.008) * Math.cos(z * 0.009) * 26 + Math.sin(x * 0.023 + z * 0.019) * 9);
-    // 河谷切槽
-    const rd = Math.abs(z - RIVER_Z(x));
-    const rmask = (1 - smooth(rd, 7, 36)) * out;
-    h -= rmask * 14;
+
+    // ② 中央平原与台地：城建于台地（城内 0），四周冲积平原略低并带田块微起伏
+    const plain =
+      -1.2 + Math.sin(x * 0.05) * Math.cos(z * 0.043) * 1.1 + Math.sin(x * 0.013 - z * 0.017) * 1.4;
+    h += out * plain;
+
+    // ① 南岭主脉（+z 南缘）：分形山脊，越靠南越高；主脊走向沿 x 起伏
+    const southW = smooth(z, 150, 320) * out;
+    const ridge = 1 - Math.abs(Math.sin(x * 0.016 + 2.1) * 0.72 + Math.sin(x * 0.041 + z * 0.013) * 0.28);
+    h += southW * (14 + ridge * ridge * 26 + Math.sin(x * 0.05 + z * 0.037) * 3.2);
+
+    // ① 东山丘陵（+x 东缘）：中低丘；z≈-30 处按规格留「东关」垭口豁口
+    const eastW = smooth(x, 170, 320) * out * (1 - 0.75 * gauss((z + 30) / 55));
+    const ridgeE = 1 - Math.abs(Math.sin(z * 0.019 + 0.7) * 0.65 + Math.sin(x * 0.031 + z * 0.021) * 0.35);
+    h += eastW * (6 + ridgeE * ridgeE * 12 + Math.cos(x * 0.045) * 2.4);
+
+    // 西缘缓丘：衔接南岭与北部平原，高度克制（河湾阶地观感）
+    const westW = smooth(-x, 210, 360) * out;
+    h += westW * (4 + Math.sin(x * 0.024 - 1.2) * Math.cos(z * 0.02) * 5);
+
+    // ③ 河谷切槽：北江主槽（深 13）+ 支流槽（愈近汇入口愈深；槽口与水带起点对齐）
+    const rmask = 1 - smooth(riverDist(x, z), 8, 34);
+    h -= rmask * 13 * out;
+    for (const t of TRIBS) {
+      if (z < t.joinZ - 30) continue;
+      const tmask = 1 - smooth(Math.abs(x - t.x(z)), 4, 14);
+      if (tmask <= 0) continue;
+      const deep = 1 - smooth(z, t.joinZ, t.joinZ + 130); // 近汇入口更深
+      h -= tmask * (5 + 7 * deep) * out;
+    }
     return h;
   }
 
@@ -218,7 +267,12 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     const cGrassA = new THREE.Color(0x47632f);
     const cGrassB = new THREE.Color(0x577039);
     const cRock = new THREE.Color(0x6c665a);
+    const cRockHi = new THREE.Color(0x8c8578);
+    const cSnow = new THREE.Color(0xdfe6ea);
     const cMud = new THREE.Color(0x6d6247);
+    const cWet = new THREE.Color(0x4f5a38); // 滩湿地
+    const cFarmA = new THREE.Color(0x8a9448); // 平原草地农田·两种田块色
+    const cFarmB = new THREE.Color(0x6e7d3c);
     const tmpC = new THREE.Color();
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i);
@@ -227,8 +281,21 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       pos.setY(i, h);
       const noise = (Math.sin(x * 0.21) * Math.cos(z * 0.19) + 1) * 0.5;
       tmpC.copy(cGrassA).lerp(cGrassB, noise);
+      // ④ 植被遮罩：平原田块（16m 网格伪随机取色，只在离河较远的低地）
+      const field = Math.sin(Math.floor(x / 16) * 12.9898 + Math.floor(z / 16) * 78.233) * 43758.5453;
+      const fpatch = field - Math.floor(field);
+      if (h > -3 && h < 6 && riverDist(x, z) > 40) {
+        tmpC.lerp(fpatch > 0.5 ? cFarmA : cFarmB, 0.55 * (1 - smooth(h, 4, 8)));
+      }
+      // 滩湿地：河道两侧的低洼带
+      if (h < 0.6 && riverDist(x, z) < 46) {
+        tmpC.lerp(cWet, (1 - smooth(riverDist(x, z), 30, 46)) * smooth(-h + 0.6, 0, 2.5) * 0.8);
+      }
       if (h < -2) tmpC.lerp(cMud, smooth(-h, 2, 9));
-      if (h > 8) tmpC.lerp(cRock, smooth(h, 8, 26));
+      if (h > 8) tmpC.lerp(cRock, smooth(h, 8, 24));
+      if (h > 24) tmpC.lerp(cRockHi, smooth(h, 24, 34));
+      if (h > 34) tmpC.lerp(cRockHi, smooth(h, 34, 44));
+      if (h > 38) tmpC.lerp(cSnow, smooth(h, 38, 46)); // 南岭雪线（仅最高峰）
       colors[i * 3] = tmpC.r;
       colors[i * 3 + 1] = tmpC.g;
       colors[i * 3 + 2] = tmpC.b;
@@ -293,11 +360,45 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     }
   `,
   });
-  const water = new THREE.Mesh(new THREE.PlaneGeometry(760, 110, 60, 12), waterMat);
-  water.rotation.x = -Math.PI / 2;
-  water.position.set(0, -4.4, -132);
-  water.renderOrder = 1;
-  scene.add(water);
+  waterMat.side = THREE.DoubleSide; // 条带按河道走向生成，面朝向不固定
+
+  /** 沿河道中线铺水面条带（替代整块水平面：北江有江湾、支流走向各异）。
+   *  centerAt(t) 返回中线点 {x,z}；条带顶点沿切向法线左右展开，恒定高度 y。 */
+  function riverRibbon(centerAt, t0, t1, halfWidth, y, steps = 90) {
+    const posArr = [];
+    const idx = [];
+    for (let i = 0; i <= steps; i++) {
+      const t = t0 + ((t1 - t0) * i) / steps;
+      const c = centerAt(t);
+      const a = centerAt(Math.max(t0, t - 1));
+      const b = centerAt(Math.min(t1, t + 1));
+      let nx = -(b.z - a.z);
+      let nz = b.x - a.x;
+      const len = Math.hypot(nx, nz) || 1;
+      nx /= len;
+      nz /= len;
+      posArr.push(c.x - nx * halfWidth, y, c.z - nz * halfWidth);
+      posArr.push(c.x + nx * halfWidth, y, c.z + nz * halfWidth);
+      if (i < steps) {
+        const k = i * 2;
+        idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2);
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(posArr, 3));
+    geo.setIndex(idx);
+    geo.computeVertexNormals();
+    const mesh = new THREE.Mesh(geo, waterMat);
+    mesh.renderOrder = 1;
+    return mesh;
+  }
+
+  // 主河·北江（东西向，含江湾段；槽深 13，水面 -4.4 与原河一致）
+  scene.add(riverRibbon((t) => ({ x: t, z: NORTH_RIVER(t) }), -380, 380, 24, -4.4));
+  // 支流（南 → 北汇入北江；水面与主河同高避免汇口台阶，上游没入南岭山体）
+  for (const t of TRIBS) {
+    scene.add(riverRibbon((s) => ({ x: t.x(s), z: s }), t.joinZ - 22, 300, 9, -4.4, 60));
+  }
 
   /* ==========================================================================
    * 3. 天空 / 太阳 / 月亮 / 星空
@@ -928,8 +1029,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       const r = 105 + Math.pow(Math.random(), 0.7) * 210;
       const x = Math.cos(a) * r;
       const z = Math.sin(a) * r;
-      // 避开河谷
-      if (Math.abs(z - RIVER_Z(x)) < 26) continue;
+      // 避开全部河道（北江 + 三支流；南岭密林带照常覆盖）
+      if (riverDist(x, z) < 22) continue;
       const y = terrainHeight(x, z);
       if (y < -3) continue;
       const s = 0.6 + Math.random() * 0.9;
