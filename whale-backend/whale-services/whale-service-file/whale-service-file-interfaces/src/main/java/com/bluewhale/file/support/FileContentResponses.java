@@ -14,19 +14,26 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.io.SequenceInputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * 文件内容响应构建：统一下载、预览与内网内容接口的响应头，并实现 HTTP Range 语义。
  *
- * <p>仅支持单段字节区间（{@code bytes=start-end}、{@code bytes=start-}、{@code bytes=-suffix}）：
- * 无 Range 时返回 200 全量；区间可满足时返回 206 与 {@code Content-Range}；语法合法但越界时
- * 返回 416 与 {@code Content-Range: bytes *&#47;size}；多段或语法非法时按 RFC 9110 忽略 Range，
- * 回落 200 全量。所有响应均声明 {@code Accept-Ranges: bytes}，并以文件 MD5 生成强 {@code ETag}，
- * 同时支持 {@code If-Range} 协商：校验失败时不返回区间，避免区间与旧版本文件错配。</p>
+ * <p>支持单段与多段字节区间：无 Range 时返回 200 全量；单段可满足时返回 206 与
+ * {@code Content-Range}；多段可满足时返回 206 与 {@code multipart/byteranges}；语法合法但
+ * 全部越界时返回 416 与 {@code Content-Range: bytes *&#47;size}；多段中部分越界时丢弃越界段。
+ * 语法非法、段数超过上限或 {@code If-Range} 校验失败时按 RFC 9110 忽略 Range，回落 200 全量。
+ * 所有响应均声明 {@code Accept-Ranges: bytes}，并以文件 MD5 生成强 {@code ETag}。</p>
  *
  * @author BlueWhale
  */
@@ -55,6 +62,15 @@ public final class FileContentResponses {
 
     /** 越界响应 Content-Range 格式 */
     private static final String CONTENT_RANGE_REFUSED_FORMAT = "bytes */%d";
+
+    /** 多段 Range 的段数上限：超过后忽略 Range，避免单请求读取放大 */
+    private static final int MAX_RANGES = 8;
+
+    /** 多段响应换行符（RFC 9110 使用 CRLF） */
+    private static final String CRLF = "\r\n";
+
+    /** 多段响应边界前缀 */
+    private static final String BOUNDARY_PREFIX = "whale-";
 
     /** 可内联预览的文本类型白名单：其余 text/*（如 text/html、text/xml）可执行内联脚本，强制 attachment */
     private static final Set<String> PREVIEWABLE_TEXT_TYPES =
@@ -117,13 +133,22 @@ public final class FileContentResponses {
         long size = info.fileSize();
         String etag = buildEtag(info);
         HttpHeaders headers = baseHeaders(info, inline, etag);
-        RequestedRange range = resolveRange(rangeHeader, ifRangeHeader, etag, size);
-        if (range.refused()) {
+        RangeRequest request = resolveRanges(rangeHeader, ifRangeHeader, etag, size);
+        if (request.refused()) {
             headers.set(HttpHeaders.CONTENT_RANGE, String.format(CONTENT_RANGE_REFUSED_FORMAT, size));
             headers.setContentLength(0L);
             return new ResponseEntity<>(headers, HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE);
         }
-        if (range.satisfiable()) {
+        if (request.multiple()) {
+            String boundary = BOUNDARY_PREFIX + UUID.randomUUID().toString().replace("-", "");
+            MediaType mediaType = resolveMediaType(info.contentType());
+            headers.setContentType(new MediaType("multipart", "byteranges", Map.of("boundary", boundary)));
+            return new ResponseEntity<>(
+                    new InputStreamResource(multiPartStream(request.ranges(), size, boundary, mediaType, source)),
+                    headers, HttpStatus.PARTIAL_CONTENT);
+        }
+        if (request.satisfiable()) {
+            RequestedRange range = request.ranges().get(0);
             headers.setContentLength(range.length());
             headers.set(HttpHeaders.CONTENT_RANGE,
                     String.format(CONTENT_RANGE_FORMAT, range.start(), range.end(), size));
@@ -182,29 +207,64 @@ public final class FileContentResponses {
     }
 
     /**
-     * 解析 Range 请求头并结合 If-Range 判定生效区间。
+     * 解析 Range 请求头并结合 If-Range 判定生效区间集合。
      *
      * @param rangeHeader 请求的 {@code Range} 头
      * @param ifRangeHeader 请求的 {@code If-Range} 头
      * @param etag 当前文件 ETag
      * @param size 文件总字节数
-     * @return 区间解析结果
+     * @return 区间解析结果：未请求、越界拒绝或一组可满足区间
      */
-    private static RequestedRange resolveRange(String rangeHeader, String ifRangeHeader, String etag, long size) {
+    private static RangeRequest resolveRanges(String rangeHeader, String ifRangeHeader, String etag, long size) {
         if (!StringUtils.hasText(rangeHeader) || !ifRangeAllows(ifRangeHeader, etag)) {
-            return RequestedRange.absent();
+            return RangeRequest.absent();
         }
         String header = rangeHeader.trim();
         if (!header.toLowerCase(Locale.ROOT).startsWith(RANGE_UNIT_PREFIX)) {
-            return RequestedRange.absent();
+            return RangeRequest.absent();
         }
         String spec = header.substring(RANGE_UNIT_PREFIX.length()).trim();
-        if (spec.isEmpty() || spec.contains(",")) {
-            return RequestedRange.absent();
+        if (spec.isEmpty()) {
+            return RangeRequest.absent();
+        }
+        String[] parts = spec.split(",", -1);
+        if (parts.length > MAX_RANGES) {
+            return RangeRequest.absent();
+        }
+        List<RequestedRange> satisfiable = new ArrayList<>();
+        boolean anyRefused = false;
+        for (String part : parts) {
+            RequestedRange range = parseRange(part.trim(), size);
+            if (range == null) {
+                // 任一段语法非法时整体忽略 Range，与单段时代的回落策略保持一致
+                return RangeRequest.absent();
+            }
+            if (range.refused()) {
+                anyRefused = true;
+                continue;
+            }
+            satisfiable.add(range);
+        }
+        if (satisfiable.isEmpty()) {
+            return anyRefused ? RangeRequest.refusedAll() : RangeRequest.absent();
+        }
+        return RangeRequest.of(satisfiable);
+    }
+
+    /**
+     * 解析单个区间（{@code start-end}、{@code start-}、{@code -suffix}）。
+     *
+     * @param spec 区间文本
+     * @param size 文件总字节数
+     * @return 解析结果；语法非法时返回 {@code null}
+     */
+    private static RequestedRange parseRange(String spec, long size) {
+        if (spec.isEmpty()) {
+            return null;
         }
         int dash = spec.indexOf('-');
         if (dash < 0) {
-            return RequestedRange.absent();
+            return null;
         }
         String startText = spec.substring(0, dash).trim();
         String endText = spec.substring(dash + 1).trim();
@@ -214,7 +274,7 @@ public final class FileContentResponses {
             }
             long start = Long.parseLong(startText);
             if (start < 0) {
-                return RequestedRange.absent();
+                return null;
             }
             if (start >= size) {
                 return RequestedRange.unsatisfiable();
@@ -225,7 +285,7 @@ public final class FileContentResponses {
             }
             return RequestedRange.of(start, Math.min(end, size - 1));
         } catch (NumberFormatException e) {
-            return RequestedRange.absent();
+            return null;
         }
     }
 
@@ -234,22 +294,50 @@ public final class FileContentResponses {
      *
      * @param endText {@code -} 之后的文本
      * @param size 文件总字节数
-     * @return 区间解析结果
+     * @return 区间解析结果；语法非法时返回 {@code null}
      */
     private static RequestedRange resolveSuffixRange(String endText, long size) {
         if (endText.isEmpty()) {
-            return RequestedRange.absent();
+            return null;
         }
         long suffix;
         try {
             suffix = Long.parseLong(endText);
         } catch (NumberFormatException e) {
-            return RequestedRange.absent();
+            return null;
         }
         if (suffix <= 0 || size <= 0) {
             return RequestedRange.unsatisfiable();
         }
         return RequestedRange.of(Math.max(size - suffix, 0L), size - 1);
+    }
+
+    /**
+     * 拼接多段响应流：每段由边界行、分段头、区间内容与 CRLF 组成，末尾追加结束边界。
+     *
+     * @param ranges 可满足区间（保持请求顺序）
+     * @param size 文件总字节数
+     * @param boundary 分段边界
+     * @param mediaType 文件媒体类型
+     * @param source 内容流提供方
+     * @return 多段响应体流
+     */
+    private static InputStream multiPartStream(List<RequestedRange> ranges, long size, String boundary,
+                                               MediaType mediaType, ContentSource source) {
+        List<InputStream> parts = new ArrayList<>(ranges.size() * 2 + 1);
+        byte[] trailing = CRLF.getBytes(StandardCharsets.US_ASCII);
+        for (RequestedRange range : ranges) {
+            String partHeader = "--" + boundary + CRLF
+                    + "Content-Type: " + mediaType + CRLF
+                    + "Content-Range: " + String.format(CONTENT_RANGE_FORMAT, range.start(), range.end(), size)
+                    + CRLF + CRLF;
+            parts.add(new SequenceInputStream(
+                    new ByteArrayInputStream(partHeader.getBytes(StandardCharsets.US_ASCII)),
+                    source.openRange(range.start(), range.length())));
+            parts.add(new ByteArrayInputStream(trailing));
+        }
+        parts.add(new ByteArrayInputStream(("--" + boundary + "--" + CRLF).getBytes(StandardCharsets.US_ASCII)));
+        return new SequenceInputStream(Collections.enumeration(parts));
     }
 
     /**
@@ -334,7 +422,7 @@ public final class FileContentResponses {
     }
 
     /**
-     * 解析后的单段 Range 请求：区分未请求、越界拒绝与可满足三种状态。
+     * 解析后的单段区间：区分越界拒绝与可满足两种状态。
      *
      * @param satisfiable 是否为可满足区间
      * @param refused 是否为语法合法但越界的区间
@@ -343,15 +431,6 @@ public final class FileContentResponses {
      * @author BlueWhale
      */
     private record RequestedRange(boolean satisfiable, boolean refused, long start, long end) {
-
-        /**
-         * 未请求区间或应忽略 Range：返回 200 全量。
-         *
-         * @return 未请求状态
-         */
-        static RequestedRange absent() {
-            return new RequestedRange(false, false, 0L, 0L);
-        }
 
         /**
          * 区间越界：返回 416。
@@ -380,6 +459,62 @@ public final class FileContentResponses {
          */
         long length() {
             return end - start + 1;
+        }
+    }
+
+    /**
+     * 解析后的 Range 请求集合：未请求、越界拒绝或一组可满足区间。
+     *
+     * @param ranges 可满足区间（保持请求顺序）
+     * @param refused 是否全部越界
+     * @author BlueWhale
+     */
+    private record RangeRequest(List<RequestedRange> ranges, boolean refused) {
+
+        /**
+         * 未请求或应忽略 Range：返回 200 全量。
+         *
+         * @return 未请求状态
+         */
+        static RangeRequest absent() {
+            return new RangeRequest(List.of(), false);
+        }
+
+        /**
+         * 全部区间越界：返回 416。
+         *
+         * @return 越界状态
+         */
+        static RangeRequest refusedAll() {
+            return new RangeRequest(List.of(), true);
+        }
+
+        /**
+         * 一组可满足区间。
+         *
+         * @param ranges 可满足区间
+         * @return 区间集合状态
+         */
+        static RangeRequest of(List<RequestedRange> ranges) {
+            return new RangeRequest(List.copyOf(ranges), false);
+        }
+
+        /**
+         * 是否包含多个区间
+         *
+         * @return 多段时返回 {@code true}
+         */
+        boolean multiple() {
+            return ranges.size() > 1;
+        }
+
+        /**
+         * 是否恰有一个可满足区间
+         *
+         * @return 单段时返回 {@code true}
+         */
+        boolean satisfiable() {
+            return ranges.size() == 1;
         }
     }
 }

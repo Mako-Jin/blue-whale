@@ -27,6 +27,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 import org.springframework.web.accept.ApiVersionStrategy;
@@ -41,6 +42,7 @@ import java.util.List;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -419,6 +421,95 @@ class FileControllerTest {
 
         verify(fileInfoService, never()).openContent(FILE_ID, UPLOADER_ID, false);
         verify(fileInfoService, never()).openContent(anyLong(), anyLong(), anyBoolean(), anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("GET /file/v1/{id}/preview：多段 Range 返回 206 multipart/byteranges")
+    void previewWithMultipleRangesShouldReturnMultipart() throws Exception {
+        when(fileInfoService.getDetail(FILE_ID, UPLOADER_ID, false)).thenReturn(fileInfo("audio/mpeg"));
+        when(fileInfoService.openContent(FILE_ID, UPLOADER_ID, false, 0L, 2L))
+                .thenReturn(new ByteArrayInputStream("he".getBytes(StandardCharsets.UTF_8)));
+        when(fileInfoService.openContent(FILE_ID, UPLOADER_ID, false, 3L, 2L))
+                .thenReturn(new ByteArrayInputStream("lo".getBytes(StandardCharsets.UTF_8)));
+
+        MvcResult result = mockMvc.perform(get("/file/v1/{id}/preview", FILE_ID)
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID))
+                        .header(HttpHeaders.RANGE, "bytes=0-1,3-4"))
+                .andExpect(status().isPartialContent())
+                .andExpect(header().string(HttpHeaders.CONTENT_TYPE, containsString("multipart/byteranges")))
+                .andReturn();
+
+        String contentType = result.getResponse().getContentType();
+        String boundary = contentType.substring(contentType.indexOf("boundary=") + "boundary=".length());
+        String body = result.getResponse().getContentAsString();
+        assertTrue(body.contains("--" + boundary), body);
+        assertTrue(body.contains("Content-Range: bytes 0-1/5"), body);
+        assertTrue(body.contains("Content-Range: bytes 3-4/5"), body);
+        assertTrue(body.contains("he"), body);
+        assertTrue(body.contains("lo"), body);
+        assertTrue(body.endsWith("--" + boundary + "--\r\n"), body);
+    }
+
+    @Test
+    @DisplayName("GET /file/v1/{id}/preview：多段 Range 部分越界时只返回可满足段")
+    void previewWithPartiallyUnsatisfiableRangesShouldKeepSatisfiable() throws Exception {
+        when(fileInfoService.getDetail(FILE_ID, UPLOADER_ID, false)).thenReturn(fileInfo("audio/mpeg"));
+        when(fileInfoService.openContent(FILE_ID, UPLOADER_ID, false, 0L, 2L))
+                .thenReturn(new ByteArrayInputStream("he".getBytes(StandardCharsets.UTF_8)));
+
+        mockMvc.perform(get("/file/v1/{id}/preview", FILE_ID)
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID))
+                        .header(HttpHeaders.RANGE, "bytes=0-1,9-10"))
+                .andExpect(status().isPartialContent())
+                .andExpect(header().string(HttpHeaders.CONTENT_RANGE, "bytes 0-1/5"))
+                .andExpect(header().longValue(HttpHeaders.CONTENT_LENGTH, 2L));
+    }
+
+    @Test
+    @DisplayName("GET /file/v1/{id}/preview：多段 Range 全部越界返回 416")
+    void previewWithAllUnsatisfiableRangesShouldReturn416() throws Exception {
+        when(fileInfoService.getDetail(FILE_ID, UPLOADER_ID, false)).thenReturn(fileInfo("audio/mpeg"));
+
+        mockMvc.perform(get("/file/v1/{id}/preview", FILE_ID)
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID))
+                        .header(HttpHeaders.RANGE, "bytes=9-10,20-30"))
+                .andExpect(status().isRequestedRangeNotSatisfiable())
+                .andExpect(header().string(HttpHeaders.CONTENT_RANGE, "bytes */5"));
+
+        verify(fileInfoService, never()).openContent(anyLong(), anyLong(), anyBoolean(), anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("GET /file/v1/{id}/preview：超过 8 段 Range 回落 200 全量")
+    void previewWithTooManyRangesShouldReturnFullContent() throws Exception {
+        FileInfoResult info = new FileInfoResult(FILE_ID, "sample.mp3", "sample.mp3", "bluewhale",
+                "2026/10/19/sample.mp3", 5L, "audio/mpeg", MD5, UPLOADER_ID, null);
+        when(fileInfoService.getDetail(FILE_ID, UPLOADER_ID, false)).thenReturn(info);
+        when(fileInfoService.openContent(FILE_ID, UPLOADER_ID, false))
+                .thenReturn(new ByteArrayInputStream("hello".getBytes(StandardCharsets.UTF_8)));
+
+        mockMvc.perform(get("/file/v1/{id}/preview", FILE_ID)
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID))
+                        .header(HttpHeaders.RANGE, "bytes=0-0,0-0,0-0,0-0,0-0,0-0,0-0,0-0,0-0"))
+                .andExpect(status().isOk())
+                .andExpect(header().longValue(HttpHeaders.CONTENT_LENGTH, 5L));
+    }
+
+    @Test
+    @DisplayName("GET /file/v1/{id}/preview：多段 Range 与失效 If-Range 时回落 200 全量")
+    void previewWithMultipleRangesAndStaleIfRangeShouldReturnFullContent() throws Exception {
+        FileInfoResult info = new FileInfoResult(FILE_ID, "sample.mp3", "sample.mp3", "bluewhale",
+                "2026/10/19/sample.mp3", 5L, "audio/mpeg", MD5, UPLOADER_ID, null);
+        when(fileInfoService.getDetail(FILE_ID, UPLOADER_ID, false)).thenReturn(info);
+        when(fileInfoService.openContent(FILE_ID, UPLOADER_ID, false))
+                .thenReturn(new ByteArrayInputStream("hello".getBytes(StandardCharsets.UTF_8)));
+
+        mockMvc.perform(get("/file/v1/{id}/preview", FILE_ID)
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID))
+                        .header(HttpHeaders.RANGE, "bytes=0-1,3-4")
+                        .header(HttpHeaders.IF_RANGE, "\"stale\""))
+                .andExpect(status().isOk())
+                .andExpect(header().doesNotExist(HttpHeaders.CONTENT_RANGE));
     }
 
     @Test
