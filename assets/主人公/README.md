@@ -12,7 +12,7 @@ assets/主人公/
 ├── 原始素材/
 │   └── hero.zip             ← ★ 扫描件（106 MB OBJ 149.9 万面 + 4K PBR 四贴图，无法线）
 ├── 设定图/
-│   └── hero.png             ← 人设参考图（豆包 AI 生成）
+│   └── hero.png             ← 人设参考图（右下角"豆包AI生成"水印已擦除，2026-11-15）
 ├── model/
 │   ├── hero_game.glb        ← ★ 游戏用资产（8.7 MB，贴图内嵌 2048 JPEG）
 │   └── hero_diffuse_2k.jpg  ← 烘焙图集单独留份（改色/复用）
