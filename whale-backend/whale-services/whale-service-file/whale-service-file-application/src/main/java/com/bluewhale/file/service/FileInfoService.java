@@ -69,6 +69,21 @@ public interface FileInfoService {
     List<FileVersionResult> versions(Long id, Long requesterId, boolean canManage);
 
     /**
+     * 回滚到指定历史版本：把目标版本内容复制为新版本（版本号取组内最大值 + 1）
+     *
+     * <p>回滚不修改、不删除既有版本；复制产生独立物理对象并按目标版本字节数计入配额。
+     * 目标版本必须属于该版本组且未逻辑删除，根版本（{@code version = 1}）可回滚。</p>
+     *
+     * @param id 文件ID（根文件或任一版本行）
+     * @param targetVersion 目标版本号
+     * @param requesterId 调用者用户 ID（同时作为新版本上传者）
+     * @param canManage 是否持有文件管理权限
+     * @param limits 生效的上传上限与配额
+     * @return 回滚生成的新版本结果
+     */
+    FileVersionResult rollback(Long id, int targetVersion, Long requesterId, boolean canManage, UploadLimits limits);
+
+    /**
      * 秒传（哈希去重）：按 MD5 + 大小匹配已有物理对象，命中时仅登记新元数据、不复制物理对象
      *
      * @param command 秒传命令（文件名、MD5、大小、MIME、上传人、生效上限）

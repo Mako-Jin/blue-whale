@@ -1549,6 +1549,100 @@ class FileInfoServiceImplTest {
         assertEquals(NOT_FOUND_CODE, notFound.getCode());
     }
 
+    @Test
+    @DisplayName("rollback：复制目标版本内容到根文件桶并登记组内最大版本号 + 1")
+    void shouldRollbackToTargetVersion() {
+        FileAssetAggregate root = fileWithVersion(1L, null, 1, FileStatus.NORMAL);
+        FileAssetAggregate source = FileAssetAggregate.reconstitute(3L, "b.pdf", "报告-v2.pdf", "archive",
+                "tenants/1/2026/10/20/b.pdf", 30L, "application/pdf", "AABB", FileStatus.NORMAL, 7L, false,
+                LocalDateTime.of(2026, 10, 20, 9, 0), LocalDateTime.of(2026, 10, 20, 9, 0), "minio", 1L, 2);
+        when(fileAssetRepository.findById(1L)).thenReturn(Optional.of(root));
+        when(fileAssetRepository.findVersions(1L)).thenReturn(List.of(source, root));
+        when(fileAssetRepository.findLatestVersion(1L)).thenReturn(Optional.of(source));
+        when(fileStorage.load("archive", "tenants/1/2026/10/20/b.pdf", "minio"))
+                .thenReturn(new ByteArrayInputStream("v2-body".getBytes(StandardCharsets.UTF_8)));
+
+        FileVersionResult result = fileInfoService.rollback(1L, 2, UPLOADER_ID, false, null);
+
+        assertEquals(1L, result.parentId());
+        assertEquals(3, result.version());
+        assertEquals("报告-v2.pdf", result.originalName());
+        assertEquals(Long.valueOf(30L), result.fileSize());
+        assertEquals("aabb", result.md5());
+        assertEquals("bluewhale", result.bucket());
+        verify(fileStorage).store(eq("bluewhale"), eq(result.objectKey()), any(InputStream.class));
+        ArgumentCaptor<FileAssetAggregate> captor = ArgumentCaptor.forClass(FileAssetAggregate.class);
+        verify(fileAssetRepository).saveWithQuotaCheck(captor.capture(), any(StorageQuota.class));
+        assertEquals(3, captor.getValue().getVersion());
+        assertEquals(30L, captor.getValue().getFileSize());
+        assertEquals("报告-v2.pdf", captor.getValue().getOriginalName());
+    }
+
+    @Test
+    @DisplayName("rollback：目标版本不存在时返回 NOT_FOUND 且不触达存储")
+    void shouldRejectRollbackToMissingVersion() {
+        FileAssetAggregate root = fileWithVersion(1L, null, 1, FileStatus.NORMAL);
+        when(fileAssetRepository.findById(1L)).thenReturn(Optional.of(root));
+        when(fileAssetRepository.findVersions(1L)).thenReturn(List.of(root));
+
+        BizException ex = assertThrows(BizException.class,
+                () -> fileInfoService.rollback(1L, 9, UPLOADER_ID, false, null));
+
+        assertEquals(NOT_FOUND_CODE, ex.getCode());
+        verify(fileStorage, never()).load(anyString(), anyString(), anyString());
+        verify(fileStorage, never()).store(anyString(), anyString(), any(InputStream.class));
+    }
+
+    @Test
+    @DisplayName("rollback：归档锁定文件拒绝回滚")
+    void shouldRejectRollbackForLockedRoot() {
+        when(fileAssetRepository.findById(7L))
+                .thenReturn(Optional.of(fileWithVersion(7L, null, 1, FileStatus.LOCKED)));
+
+        BizException ex = assertThrows(BizException.class,
+                () -> fileInfoService.rollback(7L, 1, UPLOADER_ID, false, null));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        verify(fileAssetRepository, never()).findVersions(anyLong());
+        verify(fileStorage, never()).store(anyString(), anyString(), any(InputStream.class));
+    }
+
+    @Test
+    @DisplayName("rollback：配额不足时拒绝且不读取或写入存储")
+    void shouldRejectRollbackWhenQuotaExceeded() {
+        FileAssetAggregate root = fileWithVersion(1L, null, 1, FileStatus.NORMAL);
+        FileAssetAggregate source = fileWithVersion(2L, 1L, 2, FileStatus.NORMAL);
+        when(fileAssetRepository.findById(1L)).thenReturn(Optional.of(root));
+        when(fileAssetRepository.findVersions(1L)).thenReturn(List.of(source, root));
+        when(fileAssetRepository.sumNormalSizeByUploader(UPLOADER_ID)).thenReturn(100L);
+
+        BizException ex = assertThrows(BizException.class, () -> fileInfoService.rollback(1L, 2, UPLOADER_ID, false,
+                new UploadLimits(1024L, 100L)));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        verify(fileStorage, never()).load(anyString(), anyString(), anyString());
+        verify(fileStorage, never()).store(anyString(), anyString(), any(InputStream.class));
+    }
+
+    @Test
+    @DisplayName("rollback：新版本落库失败时补偿删除已复制对象")
+    void shouldCompensateWhenRollbackPersistFails() {
+        FileAssetAggregate root = fileWithVersion(1L, null, 1, FileStatus.NORMAL);
+        FileAssetAggregate source = fileWithVersion(2L, 1L, 2, FileStatus.NORMAL);
+        when(fileAssetRepository.findById(1L)).thenReturn(Optional.of(root));
+        when(fileAssetRepository.findVersions(1L)).thenReturn(List.of(source, root));
+        when(fileAssetRepository.findLatestVersion(1L)).thenReturn(Optional.of(source));
+        when(fileStorage.load(anyString(), anyString(), any())).thenReturn(
+                new ByteArrayInputStream("v2-body".getBytes(StandardCharsets.UTF_8)));
+        when(fileAssetRepository.saveWithQuotaCheck(any(FileAssetAggregate.class), any(StorageQuota.class)))
+                .thenThrow(new BizException(ErrorCode.SYSTEM_ERROR));
+
+        assertThrows(BizException.class,
+                () -> fileInfoService.rollback(1L, 2, UPLOADER_ID, false, null));
+
+        verify(fileStorage).delete(eq("bluewhale"), anyString());
+    }
+
     /**
      * 判断分片暂存会话是否仍存在
      *

@@ -48,4 +48,20 @@ public interface FileVersionApi {
     Result<FileVersionResponse> upload(@PathVariable Long id,
                                        @RequestParam("file") MultipartFile file,
                                        HttpServletRequest httpRequest);
+
+    /**
+     * 回滚到指定历史版本：把目标版本内容复制为新版本（版本号取组内最大值 + 1）。
+     *
+     * <p>回滚不修改、不删除既有版本；复制产生独立物理对象并按目标版本字节数计入配额。
+     * 不新增权限码，复用上传权限 {@code sys:file:upload}。</p>
+     *
+     * @param id 文件ID（根文件或任一版本行）
+     * @param targetVersion 目标版本号
+     * @param httpRequest 当前请求（用于读取调用者、权限码与生效上传上限）
+     * @return 回滚生成的新版本元数据
+     */
+    @PostMapping("/{targetVersion}/rollback")
+    Result<FileVersionResponse> rollback(@PathVariable Long id,
+                                         @PathVariable int targetVersion,
+                                         HttpServletRequest httpRequest);
 }

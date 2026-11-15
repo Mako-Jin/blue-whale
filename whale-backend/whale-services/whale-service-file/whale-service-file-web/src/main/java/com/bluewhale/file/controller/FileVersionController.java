@@ -63,6 +63,15 @@ public class FileVersionController implements FileVersionApi {
                 UserContext.requireUserId(httpRequest), canManage(httpRequest), uploadLimits(httpRequest))));
     }
 
+    @Override
+    @RequirePermission("sys:file:upload")
+    public Result<FileVersionResponse> rollback(@PathVariable Long id,
+                                                @PathVariable int targetVersion,
+                                                HttpServletRequest httpRequest) {
+        return Result.ok(fileAssembler.toVersionResponse(fileInfoService.rollback(id, targetVersion,
+                UserContext.requireUserId(httpRequest), canManage(httpRequest), uploadLimits(httpRequest))));
+    }
+
     /**
      * 解析当前请求生效的上传上限与配额
      *

@@ -40,6 +40,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -140,12 +141,33 @@ class FileVersionControllerTest {
     }
 
     @Test
-    @DisplayName("GET 要求 sys:file:list，POST 要求 sys:file:upload 权限码")
+    @DisplayName("POST /file/v1/{id}/versions/{targetVersion}/rollback：回滚并返回新版本")
+    void shouldRollbackVersion() throws Exception {
+        when(fileInfoService.rollback(eq(ROOT_ID), eq(1), eq(UPLOADER_ID), eq(false),
+                any(UploadLimits.class))).thenReturn(version(VERSION_ID, ROOT_ID, 4));
+
+        mockMvc.perform(post("/file/v1/{id}/versions/{targetVersion}/rollback", ROOT_ID, 1)
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()))
+                .andExpect(jsonPath("$.data.id").value(VERSION_ID))
+                .andExpect(jsonPath("$.data.parentId").value(ROOT_ID))
+                .andExpect(jsonPath("$.data.version").value(4));
+
+        verify(fileInfoService).rollback(eq(ROOT_ID), eq(1), eq(UPLOADER_ID), eq(false),
+                any(UploadLimits.class));
+    }
+
+    @Test
+    @DisplayName("GET 要求 sys:file:list，POST 与回滚要求 sys:file:upload 权限码")
     void shouldRequirePermissions() throws Exception {
         assertPermission("list", "sys:file:list",
                 FileVersionController.class.getMethod("list", Long.class, HttpServletRequest.class));
         assertPermission("upload", "sys:file:upload",
                 FileVersionController.class.getMethod("upload", Long.class, MultipartFile.class,
+                        HttpServletRequest.class));
+        assertPermission("rollback", "sys:file:upload",
+                FileVersionController.class.getMethod("rollback", Long.class, int.class,
                         HttpServletRequest.class));
     }
 

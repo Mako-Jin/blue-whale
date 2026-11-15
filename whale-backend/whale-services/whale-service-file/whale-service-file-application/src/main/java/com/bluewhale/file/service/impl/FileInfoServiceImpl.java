@@ -207,6 +207,49 @@ public class FileInfoServiceImpl implements FileInfoService {
     }
 
     @Override
+    public FileVersionResult rollback(Long id, int targetVersion, Long requesterId, boolean canManage,
+                                      UploadLimits limits) {
+        if (targetVersion < 1) {
+            throw new BizException(ErrorCode.PARAM_ERROR);
+        }
+        UploadLimits effective = effectiveLimits(limits);
+        FileAssetAggregate root = resolveVersionRoot(id, requesterId, canManage);
+        root.assertVersionUploadable();
+        FileAssetAggregate source = fileAssetRepository.findVersions(root.getId()).stream()
+                .filter(version -> version.getVersion() == targetVersion)
+                .findFirst()
+                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
+        // 复制会新增一份独立物理对象，按目标版本字节数计入配额
+        validateQuota(source.getFileSize(), requesterId, root.getBucket(), effective.quotaBytes());
+        int nextVersion = fileAssetRepository.findLatestVersion(root.getId())
+                .map(latest -> latest.getVersion() + 1)
+                .orElse(root.getVersion() + 1);
+        String objectKey = buildObjectKey(source.getOriginalName());
+        long startedAt = System.nanoTime();
+        try {
+            try (InputStream in = fileStorage.load(source.getBucket(), source.getObjectKey(),
+                    source.getStorageType())) {
+                fileStorage.store(root.getBucket(), objectKey, in);
+            }
+            FileAssetAggregate version = FileAssetAggregate.registerVersion(root, nextVersion, objectKey,
+                    source.getOriginalName(), source.getFileSize(), source.getContentType(), source.getMd5(),
+                    requesterId, storagePluginCatalog.activeType());
+            FileVersionResult result = toVersionResult(persistAsset(version, effective));
+            fileMetrics.recordUpload("rollback", source.getFileSize(), System.nanoTime() - startedAt, "success");
+            return result;
+        } catch (IOException e) {
+            // 读取或关闭源对象失败：清理可能已写入的新对象后按系统错误返回
+            deleteStoredQuietly(root.getBucket(), objectKey);
+            fileMetrics.recordUpload("rollback", source.getFileSize(), System.nanoTime() - startedAt, "failure");
+            throw new BizException(ErrorCode.SYSTEM_ERROR);
+        } catch (RuntimeException e) {
+            deleteStoredQuietly(root.getBucket(), objectKey);
+            fileMetrics.recordUpload("rollback", source.getFileSize(), System.nanoTime() - startedAt, "failure");
+            throw e;
+        }
+    }
+
+    @Override
     public FileRapidUploadResult rapidUpload(RapidUploadCommand command) {
         UploadLimits effective = effectiveLimits(command.limits());
         validateDeclaredSize(command.size(), effective);
