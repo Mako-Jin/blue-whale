@@ -11,14 +11,22 @@ import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -174,5 +182,108 @@ class StoragePluginRegistryTest {
         assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), ex.getCode());
         assertTrue(ex.getMessage().contains("oss"));
         assertTrue(ex.getMessage().contains("local"));
+    }
+
+    /**
+     * 构造启用落盘加密的文件配置。
+     *
+     * @return 文件配置
+     */
+    private static FileProperties encryptedProperties() {
+        FileProperties properties = properties("local");
+        properties.getStorage().getEncryption().setEnabled(true);
+        properties.getStorage().getEncryption()
+                .setKey(Base64.getEncoder().encodeToString(new byte[16]));
+        return properties;
+    }
+
+    /**
+     * 通过注册表写入内容并截获插件实际收到的密文。
+     *
+     * @param local 本地插件桩
+     * @param registry 注册表
+     * @param plain 原始内容
+     * @return 插件收到的密文字节
+     */
+    private static byte[] storeAndCapture(StoragePlugin local, StoragePluginRegistry registry, byte[] plain) {
+        AtomicReference<byte[]> captured = new AtomicReference<>();
+        doAnswer(invocation -> {
+            captured.set(((InputStream) invocation.getArgument(2)).readAllBytes());
+            return null;
+        }).when(local).store(eq("b"), eq("k"), any(InputStream.class));
+        registry.store("b", "k", new ByteArrayInputStream(plain));
+        return captured.get();
+    }
+
+    @Test
+    @DisplayName("启用加密：写入带魔数与随机 nonce，完整读取可解密还原")
+    void shouldEncryptAndDecryptRoundTrip() throws Exception {
+        StoragePlugin local = plugin("local", false);
+        StoragePluginRegistry registry = new StoragePluginRegistry(List.of(local), encryptedProperties());
+        byte[] plain = "hello".getBytes(StandardCharsets.US_ASCII);
+
+        byte[] cipherText = storeAndCapture(local, registry, plain);
+
+        assertTrue(cipherText.length > plain.length);
+        assertEquals("WHALEENC",
+                new String(Arrays.copyOf(cipherText, 8), StandardCharsets.US_ASCII));
+        when(local.load("b", "k")).thenReturn(new ByteArrayInputStream(cipherText));
+        try (InputStream in = registry.load("b", "k", "local")) {
+            assertArrayEquals(plain, in.readAllBytes());
+        }
+    }
+
+    @Test
+    @DisplayName("启用加密：Range 从头解密后按偏移与长度截取")
+    void shouldDecryptRange() throws Exception {
+        StoragePlugin local = plugin("local", false);
+        StoragePluginRegistry registry = new StoragePluginRegistry(List.of(local), encryptedProperties());
+        byte[] cipherText = storeAndCapture(local, registry,
+                "hello".getBytes(StandardCharsets.US_ASCII));
+        when(local.load("b", "k", 0L, 20L))
+                .thenReturn(new ByteArrayInputStream(Arrays.copyOf(cipherText, 20)));
+        when(local.load("b", "k")).thenReturn(new ByteArrayInputStream(cipherText));
+
+        try (InputStream in = registry.load("b", "k", 2L, 3L, "local")) {
+            assertEquals("llo", new String(in.readAllBytes(), StandardCharsets.US_ASCII));
+        }
+    }
+
+    @Test
+    @DisplayName("启用加密：存量明文对象仍可按全量与区间读取")
+    void shouldReadLegacyPlainObjectWhenEncryptionEnabled() throws Exception {
+        StoragePlugin local = plugin("local", false);
+        StoragePluginRegistry registry = new StoragePluginRegistry(List.of(local), encryptedProperties());
+        when(local.load("b", "k")).thenReturn(
+                new ByteArrayInputStream("hello".getBytes(StandardCharsets.US_ASCII)));
+        when(local.load("b", "k", 0L, 20L)).thenReturn(
+                new ByteArrayInputStream("hello".getBytes(StandardCharsets.US_ASCII)));
+        when(local.load("b", "k", 1L, 2L)).thenReturn(
+                new ByteArrayInputStream("el".getBytes(StandardCharsets.US_ASCII)));
+
+        try (InputStream in = registry.load("b", "k", "local")) {
+            assertEquals("hello", new String(in.readAllBytes(), StandardCharsets.US_ASCII));
+        }
+        try (InputStream in = registry.load("b", "k", 1L, 2L, "local")) {
+            assertEquals("el", new String(in.readAllBytes(), StandardCharsets.US_ASCII));
+        }
+    }
+
+    @Test
+    @DisplayName("启用加密但密钥缺失或非法时启动失败")
+    void shouldRejectInvalidEncryptionKey() {
+        StoragePlugin local = plugin("local", false);
+
+        FileProperties missing = properties("local");
+        missing.getStorage().getEncryption().setEnabled(true);
+        BizException missingKey = assertThrows(BizException.class,
+                () -> new StoragePluginRegistry(List.of(local), missing));
+        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), missingKey.getCode());
+
+        FileProperties invalid = encryptedProperties();
+        invalid.getStorage().getEncryption().setKey("not-base64");
+        BizException invalidKey = assertThrows(BizException.class,
+                () -> new StoragePluginRegistry(List.of(local), invalid));
+        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), invalidKey.getCode());
     }
 }

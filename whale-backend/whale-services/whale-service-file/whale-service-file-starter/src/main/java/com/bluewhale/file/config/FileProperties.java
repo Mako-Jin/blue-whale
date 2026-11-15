@@ -176,6 +176,28 @@ public class FileProperties {
          * <b>修改默认值时必须两处同步</b>。</p>
          */
         private String root = "./data/whale-file";
+
+        /** 落盘加密配置 */
+        private Encryption encryption = new Encryption();
+    }
+
+    /**
+     * 落盘加密配置项（前缀 {@code whale.file.storage.encryption}）。
+     *
+     * <p>启用后新写入对象使用 AES-GCM 加密，读取时按对象头魔数自动识别并解密；
+     * 存量明文对象不受影响。密钥必须是 Base64 编码的 16/24/32 字节，启用时缺失或非法
+     * 会导致启动失败。</p>
+     *
+     * @author BlueWhale
+     */
+    @Data
+    public static class Encryption {
+
+        /** 是否启用落盘加密；默认关闭 */
+        private boolean enabled = false;
+
+        /** Base64 编码的 AES 密钥（16/24/32 字节）；启用加密时必填 */
+        private String key = "";
     }
 
     /**
