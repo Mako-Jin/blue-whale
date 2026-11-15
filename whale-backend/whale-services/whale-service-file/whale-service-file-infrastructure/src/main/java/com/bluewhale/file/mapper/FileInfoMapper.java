@@ -92,6 +92,47 @@ public interface FileInfoMapper extends BaseMapper<FileInfoPo> {
     List<FileInfoPo> selectVersions(@Param("rootId") Long rootId);
 
     /**
+     * 查询版本组内已逻辑删除的版本行（不含根文件）。
+     *
+     * @param rootId 版本组根文件ID
+     * @return 已删除版本记录（按版本号、ID 倒序）
+     */
+    @Select("SELECT id, file_name, original_name, bucket, storage_type, object_key, file_size, content_type, md5, "
+            + "status, uploader_id, parent_id, version, create_time, update_time, deleted, delete_time FROM file_info "
+            + "WHERE deleted = 1 AND parent_id = #{rootId} ORDER BY version DESC, id DESC")
+    List<FileInfoPo> selectDeletedVersions(@Param("rootId") Long rootId);
+
+    /**
+     * 统计版本组内待恢复（已逻辑删除）的字节数合计。
+     *
+     * @param rootId 版本组根文件ID
+     * @return 待恢复字节数；无记录时返回 0
+     */
+    @Select("SELECT COALESCE(SUM(file_size), 0) FROM file_info "
+            + "WHERE deleted = 1 AND (id = #{rootId} OR parent_id = #{rootId})")
+    long sumDeletedSizeOfGroup(@Param("rootId") Long rootId);
+
+    /**
+     * 级联逻辑删除版本组的全部版本行。
+     *
+     * @param rootId 版本组根文件ID
+     * @return 受影响行数
+     */
+    @Update("UPDATE file_info SET deleted = 1, delete_time = NOW(), update_time = NOW() "
+            + "WHERE parent_id = #{rootId} AND deleted = 0")
+    int markDeletedByRootId(@Param("rootId") Long rootId);
+
+    /**
+     * 级联恢复版本组的全部版本行。
+     *
+     * @param rootId 版本组根文件ID
+     * @return 受影响行数
+     */
+    @Update("UPDATE file_info SET deleted = 0, delete_time = NULL, update_time = NOW() "
+            + "WHERE parent_id = #{rootId} AND deleted = 1")
+    int restoreVersionsByRootId(@Param("rootId") Long rootId);
+
+    /**
      * 分页查询回收站文件（含逻辑删除行，仅 {@code deleted = 1}）。
      *
      * @param originalName 原始文件名模糊条件，可为 {@code null}
@@ -102,7 +143,8 @@ public interface FileInfoMapper extends BaseMapper<FileInfoPo> {
      * @return 回收站记录（按删除时间、ID 倒序）
      */
     @Select("<script>SELECT id, file_name, original_name, bucket, storage_type, object_key, file_size, content_type, md5, "
-            + "status, uploader_id, parent_id, version, create_time, update_time, deleted, delete_time FROM file_info WHERE deleted = 1 "
+            + "status, uploader_id, parent_id, version, create_time, update_time, deleted, delete_time FROM file_info "
+            + "WHERE deleted = 1 AND parent_id IS NULL "
             + "<if test='originalName != null and originalName != \"\"'>"
             + "AND original_name LIKE CONCAT('%', #{originalName}, '%') </if>"
             + "<if test='bucket != null and bucket != \"\"'>AND bucket = #{bucket} </if>"
@@ -122,7 +164,7 @@ public interface FileInfoMapper extends BaseMapper<FileInfoPo> {
      * @param uploaderId 上传人ID等值条件，可为 {@code null}
      * @return 条数
      */
-    @Select("<script>SELECT COUNT(*) FROM file_info WHERE deleted = 1 "
+    @Select("<script>SELECT COUNT(*) FROM file_info WHERE deleted = 1 AND parent_id IS NULL "
             + "<if test='originalName != null and originalName != \"\"'>"
             + "AND original_name LIKE CONCAT('%', #{originalName}, '%') </if>"
             + "<if test='bucket != null and bucket != \"\"'>AND bucket = #{bucket} </if>"

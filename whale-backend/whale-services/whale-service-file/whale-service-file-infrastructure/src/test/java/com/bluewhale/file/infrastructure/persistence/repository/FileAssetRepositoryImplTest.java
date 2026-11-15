@@ -341,11 +341,13 @@ class FileAssetRepositoryImplTest {
     }
 
     @Test
-    @DisplayName("deleteById：走自定义逻辑删除以记录删除时间")
+    @DisplayName("deleteById：逻辑删除目标行并级联删除版本行")
     void shouldDeleteById() {
         repository.deleteById(7L);
 
-        verify(fileInfoMapper).markDeletedById(7L);
+        InOrder order = inOrder(fileInfoMapper);
+        order.verify(fileInfoMapper).markDeletedById(7L);
+        order.verify(fileInfoMapper).markDeletedByRootId(7L);
     }
 
     @Test
@@ -410,10 +412,11 @@ class FileAssetRepositoryImplTest {
     }
 
     @Test
-    @DisplayName("restoreWithQuotaCheck：配额内恢复，锁内统计后清除删除标记并释放锁")
+    @DisplayName("restoreWithQuotaCheck：配额内恢复，按组内待恢复字节统计并恢复版本")
     void shouldRestoreWithinQuota() {
         when(fileInfoMapper.selectByIdIncludingDeleted(1L)).thenReturn(po(1L, 1));
         when(fileInfoMapper.acquireNamedLock("whale:file:quota:9", 5)).thenReturn(1);
+        when(fileInfoMapper.sumDeletedSizeOfGroup(1L)).thenReturn(120L);
         when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfoPo>>any()))
                 .thenReturn(List.<Object>of(100L));
         when(fileInfoMapper.restoreById(1L)).thenReturn(1);
@@ -421,6 +424,7 @@ class FileAssetRepositoryImplTest {
         assertTrue(repository.restoreWithQuotaCheck(1L, userQuota(1000L)));
 
         verify(fileInfoMapper).restoreById(1L);
+        verify(fileInfoMapper).restoreVersionsByRootId(1L);
         verify(fileInfoMapper).releaseNamedLock("whale:file:quota:9");
     }
 
@@ -429,6 +433,7 @@ class FileAssetRepositoryImplTest {
     void shouldRejectRestoreExceedingQuota() {
         when(fileInfoMapper.selectByIdIncludingDeleted(1L)).thenReturn(po(1L, 1));
         when(fileInfoMapper.acquireNamedLock("whale:file:quota:9", 5)).thenReturn(1);
+        when(fileInfoMapper.sumDeletedSizeOfGroup(1L)).thenReturn(999L);
         when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfoPo>>any()))
                 .thenReturn(List.<Object>of(999L));
 
@@ -436,7 +441,24 @@ class FileAssetRepositoryImplTest {
 
         assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
         verify(fileInfoMapper, never()).restoreById(anyLong());
+        verify(fileInfoMapper, never()).restoreVersionsByRootId(anyLong());
         verify(fileInfoMapper).releaseNamedLock("whale:file:quota:9");
+    }
+
+    @Test
+    @DisplayName("findDeletedVersions：映射已删除版本归属")
+    void shouldFindDeletedVersions() {
+        FileInfoPo version = po(3L, 1);
+        version.setParentId(1L);
+        version.setVersion(3);
+        when(fileInfoMapper.selectDeletedVersions(1L)).thenReturn(List.of(version));
+
+        List<FileAssetAggregate> versions = repository.findDeletedVersions(1L);
+
+        assertEquals(1, versions.size());
+        assertEquals(1L, versions.get(0).getParentId());
+        assertEquals(3, versions.get(0).getVersion());
+        assertTrue(versions.get(0).isDeleted());
     }
 
     @Test

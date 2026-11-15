@@ -1077,6 +1077,101 @@ class FileInfoServiceImplTest {
     }
 
     @Test
+    @DisplayName("delete：根文件级联删除版本，组内锁定版本导致整体拒绝")
+    void shouldCascadeDeleteVersions() {
+        FileAssetAggregate root = fileWithVersion(7L, null, 1, FileStatus.NORMAL);
+        FileAssetAggregate version2 = fileWithVersion(8L, 7L, 2, FileStatus.NORMAL);
+        FileAssetAggregate lockedVersion = fileWithVersion(9L, 7L, 3, FileStatus.LOCKED);
+        when(fileAssetRepository.findById(7L)).thenReturn(Optional.of(root));
+        when(fileAssetRepository.findVersions(7L)).thenReturn(List.of(lockedVersion, version2, root));
+
+        BizException ex = assertThrows(BizException.class, () -> fileInfoService.delete(7L, UPLOADER_ID, false));
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        verify(fileAssetRepository, never()).deleteById(anyLong());
+
+        when(fileAssetRepository.findVersions(7L)).thenReturn(List.of(version2, root));
+        TenantContext.set(1L);
+        try {
+            fileInfoService.delete(7L, UPLOADER_ID, false);
+        } finally {
+            TenantContext.clear();
+        }
+
+        verify(fileAssetRepository).deleteById(7L);
+        assertEquals(2, publishedEvents.size());
+        assertEquals(7L, ((FileAssetDomainEvent) publishedEvents.get(0)).fileId());
+        assertEquals(8L, ((FileAssetDomainEvent) publishedEvents.get(1)).fileId());
+    }
+
+    @Test
+    @DisplayName("delete：删除版本行只影响该版本，不查询版本组")
+    void shouldDeleteSingleVersion() {
+        FileAssetAggregate version = fileWithVersion(8L, 7L, 2, FileStatus.NORMAL);
+        when(fileAssetRepository.findById(8L)).thenReturn(Optional.of(version));
+        TenantContext.set(1L);
+        try {
+            fileInfoService.delete(8L, UPLOADER_ID, false);
+        } finally {
+            TenantContext.clear();
+        }
+
+        verify(fileAssetRepository, never()).findVersions(anyLong());
+        verify(fileAssetRepository).deleteById(8L);
+        assertEquals(1, publishedEvents.size());
+        assertEquals(8L, ((FileAssetDomainEvent) publishedEvents.get(0)).fileId());
+    }
+
+    @Test
+    @DisplayName("restore：根文件恢复同时恢复组内已删除版本并逐个发布事件")
+    void shouldRestoreRootWithVersions() {
+        FileAssetAggregate deletedRoot = FileAssetAggregate.reconstitute(7L, "a.txt", "a.txt", "bluewhale",
+                "tenants/1/2026/10/25/a.txt", 12L, "text/plain", null, FileStatus.NORMAL, UPLOADER_ID, true,
+                LocalDateTime.now(), LocalDateTime.now(), "local", null, 1);
+        FileAssetAggregate deletedVersion = FileAssetAggregate.reconstitute(8L, "a.txt", "a.txt", "bluewhale",
+                "tenants/1/2026/10/25/b.txt", 13L, "text/plain", null, FileStatus.NORMAL, UPLOADER_ID, true,
+                LocalDateTime.now(), LocalDateTime.now(), "local", 7L, 2);
+        when(fileAssetRepository.findByIdIncludingDeleted(7L)).thenReturn(Optional.of(deletedRoot));
+        when(fileAssetRepository.findDeletedVersions(7L)).thenReturn(List.of(deletedVersion));
+        when(fileAssetRepository.restoreWithQuotaCheck(eq(7L), any(StorageQuota.class))).thenReturn(true);
+        TenantContext.set(1L);
+        try {
+            fileInfoService.restore(7L, UPLOADER_ID, false, new UploadLimits(100L, 5000L));
+        } finally {
+            TenantContext.clear();
+        }
+
+        verify(fileAssetRepository).restoreWithQuotaCheck(eq(7L), any(StorageQuota.class));
+        assertEquals(2, publishedEvents.size());
+        assertEquals(7L, ((FileAssetDomainEvent) publishedEvents.get(0)).fileId());
+        assertEquals(8L, ((FileAssetDomainEvent) publishedEvents.get(1)).fileId());
+        assertEquals(FileAssetDomainEvent.ChangeType.RESTORED,
+                ((FileAssetDomainEvent) publishedEvents.get(1)).changeType());
+    }
+
+    @Test
+    @DisplayName("restore：根文件正常时仅恢复传入的版本行")
+    void shouldRestoreSingleVersionWhenRootAlive() {
+        FileAssetAggregate root = fileWithVersion(7L, null, 1, FileStatus.NORMAL);
+        FileAssetAggregate deletedVersion = FileAssetAggregate.reconstitute(8L, "a.txt", "a.txt", "bluewhale",
+                "tenants/1/2026/10/25/b.txt", 13L, "text/plain", null, FileStatus.NORMAL, UPLOADER_ID, true,
+                LocalDateTime.now(), LocalDateTime.now(), "local", 7L, 2);
+        when(fileAssetRepository.findByIdIncludingDeleted(8L)).thenReturn(Optional.of(deletedVersion));
+        when(fileAssetRepository.findByIdIncludingDeleted(7L)).thenReturn(Optional.of(root));
+        when(fileAssetRepository.restoreWithQuotaCheck(eq(8L), any(StorageQuota.class))).thenReturn(true);
+        TenantContext.set(1L);
+        try {
+            fileInfoService.restore(8L, UPLOADER_ID, false, new UploadLimits(100L, 5000L));
+        } finally {
+            TenantContext.clear();
+        }
+
+        verify(fileAssetRepository).restoreWithQuotaCheck(eq(8L), any(StorageQuota.class));
+        verify(fileAssetRepository, never()).findDeletedVersions(anyLong());
+        assertEquals(1, publishedEvents.size());
+        assertEquals(8L, ((FileAssetDomainEvent) publishedEvents.get(0)).fileId());
+    }
+
+    @Test
     @DisplayName("rename：仅更新原始文件名，不触碰存储定位")
     void shouldRenameOriginalName() {
         when(fileAssetRepository.findById(7L)).thenReturn(Optional.of(fileWithStatus(7L, FileStatus.NORMAL)));

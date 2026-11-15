@@ -293,10 +293,7 @@ public class FileInfoServiceImpl implements FileInfoService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id, Long requesterId, boolean canManage) {
-        FileAssetAggregate asset = requireAccessibleFile(id, requesterId, canManage);
-        asset.assertDeletable();
-        fileAssetRepository.deleteById(id);
-        publishFileEvent(asset, FileAssetDomainEvent.ChangeType.DELETED, requesterId);
+        deleteWithVersions(requireAccessibleFile(id, requesterId, canManage), requesterId);
     }
 
     @Override
@@ -333,17 +330,33 @@ public class FileInfoServiceImpl implements FileInfoService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void restore(Long id, Long requesterId, boolean canManage, UploadLimits limits) {
-        FileAssetAggregate asset = fileAssetRepository.findByIdIncludingDeleted(id)
+        FileAssetAggregate target = fileAssetRepository.findByIdIncludingDeleted(id)
                 .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
-        asset.assertVisibleTo(requesterId, canManage, TenantContext.get());
-        if (!asset.isDeleted()) {
+        FileAssetAggregate root = target.getParentId() == null ? target
+                : fileAssetRepository.findByIdIncludingDeleted(target.getParentId())
+                        .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
+        // 可见性以版本组根文件为准，避免通过本人上传的版本行绕过根文件归属校验
+        root.assertVisibleTo(requesterId, canManage, TenantContext.get());
+        boolean restoreGroup = root.isDeleted();
+        if (!restoreGroup && !target.isDeleted()) {
             // 幂等：已恢复的文件重复调用按成功处理
             fileMetrics.recordRestore(true);
             return;
         }
+        // 组内已删除版本需在恢复前读取：恢复后这些行不再满足 deleted = 1
+        List<FileAssetAggregate> restoredVersions = restoreGroup
+                ? fileAssetRepository.findDeletedVersions(root.getId())
+                : List.of();
         try {
-            fileAssetRepository.restoreWithQuotaCheck(id, quotaOf(effectiveLimits(limits).quotaBytes()));
-            publishFileEvent(asset, FileAssetDomainEvent.ChangeType.RESTORED, requesterId);
+            fileAssetRepository.restoreWithQuotaCheck(restoreGroup ? root.getId() : target.getId(),
+                    quotaOf(effectiveLimits(limits).quotaBytes()));
+            if (restoreGroup) {
+                publishFileEvent(root, FileAssetDomainEvent.ChangeType.RESTORED, requesterId);
+                restoredVersions.forEach(version ->
+                        publishFileEvent(version, FileAssetDomainEvent.ChangeType.RESTORED, requesterId));
+            } else {
+                publishFileEvent(target, FileAssetDomainEvent.ChangeType.RESTORED, requesterId);
+            }
             fileMetrics.recordRestore(true);
         } catch (RuntimeException e) {
             fileMetrics.recordRestore(false);
@@ -662,14 +675,36 @@ public class FileInfoServiceImpl implements FileInfoService {
      */
     private FileBatchDeleteItemResult deleteOne(Long id, Long requesterId, boolean canManage) {
         try {
-            FileAssetAggregate asset = requireAccessibleFile(id, requesterId, canManage);
-            asset.assertDeletable();
-            fileAssetRepository.deleteById(id);
-            publishFileEvent(asset, FileAssetDomainEvent.ChangeType.DELETED, requesterId);
+            deleteWithVersions(requireAccessibleFile(id, requesterId, canManage), requesterId);
             return new FileBatchDeleteItemResult(id, true, null);
         } catch (BizException e) {
             return new FileBatchDeleteItemResult(id, false, e.getMessage());
         }
+    }
+
+    /**
+     * 逻辑删除文件并级联处理版本组
+     *
+     * <p>目标为根文件时级联删除组内全部版本，且组内任一归档锁定文件都会导致整体拒绝；
+     * 目标为版本行时仅删除该版本。删除后按文件逐个发布 {@code DELETED} 事件，
+     * 保证下游（知识库）能移除每个版本对应的索引。</p>
+     *
+     * @param asset 已通过可见性校验的文件资产
+     * @param requesterId 调用者用户 ID
+     * @throws BizException 目标或组内版本归档锁定时抛出 {@code PARAM_ERROR}
+     */
+    private void deleteWithVersions(FileAssetAggregate asset, Long requesterId) {
+        asset.assertDeletable();
+        List<FileAssetAggregate> cascaded = asset.getParentId() == null
+                ? fileAssetRepository.findVersions(asset.getId()).stream()
+                        .filter(version -> !asset.getId().equals(version.getId()))
+                        .toList()
+                : List.of();
+        cascaded.forEach(FileAssetAggregate::assertDeletable);
+        fileAssetRepository.deleteById(asset.getId());
+        publishFileEvent(asset, FileAssetDomainEvent.ChangeType.DELETED, requesterId);
+        cascaded.forEach(version ->
+                publishFileEvent(version, FileAssetDomainEvent.ChangeType.DELETED, requesterId));
     }
 
     /**

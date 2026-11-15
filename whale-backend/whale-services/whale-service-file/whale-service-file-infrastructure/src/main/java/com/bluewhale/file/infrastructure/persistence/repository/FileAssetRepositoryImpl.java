@@ -112,7 +112,8 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
         if (quota == null || !quota.hasAnyLimit()) {
             return restore(id);
         }
-        long size = po.getFileSize() == null ? 0L : po.getFileSize();
+        // 恢复量按版本组内「待恢复」字节合计：根文件恢复会连带还原组内已删除版本
+        long size = fileInfoMapper.sumDeletedSizeOfGroup(id);
         return withQuotaGuard(po.getUploaderId(), po.getBucket(), size, quota, "restore", () -> restore(id));
     }
 
@@ -272,13 +273,17 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
     }
 
     /**
-     * 恢复逻辑删除行
+     * 恢复逻辑删除行及其版本组
      *
-     * @param id 文件ID
-     * @return 是否实际恢复
+     * @param id 文件ID（根文件或任一版本行）
+     * @return 是否实际恢复根行
      */
     private boolean restore(Long id) {
-        return fileInfoMapper.restoreById(id) > 0;
+        boolean restored = fileInfoMapper.restoreById(id) > 0;
+        if (restored) {
+            fileInfoMapper.restoreVersionsByRootId(id);
+        }
+        return restored;
     }
 
     @Override
@@ -307,6 +312,13 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
     }
 
     @Override
+    public List<FileAssetAggregate> findDeletedVersions(Long rootId) {
+        return fileInfoMapper.selectDeletedVersions(rootId).stream()
+                .map(FileInfoPersistenceAssembler::toDomain)
+                .toList();
+    }
+
+    @Override
     public Optional<FileAssetAggregate> findReusableByDigest(String md5, long fileSize) {
         if (!StringUtils.hasText(md5)) {
             return Optional.empty();
@@ -325,6 +337,8 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
     @Override
     public void deleteById(Long id) {
         fileInfoMapper.markDeletedById(id);
+        // 级联删除版本行：版本行没有子行，因此同一方法同时覆盖根文件与版本行
+        fileInfoMapper.markDeletedByRootId(id);
     }
 
     @Override

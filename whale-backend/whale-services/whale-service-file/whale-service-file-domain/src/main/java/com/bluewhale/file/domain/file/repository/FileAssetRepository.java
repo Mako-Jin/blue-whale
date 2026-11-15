@@ -82,6 +82,16 @@ public interface FileAssetRepository {
     List<FileAssetAggregate> findVersions(Long rootId);
 
     /**
+     * 查询版本组内已逻辑删除的版本行（不含根文件）
+     *
+     * <p>供根文件恢复后发布版本恢复事件使用。</p>
+     *
+     * @param rootId 版本组根文件ID
+     * @return 已删除版本；无记录时返回空列表
+     */
+    List<FileAssetAggregate> findDeletedVersions(Long rootId);
+
+    /**
      * 按 MD5 + 大小查询可复用的正常文件（秒传去重依据，按主键升序取第一条）
      *
      * <p>入参摘要大小写不敏感：实现内部统一归一化为小写后查询；空白摘要直接视为未命中。</p>
@@ -93,9 +103,10 @@ public interface FileAssetRepository {
     Optional<FileAssetAggregate> findReusableByDigest(String md5, long fileSize);
 
     /**
-     * 逻辑删除文件资产（同时记录删除时间）
+     * 逻辑删除文件资产（同时记录删除时间），并级联删除其版本行
      *
-     * <p>仅对未删除行生效，重复调用不改变结果（幂等）。</p>
+     * <p>仅对未删除行生效，重复调用不改变结果（幂等）。传入根文件时级联逻辑删除
+     * {@code parent_id = id} 的全部版本；传入版本行时没有子行，等同于单行删除。</p>
      *
      * @param id 文件ID
      */
@@ -202,10 +213,11 @@ public interface FileAssetRepository {
     /**
      * 在配额内恢复逻辑删除的文件：配额校验与 {@code deleted} 置 0 在同一命名锁临界区完成。
      *
-     * <p>配额维度与顺序同 {@link #saveWithQuotaCheck}；待恢复行的上传者、桶与大小从数据库读取。
-     * 幂等：目标不存在或已恢复时返回 {@code false}，不抛异常。</p>
+     * <p>配额维度与顺序同 {@link #saveWithQuotaCheck}；待恢复行及其版本组的已删除版本
+     * 字节数合计作为本次恢复量，恢复时同时还原组内版本行。幂等：目标不存在或已恢复时
+     * 返回 {@code false}，不抛异常。</p>
      *
-     * @param id 文件ID
+     * @param id 文件ID（根文件或任一版本行）
      * @param quota 生效的配额上限
      * @return 是否实际恢复（{@code false} 表示已恢复或目标不存在）
      * @throws com.bluewhale.common.domain.exception.DomainException 超出任一维度配额时抛出 {@code PARAM_ERROR}
