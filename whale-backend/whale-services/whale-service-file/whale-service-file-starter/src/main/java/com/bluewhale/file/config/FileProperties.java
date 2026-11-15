@@ -72,6 +72,9 @@ public class FileProperties {
     /** CDN 加速配置 */
     private Cdn cdn = new Cdn();
 
+    /** 内容访问防护配置（防盗链与限流） */
+    private Access access = new Access();
+
     /**
      * 上传策略配置项：按网关可信注入的 {@code X-Permission-Codes} 选择生效上限与配额，
      * 未命中任何规则时回落 {@code max-size-bytes} / {@code quota-bytes} 全局默认值。
@@ -387,5 +390,67 @@ public class FileProperties {
         public void setDefault(String defaultBucket) {
             this.defaultValue = defaultBucket;
         }
+    }
+
+    /**
+     * 内容访问防护配置项（前缀 {@code whale.file.access}）。
+     *
+     * <p>只作用于下载与预览等文件内容接口；默认全部关闭，升级后不改变既有行为。</p>
+     *
+     * @author BlueWhale
+     */
+    @Data
+    public static class Access {
+
+        /** 防盗链配置 */
+        private Hotlink hotlink = new Hotlink();
+
+        /** 限流配置 */
+        private RateLimit rateLimit = new RateLimit();
+    }
+
+    /**
+     * 防盗链配置项（前缀 {@code whale.file.access.hotlink}）。
+     *
+     * <p>按 {@code Referer} 主机名判断来源：允许同主机、精确主机或通配后缀
+     * （如 {@code *.example.com}）。{@code allow-empty-referer} 控制直接访问
+     * （浏览器地址栏、客户端不带 Referer）是否放行。</p>
+     *
+     * @author BlueWhale
+     */
+    @Data
+    public static class Hotlink {
+
+        /** 是否启用防盗链；默认关闭 */
+        private boolean enabled = false;
+
+        /** 允许的来源主机列表，支持精确主机与 {@code *.suffix} 通配后缀 */
+        private List<String> allowedHosts = new ArrayList<>();
+
+        /** 无 Referer 时是否放行；默认放行，便于直接访问与客户端下载 */
+        private boolean allowEmptyReferer = true;
+    }
+
+    /**
+     * 内容接口限流配置项（前缀 {@code whale.file.access.rate-limit}）。
+     *
+     * <p>按调用者（{@code X-User-Id}，缺失时按客户端 IP）使用令牌桶限流；
+     * 进程内实现，多实例部署时各自独立计数。</p>
+     *
+     * @author BlueWhale
+     */
+    @Data
+    public static class RateLimit {
+
+        /** 是否启用限流；默认关闭 */
+        private boolean enabled = false;
+
+        /** 每秒补充的令牌数（稳态 QPS），默认 20 */
+        @Min(value = 1, message = "whale.file.access.rate-limit.requests-per-second 必须大于 0")
+        private int requestsPerSecond = 20;
+
+        /** 桶容量（允许的瞬时突发数），默认 40 */
+        @Min(value = 1, message = "whale.file.access.rate-limit.burst 必须大于 0")
+        private int burst = 40;
     }
 }
