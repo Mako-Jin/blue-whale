@@ -14,6 +14,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Set;
@@ -83,6 +84,32 @@ public final class FileContentResponses {
     public static ResponseEntity<Resource> build(FileInfoService fileInfoService, FileInfoResult info,
                                                  Long requesterId, boolean canManage, boolean inline,
                                                  String rangeHeader, String ifRangeHeader) {
+        return build(info, inline, rangeHeader, ifRangeHeader, new ContentSource() {
+            @Override
+            public InputStream openAll() {
+                return fileInfoService.openContent(info.id(), requesterId, canManage);
+            }
+
+            @Override
+            public InputStream openRange(long offset, long length) {
+                return fileInfoService.openContent(info.id(), requesterId, canManage, offset, length);
+            }
+        });
+    }
+
+    /**
+     * 构建文件内容响应：内容读取由调用方提供的 {@link ContentSource} 完成，
+     * 供分享链接等未经文件归属校验的访问路径复用同一套响应头与 Range 语义。
+     *
+     * @param info 文件元数据
+     * @param inline 是否以 {@code inline} 呈现（预览）；否则 {@code attachment} 下载
+     * @param rangeHeader 请求的 {@code Range} 头，可为 {@code null}
+     * @param ifRangeHeader 请求的 {@code If-Range} 头，可为 {@code null}
+     * @param source 内容流提供方（区间读取仅在请求区间可满足时调用）
+     * @return 文件内容响应：200 全量、206 分段或 416 越界
+     */
+    public static ResponseEntity<Resource> build(FileInfoResult info, boolean inline, String rangeHeader,
+                                                 String ifRangeHeader, ContentSource source) {
         // fileSize 为 null 意味着元数据异常（正常登记不可能缺失），不能按空文件 0 字节响应
         if (info.fileSize() == null) {
             throw new BizException(ErrorCode.SYSTEM_ERROR, "文件元数据缺少大小信息: " + info.id());
@@ -101,14 +128,11 @@ public final class FileContentResponses {
             headers.set(HttpHeaders.CONTENT_RANGE,
                     String.format(CONTENT_RANGE_FORMAT, range.start(), range.end(), size));
             return new ResponseEntity<>(
-                    new InputStreamResource(fileInfoService.openContent(info.id(), requesterId,
-                            canManage, range.start(), range.length())),
+                    new InputStreamResource(source.openRange(range.start(), range.length())),
                     headers, HttpStatus.PARTIAL_CONTENT);
         }
         headers.setContentLength(size);
-        return new ResponseEntity<>(
-                new InputStreamResource(fileInfoService.openContent(info.id(), requesterId, canManage)),
-                headers, HttpStatus.OK);
+        return new ResponseEntity<>(new InputStreamResource(source.openAll()), headers, HttpStatus.OK);
     }
 
     /**
@@ -283,6 +307,30 @@ public final class FileContentResponses {
         } catch (InvalidMediaTypeException e) {
             return MediaType.APPLICATION_OCTET_STREAM;
         }
+    }
+
+    /**
+     * 内容流提供方：由调用方决定按文件归属或分享令牌打开内容，区间读取仅在请求区间可满足时调用。
+     *
+     * @author BlueWhale
+     */
+    public interface ContentSource {
+
+        /**
+         * 打开全量内容流
+         *
+         * @return 内容输入流，由响应框架负责关闭
+         */
+        InputStream openAll();
+
+        /**
+         * 打开区间内容流
+         *
+         * @param offset 起始偏移（字节，从 0 开始）
+         * @param length 读取长度（字节）
+         * @return 仅包含请求区间的内容输入流，由响应框架负责关闭
+         */
+        InputStream openRange(long offset, long length);
     }
 
     /**

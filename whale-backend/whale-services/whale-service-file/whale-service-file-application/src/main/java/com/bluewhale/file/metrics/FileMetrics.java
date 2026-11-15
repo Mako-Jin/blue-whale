@@ -45,6 +45,12 @@ public class FileMetrics {
     /** 孤儿对象对账指标名 */
     private static final String ORPHAN_RECONCILE = "file.orphan.reconcile";
 
+    /** 分享创建指标名 */
+    private static final String SHARE_CREATE = "file.share.create";
+
+    /** 分享下载指标名 */
+    private static final String SHARE_DOWNLOAD = "file.share.download";
+
     private final MeterRegistry registry;
 
     /** 最近一轮对账发现的孤儿对象数（存储有、元数据无） */
@@ -177,6 +183,32 @@ public class FileMetrics {
         danglingMetadata.set(dangling);
         Counter.builder(ORPHAN_RECONCILE)
                 .description("孤儿对象对账执行次数")
+                .tag("result", success ? "success" : "failure")
+                .register(registry)
+                .increment();
+    }
+
+    /**
+     * 记录一次分享链接创建。
+     *
+     * @param success 是否创建成功
+     */
+    public void recordShareCreate(boolean success) {
+        Counter.builder(SHARE_CREATE)
+                .description("文件分享链接创建次数")
+                .tag("result", success ? "success" : "failure")
+                .register(registry)
+                .increment();
+    }
+
+    /**
+     * 记录一次凭分享链接打开内容。
+     *
+     * @param success 是否成功打开（次数耗尽、对象读取失败计失败）
+     */
+    public void recordShareDownload(boolean success) {
+        Counter.builder(SHARE_DOWNLOAD)
+                .description("凭分享链接下载次数")
                 .tag("result", success ? "success" : "failure")
                 .register(registry)
                 .increment();

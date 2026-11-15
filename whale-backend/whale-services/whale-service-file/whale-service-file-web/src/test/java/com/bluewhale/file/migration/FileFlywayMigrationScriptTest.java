@@ -74,6 +74,8 @@ class FileFlywayMigrationScriptTest {
     /**
      * 基线一致性：V1 建表集合与 init.sql 一致且覆盖对象存储定位列
      *
+     * <p>init.sql 只承载手动初始化基线，增量表（audit_log、file_share 等）由 Flyway 迁移脚本创建。</p>
+     *
      * @throws IOException 读取脚本失败
      */
     @Test

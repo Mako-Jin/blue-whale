@@ -57,6 +57,9 @@ public class FileProperties {
     /** 孤儿对象对账配置 */
     private Orphan orphan = new Orphan();
 
+    /** 分享链接配置 */
+    private Share share = new Share();
+
     /**
      * 上传策略配置项：按网关可信注入的 {@code X-Permission-Codes} 选择生效上限与配额，
      * 未命中任何规则时回落 {@code max-size-bytes} / {@code quota-bytes} 全局默认值。
@@ -207,6 +210,26 @@ public class FileProperties {
         /** 日志中每类差异最多打印的样例行数 */
         @Min(value = 0, message = "whale.file.orphan.report-samples 不能为负数")
         private int reportSamples = 20;
+    }
+
+    /**
+     * 分享链接配置项（前缀 {@code whale.file.share}）。
+     *
+     * <p>有效期只做上限截断，避免创建「几乎永久」的公开链接；下载次数与密码由创建请求决定，
+     * 不设全局默认次数上限（{@code 0} 表示不限）。</p>
+     *
+     * @author BlueWhale
+     */
+    @Data
+    public static class Share {
+
+        /** 未指定有效期时的默认值（小时），默认 168（7 天） */
+        @Min(value = 1, message = "whale.file.share.default-expire-hours 必须大于 0")
+        private long defaultExpireHours = 168L;
+
+        /** 有效期上限（小时），默认 720（30 天），超出截断 */
+        @Min(value = 1, message = "whale.file.share.max-expire-hours 必须大于 0")
+        private long maxExpireHours = 720L;
     }
 
     /**

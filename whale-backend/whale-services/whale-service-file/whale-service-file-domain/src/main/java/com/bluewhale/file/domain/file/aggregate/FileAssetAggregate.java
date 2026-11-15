@@ -325,6 +325,19 @@ public class FileAssetAggregate implements Entity<Long> {
     }
 
     /**
+     * 行为：创建分享前校验文件可用性
+     *
+     * <p>禁用文件不可对外分享；归档锁定只禁止内容变更与删除，不限制只读分享。</p>
+     *
+     * @throws DomainException 文件已禁用时抛出 {@code PARAM_ERROR}
+     */
+    public void assertShareable() {
+        if (status == FileStatus.DISABLED) {
+            throw new DomainException(ErrorCode.PARAM_ERROR, "文件已禁用，不可分享");
+        }
+    }
+
+    /**
      * 行为：重命名原始文件名（不改变存储文件名与对象键）
      *
      * <p>仅正常状态可重命名；禁用与归档锁定代表元数据不可变，统一拒绝。</p>

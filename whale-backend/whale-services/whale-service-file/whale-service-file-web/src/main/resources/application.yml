@@ -116,6 +116,11 @@ whale:
       report-samples: ${WHALE_FILE_ORPHAN_REPORT_SAMPLES:20}
       # 对账任务 cron，默认每天 04:00；通过 @Scheduled 占位符读取，不入 FileProperties
       cron: ${WHALE_FILE_ORPHAN_CRON:0 0 4 * * ?}
+    # 分享链接：有效期只做上限截断，避免创建近乎永久的公开链接；
+    # 下载次数与密码由创建请求决定，访问需登录态（匿名开放需网关白名单，暂不支持）。
+    share:
+      default-expire-hours: ${WHALE_FILE_SHARE_DEFAULT_EXPIRE_HOURS:168}
+      max-expire-hours: ${WHALE_FILE_SHARE_MAX_EXPIRE_HOURS:720}
     # G1 大文件上传策略：按网关注入的 X-Permission-Codes 选择生效的单文件上限与配额，
     # 未命中任何规则时回落上面的 max-size-bytes / quota-bytes 默认值（普通业务仍 50MB / 1GB）。
     # 同一请求命中多条规则时取 max-size-bytes 最大的一条；quota-bytes 缺省表示沿用配额默认值，
