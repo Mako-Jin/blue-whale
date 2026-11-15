@@ -467,6 +467,19 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
                 .toList();
     }
 
+    @Override
+    public List<FileAssetAggregate> findByStorageType(String storageType, long limit) {
+        long batchSize = Math.max(limit, 1L);
+        return fileInfoMapper.selectByStorageType(storageType, batchSize).stream()
+                .map(FileInfoPersistenceAssembler::toDomain)
+                .toList();
+    }
+
+    @Override
+    public void updateStorageType(Long id, String storageType) {
+        fileInfoMapper.updateStorageType(id, storageType);
+    }
+
     /**
      * 尽力释放配额命名锁：释放失败仅告警，不影响已提交的业务结果
      *

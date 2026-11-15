@@ -250,6 +250,30 @@ public interface FileInfoMapper extends BaseMapper<FileInfoPo> {
     List<FileInfoPo> selectObjectRefs();
 
     /**
+     * 按落盘存储类型查询待迁移文件。
+     *
+     * <p>按主键升序取前 {@code limit} 条，便于分批迁移与重复执行；租户条件由拦截器追加。</p>
+     *
+     * @param storageType 源落盘类型
+     * @param limit 单批最大条数
+     * @return 待迁移文件记录
+     */
+    @Select("SELECT id, file_name, original_name, bucket, storage_type, object_key, file_size, content_type, md5, "
+            + "status, uploader_id, parent_id, version, create_time, update_time, deleted, delete_time FROM file_info "
+            + "WHERE storage_type = #{storageType} ORDER BY id ASC LIMIT #{limit}")
+    List<FileInfoPo> selectByStorageType(@Param("storageType") String storageType, @Param("limit") long limit);
+
+    /**
+     * 更新文件的落盘存储类型（迁移成功后调用）。
+     *
+     * @param id 文件ID
+     * @param storageType 目标存储类型
+     * @return 受影响行数
+     */
+    @Update("UPDATE file_info SET storage_type = #{storageType}, update_time = NOW() WHERE id = #{id}")
+    int updateStorageType(@Param("id") Long id, @Param("storageType") String storageType);
+
+    /**
      * 回填历史文件的落盘存储插件类型（仅处理空值行）。
      *
      * <p>启动期无租户上下文，租户插件按既有约定跳过追加租户条件，可覆盖全部存量行；

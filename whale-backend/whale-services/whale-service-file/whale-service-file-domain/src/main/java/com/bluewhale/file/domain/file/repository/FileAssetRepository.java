@@ -211,6 +211,23 @@ public interface FileAssetRepository {
     List<FileObjectRef> findAllObjectRefs();
 
     /**
+     * 按落盘存储类型查询待迁移文件（主键升序）
+     *
+     * @param storageType 源落盘类型
+     * @param limit 单批最大条数
+     * @return 待迁移文件资产
+     */
+    List<FileAssetAggregate> findByStorageType(String storageType, long limit);
+
+    /**
+     * 更新文件的落盘存储类型（迁移成功且校验通过后调用）
+     *
+     * @param id 文件ID
+     * @param storageType 目标存储类型
+     */
+    void updateStorageType(Long id, String storageType);
+
+    /**
      * 在配额内恢复逻辑删除的文件：配额校验与 {@code deleted} 置 0 在同一命名锁临界区完成。
      *
      * <p>配额维度与顺序同 {@link #saveWithQuotaCheck}；待恢复行及其版本组的已删除版本

@@ -462,6 +462,25 @@ class FileAssetRepositoryImplTest {
     }
 
     @Test
+    @DisplayName("findByStorageType/updateStorageType：按源类型查询并更新落盘归属")
+    void shouldFindAndUpdateStorageType() {
+        FileInfoPo po = po(5L, 0);
+        po.setStorageType("local");
+        when(fileInfoMapper.selectByStorageType("local", 10L)).thenReturn(List.of(po));
+
+        List<FileAssetAggregate> assets = repository.findByStorageType("local", 10L);
+
+        assertEquals(1, assets.size());
+        assertEquals("local", assets.get(0).getStorageType());
+
+        repository.updateStorageType(5L, "minio");
+        verify(fileInfoMapper).updateStorageType(5L, "minio");
+
+        repository.findByStorageType("local", 0L);
+        verify(fileInfoMapper).selectByStorageType("local", 1L);
+    }
+
+    @Test
     @DisplayName("sumNormalSizeByUploader：兼容数值、字符串、空结果")
     void shouldSumUsedBytes() {
         when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfoPo>>any()))
