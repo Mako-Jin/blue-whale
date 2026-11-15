@@ -3,6 +3,7 @@ package com.bluewhale.file.domain.storage;
 import com.bluewhale.common.domain.exception.DomainException;
 
 import java.io.InputStream;
+import java.util.List;
 
 /**
  * 文件存储端口：屏蔽底层存储介质差异，由插件注册表委派给当前活动插件。
@@ -122,6 +123,15 @@ public interface FileStorage {
      * @throws DomainException 插件未装配、源对象不存在或不支持移动时抛出
      */
     void move(String bucket, String objectKey, String targetBucket, String storageType);
+
+    /**
+     * 按落盘时的存储插件类型列举对象（对账用）。
+     *
+     * @param storageType 落盘时的插件类型，可为 {@code null}（回落活动插件）
+     * @return 该介质下全部桶的对象
+     * @throws DomainException 插件未装配或不支持列举时抛出
+     */
+    List<StorageObject> listObjects(String storageType);
 
     /**
      * 生成预签名下载 URL（使用当前活动插件）。

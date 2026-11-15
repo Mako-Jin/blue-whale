@@ -8,6 +8,7 @@ import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.file.domain.file.aggregate.FileAssetAggregate;
 import com.bluewhale.file.domain.model.FileAssetPage;
 import com.bluewhale.file.domain.model.FileAssetQuery;
+import com.bluewhale.file.domain.model.FileObjectRef;
 import com.bluewhale.file.domain.model.FileRecycleItem;
 import com.bluewhale.file.domain.model.FileRecyclePage;
 import com.bluewhale.file.domain.model.FileRecycleQuery;
@@ -285,6 +286,13 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
     @Override
     public boolean purgeById(Long id) {
         return fileInfoMapper.purgeById(id) > 0;
+    }
+
+    @Override
+    public List<FileObjectRef> findAllObjectRefs() {
+        return fileInfoMapper.selectObjectRefs().stream()
+                .map(po -> new FileObjectRef(po.getStorageType(), po.getBucket(), po.getObjectKey()))
+                .toList();
     }
 
     /**

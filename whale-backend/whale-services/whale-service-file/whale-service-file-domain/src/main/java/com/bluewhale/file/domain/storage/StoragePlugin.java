@@ -7,6 +7,7 @@ import com.bluewhale.common.domain.exception.DomainException;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
 
 /**
  * 文件存储插件 SPI。
@@ -130,6 +131,18 @@ public interface StoragePlugin {
      * @return 预签名下载 URL
      */
     String presignedDownloadUrl(String bucket, String objectKey, int expiresSeconds);
+
+    /**
+     * 列举该介质下全部桶中的对象（对账用）。
+     *
+     * <p>内置 local / minio 插件实现；未实现的插件显式失败，避免对账把「无法列举」误判为「无对象」。</p>
+     *
+     * @return 对象列表
+     * @throws BizException 当前插件不支持列举时抛出 {@code PARAM_ERROR}
+     */
+    default List<StorageObject> listObjects() {
+        throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "当前存储插件不支持对象列举: " + getType());
+    }
 
     /**
      * 探测介质可用性，供 {@code /actuator/health} 汇总。

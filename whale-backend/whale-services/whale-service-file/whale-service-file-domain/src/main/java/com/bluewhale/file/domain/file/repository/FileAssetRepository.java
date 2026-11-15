@@ -3,6 +3,7 @@ package com.bluewhale.file.domain.file.repository;
 import com.bluewhale.file.domain.file.aggregate.FileAssetAggregate;
 import com.bluewhale.file.domain.model.FileAssetPage;
 import com.bluewhale.file.domain.model.FileAssetQuery;
+import com.bluewhale.file.domain.model.FileObjectRef;
 import com.bluewhale.file.domain.model.FileRecycleItem;
 import com.bluewhale.file.domain.model.FileRecyclePage;
 import com.bluewhale.file.domain.model.FileRecycleQuery;
@@ -150,6 +151,13 @@ public interface FileAssetRepository {
      * @return 是否实际删除
      */
     boolean purgeById(Long id);
+
+    /**
+     * 查询全部元数据对象引用（包含逻辑删除行，供孤儿对象对账）
+     *
+     * @return 存储类型、桶名、对象键三元组
+     */
+    List<FileObjectRef> findAllObjectRefs();
 
     /**
      * 在个人配额内恢复逻辑删除的文件：配额校验与 {@code deleted} 置 0 在同一命名锁临界区完成。

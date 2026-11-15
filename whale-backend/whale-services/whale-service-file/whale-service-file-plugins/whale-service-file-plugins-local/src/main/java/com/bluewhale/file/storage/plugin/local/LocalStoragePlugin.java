@@ -3,15 +3,21 @@ package com.bluewhale.file.storage.plugin.local;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.file.domain.storage.StorageHealth;
+import com.bluewhale.file.domain.storage.StorageObject;
 import com.bluewhale.file.domain.storage.StoragePlugin;
 import org.springframework.util.StringUtils;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Stream;
 
 /**
  * 本地文件系统存储插件：按 {@code ${root}/${bucket}/${objectKey}} 组织落盘。
@@ -27,6 +33,9 @@ public class LocalStoragePlugin implements StoragePlugin {
 
     /** 插件类型标识 */
     public static final String TYPE = "local";
+
+    /** 内部保留目录前缀：分片暂存等以点开头的目录不参与对象列举 */
+    private static final String RESERVED_DIR_PREFIX = ".";
 
     private final Path root;
 
@@ -122,6 +131,33 @@ public class LocalStoragePlugin implements StoragePlugin {
     @Override
     public String presignedDownloadUrl(String bucket, String objectKey, int expiresSeconds) {
         throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "本地存储插件不支持预签名下载");
+    }
+
+    @Override
+    public List<StorageObject> listObjects() {
+        List<StorageObject> objects = new ArrayList<>();
+        try (Stream<Path> bucketDirs = Files.list(root)) {
+            for (Path bucketDir : bucketDirs.filter(Files::isDirectory).toList()) {
+                String bucket = bucketDir.getFileName().toString();
+                if (bucket.startsWith(RESERVED_DIR_PREFIX)) {
+                    // 跳过分片暂存等内部保留目录，避免把临时文件当作孤儿对象
+                    continue;
+                }
+                try (Stream<Path> files = Files.walk(bucketDir)) {
+                    files.filter(Files::isRegularFile).forEach(file -> {
+                        String objectKey = bucketDir.relativize(file).toString().replace(File.separatorChar, '/');
+                        try {
+                            objects.add(new StorageObject(bucket, objectKey, Files.size(file)));
+                        } catch (IOException e) {
+                            throw new UncheckedIOException(e);
+                        }
+                    });
+                }
+            }
+        } catch (IOException | UncheckedIOException e) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "本地存储对象列举失败: " + e.getMessage());
+        }
+        return objects;
     }
 
     @Override

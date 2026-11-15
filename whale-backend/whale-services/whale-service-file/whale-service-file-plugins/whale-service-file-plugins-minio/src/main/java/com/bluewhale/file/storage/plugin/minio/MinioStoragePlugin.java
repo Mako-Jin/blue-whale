@@ -3,21 +3,28 @@ package com.bluewhale.file.storage.plugin.minio;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.file.domain.storage.StorageHealth;
+import com.bluewhale.file.domain.storage.StorageObject;
 import com.bluewhale.file.domain.storage.StoragePlugin;
 import io.minio.BucketExistsArgs;
 import io.minio.CopyObjectArgs;
 import io.minio.CopySource;
 import io.minio.GetObjectArgs;
 import io.minio.GetPresignedObjectUrlArgs;
+import io.minio.ListObjectsArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
+import io.minio.Result;
 import io.minio.errors.ErrorResponseException;
 import io.minio.http.Method;
+import io.minio.messages.Bucket;
+import io.minio.messages.Item;
 import org.springframework.util.StringUtils;
 
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -196,6 +203,26 @@ public class MinioStoragePlugin implements StoragePlugin {
         } catch (Exception e) {
             throw new BizException(ErrorCode.SYSTEM_ERROR);
         }
+    }
+
+    @Override
+    public List<StorageObject> listObjects() {
+        List<StorageObject> objects = new ArrayList<>();
+        try {
+            for (Bucket bucket : minioClient.listBuckets()) {
+                Iterable<Result<Item>> results = minioClient.listObjects(ListObjectsArgs.builder()
+                        .bucket(bucket.name())
+                        .recursive(true)
+                        .build());
+                for (Result<Item> result : results) {
+                    Item item = result.get();
+                    objects.add(new StorageObject(bucket.name(), item.objectName(), item.size()));
+                }
+            }
+        } catch (Exception e) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "对象存储列举失败: " + e.getMessage());
+        }
+        return objects;
     }
 
     /**

@@ -8,6 +8,7 @@ import com.bluewhale.file.domain.storage.StorageHealth;
 import com.bluewhale.file.domain.storage.StoragePlugin;
 import com.bluewhale.file.domain.storage.StoragePluginCatalog;
 import com.bluewhale.file.domain.storage.StoragePluginInfo;
+import com.bluewhale.file.domain.storage.StorageObject;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -99,6 +100,11 @@ public class StoragePluginRegistry implements FileStorage, StoragePluginCatalog 
     @Override
     public void move(String bucket, String objectKey, String targetBucket, String storageType) {
         pluginFor(storageType).move(bucket, objectKey, targetBucket);
+    }
+
+    @Override
+    public List<StorageObject> listObjects(String storageType) {
+        return pluginFor(storageType).listObjects();
     }
 
     @Override

@@ -11,6 +11,7 @@ import io.micrometer.core.instrument.Timer;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * 文件服务业务指标。
@@ -41,7 +42,16 @@ public class FileMetrics {
     /** 回收站到期清理指标名 */
     private static final String PURGE = "file.recycle.purged";
 
+    /** 孤儿对象对账指标名 */
+    private static final String ORPHAN_RECONCILE = "file.orphan.reconcile";
+
     private final MeterRegistry registry;
+
+    /** 最近一轮对账发现的孤儿对象数（存储有、元数据无） */
+    private final AtomicLong orphanObjects = new AtomicLong();
+
+    /** 最近一轮对账发现的悬空元数据数（元数据有、存储无） */
+    private final AtomicLong danglingMetadata = new AtomicLong();
 
     /**
      * 注册业务指标与状态直读 Gauge。
@@ -63,6 +73,12 @@ public class FileMetrics {
                     .tag("type", type)
                     .register(registry);
         }
+        Gauge.builder("file.orphan.objects", orphanObjects, AtomicLong::get)
+                .description("最近一轮对账发现的孤儿对象数（存储有、元数据无）")
+                .register(registry);
+        Gauge.builder("file.orphan.metadata", danglingMetadata, AtomicLong::get)
+                .description("最近一轮对账发现的悬空元数据数（元数据有、存储无）")
+                .register(registry);
     }
 
     /**
@@ -144,6 +160,23 @@ public class FileMetrics {
     public void recordPurge(boolean success) {
         Counter.builder(PURGE)
                 .description("回收站到期物理清理条数")
+                .tag("result", success ? "success" : "failure")
+                .register(registry)
+                .increment();
+    }
+
+    /**
+     * 记录一轮孤儿对象对账结果。
+     *
+     * @param orphans 孤儿对象数（存储有、元数据无）
+     * @param dangling 悬空元数据数（元数据有、存储无）
+     * @param success 本轮对账是否成功完成
+     */
+    public void recordOrphanReconcile(long orphans, long dangling, boolean success) {
+        orphanObjects.set(orphans);
+        danglingMetadata.set(dangling);
+        Counter.builder(ORPHAN_RECONCILE)
+                .description("孤儿对象对账执行次数")
                 .tag("result", success ? "success" : "failure")
                 .register(registry)
                 .increment();

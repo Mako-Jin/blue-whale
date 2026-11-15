@@ -54,6 +54,9 @@ public class FileProperties {
     /** 回收站与到期物理清理配置 */
     private Recycle recycle = new Recycle();
 
+    /** 孤儿对象对账配置 */
+    private Orphan orphan = new Orphan();
+
     /**
      * 上传策略配置项：按网关可信注入的 {@code X-Permission-Codes} 选择生效上限与配额，
      * 未命中任何规则时回落 {@code max-size-bytes} / {@code quota-bytes} 全局默认值。
@@ -180,6 +183,30 @@ public class FileProperties {
         /** 单批清理条数，默认 200；避免一次扫描过多记录长时间占用连接 */
         @Min(value = 1, message = "whale.file.recycle.purge-batch-size 必须大于 0")
         private int purgeBatchSize = 200;
+    }
+
+    /**
+     * 孤儿对象对账配置项（前缀 {@code whale.file.orphan}）。
+     *
+     * <p>默认关闭：全量列举存储对象与元数据引用，量级较大，需按环境评估后开启。
+     * 对账只统计「存储有、元数据无」的孤儿对象与「元数据有、存储无」的悬空元数据；
+     * 默认只报告，只有显式开启 {@code delete-orphan-objects} 才删除孤儿对象，
+     * 悬空元数据永不自动删除。</p>
+     *
+     * @author BlueWhale
+     */
+    @Data
+    public static class Orphan {
+
+        /** 是否启用对账任务；默认关闭 */
+        private boolean enabled = false;
+
+        /** 是否删除孤儿对象；默认关闭（仅报告） */
+        private boolean deleteOrphanObjects = false;
+
+        /** 日志中每类差异最多打印的样例行数 */
+        @Min(value = 0, message = "whale.file.orphan.report-samples 不能为负数")
+        private int reportSamples = 20;
     }
 
     /**

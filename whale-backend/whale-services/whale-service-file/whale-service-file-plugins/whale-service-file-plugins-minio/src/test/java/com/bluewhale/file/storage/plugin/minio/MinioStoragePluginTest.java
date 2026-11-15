@@ -2,18 +2,23 @@ package com.bluewhale.file.storage.plugin.minio;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.file.domain.storage.StorageObject;
 import io.minio.BucketExistsArgs;
 import io.minio.CopyObjectArgs;
 import io.minio.GetObjectArgs;
 import io.minio.GetObjectResponse;
 import io.minio.GetPresignedObjectUrlArgs;
+import io.minio.ListObjectsArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
+import io.minio.Result;
 import io.minio.errors.ErrorResponseException;
 import io.minio.http.Method;
+import io.minio.messages.Bucket;
 import io.minio.messages.ErrorResponse;
+import io.minio.messages.Item;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,6 +27,7 @@ import org.mockito.ArgumentCaptor;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -70,6 +76,28 @@ class MinioStoragePluginTest {
         ArgumentCaptor<RemoveObjectArgs> removeCaptor = ArgumentCaptor.forClass(RemoveObjectArgs.class);
         verify(minioClient).removeObject(removeCaptor.capture());
         assertEquals("bluewhale", removeCaptor.getValue().bucket());
+    }
+
+    @Test
+    @DisplayName("listObjects：遍历全部桶的递归对象列表")
+    void shouldListObjectsAcrossBuckets() throws Exception {
+        Bucket bucket = mock(Bucket.class);
+        when(bucket.name()).thenReturn("bluewhale");
+        Item item = mock(Item.class);
+        when(item.objectName()).thenReturn("tenants/1/a.txt");
+        when(item.size()).thenReturn(5L);
+        @SuppressWarnings("unchecked")
+        Result<Item> result = mock(Result.class);
+        when(result.get()).thenReturn(item);
+        when(minioClient.listBuckets()).thenReturn(List.of(bucket));
+        when(minioClient.listObjects(any(ListObjectsArgs.class))).thenReturn(List.of(result));
+
+        List<StorageObject> objects = plugin.listObjects();
+
+        assertEquals(1, objects.size());
+        assertEquals("bluewhale", objects.get(0).bucket());
+        assertEquals("tenants/1/a.txt", objects.get(0).objectKey());
+        assertEquals(5L, objects.get(0).size());
     }
 
     @Test

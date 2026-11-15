@@ -174,6 +174,14 @@ public interface FileInfoMapper extends BaseMapper<FileInfoPo> {
     int purgeById(@Param("id") Long id);
 
     /**
+     * 查询全部元数据对象引用（包含逻辑删除行）。
+     *
+     * @return 仅含存储类型、桶名、对象键的文件记录
+     */
+    @Select("SELECT storage_type, bucket, object_key FROM file_info")
+    List<FileInfoPo> selectObjectRefs();
+
+    /**
      * 回填历史文件的落盘存储插件类型（仅处理空值行）。
      *
      * <p>启动期无租户上下文，租户插件按既有约定跳过追加租户条件，可覆盖全部存量行；

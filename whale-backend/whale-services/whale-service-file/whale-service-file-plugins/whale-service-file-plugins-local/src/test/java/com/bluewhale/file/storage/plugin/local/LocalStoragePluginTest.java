@@ -2,6 +2,7 @@ package com.bluewhale.file.storage.plugin.local;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.file.domain.storage.StorageObject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,6 +14,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -40,6 +42,24 @@ class LocalStoragePluginTest {
         LocalStorageProperties properties = new LocalStorageProperties();
         properties.setRoot(tempDir.toString());
         plugin = new LocalStoragePlugin(properties);
+    }
+
+    @Test
+    @DisplayName("listObjects：遍历全部桶并按 / 归一化对象键，跳过内部保留目录")
+    void shouldListObjectsAcrossBuckets() throws IOException {
+        plugin.store("bluewhale", "tenants/1/a.txt", new ByteArrayInputStream("hi".getBytes(StandardCharsets.UTF_8)));
+        plugin.store("archive", "tenants/1/b.txt", new ByteArrayInputStream("ok".getBytes(StandardCharsets.UTF_8)));
+        Files.createDirectories(tempDir.resolve(".chunk-upload/session"));
+        Files.writeString(tempDir.resolve(".chunk-upload/session/part"), "tmp");
+
+        List<StorageObject> objects = plugin.listObjects();
+
+        assertEquals(2, objects.size());
+        assertTrue(objects.stream().anyMatch(o -> "bluewhale".equals(o.bucket())
+                && "tenants/1/a.txt".equals(o.objectKey()) && o.size() == 2L));
+        assertTrue(objects.stream().anyMatch(o -> "archive".equals(o.bucket())
+                && "tenants/1/b.txt".equals(o.objectKey())));
+        assertTrue(objects.stream().noneMatch(o -> o.bucket().startsWith(".")));
     }
 
     @Test
