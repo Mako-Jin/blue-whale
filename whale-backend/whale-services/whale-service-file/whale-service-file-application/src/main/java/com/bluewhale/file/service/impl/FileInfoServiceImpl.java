@@ -12,6 +12,7 @@ import com.bluewhale.file.domain.model.FileRecycleItem;
 import com.bluewhale.file.domain.model.FileRecyclePage;
 import com.bluewhale.file.domain.model.FileRecycleQuery;
 import com.bluewhale.file.domain.file.repository.FileAssetRepository;
+import com.bluewhale.file.domain.content.FileSignatureInspector;
 import com.bluewhale.file.domain.storage.ChunkUploadMetadata;
 import com.bluewhale.file.domain.storage.ChunkUploadSessionId;
 import com.bluewhale.file.domain.storage.ChunkUploadStore;
@@ -40,6 +41,7 @@ import com.bluewhale.file.model.result.FileRapidUploadResult;
 import com.bluewhale.file.model.result.FileRecycleResult;
 import com.bluewhale.file.model.result.FileUploadResult;
 import com.bluewhale.file.service.FileInfoService;
+import com.bluewhale.file.service.support.FileContentPolicy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -50,9 +52,11 @@ import org.springframework.util.StringUtils;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PushbackInputStream;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -108,6 +112,8 @@ public class FileInfoServiceImpl implements FileInfoService {
 
     private final FileProperties fileProperties;
 
+    private final FileContentPolicy fileContentPolicy;
+
     private final StoragePluginCatalog storagePluginCatalog;
 
     private final FileMetrics fileMetrics;
@@ -123,9 +129,11 @@ public class FileInfoServiceImpl implements FileInfoService {
         if (content.size() > effective.maxSizeBytes()) {
             throw new BizException(ErrorCode.PARAM_ERROR);
         }
-        validateQuota(content.size(), command.uploaderId(), effective.quotaBytes());
-        // 普通上传仅面向接口层已按上限预检的小文件，内容此时已全量在内存，直接计算摘要
+        // 普通上传仅面向接口层已按上限预检的小文件，内容此时已全量在内存：
+        // 先按魔数校验真实类型（失败不产生配额查询与摘要计算），再进入配额与落库流程
         byte[] bytes = content.content();
+        fileContentPolicy.validate(content.originalName(), headerOf(bytes));
+        validateQuota(content.size(), command.uploaderId(), effective.quotaBytes());
         long startedAt = System.nanoTime();
         try {
             FileUploadResult result = persistFile(new ByteArrayInputStream(bytes), content.originalName(),
@@ -421,8 +429,8 @@ public class FileInfoServiceImpl implements FileInfoService {
             if (merged.size() != size) {
                 throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "分片总大小与声明大小不一致");
             }
-            result = persistFile(merged.content(), command.fileName(), merged.contentType(),
-                    size, merged.md5(), command.bucket(), command.uploaderId(), effective);
+            result = persistFile(sniffContent(merged.content(), command.fileName()), command.fileName(),
+                    merged.contentType(), size, merged.md5(), command.bucket(), command.uploaderId(), effective);
             fileMetrics.recordUpload("chunk", size, System.nanoTime() - startedAt, "success");
         } catch (IOException e) {
             fileMetrics.recordUpload("chunk", size, System.nanoTime() - startedAt, "failure");
@@ -435,6 +443,37 @@ public class FileInfoServiceImpl implements FileInfoService {
         // 必须在合并流关闭后执行：Windows 下删除被占用文件会失败，导致暂存目录残留
         chunkUploadStore.discard(sessionId);
         return result;
+    }
+
+    /**
+     * 读取合并流头部做魔数校验并回推，保证后续写入存储的仍是完整内容。
+     *
+     * <p>使用 {@link PushbackInputStream} 而非缓存整份内容：分片合并结果可能为大文件，
+     * 只回推嗅探所需的头部字节。校验失败时由外层 try-with-resources 关闭合并流，
+     * 分片暂存保留供修复后重试。</p>
+     *
+     * @param content 合并后的内容流，由调用方负责关闭
+     * @param fileName 原始文件名（用于扩展名比对）
+     * @return 已回推头部的内容流
+     * @throws IOException 读取头部失败时抛出
+     */
+    private InputStream sniffContent(InputStream content, String fileName) throws IOException {
+        PushbackInputStream pushback = new PushbackInputStream(content, FileSignatureInspector.HEADER_LENGTH);
+        byte[] header = pushback.readNBytes(FileSignatureInspector.HEADER_LENGTH);
+        fileContentPolicy.validate(fileName, header);
+        pushback.unread(header);
+        return pushback;
+    }
+
+    /**
+     * 取内容前若干字节作为魔数校验头部
+     *
+     * @param content 完整内容
+     * @return 头部字节，长度不超过 {@link FileSignatureInspector#HEADER_LENGTH}
+     */
+    private static byte[] headerOf(byte[] content) {
+        return content.length <= FileSignatureInspector.HEADER_LENGTH
+                ? content : Arrays.copyOf(content, FileSignatureInspector.HEADER_LENGTH);
     }
 
     /**

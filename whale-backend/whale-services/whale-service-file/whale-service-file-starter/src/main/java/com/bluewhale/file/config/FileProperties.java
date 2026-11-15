@@ -63,6 +63,9 @@ public class FileProperties {
     /** 批量操作配置 */
     private Batch batch = new Batch();
 
+    /** 上传内容安全配置 */
+    private Security security = new Security();
+
     /**
      * 上传策略配置项：按网关可信注入的 {@code X-Permission-Codes} 选择生效上限与配额，
      * 未命中任何规则时回落 {@code max-size-bytes} / {@code quota-bytes} 全局默认值。
@@ -253,6 +256,29 @@ public class FileProperties {
         /** 打包下载的未压缩总字节上限，默认 4294967296（即 4GB） */
         @Min(value = 1, message = "whale.file.batch.max-zip-bytes 必须大于 0")
         private long maxZipBytes = 4294967296L;
+    }
+
+    /**
+     * 上传内容安全配置项（前缀 {@code whale.file.security}）。
+     *
+     * <p>按文件头魔数识别真实内容类型：识别为禁止类型（默认 {@code EXE}/{@code ELF}/{@code MACHO}）
+     * 直接拒绝；扩展名有映射但内容类型不符时拒绝；无法识别一律放行。关闭开关即整体回退到
+     * 仅按扩展名与大小校验的旧行为。</p>
+     *
+     * @author BlueWhale
+     */
+    @Data
+    public static class Security {
+
+        /** 是否启用魔数校验；关闭后不读取文件头 */
+        private boolean magicEnabled = true;
+
+        /**
+         * 禁止上传的内容类型名（{@code FileMagicType} 常量名，大小写不敏感），默认拦截三类可执行文件。
+         *
+         * <p>配置文件显式声明该列表会整体覆盖默认值；空列表表示不禁用任何类型。</p>
+         */
+        private List<String> blockedTypes = new ArrayList<>(List.of("EXE", "ELF", "MACHO"));
     }
 
     /**

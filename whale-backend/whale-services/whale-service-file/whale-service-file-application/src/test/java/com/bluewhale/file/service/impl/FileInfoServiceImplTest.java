@@ -38,6 +38,7 @@ import com.bluewhale.file.model.result.FileQuotaResult;
 import com.bluewhale.file.model.result.FileRapidUploadResult;
 import com.bluewhale.file.model.result.FileRecycleResult;
 import com.bluewhale.file.model.result.FileUploadResult;
+import com.bluewhale.file.service.support.FileContentPolicy;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -100,6 +101,8 @@ class FileInfoServiceImplTest {
 
     private final FileProperties fileProperties = new FileProperties();
 
+    private final FileContentPolicy fileContentPolicy = new FileContentPolicy(fileProperties);
+
     private final ChunkUploadStore chunkUploadStore = new InMemoryChunkUploadStore();
 
     private final StoragePluginCatalog storagePluginCatalog = mock(StoragePluginCatalog.class);
@@ -108,7 +111,7 @@ class FileInfoServiceImplTest {
             new FileMetrics(new SimpleMeterRegistry(), chunkUploadStore, storagePluginCatalog);
 
     private final FileInfoServiceImpl fileInfoService = new FileInfoServiceImpl(fileAssetRepository, fileStorage,
-            chunkUploadStore, fileProperties, storagePluginCatalog, fileMetrics);
+            chunkUploadStore, fileProperties, fileContentPolicy, storagePluginCatalog, fileMetrics);
 
     /**
      * 设置较小分片大小，并让仓储保存回填入参聚合。
@@ -304,6 +307,34 @@ class FileInfoServiceImplTest {
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         verify(fileStorage, never()).store(any(), any(), any());
         verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAssetAggregate.class), anyLong());
+    }
+
+    @Test
+    @DisplayName("upload：内容为可执行文件时拒绝且不写存储、不落库")
+    void shouldRejectExecutableContent() {
+        UploadContent file = uploadContent("MZ-fake-binary".getBytes(StandardCharsets.US_ASCII), "readme.txt");
+
+        BizException ex = assertThrows(BizException.class,
+                () -> fileInfoService.upload(uploadCommand(file, null, UPLOADER_ID)));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        assertTrue(ex.getMessage().contains("禁止上传可执行文件"));
+        verify(fileStorage, never()).store(any(), any(), any());
+        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAssetAggregate.class), anyLong());
+    }
+
+    @Test
+    @DisplayName("upload：内容为 ZIP 但扩展名为 pdf 时按扩展名不匹配拒绝")
+    void shouldRejectMismatchedExtension() {
+        byte[] zip = "PK\u0003\u0004data".getBytes(StandardCharsets.ISO_8859_1);
+        UploadContent file = uploadContent(zip, "report.pdf");
+
+        BizException ex = assertThrows(BizException.class,
+                () -> fileInfoService.upload(uploadCommand(file, null, UPLOADER_ID)));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        assertTrue(ex.getMessage().contains("文件内容与扩展名不匹配"));
+        verify(fileStorage, never()).store(any(), any(), any());
     }
 
     @Test
@@ -574,6 +605,27 @@ class FileInfoServiceImplTest {
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertTrue(ex.getMessage().contains("分片总大小与声明大小不一致"));
+    }
+
+    @Test
+    @DisplayName("分片上传：合并内容与扩展名不符时拒绝且保留分片供续传")
+    void shouldRejectChunkContentMismatch() throws IOException {
+        ChunkUploadInitResult init = fileInfoService.initChunkUpload(initCommand("report.pdf", 12L));
+        byte[] fakeZip = "PK\u0003\u0004hello!".getBytes(StandardCharsets.ISO_8859_1);
+        fileInfoService.uploadChunkPart(init.uploadId(), 0, chunkPart(fakeZip));
+        fileInfoService.uploadChunkPart(init.uploadId(), 1,
+                chunkPart("ab".getBytes(StandardCharsets.US_ASCII)));
+
+        ChunkUploadCompleteCommand complete =
+                completeCommand(init.uploadId(), "report.pdf", 12L, UPLOADER_ID, null);
+        BizException ex = assertThrows(BizException.class,
+                () -> fileInfoService.completeChunkUpload(complete));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        assertTrue(ex.getMessage().contains("文件内容与扩展名不匹配"));
+        verify(fileStorage, never()).store(any(), any(), any());
+        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAssetAggregate.class), anyLong());
+        assertTrue(sessionExists(init.uploadId()), "失败时保留分片供续传");
     }
 
     @Test

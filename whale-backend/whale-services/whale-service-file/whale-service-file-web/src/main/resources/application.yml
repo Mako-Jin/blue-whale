@@ -126,6 +126,13 @@ whale:
     batch:
       max-files: ${WHALE_FILE_BATCH_MAX_FILES:100}
       max-zip-bytes: ${WHALE_FILE_BATCH_MAX_ZIP_BYTES:4294967296}
+    # 上传内容安全：按文件头魔数识别真实类型（普通上传与分片合并均校验）。
+    # 识别为禁止类型直接拒绝；扩展名有映射但内容不符时拒绝；无法识别一律放行（避免误伤自定义格式）。
+    # 秒传无内容可查，不参与校验（内容在首次上传时已校验）。
+    security:
+      magic-enabled: ${WHALE_FILE_SECURITY_MAGIC_ENABLED:true}
+      # 禁止上传的内容类型名（FileMagicType 常量名，大小写不敏感），逗号分隔
+      blocked-types: ${WHALE_FILE_SECURITY_BLOCKED_TYPES:EXE,ELF,MACHO}
     # G1 大文件上传策略：按网关注入的 X-Permission-Codes 选择生效的单文件上限与配额，
     # 未命中任何规则时回落上面的 max-size-bytes / quota-bytes 默认值（普通业务仍 50MB / 1GB）。
     # 同一请求命中多条规则时取 max-size-bytes 最大的一条；quota-bytes 缺省表示沿用配额默认值，
