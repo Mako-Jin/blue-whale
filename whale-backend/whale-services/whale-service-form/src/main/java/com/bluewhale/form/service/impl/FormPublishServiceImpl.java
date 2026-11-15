@@ -16,6 +16,7 @@ import com.bluewhale.form.mapper.FormTableDefinitionMapper;
 import com.bluewhale.form.mapper.FormTableRegistryMapper;
 import com.bluewhale.form.service.FormPublishService;
 import com.bluewhale.form.support.FormDataEngine;
+import com.bluewhale.form.support.FormColumnNarrowingDetector;
 import com.bluewhale.form.support.FormDataType;
 import com.bluewhale.form.support.FormDdlAuditor;
 import com.bluewhale.form.support.FormField;
@@ -29,6 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -93,11 +95,18 @@ public class FormPublishServiceImpl implements FormPublishService {
     @AuditLog(module = "form", operation = "发布表单物理表", type = OperateType.UPDATE,
             targetType = "form_definition", targetId = "#definitionId")
     public FormTableRegistryVO publish(Long definitionId) {
+        return publish(definitionId, false);
+    }
+
+    @Override
+    @AuditLog(module = "form", operation = "发布表单物理表", type = OperateType.UPDATE,
+            targetType = "form_definition", targetId = "#definitionId")
+    public FormTableRegistryVO publish(Long definitionId, boolean force) {
         FormDefinitionPo definition = requireDefinition(definitionId);
         if (definition.getTableDefinitionId() == null) {
             return publishLegacy(definition);
         }
-        return publishMetadata(definition);
+        return publishMetadata(definition, force);
     }
 
     /**
@@ -136,8 +145,8 @@ public class FormPublishServiceImpl implements FormPublishService {
      * @param definition 表单定义实体（已含 {@code tableDefinitionId}）
      * @return 所属表定义的物理表登记视图对象
      */
-    private FormTableRegistryVO publishMetadata(FormDefinitionPo definition) {
-        return ensurePublished(requireTableDefinition(definition.getTableDefinitionId()));
+    private FormTableRegistryVO publishMetadata(FormDefinitionPo definition, boolean force) {
+        return ensurePublished(requireTableDefinition(definition.getTableDefinitionId()), force);
     }
 
     @Override
@@ -156,7 +165,14 @@ public class FormPublishServiceImpl implements FormPublishService {
     @AuditLog(module = "form", operation = "发布表定义物理表", type = OperateType.UPDATE,
             targetType = "form_table_definition", targetId = "#tableDefinitionId")
     public FormTableRegistryVO publishTableDefinition(Long tableDefinitionId) {
-        return ensurePublished(requireTableDefinition(tableDefinitionId));
+        return publishTableDefinition(tableDefinitionId, false);
+    }
+
+    @Override
+    @AuditLog(module = "form", operation = "发布表定义物理表", type = OperateType.UPDATE,
+            targetType = "form_table_definition", targetId = "#tableDefinitionId")
+    public FormTableRegistryVO publishTableDefinition(Long tableDefinitionId, boolean force) {
+        return ensurePublished(requireTableDefinition(tableDefinitionId), force);
     }
 
     /**
@@ -168,10 +184,12 @@ public class FormPublishServiceImpl implements FormPublishService {
      * 物理表公共列永不变更。</p>
      *
      * @param definition 表定义实体
+     * @param force 存在列类型收窄时是否强制发布
      * @return 物理表登记视图对象（新建时 insert，已存在时刷新列数）
-     * @throws BizException 编码非法、无可发布列或待删列被表单视图引用时抛出 {@code PARAM_ERROR}
+     * @throws BizException 编码非法、无可发布列、待删列被表单视图引用或存在未确认的列类型收窄时
+     *         抛出 {@code PARAM_ERROR}
      */
-    private FormTableRegistryVO ensurePublished(FormTableDefinitionPo definition) {
+    private FormTableRegistryVO ensurePublished(FormTableDefinitionPo definition, boolean force) {
         FormTableDdlGenerator.assertPublishableCode(definition.getTableCode());
         Integer version = definition.getVersion() == null ? DEFAULT_VERSION : definition.getVersion();
         List<FormColumnMetaPo> columns = listPublishColumns(definition.getId(), version);
@@ -182,6 +200,7 @@ public class FormPublishServiceImpl implements FormPublishService {
         String schemaSnapshot = FormMetadataCompiler.compileTable(columns);
         FormTableRegistryPo registry = findRegistry(definition.getTableCode(), version);
         Map<String, String> existing = formDataEngine.describeColumns(table);
+        assertNoNarrowing(table, columns, existing, force);
         try {
             if (existing.isEmpty()) {
                 executeDdl(DEFINITION_TYPE_TABLE, definition.getId(), table,
@@ -217,6 +236,47 @@ public class FormPublishServiceImpl implements FormPublishService {
             formTableRegistryMapper.updateById(registry);
         }
         return toVo(registry);
+    }
+
+    /**
+     * 发布前置预检：列类型「收窄」一次性列出并要求二次确认
+     *
+     * <p>预检必须在执行任何 DDL 之前完成，否则可能出现「前几列已改、后面的收窄才报错」的半迁移状态。
+     * 收窄本身不禁止（业务可能确实要缩短字段），但必须由调用方显式传 {@code force=true} 确认。</p>
+     *
+     * @param table 物理表名
+     * @param columns 目标列元数据
+     * @param existing 物理表现有列（列名 → 归一化类型）；表不存在时为空映射
+     * @param force 是否已显式确认
+     * @throws BizException 存在收窄且未确认时抛出 {@code PARAM_ERROR}
+     */
+    private void assertNoNarrowing(String table, List<FormColumnMetaPo> columns,
+                                   Map<String, String> existing, boolean force) {
+        if (existing.isEmpty()) {
+            return;
+        }
+        List<String> narrowed = new ArrayList<>();
+        for (FormColumnMetaPo column : columns) {
+            String currentType = existing.get(column.getColumnCode());
+            if (currentType == null) {
+                continue;
+            }
+            String wantedType = FormTableDdlGenerator.normalizeType(FormDataType.mysqlType(
+                    column.getDataType(), column.getLength(), column.getPrecision(), column.getScale()));
+            String reason = FormColumnNarrowingDetector.detect(currentType, wantedType);
+            if (reason != null) {
+                narrowed.add(column.getColumnCode() + "：" + reason);
+            }
+        }
+        if (narrowed.isEmpty()) {
+            return;
+        }
+        if (!force) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
+                    "以下列类型收窄可能导致存量数据被截断，请确认后以 force=true 重新发布："
+                            + String.join("；", narrowed));
+        }
+        log.warn("表单发布存在列类型收窄，已按 force=true 确认执行：table={}, 收窄列={}", table, narrowed);
     }
 
     /**

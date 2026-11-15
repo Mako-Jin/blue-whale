@@ -13,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
+import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -107,6 +108,82 @@ class JdbcFormDataEngineFilterTest {
         assertEquals("%张%", params[4]);
         assertEquals("new", params[5]);
         assertEquals("done", params[6]);
+    }
+
+    @Test
+    @DisplayName("countByFilters：in 条件按输入顺序绑定，租户参数在动态条件之前")
+    void shouldBindInValuesInInputOrder() {
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(3L);
+
+        long total = engine.countByFilters(TABLE, TENANT, List.of(field("amount", "number")),
+                List.of(filter("amount", "in", List.of(3, 1, 2))), null, null);
+
+        assertEquals(3L, total);
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> paramsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate).queryForObject(sqlCaptor.capture(), eq(Long.class), paramsCaptor.capture());
+        assertTrue(sqlCaptor.getValue().contains("`amount` IN (?, ?, ?)"));
+        Object[] params = paramsCaptor.getValue();
+        assertEquals(4, params.length);
+        assertEquals(TENANT, params[0]);
+        assertEquals(3, params[1]);
+        assertEquals(1, params[2]);
+        assertEquals(2, params[3]);
+    }
+
+    @Test
+    @DisplayName("in 条件值数量边界：50 个通过、51 个或空数组抛参数错误")
+    void shouldEnforceInValueCountLimit() {
+        long total = engine.countByFilters(TABLE, TENANT, List.of(field("amount", "number")),
+                List.of(filter("amount", "in", IntStream.rangeClosed(1, 50).boxed().toList())), null, null);
+        assertEquals(0L, total);
+
+        BizException tooMany = assertThrows(BizException.class, () -> engine.countByFilters(TABLE, TENANT,
+                List.of(field("amount", "number")),
+                List.of(filter("amount", "in", IntStream.rangeClosed(1, 51).boxed().toList())), null, null));
+        assertEquals(PARAM_ERROR_CODE, tooMany.getCode());
+        assertTrue(tooMany.getMessage().contains("in 条件值数量"));
+
+        BizException empty = assertThrows(BizException.class, () -> engine.countByFilters(TABLE, TENANT,
+                List.of(field("amount", "number")), List.of(filter("amount", "in", List.of())), null, null));
+        assertEquals(PARAM_ERROR_CODE, empty.getCode());
+        assertTrue(empty.getMessage().contains("in 条件值数量"));
+    }
+
+    @Test
+    @DisplayName("countByFilters：between 条件起始值在前、结束值在后绑定")
+    void shouldBindBetweenRangeInOrder() {
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(2L);
+
+        long total = engine.countByFilters(TABLE, TENANT, List.of(field("day", "date")),
+                List.of(filter("day", "between", List.of("2026-01-01", "2026-01-31"))), null, null);
+
+        assertEquals(2L, total);
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> paramsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate).queryForObject(sqlCaptor.capture(), eq(Long.class), paramsCaptor.capture());
+        assertTrue(sqlCaptor.getValue().contains("`day` BETWEEN ? AND ?"));
+        Object[] params = paramsCaptor.getValue();
+        assertEquals(3, params.length);
+        assertEquals(TENANT, params[0]);
+        assertEquals("2026-01-01", params[1]);
+        assertEquals("2026-01-31", params[2]);
+    }
+
+    @Test
+    @DisplayName("between 条件值数量不为 2 时抛参数错误")
+    void shouldRejectInvalidBetweenValueCount() {
+        BizException tooFew = assertThrows(BizException.class, () -> engine.countByFilters(TABLE, TENANT,
+                List.of(field("day", "date")),
+                List.of(filter("day", "between", List.of("2026-01-01"))), null, null));
+        assertEquals(PARAM_ERROR_CODE, tooFew.getCode());
+        assertTrue(tooFew.getMessage().contains("between 条件需要 2 个值"));
+
+        BizException tooMany = assertThrows(BizException.class, () -> engine.countByFilters(TABLE, TENANT,
+                List.of(field("day", "date")),
+                List.of(filter("day", "between", List.of("2026-01-01", "2026-01-15", "2026-01-31"))), null, null));
+        assertEquals(PARAM_ERROR_CODE, tooMany.getCode());
+        assertTrue(tooMany.getMessage().contains("between 条件需要 2 个值"));
     }
 
     @Test

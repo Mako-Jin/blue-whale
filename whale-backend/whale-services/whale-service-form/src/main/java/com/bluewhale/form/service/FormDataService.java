@@ -6,7 +6,10 @@ import com.bluewhale.form.model.request.FormDataSubmitRequest;
 import com.bluewhale.form.model.request.FormDataUpdateRequest;
 import com.bluewhale.form.model.vo.FormArchiveVO;
 import com.bluewhale.form.model.vo.FormDataExportVO;
+import com.bluewhale.form.model.vo.FormDataHistoryVO;
 import com.bluewhale.form.model.vo.FormDataVO;
+
+import java.util.List;
 
 /**
  * 表单数据服务
@@ -85,4 +88,16 @@ public interface FormDataService {
      * @return 导出产物（内容 + 文件名 + Content-Type）
      */
     FormDataExportVO export(FormDataQueryRequest request, Long tenantId, String format);
+
+    /**
+     * 查询表单数据的变更历史（按变更时间倒序，最多 200 条）
+     *
+     * <p>记录删除后仍可追溯：不校验主记录是否存在，仅以「租户 + 数据ID」限定范围，
+     * 跨租户查询返回空列表而非泄漏他人历史。</p>
+     *
+     * @param id 表单数据ID
+     * @param tenantId 租户ID
+     * @return 变更历史列表（无记录返回空列表）
+     */
+    List<FormDataHistoryVO> listHistory(Long id, Long tenantId);
 }

@@ -10,6 +10,7 @@ import com.bluewhale.form.model.request.FormDataUpdateRequest;
 import com.bluewhale.form.service.FormDataService;
 import com.bluewhale.form.support.TenantResolver;
 import com.bluewhale.form.model.vo.FormDataExportVO;
+import com.bluewhale.form.model.vo.FormDataHistoryVO;
 import com.bluewhale.form.model.vo.FormDataVO;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 /**
  * 表单数据管理接口。
@@ -88,6 +90,20 @@ public class FormDataController {
     @RequirePermission("sys:form:data:list")
     public Result<FormDataVO> detail(@PathVariable Long id, HttpServletRequest httpRequest) {
         return Result.ok(formDataService.getDetail(id, TenantResolver.resolve(httpRequest)));
+    }
+
+    /**
+     * 表单数据变更历史（按变更时间倒序，最多 200 条；删除后仍可追溯）。
+     *
+     * @param id 表单数据ID
+     * @param httpRequest 当前请求（读取 {@code X-Tenant-Id} 解析租户）
+     * @return 变更历史列表
+     */
+    @GetMapping("/{id}/history")
+    @RequirePermission("sys:form:data:list")
+    public Result<List<FormDataHistoryVO>> history(@PathVariable Long id,
+                                                   HttpServletRequest httpRequest) {
+        return Result.ok(formDataService.listHistory(id, TenantResolver.resolve(httpRequest)));
     }
 
     /**

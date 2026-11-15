@@ -101,6 +101,18 @@ public interface FormDataEngine {
                                   List<FormDataFilter> filters, String bizKey, String submitter, int limit);
 
     /**
+     * 查询物理表中指定租户的活跃记录ID（按主键升序，最多 {@code limit} 条）
+     *
+     * <p>用于主从数据对账：调用方按 {@code limit + 1} 传入可判断物理表记录是否被截断。</p>
+     *
+     * @param table 物理表名
+     * @param tenantId 租户ID
+     * @param limit 最大返回条数（至少 1）
+     * @return 记录ID列表（主键升序）
+     */
+    List<Long> listIds(String table, Long tenantId, int limit);
+
+    /**
      * 逻辑删除物理表中的一条数据（按租户过滤）
      *
      * @param table 物理表名

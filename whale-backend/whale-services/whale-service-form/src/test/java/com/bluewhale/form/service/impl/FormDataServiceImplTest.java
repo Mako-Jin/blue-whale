@@ -11,10 +11,12 @@ import com.bluewhale.form.po.FormDataPo;
 import com.bluewhale.form.po.FormDefinitionPo;
 import com.bluewhale.form.po.FormTableRegistryPo;
 import com.bluewhale.form.mapper.FormColumnMetaMapper;
+import com.bluewhale.form.mapper.FormDataHistoryMapper;
 import com.bluewhale.form.mapper.FormDataMapper;
 import com.bluewhale.form.mapper.FormDefinitionMapper;
 import com.bluewhale.form.mapper.FormTableRegistryMapper;
 import com.bluewhale.form.support.FormDataEngine;
+import com.bluewhale.form.support.FormDataHistoryRecorder;
 import com.bluewhale.form.support.FormField;
 import com.bluewhale.form.model.vo.FormDataVO;
 import org.junit.jupiter.api.DisplayName;
@@ -66,6 +68,12 @@ class FormDataServiceImplTest {
 
     @Mock
     private FormColumnMetaMapper formColumnMetaMapper;
+
+    @Mock
+    private FormDataHistoryMapper formDataHistoryMapper;
+
+    @Mock
+    private FormDataHistoryRecorder formDataHistoryRecorder;
 
     @Mock
     private FormDataEngine formDataEngine;

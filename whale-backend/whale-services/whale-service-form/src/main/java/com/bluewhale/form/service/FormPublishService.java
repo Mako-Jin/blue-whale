@@ -20,6 +20,15 @@ public interface FormPublishService {
     FormTableRegistryVO publish(Long definitionId);
 
     /**
+     * 发布表单定义（可显式确认列类型收窄）
+     *
+     * @param definitionId 表单定义ID
+     * @param force 存在列类型收窄时是否强制发布（{@code false} 时抛参数错误）
+     * @return 物理表登记视图对象
+     */
+    FormTableRegistryVO publish(Long definitionId, boolean force);
+
+    /**
      * 查询表单定义已发布的物理表登记列表（按版本倒序）
      *
      * @param definitionId 表单定义ID
@@ -34,6 +43,15 @@ public interface FormPublishService {
      * @return 物理表登记视图对象
      */
     FormTableRegistryVO publishTableDefinition(Long tableDefinitionId);
+
+    /**
+     * 发布表定义（可显式确认列类型收窄）
+     *
+     * @param tableDefinitionId 表定义ID
+     * @param force 存在列类型收窄时是否强制发布（{@code false} 时抛参数错误）
+     * @return 物理表登记视图对象
+     */
+    FormTableRegistryVO publishTableDefinition(Long tableDefinitionId, boolean force);
 
     /**
      * 查询表定义已发布的物理表登记列表（按版本倒序）

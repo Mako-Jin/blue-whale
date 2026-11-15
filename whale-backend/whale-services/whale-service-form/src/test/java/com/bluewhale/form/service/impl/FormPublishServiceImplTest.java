@@ -34,6 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -420,5 +421,44 @@ class FormPublishServiceImplTest {
         formPublishService.publishTableDefinition(11L);
 
         verify(formDataEngine, never()).executeDdl(anyString());
+    }
+
+    @Test
+    @DisplayName("publishTableDefinition：列类型收窄未确认时拒绝发布且不执行任何 DDL")
+    void shouldRejectNarrowingWithoutForce() {
+        when(formTableDefinitionMapper.selectById(11L)).thenReturn(tableDefinition(11L, "biz_order"));
+        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaPo>>any()))
+                .thenReturn(List.of(column("remark", "备注", "text", 100)));
+        when(formDataEngine.describeColumns("form_data_biz_order_v1"))
+                .thenReturn(Map.of("remark", "varchar(255)"));
+
+        BizException ex = assertThrows(BizException.class,
+                () -> formPublishService.publishTableDefinition(11L));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        assertTrue(ex.getMessage().contains("force=true"));
+        assertTrue(ex.getMessage().contains("remark"));
+        verify(formDataEngine, never()).executeDdl(anyString());
+    }
+
+    @Test
+    @DisplayName("publishTableDefinition：显式 force=true 时允许执行收窄的 MODIFY COLUMN")
+    void shouldAllowNarrowingWithForce() {
+        when(formTableDefinitionMapper.selectById(11L)).thenReturn(tableDefinition(11L, "biz_order"));
+        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMetaPo>>any()))
+                .thenReturn(List.of(column("remark", "备注", "text", 100)));
+        when(formDataEngine.describeColumns("form_data_biz_order_v1"))
+                .thenReturn(Map.of("remark", "varchar(255)"));
+        FormTableRegistryPo registry = new FormTableRegistryPo();
+        registry.setId(1L);
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
+                .thenReturn(registry);
+
+        formPublishService.publishTableDefinition(11L, true);
+
+        ArgumentCaptor<String> ddlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(formDataEngine, atLeastOnce()).executeDdl(ddlCaptor.capture());
+        assertTrue(ddlCaptor.getAllValues().stream()
+                .anyMatch(ddl -> ddl.contains("MODIFY COLUMN `remark`") && ddl.contains("VARCHAR(100)")));
     }
 }

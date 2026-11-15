@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -109,12 +110,14 @@ public class FormController {
      * 发布表单定义：解析 schema 建物理表并登记版本映射。
      *
      * @param id 表单定义ID
+     * @param force 存在列类型收窄（可能导致存量数据被截断）时是否强制发布
      * @return 物理表登记视图对象
      */
     @PostMapping("/definition/{id}/publish")
     @RequirePermission("sys:form:publish")
-    public Result<FormTableRegistryVO> publish(@PathVariable Long id) {
-        return Result.ok(formPublishService.publish(id));
+    public Result<FormTableRegistryVO> publish(@PathVariable Long id,
+                                               @RequestParam(defaultValue = "false") boolean force) {
+        return Result.ok(formPublishService.publish(id, force));
     }
 
     /**

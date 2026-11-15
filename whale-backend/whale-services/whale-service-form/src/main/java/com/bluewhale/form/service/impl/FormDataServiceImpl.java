@@ -11,11 +11,13 @@ import com.bluewhale.form.model.request.FormDataQueryRequest;
 import com.bluewhale.form.model.request.FormDataSubmitRequest;
 import com.bluewhale.form.model.request.FormDataUpdateRequest;
 import com.bluewhale.form.po.FormColumnMetaPo;
+import com.bluewhale.form.po.FormDataHistoryPo;
 import com.bluewhale.form.po.FormDataPo;
 import com.bluewhale.form.po.FormDefinitionPo;
 import com.bluewhale.form.po.FormTableDefinitionPo;
 import com.bluewhale.form.po.FormTableRegistryPo;
 import com.bluewhale.form.mapper.FormColumnMetaMapper;
+import com.bluewhale.form.mapper.FormDataHistoryMapper;
 import com.bluewhale.form.mapper.FormDataMapper;
 import com.bluewhale.form.mapper.FormDefinitionMapper;
 import com.bluewhale.form.mapper.FormTableDefinitionMapper;
@@ -23,12 +25,14 @@ import com.bluewhale.form.mapper.FormTableRegistryMapper;
 import com.bluewhale.form.service.FormDataService;
 import com.bluewhale.form.support.FormDataEngine;
 import com.bluewhale.form.support.FormDataExportSupport;
+import com.bluewhale.form.support.FormDataHistoryRecorder;
 import com.bluewhale.form.support.FormDataType;
 import com.bluewhale.form.support.FormField;
 import com.bluewhale.form.support.FormMetadataCompiler;
 import com.bluewhale.form.support.FormSchemaParser;
 import com.bluewhale.form.model.vo.FormArchiveVO;
 import com.bluewhale.form.model.vo.FormDataExportVO;
+import com.bluewhale.form.model.vo.FormDataHistoryVO;
 import com.bluewhale.form.model.vo.FormDataVO;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -94,6 +98,9 @@ public class FormDataServiceImpl implements FormDataService {
     /** 动态字段检索单次最多回捞的记录数（多版本物理表合并时按此上限截断） */
     private static final int MAX_FILTER_FETCH = 5000;
 
+    /** 变更历史单次最多返回条数 */
+    private static final int HISTORY_MAX_ROWS = 200;
+
     /** 过滤字段名字符白名单（与物理表列名规则一致） */
     private static final Pattern FILTER_FIELD_PATTERN = Pattern.compile("^[a-z][a-z0-9_]{0,63}$");
 
@@ -123,6 +130,10 @@ public class FormDataServiceImpl implements FormDataService {
     private final FormTableRegistryMapper formTableRegistryMapper;
 
     private final FormColumnMetaMapper formColumnMetaMapper;
+
+    private final FormDataHistoryMapper formDataHistoryMapper;
+
+    private final FormDataHistoryRecorder formDataHistoryRecorder;
 
     private final FormDataEngine formDataEngine;
 
@@ -173,6 +184,7 @@ public class FormDataServiceImpl implements FormDataService {
             return toVo(duplicated, parseDataQuietly(duplicated.getDataJson()));
         }
         formDataEngine.insert(registry.getPhysicalTable(), entity, fields, data);
+        formDataHistoryRecorder.recordCreate(entity);
         return toVo(entity, data);
     }
 
@@ -219,9 +231,11 @@ public class FormDataServiceImpl implements FormDataService {
         merged.putAll(parseData(request.getDataJson()));
         assertKnownFields(tableFields, merged);
         validateValues(viewFields, merged);
+        String beforeJson = entity.getDataJson();
         entity.setDataJson(writeData(merged));
         formDataMapper.updateById(entity);
         formDataEngine.update(registry.getPhysicalTable(), entity, writableFields(viewFields, tableFields), merged);
+        formDataHistoryRecorder.recordUpdate(entity, beforeJson);
         return toVo(entity, merged);
     }
 
@@ -280,9 +294,22 @@ public class FormDataServiceImpl implements FormDataService {
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id, Long tenantId) {
         FormDataPo entity = requireData(id, tenantId);
+        formDataHistoryRecorder.recordDelete(entity);
         formDataMapper.deleteById(id);
         FormTableRegistryPo registry = requireRegistry(routeCodeOf(entity), routeVersionOf(entity));
         formDataEngine.logicDelete(registry.getPhysicalTable(), id, tenantId);
+    }
+
+    @Override
+    public List<FormDataHistoryVO> listHistory(Long id, Long tenantId) {
+        LambdaQueryWrapper<FormDataHistoryPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormDataHistoryPo::getTenantId, tenantId);
+        wrapper.eq(FormDataHistoryPo::getDataId, id);
+        wrapper.orderByDesc(FormDataHistoryPo::getChangeTime);
+        wrapper.orderByDesc(FormDataHistoryPo::getId);
+        wrapper.last("LIMIT " + HISTORY_MAX_ROWS);
+        return formDataHistoryMapper.selectList(wrapper).stream()
+                .map(FormConverter.INSTANCE::toHistoryVo).toList();
     }
 
     @Override

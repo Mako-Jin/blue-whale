@@ -1,6 +1,7 @@
 package com.bluewhale.form.converter;
 
 import com.bluewhale.form.po.FormColumnMetaPo;
+import com.bluewhale.form.po.FormDataHistoryPo;
 import com.bluewhale.form.po.FormDataPo;
 import com.bluewhale.form.po.FormDefinitionPo;
 import com.bluewhale.form.po.FormFieldConfigPo;
@@ -8,6 +9,7 @@ import com.bluewhale.form.po.FormFieldOptionPo;
 import com.bluewhale.form.po.FormTableDefinitionPo;
 import com.bluewhale.form.po.FormTableRegistryPo;
 import com.bluewhale.form.model.vo.FormColumnMetaVO;
+import com.bluewhale.form.model.vo.FormDataHistoryVO;
 import com.bluewhale.form.model.vo.FormDataVO;
 import com.bluewhale.form.model.vo.FormDefinitionVO;
 import com.bluewhale.form.model.vo.FormFieldConfigVO;
@@ -39,6 +41,14 @@ public interface FormConverter {
      */
     @Mapping(target = "fields", ignore = true)
     FormDataVO toDataVo(FormDataPo entity);
+
+    /**
+     * 表单数据变更历史实体转视图对象
+     *
+     * @param entity 历史记录实体
+     * @return 历史记录视图对象
+     */
+    FormDataHistoryVO toHistoryVo(FormDataHistoryPo entity);
 
     /**
      * 字段配置实体转视图对象（选项由调用方装配）

@@ -5,11 +5,16 @@ import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.form.po.FormColumnMetaPo;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -24,6 +29,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class FormTableDdlGeneratorTest {
 
     private static final int PARAM_ERROR_CODE = 400;
+
+    /** 与 {@code FormTableDdlGenerator} 内部一致的注释长度上限 */
+    private static final int MAX_COMMENT_LENGTH = 200;
 
     @Test
     @DisplayName("tableName：按 code 与 version 生成表名，默认租户沿用历史命名")
@@ -169,6 +177,44 @@ class FormTableDdlGeneratorTest {
                 FormTableDdlGenerator.columnDef(column("memo", "a\\'b", "text", 255)));
     }
 
+    @ParameterizedTest(name = "[{index}] {0}")
+    @MethodSource("commentEscapeCases")
+    @DisplayName("escapeComment：单引号双写闭合、反斜杠双写、超长截断与换行归一")
+    void shouldEscapeCommentInGeneratedDdl(String caseName, String rawLabel, String expectedComment) {
+        String def = FormTableDdlGenerator.columnDef(column("memo", rawLabel, "text", 255));
+        String ddl = FormTableDdlGenerator.generate("form_data_fm_a_v1", "fm_a", 1,
+                List.of(new FormField("memo", rawLabel, "text", false, 255)));
+
+        assertEquals("`memo` VARCHAR(255) DEFAULT NULL COMMENT '" + expectedComment + "'", def);
+        assertEquals(expectedComment, commentOf(def));
+        assertTrue(ddl.contains("COMMENT '" + expectedComment + "'"));
+        assertFalse(ddl.contains("\n"));
+        assertFalse(ddl.contains("\r"));
+    }
+
+    @Test
+    @DisplayName("generate：注入型注释仍被单引号包裹，DROP TABLE 不构成第二条可执行语句")
+    void shouldKeepInjectionPayloadInsideCommentLiteral() {
+        String payload = "x'; DROP TABLE form_data_fm_a_v1; --";
+        String ddl = FormTableDdlGenerator.generate("form_data_fm_a_v1", "fm_a", 1,
+                List.of(new FormField("memo", payload, "text", false, 255)));
+
+        assertTrue(ddl.contains("''"));
+        assertTrue(Pattern.compile("COMMENT '" + Pattern.quote("x''; DROP TABLE form_data_fm_a_v1; --") + "'")
+                .matcher(ddl).find());
+        assertTrue(ddl.chars().filter(ch -> ch == '\'').count() % 2 == 0,
+                "单引号必须成对，注释内的分号不能越出字符串字面量");
+    }
+
+    @Test
+    @DisplayName("columnDef：注释超过 200 字符时截断")
+    void shouldTruncateOverlongComment() {
+        String def = FormTableDdlGenerator.columnDef(
+                column("memo", "长".repeat(MAX_COMMENT_LENGTH + 60), "text", 255));
+
+        assertEquals(MAX_COMMENT_LENGTH, commentOf(def).length());
+    }
+
     @Test
     @DisplayName("alterAdd / alterModify：前缀正确且以 columnDef 结尾")
     void shouldGenerateAddAndModifyAlter() {
@@ -208,6 +254,39 @@ class FormTableDdlGeneratorTest {
         assertTrue(reserved.contains("deleted"));
         assertFalse(reserved.contains("remark"));
         assertFalse(reserved.contains("amount"));
+    }
+
+    /**
+     * 注释转义参数化用例：原始注释 → 期望写入 DDL 的注释文本。
+     *
+     * @return 用例参数流
+     */
+    private static Stream<Arguments> commentEscapeCases() {
+        return Stream.of(
+                Arguments.of("注入型注释：单引号双写并保持字面量闭合",
+                        "x'; DROP TABLE form_data_fm_a_v1; --",
+                        "x''; DROP TABLE form_data_fm_a_v1; --"),
+                Arguments.of("以反斜杠结尾：反斜杠双写，不吞掉闭合引号",
+                        "危险注释\\",
+                        "危险注释\\\\"),
+                Arguments.of("超长注释：截断到 " + MAX_COMMENT_LENGTH + " 字符",
+                        "长".repeat(MAX_COMMENT_LENGTH + 60),
+                        "长".repeat(MAX_COMMENT_LENGTH)),
+                Arguments.of("含换行与回车：归一为空格，DDL 保持单行",
+                        "第一行\n第二行\r结束",
+                        "第一行 第二行 结束"));
+    }
+
+    /**
+     * 提取列定义中 {@code COMMENT '...'} 的注释文本（columnDef 输出以注释结尾）。
+     *
+     * @param def 列定义文本
+     * @return 注释文本
+     */
+    private static String commentOf(String def) {
+        String prefix = "COMMENT '";
+        int start = def.indexOf(prefix) + prefix.length();
+        return def.substring(start, def.length() - 1);
     }
 
     /**

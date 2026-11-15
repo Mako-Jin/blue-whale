@@ -196,6 +196,14 @@ public class JdbcFormDataEngine implements FormDataEngine {
     }
 
     @Override
+    public List<Long> listIds(String table, Long tenantId, int limit) {
+        String target = assertTable(table);
+        String sql = "SELECT `id` FROM `" + target + "` WHERE `tenant_id` = ? AND `deleted` = 0"
+                + " ORDER BY `id` LIMIT ?";
+        return jdbcTemplate.queryForList(sql, Long.class, tenantId, Math.max(limit, 1));
+    }
+
+    @Override
     public void logicDelete(String table, Long id, Long tenantId) {
         String target = assertTable(table);
         jdbcTemplate.update("UPDATE `" + target + "` SET `deleted` = 1 WHERE `id` = ? AND `tenant_id` = ?",
