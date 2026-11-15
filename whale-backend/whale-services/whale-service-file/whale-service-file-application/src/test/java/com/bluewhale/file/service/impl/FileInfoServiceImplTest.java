@@ -3,9 +3,12 @@ package com.bluewhale.file.service.impl;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.common.domain.event.DomainEvent;
+import com.bluewhale.common.domain.event.publisher.DomainEventPublisher;
 import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.file.config.FileProperties;
 import com.bluewhale.file.domain.file.aggregate.FileAssetAggregate;
+import com.bluewhale.file.domain.file.event.FileAssetDomainEvent;
 import com.bluewhale.file.domain.model.FileAssetPage;
 import com.bluewhale.file.domain.model.FileAssetQuery;
 import com.bluewhale.file.domain.model.FileRecyclePage;
@@ -55,6 +58,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -111,8 +115,14 @@ class FileInfoServiceImplTest {
     private final FileMetrics fileMetrics =
             new FileMetrics(new SimpleMeterRegistry(), chunkUploadStore, storagePluginCatalog);
 
+    /** 按发布顺序记录应用层发布的领域事件 */
+    private final List<DomainEvent> publishedEvents = new ArrayList<>();
+
+    private final DomainEventPublisher domainEventPublisher = publishedEvents::add;
+
     private final FileInfoServiceImpl fileInfoService = new FileInfoServiceImpl(fileAssetRepository, fileStorage,
-            chunkUploadStore, fileProperties, fileContentPolicy, storagePluginCatalog, fileMetrics);
+            chunkUploadStore, fileProperties, fileContentPolicy, storagePluginCatalog, fileMetrics,
+            domainEventPublisher);
 
     /**
      * 设置较小分片大小，并让仓储保存回填入参聚合。
@@ -1218,6 +1228,84 @@ class FileInfoServiceImplTest {
         verify(fileAssetRepository).deleteById(1L);
         verify(fileAssetRepository, never()).deleteById(2L);
         verify(fileAssetRepository, never()).deleteById(3L);
+    }
+
+    @Test
+    @DisplayName("领域事件：批量删除只对成功条目发布 DELETED")
+    void shouldPublishDeleteEventOnlyForSuccessfulItems() {
+        FileAssetAggregate normal = FileAssetAggregate.reconstitute(1L, "a.txt", "a.txt", "bluewhale",
+                "tenants/1/2026/10/24/a.txt", 12L, "text/plain", null, FileStatus.NORMAL, UPLOADER_ID, false,
+                LocalDateTime.now(), LocalDateTime.now(), "local");
+        when(fileAssetRepository.findById(1L)).thenReturn(Optional.of(normal));
+        when(fileAssetRepository.findById(2L)).thenReturn(Optional.empty());
+        TenantContext.set(1L);
+        try {
+            fileInfoService.batchDelete(new FileBatchDeleteCommand(List.of(1L, 2L), UPLOADER_ID, false));
+        } finally {
+            TenantContext.clear();
+        }
+
+        assertEquals(1, publishedEvents.size());
+        FileAssetDomainEvent event = (FileAssetDomainEvent) publishedEvents.get(0);
+        assertEquals(FileAssetDomainEvent.ChangeType.DELETED, event.changeType());
+        assertEquals(1L, event.fileId());
+        assertEquals(1L, event.tenantId());
+        assertEquals("bluewhale", event.bucket());
+        assertEquals(Long.valueOf(UPLOADER_ID), event.uploaderId());
+        assertEquals(Long.valueOf(UPLOADER_ID), event.operatorId());
+    }
+
+    @Test
+    @DisplayName("领域事件：锁定与解锁各自发布一次，重复调用不发布")
+    void shouldPublishLockAndUnlockEvents() {
+        when(fileAssetRepository.findById(7L)).thenReturn(Optional.of(fileWithStatus(7L, FileStatus.NORMAL)));
+        fileInfoService.lock(7L);
+        fileInfoService.lock(7L);
+
+        when(fileAssetRepository.findById(8L)).thenReturn(Optional.of(fileWithStatus(8L, FileStatus.LOCKED)));
+        fileInfoService.unlock(8L);
+
+        assertEquals(2, publishedEvents.size());
+        assertEquals(FileAssetDomainEvent.ChangeType.LOCKED,
+                ((FileAssetDomainEvent) publishedEvents.get(0)).changeType());
+        assertEquals(FileAssetDomainEvent.ChangeType.UNLOCKED,
+                ((FileAssetDomainEvent) publishedEvents.get(1)).changeType());
+        assertNull(((FileAssetDomainEvent) publishedEvents.get(0)).operatorId());
+    }
+
+    @Test
+    @DisplayName("领域事件：恢复发布 RESTORED，已恢复的幂等调用不发布")
+    void shouldPublishRestoredEventOnlyWhenActuallyRestored() {
+        FileAssetAggregate deleted = FileAssetAggregate.reconstitute(7L, "a.txt", "a.txt", "bluewhale",
+                "tenants/1/2026/10/24/a.txt", 12L, "text/plain", null, FileStatus.NORMAL, UPLOADER_ID, true,
+                LocalDateTime.now(), LocalDateTime.now(), "local");
+        when(fileAssetRepository.findByIdIncludingDeleted(7L)).thenReturn(Optional.of(deleted));
+        when(fileAssetRepository.restoreWithQuotaCheck(eq(7L), any(StorageQuota.class))).thenReturn(true);
+        TenantContext.set(1L);
+        try {
+            fileInfoService.restore(7L, UPLOADER_ID, false, new UploadLimits(100L, 5000L));
+        } finally {
+            TenantContext.clear();
+        }
+
+        assertEquals(1, publishedEvents.size());
+        FileAssetDomainEvent event = (FileAssetDomainEvent) publishedEvents.get(0);
+        assertEquals(FileAssetDomainEvent.ChangeType.RESTORED, event.changeType());
+        assertEquals(1L, event.tenantId());
+        assertEquals(Long.valueOf(UPLOADER_ID), event.operatorId());
+
+        publishedEvents.clear();
+        FileAssetAggregate restored = FileAssetAggregate.reconstitute(7L, "a.txt", "a.txt", "bluewhale",
+                "tenants/1/2026/10/24/a.txt", 12L, "text/plain", null, FileStatus.NORMAL, UPLOADER_ID, false,
+                LocalDateTime.now(), LocalDateTime.now(), "local");
+        when(fileAssetRepository.findByIdIncludingDeleted(7L)).thenReturn(Optional.of(restored));
+        TenantContext.set(1L);
+        try {
+            fileInfoService.restore(7L, UPLOADER_ID, false, new UploadLimits(100L, 5000L));
+        } finally {
+            TenantContext.clear();
+        }
+        assertTrue(publishedEvents.isEmpty(), "幂等恢复不发布事件");
     }
 
     @Test

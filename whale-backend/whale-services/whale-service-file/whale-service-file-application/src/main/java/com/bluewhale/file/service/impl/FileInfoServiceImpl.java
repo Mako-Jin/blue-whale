@@ -3,9 +3,11 @@ package com.bluewhale.file.service.impl;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.common.domain.event.publisher.DomainEventPublisher;
 import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.file.config.FileProperties;
 import com.bluewhale.file.domain.file.aggregate.FileAssetAggregate;
+import com.bluewhale.file.domain.file.event.FileAssetDomainEvent;
 import com.bluewhale.file.domain.model.FileAssetPage;
 import com.bluewhale.file.domain.model.FileAssetQuery;
 import com.bluewhale.file.domain.model.FileRecycleItem;
@@ -118,6 +120,8 @@ public class FileInfoServiceImpl implements FileInfoService {
     private final StoragePluginCatalog storagePluginCatalog;
 
     private final FileMetrics fileMetrics;
+
+    private final DomainEventPublisher domainEventPublisher;
 
     @Override
     public FileUploadResult upload(UploadFileCommand command) {
@@ -238,6 +242,7 @@ public class FileInfoServiceImpl implements FileInfoService {
         FileAssetAggregate asset = requireAccessibleFile(id, requesterId, canManage);
         asset.assertDeletable();
         fileAssetRepository.deleteById(id);
+        publishFileEvent(asset, FileAssetDomainEvent.ChangeType.DELETED, requesterId);
     }
 
     @Override
@@ -284,6 +289,7 @@ public class FileInfoServiceImpl implements FileInfoService {
         }
         try {
             fileAssetRepository.restoreWithQuotaCheck(id, quotaOf(effectiveLimits(limits).quotaBytes()));
+            publishFileEvent(asset, FileAssetDomainEvent.ChangeType.RESTORED, requesterId);
             fileMetrics.recordRestore(true);
         } catch (RuntimeException e) {
             fileMetrics.recordRestore(false);
@@ -342,6 +348,7 @@ public class FileInfoServiceImpl implements FileInfoService {
             return;
         }
         fileAssetRepository.save(asset);
+        publishFileEvent(asset, FileAssetDomainEvent.ChangeType.LOCKED, null);
     }
 
     @Override
@@ -352,6 +359,7 @@ public class FileInfoServiceImpl implements FileInfoService {
             return;
         }
         fileAssetRepository.save(asset);
+        publishFileEvent(asset, FileAssetDomainEvent.ChangeType.UNLOCKED, null);
     }
 
     @Override
@@ -584,6 +592,7 @@ public class FileInfoServiceImpl implements FileInfoService {
             FileAssetAggregate asset = requireAccessibleFile(id, requesterId, canManage);
             asset.assertDeletable();
             fileAssetRepository.deleteById(id);
+            publishFileEvent(asset, FileAssetDomainEvent.ChangeType.DELETED, requesterId);
             return new FileBatchDeleteItemResult(id, true, null);
         } catch (BizException e) {
             return new FileBatchDeleteItemResult(id, false, e.getMessage());
@@ -683,6 +692,23 @@ public class FileInfoServiceImpl implements FileInfoService {
         if (size > limits.maxSizeBytes()) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "文件大小超出上限");
         }
+    }
+
+    /**
+     * 发布文件生命周期事件：载荷取当前聚合快照与租户上下文，同一业务操作只发一条。
+     *
+     * <p>事件为进程内通知，发布发生在事务提交前；消费方需要已提交状态时应使用
+     * {@code @TransactionalEventListener(phase = AFTER_COMMIT)}。发布失败不影响业务结果，
+     * 由基础设施适配器统一降级为告警。</p>
+     *
+     * @param asset 文件资产（调用方须确保已存在主键）
+     * @param changeType 变更类型
+     * @param operatorId 操作人；内部锁定/解锁调用为 {@code null}
+     */
+    private void publishFileEvent(FileAssetAggregate asset, FileAssetDomainEvent.ChangeType changeType,
+                                  Long operatorId) {
+        domainEventPublisher.publish(new FileAssetDomainEvent(asset.getId(), changeType, TenantContext.get(),
+                asset.getBucket(), asset.getObjectKey(), asset.getUploaderId(), operatorId));
     }
 
     /**
