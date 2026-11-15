@@ -102,6 +102,11 @@ whale:
     quota:
       tenant-bytes: ${WHALE_FILE_QUOTA_TENANT_BYTES:0}
       bucket-bytes: ${WHALE_FILE_QUOTA_BUCKET_BYTES:0}
+    # CDN 加速：配置后把预签名下载 URL 的 scheme://host[:port] 替换为 CDN 地址，
+    # 路径与签名查询串保持不变（S3/OSS 预签名不签 host）；要求 CDN 回源对象存储且不改写 query。
+    # 空白表示不启用，行为与未配置时一致。本地存储不支持预签名，配置后也不生效。
+    cdn:
+      base-url: ${WHALE_FILE_CDN_BASE_URL:}
     # 分片上传分片大小，默认 5MB
     chunk-size-bytes: ${WHALE_FILE_CHUNK_SIZE_BYTES:5242880}
     # 分片上传会话保留时长（小时）：过期会话在下次初始化新会话时清理，避免中途放弃的暂存永久占用磁盘

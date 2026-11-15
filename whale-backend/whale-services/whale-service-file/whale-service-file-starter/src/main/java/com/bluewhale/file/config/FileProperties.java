@@ -69,6 +69,9 @@ public class FileProperties {
     /** 租户级与桶级配额配置（个人配额见 {@link #quotaBytes}） */
     private Quota quota = new Quota();
 
+    /** CDN 加速配置 */
+    private Cdn cdn = new Cdn();
+
     /**
      * 上传策略配置项：按网关可信注入的 {@code X-Permission-Codes} 选择生效上限与配额，
      * 未命中任何规则时回落 {@code max-size-bytes} / {@code quota-bytes} 全局默认值。
@@ -301,6 +304,26 @@ public class FileProperties {
 
         /** 单桶配额字节数（租户内计量），默认 0；{@code <=0} 表示不限 */
         private long bucketBytes = 0L;
+    }
+
+    /**
+     * CDN 加速配置项（前缀 {@code whale.file.cdn}）。
+     *
+     * <p>只重写预签名下载 URL 的 {@code scheme://host[:port]}，路径与查询串原样保留：
+     * S3/OSS 预签名不把 host 纳入签名，替换域名后仍可校验，但要求 CDN 回源到对象存储
+     * 且不改写查询串。空白表示不启用，行为与未引入本配置时完全一致。</p>
+     *
+     * @author BlueWhale
+     */
+    @Data
+    public static class Cdn {
+
+        /**
+         * CDN 加速地址（含 scheme），例如 {@code https://cdn.example.com}。
+         *
+         * <p>建议不带路径与结尾斜杠；配置路径时会被拼在对象路径之前。</p>
+         */
+        private String baseUrl = "";
     }
 
     /**

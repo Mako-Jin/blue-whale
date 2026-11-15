@@ -44,6 +44,7 @@ import com.bluewhale.file.model.result.FileRapidUploadResult;
 import com.bluewhale.file.model.result.FileRecycleResult;
 import com.bluewhale.file.model.result.FileUploadResult;
 import com.bluewhale.file.service.FileInfoService;
+import com.bluewhale.file.service.support.CdnUrlRewriter;
 import com.bluewhale.file.service.support.FileContentPolicy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -366,9 +367,10 @@ public class FileInfoServiceImpl implements FileInfoService {
     public FilePresignedResult presignedUrl(Long id, Integer expiresSeconds, Long requesterId, boolean canManage) {
         FileAssetAggregate asset = requireAccessibleFile(id, requesterId, canManage);
         int expires = resolveExpiresSeconds(expiresSeconds);
-        return new FilePresignedResult(
-                fileStorage.presignedDownloadUrl(asset.getBucket(), asset.getObjectKey(), expires,
-                        asset.getStorageType()), expires);
+        String url = fileStorage.presignedDownloadUrl(asset.getBucket(), asset.getObjectKey(), expires,
+                asset.getStorageType());
+        // 配置了 CDN 时仅替换主机部分，路径与签名查询串保持不变；未配置时原样返回
+        return new FilePresignedResult(CdnUrlRewriter.rewrite(url, fileProperties.getCdn().getBaseUrl()), expires);
     }
 
     @Override

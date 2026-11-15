@@ -491,6 +491,19 @@ class FileInfoServiceImplTest {
     }
 
     @Test
+    @DisplayName("presignedUrl：配置 CDN 后返回 CDN 域名且保留签名查询串")
+    void shouldRewritePresignedUrlWithCdn() {
+        fileProperties.getCdn().setBaseUrl("https://cdn.example.com");
+        when(fileAssetRepository.findById(5L)).thenReturn(Optional.of(fileWithStatus(5L, FileStatus.NORMAL)));
+        when(fileStorage.presignedDownloadUrl("bluewhale", "2026/10/24/locked.pdf", 600, "local"))
+                .thenReturn("http://127.0.0.1:9000/bluewhale/2026/10/24/locked.pdf?sign=x");
+
+        FilePresignedResult result = fileInfoService.presignedUrl(5L, null, UPLOADER_ID, false);
+
+        assertEquals("https://cdn.example.com/bluewhale/2026/10/24/locked.pdf?sign=x", result.url());
+    }
+
+    @Test
     @DisplayName("presignedUrl：有效期超过 3600 秒时截断为 3600")
     void shouldClampPresignExpiry() {
         when(fileAssetRepository.findById(5L)).thenReturn(Optional.of(fileWithStatus(5L, FileStatus.NORMAL)));
