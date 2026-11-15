@@ -1,5 +1,16 @@
 # 蓝鲸系统文档
 
+## 文档导航（先看这里，再进目录）
+
+| 你想…… | 去哪 |
+|---|---|
+| 了解项目是什么、现在做到哪、接下来做什么 | [plans/bluewhale-blueprint-2026Q4.md](plans/bluewhale-blueprint-2026Q4.md)（现状基线 + 收线蓝图 + M1–M4 阶段门槛） |
+| 查某个 Phase / 波次的完成状态与结论 | [plans/roadmap.md](plans/roadmap.md)（Phase 1–15 总台账，已完成的划线保留） |
+| 找某个主题的执行计划 | [plans/INDEX.md](plans/INDEX.md)（plans/ 目录 90+ 文件的分类索引：主控 / 现行 / 主题 / 历史四层） |
+| 看某天做了什么、遗留什么 | [devlog/YYYY-MM-DD.md](devlog/)（需求 / 完成 / 待做 / 已修正四段式） |
+| 查服务、端口、库 | [service-catalog.md](service-catalog.md) |
+| 查某个需求编号 | [requirements/register.md](requirements/register.md) |
+
 ## 目录结构
 
 ```
@@ -33,7 +44,7 @@ docs/
 │   ├── network-boundary.md  # 网络边界与上线必检
 │   ├── whale-monitor-boundary.md   # whale-monitor 能力边界
 │   └── cicd.md              # CI/CD 流水线
-├── plans/               # 阶段性规划与波次台账（roadmap / task-breakdown / pending-issues / wave5.*）
+├── plans/               # 阶段性规划与波次台账（入口：INDEX.md 分类索引；主控：roadmap / blueprint / 五服务总账）
 ├── specs/               # 历史 spec 归档（wave5.1b–5.52 等）
 ├── whale-auth/          # 权限服务蓝图归档（originals / final）
 ├── whale-audit/         # 审计服务蓝图归档（originals / final）
@@ -70,7 +81,9 @@ docs/
 ## 快速开始
 
 - 项目总览：[README.md](../README.md)
-- 路线图：[plans/roadmap.md](plans/roadmap.md)
+- 现状与蓝图：[plans/bluewhale-blueprint-2026Q4.md](plans/bluewhale-blueprint-2026Q4.md)
+- 路线图台账：[plans/roadmap.md](plans/roadmap.md)
+- 计划索引：[plans/INDEX.md](plans/INDEX.md)
 - 服务与端口：[service-catalog.md](service-catalog.md)
 - 命名规范：[naming-conventions.md](naming-conventions.md)
 - 开发日志：[devlog/](devlog/)

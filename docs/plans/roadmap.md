@@ -1,6 +1,7 @@
 # 蓝鲸系统 - 搭建填充路线图
 
 > 所有阶段性规划保存在本目录，完成一项在 `docs/devlog/` 中记录一项。
+> **怎么读**：本文件是「历史波次总台账」（已完成的全部划线保留）；「现在做到哪、往哪收、按什么顺序」看 [bluewhale-blueprint-2026Q4.md](bluewhale-blueprint-2026Q4.md)；找某主题的执行计划用 [INDEX.md](INDEX.md)。
 
 ## Phase 1：基础设施就绪
 
@@ -302,9 +303,78 @@
 
 ---
 
+## Phase 14：平台深化与第二波服务（2026-11-06 → 11-15）
+
+> 覆盖商城 / 邮件 / 地图 / 论坛 / 孪生五条新线 + Wave 6.x 平台工程深化 + form/file 服务扩展。
+> 各批次明细以 `docs/devlog/2026-11-0*.md`～`2026-11-15.md` 为准；执行计划入口见 [INDEX.md](INDEX.md)。
+
+### 14.1 新服务波次
+
+- [x] **商城 `whale-mall`（Wave 5.94–5.98，M0–M4）**：一套内核兼容零售 / 经销订货 / 员工福利三形态（`mall_channel.mode` + `settlement_type` + `price_type` 三配置面）；M0 建商品→上架→加购→下单→支付→发货→完成主干（9005 系端口、前端 8119）→ [M0 计划](2026-11-06-wave5.94-mall-service-m0.md)；M1 支付切片、M2 售后、M3 定价/优惠券/运费、M4 物流 → [5.95](2026-11-07-wave5.95-mall-m1-payment-slice.md) / [5.96](2026-11-07-wave5.96-mall-after-sale.md) / [5.97](2026-11-07-wave5.97-mall-pricing-coupon-freight.md) / [5.98](2026-11-07-wave5.98-mall-logistics.md)；2026-11-09 第十三批补组合计价 / 商品券 / 重量区域运费 / WMS 入库与前端售后上传，同日第六批完成商城 E2E（19 服务起服 + 网关冒烟）✅ 2026-11-07/09
+- [x] ~~邮件服务 `whale-mail` M0（Wave 5.89）~~ → [计划](2026-11-06-wave5.89-mail-service-m0.md)（决策背景：自建邮件系统 → [2026-11-06 方案](2026-11-06-mail-server-and-map-service.md)）✅ 2026-11-06
+- [x] ~~地图服务 `whale-map` M0 + 电子围栏 M1 + 前端 kit（Wave 5.91–5.93）~~ → [M0](2026-11-06-wave5.91-map-service-m0.md) / [M1](2026-11-06-wave5.92-map-fence-m1.md) / [前端 kit](2026-11-06-wave5.93-map-frontend-kit.md)（多供应商兼容选型见 [决策方案](2026-11-06-mail-server-and-map-service.md)）✅ 2026-11-06
+- [x] **论坛 `whale-forum`（鲸议台，REQ-FUNC-095 / ARCH-027 / SEC-037）**：2D 功能规格 v1.3（含落码修订）→ [规格](../requirements/2026-11-12-forum-2d-functional-spec-v1.3.md)；2026-11-12 多批落码（单测 149+，含热榜 7d 单档 / `fm_thread_view` 落库去重 / 积分对齐商城账本）；2026-11-13 网关 `/forum/**` 路由 + 白名单 + ticket 守卫，界面冒烟 `scripts/forum-smoke.py` 188+6 全绿（默认限流）✅ 2026-11-12/13
+- [x] **IM 与 3D 城联机**：`whale-im` 走 `--profile collab` 起；`/im/world` 白名单 + ticket 守卫（`whale:im:ticket:<uuid>`）；联机冒烟 `e2e/tools/world-ws.mjs` 14 项；**遗留**：vite preview(8125) 不转发 WS 升级，真实部署联机须在 Nginx + 网关环境重测（已登记蓝图 R3）✅ 2026-11-13
+
+### 14.2 权限中心扩展（Wave 6.x，2026-11-12 立项）
+
+- [x] ~~品牌与客户端基座（M0：品牌配置 + 客户端表）~~ ✅ 2026-11-13（`V28__my_file_menu.sql` 我的文件菜单；`V29__auth_admin_pages.sql` 登录历史权限码纠正 + OAuth 客户端菜单）
+- [x] **权限中心 7 个管理端页面落地**：brand / user-profile / user-group / perm-strategy / role-constraint / session / login-history + oauth-client（perm-mapping 基线清零；冒烟 `scripts/auth-admin-pages-smoke.py`）✅ 2026-11-13
+- [ ] M1 OAuth2.0 授权服务器（前置 spike：Spring Authorization Server × Boot 4.0.8 兼容性）→ [计划 §三](2026-11-12-auth-permission-center-expansion.md)
+- [ ] M2 三方登录（`sys_user_social_binding` 新表）
+- [ ] M3 身份档案 / 用户组 / 策略 / 设备会话（`sys_user_profile` 等 9 新表）
+- [ ] M4 用户导入导出
+- [x] ~~登录锁定与自助改密互锁（Wave 6.27–6.28/6.32：42301 锁定 + 倒计时禁用 + 强制改密死锁修复）~~ ✅ 2026-11-11
+- [x] ~~危险操作二次认证 step-up（Wave 6.22，428/42801 + 门禁）~~ ✅ 2026-11-11
+
+### 14.3 平台工程深化（Wave 6.x）
+
+- [x] ~~仓库结构重构~~：后端分层重命名（`whale-services/*`、`whale-apps/*`、根聚合 POM 移除）、`whale-gateway` → `whale-service-gateway` 收尾（引用面 + CI + 文档）✅ 2026-11-10/13
+- [x] ~~auth API-first 四层收敛 + URL 全量版本化 `/xxx/v1/**`~~（契约上移 interfaces、实现下沉 starter、15 个 Response DTO + MapStruct；15 处内网调用方同步；`check-api-path-drift.py` 支持 `v{version}`）✅ 2026-11-10/12（Wave 6.37）
+- [x] ~~springdoc 全量接入 + 契约批量生成~~（Wave 6.34–6.36：starter 统一挂 `/v3/api-docs`、`scripts/gen-openapi-contracts.py` 生成 `<service>-schema.d.ts`、int64→string 口径对齐 Long→String、admin 手写 VO 契约钉死 + `contract-checks.ts`）✅ 2026-11-12
+- [x] ~~网关路由来源治理 GW-10 Phase 0/1~~（Wave 6.69：38 条基础路由落 `gateway-routes-fallback.yaml` 兜底 + Nacos 同 id 覆盖、重复 id 整体拒绝、order 解析入签名、治理端点 `currentCount/previousCount/rejectedCount`；ADR [gateway-route-source.md](../design/gateway-route-source.md)；网关 163/163）✅ 2026-11-13
+- [x] ~~熔断半开探测运行时取证 + 状态告警上报~~（GW 台账销账，Wave 6.14–6.15）✅ 2026-11-11
+- [x] ~~前端菜单/权限码映射静态门禁 `check-frontend-perm-mapping.py`~~（Wave 6.16；11-11 补 MD5 派生主键菜单丢弃盲区）✅ 2026-11-11
+- [x] ~~qiankun react-refresh 预导修复推广全部 21 个子应用~~（Wave 6.24）✅ 2026-11-11
+- [x] ~~知识助手实机打通（bw-agent 首起）+ 证据质量三修~~（Wave 6.20–6.21）✅ 2026-11-11
+- [x] ~~RBAC 数据治理~~（Wave 6.30：补齐 tenant_admin/mall 角色与 8 个缺失权限点；号段门禁恢复 Wave 6.29）✅ 2026-11-11
+- [x] ~~whale-twin 孪生平台 + 三平台联动 + 阈值告警体系（Wave 6.03–6.09/6.17/6.23）~~ ✅ 2026-11-10/11（告警真实遥测端到端补验 6.23）
+- [x] ~~内网边界门禁 `check-internal-boundary.py` 增强至版本化路径~~（Wave 6.13 + 6.37 联动）✅ 2026-11-11/12
+
+### 14.4 服务能力扩展（分批次）
+
+- [x] ~~`whale-form` 扩展批次 1–5~~：① 变更历史 / 发布预检 / 主从对账 / 单测；② 审批接线（`biz_status` + 工作流回调）/ CSV 导入 / 业务指标 / 发布告警 / 分类标签；③ 缓存 / 事件解耦 / 冷热分离标记 / schema drift 检测 / 多租户策略定稿；④ 导出脱敏 / 多版本检索限流 / JSON 深度防护 / ArchUnit+契约守护 / 部署约束；⑤ 字段级权限 + 附件引用表 ✅ 2026-11-14/15（form 单测 124→239；批次 6+ 排期见 [whale-form-expansion-roadmap.md](whale-form-expansion-roadmap.md)）
+- [x] ~~`whale-file` 能力扩展批次 1–6~~：storageType 路由 / 回收站恢复 / 指标与健康检查；回收站生命周期 + 重命名移动；孤儿对象对账；分享链接；批量删除与打包下载；上传内容魔数校验 ✅ 2026-11-15
+- [ ] `whale-file` 批次 7（配额索引，`V6__file_quota_index.sql`）——**在途**（另有 POM/接口层评审整改，见当日 devlog）
+
+### 14.5 运行集与联调
+
+- [x] ~~全链路联调~~（2026-11-09：19 服务起服 + 网关冒烟 + 商城 E2E；CRM→message / OA→workflow / 客户合并 / ERP↔MES 深链路实机验证；CRM 分析 cron 与 LMS/党政迁移 whale-job，运行集 19→21）✅ 2026-11-09
+- [x] ~~真实库迁移重放 + 起服冒烟，实机阻塞解除~~ ✅ 2026-11-09
+
+---
+
+## Phase 15：2026 Q4 蓝图主线（M1 单域闭环，当前 → 约 2 个月）
+
+> 目标、准入门槛与「不做什么」以 [bluewhale-blueprint-2026Q4.md](bluewhale-blueprint-2026Q4.md) §四～§六 为准（三线收敛：A 制造主攻 / B 协同做深 / C 空间做门面；D 交易降为附属）。此处只挂勾选台账。
+
+- [ ] **制造线一条链跑通（M1 核心）**：销售订单（鲸客）→ 生产订单（鲸造）→ 排产与报工 → 质检 → 入库（鲸营）→ 3D 看板（鲸城）反映真实数据
+  - [ ] 5 环节全程只点页面，不碰 SQL
+  - [ ] 订单状态机每步留痕（谁、何时、改了什么）
+  - [ ] 3D 看板数量 == 库里数量（对账脚本可验证）
+  - [ ] 压测基线三组：权限判定 P95 / 订单列表分页 P95 / 并发报工，写进文档
+  - [ ] 一条链 ≥3 个自动化冒烟用例进 CI
+- [ ] **技术债销账（M1 内）**：R1 文档/门禁脚本强制化（pre-commit + 每日报告）；R8 CI 按 diff 只构建变更服务；R9 前端欠账一次清（旧 `auth-schema.d.ts` 的 `/auth/refresh`、子应用补接 `onReauthRequired`）
+- [ ] **M2 前置**：R3 3D 联机在 Nginx + 真实网关重测 WS 升级；R6 至少 1 个国产库跑通 auth + 一个业务域
+- [ ] 待拍板（蓝图 §十）：目标形态 / 目标行业 / 移动端口径 / 试点客户 / 商城是否停投
+
+---
+
 ## 里程碑顺序
 
 ```
 Phase 1 ──► 2.1 auth ──► 2.2 gateway ──► 2.3 common ──► 3.1 基座 ──► 3.3 admin
                                     └──► 2.4 i18n ──► 2.5 其他服务 ──► 3.2 UI ──► 3.4 portal ──► Phase 4 ──► Phase 5
+Phase 6/7 Agent ──► Phase 8–13 业务全景（scene/CRM/MES/PDM/OA/LMS/党政）──► Phase 14 平台深化与新服务
+                                                                          └──► Phase 15 Q4 蓝图主线（M1 制造链闭环 → M2 可交付）
 ```
