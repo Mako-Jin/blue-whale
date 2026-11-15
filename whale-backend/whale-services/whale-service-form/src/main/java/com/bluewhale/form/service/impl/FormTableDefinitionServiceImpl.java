@@ -314,6 +314,7 @@ public class FormTableDefinitionServiceImpl implements FormTableDefinitionServic
         column.setScale(dto.getScale());
         int required = dto.getRequired() == null ? 0 : dto.getRequired();
         column.setRequired(required);
+        column.setSensitive(dto.getSensitive() == null ? 0 : dto.getSensitive());
         column.setNullable(dto.getNullable() == null ? (required == STATUS_NORMAL ? 0 : 1) : dto.getNullable());
         column.setDefaultValue(dto.getDefaultValue());
         column.setRemark(dto.getRemark());

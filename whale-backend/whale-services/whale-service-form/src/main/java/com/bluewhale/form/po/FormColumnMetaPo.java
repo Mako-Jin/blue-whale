@@ -53,6 +53,9 @@ public class FormColumnMetaPo extends BaseEntity {
     /** 是否必填：1 必填 / 0 非必填（服务层校验；为 1 时 nullable 必须为 0） */
     private Integer required;
 
+    /** 敏感字段：1 敏感 / 0 普通（仅影响导出脱敏） */
+    private Integer sensitive;
+
     /** 默认值 */
     private String defaultValue;
 

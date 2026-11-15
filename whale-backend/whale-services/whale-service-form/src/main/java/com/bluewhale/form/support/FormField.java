@@ -27,6 +27,9 @@ public class FormField {
     /** 是否必填（仅服务层校验，不做 DB NOT NULL） */
     private boolean required;
 
+    /** 是否敏感字段（仅影响导出脱敏，入库与详情保持原值） */
+    private boolean sensitive;
+
     /** 文本最大长度（仅 text 生效，1..2000，缺省 255） */
     private Integer maxLength;
 

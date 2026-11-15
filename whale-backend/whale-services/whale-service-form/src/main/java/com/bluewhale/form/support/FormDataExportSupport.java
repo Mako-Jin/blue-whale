@@ -117,6 +117,29 @@ public final class FormDataExportSupport {
     }
 
     /**
+     * 导出脱敏：保留少量首尾字符便于人工核对，其余以 {@code *} 替代
+     *
+     * <p>规则：长度 ≥ 11（手机号/身份证）保留前 3 后 4；长度 ≥ 7 保留前 2 后 2；
+     * 其余统一输出 {@code ***}。空值原样返回空串。</p>
+     *
+     * @param value 原始单元格文本（可空）
+     * @return 脱敏后的文本
+     */
+    public static String maskSensitive(String value) {
+        if (value == null || value.isEmpty()) {
+            return "";
+        }
+        int length = value.length();
+        if (length >= 11) {
+            return value.substring(0, 3) + "****" + value.substring(length - 4);
+        }
+        if (length >= 7) {
+            return value.substring(0, 2) + "***" + value.substring(length - 2);
+        }
+        return "***";
+    }
+
+    /**
      * 追加一行 CSV（含按需转义）
      *
      * @param builder 目标字符串缓冲

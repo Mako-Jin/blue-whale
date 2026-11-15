@@ -43,4 +43,18 @@ class FormArchitectureTest {
                     "com.bluewhale.form.controller..",
                     "com.bluewhale.form.service..",
                     "com.bluewhale.form.mapper..");
+
+    /** 业务服务不得反向依赖控制器 */
+    @ArchTest
+    static final ArchRule service_must_not_depend_on_controller = noClasses()
+            .that().resideInAPackage("com.bluewhale.form.service..")
+            .should().dependOnClassesThat().resideInAPackage("com.bluewhale.form.controller..");
+
+    /** support 为无状态能力层，不得反向依赖控制器与业务服务 */
+    @ArchTest
+    static final ArchRule support_must_not_depend_on_controller_or_service = noClasses()
+            .that().resideInAPackage("com.bluewhale.form.support..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.bluewhale.form.controller..",
+                    "com.bluewhale.form.service..");
 }

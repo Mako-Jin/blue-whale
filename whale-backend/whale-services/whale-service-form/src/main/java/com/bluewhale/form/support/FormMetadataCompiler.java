@@ -85,6 +85,9 @@ public final class FormMetadataCompiler {
                     ? column.getColumnName() : column.getColumnCode());
             node.put("type", column.getDataType());
             node.put("required", column.getRequired() != null && column.getRequired() == 1);
+            if (column.getSensitive() != null && column.getSensitive() == 1) {
+                node.put("sensitive", true);
+            }
             if (FormDataType.TEXT.equals(column.getDataType())) {
                 node.put("maxLength",
                         column.getLength() == null ? FormDataType.DEFAULT_TEXT_LENGTH : column.getLength());
@@ -150,6 +153,9 @@ public final class FormMetadataCompiler {
         node.put("type", column.getDataType());
         node.put("widget", FormWidgetType.resolve(config.getWidgetType(), column.getDataType()));
         node.put("required", column.getRequired() != null && column.getRequired() == 1);
+        if (column.getSensitive() != null && column.getSensitive() == 1) {
+            node.put("sensitive", true);
+        }
         if (FormDataType.TEXT.equals(column.getDataType())) {
             node.put("maxLength",
                     column.getLength() == null ? FormDataType.DEFAULT_TEXT_LENGTH : column.getLength());
@@ -183,6 +189,7 @@ public final class FormMetadataCompiler {
         if (!StringUtils.hasText(validateJson)) {
             return;
         }
+        FormJson.assertDepth(validateJson, "字段 " + label + " 的扩展配置");
         JsonNode extra;
         try {
             extra = MAPPER.readTree(validateJson);

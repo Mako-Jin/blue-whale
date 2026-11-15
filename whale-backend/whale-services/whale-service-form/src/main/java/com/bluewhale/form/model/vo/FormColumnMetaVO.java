@@ -48,6 +48,9 @@ public class FormColumnMetaVO implements Serializable {
     /** 是否必填：1 必填 / 0 非必填 */
     private Integer required;
 
+    /** 敏感字段：1 敏感 / 0 普通（导出脱敏） */
+    private Integer sensitive;
+
     /** 默认值 */
     private String defaultValue;
 

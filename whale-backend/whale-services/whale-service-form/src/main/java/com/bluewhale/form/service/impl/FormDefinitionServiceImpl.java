@@ -25,6 +25,7 @@ import com.bluewhale.form.mapper.FormFieldConfigMapper;
 import com.bluewhale.form.mapper.FormFieldOptionMapper;
 import com.bluewhale.form.mapper.FormTableDefinitionMapper;
 import com.bluewhale.form.service.FormDefinitionService;
+import com.bluewhale.form.support.FormJson;
 import com.bluewhale.form.support.FormMetadataCache;
 import com.bluewhale.form.support.FormMetadataCompiler;
 import com.bluewhale.form.support.FormWidgetType;
@@ -659,6 +660,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
             return null;
         }
         String text = tags.trim();
+        FormJson.assertDepth(text, "标签");
         try {
             JsonNode node = SNAPSHOT_MAPPER.readTree(text);
             if (node == null || !node.isArray()) {

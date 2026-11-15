@@ -60,6 +60,11 @@ public class FormColumnMetaDTO implements Serializable {
     @Max(value = 1, message = "required 仅允许 0 或 1")
     private Integer required;
 
+    /** 敏感字段：1 敏感 / 0 普通；缺省 0，仅影响导出脱敏 */
+    @Min(value = 0, message = "sensitive 仅允许 0 或 1")
+    @Max(value = 1, message = "sensitive 仅允许 0 或 1")
+    private Integer sensitive;
+
     /** 默认值 */
     @Size(max = 255, message = "默认值长度不能超过 255")
     private String defaultValue;

@@ -80,18 +80,29 @@
     **边界**：运维按需查询，不做启动阻塞自检，不自动修复。
 
 
-### 批次 4（安全与权限深化，待排期）
+### 批次 4（安全与权限深化，已落地 / 部分暂缓）
 
-6. 字段级权限：`visibleRoles/editableRoles`，涉及 VO 裁剪、导出裁剪、校验跳过，单独立项。
-22. 导出脱敏：`sensitive` 标记 + 导出时脱敏。
-23. 多版本检索 DoS：限制参与检索的版本数（如最近 3 个）或并行 + 超时。
-24. JSON 深度攻击：配置 `StreamReadConstraints` 限制嵌套深度/字符串长度。
-21. `X-Username` 可信边界：纳入「仅网关可信」，服务直连不采信。
-14. DDL 权限收敛：部署文档明确应用账号只允许操作 `form_data_*` 前缀表。
-3. 附件引用表 + 子表检索边界：`form_attachment_ref` 支持反查；子表条件检索明确不支持并写入产品边界。
-16. ArchUnit 补强：service↛controller、support↛service/controller。
-18. 契约测试：`FormDataVO` / `FormDefinitionVO` 的 JSON 快照测试。
-20. 文档注释同步：注释引用枚举常量，避免手写状态列表。
+已落地（详见 [whale-form-security-hardening.md](./whale-form-security-hardening.md)）：
+
+22. 导出脱敏：`form_column_meta.sensitive`（V13）+ 编译快照写入字段节点 + 导出按标记掩码
+    （≥11 位保留前 3 后 4、≥7 位保留前 2 后 2、其余 `***`）；入库与详情保持原值。
+23. 多版本检索 DoS：动态字段检索只让最近 3 个版本的物理表参与，避免版本数放大查询次数；
+    边界为更老版本不参与条件检索。
+24. JSON 深度攻击：`FormJson#assertDepth` 在解析前拦截嵌套 > 64 层，覆盖结构定义、字段扩展、
+    标签、提交数据与过滤条件；字符串内括号不计数。
+16. ArchUnit 补强：新增 `service ↛ controller`、`support ↛ controller/service` 两条规则。
+18. 契约测试：`FormContractTest` 固化 `FormDataVO` / `FormDefinitionVO` 的 JSON 字段集合。
+20. 注释同步：状态列表与作用范围注释统一为与常量一致的口径。
+
+文档约束（代码不落）：
+
+21. `X-Username` 可信边界：只允许网关写入并覆盖，服务不直接暴露公网；后续可改为 JWT 解析。
+14. DDL 权限收敛：生产应用账号只允许 `form_data_*` 前缀表的 DDL，或走 DBA 独立通道。
+
+暂缓（保持产品边界，不假装支持）：
+
+6. 字段级权限：`visibleRoles/editableRoles` 涉及 VO 裁剪、导出裁剪、校验跳过，单独立项。
+3. 附件引用表 + 子表检索：明确不支持按子表条件检索与附件反查，需能力时单独立项。
 
 ## 四、批次 1 详细设计
 

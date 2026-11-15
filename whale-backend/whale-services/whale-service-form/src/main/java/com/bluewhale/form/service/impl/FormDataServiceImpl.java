@@ -32,6 +32,7 @@ import com.bluewhale.form.support.FormDataHistoryRecorder;
 import com.bluewhale.form.support.FormDataImportSupport;
 import com.bluewhale.form.support.FormDataType;
 import com.bluewhale.form.support.FormField;
+import com.bluewhale.form.support.FormJson;
 import com.bluewhale.form.support.FormMetadataCache;
 import com.bluewhale.form.support.FormMetadataCompiler;
 import com.bluewhale.form.support.FormMetrics;
@@ -108,6 +109,9 @@ public class FormDataServiceImpl implements FormDataService {
 
     /** 动态字段检索单次最多回捞的记录数（多版本物理表合并时按此上限截断） */
     private static final int MAX_FILTER_FETCH = 5000;
+
+    /** 动态字段检索参与的物理表版本上限（按路由版本号取最近 N 个，防止版本数放大查询次数） */
+    private static final int FILTER_MAX_VERSIONS = 3;
 
     /** 变更历史单次最多返回条数 */
     private static final int HISTORY_MAX_ROWS = 200;
@@ -719,14 +723,18 @@ public class FormDataServiceImpl implements FormDataService {
         }
         List<String> keys = new ArrayList<>();
         List<String> headers = new ArrayList<>(BASE_EXPORT_HEADERS);
+        Set<String> sensitiveKeys = new HashSet<>();
         for (FormField field : fields) {
             keys.add(field.getKey());
             headers.add(StringUtils.hasText(field.getLabel()) ? field.getLabel() : field.getKey());
+            if (field.isSensitive()) {
+                sensitiveKeys.add(field.getKey());
+            }
         }
         appendLegacyColumns(keys, headers, exportData);
         List<List<String>> rows = new ArrayList<>();
         for (FormDataPo entity : exportData) {
-            rows.add(exportRow(entity, keys));
+            rows.add(exportRow(entity, keys, sensitiveKeys));
         }
         formMetrics.exportRows(rows.size());
         String filename = "form-data-" + definition.getCode() + "-"
@@ -774,13 +782,16 @@ public class FormDataServiceImpl implements FormDataService {
     }
 
     /**
-     * 组装单条导出数据行：公共列 + 动态列值（取自 {@code dataJson}，缺失输出空串）
+     * 组装单条导出数据行：公共列 + 动态列值（取自 {@code dataJson}，缺失输出空串）。
+     *
+     * <p>标记为敏感的字段导出时脱敏（入库与详情展示保持原值）。</p>
      *
      * @param entity 表单数据实体
      * @param keys 动态字段编码列表
+     * @param sensitiveKeys 需脱敏的字段编码集合
      * @return 单元格文本列表
      */
-    private static List<String> exportRow(FormDataPo entity, List<String> keys) {
+    private static List<String> exportRow(FormDataPo entity, List<String> keys, Set<String> sensitiveKeys) {
         List<String> row = new ArrayList<>();
         row.add(String.valueOf(entity.getId()));
         row.add(entity.getDefinitionCode());
@@ -792,7 +803,8 @@ public class FormDataServiceImpl implements FormDataService {
         row.add(entity.getStatus() == null ? "" : String.valueOf(entity.getStatus()));
         Map<String, Object> data = parseDataQuietly(entity.getDataJson());
         for (String key : keys) {
-            row.add(formatCell(data.get(key)));
+            String cell = formatCell(data.get(key));
+            row.add(sensitiveKeys.contains(key) ? FormDataExportSupport.maskSensitive(cell) : cell);
         }
         return row;
     }
@@ -857,7 +869,7 @@ public class FormDataServiceImpl implements FormDataService {
     private FilteredRows selectByFilters(FormDefinitionPo definition, FormDataQueryRequest request,
                                          List<FormDataFilter> filters, Long tenantId, long offset, long limit) {
         assertFilterFieldsDefined(definition, filters);
-        List<FormTableRegistryPo> tables = listFilterTables(definition);
+        List<FormTableRegistryPo> tables = latestFilterTables(definition);
         if (tables.isEmpty()) {
             throw paramError("表单未发布，暂不支持动态字段检索");
         }
@@ -913,6 +925,38 @@ public class FormDataServiceImpl implements FormDataService {
                 .thenComparing(FormDataPo::getId, Comparator.nullsLast(Comparator.naturalOrder()))
                 .reversed());
         return ordered;
+    }
+
+    /**
+     * 取参与动态字段检索的「最近 N 个版本」物理表。
+     *
+     * <p>每次检索会对每个参与版本执行 count + selectIds 两次查询，版本数越多查询次数线性放大，
+     * 恶意或历史积压的大量版本可拖垮数据库。此处按路由版本号倒序只保留最近
+     * {@link #FILTER_MAX_VERSIONS} 个版本。<b>边界</b>：更老版本中的数据不参与过滤检索，
+     * 按主键详情、列表（非过滤）不受影响。</p>
+     *
+     * @param definition 表单定义
+     * @return 按版本号倒序的物理表登记（最多 {@link #FILTER_MAX_VERSIONS} 个）
+     */
+    private List<FormTableRegistryPo> latestFilterTables(FormDefinitionPo definition) {
+        List<FormTableRegistryPo> tables = new ArrayList<>(listFilterTables(definition));
+        tables.sort(Comparator.comparingInt(FormDataServiceImpl::registryRouteVersion).reversed());
+        if (tables.size() <= FILTER_MAX_VERSIONS) {
+            return tables;
+        }
+        return new ArrayList<>(tables.subList(0, FILTER_MAX_VERSIONS));
+    }
+
+    /**
+     * 取物理表登记的路由版本号（元数据模型取表版本，旧模型取表单版本）
+     *
+     * @param registry 物理表登记
+     * @return 路由版本号
+     */
+    private static int registryRouteVersion(FormTableRegistryPo registry) {
+        Integer version = registry.getTableCode() == null
+                ? registry.getDefinitionVersion() : registry.getTableVersion();
+        return version == null ? DEFAULT_VERSION : version;
     }
 
     /**
@@ -1030,6 +1074,7 @@ public class FormDataServiceImpl implements FormDataService {
         if (raw.length() > MAX_FILTER_JSON_LENGTH) {
             throw paramError("过滤条件 JSON 不能超过 " + MAX_FILTER_JSON_LENGTH + " 字符");
         }
+        FormJson.assertDepth(raw, "过滤条件");
         List<FormDataFilter> filters;
         try {
             filters = MAPPER.readValue(raw, new TypeReference<List<FormDataFilter>>() {
@@ -1213,6 +1258,7 @@ public class FormDataServiceImpl implements FormDataService {
      * @throws BizException 非法 JSON 或非 JSON 对象时抛出 {@code PARAM_ERROR}
      */
     private static Map<String, Object> parseData(String dataJson) {
+        FormJson.assertDepth(dataJson, "表单数据");
         try {
             return MAPPER.readValue(dataJson, new TypeReference<Map<String, Object>>() {
             });

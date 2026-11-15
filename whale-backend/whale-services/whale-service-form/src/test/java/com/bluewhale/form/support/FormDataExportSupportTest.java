@@ -66,4 +66,16 @@ class FormDataExportSupportTest {
         assertTrue(sheetXml.contains("<col min=\"1\" max=\"1\""));
         assertTrue(sheetXml.contains("<sheetData>"));
     }
+
+    @Test
+    @DisplayName("maskSensitive：长文本保留首尾，短文本统一掩码")
+    void shouldMaskSensitiveText() {
+        org.junit.jupiter.api.Assertions.assertEquals("138****5678",
+                FormDataExportSupport.maskSensitive("13812345678"));
+        org.junit.jupiter.api.Assertions.assertEquals("12***89",
+                FormDataExportSupport.maskSensitive("123456789"));
+        org.junit.jupiter.api.Assertions.assertEquals("***", FormDataExportSupport.maskSensitive("abc"));
+        org.junit.jupiter.api.Assertions.assertEquals("", FormDataExportSupport.maskSensitive(null));
+        org.junit.jupiter.api.Assertions.assertEquals("", FormDataExportSupport.maskSensitive(""));
+    }
 }

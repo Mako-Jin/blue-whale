@@ -33,6 +33,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.PlatformTransactionManager;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -44,6 +45,7 @@ import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -666,6 +668,41 @@ class FormDataServiceImplTest {
 
         assertEquals(2L, result.getTotal());
         assertEquals(List.of(2L, 1L), result.getRecords().stream().map(FormDataVO::getId).toList());
+    }
+
+    @Test
+    @DisplayName("page：动态字段检索最多参与最近 3 个版本物理表")
+    void shouldLimitFilterVersionsToLatestThree() {
+        FormDefinitionPo definition = definition(10L);
+        definition.setSchemaJson(filterSchema());
+        when(formDefinitionMapper.selectList(ArgumentMatchers.<Wrapper<FormDefinitionPo>>any()))
+                .thenReturn(List.of(definition));
+        List<FormTableRegistryPo> registries = new ArrayList<>();
+        for (int version = 1; version <= 4; version++) {
+            FormTableRegistryPo registry = registryWithSchema(filterSchema());
+            registry.setDefinitionVersion(version);
+            registry.setPhysicalTable("form_data_" + CODE + "_v" + version);
+            registries.add(registry);
+        }
+        when(formTableRegistryMapper.selectList(ArgumentMatchers.<Wrapper<FormTableRegistryPo>>any()))
+                .thenReturn(registries);
+        when(formDataEngine.countByFilters(any(), eq(TENANT), anyList(), anyList(),
+                ArgumentMatchers.<String>any(), ArgumentMatchers.<String>any())).thenReturn(0L);
+        when(formDataEngine.selectIdsByFilters(any(), eq(TENANT), anyList(), anyList(),
+                ArgumentMatchers.<String>any(), ArgumentMatchers.<String>any(), eq(10)))
+                .thenReturn(List.of());
+        FormDataQueryRequest request = new FormDataQueryRequest();
+        request.setDefinitionCode(CODE);
+        request.setFilters("[{\"field\":\"amount\",\"op\":\"gte\",\"value\":100}]");
+        request.setCurrent(1);
+        request.setSize(10);
+
+        formDataService.page(request, TENANT);
+
+        verify(formDataEngine, times(3)).countByFilters(any(), eq(TENANT), anyList(), anyList(),
+                ArgumentMatchers.<String>any(), ArgumentMatchers.<String>any());
+        verify(formDataEngine, never()).countByFilters(eq("form_data_" + CODE + "_v1"), any(), anyList(), anyList(),
+                ArgumentMatchers.<String>any(), ArgumentMatchers.<String>any());
     }
 
     @Test

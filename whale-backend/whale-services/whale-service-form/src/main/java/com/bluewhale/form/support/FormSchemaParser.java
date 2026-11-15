@@ -90,6 +90,7 @@ public final class FormSchemaParser {
         if (!StringUtils.hasText(schemaJson)) {
             throw paramError("表单结构定义为空，无法解析");
         }
+        FormJson.assertDepth(schemaJson, "表单结构定义");
         JsonNode root;
         try {
             root = MAPPER.readTree(schemaJson);
@@ -153,6 +154,7 @@ public final class FormSchemaParser {
         field.setLabel(StringUtils.hasText(label) ? label : key);
         field.setType(type);
         field.setRequired(node.path("required").asBoolean(false));
+        field.setSensitive(node.path("sensitive").asBoolean(false));
         if (FormDataType.TEXT.equals(type)) {
             field.setMaxLength(parseMaxLength(node, key));
         }
