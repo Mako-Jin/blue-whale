@@ -5,6 +5,8 @@ import com.bluewhale.common.entity.BaseEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import java.time.LocalDateTime;
+
 /**
  * 表单物理表登记实体，对应表 {@code form_table_registry}。
  *
@@ -55,4 +57,10 @@ public class FormTableRegistryPo extends BaseEntity {
 
     /** 最近一次发布失败原因（成功发布后清空） */
     private String lastError;
+
+    /** 归档状态：0 未归档 / 1 已归档（仅运维标记，不删除物理表） */
+    private Integer archiveStatus;
+
+    /** 归档标记时间 */
+    private LocalDateTime archiveTime;
 }

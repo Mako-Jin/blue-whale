@@ -16,6 +16,7 @@ import com.bluewhale.form.mapper.FormDataMapper;
 import com.bluewhale.form.mapper.FormDefinitionMapper;
 import com.bluewhale.form.mapper.FormTableRegistryMapper;
 import com.bluewhale.form.support.FormDataEngine;
+import com.bluewhale.form.support.FormMetadataCache;
 import com.bluewhale.form.support.FormDataHistoryRecorder;
 import com.bluewhale.form.support.FormField;
 import com.bluewhale.form.support.FormMetrics;
@@ -28,6 +29,7 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.PlatformTransactionManager;
 
@@ -82,6 +84,12 @@ class FormDataServiceImplTest {
 
     @Mock
     private PlatformTransactionManager transactionManager;
+
+    @Mock
+    private FormMetadataCache metadataCache;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @Mock
     private FormDataEngine formDataEngine;

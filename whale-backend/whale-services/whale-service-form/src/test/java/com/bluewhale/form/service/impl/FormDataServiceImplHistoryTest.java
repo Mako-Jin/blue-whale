@@ -16,6 +16,7 @@ import com.bluewhale.form.po.FormDefinitionPo;
 import com.bluewhale.form.po.FormTableRegistryPo;
 import com.bluewhale.form.support.FormDataEngine;
 import com.bluewhale.form.support.FormDataHistoryRecorder;
+import com.bluewhale.form.support.FormMetadataCache;
 import com.bluewhale.form.support.FormMetrics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -26,6 +27,7 @@ import org.mockito.InjectMocks;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import java.time.LocalDateTime;
@@ -83,6 +85,12 @@ class FormDataServiceImplHistoryTest {
 
     @Mock
     private PlatformTransactionManager transactionManager;
+
+    @Mock
+    private FormMetadataCache metadataCache;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private FormDataServiceImpl formDataService;

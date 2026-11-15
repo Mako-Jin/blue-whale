@@ -25,6 +25,7 @@ import com.bluewhale.form.mapper.FormFieldOptionMapper;
 import com.bluewhale.form.mapper.FormTableDefinitionMapper;
 import com.bluewhale.form.model.vo.FormDefinitionVO;
 import com.bluewhale.form.model.vo.FormDefinitionVersionVO;
+import com.bluewhale.form.support.FormMetadataCache;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -78,6 +79,9 @@ class FormDefinitionServiceImplTest {
 
     @Mock
     private FormDefinitionVersionMapper formDefinitionVersionMapper;
+
+    @Mock
+    private FormMetadataCache metadataCache;
 
     @InjectMocks
     private FormDefinitionServiceImpl formDefinitionService;

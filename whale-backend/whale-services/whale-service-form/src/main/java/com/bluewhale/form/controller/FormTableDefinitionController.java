@@ -5,8 +5,11 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.form.model.request.FormQueryRequest;
 import com.bluewhale.form.model.request.FormTableDefinitionSaveRequest;
+import com.bluewhale.form.service.FormArchiveService;
 import com.bluewhale.form.service.FormPublishService;
+import com.bluewhale.form.service.FormSchemaDriftService;
 import com.bluewhale.form.service.FormTableDefinitionService;
+import com.bluewhale.form.model.vo.FormSchemaDriftVO;
 import com.bluewhale.form.model.vo.FormTableDefinitionVO;
 import com.bluewhale.form.model.vo.FormTableRegistryVO;
 import jakarta.validation.Valid;
@@ -40,6 +43,10 @@ public class FormTableDefinitionController {
     private final FormTableDefinitionService formTableDefinitionService;
 
     private final FormPublishService formPublishService;
+
+    private final FormArchiveService formArchiveService;
+
+    private final FormSchemaDriftService formSchemaDriftService;
 
     /**
      * 新增表定义（含列集合）。
@@ -128,5 +135,43 @@ public class FormTableDefinitionController {
     @RequirePermission("sys:form:table:list")
     public Result<List<FormTableRegistryVO>> tables(@PathVariable Long id) {
         return Result.ok(formPublishService.listTablesByTableDefinition(id));
+    }
+
+    /**
+     * 标记旧版本物理表为已归档（仅运维标记，不导出数据、不删除物理表）。
+     *
+     * @param id 表定义ID
+     * @param registryId 物理表登记ID
+     * @return 登记视图对象（含归档状态）
+     */
+    @PostMapping("/{id}/tables/{registryId}/archive")
+    @RequirePermission("sys:form:table:publish")
+    public Result<FormTableRegistryVO> archive(@PathVariable Long id, @PathVariable Long registryId) {
+        return Result.ok(formArchiveService.archive(id, registryId));
+    }
+
+    /**
+     * 取消物理表归档标记。
+     *
+     * @param id 表定义ID
+     * @param registryId 物理表登记ID
+     * @return 登记视图对象（含归档状态）
+     */
+    @DeleteMapping("/{id}/tables/{registryId}/archive")
+    @RequirePermission("sys:form:table:publish")
+    public Result<FormTableRegistryVO> unarchive(@PathVariable Long id, @PathVariable Long registryId) {
+        return Result.ok(formArchiveService.unarchive(id, registryId));
+    }
+
+    /**
+     * 物理表结构漂移检测：比对列元数据/发布快照与 information_schema 实际列。
+     *
+     * @param registryId 物理表登记ID
+     * @return 漂移检测结果
+     */
+    @GetMapping("/tables/{registryId}/drift")
+    @RequirePermission("sys:form:table:list")
+    public Result<FormSchemaDriftVO> drift(@PathVariable Long registryId) {
+        return Result.ok(formSchemaDriftService.inspect(registryId));
     }
 }

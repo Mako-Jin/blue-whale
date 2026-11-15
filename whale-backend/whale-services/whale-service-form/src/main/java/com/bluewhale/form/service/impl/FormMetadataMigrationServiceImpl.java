@@ -20,6 +20,7 @@ import com.bluewhale.form.mapper.FormTableRegistryMapper;
 import com.bluewhale.form.service.FormMetadataMigrationService;
 import com.bluewhale.form.support.FormDataType;
 import com.bluewhale.form.support.FormField;
+import com.bluewhale.form.support.FormMetadataCache;
 import com.bluewhale.form.support.FormSchemaParser;
 import com.bluewhale.form.support.FormTableDdlGenerator;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -76,6 +77,8 @@ public class FormMetadataMigrationServiceImpl implements FormMetadataMigrationSe
 
     private final FormDataMapper formDataMapper;
 
+    private final FormMetadataCache metadataCache;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public int migrateLegacy() {
@@ -89,6 +92,8 @@ public class FormMetadataMigrationServiceImpl implements FormMetadataMigrationSe
                 migrated++;
             }
         }
+        // 迁移批量回填了定义与登记的表维度列，统一失效本地缓存，避免读到迁移前的元数据
+        metadataCache.invalidateAll();
         return migrated;
     }
 

@@ -55,14 +55,30 @@
 5. 表单模板/分类/标签：`form_definition.category` + `tags`（JSON 数组文本），列表按 `category` 过滤；
    `tags` 非法 JSON 数组直接拒绝。
 
-### 批次 3（性能与架构，待排期）
+### 批次 3（性能与架构，已落地）
 
-10. 缓存层：Caffeine（TTL 5min + 写时主动失效）优先，多实例共享需求明确后再上 Redis。
-11. 事件解耦：`submit/update/delete` 后发领域事件，archive/统计改订阅，弱化 `FormInternalController` 同步耦合点。
-8. 多租户物理表策略：输出「单表 + tenant_id 列」与「按租户分表」的对比评估（表数量上限、复合索引、迁移成本），
-   **租户数破百前定稿**。
-7. 冷热分离：`form_table_registry` 增 `archive_status/archive_time`，旧版本物理表导出归档。
-19. Schema drift 检测：启动/巡检比对 `information_schema` 与实体字段，防止改实体忘改脚本。
+10. 缓存层：新增 `FormMetadataCache`（Caffeine，TTL 5min + maximumSize 10000），缓存
+    `requireDefinition` / `requireDefinitionByCode` / `requireRegistry` 三类读多写少元数据；
+    写时主动失效：定义新增/修改/删除/复制/回滚（`FormDefinitionServiceImpl`）、物理表发布成功与发布失败标记
+    （`FormPublishServiceImpl`）、元数据整体迁移（`FormMetadataMigrationServiceImpl#invalidateAll`）。
+    **边界**：进程内单级缓存，多实例部署时其他实例最长延迟一个 TTL；要求强一致时再换 Redis。
+11. 事件解耦：新增领域事件 `FormDataChangedEvent`（`CREATE` / `UPDATE` / `DELETE` / `APPROVAL`，只带定位信息不带 `dataJson`），
+    `submit`（含批量导入）/`update`/`delete`/`startApproval`/`approvalCallback` 成功后通过 `ApplicationEventPublisher` 发布；
+    订阅方约定用 `@TransactionalEventListener(phase = AFTER_COMMIT)`，避免主流程回滚而下游已消费。
+    `FormInternalController` 保留为同步只读兜底，不强制迁移。
+8. 多租户物理表策略：输出 [whale-form-tenant-table-strategy.md](./whale-form-tenant-table-strategy.md)，
+    结论为「单表 + tenant_id 列」，并指出当前「物理表按租户分表 + 登记表不区分租户」的混合态在多租户发布时会互相覆盖登记，
+    属需优先修复的正确性问题；给出最小止血与完整迁移两套路径，**租户数破百前定稿**。本期不改代码。
+7. 冷热分离：`V12__form_table_registry_archive.sql` 新增 `archive_status`（0/1）与 `archive_time`；
+    `FormArchiveService` + `POST/DELETE /form/v1/table-definition/{id}/tables/{registryId}/archive`
+    （权限 `sys:form:table:publish`）只做归档标记，当前生效版本拒绝归档。
+    **边界**：不导出数据、不删除物理表、不改变读写路由，真正的归档动作由运维在标记确认后执行。
+19. Schema drift 检测：`FormSchemaDriftService` + `GET /form/v1/table-definition/tables/{registryId}/drift`
+    （权限 `sys:form:table:list`）；期望结构元数据模型取 `form_column_meta`、旧模型取发布快照，
+    实际结构取 `information_schema`（`FormDataEngine#describeColumns`），输出
+    `OK` / `DRIFT` / `TABLE_MISSING`、缺失列、多余列（排除公共列）与类型不一致明细。
+    **边界**：运维按需查询，不做启动阻塞自检，不自动修复。
+
 
 ### 批次 4（安全与权限深化，待排期）
 

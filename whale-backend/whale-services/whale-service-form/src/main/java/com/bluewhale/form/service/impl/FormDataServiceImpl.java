@@ -6,6 +6,7 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.form.converter.FormConverter;
+import com.bluewhale.form.event.FormDataChangedEvent;
 import com.bluewhale.form.model.dto.FormDataFilter;
 import com.bluewhale.form.model.request.FormDataApprovalCallbackRequest;
 import com.bluewhale.form.model.request.FormDataApprovalStartRequest;
@@ -31,6 +32,7 @@ import com.bluewhale.form.support.FormDataHistoryRecorder;
 import com.bluewhale.form.support.FormDataImportSupport;
 import com.bluewhale.form.support.FormDataType;
 import com.bluewhale.form.support.FormField;
+import com.bluewhale.form.support.FormMetadataCache;
 import com.bluewhale.form.support.FormMetadataCompiler;
 import com.bluewhale.form.support.FormMetrics;
 import com.bluewhale.form.support.FormSchemaParser;
@@ -43,6 +45,7 @@ import com.bluewhale.form.model.vo.FormDataVO;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -167,6 +170,10 @@ public class FormDataServiceImpl implements FormDataService {
 
     private final PlatformTransactionManager transactionManager;
 
+    private final FormMetadataCache metadataCache;
+
+    private final ApplicationEventPublisher eventPublisher;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public FormDataVO submit(FormDataSubmitRequest request, String submitter, Long tenantId) {
@@ -235,6 +242,7 @@ public class FormDataServiceImpl implements FormDataService {
         formDataMapper.insert(entity);
         formDataEngine.insert(registry.getPhysicalTable(), entity, fields, data);
         formDataHistoryRecorder.recordCreate(entity);
+        eventPublisher.publishEvent(FormDataChangedEvent.of(entity, FormDataChangedEvent.CREATE, submitter));
         return toVo(entity, data);
     }
 
@@ -287,6 +295,7 @@ public class FormDataServiceImpl implements FormDataService {
         formDataMapper.updateById(entity);
         formDataEngine.update(registry.getPhysicalTable(), entity, writableFields(viewFields, tableFields), merged);
         formDataHistoryRecorder.recordUpdate(entity, beforeJson);
+        eventPublisher.publishEvent(FormDataChangedEvent.of(entity, FormDataChangedEvent.UPDATE, null));
         return toVo(entity, merged);
     }
 
@@ -352,6 +361,7 @@ public class FormDataServiceImpl implements FormDataService {
         formDataMapper.deleteById(id);
         FormTableRegistryPo registry = requireRegistry(routeCodeOf(entity), routeVersionOf(entity));
         formDataEngine.logicDelete(registry.getPhysicalTable(), id, tenantId);
+        eventPublisher.publishEvent(FormDataChangedEvent.of(entity, FormDataChangedEvent.DELETE, null));
     }
 
     @Override
@@ -382,6 +392,7 @@ public class FormDataServiceImpl implements FormDataService {
         entity.setProcessInstanceId(instanceId);
         formDataMapper.updateById(entity);
         formDataHistoryRecorder.recordApproval(entity, before, null);
+        eventPublisher.publishEvent(FormDataChangedEvent.of(entity, FormDataChangedEvent.APPROVAL, null));
         return toVo(entity, parseDataQuietly(entity.getDataJson()));
     }
 
@@ -404,6 +415,7 @@ public class FormDataServiceImpl implements FormDataService {
         entity.setBizStatus(APPROVAL_APPROVED.equals(result) ? BIZ_APPROVED : BIZ_REJECTED);
         formDataMapper.updateById(entity);
         formDataHistoryRecorder.recordApproval(entity, before, request.getComment());
+        eventPublisher.publishEvent(FormDataChangedEvent.of(entity, FormDataChangedEvent.APPROVAL, null));
     }
 
     @Override
@@ -1057,30 +1069,37 @@ public class FormDataServiceImpl implements FormDataService {
      * @throws BizException 编码无匹配定义时抛出 {@code PARAM_ERROR}
      */
     private FormDefinitionPo requireDefinitionByCode(String code) {
-        LambdaQueryWrapper<FormDefinitionPo> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FormDefinitionPo::getCode, code);
-        List<FormDefinitionPo> definitions = formDefinitionMapper.selectList(wrapper);
-        if (definitions.isEmpty()) {
-            throw paramError("表单编码不存在：" + code);
-        }
-        return definitions.stream()
-                .max(Comparator.comparingInt(item -> item.getVersion() == null ? DEFAULT_VERSION
-                        : item.getVersion()))
-                .orElse(definitions.get(0));
+        return metadataCache.findDefinitionByCode(code).orElseGet(() -> {
+            LambdaQueryWrapper<FormDefinitionPo> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(FormDefinitionPo::getCode, code);
+            List<FormDefinitionPo> definitions = formDefinitionMapper.selectList(wrapper);
+            if (definitions.isEmpty()) {
+                throw paramError("表单编码不存在：" + code);
+            }
+            FormDefinitionPo definition = definitions.stream()
+                    .max(Comparator.comparingInt(item -> item.getVersion() == null ? DEFAULT_VERSION
+                            : item.getVersion()))
+                    .orElse(definitions.get(0));
+            metadataCache.cacheDefinition(definition);
+            return definition;
+        });
     }
 
     /**
-     * 查询表单定义，不存在则抛出 {@code NOT_FOUND}
+     * 查询表单定义，不存在则抛出 {@code NOT_FOUND}（优先命中本地缓存）
      *
      * @param definitionId 表单定义ID
      * @return 表单定义实体
      */
     private FormDefinitionPo requireDefinition(Long definitionId) {
-        FormDefinitionPo definition = formDefinitionMapper.selectById(definitionId);
-        if (definition == null) {
-            throw new BizException(ErrorCode.NOT_FOUND);
-        }
-        return definition;
+        return metadataCache.findDefinition(definitionId).orElseGet(() -> {
+            FormDefinitionPo definition = formDefinitionMapper.selectById(definitionId);
+            if (definition == null) {
+                throw new BizException(ErrorCode.NOT_FOUND);
+            }
+            metadataCache.cacheDefinition(definition);
+            return definition;
+        });
     }
 
     /**
@@ -1137,22 +1156,38 @@ public class FormDataServiceImpl implements FormDataService {
      * @throws BizException 未发布时抛出 {@code PARAM_ERROR}
      */
     private FormTableRegistryPo requireRegistry(String code, Integer version) {
+        return metadataCache.findRegistry(code, version).orElseGet(() -> {
+            FormTableRegistryPo registry = queryRegistry(code, version);
+            if (registry == null) {
+                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "表单未发布或版本已变更，请先发布");
+            }
+            metadataCache.cacheRegistry(registry);
+            return registry;
+        });
+    }
+
+    /**
+     * 按（路由编码 + 版本）查询生效的物理表登记：先按表维度（元数据模型）查找，
+     * 未命中再按表单维度（旧模型）回落
+     *
+     * @param code 路由编码（表编码或表单编码）
+     * @param version 路由版本
+     * @return 物理表登记实体；未命中返回 {@code null}
+     */
+    private FormTableRegistryPo queryRegistry(String code, Integer version) {
         LambdaQueryWrapper<FormTableRegistryPo> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(FormTableRegistryPo::getTableCode, code);
         wrapper.eq(FormTableRegistryPo::getTableVersion, version);
         wrapper.eq(FormTableRegistryPo::getStatus, STATUS_NORMAL);
         FormTableRegistryPo registry = formTableRegistryMapper.selectOne(wrapper);
-        if (registry == null) {
-            LambdaQueryWrapper<FormTableRegistryPo> legacy = new LambdaQueryWrapper<>();
-            legacy.eq(FormTableRegistryPo::getDefinitionCode, code);
-            legacy.eq(FormTableRegistryPo::getDefinitionVersion, version);
-            legacy.eq(FormTableRegistryPo::getStatus, STATUS_NORMAL);
-            registry = formTableRegistryMapper.selectOne(legacy);
+        if (registry != null) {
+            return registry;
         }
-        if (registry == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "表单未发布或版本已变更，请先发布");
-        }
-        return registry;
+        LambdaQueryWrapper<FormTableRegistryPo> legacy = new LambdaQueryWrapper<>();
+        legacy.eq(FormTableRegistryPo::getDefinitionCode, code);
+        legacy.eq(FormTableRegistryPo::getDefinitionVersion, version);
+        legacy.eq(FormTableRegistryPo::getStatus, STATUS_NORMAL);
+        return formTableRegistryMapper.selectOne(legacy);
     }
 
     /**

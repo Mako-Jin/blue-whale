@@ -12,6 +12,7 @@ import com.bluewhale.form.mapper.FormTableDefinitionMapper;
 import com.bluewhale.form.mapper.FormTableRegistryMapper;
 import com.bluewhale.form.support.FormDataEngine;
 import com.bluewhale.form.support.FormDdlAuditor;
+import com.bluewhale.form.support.FormMetadataCache;
 import com.bluewhale.form.support.FormMetrics;
 import com.bluewhale.form.support.FormRegistryStatusMarker;
 import com.bluewhale.form.model.vo.FormTableRegistryVO;
@@ -75,6 +76,9 @@ class FormPublishServiceImplTest {
 
     @Mock
     private FormMetrics formMetrics;
+
+    @Mock
+    private FormMetadataCache metadataCache;
 
     @InjectMocks
     private FormPublishServiceImpl formPublishService;

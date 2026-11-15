@@ -25,6 +25,7 @@ import com.bluewhale.form.mapper.FormFieldConfigMapper;
 import com.bluewhale.form.mapper.FormFieldOptionMapper;
 import com.bluewhale.form.mapper.FormTableDefinitionMapper;
 import com.bluewhale.form.service.FormDefinitionService;
+import com.bluewhale.form.support.FormMetadataCache;
 import com.bluewhale.form.support.FormMetadataCompiler;
 import com.bluewhale.form.support.FormWidgetType;
 import com.bluewhale.form.model.vo.FormDefinitionVO;
@@ -108,6 +109,8 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
 
     private final FormDefinitionVersionMapper formDefinitionVersionMapper;
 
+    private final FormMetadataCache metadataCache;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public FormDefinitionVO create(FormDefinitionSaveRequest request) {
@@ -137,6 +140,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
             formDefinitionMapper.updateById(entity);
         }
         writeVersionSnapshot(entity);
+        metadataCache.invalidateDefinition(entity.getId(), entity.getCode());
         return toDetailVo(entity, table == null ? null : listFields(entity.getId()));
     }
 
@@ -145,6 +149,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
     public FormDefinitionVO update(Long id, FormDefinitionSaveRequest request) {
         assertStructureSource(request);
         FormDefinitionPo entity = requireForm(id);
+        String originalCode = entity.getCode();
         int expectedVersion = entity.getVersion() == null ? DEFAULT_VERSION : entity.getVersion();
         if (!entity.getCode().equals(request.getCode())) {
             assertCodeUnique(request.getCode(), id);
@@ -181,6 +186,8 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
         }
         updateWithVersionGuard(entity, expectedVersion);
         writeVersionSnapshot(entity);
+        metadataCache.invalidateDefinition(entity.getId(), originalCode);
+        metadataCache.invalidateDefinition(entity.getId(), entity.getCode());
         return toDetailVo(entity, table == null ? null : listFields(entity.getId()));
     }
 
@@ -204,9 +211,10 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
-        requireForm(id);
+        FormDefinitionPo entity = requireForm(id);
         deleteFields(id);
         formDefinitionMapper.deleteById(id);
+        metadataCache.invalidateDefinition(id, entity.getCode());
     }
 
     @Override
@@ -250,6 +258,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
             formDefinitionMapper.updateById(entity);
         }
         writeVersionSnapshot(entity);
+        metadataCache.invalidateDefinition(entity.getId(), entity.getCode());
         return toDetailVo(entity, listFields(entity.getId()));
     }
 
@@ -268,6 +277,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
     @Transactional(rollbackFor = Exception.class)
     public FormDefinitionVO rollback(Long id, Integer version) {
         FormDefinitionPo entity = requireForm(id);
+        String originalCode = entity.getCode();
         FormDefinitionVersionPo snapshot = findSnapshot(id, version);
         JsonNode root = parseSnapshot(snapshot.getSnapshotJson());
         JsonNode definition = root.path("definition");
@@ -281,6 +291,8 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
         }
         updateWithVersionGuard(entity, currentVersion);
         writeVersionSnapshot(entity);
+        metadataCache.invalidateDefinition(entity.getId(), originalCode);
+        metadataCache.invalidateDefinition(entity.getId(), entity.getCode());
         return toDetailVo(entity, listFields(id));
     }
 

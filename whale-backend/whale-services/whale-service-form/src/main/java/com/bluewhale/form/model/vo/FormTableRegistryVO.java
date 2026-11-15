@@ -48,6 +48,12 @@ public class FormTableRegistryVO implements Serializable {
     /** 最近一次发布失败原因（成功发布后清空；仅 status=3 时有值） */
     private String lastError;
 
+    /** 归档状态：0 未归档 / 1 已归档（仅运维标记，不删除物理表） */
+    private Integer archiveStatus;
+
+    /** 归档标记时间 */
+    private LocalDateTime archiveTime;
+
     /** 创建时间 */
     private LocalDateTime createTime;
 

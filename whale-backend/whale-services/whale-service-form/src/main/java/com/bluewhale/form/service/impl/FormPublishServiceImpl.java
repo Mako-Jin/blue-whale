@@ -20,6 +20,7 @@ import com.bluewhale.form.support.FormColumnNarrowingDetector;
 import com.bluewhale.form.support.FormDataType;
 import com.bluewhale.form.support.FormDdlAuditor;
 import com.bluewhale.form.support.FormField;
+import com.bluewhale.form.support.FormMetadataCache;
 import com.bluewhale.form.support.FormMetadataCompiler;
 import com.bluewhale.form.support.FormMetrics;
 import com.bluewhale.form.support.FormRegistryStatusMarker;
@@ -83,6 +84,8 @@ public class FormPublishServiceImpl implements FormPublishService {
     private final FormRegistryStatusMarker formRegistryStatusMarker;
 
     private final FormMetrics formMetrics;
+
+    private final FormMetadataCache metadataCache;
 
     /**
      * 发布表单物理表。
@@ -170,6 +173,7 @@ public class FormPublishServiceImpl implements FormPublishService {
         } catch (DuplicateKeyException e) {
             throw duplicatePublishError();
         }
+        metadataCache.invalidateRegistry(definition.getCode(), version);
         return toVo(registry);
     }
 
@@ -302,6 +306,7 @@ public class FormPublishServiceImpl implements FormPublishService {
             registry.setLastError(null);
             formTableRegistryMapper.updateById(registry);
         }
+        metadataCache.invalidateRegistry(definition.getTableCode(), version);
         return toVo(registry);
     }
 
@@ -513,8 +518,23 @@ public class FormPublishServiceImpl implements FormPublishService {
         }
         try {
             formRegistryStatusMarker.markFailed(registry.getId(), errorMessage);
+            invalidateRegistry(registry);
         } catch (RuntimeException e) {
             log.warn("表单发布失败状态标记写入失败：{}", e.getMessage());
+        }
+    }
+
+    /**
+     * 失效发布失败登记对应的本地缓存（其状态已不再是「生效」，不能继续被读取路径命中）
+     *
+     * @param registry 已有登记
+     */
+    private void invalidateRegistry(FormTableRegistryPo registry) {
+        if (registry.getTableCode() != null) {
+            metadataCache.invalidateRegistry(registry.getTableCode(), registry.getTableVersion());
+        }
+        if (registry.getDefinitionCode() != null) {
+            metadataCache.invalidateRegistry(registry.getDefinitionCode(), registry.getDefinitionVersion());
         }
     }
 

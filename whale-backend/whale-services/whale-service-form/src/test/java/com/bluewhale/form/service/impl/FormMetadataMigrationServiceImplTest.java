@@ -16,6 +16,7 @@ import com.bluewhale.form.mapper.FormFieldConfigMapper;
 import com.bluewhale.form.mapper.FormFieldOptionMapper;
 import com.bluewhale.form.mapper.FormTableDefinitionMapper;
 import com.bluewhale.form.mapper.FormTableRegistryMapper;
+import com.bluewhale.form.support.FormMetadataCache;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -68,6 +69,9 @@ class FormMetadataMigrationServiceImplTest {
 
     @Mock
     private FormDataMapper formDataMapper;
+
+    @Mock
+    private FormMetadataCache metadataCache;
 
     @InjectMocks
     private FormMetadataMigrationServiceImpl migrationService;
