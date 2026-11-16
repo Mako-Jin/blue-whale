@@ -18,6 +18,10 @@ public class FileVersionResponse implements Serializable {
     private Long id;
     private Long parentId;
     private Integer version;
+
+    /** 是否为版本组内当前最新版本；已删除版本恒为 {@code false} */
+    private Boolean latest;
+
     private String fileName;
     private String originalName;
     private String bucket;

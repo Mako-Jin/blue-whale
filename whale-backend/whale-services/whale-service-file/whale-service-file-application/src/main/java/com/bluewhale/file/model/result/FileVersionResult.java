@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
  * @param id 版本行主键
  * @param parentId 版本组根文件 ID；根版本为 {@code null}
  * @param version 版本号
+ * @param latest 是否为版本组内当前最新版本（已删除版本恒为 {@code false}）
  * @param fileName 存储文件名
  * @param originalName 原始文件名
  * @param bucket 桶名称
@@ -19,7 +20,7 @@ import java.time.LocalDateTime;
  * @param createTime 创建时间
  * @author BlueWhale
  */
-public record FileVersionResult(Long id, Long parentId, int version, String fileName, String originalName,
-                                String bucket, String objectKey, Long fileSize, String contentType, String md5,
-                                Long uploaderId, LocalDateTime createTime) {
+public record FileVersionResult(Long id, Long parentId, int version, boolean latest, String fileName,
+                                String originalName, String bucket, String objectKey, Long fileSize,
+                                String contentType, String md5, Long uploaderId, LocalDateTime createTime) {
 }

@@ -102,7 +102,20 @@ class FileVersionControllerTest {
      * @return 文件版本结果
      */
     private static FileVersionResult version(Long id, Long parentId, int version) {
-        return new FileVersionResult(id, parentId, version, "stored.pdf", "sample.pdf", "bluewhale",
+        return version(id, parentId, version, false);
+    }
+
+    /**
+     * 构造带最新标识的版本结果
+     *
+     * @param id 版本行主键
+     * @param parentId 版本组根文件 ID；根版本为 {@code null}
+     * @param version 版本号
+     * @param latest 是否为当前最新版本
+     * @return 文件版本结果
+     */
+    private static FileVersionResult version(Long id, Long parentId, int version, boolean latest) {
+        return new FileVersionResult(id, parentId, version, latest, "stored.pdf", "sample.pdf", "bluewhale",
                 "tenants/1/2026/10/25/stored.pdf", 5L, "application/pdf", "md5", UPLOADER_ID,
                 LocalDateTime.of(2026, 10, 25, 9, 0));
     }
@@ -111,7 +124,7 @@ class FileVersionControllerTest {
     @DisplayName("GET /file/v1/{id}/versions：返回版本组并按版本号倒序")
     void shouldListVersions() throws Exception {
         when(fileInfoService.versions(ROOT_ID, UPLOADER_ID, false))
-                .thenReturn(List.of(version(VERSION_ID, ROOT_ID, 2), version(ROOT_ID, null, 1)));
+                .thenReturn(List.of(version(VERSION_ID, ROOT_ID, 2, true), version(ROOT_ID, null, 1)));
 
         mockMvc.perform(get("/file/v1/{id}/versions", ROOT_ID)
                         .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID)))
@@ -121,14 +134,16 @@ class FileVersionControllerTest {
                 .andExpect(jsonPath("$.data[0].id").value(VERSION_ID))
                 .andExpect(jsonPath("$.data[0].parentId").value(ROOT_ID))
                 .andExpect(jsonPath("$.data[0].version").value(2))
-                .andExpect(jsonPath("$.data[1].version").value(1));
+                .andExpect(jsonPath("$.data[0].latest").value(true))
+                .andExpect(jsonPath("$.data[1].version").value(1))
+                .andExpect(jsonPath("$.data[1].latest").value(false));
     }
 
     @Test
     @DisplayName("POST /file/v1/{id}/versions：上传新版本并返回版本元数据")
     void shouldUploadVersion() throws Exception {
         when(fileInfoService.uploadVersion(eq(ROOT_ID), any(UploadContent.class), eq(UPLOADER_ID), eq(false),
-                any(UploadLimits.class))).thenReturn(version(VERSION_ID, ROOT_ID, 2));
+                any(UploadLimits.class))).thenReturn(version(VERSION_ID, ROOT_ID, 2, true));
 
         mockMvc.perform(multipart("/file/v1/{id}/versions", ROOT_ID)
                         .file(new MockMultipartFile("file", "sample-v2.pdf", "application/pdf",
@@ -138,7 +153,8 @@ class FileVersionControllerTest {
                 .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()))
                 .andExpect(jsonPath("$.data.id").value(VERSION_ID))
                 .andExpect(jsonPath("$.data.parentId").value(ROOT_ID))
-                .andExpect(jsonPath("$.data.version").value(2));
+                .andExpect(jsonPath("$.data.version").value(2))
+                .andExpect(jsonPath("$.data.latest").value(true));
 
         verify(fileInfoService).uploadVersion(eq(ROOT_ID), any(UploadContent.class), eq(UPLOADER_ID), eq(false),
                 any(UploadLimits.class));
@@ -148,7 +164,7 @@ class FileVersionControllerTest {
     @DisplayName("POST /file/v1/{id}/versions/{targetVersion}/rollback：回滚并返回新版本")
     void shouldRollbackVersion() throws Exception {
         when(fileInfoService.rollback(eq(ROOT_ID), eq(1), eq(UPLOADER_ID), eq(false),
-                any(UploadLimits.class))).thenReturn(version(VERSION_ID, ROOT_ID, 4));
+                any(UploadLimits.class))).thenReturn(version(VERSION_ID, ROOT_ID, 4, true));
 
         mockMvc.perform(post("/file/v1/{id}/versions/{targetVersion}/rollback", ROOT_ID, 1)
                         .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID)))
@@ -156,7 +172,8 @@ class FileVersionControllerTest {
                 .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()))
                 .andExpect(jsonPath("$.data.id").value(VERSION_ID))
                 .andExpect(jsonPath("$.data.parentId").value(ROOT_ID))
-                .andExpect(jsonPath("$.data.version").value(4));
+                .andExpect(jsonPath("$.data.version").value(4))
+                .andExpect(jsonPath("$.data.latest").value(true));
 
         verify(fileInfoService).rollback(eq(ROOT_ID), eq(1), eq(UPLOADER_ID), eq(false),
                 any(UploadLimits.class));

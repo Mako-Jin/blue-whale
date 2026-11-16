@@ -1512,6 +1512,7 @@ class FileInfoServiceImplTest {
 
         assertEquals(1L, result.parentId());
         assertEquals(2, result.version());
+        assertTrue(result.latest());
         assertEquals("bluewhale", result.bucket());
         verify(fileStorage).store(eq("bluewhale"), eq(result.objectKey()), any(InputStream.class));
         ArgumentCaptor<FileAssetAggregate> captor = ArgumentCaptor.forClass(FileAssetAggregate.class);
@@ -1583,7 +1584,9 @@ class FileInfoServiceImplTest {
         assertEquals(2, versions.size());
         assertEquals(2, versions.get(0).version());
         assertEquals(1L, versions.get(0).parentId());
+        assertTrue(versions.get(0).latest());
         assertEquals(1, versions.get(1).version());
+        assertFalse(versions.get(1).latest());
 
         BizException notFound = assertThrows(BizException.class, () -> fileInfoService.versions(2L, 8L, false));
         assertEquals(NOT_FOUND_CODE, notFound.getCode());
@@ -1606,6 +1609,7 @@ class FileInfoServiceImplTest {
 
         assertEquals(1L, result.parentId());
         assertEquals(3, result.version());
+        assertTrue(result.latest());
         assertEquals("报告-v2.pdf", result.originalName());
         assertEquals(Long.valueOf(30L), result.fileSize());
         assertEquals("aabb", result.md5());
@@ -1807,6 +1811,7 @@ class FileInfoServiceImplTest {
 
         assertEquals(1, versions.size());
         assertEquals(2, versions.get(0).version());
+        assertFalse(versions.get(0).latest());
     }
 
     @Test
@@ -1816,11 +1821,13 @@ class FileInfoServiceImplTest {
         FileAssetAggregate version2 = deletedVersion(2L, 1L, 2);
         when(fileAssetRepository.findById(1L)).thenReturn(Optional.of(root));
         when(fileAssetRepository.findDeletedVersions(1L)).thenReturn(List.of(version2));
+        when(fileAssetRepository.findVersions(1L)).thenReturn(List.of(version2, root));
         when(fileAssetRepository.restoreWithQuotaCheck(eq(2L), any(StorageQuota.class))).thenReturn(true);
 
         FileVersionResult result = fileInfoService.restoreVersion(1L, 2, UPLOADER_ID, false, null);
 
         assertEquals(2, result.version());
+        assertTrue(result.latest());
         verify(fileAssetRepository).restoreWithQuotaCheck(eq(2L), any(StorageQuota.class));
         assertEquals(1, publishedEvents.size());
     }

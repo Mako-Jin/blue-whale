@@ -184,7 +184,7 @@ public class FileInfoServiceImpl implements FileInfoService {
                 FileAssetAggregate version = FileAssetAggregate.registerVersion(root, nextVersion, objectKey, name,
                         bytes.length, content.contentType(), DigestUtils.md5DigestAsHex(bytes), requesterId,
                         storagePluginCatalog.activeType());
-                result = toVersionResult(persistAsset(version, effective));
+                result = toVersionResult(persistAsset(version, effective), true);
             } catch (RuntimeException e) {
                 // 落库失败（含配额超限）：补偿删除已写入的物理对象，避免产生孤儿文件
                 deleteStoredQuietly(root.getBucket(), objectKey);
@@ -202,8 +202,10 @@ public class FileInfoServiceImpl implements FileInfoService {
     @Override
     public List<FileVersionResult> versions(Long id, Long requesterId, boolean canManage) {
         FileAssetAggregate root = resolveVersionRoot(id, requesterId, canManage);
-        return fileAssetRepository.findVersions(root.getId()).stream()
-                .map(FileInfoServiceImpl::toVersionResult)
+        // 仓储按版本号倒序返回未删除版本，首条即当前最新版本
+        List<FileAssetAggregate> found = fileAssetRepository.findVersions(root.getId());
+        return IntStream.range(0, found.size())
+                .mapToObj(index -> toVersionResult(found.get(index), index == 0))
                 .toList();
     }
 
@@ -251,7 +253,12 @@ public class FileInfoServiceImpl implements FileInfoService {
             fileMetrics.recordRestore(false);
             throw e;
         }
-        return toVersionResult(target);
+        // 恢复后重新读取版本组，首条为当前最新版本
+        boolean latest = fileAssetRepository.findVersions(root.getId()).stream()
+                .findFirst()
+                .map(version -> version.getVersion() == target.getVersion())
+                .orElse(false);
+        return toVersionResult(target, latest);
     }
 
     @Override
@@ -413,7 +420,7 @@ public class FileInfoServiceImpl implements FileInfoService {
             FileAssetAggregate version = FileAssetAggregate.registerVersion(root, nextVersion, objectKey,
                     source.getOriginalName(), source.getFileSize(), source.getContentType(), source.getMd5(),
                     requesterId, storagePluginCatalog.activeType());
-            FileVersionResult result = toVersionResult(persistAsset(version, effective));
+            FileVersionResult result = toVersionResult(persistAsset(version, effective), true);
             fileMetrics.recordUpload("rollback", source.getFileSize(), System.nanoTime() - startedAt, "success");
             pruneVersionsQuietly(root, requesterId);
             return result;
@@ -1218,7 +1225,18 @@ public class FileInfoServiceImpl implements FileInfoService {
      * @return 文件版本结果
      */
     private static FileVersionResult toVersionResult(FileAssetAggregate asset) {
-        return new FileVersionResult(asset.getId(), asset.getParentId(), asset.getVersion(),
+        return toVersionResult(asset, false);
+    }
+
+    /**
+     * 文件资产转版本结果并标记是否最新版本
+     *
+     * @param asset 文件资产聚合根
+     * @param latest 是否为版本组内当前最新版本
+     * @return 文件版本结果
+     */
+    private static FileVersionResult toVersionResult(FileAssetAggregate asset, boolean latest) {
+        return new FileVersionResult(asset.getId(), asset.getParentId(), asset.getVersion(), latest,
                 asset.getFileName(), asset.getOriginalName(), asset.getBucket(), asset.getObjectKey(),
                 asset.getFileSize(), asset.getContentType(), asset.getMd5(), asset.getUploaderId(),
                 asset.getCreateTime());
