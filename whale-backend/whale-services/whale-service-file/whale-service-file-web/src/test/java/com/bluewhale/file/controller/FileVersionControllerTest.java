@@ -8,6 +8,7 @@ import com.bluewhale.file.assemble.FileAssembler;
 import com.bluewhale.file.config.FileProperties;
 import com.bluewhale.file.model.UploadContent;
 import com.bluewhale.file.model.UploadLimits;
+import com.bluewhale.file.model.result.FileInfoResult;
 import com.bluewhale.file.model.result.FileVersionResult;
 import com.bluewhale.file.service.FileInfoService;
 import com.bluewhale.file.service.support.FileUploadPolicy;
@@ -27,6 +28,7 @@ import org.springframework.web.accept.PathApiVersionResolver;
 import org.springframework.web.accept.SemanticApiVersionParser;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
@@ -42,6 +44,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -202,7 +205,23 @@ class FileVersionControllerTest {
     }
 
     @Test
-    @DisplayName("GET 要求 sys:file:list，上传/回滚要求 sys:file:upload，删除/找回要求 sys:file:delete")
+    @DisplayName("GET /file/v1/{id}/versions/{targetVersion}/download：下载历史版本内容")
+    void shouldDownloadVersion() throws Exception {
+        FileInfoResult info = new FileInfoResult(VERSION_ID, "stored.pdf", "sample.pdf", "bluewhale",
+                "tenants/1/2026/10/25/stored.pdf", 5L, "application/pdf", "md5", UPLOADER_ID,
+                LocalDateTime.of(2026, 10, 25, 9, 0));
+        when(fileInfoService.versionDetail(ROOT_ID, 2, UPLOADER_ID, false)).thenReturn(info);
+        when(fileInfoService.openVersionContent(ROOT_ID, 2, UPLOADER_ID, false))
+                .thenReturn(new ByteArrayInputStream("hello".getBytes(StandardCharsets.UTF_8)));
+
+        mockMvc.perform(get("/file/v1/{id}/versions/{targetVersion}/download", ROOT_ID, 2)
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID)))
+                .andExpect(status().isOk())
+                .andExpect(content().bytes("hello".getBytes(StandardCharsets.UTF_8)));
+    }
+
+    @Test
+    @DisplayName("GET 要求 sys:file:list，上传/回滚要求 sys:file:upload，删除/找回要求 sys:file:delete，下载要求 sys:file:download")
     void shouldRequirePermissions() throws Exception {
         assertPermission("list", "sys:file:list",
                 FileVersionController.class.getMethod("list", Long.class, HttpServletRequest.class));
@@ -220,6 +239,9 @@ class FileVersionControllerTest {
         assertPermission("restore", "sys:file:delete",
                 FileVersionController.class.getMethod("restore", Long.class, int.class,
                         HttpServletRequest.class));
+        assertPermission("download", "sys:file:download",
+                FileVersionController.class.getMethod("download", Long.class, int.class, String.class,
+                        String.class, HttpServletRequest.class));
     }
 
     /**

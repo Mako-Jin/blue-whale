@@ -10,17 +10,24 @@ import com.bluewhale.file.assemble.FileAssembler;
 import com.bluewhale.file.model.UploadContent;
 import com.bluewhale.file.model.UploadLimits;
 import com.bluewhale.file.model.response.FileVersionResponse;
+import com.bluewhale.file.model.result.FileInfoResult;
 import com.bluewhale.file.model.result.FileVersionResult;
 import com.bluewhale.file.service.FileInfoService;
 import com.bluewhale.file.service.support.FileUploadPolicy;
+import com.bluewhale.file.support.FileContentResponses;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
 
 /**
@@ -97,6 +104,30 @@ public class FileVersionController implements FileVersionApi {
         FileVersionResult version = fileInfoService.restoreVersion(id, targetVersion,
                 UserContext.requireUserId(httpRequest), canManage(httpRequest), uploadLimits(httpRequest));
         return Result.ok(fileAssembler.toVersionResponse(version));
+    }
+
+    @Override
+    @RequirePermission("sys:file:download")
+    public ResponseEntity<Resource> download(@PathVariable Long id,
+                                             @PathVariable int targetVersion,
+                                             @RequestHeader(value = HttpHeaders.RANGE, required = false) String range,
+                                             @RequestHeader(value = HttpHeaders.IF_RANGE, required = false)
+                                             String ifRange,
+                                             HttpServletRequest httpRequest) {
+        Long requesterId = UserContext.requireUserId(httpRequest);
+        boolean canManage = canManage(httpRequest);
+        FileInfoResult info = fileInfoService.versionDetail(id, targetVersion, requesterId, canManage);
+        return FileContentResponses.build(info, false, range, ifRange, new FileContentResponses.ContentSource() {
+            @Override
+            public InputStream openAll() {
+                return fileInfoService.openVersionContent(id, targetVersion, requesterId, canManage);
+            }
+
+            @Override
+            public InputStream openRange(long offset, long length) {
+                return fileInfoService.openVersionContent(id, targetVersion, requesterId, canManage, offset, length);
+            }
+        });
     }
 
     /**

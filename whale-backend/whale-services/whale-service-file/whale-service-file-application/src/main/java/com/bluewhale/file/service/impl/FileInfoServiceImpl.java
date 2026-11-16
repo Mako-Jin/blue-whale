@@ -255,6 +255,50 @@ public class FileInfoServiceImpl implements FileInfoService {
     }
 
     @Override
+    public FileInfoResult versionDetail(Long id, int targetVersion, Long requesterId, boolean canManage) {
+        return toInfoResult(resolveVersion(id, targetVersion, requesterId, canManage));
+    }
+
+    @Override
+    public InputStream openVersionContent(Long id, int targetVersion, Long requesterId, boolean canManage) {
+        FileAssetAggregate version = resolveVersion(id, targetVersion, requesterId, canManage);
+        long startedAt = System.nanoTime();
+        InputStream content = fileStorage.load(version.getBucket(), version.getObjectKey(),
+                version.getStorageType());
+        fileMetrics.recordDownload(version.getFileSize(), System.nanoTime() - startedAt);
+        return content;
+    }
+
+    @Override
+    public InputStream openVersionContent(Long id, int targetVersion, Long requesterId, boolean canManage,
+                                          long offset, long length) {
+        FileAssetAggregate version = resolveVersion(id, targetVersion, requesterId, canManage);
+        long startedAt = System.nanoTime();
+        InputStream content = fileStorage.load(version.getBucket(), version.getObjectKey(), offset, length,
+                version.getStorageType());
+        fileMetrics.recordDownload(length, System.nanoTime() - startedAt);
+        return content;
+    }
+
+    /**
+     * 定位版本组内未删除的指定版本
+     *
+     * @param id 文件ID（根文件或任一版本行）
+     * @param targetVersion 目标版本号
+     * @param requesterId 调用者用户 ID
+     * @param canManage 是否持有文件管理权限
+     * @return 版本资产
+     * @throws BizException 版本不存在时抛出 {@code NOT_FOUND}
+     */
+    private FileAssetAggregate resolveVersion(Long id, int targetVersion, Long requesterId, boolean canManage) {
+        FileAssetAggregate root = resolveVersionRoot(id, requesterId, canManage);
+        return fileAssetRepository.findVersions(root.getId()).stream()
+                .filter(version -> version.getVersion() == targetVersion)
+                .findFirst()
+                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
+    }
+
+    @Override
     public int pruneExcessVersions() {
         int maxVersions = fileProperties.getVersion().getMaxVersions();
         if (maxVersions <= 0) {

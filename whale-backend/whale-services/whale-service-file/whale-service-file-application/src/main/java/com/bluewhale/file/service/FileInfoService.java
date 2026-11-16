@@ -107,6 +107,42 @@ public interface FileInfoService {
                                      UploadLimits limits);
 
     /**
+     * 查询指定历史版本的元数据（供版本下载构建响应头）
+     *
+     * @param id 文件ID（根文件或任一版本行）
+     * @param targetVersion 目标版本号
+     * @param requesterId 调用者用户 ID
+     * @param canManage 是否持有文件管理权限
+     * @return 版本元数据
+     */
+    FileInfoResult versionDetail(Long id, int targetVersion, Long requesterId, boolean canManage);
+
+    /**
+     * 读取指定历史版本的全量内容
+     *
+     * @param id 文件ID（根文件或任一版本行）
+     * @param targetVersion 目标版本号
+     * @param requesterId 调用者用户 ID
+     * @param canManage 是否持有文件管理权限
+     * @return 版本内容流
+     */
+    InputStream openVersionContent(Long id, int targetVersion, Long requesterId, boolean canManage);
+
+    /**
+     * 读取指定历史版本的区间内容
+     *
+     * @param id 文件ID（根文件或任一版本行）
+     * @param targetVersion 目标版本号
+     * @param requesterId 调用者用户 ID
+     * @param canManage 是否持有文件管理权限
+     * @param offset 起始偏移
+     * @param length 读取长度
+     * @return 版本内容流
+     */
+    InputStream openVersionContent(Long id, int targetVersion, Long requesterId, boolean canManage,
+                                   long offset, long length);
+
+    /**
      * 清理全部文件中超出保留上限的历史版本（定时任务使用）
      *
      * <p>按根文件ID游标分批扫描，清理超限的最旧版本；不发布领域事件，避免无租户上下文下产生

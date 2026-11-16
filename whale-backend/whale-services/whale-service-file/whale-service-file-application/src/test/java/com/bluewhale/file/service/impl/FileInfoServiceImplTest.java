@@ -1840,6 +1840,41 @@ class FileInfoServiceImplTest {
     }
 
     @Test
+    @DisplayName("versionDetail/openVersionContent：按版本自身对象读取全量与区间内容")
+    void shouldReadVersionContent() throws IOException {
+        FileAssetAggregate root = fileWithVersion(1L, null, 1, FileStatus.NORMAL);
+        FileAssetAggregate version2 = fileWithVersion(2L, 1L, 2, FileStatus.NORMAL);
+        when(fileAssetRepository.findById(1L)).thenReturn(Optional.of(root));
+        when(fileAssetRepository.findVersions(1L)).thenReturn(List.of(version2, root));
+        when(fileStorage.load("bluewhale", "tenants/1/2026/10/25/a.txt", "local"))
+                .thenReturn(new ByteArrayInputStream("v2".getBytes(StandardCharsets.UTF_8)));
+        when(fileStorage.load("bluewhale", "tenants/1/2026/10/25/a.txt", 0L, 2L, "local"))
+                .thenReturn(new ByteArrayInputStream("v2".getBytes(StandardCharsets.UTF_8)));
+
+        FileInfoResult info = fileInfoService.versionDetail(1L, 2, UPLOADER_ID, false);
+        assertEquals(Long.valueOf(2L), info.id());
+        try (InputStream all = fileInfoService.openVersionContent(1L, 2, UPLOADER_ID, false)) {
+            assertEquals("v2", new String(all.readAllBytes(), StandardCharsets.UTF_8));
+        }
+        try (InputStream range = fileInfoService.openVersionContent(1L, 2, UPLOADER_ID, false, 0L, 2L)) {
+            assertEquals("v2", new String(range.readAllBytes(), StandardCharsets.UTF_8));
+        }
+    }
+
+    @Test
+    @DisplayName("versionDetail：版本不存在时返回未找到")
+    void shouldRejectMissingVersionDetail() {
+        FileAssetAggregate root = fileWithVersion(1L, null, 1, FileStatus.NORMAL);
+        when(fileAssetRepository.findById(1L)).thenReturn(Optional.of(root));
+        when(fileAssetRepository.findVersions(1L)).thenReturn(List.of(root));
+
+        BizException ex = assertThrows(BizException.class,
+                () -> fileInfoService.versionDetail(1L, 9, UPLOADER_ID, false));
+
+        assertEquals(ErrorCode.NOT_FOUND.getCode(), ex.getCode());
+    }
+
+    @Test
     @DisplayName("pruneExcessVersions：按游标扫描超限文件并清理，不发布事件")
     void shouldPruneExcessVersionsAcrossFiles() {
         fileProperties.getVersion().setMaxVersions(2);

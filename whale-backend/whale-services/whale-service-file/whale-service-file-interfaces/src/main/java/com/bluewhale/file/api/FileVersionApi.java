@@ -3,10 +3,14 @@ package com.bluewhale.file.api;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.file.model.response.FileVersionResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
@@ -100,4 +104,21 @@ public interface FileVersionApi {
     @PostMapping("/{targetVersion}/restore")
     Result<FileVersionResponse> restore(@PathVariable Long id, @PathVariable int targetVersion,
                                         HttpServletRequest httpRequest);
+
+    /**
+     * 下载指定历史版本内容：不影响当前内容、不产生新版本；支持 HTTP Range。
+     *
+     * @param id 文件ID（根文件或任一版本行）
+     * @param targetVersion 目标版本号
+     * @param range 请求的 {@code Range} 头，可为 {@code null}
+     * @param ifRange 请求的 {@code If-Range} 头，可为 {@code null}
+     * @param httpRequest 当前请求（用于判定调用者归属与文件管理权限）
+     * @return 版本内容响应
+     */
+    @GetMapping("/{targetVersion}/download")
+    ResponseEntity<Resource> download(@PathVariable Long id,
+                                      @PathVariable int targetVersion,
+                                      @RequestHeader(value = HttpHeaders.RANGE, required = false) String range,
+                                      @RequestHeader(value = HttpHeaders.IF_RANGE, required = false) String ifRange,
+                                      HttpServletRequest httpRequest);
 }
