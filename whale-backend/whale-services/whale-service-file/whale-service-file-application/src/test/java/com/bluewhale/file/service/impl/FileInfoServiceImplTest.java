@@ -49,6 +49,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.util.DigestUtils;
 
 import java.io.ByteArrayInputStream;
@@ -1537,6 +1538,48 @@ class FileInfoServiceImplTest {
         assertEquals(1L, result.parentId());
         assertEquals(3, result.version());
         verify(fileStorage).store(eq("bluewhale"), eq(result.objectKey()), any(InputStream.class));
+    }
+
+    @Test
+    @DisplayName("uploadVersion：版本号并发冲突时重算版本号重试，不重复写存储")
+    void shouldRetryUploadVersionOnVersionConflict() {
+        FileAssetAggregate root = fileWithVersion(1L, null, 1, FileStatus.NORMAL);
+        FileAssetAggregate version2 = fileWithVersion(2L, 1L, 2, FileStatus.NORMAL);
+        when(fileAssetRepository.findById(1L)).thenReturn(Optional.of(root));
+        when(fileAssetRepository.findLatestVersion(1L))
+                .thenReturn(Optional.of(root))
+                .thenReturn(Optional.of(version2));
+        when(fileAssetRepository.saveWithQuotaCheck(any(FileAssetAggregate.class), any(StorageQuota.class)))
+                .thenThrow(new DuplicateKeyException("uk_parent_version"))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        FileVersionResult result = fileInfoService.uploadVersion(1L,
+                uploadContent("v2-body".getBytes(StandardCharsets.UTF_8), "report-v2.pdf"), UPLOADER_ID, false,
+                null);
+
+        assertEquals(3, result.version());
+        verify(fileStorage, times(1)).store(eq("bluewhale"), eq(result.objectKey()), any(InputStream.class));
+        verify(fileStorage, never()).delete(anyString(), anyString());
+        verify(fileAssetRepository, times(2))
+                .saveWithQuotaCheck(any(FileAssetAggregate.class), any(StorageQuota.class));
+    }
+
+    @Test
+    @DisplayName("uploadVersion：版本号冲突重试耗尽时补偿删除已写对象")
+    void shouldCompensateWhenVersionConflictPersists() {
+        FileAssetAggregate root = fileWithVersion(1L, null, 1, FileStatus.NORMAL);
+        when(fileAssetRepository.findById(1L)).thenReturn(Optional.of(root));
+        when(fileAssetRepository.findLatestVersion(1L)).thenReturn(Optional.of(root));
+        when(fileAssetRepository.saveWithQuotaCheck(any(FileAssetAggregate.class), any(StorageQuota.class)))
+                .thenThrow(new DuplicateKeyException("uk_parent_version"));
+
+        assertThrows(DuplicateKeyException.class, () -> fileInfoService.uploadVersion(1L,
+                uploadContent("v2-body".getBytes(StandardCharsets.UTF_8), "report-v2.pdf"), UPLOADER_ID, false,
+                null));
+
+        verify(fileAssetRepository, times(3))
+                .saveWithQuotaCheck(any(FileAssetAggregate.class), any(StorageQuota.class));
+        verify(fileStorage).delete(eq("bluewhale"), anyString());
     }
 
     @Test

@@ -39,7 +39,7 @@ CREATE TABLE file_info (
     KEY idx_tenant_md5 (tenant_id, md5),
     KEY idx_tenant_bucket (tenant_id, bucket),
     KEY idx_uploader_id (uploader_id),
-    KEY idx_parent_version (parent_id, version)
+    UNIQUE KEY uk_parent_version (parent_id, version)
 ) COMMENT='文件信息表';
 
 -- ---------------------------------------------------------------------

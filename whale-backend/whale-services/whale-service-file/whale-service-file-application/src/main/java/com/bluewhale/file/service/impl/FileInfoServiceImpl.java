@@ -49,6 +49,7 @@ import com.bluewhale.file.service.support.CdnUrlRewriter;
 import com.bluewhale.file.service.support.FileContentPolicy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.DigestUtils;
@@ -108,6 +109,9 @@ public class FileInfoServiceImpl implements FileInfoService {
 
     /** 分片大小未配置或非法时的兜底值：5MB */
     private static final long DEFAULT_CHUNK_SIZE = 5242880L;
+
+    /** 版本号并发冲突的最大尝试次数（含首次） */
+    private static final int MAX_VERSION_CONFLICT_ATTEMPTS = 3;
 
     private final FileAssetRepository fileAssetRepository;
 
@@ -171,25 +175,20 @@ public class FileInfoServiceImpl implements FileInfoService {
         // 与普通上传一致：先按魔数校验真实类型，再进入配额与落库流程
         fileContentPolicy.validate(name, headerOf(bytes));
         validateQuota(bytes.length, requesterId, root.getBucket(), effective.quotaBytes());
-        // 版本号取组内最大值 + 1；查询含已删除行，保证删除版本后序号不复用
-        int nextVersion = fileAssetRepository.findLatestVersion(root.getId())
-                .map(latest -> latest.getVersion() + 1)
-                .orElse(root.getVersion() + 1);
         String objectKey = buildObjectKey(name);
         long startedAt = System.nanoTime();
         try {
             fileStorage.store(root.getBucket(), objectKey, new ByteArrayInputStream(bytes));
-            FileVersionResult result;
+            FileAssetAggregate version;
             try {
-                FileAssetAggregate version = FileAssetAggregate.registerVersion(root, nextVersion, objectKey, name,
-                        bytes.length, content.contentType(), DigestUtils.md5DigestAsHex(bytes), requesterId,
-                        storagePluginCatalog.activeType());
-                result = toVersionResult(persistAsset(version, effective), true);
+                version = registerVersionWithRetry(root, objectKey, name, bytes.length, content.contentType(),
+                        DigestUtils.md5DigestAsHex(bytes), requesterId, effective);
             } catch (RuntimeException e) {
                 // 落库失败（含配额超限）：补偿删除已写入的物理对象，避免产生孤儿文件
                 deleteStoredQuietly(root.getBucket(), objectKey);
                 throw e;
             }
+            FileVersionResult result = toVersionResult(version, true);
             fileMetrics.recordUpload("version", bytes.length, System.nanoTime() - startedAt, "success");
             pruneVersionsQuietly(root, requesterId);
             return result;
@@ -407,9 +406,6 @@ public class FileInfoServiceImpl implements FileInfoService {
                 .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
         // 复制会新增一份独立物理对象，按目标版本字节数计入配额
         validateQuota(source.getFileSize(), requesterId, root.getBucket(), effective.quotaBytes());
-        int nextVersion = fileAssetRepository.findLatestVersion(root.getId())
-                .map(latest -> latest.getVersion() + 1)
-                .orElse(root.getVersion() + 1);
         String objectKey = buildObjectKey(source.getOriginalName());
         long startedAt = System.nanoTime();
         try {
@@ -417,10 +413,9 @@ public class FileInfoServiceImpl implements FileInfoService {
                     source.getStorageType())) {
                 fileStorage.store(root.getBucket(), objectKey, in);
             }
-            FileAssetAggregate version = FileAssetAggregate.registerVersion(root, nextVersion, objectKey,
-                    source.getOriginalName(), source.getFileSize(), source.getContentType(), source.getMd5(),
-                    requesterId, storagePluginCatalog.activeType());
-            FileVersionResult result = toVersionResult(persistAsset(version, effective), true);
+            FileAssetAggregate version = registerVersionWithRetry(root, objectKey, source.getOriginalName(),
+                    source.getFileSize(), source.getContentType(), source.getMd5(), requesterId, effective);
+            FileVersionResult result = toVersionResult(version, true);
             fileMetrics.recordUpload("rollback", source.getFileSize(), System.nanoTime() - startedAt, "success");
             pruneVersionsQuietly(root, requesterId);
             return result;
@@ -843,6 +838,47 @@ public class FileInfoServiceImpl implements FileInfoService {
      */
     private FileAssetAggregate persistAsset(FileAssetAggregate asset, UploadLimits limits) {
         return fileAssetRepository.saveWithQuotaCheck(asset, quotaOf(limits.quotaBytes()));
+    }
+
+    /**
+     * 登记版本组新版本行；版本号并发冲突时重算并重试。
+     *
+     * <p>版本号由「组内最大版本号 + 1」计算，并发上传/回滚可能算出相同版本号；唯一索引
+     * {@code uk_parent_version(parent_id, version)} 拒绝后重读最新版本号重试，避免整次操作失败。
+     * 物理对象在进入本方法前已落盘，重试不重复写存储；重试耗尽时抛出原始冲突异常，
+     * 由调用方补偿删除物理对象。</p>
+     *
+     * @param root 版本组根文件
+     * @param objectKey 已落盘的对象键
+     * @param originalName 原始文件名
+     * @param fileSize 文件字节数
+     * @param contentType 内容类型
+     * @param md5 内容摘要
+     * @param requesterId 上传者用户 ID
+     * @param limits 生效的上传上限与配额
+     * @return 落库后的版本资产
+     * @throws DuplicateKeyException 重试耗尽仍冲突时抛出
+     */
+    private FileAssetAggregate registerVersionWithRetry(FileAssetAggregate root, String objectKey,
+                                                        String originalName, long fileSize, String contentType,
+                                                        String md5, Long requesterId, UploadLimits limits) {
+        for (int attempt = 1; ; attempt++) {
+            // 版本号取组内最大值 + 1；查询含已删除行，保证删除版本后序号不复用
+            int nextVersion = fileAssetRepository.findLatestVersion(root.getId())
+                    .map(latest -> latest.getVersion() + 1)
+                    .orElse(root.getVersion() + 1);
+            FileAssetAggregate version = FileAssetAggregate.registerVersion(root, nextVersion, objectKey,
+                    originalName, fileSize, contentType, md5, requesterId, storagePluginCatalog.activeType());
+            try {
+                return persistAsset(version, limits);
+            } catch (DuplicateKeyException e) {
+                if (attempt >= MAX_VERSION_CONFLICT_ATTEMPTS) {
+                    log.warn("版本号并发冲突重试耗尽: rootId={}, attempts={}", root.getId(), attempt);
+                    throw e;
+                }
+                log.info("版本号并发冲突，重算版本号后重试: rootId={}, attempt={}", root.getId(), attempt);
+            }
+        }
     }
 
     /**
