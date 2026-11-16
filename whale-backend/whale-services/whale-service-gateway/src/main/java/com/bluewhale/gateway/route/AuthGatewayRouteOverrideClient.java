@@ -124,16 +124,25 @@ public class AuthGatewayRouteOverrideClient {
      * 提取条目集合：{@code data} 直接是数组，或 {@code data.items} 是数组
      *
      * @param data 响应体 data 字段
-     * @return 条目集合；形状不符时返回空集合
+     * @return 条目集合；形状非法时抛出异常（避免静默退化为空覆盖）
      */
     private static Collection<?> extractItems(Object data) {
+        if (data == null) {
+            // 兼容 auth 返回 data=null 的合法空结果
+            return List.of();
+        }
         if (data instanceof Collection<?> collection) {
             return collection;
         }
-        if (data instanceof Map<?, ?> map && map.get(GatewayContract.Envelope.ITEMS) instanceof Collection<?> items) {
-            return items;
+        if (data instanceof Map<?, ?> map) {
+            Object items = map.get(GatewayContract.Envelope.ITEMS);
+            if (items instanceof Collection<?> collection) {
+                return collection;
+            }
+            // data 是对象但缺少 items：形状漂移，必须显式失败，不能静默当成空覆盖
+            throw new IllegalStateException("路由覆盖响应形状非法：data 对象缺少 " + GatewayContract.Envelope.ITEMS + " 数组");
         }
-        return List.of();
+        throw new IllegalStateException("路由覆盖响应形状非法：data 既不是数组也不是包含 items 的对象");
     }
 
     /**

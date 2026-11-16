@@ -41,7 +41,7 @@ public class JwksExposureGuardFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
                                     @NonNull FilterChain filterChain) throws ServletException, IOException {
-        if (!keyMaterial.isAsymmetric() && JWKS_PATH.equals(stripContextPath(request))) {
+        if (!keyMaterial.isAsymmetric() && isJwksPath(stripContextPath(request))) {
             log.warn("HS256 模式禁止访问 /oauth2/jwks（对称密钥会被公开），请配置 whale.auth.jwt.private-key 切换 RS256");
             response.setStatus(HttpServletResponse.SC_NOT_FOUND);
             response.setContentType("application/json;charset=UTF-8");
@@ -50,6 +50,16 @@ public class JwksExposureGuardFilter extends OncePerRequestFilter {
             return;
         }
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * 判断是否为 JWKS 路径（含尾斜杠变体，避免 `/oauth2/jwks/` 绕过守卫）
+     *
+     * @param path 不含 context-path 的请求路径
+     * @return 命中 JWKS 端点返回 {@code true}
+     */
+    private static boolean isJwksPath(String path) {
+        return JWKS_PATH.equals(path) || path.startsWith(JWKS_PATH + "/");
     }
 
     /**

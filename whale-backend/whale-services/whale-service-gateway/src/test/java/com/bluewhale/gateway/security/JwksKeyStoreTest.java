@@ -61,6 +61,36 @@ class JwksKeyStoreTest {
     }
 
     @Test
+    @DisplayName("resolve：并发未知 kid 只触发一次强制刷新（避免惊群）")
+    void shouldCoalesceConcurrentForcedRefresh() throws Exception {
+        KeyPair first = generateRsaKeyPair();
+        KeyPair second = generateRsaKeyPair();
+        AtomicInteger calls = new AtomicInteger();
+        WebClient.Builder builder = WebClient.builder().exchangeFunction(request -> {
+            int index = calls.getAndIncrement();
+            String body = index == 0 ? jwks(first, "k1") : jwks(second, "k2");
+            Mono<ClientResponse> response = Mono.just(ClientResponse.create(HttpStatus.OK)
+                    .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                    .body(body)
+                    .build());
+            // 第二个响应延迟返回，确保并发请求落在同一次刷新窗口内
+            return index == 0 ? response : response.delayElement(java.time.Duration.ofMillis(80));
+        });
+        JwksKeyStore store = newStore(builder);
+
+        store.resolve(new TokenHeader("k1", "RS256")).block();
+        java.util.List<Key> keys = reactor.core.publisher.Flux.range(0, 8)
+                .flatMap(i -> store.resolve(new TokenHeader("k2", "RS256"))
+                        .subscribeOn(reactor.core.scheduler.Schedulers.parallel()))
+                .collectList()
+                .block();
+
+        assertNotNull(keys);
+        assertEquals(8, keys.size());
+        assertEquals(2, calls.get(), "8 个并发未知 kid 只应触发一次强制刷新");
+    }
+
+    @Test
     @DisplayName("resolve：JWKS 只含对称密钥时拒绝（公开 JWKS 不得发布签名密钥）")
     void shouldRejectSymmetricJwks() throws Exception {
         String json = "{\"keys\":[{\"kty\":\"oct\",\"kid\":\"oct-1\",\"k\":\""
@@ -85,6 +115,14 @@ class JwksKeyStoreTest {
 
         assertNotNull(resolved);
         assertEquals(0, calls.get());
+    }
+
+    private static JwksKeyStore newStore(WebClient.Builder builder) {
+        WhaleGatewayProperties properties = new WhaleGatewayProperties();
+        properties.getJwt().setSecret(SECRET);
+        properties.getJwt().setJwksEnabled(true);
+        properties.getJwt().setJwksUri(JWKS_URI);
+        return new JwksKeyStore(properties, builder);
     }
 
     /**

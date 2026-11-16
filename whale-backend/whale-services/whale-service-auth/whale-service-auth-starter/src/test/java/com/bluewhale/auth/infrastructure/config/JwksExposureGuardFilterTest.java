@@ -41,6 +41,22 @@ class JwksExposureGuardFilterTest {
     }
 
     @Test
+    @DisplayName("HS256 模式：尾斜杠写法同样被拦截，不能绕过守卫")
+    void shouldBlockJwksWithTrailingSlash() throws Exception {
+        JwtProperties properties = new JwtProperties();
+        properties.setSecret(SECRET);
+        JwksExposureGuardFilter filter = new JwksExposureGuardFilter(new JwtKeyMaterial(properties));
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/oauth2/jwks/");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertEquals(404, response.getStatus());
+        assertNull(chain.getRequest());
+    }
+
+    @Test
     @DisplayName("RS256 模式：/oauth2/jwks 放行（只发布公钥）")
     void shouldAllowJwksInRs256Mode() throws Exception {
         JwtProperties properties = new JwtProperties();

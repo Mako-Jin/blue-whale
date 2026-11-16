@@ -59,6 +59,7 @@ public class GatewaySecretPlaceholderChecker implements InitializingBean {
             // JWKS（RS256）模式下验签公钥来自 auth，共享密钥可以留空；存量 HS256 令牌需自行保证 secret 有效
             log.info("网关启用 JWKS 验签（RS256），共享密钥可留空；如仍需验签存量 HS256 令牌，请保持 secret 有效");
             warnIfCorsLooksLikeDev();
+            warnIfTrustForwardedFor();
             return;
         }
         if (secret == null || secret.isBlank() || WhaleGatewayProperties.Jwt.DEFAULT_PLACEHOLDER_SECRET.equals(secret)) {
@@ -69,6 +70,24 @@ public class GatewaySecretPlaceholderChecker implements InitializingBean {
             throw new IllegalStateException(WEAK_SECRET_MESSAGE);
         }
         warnIfCorsLooksLikeDev();
+        warnIfTrustForwardedFor();
+    }
+
+    /**
+     * 非 dev 环境提示 X-Forwarded-For 信任前提。
+     *
+     * <p>{@code trust-forwarded-for=true} 仅在网关位于可信代理（Nginx/Ingress/SLB）之后时才安全；
+     * 网关直接暴露公网时，客户端可伪造 XFF 绕过基于 IP 的限流。状态无法从配置可靠推断
+     * （{@code server.address} 未设置时绑定全部网卡），因此统一告警，由部署侧显式确认。</p>
+     */
+    private void warnIfTrustForwardedFor() {
+        boolean trustForwardedFor = Boolean.parseBoolean(
+                environment.getProperty("whale.gateway.rate-limit.trust-forwarded-for", "true"));
+        if (trustForwardedFor) {
+            log.warn("限流配置 trust-forwarded-for=true：请确认网关只能经可信代理访问；"
+                    + "若网关直接暴露公网，客户端可伪造 X-Forwarded-For 绕过限流，"
+                    + "请显式设置 WHALE_GATEWAY_RATE_LIMIT_TRUST_XFF=false");
+        }
     }
 
     /**

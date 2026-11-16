@@ -62,4 +62,16 @@ class AuthGatewayRouteOverrideClientTest {
         assertEquals("whale-demo", rules.get(0).routeId());
         assertEquals(2L, rules.get(0).version());
     }
+
+    @Test
+    @DisplayName("parseRules：data 既非数组也非 items 对象时显式失败，不静默返回空覆盖")
+    void shouldRejectUnknownDataShape() {
+        AuthGatewayRouteOverrideClient client = new AuthGatewayRouteOverrideClient(
+                new RouteOverrideProperties(), WebClient.builder(), OBJECT_MAPPER);
+
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
+                () -> client.parseRules("{\"code\":0,\"data\":{\"list\":[]}}"));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
+                () -> client.parseRules("{\"code\":0,\"data\":\"oops\"}"));
+    }
 }

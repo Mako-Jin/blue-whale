@@ -72,8 +72,13 @@ if ([string]::IsNullOrWhiteSpace($ClientId) -or [string]::IsNullOrWhiteSpace($Cl
 }
 
 # 1. JWKS
+# HS256 模式下 JWKS 端点被主动关闭（避免对称密钥外泄），返回 404 属预期；RS256 模式才校验公钥集
 $jwks = Invoke-Http -Method 'GET' -Url "$AuthBaseUrl/oauth2/jwks"
-Write-Step 'JWKS' ($jwks.Status -eq 200 -and $jwks.Content -match '"keys"') "status=$($jwks.Status)"
+if ($jwks.Status -eq 404) {
+    Write-Host 'SKIP: JWKS 已关闭（HS256 模式；配置 whale.auth.jwt.private-key 切换 RS256 后启用）' -ForegroundColor Yellow
+} else {
+    Write-Step 'JWKS' ($jwks.Status -eq 200 -and $jwks.Content -match '"keys"') "status=$($jwks.Status)"
+}
 
 # 2. 发现文档
 $metadata = Invoke-Http -Method 'GET' -Url "$AuthBaseUrl/.well-known/oauth-authorization-server"

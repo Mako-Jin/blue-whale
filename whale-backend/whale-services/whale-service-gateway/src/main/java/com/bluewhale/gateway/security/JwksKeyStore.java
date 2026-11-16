@@ -21,6 +21,7 @@ import java.security.PublicKey;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -64,6 +65,15 @@ public class JwksKeyStore {
 
     /** 进行中的拉取，合并并发刷新 */
     private final AtomicReference<Mono<Map<String, Key>>> inFlight = new AtomicReference<>();
+
+    /** 拉取序号：区分「产出当前快照的旧拉取」与「快照之后发起的新拉取」 */
+    private final AtomicLong fetchSequence = new AtomicLong();
+
+    /** 当前缓存快照对应的拉取序号 */
+    private final AtomicLong cachedSequence = new AtomicLong(-1L);
+
+    /** 进行中拉取的序号 */
+    private final AtomicLong inFlightSequence = new AtomicLong(-1L);
 
     /** 拉取失败后的重试时间点（毫秒时间戳） */
     private volatile long retryAfterMillis;
@@ -109,7 +119,8 @@ public class JwksKeyStore {
         if (key != null) {
             return Mono.just(key);
         }
-        if (cached == null && System.currentTimeMillis() < retryAfterMillis) {
+        if (System.currentTimeMillis() < retryAfterMillis) {
+            // 拉取失败后的负缓存：未知 kid 也不立即重试，避免伪造 kid 把 auth 打成放大器
             return Mono.error(new IllegalStateException("JWKS 拉取失败后的负缓存期内，拒绝非对称令牌"));
         }
         return refresh(false).flatMap(keys -> {
@@ -129,35 +140,39 @@ public class JwksKeyStore {
     }
 
     /**
-     * 拉取 JWKS（可能命中缓存或复用进行中的请求）
+     * 拉取 JWKS（可能命中缓存或复用进行中的请求）。
+     *
+     * <p>强制刷新必须避免「复用刚解析完的旧快照」，同时不能演变成惊群：只有当前没有
+     * 「晚于缓存快照发起」的拉取时才真正发起新请求；密钥轮换后大量未知 kid 并发到达时，
+     * 第一个请求拉取、其余请求 join 同一个 {@link Mono}。</p>
      *
      * @param force 忽略缓存与失败负缓存，强制重新拉取
      * @return kid → 公钥快照
      */
-    private Mono<Map<String, Key>> refresh(boolean force) {
-        if (!force) {
-            Map<String, Key> cached = cache.getIfPresent(CACHE_KEY);
-            if (cached != null) {
-                return Mono.just(cached);
-            }
-            Mono<Map<String, Key>> existing = inFlight.get();
-            if (existing != null) {
-                return existing;
-            }
-        } else {
-            // 强制刷新（未知 kid）时清掉在途引用：上一次拉取的 doFinally 要等下游处理完才执行，
-            // 此时复用 inFlight 会拿到「刚解析完的旧快照」，导致轮换后的新 kid 永远找不到。
-            inFlight.set(null);
+    private synchronized Mono<Map<String, Key>> refresh(boolean force) {
+        Map<String, Key> cached = cache.getIfPresent(CACHE_KEY);
+        Mono<Map<String, Key>> existing = inFlight.get();
+        if (existing != null && (!force || inFlightSequence.get() > cachedSequence.get())) {
+            return existing;
         }
+        if (!force && cached != null) {
+            return Mono.just(cached);
+        }
+        long sequence = fetchSequence.incrementAndGet();
         Mono<Map<String, Key>> fetch = fetchJwks()
-                .doOnNext(keys -> cache.put(CACHE_KEY, keys))
-                .doFinally(signal -> inFlight.set(null))
+                .doOnNext(keys -> {
+                    cache.put(CACHE_KEY, keys);
+                    cachedSequence.set(sequence);
+                })
+                .doFinally(signal -> {
+                    if (inFlightSequence.compareAndSet(sequence, -1L)) {
+                        inFlight.set(null);
+                    }
+                })
                 .cache();
-        if (inFlight.compareAndSet(null, fetch)) {
-            return fetch;
-        }
-        Mono<Map<String, Key>> winner = inFlight.get();
-        return winner == null ? fetch : winner;
+        inFlightSequence.set(sequence);
+        inFlight.set(fetch);
+        return fetch;
     }
 
     /**

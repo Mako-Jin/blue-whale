@@ -307,6 +307,10 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
         // （登出黑名单仍在下方按优先级先行判定）。此处先做内存匹配，避免为放行请求额外短路并发查询。
         boolean tenantWhitelisted = accessListProvider.matchesTenantWhitelist(path, method, tenantId);
         Date issuedAt = new Date(TokenTimeSupport.issuedAtMillis(claims));
+        // 四段校验无数据依赖，只有判定优先级依赖：Mono.zip 并行把常态请求的 Redis RTT 从 4~5 次压到 1 次，
+        // 代价是黑名单命中时也要等最慢的一路（约 1 次 multiGet），即「异常令牌多付 3 次 O(1) GET」。
+        // 每个 checker 内部已各自 onErrorResume 到 SecurityDegradationPolicy，zip 不会因单个依赖故障整体失败；
+        // 这是有意的取舍，不要为了黑名单短路再改回串行（否则所有正常请求都要多付 3 次 RTT）。
         Mono<Boolean> blacklisted = tokenBlacklistChecker.isBlacklisted(token)
                 .defaultIfEmpty(Boolean.FALSE);
         Mono<Boolean> tenantUnavailable = tenantStatusChecker.isUnavailable(tenantId)

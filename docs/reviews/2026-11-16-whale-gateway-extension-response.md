@@ -54,8 +54,20 @@
 
 1. 生成 RSA 密钥对，配置 auth：`whale.auth.jwt.private-key`、`key-id`，重启 auth（新令牌 RS256，旧 HS256 仍可验签）。
 2. 网关配置 `whale.gateway.jwt.jwks-enabled=true`，确认能拉取 `/oauth2/jwks`；无 kid 的存量 HS256 令牌继续走共享密钥。
-3. 待存量 accessToken 全部过期后，可移除 `JWT_SECRET`（若不再验签 HS256）。
+3. **警告：必须等存量 accessToken 全部过期才能移除 `JWT_SECRET`。** 最短等待时间为
+   `accessToken 有效期 + 时钟漂移余量`（当前 120 分钟 + 5 分钟）。提前移除会让尚未过期的
+   HS256 令牌验签失败，用户被强制重登。
 4. 轮换：auth 换新私钥 + 新 `key-id`，把旧公钥按旧 kid 放入 `previous-public-keys`，保留一个 accessToken 有效期后移除。
+
+### 部署与运维注意
+
+| 事项 | 说明 |
+|---|---|
+| JWKS 404 守卫应独立先上 | 该守卫不依赖 RS256 切换，可直接随下次发布上线；上线后 HS256 模式下 `/oauth2/jwks` 返回 404 属预期，`bw-auth-oauth2-m1-smoke.ps1` 已按 404=SKIP 处理 |
+| 指标更名 | `gateway.rate_limit.rejected` → `gateway.rate.limit.rejected` 为破坏性变更；仓库内无其他引用，但需同步检查 Prometheus 告警规则/Grafana 看板；如外部已引用，过渡期可双发一个迭代 |
+| trust-forwarded-for | 默认 `true` 的前提是网关仅经可信代理访问；非 dev 启动时已打印 WARN，部署侧应显式设置 `WHALE_GATEWAY_RATE_LIMIT_TRUST_XFF`，不要依赖默认值 |
+| 契约形状 | route-overrides 的 `data` 为数组或 `{items:[]}`；其他形状显式抛错并保留上一份快照，不再静默清空 |
+| JWKS 并发 | 未知 kid 并发刷新已合并为一次拉取；拉取失败后 30 秒负缓存，避免伪造 kid 放大请求 |
 
 ---
 
@@ -82,6 +94,10 @@
 | 2 | route-overrides 契约漂移：auth `data[]` vs 网关 `data.items[]`，导致路由覆盖静默失效 | 网关解析以 `data[]` 为准并兼容 `data.items[]`；契约测试锁定形状 |
 | 3 | 网关每请求用 `Keys.hmacShaKeyFor` 重建密钥 | 密钥材料启动期解析一次；HS256 回落密钥在 `JwksKeyStore` 构造期构建 |
 | 4 | 熔断告警令牌来源与名单/覆盖拉取不一致 | 统一走 `CircuitBreakerProperties.internalToken` |
-| 5 | 未知 kid 强制刷新复用「在途」旧快照，轮换后新 kid 永远找不到 | 强制刷新前清空 `inFlight`，确保真正重新拉取 |
+| 5 | 未知 kid 强制刷新复用「在途」旧快照，轮换后新 kid 永远找不到 | 引入拉取序号：只有「晚于当前快照发起」的拉取才会被 join，产出当前快照的旧拉取不再被误用 |
 | 6 | `Mono<Void>` 后接 `switchIfEmpty` 会重复写 401 并触发响应头只读 | 改为 `Optional` 包装保证只 emit 一次 |
+| 7 | route-overrides 的 `data` 形状非法时静默返回空覆盖 | 非数组且无 `items` 对象时显式抛异常，保留上一份快照 |
+| 8 | 未知 kid 并发强制刷新可能惊群 | 用拉取序号合并并发刷新：只有「晚于当前快照发起」的拉取会被 join，其余复用同一 Mono |
+| 9 | `/oauth2/jwks/` 尾斜杠可绕过 HS256 守卫 | 守卫按前缀匹配（`/oauth2/jwks` 及其子路径），并补充单测 |
+| 10 | 四段 Redis 校验并行化的取舍未留痕 | 在 `JwtAuthGlobalFilter` 注释中记录：以异常令牌多 3 次 O(1) GET 换取常态 1 次 RTT，且各 checker 已各自降级 |
 
