@@ -389,6 +389,16 @@ class FileAssetRepositoryImplTest {
     }
 
     @Test
+    @DisplayName("purgeVersionById：物理删除命中返回 true，未命中返回 false")
+    void shouldPurgeVersionById() {
+        when(fileInfoMapper.purgeVersionById(3L)).thenReturn(1);
+        when(fileInfoMapper.purgeVersionById(4L)).thenReturn(0);
+
+        assertTrue(repository.purgeVersionById(3L));
+        assertFalse(repository.purgeVersionById(4L));
+    }
+
+    @Test
     @DisplayName("purgeById：物理删除命中时返回 true，未命中返回 false")
     void shouldPurgeById() {
         when(fileInfoMapper.purgeById(3L)).thenReturn(1);

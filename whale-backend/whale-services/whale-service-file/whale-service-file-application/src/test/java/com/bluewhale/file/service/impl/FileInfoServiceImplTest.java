@@ -1643,6 +1643,77 @@ class FileInfoServiceImplTest {
         verify(fileStorage).delete(eq("bluewhale"), anyString());
     }
 
+    @Test
+    @DisplayName("uploadVersion：超出保留上限时清理最旧版本并删除对象")
+    void shouldPruneOldVersionsAfterUpload() throws Exception {
+        fileProperties.getVersion().setMaxVersions(2);
+        FileAssetAggregate root = fileWithVersion(1L, null, 1, FileStatus.NORMAL);
+        FileAssetAggregate version2 = fileWithVersion(2L, 1L, 2, FileStatus.NORMAL);
+        FileAssetAggregate version3 = fileWithVersion(3L, 1L, 3, FileStatus.NORMAL);
+        FileAssetAggregate version4 = fileWithVersion(4L, 1L, 4, FileStatus.NORMAL);
+        when(fileAssetRepository.findById(1L)).thenReturn(Optional.of(root));
+        when(fileAssetRepository.findLatestVersion(1L)).thenReturn(Optional.of(version3));
+        when(fileAssetRepository.findVersions(1L)).thenReturn(List.of(version4, version3, version2, root));
+        when(fileAssetRepository.purgeVersionById(anyLong())).thenReturn(true);
+        TenantContext.set(1L);
+        try {
+            fileInfoService.uploadVersion(1L, uploadContent("v4-body".getBytes(StandardCharsets.UTF_8), "a.txt"),
+                    UPLOADER_ID, false, null);
+        } finally {
+            TenantContext.clear();
+        }
+
+        verify(fileAssetRepository).purgeVersionById(2L);
+        verify(fileAssetRepository).purgeVersionById(3L);
+        verify(fileStorage, times(2)).delete(anyString(), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("uploadVersion：max-versions <= 0 时不清理历史版本")
+    void shouldNotPruneWhenUnlimited() throws Exception {
+        fileProperties.getVersion().setMaxVersions(0);
+        FileAssetAggregate root = fileWithVersion(1L, null, 1, FileStatus.NORMAL);
+        FileAssetAggregate version2 = fileWithVersion(2L, 1L, 2, FileStatus.NORMAL);
+        FileAssetAggregate version3 = fileWithVersion(3L, 1L, 3, FileStatus.NORMAL);
+        when(fileAssetRepository.findById(1L)).thenReturn(Optional.of(root));
+        when(fileAssetRepository.findLatestVersion(1L)).thenReturn(Optional.of(version3));
+        when(fileAssetRepository.findVersions(1L)).thenReturn(List.of(version3, version2, root));
+        TenantContext.set(1L);
+        try {
+            fileInfoService.uploadVersion(1L, uploadContent("v4-body".getBytes(StandardCharsets.UTF_8), "a.txt"),
+                    UPLOADER_ID, false, null);
+        } finally {
+            TenantContext.clear();
+        }
+
+        verify(fileAssetRepository, never()).purgeVersionById(anyLong());
+        verify(fileStorage, never()).delete(anyString(), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("uploadVersion：历史版本清理失败不影响本次上传结果")
+    void shouldIgnorePruneFailure() throws Exception {
+        fileProperties.getVersion().setMaxVersions(2);
+        FileAssetAggregate root = fileWithVersion(1L, null, 1, FileStatus.NORMAL);
+        FileAssetAggregate version2 = fileWithVersion(2L, 1L, 2, FileStatus.NORMAL);
+        FileAssetAggregate version3 = fileWithVersion(3L, 1L, 3, FileStatus.NORMAL);
+        when(fileAssetRepository.findById(1L)).thenReturn(Optional.of(root));
+        when(fileAssetRepository.findLatestVersion(1L)).thenReturn(Optional.of(version3));
+        when(fileAssetRepository.findVersions(1L)).thenReturn(List.of(version3, version2, root));
+        doThrow(new BizException(ErrorCode.SYSTEM_ERROR)).when(fileStorage)
+                .delete(anyString(), anyString(), anyString());
+        TenantContext.set(1L);
+        try {
+            FileVersionResult result = fileInfoService.uploadVersion(1L,
+                    uploadContent("v4-body".getBytes(StandardCharsets.UTF_8), "a.txt"), UPLOADER_ID, false, null);
+            assertEquals("a.txt", result.originalName());
+        } finally {
+            TenantContext.clear();
+        }
+
+        verify(fileAssetRepository, never()).purgeVersionById(anyLong());
+    }
+
     /**
      * 判断分片暂存会话是否仍存在
      *

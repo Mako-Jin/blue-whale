@@ -191,6 +191,7 @@ public class FileInfoServiceImpl implements FileInfoService {
                 throw e;
             }
             fileMetrics.recordUpload("version", bytes.length, System.nanoTime() - startedAt, "success");
+            pruneVersionsQuietly(root, requesterId);
             return result;
         } catch (RuntimeException e) {
             fileMetrics.recordUpload("version", bytes.length, System.nanoTime() - startedAt, "failure");
@@ -204,6 +205,56 @@ public class FileInfoServiceImpl implements FileInfoService {
         return fileAssetRepository.findVersions(root.getId()).stream()
                 .map(FileInfoServiceImpl::toVersionResult)
                 .toList();
+    }
+
+    /**
+     * 按版本保留上限清理最旧版本；清理失败不影响本次版本写入。
+     *
+     * @param root 版本组根文件
+     * @param requesterId 调用者用户 ID
+     */
+    private void pruneVersionsQuietly(FileAssetAggregate root, Long requesterId) {
+        try {
+            pruneVersions(root, requesterId);
+        } catch (RuntimeException e) {
+            log.warn("历史版本清理失败，不影响本次版本写入: rootId={}", root.getId(), e);
+        }
+    }
+
+    /**
+     * 按版本保留上限清理最旧版本。
+     *
+     * <p>保留根版本与最近 {@code max-versions - 1} 个版本；清理顺序为「先删物理对象、再物理删除
+     * 版本行、最后发布删除事件」。单个版本清理失败只告警，保留行待下次新版本产生时重试。</p>
+     *
+     * @param root 版本组根文件
+     * @param requesterId 调用者用户 ID
+     */
+    private void pruneVersions(FileAssetAggregate root, Long requesterId) {
+        int maxVersions = fileProperties.getVersion().getMaxVersions();
+        if (maxVersions <= 0) {
+            return;
+        }
+        List<FileAssetAggregate> versions = fileAssetRepository.findVersions(root.getId());
+        if (versions.size() <= maxVersions) {
+            return;
+        }
+        // 版本列表按版本号倒序且含根版本：根版本必须保留，因此只对非根版本保留最近 maxVersions - 1 个
+        List<FileAssetAggregate> removable = versions.stream()
+                .filter(version -> version.getParentId() != null)
+                .skip(Math.max(maxVersions - 1L, 0L))
+                .toList();
+        for (FileAssetAggregate version : removable) {
+            try {
+                fileStorage.delete(version.getBucket(), version.getObjectKey(), version.getStorageType());
+                if (fileAssetRepository.purgeVersionById(version.getId())) {
+                    publishFileEvent(version, FileAssetDomainEvent.ChangeType.DELETED, requesterId);
+                }
+            } catch (RuntimeException e) {
+                log.warn("历史版本清理失败，保留待下次重试: id={}, version={}", version.getId(),
+                        version.getVersion(), e);
+            }
+        }
     }
 
     @Override
@@ -236,6 +287,7 @@ public class FileInfoServiceImpl implements FileInfoService {
                     requesterId, storagePluginCatalog.activeType());
             FileVersionResult result = toVersionResult(persistAsset(version, effective));
             fileMetrics.recordUpload("rollback", source.getFileSize(), System.nanoTime() - startedAt, "success");
+            pruneVersionsQuietly(root, requesterId);
             return result;
         } catch (IOException e) {
             // 读取或关闭源对象失败：清理可能已写入的新对象后按系统错误返回

@@ -319,6 +319,11 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
     }
 
     @Override
+    public boolean purgeVersionById(Long id) {
+        return fileInfoMapper.purgeVersionById(id) > 0;
+    }
+
+    @Override
     public Optional<FileAssetAggregate> findReusableByDigest(String md5, long fileSize) {
         if (!StringUtils.hasText(md5)) {
             return Optional.empty();

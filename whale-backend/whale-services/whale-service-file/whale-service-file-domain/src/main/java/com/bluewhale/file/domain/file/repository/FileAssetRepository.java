@@ -92,6 +92,16 @@ public interface FileAssetRepository {
     List<FileAssetAggregate> findDeletedVersions(Long rootId);
 
     /**
+     * 物理删除版本行（版本保留策略清理使用）
+     *
+     * <p>实现必须带 {@code parent_id IS NOT NULL} 条件，保证根版本不会被误删。</p>
+     *
+     * @param id 版本行ID
+     * @return 是否实际删除（{@code false} 表示目标不存在或不是版本行）
+     */
+    boolean purgeVersionById(Long id);
+
+    /**
      * 按 MD5 + 大小查询可复用的正常文件（秒传去重依据，按主键升序取第一条）
      *
      * <p>入参摘要大小写不敏感：实现内部统一归一化为小写后查询；空白摘要直接视为未命中。</p>

@@ -133,6 +133,17 @@ public interface FileInfoMapper extends BaseMapper<FileInfoPo> {
     int restoreVersionsByRootId(@Param("rootId") Long rootId);
 
     /**
+     * 物理删除版本行（版本保留策略清理使用）。
+     *
+     * <p>条件带 {@code parent_id IS NOT NULL}，即使传入根文件ID也不会删除根版本。</p>
+     *
+     * @param id 版本行ID
+     * @return 受影响行数
+     */
+    @Delete("DELETE FROM file_info WHERE id = #{id} AND parent_id IS NOT NULL")
+    int purgeVersionById(@Param("id") Long id);
+
+    /**
      * 分页查询回收站文件（含逻辑删除行，仅 {@code deleted = 1}）。
      *
      * @param originalName 原始文件名模糊条件，可为 {@code null}

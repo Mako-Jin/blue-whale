@@ -75,6 +75,9 @@ public class FileProperties {
     /** 内容访问防护配置（防盗链与限流） */
     private Access access = new Access();
 
+    /** 版本保留配置 */
+    private Version version = new Version();
+
     /**
      * 上传策略配置项：按网关可信注入的 {@code X-Permission-Codes} 选择生效上限与配额，
      * 未命中任何规则时回落 {@code max-size-bytes} / {@code quota-bytes} 全局默认值。
@@ -390,6 +393,24 @@ public class FileProperties {
         public void setDefault(String defaultBucket) {
             this.defaultValue = defaultBucket;
         }
+    }
+
+    /**
+     * 版本保留配置项（前缀 {@code whale.file.version}）。
+     *
+     * @author BlueWhale
+     */
+    @Data
+    public static class Version {
+
+        /**
+         * 每个文件保留的版本总数上限（含根版本），默认 20；{@code <=0} 表示不限。
+         *
+         * <p>新版本产生后按版本号倒序清理超出的最旧版本；根版本永不清理，
+         * 配置为 1 等价于不保留历史版本。</p>
+         */
+        @Min(value = 0, message = "whale.file.version.max-versions 不能为负数")
+        private int maxVersions = 20;
     }
 
     /**
