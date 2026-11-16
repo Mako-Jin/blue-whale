@@ -235,3 +235,5 @@ WebSocket 有个容易踩的坑：Spring Cloud Gateway 是先完成 HTTP 101 升
 | 网关测试 | 22 个测试类 / 190+ 测试方法 | `src/test` 计数（`@Test` 与 `@ParameterizedTest` 共 191 处） | 一致 |
 | 限流阈值 | 200/s、10/60s、20/60s、10/60s、60/60s、30/s | `application.yml#rate-limit.path-rules` | 一致 |
 | 「生产打磨多年」 | 已删除 | 仓库首次提交 2026-10-16 | 原表述与事实不符 |
+
+**封面素材**：`assets/d3/cover.png`（2.35:1，2160×920，后台「大图」）、`assets/d3/cover-square.png`（1:1，1000×1000，分享「小图」）。正文三图为 2400px 宽的 2 倍图，手机端点开可看清。
