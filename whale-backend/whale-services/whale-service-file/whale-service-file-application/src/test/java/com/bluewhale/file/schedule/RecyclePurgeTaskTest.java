@@ -2,6 +2,7 @@ package com.bluewhale.file.schedule;
 
 import com.bluewhale.file.config.FileProperties;
 import com.bluewhale.file.domain.file.repository.FileAssetRepository;
+import com.bluewhale.file.domain.lock.ScheduledTaskLock;
 import com.bluewhale.file.domain.model.FileRecycleItem;
 import com.bluewhale.file.domain.storage.FileStorage;
 import com.bluewhale.file.metrics.FileMetrics;
@@ -10,15 +11,19 @@ import com.bluewhale.common.core.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -34,6 +39,10 @@ class RecyclePurgeTaskTest {
 
     private final FileMetrics fileMetrics = mock(FileMetrics.class);
 
+    private final ScheduledTaskLock scheduledTaskLock = mock(ScheduledTaskLock.class);
+
+    private final ScheduledTaskLock.Handle handle = mock(ScheduledTaskLock.Handle.class);
+
     private final FileProperties fileProperties = new FileProperties();
 
     /**
@@ -47,7 +56,9 @@ class RecyclePurgeTaskTest {
         fileProperties.getRecycle().setPurgeEnabled(enabled);
         fileProperties.getRecycle().setRetentionDays(retentionDays);
         fileProperties.getRecycle().setPurgeBatchSize(2);
-        return new RecyclePurgeTask(fileAssetRepository, fileStorage, fileProperties, fileMetrics);
+        when(scheduledTaskLock.tryAcquire(anyString(), any(Duration.class))).thenReturn(Optional.of(handle));
+        return new RecyclePurgeTask(fileAssetRepository, fileStorage, fileProperties, fileMetrics,
+                scheduledTaskLock);
     }
 
     /**
@@ -63,12 +74,13 @@ class RecyclePurgeTaskTest {
     }
 
     @Test
-    @DisplayName("开关关闭或保留天数非正时不查询、不删除")
+    @DisplayName("开关关闭或保留天数非正时不查询、不删除、不抢锁")
     void shouldSkipWhenDisabled() {
         task(false, 30L).purgeExpired();
         task(true, 0L).purgeExpired();
 
         verify(fileAssetRepository, never()).findExpiredRecycle(any(), anyLong());
+        verifyNoInteractions(scheduledTaskLock);
     }
 
     @Test
@@ -86,6 +98,7 @@ class RecyclePurgeTaskTest {
         verify(fileAssetRepository).purgeById(1L);
         verify(fileAssetRepository).purgeById(2L);
         verify(fileMetrics, org.mockito.Mockito.times(2)).recordPurge(true);
+        verify(handle).close();
     }
 
     @Test
@@ -106,5 +119,17 @@ class RecyclePurgeTaskTest {
         verify(fileStorage, org.mockito.Mockito.times(2))
                 .delete("bluewhale", "tenants/1/a.pdf", "local");
         verify(fileMetrics, org.mockito.Mockito.times(2)).recordPurge(false);
+    }
+
+    @Test
+    @DisplayName("其他实例持锁时跳过本轮，不查询也不释放他人锁")
+    void shouldSkipWhenLockBusy() {
+        RecyclePurgeTask busyTask = task(true, 30L);
+        when(scheduledTaskLock.tryAcquire(anyString(), any(Duration.class))).thenReturn(Optional.empty());
+
+        busyTask.purgeExpired();
+
+        verify(fileAssetRepository, never()).findExpiredRecycle(any(), anyLong());
+        verify(handle, never()).close();
     }
 }

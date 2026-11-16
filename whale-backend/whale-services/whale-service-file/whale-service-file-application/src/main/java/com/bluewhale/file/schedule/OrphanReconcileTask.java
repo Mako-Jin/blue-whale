@@ -2,6 +2,7 @@ package com.bluewhale.file.schedule;
 
 import com.bluewhale.file.config.FileProperties;
 import com.bluewhale.file.domain.file.repository.FileAssetRepository;
+import com.bluewhale.file.domain.lock.ScheduledTaskLock;
 import com.bluewhale.file.domain.model.FileObjectRef;
 import com.bluewhale.file.domain.storage.FileStorage;
 import com.bluewhale.file.domain.storage.StorageObject;
@@ -14,10 +15,12 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -43,6 +46,12 @@ public class OrphanReconcileTask {
     /** 对账键分隔符：存储类型 + 桶 + 对象键 */
     private static final String KEY_SEPARATOR = "|";
 
+    /** 任务锁名称 */
+    private static final String LOCK_NAME = "file:orphan-reconcile";
+
+    /** 任务锁租约：全量列举对象可能较慢，租约留足余量 */
+    private static final Duration LOCK_TTL = Duration.ofHours(2);
+
     private final FileAssetRepository fileAssetRepository;
 
     private final FileStorage fileStorage;
@@ -53,6 +62,8 @@ public class OrphanReconcileTask {
 
     private final FileMetrics fileMetrics;
 
+    private final ScheduledTaskLock scheduledTaskLock;
+
     /**
      * 按配置周期执行对账；默认关闭，避免未经评估的全量扫描。
      */
@@ -62,6 +73,20 @@ public class OrphanReconcileTask {
         if (!config.isEnabled()) {
             return;
         }
+        Optional<ScheduledTaskLock.Handle> handle = scheduledTaskLock.tryAcquire(LOCK_NAME, LOCK_TTL);
+        if (handle.isEmpty()) {
+            log.info("孤儿对象对账已由其他实例执行，跳过本轮");
+            return;
+        }
+        try (ScheduledTaskLock.Handle lock = handle.get()) {
+            doReconcile();
+        }
+    }
+
+    /**
+     * 执行一轮对账
+     */
+    private void doReconcile() {
         String activeType = storagePluginCatalog.activeType();
         Set<String> dbKeys = new HashSet<>();
         for (FileObjectRef ref : fileAssetRepository.findAllObjectRefs()) {

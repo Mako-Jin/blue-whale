@@ -4,6 +4,7 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.file.config.FileProperties;
 import com.bluewhale.file.domain.file.repository.FileAssetRepository;
+import com.bluewhale.file.domain.lock.ScheduledTaskLock;
 import com.bluewhale.file.domain.model.FileObjectRef;
 import com.bluewhale.file.domain.storage.FileStorage;
 import com.bluewhale.file.domain.storage.StorageObject;
@@ -13,10 +14,12 @@ import com.bluewhale.file.metrics.FileMetrics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -38,6 +41,10 @@ class OrphanReconcileTaskTest {
 
     private final FileMetrics fileMetrics = mock(FileMetrics.class);
 
+    private final ScheduledTaskLock scheduledTaskLock = mock(ScheduledTaskLock.class);
+
+    private final ScheduledTaskLock.Handle handle = mock(ScheduledTaskLock.Handle.class);
+
     private final FileProperties fileProperties = new FileProperties();
 
     /**
@@ -51,8 +58,9 @@ class OrphanReconcileTaskTest {
         when(storagePluginCatalog.activeType()).thenReturn("local");
         when(storagePluginCatalog.plugins()).thenReturn(List.of(
                 new StoragePluginInfo("local", "本地文件系统", false)));
+        when(scheduledTaskLock.tryAcquire(anyString(), any(Duration.class))).thenReturn(Optional.of(handle));
         return new OrphanReconcileTask(fileAssetRepository, fileStorage, storagePluginCatalog,
-                fileProperties, fileMetrics);
+                fileProperties, fileMetrics, scheduledTaskLock);
     }
 
     /**
@@ -81,7 +89,7 @@ class OrphanReconcileTaskTest {
     @DisplayName("默认关闭：不查询元数据、不列举对象")
     void shouldSkipWhenDisabled() {
         new OrphanReconcileTask(fileAssetRepository, fileStorage, storagePluginCatalog,
-                fileProperties, fileMetrics).reconcile();
+                fileProperties, fileMetrics, scheduledTaskLock).reconcile();
 
         verifyNoInteractions(fileAssetRepository, fileStorage, fileMetrics);
     }
@@ -98,6 +106,19 @@ class OrphanReconcileTaskTest {
 
         verify(fileStorage, never()).delete(anyString(), anyString(), anyString());
         verify(fileMetrics).recordOrphanReconcile(1L, 1L, true);
+        verify(handle).close();
+    }
+
+    @Test
+    @DisplayName("其他实例持锁时跳过本轮，不查询元数据")
+    void shouldSkipWhenLockBusy() {
+        OrphanReconcileTask busyTask = task();
+        when(scheduledTaskLock.tryAcquire(anyString(), any(Duration.class))).thenReturn(Optional.empty());
+
+        busyTask.reconcile();
+
+        verifyNoInteractions(fileAssetRepository, fileStorage, fileMetrics);
+        verify(handle, never()).close();
     }
 
     @Test
