@@ -1,5 +1,7 @@
 package com.bluewhale.file.schedule;
 
+import com.bluewhale.common.audit.annotation.AuditLog;
+import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.file.config.FileProperties;
@@ -13,10 +15,14 @@ import com.bluewhale.file.metrics.FileMetrics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Method;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -77,6 +83,19 @@ class OrphanReconcileTaskTest {
      */
     private static StorageObject object(String objectKey, long size) {
         return new StorageObject("bluewhale", objectKey, size);
+    }
+
+    @Test
+    @DisplayName("reconcile：标注 @AuditLog，不记录参数，执行摘要留痕")
+    void shouldAnnotateReconcileWithAuditLog() throws NoSuchMethodException {
+        Method method = OrphanReconcileTask.class.getMethod("reconcile");
+        AuditLog annotation = method.getAnnotation(AuditLog.class);
+
+        assertNotNull(annotation, "reconcile 应标注 @AuditLog");
+        assertEquals(OperateType.DELETE, annotation.type());
+        assertEquals("storage_object", annotation.targetType());
+        assertFalse(annotation.recordParams(), "对账任务无请求参数");
+        assertTrue(annotation.recordResult(), "执行摘要需留痕");
     }
 
     @Test

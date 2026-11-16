@@ -1,5 +1,7 @@
 package com.bluewhale.file.schedule;
 
+import com.bluewhale.common.audit.annotation.AuditLog;
+import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.jobschedule.ScheduledJob;
 import com.bluewhale.file.config.FileProperties;
 import com.bluewhale.file.service.FileInfoService;
@@ -30,11 +32,16 @@ public class VersionCleanupTask {
     /**
      * 按配置周期清理存量超限版本；开关关闭或保留上限非正时返回跳过摘要。
      *
+     * <p>版本行按物理删除，属不可逆操作，每次执行留一条运行审计：无操作者与请求参数，
+     * 执行摘要写入 {@code result_body}，单条版本明细见业务日志。</p>
+     *
      * @return 执行摘要（清理条数或跳过原因）
      */
     @ScheduledJob(code = "file.version-cleanup",
             cron = "${whale.file.version.cleanup-cron:0 30 4 * * ?}",
             timeoutSeconds = 3600)
+    @AuditLog(operation = "存量历史版本清理", type = OperateType.DELETE,
+            targetType = "file_info", recordParams = false, recordResult = true)
     public String cleanup() {
         FileProperties.Version config = fileProperties.getVersion();
         if (!config.isCleanupEnabled()) {

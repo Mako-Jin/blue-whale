@@ -1,5 +1,7 @@
 package com.bluewhale.file.schedule;
 
+import com.bluewhale.common.audit.annotation.AuditLog;
+import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.jobschedule.ScheduledJob;
 import com.bluewhale.file.config.FileProperties;
 import com.bluewhale.file.domain.file.repository.FileAssetRepository;
@@ -59,11 +61,16 @@ public class OrphanReconcileTask {
     /**
      * 按配置周期执行对账；默认关闭，避免未经评估的全量扫描。
      *
+     * <p>开启删除开关后会物理删除孤儿对象，属不可逆操作，每次执行留一条运行审计：无操作者与
+     * 请求参数，执行摘要（差异计数与删除数）写入 {@code result_body}，差异样例见业务日志。</p>
+     *
      * @return 执行摘要（差异计数或跳过原因）
      */
     @ScheduledJob(code = "file.orphan-reconcile",
             cron = "${whale.file.orphan.cron:0 0 4 * * ?}",
             timeoutSeconds = 7200)
+    @AuditLog(operation = "孤儿对象对账", type = OperateType.DELETE,
+            targetType = "storage_object", recordParams = false, recordResult = true)
     public String reconcile() {
         FileProperties.Orphan config = fileProperties.getOrphan();
         if (!config.isEnabled()) {

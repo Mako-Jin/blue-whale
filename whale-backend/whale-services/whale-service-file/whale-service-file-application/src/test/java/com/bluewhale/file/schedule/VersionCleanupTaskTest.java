@@ -1,13 +1,20 @@
 package com.bluewhale.file.schedule;
 
+import com.bluewhale.common.audit.annotation.AuditLog;
+import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.file.config.FileProperties;
 import com.bluewhale.file.service.FileInfoService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Method;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -34,6 +41,19 @@ class VersionCleanupTaskTest {
     void setUp() {
         properties = new FileProperties();
         task = new VersionCleanupTask(fileInfoService, properties);
+    }
+
+    @Test
+    @DisplayName("cleanup：标注 @AuditLog，不记录参数，执行摘要留痕")
+    void shouldAnnotateCleanupWithAuditLog() throws NoSuchMethodException {
+        Method method = VersionCleanupTask.class.getMethod("cleanup");
+        AuditLog annotation = method.getAnnotation(AuditLog.class);
+
+        assertNotNull(annotation, "cleanup 应标注 @AuditLog");
+        assertEquals(OperateType.DELETE, annotation.type());
+        assertEquals("file_info", annotation.targetType());
+        assertFalse(annotation.recordParams(), "清理任务无请求参数");
+        assertTrue(annotation.recordResult(), "执行摘要需留痕");
     }
 
     @Test
