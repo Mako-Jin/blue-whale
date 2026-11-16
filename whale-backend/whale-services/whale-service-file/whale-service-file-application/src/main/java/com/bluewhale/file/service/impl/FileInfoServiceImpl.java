@@ -208,6 +208,25 @@ public class FileInfoServiceImpl implements FileInfoService {
     }
 
     @Override
+    public void deleteVersion(Long id, int targetVersion, Long requesterId, boolean canManage) {
+        FileAssetAggregate root = resolveVersionRoot(id, requesterId, canManage);
+        FileAssetAggregate target = fileAssetRepository.findVersions(root.getId()).stream()
+                .filter(version -> version.getVersion() == targetVersion)
+                .findFirst()
+                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
+        if (target.getParentId() == null) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "根版本不可单独删除，请删除整个文件");
+        }
+        FileAssetAggregate latest = fileAssetRepository.findLatestVersion(root.getId()).orElse(null);
+        if (latest != null && latest.getId().equals(target.getId())) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "最新版本不可删除，请先回滚或上传新版本");
+        }
+        if (fileAssetRepository.deleteVersionById(target.getId())) {
+            publishFileEvent(target, FileAssetDomainEvent.ChangeType.DELETED, requesterId);
+        }
+    }
+
+    @Override
     public int pruneExcessVersions() {
         int maxVersions = fileProperties.getVersion().getMaxVersions();
         if (maxVersions <= 0) {

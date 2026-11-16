@@ -38,6 +38,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -159,7 +160,18 @@ class FileVersionControllerTest {
     }
 
     @Test
-    @DisplayName("GET 要求 sys:file:list，POST 与回滚要求 sys:file:upload 权限码")
+    @DisplayName("DELETE /file/v1/{id}/versions/{targetVersion}：删除历史版本")
+    void shouldDeleteVersion() throws Exception {
+        mockMvc.perform(delete("/file/v1/{id}/versions/{targetVersion}", ROOT_ID, 2)
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
+
+        verify(fileInfoService).deleteVersion(ROOT_ID, 2, UPLOADER_ID, false);
+    }
+
+    @Test
+    @DisplayName("GET 要求 sys:file:list，POST、回滚与删除分别要求上传/删除权限码")
     void shouldRequirePermissions() throws Exception {
         assertPermission("list", "sys:file:list",
                 FileVersionController.class.getMethod("list", Long.class, HttpServletRequest.class));
@@ -168,6 +180,9 @@ class FileVersionControllerTest {
                         HttpServletRequest.class));
         assertPermission("rollback", "sys:file:upload",
                 FileVersionController.class.getMethod("rollback", Long.class, int.class,
+                        HttpServletRequest.class));
+        assertPermission("delete", "sys:file:delete",
+                FileVersionController.class.getMethod("delete", Long.class, int.class,
                         HttpServletRequest.class));
     }
 

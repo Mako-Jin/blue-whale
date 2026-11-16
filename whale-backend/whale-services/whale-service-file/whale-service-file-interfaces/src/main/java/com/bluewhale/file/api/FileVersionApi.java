@@ -3,6 +3,7 @@ package com.bluewhale.file.api;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.file.model.response.FileVersionResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,9 +16,9 @@ import java.util.List;
 /**
  * 文件版本 API 契约：新版本上传与版本列表。
  *
- * <p>权限不新增：列表复用 {@code sys:file:list}，上传复用 {@code sys:file:upload}。
- * 新版本为独立物理对象，按既有个人/租户/桶配额口径计量；秒传不参与版本。
- * 版本回滚与删除级联不在本批范围。</p>
+ * <p>权限不新增：列表复用 {@code sys:file:list}，上传与回滚复用 {@code sys:file:upload}，
+ * 删除历史版本复用 {@code sys:file:delete}。新版本为独立物理对象，按既有个人/租户/桶配额口径
+ * 计量；秒传不参与版本。</p>
  *
  * @author BlueWhale
  */
@@ -64,4 +65,17 @@ public interface FileVersionApi {
     Result<FileVersionResponse> rollback(@PathVariable Long id,
                                          @PathVariable int targetVersion,
                                          HttpServletRequest httpRequest);
+
+    /**
+     * 删除指定历史版本：逻辑删除并释放配额，由回收站到期任务物理清理。
+     *
+     * <p>根版本与最新版本不可删除；不新增权限码，复用删除权限 {@code sys:file:delete}。</p>
+     *
+     * @param id 文件ID（根文件或任一版本行）
+     * @param targetVersion 目标版本号
+     * @param httpRequest 当前请求（用于判定调用者归属与文件管理权限）
+     * @return 空结果
+     */
+    @DeleteMapping("/{targetVersion}")
+    Result<Void> delete(@PathVariable Long id, @PathVariable int targetVersion, HttpServletRequest httpRequest);
 }

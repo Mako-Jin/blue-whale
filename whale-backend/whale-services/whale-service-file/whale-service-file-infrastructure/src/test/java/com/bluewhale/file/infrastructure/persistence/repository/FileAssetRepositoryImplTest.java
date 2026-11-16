@@ -399,6 +399,16 @@ class FileAssetRepositoryImplTest {
     }
 
     @Test
+    @DisplayName("deleteVersionById：逻辑删除命中返回 true，未命中返回 false")
+    void shouldDeleteVersionById() {
+        when(fileInfoMapper.markVersionDeletedById(3L)).thenReturn(1);
+        when(fileInfoMapper.markVersionDeletedById(4L)).thenReturn(0);
+
+        assertTrue(repository.deleteVersionById(3L));
+        assertFalse(repository.deleteVersionById(4L));
+    }
+
+    @Test
     @DisplayName("findReusableByUploaderAndDigest：同用户同文件命中，空参数直接未命中")
     void shouldFindReusableByUploaderAndDigest() {
         FileInfoPo po = po(5L, 0);

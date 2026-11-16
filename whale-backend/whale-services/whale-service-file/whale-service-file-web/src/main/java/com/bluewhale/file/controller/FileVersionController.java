@@ -72,6 +72,15 @@ public class FileVersionController implements FileVersionApi {
                 UserContext.requireUserId(httpRequest), canManage(httpRequest), uploadLimits(httpRequest))));
     }
 
+    @Override
+    @RequirePermission("sys:file:delete")
+    public Result<Void> delete(@PathVariable Long id, @PathVariable int targetVersion,
+                               HttpServletRequest httpRequest) {
+        fileInfoService.deleteVersion(id, targetVersion, UserContext.requireUserId(httpRequest),
+                canManage(httpRequest));
+        return Result.ok();
+    }
+
     /**
      * 解析当前请求生效的上传上限与配额
      *

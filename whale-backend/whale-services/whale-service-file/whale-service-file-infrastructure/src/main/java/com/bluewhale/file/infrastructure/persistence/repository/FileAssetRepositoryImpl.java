@@ -329,6 +329,11 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
     }
 
     @Override
+    public boolean deleteVersionById(Long id) {
+        return fileInfoMapper.markVersionDeletedById(id) > 0;
+    }
+
+    @Override
     public Optional<FileAssetAggregate> findReusableByUploaderAndDigest(Long uploaderId, String md5, long fileSize,
                                                                         String originalName) {
         if (uploaderId == null || !StringUtils.hasText(md5) || !StringUtils.hasText(originalName)) {

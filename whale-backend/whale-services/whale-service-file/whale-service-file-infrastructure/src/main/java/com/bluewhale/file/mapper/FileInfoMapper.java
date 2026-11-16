@@ -144,6 +144,18 @@ public interface FileInfoMapper extends BaseMapper<FileInfoPo> {
     int purgeVersionById(@Param("id") Long id);
 
     /**
+     * 逻辑删除单个版本行（单版本删除使用）。
+     *
+     * <p>条件带 {@code parent_id IS NOT NULL} 与 {@code deleted = 0}，根版本与已删除行不受影响。</p>
+     *
+     * @param id 版本行ID
+     * @return 受影响行数
+     */
+    @Update("UPDATE file_info SET deleted = 1, delete_time = NOW(), update_time = NOW() "
+            + "WHERE id = #{id} AND parent_id IS NOT NULL AND deleted = 0")
+    int markVersionDeletedById(@Param("id") Long id);
+
+    /**
      * 查询版本数超出允许值的根文件ID（版本保留定时清理使用）。
      *
      * <p>按根文件ID升序游标扫描，只统计未删除的版本行；{@code allowedVersionRows} 为非根版本

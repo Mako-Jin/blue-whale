@@ -1748,6 +1748,47 @@ class FileInfoServiceImplTest {
     }
 
     @Test
+    @DisplayName("deleteVersion：删除历史版本并发布 DELETED 事件")
+    void shouldDeleteHistoricalVersion() {
+        FileAssetAggregate root = fileWithVersion(1L, null, 1, FileStatus.NORMAL);
+        FileAssetAggregate version2 = fileWithVersion(2L, 1L, 2, FileStatus.NORMAL);
+        FileAssetAggregate version3 = fileWithVersion(3L, 1L, 3, FileStatus.NORMAL);
+        when(fileAssetRepository.findById(1L)).thenReturn(Optional.of(root));
+        when(fileAssetRepository.findVersions(1L)).thenReturn(List.of(version3, version2, root));
+        when(fileAssetRepository.findLatestVersion(1L)).thenReturn(Optional.of(version3));
+        when(fileAssetRepository.deleteVersionById(2L)).thenReturn(true);
+
+        fileInfoService.deleteVersion(1L, 2, UPLOADER_ID, false);
+
+        verify(fileAssetRepository).deleteVersionById(2L);
+        assertEquals(1, publishedEvents.size());
+    }
+
+    @Test
+    @DisplayName("deleteVersion：根版本与最新版本不可删除，不存在的版本返回未找到")
+    void shouldRejectInvalidVersionDeletion() {
+        FileAssetAggregate root = fileWithVersion(1L, null, 1, FileStatus.NORMAL);
+        FileAssetAggregate version2 = fileWithVersion(2L, 1L, 2, FileStatus.NORMAL);
+        FileAssetAggregate version3 = fileWithVersion(3L, 1L, 3, FileStatus.NORMAL);
+        when(fileAssetRepository.findById(1L)).thenReturn(Optional.of(root));
+        when(fileAssetRepository.findVersions(1L)).thenReturn(List.of(version3, version2, root));
+        when(fileAssetRepository.findLatestVersion(1L)).thenReturn(Optional.of(version3));
+
+        BizException rootEx = assertThrows(BizException.class,
+                () -> fileInfoService.deleteVersion(1L, 1, UPLOADER_ID, false));
+        assertEquals(PARAM_ERROR_CODE, rootEx.getCode());
+
+        BizException latestEx = assertThrows(BizException.class,
+                () -> fileInfoService.deleteVersion(1L, 3, UPLOADER_ID, false));
+        assertEquals(PARAM_ERROR_CODE, latestEx.getCode());
+
+        BizException missingEx = assertThrows(BizException.class,
+                () -> fileInfoService.deleteVersion(1L, 9, UPLOADER_ID, false));
+        assertEquals(ErrorCode.NOT_FOUND.getCode(), missingEx.getCode());
+        verify(fileAssetRepository, never()).deleteVersionById(anyLong());
+    }
+
+    @Test
     @DisplayName("pruneExcessVersions：按游标扫描超限文件并清理，不发布事件")
     void shouldPruneExcessVersionsAcrossFiles() {
         fileProperties.getVersion().setMaxVersions(2);

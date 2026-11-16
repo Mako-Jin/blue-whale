@@ -112,6 +112,17 @@ public interface FileAssetRepository {
     List<Long> findVersionRootIdsWithExcess(int allowedVersionRows, long afterId, long limit);
 
     /**
+     * 逻辑删除单个版本行
+     *
+     * <p>实现必须带 {@code parent_id IS NOT NULL} 与 {@code deleted = 0} 条件：
+     * 根版本与已删除行不受影响。删除后该版本不再计入配额，并由回收站到期任务物理清理。</p>
+     *
+     * @param id 版本行ID
+     * @return 是否实际删除（{@code false} 表示目标不存在、已删除或不是版本行）
+     */
+    boolean deleteVersionById(Long id);
+
+    /**
      * 按 MD5 + 大小查询可复用的正常文件（秒传去重依据，按主键升序取第一条）
      *
      * <p>入参摘要大小写不敏感：实现内部统一归一化为小写后查询；空白摘要直接视为未命中。</p>
