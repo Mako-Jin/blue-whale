@@ -1,5 +1,7 @@
 package com.bluewhale.file.schedule;
 
+import com.bluewhale.common.audit.annotation.AuditLog;
+import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.file.config.FileProperties;
@@ -10,10 +12,14 @@ import com.bluewhale.file.metrics.FileMetrics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Method;
 import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doThrow;
@@ -62,6 +68,19 @@ class RecyclePurgeTaskTest {
         return new FileRecycleItem(id, "stored.pdf", "origin.pdf", "bluewhale", "local", "tenants/1/a.pdf",
                 12L, "application/pdf", 1, 9L, LocalDateTime.now(), LocalDateTime.now(),
                 LocalDateTime.now().minusDays(31));
+    }
+
+    @Test
+    @DisplayName("清理任务标注 @AuditLog：不记录参数，执行摘要写入返回体")
+    void shouldAnnotatePurgeWithAuditLog() throws NoSuchMethodException {
+        Method method = RecyclePurgeTask.class.getMethod("purgeExpired");
+        AuditLog annotation = method.getAnnotation(AuditLog.class);
+
+        assertNotNull(annotation, "purgeExpired 应标注 @AuditLog");
+        assertEquals(OperateType.DELETE, annotation.type());
+        assertEquals("file_info", annotation.targetType());
+        assertFalse(annotation.recordParams(), "清理任务无请求参数");
+        assertTrue(annotation.recordResult(), "执行摘要需留痕");
     }
 
     @Test

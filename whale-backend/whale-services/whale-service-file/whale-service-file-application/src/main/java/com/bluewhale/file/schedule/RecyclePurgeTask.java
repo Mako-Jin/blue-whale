@@ -1,5 +1,7 @@
 package com.bluewhale.file.schedule;
 
+import com.bluewhale.common.audit.annotation.AuditLog;
+import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.jobschedule.ScheduledJob;
 import com.bluewhale.file.config.FileProperties;
 import com.bluewhale.file.domain.file.repository.FileAssetRepository;
@@ -45,11 +47,16 @@ public class RecyclePurgeTask {
     /**
      * 按配置周期清理到期回收站记录；开关关闭或保留天数非正时返回跳过摘要。
      *
+     * <p>每次执行留一条运行审计：清理属不可逆的物理删除，需保留「何时清理了多少条」；
+     * 无操作者与请求参数，执行摘要写入 {@code result_body}，单条文件级明细见业务日志。</p>
+     *
      * @return 执行摘要（清理条数或跳过原因）
      */
     @ScheduledJob(code = "file.recycle-cleanup",
             cron = "${whale.file.recycle.purge-cron:0 30 3 * * ?}",
             timeoutSeconds = 1800)
+    @AuditLog(operation = "回收站到期物理清理", type = OperateType.DELETE,
+            targetType = "file_info", recordParams = false, recordResult = true)
     public String purgeExpired() {
         FileProperties.Recycle config = fileProperties.getRecycle();
         if (!config.isPurgeEnabled()) {

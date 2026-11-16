@@ -1,6 +1,8 @@
 package com.bluewhale.file.controller;
 
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
+import com.bluewhale.common.audit.annotation.AuditLog;
+import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.common.web.UserContext;
 import com.bluewhale.file.api.FileBatchApi;
@@ -41,6 +43,9 @@ public class FileBatchController implements FileBatchApi {
     /** 文件管理权限码：持有者可操作全租户文件 */
     private static final String PERM_FILE_MANAGE = "sys:file:manage";
 
+    /** 审计操作对象类型 */
+    private static final String AUDIT_TARGET_TYPE = "file_info";
+
     /** ZIP 响应媒体类型 */
     private static final String ZIP_CONTENT_TYPE = "application/zip";
 
@@ -65,6 +70,8 @@ public class FileBatchController implements FileBatchApi {
 
     @Override
     @RequirePermission("sys:file:delete")
+    @AuditLog(operation = "批量删除文件", type = OperateType.DELETE,
+            targetType = AUDIT_TARGET_TYPE, targetId = "#request.ids")
     public Result<FileBatchDeleteResponse> batchDelete(FileBatchDeleteRequest request,
                                                        HttpServletRequest httpRequest) {
         FileBatchDeleteResult result = fileInfoService.batchDelete(new FileBatchDeleteCommand(request.getIds(),

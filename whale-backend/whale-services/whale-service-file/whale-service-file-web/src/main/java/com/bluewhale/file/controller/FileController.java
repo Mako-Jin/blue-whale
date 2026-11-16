@@ -1,6 +1,8 @@
 package com.bluewhale.file.controller;
 
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
+import com.bluewhale.common.audit.annotation.AuditLog;
+import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
@@ -67,6 +69,9 @@ public class FileController implements FileApi {
 
     /** 文件管理权限码：持有者可查看/下载/删除全租户文件 */
     private static final String PERM_FILE_MANAGE = "sys:file:manage";
+
+    /** 审计操作对象类型 */
+    private static final String AUDIT_TARGET_TYPE = "file_info";
 
     private final FileInfoService fileInfoService;
 
@@ -164,6 +169,8 @@ public class FileController implements FileApi {
 
     @Override
     @RequirePermission("sys:file:delete")
+    @AuditLog(operation = "回收站找回文件", type = OperateType.UPDATE,
+            targetType = AUDIT_TARGET_TYPE, targetId = "#id")
     public Result<Void> restore(@PathVariable Long id, HttpServletRequest httpRequest) {
         fileInfoService.restore(id, UserContext.requireUserId(httpRequest), canManage(httpRequest),
                 uploadLimits(httpRequest));
@@ -188,6 +195,8 @@ public class FileController implements FileApi {
 
     @Override
     @RequirePermission("sys:file:delete")
+    @AuditLog(operation = "删除文件（移入回收站）", type = OperateType.DELETE,
+            targetType = AUDIT_TARGET_TYPE, targetId = "#id")
     public Result<Void> delete(@PathVariable Long id, HttpServletRequest httpRequest) {
         fileInfoService.delete(id, UserContext.requireUserId(httpRequest), canManage(httpRequest));
         return Result.ok();

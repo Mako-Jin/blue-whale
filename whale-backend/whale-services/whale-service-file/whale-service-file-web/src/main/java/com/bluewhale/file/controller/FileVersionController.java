@@ -1,6 +1,8 @@
 package com.bluewhale.file.controller;
 
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
+import com.bluewhale.common.audit.annotation.AuditLog;
+import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.Result;
@@ -45,6 +47,9 @@ public class FileVersionController implements FileVersionApi {
     /** 文件管理权限码：持有者可查看/操作全租户文件版本 */
     private static final String PERM_FILE_MANAGE = "sys:file:manage";
 
+    /** 审计操作对象类型 */
+    private static final String AUDIT_TARGET_TYPE = "file_info";
+
     private final FileInfoService fileInfoService;
 
     private final FileUploadPolicy fileUploadPolicy;
@@ -73,6 +78,8 @@ public class FileVersionController implements FileVersionApi {
 
     @Override
     @RequirePermission("sys:file:upload")
+    @AuditLog(operation = "回滚文件版本", type = OperateType.UPDATE,
+            targetType = AUDIT_TARGET_TYPE, targetId = "#id")
     public Result<FileVersionResponse> rollback(@PathVariable Long id,
                                                 @PathVariable int targetVersion,
                                                 HttpServletRequest httpRequest) {
@@ -82,6 +89,8 @@ public class FileVersionController implements FileVersionApi {
 
     @Override
     @RequirePermission("sys:file:delete")
+    @AuditLog(operation = "删除文件版本", type = OperateType.DELETE,
+            targetType = AUDIT_TARGET_TYPE, targetId = "#id")
     public Result<Void> delete(@PathVariable Long id, @PathVariable int targetVersion,
                                HttpServletRequest httpRequest) {
         fileInfoService.deleteVersion(id, targetVersion, UserContext.requireUserId(httpRequest),
@@ -99,6 +108,8 @@ public class FileVersionController implements FileVersionApi {
 
     @Override
     @RequirePermission("sys:file:delete")
+    @AuditLog(operation = "找回文件版本", type = OperateType.UPDATE,
+            targetType = AUDIT_TARGET_TYPE, targetId = "#id")
     public Result<FileVersionResponse> restore(@PathVariable Long id, @PathVariable int targetVersion,
                                                HttpServletRequest httpRequest) {
         FileVersionResult version = fileInfoService.restoreVersion(id, targetVersion,
