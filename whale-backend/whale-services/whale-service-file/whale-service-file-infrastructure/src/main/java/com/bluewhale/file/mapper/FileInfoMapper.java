@@ -3,7 +3,6 @@ package com.bluewhale.file.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.bluewhale.file.po.FileInfoPo;
 import org.apache.ibatis.annotations.Delete;
-import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
@@ -347,42 +346,4 @@ public interface FileInfoMapper extends BaseMapper<FileInfoPo> {
      */
     @Select("SELECT RELEASE_LOCK(#{lockName})")
     Integer releaseNamedLock(@Param("lockName") String lockName);
-
-    /**
-     * 抢占定时任务锁：锁不存在或租约已过期时改写属主与到期时间，否则保持原持有者。
-     *
-     * @param lockName 任务锁名称
-     * @param owner 申请者属主标识
-     * @param ttlSeconds 租约时长（秒）
-     * @return 影响行数（1 表示插入或抢占成功，0 表示被有效租约占用）
-     */
-    @Insert("INSERT INTO file_task_lock (lock_name, owner, locked_until) "
-            + "VALUES (#{lockName}, #{owner}, DATE_ADD(NOW(), INTERVAL #{ttlSeconds} SECOND)) "
-            + "ON DUPLICATE KEY UPDATE "
-            + "owner = IF(locked_until < NOW(), #{owner}, owner), "
-            + "locked_until = IF(locked_until < NOW(), "
-            + "DATE_ADD(NOW(), INTERVAL #{ttlSeconds} SECOND), locked_until)")
-    int tryAcquireTaskLock(@Param("lockName") String lockName,
-                           @Param("owner") String owner,
-                           @Param("ttlSeconds") int ttlSeconds);
-
-    /**
-     * 校验任务锁归属：用于抢锁后确认当前属主确实持有锁。
-     *
-     * @param lockName 任务锁名称
-     * @param owner 属主标识
-     * @return 1 表示当前属主持有；0 表示已被他人持有
-     */
-    @Select("SELECT COUNT(*) FROM file_task_lock WHERE lock_name = #{lockName} AND owner = #{owner}")
-    int countTaskLockOwner(@Param("lockName") String lockName, @Param("owner") String owner);
-
-    /**
-     * 释放任务锁：仅属主可释放。
-     *
-     * @param lockName 任务锁名称
-     * @param owner 属主标识
-     * @return 影响行数
-     */
-    @Delete("DELETE FROM file_task_lock WHERE lock_name = #{lockName} AND owner = #{owner}")
-    int releaseTaskLock(@Param("lockName") String lockName, @Param("owner") String owner);
 }

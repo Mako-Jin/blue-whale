@@ -117,7 +117,7 @@ whale:
       purge-enabled: ${WHALE_FILE_RECYCLE_PURGE_ENABLED:true}
       retention-days: ${WHALE_FILE_RECYCLE_RETENTION_DAYS:30}
       purge-batch-size: ${WHALE_FILE_RECYCLE_PURGE_BATCH_SIZE:200}
-      # 清理任务 cron，默认每天 03:30；通过 @Scheduled 占位符读取，不入 FileProperties
+      # 清理任务 cron，默认每天 03:30；通过 @ScheduledJob 占位符读取，不入 FileProperties
       purge-cron: ${WHALE_FILE_RECYCLE_PURGE_CRON:0 30 3 * * ?}
     # 孤儿对象对账：全量列举存储对象与元数据引用，默认关闭，按环境评估后开启。
     # 默认只报告；delete-orphan-objects 才删除「存储有、元数据无」的对象，悬空元数据永不自动删除。
@@ -125,7 +125,7 @@ whale:
       enabled: ${WHALE_FILE_ORPHAN_ENABLED:false}
       delete-orphan-objects: ${WHALE_FILE_ORPHAN_DELETE_ORPHAN_OBJECTS:false}
       report-samples: ${WHALE_FILE_ORPHAN_REPORT_SAMPLES:20}
-      # 对账任务 cron，默认每天 04:00；通过 @Scheduled 占位符读取，不入 FileProperties
+      # 对账任务 cron，默认每天 04:00；通过 @ScheduledJob 占位符读取，不入 FileProperties
       cron: ${WHALE_FILE_ORPHAN_CRON:0 0 4 * * ?}
     # 分享链接：有效期只做上限截断，避免创建近乎永久的公开链接；
     # 下载次数与密码由创建请求决定，访问需登录态（匿名开放需网关白名单，暂不支持）。

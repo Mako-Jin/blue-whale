@@ -4,7 +4,6 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.file.config.FileProperties;
 import com.bluewhale.file.domain.file.repository.FileAssetRepository;
-import com.bluewhale.file.domain.lock.ScheduledTaskLock;
 import com.bluewhale.file.domain.model.FileObjectRef;
 import com.bluewhale.file.domain.storage.FileStorage;
 import com.bluewhale.file.domain.storage.StorageObject;
@@ -14,10 +13,10 @@ import com.bluewhale.file.metrics.FileMetrics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.time.Duration;
 import java.util.List;
-import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -27,7 +26,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
- * {@link OrphanReconcileTask} 差异计算与删除开关单元测试。
+ * {@link OrphanReconcileTask} 差异计算、删除开关与执行摘要单元测试。
  *
  * @author BlueWhale
  */
@@ -40,10 +39,6 @@ class OrphanReconcileTaskTest {
     private final StoragePluginCatalog storagePluginCatalog = mock(StoragePluginCatalog.class);
 
     private final FileMetrics fileMetrics = mock(FileMetrics.class);
-
-    private final ScheduledTaskLock scheduledTaskLock = mock(ScheduledTaskLock.class);
-
-    private final ScheduledTaskLock.Handle handle = mock(ScheduledTaskLock.Handle.class);
 
     private final FileProperties fileProperties = new FileProperties();
 
@@ -58,9 +53,8 @@ class OrphanReconcileTaskTest {
         when(storagePluginCatalog.activeType()).thenReturn("local");
         when(storagePluginCatalog.plugins()).thenReturn(List.of(
                 new StoragePluginInfo("local", "本地文件系统", false)));
-        when(scheduledTaskLock.tryAcquire(anyString(), any(Duration.class))).thenReturn(Optional.of(handle));
         return new OrphanReconcileTask(fileAssetRepository, fileStorage, storagePluginCatalog,
-                fileProperties, fileMetrics, scheduledTaskLock);
+                fileProperties, fileMetrics);
     }
 
     /**
@@ -86,39 +80,28 @@ class OrphanReconcileTaskTest {
     }
 
     @Test
-    @DisplayName("默认关闭：不查询元数据、不列举对象")
+    @DisplayName("默认关闭：返回跳过摘要，不查询元数据、不列举对象")
     void shouldSkipWhenDisabled() {
-        new OrphanReconcileTask(fileAssetRepository, fileStorage, storagePluginCatalog,
-                fileProperties, fileMetrics, scheduledTaskLock).reconcile();
+        OrphanReconcileTask disabled = new OrphanReconcileTask(fileAssetRepository, fileStorage,
+                storagePluginCatalog, fileProperties, fileMetrics);
+
+        assertEquals("skipped: orphan reconcile disabled", disabled.reconcile());
 
         verifyNoInteractions(fileAssetRepository, fileStorage, fileMetrics);
     }
 
     @Test
-    @DisplayName("只报告模式：统计孤儿对象与悬空元数据，不删除任何对象")
+    @DisplayName("只报告模式：统计孤儿对象与悬空元数据，摘要含计数且不删除")
     void shouldReportOnlyByDefault() {
         when(fileAssetRepository.findAllObjectRefs()).thenReturn(List.of(
                 ref("local", "a.txt"), ref(null, "c.txt")));
         when(fileStorage.listObjects("local")).thenReturn(List.of(
                 object("a.txt", 1L), object("b.txt", 2L)));
 
-        task().reconcile();
+        assertEquals("orphanObjects=1, danglingMetadata=1, deleted=0", task().reconcile());
 
         verify(fileStorage, never()).delete(anyString(), anyString(), anyString());
         verify(fileMetrics).recordOrphanReconcile(1L, 1L, true);
-        verify(handle).close();
-    }
-
-    @Test
-    @DisplayName("其他实例持锁时跳过本轮，不查询元数据")
-    void shouldSkipWhenLockBusy() {
-        OrphanReconcileTask busyTask = task();
-        when(scheduledTaskLock.tryAcquire(anyString(), any(Duration.class))).thenReturn(Optional.empty());
-
-        busyTask.reconcile();
-
-        verifyNoInteractions(fileAssetRepository, fileStorage, fileMetrics);
-        verify(handle, never()).close();
     }
 
     @Test
@@ -129,21 +112,21 @@ class OrphanReconcileTaskTest {
                 object("a.txt", 1L), object("b.txt", 2L)));
         fileProperties.getOrphan().setDeleteOrphanObjects(true);
 
-        task().reconcile();
+        assertEquals("orphanObjects=1, danglingMetadata=0, deleted=1", task().reconcile());
 
         verify(fileStorage).delete("bluewhale", "b.txt", "local");
         verify(fileMetrics).recordOrphanReconcile(1L, 0L, true);
     }
 
     @Test
-    @DisplayName("任一介质列举失败：整轮放弃并计失败，不删除任何对象")
+    @DisplayName("任一介质列举失败：计失败并上抛，不删除任何对象")
     void shouldAbortWhenListingFails() {
         when(fileAssetRepository.findAllObjectRefs()).thenReturn(List.of());
         when(fileStorage.listObjects("local"))
                 .thenThrow(new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "对象存储不可达"));
         fileProperties.getOrphan().setDeleteOrphanObjects(true);
 
-        task().reconcile();
+        assertThrows(IllegalStateException.class, () -> task().reconcile());
 
         verify(fileStorage, never()).delete(anyString(), anyString(), anyString());
         verify(fileMetrics).recordOrphanReconcile(0L, 0L, false);
@@ -155,7 +138,7 @@ class OrphanReconcileTaskTest {
         when(fileAssetRepository.findAllObjectRefs()).thenReturn(List.of(ref(null, "a.txt")));
         when(fileStorage.listObjects("local")).thenReturn(List.of(object("a.txt", 1L)));
 
-        task().reconcile();
+        assertEquals("orphanObjects=0, danglingMetadata=0, deleted=0", task().reconcile());
 
         verify(fileMetrics).recordOrphanReconcile(0L, 0L, true);
         verify(fileStorage, never()).delete(any(), any(), any());

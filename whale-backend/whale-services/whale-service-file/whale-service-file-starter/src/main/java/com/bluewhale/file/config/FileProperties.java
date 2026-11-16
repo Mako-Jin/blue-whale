@@ -209,7 +209,7 @@ public class FileProperties {
     /**
      * 回收站配置项（前缀 {@code whale.file.recycle}）。
      *
-     * <p>到期清理任务由 {@code @Scheduled(cron = "${whale.file.recycle.purge-cron:0 30 3 * * ?}")}
+     * <p>到期清理任务由 {@code @ScheduledJob(cron = "${whale.file.recycle.purge-cron:0 30 3 * * ?}")}
      * 驱动，因此 cron 只从环境绑定；本类承载开关、保留天数与批大小。</p>
      *
      * @author BlueWhale

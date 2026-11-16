@@ -220,7 +220,16 @@ VALUES
  '迁移自 ExpensePayablePushJob#push（单条失败置 FAILED 继续后续，开关 whale.oa.expense.push.enabled）'),
 (9100000000000000027, 1, 'Auth 口令到期提醒', 'AUTH', 'whale-service-auth', 'auth.password.expiry-notice',
  '0 0 2 * * ?', 'httpJobHandler', '{"timeoutMillis":1800000}', 'FIRE_ONCE', 1, 300, 1, 1,
- '迁移自 PasswordExpiryNoticeJob#notifyExpiringPasswords（按日幂等，重复触发不重复提醒；cron 可配 whale.auth.password.notice-cron）');
+ '迁移自 PasswordExpiryNoticeJob#notifyExpiringPasswords（按日幂等，重复触发不重复提醒；cron 可配 whale.auth.password.notice-cron）'),
+(9100000000000000028, 1, 'File 回收站到期清理', 'FILE', 'whale-file', 'file.recycle-cleanup',
+ '0 30 3 * * ?', 'httpJobHandler', '{"timeoutMillis":1800000}', 'DO_NOTHING', 1, 300, 1, 1,
+ '迁移自 RecyclePurgeTask#purgeExpired（对象删除幂等，开关 whale.file.recycle.purge-enabled）'),
+(9100000000000000029, 1, 'File 存量历史版本清理', 'FILE', 'whale-file', 'file.version-cleanup',
+ '0 30 4 * * ?', 'httpJobHandler', '{"timeoutMillis":3600000}', 'DO_NOTHING', 1, 300, 1, 1,
+ '迁移自 VersionCleanupTask#cleanup（按版本行物理删除，开关 whale.file.version.cleanup-enabled）'),
+(9100000000000000030, 1, 'File 孤儿对象对账', 'FILE', 'whale-file', 'file.orphan-reconcile',
+ '0 0 4 * * ?', 'httpJobHandler', '{"timeoutMillis":7200000}', 'DO_NOTHING', 1, 300, 1, 1,
+ '迁移自 OrphanReconcileTask#reconcile（默认只报告，开关 whale.file.orphan.enabled）');
 
 -- ---------------------------------------------------------------------
 -- 5. 执行器注册表（对齐 xxl-job executor：谁在线、谁支持哪些任务）

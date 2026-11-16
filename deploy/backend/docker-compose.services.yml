@@ -656,6 +656,15 @@ services:
       # 该服务用共享 starter 的 Spring 标准属性（yml 无 REDIS_HOST 占位）
       SPRING_DATA_REDIS_HOST: ${REDIS_HOST}
       SPRING_DATA_REDIS_PORT: ${REDIS_PORT}
+      # 定时任务迁入 whale-job：关闭进程内 cron、开放内网触发端点、向调度中心注册执行器
+      WHALE_SCHEDULE_LOCAL_ENABLED: "false"
+      WHALE_SCHEDULE_TRIGGER_ENABLED: "true"
+      WHALE_SCHEDULE_EXECUTOR_REGISTER_ENABLED: "true"
+      WHALE_SCHEDULE_EXECUTOR_SERVER_URL: "http://bw-job:8082"
+      # 执行日志落盘目录：挂命名卷，容器重建不丢（调度中心按流水回捞依赖它）
+      WHALE_SCHEDULE_EXECUTOR_LOG_DIR: "/var/log/whale-job"
+    volumes:
+      - file-joblogs:/var/log/whale-job
     ports:
       - "127.0.0.1:8085:8085"
     healthcheck:
@@ -1142,6 +1151,8 @@ volumes:
     name: bw-party-joblogs
   pdm-joblogs:
     name: bw-pdm-joblogs
+  file-joblogs:
+    name: bw-file-joblogs
   # Lucene 全文索引落盘：容器重建不丢，重建索引需全量重同步邮件
   mail-index:
     name: bw-mail-index

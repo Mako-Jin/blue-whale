@@ -1,33 +1,30 @@
 package com.bluewhale.file.schedule;
 
+import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.file.config.FileProperties;
 import com.bluewhale.file.domain.file.repository.FileAssetRepository;
-import com.bluewhale.file.domain.lock.ScheduledTaskLock;
 import com.bluewhale.file.domain.model.FileRecycleItem;
 import com.bluewhale.file.domain.storage.FileStorage;
 import com.bluewhale.file.metrics.FileMetrics;
-import com.bluewhale.common.core.exception.BizException;
-import com.bluewhale.common.core.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
- * {@link RecyclePurgeTask} 清理流程单元测试。
+ * {@link RecyclePurgeTask} 清理流程与执行摘要单元测试。
  *
  * @author BlueWhale
  */
@@ -38,10 +35,6 @@ class RecyclePurgeTaskTest {
     private final FileStorage fileStorage = mock(FileStorage.class);
 
     private final FileMetrics fileMetrics = mock(FileMetrics.class);
-
-    private final ScheduledTaskLock scheduledTaskLock = mock(ScheduledTaskLock.class);
-
-    private final ScheduledTaskLock.Handle handle = mock(ScheduledTaskLock.Handle.class);
 
     private final FileProperties fileProperties = new FileProperties();
 
@@ -56,9 +49,7 @@ class RecyclePurgeTaskTest {
         fileProperties.getRecycle().setPurgeEnabled(enabled);
         fileProperties.getRecycle().setRetentionDays(retentionDays);
         fileProperties.getRecycle().setPurgeBatchSize(2);
-        when(scheduledTaskLock.tryAcquire(anyString(), any(Duration.class))).thenReturn(Optional.of(handle));
-        return new RecyclePurgeTask(fileAssetRepository, fileStorage, fileProperties, fileMetrics,
-                scheduledTaskLock);
+        return new RecyclePurgeTask(fileAssetRepository, fileStorage, fileProperties, fileMetrics);
     }
 
     /**
@@ -74,31 +65,28 @@ class RecyclePurgeTaskTest {
     }
 
     @Test
-    @DisplayName("开关关闭或保留天数非正时不查询、不删除、不抢锁")
+    @DisplayName("开关关闭或保留天数非正时不查询、不删除，返回跳过摘要")
     void shouldSkipWhenDisabled() {
-        task(false, 30L).purgeExpired();
-        task(true, 0L).purgeExpired();
+        assertEquals("skipped: purge disabled", task(false, 30L).purgeExpired());
+        assertEquals("skipped: retention-days<=0", task(true, 0L).purgeExpired());
 
         verify(fileAssetRepository, never()).findExpiredRecycle(any(), anyLong());
-        verifyNoInteractions(scheduledTaskLock);
     }
 
     @Test
-    @DisplayName("按批清理：先删物理对象再物理删除元数据")
+    @DisplayName("按批清理：先删物理对象再物理删除元数据，摘要含清理条数")
     void shouldPurgeExpiredInBatches() {
         when(fileAssetRepository.findExpiredRecycle(any(), anyLong()))
                 .thenReturn(List.of(item(1L), item(2L)))
                 .thenReturn(List.of());
         when(fileAssetRepository.purgeById(anyLong())).thenReturn(true);
 
-        task(true, 30L).purgeExpired();
+        assertEquals("purged=2", task(true, 30L).purgeExpired());
 
-        verify(fileStorage, org.mockito.Mockito.times(2))
-                .delete("bluewhale", "tenants/1/a.pdf", "local");
+        verify(fileStorage, times(2)).delete("bluewhale", "tenants/1/a.pdf", "local");
         verify(fileAssetRepository).purgeById(1L);
         verify(fileAssetRepository).purgeById(2L);
-        verify(fileMetrics, org.mockito.Mockito.times(2)).recordPurge(true);
-        verify(handle).close();
+        verify(fileMetrics, times(2)).recordPurge(true);
     }
 
     @Test
@@ -111,25 +99,12 @@ class RecyclePurgeTaskTest {
                 .delete("bluewhale", "tenants/1/a.pdf", "local");
         when(fileAssetRepository.purgeById(anyLong())).thenReturn(true);
 
-        task(true, 30L).purgeExpired();
+        assertEquals("purged=0", task(true, 30L).purgeExpired());
 
         verify(fileAssetRepository, never()).purgeById(1L);
         verify(fileAssetRepository, never()).purgeById(2L);
         // 本轮无进展即退出，失败记录只尝试一次，不会在 10 轮内重复扫描
-        verify(fileStorage, org.mockito.Mockito.times(2))
-                .delete("bluewhale", "tenants/1/a.pdf", "local");
-        verify(fileMetrics, org.mockito.Mockito.times(2)).recordPurge(false);
-    }
-
-    @Test
-    @DisplayName("其他实例持锁时跳过本轮，不查询也不释放他人锁")
-    void shouldSkipWhenLockBusy() {
-        RecyclePurgeTask busyTask = task(true, 30L);
-        when(scheduledTaskLock.tryAcquire(anyString(), any(Duration.class))).thenReturn(Optional.empty());
-
-        busyTask.purgeExpired();
-
-        verify(fileAssetRepository, never()).findExpiredRecycle(any(), anyLong());
-        verify(handle, never()).close();
+        verify(fileStorage, times(2)).delete("bluewhale", "tenants/1/a.pdf", "local");
+        verify(fileMetrics, times(2)).recordPurge(false);
     }
 }
