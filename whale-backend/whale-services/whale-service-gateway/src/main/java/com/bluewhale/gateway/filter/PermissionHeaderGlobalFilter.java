@@ -2,6 +2,7 @@ package com.bluewhale.gateway.filter;
 
 import com.bluewhale.gateway.common.GatewayHeaders;
 import com.bluewhale.gateway.config.PermissionHeaderProperties;
+import com.bluewhale.security.contract.GatewayContract;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
@@ -67,10 +68,10 @@ public class PermissionHeaderGlobalFilter implements GlobalFilter, Ordered {
     private static final String AUTH_ME_URI = "lb://whale-service-auth/auth/v1/me";
 
     /** /auth/me 响应体中的业务数据字段名 */
-    private static final String FIELD_DATA = "data";
+    private static final String FIELD_DATA = GatewayContract.Envelope.DATA;
 
     /** /auth/me 响应体中的权限码数组字段名 */
-    private static final String FIELD_PERMISSIONS = "permissions";
+    private static final String FIELD_PERMISSIONS = GatewayContract.CurrentUser.PERMISSIONS;
 
     /** 权限码拼接分隔符 */
     private static final String CODES_SEPARATOR = ",";
@@ -217,7 +218,7 @@ public class PermissionHeaderGlobalFilter implements GlobalFilter, Ordered {
      * @param body 响应体 JSON 文本，可能为 {@code null} 或空
      * @return 权限码逗号串；无权限或解析失败时为空串
      */
-    private String parsePermissions(String body) {
+    String parsePermissions(String body) {
         if (body == null || body.isBlank()) {
             return "";
         }

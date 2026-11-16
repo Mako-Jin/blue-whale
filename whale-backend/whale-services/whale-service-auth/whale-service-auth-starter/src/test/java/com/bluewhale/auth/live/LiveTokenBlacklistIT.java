@@ -1,6 +1,7 @@
 package com.bluewhale.auth.live;
 
 import com.bluewhale.auth.infrastructure.config.JwtProperties;
+import com.bluewhale.auth.infrastructure.jwt.JwtKeyMaterial;
 import com.bluewhale.auth.infrastructure.jwt.JwtTokenProvider;
 import com.bluewhale.auth.infrastructure.security.RedisTokenBlacklist;
 import com.bluewhale.security.token.TokenBlacklistKeys;
@@ -54,7 +55,7 @@ class LiveTokenBlacklistIT {
         JwtProperties properties = new JwtProperties();
         properties.setExpireMinutes(1);
         properties.setRefreshExpireMinutes(1);
-        tokenProvider = new JwtTokenProvider(properties);
+        tokenProvider = new JwtTokenProvider(properties, new JwtKeyMaterial(properties));
         blacklist = new RedisTokenBlacklist(redisTemplate, tokenProvider);
     }
 
@@ -106,7 +107,8 @@ class LiveTokenBlacklistIT {
         JwtProperties expiredProperties = new JwtProperties();
         expiredProperties.setExpireMinutes(0);
         expiredProperties.setRefreshExpireMinutes(0);
-        JwtTokenProvider expiredProvider = new JwtTokenProvider(expiredProperties);
+        JwtTokenProvider expiredProvider = new JwtTokenProvider(expiredProperties,
+                new JwtKeyMaterial(expiredProperties));
         String expiredToken = expiredProvider.generateAccessToken(1L, 1L, "admin", List.of(), false);
 
         assertThat(tokenProvider.getRemainingValiditySeconds(expiredToken)).isLessThan(1L);

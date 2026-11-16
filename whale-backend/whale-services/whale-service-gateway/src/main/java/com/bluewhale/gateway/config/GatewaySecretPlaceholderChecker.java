@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.nio.charset.StandardCharsets;
 
@@ -54,6 +55,12 @@ public class GatewaySecretPlaceholderChecker implements InitializingBean {
             return;
         }
         String secret = whaleGatewayProperties.getJwt().getSecret();
+        if (isJwksMode()) {
+            // JWKS（RS256）模式下验签公钥来自 auth，共享密钥可以留空；存量 HS256 令牌需自行保证 secret 有效
+            log.info("网关启用 JWKS 验签（RS256），共享密钥可留空；如仍需验签存量 HS256 令牌，请保持 secret 有效");
+            warnIfCorsLooksLikeDev();
+            return;
+        }
         if (secret == null || secret.isBlank() || WhaleGatewayProperties.Jwt.DEFAULT_PLACEHOLDER_SECRET.equals(secret)) {
             throw new IllegalStateException(REJECT_MESSAGE);
         }
@@ -82,6 +89,16 @@ public class GatewaySecretPlaceholderChecker implements InitializingBean {
                 return;
             }
         }
+    }
+
+    /**
+     * 判断是否启用 JWKS 验签
+     *
+     * @return 开关开启且 JWKS 地址非空时返回 {@code true}
+     */
+    private boolean isJwksMode() {
+        WhaleGatewayProperties.Jwt jwt = whaleGatewayProperties.getJwt();
+        return jwt.isJwksEnabled() && StringUtils.hasText(jwt.getJwksUri());
     }
 
     /**

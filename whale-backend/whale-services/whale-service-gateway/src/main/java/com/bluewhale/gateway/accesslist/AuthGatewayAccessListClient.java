@@ -1,5 +1,6 @@
 package com.bluewhale.gateway.accesslist;
 
+import com.bluewhale.security.contract.GatewayContract;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -31,25 +32,25 @@ import java.util.Map;
 public class AuthGatewayAccessListClient {
 
     /** 响应体中的业务码字段名 */
-    private static final String FIELD_CODE = "code";
+    private static final String FIELD_CODE = GatewayContract.Envelope.CODE;
 
     /** 响应体中的业务数据字段名 */
-    private static final String FIELD_DATA = "data";
+    private static final String FIELD_DATA = GatewayContract.Envelope.DATA;
 
     /** 名单项中的路径字段名 */
-    private static final String FIELD_PATH_PATTERN = "pathPattern";
+    private static final String FIELD_PATH_PATTERN = GatewayContract.AccessList.PATH_PATTERN;
 
     /** 名单项中的方法字段名 */
-    private static final String FIELD_HTTP_METHOD = "httpMethod";
+    private static final String FIELD_HTTP_METHOD = GatewayContract.AccessList.HTTP_METHOD;
 
     /** 名单项中的作用域字段名（GW-08 租户维度） */
-    private static final String FIELD_SCOPE = "scope";
+    private static final String FIELD_SCOPE = GatewayContract.AccessList.SCOPE;
 
     /** 名单项中的租户 ID 字段名（GW-08 租户维度） */
-    private static final String FIELD_TENANT_ID = "tenantId";
+    private static final String FIELD_TENANT_ID = GatewayContract.AccessList.TENANT_ID;
 
     /** 成功业务码 */
-    private static final int SUCCESS_CODE = 0;
+    private static final int SUCCESS_CODE = GatewayContract.Envelope.SUCCESS_CODE;
 
     private final GatewayAccessListProperties properties;
     private final WebClient.Builder webClientBuilder;
@@ -122,7 +123,7 @@ public class AuthGatewayAccessListClient {
      * @param body 响应体 JSON 文本
      * @return 名单规则列表；字段缺失的条目跳过
      */
-    private List<GatewayAccessListRule> parseRules(String body) {
+    List<GatewayAccessListRule> parseRules(String body) {
         if (!StringUtils.hasText(body)) {
             throw new IllegalStateException("访问名单响应体为空");
         }

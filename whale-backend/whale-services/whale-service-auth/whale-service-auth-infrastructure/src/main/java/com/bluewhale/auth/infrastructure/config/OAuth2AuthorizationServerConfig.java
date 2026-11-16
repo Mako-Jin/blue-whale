@@ -1,9 +1,13 @@
 package com.bluewhale.auth.infrastructure.config;
 
 import com.bluewhale.auth.domain.repository.OAuthClientRepository;
+import com.bluewhale.auth.infrastructure.jwt.JwtKeyMaterial;
 import com.bluewhale.auth.infrastructure.security.JwtAuthenticationFilter;
 import com.bluewhale.auth.infrastructure.security.RestAuthenticationEntryPoint;
 import com.bluewhale.auth.infrastructure.security.oauth2.OAuth2ClientRegisteredClientAdapter;
+import com.nimbusds.jose.jwk.JWKSet;
+import com.nimbusds.jose.jwk.RSAKey;
+import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
@@ -30,9 +34,12 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
 import javax.sql.DataSource;
-import java.nio.charset.StandardCharsets;
+import java.security.PublicKey;
+import java.security.interfaces.RSAPublicKey;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 /**
  * OAuth2.0 授权服务器装配（M1，Spring Security 7 内置 Spring Authorization Server）。
@@ -54,7 +61,6 @@ import java.nio.charset.StandardCharsets;
 public class OAuth2AuthorizationServerConfig {
 
     private final OAuth2ServerProperties oauth2ServerProperties;
-    private final JwtProperties jwtProperties;
 
     /**
      * 授权服务器过滤链：优先于业务过滤链，仅匹配协议端点。
@@ -99,15 +105,28 @@ public class OAuth2AuthorizationServerConfig {
     }
 
     /**
-     * JWK 源：与业务令牌共用 HS256 密钥
+     * JWK 源：RS256 模式只发布公钥（当前 + 历史），HS256 模式仅保留进程内对称密钥。
      *
-     * @return HS256 JWK 源
+     * <p>HS256 模式的 JWKS <b>不能</b>通过 HTTP 暴露——对称密钥就是签名密钥，谁拿到谁能伪造令牌。
+     * 该模式下的 {@code /oauth2/jwks} 由 {@code JwksExposureGuardFilter} 返回 404；
+     * 这里的 JWKSource 仅供令牌内省端点在进程内校验签名。</p>
+     *
+     * @param keyMaterial 签发/验签密钥材料
+     * @return JWK 源
      */
     @Bean
-    public JWKSource<SecurityContext> jwkSource() {
-        SecretKey secretKey = new SecretKeySpec(
-                jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-        return new ImmutableSecret<>(secretKey);
+    public JWKSource<SecurityContext> jwkSource(JwtKeyMaterial keyMaterial) {
+        if (!keyMaterial.isAsymmetric()) {
+            SecretKey secretKey = keyMaterial.getSecretKey();
+            return new ImmutableSecret<>(secretKey);
+        }
+        List<RSAKey> keys = new ArrayList<>();
+        for (Map.Entry<String, PublicKey> entry : keyMaterial.getVerificationKeys().entrySet()) {
+            keys.add(new RSAKey.Builder((RSAPublicKey) entry.getValue())
+                    .keyID(entry.getKey())
+                    .build());
+        }
+        return new ImmutableJWKSet<>(new JWKSet(new ArrayList<>(keys)));
     }
 
     /**

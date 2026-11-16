@@ -1,6 +1,6 @@
 package com.bluewhale.gateway.route;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.bluewhale.security.contract.GatewayContract;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -12,7 +12,9 @@ import tools.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 网关路由业务属性覆盖拉取客户端：调用 whale-service-auth 只读内部接口（GW-10 Phase 2）。
@@ -20,6 +22,10 @@ import java.util.List;
  * <p>复用 {@code @LoadBalanced WebClient.Builder}，显式携带内网令牌头并强制超时。
  * HTTP 失败、超时与响应解析失败均以错误信号返回，由 {@link RouteOverrideProvider}
  * 决定「保留上一份快照」。</p>
+ *
+ * <p><b>响应形状</b>：auth 透传 {@code Result<List<GatewayRouteOverrideItemResponse>>}，
+ * 即 {@code data} 直接是数组。本客户端同时兼容 {@code data.items[]} 包装（便于后续演进），
+ * 但以 {@code data[]} 为准——两者不一致会让网关静默保留空快照，契约测试覆盖该形状。</p>
  *
  * <p>whale-service-gateway 为 WebFlux 栈，不能引入 Servlet 栈的 whale-common starter，
  * 内网令牌头常量在此独立定义（与 {@code InternalTokenProperties} 约定一致）。</p>
@@ -31,7 +37,7 @@ import java.util.List;
 public class AuthGatewayRouteOverrideClient {
 
     /** 成功业务码 */
-    private static final int SUCCESS_CODE = 0;
+    private static final int SUCCESS_CODE = GatewayContract.Envelope.SUCCESS_CODE;
 
     private final RouteOverrideProperties properties;
     private final WebClient.Builder webClientBuilder;
@@ -78,67 +84,101 @@ public class AuthGatewayRouteOverrideClient {
     }
 
     /**
-     * 解析响应体：仅接受 {@code code=0}，提取 {@code data.items[]}。
+     * 解析响应体：仅接受 {@code code=0}，提取 {@code data[]}（兼容 {@code data.items[]}）。
      *
      * <p>业务码非 0 视为失败（抛出异常），避免把错误信封当作「空覆盖」清空快照。</p>
      *
      * @param body 响应体 JSON 文本
      * @return 覆盖规则列表；routeId 缺失的条目跳过
      */
-    private List<RouteOverrideRule> parseRules(String body) {
+    List<RouteOverrideRule> parseRules(String body) {
         if (!StringUtils.hasText(body)) {
             throw new IllegalStateException("路由覆盖响应体为空");
         }
-        SnapshotDto snapshot = objectMapper.readValue(body, SnapshotDto.class);
-        if (snapshot.code() != SUCCESS_CODE) {
-            throw new IllegalStateException("路由覆盖响应业务码非 0: " + snapshot.code());
+        Map<?, ?> root = objectMapper.readValue(body, Map.class);
+        Object code = root.get(GatewayContract.Envelope.CODE);
+        if (!(code instanceof Number number) || number.intValue() != SUCCESS_CODE) {
+            throw new IllegalStateException("路由覆盖响应业务码非 0: " + code);
         }
-        List<SnapshotDto.ItemDto> items = snapshot.data() == null || snapshot.data().items() == null
-                ? List.of() : snapshot.data().items();
+        Collection<?> items = extractItems(root.get(GatewayContract.Envelope.DATA));
         List<RouteOverrideRule> rules = new ArrayList<>(items.size());
-        for (SnapshotDto.ItemDto item : items) {
-            if (item == null || item.routeId() == null || item.routeId().isBlank()) {
+        for (Object item : items) {
+            if (!(item instanceof Map<?, ?> row)) {
                 continue;
             }
-            boolean enabled = Boolean.TRUE.equals(item.enabled());
-            long version = item.version() == null ? 1L : item.version();
-            rules.add(new RouteOverrideRule(item.routeId(), enabled, item.effectiveFrom(), item.effectiveTo(),
-                    version));
+            String routeId = stringify(row.get(GatewayContract.RouteOverride.ROUTE_ID));
+            if (!StringUtils.hasText(routeId)) {
+                continue;
+            }
+            boolean enabled = Boolean.parseBoolean(stringify(row.get(GatewayContract.RouteOverride.ENABLED)));
+            long version = longOrDefault(row.get(GatewayContract.RouteOverride.VERSION));
+            rules.add(new RouteOverrideRule(routeId.trim(), enabled,
+                    parseTime(row.get(GatewayContract.RouteOverride.EFFECTIVE_FROM)),
+                    parseTime(row.get(GatewayContract.RouteOverride.EFFECTIVE_TO)), version));
         }
         log.debug("拉取网关路由覆盖成功: {} 条", rules.size());
         return rules;
     }
 
     /**
-     * 响应信封（{@code Result} 结构）：{@code {code, message, data:{items:[]}}}
+     * 提取条目集合：{@code data} 直接是数组，或 {@code data.items} 是数组
      *
-     * @param code 响应码
-     * @param data 覆盖数据体
+     * @param data 响应体 data 字段
+     * @return 条目集合；形状不符时返回空集合
      */
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    record SnapshotDto(int code, DataDto data) {
-
-        /**
-         * 覆盖数据体
-         *
-         * @param items 覆盖条目列表
-         */
-        @JsonIgnoreProperties(ignoreUnknown = true)
-        record DataDto(List<ItemDto> items) {
+    private static Collection<?> extractItems(Object data) {
+        if (data instanceof Collection<?> collection) {
+            return collection;
         }
+        if (data instanceof Map<?, ?> map && map.get(GatewayContract.Envelope.ITEMS) instanceof Collection<?> items) {
+            return items;
+        }
+        return List.of();
+    }
 
-        /**
-         * 覆盖条目
-         *
-         * @param routeId 路由 ID
-         * @param enabled 是否生效
-         * @param effectiveFrom 生效起始时间
-         * @param effectiveTo 生效截止时间
-         * @param version 版本号
-         */
-        @JsonIgnoreProperties(ignoreUnknown = true)
-        record ItemDto(String routeId, Boolean enabled, LocalDateTime effectiveFrom,
-                       LocalDateTime effectiveTo, Long version) {
+    /**
+     * 空安全字符串化
+     *
+     * @param value 原始值
+     * @return 字符串；缺失返回空串
+     */
+    private static String stringify(Object value) {
+        return value == null ? "" : String.valueOf(value);
+    }
+
+    /**
+     * 长整型解析，缺失或非法回落 1（与 auth 侧默认版本一致）
+     *
+     * @param value 原始值
+     * @return 版本号
+     */
+    private static long longOrDefault(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        try {
+            return Long.parseLong(stringify(value).trim());
+        } catch (NumberFormatException e) {
+            return 1L;
+        }
+    }
+
+    /**
+     * 解析 ISO-8601 时间；空值或非法值返回 {@code null}（视为不限窗口）
+     *
+     * @param value 原始值
+     * @return 时间
+     */
+    private static LocalDateTime parseTime(Object value) {
+        String text = stringify(value).trim();
+        if (!StringUtils.hasText(text)) {
+            return null;
+        }
+        try {
+            return LocalDateTime.parse(text);
+        } catch (RuntimeException e) {
+            log.warn("忽略无法解析的路由覆盖时间: {}", text);
+            return null;
         }
     }
 }

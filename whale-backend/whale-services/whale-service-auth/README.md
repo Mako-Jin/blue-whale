@@ -223,8 +223,9 @@ whale-service-auth/
 
 ### 6.1 OAuth2.0 授权服务器（M1）
 
-基于 Spring Security 7 内置的 Spring Authorization Server，与业务令牌共用同一 HS256 密钥与声明结构，
-资源侧（网关、业务服务）无需区分令牌来源。
+基于 Spring Security 7 内置的 Spring Authorization Server，与业务令牌共用同一签发密钥与声明结构，
+资源侧（网关、业务服务）无需区分令牌来源。配置 `whale.auth.jwt.private-key` 后以 **RS256 + kid** 签发，
+`/oauth2/jwks` 只发布公钥；未配置时保持 HS256，且 `/oauth2/jwks` 返回 404（对称密钥不可外泄）。
 
 | 端点 | 说明 |
 |---|---|
@@ -232,7 +233,7 @@ whale-service-auth/
 | `POST /oauth2/token` | `authorization_code`（PKCE 可选）/ `client_credentials` / `refresh_token` |
 | `POST /oauth2/revoke` | 撤销访问令牌或刷新令牌 |
 | `POST /oauth2/introspect` | 令牌内省，返回 `active` 与声明 |
-| `GET /oauth2/jwks` | HS256 对称密钥 JWK 集 |
+| `GET /oauth2/jwks` | RS256 公钥集（HS256 模式下 404，避免对称密钥外泄） |
 | `GET /.well-known/oauth-authorization-server` | 授权服务器元数据 |
 
 - **客户端事实源**：`sys_oauth_client`（`OAuthClientAppService` 维护注册、轮换、停用）；框架侧只读，
@@ -328,7 +329,9 @@ whale-service-auth/
 | `REDIS_HOST` / `REDIS_PORT` | Redis 地址 | `127.0.0.1:6379` |
 | `NACOS_SERVER`（兼容 `NACOS_ADDR`） | Nacos 地址 | `127.0.0.1:8848` |
 | `RABBITMQ_*` | 审计 MQ 连接 | 本机 `guest/guest` |
-| `JWT_SECRET` | HS256 签名密钥，须与网关一致；生产必须覆盖 | 开发占位值 |
+| `JWT_SECRET` | HS256 签名密钥，须与网关一致；生产必须覆盖（RS256 模式下仅验签存量令牌） | 开发占位值 |
+| `WHALE_AUTH_JWT_PRIVATE_KEY` | RSA 私钥（PKCS#8 PEM/Base64 DER），配置后启用 RS256 + kid | 空（HS256） |
+| `WHALE_AUTH_JWT_KEY_ID` | 当前签名密钥 kid，写入 JWT 头与 JWKS | `whale-1` |
 | `WHALE_AUTH_COOKIE_SECURE` | Cookie `Secure` 标记，HTTPS 必开 | `false` |
 | `WHALE_AUTH_PASSWORD_MAX_AGE_DAYS` / `WARN_DAYS` | 口令有效期 / 提前提醒 | `90` / `7` |
 | `WHALE_AUTH_PASSWORD_HISTORY_SIZE` / `MIN_LENGTH` | 历史口令数 / 最小长度 | `5` / `12` |

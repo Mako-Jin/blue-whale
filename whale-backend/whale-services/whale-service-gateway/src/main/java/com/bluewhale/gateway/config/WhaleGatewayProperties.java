@@ -44,8 +44,20 @@ public class WhaleGatewayProperties {
          */
         public static final String DEFAULT_PLACEHOLDER_SECRET = "bluewhale-jwt-secret-2026-please-change-in-production";
 
-        /** HS256 签名密钥，必须与 whale-service-auth 签发侧一致 */
+        /** HS256 签名密钥，必须与 whale-service-auth 签发侧一致（JWKS 模式下仅用于验签过渡期旧令牌） */
         private String secret = DEFAULT_PLACEHOLDER_SECRET;
+
+        /** 是否启用 JWKS 验签（auth 切换 RS256 后开启）；开启后按 kid 拉取公钥，无 kid 的 HS256 令牌仍走共享密钥 */
+        private boolean jwksEnabled = false;
+
+        /** JWKS 地址（lb:// 由负载均衡 WebClient 解析） */
+        private String jwksUri = "lb://whale-service-auth/oauth2/jwks";
+
+        /** JWKS 拉取超时（毫秒）：auth 抖动时快速失败，按 HS256 回落或拒绝 RS256 令牌 */
+        private long jwksTimeoutMillis = 800L;
+
+        /** JWKS 本地缓存时长（分钟）：未知 kid 会强制刷新一次，不等待 TTL */
+        private long jwksCacheMinutes = 10L;
     }
 
     /**

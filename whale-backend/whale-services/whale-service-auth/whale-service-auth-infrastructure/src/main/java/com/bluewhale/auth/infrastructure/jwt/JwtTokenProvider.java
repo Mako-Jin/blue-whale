@@ -1,28 +1,26 @@
 package com.bluewhale.auth.infrastructure.jwt;
 
 import com.bluewhale.auth.infrastructure.config.JwtProperties;
+import com.bluewhale.security.contract.GatewayContract;
 import com.bluewhale.security.token.TokenTimeSupport;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.security.Keys;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
 /**
- * JWT Token 提供者（jjwt 0.12 API，HS256）
+ * JWT Token 提供者（jjwt 0.12 API；RS256 优先，HS256 过渡期兼容）
  * <p>与 whale-service-gateway 约定：</p>
  * <ul>
- *   <li>算法 HS256，secret = whale.auth.jwt.secret</li>
+ *   <li>算法：配置 RSA 私钥时 RS256（JWT 头携带 {@code kid}）；未配置时 HS256，secret = whale.auth.jwt.secret</li>
  *   <li>claims：sub=username、userId、roles（逗号分隔角色 code）、tokenType（access/refresh）、jti、
  *       familyId（仅 refreshToken 携带，AUTH-39 轮换复用检测用；accessToken 不带）</li>
  *   <li>Header：Authorization: Bearer &lt;token&gt;</li>
@@ -36,21 +34,21 @@ import java.util.UUID;
 @Component
 public class JwtTokenProvider {
 
-    public static final String CLAIM_USER_ID = "userId";
-    public static final String CLAIM_TENANT_ID = "tenantId";
-    public static final String CLAIM_ROLES = "roles";
-    public static final String CLAIM_TOKEN_TYPE = "tokenType";
-    public static final String TOKEN_TYPE_ACCESS = "access";
-    public static final String TOKEN_TYPE_REFRESH = "refresh";
+    public static final String CLAIM_USER_ID = GatewayContract.Claims.USER_ID;
+    public static final String CLAIM_TENANT_ID = GatewayContract.Claims.TENANT_ID;
+    public static final String CLAIM_ROLES = GatewayContract.Claims.ROLES;
+    public static final String CLAIM_TOKEN_TYPE = GatewayContract.Claims.TOKEN_TYPE;
+    public static final String TOKEN_TYPE_ACCESS = GatewayContract.Claims.TYPE_ACCESS;
+    public static final String TOKEN_TYPE_REFRESH = GatewayContract.Claims.TYPE_REFRESH;
 
     /** refreshToken 的 family 标识 claim（AUTH-39：一次登录生成，轮换时原样沿用，用于复用检测后整族吊销） */
-    public static final String CLAIM_FAMILY_ID = "familyId";
+    public static final String CLAIM_FAMILY_ID = GatewayContract.Claims.FAMILY_ID;
 
     /**
      * 强制改密标记 claim（REQ-SEC-023）：为 true 时 auth 服务与网关仅放行改密/登出/刷新/当前用户等
      * 白名单接口，其余请求返回 403，避免未改密用户继续访问业务功能。
      */
-    public static final String CLAIM_PWD_CHANGE_REQUIRED = "pwdChangeRequired";
+    public static final String CLAIM_PWD_CHANGE_REQUIRED = GatewayContract.Claims.PWD_CHANGE_REQUIRED;
 
     /** Authorization 头凭据前缀，签发与校验两侧共用，避免各自定义 */
     public static final String BEARER_PREFIX = "Bearer ";
@@ -60,7 +58,8 @@ public class JwtTokenProvider {
 
     private final JwtProperties properties;
 
-    private final SecretKey secretKey;
+    /** 签发/验签密钥材料（RS256 优先，HS256 过渡期兼容） */
+    private final JwtKeyMaterial keyMaterial;
 
     @Getter
     private final long accessExpireSeconds;
@@ -70,13 +69,14 @@ public class JwtTokenProvider {
     private final long refreshExpireSeconds;
 
     /**
-     * 构造器：依据配置中的密钥派生 HMAC 密钥，并换算 accessToken 有效期
+     * 构造器：依据配置中的密钥派生签名材料，并换算 accessToken 有效期
      *
-     * @param properties JWT 配置（密钥、有效期等）
+     * @param properties  JWT 配置（密钥、有效期等）
+     * @param keyMaterial 签发/验签密钥材料
      */
-    public JwtTokenProvider(JwtProperties properties) {
+    public JwtTokenProvider(JwtProperties properties, JwtKeyMaterial keyMaterial) {
         this.properties = properties;
-        this.secretKey = Keys.hmacShaKeyFor(properties.getSecret().getBytes(StandardCharsets.UTF_8));
+        this.keyMaterial = keyMaterial;
         this.accessExpireSeconds = properties.getExpireMinutes() * 60;
         this.refreshExpireSeconds = properties.getRefreshExpireMinutes() * 60;
     }
@@ -98,7 +98,7 @@ public class JwtTokenProvider {
                                       boolean pwdChangeRequired) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + properties.getExpireMinutes() * 60_000);
-        return Jwts.builder()
+        return keyMaterial.sign(Jwts.builder()
                 .id(UUID.randomUUID().toString())
                 .subject(username)
                 .claim(CLAIM_USER_ID, userId)
@@ -108,9 +108,7 @@ public class JwtTokenProvider {
                 .claim(CLAIM_PWD_CHANGE_REQUIRED, pwdChangeRequired)
                 .claim(TokenTimeSupport.CLAIM_ISSUED_AT_MILLIS, now.getTime())
                 .issuedAt(now)
-                .expiration(expiry)
-                .signWith(secretKey, Jwts.SIG.HS256)
-                .compact();
+                .expiration(expiry));
     }
 
     /**
@@ -135,11 +133,9 @@ public class JwtTokenProvider {
         if (familyId != null && !familyId.isBlank()) {
             builder.claim(CLAIM_FAMILY_ID, familyId);
         }
-        return builder
+        return keyMaterial.sign(builder
                 .issuedAt(now)
-                .expiration(expiry)
-                .signWith(secretKey, Jwts.SIG.HS256)
-                .compact();
+                .expiration(expiry));
     }
 
     /**
@@ -153,7 +149,7 @@ public class JwtTokenProvider {
     public Claims parse(String token) {
         try {
             return Jwts.parser()
-                    .verifyWith(secretKey)
+                    .keyLocator(keyMaterial::verificationKey)
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();

@@ -45,14 +45,39 @@ public class SecretPlaceholderChecker implements InitializingBean {
             log.warn("当前为 dev 环境，允许使用默认 JWT 占位密钥与关闭 Cookie Secure；生产环境必须通过环境变量 JWT_SECRET / WHALE_AUTH_COOKIE_SECURE 覆盖");
             return;
         }
+        if (isAsymmetricMode()) {
+            log.info("JWT 已配置 RSA 私钥，启用 RS256 签发；/oauth2/jwks 仅发布公钥");
+            requireSecureCookie();
+            return;
+        }
+        log.warn("JWT 未配置 RSA 私钥，保持 HS256 模式：/oauth2/jwks 将关闭，网关须共享同一 HS256 密钥；"
+                + "轮换密钥建议配置 whale.auth.jwt.private-key 切换 RS256");
         if (JwtProperties.DEFAULT_PLACEHOLDER_SECRET.equals(jwtProperties.getSecret())) {
             throw new IllegalStateException("JWT 签名密钥仍为默认占位值，非 dev 环境拒绝启动。"
-                    + "请通过环境变量 JWT_SECRET 设置至少 32 字节（HS256 要求 256 bit）的随机密钥。");
+                    + "请通过环境变量 JWT_SECRET 设置至少 32 字节（HS256 要求 256 bit）的随机密钥，"
+                    + "或配置 whale.auth.jwt.private-key 切换 RS256。");
         }
         if (jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8).length < MIN_SECRET_BYTES) {
             throw new IllegalStateException("JWT 签名密钥长度不足 " + MIN_SECRET_BYTES + " 字节，非 dev 环境拒绝启动。"
                     + "HS256 要求至少 256 bit，请通过环境变量 JWT_SECRET 设置足够长的随机密钥。");
         }
+        requireSecureCookie();
+    }
+
+    /**
+     * 判断是否配置了 RSA 私钥（RS256 模式）
+     *
+     * @return 配置了非空私钥返回 {@code true}
+     */
+    private boolean isAsymmetricMode() {
+        String privateKey = jwtProperties.getPrivateKey();
+        return privateKey != null && !privateKey.isBlank();
+    }
+
+    /**
+     * 校验认证 Cookie 的 Secure 标记
+     */
+    private void requireSecureCookie() {
         if (!authCookieProperties.isSecure()) {
             throw new IllegalStateException("认证 Cookie 的 Secure 标记未开启，非 dev 环境拒绝启动。"
                     + "请通过环境变量 WHALE_AUTH_COOKIE_SECURE=true 开启，避免 refresh / CSRF Cookie 经 HTTP 明文传输。");

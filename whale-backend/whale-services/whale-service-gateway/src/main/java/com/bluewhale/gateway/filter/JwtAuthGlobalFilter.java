@@ -4,15 +4,18 @@ import com.bluewhale.gateway.accesslist.GatewayAccessListProvider;
 import com.bluewhale.gateway.common.GatewayHeaders;
 import com.bluewhale.gateway.common.GatewayResponse;
 import com.bluewhale.gateway.config.WhaleGatewayProperties;
+import com.bluewhale.gateway.security.JwksKeyStore;
 import com.bluewhale.gateway.security.MembershipRevocationChecker;
 import com.bluewhale.gateway.security.TenantStatusChecker;
 import com.bluewhale.gateway.security.TokenBlacklistChecker;
+import com.bluewhale.gateway.security.TokenHeader;
 import com.bluewhale.gateway.security.UserAccessRevocationChecker;
+import com.bluewhale.security.contract.GatewayContract;
 import com.bluewhale.security.token.TokenTimeSupport;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.JwtParserBuilder;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -30,13 +33,18 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple4;
 
-import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.security.Key;
+import java.security.PublicKey;
 import java.util.Date;
+import java.util.Optional;
+
+import javax.crypto.SecretKey;
 
 /**
  * JWT 全局认证过滤器。
- * 约定与 whale-service-auth 签发侧一字不差：HS256；claims：sub=username、userId、roles（逗号分隔）、tokenType。
+ * 约定与 whale-service-auth 签发侧一致：配置 RSA 私钥时 RS256（头带 {@code kid}），回退 HS256；
+ * claims：sub=username、userId、tenantId、roles（逗号分隔）、tokenType。
  * 认证通过后向下游注入 X-User-Id、X-Username、X-User-Roles（先清除外部伪造的同名入站头）。
  * <p>校验顺序：签名/过期 → 令牌类型必须为 access（拒绝以 refreshToken 冒充访问令牌）→
  * 查询分布式登出黑名单（REQ-SEC-003）→ 租户停用校验 → 租户成员撤销校验 →
@@ -56,13 +64,13 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
     private static final String USERNAME_HEADER = GatewayHeaders.USERNAME;
     private static final String USER_ROLES_HEADER = GatewayHeaders.USER_ROLES;
     private static final String TENANT_ID_HEADER = GatewayHeaders.TENANT_ID;
-    private static final String CLAIM_USER_ID = "userId";
-    private static final String CLAIM_TENANT_ID = "tenantId";
-    private static final String CLAIM_ROLES = "roles";
-    private static final String CLAIM_TOKEN_TYPE = "tokenType";
-    private static final String TOKEN_TYPE_ACCESS = "access";
+    private static final String CLAIM_USER_ID = GatewayContract.Claims.USER_ID;
+    private static final String CLAIM_TENANT_ID = GatewayContract.Claims.TENANT_ID;
+    private static final String CLAIM_ROLES = GatewayContract.Claims.ROLES;
+    private static final String CLAIM_TOKEN_TYPE = GatewayContract.Claims.TOKEN_TYPE;
+    private static final String TOKEN_TYPE_ACCESS = GatewayContract.Claims.TYPE_ACCESS;
     /** 强制改密标记 claim（REQ-SEC-023，与 whale-service-auth 签发侧逐字一致） */
-    private static final String CLAIM_PWD_CHANGE_REQUIRED = "pwdChangeRequired";
+    private static final String CLAIM_PWD_CHANGE_REQUIRED = GatewayContract.Claims.PWD_CHANGE_REQUIRED;
     /** 强制改密状态下仍可访问的路径（自助改密 / 登出 / 刷新 / 当前用户） */
     private static final String[] PASSWORD_CHANGE_ALLOWED_PATTERNS = {
             "/auth/v1/password", "/auth/v1/logout", "/auth/v1/refresh", "/auth/v1/me"};
@@ -116,8 +124,8 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
     private final WhaleGatewayProperties properties;
     private final TokenBlacklistChecker tokenBlacklistChecker;
 
-    /** 与 whale-service-auth 一致的 HS256 验签密钥（启动期解析一次，避免每请求重复分配） */
-    private final SecretKey signingKey;
+    /** JWKS 公钥仓库（RS256）与 HS256 共享密钥回落的统一入口 */
+    private final JwksKeyStore jwksKeyStore;
 
     /** 指标注册表提供者：容器无 MeterRegistry 时返回 {@code null}，指标静默跳过 */
     private final ObjectProvider<MeterRegistry> meterRegistryProvider;
@@ -136,6 +144,7 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
      *
      * @param properties                  网关配置属性
      * @param tokenBlacklistChecker       令牌黑名单校验器
+     * @param jwksKeyStore                JWKS 公钥仓库（RS256 按 kid 选 key，HS256 回落共享密钥）
      * @param tenantStatusChecker         租户状态校验器（停用租户存量令牌拒绝）
      * @param membershipRevocationChecker 租户成员撤销校验器（解绑后存量令牌拒绝）
      * @param userAccessRevocationChecker 用户级撤销校验器（停用/删除/改密后存量令牌拒绝）
@@ -143,6 +152,7 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
      * @param accessListProvider          远程访问名单提供者（黑名单优先，白名单与本地配置取并集）
      */
     public JwtAuthGlobalFilter(WhaleGatewayProperties properties, TokenBlacklistChecker tokenBlacklistChecker,
+                               JwksKeyStore jwksKeyStore,
                                TenantStatusChecker tenantStatusChecker,
                                MembershipRevocationChecker membershipRevocationChecker,
                                UserAccessRevocationChecker userAccessRevocationChecker,
@@ -150,7 +160,7 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
                                GatewayAccessListProvider accessListProvider) {
         this.properties = properties;
         this.tokenBlacklistChecker = tokenBlacklistChecker;
-        this.signingKey = Keys.hmacShaKeyFor(properties.getJwt().getSecret().getBytes(StandardCharsets.UTF_8));
+        this.jwksKeyStore = jwksKeyStore;
         this.tenantStatusChecker = tenantStatusChecker;
         this.membershipRevocationChecker = membershipRevocationChecker;
         this.userAccessRevocationChecker = userAccessRevocationChecker;
@@ -180,12 +190,45 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
             return unauthorized(exchange, REASON_MISSING_TOKEN);
         }
         String token = authorization.substring(BEARER_PREFIX.length()).trim();
+        TokenHeader tokenHeader;
         try {
-            Claims claims = Jwts.parser()
-                    .verifyWith(signingKey)
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload();
+            tokenHeader = TokenHeader.parse(token);
+        } catch (IllegalArgumentException e) {
+            log.warn("JWT 结构非法: path={}, reason={}", path, e.getMessage());
+            return unauthorized(exchange, REASON_INVALID_TOKEN);
+        }
+        // 先按 kid 解析验签密钥（RS256 可能触发一次 JWKS 刷新），再验签并做存量治理校验。
+        // 这里只把「密钥解析失败」降级为 401；验签之后的 Redis 异常仍向上抛出，避免把依赖故障误报成未认证。
+        Mono<Key> keyMono = jwksKeyStore.resolve(tokenHeader)
+                .onErrorResume(e -> {
+                    log.warn("JWT 验签密钥解析失败: path={}, reason={}", path, e.getMessage());
+                    return Mono.empty();
+                });
+        // 注意：Mono<Void> 永远不 emit 值，不能在其后接 switchIfEmpty（会重复写出 401 并触发响应头只读）。
+        // 这里先把密钥包成 Optional 保证恰好 emit 一次，再分流到「401」或「验签 + 转发」。
+        return keyMono.map(Optional::of)
+                .defaultIfEmpty(Optional.empty())
+                .flatMap(key -> key.isEmpty()
+                        ? unauthorized(exchange, REASON_INVALID_TOKEN)
+                        : authenticate(exchange, request, token, key.get(), path, method, chain));
+    }
+
+    /**
+     * 使用已解析的验签密钥完成验签、claim 校验与存量治理校验。
+     *
+     * @param exchange 当前交换对象
+     * @param request  原始请求
+     * @param token    JWT 原文
+     * @param key      验签密钥（HS256 共享密钥或 JWKS 公钥）
+     * @param path     请求路径
+     * @param method   请求方法，可空
+     * @param chain    下游过滤器链
+     * @return 完成信号
+     */
+    private Mono<Void> authenticate(ServerWebExchange exchange, ServerHttpRequest request, String token, Key key,
+                                    String path, String method, GatewayFilterChain chain) {
+        try {
+            Claims claims = parseClaims(token, key);
 
             // 仅 accessToken 可访问下游 API，refreshToken 只能用于 /auth/v1/refresh（白名单）
             if (!TOKEN_TYPE_ACCESS.equals(stringify(claims.get(CLAIM_TOKEN_TYPE)))) {
@@ -214,6 +257,25 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
             log.warn("JWT 校验失败: path={}, reason={}", path, e.getMessage());
             return unauthorized(exchange, REASON_INVALID_TOKEN);
         }
+    }
+
+    /**
+     * 按密钥类型验签并返回 claims
+     *
+     * @param token JWT 原文
+     * @param key   验签密钥
+     * @return 令牌载荷
+     */
+    private static Claims parseClaims(String token, Key key) {
+        JwtParserBuilder parser = Jwts.parser();
+        if (key instanceof SecretKey secretKey) {
+            parser.verifyWith(secretKey);
+        } else if (key instanceof PublicKey publicKey) {
+            parser.verifyWith(publicKey);
+        } else {
+            throw new IllegalArgumentException("不支持的验签密钥类型: " + key.getAlgorithm());
+        }
+        return parser.build().parseSignedClaims(token).getPayload();
     }
 
     /**

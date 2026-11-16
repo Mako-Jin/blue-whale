@@ -39,7 +39,7 @@ class JwtTokenProviderTest {
         properties.setSecret(secret);
         properties.setExpireMinutes(expireMinutes);
         properties.setRefreshExpireMinutes(refreshExpireMinutes);
-        return new JwtTokenProvider(properties);
+        return new JwtTokenProvider(properties, new JwtKeyMaterial(properties));
     }
 
     private static JwtTokenProvider provider(long expireMinutes, long refreshExpireMinutes) {

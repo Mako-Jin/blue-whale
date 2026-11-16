@@ -51,8 +51,14 @@ whale:
       fail-closed: ${SECURITY_DEGRADATION_FAIL_CLOSED:false}
   gateway:
     jwt:
-      # HS256 签名密钥，必须与 whale-service-auth 保持一致
+      # HS256 签名密钥，必须与 whale-service-auth 保持一致；auth 切换 RS256 后仅用于验签存量令牌
       secret: ${WHALE_GATEWAY_JWT_SECRET:bluewhale-jwt-secret-2026-please-change-in-production}
+      # E-2 JWKS 密钥轮换：auth 配置 RSA 私钥后开启，网关按 kid 拉取公钥并本地缓存；
+      # 未知 kid 强制刷新一次，无 kid 的 HS256 令牌仍走上方共享密钥。
+      jwks-enabled: ${WHALE_GATEWAY_JWKS_ENABLED:false}
+      jwks-uri: ${WHALE_GATEWAY_JWKS_URI:lb://whale-service-auth/oauth2/jwks}
+      jwks-timeout-millis: ${WHALE_GATEWAY_JWKS_TIMEOUT_MILLIS:800}
+      jwks-cache-minutes: ${WHALE_GATEWAY_JWKS_CACHE_MINUTES:10}
     # P1-2 跨域配置：dev 默认放行本机任意端口（Vite 8001/8002/8003 直连网关联调）；
     # 生产通过环境变量 WHALE_GATEWAY_CORS_ALLOWED_ORIGINS 覆盖为具体域名白名单（逗号分隔），
     # 未命中来源的预检请求返回 403，由 Nginx 同源转发兜底。
@@ -274,6 +280,14 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+  # E-1 分布式追踪：WebFlux 请求自动产生 span，通过 OTLP 导出到 collector；
+  # 与 X-Trace-Id 并存（前者用于链路图，后者用于既有日志 grep 口径）。
+  tracing:
+    sampling:
+      probability: ${WHALE_GATEWAY_TRACE_SAMPLING:0.1}
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://127.0.0.1:4318/v1/traces}
 
 # 网关调试日志仅在 dev profile 开启（application-dev.yml），避免生产每请求多条 debug 日志放大 IO
 logging:

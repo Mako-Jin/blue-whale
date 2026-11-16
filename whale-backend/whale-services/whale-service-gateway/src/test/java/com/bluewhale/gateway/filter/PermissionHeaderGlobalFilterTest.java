@@ -87,6 +87,15 @@ class PermissionHeaderGlobalFilterTest {
     }
 
     @Test
+    @DisplayName("契约：/auth/me 的 data.permissions 数组解析为逗号串")
+    void shouldParsePermissionsContract() {
+        String body = "{\"code\":0,\"data\":{\"permissions\":[\"sys:audit:log:list\",\"sys:user:list\"]}}";
+
+        assertThat(filter.parsePermissions(body)).isEqualTo("sys:audit:log:list,sys:user:list");
+        assertThat(filter.parsePermissions("{\"code\":0,\"data\":null}")).isEmpty();
+    }
+
+    @Test
     @DisplayName("开关关闭：移除客户端伪造的权限码头后放行，不访问 Redis")
     void shouldStripForgedCodesAndPassThroughWhenDisabled() {
         properties.setEnabled(false);

@@ -1,7 +1,11 @@
 package com.bluewhale.gateway.support;
 
 import com.bluewhale.gateway.config.CircuitBreakerProperties;
+import com.bluewhale.gateway.trace.TraceparentExchangeFilter;
+import com.bluewhale.security.contract.GatewayContract;
+import io.micrometer.tracing.Tracer;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -53,14 +57,27 @@ public class CircuitAlertNotifier {
     /** 出站 WebClient（测试可注入桩 ExchangeFunction） */
     private final WebClient webClient;
 
+    /** 追踪器：用于把熔断告警挂到触发它的请求链路上，未启用追踪时为空 */
+    private final Tracer tracer;
+
     /**
-     * 构造熔断告警上报客户端
+     * 构造熔断告警上报客户端（无追踪场景）
      *
      * @param properties 熔断配置
      */
-    @org.springframework.beans.factory.annotation.Autowired
     public CircuitAlertNotifier(CircuitBreakerProperties properties) {
-        this(properties, buildWebClient());
+        this(properties, buildWebClient(), null);
+    }
+
+    /**
+     * 构造熔断告警上报客户端
+     *
+     * @param properties     熔断配置
+     * @param tracerProvider 追踪器提供者（未启用追踪时为空）
+     */
+    @org.springframework.beans.factory.annotation.Autowired
+    public CircuitAlertNotifier(CircuitBreakerProperties properties, ObjectProvider<Tracer> tracerProvider) {
+        this(properties, buildWebClient(), tracerProvider.getIfAvailable());
     }
 
     /**
@@ -70,8 +87,20 @@ public class CircuitAlertNotifier {
      * @param webClient  出站 WebClient
      */
     CircuitAlertNotifier(CircuitBreakerProperties properties, WebClient webClient) {
+        this(properties, webClient, null);
+    }
+
+    /**
+     * 构造熔断告警上报客户端
+     *
+     * @param properties 熔断配置
+     * @param webClient  出站 WebClient
+     * @param tracer     追踪器，可为 {@code null}
+     */
+    CircuitAlertNotifier(CircuitBreakerProperties properties, WebClient webClient, Tracer tracer) {
         this.properties = properties;
         this.webClient = webClient;
+        this.tracer = tracer;
         // 与访问名单/路由覆盖拉取客户端统一：从配置项读取（默认绑定 WHALE_INTERNAL_TOKEN 环境变量），
         // 不再直接读 System.getenv，避免「Nacos 配了令牌但没设环境变量」时告警静默 401
         String token = properties.getInternalToken();
@@ -84,9 +113,11 @@ public class CircuitAlertNotifier {
      * @param routeId 打开的路由 id
      */
     public void notifyOpenAsync(String routeId) {
+        // 在调用线程捕获 traceparent（异步上报时当前 span 可能已结束），把告警挂到触发它的链路
+        String traceparent = TraceparentExchangeFilter.traceparent(tracer);
         async(() -> send(routeId, LEVEL_OPEN, "gateway:circuit:" + routeId,
                 "gateway-circuit-" + routeId,
-                "网关熔断打开：route=" + routeId + "（失败率达阈值，请求已短路降级 503）"));
+                "网关熔断打开：route=" + routeId + "（失败率达阈值，请求已短路降级 503）", traceparent));
     }
 
     /**
@@ -96,9 +127,10 @@ public class CircuitAlertNotifier {
      * @param routeId 恢复的路由 id
      */
     public void notifyRecoveredAsync(String routeId) {
+        String traceparent = TraceparentExchangeFilter.traceparent(tracer);
         async(() -> send(routeId, LEVEL_RECOVERED, "gateway:circuit:" + routeId,
                 "gateway-circuit-recovered-" + routeId,
-                "网关熔断恢复：route=" + routeId + "（半开探测成功，已恢复闭合）"));
+                "网关熔断恢复：route=" + routeId + "（半开探测成功，已恢复闭合）", traceparent));
     }
 
     /**
@@ -125,6 +157,22 @@ public class CircuitAlertNotifier {
      * @return true 告警侧受理；false 未配置地址或调用失败
      */
     boolean send(String routeId, String level, String ruleCode, String fingerprint, String content) {
+        return send(routeId, level, ruleCode, fingerprint, content, null);
+    }
+
+    /**
+     * 同步上报一条告警记录（附带链路上下文）
+     *
+     * @param routeId     路由 id
+     * @param level       告警级别（ERROR=打开 / INFO=恢复）
+     * @param ruleCode    规则编码（{@code gateway:circuit:{routeId}}）
+     * @param fingerprint 指纹（打开与恢复各不相同，供告警侧窗口去重）
+     * @param content     告警内容
+     * @param traceparent W3C 追踪上下文，可为 {@code null}
+     * @return true 告警侧受理；false 未配置地址或调用失败
+     */
+    boolean send(String routeId, String level, String ruleCode, String fingerprint, String content,
+                 String traceparent) {
         String baseUrl = properties.getAlertBaseUrl();
         if (baseUrl == null || baseUrl.isBlank()) {
             log.debug("熔断告警地址未配置，跳过上报: route={}", routeId);
@@ -138,7 +186,10 @@ public class CircuitAlertNotifier {
                     .bodyValue(body);
             if (!internalToken.isBlank()) {
                 // 与其他服务的 InternalTokenFilter 对齐：配置了内网令牌才附加（dev 空令牌 fail-open）
-                spec = spec.header("X-Internal-Token", internalToken);
+                spec = spec.header(GatewayContract.Headers.INTERNAL_TOKEN, internalToken);
+            }
+            if (traceparent != null && !traceparent.isBlank()) {
+                spec = spec.header(GatewayContract.Headers.TRACEPARENT, traceparent);
             }
             String response = spec.retrieve()
                     .bodyToMono(String.class)

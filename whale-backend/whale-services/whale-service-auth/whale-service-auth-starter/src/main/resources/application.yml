@@ -82,8 +82,21 @@ whale:
       fail-closed: ${SECURITY_DEGRADATION_FAIL_CLOSED:false}
   auth:
     jwt:
-      # HS256 签名密钥，与 whale-service-gateway 保持完全一致；生产环境务必覆盖
+      # HS256 签名密钥，与 whale-service-gateway 保持完全一致；生产环境务必覆盖。
+      # 配置 private-key 后切换 RS256：secret 仅用于验签过渡期存量 HS256 令牌。
       secret: ${JWT_SECRET:bluewhale-jwt-secret-2026-please-change-in-production}
+      # RS256 私钥（PKCS#8 PEM 或 Base64 DER）。配置后新令牌以 RS256 + kid 签发，
+      # /oauth2/jwks 仅发布公钥；未配置时保持 HS256 且 /oauth2/jwks 返回 404（避免对称密钥外泄）。
+      private-key: ${WHALE_AUTH_JWT_PRIVATE_KEY:}
+      # 当前签名密钥标识，写入 JWT 头 kid 与 JWKS；轮换时变更
+      key-id: ${WHALE_AUTH_JWT_KEY_ID:whale-1}
+      # 轮换过渡期旧公钥：kid -> X.509 PEM / Base64 DER，至少保留一个 accessToken 有效期。
+      # 示例（Nacos 配置中心按 map 结构下发，勿用单个环境变量覆盖）：
+      # previous-public-keys:
+      #   whale-1: |
+      #     -----BEGIN PUBLIC KEY-----
+      #     ...
+      #     -----END PUBLIC KEY-----
       expire-minutes: 120
       refresh-expire-minutes: 1440
     # OAuth2.0 授权服务器（权限中心扩展 M1）：issuer 对外可见地址，须与网关/前端访问域名一致，

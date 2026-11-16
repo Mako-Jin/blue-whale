@@ -2,6 +2,7 @@ package com.bluewhale.gateway.filter;
 
 import com.bluewhale.gateway.accesslist.GatewayAccessListProvider;
 import com.bluewhale.gateway.config.WhaleGatewayProperties;
+import com.bluewhale.gateway.security.JwksKeyStore;
 import com.bluewhale.gateway.security.MembershipRevocationChecker;
 import com.bluewhale.gateway.security.TenantStatusChecker;
 import com.bluewhale.gateway.security.TokenBlacklistChecker;
@@ -23,6 +24,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 import org.springframework.mock.web.server.MockServerWebExchange;
 import org.springframework.web.server.ServerWebExchange;
+import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import javax.crypto.SecretKey;
@@ -82,8 +84,8 @@ class JwtAuthGlobalFilterTest {
     void setUp() {
         WhaleGatewayProperties properties = new WhaleGatewayProperties();
         properties.getJwt().setSecret(SECRET);
-        filter = new JwtAuthGlobalFilter(properties, tokenBlacklistChecker, tenantStatusChecker,
-                membershipRevocationChecker, userAccessRevocationChecker, meterRegistryProvider,
+        filter = new JwtAuthGlobalFilter(properties, tokenBlacklistChecker, new JwksKeyStore(properties, WebClient.builder()),
+                tenantStatusChecker, membershipRevocationChecker, userAccessRevocationChecker, meterRegistryProvider,
                 accessListProvider);
         lenient().when(tokenBlacklistChecker.isBlacklisted(anyString())).thenReturn(Mono.just(Boolean.FALSE));
         lenient().when(tenantStatusChecker.isUnavailable(anyString())).thenReturn(Mono.just(Boolean.FALSE));
@@ -215,6 +217,7 @@ class JwtAuthGlobalFilterTest {
         properties.getJwt().setSecret(SECRET);
         properties.setWhiteList(java.util.List.of("/auth/v1/login"));
         JwtAuthGlobalFilter whiteListFilter = new JwtAuthGlobalFilter(properties, tokenBlacklistChecker,
+                new JwksKeyStore(properties, WebClient.builder()),
                 tenantStatusChecker, membershipRevocationChecker, userAccessRevocationChecker,
                 meterRegistryProvider, accessListProvider);
         MockServerWebExchange exchange = MockServerWebExchange.from(MockServerHttpRequest
@@ -333,6 +336,7 @@ class JwtAuthGlobalFilterTest {
         WhaleGatewayProperties otherProperties = new WhaleGatewayProperties();
         otherProperties.getJwt().setSecret("another-unit-test-secret-key-9876543210-abcdefgh");
         JwtAuthGlobalFilter otherFilter = new JwtAuthGlobalFilter(otherProperties, tokenBlacklistChecker,
+                new JwksKeyStore(otherProperties, WebClient.builder()),
                 tenantStatusChecker, membershipRevocationChecker, userAccessRevocationChecker,
                 meterRegistryProvider, accessListProvider);
         MockServerWebExchange exchange = exchangeWithBearer(token("access"));
