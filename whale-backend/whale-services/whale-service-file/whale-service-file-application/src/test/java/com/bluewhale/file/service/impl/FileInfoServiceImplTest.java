@@ -1714,6 +1714,38 @@ class FileInfoServiceImplTest {
         verify(fileAssetRepository, never()).purgeVersionById(anyLong());
     }
 
+    @Test
+    @DisplayName("pruneExcessVersions：按游标扫描超限文件并清理，不发布事件")
+    void shouldPruneExcessVersionsAcrossFiles() {
+        fileProperties.getVersion().setMaxVersions(2);
+        fileProperties.getVersion().setCleanupBatchSize(2);
+        FileAssetAggregate root = fileWithVersion(1L, null, 1, FileStatus.NORMAL);
+        FileAssetAggregate version2 = fileWithVersion(2L, 1L, 2, FileStatus.NORMAL);
+        FileAssetAggregate version3 = fileWithVersion(3L, 1L, 3, FileStatus.NORMAL);
+        when(fileAssetRepository.findVersionRootIdsWithExcess(1, 0L, 2)).thenReturn(List.of(1L, 2L));
+        when(fileAssetRepository.findVersionRootIdsWithExcess(1, 2L, 2)).thenReturn(List.of());
+        when(fileAssetRepository.findById(1L)).thenReturn(Optional.of(root));
+        when(fileAssetRepository.findById(2L)).thenReturn(Optional.empty());
+        when(fileAssetRepository.findVersions(1L)).thenReturn(List.of(version3, version2, root));
+        when(fileAssetRepository.purgeVersionById(2L)).thenReturn(true);
+
+        int pruned = fileInfoService.pruneExcessVersions();
+
+        assertEquals(1, pruned);
+        verify(fileAssetRepository).purgeVersionById(2L);
+        verify(fileAssetRepository, never()).purgeVersionById(3L);
+        assertTrue(publishedEvents.isEmpty());
+    }
+
+    @Test
+    @DisplayName("pruneExcessVersions：保留上限非正时直接返回 0")
+    void shouldSkipPruneExcessWhenUnlimited() {
+        fileProperties.getVersion().setMaxVersions(0);
+
+        assertEquals(0, fileInfoService.pruneExcessVersions());
+        verify(fileAssetRepository, never()).findVersionRootIdsWithExcess(anyInt(), anyLong(), anyLong());
+    }
+
     /**
      * 判断分片暂存会话是否仍存在
      *

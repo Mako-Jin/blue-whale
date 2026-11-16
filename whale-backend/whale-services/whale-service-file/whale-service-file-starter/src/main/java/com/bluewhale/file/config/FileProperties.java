@@ -411,6 +411,18 @@ public class FileProperties {
          */
         @Min(value = 0, message = "whale.file.version.max-versions 不能为负数")
         private int maxVersions = 20;
+
+        /**
+         * 是否启用存量历史版本定时清理；默认关闭。
+         *
+         * <p>开启后由 {@code VersionCleanupTask} 按 cron 扫描全部文件并清理超出上限的旧版本，
+         * 用于批次 18 上线前已存在的历史数据。</p>
+         */
+        private boolean cleanupEnabled = false;
+
+        /** 定时清理单批扫描的根文件数量，默认 100 */
+        @Min(value = 1, message = "whale.file.version.cleanup-batch-size 必须大于 0")
+        private int cleanupBatchSize = 100;
     }
 
     /**

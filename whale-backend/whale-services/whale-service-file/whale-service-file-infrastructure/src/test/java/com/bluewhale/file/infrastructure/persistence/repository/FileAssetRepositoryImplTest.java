@@ -399,6 +399,16 @@ class FileAssetRepositoryImplTest {
     }
 
     @Test
+    @DisplayName("findVersionRootIdsWithExcess：游标扫描超限根文件并规整批次大小")
+    void shouldFindVersionRootIdsWithExcess() {
+        when(fileInfoMapper.selectVersionRootIdsWithExcess(1, 10L, 2L)).thenReturn(List.of(11L, 12L));
+        when(fileInfoMapper.selectVersionRootIdsWithExcess(1, 10L, 1L)).thenReturn(List.of());
+
+        assertEquals(List.of(11L, 12L), repository.findVersionRootIdsWithExcess(1, 10L, 2L));
+        assertTrue(repository.findVersionRootIdsWithExcess(1, 10L, 0L).isEmpty());
+    }
+
+    @Test
     @DisplayName("purgeById：物理删除命中时返回 true，未命中返回 false")
     void shouldPurgeById() {
         when(fileInfoMapper.purgeById(3L)).thenReturn(1);

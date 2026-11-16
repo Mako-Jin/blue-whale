@@ -207,6 +207,36 @@ public class FileInfoServiceImpl implements FileInfoService {
                 .toList();
     }
 
+    @Override
+    public int pruneExcessVersions() {
+        int maxVersions = fileProperties.getVersion().getMaxVersions();
+        if (maxVersions <= 0) {
+            return 0;
+        }
+        int batchSize = fileProperties.getVersion().getCleanupBatchSize();
+        long afterId = 0L;
+        int pruned = 0;
+        while (true) {
+            List<Long> rootIds = fileAssetRepository.findVersionRootIdsWithExcess(
+                    Math.max(maxVersions - 1, 0), afterId, batchSize);
+            if (rootIds.isEmpty()) {
+                break;
+            }
+            for (Long rootId : rootIds) {
+                afterId = Math.max(afterId, rootId);
+                FileAssetAggregate root = fileAssetRepository.findById(rootId).orElse(null);
+                if (root == null) {
+                    continue;
+                }
+                pruned += pruneVersions(root, null, false);
+            }
+            if (rootIds.size() < batchSize) {
+                break;
+            }
+        }
+        return pruned;
+    }
+
     /**
      * 按版本保留上限清理最旧版本；清理失败不影响本次版本写入。
      *
@@ -215,7 +245,7 @@ public class FileInfoServiceImpl implements FileInfoService {
      */
     private void pruneVersionsQuietly(FileAssetAggregate root, Long requesterId) {
         try {
-            pruneVersions(root, requesterId);
+            pruneVersions(root, requesterId, true);
         } catch (RuntimeException e) {
             log.warn("历史版本清理失败，不影响本次版本写入: rootId={}", root.getId(), e);
         }
@@ -225,36 +255,43 @@ public class FileInfoServiceImpl implements FileInfoService {
      * 按版本保留上限清理最旧版本。
      *
      * <p>保留根版本与最近 {@code max-versions - 1} 个版本；清理顺序为「先删物理对象、再物理删除
-     * 版本行、最后发布删除事件」。单个版本清理失败只告警，保留行待下次新版本产生时重试。</p>
+     * 版本行、最后按需发布删除事件」。单个版本清理失败只告警，保留行待下次新版本产生时重试。</p>
      *
      * @param root 版本组根文件
      * @param requesterId 调用者用户 ID
+     * @param publishEvents 是否发布删除事件；定时清理无租户上下文时传 {@code false}
+     * @return 实际物理删除的版本行数
      */
-    private void pruneVersions(FileAssetAggregate root, Long requesterId) {
+    private int pruneVersions(FileAssetAggregate root, Long requesterId, boolean publishEvents) {
         int maxVersions = fileProperties.getVersion().getMaxVersions();
         if (maxVersions <= 0) {
-            return;
+            return 0;
         }
         List<FileAssetAggregate> versions = fileAssetRepository.findVersions(root.getId());
         if (versions.size() <= maxVersions) {
-            return;
+            return 0;
         }
         // 版本列表按版本号倒序且含根版本：根版本必须保留，因此只对非根版本保留最近 maxVersions - 1 个
         List<FileAssetAggregate> removable = versions.stream()
                 .filter(version -> version.getParentId() != null)
                 .skip(Math.max(maxVersions - 1L, 0L))
                 .toList();
+        int pruned = 0;
         for (FileAssetAggregate version : removable) {
             try {
                 fileStorage.delete(version.getBucket(), version.getObjectKey(), version.getStorageType());
                 if (fileAssetRepository.purgeVersionById(version.getId())) {
-                    publishFileEvent(version, FileAssetDomainEvent.ChangeType.DELETED, requesterId);
+                    pruned++;
+                    if (publishEvents) {
+                        publishFileEvent(version, FileAssetDomainEvent.ChangeType.DELETED, requesterId);
+                    }
                 }
             } catch (RuntimeException e) {
                 log.warn("历史版本清理失败，保留待下次重试: id={}, version={}", version.getId(),
                         version.getVersion(), e);
             }
         }
+        return pruned;
     }
 
     @Override

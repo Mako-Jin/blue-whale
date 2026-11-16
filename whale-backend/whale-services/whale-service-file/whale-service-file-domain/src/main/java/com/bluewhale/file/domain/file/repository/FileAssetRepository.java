@@ -102,6 +102,16 @@ public interface FileAssetRepository {
     boolean purgeVersionById(Long id);
 
     /**
+     * 分页查询版本数超出上限的根文件ID（按根文件ID升序游标）
+     *
+     * @param allowedVersionRows 非根版本允许保留的条数（{@code max-versions - 1}）
+     * @param afterId 游标下界（不含）
+     * @param limit 单批最大根文件数
+     * @return 超出上限的根文件ID
+     */
+    List<Long> findVersionRootIdsWithExcess(int allowedVersionRows, long afterId, long limit);
+
+    /**
      * 按 MD5 + 大小查询可复用的正常文件（秒传去重依据，按主键升序取第一条）
      *
      * <p>入参摘要大小写不敏感：实现内部统一归一化为小写后查询；空白摘要直接视为未命中。</p>

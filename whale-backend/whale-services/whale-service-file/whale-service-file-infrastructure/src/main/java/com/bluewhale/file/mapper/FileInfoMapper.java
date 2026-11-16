@@ -144,6 +144,23 @@ public interface FileInfoMapper extends BaseMapper<FileInfoPo> {
     int purgeVersionById(@Param("id") Long id);
 
     /**
+     * 查询版本数超出允许值的根文件ID（版本保留定时清理使用）。
+     *
+     * <p>按根文件ID升序游标扫描，只统计未删除的版本行；{@code allowedVersionRows} 为非根版本
+     * 允许保留的条数（{@code max-versions - 1}）。</p>
+     *
+     * @param allowedVersionRows 非根版本允许保留的条数
+     * @param afterId 游标（不含）
+     * @param limit 单批最大根文件数
+     * @return 超出上限的根文件ID
+     */
+    @Select("SELECT parent_id FROM file_info WHERE parent_id IS NOT NULL AND deleted = 0 "
+            + "AND parent_id > #{afterId} GROUP BY parent_id HAVING COUNT(*) > #{allowedVersionRows} "
+            + "ORDER BY parent_id ASC LIMIT #{limit}")
+    List<Long> selectVersionRootIdsWithExcess(@Param("allowedVersionRows") int allowedVersionRows,
+                                              @Param("afterId") long afterId, @Param("limit") long limit);
+
+    /**
      * 分页查询回收站文件（含逻辑删除行，仅 {@code deleted = 1}）。
      *
      * @param originalName 原始文件名模糊条件，可为 {@code null}

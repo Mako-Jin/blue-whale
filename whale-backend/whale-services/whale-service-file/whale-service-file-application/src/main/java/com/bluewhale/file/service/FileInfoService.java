@@ -69,6 +69,16 @@ public interface FileInfoService {
     List<FileVersionResult> versions(Long id, Long requesterId, boolean canManage);
 
     /**
+     * 清理全部文件中超出保留上限的历史版本（定时任务使用）
+     *
+     * <p>按根文件ID游标分批扫描，清理超限的最旧版本；不发布领域事件，避免无租户上下文下产生
+     * 无效事件。保留上限非正时直接返回 0。</p>
+     *
+     * @return 实际物理删除的版本行数
+     */
+    int pruneExcessVersions();
+
+    /**
      * 回滚到指定历史版本：把目标版本内容复制为新版本（版本号取组内最大值 + 1）
      *
      * <p>回滚不修改、不删除既有版本；复制产生独立物理对象并按目标版本字节数计入配额。

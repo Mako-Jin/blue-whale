@@ -324,6 +324,11 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
     }
 
     @Override
+    public List<Long> findVersionRootIdsWithExcess(int allowedVersionRows, long afterId, long limit) {
+        return fileInfoMapper.selectVersionRootIdsWithExcess(allowedVersionRows, afterId, Math.max(limit, 1L));
+    }
+
+    @Override
     public Optional<FileAssetAggregate> findReusableByDigest(String md5, long fileSize) {
         if (!StringUtils.hasText(md5)) {
             return Optional.empty();
