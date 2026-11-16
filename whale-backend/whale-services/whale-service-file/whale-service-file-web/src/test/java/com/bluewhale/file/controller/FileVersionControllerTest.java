@@ -171,7 +171,38 @@ class FileVersionControllerTest {
     }
 
     @Test
-    @DisplayName("GET 要求 sys:file:list，POST、回滚与删除分别要求上传/删除权限码")
+    @DisplayName("GET /file/v1/{id}/versions/deleted：查询已删除历史版本")
+    void shouldListDeletedVersions() throws Exception {
+        when(fileInfoService.deletedVersions(ROOT_ID, UPLOADER_ID, false))
+                .thenReturn(List.of(version(VERSION_ID, ROOT_ID, 2)));
+
+        mockMvc.perform(get("/file/v1/{id}/versions/deleted", ROOT_ID)
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()))
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].version").value(2));
+    }
+
+    @Test
+    @DisplayName("POST /file/v1/{id}/versions/{targetVersion}/restore：找回已删除版本")
+    void shouldRestoreVersion() throws Exception {
+        when(fileInfoService.restoreVersion(eq(ROOT_ID), eq(2), eq(UPLOADER_ID), eq(false),
+                any(UploadLimits.class))).thenReturn(version(VERSION_ID, ROOT_ID, 2));
+
+        mockMvc.perform(post("/file/v1/{id}/versions/{targetVersion}/restore", ROOT_ID, 2)
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()))
+                .andExpect(jsonPath("$.data.id").value(VERSION_ID))
+                .andExpect(jsonPath("$.data.version").value(2));
+
+        verify(fileInfoService).restoreVersion(eq(ROOT_ID), eq(2), eq(UPLOADER_ID), eq(false),
+                any(UploadLimits.class));
+    }
+
+    @Test
+    @DisplayName("GET 要求 sys:file:list，上传/回滚要求 sys:file:upload，删除/找回要求 sys:file:delete")
     void shouldRequirePermissions() throws Exception {
         assertPermission("list", "sys:file:list",
                 FileVersionController.class.getMethod("list", Long.class, HttpServletRequest.class));
@@ -183,6 +214,11 @@ class FileVersionControllerTest {
                         HttpServletRequest.class));
         assertPermission("delete", "sys:file:delete",
                 FileVersionController.class.getMethod("delete", Long.class, int.class,
+                        HttpServletRequest.class));
+        assertPermission("deleted", "sys:file:list",
+                FileVersionController.class.getMethod("deleted", Long.class, HttpServletRequest.class));
+        assertPermission("restore", "sys:file:delete",
+                FileVersionController.class.getMethod("restore", Long.class, int.class,
                         HttpServletRequest.class));
     }
 

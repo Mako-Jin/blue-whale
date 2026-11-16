@@ -227,6 +227,34 @@ public class FileInfoServiceImpl implements FileInfoService {
     }
 
     @Override
+    public List<FileVersionResult> deletedVersions(Long id, Long requesterId, boolean canManage) {
+        FileAssetAggregate root = resolveVersionRoot(id, requesterId, canManage);
+        return fileAssetRepository.findDeletedVersions(root.getId()).stream()
+                .filter(version -> version.getParentId() != null)
+                .map(FileInfoServiceImpl::toVersionResult)
+                .toList();
+    }
+
+    @Override
+    public FileVersionResult restoreVersion(Long id, int targetVersion, Long requesterId, boolean canManage,
+                                            UploadLimits limits) {
+        FileAssetAggregate root = resolveVersionRoot(id, requesterId, canManage);
+        FileAssetAggregate target = fileAssetRepository.findDeletedVersions(root.getId()).stream()
+                .filter(version -> version.getParentId() != null && version.getVersion() == targetVersion)
+                .findFirst()
+                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
+        try {
+            fileAssetRepository.restoreWithQuotaCheck(target.getId(), quotaOf(effectiveLimits(limits).quotaBytes()));
+            publishFileEvent(target, FileAssetDomainEvent.ChangeType.RESTORED, requesterId);
+            fileMetrics.recordRestore(true);
+        } catch (RuntimeException e) {
+            fileMetrics.recordRestore(false);
+            throw e;
+        }
+        return toVersionResult(target);
+    }
+
+    @Override
     public int pruneExcessVersions() {
         int maxVersions = fileProperties.getVersion().getMaxVersions();
         if (maxVersions <= 0) {

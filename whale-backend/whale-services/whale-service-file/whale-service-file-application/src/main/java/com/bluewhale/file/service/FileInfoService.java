@@ -82,6 +82,31 @@ public interface FileInfoService {
     void deleteVersion(Long id, int targetVersion, Long requesterId, boolean canManage);
 
     /**
+     * 查询版本组内已逻辑删除的历史版本（仅版本行，不含根版本）
+     *
+     * @param id 文件ID（根文件或任一版本行）
+     * @param requesterId 调用者用户 ID
+     * @param canManage 是否持有文件管理权限
+     * @return 已删除的历史版本
+     */
+    List<FileVersionResult> deletedVersions(Long id, Long requesterId, boolean canManage);
+
+    /**
+     * 在配额内找回已删除的历史版本
+     *
+     * <p>文件本身必须未删除；整组在回收站时需先恢复文件。目标已恢复时按成功处理（幂等）。</p>
+     *
+     * @param id 文件ID（根文件或任一版本行）
+     * @param targetVersion 目标版本号
+     * @param requesterId 调用者用户 ID
+     * @param canManage 是否持有文件管理权限
+     * @param limits 生效的上传限额与配额
+     * @return 恢复后的版本
+     */
+    FileVersionResult restoreVersion(Long id, int targetVersion, Long requesterId, boolean canManage,
+                                     UploadLimits limits);
+
+    /**
      * 清理全部文件中超出保留上限的历史版本（定时任务使用）
      *
      * <p>按根文件ID游标分批扫描，清理超限的最旧版本；不发布领域事件，避免无租户上下文下产生

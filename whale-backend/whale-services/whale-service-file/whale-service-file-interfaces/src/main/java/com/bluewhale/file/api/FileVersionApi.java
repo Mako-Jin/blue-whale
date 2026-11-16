@@ -78,4 +78,26 @@ public interface FileVersionApi {
      */
     @DeleteMapping("/{targetVersion}")
     Result<Void> delete(@PathVariable Long id, @PathVariable int targetVersion, HttpServletRequest httpRequest);
+
+    /**
+     * 查询版本组内已逻辑删除的历史版本（不含根版本）。
+     *
+     * @param id 文件ID（根文件或任一版本行）
+     * @param httpRequest 当前请求（用于判定调用者归属与文件管理权限）
+     * @return 已删除的历史版本
+     */
+    @GetMapping("/deleted")
+    Result<List<FileVersionResponse>> deleted(@PathVariable Long id, HttpServletRequest httpRequest);
+
+    /**
+     * 在配额内找回已删除的历史版本；文件本身必须未删除。
+     *
+     * @param id 文件ID（根文件或任一版本行）
+     * @param targetVersion 目标版本号
+     * @param httpRequest 当前请求（用于判定调用者、权限与生效配额）
+     * @return 恢复后的版本
+     */
+    @PostMapping("/{targetVersion}/restore")
+    Result<FileVersionResponse> restore(@PathVariable Long id, @PathVariable int targetVersion,
+                                        HttpServletRequest httpRequest);
 }

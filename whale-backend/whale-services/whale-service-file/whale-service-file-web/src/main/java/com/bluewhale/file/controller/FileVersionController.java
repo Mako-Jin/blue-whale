@@ -10,6 +10,7 @@ import com.bluewhale.file.assemble.FileAssembler;
 import com.bluewhale.file.model.UploadContent;
 import com.bluewhale.file.model.UploadLimits;
 import com.bluewhale.file.model.response.FileVersionResponse;
+import com.bluewhale.file.model.result.FileVersionResult;
 import com.bluewhale.file.service.FileInfoService;
 import com.bluewhale.file.service.support.FileUploadPolicy;
 import jakarta.servlet.http.HttpServletRequest;
@@ -79,6 +80,23 @@ public class FileVersionController implements FileVersionApi {
         fileInfoService.deleteVersion(id, targetVersion, UserContext.requireUserId(httpRequest),
                 canManage(httpRequest));
         return Result.ok();
+    }
+
+    @Override
+    @RequirePermission("sys:file:list")
+    public Result<List<FileVersionResponse>> deleted(@PathVariable Long id, HttpServletRequest httpRequest) {
+        List<FileVersionResult> versions = fileInfoService.deletedVersions(id,
+                UserContext.requireUserId(httpRequest), canManage(httpRequest));
+        return Result.ok(versions.stream().map(fileAssembler::toVersionResponse).toList());
+    }
+
+    @Override
+    @RequirePermission("sys:file:delete")
+    public Result<FileVersionResponse> restore(@PathVariable Long id, @PathVariable int targetVersion,
+                                               HttpServletRequest httpRequest) {
+        FileVersionResult version = fileInfoService.restoreVersion(id, targetVersion,
+                UserContext.requireUserId(httpRequest), canManage(httpRequest), uploadLimits(httpRequest));
+        return Result.ok(fileAssembler.toVersionResponse(version));
     }
 
     /**

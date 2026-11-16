@@ -302,6 +302,13 @@ class FileInfoServiceImplTest {
                 parentId, version);
     }
 
+    private static FileAssetAggregate deletedVersion(long id, long parentId, int version) {
+        return FileAssetAggregate.reconstitute(id, "a.txt", "a.txt", "bluewhale",
+                "tenants/1/2026/10/25/a.txt", 12L, "text/plain", null, FileStatus.NORMAL, UPLOADER_ID, true,
+                LocalDateTime.of(2026, 10, 25, 9, 0), LocalDateTime.of(2026, 10, 25, 9, 0), "local",
+                parentId, version);
+    }
+
     @Test
     @DisplayName("upload：写入存储并登记元数据（默认桶 + MD5 + 日期目录对象键）")
     void shouldUploadAndPersistMetadata() throws IOException {
@@ -1786,6 +1793,50 @@ class FileInfoServiceImplTest {
                 () -> fileInfoService.deleteVersion(1L, 9, UPLOADER_ID, false));
         assertEquals(ErrorCode.NOT_FOUND.getCode(), missingEx.getCode());
         verify(fileAssetRepository, never()).deleteVersionById(anyLong());
+    }
+
+    @Test
+    @DisplayName("deletedVersions：仅返回已删除的版本行，过滤根版本")
+    void shouldListDeletedVersionsOnly() {
+        FileAssetAggregate root = fileWithVersion(1L, null, 1, FileStatus.NORMAL);
+        FileAssetAggregate version2 = deletedVersion(2L, 1L, 2);
+        when(fileAssetRepository.findById(1L)).thenReturn(Optional.of(root));
+        when(fileAssetRepository.findDeletedVersions(1L)).thenReturn(List.of(version2, root));
+
+        List<FileVersionResult> versions = fileInfoService.deletedVersions(1L, UPLOADER_ID, false);
+
+        assertEquals(1, versions.size());
+        assertEquals(2, versions.get(0).version());
+    }
+
+    @Test
+    @DisplayName("restoreVersion：配额内恢复已删除版本并发布 RESTORED 事件")
+    void shouldRestoreDeletedVersion() {
+        FileAssetAggregate root = fileWithVersion(1L, null, 1, FileStatus.NORMAL);
+        FileAssetAggregate version2 = deletedVersion(2L, 1L, 2);
+        when(fileAssetRepository.findById(1L)).thenReturn(Optional.of(root));
+        when(fileAssetRepository.findDeletedVersions(1L)).thenReturn(List.of(version2));
+        when(fileAssetRepository.restoreWithQuotaCheck(eq(2L), any(StorageQuota.class))).thenReturn(true);
+
+        FileVersionResult result = fileInfoService.restoreVersion(1L, 2, UPLOADER_ID, false, null);
+
+        assertEquals(2, result.version());
+        verify(fileAssetRepository).restoreWithQuotaCheck(eq(2L), any(StorageQuota.class));
+        assertEquals(1, publishedEvents.size());
+    }
+
+    @Test
+    @DisplayName("restoreVersion：目标版本未删除或不存在时返回未找到")
+    void shouldRejectRestoreMissingVersion() {
+        FileAssetAggregate root = fileWithVersion(1L, null, 1, FileStatus.NORMAL);
+        when(fileAssetRepository.findById(1L)).thenReturn(Optional.of(root));
+        when(fileAssetRepository.findDeletedVersions(1L)).thenReturn(List.of());
+
+        BizException ex = assertThrows(BizException.class,
+                () -> fileInfoService.restoreVersion(1L, 2, UPLOADER_ID, false, null));
+
+        assertEquals(ErrorCode.NOT_FOUND.getCode(), ex.getCode());
+        verify(fileAssetRepository, never()).restoreWithQuotaCheck(anyLong(), any(StorageQuota.class));
     }
 
     @Test
