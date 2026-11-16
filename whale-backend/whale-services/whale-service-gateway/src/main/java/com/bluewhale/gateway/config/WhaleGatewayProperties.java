@@ -29,6 +29,9 @@ public class WhaleGatewayProperties {
     /** 路由治理端点鉴权配置（P1-13） */
     private Governance governance = new Governance();
 
+    /** WS 握手 ticket 校验配置（P2-6） */
+    private WsTicket wsTicket = new WsTicket();
+
     /**
      * JWT 相关配置
      *
@@ -91,5 +94,21 @@ public class WhaleGatewayProperties {
 
         /** 治理端点访问令牌，空表示禁用该端点（默认 fail-closed） */
         private String token = "";
+    }
+
+    /**
+     * WebSocket 握手 ticket 校验配置（P2-6）。
+     *
+     * <p>{@code paths} 为需要一次性 ticket 的 WS 握手路径（精确匹配）。新增 WS 端点时
+     * 必须同步修改本配置、{@code whale.gateway.white-list}（WS 握手无法携带 Authorization）
+     * 与路由 predicates，否则会出现「网关放行但下游拒绝」或「网关直接 401」。</p>
+     *
+     * @author BlueWhale
+     */
+    @Data
+    public static class WsTicket {
+
+        /** 需要 ticket 的 WS 握手路径 */
+        private List<String> paths = new ArrayList<>(List.of("/im/ws", "/im/world", "/doc/ws"));
     }
 }

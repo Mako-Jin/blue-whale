@@ -1,6 +1,6 @@
 package com.bluewhale.gateway.filter;
 
-import com.bluewhale.gateway.common.GatewayResponse;
+import com.bluewhale.gateway.common.GatewayResponseWriter;
 import com.bluewhale.gateway.config.RateLimitProperties;
 import com.bluewhale.gateway.config.RateLimitProperties.PathRule;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -9,20 +9,16 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
-import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
@@ -92,9 +88,6 @@ public class RateLimitGlobalFilter implements GlobalFilter, Ordered {
 
     /** 限流触发时的提示文案 */
     private static final String RATE_LIMIT_MESSAGE = "请求过于频繁，请稍后重试";
-
-    /** JSON 响应内容类型 */
-    private static final String JSON_CONTENT_TYPE = "application/json;charset=UTF-8";
 
     /**
      * 过滤器顺序：晚于链路追踪（-200），保证 429 响应也能带上 X-Trace-Id 便于关联日志；
@@ -246,16 +239,8 @@ public class RateLimitGlobalFilter implements GlobalFilter, Ordered {
      */
     private Mono<Void> tooManyRequests(ServerWebExchange exchange, LimitRule rule) {
         countRejected(rule);
-        ServerHttpResponse response = exchange.getResponse();
-        response.setStatusCode(HttpStatus.TOO_MANY_REQUESTS);
-        response.getHeaders().setContentType(MediaType.parseMediaType(JSON_CONTENT_TYPE));
-        String traceId = exchange.getRequest().getHeaders().getFirst(TraceIdGlobalFilter.TRACE_ID_HEADER);
-        if (traceId != null && !traceId.isBlank()) {
-            response.getHeaders().set(TraceIdGlobalFilter.TRACE_ID_HEADER, traceId);
-        }
-        String body = GatewayResponse.of(RATE_LIMIT_CODE, RATE_LIMIT_MESSAGE).toJson();
-        DataBuffer buffer = response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8));
-        return response.writeWith(Mono.just(buffer));
+        return GatewayResponseWriter.write(exchange, HttpStatus.TOO_MANY_REQUESTS,
+                RATE_LIMIT_CODE, RATE_LIMIT_MESSAGE);
     }
 
     /**

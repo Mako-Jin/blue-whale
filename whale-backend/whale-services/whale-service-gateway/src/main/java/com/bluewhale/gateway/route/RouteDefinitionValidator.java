@@ -159,7 +159,7 @@ public final class RouteDefinitionValidator {
             return;
         }
         // Gateway 的 PathRoutePredicateFactory 不会按逗号切分 args.patterns：
-        // `/a/**,/b/**` 会被当成一整个 pattern 编译，路由永不命中（表现为 404「服务不可用」，
+        // `/a/**,/b/**` 会被当成一整个 pattern 编译，路由永不命中（表现为 404「路由不存在」，
         // 且不报任何错）。这里显式拦下来，逼着拆成多条路由。
         if (patterns.split(PATTERN_SEPARATOR).length > 1) {
             errors.add("路由 " + id + " 的 Path 断言只能写一个 pattern（Gateway 不按逗号切分，多写会导致该路由永不命中）："

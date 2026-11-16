@@ -110,6 +110,11 @@ whale:
       # Wave 5.61 M3 第三方电子签章回调：三方平台匿名回调，安全依赖渠道 HMAC/RSA 验签
       # + 时间戳窗口 + provider_event_id 幂等；仅放行该前缀，其余 /contract/** 仍须 JWT。
       - /contract/sign/callback/**
+    # P2-6 WebSocket 握手 ticket 校验路径（精确匹配，不参与 Ant 通配）：
+    #   必须与上方 white-list、gateway-routes-fallback.yaml 的 WS 路由 predicates 三处一致。
+    #   新增 WS 端点时：本配置加路径 + white-list 加同路径（WS 无法带 Authorization）+ 路由 predicates 同步。
+    ws-ticket:
+      paths: ${WHALE_GATEWAY_WS_TICKET_PATHS:/im/ws,/im/world,/doc/ws}
     # 访问名单动态加载：以权限中心（whale-service-auth）DB 为准，网关按 refresh-interval-ms 周期拉取
     #   白名单 GET /auth/v1/internal/gateway/whitelist → 与上方 white-list 取并集；
     #   黑名单 GET /auth/v1/internal/gateway/blacklist → 优先级高于白名单，命中即 403。

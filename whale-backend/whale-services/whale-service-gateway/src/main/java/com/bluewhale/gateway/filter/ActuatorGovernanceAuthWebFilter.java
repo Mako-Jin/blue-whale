@@ -1,15 +1,12 @@
 package com.bluewhale.gateway.filter;
 
-import com.bluewhale.gateway.common.GatewayResponse;
+import com.bluewhale.gateway.common.GatewayResponseWriter;
 import com.bluewhale.gateway.config.WhaleGatewayProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
-import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
@@ -100,16 +97,7 @@ public class ActuatorGovernanceAuthWebFilter implements WebFilter, Ordered {
      * @return 写出响应完成的信号
      */
     private Mono<Void> forbidden(ServerWebExchange exchange) {
-        ServerHttpResponse response = exchange.getResponse();
-        response.setStatusCode(HttpStatus.FORBIDDEN);
-        response.getHeaders().setContentType(MediaType.parseMediaType("application/json;charset=UTF-8"));
-        String traceId = exchange.getRequest().getHeaders().getFirst(TraceIdGlobalFilter.TRACE_ID_HEADER);
-        if (traceId != null && !traceId.isBlank()) {
-            response.getHeaders().set(TraceIdGlobalFilter.TRACE_ID_HEADER, traceId);
-        }
-        String body = GatewayResponse.of(403, "路由治理端点拒绝访问").toJson();
-        DataBuffer buffer = response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8));
-        return response.writeWith(Mono.just(buffer));
+        return GatewayResponseWriter.write(exchange, HttpStatus.FORBIDDEN, 403, "路由治理端点拒绝访问");
     }
 
     @Override

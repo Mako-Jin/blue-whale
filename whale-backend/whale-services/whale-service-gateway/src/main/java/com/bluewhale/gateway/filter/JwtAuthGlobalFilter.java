@@ -2,7 +2,7 @@ package com.bluewhale.gateway.filter;
 
 import com.bluewhale.gateway.accesslist.GatewayAccessListProvider;
 import com.bluewhale.gateway.common.GatewayHeaders;
-import com.bluewhale.gateway.common.GatewayResponse;
+import com.bluewhale.gateway.common.GatewayResponseWriter;
 import com.bluewhale.gateway.config.WhaleGatewayProperties;
 import com.bluewhale.gateway.security.JwksKeyStore;
 import com.bluewhale.gateway.security.MembershipRevocationChecker;
@@ -22,18 +22,14 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
-import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple4;
 
-import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.security.PublicKey;
 import java.util.Date;
@@ -502,16 +498,7 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
      */
     private Mono<Void> unauthorized(ServerWebExchange exchange, String reason) {
         countRejected(reason);
-        ServerHttpResponse response = exchange.getResponse();
-        response.setStatusCode(HttpStatus.UNAUTHORIZED);
-        response.getHeaders().setContentType(MediaType.parseMediaType("application/json;charset=UTF-8"));
-        String traceId = exchange.getRequest().getHeaders().getFirst(TraceIdGlobalFilter.TRACE_ID_HEADER);
-        if (traceId != null && !traceId.isBlank()) {
-            response.getHeaders().set(TraceIdGlobalFilter.TRACE_ID_HEADER, traceId);
-        }
-        String body = GatewayResponse.of(401, "未认证").toJson();
-        DataBuffer buffer = response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8));
-        return response.writeWith(Mono.just(buffer));
+        return GatewayResponseWriter.write(exchange, HttpStatus.UNAUTHORIZED, 401, "未认证");
     }
 
     /**
@@ -523,16 +510,7 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
      */
     private Mono<Void> pathForbidden(ServerWebExchange exchange, String reason) {
         countRejected(reason);
-        ServerHttpResponse response = exchange.getResponse();
-        response.setStatusCode(HttpStatus.FORBIDDEN);
-        response.getHeaders().setContentType(MediaType.parseMediaType("application/json;charset=UTF-8"));
-        String traceId = exchange.getRequest().getHeaders().getFirst(TraceIdGlobalFilter.TRACE_ID_HEADER);
-        if (traceId != null && !traceId.isBlank()) {
-            response.getHeaders().set(TraceIdGlobalFilter.TRACE_ID_HEADER, traceId);
-        }
-        String body = GatewayResponse.of(HttpStatus.FORBIDDEN.value(), "禁止访问").toJson();
-        DataBuffer buffer = response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8));
-        return response.writeWith(Mono.just(buffer));
+        return GatewayResponseWriter.write(exchange, HttpStatus.FORBIDDEN, HttpStatus.FORBIDDEN.value(), "禁止访问");
     }
 
     /**
@@ -544,16 +522,7 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
      */
     private Mono<Void> forbidden(ServerWebExchange exchange, String reason) {
         countRejected(reason);
-        ServerHttpResponse response = exchange.getResponse();
-        response.setStatusCode(HttpStatus.FORBIDDEN);
-        response.getHeaders().setContentType(MediaType.parseMediaType("application/json;charset=UTF-8"));
-        String traceId = exchange.getRequest().getHeaders().getFirst(TraceIdGlobalFilter.TRACE_ID_HEADER);
-        if (traceId != null && !traceId.isBlank()) {
-            response.getHeaders().set(TraceIdGlobalFilter.TRACE_ID_HEADER, traceId);
-        }
-        String body = GatewayResponse.of(403, "首次登录或口令已到期，请先修改口令").toJson();
-        DataBuffer buffer = response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8));
-        return response.writeWith(Mono.just(buffer));
+        return GatewayResponseWriter.write(exchange, HttpStatus.FORBIDDEN, 403, "首次登录或口令已到期，请先修改口令");
     }
 
     /**

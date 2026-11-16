@@ -1,6 +1,6 @@
 package com.bluewhale.gateway.filter;
 
-import com.bluewhale.gateway.common.GatewayResponse;
+import com.bluewhale.gateway.common.GatewayResponseWriter;
 import com.bluewhale.gateway.config.CircuitBreakerProperties;
 import com.bluewhale.gateway.support.CircuitAlertNotifier;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
@@ -16,17 +16,13 @@ import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.cloud.gateway.route.Route;
 import org.springframework.cloud.gateway.support.ServerWebExchangeUtils;
 import org.springframework.core.Ordered;
-import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.Exceptions;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -69,9 +65,6 @@ public class CircuitBreakerGlobalFilter implements GlobalFilter, Ordered {
 
     /** 熔断降级时的提示文案 */
     private static final String FALLBACK_MESSAGE = "服务暂时不可用，请稍后重试";
-
-    /** JSON 响应内容类型 */
-    private static final String JSON_CONTENT_TYPE = "application/json;charset=UTF-8";
 
     /** 过滤器顺序：晚于鉴权过滤器（-100）、早于业务转发，仅对已认证请求实施熔断 */
     private static final int ORDER = -75;
@@ -349,20 +342,8 @@ public class CircuitBreakerGlobalFilter implements GlobalFilter, Ordered {
      * @return 响应写出完成的信号
      */
     private Mono<Void> unavailable(ServerWebExchange exchange) {
-        ServerHttpResponse response = exchange.getResponse();
-        if (response.isCommitted()) {
-            log.warn("响应已提交，无法写出熔断降级响应体");
-            return Mono.empty();
-        }
-        response.setStatusCode(HttpStatus.SERVICE_UNAVAILABLE);
-        response.getHeaders().setContentType(MediaType.parseMediaType(JSON_CONTENT_TYPE));
-        String traceId = exchange.getRequest().getHeaders().getFirst(TraceIdGlobalFilter.TRACE_ID_HEADER);
-        if (traceId != null && !traceId.isBlank()) {
-            response.getHeaders().set(TraceIdGlobalFilter.TRACE_ID_HEADER, traceId);
-        }
-        String body = GatewayResponse.of(FALLBACK_CODE, FALLBACK_MESSAGE).toJson();
-        DataBuffer buffer = response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8));
-        return response.writeWith(Mono.just(buffer));
+        return GatewayResponseWriter.write(exchange, HttpStatus.SERVICE_UNAVAILABLE,
+                FALLBACK_CODE, FALLBACK_MESSAGE);
     }
 
     @Override

@@ -16,6 +16,14 @@ import java.util.HexFormat;
  * {@code whale:auth:refresh:family:<familyId>}（family 吊销标记）；两类键前缀独立于
  * 既有登出黑名单前缀，避免影响 gateway 侧既有校验。</p>
  *
+ * <p><b>Redis Cluster 槽位约定（P2-8）</b>：三类键当前均为<b>单键</b>操作
+ * （{@code SETNX} / {@code SET} / {@code GET} / {@code HASKEY}），不涉及 MULTI、Lua 或
+ * {@code MGET} 跨键原子操作，因此各键按完整键名散列到不同槽位是安全的；
+ * 新增键时不要假设同一 token 的黑名单键与 refresh 键落在同一槽位。
+ * 若未来需要把多键放进同一 Lua/MULTI，必须给动态段加统一 hash tag（如
+ * {@code whale:{auth:token:blacklist}:<digest>}）；<b>改键格式会让新旧版本互不识别</b>，
+ * 需 auth 与 gateway 同批切换并保留双写过渡，禁止单侧先上。</p>
+ *
  * @author BlueWhale
  */
 public final class TokenBlacklistKeys {

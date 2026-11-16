@@ -1,5 +1,6 @@
 package com.bluewhale.gateway.filter;
 
+import com.bluewhale.gateway.config.WhaleGatewayProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,6 +13,8 @@ import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 import org.springframework.mock.web.server.MockServerWebExchange;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
@@ -20,7 +23,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
- * {@link ImWsTicketGuardGlobalFilter} 单元测试（T19）：/im/ws 缺 ticket 拒绝升级，携带 ticket 与其他路径放行。
+ * {@link ImWsTicketGuardGlobalFilter} 单元测试（T19）：/im/ws 缺 ticket 拒绝升级，携带 ticket 与其他路径放行；
+ * 并覆盖 P2-6 路径配置化（自定义 paths 生效）。
  *
  * @author BlueWhale
  */
@@ -32,11 +36,14 @@ class ImWsTicketGuardGlobalFilterTest {
     @Mock
     private GatewayFilterChain chain;
 
+    private WhaleGatewayProperties properties;
+
     private ImWsTicketGuardGlobalFilter filter;
 
     @BeforeEach
     void setUp() {
-        filter = new ImWsTicketGuardGlobalFilter();
+        properties = new WhaleGatewayProperties();
+        filter = new ImWsTicketGuardGlobalFilter(properties);
     }
 
     /**
@@ -95,5 +102,24 @@ class ImWsTicketGuardGlobalFilterTest {
 
         verify(chain).filter(any());
         assertNull(exchange.getResponse().getStatusCode());
+    }
+
+    @Test
+    @DisplayName("filter：ws-ticket.paths 自定义后仅拦截配置路径，原默认路径放行")
+    void shouldRespectConfiguredPaths() {
+        properties.getWsTicket().setPaths(List.of("/custom/ws"));
+        MockServerWebExchange custom = buildExchange("http://localhost/custom/ws");
+        when(chain.filter(any())).thenReturn(Mono.empty());
+
+        filter.filter(custom, chain).block();
+
+        assertEquals(HttpStatus.UNAUTHORIZED, custom.getResponse().getStatusCode());
+        assertEquals(EXPECTED_401_BODY, custom.getResponse().getBodyAsString().block());
+
+        MockServerWebExchange defaultPath = buildExchange("http://localhost/im/ws");
+        filter.filter(defaultPath, chain).block();
+
+        verify(chain).filter(any());
+        assertNull(defaultPath.getResponse().getStatusCode());
     }
 }

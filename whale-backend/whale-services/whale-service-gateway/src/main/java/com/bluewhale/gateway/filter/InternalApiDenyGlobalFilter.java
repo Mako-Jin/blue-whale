@@ -1,6 +1,6 @@
 package com.bluewhale.gateway.filter;
 
-import com.bluewhale.gateway.common.GatewayResponse;
+import com.bluewhale.gateway.common.GatewayResponseWriter;
 import com.bluewhale.gateway.config.InternalApiDenyProperties;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
@@ -8,16 +8,12 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
-import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
@@ -46,9 +42,6 @@ public class InternalApiDenyGlobalFilter implements GlobalFilter, Ordered {
 
     /** 内网接口拦截时的提示文案 */
     private static final String DENY_MESSAGE = "内网接口不允许外部访问";
-
-    /** JSON 响应内容类型 */
-    private static final String JSON_CONTENT_TYPE = "application/json;charset=UTF-8";
 
     /** 过滤器顺序：早于鉴权（-100）与权限码头（-50），保证内网路径先被拒绝 */
     private static final int ORDER = -110;
@@ -164,16 +157,7 @@ public class InternalApiDenyGlobalFilter implements GlobalFilter, Ordered {
         if (meterRegistry != null) {
             meterRegistry.counter(METER_REJECTED).increment();
         }
-        ServerHttpResponse response = exchange.getResponse();
-        response.setStatusCode(HttpStatus.FORBIDDEN);
-        response.getHeaders().setContentType(MediaType.parseMediaType(JSON_CONTENT_TYPE));
-        String traceId = exchange.getRequest().getHeaders().getFirst(TraceIdGlobalFilter.TRACE_ID_HEADER);
-        if (traceId != null && !traceId.isBlank()) {
-            response.getHeaders().set(TraceIdGlobalFilter.TRACE_ID_HEADER, traceId);
-        }
-        String body = GatewayResponse.of(DENY_CODE, DENY_MESSAGE).toJson();
-        DataBuffer buffer = response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8));
-        return response.writeWith(Mono.just(buffer));
+        return GatewayResponseWriter.write(exchange, HttpStatus.FORBIDDEN, DENY_CODE, DENY_MESSAGE);
     }
 
     @Override

@@ -5,7 +5,7 @@ whale:
     dynamic-routes:
       # 【必须一条路由一个 pattern】Gateway 的 Path 断言不会按逗号切分 args.patterns：
       # 写成 `/a/**,/b/**` 会被当作**一整个** pattern 编译，这条路由永远不命中，
-      # 请求直接掉到静态资源 handler → 404「服务不可用」。
+      # 请求直接掉到静态资源 handler → 404「路由不存在」。
       # 而 RouteDefinitionValidator 自己按逗号 split 校验，所以这种写法能通过校验、
       # 只在真正转发时失效 —— 是最难查的一类（只有 Nacos 动态路由缺失时才走兜底，
       # 平时被 Nacos 覆盖看不出来）。

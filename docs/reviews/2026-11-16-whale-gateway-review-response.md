@@ -5,10 +5,10 @@
 | 评审对象 | `whale-backend/whale-services/whale-service-gateway`（Spring Cloud Gateway / WebFlux 栈） |
 | 评审来源 | 外部代码评审意见（P0 3 条 / P1 6 条 / P2 14 条 / 测试缺口） |
 | 处理原则 | P0 全部本轮修复；P1 全部本轮修复（P1-4 以配置规则落地）；P2 优先修复维护风险与排障效率项，业务口径/运维归属类登记待做 |
-| 验证 | 网关模块 177 项单测零失败，`BUILD SUCCESS`；`spring-boot-starter-web` 传递依赖检查为空 |
+| 验证 | 网关模块 200 项单测零失败，`BUILD SUCCESS`；`spring-boot-starter-web` 传递依赖检查为空 |
 
-> 说明：评审时提供的是主代码文件，未包含测试目录；实际仓库网关模块已有 18 个测试类、
-> 177 项用例（本轮在此基础上补充 6 项 P0 回归用例）。
+> 说明：评审时提供的是主代码文件，未包含测试目录；实际仓库网关模块已有 24 个测试类、
+> 200 项用例（第一轮补充 6 项 P0 回归用例，第二批补充 9 项 P2 收尾用例）。
 
 ---
 
@@ -31,12 +31,12 @@
 | P2-9 | P2 | 熔断器 Map 只增不减 | **采纳**：补运维约定（移除熔断路由需重启），不改运行逻辑 |
 | P2-11 | P2 | 指标命名混用下划线/点号 | **采纳并修复**：`gateway.rate_limit.rejected → gateway.rate.limit.rejected` |
 | P2-12 | P2 | 传递依赖引入 Servlet 栈 / ENC 解密时机 | **已验证无需改动**：`dependency:tree` 无 `spring-boot-starter-web`；ENC 由 `EnvironmentPostProcessor` 在属性绑定前完成 |
-| P2-1 | P2 | 6~7 处响应写出重复 | 待做：抽 `GatewayResponseWriter`（本轮不扩大改动面） |
+| P2-1 | P2 | 6~7 处响应写出重复 | **采纳并修复**：新增 `GatewayResponseWriter`，7 个类 10 处写出统一（第二批） |
 | P2-4 | P2 | `trust-forwarded-for` 默认 true 可被伪造 | 不改默认值：网关部署在 Nginx 之后，置 false 会把全部用户折叠成同一 IP 反而造成全局限流；保留配置开关并在 yml 固化上线检查项 |
-| P2-6 | P2 | WS 路径硬编码三处同步 | 待做：抽 `whale.gateway.ws-ticket.paths` |
+| P2-6 | P2 | WS 路径硬编码三处同步 | **采纳并修复**：新增 `whale.gateway.ws-ticket.paths`，过滤器改读配置（第二批） |
 | P2-7 | P2 | 本地 white-list 30+ 条 | 待做：需与权限中心远程名单同步迁移，单独排期 |
-| P2-8 | P2 | Cluster 迁移时键槽位一致性 | 待做：在 `whale-security` Keys 类补 cluster-safe 注释 |
-| P2-10 | P2 | 下游 404 与路由不存在 404 语义混同 | 待做：响应体 message 区分（当前 HTTP 码已正确） |
+| P2-8 | P2 | Cluster 迁移时键槽位一致性 | **采纳并修复**：`TokenBlacklistKeys` / `UserAccessRevocationKeys` 补槽位约定与改键迁移前提（不改键格式） |
+| P2-10 | P2 | 下游 404 与路由不存在 404 语义混同 | **采纳并修复**：响应体文案区分「路由不存在 / 下游资源不存在」，HTTP 码不变 |
 | P2-13 | P2 | 音视频流白名单鉴权机制 | 待做：审计下游 stream 一次性票据校验（属业务服务口径） |
 | P2-14 | P2 | `/actuator/**` 免 JWT | 待做：Nginx 层限制 `/actuator` 仅内网（运维项） |
 | 测试 | — | 缺少 P0 回归保护 | **已补齐 6 项**：iat 未来、租户白名单旁路、同步异常复位（名单/覆盖）、告警令牌、限流 order |
@@ -79,6 +79,22 @@
 13. `GatewayAccessListProvider#replaceSnapshot`：空名单仅在「非空→空」时 WARN，其余 INFO。
 14. `CircuitBreakerGlobalFilter`：补充 `apply-to-routes` 热更新移除路由需重启的运维注释。
 
+### P2 第二批（2026-11-16 收尾）
+
+15. 新增 `com.bluewhale.gateway.common.GatewayResponseWriter`：统一 401/403/429/503 JSON 写出、
+    `application/json;charset=UTF-8` 与 `X-Trace-Id` 透传；响应已提交时跳过，避免二次写出。
+    替换 `JwtAuthGlobalFilter`（3 处）、`RateLimitGlobalFilter`、`CircuitBreakerGlobalFilter`、
+    `InternalApiDenyGlobalFilter`、`ActuatorGovernanceAuthWebFilter`、`ImWsTicketGuardGlobalFilter`、
+    `GatewayExceptionHandler` 共 7 个类、10 处写出。
+16. `WhaleGatewayProperties` 新增 `wsTicket.paths`（默认 `/im/ws`、`/im/world`、`/doc/ws`）；
+    `ImWsTicketGuardGlobalFilter` 改读 `whale.gateway.ws-ticket.paths`（支持
+    `WHALE_GATEWAY_WS_TICKET_PATHS` 覆盖），`application.yml` 注释声明与 white-list、兜底路由的同步要求。
+17. `TokenBlacklistKeys` / `UserAccessRevocationKeys`：补充 Redis Cluster 槽位约定——当前均为单键
+    GET/SET，无跨槽原子操作；未来多键 Lua/MULTI 需统一 hash tag，且键格式变更须 auth/gateway 同批切换。
+18. `GatewayExceptionHandler`：新增 `resolveMessage`，`NotFoundException` → 「路由不存在」，
+    下游 `ResponseStatusException` 404 → 「下游资源不存在」，502/503/504 → 「服务暂时不可用」，
+    其余 → 「系统异常」；HTTP 状态码映射不变。同步修正两处历史注释。
+
 ---
 
 ## 三、已修正问题项（本轮实际闭环的缺陷）
@@ -95,6 +111,9 @@
 | 事件循环阻塞 | 刷新若落在 Netty 线程，Nacos 同步读最长阻塞 3s | 切换到 `boundedElastic` |
 | 告警静默丢失 | 仅读环境变量，Nacos 配了令牌也发不出 | 统一配置项，三处一致 |
 | 429 无 traceId | 限流早于 TraceId 过滤器 | order `-190`，429 也带 `X-Trace-Id` |
+| 响应写出散落 7 处 | 漏改一处即出现「某状态码无 traceId」或响应体不一致 | 统一 `GatewayResponseWriter`，traceId/Content-Type/已提交保护一次收口 |
+| WS 路径硬编码 | 新增 WS 端点漏改过滤器 → 能连上但下游永远拒绝 | 过滤器读 `ws-ticket.paths`，新增端点只改配置（white-list/路由仍需同步，已在配置注释标注） |
+| 404 无法区分责任方 | 路由缺失与下游 404 都返回「服务不可用」 | 分别返回「路由不存在」「下游资源不存在」 |
 
 ---
 
@@ -102,11 +121,7 @@
 
 | 项 | 说明 |
 |---|---|
-| `GatewayResponseWriter` 抽取（P2-1） | 统一 401/403/429/503 响应写出与 traceId 透传，减少改漏 |
-| WS 路径配置化（P2-6） | `whale.gateway.ws-ticket.paths`，避免 yml / fallback 路由 / 过滤器三处同步 |
 | 本地 white-list 精简（P2-7） | 需与权限中心远程名单同批迁移，避免 auth 不可用时业务链路中断 |
-| Cluster 槽位注释（P2-8） | `TokenBlacklistKeys` / `UserAccessRevocationKeys` 明确是否 hash tag |
-| 下游 404 语义区分（P2-10） | 响应体 message 区分「路由不存在」与「下游 404」 |
 | `/actuator` 内网限制（P2-14） | Nginx 层收口，或扩展 `ActuatorGovernanceAuthWebFilter` 覆盖写端点 |
 | Lua 原子性集成测试 | 需真实 Redis（Testcontainers/本地实例），单测仅覆盖脚本契约与降级路径 |
 | 网关集成测试 | `@SpringBootTest + WebTestClient`，依赖 Nacos/Redis 环境 |
@@ -116,11 +131,15 @@
 ## 五、验证记录
 
 - 命令：`.\mvnw.cmd -f whale-backend\whale-services\whale-service-gateway\pom.xml -s D:\maven\conf\settings.xml test -DskipITs`
-- 结果：`Tests run: 177, Failures: 0, Errors: 0, Skipped: 0`，`BUILD SUCCESS`
-- 新增/调整用例：
+- 结果：`Tests run: 200, Failures: 0, Errors: 0, Skipped: 0`，`BUILD SUCCESS`，checkstyle 0 违规
+- 第一批新增/调整用例：
   - `JwtAuthGlobalFilterTest`：`iat` 未来 401、租户级白名单旁路治理校验；四段校验改为并行后补充默认桩；
   - `GatewayAccessListProviderTest` / `RouteOverrideProviderTest`：同步异常后标记复位、后续刷新仍执行；
   - `CircuitAlertNotifierTest`：内网令牌改由配置项提供，新增配置令牌时发送请求头断言；
   - `PermissionHeaderGlobalFilterTest` / `RateLimitGlobalFilterTest`：order 断言（-80 / -190）。
+- 第二批新增用例：
+  - `GatewayResponseWriterTest`（4 项）：状态码/JSON/Content-Type、traceId 透传且缺失不生成、按需生成、已提交跳过；
+  - `GatewayExceptionHandlerTest`（4 项）：路由 404「路由不存在」、下游 404「下游资源不存在」、503 保留且补 traceId、500「系统异常」；
+  - `ImWsTicketGuardGlobalFilterTest`（+1 项）：自定义 `ws-ticket.paths` 后新路径拦截、原默认路径放行。
 - 依赖检查：`maven-dependency-plugin:tree -Dincludes=org.springframework.boot:spring-boot-starter-web` 无匹配，
   WebFlux 栈未被 Servlet 栈污染。
