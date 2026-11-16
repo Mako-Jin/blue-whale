@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>圣京 · 古代城池 3D 地形展示</title>
+<style>
+  :root {
+    --bg1: #dfeaf4; --bg2: #f3ede1;
+    --panel: rgba(255,255,255,.88);
+    --ink: #2b2f36; --ink2: #6b7280;
+    --accent: #8c6a3f; --line: rgba(43,47,54,.12);
+    --shadow: 0 8px 28px rgba(30,40,60,.14);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: var(--ink);
+    background: linear-gradient(180deg, var(--bg1) 0%, var(--bg2) 70%);
+  }
+  #app { position: fixed; inset: 0; }
+  canvas { display: block; }
+
+  /* 顶部标题 */
+  .title-card {
+    position: fixed; top: 18px; left: 18px; z-index: 10;
+    background: var(--panel); backdrop-filter: blur(8px);
+    border: 1px solid var(--line); border-radius: 14px;
+    padding: 14px 20px 12px; box-shadow: var(--shadow); max-width: 340px;
+  }
+  .title-card h1 { font-size: 20px; letter-spacing: 2px; }
+  .title-card h1 small { font-size: 12px; color: var(--ink2); letter-spacing: 1px; margin-left: 8px; font-weight: normal; }
+  .title-card p { font-size: 12px; color: var(--ink2); margin-top: 5px; line-height: 1.6; }
+
+  /* 图例 */
+  .legend {
+    position: fixed; left: 18px; bottom: 18px; z-index: 10;
+    background: var(--panel); backdrop-filter: blur(8px);
+    border: 1px solid var(--line); border-radius: 14px;
+    padding: 12px 16px; box-shadow: var(--shadow); width: 232px;
+  }
+  .legend h2 { font-size: 13px; letter-spacing: 2px; margin-bottom: 8px; }
+  .legend .row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink2); margin: 4px 0; }
+  .legend .sw { width: 22px; height: 10px; border-radius: 3px; flex: none; border: 1px solid rgba(0,0,0,.08); }
+
+  /* 规格说明 */
+  .spec {
+    position: fixed; top: 18px; right: 18px; z-index: 10;
+    background: var(--panel); backdrop-filter: blur(8px);
+    border: 1px solid var(--line); border-radius: 14px;
+    padding: 14px 18px; box-shadow: var(--shadow); width: 300px;
+    max-height: calc(100vh - 120px); overflow-y: auto;
+    transition: transform .3s ease, opacity .3s ease;
+  }
+  .spec.hidden { transform: translateX(330px); opacity: 0; pointer-events: none; }
+  .spec h2 { font-size: 13px; letter-spacing: 2px; margin-bottom: 8px; }
+  .spec section { margin-bottom: 10px; }
+  .spec h3 { font-size: 12px; color: var(--accent); margin-bottom: 3px; letter-spacing: 1px; }
+  .spec p { font-size: 12px; color: var(--ink2); line-height: 1.7; }
+  .spec .flow { font-size: 11px; color: var(--ink2); background: rgba(140,106,63,.08); border-radius: 8px; padding: 8px 10px; line-height: 1.8; }
+
+  /* 工具条 */
+  .toolbar {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    z-index: 10; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+  }
+  .toolbar button {
+    background: var(--panel); backdrop-filter: blur(8px);
+    border: 1px solid var(--line); border-radius: 999px;
+    padding: 8px 16px; font-size: 13px; color: var(--ink);
+    cursor: pointer; box-shadow: var(--shadow); transition: all .2s;
+    font-family: inherit; letter-spacing: 1px;
+  }
+  .toolbar button:hover { background: #fff; transform: translateY(-1px); }
+  .toolbar button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  .spec-toggle {
+    position: fixed; top: 18px; right: 18px; z-index: 11;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    width: 36px; height: 36px; cursor: pointer; box-shadow: var(--shadow);
+    font-size: 15px; color: var(--ink); display: none;
+  }
+  .spec-toggle.show { display: block; }
+
+  /* 加载遮罩 */
+  #loader {
+    position: fixed; inset: 0; z-index: 100;
+    background: linear-gradient(180deg, var(--bg1), var(--bg2));
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 16px; transition: opacity .6s ease;
+  }
+  #loader.done { opacity: 0; pointer-events: none; }
+  #loader .seal {
+    width: 64px; height: 64px; border: 3px solid var(--accent); border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; color: var(--accent); font-weight: 700; letter-spacing: 0;
+    transform: rotate(-4deg);
+  }
+  #loader .msg { font-size: 14px; color: var(--ink2); letter-spacing: 2px; }
+  .bar { width: 260px; height: 6px; background: rgba(43,47,54,.12); border-radius: 999px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0%; background: var(--accent); border-radius: 999px; transition: width .2s; }
+  #stats {
+    position: fixed; bottom: 18px; right: 18px; z-index: 10;
+    font-size: 11px; color: var(--ink2); letter-spacing: 1px;
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 999px; padding: 6px 12px; box-shadow: var(--shadow);
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div class="title-card">
+  <h1>圣 京<small>虚拟都城 · 3D 地形</small></h1>
+  <p>按「虚拟都城地形制作参考」分层规格建模：6km × 6km，1 unit = 1m，上北下南。拖拽旋转 · 滚轮缩放 · 右键平移</p>
+</div>
+
+<div class="legend">
+  <h2>高度分层</h2>
+  <div class="row"><span class="sw" style="background:#3d6b82"></span>江面水位 · 0m</div>
+  <div class="row"><span class="sw" style="background:#9fb26a"></span>冲积平原 · 10–60m</div>
+  <div class="row"><span class="sw" style="background:#c2b9a4"></span>圣京台地 · 60–80m</div>
+  <div class="row"><span class="sw" style="background:#8a8d96"></span>丘陵岩体 · 48–290m</div>
+  <div class="row"><span class="sw" style="background:#eef1f4"></span>南岭雪线 · 300m+</div>
+</div>
+
+<div class="spec" id="spec">
+  <h2>制作规格</h2>
+  <section>
+    <h3>① 山脉层</h3>
+    <p>南岭主脉横贯南缘（最高约 460m，仅最高峰带雪线）；东山丘陵居东，留东关垭口；西缘缓丘作河湾阶地观感。</p>
+  </section>
+  <section>
+    <h3>② 平原与台地</h3>
+    <p>北岸冲积平原 25±m 带田块棋盘；圣京圆形台地三级环带 80 / 62 / 45m，城高于四周。</p>
+  </section>
+  <section>
+    <h3>③ 水系层</h3>
+    <p>北江沿北部平原东西向，江湾在城东北向城凸出（离城墙约 500m）；玉溪 / 清溪 / 云川三支流自南岭垭口向北汇流；北岸两条辫状支汊；圣京北门运河直通北江，南渠出城南门。</p>
+  </section>
+  <section>
+    <h3>④ 地貌与植被</h3>
+    <p>平原草地农田、河道两侧滩湿地、岩体坡面、南岭密林与平原疏林。</p>
+  </section>
+  <section>
+    <h3>⑤ 城池关隘</h3>
+    <p>圣京三层城墙（外城 / 内城 / 皇城）+ 金顶主殿；东关、南关、北关三处哨塔；四处预留区虚线框（外部平原 / 宫城核心 / 东山关隘 / 南岭山脉）。</p>
+  </section>
+  <div class="flow">五步工序：起山脉 → 塑台地 → 做水系 → 分植被 → 摆城池关隘</div>
+</div>
+<button class="spec-toggle" id="specToggle" title="展开规格说明">☰</button>
+
+<div class="toolbar">
+  <button data-view="overview" class="active">全景</button>
+  <button data-view="top">正俯视</button>
+  <button data-view="city">城池特写</button>
+  <button data-view="nanling">南岭山脉</button>
+  <button data-view="bay">江湾</button>
+  <button id="spinBtn" class="active">自动旋转</button>
+</div>
+
+<div id="stats"></div>
+
+<div id="loader">
+  <div class="seal">京</div>
+  <div class="msg" id="loadMsg">正在加载地形网格 …</div>
+  <div class="bar"><i id="loadBar"></i></div>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js", "three/addons/": "./vendor/addons/" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { PLYLoader } from 'three/addons/loaders/PLYLoader.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const app = document.getElementById('app');
+const loaderEl = document.getElementById('loader');
+const loadBar = document.getElementById('loadBar');
+const loadMsg = document.getElementById('loadMsg');
+const statsEl = document.getElementById('stats');
+
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+} catch (e) {
+  loadMsg.textContent = '当前环境不支持 WebGL，无法展示 3D 地形';
+  throw e;
+}
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0xdfeaf4, 5000, 16000);
+
+const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 1, 30000);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.maxPolarAngle = Math.PI / 2 - 0.02;
+controls.minDistance = 120;
+controls.maxDistance = 16000;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.5;
+
+// 光照：主日光 + 天空环境补光
+const sun = new THREE.DirectionalLight(0xfff1dc, 2.6);
+sun.position.set(-3200, 4800, -2200);
+scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xbcd6ee, 0x8a7f6a, 1.1));
+
+// 地形：加载 PLY（文件坐标 x 东 / y 南 / z 上 → 旋转为 three.js y 上、南 = -z）
+// PLY 顶点色是 sRGB，需转 linear 再渲染，否则整体发白
+function srgbToLinear(geo) {
+  const col = geo.attributes.color;
+  if (!col) return geo;
+  for (let i = 0; i < col.count; i++) {
+    col.setXYZ(i, Math.pow(col.getX(i), 2.2), Math.pow(col.getY(i), 2.2), Math.pow(col.getZ(i), 2.2));
+  }
+  return geo;
+}
+
+let pending = 2;
+function ready() {
+  if (--pending === 0) {
+    loaderEl.classList.add('done');
+    applyView('overview');
+  }
+}
+
+const plyLoader = new PLYLoader();
+plyLoader.load('./shengjing-terrain.ply', (geo) => {
+  srgbToLinear(geo);
+  geo.computeVertexNormals();
+  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+    vertexColors: true, roughness: 0.95, metalness: 0.0, flatShading: false,
+  }));
+  mesh.rotation.x = -Math.PI / 2;
+  scene.add(mesh);
+  const tris = geo.index ? geo.index.count / 3 : geo.attributes.position.count / 3;
+  statsEl.textContent = '地形 ' + geo.attributes.position.count.toLocaleString() + ' 顶点 · ' + Math.round(tris).toLocaleString() + ' 三角面';
+  ready();
+}, (xhr) => {
+  if (xhr.total) loadBar.style.width = Math.round((xhr.loaded / xhr.total) * 55) + '%';
+}, (err) => {
+  loadMsg.textContent = '地形加载失败：' + err;
+});
+
+// 城池/水面/林木/标注（GLB，材质色原生保留；glTF 已是 y-up，无需旋转）
+new GLTFLoader().load('./shengjing-structures.glb', (gltf) => {
+  gltf.scene.traverse((o) => {
+    if (o.isMesh && o.material) o.material.side = THREE.DoubleSide;
+  });
+  scene.add(gltf.scene);
+  ready();
+}, (xhr) => {
+  if (xhr.total) loadBar.style.width = 55 + Math.round((xhr.loaded / xhr.total) * 45) + '%';
+}, (err) => {
+  loadMsg.textContent = '城池加载失败：' + err;
+});
+
+// —— 机位预设（three 坐标：北 = +z 侧为对岸平原方向……实际取旋转后映射） ——
+const VIEWS = {
+  overview: { pos: [3800, 2500, 4100], tgt: [0, 100, 0] },
+  top:      { pos: [0, 9200, 0.01],    tgt: [0, 0, 0] },
+  city:     { pos: [1050, 720, 1150],  tgt: [0, 80, 0] },
+  nanling:  { pos: [2400, 2100, -3600], tgt: [0, 260, -2100] },
+  bay:      { pos: [1900, 760, 2500],  tgt: [1150, 20, 1500] },
+};
+let anim = null;
+function applyView(name) {
+  const v = VIEWS[name];
+  if (!v) return;
+  anim = { t: 0, fromP: camera.position.clone(), toP: new THREE.Vector3(...v.pos),
+           fromT: controls.target.clone(), toT: new THREE.Vector3(...v.tgt) };
+}
+document.querySelectorAll('.toolbar button[data-view]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.toolbar button[data-view]').forEach((b) => b.classList.remove('active'));
+    btn.classList.add('active');
+    applyView(btn.dataset.view);
+  });
+});
+
+const spinBtn = document.getElementById('spinBtn');
+spinBtn.addEventListener('click', () => {
+  controls.autoRotate = !controls.autoRotate;
+  spinBtn.classList.toggle('active', controls.autoRotate);
+});
+renderer.domElement.addEventListener('pointerdown', () => {
+  if (controls.autoRotate) { controls.autoRotate = false; spinBtn.classList.remove('active'); }
+});
+
+// 规格面板收起/展开
+const spec = document.getElementById('spec');
+const specToggle = document.getElementById('specToggle');
+document.querySelector('.title-card').addEventListener('dblclick', () => {
+  spec.classList.add('hidden');
+  specToggle.classList.add('show');
+});
+specToggle.addEventListener('click', () => {
+  spec.classList.remove('hidden');
+  specToggle.classList.remove('show');
+});
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// 相机飞行缓动
+function tick() {
+  requestAnimationFrame(tick);
+  if (anim) {
+    anim.t += 0.022;
+    const t = Math.min(anim.t, 1);
+    const e = 1 - Math.pow(1 - t, 3); // easeOutCubic
+    camera.position.lerpVectors(anim.fromP, anim.toP, e);
+    controls.target.lerpVectors(anim.fromT, anim.toT, e);
+    if (t >= 1) anim = null;
+  }
+  controls.update();
+  renderer.render(scene, camera);
+}
+camera.position.set(6000, 3500, 6000);
+controls.target.set(0, 0, 0);
+tick();
+</script>
+</body>
+</html>
