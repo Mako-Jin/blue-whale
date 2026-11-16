@@ -123,6 +123,21 @@ public interface FileAssetRepository {
     Optional<FileAssetAggregate> findReusableByDigest(String md5, long fileSize);
 
     /**
+     * 按上传者 + 摘要 + 大小 + 原始文件名查询可复用的正常根文件（秒传同用户去重依据）
+     *
+     * <p>仅匹配未逻辑删除、状态正常且 {@code parent_id IS NULL} 的根文件；摘要大小写不敏感。
+     * 上传者为空、摘要或文件名为空白时直接未命中。</p>
+     *
+     * @param uploaderId 上传用户 ID
+     * @param md5 MD5 摘要（十六进制，大小写不敏感）
+     * @param fileSize 文件大小（字节）
+     * @param originalName 原始文件名
+     * @return 可复用的文件资产；未命中时返回空
+     */
+    Optional<FileAssetAggregate> findReusableByUploaderAndDigest(Long uploaderId, String md5, long fileSize,
+                                                                 String originalName);
+
+    /**
      * 逻辑删除文件资产（同时记录删除时间），并级联删除其版本行
      *
      * <p>仅对未删除行生效，重复调用不改变结果（幂等）。传入根文件时级联逻辑删除

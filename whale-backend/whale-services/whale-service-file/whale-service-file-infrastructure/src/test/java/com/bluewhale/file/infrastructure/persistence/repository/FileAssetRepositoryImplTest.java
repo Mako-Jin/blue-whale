@@ -399,6 +399,23 @@ class FileAssetRepositoryImplTest {
     }
 
     @Test
+    @DisplayName("findReusableByUploaderAndDigest：同用户同文件命中，空参数直接未命中")
+    void shouldFindReusableByUploaderAndDigest() {
+        FileInfoPo po = po(5L, 0);
+        po.setUploaderId(9L);
+        when(fileInfoMapper.selectOne(any())).thenReturn(po);
+
+        Optional<FileAssetAggregate> hit = repository.findReusableByUploaderAndDigest(9L, "AABB", 5L, "a.txt");
+
+        assertTrue(hit.isPresent());
+        assertEquals(5L, hit.get().getId());
+        assertTrue(repository.findReusableByUploaderAndDigest(null, "aabb", 5L, "a.txt").isEmpty());
+        assertTrue(repository.findReusableByUploaderAndDigest(9L, " ", 5L, "a.txt").isEmpty());
+        assertTrue(repository.findReusableByUploaderAndDigest(9L, "aabb", 5L, " ").isEmpty());
+        verify(fileInfoMapper, times(1)).selectOne(any());
+    }
+
+    @Test
     @DisplayName("findVersionRootIdsWithExcess：游标扫描超限根文件并规整批次大小")
     void shouldFindVersionRootIdsWithExcess() {
         when(fileInfoMapper.selectVersionRootIdsWithExcess(1, 10L, 2L)).thenReturn(List.of(11L, 12L));

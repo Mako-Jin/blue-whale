@@ -344,6 +344,15 @@ public class FileInfoServiceImpl implements FileInfoService {
         validateDeclaredSize(command.size(), effective);
         // MD5 大小写由仓储端口归一化，应用层按调用方原值透传
         String md5 = command.md5();
+        String originalName = resolveOriginalName(command.fileName());
+        // 同用户、同文件名、同摘要与大小视为同一逻辑文件：直接返回既有记录，不落新行、不重复计配额
+        FileAssetAggregate sameUser = fileAssetRepository
+                .findReusableByUploaderAndDigest(command.uploaderId(), md5, command.size(), originalName)
+                .orElse(null);
+        if (sameUser != null) {
+            fileMetrics.recordUpload("rapid", command.size(), 0L, "success");
+            return new FileRapidUploadResult(true, toUploadResult(sameUser));
+        }
         FileAssetAggregate existing = fileAssetRepository.findReusableByDigest(md5, command.size()).orElse(null);
         if (existing == null) {
             fileMetrics.recordUpload("rapid", command.size(), 0L, "miss");
@@ -351,7 +360,7 @@ public class FileInfoServiceImpl implements FileInfoService {
         }
         // 秒传复用已有物理对象，桶维度按源文件所在桶计量
         validateQuota(command.size(), command.uploaderId(), existing.getBucket(), effective.quotaBytes());
-        FileAssetAggregate asset = FileAssetAggregate.reuse(existing, resolveOriginalName(command.fileName()),
+        FileAssetAggregate asset = FileAssetAggregate.reuse(existing, originalName,
                 command.contentType(), command.uploaderId());
         long startedAt = System.nanoTime();
         try {

@@ -718,6 +718,25 @@ class FileInfoServiceImplTest {
     }
 
     @Test
+    @DisplayName("rapidUpload：同用户同文件名命中时直接返回既有文件，不落库、不计配额")
+    void shouldRapidUploadDedupeSameUserFile() {
+        when(fileAssetRepository.findReusableByUploaderAndDigest(UPLOADER_ID,
+                "D41D8CD98F00B204E9800998ECF8427E", 123L, "copy.pdf"))
+                .thenReturn(Optional.of(existingFile(123L)));
+
+        FileRapidUploadResult result = fileInfoService.rapidUpload(
+                rapidCommand("copy.pdf", "D41D8CD98F00B204E9800998ECF8427E", 123L, null));
+
+        assertTrue(result.hit());
+        assertNotNull(result.file());
+        assertEquals(Long.valueOf(11L), result.file().id());
+        verify(fileAssetRepository, never()).findReusableByDigest(anyString(), anyLong());
+        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAssetAggregate.class), any(StorageQuota.class));
+        verify(fileAssetRepository, never()).sumNormalSizeByUploader(anyLong());
+        verify(fileStorage, never()).store(any(), any(), any());
+    }
+
+    @Test
     @DisplayName("rapidUpload：未命中时返回 hit=false 且不落库、不占配额")
     void shouldRapidUploadMissWithoutPersisting() {
         when(fileAssetRepository.findReusableByDigest("d41d8cd98f00b204e9800998ecf8427e", 123L))

@@ -329,6 +329,25 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
     }
 
     @Override
+    public Optional<FileAssetAggregate> findReusableByUploaderAndDigest(Long uploaderId, String md5, long fileSize,
+                                                                        String originalName) {
+        if (uploaderId == null || !StringUtils.hasText(md5) || !StringUtils.hasText(originalName)) {
+            return Optional.empty();
+        }
+        String normalized = md5.trim().toLowerCase(Locale.ROOT);
+        FileInfoPo po = fileInfoMapper.selectOne(new LambdaQueryWrapper<FileInfoPo>()
+                .eq(FileInfoPo::getUploaderId, uploaderId)
+                .eq(FileInfoPo::getMd5, normalized)
+                .eq(FileInfoPo::getFileSize, fileSize)
+                .eq(FileInfoPo::getOriginalName, originalName)
+                .eq(FileInfoPo::getStatus, FileStatus.NORMAL.getCode())
+                .isNull(FileInfoPo::getParentId)
+                .orderByAsc(FileInfoPo::getId)
+                .last(LIMIT_ONE));
+        return Optional.ofNullable(po).map(FileInfoPersistenceAssembler::toDomain);
+    }
+
+    @Override
     public Optional<FileAssetAggregate> findReusableByDigest(String md5, long fileSize) {
         if (!StringUtils.hasText(md5)) {
             return Optional.empty();
