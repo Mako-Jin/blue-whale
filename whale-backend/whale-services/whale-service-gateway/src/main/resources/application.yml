@@ -64,57 +64,33 @@ whale:
     # 未命中来源的预检请求返回 403，由 Nginx 同源转发兜底。
     cors:
       allowed-origins: ${WHALE_GATEWAY_CORS_ALLOWED_ORIGINS:http://localhost:*,http://127.0.0.1:*}
-    # 不需要 JWT 认证的白名单路径（支持 Ant 通配符）
+    # 不需要 JWT 认证的白名单路径（支持 Ant 通配符）。
+    # P2-7 精简：远程名单（auth 库 sys_gateway_whitelist，60s 拉取）为权威源，本地仅保留
+    #   「登录闭环 + 外部不可重试回调」兜底；其余放行项（文档、actuator、审计上报、WS、
+    #   音视频流、OAuth2 协议端点等）只在远程名单维护，管理端增删 ≤60s 生效。
+    # 保留本地兜底的原因：冷启动且 auth 长时间不可用时远程快照为空，登录链路与外部回调
+    #   不能因为网关 401 而中断；反过来，这些条目在管理端停用/删除后本地仍会放行，属有意例外。
     white-list:
+      # 登录与续期（登录页在未认证状态必须可用）
       - /auth/v1/login
       - /auth/v1/refresh
-      # 登录页品牌解析（权限中心扩展 M0）：登录前渲染品牌，免 JWT
+      # 登录页品牌解析（登录前渲染品牌，免 JWT）
       - /brand/v1/resolve
-      # 三方登录（权限中心扩展 M2）：授权起始/渠道回调为浏览器跳转链路、一次性登录码换令牌为
-      # 短时效凭证交换，均免 JWT；state 一次性消费 + 登录码防重放在 auth 服务侧保证。
-      # 绑定/解绑/绑定列表（/social/v1/bind*、/social/v1/bindings）不在白名单，仍须 JWT。
-      - /social/v1/*/authorize
+      # 三方登录渠道回调：外部 IdP 浏览器跳转，失败不可重试
       - /social/v1/*/callback
-      - /social/v1/login
-      # OAuth2.0 授权服务器（权限中心扩展 M1）：令牌/撤销/内省/JWKS/发现文档均为协议端点，
-      # 客户端凭据由框架在服务内校验（client_secret_basic|post），网关不再叠加 JWT；
-      # /oauth2/authorize 涉及用户授权，仍须 JWT，故不放行。
-      - /oauth2/token
-      - /oauth2/revoke
-      - /oauth2/introspect
-      - /oauth2/jwks
-      - /.well-known/**
-      - /actuator/**
-      - /v3/api-docs/**
-      - /doc.html
-      - /webjars/**
-      - /favicon.ico
-      # 前端/行为上报接口（REQ-SEC-006）：未登录期也需上报，免 JWT；路径须与 whale-audit 对外路径逐字一致（网关不剥离前缀）
-      # 仅放行上报写入端点 /batch；同前缀下的 /page 查询端点须走 JWT + 权限码头（否则漏注入 X-Permission-Codes 导致下游 403）
-      - /audit/log/frontend/batch
-      - /audit/log/behavior/batch
-      # Wave 5.52 WebIM WebSocket 升级：浏览器 WS 无法携带 Authorization 头，
-      # 鉴权改由 60s 一次性 ticket（POST /im/ws-ticket 已走标准 JWT）；URL 中严禁出现 JWT。
-      - /im/ws
-      # 3D 蓝鲸城世界频道（/im/world）：与 /im/ws 同一套 ticket 口径，握手同样无法带 Authorization。
-      # 漏加这条的后果是「能连上但永远是单机」——网关先回 401，前端 net.ts 静默退回本地模拟，
-      # 画面里其他玩家全是假的，且没有任何报错，只在 console 里留一行 warn。
-      - /im/world
-      # Wave 5.74 M2 文档实时协作 WS 升级：同上，ticket 由 POST /doc/ws-ticket 签发
-      - /doc/ws
-      # Wave 5.75 / 5.77 音视频流：<audio>/<video> 标签无法携带 Authorization 头，
-      # 鉴权改由 POST /music/play/ticket、POST /video/play/ticket 签发的一次性票据，
-      # 票据在 whale-music / whale-video 侧校验并消费，网关层不再要求 JWT。
-      - /music/stream/**
-      - /video/stream/**
-      # Wave 5.61 M3 第三方电子签章回调：三方平台匿名回调，安全依赖渠道 HMAC/RSA 验签
-      # + 时间戳窗口 + provider_event_id 幂等；仅放行该前缀，其余 /contract/** 仍须 JWT。
+      # 第三方电子签章回调：外部平台匿名回调，安全依赖渠道 HMAC/RSA 验签 + 时间戳窗口 + 幂等
       - /contract/sign/callback/**
     # P2-6 WebSocket 握手 ticket 校验路径（精确匹配，不参与 Ant 通配）：
-    #   必须与上方 white-list、gateway-routes-fallback.yaml 的 WS 路由 predicates 三处一致。
-    #   新增 WS 端点时：本配置加路径 + white-list 加同路径（WS 无法带 Authorization）+ 路由 predicates 同步。
+    #   必须与远程白名单（auth 库 sys_gateway_whitelist）、gateway-routes-fallback.yaml 的
+    #   WS 路由 predicates 三处一致。新增 WS 端点时：本配置加路径 + 远程白名单加同路径
+    #   （WS 握手无法带 Authorization）+ 路由 predicates 同步。
     ws-ticket:
       paths: ${WHALE_GATEWAY_WS_TICKET_PATHS:/im/ws,/im/world,/doc/ws}
+    # P2-14 管理端点收口：/actuator 不走网关路由链，JWT 白名单对其无效。
+    #   默认仅允许内网/回环来源，并校验 X-Forwarded-For 首段（公网经 Nginx 转发也拒绝）；
+    #   仅当网络层已隔离 /actuator 时才可置 false。
+    actuator:
+      internal-only: ${WHALE_GATEWAY_ACTUATOR_INTERNAL_ONLY:true}
     # 访问名单动态加载：以权限中心（whale-service-auth）DB 为准，网关按 refresh-interval-ms 周期拉取
     #   白名单 GET /auth/v1/internal/gateway/whitelist → 与上方 white-list 取并集；
     #   黑名单 GET /auth/v1/internal/gateway/blacklist → 优先级高于白名单，命中即 403。

@@ -32,6 +32,9 @@ public class WhaleGatewayProperties {
     /** WS 握手 ticket 校验配置（P2-6） */
     private WsTicket wsTicket = new WsTicket();
 
+    /** 管理端点访问控制（P2-14） */
+    private Actuator actuator = new Actuator();
+
     /**
      * JWT 相关配置
      *
@@ -100,8 +103,8 @@ public class WhaleGatewayProperties {
      * WebSocket 握手 ticket 校验配置（P2-6）。
      *
      * <p>{@code paths} 为需要一次性 ticket 的 WS 握手路径（精确匹配）。新增 WS 端点时
-     * 必须同步修改本配置、{@code whale.gateway.white-list}（WS 握手无法携带 Authorization）
-     * 与路由 predicates，否则会出现「网关放行但下游拒绝」或「网关直接 401」。</p>
+     * 必须同步修改本配置、远程白名单（auth 库 {@code sys_gateway_whitelist}，WS 握手无法携带
+     * Authorization）与路由 predicates，否则会出现「网关放行但下游拒绝」或「网关直接 401」。</p>
      *
      * @author BlueWhale
      */
@@ -110,5 +113,21 @@ public class WhaleGatewayProperties {
 
         /** 需要 ticket 的 WS 握手路径 */
         private List<String> paths = new ArrayList<>(List.of("/im/ws", "/im/world", "/doc/ws"));
+    }
+
+    /**
+     * 管理端点（{@code /actuator/**}）访问控制（P2-14）。
+     *
+     * <p>actuator 端点不经过网关路由链，{@code JwtAuthGlobalFilter} 的白名单对其无效，
+     * 因此需要独立的来源限制：默认仅允许内网/回环来源，并校验 {@code X-Forwarded-For}
+     * 首段客户端地址，避免公网请求经 Nginx 转发后以「内网来源」身份访问。</p>
+     *
+     * @author BlueWhale
+     */
+    @Data
+    public static class Actuator {
+
+        /** 是否仅允许内网来源访问 {@code /actuator/**}（默认开启） */
+        private boolean internalOnly = true;
     }
 }
