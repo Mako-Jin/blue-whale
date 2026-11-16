@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="890" viewBox="0 0 1200 890">
+  <rect width="1200" height="890" fill="#ffffff"/>
+  <text x="60" y="52" font-family="Microsoft YaHei" font-size="32" font-weight="bold" fill="#1e293b">图 1　网关的两条链：WebFilter 先跑，GlobalFilter 后跑</text>
+  <text x="60" y="86" font-family="Microsoft YaHei" font-size="19" fill="#64748b">order 越小越先执行。同一个请求自上而下穿过，任何一环短路即返回，不再往下走。</text>
+  <text x="60" y="112" font-family="Microsoft YaHei" font-size="17" fill="#94a3b8">注：两条链各自排序，CorsWebFilter 的「最高优先级」只在 WebFilter 链内成立，它插不进 GlobalFilter 之间。</text>
+
+  <rect x="60" y="126" width="1080" height="92" rx="12" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="76" y="152" font-family="Microsoft YaHei" font-size="17" fill="#64748b">WebFilter 链</text>
+  <rect x="76" y="162" width="300" height="44" rx="8" fill="#dbeafe" stroke="#93c5fd"/>
+  <text x="94" y="191" font-family="Microsoft YaHei" font-size="18" fill="#1d4ed8">CorsWebFilter · 预检即终止</text>
+  <rect x="392" y="162" width="540" height="44" rx="8" fill="#dbeafe" stroke="#93c5fd"/>
+  <text x="410" y="191" font-family="Microsoft YaHei" font-size="18" fill="#1d4ed8">ActuatorGovernanceAuthWebFilter · 治理端点鉴权</text>
+  <text x="956" y="182" font-family="Microsoft YaHei" font-size="17" fill="#94a3b8">JWT 与限流</text>
+  <text x="956" y="204" font-family="Microsoft YaHei" font-size="17" fill="#94a3b8">都管不到这两个</text>
+
+  <line x1="600" y1="218" x2="600" y2="242" stroke="#94a3b8" stroke-width="2"/>
+  <polygon points="600,250 594,238 606,238" fill="#94a3b8"/>
+  <text x="618" y="236" font-family="Microsoft YaHei" font-size="17" fill="#64748b">进入 GlobalFilter 链</text>
+
+  <rect x="60" y="264" width="1080" height="74" rx="10" fill="#f1f5f9" stroke="#e2e8f0"/>
+  <rect x="60" y="264" width="6" height="74" rx="3" fill="#1d4ed8"/>
+  <rect x="82" y="282" width="80" height="38" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="122" y="308" font-family="Consolas, monospace" font-size="19" font-weight="bold" fill="#1d4ed8" text-anchor="middle">-200</text>
+  <text x="180" y="298" font-family="Microsoft YaHei" font-size="21" font-weight="bold" fill="#1e293b">TraceIdGlobalFilter</text>
+  <text x="180" y="324" font-family="Microsoft YaHei" font-size="16" fill="#64748b">校验入站 X-Trace-Id 格式（不合规丢弃重生成），向下游与响应回写</text>
+
+  <rect x="60" y="344" width="1080" height="74" rx="10" fill="#f1f5f9" stroke="#e2e8f0"/>
+  <rect x="60" y="344" width="6" height="74" rx="3" fill="#1d4ed8"/>
+  <rect x="82" y="362" width="80" height="38" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="122" y="388" font-family="Consolas, monospace" font-size="19" font-weight="bold" fill="#1d4ed8" text-anchor="middle">-190</text>
+  <text x="180" y="378" font-family="Microsoft YaHei" font-size="21" font-weight="bold" fill="#1e293b">RateLimitGlobalFilter</text>
+  <text x="180" y="404" font-family="Microsoft YaHei" font-size="16" fill="#64748b">Redis + Lua 固定窗口按 IP 计数；排在 -200 之后，429 响应也带 traceId</text>
+
+  <rect x="60" y="424" width="1080" height="74" rx="10" fill="#f1f5f9" stroke="#e2e8f0"/>
+  <rect x="60" y="424" width="6" height="74" rx="3" fill="#b45309"/>
+  <rect x="82" y="442" width="80" height="38" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="122" y="468" font-family="Consolas, monospace" font-size="19" font-weight="bold" fill="#b45309" text-anchor="middle">-110</text>
+  <text x="180" y="458" font-family="Microsoft YaHei" font-size="21" font-weight="bold" fill="#1e293b">InternalApiDenyGlobalFilter</text>
+  <text x="180" y="484" font-family="Microsoft YaHei" font-size="16" fill="#64748b">内网接口一律 403；跑在鉴权之前，不合法请求不消耗验签成本</text>
+
+  <rect x="60" y="504" width="1080" height="74" rx="10" fill="#f1f5f9" stroke="#e2e8f0"/>
+  <rect x="60" y="504" width="6" height="74" rx="3" fill="#0f766e"/>
+  <rect x="82" y="522" width="80" height="38" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="122" y="548" font-family="Consolas, monospace" font-size="19" font-weight="bold" fill="#0f766e" text-anchor="middle">-100</text>
+  <text x="180" y="538" font-family="Microsoft YaHei" font-size="21" font-weight="bold" fill="#1e293b">JwtAuthGlobalFilter</text>
+  <text x="180" y="564" font-family="Microsoft YaHei" font-size="16" fill="#64748b">验签（HS256 / RS256 + JWKS）→ 令牌类型、租户、时钟漂移 → 四段撤销校验（见图 2）</text>
+
+  <rect x="60" y="584" width="1080" height="74" rx="10" fill="#f1f5f9" stroke="#e2e8f0"/>
+  <rect x="60" y="584" width="6" height="74" rx="3" fill="#b45309"/>
+  <rect x="82" y="602" width="80" height="38" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="122" y="628" font-family="Consolas, monospace" font-size="19" font-weight="bold" fill="#b45309" text-anchor="middle">-95</text>
+  <text x="180" y="618" font-family="Microsoft YaHei" font-size="21" font-weight="bold" fill="#1e293b">ImWsTicketGuardGlobalFilter</text>
+  <text x="180" y="644" font-family="Microsoft YaHei" font-size="16" fill="#64748b">WS 握手前校验 ticket；抢在 101 协议升级之前拒绝，避免「连上了又被后端踢掉」</text>
+
+  <rect x="60" y="664" width="1080" height="74" rx="10" fill="#fef3c7" stroke="#fcd34d"/>
+  <rect x="60" y="664" width="6" height="74" rx="3" fill="#b45309"/>
+  <rect x="82" y="682" width="80" height="38" rx="8" fill="#ffffff" stroke="#d6d3d1"/>
+  <text x="122" y="708" font-family="Consolas, monospace" font-size="19" font-weight="bold" fill="#b45309" text-anchor="middle">-80</text>
+  <text x="180" y="698" font-family="Microsoft YaHei" font-size="21" font-weight="bold" fill="#1e293b">PermissionHeaderGlobalFilter</text>
+  <text x="180" y="724" font-family="Microsoft YaHei" font-size="16" fill="#b45309">读 Redis 权限缓存，未命中回 /auth/me（800ms 上限），注入 X-Permission-Codes</text>
+
+  <rect x="60" y="744" width="1080" height="74" rx="10" fill="#fef3c7" stroke="#fcd34d"/>
+  <rect x="60" y="744" width="6" height="74" rx="3" fill="#b45309"/>
+  <rect x="82" y="762" width="80" height="38" rx="8" fill="#ffffff" stroke="#d6d3d1"/>
+  <text x="122" y="788" font-family="Consolas, monospace" font-size="19" font-weight="bold" fill="#b45309" text-anchor="middle">-75</text>
+  <text x="180" y="778" font-family="Microsoft YaHei" font-size="21" font-weight="bold" fill="#1e293b">CircuitBreakerGlobalFilter</text>
+  <text x="180" y="804" font-family="Microsoft YaHei" font-size="16" fill="#b45309">从这一格开始 timeout 计时（默认 3000ms）——所以权限码头必须排在它前面</text>
+
+  <line x1="600" y1="826" x2="600" y2="846" stroke="#94a3b8" stroke-width="2"/>
+  <polygon points="600,854 594,842 606,842" fill="#94a3b8"/>
+  <text x="618" y="850" font-family="Microsoft YaHei" font-size="18" fill="#1e293b">下游业务服务（只读请求头，不再回查权限中心）</text>
+</svg>

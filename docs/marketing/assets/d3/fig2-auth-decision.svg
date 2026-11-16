@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="920" viewBox="0 0 1200 920">
+  <rect width="1200" height="920" fill="#ffffff"/>
+  <text x="60" y="52" font-family="Microsoft YaHei" font-size="32" font-weight="bold" fill="#1e293b">图 2　一次请求的鉴权判定：五道门 + 一段并行 + 一个优先级</text>
+  <text x="60" y="86" font-family="Microsoft YaHei" font-size="19" fill="#64748b">前五道是纯本地判断（不碰网络），第六段才查 Redis，最后按固定优先级短路——顺序错了就是安全洞。</text>
+
+  <circle cx="92" cy="128" r="18" fill="#e2e8f0"/>
+  <text x="92" y="135" font-family="Microsoft YaHei" font-size="18" font-weight="bold" fill="#334155" text-anchor="middle">1</text>
+  <text x="128" y="122" font-family="Microsoft YaHei" font-size="21" font-weight="bold" fill="#1e293b">先解 JWT 头，只读 alg / kid</text>
+  <text x="128" y="148" font-family="Microsoft YaHei" font-size="16" fill="#64748b">jjwt 拿不到密钥就无法完整验签，所以先单独解析 header 段选密钥，这段内容一律不信任：</text>
+  <text x="128" y="172" font-family="Microsoft YaHei" font-size="16" fill="#64748b">HS256 用共享密钥；RS256 按 kid 取 JWKS 公钥（10 分钟缓存，未知 kid 强制刷一次，失败负缓存 30 秒）</text>
+
+  <circle cx="92" cy="214" r="18" fill="#e2e8f0"/>
+  <text x="92" y="221" font-family="Microsoft YaHei" font-size="18" font-weight="bold" fill="#334155" text-anchor="middle">2</text>
+  <text x="128" y="208" font-family="Microsoft YaHei" font-size="21" font-weight="bold" fill="#1e293b">验签 + 过期</text>
+  <text x="128" y="234" font-family="Microsoft YaHei" font-size="16" fill="#64748b">签名不对或 exp 已过，401 invalid_token</text>
+
+  <circle cx="92" cy="276" r="18" fill="#e2e8f0"/>
+  <text x="92" y="283" font-family="Microsoft YaHei" font-size="18" font-weight="bold" fill="#334155" text-anchor="middle">3</text>
+  <text x="128" y="270" font-family="Microsoft YaHei" font-size="21" font-weight="bold" fill="#1e293b">令牌类型必须是 access</text>
+  <text x="128" y="296" font-family="Microsoft YaHei" font-size="16" fill="#64748b">refresh_token 只能走 /auth/v1/refresh 白名单，拿来当访问令牌一律拒绝</text>
+
+  <circle cx="92" cy="338" r="18" fill="#e2e8f0"/>
+  <text x="92" y="345" font-family="Microsoft YaHei" font-size="18" font-weight="bold" fill="#334155" text-anchor="middle">4</text>
+  <text x="128" y="332" font-family="Microsoft YaHei" font-size="21" font-weight="bold" fill="#1e293b">tenantId / userId 缺一即拒</text>
+  <text x="128" y="358" font-family="Microsoft YaHei" font-size="16" fill="#64748b">没有租户或用户的令牌无法做数据范围判定，不能放行</text>
+
+  <circle cx="92" cy="400" r="18" fill="#e2e8f0"/>
+  <text x="92" y="407" font-family="Microsoft YaHei" font-size="18" font-weight="bold" fill="#334155" text-anchor="middle">5</text>
+  <text x="128" y="394" font-family="Microsoft YaHei" font-size="21" font-weight="bold" fill="#1e293b">iat 不得超前本机 5 分钟</text>
+  <text x="128" y="420" font-family="Microsoft YaHei" font-size="16" fill="#64748b">签发时间在未来的令牌，会让「按签发时间比对」的撤销校验永久失效——这是一条真实的绕过路径</text>
+
+  <rect x="60" y="444" width="1080" height="150" rx="10" fill="#f1f5f9" stroke="#e2e8f0"/>
+  <circle cx="92" cy="476" r="18" fill="#0f766e"/>
+  <text x="92" y="483" font-family="Microsoft YaHei" font-size="18" font-weight="bold" fill="#ffffff" text-anchor="middle">6</text>
+  <text x="128" y="470" font-family="Microsoft YaHei" font-size="21" font-weight="bold" fill="#1e293b">四段校验并行（Mono.zip），一次往返拿齐四个结论</text>
+  <text x="128" y="494" font-family="Microsoft YaHei" font-size="16" fill="#64748b">串行要 4~5 次 Redis RTT，并行约 1 次；代价是黑名单命中时也要等最慢的一路，属于有意取舍</text>
+  <rect x="132" y="510" width="225" height="60" rx="8" fill="#ccfbf1" stroke="#5eead4"/>
+  <text x="244" y="546" font-family="Microsoft YaHei" font-size="18" fill="#0f766e" text-anchor="middle">登出黑名单</text>
+  <rect x="369" y="510" width="225" height="60" rx="8" fill="#ccfbf1" stroke="#5eead4"/>
+  <text x="481" y="546" font-family="Microsoft YaHei" font-size="18" fill="#0f766e" text-anchor="middle">租户停用 / 到期</text>
+  <rect x="606" y="510" width="225" height="60" rx="8" fill="#ccfbf1" stroke="#5eead4"/>
+  <text x="718" y="546" font-family="Microsoft YaHei" font-size="18" fill="#0f766e" text-anchor="middle">成员被移出租户</text>
+  <rect x="843" y="510" width="225" height="60" rx="8" fill="#ccfbf1" stroke="#5eead4"/>
+  <text x="955" y="546" font-family="Microsoft YaHei" font-size="18" fill="#0f766e" text-anchor="middle">用户删除 / 停用 / 改密</text>
+
+  <circle cx="92" cy="630" r="18" fill="#b45309"/>
+  <text x="92" y="637" font-family="Microsoft YaHei" font-size="18" font-weight="bold" fill="#ffffff" text-anchor="middle">7</text>
+  <text x="128" y="624" font-family="Microsoft YaHei" font-size="21" font-weight="bold" fill="#1e293b">按优先级短路判定（左高右低）</text>
+  <rect x="70" y="642" width="162" height="46" rx="8" fill="#fee2e2" stroke="#fca5a5"/>
+  <text x="151" y="671" font-family="Microsoft YaHei" font-size="17" fill="#b91c1c" text-anchor="middle">黑名单</text>
+  <rect x="244" y="642" width="162" height="46" rx="8" fill="#fef3c7" stroke="#fcd34d"/>
+  <text x="325" y="671" font-family="Microsoft YaHei" font-size="17" fill="#b45309" text-anchor="middle">租户级白名单</text>
+  <rect x="418" y="642" width="162" height="46" rx="8" fill="#e2e8f0" stroke="#cbd5e1"/>
+  <text x="499" y="671" font-family="Microsoft YaHei" font-size="17" fill="#334155" text-anchor="middle">租户停用</text>
+  <rect x="592" y="642" width="162" height="46" rx="8" fill="#e2e8f0" stroke="#cbd5e1"/>
+  <text x="673" y="671" font-family="Microsoft YaHei" font-size="17" fill="#334155" text-anchor="middle">成员已撤销</text>
+  <rect x="766" y="642" width="162" height="46" rx="8" fill="#e2e8f0" stroke="#cbd5e1"/>
+  <text x="847" y="671" font-family="Microsoft YaHei" font-size="17" fill="#334155" text-anchor="middle">用户已撤销</text>
+  <rect x="940" y="642" width="162" height="46" rx="8" fill="#e2e8f0" stroke="#cbd5e1"/>
+  <text x="1021" y="671" font-family="Microsoft YaHei" font-size="17" fill="#334155" text-anchor="middle">强制改密未完成</text>
+  <text x="70" y="712" font-family="Microsoft YaHei" font-size="16" fill="#64748b">注：租户级白名单命中即跳过第 3~6 段，只保留黑名单校验——专供特定租户的开放接口，是最容易被误用的开关。</text>
+
+  <circle cx="92" cy="756" r="18" fill="#0f766e"/>
+  <text x="92" y="763" font-family="Microsoft YaHei" font-size="18" font-weight="bold" fill="#ffffff" text-anchor="middle">8</text>
+  <text x="128" y="750" font-family="Microsoft YaHei" font-size="21" font-weight="bold" fill="#1e293b">放行：先删客户端带来的身份头，再写网关算出来的值</text>
+  <text x="128" y="776" font-family="Microsoft YaHei" font-size="16" fill="#64748b">X-User-Id / X-Username / X-Tenant-Id / X-Permission-Codes 全部覆盖写；白名单路径只删不写，防审计日志被污染</text>
+
+  <rect x="60" y="812" width="1080" height="72" rx="8" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="80" y="840" font-family="Microsoft YaHei" font-size="16" fill="#64748b">Redis 整体故障时按 whale.security.degradation.fail-closed 取舍（默认 false）：</text>
+  <text x="80" y="866" font-family="Microsoft YaHei" font-size="16" fill="#64748b">false = 放行 + 告警，可用性优先；true = 全部拒绝，安全优先。两种都不让网关崩掉。</text>
+</svg>
