@@ -34,7 +34,7 @@ import static org.mockito.Mockito.when;
  * 权限码头注入全局过滤器单测（AUTH-06 / checklist 8.10）。
  *
  * <p>覆盖：开关关闭/缺 {@code X-User-Id} 直放行不注入、Redis 命中即注入并移除伪造同名头、
- * 命中哨兵 {@code __NULL__} 或未命中回落 {@code /auth/me}、两级均失败注入空串不阻断、order=-50。</p>
+ * 命中哨兵 {@code __NULL__} 或未命中回落 {@code /auth/me}、两级均失败注入空串不阻断、order=-80（早于熔断 -75）。</p>
  *
  * @author BlueWhale
  */
@@ -178,9 +178,9 @@ class PermissionHeaderGlobalFilterTest {
     }
 
     @Test
-    @DisplayName("order：固定为 -50")
+    @DisplayName("order：固定为 -80（早于熔断过滤器 -75，避免回落耗时计入下游熔断超时）")
     void shouldHaveFixedOrder() {
-        assertThat(filter.getOrder()).isEqualTo(-50);
+        assertThat(filter.getOrder()).isEqualTo(-80);
     }
 
     /**

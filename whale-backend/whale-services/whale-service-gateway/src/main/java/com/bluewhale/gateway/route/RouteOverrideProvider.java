@@ -5,6 +5,7 @@ import org.springframework.cloud.gateway.event.RefreshRoutesEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.Map;
@@ -91,10 +92,18 @@ public class RouteOverrideProvider {
             log.debug("上一次网关路由覆盖拉取尚未结束，跳过本次刷新");
             return;
         }
-        client.fetch().doOnNext(this::replaceSnapshot)
-                .doFinally(signal -> refreshing.set(false))
-                .subscribe(rules -> { },
-                        e -> log.warn("拉取网关路由覆盖失败，继续使用现有快照: reason={}", e.getMessage()));
+        try {
+            // 同 GatewayAccessListProvider：client.fetch() 内部可能同步抛异常（如 uri 配置为空），
+            // 必须兜底复位防重入标记，否则此后所有定时刷新被永久跳过、覆盖规则不再更新
+            Mono.defer(client::fetch)
+                    .doOnNext(this::replaceSnapshot)
+                    .doFinally(signal -> refreshing.set(false))
+                    .subscribe(rules -> { },
+                            e -> log.warn("拉取网关路由覆盖失败，继续使用现有快照: reason={}", e.getMessage()));
+        } catch (RuntimeException e) {
+            refreshing.set(false);
+            log.warn("创建网关路由覆盖拉取任务失败，已复位防重入标记: reason={}", e.getMessage());
+        }
     }
 
     /**

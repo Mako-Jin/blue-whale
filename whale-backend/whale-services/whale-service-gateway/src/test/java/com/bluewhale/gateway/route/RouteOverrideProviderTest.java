@@ -127,6 +127,20 @@ class RouteOverrideProviderTest {
     }
 
     @Test
+    @DisplayName("refresh：拉取客户端同步抛异常时复位防重入标记，后续刷新不被永久跳过")
+    void shouldResetRefreshFlagWhenSourceThrowsSynchronously() {
+        when(client.fetch())
+                .thenThrow(new IllegalArgumentException("URI is not absolute"))
+                .thenReturn(Mono.just(List.of(new RouteOverrideRule("whale-demo", true, null, null, 1L))));
+
+        provider.refresh();
+        provider.refresh();
+
+        verify(client, times(2)).fetch();
+        assertEquals(1, provider.overrides().size());
+    }
+
+    @Test
     @DisplayName("overrides：按 routeId 索引，生效窗口内的规则判定生效")
     void shouldIndexOverridesByRouteId() {
         lenient().when(client.fetch()).thenReturn(Mono.just(List.of(

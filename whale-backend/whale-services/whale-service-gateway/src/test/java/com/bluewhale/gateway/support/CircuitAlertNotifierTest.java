@@ -80,11 +80,21 @@ class CircuitAlertNotifierTest {
         ClientRequest request = captured.get();
         assertEquals("http://bw-alert:9103/alert/internal/record", request.url().toString());
         assertEquals("POST", request.method().name());
-        String token = System.getenv("WHALE_INTERNAL_TOKEN");
-        if (token == null || token.isBlank()) {
-            // 单测环境未配置令牌：期望不带令牌头（dev 侧 alert 按空令牌 fail-open）
-            assertNull(request.headers().getFirst("X-Internal-Token"));
-        }
+        // 内网令牌来自配置项（默认空）：未配置时不带令牌头（dev 侧 alert 按空令牌 fail-open）
+        assertNull(request.headers().getFirst("X-Internal-Token"));
+    }
+
+    @Test
+    @DisplayName("配置了内网令牌时随告警请求发送 X-Internal-Token")
+    void shouldAttachInternalTokenWhenConfigured() {
+        properties.setInternalToken("unit-test-internal-token");
+        notifier = new CircuitAlertNotifier(properties, stubClient());
+
+        notifier.notifyOpenAsync("whale-audit");
+        awaitCaptured();
+
+        assertEquals("unit-test-internal-token",
+                captured.get().headers().getFirst("X-Internal-Token"));
     }
 
     @Test

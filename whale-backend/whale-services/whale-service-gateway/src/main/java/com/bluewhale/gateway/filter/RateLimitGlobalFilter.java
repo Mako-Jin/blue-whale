@@ -67,15 +67,22 @@ public class RateLimitGlobalFilter implements GlobalFilter, Ordered {
     /** 窗口秒数下界，避免 0 或负数导致窗口编号除零 */
     private static final int MIN_WINDOW_SECONDS = 1;
 
-    /** 计数与过期原子化脚本：返回本次计数；首次计数（=1）时设置窗口级 TTL */
+    /**
+     * 计数与过期原子化脚本：返回本次计数；首次计数（=1）或键缺失 TTL（{@code TTL < 0}）时补设窗口级 TTL。
+     *
+     * <p>仅判断 {@code current == 1} 不够：若键因人为 {@code SET}、或「INCR 成功但 EXPIRE 未执行」
+     * 的极小窗口残留为「无 TTL 常驻键」，脚本此后永不补 TTL，该客户端会被<b>永久 429</b> 且极难排查。
+     * 因此额外用 {@code TTL < 0} 兜底修复（-1=无 TTL，-2=键不存在）。</p>
+     */
     private static final RedisScript<Long> INCR_WITH_EXPIRE = new DefaultRedisScript<>(
             "local current = redis.call('INCR', KEYS[1]) "
-                    + "if current == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end "
+                    + "if current == 1 or redis.call('TTL', KEYS[1]) < 0 then "
+                    + "redis.call('EXPIRE', KEYS[1], ARGV[1]) end "
                     + "return current",
             Long.class);
 
-    /** 限流拒绝计数指标名 */
-    private static final String METER_REJECTED = "gateway.rate_limit.rejected";
+    /** 限流拒绝计数指标名（Micrometer 推荐点号分隔） */
+    private static final String METER_REJECTED = "gateway.rate.limit.rejected";
 
     /** 指标规则标签名 */
     private static final String TAG_RULE = "rule";
@@ -89,8 +96,11 @@ public class RateLimitGlobalFilter implements GlobalFilter, Ordered {
     /** JSON 响应内容类型 */
     private static final String JSON_CONTENT_TYPE = "application/json;charset=UTF-8";
 
-    /** 过滤器顺序：先于链路追踪与鉴权执行，避免未限流流量进入下游 */
-    private static final int ORDER = Ordered.HIGHEST_PRECEDENCE + 10;
+    /**
+     * 过滤器顺序：晚于链路追踪（-200），保证 429 响应也能带上 X-Trace-Id 便于关联日志；
+     * 仍早于内网屏蔽（-110）与鉴权（-100），避免超限流量进入下游。
+     */
+    private static final int ORDER = -190;
 
     private final ReactiveStringRedisTemplate redisTemplate;
     private final RateLimitProperties properties;

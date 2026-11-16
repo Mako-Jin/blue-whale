@@ -141,8 +141,9 @@ whale:
     # 生产通过环境变量 WHALE_GATEWAY_GOVERNANCE_TOKEN 显式启用。health/info/prometheus 仍匿名可用。
     governance:
       token: ${WHALE_GATEWAY_GOVERNANCE_TOKEN:}
-    # AUTH-06 权限码头注入：JwtAuthGlobalFilter 注入 X-User-Id 后，PermissionHeaderGlobalFilter(order=-50)
-    # 读 Redis 权限码缓存（命中即注入）；未命中/哨兵/异常回落 lb://whale-service-auth/auth/v1/me，两级均失败注入空串并告警
+    # AUTH-06 权限码头注入：JwtAuthGlobalFilter 注入 X-User-Id 后，PermissionHeaderGlobalFilter(order=-80)
+    # 读 Redis 权限码缓存（命中即注入）；未命中/哨兵/异常回落 lb://whale-service-auth/auth/v1/me，两级均失败注入空串并告警。
+    # order 必须早于熔断过滤器（-75）：否则权限码头回落耗时会被计入下游熔断超时，auth 抖动会误开熔断。
     permission-header:
       enabled: ${WHALE_GATEWAY_PERMISSION_HEADER_ENABLED:true}
       # 回落 /auth/me 的强制超时（毫秒）：auth 抖动时快速失败，超时按 fail-closed 注入空权限码
@@ -160,6 +161,21 @@ whale:
       limit: ${WHALE_GATEWAY_RATE_LIMIT:200}
       window-seconds: ${WHALE_GATEWAY_RATE_LIMIT_WINDOW_SECONDS:1}
       path-rules:
+        # P1-4 登录/令牌端点防爆破：全局 200/s 对单 IP 撞库等于不限，网关层按 IP 追加更严阈值
+        # （auth 侧账号锁定之外成本最低的一道；阈值按环境变量可调）
+        - path-pattern: /auth/v1/login
+          limit: ${WHALE_GATEWAY_RATE_LIMIT_LOGIN:10}
+          window-seconds: ${WHALE_GATEWAY_RATE_LIMIT_LOGIN_WINDOW_SECONDS:60}
+        - path-pattern: /auth/v1/refresh
+          limit: ${WHALE_GATEWAY_RATE_LIMIT_REFRESH:20}
+          window-seconds: ${WHALE_GATEWAY_RATE_LIMIT_REFRESH_WINDOW_SECONDS:60}
+        - path-pattern: /social/v1/login
+          limit: ${WHALE_GATEWAY_RATE_LIMIT_SOCIAL_LOGIN:10}
+          window-seconds: ${WHALE_GATEWAY_RATE_LIMIT_SOCIAL_LOGIN_WINDOW_SECONDS:60}
+        # OAuth2 客户端凭据模式同样可被爆破，单独收紧
+        - path-pattern: /oauth2/token
+          limit: ${WHALE_GATEWAY_RATE_LIMIT_OAUTH2_TOKEN:60}
+          window-seconds: ${WHALE_GATEWAY_RATE_LIMIT_OAUTH2_TOKEN_WINDOW_SECONDS:60}
         - path-pattern: /audit/log/frontend/batch
           limit: ${WHALE_GATEWAY_RATE_LIMIT_REPORT:30}
           window-seconds: ${WHALE_GATEWAY_RATE_LIMIT_REPORT_WINDOW_SECONDS:1}
@@ -213,6 +229,9 @@ whale:
     circuit-breaker:
       enabled: ${WHALE_GATEWAY_CIRCUIT_BREAKER_ENABLED:true}
       alert-base-url: ${WHALE_GATEWAY_ALERT_BASE_URL:}
+      # 与访问名单/路由覆盖共用同一内网令牌（生产必须配置 WHALE_INTERNAL_TOKEN）：
+      # 三处统一从配置项读取，避免只配 Nacos 未设环境变量导致告警上报 401 静默丢失
+      internal-token: ${WHALE_INTERNAL_TOKEN:}
       timeout-millis: ${WHALE_GATEWAY_CIRCUIT_BREAKER_TIMEOUT_MILLIS:3000}
       failure-rate-threshold: ${WHALE_GATEWAY_CIRCUIT_BREAKER_FAILURE_RATE:50}
       sliding-window-size: ${WHALE_GATEWAY_CIRCUIT_BREAKER_WINDOW_SIZE:20}

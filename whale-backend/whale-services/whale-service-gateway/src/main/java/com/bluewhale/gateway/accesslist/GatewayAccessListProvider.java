@@ -211,10 +211,20 @@ public class GatewayAccessListProvider {
             log.debug("上一次网关{}拉取尚未结束，跳过本次刷新", label);
             return;
         }
-        source.get().doOnNext(rules -> replaceSnapshot(target, rules, label, emptyMessage))
-                .doFinally(signal -> flag.set(false))
-                .subscribe(rules -> { },
-                        e -> log.warn("拉取网关{}失败，继续使用现有快照与本地配置: reason={}", label, e.getMessage()));
+        try {
+            // Mono.defer 延迟到订阅时再创建请求链：source.get() 内部（WebClient.uri(null/空) 等）
+            // 可能同步抛异常，若不捕获则 doFinally 永不执行，防重入标记会永久为 true，
+            // 导致此后所有定时刷新被静默跳过（名单再也不会更新）。
+            Mono.defer(source)
+                    .doOnNext(rules -> replaceSnapshot(target, rules, label, emptyMessage))
+                    .doFinally(signal -> flag.set(false))
+                    .subscribe(rules -> { },
+                            e -> log.warn("拉取网关{}失败，继续使用现有快照与本地配置: reason={}",
+                                    label, e.getMessage()));
+        } catch (RuntimeException e) {
+            flag.set(false);
+            log.warn("创建网关{}拉取任务失败，已复位防重入标记: reason={}", label, e.getMessage());
+        }
     }
 
     /**
@@ -228,9 +238,15 @@ public class GatewayAccessListProvider {
     private void replaceSnapshot(AtomicReference<List<GatewayAccessListRule>> target,
                                  List<GatewayAccessListRule> rules, String label, String emptyMessage) {
         List<GatewayAccessListRule> safe = rules == null ? List.of() : List.copyOf(rules);
-        target.set(safe);
+        List<GatewayAccessListRule> previous = target.getAndSet(safe);
         if (safe.isEmpty()) {
-            log.warn("网关{}下发结果为空，{}", label, emptyMessage);
+            // 空名单是合法运维状态（管理员清空规则），仅在「非空 -> 空」迁移时告警一次，
+            // 避免每 60s 一条 WARN 造成告警疲劳
+            if (!previous.isEmpty()) {
+                log.warn("网关{}下发结果为空，{}", label, emptyMessage);
+            } else {
+                log.info("网关{}当前为空，{}", label, emptyMessage);
+            }
         } else {
             log.info("网关{}已刷新: {} 条", label, safe.size());
         }

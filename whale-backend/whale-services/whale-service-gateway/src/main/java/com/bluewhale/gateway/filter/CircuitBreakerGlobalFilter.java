@@ -114,6 +114,10 @@ public class CircuitBreakerGlobalFilter implements GlobalFilter, Ordered {
      * <p>生命周期与 {@code apply-to-routes} 强绑定：键仅在路由命中该静态列表时才创建，
      * 列表来自本地配置而非动态路由仓库，因此不会随 Nacos 路由增删而无界增长；
      * 每个键的 Gauge 也只在首次创建时注册一次（{@code computeIfAbsent} 保证）。</p>
+     *
+     * <p><b>运维约定</b>：{@code computeIfAbsent} 只增不减，若热更新从 {@code apply-to-routes}
+     * 移除某路由，对应 breaker 与 Gauge 仍会保留到进程重启（低频且无副作用），
+     * 因此「移除熔断路由」需重启网关生效。</p>
      */
     private final Map<String, CircuitBreaker> breakers = new ConcurrentHashMap<>();
 

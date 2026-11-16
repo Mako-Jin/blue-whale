@@ -247,6 +247,12 @@ class RateLimitGlobalFilterTest {
         assertNull(exchange.getResponse().getStatusCode());
     }
 
+    @Test
+    @DisplayName("order：晚于链路追踪（-200）且早于鉴权（-100），429 响应可携带 X-Trace-Id")
+    void shouldRunAfterTraceIdFilter() {
+        assertEquals(-190, filter.getOrder());
+    }
+
     /**
      * 捕获本次请求实际使用的 Redis 限流计数键
      *

@@ -201,6 +201,20 @@ class GatewayAccessListProviderTest {
     }
 
     @Test
+    @DisplayName("refresh：拉取客户端同步抛异常（如 URI 为空）时复位防重入标记，后续刷新不被永久跳过")
+    void shouldResetRefreshFlagWhenSourceThrowsSynchronously() {
+        when(client.fetchWhitelist())
+                .thenThrow(new IllegalArgumentException("URI is not absolute"))
+                .thenReturn(Mono.just(List.of(GatewayAccessListRule.platform("/demo/open/**", "*"))));
+
+        provider.refresh();
+        provider.refresh();
+
+        verify(client, times(2)).fetchWhitelist();
+        assertTrue(provider.matchesWhitelist(PATH, "GET"));
+    }
+
+    @Test
     @DisplayName("matchesWhitelist：租户级规则不参与平台级匹配（免认证放行不受租户规则影响）")
     void tenantScopedRuleShouldNotAffectPlatformWhitelist() {
         when(client.fetchWhitelist())

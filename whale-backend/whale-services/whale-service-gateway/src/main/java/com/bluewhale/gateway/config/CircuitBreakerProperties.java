@@ -45,6 +45,15 @@ public class CircuitBreakerProperties {
      */
     private String alertBaseUrl = "";
 
+    /**
+     * 内网令牌（对应服务侧 {@code WHALE_INTERNAL_TOKEN}），随告警请求以 {@code X-Internal-Token} 发送。
+     *
+     * <p>与 {@code whale.gateway.access-list.internal-token}、{@code whale.gateway.route-override.internal-token}
+     * 统一来自配置项而非直接读进程环境变量：运维只在 Nacos 配置令牌而未设置环境变量时，
+     * 告警上报不应静默丢掉令牌头。</p>
+     */
+    private String internalToken = "";
+
     /** 启用熔断降级的路由 id 列表，默认覆盖认证/任务/文件/审计四类关键路由 */
     private List<String> applyToRoutes = new ArrayList<>(List.of("whale-service-auth", "whale-job", "whale-file", "whale-audit"));
 }

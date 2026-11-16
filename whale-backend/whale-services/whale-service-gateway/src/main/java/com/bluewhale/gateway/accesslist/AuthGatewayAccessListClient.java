@@ -95,6 +95,11 @@ public class AuthGatewayAccessListClient {
      * @return 名单规则列表
      */
     private Mono<List<GatewayAccessListRule>> fetch(String uri) {
+        if (!StringUtils.hasText(uri)) {
+            // 显式转错误信号：WebClient.uri(null/空白) 会同步抛 IllegalArgumentException，
+            // 调用方的防重入标记来不及复位（见 GatewayAccessListProvider#refreshList）
+            return Mono.error(new IllegalStateException("网关访问名单接口地址未配置"));
+        }
         return webClientBuilder.build()
                 .get()
                 .uri(uri)

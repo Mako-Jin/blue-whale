@@ -47,7 +47,7 @@ public class CircuitAlertNotifier {
     /** 熔断配置（读 alert-base-url） */
     private final CircuitBreakerProperties properties;
 
-    /** 内网令牌（环境变量未配置时为空串，dev 侧 fail-open 可省略请求头） */
+    /** 内网令牌（配置项 whale.gateway.circuit-breaker.internal-token，空表示 dev fail-open 不带该头） */
     private final String internalToken;
 
     /** 出站 WebClient（测试可注入桩 ExchangeFunction） */
@@ -72,7 +72,9 @@ public class CircuitAlertNotifier {
     CircuitAlertNotifier(CircuitBreakerProperties properties, WebClient webClient) {
         this.properties = properties;
         this.webClient = webClient;
-        String token = System.getenv("WHALE_INTERNAL_TOKEN");
+        // 与访问名单/路由覆盖拉取客户端统一：从配置项读取（默认绑定 WHALE_INTERNAL_TOKEN 环境变量），
+        // 不再直接读 System.getenv，避免「Nacos 配了令牌但没设环境变量」时告警静默 401
+        String token = properties.getInternalToken();
         this.internalToken = token == null ? "" : token.trim();
     }
 

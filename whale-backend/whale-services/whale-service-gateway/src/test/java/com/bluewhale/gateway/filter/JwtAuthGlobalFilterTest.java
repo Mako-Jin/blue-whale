@@ -85,6 +85,8 @@ class JwtAuthGlobalFilterTest {
         filter = new JwtAuthGlobalFilter(properties, tokenBlacklistChecker, tenantStatusChecker,
                 membershipRevocationChecker, userAccessRevocationChecker, meterRegistryProvider,
                 accessListProvider);
+        lenient().when(tokenBlacklistChecker.isBlacklisted(anyString())).thenReturn(Mono.just(Boolean.FALSE));
+        lenient().when(tenantStatusChecker.isUnavailable(anyString())).thenReturn(Mono.just(Boolean.FALSE));
         lenient().when(membershipRevocationChecker.isRevoked(anyString(), anyString(), any()))
                 .thenReturn(Mono.just(Boolean.FALSE));
         lenient().when(userAccessRevocationChecker.isRevoked(anyString(), any()))
@@ -413,5 +415,47 @@ class JwtAuthGlobalFilterTest {
         ArgumentCaptor<ServerWebExchange> captor = ArgumentCaptor.forClass(ServerWebExchange.class);
         verify(chain).filter(captor.capture());
         assertEquals("/auth/v1/password", captor.getValue().getRequest().getURI().getPath());
+    }
+
+    @Test
+    @DisplayName("filter：iat 显著超前当前时间时返回 401（否则 iat<=撤销时刻 永不成立，撤销校验被绕过）")
+    void shouldRejectTokenIssuedInFuture() {
+        SecretKey key = Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
+        Date future = new Date(System.currentTimeMillis() + 10L * 60L * 1000L);
+        String futureToken = Jwts.builder()
+                .subject(USERNAME)
+                .claim("userId", USER_ID)
+                .claim("tenantId", TENANT_ID)
+                .claim("roles", ROLES)
+                .claim("tokenType", "access")
+                .issuedAt(future)
+                .expiration(new Date(future.getTime() + TOKEN_TTL_MILLIS))
+                .signWith(key, Jwts.SIG.HS256)
+                .compact();
+        MockServerWebExchange exchange = exchangeWithBearer(futureToken);
+        GatewayFilterChain chain = mock(GatewayFilterChain.class);
+
+        filter.filter(exchange, chain).block();
+
+        assertEquals(HttpStatus.UNAUTHORIZED, exchange.getResponse().getStatusCode());
+        verifyNoInteractions(chain, tokenBlacklistChecker);
+    }
+
+    @Test
+    @DisplayName("filter：命中租户级白名单时跳过租户停用/成员撤销/用户撤销校验，直接放行")
+    void shouldBypassGovernanceChecksWhenTenantWhitelisted() {
+        String accessToken = token("access");
+        MockServerWebExchange exchange = exchangeWithBearer(accessToken);
+        GatewayFilterChain chain = mock(GatewayFilterChain.class);
+        when(accessListProvider.matchesTenantWhitelist("/auth/users", "GET", String.valueOf(TENANT_ID)))
+                .thenReturn(true);
+        when(tenantStatusChecker.isUnavailable(anyString())).thenReturn(Mono.just(Boolean.TRUE));
+        when(userAccessRevocationChecker.isRevoked(eq(String.valueOf(USER_ID)), any()))
+                .thenReturn(Mono.just(Boolean.TRUE));
+        when(chain.filter(any())).thenReturn(Mono.empty());
+
+        filter.filter(exchange, chain).block();
+
+        verify(chain).filter(any());
     }
 }

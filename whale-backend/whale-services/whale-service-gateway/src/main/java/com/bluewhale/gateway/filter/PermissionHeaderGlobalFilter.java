@@ -1,5 +1,6 @@
 package com.bluewhale.gateway.filter;
 
+import com.bluewhale.gateway.common.GatewayHeaders;
 import com.bluewhale.gateway.config.PermissionHeaderProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -25,7 +26,13 @@ import java.util.Map;
  * 权限码头注入全局过滤器（AUTH-06，Wave 5.10）。
  *
  * <p>链路：{@code JwtAuthGlobalFilter}(order=-100) 验签并注入 {@code X-User-Id} 后，本过滤器
- * (order=-50) 解析当前用户权限码并注入权限码头；顺序晚于鉴权、早于业务转发。</p>
+ * (order=-80) 解析当前用户权限码并注入权限码头；顺序晚于鉴权、早于熔断计时（-75）与业务转发。</p>
+ *
+ * <p><b>为何 order 必须早于熔断过滤器（-75）</b>：熔断过滤器用 {@code chain.filter(exchange).timeout(...)}
+ * 覆盖其后所有 GlobalFilter。若本过滤器排在其后，权限码 Redis 读取与 {@code /auth/me} 回落
+ * （默认 800ms）会被计入下游调用耗时；auth 抖动时「800ms 回落 + 正常下游处理」极易撞上 3000ms
+ * 熔断超时，把一次 auth 慢响应误判为下游不可用并打开熔断。放在 -80（仍晚于 -100 的 JWT 注入）
+ * 即可让权限码头注入在熔断计时之外完成。</p>
  *
  * <p>解析优先级：先读 Redis 缓存键 {@code whale:{tenantId}:cache:auth:user:perm:{userId}}（值为权限码逗号串，
  * 空集合写成哨兵 {@code __NULL__}）；未命中 / 命中哨兵 / 读取异常时回落
@@ -44,8 +51,8 @@ import java.util.Map;
 @Component
 public class PermissionHeaderGlobalFilter implements GlobalFilter, Ordered {
 
-    /** 用户ID请求头（由 JwtAuthGlobalFilter 注入，禁止复用 starter 常量，见类注释） */
-    private static final String USER_ID_HEADER = "X-User-Id";
+    /** 用户ID请求头（由 JwtAuthGlobalFilter 注入，网关内统一取自 {@link GatewayHeaders}） */
+    private static final String USER_ID_HEADER = GatewayHeaders.USER_ID;
 
     /** Redis Key 分段分隔符 */
     private static final String KEY_SEPARATOR = ":";
@@ -68,8 +75,8 @@ public class PermissionHeaderGlobalFilter implements GlobalFilter, Ordered {
     /** 权限码拼接分隔符 */
     private static final String CODES_SEPARATOR = ",";
 
-    /** 过滤器顺序：晚于 JwtAuthGlobalFilter(-100)、早于业务转发 */
-    private static final int ORDER = -50;
+    /** 过滤器顺序：晚于 JwtAuthGlobalFilter(-100)、早于熔断计时(-75)与业务转发 */
+    private static final int ORDER = -80;
 
     private final PermissionHeaderProperties properties;
     private final ReactiveStringRedisTemplate redisTemplate;

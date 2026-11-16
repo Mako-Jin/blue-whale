@@ -58,6 +58,11 @@ public class AuthGatewayRouteOverrideClient {
      * @return 成功时发出覆盖规则列表（可能为空）；HTTP/超时/解析失败时发出错误信号
      */
     public Mono<List<RouteOverrideRule>> fetch() {
+        if (!StringUtils.hasText(properties.getUri())) {
+            // 显式转错误信号：WebClient.uri(null/空白) 会同步抛 IllegalArgumentException，
+            // 调用方的防重入标记来不及复位（见 RouteOverrideProvider#refresh）
+            return Mono.error(new IllegalStateException("网关路由覆盖接口地址未配置"));
+        }
         return webClientBuilder.build()
                 .get()
                 .uri(properties.getUri())

@@ -1,6 +1,7 @@
 package com.bluewhale.gateway.filter;
 
 import com.bluewhale.gateway.accesslist.GatewayAccessListProvider;
+import com.bluewhale.gateway.common.GatewayHeaders;
 import com.bluewhale.gateway.common.GatewayResponse;
 import com.bluewhale.gateway.config.WhaleGatewayProperties;
 import com.bluewhale.gateway.security.MembershipRevocationChecker;
@@ -27,6 +28,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple4;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
@@ -50,10 +52,10 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
 
     private static final String AUTHORIZATION_HEADER = "Authorization";
     private static final String BEARER_PREFIX = "Bearer ";
-    private static final String USER_ID_HEADER = "X-User-Id";
-    private static final String USERNAME_HEADER = "X-Username";
-    private static final String USER_ROLES_HEADER = "X-User-Roles";
-    private static final String TENANT_ID_HEADER = "X-Tenant-Id";
+    private static final String USER_ID_HEADER = GatewayHeaders.USER_ID;
+    private static final String USERNAME_HEADER = GatewayHeaders.USERNAME;
+    private static final String USER_ROLES_HEADER = GatewayHeaders.USER_ROLES;
+    private static final String TENANT_ID_HEADER = GatewayHeaders.TENANT_ID;
     private static final String CLAIM_USER_ID = "userId";
     private static final String CLAIM_TENANT_ID = "tenantId";
     private static final String CLAIM_ROLES = "roles";
@@ -101,9 +103,21 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
     /** 拒绝原因：请求路径命中黑名单 */
     private static final String REASON_PATH_BLACKLISTED = "path_blacklisted";
 
+    /**
+     * 允许的签发时间超前量（时钟漂移 5 分钟）。
+     *
+     * <p>撤销判定是「{@code iat <= 撤销时刻} 即已撤销」，若令牌 {@code iat} 在未来，
+     * 该不等式永不成立，用户停用/删除/改密/成员解绑/租户停用对这类令牌全部失效。
+     * 因此验签后必须拒绝 {@code iat} 超前当前时间超过该容忍值的令牌。</p>
+     */
+    private static final long ALLOWED_CLOCK_SKEW_MILLIS = 5L * 60L * 1000L;
+
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
     private final WhaleGatewayProperties properties;
     private final TokenBlacklistChecker tokenBlacklistChecker;
+
+    /** 与 whale-service-auth 一致的 HS256 验签密钥（启动期解析一次，避免每请求重复分配） */
+    private final SecretKey signingKey;
 
     /** 指标注册表提供者：容器无 MeterRegistry 时返回 {@code null}，指标静默跳过 */
     private final ObjectProvider<MeterRegistry> meterRegistryProvider;
@@ -136,6 +150,7 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
                                GatewayAccessListProvider accessListProvider) {
         this.properties = properties;
         this.tokenBlacklistChecker = tokenBlacklistChecker;
+        this.signingKey = Keys.hmacShaKeyFor(properties.getJwt().getSecret().getBytes(StandardCharsets.UTF_8));
         this.tenantStatusChecker = tenantStatusChecker;
         this.membershipRevocationChecker = membershipRevocationChecker;
         this.userAccessRevocationChecker = userAccessRevocationChecker;
@@ -166,10 +181,8 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
         }
         String token = authorization.substring(BEARER_PREFIX.length()).trim();
         try {
-            SecretKey key = Keys.hmacShaKeyFor(
-                    properties.getJwt().getSecret().getBytes(StandardCharsets.UTF_8));
             Claims claims = Jwts.parser()
-                    .verifyWith(key)
+                    .verifyWith(signingKey)
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
@@ -191,31 +204,12 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
                 log.warn("accessToken 缺少 userId claim: path={}", path);
                 return unauthorized(exchange, REASON_MISSING_CLAIM);
             }
-            return tokenBlacklistChecker.isBlacklisted(token)
-                    .flatMap(blacklisted -> {
-                        if (Boolean.TRUE.equals(blacklisted)) {
-                            log.warn("令牌命中登出黑名单: path={}", path);
-                            return unauthorized(exchange, REASON_BLACKLISTED);
-                        }
-                        // GW-08 租户级白名单：命中绑定租户的放行规则时，跳过租户状态、成员/用户撤销
-                        // 与强制改密校验（登出黑名单已在上方校验），注入身份头放行。
-                        if (accessListProvider.matchesTenantWhitelist(path, request.getMethod().name(), tenantId)) {
-                            log.info("命中租户级白名单，跳过存量治理校验: path={}, method={}, tenantId={}",
-                                    path, request.getMethod().name(), tenantId);
-                            ServerHttpRequest mutatedRequest = withIdentityHeaders(request, claims, tenantId);
-                            return chain.filter(exchange.mutate().request(mutatedRequest).build());
-                        }
-                        return tenantStatusChecker.isUnavailable(tenantId)
-                                .flatMap(unavailable -> {
-                                    if (Boolean.TRUE.equals(unavailable)) {
-                                        log.warn("租户已停用或已到期，拒绝存量令牌访问: path={}, tenantId={}",
-                                                path, tenantId);
-                                        return unauthorized(exchange, REASON_TENANT_UNAVAILABLE);
-                                    }
-                                    return verifyRevocationsAndForward(
-                                            exchange, request, claims, tenantId, userId, path, chain);
-                                });
-                    });
+            // iat 在未来会让「iat <= 撤销时刻」永不成立，撤销校验被整体绕过，必须先行拒绝
+            if (isIssuedInFuture(claims)) {
+                log.warn("accessToken 签发时间晚于当前时间（超出容忍时钟漂移），拒绝: path={}", path);
+                return unauthorized(exchange, REASON_INVALID_TOKEN);
+            }
+            return verifyAccessAndForward(exchange, request, claims, tenantId, userId, token, path, method, chain);
         } catch (JwtException | IllegalArgumentException e) {
             log.warn("JWT 校验失败: path={}, reason={}", path, e.getMessage());
             return unauthorized(exchange, REASON_INVALID_TOKEN);
@@ -223,49 +217,123 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 校验租户成员撤销与用户级撤销，再执行强制改密拦截，通过后注入身份头并转发下游。
+     * 并行执行登出黑名单、租户状态、成员撤销、用户撤销四段校验，再按优先级短路判定并转发下游。
+     *
+     * <p><b>为何并行</b>：四段校验之间没有数据依赖，只有判定优先级依赖。串行执行时每个带 JWT 的
+     * 请求要 4 次 Redis RTT；并行后 Lettuce 在单连接上复用管道，实际约 1 次 RTT，整体鉴权链路
+     * 从 5 次往返降为 2 次（本方法 + 权限码头缓存读取）。代价是登出黑名单命中时其余 3 次
+     * O(1) GET 也会执行，可接受。</p>
+     *
+     * <p>判定优先级不变：黑名单 &gt; 租户级白名单（跳过后续治理校验）&gt; 租户停用/到期 &gt;
+     * 成员解绑 &gt; 用户撤销 &gt; 强制改密。</p>
      *
      * @param exchange 当前交换对象
      * @param request 原始请求
      * @param claims 已验签的 JWT 载荷
      * @param tenantId 令牌租户 ID
      * @param userId 令牌用户 ID
-     * @param path 请求路径（仅用于日志）
+     * @param token accessToken 原文（登出黑名单键的组成部分）
+     * @param path 请求路径（日志与改密白名单判定）
+     * @param method 请求方法，可空
      * @param chain 下游过滤器链
      * @return 完成信号
      */
-    private Mono<Void> verifyRevocationsAndForward(ServerWebExchange exchange, ServerHttpRequest request,
-                                                   Claims claims, String tenantId, String userId,
-                                                   String path, GatewayFilterChain chain) {
+    private Mono<Void> verifyAccessAndForward(ServerWebExchange exchange, ServerHttpRequest request,
+                                             Claims claims, String tenantId, String userId, String token,
+                                             String path, String method, GatewayFilterChain chain) {
+        // GW-08 租户级白名单：命中绑定租户的放行规则时，跳过租户状态、成员/用户撤销与强制改密校验
+        // （登出黑名单仍在下方按优先级先行判定）。此处先做内存匹配，避免为放行请求额外短路并发查询。
+        boolean tenantWhitelisted = accessListProvider.matchesTenantWhitelist(path, method, tenantId);
         Date issuedAt = new Date(TokenTimeSupport.issuedAtMillis(claims));
-        return membershipRevocationChecker.isRevoked(tenantId, userId, issuedAt)
-                .flatMap(membershipRevoked -> {
-                    if (Boolean.TRUE.equals(membershipRevoked)) {
-                        log.warn("租户成员关系已解除，拒绝存量令牌访问: path={}, tenantId={}, userId={}",
-                                path, tenantId, userId);
-                        return unauthorized(exchange, REASON_MEMBERSHIP_REVOKED);
-                    }
-                    return userAccessRevocationChecker.isRevoked(userId, issuedAt)
-                            .flatMap(userRevoked -> {
-                                if (Boolean.TRUE.equals(userRevoked)) {
-                                    log.warn("用户已停用/删除/改密，拒绝存量令牌访问: path={}, userId={}",
-                                            path, userId);
-                                    return unauthorized(exchange, REASON_USER_REVOKED);
-                                }
-                                // REQ-SEC-023：强制改密/口令到期拦截（auth 服务侧还有第二层拦截）。
-                                // 置于撤销校验之后：已改密/停用的旧令牌（撤销生效）优先 401，
-                                // 仅对「身份有效且未撤销」的强制改密令牌返回 403
-                                if (Boolean.parseBoolean(stringify(claims.get(CLAIM_PWD_CHANGE_REQUIRED)))
-                                        && !isPasswordChangeAllowed(path)) {
-                                    log.warn("令牌携带强制改密标记，拒绝访问业务接口: path={}, userId={}",
-                                            path, userId);
-                                    return forbidden(exchange, REASON_PASSWORD_CHANGE_REQUIRED);
-                                }
-                                ServerHttpRequest mutatedRequest =
-                                        withIdentityHeaders(request, claims, tenantId);
-                                return chain.filter(exchange.mutate().request(mutatedRequest).build());
-                            });
-                });
+        Mono<Boolean> blacklisted = tokenBlacklistChecker.isBlacklisted(token)
+                .defaultIfEmpty(Boolean.FALSE);
+        Mono<Boolean> tenantUnavailable = tenantStatusChecker.isUnavailable(tenantId)
+                .defaultIfEmpty(Boolean.FALSE);
+        Mono<Boolean> membershipRevoked = membershipRevocationChecker.isRevoked(tenantId, userId, issuedAt)
+                .defaultIfEmpty(Boolean.FALSE);
+        Mono<Boolean> userRevoked = userAccessRevocationChecker.isRevoked(userId, issuedAt)
+                .defaultIfEmpty(Boolean.FALSE);
+        return Mono.zip(blacklisted, tenantUnavailable, membershipRevoked, userRevoked)
+                .flatMap(results -> decideAccess(exchange, request, claims, tenantId, userId, path, chain,
+                        tenantWhitelisted, results));
+    }
+
+    /**
+     * 按优先级消费并行校验结果：命中即写对应响应，全部通过则注入身份头转发。
+     *
+     * @param exchange 当前交换对象
+     * @param request 原始请求
+     * @param claims 已验签的 JWT 载荷
+     * @param tenantId 令牌租户 ID
+     * @param userId 令牌用户 ID
+     * @param path 请求路径
+     * @param chain 下游过滤器链
+     * @param tenantWhitelisted 是否命中租户级白名单
+     * @param results 并行校验结果（T1=黑名单, T2=租户不可用, T3=成员撤销, T4=用户撤销）
+     * @return 完成信号
+     */
+    private Mono<Void> decideAccess(ServerWebExchange exchange, ServerHttpRequest request, Claims claims,
+                                    String tenantId, String userId, String path, GatewayFilterChain chain,
+                                    boolean tenantWhitelisted,
+                                    Tuple4<Boolean, Boolean, Boolean, Boolean> results) {
+        if (Boolean.TRUE.equals(results.getT1())) {
+            log.warn("令牌命中登出黑名单: path={}", path);
+            return unauthorized(exchange, REASON_BLACKLISTED);
+        }
+        if (tenantWhitelisted) {
+            log.info("命中租户级白名单，跳过存量治理校验: path={}, tenantId={}", path, tenantId);
+            return forward(exchange, request, claims, tenantId, chain);
+        }
+        if (Boolean.TRUE.equals(results.getT2())) {
+            log.warn("租户已停用或已到期，拒绝存量令牌访问: path={}, tenantId={}", path, tenantId);
+            return unauthorized(exchange, REASON_TENANT_UNAVAILABLE);
+        }
+        if (Boolean.TRUE.equals(results.getT3())) {
+            log.warn("租户成员关系已解除，拒绝存量令牌访问: path={}, tenantId={}, userId={}",
+                    path, tenantId, userId);
+            return unauthorized(exchange, REASON_MEMBERSHIP_REVOKED);
+        }
+        if (Boolean.TRUE.equals(results.getT4())) {
+            log.warn("用户已停用/删除/改密，拒绝存量令牌访问: path={}, userId={}", path, userId);
+            return unauthorized(exchange, REASON_USER_REVOKED);
+        }
+        // REQ-SEC-023：强制改密/口令到期拦截（auth 服务侧还有第二层拦截）。
+        // 置于撤销校验之后：已改密/停用的旧令牌（撤销生效）优先 401，
+        // 仅对「身份有效且未撤销」的强制改密令牌返回 403
+        if (Boolean.parseBoolean(stringify(claims.get(CLAIM_PWD_CHANGE_REQUIRED)))
+                && !isPasswordChangeAllowed(path)) {
+            log.warn("令牌携带强制改密标记，拒绝访问业务接口: path={}, userId={}", path, userId);
+            return forbidden(exchange, REASON_PASSWORD_CHANGE_REQUIRED);
+        }
+        return forward(exchange, request, claims, tenantId, chain);
+    }
+
+    /**
+     * 注入身份头并转发下游
+     *
+     * @param exchange 当前交换对象
+     * @param request 原始请求
+     * @param claims 已验签的 JWT 载荷
+     * @param tenantId 令牌租户 ID
+     * @param chain 下游过滤器链
+     * @return 完成信号
+     */
+    private static Mono<Void> forward(ServerWebExchange exchange, ServerHttpRequest request, Claims claims,
+                                      String tenantId, GatewayFilterChain chain) {
+        ServerHttpRequest mutatedRequest = withIdentityHeaders(request, claims, tenantId);
+        return chain.filter(exchange.mutate().request(mutatedRequest).build());
+    }
+
+    /**
+     * 判断令牌签发时间是否显著超前当前时间（超出 {@link #ALLOWED_CLOCK_SKEW_MILLIS}）
+     *
+     * @param claims 已验签的 JWT 载荷
+     * @return 超前返回 {@code true}；缺失 iat 或在上限内返回 {@code false}
+     */
+    private static boolean isIssuedInFuture(Claims claims) {
+        long issuedAtMillis = TokenTimeSupport.issuedAtMillis(claims);
+        return issuedAtMillis > 0L
+                && issuedAtMillis > System.currentTimeMillis() + ALLOWED_CLOCK_SKEW_MILLIS;
     }
 
     /**

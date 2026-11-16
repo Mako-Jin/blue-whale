@@ -21,6 +21,7 @@ import org.springframework.stereotype.Component;
 import org.yaml.snakeyaml.Yaml;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.io.IOException;
 import java.net.URI;
@@ -197,13 +198,18 @@ public class NacosRouteDefinitionRepository implements RouteDefinitionRepository
     }
 
     /**
-     * 返回兜底路由与 Nacos 动态路由合并后的定义；读取或解析失败时降级（不抛异常）
+     * 返回兜底路由与 Nacos 动态路由合并后的定义；读取或解析失败时降级（不抛异常）。
+     *
+     * <p><b>必须在 boundedElastic 上执行</b>：{@link #readRawContent()} 使用 Nacos SDK 的同步
+     * {@code getConfig}（最长阻塞 3s）。该方法会被网关的 {@code CachingRouteLocator} 在刷新时调用，
+     * 若恰好在 Netty 事件循环线程触发刷新，同步阻塞会卡住该线程上的所有在途请求。</p>
      *
      * @return 路由定义流；无兜底且无动态路由时为空流
      */
     @Override
     public Flux<RouteDefinition> getRouteDefinitions() {
-        return Flux.fromIterable(loadRouteDefinitions());
+        return Flux.defer(() -> Flux.fromIterable(loadRouteDefinitions()))
+                .subscribeOn(Schedulers.boundedElastic());
     }
 
     /**
