@@ -58,16 +58,21 @@ import org.springframework.util.StringUtils;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.PushbackInputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.IntStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 /**
  * 文件信息服务实现
@@ -112,6 +117,12 @@ public class FileInfoServiceImpl implements FileInfoService {
 
     /** 版本号并发冲突的最大尝试次数（含首次） */
     private static final int MAX_VERSION_CONFLICT_ATTEMPTS = 3;
+
+    /** 批量打包下载单次最多文件数：限制单次响应的存储读取与内存压力 */
+    private static final int MAX_BATCH_DOWNLOAD_FILES = 50;
+
+    /** ZIP 条目名中的路径分隔符：替换后避免解压时写出目录 */
+    private static final char[] ZIP_ENTRY_SEPARATORS = {'/', '\\'};
 
     private final FileAssetRepository fileAssetRepository;
 
@@ -522,6 +533,68 @@ public class FileInfoServiceImpl implements FileInfoService {
                 asset.getStorageType());
         fileMetrics.recordDownload(length, System.nanoTime() - startedAt);
         return content;
+    }
+
+    @Override
+    public void downloadBatch(List<Long> ids, Long requesterId, boolean canManage, OutputStream out) {
+        if (ids == null || ids.isEmpty() || ids.size() > MAX_BATCH_DOWNLOAD_FILES) {
+            throw new BizException(ErrorCode.PARAM_ERROR);
+        }
+        // 先全部校验可见性再写出：响应一旦开始输出就无法撤回，越权应在出包前拒绝
+        List<FileAssetAggregate> assets = ids.stream()
+                .map(id -> requireAccessibleFile(id, requesterId, canManage))
+                .toList();
+        Set<String> usedNames = new HashSet<>();
+        try {
+            ZipOutputStream zip = new ZipOutputStream(out, StandardCharsets.UTF_8);
+            for (FileAssetAggregate asset : assets) {
+                long startedAt = System.nanoTime();
+                try (InputStream in = fileStorage.load(asset.getBucket(), asset.getObjectKey(),
+                        asset.getStorageType())) {
+                    zip.putNextEntry(new ZipEntry(uniqueEntryName(usedNames, asset.getOriginalName())));
+                    in.transferTo(zip);
+                    zip.closeEntry();
+                }
+                fileMetrics.recordDownload(asset.getFileSize(), System.nanoTime() - startedAt);
+            }
+            // 只结束 ZIP 流，不关闭底层响应流——输出流生命周期由 Web 容器管理
+            zip.finish();
+        } catch (IOException e) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR);
+        }
+    }
+
+    /**
+     * 生成 ZIP 条目名：去除路径分隔符并按重名递增序号
+     *
+     * <p>条目名来自用户可控的原始文件名，必须去掉 {@code /} 与 {@code \}，否则解压方可能
+     * 写出到目标目录之外；重名按 {@code name(2).ext} 递增，避免同名条目互相覆盖。</p>
+     *
+     * @param usedNames 已使用的条目名集合（会被更新）
+     * @param originalName 原始文件名
+     * @return 本次可用的条目名
+     */
+    private static String uniqueEntryName(Set<String> usedNames, String originalName) {
+        String sanitized = originalName == null ? "" : originalName;
+        for (char separator : ZIP_ENTRY_SEPARATORS) {
+            sanitized = sanitized.replace(separator, '_');
+        }
+        sanitized = sanitized.trim();
+        if (sanitized.isEmpty()) {
+            sanitized = UNKNOWN_FILENAME;
+        }
+        if (usedNames.add(sanitized)) {
+            return sanitized;
+        }
+        int dot = sanitized.lastIndexOf('.');
+        String base = dot > 0 ? sanitized.substring(0, dot) : sanitized;
+        String extension = dot > 0 ? sanitized.substring(dot) : "";
+        for (int index = 2; ; index++) {
+            String candidate = base + "(" + index + ")" + extension;
+            if (usedNames.add(candidate)) {
+                return candidate;
+            }
+        }
     }
 
     @Override

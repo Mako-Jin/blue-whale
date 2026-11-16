@@ -33,6 +33,7 @@ import com.bluewhale.file.service.FileInfoService;
 import com.bluewhale.file.service.support.FileUploadPolicy;
 import com.bluewhale.file.support.FileContentResponses;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
@@ -46,6 +47,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * 文件接口实现（Web 适配层）：协议适配 + Request ↔ Command/Query 转换，业务编排在应用层。
@@ -116,6 +118,23 @@ public class FileController implements FileApi {
         FileInfoResult info = fileInfoService.getDetail(id, requesterId, canManage);
         return FileContentResponses.build(fileInfoService, info, requesterId, canManage,
                 FileContentResponses.isPreviewable(info.contentType()), range, ifRange);
+    }
+
+    @Override
+    @RequirePermission("sys:file:download")
+    @AuditLog(operation = "批量打包下载", type = OperateType.EXPORT,
+            targetType = AUDIT_TARGET_TYPE, targetId = "#ids")
+    public void batchDownload(@RequestParam("ids") List<Long> ids, HttpServletRequest httpRequest,
+                              HttpServletResponse response) {
+        Long requesterId = UserContext.requireUserId(httpRequest);
+        boolean canManage = canManage(httpRequest);
+        response.setContentType("application/zip");
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"files.zip\"");
+        try {
+            fileInfoService.downloadBatch(ids, requesterId, canManage, response.getOutputStream());
+        } catch (IOException e) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR);
+        }
     }
 
     @Override

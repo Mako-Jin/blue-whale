@@ -23,6 +23,7 @@ import com.bluewhale.file.model.result.FileUploadResult;
 import com.bluewhale.file.model.result.FileVersionResult;
 
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.List;
 
 /**
@@ -266,6 +267,19 @@ public interface FileInfoService {
      * @return 仅包含请求区间的内容输入流，由调用方负责关闭
      */
     InputStream openContent(Long id, Long requesterId, boolean canManage, long offset, long length);
+
+    /**
+     * 批量打包下载：把多个文件写入 ZIP 输出流（单个 ZIP，UTF-8 条目名）
+     *
+     * <p>先逐个校验可见性再开始写出，任一文件不存在或越权时整体失败且不产生半包；
+     * 单次最多 50 个文件。底层输出流由调用方负责关闭。</p>
+     *
+     * @param ids 文件ID列表
+     * @param requesterId 调用者用户 ID
+     * @param canManage 是否持有文件管理权限
+     * @param out ZIP 输出流（不负责关闭）
+     */
+    void downloadBatch(List<Long> ids, Long requesterId, boolean canManage, OutputStream out);
 
     /**
      * 删除文件元数据（逻辑删除，物理对象保留）

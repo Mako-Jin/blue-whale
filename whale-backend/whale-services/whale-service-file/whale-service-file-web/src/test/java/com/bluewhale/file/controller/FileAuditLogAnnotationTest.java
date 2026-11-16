@@ -4,10 +4,12 @@ import com.bluewhale.common.audit.annotation.AuditLog;
 import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.file.model.request.FileBatchDeleteRequest;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -49,6 +51,13 @@ class FileAuditLogAnnotationTest {
     void shouldAnnotateBatchDelete() throws NoSuchMethodException {
         assertAuditLog(FileBatchController.class.getMethod("batchDelete", FileBatchDeleteRequest.class,
                 HttpServletRequest.class), OperateType.DELETE, "#request.ids");
+    }
+
+    @Test
+    @DisplayName("批量打包下载：@AuditLog 记录导出操作与文件ID列表")
+    void shouldAnnotateBatchDownload() throws NoSuchMethodException {
+        assertAuditLog(FileController.class.getMethod("batchDownload", List.class, HttpServletRequest.class,
+                HttpServletResponse.class), OperateType.EXPORT, "#ids");
     }
 
     /**

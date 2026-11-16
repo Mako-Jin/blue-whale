@@ -62,11 +62,14 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -392,6 +395,64 @@ class FileInfoServiceImplTest {
                 () -> fileInfoService.openContent(99L, UPLOADER_ID, false));
 
         assertEquals(NOT_FOUND_CODE, ex.getCode());
+        verify(fileStorage, never()).load(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("downloadBatch：按可见性打包为 ZIP，同名条目自动去重")
+    void shouldDownloadBatchAsZip() throws IOException {
+        when(fileAssetRepository.findById(7L))
+                .thenReturn(Optional.of(fileWithVersion(7L, null, 1, FileStatus.NORMAL)));
+        when(fileAssetRepository.findById(8L))
+                .thenReturn(Optional.of(fileWithVersion(8L, null, 1, FileStatus.NORMAL)));
+        when(fileStorage.load(any(), any(), any()))
+                .thenAnswer(invocation -> new ByteArrayInputStream("body".getBytes(StandardCharsets.UTF_8)));
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        fileInfoService.downloadBatch(List.of(7L, 8L), UPLOADER_ID, false, out);
+
+        Map<String, String> entries = new HashMap<>();
+        try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(out.toByteArray()),
+                StandardCharsets.UTF_8)) {
+            ZipEntry entry;
+            while ((entry = zip.getNextEntry()) != null) {
+                entries.put(entry.getName(), new String(zip.readAllBytes(), StandardCharsets.UTF_8));
+            }
+        }
+        assertEquals(2, entries.size());
+        assertEquals("body", entries.get("a.txt"));
+        assertEquals("body", entries.get("a(2).txt"));
+        verify(fileStorage, times(2)).load(eq("bluewhale"), any(), any());
+    }
+
+    @Test
+    @DisplayName("downloadBatch：空列表或超过上限按参数错误拒绝")
+    void shouldRejectInvalidBatchSize() {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        BizException empty = assertThrows(BizException.class,
+                () -> fileInfoService.downloadBatch(List.of(), UPLOADER_ID, false, out));
+        BizException oversized = assertThrows(BizException.class,
+                () -> fileInfoService.downloadBatch(Collections.nCopies(51, 7L), UPLOADER_ID, false, out));
+
+        assertEquals(PARAM_ERROR_CODE, empty.getCode());
+        assertEquals(PARAM_ERROR_CODE, oversized.getCode());
+        verify(fileStorage, never()).load(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("downloadBatch：任一文件不可见时整体失败且不写出任何字节")
+    void shouldFailFastWhenAnyFileInvisible() {
+        when(fileAssetRepository.findById(7L))
+                .thenReturn(Optional.of(fileWithVersion(7L, null, 1, FileStatus.NORMAL)));
+        when(fileAssetRepository.findById(9L)).thenReturn(Optional.empty());
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        BizException ex = assertThrows(BizException.class,
+                () -> fileInfoService.downloadBatch(List.of(7L, 9L), UPLOADER_ID, false, out));
+
+        assertEquals(NOT_FOUND_CODE, ex.getCode());
+        assertEquals(0, out.size());
         verify(fileStorage, never()).load(any(), any(), any());
     }
 

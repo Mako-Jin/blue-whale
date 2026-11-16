@@ -14,6 +14,7 @@ import com.bluewhale.file.model.response.FileRapidUploadResponse;
 import com.bluewhale.file.model.response.FileRecycleResponse;
 import com.bluewhale.file.model.response.FileUploadResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -28,6 +29,8 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 /**
  * 文件服务 API 契约（上传/下载/预览/查询/删除；分片上传见 {@link FileChunkUploadApi}）。
@@ -87,6 +90,19 @@ public interface FileApi {
                                      @RequestHeader(value = HttpHeaders.RANGE, required = false) String range,
                                      @RequestHeader(value = HttpHeaders.IF_RANGE, required = false) String ifRange,
                                      HttpServletRequest httpRequest);
+
+    /**
+     * 批量打包下载：把多个文件以 ZIP 流返回（单次最多 50 个）。
+     *
+     * <p>任一文件不存在或不可见时整体失败，不返回半包；打包结果为动态流，不支持 Range。</p>
+     *
+     * @param ids 文件ID列表（重复参数）
+     * @param httpRequest 当前请求（用于判定调用者归属与文件管理权限）
+     * @param response HTTP 响应，ZIP 内容直接写入其输出流
+     */
+    @GetMapping("/batch/download")
+    void batchDownload(@RequestParam("ids") List<Long> ids, HttpServletRequest httpRequest,
+                       HttpServletResponse response);
 
     /**
      * 生成预签名下载 URL。

@@ -36,6 +36,7 @@ import org.springframework.web.accept.PathApiVersionResolver;
 import org.springframework.web.accept.SemanticApiVersionParser;
 
 import java.io.ByteArrayInputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -45,8 +46,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -272,6 +275,25 @@ class FileControllerTest {
         ArgumentCaptor<UploadLimits> captor = ArgumentCaptor.forClass(UploadLimits.class);
         verify(fileInfoService).restore(eq(FILE_ID), eq(UPLOADER_ID), eq(true), captor.capture());
         assertEquals(fileProperties.getQuotaBytes(), captor.getValue().quotaBytes());
+    }
+
+    @Test
+    @DisplayName("GET /file/v1/batch/download：返回 ZIP 头并透传文件ID列表")
+    void batchDownloadShouldDelegate() throws Exception {
+        doAnswer(invocation -> {
+            ((OutputStream) invocation.getArgument(3)).write(new byte[]{0x50, 0x4B});
+            return null;
+        }).when(fileInfoService).downloadBatch(anyList(), eq(UPLOADER_ID), eq(false), any(OutputStream.class));
+
+        mockMvc.perform(get("/file/v1/batch/download")
+                        .param("ids", "1", "2")
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID)))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"files.zip\""));
+
+        verify(fileInfoService).downloadBatch(eq(List.of(1L, 2L)), eq(UPLOADER_ID), eq(false),
+                any(OutputStream.class));
     }
 
     @Test
