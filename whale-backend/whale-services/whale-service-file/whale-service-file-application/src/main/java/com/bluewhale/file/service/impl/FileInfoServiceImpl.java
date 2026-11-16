@@ -564,6 +564,11 @@ public class FileInfoServiceImpl implements FileInfoService {
     @Override
     public FilePresignedResult presignedUrl(Long id, Integer expiresSeconds, Long requesterId, boolean canManage) {
         FileAssetAggregate asset = requireAccessibleFile(id, requesterId, canManage);
+        if (fileProperties.getStorage().getEncryption().isEnabled()) {
+            // 预签名绕过应用层，加密对象会返回密文；引导调用方走网关下载以透明解密
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
+                    "已启用落盘加密，预签名地址不可用，请使用下载接口");
+        }
         int expires = resolveExpiresSeconds(expiresSeconds);
         String url = fileStorage.presignedDownloadUrl(asset.getBucket(), asset.getObjectKey(), expires,
                 asset.getStorageType());

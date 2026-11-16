@@ -548,6 +548,20 @@ class FileInfoServiceImplTest {
     }
 
     @Test
+    @DisplayName("presignedUrl：启用落盘加密时拒绝预签名，避免返回密文")
+    void shouldRejectPresignWhenEncryptionEnabled() {
+        fileProperties.getStorage().getEncryption().setEnabled(true);
+        when(fileAssetRepository.findById(5L)).thenReturn(Optional.of(fileWithStatus(5L, FileStatus.NORMAL)));
+
+        BizException ex = assertThrows(BizException.class,
+                () -> fileInfoService.presignedUrl(5L, 600, UPLOADER_ID, false));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        assertTrue(ex.getMessage().contains("加密"));
+        verify(fileStorage, never()).presignedDownloadUrl(anyString(), anyString(), anyInt(), anyString());
+    }
+
+    @Test
     @DisplayName("分片上传：init → 上传 2 个分片 → complete 合并落存储并写元数据")
     void shouldCompleteChunkUpload() throws IOException {
         ChunkUploadInitResult init = fileInfoService.initChunkUpload(initCommand("video.bin", 12L));
