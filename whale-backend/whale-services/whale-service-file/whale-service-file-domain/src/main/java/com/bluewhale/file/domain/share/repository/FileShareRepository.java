@@ -4,6 +4,7 @@ import com.bluewhale.file.domain.share.aggregate.FileShareAggregate;
 import com.bluewhale.file.domain.share.model.FileSharePage;
 import com.bluewhale.file.domain.share.model.FileShareQuery;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 /**
@@ -63,4 +64,15 @@ public interface FileShareRepository {
      * @return 分享分页结果
      */
     FileSharePage page(FileShareQuery query);
+
+    /**
+     * 物理删除到期时间早于阈值的分享（按批删除）
+     *
+     * <p>只处理有到期时间的分享：撤销分享的到期时间仍在未来，保留至自然到期后清理。</p>
+     *
+     * @param threshold 到期时间阈值（早于该时刻即删除）
+     * @param batchSize 单批最多删除条数
+     * @return 实际删除条数
+     */
+    int purgeExpiredBefore(LocalDateTime threshold, int batchSize);
 }

@@ -13,6 +13,7 @@ import com.bluewhale.file.po.FileSharePo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -58,6 +59,11 @@ public class FileShareRepositoryImpl implements FileShareRepository {
     @Override
     public boolean consumeDownload(Long id) {
         return fileShareMapper.consumeDownload(id) > 0;
+    }
+
+    @Override
+    public int purgeExpiredBefore(LocalDateTime threshold, int batchSize) {
+        return fileShareMapper.purgeExpiredBefore(threshold, batchSize);
     }
 
     @Override

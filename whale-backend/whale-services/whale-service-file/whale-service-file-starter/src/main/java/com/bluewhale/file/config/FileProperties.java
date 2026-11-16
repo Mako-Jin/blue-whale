@@ -270,6 +270,25 @@ public class FileProperties {
         /** 有效期上限（小时），默认 720（30 天），超出截断 */
         @Min(value = 1, message = "whale.file.share.max-expire-hours 必须大于 0")
         private long maxExpireHours = 720L;
+
+        /**
+         * 是否启用到期分享清理；默认开启。
+         *
+         * <p>由 {@code ShareCleanupTask} 按 cron（{@code whale.file.share.purge-cron}）物理删除
+         * 到期超过保留期的分享记录，避免失效链接无限累积。</p>
+         */
+        private boolean purgeEnabled = true;
+
+        /**
+         * 到期后的额外保留天数，默认 7；{@code <=0} 表示到期即删。
+         *
+         * <p>保留一段时间便于短期追溯失效链接的创建与使用记录。</p>
+         */
+        private long retentionDays = 7L;
+
+        /** 单批删除条数，默认 200；避免一次删除过多行造成长事务 */
+        @Min(value = 1, message = "whale.file.share.purge-batch-size 必须大于 0")
+        private int purgeBatchSize = 200;
     }
 
     /**

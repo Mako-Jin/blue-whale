@@ -55,6 +55,16 @@ class FileShareRepositoryImplTest {
     }
 
     @Test
+    @DisplayName("purgeExpiredBefore：透传阈值与批大小并返回影响行数")
+    void shouldPurgeExpiredShares() {
+        LocalDateTime threshold = LocalDateTime.now().minusDays(7);
+        when(fileShareMapper.purgeExpiredBefore(threshold, 200)).thenReturn(3);
+
+        assertEquals(3, repository.purgeExpiredBefore(threshold, 200));
+        verify(fileShareMapper).purgeExpiredBefore(threshold, 200);
+    }
+
+    @Test
     @DisplayName("page：映射记录字段并按分页参数返回")
     void shouldMapSharePage() {
         LocalDateTime now = LocalDateTime.now();

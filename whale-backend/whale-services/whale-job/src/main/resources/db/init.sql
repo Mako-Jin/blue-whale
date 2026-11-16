@@ -229,7 +229,10 @@ VALUES
  '迁移自 VersionCleanupTask#cleanup（按版本行物理删除，开关 whale.file.version.cleanup-enabled）'),
 (9100000000000000030, 1, 'File 孤儿对象对账', 'FILE', 'whale-file', 'file.orphan-reconcile',
  '0 0 4 * * ?', 'httpJobHandler', '{"timeoutMillis":7200000}', 'DO_NOTHING', 1, 300, 1, 1,
- '迁移自 OrphanReconcileTask#reconcile（默认只报告，开关 whale.file.orphan.enabled）');
+ '迁移自 OrphanReconcileTask#reconcile（默认只报告，开关 whale.file.orphan.enabled）'),
+(9100000000000000031, 1, 'File 到期分享清理', 'FILE', 'whale-file', 'file.share-cleanup',
+ '0 10 4 * * ?', 'httpJobHandler', '{"timeoutMillis":1800000}', 'DO_NOTHING', 1, 300, 1, 1,
+ '迁移自 ShareCleanupTask#purgeExpired（物理删除到期分享，开关 whale.file.share.purge-enabled）');
 
 -- ---------------------------------------------------------------------
 -- 5. 执行器注册表（对齐 xxl-job executor：谁在线、谁支持哪些任务）
