@@ -6,6 +6,7 @@ import com.bluewhale.job.config.JobProperties;
 import com.bluewhale.job.dto.ExecutorRegisterRequest;
 import com.bluewhale.job.po.JobExecutorPo;
 import com.bluewhale.job.mapper.JobExecutorMapper;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -69,7 +70,7 @@ class JobExecutorServiceImplTest {
         properties.getExecutor().setHeartbeatTimeoutSeconds(90);
         properties.getExecutor().setStaleMultiplier(10);
         JobExecutorServiceImpl service = new JobExecutorServiceImpl(
-                jobExecutorMapper, properties, unusedProvider());
+                jobExecutorMapper, properties, unusedProvider(), new SimpleMeterRegistry());
         when(jobExecutorMapper.deleteStale(any())).thenReturn(3);
 
         int rows = service.purgeStale();
@@ -89,7 +90,7 @@ class JobExecutorServiceImplTest {
         properties.getExecutor().setHeartbeatTimeoutSeconds(90);
         properties.getExecutor().setStaleMultiplier(0);
         JobExecutorServiceImpl service = new JobExecutorServiceImpl(
-                jobExecutorMapper, properties, unusedProvider());
+                jobExecutorMapper, properties, unusedProvider(), new SimpleMeterRegistry());
         when(jobExecutorMapper.deleteStale(any())).thenReturn(0);
 
         service.purgeStale();
@@ -105,7 +106,7 @@ class JobExecutorServiceImplTest {
     @DisplayName("可派发地址只保留注册表与 Nacos 的交集：注册表残留的旧容器不应被派发")
     void shouldIntersectRegistryWithDiscovery() {
         JobExecutorServiceImpl service = new JobExecutorServiceImpl(
-                jobExecutorMapper, new JobProperties(), discoveryProvider(discoveryClient));
+                jobExecutorMapper, new JobProperties(), discoveryProvider(discoveryClient), new SimpleMeterRegistry());
         when(jobExecutorMapper.selectList(any()))
                 .thenReturn(List.of(executor("bw-crm:9007"), executor("bw-crm-old:9007")));
         ServiceInstance liveInstance = instance("bw-crm", 9007);
@@ -120,7 +121,7 @@ class JobExecutorServiceImplTest {
     @DisplayName("服务发现无实例时回退注册表，避免因服务发现异常让全部任务失败")
     void shouldFallbackToRegistryWhenDiscoveryEmpty() {
         JobExecutorServiceImpl service = new JobExecutorServiceImpl(
-                jobExecutorMapper, new JobProperties(), discoveryProvider(discoveryClient));
+                jobExecutorMapper, new JobProperties(), discoveryProvider(discoveryClient), new SimpleMeterRegistry());
         when(jobExecutorMapper.selectList(any()))
                 .thenReturn(List.of(executor("bw-crm:9007")));
         when(discoveryClient.getInstances(eq(APP_NAME))).thenReturn(List.of());
@@ -134,7 +135,7 @@ class JobExecutorServiceImplTest {
     @DisplayName("服务发现不可用（抛异常）时回退注册表")
     void shouldFallbackToRegistryWhenDiscoveryFails() {
         JobExecutorServiceImpl service = new JobExecutorServiceImpl(
-                jobExecutorMapper, new JobProperties(), discoveryProvider(discoveryClient));
+                jobExecutorMapper, new JobProperties(), discoveryProvider(discoveryClient), new SimpleMeterRegistry());
         when(jobExecutorMapper.selectList(any()))
                 .thenReturn(List.of(executor("bw-crm:9007")));
         when(discoveryClient.getInstances(APP_NAME)).thenThrow(new IllegalStateException("nacos down"));
@@ -147,8 +148,9 @@ class JobExecutorServiceImplTest {
     @Test
     @DisplayName("执行器注册：编码超出列宽时按完整 code 截断，不产生半个编码")
     void shouldTruncateJobCodesOnCodeBoundary() {
+        SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
         JobExecutorServiceImpl service = new JobExecutorServiceImpl(
-                jobExecutorMapper, new JobProperties(), unusedProvider());
+                jobExecutorMapper, new JobProperties(), unusedProvider(), meterRegistry);
         when(jobExecutorMapper.selectOne(any())).thenReturn(null);
         String first = "a".repeat(2000);
         String second = "b".repeat(2000);
@@ -158,6 +160,9 @@ class JobExecutorServiceImplTest {
         request.setJobCodes(List.of(first, second));
 
         service.register(request);
+
+        assertEquals(1D, meterRegistry.get("job_executor_register_total")
+                .tag("action", "register").counter().count());
 
         ArgumentCaptor<JobExecutorPo> captor = ArgumentCaptor.forClass(JobExecutorPo.class);
         verify(jobExecutorMapper).insert(captor.capture());

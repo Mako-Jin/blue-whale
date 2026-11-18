@@ -1,5 +1,7 @@
 package com.bluewhale.job.scheduler;
 
+import com.bluewhale.job.metrics.JobMetricNames;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
@@ -46,6 +48,8 @@ public class JobScheduleBroadcaster {
 
     private final ObjectProvider<RedissonClient> redissonClientProvider;
 
+    private final MeterRegistry meterRegistry;
+
     /** 本地调度变更回调（由 {@link JobScheduler} 注册） */
     private volatile ScheduleEventConsumer consumer;
 
@@ -59,9 +63,11 @@ public class JobScheduleBroadcaster {
      * 构造失效广播器
      *
      * @param redissonClientProvider Redisson 客户端提供者（可为空，为空时降级）
+     * @param meterRegistry 指标注册表
      */
-    public JobScheduleBroadcaster(ObjectProvider<RedissonClient> redissonClientProvider) {
+    public JobScheduleBroadcaster(ObjectProvider<RedissonClient> redissonClientProvider, MeterRegistry meterRegistry) {
         this.redissonClientProvider = redissonClientProvider;
+        this.meterRegistry = meterRegistry;
     }
 
     /**
@@ -71,6 +77,7 @@ public class JobScheduleBroadcaster {
     public void init() {
         RedissonClient client = redissonClientProvider.getIfAvailable();
         if (client == null) {
+            recordFallback();
             log.warn("Redisson 不可用，调度失效广播降级为单实例语义: topic={}", TOPIC_NAME);
             return;
         }
@@ -80,8 +87,16 @@ public class JobScheduleBroadcaster {
             this.topic = clientTopic;
             log.info("调度失效广播已订阅: topic={}, instanceId={}", TOPIC_NAME, instanceId);
         } catch (Exception e) {
+            recordFallback();
             log.warn("调度失效广播订阅失败，降级为单实例语义: topic={}", TOPIC_NAME, e);
         }
+    }
+
+    /**
+     * 记录一次广播降级
+     */
+    private void recordFallback() {
+        meterRegistry.counter(JobMetricNames.BROADCAST_FALLBACK_TOTAL).increment();
     }
 
     /**
@@ -134,14 +149,30 @@ public class JobScheduleBroadcaster {
      */
     private void publish(String action, Long jobId) {
         if (topic == null || jobId == null) {
+            recordFallback();
             return;
         }
         String message = instanceId + DELIMITER + action + DELIMITER + jobId;
         try {
             topic.publish(message);
+            recordBroadcast(action, JobMetricNames.RESULT_SUCCESS);
         } catch (Exception e) {
+            recordBroadcast(action, JobMetricNames.RESULT_FAILURE);
             log.warn("调度失效广播发布失败: topic={}, jobId={}, action={}", TOPIC_NAME, jobId, action, e);
         }
+    }
+
+    /**
+     * 记录一次广播发布结果
+     *
+     * @param action 动作
+     * @param result 结果
+     */
+    private void recordBroadcast(String action, String result) {
+        meterRegistry.counter(JobMetricNames.BROADCAST_TOTAL,
+                        JobMetricNames.TAG_ACTION, action,
+                        JobMetricNames.TAG_RESULT, result)
+                .increment();
     }
 
     /**
@@ -172,6 +203,8 @@ public class JobScheduleBroadcaster {
         }
         log.info("收到调度失效广播: jobId={}, action={}, origin={}", jobId, segments[1], segments[0]);
         target.accept(jobId, ACTION_RESCHEDULE.equals(segments[1]));
+        meterRegistry.counter(JobMetricNames.BROADCAST_RECEIVE_TOTAL,
+                JobMetricNames.TAG_RESULT, JobMetricNames.RESULT_APPLIED).increment();
     }
 
     /**

@@ -10,6 +10,7 @@ import com.bluewhale.job.mapper.JobInfoMapper;
 import com.bluewhale.job.mapper.JobLogMapper;
 import com.bluewhale.job.service.JobExecutorService;
 import com.bluewhale.job.scheduler.handler.JobNotDispatchableException;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -67,13 +68,16 @@ class JobSchedulerTest {
     private final ObjectProvider<RedissonClient> redissonClientProvider =
             (ObjectProvider<RedissonClient>) mock(ObjectProvider.class);
 
-    private final JobScheduleBroadcaster jobScheduleBroadcaster = new JobScheduleBroadcaster(redissonClientProvider);
+    private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+
+    private final JobScheduleBroadcaster jobScheduleBroadcaster =
+            new JobScheduleBroadcaster(redissonClientProvider, meterRegistry);
 
     private final JobProperties jobProperties = new JobProperties();
 
     private final JobScheduler scheduler = new JobScheduler(jobInfoMapper, jobLogMapper, jobDependencyMapper,
             jobHandlerRegistry, executionGuard, jobExecutorService, redissonClientProvider, jobAlertNotifier,
-            jobScheduleBroadcaster, jobProperties);
+            jobScheduleBroadcaster, jobProperties, meterRegistry);
 
     @AfterEach
     void tearDown() {
@@ -112,6 +116,8 @@ class JobSchedulerTest {
         assertEquals(LOG_STATUS_SUCCESS, insertedLog.get().getStatus());
         assertEquals("done", insertedLog.get().getResult());
         assertNotNull(insertedLog.get().getEndTime());
+        assertEquals(1D, meterRegistry.find("job_execute_total")
+                .tag("status", "success").counter().count());
     }
 
     @Test
@@ -127,6 +133,8 @@ class JobSchedulerTest {
         verify(jobLogMapper).updateById(updateCaptor.capture());
         assertEquals(LOG_STATUS_FAILURE, updateCaptor.getValue().getStatus());
         assertTrue(updateCaptor.getValue().getErrorMsg().contains("boom"));
+        assertEquals(1D, meterRegistry.find("job_execute_total")
+                .tag("status", "failure").counter().count());
     }
 
     @Test

@@ -103,3 +103,7 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        job_execute_duration_seconds: true
+        job_schedule_delay_seconds: true

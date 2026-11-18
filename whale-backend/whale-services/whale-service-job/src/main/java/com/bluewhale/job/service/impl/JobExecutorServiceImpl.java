@@ -8,8 +8,12 @@ import com.bluewhale.job.dto.ExecutorBeatRequest;
 import com.bluewhale.job.dto.ExecutorRegisterRequest;
 import com.bluewhale.job.po.JobExecutorPo;
 import com.bluewhale.job.mapper.JobExecutorMapper;
+import com.bluewhale.job.metrics.JobMetricNames;
 import com.bluewhale.job.service.JobExecutorService;
 import com.bluewhale.job.vo.JobExecutorVO;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cloud.client.ServiceInstance;
@@ -57,19 +61,65 @@ public class JobExecutorServiceImpl implements JobExecutorService {
 
     private final ObjectProvider<DiscoveryClient> discoveryClientProvider;
 
+    private final MeterRegistry meterRegistry;
+
     /**
      * 构造服务：服务发现客户端允许缺失（单机部署或测试环境只用注册表寻址）
      *
      * @param jobExecutorMapper      执行器注册表 Mapper
      * @param jobProperties          任务服务配置
      * @param discoveryClientProvider 服务发现客户端
+     * @param meterRegistry          指标注册表
      */
     public JobExecutorServiceImpl(JobExecutorMapper jobExecutorMapper,
                                   JobProperties jobProperties,
-                                  ObjectProvider<DiscoveryClient> discoveryClientProvider) {
+                                  ObjectProvider<DiscoveryClient> discoveryClientProvider,
+                                  MeterRegistry meterRegistry) {
         this.jobExecutorMapper = jobExecutorMapper;
         this.jobProperties = jobProperties;
         this.discoveryClientProvider = discoveryClientProvider;
+        this.meterRegistry = meterRegistry;
+    }
+
+    /**
+     * 注册在线执行器数量指标（抓取时查询一次注册表）
+     */
+    @PostConstruct
+    void bindMetrics() {
+        Gauge.builder(JobMetricNames.EXECUTOR_ONLINE, this, JobExecutorServiceImpl::countOnlineExecutors)
+                .description("心跳未过期的在线执行器总数").register(meterRegistry);
+    }
+
+    /**
+     * 统计在线执行器数量：无租户上下文时按全局统计
+     *
+     * @return 在线数量
+     */
+    private double countOnlineExecutors() {
+        Long count = jobExecutorMapper.selectCount(new LambdaQueryWrapper<JobExecutorPo>()
+                .eq(JobExecutorPo::getStatus, STATUS_ONLINE)
+                .ge(JobExecutorPo::getLastBeat, heartbeatThreshold()));
+        return count == null ? 0D : count.doubleValue();
+    }
+
+    /**
+     * 记录执行器注册/注销次数
+     *
+     * @param action 动作（register / deregister）
+     */
+    private void recordRegistryAction(String action) {
+        meterRegistry.counter(JobMetricNames.EXECUTOR_REGISTER_TOTAL,
+                JobMetricNames.TAG_ACTION, action).increment();
+    }
+
+    /**
+     * 记录注册表与 Nacos 不一致的降级次数
+     *
+     * @param reason 原因
+     */
+    private void recordDispatchMismatch(String reason) {
+        meterRegistry.counter(JobMetricNames.DISPATCH_MISMATCH_TOTAL,
+                JobMetricNames.TAG_REASON, reason).increment();
     }
 
     @Override
@@ -87,6 +137,7 @@ public class JobExecutorServiceImpl implements JobExecutorService {
             entity.setLastBeat(now);
             entity.setStatus(STATUS_ONLINE);
             jobExecutorMapper.insert(entity);
+            recordRegistryAction(JobMetricNames.ACTION_REGISTER);
             log.info("执行器注册: app={}, address={}, codes={}", request.getAppName(), request.getAddress(), jobCodes);
             return;
         }
@@ -94,6 +145,7 @@ public class JobExecutorServiceImpl implements JobExecutorService {
         existing.setLastBeat(now);
         existing.setStatus(STATUS_ONLINE);
         jobExecutorMapper.updateById(existing);
+        recordRegistryAction(JobMetricNames.ACTION_REGISTER);
         log.info("执行器重新注册: app={}, address={}, codes={}", request.getAppName(), request.getAddress(), jobCodes);
     }
 
@@ -117,6 +169,7 @@ public class JobExecutorServiceImpl implements JobExecutorService {
                 .eq(JobExecutorPo::getAppName, request.getAppName())
                 .eq(JobExecutorPo::getAddress, request.getAddress())
                 .set(JobExecutorPo::getStatus, STATUS_OFFLINE));
+        recordRegistryAction(JobMetricNames.ACTION_DEREGISTER);
         log.info("执行器注销: app={}, address={}, rows={}", request.getAppName(), request.getAddress(), rows);
     }
 
@@ -183,11 +236,13 @@ public class JobExecutorServiceImpl implements JobExecutorService {
             return registered;
         }
         if (live.isEmpty()) {
+            recordDispatchMismatch(JobMetricNames.REASON_NOT_IN_NACOS);
             log.warn("Nacos 无该服务实例，回退注册表寻址: app={}, registry={}", appName, registered);
             return registered;
         }
         List<String> matched = registered.stream().filter(live::contains).toList();
         if (matched.isEmpty()) {
+            recordDispatchMismatch(JobMetricNames.REASON_MISMATCH);
             log.warn("注册表与 Nacos 实例不一致，回退注册表寻址: app={}, registry={}, nacos={}",
                     appName, registered, live);
             return registered;

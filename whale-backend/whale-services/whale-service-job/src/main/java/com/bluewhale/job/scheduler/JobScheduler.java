@@ -12,8 +12,12 @@ import com.bluewhale.job.po.JobLogPo;
 import com.bluewhale.job.mapper.JobDependencyMapper;
 import com.bluewhale.job.mapper.JobInfoMapper;
 import com.bluewhale.job.mapper.JobLogMapper;
+import com.bluewhale.job.metrics.JobMetricNames;
 import com.bluewhale.job.scheduler.handler.JobNotDispatchableException;
 import com.bluewhale.job.service.JobExecutorService;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +33,7 @@ import org.springframework.scheduling.support.CronTrigger;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
@@ -37,6 +42,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -156,11 +162,16 @@ public class JobScheduler {
 
     private final JobProperties jobProperties;
 
+    private final MeterRegistry meterRegistry;
+
     /** jobId 到已注册调度的映射 */
     private final Map<Long, ScheduledFuture<?>> scheduledFutures = new ConcurrentHashMap<>();
 
     /** jobId 到本地已注册调度签名（cron）的映射，用于断连重对齐时判断是否需要重注册 */
     private final Map<Long, String> scheduledSignatures = new ConcurrentHashMap<>();
+
+    /** jobId 到上一次 cron 实际触发时间的映射，用于计算调度延迟 */
+    private final Map<Long, LocalDateTime> lastTriggerTimes = new ConcurrentHashMap<>();
 
     /** 调度线程池 */
     private ThreadPoolTaskScheduler taskScheduler;
@@ -177,7 +188,69 @@ public class JobScheduler {
         scheduler.setAwaitTerminationSeconds(AWAIT_TERMINATION_SECONDS);
         scheduler.initialize();
         this.taskScheduler = scheduler;
+        bindPoolMetrics(scheduler.getScheduledThreadPoolExecutor());
         jobScheduleBroadcaster.registerConsumer(this::applyBroadcast);
+    }
+
+    /**
+     * 绑定线程池与调度数量指标（Gauge 在抓取时实时取值）
+     *
+     * @param executor 调度线程池
+     */
+    private void bindPoolMetrics(ThreadPoolExecutor executor) {
+        Gauge.builder(JobMetricNames.POOL_SIZE, executor, ThreadPoolExecutor::getPoolSize)
+                .description("调度线程池当前线程数").register(meterRegistry);
+        Gauge.builder(JobMetricNames.POOL_ACTIVE, executor, ThreadPoolExecutor::getActiveCount)
+                .description("调度线程池活跃线程数").register(meterRegistry);
+        Gauge.builder(JobMetricNames.POOL_QUEUE_SIZE, executor, pool -> pool.getQueue().size())
+                .description("调度线程池排队任务数").register(meterRegistry);
+        Gauge.builder(JobMetricNames.SCHEDULED_JOBS, this, JobScheduler::scheduledJobCount)
+                .description("本实例已注册调度数").register(meterRegistry);
+    }
+
+    /**
+     * 调度线程池是否可用
+     *
+     * @return 已初始化且未关闭返回 {@code true}
+     */
+    public boolean isSchedulerRunning() {
+        return taskScheduler != null && !taskScheduler.getScheduledThreadPoolExecutor().isShutdown();
+    }
+
+    /**
+     * 本实例已注册调度数
+     *
+     * @return 调度数
+     */
+    public int scheduledJobCount() {
+        return scheduledFutures.size();
+    }
+
+    /**
+     * 调度线程池当前线程数
+     *
+     * @return 线程数（未初始化返回 0）
+     */
+    public int poolSize() {
+        return taskScheduler == null ? 0 : taskScheduler.getScheduledThreadPoolExecutor().getPoolSize();
+    }
+
+    /**
+     * 调度线程池活跃线程数
+     *
+     * @return 活跃线程数（未初始化返回 0）
+     */
+    public int activeThreadCount() {
+        return taskScheduler == null ? 0 : taskScheduler.getScheduledThreadPoolExecutor().getActiveCount();
+    }
+
+    /**
+     * 调度线程池排队任务数
+     *
+     * @return 排队数（未初始化返回 0）
+     */
+    public int queueSize() {
+        return taskScheduler == null ? 0 : taskScheduler.getScheduledThreadPoolExecutor().getQueue().size();
     }
 
     /**
@@ -252,6 +325,7 @@ public class JobScheduler {
     private void cancelLocal(Long jobId) {
         ScheduledFuture<?> future = scheduledFutures.remove(jobId);
         scheduledSignatures.remove(jobId);
+        lastTriggerTimes.remove(jobId);
         if (future != null) {
             future.cancel(false);
             log.info("定时任务已取消: jobId={}", jobId);
@@ -400,7 +474,38 @@ public class JobScheduler {
      * @param job 任务定义
      */
     void execute(JobInfoPo job) {
+        recordScheduleDelay(job);
         executeWithRun(job, newRunId(), TRIGGER_CRON, 0);
+    }
+
+    /**
+     * 记录 cron 调度延迟：实际触发时间与「上次触发时间在 cron 下的下一次预期时间」之差。
+     *
+     * <p>首次触发没有基准时间，不采样；时钟回拨等导致差值为负时归零。</p>
+     *
+     * @param job 任务定义
+     */
+    private void recordScheduleDelay(JobInfoPo job) {
+        Long jobId = job.getId();
+        if (jobId == null) {
+            return;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime previous = lastTriggerTimes.put(jobId, now);
+        String cron = job.getCronExpression();
+        if (previous == null || !StringUtils.hasText(cron) || !CronExpression.isValidExpression(cron)) {
+            return;
+        }
+        LocalDateTime expected = CronExpression.parse(cron).next(previous);
+        if (expected == null) {
+            return;
+        }
+        long delayMillis = Math.max(Duration.between(expected, now).toMillis(), 0L);
+        Timer.builder(JobMetricNames.SCHEDULE_DELAY)
+                .description("cron 实际触发时间相对预期时间的延迟")
+                .tag(JobMetricNames.TAG_JOB, jobTag(job))
+                .register(meterRegistry)
+                .record(Duration.ofMillis(delayMillis));
     }
 
     /**
@@ -670,22 +775,26 @@ public class JobScheduler {
      */
     private boolean executeShard(JobInfoPo job, int shardIndex, int shardTotal, String runId, String triggerType) {
         JobLogPo jobLog = insertRunningLog(job, shardIndex, runId, triggerType);
+        long startNanos = System.nanoTime();
         int maxRetry = resolveMaxRetry(job.getMaxRetry());
         long intervalMillis = resolveRetryIntervalSeconds(job.getRetryIntervalSeconds()) * MILLIS_PER_SECOND;
         for (int retryCount = 0; ; retryCount++) {
             try {
                 String result = invokeHandler(job, jobLog, shardIndex, shardTotal, retryCount);
                 markSuccess(jobLog, result, retryCount);
+                recordExecution(job, JobMetricNames.STATUS_SUCCESS, startNanos);
                 return true;
             } catch (Exception e) {
                 if (isNotDispatchable(e)) {
                     markFailure(job, jobLog, e, retryCount);
+                    recordExecution(job, JobMetricNames.STATUS_FAILURE, startNanos);
                     log.warn("任务无法投递，直接记失败且不重试: jobId={}, jobName={}, reason={}",
                             job.getId(), job.getJobName(), e.getMessage());
                     return false;
                 }
                 if (retryCount >= maxRetry) {
                     markFailure(job, jobLog, e, retryCount);
+                    recordExecution(job, JobMetricNames.STATUS_FAILURE, startNanos);
                     log.warn("任务执行失败且重试已耗尽: jobId={}, jobName={}, shardIndex={}/{}, retryCount={}",
                             job.getId(), job.getJobName(), shardIndex, shardTotal, retryCount, e);
                     return false;
@@ -696,10 +805,41 @@ public class JobScheduler {
                         intervalMillis / MILLIS_PER_SECOND, retryCount + 1, job.getId(), shardIndex, shardTotal, e);
                 if (!awaitRetry(intervalMillis)) {
                     markFailure(job, jobLog, e, retryCount + 1);
+                    recordExecution(job, JobMetricNames.STATUS_FAILURE, startNanos);
                     return false;
                 }
             }
         }
+    }
+
+    /**
+     * 记录一次最终执行结果与端到端耗时（重试只计最终结果）
+     *
+     * @param job        任务定义
+     * @param status     结果状态（success / failure）
+     * @param startNanos 开始执行时的 {@link System#nanoTime()}
+     */
+    private void recordExecution(JobInfoPo job, String status, long startNanos) {
+        String jobName = jobTag(job);
+        meterRegistry.counter(JobMetricNames.EXECUTE_TOTAL,
+                        JobMetricNames.TAG_JOB, jobName,
+                        JobMetricNames.TAG_STATUS, status)
+                .increment();
+        Timer.builder(JobMetricNames.EXECUTE_DURATION)
+                .description("任务执行端到端耗时（含重试）")
+                .tag(JobMetricNames.TAG_JOB, jobName)
+                .register(meterRegistry)
+                .record(Duration.ofNanos(System.nanoTime() - startNanos));
+    }
+
+    /**
+     * 指标中的任务标签：优先任务名，任务名为空时回落任务ID
+     *
+     * @param job 任务定义
+     * @return 标签值
+     */
+    private static String jobTag(JobInfoPo job) {
+        return StringUtils.hasText(job.getJobName()) ? job.getJobName() : String.valueOf(job.getId());
     }
 
     /**

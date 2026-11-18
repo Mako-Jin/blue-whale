@@ -1,5 +1,6 @@
 package com.bluewhale.job.scheduler;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -45,7 +46,7 @@ class JobScheduleBroadcasterTest {
     private JobScheduleBroadcaster newBroadcaster(boolean redisAvailable) {
         ObjectProvider<RedissonClient> provider = mock(ObjectProvider.class);
         when(provider.getIfAvailable()).thenReturn(redisAvailable ? redissonClient : null);
-        JobScheduleBroadcaster broadcaster = new JobScheduleBroadcaster(provider);
+        JobScheduleBroadcaster broadcaster = new JobScheduleBroadcaster(provider, new SimpleMeterRegistry());
         broadcaster.registerConsumer((jobId, reschedule) -> events.add(new Object[]{jobId, reschedule}));
         if (redisAvailable) {
             when(redissonClient.getTopic(anyString())).thenReturn(topic);
