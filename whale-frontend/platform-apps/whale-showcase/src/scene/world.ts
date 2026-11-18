@@ -24,7 +24,7 @@ export interface SceneStats {
 
 export type TimeName = 'dusk' | 'day' | 'blue' | 'night';
 export type Quality = 'high' | 'mid' | 'low';
-export type PresetName = 'overview' | 'bridge' | 'street' | 'dock';
+export type PresetName = 'overview' | 'bridge' | 'street' | 'dock' | 'shop';
 
 interface TimePreset {
   /** 太阳高度角（度） */
@@ -166,6 +166,14 @@ const CAMERAS: Record<PresetName, CameraPreset> = {
    * 两艘船全被裁在画面下沿外——"换了码头和船"在图上一点都看不出来。</p>
    */
   dock: { pos: [5.5, 3.6, -25.5], target: [-4.2, 1.3, -14.6], fov: 44 },
+  /**
+   * 铺面：站在街心正对临街铺面。
+   *
+   * <p>街景机位（y=3.1）刚好在腰檐（3.38）以下，看过去是一道黑槽——檐廊里有什么
+   * 全看不见。这一位压低到 2.2、退到街对面，用来看立面层次（腰檐 / 二层格窗 /
+   * 檐廊 / 柜台 / 台阶）。</p>
+   */
+  shop: { pos: [12.4, 2.6, 17.2], target: [22.4, 2.6, 11.2], fov: 50 },
 };
 
 export function sunDirection(p: TimePreset): THREE.Vector3 {

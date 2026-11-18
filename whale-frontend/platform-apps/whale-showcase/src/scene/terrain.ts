@@ -65,6 +65,28 @@ export function heightAt(x: number, z: number): number {
     h = h * (1 - plazaMask) + flat * plazaMask;
   }
 
+  /*
+   * 镇区临水平台。
+   *
+   * <p><b>为什么必须有这一层</b>：河道中心线随 Z 摆动（{@link riverCenter}），
+   * 到 z=38 时中心在 7.1、东岸水线在 16.1，而街面从 13.5 起——北段有 2.6m 的街道
+   * <b>泡在河里</b>；z=20 附近即使没淹，街面也只有 0.2m 高，贴着水面。同一件事的
+   * 第二个后果是房子：台地在 x=24 已经抬到 1.65m，而街面 0.4m，一栋房子比街高
+   * 1.2m，0.36m 的台基根本接不上。</p>
+   *
+   * <p>临河城镇本来就是这个做法：<b>一条固定的岸线 + 石砌驳岸 + 平台上的街</b>，
+   * 河怎么摆都在岸线以西。所以这里把 x 13.5…26 压成 1.18 的平台（与桥头广场的
+   * 1.15 对齐），12.4→12.9 之间收成陡岸（驳岸石会盖在这道坡上），26→31 再缓缓
+   * 交回自然地形，城墙因此仍然站在起伏的台地上。</p>
+   */
+  const townZ = smoothstep(-56, -46, z) * (1 - smoothstep(40, 50, z));
+  const townX = smoothstep(13.38, 13.72, x) * (1 - smoothstep(26, 31, x));
+  const townMask = townZ * townX;
+  if (townMask > 0.001) {
+    const flat = 1.18;
+    h = h * (1 - townMask) + flat * townMask;
+  }
+
   return h;
 }
 

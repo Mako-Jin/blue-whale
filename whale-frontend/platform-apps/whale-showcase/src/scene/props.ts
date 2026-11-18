@@ -30,7 +30,8 @@ type MatKey =
   | 'foliage'
   | 'crop'
   | 'field'
-  | 'path';
+  | 'path'
+  | 'water';
 
 const MAT_DEF: Record<MatKey, THREE.MeshStandardMaterialParameters> = {
   stone: { color: PALETTE.stone, roughness: 0.92, metalness: 0.02 },
@@ -47,6 +48,7 @@ const MAT_DEF: Record<MatKey, THREE.MeshStandardMaterialParameters> = {
   crop: { color: 0x5d6a32, roughness: 0.95 },
   field: { color: 0x4f5c2d, roughness: 1 },
   path: { color: 0x7d7059, roughness: 0.98 },
+  water: { color: 0x2c3a38, roughness: 0.12, metalness: 0.3 },
 };
 
 /** 把同材质的部件合并成一个几何：3200 行 city.ts 那种"一物一 mesh"的写法，drawcall 会失控 */
@@ -89,9 +91,23 @@ class Builder {
     this.add(key, new THREE.BoxGeometry(w, h, d), m);
   }
 
-  cyl(key: MatKey, rTop: number, rBot: number, h: number, x: number, y: number, z: number, seg = 8): void {
+  cyl(
+    key: MatKey,
+    rTop: number,
+    rBot: number,
+    h: number,
+    x: number,
+    y: number,
+    z: number,
+    seg = 8,
+    rot?: { x?: number; y?: number; z?: number },
+  ): void {
     const geo = new THREE.CylinderGeometry(rTop, rBot, h, seg);
-    const m = new THREE.Matrix4().makeTranslation(x, y, z);
+    const m = new THREE.Matrix4().compose(
+      new THREE.Vector3(x, y, z),
+      new THREE.Quaternion().setFromEuler(new THREE.Euler(rot?.x ?? 0, rot?.y ?? 0, rot?.z ?? 0)),
+      new THREE.Vector3(1, 1, 1),
+    );
     this.add(key, geo, m);
   }
 
@@ -554,18 +570,153 @@ function buildStreet(b: Builder): void {
    *
    * <p>全部走 Builder 合并，缝再碎也还是 1 个 drawcall。</p>
    */
+  /*
+   * 垫层：先铺一整块通长的条石，再在上面铺"一块块石板"。
+   *
+   * <p>不铺垫层时，3.6m 一段之间的 10cm 缝下面是<b>草地</b>——沿街看过去，这些
+   * 横向缝在透视里连成一条绿线，像街心长了一条草。垫层只多 12 个三角面，
+   * 缝里看到的就是石头。</p>
+   */
+  b.box('stoneDark', 7.3, 0.2, 84, STREET_X, 1.18 - 0.06, -3);
+
   let seed = 5150;
   const rand = () => {
     seed = (seed * 1103515245 + 12345) % 2147483648;
     return seed / 2147483648;
   };
-  for (let z = -34; z < 30; z += 3.6) {
+  for (let z = -44; z < 38; z += 3.6) {
     for (const side of [-1, 1]) {
       // 左右两排各让 0.9m 的错位：整条街的石板不可能齐缝
       const zc = z + side * 0.9 + (rand() - 0.5) * 0.12;
       const y = heightAt(STREET_X, zc);
       const sink = (rand() - 0.5) * 0.03; // 石板厚薄不一是最便宜的"手工感"
       b.box('stoneDark', 3.42 - rand() * 0.1, 0.24, 3.5, STREET_X + side * 1.76, y + 0.05 + sink, zc);
+    }
+  }
+
+  /*
+   * 街沿石：街面东沿（20.5）到临街立面（21.2）之间那条 0.7m 的缝。
+   *
+   * <p>房子退到 FRONT_X 之后，街面与墙脚之间会留一条长草的窄缝——远看像街上
+   * 多了一条绿化带。补一条贴着墙脚的条石，顺便把台基与街面的高差收口。</p>
+   */
+  for (let z = -44; z < 38; z += 2.4) {
+    const zc = z + 1.2;
+    const y = heightAt(FRONT_X - 0.4, zc);
+    b.box('stoneDark', 1.5, 0.3, 2.44, FRONT_X - 0.45, y + 0.04, zc);
+  }
+}
+
+/* ------------------------------------------------------------------ 驳岸 */
+
+/**
+ * 石砌驳岸。
+ *
+ * <p>镇区平台（terrain.ts 的 townMask）把街面压到 1.18m，而水边在 x≈12.4：平台西沿
+ * 到街面之间那条 0.6m 的土坡，加上平台外 0.5m 的陡岸，在出图里是一条<b>长草的斜坡
+ * 直接跌进河里</b>——临河老街最不该缺的就是这道石驳岸。</p>
+ *
+ * <p>做法：沿 z 每 2.4m 一段（与街面石板同节奏），从平台顶往下砌到水下 1.6m，
+ * 顶上加一条压面石。桥头让开，其余整条连通。</p>
+ */
+function buildEmbankment(b: Builder): void {
+  const X = 13.5; // 岸线就压在街面西沿（13.53）上：平台边缘与街沿齐平，不留土坡
+  for (let z = -50; z < 44; z += 2.4) {
+    if (Math.abs(z - BRIDGE_Z) < 3.4) continue; // 桥台占位
+    const zc = z + 1.2;
+    const top = heightAt(X + 0.4, zc);
+    const h = top + 1.75; // 压到水下 1.75m
+    b.box('stoneDark', 1.15, h, 2.42, X, top - h / 2 + 0.04, zc);
+    // 压面石：比墙面挑出一点，形成一条影线
+    b.box('stone', 1.34, 0.16, 2.44, X + 0.04, top + 0.10, zc);
+  }
+}
+
+/* ------------------------------------------------------------------ 院墙与门楼 */
+
+/**
+ * 院墙 + 门楼。
+ *
+ * <p>只做独门独院的宅子（{@code courtyard}）。院墙不是装饰：它把"街"和"家"分成
+ * 两个层次，街立面因此有了<b>前景（墙）与背景（屋顶）</b>。全是贴街的房子，
+ * 再怎么做细节也是一排货架。</p>
+ *
+ * <p>墙必须逐段取地形高度：9m 长的墙在坡上用一个高度，一头会埋进土里、
+ * 一头悬空。每段 2.2m，段顶随地形走，压顶瓦跟着走。</p>
+ */
+function buildCourtWalls(b: Builder, spots: HouseSpot[]): void {
+  for (const sp of spots) {
+    if (!sp.courtyard) continue;
+    const half = sp.courtyard.halfZ;
+    const wallH = 2.15;
+    const seg = 2.2;
+    const z0 = sp.z - half;
+    const z1 = sp.z + half;
+    for (let z = z0; z < z1 - 0.01; z += seg) {
+      const len = Math.min(seg, z1 - z);
+      const zc = z + len / 2;
+      const y = heightAt(FRONT_X, zc);
+      b.box('plaster', 0.32, wallH + 0.5, len + 0.02, FRONT_X, y + wallH / 2 - 0.15, zc);
+      // 压顶瓦：白墙没有这道深色檐口就是一道白栅栏
+      b.box('tile', 0.52, 0.12, len + 0.16, FRONT_X, y + wallH + 0.06, zc);
+    }
+
+    // 门楼：两垛砖墩 + 门楣 + 小瓦顶。位置在墙中央，正对宅门
+    const gy = heightAt(FRONT_X, sp.z);
+    for (const dz of [-1.05, 1.05]) {
+      b.box('plaster', 0.44, 2.75, 0.44, FRONT_X, gy + 1.22, sp.z + dz);
+      b.box('tile', 0.58, 0.1, 0.58, FRONT_X, gy + 2.62, sp.z + dz);
+    }
+    // 门洞：深色门板凹进 0.1，门框用木色
+    b.box('woodDark', 0.16, 2.06, 1.66, FRONT_X - 0.04, gy + 1.03, sp.z);
+    b.box('wood', 0.12, 2.2, 1.9, FRONT_X - 0.10, gy + 1.10, sp.z);
+    b.box('woodDark', 0.2, 2.02, 1.6, FRONT_X - 0.16, gy + 1.01, sp.z);
+    // 门楼顶：一块 1.5m 进深的小坡瓦顶（前后各挑 0.35），比墙头高一档
+    b.box('tile', 0.92, 0.12, 2.7, FRONT_X - 0.40, gy + 2.83, sp.z, { z: 0.30 });
+    b.box('tile', 0.92, 0.12, 2.7, FRONT_X + 0.40, gy + 2.83, sp.z, { z: -0.30 });
+    b.box('tile', 0.2, 0.12, 2.78, FRONT_X, gy + 2.96, sp.z);
+    // 门前踏跺
+    b.box('stoneDark', 0.5, 0.18, 2.0, FRONT_X - 0.42, gy + 0.09, sp.z);
+  }
+}
+
+/* ------------------------------------------------------------------ 门前小品 */
+
+/**
+ * 门口的水缸、石磨、柴垛。
+ *
+ * <p>光有房子没有"生活痕迹"，街还是布景。这三样最便宜、辨识度最高：
+ * 水缸（防火，江南老街几乎家家一口）、石磨、柴垛。</p>
+ */
+function buildStreetProps(b: Builder, spots: HouseSpot[]): void {
+  let seed = 20261121;
+  const rand = () => {
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    return seed / 2147483648;
+  };
+
+  for (const sp of spots) {
+    if (sp.x < 0) continue; // 只做东岸的街
+    const x = FRONT_X - 0.75;
+    // 水缸：缸身 + 缸沿 + 水面
+    if (rand() < 0.6) {
+      const z = sp.z + (rand() - 0.5) * 4.4;
+      const y = heightAt(x, z);
+      // cyl(key, rTop, rBot, h, x, y, z, seg)：六个数字一个都不能少。
+      // 少传 h 时 h 会吃掉 x（20.75m），出图是一根顶到天上去的细柱。
+      b.cyl('stoneDark', 0.34, 0.30, 0.62, x, y + 0.30, z, 12);
+      b.cyl('stone', 0.37, 0.37, 0.08, x, y + 0.60, z, 12);
+      b.cyl('water', 0.29, 0.29, 0.03, x, y + 0.56, z, 12);
+    }
+    // 柴垛：三四根横放的木柴叠起来
+    if (rand() < 0.4) {
+      const z = sp.z + (rand() - 0.5) * 5.2;
+      const y = heightAt(x, z);
+      for (let i = 0; i < 4; i += 1) {
+        b.cyl('wood', 0.09, 0.09, 0.9, x + (i % 2) * 0.16, y + 0.09 + Math.floor(i / 2) * 0.16, z + (i % 2) * 0.02, 6, {
+          x: Math.PI / 2,
+        });
+      }
     }
   }
 }
@@ -790,6 +941,14 @@ export function reedSpots(count = 140): ReedSpot[] {
     if (y < -0.55 || y > 0.85) continue;
     if (Math.abs(z - BRIDGE_Z) < 4.5) continue; // 桥洞两侧不长（会被桥台压住）
     if (x > -10 && x < 1 && z > -18 && z < -10) continue; // 码头
+    /*
+     * 东岸在城区段不能长芦苇。
+     *
+     * <p>河槽半宽 9、河心约 4.2，东岸水线到 x≈13.2，而街面从 13.5 起——芦苇撒点
+     * 半径 7.9~10.5 正好落在街上，出图是"街心长着一丛芦苇"。城区段东岸是石砌
+     * 驳岸，本来也不长。</p>
+     */
+    if (x > 11.5 && z > -46 && z < 40) continue;
     out.push({ x, y, z, rotY: rand() * Math.PI * 2, s: 0.75 + rand() * 0.55 });
   }
   return out;
@@ -856,14 +1015,53 @@ export interface HouseSpot {
   scale: number;
   rotY: number;
   variant: HouseVariant;
+  /** 院落：前面砌院墙 + 门楼，房子退到墙后（临街面不补齐，就会出现"墙比门还退"的坑） */
+  courtyard?: { halfZ: number };
 }
+
+/**
+ * 临街立面线。所有临街的房子、院墙、门楼都对齐到这一条 x。
+ *
+ * <p>不是"每栋各自随机 x"：街这种东西的力量全在<b>立面连续</b>上。随机 x 出来
+ * 的是七栋各自独立的房子，对齐之后才是一条街。</p>
+ */
+const FRONT_X = 21.2;
+
+/** 三款的进深（Blender 里 D 的一半是前脸到中心的距离） */
+const HOUSE_D: Record<HouseVariant, number> = { small: 4.4, big: 5.2, shop: 6.0 };
+
+/**
+ * 街段编排。
+ *
+ * <p>不是等距撒点。等距撒点必然得到"一排等宽等深的房子"——这就是"货架感"的来源。
+ * 真实的老街是几种东西交替：<b>联排铺面</b>（贴着街、深檐廊、共用山墙）、
+ * <b>独门独院的门面</b>（墙退半步）、<b>院墙 + 门楼</b>（房子退到墙后）。
+ * 三种交替出现，街立面才有节奏。</p>
+ */
+const STREET_PLOTS: Array<{
+  z: number;
+  kind: 'shop' | 'front' | 'court';
+  variant?: 'small' | 'big';
+  setback?: number;
+  halfZ?: number;
+}> = [
+  { z: -40.5, kind: 'court', variant: 'big', setback: 3.6, halfZ: 4.8 },
+  { z: -31.5, kind: 'front', variant: 'small' },
+  { z: -23.5, kind: 'shop' },
+  { z: -16.5, kind: 'shop' },
+  // 桥头广场：z -6…10 留空（桥从 z=2 进来，广场不能被房子压住）
+  { z: 12.6, kind: 'shop' },
+  { z: 19.6, kind: 'shop' },
+  { z: 27.0, kind: 'front', variant: 'big' },
+  { z: 35.0, kind: 'court', variant: 'small', setback: 3.2, halfZ: 4.4 },
+];
 
 /**
  * 民居落点。
  *
- * <p>用<b>固定 z 槽位</b>而不是纯随机撒点：房子正面朝 -X，此时"面宽 6.2~7.4"是沿
- * Z 排布的，而旧代码的防重叠判据只按 6.5×7 的盒子算，相邻两栋必然互相插进去
- * （出图就是一排糊在一起的屋顶）。槽距按最大面宽 + 走道给到 9m。</p>
+ * <p>面宽沿 Z、进深沿 X（正面朝 -X）。临街面统一对齐到 {@link FRONT_X}：
+ * 中心 x = FRONT_X + 进深/2（院落再加退让）。旧写法直接给"STREET_X + 6.2 + 随机"，
+ * 于是三款不同进深的房子前脸各差半米，远看是一排参差的白墙。</p>
  */
 export function houseSpots(): HouseSpot[] {
   let seed = 77881122;
@@ -873,18 +1071,21 @@ export function houseSpots(): HouseSpot[] {
   };
 
   const out: HouseSpot[] = [];
-  for (let z = -38; z <= 38; z += 9) {
-    if (Math.abs(z - BRIDGE_Z) < 8) continue; // 桥头广场留空
-    const zz = z + (rand() - 0.5) * 1.2;
-    const x = STREET_X + 6.2 + rand() * 1.1;
+  for (const plot of STREET_PLOTS) {
+    const variant: HouseVariant = plot.kind === 'shop' ? 'shop' : (plot.variant ?? 'small');
+    const depth = HOUSE_D[variant];
+    const setback = plot.setback ?? 0;
+    const x = FRONT_X + setback + depth / 2;
+    const z = plot.z + (plot.kind === 'shop' ? 0 : (rand() - 0.5) * 0.8);
     out.push({
       x,
-      z: zz,
-      y: heightAt(x, zz),
-      scale: 0.92 + rand() * 0.18,
-      // 正面朝 -X（街道在西侧）；再抖一点角度，一排房完全对齐最假
-      rotY: -Math.PI / 2 + (rand() - 0.5) * 0.1,
-      variant: rand() < 0.4 ? 'big' : 'small',
+      z,
+      y: heightAt(x, z),
+      // 铺面是联排的，缩放会让共用的山墙错开；另两款允许 8% 的差异
+      scale: plot.kind === 'shop' ? 1 : 0.94 + rand() * 0.12,
+      rotY: -Math.PI / 2,
+      variant,
+      ...(plot.kind === 'court' ? { courtyard: { halfZ: plot.halfZ ?? 4.6 } } : {}),
     });
   }
 
@@ -1071,6 +1272,10 @@ export function buildSettlement(assets?: SceneAssets): THREE.Group {
   buildWestPath(b);
   buildWestWharf(b);
   buildStreet(b);
+  const houseList = houseSpots();
+  buildEmbankment(b);
+  buildCourtWalls(b, houseList);
+  buildStreetProps(b, houseList);
   const hasLanterns = !!assets && assets.lantern.length > 0;
   if (!hasLanterns) buildLanterns(b);
 
@@ -1078,7 +1283,7 @@ export function buildSettlement(assets?: SceneAssets): THREE.Group {
   const hasWall = !!assets && assets.wall.length > 0;
   if (!hasWall) buildWall(b, segs);
 
-  const hasHouses = !!assets && (['small', 'big'] as HouseVariant[]).some(
+  const hasHouses = !!assets && (['small', 'big', 'shop'] as HouseVariant[]).some(
     (k) => (assets.houses[k] ?? []).length > 0,
   );
   if (!hasHouses) buildHouses(b);
@@ -1135,7 +1340,7 @@ export function buildSettlement(assets?: SceneAssets): THREE.Group {
 
   buildReeds(group);
   if (hasTrees && assets) buildTreesFromGlb(group, assets, spots);
-  if (hasHouses && assets) buildHousesFromGlb(group, assets, houseSpots());
+  if (hasHouses && assets) buildHousesFromGlb(group, assets, houseList);
   if (hasLanterns && assets) buildLanternsFromGlb(group, assets);
 
   return group;

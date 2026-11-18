@@ -12,7 +12,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
  */
 
 export type TreeVariant = 'round' | 'tall' | 'willow';
-export type HouseVariant = 'small' | 'big';
+export type HouseVariant = 'small' | 'big' | 'shop';
 
 export interface TemplateParts {
   geometry: THREE.BufferGeometry;
@@ -50,6 +50,7 @@ const FILES: Record<string, string> = {
   willow: '/assets/tree_willow.glb',
   houseSmall: '/assets/house_small.glb',
   houseBig: '/assets/house_big.glb',
+  houseShop: '/assets/house_shop.glb',
   lantern: '/assets/lantern.glb',
   wall: '/assets/wall_seg.glb',
   dock: '/assets/dock.glb',
@@ -95,13 +96,14 @@ export async function loadAssets(): Promise<SceneAssets> {
       );
     });
 
-  const [gate, round, tall, willow, houseSmall, houseBig, lantern, wall, dock, boat] = await Promise.all([
+  const [gate, round, tall, willow, houseSmall, houseBig, houseShop, lantern, wall, dock, boat] = await Promise.all([
     load(FILES.gate),
     load(FILES.round),
     load(FILES.tall),
     load(FILES.willow),
     load(FILES.houseSmall),
     load(FILES.houseBig),
+    load(FILES.houseShop),
     load(FILES.lantern),
     load(FILES.wall),
     load(FILES.dock),
@@ -110,7 +112,7 @@ export async function loadAssets(): Promise<SceneAssets> {
 
   // 窗纸/灯罩这类自发光材质要跟随时段调亮度，得先把实例收集起来
   const glow: THREE.MeshStandardMaterial[] = [];
-  for (const root of [houseSmall, houseBig, lantern]) {
+  for (const root of [houseSmall, houseBig, houseShop, lantern]) {
     root?.traverse((o) => {
       const m = o as THREE.Mesh;
       if (!m.isMesh) return;
@@ -136,7 +138,7 @@ export async function loadAssets(): Promise<SceneAssets> {
   return {
     gate,
     trees: { round: prep(round), tall: prep(tall), willow: prep(willow) },
-    houses: { small: prep(houseSmall), big: prep(houseBig) },
+    houses: { small: prep(houseSmall), big: prep(houseBig), shop: prep(houseShop) },
     lantern: prep(lantern),
     wall: prep(wall),
     dock,
