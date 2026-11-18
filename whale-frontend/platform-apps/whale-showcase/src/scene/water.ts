@@ -81,7 +81,10 @@ void main() {
 
   // 远处必须衰减法线扰动。不衰减的话每个像素都在两个噪声格子之间跳，
   // 远水面会变成一片闪烁的白噪点（白天实测像"碎冰/大理石"）。
-  float atten = 1.0 / (1.0 + dist * 0.045);
+  //
+  // 线性项 0.045 不够：150m 外还剩 0.13，而碎金是 pow(nh,420)——法线抖 0.13 就够
+  // 让整条远河跳成白点。这里加平方项，150m 处压到 0.03，远水面恢复成一片安静的反光。
+  float atten = 1.0 / (1.0 + dist * 0.09 + dist * dist * 0.0008);
 
   float e = 0.42;
   float dhdx = (surface(p + vec2(e, 0.0), uTime) - surface(p - vec2(e, 0.0), uTime)) / (2.0 * e);
@@ -111,7 +114,7 @@ void main() {
   // 宽反光系数必须很小：这个项是"整片水面都被太阳照亮"，给到 0.12 时白天整条河
   // 变成一片暖米色，看着像沙丘而不是水（白天全景实测）。碎金才是水面该有的东西。
   col += uSunColor * pow(nh, 26.0) * 0.045 * uSunIntensity;
-  col += uSunColor * pow(nh, 420.0) * 4.2 * uSunIntensity * atten;
+  col += uSunColor * pow(nh, 420.0) * 3.2 * uSunIntensity * atten;
 
   // 指数平方雾，与场景 FogExp2 同参数（自定义材质不吃 scene.fog，必须自己算）
   float fogFactor = 1.0 - exp(-uFogDensity * uFogDensity * dist * dist);

@@ -28,6 +28,15 @@ export interface SceneAssets {
   /** 街灯（挑杆 + 灯笼），按实例放置 */
   lantern: TemplateParts[];
   /**
+   * 城墙标准段（8m，沿 Z）。运行时按段长沿 Z 缩放铺满区间，
+   * 所以这里同样拆成 parts 走 InstancedMesh。
+   */
+  wall: TemplateParts[];
+  /** 码头：单件，整块放。拆成 parts 没有意义（只有一处） */
+  dock: THREE.Object3D | null;
+  /** 乌篷船：两艘同型不同朝向，走 InstancedMesh */
+  boat: TemplateParts[];
+  /**
    * 需要跟随时段调节的自发光材质（窗纸、灯罩）。
    * 材质实例是共享的，改一次全体生效——不要 clone 之后再改，那样只亮一栋。
    */
@@ -42,6 +51,9 @@ const FILES: Record<string, string> = {
   houseSmall: '/assets/house_small.glb',
   houseBig: '/assets/house_big.glb',
   lantern: '/assets/lantern.glb',
+  wall: '/assets/wall_seg.glb',
+  dock: '/assets/dock.glb',
+  boat: '/assets/boat.glb',
 };
 
 /**
@@ -83,7 +95,7 @@ export async function loadAssets(): Promise<SceneAssets> {
       );
     });
 
-  const [gate, round, tall, willow, houseSmall, houseBig, lantern] = await Promise.all([
+  const [gate, round, tall, willow, houseSmall, houseBig, lantern, wall, dock, boat] = await Promise.all([
     load(FILES.gate),
     load(FILES.round),
     load(FILES.tall),
@@ -91,6 +103,9 @@ export async function loadAssets(): Promise<SceneAssets> {
     load(FILES.houseSmall),
     load(FILES.houseBig),
     load(FILES.lantern),
+    load(FILES.wall),
+    load(FILES.dock),
+    load(FILES.boat),
   ]);
 
   // 窗纸/灯罩这类自发光材质要跟随时段调亮度，得先把实例收集起来
@@ -123,6 +138,9 @@ export async function loadAssets(): Promise<SceneAssets> {
     trees: { round: prep(round), tall: prep(tall), willow: prep(willow) },
     houses: { small: prep(houseSmall), big: prep(houseBig) },
     lantern: prep(lantern),
+    wall: prep(wall),
+    dock,
+    boat: prep(boat),
     glowMaterials: glow,
   };
 }

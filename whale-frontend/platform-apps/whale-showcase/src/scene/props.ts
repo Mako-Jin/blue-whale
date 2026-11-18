@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import type { HouseVariant, SceneAssets, TreeVariant } from './loader';
+import type { HouseVariant, SceneAssets, TemplateParts, TreeVariant } from './loader';
 import { heightAt, WATER_LEVEL } from './terrain';
 import { PALETTE, clamp } from './util';
 
@@ -228,31 +228,88 @@ function buildGate(b: Builder, x: number, z: number): void {
 /* ------------------------------------------------------------------ 码头与小船 */
 
 const DOCK_Z = -14;
+/** 平台面高度（GLB 里 z=+0.95，这里必须跟它一致，台阶与灯位都按这个值算） */
 const DOCK_TOP = WATER_LEVEL + 0.95;
 
+/**
+ * 码头中心 X。
+ *
+ * <p>旧值 -10.5 是<b>整个平台都落在岸上</b>：河槽西岸在 x≈-6.2（`RIVER_HALF=9`，
+ * 河心随 z 摆到 2.8 附近），8.6m 的平台从 -14.8 到 -6.2 正好止于岸线，
+ * 一根桩都没沾到水——出图就是"岸上摆了一张大木桌"。</p>
+ *
+ * <p>现在 -4.6：平台 -8.9…-0.3，西端 2.6m 搭岸、其余 6m 悬在水上（东端水深约
+ * 2.4m，桩长 3.9m 能扎到河床）。-7.0 时仍有 60% 的板面压在草地上，
+ * 出图是"岸上摆了一张大木桌"。</p>
+ */
 function dockX(): number {
-  return -10.5;
+  return -4.6;
 }
+
+/** 码头平台长度（沿 X），GLB 里也是 8.6 */
+const DOCK_LEN = 8.6;
+const DOCK_HALF = DOCK_LEN / 2;
 
 function buildDock(b: Builder): void {
   const x = dockX();
   // 平台
-  b.box('wood', 8.6, 0.36, 5.6, x, DOCK_TOP - 0.18, DOCK_Z);
+  b.box('wood', DOCK_LEN, 0.36, 5.6, x, DOCK_TOP - 0.18, DOCK_Z);
   // 桩
   for (const dx of [-3.6, 0, 3.6]) {
     for (const dz of [-2.2, 2.2]) {
       b.cyl('woodDark', 0.22, 0.26, 3.4, x + dx, DOCK_TOP - 1.9, DOCK_Z + dz, 6);
     }
   }
-  // 岸上引道（三级台阶）
-  for (let i = 0; i < 3; i += 1) {
-    b.box('stone', 3.2, 0.34, 1.4, x + 5.4 + i * 0.2, DOCK_TOP + 0.17 + i * 0.34, DOCK_Z, {
-      z: -0.06 * i,
-    });
+}
+
+/**
+ * 上岸台阶。
+ *
+ * <p>这一截**必须按地形实时算**，不能写死高度。码头平台面固定 0.95，而岸坡在
+ * 这段是 0.6~0.9 并沿 X 变化——写死三级"往上抬"的台阶（旧写法
+ * {@code DOCK_TOP + 0.17 + i*0.34}）会一路抬到 1.97m，比岸高 1.3m，
+ * 出图是从码头爬上一堵墙。</p>
+ *
+ * <p>方向也要注意：码头是西端搭岸、东端伸进深水，台阶只能往<b>-X</b> 铺。
+ * 往 +X 铺的话三级台全立在河心里。</p>
+ */
+function buildApron(b: Builder): void {
+  const x0 = dockX() - DOCK_HALF; // 平台西沿（靠岸这一侧）
+  const steps = 3;
+  const depth = 0.7;
+  for (let i = 0; i < steps; i += 1) {
+    const xc = x0 - depth * (i + 0.5);
+    const ground = heightAt(xc, DOCK_Z);
+    // 台阶顶面从平台面降到地面；i 越大越靠岸、越低
+    const top = DOCK_TOP + (Math.min(ground, DOCK_TOP) - DOCK_TOP) * ((i + 1) / steps);
+    const h = Math.max(0.34, top - ground + 0.6); // 再往下吃 0.6m，坡地上不悬空
+    b.box('stoneDark', depth + 0.02, h, 3.2, xc, top - h / 2, DOCK_Z);
   }
 }
 
-function buildBoat(b: Builder, x: number, z: number, rotY: number): void {
+export interface BoatPlace {
+  x: number;
+  z: number;
+  rotY: number;
+}
+
+/**
+ * 船位。
+ *
+ * <p>吃水 0.45m，所以必须落在<b>水深 0.5 以上</b>的位置。旧值（dockX-3.4 /
+ * dockX-1.2，即 x≈-13.9 / -11.7）在岸上，船是"停在草地上"的——把码头往东挪
+ * 之后必须一并重算，靠判 {@code heightAt} 找不到落点。</p>
+ */
+export function boatSpots(): BoatPlace[] {
+  return [
+    // 船身 5.4m，两条同侧摆必然首尾相插（x 区间重叠 1.7m 时出图就是"一堆木头"）。
+    // 一南一北夹着码头，也是渡口真实的停法。
+    { x: -2.4, z: -18.5, rotY: 0.1 }, // 南侧
+    { x: 0.6, z: -10.4, rotY: -0.14 }, // 北侧
+  ];
+}
+
+function buildBoat(b: Builder, p: BoatPlace): void {
   // 船体：旋转剖面拉长，比"盒子斜切"更像船
   const profile: THREE.Vector2[] = [
     new THREE.Vector2(0.02, 0),
@@ -264,22 +321,12 @@ function buildBoat(b: Builder, x: number, z: number, rotY: number): void {
   ];
   const hull = new THREE.LatheGeometry(profile, 14);
   const m = new THREE.Matrix4().compose(
-    new THREE.Vector3(x, WATER_LEVEL + 0.02, z),
-    new THREE.Quaternion().setFromEuler(new THREE.Euler(0, rotY, 0)),
+    new THREE.Vector3(p.x, WATER_LEVEL + 0.02, p.z),
+    new THREE.Quaternion().setFromEuler(new THREE.Euler(0, p.rotY, 0)),
     new THREE.Vector3(1.0, 1.0, 2.8),
   );
   b.add('woodDark', hull, m);
-
-  // 船舷与横档
-  const ringM = new THREE.Matrix4().compose(
-    new THREE.Vector3(x, WATER_LEVEL + 0.92, z),
-    new THREE.Quaternion().setFromEuler(new THREE.Euler(0, rotY, 0)),
-    new THREE.Vector3(1.04, 1, 2.8),
-  );
-  b.add('wood', new THREE.TorusGeometry(0.96, 0.07, 5, 18), ringM);
-
-  // 桅杆
-  b.cyl('wood', 0.07, 0.09, 3.2, x, WATER_LEVEL + 2.2, z, 6);
+  b.cyl('wood', 0.07, 0.09, 3.2, p.x, WATER_LEVEL + 2.2, p.z, 6);
 }
 
 /* ------------------------------------------------------------------ 树 */
@@ -319,6 +366,8 @@ export function treeSpots(count = 54): TreeSpot[] {
     // 聚落占位区：x 覆盖街面到城墙，z 覆盖整条街（-38..38）并向两端各留 6m。
     // 早先只挡到 z<8，结果 z>8 的街心会长出树来（桥头机位实测有一棵树穿过牌坊屋顶）
     if (x > 11.5 && x < 36 && z > -46 && z < 44) continue;
+    // 码头及其上岸台阶：x -14…-2.7、z -17…-11。不排除的话会有树长在平台上
+    if (x > -14.5 && x < -2.5 && z > -18 && z < -10) continue;
 
     const y = heightAt(x, z);
     if (y < WATER_LEVEL + 0.4) continue;
@@ -471,35 +520,91 @@ function buildLanterns(b: Builder): void {
 const STREET_X = 17;
 
 function buildStreet(b: Builder): void {
+  /*
+   * 石板街。
+   *
+   * <p>一整块 7×3.7 的浅色平板是"低模感"最直接的来源——没有一条缝，光一打就是
+   * 一块水泥地。这里每 3.6m 一段、段间留 7cm 缝，段内再按中轴错成两排
+   * （沿 X 各半、错位 0.9m），远看就有"石板一铺到底"的节奏。</p>
+   *
+   * <p>全部走 Builder 合并，缝再碎也还是 1 个 drawcall。</p>
+   */
+  let seed = 5150;
+  const rand = () => {
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    return seed / 2147483648;
+  };
   for (let z = -34; z < 30; z += 3.6) {
-    const y = heightAt(STREET_X, z);
-    b.box('stoneDark', 7.0, 0.26, 3.7, STREET_X, y + 0.06, z);
+    for (const side of [-1, 1]) {
+      // 左右两排各让 0.9m 的错位：整条街的石板不可能齐缝
+      const zc = z + side * 0.9 + (rand() - 0.5) * 0.12;
+      const y = heightAt(STREET_X, zc);
+      const sink = (rand() - 0.5) * 0.03; // 石板厚薄不一是最便宜的"手工感"
+      b.box('stoneDark', 3.42 - rand() * 0.1, 0.24, 3.5, STREET_X + side * 1.76, y + 0.05 + sink, zc);
+    }
   }
 }
 
 /* ------------------------------------------------------------------ 城墙 */
 
-function buildWall(b: Builder): void {
-  const x = 31.5;
-  const segments = [
-    { z0: -52, z1: -8 },
-    { z0: 12, z1: 46 },
-  ];
-  for (const seg of segments) {
-    /*
-     * 必须按 4m 分段取地面高度。整段只取一次 heightAt 的话（旧写法），墙身在
-     * 44m 跨度里既不随地形起伏也不随地形下沉——北端地形抬升 9m，墙就整段飘在
-     * 半空；远看是一排悬空的方块，很像阶梯。
-     */
-    const step = 4;
-    for (let z = seg.z0; z < seg.z1; z += step) {
-      const zc = z + step / 2;
-      const y = heightAt(x, zc);
-      const bottom = y - 1.4; // 埋深 1.4m，坡地上不会露出墙根
-      b.box('stoneDark', 1.3, y + 4.0 - bottom, step + 0.02, x, (y + 4.0 + bottom) / 2, zc);
-      // 垛口与墙体咬合（同一段 y），避免出现"墙顶飘着一排小方块"
-      b.box('stone', 1.5, 0.9, 1.1, x, y + 4.45, zc);
+const WALL_X = 31.5;
+/** GLB 标准段长度（沿 Z）。运行时按实际段长沿 Z 缩放，把区间精确填满 */
+const WALL_SEG = 8;
+
+/** 城墙只修两段，中间让给桥头广场（真实城郭也是这样——南门进、北门出） */
+const WALL_RUNS: Array<[number, number]> = [
+  [-52, -8],
+  [12, 46],
+];
+
+export interface WallSeg {
+  z: number;
+  y: number;
+  /** 本段沿 Z 的实际长度（≈8m，因要整除区间而略有变化） */
+  len: number;
+}
+
+/**
+ * 城墙分段落点。
+ *
+ * <p>为什么是"段"而不是"一道墙"：城墙必须顺着地形起伏，而地形在这 44m 跨度里
+ * 有近 9m 高差。<b>每段单独取地面高度</b>，段与段之间的高差就形成阶梯状下跌——
+ * 那正是山城城墙的真实形态。整道墙只取一次高度（旧写法）的后果是一排悬空方块。</p>
+ *
+ * <p>段数由区间长度除以 8 四舍五入，再把区间均分——这样区间一定被填满，
+ * 代价是段长在 7~9m 之间浮动，靠缩放吸收（8m 段缩 12% 以内，垛口宽窄看不出来）。</p>
+ */
+export function wallSegments(): WallSeg[] {
+  const out: WallSeg[] = [];
+  for (const [z0, z1] of WALL_RUNS) {
+    const span = z1 - z0;
+    const n = Math.max(1, Math.round(span / WALL_SEG));
+    const len = span / n;
+    for (let i = 0; i < n; i += 1) {
+      const zc = z0 + len * (i + 0.5);
+      // 取段内 5 点平均：只看中心点的话，8m 段在坡上一端悬空、一端埋没
+      let sum = 0;
+      for (let k = 0; k < 5; k += 1) sum += heightAt(WALL_X, zc + (k - 2) * (len / 5));
+      out.push({ z: zc, y: sum / 5, len });
     }
+  }
+  return out;
+}
+
+/** 占位城墙：分层收分 + 垛口，体量与 GLB 对齐（换件时构图不动） */
+function buildWall(b: Builder, segs: WallSeg[]): void {
+  for (const sg of segs) {
+    const y = sg.y;
+    // 三层退台：底 2.75 → 1.55m 处 2.62 → 3.15m 处 2.34 → 4.6m 处 2.05
+    b.box('stoneDark', 2.68, 4.7, sg.len + 0.02, WALL_X, y + 1.6, sg.z);
+    b.box('stoneDark', 2.48, 1.9, sg.len + 0.02, WALL_X, y + 4.0, sg.z);
+    // 外侧垛墙 + 四个垛
+    for (let i = 0; i < 4; i += 1) {
+      const dz = -sg.len / 2 + sg.len / 8 + i * (sg.len / 4);
+      b.box('stone', 0.46, 1.18, sg.len / 4 - 0.1, WALL_X + 0.8, y + 5.2, sg.z + dz);
+    }
+    // 内侧女墙
+    b.box('stone', 0.36, 0.74, sg.len, WALL_X - 0.85, y + 4.97, sg.z);
   }
 }
 
@@ -623,6 +728,52 @@ function buildHouses(b: Builder): void {
 
 const GATE_X = 16.5;
 
+/** 实例摆放：位置 + 朝向 + 非等比缩放（城墙段要沿 Z 缩放到实际段长） */
+interface Placement {
+  x: number;
+  y: number;
+  z: number;
+  rotY: number;
+  sx?: number;
+  sy?: number;
+  sz?: number;
+}
+
+/**
+ * 把一组 (几何, 材质) 按同一批变换铺成 InstancedMesh。
+ *
+ * <p>树/民居/灯笼各自写过一份几乎一样的循环，城墙与船又要用——这里抽一个。</p>
+ */
+function instanceParts(
+  group: THREE.Group,
+  parts: TemplateParts[],
+  list: Placement[],
+  name: string,
+): void {
+  if (!parts.length || !list.length) return;
+  const m = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const pos = new THREE.Vector3();
+  const scl = new THREE.Vector3();
+  const up = new THREE.Vector3(0, 1, 0);
+  for (const part of parts) {
+    const im = new THREE.InstancedMesh(part.geometry, part.material, list.length);
+    im.castShadow = true;
+    im.receiveShadow = true;
+    im.frustumCulled = false; // 实例横跨几十米，整体包围盒没意义
+    list.forEach((p, i) => {
+      q.setFromAxisAngle(up, p.rotY);
+      pos.set(p.x, p.y, p.z);
+      scl.set(p.sx ?? 1, p.sy ?? 1, p.sz ?? 1);
+      m.compose(pos, q, scl);
+      im.setMatrixAt(i, m);
+    });
+    im.instanceMatrix.needsUpdate = true;
+    im.name = name;
+    group.add(im);
+  }
+}
+
 export function buildSettlement(assets?: SceneAssets): THREE.Group {
   const b = new Builder();
   buildBridge(b);
@@ -636,13 +787,22 @@ export function buildSettlement(assets?: SceneAssets): THREE.Group {
 
   if (!assets?.gate) buildGate(b, GATE_X, BRIDGE_Z);
 
-  buildDock(b);
-  buildBoat(b, dockX() - 3.4, DOCK_Z - 4.6, 0.35);
-  buildBoat(b, dockX() - 1.2, DOCK_Z - 9.2, -0.2);
+  const hasDock = !!assets?.dock;
+  if (!hasDock) buildDock(b);
+  // 台阶永远按地形现算——它跟岸边高度绑定，跟用哪版码头无关
+  buildApron(b);
+
+  const boats = boatSpots();
+  const hasBoat = !!assets && assets.boat.length > 0;
+  if (!hasBoat) for (const p of boats) buildBoat(b, p);
+
   buildStreet(b);
   const hasLanterns = !!assets && assets.lantern.length > 0;
   if (!hasLanterns) buildLanterns(b);
-  buildWall(b);
+
+  const segs = wallSegments();
+  const hasWall = !!assets && assets.wall.length > 0;
+  if (!hasWall) buildWall(b, segs);
 
   const hasHouses = !!assets && (['small', 'big'] as HouseVariant[]).some(
     (k) => (assets.houses[k] ?? []).length > 0,
@@ -665,6 +825,40 @@ export function buildSettlement(assets?: SceneAssets): THREE.Group {
     });
     group.add(gate);
   }
+
+  if (hasDock && assets?.dock) {
+    // 码头 GLB 的原点在世界坐标的"水面中心"，长边沿 X，正好对上岸的方向。
+    // 不 clone：只有一处，直接用（GLB scene 只能挂在场景树的一个位置上）。
+    const dock = assets.dock;
+    dock.position.set(dockX(), WATER_LEVEL, DOCK_Z);
+    dock.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.isMesh) {
+        m.castShadow = true;
+        m.receiveShadow = true;
+      }
+    });
+    group.add(dock);
+  }
+
+  if (hasBoat && assets) {
+    instanceParts(
+      group,
+      assets.boat,
+      boats.map((p) => ({ x: p.x, y: WATER_LEVEL + 0.02, z: p.z, rotY: p.rotY })),
+      'boats',
+    );
+  }
+
+  if (hasWall && assets) {
+    instanceParts(
+      group,
+      assets.wall,
+      segs.map((sg) => ({ x: WALL_X, y: sg.y, z: sg.z, rotY: 0, sz: sg.len / WALL_SEG })),
+      'wall',
+    );
+  }
+
   if (hasTrees && assets) buildTreesFromGlb(group, assets, spots);
   if (hasHouses && assets) buildHousesFromGlb(group, assets, houseSpots());
   if (hasLanterns && assets) buildLanternsFromGlb(group, assets);
