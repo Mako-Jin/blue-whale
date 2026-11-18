@@ -6,7 +6,10 @@ import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.job.dto.JobAlertQueryRequest;
+import com.bluewhale.job.dto.JobBatchDeleteRequest;
+import com.bluewhale.job.dto.JobBatchStatusRequest;
 import com.bluewhale.job.dto.JobDependencySetRequest;
+import com.bluewhale.job.dto.JobImportRequest;
 import com.bluewhale.job.dto.JobInfoCreateRequest;
 import com.bluewhale.job.dto.JobInfoQueryRequest;
 import com.bluewhale.job.dto.JobInfoUpdateRequest;
@@ -14,15 +17,19 @@ import com.bluewhale.job.dto.JobLogQueryRequest;
 import com.bluewhale.job.dto.JobLogStatsQueryRequest;
 import com.bluewhale.job.dto.JobStatusRequest;
 import com.bluewhale.job.service.JobAlertService;
+import com.bluewhale.job.service.JobBatchService;
 import com.bluewhale.job.service.JobDependencyService;
 import com.bluewhale.job.service.JobGraphService;
 import com.bluewhale.job.service.JobInfoService;
 import com.bluewhale.job.service.JobLogService;
 import com.bluewhale.job.vo.ExecutorLogVO;
 import com.bluewhale.job.vo.JobAlertVO;
+import com.bluewhale.job.vo.JobBatchResultVO;
 import com.bluewhale.job.vo.JobDependencyVO;
+import com.bluewhale.job.vo.JobExportVO;
 import com.bluewhale.job.vo.JobGraphValidateVO;
 import com.bluewhale.job.vo.JobGraphVO;
+import com.bluewhale.job.vo.JobImportResultVO;
 import com.bluewhale.job.vo.JobInfoVO;
 import com.bluewhale.job.vo.JobLogStatsVO;
 import com.bluewhale.job.vo.JobLogVO;
@@ -66,6 +73,8 @@ public class JobController {
 
     private final JobGraphService jobGraphService;
 
+    private final JobBatchService jobBatchService;
+
     /** 分页查询定时任务 */
     @GetMapping("/info/page")
     @RequirePermission("sys:job:list")
@@ -103,6 +112,37 @@ public class JobController {
     public Result<Void> delete(@PathVariable Long id) {
         jobInfoService.delete(id);
         return Result.ok();
+    }
+
+    /** 批量删除任务：逻辑删除，逐条处理，部分失败不影响其余 */
+    @PostMapping("/info/batch-delete")
+    @RequirePermission("sys:job:delete")
+    @AuditLog(operation = "批量删除定时任务", type = OperateType.DELETE, targetType = TARGET_TYPE)
+    public Result<JobBatchResultVO> batchDelete(@Valid @RequestBody JobBatchDeleteRequest request) {
+        return Result.ok(jobBatchService.batchDelete(request));
+    }
+
+    /** 批量启停任务：逐条处理，部分失败不影响其余 */
+    @PostMapping("/info/batch-status")
+    @RequirePermission("sys:job:edit")
+    @AuditLog(operation = "批量启停定时任务", type = OperateType.UPDATE, targetType = TARGET_TYPE)
+    public Result<JobBatchResultVO> batchStatus(@Valid @RequestBody JobBatchStatusRequest request) {
+        return Result.ok(jobBatchService.batchStatus(request));
+    }
+
+    /** 导出任务定义与依赖边：可按分组过滤，依赖以业务标识表达 */
+    @GetMapping("/info/export")
+    @RequirePermission("sys:job:list")
+    public Result<JobExportVO> export(@RequestParam(required = false) String jobGroup) {
+        return Result.ok(jobBatchService.export(jobGroup));
+    }
+
+    /** 导入任务定义与依赖边：冲突策略 SKIP / OVERWRITE，逐条处理并聚合失败明细 */
+    @PostMapping("/info/import")
+    @RequirePermission("sys:job:add")
+    @AuditLog(operation = "导入定时任务", type = OperateType.CREATE, targetType = TARGET_TYPE)
+    public Result<JobImportResultVO> importJobs(@Valid @RequestBody JobImportRequest request) {
+        return Result.ok(jobBatchService.importJobs(request));
     }
 
     /** 启停任务：变更调度状态属敏感操作，必留痕 */
