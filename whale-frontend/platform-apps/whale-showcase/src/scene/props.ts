@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { HouseVariant, SceneAssets, TemplateParts, TreeVariant } from './loader';
-import { heightAt, WATER_LEVEL } from './terrain';
+import { heightAt, riverCenter, WATER_LEVEL } from './terrain';
 import { PALETTE, clamp } from './util';
 
 /**
@@ -27,7 +27,10 @@ type MatKey =
   | 'gold'
   | 'glow'
   | 'window'
-  | 'foliage';
+  | 'foliage'
+  | 'crop'
+  | 'field'
+  | 'path';
 
 const MAT_DEF: Record<MatKey, THREE.MeshStandardMaterialParameters> = {
   stone: { color: PALETTE.stone, roughness: 0.92, metalness: 0.02 },
@@ -41,6 +44,9 @@ const MAT_DEF: Record<MatKey, THREE.MeshStandardMaterialParameters> = {
   glow: { color: 0xffb070, emissive: 0xff6a2a, emissiveIntensity: 2.2, roughness: 0.5 },
   window: { color: 0xffcf94, emissive: 0xffa050, emissiveIntensity: 1.5, roughness: 0.6 },
   foliage: { color: 0x3d4a2a, roughness: 0.95 },
+  crop: { color: 0x5d6a32, roughness: 0.95 },
+  field: { color: 0x4f5c2d, roughness: 1 },
+  path: { color: 0x7d7059, roughness: 0.98 },
 };
 
 /** 把同材质的部件合并成一个几何：3200 行 city.ts 那种"一物一 mesh"的写法，drawcall 会失控 */
@@ -368,6 +374,13 @@ export function treeSpots(count = 54): TreeSpot[] {
     if (x > 11.5 && x < 36 && z > -46 && z < 44) continue;
     // 码头及其上岸台阶：x -14…-2.7、z -17…-11。不排除的话会有树长在平台上
     if (x > -14.5 && x < -2.5 && z > -18 && z < -10) continue;
+    // 田垄与西岸小村：树长在垄上不像话，也会把田垄切得七零八落
+    let onField = false;
+    for (const [fx0, fz0, fx1, fz1] of FIELD_BLOCKS) {
+      if (x > fx0 - 1.5 && x < fx1 + 1.5 && z > fz0 - 1.5 && z < fz1 + 1.5) onField = true;
+    }
+    if (onField) continue;
+    if (x > -36 && x < -18 && z > -10 && z < 12) continue;
 
     const y = heightAt(x, z);
     if (y < WATER_LEVEL + 0.4) continue;
@@ -620,6 +633,220 @@ function buildWall(b: Builder, segs: WallSeg[]): void {
   }
 }
 
+/* ------------------------------------------------------------------ 西岸：田垄 */
+
+/**
+ * 田垄区块 [x0, z0, x1, z1]。
+ *
+ * <p>左岸（西岸）原本只有草地和几棵散树，全景里是一大片空绿——构图半边全空。
+ * 补一片垄作田比补建筑便宜得多：一行行 0.5m 高的作物贴地铺开，远看就是
+ * 江南的田垄肌理，且完全跟着地形走，不会出现"浮在坡上的地毯"。</p>
+ *
+ * <p>两块地的位置刻意分开：一块在西南河湾外，一块在桥头正对岸——前者补全景
+ * 左下，后者补桥头机位的背景。</p>
+ */
+const FIELD_BLOCKS: Array<[number, number, number, number]> = [
+  [-38, -47, -16, -25],
+  [-36, 10, -18, 31],
+];
+
+/**
+ * 田块底面。
+ *
+ * <p>只有垄没有"田"是错的：远看一垄一垄的高对比条带会在 1.5m 的垄距上产生摩尔纹，
+ * 黄昏逆光下整片田变成一格一格的亮点（实测像一片地灯）。先铺一层跟地形贴合的
+ * 田面（暗绿），垄再压成低对比的浅色条纹——远看是一块"颜色不同的地"，
+ * 近看才是垄。</p>
+ *
+ * <p>田面必须逐顶点取 heightAt：整块取一个高度的平面，在 3.6m 的高差上会一半
+ * 埋进坡里、一半浮在空中。</p>
+ */
+function buildFieldGround(b: Builder): void {
+  for (const [x0, z0, x1, z1] of FIELD_BLOCKS) {
+    const cx = (x0 + x1) / 2;
+    const cz = (z0 + z1) / 2;
+    const geo = new THREE.PlaneGeometry(x1 - x0, z1 - z0, Math.round((x1 - x0) / 2.5), Math.round((z1 - z0) / 2.5));
+    geo.rotateX(-Math.PI / 2);
+    const pos = geo.attributes.position as THREE.BufferAttribute;
+    for (let i = 0; i < pos.count; i += 1) {
+      const wx = pos.getX(i) + cx;
+      const wz = pos.getZ(i) + cz;
+      pos.setY(i, Math.max(heightAt(wx, wz), WATER_LEVEL + 0.25) + 0.09);
+    }
+    pos.needsUpdate = true;
+    geo.translate(cx, 0, cz);
+    b.add('field', geo);
+  }
+}
+
+function buildFields(b: Builder): void {
+  buildFieldGround(b);
+  let seed = 20261119;
+  const rand = () => {
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    return seed / 2147483648;
+  };
+  for (const [x0, z0, x1, z1] of FIELD_BLOCKS) {
+    // 垄距 1.55、株距 0.98：块长 0.84 让一垄几乎连成线，但留有断口
+    for (let x = x0; x <= x1; x += 1.55) {
+      for (let z = z0; z <= z1; z += 0.98) {
+        const xc = x + (rand() - 0.5) * 0.12;
+        const y = heightAt(xc, z);
+        if (y < WATER_LEVEL + 0.45) continue; // 水里不种
+        // 地头不能是一条齐边：真田是随地形和地界走的，四边各让出一圈不规则缺口
+        const edge = Math.min(x - x0, x1 - x, z - z0, z1 - z);
+        if (edge < 2.6 && rand() < (2.6 - edge) / 3.2) continue;
+        b.box('crop', 0.56 + rand() * 0.1, 0.12 + rand() * 0.06, 0.84, xc, y + 0.09, z);
+      }
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ 西岸：小路与水埠 */
+
+/**
+ * 小路：从西岸小村下到河边水埠。
+ *
+ * <p>一块田加几栋房子，中间没有"连接"就是三个孤立的物件。一条踩出来的土路
+ * 把村、田、水连起来，是这个尺度上最便宜、也最有说服力的"有人住"的证据。</p>
+ *
+ * <p>路必须逐段取地形高度并按切线转向：整条用一个高度会一半埋进坡里；
+ * 不转向则每段之间露出锯齿。</p>
+ */
+const PATH_PTS: Array<[number, number]> = [
+  [-23.5, 12.0],
+  [-17.0, 11.2],
+  [-11.0, 8.6],
+  [-6.4, 6.2],
+];
+
+function buildWestPath(b: Builder): void {
+  const curve = new THREE.CatmullRomCurve3(PATH_PTS.map(([x, z]) => new THREE.Vector3(x, 0, z)));
+  const n = 40;
+  for (let i = 0; i < n; i += 1) {
+    const t = (i + 0.5) / n;
+    const p = curve.getPoint(t);
+    const tan = curve.getTangent(t).normalize();
+    const y = heightAt(p.x, p.z);
+    if (y < WATER_LEVEL + 0.1) continue;
+    // 段长 ×1.1 让相邻两段叠一点，转弯处不会露缝
+    b.box('path', 2.0 * 1.1, 0.14, 1.05, p.x, y + 0.02, p.z, { y: Math.atan2(-tan.z, tan.x) });
+  }
+}
+
+/**
+ * 水埠：四级石阶从岸上落进水里。
+ *
+ * <p>方位在 x≈-6.4 / z≈6.2，正好是西岸岸线的位置（该处河心 4.5、河槽半宽 9）。
+ * 台阶往 +X 走、逐级降低，最后一级没进水面以下——真实的河埠头就是这样的，
+ * 水涨水落都够得着。</p>
+ */
+function buildWestWharf(b: Builder): void {
+  const z = 6.2;
+  const steps = 4;
+  for (let i = 0; i < steps; i += 1) {
+    const x = -6.4 + i * 0.62;
+    const y = heightAt(-6.4, z) - i * 0.26;
+    b.box('stoneDark', 0.64, 1.5, 2.4, x, y - 0.75, z);
+  }
+  // 岸侧的驳岸石：把土坡跟台阶咬住，否则台阶像"插在草里的三块板"
+  for (const dz of [-1.35, 1.35]) {
+    b.box('stoneDark', 1.5, 0.5, 0.34, -7.2, heightAt(-7.2, z + dz) + 0.12, z + dz);
+  }
+}
+
+/* ------------------------------------------------------------------ 水线：芦苇 */
+
+export interface ReedSpot {
+  x: number;
+  y: number;
+  z: number;
+  rotY: number;
+  s: number;
+}
+
+/**
+ * 芦苇丛落点。
+ *
+ * <p>沿水线撒：距河心 7.9~10.5m（正是岸坡与水交界那一条），且地面高度在
+ * -0.55~0.85 之间——低于这个区间是深水，高于就是干草地，芦苇不长在干草地上。
+ * 这一步的意义是打散"草地与水面之间那条刀切一样的直线"：原来两岸的岸线是
+ * 一条笔直的色块分界，是全景里最假的地方之一。</p>
+ */
+export function reedSpots(count = 140): ReedSpot[] {
+  let seed = 515072;
+  const rand = () => {
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    return seed / 2147483648;
+  };
+  const out: ReedSpot[] = [];
+  let guard = 0;
+  while (out.length < count && guard < 4000) {
+    guard += 1;
+    const z = (rand() - 0.5) * 300;
+    const side = rand() < 0.5 ? -1 : 1;
+    const x = riverCenter(z) + side * (7.9 + rand() * 2.6);
+    const y = heightAt(x, z);
+    if (y < -0.55 || y > 0.85) continue;
+    if (Math.abs(z - BRIDGE_Z) < 4.5) continue; // 桥洞两侧不长（会被桥台压住）
+    if (x > -10 && x < 1 && z > -18 && z < -10) continue; // 码头
+    out.push({ x, y, z, rotY: rand() * Math.PI * 2, s: 0.75 + rand() * 0.55 });
+  }
+  return out;
+}
+
+/** 一丛芦苇：9 根斜出的苇秆 + 3 个穗。合并成一个几何，供 InstancedMesh 复用 */
+function createReedClump(): THREE.BufferGeometry {
+  const parts: THREE.BufferGeometry[] = [];
+  for (let i = 0; i < 9; i += 1) {
+    const a = (i / 9) * Math.PI * 2 + 0.4;
+    const h = 1.05 + ((i * 37) % 11) / 26;
+    const g = new THREE.CylinderGeometry(0.005, 0.021, h, 4, 1, true);
+    g.translate(0, h / 2, 0);
+    // 向外倒一点点：一丛芦苇是散开的，不是一束筷子
+    g.rotateZ(Math.cos(a) * 0.15);
+    g.rotateX(Math.sin(a) * 0.15);
+    g.translate(Math.cos(a) * (0.07 + (i % 3) * 0.05), 0, Math.sin(a) * (0.07 + (i % 3) * 0.05));
+    parts.push(g);
+  }
+  for (let i = 0; i < 3; i += 1) {
+    const a = (i / 3) * Math.PI * 2 + 1.1;
+    const g = new THREE.CylinderGeometry(0.007, 0.032, 0.24, 4, 1, true);
+    g.translate(Math.cos(a) * 0.11, 1.12 + i * 0.05, Math.sin(a) * 0.11);
+    parts.push(g);
+  }
+  const merged = mergeGeometries(parts, false);
+  for (const g of parts) g.dispose();
+  return merged!;
+}
+
+function buildReeds(group: THREE.Group): void {
+  const spots = reedSpots();
+  if (!spots.length) return;
+  const geo = createReedClump();
+  // 双面：苇秆是开口圆管，单面会在背面看穿
+  const mat = new THREE.MeshStandardMaterial({ color: 0x8d8a53, roughness: 0.96, side: THREE.DoubleSide });
+  const im = new THREE.InstancedMesh(geo, mat, spots.length);
+  im.castShadow = false; // 几百根细秆投影只会让阴影贴图变脏，收益接近零
+  im.receiveShadow = true;
+  im.frustumCulled = false;
+  const m = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const pos = new THREE.Vector3();
+  const scl = new THREE.Vector3();
+  const up = new THREE.Vector3(0, 1, 0);
+  spots.forEach((sp, i) => {
+    q.setFromAxisAngle(up, sp.rotY);
+    pos.set(sp.x, sp.y, sp.z);
+    scl.set(sp.s, sp.s * 0.9 + 0.2, sp.s);
+    m.compose(pos, q, scl);
+    im.setMatrixAt(i, m);
+  });
+  im.instanceMatrix.needsUpdate = true;
+  im.name = 'reeds';
+  group.add(im);
+}
+
 /* ------------------------------------------------------------------ 民居 */
 
 export interface HouseSpot {
@@ -658,6 +885,29 @@ export function houseSpots(): HouseSpot[] {
       // 正面朝 -X（街道在西侧）；再抖一点角度，一排房完全对齐最假
       rotY: -Math.PI / 2 + (rand() - 0.5) * 0.1,
       variant: rand() < 0.4 ? 'big' : 'small',
+    });
+  }
+
+  /*
+   * 西岸小村：四栋零零散散，正面朝东（对着河）。
+   *
+   * <p>没有它，全景左半边只有草地——"河这边一座城、河那边一片空草地"，
+   * 构图是偏的。房子必须<b>散</b>：间距 6~9m 不等、朝向各偏几度，聚成一排
+   * 就又变成东岸那条货架街了。</p>
+   */
+  for (const [x, z, sc] of [
+    [-21.5, 3.0, 0.9],
+    [-25.8, 7.5, 1.0],
+    [-22.8, 12.4, 0.86],
+    [-28.5, 1.6, 0.94],
+  ] as Array<[number, number, number]>) {
+    out.push({
+      x,
+      z,
+      y: heightAt(x, z),
+      scale: sc,
+      rotY: Math.PI / 2 + (rand() - 0.5) * 0.26,
+      variant: rand() < 0.5 ? 'big' : 'small',
     });
   }
   return out;
@@ -738,7 +988,16 @@ function buildHouses(b: Builder): void {
 
 /* ------------------------------------------------------------------ 出口 */
 
-const GATE_X = 16.5;
+/**
+ * 牌坊中心 X。
+ *
+ * <p>旧值 16.5 时西侧柱脚落在 <b>桥面上</b>：牌坊跨度 7.5m，柱位 12.75 / 20.25，
+ * 而石拱桥的实体是 x -14…14（桥必须够到东岸，河心在 4.2、河槽半宽 9），
+ * x=12.75 处桥面已经抬到 2.03m，而广场地面只有 1.15——柱脚埋进桥面 0.88m，
+ * 夹杆石整个看不见。往东挪到 17.9 后柱位 14.15 / 21.65，刚好跨在桥头广场上，
+ * 东腿落在街沿（街面 13.5…20.5），也是真实牌坊"骑街而立"的摆法。</p>
+ */
+const GATE_X = 17.9;
 
 /** 实例摆放：位置 + 朝向 + 非等比缩放（城墙段要沿 Z 缩放到实际段长） */
 interface Placement {
@@ -808,6 +1067,9 @@ export function buildSettlement(assets?: SceneAssets): THREE.Group {
   const hasBoat = !!assets && assets.boat.length > 0;
   if (!hasBoat) for (const p of boats) buildBoat(b, p);
 
+  buildFields(b);
+  buildWestPath(b);
+  buildWestWharf(b);
   buildStreet(b);
   const hasLanterns = !!assets && assets.lantern.length > 0;
   if (!hasLanterns) buildLanterns(b);
@@ -871,6 +1133,7 @@ export function buildSettlement(assets?: SceneAssets): THREE.Group {
     );
   }
 
+  buildReeds(group);
   if (hasTrees && assets) buildTreesFromGlb(group, assets, spots);
   if (hasHouses && assets) buildHousesFromGlb(group, assets, houseSpots());
   if (hasLanterns && assets) buildLanternsFromGlb(group, assets);

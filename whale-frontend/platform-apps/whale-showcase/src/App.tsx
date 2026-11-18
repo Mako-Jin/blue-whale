@@ -103,7 +103,7 @@ export default function App(): React.ReactElement {
 
       <div className="sc-title">
         <div className="sc-title-main">蓝鲸 · 河谷渡口</div>
-        <div className="sc-title-sub">S3 资产入库 · 牌坊与三款树已换 GLB</div>
+        <div className="sc-title-sub">S6 河谷渡口 · 牌坊重做 / 城墙 / 渡口 / 左岸</div>
       </div>
 
       <div className="sc-bar">
