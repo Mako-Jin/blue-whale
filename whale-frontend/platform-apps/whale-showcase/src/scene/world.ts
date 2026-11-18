@@ -261,6 +261,36 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
   const water = createWater();
   scene.add(water.mesh);
 
+  /*
+   * 水面反射探针。
+   *
+   * <p>用 CubeCamera 在河心烘一次全景（HDR、512），水 shader 按反射向量采样它。
+   * 这一步是夜景的关键：只有解析天空时，夜里天空近黑，整条河就是一块黑布，
+   * 岸上二十盏灯笼在水面上一丝影子都没有。</p>
+   *
+   * <p>三个必须处理的细节：</p>
+   * <ul>
+   *   <li><b>水面自身要隐藏</b>，否则反射里会看到水在反射自己（彩虹状反馈）；</li>
+   *   <li><b>烘的时候关掉 toneMapping</b>，RT 里保持线性 HDR——水 shader 末尾自己会做
+   *       tonemap，不关就是两次，水面会比岸上亮一档；</li>
+   *   <li><b>只在切时段时重烘</b>，一次 6 面 × 58 万面，每帧跑是不可能的。</li>
+   * </ul>
+   */
+  const probeRT = new THREE.WebGLCubeRenderTarget(512, { type: THREE.HalfFloatType });
+  const probe = new THREE.CubeCamera(0.6, 1400, probeRT);
+  probe.position.set(2, 5, -8); // 河心、贴着聚落：灯笼和牌坊都在这个点的视野里
+  scene.add(probe);
+  water.setEnv(probeRT.texture);
+
+  function refreshProbe(): void {
+    const prevTone = renderer.toneMapping;
+    water.mesh.visible = false;
+    renderer.toneMapping = THREE.NoToneMapping;
+    probe.update(renderer, scene);
+    renderer.toneMapping = prevTone;
+    water.mesh.visible = true;
+  }
+
   const settlement = buildSettlement(opts.assets);
   scene.add(settlement);
 
@@ -316,6 +346,13 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
     scene.add(light);
     lanternLights.push(light);
   }
+  // 渡口自己的主光：上面按"每三个灯位取一个"挑出来的三盏都在街上，
+  // 码头离最近的街灯 20m、超出 14m 衰减距离，夜里整片码头是黑的。
+  const dockLight = new THREE.PointLight(0xffb066, 0, 17, 2);
+  dockLight.position.set(-8.2, 2.7, -14);
+  dockLight.castShadow = false;
+  scene.add(dockLight);
+  lanternLights.push(dockLight);
 
   // 地面光斑：程序化径向渐变，避免再引一张贴图资产
   const glowCanvas = document.createElement('canvas');
@@ -389,12 +426,20 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
 
     for (const m of lampMaterials) m.emissiveIntensity = 2.2 * lampScale;
     for (const l of lanternLights) l.intensity = 26 * (p.lamp - 0.1);
+    // 水面倒影的灯位与亮度：与点光源同源，灯亮水亮
+    water.setLamps(
+      lanternLights.map((l) => l.position),
+      lanternLights.map(() => Math.max(0, (p.lamp - 0.25) * 0.95)),
+    );
     glowMat.opacity = Math.max(0, (p.lamp - 0.15) * 0.55);
     water.setSky(new THREE.Color(p.skyHorizon), new THREE.Color(p.skyTop));
 
     postfx.setBloom(p.bloom);
     postfx.setTint(new THREE.Color(p.shadowTint), new THREE.Color(0xffd2a0), p.shadowAmount);
     scene.background = null;
+
+    // 探针必须最后烘：天空、灯、雾、曝光全都要先落到新状态
+    refreshProbe();
   }
 
   function applyCamera(name: PresetName, immediate = true): void {
@@ -500,6 +545,7 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
       controls.dispose();
       postfx.dispose();
       env.dispose();
+      probeRT.dispose();
       scene.traverse((o) => {
         const m = o as THREE.Mesh;
         if (m.isMesh) {

@@ -475,6 +475,18 @@ export function lanternSpots(): LanternSpot[] {
       out.push({ x: row.x, z, y: heightAt(row.x, z), rotY: row.rotY });
     }
   }
+
+  /*
+   * 渡口灯：码头靠岸一侧两根立杆灯，灯挑向水面（+X）。
+   *
+   * <p>不加这两盏，码头在夜里是一团纯黑——离它最近的街灯在 20m 外，而点光源的
+   * 衰减距离只有 14m，实测相机抬到 3.6m 高度也看不清平台在哪。更要紧的是
+   * "灯影摇红"：灯高 2.7m、相机高 3.6m 时，倒影点落在 x≈-2.9 / z≈-20.3，
+   * 正好在河面内——这是整个场景里唯一能看到灯笼倒影的位置。</p>
+   */
+  for (const z of [-16.6, -11.4]) {
+    out.push({ x: -9.2, z, y: heightAt(-9.2, z), rotY: Math.PI / 2 });
+  }
   return out;
 }
 

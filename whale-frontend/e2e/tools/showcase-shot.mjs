@@ -17,6 +17,9 @@ const SHOTS = [
   { name: '02-bridge-dusk', time: '黄昏', preset: '桥头', wait: 1600 },
   { name: '03-street-dusk', time: '黄昏', preset: '街景', wait: 1600 },
   { name: '04-dock-dusk', time: '黄昏', preset: '码头', wait: 1600 },
+  // 夜景码头：唯一能验收"灯影摇红"的机位。灯高 3m、相机高 3.6m 时，灯笼的倒影点
+  // 才落在河面内；全景机位（高 21m）算出来的倒影点落在岸上，物理上就没有灯影。
+  { name: '04b-dock-night', time: '夜晚', preset: '码头', wait: 1600 },
   { name: '05-overview-day', time: '白天', preset: '全景', wait: 1600 },
   { name: '06-overview-blue', time: '蓝调', preset: '全景', wait: 1600 },
   { name: '07-overview-night', time: '夜晚', preset: '全景', wait: 1600 },

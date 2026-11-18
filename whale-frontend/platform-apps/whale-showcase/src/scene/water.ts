@@ -37,7 +37,51 @@ uniform vec3 uSunColor;
 uniform float uSunIntensity;
 uniform vec3 uFogColor;
 uniform float uFogDensity;
+uniform samplerCube uEnv;
+uniform float uEnvWeight;
+uniform vec3 uLampPos[4];
+uniform float uLampPower[4];
+uniform int uLampCount;
 varying vec3 vWorld;
+
+/**
+ * 灯笼在水面的倒影光带。
+ *
+ * <p>为什么自己做而不是靠反射探针：灯笼在水面上方 2.7m，它在水下的镜像是 -2.7m，
+ * 从相机射向镜像点的射线是<b>向下</b>的；而水面反射向量 R 在斜视时是<b>向上</b>的
+ * （掠射角下 R 几乎水平朝远端）。两者根本不是同一个方向——探针里灯在 cube 的下半
+ * 球，水面永远采不到。这是平面反射（Reflector）才能解决的事，而 Reflector 要每帧
+ * 把 58 万面的场景再渲一遍，帧率会掉到 20 以下。</p>
+ *
+ * <p>所以按几何直接算：灯的镜像点与相机连线交水面于一点，那里就是观众看到的倒影
+ * 位置。在这个点上做一个<b>沿视线方向拉长的椭圆光斑</b>——真实水面倒影正是这个形状：
+ * 横向只有几十厘米宽，纵向顺着波纹拖出好几米。</p>
+ */
+vec3 lampGlow(vec2 p, vec2 wob) {
+  vec3 acc = vec3(0.0);
+  for (int i = 0; i < 4; i++) {
+    if (i >= uLampCount) break;
+    vec3 lp = uLampPos[i];
+    vec3 mirror = vec3(lp.x, -lp.y, lp.z);
+    vec3 dir = mirror - cameraPosition;
+    if (dir.y >= -0.001) continue;
+    float t = -cameraPosition.y / dir.y;
+    vec2 hit = cameraPosition.xz + dir.xz * t;
+    vec2 axisV = normalize(cameraPosition.xz - hit + vec2(1e-4));
+    vec2 rel = (p + wob) - hit;
+    float along = dot(rel, axisV);
+    float across = dot(rel, vec2(-axisV.y, axisV.x));
+    // 横向只有 40cm 宽（水面倒影是窄带，不是一片雾），纵向按 |along|^1.6 拖出光尾
+    float g = exp(-across * across / 0.16) * exp(-pow(abs(along) / 3.0, 1.6));
+    /*
+     * 横纹调制：真实水面上的灯影不是一条均匀的光带，而是被水波<b>切成一道道横纹</b>，
+     * 而且这些横纹还在缓缓流动。少了这一层，画出来就是一片"月光洒水面"的雾。
+     */
+    float ripple = 0.5 + 0.5 * sin(along * 3.4 - uTime * 2.1 + across * 1.7);
+    acc += vec3(1.0, 0.55, 0.22) * g * (0.30 + 0.95 * ripple) * uLampPower[i];
+  }
+  return acc;
+}
 
 float hash21(vec2 p) {
   p = fract(p * vec2(123.34, 456.21));
@@ -94,7 +138,19 @@ void main() {
   vec3 V = normalize(cameraPosition - vWorld);
 
   vec3 R = reflect(-V, N);
-  vec3 refl = skyAt(R);
+
+  /*
+   * 反射 = 解析天空 + 环境探针。
+   *
+   * <p>只用解析天空时，夜里天空近黑，整条河就是一块黑布——岸上二十盏灯笼在水面
+   * 上一点影子都没有，"灯影摇红"这个最基本的夜景信息直接缺失。探针（CubeCamera
+   * 烘一次场景）把岸上的灯、牌坊、城墙带进反射里。</p>
+   *
+   * <p>探针固定在河心一点，远处用它会露出视差错误（几百米外的水面反射着近处的灯），
+   * 所以按距离淡回解析天空：50m 内以探针为主，100m 外几乎全是天空。</p>
+   */
+  float ew = uEnvWeight / (1.0 + dist * 0.022);
+  vec3 refl = mix(skyAt(R), textureCube(uEnv, R).rgb, ew);
 
   // 菲涅尔：正视也保留一点反射（0.05 起步），否则俯视时是一块死水泥；
   // 但上限压到 0.82——满反射会让水面变成一面金色镜子，把整条河的形体吃掉
@@ -115,6 +171,9 @@ void main() {
   // 变成一片暖米色，看着像沙丘而不是水（白天全景实测）。碎金才是水面该有的东西。
   col += uSunColor * pow(nh, 26.0) * 0.045 * uSunIntensity;
   col += uSunColor * pow(nh, 420.0) * 3.2 * uSunIntensity * atten;
+
+  // 灯影：越接近水面视角越明显（俯视时看不到倒影，这是菲涅尔决定的）
+  col += lampGlow(p, N.xz * 0.85) * (0.3 + fres * 1.1);
 
   // 指数平方雾，与场景 FogExp2 同参数（自定义材质不吃 scene.fog，必须自己算）
   float fogFactor = 1.0 - exp(-uFogDensity * uFogDensity * dist * dist);
@@ -137,6 +196,10 @@ export interface Water {
   ) => void;
   /** 反射用到的两种天空色：地平线（暖）与天顶（冷） */
   setSky: (horizon: THREE.Color, top: THREE.Color) => void;
+  /** 场景环境探针（CubeCamera 烘出的立方图），用于把岸上的灯与建筑带进水面反射 */
+  setEnv: (tex: THREE.CubeTexture | THREE.Texture) => void;
+  /** 水面上要画倒影的灯（最多 4 盏）。power 0..1，按时段灯亮程度给 */
+  setLamps: (positions: THREE.Vector3[], powers: number[]) => void;
 }
 
 export function createWater(length = 480, halfWidth = 12): Water {
@@ -163,6 +226,11 @@ export function createWater(length = 480, halfWidth = 12): Water {
     uSunIntensity: { value: 1 },
     uFogColor: { value: new THREE.Color(0xa8836a) },
     uFogDensity: { value: 0.0022 },
+    uEnv: { value: null as THREE.Texture | null },
+    uEnvWeight: { value: 0 },
+    uLampPos: { value: [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()] },
+    uLampPower: { value: [0, 0, 0, 0] },
+    uLampCount: { value: 0 },
   };
 
   const mat = new THREE.ShaderMaterial({
@@ -190,6 +258,16 @@ export function createWater(length = 480, halfWidth = 12): Water {
     setSky(horizon, top) {
       uniforms.uHorizon.value.copy(horizon);
       uniforms.uTop.value.copy(top);
+    },
+    setEnv(tex) {
+      uniforms.uEnv.value = tex;
+      uniforms.uEnvWeight.value = 1;
+    },
+    setLamps(positions, powers) {
+      const n = Math.min(4, positions.length);
+      for (let i = 0; i < n; i += 1) uniforms.uLampPos.value[i].copy(positions[i]);
+      for (let i = 0; i < 4; i += 1) uniforms.uLampPower.value[i] = i < n ? powers[i] ?? 0 : 0;
+      uniforms.uLampCount.value = n;
     },
   };
 }
