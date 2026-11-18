@@ -11,15 +11,20 @@ import com.bluewhale.job.dto.JobInfoCreateRequest;
 import com.bluewhale.job.dto.JobInfoQueryRequest;
 import com.bluewhale.job.dto.JobInfoUpdateRequest;
 import com.bluewhale.job.dto.JobLogQueryRequest;
+import com.bluewhale.job.dto.JobLogStatsQueryRequest;
 import com.bluewhale.job.dto.JobStatusRequest;
 import com.bluewhale.job.service.JobAlertService;
 import com.bluewhale.job.service.JobDependencyService;
+import com.bluewhale.job.service.JobGraphService;
 import com.bluewhale.job.service.JobInfoService;
 import com.bluewhale.job.service.JobLogService;
 import com.bluewhale.job.vo.ExecutorLogVO;
 import com.bluewhale.job.vo.JobAlertVO;
 import com.bluewhale.job.vo.JobDependencyVO;
+import com.bluewhale.job.vo.JobGraphValidateVO;
+import com.bluewhale.job.vo.JobGraphVO;
 import com.bluewhale.job.vo.JobInfoVO;
+import com.bluewhale.job.vo.JobLogStatsVO;
 import com.bluewhale.job.vo.JobLogVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +35,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -57,6 +63,8 @@ public class JobController {
     private final JobDependencyService jobDependencyService;
 
     private final JobAlertService jobAlertService;
+
+    private final JobGraphService jobGraphService;
 
     /** 分页查询定时任务 */
     @GetMapping("/info/page")
@@ -122,6 +130,13 @@ public class JobController {
         return Result.ok(jobLogService.page(request));
     }
 
+    /** 执行统计：按天趋势与失败/耗时 TopN */
+    @GetMapping("/log/stats")
+    @RequirePermission("sys:job:log:list")
+    public Result<JobLogStatsVO> logStats(JobLogStatsQueryRequest request) {
+        return Result.ok(jobLogService.stats(request));
+    }
+
     /**
      * 回捞某次执行在执行器侧保存的完整日志。
      *
@@ -148,6 +163,20 @@ public class JobController {
     public Result<JobDependencyVO> saveDependencies(@PathVariable Long id,
                                                     @Valid @RequestBody JobDependencySetRequest request) {
         return Result.ok(jobDependencyService.saveDependencies(id, request));
+    }
+
+    /** 查询任务依赖拓扑图（可选按分组过滤） */
+    @GetMapping("/graph")
+    @RequirePermission("sys:job:list")
+    public Result<JobGraphVO> graph(@RequestParam(required = false) String jobGroup) {
+        return Result.ok(jobGraphService.graph(jobGroup));
+    }
+
+    /** 全量节点环检测：供保存前校验与数据体检 */
+    @GetMapping("/graph/validate")
+    @RequirePermission("sys:job:list")
+    public Result<JobGraphValidateVO> validateGraph() {
+        return Result.ok(jobGraphService.validate());
     }
 
     /** 分页查询任务失败告警记录 */

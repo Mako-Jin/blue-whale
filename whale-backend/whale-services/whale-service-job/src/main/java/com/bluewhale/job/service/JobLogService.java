@@ -2,7 +2,9 @@ package com.bluewhale.job.service;
 
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.job.dto.JobLogQueryRequest;
+import com.bluewhale.job.dto.JobLogStatsQueryRequest;
 import com.bluewhale.job.vo.ExecutorLogVO;
+import com.bluewhale.job.vo.JobLogStatsVO;
 import com.bluewhale.job.vo.JobLogVO;
 
 /**
@@ -30,4 +32,14 @@ public interface JobLogService {
      * @return 回捞结果（含是否取到与原因）
      */
     ExecutorLogVO executorLog(Long logId);
+
+    /**
+     * 执行统计：按天成功/失败数、平均耗时、P95，以及失败与耗时 TopN。
+     *
+     * <p>只统计已结束的执行（成功/失败），执行中不计入；默认窗口最近 7 天，最大 90 天。</p>
+     *
+     * @param request 统计条件
+     * @return 统计结果
+     */
+    JobLogStatsVO stats(JobLogStatsQueryRequest request);
 }
