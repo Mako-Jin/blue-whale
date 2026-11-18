@@ -1,0 +1,148 @@
+/* 展示场景 UI。类名统一 sc- 前缀（showcase），避免与项目其他子应用串样式。 */
+
+:root {
+  --sc-gold: #d8b45a;
+  --sc-gold-dim: rgba(216, 180, 90, 0.32);
+  --sc-paper: #ecdfc4;
+  --sc-ink: #0b0f14;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: #0b0f14;
+}
+
+.sc-page {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  font-family: 'Songti SC', 'STSong', 'Noto Serif SC', 'SimSun', serif;
+  color: var(--sc-paper);
+  -webkit-font-smoothing: antialiased;
+}
+
+.sc-stage {
+  position: absolute;
+  inset: 0;
+}
+
+.sc-stage canvas {
+  display: block;
+}
+
+/* 暗角：S0 用 CSS 叠层顶一下，S1 会进后处理链 */
+.sc-page::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(115% 85% at 50% 46%, rgba(0, 0, 0, 0) 42%, rgba(4, 8, 12, 0.55) 100%);
+}
+
+.sc-title {
+  position: absolute;
+  left: 28px;
+  top: 24px;
+  pointer-events: none;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+}
+
+.sc-title-main {
+  font-size: 21px;
+  letter-spacing: 0.18em;
+  color: var(--sc-paper);
+}
+
+.sc-title-sub {
+  margin-top: 6px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: rgba(236, 223, 196, 0.55);
+}
+
+.sc-hud {
+  position: absolute;
+  right: 22px;
+  top: 22px;
+  padding: 10px 14px;
+  min-width: 128px;
+  border: 1px solid var(--sc-gold-dim);
+  border-radius: 6px;
+  background: rgba(8, 12, 17, 0.55);
+  backdrop-filter: blur(6px);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+
+.sc-hud-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  line-height: 1.9;
+}
+
+.sc-hud-key {
+  color: rgba(236, 223, 196, 0.5);
+}
+
+.sc-hud-val {
+  font-variant-numeric: tabular-nums;
+  color: var(--sc-gold);
+}
+
+.sc-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--sc-gold-dim);
+  border-radius: 8px;
+  background: rgba(8, 12, 17, 0.6);
+  backdrop-filter: blur(8px);
+}
+
+.sc-group {
+  display: flex;
+  gap: 4px;
+}
+
+.sc-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--sc-gold-dim);
+}
+
+.sc-btn {
+  padding: 5px 13px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: rgba(236, 223, 196, 0.66);
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.sc-btn:hover {
+  color: var(--sc-paper);
+  background: rgba(216, 180, 90, 0.08);
+}
+
+.sc-btn.is-on {
+  color: var(--sc-gold);
+  border-color: var(--sc-gold-dim);
+  background: rgba(216, 180, 90, 0.12);
+}
