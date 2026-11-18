@@ -1,0 +1,105 @@
+server:
+  # 网关注入的 X-Permission-Codes 随权限数量增长（超管可达 500+ 条），Tomcat 默认 8KB 头上限会导致 400
+  max-http-request-header-size: 64KB
+  port: ${SERVER_PORT:8082}
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: whale-job
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3306/bluewhale_job?useUnicode=true&characterEncoding=utf8&connectionCollation=utf8mb4_general_ci&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER:root}
+    # P1-2 安全默认值：不再提供 root 默认口令；未设置 MYSQL_PASSWORD 时由启动守卫给出明确报错
+    password: ${MYSQL_PASSWORD:}
+    # T-13 连接池基线：显式池名/上限/超时/泄漏检测；容量按实例数换算（默认 5 × 20 服务 ≈ 100 连接）
+    hikari:
+      pool-name: ${spring.application.name}-hikari
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:5}
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
+      connection-timeout: ${DB_POOL_CONNECTION_TIMEOUT_MS:30000}
+      validation-timeout: ${DB_POOL_VALIDATION_TIMEOUT_MS:5000}
+      idle-timeout: ${DB_POOL_IDLE_TIMEOUT_MS:600000}
+      max-lifetime: ${DB_POOL_MAX_LIFETIME_MS:1800000}
+      keepalive-time: ${DB_POOL_KEEPALIVE_MS:120000}
+      leak-detection-threshold: ${DB_POOL_LEAK_DETECTION_MS:60000}
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      # 本机 Redis 不启用 requirepass；此处**不要**写 password 占位符——
+      # 空串会被 Redisson 当成「已配置密码」并发送 AUTH，被服务端拒绝为
+      # `ERR AUTH called without any password configured`，导致启动失败。
+      # 若部署环境确需密码，用 --spring.data.redis.password=... 或 Nacos 显式覆盖。
+      database: ${REDIS_DATABASE:0}
+  # REQ-SEC-022：Flyway 数据库版本化（阶段 4 铺开），脚本位于 classpath:db/migration
+  flyway:
+    enabled: ${WHALE_FLYWAY_ENABLED:true}
+    locations: classpath:db/migration
+    table: flyway_schema_history
+    baseline-on-migrate: ${WHALE_FLYWAY_BASELINE_ON_MIGRATE:true}
+    baseline-version: 1
+    # 校验默认开启。双线合并删除了远程重复的 V2/V3/V4 脚本，应用过它们的库会在校验期
+    # 报「applied migration not resolved locally」；FlywayLegacyRepairConfig 会在 migrate
+    # 前自动清掉这三行并补跑本地脚本，无需人工 repair。此处保留开关仅作极端情况逃生口。
+    validate-on-migrate: ${WHALE_FLYWAY_VALIDATE_ON_MIGRATE:true}
+    clean-disabled: true
+    placeholder-replacement: false
+    connect-retries: 10
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+      config:
+        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+        file-extension: yaml
+
+logging:
+  level:
+    com.bluewhale: debug
+
+# AUTH-06：启用 starter 的 RequirePermissionInterceptor（默认 false，须显式开启），
+# 按网关注入的 X-Permission-Codes 判定本服务任务管理接口的 sys:job:* 权限。
+whale:
+  permission:
+    header:
+      enabled: true
+  job:
+    # job_log 保留天数：每日清理任务逻辑删除超过该天数的执行流水
+    log-retention-days: ${JOB_LOG_RETENTION_DAYS:30}
+    # whale-file 服务内网地址：归档任务经此直连上传导出文件（不经网关）
+    file-service-url: ${WHALE_JOB_FILE_SERVICE_URL:http://127.0.0.1:8085}
+    # 单次归档导出的 job_log 上限条数
+    archive-batch-size: ${WHALE_JOB_ARCHIVE_BATCH_SIZE:2000}
+    # 调度与执行器：线程池按实例规格调整，HTTP 默认超时可被任务的 handlerParam.timeoutMillis 覆盖
+    executor:
+      pool-size: ${WHALE_JOB_POOL_SIZE:8}
+      http-timeout-millis: ${WHALE_JOB_HTTP_TIMEOUT_MILLIS:15000}
+    # 失败告警：webhook-url 为空时仅写本地告警日志并落库 job_alert
+    alert:
+      enabled: ${WHALE_JOB_ALERT_ENABLED:true}
+      webhook-url: ${WHALE_JOB_ALERT_WEBHOOK_URL:}
+      cooldown-seconds: ${WHALE_JOB_ALERT_COOLDOWN_SECONDS:300}
+      connect-timeout-millis: ${WHALE_JOB_ALERT_CONNECT_TIMEOUT_MILLIS:2000}
+      read-timeout-millis: ${WHALE_JOB_ALERT_READ_TIMEOUT_MILLIS:3000}
+      max-error-length: ${WHALE_JOB_ALERT_MAX_ERROR_LENGTH:500}
+    # F-02 多实例广播断连后的本地调度全量重对齐
+    schedule-reconcile:
+      enabled: ${WHALE_JOB_SCHEDULE_RECONCILE_ENABLED:true}
+      interval-ms: ${WHALE_JOB_SCHEDULE_RECONCILE_INTERVAL_MS:300000}
+      initial-delay-ms: ${WHALE_JOB_SCHEDULE_RECONCILE_INITIAL_DELAY_MS:60000}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}

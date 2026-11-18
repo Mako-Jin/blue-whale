@@ -1,6 +1,7 @@
 package com.bluewhale.common.jobschedule;
 
 import com.bluewhale.common.internaltoken.InternalTokenSupport;
+import com.bluewhale.common.web.WebHeaders;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -130,6 +131,7 @@ public class JobExecutorRegistrar implements ApplicationListener<ApplicationRead
             client.post()
                     .uri(baseUrl() + REGISTER_PATH)
                     .contentType(MediaType.APPLICATION_JSON)
+                    .header(WebHeaders.TENANT_ID, String.valueOf(properties.getExecutor().getTenantId()))
                     .body(body)
                     .retrieve()
                     .toBodilessEntity();
@@ -153,6 +155,7 @@ public class JobExecutorRegistrar implements ApplicationListener<ApplicationRead
             String response = client.put()
                     .uri(baseUrl() + BEAT_PATH)
                     .contentType(MediaType.APPLICATION_JSON)
+                    .header(WebHeaders.TENANT_ID, String.valueOf(properties.getExecutor().getTenantId()))
                     .body(body)
                     .retrieve()
                     .body(String.class);
@@ -180,6 +183,7 @@ public class JobExecutorRegistrar implements ApplicationListener<ApplicationRead
             client.method(HttpMethod.DELETE)
                     .uri(baseUrl() + REGISTER_PATH)
                     .contentType(MediaType.APPLICATION_JSON)
+                    .header(WebHeaders.TENANT_ID, String.valueOf(properties.getExecutor().getTenantId()))
                     .body(body)
                     .retrieve()
                     .toBodilessEntity();
