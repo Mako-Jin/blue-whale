@@ -28,6 +28,13 @@ public class JobProperties {
     private Executor executor = new Executor();
 
     /**
+     * 启动对账阈值（分钟）：{@code job_log} 中 {@code status=0} 且开始时间早于该阈值的记录，
+     * 视为实例退出导致的「永远执行中」，启动时回写为失败。取值必须大于最长合法执行时长，
+     * 配置为 0 表示关闭该对账。
+     */
+    private int orphanLogTimeoutMinutes = 120;
+
+    /**
      * 执行器注册配置项。
      *
      * @author BlueWhale
@@ -62,6 +69,21 @@ public class JobProperties {
 
         /** HTTP 执行器连接超时毫秒数 */
         private int httpConnectTimeoutMillis = 5000;
+
+        /**
+         * 任务级超时的执行线程池大小。
+         *
+         * <p>只有配置了超时的任务才会用到该线程池：调度线程 {@code Future.get} 等待，
+         * 实际执行在独立线程池中进行，避免超时等待与执行互相占用线程造成死锁。</p>
+         */
+        private int taskPoolSize = 8;
+
+        /**
+         * 全局默认任务超时秒数：任务未配置 {@code timeout_seconds} 时使用。
+         *
+         * <p>默认 0 表示不限制，保持既有任务行为不变；需要兜底时统一打开即可。</p>
+         */
+        private int taskTimeoutSeconds = 0;
     }
 
     /**

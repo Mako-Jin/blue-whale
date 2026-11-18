@@ -58,8 +58,20 @@ public class WebhookJobAlertNotifier implements JobAlertNotifier {
     /** 告警通道：外发 Webhook */
     private static final String CHANNEL_WEBHOOK = "WEBHOOK";
 
-    /** 告警级别 */
+    /** 告警级别：错误 */
     private static final String LEVEL_ERROR = "ERROR";
+
+    /** 告警级别：警告 */
+    private static final String LEVEL_WARN = "WARN";
+
+    /** 告警摘要前缀：任务执行失败 */
+    private static final String PREFIX_FAILURE = "任务执行失败";
+
+    /** 告警摘要前缀：任务执行超时 */
+    private static final String PREFIX_TIMEOUT = "任务执行超时";
+
+    /** 告警摘要前缀：连续失败自动暂停 */
+    private static final String PREFIX_AUTO_PAUSED = "任务连续失败已自动暂停";
 
     /** 投递状态：待发 */
     private static final int STATUS_PENDING = 0;
@@ -173,20 +185,62 @@ public class WebhookJobAlertNotifier implements JobAlertNotifier {
 
     @Override
     public void notifyFailure(JobInfoPo job, JobLogPo jobLog) {
-        String errorMsg = truncateError(jobLog.getErrorMsg());
-        log.error("任务执行失败告警: jobId={}, jobName={}, runId={}, logId={}, retryCount={}, errorMsg={}",
-                job.getId(), job.getJobName(), jobLog.getRunId(), jobLog.getId(), jobLog.getRetryCount(), errorMsg);
+        notify(job, jobLog, LEVEL_ERROR, PREFIX_FAILURE);
+    }
+
+    @Override
+    public void notifyTimeout(JobInfoPo job, JobLogPo jobLog) {
+        notify(job, jobLog, LEVEL_ERROR, PREFIX_TIMEOUT);
+    }
+
+    @Override
+    public void notifyAutoPaused(JobInfoPo job, int failCount) {
+        String summary = "连续失败 " + failCount + " 次，已自动暂停";
+        log.error("任务连续失败自动暂停告警: jobId={}, jobName={}, failCount={}",
+                job.getId(), job.getJobName(), failCount);
         if (!isWebhookEnabled()) {
-            insertAlert(job, jobLog, CHANNEL_LOG, STATUS_SUCCESS, errorMsg);
+            insertAlert(job, null, CHANNEL_LOG, STATUS_SUCCESS, summary, LEVEL_WARN, PREFIX_AUTO_PAUSED);
+            return;
+        }
+        if (!tryAcquireWebhookSlot(job)) {
+            log.info("自动暂停告警外发处于冷却期，仅落库不外发: jobId={}", job.getId());
+            insertAlert(job, null, CHANNEL_LOG, STATUS_SUCCESS, summary, LEVEL_WARN, PREFIX_AUTO_PAUSED);
+            return;
+        }
+        JobAlertPo alert = insertAlert(job, null, CHANNEL_WEBHOOK, STATUS_PENDING, summary,
+                LEVEL_WARN, PREFIX_AUTO_PAUSED);
+        webhookExecutor.execute(() -> pushWebhook(alert, job, null, summary, LEVEL_WARN, PREFIX_AUTO_PAUSED));
+    }
+
+    /**
+     * 发送一条告警：本地日志 + 落库 + 按需外发 Webhook
+     *
+     * @param job 任务定义
+     * @param jobLog 执行日志（自动暂停场景可为空）
+     * @param level 告警级别
+     * @param messagePrefix 摘要前缀（区分失败 / 超时 / 自动暂停）
+     */
+    private void notify(JobInfoPo job, JobLogPo jobLog, String level, String messagePrefix) {
+        String errorMsg = truncateError(jobLog.getErrorMsg());
+        if (LEVEL_WARN.equals(level)) {
+            log.warn("{}告警: jobId={}, jobName={}, runId={}, logId={}, errorMsg={}",
+                    messagePrefix, job.getId(), job.getJobName(), jobLog.getRunId(), jobLog.getId(), errorMsg);
+        } else {
+            log.error("{}告警: jobId={}, jobName={}, runId={}, logId={}, retryCount={}, errorMsg={}",
+                    messagePrefix, job.getId(), job.getJobName(), jobLog.getRunId(), jobLog.getId(),
+                    jobLog.getRetryCount(), errorMsg);
+        }
+        if (!isWebhookEnabled()) {
+            insertAlert(job, jobLog, CHANNEL_LOG, STATUS_SUCCESS, errorMsg, level, messagePrefix);
             return;
         }
         if (!tryAcquireWebhookSlot(job)) {
             log.info("告警外发处于冷却期，仅落库不外发: jobId={}", job.getId());
-            insertAlert(job, jobLog, CHANNEL_LOG, STATUS_SUCCESS, errorMsg);
+            insertAlert(job, jobLog, CHANNEL_LOG, STATUS_SUCCESS, errorMsg, level, messagePrefix);
             return;
         }
-        JobAlertPo alert = insertAlert(job, jobLog, CHANNEL_WEBHOOK, STATUS_PENDING, errorMsg);
-        webhookExecutor.execute(() -> pushWebhook(alert, job, jobLog, errorMsg));
+        JobAlertPo alert = insertAlert(job, jobLog, CHANNEL_WEBHOOK, STATUS_PENDING, errorMsg, level, messagePrefix);
+        webhookExecutor.execute(() -> pushWebhook(alert, job, jobLog, errorMsg, level, messagePrefix));
     }
 
     /**
@@ -274,22 +328,25 @@ public class WebhookJobAlertNotifier implements JobAlertNotifier {
      * 落库一条告警记录
      *
      * @param job 任务定义
-     * @param jobLog 执行日志
+     * @param jobLog 执行日志（自动暂停场景可为空）
      * @param channel 告警通道
      * @param status 投递状态
      * @param errorMsg 失败原因
+     * @param level 告警级别
+     * @param messagePrefix 摘要前缀
      * @return 已落库的告警实体（主键已回填）
      */
-    private JobAlertPo insertAlert(JobInfoPo job, JobLogPo jobLog, String channel, int status, String errorMsg) {
+    private JobAlertPo insertAlert(JobInfoPo job, JobLogPo jobLog, String channel, int status, String errorMsg,
+                                   String level, String messagePrefix) {
         JobAlertPo alert = new JobAlertPo();
         alert.setJobId(job.getId());
         alert.setJobName(job.getJobName());
-        alert.setLogId(jobLog.getId());
-        alert.setRunId(jobLog.getRunId());
-        alert.setLevel(LEVEL_ERROR);
+        alert.setLogId(jobLog == null ? null : jobLog.getId());
+        alert.setRunId(jobLog == null ? null : jobLog.getRunId());
+        alert.setLevel(level);
         alert.setChannel(channel);
         alert.setStatus(status);
-        alert.setMessage(truncate("任务执行失败：" + Objects.toString(job.getJobName(), ""), MESSAGE_MAX_LENGTH));
+        alert.setMessage(truncate(messagePrefix + "：" + Objects.toString(job.getJobName(), ""), MESSAGE_MAX_LENGTH));
         alert.setErrorMsg(errorMsg);
         jobAlertMapper.insert(alert);
         return alert;
@@ -300,20 +357,24 @@ public class WebhookJobAlertNotifier implements JobAlertNotifier {
      *
      * @param alert 告警记录
      * @param job 任务定义
-     * @param jobLog 执行日志
+     * @param jobLog 执行日志（自动暂停场景可为空）
      * @param errorMsg 失败原因
+     * @param level 告警级别
+     * @param messagePrefix 摘要前缀
      */
-    private void pushWebhook(JobAlertPo alert, JobInfoPo job, JobLogPo jobLog, String errorMsg) {
+    private void pushWebhook(JobAlertPo alert, JobInfoPo job, JobLogPo jobLog, String errorMsg,
+                             String level, String messagePrefix) {
         try {
             restClient.post()
                     .uri(jobProperties.getAlert().getWebhookUrl())
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(buildPayload(job, jobLog, errorMsg))
+                    .body(buildPayload(job, jobLog, errorMsg, level, messagePrefix))
                     .retrieve()
                     .toBodilessEntity();
             updateAlertStatus(alert, STATUS_SUCCESS, "webhook 推送成功");
         } catch (Exception e) {
-            log.warn("告警 webhook 推送失败，已忽略: jobId={}, logId={}", job.getId(), jobLog.getId(), e);
+            log.warn("告警 webhook 推送失败，已忽略: jobId={}, logId={}", job.getId(),
+                    jobLog == null ? null : jobLog.getId(), e);
             updateAlertStatus(alert, STATUS_FAILURE, "webhook 推送失败：" + describe(e));
         }
     }
@@ -322,17 +383,22 @@ public class WebhookJobAlertNotifier implements JobAlertNotifier {
      * 构建 webhook JSON 载荷
      *
      * @param job 任务定义
-     * @param jobLog 执行日志
+     * @param jobLog 执行日志（自动暂停场景可为空）
      * @param errorMsg 失败原因
+     * @param level 告警级别
+     * @param messagePrefix 摘要前缀
      * @return 有序键值载荷（交由 RestClient 的 JSON 消息转换器序列化）
      */
-    private static Map<String, Object> buildPayload(JobInfoPo job, JobLogPo jobLog, String errorMsg) {
+    private static Map<String, Object> buildPayload(JobInfoPo job, JobLogPo jobLog, String errorMsg,
+                                                    String level, String messagePrefix) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("jobId", job.getId());
         payload.put("jobName", job.getJobName());
-        payload.put("runId", jobLog.getRunId());
-        payload.put("logId", jobLog.getId());
-        payload.put("retryCount", jobLog.getRetryCount());
+        payload.put("level", level);
+        payload.put("message", messagePrefix);
+        payload.put("runId", jobLog == null ? null : jobLog.getRunId());
+        payload.put("logId", jobLog == null ? null : jobLog.getId());
+        payload.put("retryCount", jobLog == null ? null : jobLog.getRetryCount());
         payload.put("errorMsg", errorMsg);
         payload.put("occurTime", LocalDateTime.now().format(TIME_FORMATTER));
         return payload;

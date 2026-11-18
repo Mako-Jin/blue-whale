@@ -1,8 +1,12 @@
 package com.bluewhale.job.scheduler;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.bluewhale.common.audit.mapper.AuditLogMapper;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.job.alert.JobAlertNotifier;
 import com.bluewhale.job.config.JobProperties;
+import com.bluewhale.job.po.JobDependencyPo;
 import com.bluewhale.job.po.JobInfoPo;
 import com.bluewhale.job.po.JobLogPo;
 import com.bluewhale.job.mapper.JobDependencyMapper;
@@ -11,7 +15,9 @@ import com.bluewhale.job.mapper.JobLogMapper;
 import com.bluewhale.job.service.JobExecutorService;
 import com.bluewhale.job.scheduler.handler.JobNotDispatchableException;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -20,6 +26,7 @@ import org.springframework.beans.factory.ObjectProvider;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -29,7 +36,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -75,13 +85,28 @@ class JobSchedulerTest {
 
     private final JobProperties jobProperties = new JobProperties();
 
+    @SuppressWarnings("unchecked")
+    private final ObjectProvider<AuditLogMapper> auditLogMapperProvider =
+            (ObjectProvider<AuditLogMapper>) mock(ObjectProvider.class);
+
     private final JobScheduler scheduler = new JobScheduler(jobInfoMapper, jobLogMapper, jobDependencyMapper,
             jobHandlerRegistry, executionGuard, jobExecutorService, redissonClientProvider, jobAlertNotifier,
-            jobScheduleBroadcaster, jobProperties, meterRegistry);
+            jobScheduleBroadcaster, jobProperties, meterRegistry, auditLogMapperProvider);
 
     @AfterEach
     void tearDown() {
         scheduler.destroy();
+    }
+
+    /**
+     * 注册实体元信息缓存：Lambda 条件构造器会立即按实体解析列名，纯单测无 MyBatis 环境需手动初始化 TableInfo。
+     */
+    @BeforeAll
+    static void initTableInfoCache() {
+        MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "");
+        TableInfoHelper.initTableInfo(assistant, JobInfoPo.class);
+        TableInfoHelper.initTableInfo(assistant, JobDependencyPo.class);
+        TableInfoHelper.initTableInfo(assistant, JobLogPo.class);
     }
 
     private static JobInfoPo job(Long id, String misfirePolicy) {
@@ -464,5 +489,104 @@ class JobSchedulerTest {
         scheduler.reconcileWithDatabase();
 
         assertFalse(scheduler.scheduledJobIds().contains(1L));
+    }
+
+    @Test
+    @DisplayName("超时：超过任务时限立即记失败、请求中断且不重试")
+    void shouldFailFastWhenTaskTimeout() throws InterruptedException {
+        AtomicInteger attempts = new AtomicInteger();
+        AtomicBoolean interrupted = new AtomicBoolean(false);
+        when(jobHandlerRegistry.resolve("demoJobHandler")).thenReturn(param -> {
+            attempts.incrementAndGet();
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                interrupted.set(true);
+                Thread.currentThread().interrupt();
+            }
+            return "late";
+        });
+        JobInfoPo job = job(1L, "SMART");
+        job.setTimeoutSeconds(1);
+        job.setMaxRetry(3);
+        job.setRetryIntervalSeconds(0);
+
+        long startedAt = System.currentTimeMillis();
+        scheduler.doExecute(job);
+        long cost = System.currentTimeMillis() - startedAt;
+
+        assertTrue(cost < 4000, "超时后应立即返回，实际耗时: " + cost);
+        assertEquals(1, attempts.get(), "超时不应重试");
+        ArgumentCaptor<JobLogPo> updateCaptor = ArgumentCaptor.forClass(JobLogPo.class);
+        verify(jobLogMapper).updateById(updateCaptor.capture());
+        assertEquals(LOG_STATUS_FAILURE, updateCaptor.getValue().getStatus());
+        assertTrue(updateCaptor.getValue().getErrorMsg().contains("执行超时"));
+        verify(jobAlertNotifier).notifyTimeout(any(), any());
+        long interruptDeadline = System.currentTimeMillis() + 1000;
+        while (!interrupted.get() && System.currentTimeMillis() < interruptDeadline) {
+            Thread.sleep(10);
+        }
+        assertTrue(interrupted.get(), "超时后应请求中断执行线程");
+    }
+
+    @Test
+    @DisplayName("熔断：连续失败达到阈值后自动暂停并告警一次")
+    void shouldAutoPauseWhenFailureThresholdReached() {
+        when(jobHandlerRegistry.resolve("demoJobHandler")).thenReturn(param -> {
+            throw new IllegalStateException("boom");
+        });
+        JobInfoPo job = job(1L, "SMART");
+        job.setFailThreshold(2);
+        JobInfoPo latest = job(1L, "SMART");
+        latest.setFailThreshold(2);
+        latest.setFailCount(2);
+        when(jobInfoMapper.selectById(1L)).thenReturn(latest);
+        when(jobInfoMapper.update(any(), any())).thenReturn(1);
+
+        scheduler.doExecute(job);
+
+        verify(jobInfoMapper, times(2)).update(isNull(), any());
+        verify(jobAlertNotifier).notifyAutoPaused(eq(latest), eq(2));
+    }
+
+    @Test
+    @DisplayName("熔断：未达阈值时只累计失败次数，不暂停")
+    void shouldNotPauseBeforeFailureThreshold() {
+        when(jobHandlerRegistry.resolve("demoJobHandler")).thenReturn(param -> {
+            throw new IllegalStateException("boom");
+        });
+        JobInfoPo job = job(1L, "SMART");
+        job.setFailThreshold(3);
+        JobInfoPo latest = job(1L, "SMART");
+        latest.setFailThreshold(3);
+        latest.setFailCount(1);
+        when(jobInfoMapper.selectById(1L)).thenReturn(latest);
+        when(jobInfoMapper.update(any(), any())).thenReturn(1);
+
+        scheduler.doExecute(job);
+
+        verify(jobInfoMapper, times(1)).update(isNull(), any());
+        verify(jobAlertNotifier, never()).notifyAutoPaused(any(), anyInt());
+    }
+
+    @Test
+    @DisplayName("成功执行后清零连续失败计数")
+    void shouldResetFailureCountAfterSuccess() {
+        when(jobHandlerRegistry.resolve("demoJobHandler")).thenReturn(param -> "ok");
+
+        scheduler.doExecute(job(1L, "SMART"));
+
+        verify(jobInfoMapper).update(isNull(), any());
+    }
+
+    @Test
+    @DisplayName("启动对账：超过阈值的执行中日志回写为失败")
+    void shouldRecoverOrphanLogsOnStartup() {
+        when(jobInfoMapper.selectList(any())).thenReturn(List.of());
+        when(jobLogMapper.update(any(), any())).thenReturn(3);
+
+        scheduler.loadRunningJobs();
+
+        verify(jobLogMapper).update(isNull(), any());
     }
 }

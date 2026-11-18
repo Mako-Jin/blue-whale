@@ -51,6 +51,15 @@ public class JobInfoVO implements Serializable {
     /** 分片总数 */
     private Integer shardTotal;
 
+    /** 单次执行超时秒数：0 表示沿用全局默认 */
+    private Integer timeoutSeconds;
+
+    /** 连续失败自动暂停阈值：0 表示关闭熔断 */
+    private Integer failThreshold;
+
+    /** 当前连续失败次数（成功后清零） */
+    private Integer failCount;
+
     /** 任务状态：1 运行中 / 0 已停止 */
     private Integer status;
 

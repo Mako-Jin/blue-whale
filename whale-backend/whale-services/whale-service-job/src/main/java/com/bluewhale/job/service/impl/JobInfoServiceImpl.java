@@ -101,6 +101,9 @@ public class JobInfoServiceImpl implements JobInfoService {
         job.setRetryIntervalSeconds(request.getRetryIntervalSeconds() == null
                 ? DEFAULT_RETRY_INTERVAL_SECONDS : request.getRetryIntervalSeconds());
         job.setShardTotal(request.getShardTotal() == null ? DEFAULT_SHARD_TOTAL : request.getShardTotal());
+        job.setTimeoutSeconds(request.getTimeoutSeconds() == null ? 0 : request.getTimeoutSeconds());
+        job.setFailThreshold(request.getFailThreshold() == null ? 0 : request.getFailThreshold());
+        job.setFailCount(0);
         job.setStatus(request.getStatus() == null ? 0 : request.getStatus());
         jobInfoMapper.insert(job);
         rescheduleAfterCommit(job.getId());
@@ -119,6 +122,9 @@ public class JobInfoServiceImpl implements JobInfoService {
         Integer maxRetry = job.getMaxRetry();
         Integer retryIntervalSeconds = job.getRetryIntervalSeconds();
         Integer shardTotal = job.getShardTotal();
+        Integer timeoutSeconds = job.getTimeoutSeconds();
+        Integer failThreshold = job.getFailThreshold();
+        Integer failCount = job.getFailCount();
         JobConverter.INSTANCE.updateEntity(request, job);
         if (!StringUtils.hasText(request.getJobGroup())) {
             // 与 maxRetry 等字段保持一致：未传即保留原值，避免编辑时把自定义分组刷回默认
@@ -136,6 +142,14 @@ public class JobInfoServiceImpl implements JobInfoService {
         if (request.getShardTotal() == null) {
             job.setShardTotal(shardTotal);
         }
+        if (request.getTimeoutSeconds() == null) {
+            job.setTimeoutSeconds(timeoutSeconds);
+        }
+        if (request.getFailThreshold() == null) {
+            job.setFailThreshold(failThreshold);
+        }
+        // 连续失败计数只由调度引擎维护，编辑任务不得覆盖
+        job.setFailCount(failCount);
         if (request.getStatus() == null) {
             // 编辑请求通常不带 status（启停走独立接口），未传时必须保留原状态，
             // 否则 MapStruct 会把 null 覆盖进来、任务被静默停止并取消调度
@@ -160,6 +174,10 @@ public class JobInfoServiceImpl implements JobInfoService {
     public void changeStatus(Long id, Integer status) {
         JobInfoPo job = requireJob(id);
         job.setStatus(status);
+        if (Integer.valueOf(STATUS_RUNNING).equals(status)) {
+            // 重新启用即视为人工确认恢复：清零失败计数，否则下次失败会立刻再次触发熔断
+            job.setFailCount(0);
+        }
         jobInfoMapper.updateById(job);
         if (Integer.valueOf(STATUS_RUNNING).equals(status)) {
             rescheduleAfterCommit(id);

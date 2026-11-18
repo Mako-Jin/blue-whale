@@ -2,6 +2,7 @@ package com.bluewhale.job.scheduler;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.bluewhale.common.audit.mapper.AuditLogMapper;
 import com.bluewhale.job.alert.JobAlertNotifier;
 import com.bluewhale.job.config.JobProperties;
 import com.bluewhale.job.po.JobDependencyPo;
@@ -79,9 +80,13 @@ class JobSchedulerChainTest {
 
     private final JobProperties jobProperties = new JobProperties();
 
+    @SuppressWarnings("unchecked")
+    private final ObjectProvider<AuditLogMapper> auditLogMapperProvider =
+            (ObjectProvider<AuditLogMapper>) mock(ObjectProvider.class);
+
     private final JobScheduler scheduler = new JobScheduler(jobInfoMapper, jobLogMapper, jobDependencyMapper,
             jobHandlerRegistry, executionGuard, jobExecutorService, redissonClientProvider, jobAlertNotifier,
-            jobScheduleBroadcaster, jobProperties, new SimpleMeterRegistry());
+            jobScheduleBroadcaster, jobProperties, new SimpleMeterRegistry(), auditLogMapperProvider);
 
     /**
      * 注册实体元信息缓存：Lambda 条件构造器会立即按实体解析列名，纯单测无 MyBatis 环境需手动初始化 TableInfo。

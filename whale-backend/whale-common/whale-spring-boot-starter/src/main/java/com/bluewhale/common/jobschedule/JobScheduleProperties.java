@@ -54,6 +54,13 @@ public class JobScheduleProperties {
         private int timeoutMillis = 3000;
 
         /**
+         * 停机等待在途任务的秒数：注销后先等在途执行清零，再关闭心跳线程。
+         *
+         * <p>值为 0 表示不等待；建议与 {@code server.shutdown=graceful} 配合使用。</p>
+         */
+        private int shutdownAwaitSeconds = 30;
+
+        /**
          * 执行日志落盘目录：为空时取 {@code ${java.io.tmpdir}/whale-job-exec-logs}。
          *
          * <p>容器内建议挂命名卷，否则容器重建后历史日志丢失。</p>

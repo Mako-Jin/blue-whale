@@ -77,10 +77,16 @@ whale:
     file-service-url: ${WHALE_JOB_FILE_SERVICE_URL:http://127.0.0.1:8085}
     # 单次归档导出的 job_log 上限条数
     archive-batch-size: ${WHALE_JOB_ARCHIVE_BATCH_SIZE:2000}
+    # 启动对账：status=0 且开始时间早于该分钟数的执行日志，视为实例退出导致的中断（0 关闭）
+    orphan-log-timeout-minutes: ${WHALE_JOB_ORPHAN_LOG_TIMEOUT_MINUTES:120}
     # 调度与执行器：线程池按实例规格调整，HTTP 默认超时可被任务的 handlerParam.timeoutMillis 覆盖
     executor:
       pool-size: ${WHALE_JOB_POOL_SIZE:8}
       http-timeout-millis: ${WHALE_JOB_HTTP_TIMEOUT_MILLIS:15000}
+      # 任务级超时的执行线程池大小（调度线程等待、任务线程执行，两者不共用）
+      task-pool-size: ${WHALE_JOB_TASK_POOL_SIZE:8}
+      # 全局默认任务超时秒数：0 表示不限制，保持既有任务行为
+      task-timeout-seconds: ${WHALE_JOB_TASK_TIMEOUT_SECONDS:0}
     # 失败告警：webhook-url 为空时仅写本地告警日志并落库 job_alert
     alert:
       enabled: ${WHALE_JOB_ALERT_ENABLED:true}

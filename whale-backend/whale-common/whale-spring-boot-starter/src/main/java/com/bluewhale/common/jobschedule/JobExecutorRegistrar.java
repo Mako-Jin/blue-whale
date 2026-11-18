@@ -58,6 +58,9 @@ public class JobExecutorRegistrar implements ApplicationListener<ApplicationRead
     /** 兜底服务端口 */
     private static final int DEFAULT_SERVER_PORT = 8080;
 
+    /** 毫秒换算基数 */
+    private static final long MILLIS_PER_SECOND = 1000L;
+
     private final JobScheduleProperties properties;
 
     private final RemoteJobRegistry registry;
@@ -112,9 +115,27 @@ public class JobExecutorRegistrar implements ApplicationListener<ApplicationRead
     @Override
     public void destroy() {
         deregister();
+        awaitRunningJobs();
         if (heartbeatExecutor != null) {
             heartbeatExecutor.shutdownNow();
             heartbeatExecutor = null;
+        }
+    }
+
+    /**
+     * 停机等待在途任务结束：注销只停止新派发，已派发到本实例的任务仍需跑完，
+     * 否则执行流水会永远停在「执行中」。等待有上限，避免卡住整个进程关闭。
+     */
+    private void awaitRunningJobs() {
+        long timeoutMillis = Math.max(properties.getExecutor().getShutdownAwaitSeconds(), 0) * MILLIS_PER_SECOND;
+        if (timeoutMillis <= 0 || registry.runningCount() <= 0) {
+            return;
+        }
+        log.info("执行器停机等待在途任务: app={}, address={}, running={}",
+                appName, address, registry.runningCount());
+        if (!registry.awaitIdle(timeoutMillis)) {
+            log.warn("执行器停机等待超时，仍有在途任务未结束: app={}, address={}, running={}",
+                    appName, address, registry.runningCount());
         }
     }
 

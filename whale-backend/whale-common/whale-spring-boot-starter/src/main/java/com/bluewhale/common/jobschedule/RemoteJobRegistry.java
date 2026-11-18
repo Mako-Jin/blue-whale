@@ -9,6 +9,7 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 受管任务注册表：任务编码 → 执行方法。
@@ -24,6 +25,12 @@ public class RemoteJobRegistry {
 
     /** 任务编码 → 执行器 */
     private final Map<String, Invoker> jobs = new ConcurrentHashMap<>();
+
+    /** 本实例在途执行数：停机时等待其归零，避免任务随进程退出被半途杀掉 */
+    private final AtomicInteger runningCount = new AtomicInteger();
+
+    /** 等待在途执行结束的轮询间隔毫秒数 */
+    private static final long IDLE_POLL_MILLIS = 50L;
 
     /**
      * 登记一个任务。
@@ -55,6 +62,7 @@ public class RemoteJobRegistry {
         if (invoker == null) {
             throw new IllegalArgumentException("未注册的任务编码: " + code);
         }
+        runningCount.incrementAndGet();
         try {
             Object result = invoker.method.invoke(invoker.bean);
             return result == null ? "OK" : String.valueOf(result);
@@ -64,7 +72,43 @@ public class RemoteJobRegistry {
                     + ": " + cause.getMessage(), cause);
         } catch (ReflectiveOperationException e) {
             throw new IllegalStateException("任务方法不可调用: " + code, e);
+        } finally {
+            runningCount.decrementAndGet();
         }
+    }
+
+    /**
+     * 本实例当前在途执行数。
+     *
+     * @return 正在执行的任务数
+     */
+    public int runningCount() {
+        return runningCount.get();
+    }
+
+    /**
+     * 等待在途执行清零（有界等待）。
+     *
+     * @param timeoutMillis 最长等待毫秒数
+     * @return 在时限内归零返回 {@code true}；超时仍有在途任务返回 {@code false}
+     */
+    public boolean awaitIdle(long timeoutMillis) {
+        if (timeoutMillis <= 0) {
+            return runningCount.get() == 0;
+        }
+        long deadline = System.currentTimeMillis() + timeoutMillis;
+        while (runningCount.get() > 0) {
+            if (System.currentTimeMillis() >= deadline) {
+                return false;
+            }
+            try {
+                Thread.sleep(IDLE_POLL_MILLIS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return runningCount.get() == 0;
+            }
+        }
+        return true;
     }
 
     /**

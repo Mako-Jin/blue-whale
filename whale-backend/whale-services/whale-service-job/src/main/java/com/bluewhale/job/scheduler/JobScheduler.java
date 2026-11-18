@@ -1,6 +1,9 @@
 package com.bluewhale.job.scheduler;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.bluewhale.common.audit.entity.AuditLogRecord;
+import com.bluewhale.common.audit.mapper.AuditLogMapper;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.tenant.TenantContext;
@@ -41,9 +44,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 定时任务调度引擎。
@@ -142,6 +151,30 @@ public class JobScheduler {
     /** 依赖链深度上限：超限后停止向下游传递 */
     private static final int MAX_CHAIN_DEPTH = 32;
 
+    /** 超时执行线程池默认大小 */
+    private static final int DEFAULT_TASK_POOL_SIZE = 8;
+
+    /** 超时执行线程名前缀 */
+    private static final String TASK_THREAD_NAME_PREFIX = "whale-job-task-";
+
+    /** 连续失败计数自增 SQL：在多实例并发下避免读改写丢更新 */
+    private static final String FAIL_COUNT_INCREMENT_SQL = "fail_count = fail_count + 1";
+
+    /** 连续失败计数清零 SQL */
+    private static final String FAIL_COUNT_RESET_SQL = "fail_count = 0";
+
+    /** 自动暂停审计的操作者标识：与人工启停区分 */
+    private static final String OPERATOR_SYSTEM = "SYSTEM";
+
+    /** 审计日志中的业务模块名 */
+    private static final String AUDIT_MODULE = "whale-job";
+
+    /** 审计操作对象类型 */
+    private static final String AUDIT_TARGET_TYPE = "job_info";
+
+    /** 孤儿执行日志的回写原因 */
+    private static final String ORPHAN_LOG_ERROR = "实例已退出，执行中断（启动对账补记）";
+
     private final JobInfoMapper jobInfoMapper;
 
     private final JobLogMapper jobLogMapper;
@@ -164,6 +197,8 @@ public class JobScheduler {
 
     private final MeterRegistry meterRegistry;
 
+    private final ObjectProvider<AuditLogMapper> auditLogMapperProvider;
+
     /** jobId 到已注册调度的映射 */
     private final Map<Long, ScheduledFuture<?>> scheduledFutures = new ConcurrentHashMap<>();
 
@@ -175,6 +210,12 @@ public class JobScheduler {
 
     /** 调度线程池 */
     private ThreadPoolTaskScheduler taskScheduler;
+
+    /** 任务级超时的执行线程池（懒初始化，仅配置了超时的任务使用） */
+    private ExecutorService taskExecutor;
+
+    /** 任务执行线程序号：仅用于线程命名 */
+    private final AtomicInteger taskThreadSeq = new AtomicInteger();
 
     /**
      * 初始化调度线程池，并注册多实例失效广播的本地消费者
@@ -254,12 +295,26 @@ public class JobScheduler {
     }
 
     /**
-     * 关闭调度线程池：等待运行中任务完成后再停止
+     * 关闭调度与执行线程池：先停止调度并等待运行中任务（含等待超时的调度线程）结束，
+     * 再关闭执行线程池，避免先关执行池导致调度线程全部卡在等待结果上。
      */
     @PreDestroy
     public void destroy() {
         if (taskScheduler != null) {
             taskScheduler.destroy();
+        }
+        ExecutorService executor = taskExecutor;
+        if (executor == null) {
+            return;
+        }
+        executor.shutdown();
+        try {
+            if (!executor.awaitTermination(AWAIT_TERMINATION_SECONDS, TimeUnit.SECONDS)) {
+                executor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            executor.shutdownNow();
         }
     }
 
@@ -274,14 +329,44 @@ public class JobScheduler {
     }
 
     /**
-     * 应用就绪后加载并注册所有运行中的任务
+     * 应用就绪后先对账孤儿执行日志，再加载并注册所有运行中的任务
      */
     @EventListener(ApplicationReadyEvent.class)
     public void loadRunningJobs() {
+        recoverOrphanLogs();
         List<JobInfoPo> jobs = jobInfoMapper.selectList(
                 new LambdaQueryWrapper<JobInfoPo>().eq(JobInfoPo::getStatus, STATUS_RUNNING));
         jobs.forEach(this::register);
         log.info("定时任务加载完成：运行中任务共 {} 个", jobs.size());
+    }
+
+    /**
+     * 启动对账：把长期停留在「执行中」的日志标记为中断。
+     *
+     * <p>实例异常退出后，派发到该实例的任务不会回写终态，{@code job_log.status} 会永远停在 0，
+     * 导致管理端看起来「任务一直在跑」。启动时按阈值兜底回写，阈值必须大于最长合法执行时长，
+     * 避免误判仍在正常执行的长任务；配置为 0 时关闭。</p>
+     */
+    private void recoverOrphanLogs() {
+        int timeoutMinutes = jobProperties.getOrphanLogTimeoutMinutes();
+        if (timeoutMinutes <= 0) {
+            return;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime threshold = now.minusMinutes(timeoutMinutes);
+        try {
+            int rows = jobLogMapper.update(null, new LambdaUpdateWrapper<JobLogPo>()
+                    .eq(JobLogPo::getStatus, LOG_STATUS_RUNNING)
+                    .lt(JobLogPo::getStartTime, threshold)
+                    .set(JobLogPo::getStatus, LOG_STATUS_FAILURE)
+                    .set(JobLogPo::getEndTime, now)
+                    .set(JobLogPo::getErrorMsg, ORPHAN_LOG_ERROR));
+            if (rows > 0) {
+                log.warn("启动对账：{} 条执行中日志超过 {} 分钟未结束，已标记为执行中断", rows, timeoutMinutes);
+            }
+        } catch (RuntimeException e) {
+            log.warn("启动对账孤儿执行日志失败，已忽略: threshold={}", threshold, e);
+        }
     }
 
     /**
@@ -670,9 +755,115 @@ public class JobScheduler {
         if (failedShards > 0) {
             log.warn("任务分片执行完成，存在失败分片: jobId={}, 失败分片数={}/{}",
                     job.getId(), failedShards, shardTotal);
+            handleExecutionFailure(job);
             return;
         }
+        resetFailureCount(job);
         triggerDownstream(job, runId, depth);
+    }
+
+    /**
+     * 一次执行结束后累计连续失败次数，达到阈值时自动暂停任务。
+     *
+     * <p>计数粒度是「一次执行」而非「一次分片」，避免分片任务一次失败就把阈值打满。
+     * 自增与暂停都用条件更新，多实例并发下只有一次暂停生效。</p>
+     *
+     * @param job 任务定义
+     */
+    private void handleExecutionFailure(JobInfoPo job) {
+        Long jobId = job.getId();
+        if (jobId == null) {
+            return;
+        }
+        jobInfoMapper.update(null, new LambdaUpdateWrapper<JobInfoPo>()
+                .eq(JobInfoPo::getId, jobId)
+                .setSql(FAIL_COUNT_INCREMENT_SQL));
+        int threshold = job.getFailThreshold() == null ? 0 : job.getFailThreshold();
+        if (threshold <= 0) {
+            return;
+        }
+        JobInfoPo latest = jobInfoMapper.selectById(jobId);
+        if (latest == null) {
+            return;
+        }
+        int failCount = latest.getFailCount() == null ? 0 : latest.getFailCount();
+        if (failCount < threshold) {
+            return;
+        }
+        int paused = jobInfoMapper.update(null, new LambdaUpdateWrapper<JobInfoPo>()
+                .eq(JobInfoPo::getId, jobId)
+                .eq(JobInfoPo::getStatus, STATUS_RUNNING)
+                .set(JobInfoPo::getStatus, 0));
+        if (paused <= 0) {
+            return;
+        }
+        cancelLocal(jobId);
+        jobScheduleBroadcaster.broadcastCancel(jobId);
+        log.warn("任务连续失败达到阈值，已自动暂停: jobId={}, jobName={}, failCount={}, failThreshold={}",
+                jobId, job.getJobName(), failCount, threshold);
+        insertAutoPauseAudit(jobId, failCount, threshold);
+        notifyAutoPaused(latest, failCount);
+    }
+
+    /**
+     * 执行成功后清零连续失败计数（条件更新，未失败过时不产生写放大）
+     *
+     * @param job 任务定义
+     */
+    private void resetFailureCount(JobInfoPo job) {
+        if (job.getId() == null) {
+            return;
+        }
+        jobInfoMapper.update(null, new LambdaUpdateWrapper<JobInfoPo>()
+                .eq(JobInfoPo::getId, job.getId())
+                .gt(JobInfoPo::getFailCount, 0)
+                .setSql(FAIL_COUNT_RESET_SQL));
+    }
+
+    /**
+     * 写入自动暂停审计：操作者固定为 SYSTEM，与人工启停区分。
+     *
+     * <p>调度线程没有请求上下文，无法走 {@code @AuditLog} 切面，这里直接落 {@code audit_log}；
+     * 审计写入失败只记录，不影响任务暂停结果。</p>
+     *
+     * @param jobId 任务ID
+     * @param failCount 触发时的连续失败次数
+     * @param threshold 配置的阈值
+     */
+    private void insertAutoPauseAudit(Long jobId, int failCount, int threshold) {
+        AuditLogMapper mapper = auditLogMapperProvider == null ? null : auditLogMapperProvider.getIfAvailable();
+        if (mapper == null) {
+            return;
+        }
+        try {
+            AuditLogRecord record = new AuditLogRecord();
+            record.setUsername(OPERATOR_SYSTEM);
+            record.setModule(AUDIT_MODULE);
+            record.setOperation("任务连续失败自动暂停");
+            record.setOperateType("UPDATE");
+            record.setTargetType(AUDIT_TARGET_TYPE);
+            record.setTargetId(String.valueOf(jobId));
+            record.setRequestParams("{\"failCount\":" + failCount + ",\"failThreshold\":" + threshold + "}");
+            record.setBizStatus(1);
+            record.setCreateTime(LocalDateTime.now());
+            mapper.insert(record);
+        } catch (Exception e) {
+            log.warn("自动暂停审计写入失败，已忽略: jobId={}", jobId, e);
+        }
+    }
+
+    /**
+     * 发送自动暂停告警：告警组件异常只记录，绝不影响调度主流程
+     *
+     * @param job 被自动暂停的任务
+     * @param failCount 连续失败次数
+     */
+    private void notifyAutoPaused(JobInfoPo job, int failCount) {
+        try {
+            jobAlertNotifier.notifyAutoPaused(job, failCount);
+        } catch (Exception e) {
+            log.warn("自动暂停告警发送异常，已忽略: jobId={}", job.getId(), e);
+        }
     }
 
     /**
@@ -785,6 +976,14 @@ public class JobScheduler {
                 recordExecution(job, JobMetricNames.STATUS_SUCCESS, startNanos);
                 return true;
             } catch (Exception e) {
+                if (isTimeout(e)) {
+                    // 超时不重试：单次已超出时限，重试只会放大对端压力并继续占线程
+                    markFailure(job, jobLog, e, retryCount);
+                    recordExecution(job, JobMetricNames.STATUS_FAILURE, startNanos);
+                    log.warn("任务执行超时，直接记失败且不重试: jobId={}, jobName={}, shardIndex={}/{}",
+                            job.getId(), job.getJobName(), shardIndex, shardTotal, e);
+                    return false;
+                }
                 if (isNotDispatchable(e)) {
                     markFailure(job, jobLog, e, retryCount);
                     recordExecution(job, JobMetricNames.STATUS_FAILURE, startNanos);
@@ -863,6 +1062,23 @@ public class JobScheduler {
     }
 
     /**
+     * 判断异常链上是否为任务超时
+     *
+     * @param error 执行期异常
+     * @return 超时返回 {@code true}
+     */
+    private static boolean isTimeout(Throwable error) {
+        Throwable current = error;
+        while (current != null) {
+            if (current instanceof JobTimeoutException) {
+                return true;
+            }
+            current = current.getCause() == current ? null : current.getCause();
+        }
+        return false;
+    }
+
+    /**
      * 插入执行中日志（{@code status=0}）
      *
      * @param job        任务定义
@@ -906,11 +1122,92 @@ public class JobScheduler {
         JobExecutionContext context = new JobExecutionContext(job.getId(), job.getJobName(),
                 job.getHandlerParam(), shardIndex, shardTotal, retryCount,
                 job.getTenantId(), job.getExecutorApp(), job.getJobCode());
+        int timeoutSeconds = resolveTimeoutSeconds(job);
+        if (timeoutSeconds <= 0) {
+            try {
+                return handler.executeWithContext(context);
+            } finally {
+                jobLog.setExecutorAddress(context.getResolvedAddress());
+            }
+        }
+        return invokeWithTimeout(handler, context, jobLog, timeoutSeconds);
+    }
+
+    /**
+     * 解析本次执行的超时秒数：任务配置优先，其次全局默认
+     *
+     * @param job 任务定义
+     * @return 超时秒数；{@code <= 0} 表示不限制
+     */
+    private int resolveTimeoutSeconds(JobInfoPo job) {
+        Integer configured = job.getTimeoutSeconds();
+        if (configured != null && configured > 0) {
+            return configured;
+        }
+        return Math.max(jobProperties.getExecutor().getTaskTimeoutSeconds(), 0);
+    }
+
+    /**
+     * 在独立线程池执行并等待结果，超时后请求中断。
+     *
+     * <p>执行线程继承调度线程的租户上下文：执行器即使不读 {@link JobExecutionContext} 的租户字段，
+     * 也能按线程上下文取到正确租户。</p>
+     *
+     * @param handler 执行器
+     * @param context 执行上下文
+     * @param jobLog 执行日志（用于回填派发地址）
+     * @param timeoutSeconds 超时秒数
+     * @return 执行结果摘要
+     * @throws Exception 执行失败或超时
+     */
+    private String invokeWithTimeout(JobHandler handler, JobExecutionContext context, JobLogPo jobLog,
+                                     int timeoutSeconds) throws Exception {
+        Long tenantId = TenantContext.get();
+        Future<String> future = taskExecutor().submit(() -> {
+            Long previous = TenantContext.get();
+            TenantContext.set(tenantId);
+            try {
+                return handler.executeWithContext(context);
+            } finally {
+                TenantContext.set(previous);
+            }
+        });
         try {
-            return handler.executeWithContext(context);
+            return future.get(timeoutSeconds, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            future.cancel(true);
+            throw new JobTimeoutException("执行超时：超过 " + timeoutSeconds + " 秒未完成，已请求中断");
+        } catch (InterruptedException e) {
+            future.cancel(true);
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("等待任务执行结果被中断", e);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof Exception exception) {
+                throw exception;
+            }
+            throw new IllegalStateException(cause == null ? e : cause);
         } finally {
             jobLog.setExecutorAddress(context.getResolvedAddress());
         }
+    }
+
+    /**
+     * 懒初始化任务执行线程池：守护线程，避免停机时因遗留任务阻塞 JVM 退出
+     *
+     * @return 执行线程池
+     */
+    private synchronized ExecutorService taskExecutor() {
+        if (taskExecutor == null) {
+            int poolSize = jobProperties.getExecutor().getTaskPoolSize();
+            int size = poolSize < 1 ? DEFAULT_TASK_POOL_SIZE : poolSize;
+            taskExecutor = Executors.newFixedThreadPool(size, runnable -> {
+                Thread thread = new Thread(runnable, TASK_THREAD_NAME_PREFIX + taskThreadSeq.incrementAndGet());
+                thread.setDaemon(true);
+                return thread;
+            });
+        }
+        return taskExecutor;
     }
 
     /**
@@ -945,7 +1242,25 @@ public class JobScheduler {
         jobLog.setErrorMsg(truncate(e.getClass().getSimpleName()
                 + (e.getMessage() == null ? "" : ": " + e.getMessage())));
         jobLogMapper.updateById(jobLog);
-        notifyFailure(job, jobLog);
+        if (isTimeout(e)) {
+            notifyTimeout(job, jobLog);
+        } else {
+            notifyFailure(job, jobLog);
+        }
+    }
+
+    /**
+     * 发送超时告警：告警组件异常只记录，绝不外抛
+     *
+     * @param job 任务定义
+     * @param jobLog 已回写失败终态的执行日志
+     */
+    private void notifyTimeout(JobInfoPo job, JobLogPo jobLog) {
+        try {
+            jobAlertNotifier.notifyTimeout(job, jobLog);
+        } catch (Exception e) {
+            log.warn("任务超时告警发送异常，已忽略: jobId={}, logId={}", job.getId(), jobLog.getId(), e);
+        }
     }
 
     /**

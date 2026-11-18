@@ -24,6 +24,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -193,6 +194,25 @@ class WebhookJobAlertNotifierTest {
         } finally {
             redisNotifier.destroy();
         }
+    }
+
+    @Test
+    @DisplayName("告警：超时使用独立摘要，自动暂停使用 WARN 级别且不关联执行日志")
+    void shouldDistinguishTimeoutAndAutoPaused() {
+        jobProperties.getAlert().setWebhookUrl("");
+
+        notifier.notifyTimeout(job(), log());
+        notifier.notifyAutoPaused(job(), 3);
+
+        ArgumentCaptor<JobAlertPo> captor = ArgumentCaptor.forClass(JobAlertPo.class);
+        verify(jobAlertMapper, times(2)).insert(captor.capture());
+        List<JobAlertPo> alerts = captor.getAllValues();
+        assertEquals("任务执行超时：任务A", alerts.get(0).getMessage());
+        assertEquals("ERROR", alerts.get(0).getLevel());
+        assertEquals("任务连续失败已自动暂停：任务A", alerts.get(1).getMessage());
+        assertEquals("WARN", alerts.get(1).getLevel());
+        assertNull(alerts.get(1).getLogId());
+        assertNull(alerts.get(1).getRunId());
     }
 
     /**

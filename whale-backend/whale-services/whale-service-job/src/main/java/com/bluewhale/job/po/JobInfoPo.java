@@ -60,6 +60,15 @@ public class JobInfoPo extends BaseEntity {
      */
     private Integer shardTotal;
 
+    /** 单次执行超时秒数：0 表示沿用全局默认（全局也为 0 时不限制） */
+    private Integer timeoutSeconds;
+
+    /** 连续失败自动暂停阈值：0 表示关闭熔断 */
+    private Integer failThreshold;
+
+    /** 当前连续失败次数：成功执行后清零，只由调度引擎维护 */
+    private Integer failCount;
+
     /** 任务状态：1 运行中 / 0 已停止 */
     private Integer status;
 

@@ -67,6 +67,16 @@ public class JobInfoUpdateRequest {
     @Max(value = 16, message = "分片总数不能超过 16")
     private Integer shardTotal;
 
+    /** 单次执行超时秒数（为空时保留原值）：0 表示沿用全局默认 */
+    @Min(value = 0, message = "执行超时不能小于 0")
+    @Max(value = 86400, message = "执行超时不能超过 24 小时")
+    private Integer timeoutSeconds;
+
+    /** 连续失败自动暂停阈值（为空时保留原值）：0 表示关闭熔断 */
+    @Min(value = 0, message = "失败暂停阈值不能小于 0")
+    @Max(value = 100, message = "失败暂停阈值不能超过 100")
+    private Integer failThreshold;
+
     /** 任务状态：1 运行中 / 0 已停止（为空时保留原值） */
     @Min(value = 0, message = "状态只能为 0 或 1")
     @Max(value = 1, message = "状态只能为 0 或 1")

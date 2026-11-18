@@ -19,4 +19,23 @@ public interface JobAlertNotifier {
      * @param jobLog 已回写失败终态的执行日志
      */
     void notifyFailure(JobInfoPo job, JobLogPo jobLog);
+
+    /**
+     * 发送任务超时告警：默认与失败告警同口径，实现可按超时区分摘要与级别。
+     *
+     * @param job 任务定义
+     * @param jobLog 已回写失败终态的执行日志
+     */
+    default void notifyTimeout(JobInfoPo job, JobLogPo jobLog) {
+        notifyFailure(job, jobLog);
+    }
+
+    /**
+     * 发送「连续失败自动暂停」告警：默认不发送，由支持外发的实现覆盖。
+     *
+     * @param job 被自动暂停的任务定义
+     * @param failCount 触发暂停时的连续失败次数
+     */
+    default void notifyAutoPaused(JobInfoPo job, int failCount) {
+    }
 }
