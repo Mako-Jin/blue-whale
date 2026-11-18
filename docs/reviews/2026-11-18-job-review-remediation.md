@@ -34,7 +34,7 @@
 | 编号 | 问题 | 级别 |
 | --- | --- | --- |
 | R-1 | `create/update/changeStatus` 在事务提交前广播调度失效，其他实例回查数据库拿到旧值/空行，新建或「停→启」的任务在其余实例最长 5 分钟后才生效 | P1 |
-| R-2 | `update` 对空 `jobGroup/misfirePolicy` 回落默认值，而 `maxRetry` 等保留原值，两套语义并存 | P2 |
+| R-2 | `update` 对空 `jobGroup/misfirePolicy` 回落默认值，而 `maxRetry` 等保留原值，两套语义并存 | P2（本轮已修复） |
 
 确认项答复：
 
@@ -54,14 +54,15 @@
 7. 执行器编码上报不产生半个 code（P2-10）。
 8. 内网 list 接口补齐长度校验（P2-9）；依赖保存补 `@Valid`（P2-12）。
 9. Webhook 线程池优雅关闭（P3-14）。
+10. 编辑任务未传分组/失火策略时保留原值（R-2）；告警消息对空任务名兜底（P2-11）。
 
 ## 三、实现说明
 
 | 文件 | 变更 |
 | --- | --- |
-| `JobInfoServiceImpl` | update 先保存原 status，请求未传时还原；create 在存在租户上下文时显式回填 `tenantId`（防御性）；所有调度变更改为 `afterCommit` 执行，失败仅告警等对账自愈 |
+| `JobInfoServiceImpl` | update 先保存原 status/分组/失火策略，请求未传时还原；create 在存在租户上下文时显式回填 `tenantId`（防御性）；所有调度变更改为 `afterCommit` 执行，失败仅告警等对账自愈 |
 | `JobInfoCreateRequest` / `JobInfoUpdateRequest` | status 补 `@Min(0)` / `@Max(1)` |
-| `WebhookJobAlertNotifier` | 冷却资格改为 Redis `SETNX + TTL`（键含租户与任务）；Redis 不可用降级为实例内 Map，超过阈值清理过期项；关闭改为 `shutdown` + 等待 |
+| `WebhookJobAlertNotifier` | 冷却资格改为 Redis `SETNX + TTL`（键含租户与任务）；Redis 不可用降级为实例内 Map，超过阈值清理过期项；失败消息对空任务名兜底；关闭改为 `shutdown` + 等待 |
 | `JobExecutorRegistrar`（starter） | 注册/心跳/注销请求补 `X-Tenant-Id` 头，内网接口据此建立租户上下文 |
 | `JobExecutorInternalController` | 类加 `@Validated`，`appName` 补 `@Size(max=64)` |
 | `JobProperties` | 新增 `executor.pool-size`（默认 8）、`http-timeout-millis` 默认改为 15000 |
@@ -81,10 +82,12 @@
 
 ### 4.1 单测与构建
 
-- `whale-service-job`：`mvn -o test` → **106 项用例、0 失败**，`BUILD SUCCESS`，checkstyle 0 violation。
+- `whale-service-job`：`mvn -o test` → **108 项用例、0 失败**，`BUILD SUCCESS`，checkstyle 0 violation。
 - `whale-spring-boot-starter`（注册器改动所在模块）：`mvn -o -DskipTests compile` → `BUILD SUCCESS`，checkstyle 0 violation。
 - 本轮新增用例：
   - `JobInfoServiceImplTest#shouldPreserveStatusWhenUpdateWithoutStatus`：编辑不传 status 时保留运行状态；
+  - `JobInfoServiceImplTest#shouldPreserveGroupAndMisfirePolicy`：编辑不传分组/失火策略时保留原值；
+  - `JobInfoServiceImplTest#shouldRescheduleAfterCommit`：调度注册在事务提交后才执行；
   - `WebhookJobAlertNotifierTest#shouldUseRedisForCooldown`：Redis SETNX 决定外放资格，第二次仅落库；
   - `WebhookJobAlertNotifierTest#shouldFallbackToLocalCooldownWhenRedisFails`：Redis 异常时本地冷却仍去重；
   - `JobExecutorServiceImplTest#shouldTruncateJobCodesOnCodeBoundary`：超列宽时按完整 code 截断。
