@@ -90,7 +90,18 @@ whale:
     # 失败告警：webhook-url 为空时仅写本地告警日志并落库 job_alert
     alert:
       enabled: ${WHALE_JOB_ALERT_ENABLED:true}
+      # 兼容旧配置：channels 未配置时等价于单个 WEBHOOK 通道
       webhook-url: ${WHALE_JOB_ALERT_WEBHOOK_URL:}
+      # 多通道（type: WEBHOOK / DINGTALK / FEISHU）示例，配置后优先于 webhook-url：
+      # channels:
+      #   - type: WEBHOOK
+      #     url: https://example.com/hooks/job-alert
+      #   - type: DINGTALK
+      #     url: https://oapi.dingtalk.com/robot/send?access_token=xxx
+      #   - type: FEISHU
+      #     url: https://open.feishu.cn/open-apis/bot/v2/hook/xxx
+      # 失败后恢复（fail_count 清零）时发送 INFO 级恢复通知
+      recovery-enabled: ${WHALE_JOB_ALERT_RECOVERY_ENABLED:true}
       cooldown-seconds: ${WHALE_JOB_ALERT_COOLDOWN_SECONDS:300}
       connect-timeout-millis: ${WHALE_JOB_ALERT_CONNECT_TIMEOUT_MILLIS:2000}
       read-timeout-millis: ${WHALE_JOB_ALERT_READ_TIMEOUT_MILLIS:3000}

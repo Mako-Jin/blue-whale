@@ -38,4 +38,14 @@ public interface JobAlertNotifier {
      */
     default void notifyAutoPaused(JobInfoPo job, int failCount) {
     }
+
+    /**
+     * 发送「任务已恢复」通知：任务此前处于连续失败状态，本次执行成功后调用一次。
+     *
+     * <p>默认不发送，由支持外发的实现覆盖；实现同样不得外抛异常。</p>
+     *
+     * @param job 已恢复的任务定义
+     */
+    default void notifyRecovered(JobInfoPo job) {
+    }
 }

@@ -21,6 +21,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -55,14 +56,23 @@ public class WebhookJobAlertNotifier implements JobAlertNotifier {
     /** 告警通道：仅本地日志与落库 */
     private static final String CHANNEL_LOG = "LOG";
 
-    /** 告警通道：外发 Webhook */
-    private static final String CHANNEL_WEBHOOK = "WEBHOOK";
+    /** 通道类型：通用 Webhook（自定义 JSON 载荷） */
+    private static final String TYPE_WEBHOOK = "WEBHOOK";
+
+    /** 通道类型：钉钉机器人 */
+    private static final String TYPE_DINGTALK = "DINGTALK";
+
+    /** 通道类型：飞书机器人 */
+    private static final String TYPE_FEISHU = "FEISHU";
 
     /** 告警级别：错误 */
     private static final String LEVEL_ERROR = "ERROR";
 
     /** 告警级别：警告 */
     private static final String LEVEL_WARN = "WARN";
+
+    /** 告警级别：信息（恢复通知） */
+    private static final String LEVEL_INFO = "INFO";
 
     /** 告警摘要前缀：任务执行失败 */
     private static final String PREFIX_FAILURE = "任务执行失败";
@@ -72,6 +82,9 @@ public class WebhookJobAlertNotifier implements JobAlertNotifier {
 
     /** 告警摘要前缀：连续失败自动暂停 */
     private static final String PREFIX_AUTO_PAUSED = "任务连续失败已自动暂停";
+
+    /** 告警摘要前缀：任务执行恢复 */
+    private static final String PREFIX_RECOVERED = "任务执行已恢复";
 
     /** 投递状态：待发 */
     private static final int STATUS_PENDING = 0;
@@ -198,7 +211,8 @@ public class WebhookJobAlertNotifier implements JobAlertNotifier {
         String summary = "连续失败 " + failCount + " 次，已自动暂停";
         log.error("任务连续失败自动暂停告警: jobId={}, jobName={}, failCount={}",
                 job.getId(), job.getJobName(), failCount);
-        if (!isWebhookEnabled()) {
+        List<JobProperties.Channel> channels = resolveChannels();
+        if (channels.isEmpty()) {
             insertAlert(job, null, CHANNEL_LOG, STATUS_SUCCESS, summary, LEVEL_WARN, PREFIX_AUTO_PAUSED);
             return;
         }
@@ -207,13 +221,32 @@ public class WebhookJobAlertNotifier implements JobAlertNotifier {
             insertAlert(job, null, CHANNEL_LOG, STATUS_SUCCESS, summary, LEVEL_WARN, PREFIX_AUTO_PAUSED);
             return;
         }
-        JobAlertPo alert = insertAlert(job, null, CHANNEL_WEBHOOK, STATUS_PENDING, summary,
+        JobAlertPo alert = insertAlert(job, null, channelNames(channels), STATUS_PENDING, summary,
                 LEVEL_WARN, PREFIX_AUTO_PAUSED);
-        webhookExecutor.execute(() -> pushWebhook(alert, job, null, summary, LEVEL_WARN, PREFIX_AUTO_PAUSED));
+        webhookExecutor.execute(() -> pushWebhook(alert, channels, job, null, summary,
+                LEVEL_WARN, PREFIX_AUTO_PAUSED));
+    }
+
+    @Override
+    public void notifyRecovered(JobInfoPo job) {
+        if (!jobProperties.getAlert().isRecoveryEnabled()) {
+            return;
+        }
+        log.info("任务执行恢复通知: jobId={}, jobName={}", job.getId(), job.getJobName());
+        List<JobProperties.Channel> channels = resolveChannels();
+        if (channels.isEmpty()) {
+            insertAlert(job, null, CHANNEL_LOG, STATUS_SUCCESS, null, LEVEL_INFO, PREFIX_RECOVERED);
+            return;
+        }
+        // 恢复通知是「全部正常」信号，不受冷却限制：失败告警刚发过也应把恢复送达
+        JobAlertPo alert = insertAlert(job, null, channelNames(channels), STATUS_PENDING, null,
+                LEVEL_INFO, PREFIX_RECOVERED);
+        webhookExecutor.execute(() -> pushWebhook(alert, channels, job, null, null,
+                LEVEL_INFO, PREFIX_RECOVERED));
     }
 
     /**
-     * 发送一条告警：本地日志 + 落库 + 按需外发 Webhook
+     * 发送一条告警：本地日志 + 落库 + 按需外发全部已启用通道
      *
      * @param job 任务定义
      * @param jobLog 执行日志（自动暂停场景可为空）
@@ -230,7 +263,8 @@ public class WebhookJobAlertNotifier implements JobAlertNotifier {
                     messagePrefix, job.getId(), job.getJobName(), jobLog.getRunId(), jobLog.getId(),
                     jobLog.getRetryCount(), errorMsg);
         }
-        if (!isWebhookEnabled()) {
+        List<JobProperties.Channel> channels = resolveChannels();
+        if (channels.isEmpty()) {
             insertAlert(job, jobLog, CHANNEL_LOG, STATUS_SUCCESS, errorMsg, level, messagePrefix);
             return;
         }
@@ -239,18 +273,61 @@ public class WebhookJobAlertNotifier implements JobAlertNotifier {
             insertAlert(job, jobLog, CHANNEL_LOG, STATUS_SUCCESS, errorMsg, level, messagePrefix);
             return;
         }
-        JobAlertPo alert = insertAlert(job, jobLog, CHANNEL_WEBHOOK, STATUS_PENDING, errorMsg, level, messagePrefix);
-        webhookExecutor.execute(() -> pushWebhook(alert, job, jobLog, errorMsg, level, messagePrefix));
+        JobAlertPo alert = insertAlert(job, jobLog, channelNames(channels), STATUS_PENDING, errorMsg, level,
+                messagePrefix);
+        webhookExecutor.execute(() -> pushWebhook(alert, channels, job, jobLog, errorMsg, level, messagePrefix));
     }
 
     /**
-     * 判断是否配置了可用的 webhook 外发
+     * 解析本次外发使用的通道列表。
      *
-     * @return 告警启用且 webhook 地址非空返回 {@code true}
+     * <p>{@code channels} 未配置时回退为「单个 WEBHOOK 通道 + {@code webhookUrl}」，
+     * 保持既有部署的配置无需改动；告警总开关关闭时返回空列表，仅落本地流水。</p>
+     *
+     * @return 可外发的通道列表（可能为空）
      */
-    private boolean isWebhookEnabled() {
-        return jobProperties.getAlert().isEnabled()
-                && StringUtils.hasText(jobProperties.getAlert().getWebhookUrl());
+    private List<JobProperties.Channel> resolveChannels() {
+        JobProperties.Alert alert = jobProperties.getAlert();
+        if (!alert.isEnabled()) {
+            return List.of();
+        }
+        List<JobProperties.Channel> configured = alert.getChannels();
+        if (configured == null || configured.isEmpty()) {
+            if (!StringUtils.hasText(alert.getWebhookUrl())) {
+                return List.of();
+            }
+            JobProperties.Channel fallback = new JobProperties.Channel();
+            fallback.setType(TYPE_WEBHOOK);
+            fallback.setUrl(alert.getWebhookUrl());
+            return List.of(fallback);
+        }
+        return configured.stream()
+                .filter(channel -> channel != null && channel.isEnabled() && StringUtils.hasText(channel.getUrl()))
+                .toList();
+    }
+
+    /**
+     * 告警通道名称：按配置顺序去重后拼接，落库到 {@code job_alert.channel}
+     *
+     * @param channels 通道列表
+     * @return 通道名称（如 {@code WEBHOOK,DINGTALK}）
+     */
+    private static String channelNames(List<JobProperties.Channel> channels) {
+        return channels.stream()
+                .map(WebhookJobAlertNotifier::channelType)
+                .distinct()
+                .reduce((left, right) -> left + "," + right)
+                .orElse(CHANNEL_LOG);
+    }
+
+    /**
+     * 归一化通道类型：空值按通用 Webhook 处理
+     *
+     * @param channel 通道配置
+     * @return 大写通道类型
+     */
+    private static String channelType(JobProperties.Channel channel) {
+        return channel.getType() == null ? TYPE_WEBHOOK : channel.getType().trim().toUpperCase();
     }
 
     /**
@@ -353,30 +430,100 @@ public class WebhookJobAlertNotifier implements JobAlertNotifier {
     }
 
     /**
-     * 异步推送 webhook：任何异常只记录并回写失败状态，绝不外抛
+     * 异步推送全部已启用通道：任何异常只记录并回写失败状态，绝不外抛
      *
      * @param alert 告警记录
+     * @param channels 本次外发的通道列表
      * @param job 任务定义
-     * @param jobLog 执行日志（自动暂停场景可为空）
+     * @param jobLog 执行日志（自动暂停 / 恢复场景可为空）
      * @param errorMsg 失败原因
      * @param level 告警级别
      * @param messagePrefix 摘要前缀
      */
-    private void pushWebhook(JobAlertPo alert, JobInfoPo job, JobLogPo jobLog, String errorMsg,
-                             String level, String messagePrefix) {
-        try {
-            restClient.post()
-                    .uri(jobProperties.getAlert().getWebhookUrl())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(buildPayload(job, jobLog, errorMsg, level, messagePrefix))
-                    .retrieve()
-                    .toBodilessEntity();
-            updateAlertStatus(alert, STATUS_SUCCESS, "webhook 推送成功");
-        } catch (Exception e) {
-            log.warn("告警 webhook 推送失败，已忽略: jobId={}, logId={}", job.getId(),
-                    jobLog == null ? null : jobLog.getId(), e);
-            updateAlertStatus(alert, STATUS_FAILURE, "webhook 推送失败：" + describe(e));
+    private void pushWebhook(JobAlertPo alert, List<JobProperties.Channel> channels, JobInfoPo job,
+                             JobLogPo jobLog, String errorMsg, String level, String messagePrefix) {
+        int failed = 0;
+        String lastError = null;
+        for (JobProperties.Channel channel : channels) {
+            try {
+                restClient.post()
+                        .uri(channel.getUrl())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(buildBody(channel, job, jobLog, errorMsg, level, messagePrefix))
+                        .retrieve()
+                        .toBodilessEntity();
+            } catch (Exception e) {
+                failed++;
+                lastError = describe(e);
+                log.warn("告警通道推送失败，继续尝试其余通道: jobId={}, channel={}", job.getId(),
+                        channelType(channel), e);
+            }
         }
+        if (failed == 0) {
+            updateAlertStatus(alert, STATUS_SUCCESS, "告警推送成功");
+            return;
+        }
+        updateAlertStatus(alert, STATUS_FAILURE,
+                "告警推送失败 " + failed + "/" + channels.size() + "：" + lastError);
+    }
+
+    /**
+     * 按通道类型构建请求体：钉钉/飞书使用各自的文本消息协议，其余按通用 JSON
+     *
+     * @param channel 通道配置
+     * @param job 任务定义
+     * @param jobLog 执行日志（可为空）
+     * @param errorMsg 失败原因
+     * @param level 告警级别
+     * @param messagePrefix 摘要前缀
+     * @return 请求体（交由 RestClient 的 JSON 消息转换器序列化）
+     */
+    private static Object buildBody(JobProperties.Channel channel, JobInfoPo job, JobLogPo jobLog,
+                                    String errorMsg, String level, String messagePrefix) {
+        String type = channelType(channel);
+        if (TYPE_DINGTALK.equals(type)) {
+            Map<String, Object> text = new LinkedHashMap<>();
+            text.put("content", buildText(job, jobLog, errorMsg, level, messagePrefix));
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("msgtype", "text");
+            body.put("text", text);
+            return body;
+        }
+        if (TYPE_FEISHU.equals(type)) {
+            Map<String, Object> text = new LinkedHashMap<>();
+            text.put("text", buildText(job, jobLog, errorMsg, level, messagePrefix));
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("msg_type", "text");
+            body.put("content", text);
+            return body;
+        }
+        return buildPayload(job, jobLog, errorMsg, level, messagePrefix);
+    }
+
+    /**
+     * 构建机器人文本消息内容（钉钉 / 飞书共用）
+     *
+     * @param job 任务定义
+     * @param jobLog 执行日志（可为空）
+     * @param errorMsg 失败原因
+     * @param level 告警级别
+     * @param messagePrefix 摘要前缀
+     * @return 多行文本
+     */
+    private static String buildText(JobInfoPo job, JobLogPo jobLog, String errorMsg,
+                                    String level, String messagePrefix) {
+        StringBuilder text = new StringBuilder()
+                .append('[').append(level).append("] ").append(messagePrefix)
+                .append('：').append(Objects.toString(job.getJobName(), ""))
+                .append('\n').append("任务ID：").append(job.getId())
+                .append('\n').append("时间：").append(LocalDateTime.now().format(TIME_FORMATTER));
+        if (jobLog != null) {
+            text.append('\n').append("runId：").append(Objects.toString(jobLog.getRunId(), ""));
+        }
+        if (errorMsg != null) {
+            text.append('\n').append("原因：").append(errorMsg);
+        }
+        return text.toString();
     }
 
     /**

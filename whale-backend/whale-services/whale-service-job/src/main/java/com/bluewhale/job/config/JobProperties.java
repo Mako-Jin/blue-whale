@@ -3,6 +3,9 @@ package com.bluewhale.job.config;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * 定时任务服务配置项（前缀 {@code whale.job}）。
  *
@@ -100,6 +103,15 @@ public class JobProperties {
         /** 告警 Webhook 地址：为空时仅落本地日志，不外发 */
         private String webhookUrl = "";
 
+        /**
+         * 告警外发通道列表：为空时回退为「单个 WEBHOOK 通道 + {@code webhookUrl}」，
+         * 保持既有部署配置不变即可继续工作。
+         */
+        private List<Channel> channels = new ArrayList<>();
+
+        /** 失败后恢复是否发送恢复通知：默认开启，每个任务「失败 → 成功」只发一次 */
+        private boolean recoveryEnabled = true;
+
         /** 同一任务的告警外发冷却秒数：冷却期内只落库不外发 */
         private int cooldownSeconds = 300;
 
@@ -111,5 +123,23 @@ public class JobProperties {
 
         /** 告警记录中错误信息最大长度 */
         private int maxErrorLength = 500;
+    }
+
+    /**
+     * 告警外发通道配置项。
+     *
+     * @author BlueWhale
+     */
+    @Data
+    public static class Channel {
+
+        /** 通道类型：WEBHOOK（通用 JSON）/ DINGTALK（钉钉机器人）/ FEISHU（飞书机器人） */
+        private String type = "WEBHOOK";
+
+        /** 通道地址（机器人 webhook 完整 URL） */
+        private String url = "";
+
+        /** 是否启用该通道 */
+        private boolean enabled = true;
     }
 }

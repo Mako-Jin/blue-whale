@@ -215,6 +215,63 @@ class WebhookJobAlertNotifierTest {
         assertNull(alerts.get(1).getRunId());
     }
 
+    @Test
+    @DisplayName("告警：多通道配置时按通道逐个推送，通道名拼接落库")
+    void shouldPushAllConfiguredChannels() throws IOException {
+        JobProperties.Channel dingTalk = new JobProperties.Channel();
+        dingTalk.setType("DINGTALK");
+        dingTalk.setUrl("http://127.0.0.1:1/dingtalk");
+        JobProperties.Channel feishu = new JobProperties.Channel();
+        feishu.setType("FEISHU");
+        feishu.setUrl("http://127.0.0.1:1/feishu");
+        JobProperties.Channel disabled = new JobProperties.Channel();
+        disabled.setType("WEBHOOK");
+        disabled.setUrl(WEBHOOK_URL);
+        disabled.setEnabled(false);
+        jobProperties.getAlert().setChannels(List.of(dingTalk, feishu, disabled));
+        when(requestFactory.createRequest(any(URI.class), any(HttpMethod.class)))
+                .thenThrow(new IOException("connect refused"));
+
+        notifier.notifyFailure(job(), log());
+
+        verify(requestFactory, times(2)).createRequest(any(URI.class), any(HttpMethod.class));
+        ArgumentCaptor<JobAlertPo> captor = ArgumentCaptor.forClass(JobAlertPo.class);
+        verify(jobAlertMapper).insert(captor.capture());
+        assertEquals("DINGTALK,FEISHU", captor.getValue().getChannel());
+        assertEquals(STATUS_FAILURE, captor.getValue().getStatus().intValue());
+    }
+
+    @Test
+    @DisplayName("恢复：fail_count 清零后的成功执行发送 INFO 恢复通知，且不受冷却限制")
+    void shouldNotifyRecoveredWithoutCooldown() throws IOException {
+        jobProperties.getAlert().setWebhookUrl(WEBHOOK_URL);
+        jobProperties.getAlert().setCooldownSeconds(300);
+        when(requestFactory.createRequest(any(URI.class), any(HttpMethod.class)))
+                .thenThrow(new IOException("connect refused"));
+
+        notifier.notifyFailure(job(), log());
+        notifier.notifyRecovered(job());
+
+        verify(requestFactory, times(2)).createRequest(any(URI.class), any(HttpMethod.class));
+        ArgumentCaptor<JobAlertPo> captor = ArgumentCaptor.forClass(JobAlertPo.class);
+        verify(jobAlertMapper, times(2)).insert(captor.capture());
+        List<JobAlertPo> alerts = captor.getAllValues();
+        assertEquals("ERROR", alerts.get(0).getLevel());
+        assertEquals("INFO", alerts.get(1).getLevel());
+        assertEquals("WEBHOOK", alerts.get(1).getChannel());
+    }
+
+    @Test
+    @DisplayName("恢复：关闭 recovery-enabled 时不落库也不外发")
+    void shouldSkipRecoveredWhenDisabled() {
+        jobProperties.getAlert().setWebhookUrl("");
+        jobProperties.getAlert().setRecoveryEnabled(false);
+
+        notifier.notifyRecovered(job());
+
+        verify(jobAlertMapper, never()).insert(any(JobAlertPo.class));
+    }
+
     /**
      * 构造注入了 Redis 客户端的告警通知器
      *

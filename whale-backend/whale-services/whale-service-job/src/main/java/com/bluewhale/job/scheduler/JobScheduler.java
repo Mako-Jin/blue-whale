@@ -758,7 +758,9 @@ public class JobScheduler {
             handleExecutionFailure(job);
             return;
         }
-        resetFailureCount(job);
+        if (resetFailureCount(job)) {
+            notifyRecovered(job);
+        }
         triggerDownstream(job, runId, depth);
     }
 
@@ -809,15 +811,18 @@ public class JobScheduler {
      * 执行成功后清零连续失败计数（条件更新，未失败过时不产生写放大）
      *
      * @param job 任务定义
+     * @return 确实从「连续失败」状态清零返回 {@code true}，用于决定是否发送恢复通知
      */
-    private void resetFailureCount(JobInfoPo job) {
+    private boolean resetFailureCount(JobInfoPo job) {
         if (job.getId() == null) {
-            return;
+            return false;
         }
-        jobInfoMapper.update(null, new LambdaUpdateWrapper<JobInfoPo>()
+        // 条件更新只在 fail_count > 0 时生效：影响行数 > 0 即代表刚从失败状态恢复，
+        // 天然保证「一次失败 → 一次恢复」只通知一次，无需额外去重状态
+        return jobInfoMapper.update(null, new LambdaUpdateWrapper<JobInfoPo>()
                 .eq(JobInfoPo::getId, job.getId())
                 .gt(JobInfoPo::getFailCount, 0)
-                .setSql(FAIL_COUNT_RESET_SQL));
+                .setSql(FAIL_COUNT_RESET_SQL)) > 0;
     }
 
     /**
@@ -863,6 +868,19 @@ public class JobScheduler {
             jobAlertNotifier.notifyAutoPaused(job, failCount);
         } catch (Exception e) {
             log.warn("自动暂停告警发送异常，已忽略: jobId={}", job.getId(), e);
+        }
+    }
+
+    /**
+     * 发送任务恢复通知：仅在连续失败计数被清零时调用一次，异常只记录
+     *
+     * @param job 已恢复的任务
+     */
+    private void notifyRecovered(JobInfoPo job) {
+        try {
+            jobAlertNotifier.notifyRecovered(job);
+        } catch (Exception e) {
+            log.warn("任务恢复通知发送异常，已忽略: jobId={}", job.getId(), e);
         }
     }
 

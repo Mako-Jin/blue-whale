@@ -580,6 +580,29 @@ class JobSchedulerTest {
     }
 
     @Test
+    @DisplayName("恢复：此前处于连续失败状态时，成功执行发送一次恢复通知")
+    void shouldNotifyRecoveredAfterSuccessFromFailure() {
+        when(jobHandlerRegistry.resolve("demoJobHandler")).thenReturn(param -> "ok");
+        when(jobInfoMapper.update(any(), any())).thenReturn(1);
+        JobInfoPo job = job(1L, "SMART");
+
+        scheduler.doExecute(job);
+
+        verify(jobAlertNotifier).notifyRecovered(job);
+    }
+
+    @Test
+    @DisplayName("恢复：未失败过（fail_count 未清零）时不发送恢复通知")
+    void shouldNotNotifyRecoveredWhenNoFailureHistory() {
+        when(jobHandlerRegistry.resolve("demoJobHandler")).thenReturn(param -> "ok");
+        when(jobInfoMapper.update(any(), any())).thenReturn(0);
+
+        scheduler.doExecute(job(1L, "SMART"));
+
+        verify(jobAlertNotifier, never()).notifyRecovered(any());
+    }
+
+    @Test
     @DisplayName("启动对账：超过阈值的执行中日志回写为失败")
     void shouldRecoverOrphanLogsOnStartup() {
         when(jobInfoMapper.selectList(any())).thenReturn(List.of());
