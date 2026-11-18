@@ -18,6 +18,14 @@ public class JobAlertQueryRequest extends PageQuery {
     /** 任务ID（精确匹配） */
     private Long jobId;
 
-    /** 告警级别（精确匹配），如 ERROR */
+    /** 告警级别（精确匹配），如 ERROR / WARN / INFO */
     private String level;
+
+    /**
+     * 告警通道（模糊匹配）。
+     *
+     * <p>多通道场景下 {@code job_alert.channel} 为逗号拼接值（如 {@code DINGTALK,FEISHU}），
+     * 因此按单个通道名模糊筛选，而不是精确相等。</p>
+     */
+    private String channel;
 }

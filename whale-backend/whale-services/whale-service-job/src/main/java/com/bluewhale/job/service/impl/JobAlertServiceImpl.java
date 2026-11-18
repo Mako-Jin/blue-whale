@@ -27,6 +27,9 @@ public class JobAlertServiceImpl implements JobAlertService {
     /** 单页最大条数：防止深度分页拖垮数据库 */
     private static final long MAX_PAGE_SIZE = 200L;
 
+    /** 告警级别：信息（恢复通知） */
+    private static final String LEVEL_INFO = "INFO";
+
     private final JobAlertMapper jobAlertMapper;
 
     @Override
@@ -34,6 +37,8 @@ public class JobAlertServiceImpl implements JobAlertService {
         LambdaQueryWrapper<JobAlertPo> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(request.getJobId() != null, JobAlertPo::getJobId, request.getJobId());
         wrapper.eq(StringUtils.hasText(request.getLevel()), JobAlertPo::getLevel, request.getLevel());
+        // channel 为逗号拼接值（如 DINGTALK,FEISHU），按单个通道名模糊筛选
+        wrapper.like(StringUtils.hasText(request.getChannel()), JobAlertPo::getChannel, request.getChannel());
         wrapper.orderByDesc(JobAlertPo::getCreateTime);
         long size = Math.min(Math.max(request.getSize(), 1L), MAX_PAGE_SIZE);
         Page<JobAlertPo> page = jobAlertMapper.selectPage(new Page<>(request.getCurrent(), size), wrapper);
@@ -48,6 +53,9 @@ public class JobAlertServiceImpl implements JobAlertService {
      * @return 告警视图对象
      */
     private static JobAlertVO toVo(JobAlertPo jobAlert) {
-        return JobConverter.INSTANCE.toAlertVo(jobAlert);
+        JobAlertVO vo = JobConverter.INSTANCE.toAlertVo(jobAlert);
+        // INFO 级告警只用于恢复通知，前端据此展示「已恢复」标识
+        vo.setRecovered(LEVEL_INFO.equals(jobAlert.getLevel()));
+        return vo;
     }
 }

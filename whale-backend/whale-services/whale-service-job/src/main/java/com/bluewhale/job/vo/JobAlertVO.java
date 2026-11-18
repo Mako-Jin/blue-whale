@@ -33,8 +33,11 @@ public class JobAlertVO implements Serializable {
     /** 告警级别 */
     private String level;
 
-    /** 告警通道：LOG 仅本地日志 / WEBHOOK 外发 */
+    /** 告警通道：LOG 仅本地日志，多个外发通道以逗号拼接（如 DINGTALK,FEISHU） */
     private String channel;
+
+    /** 是否恢复通知：级别为 INFO 的告警即「任务已恢复」 */
+    private Boolean recovered;
 
     /** 投递状态：1 成功 / -1 失败 / 0 待发 */
     private Integer status;

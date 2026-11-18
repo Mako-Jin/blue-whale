@@ -42,6 +42,7 @@ public interface JobConverter {
      * @param entity 告警实体
      * @return 告警视图对象
      */
+    @Mapping(target = "recovered", ignore = true)
     JobAlertVO toAlertVo(JobAlertPo entity);
 
     /**
