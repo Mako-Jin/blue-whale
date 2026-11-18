@@ -98,3 +98,12 @@ whale:
 - 无 DDL、无新增表：`job_alert.channel` 从单值扩展为逗号拼接，长度仍在 `VARCHAR(32)` 内；
 - 旧配置 `webhook-url` 继续有效，无需改动即可升级；回滚只需回退代码与 `channels` 配置；
 - 若接收方对 `channel` 字段做严格枚举校验，需放行逗号拼接值或改读 `level` / `message`。
+
+## 6. 告警查询增强
+
+`GET /job/alert/page?jobId=&level=&channel=`
+
+- 新增 `channel` 模糊筛选：因为多通道场景下 `channel` 是逗号拼接值（如 `DINGTALK,FEISHU`），
+  用模糊匹配才能按单个通道名筛出记录；`level` 仍为精确匹配；
+- 响应新增 `recovered` 布尔字段：`level=INFO` 的记录即恢复通知，前端无需再按文案判断；
+- 兼容性：仅新增可选查询参数与响应字段，旧调用方不受影响；`channel` 为空时不过滤。
