@@ -92,7 +92,17 @@
   - `WebhookJobAlertNotifierTest#shouldFallbackToLocalCooldownWhenRedisFails`：Redis 异常时本地冷却仍去重；
   - `JobExecutorServiceImplTest#shouldTruncateJobCodesOnCodeBoundary`：超列宽时按完整 code 截断。
 
-### 4.2 实施过程中修正的问题
+### 4.2 实机验证（本地 Redis 5.0.14.1 @ 127.0.0.1:6379）
+
+| 验证项 | 方式 | 结果 |
+| --- | --- | --- |
+| 多实例共享 webhook 冷却 | `LiveWebhookCooldownIT`（`-Dwhale.live.it=true`）：两个通知器实例共用同一 Redisson 客户端，本地 HTTP 服务计数 | 通过：冷却期内两次失败只外发 1 次、落库 2 次；冷却键存在且 TTL>0；删除键后再次外发 |
+| 执行器注册租户透传 | `JobExecutorRegistrarTest`：本地 HTTP 桩捕获注册/心跳/注销请求 | 通过：POST `/register`、PUT `/beat`、DELETE `/register` 均带 `X-Tenant-Id: 2` |
+
+说明：冷却共享已由同一 JVM 内两个独立通知器实例 + 真实 Redis 验证；双 JVM 并行部署未单独执行，
+该场景与本验证的差异仅在于进程边界，共享状态完全由 Redis 承担。
+
+### 4.3 实施过程中修正的问题
 
 | 问题 | 处理 |
 | --- | --- |
@@ -100,12 +110,12 @@
 | `JobArchitectureTest` 仍扫描已改名的 `job.entity` 包，空 should 导致构建失败（评审前既有问题） | 规则与注释同步改为 `job.po`，恢复分层守护 |
 | Flyway 清理改造后，仅有 `success=0` 残行而无匹配脚本时会被漏删 | 预查询条件与 DELETE 条件保持一致（脚本 LIKE + 失败版本） |
 
-### 4.3 未采纳项
+### 4.4 未采纳项
 
 - **P3-15（DTO 抽公共父类）**：会影响 MapStruct 映射与接口文档，收益低于回归风险；已在 `JobInfoUpdateRequest` 注释中明确「为空保留原值」语义。
 - **P3-17（run 审计类型）**：`OperateType` 无 EXECUTE/ACTION，改 `OTHER` 会丢失「修改」与「执行」的区分，保留 `UPDATE`。
 
-### 4.4 上线注意
+### 4.5 上线注意
 
 - 多实例环境需保证各业务服务配置的 `whale.job.executor.tenant-id` 与其所属租户一致；注册器已随请求头传递该租户。
 - 冷却键为 `job:alert:webhook:cooldown:{tenantId}:{jobId}`，TTL 等于 `whale.job.alert.cooldown-seconds`，无需额外清理。
