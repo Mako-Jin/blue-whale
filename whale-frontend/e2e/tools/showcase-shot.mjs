@@ -37,7 +37,8 @@ page.on('console', (msg) => {
 });
 page.on('pageerror', (err) => errors.push(`PAGEERROR: ${err.message}`));
 
-await page.goto('http://127.0.0.1:8126/', { waitUntil: 'load', timeout: 60000 });
+const Q = process.argv[4] ?? ''; // 可选画质：high|mid|low，用于测帧率
+await page.goto(`http://127.0.0.1:8126/${Q ? `?q=${Q}` : ''}`, { waitUntil: 'load', timeout: 60000 });
 // 首帧：等地形生成 + 阴影贴图烘一次
 await page.waitForTimeout(5000);
 

@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { createSceneEnv } from './env';
+import type { SceneAssets } from './loader';
 import { createPostFx } from './postfx';
-import { buildSettlement } from './props';
+import { buildSettlement, lanternSpots } from './props';
 import { createSky, type SkyState } from './sky';
 import { createTerrain } from './terrain';
 import { createWater } from './water';
@@ -22,6 +23,7 @@ export interface SceneStats {
 }
 
 export type TimeName = 'dusk' | 'day' | 'blue' | 'night';
+export type Quality = 'high' | 'mid' | 'low';
 export type PresetName = 'overview' | 'bridge' | 'street' | 'dock';
 
 interface TimePreset {
@@ -171,13 +173,30 @@ export interface ShowcaseOptions {
   time?: TimeName;
   preset?: PresetName;
   onStats?: (s: SceneStats) => void;
+  /** 外部加载好的 GLB 资产；缺省则全部走程序化占位件 */
+  assets?: SceneAssets;
+  quality?: Quality;
 }
 
 export interface ShowcaseHandle {
   setTime: (name: TimeName) => void;
   setPreset: (name: PresetName) => void;
+  setQuality: (q: Quality) => void;
   dispose: () => void;
 }
+
+/**
+ * 画质档。
+ *
+ * <p>这台机器在 1080p、55 万三角面、Bloom + SMAA 全开时只有 25~35 fps，
+ * 必须给一个能立刻见效的旋钮。三档只动三处——像素比、抗锯齿、阴影分辨率，
+ * 因为这三项是平方级成本；动三角面要重建场景，切换体验太差。</p>
+ */
+const QUALITY: Record<Quality, { dpr: number; aa: boolean; shadow: number }> = {
+  high: { dpr: 2, aa: true, shadow: 2048 },
+  mid: { dpr: 1, aa: true, shadow: 2048 },
+  low: { dpr: 0.8, aa: false, shadow: 1024 },
+};
 
 export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): ShowcaseHandle {
   const scene = new THREE.Scene();
@@ -210,7 +229,7 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
   const sun = new THREE.DirectionalLight(0xffa258, 3.1);
   sun.castShadow = true;
   // 阴影范围只罩聚落核心（±48）：范围铺到 ±72 时 texel 变粗，桥面板上全是自阴影网格
-  sun.shadow.mapSize.set(3072, 3072);
+  sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.camera.left = -38;
   sun.shadow.camera.right = 38;
   sun.shadow.camera.top = 38;
@@ -237,7 +256,7 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
   const water = createWater();
   scene.add(water.mesh);
 
-  const settlement = buildSettlement();
+  const settlement = buildSettlement(opts.assets);
   scene.add(settlement);
 
   /* ---------------------------------------------------------------- 相机 */
@@ -250,15 +269,86 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
   controls.target.set(2, 4, 0);
   controls.enablePan = true;
 
-  const lampMaterials: THREE.MeshStandardMaterial[] = [];
+  // 去重：GLB 里九栋房共享同一批材质实例，不去重会被 push 几十次（改一次改几十次）
+  const lampSet = new Set<THREE.MeshStandardMaterial>();
   settlement.traverse((o) => {
     const m = o as THREE.Mesh;
-    if (m.isMesh && Array.isArray(m.material)) return;
-    if (m.isMesh) {
-      const mat = m.material as THREE.MeshStandardMaterial;
-      if (mat.emissive && mat.emissiveIntensity > 1) lampMaterials.push(mat);
+    if (!m.isMesh) return;
+    const mats = Array.isArray(m.material) ? m.material : [m.material];
+    for (const raw of mats) {
+      const mat = raw as THREE.MeshStandardMaterial;
+      if (mat.emissive && mat.emissiveIntensity > 1) lampSet.add(mat);
     }
   });
+  const lampMaterials = [...lampSet];
+
+  /*
+   * 灯笼点光源。
+   *
+   * <p>只靠自发光材质，灯笼自己亮但不照地——夜景里脚下是黑的，灯像是贴上去的。
+   * 全景和街景都能看到灯下的地面，这几盏灯是把"夜里有人住"这个信息立住的关键。</p>
+   *
+   * <p>数量必须克制：每盏灯都要参与所有受光物体的着色。22 个灯位只取 7 盏
+   * （隔 3 个取 1），强度按 candela 给，衰减距离 11m 刚好铺满街面。</p>
+   */
+  /*
+   * 灯笼照明分两半，因为两者的性能曲线完全不同：
+   *
+   * <ul>
+   *   <li><b>点光源只留 3 盏</b>：每盏都要参与所有受光物体的逐片元循环，22 个灯位
+   *       全上实测掉到 25fps。3 盏放在桥头核心段，负责把墙面和牌坊打出暖边。</li>
+   *   <li><b>其余靠地面光斑贴片</b>：一张半径渐变的加法混合平面，几乎零成本，
+   *       但"灯下有光"这个信息就成立了——观众不会去数哪盏灯真的照亮了哪块石头。</li>
+   * </ul>
+   */
+  const lanternLights: THREE.PointLight[] = [];
+  const spots = lanternSpots();
+  for (let i = 0; i < spots.length; i += Math.max(1, Math.floor(spots.length / 3))) {
+    const sp = spots[i];
+    const light = new THREE.PointLight(0xffa457, 0, 14, 2);
+    light.position.set(sp.x + (sp.rotY > 0 ? 0.45 : -0.45), sp.y + 2.2, sp.z);
+    light.castShadow = false; // 点光阴影很贵，灯笼不需要
+    scene.add(light);
+    lanternLights.push(light);
+  }
+
+  // 地面光斑：程序化径向渐变，避免再引一张贴图资产
+  const glowCanvas = document.createElement('canvas');
+  glowCanvas.width = glowCanvas.height = 128;
+  const gctx = glowCanvas.getContext('2d');
+  if (gctx) {
+    const grad = gctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    grad.addColorStop(0, 'rgba(255,196,132,0.9)');
+    grad.addColorStop(0.4, 'rgba(255,152,84,0.34)');
+    grad.addColorStop(1, 'rgba(255,120,60,0)');
+    gctx.fillStyle = grad;
+    gctx.fillRect(0, 0, 128, 128);
+  }
+  const glowTex = new THREE.CanvasTexture(glowCanvas);
+  glowTex.colorSpace = THREE.SRGBColorSpace;
+  const glowMat = new THREE.MeshBasicMaterial({
+    map: glowTex,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    opacity: 0,
+    fog: true,
+  });
+  const glowGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+  const glowMeshes = new THREE.InstancedMesh(glowGeo, glowMat, spots.length);
+  {
+    const m = new THREE.Matrix4();
+    spots.forEach((sp, i) => {
+      const dx = sp.rotY > 0 ? 0.45 : -0.45;
+      m.makeScale(7.5, 1, 7.5);
+      m.setPosition(sp.x + dx, sp.y + 0.05, sp.z);
+      glowMeshes.setMatrixAt(i, m);
+    });
+    glowMeshes.instanceMatrix.needsUpdate = true;
+  }
+  glowMeshes.renderOrder = 3;
+  glowMeshes.name = 'lantern-glow';
+  scene.add(glowMeshes);
 
   let currentTime: TimePreset = TIMES[opts.time ?? 'dusk'];
   let sunDir = sunDirection(currentTime);
@@ -293,6 +383,8 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
     scene.environmentIntensity = p.envIntensity;
 
     for (const m of lampMaterials) m.emissiveIntensity = 2.2 * lampScale;
+    for (const l of lanternLights) l.intensity = 26 * (p.lamp - 0.1);
+    glowMat.opacity = Math.max(0, (p.lamp - 0.15) * 0.55);
     water.setSky(new THREE.Color(p.skyHorizon), new THREE.Color(p.skyTop));
 
     postfx.setBloom(p.bloom);
@@ -318,6 +410,11 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
 
   applyTime(currentTime);
   applyCamera(opts.preset ?? 'overview');
+  if (opts.quality) {
+    const cfg = QUALITY[opts.quality];
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cfg.dpr));
+    postfx.setAntialias(cfg.aa);
+  }
 
   /* ---------------------------------------------------------------- 循环 */
   const clock = new THREE.Clock();
@@ -378,6 +475,18 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
     },
     setPreset(name) {
       applyCamera(name, true);
+    },
+    setQuality(q) {
+      const cfg = QUALITY[q];
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cfg.dpr));
+      postfx.setAntialias(cfg.aa);
+      if (sun.shadow.mapSize.x !== cfg.shadow) {
+        sun.shadow.mapSize.set(cfg.shadow, cfg.shadow);
+        // 改 mapSize 必须把旧的 shadow map 丢掉，否则不会重建
+        sun.shadow.map?.dispose();
+        sun.shadow.map = null;
+      }
+      resize();
     },
     dispose() {
       disposed = true;

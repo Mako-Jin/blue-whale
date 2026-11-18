@@ -101,6 +101,8 @@ export interface PostFx {
   setBloom: (strength: number) => void;
   /** 改暗部染色（不同时段风味不同） */
   setTint: (shadow: THREE.Color, high: THREE.Color, shadowAmount: number) => void;
+  /** 抗锯齿开关：SMAAPass 是两遍全屏，低画质档直接关掉 */
+  setAntialias: (on: boolean) => void;
   dispose: () => void;
 }
 
@@ -140,6 +142,9 @@ export function createPostFx(
     },
     setBloom(strength) {
       bloom.strength = strength;
+    },
+    setAntialias(on) {
+      smaa.enabled = on;
     },
     setTint(shadow, high, shadowAmount) {
       (grade.uniforms.uShadowTint.value as THREE.Color).copy(shadow);

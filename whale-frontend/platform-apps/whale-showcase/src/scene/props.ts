@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import type { HouseVariant, SceneAssets, TreeVariant } from './loader';
 import { heightAt, WATER_LEVEL } from './terrain';
 import { PALETTE, clamp } from './util';
 
@@ -283,59 +284,183 @@ function buildBoat(b: Builder, x: number, z: number, rotY: number): void {
 
 /* ------------------------------------------------------------------ 树 */
 
-function buildTrees(b: Builder): void {
+export interface TreeSpot {
+  x: number;
+  z: number;
+  y: number;
+  scale: number;
+  rotY: number;
+  variant: TreeVariant;
+}
+
+/**
+ * 树位。程序化占位件与 GLB 两条路径**共用**这套落点：换资产时构图不变，
+ * 否则每次换模型都要重新调一遍画面。
+ *
+ * <p>靠河 22m 内优先种垂柳（水边柳是江南的默认配置），远处用圆冠 / 高瘦交替，
+ * 避免整片树一个样。</p>
+ */
+export function treeSpots(count = 54): TreeSpot[] {
   let seed = 20261118;
   const rand = () => {
     seed = (seed * 1664525 + 1013904223) % 4294967296;
     return seed / 4294967296;
   };
 
-  let placed = 0;
+  const out: TreeSpot[] = [];
   let guard = 0;
-  while (placed < 52 && guard < 800) {
+  while (out.length < count && guard < 2000) {
     guard += 1;
     const x = (rand() - 0.5) * 150;
     const z = (rand() - 0.5) * 240;
     const d = Math.abs(x - Math.sin(z * 0.013) * 6.5 - Math.sin(z * 0.0047 + 1.3) * 4.2);
     if (d < 12) continue; // 河道里不长树
     if (Math.abs(z - BRIDGE_Z) < 24 && d < 26) continue; // 桥头广场留白
-    if (x > 12 && x < 34 && z > -46 && z < 8) continue; // 聚落区留给房子
+    // 聚落占位区：x 覆盖街面到城墙，z 覆盖整条街（-38..38）并向两端各留 6m。
+    // 早先只挡到 z<8，结果 z>8 的街心会长出树来（桥头机位实测有一棵树穿过牌坊屋顶）
+    if (x > 11.5 && x < 36 && z > -46 && z < 44) continue;
 
     const y = heightAt(x, z);
     if (y < WATER_LEVEL + 0.4) continue;
 
-    const s = 0.78 + rand() * 0.6;
-    b.cyl('woodDark', 0.22 * s, 0.38 * s, 3.0 * s, x, y + 1.5 * s, z, 6);
+    const r = rand();
+    const variant: TreeVariant = d < 22 ? 'willow' : r < 0.62 ? 'round' : 'tall';
+    out.push({
+      x,
+      z,
+      y,
+      scale: variant === 'willow' ? 0.9 + rand() * 0.3 : 0.85 + rand() * 0.45,
+      rotY: rand() * Math.PI * 2,
+      variant,
+    });
+  }
+  return out;
+}
+
+function buildTreesPlaceholder(b: Builder, spots: TreeSpot[]): void {
+  for (const sp of spots) {
+    const s = sp.scale * 1.1;
+    b.cyl('woodDark', 0.22 * s, 0.38 * s, 3.0 * s, sp.x, sp.y + 1.5 * s, sp.z, 6);
     b.add(
       'foliage',
       new THREE.IcosahedronGeometry(2.05 * s, 0),
-      new THREE.Matrix4().makeTranslation(x, y + 4.3 * s, z),
+      new THREE.Matrix4().makeTranslation(sp.x, sp.y + 4.3 * s, sp.z),
     );
     b.add(
       'foliage',
       new THREE.IcosahedronGeometry(1.35 * s, 0),
-      new THREE.Matrix4().makeTranslation(x + 0.8 * s, y + 5.4 * s, z - 0.6 * s),
+      new THREE.Matrix4().makeTranslation(sp.x + 0.8 * s, sp.y + 5.4 * s, sp.z - 0.6 * s),
     );
-    placed += 1;
+  }
+}
+
+/**
+ * 用 InstancedMesh 铺树。
+ *
+ * <p>54 棵 × 2 个 primitive × 一物一 mesh 的话是 108 个 drawcall；按 (变体, 部件)
+ * 归并成 InstancedMesh 之后是 6 个。三角面不变，但 drawcall 与材质切换全省了。</p>
+ */
+function buildTreesFromGlb(
+  group: THREE.Group,
+  assets: SceneAssets,
+  spots: TreeSpot[],
+): void {
+  const byVariant = new Map<TreeVariant, TreeSpot[]>();
+  for (const sp of spots) {
+    const list = byVariant.get(sp.variant) ?? [];
+    list.push(sp);
+    byVariant.set(sp.variant, list);
+  }
+
+  const m = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const pos = new THREE.Vector3();
+  const scl = new THREE.Vector3();
+
+  for (const [variant, list] of byVariant) {
+    const parts = assets.trees[variant];
+    if (!parts.length) continue;
+    for (const part of parts) {
+      const im = new THREE.InstancedMesh(part.geometry, part.material, list.length);
+      im.castShadow = true;
+      im.receiveShadow = true;
+      im.frustumCulled = false; // 实例分布在 150m 范围，整体包围盒没意义
+      list.forEach((sp, i) => {
+        q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), sp.rotY);
+        pos.set(sp.x, sp.y, sp.z);
+        scl.set(sp.scale, sp.scale, sp.scale);
+        m.compose(pos, q, scl);
+        im.setMatrixAt(i, m);
+      });
+      im.instanceMatrix.needsUpdate = true;
+      im.name = `trees-${variant}`;
+      group.add(im);
+    }
   }
 }
 
 /* ------------------------------------------------------------------ 灯笼 */
 
-function buildLanterns(b: Builder): void {
+export interface LanternSpot {
+  x: number;
+  z: number;
+  y: number;
+  rotY: number;
+}
+
+/**
+ * 街灯落点。
+ *
+ * <p>灯挑向<b>街心</b>：西侧一排朝 +X、东侧一排朝 -X。GLB 里灯体挂在 Blender 的 -Y
+ * 一侧，导出后对应 three.js 的 +Z，所以绕 Y 转 +90° 得到 +X、-90° 得到 -X。</p>
+ */
+export function lanternSpots(): LanternSpot[] {
   const rows = [
-    { x: 15.6, z0: -20, z1: 24 },
-    { x: 22.4, z0: -20, z1: 24 },
+    { x: 14.9, rotY: Math.PI / 2 },
+    { x: 19.4, rotY: -Math.PI / 2 },
   ];
+  const out: LanternSpot[] = [];
   for (const row of rows) {
-    for (let z = row.z0; z <= row.z1; z += 4.2) {
+    for (let z = -22; z <= 26; z += 4.4) {
       if (Math.abs(z - BRIDGE_Z) < 5) continue;
-      const y = heightAt(row.x, z);
-      b.cyl('woodDark', 0.055, 0.065, 2.6, row.x, y + 1.3, z, 6);
-      b.box('woodDark', 0.6, 0.07, 0.07, row.x + 0.22, y + 2.58, z); // 挑臂
-      b.cyl('glow', 0.21, 0.21, 0.56, row.x + 0.46, y + 2.26, z, 8);
-      b.cyl('tile', 0.27, 0.27, 0.06, row.x + 0.46, y + 2.56, z, 8);
+      out.push({ x: row.x, z, y: heightAt(row.x, z), rotY: row.rotY });
     }
+  }
+  return out;
+}
+
+function buildLanternsFromGlb(group: THREE.Group, assets: SceneAssets): void {
+  const spots = lanternSpots();
+  if (!spots.length || !assets.lantern.length) return;
+  const m = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const up = new THREE.Vector3(0, 1, 0);
+  const pos = new THREE.Vector3();
+  const one = new THREE.Vector3(1, 1, 1);
+  for (const part of assets.lantern) {
+    const im = new THREE.InstancedMesh(part.geometry, part.material, spots.length);
+    im.castShadow = true;
+    im.receiveShadow = true;
+    im.frustumCulled = false;
+    spots.forEach((sp, i) => {
+      q.setFromAxisAngle(up, sp.rotY);
+      pos.set(sp.x, sp.y, sp.z);
+      m.compose(pos, q, one);
+      im.setMatrixAt(i, m);
+    });
+    im.instanceMatrix.needsUpdate = true;
+    im.name = 'lanterns';
+    group.add(im);
+  }
+}
+
+function buildLanterns(b: Builder): void {
+  for (const sp of lanternSpots()) {
+    const dir = sp.rotY > 0 ? 1 : -1;
+    b.cyl('woodDark', 0.055, 0.065, 2.6, sp.x, sp.y + 1.3, sp.z, 6);
+    b.box('woodDark', 0.6, 0.07, 0.07, sp.x + dir * 0.22, sp.y + 2.58, sp.z);
+    b.cyl('glow', 0.21, 0.21, 0.56, sp.x + dir * 0.46, sp.y + 2.26, sp.z, 8);
+    b.cyl('tile', 0.27, 0.27, 0.06, sp.x + dir * 0.46, sp.y + 2.56, sp.z, 8);
   }
 }
 
@@ -380,28 +505,100 @@ function buildWall(b: Builder): void {
 
 /* ------------------------------------------------------------------ 民居 */
 
-function buildHouses(b: Builder): void {
+export interface HouseSpot {
+  x: number;
+  z: number;
+  y: number;
+  scale: number;
+  rotY: number;
+  variant: HouseVariant;
+}
+
+/**
+ * 民居落点。
+ *
+ * <p>用<b>固定 z 槽位</b>而不是纯随机撒点：房子正面朝 -X，此时"面宽 6.2~7.4"是沿
+ * Z 排布的，而旧代码的防重叠判据只按 6.5×7 的盒子算，相邻两栋必然互相插进去
+ * （出图就是一排糊在一起的屋顶）。槽距按最大面宽 + 走道给到 9m。</p>
+ */
+export function houseSpots(): HouseSpot[] {
   let seed = 77881122;
   const rand = () => {
     seed = (seed * 1103515245 + 12345) % 2147483648;
     return seed / 2147483648;
   };
 
-  const spots: Array<{ x: number; z: number }> = [];
-  let guard = 0;
-  while (spots.length < 9 && guard < 400) {
-    guard += 1;
-    // 只落在街面以东：以前 x 从 15.5 起，房子会直接盖在街上，
-    // 街景机位就卡在墙体内部（实测整幅图被一堵白墙糊住）
-    const x = STREET_X + 5.4 + rand() * 5.4;
-    const z = -26 + rand() * 46;
-    if (Math.abs(z - BRIDGE_Z) < 7) continue;
-    if (spots.some((s) => Math.abs(s.x - x) < 6.5 && Math.abs(s.z - z) < 7)) continue;
-    spots.push({ x, z });
+  const out: HouseSpot[] = [];
+  for (let z = -38; z <= 38; z += 9) {
+    if (Math.abs(z - BRIDGE_Z) < 8) continue; // 桥头广场留空
+    const zz = z + (rand() - 0.5) * 1.2;
+    const x = STREET_X + 6.2 + rand() * 1.1;
+    out.push({
+      x,
+      z: zz,
+      y: heightAt(x, zz),
+      scale: 0.92 + rand() * 0.18,
+      // 正面朝 -X（街道在西侧）；再抖一点角度，一排房完全对齐最假
+      rotY: -Math.PI / 2 + (rand() - 0.5) * 0.1,
+      variant: rand() < 0.4 ? 'big' : 'small',
+    });
+  }
+  return out;
+}
+
+/**
+ * 民居也走 InstancedMesh。
+ *
+ * <p>一栋房在 GLB 里拆成 6 个 primitive（白墙/背墙/瓦/木/石/窗纸各一），
+ * 9 栋各建一个 Group 就是 54 个 drawcall；按 (变体, 部件) 归并后只剩 12 个。</p>
+ */
+function buildHousesFromGlb(group: THREE.Group, assets: SceneAssets, spots: HouseSpot[]): void {
+  const byVariant = new Map<HouseVariant, HouseSpot[]>();
+  for (const sp of spots) {
+    const list = byVariant.get(sp.variant) ?? [];
+    list.push(sp);
+    byVariant.set(sp.variant, list);
   }
 
-  for (const s of spots) {
-    const y = heightAt(s.x, s.z);
+  const m = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const pos = new THREE.Vector3();
+  const scl = new THREE.Vector3();
+  const up = new THREE.Vector3(0, 1, 0);
+
+  for (const [variant, list] of byVariant) {
+    const parts = assets.houses[variant];
+    if (!parts.length || !list.length) continue;
+    for (const part of parts) {
+      const im = new THREE.InstancedMesh(part.geometry, part.material, list.length);
+      im.castShadow = true;
+      im.receiveShadow = true;
+      im.frustumCulled = false;
+      list.forEach((sp, i) => {
+        q.setFromAxisAngle(up, sp.rotY);
+        pos.set(sp.x, sp.y, sp.z);
+        scl.set(sp.scale, sp.scale, sp.scale);
+        m.compose(pos, q, scl);
+        im.setMatrixAt(i, m);
+      });
+      im.instanceMatrix.needsUpdate = true;
+      im.name = `houses-${variant}`;
+      group.add(im);
+    }
+  }
+}
+
+function buildHouses(b: Builder): void {
+  const rand = (() => {
+    let seed = 99001122;
+    return () => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed / 2147483648;
+    };
+  })();
+
+  for (const s of houseSpots()) {
+    const y = s.y;
     const w = 4.2 + rand() * 1.6;
     const d = 4.6 + rand() * 1.8;
     const h = 3.0 + rand() * 0.9;
@@ -424,17 +621,53 @@ function buildHouses(b: Builder): void {
 
 /* ------------------------------------------------------------------ 出口 */
 
-export function buildSettlement(): THREE.Group {
+const GATE_X = 16.5;
+
+export function buildSettlement(assets?: SceneAssets): THREE.Group {
   const b = new Builder();
   buildBridge(b);
-  buildGate(b, 16.5, BRIDGE_Z);
+
+  const spots = treeSpots();
+  // 树必须在上面的 builder 出组之前决定走哪条路径：占位件是走 Builder 合并的
+  const hasTrees = !!assets && (['round', 'tall', 'willow'] as TreeVariant[]).some(
+    (k) => (assets.trees[k] ?? []).length > 0,
+  );
+  if (!hasTrees) buildTreesPlaceholder(b, spots);
+
+  if (!assets?.gate) buildGate(b, GATE_X, BRIDGE_Z);
+
   buildDock(b);
   buildBoat(b, dockX() - 3.4, DOCK_Z - 4.6, 0.35);
   buildBoat(b, dockX() - 1.2, DOCK_Z - 9.2, -0.2);
-  buildTrees(b);
   buildStreet(b);
-  buildLanterns(b);
+  const hasLanterns = !!assets && assets.lantern.length > 0;
+  if (!hasLanterns) buildLanterns(b);
   buildWall(b);
-  buildHouses(b);
-  return b.build();
+
+  const hasHouses = !!assets && (['small', 'big'] as HouseVariant[]).some(
+    (k) => (assets.houses[k] ?? []).length > 0,
+  );
+  if (!hasHouses) buildHouses(b);
+
+  const group = b.build();
+
+  if (assets?.gate) {
+    // 牌坊换真模型：GLB 在 Blender 里就是"沿 X 展开、正面朝 +Z"，
+    // 正好横跨沿 Z 的街道，不需要额外旋转。这里只负责贴地。
+    const gate = assets.gate.clone(true);
+    gate.position.set(GATE_X, heightAt(GATE_X, BRIDGE_Z), BRIDGE_Z);
+    gate.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.isMesh) {
+        m.castShadow = true;
+        m.receiveShadow = true;
+      }
+    });
+    group.add(gate);
+  }
+  if (hasTrees && assets) buildTreesFromGlb(group, assets, spots);
+  if (hasHouses && assets) buildHousesFromGlb(group, assets, houseSpots());
+  if (hasLanterns && assets) buildLanternsFromGlb(group, assets);
+
+  return group;
 }

@@ -76,6 +76,46 @@ function slopeAt(x: number, z: number): number {
   return Math.sqrt(hx * hx + hz * hz) / (2 * e);
 }
 
+/**
+ * 地面细节贴图。
+ *
+ * <p>顶点色只能给到大尺度色块（网格 2.3m 一格，更细的变化采样不到）。没有这张图时
+ * 草地是一整片平色，白天出图非常"塑料"。这里用程序化噪声生成一张平铺灰阶图当
+ * `map`（与顶点色相乘），重复 90 次，等于给地表加了一层 7m 级的斑驳。</p>
+ *
+ * <p>用画布生成而不是引入贴图文件：不增加仓库体积，也能保证与色板同源。</p>
+ */
+function createGroundDetail(): THREE.Texture {
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    const img = ctx.createImageData(size, size);
+    for (let y = 0; y < size; y += 1) {
+      for (let x = 0; x < size; x += 1) {
+        // 三层噪声叠加，值域压到 0.62~1.0：只做明暗微差，不改变整体色相
+        const n =
+          fbm(x * 0.055, y * 0.055, 4) * 0.6 +
+          fbm(x * 0.21 + 17.3, y * 0.21 - 5.1, 3) * 0.4;
+        const v = Math.round(255 * (0.62 + n * 0.38));
+        const i = (y * size + x) * 4;
+        img.data[i] = v;
+        img.data[i + 1] = v;
+        img.data[i + 2] = v;
+        img.data[i + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(90, 90);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
 export interface Terrain {
   mesh: THREE.Mesh;
   heightAt: (x: number, z: number) => number;
@@ -143,6 +183,7 @@ export function createTerrain(size = 620, segments = 264): Terrain {
     vertexColors: true,
     roughness: 0.96,
     metalness: 0.0,
+    map: createGroundDetail(),
   });
 
   const mesh = new THREE.Mesh(geo, mat);
