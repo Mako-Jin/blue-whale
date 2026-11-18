@@ -17,6 +17,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 
@@ -25,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -142,6 +145,47 @@ class JobInfoServiceImplTest {
         verify(jobInfoMapper).updateById(captor.capture());
         assertEquals(1, captor.getValue().getStatus().intValue());
         verify(jobScheduler).reschedule(1L);
+    }
+
+    @Test
+    @DisplayName("update：请求未传分组与失火策略时保留原值")
+    void shouldPreserveGroupAndMisfirePolicy() {
+        JobInfoPo existing = job(1L, 1);
+        existing.setJobGroup("CRM");
+        existing.setMisfirePolicy("FIRE_ONCE");
+        when(jobHandlerRegistry.exists("demoJobHandler")).thenReturn(true);
+        when(jobInfoMapper.selectById(1L)).thenReturn(existing);
+
+        jobInfoService.update(1L, updateRequest());
+
+        ArgumentCaptor<JobInfoPo> captor = ArgumentCaptor.forClass(JobInfoPo.class);
+        verify(jobInfoMapper).updateById(captor.capture());
+        assertEquals("CRM", captor.getValue().getJobGroup());
+        assertEquals("FIRE_ONCE", captor.getValue().getMisfirePolicy());
+    }
+
+    @Test
+    @DisplayName("create：调度注册延迟到事务提交后执行")
+    void shouldRescheduleAfterCommit() {
+        when(jobHandlerRegistry.exists("demoJobHandler")).thenReturn(true);
+        doAnswer(invocation -> {
+            JobInfoPo po = invocation.getArgument(0);
+            po.setId(10L);
+            return 1;
+        }).when(jobInfoMapper).insert(any(JobInfoPo.class));
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            jobInfoService.create(createRequest());
+
+            verify(jobScheduler, never()).reschedule(any());
+
+            TransactionSynchronizationManager.getSynchronizations()
+                    .forEach(TransactionSynchronization::afterCommit);
+
+            verify(jobScheduler).reschedule(10L);
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
     }
 
     @Test

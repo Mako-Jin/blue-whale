@@ -22,6 +22,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -288,7 +289,7 @@ public class WebhookJobAlertNotifier implements JobAlertNotifier {
         alert.setLevel(LEVEL_ERROR);
         alert.setChannel(channel);
         alert.setStatus(status);
-        alert.setMessage(truncate("任务执行失败：" + job.getJobName(), MESSAGE_MAX_LENGTH));
+        alert.setMessage(truncate("任务执行失败：" + Objects.toString(job.getJobName(), ""), MESSAGE_MAX_LENGTH));
         alert.setErrorMsg(errorMsg);
         jobAlertMapper.insert(alert);
         return alert;

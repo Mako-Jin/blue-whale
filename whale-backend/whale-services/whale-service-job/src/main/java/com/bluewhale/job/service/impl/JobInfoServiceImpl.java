@@ -114,15 +114,18 @@ public class JobInfoServiceImpl implements JobInfoService {
         validateHandler(request.getHandlerBean());
         JobInfoPo job = requireJob(id);
         Integer originalStatus = job.getStatus();
+        String originalJobGroup = job.getJobGroup();
+        String originalMisfirePolicy = job.getMisfirePolicy();
         Integer maxRetry = job.getMaxRetry();
         Integer retryIntervalSeconds = job.getRetryIntervalSeconds();
         Integer shardTotal = job.getShardTotal();
         JobConverter.INSTANCE.updateEntity(request, job);
         if (!StringUtils.hasText(request.getJobGroup())) {
-            job.setJobGroup(DEFAULT_JOB_GROUP);
+            // 与 maxRetry 等字段保持一致：未传即保留原值，避免编辑时把自定义分组刷回默认
+            job.setJobGroup(originalJobGroup);
         }
         if (!StringUtils.hasText(request.getMisfirePolicy())) {
-            job.setMisfirePolicy(DEFAULT_MISFIRE_POLICY);
+            job.setMisfirePolicy(originalMisfirePolicy);
         }
         if (request.getMaxRetry() == null) {
             job.setMaxRetry(maxRetry);
