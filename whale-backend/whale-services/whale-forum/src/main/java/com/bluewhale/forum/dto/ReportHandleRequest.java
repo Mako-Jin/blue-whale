@@ -21,16 +21,16 @@ public class ReportHandleRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 结案状态：RESOLVED 已处置 / REJECTED 举报不成立 */
-    @NotBlank(message = "结案状态不能为空")
-    @Pattern(regexp = "RESOLVED|REJECTED", message = "结案状态只能是 RESOLVED/REJECTED")
+    @NotBlank(message = "{validation.forum.report.status-required}")
+    @Pattern(regexp = "RESOLVED|REJECTED", message = "{validation.forum.report.status-pattern}")
     private String status;
 
     /** 处理意见 */
-    @Size(max = 512, message = "处理意见不能超过 512 字")
+    @Size(max = 512, message = "{validation.forum.report.handle-remark-size}")
     private String remark;
 
     /** 附带处置动作：NONE / REMOVE / MUTE / BAN（不填按 NONE） */
-    @Pattern(regexp = "NONE|REMOVE|MUTE|BAN", message = "处置动作只能是 NONE/REMOVE/MUTE/BAN")
+    @Pattern(regexp = "NONE|REMOVE|MUTE|BAN", message = "{validation.forum.report.action-pattern}")
     private String action;
 
     /** 禁言/封号天数（action=MUTE/BAN 时生效；≤0 永久） */

@@ -78,11 +78,20 @@
       `new BizException(String)` 统一改为 `ErrorCode.SYSTEM_ERROR`（状态码仍 500）
 - [x] 三份资源文件键集逐服务比对一致，代码引用键零缺失（配置键、定时任务 code 属预期误报）
 
+### P2 第五批（DTO 校验文案试点：forum）
+
+- [x] 核实 Spring Boot 4 `ValidationAutoConfiguration` 默认用 `MessageSourceMessageInterpolator`
+      包装容器 `messageSource`，插值按 `LocaleContextHolder` 解析，无需自定义 Validator Bean
+- [x] forum 9 个 DTO、43 处校验注解改为 `{validation.forum.<领域>.<字段>-<约束>}`，
+      新增 41 键（区间约束复用同一键）；三份资源包键集一致（118 键），引用键零缺失
+- [x] 新增 `ValidationMessageI18nTest` 2 例，覆盖 zh-CN / en-US 解析
+- [x] 中文文案逐字保留；`mvn test` + `checkstyle:check` 通过
+
 ## 三、待做项（P2 剩余 / P3）
 
 | 级别 | 事项 | 说明 |
 | --- | --- | --- |
-| P2 | DTO 校验文案迁移 | 现有 `@NotBlank(message="中文")` 仍为字面量；后续统一改为 `{validation.xxx}` 由 MessageSource 插值（机制已支持） |
+| P2 | DTO 校验文案迁移 | Boot 4 已自动装配 `MessageSourceMessageInterpolator`；forum 9 个 DTO/43 处已试点键化，其余模块按同样式分批铺开 |
 | P2 | 前端其余页面 | admin 剩余 50+ 页面、portal 与子应用按模块分批替换硬编码文案 |
 | P3 | 运维服务 | audit / monitor / alert 视对外暴露程度再定 |
 

@@ -17,10 +17,10 @@ public class AppealHandleRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 是否通过：true 通过 / false 驳回 */
-    @NotNull(message = "复核结论不能为空")
+    @NotNull(message = "{validation.forum.appeal.conclusion-required}")
     private Boolean approved;
 
     /** 复核意见 */
-    @Size(max = 500, message = "复核意见不能超过 500 字")
+    @Size(max = 500, message = "{validation.forum.appeal.remark-size}")
     private String remark;
 }

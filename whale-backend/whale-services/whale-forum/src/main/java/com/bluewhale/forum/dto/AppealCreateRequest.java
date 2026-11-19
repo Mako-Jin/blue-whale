@@ -19,16 +19,16 @@ public class AppealCreateRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 对象类型：THREAD / POST / BAN */
-    @NotBlank(message = "申诉对象类型不能为空")
+    @NotBlank(message = "{validation.forum.appeal.target-type-required}")
     private String targetType;
 
     /** 对象ID（BAN 时为本人用户ID） */
-    @NotNull(message = "申诉对象ID不能为空")
+    @NotNull(message = "{validation.forum.appeal.target-id-required}")
     private Long targetId;
 
     /** 申诉理由 */
-    @NotBlank(message = "申诉理由不能为空")
-    @Size(max = 500, message = "申诉理由不能超过 500 字")
+    @NotBlank(message = "{validation.forum.appeal.reason-required}")
+    @Size(max = 500, message = "{validation.forum.appeal.reason-size}")
     private String reason;
 
     /**
@@ -37,6 +37,6 @@ public class AppealCreateRequest implements Serializable {
      * <p>只收 ID：文件名/大小/类型一律以文件服务元数据为准，
      * 客户端传来的展示字段不可信。</p>
      */
-    @Size(max = 5, message = "申诉材料不能超过 5 个")
+    @Size(max = 5, message = "{validation.forum.appeal.materials-size}")
     private List<Long> materialFileIds;
 }
