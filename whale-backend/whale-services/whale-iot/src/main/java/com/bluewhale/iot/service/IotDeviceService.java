@@ -3,6 +3,7 @@ package com.bluewhale.iot.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.iot.dto.DeviceCreateRequest;
 import com.bluewhale.iot.dto.DeviceCreateVO;
@@ -64,7 +65,8 @@ public class IotDeviceService {
                 .eq(IotDevice::getProductId, request.getProductId())
                 .eq(IotDevice::getDeviceName, request.getDeviceName()));
         if (existed != null && existed > 0) {
-            throw new BizException("设备名称已存在：" + request.getDeviceName() + "（产品内唯一）");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "iot.device.name-duplicated",
+                    "设备名称已存在：" + request.getDeviceName() + "（产品内唯一）", request.getDeviceName());
         }
         IotDevice device = new IotDevice();
         device.setProductId(request.getProductId());
@@ -175,7 +177,7 @@ public class IotDeviceService {
     public IotDevice requireExists(Long id) {
         IotDevice device = deviceMapper.selectById(id);
         if (device == null) {
-            throw new BizException("设备不存在");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "iot.device.not-found", "设备不存在");
         }
         return device;
     }

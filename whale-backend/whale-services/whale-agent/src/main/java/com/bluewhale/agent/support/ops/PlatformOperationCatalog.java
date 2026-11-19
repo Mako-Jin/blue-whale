@@ -48,7 +48,8 @@ public final class PlatformOperationCatalog {
     public static Operation require(String name) {
         Operation operation = find(name);
         if (operation == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "未登记的平台操作：" + name);
+            throw new BizException(ErrorCode.PARAM_ERROR, "agent.ops.operation-not-registered",
+                    "未登记的平台操作：" + name, name);
         }
         return operation;
     }
@@ -65,7 +66,8 @@ public final class PlatformOperationCatalog {
         for (String key : operation.requiredParams()) {
             Object value = source.get(key);
             if (!(value instanceof String text) || !StringUtils.hasText(text)) {
-                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "缺少必填参数：" + key);
+                throw new BizException(ErrorCode.PARAM_ERROR, "agent.ops.required-param-missing",
+                        "缺少必填参数：" + key, key);
             }
         }
         Map<String, Object> body = new LinkedHashMap<>();

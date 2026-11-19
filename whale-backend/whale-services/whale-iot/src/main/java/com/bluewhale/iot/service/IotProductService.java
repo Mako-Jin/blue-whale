@@ -3,6 +3,7 @@ package com.bluewhale.iot.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.iot.dto.ProductSaveRequest;
 import com.bluewhale.iot.dto.ProductVO;
@@ -56,12 +57,13 @@ public class IotProductService {
      */
     public ProductVO create(ProductSaveRequest request, Long userId) {
         if (!StringUtils.hasText(request.getCode())) {
-            throw new BizException("产品编码不能为空");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "iot.product.code-required", "产品编码不能为空");
         }
         Long existed = productMapper.selectCount(
                 new LambdaQueryWrapper<IotProduct>().eq(IotProduct::getCode, request.getCode()));
         if (existed != null && existed > 0) {
-            throw new BizException("产品编码已存在：" + request.getCode());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "iot.product.code-duplicated",
+                    "产品编码已存在：" + request.getCode(), request.getCode());
         }
         IotProduct product = new IotProduct();
         product.setCode(request.getCode());
@@ -84,7 +86,7 @@ public class IotProductService {
     public ProductVO update(Long id, ProductSaveRequest request) {
         IotProduct product = requireExists(id);
         if (STATUS_PUBLISHED.equals(product.getStatus())) {
-            throw new BizException("产品已发布，禁止修改（请先停用）");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "iot.product.published-immutable", "产品已发布，禁止修改（请先停用）");
         }
         product.setName(request.getName());
         product.setDescription(request.getDescription());
@@ -128,7 +130,8 @@ public class IotProductService {
         Long deviceCount = deviceMapper.selectCount(
                 new LambdaQueryWrapper<IotDevice>().eq(IotDevice::getProductId, id));
         if (deviceCount != null && deviceCount > 0) {
-            throw new BizException("产品下仍有 " + deviceCount + " 台设备，请先删除设备");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "iot.product.delete-with-devices",
+                    "产品下仍有 " + deviceCount + " 台设备，请先删除设备", deviceCount);
         }
         productMapper.deleteById(id);
     }
@@ -181,7 +184,7 @@ public class IotProductService {
     public IotProduct requireExists(Long id) {
         IotProduct product = productMapper.selectById(id);
         if (product == null) {
-            throw new BizException("产品不存在");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "iot.product.not-found", "产品不存在");
         }
         return product;
     }

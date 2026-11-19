@@ -1,6 +1,7 @@
 package com.bluewhale.iot.service.spec;
 
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.iot.dto.ThingModelItem;
 
 import java.util.List;
@@ -41,7 +42,8 @@ public final class ThingModelValidator {
      */
     private static void validateOne(ThingModelItem item) {
         if ("property".equals(item.getKind()) && (item.getDataType() == null || item.getDataType().isBlank())) {
-            throw new BizException("属性 " + item.getIdentifier() + " 缺少数据类型（dataType 必填）");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "iot.thing-model.property-data-type-missing",
+                    "属性 " + item.getIdentifier() + " 缺少数据类型（dataType 必填）", item.getIdentifier());
         }
         if (item.getSpec() instanceof Map<?, ?> spec) {
             validateNumericSpec(item, spec);
@@ -61,14 +63,17 @@ public final class ThingModelValidator {
         boolean numeric = item.getDataType() != null && NUMERIC_TYPES.contains(item.getDataType());
         if (min instanceof Number minNum && max instanceof Number maxNum) {
             if (!numeric) {
-                throw new BizException("属性 " + item.getIdentifier() + " 为非数值型，不允许配置 min/max");
+                throw new BizException(ErrorCode.SYSTEM_ERROR, "iot.thing-model.property-non-numeric-spec",
+                        "属性 " + item.getIdentifier() + " 为非数值型，不允许配置 min/max", item.getIdentifier());
             }
             if (minNum.doubleValue() > maxNum.doubleValue()) {
-                throw new BizException("属性 " + item.getIdentifier() + " 的 min 不能大于 max");
+                throw new BizException(ErrorCode.SYSTEM_ERROR, "iot.thing-model.property-min-exceeds-max",
+                        "属性 " + item.getIdentifier() + " 的 min 不能大于 max", item.getIdentifier());
             }
         }
         if (step instanceof Number stepNum && stepNum.doubleValue() <= 0) {
-            throw new BizException("属性 " + item.getIdentifier() + " 的 step 必须为正数");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "iot.thing-model.property-step-not-positive",
+                    "属性 " + item.getIdentifier() + " 的 step 必须为正数", item.getIdentifier());
         }
     }
 }

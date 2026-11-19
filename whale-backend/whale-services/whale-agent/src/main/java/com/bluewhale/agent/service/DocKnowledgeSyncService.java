@@ -126,7 +126,8 @@ public class DocKnowledgeSyncService {
      */
     public KnowledgeSyncResultVO runOnce() {
         if (!running.compareAndSet(false, true)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "文档知识库同步任务正在执行");
+            throw new BizException(ErrorCode.PARAM_ERROR, "agent.knowledge-doc.sync-running",
+                    "文档知识库同步任务正在执行");
         }
         try {
             return doRun();
@@ -178,7 +179,7 @@ public class DocKnowledgeSyncService {
      */
     public boolean reindex(Long pageId) {
         if (pageId == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "页面ID不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "agent.knowledge-doc.page-id-required", "页面ID不能为空");
         }
         RemoteDocChange detail = docClient.detail(pageId);
         if (detail == null) {
@@ -203,7 +204,8 @@ public class DocKnowledgeSyncService {
     public void setEnabled(Long pageId, boolean enabled) {
         AgentKnowledgeDoc record = docService.find(pageId);
         if (record == null) {
-            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "文档知识台账不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "agent.knowledge-doc.record-not-found",
+                    "文档知识台账不存在");
         }
         if (!enabled) {
             record.setEnabled(KnowledgeConstants.ENABLED_NO);

@@ -1,6 +1,7 @@
 package com.bluewhale.iot.service;
 
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.iot.dto.ThingModelItem;
 import com.bluewhale.iot.dto.ThingModelSaveRequest;
 import com.bluewhale.iot.dto.ThingModelVO;
@@ -57,7 +58,8 @@ public class IotThingModelService {
     public List<ThingModelVO> replaceAll(Long productId, ThingModelSaveRequest request) {
         IotProduct product = productService.requireExists(productId);
         if (IotProductService.STATUS_PUBLISHED.equals(product.getStatus())) {
-            throw new BizException("产品已发布，物模型已冻结（请先停用产品再修改）");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "iot.thing-model.product-published",
+                    "产品已发布，物模型已冻结（请先停用产品再修改）");
         }
         List<ThingModelItem> items = request.getItems() == null ? List.of() : request.getItems();
         validateNoDuplicate(items);
@@ -114,7 +116,8 @@ public class IotThingModelService {
         for (ThingModelItem item : items) {
             String key = item.getKind() + "/" + item.getIdentifier();
             if (!seen.add(key)) {
-                throw new BizException("物模型条目重复：" + key);
+                throw new BizException(ErrorCode.SYSTEM_ERROR, "iot.thing-model.duplicate-item",
+                        "物模型条目重复：" + key, key);
             }
         }
     }

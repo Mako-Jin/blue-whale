@@ -12,6 +12,7 @@ import com.bluewhale.assistant.entity.AsstMessage;
 import com.bluewhale.assistant.entity.AsstSession;
 import com.bluewhale.assistant.support.AssistantStreamClient;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -103,7 +104,8 @@ public class AssistantChatService {
         if (request.getSessionId() != null) {
             session = sessionService.requireOwned(request.getSessionId(), userId);
             if (!definition.getId().equals(session.getAssistantId())) {
-                throw new BizException("会话与助手不匹配，无法续聊");
+                throw new BizException(ErrorCode.SYSTEM_ERROR, "assistant.chat.session-assistant-mismatch",
+                        "会话与助手不匹配，无法续聊");
             }
         } else {
             SessionCreateRequest createRequest = new SessionCreateRequest();
@@ -145,7 +147,8 @@ public class AssistantChatService {
         if (request.getSessionId() != null) {
             session = sessionService.requireOwned(request.getSessionId(), userId);
             if (!definition.getId().equals(session.getAssistantId())) {
-                throw new BizException("会话与助手不匹配，无法续聊");
+                throw new BizException(ErrorCode.SYSTEM_ERROR, "assistant.chat.session-assistant-mismatch",
+                        "会话与助手不匹配，无法续聊");
             }
         } else {
             SessionCreateRequest createRequest = new SessionCreateRequest();

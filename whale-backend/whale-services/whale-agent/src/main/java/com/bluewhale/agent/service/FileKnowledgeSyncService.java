@@ -134,7 +134,8 @@ public class FileKnowledgeSyncService {
      */
     public KnowledgeSyncResultVO runOnce() {
         if (!running.compareAndSet(false, true)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "文件知识库同步任务正在执行");
+            throw new BizException(ErrorCode.PARAM_ERROR, "agent.knowledge-file.sync-running",
+                    "文件知识库同步任务正在执行");
         }
         try {
             return doRun();
@@ -187,7 +188,7 @@ public class FileKnowledgeSyncService {
      */
     public boolean reindex(Long fileId) {
         if (fileId == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "文件ID不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "agent.knowledge-file.file-id-required", "文件ID不能为空");
         }
         RemoteFileChange change = fileClient.detail(fileId);
         if (change == null) {
@@ -220,7 +221,8 @@ public class FileKnowledgeSyncService {
     public void setEnabled(Long fileId, boolean enabled) {
         AgentKnowledgeFile record = fileService.find(fileId);
         if (record == null) {
-            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "文件知识台账不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "agent.knowledge-file.record-not-found",
+                    "文件知识台账不存在");
         }
         if (!enabled) {
             record.setEnabled(KnowledgeConstants.ENABLED_NO);

@@ -6,6 +6,7 @@ import com.bluewhale.assistant.dto.UsageVO;
 import com.bluewhale.assistant.entity.AsstUsage;
 import com.bluewhale.assistant.mapper.AsstUsageMapper;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -92,7 +93,8 @@ public class AsstUsageService {
         try {
             return LocalDate.parse(value);
         } catch (DateTimeParseException e) {
-            throw new BizException(source + " 日期格式非法（应为 yyyy-MM-dd）");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "assistant.usage.date-format-invalid",
+                    source + " 日期格式非法（应为 yyyy-MM-dd）", source);
         }
     }
 

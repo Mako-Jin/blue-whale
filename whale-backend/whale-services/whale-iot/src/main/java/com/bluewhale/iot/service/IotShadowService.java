@@ -2,6 +2,7 @@ package com.bluewhale.iot.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.iot.dto.ShadowVO;
 import com.bluewhale.iot.entity.IotDevice;
 import com.bluewhale.iot.entity.IotProduct;
@@ -66,7 +67,7 @@ public class IotShadowService {
     public ShadowVO get(Long deviceId) {
         IotDevice device = deviceMapper.selectById(deviceId);
         if (device == null) {
-            throw new BizException("设备不存在");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "iot.device.not-found", "设备不存在");
         }
         return toVo(device, read(device));
     }
@@ -83,14 +84,14 @@ public class IotShadowService {
                 .eq(IotProduct::getCode, productCode)
                 .last("LIMIT 1"));
         if (product == null) {
-            throw new BizException("产品不存在");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "iot.product.not-found", "产品不存在");
         }
         IotDevice device = deviceMapper.selectOne(new LambdaQueryWrapper<IotDevice>()
                 .eq(IotDevice::getProductId, product.getId())
                 .eq(IotDevice::getDeviceName, deviceName)
                 .last("LIMIT 1"));
         if (device == null) {
-            throw new BizException("设备不存在");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "iot.device.not-found", "设备不存在");
         }
         return toVo(device, read(device));
     }

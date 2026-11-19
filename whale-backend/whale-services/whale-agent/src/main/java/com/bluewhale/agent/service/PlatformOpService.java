@@ -136,7 +136,8 @@ public class PlatformOpService {
         PlatformOperationCatalog.Operation operation = PlatformOperationCatalog.require(record.getOperation());
         requirePermission(operation, permissionCodes);
         if (claim(record, userId) == 0) {
-            throw new BizException(ErrorCode.REPEAT_SUBMIT.getCode(), "确认令牌已使用或已失效");
+            throw new BizException(ErrorCode.REPEAT_SUBMIT, "agent.ops.confirmation-token-used",
+                    "确认令牌已使用或已失效");
         }
         Map<String, Object> body = readJson(record.getParamsJson());
         String url = targetUrl(operation);
@@ -154,7 +155,8 @@ public class PlatformOpService {
             finish(record, STATUS_FAILED, null, e.getMessage(), ErrorCode.SYSTEM_ERROR.getCode(),
                     elapsed(startedMillis));
             log.warn("平台操作执行失败: confirmationId={}, operation={}", confirmationId, operation.name(), e);
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "平台操作执行失败：" + e.getMessage());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "agent.ops.execute-failed",
+                    "平台操作执行失败：" + e.getMessage(), e.getMessage());
         }
     }
 
@@ -179,7 +181,8 @@ public class PlatformOpService {
         wrapper.set(AgentOperation::getConfirmedBy, userId);
         wrapper.set(AgentOperation::getConfirmedAt, LocalDateTime.now());
         if (operationMapper.update(null, wrapper) == 0) {
-            throw new BizException(ErrorCode.REPEAT_SUBMIT.getCode(), "确认令牌已失效");
+            throw new BizException(ErrorCode.REPEAT_SUBMIT, "agent.ops.confirmation-token-invalid",
+                    "确认令牌已失效");
         }
         record.setStatus(STATUS_REJECTED);
         record.setConfirmedBy(userId);
@@ -194,13 +197,15 @@ public class PlatformOpService {
      */
     private AgentOperation requireRecord(String confirmationId) {
         if (!StringUtils.hasText(confirmationId)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "确认令牌不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "agent.ops.confirmation-token-empty",
+                    "确认令牌不能为空");
         }
         LambdaQueryWrapper<AgentOperation> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(AgentOperation::getConfirmationId, confirmationId);
         AgentOperation record = operationMapper.selectOne(wrapper);
         if (record == null) {
-            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "确认令牌不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "agent.ops.confirmation-token-not-found",
+                    "确认令牌不存在");
         }
         return record;
     }
@@ -213,7 +218,8 @@ public class PlatformOpService {
      */
     private static void requireOwner(AgentOperation record, Long userId) {
         if (!Objects.equals(record.getUserId(), userId)) {
-            throw new BizException(ErrorCode.FORBIDDEN.getCode(), "无权确认他人的平台操作");
+            throw new BizException(ErrorCode.FORBIDDEN, "agent.ops.confirm-other-forbidden",
+                    "无权确认他人的平台操作");
         }
     }
 
@@ -226,7 +232,8 @@ public class PlatformOpService {
     private static void requirePermission(PlatformOperationCatalog.Operation operation, String permissionCodes) {
         Set<String> codes = WebHeaders.splitCodes(permissionCodes);
         if (!codes.contains(operation.permission()) && !codes.contains(SUPER_ADMIN)) {
-            throw new BizException(ErrorCode.FORBIDDEN.getCode(), "缺少操作权限：" + operation.permission());
+            throw new BizException(ErrorCode.FORBIDDEN, "agent.ops.permission-missing",
+                    "缺少操作权限：" + operation.permission(), operation.permission());
         }
     }
 
@@ -321,7 +328,8 @@ public class PlatformOpService {
     private String targetUrl(PlatformOperationCatalog.Operation operation) {
         String baseUrl = properties.getOps().getTargets().get(operation.target());
         if (!StringUtils.hasText(baseUrl)) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "未配置目标服务：" + operation.target());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "agent.ops.target-service-not-configured",
+                    "未配置目标服务：" + operation.target(), operation.target());
         }
         String normalized = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         return normalized + operation.path();
@@ -332,7 +340,7 @@ public class PlatformOpService {
      */
     private void ensureEnabled() {
         if (!properties.getOps().isEnabled()) {
-            throw new BizException(ErrorCode.FORBIDDEN.getCode(), "平台操作未启用");
+            throw new BizException(ErrorCode.FORBIDDEN, "agent.ops.disabled", "平台操作未启用");
         }
     }
 
@@ -380,7 +388,7 @@ public class PlatformOpService {
         try {
             return MAPPER.writeValueAsString(value);
         } catch (JsonProcessingException e) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "参数序列化失败");
+            throw new BizException(ErrorCode.PARAM_ERROR, "agent.ops.params-serialize-failed", "参数序列化失败");
         }
     }
 
@@ -395,7 +403,7 @@ public class PlatformOpService {
         try {
             return json == null ? new LinkedHashMap<>() : MAPPER.readValue(json, Map.class);
         } catch (JsonProcessingException e) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "参数解析失败");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "agent.ops.params-parse-failed", "参数解析失败");
         }
     }
 

@@ -4,6 +4,7 @@ import com.bluewhale.assistant.dto.ToolInfoVO;
 import com.bluewhale.assistant.support.ToolRegistryClient;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.Result;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,10 +48,12 @@ public class AsstToolController {
             return Result.ok(tools);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new BizException("工具注册表查询被中断，请稍后再试");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "assistant.tool.registry-interrupted",
+                    "工具注册表查询被中断，请稍后再试");
         } catch (IOException e) {
             log.warn("工具注册表查询失败：{}", e.getMessage());
-            throw new BizException("工具注册表暂不可用（whale-ai 未就绪），请稍后再试");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "assistant.tool.registry-unavailable",
+                    "工具注册表暂不可用（whale-ai 未就绪），请稍后再试");
         }
     }
 }

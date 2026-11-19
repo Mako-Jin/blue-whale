@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.iot.config.IotProperties;
 import com.bluewhale.iot.dto.RuleActionConfig;
@@ -191,7 +192,7 @@ public class IotRuleService {
     private IotRule requireRule(Long id) {
         IotRule rule = ruleMapper.selectById(id);
         if (rule == null) {
-            throw new BizException("规则不存在");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "iot.rule.not-found", "规则不存在");
         }
         return rule;
     }
@@ -206,7 +207,7 @@ public class IotRuleService {
         if (request.getProductId() != null) {
             product = productMapper.selectById(request.getProductId());
             if (product == null) {
-                throw new BizException("产品不存在");
+                throw new BizException(ErrorCode.SYSTEM_ERROR, "iot.product.not-found", "产品不存在");
             }
         }
         if (request.getDeviceId() == null) {
@@ -214,10 +215,10 @@ public class IotRuleService {
         }
         IotDevice device = deviceMapper.selectById(request.getDeviceId());
         if (device == null) {
-            throw new BizException("设备不存在");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "iot.device.not-found", "设备不存在");
         }
         if (product != null && !product.getId().equals(device.getProductId())) {
-            throw new BizException("设备不属于所选产品");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "iot.rule.device-product-mismatch", "设备不属于所选产品");
         }
     }
 
