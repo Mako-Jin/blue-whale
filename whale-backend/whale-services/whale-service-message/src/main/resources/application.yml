@@ -114,6 +114,15 @@ whale:
       enabled: ${WHALE_MESSAGE_RECIPIENT_ENABLED:true}
       auth-base-url: ${WHALE_MESSAGE_RECIPIENT_AUTH_BASE_URL:http://127.0.0.1:8081}
       max-members: ${WHALE_MESSAGE_RECIPIENT_MAX_MEMBERS:100}
+    # 历史消息归档：只导出不删除，按租户水位增量上传 NDJSON 到 whale-file；默认关闭。
+    archive:
+      enabled: ${WHALE_MESSAGE_ARCHIVE_ENABLED:false}
+      retention-days: ${WHALE_MESSAGE_ARCHIVE_RETENTION_DAYS:180}
+      cron: "${WHALE_MESSAGE_ARCHIVE_CRON:0 30 3 * * ?}"
+      batch-rows: ${WHALE_MESSAGE_ARCHIVE_BATCH_ROWS:500}
+      max-rows: ${WHALE_MESSAGE_ARCHIVE_MAX_ROWS:5000}
+      file-service-url: ${WHALE_MESSAGE_ARCHIVE_FILE_SERVICE_URL:http://127.0.0.1:8085}
+      bucket: ${WHALE_MESSAGE_ARCHIVE_BUCKET:bluewhale-message-archive}
 
 mybatis-plus:
   configuration:

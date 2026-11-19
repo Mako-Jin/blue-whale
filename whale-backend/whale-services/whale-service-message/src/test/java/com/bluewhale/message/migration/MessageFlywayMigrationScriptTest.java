@@ -89,9 +89,9 @@ class MessageFlywayMigrationScriptTest {
         }
         assertFalse(initTables.isEmpty(), "init.sql 未解析到建表语句");
         assertEquals(initTables, migratedTables, "迁移脚本与 init.sql 的建表集合不一致");
-        assertEquals(8, migratedTables.size(), "消息服务 迁移脚本应包含 8 张表");
+        assertEquals(9, migratedTables.size(), "消息服务 迁移脚本应包含 9 张表");
         for (String table : List.of("msg_template", "msg_record", "msg_delivery",
-                "msg_announcement", "msg_receipt", "msg_callback_task")) {
+                "msg_announcement", "msg_receipt", "msg_callback_task", "msg_archive_watermark")) {
             assertTrue(migratedTables.contains(table), "迁移脚本必须包含表：" + table);
         }
 

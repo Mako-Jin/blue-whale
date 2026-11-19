@@ -45,4 +45,16 @@ public interface MessageRecordMapper extends BaseMapper<MessageRecordPo> {
     @Update("UPDATE msg_record SET status = 'PENDING', update_time = #{now} "
             + "WHERE deleted = 0 AND status = 'DISPATCHING' AND update_time < #{deadline}")
     int recoverStaleDispatching(@Param("deadline") LocalDateTime deadline, @Param("now") LocalDateTime now);
+
+    /**
+     * 查询存在过期消息的租户。
+     *
+     * <p>忽略租户插件：归档是跨租户的运维动作，取到租户后由调用方逐租户回填上下文。</p>
+     *
+     * @param deadline 创建时间早于该值视为过期
+     * @return 租户ID列表
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT DISTINCT tenant_id FROM msg_record WHERE deleted = 0 AND create_time < #{deadline}")
+    List<Long> selectExpiredTenantIds(@Param("deadline") LocalDateTime deadline);
 }
