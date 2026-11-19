@@ -41,6 +41,7 @@ type MatKey =
   | 'shrub'
   | 'crop'
   | 'field'
+  | 'soil'
   | 'path'
   | 'wet'
   | 'water';
@@ -62,6 +63,8 @@ const MAT_DEF: Record<MatKey, THREE.MeshStandardMaterialParameters> = {
   shrub: { color: 0x566a38, roughness: 0.94 },
   crop: { color: 0x5d6a32, roughness: 0.95 },
   field: { color: 0x4f5c2d, roughness: 1 },
+  // 翻耕待种的褐田：与 path 同族但更红一点（新翻的湿土），跟草色拉开色相
+  soil: { color: 0x6e5a3f, roughness: 1 },
   path: { color: 0x7d7059, roughness: 0.98 },
   // 沟底常年积水积泥：暗、湿、有点反光。粗糙度是这里唯一的"湿"信号
   wet: { color: 0x2f3532, roughness: 0.22, metalness: 0.04 },
@@ -87,6 +90,7 @@ const VARY: Partial<Record<MatKey, number>> = {
   tile: 0.05,
   path: 0.09,
   field: 0.05,
+  soil: 0.1,
   crop: 0.09,
   foliage: 0.07,
   shrub: 0.1,
@@ -1117,18 +1121,23 @@ function buildWallBastions(b: Builder): void {
 /* ------------------------------------------------------------------ 西岸：田垄 */
 
 /**
- * 田垄区块 [x0, z0, x1, z1]。
+ * 田块区块与种法 [x0, z0, x1, z1, kind]。
  *
  * <p>左岸（西岸）原本只有草地和几棵散树，全景里是一大片空绿——构图半边全空。
  * 补一片垄作田比补建筑便宜得多：一行行 0.5m 高的作物贴地铺开，远看就是
  * 江南的田垄肌理，且完全跟着地形走，不会出现"浮在坡上的地毯"。</p>
  *
- * <p>两块地的位置刻意分开：一块在西南河湾外，一块在桥头正对岸——前者补全景
- * 左下，后者补桥头机位的背景。</p>
+ * <p>位置布局：西岸两块（西南河湾外补全景左下、桥头正对岸补桥头背景）；
+ * <b>城墙外东侧两块（S28）</b>——俯视机位越过城墙看到的是一整片空地，
+ * 城镇"只有一层皮"。城外种的田跟城里不同：一块垄作绿田、一块翻耕褐田
+ * （茬地），两块地颜色互相错开，空地才变成"有人耕作的城郊"。</p>
  */
-const FIELD_BLOCKS: Array<[number, number, number, number]> = [
-  [-38, -47, -16, -25],
-  [-36, 10, -18, 31],
+type FieldKind = 'crop' | 'soil';
+const FIELD_BLOCKS: Array<[number, number, number, number, FieldKind]> = [
+  [-38, -47, -16, -25, 'crop'],
+  [-36, 10, -18, 31, 'crop'],
+  [37, 16, 58, 32, 'crop'],
+  [40, -30, 61, -14, 'soil'],
 ];
 
 /**
@@ -1143,7 +1152,7 @@ const FIELD_BLOCKS: Array<[number, number, number, number]> = [
  * 埋进坡里、一半浮在空中。</p>
  */
 function buildFieldGround(b: Builder): void {
-  for (const [x0, z0, x1, z1] of FIELD_BLOCKS) {
+  for (const [x0, z0, x1, z1, kind] of FIELD_BLOCKS) {
     const cx = (x0 + x1) / 2;
     const cz = (z0 + z1) / 2;
     const geo = new THREE.PlaneGeometry(x1 - x0, z1 - z0, Math.round((x1 - x0) / 2.5), Math.round((z1 - z0) / 2.5));
@@ -1156,7 +1165,7 @@ function buildFieldGround(b: Builder): void {
     }
     pos.needsUpdate = true;
     geo.translate(cx, 0, cz);
-    b.add('field', geo);
+    b.add(kind === 'soil' ? 'soil' : 'field', geo);
   }
 }
 
@@ -1167,7 +1176,35 @@ function buildFields(b: Builder): void {
     seed = (seed * 1103515245 + 12345) % 2147483648;
     return seed / 2147483648;
   };
-  for (const [x0, z0, x1, z1] of FIELD_BLOCKS) {
+  for (const [x0, z0, x1, z1, kind] of FIELD_BLOCKS) {
+    if (kind === 'soil') {
+      // 茬地：犁沟垄脊 + 稀疏残茬。第一版只撒 0.34m 的茬盒，白天俯视读作
+      // 一块平直边缘的裸色矩形——翻耕田的"内容"是<b>犁沟条纹</b>：每条垄脊
+      // 是独立构件，paintVariation 按构件中心哈希给 ±8% 色差，俯视就是
+      // 一行行深浅交替的沟。垄沿四边随机断口，矩形边界跟着碎掉。
+      for (let x = x0; x <= x1; x += 1.35) {
+        for (let z = z0 + 0.9; z <= z1; z += 2.05) {
+          const xc = x + (rand() - 0.5) * 0.16;
+          const y = heightAt(xc, z);
+          if (y < WATER_LEVEL + 0.45) continue;
+          const edge = Math.min(x - x0, x1 - x, z - z0, z1 - z);
+          if (edge < 2.6 && rand() < (2.6 - edge) / 3.0) continue;
+          b.box('soil', 0.62, 0.10 + rand() * 0.03, 1.9, xc, y + 0.07, z);
+        }
+      }
+      // 残茬：稀疏的短秆簇，收割后的证据
+      for (let x = x0; x <= x1; x += 1.1) {
+        for (let z = z0; z <= z1; z += 1.6) {
+          if (rand() < 0.72) continue;
+          const xc = x + (rand() - 0.5) * 0.4;
+          const zc = z + (rand() - 0.5) * 0.5;
+          const y = heightAt(xc, zc);
+          if (y < WATER_LEVEL + 0.45) continue;
+          b.box('soil', 0.16, 0.16 + rand() * 0.08, 0.16, xc, y + 0.12, zc);
+        }
+      }
+      continue;
+    }
     // 垄距 1.55、株距 0.98：块长 0.84 让一垄几乎连成线，但留有断口
     for (let x = x0; x <= x1; x += 1.55) {
       for (let z = z0; z <= z1; z += 0.98) {
@@ -1760,12 +1797,12 @@ function shrubSpots(trees: TreeSpot[]): GroundSpot[] {
 }
 
 /**
- * 一丛灌木：斐波那契壳层撒 11 个叶团 + 冠心 3 团 + 4 根露头的枯枝。
+ * 一丛灌木：斐波那契壳层撒 14 个叶团 + 冠心 3 团 + 4 根露头的枯枝。
  *
  * <p>旧版 4 颗 detail-1 大团、整丛一个 0x566a38——出图是一颗平滑的绿土豆，
  * 在河岸机位 3~6m 前景里比树冠还显眼。树冠管线的结论直接搬过来用：</p>
  * <ol>
- *   <li><b>叶团尺度</b>：很多小团（0.20~0.34m）而不是几颗大团，剪影才碎得开；</li>
+ *   <li><b>叶团尺度</b>：很多小团（0.15~0.25m）而不是几颗大团，剪影才碎得开；</li>
  *   <li><b>平面着色</b>：detail-0 的三角面约 0.2m，正好是"一小簇叶"的尺度，
  *       flatShading 让每片自己朝一个方向，受光碎成明暗不同的块；</li>
  *   <li><b>顶点色</b>：逐团明暗差 + 自下而上的受光梯度（顶部接天光、
@@ -1773,7 +1810,7 @@ function shrubSpots(trees: TreeSpot[]): GroundSpot[] {
  * </ol>
  *
  * <p>预算：叶团 14 × 20 面 + 枯枝 4 × 12 面 ≈ 330 三角面/丛（旧 80）。
- * 约 125 丛，合计 +31k——比树冠便宜两个量级，因为灌木不用 metaball 融合，
+ * 约 125 丛，合计 ~+50k——比树冠便宜一个量级，因为灌木不用 metaball 融合，
  * 小团之间的硬相交在平面着色下读作"叶簇搭着叶簇"。</p>
  */
 function createShrub(): THREE.BufferGeometry {
@@ -1830,8 +1867,10 @@ function createShrub(): THREE.BufferGeometry {
 
   const parts: THREE.BufferGeometry[] = [];
   // 壳层叶团：椭圆壳 (0.74, 0.30, 0.74)，径向 0.34~0.95，随机三成下坠成"垂舌"。
-  // detail 1（80 面，碎面约 8~10cm）：3~5m 前景里 detail-0 的 0.2m 平板就是晶面
-  const NL = 9;
+  // detail 1（80 面）。S28：9 团 0.20~0.35 在灯笼点光的近景（bank 机位 3~5m）
+  // 还是读得出大面片——单块 8~10cm 的碎面在 2m 点光下明暗对比被拉到极限。
+  // 团数加到 14、单团半径压到 0.145~0.245：面片尺寸减半、簇感加倍，代价 ~+40k tri
+  const NL = 14;
   for (let i = 0; i < NL; i += 1) {
     const y = 1.0 - (2.0 * (i + 0.5)) / NL;
     const rr = Math.sqrt(Math.max(0, 1 - y * y));
@@ -1839,7 +1878,7 @@ function createShrub(): THREE.BufferGeometry {
     const k = 0.34 + 0.61 * hash01(i * 1.7, 3.1);
     const jr = hash01(i * 0.9, 8.8);
     const tongue = hash01(i * 2.7, 9.0) > 0.7 ? 0.10 : 0.0;
-    const r = 0.20 + 0.15 * jr;
+    const r = 0.145 + 0.10 * jr;
     const g = new THREE.IcosahedronGeometry(r, 1);
     displace(g, i + 1);
     g.translate(
