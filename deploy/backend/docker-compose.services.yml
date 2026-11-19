@@ -79,6 +79,9 @@ services:
       RABBITMQ_PORT: ${RABBITMQ_PORT}
       RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      # 审计留痕：@AuditLog 转发 whale-audit（容器内必须走容器名，默认 127.0.0.1 不可达）
+      WHALE_AUDIT_FORWARD_ENABLED: "true"
+      WHALE_AUDIT_FORWARD_URL: "http://bw-audit:9101"
       # 内网令牌（V-02 纵深防御）：留空时 dev 按 fail-open 放行（InternalTokenGuard 告警），
       # 非 dev 环境必须注入同一随机值——各服务出站会自动携带，缺失方调用会被 403
       WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
@@ -137,6 +140,9 @@ services:
       WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms192m -Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "9001"
+      # 审计留痕：@AuditLog 转发 whale-audit（容器内必须走容器名）
+      WHALE_AUDIT_FORWARD_ENABLED: "true"
+      WHALE_AUDIT_FORWARD_URL: "http://bw-audit:9101"
       NACOS_SERVER: ${NACOS_SERVER}
       MYSQL_HOST: ${MYSQL_HOST}
       MYSQL_PORT: ${MYSQL_PORT}
@@ -193,6 +199,9 @@ services:
       WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms192m -Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "8083"
+      # 审计留痕：@AuditLog 转发 whale-audit（容器内必须走容器名）
+      WHALE_AUDIT_FORWARD_ENABLED: "true"
+      WHALE_AUDIT_FORWARD_URL: "http://bw-audit:9101"
       NACOS_SERVER: ${NACOS_SERVER}
       MYSQL_HOST: ${MYSQL_HOST}
       MYSQL_PORT: ${MYSQL_PORT}
@@ -226,6 +235,9 @@ services:
       # 完工/进度回传走 outbox（默认关闭，此处显式开启）
       WHALE_MES_OUTBOX_ENABLED: "true"
       WHALE_ERP_URL: "http://bw-erp:9001"
+      # 审计留痕：@AuditLog 转发 whale-audit（容器内必须走容器名）
+      WHALE_AUDIT_FORWARD_ENABLED: "true"
+      WHALE_AUDIT_FORWARD_URL: "http://bw-audit:9101"
     ports:
       - "127.0.0.1:9002:9002"
     healthcheck:
@@ -319,6 +331,9 @@ services:
       WHALE_CRM_AR_ENABLED: "true"
       # 流程定义 ID 由 /workflow/internal/definition/ensure 幂等种子产生（bluewhale_workflow）
       WHALE_CRM_ORDER_DEFINITION_ID: "2119255494021709826"
+      # 审计留痕：@AuditLog 转发 whale-audit（容器内必须走容器名）
+      WHALE_AUDIT_FORWARD_ENABLED: "true"
+      WHALE_AUDIT_FORWARD_URL: "http://bw-audit:9101"
       WHALE_CRM_RETURN_DEFINITION_ID: "2119328771817082881"
       WHALE_CRM_INVOICE_DEFINITION_ID: "2119328772467200001"
       # 定时任务迁入 whale-job：关闭进程内 cron、开放内网触发端点、向调度中心注册执行器

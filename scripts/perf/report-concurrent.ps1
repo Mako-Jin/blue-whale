@@ -13,12 +13,16 @@
 # ============================================================
 
 param(
-    [string]$BaseUri = $(if ($env:CHAIN_SMOKE_BASE) { $env:CHAIN_SMOKE_BASE } else { 'http://127.0.0.1:8080' }),
+    [string]$BaseUri = '',
     [long]$TaskId = 0,
     [decimal]$QuantityPerReport = 1,
     [int[]]$ConcurrencyLevels = @(1, 5, 20),
     [int]$RunsPerWorker = 20
 )
+
+if (-not $BaseUri) {
+    $BaseUri = if ($env:CHAIN_SMOKE_BASE) { $env:CHAIN_SMOKE_BASE } else { 'http://127.0.0.1:8080' }
+}
 
 . "$PSScriptRoot/lib/perf.ps1"
 . "$PSScriptRoot/../smoke/lib/common.ps1"
@@ -33,7 +37,7 @@ $required = ($ConcurrencyLevels | Measure-Object -Maximum).Maximum * $RunsPerWor
 Write-Host "任务 $TaskId 需要累计可报数量不少于 $required（超报会按失败计入 errors）"
 
 $cred = Get-SmokeAdminCredential
-$login = Invoke-SmokeApi -Method Post -Path '/auth/login' -Body @{
+$login = Invoke-SmokeApi -Method Post -Path '/auth/v1/login' -Body @{
     username = $cred.Username
     password = $cred.Password
 }

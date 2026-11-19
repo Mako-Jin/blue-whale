@@ -18,11 +18,15 @@
 # ============================================================
 
 param(
-    [string]$BaseUri = $(if ($env:CHAIN_SMOKE_BASE) { $env:CHAIN_SMOKE_BASE } else { 'http://127.0.0.1:8080' }),
+    [string]$BaseUri = '',
     [string]$StateFile = '',
     [string]$CrmOrderId = '',
     [string]$ProductionOrderId = ''
 )
+
+if (-not $BaseUri) {
+    $BaseUri = if ($env:CHAIN_SMOKE_BASE) { $env:CHAIN_SMOKE_BASE } else { 'http://127.0.0.1:8080' }
+}
 
 $script:SmokeAssertThrow = $true
 . "$PSScriptRoot/lib/common.ps1"
@@ -47,7 +51,7 @@ if (-not $startedAt) {
 
 # 1) 登录
 $cred = Get-SmokeAdminCredential
-$login = Invoke-SmokeApi -Method Post -Path '/auth/login' -Body @{
+$login = Invoke-SmokeApi -Method Post -Path '/auth/v1/login' -Body @{
     username = $cred.Username
     password = $cred.Password
 }

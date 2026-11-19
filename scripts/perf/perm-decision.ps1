@@ -12,11 +12,15 @@
 # ============================================================
 
 param(
-    [string]$BaseUri = $(if ($env:CHAIN_SMOKE_BASE) { $env:CHAIN_SMOKE_BASE } else { 'http://127.0.0.1:8080' }),
+    [string]$BaseUri = '',
     [string]$Path = '/erp/mfg/production/page?current=1&size=10',
     [int]$Iterations = 200,
     [int]$Warmup = 10
 )
+
+if (-not $BaseUri) {
+    $BaseUri = if ($env:CHAIN_SMOKE_BASE) { $env:CHAIN_SMOKE_BASE } else { 'http://127.0.0.1:8080' }
+}
 
 . "$PSScriptRoot/lib/perf.ps1"
 . "$PSScriptRoot/../smoke/lib/common.ps1"
@@ -24,7 +28,7 @@ $ErrorActionPreference = 'Stop'
 $script:gateway = $BaseUri.TrimEnd('/')
 
 $cred = Get-SmokeAdminCredential
-$login = Invoke-SmokeApi -Method Post -Path '/auth/login' -Body @{
+$login = Invoke-SmokeApi -Method Post -Path '/auth/v1/login' -Body @{
     username = $cred.Username
     password = $cred.Password
 }

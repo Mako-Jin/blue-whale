@@ -112,7 +112,12 @@ function Invoke-SmokeApi {
         $params['ContentType'] = 'application/json;charset=utf-8'
         $params['Body'] = [System.Text.Encoding]::UTF8.GetBytes($json)
     }
-    return Invoke-RestMethod @params
+    # Windows PowerShell 5.1 在响应头未带 charset 时按 ISO-8859-1 解码，中文会变乱码；
+    # 统一取原始字节按 UTF-8 解码后再解析，保证断言里的中文操作名可比对。
+    $response = Invoke-WebRequest @params -UseBasicParsing
+    $raw = $response.RawContentStream.ToArray()
+    $text = [System.Text.Encoding]::UTF8.GetString($raw)
+    return $text | ConvertFrom-Json
 }
 
 <#

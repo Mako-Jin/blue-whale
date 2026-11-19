@@ -150,3 +150,29 @@
   `MesInspectionController` 及四个 DTO 逐项核对。
 - **待做项**：需在完整环境首次执行确认检验计划自动编号与判定结果。
 - **已修正问题项**：无。
+
+### 2026-11-19 真实环境首次全量执行（M1 闭环验证）
+
+- **需求项**：在完整环境实际跑通三条链上冒烟、3D 看板对账与三组压测，回填真实数据。
+- **环境**：按当前源码重建 `erp / mes / crm / workflow / scene` 镜像并重建容器（原镜像停留在 11-08/11-09，
+  不含 M-A 转单、M-C 看板与 workflow `/v1` 契约）；scene 以 `aiot` profile 启动。
+- **验证结果**：
+  - `bw-chain-1-crm-to-erp.ps1` → PASSED：CRM 建单 → workflow 审批 → 回填 APPROVED → outbox 下发 ERP，
+    `SO-20261119-0002` 的 `crmOrderNo`、物料、数量一致。
+  - `bw-chain-2-erp-mes-erp.ps1` → PASSED：ERP 建单/下达/领料 → MES 拆分/派工/开工/报工/IPQC/判定/完工
+    → 完工回传 ERP，完工数量 10 == 计划 10，产成品库存余额 10。
+  - `bw-chain-3-status-audit.ps1` → PASSED：CRM 状态机时间戳顺序、ERP 生产订单与 MES 工单终态、
+    `whale-crm / whale-erp / whale-mes` 关键操作留痕（含操作人与对象类型）。
+  - `chain-reconcile.ps1` → PASSED：看板 4 张生产订单、6 条库存余额与 ERP 逐项一致，`degraded=false`。
+  - 压测结果已回填 [m1-perf-baseline.md](../ops/m1-perf-baseline.md)：权限判定 P95 108.6ms；
+    分页 P95 80.6/93.3/79.3ms；并发报工 P95 125.4/401.4/739.9ms（并发档失败均为乐观锁冲突 400）。
+- **待做项**：
+  - 并发报工的冲突重试策略（同任务并发 20 档成功率约 26%）；
+  - 网关 3000ms 熔断阈值对审计冷查询（约 4.1s）偏紧，评估预热或单独放宽；
+  - CI 在完整环境 Runner 上触发 `chain-smoke.yml`。
+- **已修正问题项**：
+  - 脚本重复 UTF-8 BOM 导致 PS 5.1 解析失败；
+  - 登录路径修正为 `/auth/v1/login`（旧 `/auth/login` 返回 401）；
+  - `param` 默认值中的 `$(if ...)` 改为函数体解析；
+  - `Invoke-SmokeApi` 显式 UTF-8 解码，修复中文断言乱码；
+  - compose 为 auth/erp/crm/mes/workflow 注入审计转发开关与 `http://bw-audit:9101`。
