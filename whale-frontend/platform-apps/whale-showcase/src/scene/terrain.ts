@@ -200,7 +200,9 @@ export function createTerrain(size = 620, segments = 264): Terrain {
     const patch = fbm(x * 0.034 + 3.7, z * 0.034 - 1.9, 2) - 0.5;
     const broad = fbm(x * 0.0105 - 8.3, z * 0.0105 + 2.6, 3) - 0.5;
     const tone = patch * 0.8 + broad * 0.9;
-    c.offsetHSL(tone * 0.045, tone * 0.16, tone * 0.105);
+    // 饱和度抖动 0.16 → 0.10：白天 hemi 提到 1.15 之后，0.16 的饱和抖动
+    // 让向阳面草地产出 0x7f9a3a 一类的"荧光绿"。干湿差靠明度就够了。
+    c.offsetHSL(tone * 0.045, tone * 0.10, tone * 0.105);
     // 细颗粒：频率必须低于网格分辨率（620/264≈2.3m 一格，0.9 的噪声在顶点上采样
     // 会直接走样成一条条竖向条纹），这里给到 0.22 只留低频起伏
     const grain = (fbm(x * 0.22, z * 0.22, 2) - 0.5) * 0.05;

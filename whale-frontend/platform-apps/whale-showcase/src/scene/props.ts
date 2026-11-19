@@ -397,7 +397,6 @@ function dockX(): number {
 
 /** 码头平台长度（沿 X），GLB 里也是 8.6 */
 const DOCK_LEN = 8.6;
-const DOCK_HALF = DOCK_LEN / 2;
 
 function buildDock(b: Builder): void {
   const x = dockX();
@@ -412,29 +411,16 @@ function buildDock(b: Builder): void {
 }
 
 /**
- * 上岸台阶。
+ * 上岸台阶（已废弃，见 buildSettlement 里的 S15 注）。
  *
- * <p>这一截**必须按地形实时算**，不能写死高度。码头平台面固定 0.95，而岸坡在
- * 这段是 0.6~0.9 并沿 X 变化——写死三级"往上抬"的台阶（旧写法
- * {@code DOCK_TOP + 0.17 + i*0.34}）会一路抬到 1.97m，比岸高 1.3m，
- * 出图是从码头爬上一堵墙。</p>
+ * <p>留这段历史是因为它记录了一个四次返工的教训：这段岸坡与码头面齐平，
+ * 任何"强造高差"的构件（三级台阶 / 旗石埠头）都会读作"摔在草坪上的混凝土板"；
+ * 而旗石贴地又会整个被地形网格吞掉——地形是连续面，平板只要一角低于地面
+ * 就被啃成碎片。<b>地形在说什么就听什么</b>：岸与码头齐平，草地包边即是原样。</p>
  *
- * <p>方向也要注意：码头是西端搭岸、东端伸进深水，台阶只能往<b>-X</b> 铺。
- * 往 +X 铺的话三级台全立在河心里。</p>
+ * <p>方向备忘：码头西端搭岸、东端伸进深水，任何上岸构件只能往 -X 铺。</p>
  */
-function buildApron(b: Builder): void {
-  const x0 = dockX() - DOCK_HALF; // 平台西沿（靠岸这一侧）
-  const steps = 3;
-  const depth = 0.7;
-  for (let i = 0; i < steps; i += 1) {
-    const xc = x0 - depth * (i + 0.5);
-    const ground = heightAt(xc, DOCK_Z);
-    // 台阶顶面从平台面降到地面；i 越大越靠岸、越低
-    const top = DOCK_TOP + (Math.min(ground, DOCK_TOP) - DOCK_TOP) * ((i + 1) / steps);
-    const h = Math.max(0.34, top - ground + 0.6); // 再往下吃 0.6m，坡地上不悬空
-    b.box('stoneDark', depth + 0.02, h, 3.2, xc, top - h / 2, DOCK_Z);
-  }
-}
+
 
 export interface BoatPlace {
   x: number;
@@ -1644,7 +1630,9 @@ function buildGroundCover(group: THREE.Group, trees: TreeSpot[]): void {
     group,
     tuft,
     new THREE.MeshStandardMaterial({
-      color: 0x7b8a4c,
+      // 0x7b8a4c → 0x767f4e：白天提亮后草簇的绿读着发"艳"。去饱和的关键是
+      // 压 G 通道而不是压亮度——亮度一压草丛就从草地里"沉"下去了。
+      color: 0x767f4e,
       vertexColors: true,
       side: THREE.DoubleSide,
       roughness: 0.9,
@@ -2052,8 +2040,8 @@ export function buildSettlement(assets?: SceneAssets): THREE.Group {
 
   const hasDock = !!assets?.dock;
   if (!hasDock) buildDock(b);
-  // 台阶永远按地形现算——它跟岸边高度绑定，跟用哪版码头无关
-  buildApron(b);
+  // 上岸处不做任何石构件（S15 结论）：这段岸坡与码头面天然齐平，
+  // 草地直接包住甲板边缘就是渡口的原样——强加的台阶/旗石读作"混凝土板"。
 
   const boats = boatSpots();
   const hasBoat = !!assets && assets.boat.length > 0;
