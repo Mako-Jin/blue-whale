@@ -3,13 +3,17 @@ package com.bluewhale.message.service.impl;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.message.channel.MessageChannelSender;
+import com.bluewhale.message.channel.impl.InAppChannelSender;
+import com.bluewhale.message.channel.impl.SmsChannelSender;
+import com.bluewhale.message.config.MessageChannelProperties;
 import com.bluewhale.message.config.MessageReceiptProperties;
 import com.bluewhale.message.dto.DeliveryReceiptItem;
 import com.bluewhale.message.dto.DeliveryReceiptRequest;
-import com.bluewhale.message.entity.MessageCallbackTask;
-import com.bluewhale.message.entity.MessageDelivery;
-import com.bluewhale.message.entity.MessageReceipt;
-import com.bluewhale.message.entity.MessageRecord;
+import com.bluewhale.message.po.MessageCallbackTaskPo;
+import com.bluewhale.message.po.MessageDeliveryPo;
+import com.bluewhale.message.po.MessageReceiptPo;
+import com.bluewhale.message.po.MessageRecordPo;
 import com.bluewhale.message.enums.DeliveryStatus;
 import com.bluewhale.message.mapper.MessageCallbackTaskMapper;
 import com.bluewhale.message.mapper.MessageDeliveryMapper;
@@ -68,15 +72,19 @@ class MessageReceiptServiceImplTest {
 
     private final MessageReceiptProperties properties = new MessageReceiptProperties();
 
+    /** 渠道适配器：站内信与短信（短信不支持已读回执），用于校验能力口径 */
+    private final List<MessageChannelSender> senders = List.of(new InAppChannelSender(),
+            new SmsChannelSender(new MessageChannelProperties(), new ObjectMapper()));
+
     /**
      * Lambda 条件构造器依赖实体表信息缓存，纯单测需手动初始化。
      */
     @BeforeAll
     static void initTableInfo() {
         MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "");
-        TableInfoHelper.initTableInfo(assistant, MessageRecord.class);
-        TableInfoHelper.initTableInfo(assistant, MessageDelivery.class);
-        TableInfoHelper.initTableInfo(assistant, MessageReceipt.class);
+        TableInfoHelper.initTableInfo(assistant, MessageRecordPo.class);
+        TableInfoHelper.initTableInfo(assistant, MessageDeliveryPo.class);
+        TableInfoHelper.initTableInfo(assistant, MessageReceiptPo.class);
     }
 
     /**
@@ -85,15 +93,25 @@ class MessageReceiptServiceImplTest {
      * @return 回执受理服务
      */
     private MessageReceiptServiceImpl service() {
+        return service(senders);
+    }
+
+    /**
+     * 使用指定渠道适配器构造被测服务。
+     *
+     * @param channelSenders 渠道适配器
+     * @return 回执受理服务
+     */
+    private MessageReceiptServiceImpl service(List<MessageChannelSender> channelSenders) {
         when(receiptMapper.selectList(any())).thenReturn(new ArrayList<>());
-        when(receiptMapper.insert(any(MessageReceipt.class))).thenAnswer(invocation -> {
-            MessageReceipt receipt = invocation.getArgument(0);
+        when(receiptMapper.insert(any(MessageReceiptPo.class))).thenAnswer(invocation -> {
+            MessageReceiptPo receipt = invocation.getArgument(0);
             receipt.setId(3001L);
             return 1;
         });
-        when(callbackTaskMapper.insert(any(MessageCallbackTask.class))).thenReturn(1);
+        when(callbackTaskMapper.insert(any(MessageCallbackTaskPo.class))).thenReturn(1);
         return new MessageReceiptServiceImpl(recordMapper, deliveryMapper, receiptMapper,
-                callbackTaskMapper, new ObjectMapper(), properties);
+                callbackTaskMapper, new ObjectMapper(), properties, channelSenders);
     }
 
     /**
@@ -101,8 +119,8 @@ class MessageReceiptServiceImplTest {
      *
      * @return 投递记录
      */
-    private static MessageDelivery sentDelivery() {
-        MessageDelivery delivery = new MessageDelivery();
+    private static MessageDeliveryPo sentDelivery() {
+        MessageDeliveryPo delivery = new MessageDeliveryPo();
         delivery.setId(DELIVERY_ID);
         delivery.setMessageId(MESSAGE_ID);
         delivery.setChannel("INAPP");
@@ -118,8 +136,8 @@ class MessageReceiptServiceImplTest {
      * @param callbackUrl 回调地址
      * @return 消息记录
      */
-    private static MessageRecord record(String callbackUrl) {
-        MessageRecord record = new MessageRecord();
+    private static MessageRecordPo record(String callbackUrl) {
+        MessageRecordPo record = new MessageRecordPo();
         record.setId(MESSAGE_ID);
         record.setBizType("CRM_MARKETING");
         record.setBizId("9001");
@@ -151,12 +169,12 @@ class MessageReceiptServiceImplTest {
     @Test
     @DisplayName("DELIVERED 回执推进投递状态并排队回调")
     void deliveredShouldAdvanceAndQueueCallback() {
-        MessageDelivery delivery = sentDelivery();
-        MessageRecord record = record("http://bw-crm:9007/crm/internal/marketing/delivery-callback");
+        MessageDeliveryPo delivery = sentDelivery();
+        MessageRecordPo record = record("http://bw-crm:9007/crm/internal/marketing/delivery-callback");
         when(deliveryMapper.selectList(any())).thenReturn(new ArrayList<>(List.of(delivery)));
         when(recordMapper.selectById(MESSAGE_ID)).thenReturn(record);
-        when(deliveryMapper.updateById(any(MessageDelivery.class))).thenReturn(1);
-        when(recordMapper.updateById(any(MessageRecord.class))).thenReturn(1);
+        when(deliveryMapper.updateById(any(MessageDeliveryPo.class))).thenReturn(1);
+        when(recordMapper.updateById(any(MessageRecordPo.class))).thenReturn(1);
 
         ReceiptApplyResult result = service().apply(request("DELIVERED", "rcpt-1"));
 
@@ -169,7 +187,7 @@ class MessageReceiptServiceImplTest {
         assertEquals(DeliveryStatus.DELIVERED.name(), delivery.getStatus());
         assertEquals(LocalDateTime.of(2026, 11, 8, 18, 0), delivery.getDeliveredAt());
 
-        ArgumentCaptor<MessageCallbackTask> captor = ArgumentCaptor.forClass(MessageCallbackTask.class);
+        ArgumentCaptor<MessageCallbackTaskPo> captor = ArgumentCaptor.forClass(MessageCallbackTaskPo.class);
         verify(callbackTaskMapper).insert(captor.capture());
         assertEquals("PENDING", captor.getValue().getStatus());
         assertEquals(DELIVERY_ID, captor.getValue().getDeliveryId());
@@ -180,7 +198,7 @@ class MessageReceiptServiceImplTest {
     @DisplayName("重复回执幂等：不重复推进、不重复排队回调")
     void duplicatedReceiptShouldBeIgnored() {
         MessageReceiptServiceImpl service = service();
-        MessageReceipt existing = new MessageReceipt();
+        MessageReceiptPo existing = new MessageReceiptPo();
         existing.setReceiptKey("INAPP:rcpt-1");
         when(receiptMapper.selectList(any())).thenReturn(new ArrayList<>(List.of(existing)));
         ReceiptApplyResult result = service.apply(request("DELIVERED", "rcpt-1"));
@@ -188,9 +206,9 @@ class MessageReceiptServiceImplTest {
         assertEquals(1, result.getDuplicated());
         assertEquals(0, result.getAccepted());
         assertEquals(0, result.getAdvanced());
-        verify(receiptMapper, never()).insert(any(MessageReceipt.class));
-        verify(deliveryMapper, never()).updateById(any(MessageDelivery.class));
-        verify(callbackTaskMapper, never()).insert(any(MessageCallbackTask.class));
+        verify(receiptMapper, never()).insert(any(MessageReceiptPo.class));
+        verify(deliveryMapper, never()).updateById(any(MessageDeliveryPo.class));
+        verify(callbackTaskMapper, never()).insert(any(MessageCallbackTaskPo.class));
     }
 
     @Test
@@ -206,19 +224,19 @@ class MessageReceiptServiceImplTest {
 
         assertEquals(1, result.getAccepted());
         assertEquals(1, result.getDuplicated());
-        verify(receiptMapper, times(1)).insert(any(MessageReceipt.class));
+        verify(receiptMapper, times(1)).insert(any(MessageReceiptPo.class));
     }
 
     @Test
     @DisplayName("READ 可在 DELIVERED 之后推进，回填已读标记")
     void readShouldAdvanceFromDelivered() {
-        MessageDelivery delivery = sentDelivery();
+        MessageDeliveryPo delivery = sentDelivery();
         delivery.setStatus(DeliveryStatus.DELIVERED.name());
         delivery.setDeliveredAt(LocalDateTime.of(2026, 11, 8, 17, 0));
         when(deliveryMapper.selectList(any())).thenReturn(new ArrayList<>(List.of(delivery)));
         when(recordMapper.selectById(MESSAGE_ID)).thenReturn(record(null));
-        when(deliveryMapper.updateById(any(MessageDelivery.class))).thenReturn(1);
-        when(recordMapper.updateById(any(MessageRecord.class))).thenReturn(1);
+        when(deliveryMapper.updateById(any(MessageDeliveryPo.class))).thenReturn(1);
+        when(recordMapper.updateById(any(MessageRecordPo.class))).thenReturn(1);
 
         ReceiptApplyResult result = service().apply(request("READ", "rcpt-2"));
 
@@ -233,7 +251,7 @@ class MessageReceiptServiceImplTest {
     @Test
     @DisplayName("乱序回执不回退：已读后的 DELIVERED 不生效")
     void lateDeliveredShouldNotRegressRead() {
-        MessageDelivery delivery = sentDelivery();
+        MessageDeliveryPo delivery = sentDelivery();
         delivery.setStatus(DeliveryStatus.READ.name());
         when(deliveryMapper.selectList(any())).thenReturn(new ArrayList<>(List.of(delivery)));
         when(recordMapper.selectById(MESSAGE_ID)).thenReturn(record(null));
@@ -242,17 +260,17 @@ class MessageReceiptServiceImplTest {
 
         assertEquals(0, result.getAdvanced());
         assertEquals(DeliveryStatus.READ.name(), delivery.getStatus());
-        verify(deliveryMapper, never()).updateById(any(MessageDelivery.class));
+        verify(deliveryMapper, never()).updateById(any(MessageDeliveryPo.class));
     }
 
     @Test
     @DisplayName("BOUNCED 回执留存退信原因")
     void bouncedShouldKeepErrorReason() {
-        MessageDelivery delivery = sentDelivery();
+        MessageDeliveryPo delivery = sentDelivery();
         when(deliveryMapper.selectList(any())).thenReturn(new ArrayList<>(List.of(delivery)));
         when(recordMapper.selectById(MESSAGE_ID)).thenReturn(record(null));
-        when(deliveryMapper.updateById(any(MessageDelivery.class))).thenReturn(1);
-        when(recordMapper.updateById(any(MessageRecord.class))).thenReturn(1);
+        when(deliveryMapper.updateById(any(MessageDeliveryPo.class))).thenReturn(1);
+        when(recordMapper.updateById(any(MessageRecordPo.class))).thenReturn(1);
         DeliveryReceiptRequest request = request("BOUNCED", "rcpt-4");
         request.getReceipts().get(0).setErrorMessage("550 mailbox not found");
 
@@ -273,7 +291,7 @@ class MessageReceiptServiceImplTest {
         assertEquals(1, result.getAccepted());
         assertEquals(1, result.getUnmatched());
         assertEquals(0, result.getAdvanced());
-        ArgumentCaptor<MessageReceipt> captor = ArgumentCaptor.forClass(MessageReceipt.class);
+        ArgumentCaptor<MessageReceiptPo> captor = ArgumentCaptor.forClass(MessageReceiptPo.class);
         verify(receiptMapper).insert(captor.capture());
         assertEquals("UNMATCHED", captor.getValue().getMatchStatus());
         assertNull(captor.getValue().getDeliveryId());
@@ -293,19 +311,19 @@ class MessageReceiptServiceImplTest {
     void disabledReceiptShouldBeRejected() {
         properties.setEnabled(false);
         MessageReceiptServiceImpl service = new MessageReceiptServiceImpl(recordMapper, deliveryMapper,
-                receiptMapper, callbackTaskMapper, new ObjectMapper(), properties);
+                receiptMapper, callbackTaskMapper, new ObjectMapper(), properties, senders);
         assertThrows(BizException.class, () -> service.apply(request("DELIVERED", "rcpt-7")));
     }
 
     @Test
     @DisplayName("回执全部送达后逻辑消息状态聚合为 DELIVERED")
     void recordStatusShouldAggregateToDelivered() {
-        MessageDelivery delivery = sentDelivery();
+        MessageDeliveryPo delivery = sentDelivery();
         when(deliveryMapper.selectList(any())).thenReturn(new ArrayList<>(List.of(delivery)));
-        MessageRecord record = record(null);
+        MessageRecordPo record = record(null);
         when(recordMapper.selectById(MESSAGE_ID)).thenReturn(record);
-        when(deliveryMapper.updateById(any(MessageDelivery.class))).thenReturn(1);
-        when(recordMapper.updateById(any(MessageRecord.class))).thenReturn(1);
+        when(deliveryMapper.updateById(any(MessageDeliveryPo.class))).thenReturn(1);
+        when(recordMapper.updateById(any(MessageRecordPo.class))).thenReturn(1);
 
         service().apply(request("DELIVERED", "rcpt-8"));
 
@@ -327,12 +345,12 @@ class MessageReceiptServiceImplTest {
         ReceiptApplyResult result = service().apply(request);
 
         assertEquals(2, result.getAccepted());
-        ArgumentCaptor<MessageReceipt> captor = ArgumentCaptor.forClass(MessageReceipt.class);
+        ArgumentCaptor<MessageReceiptPo> captor = ArgumentCaptor.forClass(MessageReceiptPo.class);
         verify(receiptMapper, times(2)).insert(captor.capture());
         assertTrue(captor.getAllValues().stream()
                 .allMatch(receipt -> receipt.getReceiptKey().length() <= 160));
         assertEquals(2, captor.getAllValues().stream()
-                .map(MessageReceipt::getReceiptKey).distinct().count());
+                .map(MessageReceiptPo::getReceiptKey).distinct().count());
     }
 
     @Test
@@ -342,7 +360,29 @@ class MessageReceiptServiceImplTest {
         request.setTenantId(null);
 
         assertThrows(BizException.class, () -> service().apply(request));
-        verify(receiptMapper, never()).insert(any(MessageReceipt.class));
+        verify(receiptMapper, never()).insert(any(MessageReceiptPo.class));
+    }
+
+    @Test
+    @DisplayName("渠道未注册适配器（不支持回执）时拒绝上报，不落脏数据")
+    void receiptForChannelWithoutSenderShouldBeRejected() {
+        MessageReceiptServiceImpl service = service(List.of(new InAppChannelSender()));
+        DeliveryReceiptRequest request = request("DELIVERED", "rcpt-10");
+        request.getReceipts().get(0).setChannel("EMAIL");
+
+        assertThrows(BizException.class, () -> service.apply(request));
+        verify(receiptMapper, never()).insert(any(MessageReceiptPo.class));
+    }
+
+    @Test
+    @DisplayName("不支持已读回执的渠道上报 READ 直接拒绝")
+    void readReceiptForChannelWithoutReadSupportShouldBeRejected() {
+        MessageReceiptServiceImpl service = service();
+        DeliveryReceiptRequest request = request("READ", "rcpt-11");
+        request.getReceipts().get(0).setChannel("SMS");
+
+        assertThrows(BizException.class, () -> service.apply(request));
+        verify(receiptMapper, never()).insert(any(MessageReceiptPo.class));
     }
 
     /**

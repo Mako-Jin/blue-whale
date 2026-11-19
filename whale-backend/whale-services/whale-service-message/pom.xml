@@ -11,7 +11,7 @@
         <relativePath>../../whale-parent/pom.xml</relativePath>
     </parent>
 
-    <artifactId>whale-message</artifactId>
+    <artifactId>whale-service-message</artifactId>
     <name>Whale Message</name>
     <description>统一消息服务（模板 / 渠道路由 / 幂等 / 投递记录，M0）</description>
 

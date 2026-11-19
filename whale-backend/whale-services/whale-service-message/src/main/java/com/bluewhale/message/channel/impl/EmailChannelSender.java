@@ -45,6 +45,18 @@ public class EmailChannelSender implements MessageChannelSender {
         return MessageChannel.EMAIL;
     }
 
+    /** 邮件支持 DSN（送达/退信）回执 */
+    @Override
+    public boolean supportsReceipt() {
+        return true;
+    }
+
+    /** 邮件支持 MDN 已读回执 */
+    @Override
+    public boolean supportsReadReceipt() {
+        return true;
+    }
+
     @Override
     public ChannelResult send(ChannelMessage message) {
         MessageChannelProperties.Email email = properties.getEmail();

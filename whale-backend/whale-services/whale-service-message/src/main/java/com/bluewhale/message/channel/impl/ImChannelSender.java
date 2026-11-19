@@ -64,6 +64,18 @@ public class ImChannelSender implements MessageChannelSender {
         return MessageChannel.IM;
     }
 
+    /** whale-im 回传送达/退信回执 */
+    @Override
+    public boolean supportsReceipt() {
+        return true;
+    }
+
+    /** whale-im 回传已读回执 */
+    @Override
+    public boolean supportsReadReceipt() {
+        return true;
+    }
+
     @Override
     public ChannelResult send(ChannelMessage message) {
         MessageChannelProperties.Im im = properties.getIm();

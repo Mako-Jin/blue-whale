@@ -2,13 +2,16 @@ package com.bluewhale.message.service.impl;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.bluewhale.common.internaltoken.InternalTokenProperties;
+import com.bluewhale.message.channel.impl.ImChannelSender;
+import com.bluewhale.message.config.MessageChannelProperties;
 import com.bluewhale.message.config.MessageReceiptProperties;
 import com.bluewhale.message.dto.DeliveryReceiptItem;
 import com.bluewhale.message.dto.DeliveryReceiptRequest;
-import com.bluewhale.message.entity.MessageCallbackTask;
-import com.bluewhale.message.entity.MessageDelivery;
-import com.bluewhale.message.entity.MessageReceipt;
-import com.bluewhale.message.entity.MessageRecord;
+import com.bluewhale.message.po.MessageCallbackTaskPo;
+import com.bluewhale.message.po.MessageDeliveryPo;
+import com.bluewhale.message.po.MessageReceiptPo;
+import com.bluewhale.message.po.MessageRecordPo;
 import com.bluewhale.message.mapper.MessageCallbackTaskMapper;
 import com.bluewhale.message.mapper.MessageDeliveryMapper;
 import com.bluewhale.message.mapper.MessageReceiptMapper;
@@ -61,7 +64,9 @@ class ImReceiptFlowIntegrationTest {
     private final MessageReceiptProperties properties = new MessageReceiptProperties();
 
     private final MessageReceiptServiceImpl service = new MessageReceiptServiceImpl(recordMapper, deliveryMapper,
-            receiptMapper, callbackTaskMapper, new ObjectMapper(), properties);
+            receiptMapper, callbackTaskMapper, new ObjectMapper(), properties,
+            List.of(new ImChannelSender(new MessageChannelProperties(), new ObjectMapper(),
+                    new InternalTokenProperties())));
 
     /**
      * Lambda 条件构造器依赖实体表信息缓存，纯单测需手动初始化。
@@ -69,27 +74,27 @@ class ImReceiptFlowIntegrationTest {
     @BeforeAll
     static void initTableInfo() {
         MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "");
-        TableInfoHelper.initTableInfo(assistant, MessageRecord.class);
-        TableInfoHelper.initTableInfo(assistant, MessageDelivery.class);
-        TableInfoHelper.initTableInfo(assistant, MessageReceipt.class);
+        TableInfoHelper.initTableInfo(assistant, MessageRecordPo.class);
+        TableInfoHelper.initTableInfo(assistant, MessageDeliveryPo.class);
+        TableInfoHelper.initTableInfo(assistant, MessageReceiptPo.class);
     }
 
     @BeforeEach
     void setUp() {
         when(receiptMapper.selectList(any())).thenReturn(new ArrayList<>());
-        when(receiptMapper.insert(any(MessageReceipt.class))).thenAnswer(invocation -> {
-            MessageReceipt receipt = invocation.getArgument(0);
+        when(receiptMapper.insert(any(MessageReceiptPo.class))).thenAnswer(invocation -> {
+            MessageReceiptPo receipt = invocation.getArgument(0);
             receipt.setId(7001L);
             return 1;
         });
-        when(callbackTaskMapper.insert(any(MessageCallbackTask.class))).thenReturn(1);
+        when(callbackTaskMapper.insert(any(MessageCallbackTaskPo.class))).thenReturn(1);
     }
 
     @Test
     @DisplayName("clientMsgId 回执命中 IM 投递：推进状态、聚合消息为 DELIVERED、回调入队")
     void shouldMatchImDeliveryAndQueueCallback() {
-        MessageDelivery delivery = delivery(CLIENT_MSG_ID);
-        MessageRecord record = record();
+        MessageDeliveryPo delivery = delivery(CLIENT_MSG_ID);
+        MessageRecordPo record = record();
         when(deliveryMapper.selectList(any())).thenReturn(new ArrayList<>(List.of(delivery)));
         when(recordMapper.selectById(MESSAGE_ID)).thenReturn(record);
 
@@ -101,9 +106,9 @@ class ImReceiptFlowIntegrationTest {
         assertEquals("DELIVERED", delivery.getStatus());
         assertEquals("DELIVERED", record.getStatus());
         verify(recordMapper).updateById(record);
-        ArgumentCaptor<MessageCallbackTask> captor = ArgumentCaptor.forClass(MessageCallbackTask.class);
+        ArgumentCaptor<MessageCallbackTaskPo> captor = ArgumentCaptor.forClass(MessageCallbackTaskPo.class);
         verify(callbackTaskMapper).insert(captor.capture());
-        MessageCallbackTask task = captor.getValue();
+        MessageCallbackTaskPo task = captor.getValue();
         assertEquals(MESSAGE_ID, task.getMessageId());
         assertTrue(task.getPayloadJson() != null && task.getPayloadJson().contains("\"DELIVERED\""));
     }
@@ -111,7 +116,7 @@ class ImReceiptFlowIntegrationTest {
     @Test
     @DisplayName("已读回执按 clientMsgId 精确命中，不改动其它接收人的投递")
     void shouldMatchOnlyExactClientMsgId() {
-        MessageDelivery delivery = delivery("msg-88-999");
+        MessageDeliveryPo delivery = delivery("msg-88-999");
         when(deliveryMapper.selectList(any())).thenReturn(new ArrayList<>(List.of(delivery)));
         when(recordMapper.selectById(MESSAGE_ID)).thenReturn(record());
 
@@ -121,8 +126,8 @@ class ImReceiptFlowIntegrationTest {
         assertEquals(0, result.getAdvanced());
         assertEquals(1, result.getUnmatched());
         assertEquals("SENT", delivery.getStatus());
-        verify(recordMapper, never()).updateById(any(MessageRecord.class));
-        verify(callbackTaskMapper, never()).insert(any(MessageCallbackTask.class));
+        verify(recordMapper, never()).updateById(any(MessageRecordPo.class));
+        verify(callbackTaskMapper, never()).insert(any(MessageCallbackTaskPo.class));
     }
 
     /**
@@ -131,8 +136,8 @@ class ImReceiptFlowIntegrationTest {
      * @param providerMessageId 渠道侧标识
      * @return 投递记录
      */
-    private static MessageDelivery delivery(String providerMessageId) {
-        MessageDelivery delivery = new MessageDelivery();
+    private static MessageDeliveryPo delivery(String providerMessageId) {
+        MessageDeliveryPo delivery = new MessageDeliveryPo();
         delivery.setId(5001L);
         delivery.setMessageId(MESSAGE_ID);
         delivery.setChannel("IM");
@@ -147,8 +152,8 @@ class ImReceiptFlowIntegrationTest {
      *
      * @return 消息记录
      */
-    private static MessageRecord record() {
-        MessageRecord record = new MessageRecord();
+    private static MessageRecordPo record() {
+        MessageRecordPo record = new MessageRecordPo();
         record.setId(MESSAGE_ID);
         record.setStatus("SENT");
         record.setCallbackUrl("https://example.com/message/callback");

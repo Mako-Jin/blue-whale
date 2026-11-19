@@ -64,6 +64,23 @@ public class SmsChannelSender implements MessageChannelSender {
         return MessageChannel.SMS;
     }
 
+    /** 短信网关回传送达/退信回执 */
+    @Override
+    public boolean supportsReceipt() {
+        return true;
+    }
+
+    /** 短信不提供已读回执，上报 READ 按脏数据拒绝 */
+    @Override
+    public boolean supportsReadReceipt() {
+        return false;
+    }
+
+    @Override
+    public int maxContentLength() {
+        return MAX_SMS_CONTENT_LENGTH;
+    }
+
     @Override
     public ChannelResult send(ChannelMessage message) {
         MessageChannelProperties.Sms sms = properties.getSms();
@@ -181,12 +198,12 @@ public class SmsChannelSender implements MessageChannelSender {
      * @param message 渠道消息
      * @return JSON 载荷
      */
-    private static Map<String, Object> buildPayload(MessageChannelProperties.Sms sms, ChannelMessage message) {
+    private Map<String, Object> buildPayload(MessageChannelProperties.Sms sms, ChannelMessage message) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("phones", List.of(message.getRecipient().getPhone().trim()));
         payload.put("templateCode", sms.getTemplateCode());
         payload.put("signName", sms.getSignName());
-        payload.put("content", truncate(message.getContent(), MAX_SMS_CONTENT_LENGTH));
+        payload.put("content", truncate(message.getContent(), maxContentLength()));
         payload.put("bizType", message.getBizType());
         payload.put("bizId", message.getBizId());
         payload.put("tenantId", message.getTenantId());

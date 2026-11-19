@@ -19,6 +19,17 @@ public class InAppChannelSender implements MessageChannelSender {
         return MessageChannel.INAPP;
     }
 
+    /** 站内信由平台自身记录送达与已读，支持两类回执 */
+    @Override
+    public boolean supportsReceipt() {
+        return true;
+    }
+
+    @Override
+    public boolean supportsReadReceipt() {
+        return true;
+    }
+
     @Override
     public ChannelResult send(ChannelMessage message) {
         return ChannelResult.sent(String.valueOf(message.getMessageId()));

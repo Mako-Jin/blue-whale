@@ -4,13 +4,14 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.tenant.TenantContext;
+import com.bluewhale.message.channel.MessageChannelSender;
 import com.bluewhale.message.config.MessageReceiptProperties;
 import com.bluewhale.message.dto.DeliveryReceiptItem;
 import com.bluewhale.message.dto.DeliveryReceiptRequest;
-import com.bluewhale.message.entity.MessageCallbackTask;
-import com.bluewhale.message.entity.MessageDelivery;
-import com.bluewhale.message.entity.MessageReceipt;
-import com.bluewhale.message.entity.MessageRecord;
+import com.bluewhale.message.po.MessageCallbackTaskPo;
+import com.bluewhale.message.po.MessageDeliveryPo;
+import com.bluewhale.message.po.MessageReceiptPo;
+import com.bluewhale.message.po.MessageRecordPo;
 import com.bluewhale.message.enums.DeliveryStatus;
 import com.bluewhale.message.enums.MessageChannel;
 import com.bluewhale.message.mapper.MessageCallbackTaskMapper;
@@ -108,6 +109,11 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
 
     private final MessageReceiptProperties properties;
 
+    private final List<MessageChannelSender> senders;
+
+    /** 渠道能力缓存：Bean 生命周期内注册表不变，首次使用时构建一次 */
+    private volatile Map<MessageChannel, MessageChannelSender> senderCache;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ReceiptApplyResult apply(DeliveryReceiptRequest request) {
@@ -126,12 +132,12 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
             result.setReceived(request.getReceipts().size());
             // 先整批校验并构造幂等键，再批量预取去重键与投递记录，避免逐条查库
             List<PreparedReceipt> prepared = request.getReceipts().stream()
-                    .map(MessageReceiptServiceImpl::prepare)
+                    .map(this::prepare)
                     .toList();
             Set<String> existingKeys = existedReceiptKeys(prepared);
-            Map<String, List<MessageDelivery>> deliveriesByKey = matchDeliveriesBatch(prepared);
+            Map<String, List<MessageDeliveryPo>> deliveriesByKey = matchDeliveriesBatch(prepared);
             Set<Long> touchedMessages = new LinkedHashSet<>();
-            Map<Long, MessageRecord> recordCache = new HashMap<>();
+            Map<Long, MessageRecordPo> recordCache = new HashMap<>();
             for (PreparedReceipt item : prepared) {
                 handleOne(item, existingKeys, deliveriesByKey, result, touchedMessages, recordCache);
             }
@@ -148,22 +154,52 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
     /**
      * 校验单条回执并预计算幂等键。
      *
+     * <p>除状态/渠道合法性外，还按渠道适配器的能力声明校验：未实现回执的渠道、
+     * 不支持已读却上报 {@code READ} 的渠道一律拒绝，避免脏数据进入投递与回调链路。</p>
+     *
      * @param item 回执明细
      * @return 预处理结果
      */
-    private static PreparedReceipt prepare(DeliveryReceiptItem item) {
+    private PreparedReceipt prepare(DeliveryReceiptItem item) {
         DeliveryStatus target = DeliveryStatus.parse(item.getStatus());
         if (target == null || !target.isReceiptStatus()) {
             throw new BizException(ErrorCode.PARAM_ERROR, "回执状态非法（仅支持 DELIVERED / READ / BOUNCED）: "
                     + item.getStatus());
         }
         String channel = item.getChannel().trim().toUpperCase(Locale.ROOT);
-        if (MessageChannel.parse(channel) == null) {
+        MessageChannel parsedChannel = MessageChannel.parse(channel);
+        if (parsedChannel == null) {
             throw new BizException(ErrorCode.PARAM_ERROR, "无法识别的回执渠道: " + item.getChannel());
+        }
+        MessageChannelSender sender = senderMap().get(parsedChannel);
+        if (sender == null || !sender.supportsReceipt()) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "渠道不支持回执上报: " + channel);
+        }
+        if (target == DeliveryStatus.READ && !sender.supportsReadReceipt()) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "渠道不支持已读回执: " + channel);
         }
         LocalDateTime receiptTime = item.getReceiptTime() == null ? LocalDateTime.now() : item.getReceiptTime();
         String receiptKey = truncate(buildReceiptKey(channel, item, target, receiptTime), RECEIPT_KEY_MAX_LENGTH);
         return new PreparedReceipt(item, channel, target, receiptTime, receiptKey);
+    }
+
+    /**
+     * 收集已注册的渠道适配器（同渠道重复注册时保留第一个）。
+     *
+     * <p>Bean 生命周期内注册表不变，首次调用后缓存；懒初始化而非 {@code @PostConstruct}，
+     * 保证非容器构造（如单元测试）同样可用。</p>
+     *
+     * @return 渠道到适配器的映射
+     */
+    private Map<MessageChannel, MessageChannelSender> senderMap() {
+        Map<MessageChannel, MessageChannelSender> cache = senderCache;
+        if (cache == null) {
+            cache = senders.stream()
+                    .collect(Collectors.toMap(MessageChannelSender::channel, sender -> sender,
+                            (first, second) -> first));
+            senderCache = cache;
+        }
+        return cache;
     }
 
     /**
@@ -177,8 +213,8 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
      * @param recordCache     逻辑消息缓存，避免同批重复查询
      */
     private void handleOne(PreparedReceipt prepared, Set<String> existingKeys,
-                           Map<String, List<MessageDelivery>> deliveriesByKey, ReceiptApplyResult result,
-                           Set<Long> touchedMessages, Map<Long, MessageRecord> recordCache) {
+                           Map<String, List<MessageDeliveryPo>> deliveriesByKey, ReceiptApplyResult result,
+                           Set<Long> touchedMessages, Map<Long, MessageRecordPo> recordCache) {
         DeliveryReceiptItem item = prepared.item();
         String receiptKey = prepared.receiptKey();
         // 批内重复同样计为 duplicated：本批已插入的键会同步写入 existingKeys
@@ -186,10 +222,10 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
             result.setDuplicated(result.getDuplicated() + 1);
             return;
         }
-        List<MessageDelivery> deliveries = StringUtils.hasText(item.getProviderMessageId())
+        List<MessageDeliveryPo> deliveries = StringUtils.hasText(item.getProviderMessageId())
                 ? deliveriesByKey.getOrDefault(matchKey(prepared.channel(), item.getProviderMessageId()), List.of())
                 : List.of();
-        MessageReceipt receipt = buildReceipt(prepared.channel(), item, prepared.target(),
+        MessageReceiptPo receipt = buildReceipt(prepared.channel(), item, prepared.target(),
                 prepared.receiptTime(), receiptKey, deliveries);
         try {
             receiptMapper.insert(receipt);
@@ -205,7 +241,7 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
                     prepared.channel(), item.getProviderMessageId());
             return;
         }
-        for (MessageDelivery delivery : deliveries) {
+        for (MessageDeliveryPo delivery : deliveries) {
             if (!applyTransition(delivery, prepared.target(), prepared.receiptTime(), item.getErrorMessage())) {
                 continue;
             }
@@ -266,10 +302,10 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
         if (keys.isEmpty()) {
             return new LinkedHashSet<>();
         }
-        LambdaQueryWrapper<MessageReceipt> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(MessageReceipt::getReceiptKey, keys);
+        LambdaQueryWrapper<MessageReceiptPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(MessageReceiptPo::getReceiptKey, keys);
         return receiptMapper.selectList(wrapper).stream()
-                .map(MessageReceipt::getReceiptKey)
+                .map(MessageReceiptPo::getReceiptKey)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
@@ -283,7 +319,7 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
      * @param prepared 预处理结果
      * @return 键为「渠道+提供方消息ID」的投递记录分组
      */
-    private Map<String, List<MessageDelivery>> matchDeliveriesBatch(List<PreparedReceipt> prepared) {
+    private Map<String, List<MessageDeliveryPo>> matchDeliveriesBatch(List<PreparedReceipt> prepared) {
         Map<String, Set<String>> idsByChannel = new HashMap<>();
         for (PreparedReceipt item : prepared) {
             String providerMessageId = item.item().getProviderMessageId();
@@ -293,13 +329,13 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
             idsByChannel.computeIfAbsent(item.channel(), key -> new LinkedHashSet<>())
                     .add(providerMessageId.trim());
         }
-        Map<String, List<MessageDelivery>> result = new HashMap<>();
+        Map<String, List<MessageDeliveryPo>> result = new HashMap<>();
         for (Map.Entry<String, Set<String>> entry : idsByChannel.entrySet()) {
-            LambdaQueryWrapper<MessageDelivery> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(MessageDelivery::getChannel, entry.getKey())
-                    .in(MessageDelivery::getProviderMessageId, entry.getValue())
-                    .orderByAsc(MessageDelivery::getId);
-            for (MessageDelivery delivery : deliveryMapper.selectList(wrapper)) {
+            LambdaQueryWrapper<MessageDeliveryPo> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(MessageDeliveryPo::getChannel, entry.getKey())
+                    .in(MessageDeliveryPo::getProviderMessageId, entry.getValue())
+                    .orderByAsc(MessageDeliveryPo::getId);
+            for (MessageDeliveryPo delivery : deliveryMapper.selectList(wrapper)) {
                 result.computeIfAbsent(matchKey(entry.getKey(), delivery.getProviderMessageId()),
                         key -> new ArrayList<>()).add(delivery);
             }
@@ -342,10 +378,10 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
      * @param deliveries  匹配到的投递记录
      * @return 回执流水
      */
-    private MessageReceipt buildReceipt(String channel, DeliveryReceiptItem item, DeliveryStatus target,
-                                        LocalDateTime receiptTime, String receiptKey,
-                                        List<MessageDelivery> deliveries) {
-        MessageReceipt receipt = new MessageReceipt();
+    private MessageReceiptPo buildReceipt(String channel, DeliveryReceiptItem item, DeliveryStatus target,
+                                          LocalDateTime receiptTime, String receiptKey,
+                                          List<MessageDeliveryPo> deliveries) {
+        MessageReceiptPo receipt = new MessageReceiptPo();
         receipt.setReceiptKey(receiptKey);
         receipt.setChannel(channel);
         receipt.setProviderMessageId(truncate(item.getProviderMessageId(), 128));
@@ -358,7 +394,7 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
             receipt.setMatchStatus(MATCH_UNMATCHED);
             return receipt;
         }
-        MessageDelivery first = deliveries.get(0);
+        MessageDeliveryPo first = deliveries.get(0);
         receipt.setMatchStatus(MATCH_MATCHED);
         receipt.setDeliveryId(first.getId());
         receipt.setMessageId(first.getMessageId());
@@ -374,7 +410,7 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
      * @param errorMessage 退信原因
      * @return 实际推进返回 {@code true}
      */
-    private boolean applyTransition(MessageDelivery delivery, DeliveryStatus target,
+    private boolean applyTransition(MessageDeliveryPo delivery, DeliveryStatus target,
                                     LocalDateTime receiptTime, String errorMessage) {
         DeliveryStatus current = DeliveryStatus.parse(delivery.getStatus());
         if (current == null || !current.canAdvanceTo(target)) {
@@ -407,14 +443,14 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
      * @param result      累计结果
      * @param recordCache 逻辑消息缓存
      */
-    private void enqueueCallback(MessageReceipt receipt, MessageDelivery delivery, DeliveryStatus target,
+    private void enqueueCallback(MessageReceiptPo receipt, MessageDeliveryPo delivery, DeliveryStatus target,
                                  LocalDateTime receiptTime, DeliveryReceiptItem item, ReceiptApplyResult result,
-                                 Map<Long, MessageRecord> recordCache) {
-        MessageRecord record = loadRecord(delivery.getMessageId(), recordCache);
+                                 Map<Long, MessageRecordPo> recordCache) {
+        MessageRecordPo record = loadRecord(delivery.getMessageId(), recordCache);
         if (record == null || !StringUtils.hasText(record.getCallbackUrl())) {
             return;
         }
-        MessageCallbackTask task = new MessageCallbackTask();
+        MessageCallbackTaskPo task = new MessageCallbackTaskPo();
         task.setMessageId(delivery.getMessageId());
         task.setDeliveryId(delivery.getId());
         task.setReceiptId(receipt.getId());
@@ -442,8 +478,8 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
      * @param item        回执明细
      * @return 报文映射
      */
-    private static Map<String, Object> buildCallbackPayload(MessageReceipt receipt, MessageDelivery delivery,
-                                                            MessageRecord record, DeliveryStatus target,
+    private static Map<String, Object> buildCallbackPayload(MessageReceiptPo receipt, MessageDeliveryPo delivery,
+                                                            MessageRecordPo record, DeliveryStatus target,
                                                             LocalDateTime receiptTime, DeliveryReceiptItem item) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("messageId", delivery.getMessageId());
@@ -471,17 +507,17 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
      * @param messageIds  本次推进过的逻辑消息ID集合
      * @param recordCache 逻辑消息缓存
      */
-    private void refreshRecordStatuses(Set<Long> messageIds, Map<Long, MessageRecord> recordCache) {
+    private void refreshRecordStatuses(Set<Long> messageIds, Map<Long, MessageRecordPo> recordCache) {
         if (messageIds.isEmpty()) {
             return;
         }
-        LambdaQueryWrapper<MessageDelivery> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(MessageDelivery::getMessageId, messageIds)
-                .orderByAsc(MessageDelivery::getId);
-        Map<Long, List<MessageDelivery>> deliveriesByMessage = deliveryMapper.selectList(wrapper).stream()
-                .collect(Collectors.groupingBy(MessageDelivery::getMessageId));
+        LambdaQueryWrapper<MessageDeliveryPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(MessageDeliveryPo::getMessageId, messageIds)
+                .orderByAsc(MessageDeliveryPo::getId);
+        Map<Long, List<MessageDeliveryPo>> deliveriesByMessage = deliveryMapper.selectList(wrapper).stream()
+                .collect(Collectors.groupingBy(MessageDeliveryPo::getMessageId));
         for (Long messageId : messageIds) {
-            MessageRecord record = loadRecord(messageId, recordCache);
+            MessageRecordPo record = loadRecord(messageId, recordCache);
             if (record == null) {
                 continue;
             }
@@ -502,14 +538,14 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
      * @param recordCache 逻辑消息缓存
      * @return 逻辑消息；不存在时为 {@code null}
      */
-    private MessageRecord loadRecord(Long messageId, Map<Long, MessageRecord> recordCache) {
+    private MessageRecordPo loadRecord(Long messageId, Map<Long, MessageRecordPo> recordCache) {
         if (messageId == null) {
             return null;
         }
         if (recordCache.containsKey(messageId)) {
             return recordCache.get(messageId);
         }
-        MessageRecord record = recordMapper.selectById(messageId);
+        MessageRecordPo record = recordMapper.selectById(messageId);
         recordCache.put(messageId, record);
         return record;
     }
