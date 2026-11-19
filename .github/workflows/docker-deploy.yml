@@ -1,8 +1,11 @@
 # ============================================================
 # Docker 镜像构建与推送（T-CI-7：镜像扩面至全部后端服务 + 前端）
-# 触发: push main（paths 过滤，避免 docs 等无关提交触发 21 个镜像 job）
-#        push tag v*.*.*（发布版本，tag 推送不评估 paths 过滤）
-#        workflow_dispatch（可指定 image_tag）
+# 触发: push main（paths 过滤，避免 docs 等无关提交触发镜像 job）
+#        push tag v*.*.*（发布版本，全量构建）
+#        workflow_dispatch（全量构建，可指定 image_tag）
+# 构建范围（R8）：push 时由 changes job 按 git diff 计算，只构建变更服务；
+#   tag / 手动触发、共享模块（whale-common/whale-sdk/whale-parent）或
+#   deploy 模板变化时回落全量。镜像清单唯一来源 deploy/ci/images.json。
 # 后端统一使用参数化模板 deploy/backend/sample/Dockerfile，
 # 按矩阵注入 MODULE_PATH / SERVICE_PORT；前端走 deploy/frontend/Dockerfile。
 # ============================================================
@@ -47,6 +50,56 @@ jobs:
         shell: pwsh
         run: ./scripts/ci/bw-deploy-contract-check.ps1
 
+  # R8：按 git diff 计算本次需要构建的镜像；tag/手动触发或共享模块变化时全量
+  changes:
+    name: Changed Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      has_backend: ${{ steps.filter.outputs.has_backend }}
+      has_frontend: ${{ steps.filter.outputs.has_frontend }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute changed image matrix
+        id: filter
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BASE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          ALL=0
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] || [[ "$REF" == refs/tags/* ]]; then
+            ALL=1
+          fi
+          if [ "$ALL" = "0" ] && { [ -z "${BASE_SHA:-}" ] || [[ "$BASE_SHA" =~ ^0+$ ]]; }; then
+            ALL=1
+          fi
+          if [ "$ALL" = "1" ]; then
+            CHANGED_FILES=""
+          else
+            CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" || true)
+          fi
+          export ALL CHANGED_FILES
+          OUT=$(node scripts/ci/changed-images.mjs)
+          BACKEND=$(echo "$OUT" | jq -c '.backend')
+          FRONTEND=$(echo "$OUT" | jq -c '.frontend')
+          echo "backend=$BACKEND" >> "$GITHUB_OUTPUT"
+          echo "frontend=$FRONTEND" >> "$GITHUB_OUTPUT"
+          echo "has_backend=$([ "$(echo "$BACKEND" | jq 'length')" -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "has_frontend=$([ "$(echo "$FRONTEND" | jq 'length')" -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "backend=$BACKEND" >> "$GITHUB_STEP_SUMMARY"
+          echo "frontend=$FRONTEND" >> "$GITHUB_STEP_SUMMARY"
+
   # 镜像构建前置门禁（P1 修复）：后端测试（含覆盖率门禁）不通过则不构建、不推送镜像
   backend-tests:
     name: Backend Tests (gate)
@@ -54,7 +107,8 @@ jobs:
 
   backend:
     name: Backend · ${{ matrix.service }}
-    needs: [preflight, backend-tests]
+    needs: [preflight, backend-tests, changes]
+    if: needs.changes.outputs.has_backend == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -62,35 +116,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { service: whale-service-gateway, module: whale-services/whale-service-gateway, port: 8080 }
-          - { service: whale-service-auth, module: whale-services/whale-service-auth/whale-service-auth-starter, port: 8081 }
-          - { service: whale-job, module: whale-services/whale-job, port: 8082 }
-          - { service: whale-workflow, module: whale-services/whale-workflow, port: 8083 }
-          - { service: whale-form, module: whale-services/whale-service-form, port: 8084 }
-          - { service: whale-file, module: whale-services/whale-service-file/whale-service-file-web, port: 8085 }
-          - { service: whale-pay, module: whale-services/whale-pay, port: 8086 }
-          - { service: whale-agent, module: whale-services/whale-agent, port: 8090, assets: true }
-          - { service: whale-im, module: whale-services/whale-im, port: 8091 }
-          - { service: whale-archive, module: whale-services/whale-archive, port: 8093 }
-          - { service: whale-message, module: whale-services/whale-message, port: 8094 }
-          - { service: whale-doc, module: whale-services/whale-doc, port: 8095 }
-          - { service: whale-music, module: whale-services/whale-music, port: 8096 }
-          - { service: whale-scene, module: whale-services/whale-scene, port: 8097 }
-          - { service: whale-video, module: whale-services/whale-video, port: 8098 }
-          - { service: whale-mail, module: whale-services/whale-mail, port: 8099 }
-          - { service: whale-erp, module: whale-apps/whale-erp, port: 9001 }
-          - { service: whale-mes, module: whale-apps/whale-mes, port: 9002 }
-          - { service: whale-pdm, module: whale-apps/whale-pdm, port: 9003 }
-          - { service: whale-oa, module: whale-apps/whale-oa, port: 9004 }
-          - { service: whale-pm, module: whale-apps/whale-pm, port: 9005 }
-          - { service: whale-contract, module: whale-apps/whale-contract, port: 9006 }
-          - { service: whale-crm, module: whale-apps/whale-crm, port: 9007 }
-          - { service: whale-mall, module: whale-apps/whale-mall, port: 9010 }
-          - { service: whale-audit, module: whale-ops/whale-audit, port: 9101 }
-          - { service: whale-monitor, module: whale-ops/whale-monitor, port: 9102 }
-          - { service: whale-alert, module: whale-ops/whale-alert, port: 9103 }
-          - { service: whale-config, module: whale-registry/whale-config, port: 9201 }
+        include: ${{ fromJson(needs.changes.outputs.backend) }}
 
     steps:
       - name: Checkout
@@ -134,7 +160,8 @@ jobs:
 
   frontend:
     name: Frontend · ${{ matrix.image }}
-    needs: [preflight, backend-tests]
+    needs: [preflight, backend-tests, changes]
+    if: needs.changes.outputs.has_frontend == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -142,31 +169,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # 清单见 deploy/ci/images.json（唯一来源，由 scripts/ci/changed-images.mjs 按改动过滤）
         # image：GHCR 镜像名；app：package.json 的 name（turbo --filter）；dir：whale-frontend/ 下的应用目录
         # base：vite base 前缀（无 base 配置的应用为 /），必须与构建产物中的资源绝对路径一致
         # namespace：root=沿用 ghcr.io/<repo>/<image>（保持 admin 等既有部署引用）；
         #            frontend=ghcr.io/<repo>/whale-frontend/<image>，仅用于与同名后端服务冲突的前端应用。
-        # 不冲突的前端保留原名，避免无谓的部署引用变更；冲突项由 preflight 校验强制命名空间。
-        include:
-          - { image: whale-web, app: whale-admin, dir: admin, base: /, namespace: root }
-          - { image: whale-platform, app: '@bluewhale/whale-platform', dir: platform-apps/whale-platform, base: /, namespace: root }
-          - { image: whale-portal, app: whale-portal, dir: platform-apps/whale-portal, base: /portal, namespace: root }
-          - { image: whale-ops, app: whale-ops, dir: ops, base: /, namespace: root }
-          - { image: whale-agent, app: whale-agent, dir: platform-apps/whale-agent, base: /, namespace: frontend }
-          - { image: whale-contract, app: whale-contract, dir: platform-apps/whale-contract, base: /contract, namespace: frontend }
-          - { image: whale-erp, app: whale-erp, dir: platform-apps/whale-erp, base: /erp, namespace: frontend }
-          - { image: whale-oa, app: whale-oa, dir: platform-apps/whale-oa, base: /oa, namespace: frontend }
-          - { image: whale-mes, app: whale-mes, dir: platform-apps/whale-mes, base: /mes, namespace: frontend }
-          - { image: whale-pdm, app: whale-pdm, dir: platform-apps/whale-pdm, base: /pdm, namespace: frontend }
-          - { image: whale-pm, app: whale-pm, dir: platform-apps/whale-pm, base: /pm, namespace: frontend }
-          - { image: whale-im, app: whale-im, dir: platform-apps/whale-im, base: /im, namespace: frontend }
-          - { image: whale-doc, app: whale-doc, dir: platform-apps/whale-doc, base: /doc, namespace: frontend }
-          - { image: whale-music, app: whale-music, dir: platform-apps/whale-music, base: /music, namespace: frontend }
-          - { image: whale-scene, app: whale-scene, dir: platform-apps/whale-scene, base: /scene, namespace: frontend }
-          - { image: whale-video, app: whale-video, dir: platform-apps/whale-video, base: /video, namespace: frontend }
-          - { image: whale-mail, app: whale-mail, dir: platform-apps/whale-mail, base: /mail, namespace: frontend }
-          - { image: whale-form-designer, app: whale-form-designer, dir: platform-apps/whale-form-designer, base: /, namespace: root }
-          - { image: whale-workflow-designer, app: whale-workflow-designer, dir: platform-apps/whale-workflow-designer, base: /, namespace: root }
+        include: ${{ fromJson(needs.changes.outputs.frontend) }}
 
     steps:
       - name: Checkout

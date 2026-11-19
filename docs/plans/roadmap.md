@@ -364,7 +364,14 @@
   - [ ] 3D 看板数量 == 库里数量（对账脚本可验证）
   - [ ] 压测基线三组：权限判定 P95 / 订单列表分页 P95 / 并发报工，写进文档
   - [ ] 一条链 ≥3 个自动化冒烟用例进 CI
-- [ ] **技术债销账（M1 内）**：R1 文档/门禁脚本强制化（pre-commit + 每日报告）；R8 CI 按 diff 只构建变更服务；R9 前端欠账一次清（旧 `auth-schema.d.ts` 的 `/auth/refresh`、子应用补接 `onReauthRequired`）
+- [x] **技术债销账（M1 内）**（2026-11-19）：
+  - R1 文档/门禁脚本强制化：`.githooks/pre-commit` 校验当天 devlog（`scripts/ci/install-hooks.ps1` 一键安装）；
+    `.github/workflows/daily-report.yml` 工作日检查 devlog 并跑文档一致性。
+  - R8 CI 按 diff 只构建变更服务：镜像清单收口 `deploy/ci/images.json`，`scripts/ci/changed-images.mjs`
+    按 git diff 过滤，tag/手动触发与共享模块变化回落全量；顺带修正 `whale-job`/`whale-workflow` 的模块路径
+    （原为 `whale-services/whale-job|workflow`，与真实目录 `whale-service-job|workflow` 不符，镜像构建必失败）。
+  - R9 前端欠账：续期路径已是 `/auth/v1/refresh`（`shared-packages/http`）；`@RequireReauth` 端点仅在 auth 管理端，
+    admin 已接 `onReauthRequired`，其余子应用无 step-up 端点，不做空接线。
 - [ ] **M2 前置**：R3 3D 联机在 Nginx + 真实网关重测 WS 升级；R6 至少 1 个国产库跑通 auth + 一个业务域
 - [ ] 待拍板（蓝图 §十）：目标形态 / 目标行业 / 移动端口径 / 试点客户 / 商城是否停投
 

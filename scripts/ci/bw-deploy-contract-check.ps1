@@ -58,36 +58,32 @@ $nginx = Read-Required $nginxPath
 $prodCompose = Read-Required $prodComposePath
 $frontendDockerfile = Read-Required $frontendDockerfilePath
 
-# ---- 1. 镜像矩阵与命名空间 ----
-$backendSection = $null
-$frontendSection = $null
-if ($workflow -match '(?ms)^\s*backend:\s*(?<body>.*?)^\s*frontend:\s*(?<frontend>.*?)^\s*steps:\s*') {
-    $backendSection = $Matches['body']
-    $frontendSection = $Matches['frontend']
-} else {
-    Write-Host 'FAIL 无法解析 docker-deploy.yml 的 whale-backend/frontend 矩阵'
+# ---- 1. 镜像清单与命名空间 ----
+# R8：镜像矩阵唯一来源改为 deploy/ci/images.json（工作流按 git diff 过滤），
+# 本脚本直接校验清单，避免「工作流矩阵」与「真实模块路径」两处各说一套。
+$manifestPath = Join-Path $root 'deploy/ci/images.json'
+$manifest = Read-Required $manifestPath | ConvertFrom-Json
+if (-not $manifest) {
+    Write-Host 'FAIL 无法解析 deploy/ci/images.json'
     $script:failed = $true
 }
 
-$backendServices = @()
-$frontendImages = @()
+$backendServices = @($manifest.backend | ForEach-Object { $_.service } | Sort-Object -Unique)
+$frontendImages = @($manifest.frontend | ForEach-Object { $_.image } | Sort-Object -Unique)
 $frontendBases = @{}
 $frontendNamespaces = @{}
-if ($backendSection) {
-    $backendServices = [regex]::Matches($backendSection, '^\s*-\s*\{\s*service:\s*([a-z0-9-]+)', 'Multiline') |
-        ForEach-Object { $_.Groups[1].Value }
-    $backendServices = @($backendServices | Sort-Object -Unique)
+foreach ($row in $manifest.frontend) {
+    $frontendBases[$row.image] = "$($row.base)".Trim()
+    $frontendNamespaces[$row.image] = "$($row.namespace)".Trim()
 }
-if ($frontendSection) {
-    $frontendRows = [regex]::Matches(
-        $frontendSection,
-        '^\s*-\s*\{\s*image:\s*([a-z0-9-]+).*?\bbase:\s*([^,]+),\s*namespace:\s*([a-z]+)',
-        'Multiline')
-    $frontendImages = @($frontendRows | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
-    foreach ($row in $frontendRows) {
-        $frontendBases[$row.Groups[1].Value] = $row.Groups[2].Value.Trim()
-        $frontendNamespaces[$row.Groups[1].Value] = $row.Groups[3].Value.Trim()
-    }
+
+# 矩阵由工作流按 diff 动态注入，且清单中的模块路径必须真实存在
+Assert-Contract '工作流使用动态后端矩阵' ($workflow.Contains('fromJson(needs.changes.outputs.backend)'))
+Assert-Contract '工作流使用动态前端矩阵' ($workflow.Contains('fromJson(needs.changes.outputs.frontend)'))
+Assert-Contract '工作流调用 changed-images 过滤脚本' ($workflow.Contains('scripts/ci/changed-images.mjs'))
+foreach ($entry in $manifest.backend) {
+    $pom = Join-Path $root ('whale-backend/' + $entry.module + '/pom.xml')
+    Assert-Contract "后端模块路径存在 $($entry.service)" (Test-Path -LiteralPath $pom) "path=$($entry.module)"
 }
 
 Assert-Contract '后端镜像 28 项' ($backendServices.Count -eq 28) "count=$($backendServices.Count)"

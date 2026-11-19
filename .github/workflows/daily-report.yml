@@ -1,0 +1,49 @@
+# ============================================================
+# 每日门禁报告（R1）
+#
+# 目的：把「当天写日志、当天过门禁」变成可观测的强制项，而不是靠自律：
+#   1) 工作日必须存在 docs/devlog/YYYY-MM-DD.md（Asia/Shanghai 日期）；
+#   2) 每天跑一次文档一致性检查（版本号/端口等唯一真相）。
+# 失败即红：缺日志或文档过期都会在 Actions 里留下记录。
+# ============================================================
+
+name: Daily Gate Report
+
+on:
+  schedule:
+    # 22:30 Asia/Shanghai（UTC 14:30）
+    - cron: '30 14 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    name: Devlog & Doc Consistency
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check today's devlog
+        shell: bash
+        run: |
+          set -euo pipefail
+          TODAY=$(TZ=Asia/Shanghai date +%F)
+          DOW=$(TZ=Asia/Shanghai date +%u)
+          LOG="docs/devlog/${TODAY}.md"
+          if [ "$DOW" -gt 5 ]; then
+            echo "- SKIP: 周末不校验 devlog（${TODAY}）" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [ ! -f "$LOG" ]; then
+            echo "- FAIL: 缺少当天 devlog \`${LOG}\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "缺少当天 devlog：${LOG}"
+            exit 1
+          fi
+          echo "- OK: 当天 devlog 存在 \`${LOG}\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check doc consistency
+        shell: pwsh
+        run: ./scripts/check-doc-consistency.ps1

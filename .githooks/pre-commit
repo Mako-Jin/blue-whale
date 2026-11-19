@@ -1,0 +1,21 @@
+#!/bin/sh
+# 提交前快速门禁（R1）：改了代码就必须先写当天 devlog，避免「当天日志」靠自觉。
+# 安装：pwsh -File scripts/ci/install-hooks.ps1
+# 说明：只做存在性校验，不在提交阶段跑编译/单测（那是 CI 的职责）。
+
+set -eu
+
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$staged" ] && exit 0
+
+code=$(printf '%s\n' "$staged" | grep -E '^(whale-backend|whale-frontend)/' || true)
+[ -z "$code" ] && exit 0
+
+today=$(date +%F)
+if [ ! -f "docs/devlog/$today.md" ]; then
+    echo "拒绝提交：缺少当天 devlog（docs/devlog/$today.md）。"
+    echo "请先记录当天的需求、改动与验证，再提交代码。"
+    exit 1
+fi
+
+exit 0
