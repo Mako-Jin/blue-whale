@@ -43,6 +43,7 @@ services:
     image: bluewhale/whale-gateway:dev
     container_name: bw-gateway
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms192m -Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "8080"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -110,6 +111,7 @@ services:
     image: bluewhale/whale-pay:dev
     container_name: bw-pay
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms192m -Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "8086"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -132,6 +134,7 @@ services:
     image: bluewhale/whale-erp:dev
     container_name: bw-erp
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms192m -Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "9001"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -154,6 +157,7 @@ services:
     image: bluewhale/whale-oa:dev
     container_name: bw-oa
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms192m -Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "9004"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -186,6 +190,7 @@ services:
     image: bluewhale/whale-workflow:dev
     container_name: bw-workflow
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms192m -Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "8083"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -210,6 +215,7 @@ services:
     image: bluewhale/whale-mes:dev
     container_name: bw-mes
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms192m -Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "9002"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -238,6 +244,7 @@ services:
     image: bluewhale/whale-message:dev
     container_name: bw-message
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms192m -Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "8094"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -264,6 +271,7 @@ services:
     image: bluewhale/whale-job:dev
     container_name: bw-job
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms192m -Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "8082"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -291,6 +299,7 @@ services:
     image: bluewhale/whale-crm:dev
     container_name: bw-crm
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms192m -Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "9007"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -344,6 +353,7 @@ services:
     container_name: bw-doc
     mem_limit: 480m
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms96m -Xmx256m -XX:MaxMetaspaceSize=192m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "8095"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -377,6 +387,7 @@ services:
     container_name: bw-video
     mem_limit: 480m
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms96m -Xmx256m -XX:MaxMetaspaceSize=192m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "8098"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -413,6 +424,7 @@ services:
     container_name: bw-music
     mem_limit: 480m
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms96m -Xmx256m -XX:MaxMetaspaceSize=192m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "8096"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -447,6 +459,7 @@ services:
     container_name: bw-archive
     mem_limit: 480m
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms96m -Xmx256m -XX:MaxMetaspaceSize=192m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "8093"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -486,6 +499,7 @@ services:
     container_name: bw-audit
     mem_limit: 480m
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms96m -Xmx256m -XX:MaxMetaspaceSize=192m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "9101"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -525,6 +539,7 @@ services:
     container_name: bw-lms
     mem_limit: 480m
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms96m -Xmx256m -XX:MaxMetaspaceSize=192m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "9008"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -558,6 +573,7 @@ services:
     container_name: bw-party
     mem_limit: 480m
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms96m -Xmx256m -XX:MaxMetaspaceSize=192m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "9009"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -589,6 +605,7 @@ services:
     container_name: bw-pdm
     mem_limit: 480m
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms96m -Xmx256m -XX:MaxMetaspaceSize=192m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "9003"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -621,6 +638,7 @@ services:
     container_name: bw-form
     mem_limit: 480m
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms96m -Xmx256m -XX:MaxMetaspaceSize=192m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "8084"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -646,6 +664,7 @@ services:
     image: bluewhale/whale-file:dev
     container_name: bw-file
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms192m -Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "8085"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -681,6 +700,7 @@ services:
     image: bluewhale/whale-contract:dev
     container_name: bw-contract
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms192m -Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "9006"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -706,6 +726,7 @@ services:
       file:
         condition: service_started
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms256m -Xmx512m -XX:MaxMetaspaceSize=384m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "9010"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -759,6 +780,7 @@ services:
     profiles: ["biz", "ext"]
     mem_limit: 700m
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms128m -Xmx384m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "9005"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -788,6 +810,7 @@ services:
     profiles: ["biz", "ext"]
     mem_limit: 600m
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms128m -Xmx384m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "8100"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -815,6 +838,7 @@ services:
     profiles: ["ops", "ext"]
     mem_limit: 700m
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms128m -Xmx384m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "9103"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -842,6 +866,7 @@ services:
     profiles: ["ops", "ext"]
     mem_limit: 500m
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms128m -Xmx320m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "9102"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -863,6 +888,7 @@ services:
     profiles: ["collab", "ext"]
     mem_limit: 800m
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms192m -Xmx448m -XX:MaxMetaspaceSize=288m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "8091"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -893,6 +919,7 @@ services:
     profiles: ["collab", "ext"]
     mem_limit: 800m
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms192m -Xmx448m -XX:MaxMetaspaceSize=288m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "8099"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -926,6 +953,7 @@ services:
     profiles: ["collab", "ext"]
     mem_limit: 600m
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms128m -Xmx384m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "8087"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -953,6 +981,7 @@ services:
     profiles: ["aiot", "ext"]
     mem_limit: 800m
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms192m -Xmx448m -XX:MaxMetaspaceSize=320m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "8090"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -1003,6 +1032,7 @@ services:
     profiles: ["aiot", "ext"]
     mem_limit: 600m
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms128m -Xmx384m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "8088"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -1065,6 +1095,7 @@ services:
     profiles: ["aiot", "ext"]
     mem_limit: 700m
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms128m -Xmx448m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "8089"
       NACOS_SERVER: ${NACOS_SERVER}
@@ -1106,6 +1137,7 @@ services:
     profiles: ["biz", "ext"]
     mem_limit: 700m
     environment:
+      WHALE_INTERNAL_TOKEN: "${WHALE_INTERNAL_TOKEN:-}"
       JAVA_OPTS: "-Xms128m -Xmx448m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "9011"
       NACOS_SERVER: ${NACOS_SERVER}
