@@ -16,8 +16,8 @@ import lombok.Data;
 public class RuleSaveRequest {
 
     /** 规则名称 */
-    @NotBlank(message = "规则名称不能为空")
-    @Size(max = 128, message = "规则名称不能超过 128 字")
+    @NotBlank(message = "{validation.iot.rule.name-required}")
+    @Size(max = 128, message = "{validation.iot.rule.name-size}")
     private String name;
 
     /** 限定产品ID（可空，空表示全部产品） */
@@ -28,11 +28,11 @@ public class RuleSaveRequest {
 
     /** 触发条件 */
     @Valid
-    @NotNull(message = "触发条件不能为空")
+    @NotNull(message = "{validation.iot.rule.condition-required}")
     private RuleCondition condition;
 
     /** 动作类型：alert（默认）/ webhook */
-    @Pattern(regexp = "^(alert|webhook)$", message = "动作类型仅支持 alert/webhook")
+    @Pattern(regexp = "^(alert|webhook)$", message = "{validation.iot.rule.action-type-pattern}")
     private String actionType = "alert";
 
     /** 动作配置（可空，缺省告警级别 WARN、静默期取全局值） */

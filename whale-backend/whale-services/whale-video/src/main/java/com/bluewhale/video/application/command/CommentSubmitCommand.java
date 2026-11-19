@@ -13,8 +13,8 @@ import lombok.Data;
 public class CommentSubmitCommand {
 
     /** 评论正文（纯文本，≤500 字） */
-    @NotBlank(message = "评论内容不能为空")
-    @Size(max = 500, message = "评论内容不能超过 500 个字符")
+    @NotBlank(message = "{validation.video.comment.content-required}")
+    @Size(max = 500, message = "{validation.video.comment.content-size}")
     private String content;
 
     /** 父评论 ID，0 或空表示顶级评论 */

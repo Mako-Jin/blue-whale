@@ -21,19 +21,19 @@ public class ContentSaveCommand {
     private String contentType;
 
     /** 标题 */
-    @Size(max = 200, message = "标题不能超过 200 个字符")
+    @Size(max = 200, message = "{validation.video.content.title-size}")
     private String title;
 
     /** 副标题 */
-    @Size(max = 200, message = "副标题不能超过 200 个字符")
+    @Size(max = 200, message = "{validation.video.content.subtitle-size}")
     private String subtitle;
 
     /** 简介 */
-    @Size(max = 2000, message = "简介不能超过 2000 个字符")
+    @Size(max = 2000, message = "{validation.video.content.description-size}")
     private String description;
 
     /** 视频文件 ID */
-    @NotNull(message = "视频文件不能为空")
+    @NotNull(message = "{validation.video.content.video-file-required}")
     private Long videoFileId;
 
     /** 封面文件 ID */

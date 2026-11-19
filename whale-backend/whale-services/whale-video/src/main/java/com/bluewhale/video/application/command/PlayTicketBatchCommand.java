@@ -14,6 +14,6 @@ import java.util.List;
 public class PlayTicketBatchCommand {
 
     /** 内容 ID 列表（一次最多 20 个） */
-    @NotEmpty(message = "内容列表不能为空")
+    @NotEmpty(message = "{validation.video.play-ticket.content-ids-required}")
     private List<Long> contentIds;
 }

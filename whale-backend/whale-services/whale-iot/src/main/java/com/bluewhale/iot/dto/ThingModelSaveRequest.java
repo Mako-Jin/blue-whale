@@ -16,8 +16,8 @@ import java.util.List;
 public class ThingModelSaveRequest {
 
     /** 物模型条目全集（可为空列表 = 清空物模型；条目数上限 200） */
-    @NotNull(message = "条目列表不能为 null（传空数组表示清空）")
-    @Size(max = 200, message = "物模型条目数不能超过 200")
+    @NotNull(message = "{validation.iot.thing-model.list-required}")
+    @Size(max = 200, message = "{validation.iot.thing-model.list-size}")
     @Valid
     private List<ThingModelItem> items;
 }

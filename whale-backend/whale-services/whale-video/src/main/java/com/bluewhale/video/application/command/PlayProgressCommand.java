@@ -12,11 +12,11 @@ import lombok.Data;
 public class PlayProgressCommand {
 
     /** 内容 ID */
-    @NotNull(message = "内容不能为空")
+    @NotNull(message = "{validation.video.play.content-required}")
     private Long contentId;
 
     /** 观看进度（毫秒） */
-    @NotNull(message = "进度不能为空")
+    @NotNull(message = "{validation.video.play.progress-required}")
     private Long progressMs;
 
     /** 来源：HOME / FEED / SEARCH / SERIES / COLLECTION / MY */

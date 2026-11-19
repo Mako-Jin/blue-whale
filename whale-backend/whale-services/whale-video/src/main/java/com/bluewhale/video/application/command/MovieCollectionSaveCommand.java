@@ -13,12 +13,12 @@ import lombok.Data;
 public class MovieCollectionSaveCommand {
 
     /** 片单标题 */
-    @NotBlank(message = "片单标题不能为空")
-    @Size(max = 200, message = "片单标题不能超过 200 个字符")
+    @NotBlank(message = "{validation.video.movie-collection.title-required}")
+    @Size(max = 200, message = "{validation.video.movie-collection.title-size}")
     private String title;
 
     /** 片单简介 */
-    @Size(max = 2000, message = "片单简介不能超过 2000 个字符")
+    @Size(max = 2000, message = "{validation.video.movie-collection.description-size}")
     private String description;
 
     /** 封面文件 ID；更新时为空表示保留原封面，0 表示清除 */

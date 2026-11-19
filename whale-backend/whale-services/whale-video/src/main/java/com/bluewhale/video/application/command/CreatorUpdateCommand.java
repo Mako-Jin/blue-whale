@@ -12,11 +12,11 @@ import lombok.Data;
 public class CreatorUpdateCommand {
 
     /** 创作者昵称 */
-    @Size(max = 64, message = "创作者昵称不能超过 64 个字符")
+    @Size(max = 64, message = "{validation.video.creator.display-name-size}")
     private String displayName;
 
     /** 简介 */
-    @Size(max = 500, message = "创作者简介不能超过 500 个字符")
+    @Size(max = 500, message = "{validation.video.creator.bio-size}")
     private String bio;
 
     /** 状态：1 启用 / 0 停用，为空表示保持不变 */
