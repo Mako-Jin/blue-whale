@@ -6,6 +6,7 @@ import { createPostFx } from './postfx';
 import { alleySpots, buildSettlement, lanternSpots, windTime } from './props';
 import { createSky, type SkyState } from './sky';
 import { createTerrain, heightAt } from './terrain';
+import { createFarRidges } from './ridges';
 import { tuneSurfaces } from './textures';
 import { createWater } from './water';
 
@@ -56,6 +57,9 @@ interface TimePreset {
   waterDeep: number;
   /** 浅水色：贴岸河床透出的水体色（比 deep 亮且偏沙石绿） */
   waterShallow: number;
+  /** 远山剪影两层色：近层深、远层浅（吃雾后即大气透视） */
+  ridgeNear: number;
+  ridgeFar: number;
   /** 暗部染色（后期把阴影往这个色偏）与强度 */
   shadowTint: number;
   shadowAmount: number;
@@ -92,6 +96,8 @@ const TIMES: Record<TimeName, TimePreset> = {
     vignette: 0.5,
     waterDeep: 0x0d2126,
     waterShallow: 0x35443a,
+    ridgeNear: 0x3a2f47,
+    ridgeFar: 0x54435c,
     shadowTint: 0x1b2742,
     shadowAmount: 0.24,
     // 黄昏云：贴着天际线的积云被落日从侧面点亮，底面是紫灰
@@ -132,6 +138,8 @@ const TIMES: Record<TimeName, TimePreset> = {
     // 沿用黄昏的 0x0d2126 会得到一条黑河（"白天比黄昏还暗"的根源之一）。
     waterDeep: 0x2c4a52,
     waterShallow: 0x68836b,
+    ridgeNear: 0x5f7873,
+    ridgeFar: 0x7f968f,
     shadowTint: 0x4a4740,
     shadowAmount: 0.1,
     // 白天云：白顶灰底，量适中——纯蓝天也好看，但全景上三分之一太空。
@@ -164,6 +172,8 @@ const TIMES: Record<TimeName, TimePreset> = {
     vignette: 0.55,
     waterDeep: 0x14282e,
     waterShallow: 0x2e4038,
+    ridgeNear: 0x232f44,
+    ridgeFar: 0x384a62,
     shadowTint: 0x141d38,
     shadowAmount: 0.34,
     // 蓝调云：只剩天光，云是比天顶亮半档的灰蓝剪影
@@ -196,6 +206,8 @@ const TIMES: Record<TimeName, TimePreset> = {
     vignette: 0.62,
     waterDeep: 0x081820,
     waterShallow: 0x1a2a26,
+    ridgeNear: 0x0e1622,
+    ridgeFar: 0x182234,
     shadowTint: 0x0c1730,
     shadowAmount: 0.4,
     // 夜云：月光给一点轮廓就够，量压低——夜里大团亮云会抢灯笼的戏
@@ -351,6 +363,9 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
 
   const terrain = createTerrain();
   scene.add(terrain.mesh);
+  // 远山剪影：两层环形山脊填住地形边缘外的地平线（Basic 剪影 + 场景雾做大气透视）
+  const ridges = createFarRidges();
+  scene.add(ridges.group);
 
   const water = createWater();
   scene.add(water.mesh);
@@ -571,6 +586,7 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
     water.setSky(new THREE.Color(p.skyHorizon), new THREE.Color(p.skyTop));
     water.setDeep(new THREE.Color(p.waterDeep));
     water.setShallow(new THREE.Color(p.waterShallow));
+    ridges.setColors(p.ridgeNear, p.ridgeFar);
 
     postfx.setBloom(p.bloom);
     postfx.setVignette(p.vignette);
