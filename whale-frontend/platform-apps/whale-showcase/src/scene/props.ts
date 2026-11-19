@@ -1275,37 +1275,180 @@ export function reedSpots(count = 140): ReedSpot[] {
   return out;
 }
 
-/** 一丛芦苇：9 根斜出的苇秆 + 3 个穗。合并成一个几何，供 InstancedMesh 复用 */
+/**
+ * 一丛芦苇：弯秆 + 叶片 + 金穗，顶点色渐变。合并成一个几何，供 InstancedMesh 复用。
+ *
+ * <p>旧版是 9 根直锥管 + 3 个同色短穗，出图是一把插在水里的枯筷子——芦苇的
+ * "苇"味全在三个地方，旧版一个都没有：</p>
+ * <ol>
+ *   <li><b>秆是弯的</b>：苇秆越往上越倒，三段锥管弯度逐段加大，直杆是"枯树枝"；</li>
+ *   <li><b>有叶</b>：叶片从秆中段长出、先抬后垂，是芦苇剪影里最丰富的部分；</li>
+ *   <li><b>穗是金的</b>：暮色里的芦苇穗是画面中最亮的暖点（比灯笼暗、比草亮），
+ *       同一把 0x8d8a53 抹到底，整丛就死了。</li>
+ * </ol>
+ *
+ * <p>顶点色走 sRGB 语义（setHex 自动转线性）：基部暗橄榄 → 梢头黄枯，
+ * 这条纵向渐变比任何噪声都决定"苇"的质感。约 300 tri/丛。</p>
+ */
 function createReedClump(): THREE.BufferGeometry {
   const parts: THREE.BufferGeometry[] = [];
-  for (let i = 0; i < 9; i += 1) {
-    const a = (i / 9) * Math.PI * 2 + 0.4;
-    const h = 1.05 + ((i * 37) % 11) / 26;
-    const g = new THREE.CylinderGeometry(0.005, 0.021, h, 4, 1, true);
-    g.translate(0, h / 2, 0);
-    // 向外倒一点点：一丛芦苇是散开的，不是一束筷子
-    g.rotateZ(Math.cos(a) * 0.15);
-    g.rotateX(Math.sin(a) * 0.15);
-    g.translate(Math.cos(a) * (0.07 + (i % 3) * 0.05), 0, Math.sin(a) * (0.07 + (i % 3) * 0.05));
+  const pos: number[] = []; // 叶片折带的顶点（手写，不走 CylinderGeometry）
+  const col: number[] = [];
+  const idx: number[] = [];
+  const cBase = new THREE.Color(0x4e5530); // 秆基部：暗橄榄
+  const cTop = new THREE.Color(0x9a9455); // 秆梢：黄枯
+  const cLeaf0 = new THREE.Color(0x57603a);
+  const cLeaf1 = new THREE.Color(0x8f9a55);
+  const cPlume0 = new THREE.Color(0x8f7a45);
+  const cPlume1 = new THREE.Color(0xc9a96e); // 穗：暮色里的金
+
+  const hash01 = (...k: number[]): number => {
+    let s = 0;
+    k.forEach((v, i) => {
+      s += Math.sin(v * (12.9898 + i * 4.7) + i * 3.1) * 43758.5453;
+    });
+    return s - Math.floor(s);
+  };
+
+  /** 竖直渐变顶点色：按局部 y 在 ca→cb 之间插值（ya/yb 是这段的全局高度区间） */
+  const tintV = (g: THREE.BufferGeometry, ya: number, yb: number, ca: THREE.Color, cb: THREE.Color): void => {
+    const p = g.attributes.position as THREE.BufferAttribute;
+    const arr = new Float32Array(p.count * 3);
+    const c = new THREE.Color();
+    for (let i = 0; i < p.count; i += 1) {
+      const t = clamp((p.getY(i) - ya) / Math.max(yb - ya, 1e-4), 0, 1);
+      c.lerpColors(ca, cb, t);
+      arr[i * 3] = c.r;
+      arr[i * 3 + 1] = c.g;
+      arr[i * 3 + 2] = c.b;
+    }
+    g.setAttribute('color', new THREE.BufferAttribute(arr, 3));
+  };
+
+  const stems: Array<{ a: number; top: THREE.Vector3; mid: THREE.Vector3; h: number; lean: number }> = [];
+
+  const addStem = (i: number): void => {
+    const a = i * 2.399963229728653 + 0.3; // 黄金角：10 根秆铺开不结块
+    const h = 0.95 + hash01(i * 1.3, 7.7) * 0.8;
+    const lean = 0.12 + hash01(i * 2.9, 3.1) * 0.24; // 越往上越倒
+    const off = 0.05 + hash01(i * 0.7, 1.9) * 0.11;
+    const axis = new THREE.Vector3(-Math.sin(a), 0, Math.cos(a)); // 弯轴 ⊥ 外倒方向
+    const segs = 3;
+    const L = h / segs;
+    const p = new THREE.Vector3(Math.cos(a) * off, 0, Math.sin(a) * off);
+    let acc = 0;
+    for (let s = 0; s < segs; s += 1) {
+      const t0 = acc;
+      acc += (lean / segs) * (1 + s * 1.35); // 弯度逐段加大
+      const q = new THREE.Quaternion().setFromAxisAngle(axis, acc);
+      const r = 0.02 - 0.016 * ((s + 1) / segs);
+      const seg = new THREE.CylinderGeometry(r, 0.02 - 0.016 * (s / segs), L * 1.02, 4, 1, true);
+      seg.translate(0, L / 2, 0);
+      seg.applyMatrix4(new THREE.Matrix4().compose(p, q, new THREE.Vector3(1, 1, 1)));
+      tintV(seg, t0 * h, (s + 1) * L, cBase, cTop);
+      parts.push(seg);
+      p.add(new THREE.Vector3(0, L, 0).applyQuaternion(q));
+    }
+    const mid = new THREE.Vector3(Math.cos(a) * off, h * 0.5, Math.sin(a) * off);
+    stems.push({ a, top: p.clone(), mid, h, lean });
+  };
+
+  for (let i = 0; i < 10; i += 1) addStem(i);
+
+  // 叶片：从秆中段长出，先抬后垂。三段折带，梢头收到一点
+  const addBlade = (base: THREE.Vector3, a: number, len: number, w: number, rise: number): void => {
+    const dir = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
+    const side = new THREE.Vector3(-Math.sin(a), 0, Math.cos(a));
+    const sec = 4;
+    const vStart = pos.length / 3;
+    for (let k = 0; k < sec; k += 1) {
+      const t = k / (sec - 1);
+      const half = (w * (1 - t)) / 2;
+      const cx = base.x + dir.x * len * t;
+      const cz = base.z + dir.z * len * t;
+      const cy = base.y + rise * Math.sin(Math.PI * Math.min(t * 1.12, 1)) - 0.34 * Math.max(0, t - 0.55) ** 2;
+      pos.push(cx - side.x * half, cy, cz - side.z * half);
+      col.push(...(() => {
+        const c = new THREE.Color().lerpColors(cLeaf0, cLeaf1, t);
+        return [c.r, c.g, c.b];
+      })());
+      if (half > 0) {
+        pos.push(cx + side.x * half, cy, cz + side.z * half);
+        col.push(...(() => {
+          const c = new THREE.Color().lerpColors(cLeaf0, cLeaf1, t);
+          return [c.r, c.g, c.b];
+        })());
+      }
+    }
+    // 4 截面：前 3 段是四边形，末截面宽 0 收成三角
+    for (let k = 0; k < sec - 2; k += 1) {
+      const b0 = vStart + k * 2;
+      idx.push(b0, b0 + 1, b0 + 2, b0 + 1, b0 + 3, b0 + 2);
+    }
+    const tip = vStart + (sec - 1) * 2;
+    idx.push(vStart + (sec - 2) * 2, vStart + (sec - 2) * 2 + 1, tip);
+  };
+
+  for (let i = 0; i < stems.length; i += 1) {
+    if (hash01(i * 3.7, 11.0) > 0.55) continue; // 不是每根秆都有叶，稀疏才对
+    const st = stems[i];
+    for (let j = 0; j < 2; j += 1) {
+      addBlade(
+        st.mid,
+        st.a + (j === 0 ? 0.55 : -0.75) + hash01(i, j) * 0.3,
+        0.5 + hash01(i * 5.1, j) * 0.3,
+        0.05,
+        0.28 + hash01(i, j * 2.2) * 0.2,
+      );
+    }
+  }
+
+  // 穗：只给最高的几根秆。顺着秆的弯向再倒一点，金色是整丛的点睛
+  const byH = [...stems.keys()].sort((x, y) => stems[y].h - stems[x].h);
+  for (const i of byH.slice(0, 4)) {
+    const st = stems[i];
+    const axis = new THREE.Vector3(-Math.sin(st.a), 0, Math.cos(st.a));
+    const g = new THREE.CylinderGeometry(0.006, 0.026, 0.24, 5, 1, true);
+    g.translate(0, 0.12, 0);
+    g.applyMatrix4(
+      new THREE.Matrix4().compose(
+        st.top,
+        new THREE.Quaternion().setFromAxisAngle(axis, st.lean * 0.85),
+        new THREE.Vector3(1, 1, 1),
+      ),
+    );
+    tintV(g, st.top.y, st.top.y + 0.24, cPlume0, cPlume1);
     parts.push(g);
   }
-  for (let i = 0; i < 3; i += 1) {
-    const a = (i / 3) * Math.PI * 2 + 1.1;
-    const g = new THREE.CylinderGeometry(0.007, 0.032, 0.24, 4, 1, true);
-    g.translate(Math.cos(a) * 0.11, 1.12 + i * 0.05, Math.sin(a) * 0.11);
-    parts.push(g);
-  }
+
   const merged = mergeGeometries(parts, false);
   for (const g of parts) g.dispose();
-  return merged!;
+  if (!merged) return new THREE.BufferGeometry();
+  // 叶片几何没有 uv，秆段有——mergeGeometries 要求属性集一致，删掉 uv 再并
+  merged.deleteAttribute('uv');
+  const bladeGeo = new THREE.BufferGeometry();
+  bladeGeo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  bladeGeo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  bladeGeo.setIndex(idx);
+  bladeGeo.computeVertexNormals();
+  const both = mergeGeometries([merged, bladeGeo], false);
+  merged.dispose();
+  bladeGeo.dispose();
+  return both ?? merged;
 }
 
 function buildReeds(group: THREE.Group): void {
-  const spots = reedSpots();
+  const spots = reedSpots(170);
   if (!spots.length) return;
   const geo = createReedClump();
-  // 双面：苇秆是开口圆管，单面会在背面看穿
-  const mat = new THREE.MeshStandardMaterial({ color: 0x8d8a53, roughness: 0.96, side: THREE.DoubleSide });
+  // 顶点色承担颜色（基部暗橄榄→梢金），材质色只做全局明度
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0xcfd0c0,
+    vertexColors: true,
+    roughness: 0.95,
+    metalness: 0,
+    side: THREE.DoubleSide, // 苇秆是开口圆管、叶片是单面折带，背面必须可见
+  });
   const im = new THREE.InstancedMesh(geo, mat, spots.length);
   im.castShadow = false; // 几百根细秆投影只会让阴影贴图变脏，收益接近零
   im.receiveShadow = true;
@@ -1315,14 +1458,22 @@ function buildReeds(group: THREE.Group): void {
   const pos = new THREE.Vector3();
   const scl = new THREE.Vector3();
   const up = new THREE.Vector3(0, 1, 0);
+  const tint = new THREE.Color();
   spots.forEach((sp, i) => {
     q.setFromAxisAngle(up, sp.rotY);
     pos.set(sp.x, sp.y, sp.z);
     scl.set(sp.s, sp.s * 0.9 + 0.2, sp.s);
     m.compose(pos, q, scl);
     im.setMatrixAt(i, m);
+    // 逐丛干湿：水线边的苇偏绿、旱一点的偏黄枯。乘性系数 ±10%，不抢顶点色的渐变
+    const h = Math.sin(sp.x * 9.17 + sp.z * 4.31) * 43758.5453;
+    const t = h - Math.floor(h);
+    const dry = t - 0.5;
+    tint.setRGB(1 + dry * 0.16, 1 + dry * 0.04, 1 - dry * 0.18, THREE.SRGBColorSpace);
+    im.setColorAt(i, tint);
   });
   im.instanceMatrix.needsUpdate = true;
+  if (im.instanceColor) im.instanceColor.needsUpdate = true;
   im.name = 'reeds';
   group.add(im);
 }
