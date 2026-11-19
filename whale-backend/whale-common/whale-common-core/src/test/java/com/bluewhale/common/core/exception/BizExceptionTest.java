@@ -17,6 +17,7 @@ class BizExceptionTest {
 
         assertEquals(ErrorCode.NOT_FOUND.getCode(), ex.getCode());
         assertEquals(ErrorCode.NOT_FOUND.getMessage(), ex.getMessage());
+        assertEquals(ErrorCode.NOT_FOUND.getMessageKey(), ex.getMessageKey());
     }
 
     @Test
@@ -47,12 +48,14 @@ class BizExceptionTest {
     }
 
     @Test
-    @DisplayName("错误码枚举：每个常量的码为正数且文案非空")
+    @DisplayName("错误码枚举：每个常量的码为正数、文案与国际化键均非空")
     void shouldHaveWellFormedErrorCodes() {
         for (ErrorCode errorCode : ErrorCode.values()) {
             assertEquals(true, errorCode.getCode() >= 0, errorCode.name() + " 的码不应为负数");
             assertEquals(true, errorCode.getMessage() != null && !errorCode.getMessage().isBlank(),
                     errorCode.name() + " 的文案不应为空");
+            assertEquals(true, errorCode.getMessageKey() != null && !errorCode.getMessageKey().isBlank(),
+                    errorCode.name() + " 的国际化键不应为空");
         }
     }
 }

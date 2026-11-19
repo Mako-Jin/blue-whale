@@ -89,6 +89,11 @@ export interface HttpClientConfig<TLogin extends LoginData = LoginData> {
   getTenantId?: () => string | number | null | undefined;
   /** 401 且无法续期时清理本地登录态 */
   clearAuth?: () => void;
+  /**
+   * 读取当前界面语言（如 zh-CN / en-US）；提供后所有请求注入
+   * X-Lang 与 Accept-Language，使后端错误文案与界面语言一致。
+   */
+  getLocale?: () => string | null | undefined;
   /** 401 且无法续期时的额外动作（如跳转登录页） */
   onUnauthorized?: () => void;
   /**
@@ -266,12 +271,17 @@ export function createHttpClient<TLogin extends LoginData = LoginData>(
   let refreshPromise: Promise<boolean> | null = null;
 
   /**
-   * 构造基础请求头并注入链路 ID。
+   * 构造基础请求头并注入链路 ID 与语言。
    * 配置了 getTenantId 时同时注入 X-Tenant-Id（服务端仍以 JWT 租户声明为准）。
    */
   function newHeaders(): Headers {
     const headers = new Headers();
     headers.set('X-Trace-Id', createTraceId());
+    const locale = config.getLocale?.();
+    if (locale) {
+      headers.set('X-Lang', locale);
+      headers.set('Accept-Language', locale);
+    }
     const tenantId = config.getTenantId?.();
     if (tenantId !== undefined && tenantId !== null && tenantId !== '') {
       headers.set('X-Tenant-Id', String(tenantId));

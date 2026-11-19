@@ -173,6 +173,9 @@ public final class GatewayContract {
         /** 权限码（逗号分隔） */
         public static final String PERMISSION_CODES = "X-Permission-Codes";
 
+        /** 归一化后的请求语言（网关按 Accept-Language 解析后注入） */
+        public static final String LANGUAGE = "X-Lang";
+
         /**
          * 私有构造器：常量类，禁止实例化
          */

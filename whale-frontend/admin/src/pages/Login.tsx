@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { App, Alert, Button, Card, Form, Input } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { MustChangePasswordDialog, formatRemaining, useLoginLockout } from '@bluewhale/whale-auth';
+import { useI18n } from '../i18n';
 import { clearAuth, getCurrentUser, getToken, login, type LoginResponse } from '../api/auth';
 
 interface LoginFormValues {
@@ -15,6 +16,7 @@ interface LoginFormValues {
 
 export default function LoginPage() {
   const { message } = App.useApp();
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   /** 登录锁定倒计时（连续错口令触达上限时禁用提交，避免无效连点） */
@@ -32,12 +34,12 @@ export default function LoginPage() {
         setPendingChange(data);
         return;
       }
-      message.success('登录成功');
+      message.success(t('login.success'));
       navigate('/', { replace: true });
     } catch (error) {
       // 42301 账号锁定：提示由倒计时横幅承接，不再叠加一条会被连续点击刷掉的 toast
       if (!lockout.registerFailure(error)) {
-        message.error(error instanceof Error ? error.message : '登录失败，请稍后重试');
+        message.error(error instanceof Error ? error.message : t('login.failed'));
       }
     } finally {
       setLoading(false);
@@ -50,14 +52,14 @@ export default function LoginPage() {
         <div className="login-header">
           <div className="login-logo-mark">B</div>
           <h1>BlueWhale Admin</h1>
-          <p>后台管理平台 · 统一身份认证</p>
+          <p>{t('app.loginTitle')}</p>
         </div>
         {lockout.locked ? (
           <Alert
             type="warning"
             showIcon
             style={{ marginBottom: 16 }}
-            message={`账号已锁定，${formatRemaining(lockout.remainingSeconds)} 后可重试`}
+            message={t('login.locked', { remaining: formatRemaining(lockout.remainingSeconds) })}
           />
         ) : null}
         <Form<LoginFormValues>
@@ -66,13 +68,13 @@ export default function LoginPage() {
           size="large"
         >
           <Form.Item name="tenantCode">
-            <Input placeholder="租户编码（默认 default）" autoComplete="organization" />
+            <Input placeholder={t('login.tenantPlaceholder')} autoComplete="organization" />
           </Form.Item>
           <Form.Item name="username">
-            <Input placeholder="用户名（admin）" autoComplete="username" />
+            <Input placeholder={t('login.usernamePlaceholder')} autoComplete="username" />
           </Form.Item>
           <Form.Item name="password">
-            <Input.Password placeholder="密码（123456）" autoComplete="current-password" />
+            <Input.Password placeholder={t('login.passwordPlaceholder')} autoComplete="current-password" />
           </Form.Item>
           <Form.Item style={{ marginBottom: 0 }}>
             <Button
@@ -83,8 +85,8 @@ export default function LoginPage() {
               disabled={lockout.locked}
             >
               {lockout.locked
-                ? `已锁定，${formatRemaining(lockout.remainingSeconds)} 后可重试`
-                : '登录'}
+                ? t('login.submitLocked', { remaining: formatRemaining(lockout.remainingSeconds) })
+                : t('login.submit')}
             </Button>
           </Form.Item>
         </Form>
@@ -98,7 +100,7 @@ export default function LoginPage() {
             // 清登录态（内存令牌 + 用户缓存），提示用新口令重新登录
             clearAuth();
             setPendingChange(null);
-            message.success('密码修改成功，请使用新密码重新登录');
+            message.success(t('login.passwordChanged'));
           }}
         />
       ) : null}
