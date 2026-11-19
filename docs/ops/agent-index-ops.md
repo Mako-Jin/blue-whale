@@ -127,7 +127,7 @@ curl.exe -s -H "X-User-Id: 1" -H "X-Permission-Codes: sys:agent:search" `
 1. 白名单为空、桶名为空或未命中时，一律 **不采集**（fail-closed）；对应台账置 `SKIPPED`，
    `lastError=文件桶未纳入知识库白名单`，并删除既有索引块。
 2. 排除桶优先于白名单：即使已加入白名单，命中 `excluded-buckets` 仍不入库。
-3. 新增知识库桶需显式加入白名单（环境变量）并重启服务（无热更新），随后执行
+3. 新增知识库桶需显式加入白名单：走 Nacos 配置 `whale.agent.knowledge.included-buckets` 时由 `@RefreshScope` 热刷新生效；走环境变量 `WHALE_AGENT_KNOWLEDGE_INCLUDED_BUCKETS` 时需重启服务。白名单为精确匹配，仅显式 `*` 通配（如 `oa-*`）生效，不做隐式前缀匹配。变更后执行
    `POST /agent/knowledge/rebuild` 重建文件知识。
 4. **归属人隔离（方案 B）**：白名单桶内的普通文件写入索引字段 `owner_id`（上传者），检索时仅
    「无归属人的公共知识」与「归属人等于当前用户」的知识块可见；档案知识（`whale-archive` 及原件归档锁定）
