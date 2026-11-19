@@ -3,9 +3,9 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { createSceneEnv } from './env';
 import type { SceneAssets } from './loader';
 import { createPostFx } from './postfx';
-import { buildSettlement, lanternSpots } from './props';
+import { alleySpots, buildSettlement, lanternSpots } from './props';
 import { createSky, type SkyState } from './sky';
-import { createTerrain } from './terrain';
+import { createTerrain, heightAt } from './terrain';
 import { createWater } from './water';
 
 /**
@@ -24,7 +24,7 @@ export interface SceneStats {
 
 export type TimeName = 'dusk' | 'day' | 'blue' | 'night';
 export type Quality = 'high' | 'mid' | 'low';
-export type PresetName = 'overview' | 'bridge' | 'street' | 'dock' | 'shop';
+export type PresetName = 'overview' | 'bridge' | 'street' | 'dock' | 'shop' | 'alley' | 'roofs';
 
 interface TimePreset {
   /** 太阳高度角（度） */
@@ -174,6 +174,22 @@ const CAMERAS: Record<PresetName, CameraPreset> = {
    * 檐廊 / 柜台 / 台阶）。</p>
    */
   shop: { pos: [12.4, 2.6, 17.2], target: [22.4, 2.6, 11.2], fov: 50 },
+  /**
+   * 巷口：站在街上斜看巷门。
+   *
+   * <p>正对着拍是一张"门洞证件照"——透视全被压平，巷子的深度反而看不出来。
+   * 退到 z=20.6（巷口北侧 3.4m）、x=15.4，用 48° 斜看进去，巷门是斜的、
+   * 巷内的光斑与尽头照壁形成两级纵深。</p>
+   */
+  alley: { pos: [13.8, 1.85, 19.2], target: [26.5, 2.55, 17.0], fov: 46 },
+  /**
+   * 俯视屋顶。
+   *
+   * <p>屋顶是这个场景里面积最大的一块"画面"，而全景机位（高 21m、距 60m）看过去
+   * 屋顶只是几条斜边。要判断"有没有脊、有没有马头墙、有没有巷口"，必须有一个
+   * 直接对着屋面的机位——否则改的全在盲区里。</p>
+   */
+  roofs: { pos: [-1, 25, 33], target: [24, 5, 11], fov: 42 },
 };
 
 export function sunDirection(p: TimePreset): THREE.Vector3 {
@@ -362,6 +378,26 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
   scene.add(dockLight);
   lanternLights.push(dockLight);
 
+  /*
+   * 巷内壁灯。
+   *
+   * <p>巷子只有 2.8m 宽、6m 深，两侧是整进深落地的山墙——没有一个独立光源的话，
+   * 巷内在黄昏之后是一条纯黑的槽，除了"有条缝"什么也看不出来。衰减距离给 8m：
+   * 够照亮整条巷子与尽头的照壁，又不会漏到街上跟街灯打架。</p>
+   *
+   * <p>单独一个数组而不是塞进 {@code lanternLights}：那个数组同时喂给
+   * {@code water.setLamps} 算水面倒影，巷子离河 9m、倒影是假的。</p>
+   */
+  const alleyLights: THREE.PointLight[] = [];
+  for (const sp of alleySpots()) {
+    const light = new THREE.PointLight(0xff9d52, 0, 9, 2);
+    // 离墙面留 0.8m：壁灯贴着墙时，26 分之一米的距离就能把白墙烧出一块纯白
+    light.position.set(23.5, heightAt(23.5, sp.z) + 2.0, sp.z - sp.w / 2 + 1.0);
+    light.castShadow = false;
+    scene.add(light);
+    alleyLights.push(light);
+  }
+
   // 地面光斑：程序化径向渐变，避免再引一张贴图资产
   const glowCanvas = document.createElement('canvas');
   glowCanvas.width = glowCanvas.height = 128;
@@ -434,6 +470,8 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
 
     for (const m of lampMaterials) m.emissiveIntensity = 2.2 * lampScale;
     for (const l of lanternLights) l.intensity = 26 * (p.lamp - 0.1);
+    // 巷灯比街灯弱一档：巷子只有 2.8m 宽，26 candela 会把两侧白墙打爆
+    for (const l of alleyLights) l.intensity = 9 * (p.lamp - 0.1);
     // 水面倒影的灯位与亮度：与点光源同源，灯亮水亮
     water.setLamps(
       lanternLights.map((l) => l.position),

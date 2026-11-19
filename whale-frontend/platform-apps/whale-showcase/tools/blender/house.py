@@ -31,7 +31,15 @@ blib.reset()
 
 WALL = blib.mat("plaster", blib.srgb(0xB6AE9C), rough=0.92)
 WALL_B = blib.mat("plasterBack", blib.srgb(0xA79E8C), rough=0.94)
-TILE = blib.mat("tile", blib.srgb(0x2B2F33), rough=0.55)
+# 青瓦。
+#
+# <p>0x2B2F33 是"照片上取色"的结果，但照片里的瓦是被天光照亮的、还带着一层釉光；
+# 直接把照片色当反照率，在黄昏/夜晚就只有一团黑。这里取 0x2E3338：比照片色亮一档，
+# 剩下的变化交给运行时的逐栋色差（props.ts 的 InstancedMesh.setColorAt）。</p>
+#
+# <p>粗糙度是这套材质最敏感的参数：0.46 时 20cm 的瓦垄每一条都拉出一道高光，屋面立刻变成"压型钢板"。
+# 0.58 只留一层很弱的哑光，垄形靠几何自遮蔽读出来，才像瓦。</p></p>
+TILE = blib.mat("tile", blib.srgb(0x2E3338), rough=0.58)
 WOOD = blib.mat("woodDark", blib.srgb(0x4A3327), rough=0.85)
 WOOD_R = blib.mat("woodRed", blib.srgb(0x6B3A2A), rough=0.82)
 STONE = blib.mat("stoneBase", blib.srgb(0x77705F), rough=0.93)
@@ -129,6 +137,9 @@ for side in (1, -1):
         EAVE_TOP,
         thickness=0.16,
         tile_pitch=0.30,
+        # 瓦垄起伏 0.028 在 100m 机位等于没有：屋面是一块平面，只有一条正脊在提醒
+        # "这是屋顶"。0.032 是"看得见垄、又不至于变成压型钢板"的位置。
+        tile_amp=0.032,
         sweep=0.34,
         per_tile=3,
         material=TILE,
@@ -149,7 +160,9 @@ for side in (1, -1):
     bpy.ops.object.transform_apply(location=True, rotation=False, scale=False)
     parts.append(r)
 
-parts.append(blib.ridge("ridge", W + 0.22, RIDGE + 0.09, material=TILE))
+parts.append(
+    blib.ridge("ridge", W + 0.22, RIDGE + 0.12, h=0.46, w=0.28, curl=0.30, material=TILE)
+)
 
 
 # ---------------------------------------------------------------- 马头墙
@@ -158,6 +171,16 @@ def roof_z(y):
     run = RUN_B if y > 0 else RUN_F
     t = min(abs(y) / run, 1.0)
     return RIDGE - (RIDGE - EAVE_TOP) * (t ** 1.45)
+
+
+# 高出屋面多少。
+#
+# <p>0.52 是"看不见"的高度：俯视机位在 40° 以上时，1cm 厚的压顶瓦顶面就是整道墙
+# 唯一可见的部分，白墙的<b>立面</b>被屋面自己挡住——出图里那几块浅色小台阶，
+# 看着像浮在瓦上的石片，不像墙。抬到 1.02 之后立面粉刷面才露出来，
+# "白墙黑瓦"这条最重要的轮廓线才立得住。1.02 时又过头了：从街面斜上方看，
+# 每一户的山墙都长成一块 6×5.2 的大白板，整条街变成"墙的城市"，屋顶反而被挡住。</p>
+MT_RISE = 0.78
 
 
 def ma_tou(sx):
@@ -177,27 +200,33 @@ def ma_tou(sx):
             yin = run * zs[i]
             yout = run * zs[i + 1] + (0.12 if i == 2 else 0.0)
             yc = sy * (yin + yout) / 2
-            top = roof_z(sy * yin) + 0.52
+            top = roof_z(sy * yin) + MT_RISE
             h = top - BASE_H
             out.append(
                 blib.box(
                     f"mt{sx}_{i}_{sy}",
                     (WALL_T, (yout - yin) + 0.02, h),
                     (sx * (W / 2 + 0.08), yc, BASE_H + h / 2),
-                    material=WALL_B,
+                    material=WALL,
                     bevel=0.02,
                 )
             )
-            # 压顶瓦：墙头一条深色瓦檐。白墙没有这道黑边就没精神
+            # 压顶瓦：墙头一条深色瓦檐。白墙没有这道黑边就没精神。
+            # 比墙身宽 0.14（叠涩出挑），投影落在白墙上，是"白墙黑瓦"那道光影的来源。
             out.append(
                 blib.box(
                     f"mtc{sx}_{i}_{sy}",
-                    (WALL_T + 0.18, (yout - yin) + 0.22, 0.1),
-                    (sx * (W / 2 + 0.08), yc, top + 0.05),
+                    (WALL_T + 0.14, (yout - yin) + 0.18, 0.09),
+                    (sx * (W / 2 + 0.08), yc, top + 0.045),
                     material=TILE,
-                    bevel=0.015,
+                    bevel=0.012,
                 )
             )
+
+            # 翘角（鹊尾）曾经做成一块 0.34 深、0.11 厚的斜板，出图是一排"水泥舌头"。
+            # 这个尺度上做不出真正的起翘——瓦垄本身就是 3cm 级的起伏，
+            # 干净的阶梯轮廓比一个假的翘角值钱，所以这里只留墙与瓦。
+
     return out
 
 

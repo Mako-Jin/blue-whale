@@ -51,9 +51,73 @@ const MAT_DEF: Record<MatKey, THREE.MeshStandardMaterialParameters> = {
   water: { color: 0x2c3a38, roughness: 0.12, metalness: 0.3 },
 };
 
+/**
+ * 逐构件色差幅度。
+ *
+ * <p>程序化拼出来的街面为什么"假"？不是缺细节，是<b>每一块石板、每一段墙都一模一样</b>：
+ * 现实里石料是分批采的，同一堵墙上相邻两块的颜色差 5% 就足够让眼睛读出"这是一块块
+ * 石头"。这一层用顶点色（每个构件一个均匀色）实现，<b>不增加任何 drawcall</b>，
+ * 也不需要贴图。</p>
+ *
+ * <p>幅度按材料给：石头最杂（0.12）、木构次之、白墙最收敛（0.05，再大就成脏墙）。</p>
+ */
+const VARY: Partial<Record<MatKey, number>> = {
+  stone: 0.11,
+  stoneDark: 0.13,
+  wood: 0.06,
+  woodDark: 0.07,
+  plaster: 0.045,
+  tile: 0.05,
+  path: 0.09,
+  field: 0.05,
+  crop: 0.09,
+  foliage: 0.07,
+};
+
+/** 一个构件的均匀色偏写进顶点色（合并后所有构件共用一套材质） */
+function paintVariation(g: THREE.BufferGeometry, key: MatKey, dark = 1): void {
+  const amp = VARY[key] ?? 0;
+  const count = g.attributes.position.count;
+  const colors = new Float32Array(count * 3);
+  let r = 1;
+  let gg = 1;
+  let b = 1;
+  if (amp > 0) {
+    g.computeBoundingBox();
+    const c = (g.boundingBox as THREE.Box3).getCenter(new THREE.Vector3());
+    // 位置哈希：同一位置跑两遍得到同一个色，重建场景不会"跳色"
+    const h = Math.sin(c.x * 12.9898 + c.z * 78.233 + c.y * 37.719) * 43758.5453;
+    const t = h - Math.floor(h);
+    const v = 1 + (t - 0.5) * 2 * amp;
+    // 带一点冷暖偏移：纯明度差看着像"脏"，冷/暖差才像不同批次的石料
+    const warm = (t - 0.5) * amp * 0.6;
+    r = Math.max(0.05, v + warm);
+    gg = Math.max(0.05, v + warm * 0.2);
+    b = Math.max(0.05, v - warm * 0.5);
+  }
+  for (let i = 0; i < count; i += 1) {
+    colors[i * 3] = r * dark;
+    colors[i * 3 + 1] = gg * dark;
+    colors[i * 3 + 2] = b * dark;
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+}
+
 /** 把同材质的部件合并成一个几何：3200 行 city.ts 那种"一物一 mesh"的写法，drawcall 会失控 */
 class Builder {
   private readonly parts = new Map<MatKey, THREE.BufferGeometry[]>();
+  private darkFactor = 1;
+
+  /**
+   * 接下来这批构件压暗多少（1 = 不压）。
+   *
+   * <p>用来做"假环境光遮蔽"：巷子里的地面和照壁被两侧山墙挡掉大半天光，而我们的
+   * IBL 是一张无遮挡的天空贴图——不压的话，2.8m 宽的巷子亮得像街上，纵深全没了。</p>
+   */
+  darken(k: number): this {
+    this.darkFactor = k;
+    return this;
+  }
 
   add(key: MatKey, geo: THREE.BufferGeometry, matrix?: THREE.Matrix4): void {
     const g = geo.clone();
@@ -67,6 +131,7 @@ class Builder {
       for (let i = 0; i < count; i += 1) idx[i] = i;
       g.setIndex(new THREE.BufferAttribute(idx, 1));
     }
+    paintVariation(g, key, this.darkFactor);
     const list = this.parts.get(key) ?? [];
     list.push(g);
     this.parts.set(key, list);
@@ -120,7 +185,10 @@ class Builder {
       for (const g of list) g.dispose();
       if (!merged) continue;
       merged.computeVertexNormals();
-      const mesh = new THREE.Mesh(merged, new THREE.MeshStandardMaterial(MAT_DEF[key]));
+      const mesh = new THREE.Mesh(
+        merged,
+        new THREE.MeshStandardMaterial({ ...MAT_DEF[key], vertexColors: true }),
+      );
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       mesh.name = `settlement-${key}`;
@@ -498,9 +566,18 @@ export function lanternSpots(): LanternSpot[] {
     { x: 19.4, rotY: -Math.PI / 2 },
   ];
   const out: LanternSpot[] = [];
+  const alleys = alleySpots();
   for (const row of rows) {
     for (let z = -22; z <= 26; z += 4.4) {
       if (Math.abs(z - BRIDGE_Z) < 5) continue;
+      /*
+       * 巷口正前方不立灯。
+       *
+       * <p>巷子只有 2.8m 宽，一根 2.6m 高的灯杆立在口子上，正好把 6m 深的巷子
+       * 从巷口机位整个挡住——第一版出图就是"一根灯笼怼在镜头前，后面一道黑缝"。
+       * 巷子自己有一盏壁灯，不需要街灯补光。</p>
+       */
+      if (alleys.some((a) => Math.abs(z - a.z) < 2.6)) continue;
       out.push({ x: row.x, z, y: heightAt(row.x, z), rotY: row.rotY });
     }
   }
@@ -577,14 +654,14 @@ function buildStreet(b: Builder): void {
    * 横向缝在透视里连成一条绿线，像街心长了一条草。垫层只多 12 个三角面，
    * 缝里看到的就是石头。</p>
    */
-  b.box('stoneDark', 7.3, 0.2, 84, STREET_X, 1.18 - 0.06, -3);
+  b.box('stoneDark', 7.3, 0.2, 87, STREET_X, 1.18 - 0.06, -2.5);
 
   let seed = 5150;
   const rand = () => {
     seed = (seed * 1103515245 + 12345) % 2147483648;
     return seed / 2147483648;
   };
-  for (let z = -44; z < 38; z += 3.6) {
+  for (let z = -46; z < 41; z += 3.6) {
     for (const side of [-1, 1]) {
       // 左右两排各让 0.9m 的错位：整条街的石板不可能齐缝
       const zc = z + side * 0.9 + (rand() - 0.5) * 0.12;
@@ -600,7 +677,7 @@ function buildStreet(b: Builder): void {
    * <p>房子退到 FRONT_X 之后，街面与墙脚之间会留一条长草的窄缝——远看像街上
    * 多了一条绿化带。补一条贴着墙脚的条石，顺便把台基与街面的高差收口。</p>
    */
-  for (let z = -44; z < 38; z += 2.4) {
+  for (let z = -46; z < 41; z += 2.4) {
     const zc = z + 1.2;
     const y = heightAt(FRONT_X - 0.4, zc);
     b.box('stoneDark', 1.5, 0.3, 2.44, FRONT_X - 0.45, y + 0.04, zc);
@@ -677,6 +754,104 @@ function buildCourtWalls(b: Builder, spots: HouseSpot[]): void {
     b.box('tile', 0.2, 0.12, 2.78, FRONT_X, gy + 2.96, sp.z);
     // 门前踏跺
     b.box('stoneDark', 0.5, 0.18, 2.0, FRONT_X - 0.42, gy + 0.09, sp.z);
+  }
+}
+
+/* ------------------------------------------------------------------ 巷口 */
+
+/**
+ * 巷口与巷内。
+ *
+ * <p>俯视图里整片城镇是"一整块屋顶"，缺的不是细节而是<b>缝隙</b>：真实的江南小镇
+ * 由一条条 2~3m 的巷子切成一进进的院落，屋顶因此分成一块块，各自有脊、有山墙。
+ * 这里把两处铺面之间让出 2.8m，用铺地 + 巷门 + 照壁把它做"实"——只留一条空缝
+ * 在俯视时是两块屋顶之间的一道黑边，看不出来是巷子。</p>
+ *
+ * <p>两侧的山墙不用另建：铺面的山墙本来就是整进深落地、高过屋面的。</p>
+ */
+function buildAlleys(b: Builder, spots: AlleySpot[]): void {
+  for (const sp of spots) {
+    const zc = sp.z;
+    const half = sp.w / 2;
+    const x0 = FRONT_X;
+    const y = heightAt(x0 + 2.0, zc);
+
+    // 巷内铺地：先一段平的，靠里抬一级（镇区平台在 x>26 开始交回自然地形）
+    // 压暗 22%：两侧山墙挡掉大半天光，而 IBL 是无遮挡的天空贴图，不压就是"街面延伸"
+    b.darken(0.78);
+    b.box('stoneDark', 4.8, 0.22, sp.w - 0.06, x0 + 2.4, y + 0.02, zc);
+    b.box('stone', 1.5, 0.22, sp.w - 0.06, x0 + 5.55, y + 0.18, zc);
+    b.box('stoneDark', 0.3, 0.2, sp.w - 0.06, x0 + 4.85, y + 0.07, zc);
+    b.darken(1);
+
+    // 巷门：两垛砖墩 + 门楣 + 小瓦顶。它是街立面上的一个"洞"，
+    // 也是唯一能在街景机位里看出"这里有条巷子"的东西。
+    for (const dz of [-1, 1]) {
+      b.box('plaster', 0.42, 2.6, 0.4, x0 + 0.06, y + 1.3, zc + dz * (half - 0.2));
+      b.box('tile', 0.54, 0.1, 0.52, x0 + 0.06, y + 2.6, zc + dz * (half - 0.2));
+    }
+    b.box('woodDark', 0.34, 0.26, sp.w + 0.1, x0 + 0.06, y + 2.43, zc);
+    // 门头瓦顶：前后两坡，前坡挑出 0.55。
+    // 0.12 厚的瓦片从街面平视只看得见一条边——出图是"门楣上浮着一块黑板"；
+    // 加厚到 0.2 并把前坡往外挑，才看得见瓦面。
+    b.box('tile', 1.15, 0.2, sp.w + 0.5, x0 - 0.34, y + 2.70, zc, { z: 0.30 });
+    b.box('tile', 1.15, 0.2, sp.w + 0.5, x0 + 0.34, y + 2.70, zc, { z: -0.30 });
+    b.box('tile', 0.2, 0.22, sp.w + 0.62, x0 + 0.02, y + 2.86, zc);
+    // 巷名匾：一小块深色木牌。不能用 gold——金属材质在 1m 内的壁灯下会烧成一块橙红
+    // 色发光板，比巷子本身还抢眼。
+    b.box('woodDark', 0.06, 0.34, 1.05, x0 - 0.16, y + 2.16, zc);
+    b.box('wood', 0.04, 0.26, 0.9, x0 - 0.19, y + 2.16, zc);
+
+    /*
+     * 巷尾：不是照壁，是一户人家的后门。
+     *
+     * <p>第一版做成一堵白墙，出图是"巷子尽头一堵大白板"——眼睛需要一个落点，
+     * 一堵亮墙只会把 6m 的纵深压成 1m 的壁龛。改成一扇深色板门 + 石门框 +
+     * 门罩（小披檐）：暗色的门在亮墙上是全巷唯一的高对比物，纵深立刻成立。</p>
+     */
+    b.darken(0.82);
+    b.box('plaster', 0.34, 2.75, sp.w + 0.1, x0 + ALLEY_D - 0.1, y + 1.55, zc);
+    b.darken(1);
+    b.box('tile', 0.52, 0.14, sp.w + 0.3, x0 + ALLEY_D - 0.1, y + 2.98, zc);
+    // 石门框 + 双扇板门
+    b.box('stoneDark', 0.12, 2.3, 1.7, x0 + ALLEY_D - 0.30, y + 1.15, zc);
+    b.box('woodDark', 0.1, 2.06, 1.34, x0 + ALLEY_D - 0.34, y + 1.03, zc);
+    b.box('wood', 0.06, 1.96, 0.06, x0 + ALLEY_D - 0.38, y + 1.0, zc);
+    // 门罩：门头上一道小披檐，把"门"和"墙"分开
+    b.box('tile', 0.62, 0.1, 2.2, x0 + ALLEY_D - 0.46, y + 2.42, zc, { z: 0.34 });
+    // 水缸：巷子最里端放一口缸是防火的常规做法
+    b.cyl('stoneDark', 0.3, 0.26, 0.56, x0 + ALLEY_D - 1.15, y + 0.44, zc + 0.72, 12);
+    b.cyl('stone', 0.33, 0.33, 0.07, x0 + ALLEY_D - 1.15, y + 0.71, zc + 0.72, 12);
+
+    // 墙上壁灯：巷子里没有灯就是一条黑洞，这也是一处暖光斑
+    b.box('woodDark', 0.16, 0.08, 0.2, x0 + 2.3, y + 2.34, zc - half + 0.08);
+    b.box('glow', 0.2, 0.34, 0.26, x0 + 2.3, y + 2.12, zc - half + 0.1);
+  }
+}
+
+/* ------------------------------------------------------------------ 后巷墙 */
+
+/**
+ * 后巷围墙。
+ *
+ * <p>俯视时铺面屋顶之后到城墙根之间是一大片空地，城镇因此"只有一层皮"。
+ * 补一道 1.85m 的后墙（每 2.4m 一段、逐段取地形高度），墙外留出 1m 后巷——
+ * 屋顶、后墙、城墙形成三条前后错开的水平线，纵深就出来了。</p>
+ */
+function buildBackWalls(b: Builder): void {
+  const X = 28.6;
+  const runs: Array<[number, number]> = [
+    [-27.6, -11.2],
+    [9.0, 32.9],
+  ];
+  for (const [z0, z1] of runs) {
+    for (let z = z0; z < z1 - 0.01; z += 2.4) {
+      const len = Math.min(2.4, z1 - z);
+      const zc = z + len / 2;
+      const y = heightAt(X, zc);
+      b.box('plaster', 0.3, 2.0, len + 0.02, X, y + 0.85, zc);
+      b.box('tile', 0.5, 0.11, len + 0.14, X, y + 1.88, zc);
+    }
   }
 }
 
@@ -1037,24 +1212,45 @@ const HOUSE_D: Record<HouseVariant, number> = { small: 4.4, big: 5.2, shop: 6.0 
  * 真实的老街是几种东西交替：<b>联排铺面</b>（贴着街、深檐廊、共用山墙）、
  * <b>独门独院的门面</b>（墙退半步）、<b>院墙 + 门楼</b>（房子退到墙后）。
  * 三种交替出现，街立面才有节奏。</p>
+ *
+ * <p>{@code alley} 不是房子，是<b>一条让出来的缝</b>：两栋铺面的山墙本来就整进深落地，
+ * 中间留 2.8m，巷子的两侧墙天然就有了。俯视时这一条暗缝是"城镇"与"一排房子"
+ * 的分界线（§16.8 第 1 条）。</p>
  */
 const STREET_PLOTS: Array<{
   z: number;
-  kind: 'shop' | 'front' | 'court';
+  kind: 'shop' | 'front' | 'court' | 'alley';
   variant?: 'small' | 'big';
   setback?: number;
   halfZ?: number;
 }> = [
-  { z: -40.5, kind: 'court', variant: 'big', setback: 3.6, halfZ: 4.8 },
-  { z: -31.5, kind: 'front', variant: 'small' },
-  { z: -23.5, kind: 'shop' },
-  { z: -16.5, kind: 'shop' },
-  // 桥头广场：z -6…10 留空（桥从 z=2 进来，广场不能被房子压住）
-  { z: 12.6, kind: 'shop' },
-  { z: 19.6, kind: 'shop' },
-  { z: 27.0, kind: 'front', variant: 'big' },
-  { z: 35.0, kind: 'court', variant: 'small', setback: 3.2, halfZ: 4.4 },
+  { z: -41.0, kind: 'court', variant: 'big', setback: 3.6, halfZ: 4.6 },
+  { z: -32.0, kind: 'front', variant: 'small' },
+  { z: -24.0, kind: 'shop' },
+  { z: -19.2, kind: 'alley' },
+  { z: -14.4, kind: 'shop' },
+  // 桥头广场：z -11…9 留空（桥从 z=2 进来，广场不能被房子压住）
+  { z: 12.4, kind: 'shop' },
+  { z: 17.2, kind: 'alley' },
+  { z: 22.0, kind: 'shop' },
+  { z: 29.6, kind: 'front', variant: 'small' },
+  { z: 37.0, kind: 'court', variant: 'small', setback: 3.0, halfZ: 4.0 },
 ];
+
+/** 巷宽。2.8m 是"两人抬轿能过"的尺度；再窄俯视就看不见，再宽就不是巷了。 */
+const ALLEY_W = 2.8;
+/** 巷深：与铺面进深对齐（6.0）再留 0.2 的照壁厚度 */
+const ALLEY_D = 6.2;
+
+export interface AlleySpot {
+  z: number;
+  w: number;
+}
+
+/** 巷口落点（从 STREET_PLOTS 里挑 alley 项，房子数量与巷子数量由同一张表决定） */
+export function alleySpots(): AlleySpot[] {
+  return STREET_PLOTS.filter((p) => p.kind === 'alley').map((p) => ({ z: p.z, w: ALLEY_W }));
+}
 
 /**
  * 民居落点。
@@ -1072,6 +1268,7 @@ export function houseSpots(): HouseSpot[] {
 
   const out: HouseSpot[] = [];
   for (const plot of STREET_PLOTS) {
+    if (plot.kind === 'alley') continue; // 巷子不是房子，几何在 buildAlleys 里单独铺
     const variant: HouseVariant = plot.kind === 'shop' ? 'shop' : (plot.variant ?? 'small');
     const depth = HOUSE_D[variant];
     const setback = plot.setback ?? 0;
@@ -1115,6 +1312,25 @@ export function houseSpots(): HouseSpot[] {
 }
 
 /**
+ * 屋面色差。
+ *
+ * <p>整片屋顶同色同亮是"一整块"的第二个成因（第一个是没有缝）。真实的江南屋顶是
+ * 几十年里东补一块、西换一垄积起来的：青瓦会从青灰偏到暖灰，长苔的地方发绿。
+ * 用 {@code InstancedMesh.setColorAt} 逐实例乘一个色偏，<b>不加 drawcall</b>——
+ * 比给每栋换材质便宜得多。</p>
+ *
+ * <p>幅度必须小（0.82~1.12）：再大就成了拼布被子。</p>
+ */
+const TILE_TINTS = [0xffffff, 0xf6f2ea, 0xe2e6e2, 0xece6da, 0xd2d6d2, 0xf0ece4];
+
+function tileTint(seed: number): THREE.Color {
+  // 线性空间乘数：这里给的是 sRGB 十六进制，THREE.Color 会转成线性
+  // seed 可能为负（sp.z 有负数），取模必须落在正区间，否则取到 undefined
+  const i = ((seed % TILE_TINTS.length) + TILE_TINTS.length) % TILE_TINTS.length;
+  return new THREE.Color(TILE_TINTS[i]);
+}
+
+/**
  * 民居也走 InstancedMesh。
  *
  * <p>一栋房在 GLB 里拆成 6 个 primitive（白墙/背墙/瓦/木/石/窗纸各一），
@@ -1142,14 +1358,19 @@ function buildHousesFromGlb(group: THREE.Group, assets: SceneAssets, spots: Hous
       im.castShadow = true;
       im.receiveShadow = true;
       im.frustumCulled = false;
+      const tintTiles = /tile/i.test(part.material.name);
       list.forEach((sp, i) => {
         q.setFromAxisAngle(up, sp.rotY);
         pos.set(sp.x, sp.y, sp.z);
         scl.set(sp.scale, sp.scale, sp.scale);
         m.compose(pos, q, scl);
         im.setMatrixAt(i, m);
+        // 只给瓦面做色差：白墙也跟着变就成了"九种白"
+        // TINT-EXPERIMENT
+        if (tintTiles) im.setColorAt(i, tileTint(i * 3 + Math.round(sp.z)));
       });
       im.instanceMatrix.needsUpdate = true;
+      if (im.instanceColor) im.instanceColor.needsUpdate = true;
       im.name = `houses-${variant}`;
       group.add(im);
     }
@@ -1275,6 +1496,8 @@ export function buildSettlement(assets?: SceneAssets): THREE.Group {
   const houseList = houseSpots();
   buildEmbankment(b);
   buildCourtWalls(b, houseList);
+  buildAlleys(b, alleySpots());
+  buildBackWalls(b);
   buildStreetProps(b, houseList);
   const hasLanterns = !!assets && assets.lantern.length > 0;
   if (!hasLanterns) buildLanterns(b);

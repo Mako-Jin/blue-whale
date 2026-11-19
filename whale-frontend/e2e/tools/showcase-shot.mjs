@@ -20,6 +20,12 @@ const SHOTS = [
   { name: '03b-street-day', time: '白天', preset: '街景', wait: 1600 },
   { name: '03c-shop-dusk', time: '黄昏', preset: '铺面', wait: 1600 },
   { name: '03d-shop-night', time: '夜晚', preset: '铺面', wait: 1600 },
+  // 巷口：唯一能验收"巷子是不是真的一条巷"的机位（俯视只能看到一道缝）
+  { name: '03e-alley-dusk', time: '黄昏', preset: '巷口', wait: 1600 },
+  { name: '03f-alley-day', time: '白天', preset: '巷口', wait: 1600 },
+  // 俯视：屋顶是画面里面积最大的东西，全景机位看不出脊/马头墙/巷口
+  { name: '03g-roofs-day', time: '白天', preset: '俯视', wait: 1600 },
+  { name: '03h-roofs-dusk', time: '黄昏', preset: '俯视', wait: 1600 },
   { name: '04-dock-dusk', time: '黄昏', preset: '码头', wait: 1600 },
   // 夜景码头：唯一能验收"灯影摇红"的机位。灯高 3m、相机高 3.6m 时，灯笼的倒影点
   // 才落在河面内；全景机位（高 21m）算出来的倒影点落在岸上，物理上就没有灯影。

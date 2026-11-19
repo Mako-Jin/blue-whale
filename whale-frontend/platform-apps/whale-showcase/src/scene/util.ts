@@ -47,8 +47,10 @@ export function fbm(x: number, y: number, octaves = 4): number {
 
 /** 场景色板：三源素材入场后统一往这几支颜色上靠（见规划 §5） */
 export const PALETTE = {
-  stone: 0xcfc6b4,
-  stoneDark: 0x9d9587,
+  // 石色压暗过一档：0xcfc6b4 在正午直射 + ACES 下会烧成纯白，整条街像水泥地。
+  // 江南老街的青石本来就是中灰偏冷，压到 0xB8AE9A / 0x847D71 才留得住"石头"的质感。
+  stone: 0xb8ae9a,
+  stoneDark: 0x847d71,
   wood: 0x6b4a33,
   woodDark: 0x4a3324,
   tile: 0x3f4a4d,
