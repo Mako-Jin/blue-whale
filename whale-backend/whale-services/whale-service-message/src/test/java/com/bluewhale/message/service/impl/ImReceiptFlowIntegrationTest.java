@@ -16,6 +16,8 @@ import com.bluewhale.message.mapper.MessageCallbackTaskMapper;
 import com.bluewhale.message.mapper.MessageDeliveryMapper;
 import com.bluewhale.message.mapper.MessageReceiptMapper;
 import com.bluewhale.message.mapper.MessageRecordMapper;
+import com.bluewhale.message.support.FallbackReceiptMatcher;
+import com.bluewhale.message.support.ProviderIdReceiptMatcher;
 import com.bluewhale.message.vo.ReceiptApplyResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
@@ -66,7 +68,8 @@ class ImReceiptFlowIntegrationTest {
     private final MessageReceiptServiceImpl service = new MessageReceiptServiceImpl(recordMapper, deliveryMapper,
             receiptMapper, callbackTaskMapper, new ObjectMapper(), properties,
             List.of(new ImChannelSender(new MessageChannelProperties(), new ObjectMapper(),
-                    new InternalTokenProperties())));
+                    new InternalTokenProperties())),
+            List.of(new ProviderIdReceiptMatcher(deliveryMapper), new FallbackReceiptMatcher(deliveryMapper)));
 
     /**
      * Lambda 条件构造器依赖实体表信息缓存，纯单测需手动初始化。

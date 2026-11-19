@@ -20,6 +20,7 @@ import com.bluewhale.message.mapper.MessageReceiptMapper;
 import com.bluewhale.message.mapper.MessageRecordMapper;
 import com.bluewhale.message.service.MessageReceiptService;
 import com.bluewhale.message.support.MessageStatusAggregator;
+import com.bluewhale.message.support.ReceiptMatcher;
 import com.bluewhale.message.vo.ReceiptApplyResult;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,7 +35,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
@@ -58,16 +59,18 @@ import java.util.stream.Collectors;
  *       但绝不凭空创建投递记录。</li>
  * </ol>
  *
- * <p><b>匹配口径</b>：回执只按 {@code (channel, msg_delivery.provider_message_id)} 精确匹配。
- * 各渠道的标识来源：</p>
+ * <p><b>匹配口径</b>：按 {@link ReceiptMatcher} 策略链依次匹配——优先
+ * {@code (channel, msg_delivery.provider_message_id)} 精确命中，未命中且回执携带
+ * {@code recipient} 与 {@code receiptTime} 时，再由兜底策略按「渠道 + 接收人 + 发送时间窗」
+ * 补齐（只认尚未绑定供应商标识的投递）。各渠道的标识来源：</p>
  * <ul>
  *   <li>EMAIL：发送时写入 RFC 5322 {@code Message-ID}，退信/已读回执原样携带；</li>
  *   <li>SMS：解析网关同步响应中的 {@code providerIdField}，异步回执携带同一标识；</li>
  *   <li>IM：投递幂等键 {@code clientMsgId}，由 whale-im 回执回传；</li>
  *   <li>INAPP：以平台消息ID充当该标识，可直接匹配。</li>
  * </ul>
- * <p>标识缺失或与投递记录不一致的回执一律落 UNMATCHED 供对账，不做模糊匹配
- * （按接收人+时间窗兜底可能把回执错误归到同接收人的其它消息上）。</p>
+ * <p>渠道未回传标识、且回执也未携带接收人与时间的，一律落 UNMATCHED 供对账；
+ * 兜底匹配不回写 {@code provider_message_id}，避免后续精确回执被错误归并。</p>
  *
  * @author BlueWhale
  */
@@ -111,6 +114,8 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
 
     private final List<MessageChannelSender> senders;
 
+    private final List<ReceiptMatcher> matchers;
+
     /** 渠道能力缓存：Bean 生命周期内注册表不变，首次使用时构建一次 */
     private volatile Map<MessageChannel, MessageChannelSender> senderCache;
 
@@ -135,11 +140,11 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
                     .map(this::prepare)
                     .toList();
             Set<String> existingKeys = existedReceiptKeys(prepared);
-            Map<String, List<MessageDeliveryPo>> deliveriesByKey = matchDeliveriesBatch(prepared);
+            Map<DeliveryReceiptItem, List<MessageDeliveryPo>> matches = matchDeliveries(prepared);
             Set<Long> touchedMessages = new LinkedHashSet<>();
             Map<Long, MessageRecordPo> recordCache = new HashMap<>();
             for (PreparedReceipt item : prepared) {
-                handleOne(item, existingKeys, deliveriesByKey, result, touchedMessages, recordCache);
+                handleOne(item, existingKeys, matches, result, touchedMessages, recordCache);
             }
             refreshRecordStatuses(touchedMessages, recordCache);
             log.info("回执受理完成: tenantId={}, received={}, accepted={}, duplicated={}, unmatched={}, advanced={}, queued={}",
@@ -207,13 +212,13 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
      *
      * @param prepared        预处理结果
      * @param existingKeys    库中已存在的幂等键（本批插入后会同步加入，保证批内幂等）
-     * @param deliveriesByKey 按渠道 + 渠道侧消息标识预取的投递记录
+     * @param matches         本批回执到投递记录的匹配结果
      * @param result          累计结果
      * @param touchedMessages 本次推进过状态的逻辑消息ID集合
      * @param recordCache     逻辑消息缓存，避免同批重复查询
      */
     private void handleOne(PreparedReceipt prepared, Set<String> existingKeys,
-                           Map<String, List<MessageDeliveryPo>> deliveriesByKey, ReceiptApplyResult result,
+                           Map<DeliveryReceiptItem, List<MessageDeliveryPo>> matches, ReceiptApplyResult result,
                            Set<Long> touchedMessages, Map<Long, MessageRecordPo> recordCache) {
         DeliveryReceiptItem item = prepared.item();
         String receiptKey = prepared.receiptKey();
@@ -222,9 +227,7 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
             result.setDuplicated(result.getDuplicated() + 1);
             return;
         }
-        List<MessageDeliveryPo> deliveries = StringUtils.hasText(item.getProviderMessageId())
-                ? deliveriesByKey.getOrDefault(matchKey(prepared.channel(), item.getProviderMessageId()), List.of())
-                : List.of();
+        List<MessageDeliveryPo> deliveries = matches.getOrDefault(item, List.of());
         MessageReceiptPo receipt = buildReceipt(prepared.channel(), item, prepared.target(),
                 prepared.receiptTime(), receiptKey, deliveries);
         try {
@@ -310,48 +313,44 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
     }
 
     /**
-     * 按渠道分组批量匹配投递记录。
+     * 按策略链批量匹配投递记录：低优先级策略只处理前序未命中的回执。
      *
      * <p>租户隔离依赖租户插件追加 {@code tenant_id = ?}：受理入口已按回执请求切换
      * {@link com.bluewhale.common.tenant.TenantContext}，且 {@code msg_delivery} 不在插件忽略清单内，
-     * 因此不会匹配到其它租户的同名 providerMessageId。</p>
+     * 因此不会匹配到其它租户的投递记录。</p>
      *
      * @param prepared 预处理结果
-     * @return 键为「渠道+提供方消息ID」的投递记录分组
+     * @return 回执到投递记录的匹配结果
      */
-    private Map<String, List<MessageDeliveryPo>> matchDeliveriesBatch(List<PreparedReceipt> prepared) {
-        Map<String, Set<String>> idsByChannel = new HashMap<>();
-        for (PreparedReceipt item : prepared) {
-            String providerMessageId = item.item().getProviderMessageId();
-            if (!StringUtils.hasText(providerMessageId)) {
+    private Map<DeliveryReceiptItem, List<MessageDeliveryPo>> matchDeliveries(List<PreparedReceipt> prepared) {
+        Map<DeliveryReceiptItem, List<MessageDeliveryPo>> matches = new HashMap<>();
+        if (prepared.isEmpty() || matchers.isEmpty()) {
+            return matches;
+        }
+        List<DeliveryReceiptItem> pending = prepared.stream().map(PreparedReceipt::item).toList();
+        List<ReceiptMatcher> ordered = matchers.stream()
+                .sorted(Comparator.comparingInt(ReceiptMatcher::order))
+                .toList();
+        for (ReceiptMatcher matcher : ordered) {
+            List<DeliveryReceiptItem> applicable = pending.stream()
+                    .filter(item -> {
+                        MessageChannel channel = MessageChannel.parse(item.getChannel());
+                        return channel != null && matcher.supports(channel);
+                    })
+                    .toList();
+            if (applicable.isEmpty()) {
                 continue;
             }
-            idsByChannel.computeIfAbsent(item.channel(), key -> new LinkedHashSet<>())
-                    .add(providerMessageId.trim());
-        }
-        Map<String, List<MessageDeliveryPo>> result = new HashMap<>();
-        for (Map.Entry<String, Set<String>> entry : idsByChannel.entrySet()) {
-            LambdaQueryWrapper<MessageDeliveryPo> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(MessageDeliveryPo::getChannel, entry.getKey())
-                    .in(MessageDeliveryPo::getProviderMessageId, entry.getValue())
-                    .orderByAsc(MessageDeliveryPo::getId);
-            for (MessageDeliveryPo delivery : deliveryMapper.selectList(wrapper)) {
-                result.computeIfAbsent(matchKey(entry.getKey(), delivery.getProviderMessageId()),
-                        key -> new ArrayList<>()).add(delivery);
+            matches.putAll(matcher.match(applicable));
+            List<DeliveryReceiptItem> remaining = pending.stream()
+                    .filter(item -> !matches.containsKey(item))
+                    .toList();
+            pending = remaining;
+            if (pending.isEmpty()) {
+                break;
             }
         }
-        return result;
-    }
-
-    /**
-     * 构造投递匹配键。
-     *
-     * @param channel           渠道
-     * @param providerMessageId 渠道侧消息标识
-     * @return 匹配键
-     */
-    private static String matchKey(String channel, String providerMessageId) {
-        return channel + "|" + providerMessageId.trim();
+        return matches;
     }
 
     /**

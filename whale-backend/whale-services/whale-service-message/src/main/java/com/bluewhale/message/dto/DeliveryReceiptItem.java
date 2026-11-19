@@ -37,6 +37,15 @@ public class DeliveryReceiptItem implements Serializable {
     @Size(max = 128, message = "渠道消息标识长度不能超过 128")
     private String providerMessageId;
 
+    /**
+     * 接收人标识（可选），仅用于未携带 {@code providerMessageId} 时的兜底匹配
+     *
+     * <p>与消息投递记录 {@code msg_delivery.recipient} 同口径：EMAIL 填邮箱、SMS 填手机号、
+     * IM 填用户ID、INAPP 填用户ID。</p>
+     */
+    @Size(max = 160, message = "接收人标识长度不能超过 160")
+    private String recipient;
+
     /** 回执状态：DELIVERED / READ / BOUNCED（参数校验阶段拒绝非法值，避免整批事务回滚） */
     @NotBlank(message = "回执状态不能为空")
     @Size(max = 16, message = "回执状态长度不能超过 16")

@@ -19,6 +19,9 @@ import com.bluewhale.message.mapper.MessageCallbackTaskMapper;
 import com.bluewhale.message.mapper.MessageDeliveryMapper;
 import com.bluewhale.message.mapper.MessageReceiptMapper;
 import com.bluewhale.message.mapper.MessageRecordMapper;
+import com.bluewhale.message.support.FallbackReceiptMatcher;
+import com.bluewhale.message.support.ProviderIdReceiptMatcher;
+import com.bluewhale.message.support.ReceiptMatcher;
 import com.bluewhale.message.vo.ReceiptApplyResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
@@ -76,6 +79,11 @@ class MessageReceiptServiceImplTest {
     private final List<MessageChannelSender> senders = List.of(new InAppChannelSender(),
             new SmsChannelSender(new MessageChannelProperties(), new ObjectMapper()));
 
+    /** 回执匹配策略链：精确匹配优先，兜底匹配其次 */
+    private final List<ReceiptMatcher> matchers = List.of(
+            new ProviderIdReceiptMatcher(deliveryMapper),
+            new FallbackReceiptMatcher(deliveryMapper));
+
     /**
      * Lambda 条件构造器依赖实体表信息缓存，纯单测需手动初始化。
      */
@@ -111,7 +119,7 @@ class MessageReceiptServiceImplTest {
         });
         when(callbackTaskMapper.insert(any(MessageCallbackTaskPo.class))).thenReturn(1);
         return new MessageReceiptServiceImpl(recordMapper, deliveryMapper, receiptMapper,
-                callbackTaskMapper, new ObjectMapper(), properties, channelSenders);
+                callbackTaskMapper, new ObjectMapper(), properties, channelSenders, matchers);
     }
 
     /**
@@ -311,7 +319,7 @@ class MessageReceiptServiceImplTest {
     void disabledReceiptShouldBeRejected() {
         properties.setEnabled(false);
         MessageReceiptServiceImpl service = new MessageReceiptServiceImpl(recordMapper, deliveryMapper,
-                receiptMapper, callbackTaskMapper, new ObjectMapper(), properties, senders);
+                receiptMapper, callbackTaskMapper, new ObjectMapper(), properties, senders, matchers);
         assertThrows(BizException.class, () -> service.apply(request("DELIVERED", "rcpt-7")));
     }
 
