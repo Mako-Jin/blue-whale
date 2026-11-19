@@ -134,10 +134,28 @@ void main() {
   float dhdx = (surface(p + vec2(e, 0.0), uTime) - surface(p - vec2(e, 0.0), uTime)) / (2.0 * e);
   float dhdz = (surface(p + vec2(0.0, e), uTime) - surface(p - vec2(0.0, e), uTime)) / (2.0 * e);
 
-  vec3 N = normalize(vec3(-dhdx * 1.55 * atten, 1.0, -dhdz * 1.55 * atten));
+  /*
+   * 三档法线，各管各的：
+   *  N  全强度（1.55×）——太阳碎金与灯影摇曳，波纹的高频特征全靠它；
+   *  Nr 六成强度——反射光线采样，防云纹被搅成油花；
+   *  Ns 两成五强度——菲涅尔。菲涅尔对法线极敏感，全强度时它把噪声高度场的
+   *     等高线直接画在水面上一条条蜿蜒细脉，就是"大理石纹蓝油漆"的来源。
+   *     真实近景水面的反光是宽而柔和的明暗坡，不是等值线图。
+   */
+  vec3 Ns = normalize(vec3(-dhdx * 0.40 * atten, 1.0, -dhdz * 0.40 * atten));
+
   vec3 V = normalize(cameraPosition - vWorld);
 
-  vec3 R = reflect(-V, N);
+  /*
+   * 反射光线用"抹平"的法线（全强度法线的六成）。
+   *
+   * <p>S20 把云加进天空后，env 探针（同一套天空）把云也烘了进去——反射光线被波纹
+   * 全强度搅动时，锐利的云纹在水面扭成满屏涡旋，码头机位实测像"大理石纹蓝油漆"。
+   * 真实波面对高空云的反射是大幅柔和的明暗斑：粗糙表面平均了很大一片天空方向。</p>
+   */
+  vec3 Nr = normalize(vec3(-dhdx * 0.95 * atten, 1.0, -dhdz * 0.95 * atten));
+  vec3 R = reflect(-V, Nr);
+  vec3 N = normalize(vec3(-dhdx * 1.55 * atten, 1.0, -dhdz * 1.55 * atten));
 
   /*
    * 反射 = 解析天空 + 环境探针。
@@ -150,11 +168,18 @@ void main() {
    * 所以按距离淡回解析天空：50m 内以探针为主，100m 外几乎全是天空。</p>
    */
   float ew = uEnvWeight / (1.0 + dist * 0.022);
-  vec3 refl = mix(skyAt(R), textureCube(uEnv, R).rgb, ew);
+  /*
+   * mip 偏移 3：PMREM 的高层 mip 就是预模糊的天空——水面是粗糙反射体，不是镜子。
+   * 碎金与灯影用的是解析高光/光带，不受此影响；被抹掉的是"锐利云纹"这种
+   * 本来就不该出现在波纹水面上的东西。
+   */
+  vec3 envR = textureCube(uEnv, R, 3.0).rgb;
+  vec3 refl = mix(skyAt(R), envR, ew);
 
   // 菲涅尔：正视也保留一点反射（0.05 起步），否则俯视时是一块死水泥；
   // 但上限压到 0.82——满反射会让水面变成一面金色镜子，把整条河的形体吃掉
-  float fres = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 4.0);
+  // 用抹平法线 Ns：细节法线在这里会把噪声等高线画成大理石细脉
+  float fres = pow(1.0 - clamp(dot(Ns, V), 0.0, 1.0), 4.0);
   fres = clamp(0.05 + fres * 0.9, 0.0, 0.82);
 
   // 反射色本身要压暗并去饱和：水体吸收掉了大部分能量，直接拿天空色当水面会过曝
