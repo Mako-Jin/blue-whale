@@ -6,6 +6,7 @@ import com.bluewhale.message.channel.MessageChannelSender;
 import com.bluewhale.message.config.MessageChannelProperties;
 import com.bluewhale.message.enums.MessageChannel;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -38,6 +39,20 @@ public class SmsChannelSender implements MessageChannelSender {
 
     private final ObjectMapper objectMapper;
 
+    /** 复用的 HTTP 客户端：HttpClient 重量级且线程安全，避免每条短信都重建连接池 */
+    private HttpClient httpClient;
+
+    /**
+     * 初始化共享 HTTP 客户端（连接超时沿用短信渠道超时配置）。
+     */
+    @PostConstruct
+    void initHttpClient() {
+        int timeout = properties.getSms().getTimeoutMillis() <= 0 ? 3000 : properties.getSms().getTimeoutMillis();
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofMillis(timeout))
+                .build();
+    }
+
     @Override
     public MessageChannel channel() {
         return MessageChannel.SMS;
@@ -68,10 +83,8 @@ public class SmsChannelSender implements MessageChannelSender {
             if (StringUtils.hasText(sms.getToken())) {
                 builder.header("Authorization", "Bearer " + sms.getToken().trim());
             }
-            HttpResponse<String> response = HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofMillis(timeout))
-                    .build()
-                    .send(builder.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            HttpResponse<String> response = httpClient.send(builder.build(),
+                    HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
                 log.info("消息短信已提交网关: messageId={}, to={}", message.getMessageId(),
                         maskPhone(message.getRecipient().getPhone()));

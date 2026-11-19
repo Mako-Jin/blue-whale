@@ -41,4 +41,7 @@ public class AnnouncementVO implements Serializable {
 
     /** 创建时间 */
     private LocalDateTime createTime;
+
+    /** 更新时间（撤回操作会刷新，可据此展示撤回时间） */
+    private LocalDateTime updateTime;
 }

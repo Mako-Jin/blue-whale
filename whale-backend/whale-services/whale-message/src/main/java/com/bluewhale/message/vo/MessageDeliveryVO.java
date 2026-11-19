@@ -38,4 +38,10 @@ public class MessageDeliveryVO implements Serializable {
 
     /** 投递时间 */
     private LocalDateTime sentAt;
+
+    /** 渠道确认送达时间（回执态写入） */
+    private LocalDateTime deliveredAt;
+
+    /** 接收人阅读时间（仅可回传阅读态的渠道） */
+    private LocalDateTime readAt;
 }

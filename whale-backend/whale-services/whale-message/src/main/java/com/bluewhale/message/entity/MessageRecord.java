@@ -41,7 +41,7 @@ public class MessageRecord extends BaseEntity {
     /** 渠道列表（大写逗号分隔） */
     private String channels;
 
-    /** 消息状态：PENDING / SENT / PARTIAL / FAILED / MOCKED / SKIPPED */
+    /** 消息状态：PENDING / SENT / DELIVERED / PARTIAL / FAILED / MOCKED / SKIPPED（与 MessageStatus 枚举一致） */
     private String status;
 
     /** 回执回调地址（业务方内网端点；空表示不回传回执） */

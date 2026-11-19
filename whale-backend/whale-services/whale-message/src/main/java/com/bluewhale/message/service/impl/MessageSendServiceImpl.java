@@ -614,6 +614,8 @@ public class MessageSendServiceImpl implements MessageSendService {
         vo.setErrorMessage(delivery.getErrorMessage());
         vo.setAttempts(delivery.getAttempts());
         vo.setSentAt(delivery.getSentAt());
+        vo.setDeliveredAt(delivery.getDeliveredAt());
+        vo.setReadAt(delivery.getReadAt());
         return vo;
     }
 

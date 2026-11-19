@@ -7,6 +7,7 @@ import com.bluewhale.message.channel.MessageChannelSender;
 import com.bluewhale.message.config.MessageChannelProperties;
 import com.bluewhale.message.enums.MessageChannel;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -39,6 +40,20 @@ public class ImChannelSender implements MessageChannelSender {
     private final ObjectMapper objectMapper;
 
     private final InternalTokenProperties internalTokenProperties;
+
+    /** 复用的 HTTP 客户端：HttpClient 重量级且线程安全，避免每条通知都重建连接池 */
+    private HttpClient httpClient;
+
+    /**
+     * 初始化共享 HTTP 客户端（连接超时沿用 IM 渠道超时配置）。
+     */
+    @PostConstruct
+    void initHttpClient() {
+        int timeout = properties.getIm().getTimeoutMillis() <= 0 ? 3000 : properties.getIm().getTimeoutMillis();
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofMillis(timeout))
+                .build();
+    }
 
     @Override
     public MessageChannel channel() {
@@ -75,10 +90,8 @@ public class ImChannelSender implements MessageChannelSender {
                 }
             }
             HttpRequest request = requestBuilder.build();
-            HttpResponse<String> response = HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofMillis(timeout))
-                    .build()
-                    .send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            HttpResponse<String> response = httpClient.send(request,
+                    HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
                 log.info("消息已投递 IM: messageId={}, userId={}", message.getMessageId(),
                         message.getRecipient().getUserId());

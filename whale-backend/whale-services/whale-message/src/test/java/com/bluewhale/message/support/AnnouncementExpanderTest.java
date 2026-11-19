@@ -1,7 +1,6 @@
 package com.bluewhale.message.support;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
-import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.bluewhale.message.entity.MessageAnnouncement;
 import com.bluewhale.message.entity.MessageDelivery;
@@ -18,7 +17,6 @@ import org.mockito.ArgumentCaptor;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -27,6 +25,9 @@ import static org.mockito.Mockito.when;
 
 /**
  * {@link AnnouncementExpander} 系统公告惰性展开单元测试。
+ *
+ * <p>「已发布 − 已展开」差集由 Mapper 的 NOT EXISTS 反连接在数据库侧完成，
+ * 因此展开器只断言对差集结果的补写行为。</p>
  *
  * @author BlueWhale
  */
@@ -53,8 +54,7 @@ class AnnouncementExpanderTest {
         announcement.setId(5001L);
         announcement.setRecordId(1001L);
         announcement.setStatus(AnnouncementStatus.PUBLISHED.name());
-        when(announcementMapper.selectList(any(Wrapper.class))).thenReturn(List.of(announcement));
-        when(deliveryMapper.selectList(any(Wrapper.class))).thenReturn(List.of());
+        when(announcementMapper.selectUnexpandedForRecipient("7")).thenReturn(List.of(announcement));
 
         expander.expand(7L);
 
@@ -69,18 +69,9 @@ class AnnouncementExpanderTest {
     }
 
     @Test
-    @DisplayName("已展开的公告不再重复补写")
+    @DisplayName("已展开的公告由差集查询过滤，应用层不再重复补写")
     void shouldSkipExpandedAnnouncements() {
-        MessageAnnouncement announcement = new MessageAnnouncement();
-        announcement.setId(5001L);
-        announcement.setRecordId(1001L);
-        announcement.setStatus(AnnouncementStatus.PUBLISHED.name());
-        when(announcementMapper.selectList(any(Wrapper.class))).thenReturn(List.of(announcement));
-        MessageDelivery expanded = new MessageDelivery();
-        expanded.setMessageId(1001L);
-        expanded.setChannel(MessageChannel.INAPP.name());
-        expanded.setRecipient("7");
-        when(deliveryMapper.selectList(any(Wrapper.class))).thenReturn(List.of(expanded));
+        when(announcementMapper.selectUnexpandedForRecipient("7")).thenReturn(List.of());
 
         expander.expand(7L);
 
@@ -94,8 +85,7 @@ class AnnouncementExpanderTest {
         announcement.setId(5001L);
         announcement.setRecordId(1001L);
         announcement.setStatus(AnnouncementStatus.PUBLISHED.name());
-        when(announcementMapper.selectList(any(Wrapper.class))).thenReturn(List.of(announcement));
-        when(deliveryMapper.selectList(any(Wrapper.class))).thenReturn(List.of());
+        when(announcementMapper.selectUnexpandedForRecipient("7")).thenReturn(List.of(announcement));
         when(deliveryMapper.insert(any(MessageDelivery.class)))
                 .thenThrow(new org.springframework.dao.DuplicateKeyException("uk_message_channel_recipient"));
 
@@ -105,26 +95,24 @@ class AnnouncementExpanderTest {
     }
 
     @Test
-    @DisplayName("无已发布公告时不查询投递记录也不插入")
-    void shouldDoNothingWhenNoPublishedAnnouncement() {
-        when(announcementMapper.selectList(any(Wrapper.class))).thenReturn(List.of());
+    @DisplayName("无待展开公告时不插入任何投递记录")
+    void shouldDoNothingWhenNoPendingAnnouncement() {
+        when(announcementMapper.selectUnexpandedForRecipient("7")).thenReturn(List.of());
 
         expander.expand(7L);
 
-        verify(deliveryMapper, never()).selectList(any(Wrapper.class));
         verify(deliveryMapper, never()).insert(any(MessageDelivery.class));
     }
 
     @Test
     @DisplayName("展开异常降级不阻断收件箱读取")
     void shouldDegradeOnExpandFailure() {
-        when(announcementMapper.selectList(any(Wrapper.class)))
+        when(announcementMapper.selectUnexpandedForRecipient("7"))
                 .thenThrow(new RuntimeException("db down"));
 
         expander.expand(7L);
 
         // 不抛异常即视为降级成功；投递记录未被触碰
         verify(deliveryMapper, never()).insert(any(MessageDelivery.class));
-        assertTrue(true);
     }
 }

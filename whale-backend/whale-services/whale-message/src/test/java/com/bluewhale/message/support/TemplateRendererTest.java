@@ -44,4 +44,13 @@ class TemplateRendererTest {
 
         assertEquals("你好 ", TemplateRenderer.render("你好 ${name}", payload));
     }
+
+    @Test
+    @DisplayName("变量值中的占位符不会被二次替换（防模板注入）")
+    void shouldNotReRenderPlaceholderInsideValue() {
+        String result = TemplateRenderer.render("${greeting} ${name}",
+                Map.of("greeting", "${name}", "name", "蓝鲸"));
+
+        assertEquals("${name} 蓝鲸", result);
+    }
 }

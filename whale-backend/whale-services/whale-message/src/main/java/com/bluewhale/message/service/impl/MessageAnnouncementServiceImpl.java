@@ -160,6 +160,7 @@ public class MessageAnnouncementServiceImpl implements MessageAnnouncementServic
         vo.setPublisherId(announcement.getPublisherId());
         vo.setPublishTime(announcement.getPublishTime());
         vo.setCreateTime(announcement.getCreateTime());
+        vo.setUpdateTime(announcement.getUpdateTime());
         if (record != null) {
             vo.setTitle(record.getTitle());
             vo.setContent(record.getContent());
