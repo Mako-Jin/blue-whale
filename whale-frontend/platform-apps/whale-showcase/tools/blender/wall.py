@@ -47,9 +47,9 @@ PARAPET_T = 0.36
 
 # ---------------------------------------------------------------- 材质
 
-BRICK = blib.mat("wallBrick", blib.srgb(0x585549), rough=0.95)
-BRICK_UP = blib.mat("wallBrickUp", blib.srgb(0x615D50), rough=0.94)
-BASE = blib.mat("wallBase", blib.srgb(0x403C34), rough=0.96)
+BRICK = blib.mat("wallBrick", blib.srgb(0x6B6659), rough=0.95)
+BRICK_UP = blib.mat("wallBrickUp", blib.srgb(0x74705F), rough=0.94)
+BASE = blib.mat("wallBase", blib.srgb(0x4C473D), rough=0.96)
 DECK = blib.mat("wallDeck", blib.srgb(0x767061), rough=0.9)
 CAP = blib.mat("wallCap", blib.srgb(0x35322B), rough=0.8)
 
@@ -165,7 +165,50 @@ parts.append(
     )
 )
 
-blib.join(parts, "wall_seg")
+def box_uv(ob, names, scale=4.0):
+    """
+    按米重算盒式投影 UV（与 `house.py::box_uv` 同一套做法）。
+
+    <p>城墙原本是纯色件，8m 一段在 40m 外就是一块 8×4.6m 的灰板。加砖纹必须
+    先把 UV 落到"米"上：`from_pydata` 建的六面体本来没有 UV 层，blib.box 的
+    立方体 UV 又是每面各占 0..1（等于把贴图拉伸到一个 8m 见方的面上用）。</p>
+
+    <p>`scale=4.0` 与 `textures.ts::BRICK_METERS` 严格一致，而且 <b>8 / 4 = 2</b>
+    是整数：一个标准段正好铺两次，段与段之间砖缝自然接上。若用 3 或 5，
+    每 8m 边界就会露出半块砖的错位。</p>
+    """
+    me = ob.data
+    # join 之后会同时存在两份 UV 层：立方体自带的 `UVMap`，以及给无 UV 的
+    # taper 自动补的一份。glTF 导出取的是 active_render 那一层，写错层等于
+    # 没写——S11 给白墙贴图时就因为"写了但导出的不是它"白改了一轮。
+    # 这里直接清空重建，只留一份，避免任何歧义。
+    while me.uv_layers:
+        me.uv_layers.remove(me.uv_layers[0])
+    uvl = me.uv_layers.new(name="UVMap")
+    me.uv_layers.active = uvl
+    uvl.active_render = True
+    target = {i for i, m in enumerate(me.materials) if m and m.name in names}
+    if not target:
+        return
+    for poly in me.polygons:
+        if poly.material_index not in target:
+            continue
+        n = poly.normal
+        an = (abs(n.x), abs(n.y), abs(n.z))
+        axis = an.index(max(an))
+        for li in poly.loop_indices:
+            co = me.vertices[me.loops[li].vertex_index].co
+            if axis == 0:
+                u, v = co.y, co.z
+            elif axis == 1:
+                u, v = co.x, co.z
+            else:
+                u, v = co.x, co.y
+            uvl.data[li].uv = (u / scale, v / scale)
+
+
+ob = blib.join(parts, "wall_seg")
+box_uv(ob, ("wallBrick", "wallBrickUp", "wallBase"), scale=4.0)
 
 blib.setup_check_scene()
 blib.render_views("wall_seg", target=(0, 0, 2.2), radius=11.0, height=3.0, ortho_scale=9.0)

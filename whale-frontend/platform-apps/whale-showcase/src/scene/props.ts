@@ -2,7 +2,14 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { HouseVariant, SceneAssets, TemplateParts, TreeVariant } from './loader';
 import { heightAt, riverCenter, slopeAt, WATER_LEVEL } from './terrain';
-import { applyPlasterMap, applyStoneMap, isPlaster, PLASTER_METERS } from './textures';
+import {
+  applyBrickMap,
+  applyPlasterMap,
+  applyStoneMap,
+  BRICK_METERS,
+  isPlaster,
+  PLASTER_METERS,
+} from './textures';
 import { PALETTE, clamp } from './util';
 
 /**
@@ -989,8 +996,8 @@ const WALL_SEG = 8;
 
 /** 城墙只修两段，中间让给桥头广场（真实城郭也是这样——南门进、北门出） */
 const WALL_RUNS: Array<[number, number]> = [
-  [-52, -8],
-  [12, 46],
+  [-56, -8],
+  [12, 44],
 ];
 
 export interface WallSeg {
@@ -998,6 +1005,8 @@ export interface WallSeg {
   y: number;
   /** 本段沿 Z 的实际长度（≈8m，因要整除区间而略有变化） */
   len: number;
+  /** 本段俯仰角（弧度）。整个 run 同一个值，让墙顶连成一条斜线 */
+  pitch: number;
 }
 
 /**
@@ -1007,8 +1016,10 @@ export interface WallSeg {
  * 有近 9m 高差。<b>每段单独取地面高度</b>，段与段之间的高差就形成阶梯状下跌——
  * 那正是山城城墙的真实形态。整道墙只取一次高度（旧写法）的后果是一排悬空方块。</p>
  *
- * <p>段数由区间长度除以 8 四舍五入，再把区间均分——这样区间一定被填满，
- * 代价是段长在 7~9m 之间浮动，靠缩放吸收（8m 段缩 12% 以内，垛口宽窄看不出来）。</p>
+ * <p>段数由区间长度除以 8 四舍五入，再把区间均分——<b>两个区间长度都是 8 的整数倍</b>
+ * （48m / 32m），所以段长正好 8m、缩放恒为 1。这一点对砖纹是硬要求：UV 在
+ * Blender 里按米算（1 UV = 4m），一旦逐段缩放，砖缝宽度与相位都会跟着变，
+ * 每 8m 边界就多出一条错缝，等于给"格子感"描了边。</p>
  */
 export function wallSegments(): WallSeg[] {
   const out: WallSeg[] = [];
@@ -1016,12 +1027,15 @@ export function wallSegments(): WallSeg[] {
     const span = z1 - z0;
     const n = Math.max(1, Math.round(span / WALL_SEG));
     const len = span / n;
+    // 整段区间用**一个**俯仰角（首尾地面高差 / 区间长）。逐段取坡度的话，
+    // 相邻段端面不平行，8m 的段长会把 1° 的角度差放大成 14cm 的楔形缝。
+    const pitch = -Math.atan((heightAt(WALL_X, z1) - heightAt(WALL_X, z0)) / span);
     for (let i = 0; i < n; i += 1) {
       const zc = z0 + len * (i + 0.5);
       // 取段内 5 点平均：只看中心点的话，8m 段在坡上一端悬空、一端埋没
       let sum = 0;
       for (let k = 0; k < 5; k += 1) sum += heightAt(WALL_X, zc + (k - 2) * (len / 5));
-      out.push({ z: zc, y: sum / 5, len });
+      out.push({ z: zc, y: sum / 5, len, pitch });
     }
   }
   return out;
@@ -1873,6 +1887,8 @@ interface Placement {
   y: number;
   z: number;
   rotY: number;
+  /** 绕 X 轴的俯仰（弧度）。城墙顺坡用：墙顶连成斜线，而不是每 8m 掉一级台阶 */
+  rx?: number;
   sx?: number;
   sy?: number;
   sz?: number;
@@ -1892,6 +1908,7 @@ function instanceParts(
   if (!parts.length || !list.length) return;
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
+  const e = new THREE.Euler();
   const pos = new THREE.Vector3();
   const scl = new THREE.Vector3();
   const up = new THREE.Vector3(0, 1, 0);
@@ -1901,7 +1918,13 @@ function instanceParts(
     im.receiveShadow = true;
     im.frustumCulled = false; // 实例横跨几十米，整体包围盒没意义
     list.forEach((p, i) => {
-      q.setFromAxisAngle(up, p.rotY);
+      if (p.rx) {
+        // YXZ：先绕自身 X 俯仰，再绕 Y 转向（城墙只要俯仰）
+        e.set(p.rx, p.rotY, 0, 'YXZ');
+        q.setFromEuler(e);
+      } else {
+        q.setFromAxisAngle(up, p.rotY);
+      }
       pos.set(p.x, p.y, p.z);
       scl.set(p.sx ?? 1, p.sy ?? 1, p.sz ?? 1);
       m.compose(pos, q, scl);
@@ -1911,6 +1934,47 @@ function instanceParts(
     im.name = name;
     group.add(im);
   }
+}
+
+/**
+ * 按主轴重算"按米"的盒式投影 UV（局部坐标）。
+ *
+ * <p>与 `wall.py::box_uv` 同一套规则，但**在运行时算**：GLB 里那套 UV 在
+ * three 端读出来是 0..1（每段一张图），渲染出来一块砖 1.3m、一层 1.1m，
+ * 正好是"贴图被铺满一整段"的样子。而这种错<em>看不出来是错</em>——墙上确实有
+ * 砖缝，只是尺度大了 2 倍、看着像砌块墙。所以不赌导出链路，直接按几何重算。</p>
+ *
+ * <p>轴向与 glTF 一致：段长沿 Z、墙高沿 Y。`scale` 是"一个 UV 单位 = 多少米"，
+ * 必须与 `textures.ts::BRICK_METERS` 相等。</p>
+ */
+function boxUvLocal(g: THREE.BufferGeometry, scale: number): void {
+  const pos = g.attributes.position;
+  const nor = g.attributes.normal;
+  if (!pos || !nor) return;
+  const uv = new Float32Array(pos.count * 2);
+  for (let i = 0; i < pos.count; i += 1) {
+    const ax = Math.abs(nor.getX(i));
+    const ay = Math.abs(nor.getY(i));
+    const az = Math.abs(nor.getZ(i));
+    let u: number;
+    let v: number;
+    if (ax >= ay && ax >= az) {
+      // 内/外墙：段长 × 墙高
+      u = pos.getZ(i);
+      v = pos.getY(i);
+    } else if (ay >= az) {
+      // 顶面/底面：进深 × 段长
+      u = pos.getX(i);
+      v = pos.getZ(i);
+    } else {
+      // 端面：进深 × 墙高
+      u = pos.getX(i);
+      v = pos.getY(i);
+    }
+    uv[i * 2] = u / scale;
+    uv[i * 2 + 1] = v / scale;
+  }
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
 }
 
 export function buildSettlement(assets?: SceneAssets): THREE.Group {
@@ -1999,10 +2063,32 @@ export function buildSettlement(assets?: SceneAssets): THREE.Group {
   }
 
   if (hasWall && assets) {
+    // 砖纹只在墙身/基座上：马道铺面（wallDeck）与压顶石（wallCap）是打磨过的
+    // 长条石，铺一层砌缝反而变成"墙上贴了砖纸"。
+    for (const part of assets.wall) {
+      const std = part.material as THREE.MeshStandardMaterial;
+      if (!/^wall(Brick|BrickUp|Base)$/i.test(std.name ?? '')) continue;
+      applyBrickMap(std);
+      // GLB 里那套 UV 在 three 端读出来是"每段一张图"（0..1），渲染出来一块砖
+      // 1.3m、一层 1.1m——墙上确实有砖缝，只是尺度大 2 倍，看着像砌块墙。
+      // 不赌导出链路，按几何重算（与 wall.py 同一套规则）。
+      boxUvLocal(part.geometry, BRICK_METERS);
+    }
     instanceParts(
       group,
       assets.wall,
-      segs.map((sg) => ({ x: WALL_X, y: sg.y, z: sg.z, rotY: 0, sz: sg.len / WALL_SEG })),
+      segs.map((sg) => ({
+        x: WALL_X,
+        y: sg.y,
+        z: sg.z,
+        rotY: 0,
+        rx: sg.pitch,
+        // ① 俯仰让段的水平投影缩短 cos(θ)（12° 就是 8cm/端），不补偿段间会开裂；
+        // ② 再多给 6cm：段长正好 8m 且 y 相同的两端面完全共面，会在边界上闪
+        //    （z-fighting）。溢出 6cm 让上段压住下段，UV 只错 1.5%，
+        //    远小于一块砖的宽度，接缝看起来像正常的错缝砌筑。
+        sz: (sg.len + 0.06) / (WALL_SEG * Math.cos(sg.pitch)),
+      })),
       'wall',
     );
   }

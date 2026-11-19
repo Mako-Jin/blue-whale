@@ -110,13 +110,15 @@ const TIMES: Record<TimeName, TimePreset> = {
     sunIntensity: 1.1,
     hemiSky: 0x4a6a9a,
     hemiGround: 0x272d40,
-    hemiIntensity: 1.1,
+    // 1.1 → 1.35：蓝调时刻西岸（背光面）几乎全黑，河谷只剩一条轮廓线。
+    // 真实蓝调是"天还很亮、地已暗"，靠天光把地面托起来才像。
+    hemiIntensity: 1.35,
     skyTop: 0x121d36,
     skyHorizon: 0x5d789f,
     skyGround: 0x1c222c,
     fogColor: 0x44546c,
     fogDensity: 0.0024,
-    exposure: 1.16,
+    exposure: 1.22,
     haze: 0.5,
     lamp: 0.9,
     envIntensity: 2.0,
@@ -128,16 +130,20 @@ const TIMES: Record<TimeName, TimePreset> = {
     sunElev: 34,
     sunAzim: 62,
     sunColor: 0x8fa6e0,
-    sunIntensity: 0.55,
+    // 0.55 时月光几乎照不出方向，屋顶与城墙全靠灯笼的局部光勾边，
+    // 全景里整片建筑是黑的，只剩一排灯笼飘在空处——看不出"这是一座城"。
+    // 提亮月光（保留冷蓝）比提 exposure 好：exposure 一抬，天空与灯笼一起变灰。
+    sunIntensity: 0.95,
     hemiSky: 0x1b2740,
     hemiGround: 0x080a0e,
-    hemiIntensity: 0.42,
+    // 0.42 → 0.7：夜景要能读出体量（墙、屋顶的转折），但天空必须仍比地面亮
+    hemiIntensity: 0.7,
     skyTop: 0x050812,
     skyHorizon: 0x131c30,
     skyGround: 0x07090d,
     fogColor: 0x0f1626,
     fogDensity: 0.0028,
-    exposure: 1.42,
+    exposure: 1.46,
     haze: 0.28,
     lamp: 1.7,
     envIntensity: 2.2,

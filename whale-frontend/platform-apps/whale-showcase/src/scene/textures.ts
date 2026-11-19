@@ -200,6 +200,169 @@ export function applyStoneMap(mat: THREE.Material): void {
   std.needsUpdate = true;
 }
 
+/* ------------------------------------------------------------------ 城墙砖石 */
+
+/**
+ * 砖石贴图覆盖的世界尺寸（米）。
+ *
+ * <p><b>必须是段长 8m 的整数分之一</b>：8 / 4 = 2，一个标准段正好铺两次，
+ * 段与段之间贴图相位自然接上。改成 3m 或 5m 都会让每 8m 出现一次半块砖错位——
+ * 本来想消除"格子感"，结果每段边界上多出一条错缝，等于给格子描了边。</p>
+ */
+export const BRICK_METERS = 4.0;
+
+/** 每层砌石高 0.5m（4m / 8 层），恰好是 64px 的整数 —— 不做小数层高，否则最后一行会薄一截 */
+const BRICK_COURSES = 8;
+/** 每层 6 块（0.67m/块）。条石的尺度就是 0.6~1m，用 5 块时块头太胖、像混凝土砌块 */
+const BRICK_PER_ROW = 6;
+/** 灰缝宽（px）：2px ≈ 1.6cm。3px 时缝宽到 2.3cm，远看是一圈亮网格 */
+const BRICK_GAP = 2;
+
+/** 整数哈希 → [0,1)。同一 (row,col) 永远同一个值，平铺时不会在接缝处跳变 */
+function hash2(x: number, y: number): number {
+  const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+  return s - Math.floor(s);
+}
+
+/**
+ * 可平铺的 value noise。
+ *
+ * <p>`fbm()` 不可平铺：u=0 与 u=1 取到不同的值，贴图平铺时接缝上会跳一条硬边。
+ * 这里把格点索引对 `period` 取模，于是 u=1 与 u=0 落在同一批格点上，
+ * 数学上严格无缝。代价是只能出"周期图案"——对石墙这种没有强特征的表面正合适。</p>
+ */
+function pnoise(u: number, v: number, period: number, periodV = period): number {
+  const fx = u * period;
+  const fy = v * periodV;
+  const ix = Math.floor(fx);
+  const iy = Math.floor(fy);
+  const tx = fx - ix;
+  const ty = fy - iy;
+  const sx = tx * tx * (3 - 2 * tx);
+  const sy = ty * ty * (3 - 2 * ty);
+  const p = (x: number, y: number) =>
+    hash2(((x % period) + period) % period, ((y % periodV) + periodV) % periodV);
+  const a = p(ix, iy);
+  const b = p(ix + 1, iy);
+  const c = p(ix, iy + 1);
+  const d = p(ix + 1, iy + 1);
+  return (a * (1 - sx) + b * sx) * (1 - sy) + (c * (1 - sx) + d * sx) * sy;
+}
+
+/** 三倍频可平铺 fbm，输出 0..1 */
+function pfbm(u: number, v: number, period: number): number {
+  return pnoise(u, v, period) * 0.5 + pnoise(u, v, period * 2) * 0.32 + pnoise(u, v, period * 4) * 0.18;
+}
+
+/** 临时开关：把砖纹换成"一块=一格"的棋盘，用来核对 UV 尺度（0.5m 层 × 0.67m 块） */
+const DEBUG_BRICK_UV = false;
+
+/**
+ * 城墙：层砌条石。
+ *
+ * <p>第一版画成了"亮块 + 深缝 + 每块一个色"，出图是<b>马赛克瓷砖</b>——
+ * 问题不在缝，在块：色差 0.86~1.12 让每块都自成一格，眼晴读到的是"格子"，
+ * 而城墙最不该有的就是格子感。</p>
+ *
+ * <p>真实条石墙的三个特征：<b>石头颜色几乎一样</b>（同一采石场）、<b>缝是细的暗线</b>
+ * （不是亮网格）、<b>脏是连续的</b>（雨痕、水渍横跨几十块石头）。所以这一版：
+ * 块色差收到 10%、缝压到 0.6、再叠一层 1.5m 尺度的可平铺斑驳把相邻块"连"起来。</p>
+ */
+export function brickTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = SIZE;
+  canvas.height = SIZE;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    const img = ctx.createImageData(SIZE, SIZE);
+    const ch = SIZE / BRICK_COURSES; // 64
+    const bw = SIZE / BRICK_PER_ROW; // 85.3
+    const gap = BRICK_GAP;
+
+    for (let y = 0; y < SIZE; y += 1) {
+      const row = Math.floor(y / ch);
+      const sy = y - row * ch;
+      // 奇偶层错半块：砌筑最基本的做法，也是"一眼看出不是瓷砖"的关键
+      const shift = (row % 2) * bw * 0.5;
+      const v = y / SIZE;
+      for (let x = 0; x < SIZE; x += 1) {
+        const wrapped = (x + shift) % SIZE;
+        let col = Math.floor(wrapped / bw);
+        const sx = wrapped - col * bw;
+        col %= BRICK_PER_ROW;
+        const u = x / SIZE;
+
+        const h = hash2(col, row);
+        const h2 = hash2(col + 17, row + 5);
+        // 块本体：只 ±6% 的明度差（26% 是马赛克、10% 仍像砌块，6% 才读成"同一批石头"）
+        let lum = 0.965 + h * 0.06;
+        // 层间差比块间差更"远视"：0.5m 的层理在 40m 外仍可读
+        lum *= 0.985 + hash2(0, row) * 0.03;
+        // 块内部的斜向渐变（石头表面不是平的）
+        lum *= 1 + (sx / bw - 0.5) * 0.035;
+
+        // 灰缝：细、暗，但只在近处成立。0.58 时缝是清晰的网格，30m 外整面墙
+        // 变成"瓷砖"；0.80 后它退化成一圈灰雾，只剩层理与块差
+        const edge = Math.min(sx, bw - sx, sy, ch - sy);
+        if (edge < gap) lum = 0.80 + h2 * 0.05;
+        else if (edge < gap + 1) lum *= 0.94;
+
+        // 连续的脏：1.5m 斑驳 + 0.2m 麻点，把相邻石块"连"成一片
+        const patina = (pfbm(u, v, 3) - 0.5) * 0.11 + (pfbm(u, v, 24) - 0.5) * 0.05;
+        lum *= 1 + patina;
+
+        // 雨痕：竖向拉长的暗条（u 方向 6 个周期 = 0.67m 一条，v 方向 1 个周期，
+        // 所以是"竖条"而不是"斑点"；两个方向都用整数周期，平铺仍然无缝）
+        const streak = smoothstep(0.60, 0.84, pnoise(u, v, 6, 1));
+        if (edge >= gap) lum *= 1 - streak * 0.11;
+
+        const i = (y * SIZE + x) * 4;
+        let c = Math.max(0, Math.min(255, lum * 255));
+        let r = c;
+        let g = c;
+        let bl = c;
+        if (DEBUG_BRICK_UV) {
+          // 每个"块"一格：正方块 255 / 错缝块 90。8m 段应出现 12 列 × 9 行
+          const on = (col + row) % 2 === 0;
+          r = on ? 250 : 90;
+          g = on ? 250 : 90;
+          bl = on ? 250 : 90;
+        } else {
+          // 冷暖：只在非缝区微调，缝是灰浆、永远中性
+          const warm = edge < gap ? 0 : (h2 - 0.5) * 0.035;
+          r = Math.max(0, Math.min(255, c * (1 + warm)));
+          g = Math.max(0, Math.min(255, c * (1 + warm * 0.3)));
+          bl = Math.max(0, Math.min(255, c * (1 - warm * 0.6)));
+        }
+        img.data[i] = r;
+        img.data[i + 1] = g;
+        img.data[i + 2] = bl;
+        img.data[i + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  tex.name = `brick-${BRICK_METERS}m`;
+  return tex;
+}
+
+let sharedBrick: THREE.CanvasTexture | null = null;
+const sharedBrickTexture = (): THREE.CanvasTexture => (sharedBrick ??= brickTexture());
+
+/** 给城墙材质挂砖石贴图。UV 由 `wall.py::box_uv(scale=4.0)` 按米算好 */
+export function applyBrickMap(mat: THREE.MeshStandardMaterial): void {
+  if (!mat.isMeshStandardMaterial || mat.map) return;
+  mat.map = sharedBrickTexture();
+  // 城墙是大块条石，不该有抹灰那种漫反射亮度；略降一点让砖缝自己出对比
+  mat.envMapIntensity = 0.75;
+  mat.needsUpdate = true;
+}
+
 /**
  * 全场景材质收尾：按材质名做统一的物理参数修正。
  *
