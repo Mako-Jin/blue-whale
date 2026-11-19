@@ -29,7 +29,7 @@ public class WorkflowTimeoutProperties {
     /** whale-service-auth 内网基础地址（账号 → 用户ID 精确解析） */
     private String authBaseUrl = "http://127.0.0.1:8081";
 
-    /** whale-message 内网基础地址（站内信经 /message/internal/send 投递） */
+    /** whale-message 内网基础地址（站内信经 /message/v1/internal/send 投递） */
     private String messageBaseUrl = "http://127.0.0.1:8094";
 
     /** 内网调用连接超时（毫秒）：提醒是附属能力，不能拖住调度线程 */

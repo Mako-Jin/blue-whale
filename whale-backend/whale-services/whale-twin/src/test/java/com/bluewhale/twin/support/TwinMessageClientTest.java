@@ -49,7 +49,7 @@ class TwinMessageClientTest {
 
     @Test
     void sendsInappRequestWithTenantAndIdempotencyKey() {
-        server.expect(requestTo(BASE_URL + "/message/internal/send"))
+        server.expect(requestTo(BASE_URL + "/message/v1/internal/send"))
                 .andExpect(method(HttpMethod.POST))
                 .andExpect(header("X-Tenant-Id", "1"))
                 .andExpect(content().json("{\"bizType\":\"twin-alert\","
@@ -68,7 +68,7 @@ class TwinMessageClientTest {
 
     @Test
     void returnsFailureOnBusinessErrorCode() {
-        server.expect(requestTo(BASE_URL + "/message/internal/send"))
+        server.expect(requestTo(BASE_URL + "/message/v1/internal/send"))
                 .andRespond(withSuccess("{\"code\":500,\"message\":\"渠道未配置\"}",
                         MediaType.APPLICATION_JSON));
 
@@ -82,7 +82,7 @@ class TwinMessageClientTest {
 
     @Test
     void returnsFailureOnHttpError() {
-        server.expect(requestTo(BASE_URL + "/message/internal/send"))
+        server.expect(requestTo(BASE_URL + "/message/v1/internal/send"))
                 .andRespond(withStatus(HttpStatus.BAD_GATEWAY));
 
         assertFalse(client.sendInapp(1L, "twin-alert-9001", "标题", "正文",
@@ -103,7 +103,7 @@ class TwinMessageClientTest {
     @Test
     void parsesStringUserIdsInPreferenceResolve() {
         // 平台把 Long 序列化成字符串：userId 是 "601"/"602"，只判 Number 会全部丢空
-        server.expect(requestTo(BASE_URL + "/message/internal/preferences/resolve"))
+        server.expect(requestTo(BASE_URL + "/message/v1/internal/preferences/resolve"))
                 .andExpect(method(HttpMethod.POST))
                 .andRespond(withSuccess("{\"code\":0,\"data\":["
                         + "{\"userId\":\"601\",\"channels\":[\"INAPP\"],\"quiet\":false},"
@@ -120,7 +120,7 @@ class TwinMessageClientTest {
 
     @Test
     void parsesStringMessageIdInSendResult() {
-        server.expect(requestTo(BASE_URL + "/message/internal/send"))
+        server.expect(requestTo(BASE_URL + "/message/v1/internal/send"))
                 .andRespond(withSuccess("{\"code\":0,\"data\":{\"messageId\":\"2120470057446309889\","
                         + "\"status\":\"SENT\"}}", MediaType.APPLICATION_JSON));
 

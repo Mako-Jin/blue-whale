@@ -16,14 +16,14 @@ import java.util.List;
 /**
  * 消息偏好内网接口：按用户偏好裁决通知渠道（Wave 6.17b）。
  *
- * <p>服务内路径前缀 {@code /message/internal}，供 twin 等业务服务经内网直连调用；
+ * <p>服务内路径前缀 {@code /message/v1/internal}，供 twin 等业务服务经内网直连调用；
  * 网关 internal-deny 统一 403，外部不可达，故<b>刻意不加</b>权限码注解。
  * 解析失败一律 fail-open（按调用方默认放行），绝不阻塞调用方的外发链路。</p>
  *
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/message/internal")
+@RequestMapping("/message/v1/internal")
 @RequiredArgsConstructor
 public class MessagePreferenceInternalController {
 

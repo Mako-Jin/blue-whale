@@ -79,7 +79,7 @@ whale:
       # whale-im 内网地址；未配置时 IM 渠道记为 SKIPPED
       base-url: ${WHALE_MESSAGE_IM_BASE_URL:}
       timeout-millis: ${WHALE_MESSAGE_IM_TIMEOUT_MILLIS:3000}
-    # 送达回执（V2）：渠道确认送达/阅读/退信经 /message/internal/receipt 上报，
+    # 送达回执（V2）：渠道确认送达/阅读/退信经 /message/v1/internal/receipt 上报，
     # 状态单向推进并异步回调业务方登记的回调地址（outbox + 指数退避重试）。
     receipt:
       enabled: ${WHALE_MESSAGE_RECEIPT_ENABLED:true}

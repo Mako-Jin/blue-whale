@@ -23,13 +23,13 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 消息模板管理接口。
  *
- * <p>服务内路径 {@code /message/template/**}，经网关按 {@code Path=/message/**} 转发；
+ * <p>服务内路径 {@code /message/v1/template/**}，经网关按 {@code Path=/message/**} 转发；
  * 全部接口受 {@code sys:message:template:*} 权限保护，写操作均留审计日志。</p>
  *
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/message/template")
+@RequestMapping("/message/v1/template")
 @RequiredArgsConstructor
 public class MessageTemplateController {
 

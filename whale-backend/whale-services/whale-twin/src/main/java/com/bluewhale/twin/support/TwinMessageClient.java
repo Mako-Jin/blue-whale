@@ -18,7 +18,7 @@ import java.util.Map;
 /**
  * whale-message 内网发送客户端（Wave 6.10 M1）：站内信通道。
  *
- * <p>复用平台既有的 {@code POST /message/internal/send}（网关对 {@code /internal/**}
+ * <p>复用平台既有的 {@code POST /message/v1/internal/send}（网关对 {@code /internal/**}
  * 统一 403，外部不可达），请求经 {@link InternalTokenSupport} 自动带内网令牌，
  * 并以 {@code X-Tenant-Id} 透传租户——本通道与 webhook 相反，
  * <b>必须</b>走内网令牌，因为目标是平台内部服务。</p>
@@ -33,10 +33,10 @@ import java.util.Map;
 public class TwinMessageClient {
 
     /** 内网发送路径 */
-    private static final String SEND_PATH = "/message/internal/send";
+    private static final String SEND_PATH = "/message/v1/internal/send";
 
     /** 内网偏好解析路径（Wave 6.17c） */
-    private static final String PREFERENCE_RESOLVE_PATH = "/message/internal/preferences/resolve";
+    private static final String PREFERENCE_RESOLVE_PATH = "/message/v1/internal/preferences/resolve";
 
     /** 业务类型（whale-message 侧归类用，最长 32） */
     private static final String BIZ_TYPE = "twin-alert";

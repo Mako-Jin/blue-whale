@@ -21,13 +21,13 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 消息记录查询接口。
  *
- * <p>服务内路径 {@code /message/record/**}；经网关按 {@code Path=/message/**} 转发，
+ * <p>服务内路径 {@code /message/v1/record/**}；经网关按 {@code Path=/message/**} 转发，
  * 受 {@code sys:message:record:list} 权限保护。</p>
  *
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/message/record")
+@RequestMapping("/message/v1/record")
 @RequiredArgsConstructor
 public class MessageRecordController {
 

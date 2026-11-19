@@ -17,7 +17,7 @@ import java.util.Map;
 /**
  * whale-message 内网发送客户端（站内信通道）。
  *
- * <p>复用平台既有 {@code POST /message/internal/send}：网关对 {@code /*&#47;internal/**}
+ * <p>复用平台既有 {@code POST /message/v1/internal/send}：网关对 {@code /*&#47;internal/**}
  * 统一 403，外部不可达；调用必须带内网令牌（{@link InternalTokenSupport}）。
  * 与 twin 的实现同口径——本类<b>只负责「发」</b>，失败不抛异常，
  * 由 {@code ForumNotifyService} 决定落 outbox 还是放弃。</p>
@@ -29,7 +29,7 @@ import java.util.Map;
 public class ForumNotifyClient {
 
     /** 内网发送路径 */
-    private static final String SEND_PATH = "/message/internal/send";
+    private static final String SEND_PATH = "/message/v1/internal/send";
 
     /** 站内信通道 */
     private static final String CHANNEL_INAPP = "INAPP";

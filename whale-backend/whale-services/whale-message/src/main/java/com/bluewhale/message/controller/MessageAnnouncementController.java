@@ -25,14 +25,14 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 系统公告（全员广播）管理接口。
  *
- * <p>服务内路径 {@code /message/announce/**}，经网关按 {@code Path=/message/**} 转发；
+ * <p>服务内路径 {@code /message/v1/announce/**}，经网关按 {@code Path=/message/**} 转发；
  * 全部接口受 {@code sys:message:announce:*} 权限保护，写操作均留审计日志。
  * 公告面向当前租户全体用户，收件箱读取时按需展开，无需枚举接收人。</p>
  *
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/message/announce")
+@RequestMapping("/message/v1/announce")
 @RequiredArgsConstructor
 public class MessageAnnouncementController {
 

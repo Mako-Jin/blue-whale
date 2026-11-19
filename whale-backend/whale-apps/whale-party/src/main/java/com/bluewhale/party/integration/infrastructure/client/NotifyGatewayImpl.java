@@ -21,7 +21,7 @@ import java.util.Map;
 /**
  * 通知投递网关实现。
  *
- * <p>调用 {@code POST /message/internal/send}，幂等键由应用层按场景生成；
+ * <p>调用 {@code POST /message/v1/internal/send}，幂等键由应用层按场景生成；
  * 消息服务侧按 {@code (tenantId, idempotencyKey, recipient)} 二次去重。</p>
  *
  * @author BlueWhale
@@ -58,7 +58,7 @@ public class NotifyGatewayImpl implements NotifyGateway {
                 .map(userId -> Map.of("userId", userId)).toList());
         Map<?, ?> response = InternalTokenSupport.restClient()
                 .post()
-                .uri(baseUrl() + "/message/internal/send")
+                .uri(baseUrl() + "/message/v1/internal/send")
                 .header(WebHeaders.TENANT_ID, String.valueOf(tenantId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)

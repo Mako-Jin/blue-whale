@@ -17,14 +17,14 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 消息内网接口（发送 + 回执受理）。
  *
- * <p>服务内路径前缀 {@code /message/internal}，供业务服务经 Nacos 内网直连调用；
- * 网关 {@code internal-deny} 对 {@code /message/internal/**} 统一返回 403，外部不可达，
+ * <p>服务内路径前缀 {@code /message/v1/internal}，供业务服务经 Nacos 内网直连调用；
+ * 网关 {@code internal-deny} 对 {@code /message/v1/internal/**} 统一返回 403，外部不可达，
  * 故不加权限码注解。生产者在请求中显式传 {@code tenantId}。</p>
  *
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/message/internal")
+@RequestMapping("/message/v1/internal")
 @RequiredArgsConstructor
 public class MessageInternalController {
 

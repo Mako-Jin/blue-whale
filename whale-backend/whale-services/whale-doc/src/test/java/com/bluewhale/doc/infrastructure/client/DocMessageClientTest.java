@@ -98,7 +98,7 @@ class DocMessageClientTest {
 
         assertThat(outcome.duplicate()).isTrue();
         assertThat(outcome.messageId()).isEqualTo("88");
-        assertThat(last.path()).isEqualTo("/message/internal/send");
+        assertThat(last.path()).isEqualTo("/message/v1/internal/send");
         assertThat(last.headers().get("X-Tenant-Id")).containsExactly("3");
         String body = new String(last.body(), StandardCharsets.UTF_8);
         assertThat(body).contains("\"tenantId\":3").contains("\"bizType\":\"DOC_COMMENT\"")

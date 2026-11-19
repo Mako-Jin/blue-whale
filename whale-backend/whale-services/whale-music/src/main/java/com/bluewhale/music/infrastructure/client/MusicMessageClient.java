@@ -18,7 +18,7 @@ import java.util.Map;
 /**
  * whale-message 内网客户端（M4 评论回复 / 审核结果通知）。
  *
- * <p>只调用 {@code POST /message/internal/send}；通知为旁路能力，
+ * <p>只调用 {@code POST /message/v1/internal/send}；通知为旁路能力，
  * 任何失败（服务不可用、网络异常、返回失败）仅记录告警，绝不影响评论主事务。</p>
  *
  * @author BlueWhale
@@ -56,7 +56,7 @@ public class MusicMessageClient implements CommentNotificationPort {
             body.put("recipients", List.of(Map.of("userId", receiverId)));
             Map<?, ?> response = InternalTokenSupport.restClient()
                     .post()
-                    .uri(baseUrl() + "/message/internal/send")
+                    .uri(baseUrl() + "/message/v1/internal/send")
                     .header(WebHeaders.TENANT_ID, String.valueOf(tenantId))
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body)

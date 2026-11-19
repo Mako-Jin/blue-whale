@@ -18,14 +18,14 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 站内信收件箱接口。
  *
- * <p>服务内路径 {@code /message/inapp/**}，经网关按 {@code Path=/message/**} 转发。
+ * <p>服务内路径 {@code /message/v1/inapp/**}，经网关按 {@code Path=/message/**} 转发。
  * 与运营查询不同，收件箱是登录用户的自助能力：不额外要求 {@code sys:message:*} 权限，
  * 但强依赖网关注入的 {@code X-User-Id}，只能读写本人消息。</p>
  *
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/message/inapp")
+@RequestMapping("/message/v1/inapp")
 @RequiredArgsConstructor
 public class MessageInAppController {
 

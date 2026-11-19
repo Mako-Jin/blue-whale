@@ -22,7 +22,7 @@ import java.util.Map;
 /**
  * 通知投递网关实现。
  *
- * <p>只调用 {@code POST /message/internal/send}。幂等键由应用层按场景生成，
+ * <p>只调用 {@code POST /message/v1/internal/send}。幂等键由应用层按场景生成，
  * 消息服务侧按 {@code (tenantId, idempotencyKey, recipient)} 二次去重——
  * 两侧都做去重并非冗余：LMS 侧的去重保证「本地不重发」，消息服务侧的去重
  * 保证「即使 LMS 重试到同一键也只投一次」，网络重试恰好发生在后者。</p>
@@ -62,7 +62,7 @@ public class NotifyGatewayImpl implements NotifyGateway {
                 .map(userId -> Map.of("userId", userId)).toList());
         Map<?, ?> response = InternalTokenSupport.restClient()
                 .post()
-                .uri(baseUrl() + "/message/internal/send")
+                .uri(baseUrl() + "/message/v1/internal/send")
                 .header(WebHeaders.TENANT_ID, String.valueOf(tenantId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)

@@ -1,4 +1,4 @@
-// inapp.ts —— 站内信收件箱数据源（/message/inapp/**）
+// inapp.ts —— 站内信收件箱数据源（/message/v1/inapp/**）
 // 登录用户自助能力：无需权限码，后端按网关注入的 X-User-Id 只返回本人消息。
 
 import { http } from './client';
@@ -38,7 +38,7 @@ export async function pageInAppMessages(params: {
   search.set('current', String(params.current));
   search.set('size', String(params.size));
   if (params.readFlag !== undefined) search.set('readFlag', String(params.readFlag));
-  const page = await http.get<PageResult<InAppMessage>>(`/message/inapp/page?${search.toString()}`);
+  const page = await http.get<PageResult<InAppMessage>>(`/message/v1/inapp/page?${search.toString()}`);
   return {
     records: page?.records ?? [],
     total: page?.total ?? 0,
@@ -49,11 +49,11 @@ export async function pageInAppMessages(params: {
 
 /** 查询本人未读站内信数量 */
 export async function getInAppUnreadCount(): Promise<number> {
-  const count = await http.get<number>('/message/inapp/unread-count');
+  const count = await http.get<number>('/message/v1/inapp/unread-count');
   return Number(count ?? 0);
 }
 
 /** 标记本人某条站内信为已读 */
 export function markInAppRead(messageId: string): Promise<void> {
-  return http.post<void>(`/message/inapp/${messageId}/read`);
+  return http.post<void>(`/message/v1/inapp/${messageId}/read`);
 }
