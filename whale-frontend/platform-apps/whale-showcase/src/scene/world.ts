@@ -57,6 +57,10 @@ interface TimePreset {
   /** 暗部染色（后期把阴影往这个色偏）与强度 */
   shadowTint: number;
   shadowAmount: number;
+  /** 云量 0..1 与云的受光/背光色（S20） */
+  cloud: number;
+  cloudLight: number;
+  cloudShade: number;
 }
 
 const TIMES: Record<TimeName, TimePreset> = {
@@ -87,6 +91,10 @@ const TIMES: Record<TimeName, TimePreset> = {
     waterDeep: 0x0d2126,
     shadowTint: 0x1b2742,
     shadowAmount: 0.24,
+    // 黄昏云：贴着天际线的积云被落日从侧面点亮，底面是紫灰
+    cloud: 0.85,
+    cloudLight: 0xffd0a0,
+    cloudShade: 0x4a4560,
   },
   day: {
     // azim -95 时太阳从正北打过来：全城主街的临河立面（法线 -X）与城墙外墙面
@@ -105,7 +113,8 @@ const TIMES: Record<TimeName, TimePreset> = {
     hemiGround: 0x7d6c50,
     hemiIntensity: 1.15,
     skyTop: 0x4a86c4,
-    skyHorizon: 0xd8e6f0,
+    // 0xd8e6f0 太白——可见天带几乎全是这一色，白云没有对比（云被雾吃掉的根因）
+    skyHorizon: 0xcfe2ee,
     skyGround: 0x6d7a72,
     fogColor: 0xcbdadf,
     fogDensity: 0.0012,
@@ -121,6 +130,12 @@ const TIMES: Record<TimeName, TimePreset> = {
     waterDeep: 0x2c4a52,
     shadowTint: 0x4a4740,
     shadowAmount: 0.1,
+    // 白天云：白顶灰底，量适中——纯蓝天也好看，但全景上三分之一太空。
+    // shade 必须压到 0x7f95ad 一档：白天可见天带全是 0xd8e6f0 的亮雾色，
+    // 云底不够深就直接被雾色吃掉
+    cloud: 0.90,
+    cloudLight: 0xfffaf0,
+    cloudShade: 0x647a92,
   },
   blue: {
     sunElev: 4,
@@ -146,6 +161,10 @@ const TIMES: Record<TimeName, TimePreset> = {
     waterDeep: 0x14282e,
     shadowTint: 0x141d38,
     shadowAmount: 0.34,
+    // 蓝调云：只剩天光，云是比天顶亮半档的灰蓝剪影
+    cloud: 0.55,
+    cloudLight: 0x93a5c2,
+    cloudShade: 0x39435a,
   },
   night: {
     sunElev: 34,
@@ -173,6 +192,10 @@ const TIMES: Record<TimeName, TimePreset> = {
     waterDeep: 0x081820,
     shadowTint: 0x0c1730,
     shadowAmount: 0.4,
+    // 夜云：月光给一点轮廓就够，量压低——夜里大团亮云会抢灯笼的戏
+    cloud: 0.30,
+    cloudLight: 0x2e3a54,
+    cloudShade: 0x10161f,
   },
 };
 
@@ -519,6 +542,9 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
       sunColor: new THREE.Color(p.sunColor),
       sunIntensity: p.sunIntensity > 0.3 ? 1 : 0.15,
       haze: p.haze,
+      cloud: p.cloud,
+      cloudLight: p.cloudLight,
+      cloudShade: p.cloudShade,
     };
     sky.update(skyState);
     // 重建后贴图是新对象，必须重新挂上（旧的那张在 env 内部已释放）
@@ -588,6 +614,7 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
 
     controls.update();
     sky.mesh.position.copy(camera.position);
+    sky.tick(t); // 云漂移
     tmpFog.copy(fog.color);
     water.update(t, sunDir, currentTime.sunIntensity, tmpFog, fog.density);
 
