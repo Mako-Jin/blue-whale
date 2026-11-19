@@ -1,6 +1,6 @@
 package com.bluewhale.message.support;
 
-import com.bluewhale.message.entity.MessageDelivery;
+import com.bluewhale.message.po.MessageDeliveryPo;
 import com.bluewhale.message.enums.DeliveryStatus;
 import com.bluewhale.message.enums.MessageStatus;
 
@@ -17,6 +17,7 @@ import java.util.List;
  *   <li>无异常但仍有 SENT 在途 —— {@link MessageStatus#SENT}（不提前宣称已送达）；</li>
  *   <li>无异常、无在途、存在 DELIVERED/READ —— {@link MessageStatus#DELIVERED}；
  *       SKIPPED（渠道主动跳过）视为正常，不影响该结论；</li>
+ *   <li>全部 EXPIRED —— {@link MessageStatus#EXPIRED}；</li>
  *   <li>全部 MOCKED —— {@link MessageStatus#MOCKED}；</li>
  *   <li>其余（含全部 SKIPPED）—— {@link MessageStatus#SKIPPED}。</li>
  * </ul>
@@ -40,7 +41,7 @@ public final class MessageStatusAggregator {
      * @param deliveries 该消息下的全部投递记录
      * @return 聚合后的消息状态
      */
-    public static MessageStatus aggregate(List<MessageDelivery> deliveries) {
+    public static MessageStatus aggregate(List<MessageDeliveryPo> deliveries) {
         if (deliveries == null || deliveries.isEmpty()) {
             return MessageStatus.SKIPPED;
         }
@@ -50,12 +51,16 @@ public final class MessageStatusAggregator {
         long delivered = count(deliveries, DeliveryStatus.DELIVERED) + count(deliveries, DeliveryStatus.READ);
         long pending = count(deliveries, DeliveryStatus.SENT);
         long mocked = count(deliveries, DeliveryStatus.MOCKED);
+        long expired = count(deliveries, DeliveryStatus.EXPIRED);
         long abnormal = failed + bounced;
         if (abnormal == total) {
             return MessageStatus.FAILED;
         }
         if (abnormal > 0) {
             return MessageStatus.PARTIAL;
+        }
+        if (expired == total) {
+            return MessageStatus.EXPIRED;
         }
         if (pending > 0) {
             return MessageStatus.SENT;
@@ -76,7 +81,7 @@ public final class MessageStatusAggregator {
      * @param status     目标状态
      * @return 条数
      */
-    private static long count(List<MessageDelivery> deliveries, DeliveryStatus status) {
+    private static long count(List<MessageDeliveryPo> deliveries, DeliveryStatus status) {
         String name = status.name();
         return deliveries.stream()
                 .filter(delivery -> name.equals(delivery.getStatus()))

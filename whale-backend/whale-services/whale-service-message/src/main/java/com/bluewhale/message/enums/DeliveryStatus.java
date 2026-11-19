@@ -33,7 +33,10 @@ public enum DeliveryStatus {
     SKIPPED(0),
 
     /** mock 模式：未发起真实请求 */
-    MOCKED(0);
+    MOCKED(0),
+
+    /** 超过消息过期时间，未再发起（或重试）投递（终态） */
+    EXPIRED(0);
 
     /** 回执推进阶梯：数值越大表示越靠后，仅允许递增 */
     private final int progress;

@@ -9,6 +9,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -68,6 +69,14 @@ public class SendMessageRequest implements Serializable {
     @Size(max = 512, message = "回调地址长度不能超过 512")
     @Pattern(regexp = "^https?://.+", message = "回调地址必须为 http / https 地址")
     private String callbackUrl;
+
+    /**
+     * 消息过期时间（可选）
+     *
+     * <p>超过该时间后不再发起投递（含失败重试），对应投递记 {@code EXPIRED}，
+     * 避免过期的通知/验证码在恢复后补发。</p>
+     */
+    private LocalDateTime expireAt;
 
     /**
      * 校验消息体：模板编码或标题/正文至少提供一个，避免投递空消息。

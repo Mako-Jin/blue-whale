@@ -246,6 +246,7 @@ public class MessageSendServiceImpl implements MessageSendService {
         record.setStatus(MessageStatus.PENDING.name());
         CallbackUrlGuard.assertAllowed(request.getCallbackUrl());
         record.setCallbackUrl(request.getCallbackUrl());
+        record.setExpireAt(request.getExpireAt());
         return record;
     }
 
@@ -454,6 +455,12 @@ public class MessageSendServiceImpl implements MessageSendService {
     private ChannelResult sendGuarded(MessageChannelSender sender, MessageRecordPo record,
                                       Map<String, Object> payload, MessageChannel channel,
                                       MessageRecipient recipient) {
+        if (isExpired(record)) {
+            log.info("消息已过期，跳过投递: messageId={}, channel={}, expireAt={}",
+                    record.getId(), channel, record.getExpireAt());
+            metrics.recordSend(channel, DeliveryStatus.EXPIRED, 0L);
+            return ChannelResult.expired("消息已过期: " + record.getExpireAt());
+        }
         MessageChannelProperties.Guard guard = guardOf(channel);
         ChannelGuard.Decision decision = channelGuard.acquire(channel, guard);
         if (!decision.allowed()) {
@@ -467,6 +474,16 @@ public class MessageSendServiceImpl implements MessageSendService {
         channelGuard.record(channel, guard, result.getStatus());
         metrics.recordSend(channel, result.getStatus(), System.nanoTime() - startNanos);
         return result;
+    }
+
+    /**
+     * 判断消息是否已过投递时限。
+     *
+     * @param record 消息记录
+     * @return 已过期返回 {@code true}
+     */
+    private static boolean isExpired(MessageRecordPo record) {
+        return record.getExpireAt() != null && LocalDateTime.now().isAfter(record.getExpireAt());
     }
 
     /**

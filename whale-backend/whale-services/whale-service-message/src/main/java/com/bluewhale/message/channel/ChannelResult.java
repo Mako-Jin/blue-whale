@@ -64,4 +64,14 @@ public class ChannelResult implements Serializable {
     public static ChannelResult failed(String reason) {
         return new ChannelResult(DeliveryStatus.FAILED, null, reason);
     }
+
+    /**
+     * 消息已过期，未发起投递。
+     *
+     * @param reason 说明
+     * @return 过期结果
+     */
+    public static ChannelResult expired(String reason) {
+        return new ChannelResult(DeliveryStatus.EXPIRED, null, reason);
+    }
 }

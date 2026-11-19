@@ -24,6 +24,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -113,6 +114,20 @@ class MessageSendServiceImplTest {
         assertEquals("内容-蓝鲸", inserted.getContent());
         assertEquals("INAPP,SMS", inserted.getChannels());
         assertEquals("SENT", inserted.getStatus());
+    }
+
+    @Test
+    @DisplayName("消息已过期时不调用渠道，投递记 EXPIRED")
+    void shouldExpireWithoutCallingChannel() {
+        MessageChannelSender inapp = sender(MessageChannel.INAPP, ChannelResult.sent("1001"));
+        SendMessageRequest request = request(List.of("INAPP"), null);
+        request.setExpireAt(LocalDateTime.now().minusMinutes(1));
+
+        SendMessageResult result = service(inapp).send(request);
+
+        assertEquals("EXPIRED", result.getStatus());
+        assertEquals("EXPIRED", result.getDeliveries().get(0).getStatus());
+        verify(inapp, never()).send(any());
     }
 
     @Test

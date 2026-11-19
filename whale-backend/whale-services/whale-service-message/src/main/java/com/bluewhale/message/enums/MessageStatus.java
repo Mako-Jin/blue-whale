@@ -26,5 +26,8 @@ public enum MessageStatus {
     MOCKED,
 
     /** 全部渠道均被跳过 */
-    SKIPPED
+    SKIPPED,
+
+    /** 全部投递均因消息过期未投递 */
+    EXPIRED
 }

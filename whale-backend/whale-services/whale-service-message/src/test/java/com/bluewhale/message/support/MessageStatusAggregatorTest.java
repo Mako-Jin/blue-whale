@@ -1,6 +1,6 @@
 package com.bluewhale.message.support;
 
-import com.bluewhale.message.entity.MessageDelivery;
+import com.bluewhale.message.po.MessageDeliveryPo;
 import com.bluewhale.message.enums.MessageStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -61,14 +61,21 @@ class MessageStatusAggregatorTest {
         assertEquals(MessageStatus.SKIPPED, MessageStatusAggregator.aggregate(List.of()));
     }
 
+    @Test
+    @DisplayName("全部过期聚合为 EXPIRED")
+    void shouldAggregateExpired() {
+        assertEquals(MessageStatus.EXPIRED,
+                MessageStatusAggregator.aggregate(List.of(delivery("EXPIRED"), delivery("EXPIRED"))));
+    }
+
     /**
      * 构造指定状态的投递记录。
      *
      * @param status 投递状态
      * @return 投递记录
      */
-    private static MessageDelivery delivery(String status) {
-        MessageDelivery delivery = new MessageDelivery();
+    private static MessageDeliveryPo delivery(String status) {
+        MessageDeliveryPo delivery = new MessageDeliveryPo();
         delivery.setStatus(status);
         return delivery;
     }
