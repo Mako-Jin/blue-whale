@@ -123,44 +123,44 @@ export interface JobPayload {
 }
 
 export function pageJobInfo(params: JobInfoPageParams): Promise<PageResult<JobInfoVO>> {
-  return get<PageResult<JobInfoVO>>('/job/info/page', { ...params });
+  return get<PageResult<JobInfoVO>>('/job/v1/info/page', { ...params });
 }
 
 export function createJob(body: JobPayload): Promise<void> {
-  return post<void>('/job/info', body);
+  return post<void>('/job/v1/info', body);
 }
 
 export function updateJob(id: string, body: JobPayload): Promise<void> {
-  return put<void>(`/job/info/${id}`, body);
+  return put<void>(`/job/v1/info/${id}`, body);
 }
 
 export function deleteJob(id: string): Promise<void> {
-  return del<void>(`/job/info/${id}`);
+  return del<void>(`/job/v1/info/${id}`);
 }
 
 export function changeJobStatus(id: string, status: number): Promise<void> {
-  return put<void>(`/job/info/${id}/status`, { status });
+  return put<void>(`/job/v1/info/${id}/status`, { status });
 }
 
 export function runJob(id: string): Promise<void> {
-  return post<void>(`/job/info/${id}/run`);
+  return post<void>(`/job/v1/info/${id}/run`);
 }
 
 export function pageJobLog(params: JobLogPageParams): Promise<PageResult<JobLogVO>> {
-  return get<PageResult<JobLogVO>>('/job/log/page', { ...params });
+  return get<PageResult<JobLogVO>>('/job/v1/log/page', { ...params });
 }
 
 export function getJobDependencies(id: string): Promise<JobDependencyVO> {
-  return get<JobDependencyVO>(`/job/info/${id}/dependencies`);
+  return get<JobDependencyVO>(`/job/v1/info/${id}/dependencies`);
 }
 
 /** 全量替换上游依赖 */
 export function setJobDependencies(id: string, upstreamJobIds: string[]): Promise<void> {
-  return post<void>(`/job/info/${id}/dependencies`, { upstreamJobIds });
+  return post<void>(`/job/v1/info/${id}/dependencies`, { upstreamJobIds });
 }
 
 export function pageJobAlert(params: JobAlertPageParams): Promise<PageResult<JobAlertVO>> {
-  return get<PageResult<JobAlertVO>>('/job/alert/page', { ...params });
+  return get<PageResult<JobAlertVO>>('/job/v1/alert/page', { ...params });
 }
 
 /** DAG 拓扑图节点（后端精简字段，不含执行参数） */
@@ -277,22 +277,22 @@ export interface JobImportResultVO {
 
 /** 依赖拓扑图：jobGroup 为空返回全量 */
 export function getJobGraph(jobGroup?: string): Promise<JobGraphVO> {
-  return get<JobGraphVO>('/job/graph', { jobGroup });
+  return get<JobGraphVO>('/job/v1/graph', { jobGroup });
 }
 
 /** 整图环检测（只读，供保存前校验与数据体检使用） */
 export function validateJobGraph(): Promise<JobGraphValidateVO> {
-  return get<JobGraphValidateVO>('/job/graph/validate');
+  return get<JobGraphValidateVO>('/job/v1/graph/validate');
 }
 
 /** 批量启停：逐条处理，部分失败通过 failures 返回 */
 export function batchChangeJobStatus(jobIds: string[], status: number): Promise<JobBatchResultVO> {
-  return post<JobBatchResultVO>('/job/info/batch-status', { jobIds, status });
+  return post<JobBatchResultVO>('/job/v1/info/batch-status', { jobIds, status });
 }
 
 /** 批量删除：逻辑删除，逐条处理 */
 export function batchDeleteJobs(jobIds: string[]): Promise<JobBatchResultVO> {
-  return post<JobBatchResultVO>('/job/info/batch-delete', { jobIds });
+  return post<JobBatchResultVO>('/job/v1/info/batch-delete', { jobIds });
 }
 
 /** 导出任务定义并直接保存为 JSON 附件；未指定 jobIds 时导出整个分组 */
@@ -300,7 +300,7 @@ export async function downloadJobExport(params: {
   jobGroup?: string;
   jobIds?: string[];
 }): Promise<void> {
-  const { blob, filename } = await downloadBlob('/job/info/export/download', {
+  const { blob, filename } = await downloadBlob('/job/v1/info/export/download', {
     jobGroup: params.jobGroup,
     jobIds: params.jobIds?.length ? params.jobIds.join(',') : undefined,
   });
@@ -316,7 +316,7 @@ export async function downloadJobExport(params: {
 
 /** 导入任务定义与依赖边：单条失败不影响其余条目 */
 export function importJobs(body: JobImportRequest): Promise<JobImportResultVO> {
-  return post<JobImportResultVO>('/job/info/import', body);
+  return post<JobImportResultVO>('/job/v1/info/import', body);
 }
 
 /** 按天聚合的执行统计（日期升序） */
@@ -386,5 +386,5 @@ export interface JobLogStatsParams {
 
 /** 执行统计：按天趋势 + 失败/耗时/异常类型 TopN */
 export function getJobLogStats(params: JobLogStatsParams): Promise<JobLogStatsVO> {
-  return get<JobLogStatsVO>('/job/log/stats', { ...params });
+  return get<JobLogStatsVO>('/job/v1/log/stats', { ...params });
 }

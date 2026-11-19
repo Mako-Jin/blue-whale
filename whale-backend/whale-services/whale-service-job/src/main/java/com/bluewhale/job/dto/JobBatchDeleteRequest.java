@@ -9,7 +9,7 @@ import java.util.List;
 /**
  * 批量删除请求。
  *
- * <p>删除为逻辑删除，语义与单条 {@code DELETE /job/info/{id}} 完全一致。</p>
+ * <p>删除为逻辑删除，语义与单条 {@code DELETE /job/v1/info/{id}} 完全一致。</p>
  *
  * @author BlueWhale
  */

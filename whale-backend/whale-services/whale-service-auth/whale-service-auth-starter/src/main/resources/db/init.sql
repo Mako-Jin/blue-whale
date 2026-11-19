@@ -528,12 +528,12 @@ VALUES
 INSERT INTO sys_permission
     (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
 VALUES
-    (26, 0, 'sys:job:list', '查询定时任务', 'API', '/job/info/**', 'GET', 26, 1),
-    (27, 0, 'sys:job:add', '新增定时任务', 'API', '/job/info', 'POST', 27, 1),
-    (28, 0, 'sys:job:edit', '修改定时任务', 'API', '/job/info/**', 'PUT', 28, 1),
-    (29, 0, 'sys:job:delete', '删除定时任务', 'API', '/job/info/{id}', 'DELETE', 29, 1),
-    (30, 0, 'sys:job:run', '立即执行定时任务', 'API', '/job/info/**', 'POST', 30, 1),
-    (31, 0, 'sys:job:log:list', '查询任务执行日志', 'API', '/job/log/**', 'GET', 31, 1);
+    (26, 0, 'sys:job:list', '查询定时任务', 'API', '/job/v1/info/**', 'GET', 26, 1),
+    (27, 0, 'sys:job:add', '新增定时任务', 'API', '/job/v1/info', 'POST', 27, 1),
+    (28, 0, 'sys:job:edit', '修改定时任务', 'API', '/job/v1/info/**', 'PUT', 28, 1),
+    (29, 0, 'sys:job:delete', '删除定时任务', 'API', '/job/v1/info/{id}', 'DELETE', 29, 1),
+    (30, 0, 'sys:job:run', '立即执行定时任务', 'API', '/job/v1/info/**', 'POST', 30, 1),
+    (31, 0, 'sys:job:log:list', '查询任务执行日志', 'API', '/job/v1/log/**', 'GET', 31, 1);
 
 -- 文件服务权限点：与 whale-file 接口 @RequirePermission("sys:file:*") 一一对应
 INSERT INTO sys_permission

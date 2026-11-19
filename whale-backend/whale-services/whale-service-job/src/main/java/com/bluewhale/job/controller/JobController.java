@@ -58,7 +58,8 @@ import java.util.List;
 /**
  * 定时任务管理接口。
  *
- * <p>服务内路径 {@code /job/**}；经网关按 {@code Path=/job/**} 规则转发，外部路径与本文档一致。
+ * <p>服务内路径 {@code /job/v1/**}（REQ-ARCH-003 网关不剥前缀，故网关按 {@code Path=/job/**}
+ * 转发后外部路径与本文档一致）；内网执行器协议 {@code /job/internal/executor/**} 不参与版本化。
  * 全部接口返回统一响应体 {@link Result}，受 {@code @RequirePermission("sys:job:*")} 保护
  * （AUTH-06：由网关权限码头 {@code X-Permission-Codes} + starter {@code RequirePermissionInterceptor} 判定），
  * 写操作均标注 {@link AuditLog} 留痕。</p>
@@ -66,7 +67,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/job")
+@RequestMapping("/job/v1")
 @RequiredArgsConstructor
 public class JobController {
 
