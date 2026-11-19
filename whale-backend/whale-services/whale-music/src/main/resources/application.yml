@@ -63,6 +63,11 @@ whale:
   permission:
     header:
       enabled: true
+  # P2 国际化：BizException 文案键按请求 Locale 解析；属性文件回退源为 classpath:i18n/music/messages*。
+  i18n:
+    enabled: true
+    auto-init: true
+    module-scan-enabled: true
   music:
     # 上传前置：必须签署当前版本《版权无争议协议》
     agreement-version: ${WHALE_MUSIC_AGREEMENT_VERSION:V1}

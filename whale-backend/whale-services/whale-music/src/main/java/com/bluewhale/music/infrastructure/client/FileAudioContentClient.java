@@ -78,10 +78,12 @@ public class FileAudioContentClient implements AudioContentRepository {
         try {
             response = HTTP_CLIENT.send(builder.build(), HttpResponse.BodyHandlers.ofInputStream());
         } catch (IOException ex) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "音频内容读取失败");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "music.file.audio-read-failed",
+                    "音频内容读取失败");
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "音频内容读取被中断");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "music.file.audio-read-interrupted",
+                    "音频内容读取被中断");
         }
         int status = response.statusCode();
         if (status == HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE.value()) {
@@ -114,7 +116,8 @@ public class FileAudioContentClient implements AudioContentRepository {
     private URI uri(Long fileId) {
         List<ServiceInstance> instances = discoveryClient.getInstances("whale-file");
         if (instances.isEmpty()) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "文件服务不可用");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "music.file.service-unavailable",
+                    "文件服务不可用");
         }
         return URI.create(instances.get(0).getUri() + String.format(CONTENT_PATH, fileId));
     }
@@ -170,8 +173,9 @@ public class FileAudioContentClient implements AudioContentRepository {
      */
     private static BizException toException(int status) {
         if (status == HttpStatus.NOT_FOUND.value()) {
-            return new BizException(ErrorCode.NOT_FOUND, "音频文件不存在");
+            return new BizException(ErrorCode.NOT_FOUND, "music.file.audio-not-found", "音频文件不存在");
         }
-        return new BizException(ErrorCode.SYSTEM_ERROR, "音频内容读取失败（HTTP " + status + "）");
+        return new BizException(ErrorCode.SYSTEM_ERROR, "music.file.audio-read-http-failed",
+                "音频内容读取失败（HTTP " + status + "）", status);
     }
 }

@@ -131,7 +131,7 @@ public class FileVideoContentClient implements ContentStreamRepository {
             throw new BizException(ErrorCode.SYSTEM_ERROR, readFailureMessage(image));
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "视频内容读取被中断");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "video.file.read-interrupted", "视频内容读取被中断");
         }
         int status = response.statusCode();
         if (status == HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE.value()) {
@@ -180,7 +180,7 @@ public class FileVideoContentClient implements ContentStreamRepository {
     private URI uri(Long fileId) {
         List<ServiceInstance> instances = discoveryClient.getInstances(videoProperties.getFileServiceName());
         if (instances.isEmpty()) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "文件服务不可用");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "video.file.service-unavailable", "文件服务不可用");
         }
         return URI.create(instances.get(0).getUri() + String.format(CONTENT_PATH, fileId));
     }
@@ -246,10 +246,15 @@ public class FileVideoContentClient implements ContentStreamRepository {
      * @return 业务异常
      */
     private static BizException toException(int status, boolean image) {
-        String kind = image ? "图片" : "视频";
         if (status == HttpStatus.NOT_FOUND.value()) {
-            return new BizException(ErrorCode.NOT_FOUND, kind + "文件不存在");
+            return image
+                    ? new BizException(ErrorCode.NOT_FOUND, "video.file.image-not-found", "图片文件不存在")
+                    : new BizException(ErrorCode.NOT_FOUND, "video.file.video-not-found", "视频文件不存在");
         }
-        return new BizException(ErrorCode.SYSTEM_ERROR, kind + "内容读取失败（HTTP " + status + "）");
+        return image
+                ? new BizException(ErrorCode.SYSTEM_ERROR, "video.file.image-read-failed",
+                        "图片内容读取失败（HTTP " + status + "）", status)
+                : new BizException(ErrorCode.SYSTEM_ERROR, "video.file.video-read-failed",
+                        "视频内容读取失败（HTTP " + status + "）", status);
     }
 }

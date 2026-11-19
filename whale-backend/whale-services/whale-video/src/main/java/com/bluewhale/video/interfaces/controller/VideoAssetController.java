@@ -181,7 +181,7 @@ public class VideoAssetController {
      */
     private VideoStreamView openImage(Long fileId, String range, String ifRange) {
         if (fileId == null || fileId <= 0) {
-            throw new BizException(ErrorCode.NOT_FOUND, "图片不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "video.asset.image-not-found", "图片不存在");
         }
         return playAppService.openImage(fileId, TenantContext.requireId(), range, ifRange);
     }

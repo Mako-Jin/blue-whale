@@ -63,10 +63,12 @@ public class FileAssetClient implements FileAssetPort {
             if (ex.getStatusCode().value() == HttpStatus.NOT_FOUND.value()) {
                 return Optional.empty();
             }
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "文件校验服务不可用，请稍后重试");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "video.file.verify-service-unavailable",
+                    "文件校验服务不可用，请稍后重试");
         } catch (Exception ex) {
             log.warn("[VIDEO] 文件元数据读取失败: fileId={}, error={}", fileId, ex.getMessage());
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "文件校验服务不可用，请稍后重试");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "video.file.verify-service-unavailable",
+                    "文件校验服务不可用，请稍后重试");
         }
         if (response == null) {
             return Optional.empty();
@@ -95,7 +97,8 @@ public class FileAssetClient implements FileAssetPort {
     private String baseUrl() {
         List<ServiceInstance> instances = discoveryClient.getInstances(videoProperties.getFileServiceName());
         if (instances.isEmpty()) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "文件校验服务不可用，请稍后重试");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "video.file.verify-service-unavailable",
+                    "文件校验服务不可用，请稍后重试");
         }
         return instances.get(0).getUri().toString();
     }

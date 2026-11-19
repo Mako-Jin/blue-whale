@@ -136,7 +136,8 @@ public class AuthScenePreferenceClient implements ScenePreferencePort {
         try {
             configValue = JSON_MAPPER.writeValueAsString(value);
         } catch (RuntimeException error) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "场景偏好序列化失败：" + error.getMessage());
+            throw new BizException(ErrorCode.PARAM_ERROR, "scene.preference.serialize-failed",
+                    "场景偏好序列化失败：" + error.getMessage(), error.getMessage());
         }
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("tenantId", tenantId);
@@ -160,7 +161,8 @@ public class AuthScenePreferenceClient implements ScenePreferencePort {
         } catch (RuntimeException error) {
             log.error("场景偏好写入失败：tenantId={}, userId={}, reason={}",
                     tenantId, userId, error.getMessage());
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "场景偏好保存失败，请稍后重试");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "scene.preference.save-failed",
+                    "场景偏好保存失败，请稍后重试");
         }
         requireSuccess(raw, "场景偏好保存失败");
     }
