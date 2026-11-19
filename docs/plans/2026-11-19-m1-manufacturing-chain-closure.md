@@ -77,3 +77,17 @@
 - **验证**：ERP 模块 `mvn -o test` 524 用例全通过 + BUILD SUCCESS；前端 `pnpm lint` 0 告警、`vitest` 15 用例通过。
 - **待做项**：M-B 链上冒烟、M-C 3D 看板真实数据与对账、M-D 压测基线。
 - **已修正问题项**：无。
+
+### 2026-11-19 M-B 完成（3 条链上冒烟进 CI）
+
+- **需求项**：一条链至少 3 个自动化冒烟用例，覆盖 CRM 下单 → ERP 落地、ERP → MES → ERP 完工入库、全链状态与留痕；接入 CI 且环境缺失时显式标注而不是静默通过。
+- **完成项**：
+  - `scripts/smoke/lib/common.ps1` 新增 `Wait-SmokeUntil`（异步轮询）、`Skip-Smoke`（显式跳过并写 Step Summary）、链路状态文件读写三个工具。
+  - 新增 `scripts/smoke/bw-chain-1-crm-to-erp.ps1`：自动准备 ERP 仓库/物料/客户 → CRM 建单 → 提交审批 → workflow 逐级通过 → 等审批对账回填 APPROVED → 等 outbox 下发 → 核对 ERP 销售订单 `crmOrderNo`/物料/数量 → 重推幂等。
+  - 新增 `scripts/smoke/bw-chain-2-erp-mes-erp.ps1`：准备物料/库存 → ERP 建生产订单 → 下达（自动下发 MES）→ 领料 → MES 拆分/派工/开工/报工/完工 → 等完工回传 ERP → 核对完工数量与产成品库存余额。
+  - 新增 `scripts/smoke/bw-chain-3-status-audit.ps1`：读取状态文件，核对 CRM 状态机时间戳顺序、ERP 生产订单 COMPLETED、MES 工单 COMPLETED，并按 `whale-crm / whale-erp / whale-mes` 模块在 `/audit/log/page` 校验关键操作与操作人留痕。
+  - 新增 `.github/workflows/chain-smoke.yml`：`workflow_dispatch` 或 `vars.CHAIN_SMOKE_ENABLED=true` 触发；Preflight 检查网关地址与 `SMOKE_PASSWORD`，缺失时写 `SKIP` 到 Step Summary 并跳过，其余情况失败即红。
+- **环境前置**：CRM `WHALE_CRM_ORDER_DEFINITION_ID` 与 `WHALE_CRM_ERP_ENABLED=true`；MES `WHALE_MES_OUTBOX_ENABLED=true` 且 `WHALE_ERP_URL` 可达；各服务审计转发开启、whale-audit 在线。
+- **验证**：四个 PowerShell 文件通过 `Parser::ParseFile` 语法校验；CI 需在具备完整环境的网关地址上手动触发（本机当前未同时起服全部服务）。
+- **待做项**：M-C 3D 看板真实数据与对账、M-D 压测基线；链路冒烟在真实环境首次跑通后回填结果。
+- **已修正问题项**：无。

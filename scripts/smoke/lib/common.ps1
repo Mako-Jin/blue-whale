@@ -132,6 +132,104 @@ function Exit-Smoke {
 
 <#
 .SYNOPSIS
+轮询直到断言成立或超时。
+.DESCRIPTION
+用于跨服务链路冒烟：下发 / 审批 / 发件箱投递均为异步，固定 sleep 既慢又不稳定。
+Probe 返回 $true 或非空对象即视为就绪并返回该值；超时抛出明确错误（不静默通过）。
+.PARAMETER Label
+等待目标描述，超时信息与成功日志共用。
+.PARAMETER TimeoutSeconds
+最长等待秒数，默认 180。
+.PARAMETER IntervalSeconds
+轮询间隔秒数，默认 5。
+#>
+function Wait-SmokeUntil {
+    param(
+        [string]$Label,
+        [scriptblock]$Probe,
+        [int]$TimeoutSeconds = 180,
+        [int]$IntervalSeconds = 5
+    )
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ((Get-Date) -lt $deadline) {
+        $value = & $Probe
+        if ($value) {
+            Write-Host "OK   $Label"
+            return $value
+        }
+        Start-Sleep -Seconds $IntervalSeconds
+    }
+    throw "等待超时（${TimeoutSeconds}s）：$Label"
+}
+
+<#
+.SYNOPSIS
+显式跳过：打印 SKIP 并写 GitHub Step Summary，以 0 退出。
+.DESCRIPTION
+仅用于「环境不具备」的场景（如未配置链路网关地址），必须给出原因，
+禁止把断言失败伪装成跳过。
+#>
+function Skip-Smoke {
+    param([string]$Reason)
+
+    Write-Host "SKIP $Reason"
+    if ($env:GITHUB_STEP_SUMMARY) {
+        Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- SKIP: $Reason"
+    }
+    exit 0
+}
+
+<#
+.SYNOPSIS
+链路冒烟状态文件路径（跨脚本传递单号）。
+#>
+function Get-SmokeChainStatePath {
+    param([string]$Override)
+
+    if ($Override) {
+        return $Override
+    }
+    $dir = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } elseif ($env:TEMP) { $env:TEMP } else { '/tmp' }
+    return Join-Path $dir 'bw-chain-state.json'
+}
+
+<#
+.SYNOPSIS
+合并写入链路冒烟状态文件。
+#>
+function Save-SmokeChainState {
+    param(
+        [string]$Path,
+        [hashtable]$Values
+    )
+
+    $state = @{}
+    if (Test-Path $Path) {
+        $existing = Get-Content -Path $Path -Raw | ConvertFrom-Json
+        $existing.PSObject.Properties | ForEach-Object { $state[$_.Name] = $_.Value }
+    }
+    foreach ($key in $Values.Keys) {
+        $state[$key] = $Values[$key]
+    }
+    $state | ConvertTo-Json -Depth 6 | Set-Content -Path $Path -Encoding UTF8
+}
+
+<#
+.SYNOPSIS
+读取链路冒烟状态文件；不存在返回 $null。
+#>
+function Read-SmokeChainState {
+    param([string]$Path)
+
+    if (-not (Test-Path $Path)) {
+        return $null
+    }
+    return Get-Content -Path $Path -Raw | ConvertFrom-Json
+}
+
+<#
+.SYNOPSIS
 调用网关 API（收口各脚本各自的本地 Invoke-Api 实现）。
 .DESCRIPTION
 - Headers 为空时用 $script:h（脚本登录后写入的 @{ Authorization = "Bearer <token>" }）。

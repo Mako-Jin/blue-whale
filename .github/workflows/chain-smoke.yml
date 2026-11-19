@@ -1,0 +1,92 @@
+# ============================================================
+# M1 制造链闭环 · 链上冒烟（CRM → ERP → MES → ERP）
+#
+# 说明：
+#   链路冒烟需要 gateway/auth/workflow/crm/erp/mes/audit 与中间件同时在线，
+#   GitHub 托管 runner 无法自起整套环境，因此本工作流默认只在显式触发时执行，
+#   未配置网关地址或口令时显式 SKIP 并写入 Step Summary，不做静默通过。
+#
+# 触发：
+#   1) workflow_dispatch（推荐，输入本次环境网关地址）
+#   2) push main 且改动链上冒烟脚本 —— 仅在 vars.CHAIN_SMOKE_ENABLED=true 时执行
+#
+# 需要的仓库配置：
+#   secrets.SMOKE_PASSWORD         管理员初始口令（auth 启动日志或首启注入）
+#   vars.CHAIN_SMOKE_BASE_URL      默认网关地址（workflow_dispatch 未填时使用）
+#   vars.CHAIN_SMOKE_ENABLED       push 触发开关（true 才跑）
+#   vars.CHAIN_WAIT_SECONDS        异步等待上限（默认 300）
+# ============================================================
+
+name: M1 Chain Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      gateway_base:
+        description: '网关地址（含协议与端口，例如 https://staging.example.com）'
+        required: false
+        default: ''
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/smoke/bw-chain-*.ps1'
+      - 'scripts/smoke/lib/common.ps1'
+      - '.github/workflows/chain-smoke.yml'
+
+concurrency:
+  group: chain-smoke-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  chain-smoke:
+    name: CRM → ERP → MES → ERP
+    if: github.event_name == 'workflow_dispatch' || vars.CHAIN_SMOKE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CHAIN_SMOKE_BASE: ${{ inputs.gateway_base != '' && inputs.gateway_base || vars.CHAIN_SMOKE_BASE_URL }}
+      CHAIN_WAIT_SECONDS: ${{ vars.CHAIN_WAIT_SECONDS }}
+      SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Preflight（环境就绪判定，缺失显式 SKIP）
+        id: preflight
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $base = $env:CHAIN_SMOKE_BASE
+          if (-not $base) {
+              "- SKIP: 未配置 CHAIN_SMOKE_BASE（或 vars.CHAIN_SMOKE_BASE_URL），跳过链路冒烟" >> $env:GITHUB_STEP_SUMMARY
+              "ready=false" >> $env:GITHUB_OUTPUT
+              exit 0
+          }
+          if (-not $env:SMOKE_PASSWORD) {
+              "- SKIP: 未配置 SMOKE_PASSWORD secret，跳过链路冒烟" >> $env:GITHUB_STEP_SUMMARY
+              "ready=false" >> $env:GITHUB_OUTPUT
+              exit 0
+          }
+          try {
+              Invoke-WebRequest -Uri "$base/actuator/health" -TimeoutSec 8 -SkipHttpErrorCheck | Out-Null
+              "- 环境: $base" >> $env:GITHUB_STEP_SUMMARY
+              "ready=true" >> $env:GITHUB_OUTPUT
+          } catch {
+              "- SKIP: 网关不可达 $base（$($_.Exception.Message)），跳过链路冒烟" >> $env:GITHUB_STEP_SUMMARY
+              "ready=false" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Chain 1 · CRM 销售订单 → ERP 销售订单
+        if: steps.preflight.outputs.ready == 'true'
+        shell: pwsh
+        run: ./scripts/smoke/bw-chain-1-crm-to-erp.ps1
+
+      - name: Chain 2 · ERP → MES 报工 → ERP 完工入库
+        if: steps.preflight.outputs.ready == 'true'
+        shell: pwsh
+        run: ./scripts/smoke/bw-chain-2-erp-mes-erp.ps1
+
+      - name: Chain 3 · 状态机与审计留痕
+        if: steps.preflight.outputs.ready == 'true'
+        shell: pwsh
+        run: ./scripts/smoke/bw-chain-3-status-audit.ps1
