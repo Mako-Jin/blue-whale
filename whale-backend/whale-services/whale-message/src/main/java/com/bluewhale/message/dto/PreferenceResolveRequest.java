@@ -1,8 +1,10 @@
 package com.bluewhale.message.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
@@ -26,13 +28,17 @@ public record PreferenceResolveRequest(
         String bizType,
 
         @NotEmpty(message = "userIds 不能为空")
-        List<Long> userIds,
+        @Size(max = 200, message = "单次解析用户数不能超过 200")
+        List<@NotNull(message = "userId 不能为空") Long> userIds,
 
         String level,
 
+        @Valid
         Defaults defaults,
 
-        List<String> quietBypassLevels
+        @Size(max = 8, message = "静默豁免级别数量不能超过 8")
+        List<@NotBlank(message = "静默豁免级别不能为空") @Size(max = 16, message = "级别长度不能超过 16") String>
+                quietBypassLevels
 ) {
 
     /**
@@ -41,6 +47,9 @@ public record PreferenceResolveRequest(
      * @param channels 拟发送渠道集（如 EMAIL/SMS/IM/INAPP 子集）
      * @param minLevel 最低级别阈值（低于该级别的非站内信渠道被过滤；空则不设阈值）
      */
-    public record Defaults(List<String> channels, String minLevel) {
+    public record Defaults(
+            @Size(max = 8, message = "默认渠道数量不能超过 8")
+            List<@NotBlank(message = "默认渠道不能为空") @Size(max = 16, message = "渠道长度不能超过 16") String> channels,
+            String minLevel) {
     }
 }

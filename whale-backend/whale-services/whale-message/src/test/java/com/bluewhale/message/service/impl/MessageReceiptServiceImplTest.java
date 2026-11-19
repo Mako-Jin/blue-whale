@@ -32,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -276,5 +277,53 @@ class MessageReceiptServiceImplTest {
 
         assertEquals("DELIVERED", record.getStatus());
         assertFalse(record.getStatus().equals("SENT"));
+    }
+
+    @Test
+    @DisplayName("派生回执键对超长 providerMessageId 取摘要：键长不越界且不同回执不碰撞")
+    void derivedReceiptKeyShouldBeBoundedAndDistinct() {
+        when(deliveryMapper.selectList(any())).thenReturn(new ArrayList<>());
+        String providerMessageId = "p".repeat(128);
+        DeliveryReceiptItem first = derivedItem(providerMessageId, LocalDateTime.of(2026, 11, 8, 18, 0));
+        DeliveryReceiptItem second = derivedItem(providerMessageId, LocalDateTime.of(2026, 11, 8, 18, 1));
+        DeliveryReceiptRequest request = new DeliveryReceiptRequest();
+        request.setTenantId(TENANT_ID);
+        request.setReceipts(List.of(first, second));
+
+        ReceiptApplyResult result = service().apply(request);
+
+        assertEquals(2, result.getAccepted());
+        ArgumentCaptor<MessageReceipt> captor = ArgumentCaptor.forClass(MessageReceipt.class);
+        verify(receiptMapper, times(2)).insert(captor.capture());
+        assertTrue(captor.getAllValues().stream()
+                .allMatch(receipt -> receipt.getReceiptKey().length() <= 160));
+        assertEquals(2, captor.getAllValues().stream()
+                .map(MessageReceipt::getReceiptKey).distinct().count());
+    }
+
+    @Test
+    @DisplayName("回执必须显式传入 tenantId，缺失时拒绝受理")
+    void missingTenantShouldBeRejected() {
+        DeliveryReceiptRequest request = request("DELIVERED", "rcpt-9");
+        request.setTenantId(null);
+
+        assertThrows(BizException.class, () -> service().apply(request));
+        verify(receiptMapper, never()).insert(any(MessageReceipt.class));
+    }
+
+    /**
+     * 构造无渠道回执ID、仅凭提供方消息ID与回执时间派生的回执项。
+     *
+     * @param providerMessageId 提供方消息ID
+     * @param receiptTime       回执时间
+     * @return 回执项
+     */
+    private static DeliveryReceiptItem derivedItem(String providerMessageId, LocalDateTime receiptTime) {
+        DeliveryReceiptItem item = new DeliveryReceiptItem();
+        item.setChannel("INAPP");
+        item.setProviderMessageId(providerMessageId);
+        item.setStatus("DELIVERED");
+        item.setReceiptTime(receiptTime);
+        return item;
     }
 }

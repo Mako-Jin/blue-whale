@@ -1,5 +1,6 @@
 package com.bluewhale.message.support;
 
+import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.message.config.MessagePreferenceProperties;
 import com.bluewhale.message.dto.PreferenceResolveRequest;
 import com.bluewhale.message.vo.PreferenceDecisionVO;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -181,6 +183,23 @@ class NotifyPreferenceResolverTest {
 
         assertThat(items.get(0).quiet()).isFalse();
         assertThat(items.get(0).channels()).containsExactly("EMAIL", "INAPP");
+    }
+
+    /**
+     * 服务端按配置上限拒绝超量请求（DTO 的 @Size 为静态兜底）
+     */
+    @Test
+    @DisplayName("超过配置的用户数上限时拒绝解析")
+    void shouldRejectWhenExceedsConfiguredMaxUsers() {
+        MessagePreferenceProperties properties = new MessagePreferenceProperties();
+        properties.setMaxUsers(2);
+        NotifyPreferenceResolver limited = new NotifyPreferenceResolver(
+                properties, authUserConfigClient, new ObjectMapper());
+        PreferenceResolveRequest request = new PreferenceResolveRequest(
+                1L, "twin.alert", List.of(101L, 102L, 103L), "INFO",
+                new PreferenceResolveRequest.Defaults(List.of("EMAIL"), null), null);
+
+        assertThatThrownBy(() -> limited.resolve(request)).isInstanceOf(BizException.class);
     }
 
     /**

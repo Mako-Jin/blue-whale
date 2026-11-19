@@ -10,6 +10,7 @@ import com.bluewhale.message.service.MessageRecordService;
 import com.bluewhale.message.service.MessageSendService;
 import com.bluewhale.message.vo.MessageRecordVO;
 import com.bluewhale.message.vo.SendMessageResult;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -42,7 +43,7 @@ public class MessageRecordController {
      */
     @GetMapping("/page")
     @RequirePermission("sys:message:record:list")
-    public Result<PageResult<MessageRecordVO>> page(MessageRecordQueryRequest request) {
+    public Result<PageResult<MessageRecordVO>> page(@Valid MessageRecordQueryRequest request) {
         return Result.ok(messageRecordService.page(request));
     }
 

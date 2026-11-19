@@ -49,7 +49,7 @@ public class MessageAnnouncementController {
      */
     @GetMapping("/page")
     @RequirePermission("sys:message:announce:list")
-    public Result<PageResult<AnnouncementVO>> page(AnnouncementQueryRequest request) {
+    public Result<PageResult<AnnouncementVO>> page(@Valid AnnouncementQueryRequest request) {
         return Result.ok(messageAnnouncementService.page(request));
     }
 

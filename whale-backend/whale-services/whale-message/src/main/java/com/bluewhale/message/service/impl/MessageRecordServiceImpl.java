@@ -9,6 +9,7 @@ import com.bluewhale.message.converter.MessageConverter;
 import com.bluewhale.message.dto.MessageRecordQueryRequest;
 import com.bluewhale.message.entity.MessageDelivery;
 import com.bluewhale.message.entity.MessageRecord;
+import com.bluewhale.message.enums.MessageChannel;
 import com.bluewhale.message.mapper.MessageDeliveryMapper;
 import com.bluewhale.message.mapper.MessageRecordMapper;
 import com.bluewhale.message.service.MessageRecordService;
@@ -42,8 +43,16 @@ public class MessageRecordServiceImpl implements MessageRecordService {
         wrapper.eq(StringUtils.hasText(request.getBizType()), MessageRecord::getBizType, request.getBizType());
         wrapper.eq(StringUtils.hasText(request.getBizId()), MessageRecord::getBizId, request.getBizId());
         wrapper.eq(StringUtils.hasText(request.getStatus()), MessageRecord::getStatus, request.getStatus());
-        wrapper.like(StringUtils.hasText(request.getChannel()), MessageRecord::getChannels,
-                StringUtils.hasText(request.getChannel()) ? request.getChannel().trim().toUpperCase() : null);
+        String channel = request.getChannel();
+        if (StringUtils.hasText(channel)) {
+            MessageChannel parsed = MessageChannel.parse(channel);
+            if (parsed == null) {
+                throw new BizException(ErrorCode.PARAM_ERROR, "不支持的渠道: " + channel);
+            }
+            // channels 为逗号分隔串：用 FIND_IN_SET 做精确 token 匹配，
+            // 避免 LIKE 通配符注入（%/_）与子串误命中
+            wrapper.apply("FIND_IN_SET({0}, channels) > 0", parsed.name());
+        }
         wrapper.orderByDesc(MessageRecord::getCreateTime);
         long size = Math.min(Math.max(request.getSize(), 1L), MAX_PAGE_SIZE);
         Page<MessageRecord> page = recordMapper.selectPage(new Page<>(request.getCurrent(), size), wrapper);

@@ -70,7 +70,7 @@ public class MessageTemplateServiceImpl implements MessageTemplateService {
         assertCodeUnique(code, null);
         MessageTemplate template = MessageConverter.INSTANCE.toEntity(request);
         template.setTemplateCode(code);
-        template.setStatus(request.getStatus() == null ? STATUS_ENABLED : request.getStatus());
+        template.setStatus(request.getStatus() == null ? STATUS_ENABLED : normalizeStatus(request.getStatus()));
         templateMapper.insert(template);
         log.info("消息模板已创建: id={}, code={}", template.getId(), template.getTemplateCode());
         return toVo(template);
@@ -80,10 +80,13 @@ public class MessageTemplateServiceImpl implements MessageTemplateService {
     @Transactional(rollbackFor = Exception.class)
     public MessageTemplateVO update(Long id, MessageTemplateSaveRequest request) {
         MessageTemplate template = requireTemplate(id);
+        Integer originalStatus = template.getStatus();
         String code = normalizeCode(request.getTemplateCode());
         assertCodeUnique(code, id);
         MessageConverter.INSTANCE.updateEntity(request, template);
         template.setTemplateCode(code);
+        // 未传状态时保留原值：MapStruct 会把 null 一并覆盖，不能直接依赖数据库的 NOT_NULL 更新策略
+        template.setStatus(request.getStatus() == null ? originalStatus : normalizeStatus(request.getStatus()));
         templateMapper.updateById(template);
         log.info("消息模板已更新: id={}, code={}", id, template.getTemplateCode());
         return toVo(template);
@@ -125,13 +128,29 @@ public class MessageTemplateServiceImpl implements MessageTemplateService {
     }
 
     /**
-     * 规范化模板编码：去空白并转大写。
+     * 规范化模板编码：去空白并转大写；编码为空直接拒绝，避免落库空编码后无法通过编码回查。
      *
      * @param code 原始编码
      * @return 规范化编码
      */
     private static String normalizeCode(String code) {
-        return code == null ? null : code.trim().toUpperCase(Locale.ROOT);
+        if (!StringUtils.hasText(code)) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "模板编码不能为空");
+        }
+        return code.trim().toUpperCase(Locale.ROOT);
+    }
+
+    /**
+     * 校验模板状态：仅支持 0（停用）/ 1（启用）。
+     *
+     * @param status 状态值
+     * @return 校验后的状态
+     */
+    private static int normalizeStatus(Integer status) {
+        if (status != null && status != 0 && status != 1) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "模板状态仅支持 0（停用）/ 1（启用）: " + status);
+        }
+        return status == null ? STATUS_ENABLED : status;
     }
 
     /**

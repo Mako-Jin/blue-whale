@@ -1,5 +1,7 @@
 package com.bluewhale.message.support;
 
+import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.message.config.MessagePreferenceProperties;
 import com.bluewhale.message.dto.PreferenceResolveRequest;
 import com.bluewhale.message.enums.MessageChannel;
@@ -86,11 +88,17 @@ public class NotifyPreferenceResolver {
      * @return 每个用户一个决策项（与请求 userIds 顺序一致，逐条独立裁决）
      */
     public List<PreferenceDecisionVO> resolve(PreferenceResolveRequest request) {
+        List<Long> userIds = dedupe(request.userIds());
+        int maxUsers = properties.getMaxUsers();
+        // DTO 已有 @Size(max=200) 静态兜底，这里再按配置校验，避免配置调小后仍放大请求
+        if (maxUsers > 0 && userIds.size() > maxUsers) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "单次解析用户数不能超过 " + maxUsers);
+        }
         List<String> defaultChannels = parseChannels(
                 request.defaults() == null ? null : request.defaults().channels());
-        Map<Long, String> values = loadPreferences(request);
-        List<PreferenceDecisionVO> decisions = new ArrayList<>(request.userIds().size());
-        for (Long userId : dedupe(request.userIds())) {
+        Map<Long, String> values = loadPreferences(request, userIds);
+        List<PreferenceDecisionVO> decisions = new ArrayList<>(userIds.size());
+        for (Long userId : userIds) {
             decisions.add(decide(userId, request, defaultChannels, values.get(userId)));
         }
         return decisions;
@@ -100,14 +108,15 @@ public class NotifyPreferenceResolver {
      * 加载偏好值映射；开关关闭 / 失败 / 未命中 → 空映射（按默认放行）。
      *
      * @param request 解析请求
+     * @param userIds 去重后的用户 ID（只按去重结果发起批量请求）
      * @return {userId: 偏好值 JSON}
      */
-    private Map<Long, String> loadPreferences(PreferenceResolveRequest request) {
+    private Map<Long, String> loadPreferences(PreferenceResolveRequest request, List<Long> userIds) {
         if (!properties.isEnabled()) {
             return Map.of();
         }
         return authUserConfigClient.batchGet(
-                request.tenantId(), properties.getKeyPrefix() + request.bizType(), request.userIds());
+                request.tenantId(), properties.getKeyPrefix() + request.bizType(), userIds);
     }
 
     /**
@@ -196,7 +205,8 @@ public class NotifyPreferenceResolver {
             JsonNode node = objectMapper.readTree(raw);
             return node != null && node.isObject() ? node : null;
         } catch (Exception error) {
-            log.warn("偏好值解析失败（按无配置处理）：reason={}", error.getMessage());
+            // 解析异常消息会带偏好原文片段，只记录异常类型
+            log.warn("偏好值解析失败（按无配置处理）：errorType={}", error.getClass().getSimpleName());
             return null;
         }
     }

@@ -46,7 +46,7 @@ public class MessageTemplateController {
      */
     @GetMapping("/page")
     @RequirePermission("sys:message:template:list")
-    public Result<PageResult<MessageTemplateVO>> page(MessageTemplateQueryRequest request) {
+    public Result<PageResult<MessageTemplateVO>> page(@Valid MessageTemplateQueryRequest request) {
         return Result.ok(messageTemplateService.page(request));
     }
 

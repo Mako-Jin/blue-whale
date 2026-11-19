@@ -21,6 +21,14 @@ public class MessageReceiptProperties {
     /** 回调派发间隔（毫秒） */
     private long dispatchIntervalMillis = 15000;
 
+    /**
+     * 回调派发首次执行延迟（毫秒）。
+     *
+     * <p>由 {@code MessageCallbackDispatcher} 的 {@code @Scheduled#initialDelayString} 占位符直接消费，
+     * 这里声明同名字段是为了让配置类与 yml 保持同步并获得 IDE 提示。</p>
+     */
+    private long dispatchInitialDelayMillis = 20000;
+
     /** 单次派发批量上限 */
     private int dispatchBatchSize = 50;
 
