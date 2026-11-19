@@ -1044,6 +1044,8 @@ services:
       # 用户偏好收敛到 auth 统一配置（Wave 6.25）：容器内必须走容器名直连，
       # 默认的 127.0.0.1 会被 fail-open 掩盖成「永远读不到偏好、永远返回 2D」
       WHALE_SCENE_AUTH_BASE_URL: "http://bw-auth:8081"
+      # M1 3D 看板：向 ERP 内网取生产订单 / 库存实时数量（容器内走容器名）
+      WHALE_SCENE_ERP_BASE_URL: "http://bw-erp:9001"
     ports:
       - "127.0.0.1:8097:8097"
     healthcheck:

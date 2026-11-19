@@ -91,3 +91,21 @@
 - **验证**：四个 PowerShell 文件通过 `Parser::ParseFile` 语法校验；CI 需在具备完整环境的网关地址上手动触发（本机当前未同时起服全部服务）。
 - **待做项**：M-C 3D 看板真实数据与对账、M-D 压测基线；链路冒烟在真实环境首次跑通后回填结果。
 - **已修正问题项**：无。
+
+### 2026-11-19 M-C 完成（3D 看板真实数据 + 对账脚本）
+
+- **需求项**：3D 看板数量必须来自数据库并可对账；数据源不可用时显式降级，不得显示假数据。
+- **完成项**：
+  - ERP 新增内网只读接口 `GET /erp/internal/mfg/board`（`MfgBoardAppService`）：直接复用生产订单与库存余额查询，返回订单计划/完工数量、状态、MES 工单号与仓库库存数量。
+  - whale-scene 新增 `GET /scene/board/manufacturing`（登录即可）：
+    `ErpManufacturingBoardClient` 按内网令牌 + `X-Tenant-Id` 取数；网络/业务码/解析失败统一返回 `degraded=true` + 原因，
+    不补 0、不返回假数量。
+  - 3D 页面改造：柱体高度按生产订单完工占比渲染（颜色区分终态），下方表格展示订单与库存实时数量；
+    降级时展示告警与空态，不渲染柱体。
+  - 新增 `scripts/verify/chain-reconcile.ps1`：看板逐张订单比对 ERP 计划/完工数量与状态、逐条比对库存余额，
+    任一不一致或看板降级即退出码 1。
+  - compose 注入 `WHALE_SCENE_ERP_BASE_URL=http://bw-erp:9001`。
+- **验证**：ERP + scene 模块 `mvn -o -q -pl ... -am -DskipTests compile` 通过；whale-scene `tsc -b` 与 `eslint --max-warnings 0` 通过；
+  对账脚本通过 PowerShell 语法校验，需在完整环境执行。
+- **待做项**：M-D 压测基线；对账脚本在真实环境首次执行后回填结果。
+- **已修正问题项**：无。

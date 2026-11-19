@@ -69,6 +69,8 @@ whale:
     # M1/M2 固定关闭；M3 解冻评审通过后再开启
     three-d-enabled: ${WHALE_SCENE_3D_ENABLED:false}
     allowed-schemes: ${WHALE_SCENE_ALLOWED_SCHEMES:http,https}
+    # 3D 看板向 ERP 内网取实时数量（取数失败显式降级，不返回假数据）
+    erp-base-url: ${WHALE_SCENE_ERP_BASE_URL:http://127.0.0.1:9001}
 
 mybatis-plus:
   configuration:

@@ -1,19 +1,22 @@
-// 3D 城池视图（本阶段仅用于验证 three.js 接入）
+// 3D 城池视图（M1：接入制造看板实时数据）
 //
 // - 入口：2D 导航页「切换到 3D」按钮
 // - 场景选择：可选项来自 `/scene/navigation`（当前用户可见的已发布场景）
 // - 个人设置：选择结果写入 `/scene/preference`，下次进入优先恢复
-// - 渲染：whale-common-three 初始化场景，当前只放一个旋转的正方体
+// - 制造数据：`/scene/board/manufacturing`（ERP 生产订单 / 库存余额同源），
+//   数据源不可用时显式降级提示，不渲染任何假数量
 
-import { Alert, App, Button, Card, Empty, Select, Space, Spin, Tag, Typography } from 'antd';
+import { Alert, App, Button, Card, Empty, Select, Space, Spin, Table, Tag, Typography } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BoxGeometry, Mesh, MeshStandardMaterial } from 'three';
+import { BoxGeometry, Group, Mesh, MeshStandardMaterial } from 'three';
 import { WhaleSceneManager } from '@bluewhale/whale-common-three';
 import {
+  fetchManufacturingBoard,
   fetchNavigation,
   fetchScenePreference,
   saveScenePreference,
+  type MfgBoardView,
   type NavigationSceneView,
 } from '../api/scene';
 
@@ -21,13 +24,16 @@ export default function Scene3DPage() {
   const { message } = App.useApp();
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const managerRef = useRef<WhaleSceneManager | null>(null);
   const [scenes, setScenes] = useState<NavigationSceneView[]>([]);
   const [activeKey, setActiveKey] = useState<string>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [webglError, setWebglError] = useState<string | null>(null);
+  const [board, setBoard] = useState<MfgBoardView | null>(null);
+  const [boardError, setBoardError] = useState<string | null>(null);
 
-  // three.js 初始化：页面挂载一次，只放一个测试正方体做自转
+  // three.js 初始化：页面挂载一次，业务柱体由制造数据驱动（见下一个 effect）
   useEffect(() => {
     const container = containerRef.current;
     if (!container) {
@@ -36,23 +42,69 @@ export default function Scene3DPage() {
     let manager: WhaleSceneManager | null = null;
     try {
       manager = new WhaleSceneManager({ container, backgroundColor: 0x0f1b2d }).init();
-      const cube = new Mesh(
-        new BoxGeometry(1, 1, 1),
-        new MeshStandardMaterial({ color: 0x2f8fdc }),
-      );
-      manager.getScene().add(cube);
-      manager.onFrame((delta) => {
-        cube.rotation.x += delta * 0.4;
-        cube.rotation.y += delta * 0.6;
-      });
+      manager.getCamera().position.set(0, 0.4, 8);
+      manager.getCamera().lookAt(0, 0, 0);
       manager.start();
+      managerRef.current = manager;
     } catch (reason) {
       setWebglError(reason instanceof Error ? reason.message : 'WebGL 初始化失败');
     }
     return () => {
+      managerRef.current = null;
       manager?.dispose();
     };
   }, []);
+
+  // 制造看板数据：独立加载，失败只提示，不影响场景导航
+  useEffect(() => {
+    let cancelled = false;
+    fetchManufacturingBoard()
+      .then((data) => {
+        if (!cancelled) {
+          setBoard(data);
+          setBoardError(null);
+        }
+      })
+      .catch((reason: unknown) => {
+        if (!cancelled) {
+          setBoardError(reason instanceof Error ? reason.message : '制造看板数据加载失败');
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // 数据驱动柱体：高度按完工数量占比，颜色区分终态；数据降级时不渲染任何柱体
+  useEffect(() => {
+    const manager = managerRef.current;
+    if (!manager || !board || board.degraded) {
+      return;
+    }
+    const scene = manager.getScene();
+    const group = new Group();
+    const orders = board.orders.slice(0, 12);
+    const maxPlanned = Math.max(...orders.map((order) => Number(order.plannedQuantity) || 0), 1);
+    orders.forEach((order, index) => {
+      const completed = Number(order.completedQuantity) || 0;
+      const height = 0.3 + Math.min(completed / maxPlanned, 1) * 3.2;
+      const bar = new Mesh(
+        new BoxGeometry(0.6, height, 0.6),
+        new MeshStandardMaterial({ color: order.status === 'COMPLETED' ? 0x35c27a : 0x2f8fdc }),
+      );
+      bar.position.set((index - (orders.length - 1) / 2) * 0.9, height / 2 - 1.2, 0);
+      group.add(bar);
+    });
+    scene.add(group);
+    return () => {
+      scene.remove(group);
+      group.children.forEach((child) => {
+        const bar = child as Mesh<BoxGeometry, MeshStandardMaterial>;
+        bar.geometry.dispose();
+        bar.material.dispose();
+      });
+    };
+  }, [board]);
 
   // 场景列表 + 个人偏好：偏好中的默认场景优先，失效时回退首个可见场景
   useEffect(() => {
@@ -115,15 +167,17 @@ export default function Scene3DPage() {
         <Typography.Title level={3} style={{ margin: 0 }}>
           城池导航 3D
         </Typography.Title>
-        <Tag color="green">3D 预览</Tag>
+        <Tag color={board?.degraded ? 'orange' : 'green'}>
+          {board?.degraded ? '数据降级' : '制造实时数据'}
+        </Tag>
         <Button onClick={backTo2D}>返回 2D</Button>
       </Space>
 
       <Alert
         type="info"
         showIcon
-        message="本阶段仅验证 3D 接入"
-        description="3D 视图中目前只渲染一个测试正方体；场景选择会保存为你的个人偏好，下次进入自动恢复。"
+        message="3D 看板已接入制造实时数据"
+        description="柱体高度按生产订单完工数量占比渲染，数量来自 ERP 生产订单与库存余额；数据源不可用时页面会显式降级，不显示任何假数据。"
       />
 
       {webglError ? (
@@ -135,6 +189,15 @@ export default function Scene3DPage() {
         />
       ) : null}
       {error ? <Alert type="warning" showIcon message={error} /> : null}
+      {board?.degraded ? (
+        <Alert
+          type="warning"
+          showIcon
+          message="制造数据源不可用，已降级"
+          description={board.message ?? 'ERP 未响应或未授权，页面不展示产量数字'}
+        />
+      ) : null}
+      {boardError ? <Alert type="warning" showIcon message={boardError} /> : null}
 
       <Card
         title={
@@ -182,6 +245,53 @@ export default function Scene3DPage() {
             display: !loading && scenes.length > 0 ? 'block' : 'none',
           }}
         />
+      </Card>
+
+      <Card
+        size="small"
+        title="制造实时数量"
+        extra={
+          <Typography.Text type="secondary">
+            数据时间 {board?.generatedAt ? board.generatedAt.replace('T', ' ') : '—'}
+          </Typography.Text>
+        }
+      >
+        {board && !board.degraded ? (
+          <Space direction="vertical" size={12} style={{ width: '100%' }}>
+            <Table
+              size="small"
+              rowKey="orderNo"
+              pagination={false}
+              dataSource={board.orders}
+              locale={{ emptyText: '暂无生产订单' }}
+              columns={[
+                { title: '生产订单', dataIndex: 'orderNo' },
+                { title: '物料', dataIndex: 'itemCode' },
+                { title: '计划', dataIndex: 'plannedQuantity' },
+                { title: '完工', dataIndex: 'completedQuantity' },
+                {
+                  title: '状态',
+                  dataIndex: 'status',
+                  render: (value: string) => <Tag>{value}</Tag>,
+                },
+              ]}
+            />
+            <Table
+              size="small"
+              rowKey={(row) => `${row.warehouseId}-${row.itemCode}`}
+              pagination={false}
+              dataSource={board.stocks}
+              locale={{ emptyText: '暂无库存余额' }}
+              columns={[
+                { title: '物料', dataIndex: 'itemCode' },
+                { title: '仓库ID', dataIndex: 'warehouseId' },
+                { title: '现货数量', dataIndex: 'quantity' },
+              ]}
+            />
+          </Space>
+        ) : (
+          <Empty description="制造数据源不可用，暂不展示数量" />
+        )}
       </Card>
     </Space>
   );

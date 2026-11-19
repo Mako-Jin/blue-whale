@@ -275,3 +275,38 @@ export function fetchScenePreference(): Promise<ScenePreference> {
 export function saveScenePreference(preference: ScenePreference): Promise<ScenePreference> {
   return http.put<ScenePreference>('/scene/preference', preference);
 }
+
+/** 3D 看板生产订单行（数量与 ERP 生产订单同源） */
+export interface MfgBoardOrder {
+  orderNo: string;
+  itemCode: string;
+  itemName: string;
+  plannedQuantity: number;
+  completedQuantity: number;
+  status: string;
+  targetWarehouseId?: number | null;
+  targetWarehouseName?: string | null;
+  mesWorkOrderCode?: string | null;
+}
+
+/** 3D 看板库存余额行（数量与 ERP 库存余额同源） */
+export interface MfgBoardStock {
+  itemCode: string;
+  itemName: string;
+  warehouseId: number;
+  quantity: number;
+}
+
+/** 3D 看板制造数据（degraded=true 表示数据源不可用，页面必须显式降级） */
+export interface MfgBoardView {
+  degraded: boolean;
+  message?: string | null;
+  generatedAt?: string | null;
+  orders: MfgBoardOrder[];
+  stocks: MfgBoardStock[];
+}
+
+/** 制造看板实时数量（登录即可，数据由 ERP 内网聚合） */
+export function fetchManufacturingBoard(limit = 50): Promise<MfgBoardView> {
+  return http.get<MfgBoardView>('/scene/board/manufacturing', { limit });
+}

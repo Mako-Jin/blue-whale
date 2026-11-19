@@ -39,4 +39,13 @@ public class SceneProperties {
      * 写失败直接报错（fail-closed）。</p>
      */
     private String authBaseUrl = "http://127.0.0.1:8081";
+
+    /**
+     * ERP 内网基地址：3D 看板向 ERP 取生产订单 / 库存实时数量。
+     *
+     * <p>容器内必须为 {@code http://bw-erp:9001}（compose 需注入）；
+     * 默认值面向本机直接起进程的调试场景。取数失败按降级处理（fail-open），
+     * 由前端显式提示，不返回假数据。</p>
+     */
+    private String erpBaseUrl = "http://127.0.0.1:9001";
 }
