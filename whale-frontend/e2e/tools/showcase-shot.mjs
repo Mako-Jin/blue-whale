@@ -30,6 +30,10 @@ const SHOTS = [
   // 夜景码头：唯一能验收"灯影摇红"的机位。灯高 3m、相机高 3.6m 时，灯笼的倒影点
   // 才落在河面内；全景机位（高 21m）算出来的倒影点落在岸上，物理上就没有灯影。
   { name: '04b-dock-night', time: '夜晚', preset: '码头', wait: 1600 },
+  // 河岸：贴地机位。地被（草簇/灌木/滩石）只有 1m 上下，所有 3.5m 以上的机位
+  // 看过去只是一层颗粒，验收不了"这是不是草"
+  { name: '04c-bank-dusk', time: '黄昏', preset: '河岸', wait: 1600 },
+  { name: '04d-bank-day', time: '白天', preset: '河岸', wait: 1600 },
   { name: '05-overview-day', time: '白天', preset: '全景', wait: 1600 },
   { name: '06-overview-blue', time: '蓝调', preset: '全景', wait: 1600 },
   { name: '07-overview-night', time: '夜晚', preset: '全景', wait: 1600 },

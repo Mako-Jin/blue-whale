@@ -30,6 +30,7 @@ const PRESET_LABEL: Record<PresetName, string> = {
   shop: '铺面',
   alley: '巷口',
   roofs: '俯视',
+  bank: '河岸',
 };
 
 export default function App(): React.ReactElement {
@@ -106,7 +107,7 @@ export default function App(): React.ReactElement {
 
       <div className="sc-title">
         <div className="sc-title-main">蓝鲸 · 河谷渡口</div>
-        <div className="sc-title-sub">S8 河谷渡口 · 马头墙 / 巷口 / 后巷</div>
+        <div className="sc-title-sub">S9 河谷渡口 · 草岸 / 排水明沟 / 灌木三层</div>
       </div>
 
       <div className="sc-bar">

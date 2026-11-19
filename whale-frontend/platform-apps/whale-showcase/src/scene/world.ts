@@ -24,7 +24,7 @@ export interface SceneStats {
 
 export type TimeName = 'dusk' | 'day' | 'blue' | 'night';
 export type Quality = 'high' | 'mid' | 'low';
-export type PresetName = 'overview' | 'bridge' | 'street' | 'dock' | 'shop' | 'alley' | 'roofs';
+export type PresetName = 'overview' | 'bridge' | 'street' | 'dock' | 'shop' | 'alley' | 'roofs' | 'bank';
 
 interface TimePreset {
   /** 太阳高度角（度） */
@@ -190,6 +190,14 @@ const CAMERAS: Record<PresetName, CameraPreset> = {
    * 直接对着屋面的机位——否则改的全在盲区里。</p>
    */
   roofs: { pos: [-1, 25, 33], target: [24, 5, 11], fov: 42 },
+  /**
+   * 河岸：站在西岸草坡上、眼高 1.7m 往东北看码头与桥。
+   *
+   * <p>地被（草簇 / 灌木 / 滩石）只有 0.3~1.2m 高，所有既有相机位都在 3.5m 以上——
+   * 草在画面里是地面上的一层颗粒，看不出"是一片草"还是"撒了一把碎屑"。
+   * 验收地被必须有一个真正贴地的机位，否则这一层改了也看不见。</p>
+   */
+  bank: { pos: [-19, 6.4, -31], target: [-5.5, 0.9, -12.5], fov: 46 },
 };
 
 export function sunDirection(p: TimePreset): THREE.Vector3 {

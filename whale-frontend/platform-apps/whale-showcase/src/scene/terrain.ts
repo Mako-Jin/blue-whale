@@ -90,8 +90,13 @@ export function heightAt(x: number, z: number): number {
   return h;
 }
 
-/** 坡向：用于给陡坡上岩石色 */
-function slopeAt(x: number, z: number): number {
+/**
+ * 坡向（无量纲：每米的高差）。
+ *
+ * <p>地形自己用它给陡坡上岩石色，地被（草簇/碎石）也用它排除陡坡——
+ * 两处必须同一个函数，否则"上色的坡"和"长草的坡"会对不上。</p>
+ */
+export function slopeAt(x: number, z: number): number {
   const e = 1.2;
   const hx = heightAt(x + e, z) - heightAt(x - e, z);
   const hz = heightAt(x, z + e) - heightAt(x, z - e);

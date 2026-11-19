@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { HouseVariant, SceneAssets, TemplateParts, TreeVariant } from './loader';
-import { heightAt, riverCenter, WATER_LEVEL } from './terrain';
+import { heightAt, riverCenter, slopeAt, WATER_LEVEL } from './terrain';
 import { PALETTE, clamp } from './util';
 
 /**
@@ -28,9 +28,11 @@ type MatKey =
   | 'glow'
   | 'window'
   | 'foliage'
+  | 'shrub'
   | 'crop'
   | 'field'
   | 'path'
+  | 'wet'
   | 'water';
 
 const MAT_DEF: Record<MatKey, THREE.MeshStandardMaterialParameters> = {
@@ -45,9 +47,12 @@ const MAT_DEF: Record<MatKey, THREE.MeshStandardMaterialParameters> = {
   glow: { color: 0xffb070, emissive: 0xff6a2a, emissiveIntensity: 2.2, roughness: 0.5 },
   window: { color: 0xffcf94, emissive: 0xffa050, emissiveIntensity: 1.5, roughness: 0.6 },
   foliage: { color: 0x3d4a2a, roughness: 0.95 },
+  shrub: { color: 0x566a38, roughness: 0.94 },
   crop: { color: 0x5d6a32, roughness: 0.95 },
   field: { color: 0x4f5c2d, roughness: 1 },
   path: { color: 0x7d7059, roughness: 0.98 },
+  // 沟底常年积水积泥：暗、湿、有点反光。粗糙度是这里唯一的"湿"信号
+  wet: { color: 0x2f3532, roughness: 0.22, metalness: 0.04 },
   water: { color: 0x2c3a38, roughness: 0.12, metalness: 0.3 },
 };
 
@@ -72,6 +77,7 @@ const VARY: Partial<Record<MatKey, number>> = {
   field: 0.05,
   crop: 0.09,
   foliage: 0.07,
+  shrub: 0.1,
 };
 
 /** 一个构件的均匀色偏写进顶点色（合并后所有构件共用一套材质） */
@@ -636,6 +642,9 @@ function buildLanterns(b: Builder): void {
 /** 石板街：房子不能直接坐草地上。分段铺，段间高差当"分台"处理 */
 /** 主街中心线：民居一律放在 STREET_X + 5 以东，街面本身不许压房子 */
 const STREET_X = 17;
+/** 排水明沟：贴着街西沿（13.53）的一条，宽 0.46（一锹宽） */
+const GUTTER_X = 13.76;
+const GUTTER_W = 0.46;
 
 function buildStreet(b: Builder): void {
   /*
@@ -661,15 +670,53 @@ function buildStreet(b: Builder): void {
     seed = (seed * 1103515245 + 12345) % 2147483648;
     return seed / 2147483648;
   };
+  /*
+   * 高低不平 + 修补过的石板。
+   *
+   * <p>「街面像刚扫过」的第二个原因：所有石板的顶面在同一个高度上。老石板的
+   * 沉陷是<b>厘米级</b>的——0.03 的起伏在掠射角下就是一条条明暗线，读起来是"铺装"
+   * 而不是"贴图"。另外按 7% 的比例把几块换成浅一档的石料（`stone`），
+   * 那些是几十年里陆续换过的板子，整条街因此有了"时间"。</p>
+   *
+   * <p>试过在石板上再叠"车辙"与"门前踏石"两条 6mm 的薄板，两次都失败：
+   * 薄板在街面上渲染出来的亮度<b>与它的反照率无关</b>（改到近黑仍然比街面亮），
+   * 出图是两条白漆标线。这类"贴在表面上的一层薄皮"这个场景里不要再用。</p>
+   */
   for (let z = -46; z < 41; z += 3.6) {
-    for (const side of [-1, 1]) {
-      // 左右两排各让 0.9m 的错位：整条街的石板不可能齐缝
-      const zc = z + side * 0.9 + (rand() - 0.5) * 0.12;
-      const y = heightAt(STREET_X, zc);
-      const sink = (rand() - 0.5) * 0.03; // 石板厚薄不一是最便宜的"手工感"
-      b.box('stoneDark', 3.42 - rand() * 0.1, 0.24, 3.5, STREET_X + side * 1.76, y + 0.05 + sink, zc);
-    }
+    // 东半幅：17.05…20.47，一整块
+    const zcE = z + 0.9 + (rand() - 0.5) * 0.12;
+    const sinkE = (rand() - 0.5) * 0.055;
+    const kE: MatKey = rand() < 0.07 ? 'stone' : 'stoneDark';
+    b.box(kE, 3.42 - rand() * 0.1, 0.24, 3.5, STREET_X + 1.76, heightAt(STREET_X, zcE) + 0.05 + sinkE, zcE);
+
+    // 西半幅：13.99…16.95。13.53…13.99 那一条让给排水明沟（见下）
+    const zcW = z - 0.9 + (rand() - 0.5) * 0.12;
+    const sinkW = (rand() - 0.5) * 0.055;
+    const kW: MatKey = rand() < 0.07 ? 'stone' : 'stoneDark';
+    b.box(kW, 2.96 - rand() * 0.08, 0.24, 3.5, 15.47, heightAt(STREET_X, zcW) + 0.05 + sinkW, zcW);
   }
+
+  /*
+   * 排水明沟。
+   *
+   * <p>「街面像刚扫过」的原因不是没有缝，是<b>没有一个比街面低的东西</b>：
+   * 石板的顶面全在同一个高度上，光一打就是一块平板。老街的排水明沟贴着街沿走，
+   * 沟底比街面低 10cm，常年积水积泥发暗——这一条暗线在透视里往远处收，
+   * 是街景机位里唯一能读出"路面有多长"的东西。</p>
+   *
+   * <p>做法不是"在石板上再叠一块"，而是<b>把西半幅的石板往里让 0.46</b>，
+   * 露出下面的垫层当沟底。叠上去的沟底会是一条凸起的暗带，看着像路缘。</p>
+   */
+  const GY = heightAt(STREET_X, -2.5) + 0.04; // 垫层顶面（1.22）
+  b.box('wet', GUTTER_W - 0.05, 0.02, 87, GUTTER_X, GY, -2.5);
+  // 内侧牙石：比街面高 2cm 的一道小棱，低角度光会在这里打出一条长直线
+  b.box('stone', 0.16, 0.15, 87, GUTTER_X + GUTTER_W / 2 - 0.02, GY + 0.075, -2.5);
+  // 沟底每 7m 一道跌水坎：长直沟里没有任何横向信息，远看就是一根黑线
+  for (let z = -44; z < 40; z += 7) {
+    b.box('stoneDark', GUTTER_W - 0.06, 0.09, 0.14, GUTTER_X, GY + 0.045, z);
+  }
+
+
 
   /*
    * 街沿石：街面东沿（20.5）到临街立面（21.2）之间那条 0.7m 的缝。
@@ -1181,6 +1228,348 @@ function buildReeds(group: THREE.Group): void {
   group.add(im);
 }
 
+/* ------------------------------------------------------------------ 地被 */
+
+/**
+ * 草簇 / 灌木 / 滩石。
+ *
+ * <p><b>为什么必须单独做一层</b>：地形是 2.3m 一格的网格，顶点色最多做到"大色块"，
+ * 于是草地永远是一整片平色。码头与街口这两个近景机位里，草地占了画面下半部，
+ * 是"低模感"最集中的地方——而人眼判断地面的尺度<b>靠边缘的碎度</b>，
+ * 不靠颜色。一片纯色草地无论调成什么绿都像塑料，加了草簇之后同样的绿色就"是草"了。</p>
+ *
+ * <p>三个约束：</p>
+ * <ul>
+ *   <li>全部走 InstancedMesh：草 1.1 万丛也只 1 个 drawcall；</li>
+ *   <li>不投影：几万根 0.5m 高的细叶投出来的只是阴影贴图上的噪点，还会把
+ *       2048 的阴影图吃干净；</li>
+ *   <li>不用 alpha 贴图：这个项目没有透明材质的排序管线，一张透明 PNG 在 Bloom
+ *       和阴影下会露方边。实体叶片贵一点，但没有排序问题，还能吃逐顶点色。</li>
+ * </ul>
+ */
+
+interface GroundSpot {
+  x: number;
+  y: number;
+  z: number;
+  rotY: number;
+  s: number;
+}
+
+/** 点到西岸小路中心线的距离（用来在路上留出空白） */
+function distToPath(x: number, z: number): number {
+  let best = Infinity;
+  for (let i = 0; i < PATH_PTS.length - 1; i += 1) {
+    const [x0, z0] = PATH_PTS[i];
+    const [x1, z1] = PATH_PTS[i + 1];
+    const dx = x1 - x0;
+    const dz = z1 - z0;
+    const t = clamp(((x - x0) * dx + (z - z0) * dz) / (dx * dx + dz * dz), 0, 1);
+    const px = x0 + dx * t;
+    const pz = z0 + dz * t;
+    best = Math.min(best, Math.hypot(x - px, z - pz));
+  }
+  return best;
+}
+
+/**
+ * 铺装区：这些地方长草是硬伤（草会从石板缝里冒出来、从房子里穿出来）。
+ *
+ * <p>规则要写死而不是"靠地形高度判断"——镇区平台被压平到 1.18，跟河滩草地
+ * 高度差不多，靠高度分不出来。</p>
+ */
+function blockedByPaving(x: number, z: number): boolean {
+  // 镇区：街面 / 台基 / 院墙 / 后巷 / 城墙内外（与 terrain.ts 的 townMask 同一范围）
+  if (x > 13.2 && x < 34 && z > -50 && z < 45) return true;
+  // 田垄：整块排除。让田与草地的边界是一条干净的直线，草只长在地头外
+  for (const [x0, z0, x1, z1] of FIELD_BLOCKS) {
+    if (x > x0 - 0.8 && x < x1 + 0.8 && z > z0 - 0.8 && z < z1 + 0.8) return true;
+  }
+  // 西岸小路（含路肩）
+  if (distToPath(x, z) < 2.6) return true;
+  // 码头平台与上岸台阶
+  if (x > -15.5 && x < -1.5 && z > -19 && z < -9) return true;
+  // 西岸水埠
+  if (x > -8.8 && x < -3.4 && z > 3.8 && z < 8.8) return true;
+  // 西岸小村的房子（含墙脚一圈）
+  for (const [hx, hz, sc] of WEST_VILLAGE) {
+    if (Math.abs(x - hx) < 4.6 * sc && Math.abs(z - hz) < 3.8 * sc) return true;
+  }
+  return false;
+}
+
+/**
+ * 一丛草：6 片叶，每片 2 段（基部四边形 + 梢头三角），18 个三角面。
+ *
+ * <p>顶点色做"根暗梢亮"（0.62 → 1.25）：草叶的透光让梢头比根部亮一档，
+ * 这是草看起来"薄"而不是"一片塑料"的原因。逐实例再乘一个冷暖偏色，
+ * 近水偏绿、上坡偏黄。</p>
+ */
+function createGrassTuft(): THREE.BufferGeometry {
+  const positions: number[] = [];
+  const colors: number[] = [];
+  const indices: number[] = [];
+  const blades = 6;
+
+  for (let i = 0; i < blades; i += 1) {
+    const a = (i / blades) * Math.PI * 2 + 0.55;
+    const h = 0.20 + ((i * 37) % 11) / 42; // 0.20 … 0.44
+    const w = 0.03;
+    const lean = 0.11 + ((i * 23) % 9) / 46;
+    const dirX = Math.cos(a);
+    const dirZ = Math.sin(a);
+    const sideX = -dirZ;
+    const sideZ = dirX;
+    const bx = dirX * 0.07;
+    const bz = dirZ * 0.07;
+    const base = positions.length / 3;
+
+    // 两层各两个顶点（基部 / 中段），梢头收成一个点
+    for (const t of [0, 0.55]) {
+      const half = (w * (1 - 0.8 * t)) / 2;
+      const k = Math.pow(t, 1.6) * lean;
+      const cx = bx + dirX * k;
+      const cz = bz + dirZ * k;
+      const y = h * t;
+      positions.push(cx - sideX * half, y, cz - sideZ * half);
+      positions.push(cx + sideX * half, y, cz + sideZ * half);
+      const c = 0.72 + t * 0.44;
+      colors.push(c, c, c, c, c, c);
+    }
+    const kt = lean;
+    positions.push(bx + dirX * kt, h, bz + dirZ * kt);
+    colors.push(1.16, 1.16, 1.16);
+
+    indices.push(base, base + 1, base + 3, base, base + 3, base + 2, base + 2, base + 3, base + 4);
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+
+  /*
+   * 法线朝上偏。
+   *
+   * <p>草叶是竖直的薄片，几何法线是水平的——低角度的黄昏光打上去，一半叶片
+   * 全黑一半全亮，出图是一丛丛"刀片"。把法线往 +Y 掰（保留 45% 的朝向信息），
+   * 草就跟着地面一起被照亮，只在叶片朝向差异上留一点明暗——这才是草。</p>
+   */
+  const nrm = geo.attributes.normal as THREE.BufferAttribute;
+  for (let i = 0; i < nrm.count; i += 1) {
+    const nx = nrm.getX(i) * 0.45;
+    const ny = nrm.getY(i) * 0.45 + 0.78;
+    const nz = nrm.getZ(i) * 0.45;
+    const len = Math.hypot(nx, ny, nz) || 1;
+    nrm.setXYZ(i, nx / len, ny / len, nz / len);
+  }
+  return geo;
+}
+
+/** 草簇落点。两遍采样：全岸带一遍 + 码头近景一遍（那一块是画面下半部） */
+function grassSpots(count = 13000): GroundSpot[] {
+  let seed = 20261121;
+  const rand = () => {
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    return seed / 2147483648;
+  };
+
+  const out: GroundSpot[] = [];
+  const push = (x: number, z: number, sMin = 0.85, sMax = 1.45): boolean => {
+    const y = heightAt(x, z);
+    if (y < WATER_LEVEL + 0.28 || y > 8.2) return false;
+    if (slopeAt(x, z) > 0.85) return false;
+    if (blockedByPaving(x, z)) return false;
+    out.push({ x, y, z, rotY: rand() * Math.PI * 2, s: sMin + rand() * (sMax - sMin) });
+    return true;
+  };
+
+  // 全岸带：距河心 9.4…39，靠近水线密、往内陆稀（pow 让分布偏向近岸）
+  let guard = 0;
+  while (out.length < count && guard < count * 26) {
+    guard += 1;
+    const z = (rand() - 0.5) * 265;
+    const side = rand() < 0.62 ? -1 : 1; // 西岸多给一点：主视点在西南
+    const d = 9.4 + Math.pow(rand(), 0.72) * 30;
+    push(riverCenter(z) + side * d, z);
+  }
+
+  // 码头近景：机位在 3.9m 高、镜头朝岸，这一块 16×26m 的草地要密到能看出"草"
+  for (let i = 0; i < 3200; i += 1) {
+    push(-25 + rand() * 23, -30 + rand() * 30, 0.8, 1.3);
+  }
+  return out;
+}
+
+/** 灌木落点：树根周围 + 岸带零散。灌木层是"草地 / 树"之间缺的中间层 */
+function shrubSpots(trees: TreeSpot[]): GroundSpot[] {
+  let seed = 90911;
+  const rand = () => {
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    return seed / 2147483648;
+  };
+  const out: GroundSpot[] = [];
+
+  for (const t of trees) {
+    const n = 2 + Math.floor(rand() * 2);
+    for (let i = 0; i < n; i += 1) {
+      const a = rand() * Math.PI * 2;
+      const r = 0.8 + rand() * 1.5;
+      const x = t.x + Math.cos(a) * r;
+      const z = t.z + Math.sin(a) * r;
+      if (blockedByPaving(x, z)) continue;
+      out.push({ x, y: heightAt(x, z), z, rotY: rand() * Math.PI * 2, s: 0.55 + rand() * 0.5 });
+    }
+  }
+
+  for (let i = 0; i < 110; i += 1) {
+    const z = (rand() - 0.5) * 240;
+    const side = rand() < 0.6 ? -1 : 1;
+    const d = 9.6 + Math.pow(rand(), 0.8) * 22;
+    const x = riverCenter(z) + side * d;
+    if (blockedByPaving(x, z)) continue;
+    const y = heightAt(x, z);
+    if (y < WATER_LEVEL + 0.35 || slopeAt(x, z) > 0.8) continue;
+    out.push({ x, y, z, rotY: rand() * Math.PI * 2, s: 0.5 + rand() * 0.55 });
+  }
+  return out;
+}
+
+/** 一丛灌木：4 个压扁的多面体，高低错开。20 面 × 4 = 80 个三角面 */
+function createShrub(): THREE.BufferGeometry {
+  const parts: THREE.BufferGeometry[] = [];
+  const lumps: Array<[number, number, number, number]> = [
+    [0, 0.38, 0, 0.6],
+    [0.44, 0.26, 0.2, 0.44],
+    [-0.4, 0.24, -0.16, 0.4],
+    [0.04, 0.56, -0.26, 0.38],
+  ];
+  for (const [x, y, z, r] of lumps) {
+    // 细分一级：20 面的二十面体在 10m 内是一块"岩石"，80 面才像一堆叶子
+    const g = new THREE.IcosahedronGeometry(r, 1);
+    g.scale(1, 0.72, 1);
+    g.translate(x, y, z);
+    parts.push(g);
+  }
+  const merged = mergeGeometries(parts, false);
+  for (const g of parts) g.dispose();
+  if (!merged) return new THREE.IcosahedronGeometry(0.5, 0);
+  merged.computeVertexNormals();
+  return merged;
+}
+
+/** 地面散石：靠水线的滩石，扁、圆、半埋 */
+function stoneSpots(count = 300): GroundSpot[] {
+  let seed = 33113;
+  const rand = () => {
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    return seed / 2147483648;
+  };
+  const out: GroundSpot[] = [];
+  let guard = 0;
+  while (out.length < count && guard < count * 12) {
+    guard += 1;
+    const z = (rand() - 0.5) * 280;
+    const side = rand() < 0.5 ? -1 : 1;
+    const d = 8.5 + Math.pow(rand(), 1.4) * 9;
+    const x = riverCenter(z) + side * d;
+    if (blockedByPaving(x, z)) continue;
+    if (x > 11.5 && z > -46 && z < 40) continue;
+    const y = heightAt(x, z);
+    if (y < WATER_LEVEL - 0.5 || y > 1.6) continue;
+    out.push({ x, y, z, rotY: rand() * Math.PI * 2, s: 0.35 + rand() * 0.8 });
+  }
+  return out;
+}
+
+/** 通用：一批落点铺成一个 InstancedMesh（可带逐实例色） */
+function instanceScatter(
+  group: THREE.Group,
+  geo: THREE.BufferGeometry,
+  mat: THREE.Material,
+  spots: GroundSpot[],
+  name: string,
+  colorAt?: (i: number, s: GroundSpot) => THREE.Color,
+): THREE.InstancedMesh | null {
+  if (!spots.length) return null;
+  const im = new THREE.InstancedMesh(geo, mat, spots.length);
+  im.castShadow = false;
+  im.receiveShadow = true;
+  im.frustumCulled = false;
+  const m = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const pos = new THREE.Vector3();
+  const scl = new THREE.Vector3();
+  const up = new THREE.Vector3(0, 1, 0);
+  spots.forEach((sp, i) => {
+    q.setFromAxisAngle(up, sp.rotY);
+    pos.set(sp.x, sp.y, sp.z);
+    scl.set(sp.s, sp.s, sp.s);
+    m.compose(pos, q, scl);
+    im.setMatrixAt(i, m);
+    if (colorAt) im.setColorAt(i, colorAt(i, sp));
+  });
+  im.instanceMatrix.needsUpdate = true;
+  if (im.instanceColor) im.instanceColor.needsUpdate = true;
+  im.name = name;
+  group.add(im);
+  return im;
+}
+
+function buildGroundCover(group: THREE.Group, trees: TreeSpot[]): void {
+  const grass = grassSpots();
+  const tuft = createGrassTuft();
+  instanceScatter(
+    group,
+    tuft,
+    new THREE.MeshStandardMaterial({
+      color: 0x7b8a4c,
+      vertexColors: true,
+      side: THREE.DoubleSide,
+      roughness: 0.9,
+      metalness: 0,
+    }),
+    grass,
+    'grass',
+    (_i, sp) => {
+      /*
+       * 近水偏冷绿、上坡偏黄枯，再叠一层逐丛抖动。
+       *
+       * <p>整片草一个颜色，比"没有草"更假——远看是一片荧光绿的颗粒。<b>干湿差</b>
+       * 才是草地的信息：靠水的青、坡上的黄、背阴的深。所以这里用高度定干湿，
+       * 用位置哈希定每丛的随机偏移（哈希而不是 Math.random，重建场景不跳色）。</p>
+       */
+      const h = Math.sin(sp.x * 12.9898 + sp.z * 78.233) * 43758.5453;
+      const t = h - Math.floor(h);
+      const dry = clamp((sp.y - 1.0) / 4.5, 0, 1) * 0.5 + t * 0.5;
+      return new THREE.Color().setRGB(0.86 + dry * 0.26, 0.96 + dry * 0.02, 0.82 - dry * 0.14);
+    },
+  );
+
+  const shrub = createShrub();
+  instanceScatter(
+    group,
+    shrub,
+    new THREE.MeshStandardMaterial({ color: 0x566a38, roughness: 0.94 }),
+    shrubSpots(trees),
+    'shrubs',
+  );
+
+  const stones = stoneSpots();
+  if (stones.length) {
+    const rock = new THREE.IcosahedronGeometry(0.5, 0);
+    rock.scale(1.15, 0.5, 1.15);
+    instanceScatter(
+      group,
+      rock,
+      new THREE.MeshStandardMaterial({ color: 0x807a6b, roughness: 0.96, flatShading: true }),
+      stones,
+      'bank-stones',
+    );
+  }
+}
+
 /* ------------------------------------------------------------------ 民居 */
 
 export interface HouseSpot {
@@ -1253,6 +1642,19 @@ export function alleySpots(): AlleySpot[] {
 }
 
 /**
+ * 西岸小村（x, z, 缩放）。
+ *
+ * <p>提到模块级是为了让地被（{@link blockedByPaving}）也能读到：房子脚下不能长草，
+ * 否则草簇会从墙里穿出来。两处共用同一份坐标，改一处不会漏另一处。</p>
+ */
+const WEST_VILLAGE: Array<[number, number, number]> = [
+  [-21.5, 3.0, 0.9],
+  [-25.8, 7.5, 1.0],
+  [-22.8, 12.4, 0.86],
+  [-28.5, 1.6, 0.94],
+];
+
+/**
  * 民居落点。
  *
  * <p>面宽沿 Z、进深沿 X（正面朝 -X）。临街面统一对齐到 {@link FRONT_X}：
@@ -1293,12 +1695,7 @@ export function houseSpots(): HouseSpot[] {
    * 构图是偏的。房子必须<b>散</b>：间距 6~9m 不等、朝向各偏几度，聚成一排
    * 就又变成东岸那条货架街了。</p>
    */
-  for (const [x, z, sc] of [
-    [-21.5, 3.0, 0.9],
-    [-25.8, 7.5, 1.0],
-    [-22.8, 12.4, 0.86],
-    [-28.5, 1.6, 0.94],
-  ] as Array<[number, number, number]>) {
+  for (const [x, z, sc] of WEST_VILLAGE) {
     out.push({
       x,
       z,
@@ -1562,6 +1959,7 @@ export function buildSettlement(assets?: SceneAssets): THREE.Group {
   }
 
   buildReeds(group);
+  buildGroundCover(group, spots);
   if (hasTrees && assets) buildTreesFromGlb(group, assets, spots);
   if (hasHouses && assets) buildHousesFromGlb(group, assets, houseList);
   if (hasLanterns && assets) buildLanternsFromGlb(group, assets);
