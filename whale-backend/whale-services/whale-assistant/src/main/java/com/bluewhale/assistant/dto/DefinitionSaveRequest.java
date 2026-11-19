@@ -16,30 +16,30 @@ import java.util.Map;
 public class DefinitionSaveRequest {
 
     /** 助手编码（租户内唯一；创建必填，更新忽略） */
-    @Pattern(regexp = "^[a-z][a-z0-9-]{1,63}$", message = "编码须为小写字母开头的小写字母/数字/连字符，2-64 位")
+    @Pattern(regexp = "^[a-z][a-z0-9-]{1,63}$", message = "{validation.assistant.definition.code-pattern}")
     private String code;
 
     /** 助手名称 */
-    @NotBlank(message = "名称不能为空")
-    @Size(max = 128, message = "名称长度不能超过 128 字")
+    @NotBlank(message = "{validation.assistant.definition.name-required}")
+    @Size(max = 128, message = "{validation.assistant.definition.name-size}")
     private String name;
 
     /** 头像（whale-file 附件URL，可空） */
-    @Size(max = 512, message = "头像地址长度不能超过 512 字")
+    @Size(max = 512, message = "{validation.assistant.definition.avatar-size}")
     private String avatar;
 
     /** 助手简介（可空） */
-    @Size(max = 512, message = "简介长度不能超过 512 字")
+    @Size(max = 512, message = "{validation.assistant.definition.description-size}")
     private String description;
 
     /** 系统提示词（可空；上限 8000 字符） */
-    @Size(max = 8000, message = "系统提示词长度不能超过 8000 字")
+    @Size(max = 8000, message = "{validation.assistant.definition.system-prompt-size}")
     private String systemPrompt;
 
     /** 模型参数（仅允许 model/temperature/maxTokens 三键，可空） */
     private Map<String, Object> modelParams;
 
     /** 知识范围（透传 whale-agent 检索 scope，可空=全部） */
-    @Size(max = 255, message = "知识范围长度不能超过 255 字")
+    @Size(max = 255, message = "{validation.assistant.definition.knowledge-scope-size}")
     private String knowledgeScope;
 }

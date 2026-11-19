@@ -13,7 +13,7 @@ import lombok.Data;
 public class ChatRequest {
 
     /** 用户问题 */
-    @NotBlank(message = "问题不能为空")
-    @Size(max = 2000, message = "问题长度不能超过 2000 字")
+    @NotBlank(message = "{validation.assistant.chat.question-required}")
+    @Size(max = 2000, message = "{validation.assistant.chat.question-size}")
     private String question;
 }

@@ -15,7 +15,7 @@ import java.util.Map;
 public class PlatformOpRequest {
 
     /** 操作名，如 {@code form.definition.create} */
-    @NotBlank(message = "操作名不能为空")
+    @NotBlank(message = "{validation.agent.platform-op.operation-required}")
     private String operation;
 
     /** 操作参数（按目录字段白名单过滤） */

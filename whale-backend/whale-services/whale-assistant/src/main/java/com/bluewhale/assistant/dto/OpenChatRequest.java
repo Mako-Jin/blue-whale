@@ -16,19 +16,19 @@ import lombok.Data;
 public class OpenChatRequest {
 
     /** 助手编码（须为已发布助手） */
-    @NotBlank(message = "助手编码不能为空")
-    @Size(max = 64, message = "助手编码长度不能超过 64 字")
+    @NotBlank(message = "{validation.assistant.open-chat.assistant-code-required}")
+    @Size(max = 64, message = "{validation.assistant.open-chat.assistant-code-size}")
     private String assistantCode;
 
     /** 用户问题 */
-    @NotBlank(message = "问题不能为空")
-    @Size(max = 2000, message = "问题长度不能超过 2000 字")
+    @NotBlank(message = "{validation.assistant.open-chat.question-required}")
+    @Size(max = 2000, message = "{validation.assistant.open-chat.question-size}")
     private String question;
 
     /** 既有会话ID（可空；为空自动新建 openapi 来源会话，传入则续聊且须归属当前用户） */
     private Long sessionId;
 
     /** 业务侧会话引用（可空，随会话落库便于回传关联） */
-    @Size(max = 128, message = "业务侧引用长度不能超过 128 字")
+    @Size(max = 128, message = "{validation.assistant.open-chat.channel-ref-size}")
     private String channelRef;
 }

@@ -25,14 +25,14 @@ public class PayInternalRefundRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 支付单号 */
-    @NotBlank(message = "支付单号不能为空")
+    @NotBlank(message = "{validation.pay.internal-refund.pay-order-no-required}")
     private String payOrderNo;
 
     /** 业务退款请求号（幂等键，可空） */
     private String refundNo;
 
     /** 本次退款金额 */
-    @NotNull(message = "退款金额不能为空")
+    @NotNull(message = "{validation.pay.internal-refund.amount-required}")
     private BigDecimal amount;
 
     /** 退款原因 */

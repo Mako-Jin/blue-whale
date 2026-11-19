@@ -14,6 +14,6 @@ import java.util.List;
 public class ToolGrantRequest {
 
     /** 已授权工具编码全集（覆盖式；空列表 = 清空白名单） */
-    @NotBlank(message = "工具编码列表不能为空（传空数组以清空）")
+    @NotBlank(message = "{validation.assistant.tool-grant.tool-codes-required}")
     private List<String> toolCodes;
 }
