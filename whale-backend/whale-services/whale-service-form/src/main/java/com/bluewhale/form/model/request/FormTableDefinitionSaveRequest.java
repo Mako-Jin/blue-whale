@@ -21,22 +21,22 @@ public class FormTableDefinitionSaveRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 表编码（必填，小写字母开头，仅字母/数字/下划线，最长 40；物理表名来源） */
-    @NotBlank(message = "表编码不能为空")
-    @Size(max = 40, message = "表编码长度不能超过 40")
+    @NotBlank(message = "{validation.form.table-definition.code-required}")
+    @Size(max = 40, message = "{validation.form.table-definition.code-size}")
     @Pattern(regexp = "^[a-z][a-z0-9_]{0,39}$",
-            message = "表编码仅允许小写字母、数字、下划线且以字母开头，长度不超过 40")
+            message = "{validation.form.table-definition.code-pattern}")
     private String tableCode;
 
     /** 表名称（必填，最长 128） */
-    @NotBlank(message = "表名称不能为空")
-    @Size(max = 128, message = "表名称长度不能超过 128")
+    @NotBlank(message = "{validation.form.table-definition.name-required}")
+    @Size(max = 128, message = "{validation.form.table-definition.name-size}")
     private String tableName;
 
     /** 版本号；为空时新增取默认 1 */
     private Integer version;
 
     /** 备注（最长 255） */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.form.table-definition.remark-size}")
     private String remark;
 
     /** 状态：1 正常 / 0 禁用；为空时新增取默认 1 */

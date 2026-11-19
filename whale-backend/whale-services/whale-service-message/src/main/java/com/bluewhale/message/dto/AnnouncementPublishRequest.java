@@ -17,15 +17,15 @@ public class AnnouncementPublishRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 公告标题 */
-    @NotBlank(message = "公告标题不能为空")
-    @Size(max = 128, message = "公告标题不能超过 128 字")
+    @NotBlank(message = "{validation.message.announcement.title-required}")
+    @Size(max = 128, message = "{validation.message.announcement.title-size}")
     private String title;
 
     /** 公告正文 */
-    @NotBlank(message = "公告正文不能为空")
+    @NotBlank(message = "{validation.message.announcement.content-required}")
     private String content;
 
     /** 业务类型（可选，缺省为 SYSTEM_ANNOUNCE） */
-    @Size(max = 32, message = "业务类型不能超过 32 字")
+    @Size(max = 32, message = "{validation.message.announcement.biz-type-size}")
     private String bizType;
 }

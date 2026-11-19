@@ -16,6 +16,6 @@ public class DefinitionPublishRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 要发布的版本号（必填，须存在对应快照） */
-    @NotNull(message = "版本号不能为空")
+    @NotNull(message = "{validation.workflow.definition.version-required}")
     private Integer version;
 }

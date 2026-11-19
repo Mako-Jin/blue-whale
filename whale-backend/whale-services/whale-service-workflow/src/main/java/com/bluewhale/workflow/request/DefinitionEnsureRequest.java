@@ -17,20 +17,20 @@ public class DefinitionEnsureRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 流程编码（必填，唯一） */
-    @NotBlank(message = "流程编码不能为空")
-    @Size(max = 64, message = "流程编码长度不能超过 64")
+    @NotBlank(message = "{validation.workflow.definition.code-required}")
+    @Size(max = 64, message = "{validation.workflow.definition.code-size}")
     private String code;
 
     /** 流程名称（必填） */
-    @NotBlank(message = "流程名称不能为空")
-    @Size(max = 128, message = "流程名称长度不能超过 128")
+    @NotBlank(message = "{validation.workflow.definition.name-required}")
+    @Size(max = 128, message = "{validation.workflow.definition.name-size}")
     private String name;
 
     /** 流程定义 JSON（必填） */
-    @NotBlank(message = "流程定义不能为空")
+    @NotBlank(message = "{validation.workflow.definition.content-required}")
     private String definitionJson;
 
     /** 备注（可选） */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.workflow.definition.remark-size}")
     private String remark;
 }

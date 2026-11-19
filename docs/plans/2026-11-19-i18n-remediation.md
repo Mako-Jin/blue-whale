@@ -111,11 +111,18 @@
 - [x] 三份资源包键集一致（archive 72、doc 112、map 84）；中文原文逐字命中、引用键零缺失
 - [x] 三个服务 `mvn test` + `checkstyle:check` 全部通过
 
+### P2 第十批（DTO 校验文案：message / form / job / workflow）
+
+- [x] 四个核心服务共 307 处校验文案键化：message 63 处 / 61 键、form 80 处 / 65 键、
+      job 88 处 / 54 键、workflow 76 处 / 47 键
+- [x] 三份资源包键集一致（message 94、form 81、job 73、workflow 97）；引用键零缺失
+- [x] 四个服务 `mvn test` + `checkstyle:check` 全部通过
+
 ## 三、待做项（P2 剩余 / P3）
 
 | 级别 | 事项 | 说明 |
 | --- | --- | --- |
-| P2 | DTO 校验文案迁移 | Boot 4 已自动装配 `MessageSourceMessageInterpolator`；已完成 forum、im、pay、agent、scene、assistant、music、mail、twin、iot、video、archive、doc、map，其余模块按同样式铺开 |
+| P2 | DTO 校验文案迁移 | Boot 4 已自动装配 `MessageSourceMessageInterpolator`；SDK 已接入的 18 个服务全部完成，仅剩 auth / file 需先接 SDK |
 | P2 | 前端其余页面 | admin 剩余 50+ 页面、portal 与子应用按模块分批替换硬编码文案 |
 | P3 | 运维服务 | audit / monitor / alert 视对外暴露程度再定 |
 

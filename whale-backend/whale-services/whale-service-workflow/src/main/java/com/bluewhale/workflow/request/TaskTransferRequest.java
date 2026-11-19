@@ -17,7 +17,7 @@ public class TaskTransferRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 目标审批人账号（必填，最长 64） */
-    @NotBlank(message = "目标人不能为空")
-    @Size(max = 64, message = "目标人账号长度不能超过 64")
+    @NotBlank(message = "{validation.workflow.task.target-required}")
+    @Size(max = 64, message = "{validation.workflow.task.target-account-size}")
     private String targetUser;
 }

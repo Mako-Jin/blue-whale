@@ -14,8 +14,8 @@ import lombok.Data;
 public class JobStatusRequest {
 
     /** 任务状态：1 运行中 / 0 已停止 */
-    @NotNull(message = "状态不能为空")
-    @Min(value = 0, message = "状态只能为 0 或 1")
-    @Max(value = 1, message = "状态只能为 0 或 1")
+    @NotNull(message = "{validation.job.status.status-required}")
+    @Min(value = 0, message = "{validation.job.status.status-invalid}")
+    @Max(value = 1, message = "{validation.job.status.status-invalid}")
     private Integer status;
 }

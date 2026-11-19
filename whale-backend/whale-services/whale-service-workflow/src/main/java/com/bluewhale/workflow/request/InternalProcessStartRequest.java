@@ -19,21 +19,21 @@ public class InternalProcessStartRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 流程编码（必填，最长 64） */
-    @NotBlank(message = "流程编码不能为空")
-    @Size(max = 64, message = "流程编码长度不能超过 64")
+    @NotBlank(message = "{validation.workflow.definition.code-required}")
+    @Size(max = 64, message = "{validation.workflow.definition.code-size}")
     private String definitionCode;
 
     /** 实例标题（必填，最长 128） */
-    @NotBlank(message = "实例标题不能为空")
-    @Size(max = 128, message = "实例标题长度不能超过 128")
+    @NotBlank(message = "{validation.workflow.instance.title-required}")
+    @Size(max = 128, message = "{validation.workflow.instance.title-size}")
     private String title;
 
     /** 业务键（可选，最长 64） */
-    @Size(max = 64, message = "业务键长度不能超过 64")
+    @Size(max = 64, message = "{validation.workflow.instance.business-key-size}")
     private String businessKey;
 
     /** 发起人账号（可选，最长 64；为空时由网关头补齐） */
-    @Size(max = 64, message = "发起人账号长度不能超过 64")
+    @Size(max = 64, message = "{validation.workflow.instance.initiator-account-size}")
     private String initiator;
 
     /** 流程变量（可选，用于条件选路） */
@@ -43,6 +43,6 @@ public class InternalProcessStartRequest implements Serializable {
     private Map<String, List<String>> assigneeOverrides;
 
     /** 发起级抄送人账号（可选，最多 100 个） */
-    @Size(max = 100, message = "发起级抄送人不能超过 100 个")
-    private List<@Size(max = 64, message = "抄送人账号长度不能超过 64") String> ccAccounts;
+    @Size(max = 100, message = "{validation.workflow.instance.cc-limit}")
+    private List<@Size(max = 64, message = "{validation.workflow.instance.cc-account-size}") String> ccAccounts;
 }

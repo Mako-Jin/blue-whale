@@ -22,29 +22,29 @@ public class MessageTemplateSaveRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 模板编码（租户内唯一，建议大写字母/数字/下划线） */
-    @NotBlank(message = "模板编码不能为空")
-    @Size(max = 64, message = "模板编码长度不能超过 64")
+    @NotBlank(message = "{validation.message.template.template-code-required}")
+    @Size(max = 64, message = "{validation.message.template.template-code-size}")
     private String templateCode;
 
     /** 模板名称 */
-    @NotBlank(message = "模板名称不能为空")
-    @Size(max = 128, message = "模板名称长度不能超过 128")
+    @NotBlank(message = "{validation.message.template.template-name-required}")
+    @Size(max = 128, message = "{validation.message.template.template-name-size}")
     private String templateName;
 
     /** 标题模板，支持 ${key} 占位符 */
-    @Size(max = 255, message = "标题模板长度不能超过 255")
+    @Size(max = 255, message = "{validation.message.template.title-template-size}")
     private String titleTemplate;
 
     /** 内容模板，支持 ${key} 占位符 */
-    @Size(max = 8000, message = "内容模板长度不能超过 8000")
+    @Size(max = 8000, message = "{validation.message.template.content-template-size}")
     private String contentTemplate;
 
     /** 状态：1 启用 / 0 停用；新增时为空默认启用，更新时为空表示不修改 */
-    @Min(value = 0, message = "状态只能为 0 或 1")
-    @Max(value = 1, message = "状态只能为 0 或 1")
+    @Min(value = 0, message = "{validation.message.template.status-range}")
+    @Max(value = 1, message = "{validation.message.template.status-range}")
     private Integer status;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.message.template.remark-size}")
     private String remark;
 }

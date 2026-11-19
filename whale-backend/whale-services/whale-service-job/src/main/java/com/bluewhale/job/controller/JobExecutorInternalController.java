@@ -84,7 +84,7 @@ public class JobExecutorInternalController {
      */
     @GetMapping("/list")
     public Result<List<JobExecutorVO>> list(
-            @RequestParam(required = false) @Size(max = 64, message = "执行器应用名长度不能超过 64") String appName) {
+            @RequestParam(required = false) @Size(max = 64, message = "{validation.job.executor.app-name-size}") String appName) {
         return Result.ok(jobExecutorService.list(TenantContext.get(), appName));
     }
 }

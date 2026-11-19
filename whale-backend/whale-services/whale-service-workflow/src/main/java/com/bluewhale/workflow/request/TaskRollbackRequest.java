@@ -17,7 +17,7 @@ public class TaskRollbackRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 回退目标节点键（必填，须为审批节点） */
-    @NotBlank(message = "回退目标节点不能为空")
-    @Size(max = 64, message = "节点键长度不能超过 64")
+    @NotBlank(message = "{validation.workflow.task.rollback-target-required}")
+    @Size(max = 64, message = "{validation.workflow.task.node-key-size}")
     private String targetNodeKey;
 }

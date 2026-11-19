@@ -20,16 +20,16 @@ public class ProcessInstanceStartRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 流程定义 ID（必填） */
-    @NotNull(message = "流程定义ID不能为空")
+    @NotNull(message = "{validation.workflow.instance.definition-id-required}")
     private Long definitionId;
 
     /** 实例标题（必填，最长 128） */
-    @NotBlank(message = "实例标题不能为空")
-    @Size(max = 128, message = "实例标题长度不能超过 128")
+    @NotBlank(message = "{validation.workflow.instance.title-required}")
+    @Size(max = 128, message = "{validation.workflow.instance.title-size}")
     private String title;
 
     /** 业务键（可选，最长 64） */
-    @Size(max = 64, message = "业务键长度不能超过 64")
+    @Size(max = 64, message = "{validation.workflow.instance.business-key-size}")
     private String businessKey;
 
     /** 流程变量（可选，用于条件选路；随实例落库，最长 64KB） */
@@ -39,6 +39,6 @@ public class ProcessInstanceStartRequest implements Serializable {
     private Map<String, List<String>> assigneeOverrides;
 
     /** 发起级抄送人账号（可选，最多 100 个；只发通知，不产生待办） */
-    @Size(max = 100, message = "发起级抄送人不能超过 100 个")
-    private List<@Size(max = 64, message = "抄送人账号长度不能超过 64") String> ccAccounts;
+    @Size(max = 100, message = "{validation.workflow.instance.cc-limit}")
+    private List<@Size(max = 64, message = "{validation.workflow.instance.cc-account-size}") String> ccAccounts;
 }

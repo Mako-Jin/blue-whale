@@ -23,11 +23,11 @@ public class DeliveryReceiptRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 租户ID；内网调用必须显式传入（缺省不再从上下文兜底） */
-    @NotNull(message = "tenantId 不能为空")
+    @NotNull(message = "{validation.message.receipt.tenant-id-required}")
     private Long tenantId;
 
     /** 回执明细（单次最多 200 条） */
-    @NotEmpty(message = "回执明细不能为空")
-    @Size(max = 200, message = "单次回执数量不能超过 200")
+    @NotEmpty(message = "{validation.message.receipt.receipts-required}")
+    @Size(max = 200, message = "{validation.message.receipt.receipts-size}")
     private List<@Valid DeliveryReceiptItem> receipts;
 }

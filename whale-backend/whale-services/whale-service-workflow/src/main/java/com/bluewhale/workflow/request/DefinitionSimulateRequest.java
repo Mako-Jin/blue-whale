@@ -17,7 +17,7 @@ public class DefinitionSimulateRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 流程定义 JSON 文本（规范化或 legacy） */
-    @NotBlank(message = "definitionJson 不能为空")
+    @NotBlank(message = "{validation.workflow.definition.definition-json-required}")
     private String definitionJson;
 
     /** 模拟用流程变量（条件表达式求值上下文，可空） */

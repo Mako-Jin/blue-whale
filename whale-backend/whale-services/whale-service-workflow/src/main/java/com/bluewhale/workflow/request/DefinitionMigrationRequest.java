@@ -17,7 +17,7 @@ public class DefinitionMigrationRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 目标版本号（必填，须存在对应快照） */
-    @NotNull(message = "目标版本号不能为空")
+    @NotNull(message = "{validation.workflow.definition.target-version-required}")
     private Integer targetVersion;
 
     /** 需要迁移的实例 ID 列表；为空表示该定义下全部运行中实例 */

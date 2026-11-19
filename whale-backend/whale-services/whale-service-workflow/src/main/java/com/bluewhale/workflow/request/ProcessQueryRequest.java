@@ -17,11 +17,11 @@ public class ProcessQueryRequest extends PageQuery {
     private static final long serialVersionUID = 1L;
 
     /** 流程名称（模糊匹配，最长 128） */
-    @Size(max = 128, message = "流程名称长度不能超过 128")
+    @Size(max = 128, message = "{validation.workflow.definition.name-size}")
     private String name;
 
     /** 流程编码（精确匹配，最长 64） */
-    @Size(max = 64, message = "流程编码长度不能超过 64")
+    @Size(max = 64, message = "{validation.workflow.definition.code-size}")
     private String code;
 
     /** 状态：1 正常 / 0 禁用（精确匹配） */

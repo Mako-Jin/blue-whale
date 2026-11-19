@@ -29,39 +29,40 @@ public class SendMessageRequest implements Serializable {
     private Long tenantId;
 
     /** 业务类型（最长 32） */
-    @Size(max = 32, message = "业务类型长度不能超过 32")
+    @Size(max = 32, message = "{validation.message.send.biz-type-size}")
     private String bizType;
 
     /** 业务标识（最长 64） */
-    @Size(max = 64, message = "业务标识长度不能超过 64")
+    @Size(max = 64, message = "{validation.message.send.biz-id-size}")
     private String bizId;
 
     /** 幂等键（最长 96）；同一租户内重复提交返回既有消息 */
-    @Size(max = 96, message = "幂等键长度不能超过 96")
+    @Size(max = 96, message = "{validation.message.send.idempotency-key-size}")
     private String idempotencyKey;
 
     /** 模板编码（可选）；使用模板时标题/内容可由模板渲染 */
-    @Size(max = 64, message = "模板编码长度不能超过 64")
+    @Size(max = 64, message = "{validation.message.send.template-code-size}")
     private String templateCode;
 
     /** 消息标题（最长 128） */
-    @Size(max = 128, message = "消息标题长度不能超过 128")
+    @Size(max = 128, message = "{validation.message.send.title-size}")
     private String title;
 
     /** 消息正文（最长 8000） */
-    @Size(max = 8000, message = "消息正文长度不能超过 8000")
+    @Size(max = 8000, message = "{validation.message.send.content-size}")
     private String content;
 
     /** 模板变量 */
     private Map<String, Object> payload;
 
     /** 渠道列表：INAPP / EMAIL / SMS / IM（元素级校验，非法渠道直接 400） */
-    @NotEmpty(message = "消息渠道不能为空")
-    @Size(max = 8, message = "单次渠道数量不能超过 8")
-    private List<@NotBlank(message = "渠道不能为空") @Size(max = 16, message = "渠道长度不能超过 16") String> channels;
+    @NotEmpty(message = "{validation.message.send.channels-required}")
+    @Size(max = 8, message = "{validation.message.send.channels-size}")
+    private List<@NotBlank(message = "{validation.message.send.channel-required}")
+            @Size(max = 16, message = "{validation.message.send.channel-size}") String> channels;
 
     /** 接收人列表（单次最多 100 人；与 recipientGroup 至少提供一个） */
-    @Size(max = 100, message = "单次接收人不能超过 100 人")
+    @Size(max = 100, message = "{validation.message.send.recipients-size}")
     private List<@Valid MessageRecipient> recipients;
 
     /**
@@ -71,7 +72,7 @@ public class SendMessageRequest implements Serializable {
      * 与 {@link #recipients} 合并去重；组内成员数受
      * {@code whale.message.recipient.max-members} 限制。</p>
      */
-    @Size(max = 64, message = "接收人组编码长度不能超过 64")
+    @Size(max = 64, message = "{validation.message.send.recipient-group-size}")
     private String recipientGroup;
 
     /**
@@ -79,12 +80,12 @@ public class SendMessageRequest implements Serializable {
      *
      * <p>仅影响异步投递的排队顺序，高优先级先出队；未设置时按 NORMAL 处理。</p>
      */
-    @Pattern(regexp = "(?i)^(HIGH|NORMAL|LOW)$", message = "优先级必须为 HIGH/NORMAL/LOW")
+    @Pattern(regexp = "(?i)^(HIGH|NORMAL|LOW)$", message = "{validation.message.send.priority-pattern}")
     private String priority;
 
     /** 回执回调地址（可选，业务方内网端点；为空表示不回传达送回执） */
-    @Size(max = 512, message = "回调地址长度不能超过 512")
-    @Pattern(regexp = "^https?://.+", message = "回调地址必须为 http / https 地址")
+    @Size(max = 512, message = "{validation.message.send.callback-url-size}")
+    @Pattern(regexp = "^https?://.+", message = "{validation.message.send.callback-url-pattern}")
     private String callbackUrl;
 
     /**
@@ -108,7 +109,7 @@ public class SendMessageRequest implements Serializable {
      *
      * @return 满足其一返回 {@code true}
      */
-    @AssertTrue(message = "templateCode 或 title/content 至少提供一个")
+    @AssertTrue(message = "{validation.message.send.message-body-required}")
     public boolean isMessageBodyPresent() {
         return hasText(templateCode) || hasText(title) || hasText(content);
     }
@@ -118,7 +119,7 @@ public class SendMessageRequest implements Serializable {
      *
      * @return 满足其一返回 {@code true}
      */
-    @AssertTrue(message = "recipients 或 recipientGroup 至少提供一个")
+    @AssertTrue(message = "{validation.message.send.recipient-required}")
     public boolean isRecipientsPresent() {
         return (recipients != null && !recipients.isEmpty()) || hasText(recipientGroup);
     }

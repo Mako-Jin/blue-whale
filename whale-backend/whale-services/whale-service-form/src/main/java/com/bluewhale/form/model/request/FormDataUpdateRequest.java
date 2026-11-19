@@ -18,6 +18,6 @@ public class FormDataUpdateRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 表单数据 JSON（必填，最长 64KB） */
-    @NotBlank(message = "表单数据不能为空")
+    @NotBlank(message = "{validation.form.data.json-required}")
     private String dataJson;
 }

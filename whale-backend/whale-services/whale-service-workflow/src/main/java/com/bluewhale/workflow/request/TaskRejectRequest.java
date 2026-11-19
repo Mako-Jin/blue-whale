@@ -21,14 +21,14 @@ public class TaskRejectRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 审批意见（可选，最长 255） */
-    @Size(max = 255, message = "审批意见长度不能超过 255")
+    @Size(max = 255, message = "{validation.workflow.task.comment-size}")
     private String comment;
 
     /** 退回目标（必填） */
-    @NotNull(message = "请选择驳回目标")
+    @NotNull(message = "{validation.workflow.task.return-target-required}")
     private RejectTarget target;
 
     /** 指定节点键（{@code target=SPECIFIED} 时必填，须为上游审批节点） */
-    @Size(max = 64, message = "节点键长度不能超过 64")
+    @Size(max = 64, message = "{validation.workflow.task.node-key-size}")
     private String targetNodeKey;
 }

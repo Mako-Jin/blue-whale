@@ -21,23 +21,24 @@ import java.util.List;
  */
 public record PreferenceResolveRequest(
 
-        @NotNull(message = "tenantId 不能为空")
+        @NotNull(message = "{validation.message.preference.tenant-id-required}")
         Long tenantId,
 
-        @NotBlank(message = "bizType 不能为空")
+        @NotBlank(message = "{validation.message.preference.biz-type-required}")
         String bizType,
 
-        @NotEmpty(message = "userIds 不能为空")
-        @Size(max = 200, message = "单次解析用户数不能超过 200")
-        List<@NotNull(message = "userId 不能为空") Long> userIds,
+        @NotEmpty(message = "{validation.message.preference.user-ids-required}")
+        @Size(max = 200, message = "{validation.message.preference.user-ids-size}")
+        List<@NotNull(message = "{validation.message.preference.user-id-required}") Long> userIds,
 
         String level,
 
         @Valid
         Defaults defaults,
 
-        @Size(max = 8, message = "静默豁免级别数量不能超过 8")
-        List<@NotBlank(message = "静默豁免级别不能为空") @Size(max = 16, message = "级别长度不能超过 16") String>
+        @Size(max = 8, message = "{validation.message.preference.quiet-bypass-levels-size}")
+        List<@NotBlank(message = "{validation.message.preference.quiet-bypass-level-required}")
+                @Size(max = 16, message = "{validation.message.preference.quiet-bypass-level-size}") String>
                 quietBypassLevels
 ) {
 
@@ -48,8 +49,9 @@ public record PreferenceResolveRequest(
      * @param minLevel 最低级别阈值（低于该级别的非站内信渠道被过滤；空则不设阈值）
      */
     public record Defaults(
-            @Size(max = 8, message = "默认渠道数量不能超过 8")
-            List<@NotBlank(message = "默认渠道不能为空") @Size(max = 16, message = "渠道长度不能超过 16") String> channels,
+            @Size(max = 8, message = "{validation.message.preference.default-channels-size}")
+            List<@NotBlank(message = "{validation.message.preference.default-channel-required}")
+                    @Size(max = 16, message = "{validation.message.preference.default-channel-size}") String> channels,
             String minLevel) {
     }
 }
