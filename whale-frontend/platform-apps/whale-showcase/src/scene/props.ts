@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { HouseVariant, SceneAssets, TemplateParts, TreeVariant } from './loader';
 import { heightAt, riverCenter, slopeAt, WATER_LEVEL } from './terrain';
+import { attachPlaqueSigns } from './plaque';
 import {
   applyBrickMap,
   applyPlasterMap,
@@ -2095,6 +2096,10 @@ export function buildSettlement(assets?: SceneAssets): THREE.Group {
         m.receiveShadow = true;
       }
     });
+    // 匾额金字：GLB 只带深漆地子，字是挂上去的 canvas 面片（见 plaque.ts）。
+    // 注意必须放在 traverse 之后——否则面片会被统一打开 castShadow，
+    // 透明镂空的字影是一团噪点。
+    attachPlaqueSigns(gate);
     group.add(gate);
   }
 
