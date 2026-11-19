@@ -1411,15 +1411,23 @@ function shrubSpots(trees: TreeSpot[]): GroundSpot[] {
   };
   const out: GroundSpot[] = [];
 
+  /*
+   * 树根周围的下木。
+   *
+   * <p>第一版是"每棵树必挂 2~3 丛、半径 0.8~2.3m"，出图每棵树脚下都长着
+   * 一模一样的一摊深绿——灌木的<b>均匀性</b>比它的稀疏更假。现在只有六成的树有，
+   * 数量 1~3、半径 1.2~3.4m，尺寸也拉开，其中一部分被推到树冠投影之外。</p>
+   */
   for (const t of trees) {
-    const n = 2 + Math.floor(rand() * 2);
+    if (rand() > 0.58) continue;
+    const n = 1 + Math.floor(rand() * 3);
     for (let i = 0; i < n; i += 1) {
       const a = rand() * Math.PI * 2;
-      const r = 0.8 + rand() * 1.5;
+      const r = 1.2 + Math.pow(rand(), 0.7) * 2.2;
       const x = t.x + Math.cos(a) * r;
       const z = t.z + Math.sin(a) * r;
       if (blockedByPaving(x, z)) continue;
-      out.push({ x, y: heightAt(x, z), z, rotY: rand() * Math.PI * 2, s: 0.55 + rand() * 0.5 });
+      out.push({ x, y: heightAt(x, z), z, rotY: rand() * Math.PI * 2, s: 0.42 + rand() * 0.72 });
     }
   }
 
@@ -1558,12 +1566,14 @@ function buildGroundCover(group: THREE.Group, trees: TreeSpot[]): void {
 
   const stones = stoneSpots();
   if (stones.length) {
+    // 压到 0.62 而不是 0.5：0.5 时是一张 1.15m 宽的"薄饼"，在近景像一块纸板。
+    // 石头的可信度在"埋在土里"——露出一半、边缘被草挡住，比形状本身重要
     const rock = new THREE.IcosahedronGeometry(0.5, 0);
-    rock.scale(1.15, 0.5, 1.15);
+    rock.scale(1.0, 0.62, 1.0);
     instanceScatter(
       group,
       rock,
-      new THREE.MeshStandardMaterial({ color: 0x807a6b, roughness: 0.96, flatShading: true }),
+      new THREE.MeshStandardMaterial({ color: 0x7c7364, roughness: 0.96, flatShading: true }),
       stones,
       'bank-stones',
     );

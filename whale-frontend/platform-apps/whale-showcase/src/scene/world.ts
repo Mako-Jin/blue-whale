@@ -62,9 +62,12 @@ const TIMES: Record<TimeName, TimePreset> = {
     sunAzim: -25,
     sunColor: 0xffb066,
     sunIntensity: 3.4,
+    // 黄昏的 hemi 提到 1.5：西岸整片落在山影里，只有 hemi + IBL 给光，
+    // 0.95（实际 0.21）时那里是一块纯黑，画面左三分之一全废。
+    // 不能再高：到 2.0 时石桥与白墙的暗面开始发灰，灯笼的光池就没对比了。
     hemiSky: 0x5a7ba8,
-    hemiGround: 0x40342a,
-    hemiIntensity: 0.95,
+    hemiGround: 0x4a3c2c,
+    hemiIntensity: 1.5,
     skyTop: 0x22386a,
     skyHorizon: 0xd98f52,
     skyGround: 0x2e2b26,
@@ -105,8 +108,8 @@ const TIMES: Record<TimeName, TimePreset> = {
     sunColor: 0x93a8dc,
     sunIntensity: 1.1,
     hemiSky: 0x4a6a9a,
-    hemiGround: 0x232838,
-    hemiIntensity: 0.8,
+    hemiGround: 0x272d40,
+    hemiIntensity: 1.1,
     skyTop: 0x121d36,
     skyHorizon: 0x5d789f,
     skyGround: 0x1c222c,

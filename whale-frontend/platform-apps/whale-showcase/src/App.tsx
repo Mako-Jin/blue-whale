@@ -107,7 +107,7 @@ export default function App(): React.ReactElement {
 
       <div className="sc-title">
         <div className="sc-title-main">蓝鲸 · 河谷渡口</div>
-        <div className="sc-title-sub">S9 河谷渡口 · 草岸 / 排水明沟 / 灌木三层</div>
+        <div className="sc-title-sub">S10 河谷渡口 · 叶团树冠 / 垂柳 / 地表色斑</div>
       </div>
 
       <div className="sc-bar">
