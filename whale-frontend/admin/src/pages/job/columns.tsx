@@ -43,15 +43,38 @@ export const alertColumns: TableProps<JobAlertVO>['columns'] = [
   {
     title: '级别',
     dataIndex: 'level',
-    width: 100,
-    render: (value: string | undefined) =>
-      value ? <Tag color={ALERT_LEVEL_COLOR[value.toUpperCase()] ?? 'default'}>{value}</Tag> : '-',
+    width: 140,
+    render: (value: string | undefined, row) => (
+      <Space size={4} wrap>
+        {value ? (
+          <Tag color={ALERT_LEVEL_COLOR[value.toUpperCase()] ?? 'default'}>{value}</Tag>
+        ) : (
+          '-'
+        )}
+        {row.recovered && <Tag color="success">已恢复</Tag>}
+      </Space>
+    ),
   },
   {
     title: '渠道',
     dataIndex: 'channel',
-    width: 120,
-    render: (value: string | undefined) => value ?? '-',
+    width: 180,
+    render: (value: string | undefined) => {
+      const channels = (value ?? '')
+        .split(',')
+        .map((channel) => channel.trim())
+        .filter(Boolean);
+      if (channels.length === 0) {
+        return '-';
+      }
+      return (
+        <Space size={4} wrap>
+          {channels.map((channel) => (
+            <Tag key={channel}>{channel}</Tag>
+          ))}
+        </Space>
+      );
+    },
   },
   {
     title: '状态',

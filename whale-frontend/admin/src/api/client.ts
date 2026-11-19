@@ -30,4 +30,4 @@ const client = createHttpClient<LoginResponse>({
 export { ApiError } from '@bluewhale/http';
 export type { HttpOptions, PageResult, Result } from '@bluewhale/http';
 
-export const { http, get, post, put, del, refreshSession } = client;
+export const { http, get, post, put, del, downloadBlob, refreshSession } = client;

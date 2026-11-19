@@ -46,6 +46,8 @@ export interface ProTableProps<T extends object, Q extends object = Record<strin
   search?: ReactNode;
   /** 卡片右上角工具栏（通常为新增等操作按钮） */
   toolbar?: ReactNode;
+  /** 行选择配置（受控 keys 由调用方维护，翻页/刷新后保持选中） */
+  rowSelection?: TableProps<T>['rowSelection'];
   title?: ReactNode;
   defaultPageSize?: number;
   scroll?: TableProps<T>['scroll'];
@@ -62,6 +64,7 @@ export function ProTable<T extends object, Q extends object = Record<string, nev
   params,
   search,
   toolbar,
+  rowSelection,
   title,
   defaultPageSize = 10,
   scroll,
@@ -130,6 +133,7 @@ export function ProTable<T extends object, Q extends object = Record<string, nev
       >
         <Table<T>
           rowKey={rowKey}
+          rowSelection={rowSelection}
           columns={columns}
           dataSource={records}
           loading={loading}

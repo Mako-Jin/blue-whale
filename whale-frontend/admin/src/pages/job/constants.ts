@@ -18,7 +18,7 @@ export interface JobFormValues {
 
 export type JobQuery = { keyword?: string; status?: number };
 export type JobLogQuery = { jobId?: string; status?: number };
-export type JobAlertQuery = { jobId?: string };
+export type JobAlertQuery = { jobId?: string; level?: string; channel?: string };
 
 export const MISFIRE_OPTIONS = [
   { value: 'SMART', label: 'SMART（智能补跑）' },
@@ -50,3 +50,17 @@ export const ALERT_LEVEL_COLOR: Record<string, string> = {
   ERROR: 'error',
   CRITICAL: 'error',
 };
+
+export const ALERT_LEVEL_OPTIONS = [
+  { value: 'INFO', label: 'INFO（恢复通知）' },
+  { value: 'WARN', label: 'WARN' },
+  { value: 'ERROR', label: 'ERROR' },
+];
+
+/** 告警通道：channel 为逗号拼接值，查询按单通道模糊匹配 */
+export const ALERT_CHANNEL_OPTIONS = [
+  { value: 'LOG', label: 'LOG（仅流水）' },
+  { value: 'WEBHOOK', label: 'WEBHOOK' },
+  { value: 'DINGTALK', label: 'DINGTALK' },
+  { value: 'FEISHU', label: 'FEISHU' },
+];
