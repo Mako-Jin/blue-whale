@@ -85,7 +85,7 @@ public class ForumProperties {
      */
     private int followNotifyLimit = 200;
 
-    /** whale-message 内网基础地址（站内信经 /message/internal/send 投递） */
+    /** whale-message 内网基础地址（站内信经 /message/v1/internal/send 投递） */
     private String messageBaseUrl = "http://127.0.0.1:8094";
 
     /** whale-service-auth 内网基础地址（@提及经 /user/v1/internal/directory 解析昵称） */

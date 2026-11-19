@@ -18,7 +18,7 @@ import java.util.Map;
 /**
  * whale-message 内网发送客户端（站内信通道）。
  *
- * <p>复用 {@code POST /message/internal/send}；网关对 {@code /*&#47;internal/**} 统一 403，
+ * <p>复用 {@code POST /message/v1/internal/send}；网关对 {@code /*&#47;internal/**} 统一 403，
  * 调用必须带内网令牌。与 forum/twin 同口径：<b>只负责发</b>，失败返回 {@code false} 不抛异常。</p>
  *
  * @author BlueWhale
@@ -28,7 +28,7 @@ import java.util.Map;
 public class WorkflowMessageClient {
 
     /** 内网发送路径 */
-    private static final String SEND_PATH = "/message/internal/send";
+    private static final String SEND_PATH = "/message/v1/internal/send";
 
     /** 站内信通道 */
     private static final String CHANNEL_INAPP = "INAPP";

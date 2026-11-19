@@ -25,7 +25,7 @@ import static org.mockito.Mockito.mock;
 /**
  * IM 回执上报客户端集成测试：用本地 HTTP 服务模拟消息服务回执接口，校验线上报协议。
  *
- * <p>覆盖链路终点：whale-im → 消息服务 {@code /message/internal/receipt} 的
+ * <p>覆盖链路终点：whale-im → 消息服务 {@code /message/v1/internal/receipt} 的
  * 租户头、回执字段、幂等键与过滤规则。</p>
  *
  * @author BlueWhale
@@ -48,7 +48,7 @@ class ImMessageReceiptClientIntegrationTest {
     @BeforeEach
     void setUp() throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        server.createContext("/message/internal/receipt", exchange -> {
+        server.createContext("/message/v1/internal/receipt", exchange -> {
             String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
             captured.add(new CapturedRequest(exchange.getRequestMethod(),
                     exchange.getRequestURI().getPath(),
@@ -77,7 +77,7 @@ class ImMessageReceiptClientIntegrationTest {
 
         CapturedRequest request = awaitRequest();
         assertEquals("POST", request.method());
-        assertEquals("/message/internal/receipt", request.path());
+        assertEquals("/message/v1/internal/receipt", request.path());
         assertEquals("7", request.tenantHeader());
         assertTrue(request.body().contains("\"tenantId\":7"));
         assertTrue(request.body().contains("\"channel\":\"IM\""));

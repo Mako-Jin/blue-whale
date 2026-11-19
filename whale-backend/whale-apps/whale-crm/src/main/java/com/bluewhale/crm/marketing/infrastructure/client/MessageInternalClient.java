@@ -30,7 +30,7 @@ import java.util.Map;
 public class MessageInternalClient implements MessageDispatchPort {
 
     /** 内网发送路径 */
-    private static final String SEND_PATH = "/message/internal/send";
+    private static final String SEND_PATH = "/message/v1/internal/send";
 
     /** 统一响应体状态码字段 */
     private static final String FIELD_CODE = "code";

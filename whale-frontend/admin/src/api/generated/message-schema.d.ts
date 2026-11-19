@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-  '/message/template/{id}': {
+  '/message/v1/template/{id}': {
     parameters: {
       query?: never;
       header?: never;
@@ -20,7 +20,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/message/announce/{id}/revoke': {
+  '/message/v1/announce/{id}/revoke': {
     parameters: {
       query?: never;
       header?: never;
@@ -36,7 +36,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/message/template': {
+  '/message/v1/template': {
     parameters: {
       query?: never;
       header?: never;
@@ -52,7 +52,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/message/record/{id}/retry': {
+  '/message/v1/record/{id}/retry': {
     parameters: {
       query?: never;
       header?: never;
@@ -68,7 +68,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/message/internal/send': {
+  '/message/v1/internal/send': {
     parameters: {
       query?: never;
       header?: never;
@@ -84,7 +84,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/message/internal/receipt': {
+  '/message/v1/internal/receipt': {
     parameters: {
       query?: never;
       header?: never;
@@ -100,7 +100,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/message/internal/preferences/resolve': {
+  '/message/v1/internal/preferences/resolve': {
     parameters: {
       query?: never;
       header?: never;
@@ -116,7 +116,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/message/inapp/{messageId}/read': {
+  '/message/v1/inapp/{messageId}/read': {
     parameters: {
       query?: never;
       header?: never;
@@ -132,7 +132,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/message/announce': {
+  '/message/v1/announce': {
     parameters: {
       query?: never;
       header?: never;
@@ -148,7 +148,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/message/template/page': {
+  '/message/v1/template/page': {
     parameters: {
       query?: never;
       header?: never;
@@ -164,7 +164,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/message/record/{id}': {
+  '/message/v1/record/{id}': {
     parameters: {
       query?: never;
       header?: never;
@@ -180,7 +180,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/message/record/page': {
+  '/message/v1/record/page': {
     parameters: {
       query?: never;
       header?: never;
@@ -196,7 +196,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/message/inapp/unread-count': {
+  '/message/v1/inapp/unread-count': {
     parameters: {
       query?: never;
       header?: never;
@@ -212,7 +212,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/message/inapp/page': {
+  '/message/v1/inapp/page': {
     parameters: {
       query?: never;
       header?: never;
@@ -228,7 +228,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/message/announce/page': {
+  '/message/v1/announce/page': {
     parameters: {
       query?: never;
       header?: never;
@@ -244,7 +244,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/message/announce/{id}': {
+  '/message/v1/announce/{id}': {
     parameters: {
       query?: never;
       header?: never;

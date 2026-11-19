@@ -21,7 +21,7 @@ import java.util.Map;
 /**
  * 审批通知投递客户端实现。
  *
- * <p>只调用 {@code POST /message/internal/send}；幂等键由审批应用服务生成，
+ * <p>只调用 {@code POST /message/v1/internal/send}；幂等键由审批应用服务生成，
  * 重复投递由消息服务按 {@code (tenantId, idempotencyKey)} 去重。</p>
  *
  * @author BlueWhale
@@ -62,7 +62,7 @@ public class ApprovalNotifyGatewayImpl implements ApprovalNotifyGateway {
                 .map(id -> Map.of("userId", id)).toList());
         Map<?, ?> response = InternalTokenSupport.restClient()
                 .post()
-                .uri(baseUrl() + "/message/internal/send")
+                .uri(baseUrl() + "/message/v1/internal/send")
                 .header(WebHeaders.TENANT_ID, String.valueOf(tenantId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)

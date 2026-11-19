@@ -45,12 +45,12 @@ export interface MessageTemplatePageParams {
 export function pageMessageTemplates(
   params: MessageTemplatePageParams,
 ): Promise<PageResult<MessageTemplateVO>> {
-  return get<PageResult<MessageTemplateVO>>('/message/template/page', { ...params });
+  return get<PageResult<MessageTemplateVO>>('/message/v1/template/page', { ...params });
 }
 
 /** 新增模板 */
 export function createMessageTemplate(body: MessageTemplateInput): Promise<MessageTemplateVO> {
-  return post<MessageTemplateVO>('/message/template', body);
+  return post<MessageTemplateVO>('/message/v1/template', body);
 }
 
 /** 更新模板 */
@@ -58,12 +58,12 @@ export function updateMessageTemplate(
   id: string,
   body: MessageTemplateInput,
 ): Promise<MessageTemplateVO> {
-  return put<MessageTemplateVO>(`/message/template/${id}`, body);
+  return put<MessageTemplateVO>(`/message/v1/template/${id}`, body);
 }
 
 /** 删除模板（逻辑删除） */
 export function deleteMessageTemplate(id: string): Promise<void> {
-  return del<void>(`/message/template/${id}`);
+  return del<void>(`/message/v1/template/${id}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -109,20 +109,20 @@ export interface AnnouncementPageParams {
 export function pageAnnouncements(
   params: AnnouncementPageParams,
 ): Promise<PageResult<AnnouncementVO>> {
-  return get<PageResult<AnnouncementVO>>('/message/announce/page', { ...params });
+  return get<PageResult<AnnouncementVO>>('/message/v1/announce/page', { ...params });
 }
 
 /** 发布系统公告 */
 export function publishAnnouncement(body: AnnouncementPublishInput): Promise<AnnouncementVO> {
-  return post<AnnouncementVO>('/message/announce', body);
+  return post<AnnouncementVO>('/message/v1/announce', body);
 }
 
 /** 撤回公告：未展开用户不再可见，已展开的个人消息保留 */
 export function revokeAnnouncement(id: string): Promise<void> {
-  return put<void>(`/message/announce/${id}/revoke`);
+  return put<void>(`/message/v1/announce/${id}/revoke`);
 }
 
 /** 删除公告（逻辑删除） */
 export function deleteAnnouncement(id: string): Promise<void> {
-  return del<void>(`/message/announce/${id}`);
+  return del<void>(`/message/v1/announce/${id}`);
 }

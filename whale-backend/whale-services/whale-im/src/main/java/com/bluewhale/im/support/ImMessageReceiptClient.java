@@ -42,7 +42,7 @@ import java.util.regex.Pattern;
 public class ImMessageReceiptClient {
 
     /** 回执受理路径（消息服务内网接口） */
-    private static final String RECEIPT_PATH = "/message/internal/receipt";
+    private static final String RECEIPT_PATH = "/message/v1/internal/receipt";
 
     /** 租户请求头 */
     private static final String HEADER_TENANT = "X-Tenant-Id";

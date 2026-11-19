@@ -668,7 +668,7 @@ void requireManage(Long spaceId, Long userId);
 
 ### 8.3 消息（whale-message）/ IM
 
-- 评论提及、审批待办、空间成员变更：`POST /message/internal/send`，显式传 `tenantId`；`idempotencyKey` 建议 `doc:{event}:{id}:{userId}`；INAPP 渠道。
+- 评论提及、审批待办、空间成员变更：`POST /message/v1/internal/send`，显式传 `tenantId`；`idempotencyKey` 建议 `doc:{event}:{id}:{userId}`；INAPP 渠道。
 - 页面正文 `@user` 提及只在保存时解析并生成通知，不阻塞保存；通知失败只告警。
 - 与 `whale-im` 的会话跳转由消息模板携带 `url`，文档服务不直接写 IM 会话。
 

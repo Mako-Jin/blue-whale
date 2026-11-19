@@ -18,7 +18,7 @@ import java.util.Map;
 /**
  * whale-message 内网客户端（M3 站内消息通知）。
  *
- * <p>只调用 {@code POST /message/internal/send}；幂等键由文档服务生成，
+ * <p>只调用 {@code POST /message/v1/internal/send}；幂等键由文档服务生成，
  * 重复通知由消息服务按 {@code (tenantId, idempotencyKey)} 去重。</p>
  *
  * @author BlueWhale
@@ -60,7 +60,7 @@ public class DocMessageClient {
         body.put("recipients", userIds.stream().map(id -> Map.of("userId", id)).toList());
         Map<?, ?> response = InternalTokenSupport.restClient()
                 .post()
-                .uri(baseUrl() + "/message/internal/send")
+                .uri(baseUrl() + "/message/v1/internal/send")
                 .header(WebHeaders.TENANT_ID, String.valueOf(tenantId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)
