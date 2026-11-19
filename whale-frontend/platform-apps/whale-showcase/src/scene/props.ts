@@ -1262,9 +1262,14 @@ export function reedSpots(count = 140): ReedSpot[] {
   };
   const out: ReedSpot[] = [];
   let guard = 0;
-  while (out.length < count && guard < 4000) {
+  /*
+   * 苇是远景可见性最高的岸线元素（1.6m 高 + 金穗，200m 外仍是暖点）。
+   * 旧范围 ±150 只覆盖中景，南段（z -60 以下，全景机位的"远方"）整段裸岸
+   * 是"运河感"的直接来源之一——扩到河全程 ±240 并加量。
+   */
+  while (out.length < count && guard < 9000) {
     guard += 1;
-    const z = (rand() - 0.5) * 300;
+    const z = (rand() - 0.5) * 470;
     const side = rand() < 0.5 ? -1 : 1;
     const x = riverCenter(z) + side * (7.9 + rand() * 2.6);
     const y = heightAt(x, z);
@@ -1447,7 +1452,7 @@ function createReedClump(): THREE.BufferGeometry {
 }
 
 function buildReeds(group: THREE.Group): void {
-  const spots = reedSpots(170);
+  const spots = reedSpots(260);
   if (!spots.length) return;
   const geo = createReedClump();
   // 顶点色承担颜色（基部暗橄榄→梢金），材质色只做全局明度
@@ -1692,12 +1697,13 @@ function grassShoreSpots(): GroundSpot[] {
     return true;
   };
 
-  // 水线环带：距河心 9.0…12.6，草直接咬住水线
+  // 水线环带：距河心 9.0…12.6，草直接咬住水线。±230 全程（旧 ±135 远段裸岸），
+  // 量随长度 2400 → 3300
   let guard = 0;
-  const target = 2400;
+  const target = 3300;
   while (out.length < target && guard < target * 30) {
     guard += 1;
-    const z = (rand() - 0.5) * 270;
+    const z = (rand() - 0.5) * 460;
     const side = rand() < 0.62 ? -1 : 1;
     const d = 9.0 + rand() * 3.6;
     push(riverCenter(z) + side * d, z, 0.6, 1.1);
@@ -1898,8 +1904,9 @@ function stoneSpots(): GroundSpot[] {
     return seed / 2147483648;
   };
   const out: GroundSpot[] = [];
-  for (let c = 0; c < 54; c += 1) {
-    const z = (rand() - 0.5) * 280;
+  // 80 簇铺满河全程（±230）：旧 54 簇 z ±140，远段裸岸无石
+  for (let c = 0; c < 80; c += 1) {
+    const z = (rand() - 0.5) * 460;
     const side = rand() < 0.5 ? -1 : 1;
     const d = 8.4 + Math.pow(rand(), 1.2) * 5.6;
     const cx = riverCenter(z) + side * d;

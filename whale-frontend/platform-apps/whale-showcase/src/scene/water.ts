@@ -125,9 +125,17 @@ vec3 skyAt(vec3 dir) {
  *
  * <p>河床不加噪声（岸上才加，河槽必须平），所以这段剖面在 shader 里可以
  * 精确复现——浅水色就是用它算的：深度 = 0 - 床高，贴岸趋 0、河心 2.4m。</p>
+ *
+ * <p>S26 起含远段弯河项，与 TS 版 riverCenter 逐项一致（GLSL smoothstep 要求
+ * edge0&lt;edge1，用 1-smoothstep 反向等效）。改任一侧必须同步另一侧，
+ * 否则远段浅水带与实际水线错位。</p>
  */
 float riverCenterF(float z) {
-  return sin(z * 0.013) * 6.5 + sin(z * 0.0047 + 1.3) * 4.2;
+  return (
+    sin(z * 0.013) * 6.5 +
+    sin(z * 0.0047 + 1.3) * 4.2 +
+    sin(z * 0.031 + 1.05) * 9.0 * (1.0 - smoothstep(-150.0, -70.0, z))
+  );
 }
 
 float bedHeight(vec2 p) {
@@ -212,8 +220,10 @@ void main() {
   float depth = clamp(-bedHeight(p), 0.0, 2.4);
   float shal = 1.0 - smoothstep(0.10, 1.35, depth);
   col = mix(mix(uDeep, uShallow, shal * 0.9), refl, fres * (1.0 - shal * 0.45));
-  // 水线亮边：深度趋 0 处一层极窄的提亮——水膜贴在湿沙上的高光
-  col += uHorizon * (1.0 - smoothstep(0.0, 0.10, depth)) * 0.18;
+  // 水线亮边：深度趋 0 处一层极窄的提亮——水膜贴在湿沙上的高光。
+  // 按距离衰减：近岸（码头/河岸机位 3~10m）保持湿润反光；远景里一条均匀
+  // 白描边贴着河道通到地平线，是"护渠"感的来源之一，100m 外只剩一成
+  col += uHorizon * (1.0 - smoothstep(0.0, 0.10, depth)) * 0.18 / (1.0 + dist * 0.05);
 
   // 太阳：一层宽反光打底 + 一层高次碎金。只留高次的话低太阳角下什么都没有
   vec3 L = normalize(uSunDir);

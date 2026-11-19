@@ -17,7 +17,20 @@ const TERRACE_H = 3.6; // 台地基准高度
 
 /** 河道中心线随 Z 摆动：让河谷不是一条笔直的渠。水面几何与地形共用这一条线 */
 export function riverCenter(z: number): number {
-  return Math.sin(z * 0.013) * 6.5 + Math.sin(z * 0.0047 + 1.3) * 4.2;
+  /*
+   * 第三项是 S26 的远段弯河。前两项波长 483m/1337m，在全景机位可见的 ~200m
+   * 里几乎是一条直线——植被撒点沿直线排布反而强化"运河"。弯河项波长 203m、
+   * 幅 9m，只在南段渐入（smoothstep -150→-70：z=-70 处 0、z=-150 处全幅），
+   * 镇区平台（z -56…40 固定 x）、桥（z=2）、码头（z -18…-10）、西埠头（z=6.2）
+   * 全部零波及；水面几何、地形、撒点都走 riverCenter，自动跟随。
+   * <b>water.ts 的 GLSL 副本 riverCenterF 必须逐项同步</b>——浅水色按到河心的
+   * 距离算，不同步远段浅色带会与实际水线错位。
+   */
+  return (
+    Math.sin(z * 0.013) * 6.5 +
+    Math.sin(z * 0.0047 + 1.3) * 4.2 +
+    Math.sin(z * 0.031 + 1.05) * 9.0 * (1.0 - smoothstep(-150, -70, z))
+  );
 }
 
 /** 距河道中心的横向距离 */
@@ -178,10 +191,26 @@ export function createTerrain(size = 620, segments = 264): Terrain {
     const slope = slopeAt(x, z);
     const c = new THREE.Color();
 
-    if (y < WATER_LEVEL + 0.15) {
+    /*
+     * 湿带的宽度沿河伸缩（S26 去运河感第一刀）。
+     *
+     * <p>滩地色带原本只由高度场决定（y<0.55 是湿沙），而高度场沿 z 几乎不变——
+     * 出图是一条均匀平行贴着河道的亮带，远景里两条平行线 = 运河。真实河岸的
+     * 滩宽由局地冲淤决定：有的段草直接咬到水线，有的段滩地铺开十几米。
+     * 用两层低频噪声调制色带边界：shoreWob 让湿沙上限在 0.55±0.35 摆动，
+     * mudWob 让滩涂线（水下泥→湿沙）同步摆——两条边不同相位，色带就
+     * "忽宽忽窄、局部断开"，平行感消失。频率取 0.02/0.035（50m/30m 级），
+     * 在 2.3m 顶点网格上远高于走样下限。</p>
+     */
+    const shoreWob = (fbm(x * 0.019 + 31.7, z * 0.021 - 9.2, 3) - 0.5) * 0.7;
+    const mudWob = (fbm(x * 0.031 - 5.5, z * 0.034 + 17.9, 2) - 0.5) * 0.5;
+    const sandTop = 0.55 + shoreWob;
+    const mudTop = 0.15 + mudWob * 0.6;
+
+    if (y < WATER_LEVEL + mudTop) {
       c.setHex(cMud);
-    } else if (y < 0.55) {
-      c.setHex(cWetSand).lerp(new THREE.Color(cGrass), smoothstep(0.15, 0.55, y));
+    } else if (y < sandTop) {
+      c.setHex(cWetSand).lerp(new THREE.Color(cGrass), smoothstep(mudTop, sandTop, y));
     } else {
       // 草地 → 台地干土，按高度插值
       c.setHex(cGrass).lerp(new THREE.Color(cGrassDry), smoothstep(1.2, 3.4, y));
@@ -210,6 +239,18 @@ export function createTerrain(size = 620, segments = 264): Terrain {
     // 会直接走样成一条条竖向条纹），这里给到 0.22 只留低频起伏
     const grain = (fbm(x * 0.22, z * 0.22, 2) - 0.5) * 0.05;
     c.offsetHSL(0, 0, grain);
+
+    /*
+     * 湿带内部的干湿斑（S26 去运河感第二刀）。
+     *
+     * <p>南段地形下沉让滩涂带宽达十几米，但 mud/wetSand 是两块纯色——远景里
+     * 这条宽带平得像人工护坡。叠一层 15m 级的明度/色相调制，滩涂出现"这里干、
+     * 那里湿"的碎斑，宽带才有内容。只对湿带生效，草地另有三级色斑。</p>
+     */
+    if (y < sandTop + 0.5) {
+      const wet = fbm(x * 0.065 + 51.3, z * 0.058 - 23.1, 3) - 0.5;
+      c.offsetHSL(wet * 0.04, wet * 0.05, wet * 0.15);
+    }
 
     colors[i * 3] = c.r;
     colors[i * 3 + 1] = c.g;
