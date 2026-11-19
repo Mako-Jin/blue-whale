@@ -28,8 +28,10 @@ whale:
           url: https://example.com/hooks/job-alert
         - type: DINGTALK     # 钉钉自定义机器人
           url: https://oapi.dingtalk.com/robot/send?access_token=xxx
+          secret: SECxxx     # 机器人开启「加签」时必填
         - type: FEISHU       # 飞书自定义机器人
           url: https://open.feishu.cn/open-apis/bot/v2/hook/xxx
+          secret: xxx        # 飞书机器人开启「签名校验」时必填
         - type: WEBHOOK
           url: https://backup.example.com/hooks/job-alert
           enabled: false     # 单通道开关
@@ -56,6 +58,19 @@ whale:
 - `job_alert` 只写一条记录，`channel` 字段为本次尝试的通道名拼接（如 `DINGTALK,FEISHU`，上限 32 字符内）；
 - 投递状态：全部成功记 `1`，任一失败记 `-1`，摘要写明失败通道数与最后一条错误；
 - 冷却资格仍按「租户 + 任务」共享：冷却期内整组通道都不外发，只落 `LOG` 通道流水。
+
+### 2.4 机器人加签
+
+通道配置 `secret` 后启用加签（机器人安全设置里开启「加签 / 签名校验」时必填）：
+
+| 类型 | 签名位置 | 算法 |
+|---|---|---|
+| `DINGTALK` | URL 追加 `&timestamp=<毫秒>&sign=<URL 编码后的签名>` | `Base64(HmacSHA256(key=secret, data=timestamp + "\n" + secret))` |
+| `FEISHU` | 请求体增加 `timestamp`（秒级字符串）与 `sign` | `Base64(HmacSHA256(key=timestamp + "\n" + secret, data=""))` |
+
+- `secret` 为空时不加签，与旧行为一致；
+- 时间戳取发送时刻，钉钉与飞书均校验与服务器时间偏差（1 小时内），机器时间必须准确；
+- 签名失败（如 JDK 不支持 HMAC-SHA256）只把该通道记为投递失败，不影响其余通道与其他任务。
 
 ## 3. 恢复通知
 
