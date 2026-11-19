@@ -43,4 +43,7 @@ public class InternalNotifyRequest implements Serializable {
     /** 客户端消息ID（可选，最长 64；为空时由服务端生成，重复提交按会话幂等） */
     @Size(max = 64, message = "客户端消息ID长度不能超过 64")
     private String clientMsgId;
+
+    /** 租户ID（消息服务调用时传入，用于回执上报；其它调用方可为空） */
+    private Long tenantId;
 }

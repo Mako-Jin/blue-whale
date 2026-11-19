@@ -1,6 +1,7 @@
 package com.bluewhale.im.service;
 
 import com.bluewhale.im.dto.InternalNotifyRequest;
+import com.bluewhale.im.support.ImMessageReceiptClient;
 import com.bluewhale.im.vo.ConversationVO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,7 +34,9 @@ class ImNotifyServiceTest {
 
     private final ImMessageService messageService = mock(ImMessageService.class);
 
-    private final ImNotifyService service = new ImNotifyService(botService, messageService);
+    private final ImMessageReceiptClient receiptClient = mock(ImMessageReceiptClient.class);
+
+    private final ImNotifyService service = new ImNotifyService(botService, messageService, receiptClient);
 
     /**
      * 构造机器人会话视图。

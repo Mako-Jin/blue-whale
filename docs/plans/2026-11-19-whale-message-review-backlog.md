@@ -177,7 +177,7 @@
 | N23 senderMap 缓存 | 每次 dispatch/retry 重建 Map | `@PostConstruct` 构建一次 |
 | N26 回执批量查询 | 逐条查 record/delivery | 已实施：幂等键一次 IN 查询、投递按渠道分组批量匹配、逻辑消息按 messageId 批量聚合 |
 | N14 多实例派发 | @Scheduled 无抢占，多实例重复回调 | 已实施：`UPDATE ... WHERE status IN ('PENDING','FAILED')` 原子抢占 + DISPATCHING 超时回收（V3 迁移） |
-| #12 providerMessageId | EMAIL/SMS/IM 回执无法自动匹配 | 已实施：EMAIL 发送写入 `Message-ID`、SMS 按 `providerIdField` 解析网关响应、IM 使用 `clientMsgId` 投递并回传 |
+| #12 providerMessageId | EMAIL/SMS/IM 回执无法自动匹配 | 已实施：EMAIL 写入 `Message-ID`、SMS 解析网关响应、IM 使用 `clientMsgId` 并由 whale-im 自动回传送达/已读回执 |
 
 - **已实施**：DTO 回调 `@Pattern`；N23 senderMap 懒加载缓存（非容器单测同样可用）；N26 回执受理整批预取；N14 回调派发多实例抢占。
 - **保留**：无，第三批清单（D1–D18 + N14/N23/N26/#12）全部完成。

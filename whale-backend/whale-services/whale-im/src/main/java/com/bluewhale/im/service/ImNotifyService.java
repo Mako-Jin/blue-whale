@@ -1,6 +1,7 @@
 package com.bluewhale.im.service;
 
 import com.bluewhale.im.dto.InternalNotifyRequest;
+import com.bluewhale.im.support.ImMessageReceiptClient;
 import com.bluewhale.im.vo.ConversationVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +34,8 @@ public class ImNotifyService {
 
     private final ImMessageService messageService;
 
+    private final ImMessageReceiptClient receiptClient;
+
     /**
      * 批量投递内网站内通知。
      *
@@ -53,6 +56,8 @@ public class ImNotifyService {
                 Long conversationId = Long.valueOf(conversation.getId());
                 messageService.sendAsBot(conversationId, botService.botUserId(), content, clientMsgId);
                 delivered++;
+                // 消息服务来源的通知（msg-<消息ID>-<用户ID>）回传送达回执，失败不影响投递
+                receiptClient.reportDelivered(request.getTenantId(), clientMsgId, userId);
             } catch (RuntimeException e) {
                 log.warn("站内通知投递失败: userId={}, bizType={}, bizId={}, error={}",
                         userId, request.getBizType(), request.getBizId(), e.getMessage());

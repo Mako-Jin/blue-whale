@@ -82,6 +82,12 @@ whale:
     auth:
       service-name: ${WHALE_IM_AUTH_SERVICE_NAME:whale-service-auth}
       base-url: ${WHALE_IM_AUTH_BASE_URL:}
+    # 消息服务回执上报：站内通知送达/已读以 clientMsgId 作为 providerMessageId 回传
+    message:
+      service-name: ${WHALE_IM_MESSAGE_SERVICE_NAME:whale-service-message}
+      base-url: ${WHALE_IM_MESSAGE_BASE_URL:}
+      receipt-enabled: ${WHALE_IM_MESSAGE_RECEIPT_ENABLED:true}
+      timeout-seconds: ${WHALE_IM_MESSAGE_RECEIPT_TIMEOUT_SECONDS:2}
     # 内置机器人「蓝鲸助手」：逻辑用户ID不落 sys_user，仅用于 BOT 会话成员与消息发送者
     bot:
       name: ${WHALE_IM_BOT_NAME:蓝鲸助手}

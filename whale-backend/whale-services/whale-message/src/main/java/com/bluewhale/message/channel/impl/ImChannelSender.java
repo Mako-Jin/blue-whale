@@ -127,6 +127,8 @@ public class ImChannelSender implements MessageChannelSender {
         payload.put("bizType", message.getBizType());
         payload.put("bizId", message.getBizId());
         payload.put("clientMsgId", clientMsgId(message));
+        // 回执上报需显式租户：IM 侧据此调用消息服务回执接口
+        payload.put("tenantId", message.getTenantId());
         return payload;
     }
 

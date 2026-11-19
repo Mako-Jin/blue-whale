@@ -8,6 +8,8 @@ import com.bluewhale.im.entity.ImConversation;
 import com.bluewhale.im.entity.ImConversationMember;
 import com.bluewhale.im.mapper.ImConversationMapper;
 import com.bluewhale.im.mapper.ImConversationMemberMapper;
+import com.bluewhale.im.mapper.ImMessageMapper;
+import com.bluewhale.im.support.ImMessageReceiptClient;
 import com.bluewhale.im.support.UserDirectoryClient;
 import com.bluewhale.im.vo.ConversationVO;
 import com.bluewhale.im.vo.MessageVO;
@@ -69,9 +71,13 @@ class ImConversationServiceTest {
 
     private final UserDirectoryClient userDirectoryClient = mock(UserDirectoryClient.class);
 
+    private final ImMessageMapper messageMapper = mock(ImMessageMapper.class);
+
+    private final ImMessageReceiptClient receiptClient = mock(ImMessageReceiptClient.class);
+
     private final ImConversationService service =
             new ImConversationService(conversationMapper, memberMapper, guard, messageService, broadcaster,
-                    userDirectoryClient);
+                    userDirectoryClient, messageMapper, receiptClient);
 
     /**
      * 默认放行成员合法性校验，具体用例按需覆盖。

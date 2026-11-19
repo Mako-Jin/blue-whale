@@ -1,14 +1,18 @@
 package com.bluewhale.im.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.im.dto.CreateConversationRequest;
 import com.bluewhale.im.entity.ImConversation;
 import com.bluewhale.im.entity.ImConversationMember;
+import com.bluewhale.im.entity.ImMessage;
 import com.bluewhale.im.mapper.ImConversationMapper;
 import com.bluewhale.im.mapper.ImConversationMemberMapper;
+import com.bluewhale.im.mapper.ImMessageMapper;
+import com.bluewhale.im.support.ImMessageReceiptClient;
 import com.bluewhale.im.support.UserDirectoryClient;
 import com.bluewhale.im.vo.ConversationVO;
 import com.bluewhale.im.vo.MessageVO;
@@ -76,6 +80,10 @@ public class ImConversationService {
     private final ImMessageBroadcaster broadcaster;
 
     private final UserDirectoryClient userDirectoryClient;
+
+    private final ImMessageMapper messageMapper;
+
+    private final ImMessageReceiptClient receiptClient;
 
     /**
      * 创建会话。
@@ -241,13 +249,51 @@ public class ImConversationService {
         if (target <= 0L) {
             return;
         }
+        ImConversationMember member = guard.requireMemberRecord(conversationId, userId);
+        long previousRead = member == null ? 0L : nvl(member.getLastReadSeq());
         LambdaUpdateWrapper<ImConversationMember> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(ImConversationMember::getConversationId, conversationId);
         wrapper.eq(ImConversationMember::getUserId, userId);
         wrapper.lt(ImConversationMember::getLastReadSeq, target);
         wrapper.set(ImConversationMember::getLastReadSeq, target);
         memberMapper.update(null, wrapper);
+        // 游标前进时把本次实际读到的通知回执上报给消息服务（游标不前进则不重复上报）
+        if (target > previousRead) {
+            reportReadReceipts(conversationId, previousRead, target);
+        }
         broadcaster.broadcastUnread(userId, conversationId, remainingUnread(conversationId, userId, lastSeq));
+    }
+
+    /**
+     * 上报已读回执：取本次游标区间内由消息服务投递的通知，按租户批量回传。
+     *
+     * @param conversationId 会话ID
+     * @param fromExclusive  上次已读序号（不含）
+     * @param toInclusive    本次已读序号（含）
+     */
+    private void reportReadReceipts(Long conversationId, long fromExclusive, long toInclusive) {
+        // im_message 实体不含 tenant_id（由租户插件统一维护），这里显式投影列
+        QueryWrapper<ImMessage> wrapper = new QueryWrapper<>();
+        wrapper.select("tenant_id", "client_msg_id")
+                .eq("conversation_id", conversationId)
+                .gt("seq", fromExclusive)
+                .le("seq", toInclusive)
+                .likeRight("client_msg_id", "msg-");
+        List<Map<String, Object>> rows = messageMapper.selectMaps(wrapper);
+        if (rows.isEmpty()) {
+            return;
+        }
+        Map<Long, List<String>> idsByTenant = new HashMap<>();
+        for (Map<String, Object> row : rows) {
+            Object tenant = row.get("tenant_id");
+            Object clientMsgId = row.get("client_msg_id");
+            if (tenant == null || clientMsgId == null) {
+                continue;
+            }
+            idsByTenant.computeIfAbsent(((Number) tenant).longValue(), key -> new ArrayList<>())
+                    .add(String.valueOf(clientMsgId));
+        }
+        idsByTenant.forEach(receiptClient::reportRead);
     }
 
     /**
