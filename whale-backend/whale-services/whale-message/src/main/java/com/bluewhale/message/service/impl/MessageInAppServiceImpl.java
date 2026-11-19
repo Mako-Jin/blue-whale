@@ -89,21 +89,18 @@ public class MessageInAppServiceImpl implements MessageInAppService {
 
     @Override
     public void markRead(Long userId, Long messageId) {
-        announcementExpander.expand(userId);
-        LambdaQueryWrapper<MessageDelivery> exists = new LambdaQueryWrapper<>();
-        exists.eq(MessageDelivery::getMessageId, messageId)
-                .eq(MessageDelivery::getChannel, MessageChannel.INAPP.name())
-                .eq(MessageDelivery::getRecipient, String.valueOf(userId));
-        if (deliveryMapper.selectCount(exists) == 0) {
-            throw new BizException(ErrorCode.NOT_FOUND, "站内信不存在: " + messageId);
-        }
+        // 标记已读不需要展开新公告，避免每次点开都触发公告差集补写
         // 用列名字符串构造更新条件：本方法只做单表固定列更新，避免依赖实体 Lambda 缓存
         UpdateWrapper<MessageDelivery> update = new UpdateWrapper<>();
         update.eq("message_id", messageId)
                 .eq("channel", MessageChannel.INAPP.name())
                 .eq("recipient", String.valueOf(userId))
                 .set("read_flag", READ);
-        deliveryMapper.update(null, update);
+        // 合并「存在性校验 + 更新」为一次 DB 往返：影响行数为 0 才视为不存在。
+        // MySQL Connector/J 默认返回匹配行数，重复标记已读仍返回 1，天然幂等。
+        if (deliveryMapper.update(null, update) == 0) {
+            throw new BizException(ErrorCode.NOT_FOUND, "站内信不存在: " + messageId);
+        }
     }
 
     /**

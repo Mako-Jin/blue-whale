@@ -8,6 +8,7 @@ import com.bluewhale.message.channel.ChannelMessage;
 import com.bluewhale.message.channel.ChannelResult;
 import com.bluewhale.message.channel.MessageChannelSender;
 import com.bluewhale.message.config.MessageChannelProperties;
+import com.bluewhale.message.converter.MessageConverter;
 import com.bluewhale.message.dto.MessageRecipient;
 import com.bluewhale.message.dto.SendMessageRequest;
 import com.bluewhale.message.entity.MessageDelivery;
@@ -20,6 +21,8 @@ import com.bluewhale.message.mapper.MessageDeliveryMapper;
 import com.bluewhale.message.mapper.MessageRecordMapper;
 import com.bluewhale.message.mapper.MessageTemplateMapper;
 import com.bluewhale.message.service.MessageSendService;
+import com.bluewhale.message.support.CallbackUrlGuard;
+import com.bluewhale.message.support.MessageStatusAggregator;
 import com.bluewhale.message.support.TemplateRenderer;
 import com.bluewhale.message.vo.MessageDeliveryVO;
 import com.bluewhale.message.vo.SendMessageResult;
@@ -152,6 +155,10 @@ public class MessageSendServiceImpl implements MessageSendService {
     /**
      * 按幂等键查询既有消息。
      *
+     * <p>租户隔离由 MyBatis-Plus 租户插件追加 {@code tenant_id = ?}（调用方已先设置
+     * {@link com.bluewhale.common.tenant.TenantContext}，且 {@code msg_record} 不在插件的忽略清单内），
+     * 唯一索引 {@code uk_tenant_idempotency (tenant_id, idempotency_key)} 与查询口径一致。</p>
+     *
      * @param idempotencyKey 幂等键
      * @return 既有消息；不存在时为 {@code null}
      */
@@ -219,6 +226,7 @@ public class MessageSendServiceImpl implements MessageSendService {
         record.setPayloadJson(toJson(request.getPayload()));
         record.setChannels(normalizeChannels(request.getChannels()));
         record.setStatus(MessageStatus.PENDING.name());
+        CallbackUrlGuard.assertAllowed(request.getCallbackUrl());
         record.setCallbackUrl(request.getCallbackUrl());
         return record;
     }
@@ -453,32 +461,7 @@ public class MessageSendServiceImpl implements MessageSendService {
      * @return 消息状态
      */
     private static MessageStatus aggregateStatus(List<MessageDelivery> deliveries) {
-        if (deliveries.isEmpty()) {
-            return MessageStatus.SKIPPED;
-        }
-        long total = deliveries.size();
-        long failed = deliveries.stream()
-                .filter(delivery -> DeliveryStatus.FAILED.name().equals(delivery.getStatus()))
-                .count();
-        long sent = deliveries.stream()
-                .filter(delivery -> DeliveryStatus.SENT.name().equals(delivery.getStatus()))
-                .count();
-        long mocked = deliveries.stream()
-                .filter(delivery -> DeliveryStatus.MOCKED.name().equals(delivery.getStatus()))
-                .count();
-        if (failed == total) {
-            return MessageStatus.FAILED;
-        }
-        if (failed > 0) {
-            return MessageStatus.PARTIAL;
-        }
-        if (sent > 0) {
-            return MessageStatus.SENT;
-        }
-        if (mocked == total) {
-            return MessageStatus.MOCKED;
-        }
-        return MessageStatus.SKIPPED;
+        return MessageStatusAggregator.aggregate(deliveries);
     }
 
     /**
@@ -605,18 +588,7 @@ public class MessageSendServiceImpl implements MessageSendService {
      * @return 视图
      */
     private static MessageDeliveryVO toDeliveryVo(MessageDelivery delivery) {
-        MessageDeliveryVO vo = new MessageDeliveryVO();
-        vo.setId(delivery.getId());
-        vo.setChannel(delivery.getChannel());
-        vo.setRecipient(delivery.getRecipient());
-        vo.setStatus(delivery.getStatus());
-        vo.setProviderMessageId(delivery.getProviderMessageId());
-        vo.setErrorMessage(delivery.getErrorMessage());
-        vo.setAttempts(delivery.getAttempts());
-        vo.setSentAt(delivery.getSentAt());
-        vo.setDeliveredAt(delivery.getDeliveredAt());
-        vo.setReadAt(delivery.getReadAt());
-        return vo;
+        return MessageConverter.INSTANCE.toDeliveryVo(delivery);
     }
 
     /**

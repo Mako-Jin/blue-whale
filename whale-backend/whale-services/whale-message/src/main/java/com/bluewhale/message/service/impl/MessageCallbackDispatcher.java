@@ -2,11 +2,13 @@ package com.bluewhale.message.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.internaltoken.InternalTokenSupport;
 import com.bluewhale.common.web.WebHeaders;
 import com.bluewhale.message.config.MessageReceiptProperties;
 import com.bluewhale.message.entity.MessageCallbackTask;
 import com.bluewhale.message.mapper.MessageCallbackTaskMapper;
+import com.bluewhale.message.support.CallbackUrlGuard;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +31,13 @@ import java.util.Map;
  * <p>按 {@code next_retry_at} 取待发任务，调用业务方登记的回调地址；成功置 {@code SENT}，
  * 失败按 2 的幂次退避重试，超过 {@code max-attempts} 置 {@code GAVE_UP} 并保留最后错误。
  * 后台线程无租户上下文，租户头取任务自身落库的 {@code tenant_id}。</p>
+ *
+ * <p><b>投递语义为 at-least-once</b>：HTTP 成功与任务状态落库不在同一事务内，进程崩溃可能
+ * 导致同一任务被再次投递；业务方必须以 {@code taskId}（或回执 {@code receiptId}）做幂等。</p>
+ *
+ * <p><b>单实例假设</b>：{@code @Scheduled} 不做抢占，多实例部署时同一任务可能被并发派发。
+ * 若需多实例，请改为「按状态原子抢占（如 {@code UPDATE ... WHERE status IN ('PENDING','FAILED')}）
+ * + 派发中超时回收」。</p>
  *
  * @author BlueWhale
  */
@@ -124,6 +133,17 @@ public class MessageCallbackDispatcher {
         int attempts = task.getAttempts() == null ? 0 : task.getAttempts();
         int nextAttempts = attempts + 1;
         task.setAttempts(nextAttempts);
+        try {
+            CallbackUrlGuard.assertAllowed(task.getCallbackUrl());
+        } catch (BizException e) {
+            // 历史任务可能落库了未校验的地址，派发前二次校验，命中直接放弃避免 SSRF
+            task.setStatus(STATUS_GAVE_UP);
+            task.setLastError(truncate(e.getMessage(), ERROR_MAX_LENGTH));
+            task.setNextRetryAt(null);
+            callbackTaskMapper.updateById(task);
+            log.warn("回调地址未通过安全校验，放弃派发: taskId={}, reason={}", task.getId(), e.getMessage());
+            return;
+        }
         try {
             Map<String, Object> response = callbackClient.post()
                     .uri(task.getCallbackUrl())

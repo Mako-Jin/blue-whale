@@ -13,12 +13,12 @@ import com.bluewhale.message.entity.MessageReceipt;
 import com.bluewhale.message.entity.MessageRecord;
 import com.bluewhale.message.enums.DeliveryStatus;
 import com.bluewhale.message.enums.MessageChannel;
-import com.bluewhale.message.enums.MessageStatus;
 import com.bluewhale.message.mapper.MessageCallbackTaskMapper;
 import com.bluewhale.message.mapper.MessageDeliveryMapper;
 import com.bluewhale.message.mapper.MessageReceiptMapper;
 import com.bluewhale.message.mapper.MessageRecordMapper;
 import com.bluewhale.message.service.MessageReceiptService;
+import com.bluewhale.message.support.MessageStatusAggregator;
 import com.bluewhale.message.vo.ReceiptApplyResult;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -206,6 +206,10 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
     /**
      * 按渠道 + 渠道侧消息标识匹配投递记录。
      *
+     * <p>租户隔离依赖租户插件追加 {@code tenant_id = ?}：受理入口已按回执请求切换
+     * {@link com.bluewhale.common.tenant.TenantContext}，且 {@code msg_delivery} 不在插件忽略清单内，
+     * 因此不会匹配到其它租户的同名 providerMessageId。</p>
+     *
      * @param channel           渠道
      * @param providerMessageId 渠道侧消息标识
      * @return 匹配到的投递记录（可能多条，如站内信一条消息多个接收人）
@@ -363,23 +367,8 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
         LambdaQueryWrapper<MessageDelivery> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(MessageDelivery::getMessageId, messageId);
         List<MessageDelivery> deliveries = deliveryMapper.selectList(wrapper);
-        long delivered = 0L;
-        long pending = 0L;
-        long abnormal = 0L;
-        for (MessageDelivery delivery : deliveries) {
-            DeliveryStatus status = DeliveryStatus.parse(delivery.getStatus());
-            if (status == DeliveryStatus.DELIVERED || status == DeliveryStatus.READ) {
-                delivered++;
-            } else if (status == DeliveryStatus.SENT) {
-                pending++;
-            } else if (status == DeliveryStatus.FAILED || status == DeliveryStatus.BOUNCED) {
-                abnormal++;
-            }
-        }
-        if (delivered == 0L || pending > 0L) {
-            return;
-        }
-        String next = abnormal == 0L ? MessageStatus.DELIVERED.name() : MessageStatus.PARTIAL.name();
+        // 与发送/重试共用同一聚合口径，避免回执推进与重试重算对同一条消息得出不同状态
+        String next = MessageStatusAggregator.aggregate(deliveries).name();
         if (next.equals(record.getStatus())) {
             return;
         }

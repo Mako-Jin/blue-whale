@@ -196,7 +196,8 @@ public class NotifyPreferenceResolver {
             JsonNode node = objectMapper.readTree(raw);
             return node != null && node.isObject() ? node : null;
         } catch (Exception error) {
-            log.warn("偏好值解析失败（按无配置处理）：reason={}", error.getMessage());
+            // 解析异常消息会带偏好原文片段，只记录异常类型
+            log.warn("偏好值解析失败（按无配置处理）：errorType={}", error.getClass().getSimpleName());
             return null;
         }
     }

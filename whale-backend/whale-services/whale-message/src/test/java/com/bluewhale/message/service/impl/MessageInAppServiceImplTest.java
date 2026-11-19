@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -75,7 +76,7 @@ class MessageInAppServiceImplTest {
     @Test
     @DisplayName("标记已读时消息不存在则拒绝")
     void shouldRejectMarkReadWhenMissing() {
-        when(deliveryMapper.selectCount(any(Wrapper.class))).thenReturn(0L);
+        when(deliveryMapper.update(isNull(), any(Wrapper.class))).thenReturn(0);
 
         assertThrows(BizException.class, () -> service.markRead(7L, 1001L));
     }
@@ -83,11 +84,12 @@ class MessageInAppServiceImplTest {
     @Test
     @DisplayName("标记已读更新本人投递记录")
     void shouldMarkRead() {
-        when(deliveryMapper.selectCount(any(Wrapper.class))).thenReturn(1L);
+        when(deliveryMapper.update(isNull(), any(Wrapper.class))).thenReturn(1);
 
         service.markRead(7L, 1001L);
 
         verify(deliveryMapper).update(isNull(), any(Wrapper.class));
+        verify(announcementExpander, never()).expand(7L);
     }
 
     /**
