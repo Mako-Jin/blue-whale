@@ -60,10 +60,19 @@ public class SendMessageRequest implements Serializable {
     @Size(max = 8, message = "单次渠道数量不能超过 8")
     private List<@NotBlank(message = "渠道不能为空") @Size(max = 16, message = "渠道长度不能超过 16") String> channels;
 
-    /** 接收人列表（单次最多 100 人） */
-    @NotEmpty(message = "接收人不能为空")
+    /** 接收人列表（单次最多 100 人；与 recipientGroup 至少提供一个） */
     @Size(max = 100, message = "单次接收人不能超过 100 人")
     private List<@Valid MessageRecipient> recipients;
+
+    /**
+     * 接收人组编码（可选）
+     *
+     * <p>由权限中心按角色编码展开为接收人（仅启用用户，按 userId 投递），
+     * 与 {@link #recipients} 合并去重；组内成员数受
+     * {@code whale.message.recipient.max-members} 限制。</p>
+     */
+    @Size(max = 64, message = "接收人组编码长度不能超过 64")
+    private String recipientGroup;
 
     /** 回执回调地址（可选，业务方内网端点；为空表示不回传达送回执） */
     @Size(max = 512, message = "回调地址长度不能超过 512")
@@ -94,6 +103,16 @@ public class SendMessageRequest implements Serializable {
     @AssertTrue(message = "templateCode 或 title/content 至少提供一个")
     public boolean isMessageBodyPresent() {
         return hasText(templateCode) || hasText(title) || hasText(content);
+    }
+
+    /**
+     * 校验接收人：显式接收人列表与接收人组至少提供一个。
+     *
+     * @return 满足其一返回 {@code true}
+     */
+    @AssertTrue(message = "recipients 或 recipientGroup 至少提供一个")
+    public boolean isRecipientsPresent() {
+        return (recipients != null && !recipients.isEmpty()) || hasText(recipientGroup);
     }
 
     /**

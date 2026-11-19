@@ -29,6 +29,7 @@ import com.bluewhale.message.mapper.MessageTemplateMapper;
 import com.bluewhale.message.service.MessageSendService;
 import com.bluewhale.message.support.CallbackUrlGuard;
 import com.bluewhale.message.support.MessageMetrics;
+import com.bluewhale.message.support.MessageRecipientResolver;
 import com.bluewhale.message.support.MessageStatusAggregator;
 import com.bluewhale.message.support.TemplateRenderer;
 import com.bluewhale.message.vo.MessageDeliveryVO;
@@ -95,6 +96,8 @@ public class MessageSendServiceImpl implements MessageSendService {
 
     private final TaskExecutor dispatchExecutor;
 
+    private final MessageRecipientResolver recipientResolver;
+
     /** 渠道适配器缓存：Bean 生命周期内注册表不变，首次使用时构建一次 */
     private volatile Map<MessageChannel, MessageChannelSender> senderCache;
 
@@ -114,6 +117,7 @@ public class MessageSendServiceImpl implements MessageSendService {
      * @param metrics         指标
      * @param sendProperties  投递配置
      * @param dispatchExecutor 异步投递线程池
+     * @param recipientResolver 接收人解析（含接收人组展开）
      */
     public MessageSendServiceImpl(MessageRecordMapper recordMapper,
                                   MessageDeliveryMapper deliveryMapper,
@@ -124,7 +128,8 @@ public class MessageSendServiceImpl implements MessageSendService {
                                   ChannelGuard channelGuard,
                                   MessageMetrics metrics,
                                   MessageSendProperties sendProperties,
-                                  @Qualifier(MessageDispatchConfig.DISPATCH_EXECUTOR) TaskExecutor dispatchExecutor) {
+                                  @Qualifier(MessageDispatchConfig.DISPATCH_EXECUTOR) TaskExecutor dispatchExecutor,
+                                  MessageRecipientResolver recipientResolver) {
         this.recordMapper = recordMapper;
         this.deliveryMapper = deliveryMapper;
         this.templateMapper = templateMapper;
@@ -135,6 +140,7 @@ public class MessageSendServiceImpl implements MessageSendService {
         this.metrics = metrics;
         this.sendProperties = sendProperties;
         this.dispatchExecutor = dispatchExecutor;
+        this.recipientResolver = recipientResolver;
     }
 
     @Override
@@ -153,7 +159,8 @@ public class MessageSendServiceImpl implements MessageSendService {
                 }
             }
             MessageTemplatePo template = resolveTemplate(request.getTemplateCode());
-            MessageRecordPo record = buildRecord(request, template);
+            List<MessageRecipient> recipients = recipientResolver.resolve(request, tenantId);
+            MessageRecordPo record = buildRecord(request, template, recipients);
             try {
                 recordMapper.insert(record);
             } catch (DuplicateKeyException e) {
@@ -169,7 +176,7 @@ public class MessageSendServiceImpl implements MessageSendService {
                 dispatchAsync(record.getId(), tenantId, record.getTraceId());
                 return buildResult(record, false, List.of());
             }
-            List<MessageDeliveryPo> deliveries = dispatch(record, request);
+            List<MessageDeliveryPo> deliveries = dispatch(record, request, recipients);
             record.setStatus(aggregateStatus(deliveries).name());
             recordMapper.updateById(record);
             return buildResult(record, false, deliveries);
@@ -259,7 +266,7 @@ public class MessageSendServiceImpl implements MessageSendService {
                 return;
             }
             try {
-                List<MessageDeliveryPo> deliveries = dispatch(record, derived);
+                List<MessageDeliveryPo> deliveries = dispatch(record, derived, derived.getRecipients());
                 record.setStatus(aggregateStatus(deliveries).name());
                 recordMapper.updateById(record);
                 log.info("异步投递完成: messageId={}, status={}", messageId, record.getStatus());
@@ -422,11 +429,13 @@ public class MessageSendServiceImpl implements MessageSendService {
     /**
      * 构造消息记录。
      *
-     * @param request  发送请求
-     * @param template 模板（可为 {@code null}）
+     * @param request    发送请求
+     * @param template   模板（可为 {@code null}）
+     * @param recipients 解析后的接收人（已展开接收人组）
      * @return 消息记录
      */
-    private MessageRecordPo buildRecord(SendMessageRequest request, MessageTemplatePo template) {
+    private MessageRecordPo buildRecord(SendMessageRequest request, MessageTemplatePo template,
+                                        List<MessageRecipient> recipients) {
         MessageRecordPo record = new MessageRecordPo();
         record.setBizType(request.getBizType());
         record.setBizId(request.getBizId());
@@ -441,7 +450,7 @@ public class MessageSendServiceImpl implements MessageSendService {
         record.setTitle(title);
         record.setContent(content);
         record.setPayloadJson(toJson(request.getPayload()));
-        record.setRecipientsJson(toJson(request.getRecipients()));
+        record.setRecipientsJson(toJson(recipients));
         record.setChannels(normalizeChannels(request.getChannels()));
         record.setStatus(MessageStatus.PENDING.name());
         CallbackUrlGuard.assertAllowed(request.getCallbackUrl());
@@ -527,15 +536,17 @@ public class MessageSendServiceImpl implements MessageSendService {
     /**
      * 逐渠道、逐接收人投递并落投递记录。
      *
-     * @param record  消息记录
-     * @param request 发送请求
+     * @param record     消息记录
+     * @param request    发送请求
+     * @param recipients 解析后的接收人
      * @return 投递记录
      */
-    private List<MessageDeliveryPo> dispatch(MessageRecordPo record, SendMessageRequest request) {
+    private List<MessageDeliveryPo> dispatch(MessageRecordPo record, SendMessageRequest request,
+                                             List<MessageRecipient> recipients) {
         Map<MessageChannel, MessageChannelSender> senderMap = senderMap();
         // 接收人去重：同一 (userId, email, phone) 只投递一次，与投递唯一索引
         // uk_message_channel_recipient 对齐，避免重复接收人撞键
-        List<MessageRecipient> recipients = dedupeRecipients(request.getRecipients());
+        List<MessageRecipient> distinctRecipients = dedupeRecipients(recipients);
         Set<MessageChannel> channels = new LinkedHashSet<>();
         for (String raw : request.getChannels()) {
             MessageChannel channel = MessageChannel.parse(raw);
@@ -548,7 +559,7 @@ public class MessageSendServiceImpl implements MessageSendService {
         List<MessageDeliveryPo> deliveries = new ArrayList<>();
         for (MessageChannel channel : channels) {
             MessageChannelSender sender = senderMap.get(channel);
-            for (MessageRecipient recipient : recipients) {
+            for (MessageRecipient recipient : distinctRecipients) {
                 ChannelResult result;
                 if (sender == null) {
                     result = ChannelResult.skipped("渠道未实现: " + channel.name());

@@ -7,6 +7,7 @@ import com.bluewhale.message.channel.ChannelMessage;
 import com.bluewhale.message.channel.ChannelResult;
 import com.bluewhale.message.channel.MessageChannelSender;
 import com.bluewhale.message.config.MessageChannelProperties;
+import com.bluewhale.message.config.MessageRecipientProperties;
 import com.bluewhale.message.config.MessageSendProperties;
 import com.bluewhale.message.dto.MessageRecipient;
 import com.bluewhale.message.dto.SendMessageRequest;
@@ -17,7 +18,9 @@ import com.bluewhale.message.enums.MessageChannel;
 import com.bluewhale.message.mapper.MessageDeliveryMapper;
 import com.bluewhale.message.mapper.MessageRecordMapper;
 import com.bluewhale.message.mapper.MessageTemplateMapper;
+import com.bluewhale.message.support.AuthRecipientGroupClient;
 import com.bluewhale.message.support.MessageMetrics;
+import com.bluewhale.message.support.MessageRecipientResolver;
 import com.bluewhale.message.vo.SendMessageResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -65,6 +68,11 @@ class MessageSendServiceImplTest {
     /** 捕获提交到异步线程池的任务，测试中手动执行以获得确定的时序 */
     private final List<Runnable> tasks = new ArrayList<>();
 
+    private final MessageRecipientProperties recipientProperties = new MessageRecipientProperties();
+
+    private final MessageRecipientResolver recipientResolver = new MessageRecipientResolver(
+            recipientProperties, mock(AuthRecipientGroupClient.class));
+
     /**
      * 构造带指定渠道适配器的发送服务。
      *
@@ -75,7 +83,8 @@ class MessageSendServiceImplTest {
         stubInsert();
         return new MessageSendServiceImpl(recordMapper, deliveryMapper, templateMapper,
                 objectMapper, properties, List.of(senders), new ChannelGuard(),
-                new MessageMetrics(new SimpleMeterRegistry()), sendProperties, tasks::add);
+                new MessageMetrics(new SimpleMeterRegistry()), sendProperties, tasks::add,
+                recipientResolver);
     }
 
     /**

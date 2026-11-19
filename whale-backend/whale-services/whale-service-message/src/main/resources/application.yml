@@ -108,6 +108,12 @@ whale:
       key-prefix: ${WHALE_MESSAGE_PREFERENCE_KEY_PREFIX:notify.}
       max-users: ${WHALE_MESSAGE_PREFERENCE_MAX_USERS:200}
       timeout-millis: ${WHALE_MESSAGE_PREFERENCE_TIMEOUT_MS:3000}
+    # 接收人组：按 auth 角色编码展开为接收人（仅 userId，适用于 INAPP / IM 渠道）；
+    # 展开失败直接拒绝发送，避免静默发空。
+    recipient:
+      enabled: ${WHALE_MESSAGE_RECIPIENT_ENABLED:true}
+      auth-base-url: ${WHALE_MESSAGE_RECIPIENT_AUTH_BASE_URL:http://127.0.0.1:8081}
+      max-members: ${WHALE_MESSAGE_RECIPIENT_MAX_MEMBERS:100}
 
 mybatis-plus:
   configuration:
