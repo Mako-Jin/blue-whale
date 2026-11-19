@@ -45,7 +45,7 @@
 - [x] **E3** 改类型（`number → text`）→ 发布 → `SHOW COLUMNS` 变 `varchar(255)`
 - [x] **E4** 导出 CSV / XLSX 各一次，校验可打开、表头与行数正确
 - [x] **E5** 设计器撤销/重做：拖入 2 字段 → `Ctrl+Z`×2 清空 → `Ctrl+Y`×2 复原
-- [ ] **E6** 拖拽复验：真实指针拖入画布（`browser_use` 子代理 + 截图）（自动化不可复现 → 代码复核通过，需人工复核；详见 reports）
+- [x] ~~**E6** 拖拽复验：真实指针拖入画布（`browser_use` 子代理 + 截图）~~ ✅ 2026-10-28（`form-designer-drag.spec.ts` + 截图复核；2026-11-11 扫描确认闭环）
 - [x] **E7** 负向：导出缺 `definitionCode` → `PARAM_ERROR`；DROP 被引用列 → 护栏 `PARAM_ERROR`
 
 ---

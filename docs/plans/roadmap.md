@@ -205,7 +205,7 @@
 
 > 状态对账（2026-11-06）：scene M0–M2 已交付（Wave 5.77），CRM 后端 M0–M2 已交付（Wave 5.83）；8.1 文档治理与 8.5 3D 增强仍未做。
 
-- [ ] 8.1 文档治理与借鉴动作（DOC-01–DOC-10）
+- [ ] 8.1 文档治理与借鉴动作（DOC-01–DOC-10）——**未完成**：`docs/version-matrix.md`、`docs/risk-register.md`、`docs/glossary.md`、`docs/design/adr/` ADR-002/003 均不存在；`docs/README.md` 阅读顺序与职责边界、`docs/api.md` 错误码/分页/幂等、`docs/devops.md` 环境分层/备份恢复仍未扩面；`check-doc-consistency.ps1` 目前只校验版本文档、迁移覆盖与骨架声明
 - [x] ~~8.2 `whale-scene` M0 设计定稿（ADR-002、设计稿、ER/API、权限 323–336、菜单 53–56）~~ ✅ 2026-11-03（随 Wave 5.77 交付）
 - [x] ~~8.3 `whale-scene` M1 骨架（8097、`/scene/**`、`bluewhale_scene`、前端 8112）~~ ✅ 2026-11-03（单测 39 项，实机待环境）
 - [x] ~~8.4 `whale-scene` M2 2D MVP（场景/节点/绑定/可见性/发布/3 个入口）~~ ✅ 2026-11-03（已接入网关/权限/菜单/基座）
@@ -261,7 +261,7 @@
 
 - [x] ~~11.1 M0 审批底座 + Workflow/Auth 缺口 + 骨架（权限 1600–1629 / 菜单 360–364）~~ ✅ 2026-11-05
 - [x] ~~11.2 M1A 审批中心 + 请假闭环 + 员工档案 + 额度台账（权限 1630–1659 / 菜单 365–369）~~ ✅ 2026-11-06（M1A-1..M1A-7 全量交付；M1A-6 仅剩移动端适配，M1A-4 由提交 334be2da 交付）
-- [ ] 11.3 M1B 加班 + 出差 + 调休/预支（权限 1660–1679 / 菜单 370–372）——M1B-1 加班已交付（2026-11-06，提交 269ea9bd）；M1B-2 出差/行程/预支已交付（2026-11-06，提交 79563a87）；出差报告未交提醒已交付（2026-11-06）；剩余：预算超限条件分支（依赖 Workflow 条件表达式运行期求值）
+- [ ] 11.3 M1B 加班 + 出差 + 调休/预支（权限 1660–1679 / 菜单 370–372）——M1B-1 加班已交付（2026-11-06，提交 269ea9bd）；M1B-2 出差/行程/预支已交付（2026-11-06，提交 79563a87）；出差报告未交提醒已交付（2026-11-06）；**剩余：预算超限条件分支**——Workflow 运行期条件求值已具备（`ConditionGuard` + `StateMachine#pickTransition`，2026-11-19 复核），阻塞转为 OA 侧数据：`ExpenseAppServiceImpl#approvalVariables` 仅下发 `amount/categoryCode/deptId`，`Trip` 有 `budgetAmount` 但未下发审批变量，需补齐预算/超限标识后才能配置分支
 - [x] ~~11.4 M2 考勤 + 报销 + 用车 + 用章 + 采购申请（权限 1680–1717 / 菜单 373–382）~~ ✅ 2026-11-07（考勤/报销/用车/用章/采购后端 + 前端 10 页；报销/采购经 ERP 内网契约推送应付与采购订单草稿；出差侧预算超限条件分支仍待 Workflow 运行期求值）
 - [x] ~~11.5 M3 协同办公：会议/日程/任务/公告/网盘/通讯录/工作台（权限 1730–1759 / 菜单 383–390）~~ ✅ 2026-11-07（V9 协同 9 表 + V10 日程 2 表 + V11 网盘 3 表；通讯录/工作台无新表；后端 201 单测 + 前端 7 页）
 - [x] ~~11.6 M4 公文与档案（权限 1760–1779 / 菜单 391–394）~~ ✅ 2026-11-07（`V12__document.sql` 6 表、`DOC_OUTGOING` 审批、Archive `OA_DOC` 幂等归档、后端 214 单测 + 前端 4 页）
@@ -320,10 +320,10 @@
 
 - [x] ~~品牌与客户端基座（M0：品牌配置 + 客户端表）~~ ✅ 2026-11-13（`V28__my_file_menu.sql` 我的文件菜单；`V29__auth_admin_pages.sql` 登录历史权限码纠正 + OAuth 客户端菜单）
 - [x] **权限中心 7 个管理端页面落地**：brand / user-profile / user-group / perm-strategy / role-constraint / session / login-history + oauth-client（perm-mapping 基线清零；冒烟 `scripts/auth-admin-pages-smoke.py`）✅ 2026-11-13
-- [ ] M1 OAuth2.0 授权服务器（前置 spike：Spring Authorization Server × Boot 4.0.8 兼容性）→ [计划 §三](2026-11-12-auth-permission-center-expansion.md)
-- [ ] M2 三方登录（`sys_user_social_binding` 新表）
-- [ ] M3 身份档案 / 用户组 / 策略 / 设备会话（`sys_user_profile` 等 9 新表）
-- [ ] M4 用户导入导出
+- [x] ~~M1 OAuth2.0 授权服务器（前置 spike：Spring Authorization Server × Boot 4.0.8 兼容性）~~ ✅ 2026-11-13（`V17__oauth2_server.sql` + `OAuth2AuthorizationServerConfig`，SAS 7.0.7 兼容；冒烟 `bw-auth-oauth2-m1-smoke.ps1`）→ [计划 §三](2026-11-12-auth-permission-center-expansion.md)
+- [x] ~~M2 三方登录（`sys_user_social_binding` 新表）~~ ✅ 2026-11-13（`V18__social_binding.sql` + 钉钉/飞书/企微适配器 + `SocialLoginAppServiceImpl`，auth 652 用例）
+- [x] ~~M3 身份档案 / 用户组 / 策略 / 设备会话（`sys_user_profile` 等 9 新表）~~ ✅ 2026-11-13（`V19~V23` 五脚本、6 组 AppService、会话账本与角色继承防环，测试全绿）
+- [x] ~~M4 用户导入导出~~ ✅ 2026-11-13（`V24__user_import_export.sql` + `UserImportExportAppServiceImpl`，EasyExcel 流式读写 / 500 行分批事务 / 权限 2413–2414）
 - [x] ~~登录锁定与自助改密互锁（Wave 6.27–6.28/6.32：42301 锁定 + 倒计时禁用 + 强制改密死锁修复）~~ ✅ 2026-11-11
 - [x] ~~危险操作二次认证 step-up（Wave 6.22，428/42801 + 门禁）~~ ✅ 2026-11-11
 
@@ -345,7 +345,7 @@
 
 - [x] ~~`whale-form` 扩展批次 1–5~~：① 变更历史 / 发布预检 / 主从对账 / 单测；② 审批接线（`biz_status` + 工作流回调）/ CSV 导入 / 业务指标 / 发布告警 / 分类标签；③ 缓存 / 事件解耦 / 冷热分离标记 / schema drift 检测 / 多租户策略定稿；④ 导出脱敏 / 多版本检索限流 / JSON 深度防护 / ArchUnit+契约守护 / 部署约束；⑤ 字段级权限 + 附件引用表 ✅ 2026-11-14/15（form 单测 124→239；批次 6+ 排期见 [whale-form-expansion-roadmap.md](whale-form-expansion-roadmap.md)）
 - [x] ~~`whale-file` 能力扩展批次 1–6~~：storageType 路由 / 回收站恢复 / 指标与健康检查；回收站生命周期 + 重命名移动；孤儿对象对账；分享链接；批量删除与打包下载；上传内容魔数校验 ✅ 2026-11-15
-- [ ] `whale-file` 批次 7（配额索引，`V6__file_quota_index.sql`）——**在途**（另有 POM/接口层评审整改，见当日 devlog）
+- [x] ~~`whale-file` 批次 7（配额索引，`V6__file_quota_index.sql`）~~ ✅ `V6__file_quota_index.sql`（幂等补 `idx_tenant_bucket`）+ `FileAssetRepositoryImpl` 桶维度配额聚合与命名锁，`FileAssetRepositoryImplTest` / `StorageQuotaTest` 覆盖桶超限
 
 ### 14.5 运行集与联调
 

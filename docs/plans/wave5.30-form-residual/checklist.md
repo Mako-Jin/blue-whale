@@ -47,7 +47,7 @@
 - [x] E3 改类型后发布，物理列类型随之变更
 - [x] E4 导出 CSV 与 XLSX 各一次，均可打开且表头/行数正确
 - [x] E5 设计器撤销/重做（拖入 2 字段 → `Ctrl+Z`×2 清空 → `Ctrl+Y`×2 复原）
-- [ ] E6 真实指针拖拽入画布复验（截图留档）（自动化不可复现 → 代码复核通过，需人工复核；详见 reports）
+- [x] ~~E6 真实指针拖拽入画布复验（截图留档）~~ ✅ 2026-10-28（`form-designer-drag.spec.ts` 真实鼠标 `dragTo` 入画布 + API 核验 + 截图人工复核；2026-11-11 扫描复核确认，见 [扫描](../reviews/2026-11-11-workspace-scan.md)）
 - [x] E7 负向：导出缺 `definitionCode` → `PARAM_ERROR`；DROP 被引用列 → 护栏 `PARAM_ERROR`
 
 ## G 收尾
