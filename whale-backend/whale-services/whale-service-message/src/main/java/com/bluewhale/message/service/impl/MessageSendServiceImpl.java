@@ -1,6 +1,7 @@
 package com.bluewhale.message.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.bluewhale.common.context.RequestContextHolder;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.tenant.TenantContext;
@@ -247,6 +248,7 @@ public class MessageSendServiceImpl implements MessageSendService {
         CallbackUrlGuard.assertAllowed(request.getCallbackUrl());
         record.setCallbackUrl(request.getCallbackUrl());
         record.setExpireAt(request.getExpireAt());
+        record.setTraceId(RequestContextHolder.getTraceId());
         return record;
     }
 
