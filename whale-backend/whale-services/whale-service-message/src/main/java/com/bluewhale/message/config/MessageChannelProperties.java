@@ -1,7 +1,10 @@
 package com.bluewhale.message.config;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
 
 /**
  * 消息渠道配置。
@@ -12,6 +15,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @author BlueWhale
  */
 @Data
+@Validated
 @ConfigurationProperties(prefix = "whale.message")
 public class MessageChannelProperties {
 
@@ -19,12 +23,15 @@ public class MessageChannelProperties {
     private boolean mock = true;
 
     /** 邮件渠道 */
+    @Valid
     private Email email = new Email();
 
     /** 短信渠道 */
+    @Valid
     private Sms sms = new Sms();
 
     /** IM 渠道 */
+    @Valid
     private Im im = new Im();
 
     /**
@@ -85,9 +92,11 @@ public class MessageChannelProperties {
         private String providerIdField = "data.messageId";
 
         /** 超时（毫秒） */
+        @Min(1)
         private int timeoutMillis = 3000;
 
         /** 限流与熔断 */
+        @Valid
         private Guard guard = new Guard();
     }
 
@@ -107,9 +116,11 @@ public class MessageChannelProperties {
         private String baseUrl;
 
         /** 超时（毫秒） */
+        @Min(1)
         private int timeoutMillis = 3000;
 
         /** 限流与熔断 */
+        @Valid
         private Guard guard = new Guard();
     }
 
@@ -123,12 +134,15 @@ public class MessageChannelProperties {
     public static class Guard {
 
         /** 每秒允许发送条数，非正数表示不限流 */
+        @Min(0)
         private int rateLimitPerSecond;
 
         /** 连续失败多少次后熔断，非正数表示不熔断 */
+        @Min(0)
         private int failureThreshold = 10;
 
         /** 熔断保持时间（毫秒） */
+        @Min(0)
         private long openMillis = 30000L;
     }
 }

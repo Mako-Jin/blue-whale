@@ -1,9 +1,9 @@
 package com.bluewhale.message.converter;
 
 import com.bluewhale.message.dto.MessageTemplateSaveRequest;
-import com.bluewhale.message.entity.MessageDelivery;
-import com.bluewhale.message.entity.MessageRecord;
-import com.bluewhale.message.entity.MessageTemplate;
+import com.bluewhale.message.po.MessageDeliveryPo;
+import com.bluewhale.message.po.MessageRecordPo;
+import com.bluewhale.message.po.MessageTemplatePo;
 import com.bluewhale.message.vo.MessageDeliveryVO;
 import com.bluewhale.message.vo.MessageRecordVO;
 import com.bluewhale.message.vo.MessageTemplateVO;
@@ -32,15 +32,17 @@ public interface MessageConverter {
      * @return 消息记录视图对象
      */
     @Mapping(target = "deliveries", ignore = true)
-    MessageRecordVO toRecordVo(MessageRecord record);
+    MessageRecordVO toRecordVo(MessageRecordPo record);
 
     /**
-     * 投递明细实体转视图对象
+     * 投递明细实体转视图对象（接收标识按渠道脱敏）
      *
      * @param delivery 投递明细实体
      * @return 投递明细视图对象
      */
-    MessageDeliveryVO toDeliveryVo(MessageDelivery delivery);
+    @Mapping(target = "recipient", expression =
+            "java(com.bluewhale.message.support.MaskUtils.maskRecipient(delivery.getChannel(), delivery.getRecipient()))")
+    MessageDeliveryVO toDeliveryVo(MessageDeliveryPo delivery);
 
     /**
      * 模板实体转视图对象
@@ -48,7 +50,7 @@ public interface MessageConverter {
      * @param template 模板实体
      * @return 模板视图对象
      */
-    MessageTemplateVO toTemplateVo(MessageTemplate template);
+    MessageTemplateVO toTemplateVo(MessageTemplatePo template);
 
     /**
      * 保存请求转模板实体（模板码归一化与状态默认值由服务层处理）
@@ -60,7 +62,7 @@ public interface MessageConverter {
     @Mapping(target = "createTime", ignore = true)
     @Mapping(target = "updateTime", ignore = true)
     @Mapping(target = "deleted", ignore = true)
-    MessageTemplate toEntity(MessageTemplateSaveRequest request);
+    MessageTemplatePo toEntity(MessageTemplateSaveRequest request);
 
     /**
      * 保存请求覆盖既有模板实体（保留主键与审计字段）
@@ -72,5 +74,5 @@ public interface MessageConverter {
     @Mapping(target = "createTime", ignore = true)
     @Mapping(target = "updateTime", ignore = true)
     @Mapping(target = "deleted", ignore = true)
-    void updateEntity(MessageTemplateSaveRequest request, @MappingTarget MessageTemplate entity);
+    void updateEntity(MessageTemplateSaveRequest request, @MappingTarget MessageTemplatePo entity);
 }

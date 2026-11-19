@@ -5,6 +5,7 @@ import com.bluewhale.message.channel.ChannelResult;
 import com.bluewhale.message.channel.MessageChannelSender;
 import com.bluewhale.message.config.MessageChannelProperties;
 import com.bluewhale.message.enums.MessageChannel;
+import com.bluewhale.message.support.MaskUtils;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
@@ -111,7 +112,7 @@ public class SmsChannelSender implements MessageChannelSender {
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
                 String providerMessageId = resolveProviderMessageId(sms, response.body());
                 log.info("消息短信已提交网关: messageId={}, to={}, providerMessageId={}", message.getMessageId(),
-                        maskPhone(message.getRecipient().getPhone()), providerMessageId);
+                        MaskUtils.maskPhone(message.getRecipient().getPhone()), providerMessageId);
                 return ChannelResult.sent(providerMessageId);
             }
             return ChannelResult.failed("短信网关返回 " + response.statusCode() + ": "
@@ -208,19 +209,6 @@ public class SmsChannelSender implements MessageChannelSender {
         payload.put("bizId", message.getBizId());
         payload.put("tenantId", message.getTenantId());
         return payload;
-    }
-
-    /**
-     * 手机号脱敏。
-     *
-     * @param phone 手机号
-     * @return 脱敏值
-     */
-    private static String maskPhone(String phone) {
-        if (phone == null || phone.length() < 7) {
-            return "***";
-        }
-        return phone.substring(0, 3) + "****" + phone.substring(phone.length() - 4);
     }
 
     /**
