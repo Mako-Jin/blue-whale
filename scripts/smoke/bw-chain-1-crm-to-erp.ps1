@@ -40,7 +40,7 @@ $script:h = @{ Authorization = "Bearer $($script:token)" }
 
 # 2) 环境预检：workflow 不可达时显式跳过，避免把环境缺失当成链路故障
 try {
-    $wf = Invoke-SmokeApi -Method Get -Path '/workflow/definition/page?current=1&size=1'
+    $wf = Invoke-SmokeApi -Method Get -Path '/workflow/v1/definition/page?current=1&size=1'
     if ($wf.code -ne 0) {
         Skip-Smoke "whale-workflow 不可用（code=$($wf.code) $($wf.message)）：无法执行审批环节"
     }
@@ -130,18 +130,18 @@ Assert '8a.approvalInstance' ($null -ne $instanceId) "instanceId=$instanceId"
 
 # 6) workflow 审批（可能存在多级节点，逐级通过，最多 10 轮）
 for ($round = 1; $round -le 10; $round++) {
-    $tasks = Invoke-SmokeApi -Method Get -Path "/workflow/task/page?instanceId=$instanceId&current=1&size=50"
+    $tasks = Invoke-SmokeApi -Method Get -Path "/workflow/v1/task/page?instanceId=$instanceId&current=1&size=50"
     Check "9.$round.taskPage" $tasks
     $pending = @($tasks.data.records | Where-Object { $_.status -eq 0 -or $_.status -eq 'PENDING' -or $_.status -eq 'WAITING' })
     if ($pending.Count -eq 0) {
         break
     }
     foreach ($task in $pending) {
-        $approved = Invoke-SmokeApi -Method Post -Path "/workflow/task/$($task.id)/approve" -Body @{ comment = 'M1 链路冒烟同意' }
+        $approved = Invoke-SmokeApi -Method Post -Path "/workflow/v1/task/$($task.id)/approve" -Body @{ comment = 'M1 链路冒烟同意' }
         Check "10.$round.approve" $approved
     }
 }
-$instance = Invoke-SmokeApi -Method Get -Path "/workflow/instance/$instanceId"
+$instance = Invoke-SmokeApi -Method Get -Path "/workflow/v1/instance/$instanceId"
 Check '11.instance' $instance
 # workflow 实例状态：0 运行中 / 1 已完结
 Assert '11a.instanceFinished' ($instance.data.status -eq 1) "status=$($instance.data.status)"

@@ -122,3 +122,19 @@
 - **验证**：四个脚本通过 PowerShell 语法校验；本机未同时起服全部服务，基线数据按文档流程在目标环境执行后回填。
 - **待做项**：在完整环境执行三组压测并回填 `docs/ops/m1-perf-baseline.md`；链路冒烟与对账脚本首次真实执行回填。
 - **已修正问题项**：无。
+
+### 2026-11-19 M-C 加固（单测 + 脚本契约核对）
+
+- **需求项**：M-C 新增的看板聚合与降级逻辑需要单测锁定；链上冒烟脚本的接口路径必须与后端实际契约一致，避免首次真实执行才发现 404。
+- **完成项**：
+  - `MfgBoardAppServiceImplTest`（3 项）：订单/库存字段逐项映射、默认上限 50、超上限收敛 200、非正数回落 50、空数据返回空列表而非 null。
+  - `SceneBoardAppServiceImplTest`（3 项）：端口有数据时透传并清除降级标识；端口返回 empty 时 `degraded=true` 且不返回任何数量；上限收敛 200/50。
+  - 静态核对 CRM / ERP / MES / workflow / audit 控制器与请求 DTO，修正 chain-1 中 4 处 workflow 路径：补 `/v1` 版本段
+    （`/workflow/v1/definition/page`、`/workflow/v1/task/page`、`/workflow/v1/task/{id}/approve`、`/workflow/v1/instance/{id}`）。
+  - 核对结论：CRM 建单/提交/重试、ERP 销售订单/生产订单/领料/库存调整/余额分页、MES 工单/拆分/派工/开工/报工/完工、
+    audit 分页与字段均与脚本一致；对账脚本两个看板接口与 ERP 分页排序口径一致。
+- **验证**：
+  - ERP `mvn -o test -Dtest=MfgBoardAppServiceImplTest` → 3 项零失败；scene 同法 → 3 项零失败。
+  - 四个 PowerShell 脚本（chain-1/2/3 + chain-reconcile）通过 `Parser::ParseFile` 语法校验。
+- **待做项**：链路冒烟、对账、压测仍需在完整环境执行并回填数据。
+- **已修正问题项**：chain-1 workflow 路径缺少 `/v1` 版本段（真实服务映射为 `/workflow/v{version}/...`），已补齐。
