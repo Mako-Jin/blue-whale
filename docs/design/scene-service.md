@@ -106,6 +106,24 @@ ArchUnit 固化（`SceneArchitectureTest`，4 条规则）：
 - 拒绝内网/回环：`127.*`、`10.*`、`172.16–31.*`、`192.168.*`、`169.254.*`、
   `localhost`、`.internal`、`.local`。
 
+### 4.5 场景入口 → 知识 Agent 的权限透传
+
+场景的 `knowledge` 类入口**只做跳转，不新建 RAG、不代理检索**，避免在场景域复制一套知识权限模型。
+
+| 环节 | 责任方 | 规则 |
+|---|---|---|
+| 导航过滤 | `whale-scene` | `GET /scene/navigation` 按当前用户权限码过滤 `sc_node_binding.permission_code`；无权限的入口不下发 |
+| 跳转 | 浏览器 | 只携带 `target_path`（平台内页面或登记过的外部域名）；**URL 中不得携带 accessToken / refreshToken** |
+| 身份与权限 | 网关 + `whale-agent` | 目标页面重新走网关鉴权；Agent 消费网关注入的 `X-User-Id` / `X-Permission-Codes` / `X-Tenant-Id`，不信任前端自报身份 |
+| 检索过滤 | `whale-doc` / `whale-agent` | 文档检索按空间成员角色与页面级 ACL（`is_restricted` + ACL 用户）过滤；知识桶 default-deny，仅白名单桶可入库 |
+| 引用溯源 | `whale-agent` | 回答附 `S1..Sn` 引用编号与来源；无证据时明确降级，不臆造 |
+
+约束：
+
+1. 场景服务**不持有**文档/知识权限判定结果，只保存入口权限码；入口可见 ≠ 目标内容可见，目标系统必须**再次鉴权**。
+2. 若后续需要「从场景节点直达某篇文档」，只传 `sceneKey` / `nodeKey` 等非敏感上下文参数，由目标页面自行解析与鉴权。
+3. 新增 `knowledge` 入口类型前，须确认目标路径已登记在 URL 白名单，并在 `entry_type` 枚举中登记。
+
 ---
 
 ## 5. ER 图

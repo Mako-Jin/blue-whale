@@ -171,6 +171,51 @@ com.bluewhale.crm
 | `crm_quote_approval` | `quote_id` / `quote_version` / `instance_id` / `status` / `approval_level` / `discount_rate` / `comment` / `submitter_id` / `decided_at` | 审批记录；`uk(tenant_id, instance_id)` 保证回调幂等 |
 | `crm_follow_up` | `customer_id` / `opportunity_id` / `channel` / `content` / `next_action_at` / `created_by` | 追加式（append-only） |
 
+### 4.1 ER 图（M1–M2 核心，M3–M6 见全景稿 §六）
+
+```text
+crm_customer (客户聚合根)
+  │ 1
+  ├── N  crm_contact (每客户至多 1 个主联系人: is_primary)
+  ├── N  crm_opportunity (商机)
+  │        ├── N  crm_opportunity_stage_history (阶段流转留痕)
+  │        ├── N  crm_quote (报价, quote_no + version 版本链)
+  │        │        ├── N  crm_quote_line (报价行)
+  │        │        └── N  crm_quote_approval (审批记录)
+  │        └── N  crm_follow_up (跟进, 可选挂商机)
+  │
+crm_lead (线索聚合根)
+  ├── N  crm_lead_activity (线索活动)
+  └── 0..1 → crm_customer / crm_opportunity (转化后只读, 存 customer_id/opportunity_id)
+
+crm_customer ── N  crm_follow_up (仅挂客户的跟进)
+crm_quote ── root_quote_id / parent_quote_id → crm_quote (版本链自关联)
+```
+
+关系约束：
+
+- 所有表带 `tenant_id`，由租户行插件自动追加；跨租户引用视为数据错误。
+- `crm_lead.customer_id` / `opportunity_id` 为**转化结果引用**，转化后线索只读，不回写客户档案。
+- 报价版本链：首版 `root_quote_id = 自身 id`，改价生成 `version+1` 且 `parent_quote_id` 指向上一版；审批后只读。
+- 客户合并时按已登记的重写清单更新下游引用 ID（以实现为准），**不复制客户档案**。
+
+### 4.2 索引说明
+
+| 表 | 唯一键 | 主要查询索引 | 说明 |
+|---|---|---|---|
+| `crm_customer` | `uk_crm_customer_code(tenant_id, customer_code)` | `idx_crm_customer_owner(tenant_id, owner_id)`、`idx_crm_customer_dept(tenant_id, dept_id)`、`idx_crm_customer_status(tenant_id, status, update_time)` | 负责人/部门数据权限过滤 + 状态分页 |
+| `crm_contact` | —— | `idx_crm_contact_customer(tenant_id, customer_id, is_primary)`、`idx_crm_contact_phone(tenant_id, phone)` | 主联系人排序；按电话查重 |
+| `crm_lead` | `uk_crm_lead_no(tenant_id, lead_no)` | `idx_crm_lead_owner(tenant_id, owner_id, status)`、`idx_crm_lead_status(tenant_id, status, update_time)`、归一化三索引 `normalized_name/phone/email` | 查重走归一化字段，避免原值大小写/格式差异漏判 |
+| `crm_lead_activity` | —— | `idx_crm_lead_activity_lead(tenant_id, lead_id, create_time)` | 追加式按时间读取 |
+| `crm_opportunity` | —— | `idx_crm_opportunity_customer(tenant_id, customer_id, stage)`、`idx_crm_opportunity_owner(tenant_id, owner_id)`、`idx_crm_opportunity_close(tenant_id, expected_close_date)` | 漏斗按阶段聚合；预计成交日驱动提醒 |
+| `crm_opportunity_stage_history` | —— | `idx_crm_opportunity_history(tenant_id, opportunity_id, changed_at)` | 阶段停留时长计算 |
+| `crm_quote` | `uk_crm_quote_no_version(tenant_id, quote_no, version)` | `idx_crm_quote_opp(tenant_id, opportunity_id, status)`、`idx_crm_quote_owner(tenant_id, owner_id, status)`、`idx_crm_quote_root(tenant_id, root_quote_id, version)` | 版本链查询与「当前有效版本」判定 |
+| `crm_quote_line` | —— | `idx_crm_quote_line_quote(tenant_id, quote_id, line_no)` | 行按序读取 |
+| `crm_quote_approval` | `uk_crm_quote_approval_instance(tenant_id, instance_id)` | `idx_crm_quote_approval_quote(tenant_id, quote_id, status)` | `instance_id` 唯一保证审批回调幂等 |
+| `crm_follow_up` | —— | `idx_crm_follow_customer(tenant_id, customer_id, create_time)`、`idx_crm_follow_opportunity(tenant_id, opportunity_id)` | 时间线读取；append-only 不更新 |
+
+> M3–M6 表（合同台账/订单/发票/售后/营销/分析）的索引以各迁移脚本为准，口径见 [crm-module-panorama.md](crm-module-panorama.md) §六 与 `service-catalog.md` 的迁移清单。
+
 阶段状态机（已实现）：
 
 ```text

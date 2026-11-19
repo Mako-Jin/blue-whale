@@ -191,6 +191,14 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 | services | **whale-scene**（Wave 5.77 M1/M2 2D 已落地） | `whale-scene` | `bluewhale_scene` | `com.bluewhale.scene` | 8097 |
 | services | **whale-video**（Wave 5.77 M0–M5 已落地） | `whale-video` | `bluewhale_video`（Flyway `V1`–`V4` 就绪，待建库） | `com.bluewhale.video` | 8098 |
 | services | ~~whale-i18n~~（已删除，Wave 5.50 下沉 SDK） | — | 各服务库内自建 `sys_i18n_message` | — | — |
+| services | **whale-assistant**（Wave 6.01 M0） | `whale-assistant` | `bluewhale_assistant` | `com.bluewhale.assistant` | 8087 |
+| services | **whale-iot**（Wave 6.02） | `whale-iot` | `bluewhale_iot` | `com.bluewhale.iot` | 8088 |
+| services | **whale-twin**（Wave 6.03） | `whale-twin` | `bluewhale_twin` | `com.bluewhale.twin` | 8089 |
+| services | **whale-agent**（Wave 5.47） | `whale-agent` | `bluewhale_agent` | `com.bluewhale.agent` | 8090 |
+| services | **whale-im**（Wave 5.52） | `whale-im` | `bluewhale_im` | `com.bluewhale.im` | 8091 |
+| services | **whale-archive**（Wave 5.53） | `whale-archive` | `bluewhale_archive` | `com.bluewhale.archive` | 8093 |
+| services | **whale-mail**（Wave 5.89） | `whale-mail` | `bluewhale_mail` | `com.bluewhale.mail` | 8099 |
+| services | **whale-map**（Wave 5.91） | `whale-map` | `bluewhale_map` | `com.bluewhale.map` | 8100 |
 | registry | ~~whale-config~~（**冻结**，F-05 结案：不部署/不路由） | — | 无 | `com.bluewhale.config` | 9201 |
 | ops | whale-audit | whale-audit | `bluewhale_audit` ✔ | `com.bluewhale.audit` | 9101 |
 | ops | whale-monitor | whale-monitor | 无（只读聚合 Nacos 实例，不落库） | `com.bluewhale.monitor` | 9102 |
@@ -200,6 +208,7 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 | apps | whale-pdm | whale-pdm | `bluewhale_pdm`（规划） | `com.bluewhale.pdm` | 9003 |
 | apps | whale-oa | whale-oa | `bluewhale_oa`（规划） | `com.bluewhale.oa` | 9004 |
 | apps | whale-pm | whale-pm | `bluewhale_pm`（DDL 就绪，待建库） | `com.bluewhale.pm` | 9005 |
+| apps | **whale-contract**（Wave 5.61 M1） | `whale-contract` | `bluewhale_contract` | `com.bluewhale.contract` | 9006 |
 | apps | **whale-crm**（Wave 5.77 门禁骨架） | `whale-crm` | `bluewhale_crm` | `com.bluewhale.crm` | 9007 |
 | apps | **whale-lms**（Wave 5.87 学习培训考试） | `whale-lms` | `bluewhale_lms` | `com.bluewhale.lms` | 9008 |
 | apps | **whale-party**（Wave 5.88 党政工会；原计划并入 OA，改独立） | `whale-party` | `bluewhale_party` | `com.bluewhale.party` | 9009 |

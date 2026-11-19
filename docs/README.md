@@ -10,6 +10,40 @@
 | 看某天做了什么、遗留什么 | [devlog/YYYY-MM-DD.md](devlog/)（需求 / 完成 / 待做 / 已修正四段式） |
 | 查服务、端口、库 | [service-catalog.md](service-catalog.md) |
 | 查某个需求编号 | [requirements/register.md](requirements/register.md) |
+| 查版本兼容与升级/回滚 | [version-matrix.md](version-matrix.md) |
+| 查全局风险与状态 | [risk-register.md](risk-register.md) |
+| 查术语中英文口径 | [glossary.md](glossary.md) |
+
+## 按角色阅读顺序
+
+| 角色 | 建议顺序 |
+|---|---|
+| 新加入的开发者 | [README.md](../README.md) 技术栈与快速开始 → [architecture.md](architecture.md) → [backend.md](backend.md) / [frontend.md](frontend.md) → [service-catalog.md](service-catalog.md) → [api.md](api.md) / [database.md](database.md) → 当日 [devlog](devlog/) |
+| 后端开发 | [architecture.md](architecture.md) → [backend.md](backend.md) → [database.md](database.md) → [api.md](api.md) → [distributed.md](design/distributed.md) → 所属服务设计稿（`design/<域>-service.md`） |
+| 前端开发 | [frontend.md](frontend.md) → [api.md](api.md) → [service-catalog.md](service-catalog.md) §二 → 对应 `platform-apps/` 应用说明 |
+| 测试 / 验收 | [requirements/register.md](requirements/register.md) → [plans/roadmap.md](plans/roadmap.md) → [checklists/code-review-checklist.md](checklists/code-review-checklist.md) → 波次 `reviews/` 报告 → [risk-register.md](risk-register.md) |
+| 运维 / 发布 | [devops.md](devops.md) → [design/network-boundary.md](design/network-boundary.md) → [design/cicd.md](design/cicd.md) → [ops/](ops/) → [risk-register.md](risk-register.md) |
+| 架构评审 | [architecture.md](architecture.md) → [design/adr/](design/adr/)（决策历史）→ [design/](design/) 专项设计 → [risk-register.md](risk-register.md) |
+| 产品 / 项目管理 | [plans/bluewhale-blueprint-2026Q4.md](plans/bluewhale-blueprint-2026Q4.md) → [plans/roadmap.md](plans/roadmap.md) → [requirements/register.md](requirements/register.md) → [glossary.md](glossary.md) |
+
+## 文档职责边界
+
+| 文档 | 写什么 | 不写什么（去哪写） |
+|---|---|---|
+| [architecture.md](architecture.md) | 服务全景、限界上下文、依赖关系、全局架构决策 | 单服务实现细节（`design/`）、运维步骤（`devops.md`） |
+| [service-catalog.md](service-catalog.md) | 端口 ↔ 服务 ↔ 组件 ↔ 库 ↔ 对外前缀、迁移/表数量、状态 | 接口字段定义（`api.md` + 代码）、建表 DDL（迁移脚本） |
+| [api.md](api.md) | 响应信封、错误码、分页/排序、幂等、版本、限流、鉴权头与内网约定 | 各接口业务语义（服务设计稿 / springdoc） |
+| [database.md](database.md) | 命名、字段惯例、连接池、逻辑删除、多库演进 | 具体表结构与 ER（服务设计稿 / Flyway 迁移） |
+| [devops.md](devops.md) | 环境分层、部署、配置与密钥、备份恢复、发布回滚、运维手册索引 | 业务功能说明（`design/`）、接口契约（`api.md`） |
+| [naming-conventions.md](naming-conventions.md) | 库/表/服务/模块/包/配置/Redis/前端命名与号段登记 | 具体业务模型（设计稿） |
+| [backend.md](backend.md) | 模块结构、DDD 分层、构建测试、配置基线 | 服务级设计（`design/<域>-service.md`） |
+| [frontend.md](frontend.md) | Monorepo、应用族、共享包、构建与约定 | 页面交互稿（应用目录 / 设计稿） |
+| [ai.md](ai.md) | Agent 架构、知识索引、评测、接入 | 模型提示词细节（代码）、业务知识内容（文档库） |
+| [version-matrix.md](version-matrix.md) | 版本集中视图、兼容约束、升级/回滚流程 | 版本事实源本身（POM / package.json / compose 变量） |
+| [risk-register.md](risk-register.md) | 全局风险、评级、状态、缓解 | 波次级风险细节（`reviews/` 报告） |
+| [glossary.md](glossary.md) | 术语中英文与一句话定义 | 完整业务规则（设计稿 / 需求册） |
+| [design/](design/) | 领域模型、边界、表结构、接口语义、ADR | 运维操作（`devops.md`）、任务排期（`plans/`） |
+| [plans/](plans/) | 路线图、波次计划、任务分解 | 已定稿的设计（`design/`）、结果记录（`devlog/`） |
 
 ## 目录结构
 

@@ -201,11 +201,21 @@
 ## Phase 8：城池场景与客户关系（规划，2026-11-03）
 
 > 执行计划：[2026-11-03-wave5.77-scene-and-crm.md](2026-11-03-wave5.77-scene-and-crm.md)
-> 结论：上传文档的模块地图中仅「城池场景导航」缺服务；CRM 缺位但受 REQ-ARCH-011 需求门禁约束。两服务已登记，**未编码**。
+> 结论：上传文档的模块地图中仅「城池场景导航」缺服务；CRM 缺位但受 REQ-ARCH-011 需求门禁约束。两服务已登记并已编码（scene M0–M2 2D；CRM M0–M6）。
 
-> 状态对账（2026-11-06）：scene M0–M2 已交付（Wave 5.77），CRM 后端 M0–M2 已交付（Wave 5.83）；8.1 文档治理与 8.5 3D 增强仍未做。
+> 状态对账（2026-11-19）：scene M0–M2 已交付（Wave 5.77），CRM 后端 M0–M2 已交付（Wave 5.83）；8.1 文档治理已完成（DOC-01–DOC-10），8.5 3D 增强仍未做。
 
-- [ ] 8.1 文档治理与借鉴动作（DOC-01–DOC-10）——**未完成**：`docs/version-matrix.md`、`docs/risk-register.md`、`docs/glossary.md`、`docs/design/adr/` ADR-002/003 均不存在；`docs/README.md` 阅读顺序与职责边界、`docs/api.md` 错误码/分页/幂等、`docs/devops.md` 环境分层/备份恢复仍未扩面；`check-doc-consistency.ps1` 目前只校验版本文档、迁移覆盖与骨架声明
+- [x] ~~8.1 文档治理与借鉴动作（DOC-01–DOC-10）~~ ✅ 2026-11-19（分项见下）
+  - [x] ~~DOC-01 阅读顺序与职责边界：`docs/README.md` 新增「按角色阅读顺序」「文档职责边界」两张表；根 README 增加文档导航入口~~
+  - [x] ~~DOC-02 版本兼容矩阵：新增 [docs/version-matrix.md](../version-matrix.md)（后端/前端/基础设施/AI，含事实源、校验方式、升级与回滚）~~
+  - [x] ~~DOC-03 API 规范扩面：`docs/api.md` 补错误码表、HTTP 状态口径、分页/排序/过滤、幂等、租户头、版本策略、限流与重试、OpenAPI 示例~~
+  - [x] ~~DOC-04 RAG 边界与权限透传：`docs/design/scene-service.md` §4.5 新增「场景入口 → 知识 Agent」，`docs/ai.md` 补权限边界；不新建 RAG~~
+  - [x] ~~DOC-05 部署运维闭环：`docs/devops.md` 补环境分层、密钥与配置、日志指标链路、告警阈值、备份恢复、发布回滚手册~~
+  - [x] ~~DOC-06 ER 与索引说明：`docs/design/crm-service.md` §4.1/§4.2 补 ER 图与索引表（scene ER 已于设计稿具备）~~
+  - [x] ~~DOC-07 ADR 机制：新增 `docs/design/adr/` 模板、ADR-002（场景 2D 优先/3D 可选）、ADR-003（CRM 边界与门禁）~~
+  - [x] ~~DOC-08 风险清单：新增 [docs/risk-register.md](../risk-register.md)（产品/场景/工程/部署四组，含评级与状态）~~
+  - [x] ~~DOC-09 术语表：新增 [docs/glossary.md](../glossary.md)（平台/场景/CRM，统一中英文）~~
+  - [x] ~~DOC-10 文档自动化校验：`scripts/check-doc-consistency.ps1` 增端口/库名一致性（apps + services）与 naming-conventions 登记对账；补登记 contract/mail/map/iot/twin/agent/im/archive/assistant 与 form 模块目录修正~~
 - [x] ~~8.2 `whale-scene` M0 设计定稿（ADR-002、设计稿、ER/API、权限 323–336、菜单 53–56）~~ ✅ 2026-11-03（随 Wave 5.77 交付）
 - [x] ~~8.3 `whale-scene` M1 骨架（8097、`/scene/**`、`bluewhale_scene`、前端 8112）~~ ✅ 2026-11-03（单测 39 项，实机待环境）
 - [x] ~~8.4 `whale-scene` M2 2D MVP（场景/节点/绑定/可见性/发布/3 个入口）~~ ✅ 2026-11-03（已接入网关/权限/菜单/基座）

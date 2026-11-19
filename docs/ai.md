@@ -14,6 +14,8 @@
 - 索引目录本地 `data/agent-index/`（可重建，不入库）；运行时 `WHALE_AGENT_INDEX_DIR`。
 - 文件知识入库走**桶白名单 default-deny**：仅白名单桶可被索引（[决策报告](reviews/2026-10-29-agent-knowledge-bucket-policy.md)）；白名单改动需重启（T-06 热更新待办）。
 - 索引重建：`POST /agent/knowledge/rebuild`，操作手册 [ops/agent-index-ops.md](ops/agent-index-ops.md)。
+- 权限边界：Agent **不做独立的权限判定**，一律消费网关注入的 `X-User-Id` / `X-Permission-Codes` / `X-Tenant-Id`；
+  文档检索按空间角色与页面 ACL 过滤。场景入口只做跳转并在目标页重新鉴权，详见 [scene-service.md](design/scene-service.md) §4.5。
 
 ## 评测
 

@@ -97,6 +97,19 @@ pnpm run dev              # 同时启动所有应用
 
 全部端口与服务地址以 [docs/service-catalog.md](docs/service-catalog.md) §五「端口 → 服务 速查」为唯一权威清单；本机开发默认从网关 `http://localhost:8080` 进入。
 
+## 文档导航
+
+完整目录、按角色阅读顺序与文档职责边界见 [docs/README.md](docs/README.md)。常用入口：
+
+| 你想…… | 去哪 |
+|---|---|
+| 了解现状与蓝图 | [docs/plans/bluewhale-blueprint-2026Q4.md](docs/plans/bluewhale-blueprint-2026Q4.md) |
+| 查服务、端口、库 | [docs/service-catalog.md](docs/service-catalog.md) |
+| 查版本、升级与回滚 | [docs/version-matrix.md](docs/version-matrix.md) |
+| 查全局风险 | [docs/risk-register.md](docs/risk-register.md) |
+| 查术语口径 | [docs/glossary.md](docs/glossary.md) |
+| 查历史决策 | [docs/design/adr/](docs/design/adr/) |
+
 ## 架构说明
 
 参见 `docs/architecture.md`。
