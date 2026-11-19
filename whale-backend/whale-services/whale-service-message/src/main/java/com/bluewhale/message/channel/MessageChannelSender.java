@@ -2,6 +2,9 @@ package com.bluewhale.message.channel;
 
 import com.bluewhale.message.enums.MessageChannel;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * 消息渠道适配器（输出端口）。
  *
@@ -26,6 +29,24 @@ public interface MessageChannelSender {
      * @return 发送结果
      */
     ChannelResult send(ChannelMessage message);
+
+    /**
+     * 批量发送（可选能力）。
+     *
+     * <p>默认逐条调用 {@link #send(ChannelMessage)} 并按入参顺序返回结果；网关支持一次多号码/
+     * 多用户的渠道可覆写为单次请求，降低网络往返与限流压力。返回列表与入参一一对应，
+     * 单条失败不影响其它条目。</p>
+     *
+     * @param messages 渠道发送上下文列表
+     * @return 与入参顺序一致的发送结果
+     */
+    default List<ChannelResult> sendBatch(List<ChannelMessage> messages) {
+        List<ChannelResult> results = new ArrayList<>(messages.size());
+        for (ChannelMessage message : messages) {
+            results.add(send(message));
+        }
+        return results;
+    }
 
     /**
      * 主动查询渠道侧的投递状态（可选能力）。
