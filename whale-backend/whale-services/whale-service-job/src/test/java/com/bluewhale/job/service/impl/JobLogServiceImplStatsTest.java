@@ -100,6 +100,24 @@ class JobLogServiceImplStatsTest {
     }
 
     @Test
+    @DisplayName("统计：失败原因按异常类型聚合取 TopN，无法识别归 OTHER")
+    void shouldBuildErrorTypeTop() {
+        when(jobLogMapper.selectList(any())).thenReturn(
+                List.of(log(1L, "job-1", -1, LocalDateTime.of(2026, 11, 17, 10, 0, 0), 10)),
+                List.of(error("BizException: 参数错误"), error("BizException: 余额不足"),
+                        error("HttpServerErrorException$BadGateway: 502"), error("连接超时")));
+
+        JobLogStatsVO stats = service.stats(request(null, null));
+
+        assertEquals(3, stats.getErrorTypeTop().size());
+        assertEquals("BizException", stats.getErrorTypeTop().get(0).getErrorType());
+        assertEquals(2, stats.getErrorTypeTop().get(0).getCount());
+        assertEquals("BizException: 参数错误", stats.getErrorTypeTop().get(0).getSampleMessage());
+        assertEquals("HttpServerErrorException$BadGateway", stats.getErrorTypeTop().get(1).getErrorType());
+        assertEquals("OTHER", stats.getErrorTypeTop().get(2).getErrorType());
+    }
+
+    @Test
     @DisplayName("统计：指定任务时不返回 TopN")
     void shouldSkipTopListsWhenJobIdGiven() {
         when(jobLogMapper.selectList(any())).thenReturn(List.of(
@@ -111,6 +129,7 @@ class JobLogServiceImplStatsTest {
 
         assertTrue(stats.getFailureTop().isEmpty());
         assertTrue(stats.getDurationTop().isEmpty());
+        assertTrue(stats.getErrorTypeTop().isEmpty());
     }
 
     @Test
@@ -149,6 +168,19 @@ class JobLogServiceImplStatsTest {
         request.setFrom(LocalDateTime.of(2026, 11, 17, 0, 0, 0));
         request.setTo(LocalDateTime.of(2026, 11, 18, 23, 59, 59));
         return request;
+    }
+
+    /**
+     * 构造带错误信息的失败日志
+     *
+     * @param errorMsg 错误信息
+     * @return 执行日志实体
+     */
+    private static JobLogPo error(String errorMsg) {
+        JobLogPo log = new JobLogPo();
+        log.setStatus(-1);
+        log.setErrorMsg(errorMsg);
+        return log;
     }
 
     /**

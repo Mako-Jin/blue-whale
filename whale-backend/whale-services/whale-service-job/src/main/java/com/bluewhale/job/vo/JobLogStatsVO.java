@@ -36,4 +36,7 @@ public class JobLogStatsVO implements Serializable {
 
     /** 平均耗时 Top10（指定 jobId 时为空） */
     private List<JobDurationTopVO> durationTop;
+
+    /** 失败原因（异常类型）Top10（指定 jobId 时为空） */
+    private List<JobErrorTypeTopVO> errorTypeTop;
 }

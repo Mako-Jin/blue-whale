@@ -16,6 +16,7 @@ import com.bluewhale.job.scheduler.handler.ExecutorLogClient;
 import com.bluewhale.job.service.JobLogService;
 import com.bluewhale.job.vo.ExecutorLogVO;
 import com.bluewhale.job.vo.JobDurationTopVO;
+import com.bluewhale.job.vo.JobErrorTypeTopVO;
 import com.bluewhale.job.vo.JobFailureTopVO;
 import com.bluewhale.job.vo.JobLogDailyStatVO;
 import com.bluewhale.job.vo.JobLogStatsVO;
@@ -29,10 +30,12 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.regex.Pattern;
 
 /**
  * 定时任务执行日志服务实现（写入由调度引擎 {@code JobScheduler} 完成，本服务只读）
@@ -66,6 +69,19 @@ public class JobLogServiceImpl implements JobLogService {
 
     /** P95 百分位 */
     private static final double P95 = 0.95D;
+
+    /** 失败原因统计最多回捞的失败明细行数 */
+    private static final int MAX_ERROR_SAMPLE_ROWS = 2000;
+
+    /** 失败原因示例信息截断长度 */
+    private static final int SAMPLE_MESSAGE_LENGTH = 200;
+
+    /** 无法识别异常类型时的归类 */
+    private static final String ERROR_TYPE_OTHER = "OTHER";
+
+    /** 异常类型白名单：只接受类名形态的首段，避免把整段错误信息当成类型 */
+    private static final Pattern ERROR_TYPE_PATTERN =
+            Pattern.compile("^[A-Za-z_$][A-Za-z0-9_$.]{0,79}$");
 
     private final JobLogMapper jobLogMapper;
 
@@ -137,6 +153,7 @@ public class JobLogServiceImpl implements JobLogService {
         vo.setDaily(List.of());
         vo.setFailureTop(List.of());
         vo.setDurationTop(List.of());
+        vo.setErrorTypeTop(List.of());
 
         List<Long> scopedJobIds = resolveScopedJobIds(request.getJobGroup());
         if (scopedJobIds != null && scopedJobIds.isEmpty()) {
@@ -166,8 +183,98 @@ public class JobLogServiceImpl implements JobLogService {
         if (request.getJobId() == null) {
             vo.setFailureTop(buildFailureTop(rows));
             vo.setDurationTop(buildDurationTop(rows));
+            vo.setErrorTypeTop(buildErrorTypeTop(from, to, scopedJobIds));
         }
         return vo;
+    }
+
+    /**
+     * 按异常类型聚合失败次数并取 TopN
+     *
+     * <p>只回捞失败行的 {@code error_msg}（上限 {@value #MAX_ERROR_SAMPLE_ROWS} 条、按开始时间倒序），
+     * 避免把成功行的错误列一起拉回；类型取写入格式 {@code 异常简单类名: 消息} 的首段，
+     * 不符合类名形态的记录归入 {@code OTHER}。</p>
+     *
+     * @param from 统计开始时间（含）
+     * @param to 统计结束时间（含）
+     * @param scopedJobIds 分组下的任务ID集合，{@code null} 表示不按分组过滤
+     * @return 出现次数降序的前 10 条
+     */
+    private List<JobErrorTypeTopVO> buildErrorTypeTop(LocalDateTime from, LocalDateTime to,
+                                                      List<Long> scopedJobIds) {
+        LambdaQueryWrapper<JobLogPo> wrapper = new LambdaQueryWrapper<JobLogPo>()
+                .select(JobLogPo::getErrorMsg)
+                .eq(JobLogPo::getStatus, LOG_STATUS_FAILURE)
+                .ge(JobLogPo::getStartTime, from)
+                .le(JobLogPo::getStartTime, to)
+                .in(scopedJobIds != null, JobLogPo::getJobId, scopedJobIds)
+                .orderByDesc(JobLogPo::getStartTime)
+                .last("LIMIT " + MAX_ERROR_SAMPLE_ROWS);
+        Map<String, ErrorTypeAccumulator> accumulators = new HashMap<>();
+        for (JobLogPo row : jobLogMapper.selectList(wrapper)) {
+            String errorType = extractErrorType(row.getErrorMsg());
+            ErrorTypeAccumulator accumulator =
+                    accumulators.computeIfAbsent(errorType, key -> new ErrorTypeAccumulator());
+            accumulator.count++;
+            if (accumulator.sampleMessage == null) {
+                accumulator.sampleMessage = truncateSample(row.getErrorMsg());
+            }
+        }
+        return accumulators.entrySet().stream()
+                .sorted((left, right) -> {
+                    int byCount = Long.compare(right.getValue().count, left.getValue().count);
+                    return byCount != 0 ? byCount : left.getKey().compareTo(right.getKey());
+                })
+                .limit(TOP_N)
+                .map(entry -> {
+                    JobErrorTypeTopVO item = new JobErrorTypeTopVO();
+                    item.setErrorType(entry.getKey());
+                    item.setCount(entry.getValue().count);
+                    item.setSampleMessage(entry.getValue().sampleMessage);
+                    return item;
+                })
+                .toList();
+    }
+
+    /**
+     * 从错误信息中提取异常类型
+     *
+     * @param errorMsg 错误信息（格式 {@code 异常简单类名: 消息}）
+     * @return 形如 {@code BizException} 的类型；无法识别返回 {@code OTHER}
+     */
+    private static String extractErrorType(String errorMsg) {
+        if (!StringUtils.hasText(errorMsg)) {
+            return ERROR_TYPE_OTHER;
+        }
+        String text = errorMsg.trim();
+        int colon = text.indexOf(':');
+        String head = colon > 0 ? text.substring(0, colon).trim() : text;
+        return ERROR_TYPE_PATTERN.matcher(head).matches() ? head : ERROR_TYPE_OTHER;
+    }
+
+    /**
+     * 截断失败原因示例信息
+     *
+     * @param errorMsg 原始错误信息
+     * @return 截断后的信息
+     */
+    private static String truncateSample(String errorMsg) {
+        if (errorMsg == null || errorMsg.length() <= SAMPLE_MESSAGE_LENGTH) {
+            return errorMsg;
+        }
+        return errorMsg.substring(0, SAMPLE_MESSAGE_LENGTH);
+    }
+
+    /**
+     * 失败原因聚合桶
+     */
+    private static final class ErrorTypeAccumulator {
+
+        /** 出现次数 */
+        private long count;
+
+        /** 首条示例错误信息 */
+        private String sampleMessage;
     }
 
     /**
