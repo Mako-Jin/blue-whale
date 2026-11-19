@@ -17,24 +17,24 @@ import lombok.Data;
 public class MailAccountSaveRequest {
 
     /** 邮箱地址 */
-    @NotBlank(message = "邮箱地址不能为空")
-    @Email(message = "邮箱地址格式不正确")
-    @Size(max = 190, message = "邮箱地址过长")
+    @NotBlank(message = "{validation.mail.account.email-required}")
+    @Email(message = "{validation.mail.account.email-format}")
+    @Size(max = 190, message = "{validation.mail.account.email-size}")
     private String email;
 
     /** 发件显示名 */
-    @Size(max = 96, message = "显示名过长")
+    @Size(max = 96, message = "{validation.mail.account.display-name-size}")
     private String displayName;
 
     /** 账号类型：PERSONAL / SHARED */
     private String accountType;
 
     /** 凭据引用（Nacos 配置键或环境变量名） */
-    @Size(max = 190, message = "凭据引用过长")
+    @Size(max = 190, message = "{validation.mail.account.secret-ref-size}")
     private String secretRef;
 
     /** IMAP 主机（空则取全局默认） */
-    @Size(max = 128, message = "IMAP 主机过长")
+    @Size(max = 128, message = "{validation.mail.account.imap-host-size}")
     private String imapHost;
 
     /** IMAP 端口（空则取全局默认） */
@@ -44,7 +44,7 @@ public class MailAccountSaveRequest {
     private Boolean imapSsl;
 
     /** SMTP 主机（空则取全局默认） */
-    @Size(max = 128, message = "SMTP 主机过长")
+    @Size(max = 128, message = "{validation.mail.account.smtp-host-size}")
     private String smtpHost;
 
     /** SMTP 端口（空则取全局默认） */

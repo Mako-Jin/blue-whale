@@ -21,20 +21,20 @@ public class SongSaveCommand {
     private Long albumId;
 
     /** 歌手 ID */
-    @NotNull(message = "歌曲必须关联歌手")
+    @NotNull(message = "{validation.music.song.artist-required}")
     private Long artistId;
 
     /** 歌曲标题 */
-    @NotBlank(message = "歌曲标题不能为空")
-    @Size(max = 120, message = "歌曲标题最多 120 个字符")
+    @NotBlank(message = "{validation.music.song.title-required}")
+    @Size(max = 120, message = "{validation.music.song.title-size}")
     private String title;
 
     /** 副标题 */
-    @Size(max = 200, message = "副标题最多 200 个字符")
+    @Size(max = 200, message = "{validation.music.song.subtitle-size}")
     private String subtitle;
 
     /** 音频文件 ID */
-    @NotNull(message = "请先上传音频文件")
+    @NotNull(message = "{validation.music.song.audio-required}")
     private Long audioFileId;
 
     /** 封面文件 ID */
@@ -50,7 +50,7 @@ public class SongSaveCommand {
     private String lyricText;
 
     /** 语言：ZH / EN / JA / OTHER */
-    @Pattern(regexp = "ZH|EN|JA|OTHER", message = "语言取值非法")
+    @Pattern(regexp = "ZH|EN|JA|OTHER", message = "{validation.music.song.language-pattern}")
     private String language;
 
     /** 可见性：PUBLIC 公开 / PRIVATE 仅自听；缺省 PUBLIC */

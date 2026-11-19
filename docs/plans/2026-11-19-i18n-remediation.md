@@ -93,11 +93,17 @@
 - [x] 各服务三份资源包追加 `validation.<module>.*` 键，键集一致、代码引用零缺失
 - [x] 五个服务 `mvn test` + `checkstyle:check` 全部通过
 
+### P2 第七批（DTO 校验文案：music / mail / twin）
+
+- [x] 三个服务共 98 处校验文案键化：music 33、mail 32、twin 33
+- [x] 三份资源包键集一致（music 39、mail 88、twin 72），引用键零缺失；重复文案复用同一键
+- [x] 三个服务 `mvn test` + `checkstyle:check` 全部通过
+
 ## 三、待做项（P2 剩余 / P3）
 
 | 级别 | 事项 | 说明 |
 | --- | --- | --- |
-| P2 | DTO 校验文案迁移 | Boot 4 已自动装配 `MessageSourceMessageInterpolator`；forum、im、pay、agent、scene、assistant 已完成，其余模块按同样式分批铺开 |
+| P2 | DTO 校验文案迁移 | Boot 4 已自动装配 `MessageSourceMessageInterpolator`；forum、im、pay、agent、scene、assistant、music、mail、twin 已完成，其余模块按同样式分批铺开 |
 | P2 | 前端其余页面 | admin 剩余 50+ 页面、portal 与子应用按模块分批替换硬编码文案 |
 | P3 | 运维服务 | audit / monitor / alert 视对外暴露程度再定 |
 

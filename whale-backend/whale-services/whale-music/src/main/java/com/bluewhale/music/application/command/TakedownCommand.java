@@ -13,7 +13,7 @@ import lombok.Data;
 public class TakedownCommand {
 
     /** 版权下架原因（用于留痕） */
-    @NotBlank(message = "版权下架必须填写原因")
-    @Size(max = 500, message = "下架原因最多 500 个字符")
+    @NotBlank(message = "{validation.music.takedown.reason-required}")
+    @Size(max = 500, message = "{validation.music.takedown.reason-size}")
     private String reason;
 }

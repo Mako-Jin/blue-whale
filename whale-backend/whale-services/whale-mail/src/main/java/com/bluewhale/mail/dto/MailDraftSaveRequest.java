@@ -15,15 +15,15 @@ import java.util.List;
 public class MailDraftSaveRequest {
 
     /** 所属邮箱账号ID */
-    @NotNull(message = "发信账号不能为空")
+    @NotNull(message = "{validation.mail.draft.account-required}")
     private Long accountId;
 
     /** 客户端草稿键（用于本地草稿合并） */
-    @Size(max = 64, message = "草稿键过长")
+    @Size(max = 64, message = "{validation.mail.draft.draft-key-size}")
     private String draftKey;
 
     /** 主题 */
-    @Size(max = 512, message = "主题过长")
+    @Size(max = 512, message = "{validation.mail.draft.subject-size}")
     private String subject;
 
     /** 收件人 */

@@ -12,6 +12,6 @@ import lombok.Data;
 public class PlayTicketCommand {
 
     /** 歌曲 ID */
-    @NotNull(message = "歌曲 ID 不能为空")
+    @NotNull(message = "{validation.music.ticket.song-id-required}")
     private Long songId;
 }

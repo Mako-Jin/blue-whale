@@ -14,16 +14,16 @@ import lombok.Data;
 public class MailAttachmentRequest {
 
     /** whale-file 文件ID */
-    @NotNull(message = "附件文件ID不能为空")
+    @NotNull(message = "{validation.mail.attachment.file-id-required}")
     private Long fileId;
 
     /** 文件名 */
-    @NotBlank(message = "附件文件名不能为空")
-    @Size(max = 255, message = "附件文件名过长")
+    @NotBlank(message = "{validation.mail.attachment.file-name-required}")
+    @Size(max = 255, message = "{validation.mail.attachment.file-name-size}")
     private String fileName;
 
     /** MIME 类型 */
-    @Size(max = 128, message = "MIME 类型过长")
+    @Size(max = 128, message = "{validation.mail.attachment.content-type-size}")
     private String contentType;
 
     /** 大小（字节） */

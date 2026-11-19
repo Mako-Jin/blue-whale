@@ -17,20 +17,20 @@ import lombok.Data;
 public class MailProvisionRequest {
 
     /** 租户 ID */
-    @NotNull(message = "租户ID不能为空")
+    @NotNull(message = "{validation.mail.provision.tenant-required}")
     private Long tenantId;
 
     /** 平台用户 ID（whale-auth sys_user.id） */
-    @NotNull(message = "用户ID不能为空")
+    @NotNull(message = "{validation.mail.provision.user-required}")
     private Long userId;
 
     /** 用户名（生成邮箱地址用；不含可用字符时回退为 u{userId}） */
-    @NotBlank(message = "用户名不能为空")
-    @Size(max = 64, message = "用户名过长")
+    @NotBlank(message = "{validation.mail.provision.username-required}")
+    @Size(max = 64, message = "{validation.mail.provision.username-size}")
     private String username;
 
     /** 显示名（发件人名称） */
-    @Size(max = 96, message = "显示名过长")
+    @Size(max = 96, message = "{validation.mail.provision.display-name-size}")
     private String displayName;
 
     /**
@@ -39,6 +39,6 @@ public class MailProvisionRequest {
      * <p>用于用户名是中文或含特殊字符、需要指定拼音地址的场景；
      * 留空时按 {@code username + 默认域名} 生成。</p>
      */
-    @Size(max = 190, message = "邮箱地址过长")
+    @Size(max = 190, message = "{validation.mail.provision.email-size}")
     private String email;
 }

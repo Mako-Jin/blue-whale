@@ -14,12 +14,12 @@ import lombok.Data;
 public class PlaylistSaveCommand {
 
     /** 歌单标题 */
-    @NotBlank(message = "歌单标题不能为空")
-    @Size(max = 120, message = "歌单标题最多 120 个字符")
+    @NotBlank(message = "{validation.music.playlist.title-required}")
+    @Size(max = 120, message = "{validation.music.playlist.title-size}")
     private String title;
 
     /** 歌单简介 */
-    @Size(max = 1000, message = "歌单简介最多 1000 个字符")
+    @Size(max = 1000, message = "{validation.music.playlist.description-size}")
     private String description;
 
     /** 可见性：PUBLIC 公开 / PRIVATE 仅所有者；缺省 PUBLIC */

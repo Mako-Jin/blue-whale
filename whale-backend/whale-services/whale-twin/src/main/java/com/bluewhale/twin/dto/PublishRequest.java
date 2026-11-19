@@ -12,6 +12,6 @@ import lombok.Data;
 public class PublishRequest {
 
     /** 发布说明（最长 256 字符） */
-    @Size(max = 256, message = "发布说明最长 256 字符")
+    @Size(max = 256, message = "{validation.twin.publish.remark-size}")
     private String remark;
 }
