@@ -8,11 +8,11 @@
 
 | 能力 | 页面位置 | 依赖接口 |
 |---|---|---|
-| DAG 依赖拓扑 | 定时任务页新增「依赖拓扑」页签 | `GET /job/graph`、`GET /job/graph/validate` |
-| 批量启停 / 删除 | 任务列表页签工具栏 | `POST /job/info/batch-status`、`POST /job/info/batch-delete` |
-| 按选中导出 / 导入 | 任务列表页签工具栏 | `GET /job/info/export/download`、`POST /job/info/import` |
-| 告警通道与恢复标识 | 告警记录页签 | `GET /job/alert/page`（`channel` 参数 + `recovered` 字段） |
-| 执行统计 | 新增「执行统计」页签 | `GET /job/log/stats` |
+| DAG 依赖拓扑 | 定时任务页新增「依赖拓扑」页签 | `GET /job/v1/graph`、`GET /job/v1/graph/validate` |
+| 批量启停 / 删除 | 任务列表页签工具栏 | `POST /job/v1/info/batch-status`、`POST /job/v1/info/batch-delete` |
+| 按选中导出 / 导入 | 任务列表页签工具栏 | `GET /job/v1/info/export/download`、`POST /job/v1/info/import` |
+| 告警通道与恢复标识 | 告警记录页签 | `GET /job/v1/alert/page`（`channel` 参数 + `recovered` 字段） |
+| 执行统计 | 新增「执行统计」页签 | `GET /job/v1/log/stats` |
 
 执行统计接口已可用，本次一并接入；后续不再单列排期。
 
@@ -26,7 +26,7 @@ lockfile 里也没有可复用的图库。为一张最大几十节点的依赖�
   环上节点用迭代松弛封顶，不会死循环（依赖图本身应当无环，环只是数据异常时的兜底展示）；
 - 渲染是普通 SVG（`DagGraph.tsx`）：节点矩形 + 状态点 + 任务名，边为三次贝塞尔 + 箭头 marker；
 - 缩放用容器 `overflow: auto` + SVG 尺寸缩放按钮，不做拖拽平移，避免手写交互状态；
-- 环检测结果来自后端 `/job/graph/validate`，命中环节点标红，不在前端重复实现算法。
+- 环检测结果来自后端 `/job/v1/graph/validate`，命中环节点标红，不在前端重复实现算法。
 
 优点：零新增依赖、可单测、构建体积不变；缺点：节点数上百时布局会变宽，靠横向滚动兜底，
 当前任务量级（分组内几十个）足够。

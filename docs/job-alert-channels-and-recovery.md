@@ -116,7 +116,7 @@ whale:
 
 ## 6. 告警查询增强
 
-`GET /job/alert/page?jobId=&level=&channel=`
+`GET /job/v1/alert/page?jobId=&level=&channel=`
 
 - 新增 `channel` 模糊筛选：因为多通道场景下 `channel` 是逗号拼接值（如 `DINGTALK,FEISHU`），
   用模糊匹配才能按单个通道名筛出记录；`level` 仍为精确匹配；

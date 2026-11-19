@@ -7,15 +7,15 @@
 
 | 项 | 现状 | 缺口 |
 |---|---|---|
-| 依赖拓扑 | 只有 `GET /job/info/{id}/dependencies` 单点上下游 | 无法一次拿到全量节点与边，前端画不了图 |
+| 依赖拓扑 | 只有 `GET /job/v1/info/{id}/dependencies` 单点上下游 | 无法一次拿到全量节点与边，前端画不了图 |
 | 环检测 | `saveDependencies` 只做「本次新增边」的增量环检测 | 全量编辑 / 数据修复后缺少整图校验入口 |
-| 执行统计 | `GET /job/log/page` 只有明细分页 | 没有按天成功率、耗时 P95、失败 TopN |
+| 执行统计 | `GET /job/v1/log/page` 只有明细分页 | 没有按天成功率、耗时 P95、失败 TopN |
 
 ## 2. 第 5 项：DAG 拓扑图
 
 ### 2.1 全量图接口
 
-`GET /job/graph?jobGroup=`（权限 `sys:job:list`）
+`GET /job/v1/graph?jobGroup=`（权限 `sys:job:list`）
 
 ```json
 {
@@ -37,7 +37,7 @@
 
 ### 2.2 整图环检测
 
-`GET /job/graph/validate`（权限 `sys:job:list`）
+`GET /job/v1/graph/validate`（权限 `sys:job:list`）
 
 ```json
 {"acyclic": false, "cycleJobIds": [2, 3, 2]}
@@ -50,7 +50,7 @@
 
 ## 3. 第 6 项：执行统计
 
-`GET /job/log/stats?jobId=&jobGroup=&from=&to=`（权限 `sys:job:log:list`）
+`GET /job/v1/log/stats?jobId=&jobGroup=&from=&to=`（权限 `sys:job:log:list`）
 
 ```json
 {
@@ -102,5 +102,5 @@ P95 在 MySQL 8 没有原生百分位函数，用窗口函数或 `GROUP_CONCAT` 
 ## 5. 兼容与回滚
 
 - 纯新增只读接口，无 DDL、无配置项、无调度行为变更；回滚直接回退代码即可。
-- 前端接入前建议先在管理端用 `GET /job/graph` 与 `/job/log/stats` 验证数据；
-  DAG 拖拽连线仍调用既有 `POST /job/info/{id}/dependencies`（全量替换语义），本次不新增写接口。
+- 前端接入前建议先在管理端用 `GET /job/v1/graph` 与 `/job/v1/log/stats` 验证数据；
+  DAG 拖拽连线仍调用既有 `POST /job/v1/info/{id}/dependencies`（全量替换语义），本次不新增写接口。

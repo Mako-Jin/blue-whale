@@ -63,7 +63,7 @@
   3. 写一条 `audit_log`，`username=SYSTEM`、`module=whale-job`、`operation=任务连续失败自动暂停`，
      与人工「启停定时任务」区分；
   4. 通过 `JobAlertNotifier#notifyAutoPaused` 发一次「已自动暂停」告警（`job_alert.level=WARN`）。
-- 恢复：管理端把任务重新启用（`PUT /job/info/{id}/status`，`status=1`）时 `fail_count` 清零，
+- 恢复：管理端把任务重新启用（`PUT /job/v1/info/{id}/status`，`status=1`）时 `fail_count` 清零，
   否则恢复后第一次失败就会再次触发熔断。若需人工确认前保持暂停，可不启用，仅重置失败计数由
   下次启用隐式完成。
 - 计数粒度是「一次执行」而非「一次分片」：分片任务部分失败只加 1，避免一次执行把阈值打满。

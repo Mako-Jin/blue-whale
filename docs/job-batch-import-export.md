@@ -8,16 +8,16 @@
 
 | 场景 | 现状 | 缺口 |
 |---|---|---|
-| 批量启停 | `PUT /job/info/{id}/status` 单条 | 迁移/演练时要逐条点，且中途失败无法定位是哪条 |
-| 批量删除 | `DELETE /job/info/{id}` 单条 | 清理测试数据逐条删，效率低 |
+| 批量启停 | `PUT /job/v1/info/{id}/status` 单条 | 迁移/演练时要逐条点，且中途失败无法定位是哪条 |
+| 批量删除 | `DELETE /job/v1/info/{id}` 单条 | 清理测试数据逐条删，效率低 |
 | 环境搬运 | 无 | 测试环境调好的任务与依赖要手工在预发/生产重建 |
-| 数据体检 | `GET /job/graph` 只读 | 拿到图但没有可回灌的载体 |
+| 数据体检 | `GET /job/v1/graph` 只读 | 拿到图但没有可回灌的载体 |
 
 ## 2. 第 7 项：接口设计
 
 ### 2.1 批量启停
 
-`POST /job/info/batch-status`（权限 `sys:job:edit`）
+`POST /job/v1/info/batch-status`（权限 `sys:job:edit`）
 
 ```json
 {"jobIds": [1, 2, 3], "status": 0}
@@ -31,7 +31,7 @@
 
 ### 2.2 批量删除
 
-`POST /job/info/batch-delete`（权限 `sys:job:delete`）
+`POST /job/v1/info/batch-delete`（权限 `sys:job:delete`）
 
 ```json
 {"jobIds": [1, 2, 3]}
@@ -51,7 +51,7 @@
 
 ### 2.4 导出
 
-`GET /job/info/export?jobGroup=&jobIds=1,2,3`（权限 `sys:job:list`）
+`GET /job/v1/info/export?jobGroup=&jobIds=1,2,3`（权限 `sys:job:list`）
 
 - `jobGroup` 与 `jobIds` 均可选，同时传入时取交集（只导出该分组内且 ID 命中的任务）；
 - `jobIds` 支持逗号分隔或重复参数两种写法，用于管理端「仅导出选中任务」。
@@ -64,7 +64,7 @@
     {"jobName": "CRM 商务订单下发 ERP", "jobGroup": "CRM",
      "executorApp": "whale-crm", "jobCode": "crm.order-push",
      "cronExpression": "0 0/10 * * * ?", "handlerBean": "httpJobHandler",
-     "handlerParam": "{\"url\":\"/internal/job/order-push\"}",
+     "handlerParam": "{\"url\":\"/internal/job/v1/order-push\"}",
      "misfirePolicy": "SMART", "maxRetry": 2, "retryIntervalSeconds": 60,
      "shardTotal": 1, "timeoutSeconds": 300, "failThreshold": 5,
      "status": 1, "remark": ""}
@@ -85,7 +85,7 @@
 
 ### 2.5 文件下载
 
-`GET /job/info/export/download?jobGroup=&jobIds=`（权限 `sys:job:list`）
+`GET /job/v1/info/export/download?jobGroup=&jobIds=`（权限 `sys:job:list`）
 
 - 参数与导出接口一致，返回 `application/json` 附件，`Content-Disposition: attachment; filename="job-export-yyyyMMdd-HHmmss.json"`；
 - 内容即导出接口的 `data` 部分（任务 + 依赖），可直接另存后作为导入文件；
@@ -93,7 +93,7 @@
 
 ### 2.6 导入
 
-`POST /job/info/import`（权限 `sys:job:add`）
+`POST /job/v1/info/import`（权限 `sys:job:add`）
 
 ```json
 {
