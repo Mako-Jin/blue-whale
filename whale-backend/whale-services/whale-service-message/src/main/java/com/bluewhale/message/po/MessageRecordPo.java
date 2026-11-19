@@ -51,4 +51,7 @@ public class MessageRecordPo extends BaseEntity {
 
     /** 消息过期时间（超过后不再投递，投递记 EXPIRED） */
     private LocalDateTime expireAt;
+
+    /** 发送请求链路追踪ID（回执回调原样透传） */
+    private String traceId;
 }

@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS msg_record (
     status           VARCHAR(16)   NOT NULL DEFAULT 'PENDING' COMMENT '消息状态：PENDING / SENT / DELIVERED / PARTIAL / FAILED / MOCKED / SKIPPED / EXPIRED',
     callback_url     VARCHAR(512)  DEFAULT NULL            COMMENT '回执回调地址（业务方内网端点；空表示不回传）',
     expire_at        DATETIME      DEFAULT NULL            COMMENT '消息过期时间（超过后不再投递，投递记 EXPIRED）',
+    trace_id         VARCHAR(64)   DEFAULT NULL            COMMENT '发送请求链路追踪ID（回执回调原样透传）',
     create_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted          TINYINT       NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',

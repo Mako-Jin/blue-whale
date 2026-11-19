@@ -1,6 +1,7 @@
 package com.bluewhale.message.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.bluewhale.common.context.RequestContextHolder;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.tenant.TenantContext;
@@ -19,6 +20,7 @@ import com.bluewhale.message.mapper.MessageDeliveryMapper;
 import com.bluewhale.message.mapper.MessageReceiptMapper;
 import com.bluewhale.message.mapper.MessageRecordMapper;
 import com.bluewhale.message.service.MessageReceiptService;
+import com.bluewhale.message.support.MaskUtils;
 import com.bluewhale.message.support.MessageMetrics;
 import com.bluewhale.message.support.MessageStatusAggregator;
 import com.bluewhale.message.support.ReceiptMatcher;
@@ -150,8 +152,10 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
                 handleOne(item, existingKeys, matches, result, touchedMessages, recordCache);
             }
             refreshRecordStatuses(touchedMessages, recordCache);
-            log.info("回执受理完成: tenantId={}, received={}, accepted={}, duplicated={}, unmatched={}, advanced={}, queued={}",
-                    tenantId, result.getReceived(), result.getAccepted(), result.getDuplicated(),
+            log.info("回执受理完成: tenantId={}, traceId={}, received={}, accepted={}, duplicated={}, unmatched={}, "
+                            + "advanced={}, queued={}",
+                    tenantId, RequestContextHolder.getTraceId(),
+                    result.getReceived(), result.getAccepted(), result.getDuplicated(),
                     result.getUnmatched(), result.getAdvanced(), result.getCallbackQueued());
             return result;
         } finally {
@@ -491,9 +495,12 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
         payload.put("bizType", record.getBizType());
         payload.put("bizId", record.getBizId());
         payload.put("channel", delivery.getChannel());
-        payload.put("recipient", delivery.getRecipient());
+        // 接收人按渠道脱敏，明文手机号/邮箱不出平台边界
+        payload.put("recipient", MaskUtils.maskRecipient(delivery.getChannel(), delivery.getRecipient()));
         payload.put("status", target.name());
         payload.put("providerMessageId", delivery.getProviderMessageId());
+        // 原样透传发送链路ID，业务方可据此串联自己的调用链
+        payload.put("traceId", record.getTraceId());
         // 用 ISO 文本承载时间，避免依赖调用方 Jackson 是否注册 JavaTimeModule
         payload.put("receiptTime", receiptTime == null ? null : receiptTime.toString());
         payload.put("errorCode", item.getErrorCode());
