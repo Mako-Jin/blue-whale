@@ -1742,22 +1742,128 @@ function shrubSpots(trees: TreeSpot[]): GroundSpot[] {
   return out;
 }
 
-/** 一丛灌木：4 个压扁的多面体，高低错开。20 面 × 4 = 80 个三角面 */
+/**
+ * 一丛灌木：斐波那契壳层撒 11 个叶团 + 冠心 3 团 + 4 根露头的枯枝。
+ *
+ * <p>旧版 4 颗 detail-1 大团、整丛一个 0x566a38——出图是一颗平滑的绿土豆，
+ * 在河岸机位 3~6m 前景里比树冠还显眼。树冠管线的结论直接搬过来用：</p>
+ * <ol>
+ *   <li><b>叶团尺度</b>：很多小团（0.20~0.34m）而不是几颗大团，剪影才碎得开；</li>
+ *   <li><b>平面着色</b>：detail-0 的三角面约 0.2m，正好是"一小簇叶"的尺度，
+ *       flatShading 让每片自己朝一个方向，受光碎成明暗不同的块；</li>
+ *   <li><b>顶点色</b>：逐团明暗差 + 自下而上的受光梯度（顶部接天光、
+ *       底部被自己遮住），这条梯度比噪声更决定体积感。</li>
+ * </ol>
+ *
+ * <p>预算：叶团 14 × 20 面 + 枯枝 4 × 12 面 ≈ 330 三角面/丛（旧 80）。
+ * 约 125 丛，合计 +31k——比树冠便宜两个量级，因为灌木不用 metaball 融合，
+ * 小团之间的硬相交在平面着色下读作"叶簇搭着叶簇"。</p>
+ */
 function createShrub(): THREE.BufferGeometry {
+  const hash01 = (...k: number[]): number => {
+    let s = 0;
+    for (let i = 0; i < k.length; i += 1) {
+      s += Math.sin(k[i] * (12.9898 + i * 4.7) + i * 3.1) * 43758.5453;
+    }
+    return s - Math.floor(s);
+  };
+
+  const dark = new THREE.Color(0x37451f);
+  const light = new THREE.Color(0x6f8440);
+  const barkC = new THREE.Color(0x4a3b28);
+
+  /**
+   * 径向抖动：把二十面体的"规整晶面"打碎成不规则碎面。
+   *
+   * <p>灌木第一版直接用 detail-0 二十面体，出图是一堆绿色碎晶石——
+   * 规整的大平板是"晶体"的签名。树冠管线的等价物是"噪声推顶点 + 抽面"，
+   * 这里用最便宜的版本：顶点沿径向随机抖 ±20%（二十面体顶点都在球面上，
+   * 直接缩放半径）。用<b>位置哈希</b>而非顶点序号——非索引几何的共享顶点
+   * 是重复的，按序号抖会把同一处撕开三条缝。</p>
+   */
+  const displace = (g: THREE.BufferGeometry, seed: number): void => {
+    const pos = g.getAttribute('position');
+    for (let i = 0; i < pos.count; i += 1) {
+      const x = pos.getX(i);
+      const y = pos.getY(i);
+      const z = pos.getZ(i);
+      const d = (hash01(x * 13.7, y * 9.1, z * 11.3, seed) - 0.42) * 0.36;
+      const k = 1 + d;
+      pos.setXYZ(i, x * k, y * k, z * k);
+    }
+  };
+
+  const paint = (g: THREE.BufferGeometry, lumpSeed: number, top: number): void => {
+    const pos = g.getAttribute('position');
+    const col = new Float32Array(pos.count * 3);
+    const c = new THREE.Color();
+    const lh = hash01(lumpSeed * 3.7, 1.3); // 团与团之间的明暗差
+    for (let i = 0; i < pos.count; i += 1) {
+      const y = pos.getY(i);
+      const vgrad = Math.min(1, Math.max(0, y / top)); // 受光梯度：上亮下暗
+      const jit = hash01(pos.getX(i) * 9.1, pos.getZ(i) * 7.7, lumpSeed) - 0.5;
+      const t = Math.min(1, Math.max(0, 0.18 + lh * 0.30 + vgrad * 0.52 + jit * 0.34));
+      c.lerpColors(dark, light, t);
+      col[i * 3] = c.r;
+      col[i * 3 + 1] = c.g;
+      col[i * 3 + 2] = c.b;
+    }
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  };
+
   const parts: THREE.BufferGeometry[] = [];
-  const lumps: Array<[number, number, number, number]> = [
-    [0, 0.38, 0, 0.6],
-    [0.44, 0.26, 0.2, 0.44],
-    [-0.4, 0.24, -0.16, 0.4],
-    [0.04, 0.56, -0.26, 0.38],
-  ];
-  for (const [x, y, z, r] of lumps) {
-    // 细分一级：20 面的二十面体在 10m 内是一块"岩石"，80 面才像一堆叶子
+  // 壳层叶团：椭圆壳 (0.74, 0.30, 0.74)，径向 0.34~0.95，随机三成下坠成"垂舌"。
+  // detail 1（80 面，碎面约 8~10cm）：3~5m 前景里 detail-0 的 0.2m 平板就是晶面
+  const NL = 9;
+  for (let i = 0; i < NL; i += 1) {
+    const y = 1.0 - (2.0 * (i + 0.5)) / NL;
+    const rr = Math.sqrt(Math.max(0, 1 - y * y));
+    const phi = i * 2.399963229728653;
+    const k = 0.34 + 0.61 * hash01(i * 1.7, 3.1);
+    const jr = hash01(i * 0.9, 8.8);
+    const tongue = hash01(i * 2.7, 9.0) > 0.7 ? 0.10 : 0.0;
+    const r = 0.20 + 0.15 * jr;
     const g = new THREE.IcosahedronGeometry(r, 1);
-    g.scale(1, 0.72, 1);
-    g.translate(x, y, z);
+    displace(g, i + 1);
+    g.translate(
+      Math.cos(phi) * rr * 0.74 * k,
+      0.42 + y * 0.30 * k + (jr - 0.5) * 0.10 - tongue,
+      Math.sin(phi) * rr * 0.74 * k,
+    );
+    paint(g, i + 1, 0.78);
     parts.push(g);
   }
+  // 冠心：壳层是空壳，俯视/侧视会透视到地面。冠心看不见大面，detail 0 够用
+  for (let i = 0; i < 3; i += 1) {
+    const g = new THREE.IcosahedronGeometry(0.28 - i * 0.04, 0);
+    displace(g, 21 + i);
+    g.translate((i - 1) * 0.16, 0.30 + i * 0.12, (i % 2 === 0 ? 0.1 : -0.12));
+    paint(g, 21 + i, 0.72);
+    parts.push(g);
+  }
+  // 枯枝：从基部斜着捅出叶幕，"木本"的线索——没有这几根，灌木就是一堆绿球
+  for (let i = 0; i < 4; i += 1) {
+    const a = i * Math.PI * 0.62 + 0.4;
+    const len = 0.55 + hash01(i * 5.3, 2.2) * 0.3;
+    // 二十面体是非索引几何，圆柱是索引几何——mergeGeometries 要求一致，
+    // 必须先 toNonIndexed（不一致时静默失败，控制台才有一行警告）
+    const g = new THREE.CylinderGeometry(0.006, 0.016, len, 4, 1, true).toNonIndexed();
+    g.translate(0, len / 2, 0);
+    g.rotateZ(Math.cos(a) * 0.55);
+    g.rotateX(Math.sin(a) * 0.55);
+    g.translate(Math.cos(a) * 0.08, 0.05, Math.sin(a) * 0.08);
+    // 枯枝整根用树皮色：paint 的叶色渐变对它没意义，直接写顶点色
+    const pos = g.getAttribute('position');
+    const col = new Float32Array(pos.count * 3);
+    for (let v = 0; v < pos.count; v += 1) {
+      col[v * 3] = barkC.r;
+      col[v * 3 + 1] = barkC.g;
+      col[v * 3 + 2] = barkC.b;
+    }
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    parts.push(g);
+  }
+
   const merged = mergeGeometries(parts, false);
   for (const g of parts) g.dispose();
   if (!merged) return new THREE.IcosahedronGeometry(0.5, 0);
@@ -1886,7 +1992,15 @@ function buildGroundCover(group: THREE.Group, trees: TreeSpot[]): void {
   instanceScatter(
     group,
     shrub,
-    new THREE.MeshStandardMaterial({ color: 0x566a38, roughness: 0.94 }),
+    new THREE.MeshStandardMaterial({
+      // 颜色全部由顶点色承担（逐团明暗差 + 受光梯度），材质只出白基调
+      color: 0xffffff,
+      vertexColors: true,
+      // 平面着色：detail-0 三角面约 0.2m = "一小簇叶"的尺度，受光碎成块
+      flatShading: true,
+      roughness: 0.94,
+      metalness: 0,
+    }),
     shrubSpots(trees),
     'shrubs',
   );
