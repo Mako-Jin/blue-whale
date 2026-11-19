@@ -3,7 +3,8 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { createSceneEnv } from './env';
 import type { SceneAssets } from './loader';
 import { createPostFx } from './postfx';
-import { WALL_X, alleySpots, buildSettlement, lanternSpots, windTime } from './props';
+import { GATE_PLAQUE_ANCHOR, WALL_X, alleySpots, buildSettlement, lanternSpots, windTime } from './props';
+import { createGatePlaque } from './plaque';
 import { createSky, type SkyState } from './sky';
 import { createTerrain, heightAt, GATE_ROAD_Y } from './terrain';
 import { createFarRidges } from './ridges';
@@ -559,6 +560,21 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
       gateLights.push(light);
     }
   }
+  // 檐下灯笼点光（S31）：照亮城楼外脸与匾额。半径放宽到 16——灯挂在
+  // x=+2.5，要够到 x≈0 附近的楼身，壁灯 10 的半径罩不满整脸
+  for (const dz of [-3.5, 3.5]) {
+    const light = new THREE.PointLight(0xff9d52, 0, 16, 2);
+    light.position.set(WALL_X + 3.1, 11.6, 2 + dz);
+    light.castShadow = false;
+    scene.add(light);
+    gateLights.push(light);
+  }
+
+  // 城楼匾额（S31）：檐下金字「朝陽門」，两面各一——城外机位看 +X 面，
+  // 桥头机位看 −X 面，两面读字都正立不镜像
+  const gatePlaque = createGatePlaque();
+  gatePlaque.position.set(GATE_PLAQUE_ANCHOR.x, GATE_PLAQUE_ANCHOR.y, GATE_PLAQUE_ANCHOR.z);
+  scene.add(gatePlaque);
 
   // 地面光斑：程序化径向渐变，避免再引一张贴图资产
   const glowCanvas = document.createElement('canvas');

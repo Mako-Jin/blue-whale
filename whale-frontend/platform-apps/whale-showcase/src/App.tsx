@@ -110,7 +110,7 @@ export default function App(): React.ReactElement {
 
       <div className="sc-title">
         <div className="sc-title-main">蓝鲸 · 河谷渡口</div>
-        <div className="sc-title-sub">S30 城门楼 · 城台券门 / 谯楼复位·城门道开凿</div>
+        <div className="sc-title-sub">S31 城楼匾额 · 檐下描金「朝陽門」/ 檐灯夜照东脸</div>
       </div>
 
       <div className="sc-bar">
