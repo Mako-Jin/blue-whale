@@ -50,6 +50,10 @@ export interface OaExpense {
   approvalInstanceId?: number;
   erpPushStatus: OaExpensePushStatus;
   erpPayableNo?: string;
+  /** 关联出差单ID */
+  tripId?: number | null;
+  /** 关联出差预算快照（元） */
+  tripBudgetAmount?: number | null;
   submitTime?: string;
   remark?: string;
   createTime?: string;
@@ -68,6 +72,8 @@ export interface OaExpenseInput {
   title: string;
   currency?: string;
   remark?: string;
+  /** 关联出差单ID（可选） */
+  tripId?: number | null;
   items: OaExpenseItem[];
   invoices?: OaExpenseInvoice[];
 }

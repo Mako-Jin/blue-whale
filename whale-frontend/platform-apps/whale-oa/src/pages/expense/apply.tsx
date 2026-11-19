@@ -1,6 +1,7 @@
 // OA 报销申请页：报销单编辑（明细/发票）+ 提交审批 + 删除
 import { useCallback, useEffect, useState } from 'react';
 import {
+  Alert,
   App,
   Button,
   DatePicker,
@@ -30,6 +31,7 @@ import {
   type OaExpenseInput,
   type OaExpenseStatus,
 } from '../../api/expense';
+import { pageTrips, type OaTrip } from '../../api/trip';
 import { getCurrentUser } from '../../api/client';
 import { hasPermission } from '../../utils/permission';
 
@@ -49,6 +51,7 @@ interface ExpenseFormValues {
   categoryCode: string;
   title: string;
   currency?: string;
+  tripId?: number | null;
   remark?: string;
   items: {
     categoryCode: string;
@@ -77,6 +80,8 @@ export default function ExpenseApplyPage() {
   const [code, setCode] = useState('');
   const [status, setStatus] = useState<OaExpenseStatus | ''>('');
   const [categories, setCategories] = useState<OaExpenseCategory[]>([]);
+  const [trips, setTrips] = useState<OaTrip[]>([]);
+  const [editTrip, setEditTrip] = useState<{ id: number; budget?: number | null } | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<OaExpense | null>(null);
   const [saving, setSaving] = useState(false);
@@ -112,17 +117,47 @@ export default function ExpenseApplyPage() {
       .catch(() => setCategories([]));
   }, []);
 
+  useEffect(() => {
+    pageTrips({ current: 1, size: 200, status: 'APPROVED' })
+      .then((page) => setTrips(page.records))
+      .catch(() => setTrips([]));
+  }, []);
+
   const categoryOptions = categories
     .filter((item) => item.enabled !== false)
     .map((item) => ({ label: `${item.name}（${item.code}）`, value: item.code }));
 
+  const tripIdValue = Form.useWatch('tripId', form);
+  const itemsValue = Form.useWatch('items', form);
+
+  const tripOptions = trips.map((item) => ({
+    label: `${item.code} ${item.destination}（${item.startDate} ~ ${item.endDate}）`,
+    value: item.id,
+  }));
+  if (tripIdValue != null && !trips.some((item) => item.id === tripIdValue)) {
+    tripOptions.push({ label: `出差单 #${tripIdValue}`, value: tripIdValue });
+  }
+
+  const selectedTrip = trips.find((item) => item.id === tripIdValue);
+  const tripBudget =
+    selectedTrip?.budgetAmount ??
+    (editTrip && editTrip.id === tripIdValue ? editTrip.budget : undefined);
+  const totalAmount = (itemsValue ?? []).reduce(
+    (sum, item) => sum + (Number(item?.amount) || 0),
+    0,
+  );
+  const overBudget =
+    tripIdValue != null && tripBudget != null && totalAmount > Number(tripBudget);
+
   const openCreate = () => {
     setEditing(null);
+    setEditTrip(null);
     form.resetFields();
     form.setFieldsValue({
       applicant: user?.nickname ?? user?.username ?? '',
       applicantId: typeof user?.userId === 'number' ? user.userId : undefined,
       currency: 'CNY',
+      tripId: null,
       items: [
         {
           categoryCode: undefined as unknown as string,
@@ -148,6 +183,7 @@ export default function ExpenseApplyPage() {
         categoryCode: detail.categoryCode,
         title: detail.title,
         currency: detail.currency,
+        tripId: detail.tripId ?? null,
         remark: detail.remark,
         items: (detail.items ?? []).map((item) => ({
           categoryCode: item.categoryCode,
@@ -164,6 +200,11 @@ export default function ExpenseApplyPage() {
           taxAmount: Number(invoice.taxAmount ?? 0),
         })),
       });
+      setEditTrip(
+        detail.tripId != null
+          ? { id: detail.tripId, budget: detail.tripBudgetAmount ?? undefined }
+          : null,
+      );
       setModalOpen(true);
     } catch (error) {
       message.error(error instanceof Error ? error.message : '报销单详情加载失败');
@@ -179,6 +220,7 @@ export default function ExpenseApplyPage() {
       categoryCode: values.categoryCode,
       title: values.title.trim(),
       currency: values.currency?.trim() || 'CNY',
+      tripId: values.tripId ?? null,
       remark: values.remark?.trim() || undefined,
       items: values.items.map((item) => ({
         categoryCode: item.categoryCode,
@@ -389,6 +431,28 @@ export default function ExpenseApplyPage() {
               <Input maxLength={8} />
             </Form.Item>
           </Space>
+          <Space size="middle" align="baseline" style={{ display: 'flex' }}>
+            <Form.Item name="tripId" label="关联出差单" style={{ flex: 1 }}>
+              <Select
+                allowClear
+                showSearch
+                optionFilterProp="label"
+                placeholder="可不选，仅展示已通过的出差单"
+                options={tripOptions}
+              />
+            </Form.Item>
+            {tripIdValue != null && tripBudget != null ? (
+              <span>出差预算：{Number(tripBudget).toFixed(2)} 元</span>
+            ) : null}
+          </Space>
+          {overBudget ? (
+            <Alert
+              type="warning"
+              showIcon
+              message={`已超出出差预算（当前合计 ${totalAmount.toFixed(2)} 元）`}
+              style={{ marginBottom: 16 }}
+            />
+          ) : null}
           <Form.List name="items">
             {(fields, { add, remove }) => (
               <Space direction="vertical" size="small" style={{ width: '100%' }}>
