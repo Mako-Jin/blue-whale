@@ -57,6 +57,12 @@ public class Expense {
     /** ERP 应付单号 */
     private String erpPayableNo;
 
+    /** 关联出差单ID */
+    private Long tripId;
+
+    /** 关联出差预算快照（元，未关联为 0） */
+    private BigDecimal tripBudgetAmount;
+
     /** 提交时间 */
     private LocalDateTime submitTime;
 

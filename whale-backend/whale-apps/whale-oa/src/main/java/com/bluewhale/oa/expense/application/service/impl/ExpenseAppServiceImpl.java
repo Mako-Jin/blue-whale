@@ -23,6 +23,8 @@ import com.bluewhale.oa.expense.domain.model.ExpenseStandard;
 import com.bluewhale.oa.expense.domain.model.ExpenseStatus;
 import com.bluewhale.oa.expense.domain.repository.ExpenseCategoryRepository;
 import com.bluewhale.oa.expense.domain.repository.ExpenseRepository;
+import com.bluewhale.oa.hr.domain.model.Trip;
+import com.bluewhale.oa.hr.domain.repository.TripRepository;
 import com.bluewhale.oa.integration.application.command.OutboxAppendCommand;
 import com.bluewhale.oa.integration.application.service.OutboxAppService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -35,6 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -100,6 +103,8 @@ public class ExpenseAppServiceImpl implements ExpenseAppService {
     private final ErpPayableGateway erpPayableGateway;
 
     private final AttachmentOwnershipGuard attachmentOwnershipGuard;
+
+    private final TripRepository tripRepository;
 
     /** 独立 JSON 解析器：支持 Java 时间类型 */
     private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
@@ -538,6 +543,27 @@ public class ExpenseAppServiceImpl implements ExpenseAppService {
         expense.setCurrency(StringUtils.hasText(command.getCurrency())
                 ? command.getCurrency() : DEFAULT_CURRENCY);
         expense.setRemark(command.getRemark());
+        applyTrip(expense, command.getTripId());
+    }
+
+    /**
+     * 关联出差单并快照预算：未关联时清空关联并置预算为 0。
+     *
+     * @param expense 报销单
+     * @param tripId 出差单ID，可为空
+     */
+    private void applyTrip(Expense expense, Long tripId) {
+        if (tripId == null) {
+            expense.setTripId(null);
+            expense.setTripBudgetAmount(BigDecimal.ZERO);
+            return;
+        }
+        Trip trip = tripRepository.findById(tripId)
+                .orElseThrow(() -> OaErrorCode.exception(OaErrorCode.TRIP_NOT_FOUND,
+                        "出差申请不存在，id=" + tripId));
+        expense.setTripId(trip.getId());
+        expense.setTripBudgetAmount(trip.getBudgetAmount() == null
+                ? BigDecimal.ZERO : trip.getBudgetAmount());
     }
 
     /**
@@ -572,6 +598,8 @@ public class ExpenseAppServiceImpl implements ExpenseAppService {
         view.setErpPushStatus(expense.getErpPushStatus() == null
                 ? null : expense.getErpPushStatus().name());
         view.setErpPayableNo(expense.getErpPayableNo());
+        view.setTripId(expense.getTripId());
+        view.setTripBudgetAmount(expense.getTripBudgetAmount());
         view.setSubmitTime(expense.getSubmitTime());
         view.setRemark(expense.getRemark());
         view.setCreateTime(expense.getCreateTime());
@@ -589,10 +617,21 @@ public class ExpenseAppServiceImpl implements ExpenseAppService {
      * @return 条件变量
      */
     private Map<String, Object> approvalVariables(Expense expense) {
+        BigDecimal total = expense.getTotalAmount() == null ? BigDecimal.ZERO : expense.getTotalAmount();
+        BigDecimal budget = expense.getTripBudgetAmount() == null
+                ? BigDecimal.ZERO : expense.getTripBudgetAmount();
+        boolean overrun = budget.signum() > 0 && total.compareTo(budget) > 0;
+        BigDecimal overrunAmount = overrun
+                ? total.subtract(budget).setScale(AMOUNT_SCALE, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO.setScale(AMOUNT_SCALE, RoundingMode.HALF_UP);
         Map<String, Object> variables = new LinkedHashMap<>();
         variables.put("amount", expense.getTotalAmount());
         variables.put("categoryCode", expense.getCategoryCode());
         variables.put("deptId", expense.getDeptId());
+        variables.put("tripId", expense.getTripId());
+        variables.put("budgetAmount", budget);
+        variables.put("budgetOverrun", overrun);
+        variables.put("budgetOverrunAmount", overrunAmount);
         return variables;
     }
 }

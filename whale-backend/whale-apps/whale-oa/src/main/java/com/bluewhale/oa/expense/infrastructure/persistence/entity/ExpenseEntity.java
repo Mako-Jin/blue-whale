@@ -55,6 +55,12 @@ public class ExpenseEntity extends BaseEntity {
     /** ERP 应付单号 */
     private String erpPayableNo;
 
+    /** 关联出差单ID */
+    private Long tripId;
+
+    /** 关联出差预算快照（元） */
+    private BigDecimal tripBudgetAmount;
+
     /** 提交时间 */
     private java.time.LocalDateTime submitTime;
 

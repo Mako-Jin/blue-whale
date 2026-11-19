@@ -16,6 +16,8 @@ import com.bluewhale.oa.expense.domain.model.ExpenseStandard;
 import com.bluewhale.oa.expense.domain.model.ExpenseStatus;
 import com.bluewhale.oa.expense.domain.repository.ExpenseCategoryRepository;
 import com.bluewhale.oa.expense.domain.repository.ExpenseRepository;
+import com.bluewhale.oa.hr.domain.model.Trip;
+import com.bluewhale.oa.hr.domain.repository.TripRepository;
 import com.bluewhale.oa.integration.application.command.OutboxAppendCommand;
 import com.bluewhale.oa.integration.application.service.OutboxAppService;
 import org.junit.jupiter.api.BeforeEach;
@@ -72,6 +74,9 @@ class ExpenseAppServiceImplTest {
     @Mock
     private AttachmentOwnershipGuard attachmentOwnershipGuard;
 
+    @Mock
+    private TripRepository tripRepository;
+
     private ExpenseAppServiceImpl expenseAppService;
 
     /**
@@ -81,7 +86,7 @@ class ExpenseAppServiceImplTest {
     void setUp() {
         expenseAppService = new ExpenseAppServiceImpl(expenseRepository, categoryRepository,
                 approvalInstanceAppService, outboxAppService, sequenceAppService, erpPayableGateway,
-                attachmentOwnershipGuard);
+                attachmentOwnershipGuard, tripRepository);
     }
 
     @Test
@@ -105,6 +110,63 @@ class ExpenseAppServiceImplTest {
         assertEquals(new BigDecimal("300.00"), variables.get("amount"));
         assertEquals("TRAVEL", variables.get("categoryCode"));
         assertEquals(10L, variables.get("deptId"));
+    }
+
+    @Test
+    @DisplayName("create：关联出差预算 500、报销 300 时不超限")
+    void shouldMarkNotOverrunWhenWithinTripBudget() {
+        when(sequenceAppService.nextCode(anyString(), anyString())).thenReturn("EXP-202611-001");
+        when(categoryRepository.findCategoryByCode("TRAVEL")).thenReturn(Optional.of(category("TRAVEL")));
+        when(categoryRepository.findStandard(1L, "DEFAULT")).thenReturn(Optional.of(standard("2000")));
+        when(expenseRepository.existsInvoice(any(), anyString(), any())).thenReturn(false);
+        when(approvalInstanceAppService.register(any())).thenReturn(instance(501L));
+        when(tripRepository.findById(9L)).thenReturn(Optional.of(trip("500")));
+
+        ExpenseCommands.ExpenseSaveCommand command = command();
+        command.setTripId(9L);
+        ExpenseViews.ExpenseView view = expenseAppService.create(command);
+
+        assertEquals(9L, view.getTripId());
+        assertEquals(new BigDecimal("500"), view.getTripBudgetAmount());
+        Map<String, Object> variables = view.getApprovalVariables();
+        assertEquals(9L, variables.get("tripId"));
+        assertEquals(new BigDecimal("500"), variables.get("budgetAmount"));
+        assertEquals(Boolean.FALSE, variables.get("budgetOverrun"));
+        assertEquals(new BigDecimal("0.00"), variables.get("budgetOverrunAmount"));
+    }
+
+    @Test
+    @DisplayName("create：关联出差预算 200、报销 300 时超限 100")
+    void shouldMarkOverrunWhenExceedTripBudget() {
+        when(sequenceAppService.nextCode(anyString(), anyString())).thenReturn("EXP-202611-001");
+        when(categoryRepository.findCategoryByCode("TRAVEL")).thenReturn(Optional.of(category("TRAVEL")));
+        when(categoryRepository.findStandard(1L, "DEFAULT")).thenReturn(Optional.of(standard("2000")));
+        when(expenseRepository.existsInvoice(any(), anyString(), any())).thenReturn(false);
+        when(approvalInstanceAppService.register(any())).thenReturn(instance(501L));
+        when(tripRepository.findById(9L)).thenReturn(Optional.of(trip("200")));
+
+        ExpenseCommands.ExpenseSaveCommand command = command();
+        command.setTripId(9L);
+        ExpenseViews.ExpenseView view = expenseAppService.create(command);
+
+        Map<String, Object> variables = view.getApprovalVariables();
+        assertEquals(Boolean.TRUE, variables.get("budgetOverrun"));
+        assertEquals(new BigDecimal("100.00"), variables.get("budgetOverrunAmount"));
+        assertEquals(new BigDecimal("300.00"), variables.get("amount"));
+    }
+
+    @Test
+    @DisplayName("create：关联出差单不存在时拒绝且不落库")
+    void shouldRejectWhenTripNotFound() {
+        when(tripRepository.findById(9L)).thenReturn(Optional.empty());
+
+        ExpenseCommands.ExpenseSaveCommand command = command();
+        command.setTripId(9L);
+        BizException exception = assertThrows(BizException.class,
+                () -> expenseAppService.create(command));
+
+        assertEquals(OaErrorCode.TRIP_NOT_FOUND, exception.getCode());
+        verify(expenseRepository, never()).insert(any());
     }
 
     @Test
@@ -273,6 +335,20 @@ class ExpenseAppServiceImplTest {
         standard.setLimitAmount(new BigDecimal(limit));
         standard.setEnabled(true);
         return standard;
+    }
+
+    /**
+     * 构造出差申请。
+     *
+     * @param budget 出差预算
+     * @return 出差申请
+     */
+    private Trip trip(String budget) {
+        Trip trip = new Trip();
+        trip.setId(9L);
+        trip.setCode("TRIP-202611-001");
+        trip.setBudgetAmount(new BigDecimal(budget));
+        return trip;
     }
 
     /**

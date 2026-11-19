@@ -62,6 +62,9 @@ public final class ExpenseCommands {
         @Size(max = 255, message = "备注长度不能超过 255")
         private String remark;
 
+        /** 关联出差单ID（可选） */
+        private Long tripId;
+
         /** 明细 */
         @NotEmpty(message = "报销明细不能为空")
         @Valid

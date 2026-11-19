@@ -100,6 +100,9 @@ public class ExpenseRepositoryImpl implements ExpenseRepository {
                 .set(ExpenseEntity::getErpPushStatus,
                         expense.getErpPushStatus() == null ? null : expense.getErpPushStatus().name())
                 .set(ExpenseEntity::getErpPayableNo, expense.getErpPayableNo())
+                .set(ExpenseEntity::getTripId, expense.getTripId())
+                .set(ExpenseEntity::getTripBudgetAmount, expense.getTripBudgetAmount() == null
+                        ? java.math.BigDecimal.ZERO : expense.getTripBudgetAmount())
                 .set(ExpenseEntity::getSubmitTime, expense.getSubmitTime())
                 .set(ExpenseEntity::getRemark, expense.getRemark()));
     }
@@ -240,6 +243,9 @@ public class ExpenseRepositoryImpl implements ExpenseRepository {
         expense.setErpPushStatus(entity.getErpPushStatus() == null
                 ? ErpPushStatus.NONE : ErpPushStatus.of(entity.getErpPushStatus()));
         expense.setErpPayableNo(entity.getErpPayableNo());
+        expense.setTripId(entity.getTripId());
+        expense.setTripBudgetAmount(entity.getTripBudgetAmount() == null
+                ? java.math.BigDecimal.ZERO : entity.getTripBudgetAmount());
         expense.setSubmitTime(entity.getSubmitTime());
         expense.setRemark(entity.getRemark());
         expense.setCreateTime(entity.getCreateTime());
@@ -306,6 +312,9 @@ public class ExpenseRepositoryImpl implements ExpenseRepository {
         entity.setErpPushStatus(expense.getErpPushStatus() == null
                 ? ErpPushStatus.NONE.name() : expense.getErpPushStatus().name());
         entity.setErpPayableNo(expense.getErpPayableNo());
+        entity.setTripId(expense.getTripId());
+        entity.setTripBudgetAmount(expense.getTripBudgetAmount() == null
+                ? java.math.BigDecimal.ZERO : expense.getTripBudgetAmount());
         entity.setSubmitTime(expense.getSubmitTime());
         entity.setRemark(expense.getRemark());
     }

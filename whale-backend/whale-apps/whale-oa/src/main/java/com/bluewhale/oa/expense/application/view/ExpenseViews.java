@@ -70,6 +70,12 @@ public final class ExpenseViews {
         /** ERP 应付单号 */
         private String erpPayableNo;
 
+        /** 关联出差单ID */
+        private Long tripId;
+
+        /** 关联出差预算快照（元） */
+        private BigDecimal tripBudgetAmount;
+
         /** 提交时间 */
         private LocalDateTime submitTime;
 
@@ -88,7 +94,7 @@ public final class ExpenseViews {
         /** 发票 */
         private List<InvoiceView> invoices;
 
-        /** 审批条件变量（amount / categoryCode / deptId） */
+        /** 审批条件变量（amount / categoryCode / deptId / tripId / budgetAmount / budgetOverrun / budgetOverrunAmount） */
         private Map<String, Object> approvalVariables;
     }
 
