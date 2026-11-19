@@ -32,6 +32,7 @@ const PRESET_LABEL: Record<PresetName, string> = {
   roofs: '俯视',
   bank: '河岸',
   gate: '城门',
+  moon: '月夜',
 };
 
 export default function App(): React.ReactElement {
@@ -110,7 +111,7 @@ export default function App(): React.ReactElement {
 
       <div className="sc-title">
         <div className="sc-title-main">蓝鲸 · 河谷渡口</div>
-        <div className="sc-title-sub">S31 城楼匾额 · 檐下描金「朝陽門」/ 檐灯夜照东脸</div>
+        <div className="sc-title-sub">S32 涟漪月色 · 埠头扩散环 / 月盘入画·内檐灯</div>
       </div>
 
       <div className="sc-bar">

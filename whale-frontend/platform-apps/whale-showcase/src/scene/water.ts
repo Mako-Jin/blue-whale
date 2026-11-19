@@ -43,6 +43,8 @@ uniform float uEnvWeight;
 uniform vec3 uLampPos[4];
 uniform float uLampPower[4];
 uniform int uLampCount;
+/** 涟漪源（S32）：xy = 世界平面坐标，z = 周期相位（0~1 错开） */
+uniform vec3 uRipples[3];
 varying vec3 vWorld;
 
 /**
@@ -159,6 +161,29 @@ void main() {
   float dhdz = (surface(p + vec2(0.0, e), uTime) - surface(p - vec2(0.0, e), uTime)) / (2.0 * e);
 
   /*
+   * 涟漪扩散（S32）：三处有人/水活动语义的固定源，各白生一个向外跑的
+   * 环带（水埠有人汲水、桥拱束水、东岸浅滩）。实现是叠加到法线扰动上
+   * 而不是单独打亮——环带改反射/碎金的方向，才像“水在动”而不是
+   * “屏幕上画了个圈”。三档法线共用这套 dhdx/dhdz，环带自动参与全部光照。
+   */
+  for (int i = 0; i < 3; i++) {
+    vec2 rc = uRipples[i].xy;
+    vec2 dv = p - rc;
+    float d = length(dv);
+    if (d > 3.6 || d < 1e-3) continue;
+    float life = fract(uTime / 7.5 + uRipples[i].z);
+    float r = 0.35 + life * 2.9;
+    float sig = 0.30;
+    float band = exp(-pow((d - r) / sig, 2.0));
+    // 幅度：出生最强，随半径二次衰减（能量摊薄）；远水面另有 atten 统一压
+    float amp = (1.0 - life) * (1.0 - life) * 0.24;
+    // 高斯环带对 d 的导数 → 沿径向的高度梯度
+    float g = band * (-2.0 * (d - r) / (sig * sig)) * amp;
+    dhdx += (dv.x / d) * g;
+    dhdz += (dv.y / d) * g;
+  }
+
+  /*
    * 三档法线，各管各的：
    *  N  全强度（1.55×）——太阳碎金与灯影摇曳，波纹的高频特征全靠它；
    *  Nr 六成强度——反射光线采样，防云纹被搅成油花；
@@ -253,11 +278,17 @@ void main() {
    * （azim 205），夜景水面才有"月下河"的信息。
    */
   float nightK = uSunIntensity < 1.0 ? 1.0 : 0.0;
+  /*
+   * 仰角补偿（S32）：月路亮度随掠射角变化——night 仰角 34°→16° 后碎金
+   * 项大增，月夜机位实拍水面刷成一条白带（S27"整条河银白"的回访）。
+   * 低仰角按比例收，34°（y≈0.56）以上不衰减。
+   */
+  float elevK = mix(0.55, 1.0, smoothstep(0.08, 0.45, uSunDir.y));
   // 宽反光系数必须很小：这个项是"整片水面都被太阳照亮"，白天给到 0.12 时
   // 整条河变成一片暖米色，看着像沙丘而不是水（白天全景实测）。夜里**不加倍**
   // ——月亮方位与全景视线对齐后 0.10 的宽反光把整条河刷成银白，抢灯笼的戏
   col += uSunColor * pow(nh, 26.0) * 0.045 * uSunIntensity;
-  col += uSunColor * pow(nh, mix(420.0, 320.0, nightK)) * mix(3.2, 2.3, nightK) * uSunIntensity * atten;
+  col += uSunColor * pow(nh, mix(420.0, 320.0, nightK)) * mix(3.2, 2.3, nightK) * uSunIntensity * atten * mix(1.0, elevK, nightK);
 
   // 灯影：越接近水面视角越明显（俯视时看不到倒影，这是菲涅尔决定的）
   col += lampGlow(p, N.xz * 0.85) * (0.3 + fres * 1.1);
@@ -329,6 +360,18 @@ export function createWater(length = 480, halfWidth = 12): Water {
     uLampPos: { value: [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()] },
     uLampPower: { value: [0, 0, 0, 0] },
     uLampCount: { value: 0 },
+    /*
+     * 涟漪源（S32）：水埠台阶头（有人汲水）、桥拱西侧束水处、东岸浅滩苇缘。
+     * 坐标对应 props.ts 的 buildWestWharf（x≈-6.4 起、z=6.2，末级没进水里）
+     * 与石拱桥（跨 z=2 河心 4.2 处）；相位错开让三处不同时起环。
+     */
+    uRipples: {
+      value: [
+        new THREE.Vector3(-3.9, 6.2, 0.0),
+        new THREE.Vector3(-4.3, 2.0, 0.37),
+        new THREE.Vector3(9.2, -16.0, 0.71),
+      ],
+    },
   };
 
   const mat = new THREE.ShaderMaterial({

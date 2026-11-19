@@ -42,6 +42,10 @@ const SHOTS = [
   { name: '08b-gate-day', time: '白天', preset: '城门', wait: 1600 },
   { name: '08c-gate-night', time: '夜晚', preset: '城门', wait: 1600 },
   { name: '08d-bridge-gate', time: '黄昏', preset: '桥头', wait: 1600 },
+  // 月夜（S32）：唯一月盘入画的机位——月亮悬在河湾上、月光路铺向镜头
+  { name: '09-moon-night', time: '夜晚', preset: '月夜', wait: 1600 },
+  // 月夜白天参照：同一机位的白天版，验构图不受月光牵就（月亮只在夜里渲染）
+  { name: '09b-moon-day', time: '白天', preset: '月夜', wait: 1600 },
 ];
 
 const browser = await chromium.launch({

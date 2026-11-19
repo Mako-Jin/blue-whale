@@ -120,6 +120,24 @@ void main() {
   }
 
   /*
+   * 月轮（S32）：夜盘只在夜里出现——uSunIntensity&lt;1.0 与水面 nightK 同一判据
+   * （night 预设的 uSunDir 就是月亮方向，月路 S27 已按此调好）。真实月轮角半径
+   * 只有 0.26°，在机位里读不出，放大到 ~1.3° 才是"月亮"而不是一个像素；
+   * 盘内轻微边缘变暗（limb darkening）+ 宽而弱的冷晕把月轮从纯黑夜里托出来。
+   * 放在星空之后、云层之前：盘先盖住底下的星，云再自然遮月。
+   */
+  float moonK = uSunIntensity < 1.0 ? 1.0 : 0.0;
+  if (moonK > 0.0 && d.y > 0.0) {
+    float md = max(dot(d, normalize(uSunDir)), 0.0);
+    float disk = smoothstep(0.99955, 0.99975, md);
+    float limbd = mix(1.0, 0.88, smoothstep(0.9985, 0.99955, md));
+    // 柔晕压到 0.10：夜里 bloom（0.45）会再放大一轮，首版 0.22 实拍
+    // 月轮胖成一团光斑，盘缘读不出来
+    float halo = pow(md, 90.0) * 0.10;
+    col += vec3(0.93, 0.96, 1.04) * (disk * limbd * 1.2 + halo) * moonK;
+  }
+
+  /*
    * 云层：方向向量投到虚拟云平面（高度归一 1.0），fbm 阈值出形状。
    *
    * <p>纯渐变天空在全景机位里上三分之一是空的。云不建几何——投影 + fbm

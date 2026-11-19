@@ -1302,15 +1302,17 @@ function buildGateTower(b: Builder): void {
   }
 
   /*
-   * 檐下灯笼：外脸（+X）两盏，挂在檐板底。月亮方位 250°在西——夜里
+   * 檐下灯笼：城内外各两盏，挂在檐板底。月亮方位 250°在西——夜里
    * 城楼东脸吃不到任何光，整个楼身是一块纯黑剪影（S30 夜景实拍）；
    * 灯笼既是点缀也是这一脸的主光源（点光见 world.ts 的 gateLights）。
    * glow 键自动入 lampMaterials 随昼夜调 emissiveIntensity，白天就是
-   * 未点的纸灯笼，不用另接开关。
+   * 未点的纸灯笼，不用另接开关。内脸（S32）供桥头机位夜景。
    */
-  for (const dz of [-3.5, 3.5]) {
-    b.box('woodDark', 0.05, 0.3, 0.05, WALL_X + 2.5, 12.0, zc + dz); // 挂绳
-    b.box('glow', 0.38, 0.5, 0.38, WALL_X + 2.5, 11.72, zc + dz);
+  for (const sx of [-1, 1]) {
+    for (const dz of [-3.5, 3.5]) {
+      b.box('woodDark', 0.05, 0.3, 0.05, WALL_X + sx * 2.5, 12.0, zc + dz); // 挂绳
+      b.box('glow', 0.38, 0.5, 0.38, WALL_X + sx * 2.5, 11.72, zc + dz);
+    }
   }
 
   /*
