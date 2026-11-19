@@ -1398,23 +1398,33 @@ function blockedByPaving(x: number, z: number): boolean {
 }
 
 /**
- * 一丛草：6 片叶，每片 2 段（基部四边形 + 梢头三角），18 个三角面。
+ * 一丛草：叶片两段（基部四边形 + 梢头三角），每叶 3 个三角面。
  *
  * <p>顶点色做"根暗梢亮"（0.62 → 1.25）：草叶的透光让梢头比根部亮一档，
  * 这是草看起来"薄"而不是"一片塑料"的原因。逐实例再乘一个冷暖偏色，
  * 近水偏绿、上坡偏黄。</p>
+ *
+ * <p>参数化的原因：远景草丛一丛 6 叶就够（18 tri × 上万丛，三角面预算
+ * 全在片数上）；水线近景那一带草是贴着 1.7m 眼高看的，6 叶的稀疏剪影
+ * 读成一粒粒深色斑点，要 8 叶 + 更宽的弯垂才压得住。</p>
  */
-function createGrassTuft(): THREE.BufferGeometry {
+function createGrassTuft(
+  opt: { blades?: number; hMin?: number; hMax?: number; w?: number; leanMul?: number } = {},
+): THREE.BufferGeometry {
+  const blades = opt.blades ?? 6;
+  const hMin = opt.hMin ?? 0.20;
+  const hMax = opt.hMax ?? 0.44;
+  const w = opt.w ?? 0.03;
+  const leanMul = opt.leanMul ?? 1.0;
   const positions: number[] = [];
   const colors: number[] = [];
   const indices: number[] = [];
-  const blades = 6;
 
   for (let i = 0; i < blades; i += 1) {
     const a = (i / blades) * Math.PI * 2 + 0.55;
-    const h = 0.20 + ((i * 37) % 11) / 42; // 0.20 … 0.44
-    const w = 0.03;
-    const lean = 0.11 + ((i * 23) % 9) / 46;
+    const h = hMin + (((i * 37) % 11) / 10) * (hMax - hMin); // hMin … hMax
+    const wBlade = w;
+    const lean = (0.11 + ((i * 23) % 9) / 46) * leanMul;
     const dirX = Math.cos(a);
     const dirZ = Math.sin(a);
     const sideX = -dirZ;
@@ -1425,7 +1435,7 @@ function createGrassTuft(): THREE.BufferGeometry {
 
     // 两层各两个顶点（基部 / 中段），梢头收成一个点
     for (const t of [0, 0.55]) {
-      const half = (w * (1 - 0.8 * t)) / 2;
+      const half = (wBlade * (1 - 0.8 * t)) / 2;
       const k = Math.pow(t, 1.6) * lean;
       const cx = bx + dirX * k;
       const cz = bz + dirZ * k;
@@ -1466,7 +1476,7 @@ function createGrassTuft(): THREE.BufferGeometry {
   return geo;
 }
 
-/** 草簇落点。两遍采样：全岸带一遍 + 码头近景一遍（那一块是画面下半部） */
+/** 草簇落点（远景）。全岸带一遍：靠近水线密、往内陆稀（pow 让分布偏向近岸） */
 function grassSpots(count = 13000): GroundSpot[] {
   let seed = 20261121;
   const rand = () => {
@@ -1484,7 +1494,7 @@ function grassSpots(count = 13000): GroundSpot[] {
     return true;
   };
 
-  // 全岸带：距河心 9.4…39，靠近水线密、往内陆稀（pow 让分布偏向近岸）
+  // 全岸带：距河心 9.4…39
   let guard = 0;
   while (out.length < count && guard < count * 26) {
     guard += 1;
@@ -1493,10 +1503,48 @@ function grassSpots(count = 13000): GroundSpot[] {
     const d = 9.4 + Math.pow(rand(), 0.72) * 30;
     push(riverCenter(z) + side * d, z);
   }
+  return out;
+}
 
-  // 码头近景：机位在 3.9m 高、镜头朝岸，这一块 16×26m 的草地要密到能看出"草"
-  for (let i = 0; i < 3200; i += 1) {
-    push(-25 + rand() * 23, -30 + rand() * 30, 0.8, 1.3);
+/**
+ * 近景草落点（走 8 叶细草簇）：水线窄带 + 码头前草地。
+ *
+ * <p>远景草是"地面上的颗粒"，这一带草是 1.7m 眼高下的<b>主体</b>——河岸机位
+ * 的前 10m 画面里没有别的信息，草的密度与形态直接决定"草"还是"色块"。
+ * 两块分开采样：水线带是 2m 宽的环（贴岸一圈，草贴水是河滩最典型的边），
+ * 码头带是机位正前方的 16×26m。</p>
+ */
+function grassShoreSpots(): GroundSpot[] {
+  let seed = 770017;
+  const rand = () => {
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    return seed / 2147483648;
+  };
+  const out: GroundSpot[] = [];
+  const push = (x: number, z: number, sMin: number, sMax: number): boolean => {
+    const y = heightAt(x, z);
+    if (y < WATER_LEVEL + 0.24 || y > WATER_LEVEL + 1.5) return false;
+    if (slopeAt(x, z) > 0.85) return false;
+    if (blockedByPaving(x, z)) return false;
+    out.push({ x, y, z, rotY: rand() * Math.PI * 2, s: sMin + rand() * (sMax - sMin) });
+    return true;
+  };
+
+  // 水线环带：距河心 9.0…12.6，草直接咬住水线
+  let guard = 0;
+  const target = 2400;
+  while (out.length < target && guard < target * 30) {
+    guard += 1;
+    const z = (rand() - 0.5) * 270;
+    const side = rand() < 0.62 ? -1 : 1;
+    const d = 9.0 + rand() * 3.6;
+    push(riverCenter(z) + side * d, z, 0.6, 1.1);
+  }
+
+  // 码头近景：河岸机位正前方（3200 → 4400，这一块曾经密到能看出"草"，
+  // 现在机位贴地了，4.6/m² 的旧密度在 2m 内露出地面底色）
+  for (let i = 0; i < 4400; i += 1) {
+    push(-25 + rand() * 23, -30 + rand() * 30, 0.7, 1.2);
   }
   return out;
 }
@@ -1566,26 +1614,45 @@ function createShrub(): THREE.BufferGeometry {
   return merged;
 }
 
-/** 地面散石：靠水线的滩石，扁、圆、半埋 */
-function stoneSpots(count = 300): GroundSpot[] {
+/**
+ * 滩石落点：沿水线抱团。
+ *
+ * <p>旧版是"均匀撒 300 颗"——出图是一片草地上隔几米一颗灰土豆，比没有还假。
+ * 真实河岸的石头从不单颗出现：<b>一次涨水退回去，留下一片</b>。所以按簇采样：
+ * 簇心贴水线（距河心 8.4~14m），每簇 3~9 颗在 1.1~2.7m 半径内聚拢，
+ * 簇内沿 z 拉扁（水线本身是沿 z 的带）。大小走幂分布——碎石多、巨石少，
+ * 均匀尺寸是"撒点"最露馅的地方。</p>
+ */
+function stoneSpots(): GroundSpot[] {
   let seed = 33113;
   const rand = () => {
     seed = (seed * 1103515245 + 12345) % 2147483648;
     return seed / 2147483648;
   };
   const out: GroundSpot[] = [];
-  let guard = 0;
-  while (out.length < count && guard < count * 12) {
-    guard += 1;
+  for (let c = 0; c < 54; c += 1) {
     const z = (rand() - 0.5) * 280;
     const side = rand() < 0.5 ? -1 : 1;
-    const d = 8.5 + Math.pow(rand(), 1.4) * 9;
-    const x = riverCenter(z) + side * d;
-    if (blockedByPaving(x, z)) continue;
-    if (x > 11.5 && z > -46 && z < 40) continue;
-    const y = heightAt(x, z);
-    if (y < WATER_LEVEL - 0.5 || y > 1.6) continue;
-    out.push({ x, y, z, rotY: rand() * Math.PI * 2, s: 0.35 + rand() * 0.8 });
+    const d = 8.4 + Math.pow(rand(), 1.2) * 5.6;
+    const cx = riverCenter(z) + side * d;
+    if (blockedByPaving(cx, z)) continue;
+    if (cx > 11.5 && z > -46 && z < 40) continue;
+    const n = 3 + Math.floor(rand() * 7);
+    const spread = 1.1 + rand() * 1.6;
+    for (let i = 0; i < n; i += 1) {
+      const a = rand() * Math.PI * 2;
+      const r = Math.pow(rand(), 0.6) * spread;
+      const x = cx + Math.cos(a) * r;
+      const zz = z + Math.sin(a) * r * 0.7;
+      if (blockedByPaving(x, zz)) continue;
+      if (x > 11.5 && zz > -46 && zz < 40) continue;
+      const g = heightAt(x, zz);
+      if (g < WATER_LEVEL - 0.3 || g > WATER_LEVEL + 1.3) continue;
+      if (slopeAt(x, zz) > 0.9) continue;
+      // s 同时是半埋深度：小石几乎全露，大石沉一半——"埋在土里"才有重量
+      const s = 0.18 + Math.pow(rand(), 1.6) * 0.72;
+      out.push({ x, y: g, z: zz, rotY: rand() * Math.PI * 2, s });
+    }
   }
   return out;
 }
@@ -1624,36 +1691,44 @@ function instanceScatter(
   return im;
 }
 
+/** 草丛逐实例偏色：近水偏冷绿、上坡偏黄枯，再叠一层位置哈希抖动 */
+function grassTint(sp: GroundSpot): THREE.Color {
+  const h = Math.sin(sp.x * 12.9898 + sp.z * 78.233) * 43758.5453;
+  const t = h - Math.floor(h);
+  const dry = clamp((sp.y - 1.0) / 4.5, 0, 1) * 0.5 + t * 0.5;
+  return new THREE.Color().setRGB(0.86 + dry * 0.26, 0.96 + dry * 0.02, 0.82 - dry * 0.14);
+}
+
 function buildGroundCover(group: THREE.Group, trees: TreeSpot[]): void {
-  const grass = grassSpots();
-  const tuft = createGrassTuft();
+  const grassMat = new THREE.MeshStandardMaterial({
+    // 0x7b8a4c → 0x767f4e：白天提亮后草簇的绿读着发"艳"。去饱和的关键是
+    // 压 G 通道而不是压亮度——亮度一压草丛就从草地里"沉"下去了。
+    color: 0x767f4e,
+    vertexColors: true,
+    side: THREE.DoubleSide,
+    roughness: 0.9,
+    metalness: 0,
+  });
+
+  // 远景：6 叶粗草簇，铺满全岸带（13000 丛 × 18 tri，三角面预算在片数上）
   instanceScatter(
     group,
-    tuft,
-    new THREE.MeshStandardMaterial({
-      // 0x7b8a4c → 0x767f4e：白天提亮后草簇的绿读着发"艳"。去饱和的关键是
-      // 压 G 通道而不是压亮度——亮度一压草丛就从草地里"沉"下去了。
-      color: 0x767f4e,
-      vertexColors: true,
-      side: THREE.DoubleSide,
-      roughness: 0.9,
-      metalness: 0,
-    }),
-    grass,
+    createGrassTuft(),
+    grassMat,
+    grassSpots(),
     'grass',
-    (_i, sp) => {
-      /*
-       * 近水偏冷绿、上坡偏黄枯，再叠一层逐丛抖动。
-       *
-       * <p>整片草一个颜色，比"没有草"更假——远看是一片荧光绿的颗粒。<b>干湿差</b>
-       * 才是草地的信息：靠水的青、坡上的黄、背阴的深。所以这里用高度定干湿，
-       * 用位置哈希定每丛的随机偏移（哈希而不是 Math.random，重建场景不跳色）。</p>
-       */
-      const h = Math.sin(sp.x * 12.9898 + sp.z * 78.233) * 43758.5453;
-      const t = h - Math.floor(h);
-      const dry = clamp((sp.y - 1.0) / 4.5, 0, 1) * 0.5 + t * 0.5;
-      return new THREE.Color().setRGB(0.86 + dry * 0.26, 0.96 + dry * 0.02, 0.82 - dry * 0.14);
-    },
+    (_i, sp) => grassTint(sp),
+  );
+
+  // 近景：8 叶细草簇，只铺水线环带与码头前草地。这一带贴着 1.7m 眼高，
+  // 6 叶的稀疏剪影在 2~5m 内读成一粒粒深色斑点，8 叶 + 更宽弯垂才像"一丛"
+  instanceScatter(
+    group,
+    createGrassTuft({ blades: 8, hMin: 0.22, hMax: 0.5, w: 0.024, leanMul: 1.18 }),
+    grassMat,
+    grassShoreSpots(),
+    'grass-shore',
+    (_i, sp) => grassTint(sp),
   );
 
   const shrub = createShrub();
@@ -1667,16 +1742,39 @@ function buildGroundCover(group: THREE.Group, trees: TreeSpot[]): void {
 
   const stones = stoneSpots();
   if (stones.length) {
-    // 压到 0.62 而不是 0.5：0.5 时是一张 1.15m 宽的"薄饼"，在近景像一块纸板。
-    // 石头的可信度在"埋在土里"——露出一半、边缘被草挡住，比形状本身重要
-    const rock = new THREE.IcosahedronGeometry(0.5, 0);
-    rock.scale(1.0, 0.62, 1.0);
+    // detail 1（80 面）：滩石在河岸机位里是 2~6m 的前景，detail 0 的二十面体
+    // 剪影就是一颗"低模土豆"。压到 0.58 而不是 0.5：石头要"扁"才像被水磨过。
+    const rock = new THREE.IcosahedronGeometry(0.5, 1);
+    rock.scale(1.0, 0.58, 1.0);
+    const halfH = 0.29; // 0.5 × 0.58
+    const spots = stones.map((sp) => {
+      // 半埋：中心压到 ground + halfH*s 的四成——小石几乎全露，大石沉一半
+      return { ...sp, y: sp.y + halfH * sp.s * 0.4 };
+    });
     instanceScatter(
       group,
       rock,
-      new THREE.MeshStandardMaterial({ color: 0x7c7364, roughness: 0.96, flatShading: true }),
-      stones,
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.96, flatShading: true }),
+      spots,
       'bank-stones',
+      (_i, sp) => {
+        /*
+         * 逐颗偏色 + 湿深。石头可信度的另一半天在颜色上：一颗纯 0x7c7364 的
+         * 灰在绿色河滩上跳出来像瓷片。给 ±12% 的明度抖动与一点暖冷漂移；
+         * 贴水线的石头压暗 30%——湿石比干石深一整档，这条"湿带"是水线
+         * 存在的证据，比任何 shader 都便宜。
+         */
+        const h = Math.sin(sp.x * 7.77 + sp.z * 3.31) * 43758.5453;
+        const t = h - Math.floor(h);
+        const lum = 0.52 + t * 0.24;
+        const warm = (t - 0.5) * 0.10;
+        const g = sp.y - halfH * sp.s * 0.4; // 反推"地面高度"（落点 y 已被半埋抬高）
+        const wet = clamp((0.45 - g) / 0.45, 0, 1) * 0.3;
+        const v = lum * (1 - wet);
+        // 第四个参数是必须的：instanceColor 按线性空间写入，0.55 的"设计灰"
+        // 直接 setRGB 会被当线性值渲染成 0.85 的亮灰——第一版石头白得像羊群
+        return new THREE.Color().setRGB(v * (1 + warm), v, v * (1 - warm * 0.8), THREE.SRGBColorSpace);
+      },
     );
   }
 }
