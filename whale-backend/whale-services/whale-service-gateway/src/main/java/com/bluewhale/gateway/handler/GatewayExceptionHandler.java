@@ -1,5 +1,6 @@
 package com.bluewhale.gateway.handler;
 
+import com.bluewhale.gateway.common.GatewayMessageResolver;
 import com.bluewhale.gateway.common.GatewayResponseWriter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.webflux.error.ErrorWebExceptionHandler;
@@ -34,6 +35,18 @@ import reactor.core.publisher.Mono;
 @Order(-2)
 public class GatewayExceptionHandler implements ErrorWebExceptionHandler {
 
+    /** 路由不存在（网关未匹配到任何路由）文案键 */
+    private static final String KEY_ROUTE_NOT_FOUND = "gateway.route.not-found";
+
+    /** 下游返回 404 文案键 */
+    private static final String KEY_DOWNSTREAM_NOT_FOUND = "gateway.route.downstream-not-found";
+
+    /** 下游不可用（502/503/504）文案键 */
+    private static final String KEY_UPSTREAM_UNAVAILABLE = "gateway.route.upstream-unavailable";
+
+    /** 网关内部异常文案键 */
+    private static final String KEY_SERVER_ERROR = "gateway.route.server-error";
+
     /** 路由不存在（网关未匹配到任何路由）文案 */
     private static final String MSG_ROUTE_NOT_FOUND = "路由不存在";
 
@@ -55,7 +68,7 @@ public class GatewayExceptionHandler implements ErrorWebExceptionHandler {
 
         HttpStatus status = resolveStatus(ex);
         int code = status.value();
-        String message = resolveMessage(ex, status);
+        String message = resolveMessage(exchange, ex, status);
         if (status == HttpStatus.INTERNAL_SERVER_ERROR) {
             log.error("网关系统异常: path={}", exchange.getRequest().getURI().getPath(), ex);
         } else {
@@ -89,22 +102,23 @@ public class GatewayExceptionHandler implements ErrorWebExceptionHandler {
     }
 
     /**
-     * 按异常来源生成响应文案，区分网关侧问题与下游侧问题（P2-10）
+     * 按异常来源生成响应文案，区分网关侧问题与下游侧问题（P2-10），并按请求语言本地化
      *
-     * @param ex     捕获的异常
-     * @param status 已解析的对外 HTTP 状态
+     * @param exchange 当前请求上下文
+     * @param ex       捕获的异常
+     * @param status   已解析的对外 HTTP 状态
      * @return 服务端固定文案
      */
-    private static String resolveMessage(Throwable ex, HttpStatus status) {
+    private static String resolveMessage(ServerWebExchange exchange, Throwable ex, HttpStatus status) {
         if (ex instanceof NotFoundException) {
-            return MSG_ROUTE_NOT_FOUND;
+            return GatewayMessageResolver.resolve(exchange, KEY_ROUTE_NOT_FOUND, MSG_ROUTE_NOT_FOUND);
         }
         if (status == HttpStatus.NOT_FOUND) {
-            return MSG_DOWNSTREAM_NOT_FOUND;
+            return GatewayMessageResolver.resolve(exchange, KEY_DOWNSTREAM_NOT_FOUND, MSG_DOWNSTREAM_NOT_FOUND);
         }
         if (status == HttpStatus.INTERNAL_SERVER_ERROR) {
-            return MSG_SERVER_ERROR;
+            return GatewayMessageResolver.resolve(exchange, KEY_SERVER_ERROR, MSG_SERVER_ERROR);
         }
-        return MSG_UPSTREAM_UNAVAILABLE;
+        return GatewayMessageResolver.resolve(exchange, KEY_UPSTREAM_UNAVAILABLE, MSG_UPSTREAM_UNAVAILABLE);
     }
 }

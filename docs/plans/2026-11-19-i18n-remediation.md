@@ -50,6 +50,16 @@
   三份文件键集逐服务比对一致
 - [x] 校验脚本确认所有键化异常引用的键均在对应服务资源包中存在
 
+### P3（网关统一错误响应）
+
+- [x] 新增 `GatewayMessageResolver`：网关自带 `i18n/gateway/messages{,_zh_CN,_en_US}.properties`
+      （12 键，三份键集一致），语言口径复用 `LocaleSupport`（`X-Lang` → `Accept-Language` → 默认中文）
+- [x] 12 处短路文案本地化：JWT 401 / 路径封禁 403 / 强制改密 403、WS ticket 401、
+      actuator 内网限制 403、治理端点鉴权 403、内网接口屏蔽 403、限流 429、熔断 503，
+      以及异常兜底的路由 404 / 下游 404 / 502-504 / 500
+- [x] 资源未命中时回落调用方中文原文，默认展示与既有断言零变化
+- [x] 新增 `GatewayMessageResolverTest`（5 例）与 `GatewayExceptionHandlerTest` 英文断言 1 例
+
 ## 三、待做项（P2 剩余 / P3）
 
 | 级别 | 事项 | 说明 |
@@ -57,7 +67,6 @@
 | P2 | 其余后端服务 | agent / archive / assistant / doc / forum / iot / map / music / scene / twin / video 仍未接入 SDK（auth、file 已接入） |
 | P2 | DTO 校验文案迁移 | 现有 `@NotBlank(message="中文")` 仍为字面量；后续统一改为 `{validation.xxx}` 由 MessageSource 插值（机制已支持） |
 | P2 | 前端其余页面 | admin 剩余 50+ 页面、portal 与子应用按模块分批替换硬编码文案 |
-| P3 | 网关统一错误响应 i18n | `GatewayResponseWriter` 的 401/403/429 文案本地化 |
 | P3 | 运维服务 | audit / monitor / alert 视对外暴露程度再定 |
 
 ## 四、已修正问题项
@@ -69,6 +78,7 @@
 | 未接入 i18n SDK 的服务拿不到公共错误文案 | 公共资源包随 starter 分发，`CommonMessageResolver` 独立解析 |
 | 前端零 i18n、antd 内置文案与页面语言不一致 | 引入轻量字典 + `ConfigProvider locale` + dayjs locale 同步 |
 | 业务异常无法携带国际化键（仅通用错误码可翻译） | 扩展 `BizException` 键 + 兜底 + 占位参数构造器，handler 统一定位解析 |
+| 网关 401/403/429/503 等短路响应文案硬编码中文，英文请求仍返回中文 | 新增网关自有资源包与 `GatewayMessageResolver`，12 处短路文案按请求语言解析 |
 
 ## 五、验证结果
 
@@ -82,5 +92,7 @@
   全后端 `mvn -o -DskipTests compile -T 1C` BUILD SUCCESS。
 - P2 第二批：上述七个服务拼接型消息键化后 `mvn test` 与 `checkstyle:check` 再次全部成功；
   资源包键集与代码引用键的比对脚本零缺失。
+- P3：`mvn -o -pl whale-services/whale-service-gateway test` BUILD SUCCESS（新增 6 例），
+  `checkstyle:check` 0 违规；三份网关资源文件键集一致。
 - `pnpm --filter @bluewhale/http build`、`pnpm --filter whale-admin lint`、
   `pnpm --filter whale-admin test`（12 文件 / 56 例全绿）、`pnpm --filter whale-admin build`：全部通过。

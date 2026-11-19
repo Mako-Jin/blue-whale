@@ -1,5 +1,6 @@
 package com.bluewhale.gateway.filter;
 
+import com.bluewhale.gateway.common.GatewayMessageResolver;
 import com.bluewhale.gateway.common.GatewayResponseWriter;
 import com.bluewhale.gateway.config.CircuitBreakerProperties;
 import com.bluewhale.gateway.support.CircuitAlertNotifier;
@@ -343,7 +344,9 @@ public class CircuitBreakerGlobalFilter implements GlobalFilter, Ordered {
      */
     private Mono<Void> unavailable(ServerWebExchange exchange) {
         return GatewayResponseWriter.write(exchange, HttpStatus.SERVICE_UNAVAILABLE,
-                FALLBACK_CODE, FALLBACK_MESSAGE);
+                FALLBACK_CODE,
+                GatewayMessageResolver.resolve(exchange, "gateway.circuit.upstream-unavailable",
+                        FALLBACK_MESSAGE));
     }
 
     @Override

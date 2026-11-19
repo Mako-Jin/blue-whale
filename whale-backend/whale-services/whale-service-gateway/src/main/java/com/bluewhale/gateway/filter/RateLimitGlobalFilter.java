@@ -1,5 +1,6 @@
 package com.bluewhale.gateway.filter;
 
+import com.bluewhale.gateway.common.GatewayMessageResolver;
 import com.bluewhale.gateway.common.GatewayResponseWriter;
 import com.bluewhale.gateway.config.RateLimitProperties;
 import com.bluewhale.gateway.config.RateLimitProperties.PathRule;
@@ -240,7 +241,8 @@ public class RateLimitGlobalFilter implements GlobalFilter, Ordered {
     private Mono<Void> tooManyRequests(ServerWebExchange exchange, LimitRule rule) {
         countRejected(rule);
         return GatewayResponseWriter.write(exchange, HttpStatus.TOO_MANY_REQUESTS,
-                RATE_LIMIT_CODE, RATE_LIMIT_MESSAGE);
+                RATE_LIMIT_CODE,
+                GatewayMessageResolver.resolve(exchange, "gateway.rate-limit.exceeded", RATE_LIMIT_MESSAGE));
     }
 
     /**

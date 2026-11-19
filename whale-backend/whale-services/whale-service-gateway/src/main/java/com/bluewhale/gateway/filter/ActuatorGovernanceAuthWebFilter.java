@@ -1,5 +1,6 @@
 package com.bluewhale.gateway.filter;
 
+import com.bluewhale.gateway.common.GatewayMessageResolver;
 import com.bluewhale.gateway.common.GatewayResponseWriter;
 import com.bluewhale.gateway.config.WhaleGatewayProperties;
 import lombok.RequiredArgsConstructor;
@@ -97,7 +98,9 @@ public class ActuatorGovernanceAuthWebFilter implements WebFilter, Ordered {
      * @return 写出响应完成的信号
      */
     private Mono<Void> forbidden(ServerWebExchange exchange) {
-        return GatewayResponseWriter.write(exchange, HttpStatus.FORBIDDEN, 403, "路由治理端点拒绝访问");
+        return GatewayResponseWriter.write(exchange, HttpStatus.FORBIDDEN, 403,
+                GatewayMessageResolver.resolve(exchange, "gateway.actuator.governance-forbidden",
+                        "路由治理端点拒绝访问"));
     }
 
     @Override

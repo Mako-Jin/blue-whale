@@ -2,6 +2,7 @@ package com.bluewhale.gateway.filter;
 
 import com.bluewhale.gateway.accesslist.GatewayAccessListProvider;
 import com.bluewhale.gateway.common.GatewayHeaders;
+import com.bluewhale.gateway.common.GatewayMessageResolver;
 import com.bluewhale.gateway.common.GatewayResponseWriter;
 import com.bluewhale.gateway.config.WhaleGatewayProperties;
 import com.bluewhale.gateway.security.JwksKeyStore;
@@ -498,7 +499,8 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
      */
     private Mono<Void> unauthorized(ServerWebExchange exchange, String reason) {
         countRejected(reason);
-        return GatewayResponseWriter.write(exchange, HttpStatus.UNAUTHORIZED, 401, "未认证");
+        return GatewayResponseWriter.write(exchange, HttpStatus.UNAUTHORIZED, 401,
+                GatewayMessageResolver.resolve(exchange, "gateway.auth.unauthorized", "未认证"));
     }
 
     /**
@@ -510,7 +512,8 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
      */
     private Mono<Void> pathForbidden(ServerWebExchange exchange, String reason) {
         countRejected(reason);
-        return GatewayResponseWriter.write(exchange, HttpStatus.FORBIDDEN, HttpStatus.FORBIDDEN.value(), "禁止访问");
+        return GatewayResponseWriter.write(exchange, HttpStatus.FORBIDDEN, HttpStatus.FORBIDDEN.value(),
+                GatewayMessageResolver.resolve(exchange, "gateway.auth.forbidden", "禁止访问"));
     }
 
     /**
@@ -522,7 +525,9 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
      */
     private Mono<Void> forbidden(ServerWebExchange exchange, String reason) {
         countRejected(reason);
-        return GatewayResponseWriter.write(exchange, HttpStatus.FORBIDDEN, 403, "首次登录或口令已到期，请先修改口令");
+        return GatewayResponseWriter.write(exchange, HttpStatus.FORBIDDEN, 403,
+                GatewayMessageResolver.resolve(exchange, "gateway.auth.password-change-required",
+                        "首次登录或口令已到期，请先修改口令"));
     }
 
     /**
