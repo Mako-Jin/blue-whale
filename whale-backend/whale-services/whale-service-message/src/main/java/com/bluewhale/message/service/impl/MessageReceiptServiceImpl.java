@@ -19,6 +19,7 @@ import com.bluewhale.message.mapper.MessageDeliveryMapper;
 import com.bluewhale.message.mapper.MessageReceiptMapper;
 import com.bluewhale.message.mapper.MessageRecordMapper;
 import com.bluewhale.message.service.MessageReceiptService;
+import com.bluewhale.message.support.MessageMetrics;
 import com.bluewhale.message.support.MessageStatusAggregator;
 import com.bluewhale.message.support.ReceiptMatcher;
 import com.bluewhale.message.vo.ReceiptApplyResult;
@@ -115,6 +116,8 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
     private final List<MessageChannelSender> senders;
 
     private final List<ReceiptMatcher> matchers;
+
+    private final MessageMetrics metrics;
 
     /** 渠道能力缓存：Bean 生命周期内注册表不变，首次使用时构建一次 */
     private volatile Map<MessageChannel, MessageChannelSender> senderCache;
@@ -238,6 +241,7 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
             return;
         }
         result.setAccepted(result.getAccepted() + 1);
+        metrics.recordReceipt(prepared.channel(), prepared.target(), !deliveries.isEmpty());
         if (deliveries.isEmpty()) {
             result.setUnmatched(result.getUnmatched() + 1);
             log.warn("回执未匹配到投递记录: channel={}, providerMessageId={}",

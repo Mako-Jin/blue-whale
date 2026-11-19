@@ -23,6 +23,7 @@ import com.bluewhale.message.mapper.MessageRecordMapper;
 import com.bluewhale.message.mapper.MessageTemplateMapper;
 import com.bluewhale.message.service.MessageSendService;
 import com.bluewhale.message.support.CallbackUrlGuard;
+import com.bluewhale.message.support.MessageMetrics;
 import com.bluewhale.message.support.MessageStatusAggregator;
 import com.bluewhale.message.support.TemplateRenderer;
 import com.bluewhale.message.vo.MessageDeliveryVO;
@@ -77,6 +78,8 @@ public class MessageSendServiceImpl implements MessageSendService {
     private final List<MessageChannelSender> senders;
 
     private final ChannelGuard channelGuard;
+
+    private final MessageMetrics metrics;
 
     /** 渠道适配器缓存：Bean 生命周期内注册表不变，首次使用时构建一次 */
     private volatile Map<MessageChannel, MessageChannelSender> senderCache;
@@ -456,10 +459,13 @@ public class MessageSendServiceImpl implements MessageSendService {
         if (!decision.allowed()) {
             log.warn("消息渠道受保护，跳过投递: messageId={}, channel={}, reason={}",
                     record.getId(), channel, decision.reason());
+            metrics.recordSend(channel, DeliveryStatus.SKIPPED, 0L);
             return ChannelResult.skipped(decision.reason());
         }
+        long startNanos = System.nanoTime();
         ChannelResult result = safeSend(sender, record, payload, channel, recipient);
         channelGuard.record(channel, guard, result.getStatus());
+        metrics.recordSend(channel, result.getStatus(), System.nanoTime() - startNanos);
         return result;
     }
 

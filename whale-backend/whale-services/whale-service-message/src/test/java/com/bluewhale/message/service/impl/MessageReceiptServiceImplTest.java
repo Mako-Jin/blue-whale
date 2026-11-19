@@ -20,10 +20,12 @@ import com.bluewhale.message.mapper.MessageDeliveryMapper;
 import com.bluewhale.message.mapper.MessageReceiptMapper;
 import com.bluewhale.message.mapper.MessageRecordMapper;
 import com.bluewhale.message.support.FallbackReceiptMatcher;
+import com.bluewhale.message.support.MessageMetrics;
 import com.bluewhale.message.support.ProviderIdReceiptMatcher;
 import com.bluewhale.message.support.ReceiptMatcher;
 import com.bluewhale.message.vo.ReceiptApplyResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -119,7 +121,8 @@ class MessageReceiptServiceImplTest {
         });
         when(callbackTaskMapper.insert(any(MessageCallbackTaskPo.class))).thenReturn(1);
         return new MessageReceiptServiceImpl(recordMapper, deliveryMapper, receiptMapper,
-                callbackTaskMapper, new ObjectMapper(), properties, channelSenders, matchers);
+                callbackTaskMapper, new ObjectMapper(), properties, channelSenders, matchers,
+                new MessageMetrics(new SimpleMeterRegistry()));
     }
 
     /**
@@ -319,7 +322,8 @@ class MessageReceiptServiceImplTest {
     void disabledReceiptShouldBeRejected() {
         properties.setEnabled(false);
         MessageReceiptServiceImpl service = new MessageReceiptServiceImpl(recordMapper, deliveryMapper,
-                receiptMapper, callbackTaskMapper, new ObjectMapper(), properties, senders, matchers);
+                receiptMapper, callbackTaskMapper, new ObjectMapper(), properties, senders, matchers,
+                new MessageMetrics(new SimpleMeterRegistry()));
         assertThrows(BizException.class, () -> service.apply(request("DELIVERED", "rcpt-7")));
     }
 

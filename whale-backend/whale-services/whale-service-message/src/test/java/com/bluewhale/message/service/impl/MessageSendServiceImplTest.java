@@ -16,8 +16,10 @@ import com.bluewhale.message.enums.MessageChannel;
 import com.bluewhale.message.mapper.MessageDeliveryMapper;
 import com.bluewhale.message.mapper.MessageRecordMapper;
 import com.bluewhale.message.mapper.MessageTemplateMapper;
+import com.bluewhale.message.support.MessageMetrics;
 import com.bluewhale.message.vo.SendMessageResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -64,7 +66,8 @@ class MessageSendServiceImplTest {
     private MessageSendServiceImpl service(MessageChannelSender... senders) {
         stubInsert();
         return new MessageSendServiceImpl(recordMapper, deliveryMapper, templateMapper,
-                objectMapper, properties, List.of(senders), new ChannelGuard());
+                objectMapper, properties, List.of(senders), new ChannelGuard(),
+                new MessageMetrics(new SimpleMeterRegistry()));
     }
 
     /**

@@ -46,4 +46,7 @@ public class MessageReceiptProperties {
 
     /** 回调读取超时（毫秒） */
     private int readTimeoutMillis = 3000;
+
+    /** outbox 待派发积压告警阈值（健康检查超过即 DOWN） */
+    private long pendingAlertThreshold = 1000L;
 }

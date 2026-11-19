@@ -17,9 +17,11 @@ import com.bluewhale.message.mapper.MessageDeliveryMapper;
 import com.bluewhale.message.mapper.MessageReceiptMapper;
 import com.bluewhale.message.mapper.MessageRecordMapper;
 import com.bluewhale.message.support.FallbackReceiptMatcher;
+import com.bluewhale.message.support.MessageMetrics;
 import com.bluewhale.message.support.ProviderIdReceiptMatcher;
 import com.bluewhale.message.vo.ReceiptApplyResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -69,7 +71,8 @@ class ImReceiptFlowIntegrationTest {
             receiptMapper, callbackTaskMapper, new ObjectMapper(), properties,
             List.of(new ImChannelSender(new MessageChannelProperties(), new ObjectMapper(),
                     new InternalTokenProperties())),
-            List.of(new ProviderIdReceiptMatcher(deliveryMapper), new FallbackReceiptMatcher(deliveryMapper)));
+            List.of(new ProviderIdReceiptMatcher(deliveryMapper), new FallbackReceiptMatcher(deliveryMapper)),
+            new MessageMetrics(new SimpleMeterRegistry()));
 
     /**
      * Lambda 条件构造器依赖实体表信息缓存，纯单测需手动初始化。
