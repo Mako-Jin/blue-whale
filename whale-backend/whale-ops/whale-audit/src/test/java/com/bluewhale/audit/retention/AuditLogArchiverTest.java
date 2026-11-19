@@ -4,9 +4,11 @@ import com.bluewhale.audit.config.AuditExportProperties;
 import com.bluewhale.audit.retention.entity.AuditArchiveWatermark;
 import com.bluewhale.audit.retention.mapper.AuditArchiveWatermarkMapper;
 import com.bluewhale.audit.support.AuditArchiveClient;
+import com.bluewhale.audit.support.AuditMetrics;
 import com.bluewhale.common.audit.entity.AuditLogRecord;
 import com.bluewhale.common.audit.mapper.AuditLogMapper;
 import com.bluewhale.common.core.exception.BizException;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -52,6 +54,8 @@ class AuditLogArchiverTest {
 
     private final AuditExportProperties exportProperties = new AuditExportProperties();
 
+    private final AuditMetrics auditMetrics = new AuditMetrics(new SimpleMeterRegistry());
+
     @Test
     void shouldUploadExpiredRecordsAndNeverDeleteAuditLog() {
         doReturn(List.of(sampleRecord())).when(auditLogMapper).selectList(any());
@@ -59,7 +63,7 @@ class AuditLogArchiverTest {
         uploaded.put("objectKey", "bluewhale-audit-archive/2026/auditLog-archive-20261019.csv");
         doReturn(uploaded).when(archiveClient).upload(any(), any(), any());
         AuditLogArchiver archiver =
-                new AuditLogArchiver(auditLogMapper, watermarkMapper, archiveClient, exportProperties);
+                new AuditLogArchiver(auditLogMapper, watermarkMapper, archiveClient, exportProperties, auditMetrics);
 
         archiver.archive(RETENTION_DAYS);
 
@@ -74,7 +78,7 @@ class AuditLogArchiverTest {
     void shouldSkipUploadWhenNoExpiredRecords() {
         doReturn(List.of()).when(auditLogMapper).selectList(any());
         AuditLogArchiver archiver =
-                new AuditLogArchiver(auditLogMapper, watermarkMapper, archiveClient, exportProperties);
+                new AuditLogArchiver(auditLogMapper, watermarkMapper, archiveClient, exportProperties, auditMetrics);
 
         archiver.archive(RETENTION_DAYS);
 
@@ -89,7 +93,7 @@ class AuditLogArchiverTest {
         doReturn(List.of(sampleRecord())).when(auditLogMapper).selectList(any());
         doThrow(new BizException("whale-file unavailable")).when(archiveClient).upload(any(), any(), any());
         AuditLogArchiver archiver =
-                new AuditLogArchiver(auditLogMapper, watermarkMapper, archiveClient, exportProperties);
+                new AuditLogArchiver(auditLogMapper, watermarkMapper, archiveClient, exportProperties, auditMetrics);
 
         assertDoesNotThrow(() -> archiver.archive(RETENTION_DAYS));
 
@@ -110,7 +114,7 @@ class AuditLogArchiverTest {
         uploaded.put("objectKey", "bluewhale/auditLog-archive.csv");
         doReturn(uploaded).when(archiveClient).upload(any(), any(), any());
         AuditLogArchiver archiver =
-                new AuditLogArchiver(auditLogMapper, watermarkMapper, archiveClient, exportProperties);
+                new AuditLogArchiver(auditLogMapper, watermarkMapper, archiveClient, exportProperties, auditMetrics);
 
         archiver.archive(RETENTION_DAYS);
 
@@ -134,7 +138,7 @@ class AuditLogArchiverTest {
         doReturn(Map.of("objectKey", "bluewhale/auditLog-archive-batch.csv"))
                 .when(archiveClient).upload(any(), any(), any());
         AuditLogArchiver archiver =
-                new AuditLogArchiver(auditLogMapper, watermarkMapper, archiveClient, exportProperties);
+                new AuditLogArchiver(auditLogMapper, watermarkMapper, archiveClient, exportProperties, auditMetrics);
 
         archiver.archive(RETENTION_DAYS);
 
@@ -154,7 +158,7 @@ class AuditLogArchiverTest {
         doReturn(Map.of("objectKey", "bluewhale/auditLog-archive.csv"))
                 .when(archiveClient).upload(any(), any(), any());
         AuditLogArchiver archiver =
-                new AuditLogArchiver(auditLogMapper, watermarkMapper, archiveClient, exportProperties);
+                new AuditLogArchiver(auditLogMapper, watermarkMapper, archiveClient, exportProperties, auditMetrics);
 
         archiver.archive(RETENTION_DAYS);
 

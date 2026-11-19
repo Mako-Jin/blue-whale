@@ -2,6 +2,7 @@ package com.bluewhale.audit.config;
 
 import com.bluewhale.audit.mq.service.AuditLogMqConsumerService;
 import com.bluewhale.audit.mq.support.AuditLogMqConsumer;
+import com.bluewhale.audit.support.AuditMetrics;
 import com.bluewhale.common.audit.properties.AuditMqProperties;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
@@ -116,10 +117,12 @@ public class AuditMqConsumerConfiguration {
      * 审计 MQ 消费者（{@code @RabbitListener} 由 Spring AMQP 注解处理器注册）。
      *
      * @param consumerService 幂等消费服务
+     * @param auditMetrics    消费结果指标
      * @return 审计 MQ 消费者
      */
     @Bean
-    public AuditLogMqConsumer auditLogMqConsumer(AuditLogMqConsumerService consumerService) {
-        return new AuditLogMqConsumer(consumerService);
+    public AuditLogMqConsumer auditLogMqConsumer(AuditLogMqConsumerService consumerService,
+                                                 AuditMetrics auditMetrics) {
+        return new AuditLogMqConsumer(consumerService, auditMetrics);
     }
 }

@@ -99,6 +99,8 @@ whale:
       enabled: ${WHALE_AUDIT_RETENTION_ENABLED:false}
       days: ${WHALE_AUDIT_RETENTION_DAYS:30}
       cron: ${WHALE_AUDIT_RETENTION_CRON:0 0 3 * * ?}
+      # 归档积压指标 audit.archive.pending 的刷新周期（定时 count 后写入 Gauge，抓取时不再查库）
+      backlog-cron: ${WHALE_AUDIT_ARCHIVE_BACKLOG_CRON:0 */5 * * * ?}
       # AUTH-09 归档开关：默认 true（可显式关闭）；随保留期 cron 导出 audit_log 过期记录并上传，
       # 仅导出归档，绝不对 audit_log 做物理/逻辑删除。归档与清理解耦：
       # enabled 仍默认 false（不清理 4 张日志表），但 archive-enabled=true 时调度器照常装配并归档。

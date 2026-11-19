@@ -2,6 +2,7 @@ package com.bluewhale.audit.service.impl;
 
 import com.bluewhale.audit.dto.AuditLogQueryRequest;
 import com.bluewhale.audit.service.AuditLogService;
+import com.bluewhale.audit.support.AuditMetrics;
 import com.bluewhale.audit.vo.AuditExportTaskVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -54,15 +55,18 @@ public class AuditExportTaskService {
 
     private final Executor executor;
 
+    private final AuditMetrics auditMetrics;
+
     private final Map<String, TaskState> tasks = new ConcurrentHashMap<>();
 
     /**
      * 生产构造：使用固定大小守护线程池执行导出
      *
      * @param auditLogService 审计查询/导出的实际执行服务
+     * @param auditMetrics    导出耗时/行数指标
      */
-    public AuditExportTaskService(AuditLogService auditLogService) {
-        this(auditLogService, newExportExecutor());
+    public AuditExportTaskService(AuditLogService auditLogService, AuditMetrics auditMetrics) {
+        this(auditLogService, newExportExecutor(), auditMetrics);
     }
 
     /**
@@ -70,10 +74,12 @@ public class AuditExportTaskService {
      *
      * @param auditLogService 审计查询/导出的实际执行服务
      * @param executor        任务执行器
+     * @param auditMetrics    导出耗时/行数指标
      */
-    AuditExportTaskService(AuditLogService auditLogService, Executor executor) {
+    AuditExportTaskService(AuditLogService auditLogService, Executor executor, AuditMetrics auditMetrics) {
         this.auditLogService = auditLogService;
         this.executor = executor;
+        this.auditMetrics = auditMetrics;
     }
 
     /**
@@ -130,12 +136,15 @@ public class AuditExportTaskService {
      */
     private void run(String taskId, TaskState state, AuditLogQueryRequest request) {
         state.status = AuditExportTaskVO.Status.RUNNING;
+        long startNanos = System.nanoTime();
+        boolean success = false;
         try {
             Result<Map<String, Object>> result = auditLogService.exportCsv(request);
             if (result != null && result.getCode() == ErrorCode.SUCCESS.getCode()) {
                 state.upload = result.getData();
                 state.rows = extractRows(result.getData());
                 state.status = AuditExportTaskVO.Status.SUCCESS;
+                success = true;
                 log.info("审计日志异步导出完成: taskId={}, rows={}", taskId, state.rows);
             } else {
                 state.status = AuditExportTaskVO.Status.FAILED;
@@ -149,6 +158,8 @@ public class AuditExportTaskService {
             log.warn("审计日志异步导出异常（受控失败）: taskId={}, reason={}", taskId, e.getMessage(), e);
         } finally {
             state.finishedAt = LocalDateTime.now();
+            int rows = state.rows == null ? 0 : state.rows;
+            auditMetrics.recordExport(success, rows, System.nanoTime() - startNanos);
         }
     }
 

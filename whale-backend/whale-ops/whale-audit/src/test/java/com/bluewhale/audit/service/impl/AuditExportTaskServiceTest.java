@@ -2,10 +2,12 @@ package com.bluewhale.audit.service.impl;
 
 import com.bluewhale.audit.dto.AuditLogQueryRequest;
 import com.bluewhale.audit.service.AuditLogService;
+import com.bluewhale.audit.support.AuditMetrics;
 import com.bluewhale.audit.vo.AuditExportTaskVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.Result;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.task.SyncTaskExecutor;
 
@@ -28,8 +30,8 @@ class AuditExportTaskServiceTest {
 
     private final AuditLogService auditLogService = mock(AuditLogService.class);
 
-    private final AuditExportTaskService service =
-            new AuditExportTaskService(auditLogService, new SyncTaskExecutor());
+    private final AuditExportTaskService service = new AuditExportTaskService(
+            auditLogService, new SyncTaskExecutor(), new AuditMetrics(new SimpleMeterRegistry()));
 
     @Test
     void shouldCompleteTaskWithRowsAndUploadResult() {

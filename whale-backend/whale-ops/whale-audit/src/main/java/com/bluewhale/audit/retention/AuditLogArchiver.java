@@ -6,6 +6,7 @@ import com.bluewhale.audit.retention.entity.AuditArchiveWatermark;
 import com.bluewhale.audit.retention.mapper.AuditArchiveWatermarkMapper;
 import com.bluewhale.audit.support.AuditArchiveClient;
 import com.bluewhale.audit.support.AuditCsvWriter;
+import com.bluewhale.audit.support.AuditMetrics;
 import com.bluewhale.common.audit.entity.AuditLogRecord;
 import com.bluewhale.common.audit.mapper.AuditLogMapper;
 import com.bluewhale.common.lock.annotation.DistributedLock;
@@ -55,6 +56,8 @@ public class AuditLogArchiver {
 
     private final AuditExportProperties exportProperties;
 
+    private final AuditMetrics auditMetrics;
+
     /**
      * 归档 {@code audit_log} 中早于保留期的记录：导出 CSV 并上传，绝不删除
      *
@@ -88,9 +91,11 @@ public class AuditLogArchiver {
                         csv, AuditCsvWriter.archiveFileName(), exportProperties.getBucket());
                 watermark = advanceWatermark(watermark, records.get(records.size() - 1));
                 archivedRows += records.size();
+                auditMetrics.recordArchiveBatch(true, records.size());
                 log.info("审计日志归档批次完成（未删除任何记录）: 批次={}, 本批行数={}, 累计行数={}, objectKey={}",
                         batchNo, records.size(), archivedRows, uploaded.get(FIELD_OBJECT_KEY));
             } catch (Exception e) {
+                auditMetrics.recordArchiveBatch(false, 0);
                 log.warn("审计日志归档失败（受控失败，终止本轮，已上传批次的水位不回退）: 批次={}, 阈值={}, reason={}",
                         batchNo, threshold, e.getMessage(), e);
                 return;

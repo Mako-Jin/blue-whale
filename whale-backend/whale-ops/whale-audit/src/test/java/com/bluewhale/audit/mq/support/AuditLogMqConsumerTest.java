@@ -1,7 +1,9 @@
 package com.bluewhale.audit.mq.support;
 
 import com.bluewhale.audit.mq.service.AuditLogMqConsumerService;
+import com.bluewhale.audit.support.AuditMetrics;
 import com.bluewhale.common.audit.entity.AuditLogRecord;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.core.Message;
@@ -34,7 +36,8 @@ class AuditLogMqConsumerTest {
 
     private final AuditLogMqConsumerService consumerService = mock(AuditLogMqConsumerService.class);
 
-    private final AuditLogMqConsumer consumer = new AuditLogMqConsumer(consumerService);
+    private final AuditLogMqConsumer consumer = new AuditLogMqConsumer(
+            consumerService, new AuditMetrics(new SimpleMeterRegistry()));
 
     @Test
     void shouldParseMessageAndDelegateToConsumerService() {

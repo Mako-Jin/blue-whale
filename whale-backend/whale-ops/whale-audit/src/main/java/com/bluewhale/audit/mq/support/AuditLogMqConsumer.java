@@ -1,6 +1,7 @@
 package com.bluewhale.audit.mq.support;
 
 import com.bluewhale.audit.mq.service.AuditLogMqConsumerService;
+import com.bluewhale.audit.support.AuditMetrics;
 import com.bluewhale.common.audit.entity.AuditLogRecord;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +41,8 @@ public class AuditLogMqConsumer {
 
     private final AuditLogMqConsumerService consumerService;
 
+    private final AuditMetrics auditMetrics;
+
     /**
      * 消费审计队列消息。
      *
@@ -54,6 +57,7 @@ public class AuditLogMqConsumer {
         if (message.getBody().length > MAX_BODY_BYTES) {
             log.warn("审计 MQ 消息体超限，转入死信队列: messageId={}, bytes={}",
                     messageId, message.getBody().length);
+            auditMetrics.recordMqConsume(AuditMetrics.RESULT_REJECTED);
             throw new AmqpRejectAndDontRequeueException("审计消息体超过上限");
         }
         String body = new String(message.getBody(), StandardCharsets.UTF_8);
@@ -62,16 +66,20 @@ public class AuditLogMqConsumer {
             record = JSON_MAPPER.readValue(body, AuditLogRecord.class);
         } catch (Exception e) {
             log.warn("审计 MQ 消息反序列化失败，转入死信队列: messageId={}, reason={}", messageId, e.getMessage());
+            auditMetrics.recordMqConsume(AuditMetrics.RESULT_REJECTED);
             throw new AmqpRejectAndDontRequeueException("审计消息格式非法", e);
         }
         if (!StringUtils.hasText(messageId)) {
             log.warn("审计 MQ 消息缺少 messageId，无法幂等落库，转入死信队列: traceId={}", record.getTraceId());
+            auditMetrics.recordMqConsume(AuditMetrics.RESULT_REJECTED);
             throw new AmqpRejectAndDontRequeueException("审计消息缺少 messageId");
         }
         try {
             consumerService.consume(messageId, record);
+            auditMetrics.recordMqConsume(AuditMetrics.RESULT_SUCCESS);
         } catch (DuplicateKeyException e) {
             log.info("审计 MQ 消息重复消费，已跳过: messageId={}", messageId);
+            auditMetrics.recordMqConsume(AuditMetrics.RESULT_DUPLICATE);
         }
     }
 }

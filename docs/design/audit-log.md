@@ -311,6 +311,14 @@ whale-service-gateway
 CSV 经 whale-file 内网接口上传，失败时任务状态为 `FAILED` 且仅返回通用文案（详细原因进日志），
 导出只读 `audit_log`，不做任何删除/更新。
 
+**可观测与死信重放（AUTH-08/10）**：`/actuator/prometheus` 暴露
+`audit.export.duration`（`result=success|failure`）、`audit.export.rows`、`audit.archive.batches`、
+`audit.archive.rows`、`audit.archive.pending`（Gauge，每 5 分钟定时 count 后刷新，抓取时不再查库）、
+`audit.mq.consume`（`result=success|duplicate|rejected`）。死信队列提供内网重放入口
+`POST /audit/internal/mq/dlq/replay?limit=50`（路径含 `internal` 段，受内网令牌与网关
+`internal-deny` 双重保护）：`basicGet(不自动确认)` → 原样 `basicPublish` → 成功后 `basicAck`，
+失败 `basicNack(requeue=true)`，`messageId` 等属性保留，重复落库由去重表兜底。
+
 **多通道查询接口（Wave 5.10 起，Wave 5.15 补齐通道①②）**：`audit_log` 之外的四张独立表（`api_log`/`outbound_log`/`frontend_log`/`behavior_log`，见多通道完善方案）各自提供分页查询端点，与本 §9 的 `audit_log` 查询**并行、互不污染**：
 | 方法 | 路径 | 覆盖通道 | 权限 |
 |---|---|---|---|
