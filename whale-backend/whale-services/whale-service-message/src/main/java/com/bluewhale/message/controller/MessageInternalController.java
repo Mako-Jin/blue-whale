@@ -7,6 +7,7 @@ import com.bluewhale.message.service.MessageReceiptService;
 import com.bluewhale.message.service.MessageSendService;
 import com.bluewhale.message.vo.ReceiptApplyResult;
 import com.bluewhale.message.vo.SendMessageResult;
+import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * @author BlueWhale
  */
+@Hidden
 @RestController
 @RequestMapping("/message/v1/internal")
 @RequiredArgsConstructor

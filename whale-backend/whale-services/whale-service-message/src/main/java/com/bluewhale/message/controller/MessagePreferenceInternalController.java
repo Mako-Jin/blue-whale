@@ -4,6 +4,7 @@ import com.bluewhale.common.core.result.Result;
 import com.bluewhale.message.dto.PreferenceResolveRequest;
 import com.bluewhale.message.service.MessagePreferenceService;
 import com.bluewhale.message.vo.PreferenceDecisionVO;
+import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,6 +23,7 @@ import java.util.List;
  *
  * @author BlueWhale
  */
+@Hidden
 @RestController
 @RequestMapping("/message/v1/internal")
 @RequiredArgsConstructor
