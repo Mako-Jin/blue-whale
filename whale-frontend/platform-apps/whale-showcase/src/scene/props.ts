@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { HouseVariant, SceneAssets, TemplateParts, TreeVariant } from './loader';
 import { heightAt, riverCenter, slopeAt, WATER_LEVEL } from './terrain';
+import { applyPlasterMap, isPlaster, PLASTER_METERS } from './textures';
 import { PALETTE, clamp } from './util';
 
 /**
@@ -109,6 +110,35 @@ function paintVariation(g: THREE.BufferGeometry, key: MatKey, dark = 1): void {
   g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 }
 
+/**
+ * 按米重算盒式投影 UV。
+ *
+ * <p>`BoxGeometry` 自带的 UV 是"每个面各占 0..1"，同一张白墙贴图铺到巷子的
+ * 0.32×2.7m 山墙面上，雨痕被压成一片<b>细密条纹布</b>（出图一眼假），铺到 7m
+ * 的正墙上又放大成色块。所以所有 plaster 几何在入组前统一按世界坐标投影：
+ * 一个 UV 单位 = 3.2m，与 `house.py` 的 `box_uv(scale=3.2)` 同一把尺。</p>
+ */
+function boxUvWorld(g: THREE.BufferGeometry, scale: number): void {
+  const pos = g.attributes.position as THREE.BufferAttribute;
+  const nor = g.attributes.normal as THREE.BufferAttribute | undefined;
+  const uv = g.attributes.uv as THREE.BufferAttribute | undefined;
+  if (!nor || !uv) return;
+  for (let i = 0; i < pos.count; i += 1) {
+    const ax = Math.abs(nor.getX(i));
+    const ay = Math.abs(nor.getY(i));
+    const az = Math.abs(nor.getZ(i));
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    const z = pos.getZ(i);
+    // 主轴决定用哪两个世界轴做平面：朝上/下的面用 XZ，其余用"水平轴 + 竖向 Y"。
+    // v 必须是 Y（世界向上），否则雨痕会变成横纹。
+    if (ax >= ay && ax >= az) uv.setXY(i, y / scale, z / scale);
+    else if (ay >= az) uv.setXY(i, x / scale, z / scale);
+    else uv.setXY(i, x / scale, y / scale);
+  }
+  uv.needsUpdate = true;
+}
+
 /** 把同材质的部件合并成一个几何：3200 行 city.ts 那种"一物一 mesh"的写法，drawcall 会失控 */
 class Builder {
   private readonly parts = new Map<MatKey, THREE.BufferGeometry[]>();
@@ -138,6 +168,7 @@ class Builder {
       g.setIndex(new THREE.BufferAttribute(idx, 1));
     }
     paintVariation(g, key, this.darkFactor);
+    if (key === 'plaster') boxUvWorld(g, PLASTER_METERS);
     const list = this.parts.get(key) ?? [];
     list.push(g);
     this.parts.set(key, list);
@@ -195,6 +226,9 @@ class Builder {
         merged,
         new THREE.MeshStandardMaterial({ ...MAT_DEF[key], vertexColors: true }),
       );
+      // 院墙/巷门这些程序化白墙和 GLB 民居必须是同一张底图，否则街上的两种白
+      // 一个"有灰"一个"发亮"，转角处一眼能看出是两套资产
+      if (key === 'plaster') applyPlasterMap(mesh.material as THREE.MeshStandardMaterial);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       mesh.name = `settlement-${key}`;
@@ -1766,6 +1800,7 @@ function buildHousesFromGlb(group: THREE.Group, assets: SceneAssets, spots: Hous
       im.receiveShadow = true;
       im.frustumCulled = false;
       const tintTiles = /tile/i.test(part.material.name);
+      if (isPlaster(part.material.name)) applyPlasterMap(part.material);
       list.forEach((sp, i) => {
         q.setFromAxisAngle(up, sp.rotY);
         pos.set(sp.x, sp.y, sp.z);

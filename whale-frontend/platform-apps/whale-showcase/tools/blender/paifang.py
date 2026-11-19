@@ -23,7 +23,7 @@ RED = blib.mat("lacquer", blib.srgb(0x8E2F22), rough=0.55)
 # 拱眼壁比柱子再暗两档：它在斗拱背后，本来就吃不到光，同色会让整片糊成一团
 RED_D = blib.mat("lacquerDark", blib.srgb(0x5C1D15), rough=0.72)
 GOLD = blib.mat("gold", blib.srgb(0xD9B25E), rough=0.42, metal=0.15)
-TILE = blib.mat("tile", blib.srgb(0x2E3236), rough=0.5)
+TILE = blib.mat("tile", blib.srgb(0x343A40), rough=0.78)
 
 # ---- 关键尺寸（一处改，全件跟着走）
 #

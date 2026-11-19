@@ -38,8 +38,12 @@ WALL_B = blib.mat("plasterBack", blib.srgb(0xA79E8C), rough=0.94)
 # 剩下的变化交给运行时的逐栋色差（props.ts 的 InstancedMesh.setColorAt）。</p>
 #
 # <p>粗糙度是这套材质最敏感的参数：0.46 时 20cm 的瓦垄每一条都拉出一道高光，屋面立刻变成"压型钢板"。
-# 0.58 只留一层很弱的哑光，垄形靠几何自遮蔽读出来，才像瓦。</p></p>
-TILE = blib.mat("tile", blib.srgb(0x2E3338), rough=0.58)
+# 0.58 只留一层很弱的哑光，垄形靠几何自遮蔽读出来，才像瓦。</p>
+#
+# <p>0.58 在俯视/正面机位是够的，但<b>站在街上看檐口</b>时不行：视线与瓦面夹角只有几度，
+# 菲涅尔项把太阳与天空整片反射回来，牌坊顶变成一条银白色的波浪。青瓦是烧结陶土、
+# 无釉，几乎不该有镜面——抬到 0.78，高光被打散成一层雾，瓦色才压得住。</p>
+TILE = blib.mat("tile", blib.srgb(0x363E44), rough=0.78)
 WOOD = blib.mat("woodDark", blib.srgb(0x4A3327), rough=0.85)
 WOOD_R = blib.mat("woodRed", blib.srgb(0x6B3A2A), rough=0.82)
 STONE = blib.mat("stoneBase", blib.srgb(0x77705F), rough=0.93)
@@ -335,7 +339,45 @@ else:
     parts.append(blib.box("step", (1.9, 0.34, 0.16), (0, dy - 0.26, 0.08), material=STONE, bevel=0.01))
 
 NAME = "house_" + VARIANT
-blib.join(parts, NAME)
+OB = blib.join(parts, NAME)
+
+
+def box_uv(ob, names, scale=3.2):
+    """
+    给指定材质的面重算"按米"的盒式投影 UV。
+
+    <p>不写这段的话，白墙只能用 Blender 立方体自带的 UV 展开图：每面只占贴图的
+    1/16，等于把 512 的图放大到一个 20m 见方的平面上用——雨痕在墙上变成 12cm
+    宽的色块，什么也看不出来（而且它看起来"完全没生效"，因为一层 3% 的调制
+    在 ACES 之后连 1 个像素都不变）。</p>
+
+    <p>盒式投影按面的主轴选两个世界轴直接除以 `scale`，于是贴图 1 单位 = 3.2m，
+    512px 的图给出 160px/m：3cm 的雨痕正好 5px。代价是转角处 UV 不连续——
+    抹灰墙没有方向性的图案，看不出来。</p>
+    """
+    me = ob.data
+    uvl = me.uv_layers.active or me.uv_layers.new(name="UVMap")
+    target = {i for i, m in enumerate(me.materials) if m and m.name in names}
+    if not target:
+        return
+    for poly in me.polygons:
+        if poly.material_index not in target:
+            continue
+        n = poly.normal
+        an = (abs(n.x), abs(n.y), abs(n.z))
+        axis = an.index(max(an))
+        for li in poly.loop_indices:
+            co = me.vertices[me.loops[li].vertex_index].co
+            if axis == 0:
+                u, v = co.y, co.z
+            elif axis == 1:
+                u, v = co.x, co.z
+            else:
+                u, v = co.x, co.y
+            uvl.data[li].uv = (u / scale, v / scale)
+
+
+box_uv(OB, ("plaster", "plasterBack"))
 
 bpy.context.view_layer.update()
 zmin = min((ob.matrix_world @ v.co).z for ob in bpy.data.objects if ob.type == 'MESH' for v in ob.data.vertices)

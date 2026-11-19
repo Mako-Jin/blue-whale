@@ -6,6 +6,7 @@ import { createPostFx } from './postfx';
 import { alleySpots, buildSettlement, lanternSpots } from './props';
 import { createSky, type SkyState } from './sky';
 import { createTerrain, heightAt } from './terrain';
+import { tuneSurfaces } from './textures';
 import { createWater } from './water';
 
 /**
@@ -328,6 +329,9 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
 
   const settlement = buildSettlement(opts.assets);
   scene.add(settlement);
+  // 材质收尾必须放在 buildSettlement 之后：牌坊是整件 GLB、民居是 InstancedMesh、
+  // 巷门院墙是程序化合并件，只有扫一遍整棵树才能把三条路都覆盖到
+  tuneSurfaces(settlement);
 
   /* ---------------------------------------------------------------- 相机 */
   const controls = new OrbitControls(camera, renderer.domElement);
