@@ -45,12 +45,12 @@ public class ArchiveNumberService {
     public String next(String categoryCode, int year) {
         String code = normalizeCategoryCode(categoryCode);
         if (year < ArchiveConstants.MIN_YEAR || year > ArchiveConstants.MAX_YEAR) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "归档年度超出允许范围");
+            throw new BizException(ErrorCode.PARAM_ERROR, "archive.number.year-out-of-range", "归档年度超出允许范围");
         }
         sequenceMapper.allocate(IdWorker.getId(), code, year);
         long sequence = sequenceMapper.lastAllocatedValue();
         if (sequence <= 0) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "档号流水分配失败");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "archive.number.allocate-failed", "档号流水分配失败");
         }
         return format(code, year, sequence);
     }
@@ -63,11 +63,12 @@ public class ArchiveNumberService {
      */
     private static String normalizeCategoryCode(String rawCode) {
         if (!StringUtils.hasText(rawCode)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "门类编码不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "archive.category.code-empty", "门类编码不能为空");
         }
         String code = rawCode.trim().toUpperCase(Locale.ROOT);
         if (code.length() > MAX_CATEGORY_CODE_LENGTH || !code.matches(ArchiveConstants.CATEGORY_CODE_PATTERN)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "门类编码仅允许字母、数字与下划线且不超过 32 位");
+            throw new BizException(ErrorCode.PARAM_ERROR, "archive.category.code-invalid",
+                    "门类编码仅允许字母、数字与下划线且不超过 32 位");
         }
         return code;
     }

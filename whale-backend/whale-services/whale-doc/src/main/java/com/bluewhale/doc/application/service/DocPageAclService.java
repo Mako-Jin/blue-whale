@@ -89,17 +89,18 @@ public class DocPageAclService {
         if (restricted && request.getItems() != null) {
             for (DocPageAclUpdateRequest.Item item : request.getItems()) {
                 if (item.getUserId() == null || item.getUserId() <= 0) {
-                    throw new BizException(ErrorCode.PARAM_ERROR, "授权用户ID非法");
+                    throw new BizException(ErrorCode.PARAM_ERROR, "doc.acl.user-id-invalid", "授权用户ID非法");
                 }
                 DocAclRole role = DocAclRole.parse(item.getAclRole());
                 if (role == null) {
-                    throw new BizException(ErrorCode.PARAM_ERROR, "页面角色只能是 READ 或 EDIT");
+                    throw new BizException(ErrorCode.PARAM_ERROR, "doc.acl.role-invalid", "页面角色只能是 READ 或 EDIT");
                 }
                 grants.put(item.getUserId(), role);
             }
         }
         if (grants.size() > MAX_GRANTS) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "授权用户不能超过 " + MAX_GRANTS + " 个");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.acl.grant-limit-exceeded",
+                    "授权用户不能超过 " + MAX_GRANTS + " 个", MAX_GRANTS);
         }
         long tenantId = TenantContext.requireId();
         aclMapper.deleteByPage(tenantId, pageId);

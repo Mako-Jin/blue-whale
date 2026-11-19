@@ -113,7 +113,7 @@ public class ArchiveSyncService {
      */
     public ArchiveSyncResultVO runOnce() {
         if (!running.compareAndSet(false, true)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "档案同步任务正在执行");
+            throw new BizException(ErrorCode.PARAM_ERROR, "archive.sync.in-progress", "档案同步任务正在执行");
         }
         LocalDateTime startedAt = LocalDateTime.now();
         try {

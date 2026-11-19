@@ -50,16 +50,16 @@ public class DocArchiveClient {
                 .retrieve()
                 .body(Map.class);
         if (response == null) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "档案服务响应为空");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "doc.archive.response-empty", "档案服务响应为空");
         }
         Object code = response.get("code");
         if (!(code instanceof Number number) || number.intValue() != CODE_SUCCESS) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR,
-                    "档案服务返回失败: " + response.get("message"));
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "doc.archive.remote-failed",
+                    "档案服务返回失败: " + response.get("message"), response.get("message"));
         }
         Object data = response.get("data");
         if (!(data instanceof Map<?, ?> map)) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "档案服务返回数据格式异常");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "doc.archive.response-format-invalid", "档案服务返回数据格式异常");
         }
         return new IngestOutcome(value(map.get("itemId")), value(map.get("snapshotFileId")),
                 Boolean.parseBoolean(String.valueOf(map.get("created"))));
@@ -73,7 +73,7 @@ public class DocArchiveClient {
     private String baseUrl() {
         List<ServiceInstance> instances = discoveryClient.getInstances(docProperties.getArchiveServiceName());
         if (instances.isEmpty()) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "档案服务不可用");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "doc.archive.service-unavailable", "档案服务不可用");
         }
         return instances.get(0).getUri().toString();
     }

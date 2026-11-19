@@ -224,7 +224,7 @@ public class DocCommentServiceImpl implements DocCommentService {
         DocComment parent = commentMapper.selectById(parentId);
         if (parent == null || !pageId.equals(parent.getPageId())
                 || (parent.getParentId() != null && parent.getParentId() != MAIN_COMMENT_PARENT)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "回复目标评论不存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.comment.reply-target-not-found", "回复目标评论不存在");
         }
     }
 

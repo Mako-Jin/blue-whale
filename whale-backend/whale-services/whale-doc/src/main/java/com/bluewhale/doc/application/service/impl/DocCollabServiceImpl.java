@@ -77,7 +77,7 @@ public class DocCollabServiceImpl implements DocCollabService {
         requireCollabEnabled();
         DocPage page = accessGuard.requirePage(pageId);
         if (DocPageType.FOLDER.name().equals(page.getPageType())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "目录不支持实时协作");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.collab.folder-unsupported", "目录不支持实时协作");
         }
         accessGuard.requirePageEdit(page, userId);
         assertNotArchived(page);
@@ -195,7 +195,7 @@ public class DocCollabServiceImpl implements DocCollabService {
      */
     private void requireCollabEnabled() {
         if (!docProperties.isCollabEnabled()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "实时协作未开启");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.collab.disabled", "实时协作未开启");
         }
     }
 
@@ -206,7 +206,7 @@ public class DocCollabServiceImpl implements DocCollabService {
      */
     private void assertNotArchived(DocPage page) {
         if (DocPageStatus.ARCHIVED.name().equals(page.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "已归档页面不可编辑");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.page.archived-not-editable", "已归档页面不可编辑");
         }
     }
 
@@ -223,7 +223,7 @@ public class DocCollabServiceImpl implements DocCollabService {
         }
         String value = title.trim();
         if (value.length() > TITLE_MAX_LENGTH) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "页面标题不能超过 200 字");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.page.title-too-long", "页面标题不能超过 200 字");
         }
         return value;
     }

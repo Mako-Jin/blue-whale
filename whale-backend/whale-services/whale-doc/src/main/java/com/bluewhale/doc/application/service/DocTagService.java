@@ -85,7 +85,7 @@ public class DocTagService {
                 .eq(DocTag::getSpaceId, spaceId)
                 .eq(DocTag::getName, name));
         if (exists > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "标签已存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.tag.already-exists", "标签已存在");
         }
         DocTag tag = new DocTag();
         tag.setSpaceId(spaceId);
@@ -94,7 +94,7 @@ public class DocTagService {
         try {
             tagMapper.insert(tag);
         } catch (DuplicateKeyException ex) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "标签已存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.tag.already-exists", "标签已存在");
         }
         return toVO(tag);
     }
@@ -117,7 +117,7 @@ public class DocTagService {
                 .eq(DocTag::getName, name)
                 .ne(DocTag::getId, tagId));
         if (exists > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "标签已存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.tag.already-exists", "标签已存在");
         }
         tag.setName(name);
         tag.setColor(normalizeColor(request.getColor()));
@@ -188,12 +188,13 @@ public class DocTagService {
             tagIds.stream().filter(id -> id != null && id > 0).forEach(distinct::add);
         }
         if (distinct.size() > MAX_TAGS_PER_PAGE) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "单页标签不能超过 " + MAX_TAGS_PER_PAGE + " 个");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.tag.page-limit-exceeded",
+                    "单页标签不能超过 " + MAX_TAGS_PER_PAGE + " 个", MAX_TAGS_PER_PAGE);
         }
         List<DocTag> tags = distinct.isEmpty() ? List.of() : tagMapper.selectBatchIds(distinct);
         if (tags.size() != distinct.size()
                 || tags.stream().anyMatch(tag -> !page.getSpaceId().equals(tag.getSpaceId()))) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "标签不存在或不属于当前空间");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.tag.not-in-space", "标签不存在或不属于当前空间");
         }
         long tenantId = TenantContext.requireId();
         pageTagMapper.deleteByPage(tenantId, pageId);
@@ -216,7 +217,7 @@ public class DocTagService {
     private DocTag requireTag(Long tagId) {
         DocTag tag = tagMapper.selectById(tagId);
         if (tag == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "标签不存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.tag.not-found", "标签不存在");
         }
         return tag;
     }
@@ -230,7 +231,7 @@ public class DocTagService {
     private String normalizeName(String raw) {
         String name = raw == null ? "" : raw.trim().replaceAll("\\s+", " ");
         if (name.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "标签名称不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.tag.name-empty", "标签名称不能为空");
         }
         return name.length() <= 64 ? name : name.substring(0, 64);
     }

@@ -74,7 +74,8 @@ public class ArchiveSnapshotBuilder {
         try {
             return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(snapshot);
         } catch (JsonProcessingException e) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "生成档案快照失败: " + e.getOriginalMessage());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "archive.snapshot.generate-failed",
+                    "生成档案快照失败: " + e.getOriginalMessage(), e.getOriginalMessage());
         }
     }
 
@@ -206,7 +207,7 @@ public class ArchiveSnapshotBuilder {
             }
             return hex.toString();
         } catch (NoSuchAlgorithmException e) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "快照摘要算法不可用");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "archive.snapshot.digest-unavailable", "快照摘要算法不可用");
         }
     }
 

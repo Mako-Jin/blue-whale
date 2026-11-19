@@ -215,7 +215,7 @@ public class DocVersionServiceImpl implements DocVersionService {
         DocPage page = accessGuard.requirePage(pageId);
         accessGuard.requirePageEdit(page, userId);
         if (DocPageStatus.ARCHIVED.name().equals(page.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "已归档页面不可编辑");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.page.archived-not-editable", "已归档页面不可编辑");
         }
         return page;
     }

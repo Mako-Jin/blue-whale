@@ -83,7 +83,7 @@ public class DocAttachmentServiceImpl implements DocAttachmentService {
         Long tenantId = TenantContext.requireId();
         DocFileClient.UploadedFile uploaded = fileClient.upload(file, BUCKET, userId, tenantId);
         if (uploaded.fileId() == null) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "文件服务未返回文件ID");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "doc.attachment.file-id-missing", "文件服务未返回文件ID");
         }
         String name = StringUtils.hasText(uploaded.originalName())
                 ? uploaded.originalName() : resolveFilename(file);
@@ -125,7 +125,7 @@ public class DocAttachmentServiceImpl implements DocAttachmentService {
         DocPage page = accessGuard.requirePage(pageId);
         accessGuard.requirePageEdit(page, userId);
         if (DocPageStatus.ARCHIVED.name().equals(page.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "已归档页面不可编辑附件");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.attachment.archived-not-editable", "已归档页面不可编辑附件");
         }
         return page;
     }
@@ -152,7 +152,7 @@ public class DocAttachmentServiceImpl implements DocAttachmentService {
      */
     private void validateFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "附件不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.attachment.file-empty", "附件不能为空");
         }
         if (file.getSize() > docProperties.getAttachmentMaxBytes()) {
             throw DocErrorCode.exception(DocErrorCode.ATTACHMENT_TOO_LARGE);

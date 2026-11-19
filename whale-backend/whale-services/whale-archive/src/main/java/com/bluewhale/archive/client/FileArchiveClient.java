@@ -368,7 +368,7 @@ public class FileArchiveClient {
      */
     private static BizException toPreviewException(int status) {
         if (status == HttpStatus.NOT_FOUND.value()) {
-            return new BizException(ErrorCode.NOT_FOUND.getCode(), "档案文件不存在或已被删除");
+            return new BizException(ErrorCode.NOT_FOUND, "archive.file.gone", "档案文件不存在或已被删除");
         }
         return RemoteHttpSupport.failure(ACTION_PREVIEW, "HTTP " + status);
     }

@@ -119,7 +119,8 @@ public class ArchiveIngestService {
     private String normalizeSourceType(String rawType) {
         String sourceType = rawType == null ? "" : rawType.trim().toUpperCase(Locale.ROOT);
         if (!ALLOWED_SOURCE_TYPES.contains(sourceType)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "不支持的来源类型: " + rawType);
+            throw new BizException(ErrorCode.PARAM_ERROR, "archive.ingest.source-type-unsupported",
+                    "不支持的来源类型: " + rawType, rawType);
         }
         return sourceType;
     }
@@ -147,10 +148,10 @@ public class ArchiveIngestService {
     private byte[] snapshotBytes(String snapshotJson) {
         byte[] snapshot = snapshotJson == null ? new byte[0] : snapshotJson.getBytes(StandardCharsets.UTF_8);
         if (snapshot.length == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "快照内容不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "archive.ingest.snapshot-empty", "快照内容不能为空");
         }
         if (snapshot.length > MAX_SNAPSHOT_BYTES) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "快照内容超过 1MB 上限");
+            throw new BizException(ErrorCode.PARAM_ERROR, "archive.ingest.snapshot-too-large", "快照内容超过 1MB 上限");
         }
         return snapshot;
     }

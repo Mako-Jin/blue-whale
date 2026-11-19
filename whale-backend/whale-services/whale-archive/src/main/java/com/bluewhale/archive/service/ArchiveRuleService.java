@@ -142,7 +142,7 @@ public class ArchiveRuleService {
     private ArchiveRule requireRule(Long id) {
         ArchiveRule entity = ruleMapper.selectById(id);
         if (entity == null) {
-            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "归档规则不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "archive.rule.not-found", "归档规则不存在");
         }
         return entity;
     }
@@ -156,7 +156,7 @@ public class ArchiveRuleService {
     private ArchiveCategory requireCategory(Long categoryId) {
         ArchiveCategory category = categoryMapper.selectById(categoryId);
         if (category == null) {
-            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "归档门类不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "archive.category.archived-not-found", "归档门类不存在");
         }
         return category;
     }
@@ -172,7 +172,7 @@ public class ArchiveRuleService {
         wrapper.eq(ArchiveRule::getDefinitionCode, definitionCode);
         wrapper.ne(excludeId != null, ArchiveRule::getId, excludeId);
         if (ruleMapper.selectCount(wrapper) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "该流程定义已存在归档规则");
+            throw new BizException(ErrorCode.PARAM_ERROR, "archive.rule.definition-exists", "该流程定义已存在归档规则");
         }
     }
 
@@ -184,12 +184,12 @@ public class ArchiveRuleService {
      */
     private static String normalizeDefinitionCode(String rawCode) {
         if (!StringUtils.hasText(rawCode)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "流程定义编码不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "archive.rule.definition-code-empty", "流程定义编码不能为空");
         }
         String code = rawCode.trim();
         if (code.length() > MAX_DEFINITION_CODE_LENGTH
                 || !code.matches(ArchiveConstants.DEFINITION_CODE_PATTERN)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
+            throw new BizException(ErrorCode.PARAM_ERROR, "archive.rule.definition-code-invalid",
                     "流程定义编码仅允许字母、数字、下划线、点与连字符且不超过 64 位");
         }
         return code;

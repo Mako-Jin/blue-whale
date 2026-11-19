@@ -115,7 +115,7 @@ public class DocPageCopyServiceImpl implements DocPageCopyService {
         List<DocPage> ordered = new ArrayList<>();
         collect(source, children, ordered, userId);
         if (ordered.size() > MAX_COPY_NODES) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "单次复制的页面数量超过上限");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.page.copy-limit-exceeded", "单次复制的页面数量超过上限");
         }
         return ordered;
     }
@@ -132,7 +132,7 @@ public class DocPageCopyServiceImpl implements DocPageCopyService {
                          Long userId) {
         ordered.add(node);
         if (ordered.size() > MAX_COPY_NODES) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "单次复制的页面数量超过上限");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.page.copy-limit-exceeded", "单次复制的页面数量超过上限");
         }
         for (DocPage child : children.getOrDefault(node.getId(), List.of())) {
             if (!accessGuard.canRead(child, userId)) {
@@ -252,7 +252,7 @@ public class DocPageCopyServiceImpl implements DocPageCopyService {
             }
         }
         if (rootId == null) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "页面复制失败");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "doc.page.copy-failed", "页面复制失败");
         }
         return rootId;
     }
