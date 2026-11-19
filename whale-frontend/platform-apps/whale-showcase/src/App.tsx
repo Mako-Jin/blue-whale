@@ -68,6 +68,8 @@ export default function App(): React.ReactElement {
       handle?.dispose();
       handleRef.current = null;
     };
+    // initialQuality 只从 URL 读、挂载后不变；空依赖故意只跑一次
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const pickTime = (name: TimeName) => {

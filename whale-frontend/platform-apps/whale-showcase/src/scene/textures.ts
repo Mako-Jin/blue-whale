@@ -317,7 +317,7 @@ export function brickTexture(): THREE.CanvasTexture {
         if (edge >= gap) lum *= 1 - streak * 0.11;
 
         const i = (y * SIZE + x) * 4;
-        let c = Math.max(0, Math.min(255, lum * 255));
+        const c = Math.max(0, Math.min(255, lum * 255));
         let r = c;
         let g = c;
         let bl = c;
