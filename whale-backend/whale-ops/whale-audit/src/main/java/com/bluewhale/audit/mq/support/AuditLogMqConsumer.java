@@ -19,7 +19,7 @@ import java.nio.charset.StandardCharsets;
  * <p>消息体为单条 {@link AuditLogRecord} 的 JSON（生产者 {@code AuditLogMqPublisher} 投递），
  * 消息属性 {@code messageId} 为幂等键。异常处理约定：</p>
  * <ul>
- *   <li>非法 JSON / 缺失 {@code messageId}：视为毒消息，抛
+ *   <li>非法 JSON / 消息体超过上限 / 缺失 {@code messageId}：视为毒消息，抛
  *       {@link AmqpRejectAndDontRequeueException} 拒绝且不重新入队，经死信交换机进 DLQ；</li>
  *   <li>去重表主键冲突：该消息已成功落库，记录日志后正常返回（消费成功）；</li>
  *   <li>其他落库异常：原样抛出，由监听容器按
@@ -35,6 +35,9 @@ public class AuditLogMqConsumer {
     /** JSON 反序列化器（Jackson 3，线程安全，字段与 audit_log 一一对应） */
     private static final JsonMapper JSON_MAPPER = JsonMapper.builder().build();
 
+    /** 消息体字节上限（1 MB）：审计记录为单条结构化数据，超限视为异常投递，直接进 DLQ 防内存放大 */
+    private static final int MAX_BODY_BYTES = 1024 * 1024;
+
     private final AuditLogMqConsumerService consumerService;
 
     /**
@@ -45,6 +48,11 @@ public class AuditLogMqConsumer {
     @RabbitListener(queues = "${whale.audit.mq.queue:bluewhale.audit.queue}")
     public void onMessage(Message message) {
         String messageId = message.getMessageProperties().getMessageId();
+        if (message.getBody().length > MAX_BODY_BYTES) {
+            log.warn("审计 MQ 消息体超限，转入死信队列: messageId={}, bytes={}",
+                    messageId, message.getBody().length);
+            throw new AmqpRejectAndDontRequeueException("审计消息体超过上限");
+        }
         String body = new String(message.getBody(), StandardCharsets.UTF_8);
         AuditLogRecord record;
         try {

@@ -100,8 +100,9 @@ public class AuditLogServiceImpl implements AuditLogService {
             log.info("审计日志导出完成: 行数={}, objectKey={}", records.size(), uploaded.get(FIELD_OBJECT_KEY));
             return Result.ok(uploaded);
         } catch (Exception e) {
+            // 详细原因仅记日志：响应文案不外泄内网地址、SQL 等实现细节
             log.warn("审计日志导出失败（受控失败，不外抛原始异常）: reason={}", e.getMessage(), e);
-            return Result.fail(ErrorCode.SYSTEM_ERROR.getCode(), "审计日志导出失败: " + e.getMessage());
+            return Result.fail(ErrorCode.SYSTEM_ERROR.getCode(), "审计日志导出失败，请稍后重试");
         }
     }
 

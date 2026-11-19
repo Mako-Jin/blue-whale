@@ -65,6 +65,18 @@ class AuditLogMqConsumerTest {
     }
 
     @Test
+    void shouldRejectOversizedBodyBeforeDeserialization() {
+        byte[] oversized = new byte[1024 * 1024 + 1];
+        MessageProperties properties = new MessageProperties();
+        properties.setMessageId(MESSAGE_ID);
+        Message message = new Message(oversized, properties);
+
+        assertThatThrownBy(() -> consumer.onMessage(message))
+                .isInstanceOf(AmqpRejectAndDontRequeueException.class);
+        verify(consumerService, never()).consume(any(), any());
+    }
+
+    @Test
     void shouldSwallowDuplicateKeyException() {
         Message message = message(JSON_MAPPER.writeValueAsString(sampleRecord()), MESSAGE_ID);
         doThrow(new DuplicateKeyException("duplicate")).when(consumerService).consume(any(), any());

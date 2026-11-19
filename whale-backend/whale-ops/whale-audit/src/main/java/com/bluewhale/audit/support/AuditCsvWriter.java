@@ -2,6 +2,8 @@ package com.bluewhale.audit.support;
 
 import com.bluewhale.common.audit.entity.AuditLogRecord;
 
+import java.io.ByteArrayOutputStream;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -12,7 +14,11 @@ import java.util.List;
  *
  * <p>输出规则（冻结）：UTF-8 编码、首行表头、行尾统一 {@code \n}、字段按 RFC 4180 做 CSV 转义
  * （含分隔符 {@code ,}、双引号或换行时以双引号包裹，内部双引号加倍）；内容前置 UTF-8 BOM
- * （{@code \uFEFF}），保证 Excel 等工具直接打开中文不乱码。</p>
+ * （{@code \uFEFF}），保证 Excel 等工具直接打开中文不乱码。以 {@code = + - @} 等公式前缀开头的
+ * 文本会前置单引号中和，防止导出文件在 Excel/WPS 中触发公式注入。</p>
+ *
+ * <p>渲染按行逐段写入 {@link ByteArrayOutputStream}，不再先拼成全量 {@link StringBuilder}
+ * 再 {@code toString().getBytes()}，避免大批量导出（{@code max-rows} 可达 5 万行）时的多份全量内存复制。</p>
  *
  * <p>无状态工具类，不持有业务状态。</p>
  *
@@ -57,12 +63,23 @@ public final class AuditCsvWriter {
      * @return UTF-8 CSV 字节数组（以 BOM 开头）
      */
     public static byte[] toCsvBytes(List<AuditLogRecord> records) {
-        StringBuilder builder = new StringBuilder(BOM);
-        builder.append(String.join(DELIMITER, HEADERS)).append(LINE_SEPARATOR);
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        writeUtf8(out, BOM);
+        writeUtf8(out, String.join(DELIMITER, HEADERS) + LINE_SEPARATOR);
         for (AuditLogRecord record : records) {
-            builder.append(toLine(record)).append(LINE_SEPARATOR);
+            writeUtf8(out, toLine(record) + LINE_SEPARATOR);
         }
-        return builder.toString().getBytes(StandardCharsets.UTF_8);
+        return out.toByteArray();
+    }
+
+    /**
+     * 按 UTF-8 写入一段文本（{@link ByteArrayOutputStream} 不抛 IO 异常，无需声明受检异常）
+     *
+     * @param out  目标字节流
+     * @param text 待写入文本
+     */
+    private static void writeUtf8(ByteArrayOutputStream out, String text) {
+        out.writeBytes(text.getBytes(StandardCharsets.UTF_8));
     }
 
     /**
@@ -116,16 +133,53 @@ public final class AuditCsvWriter {
     }
 
     /**
-     * CSV 字段转义：含分隔符、双引号或换行时以双引号包裹并将内部双引号加倍
+     * CSV 字段转义：先中和公式注入前缀，再对含分隔符、双引号或换行的值以双引号包裹
+     * 并将内部双引号加倍
      *
      * @param value 待转义字段值（非空）
      * @return 转义后的字段值
      */
     private static String escape(String value) {
-        if (value.indexOf('"') >= 0 || value.indexOf(',') >= 0
-                || value.indexOf('\n') >= 0 || value.indexOf('\r') >= 0) {
-            return '"' + value.replace("\"", "\"\"") + '"';
+        String text = neutralizeFormula(value);
+        if (text.indexOf('"') >= 0 || text.indexOf(',') >= 0
+                || text.indexOf('\n') >= 0 || text.indexOf('\r') >= 0) {
+            return '"' + text.replace("\"", "\"\"") + '"';
+        }
+        return text;
+    }
+
+    /**
+     * 中和 CSV 公式注入：以 {@code = @}、制表符或回车开头，或以非数字的 {@code + / -} 开头时
+     * 前置单引号，使 Excel/WPS 按文本而非公式解析；纯数字的 {@code + / -} 保持原样。
+     *
+     * @param value 原始字段值
+     * @return 中和后的字段值；无需中和时原样返回
+     */
+    private static String neutralizeFormula(String value) {
+        if (value.isEmpty()) {
+            return value;
+        }
+        char first = value.charAt(0);
+        boolean dangerous = first == '=' || first == '@' || first == '\t' || first == '\r';
+        boolean signedNumber = (first == '+' || first == '-') && isNumeric(value);
+        if (dangerous || ((first == '+' || first == '-') && !signedNumber)) {
+            return "'" + value;
         }
         return value;
+    }
+
+    /**
+     * 判断文本是否为可解析的数值（用于区分负号/正号与公式前缀）
+     *
+     * @param text 待判定文本
+     * @return 可解析为数值返回 {@code true}
+     */
+    private static boolean isNumeric(String text) {
+        try {
+            new BigDecimal(text);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 }

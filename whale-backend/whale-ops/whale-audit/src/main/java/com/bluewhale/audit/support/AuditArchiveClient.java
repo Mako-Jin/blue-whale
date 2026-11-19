@@ -7,11 +7,14 @@ import com.bluewhale.common.internaltoken.InternalTokenSupport;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 
+import java.net.http.HttpClient;
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -52,16 +55,28 @@ public class AuditArchiveClient {
     /** 统一响应体数据字段 */
     private static final String FIELD_DATA = "data";
 
+    /** 连接超时：whale-file 不可达时快速失败，避免归档线程长时间挂起 */
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
+
+    /** 读超时：单次上传响应等待上限 */
+    private static final Duration READ_TIMEOUT = Duration.ofSeconds(60);
+
     /** whale-file 服务调用客户端（基址取配置 {@code whale.audit.export.file-service-url}） */
     private final RestClient restClient;
 
     /**
-     * 以导出配置构建上传客户端
+     * 以导出配置构建上传客户端（JDK HttpClient 实现，显式设置连接/读超时）
      *
      * @param properties 导出/归档配置（提供 whale-file 基址）
      */
     public AuditArchiveClient(AuditExportProperties properties) {
-        this.restClient = InternalTokenSupport.builder().baseUrl(properties.getFileServiceUrl()).build();
+        HttpClient httpClient = HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
+        requestFactory.setReadTimeout(READ_TIMEOUT);
+        this.restClient = InternalTokenSupport.builder()
+                .baseUrl(properties.getFileServiceUrl())
+                .requestFactory(requestFactory)
+                .build();
     }
 
     /**

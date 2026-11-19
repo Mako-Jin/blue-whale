@@ -48,6 +48,23 @@ class AuditCsvWriterTest {
     }
 
     @Test
+    void shouldNeutralizeFormulaInjectionAndKeepSignedNumbers() {
+        AuditLogRecord record = new AuditLogRecord();
+        record.setId(3L);
+        record.setUsername("=cmd|' /C calc'!A0");
+        record.setOperation("@SUM(1+1)");
+        record.setErrorMsg("+HYPERLINK(\"http://evil\")");
+        record.setCostMs(-12L);
+
+        String text = new String(AuditCsvWriter.toCsvBytes(List.of(record)), StandardCharsets.UTF_8);
+
+        assertThat(text).contains("'=cmd|' /C calc'!A0");
+        assertThat(text).contains("'@SUM(1+1)");
+        assertThat(text).contains("'+HYPERLINK(\"\"http://evil\"\")");
+        assertThat(text).doesNotContain("'-12");
+    }
+
+    @Test
     void shouldRenderNullFieldsAsEmptyCells() {
         AuditLogRecord record = new AuditLogRecord();
         record.setId(2L);

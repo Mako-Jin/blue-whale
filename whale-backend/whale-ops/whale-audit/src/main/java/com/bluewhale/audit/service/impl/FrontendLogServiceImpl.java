@@ -88,7 +88,7 @@ public class FrontendLogServiceImpl implements FrontendLogService {
      * 上报条目转实体列表（当前线程执行，捕获全部上下文）
      *
      * @param request 批量上报请求
-     * @param userId 生效用户ID（网关头优先，缺失时请求体兜底）
+     * @param userId 生效用户ID（仅取网关 {@code X-User-Id} 头，缺失时落匿名 {@code null}）
      * @return 前端日志实体列表；无有效条目时返回空列表
      */
     private static List<FrontendLogRecord> toRecords(LogBatchRequest request, Long userId) {
