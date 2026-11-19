@@ -30,6 +30,7 @@ void main() {
 const FRAG = /* glsl */ `
 uniform float uTime;
 uniform vec3 uDeep;
+uniform vec3 uShallow;
 uniform vec3 uTop;
 uniform vec3 uHorizon;
 uniform vec3 uSunDir;
@@ -119,6 +120,21 @@ vec3 skyAt(vec3 dir) {
   return mix(uHorizon, uTop, pow(hz, 0.5));
 }
 
+/*
+ * 河床剖面（与 terrain.ts 逐项对齐的解析版）。
+ *
+ * <p>河床不加噪声（岸上才加，河槽必须平），所以这段剖面在 shader 里可以
+ * 精确复现——浅水色就是用它算的：深度 = 0 - 床高，贴岸趋 0、河心 2.4m。</p>
+ */
+float riverCenterF(float z) {
+  return sin(z * 0.013) * 6.5 + sin(z * 0.0047 + 1.3) * 4.2;
+}
+
+float bedHeight(vec2 p) {
+  float d = abs(p.x - riverCenterF(p.y));
+  return -2.4 + 2.75 * smoothstep(4.5, 9.0, d);
+}
+
 void main() {
   vec2 p = vWorld.xz;
   float dist = length(cameraPosition - vWorld);
@@ -188,6 +204,17 @@ void main() {
 
   vec3 col = mix(uDeep, refl, fres);
 
+  /*
+   * 浅水色：贴岸处河床透出——水体色向"沙石绿"靠、反射权重也压一截
+   * （浅水的镜面感本来就弱）。深度带约 4m 宽（床高 0 在距河心 ~8.4m 处），
+   * 是水线与岸之间的自然过渡，没有它近岸就是一条"深蓝硬边"。
+   */
+  float depth = clamp(-bedHeight(p), 0.0, 2.4);
+  float shal = 1.0 - smoothstep(0.10, 1.35, depth);
+  col = mix(mix(uDeep, uShallow, shal * 0.9), refl, fres * (1.0 - shal * 0.45));
+  // 水线亮边：深度趋 0 处一层极窄的提亮——水膜贴在湿沙上的高光
+  col += uHorizon * (1.0 - smoothstep(0.0, 0.10, depth)) * 0.18;
+
   // 太阳：一层宽反光打底 + 一层高次碎金。只留高次的话低太阳角下什么都没有
   vec3 L = normalize(uSunDir);
   vec3 H = normalize(V + L);
@@ -229,6 +256,8 @@ export interface Water {
    * 一条黑河。白天必须抬亮，夜里再压回去。</p>
    */
   setDeep: (deep: THREE.Color) => void;
+  /** 浅水色（贴岸河床透出），按时段给 */
+  setShallow: (shallow: THREE.Color) => void;
   /** 场景环境探针（CubeCamera 烘出的立方图），用于把岸上的灯与建筑带进水面反射 */
   setEnv: (tex: THREE.CubeTexture | THREE.Texture) => void;
   /** 水面上要画倒影的灯（最多 4 盏）。power 0..1，按时段灯亮程度给 */
@@ -252,6 +281,7 @@ export function createWater(length = 480, halfWidth = 12): Water {
   const uniforms = {
     uTime: { value: 0 },
     uDeep: { value: new THREE.Color(0x0d2126) },
+    uShallow: { value: new THREE.Color(0x35443a) },
     uTop: { value: new THREE.Color(0x22386a) },
     uHorizon: { value: new THREE.Color(0xd98f52) },
     uSunDir: { value: new THREE.Vector3(0, 0.3, -1).normalize() },
@@ -294,6 +324,10 @@ export function createWater(length = 480, halfWidth = 12): Water {
     },
     setDeep(deep) {
       uniforms.uDeep.value.copy(deep);
+    },
+    /** 浅水处河床透出的水体色（贴岸渐变用），按时段与 deep 一起给 */
+    setShallow(shallow: THREE.Color) {
+      uniforms.uShallow.value.copy(shallow);
     },
     setEnv(tex) {
       uniforms.uEnv.value = tex;

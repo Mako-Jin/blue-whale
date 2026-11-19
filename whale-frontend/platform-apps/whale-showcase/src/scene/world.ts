@@ -54,6 +54,8 @@ interface TimePreset {
   vignette: number;
   /** 水体本色：俯视时水面 85% 是这一项，不能全场一个值 */
   waterDeep: number;
+  /** 浅水色：贴岸河床透出的水体色（比 deep 亮且偏沙石绿） */
+  waterShallow: number;
   /** 暗部染色（后期把阴影往这个色偏）与强度 */
   shadowTint: number;
   shadowAmount: number;
@@ -89,6 +91,7 @@ const TIMES: Record<TimeName, TimePreset> = {
     bloom: 0.3,
     vignette: 0.5,
     waterDeep: 0x0d2126,
+    waterShallow: 0x35443a,
     shadowTint: 0x1b2742,
     shadowAmount: 0.24,
     // 黄昏云：贴着天际线的积云被落日从侧面点亮，底面是紫灰
@@ -128,6 +131,7 @@ const TIMES: Record<TimeName, TimePreset> = {
     // 正午的河水靠反射天光发亮，但俯视时菲涅尔只有 0.15，剩下 85% 是水体色。
     // 沿用黄昏的 0x0d2126 会得到一条黑河（"白天比黄昏还暗"的根源之一）。
     waterDeep: 0x2c4a52,
+    waterShallow: 0x68836b,
     shadowTint: 0x4a4740,
     shadowAmount: 0.1,
     // 白天云：白顶灰底，量适中——纯蓝天也好看，但全景上三分之一太空。
@@ -159,6 +163,7 @@ const TIMES: Record<TimeName, TimePreset> = {
     bloom: 0.5,
     vignette: 0.55,
     waterDeep: 0x14282e,
+    waterShallow: 0x2e4038,
     shadowTint: 0x141d38,
     shadowAmount: 0.34,
     // 蓝调云：只剩天光，云是比天顶亮半档的灰蓝剪影
@@ -190,6 +195,7 @@ const TIMES: Record<TimeName, TimePreset> = {
     bloom: 0.45,
     vignette: 0.62,
     waterDeep: 0x081820,
+    waterShallow: 0x1a2a26,
     shadowTint: 0x0c1730,
     shadowAmount: 0.4,
     // 夜云：月光给一点轮廓就够，量压低——夜里大团亮云会抢灯笼的戏
@@ -564,6 +570,7 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
     glowMat.opacity = Math.max(0, (p.lamp - 0.15) * 0.55);
     water.setSky(new THREE.Color(p.skyHorizon), new THREE.Color(p.skyTop));
     water.setDeep(new THREE.Color(p.waterDeep));
+    water.setShallow(new THREE.Color(p.waterShallow));
 
     postfx.setBloom(p.bloom);
     postfx.setVignette(p.vignette);
