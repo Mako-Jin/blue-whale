@@ -50,6 +50,10 @@ interface TimePreset {
   envIntensity: number;
   /** Bloom 强度：夜里灯火需要更明显的溢光 */
   bloom: number;
+  /** 暗角强度：白天几乎不要（大地不该四角发黑），夜里要重 */
+  vignette: number;
+  /** 水体本色：俯视时水面 85% 是这一项，不能全场一个值 */
+  waterDeep: number;
   /** 暗部染色（后期把阴影往这个色偏）与强度 */
   shadowTint: number;
   shadowAmount: number;
@@ -79,29 +83,44 @@ const TIMES: Record<TimeName, TimePreset> = {
     lamp: 1.0,
     envIntensity: 1.5,
     bloom: 0.3,
+    vignette: 0.5,
+    waterDeep: 0x0d2126,
     shadowTint: 0x1b2742,
     shadowAmount: 0.24,
   },
   day: {
-    sunElev: 52,
-    sunAzim: -95,
-    sunColor: 0xfff2d6,
-    sunIntensity: 4.2,
-    hemiSky: 0x9fc7ff,
-    hemiGround: 0x4f4a35,
-    hemiIntensity: 0.9,
-    skyTop: 0x3d78b8,
-    skyHorizon: 0xd2e5f4,
+    // azim -95 时太阳从正北打过来：全城主街的临河立面（法线 -X）与城墙外墙面
+    // （+X）同时吃不到直射光，整座城只有屋顶顶面亮——"白天偏暗偏冷"的真正原因
+    // 不是曝光，是主光方向与所有可见立面垂直。
+
+    // 改成西南偏南（130°）：主立面与 +Z 端都有 0.6~0.7 的入射角，阴影朝东北
+    // 落在建筑背后，既不挡视线又给街道一层硬影。
+    sunElev: 48,
+    sunAzim: 130,
+    sunColor: 0xfff1d8,
+    sunIntensity: 3.2,
+    // hemi 不能是纯蓝：0x9fc7ff 会让所有背光白墙变成"蓝灰水泥板"。
+    // 天空蓝要保留一点，但往灰里拉；地面反弹给暖色（土、石、草都是暖的）。
+    hemiSky: 0xc4cbd2,
+    hemiGround: 0x7d6c50,
+    hemiIntensity: 1.15,
+    skyTop: 0x4a86c4,
+    skyHorizon: 0xd8e6f0,
     skyGround: 0x6d7a72,
-    fogColor: 0xc3d6e2,
+    fogColor: 0xcbdadf,
     fogDensity: 0.0012,
     exposure: 1.0,
-    haze: 0.35,
+    haze: 0.32,
     lamp: 0.15,
-    envIntensity: 1.8,
+    // 1.8 的 IBL 让整个白墙吃满蓝天天光，出图是"青瓷墙"。环境反射只作补光
+    envIntensity: 1.25,
     bloom: 0.1,
-    shadowTint: 0x223046,
-    shadowAmount: 0.14,
+    vignette: 0.3,
+    // 正午的河水靠反射天光发亮，但俯视时菲涅尔只有 0.15，剩下 85% 是水体色。
+    // 沿用黄昏的 0x0d2126 会得到一条黑河（"白天比黄昏还暗"的根源之一）。
+    waterDeep: 0x2c4a52,
+    shadowTint: 0x4a4740,
+    shadowAmount: 0.1,
   },
   blue: {
     sunElev: 4,
@@ -123,6 +142,8 @@ const TIMES: Record<TimeName, TimePreset> = {
     lamp: 0.9,
     envIntensity: 2.0,
     bloom: 0.5,
+    vignette: 0.55,
+    waterDeep: 0x14282e,
     shadowTint: 0x141d38,
     shadowAmount: 0.34,
   },
@@ -148,6 +169,8 @@ const TIMES: Record<TimeName, TimePreset> = {
     lamp: 1.7,
     envIntensity: 2.2,
     bloom: 0.45,
+    vignette: 0.62,
+    waterDeep: 0x081820,
     shadowTint: 0x0c1730,
     shadowAmount: 0.4,
   },
@@ -514,8 +537,10 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
     );
     glowMat.opacity = Math.max(0, (p.lamp - 0.15) * 0.55);
     water.setSky(new THREE.Color(p.skyHorizon), new THREE.Color(p.skyTop));
+    water.setDeep(new THREE.Color(p.waterDeep));
 
     postfx.setBloom(p.bloom);
+    postfx.setVignette(p.vignette);
     postfx.setTint(new THREE.Color(p.shadowTint), new THREE.Color(0xffd2a0), p.shadowAmount);
     scene.background = null;
 

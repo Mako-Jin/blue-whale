@@ -30,7 +30,7 @@ const GradeShader = {
     tDiffuse: { value: null as THREE.Texture | null },
     uTime: { value: 0 },
     uAspect: { value: 1 },
-    uVignette: { value: 0.9 },
+    uVignette: { value: 0.4 },
     uGrain: { value: 0.028 },
     uSat: { value: 1.06 },
     uContrast: { value: 1.05 },
@@ -80,9 +80,12 @@ void main() {
   float g = dot(col, vec3(0.2126, 0.7152, 0.0722));
   col = mix(vec3(g), col, uSat);
 
-  // 暗角：椭圆，按宽高比修正，否则宽屏两侧会先黑
+  // 暗角：椭圆，按宽高比修正，否则宽屏两侧会先黑。
+  // 起扣半径 0.55 必须大于"画面中心到上边缘"的 0.5——旧版 0.42 起扣，
+  // 于是连天空正中都被压掉 40%、四角只剩 10%，白天整幅图看着像阴天。
   vec2 d = (vUv - 0.5) * vec2(uAspect, 1.0);
-  float vig = 1.0 - smoothstep(0.42, 0.95, length(d) * 1.32) * uVignette;
+  float r = length(d);
+  float vig = 1.0 - smoothstep(0.55, 1.18, r) * uVignette;
   col *= vig;
 
   // 颗粒：静态噪点会被看成"脏"，必须随时间抖动
@@ -101,6 +104,8 @@ export interface PostFx {
   setBloom: (strength: number) => void;
   /** 改暗部染色（不同时段风味不同） */
   setTint: (shadow: THREE.Color, high: THREE.Color, shadowAmount: number) => void;
+  /** 暗角强度。白天 0.3 左右，夜里 0.6 才够收边 */
+  setVignette: (amount: number) => void;
   /** 抗锯齿开关：SMAAPass 是两遍全屏，低画质档直接关掉 */
   setAntialias: (on: boolean) => void;
   dispose: () => void;
@@ -150,6 +155,9 @@ export function createPostFx(
       (grade.uniforms.uShadowTint.value as THREE.Color).copy(shadow);
       (grade.uniforms.uHighTint.value as THREE.Color).copy(high);
       grade.uniforms.uShadowAmount.value = shadowAmount;
+    },
+    setVignette(amount) {
+      grade.uniforms.uVignette.value = amount;
     },
     dispose() {
       composer.dispose();

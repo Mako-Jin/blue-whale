@@ -23,6 +23,10 @@ RED = blib.mat("lacquer", blib.srgb(0x8E2F22), rough=0.55)
 # 拱眼壁比柱子再暗两档：它在斗拱背后，本来就吃不到光，同色会让整片糊成一团
 RED_D = blib.mat("lacquerDark", blib.srgb(0x5C1D15), rough=0.72)
 GOLD = blib.mat("gold", blib.srgb(0xD9B25E), rough=0.42, metal=0.15)
+# 匾额地子：深栗色漆板。早先这块直接用 GOLD，整面匾是一块 0xD9B25E 的金属板，
+# 白天被太阳直射 + ACES 肩部压缩，出图是一块"黄绿发光板"（比旁边的白墙还亮）。
+# 真实匾额是深色地子上描金字——地子暗下去，字才亮得起来。
+PLAQUE = blib.mat("plaqueBoard", blib.srgb(0x2B1F19), rough=0.68)
 TILE = blib.mat("tile", blib.srgb(0x343A40), rough=0.78)
 
 # ---- 关键尺寸（一处改，全件跟着走）
@@ -146,10 +150,24 @@ def bay(name, cx, half_w, y_thick, beam_bottom, beam_top, plaque=False):
 
     z = beam_top
     if plaque:
-        # 匾额：石框 + 金地。宽度跟着开间走，别写死——明间加宽后旧值两侧会空出 0.3
+        # 匾额：石框 + 深漆地 + 描金字。宽度跟着开间走，别写死——明间加宽后旧值两侧会空出 0.3
         pw = min(2.62, w - 0.20)
         out.append(blib.box(f"{name}_pqFrame", (pw, 0.20, 1.12), (cx, 0, z + 0.56), material=STONE_D, bevel=0.02))
-        out.append(blib.box(f"{name}_pqIn", (pw - 0.24, 0.27, 0.88), (cx, 0, z + 0.56), material=GOLD, bevel=0.01))
+        out.append(blib.box(f"{name}_pqIn", (pw - 0.24, 0.27, 0.88), (cx, 0, z + 0.56), material=PLAQUE, bevel=0.01))
+        # 题字：三个"王"形笔画组合。真做汉字需要字体轮廓（几十个顶点/字），而这个
+        # 牌子在全景里只占 20×8 像素——横平竖直的笔画组在那个尺度上就是"有字"，
+        # 用方块色块反而像贴纸。两面都做：牌坊哪面朝相机是机位决定的。
+        for side in (-1, 1):
+            ty = side * (0.135 + 0.02)
+            for i, dx in enumerate((-0.62, 0.0, 0.62)):
+                gx = cx + dx
+                out.append(
+                    blib.box(f"{name}_ch{i}{side}v", (0.075, 0.04, 0.56), (gx, ty, z + 0.56), material=GOLD, bevel=0.006, bevel_seg=1)
+                )
+                for j, dz in enumerate((0.245, 0.0, -0.245)):
+                    out.append(
+                        blib.box(f"{name}_ch{i}{side}h{j}", (0.40, 0.04, 0.075), (gx, ty, z + 0.56 + dz), material=GOLD, bevel=0.006, bevel_seg=1)
+                    )
         z += 1.12
 
     out += dougong(name, cx, w, z)

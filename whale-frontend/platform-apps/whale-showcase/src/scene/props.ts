@@ -27,6 +27,7 @@ import { PALETTE, clamp } from './util';
 type MatKey =
   | 'stone'
   | 'stoneDark'
+  | 'brick'
   | 'wood'
   | 'woodDark'
   | 'tile'
@@ -46,6 +47,8 @@ type MatKey =
 const MAT_DEF: Record<MatKey, THREE.MeshStandardMaterialParameters> = {
   stone: { color: PALETTE.stone, roughness: 0.92, metalness: 0.02 },
   stoneDark: { color: PALETTE.stoneDark, roughness: 0.95 },
+  // 与 wall.py 的 wallBrick 同色：敌台是城墙的端头，两者必须像同一次砌上去的
+  brick: { color: 0x6b6659, roughness: 0.95 },
   wood: { color: PALETTE.wood, roughness: 0.88 },
   woodDark: { color: PALETTE.woodDark, roughness: 0.9 },
   tile: { color: PALETTE.tile, roughness: 0.62 },
@@ -240,6 +243,11 @@ class Builder {
       // 一个"有灰"一个"发亮"，转角处一眼能看出是两套资产
       if (key === 'plaster') applyPlasterMap(mesh.material as THREE.MeshStandardMaterial);
       if (key === 'stone' || key === 'stoneDark') applyStoneMap(mesh.material);
+      if (key === 'brick') {
+        applyBrickMap(mesh.material as THREE.MeshStandardMaterial);
+        // 与 GLB 城墙同一把尺：贴图按米投影，否则敌台上的砖会与墙上的砖不是一个尺寸
+        boxUvLocal(merged, BRICK_METERS);
+      }
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       mesh.name = `settlement-${key}`;
@@ -1041,8 +1049,7 @@ export function wallSegments(): WallSeg[] {
   return out;
 }
 
-/** 占位城墙：分层收分 + 垛口，体量与 GLB 对齐（换件时构图不动） */
-function buildWall(b: Builder, segs: WallSeg[]): void {
+/** 占位城墙：分层收分 + 垛口，体量与 GLB 对齐（换件时构图不动） */function buildWall(b: Builder, segs: WallSeg[]): void {
   for (const sg of segs) {
     const y = sg.y;
     // 三层退台：底 2.75 → 1.55m 处 2.62 → 3.15m 处 2.34 → 4.6m 处 2.05
@@ -1055,6 +1062,59 @@ function buildWall(b: Builder, segs: WallSeg[]): void {
     }
     // 内侧女墙
     b.box('stone', 0.36, 0.74, sg.len, WALL_X - 0.85, y + 4.97, sg.z);
+  }
+}
+
+/**
+ * 敌台：城墙端头的收头。
+ *
+ * <p>城墙是两个区间拼起来的，端点在 z=-56 / -8 / 12 / 44 处直接截断——墙体本身
+ * 有厚度有收分，可一旦被"切"断，断面是一块光板：俯视机位一眼就看见四个平口，
+ * 像四根被锯断的方木。真实城郭不会让墙凭空结束，要么拐角、要么收进山体、
+ * 要么以敌台（马面上的方形墩台）收头。</p>
+ *
+ * <p>选敌台是因为它三层都能兑现：<b>加宽</b>（比墙体宽 1.5m，端面被吃进去）、
+ * <b>加高</b>（马道 5.3m，比墙顶 4.6m 高一级，俯视时形成节奏）、<b>四面垛口</b>
+ * （端头有了自己的轮廓，不再依赖墙身）。全部程序化生成，与 GLB 城墙共用
+ * 同一张砖纹、同一把尺（{@link BRICK_METERS}），接缝处不会出现两套砖。</p>
+ */
+function buildWallBastions(b: Builder): void {
+  const W = 4.2; // 进深（X）：墙体 2.75，两侧各出挑 0.7
+  const D = 5.6; // 沿墙长（Z）：把端面整个包进去
+  const UW = 3.7; // 上层收分后
+  const UD = 4.9;
+  const DECK = 5.1; // 敌台马道面，比墙顶 4.6 略高一档（再高就成了孤零零的黑塔）
+  const PARA = 1.18;
+
+  for (const [z0, z1] of WALL_RUNS) {
+    for (const zc of [z0, z1]) {
+      const y = heightAt(WALL_X, zc);
+      // 基座：比墙身还宽一圈，向下埋 0.9m——坡地上端头最容易露墙根
+      b.box('brick', W + 0.7, 1.5, D + 0.7, WALL_X, y - 0.15, zc);
+      b.box('brick', W, 3.5, D, WALL_X, y + 2.35, zc);
+      b.box('brick', UW, DECK - 4.1, UD, WALL_X, y + (4.1 + DECK) / 2, zc);
+
+      // 四面垛口：每个面先一道 0.34 高的连续矮墙，上面再按块分垛。
+      // 垛口不是"墙上的洞"，而是矮墙上方缺一块——缺口底就是马道。
+      for (const sx of [-1, 1]) {
+        const px = WALL_X + sx * (UW / 2 - 0.21);
+        b.box('brick', 0.42, 0.34, UD, px, y + DECK + 0.17, zc);
+        for (let i = 0; i < 3; i += 1) {
+          const dz = -UD / 2 + UD / 6 + i * (UD / 3);
+          b.box('brick', 0.42, PARA, UD / 3 - 0.5, px, y + DECK + PARA / 2, zc + dz);
+          b.box('stoneDark', 0.52, 0.09, UD / 3 - 0.4, px, y + DECK + PARA + 0.045, zc + dz);
+        }
+      }
+      for (const sz of [-1, 1]) {
+        const pz = zc + sz * (UD / 2 - 0.21);
+        b.box('brick', UW - 0.42, 0.34, 0.42, WALL_X, y + DECK + 0.17, pz);
+        for (let i = 0; i < 2; i += 1) {
+          const dx = -UW / 2 + UW / 4 + i * (UW / 2);
+          b.box('brick', UW / 2 - 0.5, PARA, 0.42, WALL_X + dx, y + DECK + PARA / 2, pz);
+          b.box('stoneDark', UW / 2 - 0.4, 0.09, 0.52, WALL_X + dx, y + DECK + PARA + 0.045, pz);
+        }
+      }
+    }
   }
 }
 
@@ -2015,6 +2075,8 @@ export function buildSettlement(assets?: SceneAssets): THREE.Group {
   const segs = wallSegments();
   const hasWall = !!assets && assets.wall.length > 0;
   if (!hasWall) buildWall(b, segs);
+  // 敌台与"用 GLB 还是占位墙"无关：它是端头的体量，两条路径都要有
+  buildWallBastions(b);
 
   const hasHouses = !!assets && (['small', 'big', 'shop'] as HouseVariant[]).some(
     (k) => (assets.houses[k] ?? []).length > 0,
@@ -2022,6 +2084,16 @@ export function buildSettlement(assets?: SceneAssets): THREE.Group {
   if (!hasHouses) buildHouses(b);
 
   const group = b.build();
+
+  // 敌台与城墙共用**同一份材质实例**。
+  // 参数抄得再一样也没用：程序化材质是新建的 MeshStandardMaterial，贴图对象、
+  // envMapIntensity、顶点色开关、color 的线性化路径只要差一点，接缝处就是
+  // "两种灰"（实测敌台比墙暗近一半，像另砌了一座黑塔）。直接换引用最稳。
+  if (assets?.wall?.length) {
+    const brickMesh = group.getObjectByName('settlement-brick') as THREE.Mesh | undefined;
+    const wallMat = assets.wall.find((p) => /^wallBrick$/i.test(p.material?.name ?? ''))?.material;
+    if (brickMesh && wallMat) brickMesh.material = wallMat;
+  }
 
   if (assets?.gate) {
     // 牌坊换真模型：GLB 在 Blender 里就是"沿 X 展开、正面朝 +Z"，

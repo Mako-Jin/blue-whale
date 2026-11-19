@@ -196,6 +196,14 @@ export interface Water {
   ) => void;
   /** 反射用到的两种天空色：地平线（暖）与天顶（冷） */
   setSky: (horizon: THREE.Color, top: THREE.Color) => void;
+  /**
+   * 水体本色（非反射部分）。
+   *
+   * <p>俯视机位下水面几乎全是"水体色"：视线与水面夹角约 25°，菲涅尔只有 0.15，
+   * 85% 的像素是这一项。所以它不能是一个固定值——黄昏的深墨绿放到正午就是
+   * 一条黑河。白天必须抬亮，夜里再压回去。</p>
+   */
+  setDeep: (deep: THREE.Color) => void;
   /** 场景环境探针（CubeCamera 烘出的立方图），用于把岸上的灯与建筑带进水面反射 */
   setEnv: (tex: THREE.CubeTexture | THREE.Texture) => void;
   /** 水面上要画倒影的灯（最多 4 盏）。power 0..1，按时段灯亮程度给 */
@@ -258,6 +266,9 @@ export function createWater(length = 480, halfWidth = 12): Water {
     setSky(horizon, top) {
       uniforms.uHorizon.value.copy(horizon);
       uniforms.uTop.value.copy(top);
+    },
+    setDeep(deep) {
+      uniforms.uDeep.value.copy(deep);
     },
     setEnv(tex) {
       uniforms.uEnv.value = tex;

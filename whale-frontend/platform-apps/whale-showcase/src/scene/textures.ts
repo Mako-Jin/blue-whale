@@ -358,8 +358,10 @@ const sharedBrickTexture = (): THREE.CanvasTexture => (sharedBrick ??= brickText
 export function applyBrickMap(mat: THREE.MeshStandardMaterial): void {
   if (!mat.isMeshStandardMaterial || mat.map) return;
   mat.map = sharedBrickTexture();
-  // 城墙是大块条石，不该有抹灰那种漫反射亮度；略降一点让砖缝自己出对比
-  mat.envMapIntensity = 0.75;
+  // 城墙是大块条石，不该有抹灰那种漫反射亮度；略降一点让砖缝自己出对比。
+  // 但不能太低：砖的固有色本来就比白墙暗一倍，背光面只剩 hemi + IBL 时，
+  // 压到 0.75 会让整面墙（和敌台）在阴影里糊成一块近黑的板。
+  mat.envMapIntensity = 0.95;
   mat.needsUpdate = true;
 }
 
