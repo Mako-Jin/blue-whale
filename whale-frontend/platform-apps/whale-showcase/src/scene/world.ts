@@ -67,6 +67,10 @@ interface TimePreset {
   cloud: number;
   cloudLight: number;
   cloudShade: number;
+  /** 窗纸基色（S27）：白天是"纸"，夜里才是"灯"——同一材质按时段换 albedo */
+  paperColor: number;
+  /** 星空强度 0..1（S27）：夜 1 / 蓝调 0.3 / 黄昏与白天 0 */
+  stars: number;
 }
 
 const TIMES: Record<TimeName, TimePreset> = {
@@ -104,6 +108,9 @@ const TIMES: Record<TimeName, TimePreset> = {
     cloud: 0.85,
     cloudLight: 0xffd0a0,
     cloudShade: 0x4a4560,
+    // 黄昏窗纸：暖橙（Blender 原值），灯刚点上
+    paperColor: 0xffb964,
+    stars: 0,
   },
   day: {
     // azim -95 时太阳从正北打过来：全城主街的临河立面（法线 -X）与城墙外墙面
@@ -148,6 +155,11 @@ const TIMES: Record<TimeName, TimePreset> = {
     cloud: 0.90,
     cloudLight: 0xfffaf0,
     cloudShade: 0x647a92,
+    // 白天窗纸必须换"纸本色"（S27）：0xFFB964 的暖橙 albedo 在 3.2 的日照下
+    // 读作三块发光 LED 板，与蓝天白云直接矛盾。漂白桑皮纸的灰黄才是白天
+    // 该有的样子；夜里暖橙由本行换回去
+    paperColor: 0xd8d2c2,
+    stars: 0,
   },
   blue: {
     sunElev: 4,
@@ -180,10 +192,17 @@ const TIMES: Record<TimeName, TimePreset> = {
     cloud: 0.55,
     cloudLight: 0x93a5c2,
     cloudShade: 0x39435a,
+    // 蓝调：天还没黑透，窗纸微暖（灯刚亮，透光但不暖橙）
+    paperColor: 0xe6d2a8,
+    stars: 0.3,
   },
   night: {
     sunElev: 34,
-    sunAzim: 62,
+    // 62 → 250（S27）：碎金路径在水面上的走向 = 月亮方位角的水平投影。
+    // azim 62 时整条路径在相机背后；试 205 仍差 52°（超全景机位水平半视场
+    // 30.6°）。全景视线方位 ≈254°，月方位给 250 → 路径从桥前一直铺进
+    // 可见河段。副产物：临河白墙（-X）吃 0.28 的月光，屋面 0.56 不变
+    sunAzim: 250,
     sunColor: 0x8fa6e0,
     // 0.55 时月光几乎照不出方向，屋顶与城墙全靠灯笼的局部光勾边，
     // 全景里整片建筑是黑的，只剩一排灯笼飘在空处——看不出"这是一座城"。
@@ -214,6 +233,8 @@ const TIMES: Record<TimeName, TimePreset> = {
     cloud: 0.30,
     cloudLight: 0x2e3a54,
     cloudShade: 0x10161f,
+    paperColor: 0xffb964,
+    stars: 1,
   },
 };
 
@@ -566,13 +587,18 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
       cloud: p.cloud,
       cloudLight: p.cloudLight,
       cloudShade: p.cloudShade,
+      stars: p.stars,
     };
     sky.update(skyState);
     // 重建后贴图是新对象，必须重新挂上（旧的那张在 env 内部已释放）
     scene.environment = env.update(skyState);
     scene.environmentIntensity = p.envIntensity;
 
-    for (const m of paperMaterials) m.emissiveIntensity = 1.25 * lampScale;
+    for (const m of paperMaterials) {
+      m.emissiveIntensity = 1.25 * lampScale;
+      // 纸本色按时段换 albedo（S27）：白天 0xFFB964 的暖橙在日照下是 LED 板
+      m.color.set(p.paperColor);
+    }
     for (const m of lampBodyMaterials) m.emissiveIntensity = 2.2 * lampScale;
     for (const l of lanternLights) l.intensity = 26 * (p.lamp - 0.1);
     // 巷灯比街灯弱一档：巷子只有 2.8m 宽，26 candela 会把两侧白墙打爆

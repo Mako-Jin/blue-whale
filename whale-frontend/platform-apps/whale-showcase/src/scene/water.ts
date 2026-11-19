@@ -229,10 +229,19 @@ void main() {
   vec3 L = normalize(uSunDir);
   vec3 H = normalize(V + L);
   float nh = max(dot(N, H), 0.0);
-  // 宽反光系数必须很小：这个项是"整片水面都被太阳照亮"，给到 0.12 时白天整条河
-  // 变成一片暖米色，看着像沙丘而不是水（白天全景实测）。碎金才是水面该有的东西。
+  /*
+   * 月光路（S27）：夜晚碎金 lobe 放宽 + 宽光带增强。pow 420 是日面碎金的
+   * 宽度——月光路的观感是"宽而柔的一条光带"（波面把极窄镜像抹开），420
+   * 在夜里几乎画不出路径。夜间（uSunIntensity<1.0，蓝调与白天/黄昏的太阳
+   * 不受影响）放宽到 140、宽反光加倍；配合 night 预设月亮方位转到画面内
+   * （azim 205），夜景水面才有"月下河"的信息。
+   */
+  float nightK = uSunIntensity < 1.0 ? 1.0 : 0.0;
+  // 宽反光系数必须很小：这个项是"整片水面都被太阳照亮"，白天给到 0.12 时
+  // 整条河变成一片暖米色，看着像沙丘而不是水（白天全景实测）。夜里**不加倍**
+  // ——月亮方位与全景视线对齐后 0.10 的宽反光把整条河刷成银白，抢灯笼的戏
   col += uSunColor * pow(nh, 26.0) * 0.045 * uSunIntensity;
-  col += uSunColor * pow(nh, 420.0) * 3.2 * uSunIntensity * atten;
+  col += uSunColor * pow(nh, mix(420.0, 320.0, nightK)) * mix(3.2, 2.3, nightK) * uSunIntensity * atten;
 
   // 灯影：越接近水面视角越明显（俯视时看不到倒影，这是菲涅尔决定的）
   col += lampGlow(p, N.xz * 0.85) * (0.3 + fres * 1.1);

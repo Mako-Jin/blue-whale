@@ -27,6 +27,8 @@ export interface SkyState {
   cloudLight?: number;
   /** 云的背光/底面色 */
   cloudShade?: number;
+  /** 星空强度 0..1（S27）。缺省 0——env 占位图与旧调用方不用关心星 */
+  stars?: number;
 }
 
 const VERT = /* glsl */ `
@@ -49,6 +51,7 @@ uniform float uTime;
 uniform float uCloud;
 uniform vec3 uCloudLight;
 uniform vec3 uCloudShade;
+uniform float uStars;
 varying vec3 vDir;
 
 // 值噪声 + fbm：云的形状来源。哈希要确定性——同一帧内重复采样同一处
@@ -93,6 +96,28 @@ void main() {
   // 日晕 + 日轮
   col += uSunColor * pow(sd, 8.0) * 0.30 * uSunIntensity;
   col += uSunColor * pow(sd, 220.0) * 2.4 * uSunIntensity;
+
+  /*
+   * 星空（S27）：格点 hash，零几何零 drawcall。
+   *
+   * <p>方向投到八面体近似（三轴绝对值之和归一）——三个天区共用一张 2D 网格，
+   * 极区无拉伸爆炸。300 格/轴 → 每格约 0.2°，阈值 0.9925 只留 0.75% 的格子，
+   * 全天约几百颗。星点用格内到格心的距收成 1~2px 小圆（0.24→0.06 的
+   * smoothstep），微闪用 uTime。<b>地平线淡出只压最低一档</b>
+   * （smoothstep 0.004→0.05）：全景机位画面上缘仰角只有 +4.2°（S25 教训），
+   * 淡出带高了会把唯一可见的天带里的星星全压掉。放在云之前：后面 den*hf
+   * 的云混合会自然把云后的星盖掉，不用专门算遮挡。</p>
+   */
+  if (uStars > 0.001 && d.y > 0.004) {
+    vec2 sp = d.xz / (abs(d.x) + abs(d.y) + abs(d.z) + 1e-4);
+    vec2 g = sp * 300.0;
+    float h = hash21(floor(g));
+    float on = step(0.9925, h);
+    vec2 f = fract(g) - 0.5;
+    float star = on * smoothstep(0.24, 0.06, length(f));
+    float tw = 0.7 + 0.3 * sin(uTime * 2.4 + h * 640.0);
+    col += vec3(0.82, 0.87, 1.0) * star * tw * uStars * smoothstep(0.004, 0.05, d.y);
+  }
 
   /*
    * 云层：方向向量投到虚拟云平面（高度归一 1.0），fbm 阈值出形状。
@@ -152,6 +177,7 @@ export function createSky(radius = 900): Sky {
     uCloud: { value: 0 },
     uCloudLight: { value: new THREE.Color(0xffffff) },
     uCloudShade: { value: new THREE.Color(0x9aa4b0) },
+    uStars: { value: 0 },
   };
 
   const mat = new THREE.ShaderMaterial({
@@ -181,6 +207,7 @@ export function createSky(radius = 900): Sky {
       uniforms.uCloud.value = state.cloud ?? 0;
       uniforms.uCloudLight.value.set(state.cloudLight ?? 0xffffff);
       uniforms.uCloudShade.value.set(state.cloudShade ?? 0x9aa4b0);
+      uniforms.uStars.value = state.stars ?? 0;
     },
     tick(elapsed) {
       uniforms.uTime.value = elapsed;
