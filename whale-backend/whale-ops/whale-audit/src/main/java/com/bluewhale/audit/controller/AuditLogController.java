@@ -2,6 +2,8 @@ package com.bluewhale.audit.controller;
 
 import com.bluewhale.audit.dto.AuditLogQueryRequest;
 import com.bluewhale.audit.service.AuditLogService;
+import com.bluewhale.audit.service.impl.AuditExportTaskService;
+import com.bluewhale.audit.vo.AuditExportTaskVO;
 import com.bluewhale.audit.vo.AuditLogVO;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.common.audit.annotation.AuditLog;
@@ -18,7 +20,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * 审计日志查询接口。
@@ -26,10 +27,11 @@ import java.util.Map;
  * 外部路径与本文档一致（见 doc 调用示例）。</p>
  * <p>查询本身属敏感操作，已通过 {@code @RequirePermission("sys:audit:log:list")} 限制为审计管理员可见
  * （AUTH-06：由网关权限码头 {@code X-Permission-Codes} + starter {@code RequirePermissionInterceptor} 判定）。</p>
- * <p>读审计亦须留痕（AUTH-07）：本类 3 个查询方法均标注 {@code @AuditLog(type=QUERY)}，
+ * <p>读审计亦须留痕（AUTH-07）：本类查询方法均标注 {@code @AuditLog(type=QUERY)}，
  * 调用将产生 QUERY 元审计记录并落到同库 {@code audit_log}，可经 {@code /audit/log/page} 反查。</p>
  * <p>例外：{@code POST /audit/log/ingest} 为服务间内网摄入入口（P1-3 跨库汇聚），
- * 不校验用户权限、不产生元审计，由网关 {@code internal-deny} 屏蔽外部访问。</p>
+ * 不校验用户权限、不产生元审计，由网关 {@code internal-deny} 屏蔽外部访问，
+ * 并由内网令牌过滤器（{@code /audit/log/ingest/**}）做二次校验。</p>
  *
  * @author BlueWhale
  */
@@ -42,6 +44,8 @@ public class AuditLogController {
     private static final String TARGET_TYPE = "audit_log";
 
     private final AuditLogService auditLogService;
+
+    private final AuditExportTaskService exportTaskService;
 
     /** 分页条件查询：支持用户 / 模块 / 操作类型 / 结果 / 时间范围 / traceId；本方法调用将产生 QUERY 元审计 */
     @GetMapping("/page")
@@ -71,28 +75,41 @@ public class AuditLogController {
     }
 
     /**
-     * 按条件导出审计日志为 CSV 并上传归档（AUTH-08）。
+     * 提交审计日志异步导出任务（AUTH-08）。
      *
-     * <p>入参复用分页查询 DTO {@link AuditLogQueryRequest}（时间范围 / 用户 / 模块 / 操作类型 / 结果 / traceId）；
-     * 行数上限由 {@code whale.audit.export.max-rows} 控制，超限仅取上限行并告警。</p>
+     * <p>入参复用分页查询 DTO {@link AuditLogQueryRequest}（时间范围 / 用户 / 模块 / 操作类型 / 结果 / traceId；
+     * 分页字段 current/size 不参与导出，行数上限由 {@code whale.audit.export.max-rows} 控制）。</p>
      *
-     * <p>CSV 生成后经 whale-file 内网接口 {@code POST /file/v1/internal/upload}
-     * （{@code bucket=bluewhale-audit-archive}）上传；返回 {@code data} 字段与 whale-file 的
-     * {@code FileUploadVO} 对齐（{@code id/fileName/originalName/bucket/objectKey/fileSize/contentType/md5}），
-     * 本模块不重复定义该类型，以 {@code Map} 承载。</p>
+     * <p>查询、CSV 生成与上传在后台线程执行，本接口立即返回 {@code taskId}；
+     * 调用方按 {@code GET /audit/log/export/{taskId}} 轮询，避免 5 万行同步导出触发网关超时。
+     * 上传经 whale-file 内网接口 {@code POST /file/v1/internal/upload}
+     * （{@code bucket=bluewhale-audit-archive}），结果与 {@code FileUploadVO} 对齐并附加 {@code rows} 行数。</p>
      *
-     * <p>本方法调用将产生 EXPORT 元审计；上传失败时由服务返回受控失败（{@code code != 0}），不外抛原始异常。
-     * 导出只读 {@code audit_log}，不做任何删除/更新。</p>
+     * <p>本方法调用将产生 EXPORT 元审计；导出只读 {@code audit_log}，不做任何删除/更新。</p>
      *
      * @param request 审计日志查询条件（复用分页查询 DTO）
-     * @return 上传结果响应；无匹配记录时 {@code data} 为空 Map
+     * @return 任务快照（{@code status=PENDING}）
      */
     @PostMapping("/export")
     @RequirePermission("sys:audit:log:list")
-    @AuditLog(operation = "导出审计日志", type = OperateType.EXPORT,
+    @AuditLog(operation = "提交审计日志导出任务", type = OperateType.EXPORT,
             targetType = TARGET_TYPE, recordResult = false)
-    public Result<Map<String, Object>> export(@RequestBody AuditLogQueryRequest request) {
-        return auditLogService.exportCsv(request);
+    public Result<AuditExportTaskVO> export(@RequestBody AuditLogQueryRequest request) {
+        return Result.ok(exportTaskService.submit(request));
+    }
+
+    /**
+     * 查询审计日志导出任务状态。
+     *
+     * @param taskId 提交导出时返回的任务ID
+     * @return 任务状态与上传结果；任务不存在或已过期返回 404 语义
+     */
+    @GetMapping("/export/{taskId}")
+    @RequirePermission("sys:audit:log:list")
+    @AuditLog(operation = "查询审计日志导出任务", type = OperateType.QUERY,
+            targetType = TARGET_TYPE, recordResult = false)
+    public Result<AuditExportTaskVO> exportTask(@PathVariable String taskId) {
+        return Result.ok(exportTaskService.get(taskId));
     }
 
     /**

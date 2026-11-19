@@ -29,4 +29,7 @@ public class AuditExportProperties {
 
     /** 单次导出/归档的行数上限，超限仅取上限行并告警，默认 50000 */
     private int maxRows = 50000;
+
+    /** 归档单批行数（分页流式，每批独立上传并推进水位），默认 1000 */
+    private int batchRows = 1000;
 }

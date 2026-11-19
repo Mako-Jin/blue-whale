@@ -175,6 +175,30 @@ services:
       - bw-net
 
   # ----------------------------------------------------------
+  # RabbitMQ 指标导出（审计 MQ 队列/死信积压告警）
+  # 复用 management 插件的 HTTP API 暴露 rabbitmq_queue_messages* 指标，
+  # 供 prometheus-rules.yml 的 AuditDlqNotEmpty / AuditQueueBacklog 使用。
+  # ----------------------------------------------------------
+  rabbitmq-exporter:
+    image: ${RABBITMQ_EXPORTER_IMAGE:-kbudde/rabbitmq-exporter:latest}
+    container_name: bw-rabbitmq-exporter
+    restart: unless-stopped
+    environment:
+      RABBIT_URL: http://bw-rabbitmq:15672
+      RABBIT_USER: ${RABBITMQ_USERNAME:?请在 .env 中配置 RABBITMQ_USERNAME}
+      RABBIT_PASSWORD: ${RABBITMQ_PASSWORD:?请在 .env 中配置 RABBITMQ_PASSWORD}
+      PUBLISH_PORT: "9419"
+      TZ: Asia/Shanghai
+    ports:
+      - "127.0.0.1:${RABBITMQ_EXPORTER_HOST_PORT:-9419}:9419"
+    depends_on:
+      - rabbitmq
+    mem_limit: 64m
+    logging: *default-logging
+    networks:
+      - bw-net
+
+  # ----------------------------------------------------------
   # Prometheus 指标抓取（REQ-ARCH-007）
   # 后端服务跑在宿主机，抓取 targets 统一使用 host.docker.internal
   # ----------------------------------------------------------

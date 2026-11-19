@@ -121,3 +121,7 @@ scrape_configs:
     metrics_path: /nacos/metrics
     static_configs:
       - targets: ['nacos:8848']
+  # RabbitMQ 指标（rabbitmq-exporter，容器名见 infrastructure/docker/docker-compose.yml）
+  - job_name: rabbitmq
+    static_configs:
+      - targets: ['rabbitmq-exporter:9419']

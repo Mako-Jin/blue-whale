@@ -44,6 +44,9 @@ public class AuditLogArchiver {
     /** 归档水位固定主键（单行表） */
     private static final long WATERMARK_ID = 1L;
 
+    /** 单批最小行数（配置非法时兜底，避免 0/负数导致死循环或不推进） */
+    private static final int MIN_BATCH_ROWS = 1;
+
     private final AuditLogMapper auditLogMapper;
 
     private final AuditArchiveWatermarkMapper watermarkMapper;
@@ -55,8 +58,9 @@ public class AuditLogArchiver {
     /**
      * 归档 {@code audit_log} 中早于保留期的记录：导出 CSV 并上传，绝不删除
      *
-     * <p>按 {@code audit_archive_watermark} 水位增量续查：上传成功后才推进水位，
-     * 因此同一记录只导出一轮，失败时下轮重试同一区间。</p>
+     * <p>按 {@code audit_archive_watermark} 水位增量续查，<b>分页流式</b>处理：
+     * 每批最多 {@code whale.audit.export.batch-rows} 行，独立生成 CSV、独立上传、上传成功后
+     * 立即推进水位，单批失败只回退该批且本轮终止，避免一次性加载 {@code max-rows} 行造成内存峰值。</p>
      *
      * <p>多实例部署时通过 Redisson 分布式锁互斥：抢锁失败的实例直接跳过本轮，
      * 避免同一水位区间被重复导出上传；锁租期与调度超时（1800s）对齐，不启用看门狗续期。</p>
@@ -66,24 +70,41 @@ public class AuditLogArchiver {
     @DistributedLock(biz = "audit:archive", waitTime = 0, leaseTime = 1800)
     public void archive(int retentionDays) {
         LocalDateTime threshold = LocalDateTime.now().minusDays(Math.max(retentionDays, 0));
+        int batchRows = Math.max(exportProperties.getBatchRows(), MIN_BATCH_ROWS);
+        int maxRows = Math.max(exportProperties.getMaxRows(), batchRows);
         AuditArchiveWatermark watermark = loadWatermark();
-        List<AuditLogRecord> records = queryExpired(threshold, watermark);
-        if (records.isEmpty()) {
+        int archivedRows = 0;
+        int batchNo = 0;
+        while (archivedRows < maxRows) {
+            int limit = Math.min(batchRows, maxRows - archivedRows);
+            List<AuditLogRecord> records = queryExpired(threshold, watermark, limit);
+            if (records.isEmpty()) {
+                break;
+            }
+            batchNo++;
+            try {
+                byte[] csv = AuditCsvWriter.toCsvBytes(records);
+                Map<String, Object> uploaded = archiveClient.upload(
+                        csv, AuditCsvWriter.archiveFileName(), exportProperties.getBucket());
+                watermark = advanceWatermark(watermark, records.get(records.size() - 1));
+                archivedRows += records.size();
+                log.info("审计日志归档批次完成（未删除任何记录）: 批次={}, 本批行数={}, 累计行数={}, objectKey={}",
+                        batchNo, records.size(), archivedRows, uploaded.get(FIELD_OBJECT_KEY));
+            } catch (Exception e) {
+                log.warn("审计日志归档失败（受控失败，终止本轮，已上传批次的水位不回退）: 批次={}, 阈值={}, reason={}",
+                        batchNo, threshold, e.getMessage(), e);
+                return;
+            }
+            if (records.size() < limit) {
+                break;
+            }
+        }
+        if (archivedRows == 0) {
             log.info("审计日志归档跳过：过期区间无待归档记录, 阈值={}, 水位={}",
                     threshold, watermark == null ? "无" : watermark.getLastCreateTime() + "/" + watermark.getLastId());
             return;
         }
-        try {
-            byte[] csv = AuditCsvWriter.toCsvBytes(records);
-            Map<String, Object> uploaded = archiveClient.upload(
-                    csv, AuditCsvWriter.archiveFileName(), exportProperties.getBucket());
-            log.info("审计日志归档完成（未删除任何记录）: 行数={}, 阈值={}, objectKey={}",
-                    records.size(), threshold, uploaded.get(FIELD_OBJECT_KEY));
-            advanceWatermark(watermark, records.get(records.size() - 1));
-        } catch (Exception e) {
-            log.warn("审计日志归档失败（受控失败，不影响后续清理与调度）: 阈值={}, reason={}",
-                    threshold, e.getMessage(), e);
-        }
+        log.info("审计日志归档结束: 批次={}, 总行数={}, 阈值={}", batchNo, archivedRows, threshold);
     }
 
     /**
@@ -102,14 +123,14 @@ public class AuditLogArchiver {
 
     /**
      * 查询待归档记录：{@code create_time < 阈值} 且严格晚于水位，
-     * 按 {@code create_time, id} 升序，最多取上限行以避免单次归档过大
+     * 按 {@code create_time, id} 升序，最多取本批行数以避免单批归档过大
      *
      * @param threshold 过期阈值（不含）
      * @param watermark 归档水位（可空）
-     * @return 待归档记录；超上限时已截断为上限行
+     * @param limit     本批最大行数（正数）
+     * @return 待归档记录
      */
-    private List<AuditLogRecord> queryExpired(LocalDateTime threshold, AuditArchiveWatermark watermark) {
-        int maxRows = exportProperties.getMaxRows();
+    private List<AuditLogRecord> queryExpired(LocalDateTime threshold, AuditArchiveWatermark watermark, int limit) {
         LambdaQueryWrapper<AuditLogRecord> wrapper = new LambdaQueryWrapper<AuditLogRecord>()
                 .lt(AuditLogRecord::getCreateTime, threshold);
         if (watermark != null && watermark.getLastCreateTime() != null) {
@@ -121,28 +142,24 @@ public class AuditLogArchiver {
         }
         wrapper.orderByAsc(AuditLogRecord::getCreateTime)
                 .orderByAsc(AuditLogRecord::getId)
-                .last("LIMIT " + (maxRows + 1L));
-        List<AuditLogRecord> records = auditLogMapper.selectList(wrapper);
-        if (records.size() > maxRows) {
-            log.warn("审计日志归档行数超上限，本次仅取前 {} 行（原命中 {} 行）", maxRows, records.size());
-            return records.subList(0, maxRows);
-        }
-        return records;
+                .last("LIMIT " + limit);
+        return auditLogMapper.selectList(wrapper);
     }
 
     /**
      * 上传成功后推进归档水位（写失败仅告警，下轮可能重复导出该批）
      *
      * @param current 当前水位（可空）
-     * @param last    本轮最后一条已归档记录
+     * @param last    本批最后一条已归档记录
+     * @return 下一批续查使用的水位（即使落库失败也返回内存水位，避免同轮重复导出本批）
      */
-    private void advanceWatermark(AuditArchiveWatermark current, AuditLogRecord last) {
+    private AuditArchiveWatermark advanceWatermark(AuditArchiveWatermark current, AuditLogRecord last) {
+        AuditArchiveWatermark next = new AuditArchiveWatermark();
+        next.setId(WATERMARK_ID);
+        next.setLastCreateTime(last.getCreateTime());
+        next.setLastId(last.getId());
+        next.setUpdateTime(LocalDateTime.now());
         try {
-            AuditArchiveWatermark next = new AuditArchiveWatermark();
-            next.setId(WATERMARK_ID);
-            next.setLastCreateTime(last.getCreateTime());
-            next.setLastId(last.getId());
-            next.setUpdateTime(LocalDateTime.now());
             if (current == null) {
                 watermarkMapper.insert(next);
             } else {
@@ -151,5 +168,6 @@ public class AuditLogArchiver {
         } catch (Exception e) {
             log.warn("审计日志归档水位推进失败（下轮可能重复导出本批）: reason={}", e.getMessage(), e);
         }
+        return next;
     }
 }

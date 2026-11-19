@@ -104,3 +104,37 @@ groups:
         annotations:
           summary: 'JVM 堆使用率过高：{{ $labels.application }}'
           description: '{{ $labels.application }} 堆使用率 {{ $value | humanizePercentage }}，持续 5 分钟，注意 OOM 风险。'
+
+  # 审计 MQ（AUTH-10）：指标由 infrastructure/docker 的 rabbitmq-exporter 提供，
+  # job 名 rabbitmq；未部署 exporter 时本组规则不会命中（无数据），不影响其他告警。
+  - name: bluewhale-rabbitmq
+    rules:
+      - alert: AuditDlqNotEmpty
+        expr: sum(rabbitmq_queue_messages{queue="bluewhale.audit.dlq"}) > 0
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: '审计死信队列存在未处理消息'
+          description: 'bluewhale.audit.dlq 积压 {{ $value }} 条并持续 10 分钟。请通过 RabbitMQ 管理台或 rabbitmqadmin 查看死信原因并重放，避免毒消息静默堆积。'
+
+      - alert: AuditQueueBacklog
+        expr: sum(rabbitmq_queue_messages_ready{queue="bluewhale.audit.queue"}) > 1000
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: '审计队列消费积压'
+          description: 'bluewhale.audit.queue 待消费消息 {{ $value }} 条并持续 10 分钟，请检查 whale-audit 消费线程与数据库写入耗时。'
+
+      - alert: RabbitmqExporterDown
+        expr: up{job="rabbitmq"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: 'rabbitmq-exporter 不可用'
+          description: 'Prometheus 连续 5 分钟无法抓取 rabbitmq-exporter:9419，审计队列积压告警将失效，请检查容器与 RabbitMQ management 插件状态。'

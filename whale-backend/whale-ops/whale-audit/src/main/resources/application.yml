@@ -93,6 +93,8 @@ whale:
       file-service-url: ${WHALE_AUDIT_EXPORT_FILE_SERVICE_URL:http://127.0.0.1:8085}
       bucket: ${WHALE_AUDIT_EXPORT_BUCKET:bluewhale-audit-archive}
       max-rows: ${WHALE_AUDIT_EXPORT_MAX_ROWS:50000}
+      # 归档分页流式单批行数：每批独立生成 CSV、上传并推进水位，控制单批内存峰值
+      batch-rows: ${WHALE_AUDIT_EXPORT_BATCH_ROWS:1000}
     retention:
       enabled: ${WHALE_AUDIT_RETENTION_ENABLED:false}
       days: ${WHALE_AUDIT_RETENTION_DAYS:30}

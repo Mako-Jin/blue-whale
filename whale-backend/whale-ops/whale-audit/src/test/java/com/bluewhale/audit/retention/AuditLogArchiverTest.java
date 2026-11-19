@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -118,6 +119,28 @@ class AuditLogArchiverTest {
         assertEquals(1L, captor.getValue().getId());
         assertEquals(record.getCreateTime(), captor.getValue().getLastCreateTime());
         assertEquals(record.getId(), captor.getValue().getLastId());
+    }
+
+    @Test
+    void shouldArchiveInBatchesAndAdvanceWatermarkPerBatch() {
+        exportProperties.setBatchRows(2);
+        exportProperties.setMaxRows(10);
+        AuditLogRecord first = sampleRecord();
+        AuditLogRecord second = sampleRecord();
+        second.setId(2L);
+        AuditLogRecord third = sampleRecord();
+        third.setId(3L);
+        doReturn(List.of(first, second), List.of(third)).when(auditLogMapper).selectList(any());
+        doReturn(Map.of("objectKey", "bluewhale/auditLog-archive-batch.csv"))
+                .when(archiveClient).upload(any(), any(), any());
+        AuditLogArchiver archiver =
+                new AuditLogArchiver(auditLogMapper, watermarkMapper, archiveClient, exportProperties);
+
+        archiver.archive(RETENTION_DAYS);
+
+        verify(archiveClient, times(2)).upload(any(), any(), any());
+        verify(watermarkMapper).insert(any(AuditArchiveWatermark.class));
+        verify(watermarkMapper).updateById(any(AuditArchiveWatermark.class));
     }
 
     @Test

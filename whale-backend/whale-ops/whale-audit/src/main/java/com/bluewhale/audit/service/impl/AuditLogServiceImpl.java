@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -50,6 +51,9 @@ public class AuditLogServiceImpl implements AuditLogService {
 
     /** 上传结果中对象存储键字段名（与 whale-file FileUploadVO 对齐） */
     private static final String FIELD_OBJECT_KEY = "objectKey";
+
+    /** 导出结果中的行数字段（异步任务据此展示导出规模） */
+    private static final String FIELD_ROWS = "rows";
 
     private final AuditLogMapper auditLogMapper;
 
@@ -102,8 +106,10 @@ public class AuditLogServiceImpl implements AuditLogService {
             byte[] csv = AuditCsvWriter.toCsvBytes(records);
             Map<String, Object> uploaded = archiveClient.upload(
                     csv, AuditCsvWriter.exportFileName(), exportProperties.getBucket());
+            Map<String, Object> data = new HashMap<>(uploaded);
+            data.put(FIELD_ROWS, records.size());
             log.info("审计日志导出完成: 行数={}, objectKey={}", records.size(), uploaded.get(FIELD_OBJECT_KEY));
-            return Result.ok(uploaded);
+            return Result.ok(data);
         } catch (Exception e) {
             // 详细原因仅记日志：响应文案不外泄内网地址、SQL 等实现细节
             log.warn("审计日志导出失败（受控失败，不外抛原始异常）: reason={}", e.getMessage(), e);

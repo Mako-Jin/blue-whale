@@ -289,13 +289,16 @@ whale-service-gateway
 | GET | `/audit/log/page` | 分页条件查询 | `current` / `size`（`PageQuery`）、`userId`、`username`、`module`、`operateType`、`bizStatus`、`traceId`、`startTime`、`endTime` |
 | GET | `/audit/log/{id}` | 单条详情 | 路径 `id` |
 | GET | `/audit/log/trace/{traceId}` | 按链路聚合 | 路径 `traceId` |
-| POST | `/audit/log/export` | 导出（敏感操作，自身也需审计） | 条件同分页 |
+| POST | `/audit/log/export` | 提交异步导出任务，立即返回 `taskId`（敏感操作，自身也需审计） | 条件同分页（`current`/`size` 不参与导出） |
+| GET | `/audit/log/export/{taskId}` | 查询导出任务状态：`PENDING`/`RUNNING`/`SUCCESS`/`FAILED` 与上传结果 | 路径 `taskId` |
 
 设计要点：
 
 - 时间范围查询走 `idx_create_time`；仅 `traceId` 命中 `idx_trace_id`；避免无索引组合导致全表扫描。
-- 分页上限（如 `size<=200`）保护；导出走异步任务 + 文件服务（whale-file 8085）。
-- 查询本身属于敏感操作，**读审计也要被审计**：3 个查询接口已各标注 `@AuditLog(type=QUERY)`，产生 QUERY 元审计并落同库 `audit_log`（见下方「元审计」）。
+- 分页上限（如 `size<=200`）保护；导出走异步任务 + 文件服务（whale-file 8085）：
+  `POST /export` 只做参数接收与任务登记（线程池 2 线程、内存任务上限 200、状态保留 2 小时），
+  查询/CSV 生成/上传均在后台执行，调用方轮询 `GET /export/{taskId}`，避免 5 万行同步导出触发网关 60s 超时。
+- 查询本身属于敏感操作，**读审计也要被审计**：查询接口已各标注 `@AuditLog(type=QUERY)`，产生 QUERY 元审计并落同库 `audit_log`（见下方「元审计」）。
 
 **实施状态（2026-10-17，Wave 5.1b）**：`GET /audit/log/page`、`GET /audit/log/{id}`、`GET /audit/log/trace/{traceId}` **已实现**（`AuditLogController`，服务内前缀 `/audit/log`；分页按 `create_time` 倒序、`size` 收敛到 `[1, 200]`、`getDetail` 为空抛 `BizException(NOT_FOUND)`）；`@RequirePermission("sys:audit:log:list")` **已实现**。
 
@@ -303,7 +306,10 @@ whale-service-gateway
 `@AuditLog(operation=…, type=OperateType.QUERY, targetType="audit_log", recordResult=false)`，
 `operation` 分别为「分页查询审计日志」/「查看审计日志详情」/「按链路查询审计日志」；`operate_type` 用枚举 `QUERY`，`target_type` 统一 `audit_log`（控制器内提为常量 `TARGET_TYPE`）。查询本身即敏感操作，故其调用会经 `AuditLogAspect` 异步落一条 QUERY 记录到**同库** `audit_log`，可经 `GET /audit/log/page`（`operateType=QUERY`）反查——元审计数据自证可溯。字段映射遵循 §5.3：`method=declaringTypeName#name`、`request_uri=/audit/log/…`、`request_params` 为查询条件（脱敏后）、`biz_status`/`cost_ms` 由切面采集；`recordResult=false` 故元审计不落 `result_body`（避免查询结果体积膨胀）。
 
-**残余（EXPORT 元审计未落地）**：`POST /audit/log/export` 及其 `@AuditLog(type=EXPORT)` 元审计**未落地**——导出接口本身尚不存在，AUTH-08 阻塞于 whale-file（8085）未启动；待文件服务就绪后与导出接口一并补齐（见 §12 遗留）。
+**导出（AUTH-08，已落地）**：`POST /audit/log/export` 提交异步任务并标注
+`@AuditLog(type=EXPORT)` 产生 EXPORT 元审计；`GET /audit/log/export/{taskId}` 为 QUERY 元审计。
+CSV 经 whale-file 内网接口上传，失败时任务状态为 `FAILED` 且仅返回通用文案（详细原因进日志），
+导出只读 `audit_log`，不做任何删除/更新。
 
 **多通道查询接口（Wave 5.10 起，Wave 5.15 补齐通道①②）**：`audit_log` 之外的四张独立表（`api_log`/`outbound_log`/`frontend_log`/`behavior_log`，见多通道完善方案）各自提供分页查询端点，与本 §9 的 `audit_log` 查询**并行、互不污染**：
 | 方法 | 路径 | 覆盖通道 | 权限 |
@@ -326,11 +332,13 @@ whale-service-gateway
 | 阶段 | 时间窗 | 存放 | 动作 |
 |---|---|---|---|
 | 热数据 | 0–90 天 | `audit_log` 在线表 | 正常查询 |
-| 温数据 | 90 天–1 年 | `audit_log_archive_yyyyMM` / 独立表 | 定时任务搬迁后删除原表数据 |
-| 冷数据 | > 1 年 | 对象存储 / 归档库 | 导出压缩包长期留存，按需恢复 |
+| 温数据 / 冷数据 | > 保留期 | whale-file 归档桶 | 定时导出 CSV 归档，**不删除**在线表数据 |
 
-- 按月 **RANGE 分区**（`PARTITION BY RANGE (TO_DAYS(create_time))`）为推荐演进方向；当前表未分区，先以定时任务清理，后续再评估分区改造。
-- 保留期可配置（`whale.audit.retention.days=90`），到期整批删除，符合 append-only 无逻辑删除位的既有设计。
+- 合规口径：`audit_log` 为 append-only，归档 **≠** 可删；归档只读导出，绝不物理/逻辑删除在线表数据。
+- 归档任务按 `whale.audit.retention.days` 计算过期阈值，按 `audit_archive_watermark`（`create_time,id` 复合水位）增量续查；
+  单批行数由 `whale.audit.export.batch-rows`（默认 1000）控制，每批独立生成 CSV、上传并推进水位，
+  单轮总行数上限 `whale.audit.export.max-rows`（默认 50000）。多实例通过 Redisson 锁 `audit:archive` 互斥。
+- 按月 **RANGE 分区**（`PARTITION BY RANGE (TO_DAYS(create_time))`）仅作为容量演进方向保留评估，不改变不删除口径。
 - 归档/清理动作本身记入审计（元审计）。
 
 ---
