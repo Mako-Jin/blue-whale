@@ -29,7 +29,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -102,9 +106,10 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
         if (!properties.isEnabled()) {
             throw new BizException(ErrorCode.PARAM_ERROR, "回执受理未启用（whale.message.receipt.enabled=false）");
         }
-        Long tenantId = request.getTenantId() == null ? TenantContext.get() : request.getTenantId();
+        // 内网回执必须显式传入 tenantId：不再从上下文兜底，避免网关漏传租户头时串租户受理
+        Long tenantId = request.getTenantId();
         if (tenantId == null || tenantId <= 0L) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "缺少租户ID");
+            throw new BizException(ErrorCode.PARAM_ERROR, "缺少租户ID（内网回执必须显式传入 tenantId）");
         }
         Long previous = TenantContext.get();
         TenantContext.set(tenantId);
@@ -175,7 +180,11 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
     }
 
     /**
-     * 构造回执幂等键：优先渠道回执ID，缺省时按渠道+提供方消息ID+状态+回执时间派生。
+     * 构造回执幂等键：优先渠道回执ID，缺省时按渠道+状态+（提供方消息ID+回执时间）摘要派生。
+     *
+     * <p>派生内容（providerMessageId 最长 128 + 时间戳 + 渠道/状态前缀）明文拼接会超过
+     * {@code receipt_key VARCHAR(160)}，被截断后不同回执可能碰撞、后到回执被误判为重复而丢弃。
+     * 因此对可变长部分取 SHA-256，键长固定且远小于列宽。</p>
      *
      * @param channel     渠道
      * @param item        回执明细
@@ -188,7 +197,24 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
         if (StringUtils.hasText(item.getReceiptId())) {
             return channel + ":" + item.getReceiptId().trim();
         }
-        return channel + ":" + item.getProviderMessageId() + ":" + target.name() + ":" + receiptTime;
+        String digestSource = item.getProviderMessageId() + "|" + receiptTime;
+        return channel + ":" + target.name() + ":" + sha256Hex(digestSource);
+    }
+
+    /**
+     * 计算 SHA-256 十六进制摘要。
+     *
+     * @param source 原文
+     * @return 64 位小写十六进制串
+     */
+    private static String sha256Hex(String source) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(source.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException e) {
+            // JDK 必须提供 SHA-256；走到这里说明运行环境被裁剪，属于不可恢复错误
+            throw new IllegalStateException("SHA-256 不可用", e);
+        }
     }
 
     /**

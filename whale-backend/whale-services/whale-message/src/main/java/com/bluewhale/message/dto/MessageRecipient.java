@@ -1,6 +1,8 @@
 package com.bluewhale.message.dto;
 
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -27,7 +29,28 @@ public class MessageRecipient implements Serializable {
     @Size(max = 128, message = "邮箱长度不能超过 128")
     private String email;
 
-    /** 手机号（SMS） */
+    /** 手机号（SMS）；宽松校验（允许国际区号与分隔符），运营商号段由短信网关兜底 */
     @Size(max = 32, message = "手机号长度不能超过 32")
+    @Pattern(regexp = "^\\+?[0-9][0-9\\-\\s]{4,31}$", message = "手机号格式不正确")
     private String phone;
+
+    /**
+     * 校验至少提供一个可达标识，避免落库 recipient="-" 的脏投递记录。
+     *
+     * @return 任一标识非空白返回 {@code true}
+     */
+    @AssertTrue(message = "接收人至少提供 userId/email/phone 之一")
+    public boolean isReachable() {
+        return userId != null || hasText(email) || hasText(phone);
+    }
+
+    /**
+     * 判断文本非空白。
+     *
+     * @param value 文本
+     * @return 非空白返回 {@code true}
+     */
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
 }

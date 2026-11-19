@@ -1,7 +1,10 @@
 package com.bluewhale.message.dto;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -51,10 +54,10 @@ public class SendMessageRequest implements Serializable {
     /** 模板变量 */
     private Map<String, Object> payload;
 
-    /** 渠道列表：INAPP / EMAIL / SMS / IM */
+    /** 渠道列表：INAPP / EMAIL / SMS / IM（元素级校验，非法渠道直接 400） */
     @NotEmpty(message = "消息渠道不能为空")
     @Size(max = 8, message = "单次渠道数量不能超过 8")
-    private List<String> channels;
+    private List<@NotBlank(message = "渠道不能为空") @Size(max = 16, message = "渠道长度不能超过 16") String> channels;
 
     /** 接收人列表（单次最多 100 人） */
     @NotEmpty(message = "接收人不能为空")
@@ -63,5 +66,26 @@ public class SendMessageRequest implements Serializable {
 
     /** 回执回调地址（可选，业务方内网端点；为空表示不回传达送回执） */
     @Size(max = 512, message = "回调地址长度不能超过 512")
+    @Pattern(regexp = "^https?://.+", message = "回调地址必须为 http / https 地址")
     private String callbackUrl;
+
+    /**
+     * 校验消息体：模板编码或标题/正文至少提供一个，避免投递空消息。
+     *
+     * @return 满足其一返回 {@code true}
+     */
+    @AssertTrue(message = "templateCode 或 title/content 至少提供一个")
+    public boolean isMessageBodyPresent() {
+        return hasText(templateCode) || hasText(title) || hasText(content);
+    }
+
+    /**
+     * 判断文本非空白。
+     *
+     * @param value 文本
+     * @return 非空白返回 {@code true}
+     */
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
 }

@@ -39,7 +39,7 @@ public class MessageTemplateSaveRequest implements Serializable {
     @Size(max = 8000, message = "内容模板长度不能超过 8000")
     private String contentTemplate;
 
-    /** 状态：1 启用 / 0 停用；为空时新增默认启用 */
+    /** 状态：1 启用 / 0 停用；新增时为空默认启用，更新时为空表示不修改 */
     @Min(value = 0, message = "状态只能为 0 或 1")
     @Max(value = 1, message = "状态只能为 0 或 1")
     private Integer status;

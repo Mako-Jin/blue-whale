@@ -72,6 +72,9 @@ public class MessageSendServiceImpl implements MessageSendService {
 
     private final List<MessageChannelSender> senders;
 
+    /** 渠道适配器缓存：Bean 生命周期内注册表不变，首次使用时构建一次 */
+    private volatile Map<MessageChannel, MessageChannelSender> senderCache;
+
     @Override
     public SendMessageResult send(SendMessageRequest request) {
         Long tenantId = request.getTenantId() == null ? TenantContext.get() : request.getTenantId();
@@ -221,8 +224,14 @@ public class MessageSendServiceImpl implements MessageSendService {
         record.setBizId(request.getBizId());
         record.setTemplateCode(request.getTemplateCode());
         record.setIdempotencyKey(request.getIdempotencyKey());
-        record.setTitle(resolveTitle(request, template));
-        record.setContent(resolveContent(request, template));
+        String title = resolveTitle(request, template);
+        String content = resolveContent(request, template);
+        // 模板渲染结果也可能为空，落库前拦截，避免投递空消息
+        if (!StringUtils.hasText(title) && !StringUtils.hasText(content)) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "消息标题与正文不能同时为空");
+        }
+        record.setTitle(title);
+        record.setContent(content);
         record.setPayloadJson(toJson(request.getPayload()));
         record.setChannels(normalizeChannels(request.getChannels()));
         record.setStatus(MessageStatus.PENDING.name());
@@ -373,12 +382,20 @@ public class MessageSendServiceImpl implements MessageSendService {
     /**
      * 收集已注册的渠道适配器（同渠道重复注册时保留第一个）。
      *
+     * <p>Bean 生命周期内注册表不变，首次调用后缓存；懒初始化而非 {@code @PostConstruct}，
+     * 保证非容器构造（如单元测试）同样可用。</p>
+     *
      * @return 渠道到适配器的映射
      */
     private Map<MessageChannel, MessageChannelSender> senderMap() {
-        return senders.stream()
-                .collect(Collectors.toMap(MessageChannelSender::channel, sender -> sender,
-                        (first, second) -> first));
+        Map<MessageChannel, MessageChannelSender> cache = senderCache;
+        if (cache == null) {
+            cache = senders.stream()
+                    .collect(Collectors.toMap(MessageChannelSender::channel, sender -> sender,
+                            (first, second) -> first));
+            senderCache = cache;
+        }
+        return cache;
     }
 
     /**

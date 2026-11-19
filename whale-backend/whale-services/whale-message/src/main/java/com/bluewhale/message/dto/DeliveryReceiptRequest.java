@@ -2,6 +2,7 @@ package com.bluewhale.message.dto;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -21,7 +22,8 @@ public class DeliveryReceiptRequest implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /** 租户ID；内网调用必须显式传入 */
+    /** 租户ID；内网调用必须显式传入（缺省不再从上下文兜底） */
+    @NotNull(message = "tenantId 不能为空")
     private Long tenantId;
 
     /** 回执明细（单次最多 200 条） */

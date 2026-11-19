@@ -1,6 +1,7 @@
 package com.bluewhale.message.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -30,9 +31,10 @@ public class DeliveryReceiptItem implements Serializable {
     @Size(max = 128, message = "渠道消息标识长度不能超过 128")
     private String providerMessageId;
 
-    /** 回执状态：DELIVERED / READ / BOUNCED */
+    /** 回执状态：DELIVERED / READ / BOUNCED（参数校验阶段拒绝非法值，避免整批事务回滚） */
     @NotBlank(message = "回执状态不能为空")
     @Size(max = 16, message = "回执状态长度不能超过 16")
+    @Pattern(regexp = "DELIVERED|READ|BOUNCED", message = "回执状态仅支持 DELIVERED / READ / BOUNCED")
     private String status;
 
     /** 渠道回执时间；缺省取上报时刻 */

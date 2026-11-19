@@ -28,6 +28,7 @@
 - **验收**：
   - 单测覆盖「providerMessageId 128 位 + 无 receiptId」派生键长度 ≤160 且两次生成稳定；
   - 两个不同 receiptTime 的派生键不相等；重复上报同一条回执仍命中幂等。
+- **状态**：已修复（方案 A：`sha256Hex` 派生键），单测 `derivedReceiptKeyShouldBeBoundedAndDistinct` 覆盖。
 
 ### D7 / D16 偏好解析 userIds 无上限 → auth 侧 OOM
 
@@ -38,6 +39,7 @@
   - Service：`resolve` 入口 `if (deduped.size() > properties.getMaxUsers()) throw new BizException(PARAM_ERROR, ...)`，以配置为准（配置调大时仍生效）；
   - 两处上限含义写清楚：DTO 防滥用，Service 防配置漂移。
 - **验收**：单测覆盖 201 个 userIds → 400；200 个 → 正常；配置改 50 时 60 个 → 400。
+- **状态**：已修复（DTO `@Size(max=200)` + Service 按 `maxUsers` 校验），单测 `shouldRejectWhenExceedsConfiguredMaxUsers` 覆盖。
 
 ### D11 消息记录 channel 查询的 LIKE 风险
 
@@ -51,6 +53,7 @@
   - 查询改精确 token 匹配：`wrapper.apply("FIND_IN_SET({0}, channels) > 0", channelUpper)`（参数绑定，无注入）；
   - 在 `MessageRecordQueryRequest` javadoc 注明 `FIND_IN_SET` 不走索引，量大时需改为查询 `msg_delivery` 或冗余 `channels` 归一表（列入性能专项）。
 - **验收**：单测/L1 SQL 断言生成语句含 `FIND_IN_SET` 且参数绑定；`channel=sms` 大小写归一；`channel=%` 被拒绝。
+- **状态**：已修复（`MessageChannel.parse` 校验 + `FIND_IN_SET` 参数绑定），单测 `MessageRecordServiceImplTest` 覆盖。
 
 ### D3 空消息可通过校验
 
@@ -65,6 +68,7 @@
   ```
   Service 保留防御：渲染后 title 与 content 仍全空时抛 `PARAM_ERROR`（防止模板渲染为空）。
 - **验收**：三者全空 → 400；仅 templateCode → 通过；模板渲染结果为空 → 400。
+- **状态**：已修复（DTO `@AssertTrue` + Service 渲染后防御），单测 `shouldRejectEmptyMessage` 覆盖。
 
 ## 三、P1（契约完整性 / 校验生效）
 
@@ -75,6 +79,7 @@
 - **修复**：`@Size(max = 8) List<@NotBlank @Size(max = 16) String> channels`。非法元素在参数校验阶段 400，Service 的 `normalizeChannels` 只保留「大小写归一 + 去重」。
 - **决策**：是否允许「部分非法渠道被忽略」？建议**不允许**，与 API 严格校验语义一致。
 - **验收**：`["EMAIL", null]` → 400；`["email"]` → 归一为 `EMAIL`。
+- **状态**：已修复（元素级 `@NotBlank @Size(max=16)` + 列表 `@Size(max=8)`）。
 
 ### D2 MessageRecipient 允许全空接收人
 
@@ -87,6 +92,7 @@
   ```
   Service 侧保留兜底过滤（防内部调用绕过校验）。
 - **验收**：全空 recipient → 400；仅 phone → 通过。
+- **状态**：已修复（类级 `@AssertTrue`；Service 兜底过滤保留）。
 
 ### D8 PreferenceResolveRequest 嵌套校验未级联
 
@@ -96,6 +102,7 @@
   - `Defaults.channels` 加 `@Size(max = 8)` + `List<@NotBlank @Size(max = 16) String>`；
   - `quietBypassLevels` 加 `@Size(max = 8)`。
 - **验收**：`defaults.channels` 传 9 个 → 400；传 null defaults → 通过。
+- **状态**：已修复（`@Valid` 级联 + 元素级约束）。
 
 ### D12 @GetMapping 分页接口缺 @Valid
 
@@ -103,12 +110,14 @@
 - **结论**：**成立**，但影响有限：`PageQuery.toPage()` L41-45 已做页码/页大小钳制，不会全表扫描；受影响的是本批新增的 DTO 级校验（`readFlag`、`status`、`channel` 等）不会触发。
 - **修复**：四个方法参数加 `@Valid`；`MessageInAppController.markRead` 的 `@PathVariable` 如需约束再加 `@Min(1)`。
 - **验收**：`readFlag=2` → 400；`size=10000` → 400（当前是静默钳制为 200）。
+- **状态**：已修复（四个分页接口补 `@Valid`；`size` 越界仍由 `PageQuery` 约束先拦）。
 
 ### D13 readFlag 取值未约束
 
 - **位置**：`InAppMessageQueryRequest` L19。
 - **修复**：`@Min(0) @Max(1)`。
 - **验收**：`readFlag=2` → 400。
+- **状态**：已修复（`@Min(0) @Max(1)`）。
 
 ## 四、P1（语义定稿，需要产品/调用方确认）
 
@@ -120,6 +129,7 @@
   1. `DeliveryReceiptItem.status` 改为 `@Pattern(regexp = "DELIVERED|READ|BOUNCED")`，非法状态在参数校验阶段 400，不进入事务；
   2. 是否改为「逐条独立事务 + 逐条结果」需要产品确认——回执网关通常偏好部分成功，但站内/邮件渠道对账更偏好整批一致。
 - **输出**：定稿后在本文件更新结论，并同步 `MessageReceiptService` javadoc。
+- **状态**：状态 `@Pattern` 已加（非法状态在参数校验阶段 400）；事务粒度**维持整批原子**，逐条独立事务待调用方明确需求后再改。
 
 ### D6 / D15 DeliveryReceiptRequest.tenantId 契约矛盾
 
@@ -128,6 +138,7 @@
   - A. DTO 加 `@NotNull`，Service 删除兜底，缺少租户直接 400 —— 契约显式，便于排障；
   - B. 保留兜底，注释改为「缺省取当前租户上下文」。
 - **验收**：内网调用不传 tenantId 的行为与定稿一致。
+- **状态**：已按方案 A 定稿（DTO `@NotNull` + Service 删除上下文兜底、缺失直接 400）。
 
 ### D10 手机号格式校验口径
 
@@ -137,6 +148,7 @@
   - B. 明确「平台不校验手机号格式，由短信网关兜底」并写入 javadoc。
   - 建议 A 的宽松版 + 文档说明，不做运营商级号段校验。
 - **验收**：`+86 138-0000-0000` 通过；`abc` 拒绝。
+- **状态**：已按方案 A 定稿（宽松正则 `^\+?[0-9][0-9\-\s]{4,31}$`，不做运营商号段校验）。
 
 ### D18 模板更新时 status=null 的语义
 
@@ -144,6 +156,7 @@
 - **现状**：已实现「null 保留原值」（见 devlog 第二批），但 DTO 注释只写了新增默认启用。
 - **修复**：DTO/接口 javadoc 补「更新时 status 为空表示不修改」。
 - **验收**：更新不传 status，库中状态不变，返回 VO 状态非空。
+- **状态**：已补 DTO 注释（新增默认启用、更新为空不改）。
 
 ## 五、已满足 / 误判（无需改码）
 
@@ -165,6 +178,9 @@
 | N26 回执批量查询 | 逐条查 record/delivery | 回执批次内按 messageId 批量预取 |
 | N14 多实例派发 | 仅注释说明 | 需要时实现 `DISPATCHING` 抢占 + 超时回收 |
 | #12 providerMessageId | EMAIL/SMS/IM 回执无法自动匹配 | 按供应商协议解析并回写；在此之前保持 UNMATCHED 对账 |
+
+- **已实施**：DTO 回调 `@Pattern`；N23 senderMap 懒加载缓存（非容器单测同样可用）。
+- **保留**：N26 回执批次批量预取、N14 多实例派发抢占、#12 供应商消息ID 解析，均列入性能/渠道专项。
 
 ## 七、实施顺序与验证
 

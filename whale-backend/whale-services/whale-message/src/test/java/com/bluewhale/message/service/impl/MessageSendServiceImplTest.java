@@ -231,6 +231,18 @@ class MessageSendServiceImplTest {
         verify(deliveryMapper).updateById(eq(failed));
     }
 
+    @Test
+    @DisplayName("标题与正文同时为空时拒绝发送")
+    void shouldRejectEmptyMessage() {
+        SendMessageRequest request = request(List.of("INAPP"), null);
+        request.setTitle(null);
+        request.setContent(null);
+
+        assertThrows(BizException.class,
+                () -> service(sender(MessageChannel.INAPP, ChannelResult.sent("1001"))).send(request));
+        verify(recordMapper, never()).insert(any(MessageRecord.class));
+    }
+
     /**
      * 构造渠道适配器 mock。
      *
@@ -263,6 +275,11 @@ class MessageSendServiceImplTest {
         request.setBizType("PM_TASK");
         request.setBizId("T-1001");
         request.setTemplateCode(templateCode);
+        if (templateCode == null) {
+            // 无模板时显式给标题/正文，避免命中"标题与正文不能同时为空"校验
+            request.setTitle("标题");
+            request.setContent("正文");
+        }
         request.setPayload(Map.of("name", "蓝鲸"));
         request.setChannels(channels);
         request.setRecipients(List.of(recipient));

@@ -7,6 +7,7 @@ import com.bluewhale.message.dto.InAppMessageQueryRequest;
 import com.bluewhale.message.service.MessageInAppService;
 import com.bluewhale.message.vo.InAppMessageVO;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -38,7 +39,7 @@ public class MessageInAppController {
      * @return 分页结果
      */
     @GetMapping("/page")
-    public Result<PageResult<InAppMessageVO>> page(InAppMessageQueryRequest request,
+    public Result<PageResult<InAppMessageVO>> page(@Valid InAppMessageQueryRequest request,
                                                    HttpServletRequest httpRequest) {
         return Result.ok(messageInAppService.page(UserContext.requireUserId(httpRequest), request));
     }

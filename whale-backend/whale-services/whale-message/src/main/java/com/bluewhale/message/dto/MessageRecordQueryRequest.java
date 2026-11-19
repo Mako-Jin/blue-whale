@@ -1,6 +1,7 @@
 package com.bluewhale.message.dto;
 
 import com.bluewhale.common.core.query.PageQuery;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -24,6 +25,7 @@ public class MessageRecordQueryRequest extends PageQuery {
     /** 消息状态（精确匹配） */
     private String status;
 
-    /** 渠道（包含匹配，如 IM） */
+    /** 渠道（精确 token 匹配，如 IM；非枚举值直接 400） */
+    @Size(max = 16, message = "渠道长度不能超过 16")
     private String channel;
 }
