@@ -51,7 +51,10 @@
 
 ### 2.4 导出
 
-`GET /job/info/export?jobGroup=`（权限 `sys:job:list`）
+`GET /job/info/export?jobGroup=&jobIds=1,2,3`（权限 `sys:job:list`）
+
+- `jobGroup` 与 `jobIds` 均可选，同时传入时取交集（只导出该分组内且 ID 命中的任务）；
+- `jobIds` 支持逗号分隔或重复参数两种写法，用于管理端「仅导出选中任务」。
 
 ```json
 {
@@ -80,7 +83,15 @@
 - 指定 `jobGroup` 只导出该分组；依赖边只保留两端都在导出集合内的（与图接口口径一致）。
 - 任务按 ID 升序、依赖边按 (上游ID, 下游ID) 排序，输出稳定便于 diff。
 
-### 2.5 导入
+### 2.5 文件下载
+
+`GET /job/info/export/download?jobGroup=&jobIds=`（权限 `sys:job:list`）
+
+- 参数与导出接口一致，返回 `application/json` 附件，`Content-Disposition: attachment; filename="job-export-yyyyMMdd-HHmmss.json"`；
+- 内容即导出接口的 `data` 部分（任务 + 依赖），可直接另存后作为导入文件；
+- 下载接口直接返回文件流，不再套 `Result` 包装；错误仍走统一异常处理返回 JSON。
+
+### 2.6 导入
 
 `POST /job/info/import`（权限 `sys:job:add`）
 
