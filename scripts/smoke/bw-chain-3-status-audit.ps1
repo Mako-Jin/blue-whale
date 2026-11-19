@@ -109,7 +109,8 @@ $endIso = (Get-Date).AddMinutes(5).ToString('yyyy-MM-ddTHH:mm:ss')
 $expected = [ordered]@{
     'whale-crm' = @('新建商务订单', '提交商务订单审批')
     'whale-erp' = @('新增生产订单', '下达生产订单', '生产领料')
-    'whale-mes' = @('MES 工单拆分', 'MES 批量派工', 'MES 生产报工', 'MES 任务完工')
+    'whale-mes' = @('MES 工单拆分', 'MES 批量派工', 'MES 生产报工', 'MES 检验计划保存',
+        'MES 检验任务创建', 'MES 检验结果录入', 'MES 检验判定', 'MES 任务完工')
 }
 foreach ($module in $expected.Keys) {
     $uri = "/audit/log/page?module=$module&current=1&size=200&startTime=$startIso&endTime=$endIso"

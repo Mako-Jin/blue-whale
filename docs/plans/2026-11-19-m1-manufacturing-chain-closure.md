@@ -84,7 +84,7 @@
 - **完成项**：
   - `scripts/smoke/lib/common.ps1` 新增 `Wait-SmokeUntil`（异步轮询）、`Skip-Smoke`（显式跳过并写 Step Summary）、链路状态文件读写三个工具。
   - 新增 `scripts/smoke/bw-chain-1-crm-to-erp.ps1`：自动准备 ERP 仓库/物料/客户 → CRM 建单 → 提交审批 → workflow 逐级通过 → 等审批对账回填 APPROVED → 等 outbox 下发 → 核对 ERP 销售订单 `crmOrderNo`/物料/数量 → 重推幂等。
-  - 新增 `scripts/smoke/bw-chain-2-erp-mes-erp.ps1`：准备物料/库存 → ERP 建生产订单 → 下达（自动下发 MES）→ 领料 → MES 拆分/派工/开工/报工/完工 → 等完工回传 ERP → 核对完工数量与产成品库存余额。
+  - 新增 `scripts/smoke/bw-chain-2-erp-mes-erp.ps1`：准备物料/库存 → ERP 建生产订单 → 下达（自动下发 MES）→ 领料 → MES 拆分/派工/开工/报工 → 质检（IPQC 计划/任务/结果/判定）→ 完工 → 等完工回传 ERP → 核对完工数量与产成品库存余额。
   - 新增 `scripts/smoke/bw-chain-3-status-audit.ps1`：读取状态文件，核对 CRM 状态机时间戳顺序、ERP 生产订单 COMPLETED、MES 工单 COMPLETED，并按 `whale-crm / whale-erp / whale-mes` 模块在 `/audit/log/page` 校验关键操作与操作人留痕。
   - 新增 `.github/workflows/chain-smoke.yml`：`workflow_dispatch` 或 `vars.CHAIN_SMOKE_ENABLED=true` 触发；Preflight 检查网关地址与 `SMOKE_PASSWORD`，缺失时写 `SKIP` 到 Step Summary 并跳过，其余情况失败即红。
 - **环境前置**：CRM `WHALE_CRM_ORDER_DEFINITION_ID` 与 `WHALE_CRM_ERP_ENABLED=true`；MES `WHALE_MES_OUTBOX_ENABLED=true` 且 `WHALE_ERP_URL` 可达；各服务审计转发开启、whale-audit 在线。
@@ -138,3 +138,15 @@
   - 四个 PowerShell 脚本（chain-1/2/3 + chain-reconcile）通过 `Parser::ParseFile` 语法校验。
 - **待做项**：链路冒烟、对账、压测仍需在完整环境执行并回填数据。
 - **已修正问题项**：chain-1 workflow 路径缺少 `/v1` 版本段（真实服务映射为 `/workflow/v{version}/...`），已补齐。
+
+### 2026-11-19 M-B 加固（质检环节纳入链上冒烟）
+
+- **需求项**：蓝图五环节含「质检」，原 chain-2 只覆盖报工与完工入库，质检仅靠页面手工验证，自动化缺口明显。
+- **完成项**：
+  - `bw-chain-2-erp-mes-erp.ps1` 在报工与完工之间新增 IPQC 质检：创建检验计划（1 个检验项）→ 创建检验任务
+    （关联工单/工序任务）→ 录入 OK 结果 → 判定合格并断言 `PASSED`。
+  - `bw-chain-3-status-audit.ps1` 的 MES 留痕期望补充「MES 检验计划保存 / 检验任务创建 / 检验结果录入 / 检验判定」。
+- **验证**：两个脚本通过 `Parser::ParseFile` 语法校验；接口路径与字段按 `MesInspectionPlanController`、
+  `MesInspectionController` 及四个 DTO 逐项核对。
+- **待做项**：需在完整环境首次执行确认检验计划自动编号与判定结果。
+- **已修正问题项**：无。

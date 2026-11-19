@@ -5,7 +5,7 @@
 #   1) ERP 物料 / 仓库 / 库存准备（领料仓备料）
 #   2) ERP 建生产订单 → 下达（自动下发 MES）
 #   3) ERP 领料（订单转生产中）
-#   4) MES 拆分 → 派工 → 开工 → 报工 → 完工
+#   4) MES 拆分 → 派工 → 开工 → 报工 → 质检（IPQC）→ 完工
 #   5) MES 完工发件箱回传 ERP → 完工入库，数量与计划一致
 #
 # 前置：
@@ -199,6 +199,67 @@ $report = Invoke-SmokeApi -Method Post -Path '/mes/execution/report' -Body @{
     remark = 'M1 链路冒烟报工'
 }
 Check '16.report' $report
+
+# 11.1) 质检（蓝图五环节之一）：建检验计划 → 建 IPQC 任务 → 录结果 → 判定合格
+$qcPlan = Invoke-SmokeApi -Method Post -Path '/mes/quality/inspection-plan' -Body @{
+    planName = "链路冒烟检验计划-$stamp"
+    inspectionType = 'IPQC'
+    itemCode = $productCode
+    operationCode = 'OP-CHAIN'
+    sampleSize = 1
+    status = 'ENABLED'
+    remark = 'M1 链路冒烟自动创建'
+    items = @(
+        @{
+            itemNo = 1
+            itemName = '外观检查'
+            inspectionMethod = 'VISUAL'
+            standardText = '无划伤、无变形'
+            criticalFlag = 1
+        }
+    )
+}
+Check '16a.qcPlan' $qcPlan
+$qcPlanId = $qcPlan.data.id
+$qcPlanItemId = @($qcPlan.data.items)[0].id
+Assert '16b.qcPlanItem' ($null -ne $qcPlanItemId) "planId=$qcPlanId"
+
+$qcTask = Invoke-SmokeApi -Method Post -Path '/mes/quality/inspection/task' -Body @{
+    taskType = 'IPQC'
+    planId = $qcPlanId
+    workOrderId = $mesOrderId
+    workOrderCode = $mesOrder.code
+    execTaskId = $taskId
+    operationCode = 'OP-CHAIN'
+    sampleSize = 1
+    inspector = 'M1-chain-smoke'
+    batchNo = "QC-$stamp"
+}
+Check '16c.qcTask' $qcTask
+$qcTaskId = $qcTask.data.id
+
+$qcResults = Invoke-SmokeApi -Method Post -Path "/mes/quality/inspection/task/$qcTaskId/results" -Body @{
+    inspector = 'M1-chain-smoke'
+    remark = 'M1 链路冒烟质检'
+    results = @(
+        @{
+            planItemId = $qcPlanItemId
+            itemNo = 1
+            itemName = '外观检查'
+            sampleNo = 1
+            measuredValue = 'OK'
+            result = 'OK'
+        }
+    )
+}
+Check '16d.qcResults' $qcResults
+
+$qcJudged = Invoke-SmokeApi -Method Post -Path "/mes/quality/inspection/task/$qcTaskId/judge" -Body @{
+    judge = 'M1-chain-smoke'
+    conclusion = '合格'
+}
+Check '16e.qcJudge' $qcJudged
+Assert '16f.qcPassed' ($qcJudged.data.status -eq 'PASSED') "status=$($qcJudged.data.status)"
 
 $completed = Invoke-SmokeApi -Method Post -Path "/mes/execution/task/$taskId/complete" -Body @{}
 Check '17.completeTask' $completed
