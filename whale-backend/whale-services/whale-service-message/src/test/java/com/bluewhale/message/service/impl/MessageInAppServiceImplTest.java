@@ -5,8 +5,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.message.dto.InAppMessageQueryRequest;
-import com.bluewhale.message.entity.MessageDelivery;
-import com.bluewhale.message.entity.MessageRecord;
+import com.bluewhale.message.po.MessageDeliveryPo;
+import com.bluewhale.message.po.MessageRecordPo;
 import com.bluewhale.message.mapper.MessageDeliveryMapper;
 import com.bluewhale.message.mapper.MessageRecordMapper;
 import com.bluewhale.message.support.AnnouncementExpander;
@@ -45,12 +45,12 @@ class MessageInAppServiceImplTest {
     @Test
     @DisplayName("收件箱分页合并消息标题与正文")
     void shouldPageInAppMessages() {
-        MessageDelivery delivery = delivery(2001L, 1001L, 0);
-        Page<MessageDelivery> page = new Page<>(1, 10);
+        MessageDeliveryPo delivery = delivery(2001L, 1001L, 0);
+        Page<MessageDeliveryPo> page = new Page<>(1, 10);
         page.setRecords(List.of(delivery));
         page.setTotal(1);
         when(deliveryMapper.selectPage(any(), any(Wrapper.class))).thenReturn(page);
-        MessageRecord record = new MessageRecord();
+        MessageRecordPo record = new MessageRecordPo();
         record.setId(1001L);
         record.setTitle("系统通知");
         record.setContent("您有一条待办");
@@ -100,8 +100,8 @@ class MessageInAppServiceImplTest {
      * @param readFlag   已读标记
      * @return 投递记录
      */
-    private static MessageDelivery delivery(Long deliveryId, Long messageId, int readFlag) {
-        MessageDelivery delivery = new MessageDelivery();
+    private static MessageDeliveryPo delivery(Long deliveryId, Long messageId, int readFlag) {
+        MessageDeliveryPo delivery = new MessageDeliveryPo();
         delivery.setId(deliveryId);
         delivery.setMessageId(messageId);
         delivery.setChannel("INAPP");

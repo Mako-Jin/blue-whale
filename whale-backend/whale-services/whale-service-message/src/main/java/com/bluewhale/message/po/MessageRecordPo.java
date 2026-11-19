@@ -40,10 +40,13 @@ public class MessageRecordPo extends BaseEntity {
     /** 模板变量 JSON */
     private String payloadJson;
 
+    /** 接收人列表 JSON（异步投递时用于重建投递对象） */
+    private String recipientsJson;
+
     /** 渠道列表（大写逗号分隔） */
     private String channels;
 
-    /** 消息状态：PENDING / SENT / DELIVERED / PARTIAL / FAILED / MOCKED / SKIPPED / EXPIRED（与 MessageStatus 枚举一致） */
+    /** 消息状态：PENDING / DISPATCHING / SENT / DELIVERED / PARTIAL / FAILED / MOCKED / SKIPPED / EXPIRED（与 MessageStatus 枚举一致） */
     private String status;
 
     /** 回执回调地址（业务方内网端点；空表示不回传回执） */

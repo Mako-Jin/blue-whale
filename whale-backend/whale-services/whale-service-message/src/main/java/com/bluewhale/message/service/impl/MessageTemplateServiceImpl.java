@@ -8,7 +8,7 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.message.converter.MessageConverter;
 import com.bluewhale.message.dto.MessageTemplateQueryRequest;
 import com.bluewhale.message.dto.MessageTemplateSaveRequest;
-import com.bluewhale.message.entity.MessageTemplate;
+import com.bluewhale.message.po.MessageTemplatePo;
 import com.bluewhale.message.mapper.MessageTemplateMapper;
 import com.bluewhale.message.service.MessageTemplateService;
 import com.bluewhale.message.vo.MessageTemplateVO;
@@ -44,15 +44,15 @@ public class MessageTemplateServiceImpl implements MessageTemplateService {
 
     @Override
     public PageResult<MessageTemplateVO> page(MessageTemplateQueryRequest request) {
-        LambdaQueryWrapper<MessageTemplate> wrapper = new LambdaQueryWrapper<>();
-        wrapper.like(StringUtils.hasText(request.getTemplateCode()), MessageTemplate::getTemplateCode,
+        LambdaQueryWrapper<MessageTemplatePo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.like(StringUtils.hasText(request.getTemplateCode()), MessageTemplatePo::getTemplateCode,
                 request.getTemplateCode());
-        wrapper.like(StringUtils.hasText(request.getTemplateName()), MessageTemplate::getTemplateName,
+        wrapper.like(StringUtils.hasText(request.getTemplateName()), MessageTemplatePo::getTemplateName,
                 request.getTemplateName());
-        wrapper.eq(request.getStatus() != null, MessageTemplate::getStatus, request.getStatus());
-        wrapper.orderByDesc(MessageTemplate::getCreateTime);
+        wrapper.eq(request.getStatus() != null, MessageTemplatePo::getStatus, request.getStatus());
+        wrapper.orderByDesc(MessageTemplatePo::getCreateTime);
         long size = Math.min(Math.max(request.getSize(), 1L), MAX_PAGE_SIZE);
-        Page<MessageTemplate> page = templateMapper.selectPage(new Page<>(request.getCurrent(), size), wrapper);
+        Page<MessageTemplatePo> page = templateMapper.selectPage(new Page<>(request.getCurrent(), size), wrapper);
         List<MessageTemplateVO> records = page.getRecords().stream()
                 .map(MessageTemplateServiceImpl::toVo).toList();
         return PageResult.of(records, page.getTotal(), page.getCurrent(), page.getSize());
@@ -68,7 +68,7 @@ public class MessageTemplateServiceImpl implements MessageTemplateService {
     public MessageTemplateVO create(MessageTemplateSaveRequest request) {
         String code = normalizeCode(request.getTemplateCode());
         assertCodeUnique(code, null);
-        MessageTemplate template = MessageConverter.INSTANCE.toEntity(request);
+        MessageTemplatePo template = MessageConverter.INSTANCE.toEntity(request);
         template.setTemplateCode(code);
         template.setStatus(request.getStatus() == null ? STATUS_ENABLED : normalizeStatus(request.getStatus()));
         templateMapper.insert(template);
@@ -79,7 +79,7 @@ public class MessageTemplateServiceImpl implements MessageTemplateService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public MessageTemplateVO update(Long id, MessageTemplateSaveRequest request) {
-        MessageTemplate template = requireTemplate(id);
+        MessageTemplatePo template = requireTemplate(id);
         Integer originalStatus = template.getStatus();
         String code = normalizeCode(request.getTemplateCode());
         assertCodeUnique(code, id);
@@ -106,8 +106,8 @@ public class MessageTemplateServiceImpl implements MessageTemplateService {
      * @param id 模板ID
      * @return 模板实体
      */
-    private MessageTemplate requireTemplate(Long id) {
-        MessageTemplate template = id == null ? null : templateMapper.selectById(id);
+    private MessageTemplatePo requireTemplate(Long id) {
+        MessageTemplatePo template = id == null ? null : templateMapper.selectById(id);
         if (template == null) {
             throw new BizException(ErrorCode.NOT_FOUND, "消息模板不存在: " + id);
         }
@@ -159,7 +159,7 @@ public class MessageTemplateServiceImpl implements MessageTemplateService {
      * @param template 模板实体
      * @return 视图对象
      */
-    private static MessageTemplateVO toVo(MessageTemplate template) {
+    private static MessageTemplateVO toVo(MessageTemplatePo template) {
         return MessageConverter.INSTANCE.toTemplateVo(template);
     }
 }

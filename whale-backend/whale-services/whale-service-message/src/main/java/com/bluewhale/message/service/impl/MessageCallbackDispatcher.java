@@ -6,7 +6,7 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.internaltoken.InternalTokenSupport;
 import com.bluewhale.common.web.WebHeaders;
 import com.bluewhale.message.config.MessageReceiptProperties;
-import com.bluewhale.message.entity.MessageCallbackTask;
+import com.bluewhale.message.po.MessageCallbackTaskPo;
 import com.bluewhale.message.mapper.MessageCallbackTaskMapper;
 import com.bluewhale.message.support.CallbackUrlGuard;
 import jakarta.annotation.PostConstruct;
@@ -102,11 +102,11 @@ public class MessageCallbackDispatcher {
             initialDelayString = "${whale.message.receipt.dispatch-initial-delay-millis:20000}")
     public void dispatch() {
         recoverStale();
-        List<MessageCallbackTask> tasks = selectDueTasks();
+        List<MessageCallbackTaskPo> tasks = selectDueTasks();
         if (tasks.isEmpty()) {
             return;
         }
-        for (MessageCallbackTask task : tasks) {
+        for (MessageCallbackTaskPo task : tasks) {
             // 原子抢占：抢不到说明已被其它实例处理或状态已变化，直接跳过
             if (callbackTaskMapper.claim(task.getId(), instanceId, LocalDateTime.now()) == 0) {
                 continue;
@@ -132,14 +132,14 @@ public class MessageCallbackDispatcher {
      *
      * @return 待派发任务
      */
-    private List<MessageCallbackTask> selectDueTasks() {
+    private List<MessageCallbackTaskPo> selectDueTasks() {
         LocalDateTime now = LocalDateTime.now();
-        LambdaQueryWrapper<MessageCallbackTask> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(MessageCallbackTask::getStatus, STATUS_PENDING, STATUS_FAILED)
-                .and(inner -> inner.isNull(MessageCallbackTask::getNextRetryAt)
-                        .or().le(MessageCallbackTask::getNextRetryAt, now))
-                .orderByAsc(MessageCallbackTask::getId);
-        Page<MessageCallbackTask> page = new Page<>(1, Math.max(1, properties.getDispatchBatchSize()));
+        LambdaQueryWrapper<MessageCallbackTaskPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(MessageCallbackTaskPo::getStatus, STATUS_PENDING, STATUS_FAILED)
+                .and(inner -> inner.isNull(MessageCallbackTaskPo::getNextRetryAt)
+                        .or().le(MessageCallbackTaskPo::getNextRetryAt, now))
+                .orderByAsc(MessageCallbackTaskPo::getId);
+        Page<MessageCallbackTaskPo> page = new Page<>(1, Math.max(1, properties.getDispatchBatchSize()));
         return callbackTaskMapper.selectPage(page, wrapper).getRecords();
     }
 
@@ -151,7 +151,7 @@ public class MessageCallbackDispatcher {
      *
      * @param task 回调任务
      */
-    private void deliver(MessageCallbackTask task) {
+    private void deliver(MessageCallbackTaskPo task) {
         int attempts = task.getAttempts() == null ? 0 : task.getAttempts();
         int nextAttempts = attempts + 1;
         task.setAttempts(nextAttempts);
@@ -204,7 +204,7 @@ public class MessageCallbackDispatcher {
      *
      * @param task 回调任务
      */
-    private void finish(MessageCallbackTask task) {
+    private void finish(MessageCallbackTaskPo task) {
         task.setDispatchOwner(null);
         task.setDispatchAt(null);
         callbackTaskMapper.updateById(task);

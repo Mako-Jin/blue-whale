@@ -8,8 +8,8 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.message.dto.AnnouncementPublishRequest;
 import com.bluewhale.message.dto.AnnouncementQueryRequest;
-import com.bluewhale.message.entity.MessageAnnouncement;
-import com.bluewhale.message.entity.MessageRecord;
+import com.bluewhale.message.po.MessageAnnouncementPo;
+import com.bluewhale.message.po.MessageRecordPo;
 import com.bluewhale.message.enums.AnnouncementStatus;
 import com.bluewhale.message.mapper.MessageAnnouncementMapper;
 import com.bluewhale.message.mapper.MessageRecordMapper;
@@ -42,7 +42,7 @@ class MessageAnnouncementServiceImplTest {
     static void initTableInfo() {
         // 单测无 MyBatis 容器，手动初始化新实体的 lambda 列缓存
         TableInfoHelper.initTableInfo(
-                new MapperBuilderAssistant(new MybatisConfiguration(), ""), MessageAnnouncement.class);
+                new MapperBuilderAssistant(new MybatisConfiguration(), ""), MessageAnnouncementPo.class);
     }
 
     private final MessageAnnouncementMapper announcementMapper = mock(MessageAnnouncementMapper.class);
@@ -61,19 +61,19 @@ class MessageAnnouncementServiceImplTest {
 
         service.publish(request, 9L);
 
-        ArgumentCaptor<MessageRecord> recordCaptor = ArgumentCaptor.forClass(MessageRecord.class);
+        ArgumentCaptor<MessageRecordPo> recordCaptor = ArgumentCaptor.forClass(MessageRecordPo.class);
         verify(recordMapper).insert(recordCaptor.capture());
-        MessageRecord record = recordCaptor.getValue();
+        MessageRecordPo record = recordCaptor.getValue();
         assertEquals("平台维护通知", record.getTitle());
         assertEquals("今晚 22:00 平台维护", record.getContent());
         assertEquals("INAPP", record.getChannels());
         assertEquals("SENT", record.getStatus());
         assertEquals("SYSTEM_ANNOUNCE", record.getBizType());
 
-        ArgumentCaptor<MessageAnnouncement> announcementCaptor =
-                ArgumentCaptor.forClass(MessageAnnouncement.class);
+        ArgumentCaptor<MessageAnnouncementPo> announcementCaptor =
+                ArgumentCaptor.forClass(MessageAnnouncementPo.class);
         verify(announcementMapper).insert(announcementCaptor.capture());
-        MessageAnnouncement announcement = announcementCaptor.getValue();
+        MessageAnnouncementPo announcement = announcementCaptor.getValue();
         assertEquals(AnnouncementStatus.PUBLISHED.name(), announcement.getStatus());
         assertEquals(9L, announcement.getPublisherId());
         assertNotNull(announcement.getPublishTime());
@@ -82,16 +82,16 @@ class MessageAnnouncementServiceImplTest {
     @Test
     @DisplayName("分页查询合并消息记录的标题与正文")
     void shouldPageAnnouncements() {
-        MessageAnnouncement announcement = new MessageAnnouncement();
+        MessageAnnouncementPo announcement = new MessageAnnouncementPo();
         announcement.setId(5001L);
         announcement.setRecordId(1001L);
         announcement.setStatus(AnnouncementStatus.PUBLISHED.name());
         announcement.setPublisherId(9L);
-        Page<MessageAnnouncement> page = new Page<>(1, 10);
+        Page<MessageAnnouncementPo> page = new Page<>(1, 10);
         page.setRecords(List.of(announcement));
         page.setTotal(1);
         when(announcementMapper.selectPage(any(), any(Wrapper.class))).thenReturn(page);
-        MessageRecord record = new MessageRecord();
+        MessageRecordPo record = new MessageRecordPo();
         record.setId(1001L);
         record.setTitle("平台维护通知");
         record.setContent("今晚 22:00 平台维护");
@@ -108,7 +108,7 @@ class MessageAnnouncementServiceImplTest {
     @Test
     @DisplayName("撤回公告更新状态为 REVOKED")
     void shouldRevokeAnnouncement() {
-        MessageAnnouncement announcement = new MessageAnnouncement();
+        MessageAnnouncementPo announcement = new MessageAnnouncementPo();
         announcement.setId(5001L);
         announcement.setRecordId(1001L);
         announcement.setStatus(AnnouncementStatus.PUBLISHED.name());

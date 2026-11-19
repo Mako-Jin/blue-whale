@@ -79,6 +79,14 @@ whale:
       # whale-im 内网地址；未配置时 IM 渠道记为 SKIPPED
       base-url: ${WHALE_MESSAGE_IM_BASE_URL:}
       timeout-millis: ${WHALE_MESSAGE_IM_TIMEOUT_MILLIS:3000}
+    # 异步投递：默认关闭（保持同步语义），请求 async=true 可逐条开启；
+    # 打开 enabled 后所有请求默认异步。超时未投递的消息由补偿任务重新提交。
+    send:
+      enabled: ${WHALE_MESSAGE_SEND_ENABLED:false}
+      pool-size: ${WHALE_MESSAGE_SEND_POOL_SIZE:4}
+      queue-capacity: ${WHALE_MESSAGE_SEND_QUEUE_CAPACITY:1000}
+      recover-interval-millis: ${WHALE_MESSAGE_SEND_RECOVER_INTERVAL_MS:60000}
+      recover-threshold-seconds: ${WHALE_MESSAGE_SEND_RECOVER_THRESHOLD_SECONDS:120}
     # 送达回执（V2）：渠道确认送达/阅读/退信经 /message/v1/internal/receipt 上报，
     # 状态单向推进并异步回调业务方登记的回调地址（outbox + 指数退避重试）。
     receipt:
@@ -100,6 +108,12 @@ whale:
       key-prefix: ${WHALE_MESSAGE_PREFERENCE_KEY_PREFIX:notify.}
       max-users: ${WHALE_MESSAGE_PREFERENCE_MAX_USERS:200}
       timeout-millis: ${WHALE_MESSAGE_PREFERENCE_TIMEOUT_MS:3000}
+    # 接收人组：按 auth 角色编码展开为接收人（仅 userId，适用于 INAPP / IM 渠道）；
+    # 展开失败直接拒绝发送，避免静默发空。
+    recipient:
+      enabled: ${WHALE_MESSAGE_RECIPIENT_ENABLED:true}
+      auth-base-url: ${WHALE_MESSAGE_RECIPIENT_AUTH_BASE_URL:http://127.0.0.1:8081}
+      max-members: ${WHALE_MESSAGE_RECIPIENT_MAX_MEMBERS:100}
 
 mybatis-plus:
   configuration:

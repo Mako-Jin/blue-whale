@@ -2,8 +2,8 @@ package com.bluewhale.message.support;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
-import com.bluewhale.message.entity.MessageAnnouncement;
-import com.bluewhale.message.entity.MessageDelivery;
+import com.bluewhale.message.po.MessageAnnouncementPo;
+import com.bluewhale.message.po.MessageDeliveryPo;
 import com.bluewhale.message.enums.AnnouncementStatus;
 import com.bluewhale.message.enums.MessageChannel;
 import com.bluewhale.message.mapper.MessageAnnouncementMapper;
@@ -37,8 +37,8 @@ class AnnouncementExpanderTest {
     static void initTableInfo() {
         // 单测无 MyBatis 容器，手动初始化实体 lambda 列缓存
         MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "");
-        TableInfoHelper.initTableInfo(assistant, MessageAnnouncement.class);
-        TableInfoHelper.initTableInfo(assistant, MessageDelivery.class);
+        TableInfoHelper.initTableInfo(assistant, MessageAnnouncementPo.class);
+        TableInfoHelper.initTableInfo(assistant, MessageDeliveryPo.class);
     }
 
     private final MessageAnnouncementMapper announcementMapper = mock(MessageAnnouncementMapper.class);
@@ -50,7 +50,7 @@ class AnnouncementExpanderTest {
     @Test
     @DisplayName("未展开的已发布公告补写为个人 INAPP 投递记录")
     void shouldExpandMissingAnnouncements() {
-        MessageAnnouncement announcement = new MessageAnnouncement();
+        MessageAnnouncementPo announcement = new MessageAnnouncementPo();
         announcement.setId(5001L);
         announcement.setRecordId(1001L);
         announcement.setStatus(AnnouncementStatus.PUBLISHED.name());
@@ -58,9 +58,9 @@ class AnnouncementExpanderTest {
 
         expander.expand(7L);
 
-        ArgumentCaptor<MessageDelivery> captor = ArgumentCaptor.forClass(MessageDelivery.class);
+        ArgumentCaptor<MessageDeliveryPo> captor = ArgumentCaptor.forClass(MessageDeliveryPo.class);
         verify(deliveryMapper).insert(captor.capture());
-        MessageDelivery delivery = captor.getValue();
+        MessageDeliveryPo delivery = captor.getValue();
         assertEquals(1001L, delivery.getMessageId());
         assertEquals(MessageChannel.INAPP.name(), delivery.getChannel());
         assertEquals("7", delivery.getRecipient());
@@ -75,23 +75,23 @@ class AnnouncementExpanderTest {
 
         expander.expand(7L);
 
-        verify(deliveryMapper, never()).insert(any(MessageDelivery.class));
+        verify(deliveryMapper, never()).insert(any(MessageDeliveryPo.class));
     }
 
     @Test
     @DisplayName("并发撞唯一键时静默跳过，不抛出异常")
     void shouldSwallowDuplicateKeyOnConcurrentExpand() {
-        MessageAnnouncement announcement = new MessageAnnouncement();
+        MessageAnnouncementPo announcement = new MessageAnnouncementPo();
         announcement.setId(5001L);
         announcement.setRecordId(1001L);
         announcement.setStatus(AnnouncementStatus.PUBLISHED.name());
         when(announcementMapper.selectUnexpandedForRecipient("7")).thenReturn(List.of(announcement));
-        when(deliveryMapper.insert(any(MessageDelivery.class)))
+        when(deliveryMapper.insert(any(MessageDeliveryPo.class)))
                 .thenThrow(new org.springframework.dao.DuplicateKeyException("uk_message_channel_recipient"));
 
         expander.expand(7L);
 
-        verify(deliveryMapper).insert(any(MessageDelivery.class));
+        verify(deliveryMapper).insert(any(MessageDeliveryPo.class));
     }
 
     @Test
@@ -101,7 +101,7 @@ class AnnouncementExpanderTest {
 
         expander.expand(7L);
 
-        verify(deliveryMapper, never()).insert(any(MessageDelivery.class));
+        verify(deliveryMapper, never()).insert(any(MessageDeliveryPo.class));
     }
 
     @Test
@@ -113,6 +113,6 @@ class AnnouncementExpanderTest {
         expander.expand(7L);
 
         // 不抛异常即视为降级成功；投递记录未被触碰
-        verify(deliveryMapper, never()).insert(any(MessageDelivery.class));
+        verify(deliveryMapper, never()).insert(any(MessageDeliveryPo.class));
     }
 }

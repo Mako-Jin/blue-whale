@@ -1,7 +1,7 @@
 package com.bluewhale.message.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bluewhale.message.entity.MessageTemplate;
+import com.bluewhale.message.po.MessageTemplatePo;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
@@ -12,7 +12,7 @@ import org.apache.ibatis.annotations.Select;
  *
  * @author BlueWhale
  */
-public interface MessageTemplateMapper extends BaseMapper<MessageTemplate> {
+public interface MessageTemplateMapper extends BaseMapper<MessageTemplatePo> {
 
     /**
      * 统计模板编码占用数（含逻辑删除行）。

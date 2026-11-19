@@ -1,5 +1,6 @@
 package com.bluewhale.message.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Pattern;
@@ -37,8 +38,12 @@ public class MessageRecipient implements Serializable {
     /**
      * 校验至少提供一个可达标识，避免落库 recipient="-" 的脏投递记录。
      *
+     * <p>{@code @JsonIgnore}：这是校验派生属性而非接收字段，不参与异步投递的
+     * 接收人 JSON 序列化/反序列化。</p>
+     *
      * @return 任一标识非空白返回 {@code true}
      */
+    @JsonIgnore
     @AssertTrue(message = "接收人至少提供 userId/email/phone 之一")
     public boolean isReachable() {
         return userId != null || hasText(email) || hasText(phone);

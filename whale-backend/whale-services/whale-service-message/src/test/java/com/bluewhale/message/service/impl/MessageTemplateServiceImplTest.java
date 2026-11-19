@@ -2,7 +2,7 @@ package com.bluewhale.message.service.impl;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.message.dto.MessageTemplateSaveRequest;
-import com.bluewhale.message.entity.MessageTemplate;
+import com.bluewhale.message.po.MessageTemplatePo;
 import com.bluewhale.message.mapper.MessageTemplateMapper;
 import com.bluewhale.message.vo.MessageTemplateVO;
 import org.junit.jupiter.api.DisplayName;
@@ -31,10 +31,10 @@ class MessageTemplateServiceImplTest {
     void shouldCreateTemplateWithUppercaseCode() {
         when(templateMapper.countByCodeIncludeDeleted("ORDER_PAID", 0L)).thenReturn(0L);
         doAnswer(invocation -> {
-            MessageTemplate template = invocation.getArgument(0);
+            MessageTemplatePo template = invocation.getArgument(0);
             template.setId(1001L);
             return 1;
-        }).when(templateMapper).insert(any(MessageTemplate.class));
+        }).when(templateMapper).insert(any(MessageTemplatePo.class));
 
         MessageTemplateVO vo = service.create(request("order_paid"));
 

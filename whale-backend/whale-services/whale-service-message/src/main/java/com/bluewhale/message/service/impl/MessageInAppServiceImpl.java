@@ -7,8 +7,8 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.message.dto.InAppMessageQueryRequest;
-import com.bluewhale.message.entity.MessageDelivery;
-import com.bluewhale.message.entity.MessageRecord;
+import com.bluewhale.message.po.MessageDeliveryPo;
+import com.bluewhale.message.po.MessageRecordPo;
 import com.bluewhale.message.enums.MessageChannel;
 import com.bluewhale.message.mapper.MessageDeliveryMapper;
 import com.bluewhale.message.mapper.MessageRecordMapper;
@@ -53,24 +53,24 @@ public class MessageInAppServiceImpl implements MessageInAppService {
     @Override
     public PageResult<InAppMessageVO> page(Long userId, InAppMessageQueryRequest request) {
         announcementExpander.expand(userId);
-        LambdaQueryWrapper<MessageDelivery> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(MessageDelivery::getChannel, MessageChannel.INAPP.name())
-                .eq(MessageDelivery::getRecipient, String.valueOf(userId))
-                .eq(request.getReadFlag() != null, MessageDelivery::getReadFlag, request.getReadFlag())
-                .orderByDesc(MessageDelivery::getId);
+        LambdaQueryWrapper<MessageDeliveryPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(MessageDeliveryPo::getChannel, MessageChannel.INAPP.name())
+                .eq(MessageDeliveryPo::getRecipient, String.valueOf(userId))
+                .eq(request.getReadFlag() != null, MessageDeliveryPo::getReadFlag, request.getReadFlag())
+                .orderByDesc(MessageDeliveryPo::getId);
         long size = Math.min(Math.max(request.getSize(), 1L), MAX_PAGE_SIZE);
-        Page<MessageDelivery> page = deliveryMapper.selectPage(
+        Page<MessageDeliveryPo> page = deliveryMapper.selectPage(
                 new Page<>(request.getCurrent(), size), wrapper);
-        List<MessageDelivery> deliveries = page.getRecords();
+        List<MessageDeliveryPo> deliveries = page.getRecords();
         if (deliveries.isEmpty()) {
             return PageResult.of(List.of(), page.getTotal(), page.getCurrent(), page.getSize());
         }
         List<Long> messageIds = deliveries.stream()
-                .map(MessageDelivery::getMessageId)
+                .map(MessageDeliveryPo::getMessageId)
                 .distinct()
                 .toList();
-        Map<Long, MessageRecord> records = recordMapper.selectBatchIds(messageIds).stream()
-                .collect(Collectors.toMap(MessageRecord::getId, record -> record, (first, second) -> first));
+        Map<Long, MessageRecordPo> records = recordMapper.selectBatchIds(messageIds).stream()
+                .collect(Collectors.toMap(MessageRecordPo::getId, record -> record, (first, second) -> first));
         List<InAppMessageVO> rows = deliveries.stream()
                 .map(delivery -> toVo(delivery, records.get(delivery.getMessageId())))
                 .toList();
@@ -80,10 +80,10 @@ public class MessageInAppServiceImpl implements MessageInAppService {
     @Override
     public long unreadCount(Long userId) {
         announcementExpander.expand(userId);
-        LambdaQueryWrapper<MessageDelivery> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(MessageDelivery::getChannel, MessageChannel.INAPP.name())
-                .eq(MessageDelivery::getRecipient, String.valueOf(userId))
-                .eq(MessageDelivery::getReadFlag, UNREAD);
+        LambdaQueryWrapper<MessageDeliveryPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(MessageDeliveryPo::getChannel, MessageChannel.INAPP.name())
+                .eq(MessageDeliveryPo::getRecipient, String.valueOf(userId))
+                .eq(MessageDeliveryPo::getReadFlag, UNREAD);
         return deliveryMapper.selectCount(wrapper);
     }
 
@@ -91,7 +91,7 @@ public class MessageInAppServiceImpl implements MessageInAppService {
     public void markRead(Long userId, Long messageId) {
         // 标记已读不需要展开新公告，避免每次点开都触发公告差集补写
         // 用列名字符串构造更新条件：本方法只做单表固定列更新，避免依赖实体 Lambda 缓存
-        UpdateWrapper<MessageDelivery> update = new UpdateWrapper<>();
+        UpdateWrapper<MessageDeliveryPo> update = new UpdateWrapper<>();
         update.eq("message_id", messageId)
                 .eq("channel", MessageChannel.INAPP.name())
                 .eq("recipient", String.valueOf(userId))
@@ -110,7 +110,7 @@ public class MessageInAppServiceImpl implements MessageInAppService {
      * @param record   消息记录（可能因逻辑删除为空）
      * @return 收件箱条目
      */
-    private static InAppMessageVO toVo(MessageDelivery delivery, MessageRecord record) {
+    private static InAppMessageVO toVo(MessageDeliveryPo delivery, MessageRecordPo record) {
         InAppMessageVO vo = new InAppMessageVO();
         vo.setDeliveryId(delivery.getId());
         vo.setMessageId(delivery.getMessageId());

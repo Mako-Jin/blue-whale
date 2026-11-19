@@ -1,4 +1,4 @@
-package com.bluewhale.message.entity;
+package com.bluewhale.message.po;
 
 import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.TableField;
@@ -20,7 +20,7 @@ import java.time.LocalDateTime;
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("msg_callback_task")
-public class MessageCallbackTask extends BaseEntity {
+public class MessageCallbackTaskPo extends BaseEntity {
 
     private static final long serialVersionUID = 1L;
 

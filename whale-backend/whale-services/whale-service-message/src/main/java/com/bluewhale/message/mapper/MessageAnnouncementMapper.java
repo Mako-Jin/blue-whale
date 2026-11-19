@@ -1,7 +1,7 @@
 package com.bluewhale.message.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bluewhale.message.entity.MessageAnnouncement;
+import com.bluewhale.message.po.MessageAnnouncementPo;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
@@ -14,7 +14,7 @@ import java.util.List;
  *
  * @author BlueWhale
  */
-public interface MessageAnnouncementMapper extends BaseMapper<MessageAnnouncement> {
+public interface MessageAnnouncementMapper extends BaseMapper<MessageAnnouncementPo> {
 
     /**
      * 查询当前租户已发布、但尚未展开给指定接收人的公告（NOT EXISTS 反连接）。
@@ -44,5 +44,5 @@ public interface MessageAnnouncementMapper extends BaseMapper<MessageAnnouncemen
                )
              ORDER BY a.publish_time, a.id
             """)
-    List<MessageAnnouncement> selectUnexpandedForRecipient(@Param("recipient") String recipient);
+    List<MessageAnnouncementPo> selectUnexpandedForRecipient(@Param("recipient") String recipient);
 }

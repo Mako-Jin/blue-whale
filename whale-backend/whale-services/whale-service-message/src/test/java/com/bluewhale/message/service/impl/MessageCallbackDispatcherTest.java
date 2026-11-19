@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.message.config.MessageReceiptProperties;
-import com.bluewhale.message.entity.MessageCallbackTask;
+import com.bluewhale.message.po.MessageCallbackTaskPo;
 import com.bluewhale.message.mapper.MessageCallbackTaskMapper;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
@@ -41,17 +41,17 @@ class MessageCallbackDispatcherTest {
     @BeforeAll
     static void initTableInfo() {
         TableInfoHelper.initTableInfo(
-                new MapperBuilderAssistant(new MybatisConfiguration(), ""), MessageCallbackTask.class);
+                new MapperBuilderAssistant(new MybatisConfiguration(), ""), MessageCallbackTaskPo.class);
     }
 
     @Test
     @DisplayName("抢占失败的任务（已被其它实例处理）不重复派发")
     void shouldSkipTaskWhenClaimFails() {
-        MessageCallbackTask task = new MessageCallbackTask();
+        MessageCallbackTaskPo task = new MessageCallbackTaskPo();
         task.setId(9001L);
         task.setStatus("PENDING");
         when(callbackTaskMapper.selectPage(any(), any())).thenAnswer(invocation -> {
-            Page<MessageCallbackTask> page = invocation.getArgument(0);
+            Page<MessageCallbackTaskPo> page = invocation.getArgument(0);
             page.setRecords(List.of(task));
             page.setTotal(1L);
             return page;
@@ -61,7 +61,7 @@ class MessageCallbackDispatcherTest {
         dispatcher.dispatch();
 
         verify(callbackTaskMapper).claim(eq(9001L), anyString(), any());
-        verify(callbackTaskMapper, never()).updateById(any(MessageCallbackTask.class));
+        verify(callbackTaskMapper, never()).updateById(any(MessageCallbackTaskPo.class));
     }
 
     @Test
