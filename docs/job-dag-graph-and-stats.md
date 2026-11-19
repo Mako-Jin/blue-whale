@@ -63,7 +63,11 @@
      "avgDurationMillis": 320, "p95DurationMillis": 1200}
   ],
   "failureTop": [{"jobId": 21, "jobName": "CRM 商务订单下发 ERP", "failureCount": 9}],
-  "durationTop": [{"jobId": 31, "jobName": "File 到期分享清理", "avgDurationMillis": 5300}]
+  "durationTop": [{"jobId": 31, "jobName": "File 到期分享清理", "avgDurationMillis": 5300}],
+  "errorTypeTop": [
+    {"errorType": "BizException", "count": 7, "sampleMessage": "BizException: 参数错误"},
+    {"errorType": "HttpServerErrorException$BadGateway", "count": 2, "sampleMessage": "HttpServerErrorException$BadGateway: 502"}
+  ]
 }
 ```
 
@@ -73,7 +77,10 @@
 - 时间维度按 `start_time` 的**服务端本地日期**分桶（与 `job_log` 落库时区一致）；
 - 耗时 = `end_time - start_time`（毫秒）；日 P95 用「升序第 `ceil(n×0.95)` 个」的离散口径；
 - `failureTop` 按失败次数降序取前 10；`durationTop` 按平均耗时降序取前 10；
-- 指定 `jobId` 时 TopN 无意义，两项返回空数组；
+- `errorTypeTop` 按异常类型聚合失败次数取前 10：类型取自 `error_msg` 首段（调度侧写入格式
+  `异常简单类名: 消息`），不符合类名形态的记录归入 `OTHER`，避免把整段错误信息当成类型导致基数爆炸；
+  聚合只回捞失败行（上限 2000 条、按开始时间倒序），示例信息截断 200 字；
+- 指定 `jobId` 时 TopN 无意义，三项返回空数组；
 - `jobGroup` 先按 `job_info` 解析出任务 ID 集合再过滤 `job_log`（`job_log` 不冗余分组）；
 - 默认窗口最近 7 天，最大跨度 90 天，避免误传超大区间拖库；
 - 单次最多取 `100000` 条明细做内存聚合，超出置 `sampled=true`（前端提示「样本截断」）。
