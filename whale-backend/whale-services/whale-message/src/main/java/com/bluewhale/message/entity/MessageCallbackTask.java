@@ -47,8 +47,16 @@ public class MessageCallbackTask extends BaseEntity {
     /** 回调报文 JSON */
     private String payloadJson;
 
-    /** 回调状态：PENDING / SENT / FAILED / GAVE_UP */
+    /** 回调状态：PENDING / DISPATCHING / SENT / FAILED / GAVE_UP */
     private String status;
+
+    /** 派发实例标识（抢占成功时写入，结束或超时回收后清空） */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private String dispatchOwner;
+
+    /** 派发抢占时间（多实例超时回收依据） */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private LocalDateTime dispatchAt;
 
     /** 已尝试次数 */
     private Integer attempts;

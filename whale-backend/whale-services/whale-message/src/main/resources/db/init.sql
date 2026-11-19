@@ -141,7 +141,9 @@ CREATE TABLE IF NOT EXISTS msg_callback_task (
     receipt_id    BIGINT       NOT NULL                COMMENT '触发本回调的回执流水ID',
     callback_url  VARCHAR(512) NOT NULL                COMMENT '回调地址',
     payload_json  TEXT         DEFAULT NULL            COMMENT '回调报文 JSON',
-    status        VARCHAR(16)  NOT NULL DEFAULT 'PENDING' COMMENT '回调状态：PENDING / SENT / FAILED / GAVE_UP',
+    status        VARCHAR(16)  NOT NULL DEFAULT 'PENDING' COMMENT '回调状态：PENDING / DISPATCHING / SENT / FAILED / GAVE_UP',
+    dispatch_owner VARCHAR(64) DEFAULT NULL            COMMENT '派发实例标识（抢占成功时写入）',
+    dispatch_at   DATETIME     DEFAULT NULL            COMMENT '派发抢占时间（超时回收依据）',
     attempts      INT          NOT NULL DEFAULT 0      COMMENT '已尝试次数',
     next_retry_at DATETIME     DEFAULT NULL            COMMENT '下次重试时间',
     last_error    VARCHAR(512) DEFAULT NULL            COMMENT '最近一次失败原因',
@@ -151,6 +153,7 @@ CREATE TABLE IF NOT EXISTS msg_callback_task (
     PRIMARY KEY (id),
     UNIQUE KEY uk_tenant_receipt_delivery (tenant_id, receipt_id, delivery_id),
     KEY idx_status_retry (status, next_retry_at),
+    KEY idx_status_dispatch (status, dispatch_at),
     KEY idx_tenant_message (tenant_id, message_id)
 ) COMMENT='消息回执回调任务表（outbox）';
 

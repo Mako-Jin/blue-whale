@@ -1,5 +1,7 @@
 package com.bluewhale.message.service.impl;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.message.config.MessageReceiptProperties;
 import com.bluewhale.message.dto.DeliveryReceiptItem;
@@ -15,6 +17,8 @@ import com.bluewhale.message.mapper.MessageReceiptMapper;
 import com.bluewhale.message.mapper.MessageRecordMapper;
 import com.bluewhale.message.vo.ReceiptApplyResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -65,12 +69,23 @@ class MessageReceiptServiceImplTest {
     private final MessageReceiptProperties properties = new MessageReceiptProperties();
 
     /**
+     * Lambda 条件构造器依赖实体表信息缓存，纯单测需手动初始化。
+     */
+    @BeforeAll
+    static void initTableInfo() {
+        MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "");
+        TableInfoHelper.initTableInfo(assistant, MessageRecord.class);
+        TableInfoHelper.initTableInfo(assistant, MessageDelivery.class);
+        TableInfoHelper.initTableInfo(assistant, MessageReceipt.class);
+    }
+
+    /**
      * 构造被测服务。
      *
      * @return 回执受理服务
      */
     private MessageReceiptServiceImpl service() {
-        when(receiptMapper.selectCount(any())).thenReturn(0L);
+        when(receiptMapper.selectList(any())).thenReturn(new ArrayList<>());
         when(receiptMapper.insert(any(MessageReceipt.class))).thenAnswer(invocation -> {
             MessageReceipt receipt = invocation.getArgument(0);
             receipt.setId(3001L);
@@ -165,14 +180,33 @@ class MessageReceiptServiceImplTest {
     @DisplayName("重复回执幂等：不重复推进、不重复排队回调")
     void duplicatedReceiptShouldBeIgnored() {
         MessageReceiptServiceImpl service = service();
-        when(receiptMapper.selectCount(any())).thenReturn(1L);
+        MessageReceipt existing = new MessageReceipt();
+        existing.setReceiptKey("INAPP:rcpt-1");
+        when(receiptMapper.selectList(any())).thenReturn(new ArrayList<>(List.of(existing)));
         ReceiptApplyResult result = service.apply(request("DELIVERED", "rcpt-1"));
 
         assertEquals(1, result.getDuplicated());
         assertEquals(0, result.getAccepted());
         assertEquals(0, result.getAdvanced());
+        verify(receiptMapper, never()).insert(any(MessageReceipt.class));
         verify(deliveryMapper, never()).updateById(any(MessageDelivery.class));
         verify(callbackTaskMapper, never()).insert(any(MessageCallbackTask.class));
+    }
+
+    @Test
+    @DisplayName("同一批内重复回执只落一条，后续计为 duplicated")
+    void duplicatedReceiptWithinBatchShouldBeIgnored() {
+        when(deliveryMapper.selectList(any())).thenReturn(new ArrayList<>());
+        DeliveryReceiptRequest request = request("DELIVERED", "rcpt-dup");
+        DeliveryReceiptItem copy = derivedItem("1001", LocalDateTime.of(2026, 11, 8, 18, 0));
+        copy.setReceiptId("rcpt-dup");
+        request.setReceipts(List.of(request.getReceipts().get(0), copy));
+
+        ReceiptApplyResult result = service().apply(request);
+
+        assertEquals(1, result.getAccepted());
+        assertEquals(1, result.getDuplicated());
+        verify(receiptMapper, times(1)).insert(any(MessageReceipt.class));
     }
 
     @Test
