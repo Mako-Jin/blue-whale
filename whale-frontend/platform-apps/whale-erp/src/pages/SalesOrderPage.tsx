@@ -30,6 +30,7 @@ import {
   type SalesOrderView,
 } from '../api/scm';
 import { listErpItems, type ErpItem } from '../api/erp';
+import { createProductionFromSalesOrder } from '../api/mfg';
 import {
   pageCustomers,
   pageWarehouses,
@@ -64,6 +65,17 @@ interface ShipFormValues {
   lines: { lineNo: number; quantity?: number }[];
 }
 
+/** 转生产表单值 */
+interface ConvertFormValues {
+  lineNo: number;
+  issueWarehouseId: number;
+  targetWarehouseId: number;
+  planStartDate: Dayjs;
+  planEndDate?: Dayjs;
+  remark?: string;
+  materials: { itemCode: string; requiredQuantity?: number; uom?: string; backflush?: boolean }[];
+}
+
 /** 分录剩余待发数量 */
 function remainingOf(line: OrderLineView): number {
   return Number(line.quantity ?? 0) - Number(line.shippedQuantity ?? 0);
@@ -85,8 +97,11 @@ export default function SalesOrderPage() {
   const [warehouses, setWarehouses] = useState<ErpWarehouse[]>([]);
   const [items, setItems] = useState<ErpItem[]>([]);
   const [creditUsage, setCreditUsage] = useState<CreditUsageView | null>(null);
+  const [convertOpen, setConvertOpen] = useState(false);
+  const [convertOrder, setConvertOrder] = useState<SalesOrderView | null>(null);
   const [form] = Form.useForm<OrderFormValues>();
   const [shipForm] = Form.useForm<ShipFormValues>();
+  const [convertForm] = Form.useForm<ConvertFormValues>();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -164,6 +179,48 @@ export default function SalesOrderPage() {
 
   const handleDetail = async (id: number) => {
     setDetail(await getSalesOrder(id));
+  };
+
+  /** 打开转生产弹窗：产出物料与数量取自所选订单行 */
+  const openConvert = async (id: number) => {
+    const order = await getSalesOrder(id);
+    const [warehousePage, itemList] = await Promise.all([
+      pageWarehouses({ size: 100 }),
+      listErpItems(),
+    ]);
+    setWarehouses(warehousePage.records);
+    setItems(itemList);
+    setConvertOrder(order);
+    convertForm.resetFields();
+    const firstLine = order.lines?.[0];
+    convertForm.setFieldsValue({
+      lineNo: firstLine?.lineNo ?? 1,
+      planStartDate: dayjs(),
+      materials: [{ itemCode: '', requiredQuantity: firstLine?.quantity ?? 1 }],
+    });
+    setConvertOpen(true);
+  };
+
+  const handleConvert = async () => {
+    if (!convertOrder) return;
+    const values = await convertForm.validateFields().catch(() => null);
+    if (!values) return;
+    await createProductionFromSalesOrder(convertOrder.id, values.lineNo, {
+      issueWarehouseId: values.issueWarehouseId,
+      targetWarehouseId: values.targetWarehouseId,
+      planStartDate: values.planStartDate.format('YYYY-MM-DD'),
+      planEndDate: values.planEndDate?.format('YYYY-MM-DD'),
+      remark: values.remark,
+      materials: values.materials.map((material) => ({
+        itemCode: material.itemCode,
+        requiredQuantity: Number(material.requiredQuantity ?? 0),
+        uom: material.uom,
+        backflush: material.backflush,
+      })),
+    });
+    message.success('已生成生产订单草稿，请到生产订单页下达');
+    setConvertOpen(false);
+    setVersion((value) => value + 1);
   };
 
   const openShip = async (id: number) => {
@@ -249,6 +306,12 @@ export default function SalesOrderPage() {
           hasPermission('sys:erp:sales:ship') ? (
             <Button type="link" size="small" onClick={() => openShip(record.id)}>
               发货
+            </Button>
+          ) : null}
+          {['APPROVED', 'PARTIALLY_SHIPPED'].includes(record.status) &&
+          hasPermission('sys:erp:production:add') ? (
+            <Button type="link" size="small" onClick={() => openConvert(record.id)}>
+              转生产
             </Button>
           ) : null}
           {cancellable(record) && hasPermission('sys:erp:sales:cancel') ? (
@@ -503,6 +566,113 @@ export default function SalesOrderPage() {
               />
             </Form.Item>
           ))}
+        </Form>
+      </Modal>
+      <Modal
+        open={convertOpen}
+        title={`转生产订单${convertOrder ? `（${convertOrder.docNo}）` : ''}`}
+        width={960}
+        onOk={handleConvert}
+        onCancel={() => setConvertOpen(false)}
+        destroyOnHidden
+      >
+        <Form form={convertForm} layout="vertical">
+          <Space size="large" wrap>
+            <Form.Item
+              name="lineNo"
+              label="订单行"
+              rules={[{ required: true, message: '请选择订单行' }]}
+            >
+              <Select
+                style={{ width: 320 }}
+                options={(convertOrder?.lines ?? []).map((line) => ({
+                  value: line.lineNo,
+                  label: `${line.lineNo} ${line.itemCode} ${line.itemName} × ${quantity(line.quantity)}`,
+                }))}
+              />
+            </Form.Item>
+            <Form.Item
+              name="issueWarehouseId"
+              label="领料仓库"
+              rules={[{ required: true, message: '请选择领料仓库' }]}
+            >
+              <Select
+                showSearch
+                optionFilterProp="label"
+                style={{ width: 200 }}
+                options={warehouses.map((item) => ({
+                  value: item.id,
+                  label: `${item.code} ${item.name}`,
+                }))}
+              />
+            </Form.Item>
+            <Form.Item
+              name="targetWarehouseId"
+              label="完工入库仓库"
+              rules={[{ required: true, message: '请选择完工仓库' }]}
+            >
+              <Select
+                showSearch
+                optionFilterProp="label"
+                style={{ width: 200 }}
+                options={warehouses.map((item) => ({
+                  value: item.id,
+                  label: `${item.code} ${item.name}`,
+                }))}
+              />
+            </Form.Item>
+            <Form.Item name="planStartDate" label="计划开工" rules={[{ required: true }]}>
+              <DatePicker />
+            </Form.Item>
+            <Form.Item name="planEndDate" label="计划完工">
+              <DatePicker />
+            </Form.Item>
+          </Space>
+          <Form.List name="materials">
+            {(fields, { add, remove }) => (
+              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                {fields.map((field) => (
+                  <Space key={field.key} align="baseline" wrap>
+                    <Form.Item
+                      name={[field.name, 'itemCode']}
+                      rules={[{ required: true, message: '请选择用料' }]}
+                    >
+                      <Select
+                        showSearch
+                        optionFilterProp="label"
+                        placeholder="用料"
+                        style={{ width: 240 }}
+                        options={items.map((item) => ({
+                          value: item.code,
+                          label: `${item.code} ${item.name}`,
+                        }))}
+                      />
+                    </Form.Item>
+                    <Form.Item
+                      name={[field.name, 'requiredQuantity']}
+                      rules={[{ required: true, message: '用量' }]}
+                    >
+                      <InputNumber
+                        placeholder="用量"
+                        min={0.0001}
+                        precision={4}
+                        style={{ width: 120 }}
+                      />
+                    </Form.Item>
+                    <Button type="link" danger onClick={() => remove(field.name)}>
+                      删除
+                    </Button>
+                  </Space>
+                ))}
+                <Button type="dashed" block onClick={() => add({ itemCode: '', requiredQuantity: 1 })}>
+                  添加用料
+                </Button>
+              </Space>
+            )}
+          </Form.List>
+          <Form.Item name="remark" label="备注" style={{ marginTop: 16 }}>
+            <Input.TextArea rows={2} maxLength={200} />
+          </Form.Item>
         </Form>
       </Modal>
     </Space>

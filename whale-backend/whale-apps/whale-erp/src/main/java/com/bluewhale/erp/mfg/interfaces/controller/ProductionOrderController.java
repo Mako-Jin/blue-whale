@@ -12,6 +12,7 @@ import com.bluewhale.erp.mfg.application.command.ProductionIssueCommand;
 import com.bluewhale.erp.mfg.application.command.ProductionMaterialAdjustCommand;
 import com.bluewhale.erp.mfg.application.command.ProductionOperationReportCommand;
 import com.bluewhale.erp.mfg.application.command.ProductionOrderCreateCommand;
+import com.bluewhale.erp.mfg.application.command.ProductionOrderFromSalesOrderCommand;
 import com.bluewhale.erp.mfg.application.service.ProductionOrderAppService;
 import com.bluewhale.erp.mfg.application.view.ProductionOrderView;
 import com.bluewhale.erp.mfg.domain.model.MfgQuery;
@@ -85,6 +86,24 @@ public class ProductionOrderController {
     @AuditLog(operation = "新增生产订单", targetType = "erp_mfg_production_order", type = OperateType.CREATE)
     public Result<ProductionOrderView> create(@Valid @RequestBody ProductionOrderCreateCommand command) {
         return Result.ok(productionOrderAppService.create(command));
+    }
+
+    /**
+     * 销售订单行转生产订单。
+     *
+     * @param salesOrderId 销售订单主键
+     * @param lineNo       销售订单行号
+     * @param command      转单命令
+     * @return 生产订单视图
+     */
+    @PostMapping("/from-sales-order/{salesOrderId}/lines/{lineNo}")
+    @RequirePermission("sys:erp:production:add")
+    @AuditLog(operation = "销售订单转生产订单", targetType = "erp_mfg_production_order", type = OperateType.CREATE)
+    public Result<ProductionOrderView> createFromSalesOrder(
+            @PathVariable Long salesOrderId,
+            @PathVariable Integer lineNo,
+            @Valid @RequestBody ProductionOrderFromSalesOrderCommand command) {
+        return Result.ok(productionOrderAppService.createFromSalesOrder(salesOrderId, lineNo, command));
     }
 
     /**

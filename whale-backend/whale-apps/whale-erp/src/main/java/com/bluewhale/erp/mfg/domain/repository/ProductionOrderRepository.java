@@ -49,6 +49,16 @@ public interface ProductionOrderRepository {
     Optional<ProductionOrder> findByOrderNo(String orderNo);
 
     /**
+     * 按来源单据查询生产订单。
+     *
+     * @param sourceType    来源单据类型
+     * @param sourceOrderId 来源单据主键
+     * @param sourceLineNo  来源单据行号
+     * @return 生产订单
+     */
+    Optional<ProductionOrder> findBySource(String sourceType, Long sourceOrderId, Integer sourceLineNo);
+
+    /**
      * 分页查询 MES 对账订单（已下达及以后状态）。
      *
      * @param query 查询条件

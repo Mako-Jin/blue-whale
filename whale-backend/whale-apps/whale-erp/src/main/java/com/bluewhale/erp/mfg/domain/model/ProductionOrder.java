@@ -27,6 +27,9 @@ public class ProductionOrder {
     /** 单位成本小数位 */
     private static final int COST_SCALE = 4;
 
+    /** 来源单据类型：销售订单 */
+    public static final String SOURCE_SALES_ORDER = "SALES_ORDER";
+
     /** 主键 */
     private Long id;
 
@@ -101,6 +104,18 @@ public class ProductionOrder {
 
     /** 最近一次下发/拉取失败摘要 */
     private String mesLastError;
+
+    /** 来源单据类型：SALES_ORDER；人工建单为空 */
+    private String sourceType;
+
+    /** 来源单据主键 */
+    private Long sourceOrderId;
+
+    /** 来源单号 */
+    private String sourceOrderNo;
+
+    /** 来源单据行号 */
+    private Integer sourceLineNo;
 
     /** 用料 */
     private List<ProductionMaterial> materials;

@@ -333,6 +333,13 @@ export default function ProductionPage() {
   const columns: TableProps<ProductionOrderView>['columns'] = [
     { title: '生产订单号', dataIndex: 'orderNo', key: 'orderNo', width: 180 },
     {
+      title: '来源单号',
+      key: 'sourceOrderNo',
+      width: 170,
+      render: (_, record) =>
+        record.sourceOrderNo ? `${record.sourceOrderNo}-${record.sourceLineNo ?? ''}` : '-',
+    },
+    {
       title: '产出物料',
       key: 'item',
       render: (_, record) => `${record.itemCode}${record.itemName ? ` ${record.itemName}` : ''}`,

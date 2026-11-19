@@ -93,6 +93,18 @@ public class ProductionOrderView {
     /** 最近一次下发/拉取失败摘要 */
     private String mesLastError;
 
+    /** 来源单据类型：SALES_ORDER；人工建单为空 */
+    private String sourceType;
+
+    /** 来源单据主键 */
+    private Long sourceOrderId;
+
+    /** 来源单号 */
+    private String sourceOrderNo;
+
+    /** 来源单据行号 */
+    private Integer sourceLineNo;
+
     /** 用料 */
     private List<MaterialView> materials;
 
@@ -132,6 +144,10 @@ public class ProductionOrderView {
         view.setMesWorkOrderCode(order.getMesWorkOrderCode());
         view.setMesSyncedAt(order.getMesSyncedAt());
         view.setMesLastError(order.getMesLastError());
+        view.setSourceType(order.getSourceType());
+        view.setSourceOrderId(order.getSourceOrderId());
+        view.setSourceOrderNo(order.getSourceOrderNo());
+        view.setSourceLineNo(order.getSourceLineNo());
         if (order.getMaterials() != null) {
             view.setMaterials(order.getMaterials().stream().map(MaterialView::of).toList());
         }

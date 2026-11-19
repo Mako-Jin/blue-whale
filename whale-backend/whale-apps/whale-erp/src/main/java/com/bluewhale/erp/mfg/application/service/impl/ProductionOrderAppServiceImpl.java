@@ -13,6 +13,7 @@ import com.bluewhale.erp.mfg.application.command.ProductionIssueCommand;
 import com.bluewhale.erp.mfg.application.command.ProductionMaterialAdjustCommand;
 import com.bluewhale.erp.mfg.application.command.ProductionOperationReportCommand;
 import com.bluewhale.erp.mfg.application.command.ProductionOrderCreateCommand;
+import com.bluewhale.erp.mfg.application.command.ProductionOrderFromSalesOrderCommand;
 import com.bluewhale.erp.mfg.application.event.ProductionOrderReleasedEvent;
 import com.bluewhale.erp.mfg.application.service.ProductionOrderAppService;
 import com.bluewhale.erp.mfg.application.view.ProductionOrderView;
@@ -26,7 +27,10 @@ import com.bluewhale.erp.mfg.domain.model.RoutingSnapshot;
 import com.bluewhale.erp.mfg.domain.model.RoutingStep;
 import com.bluewhale.erp.mfg.domain.port.RoutingCatalog;
 import com.bluewhale.erp.mfg.domain.repository.ProductionOrderRepository;
+import com.bluewhale.erp.scm.domain.model.SalesOrder;
+import com.bluewhale.erp.scm.domain.model.SalesOrderLine;
 import com.bluewhale.erp.scm.domain.model.ScmStatus;
+import com.bluewhale.erp.scm.domain.repository.SalesOrderRepository;
 import com.bluewhale.erp.scm.domain.model.StockBalance;
 import com.bluewhale.erp.scm.domain.model.StockMovement;
 import com.bluewhale.erp.scm.domain.port.ItemCatalog;
@@ -73,6 +77,8 @@ public class ProductionOrderAppServiceImpl implements ProductionOrderAppService 
 
     private final RoutingCatalog routingCatalog;
 
+    private final SalesOrderRepository salesOrderRepository;
+
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -90,12 +96,65 @@ public class ProductionOrderAppServiceImpl implements ProductionOrderAppService 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ProductionOrderView create(ProductionOrderCreateCommand command) {
-        ItemSnapshot product = requireItem(command.getItemCode());
-        Warehouse issueWarehouse = requireWarehouse(command.getIssueWarehouseId());
-        Warehouse targetWarehouse = requireWarehouse(command.getTargetWarehouseId());
+        return doCreate(command.getItemCode(), command.getPlannedQuantity(),
+                command.getIssueWarehouseId(), command.getTargetWarehouseId(),
+                command.getPlanStartDate(), command.getPlanEndDate(), command.getRemark(),
+                command.getMaterials(), null, null, null, null);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ProductionOrderView createFromSalesOrder(Long salesOrderId, Integer lineNo,
+                                                    ProductionOrderFromSalesOrderCommand command) {
+        SalesOrder salesOrder = salesOrderRepository.findById(salesOrderId)
+                .orElseThrow(() -> ErpErrorCode.exception(ErpErrorCode.SALES_ORDER_NOT_FOUND));
+        if (!ScmStatus.APPROVED.equals(salesOrder.getStatus())
+                && !ScmStatus.PARTIALLY_SHIPPED.equals(salesOrder.getStatus())) {
+            throw ErpErrorCode.exception(ErpErrorCode.ORDER_STATE_CONFLICT,
+                    "只有已审核或部分发货的销售订单可以转生产");
+        }
+        SalesOrderLine line = salesOrder.findLine(lineNo);
+        productionOrderRepository.findBySource(ProductionOrder.SOURCE_SALES_ORDER, salesOrderId, lineNo)
+                .ifPresent(exists -> {
+                    throw ErpErrorCode.exception(ErpErrorCode.MFG_INVALID,
+                            "该销售订单行已转生产订单：" + exists.getOrderNo());
+                });
+        return doCreate(line.getItemCode(), line.getQuantity(),
+                command.getIssueWarehouseId(), command.getTargetWarehouseId(),
+                command.getPlanStartDate(), command.getPlanEndDate(), command.getRemark(),
+                command.getMaterials(), ProductionOrder.SOURCE_SALES_ORDER,
+                salesOrder.getId(), salesOrder.getDocNo(), lineNo);
+    }
+
+    /**
+     * 建单公共实现。
+     *
+     * @param itemCode          产出物料编码
+     * @param plannedQuantity   计划数量
+     * @param issueWarehouseId  领料仓库
+     * @param targetWarehouseId 完工仓库
+     * @param planStartDate     计划开工日期
+     * @param planEndDate       计划完工日期
+     * @param remark            备注
+     * @param materialSources   用料入参
+     * @param sourceType        来源单据类型，人工建单为空
+     * @param sourceOrderId     来源单据主键，人工建单为空
+     * @param sourceOrderNo     来源单号，人工建单为空
+     * @param sourceLineNo      来源行号，人工建单为空
+     * @return 生产订单视图
+     */
+    private ProductionOrderView doCreate(String itemCode, BigDecimal plannedQuantity,
+                                         Long issueWarehouseId, Long targetWarehouseId,
+                                         LocalDate planStartDate, LocalDate planEndDate, String remark,
+                                         List<ProductionOrderCreateCommand.Material> materialSources,
+                                         String sourceType, Long sourceOrderId,
+                                         String sourceOrderNo, Integer sourceLineNo) {
+        ItemSnapshot product = requireItem(itemCode);
+        Warehouse issueWarehouse = requireWarehouse(issueWarehouseId);
+        Warehouse targetWarehouse = requireWarehouse(targetWarehouseId);
         List<ProductionMaterial> materials = new ArrayList<>();
         int lineNo = 1;
-        for (ProductionOrderCreateCommand.Material source : command.getMaterials()) {
+        for (ProductionOrderCreateCommand.Material source : materialSources) {
             ItemSnapshot item = requireItem(source.getItemCode());
             ProductionMaterial material = new ProductionMaterial();
             material.setLineNo(lineNo++);
@@ -110,11 +169,11 @@ public class ProductionOrderAppServiceImpl implements ProductionOrderAppService 
             materials.add(material);
         }
         ProductionOrder order = new ProductionOrder();
-        order.setOrderNo(productionOrderRepository.nextOrderNo(command.getPlanStartDate()));
+        order.setOrderNo(productionOrderRepository.nextOrderNo(planStartDate));
         order.setItemId(product.getId());
         order.setItemCode(product.getCode());
         order.setItemName(product.getName());
-        order.setPlannedQuantity(command.getPlannedQuantity());
+        order.setPlannedQuantity(plannedQuantity);
         order.setCompletedQuantity(BigDecimal.ZERO);
         order.setCompletedCost(BigDecimal.ZERO);
         order.setTotalMaterialCost(BigDecimal.ZERO);
@@ -122,10 +181,14 @@ public class ProductionOrderAppServiceImpl implements ProductionOrderAppService 
         order.setIssueWarehouseName(issueWarehouse.getName());
         order.setTargetWarehouseId(targetWarehouse.getId());
         order.setTargetWarehouseName(targetWarehouse.getName());
-        order.setPlanStartDate(command.getPlanStartDate());
-        order.setPlanEndDate(command.getPlanEndDate());
+        order.setPlanStartDate(planStartDate);
+        order.setPlanEndDate(planEndDate);
         order.setStatus(MfgStatus.DRAFT);
-        order.setRemark(command.getRemark());
+        order.setRemark(remark);
+        order.setSourceType(sourceType);
+        order.setSourceOrderId(sourceOrderId);
+        order.setSourceOrderNo(sourceOrderNo);
+        order.setSourceLineNo(sourceLineNo);
         order.setMaterials(materials);
         applyRouting(order);
         order.validateForCreate();

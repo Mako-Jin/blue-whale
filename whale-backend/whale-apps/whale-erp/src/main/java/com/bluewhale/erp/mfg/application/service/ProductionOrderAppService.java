@@ -6,6 +6,7 @@ import com.bluewhale.erp.mfg.application.command.ProductionIssueCommand;
 import com.bluewhale.erp.mfg.application.command.ProductionMaterialAdjustCommand;
 import com.bluewhale.erp.mfg.application.command.ProductionOperationReportCommand;
 import com.bluewhale.erp.mfg.application.command.ProductionOrderCreateCommand;
+import com.bluewhale.erp.mfg.application.command.ProductionOrderFromSalesOrderCommand;
 import com.bluewhale.erp.mfg.application.view.ProductionOrderView;
 import com.bluewhale.erp.mfg.domain.model.MfgQuery;
 
@@ -39,6 +40,19 @@ public interface ProductionOrderAppService {
      * @return 生产订单
      */
     ProductionOrderView create(ProductionOrderCreateCommand command);
+
+    /**
+     * 销售订单行转生产订单（草稿）。
+     *
+     * <p>产出物料与数量取自销售订单行，同一销售订单行只能转一张生产订单。</p>
+     *
+     * @param salesOrderId 销售订单主键
+     * @param lineNo       销售订单行号
+     * @param command      转单命令
+     * @return 生产订单
+     */
+    ProductionOrderView createFromSalesOrder(Long salesOrderId, Integer lineNo,
+                                             ProductionOrderFromSalesOrderCommand command);
 
     /**
      * 下达生产订单。

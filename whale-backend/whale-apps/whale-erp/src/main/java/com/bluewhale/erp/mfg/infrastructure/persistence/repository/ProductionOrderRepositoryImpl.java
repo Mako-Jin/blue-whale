@@ -103,6 +103,17 @@ public class ProductionOrderRepositoryImpl implements ProductionOrderRepository 
     }
 
     @Override
+    public Optional<ProductionOrder> findBySource(String sourceType, Long sourceOrderId, Integer sourceLineNo) {
+        ProductionOrderEntity entity = productionOrderMapper.selectOne(
+                new LambdaQueryWrapper<ProductionOrderEntity>()
+                        .eq(ProductionOrderEntity::getSourceType, sourceType)
+                        .eq(ProductionOrderEntity::getSourceOrderId, sourceOrderId)
+                        .eq(ProductionOrderEntity::getSourceLineNo, sourceLineNo)
+                        .last("limit 1"));
+        return entity == null ? Optional.empty() : Optional.of(toDomain(entity));
+    }
+
+    @Override
     public List<ProductionOrder> pageForMes(MesReconcileQuery query) {
         Page<ProductionOrderEntity> page = productionOrderMapper.selectPage(
                 new Page<>(Math.max(query.getCurrent(), 1L), Math.max(query.getSize(), 1L)), filterForMes(query));
@@ -348,6 +359,10 @@ public class ProductionOrderRepositoryImpl implements ProductionOrderRepository 
         order.setMesWorkOrderCode(entity.getMesWorkOrderCode());
         order.setMesSyncedAt(entity.getMesSyncedAt());
         order.setMesLastError(entity.getMesLastError());
+        order.setSourceType(entity.getSourceType());
+        order.setSourceOrderId(entity.getSourceOrderId());
+        order.setSourceOrderNo(entity.getSourceOrderNo());
+        order.setSourceLineNo(entity.getSourceLineNo());
         return order;
     }
 
@@ -474,6 +489,10 @@ public class ProductionOrderRepositoryImpl implements ProductionOrderRepository 
         entity.setMesWorkOrderCode(order.getMesWorkOrderCode());
         entity.setMesSyncedAt(order.getMesSyncedAt());
         entity.setMesLastError(order.getMesLastError());
+        entity.setSourceType(order.getSourceType());
+        entity.setSourceOrderId(order.getSourceOrderId());
+        entity.setSourceOrderNo(order.getSourceOrderNo());
+        entity.setSourceLineNo(order.getSourceLineNo());
     }
 
     /**

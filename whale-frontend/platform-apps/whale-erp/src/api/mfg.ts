@@ -101,6 +101,10 @@ export interface ProductionOrderView {
   mesWorkOrderCode?: string;
   mesSyncedAt?: string;
   mesLastError?: string;
+  sourceType?: string;
+  sourceOrderId?: number;
+  sourceOrderNo?: string;
+  sourceLineNo?: number;
   materials?: ProductionMaterialView[];
   operations?: ProductionOperationView[];
 }
@@ -147,6 +151,12 @@ export interface ProductionOrderInput {
   remark?: string;
   materials: { itemCode: string; requiredQuantity: number; uom?: string; backflush?: boolean }[];
 }
+
+/** 销售订单行转生产订单输入（产出物料与数量取自订单行） */
+export type ProductionOrderFromSalesOrderInput = Omit<
+  ProductionOrderInput,
+  'itemCode' | 'plannedQuantity'
+>;
 
 /** MRP 输入需求行 */
 export interface MrpRunLineView {
@@ -315,6 +325,18 @@ export function getProductionOrder(id: number): Promise<ProductionOrderView> {
 /** 新增生产订单 */
 export function createProductionOrder(input: ProductionOrderInput): Promise<ProductionOrderView> {
   return http.post<ProductionOrderView>('/erp/mfg/production', input);
+}
+
+/** 销售订单行转生产订单 */
+export function createProductionFromSalesOrder(
+  salesOrderId: number,
+  lineNo: number,
+  input: ProductionOrderFromSalesOrderInput,
+): Promise<ProductionOrderView> {
+  return http.post<ProductionOrderView>(
+    `/erp/mfg/production/from-sales-order/${salesOrderId}/lines/${lineNo}`,
+    input,
+  );
 }
 
 /** 下达生产订单 */

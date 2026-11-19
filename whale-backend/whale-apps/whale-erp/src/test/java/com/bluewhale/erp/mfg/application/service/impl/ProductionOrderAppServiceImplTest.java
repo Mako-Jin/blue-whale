@@ -11,6 +11,7 @@ import com.bluewhale.erp.mfg.application.command.ProductionCompleteCommand;
 import com.bluewhale.erp.mfg.application.command.ProductionIssueCommand;
 import com.bluewhale.erp.mfg.application.command.ProductionMaterialAdjustCommand;
 import com.bluewhale.erp.mfg.application.command.ProductionOrderCreateCommand;
+import com.bluewhale.erp.mfg.application.command.ProductionOrderFromSalesOrderCommand;
 import com.bluewhale.erp.mfg.application.event.ProductionOrderReleasedEvent;
 import com.bluewhale.erp.mfg.application.view.ProductionOrderView;
 import com.bluewhale.erp.mfg.domain.model.MfgQuery;
@@ -22,10 +23,14 @@ import com.bluewhale.erp.mfg.domain.model.RoutingSnapshot;
 import com.bluewhale.erp.mfg.domain.model.RoutingStep;
 import com.bluewhale.erp.mfg.domain.port.RoutingCatalog;
 import com.bluewhale.erp.mfg.domain.repository.ProductionOrderRepository;
+import com.bluewhale.erp.scm.domain.model.SalesOrder;
+import com.bluewhale.erp.scm.domain.model.SalesOrderLine;
+import com.bluewhale.erp.scm.domain.model.ScmStatus;
 import com.bluewhale.erp.scm.domain.model.StockBalance;
 import com.bluewhale.erp.scm.domain.model.StockMovement;
 import com.bluewhale.erp.scm.domain.port.ItemCatalog;
 import com.bluewhale.erp.scm.domain.port.ItemSnapshot;
+import com.bluewhale.erp.scm.domain.repository.SalesOrderRepository;
 import com.bluewhale.erp.scm.domain.repository.StockRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -64,10 +69,13 @@ class ProductionOrderAppServiceImplTest {
 
     private final RoutingCatalog routingCatalog = mock(RoutingCatalog.class);
 
+    private final SalesOrderRepository salesOrderRepository = mock(SalesOrderRepository.class);
+
     private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
 
     private final ProductionOrderAppServiceImpl service = new ProductionOrderAppServiceImpl(productionOrderRepository,
-            stockRepository, itemCatalog, warehouseRepository, autoVoucherAppService, routingCatalog, eventPublisher);
+            stockRepository, itemCatalog, warehouseRepository, autoVoucherAppService, routingCatalog,
+            salesOrderRepository, eventPublisher);
 
     @Test
     @DisplayName("新增生产订单：快照产出物料、用料与仓库")
@@ -86,6 +94,56 @@ class ProductionOrderAppServiceImplTest {
         assertEquals("材料B", view.getMaterials().get(0).getItemName());
         assertEquals(0, view.getMaterials().get(0).getIssuedQuantity().compareTo(BigDecimal.ZERO));
         verify(productionOrderRepository).insert(any(ProductionOrder.class));
+    }
+
+    @Test
+    @DisplayName("销售订单转生产订单：物料与数量取自订单行，并记录来源")
+    void shouldCreateFromSalesOrder() {
+        when(salesOrderRepository.findById(9001L)).thenReturn(Optional.of(salesOrder(ScmStatus.APPROVED)));
+        when(productionOrderRepository.findBySource(ProductionOrder.SOURCE_SALES_ORDER, 9001L, 1))
+                .thenReturn(Optional.empty());
+        when(itemCatalog.findByCode("ERP-001")).thenReturn(Optional.of(item(3L, "ERP-001", "成品A")));
+        when(itemCatalog.findByCode("ERP-002")).thenReturn(Optional.of(item(4L, "ERP-002", "材料B")));
+        when(warehouseRepository.findById(7301L)).thenReturn(Optional.of(warehouse(7301L, "主仓")));
+        when(warehouseRepository.findById(7302L)).thenReturn(Optional.of(warehouse(7302L, "成品仓")));
+        when(productionOrderRepository.nextOrderNo(LocalDate.of(2026, 11, 4))).thenReturn("MO-20261104-0001");
+
+        ProductionOrderView view = service.createFromSalesOrder(9001L, 1, fromSalesOrderCommand());
+
+        assertEquals("ERP-001", view.getItemCode());
+        assertEquals(0, view.getPlannedQuantity().compareTo(new BigDecimal("8")));
+        assertEquals(ProductionOrder.SOURCE_SALES_ORDER, view.getSourceType());
+        assertEquals(9001L, view.getSourceOrderId());
+        assertEquals("SO-20261104-0001", view.getSourceOrderNo());
+        assertEquals(1, view.getSourceLineNo());
+        verify(productionOrderRepository).insert(any(ProductionOrder.class));
+    }
+
+    @Test
+    @DisplayName("销售订单转生产订单：同一订单行重复转单被拒绝")
+    void shouldRejectDuplicateConversion() {
+        when(salesOrderRepository.findById(9001L)).thenReturn(Optional.of(salesOrder(ScmStatus.APPROVED)));
+        ProductionOrder existing = draftOrder();
+        existing.setOrderNo("MO-20261104-0009");
+        when(productionOrderRepository.findBySource(ProductionOrder.SOURCE_SALES_ORDER, 9001L, 1))
+                .thenReturn(Optional.of(existing));
+
+        BizException exception = assertThrows(BizException.class,
+                () -> service.createFromSalesOrder(9001L, 1, fromSalesOrderCommand()));
+
+        assertEquals(ErpErrorCode.MFG_INVALID, exception.getCode());
+        verify(productionOrderRepository, never()).insert(any(ProductionOrder.class));
+    }
+
+    @Test
+    @DisplayName("销售订单转生产订单：未审核订单被拒绝")
+    void shouldRejectUnapprovedSalesOrder() {
+        when(salesOrderRepository.findById(9001L)).thenReturn(Optional.of(salesOrder(ScmStatus.DRAFT)));
+
+        BizException exception = assertThrows(BizException.class,
+                () -> service.createFromSalesOrder(9001L, 1, fromSalesOrderCommand()));
+
+        assertEquals(ErpErrorCode.ORDER_STATE_CONFLICT, exception.getCode());
     }
 
     @Test
@@ -520,5 +578,44 @@ class ProductionOrderAppServiceImplTest {
         snapshot.setName(name);
         snapshot.setStatus(MasterDataStatus.ENABLED);
         return snapshot;
+    }
+
+    /**
+     * 构造销售订单。
+     *
+     * @param status 订单状态
+     * @return 销售订单
+     */
+    private SalesOrder salesOrder(String status) {
+        SalesOrder order = new SalesOrder();
+        order.setId(9001L);
+        order.setDocNo("SO-20261104-0001");
+        order.setStatus(status);
+        SalesOrderLine line = new SalesOrderLine();
+        line.setLineNo(1);
+        line.setItemId(3L);
+        line.setItemCode("ERP-001");
+        line.setItemName("成品A");
+        line.setQuantity(new BigDecimal("8"));
+        line.setShippedQuantity(BigDecimal.ZERO);
+        order.setLines(List.of(line));
+        return order;
+    }
+
+    /**
+     * 构造销售订单转生产订单命令。
+     *
+     * @return 命令
+     */
+    private ProductionOrderFromSalesOrderCommand fromSalesOrderCommand() {
+        ProductionOrderFromSalesOrderCommand command = new ProductionOrderFromSalesOrderCommand();
+        command.setIssueWarehouseId(7301L);
+        command.setTargetWarehouseId(7302L);
+        command.setPlanStartDate(LocalDate.of(2026, 11, 4));
+        ProductionOrderCreateCommand.Material material = new ProductionOrderCreateCommand.Material();
+        material.setItemCode("ERP-002");
+        material.setRequiredQuantity(new BigDecimal("8"));
+        command.setMaterials(List.of(material));
+        return command;
     }
 }
