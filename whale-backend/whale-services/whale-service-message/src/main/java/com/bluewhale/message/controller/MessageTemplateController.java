@@ -9,6 +9,8 @@ import com.bluewhale.message.dto.MessageTemplateQueryRequest;
 import com.bluewhale.message.dto.MessageTemplateSaveRequest;
 import com.bluewhale.message.service.MessageTemplateService;
 import com.bluewhale.message.vo.MessageTemplateVO;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -30,6 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/message/v1/template")
+@Tag(name = "消息模板", description = "模板维护（权限：sys:message:template:list / add / edit / delete）")
 @RequiredArgsConstructor
 public class MessageTemplateController {
 
@@ -44,6 +47,7 @@ public class MessageTemplateController {
      * @param request 查询条件
      * @return 分页结果
      */
+    @Operation(summary = "分页查询消息模板")
     @GetMapping("/page")
     @RequirePermission("sys:message:template:list")
     public Result<PageResult<MessageTemplateVO>> page(@Valid MessageTemplateQueryRequest request) {
@@ -56,6 +60,7 @@ public class MessageTemplateController {
      * @param id 模板ID
      * @return 模板详情
      */
+    @Operation(summary = "查询消息模板详情")
     @GetMapping("/{id}")
     @RequirePermission("sys:message:template:list")
     public Result<MessageTemplateVO> detail(@PathVariable Long id) {
@@ -68,6 +73,7 @@ public class MessageTemplateController {
      * @param request 新增请求
      * @return 新增后的模板
      */
+    @Operation(summary = "新增消息模板", description = "模板占位符使用 ${key}，渲染时对变量做 HTML 转义")
     @PostMapping
     @RequirePermission("sys:message:template:add")
     @AuditLog(operation = "新增消息模板", type = OperateType.CREATE, targetType = TARGET_TYPE)
@@ -82,6 +88,7 @@ public class MessageTemplateController {
      * @param request 更新请求
      * @return 更新后的模板
      */
+    @Operation(summary = "更新消息模板")
     @PutMapping("/{id}")
     @RequirePermission("sys:message:template:edit")
     @AuditLog(operation = "更新消息模板", type = OperateType.UPDATE, targetType = TARGET_TYPE, targetId = "#id")
@@ -96,6 +103,7 @@ public class MessageTemplateController {
      * @param id 模板ID
      * @return 空响应体
      */
+    @Operation(summary = "删除消息模板", description = "逻辑删除；已被消息引用的模板仍可查询历史记录")
     @DeleteMapping("/{id}")
     @RequirePermission("sys:message:template:delete")
     @AuditLog(operation = "删除消息模板", type = OperateType.DELETE, targetType = TARGET_TYPE, targetId = "#id")

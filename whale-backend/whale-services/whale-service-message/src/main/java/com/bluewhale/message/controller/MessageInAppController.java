@@ -6,6 +6,8 @@ import com.bluewhale.common.web.UserContext;
 import com.bluewhale.message.dto.InAppMessageQueryRequest;
 import com.bluewhale.message.service.MessageInAppService;
 import com.bluewhale.message.vo.InAppMessageVO;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/message/v1/inapp")
+@Tag(name = "站内信", description = "当前用户站内信收件箱（需登录，无独立权限码）")
 @RequiredArgsConstructor
 public class MessageInAppController {
 
@@ -38,6 +41,7 @@ public class MessageInAppController {
      * @param httpRequest 当前请求（读取网关 {@code X-User-Id}）
      * @return 分页结果
      */
+    @Operation(summary = "分页查询我的站内信")
     @GetMapping("/page")
     public Result<PageResult<InAppMessageVO>> page(@Valid InAppMessageQueryRequest request,
                                                    HttpServletRequest httpRequest) {
@@ -50,6 +54,7 @@ public class MessageInAppController {
      * @param httpRequest 当前请求（读取网关 {@code X-User-Id}）
      * @return 未读数量
      */
+    @Operation(summary = "查询未读站内信数量")
     @GetMapping("/unread-count")
     public Result<Long> unreadCount(HttpServletRequest httpRequest) {
         return Result.ok(messageInAppService.unreadCount(UserContext.requireUserId(httpRequest)));
@@ -62,6 +67,7 @@ public class MessageInAppController {
      * @param httpRequest 当前请求（读取网关 {@code X-User-Id}）
      * @return 空响应体
      */
+    @Operation(summary = "标记站内信已读")
     @PostMapping("/{messageId}/read")
     public Result<Void> markRead(@PathVariable Long messageId, HttpServletRequest httpRequest) {
         messageInAppService.markRead(UserContext.requireUserId(httpRequest), messageId);

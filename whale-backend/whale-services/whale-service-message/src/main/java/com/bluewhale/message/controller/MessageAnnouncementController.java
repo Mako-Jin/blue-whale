@@ -10,6 +10,8 @@ import com.bluewhale.message.dto.AnnouncementPublishRequest;
 import com.bluewhale.message.dto.AnnouncementQueryRequest;
 import com.bluewhale.message.service.MessageAnnouncementService;
 import com.bluewhale.message.vo.AnnouncementVO;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/message/v1/announce")
+@Tag(name = "系统公告", description = "公告发布与撤回（权限：sys:message:announce:list / publish / revoke / delete）")
 @RequiredArgsConstructor
 public class MessageAnnouncementController {
 
@@ -47,6 +50,7 @@ public class MessageAnnouncementController {
      * @param request 查询条件
      * @return 分页结果
      */
+    @Operation(summary = "分页查询系统公告")
     @GetMapping("/page")
     @RequirePermission("sys:message:announce:list")
     public Result<PageResult<AnnouncementVO>> page(@Valid AnnouncementQueryRequest request) {
@@ -60,6 +64,7 @@ public class MessageAnnouncementController {
      * @param httpRequest 当前请求（读取网关 {@code X-User-Id} 作为发布人）
      * @return 公告视图
      */
+    @Operation(summary = "发布系统公告", description = "按目标范围展开为站内信投递，发布即生效")
     @PostMapping
     @RequirePermission("sys:message:announce:publish")
     @AuditLog(operation = "发布系统公告", type = OperateType.CREATE, targetType = TARGET_TYPE)
@@ -75,6 +80,7 @@ public class MessageAnnouncementController {
      * @param id 公告ID
      * @return 空响应体
      */
+    @Operation(summary = "撤回系统公告", description = "撤回后用户不可再看到该公告，已读记录保留")
     @PutMapping("/{id}/revoke")
     @RequirePermission("sys:message:announce:revoke")
     @AuditLog(operation = "撤回系统公告", type = OperateType.UPDATE, targetType = TARGET_TYPE, targetId = "#id")
@@ -89,6 +95,7 @@ public class MessageAnnouncementController {
      * @param id 公告ID
      * @return 空响应体
      */
+    @Operation(summary = "删除系统公告", description = "逻辑删除，仅允许删除未发布或已撤回的公告")
     @DeleteMapping("/{id}")
     @RequirePermission("sys:message:announce:delete")
     @AuditLog(operation = "删除系统公告", type = OperateType.DELETE, targetType = TARGET_TYPE, targetId = "#id")
