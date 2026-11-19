@@ -18,8 +18,11 @@ import org.springframework.web.client.RestClient;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -270,6 +273,51 @@ class WebhookJobAlertNotifierTest {
         notifier.notifyRecovered(job());
 
         verify(jobAlertMapper, never()).insert(any(JobAlertPo.class));
+    }
+
+    @Test
+    @DisplayName("加签：钉钉配置密钥时在 URL 追加 timestamp 与 sign")
+    void shouldSignDingTalkUrl() {
+        JobProperties.Channel channel = new JobProperties.Channel();
+        channel.setType("DINGTALK");
+        channel.setUrl("https://oapi.dingtalk.com/robot/send?access_token=abc");
+        channel.setSecret("SECtest");
+
+        String url = WebhookJobAlertNotifier.resolveChannelUrl(channel, 1700000000L);
+
+        assertEquals("https://oapi.dingtalk.com/robot/send?access_token=abc&timestamp=1700000000&sign="
+                        + URLEncoder.encode("4a+I/5ws+NoapnHErfi4wLu5as2XKn44STmnPCuf/ew=", StandardCharsets.UTF_8),
+                url);
+    }
+
+    @Test
+    @DisplayName("加签：钉钉未配置密钥时 URL 保持不变")
+    void shouldKeepDingTalkUrlWithoutSecret() {
+        JobProperties.Channel channel = new JobProperties.Channel();
+        channel.setType("DINGTALK");
+        channel.setUrl("https://example.com/hook");
+
+        assertEquals("https://example.com/hook", WebhookJobAlertNotifier.resolveChannelUrl(channel, 1700000000L));
+    }
+
+    @Test
+    @DisplayName("加签：飞书配置密钥时消息体带秒级 timestamp 与 sign")
+    @SuppressWarnings("unchecked")
+    void shouldSignFeishuBody() {
+        JobProperties.Channel channel = new JobProperties.Channel();
+        channel.setType("FEISHU");
+        channel.setUrl("https://example.com/hook");
+        channel.setSecret("SECtest");
+
+        Map<String, Object> body = (Map<String, Object>) WebhookJobAlertNotifier.buildBody(
+                channel, job(), log(), "boom", "ERROR", "任务执行失败");
+
+        assertEquals("text", body.get("msg_type"));
+        String timestamp = String.valueOf(body.get("timestamp"));
+        assertEquals(10, timestamp.length());
+        assertNotNull(body.get("sign"));
+        assertEquals("G7XpBpG8NgG02fJOAhX6FRAObIljmFoxVReo8I62pEk=",
+                WebhookJobAlertNotifier.feishuSign(1700000000L, "SECtest"));
     }
 
     /**

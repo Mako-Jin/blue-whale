@@ -139,6 +139,13 @@ public class JobProperties {
         /** 通道地址（机器人 webhook 完整 URL） */
         private String url = "";
 
+        /**
+         * 加签密钥：仅 DINGTALK / FEISHU 生效，为空表示机器人未开启加签。
+         *
+         * <p>钉钉把 {@code timestamp + sign} 追加到 URL 查询参数，飞书把两者放入消息体。</p>
+         */
+        private String secret = "";
+
         /** 是否启用该通道 */
         private boolean enabled = true;
     }

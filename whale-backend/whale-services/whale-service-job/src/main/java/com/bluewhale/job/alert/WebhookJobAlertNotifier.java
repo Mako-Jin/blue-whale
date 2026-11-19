@@ -17,9 +17,15 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -85,6 +91,9 @@ public class WebhookJobAlertNotifier implements JobAlertNotifier {
 
     /** 告警摘要前缀：任务执行恢复 */
     private static final String PREFIX_RECOVERED = "任务执行已恢复";
+
+    /** HMAC 算法 */
+    private static final String HMAC_ALGORITHM = "HmacSHA256";
 
     /** 投递状态：待发 */
     private static final int STATUS_PENDING = 0;
@@ -331,6 +340,63 @@ public class WebhookJobAlertNotifier implements JobAlertNotifier {
     }
 
     /**
+     * 解析通道实际请求地址：钉钉配置密钥时把 {@code timestamp + sign} 追加到查询参数
+     *
+     * @param channel 通道配置
+     * @return 实际请求地址
+     */
+    static String resolveChannelUrl(JobProperties.Channel channel) {
+        return resolveChannelUrl(channel, System.currentTimeMillis());
+    }
+
+    /**
+     * 解析通道实际请求地址（指定时间戳，便于测试固定签名）
+     *
+     * @param channel 通道配置
+     * @param timestamp 毫秒时间戳
+     * @return 实际请求地址
+     */
+    static String resolveChannelUrl(JobProperties.Channel channel, long timestamp) {
+        String url = channel.getUrl();
+        if (!TYPE_DINGTALK.equals(channelType(channel)) || !StringUtils.hasText(channel.getSecret())) {
+            return url;
+        }
+        String secret = channel.getSecret();
+        String sign = hmacSha256Base64(secret, timestamp + "\n" + secret);
+        String separator = url.contains("?") ? "&" : "?";
+        return url + separator + "timestamp=" + timestamp + "&sign="
+                + URLEncoder.encode(sign, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * 计算飞书机器人加签：密钥为 {@code timestamp + "\n" + secret}，消息体为空
+     *
+     * @param timestamp 秒级时间戳
+     * @param secret 加签密钥
+     * @return Base64 编码的签名
+     */
+    static String feishuSign(long timestamp, String secret) {
+        return hmacSha256Base64(timestamp + "\n" + secret, "");
+    }
+
+    /**
+     * HMAC-SHA256 后 Base64 编码
+     *
+     * @param key 密钥
+     * @param content 待签名内容
+     * @return Base64 签名
+     */
+    private static String hmacSha256Base64(String key, String content) {
+        try {
+            Mac mac = Mac.getInstance(HMAC_ALGORITHM);
+            mac.init(new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), HMAC_ALGORITHM));
+            return Base64.getEncoder().encodeToString(mac.doFinal(content.getBytes(StandardCharsets.UTF_8)));
+        } catch (GeneralSecurityException e) {
+            throw new IllegalStateException("告警加签失败", e);
+        }
+    }
+
+    /**
      * 以原子方式获取 webhook 外发资格：冷却期内同一个任务只外发一次。
      *
      * <p>优先使用 Redis {@code SETNX + TTL}，多实例共享同一冷却窗口；Redis 不可用或未配置时
@@ -447,7 +513,7 @@ public class WebhookJobAlertNotifier implements JobAlertNotifier {
         for (JobProperties.Channel channel : channels) {
             try {
                 restClient.post()
-                        .uri(channel.getUrl())
+                        .uri(resolveChannelUrl(channel))
                         .contentType(MediaType.APPLICATION_JSON)
                         .body(buildBody(channel, job, jobLog, errorMsg, level, messagePrefix))
                         .retrieve()
@@ -478,8 +544,8 @@ public class WebhookJobAlertNotifier implements JobAlertNotifier {
      * @param messagePrefix 摘要前缀
      * @return 请求体（交由 RestClient 的 JSON 消息转换器序列化）
      */
-    private static Object buildBody(JobProperties.Channel channel, JobInfoPo job, JobLogPo jobLog,
-                                    String errorMsg, String level, String messagePrefix) {
+    static Object buildBody(JobProperties.Channel channel, JobInfoPo job, JobLogPo jobLog,
+                            String errorMsg, String level, String messagePrefix) {
         String type = channelType(channel);
         if (TYPE_DINGTALK.equals(type)) {
             Map<String, Object> text = new LinkedHashMap<>();
@@ -495,6 +561,12 @@ public class WebhookJobAlertNotifier implements JobAlertNotifier {
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("msg_type", "text");
             body.put("content", text);
+            if (StringUtils.hasText(channel.getSecret())) {
+                // 飞书加签：时间戳为秒级字符串，签名与消息放在同一请求体
+                long timestamp = System.currentTimeMillis() / MILLIS_PER_SECOND;
+                body.put("timestamp", String.valueOf(timestamp));
+                body.put("sign", feishuSign(timestamp, channel.getSecret()));
+            }
             return body;
         }
         return buildPayload(job, jobLog, errorMsg, level, messagePrefix);

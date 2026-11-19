@@ -98,8 +98,10 @@ whale:
       #     url: https://example.com/hooks/job-alert
       #   - type: DINGTALK
       #     url: https://oapi.dingtalk.com/robot/send?access_token=xxx
+      #     secret: SECxxx        # 机器人开启「加签」时必填
       #   - type: FEISHU
       #     url: https://open.feishu.cn/open-apis/bot/v2/hook/xxx
+      #     secret: xxx           # 飞书机器人开启「签名校验」时必填
       # 失败后恢复（fail_count 清零）时发送 INFO 级恢复通知
       recovery-enabled: ${WHALE_JOB_ALERT_RECOVERY_ENABLED:true}
       cooldown-seconds: ${WHALE_JOB_ALERT_COOLDOWN_SECONDS:300}
