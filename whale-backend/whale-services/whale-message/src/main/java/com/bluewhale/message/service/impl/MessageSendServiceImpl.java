@@ -60,6 +60,9 @@ public class MessageSendServiceImpl implements MessageSendService {
     /** 模板启用状态 */
     private static final int TEMPLATE_ENABLED = 1;
 
+    /** 渠道侧消息标识最大长度（列宽 128） */
+    private static final int PROVIDER_MESSAGE_ID_MAX_LENGTH = 128;
+
     private final MessageRecordMapper recordMapper;
 
     private final MessageDeliveryMapper deliveryMapper;
@@ -445,7 +448,7 @@ public class MessageSendServiceImpl implements MessageSendService {
         delivery.setChannel(channel.name());
         delivery.setRecipient(resolveRecipient(channel, recipient));
         delivery.setStatus(result.getStatus().name());
-        delivery.setProviderMessageId(result.getProviderMessageId());
+        delivery.setProviderMessageId(truncate(result.getProviderMessageId(), PROVIDER_MESSAGE_ID_MAX_LENGTH));
         delivery.setErrorMessage(truncate(result.getErrorMessage(), 512));
         delivery.setAttempts(1);
         delivery.setSentAt(LocalDateTime.now());
@@ -573,7 +576,10 @@ public class MessageSendServiceImpl implements MessageSendService {
      */
     private void updateDelivery(MessageDelivery delivery, ChannelResult result) {
         delivery.setStatus(result.getStatus().name());
-        delivery.setProviderMessageId(result.getProviderMessageId());
+        // 重试失败/跳过时结果不含新标识，不能把首次发送已绑定的标识清空
+        if (StringUtils.hasText(result.getProviderMessageId())) {
+            delivery.setProviderMessageId(truncate(result.getProviderMessageId(), PROVIDER_MESSAGE_ID_MAX_LENGTH));
+        }
         delivery.setErrorMessage(truncate(result.getErrorMessage(), 512));
         delivery.setAttempts(delivery.getAttempts() == null ? 2 : delivery.getAttempts() + 1);
         delivery.setSentAt(LocalDateTime.now());

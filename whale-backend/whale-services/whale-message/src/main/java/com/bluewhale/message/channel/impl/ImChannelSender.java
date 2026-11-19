@@ -28,6 +28,10 @@ import java.util.Map;
  *
  * <p>只负责“把通知送进 IM”，不拥有会话历史与已读状态。</p>
  *
+ * <p>回执绑定：投递时携带幂等键 {@code clientMsgId = msg-<消息ID>-<用户ID>}，
+ * whale-im 的送达/已读回执按该字段回传；消息服务把它作为 {@code providerMessageId} 落库，
+ * 上报回执时填入即可精确匹配。</p>
+ *
  * @author BlueWhale
  */
 @Slf4j
@@ -93,9 +97,10 @@ public class ImChannelSender implements MessageChannelSender {
             HttpResponse<String> response = httpClient.send(request,
                     HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
-                log.info("消息已投递 IM: messageId={}, userId={}", message.getMessageId(),
-                        message.getRecipient().getUserId());
-                return ChannelResult.sent(null);
+                String providerMessageId = clientMsgId(message);
+                log.info("消息已投递 IM: messageId={}, userId={}, clientMsgId={}", message.getMessageId(),
+                        message.getRecipient().getUserId(), providerMessageId);
+                return ChannelResult.sent(providerMessageId);
             }
             return ChannelResult.failed("IM 返回 " + response.statusCode() + ": "
                     + truncate(response.body(), 200));
@@ -121,7 +126,23 @@ public class ImChannelSender implements MessageChannelSender {
         payload.put("content", message.getContent());
         payload.put("bizType", message.getBizType());
         payload.put("bizId", message.getBizId());
+        payload.put("clientMsgId", clientMsgId(message));
         return payload;
+    }
+
+    /**
+     * 构造投递幂等键，同时作为回执匹配的供应商消息标识。
+     *
+     * <p>形如 {@code msg-<消息ID>-<用户ID>}，确定性生成，重试后仍可被同名回执匹配。</p>
+     *
+     * @param message 渠道消息
+     * @return 幂等键
+     */
+    private static String clientMsgId(ChannelMessage message) {
+        Long messageId = message.getMessageId() == null ? 0L : message.getMessageId();
+        Long userId = message.getRecipient() == null || message.getRecipient().getUserId() == null
+                ? 0L : message.getRecipient().getUserId();
+        return "msg-" + messageId + "-" + userId;
     }
 
     /**

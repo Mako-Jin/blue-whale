@@ -58,9 +58,14 @@ import java.util.stream.Collectors;
  * </ol>
  *
  * <p><b>匹配口径</b>：回执只按 {@code (channel, msg_delivery.provider_message_id)} 精确匹配。
- * 因此渠道发送时必须把渠道侧消息标识回写为 {@code providerMessageId}，否则回执必然 UNMATCHED：
- * 站内信以平台消息ID充当该标识，可直接匹配；EMAIL / SMS / IM 在 M0 未从供应商响应中解析消息ID，
- * 其回执依赖后续按供应商协议补齐标识，期间一律落 UNMATCHED 等待对账，不做模糊匹配
+ * 各渠道的标识来源：</p>
+ * <ul>
+ *   <li>EMAIL：发送时写入 RFC 5322 {@code Message-ID}，退信/已读回执原样携带；</li>
+ *   <li>SMS：解析网关同步响应中的 {@code providerIdField}，异步回执携带同一标识；</li>
+ *   <li>IM：投递幂等键 {@code clientMsgId}，由 whale-im 回执回传；</li>
+ *   <li>INAPP：以平台消息ID充当该标识，可直接匹配。</li>
+ * </ul>
+ * <p>标识缺失或与投递记录不一致的回执一律落 UNMATCHED 供对账，不做模糊匹配
  * （按接收人+时间窗兜底可能把回执错误归到同接收人的其它消息上）。</p>
  *
  * @author BlueWhale

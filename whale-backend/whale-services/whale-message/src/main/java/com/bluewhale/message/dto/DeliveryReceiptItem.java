@@ -27,7 +27,13 @@ public class DeliveryReceiptItem implements Serializable {
     @Size(max = 96, message = "回执ID长度不能超过 96")
     private String receiptId;
 
-    /** 渠道侧消息标识，用于匹配投递记录 */
+    /**
+     * 渠道侧消息标识，用于匹配投递记录
+     *
+     * <p>各渠道取值：EMAIL = 邮件 {@code Message-ID} 头；SMS = 网关响应中的
+     * {@code providerIdField}（默认 {@code data.messageId}）；IM = 投递时的 {@code clientMsgId}；
+     * INAPP = 渠道发送回写的消息标识。</p>
+     */
     @Size(max = 128, message = "渠道消息标识长度不能超过 128")
     private String providerMessageId;
 
