@@ -1,5 +1,5 @@
-// 定时任务管理页 - 容器：任务列表 / 执行日志 / 告警记录 / 依赖拓扑四个页签的状态与操作处理。
-// 列定义见 columns.tsx，弹窗视图见 JobEditorModal.tsx / JobImportModal.tsx，拓扑见 JobDagPanel.tsx。
+// 定时任务管理页 - 容器：任务列表 / 执行日志 / 告警记录 / 依赖拓扑 / 执行统计五个页签的状态与操作处理。
+// 列定义见 columns.tsx，弹窗视图见 JobEditorModal.tsx / JobImportModal.tsx，拓扑与统计见 JobDagPanel.tsx / JobStatsPanel.tsx。
 // 操作按钮均按权限码渲染（AuthButton / usePermission），无权限自动隐藏
 
 import { App, Button, Form, Input, InputNumber, Popconfirm, Select, Space, Tabs } from 'antd';
@@ -46,6 +46,7 @@ import {
 import { JobDagPanel } from './JobDagPanel';
 import { JobEditorModal } from './JobEditorModal';
 import { JobImportModal } from './JobImportModal';
+import { JobStatsPanel } from './JobStatsPanel';
 
 export default function JobList() {
   const { message } = App.useApp();
@@ -487,6 +488,15 @@ export default function JobList() {
             label: '依赖拓扑',
             children: <JobDagPanel />,
           },
+          ...(has('sys:job:log:list')
+            ? [
+                {
+                  key: 'stats',
+                  label: '执行统计',
+                  children: <JobStatsPanel />,
+                },
+              ]
+            : []),
         ]}
       />
 

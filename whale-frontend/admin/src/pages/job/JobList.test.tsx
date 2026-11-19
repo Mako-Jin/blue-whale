@@ -31,6 +31,7 @@ vi.mock('../../api/job', () => ({
   getJobGraph: vi.fn(),
   validateJobGraph: vi.fn(),
   importJobs: vi.fn(),
+  getJobLogStats: vi.fn(),
 }));
 
 const ALL_PERMS = [
@@ -90,6 +91,7 @@ describe('JobList 定时任务页', () => {
     expect(screen.queryByRole('button', { name: '导入' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '批量启用' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '批量删除' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: '执行统计' })).not.toBeInTheDocument();
   });
 
   it('选中任务后批量启用可用，并按选中 ID 提交', async () => {
@@ -134,5 +136,12 @@ describe('JobList 定时任务页', () => {
     expect(await screen.findByText('上游任务')).toBeInTheDocument();
     expect(screen.getByText('下游任务')).toBeInTheDocument();
     expect(getJobGraph).toHaveBeenCalled();
+  });
+
+  it('有日志权限时渲染执行统计页签', async () => {
+    renderPage(<JobList />, ALL_PERMS);
+    await screen.findByText('订单同步');
+
+    expect(screen.getByRole('tab', { name: '执行统计' })).toBeInTheDocument();
   });
 });

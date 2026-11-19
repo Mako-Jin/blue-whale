@@ -318,3 +318,73 @@ export async function downloadJobExport(params: {
 export function importJobs(body: JobImportRequest): Promise<JobImportResultVO> {
   return post<JobImportResultVO>('/job/info/import', body);
 }
+
+/** 按天聚合的执行统计（日期升序） */
+export interface JobLogDailyStatVO {
+  date: string;
+  /** 后端 long 序列化为字符串 */
+  successCount: string;
+  /** 后端 long 序列化为字符串 */
+  failureCount: string;
+  /** 平均耗时毫秒数 */
+  avgDurationMillis: string;
+  /** 耗时 P95（毫秒，离散口径） */
+  p95DurationMillis: string;
+}
+
+/** 失败次数 TopN */
+export interface JobFailureTopVO {
+  /** 后端 Long 序列化为字符串 */
+  jobId: string;
+  jobName?: string;
+  /** 后端 long 序列化为字符串 */
+  failureCount: string;
+}
+
+/** 平均耗时 TopN */
+export interface JobDurationTopVO {
+  /** 后端 Long 序列化为字符串 */
+  jobId: string;
+  jobName?: string;
+  avgDurationMillis: string;
+  /** 窗口内执行次数（分母，便于判断样本量） */
+  executionCount: string;
+}
+
+/** 失败原因（异常类型）TopN */
+export interface JobErrorTypeTopVO {
+  /** 如 BizException；无法识别时归入 OTHER */
+  errorType: string;
+  /** 后端 long 序列化为字符串 */
+  count: string;
+  sampleMessage?: string;
+}
+
+export interface JobLogStatsVO {
+  from?: string;
+  to?: string;
+  /** true 表示明细超过样本上限，均值与 P95 为近似值 */
+  sampled: boolean;
+  /** 后端 long 序列化为字符串 */
+  totalCount: string;
+  daily: JobLogDailyStatVO[];
+  /** 指定 jobId 时为空数组 */
+  failureTop: JobFailureTopVO[];
+  durationTop: JobDurationTopVO[];
+  errorTypeTop: JobErrorTypeTopVO[];
+}
+
+/** 执行统计查询条件：窗口最大跨度 90 天，留空由后端取最近 7 天 */
+export interface JobLogStatsParams {
+  /** 后端 Long 序列化为字符串（作为查询参数传字符串即可） */
+  jobId?: string;
+  jobGroup?: string;
+  /** ISO 本地时间，如 2026-11-12T00:00:00 */
+  from?: string;
+  to?: string;
+}
+
+/** 执行统计：按天趋势 + 失败/耗时/异常类型 TopN */
+export function getJobLogStats(params: JobLogStatsParams): Promise<JobLogStatsVO> {
+  return get<JobLogStatsVO>('/job/log/stats', { ...params });
+}
