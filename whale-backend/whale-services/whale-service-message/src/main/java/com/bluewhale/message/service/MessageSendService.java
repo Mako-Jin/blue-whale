@@ -1,6 +1,7 @@
 package com.bluewhale.message.service;
 
 import com.bluewhale.message.dto.SendMessageRequest;
+import com.bluewhale.message.enums.MessagePriority;
 import com.bluewhale.message.vo.SendMessageResult;
 
 /**
@@ -39,6 +40,7 @@ public interface MessageSendService {
      * @param messageId 消息ID
      * @param tenantId  消息所属租户
      * @param traceId   发送请求链路追踪ID（可为 {@code null}）
+     * @param priority  调度优先级；为 {@code null} 时按 {@link MessagePriority#NORMAL} 处理
      */
-    void dispatchAsync(Long messageId, Long tenantId, String traceId);
+    void dispatchAsync(Long messageId, Long tenantId, String traceId, MessagePriority priority);
 }

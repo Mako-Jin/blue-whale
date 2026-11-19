@@ -12,9 +12,9 @@ import com.bluewhale.message.channel.ChannelMessage;
 import com.bluewhale.message.channel.ChannelResult;
 import com.bluewhale.message.channel.MessageChannelSender;
 import com.bluewhale.message.config.MessageChannelProperties;
-import com.bluewhale.message.config.MessageDispatchConfig;
 import com.bluewhale.message.config.MessageSendProperties;
 import com.bluewhale.message.converter.MessageConverter;
+import com.bluewhale.message.dispatch.MessageDispatchExecutor;
 import com.bluewhale.message.dto.MessageRecipient;
 import com.bluewhale.message.dto.SendMessageRequest;
 import com.bluewhale.message.po.MessageDeliveryPo;
@@ -22,6 +22,7 @@ import com.bluewhale.message.po.MessageRecordPo;
 import com.bluewhale.message.po.MessageTemplatePo;
 import com.bluewhale.message.enums.DeliveryStatus;
 import com.bluewhale.message.enums.MessageChannel;
+import com.bluewhale.message.enums.MessagePriority;
 import com.bluewhale.message.enums.MessageStatus;
 import com.bluewhale.message.mapper.MessageDeliveryMapper;
 import com.bluewhale.message.mapper.MessageRecordMapper;
@@ -38,8 +39,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.core.task.TaskExecutor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -94,7 +93,7 @@ public class MessageSendServiceImpl implements MessageSendService {
 
     private final MessageSendProperties sendProperties;
 
-    private final TaskExecutor dispatchExecutor;
+    private final MessageDispatchExecutor dispatchExecutor;
 
     private final MessageRecipientResolver recipientResolver;
 
@@ -103,9 +102,6 @@ public class MessageSendServiceImpl implements MessageSendService {
 
     /**
      * 构造发送服务。
-     *
-     * <p>异步投递线程池按名称注入：容器内存在多个 {@code ThreadPoolTaskExecutor}
-     * （审计、日志等），按类型注入会在启动时冲突。</p>
      *
      * @param recordMapper    消息记录 Mapper
      * @param deliveryMapper  投递记录 Mapper
@@ -116,7 +112,7 @@ public class MessageSendServiceImpl implements MessageSendService {
      * @param channelGuard    渠道保护（限流/熔断）
      * @param metrics         指标
      * @param sendProperties  投递配置
-     * @param dispatchExecutor 异步投递线程池
+     * @param dispatchExecutor 异步投递调度器（按优先级出队）
      * @param recipientResolver 接收人解析（含接收人组展开）
      */
     public MessageSendServiceImpl(MessageRecordMapper recordMapper,
@@ -128,7 +124,7 @@ public class MessageSendServiceImpl implements MessageSendService {
                                   ChannelGuard channelGuard,
                                   MessageMetrics metrics,
                                   MessageSendProperties sendProperties,
-                                  @Qualifier(MessageDispatchConfig.DISPATCH_EXECUTOR) TaskExecutor dispatchExecutor,
+                                  MessageDispatchExecutor dispatchExecutor,
                                   MessageRecipientResolver recipientResolver) {
         this.recordMapper = recordMapper;
         this.deliveryMapper = deliveryMapper;
@@ -173,7 +169,8 @@ public class MessageSendServiceImpl implements MessageSendService {
                 throw e;
             }
             if (isAsync(request)) {
-                dispatchAsync(record.getId(), tenantId, record.getTraceId());
+                dispatchAsync(record.getId(), tenantId, record.getTraceId(),
+                        MessagePriority.of(record.getPriority()));
                 return buildResult(record, false, List.of());
             }
             List<MessageDeliveryPo> deliveries = dispatch(record, request, recipients);
@@ -229,8 +226,8 @@ public class MessageSendServiceImpl implements MessageSendService {
     }
 
     @Override
-    public void dispatchAsync(Long messageId, Long tenantId, String traceId) {
-        dispatchExecutor.execute(() -> dispatchInBackground(messageId, tenantId, traceId));
+    public void dispatchAsync(Long messageId, Long tenantId, String traceId, MessagePriority priority) {
+        dispatchExecutor.submit(priority, () -> dispatchInBackground(messageId, tenantId, traceId));
     }
 
     /**
@@ -453,6 +450,7 @@ public class MessageSendServiceImpl implements MessageSendService {
         record.setRecipientsJson(toJson(recipients));
         record.setChannels(normalizeChannels(request.getChannels()));
         record.setStatus(MessageStatus.PENDING.name());
+        record.setPriority(MessagePriority.of(request.getPriority()).getCode());
         CallbackUrlGuard.assertAllowed(request.getCallbackUrl());
         record.setCallbackUrl(request.getCallbackUrl());
         record.setExpireAt(request.getExpireAt());

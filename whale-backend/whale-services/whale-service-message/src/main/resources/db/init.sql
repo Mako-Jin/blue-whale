@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS msg_record (
     recipients_json  TEXT          DEFAULT NULL            COMMENT '接收人列表 JSON（异步投递时重建投递对象）',
     channels         VARCHAR(128)  DEFAULT NULL            COMMENT '渠道列表（大写逗号分隔，如 INAPP,IM）',
     status           VARCHAR(16)   NOT NULL DEFAULT 'PENDING' COMMENT '消息状态：PENDING / DISPATCHING / SENT / DELIVERED / PARTIAL / FAILED / MOCKED / SKIPPED / EXPIRED',
+    priority         TINYINT       NOT NULL DEFAULT 20     COMMENT '优先级：30 HIGH / 20 NORMAL / 10 LOW',
     callback_url     VARCHAR(512)  DEFAULT NULL            COMMENT '回执回调地址（业务方内网端点；空表示不回传）',
     expire_at        DATETIME      DEFAULT NULL            COMMENT '消息过期时间（超过后不再投递，投递记 EXPIRED）',
     trace_id         VARCHAR(64)   DEFAULT NULL            COMMENT '发送请求链路追踪ID（回执回调原样透传）',

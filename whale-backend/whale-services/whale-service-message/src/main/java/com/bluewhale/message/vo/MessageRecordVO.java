@@ -46,6 +46,9 @@ public class MessageRecordVO implements Serializable {
     /** 消息状态 */
     private String status;
 
+    /** 优先级：30 HIGH / 20 NORMAL / 10 LOW（数值越大越优先） */
+    private Integer priority;
+
     /** 创建时间 */
     private LocalDateTime createTime;
 

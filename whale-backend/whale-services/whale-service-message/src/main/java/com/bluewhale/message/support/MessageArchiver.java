@@ -210,6 +210,7 @@ public class MessageArchiver {
             line.put("content", record.getContent());
             line.put("channels", record.getChannels());
             line.put("status", record.getStatus());
+            line.put("priority", record.getPriority());
             line.put("callbackUrl", record.getCallbackUrl());
             line.put("expireAt", record.getExpireAt());
             line.put("traceId", record.getTraceId());

@@ -16,6 +16,7 @@ import com.bluewhale.message.po.MessageDeliveryPo;
 import com.bluewhale.message.po.MessageRecordPo;
 import com.bluewhale.message.po.MessageTemplatePo;
 import com.bluewhale.message.enums.MessageChannel;
+import com.bluewhale.message.enums.MessagePriority;
 import com.bluewhale.message.mapper.MessageDeliveryMapper;
 import com.bluewhale.message.mapper.MessageRecordMapper;
 import com.bluewhale.message.mapper.MessageTemplateMapper;
@@ -72,6 +73,9 @@ class MessageSendServiceImplTest {
     /** 捕获提交到异步线程池的任务，测试中手动执行以获得确定的时序 */
     private final List<Runnable> tasks = new ArrayList<>();
 
+    /** 捕获提交到异步调度器的优先级 */
+    private final List<MessagePriority> submittedPriorities = new ArrayList<>();
+
     private final MessageRecipientProperties recipientProperties = new MessageRecipientProperties();
 
     private final AuthRecipientGroupClient groupClient = mock(AuthRecipientGroupClient.class);
@@ -89,8 +93,11 @@ class MessageSendServiceImplTest {
         stubInsert();
         return new MessageSendServiceImpl(recordMapper, deliveryMapper, templateMapper,
                 objectMapper, properties, List.of(senders), new ChannelGuard(),
-                new MessageMetrics(new SimpleMeterRegistry()), sendProperties, tasks::add,
-                recipientResolver);
+                new MessageMetrics(new SimpleMeterRegistry()), sendProperties,
+                (priority, task) -> {
+                    submittedPriorities.add(priority);
+                    tasks.add(task);
+                }, recipientResolver);
     }
 
     /**
@@ -307,6 +314,7 @@ class MessageSendServiceImplTest {
 
         MessageRecordPo inserted = captureInserted();
         assertEquals("PENDING", inserted.getStatus());
+        assertEquals(MessagePriority.NORMAL.getCode(), inserted.getPriority());
         assertTrue(inserted.getRecipientsJson().contains("user@example.com"));
 
         when(recordMapper.selectById(1001L)).thenReturn(inserted);
@@ -329,6 +337,21 @@ class MessageSendServiceImplTest {
         assertEquals("PENDING", result.getStatus());
         assertEquals(1, tasks.size());
         verify(inapp, never()).send(any(ChannelMessage.class));
+    }
+
+    @Test
+    @DisplayName("请求优先级落库并按该优先级提交异步投递")
+    void shouldPersistPriorityAndSubmitWithIt() {
+        MessageChannelSender inapp = sender(MessageChannel.INAPP, ChannelResult.sent("1001"));
+        SendMessageRequest request = request(List.of("INAPP"), null);
+        request.setAsync(true);
+        request.setPriority("high");
+
+        SendMessageResult result = service(inapp).send(request);
+
+        assertEquals("PENDING", result.getStatus());
+        assertEquals(MessagePriority.HIGH.getCode(), captureInserted().getPriority());
+        assertEquals(List.of(MessagePriority.HIGH), submittedPriorities);
     }
 
     @Test

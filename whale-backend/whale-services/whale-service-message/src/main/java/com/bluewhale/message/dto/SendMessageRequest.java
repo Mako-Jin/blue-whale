@@ -74,6 +74,14 @@ public class SendMessageRequest implements Serializable {
     @Size(max = 64, message = "接收人组编码长度不能超过 64")
     private String recipientGroup;
 
+    /**
+     * 消息优先级（可选）：HIGH / NORMAL / LOW
+     *
+     * <p>仅影响异步投递的排队顺序，高优先级先出队；未设置时按 NORMAL 处理。</p>
+     */
+    @Pattern(regexp = "(?i)^(HIGH|NORMAL|LOW)$", message = "优先级必须为 HIGH/NORMAL/LOW")
+    private String priority;
+
     /** 回执回调地址（可选，业务方内网端点；为空表示不回传达送回执） */
     @Size(max = 512, message = "回调地址长度不能超过 512")
     @Pattern(regexp = "^https?://.+", message = "回调地址必须为 http / https 地址")

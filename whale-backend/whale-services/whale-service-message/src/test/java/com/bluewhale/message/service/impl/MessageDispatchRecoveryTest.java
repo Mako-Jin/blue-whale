@@ -3,6 +3,7 @@ package com.bluewhale.message.service.impl;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.message.config.MessageSendProperties;
+import com.bluewhale.message.enums.MessagePriority;
 import com.bluewhale.message.mapper.MessageRecordMapper;
 import com.bluewhale.message.po.MessageRecordPo;
 import com.bluewhale.message.service.MessageSendService;
@@ -42,13 +43,14 @@ class MessageDispatchRecoveryTest {
         MessageRecordPo record = new MessageRecordPo();
         record.setId(900L);
         record.setTraceId("trace-1");
+        record.setPriority(MessagePriority.HIGH.getCode());
         when(recordMapper.selectList(any(Wrapper.class))).thenReturn(List.of(record));
 
         recovery.recover();
 
         verify(recordMapper).recoverStaleDispatching(any(), any());
-        verify(messageSendService).dispatchAsync(900L, 1L, "trace-1");
-        verify(messageSendService).dispatchAsync(900L, 2L, "trace-1");
+        verify(messageSendService).dispatchAsync(900L, 1L, "trace-1", MessagePriority.HIGH);
+        verify(messageSendService).dispatchAsync(900L, 2L, "trace-1", MessagePriority.HIGH);
         assertNull(TenantContext.get());
     }
 
@@ -62,11 +64,11 @@ class MessageDispatchRecoveryTest {
         record.setTraceId("trace-1");
         when(recordMapper.selectList(any(Wrapper.class))).thenReturn(List.of(record));
         doThrow(new IllegalStateException("boom"))
-                .when(messageSendService).dispatchAsync(900L, 1L, "trace-1");
+                .when(messageSendService).dispatchAsync(900L, 1L, "trace-1", MessagePriority.NORMAL);
 
         recovery.recover();
 
-        verify(messageSendService).dispatchAsync(900L, 2L, "trace-1");
+        verify(messageSendService).dispatchAsync(900L, 2L, "trace-1", MessagePriority.NORMAL);
         assertNull(TenantContext.get());
     }
 }

@@ -3,6 +3,7 @@ package com.bluewhale.message.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.message.config.MessageSendProperties;
+import com.bluewhale.message.enums.MessagePriority;
 import com.bluewhale.message.enums.MessageStatus;
 import com.bluewhale.message.mapper.MessageRecordMapper;
 import com.bluewhale.message.po.MessageRecordPo;
@@ -74,7 +75,8 @@ public class MessageDispatchRecovery {
                 log.info("补偿超时未投递消息: tenantId={}, count={}", tenantId, pending.size());
             }
             for (MessageRecordPo record : pending) {
-                messageSendService.dispatchAsync(record.getId(), tenantId, record.getTraceId());
+                messageSendService.dispatchAsync(record.getId(), tenantId, record.getTraceId(),
+                        MessagePriority.of(record.getPriority()));
             }
         } catch (RuntimeException e) {
             log.error("异步投递补偿失败: tenantId={}, reason={}", tenantId, e.getMessage(), e);
@@ -84,7 +86,7 @@ public class MessageDispatchRecovery {
     }
 
     /**
-     * 查询当前租户超时未投递的消息。
+     * 查询当前租户超时未投递的消息（高优先级优先补偿）。
      *
      * @param deadline 创建时间早于该值视为超时
      * @return 待补偿消息
@@ -93,6 +95,7 @@ public class MessageDispatchRecovery {
         LambdaQueryWrapper<MessageRecordPo> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(MessageRecordPo::getStatus, MessageStatus.PENDING.name())
                 .lt(MessageRecordPo::getCreateTime, deadline)
+                .orderByDesc(MessageRecordPo::getPriority)
                 .orderByAsc(MessageRecordPo::getId)
                 .last("LIMIT " + BATCH_SIZE);
         return recordMapper.selectList(wrapper);

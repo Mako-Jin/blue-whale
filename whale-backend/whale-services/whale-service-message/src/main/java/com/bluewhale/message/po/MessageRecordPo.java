@@ -49,6 +49,9 @@ public class MessageRecordPo extends BaseEntity {
     /** 消息状态：PENDING / DISPATCHING / SENT / DELIVERED / PARTIAL / FAILED / MOCKED / SKIPPED / EXPIRED（与 MessageStatus 枚举一致） */
     private String status;
 
+    /** 优先级：30 HIGH / 20 NORMAL / 10 LOW（数值越大越优先） */
+    private Integer priority;
+
     /** 回执回调地址（业务方内网端点；空表示不回传回执） */
     private String callbackUrl;
 
