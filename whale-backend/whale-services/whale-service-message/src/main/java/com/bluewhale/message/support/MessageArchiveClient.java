@@ -73,6 +73,15 @@ public class MessageArchiveClient {
     }
 
     /**
+     * 测试用构造：注入预配置客户端。
+     *
+     * @param restClient 客户端
+     */
+    MessageArchiveClient(RestClient restClient) {
+        this.restClient = restClient;
+    }
+
+    /**
      * 上传归档文件。
      *
      * @param content  文件内容

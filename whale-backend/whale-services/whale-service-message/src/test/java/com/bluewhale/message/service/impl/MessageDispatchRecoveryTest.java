@@ -13,6 +13,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -47,6 +48,24 @@ class MessageDispatchRecoveryTest {
 
         verify(recordMapper).recoverStaleDispatching(any(), any());
         verify(messageSendService).dispatchAsync(900L, 1L, "trace-1");
+        verify(messageSendService).dispatchAsync(900L, 2L, "trace-1");
+        assertNull(TenantContext.get());
+    }
+
+    @Test
+    @DisplayName("单租户补偿失败不影响其它租户")
+    void shouldContinueOtherTenantsWhenOneFails() {
+        when(recordMapper.recoverStaleDispatching(any(), any())).thenReturn(0);
+        when(recordMapper.selectPendingTenantIds(any())).thenReturn(List.of(1L, 2L));
+        MessageRecordPo record = new MessageRecordPo();
+        record.setId(900L);
+        record.setTraceId("trace-1");
+        when(recordMapper.selectList(any(Wrapper.class))).thenReturn(List.of(record));
+        doThrow(new IllegalStateException("boom"))
+                .when(messageSendService).dispatchAsync(900L, 1L, "trace-1");
+
+        recovery.recover();
+
         verify(messageSendService).dispatchAsync(900L, 2L, "trace-1");
         assertNull(TenantContext.get());
     }

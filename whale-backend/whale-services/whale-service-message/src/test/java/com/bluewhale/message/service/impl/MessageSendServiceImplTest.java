@@ -2,6 +2,7 @@ package com.bluewhale.message.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.message.channel.ChannelGuard;
 import com.bluewhale.message.channel.ChannelMessage;
 import com.bluewhale.message.channel.ChannelResult;
@@ -33,9 +34,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -43,6 +46,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -70,8 +74,10 @@ class MessageSendServiceImplTest {
 
     private final MessageRecipientProperties recipientProperties = new MessageRecipientProperties();
 
+    private final AuthRecipientGroupClient groupClient = mock(AuthRecipientGroupClient.class);
+
     private final MessageRecipientResolver recipientResolver = new MessageRecipientResolver(
-            recipientProperties, mock(AuthRecipientGroupClient.class));
+            recipientProperties, groupClient);
 
     /**
      * 构造带指定渠道适配器的发送服务。
@@ -340,6 +346,45 @@ class MessageSendServiceImplTest {
 
         verify(inapp, never()).send(any(ChannelMessage.class));
         assertEquals("PENDING", inserted.getStatus());
+    }
+
+    @Test
+    @DisplayName("异步投递回填租户上下文并在结束后清理")
+    void shouldRestoreTenantContextInAsyncDispatch() {
+        AtomicReference<Long> seenTenant = new AtomicReference<>();
+        MessageChannelSender inapp = mock(MessageChannelSender.class);
+        when(inapp.channel()).thenReturn(MessageChannel.INAPP);
+        doAnswer(invocation -> {
+            seenTenant.set(TenantContext.get());
+            return ChannelResult.sent("1001");
+        }).when(inapp).send(any(ChannelMessage.class));
+        SendMessageRequest request = request(List.of("INAPP"), null);
+        request.setAsync(true);
+        service(inapp).send(request);
+
+        MessageRecordPo inserted = captureInserted();
+        when(recordMapper.selectById(1001L)).thenReturn(inserted);
+        when(recordMapper.update(any(), any(Wrapper.class))).thenReturn(1);
+        runTasks();
+
+        assertEquals(1L, seenTenant.get());
+        assertNull(TenantContext.get());
+    }
+
+    @Test
+    @DisplayName("接收人组展开结果落库并参与逐人投递")
+    void shouldPersistExpandedGroupRecipients() {
+        when(groupClient.listMemberUserIds(1L, "tenant_admin")).thenReturn(List.of(2001L, 2002L));
+        MessageChannelSender inapp = sender(MessageChannel.INAPP, ChannelResult.sent("1001"));
+        SendMessageRequest request = request(List.of("INAPP"), null);
+        request.setRecipientGroup("tenant_admin");
+
+        service(inapp).send(request);
+
+        MessageRecordPo inserted = captureInserted();
+        assertTrue(inserted.getRecipientsJson().contains("2001"));
+        assertTrue(inserted.getRecipientsJson().contains("2002"));
+        verify(deliveryMapper, times(3)).insert(any(MessageDeliveryPo.class));
     }
 
     /**

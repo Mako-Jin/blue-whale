@@ -86,6 +86,33 @@ class MessageArchiverTest {
     }
 
     @Test
+    @DisplayName("已存在水位时按增量续查并更新水位")
+    void shouldContinueFromExistingWatermark() {
+        properties.setEnabled(true);
+        when(recordMapper.selectExpiredTenantIds(any())).thenReturn(List.of(7L));
+        MessageArchiveWatermarkPo watermark = new MessageArchiveWatermarkPo();
+        watermark.setId(7L);
+        watermark.setLastCreateTime(LocalDateTime.now().minusDays(400));
+        watermark.setLastId(50L);
+        when(watermarkMapper.selectById(7L)).thenReturn(watermark);
+        MessageRecordPo record = new MessageRecordPo();
+        record.setId(100L);
+        record.setStatus("SENT");
+        record.setCreateTime(LocalDateTime.now().minusDays(365));
+        when(recordMapper.selectList(any(Wrapper.class)))
+                .thenReturn(List.of(record))
+                .thenReturn(List.of());
+        when(deliveryMapper.selectList(any(Wrapper.class))).thenReturn(List.of());
+        when(archiveClient.upload(any(), anyString(), anyString())).thenReturn(Map.of());
+
+        archiver.archive();
+
+        verify(watermarkMapper).updateById(any(MessageArchiveWatermarkPo.class));
+        verify(watermarkMapper, never()).insert(any(MessageArchiveWatermarkPo.class));
+        assertNull(TenantContext.get());
+    }
+
+    @Test
     @DisplayName("上传失败时不推进水位")
     void shouldNotAdvanceWatermarkWhenUploadFails() {
         properties.setEnabled(true);
