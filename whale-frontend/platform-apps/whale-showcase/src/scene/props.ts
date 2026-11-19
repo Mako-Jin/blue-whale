@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { HouseVariant, SceneAssets, TemplateParts, TreeVariant } from './loader';
-import { heightAt, riverCenter, slopeAt, WATER_LEVEL } from './terrain';
+import { GATE_ROAD_Y, heightAt, riverCenter, slopeAt, WATER_LEVEL } from './terrain';
 import { attachPlaqueSigns } from './plaque';
 import {
   applyBrickMap,
@@ -506,6 +506,8 @@ export function treeSpots(count = 54): TreeSpot[] {
     // 聚落占位区：x 覆盖街面到城墙，z 覆盖整条街（-38..38）并向两端各留 6m。
     // 早先只挡到 z<8，结果 z>8 的街心会长出树来（桥头机位实测有一棵树穿过牌坊屋顶）
     if (x > 11.5 && x < 36 && z > -46 && z < 44) continue;
+    // 城门道东段（S30）：出城爬坡接东郊田头的土路，长树就成了林子里的隧道
+    if (x > 33 && x < 41 && z > -1 && z < 5.2) continue;
     // 码头及其上岸台阶：x -14…-2.7、z -17…-11。不排除的话会有树长在平台上
     if (x > -14.5 && x < -2.5 && z > -18 && z < -10) continue;
     // 田垄与西岸小村：树长在垄上不像话，也会把田垄切得七零八落
@@ -998,7 +1000,8 @@ function buildStreetProps(b: Builder, spots: HouseSpot[]): void {
 
 /* ------------------------------------------------------------------ 城墙 */
 
-const WALL_X = 31.5;
+/** 城墙轴线（S30 起城门楼与壁灯点光共用，world.ts 从这里导入） */
+export const WALL_X = 31.5;
 /** GLB 标准段长度（沿 Z）。运行时按实际段长沿 Z 缩放，把区间精确填满 */
 const WALL_SEG = 8;
 
@@ -1116,6 +1119,223 @@ function buildWallBastions(b: Builder): void {
       }
     }
   }
+}
+
+/* ------------------------------------------------------------------ 城门楼 */
+
+/**
+ * 城门楼（S30）。
+ *
+ * <p>城墙只修两段（见 {@link WALL_RUNS}），中间 20m 让给桥头广场——此前这段
+ * 豁口只是两座敌台之间的空档：从桥头机位看过去，牌坊背后是一道缺口，
+ * "城池"最核心的一件构件（门）反而是缺席的。本函数把豁口补成一座完整的
+ * 谯楼式城门：砖砌城台跨满豁口（两端顶面接敌台马道 8.70 / 7.82），中央
+ * 券门贯通城内外，台顶女墙围一圈马道，再立一座单层城楼收出全城最高点。</p>
+ *
+ * <p>三条几何约定（与 terrain.ts 的城门道掩模逐项对齐）：</p>
+ * <ul>
+ *   <li>城台整体一个俯仰角（与墙 run 同一公式），顶面两端正好落在敌台
+ *       马道高程上——敌台于是从"断头的收口"变成"城门的耳台"；</li>
+ *   <li>门洞底 = {@link GATE_ROAD_Y}，路面在城台内取平，城内外由
+ *       terrain.ts 的城门道接管；</li>
+ *   <li>门洞、拱圈石、门槛石全部建在同一个俯仰坐标系里（u 沿墙长、
+ *       v 从台底起算），映射函数 {@link 城门的 py/pz 闭包}保持刚性旋转，
+ *       构件之间不会出现"各自找平"的浮点。</li>
+ * </ul>
+ *
+ * <p>材质走 `brick` 键：Builder.build 对它自动套砖纹 UV（同一把尺
+ * {@link BRICK_METERS}），运行时再把整组几何换成 GLB 城墙的 wallBrick
+ * 材质实例（S14 的结论：程序化材质与 GLB 参数抄得再像也是两种灰，直接
+ * 换引用最稳）。城台于是与两侧城墙、敌台是"同一次砌上去的"。</p>
+ */
+function buildGateTower(b: Builder): void {
+  const z0 = WALL_RUNS[0][1];
+  const z1 = WALL_RUNS[1][0];
+  const span = z1 - z0;
+  const zc = (z0 + z1) / 2;
+  const h0 = heightAt(WALL_X, z0);
+  const h1 = heightAt(WALL_X, z1);
+  // 与 wallSegments 同一条俯仰角公式：正角 = +z 端低。城台、拱圈、门槛
+  // 全体绕 X 轴转这一个角，两端顶面正好接上敌台马道（8.70 / 7.82）。
+  const pitch = -Math.atan((h1 - h0) / span);
+  const cosP = Math.cos(pitch);
+  const sinP = Math.sin(pitch);
+
+  // 城台顶：两端 = 敌台马道（敌台 DECK 5.1 立在各自地面 y 上）；台底取
+  // 顶面均值 −7.0：z=12 端地形 2.72，底边 0.82，埋深 1.9m——坡地上
+  // "底边必须处处低于地形"，否则地形网格会把台脚啃出碎片。
+  const deckC = (h0 + h1) / 2 + 5.1;
+  const BOT_C = deckC - 7.0;
+
+  /** 门洞底（世界系）。road 在城台跨内取平，路拱 6cm 由门槛石盖住 */
+  const roadY = GATE_ROAD_Y - (zc - 2) * 0.044;
+
+  /*
+   * 城门局部坐标 → 世界坐标。
+   *
+   * <p>u 沿墙长（从豁口中点起算）、v 从台底起算。城台绕 X 轴俯仰 pitch，
+   * 这对闭包就是那个刚性旋转——所有贴着台面/墙面生长的构件（拱圈石、
+   * 门槛、女墙、壁灯托架）都经它落位，不会出现"各自找平"。</p>
+   */
+  const py = (v: number, u = 0) => BOT_C + v * cosP - u * sinP;
+  const pz = (v: number, u: number) => zc + v * sinP + u * cosP;
+
+  /*
+   * 城台本体：Shape + 券洞 hole + Extrude，与石拱桥同一手法一次成形。
+   * 断面（沿墙长的立面）：20m 宽 × 7m 高，门洞 3.2 宽，直墙到 4.45、
+   * 半圆拱 r=1.6、拱顶 6.05——顶上留 0.95 的砖体压拱（再薄拱顶会
+   * "塌进马道"，再厚门洞就矮成隧道）。
+   */
+  const shape = new THREE.Shape();
+  shape.moveTo(-span / 2, 0);
+  shape.lineTo(span / 2, 0);
+  shape.lineTo(span / 2, 7.0);
+  shape.lineTo(-span / 2, 7.0);
+  shape.closePath();
+  const JAMB = 4.45;
+  const ARCH_R = 1.6;
+  const ARCH_BASE = roadY - BOT_C + 0.06; // 门洞底比路面高 6cm（门槛石占）
+  const hole = new THREE.Path();
+  hole.moveTo(-ARCH_R, ARCH_BASE);
+  hole.lineTo(-ARCH_R, JAMB);
+  // clockwise=true 走上半圆（桥拱同款：false 会挖到底边以下）
+  hole.absarc(0, JAMB, ARCH_R, Math.PI, 0, true);
+  hole.lineTo(ARCH_R, ARCH_BASE);
+  hole.closePath();
+  shape.holes.push(hole);
+
+  const platform = new THREE.ExtrudeGeometry(shape, {
+    depth: 5.2,
+    bevelEnabled: false,
+    curveSegments: 24,
+  });
+  // Shape 在局部 (x=沿墙, y=高) 平面、沿 +z 挤 5.2。先 Ry(π/2) 把挤出向
+  // 转到世界 X（墙厚方向），再 Rx(pitch) 俯仰，最后平移落位。矩阵顺序
+  // 必须 T·Rx·Ry：先转向、再俯仰、后落位，反了拱洞会斜切出墙。
+  const platformMat = new THREE.Matrix4()
+    .makeTranslation(WALL_X - 2.6, BOT_C, zc)
+    .multiply(new THREE.Matrix4().makeRotationX(pitch))
+    .multiply(new THREE.Matrix4().makeRotationY(Math.PI / 2));
+  b.add('brick', platform, platformMat);
+
+  /*
+   * 拱圈石：券门外的半环石券。砖墙直接开洞的口沿是锯齿状的三角面
+   * （Extrude 的曲面投影到砖纹上），一道石券把洞口"镶"住——也是真实
+   * 城门唯一必有的石作。9 块券石沿圆心 1.77 半径分布（洞 1.6 + 半石），
+   * 两面各一圈，面向外凸 0.12。
+   */
+  const ringCY = py(JAMB, 0);
+  const ringCZ = pz(JAMB, 0);
+  for (const sx of [-1, 1]) {
+    const cx = WALL_X + sx * 2.72;
+    for (let k = 0; k < 9; k += 1) {
+      const a = Math.PI - (Math.PI * k) / 8; // 从 +z 肩到 −z 肩
+      b.box(
+        'stone',
+        0.34,
+        0.36,
+        0.66,
+        cx,
+        ringCY + Math.sin(a) * 1.77,
+        ringCZ - Math.cos(a) * 1.77,
+        { x: a - Math.PI / 2 }, // 切向对齐（顶石横躺、肩石竖立）
+      );
+    }
+  }
+
+  // 门槛石：门洞底比路面高出的 6cm 是这道石槛，顺坡放置
+  b.box('stone', 5.44, 0.16, 3.3, WALL_X, py(ARCH_BASE - 0.08, 0), pz(ARCH_BASE - 0.08, 0), {
+    x: pitch,
+  });
+
+  /*
+   * 台顶女墙 + 压顶：只围两敌台之间的净空（z −5.2…9.2），与敌台自己的
+   * 垛口相接。敌台是方墩台四面垛口，城台顶若再上一圈垛口会打成一片
+   * 混乱的齿——城台用素面女墙+压顶石，两种节奏在立面上才分得开。
+   */
+  for (const sx of [-1, 1]) {
+    const px = WALL_X + sx * 2.42;
+    b.box('brick', 0.36, 0.74, 14.4, px, py(7.37, 0), pz(7.37, 0), { x: pitch });
+    b.box('stone', 0.5, 0.12, 14.6, px, py(7.8, 0), pz(7.8, 0), { x: pitch });
+  }
+
+  /*
+   * 城楼：台顶的单层谯楼，全城制高点。
+   *
+   * <p>楼体建成<b>水平</b>而非跟着城台俯仰：真实的城楼都落在台顶马道上
+   * 找平，台基石把高差吃掉。基座顶 8.62 高于马道最高点 8.50（z=−8 端），
+   * 最低端埋进马道 0.4——四个角都不会悬空。面阔 12m（12 根柱、明间
+   * 装门），进深 5m，顶上两坡瓦顶 + 正脊：全城只有牌坊和这座楼是
+   * "有屋脊的独立建筑"，天际线由此分出主次。</p>
+   */
+  const T_FLOOR = 8.62;
+  b.box('stone', 5.0, 0.72, 12.0, WALL_X, 8.26, zc); // 台基（骑在马道上找平）
+  const colY = T_FLOOR + 1.55;
+  for (const sx of [-1, 1]) {
+    const cx = WALL_X + sx * 1.95;
+    for (const dz of [-5, -3, -1, 1, 3, 5]) {
+      b.box('red', 0.42, 3.1, 0.42, cx, colY, zc + dz);
+    }
+    // 填板墙：柱间 5 榀，明间（z=±1 两榀之间）是门
+    for (const bz of [-4, -2, 2, 4]) {
+      b.box('plaster', 0.2, 2.6, 1.5, WALL_X + sx * 1.72, T_FLOOR + 1.3, zc + bz);
+    }
+    b.box('woodDark', 0.16, 2.7, 1.9, WALL_X + sx * 1.72, T_FLOOR + 1.35, zc);
+  }
+  const beamY = T_FLOOR + 3.31;
+  for (const sx of [-1, 1]) {
+    b.box('red', 0.55, 0.42, 11.7, WALL_X + sx * 1.95, beamY, zc); // 额枋
+  }
+  for (const dz of [-5.75, 5.75]) {
+    b.box('red', 4.4, 0.42, 0.5, WALL_X, beamY, zc + dz); // 端头联系枋
+  }
+  b.box('woodDark', 5.3, 0.5, 12.3, WALL_X, beamY + 0.46, zc); // 檐板封顶
+
+  // 两坡瓦顶 + 正脊。坡度 0.30 rad（约 17°）：再陡瓦顶自阴影会吃掉
+  // 整个楼身，再缓从桥头机位读不出"两坡"。出檐沿 z 各挑 0.45。
+  const roofY = beamY + 1.02;
+  b.box('tile', 3.0, 0.2, 12.9, WALL_X - 1.5, roofY, zc, { z: 0.3 });
+  b.box('tile', 3.0, 0.2, 12.9, WALL_X + 1.5, roofY, zc, { z: -0.3 });
+  b.box('woodDark', 0.4, 0.45, 13.3, WALL_X, roofY + 0.52, zc); // 正脊
+  for (const dz of [-6.65, 6.65]) {
+    b.box('tile', 0.5, 0.6, 0.5, WALL_X, roofY + 0.62, zc + dz); // 脊吻
+  }
+
+  /*
+   * 门洞壁灯：洞口两侧各一盏。走独立点光（见 world.ts 的 gateLights），
+   * 不进 lanternLights——城门离河 25m，水面倒影是假的。
+   */
+  for (const sx of [-1, 1]) {
+    for (const dz of [-2.2, 2.2]) {
+      const lampY = roadY + 2.6;
+      b.box('woodDark', 0.16, 0.08, 0.2, WALL_X + sx * 2.68, lampY + 0.11, zc + dz);
+      b.box('glow', 0.2, 0.34, 0.26, WALL_X + sx * 2.66, lampY - 0.12, zc + dz);
+    }
+  }
+
+  /*
+   * 出城道路铺带：城门道掩模给了纵坡与路幅，地表色还是草——一条土路带
+   * 把"路"从"草坡上的台地"里读出来。与 buildWestPath 同款薄带，但
+   * 西段爬坡 20%，横平的薄带下坡端会悬空 0.28m（S30 首轮实拍）——
+   * 每段按两端高差俯仰，厚度加到 0.22 吞掉接缝台阶。
+   * 西段铺到门洞口为止、东段从门洞口续：门洞内（28.6…34.4）的地面
+   * 是门槛石整块石板，薄带叠上去会顶穿石面。
+   */
+  const layRoadStrips = (from: number, to: number): void => {
+    for (let x = from; x < to - 0.01; x += 1.5) {
+      const len = Math.min(1.5, to - x) * 1.18;
+      // 坡度按本段两端高差；顶面取段内三点最高值 +2cm——东段爬坡 24% 叠上
+      // 地形噪声（±1.2m/19m 波长），只取中点一段顶面时，段内凸包会从
+      // 薄带顶上穿出来，或者整段浮在洼地上（S15 平构件铁律的变体）
+      const h0 = heightAt(x, 2);
+      const h1 = heightAt(x + 1.5, 2);
+      const slope = Math.atan2(h1 - h0, 1.5);
+      const top = Math.max(h0, h1, heightAt(x + 0.75, 2)) + 0.02;
+      b.box('path', len, 0.26, 3.4, x + len / 2 - 0.07, top - 0.13, 2, { z: slope });
+    }
+  };
+  layRoadStrips(20.9, 28.72);
+  layRoadStrips(34.24, 40);
 }
 
 /* ------------------------------------------------------------------ 西岸：田垄 */
@@ -1590,6 +1810,8 @@ function blockedByPaving(x: number, z: number): boolean {
   }
   // 西岸小路（含路肩）
   if (distToPath(x, z) < 2.6) return true;
+  // 城门道东段（S30）：出城爬坡的土路，x<34 已被镇区矩形覆盖
+  if (x > 33.5 && x < 40.5 && z > -1 && z < 5) return true;
   // 码头平台与上岸台阶
   if (x > -15.5 && x < -1.5 && z > -19 && z < -9) return true;
   // 西岸水埠
@@ -2537,6 +2759,8 @@ export function buildSettlement(assets?: SceneAssets): THREE.Group {
   if (!hasWall) buildWall(b, segs);
   // 敌台与"用 GLB 还是占位墙"无关：它是端头的体量，两条路径都要有
   buildWallBastions(b);
+  // 城门楼填合豁口，同敌台一样与换件路径无关
+  buildGateTower(b);
 
   const hasHouses = !!assets && (['small', 'big', 'shop'] as HouseVariant[]).some(
     (k) => (assets.houses[k] ?? []).length > 0,

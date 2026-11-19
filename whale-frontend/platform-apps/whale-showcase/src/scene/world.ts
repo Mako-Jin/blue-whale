@@ -3,9 +3,9 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { createSceneEnv } from './env';
 import type { SceneAssets } from './loader';
 import { createPostFx } from './postfx';
-import { alleySpots, buildSettlement, lanternSpots, windTime } from './props';
+import { WALL_X, alleySpots, buildSettlement, lanternSpots, windTime } from './props';
 import { createSky, type SkyState } from './sky';
-import { createTerrain, heightAt } from './terrain';
+import { createTerrain, heightAt, GATE_ROAD_Y } from './terrain';
 import { createFarRidges } from './ridges';
 import { tuneSurfaces } from './textures';
 import { createWater } from './water';
@@ -26,7 +26,7 @@ export interface SceneStats {
 
 export type TimeName = 'dusk' | 'day' | 'blue' | 'night';
 export type Quality = 'high' | 'mid' | 'low';
-export type PresetName = 'overview' | 'bridge' | 'street' | 'dock' | 'shop' | 'alley' | 'roofs' | 'bank';
+export type PresetName = 'overview' | 'bridge' | 'street' | 'dock' | 'shop' | 'alley' | 'roofs' | 'bank' | 'gate';
 
 interface TimePreset {
   /** 太阳高度角（度） */
@@ -293,6 +293,26 @@ const CAMERAS: Record<PresetName, CameraPreset> = {
    * 验收地被必须有一个真正贴地的机位，否则这一层改了也看不见。</p>
    */
   bank: { pos: [-19, 6.4, -31], target: [-5.5, 0.9, -12.5], fov: 46 },
+  /**
+   * 城门（S30）。
+   *
+   * <p>站在桥头广场东侧、门洞轴线南侧几步斜看。第一版站在广场西南
+   * （15.5,11.5）——z=12.4 的铺面把右半屏连屋带墙全挡了，只能看到
+   * 城门的一只角。退到广场里侧（22.5,8.5）距离门洞 9m，铺面退到
+   * 画面外，券门、拱圈石、城楼两坡顶与北端敌台的接缝全进画面。</p>
+   */
+  /**
+   * 城门（S30）。
+   *
+   * <p>从城外东郊看城门的外脸——唯一能同时验收"外侧门脸 + 出城道路
+   * 爬坡 + 城台与两侧城墙接缝"的角度。城内视角两个坑都实测过：
+   * ① 相机低于目标点会被 controls.maxPolarAngle 抬成平射（pos y=4 /
+   * target 6.2 → clamp 成 6.3），视线正好怼上铺面二楼挑檐；② z=12.4
+   * 铺面的挑檐西北角（x≈20.5、z≈8.9）戳在广场到城门的视线带上，
+   * 广场里任何机位右半屏都是它；再退又被牌坊（17.9,2）堵死前景。
+   * 城内的门脸交给桥头机位（08d），本机位走城外。</p>
+   */
+  gate: { pos: [50, 8.5, 12], target: [30, 7, 1.5], fov: 46 },
 };
 
 export function sunDirection(p: TimePreset): THREE.Vector3 {
@@ -520,6 +540,26 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
     alleyLights.push(light);
   }
 
+  /*
+   * 城门壁灯（S30）。
+   *
+   * <p>门洞两侧各一盏，高度从门洞底（GATE_ROAD_Y）起算——门洞这一段地形
+   * 被城门道掩模重塑过，直接查 heightAt 会拿到路肩的过渡值。与巷灯同理
+   * 独立成数组：lanternLights 同时喂给 water.setLamps 算倒影，城门离河
+   * 25m，倒影是假的。</p>
+   */
+  const gateLights: THREE.PointLight[] = [];
+  for (const sx of [-1, 1]) {
+    for (const dz of [-2.2, 2.2]) {
+      const light = new THREE.PointLight(0xff9d52, 0, 10, 2);
+      // 城内外两面各一对：外脸夜里没有灯就是一块纯黑剪影（S30 首轮夜景实测）
+      light.position.set(WALL_X + sx * 3.4, GATE_ROAD_Y + 2.5, 2 + dz);
+      light.castShadow = false;
+      scene.add(light);
+      gateLights.push(light);
+    }
+  }
+
   // 地面光斑：程序化径向渐变，避免再引一张贴图资产
   const glowCanvas = document.createElement('canvas');
   glowCanvas.width = glowCanvas.height = 128;
@@ -603,6 +643,7 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
     for (const l of lanternLights) l.intensity = 26 * (p.lamp - 0.1);
     // 巷灯比街灯弱一档：巷子只有 2.8m 宽，26 candela 会把两侧白墙打爆
     for (const l of alleyLights) l.intensity = 9 * (p.lamp - 0.1);
+    for (const l of gateLights) l.intensity = 9 * (p.lamp - 0.1);
     // 水面倒影的灯位与亮度：与点光源同源，灯亮水亮
     water.setLamps(
       lanternLights.map((l) => l.position),
@@ -701,6 +742,12 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
   }
   const ro = new ResizeObserver(resize);
   ro.observe(host);
+
+  // dev 调试句柄：截图探针（e2e/tools/probe-gate.mjs）从画面任意像素发射线
+  // 查"挡视线的是什么"。生产构建 tree-shake 不掉也只是一次赋值，无副作用。
+  if (import.meta.env.DEV) {
+    (window as unknown as Record<string, unknown>).__bwScene = { scene, camera };
+  }
 
   return {
     setTime(name) {

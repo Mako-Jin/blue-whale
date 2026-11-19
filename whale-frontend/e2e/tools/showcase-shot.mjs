@@ -37,6 +37,11 @@ const SHOTS = [
   { name: '05-overview-day', time: '白天', preset: '全景', wait: 1600 },
   { name: '06-overview-blue', time: '蓝调', preset: '全景', wait: 1600 },
   { name: '07-overview-night', time: '夜晚', preset: '全景', wait: 1600 },
+  // 城门（S30）：券门/拱圈/城楼的主验收位；夜景验门洞壁灯
+  { name: '08-gate-dusk', time: '黄昏', preset: '城门', wait: 1600 },
+  { name: '08b-gate-day', time: '白天', preset: '城门', wait: 1600 },
+  { name: '08c-gate-night', time: '夜晚', preset: '城门', wait: 1600 },
+  { name: '08d-bridge-gate', time: '黄昏', preset: '桥头', wait: 1600 },
 ];
 
 const browser = await chromium.launch({
