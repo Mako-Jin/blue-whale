@@ -126,6 +126,19 @@ class LogIngestControllerTest {
     }
 
     @Test
+    @DisplayName("X-Trace-Id 头优先：覆盖上报体中以浏览器可控值声明的 traceId")
+    void shouldPreferGatewayTraceIdOverBody() {
+        LogBatchRequest request = batchOf(1);
+        request.setTraceId("body-trace");
+        MockHttpServletRequest httpRequest = new MockHttpServletRequest();
+        httpRequest.addHeader(WebHeaders.TRACE_ID, "gateway-trace");
+
+        controller.frontendBatch(request, httpRequest);
+
+        assertThat(request.getTraceId()).isEqualTo("gateway-trace");
+    }
+
+    @Test
     @DisplayName("上报接口 permitAll：无鉴权上下文亦返回成功")
     void shouldAcceptReportWithoutAuthentication() {
         Result<Void> result = controller.behaviorBatch(batchOf(1), new MockHttpServletRequest());

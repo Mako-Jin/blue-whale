@@ -8,6 +8,7 @@ import com.bluewhale.audit.support.AuditArchiveClient;
 import com.bluewhale.audit.support.AuditCsvWriter;
 import com.bluewhale.common.audit.entity.AuditLogRecord;
 import com.bluewhale.common.audit.mapper.AuditLogMapper;
+import com.bluewhale.common.lock.annotation.DistributedLock;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -57,8 +58,12 @@ public class AuditLogArchiver {
      * <p>按 {@code audit_archive_watermark} 水位增量续查：上传成功后才推进水位，
      * 因此同一记录只导出一轮，失败时下轮重试同一区间。</p>
      *
+     * <p>多实例部署时通过 Redisson 分布式锁互斥：抢锁失败的实例直接跳过本轮，
+     * 避免同一水位区间被重复导出上传；锁租期与调度超时（1800s）对齐，不启用看门狗续期。</p>
+     *
      * @param retentionDays 保留天数；小于 0 时按 0 处理
      */
+    @DistributedLock(biz = "audit:archive", waitTime = 0, leaseTime = 1800)
     public void archive(int retentionDays) {
         LocalDateTime threshold = LocalDateTime.now().minusDays(Math.max(retentionDays, 0));
         AuditArchiveWatermark watermark = loadWatermark();

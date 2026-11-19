@@ -5,7 +5,9 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -62,6 +64,20 @@ class AuditCsvWriterTest {
         assertThat(text).contains("'@SUM(1+1)");
         assertThat(text).contains("'+HYPERLINK(\"\"http://evil\"\")");
         assertThat(text).doesNotContain("'-12");
+    }
+
+    @Test
+    void shouldGenerateUniqueFileNamesWithDistinctPrefixes() {
+        Set<String> archiveNames = new HashSet<>();
+        for (int index = 0; index < 50; index++) {
+            archiveNames.add(AuditCsvWriter.archiveFileName());
+        }
+
+        assertThat(archiveNames).hasSize(50);
+        assertThat(AuditCsvWriter.archiveFileName())
+                .startsWith("auditLog-archive-").endsWith(".csv");
+        assertThat(AuditCsvWriter.exportFileName())
+                .startsWith("auditLog-export-").endsWith(".csv");
     }
 
     @Test

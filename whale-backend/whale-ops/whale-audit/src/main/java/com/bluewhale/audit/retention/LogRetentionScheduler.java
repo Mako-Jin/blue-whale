@@ -20,6 +20,9 @@ import org.springframework.stereotype.Component;
  * <p>两个开关相互独立：任一开启即装配本调度器，各自按开关决定是否执行。
  * 因此默认配置下仅执行归档、不执行日志清理。</p>
  *
+ * <p><b>两者作用域不相交</b>（清理只删 4 张日志表、归档只读 {@code audit_log}），
+ * 执行顺序不影响正确性，切勿为「先清理后归档」之类的假设调整顺序。</p>
+ *
  * @author BlueWhale
  */
 @Slf4j

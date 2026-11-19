@@ -45,6 +45,9 @@ public class AuditLogServiceImpl implements AuditLogService {
     /** 单次摄入最大条数（防刷量） */
     public static final int MAX_INGEST_SIZE = 50;
 
+    /** 单条链路最多返回的审计记录数（批量操作/长事务的 traceId 可能关联上万条，防撑爆响应） */
+    private static final int MAX_TRACE_RECORDS = 1000;
+
     /** 上传结果中对象存储键字段名（与 whale-file FileUploadVO 对齐） */
     private static final String FIELD_OBJECT_KEY = "objectKey";
 
@@ -78,12 +81,14 @@ public class AuditLogServiceImpl implements AuditLogService {
         if (!StringUtils.hasText(traceId)) {
             return List.of();
         }
-        return auditLogMapper.selectList(new LambdaQueryWrapper<AuditLogRecord>()
-                        .eq(AuditLogRecord::getTraceId, traceId)
-                        .orderByAsc(AuditLogRecord::getCreateTime))
-                .stream()
-                .map(AuditLogServiceImpl::toVo)
-                .toList();
+        List<AuditLogRecord> records = auditLogMapper.selectList(new LambdaQueryWrapper<AuditLogRecord>()
+                .eq(AuditLogRecord::getTraceId, traceId)
+                .orderByAsc(AuditLogRecord::getCreateTime)
+                .last("LIMIT " + MAX_TRACE_RECORDS));
+        if (records.size() >= MAX_TRACE_RECORDS) {
+            log.warn("按链路查询命中上限，仅返回前 {} 条: traceId={}", MAX_TRACE_RECORDS, traceId);
+        }
+        return records.stream().map(AuditLogServiceImpl::toVo).toList();
     }
 
     @Override
@@ -96,7 +101,7 @@ public class AuditLogServiceImpl implements AuditLogService {
         try {
             byte[] csv = AuditCsvWriter.toCsvBytes(records);
             Map<String, Object> uploaded = archiveClient.upload(
-                    csv, AuditCsvWriter.archiveFileName(), exportProperties.getBucket());
+                    csv, AuditCsvWriter.exportFileName(), exportProperties.getBucket());
             log.info("审计日志导出完成: 行数={}, objectKey={}", records.size(), uploaded.get(FIELD_OBJECT_KEY));
             return Result.ok(uploaded);
         } catch (Exception e) {

@@ -48,11 +48,15 @@ spring:
   rabbitmq:
     host: ${RABBITMQ_HOST:127.0.0.1}
     port: ${RABBITMQ_PORT:5672}
+    # 默认 guest/guest 仅适用于本机开发；生产必须通过环境变量覆盖为独立账号
     username: ${RABBITMQ_USERNAME:guest}
     password: ${RABBITMQ_PASSWORD:guest}
     listener:
       simple:
         acknowledge-mode: auto
+        # 高并发审计下多消费者并行；默认值对小流量环境无感知
+        concurrency: ${RABBITMQ_CONSUMER_CONCURRENCY:2}
+        max-concurrency: ${RABBITMQ_CONSUMER_MAX_CONCURRENCY:10}
         # 重试耗尽后不重新入队，经死信交换机转入 DLQ，避免毒消息无限回环
         default-requeue-rejected: false
         retry:
@@ -106,6 +110,9 @@ whale:
       queue: ${WHALE_AUDIT_MQ_QUEUE:bluewhale.audit.queue}
       dead-letter-exchange: ${WHALE_AUDIT_MQ_DLX:bluewhale.audit.dlx}
       dead-letter-queue: ${WHALE_AUDIT_MQ_DLQ:bluewhale.audit.dlq}
+      # 去重表保留期：须不短于 RabbitMQ 消息最大存活时间，避免去重键先于重投窗口失效
+      dedup-retention-days: ${WHALE_AUDIT_MQ_DEDUP_RETENTION_DAYS:7}
+      dedup-clean-cron: ${WHALE_AUDIT_MQ_DEDUP_CLEAN_CRON:0 30 3 * * ?}
 
 management:
   endpoints:

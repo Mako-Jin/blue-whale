@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * 审计日志 CSV 生成器（AUTH-08 导出/归档共用）。
@@ -42,7 +43,13 @@ public final class AuditCsvWriter {
     private static final DateTimeFormatter FILE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
     /** 归档文件名前缀 */
-    private static final String FILE_NAME_PREFIX = "auditLog-archive-";
+    private static final String ARCHIVE_FILE_NAME_PREFIX = "auditLog-archive-";
+
+    /** 导出文件名前缀（与归档区分，便于运维定位对象来源） */
+    private static final String EXPORT_FILE_NAME_PREFIX = "auditLog-export-";
+
+    /** 文件名随机后缀长度（秒级时间戳 + 随机串，避免同秒并发上传覆盖） */
+    private static final int FILE_NAME_SUFFIX_LENGTH = 8;
 
     /** CSV 表头（顺序与 {@link #toLine(AuditLogRecord)} 单元格顺序严格一致） */
     private static final String[] HEADERS = {
@@ -83,12 +90,34 @@ public final class AuditCsvWriter {
     }
 
     /**
-     * 生成归档文件名：{@code auditLog-archive-{yyyyMMddHHmmss}.csv}
+     * 生成归档文件名：{@code auditLog-archive-{yyyyMMddHHmmss}-{8位随机串}.csv}
+     *
+     * <p>时间戳精确到秒，多实例/同秒重复触发时仅靠时间戳会重名覆盖，故追加随机后缀。</p>
      *
      * @return 归档 CSV 文件名
      */
     public static String archiveFileName() {
-        return FILE_NAME_PREFIX + FILE_TIME_FORMAT.format(LocalDateTime.now()) + ".csv";
+        return ARCHIVE_FILE_NAME_PREFIX + timestampWithSuffix() + ".csv";
+    }
+
+    /**
+     * 生成手动导出文件名：{@code auditLog-export-{yyyyMMddHHmmss}-{8位随机串}.csv}
+     *
+     * @return 导出 CSV 文件名
+     */
+    public static String exportFileName() {
+        return EXPORT_FILE_NAME_PREFIX + timestampWithSuffix() + ".csv";
+    }
+
+    /**
+     * 生成「秒级时间戳 + 随机后缀」，保证并发上传文件名唯一
+     *
+     * @return 文件名时间片段
+     */
+    private static String timestampWithSuffix() {
+        String random = UUID.randomUUID().toString().replace("-", "");
+        return FILE_TIME_FORMAT.format(LocalDateTime.now()) + "-"
+                + random.substring(0, FILE_NAME_SUFFIX_LENGTH);
     }
 
     /**

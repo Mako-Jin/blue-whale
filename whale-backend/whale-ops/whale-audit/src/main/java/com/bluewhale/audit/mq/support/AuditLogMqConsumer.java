@@ -43,9 +43,12 @@ public class AuditLogMqConsumer {
     /**
      * 消费审计队列消息。
      *
+     * <p>队列名直接引用拓扑声明 Bean（{@code auditLogQueue}），与 {@code AuditMqProperties.queue}
+     * 保持单一事实源，避免注解默认值与配置 Bean 默认值漂移导致「监听一个队列、声明另一个队列」。</p>
+     *
      * @param message 原始 AMQP 消息（队列名由 {@code whale.audit.mq.queue} 配置）
      */
-    @RabbitListener(queues = "${whale.audit.mq.queue:bluewhale.audit.queue}")
+    @RabbitListener(queues = "#{@auditLogQueue.name}")
     public void onMessage(Message message) {
         String messageId = message.getMessageProperties().getMessageId();
         if (message.getBody().length > MAX_BODY_BYTES) {
