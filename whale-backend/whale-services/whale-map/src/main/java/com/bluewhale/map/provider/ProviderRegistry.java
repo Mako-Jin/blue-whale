@@ -79,8 +79,8 @@ public class ProviderRegistry {
     public MapProvider preferred(MapCapability capability) {
         List<MapProvider> chain = chain(capability);
         if (chain.isEmpty()) {
-            throw new BizException(MapErrorCode.PROVIDER_UNAVAILABLE,
-                    "没有可用的地图供应商（能力 " + capability + "），请检查 Key 与路由配置");
+            throw new BizException(MapErrorCode.PROVIDER_UNAVAILABLE, "map.provider.registry.unavailable",
+                    "没有可用的地图供应商（能力 " + capability + "），请检查 Key 与路由配置", capability);
         }
         return chain.get(0);
     }

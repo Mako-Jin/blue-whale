@@ -3,6 +3,7 @@ package com.bluewhale.twin.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.twin.dto.SceneSaveRequest;
 import com.bluewhale.twin.dto.SceneVO;
@@ -65,7 +66,8 @@ public class TwinSceneService {
         Long existed = sceneMapper.selectCount(
                 new LambdaQueryWrapper<TwinScene>().eq(TwinScene::getCode, request.getCode()));
         if (existed != null && existed > 0) {
-            throw new BizException("场景编码已存在：" + request.getCode());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.scene.code-exists",
+                    "场景编码已存在：" + request.getCode(), request.getCode());
         }
         TwinScene scene = new TwinScene();
         scene.setCode(request.getCode());
@@ -90,7 +92,8 @@ public class TwinSceneService {
     public SceneVO update(Long id, SceneSaveRequest request) {
         TwinScene scene = requireExists(id);
         if (STATUS_PUBLISHED.equals(scene.getStatus())) {
-            throw new BizException("场景已发布，禁止修改（请先停用）");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.scene.published-immutable",
+                    "场景已发布，禁止修改（请先停用）");
         }
         scene.setName(request.getName());
         scene.setDescription(request.getDescription());
@@ -113,7 +116,8 @@ public class TwinSceneService {
     public SceneVO publish(Long id, String remark, Long userId) {
         TwinScene scene = requireExists(id);
         if (STATUS_PUBLISHED.equals(scene.getStatus())) {
-            throw new BizException("场景已是发布状态");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.scene.already-published",
+                    "场景已是发布状态");
         }
         scene.setStatus(STATUS_PUBLISHED);
         sceneMapper.updateById(scene);
@@ -143,7 +147,8 @@ public class TwinSceneService {
         requireExists(id);
         long entityCount = countEntities(id);
         if (entityCount > 0) {
-            throw new BizException("场景下仍有 " + entityCount + " 个实体，请先删除实体");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.scene.entities-remaining",
+                    "场景下仍有 " + entityCount + " 个实体，请先删除实体", entityCount);
         }
         sceneMapper.deleteById(id);
     }
@@ -213,11 +218,13 @@ public class TwinSceneService {
         if (StringUtils.hasText(sceneCode)) {
             TwinScene scene = findByCode(sceneCode.trim());
             if (scene == null) {
-                throw new BizException("场景不存在：" + sceneCode);
+                throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.scene.not-found-by-code",
+                        "场景不存在：" + sceneCode, sceneCode);
             }
             return scene.getId();
         }
-        throw new BizException("需提供 sceneId 或 sceneCode");
+        throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.scene.identifier-required",
+                "需提供 sceneId 或 sceneCode");
     }
 
     /**
@@ -229,7 +236,7 @@ public class TwinSceneService {
     public TwinScene requireExists(Long id) {
         TwinScene scene = sceneMapper.selectById(id);
         if (scene == null) {
-            throw new BizException("场景不存在");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.scene.not-found", "场景不存在");
         }
         return scene;
     }

@@ -39,7 +39,7 @@ public class ProfileServiceImpl implements ProfileService {
     public ProfileVO profile(Long userId) {
         Long tenantId = TenantContext.requireId();
         if (userId == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "用户ID不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "forum.profile.user-id-required", "用户ID不能为空");
         }
         AuthorStatVO stat = threadMapper.selectAuthorStats(tenantId, userId);
         long expTotal = expService.totalOf(userId);

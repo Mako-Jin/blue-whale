@@ -84,8 +84,8 @@ public class MapLocationServiceImpl implements MapLocationService {
      */
     @Override
     public MapLocationVO save(String bizType, String bizId, LocationSaveRequest request) {
-        String type = requireBizKey(bizType, "业务类型", MAX_BIZ_TYPE_LENGTH);
-        String id = requireBizKey(bizId, "业务对象ID", MAX_BIZ_ID_LENGTH);
+        String type = requireBizKey(bizType, "map.location.biz-type", "业务类型", MAX_BIZ_TYPE_LENGTH);
+        String id = requireBizKey(bizId, "map.location.biz-id", "业务对象ID", MAX_BIZ_ID_LENGTH);
         LocationSource source = resolveSource(request);
         MapLocation row = findRow(type, id);
         if (row == null) {
@@ -108,8 +108,8 @@ public class MapLocationServiceImpl implements MapLocationService {
      */
     @Override
     public MapLocationVO get(String bizType, String bizId) {
-        String type = requireBizKey(bizType, "业务类型", MAX_BIZ_TYPE_LENGTH);
-        String id = requireBizKey(bizId, "业务对象ID", MAX_BIZ_ID_LENGTH);
+        String type = requireBizKey(bizType, "map.location.biz-type", "业务类型", MAX_BIZ_TYPE_LENGTH);
+        String id = requireBizKey(bizId, "map.location.biz-id", "业务对象ID", MAX_BIZ_ID_LENGTH);
         MapLocation row = findRow(type, id);
         return row == null ? null : toVo(row);
     }
@@ -119,8 +119,8 @@ public class MapLocationServiceImpl implements MapLocationService {
      */
     @Override
     public void remove(String bizType, String bizId) {
-        String type = requireBizKey(bizType, "业务类型", MAX_BIZ_TYPE_LENGTH);
-        String id = requireBizKey(bizId, "业务对象ID", MAX_BIZ_ID_LENGTH);
+        String type = requireBizKey(bizType, "map.location.biz-type", "业务类型", MAX_BIZ_TYPE_LENGTH);
+        String id = requireBizKey(bizId, "map.location.biz-id", "业务对象ID", MAX_BIZ_ID_LENGTH);
         MapLocation row = findRow(type, id);
         if (row == null) {
             return;
@@ -138,8 +138,8 @@ public class MapLocationServiceImpl implements MapLocationService {
         int radius = radiusMeters == null ? DEFAULT_RADIUS : radiusMeters;
         int maxRadius = properties.getLocation().getNearbyMaxRadiusMeters();
         if (radius <= 0 || radius > maxRadius) {
-            throw new BizException(MapErrorCode.NEARBY_RADIUS_TOO_LARGE,
-                    "半径需在 1–" + maxRadius + " 米之间");
+            throw new BizException(MapErrorCode.NEARBY_RADIUS_TOO_LARGE, "map.location.nearby-radius-invalid",
+                    "半径需在 1–" + maxRadius + " 米之间", maxRadius);
         }
         List<MapLocation> rows = selectCandidates(bizType, center, radius);
         List<MapLocationVO> hits = new ArrayList<>();
@@ -188,7 +188,8 @@ public class MapLocationServiceImpl implements MapLocationService {
             return new LocationSource(point, "MANUAL", "MANUAL", null, null, null, null, null);
         }
         if (!StringUtils.hasText(request.getAddress())) {
-            throw new BizException(MapErrorCode.LOCATION_SOURCE_MISSING, "请提供坐标或地址");
+            throw new BizException(MapErrorCode.LOCATION_SOURCE_MISSING, "map.location.source-missing",
+                    "请提供坐标或地址");
         }
         GeocodeRequest geoRequest = new GeocodeRequest();
         geoRequest.setAddress(request.getAddress());
@@ -266,18 +267,20 @@ public class MapLocationServiceImpl implements MapLocationService {
     /**
      * 校验业务标识
      *
-     * @param value 原始值
-     * @param label 字段名（用于报错）
-     * @param max   长度上限
+     * @param value     原始值
+     * @param keyPrefix 文案键前缀（按字段区分，避免把中文名词塞进英文句子）
+     * @param label     字段名（用于中文兜底）
+     * @param max       长度上限
      * @return 规整后的值
      */
-    private String requireBizKey(String value, String label, int max) {
+    private String requireBizKey(String value, String keyPrefix, String label, int max) {
         if (!StringUtils.hasText(value)) {
-            throw new BizException(MapErrorCode.BIZ_KEY_INVALID, label + "不能为空");
+            throw new BizException(MapErrorCode.BIZ_KEY_INVALID, keyPrefix + "-empty", label + "不能为空");
         }
         String trimmed = value.trim();
         if (trimmed.length() > max) {
-            throw new BizException(MapErrorCode.BIZ_KEY_INVALID, label + "不能超过 " + max + " 个字符");
+            throw new BizException(MapErrorCode.BIZ_KEY_INVALID, keyPrefix + "-too-long",
+                    label + "不能超过 " + max + " 个字符", max);
         }
         return trimmed;
     }

@@ -2,6 +2,7 @@ package com.bluewhale.twin.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.twin.config.TwinProperties;
 import com.bluewhale.twin.dto.BindingSaveRequest;
 import com.bluewhale.twin.dto.BindingVO;
@@ -96,7 +97,8 @@ public class TwinBindingService {
         TwinBinding binding = requireInScene(sceneId, id);
         TwinEntity entity = requireEntityInScene(sceneId, request.getEntityId());
         if (!binding.getSourceType().equals(request.getSourceType())) {
-            throw new BizException("数据源类型不可修改，请删除后重建绑定");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.binding.source-type-immutable",
+                    "数据源类型不可修改，请删除后重建绑定");
         }
         assertBindKeyShape(request.getSourceType(), request.getBindKey());
         assertPropertyMap(request.getPropertyMap());
@@ -232,11 +234,11 @@ public class TwinBindingService {
      */
     private TwinEntity requireEntityInScene(Long sceneId, Long entityId) {
         if (entityId == null) {
-            throw new BizException("实体ID不能为空");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.binding.entity-id-required", "实体ID不能为空");
         }
         TwinEntity entity = entityMapper.selectById(entityId);
         if (entity == null || !sceneId.equals(entity.getSceneId())) {
-            throw new BizException("实体不存在或不属于该场景");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.binding.entity-not-found", "实体不存在或不属于该场景");
         }
         return entity;
     }
@@ -251,11 +253,12 @@ public class TwinBindingService {
     private TwinBinding requireInScene(Long sceneId, Long id) {
         TwinBinding binding = bindingMapper.selectById(id);
         if (binding == null) {
-            throw new BizException("绑定不存在");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.binding.not-found", "绑定不存在");
         }
         TwinEntity entity = entityMapper.selectById(binding.getEntityId());
         if (entity == null || !sceneId.equals(entity.getSceneId())) {
-            throw new BizException("绑定不存在或不属于该场景");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.binding.not-found-in-scene",
+                    "绑定不存在或不属于该场景");
         }
         return binding;
     }
@@ -270,14 +273,17 @@ public class TwinBindingService {
      */
     private void assertBindKeyShape(String sourceType, String bindKey) {
         if (SOURCE_IOT_DEVICE.equals(sourceType) && !bindKey.matches("^\\d{1,19}$")) {
-            throw new BizException("iot_device 绑定键须为设备ID（纯数字）");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.binding.iot-bind-key-invalid",
+                    "iot_device 绑定键须为设备ID（纯数字）");
         }
         if (SOURCE_INTERNAL_API.equals(sourceType)) {
             if (internalApiStateClient.normalizePath(bindKey) == null) {
-                throw new BizException("internal_api 绑定键须为以 / 开头的接口路径（不含 .. 与绝对 URL）");
+                throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.binding.api-bind-key-invalid",
+                        "internal_api 绑定键须为以 / 开头的接口路径（不含 .. 与绝对 URL）");
             }
             if (!internalApiStateClient.isAllowed(bindKey)) {
-                throw new BizException("internal_api 绑定键不在白名单内，仅允许各服务 /internal/ 只读端点");
+                throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.binding.api-bind-key-not-allowed",
+                        "internal_api 绑定键不在白名单内，仅允许各服务 /internal/ 只读端点");
             }
         }
     }
@@ -294,12 +300,14 @@ public class TwinBindingService {
         try {
             JsonNode node = JSON.readTree(propertyMap);
             if (!node.isObject()) {
-                throw new BizException("属性映射必须是 JSON 对象");
+                throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.binding.property-map-not-object",
+                        "属性映射必须是 JSON 对象");
             }
         } catch (BizException e) {
             throw e;
         } catch (Exception e) {
-            throw new BizException("属性映射不是合法 JSON");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.binding.property-map-invalid",
+                    "属性映射不是合法 JSON");
         }
     }
 

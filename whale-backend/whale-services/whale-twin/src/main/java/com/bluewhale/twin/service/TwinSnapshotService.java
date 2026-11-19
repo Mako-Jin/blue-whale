@@ -2,6 +2,7 @@ package com.bluewhale.twin.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.twin.dto.SnapshotVO;
 import com.bluewhale.twin.entity.TwinBinding;
 import com.bluewhale.twin.entity.TwinEntity;
@@ -136,7 +137,8 @@ public class TwinSnapshotService {
     public SnapshotVO rollback(Long sceneId, Long snapshotId) {
         TwinScene scene = sceneService.requireExists(sceneId);
         if (TwinSceneService.STATUS_PUBLISHED.equals(scene.getStatus())) {
-            throw new BizException("场景已发布，请先停用后再回滚");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.snapshot.scene-published",
+                    "场景已发布，请先停用后再回滚");
         }
         TwinSnapshot snapshot = requireInScene(sceneId, snapshotId);
         JsonNode root = parseJson(snapshot.getSnapshotJson());
@@ -383,7 +385,8 @@ public class TwinSnapshotService {
     private TwinSnapshot requireInScene(Long sceneId, Long id) {
         TwinSnapshot snapshot = snapshotMapper.selectById(id);
         if (snapshot == null || !sceneId.equals(snapshot.getSceneId())) {
-            throw new BizException("快照不存在或不属于当前场景");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.snapshot.not-found-in-scene",
+                    "快照不存在或不属于当前场景");
         }
         return snapshot;
     }
@@ -398,7 +401,8 @@ public class TwinSnapshotService {
         try {
             return JSON.writeValueAsString(payload);
         } catch (Exception e) {
-            throw new BizException("快照序列化失败：" + e.getMessage());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.snapshot.serialize-failed",
+                    "快照序列化失败：" + e.getMessage(), e.getMessage());
         }
     }
 
@@ -412,7 +416,8 @@ public class TwinSnapshotService {
         try {
             return JSON.readTree(json);
         } catch (Exception e) {
-            throw new BizException("快照内容损坏，无法解析");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.snapshot.content-corrupted",
+                    "快照内容损坏，无法解析");
         }
     }
 

@@ -116,7 +116,7 @@ public class ReactionServiceImpl implements ReactionService {
         try {
             return ReactionType.valueOf(normalized);
         } catch (IllegalArgumentException e) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "互动类型仅支持 LIKE（投花）或 COLLECT（藏帖）");
+            throw new BizException(ErrorCode.PARAM_ERROR, "forum.reaction.type-invalid", "互动类型仅支持 LIKE（投花）或 COLLECT（藏帖）");
         }
     }
 
@@ -134,7 +134,7 @@ public class ReactionServiceImpl implements ReactionService {
                 .eq("user_id", userId)
                 .ge("create_time", LocalDateTime.now().minusSeconds(properties.getReactionWindowSeconds())));
         if (recent != null && recent >= max) {
-            throw new BizException(ForumErrorCodes.RATE_LIMITED,
+            throw new BizException(ForumErrorCodes.RATE_LIMITED, "forum.reaction.too-frequent",
                     "操作过于频繁，请稍后再试");
         }
     }

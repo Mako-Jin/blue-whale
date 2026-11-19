@@ -361,7 +361,7 @@ public class ThreadServiceImpl implements ThreadService {
         String newContent = request.getContent() == null ? null : validateContent(request.getContent());
         List<String> newTags = request.getTags() == null ? null : normalizeTags(request.getTags());
         if (newTitle == null && newContent == null && newTags == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "标题、正文与标签不能同时为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "forum.thread.update-empty", "标题、正文与标签不能同时为空");
         }
 
         ForumThreadEditHistory history = new ForumThreadEditHistory();
@@ -400,11 +400,13 @@ public class ThreadServiceImpl implements ThreadService {
             return;
         }
         if (!actor.userId().equals(thread.getAuthorId())) {
-            throw new BizException(ForumErrorCodes.NOT_THREAD_OWNER, "只能编辑自己发布的帖子");
+            throw new BizException(ForumErrorCodes.NOT_THREAD_OWNER, "forum.thread.edit-not-owner",
+                    "只能编辑自己发布的帖子");
         }
         assertEditWindow(thread);
         if (STATUS_PENDING.equals(thread.getStatus())) {
-            throw new BizException(ForumErrorCodes.THREAD_STATE_ILLEGAL, "帖子审核中，暂不可编辑");
+            throw new BizException(ForumErrorCodes.THREAD_STATE_ILLEGAL, "forum.thread.edit-pending-forbidden",
+                    "帖子审核中，暂不可编辑");
         }
     }
 
@@ -451,7 +453,8 @@ public class ThreadServiceImpl implements ThreadService {
         boolean manager = actor.hasPermission(ForumPermissions.MANAGE_DISPOSE)
                 || actor.hasPermission(ForumPermissions.MANAGE_BOARD);
         if (!manager && !actor.userId().equals(thread.getAuthorId())) {
-            throw new BizException(ForumErrorCodes.NOT_THREAD_OWNER, "只能删除自己发布的帖子");
+            throw new BizException(ForumErrorCodes.NOT_THREAD_OWNER, "forum.thread.delete-not-owner",
+                    "只能删除自己发布的帖子");
         }
         // 先改写编号释放唯一键，再逻辑删除（顺序反了会留下永远无法重建的编号）
         threadMapper.renameNoForDelete(thread.getId(), thread.getThreadNo() + "#D" + thread.getId());
@@ -475,14 +478,16 @@ public class ThreadServiceImpl implements ThreadService {
     private ForumThread requireReadable(Long id, ForumActor actor) {
         ForumThread thread = id == null ? null : threadMapper.selectById(id);
         if (thread == null) {
-            throw new BizException(ForumErrorCodes.THREAD_NOT_FOUND, "帖子不存在或已删除");
+            throw new BizException(ForumErrorCodes.THREAD_NOT_FOUND, "forum.thread.not-found-or-deleted",
+                    "帖子不存在或已删除");
         }
         boolean manager = actor.hasPermission(ForumPermissions.MANAGE_AUDIT)
                 || actor.hasPermission(ForumPermissions.MANAGE_DISPOSE);
         if (!VISIBLE_STATUSES.contains(thread.getStatus()) && !manager
                 && !actor.userId().equals(thread.getAuthorId())) {
             // 未发布内容对他人一律按「不存在」返回，不泄露存在性
-            throw new BizException(ForumErrorCodes.THREAD_NOT_FOUND, "帖子不存在或已删除");
+            throw new BizException(ForumErrorCodes.THREAD_NOT_FOUND, "forum.thread.not-found-or-deleted",
+                    "帖子不存在或已删除");
         }
         return thread;
     }
@@ -506,14 +511,16 @@ public class ThreadServiceImpl implements ThreadService {
                 continue;
             }
             if (tag.length() > properties.getMaxTagLength()) {
-                throw new BizException(ErrorCode.PARAM_ERROR,
-                        "单个标签不超过 " + properties.getMaxTagLength() + " 字符");
+                throw new BizException(ErrorCode.PARAM_ERROR, "forum.thread.tag-too-long",
+                        "单个标签不超过 " + properties.getMaxTagLength() + " 字符",
+                        properties.getMaxTagLength());
             }
             tags.add(tag);
         }
         if (tags.size() > properties.getMaxTagsPerThread()) {
-            throw new BizException(ErrorCode.PARAM_ERROR,
-                    "最多选择 " + properties.getMaxTagsPerThread() + " 个标签");
+            throw new BizException(ErrorCode.PARAM_ERROR, "forum.thread.tag-count-exceeded",
+                    "最多选择 " + properties.getMaxTagsPerThread() + " 个标签",
+                    properties.getMaxTagsPerThread());
         }
         return List.copyOf(tags);
     }
@@ -586,11 +593,12 @@ public class ThreadServiceImpl implements ThreadService {
     private String validateTitle(String raw) {
         String title = raw == null ? "" : raw.strip();
         if (title.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "标题不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "forum.thread.title-required", "标题不能为空");
         }
         if (title.length() > properties.getMaxTitleLength()) {
-            throw new BizException(ForumErrorCodes.TITLE_TOO_LONG,
-                    "标题不超过 " + properties.getMaxTitleLength() + " 字符");
+            throw new BizException(ForumErrorCodes.TITLE_TOO_LONG, "forum.thread.title-too-long",
+                    "标题不超过 " + properties.getMaxTitleLength() + " 字符",
+                    properties.getMaxTitleLength());
         }
         return title;
     }
@@ -604,11 +612,12 @@ public class ThreadServiceImpl implements ThreadService {
     private String validateContent(String raw) {
         String content = RichTextSanitizer.sanitize(raw);
         if (content == null || content.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "正文不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "forum.thread.content-required", "正文不能为空");
         }
         if (content.length() > properties.getMaxContentLength()) {
-            throw new BizException(ForumErrorCodes.CONTENT_TOO_LONG,
-                    "正文不超过 " + properties.getMaxContentLength() + " 字符");
+            throw new BizException(ForumErrorCodes.CONTENT_TOO_LONG, "forum.thread.content-too-long",
+                    "正文不超过 " + properties.getMaxContentLength() + " 字符",
+                    properties.getMaxContentLength());
         }
         return content;
     }
@@ -624,17 +633,19 @@ public class ThreadServiceImpl implements ThreadService {
                 .eq(ForumThread::getAuthorId, userId)
                 .ge(ForumThread::getCreateTime, now.minusSeconds(properties.getPostIntervalSeconds())));
         if (recent != null && recent > 0) {
-            throw new BizException(ForumErrorCodes.RATE_LIMITED,
-                    "发帖过于频繁，请 " + properties.getPostIntervalSeconds() + " 秒后再试");
+            throw new BizException(ForumErrorCodes.RATE_LIMITED, "forum.thread.post-too-frequent",
+                    "发帖过于频繁，请 " + properties.getPostIntervalSeconds() + " 秒后再试",
+                    properties.getPostIntervalSeconds());
         }
         if (properties.getPostWindowMax() > 0) {
             Long inWindow = threadMapper.selectCount(Wrappers.<ForumThread>lambdaQuery()
                     .eq(ForumThread::getAuthorId, userId)
                     .ge(ForumThread::getCreateTime, now.minusSeconds(properties.getPostWindowSeconds())));
             if (inWindow != null && inWindow >= properties.getPostWindowMax()) {
-                throw new BizException(ForumErrorCodes.RATE_LIMITED,
+                throw new BizException(ForumErrorCodes.RATE_LIMITED, "forum.thread.post-window-exceeded",
                         "发帖过于频繁，" + (properties.getPostWindowSeconds() / 60) + " 分钟内最多 "
-                                + properties.getPostWindowMax() + " 帖");
+                                + properties.getPostWindowMax() + " 帖",
+                        properties.getPostWindowSeconds() / 60, properties.getPostWindowMax());
             }
         }
     }
@@ -673,8 +684,9 @@ public class ThreadServiceImpl implements ThreadService {
     private void assertEditWindow(ForumThread thread) {
         LocalDateTime base = thread.getCreateTime();
         if (base != null && base.plusMinutes(properties.getEditWindowMinutes()).isBefore(LocalDateTime.now())) {
-            throw new BizException(ForumErrorCodes.EDIT_WINDOW_EXPIRED,
-                    "已超过 " + properties.getEditWindowMinutes() + " 分钟编辑时限，请联系版主");
+            throw new BizException(ForumErrorCodes.EDIT_WINDOW_EXPIRED, "forum.thread.edit-window-expired",
+                    "已超过 " + properties.getEditWindowMinutes() + " 分钟编辑时限，请联系版主",
+                    properties.getEditWindowMinutes());
         }
     }
 
@@ -800,7 +812,8 @@ public class ThreadServiceImpl implements ThreadService {
         }
         if (SensitiveWordService.ScanResult.BLOCK.equals(titleScan.action())
                 || SensitiveWordService.ScanResult.BLOCK.equals(contentScan.action())) {
-            throw new BizException(ForumErrorCodes.SENSITIVE_BLOCKED, "内容包含不允许发布的词，请修改后重试");
+            throw new BizException(ForumErrorCodes.SENSITIVE_BLOCKED, "forum.thread.sensitive-blocked",
+                    "内容包含不允许发布的词，请修改后重试");
         }
         boolean pending = SensitiveWordService.ScanResult.PENDING.equals(titleScan.action())
                 || SensitiveWordService.ScanResult.PENDING.equals(contentScan.action());

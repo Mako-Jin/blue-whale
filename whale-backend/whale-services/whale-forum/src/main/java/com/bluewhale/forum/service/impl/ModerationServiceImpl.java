@@ -66,7 +66,8 @@ public class ModerationServiceImpl implements ModerationService {
         requireReason(reason);
         ForumThread thread = threadMapper.selectById(threadId);
         if (thread == null) {
-            throw new BizException(ForumErrorCodes.THREAD_NOT_FOUND, "帖子不存在或已删除");
+            throw new BizException(ForumErrorCodes.THREAD_NOT_FOUND, "forum.thread.not-found-or-deleted",
+                    "帖子不存在或已删除");
         }
         threadMapper.renameNoForDelete(thread.getId(), thread.getThreadNo() + "#D" + thread.getId());
         thread.setStatus(STATUS_DELETED);
@@ -82,7 +83,8 @@ public class ModerationServiceImpl implements ModerationService {
         requireReason(reason);
         ForumPost post = postMapper.selectById(postId);
         if (post == null) {
-            throw new BizException(ForumErrorCodes.THREAD_NOT_FOUND, "楼层不存在或已删除");
+            throw new BizException(ForumErrorCodes.THREAD_NOT_FOUND, "forum.post.not-found-or-deleted",
+                    "楼层不存在或已删除");
         }
         if (STATUS_PUBLISHED.equals(post.getStatus())) {
             // 只有可见楼层才占着回复数，删待审楼层不递减，否则计数会偏小
@@ -155,7 +157,8 @@ public class ModerationServiceImpl implements ModerationService {
         ForumThread thread = threadMapper.selectById(threadId);
         if (thread == null || STATUS_DELETED.equals(thread.getStatus())
                 || STATUS_REMOVED.equals(thread.getStatus())) {
-            throw new BizException(ForumErrorCodes.THREAD_NOT_FOUND, "帖子不存在或已删除");
+            throw new BizException(ForumErrorCodes.THREAD_NOT_FOUND, "forum.thread.not-found-or-deleted",
+                    "帖子不存在或已删除");
         }
         return thread;
     }
@@ -191,7 +194,7 @@ public class ModerationServiceImpl implements ModerationService {
      */
     private void requireReason(String reason) {
         if (reason == null || reason.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "处置原因必填");
+            throw new BizException(ErrorCode.PARAM_ERROR, "forum.moderation.reason-required", "处置原因必填");
         }
     }
 }

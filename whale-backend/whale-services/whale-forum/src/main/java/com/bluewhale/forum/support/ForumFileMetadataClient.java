@@ -147,12 +147,12 @@ public class ForumFileMetadataClient {
      */
     public FileMeta requireOwned(Long fileId, Long userId) {
         FileMeta meta = find(fileId)
-                .orElseThrow(() -> new BizException(ErrorCode.PARAM_ERROR, "申诉材料不存在或已删除"));
+                .orElseThrow(() -> new BizException(ErrorCode.PARAM_ERROR, "forum.appeal.material-not-found", "申诉材料不存在或已删除"));
         if (meta.deleted() != NOT_DELETED || meta.status() != FILE_STATUS_NORMAL) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "申诉材料不存在或已删除");
+            throw new BizException(ErrorCode.PARAM_ERROR, "forum.appeal.material-not-found", "申诉材料不存在或已删除");
         }
         if (meta.uploaderId() == null || !meta.uploaderId().equals(userId)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "只能上传本人的文件作为申诉材料");
+            throw new BizException(ErrorCode.PARAM_ERROR, "forum.appeal.material-not-owned", "只能上传本人的文件作为申诉材料");
         }
         return meta;
     }
@@ -168,7 +168,7 @@ public class ForumFileMetadataClient {
      */
     public FileContent loadContent(Long fileId) {
         if (fileId == null || fileId <= 0) {
-            throw new BizException(ErrorCode.NOT_FOUND, "申诉材料不存在或已删除");
+            throw new BizException(ErrorCode.NOT_FOUND, "forum.appeal.material-not-found", "申诉材料不存在或已删除");
         }
         try {
             ResponseEntity<byte[]> response = target().get()
@@ -179,7 +179,7 @@ public class ForumFileMetadataClient {
                     .toEntity(byte[].class);
             byte[] body = response.getBody();
             if (body == null || body.length == 0) {
-                throw new BizException(ErrorCode.NOT_FOUND, "申诉材料不存在或已删除");
+                throw new BizException(ErrorCode.NOT_FOUND, "forum.appeal.material-not-found", "申诉材料不存在或已删除");
             }
             MediaType contentType = response.getHeaders().getContentType();
             return new FileContent(body, contentType == null
@@ -187,7 +187,7 @@ public class ForumFileMetadataClient {
                     : contentType.toString());
         } catch (RestClientResponseException ex) {
             if (ex.getStatusCode().value() == 404) {
-                throw new BizException(ErrorCode.NOT_FOUND, "申诉材料不存在或已删除");
+                throw new BizException(ErrorCode.NOT_FOUND, "forum.appeal.material-not-found", "申诉材料不存在或已删除");
             }
             log.warn("申诉材料内容读取失败: fileId={}, error={}", fileId, ex.getMessage());
             throw unavailable();
@@ -224,7 +224,7 @@ public class ForumFileMetadataClient {
      * @return 业务异常
      */
     private static BizException unavailable() {
-        return new BizException(ErrorCode.PARAM_ERROR, "申诉材料校验服务暂不可用，请稍后重试");
+        return new BizException(ErrorCode.PARAM_ERROR, "forum.appeal.material-service-unavailable", "申诉材料校验服务暂不可用，请稍后重试");
     }
 
     /**

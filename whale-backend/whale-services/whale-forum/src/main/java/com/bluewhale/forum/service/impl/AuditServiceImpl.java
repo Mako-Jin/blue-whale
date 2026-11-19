@@ -116,7 +116,8 @@ public class AuditServiceImpl implements AuditService {
     public void reject(String targetType, Long targetId, String remark, ForumActor actor) {
         TenantContext.requireId();
         if (remark == null || remark.isBlank()) {
-            throw new BizException(ForumErrorCodes.AUDIT_REMARK_REQUIRED, "驳回必须填写意见，否则用户无从修改");
+            throw new BizException(ForumErrorCodes.AUDIT_REMARK_REQUIRED, "forum.audit.reject-remark-required",
+                    "驳回必须填写意见，否则用户无从修改");
         }
         if (TYPE_POST.equalsIgnoreCase(targetType)) {
             ForumPost post = requirePendingPost(targetId);
@@ -209,11 +210,12 @@ public class AuditServiceImpl implements AuditService {
     private ForumThread requirePendingThread(Long threadId) {
         ForumThread thread = threadId == null ? null : threadMapper.selectById(threadId);
         if (thread == null) {
-            throw new BizException(ForumErrorCodes.THREAD_NOT_FOUND, "帖子不存在或已删除");
+            throw new BizException(ForumErrorCodes.THREAD_NOT_FOUND, "forum.thread.not-found-or-deleted",
+                    "帖子不存在或已删除");
         }
         if (!STATUS_PENDING.equals(thread.getStatus())) {
-            throw new BizException(ForumErrorCodes.THREAD_STATE_ILLEGAL,
-                    "该帖当前状态为 " + thread.getStatus() + "，不在待审队列");
+            throw new BizException(ForumErrorCodes.THREAD_STATE_ILLEGAL, "forum.audit.thread-not-pending",
+                    "该帖当前状态为 " + thread.getStatus() + "，不在待审队列", thread.getStatus());
         }
         return thread;
     }
@@ -227,11 +229,12 @@ public class AuditServiceImpl implements AuditService {
     private ForumPost requirePendingPost(Long postId) {
         ForumPost post = postId == null ? null : postMapper.selectById(postId);
         if (post == null) {
-            throw new BizException(ForumErrorCodes.THREAD_NOT_FOUND, "楼层不存在或已删除");
+            throw new BizException(ForumErrorCodes.THREAD_NOT_FOUND, "forum.post.not-found-or-deleted",
+                    "楼层不存在或已删除");
         }
         if (!STATUS_PENDING.equals(post.getStatus())) {
-            throw new BizException(ForumErrorCodes.THREAD_STATE_ILLEGAL,
-                    "该楼层当前状态为 " + post.getStatus() + "，不在待审队列");
+            throw new BizException(ForumErrorCodes.THREAD_STATE_ILLEGAL, "forum.audit.post-not-pending",
+                    "该楼层当前状态为 " + post.getStatus() + "，不在待审队列", post.getStatus());
         }
         return post;
     }

@@ -134,7 +134,8 @@ public class AmapMapProvider implements MapProvider {
         requireOk(root);
         List<JsonNode> geocodes = JsonNodes.items(root, "geocodes");
         if (geocodes.isEmpty()) {
-            throw new BizException(MapErrorCode.GEOCODE_EMPTY, "amap 未匹配到地址");
+            throw new BizException(MapErrorCode.GEOCODE_EMPTY, "map.provider.amap.address-not-found",
+                    "amap 未匹配到地址");
         }
         JsonNode first = geocodes.get(0);
         GeoPoint point = parseLngLat(JsonNodes.text(first, "location"), MapErrorCode.GEOCODE_EMPTY);
@@ -159,7 +160,8 @@ public class AmapMapProvider implements MapProvider {
         JsonNode regeocode = root.get("regeocode");
         String formatted = JsonNodes.text(regeocode, "formatted_address");
         if (formatted == null) {
-            throw new BizException(MapErrorCode.REGEO_EMPTY, "amap 未匹配到地址");
+            throw new BizException(MapErrorCode.REGEO_EMPTY, "map.provider.amap.address-not-found",
+                    "amap 未匹配到地址");
         }
         JsonNode comp = JsonNodes.child(regeocode, "addressComponent");
         return new RegeoResult(formatted, JsonNodes.text(comp, "province"), JsonNodes.text(comp, "city"),
@@ -206,7 +208,8 @@ public class AmapMapProvider implements MapProvider {
         requireOk(root);
         List<JsonNode> paths = JsonNodes.items(JsonNodes.child(root, "route"), "paths");
         if (paths.isEmpty()) {
-            throw new BizException(MapErrorCode.ROUTE_EMPTY, "amap 未返回可用路线");
+            throw new BizException(MapErrorCode.ROUTE_EMPTY, "map.provider.amap.route-empty",
+                    "amap 未返回可用路线");
         }
         JsonNode first = paths.get(0);
         Double distance = JsonNodes.number(first, "distance");
@@ -235,8 +238,9 @@ public class AmapMapProvider implements MapProvider {
     private void requireOk(JsonNode root) {
         String status = JsonNodes.text(root, "status");
         if (!STATUS_OK.equals(status)) {
-            throw new BizException(MapErrorCode.PROVIDER_FAILED,
-                    "amap 返回 status=" + status + "，infocode=" + JsonNodes.text(root, "infocode"));
+            String infocode = JsonNodes.text(root, "infocode");
+            throw new BizException(MapErrorCode.PROVIDER_FAILED, "map.provider.amap.status-failed",
+                    "amap 返回 status=" + status + "，infocode=" + infocode, status, infocode);
         }
     }
 
@@ -250,7 +254,7 @@ public class AmapMapProvider implements MapProvider {
     private GeoPoint parseLngLat(String text, int errorCode) {
         GeoPoint gcj = JsonNodes.parseLngLat(text, CoordType.GCJ02);
         if (gcj == null) {
-            throw new BizException(errorCode, "amap 返回结果缺少坐标");
+            throw new BizException(errorCode, "map.provider.amap.coord-missing", "amap 返回结果缺少坐标");
         }
         return CoordTransform.convert(gcj, CoordType.WGS84);
     }
