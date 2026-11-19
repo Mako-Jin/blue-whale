@@ -568,11 +568,20 @@ function buildTreesFromGlb(
   const q = new THREE.Quaternion();
   const pos = new THREE.Vector3();
   const scl = new THREE.Vector3();
+  const winded = new Set<THREE.Material>();
 
   for (const [variant, list] of byVariant) {
     const parts = assets.trees[variant];
     if (!parts.length) continue;
     for (const part of parts) {
+      // 树冠风动（S24）：只摆叶幕不摆树干——bark 材质不动，冠整团缓摇。
+      // amp 7cm / 冠高 8.5m：树是大质量体，晃多了像果冻；pow(y/h,1.7) 让
+      // 冠底几乎不动、冠顶摆幅最大，"树梢在风里"而不是"树在地里跳"。
+      // 同一 GLB 的 trunk/canopy 共享材质引用，Set 防重复 patch。
+      if (part.material.name.includes('leaf') && !winded.has(part.material)) {
+        applyWind(part.material, 0.07, 8.5);
+        winded.add(part.material);
+      }
       const im = new THREE.InstancedMesh(part.geometry, part.material, list.length);
       im.castShadow = true;
       im.receiveShadow = true;

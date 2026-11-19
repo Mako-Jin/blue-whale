@@ -1,7 +1,5 @@
 package com.bluewhale.message.support;
 
-import com.bluewhale.common.core.exception.BizException;
-import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.internaltoken.InternalTokenSupport;
 import com.bluewhale.common.web.WebHeaders;
 import com.bluewhale.message.config.MessagePreferenceProperties;
@@ -13,6 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.util.HashMap;
 import java.util.List;
@@ -97,7 +96,10 @@ public class AuthUserConfigClient {
                     .body(String.class);
             return parseItems(raw, userIds);
         } catch (RuntimeException error) {
-            log.warn("用户配置批量读取失败（按无配置处理）：key={}, reason={}", key, error.getMessage());
+            // 只记录异常类型与 HTTP 状态码：RestClient 异常消息可能携带响应体（含用户偏好原值），
+            // 直接拼进日志会把配置内容落到日志系统
+            log.warn("用户配置批量读取失败（按无配置处理）：key={}, status={}, errorType={}",
+                    key, httpStatus(error), error.getClass().getSimpleName());
             return Map.of();
         }
     }
@@ -135,18 +137,22 @@ public class AuthUserConfigClient {
             }
             return values;
         } catch (Exception error) {
-            log.warn("用户配置响应解析失败（按无配置处理）：reason={}", error.getMessage());
+            // 解析异常消息会带响应体片段，同样只记类型
+            log.warn("用户配置响应解析失败（按无配置处理）：errorType={}", error.getClass().getSimpleName());
             return Map.of();
         }
     }
 
     /**
-     * 构造参数错误业务异常（供解析器使用，保持单一异常口径）
+     * 提取 HTTP 状态码；非 HTTP 异常返回 {@code "-"}。
      *
-     * @param message 文案
-     * @return 业务异常
+     * @param error 调用异常
+     * @return 状态码文本
      */
-    static BizException paramError(String message) {
-        return new BizException(ErrorCode.PARAM_ERROR, message);
+    private static String httpStatus(RuntimeException error) {
+        if (error instanceof RestClientResponseException responseException) {
+            return String.valueOf(responseException.getStatusCode().value());
+        }
+        return "-";
     }
 }

@@ -50,6 +50,12 @@ import java.util.Set;
  *       但绝不凭空创建投递记录。</li>
  * </ol>
  *
+ * <p><b>匹配口径</b>：回执只按 {@code (channel, msg_delivery.provider_message_id)} 精确匹配。
+ * 因此渠道发送时必须把渠道侧消息标识回写为 {@code providerMessageId}，否则回执必然 UNMATCHED：
+ * 站内信以平台消息ID充当该标识，可直接匹配；EMAIL / SMS / IM 在 M0 未从供应商响应中解析消息ID，
+ * 其回执依赖后续按供应商协议补齐标识，期间一律落 UNMATCHED 等待对账，不做模糊匹配
+ * （按接收人+时间窗兜底可能把回执错误归到同接收人的其它消息上）。</p>
+ *
  * @author BlueWhale
  */
 @Slf4j

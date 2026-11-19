@@ -36,7 +36,12 @@ public class MessageCallbackTask extends BaseEntity {
     /** 触发本回调的回执流水ID */
     private Long receiptId;
 
-    /** 回调地址 */
+    /**
+     * 回调地址（落任务时从 msg_record.callback_url 快照）。
+     *
+     * <p>业务方后续修改回调地址只影响新产生的任务，历史任务仍投递到快照地址——
+     * 这是刻意行为，避免回执已排队后地址漂移导致投递目标不可控。</p>
+     */
     private String callbackUrl;
 
     /** 回调报文 JSON */

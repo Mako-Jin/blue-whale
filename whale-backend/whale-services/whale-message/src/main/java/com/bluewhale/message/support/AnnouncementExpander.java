@@ -1,9 +1,7 @@
 package com.bluewhale.message.support;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.message.entity.MessageAnnouncement;
 import com.bluewhale.message.entity.MessageDelivery;
-import com.bluewhale.message.enums.AnnouncementStatus;
 import com.bluewhale.message.enums.DeliveryStatus;
 import com.bluewhale.message.enums.MessageChannel;
 import com.bluewhale.message.mapper.MessageAnnouncementMapper;
@@ -15,8 +13,6 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * 系统公告收件箱惰性展开器。
@@ -55,34 +51,14 @@ public class AnnouncementExpander {
     }
 
     /**
-     * 执行展开：已发布公告 - 已有个人投递 = 待补写集合。
+     * 执行展开：数据库一次性求「已发布 − 已展开」差集，应用层只处理待补写行。
      *
      * @param userId 当前用户ID
      */
     private void doExpand(Long userId) {
-        List<MessageAnnouncement> published = announcementMapper.selectList(
-                new LambdaQueryWrapper<MessageAnnouncement>()
-                        .eq(MessageAnnouncement::getStatus, AnnouncementStatus.PUBLISHED.name()));
-        if (published.isEmpty()) {
-            return;
-        }
-        List<Long> recordIds = published.stream()
-                .map(MessageAnnouncement::getRecordId)
-                .distinct()
-                .toList();
-        Set<Long> expanded = deliveryMapper.selectList(new LambdaQueryWrapper<MessageDelivery>()
-                        .select(MessageDelivery::getMessageId)
-                        .eq(MessageDelivery::getChannel, MessageChannel.INAPP.name())
-                        .eq(MessageDelivery::getRecipient, String.valueOf(userId))
-                        .in(MessageDelivery::getMessageId, recordIds))
-                .stream()
-                .map(MessageDelivery::getMessageId)
-                .collect(Collectors.toSet());
         String recipient = String.valueOf(userId);
-        for (MessageAnnouncement announcement : published) {
-            if (expanded.contains(announcement.getRecordId())) {
-                continue;
-            }
+        List<MessageAnnouncement> pending = announcementMapper.selectUnexpandedForRecipient(recipient);
+        for (MessageAnnouncement announcement : pending) {
             insertExpandedDelivery(announcement, recipient);
         }
     }
@@ -105,7 +81,7 @@ public class AnnouncementExpander {
         delivery.setReadFlag(0);
         try {
             deliveryMapper.insert(delivery);
-            log.info("系统公告已展开为个人消息: announcementId={}, messageId={}, userId={}",
+            log.debug("系统公告已展开为个人消息: announcementId={}, messageId={}, userId={}",
                     announcement.getId(), announcement.getRecordId(), recipient);
         } catch (DuplicateKeyException e) {
             log.debug("系统公告并发展开撞键，跳过: messageId={}, userId={}",
