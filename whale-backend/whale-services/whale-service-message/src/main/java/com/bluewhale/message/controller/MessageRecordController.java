@@ -5,9 +5,12 @@ import com.bluewhale.common.audit.annotation.AuditLog;
 import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
+import com.bluewhale.message.dto.MessageDashboardQueryRequest;
 import com.bluewhale.message.dto.MessageRecordQueryRequest;
+import com.bluewhale.message.service.MessageDashboardService;
 import com.bluewhale.message.service.MessageRecordService;
 import com.bluewhale.message.service.MessageSendService;
+import com.bluewhale.message.vo.MessageDashboardVO;
 import com.bluewhale.message.vo.MessageRecordVO;
 import com.bluewhale.message.vo.SendMessageResult;
 import io.swagger.v3.oas.annotations.Operation;
@@ -37,6 +40,21 @@ public class MessageRecordController {
     private final MessageRecordService messageRecordService;
 
     private final MessageSendService messageSendService;
+
+    private final MessageDashboardService messageDashboardService;
+
+    /**
+     * 投递看板：按时间窗聚合成功率、失败 TopN 与未匹配回执数。
+     *
+     * @param request 时间窗（不传默认最近 24 小时）
+     * @return 看板数据
+     */
+    @Operation(summary = "查询投递看板", description = "按渠道/状态聚合成功率，附失败原因 Top10 与未匹配回执数；默认最近 24 小时")
+    @GetMapping("/dashboard")
+    @RequirePermission("sys:message:record:list")
+    public Result<MessageDashboardVO> dashboard(@Valid MessageDashboardQueryRequest request) {
+        return Result.ok(messageDashboardService.dashboard(request));
+    }
 
     /**
      * 分页查询消息记录。
