@@ -1,7 +1,7 @@
 package com.bluewhale.message.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bluewhale.message.entity.MessageCallbackTask;
+import com.bluewhale.message.po.MessageCallbackTaskPo;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Update;
 
@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
  *
  * @author BlueWhale
  */
-public interface MessageCallbackTaskMapper extends BaseMapper<MessageCallbackTask> {
+public interface MessageCallbackTaskMapper extends BaseMapper<MessageCallbackTaskPo> {
 
     /**
      * 原子抢占待派发任务：多实例部署时只有一个实例能更新成功。

@@ -7,6 +7,7 @@ import com.bluewhale.message.channel.ChannelMessage;
 import com.bluewhale.message.channel.ChannelResult;
 import com.bluewhale.message.channel.MessageChannelSender;
 import com.bluewhale.message.config.MessageChannelProperties;
+import com.bluewhale.message.config.MessageSendProperties;
 import com.bluewhale.message.dto.MessageRecipient;
 import com.bluewhale.message.dto.SendMessageRequest;
 import com.bluewhale.message.po.MessageDeliveryPo;
@@ -25,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -58,6 +60,11 @@ class MessageSendServiceImplTest {
 
     private final MessageChannelProperties properties = new MessageChannelProperties();
 
+    private final MessageSendProperties sendProperties = new MessageSendProperties();
+
+    /** 捕获提交到异步线程池的任务，测试中手动执行以获得确定的时序 */
+    private final List<Runnable> tasks = new ArrayList<>();
+
     /**
      * 构造带指定渠道适配器的发送服务。
      *
@@ -68,7 +75,16 @@ class MessageSendServiceImplTest {
         stubInsert();
         return new MessageSendServiceImpl(recordMapper, deliveryMapper, templateMapper,
                 objectMapper, properties, List.of(senders), new ChannelGuard(),
-                new MessageMetrics(new SimpleMeterRegistry()));
+                new MessageMetrics(new SimpleMeterRegistry()), sendProperties, tasks::add);
+    }
+
+    /**
+     * 执行已提交的异步投递任务。
+     */
+    private void runTasks() {
+        List<Runnable> pending = new ArrayList<>(tasks);
+        tasks.clear();
+        pending.forEach(Runnable::run);
     }
 
     /**
@@ -259,6 +275,73 @@ class MessageSendServiceImplTest {
         assertThrows(BizException.class,
                 () -> service(sender(MessageChannel.INAPP, ChannelResult.sent("1001"))).send(request));
         verify(recordMapper, never()).insert(any(MessageRecordPo.class));
+    }
+
+    @Test
+    @DisplayName("async=true 时立即返回 PENDING，后台任务完成后回写状态")
+    void shouldDispatchAsynchronously() {
+        MessageChannelSender inapp = sender(MessageChannel.INAPP, ChannelResult.sent("1001"));
+        SendMessageRequest request = request(List.of("INAPP"), null);
+        request.setAsync(true);
+
+        SendMessageResult result = service(inapp).send(request);
+
+        assertEquals("PENDING", result.getStatus());
+        assertTrue(result.getDeliveries().isEmpty());
+        verify(inapp, never()).send(any(ChannelMessage.class));
+
+        MessageRecordPo inserted = captureInserted();
+        assertEquals("PENDING", inserted.getStatus());
+        assertTrue(inserted.getRecipientsJson().contains("user@example.com"));
+
+        when(recordMapper.selectById(1001L)).thenReturn(inserted);
+        when(recordMapper.update(any(), any(Wrapper.class))).thenReturn(1);
+        runTasks();
+
+        verify(inapp).send(any(ChannelMessage.class));
+        assertEquals("SENT", inserted.getStatus());
+        verify(recordMapper).updateById(inserted);
+    }
+
+    @Test
+    @DisplayName("全局开启异步后未显式指定 async 的请求也走后台投递")
+    void shouldDispatchAsyncWhenGloballyEnabled() {
+        sendProperties.setEnabled(true);
+        MessageChannelSender inapp = sender(MessageChannel.INAPP, ChannelResult.sent("1001"));
+
+        SendMessageResult result = service(inapp).send(request(List.of("INAPP"), null));
+
+        assertEquals("PENDING", result.getStatus());
+        assertEquals(1, tasks.size());
+        verify(inapp, never()).send(any(ChannelMessage.class));
+    }
+
+    @Test
+    @DisplayName("抢占失败时跳过投递，避免重复发送")
+    void shouldSkipWhenClaimFails() {
+        MessageChannelSender inapp = sender(MessageChannel.INAPP, ChannelResult.sent("1001"));
+        SendMessageRequest request = request(List.of("INAPP"), null);
+        request.setAsync(true);
+        service(inapp).send(request);
+
+        MessageRecordPo inserted = captureInserted();
+        when(recordMapper.selectById(1001L)).thenReturn(inserted);
+        when(recordMapper.update(any(), any(Wrapper.class))).thenReturn(0);
+        runTasks();
+
+        verify(inapp, never()).send(any(ChannelMessage.class));
+        assertEquals("PENDING", inserted.getStatus());
+    }
+
+    /**
+     * 取出最近一次插入的消息记录。
+     *
+     * @return 插入的消息记录
+     */
+    private MessageRecordPo captureInserted() {
+        ArgumentCaptor<MessageRecordPo> captor = ArgumentCaptor.forClass(MessageRecordPo.class);
+        verify(recordMapper).insert(captor.capture());
+        return captor.getValue();
     }
 
     /**

@@ -1,7 +1,7 @@
 package com.bluewhale.message.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bluewhale.message.entity.MessageDelivery;
+import com.bluewhale.message.po.MessageDeliveryPo;
 
 /**
  * 投递记录 Mapper。
@@ -10,5 +10,5 @@ import com.bluewhale.message.entity.MessageDelivery;
  *
  * @author BlueWhale
  */
-public interface MessageDeliveryMapper extends BaseMapper<MessageDelivery> {
+public interface MessageDeliveryMapper extends BaseMapper<MessageDeliveryPo> {
 }

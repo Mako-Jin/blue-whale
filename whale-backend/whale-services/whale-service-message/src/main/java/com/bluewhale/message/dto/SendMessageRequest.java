@@ -79,6 +79,14 @@ public class SendMessageRequest implements Serializable {
     private LocalDateTime expireAt;
 
     /**
+     * 是否异步投递（可选）
+     *
+     * <p>{@code true} 时立即返回 {@code PENDING}，由后台线程池完成渠道调用；
+     * 未设置时按 {@code whale.message.send.enabled} 决定，默认同步。</p>
+     */
+    private Boolean async;
+
+    /**
      * 校验消息体：模板编码或标题/正文至少提供一个，避免投递空消息。
      *
      * @return 满足其一返回 {@code true}

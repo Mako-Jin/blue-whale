@@ -1,4 +1,4 @@
-package com.bluewhale.message.entity;
+package com.bluewhale.message.po;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.bluewhale.common.entity.BaseEntity;
@@ -13,7 +13,7 @@ import lombok.EqualsAndHashCode;
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("msg_template")
-public class MessageTemplate extends BaseEntity {
+public class MessageTemplatePo extends BaseEntity {
 
     private static final long serialVersionUID = 1L;
 

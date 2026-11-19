@@ -10,6 +10,9 @@ public enum MessageStatus {
     /** 已创建，尚未投递 */
     PENDING,
 
+    /** 异步投递抢占中（内部瞬态，超时后由补偿任务回收为 PENDING） */
+    DISPATCHING,
+
     /** 至少一条投递成功，且无失败 */
     SENT,
 

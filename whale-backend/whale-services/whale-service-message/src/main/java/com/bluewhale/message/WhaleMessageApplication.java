@@ -2,6 +2,7 @@ package com.bluewhale.message;
 
 import com.bluewhale.message.config.MessageChannelProperties;
 import com.bluewhale.message.config.MessageReceiptProperties;
+import com.bluewhale.message.config.MessageSendProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -19,7 +20,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @EnableDiscoveryClient
 @EnableScheduling
-@EnableConfigurationProperties({MessageChannelProperties.class, MessageReceiptProperties.class})
+@EnableConfigurationProperties({MessageChannelProperties.class, MessageReceiptProperties.class,
+        MessageSendProperties.class})
 public class WhaleMessageApplication {
 
     /**

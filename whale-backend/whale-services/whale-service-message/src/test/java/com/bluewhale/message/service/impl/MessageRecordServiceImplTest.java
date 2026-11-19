@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.message.dto.MessageRecordQueryRequest;
-import com.bluewhale.message.entity.MessageRecord;
+import com.bluewhale.message.po.MessageRecordPo;
 import com.bluewhale.message.mapper.MessageDeliveryMapper;
 import com.bluewhale.message.mapper.MessageRecordMapper;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
@@ -42,7 +42,7 @@ class MessageRecordServiceImplTest {
     @BeforeAll
     static void initTableInfo() {
         TableInfoHelper.initTableInfo(
-                new MapperBuilderAssistant(new MybatisConfiguration(), ""), MessageRecord.class);
+                new MapperBuilderAssistant(new MybatisConfiguration(), ""), MessageRecordPo.class);
     }
 
     @Test
@@ -64,7 +64,7 @@ class MessageRecordServiceImplTest {
 
         service.page(request);
 
-        ArgumentCaptor<Wrapper<MessageRecord>> captor = ArgumentCaptor.forClass(Wrapper.class);
+        ArgumentCaptor<Wrapper<MessageRecordPo>> captor = ArgumentCaptor.forClass(Wrapper.class);
         verify(recordMapper).selectPage(any(), captor.capture());
         String sql = captor.getValue().getSqlSegment();
         assertTrue(sql.contains("FIND_IN_SET"), "渠道过滤应走 FIND_IN_SET");

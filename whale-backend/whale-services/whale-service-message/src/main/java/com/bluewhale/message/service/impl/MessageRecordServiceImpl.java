@@ -7,8 +7,8 @@ import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.message.converter.MessageConverter;
 import com.bluewhale.message.dto.MessageRecordQueryRequest;
-import com.bluewhale.message.entity.MessageDelivery;
-import com.bluewhale.message.entity.MessageRecord;
+import com.bluewhale.message.po.MessageDeliveryPo;
+import com.bluewhale.message.po.MessageRecordPo;
 import com.bluewhale.message.enums.MessageChannel;
 import com.bluewhale.message.mapper.MessageDeliveryMapper;
 import com.bluewhale.message.mapper.MessageRecordMapper;
@@ -39,10 +39,10 @@ public class MessageRecordServiceImpl implements MessageRecordService {
 
     @Override
     public PageResult<MessageRecordVO> page(MessageRecordQueryRequest request) {
-        LambdaQueryWrapper<MessageRecord> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(StringUtils.hasText(request.getBizType()), MessageRecord::getBizType, request.getBizType());
-        wrapper.eq(StringUtils.hasText(request.getBizId()), MessageRecord::getBizId, request.getBizId());
-        wrapper.eq(StringUtils.hasText(request.getStatus()), MessageRecord::getStatus, request.getStatus());
+        LambdaQueryWrapper<MessageRecordPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(StringUtils.hasText(request.getBizType()), MessageRecordPo::getBizType, request.getBizType());
+        wrapper.eq(StringUtils.hasText(request.getBizId()), MessageRecordPo::getBizId, request.getBizId());
+        wrapper.eq(StringUtils.hasText(request.getStatus()), MessageRecordPo::getStatus, request.getStatus());
         String channel = request.getChannel();
         if (StringUtils.hasText(channel)) {
             MessageChannel parsed = MessageChannel.parse(channel);
@@ -53,23 +53,23 @@ public class MessageRecordServiceImpl implements MessageRecordService {
             // 避免 LIKE 通配符注入（%/_）与子串误命中
             wrapper.apply("FIND_IN_SET({0}, channels) > 0", parsed.name());
         }
-        wrapper.orderByDesc(MessageRecord::getCreateTime);
+        wrapper.orderByDesc(MessageRecordPo::getCreateTime);
         long size = Math.min(Math.max(request.getSize(), 1L), MAX_PAGE_SIZE);
-        Page<MessageRecord> page = recordMapper.selectPage(new Page<>(request.getCurrent(), size), wrapper);
+        Page<MessageRecordPo> page = recordMapper.selectPage(new Page<>(request.getCurrent(), size), wrapper);
         List<MessageRecordVO> records = page.getRecords().stream().map(MessageRecordServiceImpl::toVo).toList();
         return PageResult.of(records, page.getTotal(), page.getCurrent(), page.getSize());
     }
 
     @Override
     public MessageRecordVO detail(Long id) {
-        MessageRecord record = recordMapper.selectById(id);
+        MessageRecordPo record = recordMapper.selectById(id);
         if (record == null) {
             throw new BizException(ErrorCode.NOT_FOUND, "消息不存在: " + id);
         }
         MessageRecordVO vo = toVo(record);
-        LambdaQueryWrapper<MessageDelivery> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(MessageDelivery::getMessageId, id)
-                .orderByAsc(MessageDelivery::getId);
+        LambdaQueryWrapper<MessageDeliveryPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(MessageDeliveryPo::getMessageId, id)
+                .orderByAsc(MessageDeliveryPo::getId);
         vo.setDeliveries(deliveryMapper.selectList(wrapper).stream()
                 .map(MessageRecordServiceImpl::toDeliveryVo).toList());
         return vo;
@@ -81,7 +81,7 @@ public class MessageRecordServiceImpl implements MessageRecordService {
      * @param record 消息记录
      * @return 视图
      */
-    private static MessageRecordVO toVo(MessageRecord record) {
+    private static MessageRecordVO toVo(MessageRecordPo record) {
         MessageRecordVO vo = MessageConverter.INSTANCE.toRecordVo(record);
         return vo;
     }
@@ -92,7 +92,7 @@ public class MessageRecordServiceImpl implements MessageRecordService {
      * @param delivery 投递记录
      * @return 视图
      */
-    private static MessageDeliveryVO toDeliveryVo(MessageDelivery delivery) {
+    private static MessageDeliveryVO toDeliveryVo(MessageDeliveryPo delivery) {
         MessageDeliveryVO vo = MessageConverter.INSTANCE.toDeliveryVo(delivery);
         return vo;
     }

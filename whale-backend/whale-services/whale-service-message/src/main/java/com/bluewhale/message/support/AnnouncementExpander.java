@@ -1,7 +1,7 @@
 package com.bluewhale.message.support;
 
-import com.bluewhale.message.entity.MessageAnnouncement;
-import com.bluewhale.message.entity.MessageDelivery;
+import com.bluewhale.message.po.MessageAnnouncementPo;
+import com.bluewhale.message.po.MessageDeliveryPo;
 import com.bluewhale.message.enums.DeliveryStatus;
 import com.bluewhale.message.enums.MessageChannel;
 import com.bluewhale.message.mapper.MessageAnnouncementMapper;
@@ -57,8 +57,8 @@ public class AnnouncementExpander {
      */
     private void doExpand(Long userId) {
         String recipient = String.valueOf(userId);
-        List<MessageAnnouncement> pending = announcementMapper.selectUnexpandedForRecipient(recipient);
-        for (MessageAnnouncement announcement : pending) {
+        List<MessageAnnouncementPo> pending = announcementMapper.selectUnexpandedForRecipient(recipient);
+        for (MessageAnnouncementPo announcement : pending) {
             insertExpandedDelivery(announcement, recipient);
         }
     }
@@ -69,8 +69,8 @@ public class AnnouncementExpander {
      * @param announcement 公告
      * @param recipient    接收标识（用户ID文本）
      */
-    private void insertExpandedDelivery(MessageAnnouncement announcement, String recipient) {
-        MessageDelivery delivery = new MessageDelivery();
+    private void insertExpandedDelivery(MessageAnnouncementPo announcement, String recipient) {
+        MessageDeliveryPo delivery = new MessageDeliveryPo();
         delivery.setMessageId(announcement.getRecordId());
         delivery.setChannel(MessageChannel.INAPP.name());
         delivery.setRecipient(recipient);

@@ -1,4 +1,4 @@
-package com.bluewhale.message.entity;
+package com.bluewhale.message.po;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.bluewhale.common.entity.BaseEntity;
@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("msg_receipt")
-public class MessageReceipt extends BaseEntity {
+public class MessageReceiptPo extends BaseEntity {
 
     private static final long serialVersionUID = 1L;
 

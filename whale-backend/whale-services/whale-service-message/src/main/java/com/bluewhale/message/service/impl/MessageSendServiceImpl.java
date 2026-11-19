@@ -1,6 +1,8 @@
 package com.bluewhale.message.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.bluewhale.common.context.RequestContext;
 import com.bluewhale.common.context.RequestContextHolder;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -10,6 +12,8 @@ import com.bluewhale.message.channel.ChannelMessage;
 import com.bluewhale.message.channel.ChannelResult;
 import com.bluewhale.message.channel.MessageChannelSender;
 import com.bluewhale.message.config.MessageChannelProperties;
+import com.bluewhale.message.config.MessageDispatchConfig;
+import com.bluewhale.message.config.MessageSendProperties;
 import com.bluewhale.message.converter.MessageConverter;
 import com.bluewhale.message.dto.MessageRecipient;
 import com.bluewhale.message.dto.SendMessageRequest;
@@ -32,14 +36,16 @@ import com.bluewhale.message.vo.SendMessageResult;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -53,11 +59,14 @@ import java.util.stream.Collectors;
  * <p>发送流程刻意不包在跨出站长事务中：先落消息记录，再逐渠道调用并写投递记录，
  * 最后按投递结果回写消息状态。任一渠道失败只影响该条投递，不阻断其它渠道。</p>
  *
+ * <p>异步投递是 at-least-once：后台线程先以条件更新抢占 {@code PENDING → DISPATCHING}，
+ * 完成后回写聚合状态；进程崩溃留下的 {@code PENDING/DISPATCHING} 由补偿任务重新投递，
+ * 因此渠道侧可能出现重复消息，业务方需按幂等键或消息ID去重。</p>
+ *
  * @author BlueWhale
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class MessageSendServiceImpl implements MessageSendService {
 
     /** 模板启用状态 */
@@ -82,8 +91,51 @@ public class MessageSendServiceImpl implements MessageSendService {
 
     private final MessageMetrics metrics;
 
+    private final MessageSendProperties sendProperties;
+
+    private final TaskExecutor dispatchExecutor;
+
     /** 渠道适配器缓存：Bean 生命周期内注册表不变，首次使用时构建一次 */
     private volatile Map<MessageChannel, MessageChannelSender> senderCache;
+
+    /**
+     * 构造发送服务。
+     *
+     * <p>异步投递线程池按名称注入：容器内存在多个 {@code ThreadPoolTaskExecutor}
+     * （审计、日志等），按类型注入会在启动时冲突。</p>
+     *
+     * @param recordMapper    消息记录 Mapper
+     * @param deliveryMapper  投递记录 Mapper
+     * @param templateMapper  模板 Mapper
+     * @param objectMapper    JSON 映射器
+     * @param properties      渠道配置
+     * @param senders         渠道适配器
+     * @param channelGuard    渠道保护（限流/熔断）
+     * @param metrics         指标
+     * @param sendProperties  投递配置
+     * @param dispatchExecutor 异步投递线程池
+     */
+    public MessageSendServiceImpl(MessageRecordMapper recordMapper,
+                                  MessageDeliveryMapper deliveryMapper,
+                                  MessageTemplateMapper templateMapper,
+                                  ObjectMapper objectMapper,
+                                  MessageChannelProperties properties,
+                                  List<MessageChannelSender> senders,
+                                  ChannelGuard channelGuard,
+                                  MessageMetrics metrics,
+                                  MessageSendProperties sendProperties,
+                                  @Qualifier(MessageDispatchConfig.DISPATCH_EXECUTOR) TaskExecutor dispatchExecutor) {
+        this.recordMapper = recordMapper;
+        this.deliveryMapper = deliveryMapper;
+        this.templateMapper = templateMapper;
+        this.objectMapper = objectMapper;
+        this.properties = properties;
+        this.senders = senders;
+        this.channelGuard = channelGuard;
+        this.metrics = metrics;
+        this.sendProperties = sendProperties;
+        this.dispatchExecutor = dispatchExecutor;
+    }
 
     @Override
     public SendMessageResult send(SendMessageRequest request) {
@@ -112,6 +164,10 @@ public class MessageSendServiceImpl implements MessageSendService {
                     return buildResult(existing, true);
                 }
                 throw e;
+            }
+            if (isAsync(request)) {
+                dispatchAsync(record.getId(), tenantId, record.getTraceId());
+                return buildResult(record, false, List.of());
             }
             List<MessageDeliveryPo> deliveries = dispatch(record, request);
             record.setStatus(aggregateStatus(deliveries).name());
@@ -163,6 +219,148 @@ public class MessageSendServiceImpl implements MessageSendService {
         log.info("消息重试完成: messageId={}, retried={}, status={}",
                 record.getId(), failed.size(), record.getStatus());
         return buildResult(record, false, deliveries);
+    }
+
+    @Override
+    public void dispatchAsync(Long messageId, Long tenantId, String traceId) {
+        dispatchExecutor.execute(() -> dispatchInBackground(messageId, tenantId, traceId));
+    }
+
+    /**
+     * 后台投递一条消息：回填租户与链路上下文后执行同步投递流程。
+     *
+     * <p>先以条件更新抢占 {@code PENDING → DISPATCHING}，抢占失败说明消息已被
+     * 其它线程或补偿任务处理，直接跳过；异常时释放回 {@code PENDING}，由补偿任务重试。</p>
+     *
+     * @param messageId 消息ID
+     * @param tenantId  租户ID
+     * @param traceId   链路追踪ID（可为 {@code null}）
+     */
+    private void dispatchInBackground(Long messageId, Long tenantId, String traceId) {
+        Long previousTenant = TenantContext.get();
+        RequestContext previousContext = RequestContextHolder.get();
+        TenantContext.set(tenantId);
+        RequestContextHolder.set(new RequestContext(null, null, tenantId, traceId));
+        try {
+            MessageRecordPo record = recordMapper.selectById(messageId);
+            if (record == null) {
+                log.warn("异步投递跳过：消息不存在: messageId={}", messageId);
+                return;
+            }
+            if (!claimDispatch(messageId)) {
+                log.info("异步投递跳过：消息已被其它线程抢占: messageId={}", messageId);
+                return;
+            }
+            record.setStatus(MessageStatus.DISPATCHING.name());
+            SendMessageRequest derived = rebuildRequest(record);
+            if (derived.getRecipients().isEmpty()) {
+                log.warn("异步投递跳过：接收人无法重建: messageId={}", messageId);
+                releaseToPending(messageId);
+                return;
+            }
+            try {
+                List<MessageDeliveryPo> deliveries = dispatch(record, derived);
+                record.setStatus(aggregateStatus(deliveries).name());
+                recordMapper.updateById(record);
+                log.info("异步投递完成: messageId={}, status={}", messageId, record.getStatus());
+            } catch (RuntimeException e) {
+                releaseToPending(messageId);
+                log.error("异步投递失败，已释放为待投递: messageId={}, reason={}",
+                        messageId, e.getMessage(), e);
+            }
+        } finally {
+            RequestContextHolder.set(previousContext);
+            TenantContext.set(previousTenant);
+        }
+    }
+
+    /**
+     * 抢占有待投递的消息：多线程/多实例只有一个能把状态从 {@code PENDING} 推进。
+     *
+     * @param messageId 消息ID
+     * @return 抢占成功返回 {@code true}
+     */
+    private boolean claimDispatch(Long messageId) {
+        LambdaUpdateWrapper<MessageRecordPo> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(MessageRecordPo::getId, messageId)
+                .eq(MessageRecordPo::getStatus, MessageStatus.PENDING.name())
+                .set(MessageRecordPo::getStatus, MessageStatus.DISPATCHING.name())
+                .set(MessageRecordPo::getUpdateTime, LocalDateTime.now());
+        return recordMapper.update(null, wrapper) == 1;
+    }
+
+    /**
+     * 把抢占中的消息释放回待投递，交给补偿任务重试。
+     *
+     * @param messageId 消息ID
+     */
+    private void releaseToPending(Long messageId) {
+        LambdaUpdateWrapper<MessageRecordPo> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(MessageRecordPo::getId, messageId)
+                .eq(MessageRecordPo::getStatus, MessageStatus.DISPATCHING.name())
+                .set(MessageRecordPo::getStatus, MessageStatus.PENDING.name())
+                .set(MessageRecordPo::getUpdateTime, LocalDateTime.now());
+        recordMapper.update(null, wrapper);
+    }
+
+    /**
+     * 判断当前请求是否走异步投递。
+     *
+     * @param request 发送请求
+     * @return 异步时返回 {@code true}
+     */
+    private boolean isAsync(SendMessageRequest request) {
+        return Boolean.TRUE.equals(request.getAsync()) || sendProperties.isEnabled();
+    }
+
+    /**
+     * 从落库记录重建投递所需的最小请求对象。
+     *
+     * @param record 消息记录
+     * @return 仅含渠道、接收人与模板变量的请求
+     */
+    private SendMessageRequest rebuildRequest(MessageRecordPo record) {
+        SendMessageRequest request = new SendMessageRequest();
+        request.setTenantId(TenantContext.get());
+        request.setChannels(splitChannels(record.getChannels()));
+        request.setRecipients(parseRecipients(record.getRecipientsJson()));
+        request.setPayload(parsePayload(record.getPayloadJson()));
+        return request;
+    }
+
+    /**
+     * 拆分落库的渠道串。
+     *
+     * @param channels 逗号分隔的渠道
+     * @return 渠道列表
+     */
+    private static List<String> splitChannels(String channels) {
+        if (!StringUtils.hasText(channels)) {
+            return List.of();
+        }
+        return Arrays.stream(channels.split(","))
+                .map(String::trim)
+                .filter(StringUtils::hasText)
+                .toList();
+    }
+
+    /**
+     * 解析落库的接收人列表。
+     *
+     * @param recipientsJson 接收人 JSON
+     * @return 接收人列表；缺失或解析失败时为空列表
+     */
+    private List<MessageRecipient> parseRecipients(String recipientsJson) {
+        if (!StringUtils.hasText(recipientsJson)) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(recipientsJson, new TypeReference<List<MessageRecipient>>() {
+            });
+        } catch (JsonProcessingException e) {
+            log.warn("消息接收人解析失败: reason={}", e.getMessage());
+            return List.of();
+        }
     }
 
     /**
@@ -243,6 +441,7 @@ public class MessageSendServiceImpl implements MessageSendService {
         record.setTitle(title);
         record.setContent(content);
         record.setPayloadJson(toJson(request.getPayload()));
+        record.setRecipientsJson(toJson(request.getRecipients()));
         record.setChannels(normalizeChannels(request.getChannels()));
         record.setStatus(MessageStatus.PENDING.name());
         CallbackUrlGuard.assertAllowed(request.getCallbackUrl());
@@ -287,16 +486,16 @@ public class MessageSendServiceImpl implements MessageSendService {
     }
 
     /**
-     * 序列化模板变量。
+     * 序列化消息字段。
      *
-     * @param payload 变量
-     * @return JSON；空变量返回 {@code "{}"}
+     * @param value 待序列化对象
+     * @return JSON；空值返回 {@code "{}"}
      */
-    private String toJson(Map<String, Object> payload) {
+    private String toJson(Object value) {
         try {
-            return objectMapper.writeValueAsString(payload == null ? Map.of() : payload);
+            return objectMapper.writeValueAsString(value == null ? Map.of() : value);
         } catch (JsonProcessingException e) {
-            log.warn("消息模板变量序列化失败: reason={}", e.getMessage());
+            log.warn("消息字段序列化失败: reason={}", e.getMessage());
             return "{}";
         }
     }
@@ -523,8 +722,32 @@ public class MessageSendServiceImpl implements MessageSendService {
         delivery.setErrorMessage(truncate(result.getErrorMessage(), 512));
         delivery.setAttempts(1);
         delivery.setSentAt(LocalDateTime.now());
-        deliveryMapper.insert(delivery);
-        return delivery;
+        try {
+            deliveryMapper.insert(delivery);
+            return delivery;
+        } catch (DuplicateKeyException e) {
+            // 补偿重跑时同一 (消息, 渠道, 接收人) 已存在：复用既有记录，避免整条消息投递中断
+            log.info("投递记录已存在，复用既有结果: messageId={}, channel={}, recipient={}",
+                    record.getId(), channel, delivery.getRecipient());
+            MessageDeliveryPo existing = selectDelivery(record.getId(), channel, delivery.getRecipient());
+            return existing == null ? delivery : existing;
+        }
+    }
+
+    /**
+     * 按消息、渠道、接收人查询既有投递记录。
+     *
+     * @param messageId 消息ID
+     * @param channel   渠道
+     * @param recipient 接收标识
+     * @return 投递记录；不存在时为 {@code null}
+     */
+    private MessageDeliveryPo selectDelivery(Long messageId, MessageChannel channel, String recipient) {
+        LambdaQueryWrapper<MessageDeliveryPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(MessageDeliveryPo::getMessageId, messageId)
+                .eq(MessageDeliveryPo::getChannel, channel.name())
+                .eq(MessageDeliveryPo::getRecipient, recipient);
+        return deliveryMapper.selectOne(wrapper);
     }
 
     /**

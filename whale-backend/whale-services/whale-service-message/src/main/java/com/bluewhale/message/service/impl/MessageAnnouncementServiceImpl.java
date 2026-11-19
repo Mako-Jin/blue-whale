@@ -7,8 +7,8 @@ import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.message.dto.AnnouncementPublishRequest;
 import com.bluewhale.message.dto.AnnouncementQueryRequest;
-import com.bluewhale.message.entity.MessageAnnouncement;
-import com.bluewhale.message.entity.MessageRecord;
+import com.bluewhale.message.po.MessageAnnouncementPo;
+import com.bluewhale.message.po.MessageRecordPo;
 import com.bluewhale.message.enums.AnnouncementStatus;
 import com.bluewhale.message.enums.MessageChannel;
 import com.bluewhale.message.enums.MessageStatus;
@@ -53,7 +53,7 @@ public class MessageAnnouncementServiceImpl implements MessageAnnouncementServic
     @Override
     @Transactional(rollbackFor = Exception.class)
     public AnnouncementVO publish(AnnouncementPublishRequest request, Long publisherId) {
-        MessageRecord record = new MessageRecord();
+        MessageRecordPo record = new MessageRecordPo();
         record.setBizType(StringUtils.hasText(request.getBizType())
                 ? request.getBizType().trim() : DEFAULT_BIZ_TYPE);
         record.setTitle(request.getTitle().trim());
@@ -62,7 +62,7 @@ public class MessageAnnouncementServiceImpl implements MessageAnnouncementServic
         record.setStatus(MessageStatus.SENT.name());
         recordMapper.insert(record);
 
-        MessageAnnouncement announcement = new MessageAnnouncement();
+        MessageAnnouncementPo announcement = new MessageAnnouncementPo();
         announcement.setRecordId(record.getId());
         announcement.setStatus(AnnouncementStatus.PUBLISHED.name());
         announcement.setPublisherId(publisherId);
@@ -75,25 +75,25 @@ public class MessageAnnouncementServiceImpl implements MessageAnnouncementServic
 
     @Override
     public PageResult<AnnouncementVO> page(AnnouncementQueryRequest request) {
-        LambdaQueryWrapper<MessageAnnouncement> wrapper = new LambdaQueryWrapper<>();
+        LambdaQueryWrapper<MessageAnnouncementPo> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(request.getStatus())) {
             AnnouncementStatus status = parseStatus(request.getStatus());
-            wrapper.eq(MessageAnnouncement::getStatus, status.name());
+            wrapper.eq(MessageAnnouncementPo::getStatus, status.name());
         }
-        wrapper.orderByDesc(MessageAnnouncement::getId);
+        wrapper.orderByDesc(MessageAnnouncementPo::getId);
         long size = Math.min(Math.max(request.getSize(), 1L), MAX_PAGE_SIZE);
-        Page<MessageAnnouncement> page = announcementMapper.selectPage(
+        Page<MessageAnnouncementPo> page = announcementMapper.selectPage(
                 new Page<>(request.getCurrent(), size), wrapper);
-        List<MessageAnnouncement> announcements = page.getRecords();
+        List<MessageAnnouncementPo> announcements = page.getRecords();
         if (announcements.isEmpty()) {
             return PageResult.of(List.of(), page.getTotal(), page.getCurrent(), page.getSize());
         }
         List<Long> recordIds = announcements.stream()
-                .map(MessageAnnouncement::getRecordId)
+                .map(MessageAnnouncementPo::getRecordId)
                 .distinct()
                 .toList();
-        Map<Long, MessageRecord> records = recordMapper.selectBatchIds(recordIds).stream()
-                .collect(Collectors.toMap(MessageRecord::getId, record -> record, (first, second) -> first));
+        Map<Long, MessageRecordPo> records = recordMapper.selectBatchIds(recordIds).stream()
+                .collect(Collectors.toMap(MessageRecordPo::getId, record -> record, (first, second) -> first));
         List<AnnouncementVO> rows = announcements.stream()
                 .map(announcement -> toVo(announcement, records.get(announcement.getRecordId())))
                 .toList();
@@ -103,7 +103,7 @@ public class MessageAnnouncementServiceImpl implements MessageAnnouncementServic
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void revoke(Long id) {
-        MessageAnnouncement announcement = requireAnnouncement(id);
+        MessageAnnouncementPo announcement = requireAnnouncement(id);
         announcement.setStatus(AnnouncementStatus.REVOKED.name());
         announcementMapper.updateById(announcement);
         log.info("系统公告已撤回: announcementId={}", id);
@@ -123,8 +123,8 @@ public class MessageAnnouncementServiceImpl implements MessageAnnouncementServic
      * @param id 公告ID
      * @return 公告实体
      */
-    private MessageAnnouncement requireAnnouncement(Long id) {
-        MessageAnnouncement announcement = id == null ? null : announcementMapper.selectById(id);
+    private MessageAnnouncementPo requireAnnouncement(Long id) {
+        MessageAnnouncementPo announcement = id == null ? null : announcementMapper.selectById(id);
         if (announcement == null) {
             throw new BizException(ErrorCode.NOT_FOUND, "系统公告不存在: " + id);
         }
@@ -152,7 +152,7 @@ public class MessageAnnouncementServiceImpl implements MessageAnnouncementServic
      * @param record       消息记录（可能因逻辑删除为空）
      * @return 公告视图
      */
-    private static AnnouncementVO toVo(MessageAnnouncement announcement, MessageRecord record) {
+    private static AnnouncementVO toVo(MessageAnnouncementPo announcement, MessageRecordPo record) {
         AnnouncementVO vo = new AnnouncementVO();
         vo.setId(announcement.getId());
         vo.setRecordId(announcement.getRecordId());
