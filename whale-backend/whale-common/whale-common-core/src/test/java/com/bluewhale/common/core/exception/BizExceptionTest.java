@@ -39,6 +39,18 @@ class BizExceptionTest {
     }
 
     @Test
+    @DisplayName("以业务码 + 国际化键 + 中文兜底构造：保留码并记录键与占位参数")
+    void shouldKeepCustomCodeWithMessageKey() {
+        BizException ex = new BizException(40901, "doc.page.revision-conflict", "页面已被他人修改", 3);
+
+        assertEquals(40901, ex.getCode());
+        assertEquals("页面已被他人修改", ex.getMessage());
+        assertEquals("doc.page.revision-conflict", ex.getMessageKey());
+        assertEquals(1, ex.getMessageArgs().length);
+        assertEquals(3, ex.getMessageArgs()[0]);
+    }
+
+    @Test
     @DisplayName("仅以文案构造：错误码缺省为系统错误")
     void shouldDefaultToSystemError() {
         BizException ex = new BizException("服务内部错误");

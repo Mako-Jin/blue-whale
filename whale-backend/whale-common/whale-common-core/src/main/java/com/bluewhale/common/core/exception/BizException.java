@@ -33,7 +33,7 @@ public class BizException extends RuntimeException {
      * @param errorCode 错误码枚举
      */
     public BizException(ErrorCode errorCode) {
-        this(errorCode.getCode(), errorCode.getMessage(), errorCode.getMessageKey(), new Object[0]);
+        this(errorCode.getCode(), errorCode.getMessageKey(), errorCode.getMessage());
     }
 
     /**
@@ -46,7 +46,7 @@ public class BizException extends RuntimeException {
      * @param message 错误消息
      */
     public BizException(ErrorCode errorCode, String message) {
-        this(errorCode.getCode(), message, null, new Object[0]);
+        this(errorCode.getCode(), null, message);
     }
 
     /**
@@ -61,7 +61,26 @@ public class BizException extends RuntimeException {
      * @param args 文案占位参数
      */
     public BizException(ErrorCode errorCode, String messageKey, String message, Object... args) {
-        this(errorCode.getCode(), message, messageKey, args);
+        this(errorCode.getCode(), messageKey, message, args);
+    }
+
+    /**
+     * 以业务错误码、国际化键与中文兜底构造业务异常。
+     *
+     * <p>供服务内自定义错误码常量（非 {@link ErrorCode} 枚举）使用：状态码保持不变，
+     * 提示文案按请求 Locale 解析，资源缺失时回落到 {@code message}。</p>
+     *
+     * @param code 业务错误码
+     * @param messageKey 国际化文案键
+     * @param message 中文兜底文案
+     * @param args 文案占位参数
+     */
+    public BizException(int code, String messageKey, String message, Object... args) {
+        super(message);
+        this.code = code;
+        this.message = message;
+        this.messageKey = messageKey;
+        this.messageArgs = args == null ? new Object[0] : args.clone();
     }
 
     /**
@@ -71,7 +90,7 @@ public class BizException extends RuntimeException {
      * @param message 错误消息
      */
     public BizException(int code, String message) {
-        this(code, message, null, new Object[0]);
+        this(code, null, message);
     }
 
     /**
@@ -80,22 +99,6 @@ public class BizException extends RuntimeException {
      * @param message 错误消息
      */
     public BizException(String message) {
-        this(ErrorCode.SYSTEM_ERROR.getCode(), message, null, new Object[0]);
-    }
-
-    /**
-     * 全量构造器
-     *
-     * @param code       错误码
-     * @param message    错误消息
-     * @param messageKey 国际化文案键，可为 {@code null}
-     * @param messageArgs 文案占位参数
-     */
-    private BizException(int code, String message, String messageKey, Object[] messageArgs) {
-        super(message);
-        this.code = code;
-        this.message = message;
-        this.messageKey = messageKey;
-        this.messageArgs = messageArgs == null ? new Object[0] : messageArgs.clone();
+        this(ErrorCode.SYSTEM_ERROR.getCode(), null, message);
     }
 }
