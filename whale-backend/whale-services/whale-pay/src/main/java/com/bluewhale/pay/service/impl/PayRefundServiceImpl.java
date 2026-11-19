@@ -163,8 +163,9 @@ public class PayRefundServiceImpl implements PayRefundService {
             return null;
         }
         if (existing.getAmount().compareTo(amount) != 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR,
-                    "退款请求号 " + refundNo + " 已用于金额 " + existing.getAmount() + " 的退款，不可改额重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "pay.refund.request-reused",
+                    "退款请求号 " + refundNo + " 已用于金额 " + existing.getAmount() + " 的退款，不可改额重试",
+                    refundNo, existing.getAmount());
         }
         return existing;
     }

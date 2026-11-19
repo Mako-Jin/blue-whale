@@ -89,7 +89,8 @@ public class CompleteCommand {
     private String resolveAction(String value) {
         String action = StringUtils.hasText(value) ? value.trim().toUpperCase(Locale.ROOT) : ACTION_APPROVE;
         if (!ACTION_APPROVE.equals(action) && !ACTION_REJECT.equals(action)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "不支持的任务动作: " + action);
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.action-unsupported",
+                    "不支持的任务动作: " + action, action);
         }
         return action;
     }

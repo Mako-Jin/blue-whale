@@ -393,7 +393,8 @@ public class ImConversationService {
         }
         List<Long> missing = userDirectoryClient.missingUserIds(userIds);
         if (!missing.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "以下用户不存在或已停用: " + missing);
+            throw new BizException(ErrorCode.PARAM_ERROR, "im.member.users-missing",
+                    "以下用户不存在或已停用: " + missing, missing);
         }
     }
 

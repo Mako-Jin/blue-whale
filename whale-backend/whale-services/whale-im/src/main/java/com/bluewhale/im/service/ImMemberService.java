@@ -115,7 +115,8 @@ public class ImMemberService {
         }
         List<Long> missing = userDirectoryClient.missingUserIds(toInsert);
         if (!missing.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "以下用户不存在或已停用: " + missing);
+            throw new BizException(ErrorCode.PARAM_ERROR, "im.member.users-missing",
+                    "以下用户不存在或已停用: " + missing, missing);
         }
         List<MemberVO> added = new ArrayList<>(toInsert.size());
         for (Long candidate : toInsert) {

@@ -134,8 +134,9 @@ public class ProcessCcServiceImpl implements ProcessCcService {
                 .distinct()
                 .toList();
         if (normalized.size() > MAX_RECIPIENT_CANDIDATES) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
-                    "候选收件人去重后 " + normalized.size() + " 个，超过上限 " + MAX_RECIPIENT_CANDIDATES);
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.cc.candidates-exceeded",
+                    "候选收件人去重后 " + normalized.size() + " 个，超过上限 " + MAX_RECIPIENT_CANDIDATES,
+                    normalized.size(), MAX_RECIPIENT_CANDIDATES);
         }
         return normalized;
     }

@@ -345,9 +345,9 @@ public class FormPublishServiceImpl implements FormPublishService {
             return;
         }
         if (!force) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
+            throw new BizException(ErrorCode.PARAM_ERROR, "form.publish.narrowed-columns",
                     "以下列类型收窄可能导致存量数据被截断，请确认后以 force=true 重新发布："
-                            + String.join("；", narrowed));
+                            + String.join("；", narrowed), String.join("；", narrowed));
         }
         log.warn("表单发布存在列类型收窄，已按 force=true 确认执行：table={}, 收窄列={}", table, narrowed);
     }

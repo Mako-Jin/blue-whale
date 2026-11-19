@@ -68,10 +68,12 @@ public class MailCredentialResolver {
     private String resolveFromConfig(String ref) {
         String password = environment.getProperty(ref);
         if (!StringUtils.hasText(password)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "凭据引用未解析到值：" + ref);
+            throw new BizException(ErrorCode.PARAM_ERROR, "mail.credential.ref-unresolved",
+                    "凭据引用未解析到值：" + ref, ref);
         }
         if (password.length() < MIN_PASSWORD_LENGTH) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "凭据值过短，疑似占位配置：" + ref);
+            throw new BizException(ErrorCode.PARAM_ERROR, "mail.credential.value-too-short",
+                    "凭据值过短，疑似占位配置：" + ref, ref);
         }
         return password;
     }

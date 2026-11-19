@@ -105,7 +105,8 @@ public class JobLogServiceImpl implements JobLogService {
     public ExecutorLogVO executorLog(Long logId) {
         JobLogPo jobLog = jobLogMapper.selectById(logId);
         if (jobLog == null) {
-            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "执行流水不存在: " + logId);
+            throw new BizException(ErrorCode.NOT_FOUND, "job.log.not-found",
+                    "执行流水不存在: " + logId, logId);
         }
         JobInfoPo job = jobInfoMapper.selectById(jobLog.getJobId());
         ExecutorLogVO vo = new ExecutorLogVO();
@@ -145,7 +146,8 @@ public class JobLogServiceImpl implements JobLogService {
             throw new BizException(ErrorCode.PARAM_ERROR, "job.log.stats-time-range-invalid", "统计开始时间必须早于结束时间");
         }
         if (ChronoUnit.DAYS.between(from, to) > MAX_STATS_DAYS) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "统计时间跨度不能超过 " + MAX_STATS_DAYS + " 天");
+            throw new BizException(ErrorCode.PARAM_ERROR, "job.log.stats-span-exceeded",
+                    "统计时间跨度不能超过 " + MAX_STATS_DAYS + " 天", MAX_STATS_DAYS);
         }
         JobLogStatsVO vo = new JobLogStatsVO();
         vo.setFrom(from);

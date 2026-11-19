@@ -104,7 +104,8 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
         }
         ValidationReport report = ProcessModelValidator.validate(request.getDefinitionJson());
         if (!report.isValid()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "流程定义校验未通过：" + code);
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.definition.validation-failed",
+                    "流程定义校验未通过：" + code, code);
         }
         ProcessDefinitionSaveRequest saveRequest = new ProcessDefinitionSaveRequest();
         saveRequest.setCode(code);
@@ -311,7 +312,8 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
     private ProcessDefinitionVersionPo requireSnapshot(Long definitionId, Integer version) {
         ProcessDefinitionVersionPo snapshot = findSnapshot(definitionId, version);
         if (snapshot == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "流程版本不存在：" + version);
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.definition.version-not-found",
+                    "流程版本不存在：" + version, version);
         }
         return snapshot;
     }

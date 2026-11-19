@@ -163,8 +163,8 @@ public class MailcowClient {
             if (e.getStatusCode().value() == 404) {
                 return false;
             }
-            throw new BizException(ErrorCode.SYSTEM_ERROR,
-                    "查询 Mailcow 邮箱状态失败：" + e.getStatusCode().value());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "mail.mailcow.status-query-failed",
+                    "查询 Mailcow 邮箱状态失败：" + e.getStatusCode().value(), e.getStatusCode().value());
         }
     }
 
@@ -189,12 +189,13 @@ public class MailcowClient {
                     });
         } catch (RestClientResponseException e) {
             // 不把响应体整体打出去：Mailcow 的部分错误响应会回显请求字段
-            throw new BizException(ErrorCode.SYSTEM_ERROR,
-                    failMessage + "：Mailcow 返回 " + e.getStatusCode().value());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "mail.mailcow.status-returned",
+                    failMessage + "：Mailcow 返回 " + e.getStatusCode().value(), failMessage, e.getStatusCode().value());
         }
         String error = firstError(response);
         if (error != null) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, failMessage + "：" + error);
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "mail.mailcow.call-failed",
+                    failMessage + "：" + error, failMessage, error);
         }
     }
 

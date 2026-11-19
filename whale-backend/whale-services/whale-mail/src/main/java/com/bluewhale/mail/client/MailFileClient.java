@@ -114,7 +114,8 @@ public class MailFileClient {
             throw e;
         } catch (Exception e) {
             log.warn("附件上传失败: fileName={}, reason={}", fileName, e.getMessage());
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "附件上传失败：" + e.getMessage());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "mail.file.upload-failed",
+                    "附件上传失败：" + e.getMessage(), e.getMessage());
         }
     }
 
@@ -143,7 +144,8 @@ public class MailFileClient {
             throw e;
         } catch (Exception e) {
             log.warn("附件读取失败: fileId={}, reason={}", fileId, e.getMessage());
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "附件读取失败：" + e.getMessage());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "mail.file.read-failed",
+                    "附件读取失败：" + e.getMessage(), e.getMessage());
         }
     }
 
@@ -159,8 +161,8 @@ public class MailFileClient {
         }
         Object code = response.get(FIELD_CODE);
         if (!(code instanceof Number number) || number.intValue() != ErrorCode.SUCCESS.getCode()) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR,
-                    "附件服务调用失败：" + response.get(FIELD_DATA));
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "mail.file.service-call-failed",
+                    "附件服务调用失败：" + response.get(FIELD_DATA), response.get(FIELD_DATA));
         }
         return response.get(FIELD_DATA);
     }

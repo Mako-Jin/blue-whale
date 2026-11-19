@@ -60,7 +60,8 @@ public class MailSecretCipher {
         } catch (BizException e) {
             throw e;
         } catch (RuntimeException e) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "邮箱口令加密失败：" + e.getMessage());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "mail.credential.encrypt-failed",
+                    "邮箱口令加密失败：" + e.getMessage(), e.getMessage());
         }
     }
 
@@ -83,8 +84,9 @@ public class MailSecretCipher {
         } catch (BizException e) {
             throw e;
         } catch (RuntimeException e) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR,
-                    "邮箱凭据解密失败，请检查 " + ConfigEncryptionSettings.ENV_KEY + " 是否与加密时一致");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "mail.credential.decrypt-failed",
+                    "邮箱凭据解密失败，请检查 " + ConfigEncryptionSettings.ENV_KEY + " 是否与加密时一致",
+                    ConfigEncryptionSettings.ENV_KEY);
         }
     }
 
@@ -102,15 +104,16 @@ public class MailSecretCipher {
             if (cipher == null) {
                 String key = environment.getProperty(ConfigEncryptionSettings.ENV_KEY);
                 if (!StringUtils.hasText(key)) {
-                    throw new BizException(ErrorCode.SYSTEM_ERROR,
+                    throw new BizException(ErrorCode.SYSTEM_ERROR, "mail.credential.key-not-configured",
                             "未配置邮箱凭据加密密钥 " + ConfigEncryptionSettings.ENV_KEY
-                                    + "：平台代开邮箱需要它加密口令，禁止明文落库");
+                                    + "：平台代开邮箱需要它加密口令，禁止明文落库", ConfigEncryptionSettings.ENV_KEY);
                 }
                 try {
                     cipher = new ConfigValueCipher(ConfigEncryptionSettings.of(key));
                 } catch (RuntimeException e) {
-                    throw new BizException(ErrorCode.SYSTEM_ERROR,
-                            "邮箱凭据加密密钥不可用（" + ConfigEncryptionSettings.ENV_KEY + "）：" + e.getMessage());
+                    throw new BizException(ErrorCode.SYSTEM_ERROR, "mail.credential.key-unavailable",
+                            "邮箱凭据加密密钥不可用（" + ConfigEncryptionSettings.ENV_KEY + "）：" + e.getMessage(),
+                            ConfigEncryptionSettings.ENV_KEY, e.getMessage());
                 }
             }
             return cipher;

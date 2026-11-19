@@ -108,7 +108,8 @@ public class TaskActivationCommand {
      * @return 参数错误异常（消息携带节点键）
      */
     private static BizException missingAssignee(ProcessModelNode node) {
-        return new BizException(ErrorCode.PARAM_ERROR.getCode(), "流程节点未配置审批人：" + node.getKey());
+        return new BizException(ErrorCode.PARAM_ERROR, "workflow.task.assignee-missing",
+                "流程节点未配置审批人：" + node.getKey(), node.getKey());
     }
 
     /**

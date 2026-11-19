@@ -1536,7 +1536,8 @@ public class FormDataServiceImpl implements FormDataService {
         }
         for (String key : data.keySet()) {
             if (!allowed.contains(key)) {
-                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "字段 " + key + " 不在表单结构定义中");
+                throw new BizException(ErrorCode.PARAM_ERROR, "form.data.field-not-defined",
+                        "字段 " + key + " 不在表单结构定义中", key);
             }
         }
     }
@@ -1552,7 +1553,8 @@ public class FormDataServiceImpl implements FormDataService {
         for (FormField field : fields) {
             Object value = data.get(field.getKey());
             if (field.isRequired() && isBlank(value)) {
-                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "字段 " + field.getLabel() + " 为必填");
+                throw new BizException(ErrorCode.PARAM_ERROR, "form.data.field-required",
+                        "字段 " + field.getLabel() + " 为必填", field.getLabel());
             }
             if (value == null) {
                 continue;

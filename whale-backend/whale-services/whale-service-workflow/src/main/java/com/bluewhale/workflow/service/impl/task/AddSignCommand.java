@@ -49,8 +49,8 @@ public class AddSignCommand {
                 continue;
             }
             if (existing.getAssignee() != null && targets.contains(existing.getAssignee())) {
-                throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
-                        "加签人已在本节点任务中：" + existing.getAssignee());
+                throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.add-signer-duplicate",
+                        "加签人已在本节点任务中：" + existing.getAssignee(), existing.getAssignee());
             }
         }
         for (String target : targets) {

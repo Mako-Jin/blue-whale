@@ -52,8 +52,8 @@ public final class ProcessVariables {
                     "流程变量不是合法的 JSON 对象");
         }
         if (json.length() > MAX_JSON_LENGTH) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
-                    "流程变量长度不能超过 " + MAX_JSON_LENGTH + " 字符");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.process-variable.too-long",
+                    "流程变量长度不能超过 " + MAX_JSON_LENGTH + " 字符", MAX_JSON_LENGTH);
         }
         return json;
     }

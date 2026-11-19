@@ -81,8 +81,8 @@ public class MockPayChannelAdapter implements PayChannelAdapter {
         }
         if (!StringUtils.hasText(order.getChannel())
                 || !"MOCK".equals(order.getChannel().trim().toUpperCase(Locale.ROOT))) {
-            throw new BizException(ErrorCode.PARAM_ERROR,
-                    "MOCK 适配器只处理 MOCK 渠道订单: " + order.getChannel());
+            throw new BizException(ErrorCode.PARAM_ERROR, "pay.channel.mock-only",
+                    "MOCK 适配器只处理 MOCK 渠道订单: " + order.getChannel(), order.getChannel());
         }
     }
 

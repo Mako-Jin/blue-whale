@@ -321,8 +321,8 @@ public class JobBatchServiceImpl implements JobBatchService {
             throw new BizException(ErrorCode.PARAM_ERROR, "job.batch.job-ids-empty", "任务ID列表不能为空");
         }
         if (distinctIds.size() > MAX_BATCH_SIZE) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
-                    "单次批量操作不能超过 " + MAX_BATCH_SIZE + " 条");
+            throw new BizException(ErrorCode.PARAM_ERROR, "job.batch.size-exceeded",
+                    "单次批量操作不能超过 " + MAX_BATCH_SIZE + " 条", MAX_BATCH_SIZE);
         }
         return List.copyOf(distinctIds);
     }

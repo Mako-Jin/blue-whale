@@ -164,7 +164,8 @@ public class MailProvisionServiceImpl implements MailProvisionService {
         } catch (RuntimeException e) {
             mailcowClient.deleteMailboxQuietly(email);
             log.error("平台代开邮箱落库失败，已回滚 Mailcow 邮箱: email={}, reason={}", email, e.getMessage());
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "邮箱已创建但落库失败，已回滚：" + e.getMessage());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "mail.provision.persist-failed",
+                    "邮箱已创建但落库失败，已回滚：" + e.getMessage(), e.getMessage());
         }
     }
 
@@ -196,7 +197,8 @@ public class MailProvisionServiceImpl implements MailProvisionService {
         if (StringUtils.hasText(request.getEmail())) {
             String specified = MailAddressUtils.normalize(request.getEmail());
             if (!specified.endsWith("@" + domain)) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "指定邮箱地址必须属于域名 " + domain);
+                throw new BizException(ErrorCode.PARAM_ERROR, "mail.provision.domain-mismatch",
+                        "指定邮箱地址必须属于域名 " + domain, domain);
             }
             return specified.substring(0, specified.lastIndexOf('@'));
         }

@@ -79,10 +79,12 @@ public class HttpInvokeJobHandler implements JobHandler {
         String method = node.path("method").asText(METHOD_POST).toUpperCase();
         String path = node.path("path").asText("");
         if (service.isBlank() || path.isBlank()) {
-            throw new BizException("httpInvokeJobHandler 参数缺少 service 或 path：" + param);
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "job.invoke.param-missing",
+                    "httpInvokeJobHandler 参数缺少 service 或 path：" + param, param);
         }
         if (!METHOD_GET.equals(method) && !METHOD_POST.equals(method)) {
-            throw new BizException("httpInvokeJobHandler 仅支持 GET/POST，收到：" + method);
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "job.invoke.method-unsupported",
+                    "httpInvokeJobHandler 仅支持 GET/POST，收到：" + method, method);
         }
         JsonNode bodyNode = node.get("body");
         String body = bodyNode == null || bodyNode.isNull() ? null : bodyNode.toString();
@@ -115,7 +117,8 @@ public class HttpInvokeJobHandler implements JobHandler {
     private URI resolveBaseUri(String service) {
         List<ServiceInstance> instances = discoveryClient.getInstances(service);
         if (instances == null || instances.isEmpty()) {
-            throw new BizException("目标服务无可用实例：" + service);
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "job.invoke.service-unavailable",
+                    "目标服务无可用实例：" + service, service);
         }
         return instances.get(0).getUri();
     }
@@ -137,7 +140,8 @@ public class HttpInvokeJobHandler implements JobHandler {
             return spec.retrieve().body(String.class);
         } catch (Exception e) {
             String reason = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
-            throw new BizException("远程任务调用失败 " + uri + "：" + reason);
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "job.invoke.remote-failed",
+                    "远程任务调用失败 " + uri + "：" + reason, uri, reason);
         }
     }
 
@@ -160,12 +164,14 @@ public class HttpInvokeJobHandler implements JobHandler {
             dataText = data == null || data.isNull() ? "" : data.toString();
             if (root.path("code").asInt(-1) != SUCCESS_CODE) {
                 String message = root.path("message").asText("无错误信息");
-                throw new BizException("远程任务业务失败：" + message);
+                throw new BizException(ErrorCode.SYSTEM_ERROR, "job.invoke.remote-biz-failed",
+                        "远程任务业务失败：" + message, message);
             }
         } catch (BizException e) {
             throw e;
         } catch (Exception e) {
-            throw new BizException("远程任务响应解析失败：" + truncate(raw));
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "job.invoke.response-parse-failed",
+                    "远程任务响应解析失败：" + truncate(raw), truncate(raw));
         }
         String summary = "服务=" + service + " " + method + " " + path + " code=" + codeText
                 + (dataText.isEmpty() ? "" : " data=" + dataText);

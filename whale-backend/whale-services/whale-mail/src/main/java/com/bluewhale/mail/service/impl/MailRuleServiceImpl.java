@@ -414,7 +414,8 @@ public class MailRuleServiceImpl implements MailRuleService {
                 .eq(MailRule::getAccountId, accountId));
         int limit = properties.getRule().getMaxRulesPerAccount();
         if (count != null && count >= limit) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "规则数量已达上限 " + limit + " 条");
+            throw new BizException(ErrorCode.PARAM_ERROR, "mail.rule.limit-exceeded",
+                    "规则数量已达上限 " + limit + " 条", limit);
         }
     }
 

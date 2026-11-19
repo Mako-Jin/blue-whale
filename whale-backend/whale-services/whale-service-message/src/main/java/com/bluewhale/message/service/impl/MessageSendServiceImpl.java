@@ -186,7 +186,8 @@ public class MessageSendServiceImpl implements MessageSendService {
     public SendMessageResult retry(Long messageId) {
         MessageRecordPo record = messageId == null ? null : recordMapper.selectById(messageId);
         if (record == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "消息不存在: " + messageId);
+            throw new BizException(ErrorCode.NOT_FOUND, "message.record.not-found",
+                    "消息不存在: " + messageId, messageId);
         }
         if (properties.isMock()) {
             throw new BizException(ErrorCode.PARAM_ERROR, "message.send.retry-in-mock-forbidden",
@@ -406,7 +407,8 @@ public class MessageSendServiceImpl implements MessageSendService {
             }
         }
         if (template == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "消息模板不存在: " + code);
+            throw new BizException(ErrorCode.NOT_FOUND, "message.template.not-found",
+                    "消息模板不存在: " + code, code);
         }
         return template;
     }

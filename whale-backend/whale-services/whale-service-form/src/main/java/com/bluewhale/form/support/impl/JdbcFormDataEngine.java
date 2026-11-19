@@ -644,7 +644,8 @@ public class JdbcFormDataEngine implements FormDataEngine {
      */
     private static String assertTable(String table) {
         if (table == null || !TABLE_PATTERN.matcher(table).matches()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "物理表名非法：" + table);
+            throw new BizException(ErrorCode.PARAM_ERROR, "form.data.table-name-invalid",
+                    "物理表名非法：" + table, table);
         }
         return table;
     }

@@ -96,7 +96,8 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
     public ProcessInstanceVO startByCode(InternalProcessStartRequest request) {
         ProcessDefinitionPo definition = findDefinitionByCode(request.getDefinitionCode());
         if (definition == null) {
-            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "流程定义不存在：" + request.getDefinitionCode());
+            throw new BizException(ErrorCode.NOT_FOUND, "workflow.definition.not-found",
+                    "流程定义不存在：" + request.getDefinitionCode(), request.getDefinitionCode());
         }
         return startInstance(definition, request.getTitle(), request.getBusinessKey(), request.getInitiator(),
                 request.getVariables(), request.getAssigneeOverrides(), request.getCcAccounts());

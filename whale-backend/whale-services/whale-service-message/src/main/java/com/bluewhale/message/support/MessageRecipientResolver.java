@@ -50,8 +50,8 @@ public class MessageRecipientResolver {
             throw new BizException(ErrorCode.PARAM_ERROR, "message.recipient.empty", "接收人为空：接收人组无成员或未提供接收人");
         }
         if (deduped.size() > properties.getMaxMembers()) {
-            throw new BizException(ErrorCode.PARAM_ERROR,
-                    "接收人不能超过 " + properties.getMaxMembers() + " 人");
+            throw new BizException(ErrorCode.PARAM_ERROR, "message.recipient.limit-exceeded",
+                    "接收人不能超过 " + properties.getMaxMembers() + " 人", properties.getMaxMembers());
         }
         return deduped;
     }

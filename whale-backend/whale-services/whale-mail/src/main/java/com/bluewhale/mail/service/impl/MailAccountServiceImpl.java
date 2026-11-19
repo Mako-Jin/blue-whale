@@ -87,7 +87,8 @@ public class MailAccountServiceImpl implements MailAccountService {
             accountMapper.insert(account);
         } catch (DuplicateKeyException e) {
             // 唯一键含逻辑删除行：已解绑的地址也占用，直接提示比静默失败更清晰
-            throw new BizException(ErrorCode.PARAM_ERROR, "该邮箱地址已被绑定：" + email);
+            throw new BizException(ErrorCode.PARAM_ERROR, "mail.account.email-exists",
+                    "该邮箱地址已被绑定：" + email, email);
         }
         folderService.ensureSystemFolders(account);
         log.info("邮箱账号已绑定: id={}, email={}, userId={}", account.getId(), email, userId);

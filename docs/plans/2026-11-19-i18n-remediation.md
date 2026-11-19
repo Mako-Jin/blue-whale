@@ -41,11 +41,19 @@
 - [x] 每个服务三份资源文件（`messages` / `messages_zh_CN` / `messages_en_US`）键集完全对齐
 - [x] admin 前端第二批：仪表盘（Home）文案迁移；登录页、导航、头部已于 P1 完成
 
+### P2 第二批（拼接型消息）
+
+- [x] 七个核心服务 82 处 `"中文" + 变量` 改为 `(ErrorCode, messageKey, 原中文表达式, args...)`：
+  资源包用 `{0}` / `{1}` 占位，原表达式继续作为 `getMessage()` 与中文兜底
+- [x] 新增 74 个键：message 21、workflow 9、form 5、job 12、im 1、mail 21、pay 5
+- [x] 资源文件键数更新为 message 33 / workflow 50 / form 16 / job 19 / im 36 / mail 56 / pay 12，
+  三份文件键集逐服务比对一致
+- [x] 校验脚本确认所有键化异常引用的键均在对应服务资源包中存在
+
 ## 三、待做项（P2 剩余 / P3）
 
 | 级别 | 事项 | 说明 |
 | --- | --- | --- |
-| P2 | 拼接型业务消息 | 7 个核心服务中约 83 处 `"中文" + 变量` 未迁移（保持原文，避免破坏默认文案）；需改为 `{0}` 占位参数 |
 | P2 | 其余后端服务 | agent / archive / assistant / doc / forum / iot / map / music / scene / twin / video 仍未接入 SDK（auth、file 已接入） |
 | P2 | DTO 校验文案迁移 | 现有 `@NotBlank(message="中文")` 仍为字面量；后续统一改为 `{validation.xxx}` 由 MessageSource 插值（机制已支持） |
 | P2 | 前端其余页面 | admin 剩余 50+ 页面、portal 与子应用按模块分批替换硬编码文案 |
@@ -72,5 +80,7 @@
 - `mvn ... checkstyle:check`：4 个改动模块 0 违规。
 - P2：message / workflow / form / job / im / mail / pay 七个服务 `mvn test` 与 `checkstyle:check` 全部成功；
   全后端 `mvn -o -DskipTests compile -T 1C` BUILD SUCCESS。
+- P2 第二批：上述七个服务拼接型消息键化后 `mvn test` 与 `checkstyle:check` 再次全部成功；
+  资源包键集与代码引用键的比对脚本零缺失。
 - `pnpm --filter @bluewhale/http build`、`pnpm --filter whale-admin lint`、
   `pnpm --filter whale-admin test`（12 文件 / 56 例全绿）、`pnpm --filter whale-admin build`：全部通过。

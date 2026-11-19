@@ -99,12 +99,13 @@ public class PayChannelGateway {
      */
     private PayChannelAdapter requireAdapter(String channel) {
         if (!isSupported(channel)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "不支持的支付渠道: " + channel);
+            throw new BizException(ErrorCode.PARAM_ERROR, "pay.channel.unsupported",
+                    "不支持的支付渠道: " + channel, channel);
         }
         PayChannelAdapter adapter = adapters.get(channel.trim().toUpperCase(Locale.ROOT));
         if (adapter == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR,
-                    "渠道未接入适配器: " + channel + "（当前仅内置 MOCK）");
+            throw new BizException(ErrorCode.PARAM_ERROR, "pay.channel.adapter-missing",
+                    "渠道未接入适配器: " + channel + "（当前仅内置 MOCK）", channel);
         }
         return adapter;
     }

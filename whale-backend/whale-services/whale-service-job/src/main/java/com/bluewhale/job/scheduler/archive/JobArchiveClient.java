@@ -83,7 +83,8 @@ public class JobArchiveClient {
         } catch (BizException e) {
             throw e;
         } catch (Exception e) {
-            throw new BizException("归档上传失败：" + describe(e));
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "job.archive.upload-failed",
+                    "归档上传失败：" + describe(e), describe(e));
         }
     }
 
@@ -99,7 +100,8 @@ public class JobArchiveClient {
             throw new BizException(ErrorCode.SYSTEM_ERROR, "job.archive.upload-empty-body", "归档上传失败：响应体为空");
         }
         if (result.getCode() != SUCCESS_CODE || result.getData() == null) {
-            throw new BizException("归档上传失败：" + result.getMessage());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "job.archive.upload-failed",
+                    "归档上传失败：" + result.getMessage(), result.getMessage());
         }
         return result.getData();
     }

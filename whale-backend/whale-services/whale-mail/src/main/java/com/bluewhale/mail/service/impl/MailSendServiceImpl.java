@@ -92,7 +92,8 @@ public class MailSendServiceImpl implements MailSendService {
             Transport.send(mimeMessage);
         } catch (MessagingException e) {
             log.warn("邮件发送失败: accountId={}, reason={}", account.getId(), e.getMessage());
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "邮件发送失败：" + e.getMessage());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "mail.send.failed",
+                    "邮件发送失败：" + e.getMessage(), e.getMessage());
         }
         indexSent(account, request, mimeMessage, attachments);
         log.info("邮件已发送: accountId={}, to={}, subject={}, attachments={}",
@@ -184,7 +185,8 @@ public class MailSendServiceImpl implements MailSendService {
             }
             return mimeMessage;
         } catch (MessagingException | java.io.UnsupportedEncodingException e) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "邮件内容不合法：" + e.getMessage());
+            throw new BizException(ErrorCode.PARAM_ERROR, "mail.send.content-invalid",
+                    "邮件内容不合法：" + e.getMessage(), e.getMessage());
         }
     }
 

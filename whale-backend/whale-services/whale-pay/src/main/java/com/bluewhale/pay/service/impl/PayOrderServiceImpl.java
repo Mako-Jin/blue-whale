@@ -117,14 +117,16 @@ public class PayOrderServiceImpl implements PayOrderService {
         entity.setCurrency(normalize(request.getCurrency(), DEFAULT_CURRENCY));
         entity.setChannel(normalize(request.getChannel(), DEFAULT_CHANNEL));
         if (!payChannelGateway.isSupported(entity.getChannel())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "不支持的支付渠道: " + entity.getChannel());
+            throw new BizException(ErrorCode.PARAM_ERROR, "pay.channel.unsupported",
+                    "不支持的支付渠道: " + entity.getChannel(), entity.getChannel());
         }
         entity.setStatus(PayOrderStatus.CREATED.code());
         entity.setRefundAmount(BigDecimal.ZERO);
         try {
             payOrderMapper.insert(entity);
         } catch (DuplicateKeyException ex) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "支付单号已存在: " + orderNo);
+            throw new BizException(ErrorCode.PARAM_ERROR, "pay.order.no-duplicate",
+                    "支付单号已存在: " + orderNo, orderNo);
         }
         return toVo(payOrderMapper.selectById(entity.getId()));
     }
@@ -347,7 +349,8 @@ public class PayOrderServiceImpl implements PayOrderService {
         LambdaQueryWrapper<PayOrder> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PayOrder::getOrderNo, orderNo);
         if (payOrderMapper.selectCount(wrapper) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "支付单号已存在: " + orderNo);
+            throw new BizException(ErrorCode.PARAM_ERROR, "pay.order.no-duplicate",
+                    "支付单号已存在: " + orderNo, orderNo);
         }
     }
 
