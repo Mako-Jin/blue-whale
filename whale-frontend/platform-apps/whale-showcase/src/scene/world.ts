@@ -656,7 +656,12 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
       ground: new THREE.Color(p.skyGround),
       sunDir,
       sunColor: new THREE.Color(p.sunColor),
-      sunIntensity: p.sunIntensity > 0.3 ? 1 : 0.15,
+      // 天空的日/月强度：白天与黄昏 1；夜里（0.3 < intensity < 1 的只有
+      // night）压到 0.3。夜里映射成 1 时 pow(sd,220)*2.4 的日盘项会在月亮
+      // 方位炸出一团比月盘大十倍的光斑，还把 moonK 门（uSunIntensity<1）
+      // 顶死——月盘 shader 整个不执行，"月亮"其实一直是这团泄漏的日晕
+      // （S33 实测，S32 存档里的月亮同源）。
+      sunIntensity: p.sunIntensity > 1.0 ? 1 : p.sunIntensity > 0.3 ? 0.3 : 0.15,
       haze: p.haze,
       cloud: p.cloud,
       cloudLight: p.cloudLight,
@@ -780,7 +785,7 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
   // dev 调试句柄：截图探针（e2e/tools/probe-gate.mjs）从画面任意像素发射线
   // 查"挡视线的是什么"。生产构建 tree-shake 不掉也只是一次赋值，无副作用。
   if (import.meta.env.DEV) {
-    (window as unknown as Record<string, unknown>).__bwScene = { scene, camera };
+    (window as unknown as Record<string, unknown>).__bwScene = { scene, camera, controls };
   }
 
   return {

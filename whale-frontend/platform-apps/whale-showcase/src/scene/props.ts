@@ -42,6 +42,7 @@ type MatKey =
   | 'crop'
   | 'field'
   | 'soil'
+  | 'straw'
   | 'path'
   | 'wet'
   | 'water';
@@ -65,6 +66,9 @@ const MAT_DEF: Record<MatKey, THREE.MeshStandardMaterialParameters> = {
   field: { color: 0x4f5c2d, roughness: 1 },
   // 翻耕待种的褐田：与 path 同族但更红一点（新翻的湿土），跟草色拉开色相
   soil: { color: 0x6e5a3f, roughness: 1 },
+  // 干草垛（S33）：比 soil 干亮、比 crop 黄——真正的"草黄"，不跟作物的
+  // 生青混色
+  straw: { color: 0xb0924e, roughness: 0.97 },
   path: { color: 0x7d7059, roughness: 0.98 },
   // 沟底常年积水积泥：暗、湿、有点反光。粗糙度是这里唯一的"湿"信号
   wet: { color: 0x2f3532, roughness: 0.22, metalness: 0.04 },
@@ -1381,6 +1385,8 @@ type FieldKind = 'crop' | 'soil';
 const FIELD_BLOCKS: Array<[number, number, number, number, FieldKind]> = [
   [-38, -47, -16, -25, 'crop'],
   [-36, 10, -18, 31, 'crop'],
+  // S33 南延：全景机位（26,21,52）的左下前景，最后一段空草
+  [-34, 33, -14, 47, 'crop'],
   [37, 16, 58, 32, 'crop'],
   [40, -30, 61, -14, 'soil'],
 ];
@@ -1463,6 +1469,123 @@ function buildFields(b: Builder): void {
       }
     }
   }
+}
+
+/* ------------------------------------------------------------------ 西岸：田庄小件 */
+
+/**
+ * 西岸南田的农事小件（S33）：篱笆、草垛、稻草人。
+ *
+ * <p>S32 全景评审的结论：西岸北段有田有村（S7/S24），桥南 z 33…47 是
+ * 最后一段空草——全景机位（26,21,52）的左下前景正对着它。田块南延
+ * （{@link FIELD_BLOCKS} 第三块）铺满大面，本函数补"有人照看"的证据：
+ * 篱笆是田的边界，草垛是收成的存放，稻草人是田的看护。</p>
+ *
+ * <p>横杆逐段取两端高度并按切线转向（先绕 X 俯仰、再绕 Y 转向）——
+ * 这块地 20m 跨上有 1.5m 起伏，整条一个高度必有一半埋进坡里
+ * （S15 平构件铁律）。俯仰/转向的矩阵序必须是 T·RY·RX：杆长建模在
+ * d 轴上，先在局部系里俯仰、再整体转向，反了俯仰会绕错轴。</p>
+ */
+function buildWestFarm(b: Builder): void {
+  const [x0, z0, x1, z1] = FIELD_BLOCKS[2];
+  const POST_H = 0.95;
+
+  /** 一段贴地横杆：杆长在 d 轴，两端各查一次高度，长度 ×1.12 吞接缝 */
+  const bar = (
+    key: MatKey,
+    ax: number,
+    az: number,
+    bx: number,
+    bz: number,
+    yOff: number,
+    w: number,
+    h: number,
+  ): void => {
+    const dx = bx - ax;
+    const dz = bz - az;
+    const len = Math.hypot(dx, dz);
+    const ya = heightAt(ax, az);
+    const yb = heightAt(bx, bz);
+    const geo = new THREE.BoxGeometry(w, h, len * 1.12);
+    const m = new THREE.Matrix4()
+      .makeTranslation((ax + bx) / 2, (ya + yb) / 2 + yOff, (az + bz) / 2)
+      .multiply(new THREE.Matrix4().makeRotationY(Math.atan2(dx, dz)))
+      .multiply(new THREE.Matrix4().makeRotationX(Math.atan2(yb - ya, len)));
+    b.add(key, geo, m);
+  };
+
+  /** 一段篱笆：桩距 ~2.2m，双横杆（0.46 / 0.78） */
+  const fence = (ax: number, az: number, bx: number, bz: number): void => {
+    const len = Math.hypot(bx - ax, bz - az);
+    const n = Math.max(1, Math.round(len / 2.2));
+    for (let i = 0; i <= n; i += 1) {
+      const t = i / n;
+      const px = ax + (bx - ax) * t;
+      const pz = az + (bz - az) * t;
+      const y = heightAt(px, pz);
+      b.box('woodDark', 0.1, POST_H, 0.1, px, y + POST_H / 2 + 0.02, pz);
+      if (i > 0) {
+        const qx = ax + (bx - ax) * ((i - 1) / n);
+        const qz = az + (bz - az) * ((i - 1) / n);
+        bar('woodDark', qx, qz, px, pz, 0.46, 0.05, 0.055);
+        bar('woodDark', qx, qz, px, pz, 0.78, 0.05, 0.055);
+      }
+    }
+  };
+
+  // 围南田一圈：北边（靠村与上田）留 3.2m 门道，其余三边整条
+  const GATE = 3.2;
+  const gx0 = -27.4;
+  const gx1 = gx0 + GATE;
+  fence(gx1, z0, x1, z0); // 北边东段
+  fence(x0, z0, gx0, z0); // 北边西段
+  fence(x0, z0, x0, z1); // 西边
+  fence(x1, z0, x1, z1); // 东边
+  fence(x0, z1, x1, z1); // 南边
+  // 门柱比篱笆桩高一头，带小顶帽——门口才读得出来
+  for (const gx of [gx0, gx1]) {
+    const y = heightAt(gx, z0);
+    b.box('woodDark', 0.16, POST_H + 0.25, 0.16, gx, y + (POST_H + 0.25) / 2 + 0.02, z0);
+    b.box('tile', 0.3, 0.08, 0.3, gx, y + POST_H + 0.29, z0);
+  }
+
+  /*
+   * 草垛：西南角篱笆外三座（大小不一、间距不等），收割季的存放。
+   * 两层圆台 + 顶帽，逐座错开一点朝向；脚下撒几撮散草。
+   */
+  const stacks: Array<[number, number, number, number]> = [
+    [-36.8, 48.8, 1.0, 0.5],
+    [-34.2, 50.6, 0.78, 1.9],
+    [-38.6, 50.2, 0.9, 3.6],
+  ];
+  for (const [hx, hz, s, yaw] of stacks) {
+    const y = heightAt(hx, hz);
+    b.cyl('straw', 0.82 * s, 1.18 * s, 0.85 * s, hx, y + 0.42 * s, hz, 9, { y: yaw });
+    b.cyl('straw', 0.5 * s, 0.84 * s, 0.62 * s, hx, y + 1.12 * s, hz, 9, { y: yaw + 0.7 });
+    b.cyl('straw', 0.12 * s, 0.42 * s, 0.3 * s, hx, y + 1.5 * s, hz, 9, { y: yaw + 1.4 });
+    // 散草：垛脚下几撮掉落的干草
+    for (const [ox, oz] of [[1.3, 0.2], [-0.9, 1.1], [0.4, -1.2]] as const) {
+      const gy = heightAt(hx + ox * s, hz + oz * s);
+      b.box('straw', 0.4 * s, 0.1, 0.22 * s, hx + ox * s, gy + 0.05, hz + oz * s, { y: yaw + ox });
+    }
+  }
+
+  /*
+   * 稻草人：门道内侧、面朝河（东）——从全景看正好在田的亮面上。
+   * 立杆 + 张臂 + 短褂（红布是全田唯一一点暖色，白天读作"有人"，夜里
+   * 没灯不打光，不会变成幽灵亮点）+ 斗笠。
+   */
+  const scx = -25.6;
+  const scz = 34.8;
+  const sy = heightAt(scx, scz);
+  b.box('woodDark', 0.14, 1.95, 0.14, scx, sy + 0.97, scz);
+  b.box('wood', 1.55, 0.09, 0.09, scx, sy + 1.5, scz);
+  b.box('red', 0.62, 0.14, 0.14, scx - 0.72, sy + 1.5, scz); // 袖口左
+  b.box('red', 0.62, 0.14, 0.14, scx + 0.72, sy + 1.5, scz); // 袖口右
+  b.box('red', 0.62, 0.62, 0.34, scx, sy + 1.42, scz); // 短褂
+  b.box('plaster', 0.3, 0.3, 0.3, scx, sy + 1.95, scz); // 头
+  b.box('tile', 0.58, 0.05, 0.58, scx, sy + 2.14, scz); // 斗笠檐
+  b.box('tile', 0.26, 0.12, 0.26, scx, sy + 2.21, scz); // 斗笠顶
 }
 
 /* ------------------------------------------------------------------ 西岸：小路与水埠 */
@@ -2767,6 +2890,7 @@ export function buildSettlement(assets?: SceneAssets): THREE.Group {
   if (!hasBoat) for (const p of boats) buildBoat(b, p);
 
   buildFields(b);
+  buildWestFarm(b);
   buildWestPath(b);
   buildWestWharf(b);
   buildStreet(b);
