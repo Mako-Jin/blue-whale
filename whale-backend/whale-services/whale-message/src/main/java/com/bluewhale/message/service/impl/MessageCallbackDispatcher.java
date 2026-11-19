@@ -24,6 +24,7 @@ import org.springframework.web.client.RestClient;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * 回执回调派发器（outbox 消费者）。
@@ -35,9 +36,10 @@ import java.util.Map;
  * <p><b>投递语义为 at-least-once</b>：HTTP 成功与任务状态落库不在同一事务内，进程崩溃可能
  * 导致同一任务被再次投递；业务方必须以 {@code taskId}（或回执 {@code receiptId}）做幂等。</p>
  *
- * <p><b>单实例假设</b>：{@code @Scheduled} 不做抢占，多实例部署时同一任务可能被并发派发。
- * 若需多实例，请改为「按状态原子抢占（如 {@code UPDATE ... WHERE status IN ('PENDING','FAILED')}）
- * + 派发中超时回收」。</p>
+ * <p><b>多实例安全</b>：任务派发前先按状态原子抢占
+ * （{@code UPDATE ... WHERE status IN ('PENDING','FAILED')} 置为 {@code DISPATCHING}），
+ * 抢到的实例才发起回调；抢占时间超过 {@code dispatch-timeout-millis} 仍停留在
+ * {@code DISPATCHING} 的任务视为实例崩溃，回收为 {@code FAILED} 并立即可重试。</p>
  *
  * @author BlueWhale
  */
@@ -79,6 +81,9 @@ public class MessageCallbackDispatcher {
 
     private final MessageReceiptProperties properties;
 
+    /** 实例标识：多实例抢占时标记任务归属 */
+    private final String instanceId = UUID.randomUUID().toString();
+
     /** 回调客户端（延迟到构造完成后初始化，避免字段初始化早于配置注入） */
     private RestClient callbackClient;
 
@@ -96,12 +101,29 @@ public class MessageCallbackDispatcher {
     @Scheduled(fixedDelayString = "${whale.message.receipt.dispatch-interval-millis:15000}",
             initialDelayString = "${whale.message.receipt.dispatch-initial-delay-millis:20000}")
     public void dispatch() {
+        recoverStale();
         List<MessageCallbackTask> tasks = selectDueTasks();
         if (tasks.isEmpty()) {
             return;
         }
         for (MessageCallbackTask task : tasks) {
+            // 原子抢占：抢不到说明已被其它实例处理或状态已变化，直接跳过
+            if (callbackTaskMapper.claim(task.getId(), instanceId, LocalDateTime.now()) == 0) {
+                continue;
+            }
             deliver(task);
+        }
+    }
+
+    /**
+     * 回收派发超时的任务：进程崩溃或网络挂起会让任务永久停留在 {@code DISPATCHING}。
+     */
+    private void recoverStale() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime deadline = now.minusNanos(Math.max(1L, properties.getDispatchTimeoutMillis()) * 1_000_000L);
+        int recovered = callbackTaskMapper.recoverStale(deadline, now);
+        if (recovered > 0) {
+            log.warn("回收派发超时的回调任务: count={}", recovered);
         }
     }
 
@@ -140,7 +162,7 @@ public class MessageCallbackDispatcher {
             task.setStatus(STATUS_GAVE_UP);
             task.setLastError(truncate(e.getMessage(), ERROR_MAX_LENGTH));
             task.setNextRetryAt(null);
-            callbackTaskMapper.updateById(task);
+            finish(task);
             log.warn("回调地址未通过安全校验，放弃派发: taskId={}, reason={}", task.getId(), e.getMessage());
             return;
         }
@@ -157,7 +179,7 @@ public class MessageCallbackDispatcher {
             task.setStatus(STATUS_SENT);
             task.setLastError(null);
             task.setNextRetryAt(null);
-            callbackTaskMapper.updateById(task);
+            finish(task);
             log.info("回执回调成功: taskId={}, messageId={}, deliveryId={}",
                     task.getId(), task.getMessageId(), task.getDeliveryId());
         } catch (RuntimeException e) {
@@ -173,8 +195,19 @@ public class MessageCallbackDispatcher {
                 log.warn("回执回调失败，稍后重试: taskId={}, attempts={}, reason={}",
                         task.getId(), nextAttempts, e.getMessage());
             }
-            callbackTaskMapper.updateById(task);
+            finish(task);
         }
+    }
+
+    /**
+     * 结束派发：清空抢占标记后落库，避免任务被超时回收逻辑误判为卡死。
+     *
+     * @param task 回调任务
+     */
+    private void finish(MessageCallbackTask task) {
+        task.setDispatchOwner(null);
+        task.setDispatchAt(null);
+        callbackTaskMapper.updateById(task);
     }
 
     /**

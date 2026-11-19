@@ -32,6 +32,9 @@ public class MessageReceiptProperties {
     /** 单次派发批量上限 */
     private int dispatchBatchSize = 50;
 
+    /** 派发抢占超时（毫秒）：超时未完成的任务会被回收重派，避免实例崩溃后任务永久卡在 DISPATCHING */
+    private long dispatchTimeoutMillis = 120000;
+
     /** 回调最大尝试次数，超过后置为 GAVE_UP */
     private int maxAttempts = 5;
 
