@@ -35,6 +35,10 @@ import com.bluewhale.job.vo.JobLogStatsVO;
 import com.bluewhale.job.vo.JobLogVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -44,6 +48,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import tools.jackson.databind.ObjectMapper;
+
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 /**
  * 定时任务管理接口。
@@ -63,6 +73,9 @@ public class JobController {
     /** 审计操作对象类型 */
     private static final String TARGET_TYPE = "job_info";
 
+    /** 导出文件名时间戳格式 */
+    private static final DateTimeFormatter EXPORT_FILE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
+
     private final JobInfoService jobInfoService;
 
     private final JobLogService jobLogService;
@@ -74,6 +87,8 @@ public class JobController {
     private final JobGraphService jobGraphService;
 
     private final JobBatchService jobBatchService;
+
+    private final ObjectMapper objectMapper;
 
     /** 分页查询定时任务 */
     @GetMapping("/info/page")
@@ -130,11 +145,28 @@ public class JobController {
         return Result.ok(jobBatchService.batchStatus(request));
     }
 
-    /** 导出任务定义与依赖边：可按分组过滤，依赖以业务标识表达 */
+    /** 导出任务定义与依赖边：可按分组与任务ID过滤，依赖以业务标识表达 */
     @GetMapping("/info/export")
     @RequirePermission("sys:job:list")
-    public Result<JobExportVO> export(@RequestParam(required = false) String jobGroup) {
-        return Result.ok(jobBatchService.export(jobGroup));
+    public Result<JobExportVO> export(@RequestParam(required = false) String jobGroup,
+                                      @RequestParam(required = false) List<Long> jobIds) {
+        return Result.ok(jobBatchService.export(jobGroup, jobIds));
+    }
+
+    /** 下载导出文件：内容与导出接口一致，带附件响应头便于直接另存后导入 */
+    @GetMapping("/info/export/download")
+    @RequirePermission("sys:job:list")
+    public ResponseEntity<byte[]> download(@RequestParam(required = false) String jobGroup,
+                                           @RequestParam(required = false) List<Long> jobIds) {
+        JobExportVO export = jobBatchService.export(jobGroup, jobIds);
+        String fileName = "job-export-" + LocalDateTime.now().format(EXPORT_FILE_FORMATTER) + ".json";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename(fileName, StandardCharsets.UTF_8)
+                        .build()
+                        .toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(objectMapper.writeValueAsBytes(export));
     }
 
     /** 导入任务定义与依赖边：冲突策略 SKIP / OVERWRITE，逐条处理并聚合失败明细 */

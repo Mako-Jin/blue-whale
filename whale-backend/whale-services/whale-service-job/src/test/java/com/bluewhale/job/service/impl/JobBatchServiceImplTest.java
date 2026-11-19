@@ -1,6 +1,8 @@
 package com.bluewhale.job.service.impl;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -38,6 +40,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
@@ -202,7 +205,7 @@ class JobBatchServiceImplTest {
         when(jobDependencyMapper.selectList(any())).thenReturn(List.of(
                 dependencyPo(1L, 2L), dependencyPo(2L, 3L)));
 
-        JobExportVO vo = service.export(null);
+        JobExportVO vo = service.export(null, null);
 
         assertEquals("1.0", vo.getVersion());
         assertNotNull(vo.getExportedAt());
@@ -210,6 +213,20 @@ class JobBatchServiceImplTest {
         assertEquals(1, vo.getDependencies().size());
         assertEquals("crm.order-pull", vo.getDependencies().get(0).getFrom().getJobCode());
         assertEquals("crm.order-push", vo.getDependencies().get(0).getTo().getJobCode());
+    }
+
+    @Test
+    @DisplayName("导出：指定任务ID时只按 ID 集合过滤，不追加分组条件")
+    @SuppressWarnings("unchecked")
+    void shouldFilterExportByJobIds() {
+        when(jobInfoMapper.selectList(any())).thenReturn(List.of());
+
+        service.export(null, List.of(2L, 3L));
+
+        ArgumentCaptor<Wrapper<JobInfoPo>> captor = ArgumentCaptor.forClass(Wrapper.class);
+        verify(jobInfoMapper).selectList(captor.capture());
+        LambdaQueryWrapper<JobInfoPo> wrapper = (LambdaQueryWrapper<JobInfoPo>) captor.getValue();
+        assertTrue(wrapper.getTargetSql().toLowerCase().contains("id in"), wrapper.getTargetSql());
     }
 
     @Test

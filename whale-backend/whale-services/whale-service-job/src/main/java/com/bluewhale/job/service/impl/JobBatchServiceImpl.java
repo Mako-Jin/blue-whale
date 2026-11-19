@@ -115,9 +115,12 @@ public class JobBatchServiceImpl implements JobBatchService {
     }
 
     @Override
-    public JobExportVO export(String jobGroup) {
+    public JobExportVO export(String jobGroup, List<Long> jobIds) {
+        List<Long> filteredIds = jobIds == null ? List.of()
+                : jobIds.stream().filter(Objects::nonNull).distinct().toList();
         List<JobInfoPo> jobs = jobInfoMapper.selectList(new LambdaQueryWrapper<JobInfoPo>()
                 .eq(StringUtils.hasText(jobGroup), JobInfoPo::getJobGroup, jobGroup)
+                .in(!filteredIds.isEmpty(), JobInfoPo::getId, filteredIds)
                 .orderByAsc(JobInfoPo::getId));
         Map<Long, JobInfoPo> jobById = new LinkedHashMap<>();
         jobs.forEach(job -> jobById.put(job.getId(), job));

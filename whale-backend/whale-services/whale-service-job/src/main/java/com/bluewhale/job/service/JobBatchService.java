@@ -7,6 +7,8 @@ import com.bluewhale.job.vo.JobBatchResultVO;
 import com.bluewhale.job.vo.JobExportVO;
 import com.bluewhale.job.vo.JobImportResultVO;
 
+import java.util.List;
+
 /**
  * 任务批量操作与导入导出服务。
  *
@@ -37,9 +39,10 @@ public interface JobBatchService {
      * 导出任务定义与依赖边
      *
      * @param jobGroup 任务分组，为空导出全量
+     * @param jobIds 指定任务ID列表，为空导出全量；与 {@code jobGroup} 同时传入时取交集
      * @return 导出结果
      */
-    JobExportVO export(String jobGroup);
+    JobExportVO export(String jobGroup, List<Long> jobIds);
 
     /**
      * 导入任务定义与依赖边
