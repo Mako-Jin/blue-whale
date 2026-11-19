@@ -12,6 +12,6 @@ import lombok.Data;
 public class DocVersionManualRequest {
 
     /** 变更说明 */
-    @Size(max = 200, message = "变更说明不能超过 200 字")
+    @Size(max = 200, message = "{validation.doc.version.change-summary-size}")
     private String changeSummary;
 }

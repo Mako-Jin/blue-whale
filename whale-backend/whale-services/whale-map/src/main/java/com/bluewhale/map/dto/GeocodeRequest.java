@@ -13,11 +13,11 @@ import lombok.Data;
 public class GeocodeRequest {
 
     /** 结构化地址 */
-    @NotBlank(message = "地址不能为空")
-    @Size(max = 200, message = "地址不能超过 200 字")
+    @NotBlank(message = "{validation.map.geocode.address-required}")
+    @Size(max = 200, message = "{validation.map.geocode.address-max}")
     private String address;
 
     /** 限定城市（可空） */
-    @Size(max = 64, message = "城市名过长")
+    @Size(max = 64, message = "{validation.map.geocode.city-max}")
     private String city;
 }

@@ -14,14 +14,14 @@ import lombok.Data;
 public class FencePointRequest {
 
     /** 经度 */
-    @NotNull(message = "顶点经度不能为空")
-    @DecimalMin(value = "-180", message = "经度不能小于 -180")
-    @DecimalMax(value = "180", message = "经度不能大于 180")
+    @NotNull(message = "{validation.map.fence-point.lng-required}")
+    @DecimalMin(value = "-180", message = "{validation.map.fence-point.lng-min}")
+    @DecimalMax(value = "180", message = "{validation.map.fence-point.lng-max}")
     private Double lng;
 
     /** 纬度 */
-    @NotNull(message = "顶点纬度不能为空")
-    @DecimalMin(value = "-90", message = "纬度不能小于 -90")
-    @DecimalMax(value = "90", message = "纬度不能大于 90")
+    @NotNull(message = "{validation.map.fence-point.lat-required}")
+    @DecimalMin(value = "-90", message = "{validation.map.fence-point.lat-min}")
+    @DecimalMax(value = "90", message = "{validation.map.fence-point.lat-max}")
     private Double lat;
 }

@@ -26,7 +26,7 @@ public class DistanceRequest {
 
     /** 目标点列表 */
     @Valid
-    @NotEmpty(message = "目标点不能为空")
-    @Size(max = 200, message = "单次最多 200 个目标点")
+    @NotEmpty(message = "{validation.map.distance.targets-required}")
+    @Size(max = 200, message = "{validation.map.distance.targets-max}")
     private List<PointRequest> targets;
 }

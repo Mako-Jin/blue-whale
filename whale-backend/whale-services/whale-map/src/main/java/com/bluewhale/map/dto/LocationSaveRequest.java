@@ -15,7 +15,7 @@ import lombok.Data;
 public class LocationSaveRequest {
 
     /** 地址（与坐标二选一） */
-    @Size(max = 200, message = "地址不能超过 200 字")
+    @Size(max = 200, message = "{validation.map.location.address-max}")
     private String address;
 
     /** 经度 */
@@ -28,6 +28,6 @@ public class LocationSaveRequest {
     private String coordType;
 
     /** 备注 */
-    @Size(max = 200, message = "备注不能超过 200 字")
+    @Size(max = 200, message = "{validation.map.location.remark-max}")
     private String remark;
 }

@@ -15,6 +15,6 @@ import java.util.List;
 public class DocPageTagUpdateRequest {
 
     /** 标签ID列表 */
-    @Size(max = 20, message = "单页标签不能超过 20 个")
+    @Size(max = 20, message = "{validation.doc.tag.tag-ids-size}")
     private List<Long> tagIds = new ArrayList<>();
 }

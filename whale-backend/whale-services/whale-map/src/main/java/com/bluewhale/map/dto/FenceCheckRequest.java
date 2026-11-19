@@ -18,26 +18,26 @@ import lombok.Data;
 public class FenceCheckRequest {
 
     /** 查询点经度 */
-    @NotNull(message = "经度不能为空")
-    @DecimalMin(value = "-180", message = "经度不能小于 -180")
-    @DecimalMax(value = "180", message = "经度不能大于 180")
+    @NotNull(message = "{validation.map.fence-check.lng-required}")
+    @DecimalMin(value = "-180", message = "{validation.map.fence-check.lng-min}")
+    @DecimalMax(value = "180", message = "{validation.map.fence-check.lng-max}")
     private Double lng;
 
     /** 查询点纬度 */
-    @NotNull(message = "纬度不能为空")
-    @DecimalMin(value = "-90", message = "纬度不能小于 -90")
-    @DecimalMax(value = "90", message = "纬度不能大于 90")
+    @NotNull(message = "{validation.map.fence-check.lat-required}")
+    @DecimalMin(value = "-90", message = "{validation.map.fence-check.lat-min}")
+    @DecimalMax(value = "90", message = "{validation.map.fence-check.lat-max}")
     private Double lat;
 
     /** 坐标系（可空，缺省按对外展示坐标系） */
-    @Size(max = 8, message = "坐标系不能超过 8 字")
+    @Size(max = 8, message = "{validation.map.fence-check.coord-type-max}")
     private String coordType;
 
     /** 限定业务类型（可空） */
-    @Size(max = 32, message = "业务类型不能超过 32 字")
+    @Size(max = 32, message = "{validation.map.fence-check.biz-type-max}")
     private String bizType;
 
     /** 限定业务对象ID（可空） */
-    @Size(max = 64, message = "业务对象ID不能超过 64 字")
+    @Size(max = 64, message = "{validation.map.fence-check.biz-id-max}")
     private String bizId;
 }

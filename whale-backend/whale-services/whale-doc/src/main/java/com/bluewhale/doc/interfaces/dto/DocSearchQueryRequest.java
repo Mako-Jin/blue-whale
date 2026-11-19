@@ -16,8 +16,8 @@ import lombok.EqualsAndHashCode;
 public class DocSearchQueryRequest extends PageQuery {
 
     /** 搜索关键字 */
-    @NotBlank(message = "搜索关键字不能为空")
-    @Size(max = 64, message = "搜索关键字不能超过 64 字")
+    @NotBlank(message = "{validation.doc.search.keyword-required}")
+    @Size(max = 64, message = "{validation.doc.search.keyword-size}")
     private String keyword;
 
     /** 限定空间ID；null 表示全部可访问空间 */
