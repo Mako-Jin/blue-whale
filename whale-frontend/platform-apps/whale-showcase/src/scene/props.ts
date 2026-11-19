@@ -1449,6 +1449,8 @@ function buildReeds(group: THREE.Group): void {
     metalness: 0,
     side: THREE.DoubleSide, // 苇秆是开口圆管、叶片是单面折带，背面必须可见
   });
+  // 苇梢摆 13cm：苇秆比草高且软，摆幅最大——风过苇荡是湿地最有生命的一刻
+  applyWind(mat, 0.13, 1.6);
   const im = new THREE.InstancedMesh(geo, mat, spots.length);
   im.castShadow = false; // 几百根细秆投影只会让阴影贴图变脏，收益接近零
   im.receiveShadow = true;
@@ -1914,6 +1916,58 @@ function stoneSpots(): GroundSpot[] {
   return out;
 }
 
+/* ------------------------------------------------------------------ 风动 */
+
+/**
+ * 全局风场时间（秒）。world 的帧循环每帧写入，所有被风吹的材质共享。
+ *
+ * <p>用共享 uniform 对象而不是每材质各存一份：改一处，全部跟着走。</p>
+ */
+export const windTime = { value: 0 };
+
+/**
+ * 给地被材质注入顶点级风动。
+ *
+ * <p>草/苇/灌木以前是死的——整个画面里没有任何东西在动。风动的要点：</p>
+ * <ul>
+ *   <li><b>根部锚定</b>：位移按 (y/高度)^1.7 缩放，底部为 0——整株平移
+ *       会像贴纸抖动，"根扎在地上梢在晃"才对；</li>
+ *   <li><b>逐实例相位</b>：用 instanceMatrix 的平移列（第 4 列）做相位偏移，
+ *       同屏几千丛不会齐摆——齐摆是"全场震动"的假感来源；</li>
+ *   <li><b>阵风调制</b>：0.31Hz 的慢正弦把匀速摆动变成一阵一阵的——
+ *       真风不是节拍器；</li>
+ *   <li>位移在<b>实例本地空间</b>做：每丛旋转不同，摆向也随之散开，
+ *       顺手得到了湍流感，不用真算方向场。</li>
+ * </ul>
+ */
+function applyWind(mat: THREE.Material, amp: number, height: number): void {
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.uWindTime = windTime;
+    shader.uniforms.uWindAmp = { value: amp };
+    shader.uniforms.uWindH = { value: height };
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        '#include <common>',
+        '#include <common>\nuniform float uWindTime;\nuniform float uWindAmp;\nuniform float uWindH;',
+      )
+      .replace(
+        '#include <begin_vertex>',
+        [
+          '#include <begin_vertex>',
+          '#ifdef USE_INSTANCING',
+          '  float wPhase = uWindTime * 1.7 + instanceMatrix[3].x * 0.43 + instanceMatrix[3].z * 0.61;',
+          '  float wGust = 0.55 + 0.45 * sin(uWindTime * 0.31 + instanceMatrix[3].z * 0.11);',
+          '  float wK = pow(max(position.y / uWindH, 0.0), 1.7);',
+          '  transformed.x += sin(wPhase) * uWindAmp * wK * wGust;',
+          '  transformed.z += cos(wPhase * 0.83 + 1.7) * uWindAmp * 0.6 * wK * wGust;',
+          '#endif',
+        ].join('\n'),
+      );
+  };
+  // 同一材质类被不同参数 patch 时避免 program 缓存串味
+  mat.customProgramCacheKey = () => `wind-${amp}-${height}`;
+}
+
 /** 通用：一批落点铺成一个 InstancedMesh（可带逐实例色） */
 function instanceScatter(
   group: THREE.Group,
@@ -1966,6 +2020,8 @@ function buildGroundCover(group: THREE.Group, trees: TreeSpot[]): void {
     roughness: 0.9,
     metalness: 0,
   });
+  // 草簇梢部摆 6.5cm（6 叶几何最高 0.44、8 叶 0.5）
+  applyWind(grassMat, 0.065, 0.5);
 
   // 远景：6 叶粗草簇，铺满全岸带（13000 丛 × 18 tri，三角面预算在片数上）
   instanceScatter(
@@ -1989,21 +2045,18 @@ function buildGroundCover(group: THREE.Group, trees: TreeSpot[]): void {
   );
 
   const shrub = createShrub();
-  instanceScatter(
-    group,
-    shrub,
-    new THREE.MeshStandardMaterial({
-      // 颜色全部由顶点色承担（逐团明暗差 + 受光梯度），材质只出白基调
-      color: 0xffffff,
-      vertexColors: true,
-      // 平面着色：detail-0 三角面约 0.2m = "一小簇叶"的尺度，受光碎成块
-      flatShading: true,
-      roughness: 0.94,
-      metalness: 0,
-    }),
-    shrubSpots(trees),
-    'shrubs',
-  );
+  const shrubMat = new THREE.MeshStandardMaterial({
+    // 颜色全部由顶点色承担（逐团明暗差 + 受光梯度），材质只出白基调
+    color: 0xffffff,
+    vertexColors: true,
+    // 平面着色：detail-0 三角面约 0.2m = "一小簇叶"的尺度，受光碎成块
+    flatShading: true,
+    roughness: 0.94,
+    metalness: 0,
+  });
+  instanceScatter(group, shrub, shrubMat, shrubSpots(trees), 'shrubs');
+  // 灌木整冠微晃 3cm——比草明显小：灌木有木质枝干，晃多了像果冻
+  applyWind(shrubMat, 0.03, 0.85);
 
   const stones = stoneSpots();
   if (stones.length) {

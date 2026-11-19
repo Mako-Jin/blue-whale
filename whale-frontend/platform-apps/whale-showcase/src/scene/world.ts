@@ -3,7 +3,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { createSceneEnv } from './env';
 import type { SceneAssets } from './loader';
 import { createPostFx } from './postfx';
-import { alleySpots, buildSettlement, lanternSpots } from './props';
+import { alleySpots, buildSettlement, lanternSpots, windTime } from './props';
 import { createSky, type SkyState } from './sky';
 import { createTerrain, heightAt } from './terrain';
 import { tuneSurfaces } from './textures';
@@ -615,6 +615,7 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
     controls.update();
     sky.mesh.position.copy(camera.position);
     sky.tick(t); // 云漂移
+    windTime.value = t; // 地被风动
     tmpFog.copy(fog.color);
     water.update(t, sunDir, currentTime.sunIntensity, tmpFog, fog.density);
 
