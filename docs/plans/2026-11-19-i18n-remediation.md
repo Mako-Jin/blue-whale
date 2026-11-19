@@ -1,7 +1,8 @@
-# 国际化整改落地（P0/P1）
+# 国际化整改落地（P0–P2 后端已收口）
 
 > 依据 [2026-11-19-i18n-audit.md](../reviews/2026-11-19-i18n-audit.md) 的差距分级执行。
-> 本轮完成 P0 + P1；P2/P3 保留为分阶段待办，机制已就绪，不再改公共代码。
+> P0 + P1 + P3 网关与 P2 全部业务服务已完成；仅剩 DTO 校验文案、前端其余页面与 P3 运维服务。
+> 除 P2 第四批为支持自定义 int 错误码给 `BizException` 补了一个重载外，未再改公共代码。
 
 ## 一、需求项
 
@@ -60,11 +61,27 @@
 - [x] 资源未命中时回落调用方中文原文，默认展示与既有断言零变化
 - [x] 新增 `GatewayMessageResolverTest`（5 例）与 `GatewayExceptionHandlerTest` 英文断言 1 例
 
+### P2 第三批（scene / music / video / agent / assistant / iot）
+
+- [x] 六个服务接入 `whale-i18n-sdk` 并开启 `whale.i18n`（enabled/auto-init/module-scan）
+- [x] 键数 scene 2 / music 6 / video 8 / agent 21 / assistant 15 / iot 18，合计 62 键；
+      业务异常按 `(ErrorCode, messageKey, 原中文, args...)` 键化，三份资源键集一致
+- [x] 各服务 `mvn test` + `checkstyle:check` 通过
+
+### P2 第四批（archive / doc / forum / map / twin）
+
+- [x] 五个服务接入 SDK，键数 archive 32 / doc 65 / forum 77 / map 35 / twin 39，合计 248 键
+- [x] 直接构造的业务异常约 250 处键化；doc 另有 77 处 `DocErrorCode.exception(int)` 调用，
+      通过「错误码 → 文案键」映射在 `exception(int)` 内统一携带键，调用方零改动
+- [x] `BizException` 新增公开重载 `(int code, messageKey, 中文兜底, args...)`：
+      forum 30xxx、map 围栏码等自定义 int 错误码也能键化，**码值与前端契约不变**；
+      `new BizException(String)` 统一改为 `ErrorCode.SYSTEM_ERROR`（状态码仍 500）
+- [x] 三份资源文件键集逐服务比对一致，代码引用键零缺失（配置键、定时任务 code 属预期误报）
+
 ## 三、待做项（P2 剩余 / P3）
 
 | 级别 | 事项 | 说明 |
 | --- | --- | --- |
-| P2 | 其余后端服务 | agent / archive / assistant / doc / forum / iot / map / music / scene / twin / video 仍未接入 SDK（auth、file 已接入） |
 | P2 | DTO 校验文案迁移 | 现有 `@NotBlank(message="中文")` 仍为字面量；后续统一改为 `{validation.xxx}` 由 MessageSource 插值（机制已支持） |
 | P2 | 前端其余页面 | admin 剩余 50+ 页面、portal 与子应用按模块分批替换硬编码文案 |
 | P3 | 运维服务 | audit / monitor / alert 视对外暴露程度再定 |
@@ -94,5 +111,11 @@
   资源包键集与代码引用键的比对脚本零缺失。
 - P3：`mvn -o -pl whale-services/whale-service-gateway test` BUILD SUCCESS（新增 6 例），
   `checkstyle:check` 0 违规；三份网关资源文件键集一致。
+- P2 第三、四批：scene / music / video / agent / assistant / iot 与
+  archive / doc / forum / map / twin 共 11 个服务 `mvn test` + `checkstyle:check` 全部成功；
+  三份资源键集比对 0 差异，代码引用键零缺失；`whale-common-core` 新增构造器单测 1 例，
+  checkstyle 0 违规（原全量构造器与 `(int, String, String, Object...)` 同为 `Object[]` 擦除，
+  已合并为单一全量构造器，`getMessage()` 行为不变）。
+- 全后端 `mvn -o -DskipTests compile -T 1C` BUILD SUCCESS。
 - `pnpm --filter @bluewhale/http build`、`pnpm --filter whale-admin lint`、
   `pnpm --filter whale-admin test`（12 文件 / 56 例全绿）、`pnpm --filter whale-admin build`：全部通过。
