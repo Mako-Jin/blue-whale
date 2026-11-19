@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { HouseVariant, SceneAssets, TemplateParts, TreeVariant } from './loader';
 import { heightAt, riverCenter, slopeAt, WATER_LEVEL } from './terrain';
-import { applyPlasterMap, isPlaster, PLASTER_METERS } from './textures';
+import { applyPlasterMap, applyStoneMap, isPlaster, PLASTER_METERS } from './textures';
 import { PALETTE, clamp } from './util';
 
 /**
@@ -117,6 +117,9 @@ function paintVariation(g: THREE.BufferGeometry, key: MatKey, dark = 1): void {
  * 0.32×2.7m 山墙面上，雨痕被压成一片<b>细密条纹布</b>（出图一眼假），铺到 7m
  * 的正墙上又放大成色块。所以所有 plaster 几何在入组前统一按世界坐标投影：
  * 一个 UV 单位 = 3.2m，与 `house.py` 的 `box_uv(scale=3.2)` 同一把尺。</p>
+ *
+ * <p>石材同理：一块 3.4m 的石板用默认 UV 会把 512 的图铺满整块板，颗粒被放大到
+ * 20cm，看起来是"塑料板上的花纹"。建筑也用同一把尺——顺手省一张常量。</p>
  */
 function boxUvWorld(g: THREE.BufferGeometry, scale: number): void {
   const pos = g.attributes.position as THREE.BufferAttribute;
@@ -168,7 +171,7 @@ class Builder {
       g.setIndex(new THREE.BufferAttribute(idx, 1));
     }
     paintVariation(g, key, this.darkFactor);
-    if (key === 'plaster') boxUvWorld(g, PLASTER_METERS);
+    if (key === 'plaster' || key === 'stone' || key === 'stoneDark') boxUvWorld(g, PLASTER_METERS);
     const list = this.parts.get(key) ?? [];
     list.push(g);
     this.parts.set(key, list);
@@ -229,6 +232,7 @@ class Builder {
       // 院墙/巷门这些程序化白墙和 GLB 民居必须是同一张底图，否则街上的两种白
       // 一个"有灰"一个"发亮"，转角处一眼能看出是两套资产
       if (key === 'plaster') applyPlasterMap(mesh.material as THREE.MeshStandardMaterial);
+      if (key === 'stone' || key === 'stoneDark') applyStoneMap(mesh.material);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       mesh.name = `settlement-${key}`;

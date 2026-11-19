@@ -25,6 +25,9 @@ export const PLASTER_METERS = 3.2;
 
 const SIZE = 512;
 
+/** 临时开关：把石面贴图换成 8×8 棋盘，用来验证 UV 是否真的被采样 */
+const DEBUG_STONE_UV = false;
+
 /**
  * 白墙：雨痕 + 霉斑 + 砂粒。
  *
@@ -120,6 +123,82 @@ export function applyPlasterMap(mat: THREE.MeshStandardMaterial | THREE.Material
 
 /** 材质名判定：GLB 里叫 `plaster` / `plasterBack`，程序化件里也是这两支 */
 export const isPlaster = (name: string | undefined): boolean => !!name && /^plaster/i.test(name);
+
+/**
+ * 青石：颗粒 + 石斑 + 少量深色凹坑。
+ *
+ * <p>石板街在 S9 已经做了逐块的色差与 3cm 沉陷，但<b>一块 3.4m 的石板内部是纯色</b>——
+ * 站在街上往下看，脚边这块石头没有任何细节，整条街读起来就是"刷了浅灰漆的水泥"。
+ * 石材是粗磨面，颗粒 2~5cm，这个尺度在 5m 内一眼可见。</p>
+ *
+ * <p>幅度必须比白墙更克制：石板是画面下半部的大面积，一旦看起来"有噪点"，
+ * 街道就从"石头铺的"变成"地毯"。所以只做 ±8% 的明暗，深色点也只在约 1% 面积上出现。</p>
+ */
+export function stoneTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = SIZE;
+  canvas.height = SIZE;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    const img = ctx.createImageData(SIZE, SIZE);
+    for (let y = 0; y < SIZE; y += 1) {
+      const v = y / SIZE;
+      for (let x = 0; x < SIZE; x += 1) {
+        const u = x / SIZE;
+        // fbm 的输出集中在 0.5 附近（std 约 0.1），直接乘小系数等于没有——
+        // 第一版 ±0.08 铺到石板上只差 6 个灰阶，出图完全看不见。先乘 2 拉满幅度，
+        // 再按需要收缩。
+        const blotch = (fbm(u * 4.0 + 7.3, v * 4.0 + 2.9, 3) - 0.5) * 2;
+        // 颗粒（4cm）：花岗岩/青石被凿过之后的麻点
+        const grain = (fbm(u * 76 + 3.1, v * 76 + 8.8, 2) - 0.5) * 2;
+        // 凹坑：高频噪声阈值化，出现率低、形状碎
+        const pit = smoothstep(0.78, 0.92, fbm(u * 130 + 15.7, v * 130 + 4.2, 2));
+
+        // 苔斑：石板缝周边常年潮，0.4~0.5m 的不规则暗绿斑。这条是石面<b>唯一</b>
+        // 在透视压缩后还留得住的信息——颗粒（4cm）在 5m 外就被 mip 平均掉了，
+        // 只有 0.4m 尺度、30% 的对比度才能让街面读起来是"老石头"。
+        const moss = smoothstep(0.60, 0.80, fbm(u * 7.0 + 31.5, v * 7.0 + 9.4, 4));
+        // 凿痕：平行细密的手工凿纹，2~3cm 间距。频率比颗粒高、方向随机
+        const chisel = smoothstep(0.56, 0.72, fbm(u * 170 + 2.2, v * 42 + 7.7, 2)) * 0.10;
+
+        let lum = 0.975 + blotch * 0.22 + grain * 0.12;
+        lum -= pit * 0.16;
+        lum -= moss * 0.28 + chisel;
+        if (DEBUG_STONE_UV) lum = (Math.floor(u * 8) + Math.floor(v * 8)) % 2 ? 0.95 : 0.35;
+
+        const i = (y * SIZE + x) * 4;
+        const c = Math.max(0, Math.min(255, lum * 255));
+        img.data[i] = c;
+        img.data[i + 1] = c * (1 + moss * 0.06);
+        img.data[i + 2] = c * (0.995 - moss * 0.05); // 苔处偏绿：只压蓝，不动绿
+        img.data[i + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.MirroredRepeatWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  tex.name = `stone-grain-${PLASTER_METERS}m`;
+  return tex;
+}
+
+let cachedStone: THREE.CanvasTexture | null = null;
+
+export function sharedStoneTexture(): THREE.CanvasTexture {
+  if (!cachedStone) cachedStone = stoneTexture();
+  return cachedStone;
+}
+
+/** 石面贴图挂载。同样幂等。 */
+export function applyStoneMap(mat: THREE.Material): void {
+  const std = mat as THREE.MeshStandardMaterial;
+  if (!std.isMeshStandardMaterial || std.map) return;
+  std.map = sharedStoneTexture();
+  std.envMapIntensity = 0.85;
+  std.needsUpdate = true;
+}
 
 /**
  * 全场景材质收尾：按材质名做统一的物理参数修正。

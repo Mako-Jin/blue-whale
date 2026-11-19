@@ -355,6 +355,19 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
     }
   });
   const lampMaterials = [...lampSet];
+  /*
+   * 窗纸不是灯。
+   *
+   * <p>同一个 `PAPER` 材质（窗纸 / 铺面里的光板 / 檐廊吊灯）原来和灯笼本体的灯罩
+   * 一起按 2.2 倍推——黄昏时二层三扇窗糊成三块纯白 LED 板，窗棂的格子被 bloom
+   * 吃了一片，反而看不出"这是窗"。纸是**透光**的，不是发光体：降到 1.25 倍，
+   * 颜色不变（Blender 里给的是 0xFFB964 暖橙），窗棂才重新长出来。
+   *
+   * <p>灯笼本体（`lanternGlow`）保持 2.2：它是灯，就该比纸亮一档，而且夜里的
+   * bloom 光晕全靠它。</p>
+   */
+  const paperMaterials = lampMaterials.filter((m) => /paper/i.test(m.name ?? ''));
+  const lampBodyMaterials = lampMaterials.filter((m) => !/paper/i.test(m.name ?? ''));
 
   /*
    * 灯笼点光源。
@@ -483,7 +496,8 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
     scene.environment = env.update(skyState);
     scene.environmentIntensity = p.envIntensity;
 
-    for (const m of lampMaterials) m.emissiveIntensity = 2.2 * lampScale;
+    for (const m of paperMaterials) m.emissiveIntensity = 1.25 * lampScale;
+    for (const m of lampBodyMaterials) m.emissiveIntensity = 2.2 * lampScale;
     for (const l of lanternLights) l.intensity = 26 * (p.lamp - 0.1);
     // 巷灯比街灯弱一档：巷子只有 2.8m 宽，26 candela 会把两侧白墙打爆
     for (const l of alleyLights) l.intensity = 9 * (p.lamp - 0.1);
