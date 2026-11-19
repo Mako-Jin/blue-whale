@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.tenant.TenantContext;
+import com.bluewhale.message.channel.ChannelGuard;
 import com.bluewhale.message.channel.ChannelMessage;
 import com.bluewhale.message.channel.ChannelResult;
 import com.bluewhale.message.channel.MessageChannelSender;
@@ -11,9 +12,9 @@ import com.bluewhale.message.config.MessageChannelProperties;
 import com.bluewhale.message.converter.MessageConverter;
 import com.bluewhale.message.dto.MessageRecipient;
 import com.bluewhale.message.dto.SendMessageRequest;
-import com.bluewhale.message.entity.MessageDelivery;
-import com.bluewhale.message.entity.MessageRecord;
-import com.bluewhale.message.entity.MessageTemplate;
+import com.bluewhale.message.po.MessageDeliveryPo;
+import com.bluewhale.message.po.MessageRecordPo;
+import com.bluewhale.message.po.MessageTemplatePo;
 import com.bluewhale.message.enums.DeliveryStatus;
 import com.bluewhale.message.enums.MessageChannel;
 import com.bluewhale.message.enums.MessageStatus;
@@ -75,6 +76,8 @@ public class MessageSendServiceImpl implements MessageSendService {
 
     private final List<MessageChannelSender> senders;
 
+    private final ChannelGuard channelGuard;
+
     /** 渠道适配器缓存：Bean 生命周期内注册表不变，首次使用时构建一次 */
     private volatile Map<MessageChannel, MessageChannelSender> senderCache;
 
@@ -88,17 +91,17 @@ public class MessageSendServiceImpl implements MessageSendService {
         TenantContext.set(tenantId);
         try {
             if (StringUtils.hasText(request.getIdempotencyKey())) {
-                MessageRecord existing = selectByIdempotencyKey(request.getIdempotencyKey());
+                MessageRecordPo existing = selectByIdempotencyKey(request.getIdempotencyKey());
                 if (existing != null) {
                     return buildResult(existing, true);
                 }
             }
-            MessageTemplate template = resolveTemplate(request.getTemplateCode());
-            MessageRecord record = buildRecord(request, template);
+            MessageTemplatePo template = resolveTemplate(request.getTemplateCode());
+            MessageRecordPo record = buildRecord(request, template);
             try {
                 recordMapper.insert(record);
             } catch (DuplicateKeyException e) {
-                MessageRecord existing = selectByIdempotencyKey(request.getIdempotencyKey());
+                MessageRecordPo existing = selectByIdempotencyKey(request.getIdempotencyKey());
                 if (existing != null) {
                     log.info("消息幂等命中（并发）: messageId={}, key={}",
                             existing.getId(), request.getIdempotencyKey());
@@ -106,7 +109,7 @@ public class MessageSendServiceImpl implements MessageSendService {
                 }
                 throw e;
             }
-            List<MessageDelivery> deliveries = dispatch(record, request);
+            List<MessageDeliveryPo> deliveries = dispatch(record, request);
             record.setStatus(aggregateStatus(deliveries).name());
             recordMapper.updateById(record);
             return buildResult(record, false, deliveries);
@@ -117,14 +120,14 @@ public class MessageSendServiceImpl implements MessageSendService {
 
     @Override
     public SendMessageResult retry(Long messageId) {
-        MessageRecord record = messageId == null ? null : recordMapper.selectById(messageId);
+        MessageRecordPo record = messageId == null ? null : recordMapper.selectById(messageId);
         if (record == null) {
             throw new BizException(ErrorCode.NOT_FOUND, "消息不存在: " + messageId);
         }
         if (properties.isMock()) {
             throw new BizException(ErrorCode.PARAM_ERROR, "mock 模式下不允许重试：不会产生真实投递");
         }
-        List<MessageDelivery> failed = selectDeliveries(record.getId()).stream()
+        List<MessageDeliveryPo> failed = selectDeliveries(record.getId()).stream()
                 .filter(delivery -> DeliveryStatus.FAILED.name().equals(delivery.getStatus()))
                 .toList();
         if (failed.isEmpty()) {
@@ -132,7 +135,7 @@ public class MessageSendServiceImpl implements MessageSendService {
         }
         Map<MessageChannel, MessageChannelSender> senderMap = senderMap();
         Map<String, Object> payload = parsePayload(record.getPayloadJson());
-        for (MessageDelivery delivery : failed) {
+        for (MessageDeliveryPo delivery : failed) {
             MessageChannel channel = MessageChannel.parse(delivery.getChannel());
             if (channel == null) {
                 updateDelivery(delivery, ChannelResult.failed("无法识别的消息渠道: " + delivery.getChannel()));
@@ -148,9 +151,9 @@ public class MessageSendServiceImpl implements MessageSendService {
                 updateDelivery(delivery, ChannelResult.failed("接收标识不可解析: " + delivery.getRecipient()));
                 continue;
             }
-            updateDelivery(delivery, safeSend(sender, record, payload, channel, recipient));
+            updateDelivery(delivery, sendGuarded(sender, record, payload, channel, recipient));
         }
-        List<MessageDelivery> deliveries = selectDeliveries(record.getId());
+        List<MessageDeliveryPo> deliveries = selectDeliveries(record.getId());
         record.setStatus(aggregateStatus(deliveries).name());
         recordMapper.updateById(record);
         log.info("消息重试完成: messageId={}, retried={}, status={}",
@@ -168,9 +171,9 @@ public class MessageSendServiceImpl implements MessageSendService {
      * @param idempotencyKey 幂等键
      * @return 既有消息；不存在时为 {@code null}
      */
-    private MessageRecord selectByIdempotencyKey(String idempotencyKey) {
-        LambdaQueryWrapper<MessageRecord> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(MessageRecord::getIdempotencyKey, idempotencyKey);
+    private MessageRecordPo selectByIdempotencyKey(String idempotencyKey) {
+        LambdaQueryWrapper<MessageRecordPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(MessageRecordPo::getIdempotencyKey, idempotencyKey);
         return recordMapper.selectOne(wrapper);
     }
 
@@ -180,12 +183,12 @@ public class MessageSendServiceImpl implements MessageSendService {
      * @param templateCode 模板编码（可为空）
      * @return 模板；未使用模板时为 {@code null}
      */
-    private MessageTemplate resolveTemplate(String templateCode) {
+    private MessageTemplatePo resolveTemplate(String templateCode) {
         if (!StringUtils.hasText(templateCode)) {
             return null;
         }
         String code = templateCode.trim().toUpperCase(Locale.ROOT);
-        MessageTemplate template = selectTemplate(code);
+        MessageTemplatePo template = selectTemplate(code);
         Long tenantId = TenantContext.get();
         if (template == null && tenantId != null && tenantId != TenantContext.DEFAULT_TENANT_ID) {
             TenantContext.set(TenantContext.DEFAULT_TENANT_ID);
@@ -207,10 +210,10 @@ public class MessageSendServiceImpl implements MessageSendService {
      * @param templateCode 模板编码
      * @return 模板；不存在时为 {@code null}
      */
-    private MessageTemplate selectTemplate(String templateCode) {
-        LambdaQueryWrapper<MessageTemplate> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(MessageTemplate::getTemplateCode, templateCode)
-                .eq(MessageTemplate::getStatus, TEMPLATE_ENABLED);
+    private MessageTemplatePo selectTemplate(String templateCode) {
+        LambdaQueryWrapper<MessageTemplatePo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(MessageTemplatePo::getTemplateCode, templateCode)
+                .eq(MessageTemplatePo::getStatus, TEMPLATE_ENABLED);
         return templateMapper.selectOne(wrapper);
     }
 
@@ -221,8 +224,8 @@ public class MessageSendServiceImpl implements MessageSendService {
      * @param template 模板（可为 {@code null}）
      * @return 消息记录
      */
-    private MessageRecord buildRecord(SendMessageRequest request, MessageTemplate template) {
-        MessageRecord record = new MessageRecord();
+    private MessageRecordPo buildRecord(SendMessageRequest request, MessageTemplatePo template) {
+        MessageRecordPo record = new MessageRecordPo();
         record.setBizType(request.getBizType());
         record.setBizId(request.getBizId());
         record.setTemplateCode(request.getTemplateCode());
@@ -250,7 +253,7 @@ public class MessageSendServiceImpl implements MessageSendService {
      * @param template 模板
      * @return 标题
      */
-    private static String resolveTitle(SendMessageRequest request, MessageTemplate template) {
+    private static String resolveTitle(SendMessageRequest request, MessageTemplatePo template) {
         if (StringUtils.hasText(request.getTitle())) {
             return request.getTitle();
         }
@@ -267,7 +270,7 @@ public class MessageSendServiceImpl implements MessageSendService {
      * @param template 模板
      * @return 正文
      */
-    private static String resolveContent(SendMessageRequest request, MessageTemplate template) {
+    private static String resolveContent(SendMessageRequest request, MessageTemplatePo template) {
         if (StringUtils.hasText(request.getContent())) {
             return request.getContent();
         }
@@ -323,7 +326,7 @@ public class MessageSendServiceImpl implements MessageSendService {
      * @param request 发送请求
      * @return 投递记录
      */
-    private List<MessageDelivery> dispatch(MessageRecord record, SendMessageRequest request) {
+    private List<MessageDeliveryPo> dispatch(MessageRecordPo record, SendMessageRequest request) {
         Map<MessageChannel, MessageChannelSender> senderMap = senderMap();
         // 接收人去重：同一 (userId, email, phone) 只投递一次，与投递唯一索引
         // uk_message_channel_recipient 对齐，避免重复接收人撞键
@@ -337,7 +340,7 @@ public class MessageSendServiceImpl implements MessageSendService {
             }
             channels.add(channel);
         }
-        List<MessageDelivery> deliveries = new ArrayList<>();
+        List<MessageDeliveryPo> deliveries = new ArrayList<>();
         for (MessageChannel channel : channels) {
             MessageChannelSender sender = senderMap.get(channel);
             for (MessageRecipient recipient : recipients) {
@@ -345,7 +348,7 @@ public class MessageSendServiceImpl implements MessageSendService {
                 if (sender == null) {
                     result = ChannelResult.skipped("渠道未实现: " + channel.name());
                 } else {
-                    result = safeSend(sender, record, request.getPayload(), channel, recipient);
+                    result = sendGuarded(sender, record, request.getPayload(), channel, recipient);
                 }
                 deliveries.add(insertDelivery(record, channel, recipient, result));
             }
@@ -411,7 +414,7 @@ public class MessageSendServiceImpl implements MessageSendService {
      * @param recipient 接收人
      * @return 发送结果
      */
-    private ChannelResult safeSend(MessageChannelSender sender, MessageRecord record,
+    private ChannelResult safeSend(MessageChannelSender sender, MessageRecordPo record,
                                    Map<String, Object> payload, MessageChannel channel,
                                    MessageRecipient recipient) {
         try {
@@ -433,6 +436,49 @@ public class MessageSendServiceImpl implements MessageSendService {
     }
 
     /**
+     * 经渠道保护（限流/熔断）后调用适配器。
+     *
+     * <p>被拦截时记 {@code SKIPPED} 并说明原因，业务方按幂等键重试即可补发；
+     * 真实调用结果回写熔断计数。</p>
+     *
+     * @param sender    渠道适配器
+     * @param record    消息记录
+     * @param payload   模板变量
+     * @param channel   渠道
+     * @param recipient 接收人
+     * @return 发送结果
+     */
+    private ChannelResult sendGuarded(MessageChannelSender sender, MessageRecordPo record,
+                                      Map<String, Object> payload, MessageChannel channel,
+                                      MessageRecipient recipient) {
+        MessageChannelProperties.Guard guard = guardOf(channel);
+        ChannelGuard.Decision decision = channelGuard.acquire(channel, guard);
+        if (!decision.allowed()) {
+            log.warn("消息渠道受保护，跳过投递: messageId={}, channel={}, reason={}",
+                    record.getId(), channel, decision.reason());
+            return ChannelResult.skipped(decision.reason());
+        }
+        ChannelResult result = safeSend(sender, record, payload, channel, recipient);
+        channelGuard.record(channel, guard, result.getStatus());
+        return result;
+    }
+
+    /**
+     * 取渠道的限流/熔断配置；站内信为本地落库，无需保护。
+     *
+     * @param channel 渠道
+     * @return 保护配置；无需保护时为 {@code null}
+     */
+    private MessageChannelProperties.Guard guardOf(MessageChannel channel) {
+        return switch (channel) {
+            case EMAIL -> properties.getEmail().getGuard();
+            case SMS -> properties.getSms().getGuard();
+            case IM -> properties.getIm().getGuard();
+            case INAPP -> null;
+        };
+    }
+
+    /**
      * 落投递记录。
      *
      * @param record    消息记录
@@ -441,9 +487,9 @@ public class MessageSendServiceImpl implements MessageSendService {
      * @param result    发送结果
      * @return 投递记录
      */
-    private MessageDelivery insertDelivery(MessageRecord record, MessageChannel channel,
-                                           MessageRecipient recipient, ChannelResult result) {
-        MessageDelivery delivery = new MessageDelivery();
+    private MessageDeliveryPo insertDelivery(MessageRecordPo record, MessageChannel channel,
+                                             MessageRecipient recipient, ChannelResult result) {
+        MessageDeliveryPo delivery = new MessageDeliveryPo();
         delivery.setMessageId(record.getId());
         delivery.setChannel(channel.name());
         delivery.setRecipient(resolveRecipient(channel, recipient));
@@ -480,7 +526,7 @@ public class MessageSendServiceImpl implements MessageSendService {
      * @param deliveries 投递记录
      * @return 消息状态
      */
-    private static MessageStatus aggregateStatus(List<MessageDelivery> deliveries) {
+    private static MessageStatus aggregateStatus(List<MessageDeliveryPo> deliveries) {
         return MessageStatusAggregator.aggregate(deliveries);
     }
 
@@ -491,7 +537,7 @@ public class MessageSendServiceImpl implements MessageSendService {
      * @param duplicate 是否幂等命中
      * @return 发送结果
      */
-    private SendMessageResult buildResult(MessageRecord record, boolean duplicate) {
+    private SendMessageResult buildResult(MessageRecordPo record, boolean duplicate) {
         return buildResult(record, duplicate, selectDeliveries(record.getId()));
     }
 
@@ -501,10 +547,10 @@ public class MessageSendServiceImpl implements MessageSendService {
      * @param messageId 消息ID
      * @return 按投递记录ID升序的投递记录
      */
-    private List<MessageDelivery> selectDeliveries(Long messageId) {
-        LambdaQueryWrapper<MessageDelivery> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(MessageDelivery::getMessageId, messageId)
-                .orderByAsc(MessageDelivery::getId);
+    private List<MessageDeliveryPo> selectDeliveries(Long messageId) {
+        LambdaQueryWrapper<MessageDeliveryPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(MessageDeliveryPo::getMessageId, messageId)
+                .orderByAsc(MessageDeliveryPo::getId);
         return deliveryMapper.selectList(wrapper);
     }
 
@@ -574,7 +620,7 @@ public class MessageSendServiceImpl implements MessageSendService {
      * @param delivery 投递记录
      * @param result   重试结果
      */
-    private void updateDelivery(MessageDelivery delivery, ChannelResult result) {
+    private void updateDelivery(MessageDeliveryPo delivery, ChannelResult result) {
         delivery.setStatus(result.getStatus().name());
         // 重试失败/跳过时结果不含新标识，不能把首次发送已绑定的标识清空
         if (StringUtils.hasText(result.getProviderMessageId())) {
@@ -594,8 +640,8 @@ public class MessageSendServiceImpl implements MessageSendService {
      * @param deliveries 投递记录
      * @return 发送结果
      */
-    private static SendMessageResult buildResult(MessageRecord record, boolean duplicate,
-                                                 List<MessageDelivery> deliveries) {
+    private static SendMessageResult buildResult(MessageRecordPo record, boolean duplicate,
+                                                 List<MessageDeliveryPo> deliveries) {
         SendMessageResult result = new SendMessageResult();
         result.setMessageId(record.getId());
         result.setDuplicate(duplicate);
@@ -610,7 +656,7 @@ public class MessageSendServiceImpl implements MessageSendService {
      * @param delivery 投递记录
      * @return 视图
      */
-    private static MessageDeliveryVO toDeliveryVo(MessageDelivery delivery) {
+    private static MessageDeliveryVO toDeliveryVo(MessageDeliveryPo delivery) {
         return MessageConverter.INSTANCE.toDeliveryVo(delivery);
     }
 

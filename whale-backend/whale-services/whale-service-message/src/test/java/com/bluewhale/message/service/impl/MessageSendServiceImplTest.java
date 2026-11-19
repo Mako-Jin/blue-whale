@@ -2,15 +2,16 @@ package com.bluewhale.message.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.message.channel.ChannelGuard;
 import com.bluewhale.message.channel.ChannelMessage;
 import com.bluewhale.message.channel.ChannelResult;
 import com.bluewhale.message.channel.MessageChannelSender;
 import com.bluewhale.message.config.MessageChannelProperties;
 import com.bluewhale.message.dto.MessageRecipient;
 import com.bluewhale.message.dto.SendMessageRequest;
-import com.bluewhale.message.entity.MessageDelivery;
-import com.bluewhale.message.entity.MessageRecord;
-import com.bluewhale.message.entity.MessageTemplate;
+import com.bluewhale.message.po.MessageDeliveryPo;
+import com.bluewhale.message.po.MessageRecordPo;
+import com.bluewhale.message.po.MessageTemplatePo;
 import com.bluewhale.message.enums.MessageChannel;
 import com.bluewhale.message.mapper.MessageDeliveryMapper;
 import com.bluewhale.message.mapper.MessageRecordMapper;
@@ -20,7 +21,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Mockito;
 
 import java.util.List;
 import java.util.Map;
@@ -64,7 +64,7 @@ class MessageSendServiceImplTest {
     private MessageSendServiceImpl service(MessageChannelSender... senders) {
         stubInsert();
         return new MessageSendServiceImpl(recordMapper, deliveryMapper, templateMapper,
-                objectMapper, properties, List.of(senders));
+                objectMapper, properties, List.of(senders), new ChannelGuard());
     }
 
     /**
@@ -73,22 +73,22 @@ class MessageSendServiceImplTest {
     private void stubInsert() {
         AtomicInteger deliveryId = new AtomicInteger(2000);
         doAnswer(invocation -> {
-            MessageRecord record = invocation.getArgument(0);
+            MessageRecordPo record = invocation.getArgument(0);
             record.setId(1001L);
             return 1;
-        }).when(recordMapper).insert(any(MessageRecord.class));
+        }).when(recordMapper).insert(any(MessageRecordPo.class));
         doAnswer(invocation -> {
-            MessageDelivery delivery = invocation.getArgument(0);
+            MessageDeliveryPo delivery = invocation.getArgument(0);
             delivery.setId((long) deliveryId.incrementAndGet());
             return 1;
-        }).when(deliveryMapper).insert(any(MessageDelivery.class));
-        when(recordMapper.updateById(any(MessageRecord.class))).thenReturn(1);
+        }).when(deliveryMapper).insert(any(MessageDeliveryPo.class));
+        when(recordMapper.updateById(any(MessageRecordPo.class))).thenReturn(1);
     }
 
     @Test
     @DisplayName("模板渲染生效，INAPP+SMS 聚合为 SENT")
     void shouldRenderTemplateAndAggregateStatus() {
-        MessageTemplate template = new MessageTemplate();
+        MessageTemplatePo template = new MessageTemplatePo();
         template.setTemplateCode("SYSTEM_NOTICE");
         template.setTitleTemplate("通知-${name}");
         template.setContentTemplate("内容-${name}");
@@ -103,9 +103,9 @@ class MessageSendServiceImplTest {
 
         assertEquals("SENT", result.getStatus());
         assertEquals(2, result.getDeliveries().size());
-        ArgumentCaptor<MessageRecord> captor = ArgumentCaptor.forClass(MessageRecord.class);
+        ArgumentCaptor<MessageRecordPo> captor = ArgumentCaptor.forClass(MessageRecordPo.class);
         verify(recordMapper).insert(captor.capture());
-        MessageRecord inserted = captor.getValue();
+        MessageRecordPo inserted = captor.getValue();
         assertEquals("通知-蓝鲸", inserted.getTitle());
         assertEquals("内容-蓝鲸", inserted.getContent());
         assertEquals("INAPP,SMS", inserted.getChannels());
@@ -115,11 +115,11 @@ class MessageSendServiceImplTest {
     @Test
     @DisplayName("幂等命中返回既有消息且不重复插入")
     void shouldReturnExistingOnIdempotencyHit() {
-        MessageRecord existing = new MessageRecord();
+        MessageRecordPo existing = new MessageRecordPo();
         existing.setId(9L);
         existing.setStatus("SENT");
         existing.setIdempotencyKey("k-1");
-        MessageDelivery delivery = new MessageDelivery();
+        MessageDeliveryPo delivery = new MessageDeliveryPo();
         delivery.setId(99L);
         delivery.setStatus("SENT");
         when(recordMapper.selectOne(any(Wrapper.class))).thenReturn(existing);
@@ -132,7 +132,7 @@ class MessageSendServiceImplTest {
         assertTrue(result.isDuplicate());
         assertEquals(9L, result.getMessageId());
         assertEquals(1, result.getDeliveries().size());
-        verify(recordMapper, never()).insert(any(MessageRecord.class));
+        verify(recordMapper, never()).insert(any(MessageRecordPo.class));
     }
 
     @Test
@@ -178,23 +178,23 @@ class MessageSendServiceImplTest {
     @DisplayName("mock 模式下拒绝重试，避免假恢复")
     void shouldRejectRetryInMockMode() {
         properties.setMock(true);
-        MessageRecord record = new MessageRecord();
+        MessageRecordPo record = new MessageRecordPo();
         record.setId(1001L);
         when(recordMapper.selectById(1001L)).thenReturn(record);
 
         assertThrows(BizException.class, () -> service().retry(1001L));
-        verify(deliveryMapper, never()).updateById(any(MessageDelivery.class));
+        verify(deliveryMapper, never()).updateById(any(MessageDeliveryPo.class));
     }
 
     @Test
     @DisplayName("没有失败投递时拒绝重试")
     void shouldRejectRetryWithoutFailedDelivery() {
         properties.setMock(false);
-        MessageRecord record = new MessageRecord();
+        MessageRecordPo record = new MessageRecordPo();
         record.setId(1001L);
         record.setStatus("SENT");
         when(recordMapper.selectById(1001L)).thenReturn(record);
-        MessageDelivery delivery = new MessageDelivery();
+        MessageDeliveryPo delivery = new MessageDeliveryPo();
         delivery.setId(2001L);
         delivery.setMessageId(1001L);
         delivery.setStatus("SENT");
@@ -207,12 +207,12 @@ class MessageSendServiceImplTest {
     @DisplayName("重试失败投递后回写状态与尝试次数")
     void shouldRetryFailedDelivery() {
         properties.setMock(false);
-        MessageRecord record = new MessageRecord();
+        MessageRecordPo record = new MessageRecordPo();
         record.setId(1001L);
         record.setStatus("PARTIAL");
         record.setPayloadJson("{\"name\":\"蓝鲸\"}");
         when(recordMapper.selectById(1001L)).thenReturn(record);
-        MessageDelivery failed = new MessageDelivery();
+        MessageDeliveryPo failed = new MessageDeliveryPo();
         failed.setId(2001L);
         failed.setMessageId(1001L);
         failed.setChannel("EMAIL");
@@ -240,7 +240,7 @@ class MessageSendServiceImplTest {
 
         assertThrows(BizException.class,
                 () -> service(sender(MessageChannel.INAPP, ChannelResult.sent("1001"))).send(request));
-        verify(recordMapper, never()).insert(any(MessageRecord.class));
+        verify(recordMapper, never()).insert(any(MessageRecordPo.class));
     }
 
     /**

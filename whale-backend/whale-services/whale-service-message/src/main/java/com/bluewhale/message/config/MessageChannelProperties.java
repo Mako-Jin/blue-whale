@@ -45,6 +45,9 @@ public class MessageChannelProperties {
 
         /** Message-ID 域名部分（生成 {@code <msg.id.uuid@domain>}） */
         private String messageIdDomain = "bluewhale.local";
+
+        /** 限流与熔断 */
+        private Guard guard = new Guard();
     }
 
     /**
@@ -83,6 +86,9 @@ public class MessageChannelProperties {
 
         /** 超时（毫秒） */
         private int timeoutMillis = 3000;
+
+        /** 限流与熔断 */
+        private Guard guard = new Guard();
     }
 
     /**
@@ -102,5 +108,27 @@ public class MessageChannelProperties {
 
         /** 超时（毫秒） */
         private int timeoutMillis = 3000;
+
+        /** 限流与熔断 */
+        private Guard guard = new Guard();
+    }
+
+    /**
+     * 渠道级限流与熔断配置
+     *
+     * <p>默认不开启限流（{@code rateLimitPerSecond=0}）；熔断默认连续 10 次失败后打开 30 秒。
+     * 置 {@code failureThreshold=0} 可关闭熔断。</p>
+     */
+    @Data
+    public static class Guard {
+
+        /** 每秒允许发送条数，非正数表示不限流 */
+        private int rateLimitPerSecond;
+
+        /** 连续失败多少次后熔断，非正数表示不熔断 */
+        private int failureThreshold = 10;
+
+        /** 熔断保持时间（毫秒） */
+        private long openMillis = 30000L;
     }
 }
