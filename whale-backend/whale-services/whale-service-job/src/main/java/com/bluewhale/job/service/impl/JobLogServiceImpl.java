@@ -142,7 +142,7 @@ public class JobLogServiceImpl implements JobLogService {
         LocalDateTime to = request.getTo() == null ? LocalDateTime.now() : request.getTo();
         LocalDateTime from = request.getFrom() == null ? to.minusDays(DEFAULT_STATS_DAYS) : request.getFrom();
         if (!from.isBefore(to)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "统计开始时间必须早于结束时间");
+            throw new BizException(ErrorCode.PARAM_ERROR, "job.log.stats-time-range-invalid", "统计开始时间必须早于结束时间");
         }
         if (ChronoUnit.DAYS.between(from, to) > MAX_STATS_DAYS) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "统计时间跨度不能超过 " + MAX_STATS_DAYS + " 天");

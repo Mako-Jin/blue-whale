@@ -41,7 +41,8 @@ public class AddSignCommand {
         List<String> targets = normalizeAddSigners(assignees);
         boolean counterSign = ProcessNodeType.COUNTER_SIGN.name().equals(task.getSignType());
         if (counterSign && !WorkflowConstants.POLICY_ALL.equals(policyOfTask(task))) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "ANY/RATIO 会签节点不支持加签");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.add-sign-policy-unsupported",
+                    "ANY/RATIO 会签节点不支持加签");
         }
         for (ProcessTaskPo existing : listTasksOfNode(task)) {
             if (existing.getStatus() != null && existing.getStatus() == WorkflowConstants.TASK_CANCELED) {
@@ -81,7 +82,7 @@ public class AddSignCommand {
      */
     private static List<String> normalizeAddSigners(List<String> assignees) {
         if (assignees == null || assignees.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "加签人不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.add-signer-required", "加签人不能为空");
         }
         LinkedHashSet<String> unique = new LinkedHashSet<>();
         for (String raw : assignees) {
@@ -90,15 +91,16 @@ public class AddSignCommand {
             }
             String target = raw.trim();
             if (target.length() > WorkflowConstants.MAX_ASSIGNEE_LENGTH) {
-                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "加签人账号长度不能超过 64");
+                throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.add-signer-too-long",
+                        "加签人账号长度不能超过 64");
             }
             unique.add(target);
         }
         if (unique.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "加签人不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.add-signer-required", "加签人不能为空");
         }
         if (unique.size() > WorkflowConstants.MAX_ADD_SIGNERS) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "单次最多加签 10 人");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.add-signer-limit", "单次最多加签 10 人");
         }
         return new ArrayList<>(unique);
     }

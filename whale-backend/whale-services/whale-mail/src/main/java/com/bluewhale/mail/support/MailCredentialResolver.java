@@ -49,11 +49,13 @@ public class MailCredentialResolver {
         if (StringUtils.hasText(account.getSecretCipher())) {
             String password = secretCipher.decrypt(account.getSecretCipher());
             if (password.length() < MIN_PASSWORD_LENGTH) {
-                throw new BizException(ErrorCode.SYSTEM_ERROR, "解密得到的邮箱口令过短，疑似密文损坏");
+                throw new BizException(ErrorCode.SYSTEM_ERROR, "mail.credential.password-too-short",
+                        "解密得到的邮箱口令过短，疑似密文损坏");
             }
             return password;
         }
         throw new BizException(ErrorCode.PARAM_ERROR,
+                "mail.credential.not-configured",
                 "邮箱账号未配置凭据（secretRef 与 secretCipher 均为空），无法建立连接");
     }
 

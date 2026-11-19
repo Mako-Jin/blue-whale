@@ -331,10 +331,10 @@ public class PayOrderServiceImpl implements PayOrderService {
      */
     private static void validateAmount(BigDecimal amount) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "支付金额必须大于 0");
+            throw new BizException(ErrorCode.PARAM_ERROR, "pay.order.amount-invalid", "支付金额必须大于 0");
         }
         if (amount.stripTrailingZeros().scale() > MAX_AMOUNT_SCALE) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "支付金额最多保留 2 位小数");
+            throw new BizException(ErrorCode.PARAM_ERROR, "pay.order.amount-scale-invalid", "支付金额最多保留 2 位小数");
         }
     }
 

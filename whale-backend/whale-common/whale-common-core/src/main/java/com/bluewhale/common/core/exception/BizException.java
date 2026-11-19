@@ -24,13 +24,16 @@ public class BizException extends RuntimeException {
     /** 国际化文案键；自定义文案时为 {@code null} */
     private final String messageKey;
 
+    /** 国际化文案的占位参数 */
+    private final Object[] messageArgs;
+
     /**
      * 以错误码枚举构造业务异常
      *
      * @param errorCode 错误码枚举
      */
     public BizException(ErrorCode errorCode) {
-        this(errorCode.getCode(), errorCode.getMessage(), errorCode.getMessageKey());
+        this(errorCode.getCode(), errorCode.getMessage(), errorCode.getMessageKey(), new Object[0]);
     }
 
     /**
@@ -43,7 +46,22 @@ public class BizException extends RuntimeException {
      * @param message 错误消息
      */
     public BizException(ErrorCode errorCode, String message) {
-        this(errorCode.getCode(), message, null);
+        this(errorCode.getCode(), message, null, new Object[0]);
+    }
+
+    /**
+     * 以错误码枚举、国际化键与中文兜底构造业务异常。
+     *
+     * <p>{@code message} 同时作为中文兜底与国际化资源缺失时的展示文案；键在
+     * {@code GlobalExceptionHandler} 中按请求 Locale 解析。</p>
+     *
+     * @param errorCode 错误码枚举
+     * @param messageKey 国际化文案键
+     * @param message 中文兜底文案
+     * @param args 文案占位参数
+     */
+    public BizException(ErrorCode errorCode, String messageKey, String message, Object... args) {
+        this(errorCode.getCode(), message, messageKey, args);
     }
 
     /**
@@ -53,7 +71,7 @@ public class BizException extends RuntimeException {
      * @param message 错误消息
      */
     public BizException(int code, String message) {
-        this(code, message, null);
+        this(code, message, null, new Object[0]);
     }
 
     /**
@@ -62,7 +80,7 @@ public class BizException extends RuntimeException {
      * @param message 错误消息
      */
     public BizException(String message) {
-        this(ErrorCode.SYSTEM_ERROR.getCode(), message, null);
+        this(ErrorCode.SYSTEM_ERROR.getCode(), message, null, new Object[0]);
     }
 
     /**
@@ -71,11 +89,13 @@ public class BizException extends RuntimeException {
      * @param code       错误码
      * @param message    错误消息
      * @param messageKey 国际化文案键，可为 {@code null}
+     * @param messageArgs 文案占位参数
      */
-    private BizException(int code, String message, String messageKey) {
+    private BizException(int code, String message, String messageKey, Object[] messageArgs) {
         super(message);
         this.code = code;
         this.message = message;
         this.messageKey = messageKey;
+        this.messageArgs = messageArgs == null ? new Object[0] : messageArgs.clone();
     }
 }

@@ -51,10 +51,10 @@ public class MailDraftServiceImpl implements MailDraftService {
         } else {
             draft = draftMapper.selectById(id);
             if (draft == null) {
-                throw new BizException(ErrorCode.NOT_FOUND, "草稿不存在");
+                throw new BizException(ErrorCode.NOT_FOUND, "mail.draft.not-found", "草稿不存在");
             }
             if (!Objects.equals(draft.getAccountId(), request.getAccountId())) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "草稿归属账号与请求不一致");
+                throw new BizException(ErrorCode.PARAM_ERROR, "mail.draft.account-mismatch", "草稿归属账号与请求不一致");
             }
         }
         draft.setDraftKey(request.getDraftKey());

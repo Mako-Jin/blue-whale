@@ -183,7 +183,7 @@ public class MailMessageServiceImpl implements MailMessageService {
         MailMessage message = requireMessage(id, userId);
         MailFolder trash = folderService.findByCode(message.getAccountId(), "TRASH");
         if (trash == null) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "回收站文件夹缺失，请重新初始化邮箱账号");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "mail.folder.trash-missing", "回收站文件夹缺失，请重新初始化邮箱账号");
         }
         if (Objects.equals(message.getFolderId(), trash.getId())) {
             return;
@@ -255,7 +255,7 @@ public class MailMessageServiceImpl implements MailMessageService {
         if (request.getFolderId() != null) {
             MailFolder folder = folderMapper.selectById(request.getFolderId());
             if (folder == null || !Objects.equals(folder.getAccountId(), accountId)) {
-                throw new BizException(ErrorCode.NOT_FOUND, "文件夹不存在");
+                throw new BizException(ErrorCode.NOT_FOUND, "mail.folder.not-found", "文件夹不存在");
             }
             return folder;
         }
@@ -382,7 +382,7 @@ public class MailMessageServiceImpl implements MailMessageService {
      */
     private MailMessage requireMessage(Long id, Long userId) {        MailMessage message = messageMapper.selectById(id);
         if (message == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "邮件不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "mail.message.not-found", "邮件不存在");
         }
         accountService.requireOwned(message.getAccountId(), userId);
         return message;

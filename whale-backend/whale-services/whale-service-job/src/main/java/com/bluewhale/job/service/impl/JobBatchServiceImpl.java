@@ -299,7 +299,8 @@ public class JobBatchServiceImpl implements JobBatchService {
         }
         String strategy = conflictStrategy.trim().toUpperCase();
         if (!STRATEGY_SKIP.equals(strategy) && !STRATEGY_OVERWRITE.equals(strategy)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "冲突策略只支持 SKIP / OVERWRITE");
+            throw new BizException(ErrorCode.PARAM_ERROR, "job.batch.conflict-strategy-invalid",
+                    "冲突策略只支持 SKIP / OVERWRITE");
         }
         return strategy;
     }
@@ -317,7 +318,7 @@ public class JobBatchServiceImpl implements JobBatchService {
             jobIds.stream().filter(Objects::nonNull).forEach(distinctIds::add);
         }
         if (distinctIds.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "任务ID列表不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "job.batch.job-ids-empty", "任务ID列表不能为空");
         }
         if (distinctIds.size() > MAX_BATCH_SIZE) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(),

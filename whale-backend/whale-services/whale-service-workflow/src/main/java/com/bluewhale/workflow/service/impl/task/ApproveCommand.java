@@ -56,7 +56,7 @@ public class ApproveCommand {
         task.setComment(comment);
         if (!taskCommandSupport.transitionFromPending(task, WorkflowConstants.TASK_APPROVED, comment)) {
             // 并发场景下状态已被其它请求推进，避免重复推进状态机
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "任务已处理");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.already-processed", "任务已处理");
         }
         ProcessModel model = ProcessModelParser.parse(instanceModelLoader.resolveInstanceJson(instance));
         Map<String, Object> merged = ProcessVariables.merge(instance.getVariablesJson(), variables);

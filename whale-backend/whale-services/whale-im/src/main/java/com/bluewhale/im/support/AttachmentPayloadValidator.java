@@ -53,10 +53,10 @@ public class AttachmentPayloadValidator {
         JsonNode node = parse(content);
         String fileId = text(node, "fileId");
         if (!StringUtils.hasText(fileId)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "附件消息缺少 fileId");
+            throw new BizException(ErrorCode.PARAM_ERROR, "im.attachment.file-id-missing", "附件消息缺少 fileId");
         }
         if (fileId.length() > MAX_FILE_ID_LENGTH) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "附件 fileId 非法");
+            throw new BizException(ErrorCode.PARAM_ERROR, "im.attachment.file-id-invalid", "附件 fileId 非法");
         }
         ObjectNode normalized = objectMapper.createObjectNode();
         normalized.put("fileId", fileId);
@@ -65,7 +65,7 @@ public class AttachmentPayloadValidator {
         Long fileSize = number(node, "fileSize");
         if (fileSize != null) {
             if (fileSize < 0) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "附件大小非法");
+                throw new BizException(ErrorCode.PARAM_ERROR, "im.attachment.size-invalid", "附件大小非法");
             }
             normalized.put("fileSize", fileSize);
         }
@@ -88,16 +88,16 @@ public class AttachmentPayloadValidator {
      */
     private JsonNode parse(String content) {
         if (!StringUtils.hasText(content)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "附件消息缺少文件引用");
+            throw new BizException(ErrorCode.PARAM_ERROR, "im.attachment.file-ref-missing", "附件消息缺少文件引用");
         }
         JsonNode node;
         try {
             node = objectMapper.readTree(content);
         } catch (RuntimeException e) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "附件消息内容必须为 JSON 对象");
+            throw new BizException(ErrorCode.PARAM_ERROR, "im.attachment.content-invalid", "附件消息内容必须为 JSON 对象");
         }
         if (node == null || !node.isObject()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "附件消息内容必须为 JSON 对象");
+            throw new BizException(ErrorCode.PARAM_ERROR, "im.attachment.content-invalid", "附件消息内容必须为 JSON 对象");
         }
         return node;
     }

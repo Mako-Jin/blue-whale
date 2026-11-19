@@ -106,7 +106,8 @@ public class MailFileClient {
             Object data = requireData(response);
             Long fileId = data instanceof Map<?, ?> map ? parseId(map.get(FIELD_ID)) : null;
             if (fileId == null) {
-                throw new BizException(ErrorCode.SYSTEM_ERROR, "附件上传失败：响应缺少文件ID");
+                throw new BizException(ErrorCode.SYSTEM_ERROR, "mail.file.upload-missing-file-id",
+                        "附件上传失败：响应缺少文件ID");
             }
             return fileId;
         } catch (BizException e) {
@@ -131,10 +132,11 @@ public class MailFileClient {
                     .retrieve()
                     .body(byte[].class);
             if (content == null) {
-                throw new BizException(ErrorCode.SYSTEM_ERROR, "附件读取失败：空响应");
+                throw new BizException(ErrorCode.SYSTEM_ERROR, "mail.file.read-empty-response", "附件读取失败：空响应");
             }
             if (maxAttachmentBytes > 0 && content.length > maxAttachmentBytes) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "附件超出单文件上限，无法处理");
+                throw new BizException(ErrorCode.PARAM_ERROR, "mail.file.attachment-too-large",
+                        "附件超出单文件上限，无法处理");
             }
             return content;
         } catch (BizException e) {
@@ -153,7 +155,7 @@ public class MailFileClient {
      */
     private static Object requireData(Map<String, Object> response) {
         if (response == null) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "附件服务返回空响应");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "mail.file.service-empty-response", "附件服务返回空响应");
         }
         Object code = response.get(FIELD_CODE);
         if (!(code instanceof Number number) || number.intValue() != ErrorCode.SUCCESS.getCode()) {

@@ -222,7 +222,8 @@ public class JdbcFormDataEngine implements FormDataEngine {
             try {
                 return MAPPER.writeValueAsString(value);
             } catch (Exception e) {
-                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "附件/子表数据序列化失败");
+                throw new BizException(ErrorCode.PARAM_ERROR, "form.data.attachment-serialize-failed",
+                        "附件/子表数据序列化失败");
             }
         }
         return value;

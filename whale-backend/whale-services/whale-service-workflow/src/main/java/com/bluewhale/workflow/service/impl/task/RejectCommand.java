@@ -36,7 +36,7 @@ public class RejectCommand {
         task.setStatus(WorkflowConstants.TASK_REJECTED);
         task.setComment(comment);
         if (!taskCommandSupport.transitionFromPending(task, WorkflowConstants.TASK_REJECTED, comment)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "任务已处理");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.already-processed", "任务已处理");
         }
         instance.setStatus(WorkflowConstants.INSTANCE_REJECTED);
         instance.setActiveNodeKeys(null);

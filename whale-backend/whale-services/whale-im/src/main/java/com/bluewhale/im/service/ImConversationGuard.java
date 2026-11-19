@@ -37,10 +37,10 @@ public class ImConversationGuard {
     public ImConversation requireMember(Long conversationId, Long userId) {
         ImConversation conversation = conversationMapper.selectById(conversationId);
         if (conversation == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "会话不存在或无权访问");
+            throw new BizException(ErrorCode.NOT_FOUND, "im.conversation.not-accessible", "会话不存在或无权访问");
         }
         if (requireMemberRecord(conversationId, userId) == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "会话不存在或无权访问");
+            throw new BizException(ErrorCode.NOT_FOUND, "im.conversation.not-accessible", "会话不存在或无权访问");
         }
         return conversation;
     }

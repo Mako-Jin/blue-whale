@@ -64,18 +64,19 @@ public class ReturnCommand {
     @Transactional(rollbackFor = Exception.class)
     public void returnTask(Long id, TaskRejectRequest request) {
         if (request == null || request.getTarget() == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "请选择驳回目标");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.return-target-required", "请选择驳回目标");
         }
         ProcessTaskPo task = taskCommandSupport.requirePendingTask(id);
         ProcessInstancePo instance = taskCommandSupport.requireRunningInstance(task.getInstanceId());
         if (WorkflowConstants.RESUBMIT_NODE_KEY.equals(task.getNodeKey())) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "发起节点不支持驳回");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.return-from-start", "发起节点不支持驳回");
         }
         ProcessModel model = ProcessModelParser.parse(instanceModelLoader.resolveInstanceJson(instance));
         String nodeKey = resolveCurrentKey(task, model, instance);
         ProcessModelNode node = model.node(nodeKey);
         if (node == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "当前节点不存在，无法驳回");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.return-node-not-found",
+                    "当前节点不存在，无法驳回");
         }
         boolean counterSign = node.getType() == ProcessNodeType.COUNTER_SIGN;
         // 非会签节点先校验目标，避免在无效目标上留下「已驳回」痕迹
@@ -83,7 +84,7 @@ public class ReturnCommand {
         task.setStatus(WorkflowConstants.TASK_REJECTED);
         task.setComment(request.getComment());
         if (!taskCommandSupport.transitionFromPending(task, WorkflowConstants.TASK_REJECTED, request.getComment())) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "任务已处理");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.already-processed", "任务已处理");
         }
         if (counterSign) {
             if (!counterSignCommand.shouldReturnOnReject(instance.getId(), nodeKey, node)) {
@@ -117,10 +118,12 @@ public class ReturnCommand {
         if (target == RejectTarget.PREVIOUS) {
             List<ProcessModelNode> previous = ProcessPaths.nearestPreviousApprovalNodes(model, nodeKey);
             if (previous.isEmpty()) {
-                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "首节点不支持驳回到上一节点");
+                throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.return-first-node",
+                        "首节点不支持驳回到上一节点");
             }
             if (previous.size() > 1) {
-                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "上一节点不唯一，请选择指定节点");
+                throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.return-previous-ambiguous",
+                        "上一节点不唯一，请选择指定节点");
             }
             return ReturnPlan.ofNode(previous.get(0));
         }
@@ -149,19 +152,21 @@ public class ReturnCommand {
      */
     private static ProcessModelNode requireAncestor(ProcessModel model, String nodeKey, String targetNodeKey) {
         if (!StringUtils.hasText(targetNodeKey)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "请选择驳回节点");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.return-node-required", "请选择驳回节点");
         }
         ProcessModelNode target = model.node(targetNodeKey.trim());
         if (target == null || target.getType() == null || !target.getType().isApproval()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "驳回目标必须为审批节点");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.return-target-not-approval",
+                    "驳回目标必须为审批节点");
         }
         if (target.getKey().equals(nodeKey)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "不能驳回到当前节点");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.return-to-current", "不能驳回到当前节点");
         }
         boolean ancestor = ProcessPaths.ancestorApprovalNodes(model, nodeKey).stream()
                 .anyMatch(item -> item.getKey().equals(target.getKey()));
         if (!ancestor) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "只能驳回到当前节点的上游审批节点");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.return-not-upstream",
+                    "只能驳回到当前节点的上游审批节点");
         }
         return target;
     }
@@ -197,7 +202,8 @@ public class ReturnCommand {
     private void returnToInitiator(ProcessInstancePo instance, ProcessModel model) {
         String initiator = instance.getInitiator() == null ? "" : instance.getInitiator().trim();
         if (initiator.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "流程实例缺少发起人，无法退回");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.instance.initiator-missing",
+                    "流程实例缺少发起人，无法退回");
         }
         String entryKey = model.entryKey();
         instance.setCurrentIndex(model.indexOf(entryKey));

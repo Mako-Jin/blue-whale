@@ -81,7 +81,8 @@ public class ProcessModelServiceImpl implements ProcessModelService {
         if (StringUtils.hasText(request.getBpmnXml())) {
             return validateBpmn(request.getBpmnXml());
         }
-        throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "definitionJson 与 bpmnXml 不能同时为空");
+        throw new BizException(ErrorCode.PARAM_ERROR, "workflow.model.definition-empty",
+                "definitionJson 与 bpmnXml 不能同时为空");
     }
 
     @Override
@@ -510,7 +511,8 @@ public class ProcessModelServiceImpl implements ProcessModelService {
         try {
             return OBJECT_MAPPER.writeValueAsString(root);
         } catch (Exception e) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "流程定义序列化失败");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "workflow.model.serialize-failed",
+                    "流程定义序列化失败");
         }
     }
 

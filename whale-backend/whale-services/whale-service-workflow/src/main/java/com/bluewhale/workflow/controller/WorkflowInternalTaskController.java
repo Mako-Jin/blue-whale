@@ -178,7 +178,7 @@ public class WorkflowInternalTaskController {
                              HttpServletRequest httpRequest) {
         String urger = WebHeaders.username(httpRequest);
         if (!StringUtils.hasText(urger)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "催办人身份缺失");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.urge.urger-missing", "催办人身份缺失");
         }
         request.setUrger(urger);
         processUrgeService.urge(instanceId, request);

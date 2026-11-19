@@ -75,6 +75,12 @@
             <artifactId>whale-spring-boot-starter</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- 国际化 SDK：提供 classpath:i18n/form 文案回退与 BizException 文案键解析 -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-i18n-sdk</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>com.bluewhale</groupId>
             <artifactId>whale-tools</artifactId>

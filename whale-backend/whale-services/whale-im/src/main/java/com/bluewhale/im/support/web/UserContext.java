@@ -27,12 +27,12 @@ public final class UserContext {
     public static Long requireUserId(HttpServletRequest request) {
         String userId = WebHeaders.userId(request);
         if (userId == null) {
-            throw new BizException(ErrorCode.UNAUTHORIZED, "缺少用户标识，请通过网关登录后访问");
+            throw new BizException(ErrorCode.UNAUTHORIZED, "im.user.identity-missing", "缺少用户标识，请通过网关登录后访问");
         }
         try {
             return Long.valueOf(userId);
         } catch (NumberFormatException e) {
-            throw new BizException(ErrorCode.UNAUTHORIZED, "用户标识非法");
+            throw new BizException(ErrorCode.UNAUTHORIZED, "im.user.identity-invalid", "用户标识非法");
         }
     }
 }

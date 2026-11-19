@@ -112,7 +112,7 @@ public class CompleteCommand {
      */
     private void requirePending(Integer status) {
         if (status == null || status != WorkflowConstants.TASK_PENDING) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "任务已处理");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.already-processed", "任务已处理");
         }
     }
 
@@ -143,7 +143,7 @@ public class CompleteCommand {
             log.info("内网完成任务事件幂等返回: taskId={}, eventId={}", id, trimmed);
             return false;
         }
-        throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "任务已处理");
+        throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.already-processed", "任务已处理");
     }
 
     /**
@@ -158,7 +158,7 @@ public class CompleteCommand {
                 .eq(ProcessTaskPo::getId, task.getId())
                 .eq(ProcessTaskPo::getStatus, WorkflowConstants.TASK_PENDING);
         if (processTaskMapper.update(update, wrapper) == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "任务已处理");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.already-processed", "任务已处理");
         }
     }
 

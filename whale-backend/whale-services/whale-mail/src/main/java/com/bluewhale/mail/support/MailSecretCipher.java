@@ -53,7 +53,7 @@ public class MailSecretCipher {
      */
     public String encrypt(String plainText) {
         if (!StringUtils.hasText(plainText)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "待加密的邮箱口令为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "mail.credential.password-empty", "待加密的邮箱口令为空");
         }
         try {
             return delegate().encrypt(plainText);
@@ -72,12 +72,12 @@ public class MailSecretCipher {
      */
     public String decrypt(String cipherText) {
         if (!StringUtils.hasText(cipherText)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "邮箱凭据密文为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "mail.credential.cipher-empty", "邮箱凭据密文为空");
         }
         try {
             Object plain = delegate().decryptIfNeeded(PROPERTY_NAME, cipherText);
             if (!(plain instanceof String text) || !StringUtils.hasText(text)) {
-                throw new BizException(ErrorCode.SYSTEM_ERROR, "邮箱凭据解密结果为空");
+                throw new BizException(ErrorCode.SYSTEM_ERROR, "mail.credential.decrypt-empty", "邮箱凭据解密结果为空");
             }
             return text;
         } catch (BizException e) {

@@ -169,7 +169,8 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
             throw new BizException(ErrorCode.UNAUTHORIZED);
         }
         if (!who.equals(instance.getInitiator())) {
-            throw new BizException(ErrorCode.FORBIDDEN.getCode(), "仅发起人可撤销该流程实例");
+            throw new BizException(ErrorCode.FORBIDDEN, "workflow.instance.cancel-not-initiator",
+                    "仅发起人可撤销该流程实例");
         }
         doCancel(instance);
     }
@@ -203,7 +204,7 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
     private ProcessInstancePo requireRunningInstance(Long id) {
         ProcessInstancePo instance = requireInstance(id);
         if (instance.getStatus() == null || instance.getStatus() != WorkflowConstants.INSTANCE_RUNNING) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "实例非运行中");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.instance.not-running", "实例非运行中");
         }
         return instance;
     }
@@ -226,7 +227,8 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
         ProcessDefinitionVersionPo published = findPublishedSnapshot(definition.getId());
         if (published == null && !allowUnpublishedStart) {
             // 草稿内容可能正在编辑，默认不允许新实例落到未发布定义上
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "流程定义未发布，无法发起");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.instance.definition-unpublished",
+                    "流程定义未发布，无法发起");
         }
         if (published == null) {
             log.warn("流程定义无已发布快照，按定义当前内容发起: definitionId={}, code={}",

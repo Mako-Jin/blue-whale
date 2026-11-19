@@ -128,12 +128,14 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
     @Transactional(rollbackFor = Exception.class)
     public ReceiptApplyResult apply(DeliveryReceiptRequest request) {
         if (!properties.isEnabled()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "回执受理未启用（whale.message.receipt.enabled=false）");
+            throw new BizException(ErrorCode.PARAM_ERROR, "message.receipt.disabled",
+                    "回执受理未启用（whale.message.receipt.enabled=false）");
         }
         // 内网回执必须显式传入 tenantId：不再从上下文兜底，避免网关漏传租户头时串租户受理
         Long tenantId = request.getTenantId();
         if (tenantId == null || tenantId <= 0L) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "缺少租户ID（内网回执必须显式传入 tenantId）");
+            throw new BizException(ErrorCode.PARAM_ERROR, "message.receipt.tenant-required",
+                    "缺少租户ID（内网回执必须显式传入 tenantId）");
         }
         Long previous = TenantContext.get();
         TenantContext.set(tenantId);

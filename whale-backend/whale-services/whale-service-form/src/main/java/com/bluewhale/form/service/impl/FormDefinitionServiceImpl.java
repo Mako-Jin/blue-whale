@@ -205,7 +205,8 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
         wrapper.eq(FormDefinitionPo::getVersion, expectedVersion);
         int rows = formDefinitionMapper.update(entity, wrapper);
         if (rows == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "表单已被并发修改，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "form.definition.concurrent-modification",
+                    "表单已被并发修改，请刷新后重试");
         }
     }
 

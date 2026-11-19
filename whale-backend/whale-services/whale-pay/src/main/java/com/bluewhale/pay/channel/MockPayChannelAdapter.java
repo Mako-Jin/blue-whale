@@ -76,7 +76,7 @@ public class MockPayChannelAdapter implements PayChannelAdapter {
      */
     private void ensureMockEnabled(PayOrder order) {
         if (!properties.isMock()) {
-            throw new BizException(ErrorCode.PARAM_ERROR,
+            throw new BizException(ErrorCode.PARAM_ERROR, "pay.channel.not-integrated",
                     "真实支付渠道尚未接入，请先实现渠道适配器或开启 whale.pay.mock");
         }
         if (!StringUtils.hasText(order.getChannel())

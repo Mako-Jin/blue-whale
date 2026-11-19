@@ -51,7 +51,7 @@ public class TransferCommand {
      */
     private static String requireTargetUser(String targetUser) {
         if (targetUser == null || targetUser.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "目标人不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.target-required", "目标人不能为空");
         }
         return targetUser.trim();
     }

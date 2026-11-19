@@ -105,7 +105,7 @@ public class JobDependencyServiceImpl implements JobDependencyService {
     private void validateUpstreams(Long jobId, List<Long> upstreamIds) {
         for (Long upstreamId : upstreamIds) {
             if (upstreamId.equals(jobId)) {
-                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "任务不能依赖自身");
+                throw new BizException(ErrorCode.PARAM_ERROR, "job.dependency.self-reference", "任务不能依赖自身");
             }
             if (jobInfoMapper.selectById(upstreamId) == null) {
                 throw new BizException(ErrorCode.NOT_FOUND.getCode(), "上游任务不存在: " + upstreamId);
@@ -123,7 +123,7 @@ public class JobDependencyServiceImpl implements JobDependencyService {
     private void validateNoCycle(Long jobId, List<Long> upstreamIds) {
         for (Long upstreamId : upstreamIds) {
             if (reachesTarget(upstreamId, jobId, jobId, upstreamIds, new HashSet<>(), 0)) {
-                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "任务依赖关系存在环");
+                throw new BizException(ErrorCode.PARAM_ERROR, "job.dependency.cycle-detected", "任务依赖关系存在环");
             }
         }
     }

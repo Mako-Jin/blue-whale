@@ -127,7 +127,7 @@ public class AuthRecipientGroupClient {
             throw error;
         } catch (Exception error) {
             log.warn("接收人组响应解析失败: errorType={}", error.getClass().getSimpleName());
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "接收人组解析失败");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "message.recipient-group.parse-failed", "接收人组解析失败");
         }
     }
 

@@ -73,7 +73,7 @@ public class WsTicketService {
                     Duration.ofSeconds(ticketTtlSeconds));
         } catch (RuntimeException e) {
             log.error("WS ticket 写入失败: userId={}", userId, e);
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "即时通讯通道暂不可用，请稍后重试");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "im.ws.channel-unavailable", "即时通讯通道暂不可用，请稍后重试");
         }
         return WsTicketVO.builder().ticket(ticket).expiresIn(ticketTtlSeconds).build();
     }

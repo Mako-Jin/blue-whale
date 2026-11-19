@@ -162,7 +162,7 @@ public class ImMessageService {
     public ImMessage sendAsBot(Long conversationId, Long botUserId, String content, String clientMsgId) {
         ImConversation conversation = conversationMapper.selectById(conversationId);
         if (conversation == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "会话不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "im.conversation.not-found", "会话不存在");
         }
         ImMessage existing = findByClientMsgId(conversationId, clientMsgId);
         if (existing != null) {
@@ -232,7 +232,7 @@ public class ImMessageService {
         ImConversation conversation = guard.requireMember(conversationId, userId);
         ImMessage message = messageMapper.selectById(messageId);
         if (message == null || !Objects.equals(message.getConversationId(), conversationId)) {
-            throw new BizException(ErrorCode.NOT_FOUND, "消息不存在或无权撤回");
+            throw new BizException(ErrorCode.NOT_FOUND, "im.message.recall-not-found", "消息不存在或无权撤回");
         }
         ImConversationMember operator = guard.requireMemberRecord(conversationId, userId);
         boolean self = Objects.equals(message.getSenderId(), userId);
@@ -240,13 +240,13 @@ public class ImMessageService {
                 && operator != null
                 && (ROLE_OWNER.equals(operator.getRole()) || ROLE_ADMIN.equals(operator.getRole()));
         if (!self && !manager) {
-            throw new BizException(ErrorCode.FORBIDDEN, "只能撤回自己发送的消息");
+            throw new BizException(ErrorCode.FORBIDDEN, "im.message.recall-not-own", "只能撤回自己发送的消息");
         }
         if (Integer.valueOf(STATUS_RECALLED).equals(message.getStatus())) {
             return;
         }
         if (self && isRecallExpired(message)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "超过撤回时限");
+            throw new BizException(ErrorCode.PARAM_ERROR, "im.message.recall-expired", "超过撤回时限");
         }
         LambdaUpdateWrapper<ImMessage> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(ImMessage::getId, messageId);
@@ -320,7 +320,7 @@ public class ImMessageService {
                 log.warn("消息序号冲突，重新分配: conversationId={}, seq={}", conversation.getId(), seq);
             }
         }
-        throw new BizException(ErrorCode.LOCK_ACQUIRE_FAILED, "消息发送繁忙，请稍后重试");
+        throw new BizException(ErrorCode.LOCK_ACQUIRE_FAILED, "im.message.send-busy", "消息发送繁忙，请稍后重试");
     }
 
     /**
@@ -365,7 +365,7 @@ public class ImMessageService {
                 log.warn("机器人消息序号冲突，重新分配: conversationId={}, seq={}", conversation.getId(), seq);
             }
         }
-        throw new BizException(ErrorCode.LOCK_ACQUIRE_FAILED, "消息发送繁忙，请稍后重试");
+        throw new BizException(ErrorCode.LOCK_ACQUIRE_FAILED, "im.message.send-busy", "消息发送繁忙，请稍后重试");
     }
 
     /**

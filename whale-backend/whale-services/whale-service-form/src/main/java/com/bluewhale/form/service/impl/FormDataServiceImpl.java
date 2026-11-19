@@ -1431,7 +1431,8 @@ public class FormDataServiceImpl implements FormDataService {
         return metadataCache.findRegistry(code, version).orElseGet(() -> {
             FormTableRegistryPo registry = queryRegistry(code, version);
             if (registry == null) {
-                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "表单未发布或版本已变更，请先发布");
+                throw new BizException(ErrorCode.PARAM_ERROR, "form.data.not-published",
+                        "表单未发布或版本已变更，请先发布");
             }
             metadataCache.cacheRegistry(registry);
             return registry;
@@ -1490,7 +1491,7 @@ public class FormDataServiceImpl implements FormDataService {
             return MAPPER.readValue(dataJson, new TypeReference<Map<String, Object>>() {
             });
         } catch (Exception e) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "表单数据不是合法的 JSON 对象");
+            throw new BizException(ErrorCode.PARAM_ERROR, "form.data.invalid-json", "表单数据不是合法的 JSON 对象");
         }
     }
 
@@ -1505,7 +1506,7 @@ public class FormDataServiceImpl implements FormDataService {
         try {
             return MAPPER.writeValueAsString(data);
         } catch (Exception e) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "表单数据序列化失败");
+            throw new BizException(ErrorCode.PARAM_ERROR, "form.data.serialize-failed", "表单数据序列化失败");
         }
     }
 
@@ -1817,7 +1818,8 @@ public class FormDataServiceImpl implements FormDataService {
      */
     private static void validateDataSize(String dataJson) {
         if (dataJson != null && dataJson.length() > MAX_DATA_LENGTH) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "表单数据长度不能超过 65536 字符");
+            throw new BizException(ErrorCode.PARAM_ERROR, "form.data.size-exceeded",
+                    "表单数据长度不能超过 65536 字符");
         }
     }
 

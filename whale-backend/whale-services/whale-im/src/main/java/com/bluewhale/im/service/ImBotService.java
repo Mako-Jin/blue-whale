@@ -163,18 +163,18 @@ public class ImBotService {
     public void setGroupBotEnabled(Long conversationId, Long operatorId, boolean enabled) {
         ImConversation conversation = guard.requireMember(conversationId, operatorId);
         if (!TYPE_GROUP.equals(conversation.getType())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "仅群聊支持机器人开关");
+            throw new BizException(ErrorCode.PARAM_ERROR, "im.bot.group-only", "仅群聊支持机器人开关");
         }
         ImConversationMember operator = guard.requireMemberRecord(conversationId, operatorId);
         if (operator == null || (!ROLE_OWNER.equals(operator.getRole()) && !ROLE_ADMIN.equals(operator.getRole()))) {
-            throw new BizException(ErrorCode.FORBIDDEN, "仅群主或管理员可管理机器人");
+            throw new BizException(ErrorCode.FORBIDDEN, "im.bot.permission-denied", "仅群主或管理员可管理机器人");
         }
         ImAgentBinding binding = findBinding(conversationId);
         if (binding == null) {
             binding = ensureGroupBinding(conversationId);
         }
         if (binding == null) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "机器人绑定初始化失败");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "im.bot.binding-init-failed", "机器人绑定初始化失败");
         }
         LambdaUpdateWrapper<ImAgentBinding> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(ImAgentBinding::getId, binding.getId());

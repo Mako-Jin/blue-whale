@@ -228,6 +228,7 @@ public class MailcowClient {
     private void requireEnabled() {
         if (!isEnabled()) {
             throw new BizException(ErrorCode.SYSTEM_ERROR,
+                    "mail.mailcow.disabled",
                     "未启用 Mailcow 代开能力：请配置 WHALE_MAIL_MAILCOW_ENABLED / BASE_URL / API_KEY");
         }
     }

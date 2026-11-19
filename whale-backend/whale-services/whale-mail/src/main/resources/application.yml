@@ -51,6 +51,10 @@ logging:
     com.bluewhale: debug
 
 whale:
+  i18n:
+    enabled: true
+    auto-init: true
+    module-scan-enabled: true
   permission:
     header:
       enabled: true

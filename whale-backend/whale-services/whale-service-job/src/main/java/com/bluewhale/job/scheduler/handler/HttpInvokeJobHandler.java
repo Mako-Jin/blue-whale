@@ -1,6 +1,7 @@
 package com.bluewhale.job.scheduler.handler;
 
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.internaltoken.InternalTokenSupport;
 import com.bluewhale.job.scheduler.JobHandler;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -99,7 +100,8 @@ public class HttpInvokeJobHandler implements JobHandler {
      */
     private JsonNode parseParam(String param) throws Exception {
         if (param == null || param.isBlank()) {
-            throw new BizException("httpInvokeJobHandler 参数为空，需 JSON：service/method/path/body");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "job.invoke.param-empty",
+                    "httpInvokeJobHandler 参数为空，需 JSON：service/method/path/body");
         }
         return objectMapper.readTree(param);
     }

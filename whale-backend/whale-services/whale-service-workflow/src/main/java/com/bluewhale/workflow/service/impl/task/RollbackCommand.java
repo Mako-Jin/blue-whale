@@ -47,16 +47,18 @@ public class RollbackCommand {
         ProcessModel model = ProcessModelParser.parse(instanceModelLoader.resolveInstanceJson(instance));
         ProcessModelNode target = model.node(targetNodeKey);
         if (target == null || target.getType() == null || !target.getType().isApproval()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "回退目标必须为审批节点");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.rollback-target-not-approval",
+                    "回退目标必须为审批节点");
         }
         String currentKey = resolveCurrentKey(task, model, instance);
         if (target.getKey().equals(currentKey)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "不能回退到当前节点");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.rollback-to-current", "不能回退到当前节点");
         }
         boolean ancestor = ProcessPaths.ancestorApprovalNodes(model, currentKey).stream()
                 .anyMatch(item -> item.getKey().equals(target.getKey()));
         if (!ancestor) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "只能回退到当前节点的上游审批节点");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.rollback-not-upstream",
+                    "只能回退到当前节点的上游审批节点");
         }
         taskCommandSupport.cancelPendingTasks(instance.getId());
         instance.setStatus(WorkflowConstants.INSTANCE_RUNNING);

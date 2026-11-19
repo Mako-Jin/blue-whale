@@ -48,7 +48,8 @@ public final class ProcessVariables {
         try {
             json = MAPPER.writeValueAsString(variables);
         } catch (Exception e) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "流程变量不是合法的 JSON 对象");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.process-variable.invalid-json",
+                    "流程变量不是合法的 JSON 对象");
         }
         if (json.length() > MAX_JSON_LENGTH) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(),

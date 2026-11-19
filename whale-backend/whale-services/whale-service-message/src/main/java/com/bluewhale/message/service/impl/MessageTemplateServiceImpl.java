@@ -135,7 +135,7 @@ public class MessageTemplateServiceImpl implements MessageTemplateService {
      */
     private static String normalizeCode(String code) {
         if (!StringUtils.hasText(code)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "模板编码不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "message.template.code-required", "模板编码不能为空");
         }
         return code.trim().toUpperCase(Locale.ROOT);
     }

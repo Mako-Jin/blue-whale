@@ -73,7 +73,8 @@ public class GlobalExceptionHandler {
     public Result<Void> handleBizException(BizException e) {
         log.warn("业务异常: code={}, message={}", e.getCode(), e.getMessage());
         if (e.getMessageKey() != null) {
-            return Result.fail(e.getCode(), resolve(e.getMessageKey(), null, e.getMessage()));
+            return Result.fail(e.getCode(),
+                    resolve(e.getMessageKey(), e.getMessageArgs(), e.getMessage()));
         }
         return Result.fail(e.getCode(), e.getMessage());
     }
