@@ -43,7 +43,7 @@ import { createNavGrid } from './path';
 import { createQuestSystem } from './quests';
 import { createSceneEnv, type SceneEnv } from './env';
 import { createPostFx, type PostFx } from './postfx';
-import type { SkyState } from './env-sky';
+import { createSky, type SkyState } from './env-sky';
 import {
   applyBrickMap,
   applyStoneMap,
@@ -185,6 +185,9 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     stars: 0,
   };
   const ENV_MOON_COLOR = new THREE.Color(0x9fb2ff);
+  /* 云受光/背光色的逐帧计算底稿（getHex 后写进 envState，避免每帧 new Color） */
+  const cloudLightCol = new THREE.Color();
+  const cloudShadeCol = new THREE.Color();
 
   /* 工具栏、HUD、各种面板都是 #bww-scene 的**兄弟节点**（React 里同一层渲染），
    * 不在 host 里面。所有按 data-action 找按钮的代码必须从页面根查，
@@ -435,11 +438,22 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     uDeep: { value: new THREE.Color(0x123a4a) },
     uShallow: { value: new THREE.Color(0x3f7c8c) },
     uSky: { value: new THREE.Color(0x9fd6f0) },
+    /* 批3：太阳碎金与涟漪源（rich 档用；simple 档不采这些 uniform，无开销） */
+    uSunDir: { value: new THREE.Vector3(0, 1, 0) },
+    uSunColor: { value: new THREE.Color(0xfff2d0) },
+    uSunIntensity: { value: 1 },
+    /** 涟漪源（showcase S32 同款）：北江江湾顶点 / 清溪汇口 / 玉溪中游，
+     *  z = 周期相位（0~1 错开，三处不同时起环）。 */
+    uRipples: {
+      value: [
+        new THREE.Vector3(130, -151, 0.0),
+        new THREE.Vector3(150, -155, 0.37),
+        new THREE.Vector3(-178, -100, 0.71),
+      ],
+    },
   };
-  const waterMat = new THREE.ShaderMaterial({
-    uniforms: waterUniforms,
-    transparent: true,
-    vertexShader: /* glsl */ `
+
+  const waterVert = /* glsl */ `
     uniform float uTime;
     varying vec2 vUv;
     varying vec3 vN;
@@ -456,8 +470,11 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       vW = wp.xyz;
       gl_Position = projectionMatrix * viewMatrix * wp;
     }
-  `,
-    fragmentShader: /* glsl */ `
+  `;
+
+  /* low 档简化片元 = 移植前原样。批2 教训：SwiftShader 软渲染下一切 GPU 加法
+   * 都要单独验——噪声法线（4 次采样×3 层）+ 涟漪循环是数倍 ALU，e2e 跑不动。 */
+  const waterFragSimple = /* glsl */ `
     uniform float uTime;
     uniform vec3 uDeep;
     uniform vec3 uShallow;
@@ -476,7 +493,108 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       float alpha = mix(0.72, 0.94, fres);
       gl_FragColor = vec4(col, alpha);
     }
-  `,
+  `;
+
+  /* rich 片元（mid/high）：自 showcase water.ts 移植裁剪——保留「值噪声三层波场
+   * → 解析法线 + 太阳碎金 + 涟漪环带」三件套；env 探针/灯影/河床剖面不搬
+   * （蓝鲸城水面是半透明条带、无码头灯组、无探针预算）。
+   * 值噪声而不是正弦叠加：三条相近频率的正弦必然拍出周期编织纹（像木地板）。 */
+  const waterFragRich = /* glsl */ `
+    uniform float uTime;
+    uniform vec3 uDeep;
+    uniform vec3 uShallow;
+    uniform vec3 uSky;
+    uniform vec3 uSunDir;
+    uniform vec3 uSunColor;
+    uniform float uSunIntensity;
+    uniform vec3 uRipples[3];
+    varying vec2 vUv;
+    varying vec3 vN;
+    varying vec3 vW;
+
+    float hash21(vec2 p) {
+      p = fract(p * vec2(123.34, 456.21));
+      p += dot(p, p + 45.32);
+      return fract(p.x * p.y);
+    }
+
+    /* 值噪声（双线性 + 三次平滑） */
+    float vnoise(vec2 p) {
+      vec2 i = floor(p);
+      vec2 f = fract(p);
+      vec2 u = f * f * (3.0 - 2.0 * f);
+      float a = hash21(i);
+      float b = hash21(i + vec2(1.0, 0.0));
+      float c = hash21(i + vec2(0.0, 1.0));
+      float d = hash21(i + vec2(1.0, 1.0));
+      return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+    }
+
+    /* 波纹高度场：x 压缩、z 拉长——反射高光是顺河向的碎金，不是满屏方格 */
+    float surface(vec2 p, float t) {
+      vec2 q = vec2(p.x * 1.10, p.y * 0.30);
+      float n = vnoise(q * 1.20 + vec2(t * 0.10, t * 0.34));
+      n += vnoise(q * 2.70 - vec2(t * 0.16, -t * 0.52)) * 0.52;
+      n += vnoise(q * 6.10 + vec2(-t * 0.28, t * 0.74)) * 0.26;
+      return n / 1.78;
+    }
+
+    void main() {
+      vec3 viewDir = normalize(cameraPosition - vW);
+      vec2 p = vW.xz;
+      float dist = length(cameraPosition - vW);
+
+      /* 远处必须衰减法线扰动：不衰减则 150m 外每个像素都在噪声格子间跳，
+       * 远水面变成一片闪烁白噪点（showcase 实测的"碎冰"）。 */
+      float atten = 1.0 / (1.0 + dist * 0.09 + dist * dist * 0.0008);
+
+      float e = 0.42;
+      float dhdx = (surface(p + vec2(e, 0.0), uTime) - surface(p - vec2(e, 0.0), uTime)) / (2.0 * e);
+      float dhdz = (surface(p + vec2(0.0, e), uTime) - surface(p - vec2(0.0, e), uTime)) / (2.0 * e);
+
+      /* 涟漪扩散：三处固定源各自生一个向外跑的高斯环带。叠加进法线扰动
+       * 而不是单独打亮——环带改反射/碎金的方向，才像"水在动"而不是
+       * "屏幕上画了个圈"。幅度出生最强、随半径二次衰减（能量摊薄）。 */
+      for (int i = 0; i < 3; i++) {
+        vec2 rc = uRipples[i].xy;
+        vec2 dv = p - rc;
+        float d = length(dv);
+        if (d > 3.6 || d < 1e-3) continue;
+        float life = fract(uTime / 7.5 + uRipples[i].z);
+        float r = 0.35 + life * 2.9;
+        float sig = 0.30;
+        float band = exp(-pow((d - r) / sig, 2.0));
+        float amp = (1.0 - life) * (1.0 - life) * 0.24;
+        float g = band * (-2.0 * (d - r) / (sig * sig)) * amp;
+        dhdx += (dv.x / d) * g;
+        dhdz += (dv.y / d) * g;
+      }
+
+      float fres = pow(1.0 - clamp(dot(vec3(0.0, 1.0, 0.0), viewDir), 0.0, 1.0), 2.5);
+      vec3 col = mix(uDeep, uShallow, fres * 0.85);
+      col = mix(col, uSky, fres * 0.45);
+
+      /* 太阳碎金：宽反光打底 + 高次碎金。全强度法线管碎金，夜里 uSunIntensity
+       * 0.15 + 月色（与天空 moonK 同判据），白天日路自动变淡蓝月路。 */
+      vec3 N = normalize(vec3(-dhdx * 1.55 * atten, 1.0, -dhdz * 1.55 * atten));
+      vec3 L = normalize(uSunDir);
+      vec3 H = normalize(viewDir + L);
+      float nh = max(dot(N, H), 0.0);
+      /* 仰角补偿：月路亮度随掠射角变化，低仰角按比例收（showcase S32） */
+      float elevK = mix(0.55, 1.0, smoothstep(0.08, 0.45, uSunDir.y));
+      col += uSunColor * pow(nh, 26.0) * 0.045 * uSunIntensity;
+      col += uSunColor * pow(nh, 420.0) * 3.2 * uSunIntensity * atten * elevK;
+
+      float alpha = mix(0.72, 0.94, fres);
+      gl_FragColor = vec4(col, alpha);
+    }
+  `;
+
+  const waterMat = new THREE.ShaderMaterial({
+    uniforms: waterUniforms,
+    transparent: true,
+    vertexShader: waterVert,
+    fragmentShader: quality === 'low' ? waterFragSimple : waterFragRich,
   });
   waterMat.side = THREE.DoubleSide; // 条带按河道走向生成，面朝向不固定
 
@@ -511,101 +629,27 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     return mesh;
   }
 
-  // 主河·北江（东西向，含江湾段；槽深 13，水面 -4.4 与原河一致）
-  scene.add(riverRibbon((t) => ({ x: t, z: NORTH_RIVER(t) }), -380, 380, 24, -4.4));
-  // 支流（南 → 北汇入北江；水面与主河同高避免汇口台阶，上游没入南岭山体）
+  // 主河·北江（东西向，含江湾段；槽深 13，水面 -4.4 与原河一致）。
+  // 半宽 34 与河谷切槽口对齐（切槽 smooth(d,8,34)）：水沿延伸到槽口外被地形
+  // 盖住，水线自然落在槽深 = 水面处；半宽 24 时 d∈[24,34] 有一条宽达 10m 的
+  // 干河床滩地（批3 评审发现）。
+  scene.add(riverRibbon((t) => ({ x: t, z: NORTH_RIVER(t) }), -380, 380, 34, -4.4));
+  // 支流（南 → 北汇入北江；水面与主河同高避免汇口台阶，上游没入南岭山体；
+  // 半宽 14 与支流槽口 smooth(d,4,14) 对齐，同上防干滩）
   for (const t of TRIBS) {
-    scene.add(riverRibbon((s) => ({ x: t.x(s), z: s }), t.joinZ - 22, 300, 9, -4.4, 60));
+    scene.add(riverRibbon((s) => ({ x: t.x(s), z: s }), t.joinZ - 22, 300, 14, -4.4, 60));
   }
 
   /* ==========================================================================
-   * 3. 天空 / 太阳 / 月亮 / 星空
+   * 3. 天空 —— showcase 全套（视觉合并批3）
+   *
+   * 渐变天空、地平线雾带、日盘（limb darkening）、月盘+月海、星空、云层
+   * 全在 env-sky 这一个 shader 里——原来的独立 sunMesh/moonMesh/星空 Points
+   * 全部下线。与 PMREM env 烘焙共用 skyState（updateSky 里逐帧填），
+   * 天空和反射环境光永远同源；月盘出现条件 uSunIntensity<1 与水面月路同判据。
    * ========================================================================== */
-  const skyUniforms = {
-    uTop: { value: new THREE.Color(0x2f6fb0) },
-    uBottom: { value: new THREE.Color(0xbfe0f5) },
-    uSunDir: { value: new THREE.Vector3(0, 1, 0) },
-    uSunColor: { value: new THREE.Color(0xfff2d0) },
-    uHaze: { value: 0.0 },
-  };
-  const sky = new THREE.Mesh(
-    new THREE.SphereGeometry(1600, 32, 24),
-    new THREE.ShaderMaterial({
-      uniforms: skyUniforms,
-      side: THREE.BackSide,
-      depthWrite: false,
-      vertexShader: /* glsl */ `
-      varying vec3 vDir;
-      void main() {
-        vDir = normalize(position);
-        gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
-      }
-    `,
-      fragmentShader: /* glsl */ `
-      uniform vec3 uTop;
-      uniform vec3 uBottom;
-      uniform vec3 uSunDir;
-      uniform vec3 uSunColor;
-      uniform float uHaze;
-      varying vec3 vDir;
-      void main() {
-        float h = clamp(vDir.y * 0.5 + 0.5, 0.0, 1.0);
-        vec3 col = mix(uBottom, uTop, pow(h, 0.85));
-        float sd = max(dot(normalize(vDir), normalize(uSunDir)), 0.0);
-        col += uSunColor * pow(sd, 420.0) * 2.4;
-        col += uSunColor * pow(sd, 10.0) * 0.30;
-        col = mix(col, vec3(0.62, 0.68, 0.72) * (0.35 + h * 0.6), uHaze * 0.75);
-        gl_FragColor = vec4(col, 1.0);
-      }
-    `,
-    }),
-  );
-  sky.renderOrder = -10;
-  scene.add(sky);
-
-  const sunMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(22, 20, 16),
-    new THREE.MeshBasicMaterial({ color: 0xfff6d8 }),
-  );
-  scene.add(sunMesh);
-
-  const moonMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(16, 20, 16),
-    new THREE.MeshBasicMaterial({ color: 0xdfe8ff }),
-  );
-  scene.add(moonMesh);
-
-  // 星空
-  const starCount = 1800;
-  const starGeo = new THREE.BufferGeometry();
-  {
-    const arr = new Float32Array(starCount * 3);
-    const size = new Float32Array(starCount);
-    for (let i = 0; i < starCount; i++) {
-      const u = Math.random();
-      const v = Math.random() * 0.85 + 0.05;
-      const theta = u * Math.PI * 2;
-      const phi = Math.acos(1 - 2 * v * 0.5);
-      const r = 1400;
-      arr[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-      arr[i * 3 + 1] = Math.abs(r * Math.cos(phi)) * 0.9 + 60;
-      arr[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
-      size[i] = Math.random() * 2.2 + 0.6;
-    }
-    starGeo.setAttribute('position', new THREE.BufferAttribute(arr, 3));
-    starGeo.setAttribute('aSize', new THREE.BufferAttribute(size, 1));
-  }
-  const starMat = new THREE.PointsMaterial({
-    color: 0xffffff,
-    size: 3.4,
-    sizeAttenuation: true,
-    transparent: true,
-    opacity: 0,
-    depthWrite: false,
-  });
-  const stars = new THREE.Points(starGeo, starMat);
-  stars.renderOrder = -9;
-  scene.add(stars);
+  const visibleSky = createSky(1600);
+  scene.add(visibleSky.mesh);
 
   /* ==========================================================================
    * 4. 城墙
@@ -2576,9 +2620,6 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       .set(Math.cos(ang) * 0.85, Math.sin(ang), 0.42 * Math.cos(ang * 0.5))
       .normalize();
 
-    sunMesh.position.copy(sunDir).multiplyScalar(900);
-    moonMesh.position.copy(sunDir).multiplyScalar(-900);
-
     const h = sunDir.y; // -1..1
     const dayF = smooth(h, -0.06, 0.34);
     const duskF = 1 - smooth(Math.abs(h), 0.02, 0.42);
@@ -2589,10 +2630,6 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     bot.lerp(SKY_DUSK_BOT, duskF * 0.8);
 
     const haze = world.weatherMix[3];
-    skyUniforms.uTop.value.copy(top);
-    skyUniforms.uBottom.value.copy(bot);
-    skyUniforms.uSunDir.value.copy(sunDir);
-    skyUniforms.uHaze.value = haze;
 
     sunLight.target.position.set(player.pos.x, 0, player.pos.z);
     /* 平行光方向由 position→target 决定：position 必须跟着 target 平移，
@@ -2608,7 +2645,7 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     hemi.intensity = lerp(0.06, 0.2, dayF);
     hemi.color.copy(new THREE.Color(0x2a3f6b).lerp(new THREE.Color(0xa8ccff), dayF));
 
-    starMat.opacity = clamp(1 - dayF * 1.5, 0, 0.95) * (1 - haze * 0.9);
+    const starsOpacity = clamp(1 - dayF * 1.5, 0, 0.95) * (1 - haze * 0.9);
 
     fogColor.copy(bot).lerp(new THREE.Color(0x8f9aa0), haze * 0.6);
     scene.fog.color.copy(fogColor);
@@ -2621,8 +2658,7 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     matLanternGlow.opacity = 0.05 + lanternOn * 0.2;
 
     waterUniforms.uSky.value.copy(bot).multiplyScalar(1.0);
-    sky.position.copy(camera.position);
-    stars.position.copy(camera.position);
+    visibleSky.mesh.position.copy(camera.position);
 
     /* ---------------------------------------------------------------- 渲染增强同步
      * 后处理昼夜风味 + IBL 节流重烘。IBL 接管漫射后 hemi 只补死角（上面已压到 0.06~0.2）。
@@ -2632,30 +2668,44 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     gradeShadowTint.setHex(0x1a2440).lerp(new THREE.Color(0x2a1f3e), duskF * 0.6);
     postfx.setTint(gradeShadowTint, gradeHighTint, lerp(0.22, 0.3, duskF));
 
-    if (env) {
-      /* env 天空快照：白天用太阳方向烘日景，夜里换月亮方向烘月夜（env-sky 的
-       * moonK 判据 uSunIntensity<1 会自动带月盘与星空，环境光与主天空同源）。 */
-      const night = h < -0.02;
-      envState.top.copy(top);
-      envState.horizon.copy(bot);
-      envState.ground.copy(bot).multiplyScalar(0.3);
-      if (night) {
-        envState.sunDir.copy(sunDir).multiplyScalar(-1); // 月亮在太阳对面
-        envState.sunColor.copy(ENV_MOON_COLOR);
-        envState.sunIntensity = 0.15;
-        envState.stars = starMat.opacity;
-      } else {
-        envState.sunDir.copy(sunDir);
-        envState.sunColor.copy(sunCol);
-        envState.sunIntensity = 1;
-        envState.stars = 0;
-      }
-      envState.haze = haze;
-      if (clock.t - lastEnvAt > ENV_INTERVAL) {
-        lastEnvAt = clock.t;
-        scene.environment = env.update(envState);
-        scene.environmentIntensity = lerp(0.55, 0.85, dayF);
-      }
+    /* ---------------------------------------------------- skyState（批3 合并）
+     * 可见天空与 PMREM env 共用一份快照：白天太阳方向烘日景，夜里换月亮方向——
+     * env-sky 的 moonK 判据 uSunIntensity<1 会自动带月盘月海与星空，环境光与
+     * 主天空永远同源。visibleSky 每帧 update（uniform 拷贝，开销可忽略）。 */
+    const night = h < -0.02;
+    envState.top.copy(top);
+    envState.horizon.copy(bot);
+    envState.ground.copy(bot).multiplyScalar(0.3);
+    if (night) {
+      envState.sunDir.copy(sunDir).multiplyScalar(-1); // 月亮在太阳对面
+      envState.sunColor.copy(ENV_MOON_COLOR);
+      envState.sunIntensity = 0.15;
+      envState.stars = starsOpacity;
+    } else {
+      envState.sunDir.copy(sunDir);
+      envState.sunColor.copy(sunCol);
+      envState.sunIntensity = 1;
+      envState.stars = 0;
+    }
+    envState.haze = haze;
+    /* 云量：晴天给一点底云，雨/雪按 weatherMix 加厚；受光色随昼夜与太阳色走 */
+    envState.cloud = clamp(0.22 + world.weatherMix[1] * 0.7 + world.weatherMix[2] * 0.55, 0, 0.95);
+    cloudLightCol.setHex(0xffffff).lerp(sunCol, 0.35).multiplyScalar(0.2 + dayF * 0.8);
+    envState.cloudLight = cloudLightCol.getHex();
+    cloudShadeCol.setHex(0x9aa4b0).multiplyScalar(0.15 + dayF * 0.85);
+    envState.cloudShade = cloudShadeCol.getHex();
+    visibleSky.update(envState);
+    visibleSky.tick(clock.t);
+
+    /* 水面碎金/月路与天空同源：夜里 uSunIntensity 0.15 + 月色，碎金自动变月路 */
+    waterUniforms.uSunDir.value.copy(envState.sunDir);
+    waterUniforms.uSunColor.value.copy(envState.sunColor);
+    waterUniforms.uSunIntensity.value = envState.sunIntensity;
+
+    if (env && clock.t - lastEnvAt > ENV_INTERVAL) {
+      lastEnvAt = clock.t;
+      scene.environment = env.update(envState);
+      scene.environmentIntensity = lerp(0.55, 0.85, dayF);
     }
   }
 
@@ -3249,6 +3299,11 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     /* 画质档探针（视觉合并批1）：读当前档位 / 手动切换（low 直渲，mid/high 走后处理） */
     window.__bwwQuality = () => quality;
     window.__bwwSetQuality = (q: 'high' | 'mid' | 'low') => setQuality(q);
+    /* 时段探针（视觉合并批3）：直接设 world.time（0..1，0.5=正午 0.25=日出 0.75=日落）。
+     * e2e 与截图评审需要确定的昼夜相位，靠等 150s 一天的真实周期不可靠。 */
+    window.__bwwSetTime = (t: number) => {
+      world.time = t;
+    };
     /* 牌坊状态探针：给 e2e 断言"哪个殿拿到了真数、哪个殿降级了" */
     window.__bwwGlyphs = () =>
       [...metrics.cards.values()].map((card) => ({
