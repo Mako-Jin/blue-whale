@@ -26,10 +26,14 @@ import {
   type MenuType,
   type MenuVO,
 } from '../../api/menu';
+import { useI18n } from '../../i18n';
 
 interface MenuFormValues extends MenuPayload {
   name: string;
 }
+
+/** 翻译函数类型 */
+type TFunction = ReturnType<typeof useI18n>['t'];
 
 interface TreeOption {
   /** 菜单 id 为后端 Long（字符串） */
@@ -38,20 +42,29 @@ interface TreeOption {
   children?: TreeOption[];
 }
 
-const MENU_TYPE_OPTIONS: { value: MenuType; label: string }[] = [
-  { value: 'DIR', label: '目录' },
-  { value: 'MENU', label: '菜单' },
-];
+/** 菜单类型下拉选项 */
+function menuTypeOptions(t: TFunction): { value: MenuType; label: string }[] {
+  return [
+    { value: 'DIR', label: t('menu.type.dir') },
+    { value: 'MENU', label: t('menu.type.menu') },
+  ];
+}
 
-const FLAG_OPTIONS = [
-  { value: 1, label: '是' },
-  { value: 0, label: '否' },
-];
+/** 是否下拉选项 */
+function flagOptions(t: TFunction) {
+  return [
+    { value: 1, label: t('menu.flag.yes') },
+    { value: 0, label: t('menu.flag.no') },
+  ];
+}
 
-const STATUS_OPTIONS = [
-  { value: 1, label: '启用' },
-  { value: 0, label: '停用' },
-];
+/** 状态下拉选项 */
+function statusOptions(t: TFunction) {
+  return [
+    { value: 1, label: t('menu.status.enabled') },
+    { value: 0, label: t('menu.status.disabled') },
+  ];
+}
 
 function toOptions(nodes: MenuVO[], excludeId?: string): TreeOption[] {
   return nodes
@@ -66,6 +79,7 @@ function toOptions(nodes: MenuVO[], excludeId?: string): TreeOption[] {
 export default function MenuList() {
   const { message } = App.useApp();
   const { has } = usePermission();
+  const { t } = useI18n();
 
   const [menus, setMenus] = useState<MenuVO[]>([]);
   const [loading, setLoading] = useState(false);
@@ -78,7 +92,7 @@ export default function MenuList() {
     try {
       setMenus(await treeMenus());
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '菜单加载失败');
+      message.error(error instanceof Error ? error.message : t('menu.msg.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -92,10 +106,10 @@ export default function MenuList() {
   const handleDelete = async (row: MenuVO) => {
     try {
       await deleteMenu(row.id);
-      message.success('菜单已删除');
+      message.success(t('menu.msg.deleted'));
       void load();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '删除失败');
+      message.error(error instanceof Error ? error.message : t('menu.msg.deleteFailed'));
     }
   };
 
@@ -104,48 +118,63 @@ export default function MenuList() {
       const payload: MenuPayload = { ...values, parentId: values.parentId ?? '0' };
       if (editRecord) {
         await updateMenu(editRecord.id, payload);
-        message.success('菜单已更新');
+        message.success(t('menu.msg.updated'));
       } else {
         await createMenu(payload);
-        message.success('菜单已创建');
+        message.success(t('menu.msg.created'));
       }
       setEditorOpen(false);
       void load();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : editRecord ? '更新失败' : '创建失败');
+      message.error(
+        error instanceof Error
+          ? error.message
+          : editRecord
+            ? t('menu.msg.updateFailed')
+            : t('menu.msg.createFailed'),
+      );
       throw error;
     }
   };
 
   const columns: TableProps<MenuVO>['columns'] = [
-    { title: '菜单名称', dataIndex: 'name', width: 180 },
+    { title: t('menu.col.name'), dataIndex: 'name', width: 180 },
     {
-      title: '类型',
+      title: t('menu.col.type'),
       dataIndex: 'menuType',
       width: 90,
       render: (value: string | undefined) =>
-        value === 'DIR' ? <Tag color="blue">目录</Tag> : <Tag color="geekblue">菜单</Tag>,
+        value === 'DIR' ? (
+          <Tag color="blue">{t('menu.type.dir')}</Tag>
+        ) : (
+          <Tag color="geekblue">{t('menu.type.menu')}</Tag>
+        ),
     },
-    { title: '路由路径', dataIndex: 'path', width: 160 },
-    { title: '组件', dataIndex: 'component', width: 180 },
-    { title: '图标', dataIndex: 'icon', width: 100 },
-    { title: '排序', dataIndex: 'sort', width: 80 },
-    { title: '权限码', dataIndex: 'permissionCode', width: 160 },
+    { title: t('menu.col.path'), dataIndex: 'path', width: 160 },
+    { title: t('menu.col.component'), dataIndex: 'component', width: 180 },
+    { title: t('menu.col.icon'), dataIndex: 'icon', width: 100 },
+    { title: t('menu.col.sort'), dataIndex: 'sort', width: 80 },
+    { title: t('menu.col.permissionCode'), dataIndex: 'permissionCode', width: 160 },
     {
-      title: '可见',
+      title: t('menu.col.visible'),
       dataIndex: 'visible',
       width: 80,
-      render: (value: number | undefined) => (value === 1 ? '是' : '否'),
+      render: (value: number | undefined) =>
+        value === 1 ? t('menu.flag.yes') : t('menu.flag.no'),
     },
     {
-      title: '状态',
+      title: t('menu.col.status'),
       dataIndex: 'status',
       width: 90,
       render: (value: number | undefined) =>
-        value === 1 ? <Tag color="green">启用</Tag> : <Tag color="red">停用</Tag>,
+        value === 1 ? (
+          <Tag color="green">{t('menu.status.enabled')}</Tag>
+        ) : (
+          <Tag color="red">{t('menu.status.disabled')}</Tag>
+        ),
     },
     {
-      title: '操作',
+      title: t('menu.col.action'),
       key: 'action',
       width: 160,
       render: (_, row) => (
@@ -159,12 +188,12 @@ export default function MenuList() {
               setEditorOpen(true);
             }}
           >
-            编辑
+            {t('menu.action.edit')}
           </AuthButton>
           {has('sys:menu:delete') && (
-            <Popconfirm title="确认删除该菜单？" onConfirm={() => void handleDelete(row)}>
+            <Popconfirm title={t('menu.confirm.delete')} onConfirm={() => void handleDelete(row)}>
               <Button type="link" size="small" danger>
-                删除
+                {t('menu.action.delete')}
               </Button>
             </Popconfirm>
           )}
@@ -184,7 +213,7 @@ export default function MenuList() {
         expandable={{ defaultExpandAllRows: true }}
         title={() => (
           <Space>
-            <span>菜单列表</span>
+            <span>{t('menu.list.title')}</span>
             <AuthButton
               perm="sys:menu:add"
               type="primary"
@@ -194,7 +223,7 @@ export default function MenuList() {
                 setEditorOpen(true);
               }}
             >
-              新增菜单
+              {t('menu.action.create')}
             </AuthButton>
           </Space>
         )}
@@ -202,52 +231,60 @@ export default function MenuList() {
 
       <FormModal<MenuFormValues>
         open={editorOpen}
-        title={editRecord ? `编辑菜单：${editRecord.name}` : '新增菜单'}
+        title={
+          editRecord
+            ? t('menu.form.editTitle', { name: editRecord.name })
+            : t('menu.form.createTitle')
+        }
         form={editorForm}
         initialValues={editRecord ?? undefined}
         onOk={handleSubmit}
         onCancel={() => setEditorOpen(false)}
       >
-        <Form.Item name="parentId" label="上级菜单">
+        <Form.Item name="parentId" label={t('menu.form.parent')}>
           <TreeSelect
             allowClear
             treeDefaultExpandAll
-            placeholder="不选则为顶级菜单"
+            placeholder={t('menu.form.parentPlaceholder')}
             treeData={[
-              { value: '0', title: '顶级菜单', children: toOptions(menus, editRecord?.id) },
+              {
+                value: '0',
+                title: t('menu.form.topLevel'),
+                children: toOptions(menus, editRecord?.id),
+              },
             ]}
           />
         </Form.Item>
         <Form.Item
           name="name"
-          label="菜单名称"
-          rules={[{ required: true, message: '请输入菜单名称' }]}
+          label={t('menu.form.name')}
+          rules={[{ required: true, message: t('menu.form.nameRequired') }]}
         >
           <Input />
         </Form.Item>
-        <Form.Item name="menuType" label="菜单类型" initialValue="MENU">
-          <Select options={MENU_TYPE_OPTIONS} />
+        <Form.Item name="menuType" label={t('menu.form.type')} initialValue="MENU">
+          <Select options={menuTypeOptions(t)} />
         </Form.Item>
-        <Form.Item name="path" label="路由路径">
-          <Input placeholder="如 /system/user" />
+        <Form.Item name="path" label={t('menu.form.path')}>
+          <Input placeholder={t('menu.form.pathPlaceholder')} />
         </Form.Item>
-        <Form.Item name="component" label="组件路径">
-          <Input placeholder="如 system/user/index" />
+        <Form.Item name="component" label={t('menu.form.component')}>
+          <Input placeholder={t('menu.form.componentPlaceholder')} />
         </Form.Item>
-        <Form.Item name="icon" label="图标">
+        <Form.Item name="icon" label={t('menu.form.icon')}>
           <Input />
         </Form.Item>
-        <Form.Item name="sort" label="排序" initialValue={1}>
+        <Form.Item name="sort" label={t('menu.form.sort')} initialValue={1}>
           <InputNumber min={0} style={{ width: '100%' }} />
         </Form.Item>
-        <Form.Item name="permissionCode" label="权限码">
-          <Input placeholder="如 sys:user:list" />
+        <Form.Item name="permissionCode" label={t('menu.col.permissionCode')}>
+          <Input placeholder={t('menu.form.permissionPlaceholder')} />
         </Form.Item>
-        <Form.Item name="visible" label="是否可见" initialValue={1}>
-          <Select options={FLAG_OPTIONS} />
+        <Form.Item name="visible" label={t('menu.form.visible')} initialValue={1}>
+          <Select options={flagOptions(t)} />
         </Form.Item>
-        <Form.Item name="status" label="状态" initialValue={1}>
-          <Select options={STATUS_OPTIONS} />
+        <Form.Item name="status" label={t('menu.form.status')} initialValue={1}>
+          <Select options={statusOptions(t)} />
         </Form.Item>
       </FormModal>
     </>

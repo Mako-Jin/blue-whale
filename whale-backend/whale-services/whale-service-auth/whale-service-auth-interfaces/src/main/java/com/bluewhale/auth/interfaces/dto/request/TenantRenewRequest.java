@@ -16,8 +16,8 @@ import java.time.LocalDateTime;
 public class TenantRenewRequest {
 
     /** 新到期时间，必须晚于当前时间 */
-    @NotNull(message = "到期时间不能为空")
-    @Future(message = "到期时间必须晚于当前时间")
+    @NotNull(message = "{validation.auth.tenant.expire-time-required}")
+    @Future(message = "{validation.auth.tenant.expire-time-future}")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime expireTime;
 }

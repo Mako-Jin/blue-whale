@@ -9,6 +9,7 @@ import {
   type JobTransferDependency,
   type JobTransferJob,
 } from '../../api/job';
+import { useI18n } from '../../i18n';
 
 interface JobImportModalProps {
   open: boolean;
@@ -23,21 +24,22 @@ interface ParsedExport {
   dependencies: JobTransferDependency[];
 }
 
-const CONFLICT_OPTIONS = [
-  { value: 'SKIP', label: 'SKIP（已存在则跳过，默认）' },
-  { value: 'OVERWRITE', label: 'OVERWRITE（已存在则覆盖）' },
-];
-
 /** 失败明细最多展示条数，其余折叠为提示 */
 const MAX_FAILURE_DISPLAY = 5;
 
 export function JobImportModal({ open, onCancel, onImported }: JobImportModalProps) {
   const { message } = App.useApp();
+  const { t } = useI18n();
   const [fileName, setFileName] = useState<string | null>(null);
   const [parsed, setParsed] = useState<ParsedExport | null>(null);
   const [conflictStrategy, setConflictStrategy] = useState<'SKIP' | 'OVERWRITE'>('SKIP');
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<JobImportResultVO | null>(null);
+
+  const conflictOptions = [
+    { value: 'SKIP', label: t('job.import.conflict.skip') },
+    { value: 'OVERWRITE', label: t('job.import.conflict.overwrite') },
+  ];
 
   // 每次打开重置，避免上次的文件与结果残留
   useEffect(() => {
@@ -55,7 +57,7 @@ export function JobImportModal({ open, onCancel, onImported }: JobImportModalPro
       const text = await file.text();
       const payload = JSON.parse(text) as Partial<ParsedExport>;
       if (!Array.isArray(payload.jobs)) {
-        throw new Error('文件缺少 jobs 数组');
+        throw new Error(t('job.import.error.missingJobs'));
       }
       setParsed({
         version: payload.version,
@@ -67,7 +69,11 @@ export function JobImportModal({ open, onCancel, onImported }: JobImportModalPro
     } catch (error) {
       setParsed(null);
       setFileName(null);
-      message.error(error instanceof Error ? `文件解析失败：${error.message}` : '文件解析失败');
+      message.error(
+        error instanceof Error
+          ? t('job.import.error.parseFailedWithReason', { reason: error.message })
+          : t('job.import.error.parseFailed'),
+      );
     }
     // 阻止 antd 自动上传，文件内容已在本地读取
     return false;
@@ -87,12 +93,12 @@ export function JobImportModal({ open, onCancel, onImported }: JobImportModalPro
       setResult(outcome);
       onImported();
       if (outcome.failures.length === 0) {
-        message.success('导入完成');
+        message.success(t('job.import.msg.done'));
       } else {
-        message.warning(`导入完成，${outcome.failures.length} 条失败`);
+        message.warning(t('job.import.msg.doneWithFailures', { count: outcome.failures.length }));
       }
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '导入失败');
+      message.error(error instanceof Error ? error.message : t('job.import.error.importFailed'));
     } finally {
       setImporting(false);
     }
@@ -101,17 +107,17 @@ export function JobImportModal({ open, onCancel, onImported }: JobImportModalPro
   return (
     <Modal
       open={open}
-      title="导入任务"
+      title={t('job.import.title')}
       onCancel={onCancel}
       destroyOnHidden
       footer={
         result ? (
-          <Button onClick={onCancel}>关闭</Button>
+          <Button onClick={onCancel}>{t('job.import.action.close')}</Button>
         ) : (
           <Space>
-            <Button onClick={onCancel}>取消</Button>
+            <Button onClick={onCancel}>{t('job.import.action.cancel')}</Button>
             <Button type="primary" loading={importing} disabled={!parsed} onClick={() => void handleImport()}>
-              开始导入
+              {t('job.import.action.start')}
             </Button>
           </Space>
         )
@@ -127,17 +133,19 @@ export function JobImportModal({ open, onCancel, onImported }: JobImportModalPro
             return false;
           }}
         >
-          <Typography.Text strong>选择导出的 JSON 文件</Typography.Text>
+          <Typography.Text strong>{t('job.import.uploadTitle')}</Typography.Text>
           <br />
-          <Typography.Text type="secondary">
-            可直接使用「导出选中 / 导出全部」生成的文件
-          </Typography.Text>
+          <Typography.Text type="secondary">{t('job.import.uploadHint')}</Typography.Text>
         </Upload.Dragger>
 
         {parsed && (
           <Typography.Text type="secondary">
-            {fileName}：任务 {parsed.jobs.length} 条，依赖 {parsed.dependencies.length} 条
-            {parsed.version ? `，版本 ${parsed.version}` : ''}
+            {t('job.import.summary', {
+              file: fileName ?? '',
+              jobs: parsed.jobs.length,
+              dependencies: parsed.dependencies.length,
+            })}
+            {parsed.version ? t('job.import.summaryVersion', { version: parsed.version }) : ''}
           </Typography.Text>
         )}
 
@@ -145,7 +153,7 @@ export function JobImportModal({ open, onCancel, onImported }: JobImportModalPro
           <Radio.Group
             value={conflictStrategy}
             onChange={(event) => setConflictStrategy(event.target.value)}
-            options={CONFLICT_OPTIONS}
+            options={conflictOptions}
           />
         )}
 
@@ -153,7 +161,12 @@ export function JobImportModal({ open, onCancel, onImported }: JobImportModalPro
           <Alert
             type={result.failures.length === 0 ? 'success' : 'warning'}
             showIcon
-            message={`新建 ${result.createdCount}，更新 ${result.updatedCount}，跳过 ${result.skippedCount}，依赖 ${result.dependencyCount} 条`}
+            message={t('job.import.resultSummary', {
+              created: result.createdCount,
+              updated: result.updatedCount,
+              skipped: result.skippedCount,
+              dependencies: result.dependencyCount,
+            })}
             description={
               result.failures.length > 0 ? (
                 <FailureList failures={result.failures} />
@@ -167,17 +180,18 @@ export function JobImportModal({ open, onCancel, onImported }: JobImportModalPro
 }
 
 function FailureList({ failures }: { failures: JobImportFailureVO[] }) {
+  const { t } = useI18n();
   const visible = failures.slice(0, MAX_FAILURE_DISPLAY);
   return (
     <div>
       {visible.map((failure) => (
         <div key={`${failure.target}-${failure.reason}`}>
-          {failure.target}：{failure.reason}
+          {t('job.import.failureItem', { target: failure.target, reason: failure.reason })}
         </div>
       ))}
       {failures.length > visible.length && (
         <Typography.Text type="secondary">
-          其余 {failures.length - visible.length} 条失败未展示
+          {t('job.import.failureRest', { count: failures.length - visible.length })}
         </Typography.Text>
       )}
     </div>

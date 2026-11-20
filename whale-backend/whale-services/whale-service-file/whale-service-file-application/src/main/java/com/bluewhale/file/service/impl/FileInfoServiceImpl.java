@@ -227,11 +227,13 @@ public class FileInfoServiceImpl implements FileInfoService {
                 .findFirst()
                 .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
         if (target.getParentId() == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "根版本不可单独删除，请删除整个文件");
+            throw new BizException(ErrorCode.PARAM_ERROR, "file.version.root-delete-forbidden",
+                    "根版本不可单独删除，请删除整个文件");
         }
         FileAssetAggregate latest = fileAssetRepository.findLatestVersion(root.getId()).orElse(null);
         if (latest != null && latest.getId().equals(target.getId())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "最新版本不可删除，请先回滚或上传新版本");
+            throw new BizException(ErrorCode.PARAM_ERROR, "file.version.latest-delete-forbidden",
+                    "最新版本不可删除，请先回滚或上传新版本");
         }
         if (fileAssetRepository.deleteVersionById(target.getId())) {
             publishFileEvent(target, FileAssetDomainEvent.ChangeType.DELETED, requesterId);
@@ -608,10 +610,12 @@ public class FileInfoServiceImpl implements FileInfoService {
         List<Long> ids = distinctIds(command.ids());
         int maxFiles = fileProperties.getBatch().getMaxFiles();
         if (ids.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "文件ID列表不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "file.common.ids-required",
+                    "文件ID列表不能为空");
         }
         if (ids.size() > maxFiles) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "单次最多批量删除 " + maxFiles + " 个文件");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "file.batch.delete.limit",
+                    "单次最多批量删除 " + maxFiles + " 个文件", maxFiles);
         }
         List<FileBatchDeleteItemResult> items = new ArrayList<>(ids.size());
         for (Long id : ids) {
@@ -741,7 +745,7 @@ public class FileInfoServiceImpl implements FileInfoService {
         FileAssetAggregate asset = requireAccessibleFile(id, requesterId, canManage);
         if (fileProperties.getStorage().getEncryption().isEnabled()) {
             // 预签名绕过应用层，加密对象会返回密文；引导调用方走网关下载以透明解密
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "file.presigned.encryption-enabled",
                     "已启用落盘加密，预签名地址不可用，请使用下载接口");
         }
         int expires = resolveExpiresSeconds(expiresSeconds);
@@ -780,7 +784,8 @@ public class FileInfoServiceImpl implements FileInfoService {
         }
         ChunkUploadSessionId sessionId = requireSession(uploadId);
         if (part.size() > resolveChunkSize()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "分片大小超出上限");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "file.common.chunk-size-exceeded",
+                    "分片大小超出上限");
         }
         chunkUploadStore.storePart(sessionId, index, new ByteArrayInputStream(part.content()), part.size());
         return chunkUploadStore.uploadedPartIndexes(sessionId);
@@ -808,16 +813,19 @@ public class FileInfoServiceImpl implements FileInfoService {
                 .boxed()
                 .toList();
         if (!missing.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "缺少分片索引: " + missing);
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "file.chunk.missing-part-index",
+                    "缺少分片索引: " + missing, missing);
         }
         if (uploaded.size() != expectedCount) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "分片数量与文件大小不匹配");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "file.chunk.count-mismatch",
+                    "分片数量与文件大小不匹配");
         }
         FileUploadResult result;
         long startedAt = System.nanoTime();
         try (MergedChunkUpload merged = chunkUploadStore.merge(sessionId, expectedCount)) {
             if (merged.size() != size) {
-                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "分片总大小与声明大小不一致");
+                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "file.chunk.total-size-mismatch",
+                        "分片总大小与声明大小不一致");
             }
             result = persistFile(sniffContent(merged.content(), command.fileName()), command.fileName(),
                     merged.contentType(), size, merged.md5(), command.bucket(), command.uploaderId(), effective);
@@ -884,7 +892,7 @@ public class FileInfoServiceImpl implements FileInfoService {
                                          long fileSize, String md5, String bucket, Long uploaderId,
                                          UploadLimits limits) {
         if (fileSize > limits.maxSizeBytes()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "文件大小超出上限");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "file.common.size-exceeded", "文件大小超出上限");
         }
         String name = resolveOriginalName(originalName);
         String resolvedBucket = resolveBucket(bucket);
@@ -1074,7 +1082,7 @@ public class FileInfoServiceImpl implements FileInfoService {
         Set<Long> unique = new LinkedHashSet<>(ids.size());
         for (Long id : ids) {
             if (id == null) {
-                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "文件ID不能为空");
+                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "file.common.id-required", "文件ID不能为空");
             }
             unique.add(id);
         }
@@ -1148,10 +1156,11 @@ public class FileInfoServiceImpl implements FileInfoService {
      */
     private static void validateDeclaredSize(Long size, UploadLimits limits) {
         if (size == null || size <= 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "文件大小必须大于 0");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "file.common.size-must-positive",
+                    "文件大小必须大于 0");
         }
         if (size > limits.maxSizeBytes()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "文件大小超出上限");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "file.common.size-exceeded", "文件大小超出上限");
         }
     }
 
@@ -1188,19 +1197,20 @@ public class FileInfoServiceImpl implements FileInfoService {
     private void validateQuota(long incomingSize, Long uploaderId, String bucket, long userQuota) {
         if (userQuota > 0 && uploaderId != null) {
             guardQuota(fileAssetRepository.sumNormalSizeByUploader(uploaderId), incomingSize, userQuota,
-                    "超出个人存储配额");
+                    "file.storage.quota.user-exceeded", "超出个人存储配额");
         }
         if (TenantContext.get() == null) {
             return;
         }
         long tenantQuota = fileProperties.getQuota().getTenantBytes();
         if (tenantQuota > 0) {
-            guardQuota(fileAssetRepository.sumNormalSizeByTenant(), incomingSize, tenantQuota, "超出租户存储配额");
+            guardQuota(fileAssetRepository.sumNormalSizeByTenant(), incomingSize, tenantQuota,
+                    "file.storage.quota.tenant-exceeded", "超出租户存储配额");
         }
         long bucketQuota = fileProperties.getQuota().getBucketBytes();
         if (bucketQuota > 0) {
             guardQuota(fileAssetRepository.sumNormalSizeByBucket(bucket), incomingSize, bucketQuota,
-                    "超出桶存储配额: " + bucket);
+                    "file.storage.quota.bucket-exceeded", "超出桶存储配额: " + bucket, bucket);
         }
     }
 
@@ -1210,12 +1220,15 @@ public class FileInfoServiceImpl implements FileInfoService {
      * @param usedBytes 该维度已用字节数
      * @param incomingSize 本次拟写入的字节数
      * @param limitBytes 该维度上限
+     * @param messageKey 超限提示文案键
      * @param message 超限提示文案
+     * @param args 文案占位参数
      * @throws BizException 超出上限时抛出 {@code PARAM_ERROR}
      */
-    private static void guardQuota(long usedBytes, long incomingSize, long limitBytes, String message) {
+    private static void guardQuota(long usedBytes, long incomingSize, long limitBytes, String messageKey,
+                                   String message, Object... args) {
         if (usedBytes + incomingSize > limitBytes) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), message);
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), messageKey, message, args);
         }
     }
 
@@ -1271,7 +1284,8 @@ public class FileInfoServiceImpl implements FileInfoService {
     private ChunkUploadSessionId requireSession(String uploadId) {
         ChunkUploadSessionId sessionId = ChunkUploadSessionId.of(uploadId);
         if (!chunkUploadStore.exists(sessionId)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "上传会话不存在或已失效");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "file.chunk.session-not-found",
+                    "上传会话不存在或已失效");
         }
         return sessionId;
     }

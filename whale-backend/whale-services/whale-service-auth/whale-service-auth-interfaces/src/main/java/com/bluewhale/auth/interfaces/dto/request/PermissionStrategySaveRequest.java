@@ -22,43 +22,43 @@ import java.util.List;
 public class PermissionStrategySaveRequest {
 
     /** 策略编码（新建必填，更新不可变） */
-    @Size(max = 64, message = "策略编码长度不能超过 64")
+    @Size(max = 64, message = "{validation.auth.permission.strategy-code-size}")
     private String strategyCode;
 
     /** 策略名称 */
-    @NotBlank(message = "策略名称不能为空")
-    @Size(max = 128, message = "策略名称长度不能超过 128")
+    @NotBlank(message = "{validation.auth.permission.strategy-name-required}")
+    @Size(max = 128, message = "{validation.auth.permission.strategy-name-size}")
     private String strategyName;
 
     /** 策略类型（GRANT / DENY，新建必填） */
-    @Pattern(regexp = "GRANT|DENY", message = "策略类型仅支持 GRANT / DENY")
+    @Pattern(regexp = "GRANT|DENY", message = "{validation.auth.permission.strategy-type-pattern}")
     private String strategyType;
 
     /** 生效角色 ID 集合（必填非空） */
-    @NotEmpty(message = "生效角色 ID 集合不能为空")
+    @NotEmpty(message = "{validation.auth.permission.strategy-role-ids-required}")
     private List<Long> roleIds;
 
     /** 生效资源 ID 集合（必填非空） */
-    @NotEmpty(message = "生效资源 ID 集合不能为空")
+    @NotEmpty(message = "{validation.auth.permission.strategy-resource-ids-required}")
     private List<Long> resourceIds;
 
     /** 附加条件 JSON（可空表示无条件） */
-    @Size(max = 1024, message = "附加条件 JSON 长度不能超过 1024")
+    @Size(max = 1024, message = "{validation.auth.permission.strategy-condition-size}")
     private String conditionJson;
 
     /** 是否默认策略（同租户仅一条，由服务编排） */
     private Boolean isDefault;
 
     /** 优先级（可空默认 100，数字小者优先） */
-    @Min(value = 0, message = "优先级不得为负数")
+    @Min(value = 0, message = "{validation.auth.permission.strategy-priority-min}")
     private Integer priority;
 
     /** 状态：1 启用 / 0 停用（可空，新建默认启用） */
-    @Min(value = 0, message = "状态仅支持 1（启用）/ 0（停用）")
-    @Max(value = 1, message = "状态仅支持 1（启用）/ 0（停用）")
+    @Min(value = 0, message = "{validation.auth.common.status-range}")
+    @Max(value = 1, message = "{validation.auth.common.status-range}")
     private Integer status;
 
     /** 描述（可空） */
-    @Size(max = 255, message = "描述长度不能超过 255")
+    @Size(max = 255, message = "{validation.auth.common.description-size}")
     private String description;
 }

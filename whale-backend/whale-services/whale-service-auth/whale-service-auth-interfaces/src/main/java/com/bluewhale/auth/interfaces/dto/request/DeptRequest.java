@@ -15,8 +15,8 @@ public class DeptRequest {
     /** 父部门ID，0 表示顶级 */
     private Long parentId;
 
-    @NotBlank(message = "部门名称不能为空")
-    @Size(max = 64, message = "部门名称长度不能超过 64")
+    @NotBlank(message = "{validation.auth.dept.name-required}")
+    @Size(max = 64, message = "{validation.auth.dept.name-size}")
     private String deptName;
 
     private Integer sort;

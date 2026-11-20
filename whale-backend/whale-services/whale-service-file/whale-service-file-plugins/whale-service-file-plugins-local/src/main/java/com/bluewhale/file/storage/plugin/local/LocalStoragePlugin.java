@@ -47,14 +47,15 @@ public class LocalStoragePlugin implements StoragePlugin {
      */
     public LocalStoragePlugin(LocalStorageProperties properties) {
         if (!StringUtils.hasText(properties.getRoot())) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(),
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "file.storage.local-root-missing",
                     "未配置本地存储根目录: whale.file.storage.root");
         }
         this.root = Paths.get(properties.getRoot()).toAbsolutePath().normalize();
         try {
             Files.createDirectories(root);
         } catch (IOException e) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "本地存储根目录创建失败: " + root);
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "file.storage.local-root-create-failed",
+                    "本地存储根目录创建失败: " + root, root);
         }
     }
 
@@ -130,7 +131,8 @@ public class LocalStoragePlugin implements StoragePlugin {
 
     @Override
     public String presignedDownloadUrl(String bucket, String objectKey, int expiresSeconds) {
-        throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "本地存储插件不支持预签名下载");
+        throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "file.storage.local-presigned-unsupported",
+                "本地存储插件不支持预签名下载");
     }
 
     @Override
@@ -155,7 +157,8 @@ public class LocalStoragePlugin implements StoragePlugin {
                 }
             }
         } catch (IOException | UncheckedIOException e) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "本地存储对象列举失败: " + e.getMessage());
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "file.storage.local-list-failed",
+                    "本地存储对象列举失败: " + e.getMessage(), e.getMessage());
         }
         return objects;
     }
@@ -182,7 +185,8 @@ public class LocalStoragePlugin implements StoragePlugin {
      */
     private Path resolve(String bucket, String objectKey) {
         if (!StringUtils.hasText(bucket) || !StringUtils.hasText(objectKey)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "存储桶名与对象键不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "file.storage.bucket-key-required",
+                    "存储桶名与对象键不能为空");
         }
         // 只拒绝段级 ..（如 a/../b），允许 report..2024.pdf 这类含连续点的合法文件名
         if (hasParentSegment(bucket) || hasParentSegment(objectKey)) {

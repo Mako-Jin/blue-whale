@@ -61,11 +61,11 @@ public class EasyExcelSpreadsheetReader implements SpreadsheetReader {
         } catch (BizException e) {
             throw e;
         } catch (Exception e) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
-                    "导入文件解析失败，请使用最新模板填写后重试: " + e.getMessage());
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.import.parse-failed",
+                    "导入文件解析失败，请使用最新模板填写后重试: " + e.getMessage(), e.getMessage());
         }
         if (rawRows.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "导入文件为空，请使用最新模板填写");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.import.file-empty", "导入文件为空，请使用最新模板填写");
         }
         // 第一行为表头（headRowNumber(0) 使表头作为普通数据行读入）
         Map<Integer, String> header = rawRows.get(0).getValue();
@@ -79,8 +79,8 @@ public class EasyExcelSpreadsheetReader implements SpreadsheetReader {
                 rows.add(row);
             }
             if (rows.size() > maxRows) {
-                throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
-                        "导入数据超过上限 " + maxRows + " 行，请分批导入");
+                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.import.rows-exceeded",
+                        "导入数据超过上限 " + maxRows + " 行，请分批导入", maxRows);
             }
         }
         return rows;
@@ -109,6 +109,7 @@ public class EasyExcelSpreadsheetReader implements SpreadsheetReader {
         }
         if (!usernameFound) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
+                    "auth.import.username-column-missing",
                     "模板表头缺少「用户名」列，请下载最新模板填写");
         }
         return columnMap;

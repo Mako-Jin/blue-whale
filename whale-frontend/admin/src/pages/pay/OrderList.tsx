@@ -41,6 +41,7 @@ import {
   type PayReconcileVO,
   type PayTransactionVO,
 } from '../../api/pay';
+import { useI18n } from '../../i18n';
 
 interface OrderFormValues {
   orderNo: string;
@@ -53,48 +54,9 @@ interface OrderFormValues {
 
 type OrderQuery = { keyword?: string; status?: string; channel?: string };
 
-const STATUS_OPTIONS = [
-  { value: 'CREATED', label: '待支付' },
-  { value: 'PAID', label: '已支付' },
-  { value: 'CANCELLED', label: '已取消' },
-  { value: 'REFUNDED', label: '已退款' },
-];
-
-const CHANNEL_OPTIONS = [
-  { value: 'ALIPAY', label: '支付宝' },
-  { value: 'WECHAT', label: '微信支付' },
-  { value: 'BALANCE', label: '余额' },
-];
-
-/** 状态 → 标签颜色/文案 */
-function renderStatus(status: PayOrderStatus | undefined) {
-  const map: Record<string, { color: string; label: string }> = {
-    CREATED: { color: 'gold', label: '待支付' },
-    PAID: { color: 'green', label: '已支付' },
-    CANCELLED: { color: 'default', label: '已取消' },
-    REFUNDED: { color: 'purple', label: '已退款' },
-  };
-  if (!status) return '-';
-  const item = map[status] ?? { color: 'default', label: status };
-  return <Tag color={item.color}>{item.label}</Tag>;
-}
-
-function renderTxStatus(status: string | undefined, errorMessage?: string) {
-  if (status === 'SUCCESS') {
-    return <Tag color="success">成功</Tag>;
-  }
-  if (status === 'FAILED') {
-    return (
-      <Tag color="error" title={errorMessage}>
-        失败
-      </Tag>
-    );
-  }
-  return <Tag>{status ?? '-'}</Tag>;
-}
-
 export default function OrderList() {
   const { message } = App.useApp();
+  const { t } = useI18n();
   const { has } = usePermission();
   const tableRef = useRef<ProTableRef>(null);
 
@@ -112,6 +74,46 @@ export default function OrderList() {
   const [reconcile, setReconcile] = useState<PayReconcileVO | null>(null);
   const [reconcileLoading, setReconcileLoading] = useState(false);
 
+  const statusOptions = [
+    { value: 'CREATED', label: t('pay.status.created') },
+    { value: 'PAID', label: t('pay.status.paid') },
+    { value: 'CANCELLED', label: t('pay.status.cancelled') },
+    { value: 'REFUNDED', label: t('pay.status.refunded') },
+  ];
+
+  const channelOptions = [
+    { value: 'ALIPAY', label: t('pay.channel.alipay') },
+    { value: 'WECHAT', label: t('pay.channel.wechat') },
+    { value: 'BALANCE', label: t('pay.channel.balance') },
+  ];
+
+  /** 状态 → 标签颜色/文案 */
+  const renderStatus = (value: PayOrderStatus | undefined) => {
+    const map: Record<string, { color: string; label: string }> = {
+      CREATED: { color: 'gold', label: t('pay.status.created') },
+      PAID: { color: 'green', label: t('pay.status.paid') },
+      CANCELLED: { color: 'default', label: t('pay.status.cancelled') },
+      REFUNDED: { color: 'purple', label: t('pay.status.refunded') },
+    };
+    if (!value) return '-';
+    const item = map[value] ?? { color: 'default', label: value };
+    return <Tag color={item.color}>{item.label}</Tag>;
+  };
+
+  const renderTxStatus = (value: string | undefined, errorMessage?: string) => {
+    if (value === 'SUCCESS') {
+      return <Tag color="success">{t('pay.txStatus.success')}</Tag>;
+    }
+    if (value === 'FAILED') {
+      return (
+        <Tag color="error" title={errorMessage}>
+          {t('pay.txStatus.failed')}
+        </Tag>
+      );
+    }
+    return <Tag>{value ?? '-'}</Tag>;
+  };
+
   const showError = (error: unknown, fallback: string) => {
     message.error(error instanceof Error ? error.message : fallback);
   };
@@ -122,7 +124,7 @@ export default function OrderList() {
     setTxLoading(true);
     listPayTransactions(order.id)
       .then(setTransactions)
-      .catch((error) => showError(error, '流水加载失败'))
+      .catch((error) => showError(error, t('pay.msg.transactionsLoadFailed')))
       .finally(() => setTxLoading(false));
   };
 
@@ -137,30 +139,30 @@ export default function OrderList() {
   const handlePay = async (row: PayOrderVO) => {
     try {
       await payPayOrder(row.id);
-      message.success('支付成功');
+      message.success(t('pay.msg.paid'));
       refreshList();
     } catch (error) {
-      showError(error, '支付失败');
+      showError(error, t('pay.msg.payFailed'));
     }
   };
 
   const handleCancel = async (row: PayOrderVO) => {
     try {
       await cancelPayOrder(row.id);
-      message.success('支付单已取消');
+      message.success(t('pay.msg.cancelled'));
       refreshList();
     } catch (error) {
-      showError(error, '取消失败');
+      showError(error, t('pay.msg.cancelFailed'));
     }
   };
 
   const handleRefund = async (row: PayOrderVO) => {
     try {
       await refundPayOrder(row.id);
-      message.success('退款成功');
+      message.success(t('pay.msg.refunded'));
       refreshList();
     } catch (error) {
-      showError(error, '退款失败');
+      showError(error, t('pay.msg.refundFailed'));
     }
   };
 
@@ -171,7 +173,7 @@ export default function OrderList() {
     setReconcileLoading(true);
     reconcilePayOrder(detailRecord.id)
       .then(setReconcile)
-      .catch((error) => showError(error, '对账失败'))
+      .catch((error) => showError(error, t('pay.msg.reconcileFailed')))
       .finally(() => setReconcileLoading(false));
   };
 
@@ -186,87 +188,93 @@ export default function OrderList() {
     };
     try {
       await createPayOrder(payload);
-      message.success('支付单已创建');
+      message.success(t('pay.msg.created'));
       setCreatorOpen(false);
       refreshList();
     } catch (error) {
-      showError(error, '创建失败');
+      showError(error, t('pay.msg.createFailed'));
       throw error;
     }
   };
 
   const columns: TableProps<PayOrderVO>['columns'] = [
-    { title: '支付单号', dataIndex: 'orderNo', width: 200 },
+    { title: t('pay.col.orderNo'), dataIndex: 'orderNo', width: 200 },
     {
-      title: '业务标识',
+      title: t('pay.col.businessKey'),
       dataIndex: 'businessKey',
       width: 160,
       render: (value: string | undefined) => value ?? '-',
     },
-    { title: '金额', dataIndex: 'amount', width: 110, align: 'right' },
-    { title: '币种', dataIndex: 'currency', width: 80 },
+    { title: t('pay.col.amount'), dataIndex: 'amount', width: 110, align: 'right' },
+    { title: t('pay.col.currency'), dataIndex: 'currency', width: 80 },
     {
-      title: '渠道',
+      title: t('pay.col.channel'),
       dataIndex: 'channel',
       width: 100,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '状态',
+      title: t('pay.col.status'),
       dataIndex: 'status',
       width: 100,
       render: (value: PayOrderStatus | undefined) => renderStatus(value),
     },
     {
-      title: '支付时间',
+      title: t('pay.col.payTime'),
       dataIndex: 'payTime',
       width: 180,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '已退款',
+      title: t('pay.col.refundAmount'),
       dataIndex: 'refundAmount',
       width: 110,
       align: 'right',
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '创建时间',
+      title: t('pay.col.createTime'),
       dataIndex: 'createTime',
       width: 180,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '操作',
+      title: t('pay.col.action'),
       key: 'action',
       width: 260,
       render: (_, row) => (
         <Space size={4} wrap>
           <Button type="link" size="small" onClick={() => openDetail(row)}>
-            详情
+            {t('pay.action.detail')}
           </Button>
           {row.status === 'CREATED' && has('sys:pay:pay') && (
-            <Popconfirm title="确认对该支付单执行支付？" onConfirm={() => void handlePay(row)}>
+            <Popconfirm
+              title={t('pay.confirm.pay')}
+              onConfirm={() => void handlePay(row)}
+            >
               <Button type="link" size="small">
-                支付
+                {t('pay.action.pay')}
               </Button>
             </Popconfirm>
           )}
           {row.status === 'CREATED' && has('sys:pay:cancel') && (
-            <Popconfirm title="确认取消该支付单？" onConfirm={() => void handleCancel(row)}>
+            <Popconfirm
+              title={t('pay.confirm.cancel')}
+              onConfirm={() => void handleCancel(row)}
+            >
               <Button type="link" size="small">
-                取消
+                {t('pay.action.cancel')}
               </Button>
             </Popconfirm>
           )}
           {row.status === 'PAID' && has('sys:pay:refund') && (
             <Popconfirm
-              title="确认退款？"
-              description="当前为全额退款，退款后状态变为已退款"
+              title={t('pay.confirm.refund')}
+              description={t('pay.confirm.refundDesc')}
               onConfirm={() => void handleRefund(row)}
             >
               <Button type="link" size="small" danger>
-                退款
+                {t('pay.action.refund')}
               </Button>
             </Popconfirm>
           )}
@@ -276,42 +284,42 @@ export default function OrderList() {
   ];
 
   const txColumns: TableProps<PayTransactionVO>['columns'] = [
-    { title: '流水ID', dataIndex: 'id', width: 90 },
+    { title: t('pay.tx.col.id'), dataIndex: 'id', width: 90 },
     {
-      title: '类型',
+      title: t('pay.tx.col.type'),
       dataIndex: 'type',
       width: 90,
       render: (value: string | undefined) =>
         value === 'PAY' ? (
-          <Tag color="blue">支付</Tag>
+          <Tag color="blue">{t('pay.tx.type.pay')}</Tag>
         ) : value === 'REFUND' ? (
-          <Tag color="purple">退款</Tag>
+          <Tag color="purple">{t('pay.tx.type.refund')}</Tag>
         ) : (
           (value ?? '-')
         ),
     },
     {
-      title: '渠道',
+      title: t('pay.tx.col.channel'),
       dataIndex: 'channel',
       width: 100,
       render: (value: string | undefined) => value ?? '-',
     },
-    { title: '金额', dataIndex: 'amount', width: 110, align: 'right' },
-    { title: '币种', dataIndex: 'currency', width: 80 },
+    { title: t('pay.tx.col.amount'), dataIndex: 'amount', width: 110, align: 'right' },
+    { title: t('pay.tx.col.currency'), dataIndex: 'currency', width: 80 },
     {
-      title: '渠道流水号',
+      title: t('pay.tx.col.providerTradeNo'),
       dataIndex: 'providerTradeNo',
       ellipsis: true,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '状态',
+      title: t('pay.tx.col.status'),
       dataIndex: 'status',
       width: 100,
       render: (value: string | undefined, row) => renderTxStatus(value, row.errorMessage),
     },
     {
-      title: '时间',
+      title: t('pay.tx.col.time'),
       dataIndex: 'createTime',
       width: 180,
       render: (value: string | undefined) => value ?? '-',
@@ -323,39 +331,41 @@ export default function OrderList() {
       <ProTable<PayOrderVO, OrderQuery>
         ref={tableRef}
         rowKey="id"
-        title="支付单"
+        title={t('pay.list.title')}
         columns={columns}
         request={pagePayOrders}
         params={{ keyword, status, channel }}
-        onError={(error) => showError(error, '支付单列表加载失败')}
+        onError={(error) => showError(error, t('pay.msg.listLoadFailed'))}
         search={
           <SearchForm
             items={[
               {
                 name: 'keyword',
-                label: '关键字',
-                element: <Input allowClear placeholder="支付单号 / 业务标识" />,
+                label: t('pay.search.keyword'),
+                element: (
+                  <Input allowClear placeholder={t('pay.search.keywordPlaceholder')} />
+                ),
               },
               {
                 name: 'status',
-                label: '状态',
+                label: t('pay.search.status'),
                 element: (
                   <Select
                     allowClear
-                    options={STATUS_OPTIONS}
-                    placeholder="全部"
+                    options={statusOptions}
+                    placeholder={t('pay.search.all')}
                     style={{ width: 140 }}
                   />
                 ),
               },
               {
                 name: 'channel',
-                label: '渠道',
+                label: t('pay.search.channel'),
                 element: (
                   <Select
                     allowClear
-                    options={CHANNEL_OPTIONS}
-                    placeholder="全部"
+                    options={channelOptions}
+                    placeholder={t('pay.search.all')}
                     style={{ width: 140 }}
                   />
                 ),
@@ -375,14 +385,14 @@ export default function OrderList() {
         }
         toolbar={
           <AuthButton perm="sys:pay:add" type="primary" onClick={() => setCreatorOpen(true)}>
-            新增支付单
+            {t('pay.action.create')}
           </AuthButton>
         }
       />
 
       <FormModal<OrderFormValues>
         open={creatorOpen}
-        title="新增支付单"
+        title={t('pay.modal.createTitle')}
         form={creatorForm}
         initialValues={{ currency: 'CNY', channel: 'ALIPAY' }}
         onOk={handleCreate}
@@ -390,35 +400,47 @@ export default function OrderList() {
       >
         <Form.Item
           name="orderNo"
-          label="支付单号"
-          rules={[{ required: true, message: '请输入支付单号' }]}
-          extra="业务唯一，创建后不可修改"
+          label={t('pay.field.orderNo')}
+          rules={[{ required: true, message: t('pay.field.orderNoRequired') }]}
+          extra={t('pay.field.orderNoExtra')}
         >
-          <Input placeholder="如 PAY20261028001" />
+          <Input placeholder={t('pay.field.orderNoPlaceholder')} />
         </Form.Item>
-        <Form.Item name="businessKey" label="业务标识">
-          <Input placeholder="外部订单号 / 业务键" />
+        <Form.Item name="businessKey" label={t('pay.field.businessKey')}>
+          <Input placeholder={t('pay.field.businessKeyPlaceholder')} />
         </Form.Item>
         <Form.Item
           name="amount"
-          label="支付金额"
-          rules={[{ required: true, message: '请输入支付金额' }]}
+          label={t('pay.field.amount')}
+          rules={[{ required: true, message: t('pay.field.amountRequired') }]}
         >
           <InputNumber min={0.01} precision={2} style={{ width: '100%' }} />
         </Form.Item>
-        <Form.Item name="currency" label="币种" rules={[{ required: true, message: '请输入币种' }]}>
-          <Input placeholder="默认 CNY" />
+        <Form.Item
+          name="currency"
+          label={t('pay.field.currency')}
+          rules={[{ required: true, message: t('pay.field.currencyRequired') }]}
+        >
+          <Input placeholder={t('pay.field.currencyPlaceholder')} />
         </Form.Item>
-        <Form.Item name="channel" label="支付渠道">
-          <Select allowClear options={CHANNEL_OPTIONS} placeholder="默认 ALIPAY" />
+        <Form.Item name="channel" label={t('pay.field.channel')}>
+          <Select
+            allowClear
+            options={channelOptions}
+            placeholder={t('pay.field.channelPlaceholder')}
+          />
         </Form.Item>
-        <Form.Item name="remark" label="备注">
+        <Form.Item name="remark" label={t('pay.field.remark')}>
           <Input.TextArea rows={2} />
         </Form.Item>
       </FormModal>
 
       <Drawer
-        title={detailRecord ? `支付单详情：${detailRecord.orderNo}` : '支付单详情'}
+        title={
+          detailRecord
+            ? t('pay.detail.titleWithNo', { orderNo: detailRecord.orderNo })
+            : t('pay.detail.title')
+        }
         width={720}
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
@@ -430,39 +452,59 @@ export default function OrderList() {
               column={2}
               bordered
               items={[
-                { key: 'orderNo', label: '支付单号', children: detailRecord.orderNo },
+                {
+                  key: 'orderNo',
+                  label: t('pay.col.orderNo'),
+                  children: detailRecord.orderNo,
+                },
                 {
                   key: 'businessKey',
-                  label: '业务标识',
+                  label: t('pay.col.businessKey'),
                   children: detailRecord.businessKey ?? '-',
                 },
                 {
                   key: 'amount',
-                  label: '金额',
+                  label: t('pay.detail.amount'),
                   children: `${detailRecord.amount} ${detailRecord.currency}`,
                 },
-                { key: 'status', label: '状态', children: renderStatus(detailRecord.status) },
+                {
+                  key: 'status',
+                  label: t('pay.col.status'),
+                  children: renderStatus(detailRecord.status),
+                },
                 {
                   key: 'channel',
-                  label: '渠道',
+                  label: t('pay.col.channel'),
                   children: detailRecord.channel ?? '-',
                 },
                 {
                   key: 'channelTradeNo',
-                  label: '渠道流水号',
+                  label: t('pay.detail.channelTradeNo'),
                   children: detailRecord.channelTradeNo ?? '-',
                 },
-                { key: 'payTime', label: '支付时间', children: detailRecord.payTime ?? '-' },
+                {
+                  key: 'payTime',
+                  label: t('pay.detail.payTime'),
+                  children: detailRecord.payTime ?? '-',
+                },
                 {
                   key: 'refundAmount',
-                  label: '已退款',
+                  label: t('pay.detail.refundAmount'),
                   children: detailRecord.refundAmount ?? '-',
                 },
-                { key: 'refundTime', label: '退款时间', children: detailRecord.refundTime ?? '-' },
-                { key: 'createTime', label: '创建时间', children: detailRecord.createTime ?? '-' },
+                {
+                  key: 'refundTime',
+                  label: t('pay.detail.refundTime'),
+                  children: detailRecord.refundTime ?? '-',
+                },
+                {
+                  key: 'createTime',
+                  label: t('pay.detail.createTime'),
+                  children: detailRecord.createTime ?? '-',
+                },
                 {
                   key: 'remark',
-                  label: '备注',
+                  label: t('pay.detail.remark'),
                   children: detailRecord.remark ?? '-',
                   span: 2,
                 },
@@ -473,7 +515,7 @@ export default function OrderList() {
               items={[
                 {
                   key: 'transactions',
-                  label: '支付/退款流水',
+                  label: t('pay.tab.transactions'),
                   children: (
                     <Table<PayTransactionVO>
                       rowKey="id"
@@ -487,12 +529,12 @@ export default function OrderList() {
                 },
                 {
                   key: 'reconcile',
-                  label: '对账',
+                  label: t('pay.tab.reconcile'),
                   children: (
                     <Space direction="vertical" style={{ width: '100%' }}>
                       {has('sys:pay:reconcile') && (
                         <Button type="primary" loading={reconcileLoading} onClick={handleReconcile}>
-                          发起对账
+                          {t('pay.action.reconcile')}
                         </Button>
                       )}
                       {reconcile && (
@@ -501,29 +543,33 @@ export default function OrderList() {
                           column={1}
                           bordered
                           items={[
-                            { key: 'local', label: '本地状态', children: reconcile.localStatus },
+                            {
+                              key: 'local',
+                              label: t('pay.reconcile.localStatus'),
+                              children: reconcile.localStatus,
+                            },
                             {
                               key: 'channel',
-                              label: '渠道状态',
+                              label: t('pay.reconcile.channelStatus'),
                               children: reconcile.channelStatus,
                             },
                             {
                               key: 'consistent',
-                              label: '一致性',
+                              label: t('pay.reconcile.consistency'),
                               children: reconcile.consistent ? (
-                                <Tag color="success">一致</Tag>
+                                <Tag color="success">{t('pay.reconcile.consistent')}</Tag>
                               ) : (
-                                <Tag color="error">不一致</Tag>
+                                <Tag color="error">{t('pay.reconcile.inconsistent')}</Tag>
                               ),
                             },
                             {
                               key: 'providerTradeNo',
-                              label: '渠道流水号',
+                              label: t('pay.reconcile.providerTradeNo'),
                               children: reconcile.providerTradeNo ?? '-',
                             },
                             {
                               key: 'checkedAt',
-                              label: '对账时间',
+                              label: t('pay.reconcile.checkedAt'),
                               children: reconcile.checkedAt ?? '-',
                             },
                           ]}

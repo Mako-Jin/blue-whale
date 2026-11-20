@@ -90,21 +90,21 @@ public class UploadPolicyRegistry {
      */
     private static List<FileProperties.Rule> validateAndCopy(List<FileProperties.Rule> newRules) {
         if (newRules == null || newRules.isEmpty()) {
-            throw paramError("上传策略规则不能为空");
+            throw paramError("file.upload-policy.rules-required", "上传策略规则不能为空");
         }
         List<FileProperties.Rule> copies = new ArrayList<>(newRules.size());
         for (FileProperties.Rule rule : newRules) {
             if (rule == null) {
-                throw paramError("上传策略规则条目不能为空");
+                throw paramError("file.upload-policy.rule-entry-required", "上传策略规则条目不能为空");
             }
             if (!StringUtils.hasText(rule.getPermission())) {
-                throw paramError("上传策略权限码不能为空");
+                throw paramError("file.upload-policy.permission-required", "上传策略权限码不能为空");
             }
             if (rule.getMaxSizeBytes() <= 0) {
-                throw paramError("上传策略单文件上限必须大于 0");
+                throw paramError("file.upload-policy.max-size-positive", "上传策略单文件上限必须大于 0");
             }
             if (rule.getQuotaBytes() != null && rule.getQuotaBytes() < 0) {
-                throw paramError("上传策略配额不能为负数");
+                throw paramError("file.upload-policy.quota-non-negative", "上传策略配额不能为负数");
             }
             copies.add(copyOf(rule));
         }
@@ -125,10 +125,11 @@ public class UploadPolicyRegistry {
     /**
      * 构造参数错误异常
      *
+     * @param messageKey 错误信息键
      * @param message 错误信息
      * @return 参数错误异常
      */
-    private static BizException paramError(String message) {
-        return new BizException(ErrorCode.PARAM_ERROR.getCode(), message);
+    private static BizException paramError(String messageKey, String message) {
+        return new BizException(ErrorCode.PARAM_ERROR.getCode(), messageKey, message);
     }
 }

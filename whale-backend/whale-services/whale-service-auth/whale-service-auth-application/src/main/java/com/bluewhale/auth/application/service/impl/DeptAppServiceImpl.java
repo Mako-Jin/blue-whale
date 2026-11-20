@@ -124,7 +124,7 @@ public class DeptAppServiceImpl implements DeptAppService {
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
         if (deptRepository.countChildren(id) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "存在子部门，不允许删除");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.dept.has-children", "存在子部门，不允许删除");
         }
         deptRepository.deleteById(id);
         domainEventPublisher.publish(new DeptDomainEvent(id, ChangeType.DELETED));

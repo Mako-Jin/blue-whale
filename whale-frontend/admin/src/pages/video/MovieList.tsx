@@ -45,25 +45,28 @@ import {
   type PublishState,
 } from '../../api/video';
 import { uploadFile } from '../../api/file';
+import { useI18n } from '../../i18n';
+
+type Translate = ReturnType<typeof useI18n>['t'];
 
 /** 授权来源选项 */
-const LICENSE_SOURCE_OPTIONS: { value: LicenseSource; label: string }[] = [
-  { value: 'OWNED', label: '自有版权' },
-  { value: 'LICENSED', label: '授权引进' },
-  { value: 'PUBLIC_DOMAIN', label: '公版' },
+const buildLicenseSourceOptions = (t: Translate): { value: LicenseSource; label: string }[] => [
+  { value: 'OWNED', label: t('video.movie.license.owned') },
+  { value: 'LICENSED', label: t('video.movie.license.licensed') },
+  { value: 'PUBLIC_DOMAIN', label: t('video.movie.license.publicDomain') },
 ];
 
 /** 发布状态选项（电影无待审核） */
-const PUBLISH_STATE_OPTIONS = [
-  { value: 'DRAFT', label: '草稿' },
-  { value: 'PUBLISHED', label: '已发布' },
-  { value: 'OFFLINE', label: '已下架' },
+const buildPublishStateOptions = (t: Translate) => [
+  { value: 'DRAFT', label: t('video.movie.state.draft') },
+  { value: 'PUBLISHED', label: t('video.movie.state.published') },
+  { value: 'OFFLINE', label: t('video.movie.state.offline') },
 ];
 
 /** 排序选项 */
-const SORT_OPTIONS = [
-  { value: 'LATEST', label: '最新入库' },
-  { value: 'HOT', label: '播放最多' },
+const buildSortOptions = (t: Translate) => [
+  { value: 'LATEST', label: t('video.movie.sort.latest') },
+  { value: 'HOT', label: t('video.movie.sort.hot') },
 ];
 
 /** 上映日期格式（LocalDate） */
@@ -116,22 +119,25 @@ function isLicenseExpired(value?: string): boolean {
 }
 
 /** 发布状态标签 */
-function renderPublishState(state?: PublishState) {
+function renderPublishState(state: PublishState | undefined, t: Translate) {
   const map: Record<PublishState, { color: string; label: string }> = {
-    DRAFT: { color: 'default', label: '草稿' },
-    PENDING_REVIEW: { color: 'gold', label: '待审核' },
-    PUBLISHED: { color: 'success', label: '已发布' },
-    OFFLINE: { color: 'error', label: '已下架' },
+    DRAFT: { color: 'default', label: t('video.movie.state.draft') },
+    PENDING_REVIEW: { color: 'gold', label: t('video.movie.state.pendingReview') },
+    PUBLISHED: { color: 'success', label: t('video.movie.state.published') },
+    OFFLINE: { color: 'error', label: t('video.movie.state.offline') },
   };
   return state ? <Tag color={map[state].color}>{map[state].label}</Tag> : '-';
 }
 
 /** 授权来源标签 */
-function renderLicenseSource(source?: LicenseSource) {
+function renderLicenseSource(
+  source: LicenseSource | undefined,
+  options: { value: LicenseSource; label: string }[],
+) {
   if (!source) {
     return '-';
   }
-  const item = LICENSE_SOURCE_OPTIONS.find((option) => option.value === source);
+  const item = options.find((option) => option.value === source);
   const color = source === 'OWNED' ? 'blue' : source === 'LICENSED' ? 'purple' : 'cyan';
   return <Tag color={color}>{item?.label ?? source}</Tag>;
 }
@@ -148,8 +154,13 @@ function formatDuration(value?: number): string {
 export default function MovieList() {
   const { message } = App.useApp();
   const { has } = usePermission();
+  const { t } = useI18n();
   const tableRef = useRef<ProTableRef>(null);
   const [form] = Form.useForm<MovieFormValues>();
+
+  const licenseSourceOptions = buildLicenseSourceOptions(t);
+  const publishStateOptions = buildPublishStateOptions(t);
+  const sortOptions = buildSortOptions(t);
 
   const [categories, setCategories] = useState<CategoryView[]>([]);
   const [keyword, setKeyword] = useState<string | undefined>(undefined);
@@ -211,21 +222,27 @@ export default function MovieList() {
     uploadFile(file)
       .then((uploaded) => {
         done(uploaded.id, uploaded.originalName ?? file.name);
-        message.success(`${label}成功`);
+        message.success(t('video.movie.upload.success', { label }));
       })
-      .catch((error) => message.error(error instanceof Error ? error.message : `${label}失败`))
+      .catch((error) =>
+        message.error(
+          error instanceof Error
+            ? error.message
+            : t('video.movie.upload.failed', { label }),
+        ),
+      )
       .finally(() => setUploading(false));
   };
 
   const handleSave = async (values: MovieFormValues) => {
     const expireAt = toIsoDateTime(licenseExpireValue);
     if (!expireAt) {
-      message.warning('请选择授权到期时间');
+      message.warning(t('video.movie.msg.licenseExpireRequired'));
       throw new Error('missing license expire at');
     }
     // videoFileId 运行时为字符串，'0' 视为未填写
     if (!editing && (!values.videoFileId || values.videoFileId === '0')) {
-      message.warning('请上传视频文件或填写视频文件 ID');
+      message.warning(t('video.movie.msg.videoFileRequired'));
       throw new Error('missing video file');
     }
     const payload: MovieSaveInput = {
@@ -259,15 +276,15 @@ export default function MovieList() {
     try {
       if (editing) {
         await updateMovie(editing.id, payload);
-        message.success('电影已更新');
+        message.success(t('video.movie.msg.updated'));
       } else {
         await createMovie(payload);
-        message.success('电影已入库（草稿），授权有效时可发布');
+        message.success(t('video.movie.msg.created'));
       }
       setModalOpen(false);
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '保存失败');
+      message.error(error instanceof Error ? error.message : t('video.movie.msg.saveFailed'));
       throw error;
     }
   };
@@ -275,11 +292,11 @@ export default function MovieList() {
   const handlePublish = async (row: MovieAdminView) => {
     try {
       await publishMovie(row.id);
-      message.success('电影已发布');
+      message.success(t('video.movie.msg.published'));
       tableRef.current?.reload();
     } catch (error) {
       message.error(
-        error instanceof Error ? error.message : '发布失败（请检查授权是否仍在有效期）',
+        error instanceof Error ? error.message : t('video.movie.msg.publishFailed'),
       );
     }
   };
@@ -287,20 +304,20 @@ export default function MovieList() {
   const handleOffline = async (row: MovieAdminView) => {
     try {
       await offlineMovie(row.id);
-      message.success('电影已下架');
+      message.success(t('video.movie.msg.offlined'));
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '下架失败');
+      message.error(error instanceof Error ? error.message : t('video.movie.msg.offlineFailed'));
     }
   };
 
   const handleDelete = async (row: MovieAdminView) => {
     try {
       await deleteMovie(row.id);
-      message.success('电影已删除');
+      message.success(t('video.movie.msg.deleted'));
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '删除失败');
+      message.error(error instanceof Error ? error.message : t('video.movie.msg.deleteFailed'));
     }
   };
 
@@ -309,17 +326,17 @@ export default function MovieList() {
       return;
     }
     if (!takedownReason.trim()) {
-      message.warning('请填写版权下架原因');
+      message.warning(t('video.movie.msg.takedownReasonRequired'));
       return;
     }
     try {
       await takedownMovie(takedownTarget.id, takedownReason.trim());
-      message.success('已完成版权下架');
+      message.success(t('video.movie.msg.takedownDone'));
       setTakedownTarget(null);
       setTakedownReason('');
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '版权下架失败');
+      message.error(error instanceof Error ? error.message : t('video.movie.msg.takedownFailed'));
     }
   };
 
@@ -331,18 +348,24 @@ export default function MovieList() {
   const columns: TableProps<MovieAdminView>['columns'] = [
     { title: 'ID', dataIndex: 'id', width: 80 },
     {
-      title: '海报',
+      title: t('video.movie.col.poster'),
       dataIndex: 'posterUrl',
       width: 90,
       render: (value?: string) =>
         value ? (
-          <Image src={value} alt="海报" width={56} height={78} style={{ objectFit: 'cover' }} />
+          <Image
+            src={value}
+            alt={t('video.movie.alt.poster')}
+            width={56}
+            height={78}
+            style={{ objectFit: 'cover' }}
+          />
         ) : (
           '-'
         ),
     },
     {
-      title: '电影',
+      title: t('video.movie.col.movie'),
       dataIndex: 'title',
       render: (value: string, row) => (
         <Space direction="vertical" size={0}>
@@ -351,79 +374,86 @@ export default function MovieList() {
             <Typography.Text type="secondary">{row.originalTitle}</Typography.Text>
           ) : null}
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            {row.director ? `导演：${row.director}` : '导演未填写'} ·{' '}
-            {formatDuration(row.durationMs)}
-            {row.rating !== undefined && row.rating !== null ? ` · 评分 ${row.rating}` : ''}
+            {row.director
+              ? t('video.movie.cell.director', { name: row.director })
+              : t('video.movie.cell.directorMissing')}{' '}
+            · {formatDuration(row.durationMs)}
+            {row.rating !== undefined && row.rating !== null
+              ? ` · ${t('video.movie.cell.rating', { rating: row.rating })}`
+              : ''}
           </Typography.Text>
         </Space>
       ),
     },
     {
-      title: '分类',
+      title: t('video.movie.col.category'),
       dataIndex: 'categoryId',
       width: 110,
       render: (value?: string) => categoryName(value),
     },
     {
-      title: '状态',
+      title: t('video.movie.col.status'),
       dataIndex: 'publishState',
       width: 100,
-      render: (value?: PublishState) => renderPublishState(value),
+      render: (value?: PublishState) => renderPublishState(value, t),
     },
     {
-      title: '授权',
+      title: t('video.movie.col.license'),
       key: 'license',
       width: 200,
       render: (_, row) => (
         <Space direction="vertical" size={0}>
-          {renderLicenseSource(row.licenseSource)}
+          {renderLicenseSource(row.licenseSource, licenseSourceOptions)}
           {row.licenseNo ? (
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              编号 {row.licenseNo}
+              {t('video.movie.cell.licenseNo', { no: row.licenseNo })}
             </Typography.Text>
           ) : null}
           <Typography.Text
             type={isLicenseExpired(row.licenseExpireAt) ? 'danger' : 'secondary'}
             style={{ fontSize: 12 }}
           >
-            至 {toDisplayDateTime(row.licenseExpireAt)}
+            {t('video.movie.cell.licenseUntil', { time: toDisplayDateTime(row.licenseExpireAt) })}
           </Typography.Text>
         </Space>
       ),
     },
     {
-      title: '播放',
+      title: t('video.movie.col.playCount'),
       dataIndex: 'playCount',
       width: 90,
       render: (value?: number) => value ?? 0,
     },
     {
-      title: '操作',
+      title: t('video.movie.col.action'),
       key: 'action',
       width: 260,
       render: (_, row) => (
         <Space size={4} wrap>
           {has('sys:video:content:edit') ? (
             <Button type="link" size="small" onClick={() => openEdit(row)}>
-              编辑
+              {t('video.movie.action.edit')}
             </Button>
           ) : null}
           {row.publishState !== 'PUBLISHED' &&
           row.copyrightState !== 'TAKEDOWN' &&
           has('sys:video:content:publish') ? (
             <Popconfirm
-              title="发布前将校验授权仍在有效期，确认发布？"
+              title={t('video.movie.confirm.publish')}
               onConfirm={() => void handlePublish(row)}
             >
               <Button type="link" size="small">
-                发布
+                {t('video.movie.action.publish')}
               </Button>
             </Popconfirm>
           ) : null}
           {row.publishState === 'PUBLISHED' && has('sys:video:content:offline') ? (
-            <Popconfirm title="确认下架该电影？" onConfirm={() => void handleOffline(row)}>
+            <Popconfirm
+              title={t('video.movie.confirm.offline')}
+              onConfirm={() => void handleOffline(row)}
+            >
               <Button type="link" size="small" danger>
-                下架
+                {t('video.movie.action.offline')}
               </Button>
             </Popconfirm>
           ) : null}
@@ -437,13 +467,16 @@ export default function MovieList() {
                 setTakedownReason('');
               }}
             >
-              版权下架
+              {t('video.movie.action.takedown')}
             </Button>
           ) : null}
           {has('sys:video:content:delete') ? (
-            <Popconfirm title="确认删除该电影？" onConfirm={() => void handleDelete(row)}>
+            <Popconfirm
+              title={t('video.movie.confirm.delete')}
+              onConfirm={() => void handleDelete(row)}
+            >
               <Button type="link" size="small" danger>
-                删除
+                {t('video.movie.action.delete')}
               </Button>
             </Popconfirm>
           ) : null}
@@ -461,38 +494,40 @@ export default function MovieList() {
       <Alert
         type="info"
         showIcon
-        message="电影仅运营入库与发布"
-        description="授权来源、授权到期时间与视频文件必填；授权到期后定时任务自动下线，发布前再次校验授权有效期。"
+        message={t('video.movie.alert.title')}
+        description={t('video.movie.alert.description')}
         style={{ marginBottom: 16 }}
       />
 
       <ProTable<MovieAdminView, MovieQuery>
         ref={tableRef}
         rowKey="id"
-        title="电影管理"
+        title={t('video.movie.list.title')}
         columns={columns}
         request={pageMovies}
         params={{ keyword, categoryId, publishState, sortBy }}
         onError={(error) =>
-          message.error(error instanceof Error ? error.message : '电影列表加载失败')
+          message.error(error instanceof Error ? error.message : t('video.movie.msg.loadFailed'))
         }
         search={
           <SearchForm
             items={[
               {
                 name: 'keyword',
-                label: '关键词',
-                element: <Input allowClear placeholder="标题 / 原始片名" />,
+                label: t('video.movie.search.keyword'),
+                element: (
+                  <Input allowClear placeholder={t('video.movie.search.keywordPlaceholder')} />
+                ),
               },
               {
                 name: 'categoryId',
-                label: '分类',
+                label: t('video.movie.search.category'),
                 element: (
                   <Select
                     allowClear
                     showSearch
                     optionFilterProp="label"
-                    placeholder="全部"
+                    placeholder={t('video.movie.search.all')}
                     style={{ width: 160 }}
                     options={movieCategories.map((category) => ({
                       value: category.id,
@@ -503,25 +538,25 @@ export default function MovieList() {
               },
               {
                 name: 'publishState',
-                label: '状态',
+                label: t('video.movie.search.status'),
                 element: (
                   <Select
                     allowClear
-                    placeholder="全部"
+                    placeholder={t('video.movie.search.all')}
                     style={{ width: 120 }}
-                    options={PUBLISH_STATE_OPTIONS}
+                    options={publishStateOptions}
                   />
                 ),
               },
               {
                 name: 'sortBy',
-                label: '排序',
+                label: t('video.movie.search.sort'),
                 element: (
                   <Select
                     allowClear
-                    placeholder="默认最新"
+                    placeholder={t('video.movie.search.sortPlaceholder')}
                     style={{ width: 140 }}
-                    options={SORT_OPTIONS}
+                    options={sortOptions}
                   />
                 ),
               },
@@ -542,17 +577,21 @@ export default function MovieList() {
         }
         toolbar={
           <AuthButton perm="sys:video:content:add" type="primary" onClick={openCreate}>
-            电影入库
+            {t('video.movie.action.create')}
           </AuthButton>
         }
       />
 
       <FormModal<MovieFormValues>
         open={modalOpen}
-        title={editing ? `编辑电影：${editing.title}` : '电影入库'}
+        title={
+          editing
+            ? t('video.movie.form.editTitle', { title: editing.title })
+            : t('video.movie.form.createTitle')
+        }
         form={form}
         width={720}
-        okText={editing ? '保存' : '入库'}
+        okText={editing ? t('video.movie.form.save') : t('video.movie.form.submit')}
         initialValues={{
           title: editing?.title,
           subtitle: editing?.subtitle,
@@ -577,32 +616,32 @@ export default function MovieList() {
         onOk={handleSave}
         onCancel={() => setModalOpen(false)}
       >
-        <Typography.Text type="secondary">基础信息</Typography.Text>
+        <Typography.Text type="secondary">{t('video.movie.form.sectionBasic')}</Typography.Text>
         <Form.Item
           name="title"
-          label="电影标题"
-          rules={[{ required: true, message: '请输入电影标题' }]}
+          label={t('video.movie.form.title')}
+          rules={[{ required: true, message: t('video.movie.form.titleRequired') }]}
         >
           <Input maxLength={200} showCount />
         </Form.Item>
-        <Form.Item name="subtitle" label="副标题">
+        <Form.Item name="subtitle" label={t('video.movie.form.subtitle')}>
           <Input maxLength={200} showCount />
         </Form.Item>
-        <Form.Item name="description" label="剧情简介">
+        <Form.Item name="description" label={t('video.movie.form.description')}>
           <Input.TextArea maxLength={2000} showCount autoSize={{ minRows: 3, maxRows: 6 }} />
         </Form.Item>
         <Space size={16} align="start" style={{ display: 'flex' }}>
           <Form.Item
             name="categoryId"
-            label="分类"
+            label={t('video.movie.form.category')}
             style={{ flex: 1 }}
-            extra="仅可选适用于电影的启用分类"
+            extra={t('video.movie.form.categoryExtra')}
           >
             <Select
               allowClear
               showSearch
               optionFilterProp="label"
-              placeholder="选择分类"
+              placeholder={t('video.movie.form.categoryPlaceholder')}
               options={movieCategories.map((category) => ({
                 value: category.id,
                 label: category.name,
@@ -611,44 +650,65 @@ export default function MovieList() {
           </Form.Item>
           <Form.Item
             name="creatorId"
-            label="创作者 ID"
+            label={t('video.movie.form.creator')}
             style={{ flex: 1 }}
-            extra="可选，运营入库通常留空"
+            extra={t('video.movie.form.creatorExtra')}
           >
-            <Input placeholder="留空表示未登记" />
+            <Input placeholder={t('video.movie.form.creatorPlaceholder')} />
           </Form.Item>
         </Space>
 
-        <Typography.Text type="secondary">影片素材</Typography.Text>
+        <Typography.Text type="secondary">{t('video.movie.form.sectionMedia')}</Typography.Text>
         <Form.Item
           name="videoFileId"
-          label="视频文件 ID"
-          rules={editing ? [] : [{ required: true, message: '请填写视频文件 ID' }]}
+          label={t('video.movie.form.videoFile')}
+          rules={
+            editing ? [] : [{ required: true, message: t('video.movie.form.videoFileRequired') }]
+          }
           extra={
             editing
-              ? '留空表示保留原视频文件；填写则替换并重新校验格式与大小'
-              : '可上传视频或直接填写 whale-file 文件 ID'
+              ? t('video.movie.form.videoFileExtraEdit')
+              : t('video.movie.form.videoFileExtra')
           }
         >
-          <Input placeholder="whale-file 文件 ID" />
+          <Input placeholder={t('video.movie.form.videoFilePlaceholder')} />
         </Form.Item>
         <Space size={16} align="start" style={{ display: 'flex' }}>
           <Form.Item
             name="durationMs"
-            label="时长（毫秒）"
+            label={t('video.movie.form.duration')}
             style={{ flex: 1 }}
-            rules={editing ? [] : [{ required: true, message: '请填写时长' }]}
+            rules={
+              editing
+                ? []
+                : [{ required: true, message: t('video.movie.form.durationRequired') }]
+            }
           >
-            <InputNumber min={1} precision={0} style={{ width: '100%' }} placeholder="如 7200000" />
+            <InputNumber
+              min={1}
+              precision={0}
+              style={{ width: '100%' }}
+              placeholder={t('video.movie.form.durationPlaceholder')}
+            />
           </Form.Item>
-          <Form.Item name="width" label="宽度（像素）" style={{ flex: 1 }}>
-            <InputNumber min={1} precision={0} style={{ width: '100%' }} placeholder="可选" />
+          <Form.Item name="width" label={t('video.movie.form.width')} style={{ flex: 1 }}>
+            <InputNumber
+              min={1}
+              precision={0}
+              style={{ width: '100%' }}
+              placeholder={t('video.movie.form.optional')}
+            />
           </Form.Item>
-          <Form.Item name="height" label="高度（像素）" style={{ flex: 1 }}>
-            <InputNumber min={1} precision={0} style={{ width: '100%' }} placeholder="可选" />
+          <Form.Item name="height" label={t('video.movie.form.height')} style={{ flex: 1 }}>
+            <InputNumber
+              min={1}
+              precision={0}
+              style={{ width: '100%' }}
+              placeholder={t('video.movie.form.optional')}
+            />
           </Form.Item>
         </Space>
-        <Form.Item label="上传视频文件">
+        <Form.Item label={t('video.movie.form.uploadVideo')}>
           <Upload
             showUploadList={false}
             accept="video/mp4, video/quicktime, video/x-matroska"
@@ -657,77 +717,101 @@ export default function MovieList() {
                 file,
                 (fileId) => form.setFieldValue('videoFileId', fileId),
                 setUploadingVideo,
-                '视频上传',
+                t('video.movie.upload.video'),
               );
               return false;
             }}
           >
-            <Button loading={uploadingVideo}>选择视频并上传</Button>
+            <Button loading={uploadingVideo}>{t('video.movie.form.chooseVideo')}</Button>
           </Upload>
         </Form.Item>
 
-        <Typography.Text type="secondary">影片元数据</Typography.Text>
-        <Form.Item name="originalTitle" label="原始片名">
+        <Typography.Text type="secondary">{t('video.movie.form.sectionMetadata')}</Typography.Text>
+        <Form.Item name="originalTitle" label={t('video.movie.form.originalTitle')}>
           <Input maxLength={200} showCount />
         </Form.Item>
         <Space size={16} align="start" style={{ display: 'flex' }}>
-          <Form.Item name="director" label="导演" style={{ flex: 1 }} extra="多人用英文逗号分隔">
+          <Form.Item
+            name="director"
+            label={t('video.movie.form.director')}
+            style={{ flex: 1 }}
+            extra={t('video.movie.form.multiValueHint')}
+          >
             <Input maxLength={200} />
           </Form.Item>
-          <Form.Item name="actors" label="主演" style={{ flex: 2 }} extra="多人用英文逗号分隔">
+          <Form.Item
+            name="actors"
+            label={t('video.movie.form.actors')}
+            style={{ flex: 2 }}
+            extra={t('video.movie.form.multiValueHint')}
+          >
             <Input maxLength={500} />
           </Form.Item>
         </Space>
         <Space size={16} align="start" style={{ display: 'flex' }}>
-          <Form.Item name="region" label="地区" style={{ flex: 1 }}>
-            <Input maxLength={64} placeholder="如 中国大陆" />
+          <Form.Item name="region" label={t('video.movie.form.region')} style={{ flex: 1 }}>
+            <Input maxLength={64} placeholder={t('video.movie.form.regionPlaceholder')} />
           </Form.Item>
-          <Form.Item name="language" label="语言" style={{ flex: 1 }}>
-            <Input maxLength={64} placeholder="如 普通话" />
+          <Form.Item name="language" label={t('video.movie.form.language')} style={{ flex: 1 }}>
+            <Input maxLength={64} placeholder={t('video.movie.form.languagePlaceholder')} />
           </Form.Item>
-          <Form.Item name="rating" label="评分" style={{ flex: 1 }} extra="0.0 – 10.0，可留空">
+          <Form.Item
+            name="rating"
+            label={t('video.movie.form.rating')}
+            style={{ flex: 1 }}
+            extra={t('video.movie.form.ratingExtra')}
+          >
             <InputNumber min={0} max={10} step={0.1} precision={1} style={{ width: '100%' }} />
           </Form.Item>
         </Space>
         <Form.Item
-          label="上映日期"
-          extra={editing?.releaseDate ? `当前：${editing.releaseDate}（重新选择后生效）` : '可选'}
+          label={t('video.movie.form.releaseDate')}
+          extra={
+            editing?.releaseDate
+              ? t('video.movie.form.releaseDateExtraCurrent', { date: editing.releaseDate })
+              : t('video.movie.form.releaseDateExtra')
+          }
         >
           <DatePicker
             key={editing ? `release-${editing.id}` : 'release-new'}
             format={DATE_FORMAT}
             style={{ width: '100%' }}
-            placeholder="选择上映日期"
+            placeholder={t('video.movie.form.releaseDatePlaceholder')}
             onChange={(value) => setReleaseDateValue(value?.format(DATE_FORMAT))}
           />
         </Form.Item>
 
-        <Typography.Text type="secondary">授权信息</Typography.Text>
+        <Typography.Text type="secondary">{t('video.movie.form.sectionLicense')}</Typography.Text>
         <Space size={16} align="start" style={{ display: 'flex' }}>
           <Form.Item
             name="licenseSource"
-            label="授权来源"
+            label={t('video.movie.form.licenseSource')}
             style={{ flex: 1 }}
-            rules={[{ required: true, message: '请选择授权来源' }]}
+            rules={[{ required: true, message: t('video.movie.form.licenseSourceRequired') }]}
           >
-            <Select placeholder="选择来源" options={LICENSE_SOURCE_OPTIONS} />
+            <Select
+              placeholder={t('video.movie.form.licenseSourcePlaceholder')}
+              options={licenseSourceOptions}
+            />
           </Form.Item>
           <Form.Item
             name="licenseNo"
-            label="授权编号"
+            label={t('video.movie.form.licenseNo')}
             style={{ flex: 2 }}
-            extra="授权合同 / 登记编号，可选"
+            extra={t('video.movie.form.licenseNoExtra')}
           >
             <Input maxLength={128} />
           </Form.Item>
         </Space>
         <Form.Item
-          label="授权到期时间"
+          label={t('video.movie.form.licenseExpire')}
           required
           extra={
             editing?.licenseExpireAt
-              ? `当前：${toDisplayDateTime(editing.licenseExpireAt)}；保存需重新选择（到期后自动下线）`
-              : '到期后定时任务自动下线并阻断播放'
+              ? t('video.movie.form.licenseExpireExtraCurrent', {
+                  time: toDisplayDateTime(editing.licenseExpireAt),
+                })
+              : t('video.movie.form.licenseExpireExtra')
           }
         >
           <DatePicker
@@ -735,19 +819,23 @@ export default function MovieList() {
             showTime
             format={DATE_TIME_FORMAT}
             style={{ width: '100%' }}
-            placeholder="选择授权到期时间"
+            placeholder={t('video.movie.form.licenseExpirePlaceholder')}
             onChange={(value) => setLicenseExpireValue(value?.format(DATE_TIME_FORMAT))}
           />
         </Form.Item>
 
-        <Typography.Text type="secondary">图片素材</Typography.Text>
-        <Form.Item label="海报">
+        <Typography.Text type="secondary">{t('video.movie.form.sectionImages')}</Typography.Text>
+        <Form.Item label={t('video.movie.form.poster')}>
           <Space direction="vertical" size={6}>
             {posterFileId === '0' ? (
-              <Typography.Text type="secondary">已清除海报（保存后生效）</Typography.Text>
+              <Typography.Text type="secondary">
+                {t('video.movie.form.posterCleared')}
+              </Typography.Text>
             ) : posterFileId ? (
               <Typography.Text type="secondary">
-                已上传海报：{posterName || `文件 ID ${posterFileId}`}
+                {t('video.movie.form.posterUploaded', {
+                  name: posterName || t('video.movie.form.fileId', { id: posterFileId }),
+                })}
               </Typography.Text>
             ) : editing?.posterUrl ? (
               <Image
@@ -755,10 +843,12 @@ export default function MovieList() {
                 width={96}
                 height={134}
                 style={{ objectFit: 'cover' }}
-                alt="当前海报"
+                alt={t('video.movie.alt.currentPoster')}
               />
             ) : (
-              <Typography.Text type="secondary">暂无海报</Typography.Text>
+              <Typography.Text type="secondary">
+                {t('video.movie.form.posterEmpty')}
+              </Typography.Text>
             )}
             <Space>
               <Upload
@@ -772,15 +862,15 @@ export default function MovieList() {
                       setPosterName(name);
                     },
                     setUploadingPoster,
-                    '海报上传',
+                    t('video.movie.upload.poster'),
                   );
                   return false;
                 }}
               >
                 <Button loading={uploadingPoster}>
                   {posterFileId !== '0' && (posterFileId || editing?.posterUrl)
-                    ? '重新上传海报'
-                    : '上传海报'}
+                    ? t('video.movie.form.posterReupload')
+                    : t('video.movie.form.posterUpload')}
                 </Button>
               </Upload>
               {editing?.posterUrl || (posterFileId && posterFileId !== '0') ? (
@@ -791,19 +881,23 @@ export default function MovieList() {
                     setPosterName('');
                   }}
                 >
-                  移除海报
+                  {t('video.movie.form.posterRemove')}
                 </Button>
               ) : null}
             </Space>
           </Space>
         </Form.Item>
-        <Form.Item label="背景图">
+        <Form.Item label={t('video.movie.form.backdrop')}>
           <Space direction="vertical" size={6}>
             {backdropFileId === '0' ? (
-              <Typography.Text type="secondary">已清除背景图（保存后生效）</Typography.Text>
+              <Typography.Text type="secondary">
+                {t('video.movie.form.backdropCleared')}
+              </Typography.Text>
             ) : backdropFileId ? (
               <Typography.Text type="secondary">
-                已上传背景图：{backdropName || `文件 ID ${backdropFileId}`}
+                {t('video.movie.form.backdropUploaded', {
+                  name: backdropName || t('video.movie.form.fileId', { id: backdropFileId }),
+                })}
               </Typography.Text>
             ) : editing?.backdropUrl ? (
               <Image
@@ -811,10 +905,12 @@ export default function MovieList() {
                 width={240}
                 height={135}
                 style={{ objectFit: 'cover' }}
-                alt="当前背景图"
+                alt={t('video.movie.alt.currentBackdrop')}
               />
             ) : (
-              <Typography.Text type="secondary">暂无背景图</Typography.Text>
+              <Typography.Text type="secondary">
+                {t('video.movie.form.backdropEmpty')}
+              </Typography.Text>
             )}
             <Space>
               <Upload
@@ -828,15 +924,15 @@ export default function MovieList() {
                       setBackdropName(name);
                     },
                     setUploadingBackdrop,
-                    '背景图上传',
+                    t('video.movie.upload.backdrop'),
                   );
                   return false;
                 }}
               >
                 <Button loading={uploadingBackdrop}>
                   {backdropFileId !== '0' && (backdropFileId || editing?.backdropUrl)
-                    ? '重新上传背景图'
-                    : '上传背景图'}
+                    ? t('video.movie.form.backdropReupload')
+                    : t('video.movie.form.backdropUpload')}
                 </Button>
               </Upload>
               {editing?.backdropUrl || (backdropFileId && backdropFileId !== '0') ? (
@@ -847,7 +943,7 @@ export default function MovieList() {
                     setBackdropName('');
                   }}
                 >
-                  移除背景图
+                  {t('video.movie.form.backdropRemove')}
                 </Button>
               ) : null}
             </Space>
@@ -857,8 +953,12 @@ export default function MovieList() {
 
       <Modal
         open={takedownTarget !== null}
-        title={takedownTarget ? `版权下架：${takedownTarget.title}` : '版权下架'}
-        okText="确认下架"
+        title={
+          takedownTarget
+            ? t('video.movie.takedown.titleWithName', { name: takedownTarget.title })
+            : t('video.movie.takedown.title')
+        }
+        okText={t('video.movie.takedown.ok')}
         okButtonProps={{ danger: true }}
         onOk={() => void confirmTakedown()}
         onCancel={() => {
@@ -867,14 +967,14 @@ export default function MovieList() {
         }}
       >
         <Space direction="vertical" style={{ width: '100%' }}>
-          <span>版权下架将强制下线并拒绝播放，请填写原因（留痕可追溯）。</span>
+          <span>{t('video.movie.takedown.description')}</span>
           <Input.TextArea
             rows={3}
             maxLength={500}
             showCount
             value={takedownReason}
             onChange={(event) => setTakedownReason(event.target.value)}
-            placeholder="如：权利人投诉 / 授权到期"
+            placeholder={t('video.movie.takedown.reasonPlaceholder')}
           />
         </Space>
       </Modal>

@@ -92,7 +92,8 @@ public class UserConfigAppServiceImpl implements UserConfigAppService {
      */
     private static void requireUserScope(Long tenantId, Long userId) {
         if (tenantId == null || userId == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "租户/用户上下文缺失，无法定位用户配置");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.config.context-missing",
+                    "租户/用户上下文缺失，无法定位用户配置");
         }
     }
 

@@ -33,11 +33,13 @@ import {
   type ArchiveRuleSaveRequest,
   type ArchiveRuleVO,
 } from '../../api/archive';
+import { useI18n } from '../../i18n';
 import {
-  SECURITY_OPTIONS,
+  enabledOptions,
   flattenCategories,
   formatDateTime,
   securityLabel,
+  securityOptions,
   type CategoryOption,
 } from './helpers';
 
@@ -66,6 +68,7 @@ const DEFAULT_VALUES: RuleFormValues = {
 export default function ArchiveRuleList() {
   const { message } = App.useApp();
   const { has } = usePermission();
+  const { t } = useI18n();
   const tableRef = useRef<ProTableRef>(null);
   const [form] = Form.useForm<RuleFormValues>();
   const [query, setQuery] = useState<RuleQuery>({});
@@ -78,9 +81,11 @@ export default function ArchiveRuleList() {
     categoryTree()
       .then(setCategories)
       .catch((error: unknown) => {
-        message.error(error instanceof Error ? error.message : '门类加载失败');
+        message.error(
+          error instanceof Error ? error.message : t('archive.common.categoryLoadFailed'),
+        );
       });
-  }, [message]);
+  }, [message, t]);
 
   const categoryOptions = useMemo<CategoryOption[]>(
     () => flattenCategories(categories),
@@ -120,15 +125,15 @@ export default function ArchiveRuleList() {
     try {
       if (editing) {
         await updateRule(editing.id, payload);
-        message.success('规则已更新');
+        message.success(t('archive.rule.msg.updated'));
       } else {
         await createRule(payload);
-        message.success('规则已创建');
+        message.success(t('archive.rule.msg.created'));
       }
       setModalOpen(false);
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '保存失败');
+      message.error(error instanceof Error ? error.message : t('archive.common.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -137,56 +142,61 @@ export default function ArchiveRuleList() {
   const handleDelete = async (row: ArchiveRuleVO) => {
     try {
       await deleteRule(row.id);
-      message.success('规则已删除');
+      message.success(t('archive.rule.msg.deleted'));
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '删除失败');
+      message.error(error instanceof Error ? error.message : t('archive.common.deleteFailed'));
     }
   };
 
   const columns: TableProps<ArchiveRuleVO>['columns'] = [
-    { title: '流程定义编码', dataIndex: 'definitionCode' },
+    { title: t('archive.rule.col.definitionCode'), dataIndex: 'definitionCode' },
     {
-      title: '归档门类',
+      title: t('archive.rule.col.category'),
       dataIndex: 'categoryName',
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '保管期限',
+      title: t('archive.common.retention'),
       dataIndex: 'retentionYears',
       width: 110,
-      render: (value?: number) => (value ? `${value} 年` : '长期'),
+      render: (value?: number) =>
+        value ? t('archive.common.years', { years: value }) : t('archive.common.longTerm'),
     },
     {
-      title: '密级',
+      title: t('archive.common.securityLevel'),
       dataIndex: 'securityLevel',
       width: 90,
-      render: (value?: number) => <Tag>{securityLabel(value)}</Tag>,
+      render: (value?: number) => <Tag>{securityLabel(value, t)}</Tag>,
     },
     {
-      title: '自动归档',
+      title: t('archive.rule.col.autoArchive'),
       dataIndex: 'autoArchive',
       width: 100,
       render: (value?: number) => (
-        <Tag color={value === 1 ? 'green' : 'default'}>{value === 1 ? '是' : '否'}</Tag>
+        <Tag color={value === 1 ? 'green' : 'default'}>
+          {value === 1 ? t('archive.common.yes') : t('archive.common.no')}
+        </Tag>
       ),
     },
     {
-      title: '启用',
+      title: t('archive.common.enabled'),
       dataIndex: 'enabled',
       width: 90,
       render: (value?: number) => (
-        <Tag color={value === 1 ? 'green' : 'default'}>{value === 1 ? '启用' : '停用'}</Tag>
+        <Tag color={value === 1 ? 'green' : 'default'}>
+          {value === 1 ? t('archive.common.enabled') : t('archive.common.disabled')}
+        </Tag>
       ),
     },
     {
-      title: '创建时间',
+      title: t('archive.rule.col.createTime'),
       dataIndex: 'createTime',
       width: 180,
       render: (value?: string) => formatDateTime(value),
     },
     {
-      title: '操作',
+      title: t('archive.common.action'),
       key: 'action',
       width: 140,
       render: (_, row) => (
@@ -194,11 +204,14 @@ export default function ArchiveRuleList() {
           {has('sys:archive:rule:manage') && (
             <>
               <Button type="link" size="small" onClick={() => openEdit(row)}>
-                修改
+                {t('archive.common.edit')}
               </Button>
-              <Popconfirm title="确认删除该规则？" onConfirm={() => void handleDelete(row)}>
+              <Popconfirm
+                title={t('archive.rule.confirm.delete')}
+                onConfirm={() => void handleDelete(row)}
+              >
                 <Button type="link" size="small" danger>
-                  删除
+                  {t('archive.common.delete')}
                 </Button>
               </Popconfirm>
             </>
@@ -213,30 +226,31 @@ export default function ArchiveRuleList() {
       <ProTable<ArchiveRuleVO, RuleQuery>
         ref={tableRef}
         rowKey="id"
-        title="归档规则"
+        title={t('archive.rule.title')}
         columns={columns}
         request={pageRules}
         params={{ definitionCode: query.definitionCode, enabled: query.enabled }}
-        onError={(error) => message.error(error instanceof Error ? error.message : '规则加载失败')}
+        onError={(error) =>
+          message.error(error instanceof Error ? error.message : t('archive.rule.msg.loadFailed'))
+        }
         search={
           <SearchForm
             items={[
               {
                 name: 'definitionCode',
-                label: '流程定义',
-                element: <Input allowClear placeholder="流程定义编码" />,
+                label: t('archive.rule.search.definition'),
+                element: (
+                  <Input allowClear placeholder={t('archive.rule.search.definitionPlaceholder')} />
+                ),
               },
               {
                 name: 'enabled',
-                label: '启用状态',
+                label: t('archive.rule.search.enabledStatus'),
                 element: (
                   <Select
                     allowClear
-                    placeholder="全部"
-                    options={[
-                      { label: '启用', value: 1 },
-                      { label: '停用', value: 0 },
-                    ]}
+                    placeholder={t('archive.common.all')}
+                    options={enabledOptions(t)}
                   />
                 ),
               },
@@ -252,12 +266,12 @@ export default function ArchiveRuleList() {
         }
         toolbar={
           <AuthButton perm="sys:archive:rule:manage" type="primary" onClick={openCreate}>
-            新增规则
+            {t('archive.rule.action.create')}
           </AuthButton>
         }
       />
       <Modal
-        title={editing ? '修改归档规则' : '新增归档规则'}
+        title={editing ? t('archive.rule.modal.edit') : t('archive.rule.modal.create')}
         open={modalOpen}
         confirmLoading={saving}
         onOk={() => void handleSubmit()}
@@ -267,28 +281,35 @@ export default function ArchiveRuleList() {
         <Form form={form} layout="vertical" preserve={false}>
           <Form.Item
             name="definitionCode"
-            label="流程定义编码"
-            rules={[{ required: true, message: '请输入流程定义编码' }]}
+            label={t('archive.rule.col.definitionCode')}
+            rules={[{ required: true, message: t('archive.rule.form.definitionRequired') }]}
           >
-            <Input placeholder="如 purchase_contract" disabled={Boolean(editing)} />
+            <Input
+              placeholder={t('archive.rule.form.definitionPlaceholder')}
+              disabled={Boolean(editing)}
+            />
           </Form.Item>
           <Form.Item
             name="categoryId"
-            label="归档门类"
-            rules={[{ required: true, message: '请选择归档门类' }]}
+            label={t('archive.rule.col.category')}
+            rules={[{ required: true, message: t('archive.rule.form.categoryRequired') }]}
           >
             <Select options={categoryOptions} showSearch optionFilterProp="label" />
           </Form.Item>
-          <Form.Item name="retentionYears" label="保管期限（年，留空表示长期）">
+          <Form.Item name="retentionYears" label={t('archive.common.retentionYears')}>
             <InputNumber min={1} max={100} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="securityLevel" label="密级">
-            <Select options={SECURITY_OPTIONS} />
+          <Form.Item name="securityLevel" label={t('archive.common.securityLevel')}>
+            <Select options={securityOptions(t)} />
           </Form.Item>
-          <Form.Item name="autoArchive" label="命中即自动归档" valuePropName="checked">
+          <Form.Item
+            name="autoArchive"
+            label={t('archive.rule.form.autoArchive')}
+            valuePropName="checked"
+          >
             <Switch />
           </Form.Item>
-          <Form.Item name="enabled" label="启用" valuePropName="checked">
+          <Form.Item name="enabled" label={t('archive.common.enabled')} valuePropName="checked">
             <Switch />
           </Form.Item>
         </Form>

@@ -5,23 +5,29 @@ import { Alert, Tabs } from 'antd';
 import CollectionPanel from './catalog/CollectionPanel';
 import CreatorPanel from './catalog/CreatorPanel';
 import SeriesPanel from './catalog/SeriesPanel';
+import { useI18n } from '../../i18n';
 
 export default function CatalogPage() {
+  const { t } = useI18n();
   return (
     <>
       <Alert
         type="info"
         showIcon
-        message="分类目录运营"
-        description="系列按集数组织视频；片单用于电影推荐，单片单最多 200 部；创作者由用户侧登记，运营仅维护资料与启停。"
+        message={t('video.catalog.alert.title')}
+        description={t('video.catalog.alert.description')}
         style={{ marginBottom: 16 }}
       />
       <Tabs
         defaultActiveKey="series"
         items={[
-          { key: 'series', label: '系列管理', children: <SeriesPanel /> },
-          { key: 'collections', label: '片单管理', children: <CollectionPanel /> },
-          { key: 'creators', label: '创作者管理', children: <CreatorPanel /> },
+          { key: 'series', label: t('video.catalog.tab.series'), children: <SeriesPanel /> },
+          {
+            key: 'collections',
+            label: t('video.catalog.tab.collections'),
+            children: <CollectionPanel />,
+          },
+          { key: 'creators', label: t('video.catalog.tab.creators'), children: <CreatorPanel /> },
         ]}
       />
     </>

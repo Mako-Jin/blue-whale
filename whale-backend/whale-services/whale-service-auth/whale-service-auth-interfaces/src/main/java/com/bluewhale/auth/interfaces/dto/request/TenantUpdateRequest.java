@@ -11,9 +11,9 @@ import lombok.Data;
 @Data
 public class TenantUpdateRequest {
 
-    @Size(max = 128, message = "租户名称长度不能超过 128")
+    @Size(max = 128, message = "{validation.auth.tenant.name-size}")
     private String tenantName;
 
-    @Size(max = 1024, message = "配额 JSON 长度不能超过 1024")
+    @Size(max = 1024, message = "{validation.auth.tenant.quota-size}")
     private String quotaJson;
 }

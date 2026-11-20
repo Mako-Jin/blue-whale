@@ -25,6 +25,7 @@ import {
   type ProTableRef,
 } from '@bluewhale/whale-ui';
 import { pageUsers, type UserVO } from '../../../api/user';
+import { useI18n } from '../../../i18n';
 import {
   createUserGroup,
   deleteUserGroup,
@@ -36,25 +37,6 @@ import {
 } from '../../../api/userGroup';
 
 type UserGroupQuery = { keyword?: string; category?: string };
-
-const CATEGORY_OPTIONS = [
-  { value: 'STATIC', label: '静态 STATIC' },
-  { value: 'DYNAMIC', label: '动态 DYNAMIC' },
-];
-
-const STATUS_OPTIONS = [
-  { value: 1, label: '启用' },
-  { value: 0, label: '停用' },
-];
-
-function renderStatus(status: number | undefined) {
-  return status === 0 ? <Tag color="default">停用</Tag> : <Tag color="success">启用</Tag>;
-}
-
-function renderCategory(category: string | undefined) {
-  if (!category) return '-';
-  return category === 'DYNAMIC' ? <Tag color="purple">动态规则</Tag> : <Tag color="blue">静态</Tag>;
-}
 
 interface UserGroupFormValues {
   groupCode: string;
@@ -68,8 +50,35 @@ interface UserGroupFormValues {
 
 export default function UserGroupList() {
   const { message } = App.useApp();
+  const { t } = useI18n();
   const { has } = usePermission();
   const tableRef = useRef<ProTableRef>(null);
+
+  const categoryOptions = [
+    { value: 'STATIC', label: t('systemOps.userGroup.category.static') },
+    { value: 'DYNAMIC', label: t('systemOps.userGroup.category.dynamic') },
+  ];
+
+  const statusOptions = [
+    { value: 1, label: t('systemOps.common.enabled') },
+    { value: 0, label: t('systemOps.common.disabled') },
+  ];
+
+  const renderStatus = (status: number | undefined) =>
+    status === 0 ? (
+      <Tag color="default">{t('systemOps.common.disabled')}</Tag>
+    ) : (
+      <Tag color="success">{t('systemOps.common.enabled')}</Tag>
+    );
+
+  const renderCategory = (category: string | undefined) => {
+    if (!category) return '-';
+    return category === 'DYNAMIC' ? (
+      <Tag color="purple">{t('systemOps.userGroup.categoryTag.dynamic')}</Tag>
+    ) : (
+      <Tag color="blue">{t('systemOps.userGroup.categoryTag.static')}</Tag>
+    );
+  };
 
   const [keyword, setKeyword] = useState<string | undefined>(undefined);
   const [category, setCategory] = useState<string | undefined>(undefined);
@@ -121,15 +130,15 @@ export default function UserGroupList() {
     try {
       if (editing) {
         await updateUserGroup(editing.id, payload);
-        message.success('用户组已更新');
+        message.success(t('systemOps.userGroup.updateSuccess'));
       } else {
         await createUserGroup(payload);
-        message.success('用户组已创建');
+        message.success(t('systemOps.userGroup.createSuccess'));
       }
       setFormOpen(false);
       tableRef.current?.reload();
     } catch (error) {
-      showError(error, '保存失败');
+      showError(error, t('systemOps.common.saveFailed'));
       throw error;
     }
   };
@@ -137,10 +146,10 @@ export default function UserGroupList() {
   const handleDelete = async (row: UserGroupVO) => {
     try {
       await deleteUserGroup(row.id);
-      message.success('用户组已删除');
+      message.success(t('systemOps.userGroup.deleteSuccess'));
       tableRef.current?.reload();
     } catch (error) {
-      showError(error, '删除失败');
+      showError(error, t('systemOps.common.deleteFailed'));
     }
   };
 
@@ -155,7 +164,7 @@ export default function UserGroupList() {
         })),
       );
     } catch (error) {
-      showError(error, '用户搜索失败');
+      showError(error, t('systemOps.common.searchUserFailed'));
     } finally {
       setUserSearching(false);
     }
@@ -173,14 +182,17 @@ export default function UserGroupList() {
           const known = new Map(prev.map((opt) => [opt.value, opt]));
           ids.forEach((id) => {
             if (!known.has(id)) {
-              known.set(id, { value: id, label: `用户 ${id}` });
+              known.set(id, {
+                value: id,
+                label: t('systemOps.userGroup.memberOptionFallback', { id }),
+              });
             }
           });
           return [...known.values()];
         });
         void searchUsers('');
       })
-      .catch((error) => showError(error, '成员加载失败'))
+      .catch((error) => showError(error, t('systemOps.userGroup.memberLoadFailed')))
       .finally(() => setMembersLoading(false));
   };
 
@@ -191,11 +203,11 @@ export default function UserGroupList() {
     try {
       const { memberUserIds } = await memberForm.validateFields();
       await replaceUserGroupMembers(membersRecord.id, memberUserIds);
-      message.success('成员已保存');
+      message.success(t('systemOps.userGroup.memberSaved'));
       setMembersOpen(false);
     } catch (error) {
       if (error instanceof Error) {
-        showError(error, '成员保存失败');
+        showError(error, t('systemOps.userGroup.memberSaveFailed'));
       }
       // 表单校验中断（validateFields reject）时静默返回
     }
@@ -207,53 +219,66 @@ export default function UserGroupList() {
   }, []);
 
   const columns: TableProps<UserGroupVO>['columns'] = [
-    { title: '组编码', dataIndex: 'groupCode', width: 160, ellipsis: true },
-    { title: '组名称', dataIndex: 'groupName', width: 180, ellipsis: true },
     {
-      title: '类别',
+      title: t('systemOps.userGroup.col.code'),
+      dataIndex: 'groupCode',
+      width: 160,
+      ellipsis: true,
+    },
+    {
+      title: t('systemOps.userGroup.col.name'),
+      dataIndex: 'groupName',
+      width: 180,
+      ellipsis: true,
+    },
+    {
+      title: t('systemOps.userGroup.col.category'),
       dataIndex: 'category',
       width: 110,
       render: (value: string | undefined) => renderCategory(value),
     },
     {
-      title: '说明',
+      title: t('systemOps.common.description'),
       dataIndex: 'description',
       ellipsis: true,
       render: (value: string | undefined) => value ?? '-',
     },
-    { title: '排序', dataIndex: 'sortNo', width: 70, align: 'center' },
+    { title: t('systemOps.common.sortNo'), dataIndex: 'sortNo', width: 70, align: 'center' },
     {
-      title: '状态',
+      title: t('systemOps.common.status'),
       dataIndex: 'status',
       width: 80,
       render: (value: number | undefined) => renderStatus(value),
     },
     {
-      title: '更新时间',
+      title: t('systemOps.common.updateTime'),
       dataIndex: 'updateTime',
       width: 170,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '操作',
+      title: t('systemOps.common.action'),
       key: 'action',
       width: 200,
       render: (_, row) => (
         <Space size={4}>
           {has('sys:user:group:member') && row.category !== 'DYNAMIC' && (
             <Button type="link" size="small" onClick={() => openMembers(row)}>
-              成员
+              {t('systemOps.userGroup.action.members')}
             </Button>
           )}
           {has('sys:user:group:edit') && (
             <Button type="link" size="small" onClick={() => openEdit(row)}>
-              编辑
+              {t('systemOps.common.edit')}
             </Button>
           )}
           {has('sys:user:group:delete') && (
-            <Popconfirm title="确认删除该用户组？" onConfirm={() => void handleDelete(row)}>
+            <Popconfirm
+              title={t('systemOps.userGroup.confirm.delete')}
+              onConfirm={() => void handleDelete(row)}
+            >
               <Button type="link" size="small" danger>
-                删除
+                {t('systemOps.common.delete')}
               </Button>
             </Popconfirm>
           )}
@@ -267,27 +292,29 @@ export default function UserGroupList() {
       <ProTable<UserGroupVO, UserGroupQuery>
         ref={tableRef}
         rowKey="id"
-        title="用户组"
+        title={t('systemOps.userGroup.title')}
         columns={columns}
         request={pageUserGroups}
         params={{ keyword, category }}
-        onError={(error) => showError(error, '用户组加载失败')}
+        onError={(error) => showError(error, t('systemOps.userGroup.loadFailed'))}
         search={
           <SearchForm
             items={[
               {
                 name: 'keyword',
-                label: '关键字',
-                element: <Input allowClear placeholder="组编码 / 组名称 / 说明" />,
+                label: t('systemOps.common.keyword'),
+                element: (
+                  <Input allowClear placeholder={t('systemOps.userGroup.search.placeholder')} />
+                ),
               },
               {
                 name: 'category',
-                label: '类别',
+                label: t('systemOps.userGroup.col.category'),
                 element: (
                   <Select
                     allowClear
-                    options={CATEGORY_OPTIONS}
-                    placeholder="全部"
+                    options={categoryOptions}
+                    placeholder={t('systemOps.common.all')}
                     style={{ width: 160 }}
                   />
                 ),
@@ -305,14 +332,18 @@ export default function UserGroupList() {
         }
         toolbar={
           <AuthButton perm="sys:user:group:add" type="primary" onClick={openCreate}>
-            新增用户组
+            {t('systemOps.userGroup.add')}
           </AuthButton>
         }
       />
 
       <FormModal<UserGroupFormValues>
         open={formOpen}
-        title={editing ? `编辑用户组：${editing.groupName}` : '新增用户组'}
+        title={
+          editing
+            ? t('systemOps.userGroup.editTitle', { name: editing.groupName })
+            : t('systemOps.userGroup.createTitle')
+        }
         form={form}
         initialValues={formInitial}
         onOk={handleSave}
@@ -320,48 +351,55 @@ export default function UserGroupList() {
       >
         <Form.Item
           name="groupCode"
-          label="组编码"
-          rules={[{ required: true, message: '请输入组编码' }]}
+          label={t('systemOps.userGroup.field.code')}
+          rules={[{ required: true, message: t('systemOps.userGroup.field.codeRequired') }]}
         >
-          <Input maxLength={64} disabled={Boolean(editing)} placeholder="租户内唯一" />
+          <Input
+            maxLength={64}
+            disabled={Boolean(editing)}
+            placeholder={t('systemOps.userGroup.field.codePlaceholder')}
+          />
         </Form.Item>
         <Form.Item
           name="groupName"
-          label="组名称"
-          rules={[{ required: true, message: '请输入组名称' }]}
+          label={t('systemOps.userGroup.field.name')}
+          rules={[{ required: true, message: t('systemOps.userGroup.field.nameRequired') }]}
         >
           <Input maxLength={64} />
         </Form.Item>
         <Form.Item
           name="category"
-          label="类别"
+          label={t('systemOps.userGroup.col.category')}
           initialValue="STATIC"
-          rules={[{ required: true, message: '请选择类别' }]}
+          rules={[{ required: true, message: t('systemOps.userGroup.field.categoryRequired') }]}
         >
-          <Select options={CATEGORY_OPTIONS} />
+          <Select options={categoryOptions} />
         </Form.Item>
         <Form.Item noStyle shouldUpdate={(prev, next) => prev.category !== next.category}>
           {({ getFieldValue }) =>
             getFieldValue('category') === 'DYNAMIC' ? (
               <Form.Item
                 name="filtersJson"
-                label="动态规则"
-                extra='JSON 规则，如 [{"field":"deptId","op":"eq","value":5}]'
+                label={t('systemOps.userGroup.field.filters')}
+                extra={t('systemOps.userGroup.field.filtersExtra')}
               >
-                <Input.TextArea rows={3} placeholder='[{"field":"deptId","op":"eq","value":5}]' />
+                <Input.TextArea
+                  rows={3}
+                  placeholder={t('systemOps.userGroup.field.filtersPlaceholder')}
+                />
               </Form.Item>
             ) : null
           }
         </Form.Item>
-        <Form.Item name="description" label="说明">
+        <Form.Item name="description" label={t('systemOps.common.description')}>
           <Input.TextArea rows={2} maxLength={255} />
         </Form.Item>
         <Space style={{ display: 'flex' }}>
-          <Form.Item name="sortNo" label="排序" initialValue={0}>
+          <Form.Item name="sortNo" label={t('systemOps.common.sortNo')} initialValue={0}>
             <InputNumber min={0} style={{ width: 120 }} />
           </Form.Item>
-          <Form.Item name="status" label="状态" initialValue={1}>
-            <Select options={STATUS_OPTIONS} style={{ width: 120 }} />
+          <Form.Item name="status" label={t('systemOps.common.status')} initialValue={1}>
+            <Select options={statusOptions} style={{ width: 120 }} />
           </Form.Item>
         </Space>
       </FormModal>
@@ -370,25 +408,25 @@ export default function UserGroupList() {
         open={membersOpen}
         form={memberForm}
         width={640}
-        title={membersRecord ? `维护成员：${membersRecord.groupName}` : '维护成员'}
+        title={
+          membersRecord
+            ? t('systemOps.userGroup.membersTitle', { name: membersRecord.groupName })
+            : t('systemOps.userGroup.membersCreateTitle')
+        }
         onOk={handleSaveMembers}
         onCancel={() => setMembersOpen(false)}
       >
         {membersRecord?.category === 'DYNAMIC' ? (
-          <Alert
-            type="info"
-            showIcon
-            message="动态规则组按 filters 规则自动圈人，不可手工维护成员"
-          />
+          <Alert type="info" showIcon message={t('systemOps.userGroup.alert.dynamic')} />
         ) : (
           <Alert
             style={{ marginBottom: 12 }}
             type="warning"
             showIcon
-            message="成员为全量替换：保存后以当前选中列表为准"
+            message={t('systemOps.userGroup.alert.replace')}
           />
         )}
-        <Form.Item name="memberUserIds" label="成员">
+        <Form.Item name="memberUserIds" label={t('systemOps.userGroup.field.members')}>
           <Select
             mode="multiple"
             showSearch
@@ -397,7 +435,7 @@ export default function UserGroupList() {
             loading={userSearching || membersLoading}
             options={userOptions}
             onSearch={(keyword) => void searchUsers(keyword)}
-            placeholder="输入关键字搜索用户（昵称 / 用户名）"
+            placeholder={t('systemOps.common.userSearchPlaceholder')}
             style={{ minHeight: 120 }}
           />
         </Form.Item>

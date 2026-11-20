@@ -39,6 +39,7 @@ import {
   type PlaylistView,
   type SongView,
 } from '../../api/music';
+import { useI18n } from '../../i18n';
 
 interface PlaylistFormValues {
   title: string;
@@ -60,6 +61,7 @@ function formatDuration(durationMs?: number): string {
 
 export default function PlaylistList() {
   const { message } = App.useApp();
+  const { t } = useI18n();
   const tableRef = useRef<ProTableRef>(null);
   const [form] = Form.useForm<PlaylistFormValues>();
 
@@ -108,9 +110,13 @@ export default function PlaylistList() {
         setPickerSongs(result.records ?? []);
         setPickerTotal(Number(result.total ?? 0));
       })
-      .catch((error) => message.error(error instanceof Error ? error.message : '歌曲加载失败'))
+      .catch((error) =>
+        message.error(
+          error instanceof Error ? error.message : t('music.playlist.msg.songsLoadFailed'),
+        ),
+      )
       .finally(() => setPickerLoading(false));
-  }, [message, pickerKeyword, pickerOpen, pickerPage]);
+  }, [message, pickerKeyword, pickerOpen, pickerPage, t]);
 
   const artistName = (artistId?: string) =>
     artists.find((item) => item.id === artistId)?.name ?? '-';
@@ -123,7 +129,7 @@ export default function PlaylistList() {
 
   const openEdit = (row: PlaylistView) => {
     setEditing(row);
-    setCoverName(row.coverFileId ? `文件 ID ${row.coverFileId}` : '');
+    setCoverName(row.coverFileId ? t('music.common.fileId', { id: row.coverFileId }) : '');
     setModalOpen(true);
   };
 
@@ -133,9 +139,11 @@ export default function PlaylistList() {
       .then((uploaded) => {
         form.setFieldValue('coverFileId', uploaded.id);
         setCoverName(uploaded.originalName ?? file.name);
-        message.success('封面已上传');
+        message.success(t('music.common.coverUploaded'));
       })
-      .catch((error) => message.error(error instanceof Error ? error.message : '封面上传失败'))
+      .catch((error) =>
+        message.error(error instanceof Error ? error.message : t('music.common.coverUploadFailed')),
+      )
       .finally(() => setUploadingCover(false));
   };
 
@@ -149,15 +157,15 @@ export default function PlaylistList() {
     try {
       if (editing) {
         await updateOfficialPlaylist(editing.id, payload);
-        message.success('官方歌单已更新');
+        message.success(t('music.playlist.msg.updated'));
       } else {
         await createOfficialPlaylist(payload);
-        message.success('官方歌单已创建');
+        message.success(t('music.playlist.msg.created'));
       }
       setModalOpen(false);
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '保存失败');
+      message.error(error instanceof Error ? error.message : t('music.common.saveFailed'));
       throw error;
     }
   };
@@ -165,10 +173,10 @@ export default function PlaylistList() {
   const handleDelete = async (row: PlaylistView) => {
     try {
       await deleteOfficialPlaylist(row.id);
-      message.success('官方歌单已删除');
+      message.success(t('music.playlist.msg.deleted'));
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '删除失败');
+      message.error(error instanceof Error ? error.message : t('music.common.deleteFailed'));
     }
   };
 
@@ -180,7 +188,9 @@ export default function PlaylistList() {
       setSongs(detail.songs ?? []);
       setDirty(false);
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '歌单曲目加载失败');
+      message.error(
+        error instanceof Error ? error.message : t('music.playlist.msg.tracksLoadFailed'),
+      );
     } finally {
       setSongsLoading(false);
     }
@@ -219,9 +229,11 @@ export default function PlaylistList() {
       setCurrent(updated);
       setSongs(updated.songs ?? songs);
       setDirty(false);
-      message.success('排序已保存');
+      message.success(t('music.playlist.msg.sortSaved'));
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '排序保存失败');
+      message.error(
+        error instanceof Error ? error.message : t('music.playlist.msg.sortSaveFailed'),
+      );
     } finally {
       setSavingSort(false);
     }
@@ -233,11 +245,11 @@ export default function PlaylistList() {
     }
     try {
       await removeOfficialPlaylistSong(current.id, songId);
-      message.success('已移出歌单');
+      message.success(t('music.playlist.msg.removed'));
       await reloadSongs(current.id);
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '移出失败');
+      message.error(error instanceof Error ? error.message : t('music.playlist.msg.removeFailed'));
     }
   };
 
@@ -251,10 +263,10 @@ export default function PlaylistList() {
       setCurrent(updated);
       setSongs(updated.songs ?? []);
       setDirty(false);
-      message.success('已加入歌单');
+      message.success(t('music.playlist.msg.added'));
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '加入歌单失败');
+      message.error(error instanceof Error ? error.message : t('music.playlist.msg.addFailed'));
     } finally {
       setAddingId(undefined);
     }
@@ -263,7 +275,7 @@ export default function PlaylistList() {
   const columns: TableProps<PlaylistView>['columns'] = [
     { title: 'ID', dataIndex: 'id', width: 80 },
     {
-      title: '歌单',
+      title: t('music.playlist.col.playlist'),
       dataIndex: 'title',
       render: (value: string, row) => (
         <div className="music-song-title">
@@ -273,50 +285,53 @@ export default function PlaylistList() {
       ),
     },
     {
-      title: '类型',
+      title: t('music.playlist.col.type'),
       dataIndex: 'playlistType',
       width: 90,
-      render: () => <Tag color="blue">官方</Tag>,
+      render: () => <Tag color="blue">{t('music.playlist.tag.official')}</Tag>,
     },
     {
-      title: '可见性',
+      title: t('music.playlist.col.visibility'),
       dataIndex: 'visibility',
       width: 90,
-      render: () => <Tag color="blue">公开</Tag>,
+      render: () => <Tag color="blue">{t('music.playlist.tag.public')}</Tag>,
     },
     {
-      title: '歌曲数',
+      title: t('music.playlist.col.songCount'),
       dataIndex: 'songCount',
       width: 90,
       render: (value: number | undefined) => value ?? 0,
     },
     {
-      title: '播放',
+      title: t('music.playlist.col.playCount'),
       dataIndex: 'playCount',
       width: 90,
       render: (value: number | undefined) => value ?? 0,
     },
     {
-      title: '更新时间',
+      title: t('music.playlist.col.updateTime'),
       dataIndex: 'updateTime',
       width: 180,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '操作',
+      title: t('music.common.action'),
       key: 'action',
       width: 220,
       render: (_, row) => (
         <Space size={4} wrap>
           <Button type="link" size="small" onClick={() => openSongs(row)}>
-            曲目管理
+            {t('music.playlist.action.manageSongs')}
           </Button>
           <Button type="link" size="small" onClick={() => openEdit(row)}>
-            编辑
+            {t('music.common.edit')}
           </Button>
-          <Popconfirm title="确认删除该官方歌单？" onConfirm={() => void handleDelete(row)}>
+          <Popconfirm
+            title={t('music.playlist.confirm.delete')}
+            onConfirm={() => void handleDelete(row)}
+          >
             <Button type="link" size="small" danger>
-              删除
+              {t('music.common.delete')}
             </Button>
           </Popconfirm>
         </Space>
@@ -332,7 +347,7 @@ export default function PlaylistList() {
       render: (_, __, index) => index + 1,
     },
     {
-      title: '歌曲',
+      title: t('music.playlist.track.col.song'),
       dataIndex: 'title',
       render: (value: string, row) => (
         <div className="music-song-title">
@@ -342,19 +357,19 @@ export default function PlaylistList() {
       ),
     },
     {
-      title: '歌手',
+      title: t('music.playlist.track.col.artist'),
       dataIndex: 'artistId',
       width: 130,
       render: (value: string | undefined) => artistName(value),
     },
     {
-      title: '时长',
+      title: t('music.playlist.track.col.duration'),
       dataIndex: 'durationMs',
       width: 90,
       render: (value: number | undefined) => formatDuration(value),
     },
     {
-      title: '操作',
+      title: t('music.common.action'),
       key: 'action',
       width: 200,
       render: (_, row, index) => (
@@ -365,7 +380,7 @@ export default function PlaylistList() {
             disabled={index === 0}
             onClick={() => handleMove(index, -1)}
           >
-            上移
+            {t('music.playlist.track.action.moveUp')}
           </Button>
           <Button
             type="link"
@@ -373,11 +388,14 @@ export default function PlaylistList() {
             disabled={index === songs.length - 1}
             onClick={() => handleMove(index, 1)}
           >
-            下移
+            {t('music.playlist.track.action.moveDown')}
           </Button>
-          <Popconfirm title="确认将该歌曲移出歌单？" onConfirm={() => void handleRemove(row.id)}>
+          <Popconfirm
+            title={t('music.playlist.track.confirmRemove')}
+            onConfirm={() => void handleRemove(row.id)}
+          >
             <Button type="link" size="small" danger>
-              移出
+              {t('music.playlist.track.action.remove')}
             </Button>
           </Popconfirm>
         </Space>
@@ -387,7 +405,7 @@ export default function PlaylistList() {
 
   const pickerColumns: TableProps<SongView>['columns'] = [
     {
-      title: '歌曲',
+      title: t('music.playlist.track.col.song'),
       dataIndex: 'title',
       render: (value: string, row) => (
         <div className="music-song-title">
@@ -397,19 +415,19 @@ export default function PlaylistList() {
       ),
     },
     {
-      title: '歌手',
+      title: t('music.playlist.track.col.artist'),
       dataIndex: 'artistId',
       width: 130,
       render: (value: string | undefined) => artistName(value),
     },
     {
-      title: '时长',
+      title: t('music.playlist.track.col.duration'),
       dataIndex: 'durationMs',
       width: 90,
       render: (value: number | undefined) => formatDuration(value),
     },
     {
-      title: '操作',
+      title: t('music.common.action'),
       key: 'action',
       width: 90,
       render: (_, row) => {
@@ -422,7 +440,7 @@ export default function PlaylistList() {
             loading={addingId === row.id}
             onClick={() => void handleAdd(row.id)}
           >
-            {added ? '已加入' : '加入'}
+            {added ? t('music.playlist.picker.added') : t('music.playlist.picker.add')}
           </Button>
         );
       },
@@ -434,20 +452,24 @@ export default function PlaylistList() {
       <ProTable<PlaylistView, PlaylistQuery>
         ref={tableRef}
         rowKey="id"
-        title="官方歌单"
+        title={t('music.playlist.title')}
         columns={columns}
         request={pageOfficialPlaylists}
         params={{ keyword }}
         onError={(error) =>
-          message.error(error instanceof Error ? error.message : '官方歌单加载失败')
+          message.error(
+            error instanceof Error ? error.message : t('music.playlist.msg.listLoadFailed'),
+          )
         }
         search={
           <SearchForm
             items={[
               {
                 name: 'keyword',
-                label: '关键词',
-                element: <Input allowClear placeholder="歌单标题 / 简介" />,
+                label: t('music.playlist.search.keyword'),
+                element: (
+                  <Input allowClear placeholder={t('music.playlist.search.keywordPlaceholder')} />
+                ),
               },
             ]}
             onSearch={(values) => setKeyword((values.keyword as string) || undefined)}
@@ -456,14 +478,18 @@ export default function PlaylistList() {
         }
         toolbar={
           <AuthButton perm="sys:music:playlist:manage" type="primary" onClick={openCreate}>
-            新建官方歌单
+            {t('music.playlist.action.create')}
           </AuthButton>
         }
       />
 
       <FormModal<PlaylistFormValues>
         open={modalOpen}
-        title={editing ? `编辑官方歌单：${editing.title}` : '新建官方歌单'}
+        title={
+          editing
+            ? t('music.playlist.form.editTitle', { title: editing.title })
+            : t('music.playlist.action.create')
+        }
         form={form}
         width={600}
         initialValues={{
@@ -476,15 +502,20 @@ export default function PlaylistList() {
       >
         <Form.Item
           name="title"
-          label="歌单标题"
-          rules={[{ required: true, message: '请输入歌单标题' }]}
+          label={t('music.playlist.form.title')}
+          rules={[{ required: true, message: t('music.playlist.form.titleRequired') }]}
         >
           <Input maxLength={120} showCount />
         </Form.Item>
-        <Form.Item name="description" label="歌单简介">
-          <Input.TextArea rows={3} maxLength={1000} showCount placeholder="可选" />
+        <Form.Item name="description" label={t('music.playlist.form.description')}>
+          <Input.TextArea
+            rows={3}
+            maxLength={1000}
+            showCount
+            placeholder={t('music.common.optional')}
+          />
         </Form.Item>
-        <Form.Item label="封面（可选）">
+        <Form.Item label={t('music.playlist.form.coverOptional')}>
           <Space>
             <Upload
               showUploadList={false}
@@ -495,7 +526,9 @@ export default function PlaylistList() {
               }}
             >
               <Button loading={uploadingCover}>
-                {coverName ? '重新上传封面' : '选择封面图片'}
+                {coverName
+                  ? t('music.playlist.form.reuploadCover')
+                  : t('music.playlist.form.selectCover')}
               </Button>
             </Upload>
             {coverName && <Typography.Text type="secondary">{coverName}</Typography.Text>}
@@ -504,11 +537,15 @@ export default function PlaylistList() {
         <Form.Item name="coverFileId" hidden>
           <Input />
         </Form.Item>
-        <Typography.Text type="secondary">官方歌单固定公开，创建后用户侧只读。</Typography.Text>
+        <Typography.Text type="secondary">{t('music.playlist.form.publicHint')}</Typography.Text>
       </FormModal>
 
       <Drawer
-        title={current ? `歌单曲目：${current.title}` : '歌单曲目'}
+        title={
+          current
+            ? t('music.playlist.drawer.titleWith', { title: current.title })
+            : t('music.playlist.drawer.title')
+        }
         width={760}
         open={drawerOpen}
         onClose={() => {
@@ -518,14 +555,16 @@ export default function PlaylistList() {
         }}
         extra={
           <Space>
-            <Button onClick={() => setPickerOpen(true)}>添加歌曲</Button>
+            <Button onClick={() => setPickerOpen(true)}>
+              {t('music.playlist.drawer.addSong')}
+            </Button>
             <Button
               type="primary"
               loading={savingSort}
               disabled={!dirty || songs.length === 0}
               onClick={() => void handleSaveSort()}
             >
-              保存排序
+              {t('music.playlist.drawer.saveSort')}
             </Button>
           </Space>
         }
@@ -545,7 +584,7 @@ export default function PlaylistList() {
               emptyText: (
                 <Empty
                   image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description="歌单暂无歌曲，点击右上角「添加歌曲」"
+                  description={t('music.playlist.drawer.empty')}
                 />
               ),
             }}
@@ -555,15 +594,15 @@ export default function PlaylistList() {
 
       <Modal
         open={pickerOpen}
-        title="添加歌曲（仅已上架公开歌曲）"
+        title={t('music.playlist.picker.title')}
         width={760}
         footer={null}
         onCancel={() => setPickerOpen(false)}
       >
         <Input.Search
           allowClear
-          enterButton="搜索"
-          placeholder="歌曲标题 / 副标题"
+          enterButton={t('music.common.search')}
+          placeholder={t('music.playlist.picker.placeholder')}
           value={pickerInput}
           onChange={(event) => setPickerInput(event.target.value)}
           onSearch={(value) => {
@@ -579,7 +618,12 @@ export default function PlaylistList() {
           columns={pickerColumns}
           dataSource={pickerSongs}
           locale={{
-            emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无歌曲" />,
+            emptyText: (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={t('music.playlist.picker.empty')}
+              />
+            ),
           }}
           pagination={{
             current: pickerPage,

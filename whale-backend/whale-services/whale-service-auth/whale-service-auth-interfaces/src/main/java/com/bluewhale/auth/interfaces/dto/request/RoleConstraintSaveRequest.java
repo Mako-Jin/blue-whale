@@ -22,32 +22,32 @@ import java.util.List;
 public class RoleConstraintSaveRequest {
 
     /** 约束编码（新建必填，更新不可变） */
-    @Size(max = 64, message = "约束编码长度不能超过 64")
+    @Size(max = 64, message = "{validation.auth.role.constraint-code-size}")
     private String constraintCode;
 
     /** 约束名称 */
-    @NotBlank(message = "约束名称不能为空")
-    @Size(max = 128, message = "约束名称长度不能超过 128")
+    @NotBlank(message = "{validation.auth.role.constraint-name-required}")
+    @Size(max = 128, message = "{validation.auth.role.constraint-name-size}")
     private String constraintName;
 
     /** 约束类型（MUTEX / CARDINALITY，新建必填） */
-    @Pattern(regexp = "MUTEX|CARDINALITY", message = "约束类型仅支持 MUTEX / CARDINALITY")
+    @Pattern(regexp = "MUTEX|CARDINALITY", message = "{validation.auth.role.constraint-type-pattern}")
     private String constraintType;
 
     /** 约束覆盖的角色 ID 集合（必填非空） */
-    @NotEmpty(message = "约束覆盖的角色 ID 集合不能为空")
+    @NotEmpty(message = "{validation.auth.role.constraint-role-ids-required}")
     private List<Long> roleIds;
 
     /** 基数上限（仅 CARDINALITY，可空） */
-    @Min(value = 1, message = "基数上限必须为正整数")
+    @Min(value = 1, message = "{validation.auth.role.constraint-max-assign-min}")
     private Integer maxAssign;
 
     /** 状态：1 启用 / 0 停用（可空，新建默认启用） */
-    @Min(value = 0, message = "状态仅支持 1（启用）/ 0（停用）")
-    @Max(value = 1, message = "状态仅支持 1（启用）/ 0（停用）")
+    @Min(value = 0, message = "{validation.auth.common.status-range}")
+    @Max(value = 1, message = "{validation.auth.common.status-range}")
     private Integer status;
 
     /** 描述（可空） */
-    @Size(max = 255, message = "描述长度不能超过 255")
+    @Size(max = 255, message = "{validation.auth.common.description-size}")
     private String description;
 }

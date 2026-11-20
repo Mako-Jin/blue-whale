@@ -15,8 +15,8 @@ public class MenuRequest {
     /** 父菜单ID，0 表示顶级 */
     private Long parentId;
 
-    @NotBlank(message = "菜单名称不能为空")
-    @Size(max = 64, message = "菜单名称长度不能超过 64")
+    @NotBlank(message = "{validation.auth.menu.name-required}")
+    @Size(max = 64, message = "{validation.auth.menu.name-size}")
     private String name;
 
     private String path;

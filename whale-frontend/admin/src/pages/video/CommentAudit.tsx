@@ -12,11 +12,14 @@ import {
   type CommentAuditView,
   type CommentStatus,
 } from '../../api/video';
+import { useI18n } from '../../i18n';
 
-const STATUS_OPTIONS: { value: CommentStatus; label: string }[] = [
-  { value: 'PENDING', label: '待审核' },
-  { value: 'VISIBLE', label: '可见' },
-  { value: 'HIDDEN', label: '已隐藏' },
+type Translate = ReturnType<typeof useI18n>['t'];
+
+const buildStatusOptions = (t: Translate): { value: CommentStatus; label: string }[] => [
+  { value: 'PENDING', label: t('video.comment.status.pending') },
+  { value: 'VISIBLE', label: t('video.comment.status.visible') },
+  { value: 'HIDDEN', label: t('video.comment.status.hidden') },
 ];
 
 /** 状态标签颜色 */
@@ -28,7 +31,10 @@ const STATUS_COLORS: Record<CommentStatus, string> = {
 
 export default function CommentAudit() {
   const { message } = App.useApp();
+  const { t } = useI18n();
   const tableRef = useRef<ProTableRef>(null);
+
+  const statusOptions = buildStatusOptions(t);
 
   const [status, setStatus] = useState<CommentStatus | undefined>(undefined);
   const [actingId, setActingId] = useState<string | undefined>(undefined);
@@ -37,10 +43,10 @@ export default function CommentAudit() {
     setActingId(row.id);
     try {
       await approveComment(row.id);
-      message.success('评论已通过审核');
+      message.success(t('video.comment.msg.approved'));
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '操作失败');
+      message.error(error instanceof Error ? error.message : t('video.comment.msg.failed'));
     } finally {
       setActingId(undefined);
     }
@@ -50,10 +56,10 @@ export default function CommentAudit() {
     setActingId(row.id);
     try {
       await hideComment(row.id);
-      message.success('评论已隐藏');
+      message.success(t('video.comment.msg.hidden'));
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '操作失败');
+      message.error(error instanceof Error ? error.message : t('video.comment.msg.failed'));
     } finally {
       setActingId(undefined);
     }
@@ -62,49 +68,57 @@ export default function CommentAudit() {
   const columns: TableProps<CommentAuditView>['columns'] = [
     { title: 'ID', dataIndex: 'id', width: 90 },
     {
-      title: '内容 ID',
+      title: t('video.comment.col.contentId'),
       dataIndex: 'contentId',
       width: 110,
       render: (value?: string) => value ?? '-',
     },
-    { title: '用户', dataIndex: 'userId', width: 100, render: (value?: string) => value ?? '-' },
     {
-      title: '评论正文',
+      title: t('video.comment.col.user'),
+      dataIndex: 'userId',
+      width: 100,
+      render: (value?: string) => value ?? '-',
+    },
+    {
+      title: t('video.comment.col.content'),
       dataIndex: 'content',
       render: (value: string, row) => (
         <Typography.Paragraph
           style={{ marginBottom: 0, maxWidth: 460 }}
-          ellipsis={{ rows: 2, expandable: true, symbol: '展开' }}
+          ellipsis={{ rows: 2, expandable: true, symbol: t('video.comment.expand') }}
         >
           {/* parentId 运行时为字符串，根评论为 '0'（非空串，需显式判断） */}
-          {row.parentId && row.parentId !== '0' ? `回复 #${row.parentId}：${value}` : value}
+          {row.parentId && row.parentId !== '0'
+            ? t('video.comment.reply', { id: row.parentId, content: value })
+            : value}
         </Typography.Paragraph>
       ),
     },
     {
-      title: '状态',
+      title: t('video.comment.col.status'),
       dataIndex: 'status',
       width: 100,
       render: (value?: CommentStatus) => (
         <Tag color={value ? STATUS_COLORS[value] : 'default'}>
-          {STATUS_OPTIONS.find((item) => item.value === value)?.label ?? '未知'}
+          {statusOptions.find((item) => item.value === value)?.label ??
+            t('video.comment.status.unknown')}
         </Tag>
       ),
     },
     {
-      title: '点赞',
+      title: t('video.comment.col.likeCount'),
       dataIndex: 'likeCount',
       width: 80,
       render: (value?: number) => value ?? 0,
     },
     {
-      title: '评论时间',
+      title: t('video.comment.col.createTime'),
       dataIndex: 'createTime',
       width: 180,
       render: (value?: string) => value ?? '-',
     },
     {
-      title: '操作',
+      title: t('video.comment.col.action'),
       key: 'actions',
       width: 180,
       render: (_, row) => (
@@ -117,14 +131,14 @@ export default function CommentAudit() {
               loading={actingId === row.id}
               onClick={() => handleApprove(row)}
             >
-              通过
+              {t('video.comment.action.approve')}
             </AuthButton>
           ) : null}
           {row.status !== 'HIDDEN' ? (
             <Popconfirm
-              title="隐藏后用户将立即看不到该评论"
-              okText="隐藏"
-              cancelText="取消"
+              title={t('video.comment.confirm.hide')}
+              okText={t('video.comment.action.hide')}
+              cancelText={t('video.comment.action.cancel')}
               onConfirm={() => handleHide(row)}
             >
               <AuthButton
@@ -134,7 +148,7 @@ export default function CommentAudit() {
                 danger
                 loading={actingId === row.id}
               >
-                隐藏
+                {t('video.comment.action.hide')}
               </AuthButton>
             </Popconfirm>
           ) : null}
@@ -147,23 +161,25 @@ export default function CommentAudit() {
     <ProTable<CommentAuditView, CommentAuditQuery>
       ref={tableRef}
       rowKey="id"
-      title="评论审核"
+      title={t('video.comment.list.title')}
       columns={columns}
       request={pageAuditComments}
       params={{ status }}
-      onError={(error) => message.error(error instanceof Error ? error.message : '评论加载失败')}
+      onError={(error) =>
+        message.error(error instanceof Error ? error.message : t('video.comment.msg.loadFailed'))
+      }
       search={
         <SearchForm
           items={[
             {
               name: 'status',
-              label: '状态',
+              label: t('video.comment.search.status'),
               element: (
                 <Select
                   allowClear
-                  placeholder="全部状态"
+                  placeholder={t('video.comment.search.allStatus')}
                   style={{ minWidth: 140 }}
-                  options={STATUS_OPTIONS}
+                  options={statusOptions}
                 />
               ),
             },

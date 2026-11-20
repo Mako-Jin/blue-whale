@@ -128,7 +128,8 @@ public final class FileContentResponses {
                                                  String ifRangeHeader, ContentSource source) {
         // fileSize 为 null 意味着元数据异常（正常登记不可能缺失），不能按空文件 0 字节响应
         if (info.fileSize() == null) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "文件元数据缺少大小信息: " + info.id());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "file.content.size-missing",
+                    "文件元数据缺少大小信息: " + info.id(), info.id());
         }
         long size = info.fileSize();
         String etag = buildEtag(info);

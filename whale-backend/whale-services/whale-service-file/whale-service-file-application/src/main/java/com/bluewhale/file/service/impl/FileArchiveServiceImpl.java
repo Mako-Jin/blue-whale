@@ -63,11 +63,12 @@ public class FileArchiveServiceImpl implements FileArchiveService {
         List<Long> uniqueIds = distinctIds(ids);
         FileProperties.Batch config = fileProperties.getBatch();
         if (uniqueIds.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "文件ID列表不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "file.common.ids-required",
+                    "文件ID列表不能为空");
         }
         if (uniqueIds.size() > config.getMaxFiles()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
-                    "单次最多打包 " + config.getMaxFiles() + " 个文件");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "file.archive.batch-limit",
+                    "单次最多打包 " + config.getMaxFiles() + " 个文件", config.getMaxFiles());
         }
         List<FileArchiveEntryResult> entries = new ArrayList<>(uniqueIds.size());
         Set<String> usedNames = new HashSet<>(uniqueIds.size());
@@ -77,7 +78,8 @@ public class FileArchiveServiceImpl implements FileArchiveService {
             long size = info.fileSize() == null ? 0L : info.fileSize();
             totalBytes += size;
             if (totalBytes > config.getMaxZipBytes()) {
-                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "打包文件总大小超出上限");
+                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "file.archive.total-size-exceeded",
+                        "打包文件总大小超出上限");
             }
             entries.add(new FileArchiveEntryResult(id,
                     dedupeName(safeEntryName(info.originalName()), usedNames), size));
@@ -173,7 +175,7 @@ public class FileArchiveServiceImpl implements FileArchiveService {
         Set<Long> unique = new LinkedHashSet<>(ids.size());
         for (Long id : ids) {
             if (id == null) {
-                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "文件ID不能为空");
+                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "file.common.id-required", "文件ID不能为空");
             }
             unique.add(id);
         }

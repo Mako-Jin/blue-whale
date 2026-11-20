@@ -40,6 +40,9 @@ import {
   type SeriesView,
 } from '../../../api/video';
 import { uploadFile } from '../../../api/file';
+import { useI18n } from '../../../i18n';
+
+type Translate = ReturnType<typeof useI18n>['t'];
 
 interface SeriesFormValues {
   title: string;
@@ -49,19 +52,20 @@ interface SeriesFormValues {
   sortNo?: number;
 }
 
-const PUBLISH_STATE_OPTIONS = [
-  { value: 'DRAFT', label: '草稿' },
-  { value: 'PUBLISHED', label: '已上架' },
-  { value: 'OFFLINE', label: '已下架' },
+/** 发布状态选项（系列无待审核） */
+const buildPublishStateOptions = (t: Translate) => [
+  { value: 'DRAFT', label: t('video.catalog.series.state.draft') },
+  { value: 'PUBLISHED', label: t('video.catalog.series.state.published') },
+  { value: 'OFFLINE', label: t('video.catalog.series.state.offline') },
 ];
 
 /** 发布状态标签 */
-function renderPublishState(state?: PublishState) {
+function renderPublishState(state: PublishState | undefined, t: Translate) {
   const map: Record<PublishState, { color: string; label: string }> = {
-    DRAFT: { color: 'default', label: '草稿' },
-    PENDING_REVIEW: { color: 'gold', label: '待审核' },
-    PUBLISHED: { color: 'success', label: '已上架' },
-    OFFLINE: { color: 'error', label: '已下架' },
+    DRAFT: { color: 'default', label: t('video.catalog.series.state.draft') },
+    PENDING_REVIEW: { color: 'gold', label: t('video.catalog.series.state.pendingReview') },
+    PUBLISHED: { color: 'success', label: t('video.catalog.series.state.published') },
+    OFFLINE: { color: 'error', label: t('video.catalog.series.state.offline') },
   };
   return state ? <Tag color={map[state].color}>{map[state].label}</Tag> : '-';
 }
@@ -69,6 +73,8 @@ function renderPublishState(state?: PublishState) {
 export default function SeriesPanel() {
   const { message } = App.useApp();
   const { has } = usePermission();
+  const { t } = useI18n();
+  const publishStateOptions = buildPublishStateOptions(t);
   const tableRef = useRef<ProTableRef>(null);
   const [form] = Form.useForm<SeriesFormValues>();
 
@@ -109,9 +115,15 @@ export default function SeriesPanel() {
       .then((uploaded) => {
         setCoverFileId(uploaded.id);
         setCoverName(uploaded.originalName ?? file.name);
-        message.success('封面已上传');
+        message.success(t('video.catalog.series.msg.coverUploaded'));
       })
-      .catch((error) => message.error(error instanceof Error ? error.message : '封面上传失败'))
+      .catch((error) =>
+        message.error(
+          error instanceof Error
+            ? error.message
+            : t('video.catalog.series.msg.coverUploadFailed'),
+        ),
+      )
       .finally(() => setUploadingCover(false));
   };
 
@@ -129,15 +141,17 @@ export default function SeriesPanel() {
     try {
       if (editing) {
         await updateSeries(editing.id, payload);
-        message.success('系列已更新');
+        message.success(t('video.catalog.series.msg.updated'));
       } else {
         await createSeries(payload);
-        message.success('系列已新增（草稿），上架后用户可见');
+        message.success(t('video.catalog.series.msg.created'));
       }
       setModalOpen(false);
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '保存失败');
+      message.error(
+        error instanceof Error ? error.message : t('video.catalog.series.msg.saveFailed'),
+      );
       throw error;
     }
   };
@@ -145,31 +159,35 @@ export default function SeriesPanel() {
   const handlePublish = async (row: SeriesView) => {
     try {
       await publishSeries(row.id);
-      message.success('系列已上架');
+      message.success(t('video.catalog.series.msg.published'));
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '上架失败');
+      message.error(
+        error instanceof Error ? error.message : t('video.catalog.series.msg.publishFailed'),
+      );
     }
   };
 
   const handleOffline = async (row: SeriesView) => {
     try {
       await offlineSeries(row.id);
-      message.success('系列已下架');
+      message.success(t('video.catalog.series.msg.offlined'));
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '下架失败');
+      message.error(
+        error instanceof Error ? error.message : t('video.catalog.series.msg.offlineFailed'),
+      );
     }
   };
 
   const handleDelete = async (row: SeriesView) => {
     try {
       await deleteSeries(row.id);
-      message.success('系列已删除');
+      message.success(t('video.catalog.series.msg.deleted'));
       tableRef.current?.reload();
     } catch (error) {
       message.error(
-        error instanceof Error ? error.message : '删除失败（存在已发布集数时需先移除集数）',
+        error instanceof Error ? error.message : t('video.catalog.series.msg.deleteFailed'),
       );
     }
   };
@@ -180,18 +198,24 @@ export default function SeriesPanel() {
   const columns: TableProps<SeriesView>['columns'] = [
     { title: 'ID', dataIndex: 'id', width: 80 },
     {
-      title: '封面',
+      title: t('video.catalog.series.col.cover'),
       dataIndex: 'coverUrl',
       width: 100,
       render: (value?: string) =>
         value ? (
-          <Image src={value} alt="封面" width={72} height={40} style={{ objectFit: 'cover' }} />
+          <Image
+            src={value}
+            alt={t('video.catalog.series.alt.cover')}
+            width={72}
+            height={40}
+            style={{ objectFit: 'cover' }}
+          />
         ) : (
           '-'
         ),
     },
     {
-      title: '系列',
+      title: t('video.catalog.series.col.series'),
       dataIndex: 'title',
       render: (value: string, row) => (
         <Space direction="vertical" size={0}>
@@ -205,65 +229,75 @@ export default function SeriesPanel() {
       ),
     },
     {
-      title: '分类',
+      title: t('video.catalog.series.col.category'),
       dataIndex: 'categoryId',
       width: 120,
       render: (value: string | undefined) => categoryName(value),
     },
     {
-      title: '创作者',
+      title: t('video.catalog.series.col.creator'),
       dataIndex: 'creatorName',
       width: 140,
       render: (value: string | undefined, row) =>
         value || (row.creatorId && row.creatorId !== '0' ? `#${row.creatorId}` : '-'),
     },
-    { title: '集数', dataIndex: 'episodeCount', width: 80 },
-    { title: '排序', dataIndex: 'sortNo', width: 80 },
+    { title: t('video.catalog.series.col.episodeCount'), dataIndex: 'episodeCount', width: 80 },
+    { title: t('video.catalog.series.col.sortNo'), dataIndex: 'sortNo', width: 80 },
     {
-      title: '状态',
+      title: t('video.catalog.series.col.status'),
       dataIndex: 'publishState',
       width: 100,
-      render: (value: PublishState | undefined) => renderPublishState(value),
+      render: (value: PublishState | undefined) => renderPublishState(value, t),
     },
     {
-      title: '上架时间',
+      title: t('video.catalog.series.col.publishedAt'),
       dataIndex: 'publishedAt',
       width: 170,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '操作',
+      title: t('video.catalog.series.col.action'),
       key: 'action',
       width: 230,
       render: (_, row) => (
         <Space size={4} wrap>
           {has('sys:video:series:manage') ? (
             <Button type="link" size="small" onClick={() => openEdit(row)}>
-              编辑
+              {t('video.catalog.series.action.edit')}
             </Button>
           ) : null}
           {row.publishState !== 'PUBLISHED' && has('sys:video:series:manage') ? (
-            <Popconfirm title="确认上架该系列？" onConfirm={() => void handlePublish(row)}>
+            <Popconfirm
+              title={t('video.catalog.series.confirm.publish')}
+              onConfirm={() => void handlePublish(row)}
+            >
               <Button type="link" size="small">
-                上架
+                {t('video.catalog.series.action.publish')}
               </Button>
             </Popconfirm>
           ) : null}
           {row.publishState === 'PUBLISHED' && has('sys:video:series:manage') ? (
-            <Popconfirm title="确认下架该系列？" onConfirm={() => void handleOffline(row)}>
+            <Popconfirm
+              title={t('video.catalog.series.confirm.offline')}
+              onConfirm={() => void handleOffline(row)}
+            >
               <Button type="link" size="small" danger>
-                下架
+                {t('video.catalog.series.action.offline')}
               </Button>
             </Popconfirm>
           ) : null}
           {has('sys:video:series:manage') ? (
             <Popconfirm
-              title="确认删除该系列？"
-              description={row.episodeCount > 0 ? '该系列仍有集数，删除会被后端拒绝' : undefined}
+              title={t('video.catalog.series.confirm.delete')}
+              description={
+                row.episodeCount > 0
+                  ? t('video.catalog.series.confirm.deleteWithEpisodes')
+                  : undefined
+              }
               onConfirm={() => void handleDelete(row)}
             >
               <Button type="link" size="small" danger>
-                删除
+                {t('video.catalog.series.action.delete')}
               </Button>
             </Popconfirm>
           ) : null}
@@ -277,42 +311,49 @@ export default function SeriesPanel() {
       <ProTable<SeriesView, SeriesQuery>
         ref={tableRef}
         rowKey="id"
-        title="系列管理"
+        title={t('video.catalog.series.list.title')}
         columns={columns}
         request={pageSeries}
         params={{ keyword, publishState, categoryId }}
         onError={(error) =>
-          message.error(error instanceof Error ? error.message : '系列列表加载失败')
+          message.error(
+            error instanceof Error ? error.message : t('video.catalog.series.list.loadFailed'),
+          )
         }
         search={
           <SearchForm
             items={[
               {
                 name: 'keyword',
-                label: '关键词',
-                element: <Input allowClear placeholder="系列标题" />,
+                label: t('video.catalog.series.search.keyword'),
+                element: (
+                  <Input
+                    allowClear
+                    placeholder={t('video.catalog.series.search.keywordPlaceholder')}
+                  />
+                ),
               },
               {
                 name: 'publishState',
-                label: '状态',
+                label: t('video.catalog.series.search.status'),
                 element: (
                   <Select
                     allowClear
-                    placeholder="全部"
+                    placeholder={t('video.catalog.series.search.all')}
                     style={{ width: 120 }}
-                    options={PUBLISH_STATE_OPTIONS}
+                    options={publishStateOptions}
                   />
                 ),
               },
               {
                 name: 'categoryId',
-                label: '分类',
+                label: t('video.catalog.series.search.category'),
                 element: (
                   <Select
                     allowClear
                     showSearch
                     optionFilterProp="label"
-                    placeholder="全部"
+                    placeholder={t('video.catalog.series.search.all')}
                     style={{ width: 160 }}
                     options={categories.map((category) => ({
                       value: category.id,
@@ -336,14 +377,18 @@ export default function SeriesPanel() {
         }
         toolbar={
           <AuthButton perm="sys:video:series:manage" type="primary" onClick={openCreate}>
-            新增系列
+            {t('video.catalog.series.action.create')}
           </AuthButton>
         }
       />
 
       <FormModal<SeriesFormValues>
         open={modalOpen}
-        title={editing ? `编辑系列：${editing.title}` : '新增系列'}
+        title={
+          editing
+            ? t('video.catalog.series.form.editTitle', { title: editing.title })
+            : t('video.catalog.series.form.createTitle')
+        }
         form={form}
         width={640}
         initialValues={{
@@ -356,13 +401,18 @@ export default function SeriesPanel() {
         onOk={handleSave}
         onCancel={() => setModalOpen(false)}
       >
-        <Form.Item label="封面">
+        <Form.Item label={t('video.catalog.series.form.cover')}>
           <Space direction="vertical" size={6}>
             {coverFileId === '0' ? (
-              <Typography.Text type="secondary">已清除封面（保存后生效）</Typography.Text>
+              <Typography.Text type="secondary">
+                {t('video.catalog.series.form.coverCleared')}
+              </Typography.Text>
             ) : coverFileId ? (
               <Typography.Text type="secondary">
-                已上传封面：{coverName || `文件 ID ${coverFileId}`}
+                {t('video.catalog.series.form.coverUploaded', {
+                  name:
+                    coverName || t('video.catalog.series.form.fileId', { id: coverFileId }),
+                })}
               </Typography.Text>
             ) : editing?.coverUrl ? (
               <Image
@@ -370,10 +420,12 @@ export default function SeriesPanel() {
                 width={160}
                 height={90}
                 style={{ objectFit: 'cover' }}
-                alt="当前封面"
+                alt={t('video.catalog.series.alt.currentCover')}
               />
             ) : (
-              <Typography.Text type="secondary">暂无封面</Typography.Text>
+              <Typography.Text type="secondary">
+                {t('video.catalog.series.form.coverEmpty')}
+              </Typography.Text>
             )}
             <Space>
               <Upload
@@ -386,8 +438,8 @@ export default function SeriesPanel() {
               >
                 <Button loading={uploadingCover}>
                   {coverFileId !== '0' && (coverFileId || editing?.coverUrl)
-                    ? '重新上传封面'
-                    : '上传封面'}
+                    ? t('video.catalog.series.form.coverReupload')
+                    : t('video.catalog.series.form.coverUpload')}
                 </Button>
               </Upload>
               {editing?.coverUrl || (coverFileId && coverFileId !== '0') ? (
@@ -398,7 +450,7 @@ export default function SeriesPanel() {
                     setCoverName('');
                   }}
                 >
-                  移除封面
+                  {t('video.catalog.series.form.coverRemove')}
                 </Button>
               ) : null}
             </Space>
@@ -406,20 +458,24 @@ export default function SeriesPanel() {
         </Form.Item>
         <Form.Item
           name="title"
-          label="系列标题"
-          rules={[{ required: true, message: '请输入系列标题' }]}
+          label={t('video.catalog.series.form.title')}
+          rules={[{ required: true, message: t('video.catalog.series.form.titleRequired') }]}
         >
           <Input maxLength={200} showCount />
         </Form.Item>
-        <Form.Item name="description" label="系列简介">
+        <Form.Item name="description" label={t('video.catalog.series.form.description')}>
           <Input.TextArea maxLength={2000} showCount autoSize={{ minRows: 3, maxRows: 6 }} />
         </Form.Item>
-        <Form.Item name="categoryId" label="分类" extra="仅可选适用于视频的分类">
+        <Form.Item
+          name="categoryId"
+          label={t('video.catalog.series.form.category')}
+          extra={t('video.catalog.series.form.categoryExtra')}
+        >
           <Select
             allowClear
             showSearch
             optionFilterProp="label"
-            placeholder="选择分类"
+            placeholder={t('video.catalog.series.form.categoryPlaceholder')}
             options={categories
               .filter(
                 (category) =>
@@ -428,10 +484,18 @@ export default function SeriesPanel() {
               .map((category) => ({ value: category.id, label: category.name }))}
           />
         </Form.Item>
-        <Form.Item name="creatorId" label="创作者 ID" extra="可选，填写后用户侧展示创作者昵称">
-          <Input placeholder="创作者 ID" />
+        <Form.Item
+          name="creatorId"
+          label={t('video.catalog.series.form.creatorId')}
+          extra={t('video.catalog.series.form.creatorIdExtra')}
+        >
+          <Input placeholder={t('video.catalog.series.form.creatorIdPlaceholder')} />
         </Form.Item>
-        <Form.Item name="sortNo" label="运营排序" extra="数值越小越靠前">
+        <Form.Item
+          name="sortNo"
+          label={t('video.catalog.series.form.sortNo')}
+          extra={t('video.catalog.series.form.sortNoExtra')}
+        >
           <InputNumber min={0} precision={0} style={{ width: '100%' }} />
         </Form.Item>
       </FormModal>

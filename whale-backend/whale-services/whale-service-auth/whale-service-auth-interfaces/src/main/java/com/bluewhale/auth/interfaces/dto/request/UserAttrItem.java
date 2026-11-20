@@ -12,12 +12,12 @@ import lombok.Data;
 @Data
 public class UserAttrItem {
 
-    @NotNull(message = "权限ID不能为空")
+    @NotNull(message = "{validation.auth.user.permission-id-required}")
     private Long permissionId;
 
-    @NotBlank(message = "属性键不能为空")
+    @NotBlank(message = "{validation.auth.user.attr-key-required}")
     private String attrKey;
 
-    @NotBlank(message = "属性值不能为空")
+    @NotBlank(message = "{validation.auth.user.attr-value-required}")
     private String attrValue;
 }

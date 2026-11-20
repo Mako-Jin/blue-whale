@@ -108,10 +108,12 @@ public class LocalChunkUploadStore implements ChunkUploadStore {
         try {
             Files.createDirectories(root);
         } catch (IOException e) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "文件存储根目录创建失败: " + root);
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "file.chunk.root-create-failed",
+                    "文件存储根目录创建失败: " + root, root);
         }
         if (!Files.isWritable(root)) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "文件存储根目录不可写: " + root);
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "file.chunk.root-not-writable",
+                    "文件存储根目录不可写: " + root, root);
         }
     }
 
@@ -213,7 +215,8 @@ public class LocalChunkUploadStore implements ChunkUploadStore {
                 for (int i = 0; i < partCount; i++) {
                     Path part = dir.resolve(PART_FILE_PREFIX + i);
                     if (!Files.exists(part)) {
-                        throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "缺少分片索引: " + i);
+                        throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "file.chunk.missing-part-index",
+                                "缺少分片索引: " + i, i);
                     }
                     Files.copy(part, out);
                 }
@@ -374,7 +377,8 @@ public class LocalChunkUploadStore implements ChunkUploadStore {
     private Path requireSession(ChunkUploadSessionId sessionId) {
         Path dir = resolve(sessionId);
         if (!Files.isDirectory(dir)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "上传会话不存在或已失效");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "file.chunk.session-not-found",
+                    "上传会话不存在或已失效");
         }
         return dir;
     }

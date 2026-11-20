@@ -11,7 +11,7 @@ import lombok.Data;
 @Data
 public class UserUpdateRequest {
 
-    @Size(min = 6, max = 64, message = "密码长度必须在 6-64 之间")
+    @Size(min = 6, max = 64, message = "{validation.auth.user.password-size}")
     private String password;
 
     private String nickname;

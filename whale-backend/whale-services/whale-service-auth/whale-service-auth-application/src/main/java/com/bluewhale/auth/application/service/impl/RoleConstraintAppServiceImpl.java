@@ -46,7 +46,7 @@ public class RoleConstraintAppServiceImpl implements RoleConstraintAppService {
     public RoleConstraintVO create(SaveRoleConstraintCommand command) {
         Long tenantId = currentUserProvider.current().tokenTenantId();
         if (constraintRepository.existsByCode(tenantId, command.constraintCode(), null)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "约束编码在租户内已存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "auth.role.constraint-code-exists", "约束编码在租户内已存在");
         }
         requireRolesExist(tenantId, command.roleIds());
         RoleConstraintAggregate constraint = RoleConstraintAggregate.create(tenantId,
@@ -136,7 +136,7 @@ public class RoleConstraintAppServiceImpl implements RoleConstraintAppService {
      */
     private RoleConstraintAggregate require(Long id) {
         return constraintRepository.findById(id)
-                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "角色约束不存在"));
+                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "auth.role.constraint-not-found", "角色约束不存在"));
     }
 
     /**
@@ -156,7 +156,7 @@ public class RoleConstraintAppServiceImpl implements RoleConstraintAppService {
                         .filter(r -> tenantId.equals(r.getTenantId()))
                         .isEmpty());
         if (anyMissing) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "约束引用的角色不存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "auth.role.constraint-role-not-found", "约束引用的角色不存在");
         }
     }
 

@@ -36,8 +36,11 @@ import {
   type OAuthClientSecretVO,
   type OAuthClientVO,
 } from '../../../api/oauthClient';
+import { useI18n } from '../../../i18n';
 
 type ClientQuery = { keyword?: string; status?: number };
+
+type Translate = ReturnType<typeof useI18n>['t'];
 
 const GRANT_TYPES = [
   { value: 'authorization_code', label: 'authorization_code' },
@@ -50,9 +53,9 @@ const SCOPE_OPTIONS = ['openid', 'profile', 'email', 'offline_access'].map((scop
   label: scope,
 }));
 
-const STATUS_OPTIONS = [
-  { value: 1, label: '启用' },
-  { value: 0, label: '停用' },
+const buildStatusOptions = (t: Translate) => [
+  { value: 1, label: t('systemAuth.oauth.status.enabled') },
+  { value: 0, label: t('systemAuth.oauth.status.disabled') },
 ];
 
 const { Paragraph } = Typography;
@@ -70,9 +73,13 @@ interface ClientFormValues {
 }
 
 /** 秘密展示弹窗：clientSecret 仅此一次返回 */
-function showSecretModal(modal: ReturnType<typeof Modal.useModal>[0], result: OAuthClientSecretVO) {
+function showSecretModal(
+  modal: ReturnType<typeof Modal.useModal>[0],
+  result: OAuthClientSecretVO,
+  t: Translate,
+) {
   modal.warning({
-    title: '客户端密钥（仅此一次展示，请立即保存）',
+    title: t('systemAuth.oauth.secretTitle'),
     width: 560,
     content: (
       <>
@@ -84,19 +91,22 @@ function showSecretModal(modal: ReturnType<typeof Modal.useModal>[0], result: OA
           style={{ marginTop: 12 }}
           type="warning"
           showIcon
-          message="关闭本弹窗后密钥不可再次查看，只能重新轮换。"
+          message={t('systemAuth.oauth.secretWarning')}
         />
       </>
     ),
-    okText: '我已保存',
+    okText: t('systemAuth.oauth.secretSaved'),
   });
 }
 
 export default function OAuthClientList() {
   const { message } = App.useApp();
   const { modal } = App.useApp();
+  const { t } = useI18n();
   const { has } = usePermission();
   const tableRef = useRef<ProTableRef>(null);
+
+  const statusOptions = buildStatusOptions(t);
 
   const [keyword, setKeyword] = useState<string | undefined>(undefined);
   const [status, setStatus] = useState<number | undefined>(undefined);
@@ -145,18 +155,18 @@ export default function OAuthClientList() {
     try {
       if (editing) {
         const updated = await updateOAuthClient(editing.id, payload);
-        message.success(`客户端 ${updated.clientId} 已更新`);
+        message.success(t('systemAuth.oauth.updated', { clientId: updated.clientId }));
       } else {
         const secret = await createOAuthClient(payload);
         setFormOpen(false);
         tableRef.current?.reload();
-        showSecretModal(modal, secret);
+        showSecretModal(modal, secret, t);
         return;
       }
       setFormOpen(false);
       tableRef.current?.reload();
     } catch (error) {
-      showError(error, '保存失败');
+      showError(error, t('systemAuth.oauth.saveFailed'));
       throw error;
     }
   };
@@ -165,10 +175,10 @@ export default function OAuthClientList() {
     setRotating(row.id);
     try {
       const secret = await rotateOAuthClientSecret(row.id);
-      showSecretModal(modal, secret);
+      showSecretModal(modal, secret, t);
       tableRef.current?.reload();
     } catch (error) {
-      showError(error, '轮换密钥失败');
+      showError(error, t('systemAuth.oauth.rotateFailed'));
     } finally {
       setRotating(null);
     }
@@ -177,18 +187,23 @@ export default function OAuthClientList() {
   const handleDisable = async (row: OAuthClientVO) => {
     try {
       await disableOAuthClient(row.id);
-      message.success(`客户端 ${row.clientId} 已停用`);
+      message.success(t('systemAuth.oauth.disabled', { clientId: row.clientId }));
       tableRef.current?.reload();
     } catch (error) {
-      showError(error, '停用失败');
+      showError(error, t('systemAuth.oauth.disableFailed'));
     }
   };
 
   const columns: TableProps<OAuthClientVO>['columns'] = [
     { title: 'client_id', dataIndex: 'clientId', width: 180, ellipsis: true },
-    { title: '名称', dataIndex: 'clientName', width: 160, ellipsis: true },
     {
-      title: '回调地址',
+      title: t('systemAuth.oauth.col.name'),
+      dataIndex: 'clientName',
+      width: 160,
+      ellipsis: true,
+    },
+    {
+      title: t('systemAuth.oauth.col.redirectUris'),
       dataIndex: 'redirectUris',
       ellipsis: true,
       render: (value: string[] | undefined) =>
@@ -209,7 +224,7 @@ export default function OAuthClientList() {
         ),
     },
     {
-      title: '授权类型',
+      title: t('systemAuth.oauth.col.grantTypes'),
       dataIndex: 'grantTypes',
       width: 200,
       render: (value: string[] | undefined) =>
@@ -223,42 +238,46 @@ export default function OAuthClientList() {
       render: (value: number | undefined) => (value ? `${value}s` : '-'),
     },
     {
-      title: '状态',
+      title: t('systemAuth.oauth.col.status'),
       dataIndex: 'status',
       width: 80,
       render: (value: number | undefined) =>
-        value === 0 ? <Tag color="default">停用</Tag> : <Tag color="success">启用</Tag>,
+        value === 0 ? (
+          <Tag color="default">{t('systemAuth.oauth.status.disabled')}</Tag>
+        ) : (
+          <Tag color="success">{t('systemAuth.oauth.status.enabled')}</Tag>
+        ),
     },
     {
-      title: '操作',
+      title: t('systemAuth.oauth.col.action'),
       key: 'action',
       width: 210,
       render: (_, row) => (
         <Space size={4}>
           {has('sys:oauth:client:secret') && row.status !== 0 && (
             <Popconfirm
-              title="确认轮换密钥？"
-              description="旧密钥立即失效，新密钥仅返回一次"
+              title={t('systemAuth.oauth.confirmRotate')}
+              description={t('systemAuth.oauth.rotateDescription')}
               onConfirm={() => void handleRotate(row)}
             >
               <Button type="link" size="small" loading={rotating === row.id}>
-                轮换密钥
+                {t('systemAuth.oauth.rotate')}
               </Button>
             </Popconfirm>
           )}
           {has('sys:oauth:client:edit') && row.status !== 0 && (
             <Button type="link" size="small" onClick={() => openEdit(row)}>
-              编辑
+              {t('systemAuth.oauth.edit')}
             </Button>
           )}
           {has('sys:oauth:client:delete') && row.status !== 0 && (
             <Popconfirm
-              title={`确认停用 ${row.clientId}？`}
-              description="停用后该客户端无法再走 OAuth 授权"
+              title={t('systemAuth.oauth.confirmDisable', { clientId: row.clientId })}
+              description={t('systemAuth.oauth.disableDescription')}
               onConfirm={() => void handleDisable(row)}
             >
               <Button type="link" size="small" danger>
-                停用
+                {t('systemAuth.oauth.disable')}
               </Button>
             </Popconfirm>
           )}
@@ -272,27 +291,32 @@ export default function OAuthClientList() {
       <ProTable<OAuthClientVO, ClientQuery>
         ref={tableRef}
         rowKey="id"
-        title="OAuth 客户端"
+        title={t('systemAuth.oauth.title')}
         columns={columns}
         request={pageOAuthClients}
         params={{ keyword, status }}
-        onError={(error) => showError(error, 'OAuth 客户端加载失败')}
+        onError={(error) => showError(error, t('systemAuth.oauth.loadFailed'))}
         search={
           <SearchForm
             items={[
               {
                 name: 'keyword',
-                label: '关键字',
-                element: <Input allowClear placeholder="client_id / 名称" />,
+                label: t('systemAuth.oauth.search.keyword'),
+                element: (
+                  <Input
+                    allowClear
+                    placeholder={t('systemAuth.oauth.search.keywordPlaceholder')}
+                  />
+                ),
               },
               {
                 name: 'status',
-                label: '状态',
+                label: t('systemAuth.oauth.field.status'),
                 element: (
                   <Select
                     allowClear
-                    options={STATUS_OPTIONS}
-                    placeholder="全部"
+                    options={statusOptions}
+                    placeholder={t('systemAuth.oauth.search.all')}
                     style={{ width: 120 }}
                   />
                 ),
@@ -310,14 +334,18 @@ export default function OAuthClientList() {
         }
         toolbar={
           <AuthButton perm="sys:oauth:client:add" type="primary" onClick={openCreate}>
-            注册客户端
+            {t('systemAuth.oauth.register')}
           </AuthButton>
         }
       />
 
       <FormModal<ClientFormValues>
         open={formOpen}
-        title={editing ? `编辑客户端：${editing.clientName}` : '注册客户端'}
+        title={
+          editing
+            ? t('systemAuth.oauth.editTitle', { name: editing.clientName })
+            : t('systemAuth.oauth.register')
+        }
         form={form}
         initialValues={formInitial}
         width={680}
@@ -328,23 +356,23 @@ export default function OAuthClientList() {
           <Form.Item
             name="clientId"
             label="client_id"
-            rules={[{ required: true, message: '请输入 client_id' }]}
+            rules={[{ required: true, message: t('systemAuth.oauth.field.clientIdRequired') }]}
           >
             <Input maxLength={64} disabled={Boolean(editing)} style={{ width: 200 }} />
           </Form.Item>
           <Form.Item
             name="clientName"
-            label="名称"
-            rules={[{ required: true, message: '请输入名称' }]}
+            label={t('systemAuth.oauth.field.name')}
+            rules={[{ required: true, message: t('systemAuth.oauth.field.nameRequired') }]}
           >
             <Input maxLength={64} style={{ width: 200 }} />
           </Form.Item>
         </Space>
         <Form.Item
           name="redirectUris"
-          label="回调地址"
-          extra="逐条输入后回车；精确匹配，支持 https 或自定义 scheme"
-          rules={[{ required: true, message: '至少填写一个回调地址' }]}
+          label={t('systemAuth.oauth.field.redirectUris')}
+          extra={t('systemAuth.oauth.field.redirectUrisExtra')}
+          rules={[{ required: true, message: t('systemAuth.oauth.field.redirectUrisRequired') }]}
         >
           <Select
             mode="tags"
@@ -355,12 +383,12 @@ export default function OAuthClientList() {
         </Form.Item>
         <Form.Item
           name="grantTypes"
-          label="授权类型"
-          rules={[{ required: true, message: '至少选择一种授权类型' }]}
+          label={t('systemAuth.oauth.field.grantTypes')}
+          rules={[{ required: true, message: t('systemAuth.oauth.field.grantTypesRequired') }]}
         >
           <Select mode="multiple" options={GRANT_TYPES} />
         </Form.Item>
-        <Form.Item name="scopes" label="授权范围">
+        <Form.Item name="scopes" label={t('systemAuth.oauth.field.scopes')}>
           <Select
             mode="multiple"
             allowClear
@@ -369,23 +397,35 @@ export default function OAuthClientList() {
           />
         </Form.Item>
         <Space style={{ display: 'flex' }}>
-          <Form.Item name="accessTokenTtl" label="Access TTL" extra="秒">
+          <Form.Item
+            name="accessTokenTtl"
+            label="Access TTL"
+            extra={t('systemAuth.oauth.field.seconds')}
+          >
             <InputNumber min={60} style={{ width: 140 }} />
           </Form.Item>
-          <Form.Item name="refreshTokenTtl" label="Refresh TTL" extra="秒">
+          <Form.Item
+            name="refreshTokenTtl"
+            label="Refresh TTL"
+            extra={t('systemAuth.oauth.field.seconds')}
+          >
             <InputNumber min={60} style={{ width: 140 }} />
           </Form.Item>
-          <Form.Item name="autoApprove" label="自动授权">
+          <Form.Item name="autoApprove" label={t('systemAuth.oauth.field.autoApprove')}>
             <Select
               options={[
-                { value: true, label: '是（跳过确认页）' },
-                { value: false, label: '否' },
+                { value: true, label: t('systemAuth.oauth.field.autoApproveYes') },
+                { value: false, label: t('systemAuth.oauth.field.autoApproveNo') },
               ]}
               style={{ width: 160 }}
             />
           </Form.Item>
-          <Form.Item name="status" label="状态" initialValue={1}>
-            <Select options={STATUS_OPTIONS} style={{ width: 120 }} />
+          <Form.Item
+            name="status"
+            label={t('systemAuth.oauth.field.status')}
+            initialValue={1}
+          >
+            <Select options={statusOptions} style={{ width: 120 }} />
           </Form.Item>
         </Space>
       </FormModal>

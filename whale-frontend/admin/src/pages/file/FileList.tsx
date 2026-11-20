@@ -11,6 +11,7 @@ import {
   type ProTableRef,
 } from '@bluewhale/whale-ui';
 import { deleteFile, downloadFile, pageFiles, uploadFile, type FileInfoVO } from '../../api/file';
+import { useI18n } from '../../i18n';
 
 type FileQuery = { originalName?: string };
 
@@ -30,6 +31,7 @@ function formatSize(size?: number): string {
 
 export default function FileList() {
   const { message } = App.useApp();
+  const { t } = useI18n();
   const { has } = usePermission();
   const tableRef = useRef<ProTableRef>(null);
 
@@ -44,10 +46,10 @@ export default function FileList() {
     setUploading(true);
     try {
       await uploadFile(file);
-      message.success('文件已上传');
+      message.success(t('file.msg.uploaded'));
       tableRef.current?.reload();
     } catch (error) {
-      showError(error, '上传失败');
+      showError(error, t('file.msg.uploadFailed'));
     } finally {
       setUploading(false);
     }
@@ -57,58 +59,58 @@ export default function FileList() {
     try {
       await downloadFile(row.id, row.originalName ?? row.fileName);
     } catch (error) {
-      showError(error, '下载失败');
+      showError(error, t('file.msg.downloadFailed'));
     }
   };
 
   const handleDelete = async (row: FileInfoVO) => {
     try {
       await deleteFile(row.id);
-      message.success('文件已删除');
+      message.success(t('file.msg.deleted'));
       tableRef.current?.reload();
     } catch (error) {
-      showError(error, '删除失败');
+      showError(error, t('file.msg.deleteFailed'));
     }
   };
 
   const columns: TableProps<FileInfoVO>['columns'] = [
     { title: 'ID', dataIndex: 'id', width: 80 },
     {
-      title: '原始文件名',
+      title: t('file.col.originalName'),
       dataIndex: 'originalName',
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '存储名',
+      title: t('file.col.storedName'),
       dataIndex: 'fileName',
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '桶',
+      title: t('file.col.bucket'),
       dataIndex: 'bucket',
       width: 120,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '大小',
+      title: t('file.col.size'),
       dataIndex: 'fileSize',
       width: 110,
       render: (value: number | undefined) => formatSize(value),
     },
     {
-      title: '类型',
+      title: t('file.col.type'),
       dataIndex: 'contentType',
       width: 180,
       render: (value: string | undefined) => (value ? <Tag>{value}</Tag> : '-'),
     },
     {
-      title: '上传时间',
+      title: t('file.col.uploadTime'),
       dataIndex: 'createTime',
       width: 180,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '操作',
+      title: t('file.col.action'),
       key: 'action',
       width: 160,
       render: (_, row) => (
@@ -119,12 +121,15 @@ export default function FileList() {
             size="small"
             onClick={() => void handleDownload(row)}
           >
-            下载
+            {t('file.action.download')}
           </AuthButton>
           {has('sys:file:delete') && (
-            <Popconfirm title="确认删除该文件？" onConfirm={() => void handleDelete(row)}>
+            <Popconfirm
+              title={t('file.confirm.delete')}
+              onConfirm={() => void handleDelete(row)}
+            >
               <Button type="link" size="small" danger>
-                删除
+                {t('file.action.delete')}
               </Button>
             </Popconfirm>
           )}
@@ -137,18 +142,18 @@ export default function FileList() {
     <ProTable<FileInfoVO, FileQuery>
       ref={tableRef}
       rowKey="id"
-      title="文件列表"
+      title={t('file.list.title')}
       columns={columns}
       request={pageFiles}
       params={{ originalName }}
-      onError={(error) => showError(error, '文件列表加载失败')}
+      onError={(error) => showError(error, t('file.msg.listLoadFailed'))}
       search={
         <SearchForm
           items={[
             {
               name: 'originalName',
-              label: '文件名',
-              element: <Input allowClear placeholder="原始文件名" />,
+              label: t('file.search.label'),
+              element: <Input allowClear placeholder={t('file.search.placeholder')} />,
             },
           ]}
           onSearch={(values) => setOriginalName((values.originalName as string) || undefined)}
@@ -166,7 +171,7 @@ export default function FileList() {
             }}
           >
             <Button type="primary" loading={uploading}>
-              上传文件
+              {t('file.action.upload')}
             </Button>
           </Upload>
         )

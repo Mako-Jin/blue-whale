@@ -12,12 +12,7 @@ import {
   type AppealStatus,
   type AppealView,
 } from '../../api/music';
-
-const STATUS_OPTIONS: { value: AppealStatus; label: string }[] = [
-  { value: 'PENDING', label: '待复核' },
-  { value: 'APPROVED', label: '已通过' },
-  { value: 'REJECTED', label: '已驳回' },
-];
+import { useI18n } from '../../i18n';
 
 /** 状态标签颜色 */
 const STATUS_COLORS: Record<AppealStatus, string> = {
@@ -31,6 +26,7 @@ type ReviewAction = 'approve' | 'reject';
 
 export default function AppealAudit() {
   const { message } = App.useApp();
+  const { t } = useI18n();
   const tableRef = useRef<ProTableRef>(null);
 
   const [status, setStatus] = useState<AppealStatus | undefined>(undefined);
@@ -39,6 +35,12 @@ export default function AppealAudit() {
   const [reviewAction, setReviewAction] = useState<ReviewAction>('approve');
   const [opinion, setOpinion] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const statusOptions: { value: AppealStatus; label: string }[] = [
+    { value: 'PENDING', label: t('music.appeal.status.pending') },
+    { value: 'APPROVED', label: t('music.appeal.status.approved') },
+    { value: 'REJECTED', label: t('music.appeal.status.rejected') },
+  ];
 
   const openReview = (row: AppealView, action: ReviewAction) => {
     setReviewing(row);
@@ -59,15 +61,15 @@ export default function AppealAudit() {
     try {
       if (reviewAction === 'approve') {
         await approveAppeal(reviewing.id, opinion || undefined);
-        message.success('申诉已通过：版权恢复为有效，作品仍保持下架，请按需重新上架');
+        message.success(t('music.appeal.msg.approved'));
       } else {
         await rejectAppeal(reviewing.id, opinion || undefined);
-        message.success('申诉已驳回：作品保持版权下架');
+        message.success(t('music.appeal.msg.rejected'));
       }
       closeReview();
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '复核失败');
+      message.error(error instanceof Error ? error.message : t('music.appeal.msg.failed'));
     } finally {
       setSubmitting(false);
     }
@@ -76,49 +78,50 @@ export default function AppealAudit() {
   const columns: TableProps<AppealView>['columns'] = [
     { title: 'ID', dataIndex: 'id', width: 90 },
     {
-      title: '歌曲',
+      title: t('music.appeal.col.song'),
       dataIndex: 'songTitle',
       width: 160,
-      render: (value: string, row) => value ?? `歌曲 ${row.songId}`,
+      render: (value: string, row) =>
+        value ?? t('music.appeal.col.songFallback', { id: row.songId }),
     },
-    { title: '申诉人', dataIndex: 'applicantId', width: 100 },
+    { title: t('music.appeal.col.applicant'), dataIndex: 'applicantId', width: 100 },
     {
-      title: '申诉理由',
+      title: t('music.appeal.col.reason'),
       dataIndex: 'reason',
       render: (value: string) => (
         <Typography.Paragraph
           style={{ marginBottom: 0, maxWidth: 420 }}
-          ellipsis={{ rows: 2, expandable: true, symbol: '展开' }}
+          ellipsis={{ rows: 2, expandable: true, symbol: t('music.common.expand') }}
         >
           {value}
         </Typography.Paragraph>
       ),
     },
     {
-      title: '状态',
+      title: t('music.appeal.col.state'),
       dataIndex: 'status',
       width: 100,
       render: (value: AppealStatus) => (
         <Tag color={STATUS_COLORS[value] ?? 'default'}>
-          {STATUS_OPTIONS.find((item) => item.value === value)?.label ?? value}
+          {statusOptions.find((item) => item.value === value)?.label ?? value}
         </Tag>
       ),
     },
     {
-      title: '复核意见',
+      title: t('music.appeal.col.reviewOpinion'),
       dataIndex: 'reviewOpinion',
       width: 200,
       render: (value: string) => value ?? '-',
     },
-    { title: '申诉时间', dataIndex: 'createTime', width: 170 },
+    { title: t('music.appeal.col.createTime'), dataIndex: 'createTime', width: 170 },
     {
-      title: '复核时间',
+      title: t('music.appeal.col.reviewedAt'),
       dataIndex: 'reviewedAt',
       width: 170,
       render: (value: string) => value ?? '-',
     },
     {
-      title: '操作',
+      title: t('music.common.action'),
       key: 'actions',
       width: 160,
       render: (_value, row) =>
@@ -131,7 +134,7 @@ export default function AppealAudit() {
               size="small"
               onClick={() => openReview(row, 'approve')}
             >
-              通过
+              {t('music.appeal.action.approve')}
             </AuthButton>,
             <AuthButton
               key="reject"
@@ -141,11 +144,11 @@ export default function AppealAudit() {
               danger
               onClick={() => openReview(row, 'reject')}
             >
-              驳回
+              {t('music.appeal.action.reject')}
             </AuthButton>,
           ]
         ) : (
-          <Typography.Text type="secondary">已复核</Typography.Text>
+          <Typography.Text type="secondary">{t('music.appeal.action.reviewed')}</Typography.Text>
         ),
     },
   ];
@@ -155,30 +158,40 @@ export default function AppealAudit() {
       <ProTable<AppealView, AppealQuery>
         ref={tableRef}
         rowKey="id"
-        title="版权申诉"
+        title={t('music.appeal.title')}
         columns={columns}
         request={pageAppeals}
         params={{ status, songId }}
-        onError={(error) => message.error(error instanceof Error ? error.message : '申诉加载失败')}
+        onError={(error) =>
+          message.error(
+            error instanceof Error ? error.message : t('music.appeal.msg.listLoadFailed'),
+          )
+        }
         search={
           <SearchForm
             items={[
               {
                 name: 'status',
-                label: '状态',
+                label: t('music.appeal.search.state'),
                 element: (
                   <Select
                     allowClear
-                    placeholder="全部状态"
+                    placeholder={t('music.appeal.search.allStates')}
                     style={{ minWidth: 140 }}
-                    options={STATUS_OPTIONS}
+                    options={statusOptions}
                   />
                 ),
               },
               {
                 name: 'songId',
-                label: '歌曲 ID',
-                element: <Input allowClear placeholder="歌曲 ID" style={{ minWidth: 140 }} />,
+                label: t('music.appeal.search.songId'),
+                element: (
+                  <Input
+                    allowClear
+                    placeholder={t('music.appeal.search.songIdPlaceholder')}
+                    style={{ minWidth: 140 }}
+                  />
+                ),
               },
             ]}
             onSearch={(values) => {
@@ -194,25 +207,33 @@ export default function AppealAudit() {
       />
       <Modal
         open={!!reviewing}
-        title={reviewAction === 'approve' ? '通过申诉' : '驳回申诉'}
-        okText={reviewAction === 'approve' ? '通过' : '驳回'}
+        title={
+          reviewAction === 'approve'
+            ? t('music.appeal.modal.approveTitle')
+            : t('music.appeal.modal.rejectTitle')
+        }
+        okText={
+          reviewAction === 'approve'
+            ? t('music.appeal.modal.approveOk')
+            : t('music.appeal.modal.rejectOk')
+        }
         okButtonProps={{ danger: reviewAction === 'reject', loading: submitting }}
-        cancelText="取消"
+        cancelText={t('music.common.cancel')}
         onOk={submitReview}
         onCancel={closeReview}
         destroyOnHidden
       >
         <Typography.Paragraph type="secondary">
           {reviewAction === 'approve'
-            ? '通过后：作品版权恢复为「有效」，但发布状态保持「已下架」且不可播放，需运营重新上架才会复播。'
-            : '驳回后：作品保持「版权下架」与「已下架」状态，申诉记录标记为已驳回。'}
+            ? t('music.appeal.modal.approveDesc')
+            : t('music.appeal.modal.rejectDesc')}
         </Typography.Paragraph>
         <Input.TextArea
           rows={3}
           maxLength={500}
           showCount
           value={opinion}
-          placeholder="复核意见（可选，最多 500 字）"
+          placeholder={t('music.appeal.modal.opinionPlaceholder')}
           onChange={(event) => setOpinion(event.target.value)}
         />
       </Modal>

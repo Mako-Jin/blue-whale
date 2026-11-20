@@ -49,7 +49,8 @@ public class BrandAppServiceImpl implements BrandAppService {
         return brandConfigRepository.findForResolve(targetType, targetId, domain)
                 .filter(BrandConfigAggregate::isEnabled)
                 .map(BrandConfigVO::from)
-                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "未找到可用的品牌配置"));
+                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND,
+                        "auth.brand.available-not-found", "未找到可用的品牌配置"));
     }
 
     /**
@@ -81,7 +82,7 @@ public class BrandAppServiceImpl implements BrandAppService {
         Long targetId = command.targetId() == null ? 0L : command.targetId();
         String domain = normalizeDomain(command.domain());
         brandConfigRepository.findByTarget(targetType, targetId, domain).ifPresent(existing -> {
-            throw new BizException(ErrorCode.PARAM_ERROR, "该作用域与域名已存在品牌配置");
+            throw new BizException(ErrorCode.PARAM_ERROR, "auth.brand.scope-domain-exists", "该作用域与域名已存在品牌配置");
         });
         BrandConfigAggregate brand = BrandConfigAggregate.create(targetType, targetId, domain,
                 command.brandName(), command.logoUrl(), command.loginTitle(), command.institutionName(),
@@ -137,7 +138,7 @@ public class BrandAppServiceImpl implements BrandAppService {
      */
     private BrandConfigAggregate require(Long id) {
         return brandConfigRepository.findById(id)
-                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "品牌配置不存在"));
+                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "auth.brand.not-found", "品牌配置不存在"));
     }
 
     /**

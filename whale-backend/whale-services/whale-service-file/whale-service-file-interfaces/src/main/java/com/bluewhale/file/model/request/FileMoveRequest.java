@@ -13,7 +13,7 @@ import lombok.Data;
 public class FileMoveRequest {
 
     /** 目标桶名称 */
-    @NotBlank(message = "目标桶名称不能为空")
-    @Size(max = 64, message = "桶名称长度不能超过 64")
+    @NotBlank(message = "{validation.file.move.bucket-required}")
+    @Size(max = 64, message = "{validation.file.move.bucket-size}")
     private String bucket;
 }

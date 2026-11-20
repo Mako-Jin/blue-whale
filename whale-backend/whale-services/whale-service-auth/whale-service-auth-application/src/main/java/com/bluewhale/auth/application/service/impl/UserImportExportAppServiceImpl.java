@@ -111,7 +111,8 @@ public class UserImportExportAppServiceImpl implements UserImportExportAppServic
         Long tenantId = TenantContext.requireId();
         ImportBatchStore.StoredBatch batch = importBatchStore.load(batchId, tenantId);
         if (batch == null || batch.rows().isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "导入预检不存在或已过期，请重新上传预检");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.import.precheck-expired",
+                    "导入预检不存在或已过期，请重新上传预检");
         }
         importBatchStore.delete(batchId);
         List<UserImportRow> rows = batch.rows();
@@ -182,7 +183,7 @@ public class UserImportExportAppServiceImpl implements UserImportExportAppServic
     public ExportResult export(String keyword) {
         long total = userRepository.page(1, 1, keyword).total();
         if (total == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "没有可导出的用户数据");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.import.no-export-data", "没有可导出的用户数据");
         }
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         long written = spreadsheetWriter.writeUsers(output, (pageIndex, pageSize) -> {

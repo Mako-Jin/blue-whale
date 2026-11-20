@@ -150,7 +150,7 @@ public class SessionAppServiceImpl implements SessionAppService {
         String refreshToken = command.refreshToken();
         TokenPayload payload = tokenIssuer.parse(refreshToken);
         if (payload == null || !TokenPayload.TYPE_REFRESH.equals(payload.tokenType())) {
-            throw new BizException(401, INVALID_REFRESH_TOKEN_MESSAGE);
+            throw new BizException(401, "auth.session.refresh-invalid", INVALID_REFRESH_TOKEN_MESSAGE);
         }
         String familyId = resolveRotatingFamilyId(payload);
         Long tenantId = resolveTokenTenantId(payload);
@@ -160,7 +160,7 @@ public class SessionAppServiceImpl implements SessionAppService {
         tenantMembershipAppService.requireEnabledMembership(userId, tenantId);
         if (tokenBlacklist.contains(refreshToken)) {
             log.debug("refreshToken 命中登出黑名单，拒绝换发新令牌: username={}", payload.subject());
-            throw new BizException(401, REVOKED_REFRESH_TOKEN_MESSAGE);
+            throw new BizException(401, "auth.session.refresh-revoked", REVOKED_REFRESH_TOKEN_MESSAGE);
         }
         AuthenticatedUser user = loadEnabledUser(userId, tenantId);
         requireRefreshNotRevoked(userId, tenantId, payload);
@@ -198,9 +198,9 @@ public class SessionAppServiceImpl implements SessionAppService {
         Long targetTenantId = command.targetTenantId();
         tenantMembershipAppService.requireSwitchable(current.userId(), targetTenantId);
         AuthenticatedUser switched = userSessionQuery.loadUserById(current.userId(), targetTenantId)
-            .orElseThrow(() -> new BizException(401, "账号不存在或已停用"));
+            .orElseThrow(() -> new BizException(401, "auth.session.account-missing-or-disabled", "账号不存在或已停用"));
         if (!switched.enabled()) {
-            throw new BizException(401, "账号已停用");
+            throw new BizException(401, "auth.session.account-disabled", "账号已停用");
         }
         invalidateSwitchTokens(command.authorization(), command.currentRefreshToken());
         log.info("用户切换租户: userId={}, fromTenantId={}, toTenantId={}",
@@ -283,12 +283,12 @@ public class SessionAppServiceImpl implements SessionAppService {
         }
         if (!StringUtils.hasText(familyId)) {
             log.warn("refreshToken 缺少 familyId（旧令牌），拒绝换发: username={}", payload.subject());
-            throw new BizException(401, INVALID_REFRESH_TOKEN_MESSAGE);
+            throw new BizException(401, "auth.session.refresh-invalid", INVALID_REFRESH_TOKEN_MESSAGE);
         }
         if (refreshRotationStore.isFamilyRevoked(familyId)) {
             log.warn("refreshToken 所属 family 已吊销，拒绝换发: familyId={}, username={}",
                 familyId, payload.subject());
-            throw new BizException(401, REVOKED_REFRESH_TOKEN_MESSAGE);
+            throw new BizException(401, "auth.session.refresh-revoked", REVOKED_REFRESH_TOKEN_MESSAGE);
         }
         return familyId;
     }
@@ -302,7 +302,7 @@ public class SessionAppServiceImpl implements SessionAppService {
      */
     private static Long resolveTokenTenantId(TokenPayload payload) {
         if (payload.tenantId() == null) {
-            throw new BizException(401, INVALID_REFRESH_TOKEN_MESSAGE);
+            throw new BizException(401, "auth.session.refresh-invalid", INVALID_REFRESH_TOKEN_MESSAGE);
         }
         return payload.tenantId();
     }
@@ -316,7 +316,7 @@ public class SessionAppServiceImpl implements SessionAppService {
      */
     private static Long resolveTokenUserId(TokenPayload payload) {
         if (payload.userId() == null) {
-            throw new BizException(401, INVALID_REFRESH_TOKEN_MESSAGE);
+            throw new BizException(401, "auth.session.refresh-invalid", INVALID_REFRESH_TOKEN_MESSAGE);
         }
         return payload.userId();
     }
@@ -331,9 +331,9 @@ public class SessionAppServiceImpl implements SessionAppService {
      */
     private AuthenticatedUser loadEnabledUser(Long userId, Long tenantId) {
         AuthenticatedUser user = userSessionQuery.loadUserById(userId, tenantId)
-            .orElseThrow(() -> new BizException(401, INVALID_REFRESH_TOKEN_MESSAGE));
+            .orElseThrow(() -> new BizException(401, "auth.session.refresh-invalid", INVALID_REFRESH_TOKEN_MESSAGE));
         if (!user.enabled()) {
-            throw new BizException(401, "账号已停用");
+            throw new BizException(401, "auth.session.account-disabled", "账号已停用");
         }
         return user;
     }
@@ -355,7 +355,7 @@ public class SessionAppServiceImpl implements SessionAppService {
         }
         log.warn("refreshToken 在用户级撤销前签发，拒绝换发新令牌: userId={}, tenantId={}",
             userId, tenantId);
-        throw new BizException(401, REVOKED_REFRESH_TOKEN_MESSAGE);
+        throw new BizException(401, "auth.session.refresh-revoked", REVOKED_REFRESH_TOKEN_MESSAGE);
     }
 
     /**
@@ -410,7 +410,7 @@ public class SessionAppServiceImpl implements SessionAppService {
                 familyId, payload.subject());
             securityAlarmPort.alarm(SCENE_REFRESH_REUSE,
                 "refreshToken 复用检测命中，已吊销该 family 全部 refreshToken", null);
-            throw new BizException(401, REUSE_REFRESH_TOKEN_MESSAGE);
+            throw new BizException(401, "auth.session.refresh-reuse", REUSE_REFRESH_TOKEN_MESSAGE);
         }
         tokenBlacklist.add(refreshToken);
     }

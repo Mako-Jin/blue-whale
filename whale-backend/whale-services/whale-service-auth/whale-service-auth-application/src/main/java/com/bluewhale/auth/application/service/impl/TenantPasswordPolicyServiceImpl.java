@@ -143,16 +143,18 @@ public class TenantPasswordPolicyServiceImpl implements TenantPasswordPolicyServ
      */
     private static void validate(UpdateTenantPasswordPolicyCommand command) {
         if (command.maxAgeDays() == null || command.warnDays() == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "口令有效期与提醒天数不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.tenant.password-policy-required",
+                    "口令有效期与提醒天数不能为空");
         }
         int maxAgeDays = command.maxAgeDays();
         int warnDays = command.warnDays();
         if (maxAgeDays < MIN_MAX_AGE_DAYS || maxAgeDays > MAX_MAX_AGE_DAYS) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
-                    "口令有效期必须在 " + MIN_MAX_AGE_DAYS + "–" + MAX_MAX_AGE_DAYS + " 天之间");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.tenant.password-max-age-range",
+                    "口令有效期必须在 " + MIN_MAX_AGE_DAYS + "–" + MAX_MAX_AGE_DAYS + " 天之间",
+                    MIN_MAX_AGE_DAYS, MAX_MAX_AGE_DAYS);
         }
         if (warnDays < 0 || warnDays > maxAgeDays) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.tenant.password-reminder-range",
                     "到期提醒天数必须在 0 到口令有效期之间");
         }
     }

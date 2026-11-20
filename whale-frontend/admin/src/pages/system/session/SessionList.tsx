@@ -5,25 +5,27 @@ import { App, Button, Input, Popconfirm, Select, Space, Tag, type TableProps } f
 import { useRef, useState } from 'react';
 import { ProTable, SearchForm, usePermission, type ProTableRef } from '@bluewhale/whale-ui';
 import { pageSessions, revokeSession, type SessionVO } from '../../../api/session';
+import { useI18n } from '../../../i18n';
 
 type SessionQuery = { userId?: string; onlyActive?: boolean };
 
-function renderRevoked(row: SessionVO) {
-  if (!row.revoked) {
-    return <Tag color="processing">活跃</Tag>;
-  }
-  return (
-    <Space size={4}>
-      <Tag color="default">已撤销</Tag>
-      {row.revokedReason ? <Tag color="orange">{row.revokedReason}</Tag> : null}
-    </Space>
-  );
-}
-
 export default function SessionList() {
   const { message } = App.useApp();
+  const { t } = useI18n();
   const { has } = usePermission();
   const tableRef = useRef<ProTableRef>(null);
+
+  const renderRevoked = (row: SessionVO) => {
+    if (!row.revoked) {
+      return <Tag color="processing">{t('systemOps.session.active')}</Tag>;
+    }
+    return (
+      <Space size={4}>
+        <Tag color="default">{t('systemOps.session.revoked')}</Tag>
+        {row.revokedReason ? <Tag color="orange">{row.revokedReason}</Tag> : null}
+      </Space>
+    );
+  };
 
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const [onlyActive, setOnlyActive] = useState<boolean>(false);
@@ -37,10 +39,10 @@ export default function SessionList() {
     setRevoking(row.jti);
     try {
       await revokeSession(row.jti);
-      message.success(`会话 ${row.jti} 已强制下线`);
+      message.success(t('systemOps.session.revokeSuccess', { jti: row.jti }));
       tableRef.current?.reload();
     } catch (error) {
-      showError(error, '强制下线失败');
+      showError(error, t('systemOps.session.revokeFailed'));
     } finally {
       setRevoking(null);
     }
@@ -48,28 +50,34 @@ export default function SessionList() {
 
   const columns: TableProps<SessionVO>['columns'] = [
     { title: 'JTI', dataIndex: 'jti', width: 280, ellipsis: true },
-    { title: '用户 ID', dataIndex: 'userId', width: 130 },
-    { title: '会话族', dataIndex: 'familyId', width: 160, ellipsis: true, render: (v) => v ?? '-' },
+    { title: t('systemOps.session.col.userId'), dataIndex: 'userId', width: 130 },
     {
-      title: '签发时间',
+      title: t('systemOps.session.col.family'),
+      dataIndex: 'familyId',
+      width: 160,
+      ellipsis: true,
+      render: (v) => v ?? '-',
+    },
+    {
+      title: t('systemOps.session.col.issuedAt'),
       dataIndex: 'issuedAt',
       width: 170,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '过期时间',
+      title: t('systemOps.session.col.expiresAt'),
       dataIndex: 'expiresAt',
       width: 170,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '状态',
+      title: t('systemOps.common.status'),
       key: 'status',
       width: 180,
       render: (_, row) => renderRevoked(row),
     },
     {
-      title: '操作',
+      title: t('systemOps.common.action'),
       key: 'action',
       width: 110,
       render: (_, row) =>
@@ -77,12 +85,12 @@ export default function SessionList() {
           '-'
         ) : (
           <Popconfirm
-            title="确认强制下线该会话？"
-            description="该用户的此令牌立即失效，需重新登录"
+            title={t('systemOps.session.confirm.revokeTitle')}
+            description={t('systemOps.session.confirm.revokeDesc')}
             onConfirm={() => void handleRevoke(row)}
           >
             <Button type="link" size="small" danger loading={revoking === row.jti}>
-              强制下线
+              {t('systemOps.session.action.revoke')}
             </Button>
           </Popconfirm>
         ),
@@ -93,28 +101,33 @@ export default function SessionList() {
     <ProTable<SessionVO, SessionQuery>
       ref={tableRef}
       rowKey="jti"
-      title="会话与设备"
+      title={t('systemOps.session.title')}
       columns={columns}
       request={(params) => pageSessions({ ...params, onlyActive, userId })}
       params={{ userId }}
-      onError={(error) => showError(error, '会话列表加载失败')}
+      onError={(error) => showError(error, t('systemOps.session.loadFailed'))}
       search={
         <SearchForm
           items={[
             {
               name: 'userId',
-              label: '用户 ID',
-              element: <Input style={{ width: 200 }} placeholder="留空查全部" />,
+              label: t('systemOps.session.col.userId'),
+              element: (
+                <Input
+                  style={{ width: 200 }}
+                  placeholder={t('systemOps.session.search.userPlaceholder')}
+                />
+              ),
             },
             {
               name: 'onlyActive',
-              label: '仅活跃',
+              label: t('systemOps.session.search.onlyActive'),
               element: (
                 <Select
                   style={{ width: 120 }}
                   options={[
-                    { value: true, label: '仅活跃' },
-                    { value: false, label: '全部' },
+                    { value: true, label: t('systemOps.session.search.onlyActive') },
+                    { value: false, label: t('systemOps.common.all') },
                   ]}
                 />
               ),

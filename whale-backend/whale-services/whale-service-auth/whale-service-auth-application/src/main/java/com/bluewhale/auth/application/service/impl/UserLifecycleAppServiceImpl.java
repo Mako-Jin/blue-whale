@@ -92,7 +92,8 @@ public class UserLifecycleAppServiceImpl implements UserLifecycleAppService {
     private UserLifecycleVO onboard(UserLifecycleCommand command) {
         if (command.userId() == null) {
             if (command.username() == null || command.username().isBlank()) {
-                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "入职建号必须提供登录账号");
+                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.user.onboard-account-required",
+                        "入职建号必须提供登录账号");
             }
             String temporaryPassword = temporaryPasswordGenerator.generate(passwordPolicyService.minLength());
             CreateUserCommand createCommand = new CreateUserCommand(command.username(), temporaryPassword,
@@ -144,7 +145,7 @@ public class UserLifecycleAppServiceImpl implements UserLifecycleAppService {
      */
     private UserLifecycleVO transfer(UserLifecycleCommand command) {
         if (command.deptId() == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "调岗必须提供目标部门");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.user.transfer-dept-required", "调岗必须提供目标部门");
         }
         UserAggregate user = requireUser(command.userId());
         user.changeProfile(user.getNickname(), user.getPhone(), user.getEmail(), user.getAvatar(), command.deptId());
@@ -194,10 +195,12 @@ public class UserLifecycleAppServiceImpl implements UserLifecycleAppService {
      */
     private UserAggregate requireUser(Long userId) {
         if (userId == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "生命周期动作必须提供用户ID");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.user.lifecycle-user-required",
+                    "生命周期动作必须提供用户ID");
         }
         return userRepository.findById(userId)
-                .orElseThrow(() -> new BizException(ErrorCode.PARAM_ERROR.getCode(), "用户不存在：" + userId));
+                .orElseThrow(() -> new BizException(ErrorCode.PARAM_ERROR.getCode(),
+                        "auth.user.not-found-with-id", "用户不存在：" + userId, userId));
     }
 
     /**

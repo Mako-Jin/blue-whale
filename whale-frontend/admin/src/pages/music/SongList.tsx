@@ -46,6 +46,7 @@ import {
   type TagView,
 } from '../../api/music';
 import { uploadFile } from '../../api/file';
+import { useI18n } from '../../i18n';
 
 interface SongFormValues {
   artistId: string;
@@ -59,57 +60,9 @@ interface SongFormValues {
   lyricText?: string;
 }
 
-const LANGUAGE_OPTIONS = [
-  { value: 'ZH', label: '中文' },
-  { value: 'EN', label: '英文' },
-  { value: 'JA', label: '日文' },
-  { value: 'OTHER', label: '其他' },
-];
-
-const VISIBILITY_OPTIONS = [
-  { value: 'PUBLIC', label: '公开' },
-  { value: 'PRIVATE', label: '自听' },
-];
-
-const PUBLISH_STATE_OPTIONS = [
-  { value: 'DRAFT', label: '草稿' },
-  { value: 'PUBLISHED', label: '已上架' },
-  { value: 'OFFLINE', label: '已下架' },
-];
-
-const SORT_OPTIONS = [
-  { value: 'NEW', label: '最新上架' },
-  { value: 'HOT', label: '最热' },
-];
-
-/** 发布状态标签 */
-function renderPublishState(state?: PublishState) {
-  const map: Record<PublishState, { color: string; label: string }> = {
-    DRAFT: { color: 'default', label: '草稿' },
-    PUBLISHED: { color: 'success', label: '已上架' },
-    OFFLINE: { color: 'error', label: '已下架' },
-  };
-  if (!state) {
-    return '-';
-  }
-  return <Tag color={map[state].color}>{map[state].label}</Tag>;
-}
-
-/** 版权状态标签 */
-function renderCopyrightState(state?: CopyrightState) {
-  const map: Record<CopyrightState, { color: string; label: string }> = {
-    DECLARED: { color: 'gold', label: '已声明' },
-    VALID: { color: 'success', label: '有效' },
-    TAKEDOWN: { color: 'error', label: '版权下架' },
-  };
-  if (!state) {
-    return '-';
-  }
-  return <Tag color={map[state].color}>{map[state].label}</Tag>;
-}
-
 export default function SongList() {
   const { message } = App.useApp();
+  const { t } = useI18n();
   const { has } = usePermission();
   const tableRef = useRef<ProTableRef>(null);
   const [form] = Form.useForm<SongFormValues>();
@@ -134,17 +87,74 @@ export default function SongList() {
   const [takedownTarget, setTakedownTarget] = useState<SongView | null>(null);
   const [takedownReason, setTakedownReason] = useState('');
 
+  const languageOptions = [
+    { value: 'ZH', label: t('music.song.language.zh') },
+    { value: 'EN', label: t('music.song.language.en') },
+    { value: 'JA', label: t('music.song.language.ja') },
+    { value: 'OTHER', label: t('music.song.language.other') },
+  ];
+
+  const visibilityOptions = [
+    { value: 'PUBLIC', label: t('music.song.visibility.public') },
+    { value: 'PRIVATE', label: t('music.song.visibility.private') },
+  ];
+
+  const publishStateOptions = [
+    { value: 'DRAFT', label: t('music.song.state.draft') },
+    { value: 'PUBLISHED', label: t('music.song.state.published') },
+    { value: 'OFFLINE', label: t('music.song.state.offline') },
+  ];
+
+  const sortOptions = [
+    { value: 'NEW', label: t('music.song.sort.new') },
+    { value: 'HOT', label: t('music.song.sort.hot') },
+  ];
+
+  /** 发布状态标签 */
+  const renderPublishState = (state?: PublishState) => {
+    const map: Record<PublishState, { color: string; label: string }> = {
+      DRAFT: { color: 'default', label: t('music.song.state.draft') },
+      PUBLISHED: { color: 'success', label: t('music.song.state.published') },
+      OFFLINE: { color: 'error', label: t('music.song.state.offline') },
+    };
+    if (!state) {
+      return '-';
+    }
+    return <Tag color={map[state].color}>{map[state].label}</Tag>;
+  };
+
+  /** 版权状态标签 */
+  const renderCopyrightState = (state?: CopyrightState) => {
+    const map: Record<CopyrightState, { color: string; label: string }> = {
+      DECLARED: { color: 'gold', label: t('music.song.copyright.declared') },
+      VALID: { color: 'success', label: t('music.song.copyright.valid') },
+      TAKEDOWN: { color: 'error', label: t('music.song.copyright.takedown') },
+    };
+    if (!state) {
+      return '-';
+    }
+    return <Tag color={map[state].color}>{map[state].label}</Tag>;
+  };
+
   useEffect(() => {
     pageArtists({ current: 1, size: 200 })
       .then((result) => setArtists(result.records))
-      .catch((error) => message.error(error instanceof Error ? error.message : '歌手加载失败'));
+      .catch((error) =>
+        message.error(error instanceof Error ? error.message : t('music.common.artistsLoadFailed')),
+      );
     pageAlbums({ current: 1, size: 200 })
       .then((result) => setAlbums(result.records))
-      .catch((error) => message.error(error instanceof Error ? error.message : '专辑加载失败'));
+      .catch((error) =>
+        message.error(
+          error instanceof Error ? error.message : t('music.song.msg.albumsLoadFailed'),
+        ),
+      );
     listTags()
       .then(setTags)
-      .catch((error) => message.error(error instanceof Error ? error.message : '标签加载失败'));
-  }, [message]);
+      .catch((error) =>
+        message.error(error instanceof Error ? error.message : t('music.song.msg.tagsLoadFailed')),
+      );
+  }, [message, t]);
 
   const artistName = (value?: string) => artists.find((item) => item.id === value)?.name ?? '-';
 
@@ -159,7 +169,7 @@ export default function SongList() {
   const openEdit = (row: SongView) => {
     setEditing(row);
     setAudioFileId(row.audioFileId);
-    setAudioName(row.audioFileId ? `文件 ID ${row.audioFileId}` : '');
+    setAudioName(row.audioFileId ? t('music.common.fileId', { id: row.audioFileId }) : '');
     setDurationMs(row.durationMs);
     setModalOpen(true);
   };
@@ -170,16 +180,20 @@ export default function SongList() {
       .then((uploaded) => {
         setAudioFileId(uploaded.id);
         setAudioName(uploaded.originalName ?? file.name);
-        message.success('音频已上传');
+        message.success(t('music.song.msg.audioUploaded'));
       })
-      .catch((error) => message.error(error instanceof Error ? error.message : '音频上传失败'))
+      .catch((error) =>
+        message.error(
+          error instanceof Error ? error.message : t('music.song.msg.audioUploadFailed'),
+        ),
+      )
       .finally(() => setUploadingAudio(false));
   };
 
   const handleSave = async (values: SongFormValues) => {
     if (!audioFileId) {
-      message.warning('请先上传音频文件');
-      throw new Error('缺少音频文件');
+      message.warning(t('music.song.msg.audioRequired'));
+      throw new Error(t('music.song.msg.audioMissing'));
     }
     const payload: SongSaveInput = {
       artistId: values.artistId,
@@ -198,15 +212,15 @@ export default function SongList() {
     try {
       if (editing) {
         await updateSong(editing.id, payload);
-        message.success('歌曲已更新');
+        message.success(t('music.song.msg.updated'));
       } else {
         await createSong(payload);
-        message.success('歌曲已新增（草稿），上架后用户可见');
+        message.success(t('music.song.msg.created'));
       }
       setModalOpen(false);
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '保存失败');
+      message.error(error instanceof Error ? error.message : t('music.common.saveFailed'));
       throw error;
     }
   };
@@ -214,30 +228,30 @@ export default function SongList() {
   const handlePublish = async (row: SongView) => {
     try {
       await publishSong(row.id);
-      message.success('歌曲已上架');
+      message.success(t('music.song.msg.published'));
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '上架失败');
+      message.error(error instanceof Error ? error.message : t('music.song.msg.publishFailed'));
     }
   };
 
   const handleOffline = async (row: SongView) => {
     try {
       await offlineSong(row.id);
-      message.success('歌曲已下架');
+      message.success(t('music.song.msg.offlined'));
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '下架失败');
+      message.error(error instanceof Error ? error.message : t('music.song.msg.offlineFailed'));
     }
   };
 
   const handleDelete = async (row: SongView) => {
     try {
       await deleteSong(row.id);
-      message.success('歌曲已删除');
+      message.success(t('music.song.msg.deleted'));
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '删除失败');
+      message.error(error instanceof Error ? error.message : t('music.common.deleteFailed'));
     }
   };
 
@@ -246,24 +260,24 @@ export default function SongList() {
       return;
     }
     if (!takedownReason.trim()) {
-      message.warning('请填写版权下架原因');
+      message.warning(t('music.song.msg.takedownReasonRequired'));
       return;
     }
     try {
       await takedownSong(takedownTarget.id, takedownReason.trim());
-      message.success('已完成版权下架');
+      message.success(t('music.song.msg.takedownDone'));
       setTakedownTarget(null);
       setTakedownReason('');
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '版权下架失败');
+      message.error(error instanceof Error ? error.message : t('music.song.msg.takedownFailed'));
     }
   };
 
   const columns: TableProps<SongView>['columns'] = [
     { title: 'ID', dataIndex: 'id', width: 80 },
     {
-      title: '歌曲',
+      title: t('music.song.col.song'),
       dataIndex: 'title',
       render: (value: string, row) => (
         <div className="music-song-title">
@@ -273,59 +287,69 @@ export default function SongList() {
       ),
     },
     {
-      title: '歌手',
+      title: t('music.song.col.artist'),
       dataIndex: 'artistId',
       width: 130,
       render: (value: string | undefined) => artistName(value),
     },
     {
-      title: '可见性',
+      title: t('music.song.col.visibility'),
       dataIndex: 'visibility',
       width: 90,
       render: (value: SongVisibility | undefined) =>
-        value === 'PRIVATE' ? <Tag color="orange">自听</Tag> : <Tag color="blue">公开</Tag>,
+        value === 'PRIVATE' ? (
+          <Tag color="orange">{t('music.song.visibility.private')}</Tag>
+        ) : (
+          <Tag color="blue">{t('music.song.visibility.public')}</Tag>
+        ),
     },
     {
-      title: '状态',
+      title: t('music.song.col.state'),
       dataIndex: 'publishState',
       width: 100,
       render: (value: PublishState | undefined) => renderPublishState(value),
     },
     {
-      title: '版权',
+      title: t('music.song.col.copyright'),
       dataIndex: 'copyrightState',
       width: 100,
       render: (value: CopyrightState | undefined) => renderCopyrightState(value),
     },
     {
-      title: '播放',
+      title: t('music.song.col.playCount'),
       dataIndex: 'playCount',
       width: 80,
       render: (value: number | undefined) => value ?? 0,
     },
     {
-      title: '上架时间',
+      title: t('music.song.col.publishedAt'),
       dataIndex: 'publishedAt',
       width: 180,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '操作',
+      title: t('music.common.action'),
       key: 'action',
       width: 260,
       render: (_, row) => (
         <Space size={4} wrap>
           {row.publishState !== 'PUBLISHED' && has('sys:music:song:publish') && (
-            <Popconfirm title="确认上架该歌曲？" onConfirm={() => void handlePublish(row)}>
+            <Popconfirm
+              title={t('music.song.confirm.publish')}
+              onConfirm={() => void handlePublish(row)}
+            >
               <Button type="link" size="small">
-                上架
+                {t('music.song.action.publish')}
               </Button>
             </Popconfirm>
           )}
           {row.publishState === 'PUBLISHED' && has('sys:music:song:publish') && (
-            <Popconfirm title="确认下架该歌曲？" onConfirm={() => void handleOffline(row)}>
+            <Popconfirm
+              title={t('music.song.confirm.offline')}
+              onConfirm={() => void handleOffline(row)}
+            >
               <Button type="link" size="small" danger>
-                下架
+                {t('music.song.action.offline')}
               </Button>
             </Popconfirm>
           )}
@@ -339,18 +363,21 @@ export default function SongList() {
                 setTakedownReason('');
               }}
             >
-              版权下架
+              {t('music.song.action.takedown')}
             </Button>
           )}
           {has('sys:music:song:edit') && (
             <Button type="link" size="small" onClick={() => openEdit(row)}>
-              编辑
+              {t('music.common.edit')}
             </Button>
           )}
           {has('sys:music:song:delete') && (
-            <Popconfirm title="确认删除该歌曲？" onConfirm={() => void handleDelete(row)}>
+            <Popconfirm
+              title={t('music.song.confirm.delete')}
+              onConfirm={() => void handleDelete(row)}
+            >
               <Button type="link" size="small" danger>
-                删除
+                {t('music.common.delete')}
               </Button>
             </Popconfirm>
           )}
@@ -364,30 +391,32 @@ export default function SongList() {
       <ProTable<SongView, SongQuery>
         ref={tableRef}
         rowKey="id"
-        title="曲库"
+        title={t('music.song.title')}
         columns={columns}
         request={pageSongs}
         params={{ keyword, artistId, publishState, visibility, sortBy }}
         onError={(error) =>
-          message.error(error instanceof Error ? error.message : '歌曲列表加载失败')
+          message.error(error instanceof Error ? error.message : t('music.song.msg.listLoadFailed'))
         }
         search={
           <SearchForm
             items={[
               {
                 name: 'keyword',
-                label: '关键词',
-                element: <Input allowClear placeholder="标题 / 副标题" />,
+                label: t('music.song.search.keyword'),
+                element: (
+                  <Input allowClear placeholder={t('music.song.search.keywordPlaceholder')} />
+                ),
               },
               {
                 name: 'artistId',
-                label: '歌手',
+                label: t('music.song.search.artist'),
                 element: (
                   <Select
                     allowClear
                     showSearch
                     optionFilterProp="label"
-                    placeholder="全部"
+                    placeholder={t('music.common.all')}
                     style={{ width: 160 }}
                     options={artists.map((artist) => ({ value: artist.id, label: artist.name }))}
                   />
@@ -395,34 +424,32 @@ export default function SongList() {
               },
               {
                 name: 'publishState',
-                label: '状态',
+                label: t('music.song.search.state'),
                 element: (
                   <Select
                     allowClear
-                    placeholder="全部"
+                    placeholder={t('music.common.all')}
                     style={{ width: 120 }}
-                    options={PUBLISH_STATE_OPTIONS}
+                    options={publishStateOptions}
                   />
                 ),
               },
               {
                 name: 'visibility',
-                label: '可见性',
+                label: t('music.song.search.visibility'),
                 element: (
                   <Select
                     allowClear
-                    placeholder="全部"
+                    placeholder={t('music.common.all')}
                     style={{ width: 120 }}
-                    options={VISIBILITY_OPTIONS}
+                    options={visibilityOptions}
                   />
                 ),
               },
               {
                 name: 'sortBy',
-                label: '排序',
-                element: (
-                  <Select style={{ width: 130 }} options={SORT_OPTIONS} defaultValue="NEW" />
-                ),
+                label: t('music.song.search.sort'),
+                element: <Select style={{ width: 130 }} options={sortOptions} defaultValue="NEW" />,
               },
             ]}
             onSearch={(values) => {
@@ -443,14 +470,18 @@ export default function SongList() {
         }
         toolbar={
           <AuthButton perm="sys:music:song:add" type="primary" onClick={openCreate}>
-            新增歌曲
+            {t('music.song.action.create')}
           </AuthButton>
         }
       />
 
       <FormModal<SongFormValues>
         open={modalOpen}
-        title={editing ? `编辑歌曲：${editing.title}` : '新增歌曲'}
+        title={
+          editing
+            ? t('music.song.form.editTitle', { title: editing.title })
+            : t('music.song.action.create')
+        }
         form={form}
         width={640}
         initialValues={{
@@ -467,7 +498,7 @@ export default function SongList() {
         onOk={handleSave}
         onCancel={() => setModalOpen(false)}
       >
-        <Form.Item label="音频文件（必填）" required>
+        <Form.Item label={t('music.song.form.audio')} required>
           <Space>
             <Upload
               showUploadList={false}
@@ -478,7 +509,9 @@ export default function SongList() {
               }}
             >
               <Button loading={uploadingAudio}>
-                {audioFileId ? '重新上传音频' : '选择音频文件'}
+                {audioFileId
+                  ? t('music.song.form.reuploadAudio')
+                  : t('music.song.form.selectAudio')}
               </Button>
             </Upload>
             {audioName && <span>{audioName}</span>}
@@ -486,37 +519,41 @@ export default function SongList() {
         </Form.Item>
         <Form.Item
           name="title"
-          label="歌曲标题"
-          rules={[{ required: true, message: '请输入歌曲标题' }]}
+          label={t('music.song.form.title')}
+          rules={[{ required: true, message: t('music.song.form.titleRequired') }]}
         >
           <Input maxLength={120} showCount />
         </Form.Item>
-        <Form.Item name="subtitle" label="副标题">
+        <Form.Item name="subtitle" label={t('music.song.form.subtitle')}>
           <Input maxLength={200} />
         </Form.Item>
-        <Form.Item name="artistId" label="歌手" rules={[{ required: true, message: '请选择歌手' }]}>
+        <Form.Item
+          name="artistId"
+          label={t('music.song.form.artist')}
+          rules={[{ required: true, message: t('music.song.form.artistRequired') }]}
+        >
           <Select
             showSearch
             optionFilterProp="label"
             options={artists.map((artist) => ({ value: artist.id, label: artist.name }))}
           />
         </Form.Item>
-        <Form.Item name="albumId" label="专辑">
+        <Form.Item name="albumId" label={t('music.song.form.album')}>
           <Select
             allowClear
             showSearch
             optionFilterProp="label"
-            placeholder="可选"
+            placeholder={t('music.common.optional')}
             options={albums.map((album) => ({ value: album.id, label: album.title }))}
           />
         </Form.Item>
-        <Form.Item name="language" label="语言">
-          <Select allowClear options={LANGUAGE_OPTIONS} placeholder="可选" />
+        <Form.Item name="language" label={t('music.song.form.language')}>
+          <Select allowClear options={languageOptions} placeholder={t('music.common.optional')} />
         </Form.Item>
-        <Form.Item name="visibility" label="可见性">
-          <Select options={VISIBILITY_OPTIONS} />
+        <Form.Item name="visibility" label={t('music.song.form.visibility')}>
+          <Select options={visibilityOptions} />
         </Form.Item>
-        <Form.Item name="tagIds" label="标签">
+        <Form.Item name="tagIds" label={t('music.song.form.tags')}>
           <Select
             mode="multiple"
             allowClear
@@ -524,18 +561,26 @@ export default function SongList() {
             options={tags.map((tag) => ({ value: tag.id, label: tag.name }))}
           />
         </Form.Item>
-        <Form.Item name="sortWeight" label="排序权重" extra="数值越大越靠前">
+        <Form.Item
+          name="sortWeight"
+          label={t('music.song.form.sortWeight')}
+          extra={t('music.song.form.sortWeightExtra')}
+        >
           <InputNumber min={0} style={{ width: '100%' }} />
         </Form.Item>
-        <Form.Item name="lyricText" label="歌词（纯文本）">
+        <Form.Item name="lyricText" label={t('music.song.form.lyric')}>
           <Input.TextArea rows={4} maxLength={5000} showCount />
         </Form.Item>
       </FormModal>
 
       <Modal
         open={takedownTarget !== null}
-        title={takedownTarget ? `版权下架：${takedownTarget.title}` : '版权下架'}
-        okText="确认下架"
+        title={
+          takedownTarget
+            ? t('music.song.takedown.titleWith', { title: takedownTarget.title })
+            : t('music.song.takedown.title')
+        }
+        okText={t('music.song.takedown.confirm')}
         okButtonProps={{ danger: true }}
         onOk={() => void confirmTakedown()}
         onCancel={() => {
@@ -544,14 +589,14 @@ export default function SongList() {
         }}
       >
         <Space direction="vertical" style={{ width: '100%' }}>
-          <span>版权下架将强制下线并拒绝播放，请填写原因（留痕可追溯）。</span>
+          <span>{t('music.song.takedown.description')}</span>
           <Input.TextArea
             rows={3}
             maxLength={500}
             showCount
             value={takedownReason}
             onChange={(event) => setTakedownReason(event.target.value)}
-            placeholder="如：权利人投诉 / 授权到期"
+            placeholder={t('music.song.takedown.reasonPlaceholder')}
           />
         </Space>
       </Modal>

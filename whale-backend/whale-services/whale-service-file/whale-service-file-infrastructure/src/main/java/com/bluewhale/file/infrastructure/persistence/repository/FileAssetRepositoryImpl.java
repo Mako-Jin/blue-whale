@@ -199,17 +199,19 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
      */
     private void assertWithinQuota(long incomingSize, Long uploaderId, String bucket, StorageQuota quota) {
         if (quota.userLimited() && uploaderId != null) {
-            guardQuota(sumNormalSizeByUploader(uploaderId), incomingSize, quota.userBytes(), "超出个人存储配额");
+            guardQuota(sumNormalSizeByUploader(uploaderId), incomingSize, quota.userBytes(),
+                    "file.storage.quota.user-exceeded", "超出个人存储配额");
         }
         if (TenantContext.get() == null) {
             return;
         }
         if (quota.tenantLimited()) {
-            guardQuota(sumNormalSizeByTenant(), incomingSize, quota.tenantBytes(), "超出租户存储配额");
+            guardQuota(sumNormalSizeByTenant(), incomingSize, quota.tenantBytes(),
+                    "file.storage.quota.tenant-exceeded", "超出租户存储配额");
         }
         if (quota.bucketLimited()) {
             guardQuota(sumNormalSizeByBucket(bucket), incomingSize, quota.bucketBytes(),
-                    "超出桶存储配额: " + bucket);
+                    "file.storage.quota.bucket-exceeded", "超出桶存储配额: " + bucket, bucket);
         }
     }
 
@@ -219,12 +221,15 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
      * @param usedBytes 已用字节数
      * @param incomingSize 本次写入字节数
      * @param limitBytes 该维度上限
+     * @param messageKey 超限提示文案键
      * @param message 超限提示文案
+     * @param args 文案占位参数
      * @throws BizException 超出上限时抛出 {@code PARAM_ERROR}
      */
-    private static void guardQuota(long usedBytes, long incomingSize, long limitBytes, String message) {
+    private static void guardQuota(long usedBytes, long incomingSize, long limitBytes, String messageKey,
+                                   String message, Object... args) {
         if (usedBytes + incomingSize > limitBytes) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), message);
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), messageKey, message, args);
         }
     }
 
@@ -246,10 +251,12 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
         meterRegistry.timer(QUOTA_LOCK_TIMER, "op", operation)
                 .record(System.nanoTime() - startedAt, TimeUnit.NANOSECONDS);
         if (acquired == null) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "获取文件配额锁失败，请稍后重试");
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "file.storage.quota-lock-failed",
+                    "获取文件配额锁失败，请稍后重试");
         }
         if (acquired != 1) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "获取文件配额锁超时，请稍后重试");
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "file.storage.quota-lock-timeout",
+                    "获取文件配额锁超时，请稍后重试");
         }
         boolean synchronizationActive = TransactionSynchronizationManager.isSynchronizationActive();
         boolean releaseAfterCompletion = false;

@@ -118,7 +118,7 @@ public class FileInternalController implements FileInternalApi {
      */
     private static UploadContent toUploadContent(MultipartFile file, long maxBytes) {
         if (file.getSize() > maxBytes) {
-            throw new BizException(ErrorCode.PARAM_ERROR,
+            throw new BizException(ErrorCode.PARAM_ERROR, "file.upload.simple-size-exceeded",
                     "文件大小超出普通上传上限，请使用分片上传接口");
         }
         try {

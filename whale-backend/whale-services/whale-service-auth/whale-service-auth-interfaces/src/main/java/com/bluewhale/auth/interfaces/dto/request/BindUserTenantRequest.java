@@ -12,6 +12,6 @@ import lombok.Data;
 public class BindUserTenantRequest {
 
     /** 目标租户 ID（必须存在且当前可用） */
-    @NotNull(message = "租户ID不能为空")
+    @NotNull(message = "{validation.auth.tenant.tenant-id-required}")
     private Long tenantId;
 }

@@ -20,6 +20,7 @@ import {
   type TenantMemberVO,
 } from '../../api/tenant';
 import { getCurrentUser } from '../../api/token';
+import { useI18n } from '../../i18n';
 
 interface MemberQuery {
   keyword?: string;
@@ -38,6 +39,7 @@ const ROLE_PAGE_SIZE = 200;
 export default function TenantMemberList() {
   const { message, modal } = App.useApp();
   const { has } = usePermission();
+  const { t } = useI18n();
   const tableRef = useRef<ProTableRef>(null);
   const rawTenantId = getCurrentUser()?.tenantId;
   // 雪花 ID 走 string：不做 Number() 转换，避免超过 2^53 后静默丢精度
@@ -88,7 +90,7 @@ export default function TenantMemberList() {
         const page = await pageRoles({ current: 1, size: ROLE_PAGE_SIZE });
         setRoles(page.records);
       } catch (error) {
-        showError(error, '角色列表加载失败');
+        showError(error, t('tenant.member.rolesLoadFailed'));
       }
     }
   };
@@ -99,81 +101,85 @@ export default function TenantMemberList() {
     }
     try {
       await assignTenantMemberRoles(assignRecord.userId, values.roleIds ?? []);
-      message.success('角色已更新');
+      message.success(t('tenant.member.rolesUpdated'));
       setAssignOpen(false);
       tableRef.current?.reload();
     } catch (error) {
-      showError(error, '分配角色失败');
+      showError(error, t('tenant.member.assignFailed'));
       throw error;
     }
   };
 
   const handleBind = async (values: BindValues) => {
     if (!currentTenantId) {
-      message.error('缺少租户上下文，请重新登录');
+      message.error(t('tenant.member.missingTenant'));
       return;
     }
     try {
       await bindUserTenant(values.userId, currentTenantId);
-      message.success('成员已绑定');
+      message.success(t('tenant.member.bound'));
       setBindOpen(false);
       tableRef.current?.reload();
     } catch (error) {
-      showError(error, '绑定用户失败');
+      showError(error, t('tenant.member.bindFailed'));
       throw error;
     }
   };
 
   const handleUnbind = (row: TenantMemberVO) => {
     if (!currentTenantId) {
-      message.error('缺少租户上下文，请重新登录');
+      message.error(t('tenant.member.missingTenant'));
       return;
     }
     modal.confirm({
-      title: '移除成员',
-      content: `确认将 ${row.username} 移出当前租户？该用户在本租户的角色将一并失效。`,
-      okText: '移除',
+      title: t('tenant.member.removeTitle'),
+      content: t('tenant.member.removeContent', { name: row.username }),
+      okText: t('tenant.action.remove'),
       okButtonProps: { danger: true },
       onOk: async () => {
         try {
           await unbindUserTenant(row.userId, currentTenantId);
-          message.success('成员已移除');
+          message.success(t('tenant.member.removed'));
           tableRef.current?.reload();
         } catch (error) {
-          showError(error, '移除成员失败');
+          showError(error, t('tenant.member.removeFailed'));
         }
       },
     });
   };
 
   const columns: TableProps<TenantMemberVO>['columns'] = [
-    { title: '用户ID', dataIndex: 'userId', width: 100 },
-    { title: '用户名', dataIndex: 'username', width: 160 },
+    { title: t('tenant.member.col.userId'), dataIndex: 'userId', width: 100 },
+    { title: t('tenant.member.col.username'), dataIndex: 'username', width: 160 },
     {
-      title: '昵称',
+      title: t('tenant.member.col.nickname'),
       dataIndex: 'nickname',
       width: 160,
       render: (value: string | undefined) => value || '-',
     },
     {
-      title: '手机号',
+      title: t('tenant.member.col.phone'),
       dataIndex: 'phone',
       width: 150,
       render: (value: string | undefined) => value || '-',
     },
     {
-      title: '状态',
+      title: t('tenant.col.status'),
       dataIndex: 'status',
       width: 90,
       render: (value: number | undefined) =>
-        value === 0 ? <Tag color="red">停用</Tag> : <Tag color="green">启用</Tag>,
+        value === 0 ? (
+          <Tag color="red">{t('tenant.status.disabled')}</Tag>
+        ) : (
+          <Tag color="green">{t('tenant.status.enabled')}</Tag>
+        ),
     },
     {
-      title: '本租户角色',
+      title: t('tenant.member.col.roles'),
       dataIndex: 'roles',
       render: (value: TenantMemberVO['roles']) =>
         value.length === 0 ? (
-          <span>未分配</span>
+          <span>{t('tenant.member.unassigned')}</span>
         ) : (
           <Space size={4} wrap>
             {value.map((role) => (
@@ -185,7 +191,7 @@ export default function TenantMemberList() {
         ),
     },
     {
-      title: '操作',
+      title: t('tenant.col.action'),
       key: 'action',
       width: 180,
       render: (_, row) => (
@@ -196,7 +202,7 @@ export default function TenantMemberList() {
             size="small"
             onClick={() => void openAssign(row)}
           >
-            分配角色
+            {t('tenant.member.assign')}
           </AuthButton>
           <AuthButton
             perm="sys:user:tenant"
@@ -205,7 +211,7 @@ export default function TenantMemberList() {
             danger
             onClick={() => handleUnbind(row)}
           >
-            移除
+            {t('tenant.action.remove')}
           </AuthButton>
         </Space>
       ),
@@ -217,18 +223,18 @@ export default function TenantMemberList() {
       <ProTable<TenantMemberVO, MemberQuery>
         ref={tableRef}
         rowKey="userId"
-        title="租户成员"
+        title={t('tenant.member.title')}
         columns={columns}
         request={loadMembers}
         params={{ keyword }}
-        onError={(error) => showError(error, '成员列表加载失败')}
+        onError={(error) => showError(error, t('tenant.member.loadFailed'))}
         search={
           <SearchForm
             items={[
               {
                 name: 'keyword',
-                label: '关键字',
-                element: <Input allowClear placeholder="用户名 / 昵称 / 手机号" />,
+                label: t('tenant.search.keyword'),
+                element: <Input allowClear placeholder={t('tenant.member.searchPlaceholder')} />,
               },
             ]}
             onSearch={(values) => setKeyword((values.keyword as string) || undefined)}
@@ -238,7 +244,7 @@ export default function TenantMemberList() {
         toolbar={
           has('sys:user:tenant') ? (
             <AuthButton perm="sys:user:tenant" type="primary" onClick={() => setBindOpen(true)}>
-              绑定用户
+              {t('tenant.member.bind')}
             </AuthButton>
           ) : null
         }
@@ -246,18 +252,18 @@ export default function TenantMemberList() {
 
       <FormModal<AssignValues>
         open={assignOpen}
-        title={`分配角色：${assignRecord?.username ?? ''}`}
+        title={t('tenant.member.assignTitle', { name: assignRecord?.username ?? '' })}
         form={assignForm}
         width={520}
         initialValues={{ roleIds: assignRecord?.roles.map((role) => role.id) }}
         onOk={handleAssign}
         onCancel={() => setAssignOpen(false)}
       >
-        <Form.Item name="roleIds" label="角色">
+        <Form.Item name="roleIds" label={t('tenant.member.roleLabel')}>
           <Select
             mode="multiple"
             allowClear
-            placeholder="仅可选择当前租户内的角色"
+            placeholder={t('tenant.member.rolePlaceholder')}
             options={roles.map((role) => ({
               value: role.id,
               label: `${role.roleName}（${role.roleCode}）`,
@@ -268,7 +274,7 @@ export default function TenantMemberList() {
 
       <FormModal<BindValues>
         open={bindOpen}
-        title="绑定用户到当前租户"
+        title={t('tenant.member.bindTitle')}
         form={bindForm}
         width={480}
         onOk={handleBind}
@@ -276,10 +282,10 @@ export default function TenantMemberList() {
       >
         <Form.Item
           name="userId"
-          label="用户 ID"
-          rules={[{ required: true, message: '请输入用户 ID' }]}
+          label={t('tenant.member.userIdLabel')}
+          rules={[{ required: true, message: t('tenant.member.userIdRequired') }]}
         >
-          <Input style={{ width: '100%' }} placeholder="全局用户 ID（雪花 ID，字符串）" />
+          <Input style={{ width: '100%' }} placeholder={t('tenant.member.userIdPlaceholder')} />
         </Form.Item>
       </FormModal>
     </>

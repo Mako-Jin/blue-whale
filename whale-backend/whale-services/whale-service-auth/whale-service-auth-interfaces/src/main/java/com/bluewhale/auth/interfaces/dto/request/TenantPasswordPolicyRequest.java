@@ -17,14 +17,14 @@ import lombok.Data;
 public class TenantPasswordPolicyRequest {
 
     /** 口令有效期（天） */
-    @NotNull(message = "口令有效期不能为空")
-    @Min(value = 1, message = "口令有效期最少 1 天")
-    @Max(value = 365, message = "口令有效期最多 365 天")
+    @NotNull(message = "{validation.auth.tenant.password-max-age-required}")
+    @Min(value = 1, message = "{validation.auth.tenant.password-max-age-min}")
+    @Max(value = 365, message = "{validation.auth.tenant.password-max-age-max}")
     private Integer maxAgeDays;
 
     /** 到期前提醒天数 */
-    @NotNull(message = "到期提醒天数不能为空")
-    @Min(value = 0, message = "到期提醒天数不能为负数")
-    @Max(value = 365, message = "到期提醒天数最多 365 天")
+    @NotNull(message = "{validation.auth.tenant.password-reminder-required}")
+    @Min(value = 0, message = "{validation.auth.tenant.password-reminder-min}")
+    @Max(value = 365, message = "{validation.auth.tenant.password-reminder-max}")
     private Integer warnDays;
 }

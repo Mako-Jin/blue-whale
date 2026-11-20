@@ -19,6 +19,6 @@ public class SwitchTenantRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 目标租户 ID（必须是当前用户可进入的租户） */
-    @NotNull(message = "租户ID不能为空")
+    @NotNull(message = "{validation.auth.tenant.tenant-id-required}")
     private Long tenantId;
 }

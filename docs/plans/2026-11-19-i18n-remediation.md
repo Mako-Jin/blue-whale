@@ -118,12 +118,37 @@
 - [x] 三份资源包键集一致（message 94、form 81、job 73、workflow 97）；引用键零缺失
 - [x] 四个服务 `mvn test` + `checkstyle:check` 全部通过
 
+### P2 第十一批（auth / file：业务异常 + DTO 校验文案）
+
+- [x] 复用既有 `whale-i18n-sdk`（两服务均已接入并开启 `whale.i18n`），补齐 `i18n/auth`、`i18n/file` 资源包
+- [x] auth：业务异常按 `auth.<领域>.<原因>` 键化，DTO 校验按 `validation.auth.<领域>.<字段>-<约束>` 键化
+- [x] file：业务异常按 `file.<领域>.<原因>` 键化，DTO 校验按 `validation.file.<领域>.<字段>-<约束>` 键化
+- [x] 三份资源文件键集逐服务对齐；中文兜底逐字保留，既有断言与默认中文展示不变
+- [x] 各服务 `mvn test` + `checkstyle:check` 通过（auth 已复核）
+
+### P2 第十二批（admin 前端页面国际化）
+
+- [x] 字典按业务模块拆分至 `src/i18n/messages/`，`defineMessages` 保证英文逐键覆盖，`messages/index.ts` 聚合
+- [x] 单测公共渲染补 `I18nProvider`，`setup.ts` 固定中文语言，既有中文断言不受影响
+- [x] 认证与权限：部门、菜单、权限页迁移
+- [x] 租户：租户列表 / 租户配置 / 成员列表迁移
+- [x] 系统认证侧：品牌、登录历史、OAuth 客户端、密码策略迁移
+- [x] 系统运营侧：权限策略、角色约束、会话、用户组、个人资料迁移
+- [x] 参数配置、网关访问控制迁移
+- [x] 档案、智能助手、消息中心迁移
+- [x] 定时任务全部页面与弹窗迁移
+- [x] 文件管理、支付订单、组件示例迁移
+- [x] 音乐运营全部页面迁移
+- [x] 视频运营全部页面迁移
+- [x] `pnpm --filter whale-admin` lint / test / build 通过
+- [x] 三员分立文件（`RoleList.tsx`、`UserList.tsx`、`api/role.ts`）不纳入本批
+
+
 ## 三、待做项（P2 剩余 / P3）
 
 | 级别 | 事项 | 说明 |
 | --- | --- | --- |
-| P2 | DTO 校验文案迁移 | Boot 4 已自动装配 `MessageSourceMessageInterpolator`；SDK 已接入的 18 个服务全部完成，仅剩 auth / file 需先接 SDK |
-| P2 | 前端其余页面 | admin 剩余 50+ 页面、portal 与子应用按模块分批替换硬编码文案 |
+| P2 | 前端其余应用 | admin 页面已完成（三员分立文件除外）；`platform-apps` 子应用、portal 与 `elemental` / `games` / `ops` 按模块分批 |
 | P3 | 运维服务 | audit / monitor / alert 视对外暴露程度再定 |
 
 ## 四、已修正问题项

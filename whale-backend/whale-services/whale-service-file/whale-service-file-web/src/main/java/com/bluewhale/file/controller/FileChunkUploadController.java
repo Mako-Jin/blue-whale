@@ -70,8 +70,10 @@ public class FileChunkUploadController implements FileChunkUploadApi {
     @RequirePermission("sys:file:upload")
     public Result<List<Integer>> uploadChunkPart(
             @RequestParam("file") MultipartFile file,
-            @RequestParam("uploadId") @NotBlank(message = "uploadId 不能为空") String uploadId,
-            @RequestParam("index") @Min(value = 0, message = "分片索引不能为负数") int index) {
+            @RequestParam("uploadId")
+            @NotBlank(message = "{validation.file.chunk.upload-id-required}") String uploadId,
+            @RequestParam("index")
+            @Min(value = 0, message = "{validation.file.chunk.index-min}") int index) {
         return Result.ok(fileInfoService.uploadChunkPart(uploadId, index,
                 toUploadContent(file, fileInfoService.chunkSizeBytes())));
     }
@@ -112,7 +114,7 @@ public class FileChunkUploadController implements FileChunkUploadApi {
      */
     private static UploadContent toUploadContent(MultipartFile file, long maxBytes) {
         if (file.getSize() > maxBytes) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "分片大小超出上限");
+            throw new BizException(ErrorCode.PARAM_ERROR, "file.common.chunk-size-exceeded", "分片大小超出上限");
         }
         try {
             return new UploadContent(file.getOriginalFilename(), file.getContentType(), file.getBytes());

@@ -19,16 +19,16 @@ import jakarta.validation.constraints.NotNull;
  */
 public record ConfigSetRequest(
 
-        @NotNull(message = "tenantId 不能为空")
+        @NotNull(message = "{validation.auth.config.tenant-id-required}")
         Long tenantId,
 
-        @NotNull(message = "userId 不能为空")
+        @NotNull(message = "{validation.auth.config.user-id-required}")
         Long userId,
 
-        @NotBlank(message = "configKey 不能为空")
+        @NotBlank(message = "{validation.auth.config.key-required}")
         String configKey,
 
-        @NotBlank(message = "configValue 不能为空")
+        @NotBlank(message = "{validation.auth.config.value-required}")
         String configValue,
 
         Long operatorId

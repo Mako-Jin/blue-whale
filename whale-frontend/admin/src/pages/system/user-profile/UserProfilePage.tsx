@@ -25,6 +25,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { AuthButton, usePermission } from '@bluewhale/whale-ui';
 import { ApiError } from '@bluewhale/http';
 import { pageUsers } from '../../../api/user';
+import { useI18n } from '../../../i18n';
 import {
   deleteUserProfile,
   saveUserProfile,
@@ -38,49 +39,51 @@ import {
   type UserProfileVO,
 } from '../../../api/userProfile';
 
-const GENDER_OPTIONS = [
-  { value: 'MALE', label: '男' },
-  { value: 'FEMALE', label: '女' },
-  { value: 'OTHER', label: '其他' },
+type Translate = ReturnType<typeof useI18n>['t'];
+
+const genderOptions = (t: Translate) => [
+  { value: 'MALE', label: t('systemOps.userProfile.gender.male') },
+  { value: 'FEMALE', label: t('systemOps.userProfile.gender.female') },
+  { value: 'OTHER', label: t('systemOps.common.other') },
 ];
 
-const DEGREE_OPTIONS = [
-  { value: 'DOCTOR', label: '博士' },
-  { value: 'MASTER', label: '硕士' },
-  { value: 'BACHELOR', label: '本科' },
-  { value: 'ASSOCIATE', label: '专科' },
-  { value: 'OTHER', label: '其他' },
+const degreeOptions = (t: Translate) => [
+  { value: 'DOCTOR', label: t('systemOps.userProfile.degree.doctor') },
+  { value: 'MASTER', label: t('systemOps.userProfile.degree.master') },
+  { value: 'BACHELOR', label: t('systemOps.userProfile.degree.bachelor') },
+  { value: 'ASSOCIATE', label: t('systemOps.userProfile.degree.associate') },
+  { value: 'OTHER', label: t('systemOps.common.other') },
 ];
 
-const EMPLOYMENT_TYPE_OPTIONS = [
-  { value: 'FORMAL', label: '正式' },
-  { value: 'CONTRACT', label: '合同制' },
-  { value: 'INTERN', label: '实习' },
-  { value: 'OUTSOURCING', label: '外包' },
+const employmentTypeOptions = (t: Translate) => [
+  { value: 'FORMAL', label: t('systemOps.userProfile.employmentType.formal') },
+  { value: 'CONTRACT', label: t('systemOps.userProfile.employmentType.contract') },
+  { value: 'INTERN', label: t('systemOps.userProfile.employmentType.intern') },
+  { value: 'OUTSOURCING', label: t('systemOps.userProfile.employmentType.outsourcing') },
 ];
 
-const RELATIONSHIP_OPTIONS = [
-  { value: 'PARENT', label: '父母' },
-  { value: 'SPOUSE', label: '配偶' },
-  { value: 'CHILD', label: '子女' },
-  { value: 'SIBLING', label: '兄弟姐妹' },
-  { value: 'FRIEND', label: '朋友' },
-  { value: 'OTHER', label: '其他' },
+const relationshipOptions = (t: Translate) => [
+  { value: 'PARENT', label: t('systemOps.userProfile.relationship.parent') },
+  { value: 'SPOUSE', label: t('systemOps.userProfile.relationship.spouse') },
+  { value: 'CHILD', label: t('systemOps.userProfile.relationship.child') },
+  { value: 'SIBLING', label: t('systemOps.userProfile.relationship.sibling') },
+  { value: 'FRIEND', label: t('systemOps.userProfile.relationship.friend') },
+  { value: 'OTHER', label: t('systemOps.common.other') },
 ];
 
-const CONTACT_TYPE_OPTIONS = [
-  { value: 'MOBILE', label: '手机' },
-  { value: 'EMAIL', label: '邮箱' },
-  { value: 'WECHAT', label: '微信' },
-  { value: 'DINGTALK', label: '钉钉' },
-  { value: 'OTHER', label: '其他' },
+const contactTypeOptions = (t: Translate) => [
+  { value: 'MOBILE', label: t('systemOps.userProfile.contactType.mobile') },
+  { value: 'EMAIL', label: t('systemOps.userProfile.contactType.email') },
+  { value: 'WECHAT', label: t('systemOps.userProfile.contactType.wechat') },
+  { value: 'DINGTALK', label: t('systemOps.userProfile.contactType.dingtalk') },
+  { value: 'OTHER', label: t('systemOps.common.other') },
 ];
 
-const CREDENTIAL_TYPE_OPTIONS = [
-  { value: 'ID_CARD', label: '身份证' },
-  { value: 'PASSPORT', label: '护照' },
-  { value: 'HK_MO_PASS', label: '港澳通行证' },
-  { value: 'OTHER', label: '其他' },
+const credentialTypeOptions = (t: Translate) => [
+  { value: 'ID_CARD', label: t('systemOps.userProfile.credentialType.idCard') },
+  { value: 'PASSPORT', label: t('systemOps.userProfile.credentialType.passport') },
+  { value: 'HK_MO_PASS', label: t('systemOps.userProfile.credentialType.hkMoPass') },
+  { value: 'OTHER', label: t('systemOps.common.other') },
 ];
 
 const EMPTY_PROFILE: UserProfileVO = {
@@ -95,12 +98,13 @@ const EMPTY_PROFILE: UserProfileVO = {
 };
 
 /** 既有条目敏感值留空 = 保留原值：新增行（无 id）没有可保留的原值，编辑行可以 */
-function keepHint(rowId?: string): string {
-  return rowId ? '留空保留原值' : '必填';
+function keepHint(t: Translate, rowId?: string): string {
+  return rowId ? t('systemOps.userProfile.keepHint') : t('systemOps.userProfile.required');
 }
 
 export default function UserProfilePage() {
   const { message, modal } = App.useApp();
+  const { t } = useI18n();
   const { has } = usePermission();
 
   const [userOptions, setUserOptions] = useState<{ value: string; label: string }[]>([]);
@@ -142,7 +146,7 @@ export default function UserProfilePage() {
         })),
       );
     } catch (error) {
-      showError(error, '用户搜索失败');
+      showError(error, t('systemOps.common.searchUserFailed'));
     } finally {
       setUserSearching(false);
     }
@@ -187,10 +191,10 @@ export default function UserProfilePage() {
       if (error instanceof ApiError && error.code === 404) {
         // 尚未建档：进入空白可建档状态
         applyProfile({ ...EMPTY_PROFILE, userId: targetUserId });
-        message.info('该用户尚未建档，填写后保存即可创建');
+        message.info(t('systemOps.userProfile.notCreated'));
       } else {
         setProfile(null);
-        showError(error, '档案加载失败');
+        showError(error, t('systemOps.userProfile.loadFailed'));
       }
     } finally {
       setProfileLoading(false);
@@ -214,11 +218,11 @@ export default function UserProfilePage() {
     }
     // 新增行必须给明文（带 id 的行留空=保留原值，允许空）
     if (contacts.some((row) => !row.id && !row.contactValue)) {
-      message.error('新增的联系方式需要填写具体值');
+      message.error(t('systemOps.userProfile.contactValueRequired'));
       return;
     }
     if (credentials.some((row) => !row.id && !row.credentialNo)) {
-      message.error('新增的证件需要填写证件号');
+      message.error(t('systemOps.userProfile.credentialNoRequired'));
       return;
     }
     setSaving(true);
@@ -261,11 +265,11 @@ export default function UserProfilePage() {
           sortNo: row.sortNo ?? 0,
         })),
       });
-      message.success('档案已保存');
+      message.success(t('systemOps.userProfile.saved'));
       applyProfile(saved);
     } catch (error) {
       if (error instanceof Error && error.message !== 'Validation failed') {
-        showError(error, '保存失败');
+        showError(error, t('systemOps.common.saveFailed'));
       }
       // 表单校验中断时静默返回
     } finally {
@@ -278,13 +282,13 @@ export default function UserProfilePage() {
       return;
     }
     modal.confirm({
-      title: '确认删除该用户的身份档案？',
-      content: '主表逻辑删除并清理全部子表数据，不可恢复。',
-      okText: '删除',
+      title: t('systemOps.userProfile.deleteConfirmTitle'),
+      content: t('systemOps.userProfile.deleteConfirmContent'),
+      okText: t('systemOps.common.delete'),
       okButtonProps: { danger: true },
       onOk: async () => {
         await deleteUserProfile(userId);
-        message.success('档案已删除');
+        message.success(t('systemOps.userProfile.deleted'));
         setProfile(null);
         basicForm.resetFields();
         setContacts([]);
@@ -303,11 +307,11 @@ export default function UserProfilePage() {
     try {
       const plain = await viewCredentialNo(userId, row.id);
       modal.info({
-        title: '证件号明文（已审计）',
+        title: t('systemOps.userProfile.credentialPlainTitle'),
         content: `${row.credentialType}: ${plain}`,
       });
     } catch (error) {
-      showError(error, '明文查看失败');
+      showError(error, t('systemOps.userProfile.credentialPlainFailed'));
     }
   };
 
@@ -315,13 +319,13 @@ export default function UserProfilePage() {
 
   const contactColumns: TableProps<ProfileContactItem>['columns'] = [
     {
-      title: '类型',
+      title: t('systemOps.common.type'),
       dataIndex: 'contactType',
       width: 110,
       render: (value: string, _row, index) => (
         <Select
           size="small"
-          options={CONTACT_TYPE_OPTIONS}
+          options={contactTypeOptions(t)}
           value={value}
           style={{ width: 100 }}
           onChange={(next) => mutateRow(setContacts, index, { contactType: next })}
@@ -329,15 +333,15 @@ export default function UserProfilePage() {
       ),
     },
     {
-      title: '值',
+      title: t('systemOps.userProfile.col.value'),
       dataIndex: 'contactValueMasked',
       render: (value: string | undefined, row, index) => (
         <Space size={4}>
-          {row.id ? <Tag title="系统掩码">{value || '-'}</Tag> : null}
+          {row.id ? <Tag title={t('systemOps.common.masked')}>{value || '-'}</Tag> : null}
           <Input
             size="small"
             style={{ width: 220 }}
-            placeholder={keepHint(row.id)}
+            placeholder={keepHint(t, row.id)}
             onChange={(e) =>
               mutateRow(setContacts, index, { contactValue: e.target.value || undefined })
             }
@@ -346,7 +350,7 @@ export default function UserProfilePage() {
       ),
     },
     {
-      title: '主',
+      title: t('systemOps.userProfile.col.primary'),
       dataIndex: 'primary',
       width: 60,
       align: 'center',
@@ -358,15 +362,19 @@ export default function UserProfilePage() {
       ),
     },
     {
-      title: '已验证',
+      title: t('systemOps.userProfile.col.verified'),
       dataIndex: 'verified',
       width: 80,
       align: 'center',
       render: (value: boolean) =>
-        value ? <Tag color="success">是</Tag> : <Tag color="default">否</Tag>,
+        value ? (
+          <Tag color="success">{t('systemOps.common.yes')}</Tag>
+        ) : (
+          <Tag color="default">{t('systemOps.common.no')}</Tag>
+        ),
     },
     {
-      title: '排序',
+      title: t('systemOps.common.sortNo'),
       dataIndex: 'sortNo',
       width: 80,
       render: (value: number | undefined, _row, index) => (
@@ -380,12 +388,12 @@ export default function UserProfilePage() {
       ),
     },
     {
-      title: '操作',
+      title: t('systemOps.common.action'),
       key: 'action',
       width: 70,
       render: (_, row) => (
         <Button type="link" size="small" danger onClick={() => removeRow(setContacts, row)}>
-          移除
+          {t('systemOps.common.remove')}
         </Button>
       ),
     },
@@ -393,13 +401,13 @@ export default function UserProfilePage() {
 
   const credentialColumns: TableProps<ProfileCredentialItem>['columns'] = [
     {
-      title: '类型',
+      title: t('systemOps.common.type'),
       dataIndex: 'credentialType',
       width: 120,
       render: (value: string, _row, index) => (
         <Select
           size="small"
-          options={CREDENTIAL_TYPE_OPTIONS}
+          options={credentialTypeOptions(t)}
           value={value}
           style={{ width: 110 }}
           onChange={(next) => mutateRow(setCredentials, index, { credentialType: next })}
@@ -407,15 +415,15 @@ export default function UserProfilePage() {
       ),
     },
     {
-      title: '证件号',
+      title: t('systemOps.userProfile.col.credentialNo'),
       dataIndex: 'credentialNoMasked',
       render: (value: string | undefined, row, index) => (
         <Space size={4}>
-          {row.id ? <Tag title="系统掩码">{value || '-'}</Tag> : null}
+          {row.id ? <Tag title={t('systemOps.common.masked')}>{value || '-'}</Tag> : null}
           <Input
             size="small"
             style={{ width: 200 }}
-            placeholder={keepHint(row.id)}
+            placeholder={keepHint(t, row.id)}
             onChange={(e) =>
               mutateRow(setCredentials, index, { credentialNo: e.target.value || undefined })
             }
@@ -424,7 +432,7 @@ export default function UserProfilePage() {
       ),
     },
     {
-      title: '持有人',
+      title: t('systemOps.userProfile.col.holder'),
       dataIndex: 'holderName',
       width: 110,
       render: (value: string | undefined, _row, index) => (
@@ -437,7 +445,7 @@ export default function UserProfilePage() {
       ),
     },
     {
-      title: '主',
+      title: t('systemOps.userProfile.col.primary'),
       dataIndex: 'primary',
       width: 60,
       align: 'center',
@@ -449,7 +457,7 @@ export default function UserProfilePage() {
       ),
     },
     {
-      title: '签发日期',
+      title: t('systemOps.userProfile.col.issueDate'),
       dataIndex: 'issueDate',
       width: 130,
       render: (value: string | undefined, _row, index) => (
@@ -464,7 +472,7 @@ export default function UserProfilePage() {
       ),
     },
     {
-      title: '有效期至',
+      title: t('systemOps.userProfile.col.expiryDate'),
       dataIndex: 'expiryDate',
       width: 130,
       render: (value: string | undefined, _row, index) => (
@@ -479,18 +487,18 @@ export default function UserProfilePage() {
       ),
     },
     {
-      title: '操作',
+      title: t('systemOps.common.action'),
       key: 'action',
       width: 120,
       render: (_, row) => (
         <Space size={4}>
           {has('sys:user:profile:credential-view') && row.id ? (
             <Button type="link" size="small" onClick={() => void handleViewCredentialNo(row)}>
-              明文
+              {t('systemOps.userProfile.action.plaintext')}
             </Button>
           ) : null}
           <Button type="link" size="small" danger onClick={() => removeRow(setCredentials, row)}>
-            移除
+            {t('systemOps.common.remove')}
           </Button>
         </Space>
       ),
@@ -499,7 +507,7 @@ export default function UserProfilePage() {
 
   const educationColumns: TableProps<ProfileEducationItem>['columns'] = [
     {
-      title: '学校',
+      title: t('systemOps.userProfile.col.school'),
       dataIndex: 'school',
       width: 180,
       render: (value: string, _row, index) => (
@@ -511,7 +519,7 @@ export default function UserProfilePage() {
       ),
     },
     {
-      title: '专业',
+      title: t('systemOps.userProfile.col.major'),
       dataIndex: 'major',
       width: 150,
       render: (value: string | undefined, _row, index) => (
@@ -523,14 +531,14 @@ export default function UserProfilePage() {
       ),
     },
     {
-      title: '学历',
+      title: t('systemOps.userProfile.col.degree'),
       dataIndex: 'degree',
       width: 110,
       render: (value: string | undefined, _row, index) => (
         <Select
           size="small"
           allowClear
-          options={DEGREE_OPTIONS}
+          options={degreeOptions(t)}
           value={value}
           style={{ width: 100 }}
           onChange={(next) => mutateRow(setEducations, index, { degree: next })}
@@ -538,7 +546,7 @@ export default function UserProfilePage() {
       ),
     },
     {
-      title: '入学时间',
+      title: t('systemOps.userProfile.col.startDate'),
       dataIndex: 'startDate',
       width: 130,
       render: (value: string | undefined, _row, index) => (
@@ -553,7 +561,7 @@ export default function UserProfilePage() {
       ),
     },
     {
-      title: '毕业时间',
+      title: t('systemOps.userProfile.col.endDate'),
       dataIndex: 'endDate',
       width: 130,
       render: (value: string | undefined, _row, index) => (
@@ -568,7 +576,7 @@ export default function UserProfilePage() {
       ),
     },
     {
-      title: '排序',
+      title: t('systemOps.common.sortNo'),
       dataIndex: 'sortNo',
       width: 80,
       render: (value: number | undefined, _row, index) => (
@@ -582,12 +590,12 @@ export default function UserProfilePage() {
       ),
     },
     {
-      title: '操作',
+      title: t('systemOps.common.action'),
       key: 'action',
       width: 70,
       render: (_, row) => (
         <Button type="link" size="small" danger onClick={() => removeRow(setEducations, row)}>
-          移除
+          {t('systemOps.common.remove')}
         </Button>
       ),
     },
@@ -595,7 +603,7 @@ export default function UserProfilePage() {
 
   const employmentColumns: TableProps<ProfileEmploymentItem>['columns'] = [
     {
-      title: '公司',
+      title: t('systemOps.userProfile.col.company'),
       dataIndex: 'company',
       width: 180,
       render: (value: string, _row, index) => (
@@ -607,7 +615,7 @@ export default function UserProfilePage() {
       ),
     },
     {
-      title: '部门',
+      title: t('systemOps.userProfile.col.department'),
       dataIndex: 'department',
       width: 130,
       render: (value: string | undefined, _row, index) => (
@@ -619,7 +627,7 @@ export default function UserProfilePage() {
       ),
     },
     {
-      title: '职位',
+      title: t('systemOps.userProfile.col.position'),
       dataIndex: 'position',
       width: 130,
       render: (value: string | undefined, _row, index) => (
@@ -631,14 +639,14 @@ export default function UserProfilePage() {
       ),
     },
     {
-      title: '用工性质',
+      title: t('systemOps.userProfile.col.employmentType'),
       dataIndex: 'employmentType',
       width: 110,
       render: (value: string | undefined, _row, index) => (
         <Select
           size="small"
           allowClear
-          options={EMPLOYMENT_TYPE_OPTIONS}
+          options={employmentTypeOptions(t)}
           value={value}
           style={{ width: 100 }}
           onChange={(next) => mutateRow(setEmployments, index, { employmentType: next })}
@@ -646,7 +654,7 @@ export default function UserProfilePage() {
       ),
     },
     {
-      title: '入职时间',
+      title: t('systemOps.userProfile.col.workStartDate'),
       dataIndex: 'startDate',
       width: 130,
       render: (value: string | undefined, _row, index) => (
@@ -661,7 +669,7 @@ export default function UserProfilePage() {
       ),
     },
     {
-      title: '离职时间',
+      title: t('systemOps.userProfile.col.workEndDate'),
       dataIndex: 'endDate',
       width: 130,
       render: (value: string | undefined, _row, index) => (
@@ -676,12 +684,12 @@ export default function UserProfilePage() {
       ),
     },
     {
-      title: '操作',
+      title: t('systemOps.common.action'),
       key: 'action',
       width: 70,
       render: (_, row) => (
         <Button type="link" size="small" danger onClick={() => removeRow(setEmployments, row)}>
-          移除
+          {t('systemOps.common.remove')}
         </Button>
       ),
     },
@@ -689,7 +697,7 @@ export default function UserProfilePage() {
 
   const emergencyColumns: TableProps<ProfileEmergencyContactItem>['columns'] = [
     {
-      title: '姓名',
+      title: t('systemOps.userProfile.col.name'),
       dataIndex: 'contactName',
       width: 140,
       render: (value: string, _row, index) => (
@@ -701,13 +709,13 @@ export default function UserProfilePage() {
       ),
     },
     {
-      title: '关系',
+      title: t('systemOps.userProfile.col.relationship'),
       dataIndex: 'relationship',
       width: 120,
       render: (value: string, _row, index) => (
         <Select
           size="small"
-          options={RELATIONSHIP_OPTIONS}
+          options={relationshipOptions(t)}
           value={value}
           style={{ width: 110 }}
           onChange={(next) => mutateRow(setEmergencyContacts, index, { relationship: next })}
@@ -715,15 +723,15 @@ export default function UserProfilePage() {
       ),
     },
     {
-      title: '电话',
+      title: t('systemOps.userProfile.col.phone'),
       dataIndex: 'phoneMasked',
       render: (value: string | undefined, row, index) => (
         <Space size={4}>
-          {row.id ? <Tag title="系统掩码">{value || '-'}</Tag> : null}
+          {row.id ? <Tag title={t('systemOps.common.masked')}>{value || '-'}</Tag> : null}
           <Input
             size="small"
             style={{ width: 180 }}
-            placeholder={keepHint(row.id)}
+            placeholder={keepHint(t, row.id)}
             onChange={(e) =>
               mutateRow(setEmergencyContacts, index, { phone: e.target.value || undefined })
             }
@@ -732,7 +740,7 @@ export default function UserProfilePage() {
       ),
     },
     {
-      title: '排序',
+      title: t('systemOps.common.sortNo'),
       dataIndex: 'sortNo',
       width: 80,
       render: (value: number | undefined, _row, index) => (
@@ -746,7 +754,7 @@ export default function UserProfilePage() {
       ),
     },
     {
-      title: '操作',
+      title: t('systemOps.common.action'),
       key: 'action',
       width: 70,
       render: (_, row) => (
@@ -756,7 +764,7 @@ export default function UserProfilePage() {
           danger
           onClick={() => removeRow(setEmergencyContacts, row)}
         >
-          移除
+          {t('systemOps.common.remove')}
         </Button>
       ),
     },
@@ -764,7 +772,7 @@ export default function UserProfilePage() {
 
   return (
     <Space direction="vertical" size={12} style={{ width: '100%' }}>
-      <Card title="选择用户">
+      <Card title={t('systemOps.userProfile.card.selectUser')}>
         <Space>
           <Select
             showSearch
@@ -776,45 +784,51 @@ export default function UserProfilePage() {
             style={{ width: 320 }}
             onSearch={(keyword) => void searchUsers(keyword)}
             onChange={(value) => (value ? handleUserSelect(value) : setUserId(undefined))}
-            placeholder="输入关键字搜索用户（昵称 / 用户名）"
+            placeholder={t('systemOps.userProfile.searchUserPlaceholder')}
           />
-          {profileLoading ? <span>档案加载中…</span> : null}
+          {profileLoading ? <span>{t('systemOps.userProfile.loading')}</span> : null}
         </Space>
       </Card>
 
       {profile ? (
         <>
-          <Card title="基本信息">
+          <Card title={t('systemOps.userProfile.card.basic')}>
             <Form form={basicForm} layout="inline" style={{ rowGap: 8 }}>
-              <Form.Item name="gender" label="性别">
-                <Select allowClear options={GENDER_OPTIONS} style={{ width: 100 }} />
+              <Form.Item name="gender" label={t('systemOps.userProfile.field.gender')}>
+                <Select allowClear options={genderOptions(t)} style={{ width: 100 }} />
               </Form.Item>
-              <Form.Item name="birthDate" label="出生日期">
+              <Form.Item name="birthDate" label={t('systemOps.userProfile.field.birthDate')}>
                 <DatePicker style={{ width: 140 }} />
               </Form.Item>
-              <Form.Item name="nation" label="民族">
+              <Form.Item name="nation" label={t('systemOps.userProfile.field.nation')}>
                 <Input style={{ width: 100 }} maxLength={32} />
               </Form.Item>
-              <Form.Item name="politicalStatus" label="政治面貌">
+              <Form.Item
+                name="politicalStatus"
+                label={t('systemOps.userProfile.field.politicalStatus')}
+              >
                 <Input style={{ width: 120 }} maxLength={32} />
               </Form.Item>
-              <Form.Item name="maritalStatus" label="婚姻状况">
+              <Form.Item
+                name="maritalStatus"
+                label={t('systemOps.userProfile.field.maritalStatus')}
+              >
                 <Input style={{ width: 120 }} maxLength={32} />
               </Form.Item>
-              <Form.Item name="birthPlace" label="籍贯">
+              <Form.Item name="birthPlace" label={t('systemOps.userProfile.field.birthPlace')}>
                 <Input style={{ width: 160 }} maxLength={128} />
               </Form.Item>
-              <Form.Item name="homeAddress" label="家庭住址">
+              <Form.Item name="homeAddress" label={t('systemOps.userProfile.field.homeAddress')}>
                 <Input style={{ width: 240 }} maxLength={255} />
               </Form.Item>
-              <Form.Item name="remarks" label="备注">
+              <Form.Item name="remarks" label={t('systemOps.userProfile.field.remarks')}>
                 <Input style={{ width: 240 }} maxLength={255} />
               </Form.Item>
             </Form>
           </Card>
 
           <Card
-            title="教育经历"
+            title={t('systemOps.userProfile.card.education')}
             extra={
               <Button
                 size="small"
@@ -825,7 +839,7 @@ export default function UserProfilePage() {
                   ])
                 }
               >
-                添加一行
+                {t('systemOps.common.addRow')}
               </Button>
             }
           >
@@ -835,12 +849,12 @@ export default function UserProfilePage() {
               columns={educationColumns}
               dataSource={educations}
               pagination={false}
-              locale={{ emptyText: '暂无教育经历' }}
+              locale={{ emptyText: t('systemOps.userProfile.empty.education') }}
             />
           </Card>
 
           <Card
-            title="工作经历"
+            title={t('systemOps.userProfile.card.employment')}
             extra={
               <Button
                 size="small"
@@ -851,7 +865,7 @@ export default function UserProfilePage() {
                   ])
                 }
               >
-                添加一行
+                {t('systemOps.common.addRow')}
               </Button>
             }
           >
@@ -861,12 +875,12 @@ export default function UserProfilePage() {
               columns={employmentColumns}
               dataSource={employments}
               pagination={false}
-              locale={{ emptyText: '暂无工作经历' }}
+              locale={{ emptyText: t('systemOps.userProfile.empty.employment') }}
             />
           </Card>
 
           <Card
-            title="家庭成员（紧急联系人）"
+            title={t('systemOps.userProfile.card.emergency')}
             extra={
               <Button
                 size="small"
@@ -877,7 +891,7 @@ export default function UserProfilePage() {
                   ])
                 }
               >
-                添加一行
+                {t('systemOps.common.addRow')}
               </Button>
             }
           >
@@ -885,7 +899,7 @@ export default function UserProfilePage() {
               style={{ marginBottom: 8 }}
               type="info"
               showIcon
-              message="既有联系人电话为掩码显示：新电话留空 = 保留原值；清空请整行移除"
+              message={t('systemOps.userProfile.alert.emergency')}
             />
             <Table<ProfileEmergencyContactItem>
               rowKey={(row) => row.id ?? `emg-${row.contactName}-${row.sortNo}`}
@@ -893,12 +907,12 @@ export default function UserProfilePage() {
               columns={emergencyColumns}
               dataSource={emergencyContacts}
               pagination={false}
-              locale={{ emptyText: '暂无紧急联系人' }}
+              locale={{ emptyText: t('systemOps.userProfile.empty.emergency') }}
             />
           </Card>
 
           <Card
-            title="联系方式"
+            title={t('systemOps.userProfile.card.contacts')}
             extra={
               <Button
                 size="small"
@@ -915,7 +929,7 @@ export default function UserProfilePage() {
                   ])
                 }
               >
-                添加一行
+                {t('systemOps.common.addRow')}
               </Button>
             }
           >
@@ -923,7 +937,7 @@ export default function UserProfilePage() {
               style={{ marginBottom: 8 }}
               type="info"
               showIcon
-              message="既有联系方式为掩码显示：新值留空 = 保留原值；清空请整行移除"
+              message={t('systemOps.userProfile.alert.contact')}
             />
             <Table<ProfileContactItem>
               rowKey={(row) => row.id ?? `ctt-${row.contactType}-${row.sortNo}`}
@@ -931,12 +945,12 @@ export default function UserProfilePage() {
               columns={contactColumns}
               dataSource={contacts}
               pagination={false}
-              locale={{ emptyText: '暂无联系方式' }}
+              locale={{ emptyText: t('systemOps.userProfile.empty.contact') }}
             />
           </Card>
 
           <Card
-            title="证件"
+            title={t('systemOps.userProfile.card.credentials')}
             extra={
               <Button
                 size="small"
@@ -952,7 +966,7 @@ export default function UserProfilePage() {
                   ])
                 }
               >
-                添加一行
+                {t('systemOps.common.addRow')}
               </Button>
             }
           >
@@ -960,7 +974,7 @@ export default function UserProfilePage() {
               style={{ marginBottom: 8 }}
               type="info"
               showIcon
-              message="既有证件号为掩码显示：新号码留空 = 保留原值；明文查看需专用权限并产生审计"
+              message={t('systemOps.userProfile.alert.credential')}
             />
             <Table<ProfileCredentialItem>
               rowKey={(row) => row.id ?? `crd-${row.credentialType}-${row.holderName ?? ''}`}
@@ -968,24 +982,24 @@ export default function UserProfilePage() {
               columns={credentialColumns}
               dataSource={credentials}
               pagination={false}
-              locale={{ emptyText: '暂无证件' }}
+              locale={{ emptyText: t('systemOps.userProfile.empty.credential') }}
             />
           </Card>
 
           {profile.secretQuestions?.length ? (
-            <Card title="密保问答（只读）">
+            <Card title={t('systemOps.userProfile.card.secretQuestions')}>
               <Alert
                 style={{ marginBottom: 8 }}
                 type="warning"
                 showIcon
-                message="密保答案不可读回，管理端不提供编辑；保存档案不会影响既有问答（保留原值）"
+                message={t('systemOps.userProfile.alert.secret')}
               />
               <Table
                 size="small"
                 rowKey={(row) => row.id ?? row.question}
                 columns={[
-                  { title: '问题', dataIndex: 'question' },
-                  { title: '排序', dataIndex: 'sortNo', width: 80 },
+                  { title: t('systemOps.userProfile.col.question'), dataIndex: 'question' },
+                  { title: t('systemOps.common.sortNo'), dataIndex: 'sortNo', width: 80 },
                 ]}
                 dataSource={profile.secretQuestions}
                 pagination={false}
@@ -1001,11 +1015,11 @@ export default function UserProfilePage() {
                 loading={saving}
                 onClick={() => void handleSave()}
               >
-                保存档案
+                {t('systemOps.userProfile.action.save')}
               </AuthButton>
               {has('sys:user:profile:delete') && (
                 <Button danger onClick={handleDeleteProfile}>
-                  删除档案
+                  {t('systemOps.userProfile.action.delete')}
                 </Button>
               )}
             </Space>

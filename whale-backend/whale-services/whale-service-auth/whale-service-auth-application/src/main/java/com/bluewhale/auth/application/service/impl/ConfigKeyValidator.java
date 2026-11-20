@@ -57,11 +57,11 @@ public final class ConfigKeyValidator {
      */
     public static void requireValidKey(String configKey) {
         if (configKey == null || !CONFIG_KEY_PATTERN.matcher(configKey).matches()) {
-            throw new BizException(ErrorCode.PARAM_ERROR,
-                    "配置键不合法（需形如 notify.twin.alert 的反域名小写点号键）: " + configKey);
+            throw new BizException(ErrorCode.PARAM_ERROR, "auth.config.key-invalid",
+                    "配置键不合法（需形如 notify.twin.alert 的反域名小写点号键）: " + configKey, configKey);
         }
         if (configKey.length() > 128) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "配置键超长（上限 128 字符）");
+            throw new BizException(ErrorCode.PARAM_ERROR, "auth.config.key-too-long", "配置键超长（上限 128 字符）");
         }
     }
 
@@ -75,7 +75,8 @@ public final class ConfigKeyValidator {
             return;
         }
         if (!PREFIX_PATTERN.matcher(prefix).matches()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "配置键前缀不合法: " + prefix);
+            throw new BizException(ErrorCode.PARAM_ERROR, "auth.config.prefix-invalid",
+                    "配置键前缀不合法: " + prefix, prefix);
         }
     }
 
@@ -86,16 +87,17 @@ public final class ConfigKeyValidator {
      */
     public static void requireValidValue(String configValue) {
         if (configValue == null || configValue.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "配置值不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "auth.config.value-required", "配置值不能为空");
         }
         if (configValue.length() > MAX_VALUE_LENGTH) {
-            throw new BizException(ErrorCode.PARAM_ERROR,
-                    "配置值超长（上限 " + MAX_VALUE_LENGTH + " 字符）");
+            throw new BizException(ErrorCode.PARAM_ERROR, "auth.config.value-too-long",
+                    "配置值超长（上限 " + MAX_VALUE_LENGTH + " 字符）", MAX_VALUE_LENGTH);
         }
         try {
             JSON_MAPPER.readTree(configValue);
         } catch (JacksonException e) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "配置值必须是合法 JSON: " + e.getMessage());
+            throw new BizException(ErrorCode.PARAM_ERROR, "auth.config.value-invalid-json",
+                    "配置值必须是合法 JSON: " + e.getMessage(), e.getMessage());
         }
     }
 }

@@ -13,7 +13,7 @@ import lombok.Data;
 public class FileRenameRequest {
 
     /** 新的原始文件名（不含路径） */
-    @NotBlank(message = "原始文件名不能为空")
-    @Size(max = 255, message = "原始文件名长度不能超过 255")
+    @NotBlank(message = "{validation.file.rename.name-required}")
+    @Size(max = 255, message = "{validation.file.rename.name-size}")
     private String originalName;
 }

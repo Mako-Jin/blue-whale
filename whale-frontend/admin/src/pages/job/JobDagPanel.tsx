@@ -8,10 +8,12 @@ import {
   type JobGraphValidateVO,
   type JobGraphVO,
 } from '../../api/job';
+import { useI18n } from '../../i18n';
 import { DagGraph } from './DagGraph';
 
 export function JobDagPanel() {
   const { message } = App.useApp();
+  const { t } = useI18n();
   const [jobGroup, setJobGroup] = useState('');
   const [appliedGroup, setAppliedGroup] = useState<string | undefined>(undefined);
   const [graph, setGraph] = useState<JobGraphVO>({ nodes: [], edges: [] });
@@ -30,7 +32,7 @@ export function JobDagPanel() {
       })
       .catch((error) => {
         if (!cancelled) {
-          message.error(error instanceof Error ? error.message : '拓扑图加载失败');
+          message.error(error instanceof Error ? error.message : t('job.dag.msg.loadFailed'));
         }
       })
       .finally(() => {
@@ -41,7 +43,7 @@ export function JobDagPanel() {
     return () => {
       cancelled = true;
     };
-  }, [appliedGroup, message]);
+  }, [appliedGroup, message, t]);
 
   const handleValidate = async () => {
     setValidating(true);
@@ -49,34 +51,36 @@ export function JobDagPanel() {
       const result = await validateJobGraph();
       setValidation(result);
       if (result.acyclic) {
-        message.success('依赖图无环');
+        message.success(t('job.dag.msg.acyclic'));
       } else {
-        message.warning('检测到循环依赖，已在图中标红');
+        message.warning(t('job.dag.msg.cycleDetected'));
       }
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '环检测失败');
+      message.error(error instanceof Error ? error.message : t('job.dag.msg.validateFailed'));
     } finally {
       setValidating(false);
     }
   };
 
   return (
-    <Card title="依赖拓扑">
+    <Card title={t('job.dag.title')}>
       <Space wrap style={{ marginBottom: 12 }}>
         <Input
           allowClear
-          placeholder="分组（留空为全部分组）"
+          placeholder={t('job.dag.filter.group')}
           value={jobGroup}
           onChange={(event) => setJobGroup(event.target.value)}
           onPressEnter={() => setAppliedGroup(jobGroup.trim() || undefined)}
           style={{ width: 220 }}
         />
-        <Button onClick={() => setAppliedGroup(jobGroup.trim() || undefined)}>查询</Button>
+        <Button onClick={() => setAppliedGroup(jobGroup.trim() || undefined)}>
+          {t('job.dag.action.search')}
+        </Button>
         <Button loading={validating} onClick={() => void handleValidate()}>
-          校验环
+          {t('job.dag.action.validate')}
         </Button>
         <Typography.Text type="secondary">
-          共 {graph.nodes.length} 个任务，{graph.edges.length} 条依赖
+          {t('job.dag.summary', { jobs: graph.nodes.length, edges: graph.edges.length })}
         </Typography.Text>
       </Space>
       {validation && (
@@ -84,11 +88,13 @@ export function JobDagPanel() {
           style={{ marginBottom: 12 }}
           type={validation.acyclic ? 'success' : 'error'}
           showIcon
-          message={validation.acyclic ? '依赖图无环，可安全保存依赖' : '检测到循环依赖'}
+          message={validation.acyclic ? t('job.dag.alert.acyclic') : t('job.dag.alert.cycle')}
           description={
             validation.acyclic
               ? undefined
-              : `环路：${validation.cycleJobIds.map((id) => `#${id}`).join(' → ')}`
+              : t('job.dag.alert.cyclePath', {
+                  path: validation.cycleJobIds.map((id) => `#${id}`).join(' → '),
+                })
           }
         />
       )}

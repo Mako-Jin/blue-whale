@@ -4,6 +4,7 @@
 import { Button, Empty, Space, theme } from 'antd';
 import { useId, useMemo, useState } from 'react';
 import type { JobGraphEdgeVO, JobGraphNodeVO } from '../../api/job';
+import { useI18n } from '../../i18n';
 import { layoutDag } from './dagLayout';
 
 interface DagGraphProps {
@@ -22,6 +23,7 @@ function truncate(text: string, max = 12): string {
 
 export function DagGraph({ nodes, edges, cycleJobIds = [], height = 520 }: DagGraphProps) {
   const { token } = theme.useToken();
+  const { t } = useI18n();
   const [scale, setScale] = useState(1);
   const markerId = useId().replace(/:/g, '');
   const cycleSet = useMemo(() => new Set(cycleJobIds), [cycleJobIds]);
@@ -30,7 +32,7 @@ export function DagGraph({ nodes, edges, cycleJobIds = [], height = 520 }: DagGr
   if (nodes.length === 0) {
     return (
       <div style={{ padding: 48 }}>
-        <Empty description="当前分组没有任务" />
+        <Empty description={t('job.dag.empty')} />
       </div>
     );
   }
@@ -39,13 +41,13 @@ export function DagGraph({ nodes, edges, cycleJobIds = [], height = 520 }: DagGr
     <div>
       <Space style={{ marginBottom: 8 }}>
         <Button size="small" onClick={() => setScale((value) => Math.max(0.5, value - 0.1))}>
-          缩小
+          {t('job.dag.zoomOut')}
         </Button>
         <Button size="small" onClick={() => setScale(1)}>
           {Math.round(scale * 100)}%
         </Button>
         <Button size="small" onClick={() => setScale((value) => Math.min(1.6, value + 0.1))}>
-          放大
+          {t('job.dag.zoomIn')}
         </Button>
       </Space>
       <div
@@ -62,7 +64,7 @@ export function DagGraph({ nodes, edges, cycleJobIds = [], height = 520 }: DagGr
           height={layout.height * scale}
           viewBox={`0 0 ${layout.width} ${layout.height}`}
           role="img"
-          aria-label={`依赖拓扑图，共 ${nodes.length} 个任务、${edges.length} 条依赖`}
+          aria-label={t('job.dag.aria', { jobs: nodes.length, edges: edges.length })}
         >
           <defs>
             <marker
@@ -92,16 +94,23 @@ export function DagGraph({ nodes, edges, cycleJobIds = [], height = 520 }: DagGr
             const running = node.status === 1;
             const hasFailure = (node.failCount ?? 0) > 0;
             const detail = hasFailure
-              ? `#${node.id} · 连续失败 ${node.failCount}`
-              : `#${node.id} · ${node.cronExpression ?? '无 Cron'}`;
+              ? t('job.dag.nodeFailureDetail', { id: node.id, count: node.failCount ?? 0 })
+              : t('job.dag.nodeCronDetail', {
+                  id: node.id,
+                  cron: node.cronExpression ?? t('job.dag.noCron'),
+                });
             return (
               <g key={node.id}>
                 <title>
-                  {`${node.jobName}（#${node.id}）\n分组：${node.jobGroup ?? '-'}\n执行器：${
-                    node.executorApp ?? '-'
-                  } / ${node.jobCode ?? '-'}\nCron：${node.cronExpression ?? '-'}\n状态：${
-                    running ? '运行中' : '已停止'
-                  }${hasFailure ? `\n连续失败：${node.failCount}` : ''}`}
+                  {t('job.dag.tip', {
+                    name: node.jobName,
+                    id: node.id,
+                    group: node.jobGroup ?? '-',
+                    executor: node.executorApp ?? '-',
+                    code: node.jobCode ?? '-',
+                    cron: node.cronExpression ?? '-',
+                    status: running ? t('job.dag.status.running') : t('job.dag.status.stopped'),
+                  }) + (hasFailure ? t('job.dag.tipFailure', { count: node.failCount ?? 0 }) : '')}
                 </title>
                 <rect
                   x={x}

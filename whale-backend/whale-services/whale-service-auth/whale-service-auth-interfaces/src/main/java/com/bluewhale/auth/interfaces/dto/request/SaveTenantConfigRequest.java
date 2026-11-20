@@ -12,11 +12,11 @@ import jakarta.validation.constraints.Size;
  */
 public record SaveTenantConfigRequest(
 
-        @NotBlank(message = "configKey 不能为空")
+        @NotBlank(message = "{validation.auth.config.key-required}")
         String configKey,
 
-        @NotBlank(message = "configValue 不能为空")
-        @Size(max = 8192, message = "configValue 长度不能超过 8192")
+        @NotBlank(message = "{validation.auth.config.value-required}")
+        @Size(max = 8192, message = "{validation.auth.config.value-size}")
         String configValue
 ) {
 }

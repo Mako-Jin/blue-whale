@@ -10,25 +10,34 @@ import {
   updateTenantPasswordPolicy,
   type TenantPasswordPolicyVO,
 } from '../../../api/tenant';
+import { useI18n } from '../../../i18n';
 
 interface PolicyFormValues {
   maxAgeDays: number;
   warnDays: number;
 }
 
+type Translate = ReturnType<typeof useI18n>['t'];
+
 /** 校验提醒天数不超过有效期（后端同样校验，此处提前提示） */
-function validateWarnDays(_: unknown, value: number | undefined, maxAgeDays?: number) {
+function validateWarnDays(
+  _: unknown,
+  value: number | undefined,
+  maxAgeDays: number | undefined,
+  t: Translate,
+) {
   if (value == null) {
-    return Promise.reject(new Error('请输入到期提醒天数'));
+    return Promise.reject(new Error(t('systemAuth.passwordPolicy.field.warnDaysRequired')));
   }
   if (maxAgeDays != null && value > maxAgeDays) {
-    return Promise.reject(new Error('到期提醒天数不能大于口令有效期'));
+    return Promise.reject(new Error(t('systemAuth.passwordPolicy.field.warnDaysTooLarge')));
   }
   return Promise.resolve();
 }
 
 export default function PasswordPolicy() {
   const { message } = App.useApp();
+  const { t } = useI18n();
   const { has } = usePermission();
   const canEdit = has('sys:tenant:pwdpolicy:edit');
 
@@ -49,10 +58,12 @@ export default function PasswordPolicy() {
     getTenantPasswordPolicy()
       .then(applyPolicy)
       .catch((error: unknown) => {
-        message.error(error instanceof Error ? error.message : '口令策略加载失败');
+        message.error(
+          error instanceof Error ? error.message : t('systemAuth.passwordPolicy.loadFailed'),
+        );
       })
       .finally(() => setLoading(false));
-  }, [applyPolicy, message]);
+  }, [applyPolicy, message, t]);
 
   const handleSave = async (values: PolicyFormValues) => {
     setSaving(true);
@@ -62,9 +73,11 @@ export default function PasswordPolicy() {
         warnDays: values.warnDays,
       });
       applyPolicy(updated);
-      message.success('口令策略已保存，将在该租户用户下次登录时生效');
+      message.success(t('systemAuth.passwordPolicy.saved'));
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '口令策略保存失败');
+      message.error(
+        error instanceof Error ? error.message : t('systemAuth.passwordPolicy.saveFailed'),
+      );
     } finally {
       setSaving(false);
     }
@@ -73,7 +86,7 @@ export default function PasswordPolicy() {
   if (loading) {
     return (
       <Card>
-        <Spin tip="口令策略加载中" />
+        <Spin tip={t('systemAuth.passwordPolicy.loading')} />
       </Card>
     );
   }
@@ -81,25 +94,33 @@ export default function PasswordPolicy() {
   return (
     <Space direction="vertical" size={16} style={{ display: 'flex' }}>
       <Card
-        title="口令策略"
-        extra={policy?.customized ? <Tag color="blue">已自定义</Tag> : <Tag>沿用全局默认</Tag>}
+        title={t('systemAuth.passwordPolicy.title')}
+        extra={
+          policy?.customized ? (
+            <Tag color="blue">{t('systemAuth.passwordPolicy.customized')}</Tag>
+          ) : (
+            <Tag>{t('systemAuth.passwordPolicy.defaultInherited')}</Tag>
+          )
+        }
       >
         <Alert
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
-          message="口令到期后将强制用户在登录后修改口令；管理员重置口令时系统生成一次性临时口令，仅在重置结果中展示一次。"
+          message={t('systemAuth.passwordPolicy.notice')}
         />
         <Descriptions column={2} size="small" style={{ marginBottom: 16 }}>
-          <Descriptions.Item label="生效口令有效期">
-            {policy?.maxAgeDays ?? '-'} 天
+          <Descriptions.Item label={t('systemAuth.passwordPolicy.effectiveMaxAge')}>
+            {policy?.maxAgeDays ?? '-'} {t('systemAuth.passwordPolicy.days')}
           </Descriptions.Item>
-          <Descriptions.Item label="生效到期提醒">{policy?.warnDays ?? '-'} 天</Descriptions.Item>
-          <Descriptions.Item label="全局默认有效期">
-            {policy?.defaultMaxAgeDays ?? '-'} 天
+          <Descriptions.Item label={t('systemAuth.passwordPolicy.effectiveWarnDays')}>
+            {policy?.warnDays ?? '-'} {t('systemAuth.passwordPolicy.days')}
           </Descriptions.Item>
-          <Descriptions.Item label="全局默认提醒">
-            {policy?.defaultWarnDays ?? '-'} 天
+          <Descriptions.Item label={t('systemAuth.passwordPolicy.defaultMaxAge')}>
+            {policy?.defaultMaxAgeDays ?? '-'} {t('systemAuth.passwordPolicy.days')}
+          </Descriptions.Item>
+          <Descriptions.Item label={t('systemAuth.passwordPolicy.defaultWarnDays')}>
+            {policy?.defaultWarnDays ?? '-'} {t('systemAuth.passwordPolicy.days')}
           </Descriptions.Item>
         </Descriptions>
         <Form<PolicyFormValues>
@@ -111,22 +132,32 @@ export default function PasswordPolicy() {
         >
           <Form.Item
             name="maxAgeDays"
-            label="口令有效期（天）"
-            extra="取值范围 1–365 天，到期后强制修改"
-            rules={[{ required: true, message: '请输入口令有效期' }]}
+            label={t('systemAuth.passwordPolicy.field.maxAgeDays')}
+            extra={t('systemAuth.passwordPolicy.field.maxAgeDaysExtra')}
+            rules={[
+              {
+                required: true,
+                message: t('systemAuth.passwordPolicy.field.maxAgeDaysRequired'),
+              },
+            ]}
           >
             <InputNumber min={1} max={365} precision={0} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item
             name="warnDays"
-            label="到期前提醒天数"
-            extra="0 表示不提前提醒；到期提醒不影响口令正常使用"
+            label={t('systemAuth.passwordPolicy.field.warnDays')}
+            extra={t('systemAuth.passwordPolicy.field.warnDaysExtra')}
             dependencies={['maxAgeDays']}
             rules={[
-              { required: true, message: '请输入到期提醒天数' },
+              { required: true, message: t('systemAuth.passwordPolicy.field.warnDaysRequired') },
               ({ getFieldValue }) => ({
                 validator: (_rule, value: number | undefined) =>
-                  validateWarnDays(_rule, value, getFieldValue('maxAgeDays') as number | undefined),
+                  validateWarnDays(
+                    _rule,
+                    value,
+                    getFieldValue('maxAgeDays') as number | undefined,
+                    t,
+                  ),
               }),
             ]}
           >
@@ -135,11 +166,15 @@ export default function PasswordPolicy() {
           {canEdit ? (
             <Form.Item>
               <Button type="primary" htmlType="submit" loading={saving}>
-                保存策略
+                {t('systemAuth.passwordPolicy.save')}
               </Button>
             </Form.Item>
           ) : (
-            <Alert type="warning" showIcon message="当前账号没有租户口令策略的编辑权限。" />
+            <Alert
+              type="warning"
+              showIcon
+              message={t('systemAuth.passwordPolicy.noPermission')}
+            />
           )}
         </Form>
       </Card>

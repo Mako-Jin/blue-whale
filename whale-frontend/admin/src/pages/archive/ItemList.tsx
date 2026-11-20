@@ -49,16 +49,17 @@ import {
   type ArchivePreviewKind,
   type ArchiveStatsVO,
 } from '../../api/archive';
+import { useI18n } from '../../i18n';
 import {
-  FILE_ROLE_LABELS,
   ITEM_STATUS_COLORS,
-  ITEM_STATUS_OPTIONS,
   SECURITY_COLORS,
-  SECURITY_OPTIONS,
+  fileRoleLabel,
   flattenCategories,
   formatDateTime,
   itemStatusLabel,
+  itemStatusOptions,
   securityLabel,
+  securityOptions,
   type CategoryOption,
 } from './helpers';
 
@@ -106,6 +107,7 @@ export default function ArchiveItemList({
 }) {
   const { message } = App.useApp();
   const { has } = usePermission();
+  const { t } = useI18n();
   const tableRef = useRef<ProTableRef>(null);
   const [form] = Form.useForm<ItemEditValues>();
   const [query, setQuery] = useState<ItemQuery>(
@@ -136,10 +138,10 @@ export default function ArchiveItemList({
       try {
         setStats(await archiveStats());
       } catch (error) {
-        message.error(error instanceof Error ? error.message : '统计加载失败');
+        message.error(error instanceof Error ? error.message : t('archive.item.msg.statsFailed'));
       }
     },
-    [message],
+    [message, t],
   );
 
   useEffect(() => {
@@ -147,9 +149,11 @@ export default function ArchiveItemList({
     categoryTree()
       .then(setCategories)
       .catch((error: unknown) => {
-        message.error(error instanceof Error ? error.message : '门类加载失败');
+        message.error(
+          error instanceof Error ? error.message : t('archive.common.categoryLoadFailed'),
+        );
       });
-  }, [loadStats, message]);
+  }, [loadStats, message, t]);
 
   const categoryOptions = useMemo<CategoryOption[]>(
     () => flattenCategories(categories),
@@ -167,7 +171,7 @@ export default function ArchiveItemList({
     try {
       setDetail(await itemDetail(row.id));
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '详情加载失败');
+      message.error(error instanceof Error ? error.message : t('archive.item.msg.detailFailed'));
       setDrawerOpen(false);
     } finally {
       setDetailLoading(false);
@@ -202,11 +206,11 @@ export default function ArchiveItemList({
     setSaving(true);
     try {
       await editItem(editing.id, payload);
-      message.success('条目已整理');
+      message.success(t('archive.item.msg.edited'));
       setEditing(null);
       refresh();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '整理失败');
+      message.error(error instanceof Error ? error.message : t('archive.item.msg.editFailed'));
     } finally {
       setSaving(false);
     }
@@ -215,20 +219,22 @@ export default function ArchiveItemList({
   const handleConfirm = async (row: ArchiveItemVO) => {
     try {
       const result = await confirmItem(row.id);
-      message.success(`已归档，档号 ${result.archiveNo ?? '-'}`);
+      message.success(
+        t('archive.item.msg.confirmed', { archiveNo: result.archiveNo ?? '-' }),
+      );
       refresh();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '确认归档失败');
+      message.error(error instanceof Error ? error.message : t('archive.item.msg.confirmFailed'));
     }
   };
 
   const handleDestroy = async (row: ArchiveItemVO) => {
     try {
       await destroyItem(row.id);
-      message.success('条目已销毁登记');
+      message.success(t('archive.item.msg.destroyed'));
       refresh();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '销毁失败');
+      message.error(error instanceof Error ? error.message : t('archive.item.msg.destroyFailed'));
     }
   };
 
@@ -239,7 +245,7 @@ export default function ArchiveItemList({
     try {
       await downloadItemFile(detail.item.id, file);
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '下载失败');
+      message.error(error instanceof Error ? error.message : t('archive.item.msg.downloadFailed'));
     }
   };
 
@@ -249,19 +255,23 @@ export default function ArchiveItemList({
     }
     const kind = previewKindOf(file);
     if (!kind) {
-      message.warning('该文件类型不支持在线预览，请下载后查看');
+      message.warning(t('archive.item.msg.previewUnsupported'));
       return;
     }
     if ((kind === 'video' || kind === 'audio') && (file.fileSize ?? 0) > PREVIEW_SIZE_LIMIT) {
-      message.warning('文件超过 200MB，建议下载后播放');
+      message.warning(t('archive.item.msg.previewTooLarge'));
       return;
     }
-    const hide = message.loading('预览加载中...', 0);
+    const hide = message.loading(t('archive.item.msg.previewLoading'), 0);
     try {
       const url = await fetchItemPreviewUrl(detail.item.id, file);
-      setPreview({ kind, fileName: file.originalName ?? '档案文件', url });
+      setPreview({
+        kind,
+        fileName: file.originalName ?? t('archive.item.msg.defaultFileName'),
+        url,
+      });
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '预览失败');
+      message.error(error instanceof Error ? error.message : t('archive.item.msg.previewFailed'));
     } finally {
       hide();
     }
@@ -269,49 +279,49 @@ export default function ArchiveItemList({
 
   const columns: TableProps<ArchiveItemVO>['columns'] = [
     {
-      title: '档号',
+      title: t('archive.item.col.archiveNo'),
       dataIndex: 'archiveNo',
       width: 190,
-      render: (value?: string) => value ?? '（待分配）',
+      render: (value?: string) => value ?? t('archive.item.pendingNo'),
     },
-    { title: '标题', dataIndex: 'title', ellipsis: true },
+    { title: t('archive.item.col.title'), dataIndex: 'title', ellipsis: true },
     {
-      title: '门类',
+      title: t('archive.common.category'),
       dataIndex: 'categoryName',
       width: 140,
       render: (value?: string) => value ?? '-',
     },
-    { title: '年度', dataIndex: 'year', width: 80 },
+    { title: t('archive.common.year'), dataIndex: 'year', width: 80 },
     {
-      title: '密级',
+      title: t('archive.common.securityLevel'),
       dataIndex: 'securityLevel',
       width: 90,
       render: (value?: number) => (
-        <Tag color={SECURITY_COLORS[value ?? 2]}>{securityLabel(value)}</Tag>
+        <Tag color={SECURITY_COLORS[value ?? 2]}>{securityLabel(value, t)}</Tag>
       ),
     },
     {
-      title: '状态',
+      title: t('archive.common.status'),
       dataIndex: 'itemStatus',
       width: 100,
       render: (value?: number) => (
-        <Tag color={ITEM_STATUS_COLORS[value ?? 0]}>{itemStatusLabel(value)}</Tag>
+        <Tag color={ITEM_STATUS_COLORS[value ?? 0]}>{itemStatusLabel(value, t)}</Tag>
       ),
     },
     {
-      title: '办结时间',
+      title: t('archive.item.col.finishedAt'),
       dataIndex: 'finishedAt',
       width: 180,
       render: (value?: string) => formatDateTime(value),
     },
     {
-      title: '操作',
+      title: t('archive.common.action'),
       key: 'action',
       width: 250,
       render: (_, row) => (
         <Space size={4}>
           <Button type="link" size="small" onClick={() => void openDetail(row)}>
-            详情
+            {t('archive.item.action.detail')}
           </Button>
           {row.itemStatus === 0 && (
             <>
@@ -321,7 +331,7 @@ export default function ArchiveItemList({
                 size="small"
                 onClick={() => openEdit(row)}
               >
-                整理
+                {t('archive.item.action.edit')}
               </AuthButton>
               <AuthButton
                 perm="sys:archive:item:archive"
@@ -329,17 +339,17 @@ export default function ArchiveItemList({
                 size="small"
                 onClick={() => void handleConfirm(row)}
               >
-                确认归档
+                {t('archive.item.action.confirm')}
               </AuthButton>
             </>
           )}
           {row.itemStatus === 1 && has('sys:archive:item:destroy') && (
             <Popconfirm
-              title="确认销毁登记？操作不可撤销"
+              title={t('archive.item.confirm.destroy')}
               onConfirm={() => void handleDestroy(row)}
             >
               <Button type="link" size="small" danger>
-                销毁
+                {t('archive.item.action.destroy')}
               </Button>
             </Popconfirm>
           )}
@@ -350,20 +360,20 @@ export default function ArchiveItemList({
 
   const fileColumns: TableProps<ArchiveFileVO>['columns'] = [
     {
-      title: '角色',
+      title: t('archive.item.col.fileRole'),
       dataIndex: 'fileRole',
       width: 90,
-      render: (value?: string) => FILE_ROLE_LABELS[value ?? ''] ?? value ?? '-',
+      render: (value?: string) => fileRoleLabel(value, t),
     },
-    { title: '文件名', dataIndex: 'originalName', ellipsis: true },
+    { title: t('archive.item.col.fileName'), dataIndex: 'originalName', ellipsis: true },
     {
-      title: '大小',
+      title: t('archive.item.col.fileSize'),
       dataIndex: 'fileSize',
       width: 110,
       render: (value?: number) => formatSize(value),
     },
     {
-      title: '操作',
+      title: t('archive.common.action'),
       key: 'action',
       width: 150,
       render: (_, file) => (
@@ -375,7 +385,7 @@ export default function ArchiveItemList({
               size="small"
               onClick={() => void handlePreview(file)}
             >
-              预览
+              {t('archive.item.action.preview')}
             </AuthButton>
           )}
           <AuthButton
@@ -384,7 +394,7 @@ export default function ArchiveItemList({
             size="small"
             onClick={() => void handleDownload(file)}
           >
-            下载
+            {t('archive.item.action.download')}
           </AuthButton>
         </Space>
       ),
@@ -396,67 +406,83 @@ export default function ArchiveItemList({
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={6}>
           <Card size="small">
-            <Statistic title="条目总数" value={stats?.total ?? 0} />
+            <Statistic title={t('archive.item.stats.total')} value={stats?.total ?? 0} />
           </Card>
         </Col>
         <Col span={6}>
           <Card size="small">
-            <Statistic title="待整理" value={stats?.pending ?? 0} />
+            <Statistic title={t('archive.itemStatus.pending')} value={stats?.pending ?? 0} />
           </Card>
         </Col>
         <Col span={6}>
           <Card size="small">
-            <Statistic title="已归档" value={stats?.archived ?? 0} />
+            <Statistic title={t('archive.itemStatus.archived')} value={stats?.archived ?? 0} />
           </Card>
         </Col>
         <Col span={6}>
           <Card size="small">
-            <Statistic title="已销毁" value={stats?.destroyed ?? 0} />
+            <Statistic title={t('archive.itemStatus.destroyed')} value={stats?.destroyed ?? 0} />
           </Card>
         </Col>
       </Row>
       <ProTable<ArchiveItemVO, ItemQuery>
         ref={tableRef}
         rowKey="id"
-        title="档案检索"
+        title={t('archive.item.title')}
         columns={columns}
         request={pageItems}
         params={{ ...query }}
-        onError={(error) => message.error(error instanceof Error ? error.message : '档案加载失败')}
+        onError={(error) =>
+          message.error(error instanceof Error ? error.message : t('archive.item.msg.loadFailed'))
+        }
         search={
           <SearchForm
             items={[
               {
                 name: 'keyword',
-                label: '关键词',
-                element: <Input allowClear placeholder="档号/标题/摘要/关键词" />,
+                label: t('archive.item.search.keyword'),
+                element: (
+                  <Input allowClear placeholder={t('archive.item.search.keywordPlaceholder')} />
+                ),
               },
               {
                 name: 'categoryId',
-                label: '门类',
+                label: t('archive.common.category'),
                 element: (
                   <Select
                     allowClear
                     showSearch
                     optionFilterProp="label"
-                    placeholder="全部门类"
+                    placeholder={t('archive.item.search.allCategories')}
                     options={categoryOptions}
                   />
                 ),
               },
               {
                 name: 'itemStatus',
-                label: '状态',
-                element: <Select allowClear placeholder="全部" options={ITEM_STATUS_OPTIONS} />,
+                label: t('archive.common.status'),
+                element: (
+                  <Select
+                    allowClear
+                    placeholder={t('archive.common.all')}
+                    options={itemStatusOptions(t)}
+                  />
+                ),
               },
               {
                 name: 'securityLevel',
-                label: '密级',
-                element: <Select allowClear placeholder="全部" options={SECURITY_OPTIONS} />,
+                label: t('archive.common.securityLevel'),
+                element: (
+                  <Select
+                    allowClear
+                    placeholder={t('archive.common.all')}
+                    options={securityOptions(t)}
+                  />
+                ),
               },
               {
                 name: 'year',
-                label: '年度',
+                label: t('archive.common.year'),
                 element: <InputNumber min={1900} max={9999} style={{ width: '100%' }} />,
               },
             ]}
@@ -472,10 +498,10 @@ export default function ArchiveItemList({
             onReset={() => setQuery({})}
           />
         }
-        toolbar={<Button onClick={refresh}>刷新</Button>}
+        toolbar={<Button onClick={refresh}>{t('archive.common.refresh')}</Button>}
       />
       <Drawer
-        title="档案详情"
+        title={t('archive.item.detail.title')}
         width={720}
         open={drawerOpen}
         loading={detailLoading}
@@ -484,53 +510,63 @@ export default function ArchiveItemList({
         {detail && (
           <>
             <Descriptions column={2} size="small" bordered>
-              <Descriptions.Item label="档号">
-                {detail.item.archiveNo ?? '（待分配）'}
+              <Descriptions.Item label={t('archive.item.col.archiveNo')}>
+                {detail.item.archiveNo ?? t('archive.item.pendingNo')}
               </Descriptions.Item>
-              <Descriptions.Item label="标题">{detail.item.title ?? '-'}</Descriptions.Item>
-              <Descriptions.Item label="门类">{detail.item.categoryName ?? '-'}</Descriptions.Item>
-              <Descriptions.Item label="门类路径">
+              <Descriptions.Item label={t('archive.item.col.title')}>
+                {detail.item.title ?? '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label={t('archive.common.category')}>
+                {detail.item.categoryName ?? '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label={t('archive.item.detail.categoryPath')}>
                 {detail.item.categoryPath ?? '-'}
               </Descriptions.Item>
-              <Descriptions.Item label="年度">{detail.item.year ?? '-'}</Descriptions.Item>
-              <Descriptions.Item label="密级">
-                {securityLabel(detail.item.securityLevel)}
+              <Descriptions.Item label={t('archive.common.year')}>
+                {detail.item.year ?? '-'}
               </Descriptions.Item>
-              <Descriptions.Item label="保管期限">
-                {detail.item.retentionYears ? `${detail.item.retentionYears} 年` : '长期'}
+              <Descriptions.Item label={t('archive.common.securityLevel')}>
+                {securityLabel(detail.item.securityLevel, t)}
               </Descriptions.Item>
-              <Descriptions.Item label="到期时间">
+              <Descriptions.Item label={t('archive.common.retention')}>
+                {detail.item.retentionYears
+                  ? t('archive.common.years', { years: detail.item.retentionYears })
+                  : t('archive.common.longTerm')}
+              </Descriptions.Item>
+              <Descriptions.Item label={t('archive.item.detail.expireAt')}>
                 {formatDateTime(detail.item.expireAt)}
               </Descriptions.Item>
-              <Descriptions.Item label="来源定义">
+              <Descriptions.Item label={t('archive.item.detail.definitionCode')}>
                 {detail.item.definitionCode ?? '-'}
               </Descriptions.Item>
-              <Descriptions.Item label="业务单号">
+              <Descriptions.Item label={t('archive.item.detail.businessKey')}>
                 {detail.item.businessKey ?? '-'}
               </Descriptions.Item>
-              <Descriptions.Item label="发起人">{detail.item.initiator ?? '-'}</Descriptions.Item>
-              <Descriptions.Item label="来源状态">
+              <Descriptions.Item label={t('archive.item.detail.initiator')}>
+                {detail.item.initiator ?? '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label={t('archive.item.detail.sourceStatus')}>
                 {detail.sourceStatus === undefined || detail.sourceStatus === null
-                  ? '不可达'
+                  ? t('archive.item.detail.unreachable')
                   : detail.sourceStatus}
               </Descriptions.Item>
-              <Descriptions.Item label="办结时间">
+              <Descriptions.Item label={t('archive.item.col.finishedAt')}>
                 {formatDateTime(detail.item.finishedAt)}
               </Descriptions.Item>
-              <Descriptions.Item label="归档时间">
+              <Descriptions.Item label={t('archive.item.detail.archivedAt')}>
                 {formatDateTime(detail.item.archivedAt)}
               </Descriptions.Item>
-              <Descriptions.Item label="快照摘要" span={2}>
+              <Descriptions.Item label={t('archive.item.detail.snapshotHash')} span={2}>
                 {detail.item.snapshotHash ?? '-'}
               </Descriptions.Item>
-              <Descriptions.Item label="摘要" span={2}>
+              <Descriptions.Item label={t('archive.item.summary')} span={2}>
                 {detail.item.summary ?? '-'}
               </Descriptions.Item>
-              <Descriptions.Item label="关键词" span={2}>
+              <Descriptions.Item label={t('archive.item.keyword')} span={2}>
                 {detail.item.keywords ?? '-'}
               </Descriptions.Item>
             </Descriptions>
-            <Card size="small" title="文件清单" style={{ marginTop: 16 }}>
+            <Card size="small" title={t('archive.item.detail.files')} style={{ marginTop: 16 }}>
               <Table<ArchiveFileVO>
                 rowKey="id"
                 size="small"
@@ -543,7 +579,7 @@ export default function ArchiveItemList({
         )}
       </Drawer>
       <Modal
-        title="整理档案条目"
+        title={t('archive.item.edit.title')}
         open={Boolean(editing)}
         confirmLoading={saving}
         onOk={() => void handleSave()}
@@ -553,30 +589,30 @@ export default function ArchiveItemList({
         <Form form={form} layout="vertical" preserve={false}>
           <Form.Item
             name="categoryId"
-            label="归档门类"
-            rules={[{ required: true, message: '请选择门类' }]}
+            label={t('archive.item.form.categoryId')}
+            rules={[{ required: true, message: t('archive.item.form.categoryRequired') }]}
           >
             <Select options={categoryOptions} showSearch optionFilterProp="label" />
           </Form.Item>
-          <Form.Item name="title" label="档案标题">
+          <Form.Item name="title" label={t('archive.item.form.title')}>
             <Input />
           </Form.Item>
-          <Form.Item name="securityLevel" label="密级">
-            <Select options={SECURITY_OPTIONS} />
+          <Form.Item name="securityLevel" label={t('archive.common.securityLevel')}>
+            <Select options={securityOptions(t)} />
           </Form.Item>
-          <Form.Item name="retentionYears" label="保管期限（年，留空表示长期）">
+          <Form.Item name="retentionYears" label={t('archive.common.retentionYears')}>
             <InputNumber min={1} max={100} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="summary" label="摘要">
+          <Form.Item name="summary" label={t('archive.item.summary')}>
             <Input.TextArea rows={3} maxLength={2000} showCount />
           </Form.Item>
-          <Form.Item name="keywords" label="关键词（逗号分隔）">
+          <Form.Item name="keywords" label={t('archive.item.form.keywords')}>
             <Input maxLength={512} />
           </Form.Item>
         </Form>
       </Modal>
       <Modal
-        title={`预览：${preview?.fileName ?? ''}`}
+        title={t('archive.item.preview.title', { fileName: preview?.fileName ?? '' })}
         open={Boolean(preview)}
         footer={null}
         width={preview?.kind === 'video' ? 880 : 720}

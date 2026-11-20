@@ -119,7 +119,8 @@ public interface StoragePlugin {
      * @throws BizException 当前插件不支持移动时抛出 {@code PARAM_ERROR}
      */
     default void move(String bucket, String objectKey, String targetBucket) {
-        throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "当前存储插件不支持文件移动: " + getType());
+        throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "file.storage.move-unsupported",
+                "当前存储插件不支持文件移动: " + getType(), getType());
     }
 
     /**
@@ -141,7 +142,8 @@ public interface StoragePlugin {
      * @throws BizException 当前插件不支持列举时抛出 {@code PARAM_ERROR}
      */
     default List<StorageObject> listObjects() {
-        throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "当前存储插件不支持对象列举: " + getType());
+        throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "file.storage.list-unsupported",
+                "当前存储插件不支持对象列举: " + getType(), getType());
     }
 
     /**

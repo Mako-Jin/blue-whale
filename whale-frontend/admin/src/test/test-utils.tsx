@@ -1,8 +1,9 @@
-// 页面级单测公共工具：antd App 上下文 + 权限上下文注入 + 分页结果构造
+// 页面级单测公共工具：antd App 上下文 + 权限上下文注入 + i18n + 分页结果构造
 import { App } from 'antd';
 import { render, type RenderOptions } from '@testing-library/react';
 import { PermissionProvider } from '@bluewhale/whale-ui';
 import type { ReactElement } from 'react';
+import { I18nProvider } from '../i18n';
 
 /** 与 @bluewhale/http PageResult 字段一致（后端 Long→String 序列化，测试内联，避免牵出真实 HTTP 客户端） */
 interface PageResult<T> {
@@ -12,12 +13,14 @@ interface PageResult<T> {
   current: string;
 }
 
-/** 渲染页面组件：包 App（message 上下文）+ PermissionProvider（按钮级权限） */
+/** 渲染页面组件：包 i18n + App（message 上下文）+ PermissionProvider（按钮级权限） */
 export function renderPage(ui: ReactElement, permissions: string[] = [], options?: RenderOptions) {
   return render(
-    <App>
-      <PermissionProvider permissions={permissions}>{ui}</PermissionProvider>
-    </App>,
+    <I18nProvider>
+      <App>
+        <PermissionProvider permissions={permissions}>{ui}</PermissionProvider>
+      </App>
+    </I18nProvider>,
     options,
   );
 }

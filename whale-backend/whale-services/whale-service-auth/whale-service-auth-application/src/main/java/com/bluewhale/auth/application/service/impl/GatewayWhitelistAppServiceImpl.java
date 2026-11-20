@@ -68,7 +68,7 @@ public class GatewayWhitelistAppServiceImpl implements GatewayWhitelistAppServic
                 command.remark());
         if (gatewayWhitelistRepository.existsRule(rule.getPathPattern(), rule.getHttpMethod(), rule.getScope(),
                 rule.getTenantId(), null)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "该路径与方法已存在白名单条目");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.gateway.whitelist-exists", "该路径与方法已存在白名单条目");
         }
         gatewayWhitelistRepository.save(rule);
     }
@@ -90,7 +90,7 @@ public class GatewayWhitelistAppServiceImpl implements GatewayWhitelistAppServic
                 command.status(), command.sortNo(), command.remark());
         if (gatewayWhitelistRepository.existsRule(updated.getPathPattern(), updated.getHttpMethod(),
                 updated.getScope(), updated.getTenantId(), id)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "该路径与方法已存在白名单条目");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.gateway.whitelist-exists", "该路径与方法已存在白名单条目");
         }
         gatewayWhitelistRepository.save(updated);
     }

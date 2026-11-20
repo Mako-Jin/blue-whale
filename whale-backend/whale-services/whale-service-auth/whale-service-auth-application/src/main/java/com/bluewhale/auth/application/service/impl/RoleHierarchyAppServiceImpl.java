@@ -49,7 +49,7 @@ public class RoleHierarchyAppServiceImpl implements RoleHierarchyAppService {
         RoleAggregate role = require(roleId);
         RoleAggregate parent = require(parentRoleId);
         if (!role.getTenantId().equals(parent.getTenantId())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "父角色必须同租户");
+            throw new BizException(ErrorCode.PARAM_ERROR, "auth.role.parent-tenant-mismatch", "父角色必须同租户");
         }
         ensureNoCycle(role, parentRoleId);
         role.attachParent(parent);
@@ -119,7 +119,7 @@ public class RoleHierarchyAppServiceImpl implements RoleHierarchyAppService {
         Long cursor = parentRoleId;
         for (int depth = 0; cursor != null && cursor != 0L && depth < MAX_PARENT_CHAIN_DEPTH; depth++) {
             if (cursor.equals(role.getId())) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "角色继承链不得成环：目标父链包含自身");
+                throw new BizException(ErrorCode.PARAM_ERROR, "auth.role.hierarchy-cycle", "角色继承链不得成环：目标父链包含自身");
             }
             if (!visited.add(cursor)) {
                 log.warn("角色父链存在既有环，终止上溯: roleId={}, cursor={}", role.getId(), cursor);
@@ -137,7 +137,7 @@ public class RoleHierarchyAppServiceImpl implements RoleHierarchyAppService {
      */
     private RoleAggregate require(Long roleId) {
         return roleRepository.findById(roleId)
-                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "角色不存在"));
+                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "auth.role.not-found", "角色不存在"));
     }
 
     /**

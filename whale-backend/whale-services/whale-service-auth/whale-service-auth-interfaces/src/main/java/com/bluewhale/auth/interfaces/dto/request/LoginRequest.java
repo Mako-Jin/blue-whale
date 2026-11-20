@@ -14,10 +14,10 @@ public class LoginRequest {
     /** 租户编码（可空；为空时使用默认租户 default，兼容存量单租户客户端） */
     private String tenantCode;
 
-    @NotBlank(message = "用户名不能为空")
+    @NotBlank(message = "{validation.auth.user.username-required}")
     private String username;
 
-    @NotBlank(message = "密码不能为空")
+    @NotBlank(message = "{validation.auth.user.password-required}")
     private String password;
 
     /** 验证码（预留） */

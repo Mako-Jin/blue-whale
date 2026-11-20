@@ -50,7 +50,8 @@ public class TenantAppServiceImpl implements TenantAppService {
     public Long resolveEnabledTenantId(String tenantCode) {
         String code = StringUtils.hasText(tenantCode) ? tenantCode.trim() : DEFAULT_TENANT_CODE;
         TenantAggregate tenant = tenantRepository.findByCode(code)
-                .orElseThrow(() -> new BizException(ErrorCode.UNAUTHORIZED.getCode(), "租户不存在或已停用"));
+                .orElseThrow(() -> new BizException(ErrorCode.UNAUTHORIZED.getCode(),
+                        "auth.tenant.missing-or-disabled", "租户不存在或已停用"));
         return requireAvailable(tenant);
     }
 
@@ -61,7 +62,7 @@ public class TenantAppServiceImpl implements TenantAppService {
      */
     public void ensureEnabled(Long tenantId) {
         TenantAggregate tenant = tenantRepository.findById(tenantId)
-                .orElseThrow(() -> new BizException(401, "租户不存在或已停用"));
+                .orElseThrow(() -> new BizException(401, "auth.tenant.missing-or-disabled", "租户不存在或已停用"));
         requireAvailable(tenant);
     }
 
@@ -143,11 +144,13 @@ public class TenantAppServiceImpl implements TenantAppService {
         requirePlatformTenant();
         Integer status = command.status();
         if (status == null || (status != TenantAggregate.STATUS_ENABLED && status != TenantAggregate.STATUS_DISABLED)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "状态值非法，仅支持 1（启用）/ 0（停用）");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.common.status-invalid",
+                    "状态值非法，仅支持 1（启用）/ 0（停用）");
         }
         TenantAggregate tenant = requireTenant(id);
         if (tenant.isPlatform() && status == TenantAggregate.STATUS_DISABLED) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "平台租户不允许停用");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.tenant.platform-disable-forbidden",
+                    "平台租户不允许停用");
         }
         if (status == TenantAggregate.STATUS_ENABLED) {
             tenant.enable();
@@ -186,9 +189,10 @@ public class TenantAppServiceImpl implements TenantAppService {
     public TenantAggregate requirePlatformTenant() {
         Long tenantId = TenantContext.requireId();
         TenantAggregate tenant = tenantRepository.findById(tenantId)
-                .orElseThrow(() -> new BizException(ErrorCode.UNAUTHORIZED.getCode(), "租户不存在"));
+                .orElseThrow(() -> new BizException(ErrorCode.UNAUTHORIZED.getCode(),
+                        "auth.tenant.not-found", "租户不存在"));
         if (!tenant.isPlatform()) {
-            throw new BizException(403, "仅平台租户可管理租户");
+            throw new BizException(403, "auth.tenant.platform-only", "仅平台租户可管理租户");
         }
         return tenant;
     }
@@ -201,7 +205,7 @@ public class TenantAppServiceImpl implements TenantAppService {
      */
     private Long requireAvailable(TenantAggregate tenant) {
         if (!tenant.isAvailableAt(TenantExpiryClock.now())) {
-            throw new BizException(ErrorCode.UNAUTHORIZED.getCode(), "租户已停用或已过期");
+            throw new BizException(ErrorCode.UNAUTHORIZED.getCode(), "auth.tenant.disabled-or-expired", "租户已停用或已过期");
         }
         return tenant.getId();
     }
@@ -214,6 +218,6 @@ public class TenantAppServiceImpl implements TenantAppService {
      */
     private TenantAggregate requireTenant(Long id) {
         return tenantRepository.findById(id)
-                .orElseThrow(() -> new BizException(404, "租户不存在"));
+                .orElseThrow(() -> new BizException(404, "auth.tenant.not-found", "租户不存在"));
     }
 }

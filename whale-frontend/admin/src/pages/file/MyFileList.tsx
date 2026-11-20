@@ -20,6 +20,7 @@ import {
   type FileInfoVO,
   type FileQuotaVO,
 } from '../../api/file';
+import { useI18n } from '../../i18n';
 
 type MyFileQuery = { originalName?: string };
 
@@ -44,18 +45,9 @@ function formatSize(size?: string | number): string {
   return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
 }
 
-function quotaText(quota: FileQuotaVO | undefined): string {
-  if (!quota) {
-    return '配额加载中…';
-  }
-  if (quota.unlimited) {
-    return `已用 ${formatSize(quota.usedBytes)} / 不限量`;
-  }
-  return `已用 ${formatSize(quota.usedBytes)} / ${formatSize(quota.quotaBytes)}，剩余 ${formatSize(quota.remainingBytes)}`;
-}
-
 export default function MyFileList() {
   const { message } = App.useApp();
+  const { t } = useI18n();
   const { has } = usePermission();
   const tableRef = useRef<ProTableRef>(null);
 
@@ -67,10 +59,24 @@ export default function MyFileList() {
     message.error(error instanceof Error ? error.message : fallback);
   };
 
+  const quotaText = (value: FileQuotaVO | undefined): string => {
+    if (!value) {
+      return t('file.quota.loading');
+    }
+    if (value.unlimited) {
+      return t('file.quota.unlimited', { used: formatSize(value.usedBytes) });
+    }
+    return t('file.quota.used', {
+      used: formatSize(value.usedBytes),
+      quota: formatSize(value.quotaBytes),
+      remaining: formatSize(value.remainingBytes),
+    });
+  };
+
   const reloadQuota = () => {
     getFileQuota()
       .then(setQuota)
-      .catch((error) => showError(error, '配额加载失败'));
+      .catch((error) => showError(error, t('file.quota.loadFailed')));
   };
 
   useEffect(() => {
@@ -82,11 +88,11 @@ export default function MyFileList() {
     setUploading(true);
     try {
       await uploadFile(file);
-      message.success('文件已上传');
+      message.success(t('file.msg.uploaded'));
       reloadQuota();
       tableRef.current?.reload();
     } catch (error) {
-      showError(error, '上传失败');
+      showError(error, t('file.msg.uploadFailed'));
     } finally {
       setUploading(false);
     }
@@ -96,47 +102,47 @@ export default function MyFileList() {
     try {
       await downloadFile(row.id, row.originalName ?? row.fileName);
     } catch (error) {
-      showError(error, '下载失败');
+      showError(error, t('file.msg.downloadFailed'));
     }
   };
 
   const handleDelete = async (row: FileInfoVO) => {
     try {
       await deleteFile(row.id);
-      message.success('文件已删除');
+      message.success(t('file.msg.deleted'));
       reloadQuota();
       tableRef.current?.reload();
     } catch (error) {
-      showError(error, '删除失败');
+      showError(error, t('file.msg.deleteFailed'));
     }
   };
 
   const columns: TableProps<FileInfoVO>['columns'] = [
     {
-      title: '原始文件名',
+      title: t('file.col.originalName'),
       dataIndex: 'originalName',
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '大小',
+      title: t('file.col.size'),
       dataIndex: 'fileSize',
       width: 110,
       render: (value: string | undefined) => formatSize(value),
     },
     {
-      title: '类型',
+      title: t('file.col.type'),
       dataIndex: 'contentType',
       width: 180,
       render: (value: string | undefined) => (value ? <Tag>{value}</Tag> : '-'),
     },
     {
-      title: '上传时间',
+      title: t('file.col.uploadTime'),
       dataIndex: 'createTime',
       width: 180,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '操作',
+      title: t('file.col.action'),
       key: 'action',
       width: 140,
       render: (_, row) => (
@@ -147,12 +153,15 @@ export default function MyFileList() {
             size="small"
             onClick={() => void handleDownload(row)}
           >
-            下载
+            {t('file.action.download')}
           </AuthButton>
           {has('sys:file:delete') && (
-            <Popconfirm title="确认删除该文件？" onConfirm={() => void handleDelete(row)}>
+            <Popconfirm
+              title={t('file.confirm.delete')}
+              onConfirm={() => void handleDelete(row)}
+            >
               <Button type="link" size="small" danger>
-                删除
+                {t('file.action.delete')}
               </Button>
             </Popconfirm>
           )}
@@ -167,24 +176,24 @@ export default function MyFileList() {
         type="info"
         showIcon
         style={{ marginBottom: 12 }}
-        message="仅显示当前账号上传的文件；聊天、文档、论坛、商城等系统上传的文件也汇总在此"
+        message={t('file.my.hint')}
         description={quotaText(quota)}
       />
       <ProTable<FileInfoVO, MyFileQuery>
         ref={tableRef}
         rowKey="id"
-        title="我的文件"
+        title={t('file.my.title')}
         columns={columns}
         request={(params) => pageFiles({ ...params, onlyMine: true })}
         params={{ originalName }}
-        onError={(error) => showError(error, '我的文件加载失败')}
+        onError={(error) => showError(error, t('file.msg.myLoadFailed'))}
         search={
           <SearchForm
             items={[
               {
                 name: 'originalName',
-                label: '文件名',
-                element: <Input allowClear placeholder="原始文件名" />,
+                label: t('file.search.label'),
+                element: <Input allowClear placeholder={t('file.search.placeholder')} />,
               },
             ]}
             onSearch={(values) => setOriginalName((values.originalName as string) || undefined)}
@@ -202,7 +211,7 @@ export default function MyFileList() {
               }}
             >
               <Button type="primary" loading={uploading}>
-                上传文件
+                {t('file.action.upload')}
               </Button>
             </Upload>
           )

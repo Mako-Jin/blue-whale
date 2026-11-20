@@ -15,10 +15,10 @@ import lombok.Data;
 @Data
 public class ChangeOwnPasswordRequest {
 
-    @NotBlank(message = "原口令不能为空")
+    @NotBlank(message = "{validation.auth.password.old-required}")
     private String oldPassword;
 
-    @NotBlank(message = "新口令不能为空")
-    @Size(min = 8, max = 64, message = "口令长度必须在 8-64 之间")
+    @NotBlank(message = "{validation.auth.password.new-required}")
+    @Size(min = 8, max = 64, message = "{validation.auth.password.length-range}")
     private String newPassword;
 }

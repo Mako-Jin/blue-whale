@@ -1,0 +1,61 @@
+// 组件示例与通用演示文案
+
+import { defineMessages } from './types';
+
+/** 组件示例文案模块 */
+export const demoMessages = defineMessages(
+  {
+    'demo.category.a': '分类 A',
+    'demo.category.b': '分类 B',
+    'demo.seed.name': '示例数据 {index}',
+    'demo.msg.updated': '示例数据已修改（内存）',
+    'demo.msg.created': '示例数据已新增（内存）',
+    'demo.col.id': 'ID',
+    'demo.col.name': '名称',
+    'demo.col.category': '分类',
+    'demo.col.amount': '金额',
+    'demo.col.status': '状态',
+    'demo.col.action': '操作',
+    'demo.status.enabled': '启用',
+    'demo.status.disabled': '停用',
+    'demo.action.edit': '编辑',
+    'demo.table.title': 'whale-ui 组件示例（内存数据）',
+    'demo.search.keywordPlaceholder': '名称关键字',
+    'demo.btn.add': '新增示例数据',
+    'demo.hint':
+      '按钮级权限演示：当前账号拥有 {count} 个权限码。 「编辑 / 新增示例数据」需要 sys:user:edit / sys:user:add，因此可见； 下面这个按钮需要不存在的 sys:demo:not-exist，故不会渲染。',
+    'demo.btn.permissionDemo': '需要 sys:demo:not-exist 权限的按钮',
+    'demo.modal.editTitle': '编辑示例数据：{name}',
+    'demo.modal.createTitle': '新增示例数据',
+    'demo.field.name': '名称',
+    'demo.field.nameRequired': '请输入名称',
+    'demo.field.categoryRequired': '请选择分类',
+  },
+  {
+    'demo.category.a': 'Category A',
+    'demo.category.b': 'Category B',
+    'demo.seed.name': 'Sample data {index}',
+    'demo.msg.updated': 'Sample record updated (in-memory)',
+    'demo.msg.created': 'Sample record created (in-memory)',
+    'demo.col.id': 'ID',
+    'demo.col.name': 'Name',
+    'demo.col.category': 'Category',
+    'demo.col.amount': 'Amount',
+    'demo.col.status': 'Status',
+    'demo.col.action': 'Actions',
+    'demo.status.enabled': 'Enabled',
+    'demo.status.disabled': 'Disabled',
+    'demo.action.edit': 'Edit',
+    'demo.table.title': 'whale-ui component demo (in-memory data)',
+    'demo.search.keywordPlaceholder': 'Name keyword',
+    'demo.btn.add': 'Add sample record',
+    'demo.hint':
+      'Button-level permission demo: the current account holds {count} permission codes. Edit / Add sample record require sys:user:edit / sys:user:add and are therefore visible; the button below requires the non-existent sys:demo:not-exist and is not rendered.',
+    'demo.btn.permissionDemo': 'Button requiring sys:demo:not-exist',
+    'demo.modal.editTitle': 'Edit sample record: {name}',
+    'demo.modal.createTitle': 'Add sample record',
+    'demo.field.name': 'Name',
+    'demo.field.nameRequired': 'Please enter a name',
+    'demo.field.categoryRequired': 'Please select a category',
+  },
+);

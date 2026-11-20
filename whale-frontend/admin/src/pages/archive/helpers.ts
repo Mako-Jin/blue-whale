@@ -1,20 +1,37 @@
 // 档案前端共用常量与格式化工具
 
 import type { ArchiveCategoryVO } from '../../api/archive';
+import type { MessageKey } from '../../i18n/messages';
+import type { MessageVars } from '../../i18n/translate';
+
+/** 翻译函数类型 */
+export type TFunction = (key: MessageKey, vars?: MessageVars) => string;
 
 /** 密级选项 */
-export const SECURITY_OPTIONS = [
-  { label: '公开', value: 1 },
-  { label: '内部', value: 2 },
-  { label: '秘密', value: 3 },
-];
+export function securityOptions(t: TFunction): { label: string; value: number }[] {
+  return [
+    { label: t('archive.security.public'), value: 1 },
+    { label: t('archive.security.internal'), value: 2 },
+    { label: t('archive.security.secret'), value: 3 },
+  ];
+}
 
 /** 条目状态选项 */
-export const ITEM_STATUS_OPTIONS = [
-  { label: '待整理', value: 0 },
-  { label: '已归档', value: 1 },
-  { label: '已销毁', value: 2 },
-];
+export function itemStatusOptions(t: TFunction): { label: string; value: number }[] {
+  return [
+    { label: t('archive.itemStatus.pending'), value: 0 },
+    { label: t('archive.itemStatus.archived'), value: 1 },
+    { label: t('archive.itemStatus.destroyed'), value: 2 },
+  ];
+}
+
+/** 启用状态下拉选项 */
+export function enabledOptions(t: TFunction): { label: string; value: number }[] {
+  return [
+    { label: t('archive.common.enabled'), value: 1 },
+    { label: t('archive.common.disabled'), value: 0 },
+  ];
+}
 
 /** 密级标签颜色 */
 export const SECURITY_COLORS: Record<number, string> = {
@@ -30,11 +47,11 @@ export const ITEM_STATUS_COLORS: Record<number, string> = {
   2: 'default',
 };
 
-/** 文件角色中文名 */
-export const FILE_ROLE_LABELS: Record<string, string> = {
-  ORIGINAL: '原件',
-  ATTACHMENT: '附件',
-  SNAPSHOT: '快照',
+/** 文件角色文案键 */
+const FILE_ROLE_KEYS: Record<string, MessageKey> = {
+  ORIGINAL: 'archive.fileRole.original',
+  ATTACHMENT: 'archive.fileRole.attachment',
+  SNAPSHOT: 'archive.fileRole.snapshot',
 };
 
 /** 门类下拉选项 */
@@ -63,23 +80,37 @@ export function flattenCategories(nodes: ArchiveCategoryVO[], depth = 0): Catego
 }
 
 /**
- * 按密级取值返回中文名。
+ * 按密级取值返回展示名。
  *
  * @param value 密级
- * @returns 中文名
+ * @param t 翻译函数
+ * @returns 展示名
  */
-export function securityLabel(value?: number): string {
-  return SECURITY_OPTIONS.find((item) => item.value === value)?.label ?? '-';
+export function securityLabel(value: number | undefined, t: TFunction): string {
+  return securityOptions(t).find((item) => item.value === value)?.label ?? '-';
 }
 
 /**
- * 按条目状态返回中文名。
+ * 按条目状态返回展示名。
  *
  * @param value 状态
- * @returns 中文名
+ * @param t 翻译函数
+ * @returns 展示名
  */
-export function itemStatusLabel(value?: number): string {
-  return ITEM_STATUS_OPTIONS.find((item) => item.value === value)?.label ?? '-';
+export function itemStatusLabel(value: number | undefined, t: TFunction): string {
+  return itemStatusOptions(t).find((item) => item.value === value)?.label ?? '-';
+}
+
+/**
+ * 按文件角色返回展示名，未匹配的原样展示。
+ *
+ * @param value 文件角色
+ * @param t 翻译函数
+ * @returns 展示名
+ */
+export function fileRoleLabel(value: string | undefined, t: TFunction): string {
+  const key = value ? FILE_ROLE_KEYS[value] : undefined;
+  return key ? t(key) : (value ?? '-');
 }
 
 /**

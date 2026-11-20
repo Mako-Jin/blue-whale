@@ -20,37 +20,37 @@ import lombok.Data;
 public class UserGroupSaveRequest {
 
     /** 组编码（新建必填，更新不可变） */
-    @Size(max = 64, message = "组编码长度不能超过 64")
+    @Size(max = 64, message = "{validation.auth.group.code-size}")
     private String groupCode;
 
     /** 组名称 */
-    @NotBlank(message = "组名称不能为空")
-    @Size(max = 128, message = "组名称长度不能超过 128")
+    @NotBlank(message = "{validation.auth.group.name-required}")
+    @Size(max = 128, message = "{validation.auth.group.name-size}")
     private String groupName;
 
     /** 父组 ID（0 表示顶级） */
-    @NotNull(message = "父组 ID 不能为空")
-    @Min(value = 0, message = "父组 ID 不得为负数")
+    @NotNull(message = "{validation.auth.group.parent-id-required}")
+    @Min(value = 0, message = "{validation.auth.group.parent-id-min}")
     private Long parentId;
 
     /** 组类别（STATIC / DYNAMIC，新建必填） */
-    @Pattern(regexp = "STATIC|DYNAMIC", message = "组类别仅支持 STATIC / DYNAMIC")
+    @Pattern(regexp = "STATIC|DYNAMIC", message = "{validation.auth.group.type-pattern}")
     private String category;
 
     /** 动态组过滤规则 JSON（静态组不传） */
-    @Size(max = 1024, message = "过滤规则 JSON 长度不能超过 1024")
+    @Size(max = 1024, message = "{validation.auth.group.filter-rule-size}")
     private String filtersJson;
 
     /** 描述（可空） */
-    @Size(max = 255, message = "描述长度不能超过 255")
+    @Size(max = 255, message = "{validation.auth.common.description-size}")
     private String description;
 
     /** 排序号（可空） */
-    @Min(value = 0, message = "排序号不得为负数")
+    @Min(value = 0, message = "{validation.auth.common.sort-no-negative}")
     private Integer sortNo;
 
     /** 状态：1 启用 / 0 停用（可空，新建默认启用） */
-    @Min(value = 0, message = "状态仅支持 1（启用）/ 0（停用）")
-    @Max(value = 1, message = "状态仅支持 1（启用）/ 0（停用）")
+    @Min(value = 0, message = "{validation.auth.common.status-range}")
+    @Max(value = 1, message = "{validation.auth.common.status-range}")
     private Integer status;
 }

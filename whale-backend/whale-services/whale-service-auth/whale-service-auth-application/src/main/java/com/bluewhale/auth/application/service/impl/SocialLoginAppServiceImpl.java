@@ -155,7 +155,7 @@ public class SocialLoginAppServiceImpl implements SocialLoginAppService {
     public SocialAuthorizeResult startLogin(SocialAuthorizeCommand command) {
         SocialProvider provider = SocialProvider.of(command.providerCode());
         if (command.tenantCode() == null || command.tenantCode().isBlank()) {
-            throw new BizException(400, "三方登录必须指定目标租户编码");
+            throw new BizException(400, "auth.social.tenant-required", "三方登录必须指定目标租户编码");
         }
         Long tenantId = tenantAppService.resolveEnabledTenantId(command.tenantCode());
         return startAuthorization(provider, tenantId, null, command.redirect());
@@ -173,7 +173,8 @@ public class SocialLoginAppServiceImpl implements SocialLoginAppService {
         var current = currentUserProvider.current();
         // 同一用户同一渠道至多一条有效绑定：发起前先挡，回调侧仍以唯一约束兜底
         socialBindingRepository.findBoundByUserAndProvider(current.userId(), provider).ifPresent(binding -> {
-            throw new BizException(400, "已绑定 " + provider.displayName() + " 账号，请先解绑再重新绑定");
+            throw new BizException(400, "auth.social.bound",
+                    "已绑定 " + provider.displayName() + " 账号，请先解绑再重新绑定", provider.displayName());
         });
         return startAuthorization(provider, current.tokenTenantId(), current.userId(), command.redirect());
     }
@@ -227,14 +228,14 @@ public class SocialLoginAppServiceImpl implements SocialLoginAppService {
     @Override
     public LoginResult exchangeLoginCode(SocialLoginByCodeCommand command) {
         if (command.loginCode() == null || command.loginCode().isBlank()) {
-            throw new BizException(401, "登录码无效或已过期");
+            throw new BizException(401, "auth.social.login-code-invalid", "登录码无效或已过期");
         }
         SocialLoginCodeRecord record = socialLoginCodeStore.consume(command.loginCode())
-                .orElseThrow(() -> new BizException(401, "登录码无效或已过期"));
+                .orElseThrow(() -> new BizException(401, "auth.social.login-code-invalid", "登录码无效或已过期"));
         var user = userSessionQuery.loadUserById(record.userId(), record.tenantId())
-                .orElseThrow(() -> new BizException(401, "账号不存在或已停用"));
+                .orElseThrow(() -> new BizException(401, "auth.session.account-missing-or-disabled", "账号不存在或已停用"));
         if (!user.enabled()) {
-            throw new BizException(401, "账号已停用");
+            throw new BizException(401, "auth.session.account-disabled", "账号已停用");
         }
         log.info("三方登录换令牌成功: userId={}, tenantId={}", record.userId(), record.tenantId());
         return buildLoginResult(user);
@@ -267,7 +268,8 @@ public class SocialLoginAppServiceImpl implements SocialLoginAppService {
         var current = currentUserProvider.current();
         SocialBindingAggregate binding = socialBindingRepository
                 .findBoundByUserAndProvider(current.userId(), provider)
-                .orElseThrow(() -> new BizException(404, "未绑定 " + provider.displayName() + " 账号"));
+                .orElseThrow(() -> new BizException(404, "auth.social.not-bound",
+                        "未绑定 " + provider.displayName() + " 账号", provider.displayName()));
         binding.unbind();
         socialBindingRepository.save(binding);
         publishBindingEvent(binding, AuthDomainEvent.ChangeType.STATUS_CHANGED);
@@ -485,7 +487,7 @@ public class SocialLoginAppServiceImpl implements SocialLoginAppService {
     private String requireSafeRedirect(String redirect) {
         if (redirect == null || !redirect.startsWith("/") || redirect.startsWith("//")
                 || redirect.contains("://")) {
-            throw new BizException(400, "回跳路径必须是站内相对路径（以 / 开头）");
+            throw new BizException(400, "auth.social.redirect-path-invalid", "回跳路径必须是站内相对路径（以 / 开头）");
         }
         return redirect;
     }

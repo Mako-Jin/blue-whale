@@ -96,7 +96,7 @@ public class PermissionAppServiceImpl implements PermissionAppService {
     public void create(SavePermissionCommand command) {
         PermCode permCode = PermCode.of(command.permCode());
         if (permissionRepository.existsByPermCode(permCode.value(), null)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "权限编码已存在");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.permission.code-exists", "权限编码已存在");
         }
         PermissionAggregate permission = PermissionAggregate.create(command.parentId(), permCode, command.permName(),
                 command.permType(), command.path(), command.method(), command.sortNo(), command.status());
@@ -117,7 +117,7 @@ public class PermissionAppServiceImpl implements PermissionAppService {
                 .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
         PermCode permCode = PermCode.of(command.permCode());
         if (permissionRepository.existsByPermCode(permCode.value(), id)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "权限编码已存在");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.permission.code-exists", "权限编码已存在");
         }
         permission.applyUpdate(command.parentId(), permCode, command.permName(), command.permType(),
                 command.path(), command.method(), command.sortNo(), command.status());
@@ -135,7 +135,7 @@ public class PermissionAppServiceImpl implements PermissionAppService {
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
         if (permissionRepository.countChildren(id) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "存在子权限，不允许删除");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.permission.has-children", "存在子权限，不允许删除");
         }
         permissionRepository.deleteById(id);
         // 权限点删除后发布事件，由监听器在提交后失效持有该点位的用户缓存

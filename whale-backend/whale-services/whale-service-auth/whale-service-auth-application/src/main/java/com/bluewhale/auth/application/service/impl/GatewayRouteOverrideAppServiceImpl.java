@@ -52,7 +52,7 @@ public class GatewayRouteOverrideAppServiceImpl implements GatewayRouteOverrideA
         GatewayRouteOverrideAggregate override = GatewayRouteOverrideAggregate.create(routeId,
                 toStatus(command.enabled()), command.effectiveFrom(), command.effectiveTo(), command.remark());
         if (routeOverrideRepository.findById(override.getRouteId()).isPresent()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "该路由已存在覆盖条目");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.gateway.route-override-exists", "该路由已存在覆盖条目");
         }
         routeOverrideRepository.save(override);
     }

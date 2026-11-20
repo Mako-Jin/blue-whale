@@ -127,7 +127,7 @@ public class FileShareServiceImpl implements FileShareService {
         FileAssetAggregate asset = requireSharedFile(share);
         if (!fileShareRepository.consumeDownload(share.getId())) {
             fileMetrics.recordShareDownload(false);
-            throw new BizException(ErrorCode.NOT_FOUND.getCode(), INACTIVE_MESSAGE);
+            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "file.share.inactive", INACTIVE_MESSAGE);
         }
         try {
             InputStream content = offset == null || length == null
@@ -154,10 +154,11 @@ public class FileShareServiceImpl implements FileShareService {
         try {
             normalized = ShareToken.of(token).value();
         } catch (RuntimeException e) {
-            throw new BizException(ErrorCode.NOT_FOUND.getCode(), INACTIVE_MESSAGE);
+            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "file.share.inactive", INACTIVE_MESSAGE);
         }
         return fileShareRepository.findByToken(normalized)
-                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND.getCode(), INACTIVE_MESSAGE));
+                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND.getCode(), "file.share.inactive",
+                        INACTIVE_MESSAGE));
     }
 
     /**
@@ -169,10 +170,11 @@ public class FileShareServiceImpl implements FileShareService {
      */
     private FileAssetAggregate requireSharedFile(FileShareAggregate share) {
         FileAssetAggregate asset = fileAssetRepository.findById(share.getFileId())
-                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND.getCode(), INACTIVE_MESSAGE));
+                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND.getCode(), "file.share.inactive",
+                        INACTIVE_MESSAGE));
         asset.assertVisibleToTenant(TenantContext.get());
         if (asset.getStatus() == FileStatus.DISABLED) {
-            throw new BizException(ErrorCode.NOT_FOUND.getCode(), INACTIVE_MESSAGE);
+            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "file.share.inactive", INACTIVE_MESSAGE);
         }
         return asset;
     }
@@ -188,7 +190,8 @@ public class FileShareServiceImpl implements FileShareService {
         FileProperties.Share config = fileProperties.getShare();
         long hours = expireHours == null ? config.getDefaultExpireHours() : expireHours;
         if (hours <= 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "分享有效期必须大于 0 小时");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "file.share.expire-hours-invalid",
+                    "分享有效期必须大于 0 小时");
         }
         return LocalDateTime.now().plusHours(Math.min(hours, config.getMaxExpireHours()));
     }

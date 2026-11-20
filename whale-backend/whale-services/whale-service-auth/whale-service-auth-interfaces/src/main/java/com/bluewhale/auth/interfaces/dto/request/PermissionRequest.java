@@ -14,16 +14,16 @@ public class PermissionRequest {
 
     private Long parentId;
 
-    @NotBlank(message = "权限编码不能为空")
-    @Size(max = 128, message = "权限编码长度不能超过 128")
+    @NotBlank(message = "{validation.auth.permission.code-required}")
+    @Size(max = 128, message = "{validation.auth.permission.code-size}")
     private String permCode;
 
-    @NotBlank(message = "权限名称不能为空")
-    @Size(max = 64, message = "权限名称长度不能超过 64")
+    @NotBlank(message = "{validation.auth.permission.name-required}")
+    @Size(max = 64, message = "{validation.auth.permission.name-size}")
     private String permName;
 
     /** 权限类型：SYSTEM / MENU / API / BUTTON / DATA / ATTR */
-    @NotBlank(message = "权限类型不能为空")
+    @NotBlank(message = "{validation.auth.permission.type-required}")
     private String permType;
 
     private String path;

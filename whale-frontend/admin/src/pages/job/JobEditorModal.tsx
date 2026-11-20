@@ -3,7 +3,8 @@
 import { Form, Input, InputNumber, Select, Typography, type FormInstance } from 'antd';
 import { FormModal } from '@bluewhale/whale-ui';
 import type { JobDependencyVO, JobInfoVO } from '../../api/job';
-import { JOB_STATUS_OPTIONS, MISFIRE_OPTIONS, type JobFormValues } from './constants';
+import { useI18n } from '../../i18n';
+import { buildJobStatusOptions, buildMisfireOptions, type JobFormValues } from './constants';
 
 interface JobEditorModalProps {
   open: boolean;
@@ -28,10 +29,15 @@ export function JobEditorModal({
   onOk,
   onCancel,
 }: JobEditorModalProps) {
+  const { t } = useI18n();
   return (
     <FormModal<JobFormValues>
       open={open}
-      title={editRecord ? `编辑任务：${editRecord.jobName}` : '新增任务'}
+      title={
+        editRecord
+          ? t('job.editor.titleEdit', { name: editRecord.jobName })
+          : t('job.editor.titleCreate')
+      }
       form={form}
       initialValues={initial}
       onOk={onOk}
@@ -39,60 +45,60 @@ export function JobEditorModal({
     >
       <Form.Item
         name="jobName"
-        label="任务名称"
-        rules={[{ required: true, message: '请输入任务名称' }]}
+        label={t('job.editor.field.jobName')}
+        rules={[{ required: true, message: t('job.editor.rule.jobName') }]}
       >
         <Input />
       </Form.Item>
-      <Form.Item name="jobGroup" label="任务分组">
-        <Input placeholder="留空则为 DEFAULT" />
+      <Form.Item name="jobGroup" label={t('job.editor.field.jobGroup')}>
+        <Input placeholder={t('job.editor.placeholder.jobGroup')} />
       </Form.Item>
       <Form.Item
         name="cronExpression"
-        label="Cron 表达式"
-        rules={[{ required: true, message: '请输入 Cron 表达式' }]}
+        label={t('job.editor.field.cron')}
+        rules={[{ required: true, message: t('job.editor.rule.cron') }]}
       >
-        <Input placeholder="如 0 0/5 * * * ?" />
+        <Input placeholder={t('job.editor.placeholder.cron')} />
       </Form.Item>
       <Form.Item
         name="handlerBean"
-        label="执行器 Bean"
-        rules={[{ required: true, message: '请输入执行器 Bean 名称' }]}
+        label={t('job.editor.field.handler')}
+        rules={[{ required: true, message: t('job.editor.rule.handler') }]}
       >
-        <Input placeholder="如 demoJobHandler" />
+        <Input placeholder={t('job.editor.placeholder.handler')} />
       </Form.Item>
-      <Form.Item name="handlerParam" label="执行器参数">
+      <Form.Item name="handlerParam" label={t('job.editor.field.handlerParam')}>
         <Input />
       </Form.Item>
-      <Form.Item name="misfirePolicy" label="错过执行策略" initialValue="SMART">
-        <Select options={MISFIRE_OPTIONS} />
+      <Form.Item name="misfirePolicy" label={t('job.editor.field.misfire')} initialValue="SMART">
+        <Select options={buildMisfireOptions(t)} />
       </Form.Item>
       <Form.Item
         name="maxRetry"
-        label="失败重试次数"
+        label={t('job.editor.field.maxRetry')}
         initialValue={0}
-        extra="0 表示不重试，最多 5 次"
+        extra={t('job.editor.extra.maxRetry')}
       >
         <InputNumber min={0} max={5} precision={0} style={{ width: '100%' }} />
       </Form.Item>
       <Form.Item
         name="retryIntervalSeconds"
-        label="重试间隔（秒）"
+        label={t('job.editor.field.retryInterval')}
         initialValue={60}
-        extra="两次重试之间的等待时间"
+        extra={t('job.editor.extra.retryInterval')}
       >
         <InputNumber min={0} precision={0} style={{ width: '100%' }} />
       </Form.Item>
       <Form.Item
         name="shardTotal"
-        label="分片总数"
+        label={t('job.editor.field.shardTotal')}
         initialValue={1}
-        extra="1 表示不分片，最多 16 片"
+        extra={t('job.editor.extra.shardTotal')}
       >
         <InputNumber min={1} max={16} precision={0} style={{ width: '100%' }} />
       </Form.Item>
       {editRecord && (
-        <Form.Item name="upstreamJobIds" label="上游依赖">
+        <Form.Item name="upstreamJobIds" label={t('job.editor.field.upstream')}>
           <Select
             mode="multiple"
             allowClear
@@ -100,21 +106,21 @@ export function JobEditorModal({
             optionFilterProp="label"
             loading={dependencyLoading}
             options={jobOptions}
-            placeholder="选择前置任务，可多选"
+            placeholder={t('job.editor.placeholder.upstream')}
           />
         </Form.Item>
       )}
       {editRecord && (dependency?.downstreamJobIds.length ?? 0) > 0 && (
-        <Form.Item label="下游依赖">
+        <Form.Item label={t('job.editor.field.downstream')}>
           <Typography.Text type="secondary">
-            已被 {dependency?.downstreamJobIds.length} 个任务依赖
+            {t('job.editor.downstreamCount', { count: dependency?.downstreamJobIds.length ?? 0 })}
           </Typography.Text>
         </Form.Item>
       )}
-      <Form.Item name="status" label="状态" initialValue={0}>
-        <Select options={JOB_STATUS_OPTIONS} />
+      <Form.Item name="status" label={t('job.editor.field.status')} initialValue={0}>
+        <Select options={buildJobStatusOptions(t)} />
       </Form.Item>
-      <Form.Item name="remark" label="备注">
+      <Form.Item name="remark" label={t('job.editor.field.remark')}>
         <Input.TextArea rows={2} />
       </Form.Item>
     </FormModal>

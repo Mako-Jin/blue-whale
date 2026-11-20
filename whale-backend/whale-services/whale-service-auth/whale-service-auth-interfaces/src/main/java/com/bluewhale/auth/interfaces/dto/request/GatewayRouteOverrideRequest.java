@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 public class GatewayRouteOverrideRequest {
 
     /** 是否启用：false 停用（该路由全站 404，需二次确认） */
-    @NotNull(message = "启用状态不能为空")
+    @NotNull(message = "{validation.auth.gateway.enabled-required}")
     private Boolean enabled;
 
     /** 生效起始时间；空值表示立即生效 */
@@ -25,6 +25,6 @@ public class GatewayRouteOverrideRequest {
     private LocalDateTime effectiveTo;
 
     /** 备注（启停原因） */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.auth.gateway.remark-size}")
     private String remark;
 }

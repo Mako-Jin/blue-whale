@@ -38,6 +38,7 @@ import {
   type PublishState,
 } from '../../api/music';
 import { uploadFile } from '../../api/file';
+import { useI18n } from '../../i18n';
 
 interface AlbumFormValues {
   artistId: string;
@@ -49,34 +50,9 @@ interface AlbumFormValues {
   sortNo?: number;
 }
 
-const ALBUM_TYPE_OPTIONS = [
-  { value: 'SINGLE', label: '单曲' },
-  { value: 'EP', label: 'EP' },
-  { value: 'ALBUM', label: '专辑' },
-  { value: 'COMPILATION', label: '合辑' },
-];
-
-const PUBLISH_STATE_OPTIONS = [
-  { value: 'DRAFT', label: '草稿' },
-  { value: 'PUBLISHED', label: '已上架' },
-  { value: 'OFFLINE', label: '已下架' },
-];
-
-/** 发布状态标签 */
-function renderPublishState(state?: PublishState) {
-  const map: Record<PublishState, { color: string; label: string }> = {
-    DRAFT: { color: 'default', label: '草稿' },
-    PUBLISHED: { color: 'success', label: '已上架' },
-    OFFLINE: { color: 'error', label: '已下架' },
-  };
-  if (!state) {
-    return '-';
-  }
-  return <Tag color={map[state].color}>{map[state].label}</Tag>;
-}
-
 export default function AlbumList() {
   const { message } = App.useApp();
+  const { t } = useI18n();
   const { has } = usePermission();
   const tableRef = useRef<ProTableRef>(null);
   const [form] = Form.useForm<AlbumFormValues>();
@@ -90,11 +66,39 @@ export default function AlbumList() {
   const [coverName, setCoverName] = useState('');
   const [uploadingCover, setUploadingCover] = useState(false);
 
+  const albumTypeOptions = [
+    { value: 'SINGLE', label: t('music.album.type.single') },
+    { value: 'EP', label: t('music.album.type.ep') },
+    { value: 'ALBUM', label: t('music.album.type.album') },
+    { value: 'COMPILATION', label: t('music.album.type.compilation') },
+  ];
+
+  const publishStateOptions = [
+    { value: 'DRAFT', label: t('music.album.state.draft') },
+    { value: 'PUBLISHED', label: t('music.album.state.published') },
+    { value: 'OFFLINE', label: t('music.album.state.offline') },
+  ];
+
+  /** 发布状态标签 */
+  const renderPublishState = (state?: PublishState) => {
+    const map: Record<PublishState, { color: string; label: string }> = {
+      DRAFT: { color: 'default', label: t('music.album.state.draft') },
+      PUBLISHED: { color: 'success', label: t('music.album.state.published') },
+      OFFLINE: { color: 'error', label: t('music.album.state.offline') },
+    };
+    if (!state) {
+      return '-';
+    }
+    return <Tag color={map[state].color}>{map[state].label}</Tag>;
+  };
+
   useEffect(() => {
     pageArtists({ current: 1, size: 200 })
       .then((result) => setArtists(result.records))
-      .catch((error) => message.error(error instanceof Error ? error.message : '歌手加载失败'));
-  }, [message]);
+      .catch((error) =>
+        message.error(error instanceof Error ? error.message : t('music.common.artistsLoadFailed')),
+      );
+  }, [message, t]);
 
   const artistName = (artistId?: string) =>
     artists.find((item) => item.id === artistId)?.name ?? '-';
@@ -107,7 +111,7 @@ export default function AlbumList() {
 
   const openEdit = (row: AlbumView) => {
     setEditing(row);
-    setCoverName(row.coverFileId ? `文件 ID ${row.coverFileId}` : '');
+    setCoverName(row.coverFileId ? t('music.common.fileId', { id: row.coverFileId }) : '');
     setModalOpen(true);
   };
 
@@ -117,9 +121,11 @@ export default function AlbumList() {
       .then((uploaded) => {
         form.setFieldValue('coverFileId', uploaded.id);
         setCoverName(uploaded.originalName ?? file.name);
-        message.success('封面已上传');
+        message.success(t('music.common.coverUploaded'));
       })
-      .catch((error) => message.error(error instanceof Error ? error.message : '封面上传失败'))
+      .catch((error) =>
+        message.error(error instanceof Error ? error.message : t('music.common.coverUploadFailed')),
+      )
       .finally(() => setUploadingCover(false));
   };
 
@@ -136,15 +142,15 @@ export default function AlbumList() {
     try {
       if (editing) {
         await updateAlbum(editing.id, payload);
-        message.success('专辑已更新');
+        message.success(t('music.album.msg.updated'));
       } else {
         await createAlbum(payload);
-        message.success('专辑已新增');
+        message.success(t('music.album.msg.created'));
       }
       setModalOpen(false);
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '保存失败');
+      message.error(error instanceof Error ? error.message : t('music.common.saveFailed'));
       throw error;
     }
   };
@@ -152,89 +158,98 @@ export default function AlbumList() {
   const handlePublish = async (row: AlbumView) => {
     try {
       await publishAlbum(row.id);
-      message.success('专辑已上架');
+      message.success(t('music.album.msg.published'));
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '上架失败');
+      message.error(error instanceof Error ? error.message : t('music.album.msg.publishFailed'));
     }
   };
 
   const handleOffline = async (row: AlbumView) => {
     try {
       await offlineAlbum(row.id);
-      message.success('专辑已下架');
+      message.success(t('music.album.msg.offlined'));
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '下架失败');
+      message.error(error instanceof Error ? error.message : t('music.album.msg.offlineFailed'));
     }
   };
 
   const handleDelete = async (row: AlbumView) => {
     try {
       await deleteAlbum(row.id);
-      message.success('专辑已删除');
+      message.success(t('music.album.msg.deleted'));
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '删除失败');
+      message.error(error instanceof Error ? error.message : t('music.common.deleteFailed'));
     }
   };
 
   const columns: TableProps<AlbumView>['columns'] = [
     { title: 'ID', dataIndex: 'id', width: 80 },
-    { title: '标题', dataIndex: 'title' },
+    { title: t('music.album.col.title'), dataIndex: 'title' },
     {
-      title: '歌手',
+      title: t('music.album.col.artist'),
       dataIndex: 'artistId',
       width: 140,
       render: (value: string | undefined) => artistName(value),
     },
     {
-      title: '发行日期',
+      title: t('music.album.col.releaseDate'),
       dataIndex: 'releaseDate',
       width: 120,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '类型',
+      title: t('music.album.col.type'),
       dataIndex: 'albumType',
       width: 100,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '状态',
+      title: t('music.album.col.state'),
       dataIndex: 'publishState',
       width: 100,
       render: (value: PublishState | undefined) => renderPublishState(value),
     },
     {
-      title: '操作',
+      title: t('music.common.action'),
       key: 'action',
       width: 220,
       render: (_, row) => (
         <Space size={4} wrap>
           {row.publishState !== 'PUBLISHED' && has('sys:music:album:publish') && (
-            <Popconfirm title="确认上架该专辑？" onConfirm={() => void handlePublish(row)}>
+            <Popconfirm
+              title={t('music.album.confirm.publish')}
+              onConfirm={() => void handlePublish(row)}
+            >
               <Button type="link" size="small">
-                上架
+                {t('music.album.action.publish')}
               </Button>
             </Popconfirm>
           )}
           {row.publishState === 'PUBLISHED' && has('sys:music:album:publish') && (
-            <Popconfirm title="确认下架该专辑？" onConfirm={() => void handleOffline(row)}>
+            <Popconfirm
+              title={t('music.album.confirm.offline')}
+              onConfirm={() => void handleOffline(row)}
+            >
               <Button type="link" size="small" danger>
-                下架
+                {t('music.album.action.offline')}
               </Button>
             </Popconfirm>
           )}
           {has('sys:music:album:edit') && (
             <Button type="link" size="small" onClick={() => openEdit(row)}>
-              编辑
+              {t('music.common.edit')}
             </Button>
           )}
           {has('sys:music:album:delete') && (
-            <Popconfirm title="确认删除该专辑？" onConfirm={() => void handleDelete(row)}>
+            <Popconfirm
+              title={t('music.album.confirm.delete')}
+              onConfirm={() => void handleDelete(row)}
+            >
               <Button type="link" size="small" danger>
-                删除
+                {t('music.common.delete')}
               </Button>
             </Popconfirm>
           )}
@@ -248,30 +263,34 @@ export default function AlbumList() {
       <ProTable<AlbumView, AlbumQuery>
         ref={tableRef}
         rowKey="id"
-        title="专辑"
+        title={t('music.album.title')}
         columns={columns}
         request={pageAlbums}
         params={{ keyword, publishState }}
         onError={(error) =>
-          message.error(error instanceof Error ? error.message : '专辑列表加载失败')
+          message.error(
+            error instanceof Error ? error.message : t('music.album.msg.listLoadFailed'),
+          )
         }
         search={
           <SearchForm
             items={[
               {
                 name: 'keyword',
-                label: '标题',
-                element: <Input allowClear placeholder="专辑标题" />,
+                label: t('music.album.search.title'),
+                element: (
+                  <Input allowClear placeholder={t('music.album.search.titlePlaceholder')} />
+                ),
               },
               {
                 name: 'publishState',
-                label: '状态',
+                label: t('music.album.search.state'),
                 element: (
                   <Select
                     allowClear
-                    placeholder="全部"
+                    placeholder={t('music.common.all')}
                     style={{ width: 120 }}
-                    options={PUBLISH_STATE_OPTIONS}
+                    options={publishStateOptions}
                   />
                 ),
               },
@@ -288,14 +307,18 @@ export default function AlbumList() {
         }
         toolbar={
           <AuthButton perm="sys:music:album:add" type="primary" onClick={openCreate}>
-            新增专辑
+            {t('music.album.action.create')}
           </AuthButton>
         }
       />
 
       <FormModal<AlbumFormValues>
         open={modalOpen}
-        title={editing ? `编辑专辑：${editing.title}` : '新增专辑'}
+        title={
+          editing
+            ? t('music.album.form.editTitle', { title: editing.title })
+            : t('music.album.action.create')
+        }
         form={form}
         width={640}
         initialValues={{
@@ -310,7 +333,11 @@ export default function AlbumList() {
         onOk={handleSave}
         onCancel={() => setModalOpen(false)}
       >
-        <Form.Item name="artistId" label="歌手" rules={[{ required: true, message: '请选择歌手' }]}>
+        <Form.Item
+          name="artistId"
+          label={t('music.album.form.artist')}
+          rules={[{ required: true, message: t('music.album.form.artistRequired') }]}
+        >
           <Select
             showSearch
             optionFilterProp="label"
@@ -319,12 +346,12 @@ export default function AlbumList() {
         </Form.Item>
         <Form.Item
           name="title"
-          label="专辑标题"
-          rules={[{ required: true, message: '请输入专辑标题' }]}
+          label={t('music.album.form.title')}
+          rules={[{ required: true, message: t('music.album.form.titleRequired') }]}
         >
           <Input maxLength={200} showCount />
         </Form.Item>
-        <Form.Item label="封面（必填）" required>
+        <Form.Item label={t('music.album.form.cover')} required>
           <Space direction="vertical">
             <Space>
               <Upload
@@ -335,7 +362,7 @@ export default function AlbumList() {
                   return false;
                 }}
               >
-                <Button loading={uploadingCover}>选择封面图片</Button>
+                <Button loading={uploadingCover}>{t('music.album.form.selectCover')}</Button>
               </Upload>
               {coverName && <span>{coverName}</span>}
             </Space>
@@ -344,20 +371,24 @@ export default function AlbumList() {
         <Form.Item
           name="coverFileId"
           hidden
-          rules={[{ required: true, message: '请上传专辑封面' }]}
+          rules={[{ required: true, message: t('music.album.form.coverRequired') }]}
         >
           <Input />
         </Form.Item>
-        <Form.Item name="releaseDate" label="发行日期" extra="格式 YYYY-MM-DD">
-          <Input placeholder="如 2026-10-31" />
+        <Form.Item
+          name="releaseDate"
+          label={t('music.album.form.releaseDate')}
+          extra={t('music.album.form.releaseDateExtra')}
+        >
+          <Input placeholder={t('music.album.form.releaseDatePlaceholder')} />
         </Form.Item>
-        <Form.Item name="albumType" label="专辑类型">
-          <Select options={ALBUM_TYPE_OPTIONS} />
+        <Form.Item name="albumType" label={t('music.album.form.type')}>
+          <Select options={albumTypeOptions} />
         </Form.Item>
-        <Form.Item name="intro" label="简介">
+        <Form.Item name="intro" label={t('music.album.form.intro')}>
           <Input.TextArea rows={3} maxLength={1000} showCount />
         </Form.Item>
-        <Form.Item name="sortNo" label="排序">
+        <Form.Item name="sortNo" label={t('music.album.form.sort')}>
           <InputNumber min={0} style={{ width: '100%' }} />
         </Form.Item>
       </FormModal>

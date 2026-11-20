@@ -29,21 +29,28 @@ import {
   updateBrand,
   type BrandVO,
 } from '../../../api/brand';
+import { useI18n } from '../../../i18n';
 
 type BrandQuery = { keyword?: string; targetType?: string; status?: number };
 
-const TARGET_TYPES = [
-  { value: 'PLATFORM', label: '平台 PLATFORM' },
-  { value: 'TENANT', label: '租户 TENANT' },
+type Translate = ReturnType<typeof useI18n>['t'];
+
+const buildTargetTypes = (t: Translate) => [
+  { value: 'PLATFORM', label: t('systemAuth.brand.option.platform') },
+  { value: 'TENANT', label: t('systemAuth.brand.option.tenant') },
 ];
 
-const STATUS_OPTIONS = [
-  { value: 1, label: '启用' },
-  { value: 0, label: '停用' },
+const buildStatusOptions = (t: Translate) => [
+  { value: 1, label: t('systemAuth.brand.status.enabled') },
+  { value: 0, label: t('systemAuth.brand.status.disabled') },
 ];
 
-function renderStatus(status: number | undefined) {
-  return status === 0 ? <Tag color="default">停用</Tag> : <Tag color="success">启用</Tag>;
+function renderStatus(status: number | undefined, t: Translate) {
+  return status === 0 ? (
+    <Tag color="default">{t('systemAuth.brand.status.disabled')}</Tag>
+  ) : (
+    <Tag color="success">{t('systemAuth.brand.status.enabled')}</Tag>
+  );
 }
 
 interface BrandFormValues {
@@ -63,8 +70,12 @@ interface BrandFormValues {
 
 export default function BrandList() {
   const { message } = App.useApp();
+  const { t } = useI18n();
   const { has } = usePermission();
   const tableRef = useRef<ProTableRef>(null);
+
+  const targetTypes = buildTargetTypes(t);
+  const statusOptions = buildStatusOptions(t);
 
   const [keyword, setKeyword] = useState<string | undefined>(undefined);
   const [targetType, setTargetType] = useState<string | undefined>(undefined);
@@ -112,15 +123,15 @@ export default function BrandList() {
     try {
       if (editing) {
         await updateBrand(editing.id, payload);
-        message.success('品牌配置已更新');
+        message.success(t('systemAuth.brand.updated'));
       } else {
         await createBrand(payload);
-        message.success('品牌配置已创建');
+        message.success(t('systemAuth.brand.created'));
       }
       setFormOpen(false);
       tableRef.current?.reload();
     } catch (error) {
-      showError(error, '保存失败');
+      showError(error, t('systemAuth.brand.saveFailed'));
       throw error;
     }
   };
@@ -128,17 +139,22 @@ export default function BrandList() {
   const handleDelete = async (row: BrandVO) => {
     try {
       await deleteBrand(row.id);
-      message.success('品牌配置已删除');
+      message.success(t('systemAuth.brand.deleted'));
       tableRef.current?.reload();
     } catch (error) {
-      showError(error, '删除失败');
+      showError(error, t('systemAuth.brand.deleteFailed'));
     }
   };
 
   const columns: TableProps<BrandVO>['columns'] = [
-    { title: '品牌名称', dataIndex: 'brandName', width: 160, ellipsis: true },
     {
-      title: '作用域',
+      title: t('systemAuth.brand.col.brandName'),
+      dataIndex: 'brandName',
+      width: 160,
+      ellipsis: true,
+    },
+    {
+      title: t('systemAuth.brand.col.targetType'),
       dataIndex: 'targetType',
       width: 140,
       render: (value: string | undefined, row) => (
@@ -149,21 +165,21 @@ export default function BrandList() {
       ),
     },
     {
-      title: '域名',
+      title: t('systemAuth.brand.col.domain'),
       dataIndex: 'domain',
       width: 180,
       ellipsis: true,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '登录标题',
+      title: t('systemAuth.brand.col.loginTitle'),
       dataIndex: 'loginTitle',
       width: 160,
       ellipsis: true,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '主色',
+      title: t('systemAuth.brand.col.primaryColor'),
       dataIndex: 'primaryColor',
       width: 110,
       render: (value: string | undefined) =>
@@ -184,34 +200,42 @@ export default function BrandList() {
           '-'
         ),
     },
-    { title: '优先级', dataIndex: 'priority', width: 80, align: 'center' },
     {
-      title: '状态',
-      dataIndex: 'status',
+      title: t('systemAuth.brand.col.priority'),
+      dataIndex: 'priority',
       width: 80,
-      render: (value: number | undefined) => renderStatus(value),
+      align: 'center',
     },
     {
-      title: '更新时间',
+      title: t('systemAuth.brand.col.status'),
+      dataIndex: 'status',
+      width: 80,
+      render: (value: number | undefined) => renderStatus(value, t),
+    },
+    {
+      title: t('systemAuth.brand.col.updateTime'),
       dataIndex: 'updateTime',
       width: 170,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '操作',
+      title: t('systemAuth.brand.col.action'),
       key: 'action',
       width: 140,
       render: (_, row) => (
         <Space size={4}>
           {has('sys:brand:edit') && (
             <Button type="link" size="small" onClick={() => openEdit(row)}>
-              编辑
+              {t('systemAuth.brand.edit')}
             </Button>
           )}
           {has('sys:brand:delete') && (
-            <Popconfirm title="确认删除该品牌配置？" onConfirm={() => void handleDelete(row)}>
+            <Popconfirm
+              title={t('systemAuth.brand.confirmDelete')}
+              onConfirm={() => void handleDelete(row)}
+            >
               <Button type="link" size="small" danger>
-                删除
+                {t('systemAuth.brand.delete')}
               </Button>
             </Popconfirm>
           )}
@@ -225,39 +249,44 @@ export default function BrandList() {
       <ProTable<BrandVO, BrandQuery>
         ref={tableRef}
         rowKey="id"
-        title="品牌配置"
+        title={t('systemAuth.brand.title')}
         columns={columns}
         request={pageBrands}
         params={{ keyword, targetType, status }}
-        onError={(error) => showError(error, '品牌配置加载失败')}
+        onError={(error) => showError(error, t('systemAuth.brand.loadFailed'))}
         search={
           <SearchForm
             items={[
               {
                 name: 'keyword',
-                label: '关键字',
-                element: <Input allowClear placeholder="品牌名称 / 域名" />,
+                label: t('systemAuth.brand.search.keyword'),
+                element: (
+                  <Input
+                    allowClear
+                    placeholder={t('systemAuth.brand.search.keywordPlaceholder')}
+                  />
+                ),
               },
               {
                 name: 'targetType',
-                label: '作用域',
+                label: t('systemAuth.brand.field.targetType'),
                 element: (
                   <Select
                     allowClear
-                    options={TARGET_TYPES}
-                    placeholder="全部"
+                    options={targetTypes}
+                    placeholder={t('systemAuth.brand.search.all')}
                     style={{ width: 160 }}
                   />
                 ),
               },
               {
                 name: 'status',
-                label: '状态',
+                label: t('systemAuth.brand.field.status'),
                 element: (
                   <Select
                     allowClear
-                    options={STATUS_OPTIONS}
-                    placeholder="全部"
+                    options={statusOptions}
+                    placeholder={t('systemAuth.brand.search.all')}
                     style={{ width: 120 }}
                   />
                 ),
@@ -277,14 +306,18 @@ export default function BrandList() {
         }
         toolbar={
           <AuthButton perm="sys:brand:add" type="primary" onClick={openCreate}>
-            新增品牌
+            {t('systemAuth.brand.create')}
           </AuthButton>
         }
       />
 
       <FormModal<BrandFormValues>
         open={formOpen}
-        title={editing ? `编辑品牌：${editing.brandName}` : '新增品牌'}
+        title={
+          editing
+            ? t('systemAuth.brand.editTitle', { name: editing.brandName })
+            : t('systemAuth.brand.create')
+        }
         form={form}
         initialValues={formInitial}
         onOk={handleSave}
@@ -292,52 +325,66 @@ export default function BrandList() {
       >
         <Form.Item
           name="brandName"
-          label="品牌名称"
-          rules={[{ required: true, message: '请输入品牌名称' }]}
+          label={t('systemAuth.brand.field.brandName')}
+          rules={[{ required: true, message: t('systemAuth.brand.field.brandNameRequired') }]}
         >
-          <Input maxLength={64} placeholder="如 蓝鲸科技" />
+          <Input maxLength={64} placeholder={t('systemAuth.brand.field.brandNamePlaceholder')} />
         </Form.Item>
         <Space style={{ display: 'flex' }}>
           <Form.Item
             name="targetType"
-            label="作用域"
-            rules={[{ required: true, message: '请选择作用域' }]}
+            label={t('systemAuth.brand.field.targetType')}
+            rules={[{ required: true, message: t('systemAuth.brand.field.targetTypeRequired') }]}
           >
-            <Select options={TARGET_TYPES} style={{ width: 160 }} />
+            <Select options={targetTypes} style={{ width: 160 }} />
           </Form.Item>
-          <Form.Item name="targetId" label="作用域 ID" extra="PLATFORM 可留空">
-            <InputNumber min={0} style={{ width: 160 }} placeholder="租户 ID" />
+          <Form.Item
+            name="targetId"
+            label={t('systemAuth.brand.field.targetId')}
+            extra={t('systemAuth.brand.field.targetIdExtra')}
+          >
+            <InputNumber
+              min={0}
+              style={{ width: 160 }}
+              placeholder={t('systemAuth.brand.field.targetIdPlaceholder')}
+            />
           </Form.Item>
-          <Form.Item name="domain" label="匹配域名">
-            <Input style={{ width: 200 }} placeholder="如 auth.example.com" />
+          <Form.Item name="domain" label={t('systemAuth.brand.field.domain')}>
+            <Input
+              style={{ width: 200 }}
+              placeholder={t('systemAuth.brand.field.domainPlaceholder')}
+            />
           </Form.Item>
         </Space>
-        <Form.Item name="loginTitle" label="登录页标题">
-          <Input maxLength={64} placeholder="登录页大标题" />
+        <Form.Item name="loginTitle" label={t('systemAuth.brand.field.loginTitle')}>
+          <Input
+            maxLength={64}
+            placeholder={t('systemAuth.brand.field.loginTitlePlaceholder')}
+          />
         </Form.Item>
-        <Form.Item name="institutionName" label="机构名称">
+        <Form.Item name="institutionName" label={t('systemAuth.brand.field.institutionName')}>
           <Input maxLength={64} />
         </Form.Item>
         <Form.Item name="logoUrl" label="Logo URL">
           <Input maxLength={255} placeholder="https://..." />
         </Form.Item>
-        <Form.Item name="backgroundUrl" label="背景图 URL">
+        <Form.Item name="backgroundUrl" label={t('systemAuth.brand.field.backgroundUrl')}>
           <Input maxLength={255} placeholder="https://..." />
         </Form.Item>
         <Space style={{ display: 'flex' }}>
-          <Form.Item name="primaryColor" label="主题色">
+          <Form.Item name="primaryColor" label={t('systemAuth.brand.field.primaryColor')}>
             <Input style={{ width: 160 }} placeholder="#1677ff" />
           </Form.Item>
-          <Form.Item name="copyright" label="版权文案">
+          <Form.Item name="copyright" label={t('systemAuth.brand.field.copyright')}>
             <Input style={{ width: 320 }} maxLength={128} />
           </Form.Item>
         </Space>
         <Space style={{ display: 'flex' }}>
-          <Form.Item name="priority" label="优先级" initialValue={0}>
+          <Form.Item name="priority" label={t('systemAuth.brand.field.priority')} initialValue={0}>
             <InputNumber min={0} style={{ width: 120 }} />
           </Form.Item>
-          <Form.Item name="status" label="状态" initialValue={1}>
-            <Select options={STATUS_OPTIONS} style={{ width: 120 }} />
+          <Form.Item name="status" label={t('systemAuth.brand.field.status')} initialValue={1}>
+            <Select options={statusOptions} style={{ width: 120 }} />
           </Form.Item>
         </Space>
       </FormModal>

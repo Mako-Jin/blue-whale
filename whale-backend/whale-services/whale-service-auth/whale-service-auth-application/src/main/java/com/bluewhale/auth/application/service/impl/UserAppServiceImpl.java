@@ -133,7 +133,7 @@ public class UserAppServiceImpl implements UserAppService {
         // 值对象前置校验用户名不变量
         Username username = Username.of(command.username());
         if (userRepository.existsByUsername(tenantId, username.value())) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "用户名已存在");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.user.username-exists", "用户名已存在");
         }
         passwordPolicyService.validate(command.rawPassword(), username.value());
         EncryptedPassword password = EncryptedPassword.of(passwordPolicyService.encode(command.rawPassword()));
@@ -249,7 +249,8 @@ public class UserAppServiceImpl implements UserAppService {
         UserAggregate user = requireUser(id);
         Integer status = command.status();
         if (status == null || (status != STATUS_ENABLED && status != STATUS_DISABLED)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "状态值非法，仅支持 1（启用）/ 0（停用）");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.common.status-invalid",
+                    "状态值非法，仅支持 1（启用）/ 0（停用）");
         }
         user.changeStatus(status);
         userRepository.save(user);
@@ -284,7 +285,7 @@ public class UserAppServiceImpl implements UserAppService {
         // 领域侧归一化（去重去空 + 数量上限），以归一化结果做有效性校验与落库
         List<Long> normalized = user.assignRoles(roleIds);
         if (!normalized.isEmpty() && roleRepository.countByIds(normalized) != normalized.size()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "存在无效的角色ID");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.user.role-ids-invalid", "存在无效的角色ID");
         }
         // M3：互斥/基数约束校验（整体替换口径，违约时抛带约束名的业务异常）
         roleConstraintChecker.checkAssignRoles(TenantContext.requireId(), id, normalized);

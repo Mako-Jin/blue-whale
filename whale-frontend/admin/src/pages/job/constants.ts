@@ -1,5 +1,10 @@
 // 定时任务管理页常量与类型：表单值类型、查询参数类型、下拉选项、文案/颜色映射
 
+import type { MessageKey } from '../../i18n/messages';
+
+/** 翻译函数签名（由 useI18n 注入） */
+type Translate = (key: MessageKey, vars?: Record<string, string | number>) => string;
+
 export interface JobFormValues {
   jobName: string;
   jobGroup?: string;
@@ -20,28 +25,40 @@ export type JobQuery = { keyword?: string; status?: number };
 export type JobLogQuery = { jobId?: string; status?: number };
 export type JobAlertQuery = { jobId?: string; level?: string; channel?: string };
 
-export const MISFIRE_OPTIONS = [
-  { value: 'SMART', label: 'SMART（智能补跑）' },
-  { value: 'FIRE_ONCE', label: 'FIRE_ONCE（补跑一次）' },
-  { value: 'DO_NOTHING', label: 'DO_NOTHING（忽略）' },
-];
+/** 错过执行策略选项 */
+export function buildMisfireOptions(t: Translate) {
+  return [
+    { value: 'SMART', label: t('job.option.misfireSmart') },
+    { value: 'FIRE_ONCE', label: t('job.option.misfireFireOnce') },
+    { value: 'DO_NOTHING', label: t('job.option.misfireDoNothing') },
+  ];
+}
 
-export const JOB_STATUS_OPTIONS = [
-  { value: 1, label: '运行中' },
-  { value: 0, label: '已停止' },
-];
+/** 任务状态选项 */
+export function buildJobStatusOptions(t: Translate) {
+  return [
+    { value: 1, label: t('job.dag.status.running') },
+    { value: 0, label: t('job.dag.status.stopped') },
+  ];
+}
 
-export const LOG_STATUS_OPTIONS = [
-  { value: 1, label: '成功' },
-  { value: 0, label: '执行中' },
-  { value: -1, label: '失败' },
-];
+/** 日志状态选项 */
+export function buildLogStatusOptions(t: Translate) {
+  return [
+    { value: 1, label: t('job.log.status.success') },
+    { value: 0, label: t('job.log.status.running') },
+    { value: -1, label: t('job.log.status.failed') },
+  ];
+}
 
-export const TRIGGER_TYPE_LABELS: Record<string, string> = {
-  CRON: '定时触发',
-  MANUAL: '手动触发',
-  CHAIN: '链式触发',
-};
+/** 触发方式文案映射 */
+export function buildTriggerTypeLabels(t: Translate): Record<string, string> {
+  return {
+    CRON: t('job.trigger.cron'),
+    MANUAL: t('job.trigger.manual'),
+    CHAIN: t('job.trigger.chain'),
+  };
+}
 
 export const ALERT_LEVEL_COLOR: Record<string, string> = {
   INFO: 'blue',
@@ -51,16 +68,21 @@ export const ALERT_LEVEL_COLOR: Record<string, string> = {
   CRITICAL: 'error',
 };
 
-export const ALERT_LEVEL_OPTIONS = [
-  { value: 'INFO', label: 'INFO（恢复通知）' },
-  { value: 'WARN', label: 'WARN' },
-  { value: 'ERROR', label: 'ERROR' },
-];
+/** 告警级别选项 */
+export function buildAlertLevelOptions(t: Translate) {
+  return [
+    { value: 'INFO', label: t('job.option.levelInfo') },
+    { value: 'WARN', label: 'WARN' },
+    { value: 'ERROR', label: 'ERROR' },
+  ];
+}
 
 /** 告警通道：channel 为逗号拼接值，查询按单通道模糊匹配 */
-export const ALERT_CHANNEL_OPTIONS = [
-  { value: 'LOG', label: 'LOG（仅流水）' },
-  { value: 'WEBHOOK', label: 'WEBHOOK' },
-  { value: 'DINGTALK', label: 'DINGTALK' },
-  { value: 'FEISHU', label: 'FEISHU' },
-];
+export function buildAlertChannelOptions(t: Translate) {
+  return [
+    { value: 'LOG', label: t('job.option.channelLog') },
+    { value: 'WEBHOOK', label: 'WEBHOOK' },
+    { value: 'DINGTALK', label: 'DINGTALK' },
+    { value: 'FEISHU', label: 'FEISHU' },
+  ];
+}

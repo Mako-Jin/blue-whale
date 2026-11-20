@@ -33,6 +33,9 @@ import {
   type CreatorUpdateInput,
 } from '../../../api/video';
 import { uploadFile } from '../../../api/file';
+import { useI18n } from '../../../i18n';
+
+type Translate = ReturnType<typeof useI18n>['t'];
 
 interface CreatorFormValues {
   displayName: string;
@@ -40,14 +43,17 @@ interface CreatorFormValues {
   enabled: boolean;
 }
 
-const STATUS_OPTIONS = [
-  { value: 1, label: '启用' },
-  { value: 0, label: '停用' },
+/** 启用状态选项 */
+const buildStatusOptions = (t: Translate) => [
+  { value: 1, label: t('video.catalog.creator.status.enabled') },
+  { value: 0, label: t('video.catalog.creator.status.disabled') },
 ];
 
 export default function CreatorPanel() {
   const { message } = App.useApp();
   const { has } = usePermission();
+  const { t } = useI18n();
+  const statusOptions = buildStatusOptions(t);
   const tableRef = useRef<ProTableRef>(null);
   const [form] = Form.useForm<CreatorFormValues>();
 
@@ -74,9 +80,15 @@ export default function CreatorPanel() {
       .then((uploaded) => {
         setAvatarFileId(uploaded.id);
         setAvatarName(uploaded.originalName ?? file.name);
-        message.success('头像已上传');
+        message.success(t('video.catalog.creator.msg.avatarUploaded'));
       })
-      .catch((error) => message.error(error instanceof Error ? error.message : '头像上传失败'))
+      .catch((error) =>
+        message.error(
+          error instanceof Error
+            ? error.message
+            : t('video.catalog.creator.msg.avatarUploadFailed'),
+        ),
+      )
       .finally(() => setUploadingAvatar(false));
   };
 
@@ -94,11 +106,13 @@ export default function CreatorPanel() {
     }
     try {
       await updateCreator(editing.id, payload);
-      message.success('创作者资料已更新');
+      message.success(t('video.catalog.creator.msg.updated'));
       setModalOpen(false);
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '保存失败');
+      message.error(
+        error instanceof Error ? error.message : t('video.catalog.creator.msg.saveFailed'),
+      );
       throw error;
     }
   };
@@ -107,10 +121,16 @@ export default function CreatorPanel() {
     setActingId(row.id);
     try {
       await updateCreator(row.id, { status: enabled ? 1 : 0 });
-      message.success(enabled ? '创作者已启用' : '创作者已停用（不可发布新内容）');
+      message.success(
+        enabled
+          ? t('video.catalog.creator.msg.enabled')
+          : t('video.catalog.creator.msg.disabled'),
+      );
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '状态更新失败');
+      message.error(
+        error instanceof Error ? error.message : t('video.catalog.creator.msg.statusFailed'),
+      );
     } finally {
       setActingId(undefined);
     }
@@ -119,36 +139,38 @@ export default function CreatorPanel() {
   const columns: TableProps<CreatorAdminView>['columns'] = [
     { title: 'ID', dataIndex: 'id', width: 80 },
     {
-      title: '头像',
+      title: t('video.catalog.creator.col.avatar'),
       dataIndex: 'avatarUrl',
       width: 80,
       render: (value?: string) =>
         value ? (
           <Image
             src={value}
-            alt="头像"
+            alt={t('video.catalog.creator.alt.avatar')}
             width={40}
             height={40}
             style={{ objectFit: 'cover', borderRadius: 20 }}
           />
         ) : (
-          <Avatar size={40}>创</Avatar>
+          <Avatar size={40}>{t('video.catalog.creator.avatarFallback')}</Avatar>
         ),
     },
     {
-      title: '创作者',
+      title: t('video.catalog.creator.col.creator'),
       dataIndex: 'displayName',
       render: (value: string | undefined, row) => (
         <Space direction="vertical" size={0}>
-          <Typography.Text strong>{value || `创作者 #${row.id}`}</Typography.Text>
+          <Typography.Text strong>
+            {value || t('video.catalog.creator.cell.creator', { id: row.id })}
+          </Typography.Text>
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            用户 ID：{row.userId ?? '-'}
+            {t('video.catalog.creator.cell.userId', { id: row.userId ?? '-' })}
           </Typography.Text>
         </Space>
       ),
     },
     {
-      title: '简介',
+      title: t('video.catalog.creator.col.bio'),
       dataIndex: 'bio',
       render: (value?: string) => (
         <Typography.Text type="secondary" ellipsis style={{ maxWidth: 320 }}>
@@ -157,34 +179,44 @@ export default function CreatorPanel() {
       ),
     },
     {
-      title: '状态',
+      title: t('video.catalog.creator.col.status'),
       dataIndex: 'status',
       width: 100,
       render: (value?: number) =>
-        value === 1 ? <Tag color="success">启用</Tag> : <Tag color="default">停用</Tag>,
+        value === 1 ? (
+          <Tag color="success">{t('video.catalog.creator.status.enabled')}</Tag>
+        ) : (
+          <Tag color="default">{t('video.catalog.creator.status.disabled')}</Tag>
+        ),
     },
     {
-      title: '可发布',
+      title: t('video.catalog.creator.col.publishable'),
       dataIndex: 'active',
       width: 100,
       render: (value?: boolean) =>
-        value ? <Tag color="green">可发布</Tag> : <Tag color="red">受限</Tag>,
+        value ? (
+          <Tag color="green">{t('video.catalog.creator.tag.publishable')}</Tag>
+        ) : (
+          <Tag color="red">{t('video.catalog.creator.tag.restricted')}</Tag>
+        ),
     },
     {
-      title: '操作',
+      title: t('video.catalog.creator.col.action'),
       key: 'action',
       width: 180,
       render: (_, row) => (
         <Space size={8}>
           {has('sys:video:creator:manage') ? (
             <Button type="link" size="small" onClick={() => openEdit(row)}>
-              编辑
+              {t('video.catalog.creator.action.edit')}
             </Button>
           ) : null}
           {has('sys:video:creator:manage') ? (
             <Popconfirm
               title={
-                row.status === 1 ? '停用后该创作者不可发布新内容，确认停用？' : '确认启用该创作者？'
+                row.status === 1
+                  ? t('video.catalog.creator.confirm.disable')
+                  : t('video.catalog.creator.confirm.enable')
               }
               onConfirm={() => void toggleStatus(row, row.status !== 1)}
             >
@@ -194,7 +226,9 @@ export default function CreatorPanel() {
                 danger={row.status === 1}
                 loading={actingId === row.id}
               >
-                {row.status === 1 ? '停用' : '启用'}
+                {row.status === 1
+                  ? t('video.catalog.creator.action.disable')
+                  : t('video.catalog.creator.action.enable')}
               </Button>
             </Popconfirm>
           ) : null}
@@ -208,30 +242,39 @@ export default function CreatorPanel() {
       <ProTable<CreatorAdminView, CreatorQuery>
         ref={tableRef}
         rowKey="id"
-        title="创作者管理"
+        title={t('video.catalog.creator.list.title')}
         columns={columns}
         request={pageCreators}
         params={{ keyword, status }}
         onError={(error) =>
-          message.error(error instanceof Error ? error.message : '创作者列表加载失败')
+          message.error(
+            error instanceof Error
+              ? error.message
+              : t('video.catalog.creator.list.loadFailed'),
+          )
         }
         search={
           <SearchForm
             items={[
               {
                 name: 'keyword',
-                label: '关键词',
-                element: <Input allowClear placeholder="创作者昵称" />,
+                label: t('video.catalog.creator.search.keyword'),
+                element: (
+                  <Input
+                    allowClear
+                    placeholder={t('video.catalog.creator.search.keywordPlaceholder')}
+                  />
+                ),
               },
               {
                 name: 'status',
-                label: '状态',
+                label: t('video.catalog.creator.search.status'),
                 element: (
                   <Select
                     allowClear
-                    placeholder="全部"
+                    placeholder={t('video.catalog.creator.search.all')}
                     style={{ width: 120 }}
-                    options={STATUS_OPTIONS}
+                    options={statusOptions}
                   />
                 ),
               },
@@ -250,7 +293,13 @@ export default function CreatorPanel() {
 
       <FormModal<CreatorFormValues>
         open={modalOpen}
-        title={editing ? `编辑创作者：${editing.displayName || `#${editing.id}`}` : '编辑创作者'}
+        title={
+          editing
+            ? t('video.catalog.creator.form.editTitle', {
+                name: editing.displayName || `#${editing.id}`,
+              })
+            : t('video.catalog.creator.form.editTitlePlain')
+        }
         form={form}
         width={600}
         initialValues={{
@@ -261,13 +310,19 @@ export default function CreatorPanel() {
         onOk={handleSave}
         onCancel={() => setModalOpen(false)}
       >
-        <Form.Item label="头像">
+        <Form.Item label={t('video.catalog.creator.form.avatar')}>
           <Space direction="vertical" size={6}>
             {avatarFileId === '0' ? (
-              <Typography.Text type="secondary">已清除头像（保存后生效）</Typography.Text>
+              <Typography.Text type="secondary">
+                {t('video.catalog.creator.form.avatarCleared')}
+              </Typography.Text>
             ) : avatarFileId ? (
               <Typography.Text type="secondary">
-                已上传头像：{avatarName || `文件 ID ${avatarFileId}`}
+                {t('video.catalog.creator.form.avatarUploaded', {
+                  name:
+                    avatarName ||
+                    t('video.catalog.creator.form.fileId', { id: avatarFileId }),
+                })}
               </Typography.Text>
             ) : editing?.avatarUrl ? (
               <Image
@@ -275,10 +330,12 @@ export default function CreatorPanel() {
                 width={64}
                 height={64}
                 style={{ objectFit: 'cover', borderRadius: 32 }}
-                alt="当前头像"
+                alt={t('video.catalog.creator.alt.currentAvatar')}
               />
             ) : (
-              <Typography.Text type="secondary">暂无头像</Typography.Text>
+              <Typography.Text type="secondary">
+                {t('video.catalog.creator.form.avatarEmpty')}
+              </Typography.Text>
             )}
             <Space>
               <Upload
@@ -291,8 +348,8 @@ export default function CreatorPanel() {
               >
                 <Button loading={uploadingAvatar}>
                   {avatarFileId !== '0' && (avatarFileId || editing?.avatarUrl)
-                    ? '重新上传头像'
-                    : '上传头像'}
+                    ? t('video.catalog.creator.form.avatarReupload')
+                    : t('video.catalog.creator.form.avatarUpload')}
                 </Button>
               </Upload>
               {editing?.avatarUrl || (avatarFileId && avatarFileId !== '0') ? (
@@ -303,7 +360,7 @@ export default function CreatorPanel() {
                     setAvatarName('');
                   }}
                 >
-                  移除头像
+                  {t('video.catalog.creator.form.avatarRemove')}
                 </Button>
               ) : null}
             </Space>
@@ -311,21 +368,26 @@ export default function CreatorPanel() {
         </Form.Item>
         <Form.Item
           name="displayName"
-          label="创作者昵称"
-          rules={[{ required: true, message: '请输入创作者昵称' }]}
+          label={t('video.catalog.creator.form.displayName')}
+          rules={[
+            { required: true, message: t('video.catalog.creator.form.displayNameRequired') },
+          ]}
         >
           <Input maxLength={64} showCount />
         </Form.Item>
-        <Form.Item name="bio" label="简介">
+        <Form.Item name="bio" label={t('video.catalog.creator.form.bio')}>
           <Input.TextArea maxLength={500} showCount autoSize={{ minRows: 3, maxRows: 6 }} />
         </Form.Item>
         <Form.Item
           name="enabled"
-          label="启用状态"
+          label={t('video.catalog.creator.form.enabled')}
           valuePropName="checked"
-          extra="停用后该创作者不可发布新内容"
+          extra={t('video.catalog.creator.form.enabledExtra')}
         >
-          <Switch checkedChildren="启用" unCheckedChildren="停用" />
+          <Switch
+            checkedChildren={t('video.catalog.creator.status.enabled')}
+            unCheckedChildren={t('video.catalog.creator.status.disabled')}
+          />
         </Form.Item>
       </FormModal>
     </>

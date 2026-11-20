@@ -58,7 +58,8 @@ public class PasswordAppServiceImpl implements PasswordAppService {
                 .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
         // 旧口令比对保持在事务外（慢哈希），事务只包住后续读校验与写路径
         if (!passwordHasher.matches(command.oldPassword(), user.getPassword().value())) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), OLD_PASSWORD_MISMATCH);
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.password.old-mismatch",
+                    OLD_PASSWORD_MISMATCH);
         }
         transactionTemplate.executeWithoutResult(status -> doChangeOwnPassword(user, command));
     }
