@@ -11,7 +11,7 @@
         <relativePath>../../whale-parent/pom.xml</relativePath>
     </parent>
 
-    <artifactId>whale-alert</artifactId>
+    <artifactId>whale-ops-alert</artifactId>
     <name>Whale Alert</name>
     <description>告警中心服务</description>
 

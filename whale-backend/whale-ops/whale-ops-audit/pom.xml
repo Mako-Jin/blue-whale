@@ -11,7 +11,7 @@
         <relativePath>../../whale-parent/pom.xml</relativePath>
     </parent>
 
-    <artifactId>whale-audit</artifactId>
+    <artifactId>whale-ops-audit</artifactId>
     <name>Whale Audit</name>
     <description>审计日志服务</description>
 
