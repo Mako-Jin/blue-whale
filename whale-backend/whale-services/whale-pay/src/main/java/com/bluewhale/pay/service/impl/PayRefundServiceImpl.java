@@ -89,7 +89,8 @@ public class PayRefundServiceImpl implements PayRefundService {
         payRefundMapper.updateById(refund);
         // 原子累计：0 行 = 状态不允许或累计超额，回滚整笔退款
         if (payOrderMapper.applyRefund(order.getId(), amount) == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "退款失败：支付单不可退款或累计退款超出支付金额");
+            throw new BizException(ErrorCode.PARAM_ERROR, "pay.refund.not-refundable",
+                    "退款失败：支付单不可退款或累计退款超出支付金额");
         }
         recordTransaction(order, amount, result);
         PayOrder fresh = payOrderMapper.selectById(order.getId());
@@ -110,7 +111,7 @@ public class PayRefundServiceImpl implements PayRefundService {
         BigDecimal remaining = order.getAmount().subtract(
                 order.getRefundAmount() == null ? BigDecimal.ZERO : order.getRefundAmount());
         if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "支付单已全额退款");
+            throw new BizException(ErrorCode.PARAM_ERROR, "pay.refund.already-full-refunded", "支付单已全额退款");
         }
         return refundByNo(order.getOrderNo(), null, remaining, reason);
     }
@@ -162,8 +163,9 @@ public class PayRefundServiceImpl implements PayRefundService {
             return null;
         }
         if (existing.getAmount().compareTo(amount) != 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR,
-                    "退款请求号 " + refundNo + " 已用于金额 " + existing.getAmount() + " 的退款，不可改额重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "pay.refund.request-reused",
+                    "退款请求号 " + refundNo + " 已用于金额 " + existing.getAmount() + " 的退款，不可改额重试",
+                    refundNo, existing.getAmount());
         }
         return existing;
     }
@@ -245,10 +247,10 @@ public class PayRefundServiceImpl implements PayRefundService {
      */
     private static void validateAmount(BigDecimal amount) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "退款金额必须大于 0");
+            throw new BizException(ErrorCode.PARAM_ERROR, "pay.refund.amount-invalid", "退款金额必须大于 0");
         }
         if (amount.stripTrailingZeros().scale() > MAX_AMOUNT_SCALE) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "退款金额最多保留 2 位小数");
+            throw new BizException(ErrorCode.PARAM_ERROR, "pay.refund.amount-scale-invalid", "退款金额最多保留 2 位小数");
         }
     }
 

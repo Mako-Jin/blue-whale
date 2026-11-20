@@ -126,7 +126,8 @@ public class MessageAnnouncementServiceImpl implements MessageAnnouncementServic
     private MessageAnnouncementPo requireAnnouncement(Long id) {
         MessageAnnouncementPo announcement = id == null ? null : announcementMapper.selectById(id);
         if (announcement == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "系统公告不存在: " + id);
+            throw new BizException(ErrorCode.NOT_FOUND, "message.announcement.not-found",
+                    "系统公告不存在: " + id, id);
         }
         return announcement;
     }
@@ -141,7 +142,8 @@ public class MessageAnnouncementServiceImpl implements MessageAnnouncementServic
         try {
             return AnnouncementStatus.valueOf(raw.trim().toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "无法识别的公告状态: " + raw);
+            throw new BizException(ErrorCode.PARAM_ERROR, "message.announcement.status-unrecognized",
+                    "无法识别的公告状态: " + raw, raw);
         }
     }
 

@@ -171,6 +171,7 @@ public class DocWorkflowClient {
      * @return 业务异常
      */
     private BizException failure(String message) {
-        return new BizException(ErrorCode.SYSTEM_ERROR, "发布审批调用失败: " + message);
+        return new BizException(ErrorCode.SYSTEM_ERROR, "doc.approval.invoke-failed",
+                "发布审批调用失败: " + message, message);
     }
 }

@@ -17,7 +17,7 @@ import java.util.List;
 public class JobBatchDeleteRequest {
 
     /** 任务ID列表 */
-    @NotEmpty(message = "任务ID列表不能为空")
-    @Size(max = 200, message = "单次批量操作不能超过 200 条")
+    @NotEmpty(message = "{validation.job.batch.job-ids-required}")
+    @Size(max = 200, message = "{validation.job.batch.job-ids-size}")
     private List<Long> jobIds;
 }

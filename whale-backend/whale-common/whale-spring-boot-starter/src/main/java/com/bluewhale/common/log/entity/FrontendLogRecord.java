@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 /**
  * 前端开发者日志实体，对应 {@code frontend_log} 表（REQ-SEC-006）。
  *
- * <p>由前端 {@code whale-log-sdk} 劫持 {@code console} 后经 {@code POST /audit/log/frontend/batch}
+ * <p>由前端 {@code whale-log-sdk} 劫持 {@code console} 后经 {@code POST /audit/v1/log/frontend/batch}
  * 批量上报，whale-audit 落库。</p>
  * <p><b>不继承 {@code BaseEntity}</b>：append-only（无 {@code update_time} / {@code deleted}）。</p>
  *

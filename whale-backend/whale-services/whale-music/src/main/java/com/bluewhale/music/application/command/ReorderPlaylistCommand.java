@@ -14,6 +14,6 @@ import java.util.List;
 public class ReorderPlaylistCommand {
 
     /** 有序歌曲 ID 列表 */
-    @NotEmpty(message = "重排歌曲 ID 列表不能为空")
+    @NotEmpty(message = "{validation.music.reorder.song-ids-required}")
     private List<Long> songIds;
 }

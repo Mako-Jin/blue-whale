@@ -89,7 +89,7 @@
         {
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum(rate(http_server_requests_seconds_count{uri=~\"/audit/log/.*\"}[5m]))",
+          "expr": "sum(rate(http_server_requests_seconds_count{uri=~\"/audit/v1/log/.*\"}[5m]))",
           "instant": true,
           "legendFormat": "audit"
         }

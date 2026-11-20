@@ -20,6 +20,7 @@ import {
   type ArtistSaveInput,
   type ArtistView,
 } from '../../api/music';
+import { useI18n } from '../../i18n';
 
 interface ArtistFormValues {
   name: string;
@@ -28,13 +29,9 @@ interface ArtistFormValues {
   status?: number;
 }
 
-const STATUS_OPTIONS = [
-  { value: 1, label: '启用' },
-  { value: 0, label: '停用' },
-];
-
 export default function ArtistList() {
   const { message } = App.useApp();
+  const { t } = useI18n();
   const { has } = usePermission();
   const tableRef = useRef<ProTableRef>(null);
   const [form] = Form.useForm<ArtistFormValues>();
@@ -42,6 +39,11 @@ export default function ArtistList() {
   const [keyword, setKeyword] = useState<string | undefined>(undefined);
   const [editing, setEditing] = useState<ArtistView | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+
+  const statusOptions = [
+    { value: 1, label: t('music.artist.status.enabled') },
+    { value: 0, label: t('music.artist.status.disabled') },
+  ];
 
   const openCreate = () => {
     setEditing(null);
@@ -63,15 +65,15 @@ export default function ArtistList() {
     try {
       if (editing) {
         await updateArtist(editing.id, payload);
-        message.success('歌手已更新');
+        message.success(t('music.artist.msg.updated'));
       } else {
         await createArtist(payload);
-        message.success('歌手已新增');
+        message.success(t('music.artist.msg.created'));
       }
       setModalOpen(false);
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '保存失败');
+      message.error(error instanceof Error ? error.message : t('music.common.saveFailed'));
       throw error;
     }
   };
@@ -79,56 +81,63 @@ export default function ArtistList() {
   const handleDelete = async (row: ArtistView) => {
     try {
       await deleteArtist(row.id);
-      message.success('歌手已删除');
+      message.success(t('music.artist.msg.deleted'));
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '删除失败');
+      message.error(error instanceof Error ? error.message : t('music.common.deleteFailed'));
     }
   };
 
   const columns: TableProps<ArtistView>['columns'] = [
     { title: 'ID', dataIndex: 'id', width: 80 },
-    { title: '艺名', dataIndex: 'name' },
+    { title: t('music.artist.col.name'), dataIndex: 'name' },
     {
-      title: '地区',
+      title: t('music.artist.col.region'),
       dataIndex: 'region',
       width: 140,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '简介',
+      title: t('music.artist.col.bio'),
       dataIndex: 'bio',
       ellipsis: true,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '状态',
+      title: t('music.artist.col.status'),
       dataIndex: 'status',
       width: 90,
       render: (value: number | undefined) =>
-        value === 0 ? <Tag>停用</Tag> : <Tag color="success">启用</Tag>,
+        value === 0 ? (
+          <Tag>{t('music.artist.status.disabled')}</Tag>
+        ) : (
+          <Tag color="success">{t('music.artist.status.enabled')}</Tag>
+        ),
     },
     {
-      title: '创建时间',
+      title: t('music.artist.col.createTime'),
       dataIndex: 'createTime',
       width: 180,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '操作',
+      title: t('music.common.action'),
       key: 'action',
       width: 150,
       render: (_, row) => (
         <Space size={4}>
           {has('sys:music:artist:edit') && (
             <Button type="link" size="small" onClick={() => openEdit(row)}>
-              编辑
+              {t('music.common.edit')}
             </Button>
           )}
           {has('sys:music:artist:delete') && (
-            <Popconfirm title="确认删除该歌手？" onConfirm={() => void handleDelete(row)}>
+            <Popconfirm
+              title={t('music.artist.confirm.delete')}
+              onConfirm={() => void handleDelete(row)}
+            >
               <Button type="link" size="small" danger>
-                删除
+                {t('music.common.delete')}
               </Button>
             </Popconfirm>
           )}
@@ -142,20 +151,24 @@ export default function ArtistList() {
       <ProTable<ArtistView, ArtistQuery>
         ref={tableRef}
         rowKey="id"
-        title="歌手"
+        title={t('music.artist.title')}
         columns={columns}
         request={pageArtists}
         params={{ keyword }}
         onError={(error) =>
-          message.error(error instanceof Error ? error.message : '歌手列表加载失败')
+          message.error(
+            error instanceof Error ? error.message : t('music.artist.msg.listLoadFailed'),
+          )
         }
         search={
           <SearchForm
             items={[
               {
                 name: 'keyword',
-                label: '艺名',
-                element: <Input allowClear placeholder="艺名关键词" />,
+                label: t('music.artist.search.name'),
+                element: (
+                  <Input allowClear placeholder={t('music.artist.search.namePlaceholder')} />
+                ),
               },
             ]}
             onSearch={(values) => setKeyword((values.keyword as string) || undefined)}
@@ -164,14 +177,18 @@ export default function ArtistList() {
         }
         toolbar={
           <AuthButton perm="sys:music:artist:add" type="primary" onClick={openCreate}>
-            新增歌手
+            {t('music.artist.action.create')}
           </AuthButton>
         }
       />
 
       <FormModal<ArtistFormValues>
         open={modalOpen}
-        title={editing ? `编辑歌手：${editing.name}` : '新增歌手'}
+        title={
+          editing
+            ? t('music.artist.form.editTitle', { name: editing.name })
+            : t('music.artist.action.create')
+        }
         form={form}
         initialValues={{
           name: editing?.name,
@@ -182,17 +199,21 @@ export default function ArtistList() {
         onOk={handleSave}
         onCancel={() => setModalOpen(false)}
       >
-        <Form.Item name="name" label="艺名" rules={[{ required: true, message: '请输入艺名' }]}>
+        <Form.Item
+          name="name"
+          label={t('music.artist.form.name')}
+          rules={[{ required: true, message: t('music.artist.form.nameRequired') }]}
+        >
           <Input maxLength={100} showCount />
         </Form.Item>
-        <Form.Item name="region" label="地区">
+        <Form.Item name="region" label={t('music.artist.form.region')}>
           <Input maxLength={64} />
         </Form.Item>
-        <Form.Item name="bio" label="简介">
+        <Form.Item name="bio" label={t('music.artist.form.bio')}>
           <Input.TextArea rows={3} maxLength={1000} showCount />
         </Form.Item>
-        <Form.Item name="status" label="状态">
-          <Select options={STATUS_OPTIONS} />
+        <Form.Item name="status" label={t('music.artist.form.status')}>
+          <Select options={statusOptions} />
         </Form.Item>
       </FormModal>
     </>

@@ -175,7 +175,7 @@ public class DocSpaceServiceImpl implements DocSpaceService {
     public List<DocMemberVO> addMembers(Long spaceId, DocMemberAddRequest request, Long userId) {
         accessGuard.requireMember(spaceId, userId, DocMemberRole.ADMIN);
         if (request.getRole() == DocMemberRole.OWNER) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "授予所有者请使用成员角色转让");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.space.owner-grant-unsupported", "授予所有者请使用成员角色转让");
         }
         Long tenantId = TenantContext.requireId();
         LinkedHashSet<Long> targets = new LinkedHashSet<>(request.getUserIds());
@@ -452,7 +452,7 @@ public class DocSpaceServiceImpl implements DocSpaceService {
     private void changeRole(DocMemberRole actorRole, DocSpaceMember member, DocMemberRole current,
                             DocMemberRole target, Long userId) {
         if (current == DocMemberRole.OWNER) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "所有者转让请通过授予 OWNER 完成");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.space.owner-transfer-unsupported", "所有者转让请通过授予 OWNER 完成");
         }
         if (current == DocMemberRole.ADMIN && actorRole != DocMemberRole.OWNER
                 && !member.getUserId().equals(userId)) {
@@ -487,7 +487,7 @@ public class DocSpaceServiceImpl implements DocSpaceService {
             String key = raw.trim().toLowerCase(Locale.ROOT);
             Long tenantId = TenantContext.requireId();
             if (spaceMapper.countKeyIncludeDeleted(tenantId, key) > 0) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "空间编码已存在: " + key);
+                throw new BizException(ErrorCode.PARAM_ERROR, "doc.space.key-duplicated", "空间编码已存在: " + key, key);
             }
             return key;
         }

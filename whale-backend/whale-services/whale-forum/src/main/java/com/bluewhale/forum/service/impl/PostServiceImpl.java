@@ -87,16 +87,17 @@ public class PostServiceImpl implements PostService {
         ForumBoard board = boardService.requireVisibleBoard(thread.getBoardId(), actor);
         banService.assertNotMuted(actor.userId());
         if (!REPLYABLE_STATUSES.contains(thread.getStatus())) {
-            throw new BizException(ForumErrorCodes.THREAD_STATE_ILLEGAL,
+            throw new BizException(ForumErrorCodes.THREAD_STATE_ILLEGAL, "forum.post.not-replyable",
                     "帖子当前状态不接受回复（可能已关闭或审核中）");
         }
         String content = RichTextSanitizer.sanitize(request.getContent());
         if (content == null || content.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "回复内容不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "forum.post.content-required", "回复内容不能为空");
         }
         if (content.length() > properties.getMaxContentLength()) {
-            throw new BizException(ForumErrorCodes.CONTENT_TOO_LONG,
-                    "回复不超过 " + properties.getMaxContentLength() + " 字符");
+            throw new BizException(ForumErrorCodes.CONTENT_TOO_LONG, "forum.post.content-too-long",
+                    "回复不超过 " + properties.getMaxContentLength() + " 字符",
+                    properties.getMaxContentLength());
         }
         assertReplyRate(actor.userId());
 
@@ -105,7 +106,8 @@ public class PostServiceImpl implements PostService {
             sensitiveWordService.recordHit("POST", null, actor.userId(), scan);
         }
         if (SensitiveWordService.ScanResult.BLOCK.equals(scan.action())) {
-            throw new BizException(ForumErrorCodes.SENSITIVE_BLOCKED, "回复包含不允许发布的词，请修改后重试");
+            throw new BizException(ForumErrorCodes.SENSITIVE_BLOCKED, "forum.post.sensitive-blocked",
+                    "回复包含不允许发布的词，请修改后重试");
         }
         content = scan.text();
         // 审核版块或命中「转待审」词：楼层先落 PENDING，不计入回复数，通过后再 +1
@@ -126,7 +128,7 @@ public class PostServiceImpl implements PostService {
                         request.getReplyToPostId(), properties.getMaxPostsPerThread(), status);
                 return finish(post, thread, actor);
             } catch (DuplicateKeyException retryFailure) {
-                throw new BizException(ForumErrorCodes.FLOOR_CONFLICT,
+                throw new BizException(ForumErrorCodes.FLOOR_CONFLICT, "forum.post.floor-conflict",
                         "楼层号分配冲突，请联系管理员重算楼层（本次未占用楼层）");
             }
         }
@@ -245,8 +247,9 @@ public class PostServiceImpl implements PostService {
                 .ge(ForumPost::getCreateTime,
                         LocalDateTime.now().minusSeconds(properties.getReplyIntervalSeconds())));
         if (recent != null && recent > 0) {
-            throw new BizException(ForumErrorCodes.RATE_LIMITED,
-                    "回复过于频繁，请 " + properties.getReplyIntervalSeconds() + " 秒后再试");
+            throw new BizException(ForumErrorCodes.RATE_LIMITED, "forum.post.reply-too-frequent",
+                    "回复过于频繁，请 " + properties.getReplyIntervalSeconds() + " 秒后再试",
+                    properties.getReplyIntervalSeconds());
         }
     }
 

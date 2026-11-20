@@ -17,12 +17,12 @@ public class SocialBindAuthorizeRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 渠道编码：dingtalk / feishu / wecom */
-    @NotBlank(message = "渠道编码不能为空")
-    @Pattern(regexp = "dingtalk|feishu|wecom", message = "不支持的三方渠道")
+    @NotBlank(message = "{validation.auth.social.channel-required}")
+    @Pattern(regexp = "dingtalk|feishu|wecom", message = "{validation.auth.social.channel-pattern}")
     private String provider;
 
     /** 绑定完成后的前端回跳相对路径（以 / 开头，防开放重定向） */
-    @NotBlank(message = "回跳路径不能为空")
-    @Pattern(regexp = "/(?!/)[^:]*", message = "回跳路径必须是站内相对路径")
+    @NotBlank(message = "{validation.auth.social.redirect-required}")
+    @Pattern(regexp = "/(?!/)[^:]*", message = "{validation.auth.social.redirect-pattern}")
     private String redirect;
 }

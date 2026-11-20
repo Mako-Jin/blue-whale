@@ -15,6 +15,6 @@ public class CommentSubmitCommand {
     private String content;
 
     /** 父评论 ID；顶级评论传 0 或不传 */
-    @NotNull(message = "父评论 ID 不能为空")
+    @NotNull(message = "{validation.music.comment.parent-id-required}")
     private Long parentId = 0L;
 }

@@ -48,10 +48,21 @@ public class BanServiceImpl implements BanService {
         if (ban == null) {
             return;
         }
-        String until = ban.getExpireTime() == null ? "永久" : ban.getExpireTime().format(TIME_FORMAT);
-        String what = TYPE_BAN.equals(ban.getBanType()) ? "账号已被封禁" : "禁言中";
-        throw new BizException(ForumErrorCodes.USER_MUTED,
-                what + "（至 " + until + "），原因：" + ban.getReason());
+        boolean banned = TYPE_BAN.equals(ban.getBanType());
+        boolean permanent = ban.getExpireTime() == null;
+        String until = permanent ? "永久" : ban.getExpireTime().format(TIME_FORMAT);
+        String what = banned ? "账号已被封禁" : "禁言中";
+        String key;
+        Object[] args;
+        if (permanent) {
+            key = banned ? "forum.ban.account-banned-forever" : "forum.ban.muted-forever";
+            args = new Object[]{ban.getReason()};
+        } else {
+            key = banned ? "forum.ban.account-banned" : "forum.ban.muted";
+            args = new Object[]{until, ban.getReason()};
+        }
+        throw new BizException(ForumErrorCodes.USER_MUTED, key,
+                what + "（至 " + until + "），原因：" + ban.getReason(), args);
     }
 
     @Override
@@ -59,10 +70,10 @@ public class BanServiceImpl implements BanService {
     public ForumUserBan ban(Long userId, String banType, int days, String reason,
                             Long operatorId, Long reportId) {
         if (userId == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "被处置用户不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "forum.ban.user-required", "被处置用户不能为空");
         }
         if (reason == null || reason.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "处置原因必填（通知与申诉依据）");
+            throw new BizException(ErrorCode.PARAM_ERROR, "forum.ban.reason-required", "处置原因必填（通知与申诉依据）");
         }
         // 先解除旧的：同一用户同时存在多条生效记录会让「到期时间」失去唯一解释
         banMapper.releaseAll(TenantContext.requireId(), userId, operatorId);

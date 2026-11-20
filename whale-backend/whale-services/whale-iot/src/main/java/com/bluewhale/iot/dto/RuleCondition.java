@@ -22,23 +22,23 @@ import lombok.Data;
 public class RuleCondition {
 
     /** 属性标识符（对齐物模型 property.identifier） */
-    @NotBlank(message = "属性标识符不能为空")
-    @Pattern(regexp = "^[a-zA-Z][a-zA-Z0-9_]{0,63}$", message = "标识符须为字母开头的字母/数字/下划线，1-64 位")
+    @NotBlank(message = "{validation.iot.rule-condition.identifier-required}")
+    @Pattern(regexp = "^[a-zA-Z][a-zA-Z0-9_]{0,63}$", message = "{validation.iot.rule-condition.identifier-pattern}")
     private String identifier;
 
     /** 比较操作符：> >= < <= == != */
-    @NotBlank(message = "比较操作符不能为空")
-    @Pattern(regexp = "^(>=|<=|==|!=|>|<)$", message = "操作符仅支持 > >= < <= == !=")
+    @NotBlank(message = "{validation.iot.rule-condition.op-required}")
+    @Pattern(regexp = "^(>=|<=|==|!=|>|<)$", message = "{validation.iot.rule-condition.op-pattern}")
     private String op;
 
     /** 比较阈值 */
-    @NotNull(message = "阈值不能为空")
-    @DecimalMin(value = "-1.0E12", message = "阈值超出范围")
-    @DecimalMax(value = "1.0E12", message = "阈值超出范围")
+    @NotNull(message = "{validation.iot.rule-condition.value-required}")
+    @DecimalMin(value = "-1.0E12", message = "{validation.iot.rule-condition.value-range}")
+    @DecimalMax(value = "1.0E12", message = "{validation.iot.rule-condition.value-range}")
     private Double value;
 
     /** 连续满足时长（秒），0 表示即时触发 */
-    @Min(value = 0, message = "持续时间不能为负")
-    @Max(value = 86400, message = "持续时间不能超过 86400 秒")
+    @Min(value = 0, message = "{validation.iot.rule-condition.duration-min}")
+    @Max(value = 86400, message = "{validation.iot.rule-condition.duration-max}")
     private Integer durationSec = 0;
 }

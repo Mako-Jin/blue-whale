@@ -18,13 +18,13 @@ public class ExecutorRegisterRequest {
     private Long tenantId;
 
     /** 执行器应用名（Nacos 服务名） */
-    @NotBlank(message = "执行器应用名不能为空")
-    @Size(max = 64, message = "执行器应用名长度不能超过 64")
+    @NotBlank(message = "{validation.job.executor.app-name-required}")
+    @Size(max = 64, message = "{validation.job.executor.app-name-size}")
     private String appName;
 
     /** 实例地址 host:port */
-    @NotBlank(message = "执行器地址不能为空")
-    @Size(max = 128, message = "执行器地址长度不能超过 128")
+    @NotBlank(message = "{validation.job.executor.address-required}")
+    @Size(max = 128, message = "{validation.job.executor.address-size}")
     private String address;
 
     /** 该实例支持的任务编码 */

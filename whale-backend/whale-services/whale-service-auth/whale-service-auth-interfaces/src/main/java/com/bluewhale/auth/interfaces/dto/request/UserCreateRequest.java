@@ -12,12 +12,12 @@ import lombok.Data;
 @Data
 public class UserCreateRequest {
 
-    @NotBlank(message = "用户名不能为空")
-    @Size(max = 64, message = "用户名长度不能超过 64")
+    @NotBlank(message = "{validation.auth.user.username-required}")
+    @Size(max = 64, message = "{validation.auth.user.username-size}")
     private String username;
 
-    @NotBlank(message = "密码不能为空")
-    @Size(min = 6, max = 64, message = "密码长度必须在 6-64 之间")
+    @NotBlank(message = "{validation.auth.user.password-required}")
+    @Size(min = 6, max = 64, message = "{validation.auth.user.password-size}")
     private String password;
 
     private String nickname;

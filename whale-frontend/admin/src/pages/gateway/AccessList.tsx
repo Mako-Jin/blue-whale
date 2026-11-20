@@ -34,6 +34,7 @@ import {
   type GatewayAccessRulePayload,
   type GatewayAccessRuleVO,
 } from '../../api/gatewayAccess';
+import { useI18n } from '../../i18n';
 
 /** 名单类型：whitelist 免鉴权白名单 / blacklist 封禁黑名单 */
 type Kind = 'whitelist' | 'blacklist';
@@ -48,7 +49,8 @@ interface RuleFormValues {
 }
 
 interface KindMeta {
-  title: string;
+  /** 名单类型文案键 */
+  titleKey: 'gateway.whitelist.title' | 'gateway.blacklist.title';
   /** Tab 可见与列表查询权限 */
   listPerm: string;
   addPerm: string;
@@ -63,7 +65,7 @@ interface KindMeta {
 /** 名单类型 → 文案 / 权限码 / 接口（成对登记，避免运行期拼权限码） */
 const KINDS: Record<Kind, KindMeta> = {
   whitelist: {
-    title: '白名单',
+    titleKey: 'gateway.whitelist.title',
     listPerm: 'sys:gateway:whitelist:list',
     addPerm: 'sys:gateway:whitelist:add',
     editPerm: 'sys:gateway:whitelist:edit',
@@ -74,7 +76,7 @@ const KINDS: Record<Kind, KindMeta> = {
     remove: deleteGatewayWhitelist,
   },
   blacklist: {
-    title: '黑名单',
+    titleKey: 'gateway.blacklist.title',
     listPerm: 'sys:gateway:blacklist:list',
     addPerm: 'sys:gateway:blacklist:add',
     editPerm: 'sys:gateway:blacklist:edit',
@@ -91,17 +93,6 @@ const HTTP_METHOD_OPTIONS = ['*', 'GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD
   (value) => ({ value, label: value }),
 );
 
-const STATUS_OPTIONS = [
-  { value: 1, label: '启用/生效' },
-  { value: 0, label: '停用/解除' },
-];
-
-/** 来源标签：迁移种子与手工维护区分展示 */
-const SOURCE_LABELS: Record<string, string> = {
-  MIGRATION: '迁移',
-  MANUAL: '手工',
-};
-
 /** 行数据 → 表单值：* 方法在表单里显示为空（不限） */
 function toFormValues(row: GatewayAccessRuleVO): Partial<RuleFormValues> {
   return {
@@ -117,6 +108,19 @@ function AccessRulePanel({ kind }: { kind: Kind }) {
   const meta = KINDS[kind];
   const { message } = App.useApp();
   const { has } = usePermission();
+  const { t } = useI18n();
+  const title = t(meta.titleKey);
+
+  const statusOptions = [
+    { value: 1, label: t('gateway.status.optionEnabled') },
+    { value: 0, label: t('gateway.status.optionDisabled') },
+  ];
+
+  /** 来源标签：迁移种子与手工维护区分展示 */
+  const sourceLabels: Record<string, string> = {
+    MIGRATION: t('gateway.source.migration'),
+    MANUAL: t('gateway.source.manual'),
+  };
 
   const [rows, setRows] = useState<GatewayAccessRuleVO[]>([]);
   const [loading, setLoading] = useState(false);
@@ -131,7 +135,9 @@ function AccessRulePanel({ kind }: { kind: Kind }) {
     try {
       setRows(await meta.list(statusFilter));
     } catch (error) {
-      message.error(error instanceof Error ? error.message : `${meta.title}加载失败`);
+      message.error(
+        error instanceof Error ? error.message : t('gateway.msg.loadFailed', { name: title }),
+      );
     } finally {
       setLoading(false);
     }
@@ -145,10 +151,10 @@ function AccessRulePanel({ kind }: { kind: Kind }) {
   const handleDelete = async (row: GatewayAccessRuleVO) => {
     try {
       await meta.remove(row.id);
-      message.success(`${meta.title}条目已删除`);
+      message.success(t('gateway.msg.deleted', { name: title }));
       void load();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '删除失败');
+      message.error(error instanceof Error ? error.message : t('gateway.msg.deleteFailed'));
     }
   };
 
@@ -162,10 +168,10 @@ function AccessRulePanel({ kind }: { kind: Kind }) {
         sortNo: row.sortNo,
         remark: row.remark ?? undefined,
       });
-      message.success(`${next === 1 ? '已启用' : '已停用'}，网关 60s 内生效`);
+      message.success(t(next === 1 ? 'gateway.msg.enabled' : 'gateway.msg.disabled'));
       void load();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '状态更新失败');
+      message.error(error instanceof Error ? error.message : t('gateway.msg.toggleFailed'));
     }
   };
 
@@ -180,66 +186,70 @@ function AccessRulePanel({ kind }: { kind: Kind }) {
     try {
       if (editRecord) {
         await meta.update(editRecord.id, payload);
-        message.success(`${meta.title}条目已更新`);
+        message.success(t('gateway.msg.updated', { name: title }));
       } else {
         await meta.create(payload);
-        message.success(`${meta.title}条目已创建`);
+        message.success(t('gateway.msg.created', { name: title }));
       }
       setEditorOpen(false);
       void load();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : editRecord ? '更新失败' : '创建失败');
+      message.error(
+        error instanceof Error
+          ? error.message
+          : t(editRecord ? 'gateway.msg.updateFailed' : 'gateway.msg.createFailed'),
+      );
       throw error;
     }
   };
 
   const columns: TableProps<GatewayAccessRuleVO>['columns'] = [
     {
-      title: '路径',
+      title: t('gateway.col.path'),
       dataIndex: 'pathPattern',
       render: (value: string) => <Typography.Text code>{value}</Typography.Text>,
     },
     {
-      title: '方法',
+      title: t('gateway.col.method'),
       dataIndex: 'httpMethod',
       width: 100,
       render: (value: string | undefined) => <Tag>{value || '*'}</Tag>,
     },
     {
-      title: '状态',
+      title: t('gateway.col.status'),
       dataIndex: 'status',
       width: 100,
       render: (value: number | undefined, row) => (
         <Switch
           checked={value === 1}
           disabled={!has(meta.editPerm)}
-          checkedChildren="启用"
-          unCheckedChildren="停用"
+          checkedChildren={t('gateway.status.enabled')}
+          unCheckedChildren={t('gateway.status.disabled')}
           onChange={(checked) => void handleToggle(row, checked ? 1 : 0)}
         />
       ),
     },
-    { title: '排序', dataIndex: 'sortNo', width: 80 },
+    { title: t('gateway.col.sortNo'), dataIndex: 'sortNo', width: 80 },
     {
-      title: '来源',
+      title: t('gateway.col.source'),
       dataIndex: 'source',
       width: 100,
-      render: (value: string | undefined) => (value ? (SOURCE_LABELS[value] ?? value) : '-'),
+      render: (value: string | undefined) => (value ? (sourceLabels[value] ?? value) : '-'),
     },
     {
-      title: '备注',
+      title: t('gateway.col.remark'),
       dataIndex: 'remark',
       ellipsis: true,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '更新时间',
+      title: t('gateway.col.updateTime'),
       dataIndex: 'updateTime',
       width: 180,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '操作',
+      title: t('gateway.col.action'),
       key: 'action',
       width: 160,
       render: (_, row) => (
@@ -253,16 +263,16 @@ function AccessRulePanel({ kind }: { kind: Kind }) {
               setEditorOpen(true);
             }}
           >
-            编辑
+            {t('gateway.btn.edit')}
           </AuthButton>
           {has(meta.deletePerm) && (
             <Popconfirm
-              title={`确认删除该${meta.title}条目？`}
-              description="删除为物理删除；仅临时停用请使用状态开关。"
+              title={t('gateway.confirm.delete', { name: title })}
+              description={t('gateway.confirm.deleteDescription')}
               onConfirm={() => void handleDelete(row)}
             >
               <Button type="link" size="small" danger>
-                删除
+                {t('gateway.btn.delete')}
               </Button>
             </Popconfirm>
           )}
@@ -278,8 +288,8 @@ function AccessRulePanel({ kind }: { kind: Kind }) {
           type="warning"
           showIcon
           style={{ marginBottom: 12 }}
-          message="黑名单优先于白名单：命中黑名单的请求一律 403，不再判断白名单与令牌。"
-          description="误封 /auth/v1/login 等登录路径会导致全平台无法登录，新增前请确认路径范围。"
+          message={t('gateway.alert.blacklistTitle')}
+          description={t('gateway.alert.blacklistDescription')}
         />
       )}
       <Table<GatewayAccessRuleVO>
@@ -290,7 +300,7 @@ function AccessRulePanel({ kind }: { kind: Kind }) {
         pagination={false}
         title={() => (
           <Space wrap>
-            <span>{meta.title}列表</span>
+            <span>{t('gateway.list.title', { name: title })}</span>
             <AuthButton
               perm={meta.addPerm}
               type="primary"
@@ -300,15 +310,15 @@ function AccessRulePanel({ kind }: { kind: Kind }) {
                 setEditorOpen(true);
               }}
             >
-              新增{meta.title}
+              {t('gateway.btn.create', { name: title })}
             </AuthButton>
             <Select<number>
               allowClear
               size="small"
               style={{ width: 150 }}
-              placeholder="全部状态"
+              placeholder={t('gateway.status.all')}
               value={statusFilter}
-              options={STATUS_OPTIONS}
+              options={statusOptions}
               onChange={(value) => setStatusFilter(value)}
             />
           </Space>
@@ -317,7 +327,11 @@ function AccessRulePanel({ kind }: { kind: Kind }) {
 
       <FormModal<RuleFormValues>
         open={editorOpen}
-        title={editRecord ? `编辑${meta.title}：${editRecord.pathPattern}` : `新增${meta.title}`}
+        title={
+          editRecord
+            ? t('gateway.form.editTitle', { name: title, path: editRecord.pathPattern })
+            : t('gateway.form.createTitle', { name: title })
+        }
         form={editorForm}
         initialValues={editRecord ? toFormValues(editRecord) : { status: 1, sortNo: 0 }}
         onOk={handleSubmit}
@@ -325,29 +339,41 @@ function AccessRulePanel({ kind }: { kind: Kind }) {
       >
         <Form.Item
           name="pathPattern"
-          label="路径"
+          label={t('gateway.form.path')}
           rules={[
-            { required: true, message: '请输入路径' },
-            { pattern: /^\/.*/, message: '路径必须以 / 开头' },
+            { required: true, message: t('gateway.form.pathRequired') },
+            { pattern: /^\/.*/, message: t('gateway.form.pathInvalid') },
           ]}
         >
-          <Input placeholder="如 /music/stream/**" maxLength={255} />
+          <Input placeholder={t('gateway.form.pathPlaceholder')} maxLength={255} />
         </Form.Item>
-        <Form.Item name="httpMethod" label="HTTP 方法" tooltip="不选表示不限方法（*）">
-          <Select allowClear options={HTTP_METHOD_OPTIONS} placeholder="不限方法" />
+        <Form.Item
+          name="httpMethod"
+          label={t('gateway.form.method')}
+          tooltip={t('gateway.form.methodTooltip')}
+        >
+          <Select
+            allowClear
+            options={HTTP_METHOD_OPTIONS}
+            placeholder={t('gateway.form.methodPlaceholder')}
+          />
         </Form.Item>
-        <Form.Item name="status" label="状态">
-          <Select options={STATUS_OPTIONS} />
+        <Form.Item name="status" label={t('gateway.form.status')}>
+          <Select options={statusOptions} />
         </Form.Item>
-        <Form.Item name="sortNo" label="排序号" tooltip="数值小者优先">
+        <Form.Item
+          name="sortNo"
+          label={t('gateway.form.sortNo')}
+          tooltip={t('gateway.form.sortNoTooltip')}
+        >
           <InputNumber min={0} style={{ width: '100%' }} />
         </Form.Item>
-        <Form.Item name="remark" label="备注">
+        <Form.Item name="remark" label={t('gateway.form.remark')}>
           <Input.TextArea
             rows={2}
             maxLength={255}
             showCount
-            placeholder="放行原因 / 封禁原因或工单号"
+            placeholder={t('gateway.form.remarkPlaceholder')}
           />
         </Form.Item>
       </FormModal>
@@ -357,18 +383,17 @@ function AccessRulePanel({ kind }: { kind: Kind }) {
 
 export default function GatewayAccessList() {
   const { has } = usePermission();
+  const { t } = useI18n();
   const items = (Object.keys(KINDS) as Kind[])
     .filter((kind) => has(KINDS[kind].listPerm))
     .map((kind) => ({
       key: kind,
-      label: KINDS[kind].title,
+      label: t(KINDS[kind].titleKey),
       children: <AccessRulePanel kind={kind} />,
     }));
 
   if (items.length === 0) {
-    return (
-      <Alert type="error" showIcon message="缺少网关访问名单的查询权限（sys:gateway:*:list）" />
-    );
+    return <Alert type="error" showIcon message={t('gateway.missingPermission')} />;
   }
 
   return <Tabs defaultActiveKey={items[0].key} items={items} destroyOnHidden />;

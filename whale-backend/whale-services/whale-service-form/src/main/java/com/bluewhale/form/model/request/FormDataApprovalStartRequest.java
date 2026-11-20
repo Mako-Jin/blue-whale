@@ -19,7 +19,7 @@ public class FormDataApprovalStartRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 外部工作流实例ID（必填，最长 64） */
-    @NotBlank(message = "流程实例ID不能为空")
-    @Size(max = 64, message = "流程实例ID长度不能超过 64")
+    @NotBlank(message = "{validation.form.approval.process-instance-id-required}")
+    @Size(max = 64, message = "{validation.form.approval.process-instance-id-size}")
     private String processInstanceId;
 }

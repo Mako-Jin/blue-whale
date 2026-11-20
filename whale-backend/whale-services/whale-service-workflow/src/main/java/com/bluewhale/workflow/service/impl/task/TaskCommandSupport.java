@@ -43,7 +43,7 @@ public class TaskCommandSupport {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
         if (task.getStatus() == null || task.getStatus() != WorkflowConstants.TASK_PENDING) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "任务已处理");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.already-processed", "任务已处理");
         }
         return task;
     }
@@ -60,7 +60,7 @@ public class TaskCommandSupport {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
         if (instance.getStatus() == null || instance.getStatus() != WorkflowConstants.INSTANCE_RUNNING) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "实例非运行中");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.instance.not-running", "实例非运行中");
         }
         return instance;
     }
@@ -113,7 +113,7 @@ public class TaskCommandSupport {
             ProcessInstancePo latest = requireRunningInstance(instance.getId());
             instance.setActiveNodeKeys(latest.getActiveNodeKeys());
         }
-        throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "流程实例状态已变更，请重试");
+        throw new BizException(ErrorCode.PARAM_ERROR, "workflow.instance.state-changed", "流程实例状态已变更，请重试");
     }
 
     /**

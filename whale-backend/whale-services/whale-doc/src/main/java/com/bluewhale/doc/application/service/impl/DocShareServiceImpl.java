@@ -230,7 +230,7 @@ public class DocShareServiceImpl implements DocShareService {
         vo.setStarred(false);
         vo.setBreadcrumb(List.of());
         if (DocPageStatus.ARCHIVED.name().equals(page.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "该页面已归档，暂不可通过分享访问");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.share.archived", "该页面已归档，暂不可通过分享访问");
         }
         return vo;
     }

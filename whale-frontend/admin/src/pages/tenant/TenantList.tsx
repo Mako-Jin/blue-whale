@@ -19,6 +19,7 @@ import {
   updateTenant,
   type TenantVO,
 } from '../../api/tenant';
+import { useI18n } from '../../i18n';
 
 /** DatePicker 值的结构子集（避免额外引入 dayjs 类型依赖） */
 interface DateValue {
@@ -49,11 +50,6 @@ interface TenantQuery {
   status?: number;
 }
 
-const STATUS_OPTIONS = [
-  { value: 1, label: '启用' },
-  { value: 0, label: '停用' },
-];
-
 const DATE_FORMAT = 'YYYY-MM-DD HH:mm:ss';
 
 /** DatePicker 值格式化为后端约定的 yyyy-MM-dd HH:mm:ss */
@@ -62,15 +58,15 @@ function toDateText(value?: DateValue): string | undefined {
 }
 
 /** 配额 JSON 摘要；非法 JSON 原样展示 */
-function quotaSummary(quotaJson?: string): string {
+function quotaSummary(quotaJson: string | undefined, emptyText: string): string {
   if (!quotaJson) {
-    return '未配置';
+    return emptyText;
   }
   try {
     const parsed = JSON.parse(quotaJson) as Record<string, unknown>;
     const entries = Object.entries(parsed);
     if (entries.length === 0) {
-      return '未配置';
+      return emptyText;
     }
     return entries.map(([key, value]) => `${key}: ${String(value)}`).join(' / ');
   } catch {
@@ -81,6 +77,7 @@ function quotaSummary(quotaJson?: string): string {
 export default function TenantList() {
   const { message } = App.useApp();
   const { has } = usePermission();
+  const { t } = useI18n();
   const tableRef = useRef<ProTableRef>(null);
 
   const [keyword, setKeyword] = useState<string | undefined>(undefined);
@@ -112,11 +109,11 @@ export default function TenantList() {
         expireTime: toDateText(values.expireTime),
         quotaJson: values.quotaJson,
       });
-      message.success('租户已开通');
+      message.success(t('tenant.msg.created'));
       setCreateOpen(false);
       tableRef.current?.reload();
     } catch (error) {
-      showError(error, '开通租户失败');
+      showError(error, t('tenant.msg.createFailed'));
       throw error;
     }
   };
@@ -130,11 +127,11 @@ export default function TenantList() {
         tenantName: values.tenantName,
         quotaJson: values.quotaJson,
       });
-      message.success('租户已更新');
+      message.success(t('tenant.msg.updated'));
       setEditOpen(false);
       tableRef.current?.reload();
     } catch (error) {
-      showError(error, '更新租户失败');
+      showError(error, t('tenant.msg.updateFailed'));
       throw error;
     }
   };
@@ -145,11 +142,11 @@ export default function TenantList() {
     }
     try {
       await renewTenant(renewRecord.id, toDateText(values.expireTime) ?? '');
-      message.success('租户已续期');
+      message.success(t('tenant.msg.renewed'));
       setRenewOpen(false);
       tableRef.current?.reload();
     } catch (error) {
-      showError(error, '续期失败');
+      showError(error, t('tenant.msg.renewFailed'));
       throw error;
     }
   };
@@ -157,26 +154,35 @@ export default function TenantList() {
   const handleToggleStatus = async (row: TenantVO, nextStatus: number) => {
     try {
       await changeTenantStatus(row.id, nextStatus);
-      message.success(nextStatus === 1 ? '租户已启用' : '租户已停用');
+      message.success(nextStatus === 1 ? t('tenant.msg.enabled') : t('tenant.msg.disabled'));
       tableRef.current?.reload();
     } catch (error) {
-      showError(error, '状态变更失败');
+      showError(error, t('tenant.msg.statusFailed'));
     }
   };
 
+  const statusOptions = [
+    { value: 1, label: t('tenant.status.enabled') },
+    { value: 0, label: t('tenant.status.disabled') },
+  ];
+
   const columns: TableProps<TenantVO>['columns'] = [
     { title: 'ID', dataIndex: 'id', width: 80 },
-    { title: '租户编码', dataIndex: 'tenantCode', width: 160 },
-    { title: '租户名称', dataIndex: 'tenantName', width: 180 },
+    { title: t('tenant.col.tenantCode'), dataIndex: 'tenantCode', width: 160 },
+    { title: t('tenant.col.tenantName'), dataIndex: 'tenantName', width: 180 },
     {
-      title: '类型',
+      title: t('tenant.col.tenantType'),
       dataIndex: 'tenantType',
       width: 110,
       render: (value: TenantVO['tenantType']) =>
-        value === 'PLATFORM' ? <Tag color="gold">平台</Tag> : <Tag color="blue">业务</Tag>,
+        value === 'PLATFORM' ? (
+          <Tag color="gold">{t('tenant.tag.platform')}</Tag>
+        ) : (
+          <Tag color="blue">{t('tenant.tag.business')}</Tag>
+        ),
     },
     {
-      title: '状态',
+      title: t('tenant.col.status'),
       dataIndex: 'status',
       width: 100,
       render: (value: number | undefined, row) => (
@@ -188,24 +194,24 @@ export default function TenantList() {
       ),
     },
     {
-      title: '到期时间',
+      title: t('tenant.col.expireTime'),
       dataIndex: 'expireTime',
       width: 180,
-      render: (value: string | undefined) => value ?? '长期',
+      render: (value: string | undefined) => value ?? t('tenant.value.longTerm'),
     },
     {
-      title: '配额',
+      title: t('tenant.col.quota'),
       dataIndex: 'quotaJson',
-      render: (value: string | undefined) => quotaSummary(value),
+      render: (value: string | undefined) => quotaSummary(value, t('tenant.quota.empty')),
     },
     {
-      title: '创建时间',
+      title: t('tenant.col.createTime'),
       dataIndex: 'createTime',
       width: 180,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '操作',
+      title: t('tenant.col.action'),
       key: 'action',
       width: 180,
       render: (_, row) => (
@@ -219,7 +225,7 @@ export default function TenantList() {
               setEditOpen(true);
             }}
           >
-            编辑
+            {t('tenant.action.edit')}
           </AuthButton>
           <AuthButton
             perm="sys:tenant:renew"
@@ -230,7 +236,7 @@ export default function TenantList() {
               setRenewOpen(true);
             }}
           >
-            续期
+            {t('tenant.action.renew')}
           </AuthButton>
         </Space>
       ),
@@ -242,23 +248,25 @@ export default function TenantList() {
       <ProTable<TenantVO, TenantQuery>
         ref={tableRef}
         rowKey="id"
-        title="租户列表"
+        title={t('tenant.list.title')}
         columns={columns}
         request={pageTenants}
         params={{ keyword, status }}
-        onError={(error) => showError(error, '租户列表加载失败')}
+        onError={(error) => showError(error, t('tenant.list.loadFailed'))}
         search={
           <SearchForm
             items={[
               {
                 name: 'keyword',
-                label: '关键字',
-                element: <Input allowClear placeholder="租户编码 / 名称" />,
+                label: t('tenant.search.keyword'),
+                element: <Input allowClear placeholder={t('tenant.list.keywordPlaceholder')} />,
               },
               {
                 name: 'status',
-                label: '状态',
-                element: <Select allowClear options={STATUS_OPTIONS} placeholder="全部" />,
+                label: t('tenant.col.status'),
+                element: (
+                  <Select allowClear options={statusOptions} placeholder={t('tenant.search.all')} />
+                ),
               },
             ]}
             onSearch={(values) => {
@@ -273,14 +281,14 @@ export default function TenantList() {
         }
         toolbar={
           <AuthButton perm="sys:tenant:add" type="primary" onClick={() => setCreateOpen(true)}>
-            开通租户
+            {t('tenant.create.title')}
           </AuthButton>
         }
       />
 
       <FormModal<TenantCreateValues>
         open={createOpen}
-        title="开通租户"
+        title={t('tenant.create.title')}
         form={createForm}
         width={560}
         initialValues={{ adminUsername: 'admin' }}
@@ -289,85 +297,85 @@ export default function TenantList() {
       >
         <Form.Item
           name="tenantCode"
-          label="租户编码"
+          label={t('tenant.col.tenantCode')}
           rules={[
-            { required: true, message: '请输入租户编码' },
+            { required: true, message: t('tenant.create.codeRequired') },
             {
               pattern: /^[A-Za-z0-9_-]{2,64}$/,
-              message: '仅支持 2-64 位字母、数字、下划线或中划线',
+              message: t('tenant.create.codePattern'),
             },
           ]}
         >
-          <Input placeholder="登录时使用，如 acme" />
+          <Input placeholder={t('tenant.create.codePlaceholder')} />
         </Form.Item>
         <Form.Item
           name="tenantName"
-          label="租户名称"
-          rules={[{ required: true, message: '请输入租户名称' }]}
+          label={t('tenant.col.tenantName')}
+          rules={[{ required: true, message: t('tenant.create.nameRequired') }]}
         >
-          <Input placeholder="如 示例科技有限公司" />
+          <Input placeholder={t('tenant.create.namePlaceholder')} />
         </Form.Item>
         <Form.Item
           name="adminUsername"
-          label="管理员用户名"
-          rules={[{ required: true, message: '请输入管理员用户名' }]}
+          label={t('tenant.create.adminUsername')}
+          rules={[{ required: true, message: t('tenant.create.adminUsernameRequired') }]}
         >
-          <Input placeholder="租户初始管理员账号" />
+          <Input placeholder={t('tenant.create.adminUsernamePlaceholder')} />
         </Form.Item>
         <Form.Item
           name="adminPassword"
-          label="管理员密码"
+          label={t('tenant.create.adminPassword')}
           rules={[
-            { required: true, message: '请输入管理员密码' },
-            { min: 6, message: '密码至少 6 位' },
+            { required: true, message: t('tenant.create.adminPasswordRequired') },
+            { min: 6, message: t('tenant.create.passwordMin') },
           ]}
         >
-          <Input.Password placeholder="至少 6 位" />
+          <Input.Password placeholder={t('tenant.create.passwordPlaceholder')} />
         </Form.Item>
-        <Form.Item name="adminNickname" label="管理员昵称">
-          <Input placeholder="可空" />
+        <Form.Item name="adminNickname" label={t('tenant.create.adminNickname')}>
+          <Input placeholder={t('tenant.create.optional')} />
         </Form.Item>
-        <Form.Item name="expireTime" label="到期时间">
+        <Form.Item name="expireTime" label={t('tenant.col.expireTime')}>
           <DatePicker
             showTime
             format={DATE_FORMAT}
             style={{ width: '100%' }}
-            placeholder="留空表示长期有效"
+            placeholder={t('tenant.create.expirePlaceholder')}
           />
         </Form.Item>
-        <Form.Item name="quotaJson" label="配额 JSON">
-          <Input.TextArea rows={3} placeholder='如 {"maxUsers":50,"maxStorageMb":1024}' />
+        <Form.Item name="quotaJson" label={t('tenant.field.quotaJson')}>
+          <Input.TextArea rows={3} placeholder={t('tenant.create.quotaPlaceholder')} />
         </Form.Item>
       </FormModal>
 
       <FormModal<TenantEditValues>
         open={editOpen}
-        title={`编辑租户：${editRecord?.tenantName ?? ''}`}
+        title={t('tenant.edit.title', { name: editRecord?.tenantName ?? '' })}
         form={editForm}
         width={560}
         initialValues={editRecord ?? undefined}
         onOk={handleEdit}
         onCancel={() => setEditOpen(false)}
       >
-        <Form.Item name="tenantName" label="租户名称">
+        <Form.Item name="tenantName" label={t('tenant.col.tenantName')}>
           <Input />
         </Form.Item>
-        <Form.Item name="quotaJson" label="配额 JSON">
-          <Input.TextArea rows={3} placeholder='如 {"maxUsers":50,"maxStorageMb":1024}' />
+        <Form.Item name="quotaJson" label={t('tenant.field.quotaJson')}>
+          <Input.TextArea rows={3} placeholder={t('tenant.create.quotaPlaceholder')} />
         </Form.Item>
       </FormModal>
 
       <FormModal<TenantRenewValues>
         open={renewOpen}
-        title={`租户续期：${renewRecord?.tenantName ?? ''}`}
+        title={t('tenant.renew.title', { name: renewRecord?.tenantName ?? '' })}
         form={renewForm}
         onOk={handleRenew}
         onCancel={() => setRenewOpen(false)}
       >
         <Form.Item
           name="expireTime"
-          label="新到期时间"
-          rules={[{ required: true, message: '请选择新的到期时间' }]}
+          label={t('tenant.renew.expireTime')}
+          rules={[{ required: true, message: t('tenant.renew.expireRequired') }]}
         >
           <DatePicker showTime format={DATE_FORMAT} style={{ width: '100%' }} />
         </Form.Item>

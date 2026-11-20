@@ -120,10 +120,10 @@ public class DocTransferServiceImpl implements DocTransferService {
         DocPage page = accessGuard.requirePage(pageId);
         accessGuard.requirePageEdit(page, userId);
         if (DocPageStatus.ARCHIVED.name().equals(page.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "已归档页面不可导入");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.transfer.archived-not-importable", "已归档页面不可导入");
         }
         if (DocPageType.FOLDER.name().equals(page.getPageType())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "目录节点不支持导入正文");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.transfer.folder-not-importable", "目录节点不支持导入正文");
         }
         if (collabService.isActive(pageId)) {
             throw DocErrorCode.exception(DocErrorCode.COLLAB_ACTIVE);

@@ -16,10 +16,10 @@ import java.util.List;
 public class DocMemberAddRequest {
 
     /** 用户ID列表 */
-    @NotEmpty(message = "请选择至少一个用户")
+    @NotEmpty(message = "{validation.doc.member.user-ids-not-empty}")
     private List<@NotNull Long> userIds;
 
     /** 授予角色：ADMIN / EDITOR / READER（OWNER 通过成员更新转让） */
-    @NotNull(message = "成员角色不能为空")
+    @NotNull(message = "{validation.doc.member.role-required}")
     private DocMemberRole role;
 }

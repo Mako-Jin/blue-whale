@@ -59,6 +59,10 @@ whale:
   permission:
     header:
       enabled: true
+  i18n:
+    enabled: true
+    auto-init: true
+    module-scan-enabled: true
 
 # 内网令牌：/form/internal/** 仅供档案服务内网直调，除网关 internal-deny 外再做一层服务端校验。
 # 令牌值由部署环境变量 WHALE_INTERNAL_TOKEN 注入，仓库内不落明文；未配置时非 dev 环境启动失败。
@@ -66,7 +70,7 @@ bluewhale:
   internal-token:
     path-patterns:
       - /**/internal/**
-      - /audit/log/ingest/**
+      - /audit/v1/log/ingest/**
 
 mybatis-plus:
   configuration:

@@ -22,12 +22,12 @@ public class ProcessCcQueryRequest extends PageQuery {
     private Long instanceId;
 
     /** 收件人账号（可选，最长 64） */
-    @Size(max = 64, message = "收件人账号长度不能超过 64")
+    @Size(max = 64, message = "{validation.workflow.cc.recipient-account-size}")
     private String recipient;
 
     /** 候选收件人账号（可选，最多 100；非空时优先于 {@link #recipient}） */
-    @Size(max = 100, message = "候选收件人不能超过 100 个")
-    private List<@Size(max = 64, message = "收件人账号长度不能超过 64") String> recipientCandidates;
+    @Size(max = 100, message = "{validation.workflow.cc.candidate-limit}")
+    private List<@Size(max = 64, message = "{validation.workflow.cc.recipient-account-size}") String> recipientCandidates;
 
     /** 已读标记：0 未读 / 1 已读（可选） */
     private Integer readFlag;

@@ -65,6 +65,11 @@ whale:
   permission:
     header:
       enabled: true
+  # 国际化 SDK：启动时幂等初始化本服务库的 sys_i18n_message，文案回退源为 classpath:i18n/workflow/messages*
+  i18n:
+    enabled: true
+    auto-init: true
+    module-scan-enabled: true
 
 mybatis-plus:
   configuration:

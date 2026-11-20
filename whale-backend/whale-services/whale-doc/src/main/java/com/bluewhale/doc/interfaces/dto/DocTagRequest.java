@@ -14,12 +14,12 @@ import lombok.Data;
 public class DocTagRequest {
 
     /** 标签名称 */
-    @NotBlank(message = "标签名称不能为空")
-    @Size(max = 64, message = "标签名称不能超过 64 字")
+    @NotBlank(message = "{validation.doc.tag.name-required}")
+    @Size(max = 64, message = "{validation.doc.tag.name-size}")
     private String name;
 
     /** 标签颜色，形如 #1677ff */
-    @Size(max = 16, message = "标签颜色不能超过 16 字")
-    @Pattern(regexp = "^$|#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})", message = "标签颜色格式非法")
+    @Size(max = 16, message = "{validation.doc.tag.color-size}")
+    @Pattern(regexp = "^$|#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})", message = "{validation.doc.tag.color-pattern}")
     private String color;
 }

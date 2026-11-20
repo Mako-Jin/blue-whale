@@ -14,16 +14,16 @@ import lombok.Data;
 public class ChunkUploadCompleteRequest {
 
     /** 上传会话 ID */
-    @NotBlank(message = "uploadId 不能为空")
+    @NotBlank(message = "{validation.file.chunk.upload-id-required}")
     private String uploadId;
 
     /** 原始文件名 */
-    @NotBlank(message = "文件名不能为空")
+    @NotBlank(message = "{validation.file.common.file-name-required}")
     private String fileName;
 
     /** 文件总字节数 */
-    @NotNull(message = "文件大小不能为空")
-    @Positive(message = "文件大小必须大于 0")
+    @NotNull(message = "{validation.file.common.size-required}")
+    @Positive(message = "{validation.file.common.size-positive}")
     private Long size;
 
     /** 目标桶名称；为空时取配置的默认桶 */

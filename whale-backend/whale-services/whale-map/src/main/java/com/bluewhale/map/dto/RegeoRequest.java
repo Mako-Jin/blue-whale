@@ -14,15 +14,15 @@ import lombok.Data;
 public class RegeoRequest {
 
     /** 经度 */
-    @NotNull(message = "经度不能为空")
-    @DecimalMin(value = "-180", message = "经度超出范围")
-    @DecimalMax(value = "180", message = "经度超出范围")
+    @NotNull(message = "{validation.map.regeo.lng-required}")
+    @DecimalMin(value = "-180", message = "{validation.map.regeo.lng-range}")
+    @DecimalMax(value = "180", message = "{validation.map.regeo.lng-range}")
     private Double lng;
 
     /** 纬度 */
-    @NotNull(message = "纬度不能为空")
-    @DecimalMin(value = "-90", message = "纬度超出范围")
-    @DecimalMax(value = "90", message = "纬度超出范围")
+    @NotNull(message = "{validation.map.regeo.lat-required}")
+    @DecimalMin(value = "-90", message = "{validation.map.regeo.lat-range}")
+    @DecimalMax(value = "90", message = "{validation.map.regeo.lat-range}")
     private Double lat;
 
     /** 坐标系（缺省按对外展示坐标系 GCJ-02） */

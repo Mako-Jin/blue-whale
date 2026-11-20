@@ -13,6 +13,6 @@ import java.util.List;
 @Data
 public class AssignPermissionsRequest {
 
-    @NotNull(message = "权限ID列表不能为 null")
+    @NotNull(message = "{validation.auth.permission.ids-required}")
     private List<Long> permissionIds;
 }

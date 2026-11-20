@@ -47,11 +47,11 @@ public class MessageRecipientResolver {
         }
         List<MessageRecipient> deduped = dedupe(merged);
         if (deduped.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "接收人为空：接收人组无成员或未提供接收人");
+            throw new BizException(ErrorCode.PARAM_ERROR, "message.recipient.empty", "接收人为空：接收人组无成员或未提供接收人");
         }
         if (deduped.size() > properties.getMaxMembers()) {
-            throw new BizException(ErrorCode.PARAM_ERROR,
-                    "接收人不能超过 " + properties.getMaxMembers() + " 人");
+            throw new BizException(ErrorCode.PARAM_ERROR, "message.recipient.limit-exceeded",
+                    "接收人不能超过 " + properties.getMaxMembers() + " 人", properties.getMaxMembers());
         }
         return deduped;
     }
@@ -65,7 +65,7 @@ public class MessageRecipientResolver {
      */
     private List<MessageRecipient> expandGroup(Long tenantId, String groupCode) {
         if (!properties.isEnabled()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "接收人组解析未启用");
+            throw new BizException(ErrorCode.PARAM_ERROR, "message.recipient-group.disabled", "接收人组解析未启用");
         }
         List<Long> userIds = authRecipientGroupClient.listMemberUserIds(tenantId, groupCode);
         List<MessageRecipient> recipients = new ArrayList<>(userIds.size());

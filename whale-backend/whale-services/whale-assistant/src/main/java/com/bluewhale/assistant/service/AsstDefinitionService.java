@@ -10,6 +10,7 @@ import com.bluewhale.assistant.mapper.AsstDefinitionMapper;
 import com.bluewhale.assistant.mapper.AsstToolGrantMapper;
 import com.bluewhale.assistant.support.ToolRegistryClient;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -73,12 +74,13 @@ public class AsstDefinitionService {
      */
     public DefinitionVO create(DefinitionSaveRequest request, Long userId) {
         if (!StringUtils.hasText(request.getCode())) {
-            throw new BizException("助手编码不能为空");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "assistant.definition.code-required", "助手编码不能为空");
         }
         Long existed = definitionMapper.selectCount(
                 new LambdaQueryWrapper<AsstDefinition>().eq(AsstDefinition::getCode, request.getCode()));
         if (existed != null && existed > 0) {
-            throw new BizException("助手编码已存在：" + request.getCode());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "assistant.definition.code-exists",
+                    "助手编码已存在：" + request.getCode(), request.getCode());
         }
         AsstDefinition definition = new AsstDefinition();
         definition.setCode(request.getCode());
@@ -251,7 +253,8 @@ public class AsstDefinitionService {
     public AsstDefinition requirePublished(Long id) {
         AsstDefinition definition = requireExists(id);
         if (!STATUS_PUBLISHED.equals(definition.getStatus())) {
-            throw new BizException("助手未发布或已停用，无法发起问答");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "assistant.definition.not-published",
+                    "助手未发布或已停用，无法发起问答");
         }
         return definition;
     }
@@ -264,15 +267,17 @@ public class AsstDefinitionService {
      */
     public AsstDefinition requirePublishedByCode(String code) {
         if (!StringUtils.hasText(code)) {
-            throw new BizException("助手编码不能为空");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "assistant.definition.code-required", "助手编码不能为空");
         }
         AsstDefinition definition = definitionMapper.selectOne(
                 new LambdaQueryWrapper<AsstDefinition>().eq(AsstDefinition::getCode, code).last("LIMIT 1"));
         if (definition == null) {
-            throw new BizException("助手不存在：" + code);
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "assistant.definition.not-found",
+                    "助手不存在：" + code, code);
         }
         if (!STATUS_PUBLISHED.equals(definition.getStatus())) {
-            throw new BizException("助手未发布或已停用，无法发起问答");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "assistant.definition.not-published",
+                    "助手未发布或已停用，无法发起问答");
         }
         return definition;
     }
@@ -291,14 +296,17 @@ public class AsstDefinitionService {
             registered = toolRegistryClient.listToolNames();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new BizException("工具注册表查询被中断，请稍后再试");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "assistant.tool.registry-interrupted",
+                    "工具注册表查询被中断，请稍后再试");
         } catch (IOException e) {
             log.warn("工具注册表查询失败：{}", e.getMessage());
-            throw new BizException("工具注册表暂不可用（whale-ai 未就绪），请稍后再试");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "assistant.tool.registry-unavailable",
+                    "工具注册表暂不可用（whale-ai 未就绪），请稍后再试");
         }
         List<String> unknown = toolCodes.stream().filter(code -> !registered.contains(code)).toList();
         if (!unknown.isEmpty()) {
-            throw new BizException("工具未在 whale-ai 注册表登记：" + String.join("、", unknown));
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "assistant.definition.tool-not-registered",
+                    "工具未在 whale-ai 注册表登记：" + String.join("、", unknown), String.join("、", unknown));
         }
     }
 
@@ -311,7 +319,7 @@ public class AsstDefinitionService {
     public AsstDefinition requireExists(Long id) {
         AsstDefinition definition = definitionMapper.selectById(id);
         if (definition == null) {
-            throw new BizException("助手不存在");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "assistant.definition.not-found-by-id", "助手不存在");
         }
         return definition;
     }
@@ -345,7 +353,8 @@ public class AsstDefinitionService {
         for (Map.Entry<String, Object> entry : params.entrySet()) {
             String key = entry.getKey();
             if (!MODEL_PARAM_KEYS.contains(key)) {
-                throw new BizException("模型参数不支持键：" + key + "（仅允许 model/temperature/max_tokens）");
+                throw new BizException(ErrorCode.SYSTEM_ERROR, "assistant.definition.model-param-unsupported",
+                        "模型参数不支持键：" + key + "（仅允许 model/temperature/max_tokens）", key);
             }
             if (entry.getValue() != null) {
                 normalized.put(key, entry.getValue());

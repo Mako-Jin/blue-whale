@@ -63,7 +63,8 @@ public class MessageDashboardServiceImpl implements MessageDashboardService {
         LocalDateTime start = request == null || request.getStartTime() == null
                 ? end.minusHours(DEFAULT_WINDOW_HOURS) : request.getStartTime();
         if (!start.isBefore(end)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "看板时间窗非法：开始时间必须早于结束时间");
+            throw new BizException(ErrorCode.PARAM_ERROR, "message.dashboard.invalid-time-window",
+                    "看板时间窗非法：开始时间必须早于结束时间");
         }
         MessageDashboardVO dashboard = new MessageDashboardVO();
         dashboard.setStartTime(start);

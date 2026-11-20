@@ -14,15 +14,15 @@ import lombok.Data;
 public class ProductSaveRequest {
 
     /** 产品编码（租户内唯一；创建必填，更新忽略） */
-    @Pattern(regexp = "^[a-z][a-z0-9-]{1,63}$", message = "编码须为小写字母开头的小写字母/数字/连字符，2-64 位")
+    @Pattern(regexp = "^[a-z][a-z0-9-]{1,63}$", message = "{validation.iot.product.code-pattern}")
     private String code;
 
     /** 产品名称 */
-    @NotBlank(message = "名称不能为空")
-    @Size(max = 128, message = "名称长度不能超过 128 字")
+    @NotBlank(message = "{validation.iot.product.name-required}")
+    @Size(max = 128, message = "{validation.iot.product.name-size}")
     private String name;
 
     /** 产品描述（可空） */
-    @Size(max = 512, message = "描述长度不能超过 512 字")
+    @Size(max = 512, message = "{validation.iot.product.description-size}")
     private String description;
 }

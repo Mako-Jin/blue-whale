@@ -58,8 +58,9 @@ public class UserConfigInternalController implements UserConfigInternalApi {
     public Result<Void> set(@Valid @RequestBody ConfigSetRequest body) {
         Long contextTenantId = TenantContext.requireId();
         if (!contextTenantId.equals(body.tenantId())) {
-            throw new BizException(ErrorCode.PARAM_ERROR,
-                    "tenantId 与 X-Tenant-Id 不一致：" + body.tenantId() + " vs " + contextTenantId);
+            throw new BizException(ErrorCode.PARAM_ERROR, "auth.config.tenant-mismatch",
+                    "tenantId 与 X-Tenant-Id 不一致：" + body.tenantId() + " vs " + contextTenantId,
+                    body.tenantId(), contextTenantId);
         }
         Long operatorId = body.operatorId() == null ? body.userId() : body.operatorId();
         userConfigAppService.upsert(body.tenantId(), body.userId(),

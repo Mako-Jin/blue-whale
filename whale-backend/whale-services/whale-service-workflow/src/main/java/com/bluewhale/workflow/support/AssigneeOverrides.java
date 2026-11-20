@@ -74,7 +74,8 @@ public final class AssigneeOverrides {
         try {
             return OBJECT_MAPPER.writeValueAsString(overrides);
         } catch (Exception ex) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "审批人覆盖序列化失败");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.assignee-override.serialize-failed",
+                    "审批人覆盖序列化失败");
         }
     }
 

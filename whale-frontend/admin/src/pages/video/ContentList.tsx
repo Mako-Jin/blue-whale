@@ -30,53 +30,64 @@ import {
   type CopyrightState,
   type PublishState,
 } from '../../api/video';
+import { useI18n } from '../../i18n';
 
-const CONTENT_TYPE_OPTIONS = [
-  { value: 'SHORT_VIDEO', label: '短视频' },
-  { value: 'VIDEO', label: '视频' },
-  { value: 'MOVIE', label: '电影' },
+type Translate = ReturnType<typeof useI18n>['t'];
+
+const buildContentTypeOptions = (t: Translate) => [
+  { value: 'SHORT_VIDEO', label: t('video.content.type.shortVideo') },
+  { value: 'VIDEO', label: t('video.content.type.video') },
+  { value: 'MOVIE', label: t('video.content.type.movie') },
 ];
 
-const PUBLISH_STATE_OPTIONS = [
-  { value: 'DRAFT', label: '草稿' },
-  { value: 'PENDING_REVIEW', label: '待审核' },
-  { value: 'PUBLISHED', label: '已发布' },
-  { value: 'OFFLINE', label: '已下架' },
+const buildPublishStateOptions = (t: Translate) => [
+  { value: 'DRAFT', label: t('video.content.state.draft') },
+  { value: 'PENDING_REVIEW', label: t('video.content.state.pendingReview') },
+  { value: 'PUBLISHED', label: t('video.content.state.published') },
+  { value: 'OFFLINE', label: t('video.content.state.offline') },
 ];
 
-const VISIBILITY_OPTIONS = [
-  { value: 'PUBLIC', label: '公开' },
-  { value: 'PRIVATE', label: '私密' },
+const buildVisibilityOptions = (t: Translate) => [
+  { value: 'PUBLIC', label: t('video.content.visibility.public') },
+  { value: 'PRIVATE', label: t('video.content.visibility.private') },
 ];
 
 /** 内容类型标签 */
-function renderContentType(type?: ContentType) {
+function renderContentType(type: ContentType | undefined, t: Translate) {
   const map: Record<ContentType, { color: string; label: string }> = {
-    SHORT_VIDEO: { color: 'cyan', label: '短视频' },
-    VIDEO: { color: 'blue', label: '视频' },
-    MOVIE: { color: 'purple', label: '电影' },
+    SHORT_VIDEO: { color: 'cyan', label: t('video.content.type.shortVideo') },
+    VIDEO: { color: 'blue', label: t('video.content.type.video') },
+    MOVIE: { color: 'purple', label: t('video.content.type.movie') },
   };
   return type ? <Tag color={map[type].color}>{map[type].label}</Tag> : '-';
 }
 
 /** 发布状态标签 */
-function renderPublishState(state?: PublishState) {
+function renderPublishState(state: PublishState | undefined, t: Translate) {
   const map: Record<PublishState, { color: string; label: string }> = {
-    DRAFT: { color: 'default', label: '草稿' },
-    PENDING_REVIEW: { color: 'gold', label: '待审核' },
-    PUBLISHED: { color: 'success', label: '已发布' },
-    OFFLINE: { color: 'error', label: '已下架' },
+    DRAFT: { color: 'default', label: t('video.content.state.draft') },
+    PENDING_REVIEW: { color: 'gold', label: t('video.content.state.pendingReview') },
+    PUBLISHED: { color: 'success', label: t('video.content.state.published') },
+    OFFLINE: { color: 'error', label: t('video.content.state.offline') },
   };
   return state ? <Tag color={map[state].color}>{map[state].label}</Tag> : '-';
 }
 
 /** 版权状态标签 */
-function renderCopyrightState(state?: CopyrightState, reason?: string) {
+function renderCopyrightState(
+  state: CopyrightState | undefined,
+  reason: string | undefined,
+  t: Translate,
+) {
   if (state === 'TAKEDOWN') {
-    const tag = <Tag color="error">版权下架</Tag>;
-    return reason ? <Tooltip title={`下架原因：${reason}`}>{tag}</Tooltip> : tag;
+    const tag = <Tag color="error">{t('video.content.copyright.takedown')}</Tag>;
+    return reason ? (
+      <Tooltip title={t('video.content.copyright.reason', { reason })}>{tag}</Tooltip>
+    ) : (
+      tag
+    );
   }
-  return <Tag color="success">版权有效</Tag>;
+  return <Tag color="success">{t('video.content.copyright.valid')}</Tag>;
 }
 
 /** 时长格式化 */
@@ -93,7 +104,12 @@ function formatDuration(value?: number): string {
 export default function ContentList() {
   const { message } = App.useApp();
   const { has } = usePermission();
+  const { t } = useI18n();
   const tableRef = useRef<ProTableRef>(null);
+
+  const contentTypeOptions = buildContentTypeOptions(t);
+  const publishStateOptions = buildPublishStateOptions(t);
+  const visibilityOptions = buildVisibilityOptions(t);
 
   const [categories, setCategories] = useState<CategoryView[]>([]);
   const [keyword, setKeyword] = useState<string | undefined>(undefined);
@@ -114,20 +130,20 @@ export default function ContentList() {
   const handlePublish = async (row: ContentView) => {
     try {
       await publishContent(row.id);
-      message.success('内容已发布');
+      message.success(t('video.content.msg.published'));
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '发布失败');
+      message.error(error instanceof Error ? error.message : t('video.content.msg.publishFailed'));
     }
   };
 
   const handleOffline = async (row: ContentView) => {
     try {
       await offlineContent(row.id);
-      message.success('内容已下架');
+      message.success(t('video.content.msg.offlined'));
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '下架失败');
+      message.error(error instanceof Error ? error.message : t('video.content.msg.offlineFailed'));
     }
   };
 
@@ -136,24 +152,24 @@ export default function ContentList() {
       return;
     }
     if (!takedownReason.trim()) {
-      message.warning('请填写版权下架原因');
+      message.warning(t('video.content.msg.takedownReasonRequired'));
       return;
     }
     try {
       await takedownContent(takedownTarget.id, takedownReason.trim());
-      message.success('已完成版权下架');
+      message.success(t('video.content.msg.takedownDone'));
       setTakedownTarget(null);
       setTakedownReason('');
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '版权下架失败');
+      message.error(error instanceof Error ? error.message : t('video.content.msg.takedownFailed'));
     }
   };
 
   const columns: TableProps<ContentView>['columns'] = [
     { title: 'ID', dataIndex: 'id', width: 80 },
     {
-      title: '内容',
+      title: t('video.content.col.content'),
       dataIndex: 'title',
       render: (value: string, row) => (
         <Space direction="vertical" size={0}>
@@ -162,79 +178,92 @@ export default function ContentList() {
           {/* seriesId 运行时为字符串，'0' 表示不属于任何系列 */}
           {row.seriesId && row.seriesId !== '0' ? (
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              系列 #{row.seriesId} · 第 {row.episodeNo || 1} 集
+              {t('video.content.cell.series', {
+                seriesId: row.seriesId,
+                episode: row.episodeNo || 1,
+              })}
             </Typography.Text>
           ) : null}
         </Space>
       ),
     },
     {
-      title: '类型',
+      title: t('video.content.col.type'),
       dataIndex: 'contentType',
       width: 100,
-      render: (value: ContentType | undefined) => renderContentType(value),
+      render: (value: ContentType | undefined) => renderContentType(value, t),
     },
     {
-      title: '状态',
+      title: t('video.content.col.status'),
       dataIndex: 'publishState',
       width: 100,
-      render: (value: PublishState | undefined) => renderPublishState(value),
+      render: (value: PublishState | undefined) => renderPublishState(value, t),
     },
     {
-      title: '版权',
+      title: t('video.content.col.copyright'),
       dataIndex: 'copyrightState',
       width: 110,
       render: (value: CopyrightState | undefined, row) =>
-        renderCopyrightState(value, row.takedownReason),
+        renderCopyrightState(value, row.takedownReason, t),
     },
     {
-      title: '可见性',
+      title: t('video.content.col.visibility'),
       dataIndex: 'visibility',
       width: 90,
       render: (value: ContentVisibility | undefined) =>
-        value === 'PRIVATE' ? <Tag color="orange">私密</Tag> : <Tag color="blue">公开</Tag>,
+        value === 'PRIVATE' ? (
+          <Tag color="orange">{t('video.content.visibility.private')}</Tag>
+        ) : (
+          <Tag color="blue">{t('video.content.visibility.public')}</Tag>
+        ),
     },
     {
-      title: '时长',
+      title: t('video.content.col.duration'),
       dataIndex: 'durationMs',
       width: 90,
       render: (value: number | undefined) => formatDuration(value),
     },
     {
-      title: '上传者',
+      title: t('video.content.col.uploader'),
       dataIndex: 'uploaderId',
       width: 100,
       render: (value: number | undefined) => value ?? '-',
     },
     {
-      title: '播放 / 点赞',
+      title: t('video.content.col.counts'),
       key: 'counts',
       width: 120,
       render: (_, row) => `${row.playCount ?? 0} / ${row.likeCount ?? 0}`,
     },
     {
-      title: '发布时间',
+      title: t('video.content.col.publishedAt'),
       dataIndex: 'publishedAt',
       width: 170,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '操作',
+      title: t('video.content.col.action'),
       key: 'action',
       width: 230,
       render: (_, row) => (
         <Space size={4} wrap>
           {row.publishState !== 'PUBLISHED' && has('sys:video:content:publish') ? (
-            <Popconfirm title="确认发布该内容？" onConfirm={() => void handlePublish(row)}>
+            <Popconfirm
+              title={t('video.content.confirm.publish')}
+              onConfirm={() => void handlePublish(row)}
+            >
               <Button type="link" size="small">
-                发布
+                {t('video.content.action.publish')}
               </Button>
             </Popconfirm>
           ) : null}
           {row.publishState === 'PUBLISHED' && has('sys:video:content:offline') ? (
-            <Popconfirm title="确认下架该内容？" onConfirm={() => void handleOffline(row)}>
+            <Popconfirm
+              title={t('video.content.confirm.offline')}
+              onConfirm={() => void handleOffline(row)}
+            >
               <Button type="link" size="small" danger>
-                下架
+                {t('video.content.action.offline')}
               </Button>
             </Popconfirm>
           ) : null}
@@ -248,7 +277,7 @@ export default function ContentList() {
                 setTakedownReason('');
               }}
             >
-              版权下架
+              {t('video.content.action.takedown')}
             </Button>
           ) : null}
         </Space>
@@ -261,66 +290,68 @@ export default function ContentList() {
       <ProTable<ContentView, ContentQuery>
         ref={tableRef}
         rowKey="id"
-        title="内容管理"
+        title={t('video.content.list.title')}
         columns={columns}
         request={pageContents}
         params={{ keyword, contentType, publishState, visibility, categoryId }}
         onError={(error) =>
-          message.error(error instanceof Error ? error.message : '内容列表加载失败')
+          message.error(error instanceof Error ? error.message : t('video.content.msg.loadFailed'))
         }
         search={
           <SearchForm
             items={[
               {
                 name: 'keyword',
-                label: '关键词',
-                element: <Input allowClear placeholder="标题 / 副标题" />,
+                label: t('video.content.search.keyword'),
+                element: (
+                  <Input allowClear placeholder={t('video.content.search.keywordPlaceholder')} />
+                ),
               },
               {
                 name: 'contentType',
-                label: '类型',
+                label: t('video.content.search.type'),
                 element: (
                   <Select
                     allowClear
-                    placeholder="全部"
+                    placeholder={t('video.content.search.all')}
                     style={{ width: 120 }}
-                    options={CONTENT_TYPE_OPTIONS}
+                    options={contentTypeOptions}
                   />
                 ),
               },
               {
                 name: 'publishState',
-                label: '状态',
+                label: t('video.content.search.status'),
                 element: (
                   <Select
                     allowClear
-                    placeholder="全部"
+                    placeholder={t('video.content.search.all')}
                     style={{ width: 120 }}
-                    options={PUBLISH_STATE_OPTIONS}
+                    options={publishStateOptions}
                   />
                 ),
               },
               {
                 name: 'visibility',
-                label: '可见性',
+                label: t('video.content.search.visibility'),
                 element: (
                   <Select
                     allowClear
-                    placeholder="全部"
+                    placeholder={t('video.content.search.all')}
                     style={{ width: 120 }}
-                    options={VISIBILITY_OPTIONS}
+                    options={visibilityOptions}
                   />
                 ),
               },
               {
                 name: 'categoryId',
-                label: '分类',
+                label: t('video.content.search.category'),
                 element: (
                   <Select
                     allowClear
                     showSearch
                     optionFilterProp="label"
-                    placeholder="全部"
+                    placeholder={t('video.content.search.all')}
                     style={{ width: 160 }}
                     options={categories.map((category) => ({
                       value: category.id,
@@ -350,8 +381,12 @@ export default function ContentList() {
 
       <Modal
         open={takedownTarget !== null}
-        title={takedownTarget ? `版权下架：${takedownTarget.title}` : '版权下架'}
-        okText="确认下架"
+        title={
+          takedownTarget
+            ? t('video.content.takedown.titleWithName', { name: takedownTarget.title })
+            : t('video.content.takedown.title')
+        }
+        okText={t('video.content.takedown.ok')}
         okButtonProps={{ danger: true }}
         onOk={() => void confirmTakedown()}
         onCancel={() => {
@@ -360,14 +395,14 @@ export default function ContentList() {
         }}
       >
         <Space direction="vertical" style={{ width: '100%' }}>
-          <span>版权下架将强制下线并拒绝播放，请填写原因（留痕可追溯）。</span>
+          <span>{t('video.content.takedown.description')}</span>
           <Input.TextArea
             rows={3}
             maxLength={500}
             showCount
             value={takedownReason}
             onChange={(event) => setTakedownReason(event.target.value)}
-            placeholder="如：权利人投诉 / 授权到期"
+            placeholder={t('video.content.takedown.reasonPlaceholder')}
           />
         </Space>
       </Modal>

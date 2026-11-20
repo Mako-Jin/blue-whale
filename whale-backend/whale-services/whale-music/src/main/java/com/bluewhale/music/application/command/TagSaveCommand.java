@@ -14,8 +14,8 @@ import lombok.Data;
 public class TagSaveCommand {
 
     /** 标签名称 */
-    @NotBlank(message = "标签名称不能为空")
-    @Size(max = 64, message = "标签名称最多 64 个字符")
+    @NotBlank(message = "{validation.music.tag.name-required}")
+    @Size(max = 64, message = "{validation.music.tag.name-size}")
     private String name;
 
     /** 标签类型；缺省 GENRE */

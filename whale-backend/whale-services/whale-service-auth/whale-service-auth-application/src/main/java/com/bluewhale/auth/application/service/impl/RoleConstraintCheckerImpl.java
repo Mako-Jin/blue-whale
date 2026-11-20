@@ -50,15 +50,17 @@ public class RoleConstraintCheckerImpl implements RoleConstraintChecker {
         for (RoleConstraintAggregate constraint : constraints) {
             long overlap = constraint.getRoleIds().stream().filter(targetSet::contains).count();
             if (constraint.getConstraintType() == ConstraintType.MUTEX && overlap >= 2) {
-                throw new BizException(ErrorCode.PARAM_ERROR,
+                throw new BizException(ErrorCode.PARAM_ERROR, "auth.role.mutex-violated",
                         "违反角色互斥约束「" + constraint.getConstraintName() + "」："
-                                + "用户 " + userId + " 不能同时持有这些角色");
+                                + "用户 " + userId + " 不能同时持有这些角色",
+                        constraint.getConstraintName(), userId);
             }
             if (constraint.getConstraintType() == ConstraintType.CARDINALITY
                     && constraint.getMaxAssign() != null && overlap > constraint.getMaxAssign()) {
-                throw new BizException(ErrorCode.PARAM_ERROR,
+                throw new BizException(ErrorCode.PARAM_ERROR, "auth.role.cardinality-violated",
                         "违反角色基数约束「" + constraint.getConstraintName() + "」："
-                                + "最多同时持有 " + constraint.getMaxAssign() + " 个相关角色");
+                                + "最多同时持有 " + constraint.getMaxAssign() + " 个相关角色",
+                        constraint.getConstraintName(), constraint.getMaxAssign());
             }
         }
     }

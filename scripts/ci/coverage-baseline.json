@@ -75,11 +75,11 @@
       "line": 1.0,
       "branch": 1.0
     },
-    "whale-ops/whale-alert": {
+    "whale-ops/whale-ops-alert": {
       "line": 0.7912,
       "branch": 0.5738
     },
-    "whale-ops/whale-audit": {
+    "whale-ops/whale-ops-audit": {
       "line": 0.8377,
       "branch": 0.7254
     },

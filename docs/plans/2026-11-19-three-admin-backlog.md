@@ -3,6 +3,43 @@
 - 日期：2026-11-19
 - 结论：**是这三个**。等保 2.0 的标准表述为「系统管理员、安全管理员、安全审计员」，口语简称“三员”；你列的“审计员、安全员、系统管理员”分别对应“安全审计员、安全管理员、系统管理员”。
 
+## 〇、2026-11-20 交付进展
+
+| 项 | 落地位置 | 状态 |
+| --- | --- | --- |
+| 三员角色编码与内置判定 | `AuthRoleCodes`（THREE_ADMIN_CODES / isBuiltIn / isThreeAdmin） | ✅ |
+| 内置角色不变量 | `RoleAggregate`：内置禁改名、三员禁停用；`RoleAppServiceImpl`：内置禁删、三员禁改权限集 | ✅ |
+| 角色与权限建模（第 1 节） | `V36__three_admin_segregation.sql`：角色 26004-26006 + 业务租户复制 + 矩阵白名单授权 | ✅ |
+| 职责分离与互斥（第 2 节） | 三员 MUTEX 约束播种（`three_admin_mutex`），复用既有 `RoleConstraintCheckerImpl` | ✅ |
+| 权限边界矩阵（第 3 节） | V36 三段白名单逐码枚举；`sys:audit:log:list` 已从 tenant_admin 收回 | ✅ |
+| 审计日志可见性（第 6 节） | ops 菜单按权限码过滤，管理员侧不再出现审计入口 | ✅ |
+| 存量环境迁移（第 8 节） | V36 幂等（重跑 affected 全 0），平台 + 业务租户一次覆盖 | ✅ |
+| 租户开通自动生成（验收 4） | `TenantProvisioningAppServiceImpl#copyThreeAdminRolesFromPlatform` + 互斥约束播种 | ✅ |
+| 单测（第 7 节） | `RoleAppServiceTest` 新增 5 例、`TenantProvisioningAppServiceTest` 新增 1 例 | ✅ |
+| 审计追加写保护（第 5 节 1、2、3 项） | 代码层门禁 `scripts/security/check-audit-append-only.py`（已挂 CI）+ 数据库触发器 `AuditAppendOnlyGuard.java`（28 库）+ `whale-audit` V2/init.sql | ✅ |
+| 审计的审计（第 5 节 2 项） | `AuditLogController` 查询/详情/链路/导出均 `@AuditLog(QUERY/EXPORT)` | ✅（既有能力，本轮核对） |
+| 超管与三员互斥（第 2 节 2 项） | `V37__super_admin_three_admin_mutex.sql`：super_admin 并入 `three_admin_mutex` | ✅ |
+| 验收与安全评审归档（第 8 节） | `scripts/verify/three-admin-assertions.sql` 11 条断言 + `docs/reviews/2026-11-20-three-admin-compliance.md` 条款对照表 | ✅ |
+| 归档哈希与签名（第 5 节 / 原残余 #2） | `whale-audit` V3 补 6 列 + 每批 `.sha256` 清单（SHA-256 / 链式哈希 / 可选 HMAC）+ `scripts/verify/archive-hash-verify.py` | ✅ |
+| 审计留存 6 个月巡检（原残余 #4） | `AuditRetentionInspector` → Gauge `audit.log.oldest.days`，低于 `whale.audit.retention.minimum-days`（默认 180）WARN | ✅ |
+| 超管退役技术闸门（原残余 #5） | `scripts/verify/super-admin-retirement.sql` 4 条断言（启用超管 0 / 近 7 天成功登录 0 / 三员各有账号 / 无人兼超管与三员） | ✅ |
+
+**未做 / 待评估**：
+
+- 三员账号「双人复核启用」：等保三级可选项，当前无对应审批流模型，未实现。
+- 应用数据库账号按表收权：当前靠触发器拦改删，生产建议再 `GRANT SELECT, INSERT ON audit_log`。
+- 归档历史批次（配签名密钥之前）的清单 `hmac=` 为空，不可追溯补签——审计时只做哈希与链值校验。
+- `super_admin` 与三员的「互斥」只到角色分配层：超管本身是代码级硬旁路（`PermissionInterceptor`），**技术拦不住它在线**，但「是否已退役」现在有可执行闸门（上表最后一行），不再是纯流程。
+
+**运维口径（交付后必做）**：
+
+1. 用平台 `super_admin` 建三个独立账号，分别授 `system_admin` / `security_admin` / `audit_admin`（互斥约束会拦住一人多授）。
+2. 三员账号首次登录必须改密（系统管理员重置口令即置 `must_change_password`，登录返回 `mustChangePassword=true`）。
+3. 交付完成后停用或改密 `super_admin`，避免「硬旁路账号」长期在线；用 `scripts/verify/super-admin-retirement.sql` 验（4 条全 PASS 才签字，**不要挂 CI**）。
+4. 三员角色权限集不允许在管理端调整（后端拒绝 + 前端按钮置灰）：需要变更职责边界时，改 `V36` 白名单并发新迁移。
+
+---
+
 ## 一、现状盘点
 
 | 能力 | 现状 |

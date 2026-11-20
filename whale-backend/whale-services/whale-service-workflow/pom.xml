@@ -70,6 +70,12 @@
             <artifactId>whale-spring-boot-starter</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- 国际化 SDK：启动时按 classpath:i18n/workflow 文案初始化本服务库的 sys_i18n_message -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-i18n-sdk</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>com.bluewhale</groupId>
             <artifactId>whale-tools</artifactId>

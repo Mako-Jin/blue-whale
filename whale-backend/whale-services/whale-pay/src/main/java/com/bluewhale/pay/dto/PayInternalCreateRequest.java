@@ -21,15 +21,15 @@ public class PayInternalCreateRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 支付单号（传业务单号，如商城订单号，租户内唯一） */
-    @NotBlank(message = "支付单号不能为空")
+    @NotBlank(message = "{validation.pay.internal-create.order-no-required}")
     private String orderNo;
 
     /** 业务方类型（MALL_ORDER 等） */
-    @NotBlank(message = "业务方类型不能为空")
+    @NotBlank(message = "{validation.pay.internal-create.biz-type-required}")
     private String bizType;
 
     /** 支付金额 */
-    @NotNull(message = "支付金额不能为空")
+    @NotNull(message = "{validation.pay.internal-create.amount-required}")
     private BigDecimal amount;
 
     /** 币种（默认 CNY） */
@@ -39,7 +39,7 @@ public class PayInternalCreateRequest implements Serializable {
     private String channel;
 
     /** 业务回调地址（格式：&lt;服务名&gt;/&lt;路径&gt;） */
-    @NotBlank(message = "回调地址不能为空")
+    @NotBlank(message = "{validation.pay.internal-create.notify-url-required}")
     private String notifyUrl;
 
     /** 备注 */

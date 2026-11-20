@@ -82,7 +82,8 @@ public final class ProcessNodeParser {
      * @return 业务异常
      */
     private static BizException invalid() {
-        return new BizException(ErrorCode.PARAM_ERROR.getCode(), "流程定义缺少有效审批节点");
+        return new BizException(ErrorCode.PARAM_ERROR, "workflow.definition.no-approval-node",
+                "流程定义缺少有效审批节点");
     }
 
     /**

@@ -178,11 +178,13 @@ public class MapFenceServiceImpl implements MapFenceService {
      */
     private void fillCircle(MapFence entity, FenceSaveRequest request) {
         if (request.getCenterLng() == null || request.getCenterLat() == null) {
-            throw new BizException(MapErrorCode.FENCE_GEOMETRY_INVALID, "圆形围栏需要圆心坐标");
+            throw new BizException(MapErrorCode.FENCE_GEOMETRY_INVALID, "map.fence.circle-center-required",
+                    "圆形围栏需要圆心坐标");
         }
         Double radius = request.getRadiusMeters();
         if (radius == null || radius <= 0) {
-            throw new BizException(MapErrorCode.FENCE_GEOMETRY_INVALID, "圆形围栏半径必须大于 0 米");
+            throw new BizException(MapErrorCode.FENCE_GEOMETRY_INVALID, "map.fence.circle-radius-invalid",
+                    "圆形围栏半径必须大于 0 米");
         }
         GeoPoint center = coords.toStorage(request.getCenterLng(), request.getCenterLat(), request.getCoordType());
         entity.setCenterLng(toDecimal(center.lng()));
@@ -204,12 +206,12 @@ public class MapFenceServiceImpl implements MapFenceService {
     private void fillPolygon(MapFence entity, FenceSaveRequest request) {
         List<FencePointRequest> points = request.getPoints();
         if (points == null || points.size() < MIN_VERTICES) {
-            throw new BizException(MapErrorCode.FENCE_GEOMETRY_INVALID,
-                    "多边形围栏至少需要 " + MIN_VERTICES + " 个顶点");
+            throw new BizException(MapErrorCode.FENCE_GEOMETRY_INVALID, "map.fence.polygon-min-vertices",
+                    "多边形围栏至少需要 " + MIN_VERTICES + " 个顶点", MIN_VERTICES);
         }
         if (points.size() > MAX_VERTICES) {
-            throw new BizException(MapErrorCode.FENCE_GEOMETRY_INVALID,
-                    "多边形围栏顶点不能超过 " + MAX_VERTICES + " 个");
+            throw new BizException(MapErrorCode.FENCE_GEOMETRY_INVALID, "map.fence.polygon-max-vertices",
+                    "多边形围栏顶点不能超过 " + MAX_VERTICES + " 个", MAX_VERTICES);
         }
         List<GeoPoint> storagePoints = new ArrayList<>(points.size());
         for (FencePointRequest point : points) {
@@ -217,8 +219,8 @@ public class MapFenceServiceImpl implements MapFenceService {
         }
         dropClosingVertex(storagePoints);
         if (storagePoints.size() < MIN_VERTICES) {
-            throw new BizException(MapErrorCode.FENCE_GEOMETRY_INVALID,
-                    "多边形顶点去掉重复闭合点后不足 " + MIN_VERTICES + " 个");
+            throw new BizException(MapErrorCode.FENCE_GEOMETRY_INVALID, "map.fence.polygon-vertices-after-dedup",
+                    "多边形顶点去掉重复闭合点后不足 " + MIN_VERTICES + " 个", MIN_VERTICES);
         }
         entity.setPoints(writePoints(storagePoints));
         entity.setCenterLng(null);
@@ -324,7 +326,8 @@ public class MapFenceServiceImpl implements MapFenceService {
      */
     private List<GeoPoint> readPoints(MapFence fence) {
         if (!StringUtils.hasText(fence.getPoints())) {
-            throw new BizException(MapErrorCode.FENCE_GEOMETRY_INVALID, "多边形围栏缺少顶点数据");
+            throw new BizException(MapErrorCode.FENCE_GEOMETRY_INVALID, "map.fence.polygon-points-missing",
+                    "多边形围栏缺少顶点数据");
         }
         CoordType type = storageType(fence);
         try {
@@ -335,7 +338,8 @@ public class MapFenceServiceImpl implements MapFenceService {
             }
             return points;
         } catch (JsonProcessingException | IllegalArgumentException ex) {
-            throw new BizException(MapErrorCode.FENCE_GEOMETRY_INVALID, "围栏顶点数据损坏：" + ex.getMessage());
+            throw new BizException(MapErrorCode.FENCE_GEOMETRY_INVALID, "map.fence.points-corrupted",
+                    "围栏顶点数据损坏：" + ex.getMessage(), ex.getMessage());
         }
     }
 
@@ -354,7 +358,8 @@ public class MapFenceServiceImpl implements MapFenceService {
         try {
             return objectMapper.writeValueAsString(raw);
         } catch (JsonProcessingException ex) {
-            throw new BizException(MapErrorCode.FENCE_GEOMETRY_INVALID, "围栏顶点序列化失败");
+            throw new BizException(MapErrorCode.FENCE_GEOMETRY_INVALID, "map.fence.points-serialize-failed",
+                    "围栏顶点序列化失败");
         }
     }
 
@@ -423,11 +428,11 @@ public class MapFenceServiceImpl implements MapFenceService {
      */
     private MapFence requireFence(Long id) {
         if (id == null) {
-            throw new BizException(MapErrorCode.FENCE_NOT_FOUND, "围栏ID不能为空");
+            throw new BizException(MapErrorCode.FENCE_NOT_FOUND, "map.fence.id-required", "围栏ID不能为空");
         }
         MapFence fence = fenceMapper.selectById(id);
         if (fence == null) {
-            throw new BizException(MapErrorCode.FENCE_NOT_FOUND, "围栏不存在或已删除");
+            throw new BizException(MapErrorCode.FENCE_NOT_FOUND, "map.fence.not-found", "围栏不存在或已删除");
         }
         return fence;
     }
@@ -441,7 +446,8 @@ public class MapFenceServiceImpl implements MapFenceService {
     private String normalizeType(String fenceType) {
         String type = fenceType == null ? "" : fenceType.trim().toUpperCase();
         if (!TYPE_CIRCLE.equals(type) && !TYPE_POLYGON.equals(type)) {
-            throw new BizException(MapErrorCode.FENCE_TYPE_INVALID, "围栏类型只支持 CIRCLE 或 POLYGON");
+            throw new BizException(MapErrorCode.FENCE_TYPE_INVALID, "map.fence.type-invalid",
+                    "围栏类型只支持 CIRCLE 或 POLYGON");
         }
         return type;
     }
@@ -452,8 +458,8 @@ public class MapFenceServiceImpl implements MapFenceService {
     private void checkQuota() {
         Long count = fenceMapper.selectCount(null);
         if (count != null && count >= MAX_FENCES) {
-            throw new BizException(MapErrorCode.FENCE_LIMIT_EXCEEDED,
-                    "单租户围栏数量已达上限 " + MAX_FENCES + " 个");
+            throw new BizException(MapErrorCode.FENCE_LIMIT_EXCEEDED, "map.fence.limit-exceeded",
+                    "单租户围栏数量已达上限 " + MAX_FENCES + " 个", MAX_FENCES);
         }
     }
 

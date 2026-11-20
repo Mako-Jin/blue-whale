@@ -57,6 +57,17 @@ public interface TenantProvisioningAppService {
             "sys:tenant:renew", "sys:user:tenant");
 
     /**
+     * 三员分立专属权限码：不下发给 {@code tenant_admin}，只授给对应三员角色。
+     *
+     * <p>等保 2.0 要求「管理员不得查看审计、审计员不得参与管理」。若 {@code tenant_admin} 保留
+     * {@code sys:audit:log:list}，租户管理员就能查、甚至导出审计记录，职责分离失效。</p>
+     *
+     * <p><b>与迁移脚本的强耦合</b>：{@code V36__three_admin_segregation.sql} 第 4 段已从存量
+     * {@code tenant_admin} 收回该权限，本集合保证新开通租户不再授予——改一处必须改两处。</p>
+     */
+    public static final Set<String> SEGREGATED_PERM_CODES = Set.of("sys:audit:log:list");
+
+    /**
      * 开通租户：创建租户并完成管理员、默认角色、菜单与部门根初始化
      *
      * @param command 开通命令

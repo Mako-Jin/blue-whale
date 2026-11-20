@@ -14,23 +14,23 @@ import lombok.Data;
 public class SceneSaveRequest {
 
     /** 场景编码（租户内唯一，如 plant-demo） */
-    @NotBlank(message = "场景编码不能为空")
-    @Pattern(regexp = "^[a-z][a-z0-9-]{1,63}$", message = "编码须为小写字母开头的字母/数字/中划线，2-64 位")
+    @NotBlank(message = "{validation.twin.scene.code-required}")
+    @Pattern(regexp = "^[a-z][a-z0-9-]{1,63}$", message = "{validation.twin.scene.code-pattern}")
     private String code;
 
     /** 场景名称 */
-    @NotBlank(message = "场景名称不能为空")
-    @Size(max = 128, message = "名称最长 128 字")
+    @NotBlank(message = "{validation.twin.scene.name-required}")
+    @Size(max = 128, message = "{validation.twin.scene.name-size}")
     private String name;
 
     /** 场景描述 */
-    @Size(max = 512, message = "描述最长 512 字")
+    @Size(max = 512, message = "{validation.twin.scene.description-size}")
     private String description;
 
     /** 缩略图文件ID（whale-file，可空） */
     private Long thumbnailFileId;
 
     /** 场景级配置 JSON 字符串（背景/光照/雾效等，可空） */
-    @Size(max = 16384, message = "场景配置 JSON 最长 16384 字符")
+    @Size(max = 16384, message = "{validation.twin.scene.config-size}")
     private String sceneConfig;
 }

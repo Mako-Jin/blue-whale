@@ -18,16 +18,16 @@ public class FormFieldOptionDTO implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 选项显示名（最长 128） */
-    @NotBlank(message = "选项显示名不能为空")
-    @Size(max = 128, message = "选项显示名长度不能超过 128")
+    @NotBlank(message = "{validation.form.option.label-required}")
+    @Size(max = 128, message = "{validation.form.option.label-size}")
     private String optionLabel;
 
     /** 选项值（最长 128） */
-    @NotBlank(message = "选项值不能为空")
-    @Size(max = 128, message = "选项值长度不能超过 128")
+    @NotBlank(message = "{validation.form.option.value-required}")
+    @Size(max = 128, message = "{validation.form.option.value-size}")
     private String optionValue;
 
     /** 排序号 */
-    @Min(value = 0, message = "排序号不能小于 0")
+    @Min(value = 0, message = "{validation.form.option.sort-no-min}")
     private Integer sortNo;
 }

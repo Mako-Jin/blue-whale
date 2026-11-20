@@ -67,7 +67,7 @@ public class DataQueryService {
     public Map<String, Object> query(String sql) {
         AgentProperties.DataQuery data = properties.getData();
         if (!data.isEnabled() || !StringUtils.hasText(data.getUrl())) {
-            throw new BizException(ErrorCode.FORBIDDEN.getCode(), "数据查询通道未启用");
+            throw new BizException(ErrorCode.FORBIDDEN, "agent.data.channel-disabled", "数据查询通道未启用");
         }
         int maxRows = Math.max(1, data.getMaxRows());
         // 多取一行用于准确判定「是否被截断」；最终返回仍裁剪到 maxRows
@@ -78,7 +78,8 @@ public class DataQueryService {
             rows = jdbc().queryForList(guarded.sql());
         } catch (DataAccessException e) {
             log.warn("只读数据查询失败：{}", e.getMessage());
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "查询失败，请检查 SQL 与白名单视图授权");
+            throw new BizException(ErrorCode.PARAM_ERROR, "agent.data.query-failed",
+                    "查询失败，请检查 SQL 与白名单视图授权");
         }
         boolean truncated = rows.size() > maxRows;
         List<Map<String, Object>> limited = truncated ? new ArrayList<>(rows.subList(0, maxRows)) : rows;

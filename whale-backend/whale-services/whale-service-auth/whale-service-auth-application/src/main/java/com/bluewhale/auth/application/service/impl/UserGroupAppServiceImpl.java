@@ -55,7 +55,7 @@ public class UserGroupAppServiceImpl implements UserGroupAppService {
     public UserGroupVO create(SaveUserGroupCommand command) {
         Long tenantId = currentUserProvider.current().tokenTenantId();
         if (userGroupRepository.existsByCode(tenantId, command.groupCode(), null)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "组编码在租户内已存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "auth.group.code-exists", "组编码在租户内已存在");
         }
         UserGroupAggregate group = isDynamic(command.category())
                 ? UserGroupAggregate.createDynamic(tenantId, command.groupCode(), command.groupName(),
@@ -164,7 +164,7 @@ public class UserGroupAppServiceImpl implements UserGroupAppService {
     public long recomputeDynamicMembers(Long id) {
         UserGroupAggregate group = require(id);
         if (!group.isDynamic()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "静态组成员请走显式维护接口");
+            throw new BizException(ErrorCode.PARAM_ERROR, "auth.group.static-members-manual", "静态组成员请走显式维护接口");
         }
         List<Long> memberIds = groupMemberEvaluator.evaluate(group.getTenantId(), group.getFilters());
         userGroupRepository.replaceDynamicMembers(id, memberIds);
@@ -197,7 +197,7 @@ public class UserGroupAppServiceImpl implements UserGroupAppService {
             Long cursor = target;
             for (int depth = 0; cursor != null && cursor != 0L && depth < MAX_PARENT_CHAIN_DEPTH; depth++) {
                 if (cursor.equals(group.getId())) {
-                    throw new BizException(ErrorCode.PARAM_ERROR, "组树不得成环：目标父链包含自身");
+                    throw new BizException(ErrorCode.PARAM_ERROR, "auth.group.tree-cycle", "组树不得成环：目标父链包含自身");
                 }
                 if (!visited.add(cursor)) {
                     log.warn("组树父链存在既有环，终止上溯: groupId={}, cursor={}", group.getId(), cursor);
@@ -216,7 +216,7 @@ public class UserGroupAppServiceImpl implements UserGroupAppService {
      */
     private UserGroupAggregate require(Long id) {
         return userGroupRepository.findById(id)
-                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "用户组不存在"));
+                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "auth.group.not-found", "用户组不存在"));
     }
 
     /**

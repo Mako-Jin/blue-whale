@@ -18,7 +18,7 @@ public class InAppMessageQueryRequest extends PageQuery {
     private static final long serialVersionUID = 1L;
 
     /** 已读标记：1 已读 / 0 未读；为空表示全部 */
-    @Min(value = 0, message = "已读标记仅支持 0 / 1")
-    @Max(value = 1, message = "已读标记仅支持 0 / 1")
+    @Min(value = 0, message = "{validation.message.inapp.read-flag-range}")
+    @Max(value = 1, message = "{validation.message.inapp.read-flag-range}")
     private Integer readFlag;
 }

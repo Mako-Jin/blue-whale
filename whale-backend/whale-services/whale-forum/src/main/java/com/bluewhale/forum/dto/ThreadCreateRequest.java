@@ -21,19 +21,19 @@ public class ThreadCreateRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 版块ID */
-    @NotNull(message = "版块不能为空")
+    @NotNull(message = "{validation.forum.thread.board-required}")
     private Long boardId;
 
     /** 帖子类型：NORMAL/QA/VOTE/NOTICE/ACTIVITY/ARTICLE（M1 仅 NORMAL/NOTICE） */
-    @Pattern(regexp = "^(NORMAL|QA|VOTE|NOTICE|ACTIVITY|ARTICLE)$", message = "帖子类型非法")
+    @Pattern(regexp = "^(NORMAL|QA|VOTE|NOTICE|ACTIVITY|ARTICLE)$", message = "{validation.forum.thread.type-pattern}")
     private String threadType = "NORMAL";
 
     /** 标题 */
-    @NotBlank(message = "标题不能为空")
+    @NotBlank(message = "{validation.forum.thread.title-required}")
     private String title;
 
     /** 正文（富文本源码，服务端消毒） */
-    @NotBlank(message = "正文不能为空")
+    @NotBlank(message = "{validation.forum.thread.content-required}")
     private String content;
 
     /** 标签，逗号分隔（仅选既有标签） */

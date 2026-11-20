@@ -37,7 +37,7 @@ public class MinioStorageAutoConfiguration {
     @ConditionalOnMissingBean(MinioClient.class)
     public MinioClient minioClient(MinioStorageProperties properties) {
         if (!StringUtils.hasText(properties.getAccessKey()) || !StringUtils.hasText(properties.getSecretKey())) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(),
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "file.storage.minio-credentials-missing",
                     "MinIO 访问凭据未配置: whale.file.minio.access-key / secret-key");
         }
         MinioClient.Builder builder = MinioClient.builder()

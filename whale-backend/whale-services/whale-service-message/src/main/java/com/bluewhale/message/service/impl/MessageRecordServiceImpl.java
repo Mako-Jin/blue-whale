@@ -47,7 +47,8 @@ public class MessageRecordServiceImpl implements MessageRecordService {
         if (StringUtils.hasText(channel)) {
             MessageChannel parsed = MessageChannel.parse(channel);
             if (parsed == null) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "不支持的渠道: " + channel);
+                throw new BizException(ErrorCode.PARAM_ERROR, "message.record.channel-unsupported",
+                        "不支持的渠道: " + channel, channel);
             }
             // channels 为逗号分隔串：用 FIND_IN_SET 做精确 token 匹配，
             // 避免 LIKE 通配符注入（%/_）与子串误命中
@@ -64,7 +65,8 @@ public class MessageRecordServiceImpl implements MessageRecordService {
     public MessageRecordVO detail(Long id) {
         MessageRecordPo record = recordMapper.selectById(id);
         if (record == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "消息不存在: " + id);
+            throw new BizException(ErrorCode.NOT_FOUND, "message.record.not-found",
+                    "消息不存在: " + id, id);
         }
         MessageRecordVO vo = toVo(record);
         LambdaQueryWrapper<MessageDeliveryPo> wrapper = new LambdaQueryWrapper<>();

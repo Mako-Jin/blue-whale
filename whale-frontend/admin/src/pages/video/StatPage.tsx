@@ -4,6 +4,7 @@
 import { Alert, App, Button, Card, Descriptions, InputNumber, Space, Statistic, Tag } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import { fetchStatOverview, type StatOverview } from '../../api/video';
+import { useI18n } from '../../i18n';
 
 /** 授权到期提醒窗口默认值（天后端默认 7 天） */
 const DEFAULT_EXPIRING_DAYS = 7;
@@ -13,6 +14,7 @@ const MAX_EXPIRING_DAYS = 90;
 
 export default function StatPage() {
   const { message } = App.useApp();
+  const { t } = useI18n();
   const [overview, setOverview] = useState<StatOverview | null>(null);
   const [expiringDays, setExpiringDays] = useState<number>(DEFAULT_EXPIRING_DAYS);
   const [loading, setLoading] = useState(false);
@@ -22,11 +24,11 @@ export default function StatPage() {
     try {
       setOverview(await fetchStatOverview(expiringDays));
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '统计概览加载失败');
+      message.error(error instanceof Error ? error.message : t('video.stat.msg.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [expiringDays, message]);
+  }, [expiringDays, message, t]);
 
   useEffect(() => {
     void load();
@@ -37,64 +39,76 @@ export default function StatPage() {
       <Alert
         type="info"
         showIcon
-        message="运营统计概览"
-        description="内容量含草稿与已下线；播放量为全部内容播放次数总和；待审核评论与授权到期数量用于日常运营巡检。"
+        message={t('video.stat.alert.title')}
+        description={t('video.stat.alert.description')}
       />
 
       <Card
-        title="内容与播放"
+        title={t('video.stat.card.content')}
         loading={loading}
         extra={
           <Space>
-            <span>授权到期窗口</span>
+            <span>{t('video.stat.label.expiringWindow')}</span>
             <InputNumber
               min={1}
               max={MAX_EXPIRING_DAYS}
               precision={0}
               value={expiringDays}
               onChange={(value) => setExpiringDays(value ?? DEFAULT_EXPIRING_DAYS)}
-              addonAfter="天"
+              addonAfter={t('video.stat.unit.days')}
               style={{ width: 120 }}
             />
-            <Button onClick={() => void load()}>刷新</Button>
+            <Button onClick={() => void load()}>{t('video.stat.action.refresh')}</Button>
           </Space>
         }
       >
         <Space size={48} wrap>
-          <Statistic title="内容总数" value={overview?.totalContent ?? 0} />
+          <Statistic title={t('video.stat.card.totalContent')} value={overview?.totalContent ?? 0} />
           <Statistic
-            title="已发布内容"
+            title={t('video.stat.card.publishedContent')}
             value={overview?.publishedContent ?? 0}
             valueStyle={{ color: '#3f8600' }}
           />
-          <Statistic title="播放次数合计" value={overview?.totalPlayCount ?? 0} />
-          <Statistic title="片单总数" value={overview?.collectionCount ?? 0} />
-          <Statistic title="创作者总数" value={overview?.creatorCount ?? 0} />
+          <Statistic
+            title={t('video.stat.card.totalViews')}
+            value={overview?.totalPlayCount ?? 0}
+          />
+          <Statistic
+            title={t('video.stat.card.collections')}
+            value={overview?.collectionCount ?? 0}
+          />
+          <Statistic title={t('video.stat.card.creators')} value={overview?.creatorCount ?? 0} />
         </Space>
       </Card>
 
-      <Card title="内容类型分布" loading={loading}>
+      <Card title={t('video.stat.card.typeDistribution')} loading={loading}>
         <Space size={48} wrap>
-          <Statistic title="短视频" value={overview?.shortVideoCount ?? 0} />
-          <Statistic title="视频" value={overview?.videoCount ?? 0} />
-          <Statistic title="电影" value={overview?.movieCount ?? 0} />
+          <Statistic title={t('video.stat.card.shortVideo')} value={overview?.shortVideoCount ?? 0} />
+          <Statistic title={t('video.stat.card.video')} value={overview?.videoCount ?? 0} />
+          <Statistic title={t('video.stat.card.movie')} value={overview?.movieCount ?? 0} />
         </Space>
       </Card>
 
-      <Card title="运营待办" loading={loading}>
+      <Card title={t('video.stat.card.todo')} loading={loading}>
         <Descriptions column={2} bordered size="small">
-          <Descriptions.Item label="待审核评论">
+          <Descriptions.Item label={t('video.stat.label.pendingComments')}>
             {overview?.pendingCommentCount && overview.pendingCommentCount > 0 ? (
-              <Tag color="orange">{overview.pendingCommentCount} 条待处理</Tag>
+              <Tag color="orange">
+                {t('video.stat.tag.pendingComments', { count: overview.pendingCommentCount })}
+              </Tag>
             ) : (
-              <Tag color="green">暂无积压</Tag>
+              <Tag color="green">{t('video.stat.tag.noBacklog')}</Tag>
             )}
           </Descriptions.Item>
-          <Descriptions.Item label={`授权 ${expiringDays} 天内到期（含已到期）`}>
+          <Descriptions.Item
+            label={t('video.stat.label.expiringLicenses', { days: expiringDays })}
+          >
             {overview?.expiringLicenseCount && overview.expiringLicenseCount > 0 ? (
-              <Tag color="red">{overview.expiringLicenseCount} 部需处理</Tag>
+              <Tag color="red">
+                {t('video.stat.tag.expiringLicenses', { count: overview.expiringLicenseCount })}
+              </Tag>
             ) : (
-              <Tag color="green">暂无临期授权</Tag>
+              <Tag color="green">{t('video.stat.tag.noExpiring')}</Tag>
             )}
           </Descriptions.Item>
         </Descriptions>

@@ -50,6 +50,9 @@ import {
   type PublishState,
 } from '../../../api/video';
 import { uploadFile } from '../../../api/file';
+import { useI18n } from '../../../i18n';
+
+type Translate = ReturnType<typeof useI18n>['t'];
 
 interface CollectionFormValues {
   title: string;
@@ -57,22 +60,26 @@ interface CollectionFormValues {
   sortNo?: number;
 }
 
-const PUBLISH_STATE_OPTIONS = [
-  { value: 'DRAFT', label: '草稿' },
-  { value: 'PUBLISHED', label: '已上架' },
-  { value: 'OFFLINE', label: '已下架' },
+/** 发布状态选项（片单无待审核） */
+const buildPublishStateOptions = (t: Translate) => [
+  { value: 'DRAFT', label: t('video.catalog.collection.state.draft') },
+  { value: 'PUBLISHED', label: t('video.catalog.collection.state.published') },
+  { value: 'OFFLINE', label: t('video.catalog.collection.state.offline') },
 ];
 
 /** 选片弹窗每页条数 */
 const PICKER_PAGE_SIZE = 10;
 
 /** 发布状态标签 */
-function renderPublishState(state?: PublishState) {
+function renderPublishState(state: PublishState | undefined, t: Translate) {
   const map: Record<PublishState, { color: string; label: string }> = {
-    DRAFT: { color: 'default', label: '草稿' },
-    PENDING_REVIEW: { color: 'gold', label: '待审核' },
-    PUBLISHED: { color: 'success', label: '已上架' },
-    OFFLINE: { color: 'error', label: '已下架' },
+    DRAFT: { color: 'default', label: t('video.catalog.collection.state.draft') },
+    PENDING_REVIEW: {
+      color: 'gold',
+      label: t('video.catalog.collection.state.pendingReview'),
+    },
+    PUBLISHED: { color: 'success', label: t('video.catalog.collection.state.published') },
+    OFFLINE: { color: 'error', label: t('video.catalog.collection.state.offline') },
   };
   return state ? <Tag color={map[state].color}>{map[state].label}</Tag> : '-';
 }
@@ -89,6 +96,8 @@ function formatDuration(value?: number): string {
 export default function CollectionPanel() {
   const { message } = App.useApp();
   const { has } = usePermission();
+  const { t } = useI18n();
+  const publishStateOptions = buildPublishStateOptions(t);
   const tableRef = useRef<ProTableRef>(null);
   const [form] = Form.useForm<CollectionFormValues>();
 
@@ -135,9 +144,15 @@ export default function CollectionPanel() {
       .then((uploaded) => {
         setCoverFileId(uploaded.id);
         setCoverName(uploaded.originalName ?? file.name);
-        message.success('封面已上传');
+        message.success(t('video.catalog.collection.msg.coverUploaded'));
       })
-      .catch((error) => message.error(error instanceof Error ? error.message : '封面上传失败'))
+      .catch((error) =>
+        message.error(
+          error instanceof Error
+            ? error.message
+            : t('video.catalog.collection.msg.coverUploadFailed'),
+        ),
+      )
       .finally(() => setUploadingCover(false));
   };
 
@@ -153,15 +168,17 @@ export default function CollectionPanel() {
     try {
       if (editing) {
         await updateCollection(editing.id, payload);
-        message.success('片单已更新');
+        message.success(t('video.catalog.collection.msg.updated'));
       } else {
         await createCollection(payload);
-        message.success('片单已新增（草稿），上架后用户可见');
+        message.success(t('video.catalog.collection.msg.created'));
       }
       setModalOpen(false);
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '保存失败');
+      message.error(
+        error instanceof Error ? error.message : t('video.catalog.collection.msg.saveFailed'),
+      );
       throw error;
     }
   };
@@ -169,30 +186,36 @@ export default function CollectionPanel() {
   const handlePublish = async (row: MovieCollectionAdminView) => {
     try {
       await publishCollection(row.id);
-      message.success('片单已上架');
+      message.success(t('video.catalog.collection.msg.published'));
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '上架失败');
+      message.error(
+        error instanceof Error ? error.message : t('video.catalog.collection.msg.publishFailed'),
+      );
     }
   };
 
   const handleOffline = async (row: MovieCollectionAdminView) => {
     try {
       await offlineCollection(row.id);
-      message.success('片单已下架');
+      message.success(t('video.catalog.collection.msg.offlined'));
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '下架失败');
+      message.error(
+        error instanceof Error ? error.message : t('video.catalog.collection.msg.offlineFailed'),
+      );
     }
   };
 
   const handleDelete = async (row: MovieCollectionAdminView) => {
     try {
       await deleteCollection(row.id);
-      message.success('片单已删除');
+      message.success(t('video.catalog.collection.msg.deleted'));
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '删除失败');
+      message.error(
+        error instanceof Error ? error.message : t('video.catalog.collection.msg.deleteFailed'),
+      );
     }
   };
 
@@ -203,7 +226,11 @@ export default function CollectionPanel() {
       setCurrent(detail);
       setItems(detail.items ?? []);
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '片单内电影加载失败');
+      message.error(
+        error instanceof Error
+          ? error.message
+          : t('video.catalog.collection.msg.itemsLoadFailed'),
+      );
     } finally {
       setItemsLoading(false);
     }
@@ -229,7 +256,11 @@ export default function CollectionPanel() {
       setPickerMovies(result.records ?? []);
       setPickerTotal(Number(result.total ?? 0));
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '电影加载失败');
+      message.error(
+        error instanceof Error
+          ? error.message
+          : t('video.catalog.collection.msg.moviesLoadFailed'),
+      );
     } finally {
       setPickerLoading(false);
     }
@@ -252,10 +283,12 @@ export default function CollectionPanel() {
       const detail = await addCollectionItem(current.id, contentId);
       setCurrent(detail);
       setItems(detail.items ?? []);
-      message.success('已加入片单');
+      message.success(t('video.catalog.collection.msg.added'));
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '加入片单失败');
+      message.error(
+        error instanceof Error ? error.message : t('video.catalog.collection.msg.addFailed'),
+      );
     } finally {
       setAddingId(undefined);
     }
@@ -269,28 +302,36 @@ export default function CollectionPanel() {
       const detail = await removeCollectionItem(current.id, contentId);
       setCurrent(detail);
       setItems(detail.items ?? []);
-      message.success('已移出片单');
+      message.success(t('video.catalog.collection.msg.removed'));
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '移出失败');
+      message.error(
+        error instanceof Error ? error.message : t('video.catalog.collection.msg.removeFailed'),
+      );
     }
   };
 
   const columns: TableProps<MovieCollectionAdminView>['columns'] = [
     { title: 'ID', dataIndex: 'id', width: 80 },
     {
-      title: '封面',
+      title: t('video.catalog.collection.col.cover'),
       dataIndex: 'coverUrl',
       width: 100,
       render: (value?: string) =>
         value ? (
-          <Image src={value} alt="封面" width={72} height={40} style={{ objectFit: 'cover' }} />
+          <Image
+            src={value}
+            alt={t('video.catalog.collection.alt.cover')}
+            width={72}
+            height={40}
+            style={{ objectFit: 'cover' }}
+          />
         ) : (
           '-'
         ),
     },
     {
-      title: '片单',
+      title: t('video.catalog.collection.col.collection'),
       dataIndex: 'title',
       render: (value: string, row) => (
         <Space direction="vertical" size={0}>
@@ -303,52 +344,61 @@ export default function CollectionPanel() {
         </Space>
       ),
     },
-    { title: '影片数', dataIndex: 'itemCount', width: 90 },
-    { title: '排序', dataIndex: 'sortNo', width: 80 },
+    { title: t('video.catalog.collection.col.itemCount'), dataIndex: 'itemCount', width: 90 },
+    { title: t('video.catalog.collection.col.sortNo'), dataIndex: 'sortNo', width: 80 },
     {
-      title: '状态',
+      title: t('video.catalog.collection.col.status'),
       dataIndex: 'publishState',
       width: 100,
-      render: (value?: PublishState) => renderPublishState(value),
+      render: (value?: PublishState) => renderPublishState(value, t),
     },
     {
-      title: '上架时间',
+      title: t('video.catalog.collection.col.publishedAt'),
       dataIndex: 'publishedAt',
       width: 170,
       render: (value?: string) => value ?? '-',
     },
     {
-      title: '操作',
+      title: t('video.catalog.collection.col.action'),
       key: 'action',
       width: 280,
       render: (_, row) => (
         <Space size={4} wrap>
           <Button type="link" size="small" onClick={() => openItems(row)}>
-            影片管理
+            {t('video.catalog.collection.action.manageMovies')}
           </Button>
           {has('sys:video:content:edit') ? (
             <Button type="link" size="small" onClick={() => openEdit(row)}>
-              编辑
+              {t('video.catalog.collection.action.edit')}
             </Button>
           ) : null}
           {row.publishState !== 'PUBLISHED' && has('sys:video:movie:manage') ? (
-            <Popconfirm title="确认上架该片单？" onConfirm={() => void handlePublish(row)}>
+            <Popconfirm
+              title={t('video.catalog.collection.confirm.publish')}
+              onConfirm={() => void handlePublish(row)}
+            >
               <Button type="link" size="small">
-                上架
+                {t('video.catalog.collection.action.publish')}
               </Button>
             </Popconfirm>
           ) : null}
           {row.publishState === 'PUBLISHED' && has('sys:video:movie:manage') ? (
-            <Popconfirm title="确认下架该片单？" onConfirm={() => void handleOffline(row)}>
+            <Popconfirm
+              title={t('video.catalog.collection.confirm.offline')}
+              onConfirm={() => void handleOffline(row)}
+            >
               <Button type="link" size="small" danger>
-                下架
+                {t('video.catalog.collection.action.offline')}
               </Button>
             </Popconfirm>
           ) : null}
           {has('sys:video:content:delete') ? (
-            <Popconfirm title="确认删除该片单？" onConfirm={() => void handleDelete(row)}>
+            <Popconfirm
+              title={t('video.catalog.collection.confirm.delete')}
+              onConfirm={() => void handleDelete(row)}
+            >
               <Button type="link" size="small" danger>
-                删除
+                {t('video.catalog.collection.action.delete')}
               </Button>
             </Popconfirm>
           ) : null}
@@ -365,18 +415,24 @@ export default function CollectionPanel() {
       render: (_, __, index) => index + 1,
     },
     {
-      title: '海报',
+      title: t('video.catalog.collection.item.col.poster'),
       dataIndex: 'posterUrl',
       width: 90,
       render: (value?: string) =>
         value ? (
-          <Image src={value} alt="海报" width={48} height={66} style={{ objectFit: 'cover' }} />
+          <Image
+            src={value}
+            alt={t('video.catalog.collection.alt.poster')}
+            width={48}
+            height={66}
+            style={{ objectFit: 'cover' }}
+          />
         ) : (
           '-'
         ),
     },
     {
-      title: '电影',
+      title: t('video.catalog.collection.item.col.movie'),
       dataIndex: 'title',
       render: (value: string, row) => (
         <Space direction="vertical" size={0}>
@@ -388,32 +444,39 @@ export default function CollectionPanel() {
       ),
     },
     {
-      title: '时长',
+      title: t('video.catalog.collection.item.col.duration'),
       dataIndex: 'durationMs',
       width: 90,
       render: (value?: number) => formatDuration(value),
     },
     {
-      title: '评分',
+      title: t('video.catalog.collection.item.col.rating'),
       dataIndex: 'rating',
       width: 80,
       render: (value?: number) => ((value ?? 0) > 0 ? value : '-'),
     },
     {
-      title: '可播',
+      title: t('video.catalog.collection.item.col.playable'),
       dataIndex: 'playable',
       width: 80,
       render: (value?: boolean) =>
-        value ? <Tag color="green">可播</Tag> : <Tag color="default">不可播</Tag>,
+        value ? (
+          <Tag color="green">{t('video.catalog.collection.tag.playable')}</Tag>
+        ) : (
+          <Tag color="default">{t('video.catalog.collection.tag.notPlayable')}</Tag>
+        ),
     },
     {
-      title: '操作',
+      title: t('video.catalog.collection.item.col.action'),
       key: 'action',
       width: 90,
       render: (_, row) => (
-        <Popconfirm title="确认将该电影移出片单？" onConfirm={() => void handleRemove(row.id)}>
+        <Popconfirm
+          title={t('video.catalog.collection.confirm.removeItem')}
+          onConfirm={() => void handleRemove(row.id)}
+        >
           <Button type="link" size="small" danger>
-            移出
+            {t('video.catalog.collection.action.remove')}
           </Button>
         </Popconfirm>
       ),
@@ -422,7 +485,7 @@ export default function CollectionPanel() {
 
   const pickerColumns: TableProps<MovieAdminView>['columns'] = [
     {
-      title: '电影',
+      title: t('video.catalog.collection.item.col.movie'),
       dataIndex: 'title',
       render: (value: string, row) => (
         <Space direction="vertical" size={0}>
@@ -434,19 +497,19 @@ export default function CollectionPanel() {
       ),
     },
     {
-      title: '时长',
+      title: t('video.catalog.collection.item.col.duration'),
       dataIndex: 'durationMs',
       width: 90,
       render: (value?: number) => formatDuration(value),
     },
     {
-      title: '状态',
+      title: t('video.catalog.collection.col.status'),
       dataIndex: 'publishState',
       width: 100,
-      render: (value?: PublishState) => renderPublishState(value),
+      render: (value?: PublishState) => renderPublishState(value, t),
     },
     {
-      title: '操作',
+      title: t('video.catalog.collection.item.col.action'),
       key: 'action',
       width: 100,
       render: (_, row) => {
@@ -459,7 +522,9 @@ export default function CollectionPanel() {
             loading={addingId === row.id}
             onClick={() => void handleAdd(row.id)}
           >
-            {added ? '已加入' : '加入'}
+            {added
+              ? t('video.catalog.collection.action.added')
+              : t('video.catalog.collection.action.add')}
           </Button>
         );
       },
@@ -471,30 +536,39 @@ export default function CollectionPanel() {
       <ProTable<MovieCollectionAdminView, CollectionQuery>
         ref={tableRef}
         rowKey="id"
-        title="片单管理"
+        title={t('video.catalog.collection.list.title')}
         columns={columns}
         request={pageCollections}
         params={{ keyword, publishState }}
         onError={(error) =>
-          message.error(error instanceof Error ? error.message : '片单列表加载失败')
+          message.error(
+            error instanceof Error
+              ? error.message
+              : t('video.catalog.collection.list.loadFailed'),
+          )
         }
         search={
           <SearchForm
             items={[
               {
                 name: 'keyword',
-                label: '关键词',
-                element: <Input allowClear placeholder="片单标题" />,
+                label: t('video.catalog.collection.search.keyword'),
+                element: (
+                  <Input
+                    allowClear
+                    placeholder={t('video.catalog.collection.search.keywordPlaceholder')}
+                  />
+                ),
               },
               {
                 name: 'publishState',
-                label: '状态',
+                label: t('video.catalog.collection.search.status'),
                 element: (
                   <Select
                     allowClear
-                    placeholder="全部"
+                    placeholder={t('video.catalog.collection.search.all')}
                     style={{ width: 120 }}
-                    options={PUBLISH_STATE_OPTIONS}
+                    options={publishStateOptions}
                   />
                 ),
               },
@@ -511,14 +585,18 @@ export default function CollectionPanel() {
         }
         toolbar={
           <AuthButton perm="sys:video:content:add" type="primary" onClick={openCreate}>
-            新增片单
+            {t('video.catalog.collection.action.create')}
           </AuthButton>
         }
       />
 
       <FormModal<CollectionFormValues>
         open={modalOpen}
-        title={editing ? `编辑片单：${editing.title}` : '新增片单'}
+        title={
+          editing
+            ? t('video.catalog.collection.form.editTitle', { title: editing.title })
+            : t('video.catalog.collection.form.createTitle')
+        }
         form={form}
         width={640}
         initialValues={{
@@ -529,13 +607,19 @@ export default function CollectionPanel() {
         onOk={handleSave}
         onCancel={() => setModalOpen(false)}
       >
-        <Form.Item label="封面">
+        <Form.Item label={t('video.catalog.collection.form.cover')}>
           <Space direction="vertical" size={6}>
             {coverFileId === '0' ? (
-              <Typography.Text type="secondary">已清除封面（保存后生效）</Typography.Text>
+              <Typography.Text type="secondary">
+                {t('video.catalog.collection.form.coverCleared')}
+              </Typography.Text>
             ) : coverFileId ? (
               <Typography.Text type="secondary">
-                已上传封面：{coverName || `文件 ID ${coverFileId}`}
+                {t('video.catalog.collection.form.coverUploaded', {
+                  name:
+                    coverName ||
+                    t('video.catalog.collection.form.fileId', { id: coverFileId }),
+                })}
               </Typography.Text>
             ) : editing?.coverUrl ? (
               <Image
@@ -543,10 +627,12 @@ export default function CollectionPanel() {
                 width={160}
                 height={90}
                 style={{ objectFit: 'cover' }}
-                alt="当前封面"
+                alt={t('video.catalog.collection.alt.currentCover')}
               />
             ) : (
-              <Typography.Text type="secondary">暂无封面</Typography.Text>
+              <Typography.Text type="secondary">
+                {t('video.catalog.collection.form.coverEmpty')}
+              </Typography.Text>
             )}
             <Space>
               <Upload
@@ -559,8 +645,8 @@ export default function CollectionPanel() {
               >
                 <Button loading={uploadingCover}>
                   {coverFileId !== '0' && (coverFileId || editing?.coverUrl)
-                    ? '重新上传封面'
-                    : '上传封面'}
+                    ? t('video.catalog.collection.form.coverReupload')
+                    : t('video.catalog.collection.form.coverUpload')}
                 </Button>
               </Upload>
               {editing?.coverUrl || (coverFileId && coverFileId !== '0') ? (
@@ -571,7 +657,7 @@ export default function CollectionPanel() {
                     setCoverName('');
                   }}
                 >
-                  移除封面
+                  {t('video.catalog.collection.form.coverRemove')}
                 </Button>
               ) : null}
             </Space>
@@ -579,21 +665,31 @@ export default function CollectionPanel() {
         </Form.Item>
         <Form.Item
           name="title"
-          label="片单标题"
-          rules={[{ required: true, message: '请输入片单标题' }]}
+          label={t('video.catalog.collection.form.title')}
+          rules={[
+            { required: true, message: t('video.catalog.collection.form.titleRequired') },
+          ]}
         >
           <Input maxLength={200} showCount />
         </Form.Item>
-        <Form.Item name="description" label="片单简介">
+        <Form.Item name="description" label={t('video.catalog.collection.form.description')}>
           <Input.TextArea maxLength={2000} showCount autoSize={{ minRows: 3, maxRows: 6 }} />
         </Form.Item>
-        <Form.Item name="sortNo" label="运营排序" extra="数值越小越靠前">
+        <Form.Item
+          name="sortNo"
+          label={t('video.catalog.collection.form.sortNo')}
+          extra={t('video.catalog.collection.form.sortNoExtra')}
+        >
           <InputNumber min={0} precision={0} style={{ width: '100%' }} />
         </Form.Item>
       </FormModal>
 
       <Drawer
-        title={current ? `片单影片：${current.title}` : '片单影片'}
+        title={
+          current
+            ? t('video.catalog.collection.drawer.titleWithName', { title: current.title })
+            : t('video.catalog.collection.drawer.title')
+        }
         width={820}
         open={drawerOpen}
         onClose={() => {
@@ -603,11 +699,13 @@ export default function CollectionPanel() {
         extra={
           <Space>
             <Typography.Text type="secondary">
-              共 {current?.itemCount ?? items.length} 部（上限 200）
+              {t('video.catalog.collection.drawer.count', {
+                count: current?.itemCount ?? items.length,
+              })}
             </Typography.Text>
             {has('sys:video:movie:manage') ? (
               <Button type="primary" onClick={openPicker}>
-                添加电影
+                {t('video.catalog.collection.drawer.add')}
               </Button>
             ) : null}
           </Space>
@@ -628,7 +726,7 @@ export default function CollectionPanel() {
               emptyText: (
                 <Empty
                   image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description="片单暂无电影，点击右上角「添加电影」"
+                  description={t('video.catalog.collection.drawer.empty')}
                 />
               ),
             }}
@@ -638,15 +736,15 @@ export default function CollectionPanel() {
 
       <Modal
         open={pickerOpen}
-        title="添加电影（仅已发布且可播电影）"
+        title={t('video.catalog.collection.picker.title')}
         width={760}
         footer={null}
         onCancel={() => setPickerOpen(false)}
       >
         <Input.Search
           allowClear
-          enterButton="搜索"
-          placeholder="电影标题 / 原始片名"
+          enterButton={t('video.catalog.collection.picker.search')}
+          placeholder={t('video.catalog.collection.picker.searchPlaceholder')}
           value={pickerInput}
           onChange={(event) => setPickerInput(event.target.value)}
           onSearch={(value) => {
@@ -663,7 +761,12 @@ export default function CollectionPanel() {
           columns={pickerColumns}
           dataSource={pickerMovies}
           locale={{
-            emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无已发布电影" />,
+            emptyText: (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={t('video.catalog.collection.picker.empty')}
+              />
+            ),
           }}
           pagination={{
             current: pickerPage,

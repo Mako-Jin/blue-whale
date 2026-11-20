@@ -18,15 +18,15 @@ public class StorageMigrationRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 源落盘存储类型 */
-    @NotBlank(message = "源存储类型不能为空")
+    @NotBlank(message = "{validation.file.migration.source-required}")
     private String sourceStorageType;
 
     /** 桶过滤条件；为空表示不限桶 */
     private String bucket;
 
     /** 单批最大处理条数 */
-    @Min(value = 1, message = "单批条数必须大于 0")
-    @Max(value = 500, message = "单批条数不能超过 500")
+    @Min(value = 1, message = "{validation.file.migration.limit-min}")
+    @Max(value = 500, message = "{validation.file.migration.limit-max}")
     private long limit = 100L;
 
     /** 是否只统计不执行 */

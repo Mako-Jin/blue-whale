@@ -1,7 +1,12 @@
 // jsdom 环境补齐 antd 依赖的缺失 API
 import '@testing-library/jest-dom/vitest';
-import { afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, vi } from 'vitest';
 import { cleanup, configure } from '@testing-library/react';
+
+// 单测固定中文：jsdom 默认 navigator.language 为 en-US，断言基于中文文案
+beforeEach(() => {
+  window.localStorage.setItem('whale-admin-lang', 'zh-CN');
+});
 
 // 并发跑测试时 CPU 争抢明显，放宽 findBy*/waitFor 默认 1s 等待，避免抖动
 configure({ asyncUtilTimeout: 5000 });

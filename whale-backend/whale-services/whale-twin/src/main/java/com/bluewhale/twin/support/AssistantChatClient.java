@@ -3,6 +3,7 @@ package com.bluewhale.twin.support;
 import com.bluewhale.common.internaltoken.InternalTokenSupport;
 import com.bluewhale.common.web.WebHeaders;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.twin.config.TwinProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -73,7 +74,8 @@ public class AssistantChatClient {
     public Map<String, Object> chat(String question, Long userId, String tenantId, String channelRef) {
         TwinProperties.Assistant config = properties.getAssistant();
         if (config.getAssistantCode() == null || config.getAssistantCode().isBlank()) {
-            throw new BizException("未配置 AI 解读助手（whale.twin.assistant.assistant-code）");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.assistant.not-configured",
+                    "未配置 AI 解读助手（whale.twin.assistant.assistant-code）");
         }
         Map<String, Object> body = Map.of(
                 "assistantCode", config.getAssistantCode(),
@@ -94,18 +96,21 @@ public class AssistantChatClient {
             if (code == null || !CODE_SUCCESS.equals(String.valueOf(code))) {
                 log.warn("AI 解读问答业务失败：userId={}, code={}, message={}",
                         userId, code, response == null ? null : response.get("message"));
-                throw new BizException("AI 解读服务响应异常，请稍后重试");
+                throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.assistant.response-abnormal",
+                        "AI 解读服务响应异常，请稍后重试");
             }
             Object data = response.get("data");
             if (!(data instanceof Map)) {
-                throw new BizException("AI 解读服务返回内容为空");
+                throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.assistant.empty-content",
+                        "AI 解读服务返回内容为空");
             }
             return (Map<String, Object>) data;
         } catch (BizException e) {
             throw e;
         } catch (RuntimeException e) {
             log.warn("AI 解读问答调用失败：userId={}, reason={}", userId, e.getMessage());
-            throw new BizException("AI 解读服务不可用，请稍后重试");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.assistant.unavailable",
+                    "AI 解读服务不可用，请稍后重试");
         }
     }
 
@@ -126,7 +131,8 @@ public class AssistantChatClient {
             throws IOException, InterruptedException {
         TwinProperties.Assistant config = properties.getAssistant();
         if (config.getAssistantCode() == null || config.getAssistantCode().isBlank()) {
-            throw new BizException("未配置 AI 解读助手（whale.twin.assistant.assistant-code）");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.assistant.not-configured",
+                    "未配置 AI 解读助手（whale.twin.assistant.assistant-code）");
         }
         HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(config.getBaseUrl() + CHAT_PATH + "/stream"))
                 .timeout(Duration.ofSeconds(Math.max(10, config.getTimeoutSeconds())))

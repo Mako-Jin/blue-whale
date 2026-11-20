@@ -51,22 +51,27 @@ public final class CallbackUrlGuard {
         try {
             uri = URI.create(callbackUrl.trim());
         } catch (IllegalArgumentException e) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "回调地址格式非法: " + callbackUrl);
+            throw new BizException(ErrorCode.PARAM_ERROR, "message.callback-url.invalid-format",
+                    "回调地址格式非法: " + callbackUrl, callbackUrl);
         }
         String scheme = uri.getScheme();
         if (scheme == null || !ALLOWED_SCHEMES.contains(scheme.toLowerCase(Locale.ROOT))) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "回调地址仅支持 http / https: " + callbackUrl);
+            throw new BizException(ErrorCode.PARAM_ERROR, "message.callback-url.scheme-unsupported",
+                    "回调地址仅支持 http / https: " + callbackUrl, callbackUrl);
         }
         if (uri.getUserInfo() != null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "回调地址不允许携带用户信息: " + callbackUrl);
+            throw new BizException(ErrorCode.PARAM_ERROR, "message.callback-url.userinfo-forbidden",
+                    "回调地址不允许携带用户信息: " + callbackUrl, callbackUrl);
         }
         String host = uri.getHost();
         if (!StringUtils.hasText(host)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "回调地址缺少主机名: " + callbackUrl);
+            throw new BizException(ErrorCode.PARAM_ERROR, "message.callback-url.host-missing",
+                    "回调地址缺少主机名: " + callbackUrl, callbackUrl);
         }
         String normalized = host.toLowerCase(Locale.ROOT);
         if (METADATA_HOSTS.contains(normalized) || normalized.startsWith("169.254.")) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "回调地址不允许指向云元数据或链路本地地址: " + callbackUrl);
+            throw new BizException(ErrorCode.PARAM_ERROR, "message.callback-url.metadata-forbidden",
+                    "回调地址不允许指向云元数据或链路本地地址: " + callbackUrl, callbackUrl);
         }
     }
 }

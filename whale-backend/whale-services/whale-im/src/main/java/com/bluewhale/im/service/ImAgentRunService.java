@@ -78,7 +78,7 @@ public class ImAgentRunService {
     public Map<String, Object> confirm(Long runId, boolean approved, Long userId, String permissionCodes) {
         ImAgentRun run = runMapper.selectById(runId);
         if (run == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "运行记录不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "im.agent-run.not-found", "运行记录不存在");
         }
         guard.requireMember(run.getConversationId(), userId);
         if (!STATUS_WAITING_CONFIRM.equals(run.getStatus())) {
@@ -88,7 +88,7 @@ public class ImAgentRunService {
         String confirmationId = card.path("confirmationId").asText("");
         String operation = card.path("operation").asText("");
         if (!StringUtils.hasText(confirmationId)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "确认信息缺失，请重新发起");
+            throw new BizException(ErrorCode.PARAM_ERROR, "im.agent-run.confirm-required", "确认信息缺失，请重新发起");
         }
         try {
             JsonNode data = agentStreamClient.confirmOperation(confirmationId, approved, userId, permissionCodes);
@@ -115,7 +115,7 @@ public class ImAgentRunService {
     public void feedback(Long runId, Long userId, String rating) {
         ImAgentRun run = runMapper.selectById(runId);
         if (run == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "运行记录不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "im.agent-run.not-found", "运行记录不存在");
         }
         guard.requireMember(run.getConversationId(), userId);
         LambdaUpdateWrapper<ImAgentRun> wrapper = new LambdaUpdateWrapper<>();
@@ -141,7 +141,7 @@ public class ImAgentRunService {
             run = runByRequestMessage(messageId);
         }
         if (run == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "该消息没有关联的智能体运行记录");
+            throw new BizException(ErrorCode.NOT_FOUND, "im.agent-run.message-not-linked", "该消息没有关联的智能体运行记录");
         }
         guard.requireMember(run.getConversationId(), userId);
         return run.getId();
@@ -173,7 +173,7 @@ public class ImAgentRunService {
     public Map<String, Object> detail(Long runId, Long userId) {
         ImAgentRun run = runMapper.selectById(runId);
         if (run == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "运行记录不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "im.agent-run.not-found", "运行记录不存在");
         }
         guard.requireMember(run.getConversationId(), userId);
         Map<String, Object> detail = new LinkedHashMap<>();
@@ -256,12 +256,12 @@ public class ImAgentRunService {
      */
     private JsonNode readCard(String json) {
         if (!StringUtils.hasText(json)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "确认信息缺失，请重新发起");
+            throw new BizException(ErrorCode.PARAM_ERROR, "im.agent-run.confirm-required", "确认信息缺失，请重新发起");
         }
         try {
             return objectMapper.readTree(json);
         } catch (RuntimeException e) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "确认信息解析失败，请重新发起");
+            throw new BizException(ErrorCode.PARAM_ERROR, "im.agent-run.confirm-parse-failed", "确认信息解析失败，请重新发起");
         }
     }
 

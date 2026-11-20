@@ -157,13 +157,15 @@ public class BoardServiceImpl implements BoardService {
         TenantContext.requireId();
         ForumBoard board = boardId == null ? null : boardMapper.selectById(boardId);
         if (board == null || !canView(board, actor)) {
-            throw new BizException(ForumErrorCodes.THREAD_NOT_FOUND, "版块不存在或不可见");
+            throw new BizException(ForumErrorCodes.THREAD_NOT_FOUND, "forum.board.not-found-or-invisible",
+                    "版块不存在或不可见");
         }
         if (!postable) {
             return board;
         }
         if (board.getStatus() == null || board.getStatus() != 1) {
-            throw new BizException(ForumErrorCodes.BOARD_NOT_POSTABLE, "版块已停用，暂不可发帖");
+            throw new BizException(ForumErrorCodes.BOARD_NOT_POSTABLE, "forum.board.disabled",
+                    "版块已停用，暂不可发帖");
         }
         String policy = board.getPostPolicy() == null ? POLICY_OPEN : board.getPostPolicy();
         if (POLICY_OPEN.equals(policy)) {
@@ -173,11 +175,12 @@ public class BoardServiceImpl implements BoardService {
                 || actor.hasPermission(ForumPermissions.MANAGE_BOARD);
         if (POLICY_NOTICE_ONLY.equals(policy)) {
             if (!manager) {
-                throw new BizException(ForumErrorCodes.BOARD_NOT_POSTABLE, "该版块仅限管理员发布公告");
+                throw new BizException(ForumErrorCodes.BOARD_NOT_POSTABLE, "forum.board.notice-only",
+                        "该版块仅限管理员发布公告");
             }
             return board;
         }
-        throw new BizException(ForumErrorCodes.BOARD_NOT_POSTABLE, "该版块只读，禁止发帖");
+        throw new BizException(ForumErrorCodes.BOARD_NOT_POSTABLE, "forum.board.read-only", "该版块只读，禁止发帖");
     }
 
     /**
@@ -189,7 +192,7 @@ public class BoardServiceImpl implements BoardService {
     private ForumBoard requireExisting(Long id) {
         ForumBoard board = id == null ? null : boardMapper.selectById(id);
         if (board == null) {
-            throw new BizException(ForumErrorCodes.THREAD_NOT_FOUND, "版块不存在");
+            throw new BizException(ForumErrorCodes.THREAD_NOT_FOUND, "forum.board.not-found", "版块不存在");
         }
         return board;
     }
@@ -201,7 +204,7 @@ public class BoardServiceImpl implements BoardService {
      */
     private void requireBoardManager(ForumActor actor) {
         if (!actor.hasPermission(ForumPermissions.MANAGE_BOARD)) {
-            throw new BizException(ErrorCode.FORBIDDEN, "无权管理版块");
+            throw new BizException(ErrorCode.FORBIDDEN, "forum.board.manage-forbidden", "无权管理版块");
         }
     }
 
@@ -216,7 +219,8 @@ public class BoardServiceImpl implements BoardService {
                 .eq(ForumBoard::getCode, code)
                 .ne(excludeId != null, ForumBoard::getId, excludeId));
         if (exists != null && exists > 0) {
-            throw new BizException(ForumErrorCodes.BOARD_CODE_DUPLICATED, "版块编码已存在");
+            throw new BizException(ForumErrorCodes.BOARD_CODE_DUPLICATED, "forum.board.code-duplicated",
+                    "版块编码已存在");
         }
     }
 

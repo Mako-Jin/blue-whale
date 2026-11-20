@@ -339,12 +339,13 @@ public class UserController implements UserApi {
      */
     private static java.io.InputStream toInputStream(MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "请上传用户导入文件");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.import.file-required", "请上传用户导入文件");
         }
         try {
             return file.getInputStream();
         } catch (IOException e) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "读取上传文件失败: " + e.getMessage());
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.import.read-failed",
+                    "读取上传文件失败: " + e.getMessage(), e.getMessage());
         }
     }
 

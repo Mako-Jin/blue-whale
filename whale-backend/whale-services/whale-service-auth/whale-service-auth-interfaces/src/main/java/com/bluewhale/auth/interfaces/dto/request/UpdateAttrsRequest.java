@@ -14,7 +14,7 @@ import java.util.List;
 @Data
 public class UpdateAttrsRequest {
 
-    @NotNull(message = "属性列表不能为 null")
+    @NotNull(message = "{validation.auth.user.attrs-required}")
     @Valid
     private List<UserAttrItem> attrs;
 }

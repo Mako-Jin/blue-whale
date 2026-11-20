@@ -69,7 +69,7 @@ public class ProcessCcServiceImpl implements ProcessCcService {
     public ProcessCcVO get(Long id) {
         ProcessCcPo cc = processCcMapper.selectById(id);
         if (cc == null) {
-            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "抄送记录不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "workflow.cc.not-found", "抄送记录不存在");
         }
         return WorkflowConverter.INSTANCE.toCcVo(cc);
     }
@@ -78,7 +78,7 @@ public class ProcessCcServiceImpl implements ProcessCcService {
     public void markRead(Long id) {
         ProcessCcPo cc = processCcMapper.selectById(id);
         if (cc == null) {
-            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "抄送记录不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "workflow.cc.not-found", "抄送记录不存在");
         }
         if (cc.getReadFlag() != null && cc.getReadFlag() == WorkflowConstants.CC_READ) {
             return;
@@ -134,8 +134,9 @@ public class ProcessCcServiceImpl implements ProcessCcService {
                 .distinct()
                 .toList();
         if (normalized.size() > MAX_RECIPIENT_CANDIDATES) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
-                    "候选收件人去重后 " + normalized.size() + " 个，超过上限 " + MAX_RECIPIENT_CANDIDATES);
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.cc.candidates-exceeded",
+                    "候选收件人去重后 " + normalized.size() + " 个，超过上限 " + MAX_RECIPIENT_CANDIDATES,
+                    normalized.size(), MAX_RECIPIENT_CANDIDATES);
         }
         return normalized;
     }

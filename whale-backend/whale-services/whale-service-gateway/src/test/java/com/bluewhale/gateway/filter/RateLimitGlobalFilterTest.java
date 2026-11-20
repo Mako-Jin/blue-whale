@@ -40,10 +40,10 @@ import static org.mockito.Mockito.when;
 class RateLimitGlobalFilterTest {
 
     private static final String REQUEST_URL = "http://localhost/auth/login";
-    private static final String REPORT_URL = "http://localhost/audit/log/frontend/batch";
+    private static final String REPORT_URL = "http://localhost/audit/v1/log/frontend/batch";
     private static final String X_FORWARDED_FOR = "X-Forwarded-For";
     private static final String CLIENT_IP = "203.0.113.7";
-    private static final String REPORT_RULE_PATTERN = "/audit/log/frontend/**";
+    private static final String REPORT_RULE_PATTERN = "/audit/v1/log/frontend/**";
     private static final String BROAD_RULE_PATTERN = "/audit/**";
     private static final int WINDOW_SECONDS = 60;
     private static final int REPORT_RULE_LIMIT = 1;

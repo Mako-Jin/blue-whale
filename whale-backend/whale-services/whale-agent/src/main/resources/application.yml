@@ -59,6 +59,12 @@ whale:
   permission:
     header:
       enabled: true
+  # 国际化：BizException 文案键按请求 Locale 解析；启动时幂等创建 sys_i18n_message，
+  # 属性文件回退源为 classpath:i18n/agent/messages*。
+  i18n:
+    enabled: true
+    auto-init: true
+    module-scan-enabled: true
   agent:
     # 仓库根目录；留空时按启动目录向上探测（含 whale-backend/pom.xml 与 docs/ 的目录）。
     repo-root: ${WHALE_AGENT_REPO_ROOT:}

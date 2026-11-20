@@ -128,12 +128,14 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
     @Transactional(rollbackFor = Exception.class)
     public ReceiptApplyResult apply(DeliveryReceiptRequest request) {
         if (!properties.isEnabled()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "回执受理未启用（whale.message.receipt.enabled=false）");
+            throw new BizException(ErrorCode.PARAM_ERROR, "message.receipt.disabled",
+                    "回执受理未启用（whale.message.receipt.enabled=false）");
         }
         // 内网回执必须显式传入 tenantId：不再从上下文兜底，避免网关漏传租户头时串租户受理
         Long tenantId = request.getTenantId();
         if (tenantId == null || tenantId <= 0L) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "缺少租户ID（内网回执必须显式传入 tenantId）");
+            throw new BizException(ErrorCode.PARAM_ERROR, "message.receipt.tenant-required",
+                    "缺少租户ID（内网回执必须显式传入 tenantId）");
         }
         Long previous = TenantContext.get();
         TenantContext.set(tenantId);
@@ -175,20 +177,23 @@ public class MessageReceiptServiceImpl implements MessageReceiptService {
     private PreparedReceipt prepare(DeliveryReceiptItem item) {
         DeliveryStatus target = DeliveryStatus.parse(item.getStatus());
         if (target == null || !target.isReceiptStatus()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "回执状态非法（仅支持 DELIVERED / READ / BOUNCED）: "
-                    + item.getStatus());
+            throw new BizException(ErrorCode.PARAM_ERROR, "message.receipt.status-invalid",
+                    "回执状态非法（仅支持 DELIVERED / READ / BOUNCED）: " + item.getStatus(), item.getStatus());
         }
         String channel = item.getChannel().trim().toUpperCase(Locale.ROOT);
         MessageChannel parsedChannel = MessageChannel.parse(channel);
         if (parsedChannel == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "无法识别的回执渠道: " + item.getChannel());
+            throw new BizException(ErrorCode.PARAM_ERROR, "message.receipt.channel-unrecognized",
+                    "无法识别的回执渠道: " + item.getChannel(), item.getChannel());
         }
         MessageChannelSender sender = senderMap().get(parsedChannel);
         if (sender == null || !sender.supportsReceipt()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "渠道不支持回执上报: " + channel);
+            throw new BizException(ErrorCode.PARAM_ERROR, "message.receipt.channel-not-supported",
+                    "渠道不支持回执上报: " + channel, channel);
         }
         if (target == DeliveryStatus.READ && !sender.supportsReadReceipt()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "渠道不支持已读回执: " + channel);
+            throw new BizException(ErrorCode.PARAM_ERROR, "message.receipt.read-not-supported",
+                    "渠道不支持已读回执: " + channel, channel);
         }
         LocalDateTime receiptTime = item.getReceiptTime() == null ? LocalDateTime.now() : item.getReceiptTime();
         String receiptKey = truncate(buildReceiptKey(channel, item, target, receiptTime), RECEIPT_KEY_MAX_LENGTH);

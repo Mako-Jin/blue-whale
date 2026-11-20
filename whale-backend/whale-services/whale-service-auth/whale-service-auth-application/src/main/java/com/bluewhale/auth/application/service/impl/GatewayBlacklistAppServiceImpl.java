@@ -67,7 +67,7 @@ public class GatewayBlacklistAppServiceImpl implements GatewayBlacklistAppServic
                 command.httpMethod(), command.status(), command.sortNo(), command.remark());
         if (gatewayBlacklistRepository.existsRule(rule.getPathPattern(), rule.getHttpMethod(), rule.getScope(),
                 null)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "该路径与方法已存在黑名单条目");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.gateway.blacklist-exists", "该路径与方法已存在黑名单条目");
         }
         gatewayBlacklistRepository.save(rule);
     }
@@ -89,7 +89,7 @@ public class GatewayBlacklistAppServiceImpl implements GatewayBlacklistAppServic
                 command.status(), command.sortNo(), command.remark());
         if (gatewayBlacklistRepository.existsRule(updated.getPathPattern(), updated.getHttpMethod(),
                 updated.getScope(), id)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "该路径与方法已存在黑名单条目");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.gateway.blacklist-exists", "该路径与方法已存在黑名单条目");
         }
         gatewayBlacklistRepository.save(updated);
     }

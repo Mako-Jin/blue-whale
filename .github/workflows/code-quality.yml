@@ -133,6 +133,22 @@ jobs:
       - name: Role Code Coverage Scan
         run: python3 scripts/security/check-role-coverage.py
 
+  audit-append-only:
+    name: Backend · 审计日志追加写
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 等保 2.0 8.1.4.3 c)：审计记录应受到保护，避免未预期的删除、修改或覆盖。
+      # audit_log 属 append-only 证据表，一旦被 UPDATE/DELETE，编译、启动、单测与
+      # 其余门禁全绿，只有事后取证时才发现证据链断了。此步禁止代码/脚本对
+      # audit_log 与四张观测通道表做任何改写（数据库层另有触发器守卫，见
+      # scripts/security/AuditAppendOnlyGuard.java）。
+      - name: Audit Log Append-Only Scan
+        run: python3 scripts/security/check-audit-append-only.py
+
   internal-boundary:
     name: Backend · 内网端点边界
     runs-on: ubuntu-latest

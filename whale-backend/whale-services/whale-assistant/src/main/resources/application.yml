@@ -59,7 +59,7 @@ bluewhale:
   internal-token:
     path-patterns:
       - /**/internal/**
-      - /audit/log/ingest/**
+      - /audit/v1/log/ingest/**
       - /assistant/openapi/**
 
 # AUTH-06：启用 starter 的 RequirePermissionInterceptor（默认 false，须显式开启），
@@ -68,6 +68,12 @@ whale:
   permission:
     header:
       enabled: true
+  # P2 国际化：BizException 文案键按请求 Locale 解析；启动时幂等创建 sys_i18n_message，
+  # 属性文件回退源为 classpath:i18n/assistant/messages*。
+  i18n:
+    enabled: true
+    auto-init: true
+    module-scan-enabled: true
   assistant:
     # Wave 6.01 M1：委托 ai/whale-ai（内网 8092，不注册网关/Nacos）做 LLM 编排。
     # 本服务只做助手定义/会话/授权/用量，不直连任何模型凭据。

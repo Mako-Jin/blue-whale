@@ -80,7 +80,8 @@ public class OAuthClientAppServiceImpl implements OAuthClientAppService {
                 ? command.clientId().trim()
                 : generateClientId();
         if (oauthClientRepository.existsByClientId(clientId)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "客户端标识已存在：" + clientId);
+            throw new BizException(ErrorCode.PARAM_ERROR, "auth.oauth.client-id-exists",
+                    "客户端标识已存在：" + clientId, clientId);
         }
         String rawSecret = generateClientSecret();
         OAuthClientAggregate client = OAuthClientAggregate.create(clientId,
@@ -161,7 +162,8 @@ public class OAuthClientAppServiceImpl implements OAuthClientAppService {
      */
     private OAuthClientAggregate require(Long id) {
         return oauthClientRepository.findById(id)
-                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "OAuth 客户端不存在"));
+                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND,
+                        "auth.oauth.client-not-found", "OAuth 客户端不存在"));
     }
 
     /**

@@ -102,6 +102,30 @@ public final class DocErrorCode {
             Map.entry(APPROVAL_UNAVAILABLE, "发布审批未启用或流程定义未配置"),
             Map.entry(EXTERNAL_SERVICE_UNAVAILABLE, "外部服务暂不可用，请稍后重试"));
 
+    /** 错误码与国际化文案键 */
+    private static final Map<Integer, String> KEYS = Map.ofEntries(
+            Map.entry(REVISION_CONFLICT, "doc.code.revision-conflict"),
+            Map.entry(COLLAB_ACTIVE, "doc.code.collab-active"),
+            Map.entry(COLLAB_UNAVAILABLE, "doc.code.collab-unavailable"),
+            Map.entry(SPACE_ACCESS_DENIED, "doc.code.space-access-denied"),
+            Map.entry(PAGE_NOT_FOUND, "doc.code.page-not-found"),
+            Map.entry(CONTENT_TOO_LARGE, "doc.code.content-too-large"),
+            Map.entry(TREE_CYCLE, "doc.code.tree-cycle"),
+            Map.entry(TREE_DEPTH_EXCEEDED, "doc.code.tree-depth-exceeded"),
+            Map.entry(LAST_OWNER_REQUIRED, "doc.code.last-owner-required"),
+            Map.entry(SLUG_DUPLICATED, "doc.code.slug-duplicated"),
+            Map.entry(ATTACHMENT_TOO_LARGE, "doc.code.attachment-too-large"),
+            Map.entry(RECYCLE_PARENT_INVALID, "doc.code.recycle-parent-invalid"),
+            Map.entry(RECYCLE_NOT_ROOT, "doc.code.recycle-not-root"),
+            Map.entry(COLLAB_TICKET_INVALID, "doc.code.collab-ticket-invalid"),
+            Map.entry(COLLAB_FRAME_INVALID, "doc.code.collab-frame-invalid"),
+            Map.entry(TEMPLATE_NOT_FOUND, "doc.code.template-not-found"),
+            Map.entry(SHARE_INVALID, "doc.code.share-invalid"),
+            Map.entry(IMPORT_FILE_INVALID, "doc.code.import-file-invalid"),
+            Map.entry(APPROVAL_STATE_CONFLICT, "doc.code.approval-state-conflict"),
+            Map.entry(APPROVAL_UNAVAILABLE, "doc.code.approval-unavailable"),
+            Map.entry(EXTERNAL_SERVICE_UNAVAILABLE, "doc.code.external-service-unavailable"));
+
     /**
      * 私有构造器：错误码常量类，禁止实例化。
      */
@@ -125,6 +149,10 @@ public final class DocErrorCode {
      * @return 业务异常
      */
     public static BizException exception(int code) {
-        return new BizException(code, messageOf(code));
+        String key = KEYS.get(code);
+        if (key == null) {
+            return new BizException(code, messageOf(code));
+        }
+        return new BizException(code, key, messageOf(code));
     }
 }

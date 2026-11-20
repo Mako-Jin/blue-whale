@@ -55,13 +55,16 @@ public class StorageMigrationServiceImpl implements StorageMigrationService {
         String sourceType = command == null || command.sourceStorageType() == null
                 ? null : command.sourceStorageType().trim();
         if (!StringUtils.hasText(sourceType)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "源存储类型不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "file.migration.source-required",
+                    "源存储类型不能为空");
         }
         if (sourceType.equals(targetType)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "源存储类型不能与当前活动存储类型相同");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "file.migration.source-same-as-target",
+                    "源存储类型不能与当前活动存储类型相同");
         }
         if (!command.dryRun() && !command.confirm()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "迁移操作需显式确认");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "file.migration.confirm-required",
+                    "迁移操作需显式确认");
         }
         long limit = Math.min(Math.max(command.limit(), 1L), MAX_BATCH_SIZE);
         List<FileAssetAggregate> candidates = fileAssetRepository.findByStorageType(sourceType, limit);
@@ -114,12 +117,14 @@ public class StorageMigrationServiceImpl implements StorageMigrationService {
                  DigestInputStream digest = new DigestInputStream(counting, md5Digest())) {
                 fileStorage.store(bucket, objectKey, digest);
                 if (counting.getCount() != asset.getFileSize()) {
-                    throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "迁移字节数与元数据不一致");
+                    throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "file.migration.size-mismatch",
+                            "迁移字节数与元数据不一致");
                 }
                 if (asset.getMd5() != null) {
                     String actual = HexFormat.of().formatHex(digest.getMessageDigest().digest());
                     if (!actual.equalsIgnoreCase(asset.getMd5())) {
-                        throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "迁移内容摘要与元数据不一致");
+                        throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "file.migration.md5-mismatch",
+                                "迁移内容摘要与元数据不一致");
                     }
                 }
             }

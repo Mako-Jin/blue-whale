@@ -56,8 +56,8 @@ public final class FormJson {
             if (current == '{' || current == '[') {
                 depth++;
                 if (depth > MAX_DEPTH) {
-                    throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
-                            label + " 的 JSON 嵌套层级不能超过 " + MAX_DEPTH);
+                    throw new BizException(ErrorCode.PARAM_ERROR, "form.data.json-depth-exceeded",
+                            label + " 的 JSON 嵌套层级不能超过 " + MAX_DEPTH, label, MAX_DEPTH);
                 }
             } else if (current == '}' || current == ']') {
                 depth = Math.max(depth - 1, 0);

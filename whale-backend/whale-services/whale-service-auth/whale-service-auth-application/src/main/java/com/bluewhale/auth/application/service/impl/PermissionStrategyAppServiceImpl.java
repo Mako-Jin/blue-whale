@@ -49,7 +49,7 @@ public class PermissionStrategyAppServiceImpl implements PermissionStrategyAppSe
     public PermissionStrategyVO create(SavePermissionStrategyCommand command) {
         Long tenantId = currentUserProvider.current().tokenTenantId();
         if (strategyRepository.existsByCode(tenantId, command.strategyCode(), null)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "策略编码在租户内已存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "auth.permission.strategy-code-exists", "策略编码在租户内已存在");
         }
         requireRolesExist(tenantId, command.roleIds());
         PermissionStrategyAggregate strategy = PermissionStrategyAggregate.create(tenantId,
@@ -175,7 +175,8 @@ public class PermissionStrategyAppServiceImpl implements PermissionStrategyAppSe
      */
     private PermissionStrategyAggregate require(Long id) {
         return strategyRepository.findById(id)
-                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "权限策略不存在"));
+                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND,
+                        "auth.permission.strategy-not-found", "权限策略不存在"));
     }
 
     /**
@@ -195,7 +196,7 @@ public class PermissionStrategyAppServiceImpl implements PermissionStrategyAppSe
                         .filter(r -> tenantId.equals(r.getTenantId()))
                         .isEmpty());
         if (anyMissing) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "策略引用的角色不存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "auth.permission.strategy-role-not-found", "策略引用的角色不存在");
         }
     }
 

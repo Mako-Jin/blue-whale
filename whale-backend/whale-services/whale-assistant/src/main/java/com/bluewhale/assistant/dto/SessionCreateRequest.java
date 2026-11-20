@@ -13,14 +13,14 @@ import lombok.Data;
 public class SessionCreateRequest {
 
     /** 助手ID */
-    @NotNull(message = "助手ID不能为空")
+    @NotNull(message = "{validation.assistant.session.assistant-id-required}")
     private Long assistantId;
 
     /** 来源：platform / embed / openapi（缺省 platform） */
-    @Size(max = 32, message = "来源长度不能超过 32 字")
+    @Size(max = 32, message = "{validation.assistant.session.source-size}")
     private String source;
 
     /** 业务侧会话引用（可空） */
-    @Size(max = 128, message = "业务侧引用长度不能超过 128 字")
+    @Size(max = 128, message = "{validation.assistant.session.channel-ref-size}")
     private String channelRef;
 }

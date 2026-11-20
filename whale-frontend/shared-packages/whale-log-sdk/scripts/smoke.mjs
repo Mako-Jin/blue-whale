@@ -37,7 +37,7 @@ function equal(actual, expected, label) {
 /** 构造单通道配置（测试用，intervalMs=0 关闭定时器，手动 flush） */
 function createChannel(transport, overrides = {}) {
   return new LogChannel({
-    endpoint: '/audit/log/test/batch',
+    endpoint: '/audit/v1/log/test/batch',
     size: 1000,
     intervalMs: 0,
     maxRetries: 2,

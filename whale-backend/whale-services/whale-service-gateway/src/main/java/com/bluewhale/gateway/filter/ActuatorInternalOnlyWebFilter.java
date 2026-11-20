@@ -1,5 +1,6 @@
 package com.bluewhale.gateway.filter;
 
+import com.bluewhale.gateway.common.GatewayMessageResolver;
 import com.bluewhale.gateway.common.GatewayResponseWriter;
 import com.bluewhale.gateway.config.WhaleGatewayProperties;
 import lombok.extern.slf4j.Slf4j;
@@ -99,7 +100,9 @@ public class ActuatorInternalOnlyWebFilter implements WebFilter, Ordered {
         }
         log.warn("管理端点拒绝外部访问: path={}, remote={}, forwardedFor={}", path,
                 request.getRemoteAddress(), request.getHeaders().getFirst(FORWARDED_FOR_HEADER));
-        return GatewayResponseWriter.write(exchange, HttpStatus.FORBIDDEN, 403, "管理端点仅限内网访问");
+        return GatewayResponseWriter.write(exchange, HttpStatus.FORBIDDEN, 403,
+                GatewayMessageResolver.resolve(exchange, "gateway.actuator.internal-only",
+                        "管理端点仅限内网访问"));
     }
 
     /**

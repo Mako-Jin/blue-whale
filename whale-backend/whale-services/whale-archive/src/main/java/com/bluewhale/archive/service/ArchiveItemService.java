@@ -179,7 +179,8 @@ public class ArchiveItemService {
         update.setCategoryId(category.getId());
         update.setCategoryPath(CategoryPathResolver.resolve(categoryMapper, category));
         if (StringUtils.hasText(request.getTitle())) {
-            update.setTitle(normalize(request.getTitle(), MAX_TITLE_LENGTH, "档案标题"));
+            update.setTitle(normalize(request.getTitle(), MAX_TITLE_LENGTH, "档案标题",
+                    "archive.item.title-too-long"));
         }
         if (request.getSecurityLevel() != null) {
             update.setSecurityLevel(request.getSecurityLevel());
@@ -191,10 +192,12 @@ public class ArchiveItemService {
             }
         }
         if (StringUtils.hasText(request.getSummary())) {
-            update.setSummary(normalize(request.getSummary(), MAX_SUMMARY_LENGTH, "档案摘要"));
+            update.setSummary(normalize(request.getSummary(), MAX_SUMMARY_LENGTH, "档案摘要",
+                    "archive.item.summary-too-long"));
         }
         if (StringUtils.hasText(request.getKeywords())) {
-            update.setKeywords(normalize(request.getKeywords(), MAX_KEYWORDS_LENGTH, "关键词"));
+            update.setKeywords(normalize(request.getKeywords(), MAX_KEYWORDS_LENGTH, "关键词",
+                    "archive.item.keywords-too-long"));
         }
         itemMapper.updateById(update);
         return toVo(itemMapper.selectById(id), category.getName());
@@ -231,7 +234,7 @@ public class ArchiveItemService {
             if (Objects.equals(latest.getItemStatus(), ArchiveConstants.ITEM_STATUS_ARCHIVED)) {
                 return toVo(latest, category.getName());
             }
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "条目状态已变更，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "archive.item.status-changed", "条目状态已变更，请刷新后重试");
         }
         lockFiles(id);
         ArchiveItem latest = requireItem(id);
@@ -250,7 +253,7 @@ public class ArchiveItemService {
             return;
         }
         if (!Objects.equals(item.getItemStatus(), ArchiveConstants.ITEM_STATUS_ARCHIVED)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "待整理条目不可销毁，请先确认归档");
+            throw new BizException(ErrorCode.PARAM_ERROR, "archive.item.pending-destroy-rejected", "待整理条目不可销毁，请先确认归档");
         }
         ArchiveItem update = new ArchiveItem();
         update.setItemStatus(ArchiveConstants.ITEM_STATUS_DESTROYED);
@@ -258,7 +261,7 @@ public class ArchiveItemService {
                 .eq(ArchiveItem::getId, id)
                 .eq(ArchiveItem::getItemStatus, ArchiveConstants.ITEM_STATUS_ARCHIVED));
         if (rows == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "条目状态已变更，请刷新后重试");
+            throw new BizException(ErrorCode.PARAM_ERROR, "archive.item.status-changed", "条目状态已变更，请刷新后重试");
         }
     }
 
@@ -337,7 +340,7 @@ public class ArchiveItemService {
     private ArchiveFile requireFileRef(Long id, Long fileId) {
         ArchiveFile file = fileMapper.selectById(fileId);
         if (file == null || !Objects.equals(file.getItemId(), id)) {
-            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "档案文件不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "archive.file.not-found", "档案文件不存在");
         }
         return file;
     }
@@ -391,7 +394,7 @@ public class ArchiveItemService {
     private ArchiveItem requireItem(Long id) {
         ArchiveItem item = id == null ? null : itemMapper.selectById(id);
         if (item == null) {
-            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "档案条目不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "archive.item.not-found", "档案条目不存在");
         }
         return item;
     }
@@ -403,7 +406,7 @@ public class ArchiveItemService {
      */
     private static void requirePending(ArchiveItem item) {
         if (!Objects.equals(item.getItemStatus(), ArchiveConstants.ITEM_STATUS_PENDING)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "仅待整理条目可执行该操作");
+            throw new BizException(ErrorCode.PARAM_ERROR, "archive.item.pending-required", "仅待整理条目可执行该操作");
         }
     }
 
@@ -416,10 +419,10 @@ public class ArchiveItemService {
     private ArchiveCategory requireEnabledCategory(Long categoryId) {
         ArchiveCategory category = categoryId == null ? null : categoryMapper.selectById(categoryId);
         if (category == null) {
-            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "归档门类不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "archive.category.archived-not-found", "归档门类不存在");
         }
         if (!Objects.equals(category.getStatus(), ArchiveConstants.STATUS_ENABLED)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "归档门类已停用");
+            throw new BizException(ErrorCode.PARAM_ERROR, "archive.category.disabled", "归档门类已停用");
         }
         return category;
     }
@@ -443,13 +446,14 @@ public class ArchiveItemService {
      * @param raw 原始文本
      * @param maxLength 最大长度
      * @param fieldName 字段中文名（用于错误提示）
+     * @param messageKey 超长提示的国际化文案键
      * @return 去空白后的文本
      */
-    private static String normalize(String raw, int maxLength, String fieldName) {
+    private static String normalize(String raw, int maxLength, String fieldName, String messageKey) {
         String value = raw.trim();
         if (value.length() > maxLength) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
-                    fieldName + "不能超过 " + maxLength + " 字");
+            throw new BizException(ErrorCode.PARAM_ERROR, messageKey,
+                    fieldName + "不能超过 " + maxLength + " 字", maxLength);
         }
         return value;
     }
@@ -512,7 +516,7 @@ public class ArchiveItemService {
     private static void ensureSecurityVisible(ArchiveItem item, boolean secretReadable) {
         if (!secretReadable && item.getSecurityLevel() != null
                 && item.getSecurityLevel() >= ArchiveConstants.SECURITY_SECRET) {
-            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "档案条目不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "archive.item.not-found", "档案条目不存在");
         }
     }
 

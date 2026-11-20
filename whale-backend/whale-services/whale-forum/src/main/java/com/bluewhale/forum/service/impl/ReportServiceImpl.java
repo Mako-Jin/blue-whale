@@ -81,11 +81,11 @@ public class ReportServiceImpl implements ReportService {
     public Long submit(ReportCreateRequest request, ForumActor actor) {
         Long tenantId = TenantContext.requireId();
         if (request.getTargetId() == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "举报对象ID不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "forum.report.target-required", "举报对象ID不能为空");
         }
         Long authorId = resolveAuthorId(request.getTargetType(), request.getTargetId());
         if (authorId != null && authorId.equals(actor.userId())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "不能举报自己的内容");
+            throw new BizException(ErrorCode.PARAM_ERROR, "forum.report.self-forbidden", "不能举报自己的内容");
         }
         LocalDateTime since = LocalDateTime.now().minusHours(properties.getReportDuplicateHours());
         ForumReport existing = reportMapper.selectOne(new QueryWrapper<ForumReport>()
@@ -138,16 +138,17 @@ public class ReportServiceImpl implements ReportService {
         TenantContext.requireId();
         ForumReport report = id == null ? null : reportMapper.selectById(id);
         if (report == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "工单不存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "forum.report.ticket-not-found", "工单不存在");
         }
         if (!STATUS_PENDING.equals(report.getStatus()) && !STATUS_HANDLING.equals(report.getStatus())) {
-            throw new BizException(ForumErrorCodes.THREAD_STATE_ILLEGAL,
-                    "工单当前状态为 " + report.getStatus() + "，不可重复处理");
+            throw new BizException(ForumErrorCodes.THREAD_STATE_ILLEGAL, "forum.report.status-not-reprocessable",
+                    "工单当前状态为 " + report.getStatus() + "，不可重复处理", report.getStatus());
         }
         String action = request.getAction() == null ? ACTION_NONE : request.getAction();
         String remark = request.getRemark();
         if (STATUS_REJECTED.equals(request.getStatus()) && (remark == null || remark.isBlank())) {
-            throw new BizException(ForumErrorCodes.AUDIT_REMARK_REQUIRED, "驳回举报必须填写理由");
+            throw new BizException(ForumErrorCodes.AUDIT_REMARK_REQUIRED, "forum.report.reject-remark-required",
+                    "驳回举报必须填写理由");
         }
         if (STATUS_RESOLVED.equals(request.getStatus()) && !ACTION_NONE.equals(action)) {
             applyAction(report, action, request.getMuteDays(), remark, actor);
@@ -183,7 +184,7 @@ public class ReportServiceImpl implements ReportService {
             } else if (TYPE_POST.equals(report.getTargetType())) {
                 moderationService.removePost(report.getTargetId(), reason, actor);
             } else {
-                throw new BizException(ErrorCode.PARAM_ERROR, "用户类举报不支持删除动作，请使用禁言/封号");
+                throw new BizException(ErrorCode.PARAM_ERROR, "forum.report.user-remove-unsupported", "用户类举报不支持删除动作，请使用禁言/封号");
             }
             return;
         }
@@ -192,7 +193,7 @@ public class ReportServiceImpl implements ReportService {
                     ? report.getTargetId()
                     : resolveAuthorId(report.getTargetType(), report.getTargetId());
             if (userId == null) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "无法定位被举报用户");
+                throw new BizException(ErrorCode.PARAM_ERROR, "forum.report.user-unresolved", "无法定位被举报用户");
             }
             int days = muteDays == null ? 0 : muteDays;
             moderationService.ban(userId, action, days, reason, actor, report.getId());
@@ -213,18 +214,20 @@ public class ReportServiceImpl implements ReportService {
         if (TYPE_THREAD.equals(targetType)) {
             ForumThread thread = threadMapper.selectById(targetId);
             if (thread == null) {
-                throw new BizException(ForumErrorCodes.THREAD_NOT_FOUND, "举报的帖子不存在或已删除");
+                throw new BizException(ForumErrorCodes.THREAD_NOT_FOUND, "forum.report.thread-not-found",
+                        "举报的帖子不存在或已删除");
             }
             return thread.getAuthorId();
         }
         if (TYPE_POST.equals(targetType)) {
             ForumPost post = postMapper.selectById(targetId);
             if (post == null) {
-                throw new BizException(ForumErrorCodes.THREAD_NOT_FOUND, "举报的楼层不存在或已删除");
+                throw new BizException(ForumErrorCodes.THREAD_NOT_FOUND, "forum.report.post-not-found",
+                        "举报的楼层不存在或已删除");
             }
             return post.getAuthorId();
         }
-        throw new BizException(ErrorCode.PARAM_ERROR, "举报对象类型不合法");
+        throw new BizException(ErrorCode.PARAM_ERROR, "forum.report.target-type-invalid", "举报对象类型不合法");
     }
 
     /**

@@ -34,6 +34,7 @@ import {
   type ConfigItemHistoryVO,
   type ConfigItemVO,
 } from '../../api/config';
+import { useI18n } from '../../i18n';
 
 interface ConfigFormValues {
   configKey: string;
@@ -45,18 +46,6 @@ interface ConfigFormValues {
 
 type ConfigQuery = { keyword?: string; status?: number; valueType?: string };
 
-const TYPE_OPTIONS = [
-  { value: 'STRING', label: '字符串 STRING' },
-  { value: 'NUMBER', label: '数字 NUMBER' },
-  { value: 'BOOLEAN', label: '布尔 BOOLEAN' },
-  { value: 'JSON', label: 'JSON' },
-];
-
-const STATUS_OPTIONS = [
-  { value: 1, label: '启用' },
-  { value: 0, label: '停用' },
-];
-
 const TYPE_COLORS: Record<string, string> = {
   STRING: 'blue',
   NUMBER: 'cyan',
@@ -64,32 +53,48 @@ const TYPE_COLORS: Record<string, string> = {
   JSON: 'geekblue',
 };
 
-const OPERATION_TAGS: Record<string, { color: string; label: string }> = {
-  CREATE: { color: 'green', label: '创建' },
-  UPDATE: { color: 'blue', label: '更新' },
-  ROLLBACK: { color: 'orange', label: '回滚' },
-  DELETE: { color: 'red', label: '删除' },
-};
-
 function renderType(valueType: string | undefined) {
   if (!valueType) return '-';
   return <Tag color={TYPE_COLORS[valueType] ?? 'default'}>{valueType}</Tag>;
 }
 
-function renderStatus(status: number | undefined) {
-  return status === 0 ? <Tag color="default">停用</Tag> : <Tag color="success">启用</Tag>;
-}
-
-function renderOperation(operation: string | undefined) {
-  if (!operation) return '-';
-  const item = OPERATION_TAGS[operation] ?? { color: 'default', label: operation };
-  return <Tag color={item.color}>{item.label}</Tag>;
-}
-
 export default function ItemList() {
   const { message } = App.useApp();
   const { has } = usePermission();
+  const { t } = useI18n();
   const tableRef = useRef<ProTableRef>(null);
+
+  const typeOptions = [
+    { value: 'STRING', label: t('config.type.string') },
+    { value: 'NUMBER', label: t('config.type.number') },
+    { value: 'BOOLEAN', label: t('config.type.boolean') },
+    { value: 'JSON', label: t('config.type.json') },
+  ];
+
+  const statusOptions = [
+    { value: 1, label: t('config.status.enabled') },
+    { value: 0, label: t('config.status.disabled') },
+  ];
+
+  const operationTags: Record<string, { color: string; label: string }> = {
+    CREATE: { color: 'green', label: t('config.operation.create') },
+    UPDATE: { color: 'blue', label: t('config.operation.update') },
+    ROLLBACK: { color: 'orange', label: t('config.operation.rollback') },
+    DELETE: { color: 'red', label: t('config.operation.delete') },
+  };
+
+  const renderStatus = (status: number | undefined) =>
+    status === 0 ? (
+      <Tag color="default">{t('config.status.disabled')}</Tag>
+    ) : (
+      <Tag color="success">{t('config.status.enabled')}</Tag>
+    );
+
+  const renderOperation = (operation: string | undefined) => {
+    if (!operation) return '-';
+    const item = operationTags[operation] ?? { color: 'default', label: operation };
+    return <Tag color={item.color}>{item.label}</Tag>;
+  };
 
   const [keyword, setKeyword] = useState<string | undefined>(undefined);
   const [status, setStatus] = useState<number | undefined>(undefined);
@@ -139,7 +144,7 @@ export default function ItemList() {
           description: values.description,
           status: values.status,
         });
-        message.success('配置已更新');
+        message.success(t('config.msg.updated'));
       } else {
         await createConfigItem({
           configKey: values.configKey,
@@ -148,12 +153,12 @@ export default function ItemList() {
           description: values.description,
           status: values.status,
         });
-        message.success('配置已创建');
+        message.success(t('config.msg.created'));
       }
       setFormOpen(false);
       refreshList();
     } catch (error) {
-      showError(error, '保存失败');
+      showError(error, t('config.msg.saveFailed'));
       throw error;
     }
   };
@@ -161,10 +166,10 @@ export default function ItemList() {
   const handleDelete = async (row: ConfigItemVO) => {
     try {
       await deleteConfigItem(row.id);
-      message.success('配置已删除');
+      message.success(t('config.msg.deleted'));
       refreshList();
     } catch (error) {
-      showError(error, '删除失败');
+      showError(error, t('config.msg.deleteFailed'));
     }
   };
 
@@ -175,7 +180,7 @@ export default function ItemList() {
     setHistoryLoading(true);
     listConfigItemHistory(record.id)
       .then(setHistory)
-      .catch((error) => showError(error, '历史加载失败'))
+      .catch((error) => showError(error, t('config.msg.historyFailed')))
       .finally(() => setHistoryLoading(false));
   };
 
@@ -186,69 +191,71 @@ export default function ItemList() {
     setRollbackTarget(targetVersion);
     try {
       const updated = await rollbackConfigItem(historyRecord.id, targetVersion);
-      message.success(`已回滚到版本 ${targetVersion}，当前版本 ${updated.version}`);
+      message.success(
+        t('config.msg.rolledBack', { version: targetVersion, current: updated.version }),
+      );
       setHistoryRecord(updated);
       setHistory(await listConfigItemHistory(updated.id));
       refreshList();
     } catch (error) {
-      showError(error, '回滚失败');
+      showError(error, t('config.msg.rollbackFailed'));
     } finally {
       setRollbackTarget(null);
     }
   };
 
   const columns: TableProps<ConfigItemVO>['columns'] = [
-    { title: '配置键', dataIndex: 'configKey', width: 220, ellipsis: true },
+    { title: t('config.col.key'), dataIndex: 'configKey', width: 220, ellipsis: true },
     {
-      title: '配置值',
+      title: t('config.col.value'),
       dataIndex: 'configValue',
       ellipsis: true,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '类型',
+      title: t('config.col.type'),
       dataIndex: 'valueType',
       width: 100,
       render: (value: string | undefined) => renderType(value),
     },
-    { title: '版本', dataIndex: 'version', width: 70, align: 'center' },
+    { title: t('config.col.version'), dataIndex: 'version', width: 70, align: 'center' },
     {
-      title: '状态',
+      title: t('config.col.status'),
       dataIndex: 'status',
       width: 80,
       render: (value: number | undefined) => renderStatus(value),
     },
     {
-      title: '说明',
+      title: t('config.col.description'),
       dataIndex: 'description',
       width: 180,
       ellipsis: true,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '更新时间',
+      title: t('config.col.updateTime'),
       dataIndex: 'updateTime',
       width: 180,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '操作',
+      title: t('config.col.action'),
       key: 'action',
       width: 190,
       render: (_, row) => (
         <Space size={4} wrap>
           <Button type="link" size="small" onClick={() => openHistory(row)}>
-            历史
+            {t('config.action.history')}
           </Button>
           {has('sys:config:edit') && (
             <Button type="link" size="small" onClick={() => openEdit(row)}>
-              编辑
+              {t('config.action.edit')}
             </Button>
           )}
           {has('sys:config:delete') && (
-            <Popconfirm title="确认删除该配置项？删除后键可重建">
+            <Popconfirm title={t('config.confirm.delete')}>
               <Button type="link" size="small" danger onClick={() => void handleDelete(row)}>
-                删除
+                {t('config.action.delete')}
               </Button>
             </Popconfirm>
           )}
@@ -258,15 +265,15 @@ export default function ItemList() {
   ];
 
   const historyColumns: TableProps<ConfigItemHistoryVO>['columns'] = [
-    { title: '版本', dataIndex: 'version', width: 60, align: 'center' },
+    { title: t('config.col.version'), dataIndex: 'version', width: 60, align: 'center' },
     {
-      title: '操作',
+      title: t('config.col.action'),
       dataIndex: 'operation',
       width: 80,
       render: (value: string | undefined) => renderOperation(value),
     },
     {
-      title: '变更',
+      title: t('config.history.col.change'),
       key: 'change',
       ellipsis: true,
       render: (_, row) => {
@@ -280,19 +287,19 @@ export default function ItemList() {
       },
     },
     {
-      title: '操作人',
+      title: t('config.history.col.operator'),
       dataIndex: 'operator',
       width: 90,
       render: (value: string | null | undefined) => value ?? '-',
     },
     {
-      title: '时间',
+      title: t('config.history.col.time'),
       dataIndex: 'createTime',
       width: 170,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '回滚',
+      title: t('config.action.rollback'),
       key: 'rollback',
       width: 80,
       render: (_, row) => {
@@ -301,19 +308,19 @@ export default function ItemList() {
         const canRollback =
           has('sys:config:rollback') && row.newValue != null && row.newValue !== '' && !isCurrent;
         if (isCurrent) {
-          return <Tag color="success">当前</Tag>;
+          return <Tag color="success">{t('config.history.currentTag')}</Tag>;
         }
         if (!canRollback) {
           return '-';
         }
         return (
           <Popconfirm
-            title={`回滚到版本 ${row.version}？`}
-            description="将恢复该版本的取值，版本号继续 +1"
+            title={t('config.history.rollbackConfirm', { version: row.version })}
+            description={t('config.history.rollbackNote')}
             onConfirm={() => void handleRollback(row.version)}
           >
             <Button type="link" size="small" loading={rollbackTarget === row.version}>
-              回滚
+              {t('config.action.rollback')}
             </Button>
           </Popconfirm>
         );
@@ -326,39 +333,41 @@ export default function ItemList() {
       <ProTable<ConfigItemVO, ConfigQuery>
         ref={tableRef}
         rowKey="id"
-        title="业务配置项"
+        title={t('config.list.title')}
         columns={columns}
         request={pageConfigItems}
         params={{ keyword, status, valueType }}
-        onError={(error) => showError(error, '配置项列表加载失败')}
+        onError={(error) => showError(error, t('config.list.loadFailed'))}
         search={
           <SearchForm
             items={[
               {
                 name: 'keyword',
-                label: '关键字',
-                element: <Input allowClear placeholder="配置键 / 说明" />,
+                label: t('config.search.keyword'),
+                element: (
+                  <Input allowClear placeholder={t('config.search.keywordPlaceholder')} />
+                ),
               },
               {
                 name: 'valueType',
-                label: '值类型',
+                label: t('config.form.valueType'),
                 element: (
                   <Select
                     allowClear
-                    options={TYPE_OPTIONS}
-                    placeholder="全部"
+                    options={typeOptions}
+                    placeholder={t('config.search.all')}
                     style={{ width: 160 }}
                   />
                 ),
               },
               {
                 name: 'status',
-                label: '状态',
+                label: t('config.col.status'),
                 element: (
                   <Select
                     allowClear
-                    options={STATUS_OPTIONS}
-                    placeholder="全部"
+                    options={statusOptions}
+                    placeholder={t('config.search.all')}
                     style={{ width: 120 }}
                   />
                 ),
@@ -379,14 +388,18 @@ export default function ItemList() {
         }
         toolbar={
           <AuthButton perm="sys:config:add" type="primary" onClick={openCreate}>
-            新增配置
+            {t('config.btn.create')}
           </AuthButton>
         }
       />
 
       <FormModal<ConfigFormValues>
         open={formOpen}
-        title={editing ? `编辑配置：${editing.configKey}` : '新增配置'}
+        title={
+          editing
+            ? t('config.form.editTitle', { configKey: editing.configKey })
+            : t('config.form.createTitle')
+        }
         form={form}
         initialValues={formInitial}
         onOk={handleSave}
@@ -394,42 +407,54 @@ export default function ItemList() {
       >
         <Form.Item
           name="configKey"
-          label="配置键"
-          rules={[{ required: true, message: '请输入配置键' }]}
-          extra={editing ? '配置键创建后不可修改' : '租户内唯一，如 order.pay.timeout'}
+          label={t('config.form.key')}
+          rules={[{ required: true, message: t('config.form.keyRequired') }]}
+          extra={editing ? t('config.form.keyExtraEdit') : t('config.form.keyExtraCreate')}
         >
           <Input
-            placeholder="字母/数字开头，可含 . _ -"
+            placeholder={t('config.form.keyPlaceholder')}
             maxLength={128}
             disabled={Boolean(editing)}
           />
         </Form.Item>
-        <Form.Item name="configValue" label="配置值" extra="按值类型校验字面量；JSON 存原文">
-          <Input.TextArea rows={3} placeholder="配置值" />
+        <Form.Item
+          name="configValue"
+          label={t('config.form.value')}
+          extra={t('config.form.valueExtra')}
+        >
+          <Input.TextArea rows={3} placeholder={t('config.form.valuePlaceholder')} />
         </Form.Item>
         <Form.Item
           name="valueType"
-          label="值类型"
+          label={t('config.form.valueType')}
           initialValue="STRING"
-          rules={[{ required: true, message: '请选择值类型' }]}
+          rules={[{ required: true, message: t('config.form.valueTypeRequired') }]}
         >
-          <Select options={TYPE_OPTIONS} />
+          <Select options={typeOptions} />
         </Form.Item>
-        <Form.Item name="description" label="说明">
-          <Input.TextArea rows={2} maxLength={255} placeholder="配置用途说明" />
+        <Form.Item name="description" label={t('config.form.description')}>
+          <Input.TextArea
+            rows={2}
+            maxLength={255}
+            placeholder={t('config.form.descriptionPlaceholder')}
+          />
         </Form.Item>
         <Form.Item
           name="status"
-          label="状态"
+          label={t('config.col.status')}
           initialValue={1}
-          rules={[{ required: true, message: '请选择状态' }]}
+          rules={[{ required: true, message: t('config.form.statusRequired') }]}
         >
-          <Select options={STATUS_OPTIONS} />
+          <Select options={statusOptions} />
         </Form.Item>
       </FormModal>
 
       <Drawer
-        title={historyRecord ? `变更历史：${historyRecord.configKey}` : '变更历史'}
+        title={
+          historyRecord
+            ? t('config.history.titleWithKey', { configKey: historyRecord.configKey })
+            : t('config.history.title')
+        }
         width={760}
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
@@ -445,8 +470,11 @@ export default function ItemList() {
               pagination={false}
             />
             <div style={{ marginTop: 12, color: '#999' }}>
-              当前版本：v{historyRecord.version}，值：{historyRecord.configValue ?? '∅'}
-              （回滚产生新版本，不覆盖历史）
+              {t('config.history.current', {
+                version: historyRecord.version,
+                value: historyRecord.configValue ?? '∅',
+              })}{' '}
+              {t('config.history.footerNote')}
             </div>
           </>
         )}

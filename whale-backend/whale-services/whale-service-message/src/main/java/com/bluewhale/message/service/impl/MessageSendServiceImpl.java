@@ -143,7 +143,7 @@ public class MessageSendServiceImpl implements MessageSendService {
     public SendMessageResult send(SendMessageRequest request) {
         Long tenantId = request.getTenantId() == null ? TenantContext.get() : request.getTenantId();
         if (tenantId == null || tenantId <= 0L) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "缺少租户ID");
+            throw new BizException(ErrorCode.PARAM_ERROR, "message.send.tenant-required", "缺少租户ID");
         }
         Long previous = TenantContext.get();
         TenantContext.set(tenantId);
@@ -186,16 +186,18 @@ public class MessageSendServiceImpl implements MessageSendService {
     public SendMessageResult retry(Long messageId) {
         MessageRecordPo record = messageId == null ? null : recordMapper.selectById(messageId);
         if (record == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "消息不存在: " + messageId);
+            throw new BizException(ErrorCode.NOT_FOUND, "message.record.not-found",
+                    "消息不存在: " + messageId, messageId);
         }
         if (properties.isMock()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "mock 模式下不允许重试：不会产生真实投递");
+            throw new BizException(ErrorCode.PARAM_ERROR, "message.send.retry-in-mock-forbidden",
+                    "mock 模式下不允许重试：不会产生真实投递");
         }
         List<MessageDeliveryPo> failed = selectDeliveries(record.getId()).stream()
                 .filter(delivery -> DeliveryStatus.FAILED.name().equals(delivery.getStatus()))
                 .toList();
         if (failed.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "没有可重试的失败投递");
+            throw new BizException(ErrorCode.PARAM_ERROR, "message.send.no-retryable-delivery", "没有可重试的失败投递");
         }
         Map<MessageChannel, MessageChannelSender> senderMap = senderMap();
         Map<String, Object> payload = parsePayload(record.getPayloadJson());
@@ -405,7 +407,8 @@ public class MessageSendServiceImpl implements MessageSendService {
             }
         }
         if (template == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "消息模板不存在: " + code);
+            throw new BizException(ErrorCode.NOT_FOUND, "message.template.not-found",
+                    "消息模板不存在: " + code, code);
         }
         return template;
     }
@@ -442,7 +445,7 @@ public class MessageSendServiceImpl implements MessageSendService {
         String content = resolveContent(request, template);
         // 模板渲染结果也可能为空，落库前拦截，避免投递空消息
         if (!StringUtils.hasText(title) && !StringUtils.hasText(content)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "消息标题与正文不能同时为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "message.send.content-required", "消息标题与正文不能同时为空");
         }
         record.setTitle(title);
         record.setContent(content);
@@ -526,7 +529,7 @@ public class MessageSendServiceImpl implements MessageSendService {
             }
         }
         if (normalized.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "没有可识别的消息渠道");
+            throw new BizException(ErrorCode.PARAM_ERROR, "message.send.channel-unrecognized", "没有可识别的消息渠道");
         }
         return String.join(",", normalized);
     }

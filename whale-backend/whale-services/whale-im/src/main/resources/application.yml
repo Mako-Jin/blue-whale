@@ -63,6 +63,11 @@ whale:
   permission:
     header:
       enabled: true
+  # P2 国际化：BizException 文案键按请求 Locale 解析，属性文件回退源为 classpath:i18n/im/messages*
+  i18n:
+    enabled: true
+    auto-init: true
+    module-scan-enabled: true
   im:
     ws:
       # 握手阶段允许的来源；生产同源部署可收紧为具体域名（ticket 为一次性凭证，不入 URL 日志）

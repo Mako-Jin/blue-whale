@@ -18,12 +18,12 @@ import java.util.List;
 public class DocPageAclUpdateRequest {
 
     /** 是否启用页面级权限 */
-    @NotNull(message = "restricted 不能为空")
+    @NotNull(message = "{validation.doc.permission.restricted-required}")
     private Boolean restricted;
 
     /** 授权列表；restricted=false 时忽略 */
     @Valid
-    @Size(max = 100, message = "授权用户不能超过 100 个")
+    @Size(max = 100, message = "{validation.doc.permission.items-size}")
     private List<Item> items = new ArrayList<>();
 
     /**
@@ -33,11 +33,11 @@ public class DocPageAclUpdateRequest {
     public static class Item {
 
         /** 用户ID */
-        @NotNull(message = "用户ID不能为空")
+        @NotNull(message = "{validation.doc.permission.user-id-required}")
         private Long userId;
 
         /** 页面角色：READ / EDIT */
-        @Pattern(regexp = "READ|EDIT", message = "页面角色只能是 READ 或 EDIT")
+        @Pattern(regexp = "READ|EDIT", message = "{validation.doc.permission.role-pattern}")
         private String aclRole = "READ";
     }
 }

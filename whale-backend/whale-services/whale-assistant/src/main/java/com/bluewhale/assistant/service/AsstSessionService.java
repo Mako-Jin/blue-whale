@@ -12,6 +12,7 @@ import com.bluewhale.assistant.entity.AsstSession;
 import com.bluewhale.assistant.mapper.AsstMessageMapper;
 import com.bluewhale.assistant.mapper.AsstSessionMapper;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.assistant.config.AssistantProperties;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -114,7 +115,8 @@ public class AsstSessionService {
     private AsstSession insertSession(AsstDefinition definition, SessionCreateRequest request, Long userId) {
         String source = StringUtils.hasText(request.getSource()) ? request.getSource() : SOURCE_PLATFORM;
         if (!SOURCES.contains(source)) {
-            throw new BizException("来源非法：" + source + "（仅允许 platform/embed/openapi）");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "assistant.session.source-invalid",
+                    "来源非法：" + source + "（仅允许 platform/embed/openapi）", source);
         }
         AsstSession session = new AsstSession();
         session.setAssistantId(definition.getId());
@@ -136,7 +138,7 @@ public class AsstSessionService {
     public AsstSession requireOwned(Long sessionId, Long userId) {
         AsstSession session = sessionMapper.selectById(sessionId);
         if (session == null || !userId.equals(session.getUserId())) {
-            throw new BizException("会话不存在或无权访问");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "assistant.session.not-found", "会话不存在或无权访问");
         }
         return session;
     }
@@ -157,13 +159,17 @@ public class AsstSessionService {
                               int tokens, int elapsedMs, int degraded) {
         byte[] bytes = (content == null ? "" : content).getBytes(StandardCharsets.UTF_8);
         if (bytes.length > properties.getMessageMaxBytes()) {
-            throw new BizException("消息正文超出上限（" + properties.getMessageMaxBytes() + " 字节）");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "assistant.session.content-too-large",
+                    "消息正文超出上限（" + properties.getMessageMaxBytes() + " 字节）",
+                    properties.getMessageMaxBytes());
         }
         if (ROLE_USER.equals(role)) {
             long count = messageMapper.selectCount(
                     new LambdaQueryWrapper<AsstMessage>().eq(AsstMessage::getSessionId, sessionId));
             if (count >= properties.getSessionMaxMessages()) {
-                throw new BizException("会话消息数已达上限（" + properties.getSessionMaxMessages() + " 条），请新建会话");
+                throw new BizException(ErrorCode.SYSTEM_ERROR, "assistant.session.message-limit-reached",
+                        "会话消息数已达上限（" + properties.getSessionMaxMessages() + " 条），请新建会话",
+                        properties.getSessionMaxMessages());
             }
         }
         AsstMessage message = new AsstMessage();

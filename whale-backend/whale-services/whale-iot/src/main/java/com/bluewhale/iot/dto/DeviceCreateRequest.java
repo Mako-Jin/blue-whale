@@ -15,15 +15,15 @@ import lombok.Data;
 public class DeviceCreateRequest {
 
     /** 所属产品ID */
-    @NotNull(message = "产品ID不能为空")
+    @NotNull(message = "{validation.iot.device.product-required}")
     private Long productId;
 
     /** 设备名称（产品内唯一；三元组之一） */
-    @NotBlank(message = "设备名称不能为空")
-    @Pattern(regexp = "^[a-zA-Z0-9][a-zA-Z0-9._-]{1,63}$", message = "设备名称须为字母/数字开头的字母/数字/点/下划线/连字符，2-64 位")
+    @NotBlank(message = "{validation.iot.device.name-required}")
+    @Pattern(regexp = "^[a-zA-Z0-9][a-zA-Z0-9._-]{1,63}$", message = "{validation.iot.device.name-pattern}")
     private String deviceName;
 
     /** 设备昵称（可空） */
-    @Size(max = 128, message = "昵称长度不能超过 128 字")
+    @Size(max = 128, message = "{validation.iot.device.nickname-size}")
     private String nickname;
 }

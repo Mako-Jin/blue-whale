@@ -134,7 +134,7 @@ public class FollowServiceImpl implements FollowService {
     private String normalizeType(String targetType) {
         String type = targetType == null ? "" : targetType.trim().toUpperCase();
         if (!TARGET_USER.equals(type) && !TARGET_BOARD.equals(type)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "关注类型仅支持 USER（作者）或 BOARD（版块）");
+            throw new BizException(ErrorCode.PARAM_ERROR, "forum.follow.type-invalid", "关注类型仅支持 USER（作者）或 BOARD（版块）");
         }
         return type;
     }
@@ -148,11 +148,11 @@ public class FollowServiceImpl implements FollowService {
      */
     private void assertTarget(String type, Long targetId, ForumActor actor) {
         if (targetId == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "关注对象ID不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "forum.follow.target-required", "关注对象ID不能为空");
         }
         if (TARGET_USER.equals(type)) {
             if (targetId.equals(actor.userId())) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "不能关注自己");
+                throw new BizException(ErrorCode.PARAM_ERROR, "forum.follow.self-forbidden", "不能关注自己");
             }
             return;
         }

@@ -3,6 +3,7 @@ package com.bluewhale.iot.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.iot.dto.CommandCreateRequest;
 import com.bluewhale.iot.dto.CommandVO;
@@ -98,10 +99,10 @@ public class IotCommandService {
     public CommandVO create(Long deviceId, CommandCreateRequest request, Long issuedBy) {
         IotDevice device = deviceMapper.selectById(deviceId);
         if (device == null) {
-            throw new BizException("设备不存在");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "iot.device.not-found", "设备不存在");
         }
         if (!IotDeviceService.STATUS_ACTIVE.equals(device.getStatus())) {
-            throw new BizException("设备已禁用，不能下发指令");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "iot.command.device-disabled", "设备已禁用，不能下发指令");
         }
         String messageId = StringUtils.hasText(request.getMessageId())
                 ? request.getMessageId() : UUID.randomUUID().toString().replace("-", "");
@@ -218,7 +219,8 @@ public class IotCommandService {
         }
         boolean defined = services.stream().anyMatch(model -> identifier.equals(model.getIdentifier()));
         if (!defined) {
-            throw new BizException("物模型未定义该服务：" + identifier);
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "iot.command.service-not-defined",
+                    "物模型未定义该服务：" + identifier, identifier);
         }
     }
 

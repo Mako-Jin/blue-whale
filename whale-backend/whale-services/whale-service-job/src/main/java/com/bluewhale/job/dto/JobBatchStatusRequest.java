@@ -20,13 +20,13 @@ import java.util.List;
 public class JobBatchStatusRequest {
 
     /** 任务ID列表 */
-    @NotEmpty(message = "任务ID列表不能为空")
-    @Size(max = 200, message = "单次批量操作不能超过 200 条")
+    @NotEmpty(message = "{validation.job.batch.job-ids-required}")
+    @Size(max = 200, message = "{validation.job.batch.job-ids-size}")
     private List<Long> jobIds;
 
     /** 目标状态：1 运行中 / 0 已停止 */
-    @NotNull(message = "状态不能为空")
-    @Min(value = 0, message = "状态只能为 0 或 1")
-    @Max(value = 1, message = "状态只能为 0 或 1")
+    @NotNull(message = "{validation.job.batch.status-required}")
+    @Min(value = 0, message = "{validation.job.batch.status-invalid}")
+    @Max(value = 1, message = "{validation.job.batch.status-invalid}")
     private Integer status;
 }

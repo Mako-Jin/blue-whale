@@ -18,6 +18,8 @@ import com.bluewhale.auth.domain.model.vo.Username;
 import com.bluewhale.auth.domain.aggregate.PermissionAggregate;
 import com.bluewhale.auth.domain.repository.PermissionRepository;
 import com.bluewhale.auth.domain.aggregate.RoleAggregate;
+import com.bluewhale.auth.domain.aggregate.RoleConstraintAggregate;
+import com.bluewhale.auth.domain.repository.RoleConstraintRepository;
 import com.bluewhale.auth.domain.repository.RoleRepository;
 import com.bluewhale.auth.domain.aggregate.TenantAggregate;
 import com.bluewhale.auth.domain.repository.TenantRepository;
@@ -93,6 +95,17 @@ public class TenantProvisioningAppServiceImpl implements TenantProvisioningAppSe
             "sys:tenant:list", "sys:tenant:add", "sys:tenant:edit", "sys:tenant:status",
             "sys:tenant:renew", "sys:user:tenant");
 
+    /**
+     * 三员分立专属权限码：不下发给 {@code tenant_admin}，只授给对应三员角色。
+     *
+     * <p>与 {@link com.bluewhale.auth.application.service.TenantProvisioningAppService#SEGREGATED_PERM_CODES}
+     * 保持同值；{@code V36__three_admin_segregation.sql} 第 4 段负责收回存量租户的同款授权。</p>
+     */
+    public static final Set<String> SEGREGATED_PERM_CODES = Set.of("sys:audit:log:list");
+
+    /** 三员互斥约束编码（与 V36 迁移、前端提示文案共用同一字符串） */
+    public static final String THREE_ADMIN_MUTEX_CODE = "three_admin_mutex";
+
     private final TenantAppService tenantAppService;
     private final TenantRepository tenantRepository;
     private final DeptRepository deptRepository;
@@ -103,6 +116,7 @@ public class TenantProvisioningAppServiceImpl implements TenantProvisioningAppSe
     private final PasswordHasher passwordHasher;
     private final TenantStatusSyncPort tenantStatusSync;
     private final TenantMembershipAppService tenantMembershipAppService;
+    private final RoleConstraintRepository roleConstraintRepository;
 
     /**
      * 开通租户：创建租户并完成管理员、默认角色、菜单与部门根初始化
@@ -116,10 +130,10 @@ public class TenantProvisioningAppServiceImpl implements TenantProvisioningAppSe
         tenantAppService.requirePlatformTenant();
         String tenantCode = command.tenantCode() == null ? null : command.tenantCode().trim();
         if (tenantCode == null || tenantCode.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "租户编码不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.tenant.code-required", "租户编码不能为空");
         }
         if (tenantRepository.findByCode(tenantCode).isPresent()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "租户编码已存在");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.tenant.code-exists", "租户编码已存在");
         }
         Username adminUsername = Username.of(command.adminUsername());
         TenantAggregate tenant = tenantRepository.save(
@@ -133,11 +147,14 @@ public class TenantProvisioningAppServiceImpl implements TenantProvisioningAppSe
         // 2. 菜单模板：从平台租户复制，保持父子层级
         copyMenusFromPlatform(tenantId);
 
-        // 3. 默认角色：租户管理员，授予除平台租户管理外的全部启用权限
+        // 3. 默认角色：租户管理员，授予除平台租户管理与三员专属（审计）外的全部启用权限
+        //    tenantGrantablePermissions 保留审计码 —— 三员角色模板下发时 audit_admin 需要它，
+        //    只有 tenant_admin 这一路被 SEGREGATED 收口。两份集合混用会让审计员「授权成功但看不到审计」。
         List<PermissionAggregate> tenantGrantablePermissions = permissionRepository.findEnabledAll().stream()
                 .filter(permission -> !PLATFORM_ONLY_PERM_CODES.contains(permission.getPermCode().value()))
                 .toList();
         List<Long> permissionIds = tenantGrantablePermissions.stream()
+                .filter(permission -> !SEGREGATED_PERM_CODES.contains(permission.getPermCode().value()))
                 .map(PermissionAggregate::getId)
                 .toList();
         RoleAggregate adminRole = roleRepository.save(RoleAggregate.create(tenantId, RoleCode.of(AuthRoleCodes.TENANT_ADMIN),
@@ -146,6 +163,9 @@ public class TenantProvisioningAppServiceImpl implements TenantProvisioningAppSe
 
         // 4. 业务角色：按平台租户模板下发同名角色并复制模板当前权限集
         copyBusinessRolesFromPlatform(tenantId, tenantGrantablePermissions);
+
+        // 4.1 三员角色：按平台租户模板下发，并播种三员互斥约束（等保 2.0 职责分离）
+        copyThreeAdminRolesFromPlatform(tenantId, tenantGrantablePermissions);
 
         // 5. 初始管理员：归属根部门并绑定默认角色
         UserAggregate admin = userRepository.save(UserAggregate.create(tenantId, adminUsername,
@@ -200,6 +220,60 @@ public class TenantProvisioningAppServiceImpl implements TenantProvisioningAppSe
         }
         log.info("业务角色模板下发完成: tenantId={}, copied={}, missing={}, total={}",
                 targetTenantId, copied, missing, BUSINESS_ROLE_TEMPLATE_CODES.size());
+    }
+
+    /**
+     * 按平台租户三员角色模板向新租户下发三员角色，并播种三员互斥约束。
+     *
+     * <p><b>为什么走模板而不是在 Java 里枚举白名单</b>：三员权限矩阵是安全边界，
+     * 真相只有一份——{@code V36__three_admin_segregation.sql} 里逐码枚举的白名单。
+     * 若 Java 侧再写一份，两边漂移时会出现「新租户的审计员看不到审计」这类静默故障
+     * （编译、启动、现有租户全绿，只有新开的租户坏）。</p>
+     *
+     * <p><b>缺失处理</b>：模板未部署（未执行 V36）时逐项告警并跳过，不阻断租户开通；
+     * 此时租户管理员仍持有全部启用业务权限，只是三员岗位待迁移补齐。</p>
+     *
+     * <p><b>互斥约束</b>：仅在三个角色全部下发成功时播种，否则
+     * {@code RoleConstraintAggregate} 的「互斥至少 2 个角色」不变量会被打破（三角色缺一
+     * 仍可建约束，但语义已不完整，不如留待管理员在权限中心补齐）。</p>
+     *
+     * @param targetTenantId 新租户 ID
+     * @param grantablePermissions 可下发给业务租户的启用权限（已剔除平台专属码与三员专属码）
+     */
+    private void copyThreeAdminRolesFromPlatform(Long targetTenantId,
+                                                 List<PermissionAggregate> grantablePermissions) {
+        Set<Long> grantablePermissionIds = grantablePermissions.stream()
+                .map(PermissionAggregate::getId)
+                .collect(Collectors.toSet());
+        List<Long> createdRoleIds = new ArrayList<>();
+        for (String roleCode : AuthRoleCodes.THREE_ADMIN_CODES) {
+            Optional<RoleAggregate> template =
+                    roleRepository.findByTenantIdAndCode(TenantAggregate.PLATFORM_TENANT_ID, roleCode);
+            if (template.isEmpty()) {
+                log.warn("三员角色模板缺失，跳过下发: tenantId={}, roleCode={}", targetTenantId, roleCode);
+                continue;
+            }
+            RoleAggregate source = template.get();
+            RoleAggregate role = RoleAggregate.create(targetTenantId, RoleCode.of(roleCode),
+                    source.getRoleName(), source.getDescription(), source.getSortNo(),
+                    RoleAggregate.STATUS_ENABLED);
+            // 分类随模板复制（SYSTEM），仅用于管理端分组展示；内置保护判据是角色编码
+            role.changeCategory(source.getCategory());
+            RoleAggregate saved = roleRepository.save(role);
+            List<Long> permissionIds = roleRepository.listPermissionIds(source.getId()).stream()
+                    .filter(grantablePermissionIds::contains)
+                    .toList();
+            roleRepository.replacePermissions(saved.getId(), saved.assignPermissions(permissionIds));
+            createdRoleIds.add(saved.getId());
+        }
+        if (createdRoleIds.size() < AuthRoleCodes.THREE_ADMIN_CODES.size()) {
+            log.warn("三员角色未全部下发，跳过互斥约束播种: tenantId={}, created={}/{}",
+                    targetTenantId, createdRoleIds.size(), AuthRoleCodes.THREE_ADMIN_CODES.size());
+            return;
+        }
+        roleConstraintRepository.save(RoleConstraintAggregate.create(targetTenantId, THREE_ADMIN_MUTEX_CODE,
+                "三员互斥", "MUTEX", createdRoleIds, null));
+        log.info("三员角色与互斥约束播种完成: tenantId={}, roleIds={}", targetTenantId, createdRoleIds);
     }
 
     /**

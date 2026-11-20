@@ -20,34 +20,34 @@ public class OAuthClientSaveRequest {
 
     /** 客户端标识：新建可空（由服务端生成），编辑时忽略 */
     @Pattern(regexp = "^$|^[A-Za-z0-9_-]{4,64}$",
-            message = "客户端标识须为 4–64 位字母、数字、下划线或中划线")
+            message = "{validation.auth.oauth.client-id-pattern}")
     private String clientId;
 
-    @NotBlank(message = "客户端名称不能为空")
-    @Size(max = 128, message = "客户端名称长度不能超过 128")
+    @NotBlank(message = "{validation.auth.oauth.client-name-required}")
+    @Size(max = 128, message = "{validation.auth.oauth.client-name-size}")
     private String clientName;
 
     /** 回调地址白名单：authorization_code 模式必填，精确匹配 */
-    @Size(max = 50, message = "回调地址数量不能超过 50")
+    @Size(max = 50, message = "{validation.auth.oauth.redirect-uris-size}")
     private List<String> redirectUris;
 
     /** 授权类型：仅支持 authorization_code / client_credentials / refresh_token */
-    @NotEmpty(message = "至少需要一种授权类型")
+    @NotEmpty(message = "{validation.auth.oauth.grant-types-required}")
     private List<String> grantTypes;
 
-    @NotEmpty(message = "授权范围不能为空")
+    @NotEmpty(message = "{validation.auth.oauth.scopes-required}")
     private List<String> scopes;
 
-    @Min(value = 60, message = "访问令牌有效期不得小于 60 秒")
+    @Min(value = 60, message = "{validation.auth.oauth.access-token-ttl-min}")
     private Integer accessTokenTtl;
 
-    @Min(value = 60, message = "刷新令牌有效期不得小于 60 秒")
+    @Min(value = 60, message = "{validation.auth.oauth.refresh-token-ttl-min}")
     private Integer refreshTokenTtl;
 
     private Boolean autoApprove;
 
     /** 状态：1 启用 / 0 停用；为空时新建默认启用、编辑保持原状态 */
-    @Min(value = 0, message = "状态仅支持 1（启用）/ 0（停用）")
-    @Max(value = 1, message = "状态仅支持 1（启用）/ 0（停用）")
+    @Min(value = 0, message = "{validation.auth.common.status-range}")
+    @Max(value = 1, message = "{validation.auth.common.status-range}")
     private Integer status;
 }

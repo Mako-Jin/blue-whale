@@ -100,14 +100,14 @@ public class ImConversationService {
         String type = request.getType();
         List<Long> others = normalizeMembers(request.getMemberIds(), userId);
         if (TYPE_SINGLE.equals(type) && others.size() != 1) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "单聊必须且只能指定 1 位对方");
+            throw new BizException(ErrorCode.PARAM_ERROR, "im.conversation.private-single-recipient", "单聊必须且只能指定 1 位对方");
         }
         if (!TYPE_SINGLE.equals(type)) {
             if (!StringUtils.hasText(request.getTitle())) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "群聊必须填写标题");
+                throw new BizException(ErrorCode.PARAM_ERROR, "im.conversation.group-title-required", "群聊必须填写标题");
             }
             if (others.size() > MAX_MEMBERS - 1) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "群成员上限 200 人");
+                throw new BizException(ErrorCode.PARAM_ERROR, "im.member.limit-exceeded", "群成员上限 200 人");
             }
         }
         requireExistingUsers(others);
@@ -155,14 +155,14 @@ public class ImConversationService {
         requireGroup(conversation);
         ImConversationMember operator = guard.requireMemberRecord(conversationId, operatorId);
         if (operator == null || !ROLE_OWNER.equals(operator.getRole())) {
-            throw new BizException(ErrorCode.FORBIDDEN, "仅群主可以转让群聊");
+            throw new BizException(ErrorCode.FORBIDDEN, "im.conversation.transfer-owner-only", "仅群主可以转让群聊");
         }
         if (Objects.equals(operatorId, targetUserId)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "不能转让给自己");
+            throw new BizException(ErrorCode.PARAM_ERROR, "im.conversation.transfer-to-self", "不能转让给自己");
         }
         ImConversationMember target = guard.requireMemberRecord(conversationId, targetUserId);
         if (target == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "该用户不是群成员");
+            throw new BizException(ErrorCode.NOT_FOUND, "im.member.not-member", "该用户不是群成员");
         }
         LambdaUpdateWrapper<ImConversation> ownerWrapper = new LambdaUpdateWrapper<>();
         ownerWrapper.eq(ImConversation::getId, conversationId);
@@ -185,7 +185,7 @@ public class ImConversationService {
         requireGroup(conversation);
         ImConversationMember operator = guard.requireMemberRecord(conversationId, operatorId);
         if (operator == null || !ROLE_OWNER.equals(operator.getRole())) {
-            throw new BizException(ErrorCode.FORBIDDEN, "仅群主可以解散群聊");
+            throw new BizException(ErrorCode.FORBIDDEN, "im.conversation.dissolve-owner-only", "仅群主可以解散群聊");
         }
         broadcaster.broadcastMemberChanged(conversationId, "DISSOLVED", operatorId);
         conversationMapper.deleteById(conversationId);
@@ -375,7 +375,7 @@ public class ImConversationService {
      */
     private static void requireGroup(ImConversation conversation) {
         if (!TYPE_GROUP.equals(conversation.getType())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "仅群聊支持该操作");
+            throw new BizException(ErrorCode.PARAM_ERROR, "im.conversation.group-only", "仅群聊支持该操作");
         }
     }
 
@@ -393,7 +393,8 @@ public class ImConversationService {
         }
         List<Long> missing = userDirectoryClient.missingUserIds(userIds);
         if (!missing.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "以下用户不存在或已停用: " + missing);
+            throw new BizException(ErrorCode.PARAM_ERROR, "im.member.users-missing",
+                    "以下用户不存在或已停用: " + missing, missing);
         }
     }
 

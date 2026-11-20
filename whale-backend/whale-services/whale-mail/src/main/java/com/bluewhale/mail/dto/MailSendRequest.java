@@ -17,21 +17,21 @@ import java.util.List;
 public class MailSendRequest {
 
     /** 发信邮箱账号ID */
-    @NotNull(message = "发信账号不能为空")
+    @NotNull(message = "{validation.mail.send.account-required}")
     private Long accountId;
 
     /** 收件人 */
-    @Size(min = 1, message = "至少一个收件人")
-    private List<@Email(message = "收件人地址格式不正确") String> to;
+    @Size(min = 1, message = "{validation.mail.send.recipients-required}")
+    private List<@Email(message = "{validation.mail.send.recipient-format}") String> to;
 
     /** 抄送 */
-    private List<@Email(message = "抄送地址格式不正确") String> cc;
+    private List<@Email(message = "{validation.mail.send.cc-format}") String> cc;
 
     /** 密送 */
-    private List<@Email(message = "密送地址格式不正确") String> bcc;
+    private List<@Email(message = "{validation.mail.send.bcc-format}") String> bcc;
 
     /** 主题 */
-    @Size(max = 512, message = "主题过长")
+    @Size(max = 512, message = "{validation.mail.send.subject-size}")
     private String subject;
 
     /** HTML 正文 */

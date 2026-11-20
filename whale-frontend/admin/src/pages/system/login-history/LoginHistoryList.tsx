@@ -9,24 +9,30 @@ import {
   pageLoginHistories,
   type LoginHistoryVO,
 } from '../../../api/loginHistory';
+import { useI18n } from '../../../i18n';
 
 type HistoryQuery = { userId?: string; result?: string; startTime?: string; endTime?: string };
 
-const RESULT_OPTIONS = [
-  { value: 'SUCCESS', label: '登录成功' },
-  { value: 'FAILURE', label: '登录失败' },
-  { value: 'LOGOUT', label: '登出' },
+type Translate = ReturnType<typeof useI18n>['t'];
+
+const buildResultOptions = (t: Translate) => [
+  { value: 'SUCCESS', label: t('systemAuth.loginHistory.result.loginSuccess') },
+  { value: 'FAILURE', label: t('systemAuth.loginHistory.result.loginFailure') },
+  { value: 'LOGOUT', label: t('systemAuth.loginHistory.result.logout') },
 ];
 
-const RESULT_TAGS: Record<string, { color: string; label: string }> = {
-  SUCCESS: { color: 'success', label: '成功' },
-  FAILURE: { color: 'error', label: '失败' },
-  LOGOUT: { color: 'default', label: '登出' },
-};
+const buildResultTags = (t: Translate): Record<string, { color: string; label: string }> => ({
+  SUCCESS: { color: 'success', label: t('systemAuth.loginHistory.status.success') },
+  FAILURE: { color: 'error', label: t('systemAuth.loginHistory.status.failure') },
+  LOGOUT: { color: 'default', label: t('systemAuth.loginHistory.result.logout') },
+});
 
-function renderResult(result: string | undefined) {
+function renderResult(
+  result: string | undefined,
+  resultTags: Record<string, { color: string; label: string }>,
+) {
   if (!result) return '-';
-  const item = RESULT_TAGS[result] ?? { color: 'default', label: result };
+  const item = resultTags[result] ?? { color: 'default', label: result };
   return <Tag color={item.color}>{item.label}</Tag>;
 }
 
@@ -38,8 +44,12 @@ function toIsoLocal(dateStr?: string): string | undefined {
 
 export default function LoginHistoryList() {
   const { message } = App.useApp();
+  const { t } = useI18n();
   const { has } = usePermission();
   const tableRef = useRef<ProTableRef>(null);
+
+  const resultOptions = buildResultOptions(t);
+  const resultTags = buildResultTags(t);
 
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const [result, setResult] = useState<string | undefined>(undefined);
@@ -60,31 +70,41 @@ export default function LoginHistoryList() {
         startTime: toIsoLocal(startTime),
         endTime: toIsoLocal(endTime),
       });
-      message.success('导出已开始下载');
+      message.success(t('systemAuth.loginHistory.exportStarted'));
     } catch (error) {
-      showError(error, '导出失败');
+      showError(error, t('systemAuth.loginHistory.exportFailed'));
     } finally {
       setExporting(false);
     }
   };
 
   const columns: TableProps<LoginHistoryVO>['columns'] = [
-    { title: '用户名', dataIndex: 'username', width: 140, render: (v) => v ?? '-' },
-    { title: '用户 ID', dataIndex: 'userId', width: 120, render: (v) => v ?? '-' },
     {
-      title: '方式',
+      title: t('systemAuth.loginHistory.col.username'),
+      dataIndex: 'username',
+      width: 140,
+      render: (v) => v ?? '-',
+    },
+    {
+      title: t('systemAuth.loginHistory.col.userId'),
+      dataIndex: 'userId',
+      width: 120,
+      render: (v) => v ?? '-',
+    },
+    {
+      title: t('systemAuth.loginHistory.col.loginType'),
       dataIndex: 'loginType',
       width: 110,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '结果',
+      title: t('systemAuth.loginHistory.col.result'),
       dataIndex: 'loginResult',
       width: 90,
-      render: (value: string | undefined) => renderResult(value),
+      render: (value: string | undefined) => renderResult(value, resultTags),
     },
     {
-      title: '失败原因',
+      title: t('systemAuth.loginHistory.col.failureReason'),
       dataIndex: 'failureReason',
       width: 180,
       ellipsis: true,
@@ -92,14 +112,14 @@ export default function LoginHistoryList() {
     },
     { title: 'IP', dataIndex: 'ip', width: 140, render: (v) => v ?? '-' },
     {
-      title: '设备指纹',
+      title: t('systemAuth.loginHistory.col.deviceFingerprint'),
       dataIndex: 'deviceFingerprint',
       width: 160,
       ellipsis: true,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '登录时间',
+      title: t('systemAuth.loginHistory.col.loginTime'),
       dataIndex: 'loginTime',
       width: 170,
       render: (value: string | undefined) => value ?? '-',
@@ -110,7 +130,7 @@ export default function LoginHistoryList() {
     <ProTable<LoginHistoryVO, HistoryQuery>
       ref={tableRef}
       rowKey="id"
-      title="登录历史"
+      title={t('systemAuth.loginHistory.title')}
       columns={columns}
       request={(params) =>
         pageLoginHistories({
@@ -121,35 +141,40 @@ export default function LoginHistoryList() {
         })
       }
       params={{ userId, result }}
-      onError={(error) => showError(error, '登录历史加载失败')}
+      onError={(error) => showError(error, t('systemAuth.loginHistory.loadFailed'))}
       search={
         <SearchForm
           items={[
             {
               name: 'userId',
-              label: '用户 ID',
-              element: <Input style={{ width: 180 }} placeholder="留空查全部" />,
+              label: t('systemAuth.loginHistory.col.userId'),
+              element: (
+                <Input
+                  style={{ width: 180 }}
+                  placeholder={t('systemAuth.loginHistory.search.userIdPlaceholder')}
+                />
+              ),
             },
             {
               name: 'result',
-              label: '结果',
+              label: t('systemAuth.loginHistory.col.result'),
               element: (
                 <Select
                   allowClear
-                  options={RESULT_OPTIONS}
-                  placeholder="全部"
+                  options={resultOptions}
+                  placeholder={t('systemAuth.loginHistory.search.all')}
                   style={{ width: 140 }}
                 />
               ),
             },
             {
               name: 'startTime',
-              label: '开始时间',
+              label: t('systemAuth.loginHistory.search.startTime'),
               element: <Input style={{ width: 180 }} placeholder="yyyy-MM-dd HH:mm:ss" />,
             },
             {
               name: 'endTime',
-              label: '结束时间',
+              label: t('systemAuth.loginHistory.search.endTime'),
               element: <Input style={{ width: 180 }} placeholder="yyyy-MM-dd HH:mm:ss" />,
             },
           ]}
@@ -171,7 +196,7 @@ export default function LoginHistoryList() {
         has('sys:login:history:export') && (
           <Space>
             <Button loading={exporting} onClick={() => void handleExport()}>
-              导出 CSV
+              {t('systemAuth.loginHistory.export')}
             </Button>
           </Space>
         )

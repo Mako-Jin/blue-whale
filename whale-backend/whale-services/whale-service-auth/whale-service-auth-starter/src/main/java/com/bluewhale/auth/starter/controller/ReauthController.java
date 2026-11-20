@@ -51,7 +51,8 @@ public class ReauthController {
      * @param password 当前登录用户的明文口令
      * @author BlueWhale
      */
-    public record ReauthRequest(@NotBlank(message = "请输入当前密码") String password) {
+    public record ReauthRequest(
+            @NotBlank(message = "{validation.auth.reauth.password-required}") String password) {
     }
 
     /**

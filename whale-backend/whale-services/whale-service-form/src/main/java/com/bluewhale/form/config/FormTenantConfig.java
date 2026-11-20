@@ -41,7 +41,7 @@ public class FormTenantConfig implements WebMvcConfigurer {
         @Override
         public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
             if (TenantContext.get() == null) {
-                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "缺少租户上下文");
+                throw new BizException(ErrorCode.PARAM_ERROR, "form.common.tenant-context-missing", "缺少租户上下文");
             }
             FormRoleContext.set(WebHeaders.splitCodes(WebHeaders.header(request, WebHeaders.USER_ROLES)));
             return true;

@@ -29,6 +29,9 @@ public final class GatewayHeaders {
     /** 网关注入的权限码头（逗号分隔） */
     public static final String PERMISSION_CODES = GatewayContract.Headers.PERMISSION_CODES;
 
+    /** 网关注入的归一化语言头 */
+    public static final String LANGUAGE = GatewayContract.Headers.LANGUAGE;
+
     /**
      * 私有构造器：常量类，禁止实例化
      */

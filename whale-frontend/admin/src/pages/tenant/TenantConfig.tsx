@@ -11,6 +11,7 @@ import type { TableProps } from 'antd';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePermission } from '@bluewhale/whale-ui';
 import { listTenantConfig, upsertTenantConfig, type TenantConfigEntry } from '../../api/tenant';
+import { useI18n } from '../../i18n';
 
 /** 值长度上限（与 auth ConfigKeyValidator.MAX_VALUE_LENGTH 对齐） */
 const MAX_VALUE_LENGTH = 8192;
@@ -41,6 +42,7 @@ function prettyJson(raw: string): string | null {
 export default function TenantConfigList() {
   const { message } = App.useApp();
   const { has } = usePermission();
+  const { t } = useI18n();
   const canEdit = has('sys:tenant:config:edit');
 
   const [rows, setRows] = useState<TenantConfigEntry[]>([]);
@@ -59,12 +61,12 @@ export default function TenantConfigList() {
         const list = await listTenantConfig(keyword || undefined);
         setRows(list ?? []);
       } catch (error) {
-        message.error(error instanceof Error ? error.message : '租户配置加载失败');
+        message.error(error instanceof Error ? error.message : t('tenant.config.loadFailed'));
       } finally {
         setLoading(false);
       }
     },
-    [message],
+    [message, t],
   );
 
   useEffect(() => {
@@ -97,26 +99,26 @@ export default function TenantConfigList() {
         configKey: values.configKey.trim(),
         configValue: values.configValue,
       });
-      message.success('租户配置已保存');
+      message.success(t('tenant.config.saved'));
       setFormOpen(false);
       await load(prefix);
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '保存失败');
+      message.error(error instanceof Error ? error.message : t('tenant.config.saveFailed'));
     } finally {
       setSaving(false);
     }
-  }, [form, load, message, prefix]);
+  }, [form, load, message, prefix, t]);
 
   const columns: TableProps<TenantConfigEntry>['columns'] = useMemo(
     () => [
       {
-        title: '配置键',
+        title: t('tenant.config.col.key'),
         dataIndex: 'configKey',
         width: 260,
         render: (value: string) => <Typography.Text code>{value}</Typography.Text>,
       },
       {
-        title: '配置值（JSON）',
+        title: t('tenant.config.col.value'),
         dataIndex: 'configValue',
         render: (value: string) => {
           const pretty = prettyJson(value) ?? value;
@@ -130,20 +132,20 @@ export default function TenantConfigList() {
         },
       },
       {
-        title: '操作',
+        title: t('tenant.col.action'),
         key: 'action',
         width: 100,
         render: (_, row) =>
           canEdit ? (
             <Button type="link" size="small" onClick={() => openEdit(row)}>
-              编辑
+              {t('tenant.action.edit')}
             </Button>
           ) : (
             '-'
           ),
       },
     ],
-    [canEdit, openEdit],
+    [canEdit, openEdit, t],
   );
 
   return (
@@ -152,21 +154,14 @@ export default function TenantConfigList() {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="这里是本租户的默认值层"
-        description={
-          <span>
-            生效顺序为「用户配置 &gt; 租户配置 &gt;
-            消费方默认」：用户在自己的「通知偏好」页设置过则以
-            用户配置为准，否则回落到本页。键名至少两段并以业务域开头（如
-            notify.twin.alert），值必须是 合法 JSON（≤8KB）——auth 只负责存取，语义由消费方解释。
-          </span>
-        }
+        message={t('tenant.config.alertTitle')}
+        description={<span>{t('tenant.config.alertDescription')}</span>}
       />
 
       <Space style={{ marginBottom: 16 }} wrap>
         <Input.Search
           allowClear
-          placeholder="按键前缀过滤，如 notify."
+          placeholder={t('tenant.config.searchPlaceholder')}
           style={{ width: 320 }}
           onSearch={(value) => {
             setPrefix(value.trim());
@@ -175,10 +170,10 @@ export default function TenantConfigList() {
         />
         {canEdit ? (
           <Button type="primary" onClick={openCreate}>
-            新增配置
+            {t('tenant.config.create')}
           </Button>
         ) : null}
-        <Button onClick={() => void load(prefix)}>刷新</Button>
+        <Button onClick={() => void load(prefix)}>{t('tenant.config.refresh')}</Button>
       </Space>
 
       <Table<TenantConfigEntry>
@@ -188,11 +183,15 @@ export default function TenantConfigList() {
         columns={columns}
         dataSource={rows}
         pagination={false}
-        locale={{ emptyText: '该租户尚未配置任何默认值（消费方将按内置默认放行）' }}
+        locale={{ emptyText: t('tenant.config.empty') }}
       />
 
       <Modal
-        title={editingKey ? `编辑配置：${editingKey}` : '新增租户配置'}
+        title={
+          editingKey
+            ? t('tenant.config.editTitle', { key: editingKey })
+            : t('tenant.config.createTitle')
+        }
         open={formOpen}
         onOk={() => void handleSave()}
         confirmLoading={saving}
@@ -203,40 +202,44 @@ export default function TenantConfigList() {
         <Form form={form} layout="vertical" preserve={false}>
           <Form.Item
             name="configKey"
-            label="配置键"
+            label={t('tenant.config.col.key')}
             rules={[
-              { required: true, message: '请输入配置键' },
+              { required: true, message: t('tenant.config.keyRequired') },
               {
                 pattern: KEY_PATTERN,
-                message: '需两段以上小写标识，以点分隔（如 notify.twin.alert）',
+                message: t('tenant.config.keyPattern'),
               },
             ]}
             extra={
               editingKey
-                ? '配置键创建后不可修改；如需改名请新增一条并让消费方改用新键'
-                : `常用键：${KEY_HINTS.map((item) => item.key).join(' / ')}`
+                ? t('tenant.config.keyImmutable')
+                : t('tenant.config.keyHints', {
+                    keys: KEY_HINTS.map((item) => item.key).join(' / '),
+                  })
             }
           >
             <Input placeholder="notify.twin.alert" disabled={Boolean(editingKey)} maxLength={128} />
           </Form.Item>
           <Form.Item
             name="configValue"
-            label="配置值（JSON）"
+            label={t('tenant.config.col.value')}
             rules={[
-              { required: true, message: '请输入配置值' },
+              { required: true, message: t('tenant.config.valueRequired') },
               {
                 validator: (_rule, value: string) => {
                   if (!value) {
                     return Promise.resolve();
                   }
                   if (value.length > MAX_VALUE_LENGTH) {
-                    return Promise.reject(new Error(`配置值不能超过 ${MAX_VALUE_LENGTH} 字节`));
+                    return Promise.reject(
+                      new Error(t('tenant.config.valueTooLong', { max: MAX_VALUE_LENGTH })),
+                    );
                   }
                   try {
                     JSON.parse(value);
                     return Promise.resolve();
                   } catch {
-                    return Promise.reject(new Error('必须是合法 JSON'));
+                    return Promise.reject(new Error(t('tenant.config.valueInvalidJson')));
                   }
                 },
               },

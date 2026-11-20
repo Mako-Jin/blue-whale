@@ -15,21 +15,21 @@ import lombok.Data;
 public class ChunkUploadInitRequest {
 
     /** 原始文件名 */
-    @NotBlank(message = "文件名不能为空")
+    @NotBlank(message = "{validation.file.common.file-name-required}")
     private String fileName;
 
     /** MIME 类型 */
     private String contentType;
 
     /** 文件总字节数 */
-    @NotNull(message = "文件大小不能为空")
-    @Positive(message = "文件大小必须大于 0")
+    @NotNull(message = "{validation.file.common.size-required}")
+    @Positive(message = "{validation.file.common.size-positive}")
     private Long size;
 
     /** 目标桶名称；为空时取配置的默认桶 */
     private String bucket;
 
     /** 续传会话 ID（标准 UUID）；为空时新建会话 */
-    @Size(max = 36, message = "uploadId 长度不能超过 36")
+    @Size(max = 36, message = "{validation.file.chunk.upload-id-size}")
     private String uploadId;
 }

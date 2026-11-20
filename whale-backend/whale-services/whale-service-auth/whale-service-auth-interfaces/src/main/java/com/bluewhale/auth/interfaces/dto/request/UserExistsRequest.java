@@ -18,7 +18,7 @@ public class UserExistsRequest {
     private static final int MAX_BATCH = 200;
 
     /** 待校验用户 ID 列表 */
-    @NotEmpty(message = "用户ID列表不能为空")
-    @Size(max = MAX_BATCH, message = "单次最多校验 200 个用户")
+    @NotEmpty(message = "{validation.auth.user.ids-required}")
+    @Size(max = MAX_BATCH, message = "{validation.auth.user.ids-size}")
     private List<Long> userIds;
 }

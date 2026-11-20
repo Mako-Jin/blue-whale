@@ -109,11 +109,13 @@ public class MessageArchiveClient {
                     .body(new ParameterizedTypeReference<Map<String, Object>>() {
                     });
         } catch (Exception e) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "上传消息归档文件失败: " + e.getMessage());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "message.archive.upload-failed",
+                    "上传消息归档文件失败: " + e.getMessage(), e.getMessage());
         }
         if (response == null || !isSuccess(response.get(FIELD_CODE))) {
             String message = response == null ? "空响应" : String.valueOf(response.get(FIELD_MESSAGE));
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "上传消息归档文件失败: " + message);
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "message.archive.upload-failed",
+                    "上传消息归档文件失败: " + message, message);
         }
         return toDataMap(response.get(FIELD_DATA));
     }

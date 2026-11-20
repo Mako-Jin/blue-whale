@@ -172,8 +172,9 @@ public class MapGeoServiceImpl implements MapGeoService {
         GeoPoint origin = toStoragePoint(request.getOriginLng(), request.getOriginLat(), request.getCoordType());
         List<PointRequest> targets = request.getTargets();
         if (targets.size() > properties.getLocation().getDistanceMaxBatch()) {
-            throw new BizException(MapErrorCode.DISTANCE_BATCH_TOO_LARGE,
-                    "单次最多 " + properties.getLocation().getDistanceMaxBatch() + " 个目标点");
+            throw new BizException(MapErrorCode.DISTANCE_BATCH_TOO_LARGE, "map.geo.distance-batch-exceeded",
+                    "单次最多 " + properties.getLocation().getDistanceMaxBatch() + " 个目标点",
+                    properties.getLocation().getDistanceMaxBatch());
         }
         List<DistanceVO> results = new ArrayList<>(targets.size());
         for (int index = 0; index < targets.size(); index++) {
@@ -216,8 +217,8 @@ public class MapGeoServiceImpl implements MapGeoService {
     private <T> T withProviders(MapCapability capability, Function<MapProvider, T> call) {
         List<MapProvider> chain = registry.chain(capability);
         if (chain.isEmpty()) {
-            throw new BizException(MapErrorCode.PROVIDER_UNAVAILABLE,
-                    "没有可用的地图供应商（能力 " + capability + "）");
+            throw new BizException(MapErrorCode.PROVIDER_UNAVAILABLE, "map.geo.provider-unavailable",
+                    "没有可用的地图供应商（能力 " + capability + "）", capability);
         }
         BizException last = null;
         for (MapProvider provider : chain) {
@@ -235,7 +236,7 @@ public class MapGeoServiceImpl implements MapGeoService {
         if (last != null) {
             throw last;
         }
-        throw new BizException(MapErrorCode.QUOTA_EXCEEDED, "全部地图供应商今日配额已用尽");
+        throw new BizException(MapErrorCode.QUOTA_EXCEEDED, "map.geo.quota-exhausted", "全部地图供应商今日配额已用尽");
     }
 
     /**

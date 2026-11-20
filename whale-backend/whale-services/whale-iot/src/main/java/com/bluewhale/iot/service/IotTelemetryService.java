@@ -2,6 +2,7 @@ package com.bluewhale.iot.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.iot.config.IotProperties;
 import com.bluewhale.iot.dto.TelemetryIngestResult;
@@ -138,7 +139,7 @@ public class IotTelemetryService {
      */
     public List<TelemetryVO> query(Long deviceId, String identifier, String from, String to, Integer limit) {
         if (deviceMapper.selectById(deviceId) == null) {
-            throw new BizException("设备不存在");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "iot.device.not-found", "设备不存在");
         }
         int max = Math.max(1, properties.getTelemetryQueryMax());
         int size = limit == null || limit <= 0 ? Math.min(100, max) : Math.min(limit, max);

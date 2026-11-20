@@ -18,12 +18,12 @@ public class ModerationRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 处置原因（必填） */
-    @NotBlank(message = "处置原因必填")
-    @Size(max = 512, message = "处置原因不能超过 512 字")
+    @NotBlank(message = "{validation.forum.moderation.reason-required}")
+    @Size(max = 512, message = "{validation.forum.moderation.reason-size}")
     private String reason;
 
     /** 处置类型：MUTE 禁言 / BAN 封号（仅用户处置用） */
-    @Pattern(regexp = "MUTE|BAN", message = "处置类型只能是 MUTE/BAN")
+    @Pattern(regexp = "MUTE|BAN", message = "{validation.forum.moderation.action-pattern}")
     private String banType;
 
     /** 天数（≤0 或空表示永久，仅用户处置用） */

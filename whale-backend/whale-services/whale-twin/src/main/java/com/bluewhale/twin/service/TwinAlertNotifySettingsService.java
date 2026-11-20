@@ -2,6 +2,7 @@ package com.bluewhale.twin.service;
 
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.twin.config.TwinProperties;
 import com.bluewhale.twin.dto.TwinAlertNotifySettingsRequest;
 import com.bluewhale.twin.dto.TwinAlertNotifySettingsVO;
@@ -144,7 +145,8 @@ public class TwinAlertNotifySettingsService {
         }
         String json = root.isEmpty() ? null : root.toString();
         if (json != null && json.length() > CONFIG_MAX_LENGTH) {
-            throw new BizException("场景配置超出长度上限（" + CONFIG_MAX_LENGTH + " 字符）");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.alert-notify.config-too-long",
+                    "场景配置超出长度上限（" + CONFIG_MAX_LENGTH + " 字符）", CONFIG_MAX_LENGTH);
         }
         return json;
     }
@@ -491,7 +493,7 @@ public class TwinAlertNotifySettingsService {
     private TwinScene requireScene(Long sceneId) {
         TwinScene scene = sceneId == null ? null : sceneMapper.selectById(sceneId);
         if (scene == null) {
-            throw new BizException("场景不存在");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.scene.not-found", "场景不存在");
         }
         return scene;
     }

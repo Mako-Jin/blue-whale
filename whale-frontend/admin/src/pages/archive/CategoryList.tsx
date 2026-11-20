@@ -25,7 +25,14 @@ import {
   type ArchiveCategorySaveRequest,
   type ArchiveCategoryVO,
 } from '../../api/archive';
-import { SECURITY_COLORS, SECURITY_OPTIONS, flattenCategories, securityLabel } from './helpers';
+import { useI18n } from '../../i18n';
+import {
+  SECURITY_COLORS,
+  enabledOptions,
+  flattenCategories,
+  securityLabel,
+  securityOptions,
+} from './helpers';
 
 /** 门类表单值 */
 interface CategoryFormValues {
@@ -54,6 +61,7 @@ const DEFAULT_VALUES: CategoryFormValues = {
 export default function ArchiveCategoryList() {
   const { message } = App.useApp();
   const { has } = usePermission();
+  const { t } = useI18n();
   const [form] = Form.useForm<CategoryFormValues>();
   const [tree, setTree] = useState<ArchiveCategoryVO[]>([]);
   const [loading, setLoading] = useState(false);
@@ -67,11 +75,11 @@ export default function ArchiveCategoryList() {
     try {
       setTree(await categoryTree());
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '门类树加载失败');
+      message.error(error instanceof Error ? error.message : t('archive.category.msg.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [message]);
+  }, [message, t]);
 
   useEffect(() => {
     void load();
@@ -79,10 +87,10 @@ export default function ArchiveCategoryList() {
 
   const parentOptions = useMemo(
     () => [
-      { label: '根节点', value: ROOT_PARENT_ID },
+      { label: t('archive.category.root'), value: ROOT_PARENT_ID },
       ...flattenCategories(tree).filter((item) => item.value !== editing?.id),
     ],
-    [tree, editing],
+    [tree, editing, t],
   );
 
   const openCreate = (parentId?: string) => {
@@ -114,15 +122,15 @@ export default function ArchiveCategoryList() {
     try {
       if (editing) {
         await updateCategory(editing.id, payload);
-        message.success('门类已更新');
+        message.success(t('archive.category.msg.updated'));
       } else {
         await createCategory(payload);
-        message.success('门类已创建');
+        message.success(t('archive.category.msg.created'));
       }
       setModalOpen(false);
       await load();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '保存失败');
+      message.error(error instanceof Error ? error.message : t('archive.common.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -131,41 +139,44 @@ export default function ArchiveCategoryList() {
   const handleDelete = async (row: ArchiveCategoryVO) => {
     try {
       await deleteCategory(row.id);
-      message.success('门类已删除');
+      message.success(t('archive.category.msg.deleted'));
       await load();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '删除失败');
+      message.error(error instanceof Error ? error.message : t('archive.common.deleteFailed'));
     }
   };
 
   const columns: TableProps<ArchiveCategoryVO>['columns'] = [
-    { title: '门类编码', dataIndex: 'code', width: 140 },
-    { title: '门类名称', dataIndex: 'name' },
-    { title: '层级', dataIndex: 'level', width: 80 },
+    { title: t('archive.category.code'), dataIndex: 'code', width: 140 },
+    { title: t('archive.category.name'), dataIndex: 'name' },
+    { title: t('archive.category.level'), dataIndex: 'level', width: 80 },
     {
-      title: '默认保管期限',
+      title: t('archive.category.retention'),
       dataIndex: 'retentionYears',
       width: 130,
-      render: (value?: number) => (value ? `${value} 年` : '长期'),
+      render: (value?: number) =>
+        value ? t('archive.common.years', { years: value }) : t('archive.common.longTerm'),
     },
     {
-      title: '密级',
+      title: t('archive.common.securityLevel'),
       dataIndex: 'securityLevel',
       width: 100,
       render: (value?: number) => (
-        <Tag color={SECURITY_COLORS[value ?? 2]}>{securityLabel(value)}</Tag>
+        <Tag color={SECURITY_COLORS[value ?? 2]}>{securityLabel(value, t)}</Tag>
       ),
     },
     {
-      title: '状态',
+      title: t('archive.common.status'),
       dataIndex: 'status',
       width: 90,
       render: (value?: number) => (
-        <Tag color={value === 1 ? 'green' : 'default'}>{value === 1 ? '启用' : '停用'}</Tag>
+        <Tag color={value === 1 ? 'green' : 'default'}>
+          {value === 1 ? t('archive.common.enabled') : t('archive.common.disabled')}
+        </Tag>
       ),
     },
     {
-      title: '操作',
+      title: t('archive.common.action'),
       key: 'action',
       width: 230,
       render: (_, row) => (
@@ -173,14 +184,17 @@ export default function ArchiveCategoryList() {
           {has('sys:archive:category:manage') && (
             <>
               <Button type="link" size="small" onClick={() => openCreate(row.id)}>
-                新增子类
+                {t('archive.category.createChild')}
               </Button>
               <Button type="link" size="small" onClick={() => openEdit(row, true)}>
-                修改
+                {t('archive.common.edit')}
               </Button>
-              <Popconfirm title="确认删除该门类？" onConfirm={() => void handleDelete(row)}>
+              <Popconfirm
+                title={t('archive.category.confirm.delete')}
+                onConfirm={() => void handleDelete(row)}
+              >
                 <Button type="link" size="small" danger>
-                  删除
+                  {t('archive.common.delete')}
                 </Button>
               </Popconfirm>
             </>
@@ -196,17 +210,17 @@ export default function ArchiveCategoryList() {
         rowKey="id"
         title={() => (
           <Space>
-            <span>档案门类</span>
+            <span>{t('archive.category.title')}</span>
             <AuthButton
               perm="sys:archive:category:manage"
               type="primary"
               size="small"
               onClick={() => openCreate()}
             >
-              新增门类
+              {t('archive.category.create')}
             </AuthButton>
             <Button size="small" onClick={() => void load()}>
-              刷新
+              {t('archive.common.refresh')}
             </Button>
           </Space>
         )}
@@ -216,7 +230,7 @@ export default function ArchiveCategoryList() {
         pagination={false}
       />
       <Modal
-        title={editing ? '修改门类' : '新增门类'}
+        title={editing ? t('archive.category.edit') : t('archive.category.create')}
         open={modalOpen}
         confirmLoading={saving}
         onOk={() => void handleSubmit()}
@@ -226,37 +240,35 @@ export default function ArchiveCategoryList() {
         <Form form={form} layout="vertical" preserve={false}>
           <Form.Item
             name="code"
-            label="门类编码"
-            rules={[{ required: true, message: '请输入门类编码' }]}
+            label={t('archive.category.code')}
+            rules={[{ required: true, message: t('archive.category.codeRequired') }]}
           >
-            <Input placeholder="如 GL，仅字母/数字/下划线" disabled={Boolean(editing)} />
+            <Input
+              placeholder={t('archive.category.codePlaceholder')}
+              disabled={Boolean(editing)}
+            />
           </Form.Item>
           <Form.Item
             name="name"
-            label="门类名称"
-            rules={[{ required: true, message: '请输入门类名称' }]}
+            label={t('archive.category.name')}
+            rules={[{ required: true, message: t('archive.category.nameRequired') }]}
           >
-            <Input placeholder="如 管理类" />
+            <Input placeholder={t('archive.category.namePlaceholder')} />
           </Form.Item>
-          <Form.Item name="parentId" label="上级门类">
+          <Form.Item name="parentId" label={t('archive.category.parent')}>
             <Select options={parentOptions} disabled={parentLocked} />
           </Form.Item>
-          <Form.Item name="retentionYears" label="默认保管期限（年，留空表示长期）">
+          <Form.Item name="retentionYears" label={t('archive.category.retentionLabel')}>
             <InputNumber min={1} max={100} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="securityLevel" label="默认密级">
-            <Select options={SECURITY_OPTIONS} />
+          <Form.Item name="securityLevel" label={t('archive.category.securityLevel')}>
+            <Select options={securityOptions(t)} />
           </Form.Item>
-          <Form.Item name="sort" label="排序号">
+          <Form.Item name="sort" label={t('archive.category.sort')}>
             <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="status" label="状态">
-            <Select
-              options={[
-                { label: '启用', value: 1 },
-                { label: '停用', value: 0 },
-              ]}
-            />
+          <Form.Item name="status" label={t('archive.common.status')}>
+            <Select options={enabledOptions(t)} />
           </Form.Item>
         </Form>
       </Modal>

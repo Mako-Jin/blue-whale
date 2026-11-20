@@ -1,5 +1,6 @@
 package com.bluewhale.gateway.filter;
 
+import com.bluewhale.gateway.common.GatewayMessageResolver;
 import com.bluewhale.gateway.common.GatewayResponseWriter;
 import com.bluewhale.gateway.config.WhaleGatewayProperties;
 import lombok.extern.slf4j.Slf4j;
@@ -93,7 +94,8 @@ public class ImWsTicketGuardGlobalFilter implements GlobalFilter, Ordered {
      * @return 响应写出完成的信号
      */
     private Mono<Void> unauthorized(ServerWebExchange exchange) {
-        return GatewayResponseWriter.write(exchange, HttpStatus.UNAUTHORIZED, 401, "未认证");
+        return GatewayResponseWriter.write(exchange, HttpStatus.UNAUTHORIZED, 401,
+                GatewayMessageResolver.resolve(exchange, "gateway.auth.unauthorized", "未认证"));
     }
 
     @Override

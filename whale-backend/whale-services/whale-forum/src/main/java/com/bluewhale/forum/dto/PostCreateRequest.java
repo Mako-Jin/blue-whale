@@ -19,7 +19,7 @@ public class PostCreateRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 正文（富文本源码，服务端消毒） */
-    @NotBlank(message = "回复内容不能为空")
+    @NotBlank(message = "{validation.forum.post.content-required}")
     private String content;
 
     /** 引用楼层ID（可空） */

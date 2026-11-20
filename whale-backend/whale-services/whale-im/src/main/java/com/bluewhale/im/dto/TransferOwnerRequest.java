@@ -12,6 +12,6 @@ import lombok.Data;
 public class TransferOwnerRequest {
 
     /** 新群主用户ID（必须是群成员） */
-    @NotNull(message = "targetUserId 不能为空")
+    @NotNull(message = "{validation.im.transfer.target-user-id-required}")
     private Long targetUserId;
 }

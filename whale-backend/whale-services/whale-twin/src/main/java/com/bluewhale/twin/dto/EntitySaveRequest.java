@@ -14,13 +14,13 @@ import lombok.Data;
 public class EntitySaveRequest {
 
     /** 实体编码（场景内唯一，如 boiler-01） */
-    @NotBlank(message = "实体编码不能为空")
-    @Pattern(regexp = "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$", message = "编码须为字母开头的字母/数字/下划线/中划线，1-64 位")
+    @NotBlank(message = "{validation.twin.entity.code-required}")
+    @Pattern(regexp = "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$", message = "{validation.twin.entity.code-pattern}")
     private String entityCode;
 
     /** 实体名称 */
-    @NotBlank(message = "实体名称不能为空")
-    @Size(max = 128, message = "名称最长 128 字")
+    @NotBlank(message = "{validation.twin.entity.name-required}")
+    @Size(max = 128, message = "{validation.twin.entity.name-size}")
     private String name;
 
     /** 父节点ID（可空表示根节点；更新时用于移动节点） */
@@ -30,11 +30,11 @@ public class EntitySaveRequest {
     private Long modelFileId;
 
     /** 变换 JSON 字符串（position/rotation/scale，可空） */
-    @Size(max = 8192, message = "变换 JSON 最长 8192 字符")
+    @Size(max = 8192, message = "{validation.twin.entity.transform-size}")
     private String transformJson;
 
     /** 实体级扩展配置 JSON 字符串（可空） */
-    @Size(max = 8192, message = "扩展配置 JSON 最长 8192 字符")
+    @Size(max = 8192, message = "{validation.twin.entity.extra-config-size}")
     private String extraConfig;
 
     /** 同级排序号（缺省 0） */

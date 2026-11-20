@@ -79,7 +79,7 @@ public class FileShareController implements FileShareApi {
     public ResponseEntity<Resource> download(String token, String password, String range, String ifRange) {
         FileShareAccessResult access = fileShareService.access(token, password);
         if (access.needPassword()) {
-            throw new BizException(ErrorCode.FORBIDDEN.getCode(), "需要分享密码");
+            throw new BizException(ErrorCode.FORBIDDEN.getCode(), "file.share.password-required", "需要分享密码");
         }
         return FileContentResponses.build(access.file(), false, range, ifRange,
                 new FileContentResponses.ContentSource() {

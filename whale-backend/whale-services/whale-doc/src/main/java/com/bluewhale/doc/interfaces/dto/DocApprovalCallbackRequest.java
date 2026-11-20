@@ -16,11 +16,11 @@ public class DocApprovalCallbackRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 流程实例ID */
-    @NotNull(message = "流程实例ID不能为空")
+    @NotNull(message = "{validation.doc.approval.instance-id-required}")
     private Long instanceId;
 
     /** 流程状态：1 通过 / 2 驳回 / 3 撤销 */
-    @NotNull(message = "流程状态不能为空")
+    @NotNull(message = "{validation.doc.approval.status-required}")
     private Integer status;
 
     /** 审批意见（可选，仅记录日志） */

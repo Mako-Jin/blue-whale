@@ -40,10 +40,10 @@ public class SpringSecurityCredentialAuthenticator implements CredentialAuthenti
             // 专用异常类型：只有「口令错」计入登录失败次数（账号停用不计，避免把停用账号当爆破）
             throw new InvalidCredentialException("用户名或密码错误");
         } catch (DisabledException e) {
-            throw new BizException(401, "账号已停用");
+            throw new BizException(401, "auth.session.account-disabled", "账号已停用");
         } catch (AuthenticationException e) {
             log.warn("认证失败: tenantId={}, username={}, reason={}", tenantId, username, e.getMessage());
-            throw new BizException(401, "认证失败");
+            throw new BizException(401, "auth.user.authentication-failed", "认证失败");
         } finally {
             LoginTenantContext.clear();
         }

@@ -2,6 +2,7 @@ package com.bluewhale.twin.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.twin.dto.MarkerSaveRequest;
 import com.bluewhale.twin.dto.MarkerVO;
 import com.bluewhale.twin.entity.TwinEntity;
@@ -135,7 +136,7 @@ public class TwinMarkerService {
     private TwinMarker requireInScene(Long sceneId, Long id) {
         TwinMarker marker = markerMapper.selectById(id);
         if (marker == null || !sceneId.equals(marker.getSceneId())) {
-            throw new BizException("标注不存在或不属于当前场景");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.marker.not-found", "标注不存在或不属于当前场景");
         }
         return marker;
     }
@@ -150,7 +151,8 @@ public class TwinMarkerService {
     private TwinEntity requireEntityInScene(Long sceneId, Long entityId) {
         TwinEntity entity = entityMapper.selectById(entityId);
         if (entity == null || !sceneId.equals(entity.getSceneId())) {
-            throw new BizException("挂靠实体不存在或不属于当前场景");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.marker.entity-not-found",
+                    "挂靠实体不存在或不属于当前场景");
         }
         return entity;
     }
@@ -167,12 +169,13 @@ public class TwinMarkerService {
         try {
             JsonNode node = JSON.readTree(positionJson);
             if (!node.isObject()) {
-                throw new BizException("坐标必须是 JSON 对象（含 x/y/z）");
+                throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.marker.position-not-object",
+                        "坐标必须是 JSON 对象（含 x/y/z）");
             }
         } catch (BizException e) {
             throw e;
         } catch (Exception e) {
-            throw new BizException("坐标不是合法 JSON");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.marker.position-invalid", "坐标不是合法 JSON");
         }
     }
 

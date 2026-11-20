@@ -70,7 +70,7 @@ public class SessionManageAppServiceImpl implements SessionManageAppService {
     @Transactional(rollbackFor = Exception.class)
     public void revokeSession(String jti) {
         RefreshTokenRecord record = sessionLedgerRepository.findRefreshTokenByJti(jti)
-                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "会话不存在或已结束"));
+                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "auth.session.not-found", "会话不存在或已结束"));
         ensureSameTenant(record.getTenantId());
         record.revoke(com.bluewhale.auth.domain.model.entity.RefreshTokenRecord.REASON_ADMIN_REVOKE);
         sessionLedgerRepository.saveRefreshToken(record);
@@ -139,7 +139,7 @@ public class SessionManageAppServiceImpl implements SessionManageAppService {
     @Transactional(rollbackFor = Exception.class)
     public void changeDeviceTrust(Long deviceId, boolean trusted) {
         DeviceRecord device = sessionLedgerRepository.findDeviceById(deviceId)
-                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "设备不存在"));
+                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "auth.session.device-not-found", "设备不存在"));
         ensureSameTenant(device.getTenantId());
         if (trusted) {
             device.markTrusted();
@@ -177,7 +177,7 @@ public class SessionManageAppServiceImpl implements SessionManageAppService {
     private void ensureSameTenant(Long recordTenantId) {
         Long currentTenantId = currentUserProvider.current().tokenTenantId();
         if (!currentTenantId.equals(recordTenantId)) {
-            throw new BizException(ErrorCode.FORBIDDEN, "无权操作其他租户的会话");
+            throw new BizException(ErrorCode.FORBIDDEN, "auth.session.other-tenant-forbidden", "无权操作其他租户的会话");
         }
     }
 }

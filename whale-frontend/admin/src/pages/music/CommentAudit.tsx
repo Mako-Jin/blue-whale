@@ -12,12 +12,7 @@ import {
   type CommentStatus,
   type CommentView,
 } from '../../api/music';
-
-const STATUS_OPTIONS: { value: CommentStatus; label: string }[] = [
-  { value: 'PENDING', label: '待审核' },
-  { value: 'VISIBLE', label: '可见' },
-  { value: 'HIDDEN', label: '已隐藏' },
-];
+import { useI18n } from '../../i18n';
 
 /** 状态标签颜色 */
 const STATUS_COLORS: Record<CommentStatus, string> = {
@@ -28,20 +23,27 @@ const STATUS_COLORS: Record<CommentStatus, string> = {
 
 export default function CommentAudit() {
   const { message } = App.useApp();
+  const { t } = useI18n();
   const tableRef = useRef<ProTableRef>(null);
 
   const [status, setStatus] = useState<CommentStatus | undefined>(undefined);
   const [keyword, setKeyword] = useState<string | undefined>(undefined);
   const [actingId, setActingId] = useState<string | undefined>(undefined);
 
+  const statusOptions: { value: CommentStatus; label: string }[] = [
+    { value: 'PENDING', label: t('music.comment.status.pending') },
+    { value: 'VISIBLE', label: t('music.comment.status.visible') },
+    { value: 'HIDDEN', label: t('music.comment.status.hidden') },
+  ];
+
   const handleApprove = async (row: CommentView) => {
     setActingId(row.id);
     try {
       await approveComment(row.id);
-      message.success('评论已通过审核');
+      message.success(t('music.comment.msg.approved'));
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '操作失败');
+      message.error(error instanceof Error ? error.message : t('music.comment.msg.opFailed'));
     } finally {
       setActingId(undefined);
     }
@@ -51,10 +53,10 @@ export default function CommentAudit() {
     setActingId(row.id);
     try {
       await hideComment(row.id);
-      message.success('评论已隐藏');
+      message.success(t('music.comment.msg.hidden'));
       tableRef.current?.reload();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '操作失败');
+      message.error(error instanceof Error ? error.message : t('music.comment.msg.opFailed'));
     } finally {
       setActingId(undefined);
     }
@@ -63,38 +65,41 @@ export default function CommentAudit() {
   const columns: TableProps<CommentView>['columns'] = [
     { title: 'ID', dataIndex: 'id', width: 90 },
     {
-      title: '歌曲',
+      title: t('music.comment.col.song'),
       dataIndex: 'songTitle',
       width: 160,
-      render: (value: string, row) => value ?? `歌曲 ${row.songId}`,
+      render: (value: string, row) =>
+        value ?? t('music.comment.col.songFallback', { id: row.songId }),
     },
-    { title: '用户', dataIndex: 'userId', width: 90 },
+    { title: t('music.comment.col.user'), dataIndex: 'userId', width: 90 },
     {
-      title: '评论正文',
+      title: t('music.comment.col.content'),
       dataIndex: 'content',
       render: (value: string, row) => (
         <Typography.Paragraph
           style={{ marginBottom: 0, maxWidth: 420 }}
-          ellipsis={{ rows: 2, expandable: true, symbol: '展开' }}
+          ellipsis={{ rows: 2, expandable: true, symbol: t('music.common.expand') }}
         >
           {/* parentId 运行时为字符串，根评论为 '0'（非空串，需显式判断） */}
-          {row.parentId && row.parentId !== '0' ? `回复 #${row.parentId}：${value}` : value}
+          {row.parentId && row.parentId !== '0'
+            ? t('music.comment.reply', { id: row.parentId, content: value })
+            : value}
         </Typography.Paragraph>
       ),
     },
     {
-      title: '状态',
+      title: t('music.comment.col.state'),
       dataIndex: 'status',
       width: 100,
       render: (value: CommentStatus) => (
         <Tag color={STATUS_COLORS[value] ?? 'default'}>
-          {STATUS_OPTIONS.find((item) => item.value === value)?.label ?? value}
+          {statusOptions.find((item) => item.value === value)?.label ?? value}
         </Tag>
       ),
     },
-    { title: '评论时间', dataIndex: 'createTime', width: 170 },
+    { title: t('music.comment.col.createTime'), dataIndex: 'createTime', width: 170 },
     {
-      title: '操作',
+      title: t('music.common.action'),
       key: 'actions',
       width: 180,
       render: (_value, row) => (
@@ -107,14 +112,14 @@ export default function CommentAudit() {
               loading={actingId === row.id}
               onClick={() => handleApprove(row)}
             >
-              通过
+              {t('music.comment.action.approve')}
             </AuthButton>
           )}
           {row.status !== 'HIDDEN' && (
             <Popconfirm
-              title="隐藏后用户将立即看不到该评论"
-              okText="隐藏"
-              cancelText="取消"
+              title={t('music.comment.confirm.hide')}
+              okText={t('music.comment.action.hide')}
+              cancelText={t('music.common.cancel')}
               onConfirm={() => handleHide(row)}
             >
               <AuthButton
@@ -124,7 +129,7 @@ export default function CommentAudit() {
                 danger
                 loading={actingId === row.id}
               >
-                隐藏
+                {t('music.comment.action.hide')}
               </AuthButton>
             </Popconfirm>
           )}
@@ -137,30 +142,36 @@ export default function CommentAudit() {
     <ProTable<CommentView, CommentAuditQuery>
       ref={tableRef}
       rowKey="id"
-      title="评论审核"
+      title={t('music.comment.title')}
       columns={columns}
       request={pageCommentAudit}
       params={{ status, keyword }}
-      onError={(error) => message.error(error instanceof Error ? error.message : '评论加载失败')}
+      onError={(error) =>
+        message.error(
+          error instanceof Error ? error.message : t('music.comment.msg.listLoadFailed'),
+        )
+      }
       search={
         <SearchForm
           items={[
             {
               name: 'status',
-              label: '状态',
+              label: t('music.comment.search.state'),
               element: (
                 <Select
                   allowClear
-                  placeholder="全部状态"
+                  placeholder={t('music.comment.search.allStates')}
                   style={{ minWidth: 140 }}
-                  options={STATUS_OPTIONS}
+                  options={statusOptions}
                 />
               ),
             },
             {
               name: 'keyword',
-              label: '关键词',
-              element: <Input allowClear placeholder="评论正文" />,
+              label: t('music.comment.search.keyword'),
+              element: (
+                <Input allowClear placeholder={t('music.comment.search.keywordPlaceholder')} />
+              ),
             },
           ]}
           onSearch={(values) => {

@@ -62,17 +62,20 @@ public final class ProviderHttp {
                     .retrieve()
                     .body(String.class);
             if (body == null || body.isBlank()) {
-                throw new BizException(MapErrorCode.PROVIDER_FAILED, provider + " 返回空响应");
+                throw new BizException(MapErrorCode.PROVIDER_FAILED, "map.provider.http.empty-body",
+                        provider + " 返回空响应", provider);
             }
             return MAPPER.readTree(body);
         } catch (BizException ex) {
             throw ex;
         } catch (RestClientException ex) {
-            throw new BizException(MapErrorCode.PROVIDER_FAILED,
-                    provider + " 调用失败（" + ex.getClass().getSimpleName() + "），路径 " + path);
+            throw new BizException(MapErrorCode.PROVIDER_FAILED, "map.provider.http.call-failed",
+                    provider + " 调用失败（" + ex.getClass().getSimpleName() + "），路径 " + path,
+                    provider, ex.getClass().getSimpleName(), path);
         } catch (Exception ex) {
-            throw new BizException(MapErrorCode.PROVIDER_FAILED,
-                    provider + " 响应解析失败（" + ex.getClass().getSimpleName() + "）");
+            throw new BizException(MapErrorCode.PROVIDER_FAILED, "map.provider.http.parse-failed",
+                    provider + " 响应解析失败（" + ex.getClass().getSimpleName() + "）",
+                    provider, ex.getClass().getSimpleName());
         }
     }
 

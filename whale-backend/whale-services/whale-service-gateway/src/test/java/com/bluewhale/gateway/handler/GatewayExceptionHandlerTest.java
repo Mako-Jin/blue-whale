@@ -3,6 +3,7 @@ package com.bluewhale.gateway.handler;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.cloud.gateway.support.NotFoundException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 import org.springframework.mock.web.server.MockServerWebExchange;
@@ -41,6 +42,18 @@ class GatewayExceptionHandlerTest {
 
         assertEquals(HttpStatus.NOT_FOUND, exchange.getResponse().getStatusCode());
         assertEquals("{\"code\":404,\"message\":\"路由不存在\",\"data\":null}",
+                exchange.getResponse().getBodyAsString().block());
+    }
+
+    @Test
+    @DisplayName("handle：Accept-Language en-US → 英文路由不存在文案")
+    void shouldLocalizeRouteNotFoundMessage() {
+        MockServerWebExchange exchange = MockServerWebExchange.from(
+                MockServerHttpRequest.get(PATH).header(HttpHeaders.ACCEPT_LANGUAGE, "en-US").build());
+
+        handler.handle(exchange, new NotFoundException("Unable to find instance")).block();
+
+        assertEquals("{\"code\":404,\"message\":\"Route not found\",\"data\":null}",
                 exchange.getResponse().getBodyAsString().block());
     }
 

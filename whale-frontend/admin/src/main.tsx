@@ -6,6 +6,7 @@ import { App as AntdApp } from 'antd';
 import { ThemeProvider } from '@bluewhale/whale-common-theme';
 import { initAuditLogging } from '@bluewhale/whale-log-sdk';
 import App from './App';
+import { I18nProvider, AntdLocaleProvider } from './i18n';
 import { bootstrapAuth } from './api/token';
 import { setReauthPrompt } from './api/client';
 import { promptReauth } from './api/reauth';
@@ -23,15 +24,19 @@ const API_BASE: string = import.meta.env.VITE_API_BASE_URL ?? '';
 bootstrapAuth(API_BASE).finally(() => {
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
-      <ThemeProvider>
-        <AntdApp>
-          <BrowserRouter>
-            <ErrorBoundary>
-              <App />
-            </ErrorBoundary>
-          </BrowserRouter>
-        </AntdApp>
-      </ThemeProvider>
+      <I18nProvider>
+        <ThemeProvider>
+          <AntdLocaleProvider>
+            <AntdApp>
+              <BrowserRouter>
+                <ErrorBoundary>
+                  <App />
+                </ErrorBoundary>
+              </BrowserRouter>
+            </AntdApp>
+          </AntdLocaleProvider>
+        </ThemeProvider>
+      </I18nProvider>
     </React.StrictMode>,
   );
 });

@@ -30,12 +30,12 @@ public final class TenantResolver {
     public static Long resolve(HttpServletRequest request) {
         String raw = WebHeaders.tenantId(request);
         if (!StringUtils.hasText(raw)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "缺少租户上下文");
+            throw new BizException(ErrorCode.PARAM_ERROR, "form.common.tenant-context-missing", "缺少租户上下文");
         }
         try {
             return Long.parseLong(raw.trim());
         } catch (NumberFormatException e) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "租户ID格式非法");
+            throw new BizException(ErrorCode.PARAM_ERROR, "form.common.tenant-id-invalid", "租户ID格式非法");
         }
     }
 }

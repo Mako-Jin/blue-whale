@@ -16,35 +16,35 @@ import lombok.Data;
 public class ArchiveCategorySaveRequest {
 
     /** 门类编码（业务唯一） */
-    @NotBlank(message = "门类编码不能为空")
-    @Size(max = 32, message = "门类编码长度不能超过 32")
-    @Pattern(regexp = "^[A-Za-z0-9_]+$", message = "门类编码仅允许字母、数字与下划线")
+    @NotBlank(message = "{validation.archive.category.code-required}")
+    @Size(max = 32, message = "{validation.archive.category.code-size}")
+    @Pattern(regexp = "^[A-Za-z0-9_]+$", message = "{validation.archive.category.code-pattern}")
     private String code;
 
     /** 门类名称 */
-    @NotBlank(message = "门类名称不能为空")
-    @Size(max = 128, message = "门类名称长度不能超过 128")
+    @NotBlank(message = "{validation.archive.category.name-required}")
+    @Size(max = 128, message = "{validation.archive.category.name-size}")
     private String name;
 
     /** 上级门类ID（0 表示根节点） */
-    @Min(value = 0, message = "上级门类ID不能为负数")
+    @Min(value = 0, message = "{validation.archive.category.parent-id-min}")
     private Long parentId = 0L;
 
     /** 默认保管期限（年；空表示长期） */
-    @Min(value = 1, message = "保管期限必须大于 0 年")
+    @Min(value = 1, message = "{validation.archive.category.retention-years-min}")
     private Integer retentionYears;
 
     /** 密级：1 公开 / 2 内部 / 3 秘密 */
-    @Min(value = 1, message = "密级取值范围为 1-3")
-    @Max(value = 3, message = "密级取值范围为 1-3")
+    @Min(value = 1, message = "{validation.archive.category.security-level-range}")
+    @Max(value = 3, message = "{validation.archive.category.security-level-range}")
     private Integer securityLevel = 2;
 
     /** 排序号 */
-    @Min(value = 0, message = "排序号不能为负数")
+    @Min(value = 0, message = "{validation.archive.category.sort-min}")
     private Integer sort = 0;
 
     /** 状态：1 启用 / 0 停用 */
-    @Min(value = 0, message = "状态取值范围为 0-1")
-    @Max(value = 1, message = "状态取值范围为 0-1")
+    @Min(value = 0, message = "{validation.archive.category.status-range}")
+    @Max(value = 1, message = "{validation.archive.category.status-range}")
     private Integer status = 1;
 }

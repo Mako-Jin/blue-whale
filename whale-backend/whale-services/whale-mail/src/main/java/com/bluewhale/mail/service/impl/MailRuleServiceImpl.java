@@ -103,7 +103,7 @@ public class MailRuleServiceImpl implements MailRuleService {
         accountService.requireOwned(resolved, userId);
         MailRule rule = request.getId() == null ? new MailRule() : requireOwned(request.getId(), userId);
         if (request.getId() != null && !Objects.equals(rule.getAccountId(), resolved)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "规则不属于该邮箱账号");
+            throw new BizException(ErrorCode.PARAM_ERROR, "mail.rule.not-owned", "规则不属于该邮箱账号");
         }
         rule.setAccountId(resolved);
         rule.setName(request.getName() == null ? "" : request.getName().trim());
@@ -341,16 +341,18 @@ public class MailRuleServiceImpl implements MailRuleService {
      */
     private void validate(MailRule rule) {
         if (!StringUtils.hasText(rule.getName())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "规则名称不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "mail.rule.name-empty", "规则名称不能为空");
         }
         if (rule.getName().length() > MAX_NAME_LENGTH) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "规则名称过长");
+            throw new BizException(ErrorCode.PARAM_ERROR, "mail.rule.name-too-long", "规则名称过长");
         }
         if (!hasCondition(rule)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "至少需要一个匹配条件，否则会命中所有邮件");
+            throw new BizException(ErrorCode.PARAM_ERROR, "mail.rule.condition-required",
+                    "至少需要一个匹配条件，否则会命中所有邮件");
         }
         if (!hasAction(rule)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "至少需要一个动作，否则规则不产生任何效果");
+            throw new BizException(ErrorCode.PARAM_ERROR, "mail.rule.action-required",
+                    "至少需要一个动作，否则规则不产生任何效果");
         }
         if (rule.getActionFolderId() != null) {
             validateTargetFolder(rule);
@@ -393,11 +395,12 @@ public class MailRuleServiceImpl implements MailRuleService {
     private void validateTargetFolder(MailRule rule) {
         MailFolder folder = folderMapper.selectById(rule.getActionFolderId());
         if (folder == null || !Objects.equals(folder.getAccountId(), rule.getAccountId())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "目标文件夹不存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "mail.rule.target-folder-not-found", "目标文件夹不存在");
         }
         if (FOLDER_TRASH.equals(folder.getFolderCode())) {
             // 删信必须是人点的动作：规则一旦能静默丢回收站，误配的后果是「邮件莫名消失」
-            throw new BizException(ErrorCode.PARAM_ERROR, "不能把规则目标设为回收站，删除需手动操作");
+            throw new BizException(ErrorCode.PARAM_ERROR, "mail.rule.trash-target-forbidden",
+                    "不能把规则目标设为回收站，删除需手动操作");
         }
     }
 
@@ -411,7 +414,8 @@ public class MailRuleServiceImpl implements MailRuleService {
                 .eq(MailRule::getAccountId, accountId));
         int limit = properties.getRule().getMaxRulesPerAccount();
         if (count != null && count >= limit) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "规则数量已达上限 " + limit + " 条");
+            throw new BizException(ErrorCode.PARAM_ERROR, "mail.rule.limit-exceeded",
+                    "规则数量已达上限 " + limit + " 条", limit);
         }
     }
 
@@ -425,7 +429,7 @@ public class MailRuleServiceImpl implements MailRuleService {
     private MailRule requireOwned(Long id, Long userId) {
         MailRule rule = ruleMapper.selectById(id);
         if (rule == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "规则不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "mail.rule.not-found", "规则不存在");
         }
         accountService.requireOwned(rule.getAccountId(), userId);
         return rule;

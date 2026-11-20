@@ -3,9 +3,10 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { createSceneEnv } from './env';
 import type { SceneAssets } from './loader';
 import { createPostFx } from './postfx';
-import { alleySpots, buildSettlement, lanternSpots, windTime } from './props';
+import { GATE_PLAQUE_ANCHOR, WALL_X, alleySpots, buildSettlement, lanternSpots, windTime } from './props';
+import { createGatePlaque } from './plaque';
 import { createSky, type SkyState } from './sky';
-import { createTerrain, heightAt } from './terrain';
+import { createTerrain, heightAt, GATE_ROAD_Y } from './terrain';
 import { createFarRidges } from './ridges';
 import { tuneSurfaces } from './textures';
 import { createWater } from './water';
@@ -26,7 +27,7 @@ export interface SceneStats {
 
 export type TimeName = 'dusk' | 'day' | 'blue' | 'night';
 export type Quality = 'high' | 'mid' | 'low';
-export type PresetName = 'overview' | 'bridge' | 'street' | 'dock' | 'shop' | 'alley' | 'roofs' | 'bank';
+export type PresetName = 'overview' | 'bridge' | 'street' | 'dock' | 'shop' | 'alley' | 'roofs' | 'bank' | 'gate' | 'moon';
 
 interface TimePreset {
   /** 太阳高度角（度） */
@@ -197,7 +198,12 @@ const TIMES: Record<TimeName, TimePreset> = {
     stars: 0.3,
   },
   night: {
-    sunElev: 34,
+    // 34 → 16（S32）：月盘要入画。全景机位上缘仰角只有 +4°（S25 教训），
+    // 城门机位（08c）上缘 +19°——月亮降到 16° 才落进城门夜景的画框，
+    // 悬在城墙上方。方位 250 不动：月路走向（= 方位角水平投影）是 S27
+    // 调好的"从桥前铺进可见河段"，只降仰角不动方位，路径不变、
+    // 只是更掠射（碎金更拖长），出图后再验。
+    sunElev: 16,
     // 62 → 250（S27）：碎金路径在水面上的走向 = 月亮方位角的水平投影。
     // azim 62 时整条路径在相机背后；试 205 仍差 52°（超全景机位水平半视场
     // 30.6°）。全景视线方位 ≈254°，月方位给 250 → 路径从桥前一直铺进
@@ -293,6 +299,37 @@ const CAMERAS: Record<PresetName, CameraPreset> = {
    * 验收地被必须有一个真正贴地的机位，否则这一层改了也看不见。</p>
    */
   bank: { pos: [-19, 6.4, -31], target: [-5.5, 0.9, -12.5], fov: 46 },
+  /**
+   * 城门（S30）。
+   *
+   * <p>站在桥头广场东侧、门洞轴线南侧几步斜看。第一版站在广场西南
+   * （15.5,11.5）——z=12.4 的铺面把右半屏连屋带墙全挡了，只能看到
+   * 城门的一只角。退到广场里侧（22.5,8.5）距离门洞 9m，铺面退到
+   * 画面外，券门、拱圈石、城楼两坡顶与北端敌台的接缝全进画面。</p>
+   */
+  /**
+   * 城门（S30）。
+   *
+   * <p>从城外东郊看城门的外脸——唯一能同时验收"外侧门脸 + 出城道路
+   * 爬坡 + 城台与两侧城墙接缝"的角度。城内视角两个坑都实测过：
+   * ① 相机低于目标点会被 controls.maxPolarAngle 抬成平射（pos y=4 /
+   * target 6.2 → clamp 成 6.3），视线正好怼上铺面二楼挑檐；② z=12.4
+   * 铺面的挑檐西北角（x≈20.5、z≈8.9）戳在广场到城门的视线带上，
+   * 广场里任何机位右半屏都是它；再退又被牌坊（17.9,2）堵死前景。
+   * 城内的门脸交给桥头机位（08d），本机位走城外。</p>
+   */
+  gate: { pos: [50, 8.5, 12], target: [30, 7, 1.5], fov: 46 },
+  /**
+   * 月夜（S32）。
+   *
+   * <p>东岸驳岸上空、贴水朝西偏南看：月亮（night 预设 azim 250 / elev 16）
+   * 悬在河湾尽头，视线方位与月亮方位严格对齐——月光路从地平线直铺镜头。
+   * 月盘入画的其他路都不通：全景机位上缘仰角只有 +4°；**西侧任何机位朝
+   * azim 250 看都是朝内陆**（射线 x 分量一路减，立刻出河上岸——首版水埠、
+   * 二版桥面两个实拍都只拍到田垄村树），只有从河东侧朝 250 看，射线才能
+   * 沿河槽铺 40m+。涟漪源（东岸浅滩）在视线正前方，桥拱在画面外右侧。</p>
+   */
+  moon: { pos: [10.8, 3.0, 8.0], target: [3.96, 8.73, -10.8], fov: 44 },
 };
 
 export function sunDirection(p: TimePreset): THREE.Vector3 {
@@ -520,6 +557,43 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
     alleyLights.push(light);
   }
 
+  /*
+   * 城门壁灯（S30）。
+   *
+   * <p>门洞两侧各一盏，高度从门洞底（GATE_ROAD_Y）起算——门洞这一段地形
+   * 被城门道掩模重塑过，直接查 heightAt 会拿到路肩的过渡值。与巷灯同理
+   * 独立成数组：lanternLights 同时喂给 water.setLamps 算倒影，城门离河
+   * 25m，倒影是假的。</p>
+   */
+  const gateLights: THREE.PointLight[] = [];
+  for (const sx of [-1, 1]) {
+    for (const dz of [-2.2, 2.2]) {
+      const light = new THREE.PointLight(0xff9d52, 0, 10, 2);
+      // 城内外两面各一对：外脸夜里没有灯就是一块纯黑剪影（S30 首轮夜景实测）
+      light.position.set(WALL_X + sx * 3.4, GATE_ROAD_Y + 2.5, 2 + dz);
+      light.castShadow = false;
+      scene.add(light);
+      gateLights.push(light);
+    }
+  }
+  // 檐下灯笼点光（S31 起，S32 补内脸一对）：照亮城楼两脸与匾额。半径
+  // 放宽到 16——灯挂在 x=±2.5，要够到 x≈0 附近的楼身，壁灯 10 的半径罩不满整脸
+  for (const sx of [-1, 1]) {
+    for (const dz of [-3.5, 3.5]) {
+      const light = new THREE.PointLight(0xff9d52, 0, 16, 2);
+      light.position.set(WALL_X + sx * 3.1, 11.6, 2 + dz);
+      light.castShadow = false;
+      scene.add(light);
+      gateLights.push(light);
+    }
+  }
+
+  // 城楼匾额（S31）：檐下金字「朝陽門」，两面各一——城外机位看 +X 面，
+  // 桥头机位看 −X 面，两面读字都正立不镜像
+  const gatePlaque = createGatePlaque();
+  gatePlaque.position.set(GATE_PLAQUE_ANCHOR.x, GATE_PLAQUE_ANCHOR.y, GATE_PLAQUE_ANCHOR.z);
+  scene.add(gatePlaque);
+
   // 地面光斑：程序化径向渐变，避免再引一张贴图资产
   const glowCanvas = document.createElement('canvas');
   glowCanvas.width = glowCanvas.height = 128;
@@ -582,7 +656,12 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
       ground: new THREE.Color(p.skyGround),
       sunDir,
       sunColor: new THREE.Color(p.sunColor),
-      sunIntensity: p.sunIntensity > 0.3 ? 1 : 0.15,
+      // 天空的日/月强度：白天与黄昏 1；夜里（0.3 < intensity < 1 的只有
+      // night）压到 0.3。夜里映射成 1 时 pow(sd,220)*2.4 的日盘项会在月亮
+      // 方位炸出一团比月盘大十倍的光斑，还把 moonK 门（uSunIntensity<1）
+      // 顶死——月盘 shader 整个不执行，"月亮"其实一直是这团泄漏的日晕
+      // （S33 实测，S32 存档里的月亮同源）。
+      sunIntensity: p.sunIntensity > 1.0 ? 1 : p.sunIntensity > 0.3 ? 0.3 : 0.15,
       haze: p.haze,
       cloud: p.cloud,
       cloudLight: p.cloudLight,
@@ -603,6 +682,7 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
     for (const l of lanternLights) l.intensity = 26 * (p.lamp - 0.1);
     // 巷灯比街灯弱一档：巷子只有 2.8m 宽，26 candela 会把两侧白墙打爆
     for (const l of alleyLights) l.intensity = 9 * (p.lamp - 0.1);
+    for (const l of gateLights) l.intensity = 9 * (p.lamp - 0.1);
     // 水面倒影的灯位与亮度：与点光源同源，灯亮水亮
     water.setLamps(
       lanternLights.map((l) => l.position),
@@ -701,6 +781,12 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
   }
   const ro = new ResizeObserver(resize);
   ro.observe(host);
+
+  // dev 调试句柄：截图探针（e2e/tools/probe-gate.mjs）从画面任意像素发射线
+  // 查"挡视线的是什么"。生产构建 tree-shake 不掉也只是一次赋值，无副作用。
+  if (import.meta.env.DEV) {
+    (window as unknown as Record<string, unknown>).__bwScene = { scene, camera, controls };
+  }
 
   return {
     setTime(name) {

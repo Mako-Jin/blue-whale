@@ -23,6 +23,7 @@ import {
   type DeptPayload,
   type DeptVO,
 } from '../../api/dept';
+import { useI18n } from '../../i18n';
 
 interface DeptFormValues {
   /** 后端 Long 序列化为字符串 */
@@ -46,6 +47,7 @@ function flattenDepts(nodes: DeptVO[], acc: DeptVO[] = []): DeptVO[] {
 export default function DeptList() {
   const { message } = App.useApp();
   const { has } = usePermission();
+  const { t } = useI18n();
 
   const [depts, setDepts] = useState<DeptVO[]>([]);
   const [loading, setLoading] = useState(false);
@@ -59,7 +61,7 @@ export default function DeptList() {
     try {
       setDepts(await treeDepts());
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '部门加载失败');
+      message.error(error instanceof Error ? error.message : t('dept.msg.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -73,10 +75,10 @@ export default function DeptList() {
   const handleDelete = async (row: DeptVO) => {
     try {
       await deleteDept(row.id);
-      message.success('部门已删除');
+      message.success(t('dept.msg.deleted'));
       void load();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '删除失败');
+      message.error(error instanceof Error ? error.message : t('dept.msg.deleteFailed'));
     }
   };
 
@@ -85,15 +87,21 @@ export default function DeptList() {
       const payload: DeptPayload = { ...values, parentId: values.parentId ?? '0' };
       if (editRecord) {
         await updateDept(editRecord.id, payload);
-        message.success('部门已更新');
+        message.success(t('dept.msg.updated'));
       } else {
         await createDept(payload);
-        message.success('部门已创建');
+        message.success(t('dept.msg.created'));
       }
       setEditorOpen(false);
       void load();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : editRecord ? '更新失败' : '创建失败');
+      message.error(
+        error instanceof Error
+          ? error.message
+          : editRecord
+            ? t('dept.msg.updateFailed')
+            : t('dept.msg.createFailed'),
+      );
       throw error;
     }
   };
@@ -103,22 +111,22 @@ export default function DeptList() {
     .map((dept) => ({ value: dept.id, label: dept.deptName }));
 
   const columns: TableProps<DeptVO>['columns'] = [
-    { title: '部门名称', dataIndex: 'deptName', width: 240 },
+    { title: t('dept.col.name'), dataIndex: 'deptName', width: 240 },
     {
-      title: '负责人',
+      title: t('dept.col.leader'),
       dataIndex: 'leader',
       width: 140,
       render: (value: string | undefined) => value ?? '-',
     },
-    { title: '排序', dataIndex: 'sort', width: 80 },
+    { title: t('dept.col.sort'), dataIndex: 'sort', width: 80 },
     {
-      title: '创建时间',
+      title: t('dept.col.createTime'),
       dataIndex: 'createTime',
       width: 180,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '操作',
+      title: t('dept.col.action'),
       key: 'action',
       width: 160,
       render: (_, row) => (
@@ -132,12 +140,12 @@ export default function DeptList() {
               setEditorOpen(true);
             }}
           >
-            编辑
+            {t('dept.action.edit')}
           </AuthButton>
           {has('sys:dept:delete') && (
-            <Popconfirm title="确认删除该部门？" onConfirm={() => void handleDelete(row)}>
+            <Popconfirm title={t('dept.confirm.delete')} onConfirm={() => void handleDelete(row)}>
               <Button type="link" size="small" danger>
-                删除
+                {t('dept.action.delete')}
               </Button>
             </Popconfirm>
           )}
@@ -157,7 +165,7 @@ export default function DeptList() {
         expandable={{ defaultExpandAllRows: true }}
         title={() => (
           <Space>
-            <span>部门列表</span>
+            <span>{t('dept.list.title')}</span>
             <AuthButton
               perm="sys:dept:add"
               type="primary"
@@ -167,7 +175,7 @@ export default function DeptList() {
                 setEditorOpen(true);
               }}
             >
-              新增部门
+              {t('dept.action.create')}
             </AuthButton>
           </Space>
         )}
@@ -175,32 +183,36 @@ export default function DeptList() {
 
       <FormModal<DeptFormValues>
         open={editorOpen}
-        title={editRecord ? `编辑部门：${editRecord.deptName}` : '新增部门'}
+        title={
+          editRecord
+            ? t('dept.form.editTitle', { name: editRecord.deptName })
+            : t('dept.form.createTitle')
+        }
         form={editorForm}
         initialValues={editRecord ?? undefined}
         onOk={handleSubmit}
         onCancel={() => setEditorOpen(false)}
       >
-        <Form.Item name="parentId" label="上级部门">
+        <Form.Item name="parentId" label={t('dept.form.parent')}>
           <Select
             allowClear
             options={parentOptions}
-            placeholder="不选则为顶级部门"
+            placeholder={t('dept.form.parentPlaceholder')}
             showSearch
             optionFilterProp="label"
           />
         </Form.Item>
         <Form.Item
           name="deptName"
-          label="部门名称"
-          rules={[{ required: true, message: '请输入部门名称' }]}
+          label={t('dept.form.name')}
+          rules={[{ required: true, message: t('dept.form.nameRequired') }]}
         >
           <Input />
         </Form.Item>
-        <Form.Item name="sort" label="排序" initialValue={1}>
+        <Form.Item name="sort" label={t('dept.form.sort')} initialValue={1}>
           <InputNumber min={0} style={{ width: '100%' }} />
         </Form.Item>
-        <Form.Item name="leader" label="负责人">
+        <Form.Item name="leader" label={t('dept.form.leader')}>
           <Input />
         </Form.Item>
       </FormModal>

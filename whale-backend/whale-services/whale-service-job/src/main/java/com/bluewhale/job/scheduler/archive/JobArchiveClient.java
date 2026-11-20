@@ -1,6 +1,7 @@
 package com.bluewhale.job.scheduler.archive;
 
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.common.internaltoken.InternalTokenSupport;
 import com.bluewhale.job.config.JobProperties;
@@ -82,7 +83,8 @@ public class JobArchiveClient {
         } catch (BizException e) {
             throw e;
         } catch (Exception e) {
-            throw new BizException("归档上传失败：" + describe(e));
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "job.archive.upload-failed",
+                    "归档上传失败：" + describe(e), describe(e));
         }
     }
 
@@ -95,10 +97,11 @@ public class JobArchiveClient {
      */
     private static FileUploadVO extract(Result<FileUploadVO> result) {
         if (result == null) {
-            throw new BizException("归档上传失败：响应体为空");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "job.archive.upload-empty-body", "归档上传失败：响应体为空");
         }
         if (result.getCode() != SUCCESS_CODE || result.getData() == null) {
-            throw new BizException("归档上传失败：" + result.getMessage());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "job.archive.upload-failed",
+                    "归档上传失败：" + result.getMessage(), result.getMessage());
         }
         return result.getData();
     }

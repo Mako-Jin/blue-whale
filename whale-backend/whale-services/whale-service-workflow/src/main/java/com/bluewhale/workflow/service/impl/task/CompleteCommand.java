@@ -89,7 +89,8 @@ public class CompleteCommand {
     private String resolveAction(String value) {
         String action = StringUtils.hasText(value) ? value.trim().toUpperCase(Locale.ROOT) : ACTION_APPROVE;
         if (!ACTION_APPROVE.equals(action) && !ACTION_REJECT.equals(action)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "不支持的任务动作: " + action);
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.action-unsupported",
+                    "不支持的任务动作: " + action, action);
         }
         return action;
     }
@@ -112,7 +113,7 @@ public class CompleteCommand {
      */
     private void requirePending(Integer status) {
         if (status == null || status != WorkflowConstants.TASK_PENDING) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "任务已处理");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.already-processed", "任务已处理");
         }
     }
 
@@ -143,7 +144,7 @@ public class CompleteCommand {
             log.info("内网完成任务事件幂等返回: taskId={}, eventId={}", id, trimmed);
             return false;
         }
-        throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "任务已处理");
+        throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.already-processed", "任务已处理");
     }
 
     /**
@@ -158,7 +159,7 @@ public class CompleteCommand {
                 .eq(ProcessTaskPo::getId, task.getId())
                 .eq(ProcessTaskPo::getStatus, WorkflowConstants.TASK_PENDING);
         if (processTaskMapper.update(update, wrapper) == 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "任务已处理");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.already-processed", "任务已处理");
         }
     }
 

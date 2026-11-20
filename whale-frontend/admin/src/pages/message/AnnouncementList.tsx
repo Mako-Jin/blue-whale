@@ -20,6 +20,7 @@ import {
   type AnnouncementStatus,
   type AnnouncementVO,
 } from '../../api/message';
+import { useI18n } from '../../i18n';
 
 interface AnnouncementFormValues {
   title: string;
@@ -29,21 +30,22 @@ interface AnnouncementFormValues {
 
 type AnnouncementQuery = { status?: AnnouncementStatus };
 
-const STATUS_OPTIONS = [
-  { value: 'PUBLISHED', label: '已发布' },
-  { value: 'REVOKED', label: '已撤回' },
-];
-
-/** 状态文案与标签颜色 */
-const STATUS_META: Record<AnnouncementStatus, { label: string; color: string }> = {
-  PUBLISHED: { label: '已发布', color: 'green' },
-  REVOKED: { label: '已撤回', color: 'default' },
-};
-
 export default function AnnouncementList() {
   const { message } = App.useApp();
   const { has } = usePermission();
+  const { t } = useI18n();
   const tableRef = useRef<ProTableRef>(null);
+
+  const statusOptions = [
+    { value: 'PUBLISHED', label: t('message.announcement.status.published') },
+    { value: 'REVOKED', label: t('message.announcement.status.revoked') },
+  ];
+
+  /** 状态文案与标签颜色 */
+  const statusMeta: Record<AnnouncementStatus, { label: string; color: string }> = {
+    PUBLISHED: { label: t('message.announcement.status.published'), color: 'green' },
+    REVOKED: { label: t('message.announcement.status.revoked'), color: 'default' },
+  };
 
   const [status, setStatus] = useState<AnnouncementStatus | undefined>(undefined);
 
@@ -57,20 +59,20 @@ export default function AnnouncementList() {
   const handleRevoke = async (row: AnnouncementVO) => {
     try {
       await revokeAnnouncement(row.id);
-      message.success('公告已撤回');
+      message.success(t('message.announcement.msg.revoked'));
       tableRef.current?.reload();
     } catch (error) {
-      showError(error, '撤回失败');
+      showError(error, t('message.announcement.msg.revokeFailed'));
     }
   };
 
   const handleDelete = async (row: AnnouncementVO) => {
     try {
       await deleteAnnouncement(row.id);
-      message.success('公告已删除');
+      message.success(t('message.announcement.msg.deleted'));
       tableRef.current?.reload();
     } catch (error) {
-      showError(error, '删除失败');
+      showError(error, t('message.announcement.msg.deleteFailed'));
     }
   };
 
@@ -81,53 +83,53 @@ export default function AnnouncementList() {
         content: values.content,
         bizType: values.bizType || undefined,
       });
-      message.success('公告已发布');
+      message.success(t('message.announcement.msg.published'));
       setEditorOpen(false);
       tableRef.current?.reload();
     } catch (error) {
-      showError(error, '发布失败');
+      showError(error, t('message.announcement.msg.publishFailed'));
       throw error;
     }
   };
 
   const columns: TableProps<AnnouncementVO>['columns'] = [
     { title: 'ID', dataIndex: 'id', width: 180 },
-    { title: '标题', dataIndex: 'title', ellipsis: true },
+    { title: t('message.announcement.column.title'), dataIndex: 'title', ellipsis: true },
     {
-      title: '正文',
+      title: t('message.announcement.column.content'),
       dataIndex: 'content',
       ellipsis: true,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '业务类型',
+      title: t('message.announcement.column.bizType'),
       dataIndex: 'bizType',
       width: 160,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '状态',
+      title: t('message.announcement.column.status'),
       dataIndex: 'status',
       width: 100,
       render: (value: AnnouncementStatus | undefined) => {
-        const meta = value ? STATUS_META[value] : undefined;
+        const meta = value ? statusMeta[value] : undefined;
         return meta ? <Tag color={meta.color}>{meta.label}</Tag> : '-';
       },
     },
     {
-      title: '发布人',
+      title: t('message.announcement.column.publisher'),
       dataIndex: 'publisherId',
       width: 120,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '发布时间',
+      title: t('message.announcement.column.publishTime'),
       dataIndex: 'publishTime',
       width: 180,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '操作',
+      title: t('message.announcement.column.action'),
       key: 'action',
       width: 160,
       render: (_, row) => (
@@ -139,17 +141,17 @@ export default function AnnouncementList() {
               size="small"
               onClick={() => void handleRevoke(row)}
             >
-              撤回
+              {t('message.announcement.action.revoke')}
             </AuthButton>
           )}
           {has('sys:message:announce:delete') && (
             <Popconfirm
-              title="确认删除该公告？"
-              description="已展开的个人消息不受影响"
+              title={t('message.announcement.confirm.delete')}
+              description={t('message.announcement.confirm.deleteDescription')}
               onConfirm={() => void handleDelete(row)}
             >
               <Button type="link" size="small" danger>
-                删除
+                {t('message.announcement.action.delete')}
               </Button>
             </Popconfirm>
           )}
@@ -163,22 +165,22 @@ export default function AnnouncementList() {
       <ProTable<AnnouncementVO, AnnouncementQuery>
         ref={tableRef}
         rowKey="id"
-        title="系统公告"
+        title={t('message.announcement.title')}
         columns={columns}
         request={pageAnnouncements}
         params={{ status }}
-        onError={(error) => showError(error, '公告列表加载失败')}
+        onError={(error) => showError(error, t('message.announcement.msg.loadFailed'))}
         search={
           <SearchForm
             items={[
               {
                 name: 'status',
-                label: '状态',
+                label: t('message.announcement.column.status'),
                 element: (
                   <Select
                     allowClear
-                    options={STATUS_OPTIONS}
-                    placeholder="全部"
+                    options={statusOptions}
+                    placeholder={t('message.announcement.search.all')}
                     style={{ width: 140 }}
                   />
                 ),
@@ -201,40 +203,45 @@ export default function AnnouncementList() {
               setEditorOpen(true);
             }}
           >
-            发布公告
+            {t('message.announcement.action.publish')}
           </AuthButton>
         }
       />
 
       <FormModal<AnnouncementFormValues>
         open={editorOpen}
-        title="发布系统公告"
+        title={t('message.announcement.publish.title')}
         form={editorForm}
         onOk={handleSubmit}
         onCancel={() => setEditorOpen(false)}
       >
         <Form.Item
           name="title"
-          label="公告标题"
+          label={t('message.announcement.form.title')}
           rules={[
-            { required: true, message: '请输入公告标题' },
-            { max: 128, message: '公告标题不能超过 128 字' },
+            { required: true, message: t('message.announcement.form.titleRequired') },
+            { max: 128, message: t('message.announcement.form.titleMax') },
           ]}
         >
-          <Input placeholder="如 平台维护通知" />
+          <Input placeholder={t('message.announcement.form.titlePlaceholder')} />
         </Form.Item>
         <Form.Item
           name="content"
-          label="公告正文"
-          rules={[{ required: true, message: '请输入公告正文' }]}
+          label={t('message.announcement.form.content')}
+          rules={[
+            { required: true, message: t('message.announcement.form.contentRequired') },
+          ]}
         >
-          <Input.TextArea rows={5} placeholder="面向本租户全体用户的公告内容" />
+          <Input.TextArea
+            rows={5}
+            placeholder={t('message.announcement.form.contentPlaceholder')}
+          />
         </Form.Item>
         <Form.Item
           name="bizType"
-          label="业务类型"
-          extra="可选，缺省为 SYSTEM_ANNOUNCE；用于前端区分公告与定向站内信"
-          rules={[{ max: 32, message: '业务类型不能超过 32 字' }]}
+          label={t('message.announcement.form.bizType')}
+          extra={t('message.announcement.form.bizTypeExtra')}
+          rules={[{ max: 32, message: t('message.announcement.form.bizTypeMax') }]}
         >
           <Input placeholder="SYSTEM_ANNOUNCE" />
         </Form.Item>

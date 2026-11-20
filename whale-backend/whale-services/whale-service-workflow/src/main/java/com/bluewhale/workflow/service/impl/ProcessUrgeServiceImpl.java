@@ -59,12 +59,13 @@ public class ProcessUrgeServiceImpl implements ProcessUrgeService {
     public void urge(Long instanceId, UrgeRequest request) {
         ProcessInstancePo instance = processInstanceMapper.selectById(instanceId);
         if (instance == null) {
-            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "流程实例不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "workflow.instance.not-found", "流程实例不存在");
         }
         if (request.getTaskId() != null) {
             ProcessTaskPo task = processTaskMapper.selectById(request.getTaskId());
             if (task == null || !instanceId.equals(task.getInstanceId())) {
-                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "催办任务不属于该流程实例");
+                throw new BizException(ErrorCode.PARAM_ERROR, "workflow.urge.task-not-in-instance",
+                        "催办任务不属于该流程实例");
             }
         }
         String urger = request.getUrger().trim();
@@ -75,7 +76,8 @@ public class ProcessUrgeServiceImpl implements ProcessUrgeService {
                 .ge(ProcessUrgePo::getCreateTime, now.minusHours(FREQUENCY_WINDOW_HOURS)));
         if (recent != null && recent > 0) {
             workflowMetrics.recordUrge(WorkflowMetrics.URGE_THROTTLED);
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "催办过于频繁，1 小时内仅允许一次");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.urge.too-frequent",
+                    "催办过于频繁，1 小时内仅允许一次");
         }
         ProcessUrgePo entity = new ProcessUrgePo();
         entity.setInstanceId(instanceId);
@@ -89,7 +91,8 @@ public class ProcessUrgeServiceImpl implements ProcessUrgeService {
         } catch (DuplicateKeyException e) {
             // 唯一键 (tenant_id, instance_id, urger, window_bucket) 兜底并发绕过
             workflowMetrics.recordUrge(WorkflowMetrics.URGE_THROTTLED);
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "催办过于频繁，1 小时内仅允许一次");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.urge.too-frequent",
+                    "催办过于频繁，1 小时内仅允许一次");
         }
         workflowMetrics.recordUrge(WorkflowMetrics.URGE_SUBMITTED);
         log.info("流程催办已提交: instanceId={}, taskId={}, urger={}",

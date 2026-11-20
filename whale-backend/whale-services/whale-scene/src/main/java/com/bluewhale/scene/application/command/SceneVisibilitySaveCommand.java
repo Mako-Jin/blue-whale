@@ -16,6 +16,6 @@ public class SceneVisibilitySaveCommand {
 
     /** 规则列表，空列表表示清除全部规则（恢复默认可见） */
     @Valid
-    @NotNull(message = "可见性规则列表不能为空")
+    @NotNull(message = "{validation.scene.visibility.rules-required}")
     private List<SceneVisibilityCommand> rules;
 }

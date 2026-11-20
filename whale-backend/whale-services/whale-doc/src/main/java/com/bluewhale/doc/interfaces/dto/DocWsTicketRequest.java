@@ -12,6 +12,6 @@ import lombok.Data;
 public class DocWsTicketRequest {
 
     /** 页面ID */
-    @NotNull(message = "页面ID不能为空")
+    @NotNull(message = "{validation.doc.collab.page-id-required}")
     private Long pageId;
 }

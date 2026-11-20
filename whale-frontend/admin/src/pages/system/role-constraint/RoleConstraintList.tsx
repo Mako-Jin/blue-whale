@@ -24,6 +24,7 @@ import {
   type ProTableRef,
 } from '@bluewhale/whale-ui';
 import { pageRoles, type RoleVO } from '../../../api/role';
+import { useI18n } from '../../../i18n';
 import {
   createRoleConstraint,
   deleteRoleConstraint,
@@ -33,20 +34,6 @@ import {
 } from '../../../api/roleConstraint';
 
 type ConstraintQuery = { keyword?: string; constraintType?: string };
-
-const TYPE_OPTIONS = [
-  { value: 'MUTEX', label: '互斥 MUTEX' },
-  { value: 'CARDINALITY', label: '基数 CARDINALITY' },
-];
-
-const STATUS_OPTIONS = [
-  { value: 1, label: '启用' },
-  { value: 0, label: '停用' },
-];
-
-function renderStatus(status: number | undefined) {
-  return status === 0 ? <Tag color="default">停用</Tag> : <Tag color="success">启用</Tag>;
-}
 
 interface ConstraintFormValues {
   constraintCode: string;
@@ -60,8 +47,26 @@ interface ConstraintFormValues {
 
 export default function RoleConstraintList() {
   const { message } = App.useApp();
+  const { t } = useI18n();
   const { has } = usePermission();
   const tableRef = useRef<ProTableRef>(null);
+
+  const typeOptions = [
+    { value: 'MUTEX', label: t('systemOps.roleConstraint.type.mutex') },
+    { value: 'CARDINALITY', label: t('systemOps.roleConstraint.type.cardinality') },
+  ];
+
+  const statusOptions = [
+    { value: 1, label: t('systemOps.common.enabled') },
+    { value: 0, label: t('systemOps.common.disabled') },
+  ];
+
+  const renderStatus = (status: number | undefined) =>
+    status === 0 ? (
+      <Tag color="default">{t('systemOps.common.disabled')}</Tag>
+    ) : (
+      <Tag color="success">{t('systemOps.common.enabled')}</Tag>
+    );
 
   const [keyword, setKeyword] = useState<string | undefined>(undefined);
   const [constraintType, setConstraintType] = useState<string | undefined>(undefined);
@@ -89,7 +94,7 @@ export default function RoleConstraintList() {
           })),
         );
       })
-      .catch((error) => showError(error, '角色列表加载失败'));
+      .catch((error) => showError(error, t('systemOps.common.loadRolesFailed')));
   };
 
   useEffect(() => {
@@ -121,15 +126,15 @@ export default function RoleConstraintList() {
     try {
       if (editing) {
         await updateRoleConstraint(editing.id, values);
-        message.success('角色约束已更新');
+        message.success(t('systemOps.roleConstraint.updateSuccess'));
       } else {
         await createRoleConstraint(values);
-        message.success('角色约束已创建');
+        message.success(t('systemOps.roleConstraint.createSuccess'));
       }
       setFormOpen(false);
       tableRef.current?.reload();
     } catch (error) {
-      showError(error, '保存失败');
+      showError(error, t('systemOps.common.saveFailed'));
       throw error;
     }
   };
@@ -137,31 +142,46 @@ export default function RoleConstraintList() {
   const handleDelete = async (row: RoleConstraintVO) => {
     try {
       await deleteRoleConstraint(row.id);
-      message.success('角色约束已删除');
+      message.success(t('systemOps.roleConstraint.deleteSuccess'));
       tableRef.current?.reload();
     } catch (error) {
-      showError(error, '删除失败');
+      showError(error, t('systemOps.common.deleteFailed'));
     }
   };
 
   const columns: TableProps<RoleConstraintVO>['columns'] = [
-    { title: '约束编码', dataIndex: 'constraintCode', width: 160, ellipsis: true },
-    { title: '约束名称', dataIndex: 'constraintName', width: 160, ellipsis: true },
     {
-      title: '类型',
+      title: t('systemOps.roleConstraint.col.code'),
+      dataIndex: 'constraintCode',
+      width: 160,
+      ellipsis: true,
+    },
+    {
+      title: t('systemOps.roleConstraint.col.name'),
+      dataIndex: 'constraintName',
+      width: 160,
+      ellipsis: true,
+    },
+    {
+      title: t('systemOps.common.type'),
       dataIndex: 'constraintType',
       width: 130,
       render: (value: string | undefined) =>
-        value === 'CARDINALITY' ? <Tag color="purple">基数</Tag> : <Tag color="volcano">互斥</Tag>,
+        value === 'CARDINALITY' ? (
+          <Tag color="purple">{t('systemOps.roleConstraint.typeTag.cardinality')}</Tag>
+        ) : (
+          <Tag color="volcano">{t('systemOps.roleConstraint.typeTag.mutex')}</Tag>
+        ),
     },
     {
-      title: '约束角色',
+      title: t('systemOps.roleConstraint.col.roles'),
       dataIndex: 'roleIds',
       width: 100,
-      render: (value: string[] | undefined) => (value?.length ? `${value.length} 个` : '-'),
+      render: (value: string[] | undefined) =>
+        value?.length ? t('systemOps.common.rolesCount', { count: value.length }) : '-',
     },
     {
-      title: '最大持有',
+      title: t('systemOps.roleConstraint.col.maxAssign'),
       dataIndex: 'maxAssign',
       width: 90,
       align: 'center',
@@ -169,32 +189,35 @@ export default function RoleConstraintList() {
         row.constraintType === 'CARDINALITY' && value ? value : '-',
     },
     {
-      title: '状态',
+      title: t('systemOps.common.status'),
       dataIndex: 'status',
       width: 80,
       render: (value: number | undefined) => renderStatus(value),
     },
     {
-      title: '更新时间',
+      title: t('systemOps.common.updateTime'),
       dataIndex: 'updateTime',
       width: 170,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '操作',
+      title: t('systemOps.common.action'),
       key: 'action',
       width: 140,
       render: (_, row) => (
         <Space size={4}>
           {has('sys:role:constraint:edit') && (
             <Button type="link" size="small" onClick={() => openEdit(row)}>
-              编辑
+              {t('systemOps.common.edit')}
             </Button>
           )}
           {has('sys:role:constraint:delete') && (
-            <Popconfirm title="确认删除该约束？" onConfirm={() => void handleDelete(row)}>
+            <Popconfirm
+              title={t('systemOps.roleConstraint.confirm.delete')}
+              onConfirm={() => void handleDelete(row)}
+            >
               <Button type="link" size="small" danger>
-                删除
+                {t('systemOps.common.delete')}
               </Button>
             </Popconfirm>
           )}
@@ -208,27 +231,32 @@ export default function RoleConstraintList() {
       <ProTable<RoleConstraintVO, ConstraintQuery>
         ref={tableRef}
         rowKey="id"
-        title="角色约束"
+        title={t('systemOps.roleConstraint.title')}
         columns={columns}
         request={pageRoleConstraints}
         params={{ keyword, constraintType }}
-        onError={(error) => showError(error, '角色约束加载失败')}
+        onError={(error) => showError(error, t('systemOps.roleConstraint.loadFailed'))}
         search={
           <SearchForm
             items={[
               {
                 name: 'keyword',
-                label: '关键字',
-                element: <Input allowClear placeholder="约束编码 / 名称 / 说明" />,
+                label: t('systemOps.common.keyword'),
+                element: (
+                  <Input
+                    allowClear
+                    placeholder={t('systemOps.roleConstraint.search.placeholder')}
+                  />
+                ),
               },
               {
                 name: 'constraintType',
-                label: '类型',
+                label: t('systemOps.common.type'),
                 element: (
                   <Select
                     allowClear
-                    options={TYPE_OPTIONS}
-                    placeholder="全部"
+                    options={typeOptions}
+                    placeholder={t('systemOps.common.all')}
                     style={{ width: 180 }}
                   />
                 ),
@@ -246,14 +274,18 @@ export default function RoleConstraintList() {
         }
         toolbar={
           <AuthButton perm="sys:role:constraint:add" type="primary" onClick={openCreate}>
-            新增约束
+            {t('systemOps.roleConstraint.add')}
           </AuthButton>
         }
       />
 
       <FormModal<ConstraintFormValues>
         open={formOpen}
-        title={editing ? `编辑约束：${editing.constraintName}` : '新增约束'}
+        title={
+          editing
+            ? t('systemOps.roleConstraint.editTitle', { name: editing.constraintName })
+            : t('systemOps.roleConstraint.createTitle')
+        }
         form={form}
         initialValues={formInitial}
         width={640}
@@ -263,15 +295,19 @@ export default function RoleConstraintList() {
         <Space style={{ display: 'flex' }}>
           <Form.Item
             name="constraintCode"
-            label="约束编码"
-            rules={[{ required: true, message: '请输入约束编码' }]}
+            label={t('systemOps.roleConstraint.field.code')}
+            rules={[
+              { required: true, message: t('systemOps.roleConstraint.field.codeRequired') },
+            ]}
           >
             <Input maxLength={64} disabled={Boolean(editing)} style={{ width: 200 }} />
           </Form.Item>
           <Form.Item
             name="constraintName"
-            label="约束名称"
-            rules={[{ required: true, message: '请输入约束名称' }]}
+            label={t('systemOps.roleConstraint.field.name')}
+            rules={[
+              { required: true, message: t('systemOps.roleConstraint.field.nameRequired') },
+            ]}
           >
             <Input maxLength={64} style={{ width: 200 }} />
           </Form.Item>
@@ -279,14 +315,14 @@ export default function RoleConstraintList() {
         <Space style={{ display: 'flex' }}>
           <Form.Item
             name="constraintType"
-            label="类型"
+            label={t('systemOps.common.type')}
             initialValue="MUTEX"
-            rules={[{ required: true, message: '请选择类型' }]}
+            rules={[{ required: true, message: t('systemOps.roleConstraint.field.typeRequired') }]}
           >
-            <Select options={TYPE_OPTIONS} style={{ width: 180 }} />
+            <Select options={typeOptions} style={{ width: 180 }} />
           </Form.Item>
-          <Form.Item name="status" label="状态" initialValue={1}>
-            <Select options={STATUS_OPTIONS} style={{ width: 120 }} />
+          <Form.Item name="status" label={t('systemOps.common.status')} initialValue={1}>
+            <Select options={statusOptions} style={{ width: 120 }} />
           </Form.Item>
           <Form.Item
             noStyle
@@ -294,7 +330,11 @@ export default function RoleConstraintList() {
           >
             {({ getFieldValue }) =>
               getFieldValue('constraintType') === 'CARDINALITY' ? (
-                <Form.Item name="maxAssign" label="最大持有" extra="最多可同时持有的角色数">
+                <Form.Item
+                  name="maxAssign"
+                  label={t('systemOps.roleConstraint.field.maxAssign')}
+                  extra={t('systemOps.roleConstraint.field.maxAssignExtra')}
+                >
                   <InputNumber min={1} style={{ width: 120 }} />
                 </Form.Item>
               ) : null
@@ -303,19 +343,19 @@ export default function RoleConstraintList() {
         </Space>
         <Form.Item
           name="roleIds"
-          label="约束角色"
-          rules={[{ required: true, message: '请选择受约束的角色' }]}
-          extra="MUTEX：约束内角色互斥不可同时持有；CARDINALITY：持有数量受限"
+          label={t('systemOps.roleConstraint.field.roles')}
+          rules={[{ required: true, message: t('systemOps.roleConstraint.field.rolesRequired') }]}
+          extra={t('systemOps.roleConstraint.field.rolesExtra')}
         >
           <Select
             mode="multiple"
             allowClear
             options={roleOptions}
-            placeholder="选择角色"
+            placeholder={t('systemOps.common.selectRole')}
             style={{ minHeight: 80 }}
           />
         </Form.Item>
-        <Form.Item name="description" label="说明">
+        <Form.Item name="description" label={t('systemOps.common.description')}>
           <Input.TextArea rows={2} maxLength={255} />
         </Form.Item>
       </FormModal>

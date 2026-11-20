@@ -17,7 +17,7 @@ public class DocPageShareCreateRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 有效期天数；0 表示不限期，缺省取服务配置 */
-    @Min(value = 0, message = "有效期不能为负数")
-    @Max(value = 365, message = "有效期不能超过 365 天")
+    @Min(value = 0, message = "{validation.doc.share.expire-days-min}")
+    @Max(value = 365, message = "{validation.doc.share.expire-days-max}")
     private Integer expireDays;
 }

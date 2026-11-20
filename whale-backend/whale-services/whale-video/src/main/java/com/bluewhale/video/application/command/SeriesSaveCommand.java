@@ -13,12 +13,12 @@ import lombok.Data;
 public class SeriesSaveCommand {
 
     /** 系列标题 */
-    @NotBlank(message = "系列标题不能为空")
-    @Size(max = 200, message = "系列标题不能超过 200 个字符")
+    @NotBlank(message = "{validation.video.series.title-required}")
+    @Size(max = 200, message = "{validation.video.series.title-size}")
     private String title;
 
     /** 系列简介 */
-    @Size(max = 2000, message = "系列简介不能超过 2000 个字符")
+    @Size(max = 2000, message = "{validation.video.series.description-size}")
     private String description;
 
     /** 封面文件 ID；更新时为空表示保留原封面，0 表示清除封面 */

@@ -50,16 +50,18 @@ public class ForumPostWriter {
                             int maxPostsPerThread, String status) {
         ForumThread thread = threadMapper.selectById(threadId);
         if (thread == null) {
-            throw new BizException(ForumErrorCodes.THREAD_NOT_FOUND, "帖子不存在或已删除");
+            throw new BizException(ForumErrorCodes.THREAD_NOT_FOUND, "forum.thread.not-found-or-deleted",
+                    "帖子不存在或已删除");
         }
         if (threadMapper.allocateFloor(threadId) != 1) {
-            throw new BizException(ForumErrorCodes.THREAD_NOT_FOUND, "帖子不存在或已删除");
+            throw new BizException(ForumErrorCodes.THREAD_NOT_FOUND, "forum.thread.not-found-or-deleted",
+                    "帖子不存在或已删除");
         }
         long allocated = threadMapper.lastAllocatedFloor();
         if (allocated > maxPostsPerThread) {
             // 已分配的号随事务回滚释放，不会留下空洞
-            throw new BizException(ForumErrorCodes.FLOOR_LIMIT_REACHED,
-                    "本帖楼层已达上限（" + maxPostsPerThread + "），请另开新帖");
+            throw new BizException(ForumErrorCodes.FLOOR_LIMIT_REACHED, "forum.thread.floor-limit-reached",
+                    "本帖楼层已达上限（" + maxPostsPerThread + "），请另开新帖", maxPostsPerThread);
         }
         int floor = (int) allocated;
         ForumPost post = new ForumPost();

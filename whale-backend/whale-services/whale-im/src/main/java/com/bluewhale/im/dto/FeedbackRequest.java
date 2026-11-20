@@ -13,7 +13,7 @@ import lombok.Data;
 public class FeedbackRequest {
 
     /** 评价：UP 有用 / DOWN 无用 */
-    @NotBlank(message = "rating 不能为空")
-    @Pattern(regexp = "UP|DOWN", message = "rating 只能是 UP 或 DOWN")
+    @NotBlank(message = "{validation.im.feedback.rating-required}")
+    @Pattern(regexp = "UP|DOWN", message = "{validation.im.feedback.rating-pattern}")
     private String rating;
 }

@@ -199,7 +199,7 @@ public class DocTemplateServiceImpl implements DocTemplateService {
         } catch (BizException ex) {
             throw ex;
         } catch (RuntimeException ex) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "模板正文 JSON 无法解析");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.template.content-parse-failed", "模板正文 JSON 无法解析");
         }
     }
 
@@ -230,7 +230,7 @@ public class DocTemplateServiceImpl implements DocTemplateService {
         try {
             return objectMapper.readTree(contentJson);
         } catch (RuntimeException ex) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "模板正文数据损坏");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "doc.template.content-corrupted", "模板正文数据损坏");
         }
     }
 

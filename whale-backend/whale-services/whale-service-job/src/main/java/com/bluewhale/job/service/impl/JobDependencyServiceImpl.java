@@ -75,7 +75,8 @@ public class JobDependencyServiceImpl implements JobDependencyService {
     private JobInfoPo requireJob(Long jobId) {
         JobInfoPo job = jobInfoMapper.selectById(jobId);
         if (job == null) {
-            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "任务不存在: " + jobId);
+            throw new BizException(ErrorCode.NOT_FOUND, "job.dependency.job-not-found",
+                    "任务不存在: " + jobId, jobId);
         }
         return job;
     }
@@ -105,10 +106,11 @@ public class JobDependencyServiceImpl implements JobDependencyService {
     private void validateUpstreams(Long jobId, List<Long> upstreamIds) {
         for (Long upstreamId : upstreamIds) {
             if (upstreamId.equals(jobId)) {
-                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "任务不能依赖自身");
+                throw new BizException(ErrorCode.PARAM_ERROR, "job.dependency.self-reference", "任务不能依赖自身");
             }
             if (jobInfoMapper.selectById(upstreamId) == null) {
-                throw new BizException(ErrorCode.NOT_FOUND.getCode(), "上游任务不存在: " + upstreamId);
+                throw new BizException(ErrorCode.NOT_FOUND, "job.dependency.upstream-not-found",
+                        "上游任务不存在: " + upstreamId, upstreamId);
             }
         }
     }
@@ -123,7 +125,7 @@ public class JobDependencyServiceImpl implements JobDependencyService {
     private void validateNoCycle(Long jobId, List<Long> upstreamIds) {
         for (Long upstreamId : upstreamIds) {
             if (reachesTarget(upstreamId, jobId, jobId, upstreamIds, new HashSet<>(), 0)) {
-                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "任务依赖关系存在环");
+                throw new BizException(ErrorCode.PARAM_ERROR, "job.dependency.cycle-detected", "任务依赖关系存在环");
             }
         }
     }

@@ -204,7 +204,7 @@ public class DocMarkupSupport {
             JsonNode node = objectMapper.readTree(contentJson);
             return node.isObject() ? node : null;
         } catch (RuntimeException ex) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "正文 JSON 无法解析");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "doc.content.parse-failed", "正文 JSON 无法解析");
         }
     }
 

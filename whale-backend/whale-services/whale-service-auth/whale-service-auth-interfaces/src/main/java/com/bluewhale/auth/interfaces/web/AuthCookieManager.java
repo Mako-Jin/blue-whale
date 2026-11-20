@@ -135,7 +135,8 @@ public class AuthCookieManager {
     public String requireRefreshToken(HttpServletRequest request) {
         String refreshToken = resolveRefreshToken(request);
         if (!StringUtils.hasText(refreshToken)) {
-            throw new BizException(ErrorCode.UNAUTHORIZED, MISSING_REFRESH_COOKIE_MESSAGE);
+            throw new BizException(ErrorCode.UNAUTHORIZED, "auth.cookie.refresh-missing",
+                    MISSING_REFRESH_COOKIE_MESSAGE);
         }
         return refreshToken;
     }
@@ -152,7 +153,7 @@ public class AuthCookieManager {
         if (StringUtils.hasText(headerValue) && headerValue.equals(cookieValue)) {
             return;
         }
-        throw new BizException(ErrorCode.FORBIDDEN, "CSRF 校验失败，请重新登录");
+        throw new BizException(ErrorCode.FORBIDDEN, "auth.cookie.csrf-invalid", "CSRF 校验失败，请重新登录");
     }
 
     /**

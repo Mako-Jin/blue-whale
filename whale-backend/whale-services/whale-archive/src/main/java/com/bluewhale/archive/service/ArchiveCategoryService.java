@@ -103,12 +103,12 @@ public class ArchiveCategoryService {
         LambdaQueryWrapper<ArchiveCategory> childWrapper = new LambdaQueryWrapper<>();
         childWrapper.eq(ArchiveCategory::getParentId, id);
         if (categoryMapper.selectCount(childWrapper) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "存在下级门类，不能删除");
+            throw new BizException(ErrorCode.PARAM_ERROR, "archive.category.has-children", "存在下级门类，不能删除");
         }
         LambdaQueryWrapper<ArchiveRule> ruleWrapper = new LambdaQueryWrapper<>();
         ruleWrapper.eq(ArchiveRule::getCategoryId, id);
         if (ruleMapper.selectCount(ruleWrapper) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "存在归档规则引用该门类，不能删除");
+            throw new BizException(ErrorCode.PARAM_ERROR, "archive.category.referenced", "存在归档规则引用该门类，不能删除");
         }
         categoryMapper.deleteById(id);
     }
@@ -144,7 +144,7 @@ public class ArchiveCategoryService {
     private ArchiveCategory requireCategory(Long id) {
         ArchiveCategory entity = categoryMapper.selectById(id);
         if (entity == null) {
-            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "门类不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "archive.category.not-found", "门类不存在");
         }
         return entity;
     }
@@ -160,7 +160,7 @@ public class ArchiveCategoryService {
         wrapper.eq(ArchiveCategory::getCode, code);
         wrapper.ne(excludeId != null, ArchiveCategory::getId, excludeId);
         if (categoryMapper.selectCount(wrapper) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "门类编码已存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "archive.category.code-exists", "门类编码已存在");
         }
     }
 
@@ -172,11 +172,12 @@ public class ArchiveCategoryService {
      */
     private static String normalizeCode(String rawCode) {
         if (!StringUtils.hasText(rawCode)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "门类编码不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "archive.category.code-empty", "门类编码不能为空");
         }
         String code = rawCode.trim().toUpperCase(Locale.ROOT);
         if (code.length() > MAX_CODE_LENGTH || !code.matches(ArchiveConstants.CATEGORY_CODE_PATTERN)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "门类编码仅允许字母、数字与下划线且不超过 32 位");
+            throw new BizException(ErrorCode.PARAM_ERROR, "archive.category.code-invalid",
+                    "门类编码仅允许字母、数字与下划线且不超过 32 位");
         }
         return code;
     }
@@ -205,7 +206,7 @@ public class ArchiveCategoryService {
         int parentLevel = parent.getLevel() == null ? ArchiveConstants.ROOT_LEVEL : parent.getLevel();
         int level = parentLevel + 1;
         if (level > ArchiveConstants.MAX_TREE_DEPTH) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "门类层级超过上限");
+            throw new BizException(ErrorCode.PARAM_ERROR, "archive.category.depth-exceeded", "门类层级超过上限");
         }
         return level;
     }
@@ -218,13 +219,13 @@ public class ArchiveCategoryService {
      */
     private void requireNoCycle(Long id, long parentId) {
         if (parentId == id) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "上级门类不能是自身");
+            throw new BizException(ErrorCode.PARAM_ERROR, "archive.category.parent-self", "上级门类不能是自身");
         }
         long cursor = parentId;
         for (int depth = 0; depth < ArchiveConstants.MAX_TREE_DEPTH
                 && cursor != ArchiveConstants.ROOT_PARENT_ID; depth++) {
             if (cursor == id) {
-                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "上级门类不能是自身后代");
+                throw new BizException(ErrorCode.PARAM_ERROR, "archive.category.parent-descendant", "上级门类不能是自身后代");
             }
             ArchiveCategory parent = categoryMapper.selectById(cursor);
             if (parent == null || parent.getParentId() == null) {

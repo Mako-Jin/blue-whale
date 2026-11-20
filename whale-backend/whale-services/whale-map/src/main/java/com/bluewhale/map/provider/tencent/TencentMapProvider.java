@@ -193,7 +193,8 @@ public class TencentMapProvider implements MapProvider {
         JsonNode routes = JsonNodes.child(root, "result", "routes");
         JsonNode first = routes == null || !routes.isArray() || routes.isEmpty() ? null : routes.get(0);
         if (first == null) {
-            throw new BizException(MapErrorCode.ROUTE_EMPTY, "tencent 未返回可用路线");
+            throw new BizException(MapErrorCode.ROUTE_EMPTY, "map.provider.tencent.route-empty",
+                    "tencent 未返回可用路线");
         }
         Double distance = JsonNodes.number(first, "distance");
         Double duration = JsonNodes.number(first, "duration");
@@ -223,11 +224,12 @@ public class TencentMapProvider implements MapProvider {
         JsonNode status = root.get("status");
         int code = status == null ? -1 : status.asInt(-1);
         if (code == STATUS_EMPTY) {
-            throw new BizException(emptyCode, "tencent 未匹配到结果");
+            throw new BizException(emptyCode, "map.provider.tencent.no-match", "tencent 未匹配到结果");
         }
         if (code != STATUS_OK) {
-            throw new BizException(MapErrorCode.PROVIDER_FAILED,
-                    "tencent 返回 status=" + code + "，" + JsonNodes.text(root, "message"));
+            String message = JsonNodes.text(root, "message");
+            throw new BizException(MapErrorCode.PROVIDER_FAILED, "map.provider.tencent.status-failed",
+                    "tencent 返回 status=" + code + "，" + message, code, message);
         }
     }
 
@@ -242,7 +244,7 @@ public class TencentMapProvider implements MapProvider {
         requireStatus(root, emptyCode);
         JsonNode result = root.get("result");
         if (result == null || result.isNull()) {
-            throw new BizException(emptyCode, "tencent 未返回结果");
+            throw new BizException(emptyCode, "map.provider.tencent.no-result", "tencent 未返回结果");
         }
         return result;
     }
@@ -258,7 +260,7 @@ public class TencentMapProvider implements MapProvider {
         Double lng = JsonNodes.number(node, "lng");
         Double lat = JsonNodes.number(node, "lat");
         if (lng == null || lat == null) {
-            throw new BizException(errorCode, "tencent 返回结果缺少坐标");
+            throw new BizException(errorCode, "map.provider.tencent.coord-missing", "tencent 返回结果缺少坐标");
         }
         return CoordTransform.convert(new GeoPoint(lng, lat, CoordType.GCJ02), CoordType.WGS84);
     }

@@ -17,15 +17,15 @@ public class FormDataApprovalCallbackRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 流程实例ID（必填，用于定位表单数据） */
-    @NotBlank(message = "流程实例ID不能为空")
-    @Size(max = 64, message = "流程实例ID长度不能超过 64")
+    @NotBlank(message = "{validation.form.approval.process-instance-id-required}")
+    @Size(max = 64, message = "{validation.form.approval.process-instance-id-size}")
     private String processInstanceId;
 
     /** 审批结果：APPROVED（通过）/ REJECTED（驳回） */
-    @NotBlank(message = "审批结果不能为空")
+    @NotBlank(message = "{validation.form.approval.result-required}")
     private String result;
 
     /** 审批意见（可选，仅用于留痕） */
-    @Size(max = 500, message = "审批意见长度不能超过 500")
+    @Size(max = 500, message = "{validation.form.approval.comment-size}")
     private String comment;
 }

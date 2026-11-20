@@ -31,7 +31,7 @@ from pathlib import Path
 # ---------------------------------------------------------------- 常量
 
 #: 服务侧令牌过滤器的默认受保护路径（与 InternalTokenProperties 保持一致）
-DEFAULT_TOKEN_PATTERNS = ["/**/internal/**", "/audit/log/ingest/**"]
+DEFAULT_TOKEN_PATTERNS = ["/**/internal/**", "/audit/v1/log/ingest/**"]
 
 #: 网关默认收口模式（与 InternalApiDenyProperties 保持一致）
 DEFAULT_GATEWAY_PATTERNS = ["/*/internal/**", "/*/*/internal/**"]

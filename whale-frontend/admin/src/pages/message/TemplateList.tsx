@@ -19,6 +19,7 @@ import {
   type MessageTemplateInput,
   type MessageTemplateVO,
 } from '../../api/message';
+import { useI18n } from '../../i18n';
 
 interface TemplateFormValues {
   templateCode: string;
@@ -31,15 +32,16 @@ interface TemplateFormValues {
 
 type TemplateQuery = { templateCode?: string; templateName?: string; status?: number };
 
-const STATUS_OPTIONS = [
-  { value: 1, label: '启用' },
-  { value: 0, label: '停用' },
-];
-
 export default function TemplateList() {
   const { message } = App.useApp();
   const { has } = usePermission();
+  const { t } = useI18n();
   const tableRef = useRef<ProTableRef>(null);
+
+  const statusOptions = [
+    { value: 1, label: t('message.template.status.enabled') },
+    { value: 0, label: t('message.template.status.disabled') },
+  ];
 
   const [templateCode, setTemplateCode] = useState<string | undefined>(undefined);
   const [templateName, setTemplateName] = useState<string | undefined>(undefined);
@@ -73,20 +75,22 @@ export default function TemplateList() {
         status: next,
         remark: row.remark,
       });
-      message.success(next === 1 ? '模板已启用' : '模板已停用');
+      message.success(
+        next === 1 ? t('message.template.msg.enabled') : t('message.template.msg.disabled'),
+      );
       tableRef.current?.reload();
     } catch (error) {
-      showError(error, '状态变更失败');
+      showError(error, t('message.template.msg.statusFailed'));
     }
   };
 
   const handleDelete = async (row: MessageTemplateVO) => {
     try {
       await deleteMessageTemplate(row.id);
-      message.success('模板已删除');
+      message.success(t('message.template.msg.deleted'));
       tableRef.current?.reload();
     } catch (error) {
-      showError(error, '删除失败');
+      showError(error, t('message.template.msg.deleteFailed'));
     }
   };
 
@@ -102,37 +106,50 @@ export default function TemplateList() {
     try {
       if (editRecord) {
         await updateMessageTemplate(editRecord.id, { ...payload, id: editRecord.id });
-        message.success('模板已更新');
+        message.success(t('message.template.msg.updated'));
       } else {
         await createMessageTemplate(payload);
-        message.success('模板已创建');
+        message.success(t('message.template.msg.created'));
       }
       setEditorOpen(false);
       tableRef.current?.reload();
     } catch (error) {
-      showError(error, editRecord ? '更新失败' : '创建失败');
+      showError(
+        error,
+        editRecord
+          ? t('message.template.msg.updateFailed')
+          : t('message.template.msg.createFailed'),
+      );
       throw error;
     }
   };
 
   const columns: TableProps<MessageTemplateVO>['columns'] = [
     { title: 'ID', dataIndex: 'id', width: 80 },
-    { title: '模板编码', dataIndex: 'templateCode', width: 200 },
-    { title: '模板名称', dataIndex: 'templateName', width: 180 },
     {
-      title: '标题模板',
+      title: t('message.template.column.templateCode'),
+      dataIndex: 'templateCode',
+      width: 200,
+    },
+    {
+      title: t('message.template.column.templateName'),
+      dataIndex: 'templateName',
+      width: 180,
+    },
+    {
+      title: t('message.template.column.titleTemplate'),
       dataIndex: 'titleTemplate',
       ellipsis: true,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '内容模板',
+      title: t('message.template.column.contentTemplate'),
       dataIndex: 'contentTemplate',
       ellipsis: true,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '状态',
+      title: t('message.template.column.status'),
       dataIndex: 'status',
       width: 100,
       render: (value: number | undefined, row) => (
@@ -144,13 +161,13 @@ export default function TemplateList() {
       ),
     },
     {
-      title: '更新时间',
+      title: t('message.template.column.updateTime'),
       dataIndex: 'updateTime',
       width: 180,
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '操作',
+      title: t('message.template.column.action'),
       key: 'action',
       width: 160,
       render: (_, row) => (
@@ -161,16 +178,16 @@ export default function TemplateList() {
             size="small"
             onClick={() => openEditor(row)}
           >
-            编辑
+            {t('message.template.action.edit')}
           </AuthButton>
           {has('sys:message:template:delete') && (
             <Popconfirm
-              title="确认删除该模板？"
-              description="历史消息保留标题/正文快照，不受影响"
+              title={t('message.template.confirm.delete')}
+              description={t('message.template.confirm.deleteDescription')}
               onConfirm={() => void handleDelete(row)}
             >
               <Button type="link" size="small" danger>
-                删除
+                {t('message.template.action.delete')}
               </Button>
             </Popconfirm>
           )}
@@ -184,32 +201,42 @@ export default function TemplateList() {
       <ProTable<MessageTemplateVO, TemplateQuery>
         ref={tableRef}
         rowKey="id"
-        title="消息模板"
+        title={t('message.template.title')}
         columns={columns}
         request={pageMessageTemplates}
         params={{ templateCode, templateName, status }}
-        onError={(error) => showError(error, '模板列表加载失败')}
+        onError={(error) => showError(error, t('message.template.msg.loadFailed'))}
         search={
           <SearchForm
             items={[
               {
                 name: 'templateCode',
-                label: '模板编码',
-                element: <Input allowClear placeholder="模板编码（模糊）" />,
+                label: t('message.template.column.templateCode'),
+                element: (
+                  <Input
+                    allowClear
+                    placeholder={t('message.template.search.templateCodePlaceholder')}
+                  />
+                ),
               },
               {
                 name: 'templateName',
-                label: '模板名称',
-                element: <Input allowClear placeholder="模板名称（模糊）" />,
+                label: t('message.template.column.templateName'),
+                element: (
+                  <Input
+                    allowClear
+                    placeholder={t('message.template.search.templateNamePlaceholder')}
+                  />
+                ),
               },
               {
                 name: 'status',
-                label: '状态',
+                label: t('message.template.column.status'),
                 element: (
                   <Select
                     allowClear
-                    options={STATUS_OPTIONS}
-                    placeholder="全部"
+                    options={statusOptions}
+                    placeholder={t('message.template.search.all')}
                     style={{ width: 140 }}
                   />
                 ),
@@ -233,14 +260,18 @@ export default function TemplateList() {
             type="primary"
             onClick={() => openEditor(null)}
           >
-            新增模板
+            {t('message.template.action.create')}
           </AuthButton>
         }
       />
 
       <FormModal<TemplateFormValues>
         open={editorOpen}
-        title={editRecord ? `编辑模板：${editRecord.templateName}` : '新增模板'}
+        title={
+          editRecord
+            ? t('message.template.form.editTitle', { name: editRecord.templateName })
+            : t('message.template.action.create')
+        }
         form={editorForm}
         initialValues={editorInitial}
         onOk={handleSubmit}
@@ -248,35 +279,49 @@ export default function TemplateList() {
       >
         <Form.Item
           name="templateCode"
-          label="模板编码"
+          label={t('message.template.form.templateCode')}
           rules={[
-            { required: true, message: '请输入模板编码' },
+            { required: true, message: t('message.template.form.templateCodeRequired') },
             {
               pattern: /^[A-Za-z0-9_]+$/,
-              message: '仅支持大写字母/数字/下划线（保存时自动转大写）',
+              message: t('message.template.form.templateCodePattern'),
             },
           ]}
-          extra="租户内唯一，保存时统一转为大写"
+          extra={t('message.template.form.templateCodeExtra')}
         >
-          <Input placeholder="如 ORDER_PAID_NOTICE" disabled={!!editRecord} />
+          <Input
+            placeholder={t('message.template.form.templateCodePlaceholder')}
+            disabled={!!editRecord}
+          />
         </Form.Item>
         <Form.Item
           name="templateName"
-          label="模板名称"
-          rules={[{ required: true, message: '请输入模板名称' }]}
+          label={t('message.template.form.templateName')}
+          rules={[{ required: true, message: t('message.template.form.templateNameRequired') }]}
         >
           <Input />
         </Form.Item>
-        <Form.Item name="titleTemplate" label="标题模板" extra="支持 ${key} 占位符">
-          <Input placeholder="如 【${system}】${title}" />
+        <Form.Item
+          name="titleTemplate"
+          label={t('message.template.form.titleTemplate')}
+          extra={t('message.template.form.placeholderExtra')}
+        >
+          <Input placeholder={t('message.template.form.titleTemplatePlaceholder')} />
         </Form.Item>
-        <Form.Item name="contentTemplate" label="内容模板" extra="支持 ${key} 占位符">
-          <Input.TextArea rows={4} placeholder="如 您的订单 ${orderNo} 已支付，金额 ${amount} 元" />
+        <Form.Item
+          name="contentTemplate"
+          label={t('message.template.form.contentTemplate')}
+          extra={t('message.template.form.placeholderExtra')}
+        >
+          <Input.TextArea
+            rows={4}
+            placeholder={t('message.template.form.contentTemplatePlaceholder')}
+          />
         </Form.Item>
-        <Form.Item name="status" label="状态" initialValue={1}>
-          <Select options={STATUS_OPTIONS} />
+        <Form.Item name="status" label={t('message.template.form.status')} initialValue={1}>
+          <Select options={statusOptions} />
         </Form.Item>
-        <Form.Item name="remark" label="备注">
+        <Form.Item name="remark" label={t('message.template.form.remark')}>
           <Input.TextArea rows={2} />
         </Form.Item>
       </FormModal>

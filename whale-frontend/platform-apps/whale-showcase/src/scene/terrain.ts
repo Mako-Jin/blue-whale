@@ -15,6 +15,16 @@ const RIVER_BED = -2.4;
 const BANK_H = 0.35; // 岸顶高度：必须高于水面，否则水会"淹掉"河岸
 const TERRACE_H = 3.6; // 台地基准高度
 
+/**
+ * 城门通道底的高程（S30）。
+ *
+ * <p>城台（props.ts::buildGateTower）的门洞底、门槛石、路面铺带、门洞壁灯
+ * 全部引用这一个值——改动它必须四处同步。选 2.90 的原因：城内广场 1.18，
+ * 城墙处自然地形 2.7~3.6，门洞底取中间偏下，让门内段与两侧敌台基座
+ * 高程相接时两端都"埋得住"。</p>
+ */
+export const GATE_ROAD_Y = 2.9;
+
 /** 河道中心线随 Z 摆动：让河谷不是一条笔直的渠。水面几何与地形共用这一条线 */
 export function riverCenter(z: number): number {
   /*
@@ -98,6 +108,42 @@ export function heightAt(x: number, z: number): number {
   if (townMask > 0.001) {
     const flat = 1.18;
     h = h * (1 - townMask) + flat * townMask;
+  }
+
+  /*
+   * 城门道（S30）。
+   *
+   * <p>城墙豁口（z −8…12，见 props.ts 的 WALL_RUNS）此前只是两座敌台之间的空档，
+   * 通道底是自然地形——从桥广场（1.15）到城墙（3.2~3.6）一路上坡，门洞里
+   * 30% 的纵坡，出图像"在土坡上挖了个洞"。真实的城门道是一条<b>有自己纵坡的
+   * 道路</b>：城内段从广场缓起，门洞底基本取平，出城一段爬坡接东郊田头。</p>
+   *
+   * <p>三个约定（与 props.ts::buildGateTower 逐项对齐）：</p>
+   * <ol>
+   *   <li>门洞底高程 {@link GATE_ROAD_Y}=2.90——城台、路面共用；</li>
+   *   <li>z 向纵坡 −0.044/m——与城墙 run 的俯仰角同一条线（城门道跟着
+   *       城墙一起"顺坡"），否则门洞底与路面在豁口两端错开 ±0.44；</li>
+   *   <li>横向全宽 ±1.9m、肩部渐收到 ±2.8m——路肩是草坡，路面靠
+   *       props.ts 的土路带铺面。</li>
+   * </ol>
+   */
+  const roadDz = z - 2;
+  const roadBand = 1 - smoothstep(1.9, 2.8, Math.abs(roadDz));
+  if (roadBand > 0.001) {
+    let road: number;
+    if (x < 29) {
+      road = 1.18 + (GATE_ROAD_Y - 1.18) * smoothstep(20.5, 29, x);
+    } else if (x < 34.4) {
+      road = GATE_ROAD_Y;
+    } else {
+      road = GATE_ROAD_Y + (4.15 - GATE_ROAD_Y) * smoothstep(34.4, 39.5, x);
+    }
+    road -= roadDz * 0.044;
+    const roadMask =
+      roadBand * smoothstep(20.5, 21.5, x) * (1 - smoothstep(39.5, 42, x));
+    if (roadMask > 0.001) {
+      h = h * (1 - roadMask) + road * roadMask;
+    }
   }
 
   return h;

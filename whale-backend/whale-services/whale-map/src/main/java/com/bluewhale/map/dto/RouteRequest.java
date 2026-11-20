@@ -12,19 +12,19 @@ import lombok.Data;
 public class RouteRequest {
 
     /** 起点经度 */
-    @NotNull(message = "起点经度不能为空")
+    @NotNull(message = "{validation.map.route.origin-lng-required}")
     private Double originLng;
 
     /** 起点纬度 */
-    @NotNull(message = "起点纬度不能为空")
+    @NotNull(message = "{validation.map.route.origin-lat-required}")
     private Double originLat;
 
     /** 终点经度 */
-    @NotNull(message = "终点经度不能为空")
+    @NotNull(message = "{validation.map.route.destination-lng-required}")
     private Double destinationLng;
 
     /** 终点纬度 */
-    @NotNull(message = "终点纬度不能为空")
+    @NotNull(message = "{validation.map.route.destination-lat-required}")
     private Double destinationLat;
 
     /** 坐标系（缺省按对外展示坐标系） */

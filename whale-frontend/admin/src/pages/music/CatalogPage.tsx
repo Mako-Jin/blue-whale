@@ -4,15 +4,18 @@ import { Tabs } from 'antd';
 import ArtistList from './ArtistList';
 import AlbumList from './AlbumList';
 import TagList from './TagList';
+import { useI18n } from '../../i18n';
 
 export default function CatalogPage() {
+  const { t } = useI18n();
+
   return (
     <Tabs
       defaultActiveKey="artists"
       items={[
-        { key: 'artists', label: '歌手', children: <ArtistList /> },
-        { key: 'albums', label: '专辑', children: <AlbumList /> },
-        { key: 'tags', label: '标签', children: <TagList /> },
+        { key: 'artists', label: t('music.artist.title'), children: <ArtistList /> },
+        { key: 'albums', label: t('music.album.title'), children: <AlbumList /> },
+        { key: 'tags', label: t('music.tag.title'), children: <TagList /> },
       ]}
     />
   );

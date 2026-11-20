@@ -148,7 +148,7 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
         Long tenantId = TenantContext.requireId();
         String word = request.getWord().trim().toLowerCase();
         if (word.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "敏感词不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "forum.sensitive-word.empty", "敏感词不能为空");
         }
         ForumSensitiveWord existing = wordMapper.selectOne(new QueryWrapper<ForumSensitiveWord>()
                 .eq("word", word)
@@ -187,7 +187,7 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
         Long tenantId = TenantContext.requireId();
         ForumSensitiveWord row = wordMapper.selectById(id);
         if (row == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "词条不存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "forum.sensitive-word.not-found", "词条不存在");
         }
         row.setStatus(status == null || status == 0 ? 0 : 1);
         wordMapper.updateById(row);

@@ -183,7 +183,7 @@ public class DocPageServiceImpl implements DocPageService {
         String title = normalizeTitle(request.getTitle());
         String contentJson = resolveSaveContent(page, request.getContentJson());
         if (title == null && contentJson == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "没有需要保存的内容");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.page.save-nothing", "没有需要保存的内容");
         }
         String contentText = contentJson == null ? null : contentSupport.extractText(contentJson);
         DocPage updated = mutationSupport.apply(page, request.getBaseRevision(), title, contentJson,
@@ -204,7 +204,7 @@ public class DocPageServiceImpl implements DocPageService {
         assertNotCollaborating(pageId);
         String title = normalizeTitle(request.getTitle());
         if (title == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "标题不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.page.title-empty", "标题不能为空");
         }
         DocPage updated = mutationSupport.apply(page, request.getBaseRevision(), title, null, null, userId);
         activityService.record(pageId, "TITLE", userId, "更新标题");
@@ -307,7 +307,7 @@ public class DocPageServiceImpl implements DocPageService {
         DocPage page = accessGuard.requirePage(pageId);
         accessGuard.requirePageEdit(page, userId);
         if (DocPageStatus.ARCHIVED.name().equals(page.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "已归档页面不可编辑");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.page.archived-not-editable", "已归档页面不可编辑");
         }
         if (DocPageStatus.PENDING_APPROVAL.name().equals(page.getStatus())) {
             throw DocErrorCode.exception(DocErrorCode.APPROVAL_STATE_CONFLICT);
@@ -344,7 +344,7 @@ public class DocPageServiceImpl implements DocPageService {
         try {
             return objectMapper.writeValueAsString(node);
         } catch (RuntimeException ex) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "正文 JSON 无法解析");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.content.parse-failed", "正文 JSON 无法解析");
         }
     }
 
@@ -360,10 +360,10 @@ public class DocPageServiceImpl implements DocPageService {
         }
         String trimmed = title.trim();
         if (trimmed.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "标题不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.page.title-empty", "标题不能为空");
         }
         if (trimmed.length() > TITLE_MAX_LENGTH) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "页面标题不能超过 200 字");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.page.title-too-long", "页面标题不能超过 200 字");
         }
         return trimmed;
     }

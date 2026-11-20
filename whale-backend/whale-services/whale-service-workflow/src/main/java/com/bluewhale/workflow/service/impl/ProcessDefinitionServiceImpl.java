@@ -87,7 +87,7 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
         } catch (DuplicateKeyException e) {
             workflowMetrics.recordCodeConflict();
             log.warn("流程编码并发冲突: code={}", request.getCode());
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "流程编码已存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.definition.code-exists", "流程编码已存在");
         }
         saveSnapshot(entity.getId(), entity.getVersion(), entity.getDefinitionJson(),
                 WorkflowConstants.PUBLISH_PUBLISHED);
@@ -104,7 +104,8 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
         }
         ValidationReport report = ProcessModelValidator.validate(request.getDefinitionJson());
         if (!report.isValid()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "流程定义校验未通过：" + code);
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.definition.validation-failed",
+                    "流程定义校验未通过：" + code, code);
         }
         ProcessDefinitionSaveRequest saveRequest = new ProcessDefinitionSaveRequest();
         saveRequest.setCode(code);
@@ -141,7 +142,7 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
         } catch (DuplicateKeyException e) {
             workflowMetrics.recordCodeConflict();
             log.warn("流程编码并发冲突: definitionId={}, code={}", entity.getId(), request.getCode());
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "流程编码已存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.definition.code-exists", "流程编码已存在");
         }
         if (jsonChanged) {
             // 内容变更只写草稿快照；发布态仅由 publish() 显式切换，避免绕过发布流程产生多个已发布版本
@@ -180,7 +181,8 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
         ProcessDefinitionVersionPo target = findSnapshot(definitionId, targetVersion);
         if (target != null && target.getPublishStatus() != null
                 && target.getPublishStatus() == WorkflowConstants.PUBLISH_PUBLISHED) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "目标版本已发布，内容变更请使用新版本号");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.definition.version-published",
+                    "目标版本已发布，内容变更请使用新版本号");
         }
     }
 
@@ -310,7 +312,8 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
     private ProcessDefinitionVersionPo requireSnapshot(Long definitionId, Integer version) {
         ProcessDefinitionVersionPo snapshot = findSnapshot(definitionId, version);
         if (snapshot == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "流程版本不存在：" + version);
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.definition.version-not-found",
+                    "流程版本不存在：" + version, version);
         }
         return snapshot;
     }
@@ -524,7 +527,7 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
         wrapper.ne(excludeId != null, ProcessDefinitionPo::getId, excludeId);
         Long count = processDefinitionMapper.selectCount(wrapper);
         if (count != null && count > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "流程编码已存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.definition.code-exists", "流程编码已存在");
         }
     }
 
@@ -536,7 +539,8 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
      */
     private static void validateDefinitionSize(String definitionJson) {
         if (definitionJson != null && definitionJson.length() > MAX_DEFINITION_LENGTH) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "流程定义长度不能超过 65536 字符");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.definition.too-long",
+                    "流程定义长度不能超过 65536 字符");
         }
     }
 

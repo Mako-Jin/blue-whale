@@ -17,6 +17,6 @@ import java.util.List;
 public class FileBatchDeleteRequest {
 
     /** 待删除的文件ID列表 */
-    @NotEmpty(message = "文件ID列表不能为空")
-    private List<@NotNull(message = "文件ID不能为空") Long> ids;
+    @NotEmpty(message = "{validation.file.common.ids-required}")
+    private List<@NotNull(message = "{validation.file.common.file-id-required}") Long> ids;
 }

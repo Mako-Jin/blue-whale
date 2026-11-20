@@ -16,6 +16,6 @@ public class SocialLoginByCodeRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 一次性登录码（回调 302 携带给前端，短时效、防重放） */
-    @NotBlank(message = "登录码不能为空")
+    @NotBlank(message = "{validation.auth.social.login-code-required}")
     private String loginCode;
 }

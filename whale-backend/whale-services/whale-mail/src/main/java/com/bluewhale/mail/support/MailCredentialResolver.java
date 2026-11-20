@@ -49,11 +49,13 @@ public class MailCredentialResolver {
         if (StringUtils.hasText(account.getSecretCipher())) {
             String password = secretCipher.decrypt(account.getSecretCipher());
             if (password.length() < MIN_PASSWORD_LENGTH) {
-                throw new BizException(ErrorCode.SYSTEM_ERROR, "解密得到的邮箱口令过短，疑似密文损坏");
+                throw new BizException(ErrorCode.SYSTEM_ERROR, "mail.credential.password-too-short",
+                        "解密得到的邮箱口令过短，疑似密文损坏");
             }
             return password;
         }
         throw new BizException(ErrorCode.PARAM_ERROR,
+                "mail.credential.not-configured",
                 "邮箱账号未配置凭据（secretRef 与 secretCipher 均为空），无法建立连接");
     }
 
@@ -66,10 +68,12 @@ public class MailCredentialResolver {
     private String resolveFromConfig(String ref) {
         String password = environment.getProperty(ref);
         if (!StringUtils.hasText(password)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "凭据引用未解析到值：" + ref);
+            throw new BizException(ErrorCode.PARAM_ERROR, "mail.credential.ref-unresolved",
+                    "凭据引用未解析到值：" + ref, ref);
         }
         if (password.length() < MIN_PASSWORD_LENGTH) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "凭据值过短，疑似占位配置：" + ref);
+            throw new BizException(ErrorCode.PARAM_ERROR, "mail.credential.value-too-short",
+                    "凭据值过短，疑似占位配置：" + ref, ref);
         }
         return password;
     }

@@ -99,7 +99,8 @@ public class MessageInAppServiceImpl implements MessageInAppService {
         // 合并「存在性校验 + 更新」为一次 DB 往返：影响行数为 0 才视为不存在。
         // MySQL Connector/J 默认返回匹配行数，重复标记已读仍返回 1，天然幂等。
         if (deliveryMapper.update(null, update) == 0) {
-            throw new BizException(ErrorCode.NOT_FOUND, "站内信不存在: " + messageId);
+            throw new BizException(ErrorCode.NOT_FOUND, "message.in-app.not-found",
+                    "站内信不存在: " + messageId, messageId);
         }
     }
 

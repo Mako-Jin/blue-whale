@@ -30,6 +30,10 @@ public final class WebHeaders {
     public static final String PERMISSION_CODES = "X-Permission-Codes";
     /** 租户ID请求头（多租户行级隔离；由网关从 JWT tenantId claim 可信注入） */
     public static final String TENANT_ID = "X-Tenant-Id";
+    /** 语言请求头（由网关归一化 Accept-Language 后注入，服务端优先读取） */
+    public static final String LANG = "X-Lang";
+    /** 标准语言协商头（未注入 X-Lang 时的次选来源） */
+    public static final String ACCEPT_LANGUAGE = "Accept-Language";
 
     /** 工具类不允许实例化 */
     private WebHeaders() {
@@ -92,6 +96,16 @@ public final class WebHeaders {
      */
     public static String tenantId(HttpServletRequest request) {
         return header(request, TENANT_ID);
+    }
+
+    /**
+     * 读取网关注入的语言头
+     *
+     * @param request 当前请求
+     * @return 语言标签；缺失时返回 {@code null}
+     */
+    public static String lang(HttpServletRequest request) {
+        return header(request, LANG);
     }
 
     /**

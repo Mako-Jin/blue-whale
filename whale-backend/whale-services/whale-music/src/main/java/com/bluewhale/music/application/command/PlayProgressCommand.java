@@ -14,18 +14,18 @@ import lombok.Data;
 public class PlayProgressCommand {
 
     /** 歌曲 ID */
-    @NotNull(message = "歌曲 ID 不能为空")
+    @NotNull(message = "{validation.music.progress.song-id-required}")
     private Long songId;
 
     /** 播放进度（毫秒） */
-    @Min(value = 0, message = "播放进度不能为负数")
+    @Min(value = 0, message = "{validation.music.progress.progress-min}")
     private Long progressMs = 0L;
 
     /** 播放来源：HOME / SEARCH / PLAYLIST / ALBUM / ARTIST / MY */
-    @Size(max = 32, message = "播放来源长度不能超过 32")
+    @Size(max = 32, message = "{validation.music.progress.source-size}")
     private String source;
 
     /** 设备标识：WEB / MOBILE / OTHER */
-    @Size(max = 32, message = "设备标识长度不能超过 32")
+    @Size(max = 32, message = "{validation.music.progress.device-size}")
     private String device;
 }

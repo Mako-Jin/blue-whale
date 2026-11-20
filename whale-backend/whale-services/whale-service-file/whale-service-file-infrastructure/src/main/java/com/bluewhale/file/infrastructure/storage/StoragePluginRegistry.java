@@ -90,13 +90,15 @@ public class StoragePluginRegistry implements FileStorage, StoragePluginCatalog 
                             return left;
                         }, TreeMap::new));
         if (plugins.isEmpty()) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "未找到任何文件存储插件");
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "file.storage.no-plugin-available",
+                    "未找到任何文件存储插件");
         }
         String activeType = fileProperties.getStorage().getType();
         StoragePlugin selected = plugins.get(activeType);
         if (selected == null) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(),
-                    "未找到文件存储插件: " + activeType + "，可用插件: " + plugins.keySet());
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "file.storage.plugin-unavailable",
+                    "未找到文件存储插件: " + activeType + "，可用插件: " + plugins.keySet(),
+                    activeType, plugins.keySet());
         }
         this.active = selected;
         this.encryptionKey = resolveEncryptionKey(fileProperties.getStorage().getEncryption());
@@ -144,7 +146,7 @@ public class StoragePluginRegistry implements FileStorage, StoragePluginCatalog 
             return new LimitedInputStream(decrypted, length);
         } catch (IOException e) {
             closeQuietly(raw);
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "文件解密失败");
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "file.storage.decrypt-failed", "文件解密失败");
         }
     }
 
@@ -167,8 +169,8 @@ public class StoragePluginRegistry implements FileStorage, StoragePluginCatalog 
     public String presignedDownloadUrl(String bucket, String objectKey, int expiresSeconds, String storageType) {
         StoragePlugin plugin = pluginFor(storageType);
         if (!plugin.supportsPresigned()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
-                    "当前存储插件不支持预签名下载: " + plugin.getType());
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "file.storage.presigned-unsupported",
+                    "当前存储插件不支持预签名下载: " + plugin.getType(), plugin.getType());
         }
         return plugin.presignedDownloadUrl(bucket, objectKey, expiresSeconds);
     }
@@ -206,7 +208,8 @@ public class StoragePluginRegistry implements FileStorage, StoragePluginCatalog 
             System.arraycopy(nonce, 0, header, ENCRYPTION_MAGIC.length, NONCE_LENGTH);
             return new SequenceInputStream(new ByteArrayInputStream(header), new CipherInputStream(in, cipher));
         } catch (GeneralSecurityException e) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "文件加密初始化失败");
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "file.storage.encrypt-init-failed",
+                    "文件加密初始化失败");
         }
     }
 
@@ -230,7 +233,7 @@ public class StoragePluginRegistry implements FileStorage, StoragePluginCatalog 
             return pin;
         } catch (IOException e) {
             closeQuietly(pin);
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "文件解密失败");
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "file.storage.decrypt-failed", "文件解密失败");
         }
     }
 
@@ -276,7 +279,8 @@ public class StoragePluginRegistry implements FileStorage, StoragePluginCatalog 
             cipher.init(Cipher.DECRYPT_MODE, encryptionKey, new GCMParameterSpec(GCM_TAG_BITS, nonce));
             return cipher;
         } catch (GeneralSecurityException e) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "文件解密初始化失败");
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "file.storage.decrypt-init-failed",
+                    "文件解密初始化失败");
         }
     }
 
@@ -292,7 +296,7 @@ public class StoragePluginRegistry implements FileStorage, StoragePluginCatalog 
             return null;
         }
         if (!StringUtils.hasText(encryption.getKey())) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(),
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "file.storage.encryption-key-required",
                     "启用落盘加密时必须配置 whale.file.storage.encryption.key");
         }
         try {
@@ -302,7 +306,7 @@ public class StoragePluginRegistry implements FileStorage, StoragePluginCatalog 
             }
             return new SecretKeySpec(keyBytes, "AES");
         } catch (IllegalArgumentException e) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(),
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "file.storage.encryption-key-invalid",
                     "落盘加密密钥必须是 Base64 编码的 16/24/32 字节");
         }
     }
@@ -384,8 +388,9 @@ public class StoragePluginRegistry implements FileStorage, StoragePluginCatalog 
         }
         StoragePlugin plugin = plugins.get(storageType.trim());
         if (plugin == null) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(),
-                    "文件记录的存储插件不可用: " + storageType + "，可用插件: " + plugins.keySet());
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "file.storage.recorded-plugin-unavailable",
+                    "文件记录的存储插件不可用: " + storageType + "，可用插件: " + plugins.keySet(),
+                    storageType, plugins.keySet());
         }
         return plugin;
     }

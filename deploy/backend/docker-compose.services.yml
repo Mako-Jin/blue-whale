@@ -526,6 +526,11 @@ services:
       RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
       WHALE_AUDIT_EXPORT_FILE_SERVICE_URL: "http://bw-file:8085"
+      # 归档清单 HMAC 签名密钥（等保 2.0 8.1.4.3）：生产必须由部署环境注入，禁止写入仓库。
+      # 未注入时清单只有 SHA-256 与链值（能发现误改，挡不住连哈希一起改写），
+      # 服务会打 WARN 并置 audit.archive.signed=0；REQUIRE_SIGN_KEY=true 则直接拒绝归档。
+      WHALE_AUDIT_EXPORT_SIGN_KEY: "${WHALE_AUDIT_EXPORT_SIGN_KEY:-}"
+      WHALE_AUDIT_EXPORT_REQUIRE_SIGN_KEY: "${WHALE_AUDIT_EXPORT_REQUIRE_SIGN_KEY:-false}"
       # audit 的 yml 没有显式 redis 配置，Redisson starter 会回落到 localhost:6379，
       # 必须整条覆盖；无密码 Redis 不要设 password 键，否则 Redisson 会发 AUTH 被拒。
       SPRING_DATA_REDIS_HOST: ${REDIS_HOST}

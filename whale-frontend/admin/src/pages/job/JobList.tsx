@@ -11,6 +11,7 @@ import {
   usePermission,
   type ProTableRef,
 } from '@bluewhale/whale-ui';
+import { useI18n } from '../../i18n';
 import {
   batchChangeJobStatus,
   batchDeleteJobs,
@@ -32,12 +33,12 @@ import {
   type JobLogVO,
   type JobPayload,
 } from '../../api/job';
-import { alertColumns, buildJobColumns, logColumns } from './columns';
+import { buildAlertColumns, buildJobColumns, buildLogColumns } from './columns';
 import {
-  ALERT_CHANNEL_OPTIONS,
-  ALERT_LEVEL_OPTIONS,
-  JOB_STATUS_OPTIONS,
-  LOG_STATUS_OPTIONS,
+  buildAlertChannelOptions,
+  buildAlertLevelOptions,
+  buildJobStatusOptions,
+  buildLogStatusOptions,
   type JobAlertQuery,
   type JobFormValues,
   type JobLogQuery,
@@ -50,6 +51,7 @@ import { JobStatsPanel } from './JobStatsPanel';
 
 export default function JobList() {
   const { message } = App.useApp();
+  const { t } = useI18n();
   const { has } = usePermission();
   const jobTableRef = useRef<ProTableRef>(null);
   const logTableRef = useRef<ProTableRef>(null);
@@ -118,7 +120,7 @@ export default function JobList() {
       })
       .catch((error) => {
         if (!cancelled) {
-          message.error(error instanceof Error ? error.message : '依赖信息加载失败');
+          message.error(error instanceof Error ? error.message : t('job.list.msg.dependencyFailed'));
         }
       })
       .finally(() => {
@@ -129,50 +131,55 @@ export default function JobList() {
     return () => {
       cancelled = true;
     };
-  }, [editorOpen, editRecord, editorForm, message]);
+  }, [editorOpen, editRecord, editorForm, message, t]);
 
   const handleToggleStatus = async (row: JobInfoVO, next: number) => {
     try {
       await changeJobStatus(row.id, next);
-      message.success(next === 1 ? '任务已启用' : '任务已停用');
+      message.success(next === 1 ? t('job.list.msg.enabled') : t('job.list.msg.disabled'));
       jobTableRef.current?.reload();
     } catch (error) {
-      showError(error, '状态变更失败');
+      showError(error, t('job.list.msg.statusFailed'));
     }
   };
 
   const handleRun = async (row: JobInfoVO) => {
     try {
       await runJob(row.id);
-      message.success('任务已触发执行');
+      message.success(t('job.list.msg.triggered'));
       logTableRef.current?.reload();
     } catch (error) {
-      showError(error, '触发执行失败');
+      showError(error, t('job.list.msg.runFailed'));
     }
   };
 
   const handleDelete = async (row: JobInfoVO) => {
     try {
       await deleteJob(row.id);
-      message.success('任务已删除');
+      message.success(t('job.list.msg.deleted'));
       jobTableRef.current?.reload();
     } catch (error) {
-      showError(error, '删除失败');
+      showError(error, t('job.list.msg.deleteFailed'));
     }
   };
 
   /** 批量接口整体 200，失败明细在体内：成功提示 N 条，失败附前 3 条原因 */
   const reportBatch = (action: string, result: JobBatchResultVO) => {
     if (result.failures.length === 0) {
-      message.success(`${action}成功 ${result.successCount} 条`);
+      message.success(t('job.list.msg.batchAllSuccess', { action, count: result.successCount }));
       return;
     }
     const detail = result.failures
       .slice(0, 3)
       .map((failure) => `#${failure.id} ${failure.reason}`)
-      .join('；');
+      .join(t('job.list.msg.batchSeparator'));
     message.warning(
-      `${action}：成功 ${result.successCount} 条，失败 ${result.failures.length} 条（${detail}）`,
+      t('job.list.msg.batchPartial', {
+        action,
+        success: result.successCount,
+        failed: result.failures.length,
+        detail,
+      }),
     );
   };
 
@@ -183,11 +190,11 @@ export default function JobList() {
     setBatchRunning(true);
     try {
       const result = await batchChangeJobStatus(selectedRowKeys, next);
-      reportBatch(next === 1 ? '批量启用' : '批量停用', result);
+      reportBatch(next === 1 ? t('job.list.batch.enable') : t('job.list.batch.disable'), result);
       setSelectedRowKeys([]);
       jobTableRef.current?.reload();
     } catch (error) {
-      showError(error, '批量启停失败');
+      showError(error, t('job.list.msg.batchToggleFailed'));
     } finally {
       setBatchRunning(false);
     }
@@ -200,11 +207,11 @@ export default function JobList() {
     setBatchRunning(true);
     try {
       const result = await batchDeleteJobs(selectedRowKeys);
-      reportBatch('批量删除', result);
+      reportBatch(t('job.list.batch.delete'), result);
       setSelectedRowKeys([]);
       jobTableRef.current?.reload();
     } catch (error) {
-      showError(error, '批量删除失败');
+      showError(error, t('job.list.msg.batchDeleteFailed'));
     } finally {
       setBatchRunning(false);
     }
@@ -217,9 +224,9 @@ export default function JobList() {
     }
     try {
       await downloadJobExport({ jobIds: onlySelected ? selectedRowKeys : undefined });
-      message.success('导出文件已生成');
+      message.success(t('job.list.msg.exported'));
     } catch (error) {
-      showError(error, '导出失败');
+      showError(error, t('job.list.msg.exportFailed'));
     }
   };
 
@@ -242,26 +249,29 @@ export default function JobList() {
         await updateJob(editRecord.id, payload);
         // 保存任务后全量替换上游依赖
         await setJobDependencies(editRecord.id, values.upstreamJobIds ?? []);
-        message.success('任务已更新');
+        message.success(t('job.list.msg.updated'));
       } else {
         await createJob(payload);
-        message.success('任务已创建');
+        message.success(t('job.list.msg.created'));
       }
       setEditorOpen(false);
       jobTableRef.current?.reload();
     } catch (error) {
-      showError(error, editRecord ? '更新失败' : '创建失败');
+      showError(error, editRecord ? t('job.list.msg.updateFailed') : t('job.list.msg.createFailed'));
       throw error;
     }
   };
 
   const jobColumns = buildJobColumns({
+    t,
     has,
     onEdit: openEditor,
     onRun: (row) => void handleRun(row),
     onDelete: (row) => void handleDelete(row),
     onToggle: (row, next) => void handleToggleStatus(row, next),
   });
+  const logColumns = buildLogColumns(t);
+  const alertColumns = buildAlertColumns(t);
 
   return (
     <>
@@ -270,12 +280,12 @@ export default function JobList() {
         items={[
           {
             key: 'job',
-            label: '任务列表',
+            label: t('job.tab.jobs'),
             children: (
               <ProTable<JobInfoVO, JobQuery>
                 ref={jobTableRef}
                 rowKey="id"
-                title="任务列表"
+                title={t('job.tab.jobs')}
                 columns={jobColumns}
                 request={pageJobInfo}
                 params={{ keyword, status }}
@@ -283,23 +293,25 @@ export default function JobList() {
                   selectedRowKeys,
                   onChange: (keys) => setSelectedRowKeys(keys as string[]),
                 }}
-                onError={(error) => showError(error, '任务列表加载失败')}
+                onError={(error) => showError(error, t('job.list.msg.loadFailed'))}
                 search={
                   <SearchForm
                     items={[
                       {
                         name: 'keyword',
-                        label: '关键字',
-                        element: <Input allowClear placeholder="任务名称" />,
+                        label: t('job.list.search.keyword'),
+                        element: (
+                          <Input allowClear placeholder={t('job.list.search.keywordPlaceholder')} />
+                        ),
                       },
                       {
                         name: 'status',
-                        label: '状态',
+                        label: t('job.list.search.status'),
                         element: (
                           <Select
                             allowClear
-                            options={JOB_STATUS_OPTIONS}
-                            placeholder="全部"
+                            options={buildJobStatusOptions(t)}
+                            placeholder={t('job.list.search.all')}
                             style={{ width: 140 }}
                           />
                         ),
@@ -324,25 +336,27 @@ export default function JobList() {
                           loading={batchRunning}
                           onClick={() => void handleBatchStatus(1)}
                         >
-                          批量启用
+                          {t('job.list.batch.enable')}
                         </Button>
                         <Button
                           disabled={selectedRowKeys.length === 0}
                           loading={batchRunning}
                           onClick={() => void handleBatchStatus(0)}
                         >
-                          批量停用
+                          {t('job.list.batch.disable')}
                         </Button>
                       </>
                     )}
                     {has('sys:job:delete') && (
                       <Popconfirm
-                        title={`确认删除选中的 ${selectedRowKeys.length} 个任务？`}
+                        title={t('job.list.confirm.batchDelete', {
+                          count: selectedRowKeys.length,
+                        })}
                         disabled={selectedRowKeys.length === 0}
                         onConfirm={() => void handleBatchDelete()}
                       >
                         <Button danger disabled={selectedRowKeys.length === 0} loading={batchRunning}>
-                          批量删除
+                          {t('job.list.batch.delete')}
                         </Button>
                       </Popconfirm>
                     )}
@@ -352,16 +366,23 @@ export default function JobList() {
                           disabled={selectedRowKeys.length === 0}
                           onClick={() => void handleExport(true)}
                         >
-                          导出选中{selectedRowKeys.length > 0 ? `（${selectedRowKeys.length}）` : ''}
+                          {t('job.list.action.exportSelected')}
+                          {selectedRowKeys.length > 0
+                            ? t('job.list.action.exportSelectedCount', {
+                                count: selectedRowKeys.length,
+                              })
+                            : ''}
                         </Button>
-                        <Button onClick={() => void handleExport(false)}>导出全部</Button>
+                        <Button onClick={() => void handleExport(false)}>
+                          {t('job.list.action.exportAll')}
+                        </Button>
                       </>
                     )}
                     <AuthButton perm="sys:job:add" onClick={() => setImportOpen(true)}>
-                      导入
+                      {t('job.list.action.import')}
                     </AuthButton>
                     <AuthButton perm="sys:job:add" type="primary" onClick={() => openEditor(null)}>
-                      新增任务
+                      {t('job.list.action.create')}
                     </AuthButton>
                   </Space>
                 }
@@ -370,34 +391,38 @@ export default function JobList() {
           },
           {
             key: 'log',
-            label: '执行日志',
+            label: t('job.tab.logs'),
             children: (
               <ProTable<JobLogVO, JobLogQuery>
                 ref={logTableRef}
                 rowKey="id"
-                title="执行日志"
+                title={t('job.tab.logs')}
                 columns={logColumns}
                 request={pageJobLog}
                 params={{ jobId: logJobId, status: logStatus }}
-                onError={(error) => showError(error, '执行日志加载失败')}
+                onError={(error) => showError(error, t('job.log.msg.loadFailed'))}
                 search={
                   <SearchForm
                     items={[
                       {
                         name: 'jobId',
-                        label: '任务ID',
+                        label: t('job.list.search.jobId'),
                         element: (
-                          <InputNumber min={1} placeholder="任务ID" style={{ width: 140 }} />
+                          <InputNumber
+                            min={1}
+                            placeholder={t('job.list.search.jobId')}
+                            style={{ width: 140 }}
+                          />
                         ),
                       },
                       {
                         name: 'status',
-                        label: '状态',
+                        label: t('job.list.search.status'),
                         element: (
                           <Select
                             allowClear
-                            options={LOG_STATUS_OPTIONS}
-                            placeholder="全部"
+                            options={buildLogStatusOptions(t)}
+                            placeholder={t('job.list.search.all')}
                             style={{ width: 140 }}
                           />
                         ),
@@ -421,45 +446,49 @@ export default function JobList() {
           },
           {
             key: 'alert',
-            label: '告警记录',
+            label: t('job.tab.alerts'),
             children: (
               <ProTable<JobAlertVO, JobAlertQuery>
                 rowKey="id"
-                title="告警记录"
+                title={t('job.tab.alerts')}
                 columns={alertColumns}
                 request={pageJobAlert}
                 params={{ jobId: alertJobId, level: alertLevel, channel: alertChannel }}
-                onError={(error) => showError(error, '告警记录加载失败')}
+                onError={(error) => showError(error, t('job.alert.msg.loadFailed'))}
                 search={
                   <SearchForm
                     items={[
                       {
                         name: 'jobId',
-                        label: '任务ID',
+                        label: t('job.list.search.jobId'),
                         element: (
-                          <InputNumber min={1} placeholder="任务ID" style={{ width: 140 }} />
+                          <InputNumber
+                            min={1}
+                            placeholder={t('job.list.search.jobId')}
+                            style={{ width: 140 }}
+                          />
                         ),
                       },
                       {
                         name: 'level',
-                        label: '级别',
+                        label: t('job.list.search.level'),
                         element: (
                           <Select
                             allowClear
-                            options={ALERT_LEVEL_OPTIONS}
-                            placeholder="全部"
+                            options={buildAlertLevelOptions(t)}
+                            placeholder={t('job.list.search.all')}
                             style={{ width: 160 }}
                           />
                         ),
                       },
                       {
                         name: 'channel',
-                        label: '通道',
+                        label: t('job.list.search.channel'),
                         element: (
                           <Select
                             allowClear
-                            options={ALERT_CHANNEL_OPTIONS}
-                            placeholder="全部"
+                            options={buildAlertChannelOptions(t)}
+                            placeholder={t('job.list.search.all')}
                             style={{ width: 160 }}
                           />
                         ),
@@ -485,14 +514,14 @@ export default function JobList() {
           },
           {
             key: 'dag',
-            label: '依赖拓扑',
+            label: t('job.tab.dag'),
             children: <JobDagPanel />,
           },
           ...(has('sys:job:log:list')
             ? [
                 {
                   key: 'stats',
-                  label: '执行统计',
+                  label: t('job.tab.stats'),
                   children: <JobStatsPanel />,
                 },
               ]

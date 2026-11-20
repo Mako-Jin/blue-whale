@@ -91,7 +91,8 @@ public class AuthRecipientGroupClient {
         } catch (RuntimeException error) {
             log.warn("接收人组解析失败: group={}, status={}, errorType={}",
                     roleCode, httpStatus(error), error.getClass().getSimpleName());
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "接收人组解析失败: " + roleCode);
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "message.recipient-group.resolve-failed",
+                    "接收人组解析失败: " + roleCode, roleCode);
         }
     }
 
@@ -109,8 +110,8 @@ public class AuthRecipientGroupClient {
             JsonNode root = objectMapper.readTree(raw);
             JsonNode code = root.path("code");
             if (!code.isMissingNode() && code.asInt(-1) != 0) {
-                throw new BizException(ErrorCode.SYSTEM_ERROR,
-                        "接收人组解析失败: " + root.path("message").asText(""));
+                throw new BizException(ErrorCode.SYSTEM_ERROR, "message.recipient-group.resolve-failed",
+                        "接收人组解析失败: " + root.path("message").asText(""), root.path("message").asText(""));
             }
             List<Long> userIds = new ArrayList<>();
             JsonNode data = root.path("data");
@@ -127,7 +128,7 @@ public class AuthRecipientGroupClient {
             throw error;
         } catch (Exception error) {
             log.warn("接收人组响应解析失败: errorType={}", error.getClass().getSimpleName());
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "接收人组解析失败");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "message.recipient-group.parse-failed", "接收人组解析失败");
         }
     }
 

@@ -15,17 +15,17 @@ import lombok.Data;
 public class FileRapidUploadRequest {
 
     /** 原始文件名 */
-    @NotBlank(message = "文件名不能为空")
+    @NotBlank(message = "{validation.file.common.file-name-required}")
     private String fileName;
 
     /** 文件 MD5（32 位十六进制） */
-    @NotBlank(message = "MD5 不能为空")
-    @Pattern(regexp = "[a-fA-F0-9]{32}", message = "MD5 必须为 32 位十六进制")
+    @NotBlank(message = "{validation.file.rapid.md5-required}")
+    @Pattern(regexp = "[a-fA-F0-9]{32}", message = "{validation.file.rapid.md5-pattern}")
     private String md5;
 
     /** 文件字节数 */
-    @NotNull(message = "文件大小不能为空")
-    @Positive(message = "文件大小必须大于 0")
+    @NotNull(message = "{validation.file.common.size-required}")
+    @Positive(message = "{validation.file.common.size-positive}")
     private Long size;
 
     /** MIME 类型 */

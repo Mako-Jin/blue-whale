@@ -77,7 +77,10 @@ class FlywayMigrationScriptTest {
             "V7__tenant_config_menu_fix.sql",
             "清理 V6 因 id=37 撞号误复制的 /doc/spaces 菜单；谓词已锁定 id 派生值，不会误伤合法菜单",
             "V9__tenant_config_menu_dedupe.sql",
-            "删除 V6 遗留的 id=37 重复「租户配置」行；仅在存在同 (tenant_id, path) 的另一行时删除");
+            "删除 V6 遗留的 id=37 重复「租户配置」行；仅在存在同 (tenant_id, path) 的另一行时删除",
+            "V36__three_admin_segregation.sql",
+            "等保三员分立：从 tenant_admin 收回 sys:audit:log:list（sys_role_permission 无 deleted 列，"
+                    + "只能物理删除）；谓词锁定 tenant_admin × sys:audit:log:list 单点，不误伤其他授权");
 
     /**
      * 已登记的 DROP 语句白名单：脚本名 → 理由。

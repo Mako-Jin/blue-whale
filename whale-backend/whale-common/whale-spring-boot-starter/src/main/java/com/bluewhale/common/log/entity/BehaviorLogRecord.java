@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 /**
  * 前端用户行为埋点实体，对应 {@code behavior_log} 表（REQ-SEC-006）。
  *
- * <p>由前端 {@code whale-log-sdk} 行为埋点经 {@code POST /audit/log/behavior/batch}
+ * <p>由前端 {@code whale-log-sdk} 行为埋点经 {@code POST /audit/v1/log/behavior/batch}
  * 批量上报，whale-audit 落库。</p>
  * <p><b>不继承 {@code BaseEntity}</b>：append-only（无 {@code update_time} / {@code deleted}）。</p>
  *

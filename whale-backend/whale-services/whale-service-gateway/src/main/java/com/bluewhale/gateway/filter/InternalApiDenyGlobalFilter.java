@@ -1,5 +1,6 @@
 package com.bluewhale.gateway.filter;
 
+import com.bluewhale.gateway.common.GatewayMessageResolver;
 import com.bluewhale.gateway.common.GatewayResponseWriter;
 import com.bluewhale.gateway.config.InternalApiDenyProperties;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -157,7 +158,8 @@ public class InternalApiDenyGlobalFilter implements GlobalFilter, Ordered {
         if (meterRegistry != null) {
             meterRegistry.counter(METER_REJECTED).increment();
         }
-        return GatewayResponseWriter.write(exchange, HttpStatus.FORBIDDEN, DENY_CODE, DENY_MESSAGE);
+        return GatewayResponseWriter.write(exchange, HttpStatus.FORBIDDEN, DENY_CODE,
+                GatewayMessageResolver.resolve(exchange, "gateway.internal-api.forbidden", DENY_MESSAGE));
     }
 
     @Override

@@ -20,8 +20,8 @@ import java.util.List;
 public class UploadPolicyUpdateRequest {
 
     /** 新规则集合：整体替换，至少一条 */
-    @NotEmpty(message = "上传策略规则不能为空")
-    private List<@Valid @NotNull(message = "上传策略规则条目不能为空") Rule> rules;
+    @NotEmpty(message = "{validation.file.upload-policy.rules-required}")
+    private List<@Valid @NotNull(message = "{validation.file.upload-policy.rule-entry-required}") Rule> rules;
 
     /**
      * 单条上传策略规则。
@@ -32,15 +32,15 @@ public class UploadPolicyUpdateRequest {
     public static class Rule {
 
         /** 需要的权限码 */
-        @NotBlank(message = "上传策略权限码不能为空")
+        @NotBlank(message = "{validation.file.upload-policy.permission-required}")
         private String permission;
 
         /** 生效的单文件最大字节数 */
-        @Min(value = 1, message = "上传策略单文件上限必须大于 0")
+        @Min(value = 1, message = "{validation.file.upload-policy.max-size-positive}")
         private long maxSizeBytes;
 
         /** 生效的个人配额；缺省表示沿用全局默认配额，{@code 0} 表示不限 */
-        @Min(value = 0, message = "上传策略配额不能为负数")
+        @Min(value = 0, message = "{validation.file.upload-policy.quota-non-negative}")
         private Long quotaBytes;
     }
 }

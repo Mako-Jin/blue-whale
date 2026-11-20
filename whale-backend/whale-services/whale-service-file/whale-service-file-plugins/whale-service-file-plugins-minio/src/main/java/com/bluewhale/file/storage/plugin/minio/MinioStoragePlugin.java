@@ -185,7 +185,8 @@ public class MinioStoragePlugin implements StoragePlugin {
         } catch (Exception e) {
             // 复制已成功但源对象删除失败：两份对象共存，元数据仍指向源桶，
             // 读取不受影响；由运维按日志清理目标桶残留
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "源对象删除失败: " + objectKey);
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "file.storage.source-delete-failed",
+                    "源对象删除失败: " + objectKey, objectKey);
         }
     }
 
@@ -220,7 +221,8 @@ public class MinioStoragePlugin implements StoragePlugin {
                 }
             }
         } catch (Exception e) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "对象存储列举失败: " + e.getMessage());
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "file.storage.list-failed",
+                    "对象存储列举失败: " + e.getMessage(), e.getMessage());
         }
         return objects;
     }
@@ -257,7 +259,8 @@ public class MinioStoragePlugin implements StoragePlugin {
     private String resolveBucket(String bucket) {
         String resolved = StringUtils.hasText(bucket) ? bucket : properties.getBucket();
         if (!StringUtils.hasText(resolved)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "对象存储桶名未配置");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "file.storage.bucket-not-configured",
+                    "对象存储桶名未配置");
         }
         return resolved;
     }
@@ -314,7 +317,8 @@ public class MinioStoragePlugin implements StoragePlugin {
                     knownBuckets.add(bucket);
                     return;
                 }
-                throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "对象存储桶初始化失败: " + bucket);
+                throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "file.storage.bucket-init-failed",
+                        "对象存储桶初始化失败: " + bucket, bucket);
             }
         }
     }

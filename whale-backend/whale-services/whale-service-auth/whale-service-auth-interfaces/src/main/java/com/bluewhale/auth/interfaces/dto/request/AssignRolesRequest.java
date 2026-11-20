@@ -13,6 +13,6 @@ import java.util.List;
 @Data
 public class AssignRolesRequest {
 
-    @NotNull(message = "角色ID列表不能为 null")
+    @NotNull(message = "{validation.auth.role.ids-required}")
     private List<Long> roleIds;
 }

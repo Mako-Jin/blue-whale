@@ -17,6 +17,7 @@ class BizExceptionTest {
 
         assertEquals(ErrorCode.NOT_FOUND.getCode(), ex.getCode());
         assertEquals(ErrorCode.NOT_FOUND.getMessage(), ex.getMessage());
+        assertEquals(ErrorCode.NOT_FOUND.getMessageKey(), ex.getMessageKey());
     }
 
     @Test
@@ -38,6 +39,18 @@ class BizExceptionTest {
     }
 
     @Test
+    @DisplayName("以业务码 + 国际化键 + 中文兜底构造：保留码并记录键与占位参数")
+    void shouldKeepCustomCodeWithMessageKey() {
+        BizException ex = new BizException(40901, "doc.page.revision-conflict", "页面已被他人修改", 3);
+
+        assertEquals(40901, ex.getCode());
+        assertEquals("页面已被他人修改", ex.getMessage());
+        assertEquals("doc.page.revision-conflict", ex.getMessageKey());
+        assertEquals(1, ex.getMessageArgs().length);
+        assertEquals(3, ex.getMessageArgs()[0]);
+    }
+
+    @Test
     @DisplayName("仅以文案构造：错误码缺省为系统错误")
     void shouldDefaultToSystemError() {
         BizException ex = new BizException("服务内部错误");
@@ -47,12 +60,14 @@ class BizExceptionTest {
     }
 
     @Test
-    @DisplayName("错误码枚举：每个常量的码为正数且文案非空")
+    @DisplayName("错误码枚举：每个常量的码为正数、文案与国际化键均非空")
     void shouldHaveWellFormedErrorCodes() {
         for (ErrorCode errorCode : ErrorCode.values()) {
             assertEquals(true, errorCode.getCode() >= 0, errorCode.name() + " 的码不应为负数");
             assertEquals(true, errorCode.getMessage() != null && !errorCode.getMessage().isBlank(),
                     errorCode.name() + " 的文案不应为空");
+            assertEquals(true, errorCode.getMessageKey() != null && !errorCode.getMessageKey().isBlank(),
+                    errorCode.name() + " 的国际化键不应为空");
         }
     }
 }

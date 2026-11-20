@@ -92,7 +92,8 @@ public class MailSendServiceImpl implements MailSendService {
             Transport.send(mimeMessage);
         } catch (MessagingException e) {
             log.warn("邮件发送失败: accountId={}, reason={}", account.getId(), e.getMessage());
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "邮件发送失败：" + e.getMessage());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "mail.send.failed",
+                    "邮件发送失败：" + e.getMessage(), e.getMessage());
         }
         indexSent(account, request, mimeMessage, attachments);
         log.info("邮件已发送: accountId={}, to={}, subject={}, attachments={}",
@@ -118,7 +119,8 @@ public class MailSendServiceImpl implements MailSendService {
             byte[] content = fileClient.download(item.getFileId());
             total += content.length;
             if (properties.getMaxSendSizeBytes() > 0 && total > properties.getMaxSendSizeBytes()) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "附件总大小超出邮件上限");
+                throw new BizException(ErrorCode.PARAM_ERROR, "mail.send.attachment-total-exceeded",
+                        "附件总大小超出邮件上限");
             }
             result.add(new SendAttachment(item.getFileId(), item.getFileName(),
                     StringUtils.hasText(item.getContentType()) ? item.getContentType() : "application/octet-stream",
@@ -179,11 +181,12 @@ public class MailSendServiceImpl implements MailSendService {
             mimeMessage.saveChanges();
             long estimated = estimateSize(request, attachments);
             if (estimated > properties.getMaxSendSizeBytes()) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "邮件超出大小上限");
+                throw new BizException(ErrorCode.PARAM_ERROR, "mail.send.size-exceeded", "邮件超出大小上限");
             }
             return mimeMessage;
         } catch (MessagingException | java.io.UnsupportedEncodingException e) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "邮件内容不合法：" + e.getMessage());
+            throw new BizException(ErrorCode.PARAM_ERROR, "mail.send.content-invalid",
+                    "邮件内容不合法：" + e.getMessage(), e.getMessage());
         }
     }
 

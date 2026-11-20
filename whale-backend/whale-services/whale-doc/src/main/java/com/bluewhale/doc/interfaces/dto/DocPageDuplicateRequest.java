@@ -22,7 +22,7 @@ public class DocPageDuplicateRequest implements Serializable {
     private Long parentId;
 
     /** 新页面标题；缺省为「原标题 - 副本」 */
-    @Size(max = 200, message = "页面标题不能超过 200 字")
+    @Size(max = 200, message = "{validation.doc.page.title-size}")
     private String title;
 
     /** 是否同时复制子页面，默认 {@code true} */

@@ -12,6 +12,7 @@ import {
   type PageResult,
   type ProTableRef,
 } from '@bluewhale/whale-ui';
+import { useI18n } from '../../i18n';
 
 interface DemoRow {
   id: number;
@@ -32,25 +33,26 @@ interface DemoQuery {
   category?: string;
 }
 
-const CATEGORY_OPTIONS = [
-  { value: 'A', label: '分类 A' },
-  { value: 'B', label: '分类 B' },
-];
-
-const SEED_ROWS: DemoRow[] = Array.from({ length: 26 }, (_, index) => ({
-  id: index + 1,
-  name: `示例数据 ${index + 1}`,
-  category: index % 2 === 0 ? 'A' : 'B',
-  amount: (index + 1) * 10,
-  status: index % 3 === 0 ? 0 : 1,
-}));
-
 export default function ComponentsDemo() {
   const { message } = App.useApp();
+  const { t } = useI18n();
   const { permissions } = usePermission();
   const tableRef = useRef<ProTableRef>(null);
 
-  const [rows, setRows] = useState<DemoRow[]>(SEED_ROWS);
+  const categoryOptions = [
+    { value: 'A', label: t('demo.category.a') },
+    { value: 'B', label: t('demo.category.b') },
+  ];
+
+  const [rows, setRows] = useState<DemoRow[]>(() =>
+    Array.from({ length: 26 }, (_, index) => ({
+      id: index + 1,
+      name: t('demo.seed.name', { index: index + 1 }),
+      category: index % 2 === 0 ? 'A' : 'B',
+      amount: (index + 1) * 10,
+      status: index % 3 === 0 ? 0 : 1,
+    })),
+  );
   const [keyword, setKeyword] = useState<string | undefined>(undefined);
   const [category, setCategory] = useState<string | undefined>(undefined);
 
@@ -90,7 +92,7 @@ export default function ComponentsDemo() {
             : row,
         ),
       );
-      message.success('示例数据已修改（内存）');
+      message.success(t('demo.msg.updated'));
     } else {
       setRows((prev) => [
         {
@@ -102,26 +104,30 @@ export default function ComponentsDemo() {
         },
         ...prev,
       ]);
-      message.success('示例数据已新增（内存）');
+      message.success(t('demo.msg.created'));
     }
     setEditorOpen(false);
     tableRef.current?.reload();
   };
 
   const columns: TableProps<DemoRow>['columns'] = [
-    { title: 'ID', dataIndex: 'id', width: 80 },
-    { title: '名称', dataIndex: 'name' },
-    { title: '分类', dataIndex: 'category', width: 120 },
-    { title: '金额', dataIndex: 'amount', width: 120 },
+    { title: t('demo.col.id'), dataIndex: 'id', width: 80 },
+    { title: t('demo.col.name'), dataIndex: 'name' },
+    { title: t('demo.col.category'), dataIndex: 'category', width: 120 },
+    { title: t('demo.col.amount'), dataIndex: 'amount', width: 120 },
     {
-      title: '状态',
+      title: t('demo.col.status'),
       dataIndex: 'status',
       width: 100,
       render: (value: number) =>
-        value === 1 ? <Tag color="green">启用</Tag> : <Tag color="red">停用</Tag>,
+        value === 1 ? (
+          <Tag color="green">{t('demo.status.enabled')}</Tag>
+        ) : (
+          <Tag color="red">{t('demo.status.disabled')}</Tag>
+        ),
     },
     {
-      title: '操作',
+      title: t('demo.col.action'),
       key: 'action',
       width: 120,
       render: (_, row) => (
@@ -134,7 +140,7 @@ export default function ComponentsDemo() {
             setEditorOpen(true);
           }}
         >
-          编辑
+          {t('demo.action.edit')}
         </AuthButton>
       ),
     },
@@ -145,7 +151,7 @@ export default function ComponentsDemo() {
       <ProTable<DemoRow, DemoQuery>
         ref={tableRef}
         rowKey="id"
-        title="whale-ui 组件示例（内存数据）"
+        title={t('demo.table.title')}
         columns={columns}
         request={request}
         params={{ keyword, category }}
@@ -154,13 +160,15 @@ export default function ComponentsDemo() {
             items={[
               {
                 name: 'keyword',
-                label: '名称',
-                element: <Input allowClear placeholder="名称关键字" />,
+                label: t('demo.field.name'),
+                element: <Input allowClear placeholder={t('demo.search.keywordPlaceholder')} />,
               },
               {
                 name: 'category',
-                label: '分类',
-                element: <Select allowClear options={CATEGORY_OPTIONS} style={{ width: 140 }} />,
+                label: t('demo.col.category'),
+                element: (
+                  <Select allowClear options={categoryOptions} style={{ width: 140 }} />
+                ),
               },
             ]}
             onSearch={(values) => {
@@ -182,37 +190,45 @@ export default function ComponentsDemo() {
               setEditorOpen(true);
             }}
           >
-            新增示例数据
+            {t('demo.btn.add')}
           </AuthButton>
         }
       />
 
       <Space style={{ marginTop: 16 }} direction="vertical">
-        <span className="admin-hint">
-          按钮级权限演示：当前账号拥有 {permissions.length} 个权限码。 「编辑 / 新增示例数据」需要
-          sys:user:edit / sys:user:add，因此可见； 下面这个按钮需要不存在的
-          sys:demo:not-exist，故不会渲染。
-        </span>
+        <span className="admin-hint">{t('demo.hint', { count: permissions.length })}</span>
         <AuthButton perm="sys:demo:not-exist" type="primary" danger>
-          需要 sys:demo:not-exist 权限的按钮
+          {t('demo.btn.permissionDemo')}
         </AuthButton>
       </Space>
 
       <FormModal<DemoFormValues>
         open={editorOpen}
-        title={editRecord ? `编辑示例数据：${editRecord.name}` : '新增示例数据'}
+        title={
+          editRecord
+            ? t('demo.modal.editTitle', { name: editRecord.name })
+            : t('demo.modal.createTitle')
+        }
         form={editorForm}
         initialValues={editRecord ?? undefined}
         onOk={handleSubmit}
         onCancel={() => setEditorOpen(false)}
       >
-        <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
+        <Form.Item
+          name="name"
+          label={t('demo.field.name')}
+          rules={[{ required: true, message: t('demo.field.nameRequired') }]}
+        >
           <Input />
         </Form.Item>
-        <Form.Item name="category" label="分类" rules={[{ required: true, message: '请选择分类' }]}>
-          <Select options={CATEGORY_OPTIONS} />
+        <Form.Item
+          name="category"
+          label={t('demo.col.category')}
+          rules={[{ required: true, message: t('demo.field.categoryRequired') }]}
+        >
+          <Select options={categoryOptions} />
         </Form.Item>
-        <Form.Item name="amount" label="金额">
+        <Form.Item name="amount" label={t('demo.col.amount')}>
           <InputNumber min={0} style={{ width: '100%' }} />
         </Form.Item>
       </FormModal>

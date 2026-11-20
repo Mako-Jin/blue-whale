@@ -103,7 +103,8 @@ public class MailImapSupport {
             log.debug("IMAP 文件夹探测完成: accountId={}, count={}", account.getId(), result.size());
             return result;
         } catch (MessagingException e) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "IMAP 文件夹探测失败：" + e.getMessage());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "mail.imap.folder-probe-failed",
+                    "IMAP 文件夹探测失败：" + e.getMessage(), e.getMessage());
         } finally {
             closeStore(store);
         }
@@ -151,7 +152,8 @@ public class MailImapSupport {
                 closeFolder(imapFolder);
             }
         } catch (MessagingException e) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "IMAP 同步失败：" + e.getMessage());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "mail.imap.sync-failed",
+                    "IMAP 同步失败：" + e.getMessage(), e.getMessage());
         } finally {
             closeStore(store);
         }
@@ -486,7 +488,8 @@ public class MailImapSupport {
             throw e;
         } catch (Exception e) {
             log.warn("邮件附件回源失败: accountId={}, uid={}, reason={}", account.getId(), uid, e.getMessage());
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "附件拉取失败：" + e.getMessage());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "mail.imap.attachment-fetch-failed",
+                    "附件拉取失败：" + e.getMessage(), e.getMessage());
         } finally {
             closeStore(store);
         }

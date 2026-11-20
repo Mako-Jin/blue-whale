@@ -12,7 +12,7 @@ import lombok.Data;
 public class MovieCollectionItemCommand {
 
     /** 电影内容 ID */
-    @NotNull(message = "电影内容 ID 不能为空")
+    @NotNull(message = "{validation.video.movie-collection-item.content-required}")
     private Long contentId;
 
     /** 片单内排序（升序），为空表示追加到最后 */

@@ -24,21 +24,21 @@ public class TwinAlertNotifySettingsRequest {
     private Boolean inappEnabled;
 
     /** 场景级最低级别：warn / critical（null = 跟随全局） */
-    @Pattern(regexp = "^(warn|critical)?$", message = "最低级别只能是 warn 或 critical")
+    @Pattern(regexp = "^(warn|critical)?$", message = "{validation.twin.alert.min-level-pattern}")
     private String minLevel;
 
     /** 场景级接收人（null 或空 = 回退场景创建人；上限 20 人） */
-    @Size(max = 20, message = "接收人最多 20 个")
+    @Size(max = 20, message = "{validation.twin.alert.user-ids-size}")
     private List<Long> userIds;
 
     /** 场景级恢复通知开关（null = 清除设置，跟随全局） */
     private Boolean recoveryEnabled;
 
     /** 场景级静默开始（HH:mm；null/空 = 清除，跟随全局） */
-    @Pattern(regexp = "^(([01]?\\d|2[0-3]):[0-5]\\d)?$", message = "静默开始时间格式应为 HH:mm")
+    @Pattern(regexp = "^(([01]?\\d|2[0-3]):[0-5]\\d)?$", message = "{validation.twin.alert.quiet-start-pattern}")
     private String quietStart;
 
     /** 场景级静默结束（HH:mm；可跨零点） */
-    @Pattern(regexp = "^(([01]?\\d|2[0-3]):[0-5]\\d)?$", message = "静默结束时间格式应为 HH:mm")
+    @Pattern(regexp = "^(([01]?\\d|2[0-3]):[0-5]\\d)?$", message = "{validation.twin.alert.quiet-end-pattern}")
     private String quietEnd;
 }

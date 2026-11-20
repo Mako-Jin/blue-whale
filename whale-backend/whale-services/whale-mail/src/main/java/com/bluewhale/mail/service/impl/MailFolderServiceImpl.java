@@ -396,10 +396,10 @@ public class MailFolderServiceImpl implements MailFolderService {
     private void assertOwned(Long accountId, Long userId) {
         MailAccount account = accountMapper.selectById(accountId);
         if (account == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "邮箱账号不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "mail.account.not-found", "邮箱账号不存在");
         }
         if (!Objects.equals(account.getUserId(), userId)) {
-            throw new BizException(ErrorCode.FORBIDDEN, "无权访问该邮箱账号");
+            throw new BizException(ErrorCode.FORBIDDEN, "mail.account.forbidden", "无权访问该邮箱账号");
         }
     }
 

@@ -31,6 +31,7 @@ import {
   type PermissionType,
   type PermissionVO,
 } from '../../api/permission';
+import { useI18n } from '../../i18n';
 
 interface PermissionFormValues {
   /** 后端 Long 序列化为字符串 */
@@ -46,28 +47,38 @@ interface PermissionFormValues {
 
 type PermissionQuery = { keyword?: string; permType?: string };
 
-const PERM_TYPE_OPTIONS: { value: PermissionType; label: string }[] = [
-  { value: 'SYSTEM', label: '系统' },
-  { value: 'MENU', label: '菜单' },
-  { value: 'API', label: '接口' },
-  { value: 'BUTTON', label: '按钮' },
-  { value: 'DATA', label: '数据' },
-  { value: 'ATTR', label: '属性' },
-];
+/** 翻译函数类型 */
+type TFunction = ReturnType<typeof useI18n>['t'];
 
-const STATUS_OPTIONS = [
-  { value: 1, label: '启用' },
-  { value: 0, label: '停用' },
-];
+/** 权限类型下拉选项 */
+function permTypeOptions(t: TFunction): { value: PermissionType; label: string }[] {
+  return [
+    { value: 'SYSTEM', label: t('permission.type.system') },
+    { value: 'MENU', label: t('permission.type.menu') },
+    { value: 'API', label: t('permission.type.api') },
+    { value: 'BUTTON', label: t('permission.type.button') },
+    { value: 'DATA', label: t('permission.type.data') },
+    { value: 'ATTR', label: t('permission.type.attr') },
+  ];
+}
+
+/** 状态下拉选项 */
+function statusOptions(t: TFunction) {
+  return [
+    { value: 1, label: t('permission.status.enabled') },
+    { value: 0, label: t('permission.status.disabled') },
+  ];
+}
 
 /** 权限类型中文名，未匹配的原样展示 */
-function permTypeLabel(value?: string): string {
-  return PERM_TYPE_OPTIONS.find((option) => option.value === value)?.label ?? value ?? '-';
+function permTypeLabel(value: string | undefined, t: TFunction): string {
+  return permTypeOptions(t).find((option) => option.value === value)?.label ?? value ?? '-';
 }
 
 export default function PermissionList() {
   const { message } = App.useApp();
   const { has } = usePermission();
+  const { t } = useI18n();
   const tableRef = useRef<ProTableRef>(null);
 
   const [keyword, setKeyword] = useState<string | undefined>(undefined);
@@ -84,10 +95,10 @@ export default function PermissionList() {
   const handleDelete = async (row: PermissionVO) => {
     try {
       await deletePermission(row.id);
-      message.success('权限已删除');
+      message.success(t('permission.msg.deleted'));
       tableRef.current?.reload();
     } catch (error) {
-      showError(error, '删除失败');
+      showError(error, t('permission.msg.deleteFailed'));
     }
   };
 
@@ -105,50 +116,57 @@ export default function PermissionList() {
     try {
       if (editRecord) {
         await updatePermission(editRecord.id, payload);
-        message.success('权限已更新');
+        message.success(t('permission.msg.updated'));
       } else {
         await createPermission(payload);
-        message.success('权限已创建');
+        message.success(t('permission.msg.created'));
       }
       setEditorOpen(false);
       tableRef.current?.reload();
     } catch (error) {
-      showError(error, editRecord ? '更新失败' : '创建失败');
+      showError(
+        error,
+        editRecord ? t('permission.msg.updateFailed') : t('permission.msg.createFailed'),
+      );
       throw error;
     }
   };
 
   const columns: TableProps<PermissionVO>['columns'] = [
-    { title: 'ID', dataIndex: 'id', width: 80 },
-    { title: '权限编码', dataIndex: 'permCode', width: 200 },
-    { title: '权限名称', dataIndex: 'permName', width: 160 },
+    { title: t('permission.col.id'), dataIndex: 'id', width: 80 },
+    { title: t('permission.col.code'), dataIndex: 'permCode', width: 200 },
+    { title: t('permission.col.name'), dataIndex: 'permName', width: 160 },
     {
-      title: '类型',
+      title: t('permission.col.type'),
       dataIndex: 'permType',
       width: 100,
-      render: (value: string | undefined) => <Tag color="blue">{permTypeLabel(value)}</Tag>,
+      render: (value: string | undefined) => <Tag color="blue">{permTypeLabel(value, t)}</Tag>,
     },
     {
-      title: '路径',
+      title: t('permission.col.path'),
       dataIndex: 'path',
       render: (value: string | undefined) => value ?? '-',
     },
     {
-      title: '方法',
+      title: t('permission.col.method'),
       dataIndex: 'method',
       width: 100,
       render: (value: string | undefined) => value ?? '-',
     },
-    { title: '排序', dataIndex: 'sortNo', width: 80 },
+    { title: t('permission.col.sort'), dataIndex: 'sortNo', width: 80 },
     {
-      title: '状态',
+      title: t('permission.col.status'),
       dataIndex: 'status',
       width: 100,
       render: (value: number | undefined) =>
-        value === 1 ? <Tag color="green">启用</Tag> : <Tag color="red">停用</Tag>,
+        value === 1 ? (
+          <Tag color="green">{t('permission.status.enabled')}</Tag>
+        ) : (
+          <Tag color="red">{t('permission.status.disabled')}</Tag>
+        ),
     },
     {
-      title: '操作',
+      title: t('permission.col.action'),
       key: 'action',
       width: 160,
       render: (_, row) => (
@@ -162,12 +180,15 @@ export default function PermissionList() {
               setEditorOpen(true);
             }}
           >
-            编辑
+            {t('permission.action.edit')}
           </AuthButton>
           {has('sys:permission:delete') && (
-            <Popconfirm title="确认删除该权限？" onConfirm={() => void handleDelete(row)}>
+            <Popconfirm
+              title={t('permission.confirm.delete')}
+              onConfirm={() => void handleDelete(row)}
+            >
               <Button type="link" size="small" danger>
-                删除
+                {t('permission.action.delete')}
               </Button>
             </Popconfirm>
           )}
@@ -181,27 +202,29 @@ export default function PermissionList() {
       <ProTable<PermissionVO, PermissionQuery>
         ref={tableRef}
         rowKey="id"
-        title="权限列表"
+        title={t('permission.list.title')}
         columns={columns}
         request={pagePermissions}
         params={{ keyword, permType }}
-        onError={(error) => showError(error, '权限列表加载失败')}
+        onError={(error) => showError(error, t('permission.msg.loadFailed'))}
         search={
           <SearchForm
             items={[
               {
                 name: 'keyword',
-                label: '关键字',
-                element: <Input allowClear placeholder="权限编码 / 名称" />,
+                label: t('permission.search.keyword'),
+                element: (
+                  <Input allowClear placeholder={t('permission.search.keywordPlaceholder')} />
+                ),
               },
               {
                 name: 'permType',
-                label: '类型',
+                label: t('permission.search.type'),
                 element: (
                   <Select
                     allowClear
-                    options={PERM_TYPE_OPTIONS}
-                    placeholder="全部"
+                    options={permTypeOptions(t)}
+                    placeholder={t('permission.search.all')}
                     style={{ width: 140 }}
                   />
                 ),
@@ -226,54 +249,61 @@ export default function PermissionList() {
               setEditorOpen(true);
             }}
           >
-            新增权限
+            {t('permission.action.create')}
           </AuthButton>
         }
       />
 
       <FormModal<PermissionFormValues>
         open={editorOpen}
-        title={editRecord ? `编辑权限：${editRecord.permName}` : '新增权限'}
+        title={
+          editRecord
+            ? t('permission.form.editTitle', { name: editRecord.permName })
+            : t('permission.form.createTitle')
+        }
         form={editorForm}
         initialValues={editRecord ?? undefined}
         onOk={handleSubmit}
         onCancel={() => setEditorOpen(false)}
       >
-        <Form.Item name="parentId" label="上级权限ID">
-          <Input placeholder="留空表示无上级" style={{ width: '100%' }} />
+        <Form.Item name="parentId" label={t('permission.form.parentId')}>
+          <Input placeholder={t('permission.form.parentIdPlaceholder')} style={{ width: '100%' }} />
         </Form.Item>
         <Form.Item
           name="permCode"
-          label="权限编码"
-          rules={[{ required: true, message: '请输入权限编码' }]}
+          label={t('permission.form.code')}
+          rules={[{ required: true, message: t('permission.form.codeRequired') }]}
         >
-          <Input placeholder="如 sys:job:list" />
+          <Input placeholder={t('permission.form.codePlaceholder')} />
         </Form.Item>
         <Form.Item
           name="permName"
-          label="权限名称"
-          rules={[{ required: true, message: '请输入权限名称' }]}
+          label={t('permission.form.name')}
+          rules={[{ required: true, message: t('permission.form.nameRequired') }]}
         >
           <Input />
         </Form.Item>
         <Form.Item
           name="permType"
-          label="权限类型"
-          rules={[{ required: true, message: '请选择权限类型' }]}
+          label={t('permission.form.type')}
+          rules={[{ required: true, message: t('permission.form.typeRequired') }]}
         >
-          <Select options={PERM_TYPE_OPTIONS} placeholder="请选择权限类型" />
+          <Select
+            options={permTypeOptions(t)}
+            placeholder={t('permission.form.typePlaceholder')}
+          />
         </Form.Item>
-        <Form.Item name="path" label="路径">
-          <Input placeholder="如 /job/info/page" />
+        <Form.Item name="path" label={t('permission.form.path')}>
+          <Input placeholder={t('permission.form.pathPlaceholder')} />
         </Form.Item>
-        <Form.Item name="method" label="请求方法">
-          <Input placeholder="如 GET / POST / PUT / DELETE" />
+        <Form.Item name="method" label={t('permission.form.method')}>
+          <Input placeholder={t('permission.form.methodPlaceholder')} />
         </Form.Item>
-        <Form.Item name="sortNo" label="排序" initialValue={1}>
+        <Form.Item name="sortNo" label={t('permission.form.sort')} initialValue={1}>
           <InputNumber min={0} style={{ width: '100%' }} />
         </Form.Item>
-        <Form.Item name="status" label="状态" initialValue={1}>
-          <Select options={STATUS_OPTIONS} />
+        <Form.Item name="status" label={t('permission.form.status')} initialValue={1}>
+          <Select options={statusOptions(t)} />
         </Form.Item>
       </FormModal>
     </>

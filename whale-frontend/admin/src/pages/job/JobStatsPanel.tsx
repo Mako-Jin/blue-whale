@@ -20,6 +20,8 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useEffect, useState } from 'react';
+import { useI18n } from '../../i18n';
+import type { MessageKey } from '../../i18n/messages';
 import {
   getJobLogStats,
   type JobDurationTopVO,
@@ -31,6 +33,9 @@ import {
 } from '../../api/job';
 
 const { RangePicker } = DatePicker;
+
+/** 翻译函数签名（由 useI18n 注入） */
+type Translate = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
 type RangeValue = [Dayjs | null, Dayjs | null] | null;
 
@@ -59,92 +64,101 @@ function dailySuccessRate(row: JobLogDailyStatVO): number {
   return total === 0 ? 0 : (toNumber(row.successCount) / total) * 100;
 }
 
-const dailyColumns: TableProps<JobLogDailyStatVO>['columns'] = [
-  { title: '日期', dataIndex: 'date', width: 120 },
-  { title: '成功', dataIndex: 'successCount', width: 90 },
-  {
-    title: '失败',
-    dataIndex: 'failureCount',
-    width: 90,
-    render: (value: string | undefined) => (
-      <Typography.Text type={toNumber(value) > 0 ? 'danger' : undefined}>{value ?? '0'}</Typography.Text>
-    ),
-  },
-  {
-    title: '成功率',
-    key: 'successRate',
-    width: 200,
-    render: (_, row) => (
-      <Progress percent={Number(dailySuccessRate(row).toFixed(1))} size="small" />
-    ),
-  },
-  {
-    title: '平均耗时',
-    dataIndex: 'avgDurationMillis',
-    width: 120,
-    render: (value: string | undefined) => formatDuration(value),
-  },
-  {
-    title: 'P95 耗时',
-    dataIndex: 'p95DurationMillis',
-    width: 120,
-    render: (value: string | undefined) => formatDuration(value),
-  },
-];
-
-const failureTopColumns: TableProps<JobFailureTopVO>['columns'] = [
-  {
-    title: '任务',
-    dataIndex: 'jobName',
-    render: (value: string | undefined, row) =>
-      value ? `${value}（#${row.jobId}）` : `#${row.jobId}`,
-  },
-  { title: '失败次数', dataIndex: 'failureCount', width: 100 },
-];
-
-const durationTopColumns: TableProps<JobDurationTopVO>['columns'] = [
-  {
-    title: '任务',
-    dataIndex: 'jobName',
-    render: (value: string | undefined, row) =>
-      value ? `${value}（#${row.jobId}）` : `#${row.jobId}`,
-  },
-  {
-    title: '平均耗时',
-    dataIndex: 'avgDurationMillis',
-    width: 110,
-    render: (value: string | undefined) => formatDuration(value),
-  },
-  { title: '执行次数', dataIndex: 'executionCount', width: 100 },
-];
-
-const errorTypeTopColumns: TableProps<JobErrorTypeTopVO>['columns'] = [
-  {
-    title: '异常类型',
-    dataIndex: 'errorType',
-    width: 200,
-    render: (value: string | undefined) => <Tag color="error">{value ?? 'OTHER'}</Tag>,
-  },
-  { title: '次数', dataIndex: 'count', width: 90 },
-  {
-    title: '示例信息',
-    dataIndex: 'sampleMessage',
-    ellipsis: true,
-    render: (value: string | undefined) =>
-      value ? (
-        <Tooltip title={value}>
-          <Typography.Text ellipsis style={{ maxWidth: 320 }}>
-            {value}
-          </Typography.Text>
-        </Tooltip>
-      ) : (
-        '-'
+function buildDailyColumns(t: Translate): TableProps<JobLogDailyStatVO>['columns'] {
+  return [
+    { title: t('job.stats.col.date'), dataIndex: 'date', width: 120 },
+    { title: t('job.stats.col.success'), dataIndex: 'successCount', width: 90 },
+    {
+      title: t('job.stats.col.failure'),
+      dataIndex: 'failureCount',
+      width: 90,
+      render: (value: string | undefined) => (
+        <Typography.Text type={toNumber(value) > 0 ? 'danger' : undefined}>{value ?? '0'}</Typography.Text>
       ),
-  },
-];
+    },
+    {
+      title: t('job.stats.col.successRate'),
+      key: 'successRate',
+      width: 200,
+      render: (_, row) => (
+        <Progress percent={Number(dailySuccessRate(row).toFixed(1))} size="small" />
+      ),
+    },
+    {
+      title: t('job.stats.col.avgDuration'),
+      dataIndex: 'avgDurationMillis',
+      width: 120,
+      render: (value: string | undefined) => formatDuration(value),
+    },
+    {
+      title: t('job.stats.col.p95'),
+      dataIndex: 'p95DurationMillis',
+      width: 120,
+      render: (value: string | undefined) => formatDuration(value),
+    },
+  ];
+}
+
+function buildFailureTopColumns(t: Translate): TableProps<JobFailureTopVO>['columns'] {
+  return [
+    {
+      title: t('job.stats.col.job'),
+      dataIndex: 'jobName',
+      render: (value: string | undefined, row) =>
+        value ? `${value}（#${row.jobId}）` : `#${row.jobId}`,
+    },
+    { title: t('job.stats.col.failureCount'), dataIndex: 'failureCount', width: 100 },
+  ];
+}
+
+function buildDurationTopColumns(t: Translate): TableProps<JobDurationTopVO>['columns'] {
+  return [
+    {
+      title: t('job.stats.col.job'),
+      dataIndex: 'jobName',
+      render: (value: string | undefined, row) =>
+        value ? `${value}（#${row.jobId}）` : `#${row.jobId}`,
+    },
+    {
+      title: t('job.stats.col.avgDuration'),
+      dataIndex: 'avgDurationMillis',
+      width: 110,
+      render: (value: string | undefined) => formatDuration(value),
+    },
+    { title: t('job.stats.col.executionCount'), dataIndex: 'executionCount', width: 100 },
+  ];
+}
+
+function buildErrorTypeTopColumns(t: Translate): TableProps<JobErrorTypeTopVO>['columns'] {
+  return [
+    {
+      title: t('job.stats.col.errorType'),
+      dataIndex: 'errorType',
+      width: 200,
+      render: (value: string | undefined) => <Tag color="error">{value ?? 'OTHER'}</Tag>,
+    },
+    { title: t('job.stats.col.count'), dataIndex: 'count', width: 90 },
+    {
+      title: t('job.stats.col.sample'),
+      dataIndex: 'sampleMessage',
+      ellipsis: true,
+      render: (value: string | undefined) =>
+        value ? (
+          <Tooltip title={value}>
+            <Typography.Text ellipsis style={{ maxWidth: 320 }}>
+              {value}
+            </Typography.Text>
+          </Tooltip>
+        ) : (
+          '-'
+        ),
+    },
+  ];
+}
 
 export function JobStatsPanel() {
   const { message } = App.useApp();
+  const { t } = useI18n();
   const [jobId, setJobId] = useState<number | null>(null);
   const [jobGroup, setJobGroup] = useState('');
   const [range, setRange] = useState<RangeValue>(defaultRange);
@@ -166,7 +180,7 @@ export function JobStatsPanel() {
       })
       .catch((error) => {
         if (!cancelled) {
-          message.error(error instanceof Error ? error.message : '执行统计加载失败');
+          message.error(error instanceof Error ? error.message : t('job.stats.msg.loadFailed'));
         }
       })
       .finally(() => {
@@ -177,7 +191,7 @@ export function JobStatsPanel() {
     return () => {
       cancelled = true;
     };
-  }, [applied, message]);
+  }, [applied, message, t]);
 
   const handleSearch = () => {
     setApplied({
@@ -201,6 +215,10 @@ export function JobStatsPanel() {
 
   const daily = stats?.daily ?? [];
   const total = toNumber(stats?.totalCount);
+  const dailyColumns = buildDailyColumns(t);
+  const failureTopColumns = buildFailureTopColumns(t);
+  const durationTopColumns = buildDurationTopColumns(t);
+  const errorTypeTopColumns = buildErrorTypeTopColumns(t);
   const successTotal = daily.reduce((sum, row) => sum + toNumber(row.successCount), 0);
   const failureTotal = daily.reduce((sum, row) => sum + toNumber(row.failureCount), 0);
   const successRate = total === 0 ? 0 : (successTotal / total) * 100;
@@ -227,14 +245,14 @@ export function JobStatsPanel() {
         <Space wrap>
           <InputNumber
             min={1}
-            placeholder="任务ID"
+            placeholder={t('job.stats.filter.jobId')}
             value={jobId}
             onChange={(value) => setJobId(value ?? null)}
             style={{ width: 140 }}
           />
           <Input
             allowClear
-            placeholder="任务分组"
+            placeholder={t('job.stats.filter.jobGroup')}
             value={jobGroup}
             onChange={(event) => setJobGroup(event.target.value)}
             style={{ width: 180 }}
@@ -245,13 +263,13 @@ export function JobStatsPanel() {
             allowClear={false}
           />
           <Button type="primary" onClick={handleSearch}>
-            查询
+            {t('job.stats.action.search')}
           </Button>
-          <Button onClick={handleReset}>重置</Button>
+          <Button onClick={handleReset}>{t('job.stats.action.reset')}</Button>
         </Space>
         <div style={{ marginTop: 12 }}>
           <Typography.Text type="secondary">
-            统计窗口：{stats?.from ?? '-'} ~ {stats?.to ?? '-'}
+            {t('job.stats.window', { from: stats?.from ?? '-', to: stats?.to ?? '-' })}
           </Typography.Text>
         </div>
       </Card>
@@ -260,29 +278,36 @@ export function JobStatsPanel() {
         <Alert
           type="warning"
           showIcon
-          message="样本已截断"
-          description="窗口内明细超过 10 万条，均值与 P95 为近似值。"
+          message={t('job.stats.sampled.title')}
+          description={t('job.stats.sampled.desc')}
         />
       )}
 
-      <Card title="执行概览" loading={loading}>
+      <Card title={t('job.stats.overview.title')} loading={loading}>
         <Space size={48} wrap>
-          <Statistic title="执行总数" value={total} />
-          <Statistic title="成功" value={successTotal} valueStyle={{ color: '#3f8600' }} />
+          <Statistic title={t('job.stats.overview.total')} value={total} />
           <Statistic
-            title="失败"
+            title={t('job.stats.overview.success')}
+            value={successTotal}
+            valueStyle={{ color: '#3f8600' }}
+          />
+          <Statistic
+            title={t('job.stats.overview.failure')}
             value={failureTotal}
             valueStyle={failureTotal > 0 ? { color: '#cf1322' } : undefined}
           />
           <Statistic
-            title="成功率"
+            title={t('job.stats.overview.successRate')}
             value={total === 0 ? '-' : `${successRate.toFixed(1)}%`}
           />
-          <Statistic title="加权平均耗时" value={formatDuration(String(averageMillis))} />
+          <Statistic
+            title={t('job.stats.overview.avgDuration')}
+            value={formatDuration(String(averageMillis))}
+          />
         </Space>
       </Card>
 
-      <Card title="按天趋势" loading={loading}>
+      <Card title={t('job.stats.daily.title')} loading={loading}>
         <Table<JobLogDailyStatVO>
           rowKey="date"
           size="small"
@@ -293,11 +318,11 @@ export function JobStatsPanel() {
       </Card>
 
       {topNEmpty && (
-        <Typography.Text type="secondary">指定任务时 TopN 不适用，可查看该任务的按天趋势。</Typography.Text>
+        <Typography.Text type="secondary">{t('job.stats.topNUnavailable')}</Typography.Text>
       )}
 
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
-        <Card title="失败次数 Top10" loading={loading}>
+        <Card title={t('job.stats.failureTop.title')} loading={loading}>
           <Table<JobFailureTopVO>
             rowKey="jobId"
             size="small"
@@ -306,7 +331,7 @@ export function JobStatsPanel() {
             pagination={false}
           />
         </Card>
-        <Card title="平均耗时 Top10" loading={loading}>
+        <Card title={t('job.stats.durationTop.title')} loading={loading}>
           <Table<JobDurationTopVO>
             rowKey="jobId"
             size="small"
@@ -315,7 +340,7 @@ export function JobStatsPanel() {
             pagination={false}
           />
         </Card>
-        <Card title="失败原因 Top10" loading={loading}>
+        <Card title={t('job.stats.errorTypeTop.title')} loading={loading}>
           <Table<JobErrorTypeTopVO>
             rowKey="errorType"
             size="small"

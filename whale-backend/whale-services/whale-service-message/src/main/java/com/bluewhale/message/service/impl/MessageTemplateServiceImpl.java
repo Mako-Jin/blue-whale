@@ -109,7 +109,8 @@ public class MessageTemplateServiceImpl implements MessageTemplateService {
     private MessageTemplatePo requireTemplate(Long id) {
         MessageTemplatePo template = id == null ? null : templateMapper.selectById(id);
         if (template == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "消息模板不存在: " + id);
+            throw new BizException(ErrorCode.NOT_FOUND, "message.template.not-found",
+                    "消息模板不存在: " + id, id);
         }
         return template;
     }
@@ -123,7 +124,8 @@ public class MessageTemplateServiceImpl implements MessageTemplateService {
     private void assertCodeUnique(String code, Long excludeId) {
         long exclude = excludeId == null ? 0L : excludeId;
         if (templateMapper.countByCodeIncludeDeleted(code, exclude) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "模板编码已存在: " + code);
+            throw new BizException(ErrorCode.PARAM_ERROR, "message.template.code-exists",
+                    "模板编码已存在: " + code, code);
         }
     }
 
@@ -135,7 +137,7 @@ public class MessageTemplateServiceImpl implements MessageTemplateService {
      */
     private static String normalizeCode(String code) {
         if (!StringUtils.hasText(code)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "模板编码不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "message.template.code-required", "模板编码不能为空");
         }
         return code.trim().toUpperCase(Locale.ROOT);
     }
@@ -148,7 +150,8 @@ public class MessageTemplateServiceImpl implements MessageTemplateService {
      */
     private static int normalizeStatus(Integer status) {
         if (status != null && status != 0 && status != 1) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "模板状态仅支持 0（停用）/ 1（启用）: " + status);
+            throw new BizException(ErrorCode.PARAM_ERROR, "message.template.status-invalid",
+                    "模板状态仅支持 0（停用）/ 1（启用）: " + status, status);
         }
         return status == null ? STATUS_ENABLED : status;
     }

@@ -3,6 +3,7 @@ package com.bluewhale.twin.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.twin.dto.BindingAlertVO;
 import com.bluewhale.twin.dto.SceneAlertCountVO;
 import com.bluewhale.twin.dto.SceneVO;
@@ -147,10 +148,10 @@ public class TwinAlertService {
                 .eq(TwinAlert::getId, alertId)
                 .last("LIMIT 1"));
         if (row == null) {
-            throw new BizException("告警不存在");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.alert.not-found", "告警不存在");
         }
         if (row.getAck() != null && row.getAck() == 1) {
-            throw new BizException("该告警已确认");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.alert.already-acked", "该告警已确认");
         }
         LocalDateTime now = LocalDateTime.now();
         alertMapper.update(null, new LambdaUpdateWrapper<TwinAlert>()

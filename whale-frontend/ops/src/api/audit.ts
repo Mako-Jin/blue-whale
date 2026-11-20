@@ -41,7 +41,7 @@ export interface AuditLogQuery {
   httpMethod?: string;
 }
 
-// 分页查询审计日志：GET /audit/log/page
+// 分页查询审计日志：GET /audit/v1/log/page
 export function pageAuditLog(params: AuditLogQuery): Promise<PageResult<AuditLogVO>> {
-  return get<PageResult<AuditLogVO>>('/audit/log/page', params as Record<string, unknown>);
+  return get<PageResult<AuditLogVO>>('/audit/v1/log/page', params as Record<string, unknown>);
 }

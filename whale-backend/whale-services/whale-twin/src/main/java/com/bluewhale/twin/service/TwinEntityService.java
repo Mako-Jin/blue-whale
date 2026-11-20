@@ -2,6 +2,7 @@ package com.bluewhale.twin.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.twin.dto.EntitySaveRequest;
 import com.bluewhale.twin.dto.EntityVO;
 import com.bluewhale.twin.entity.TwinEntity;
@@ -81,7 +82,8 @@ public class TwinEntityService {
         Long childCount = entityMapper.selectCount(new LambdaQueryWrapper<TwinEntity>()
                 .eq(TwinEntity::getParentId, entity.getId()));
         if (childCount != null && childCount > 0) {
-            throw new BizException("实体下仍有 " + childCount + " 个子节点，请先删除子节点");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.entity.children-remaining",
+                    "实体下仍有 " + childCount + " 个子节点，请先删除子节点", childCount);
         }
         entityMapper.deleteById(entity.getId());
     }
@@ -157,20 +159,22 @@ public class TwinEntityService {
         }
         TwinEntity parent = entityMapper.selectById(newParent);
         if (parent == null || !sceneId.equals(parent.getSceneId())) {
-            throw new BizException("父节点不存在或不属于当前场景");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.entity.parent-not-found",
+                    "父节点不存在或不属于当前场景");
         }
         if (targetId == null) {
             return;
         }
         if (targetId.equals(newParent)) {
-            throw new BizException("不能把实体挂到自己下面");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.entity.self-parent", "不能把实体挂到自己下面");
         }
         Deque<Long> pending = new ArrayDeque<>();
         pending.push(parent.getId());
         while (!pending.isEmpty()) {
             Long currentId = pending.pop();
             if (currentId.equals(targetId)) {
-                throw new BizException("不能把实体挂到自己的子孙节点下（会形成环）");
+                throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.entity.cyclic-parent",
+                        "不能把实体挂到自己的子孙节点下（会形成环）");
             }
             TwinEntity current = entityMapper.selectById(currentId);
             if (current != null && current.getParentId() != null) {
@@ -190,7 +194,8 @@ public class TwinEntityService {
         List<TwinEntity> all = listByScene(sceneId);
         for (TwinEntity entity : all) {
             if (entity.getEntityCode().equals(code) && !entity.getId().equals(selfId)) {
-                throw new BizException("实体编码已存在：" + code);
+                throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.entity.code-exists",
+                        "实体编码已存在：" + code, code);
             }
         }
     }
@@ -205,7 +210,8 @@ public class TwinEntityService {
     private TwinEntity requireInScene(Long sceneId, Long id) {
         TwinEntity entity = entityMapper.selectById(id);
         if (entity == null || !sceneId.equals(entity.getSceneId())) {
-            throw new BizException("实体不存在或不属于当前场景");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.entity.not-found-in-scene",
+                    "实体不存在或不属于当前场景");
         }
         return entity;
     }

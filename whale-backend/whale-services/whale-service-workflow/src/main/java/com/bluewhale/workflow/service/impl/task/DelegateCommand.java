@@ -61,7 +61,7 @@ public class DelegateCommand {
         ProcessTaskPo task = taskCommandSupport.requirePendingTask(id);
         String origin = task.getDelegateFrom();
         if (origin == null || origin.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "任务不是委派任务");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.not-delegate", "任务不是委派任务");
         }
         task.setStatus(WorkflowConstants.TASK_CANCELED);
         task.setComment(comment);
@@ -94,7 +94,7 @@ public class DelegateCommand {
      */
     private static String requireTargetUser(String targetUser) {
         if (targetUser == null || targetUser.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "目标人不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.task.target-required", "目标人不能为空");
         }
         return targetUser.trim();
     }

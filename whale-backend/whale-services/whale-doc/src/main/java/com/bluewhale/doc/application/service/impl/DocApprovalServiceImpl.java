@@ -97,7 +97,7 @@ public class DocApprovalServiceImpl implements DocApprovalService {
                     businessKey(page), variables(page, operator), operator);
         } catch (RuntimeException ex) {
             log.warn("发布审批发起失败: pageId={}, error={}", pageId, ex.getMessage());
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "发布审批发起失败，请稍后重试");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "doc.approval.submit-failed", "发布审批发起失败，请稍后重试");
         }
         LambdaUpdateWrapper<DocPage> wrapper = Wrappers.lambdaUpdate();
         wrapper.eq(DocPage::getId, pageId)
@@ -131,7 +131,7 @@ public class DocApprovalServiceImpl implements DocApprovalService {
     public boolean handleCallback(DocApprovalCallbackRequest request) {
         Integer status = request.getStatus();
         if (status == null || status < WORKFLOW_APPROVED || status > WORKFLOW_CANCELLED) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "审批状态非法");
+            throw new BizException(ErrorCode.PARAM_ERROR, "doc.approval.status-invalid", "审批状态非法");
         }
         return applyResult(request.getInstanceId(), status, request.getComment());
     }

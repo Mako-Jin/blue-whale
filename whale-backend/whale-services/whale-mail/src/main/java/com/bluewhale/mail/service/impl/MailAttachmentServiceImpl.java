@@ -115,15 +115,16 @@ public class MailAttachmentServiceImpl implements MailAttachmentService {
     public AttachmentContent download(Long attachmentId, Long userId) {
         MailAttachment attachment = attachmentMapper.selectById(attachmentId);
         if (attachment == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "附件不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "mail.attachment.not-found", "附件不存在");
         }
         MailMessage message = messageMapper.selectById(attachment.getMessageId());
         if (message == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "附件所属邮件不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "mail.attachment.message-not-found", "附件所属邮件不存在");
         }
         accountService.requireOwned(message.getAccountId(), userId);
         if (attachment.getFileId() == null) {
             throw new BizException(ErrorCode.PARAM_ERROR,
+                    "mail.attachment.not-cached",
                     "该附件超出单封容量上限，未缓存内容，无法下载");
         }
         byte[] content = fileClient.download(attachment.getFileId());

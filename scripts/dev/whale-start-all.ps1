@@ -33,8 +33,8 @@ function Start-Svc($name, $jar, $port, $extra) {
 $services = @(
     @{ Name = 'gateway'; Jar = "$base\whale-services\whale-service-gateway\target\whale-service-gateway.jar"; Module = 'whale-services/whale-service-gateway'; Port = 8080; Extra = @{ NACOS_SERVER = '127.0.0.1:8848' } }
     @{ Name = 'auth';    Jar = "$base\whale-services\whale-service-auth\whale-service-auth-starter\target\whale-service-auth.jar"; Module = 'whale-services/whale-service-auth/whale-service-auth-starter'; Port = 8081; Extra = $null }
-    @{ Name = 'alert';   Jar = "$base\whale-ops\whale-alert\target\whale-alert.jar"; Module = 'whale-ops/whale-alert'; Port = 9103; Extra = $null }
-    @{ Name = 'audit';   Jar = "$base\whale-ops\whale-audit\target\whale-audit.jar"; Module = 'whale-ops/whale-audit'; Port = 9101; Extra = $null }
+    @{ Name = 'alert';   Jar = "$base\whale-ops\whale-ops-alert\target\whale-alert.jar"; Module = 'whale-ops/whale-ops-alert'; Port = 9103; Extra = $null }
+    @{ Name = 'audit';   Jar = "$base\whale-ops\whale-ops-audit\target\whale-audit.jar"; Module = 'whale-ops/whale-ops-audit'; Port = 9101; Extra = $null }
     @{ Name = 'monitor'; Jar = "$base\whale-ops\whale-monitor\target\whale-monitor.jar"; Module = 'whale-ops/whale-monitor'; Port = 9102; Extra = $null }
     @{ Name = 'pay';     Jar = "$base\whale-services\whale-pay\target\whale-pay.jar"; Module = 'whale-services/whale-pay'; Port = 8086; Extra = $null }
 )

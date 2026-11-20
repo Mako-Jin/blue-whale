@@ -53,8 +53,10 @@ public interface FileChunkUploadApi {
     @PostMapping("/part")
     Result<List<Integer>> uploadChunkPart(
             @RequestParam("file") MultipartFile file,
-            @RequestParam("uploadId") @NotBlank(message = "uploadId 不能为空") String uploadId,
-            @RequestParam("index") @Min(value = 0, message = "分片索引不能为负数") int index);
+            @RequestParam("uploadId")
+            @NotBlank(message = "{validation.file.chunk.upload-id-required}") String uploadId,
+            @RequestParam("index")
+            @Min(value = 0, message = "{validation.file.chunk.index-min}") int index);
 
     /**
      * 查询分片上传会话的已上传分片索引。

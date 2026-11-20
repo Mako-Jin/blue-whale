@@ -58,7 +58,7 @@ public class CoordContext {
      */
     public GeoPoint toStorage(Double lng, Double lat, String coordText) {
         if (lng == null || lat == null) {
-            throw new BizException(MapErrorCode.COORD_INVALID, "坐标不能为空");
+            throw new BizException(MapErrorCode.COORD_INVALID, "map.coord.empty", "坐标不能为空");
         }
         CoordType type = CoordType.parse(coordText);
         if (type == null) {

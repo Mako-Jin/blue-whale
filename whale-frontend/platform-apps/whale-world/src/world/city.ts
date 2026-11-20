@@ -51,6 +51,16 @@ import {
 import { createNavGrid } from './path';
 import { createQuestSystem } from './quests';
 import { createScreenLayer } from './screen';
+import { createSceneEnv, type SceneEnv } from './env';
+import { createPostFx, type PostFx } from './postfx';
+import { createSky, type SkyState } from './env-sky';
+import {
+  applyBrickMap,
+  applyStoneMap,
+  applyPlasterMap,
+} from './textures';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { BOARD_D, SIGN_PROUD, drawGoldPlaqueTexture, goldSignMaterial } from './plaque';
 import type { CharPanelHandle } from './charpanel';
 import type { AvatarParams } from './avatar';
 import type { NpcChatHandle } from './npcchat';
@@ -123,6 +133,80 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   renderer.toneMappingExposure = 1.02;
   host.appendChild(renderer.domElement);
 
+  /* ==========================================================================
+   * 渲染增强底座（自 whale-showcase 移植，2026-11-20 批1）：IBL + 后处理 + 画质档
+   *
+   * <p>three 的 toneMapping 只在渲染到画布时生效，渲染到 RenderTarget 时是空操作；
+   * 后处理链的 OutputPass 统一做 ACES——所以直渲（low 档）与 composer 两条路径
+   * 都只有一次色调映射，不会双重映射。renderer.toneMapping 保持原值两条路径共用。</p>
+   *
+   * <p>e2e 在 SwiftShader 软渲染下跑 WebGL：PMREM 与多 pass 后处理在软渲染下
+   * 又慢又费，检测到软渲染强制 low 档（直渲 + 不烘 IBL）——e2e 断言只依赖
+   * DOM/探针，不依赖像素，降级不影响冒烟。</p>
+   * ========================================================================== */
+  type Quality = 'high' | 'mid' | 'low';
+  /* mid 不开 SMAA（两遍全屏 pass 拖 ~4fps），抗锯齿交给 low 之外共有的 canvas MSAA
+   * 之外的 bloom 半分辨率模糊天然柔化；SMAA 只留给 high。 */
+  const QUALITY: Record<Quality, { dpr: number; aa: boolean }> = {
+    high: { dpr: 2, aa: true },
+    mid: { dpr: 1, aa: false },
+    low: { dpr: 1, aa: false },
+  };
+  const gl = renderer.getContext();
+  const dbgInfo = gl.getExtension('WEBGL_debug_renderer_info');
+  const gpuName = dbgInfo ? String(gl.getParameter(dbgInfo.UNMASKED_RENDERER_WEBGL)) : '';
+  const isSoftwareGpu = /swiftshader|llvmpipe|softpipe|software/i.test(gpuName);
+  let quality: Quality = isSoftwareGpu ? 'low' : 'mid';
+
+  /* 调试自由漫游（仅 ?debug=1 暴露）：默认玩家被钳在 OUTER-4 城内 —— 城外河道、
+   * 门楼外侧的机位拍不到。截图评审 / 探针需要出城时必须显式打开，否则会被
+   * 每帧 clamp 拖回城里（批3 踩过）。 */
+  let freeRoam = false;
+
+  const postfx: PostFx = createPostFx(renderer, scene, camera, innerWidth, innerHeight);
+  postfx.setAntialias(QUALITY[quality].aa);
+
+  let env: SceneEnv | null = null;
+  let envIntensity = 0.85;
+  if (quality !== 'low') {
+    env = createSceneEnv(renderer);
+    scene.environment = env.texture;
+    scene.environmentIntensity = envIntensity;
+  }
+  /* 低画质（软渲染）env 为 null：半球光 + 平行光回退到移植前的光照结构 */
+
+  function setQuality(q: Quality) {
+    quality = q;
+    const cfg = QUALITY[q];
+    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, cfg.dpr));
+    renderer.setSize(innerWidth, innerHeight);
+    postfx.setAntialias(cfg.aa);
+    postfx.setSize(innerWidth, innerHeight);
+  }
+
+  /* 后处理昼夜风味：值在 updateSky 末尾逐帧写入（复用预分配对象，避免每帧 new） */
+  const gradeShadowTint = new THREE.Color(0x1a2440);
+  const gradeHighTint = new THREE.Color(0xffd2a0);
+
+  /* env 烘焙节流：连续昼夜 150s/天，PMREM 每帧烘不可能——每 6s 一次（一天 25 次），
+   * 太阳走约 14°，环境光随昼夜平滑过渡足够。SkyState 对象复用不重建。 */
+  const ENV_INTERVAL = 6;
+  let lastEnvAt = -1e9;
+  const envState: SkyState = {
+    top: new THREE.Color(),
+    horizon: new THREE.Color(),
+    ground: new THREE.Color(),
+    sunDir: new THREE.Vector3(),
+    sunColor: new THREE.Color(),
+    sunIntensity: 1,
+    haze: 0,
+    stars: 0,
+  };
+  const ENV_MOON_COLOR = new THREE.Color(0x9fb2ff);
+  /* 云受光/背光色的逐帧计算底稿（getHex 后写进 envState，避免每帧 new Color） */
+  const cloudLightCol = new THREE.Color();
+  const cloudShadeCol = new THREE.Color();
+
   /* 工具栏、HUD、各种面板都是 #bww-scene 的**兄弟节点**（React 里同一层渲染），
    * 不在 host 里面。所有按 data-action 找按钮的代码必须从页面根查，
    * 否则 querySelectorAll 恒返回空——按钮看着在、点了没反应，而且不报任何错。 */
@@ -176,16 +260,19 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     }),
   });
 
-  const hemi = new THREE.HemisphereLight(0x9fc7ff, 0x2c2a20, 0.5);
+  const hemi = new THREE.HemisphereLight(0x9fc7ff, 0x2c2a20, 0.2);
   scene.add(hemi);
 
   const sunLight = new THREE.DirectionalLight(0xfff0cf, 2.1);
   sunLight.castShadow = true;
   sunLight.shadow.mapSize.set(2048, 2048);
-  sunLight.shadow.camera.left = -130;
-  sunLight.shadow.camera.right = 130;
-  sunLight.shadow.camera.top = 130;
-  sunLight.shadow.camera.bottom = -130;
+  /* 阴影盒从 ±130 收紧到 ±44 并逐帧跟随玩家（showcase 口径）：盒不变时 texel
+   * 约 13cm，桥板/瓦垄全是自阴影网格；±44 跟随后 texel 约 4.3cm。范围只罩
+   * 玩家周边，NPC 稍远丢影可接受（游戏相机永远盯着玩家）。 */
+  sunLight.shadow.camera.left = -44;
+  sunLight.shadow.camera.right = 44;
+  sunLight.shadow.camera.top = 44;
+  sunLight.shadow.camera.bottom = -44;
   sunLight.shadow.camera.near = 1;
   sunLight.shadow.camera.far = 800;
   sunLight.shadow.bias = -0.0008;
@@ -213,6 +300,9 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   const matWall = M(0x8b8478, { roughness: 0.95 });
   const matWallDark = M(0x6f695f, { roughness: 0.95 });
   const matStone = M(0xd6cfbd, { roughness: 0.85 });
+  /* 门洞抱框/台明用的整石：比 matStone 暗两档。matStone 是给压顶、栏板这类小
+   * 构件做高光用的，整面用它在正午 IBL 下白得刺眼（批4 首轮实拍）。 */
+  const matAshlar = M(0xb9b09b, { roughness: 0.9 });
   const matRoad = M(0x9a9384, { roughness: 0.98 });
   const matRed = M(0x8f3a2c, { roughness: 0.8 });
   const matRedDark = M(0x6b2a20, { roughness: 0.85 });
@@ -227,8 +317,49 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     depthWrite: false,
   });
 
+  /* ---- 材质贴图（视觉合并批2，自 showcase 移植）----
+   * 纯色 MeshStandardMaterial 在 IBL+ACES 下大面积墙面是一块发光板：图不承担
+   * 颜色，只做 ±8% 的雨痕/霉斑/颗粒调制，颜色仍由材质 baseColor 给。
+   * matRoad 不挂图：环路 RingGeometry 的 UV 是圆盘映射，贴上去成放射状拉花。
+   * low 档（软渲染 e2e）不挂：512²×3 张 anisotropy=8 的贴图在 SwiftShader 下
+   * 拖帧率，寻路/导览按帧推进会卡——e2e 断言不依赖像素，无图不影响冒烟。 */
+  if (quality !== 'low') {
+    applyBrickMap(matWall);
+    applyBrickMap(matWallDark);
+    applyStoneMap(matStone);
+    applyPlasterMap(matRed);
+    applyPlasterMap(matRedDark);
+  }
+
+  /* BoxGeometry 六面 UV 按米缩放：默认 UV 每面 0..1，一张 4m 砖纹贴到 40m 墙
+   * 会被拉伸成「墙纸」。面序 +x,-x,+y,-y,+z,-z，每面 4 顶点。 */
+  const TEX_METERS = 4.0;
+  function scaleBoxUV(geo, w, h, d, meters = TEX_METERS) {
+    const uv = geo.attributes.uv;
+    if (!uv || uv.count !== 24) return;
+    const faceScale = [
+      [d / meters, h / meters],
+      [d / meters, h / meters],
+      [w / meters, d / meters],
+      [w / meters, d / meters],
+      [w / meters, h / meters],
+      [w / meters, h / meters],
+    ];
+    for (let f = 0; f < 6; f++) {
+      const su = faceScale[f][0];
+      const sv = faceScale[f][1];
+      for (let i = 0; i < 4; i++) {
+        const k = f * 4 + i;
+        uv.setXY(k, uv.getX(k) * su, uv.getY(k) * sv);
+      }
+    }
+    uv.needsUpdate = true;
+  }
+
   function box(w, h, d, mat, cast = true) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    const geo = new THREE.BoxGeometry(w, h, d);
+    scaleBoxUV(geo, w, h, d);
+    const m = new THREE.Mesh(geo, mat);
     m.castShadow = cast;
     m.receiveShadow = true;
     return m;
@@ -376,11 +507,22 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     uDeep: { value: new THREE.Color(0x123a4a) },
     uShallow: { value: new THREE.Color(0x3f7c8c) },
     uSky: { value: new THREE.Color(0x9fd6f0) },
+    /* 批3：太阳碎金与涟漪源（rich 档用；simple 档不采这些 uniform，无开销） */
+    uSunDir: { value: new THREE.Vector3(0, 1, 0) },
+    uSunColor: { value: new THREE.Color(0xfff2d0) },
+    uSunIntensity: { value: 1 },
+    /** 涟漪源（showcase S32 同款）：北江江湾顶点 / 清溪汇口 / 玉溪中游，
+     *  z = 周期相位（0~1 错开，三处不同时起环）。 */
+    uRipples: {
+      value: [
+        new THREE.Vector3(130, -151, 0.0),
+        new THREE.Vector3(150, -155, 0.37),
+        new THREE.Vector3(-178, -100, 0.71),
+      ],
+    },
   };
-  const waterMat = new THREE.ShaderMaterial({
-    uniforms: waterUniforms,
-    transparent: true,
-    vertexShader: /* glsl */ `
+
+  const waterVert = /* glsl */ `
     uniform float uTime;
     varying vec2 vUv;
     varying vec3 vN;
@@ -397,8 +539,11 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       vW = wp.xyz;
       gl_Position = projectionMatrix * viewMatrix * wp;
     }
-  `,
-    fragmentShader: /* glsl */ `
+  `;
+
+  /* low 档简化片元 = 移植前原样。批2 教训：SwiftShader 软渲染下一切 GPU 加法
+   * 都要单独验——噪声法线（4 次采样×3 层）+ 涟漪循环是数倍 ALU，e2e 跑不动。 */
+  const waterFragSimple = /* glsl */ `
     uniform float uTime;
     uniform vec3 uDeep;
     uniform vec3 uShallow;
@@ -417,7 +562,108 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       float alpha = mix(0.72, 0.94, fres);
       gl_FragColor = vec4(col, alpha);
     }
-  `,
+  `;
+
+  /* rich 片元（mid/high）：自 showcase water.ts 移植裁剪——保留「值噪声三层波场
+   * → 解析法线 + 太阳碎金 + 涟漪环带」三件套；env 探针/灯影/河床剖面不搬
+   * （蓝鲸城水面是半透明条带、无码头灯组、无探针预算）。
+   * 值噪声而不是正弦叠加：三条相近频率的正弦必然拍出周期编织纹（像木地板）。 */
+  const waterFragRich = /* glsl */ `
+    uniform float uTime;
+    uniform vec3 uDeep;
+    uniform vec3 uShallow;
+    uniform vec3 uSky;
+    uniform vec3 uSunDir;
+    uniform vec3 uSunColor;
+    uniform float uSunIntensity;
+    uniform vec3 uRipples[3];
+    varying vec2 vUv;
+    varying vec3 vN;
+    varying vec3 vW;
+
+    float hash21(vec2 p) {
+      p = fract(p * vec2(123.34, 456.21));
+      p += dot(p, p + 45.32);
+      return fract(p.x * p.y);
+    }
+
+    /* 值噪声（双线性 + 三次平滑） */
+    float vnoise(vec2 p) {
+      vec2 i = floor(p);
+      vec2 f = fract(p);
+      vec2 u = f * f * (3.0 - 2.0 * f);
+      float a = hash21(i);
+      float b = hash21(i + vec2(1.0, 0.0));
+      float c = hash21(i + vec2(0.0, 1.0));
+      float d = hash21(i + vec2(1.0, 1.0));
+      return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+    }
+
+    /* 波纹高度场：x 压缩、z 拉长——反射高光是顺河向的碎金，不是满屏方格 */
+    float surface(vec2 p, float t) {
+      vec2 q = vec2(p.x * 1.10, p.y * 0.30);
+      float n = vnoise(q * 1.20 + vec2(t * 0.10, t * 0.34));
+      n += vnoise(q * 2.70 - vec2(t * 0.16, -t * 0.52)) * 0.52;
+      n += vnoise(q * 6.10 + vec2(-t * 0.28, t * 0.74)) * 0.26;
+      return n / 1.78;
+    }
+
+    void main() {
+      vec3 viewDir = normalize(cameraPosition - vW);
+      vec2 p = vW.xz;
+      float dist = length(cameraPosition - vW);
+
+      /* 远处必须衰减法线扰动：不衰减则 150m 外每个像素都在噪声格子间跳，
+       * 远水面变成一片闪烁白噪点（showcase 实测的"碎冰"）。 */
+      float atten = 1.0 / (1.0 + dist * 0.09 + dist * dist * 0.0008);
+
+      float e = 0.42;
+      float dhdx = (surface(p + vec2(e, 0.0), uTime) - surface(p - vec2(e, 0.0), uTime)) / (2.0 * e);
+      float dhdz = (surface(p + vec2(0.0, e), uTime) - surface(p - vec2(0.0, e), uTime)) / (2.0 * e);
+
+      /* 涟漪扩散：三处固定源各自生一个向外跑的高斯环带。叠加进法线扰动
+       * 而不是单独打亮——环带改反射/碎金的方向，才像"水在动"而不是
+       * "屏幕上画了个圈"。幅度出生最强、随半径二次衰减（能量摊薄）。 */
+      for (int i = 0; i < 3; i++) {
+        vec2 rc = uRipples[i].xy;
+        vec2 dv = p - rc;
+        float d = length(dv);
+        if (d > 3.6 || d < 1e-3) continue;
+        float life = fract(uTime / 7.5 + uRipples[i].z);
+        float r = 0.35 + life * 2.9;
+        float sig = 0.30;
+        float band = exp(-pow((d - r) / sig, 2.0));
+        float amp = (1.0 - life) * (1.0 - life) * 0.24;
+        float g = band * (-2.0 * (d - r) / (sig * sig)) * amp;
+        dhdx += (dv.x / d) * g;
+        dhdz += (dv.y / d) * g;
+      }
+
+      float fres = pow(1.0 - clamp(dot(vec3(0.0, 1.0, 0.0), viewDir), 0.0, 1.0), 2.5);
+      vec3 col = mix(uDeep, uShallow, fres * 0.85);
+      col = mix(col, uSky, fres * 0.45);
+
+      /* 太阳碎金：宽反光打底 + 高次碎金。全强度法线管碎金，夜里 uSunIntensity
+       * 0.15 + 月色（与天空 moonK 同判据），白天日路自动变淡蓝月路。 */
+      vec3 N = normalize(vec3(-dhdx * 1.55 * atten, 1.0, -dhdz * 1.55 * atten));
+      vec3 L = normalize(uSunDir);
+      vec3 H = normalize(viewDir + L);
+      float nh = max(dot(N, H), 0.0);
+      /* 仰角补偿：月路亮度随掠射角变化，低仰角按比例收（showcase S32） */
+      float elevK = mix(0.55, 1.0, smoothstep(0.08, 0.45, uSunDir.y));
+      col += uSunColor * pow(nh, 26.0) * 0.045 * uSunIntensity;
+      col += uSunColor * pow(nh, 420.0) * 3.2 * uSunIntensity * atten * elevK;
+
+      float alpha = mix(0.72, 0.94, fres);
+      gl_FragColor = vec4(col, alpha);
+    }
+  `;
+
+  const waterMat = new THREE.ShaderMaterial({
+    uniforms: waterUniforms,
+    transparent: true,
+    vertexShader: waterVert,
+    fragmentShader: quality === 'low' ? waterFragSimple : waterFragRich,
   });
   waterMat.side = THREE.DoubleSide; // 条带按河道走向生成，面朝向不固定
 
@@ -452,101 +698,27 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     return mesh;
   }
 
-  // 主河·北江（东西向，含江湾段；槽深 13，水面 -4.4 与原河一致）
-  scene.add(riverRibbon((t) => ({ x: t, z: NORTH_RIVER(t) }), -380, 380, 24, -4.4));
-  // 支流（南 → 北汇入北江；水面与主河同高避免汇口台阶，上游没入南岭山体）
+  // 主河·北江（东西向，含江湾段；槽深 13，水面 -4.4 与原河一致）。
+  // 半宽 34 与河谷切槽口对齐（切槽 smooth(d,8,34)）：水沿延伸到槽口外被地形
+  // 盖住，水线自然落在槽深 = 水面处；半宽 24 时 d∈[24,34] 有一条宽达 10m 的
+  // 干河床滩地（批3 评审发现）。
+  scene.add(riverRibbon((t) => ({ x: t, z: NORTH_RIVER(t) }), -380, 380, 34, -4.4));
+  // 支流（南 → 北汇入北江；水面与主河同高避免汇口台阶，上游没入南岭山体；
+  // 半宽 14 与支流槽口 smooth(d,4,14) 对齐，同上防干滩）
   for (const t of TRIBS) {
-    scene.add(riverRibbon((s) => ({ x: t.x(s), z: s }), t.joinZ - 22, 300, 9, -4.4, 60));
+    scene.add(riverRibbon((s) => ({ x: t.x(s), z: s }), t.joinZ - 22, 300, 14, -4.4, 60));
   }
 
   /* ==========================================================================
-   * 3. 天空 / 太阳 / 月亮 / 星空
+   * 3. 天空 —— showcase 全套（视觉合并批3）
+   *
+   * 渐变天空、地平线雾带、日盘（limb darkening）、月盘+月海、星空、云层
+   * 全在 env-sky 这一个 shader 里——原来的独立 sunMesh/moonMesh/星空 Points
+   * 全部下线。与 PMREM env 烘焙共用 skyState（updateSky 里逐帧填），
+   * 天空和反射环境光永远同源；月盘出现条件 uSunIntensity<1 与水面月路同判据。
    * ========================================================================== */
-  const skyUniforms = {
-    uTop: { value: new THREE.Color(0x2f6fb0) },
-    uBottom: { value: new THREE.Color(0xbfe0f5) },
-    uSunDir: { value: new THREE.Vector3(0, 1, 0) },
-    uSunColor: { value: new THREE.Color(0xfff2d0) },
-    uHaze: { value: 0.0 },
-  };
-  const sky = new THREE.Mesh(
-    new THREE.SphereGeometry(1600, 32, 24),
-    new THREE.ShaderMaterial({
-      uniforms: skyUniforms,
-      side: THREE.BackSide,
-      depthWrite: false,
-      vertexShader: /* glsl */ `
-      varying vec3 vDir;
-      void main() {
-        vDir = normalize(position);
-        gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
-      }
-    `,
-      fragmentShader: /* glsl */ `
-      uniform vec3 uTop;
-      uniform vec3 uBottom;
-      uniform vec3 uSunDir;
-      uniform vec3 uSunColor;
-      uniform float uHaze;
-      varying vec3 vDir;
-      void main() {
-        float h = clamp(vDir.y * 0.5 + 0.5, 0.0, 1.0);
-        vec3 col = mix(uBottom, uTop, pow(h, 0.85));
-        float sd = max(dot(normalize(vDir), normalize(uSunDir)), 0.0);
-        col += uSunColor * pow(sd, 420.0) * 2.4;
-        col += uSunColor * pow(sd, 10.0) * 0.30;
-        col = mix(col, vec3(0.62, 0.68, 0.72) * (0.35 + h * 0.6), uHaze * 0.75);
-        gl_FragColor = vec4(col, 1.0);
-      }
-    `,
-    }),
-  );
-  sky.renderOrder = -10;
-  scene.add(sky);
-
-  const sunMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(22, 20, 16),
-    new THREE.MeshBasicMaterial({ color: 0xfff6d8 }),
-  );
-  scene.add(sunMesh);
-
-  const moonMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(16, 20, 16),
-    new THREE.MeshBasicMaterial({ color: 0xdfe8ff }),
-  );
-  scene.add(moonMesh);
-
-  // 星空
-  const starCount = 1800;
-  const starGeo = new THREE.BufferGeometry();
-  {
-    const arr = new Float32Array(starCount * 3);
-    const size = new Float32Array(starCount);
-    for (let i = 0; i < starCount; i++) {
-      const u = Math.random();
-      const v = Math.random() * 0.85 + 0.05;
-      const theta = u * Math.PI * 2;
-      const phi = Math.acos(1 - 2 * v * 0.5);
-      const r = 1400;
-      arr[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-      arr[i * 3 + 1] = Math.abs(r * Math.cos(phi)) * 0.9 + 60;
-      arr[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
-      size[i] = Math.random() * 2.2 + 0.6;
-    }
-    starGeo.setAttribute('position', new THREE.BufferAttribute(arr, 3));
-    starGeo.setAttribute('aSize', new THREE.BufferAttribute(size, 1));
-  }
-  const starMat = new THREE.PointsMaterial({
-    color: 0xffffff,
-    size: 3.4,
-    sizeAttenuation: true,
-    transparent: true,
-    opacity: 0,
-    depthWrite: false,
-  });
-  const stars = new THREE.Points(starGeo, starMat);
-  stars.renderOrder = -9;
-  scene.add(stars);
+  const visibleSky = createSky(1600);
+  scene.add(visibleSky.mesh);
 
   /* ==========================================================================
    * 4. 城墙
@@ -556,6 +728,63 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   const _m4 = new THREE.Matrix4();
   const _v3 = new THREE.Vector3();
   const _s3 = new THREE.Vector3(1, 1, 1);
+
+  /* ==========================================================================
+   * 城门楼合批设施（视觉合并批4）
+   *
+   * <p>六个门楼 × 数十个构件，逐个 mesh add 会白吃上百 draw call；构件几何乘上
+   * 门楼世界矩阵后按材质入桶，末尾每桶 mergeGeometries 成 1 个 mesh（8 桶）。
+   * 门洞与城墙几何一律不动——collision.ts 的穿门/挡墙断言依赖它们。</p>
+   * ========================================================================== */
+  const gateGeo: Record<string, THREE.BufferGeometry[]> = {
+    wall: [],
+    ashlar: [],
+    stone: [],
+    red: [],
+    redDark: [],
+    wood: [],
+    gold: [],
+    board: [],
+    roofOuter: [],
+    roofInner: [],
+  };
+  /** 匾额面片（每面一张独立贴图，合不了批）与檐灯世界坐标 */
+  const gateSigns: THREE.Mesh[] = [];
+  const gateLanternPos: THREE.Vector3[] = [];
+  /** 有门名的门楼锚点（x/z + 门外朝向），供"最近门楼"那盏点光逐帧就位 */
+  const gateAnchors: { x: number; z: number; yaw: number }[] = [];
+  /**
+   * 门楼檐灯的实际照明（只此一盏，逐帧移到最近的门楼）。
+   *
+   * <p>檐灯本身是 MeshBasicMaterial + 溢光壳，只"看着亮"不照别人；四个门外各挂
+   * 一盏点光会让所有材质的灯数常量翻倍（实测吃 3~4fps），而四门外相距 180m，
+   * 同一时刻只可能靠近一座——一盏跟着最近门楼走，视觉等价、开销一份。</p>
+   */
+  const gateLight = new THREE.PointLight(0xffa060, 0, 34, 2);
+  gateLight.name = 'gate-light';
+  scene.add(gateLight);
+  const GATE_ID = new THREE.Matrix4();
+  const _gm = new THREE.Matrix4();
+  const _gl = new THREE.Matrix4();
+  const _gq = new THREE.Quaternion();
+  const _ge = new THREE.Euler();
+  const _gp = new THREE.Vector3();
+  const _gone = new THREE.Vector3(1, 1, 1);
+
+  /** 几何按「门楼世界矩阵 × 局部变换」入桶 */
+  function gateEmit(bucket, geo, G, px = 0, py = 0, pz = 0, rx = 0, ry = 0, rz = 0) {
+    _gq.setFromEuler(_ge.set(rx, ry, rz));
+    _gl.compose(_gp.set(px, py, pz), _gq, _gone);
+    geo.applyMatrix4(_gm.copy(G).multiply(_gl));
+    gateGeo[bucket].push(geo);
+  }
+
+  /** 门楼盒体：UV 按米缩放，与 box() 工厂同口径（砖石纹不被拉伸） */
+  function gateBox(bucket, G, w, h, d, px, py, pz, rx = 0, ry = 0, rz = 0) {
+    const geo = new THREE.BoxGeometry(w, h, d);
+    scaleBoxUV(geo, w, h, d);
+    gateEmit(bucket, geo, G, px, py, pz, rx, ry, rz);
+  }
 
   function addMerlons(x0, z0, x1, z1, yTop, step = 3.6) {
     const dx = x1 - x0;
@@ -580,7 +809,7 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
    * @param {'x'|'z'} along 延伸方向
    * @param {number} sign 位置符号
    */
-  function buildWallSide(half, height, thick, along, sign, gateW, gateH, group) {
+  function buildWallSide(half, height, thick, along, sign, gateW, gateH, group, frame = true) {
     const len = half * 2;
     const segW = (len - gateW) / 2;
     const yBase = 0;
@@ -612,6 +841,28 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       group.add(m);
     }
 
+    /* 门洞石框（批4）：门额石带 + 两侧抱框，内外两面各一套。纯装饰——洞口
+     * 尺寸分毫不动（collision.ts 的穿门断言依赖它）。没有这一圈，穿门时看到的
+     * 是墙体截断面：砖纹贴图在截面上是一片横切撕口，很脏。 */
+    const fz = thick / 2 + 0.2;
+    if (frame) {
+      for (const f of [-1, 1]) {
+        if (along === 'x') {
+          const zf = sign * half + f * fz;
+          gateBox('ashlar', GATE_ID, gateW + 1.7, 0.9, 0.4, 0, gateH + 0.45, zf);
+          for (const ps of [-1, 1]) {
+            gateBox('ashlar', GATE_ID, 0.55, gateH, 0.4, ps * (gateW / 2 + 0.28), gateH / 2, zf);
+          }
+        } else {
+          const xf = sign * half + f * fz;
+          gateBox('ashlar', GATE_ID, 0.4, 0.9, gateW + 1.7, xf, gateH + 0.45, 0);
+          for (const ps of [-1, 1]) {
+            gateBox('ashlar', GATE_ID, 0.4, gateH, 0.55, xf, gateH / 2, ps * (gateW / 2 + 0.28));
+          }
+        }
+      }
+    }
+
     // 垛口
     if (along === 'x') {
       addMerlons(-half, sign * half, -gateW / 2 - 0.5, sign * half, height);
@@ -622,39 +873,123 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     }
   }
 
-  /** 城门楼 */
-  function buildGateTower(x, z, yaw, scale = 1, roofColor = 0x2f6b5f) {
-    const g = new THREE.Group();
-    g.position.set(x, 0, z);
-    g.rotation.y = yaw;
-
-    const base = box(20 * scale, 4 * scale, 12 * scale, matStone);
-    base.position.y = 12 * scale;
-    g.add(base);
-
-    const hall = box(15 * scale, 6 * scale, 9 * scale, matRed);
-    hall.position.y = 17 * scale;
-    g.add(hall);
-
-    const roof = new THREE.Mesh(
-      new THREE.CylinderGeometry(
-        (11.5 * scale) / Math.SQRT2,
-        (18 * scale) / Math.SQRT2,
-        3.4 * scale,
-        4,
-      ),
-      M(roofColor, { roughness: 0.6, metalness: 0.15 }),
+  /**
+   * 城门楼（批4 重做）：城台 + 台明 + 周围廊十二柱 + 填板墙 + 额枋斗拱 + 两坡
+   * 瓦顶 + 正脊鸱吻；有门名的再挂两面金字匾额与檐下灯笼。
+   *
+   * <p>局部 **+Z 就是门外方向**（yaw 把 +Z 转到该门朝向），匾与檐灯都在 ±Z 立面。
+   * 几何全部入桶，由末尾统一合批，函数本身不建 mesh。</p>
+   *
+   * @param roofBucket 'roofOuter' | 'roofInner'（瓦色分桶）
+   * @param name 门名（匾额题字）；null 不挂匾也不挂灯（内城门）
+   */
+  function buildGateTower(x, z, yaw, scale, roofBucket, name) {
+    const s = scale;
+    const G = new THREE.Matrix4().compose(
+      new THREE.Vector3(x, 0, z),
+      new THREE.Quaternion().setFromAxisAngle(Y_AXIS, yaw),
+      new THREE.Vector3(1, 1, 1),
     );
-    roof.rotation.y = Math.PI / 4;
-    roof.position.y = 21.7 * scale;
-    roof.castShadow = true;
-    g.add(roof);
 
-    const ridge = box(16 * scale, 0.55, 0.55, matGold);
-    ridge.position.y = 23.5 * scale;
-    g.add(ridge);
+    /* ---- 城台：外形与旧版一致（20×4×12 @ y=12），只加压顶石与女墙 ---- */
+    gateBox('wall', G, 20 * s, 4 * s, 9 * s, 0, 12 * s, 0);
+    /* 城台挑檐：城外机位没有阴影贴图（阴影盒只跟玩家 44m），只靠材质差读不出
+     * 城台比城墙厚 6m —— 沿底沿加一道出挑的整石，明暗交界自己就把厚度说清了。 */
+    gateBox('ashlar', G, 20.6 * s, 0.45 * s, 9.6 * s, 0, 10.1 * s, 0);
+    gateBox('ashlar', G, 20.8 * s, 0.36 * s, 9.8 * s, 0, 14.05 * s, 0);
+    /* 女墙只做两端：前后檐柱在 z=±4.55，正好压在城台前沿上，前后加墙会插进柱子；
+     * 有周围廊的城楼本来也是廊柱临边、只在山面设墙。 */
+    for (const sg of [-1, 1]) {
+      gateBox('ashlar', G, 0.42 * s, 0.9 * s, 9.6 * s, sg * 10 * s, 14.7 * s, 0);
+    }
 
-    return g;
+    /* ---- 城楼：台明 + 填板墙 + 周围廊十二柱（4 角 + 4 前后檐中柱 + 4 山面） ---- */
+    gateBox('ashlar', G, 16 * s, 0.5 * s, 10.4 * s, 0, 14.35 * s, 0); // 台明（顶 14.6）
+    gateBox('red', G, 14.4 * s, 4.9 * s, 8.4 * s, 0, 17.05 * s, 0);
+    const colGeo = () => new THREE.CylinderGeometry(0.25 * s, 0.27 * s, 5.2 * s, 10);
+    const column = (cx, cz) => {
+      gateBox('ashlar', G, 0.62 * s, 0.34 * s, 0.62 * s, cx * s, 14.77 * s, cz * s); // 柱础
+      gateEmit('redDark', colGeo(), G, cx * s, 17.2 * s, cz * s); // 柱顶 19.8
+    };
+    for (const cx of [-7, -2.6, 2.6, 7]) {
+      for (const cz of [-4.55, 4.55]) column(cx, cz);
+    }
+    for (const cx of [-7, 7]) {
+      for (const cz of [-2.4, 2.4]) column(cx, cz);
+    }
+
+    /* ---- 板门与直棂窗（填板墙内外两面）---- */
+    for (const sg of [-1, 1]) {
+      gateBox('wood', G, 3.6 * s, 3.4 * s, 0.22 * s, 0, 16.5 * s, sg * 4.28 * s);
+      for (const wx of [-4.8, 4.8]) {
+        gateBox('wood', G, 2.2 * s, 1.6 * s, 0.18 * s, wx * s, 17.5 * s, sg * 4.28 * s);
+      }
+    }
+
+    /* ---- 额枋 + 檐下斗拱示意（短悬臂；只有十来像素，但去掉檐口就"飘"）---- */
+    gateBox('redDark', G, 15.2 * s, 0.6 * s, 9.4 * s, 0, 20.1 * s, 0);
+    for (let i = -6; i <= 6; i++) {
+      for (const sg of [-1, 1]) {
+        gateBox('wood', G, 0.34 * s, 0.5 * s, 1.4 * s, i * 1.1 * s, 20.65 * s, sg * 4.9 * s);
+      }
+    }
+
+    /* ---- 两坡瓦顶：檐口 20.9，坡度 0.33rad（showcase 同口径），正脊 22.95 ---- */
+    for (const sg of [-1, 1]) {
+      gateBox(roofBucket, G, 17.4 * s, 0.34 * s, 6.2 * s, 0, 21.9 * s, sg * 2.94 * s, sg * 0.33);
+    }
+    for (const sg of [-1, 1]) {
+      gateBox('redDark', G, 17.6 * s, 0.36 * s, 0.3 * s, 0, 20.95 * s, sg * 5.42 * s); // 封檐板
+    }
+    gateBox('gold', G, 17.8 * s, 0.5 * s, 0.64 * s, 0, 22.95 * s, 0);
+    for (const sg of [-1, 1]) {
+      gateBox('gold', G, 0.7 * s, 1.4 * s, 0.5 * s, sg * 8.6 * s, 23.6 * s, 0, 0, 0, -sg * 0.3);
+    }
+
+    if (!name) return;
+    gateAnchors.push({ x, z, yaw });
+
+    /* ---- 匾额：明间（柱 -2.6..2.6）挂 4.2×1.15 漆地，两面各一块 + 金字面片 ---- */
+    const bw = 4.2 * s;
+    const bh = 1.15 * s;
+    const by = 18.6 * s;
+    const signW = bw - 0.1 * s;
+    const signH = bh - 0.08 * s;
+    /* 金字面片在 low 档（SwiftShader，e2e 路径）跳过：一块匾一张 1800×500 的
+     * canvas + alphaTest 采样，在软渲染下是纯负担，而 e2e 只断言 DOM/探针。
+     * 漆地照建，远看仍是"挂了匾"。 */
+    const signMat =
+      quality === 'low'
+        ? null
+        : goldSignMaterial(
+            drawGoldPlaqueTexture(name, signW, signH, 0.74 * s),
+            `gatePlaque-${name}`,
+          );
+    const signGeo = signMat ? new THREE.PlaneGeometry(signW, signH) : null;
+    for (const sg of [-1, 1]) {
+      gateBox('board', G, bw, bh, BOARD_D * s, 0, by, sg * (4.2 * s + (BOARD_D * s) / 2));
+      if (!signMat) continue;
+      // plane 法线 +Z：+Z 面不转、-Z 面绕 Y 转 π——两面读字都正立不镜像
+      const sign = new THREE.Mesh(signGeo, signMat);
+      sign.position.set(0, by, sg * (4.2 * s + BOARD_D * s + SIGN_PROUD));
+      sign.rotation.y = sg > 0 ? 0 : Math.PI;
+      sign.castShadow = false; // 字不投影：alphaTest 镂空的影子是一团噪点
+      sign.receiveShadow = true; // 檐口影子落到字上，反而是"匾在檐下"的证据
+      sign.updateMatrix();
+      gateSigns.push(sign); // 位置在合批末尾统一乘门楼矩阵
+      sign.applyMatrix4(G);
+    }
+
+    /* ---- 檐下灯笼：额枋外沿吊 3 盏 × 内外两面（复用 matLantern，夜间自动点亮）---- */
+    /* 每面 4 盏、避开明间中轴：3 盏时中间那盏正好挂在匾额上沿，溢光壳半径 1.35
+     * 会把"南"字糊掉。 */
+    for (const lx of [-6.3, -3.3, 3.3, 6.3]) {
+      for (const sg of [-1, 1]) {
+        const lz = sg * 5.55 * s;
+        gateEmit('wood', new THREE.CylinderGeometry(0.04 * s, 0.04 * s, 1.5 * s, 6), G, lx * s, 20.5 * s, lz);
+        gateLanternPos.push(new THREE.Vector3(lx * s, 19.3 * s, lz).applyMatrix4(G));
+      }
+    }
   }
 
   const cityGroup = new THREE.Group();
@@ -668,10 +1003,12 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   buildWallSide(OUTER, 10, 3.2, 'x', 1, GATE_HALF.outer * 2, 9.2, cityGroup);
   buildWallSide(OUTER, 10, 3.2, 'z', -1, GATE_HALF.outer * 2, 9.2, cityGroup);
   buildWallSide(OUTER, 10, 3.2, 'z', 1, GATE_HALF.outer * 2, 9.2, cityGroup);
-  cityGroup.add(buildGateTower(0, OUTER, 0, 1.0, 0x2f6b5f));
-  cityGroup.add(buildGateTower(0, -OUTER, Math.PI, 1.0, 0x2f6b5f));
-  cityGroup.add(buildGateTower(OUTER, 0, -Math.PI / 2, 1.0, 0x2f6b5f));
-  cityGroup.add(buildGateTower(-OUTER, 0, Math.PI / 2, 1.0, 0x2f6b5f));
+  /* 四座外城门：指北针以 -Z 为北（小地图口径），故南 +Z、北 -Z、东 +X、西 -X。
+   * yaw 必须把门楼局部 +Z 转到"门外"，匾额与檐灯才朝向城外。 */
+  buildGateTower(0, OUTER, 0, 1.0, 'roofOuter', '南薰門');
+  buildGateTower(0, -OUTER, Math.PI, 1.0, 'roofOuter', '望江門');
+  buildGateTower(OUTER, 0, Math.PI / 2, 1.0, 'roofOuter', '朝陽門');
+  buildGateTower(-OUTER, 0, -Math.PI / 2, 1.0, 'roofOuter', '鯨津門');
 
   // 内城
   const INNER = CITY_GEOMETRY.innerWall;
@@ -679,12 +1016,60 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   buildWallSide(INNER, 8, 2.4, 'x', 1, GATE_HALF.inner * 2, 7.2, cityGroup);
   buildWallSide(INNER, 8, 2.4, 'z', -1, GATE_HALF.inner * 2, 7.2, cityGroup);
   buildWallSide(INNER, 8, 2.4, 'z', 1, GATE_HALF.inner * 2, 7.2, cityGroup);
-  cityGroup.add(buildGateTower(0, INNER, 0, 0.78, 0x3f5f78));
-  cityGroup.add(buildGateTower(0, -INNER, Math.PI, 0.78, 0x3f5f78));
+  buildGateTower(0, INNER, 0, 0.78, 'roofInner', null);
+  buildGateTower(0, -INNER, Math.PI, 0.78, 'roofInner', null);
+
+  /* ---- 门楼合批收口（批4）：每材质桶并成 1 个 mesh ---- */
+  {
+    const gateMats = {
+      wall: matWall,
+      ashlar: matAshlar,
+      stone: matStone,
+      red: matRed,
+      redDark: matRedDark,
+      wood: matWood,
+      gold: matGold,
+      board: M(0x2b1f19, { roughness: 0.52, metalness: 0.05 }),
+      roofOuter: M(0x2f6b5f, { roughness: 0.55, metalness: 0.18 }),
+      roofInner: M(0x3f5f78, { roughness: 0.55, metalness: 0.18 }),
+    };
+    for (const [key, list] of Object.entries(gateGeo)) {
+      if (!list.length) continue;
+      const merged = mergeGeometries(list, false);
+      list.forEach((geo) => geo.dispose());
+      const mesh = new THREE.Mesh(merged, gateMats[key]);
+      mesh.name = `gate-${key}`;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      cityGroup.add(mesh);
+    }
+    gateSigns.forEach((sign) => cityGroup.add(sign));
+
+    /* 檐下灯笼：24 盏两个 InstancedMesh（灯体 + 溢光壳）。材质复用御道灯笼的
+     * matLantern/matLanternGlow——它们每帧按昼夜改色与不透明度，门楼灯自动跟着亮。 */
+    if (gateLanternPos.length) {
+      const bodyGeo = new THREE.SphereGeometry(0.44, 10, 8);
+      bodyGeo.scale(1, 1.18, 1);
+      const glowGeo = new THREE.SphereGeometry(1.35, 8, 6);
+      const bodies = new THREE.InstancedMesh(bodyGeo, matLantern, gateLanternPos.length);
+      const glows = new THREE.InstancedMesh(glowGeo, matLanternGlow, gateLanternPos.length);
+      gateLanternPos.forEach((p, i) => {
+        _gm.makeTranslation(p.x, p.y, p.z);
+        bodies.setMatrixAt(i, _gm);
+        glows.setMatrixAt(i, _gm);
+      });
+      bodies.instanceMatrix.needsUpdate = true;
+      glows.instanceMatrix.needsUpdate = true;
+      bodies.name = 'gate-lanterns';
+      glows.name = 'gate-lantern-glows';
+      cityGroup.add(bodies, glows);
+    }
+  }
 
   // 垛口合批
   {
     const merlonGeo = new THREE.BoxGeometry(1.7, 1.6, 0.8);
+    scaleBoxUV(merlonGeo, 1.7, 1.6, 0.8);
     const merlonMesh = new THREE.InstancedMesh(merlonGeo, matWallDark, merlonMatrices.length);
     merlonMatrices.forEach((m, i) => merlonMesh.setMatrixAt(i, m));
     merlonMesh.instanceMatrix.needsUpdate = true;
@@ -837,10 +1222,10 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   // 皇城墙
   {
     const R = CITY_GEOMETRY.royalWall;
-    buildWallSide(R, 12, 2.6, 'x', -1, GATE_HALF.royal * 2, 8.5, palaceGroup);
-    buildWallSide(R, 12, 2.6, 'x', 1, GATE_HALF.royal * 2, 8.5, palaceGroup);
-    buildWallSide(R, 12, 2.6, 'z', -1, GATE_HALF.royal * 2, 8.5, palaceGroup);
-    buildWallSide(R, 12, 2.6, 'z', 1, GATE_HALF.royal * 2, 8.5, palaceGroup);
+    buildWallSide(R, 12, 2.6, 'x', -1, GATE_HALF.royal * 2, 8.5, palaceGroup, false);
+    buildWallSide(R, 12, 2.6, 'x', 1, GATE_HALF.royal * 2, 8.5, palaceGroup, false);
+    buildWallSide(R, 12, 2.6, 'z', -1, GATE_HALF.royal * 2, 8.5, palaceGroup, false);
+    buildWallSide(R, 12, 2.6, 'z', 1, GATE_HALF.royal * 2, 8.5, palaceGroup, false);
   }
 
   // 主殿：数枢殿 → 核心数据（参数来自 city-layout.json）
@@ -981,16 +1366,29 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     scene.add(innerRing);
   }
 
-  // 中轴御道（长度随外城墙，铺满南北与东西两条轴线）
+  // 中轴御道：Stone 贴图独立材质（matRoad 本体不挂图，环路 RingGeometry UV 是
+  // 圆盘映射会拉花）；长度随外城墙数据化（扩容后不能再用硬编码 176），UV 按比例平铺
   {
     const roadLen = (OUTER - 4) * 2;
-    const axis = new THREE.Mesh(new THREE.PlaneGeometry(13, roadLen), matRoad);
+    const matRoadTex = matRoad.clone();
+    if (quality !== 'low') applyStoneMap(matRoadTex);
+    const axisGeo = new THREE.PlaneGeometry(13, roadLen);
+    const auv = axisGeo.attributes.uv;
+    for (let i = 0; i < auv.count; i++) {
+      auv.setXY(i, auv.getX(i) * (13 / 4), auv.getY(i) * (roadLen / 4));
+    }
+    const axis = new THREE.Mesh(axisGeo, matRoadTex);
     axis.rotation.x = -Math.PI / 2;
     axis.position.set(0, 0.07, 4);
     axis.receiveShadow = true;
     scene.add(axis);
 
-    const cross = new THREE.Mesh(new THREE.PlaneGeometry(13, roadLen), matRoad);
+    const crossGeo = new THREE.PlaneGeometry(13, roadLen);
+    const cuv = crossGeo.attributes.uv;
+    for (let i = 0; i < cuv.count; i++) {
+      cuv.setXY(i, cuv.getX(i) * (13 / 4), cuv.getY(i) * (roadLen / 4));
+    }
+    const cross = new THREE.Mesh(crossGeo, matRoadTex);
     cross.rotation.x = -Math.PI / 2;
     cross.rotation.z = Math.PI / 2;
     cross.position.set(0, 0.065, 0);
@@ -2168,6 +2566,9 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     yaw: 0,
     pitch: 0.44,
     dist: 16,
+    /** 取景点相对玩家眼睛的抬升（m）。正常玩法恒为 0，只有截图评审用
+     *  __bwwLookAt 抬起来看匾额、屋顶这类高处的构件。 */
+    rise: 0,
     target: new THREE.Vector3(),
   };
   const keys = new Set();
@@ -2598,9 +2999,6 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       .set(Math.cos(ang) * 0.85, Math.sin(ang), 0.42 * Math.cos(ang * 0.5))
       .normalize();
 
-    sunMesh.position.copy(sunDir).multiplyScalar(900);
-    moonMesh.position.copy(sunDir).multiplyScalar(-900);
-
     const h = sunDir.y; // -1..1
     const dayF = smooth(h, -0.06, 0.34);
     const duskF = 1 - smooth(Math.abs(h), 0.02, 0.42);
@@ -2611,12 +3009,11 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     bot.lerp(SKY_DUSK_BOT, duskF * 0.8);
 
     const haze = world.weatherMix[3];
-    skyUniforms.uTop.value.copy(top);
-    skyUniforms.uBottom.value.copy(bot);
-    skyUniforms.uSunDir.value.copy(sunDir);
-    skyUniforms.uHaze.value = haze;
 
-    sunLight.position.copy(sunDir).multiplyScalar(220);
+    sunLight.target.position.set(player.pos.x, 0, player.pos.z);
+    /* 平行光方向由 position→target 决定：position 必须跟着 target 平移，
+     * 否则 target 跟玩家走后方向会漂移（原版 position 固定在 sunDir*220）。 */
+    sunLight.position.copy(sunLight.target.position).addScaledVector(sunDir, 220);
     sunLight.intensity = lerp(0.05, 2.5, dayF);
     const sunCol = new THREE.Color(0xffe0b0).lerp(new THREE.Color(0xfff6e0), smooth(h, 0, 0.4));
     sunLight.color.copy(sunCol).lerp(new THREE.Color(0xff8a3c), duskF * 0.7);
@@ -2624,10 +3021,10 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     moonLight.position.copy(sunDir).multiplyScalar(-220);
     moonLight.intensity = lerp(0.55, 0.0, dayF);
 
-    hemi.intensity = lerp(0.14, 0.62, dayF);
+    hemi.intensity = lerp(0.06, 0.2, dayF);
     hemi.color.copy(new THREE.Color(0x2a3f6b).lerp(new THREE.Color(0xa8ccff), dayF));
 
-    starMat.opacity = clamp(1 - dayF * 1.5, 0, 0.95) * (1 - haze * 0.9);
+    const starsOpacity = clamp(1 - dayF * 1.5, 0, 0.95) * (1 - haze * 0.9);
 
     fogColor.copy(bot).lerp(new THREE.Color(0x8f9aa0), haze * 0.6);
     scene.fog.color.copy(fogColor);
@@ -2639,9 +3036,77 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     matLantern.color.copy(new THREE.Color(0x4a3226).lerp(new THREE.Color(0xff5a3c), lanternOn));
     matLanternGlow.opacity = 0.05 + lanternOn * 0.2;
 
+    /* 门楼檐灯的照明：一盏点光跟到最近的门楼外侧，50m 内才点（超出即熄灭）。
+     * 灯位取门楼中轴外 7m、高 13m——城台立面、匾额、门洞上沿都在照射角内。 */
+    if (gateAnchors.length) {
+      let bestD2 = Infinity;
+      let best = null;
+      for (const a of gateAnchors) {
+        const d2 = (a.x - player.pos.x) ** 2 + (a.z - player.pos.z) ** 2;
+        if (d2 < bestD2) {
+          bestD2 = d2;
+          best = a;
+        }
+      }
+      const d = Math.sqrt(bestD2);
+      if (best && d < 50) {
+        gateLight.position.set(best.x + Math.sin(best.yaw) * 7, 13, best.z + Math.cos(best.yaw) * 7);
+        gateLight.intensity = lanternOn * 120 * clamp(1 - d / 50, 0, 1);
+      } else {
+        gateLight.intensity = 0;
+      }
+    }
+
     waterUniforms.uSky.value.copy(bot).multiplyScalar(1.0);
-    sky.position.copy(camera.position);
-    stars.position.copy(camera.position);
+    visibleSky.mesh.position.copy(camera.position);
+
+    /* ---------------------------------------------------------------- 渲染增强同步
+     * 后处理昼夜风味 + IBL 节流重烘。IBL 接管漫射后 hemi 只补死角（上面已压到 0.06~0.2）。
+     * lanternOn 复用上面灯笼段的声明。 */
+    postfx.setBloom(lerp(0.22, 0.7, lanternOn));
+    postfx.setVignette(lerp(0.32, 0.55, lanternOn));
+    gradeShadowTint.setHex(0x1a2440).lerp(new THREE.Color(0x2a1f3e), duskF * 0.6);
+    postfx.setTint(gradeShadowTint, gradeHighTint, lerp(0.22, 0.3, duskF));
+
+    /* ---------------------------------------------------- skyState（批3 合并）
+     * 可见天空与 PMREM env 共用一份快照：白天太阳方向烘日景，夜里换月亮方向——
+     * env-sky 的 moonK 判据 uSunIntensity<1 会自动带月盘月海与星空，环境光与
+     * 主天空永远同源。visibleSky 每帧 update（uniform 拷贝，开销可忽略）。 */
+    const night = h < -0.02;
+    envState.top.copy(top);
+    envState.horizon.copy(bot);
+    envState.ground.copy(bot).multiplyScalar(0.3);
+    if (night) {
+      envState.sunDir.copy(sunDir).multiplyScalar(-1); // 月亮在太阳对面
+      envState.sunColor.copy(ENV_MOON_COLOR);
+      envState.sunIntensity = 0.15;
+      envState.stars = starsOpacity;
+    } else {
+      envState.sunDir.copy(sunDir);
+      envState.sunColor.copy(sunCol);
+      envState.sunIntensity = 1;
+      envState.stars = 0;
+    }
+    envState.haze = haze;
+    /* 云量：晴天给一点底云，雨/雪按 weatherMix 加厚；受光色随昼夜与太阳色走 */
+    envState.cloud = clamp(0.22 + world.weatherMix[1] * 0.7 + world.weatherMix[2] * 0.55, 0, 0.95);
+    cloudLightCol.setHex(0xffffff).lerp(sunCol, 0.35).multiplyScalar(0.2 + dayF * 0.8);
+    envState.cloudLight = cloudLightCol.getHex();
+    cloudShadeCol.setHex(0x9aa4b0).multiplyScalar(0.15 + dayF * 0.85);
+    envState.cloudShade = cloudShadeCol.getHex();
+    visibleSky.update(envState);
+    visibleSky.tick(clock.t);
+
+    /* 水面碎金/月路与天空同源：夜里 uSunIntensity 0.15 + 月色，碎金自动变月路 */
+    waterUniforms.uSunDir.value.copy(envState.sunDir);
+    waterUniforms.uSunColor.value.copy(envState.sunColor);
+    waterUniforms.uSunIntensity.value = envState.sunIntensity;
+
+    if (env && clock.t - lastEnvAt > ENV_INTERVAL) {
+      lastEnvAt = clock.t;
+      scene.environment = env.update(envState);
+      scene.environmentIntensity = lerp(0.55, 0.85, dayF);
+    }
   }
 
   /* ==========================================================================
@@ -2956,8 +3421,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     player.pos.x += Math.sin(player.yaw) * step;
     player.pos.z += Math.cos(player.yaw) * step;
 
-    // 城墙与建筑边界（简单推挤）
-    const lim = OUTER - 4;
+    // 城墙与建筑边界（简单推挤；freeRoam 为截图/探针用，正常玩法恒为城内钳位）
+    const lim = freeRoam ? 1e4 : OUTER - 4;
     player.pos.x = clamp(player.pos.x, -lim, lim);
     player.pos.z = clamp(player.pos.z, -lim, lim);
     collide(player.pos);
@@ -2990,7 +3455,7 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   }
 
   function updateCamera(dt) {
-    camTarget.copy(player.pos).add(new THREE.Vector3(0, 2.4, 0));
+    camTarget.copy(player.pos).add(new THREE.Vector3(0, 2.4 + cam.rise, 0));
     const cp = Math.cos(cam.pitch);
     // 玩家在城内时，相机不允许越过外墙（避免城墙挡镜头）
     let d = cam.dist;
@@ -3200,7 +3665,12 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     updateScreenHint();
     updateHUD();
 
-    renderer.render(scene, camera);
+    // low 档直渲（软渲染 e2e 路径）；mid/high 走后处理链（Bloom→Output→Grade→SMAA）
+    if (quality === 'low') {
+      renderer.render(scene, camera);
+    } else {
+      postfx.render(dt);
+    }
     /* 屏风层紧随主场景之后：CSS3D 用同一台相机的同一帧矩阵，
        遮挡遮罩再压在最上面切掉被柱子挡住的部分。 */
     screens.render();
@@ -3215,6 +3685,7 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     camera.aspect = innerWidth / innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(innerWidth, innerHeight);
+    postfx.setSize(innerWidth, innerHeight);
     screens.resize(innerWidth, innerHeight);
   });
 
@@ -3348,6 +3819,19 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       chat: { open: Boolean(npcChat?.isOpen()), persona: npcChat?.personaId() ?? null },
       online: channel.mode,
     });
+    /* 画质档探针（视觉合并批1）：读当前档位 / 手动切换（low 直渲，mid/high 走后处理） */
+    window.__bwwQuality = () => quality;
+    window.__bwwSetQuality = (q: 'high' | 'mid' | 'low') => setQuality(q);
+    /* 时段探针（视觉合并批3）：直接设 world.time（0..1，0.5=正午 0.25=日出 0.75=日落）。
+     * e2e 与截图评审需要确定的昼夜相位，靠等 150s 一天的真实周期不可靠。 */
+    window.__bwwSetTime = (t: number) => {
+      world.time = t;
+    };
+    /* 出城探针（视觉合并批4）：门楼外立面/城外河道的机位都被 OUTER-4 的钳位
+     * 挡住，截图脚本必须先开这个。只在 ?debug=1 下存在。 */
+    window.__bwwFreeRoam = (v: boolean) => {
+      freeRoam = Boolean(v);
+    };
     /* 牌坊状态探针：给 e2e 断言"哪个殿拿到了真数、哪个殿降级了" */
     window.__bwwGlyphs = () =>
       [...metrics.cards.values()].map((card) => ({
@@ -3492,7 +3976,16 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       GUIDE_STOPS.map((s) => ({ nodeKey: s.nodeKey, name: s.name, x: s.x, z: s.z }));
     /* 直接定轨道相机：e2e 需要"站在某点、朝某处看"的确定视角，靠拖拽估算角度不可靠。
        注意这里的 yaw 是**相机**绕玩家的方位（cam.yaw），不是角色朝向（player.yaw） */
+    /* 取景探针（视觉合并批4）：把相机环绕点抬到 rise 米，用于评审匾额/屋顶。
+     * 正常操作里的 pitch 是俯角且不许为负，抬高处的构件只能靠这个看。 */
+    window.__bwwLookAt = (yaw, pitch, dist, rise = 0) => {
+      cam.yaw = yaw;
+      cam.pitch = clamp(pitch, -0.6, 1.15);
+      cam.dist = Math.max(3, dist);
+      cam.rise = rise;
+    };
     window.__bwwLook = (yaw, pitch, dist) => {
+      cam.rise = 0;
       cam.yaw = yaw;
       if (typeof pitch === 'number') {
         cam.pitch = clamp(pitch, 0.08, 1.15);
@@ -3576,6 +4069,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       }
     });
     scene.clear();
+    postfx.dispose();
+    env?.dispose();
     renderer.dispose();
     renderer.domElement.remove();
   }

@@ -1,5 +1,7 @@
 package com.bluewhale.common.web.config;
 
+import com.bluewhale.common.i18n.CommonMessageResolver;
+import com.bluewhale.common.i18n.LocaleContextFilter;
 import com.bluewhale.common.web.elapsed.RestApiElapsedAspect;
 import com.bluewhale.common.web.elapsed.RestApiElapsedProperties;
 import com.bluewhale.common.web.filter.ResponseHeaderFilter;
@@ -24,6 +26,33 @@ import org.springframework.core.Ordered;
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @EnableConfigurationProperties(RestApiElapsedProperties.class)
 public class WebAutoConfiguration {
+
+    /**
+     * 公共错误文案解析器：资源包随 starter 分发，未接入 i18n SDK 的服务也可按 Locale 解析
+     *
+     * @return 公共文案解析器
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public CommonMessageResolver commonMessageResolver() {
+        return new CommonMessageResolver();
+    }
+
+    /**
+     * 注册语言上下文过滤器：先于身份上下文过滤器执行，覆盖全部路径
+     *
+     * @return 过滤器注册信息
+     */
+    @Bean
+    @ConditionalOnMissingBean(name = "localeContextFilterRegistration")
+    public FilterRegistrationBean<LocaleContextFilter> localeContextFilterRegistration() {
+        FilterRegistrationBean<LocaleContextFilter> registration =
+                new FilterRegistrationBean<>(new LocaleContextFilter());
+        registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 5);
+        registration.addUrlPatterns("/*");
+        registration.setName("localeContextFilterRegistration");
+        return registration;
+    }
 
     /**
      * 注册安全响应头过滤器：覆盖全部路径

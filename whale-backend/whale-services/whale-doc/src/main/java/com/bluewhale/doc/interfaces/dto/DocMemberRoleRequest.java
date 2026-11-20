@@ -13,6 +13,6 @@ import lombok.Data;
 public class DocMemberRoleRequest {
 
     /** 新角色；OWNER 仅允许原 OWNER 操作并触发转让 */
-    @NotNull(message = "成员角色不能为空")
+    @NotNull(message = "{validation.doc.member.role-required}")
     private DocMemberRole role;
 }

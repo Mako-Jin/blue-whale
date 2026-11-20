@@ -36,11 +36,15 @@ public class TenantSqlProperties {
      * {@code sys_oauth_client} 是平台级客户端注册，{@code sys_gateway_blacklist} /
      * {@code sys_gateway_route_override} 是网关全局策略，
      * {@code oauth2_authorization*} 是 OAuth2 协议会话（按 client_id 全局唯一）。</p>
+     *
+     * <p>审计作业心跳表 {@code audit_job_heartbeat}（2026-11-20 补）同样是平台级运维证据：
+     * 主键是任务编码，与租户无关，插件若追加 {@code tenant_id} 会直接
+     * {@code Unknown column}，导致作业心跳读写全部失败。</p>
      */
     private List<String> ignoreTables = List.of(
             "sys_tenant", "sys_permission", "sys_i18n_message",
             "sys_user_role", "sys_role_permission", "sys_user_permission", "sys_user_tenant",
-            "audit_archive_watermark", "audit_mq_message",
+            "audit_archive_watermark", "audit_mq_message", "audit_job_heartbeat",
             "pdm_chg_job_lock",
             "agent_fact", "agent_index_meta",
             "sys_brand_config", "sys_oauth_client",

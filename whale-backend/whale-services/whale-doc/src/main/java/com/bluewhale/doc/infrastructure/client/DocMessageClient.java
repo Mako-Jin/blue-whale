@@ -79,12 +79,12 @@ public class DocMessageClient {
      */
     private Map<?, ?> extractData(Map<?, ?> response) {
         if (response == null) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "消息服务响应为空");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "doc.message.response-empty", "消息服务响应为空");
         }
         Object code = response.get("code");
         if (!(code instanceof Number number) || number.intValue() != CODE_SUCCESS) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR,
-                    "消息服务返回失败: " + response.get("message"));
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "doc.message.remote-failed",
+                    "消息服务返回失败: " + response.get("message"), response.get("message"));
         }
         Object data = response.get("data");
         return data instanceof Map<?, ?> map ? map : Map.of();
@@ -98,7 +98,7 @@ public class DocMessageClient {
     private String baseUrl() {
         List<ServiceInstance> instances = discoveryClient.getInstances(docProperties.getMessageServiceName());
         if (instances.isEmpty()) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "消息服务不可用");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "doc.message.service-unavailable", "消息服务不可用");
         }
         return instances.get(0).getUri().toString();
     }

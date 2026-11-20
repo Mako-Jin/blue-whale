@@ -1,6 +1,7 @@
 package com.bluewhale.twin.service;
 
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.twin.config.TwinProperties;
 import com.bluewhale.twin.dto.BindingStateVO;
 import com.bluewhale.twin.dto.InsightRequest;
@@ -110,7 +111,8 @@ public class TwinInsightService {
                     "question", question,
                     "channelRef", channelRef));
         } catch (JacksonException e) {
-            throw new BizException("解读请求序列化失败：" + e.getMessage());
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.insight.serialize-failed",
+                    "解读请求序列化失败：" + e.getMessage(), e.getMessage());
         }
         executor.submit(() -> relayStream(body, userId, tenantId, emitter));
         return emitter;
@@ -182,7 +184,8 @@ public class TwinInsightService {
         }
         TwinEntity entity = entityMapper.selectById(entityId);
         if (entity == null || !sceneId.equals(entity.getSceneId())) {
-            throw new BizException("实体不存在或不属于当前场景");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "twin.entity.not-found-in-scene",
+                    "实体不存在或不属于当前场景");
         }
         return entity;
     }

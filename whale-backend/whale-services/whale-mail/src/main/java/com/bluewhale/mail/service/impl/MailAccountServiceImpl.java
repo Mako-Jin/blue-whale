@@ -87,7 +87,8 @@ public class MailAccountServiceImpl implements MailAccountService {
             accountMapper.insert(account);
         } catch (DuplicateKeyException e) {
             // 唯一键含逻辑删除行：已解绑的地址也占用，直接提示比静默失败更清晰
-            throw new BizException(ErrorCode.PARAM_ERROR, "该邮箱地址已被绑定：" + email);
+            throw new BizException(ErrorCode.PARAM_ERROR, "mail.account.email-exists",
+                    "该邮箱地址已被绑定：" + email, email);
         }
         folderService.ensureSystemFolders(account);
         log.info("邮箱账号已绑定: id={}, email={}, userId={}", account.getId(), email, userId);
@@ -127,17 +128,17 @@ public class MailAccountServiceImpl implements MailAccountService {
     @Override
     public MailAccount requireOwned(Long accountId, Long userId) {
         if (accountId == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "邮箱账号不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "mail.account.id-required", "邮箱账号不能为空");
         }
         MailAccount account = accountMapper.selectById(accountId);
         if (account == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "邮箱账号不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "mail.account.not-found", "邮箱账号不存在");
         }
         if (!Objects.equals(account.getUserId(), userId)) {
-            throw new BizException(ErrorCode.FORBIDDEN, "无权访问该邮箱账号");
+            throw new BizException(ErrorCode.FORBIDDEN, "mail.account.forbidden", "无权访问该邮箱账号");
         }
         if (account.getStatus() == null || account.getStatus() != STATUS_ENABLED) {
-            throw new BizException(ErrorCode.FORBIDDEN, "邮箱账号已停用");
+            throw new BizException(ErrorCode.FORBIDDEN, "mail.account.disabled", "邮箱账号已停用");
         }
         return account;
     }
@@ -150,7 +151,7 @@ public class MailAccountServiceImpl implements MailAccountService {
                 .orderByAsc(MailAccount::getId)
                 .last("LIMIT 1"));
         if (accounts.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "尚未绑定邮箱账号，请先完成邮箱绑定");
+            throw new BizException(ErrorCode.PARAM_ERROR, "mail.account.not-bound", "尚未绑定邮箱账号，请先完成邮箱绑定");
         }
         return accounts.get(0).getId();
     }
@@ -172,10 +173,12 @@ public class MailAccountServiceImpl implements MailAccountService {
         account.setSmtpPort(pick(request.getSmtpPort(), account.getSmtpPort(), properties.getDefaultSmtpPort()));
         account.setSmtpSsl(pickSsl(request.getSmtpSsl(), account.getSmtpSsl(), properties.isDefaultSmtpSsl()));
         if (!StringUtils.hasText(account.getImapHost())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "未配置 IMAP 主机：请填写或设置 WHALE_MAIL_IMAP_HOST");
+            throw new BizException(ErrorCode.PARAM_ERROR, "mail.account.imap-host-missing",
+                    "未配置 IMAP 主机：请填写或设置 WHALE_MAIL_IMAP_HOST");
         }
         if (!StringUtils.hasText(account.getSmtpHost())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "未配置 SMTP 主机：请填写或设置 WHALE_MAIL_SMTP_HOST");
+            throw new BizException(ErrorCode.PARAM_ERROR, "mail.account.smtp-host-missing",
+                    "未配置 SMTP 主机：请填写或设置 WHALE_MAIL_SMTP_HOST");
         }
     }
 

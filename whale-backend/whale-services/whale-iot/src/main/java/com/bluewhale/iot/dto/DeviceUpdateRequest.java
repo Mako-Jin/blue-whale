@@ -13,10 +13,10 @@ import lombok.Data;
 public class DeviceUpdateRequest {
 
     /** 设备昵称（可空） */
-    @Size(max = 128, message = "昵称长度不能超过 128 字")
+    @Size(max = 128, message = "{validation.iot.device.nickname-size}")
     private String nickname;
 
     /** 状态：active 启用 / disabled 禁用 */
-    @Pattern(regexp = "^(active|disabled)$", message = "状态仅允许 active/disabled")
+    @Pattern(regexp = "^(active|disabled)$", message = "{validation.iot.device.status-pattern}")
     private String status;
 }

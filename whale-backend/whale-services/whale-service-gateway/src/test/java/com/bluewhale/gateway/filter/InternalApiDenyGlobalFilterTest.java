@@ -229,8 +229,8 @@ class InternalApiDenyGlobalFilterTest {
     @Test
     @DisplayName("V-01 filter：审计摄入端点（无 internal 段）的服务名前缀形态同样拒绝")
     void shouldDenyServiceNamePrefixedAuditIngestPath() {
-        properties.setPatterns(new ArrayList<>(List.of("/audit/log/ingest/**")));
-        MockServerWebExchange exchange = buildExchange("http://localhost/whale-audit/audit/log/ingest");
+        properties.setPatterns(new ArrayList<>(List.of("/audit/v1/log/ingest/**")));
+        MockServerWebExchange exchange = buildExchange("http://localhost/whale-audit/audit/v1/log/ingest");
 
         filter.filter(exchange, chain).block();
 

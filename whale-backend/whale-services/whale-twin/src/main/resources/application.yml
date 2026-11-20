@@ -66,6 +66,11 @@ whale:
   permission:
     header:
       enabled: true
+  # P2 国际化：BizException 文案键按请求 Locale 解析；属性文件回退源为 classpath:i18n/twin/messages*
+  i18n:
+    enabled: true
+    auto-init: true
+    module-scan-enabled: true
   twin:
     # SSE 心跳间隔（秒）：空闲连接按此发注释帧，避免中间代理掐链（对齐 whale-iot 口径）
     stream-heartbeat-seconds: ${WHALE_TWIN_STREAM_HEARTBEAT_SECONDS:30}

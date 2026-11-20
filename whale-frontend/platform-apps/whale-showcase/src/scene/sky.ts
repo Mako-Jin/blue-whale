@@ -120,6 +120,40 @@ void main() {
   }
 
   /*
+   * 月轮（S32）：夜盘只在夜里出现——uSunIntensity&lt;1.0 与水面 nightK 同一判据
+   * （night 预设的 uSunDir 就是月亮方向，月路 S27 已按此调好）。真实月轮角半径
+   * 只有 0.26°，在机位里读不出，放大到 ~1.3° 才是"月亮"而不是一个像素；
+   * 盘内轻微边缘变暗（limb darkening）+ 宽而弱的冷晕把月轮从纯黑夜里托出来。
+   * 放在星空之后、云层之前：盘先盖住底下的星，云再自然遮月。
+   */
+  float moonK = uSunIntensity < 1.0 ? 1.0 : 0.0;
+  if (moonK > 0.0 && d.y > 0.0) {
+    float md = max(dot(d, normalize(uSunDir)), 0.0);
+    float disk = smoothstep(0.99955, 0.99975, md);
+    float limbd = mix(1.0, 0.88, smoothstep(0.9985, 0.99955, md));
+    // 柔晕与盘同尺度（pow 2500，半衰 ~1.2°）：首版 pow(md,90) 半衰 7°、
+    // 二版 pow 600 仍有 2.8°——晕比盘大四五倍，盘缘与月海全部糊在晕里。
+    // 晕只是盘外一圈微光，"月亮"的结构交给盘面本身。
+    float halo = pow(md, 2500.0) * 0.10;
+    // 月海（S33）：盘面局部坐标里写死四块暗斑——真月海是固定形状，不
+    // 用噪声（噪声每帧/每机位都变，月盘会"溶"）。盘半径约 0.025（md 边缘
+    // 0.99965 → 弦长），blob 覆盖盘面约 1/3（真实月海占比）。
+    vec3 mu = normalize(uSunDir);
+    vec3 mx = normalize(cross(mu, vec3(0.0, 1.0, 0.0)));
+    vec3 my = cross(mx, mu);
+    vec2 lp = vec2(dot(d, mx), dot(d, my));
+    float mare = 1.0 - smoothstep(0.005, 0.014, length(lp - vec2(0.008, 0.006)))
+      + 1.0 - smoothstep(0.004, 0.010, length(lp - vec2(-0.007, 0.003)))
+      + 1.0 - smoothstep(0.003, 0.009, length(lp - vec2(0.002, -0.008)))
+      + 1.0 - smoothstep(0.002, 0.006, length(lp - vec2(-0.002, 0.010)));
+    // 盘亮度 0.85 + 暗斑对比 0.65：暗斑会被 bloom 模糊回填（盘心四周全是
+    // 超阈亮像素，blur 把暗部填回来，首版 0.30/0.42 的对比实拍全被抹平）
+    // ——对比必须给足，暗斑暗到回填后仍比亮部低一档，bloom 才"刻"得出结构
+    float diskShade = 1.0 - 0.65 * clamp(mare, 0.0, 1.0);
+    col += vec3(0.93, 0.96, 1.04) * (disk * limbd * diskShade * 0.85 + halo) * moonK;
+  }
+
+  /*
    * 云层：方向向量投到虚拟云平面（高度归一 1.0），fbm 阈值出形状。
    *
    * <p>纯渐变天空在全景机位里上三分之一是空的。云不建几何——投影 + fbm

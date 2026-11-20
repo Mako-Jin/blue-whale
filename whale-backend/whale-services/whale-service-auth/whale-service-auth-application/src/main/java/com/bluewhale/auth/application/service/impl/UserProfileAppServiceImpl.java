@@ -50,7 +50,7 @@ public class UserProfileAppServiceImpl implements UserProfileAppService {
     @Transactional(rollbackFor = Exception.class)
     public UserProfileVO save(SaveUserProfileCommand command) {
         if (command.userId() == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "用户 ID 不能为空");
+            throw new BizException(ErrorCode.PARAM_ERROR, "auth.user.id-required", "用户 ID 不能为空");
         }
         Long tenantId = currentUserProvider.current().tokenTenantId();
         UserProfileAggregate profile = userProfileRepository.findByUserId(command.userId())
@@ -102,7 +102,8 @@ public class UserProfileAppServiceImpl implements UserProfileAppService {
                 .filter(c -> credentialId != null && credentialId.equals(c.getId()))
                 .findFirst()
                 .map(c -> sensitiveFieldCipher.decrypt(c.getCredentialNoEncrypted()))
-                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "证件条目不存在"));
+                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND,
+                        "auth.user.identity-doc-not-found", "证件条目不存在"));
     }
 
     /**
@@ -145,7 +146,7 @@ public class UserProfileAppServiceImpl implements UserProfileAppService {
      */
     private UserProfileAggregate require(Long userId) {
         return userProfileRepository.findByUserId(userId)
-                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "用户尚未建立身份档案"));
+                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "auth.user.profile-missing", "用户尚未建立身份档案"));
     }
 
     /**
@@ -164,7 +165,7 @@ public class UserProfileAppServiceImpl implements UserProfileAppService {
                 .map(i -> {
                     if (i.id() == null && (i.contactValue() == null || i.contactValue().isBlank())) {
                         // 新增行必须给明文；带 id 的行留空才表示「保留原值」（DTO 层已放宽 @NotBlank）
-                        throw new BizException(ErrorCode.PARAM_ERROR, "联系方式值不能为空");
+                        throw new BizException(ErrorCode.PARAM_ERROR, "auth.user.contact-value-required", "联系方式值不能为空");
                     }
                     String value = resolveSensitive(i.id(), i.contactValue(), existing,
                             UserProfileContact::getId, UserProfileContact::getContactValue);
@@ -189,7 +190,7 @@ public class UserProfileAppServiceImpl implements UserProfileAppService {
                 .map(i -> {
                     if (i.id() == null && (i.credentialNo() == null || i.credentialNo().isBlank())) {
                         // 新增行必须给明文；带 id 的行留空才表示「保留既有密文」
-                        throw new BizException(ErrorCode.PARAM_ERROR, "证件号不能为空");
+                        throw new BizException(ErrorCode.PARAM_ERROR, "auth.user.id-number-required", "证件号不能为空");
                     }
                     String encryptedNo = resolveSensitive(i.id(), i.credentialNo(), existing,
                             UserCredential::getId, UserCredential::getCredentialNoEncrypted,

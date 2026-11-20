@@ -1,6 +1,7 @@
 package com.bluewhale.iot.controller;
 
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.iot.dto.ShadowVO;
 import com.bluewhale.iot.dto.TelemetryVO;
@@ -89,6 +90,7 @@ public class IotInternalDeviceController {
         if (StringUtils.hasText(productCode) && StringUtils.hasText(deviceName)) {
             return shadowService.getByCode(productCode, deviceName);
         }
-        throw new BizException("需提供 deviceId 或 productCode+deviceName");
+        throw new BizException(ErrorCode.SYSTEM_ERROR, "iot.internal-device.params-required",
+                "需提供 deviceId 或 productCode+deviceName");
     }
 }

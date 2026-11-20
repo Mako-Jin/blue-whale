@@ -93,7 +93,7 @@ public class TenantMembershipAppServiceImpl implements TenantMembershipAppServic
      */
     public void requireEnabledMembership(Long userId, Long tenantId) {
         if (!userTenantRepository.existsEnabled(userId, tenantId)) {
-            throw new BizException(401, "租户访问关系已失效，请重新登录");
+            throw new BizException(401, "auth.tenant.membership-invalid", "租户访问关系已失效，请重新登录");
         }
     }
 
@@ -106,12 +106,12 @@ public class TenantMembershipAppServiceImpl implements TenantMembershipAppServic
      */
     public void requireSwitchable(Long userId, Long tenantId) {
         if (!userTenantRepository.existsEnabled(userId, tenantId)) {
-            throw new BizException(403, "无权进入该租户");
+            throw new BizException(403, "auth.tenant.enter-forbidden", "无权进入该租户");
         }
         TenantAggregate tenant = tenantRepository.findById(tenantId)
-                .orElseThrow(() -> new BizException(403, "租户不存在或已停用"));
+                .orElseThrow(() -> new BizException(403, "auth.tenant.missing-or-disabled", "租户不存在或已停用"));
         if (!tenant.isAvailableAt(TenantExpiryClock.now())) {
-            throw new BizException(403, "目标租户已停用或已过期");
+            throw new BizException(403, "auth.tenant.target-disabled-or-expired", "目标租户已停用或已过期");
         }
     }
 
@@ -156,15 +156,15 @@ public class TenantMembershipAppServiceImpl implements TenantMembershipAppServic
     public void assignMemberRoles(Long userId, List<Long> roleIds) {
         Long tenantId = TenantContext.requireId();
         if (!userTenantRepository.existsEnabled(userId, tenantId)) {
-            throw new BizException(404, "成员不存在或关系已停用");
+            throw new BizException(404, "auth.tenant.member-not-found", "成员不存在或关系已停用");
         }
         UserAggregate member = userRepository.findByIdAcrossTenants(userId)
-                .orElseThrow(() -> new BizException(404, "用户不存在"));
+                .orElseThrow(() -> new BizException(404, "auth.user.not-found", "用户不存在"));
         List<Long> targets = roleIds == null ? List.of() : roleIds;
         // 领域侧归一化（去重去空 + 数量上限），以归一化结果做有效性校验与落库
         List<Long> normalized = member.assignRoles(targets);
         if (!normalized.isEmpty() && roleRepository.countByIds(normalized) != normalized.size()) {
-            throw new BizException(400, "存在无效的角色ID");
+            throw new BizException(400, "auth.user.role-ids-invalid", "存在无效的角色ID");
         }
         userRepository.replaceRoles(userId, normalized);
         domainEventPublisher.publish(new UserDomainEvent(userId, ChangeType.ROLES_ASSIGNED, tenantId));
@@ -181,11 +181,11 @@ public class TenantMembershipAppServiceImpl implements TenantMembershipAppServic
     public void bindTenant(Long userId, Long tenantId) {
         tenantAppService.requirePlatformTenant();
         userRepository.findByIdAcrossTenants(userId)
-                .orElseThrow(() -> new BizException(404, "用户不存在"));
+                .orElseThrow(() -> new BizException(404, "auth.user.not-found", "用户不存在"));
         TenantAggregate tenant = tenantRepository.findById(tenantId)
-                .orElseThrow(() -> new BizException(404, "租户不存在"));
+                .orElseThrow(() -> new BizException(404, "auth.tenant.not-found", "租户不存在"));
         if (!tenant.isAvailableAt(TenantExpiryClock.now())) {
-            throw new BizException(400, "目标租户已停用或已过期");
+            throw new BizException(400, "auth.tenant.target-disabled-or-expired", "目标租户已停用或已过期");
         }
         userTenantRepository.ensureEnabled(userId, tenantId);
         domainEventPublisher.publish(new UserDomainEvent(userId, ChangeType.ROLES_ASSIGNED, tenantId));
@@ -206,12 +206,12 @@ public class TenantMembershipAppServiceImpl implements TenantMembershipAppServic
     public void unbindTenant(Long userId, Long tenantId) {
         tenantAppService.requirePlatformTenant();
         UserAggregate user = userRepository.findByIdAcrossTenants(userId)
-                .orElseThrow(() -> new BizException(404, "用户不存在"));
+                .orElseThrow(() -> new BizException(404, "auth.user.not-found", "用户不存在"));
         if (tenantId.equals(user.getTenantId())) {
-            throw new BizException(400, "首页租户关系不允许解除");
+            throw new BizException(400, "auth.tenant.home-membership-undeletable", "首页租户关系不允许解除");
         }
         if (!userTenantRepository.exists(userId, tenantId)) {
-            throw new BizException(404, "租户关系不存在");
+            throw new BizException(404, "auth.tenant.membership-not-found", "租户关系不存在");
         }
         userTenantRepository.disable(userId, tenantId);
         userRepository.removeRolesInTenant(userId, tenantId);

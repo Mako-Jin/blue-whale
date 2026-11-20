@@ -92,7 +92,8 @@ public class NotifyPreferenceResolver {
         int maxUsers = properties.getMaxUsers();
         // DTO 已有 @Size(max=200) 静态兜底，这里再按配置校验，避免配置调小后仍放大请求
         if (maxUsers > 0 && userIds.size() > maxUsers) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "单次解析用户数不能超过 " + maxUsers);
+            throw new BizException(ErrorCode.PARAM_ERROR, "message.preference.max-users-exceeded",
+                    "单次解析用户数不能超过 " + maxUsers, maxUsers);
         }
         List<String> defaultChannels = parseChannels(
                 request.defaults() == null ? null : request.defaults().channels());

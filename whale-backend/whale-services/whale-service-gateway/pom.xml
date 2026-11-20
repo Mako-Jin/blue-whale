@@ -58,6 +58,12 @@
             <artifactId>whale-security</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- 语言标签归一化（LocaleSupport）：网关与服务端共用同一套支持语言口径 -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-common-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <!-- REQ-SEC-020：配置 ENC(...) 密文解密（仅依赖 spring-boot + jasypt，不引入 Servlet 栈） -->
         <dependency>
             <groupId>com.bluewhale</groupId>

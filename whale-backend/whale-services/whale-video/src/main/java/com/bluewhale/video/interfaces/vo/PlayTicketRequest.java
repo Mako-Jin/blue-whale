@@ -12,6 +12,6 @@ import lombok.Data;
 public class PlayTicketRequest {
 
     /** 内容 ID */
-    @NotNull(message = "内容不能为空")
+    @NotNull(message = "{validation.video.play.content-required}")
     private Long contentId;
 }

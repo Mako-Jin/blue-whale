@@ -13,8 +13,8 @@ import lombok.Data;
 public class DocPageMoveRequest {
 
     /** 目标父页面ID，0 表示根节点 */
-    @NotNull(message = "目标父页面不能为空")
-    @Min(value = 0, message = "目标父页面ID非法")
+    @NotNull(message = "{validation.doc.page.target-parent-id-required}")
+    @Min(value = 0, message = "{validation.doc.page.target-parent-id-min}")
     private Long parentId;
 
     /** 目标排序；null 表示保持原值 */

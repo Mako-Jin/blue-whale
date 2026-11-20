@@ -48,8 +48,10 @@ public class UserConfigBatchServiceImpl implements UserConfigBatchService {
      * @return 每个 (userId, configKey) 组合一个结果项
      */
     public List<ConfigBatchItemVO> batchGet(Long tenantId, List<Long> userIds, List<String> keys) {
-        List<Long> distinctUsers = distinct(userIds, MAX_USERS_PER_REQUEST, "用户数超上限");
-        List<String> distinctKeys = distinct(keys, MAX_KEYS_PER_REQUEST, "配置键数超上限");
+        List<Long> distinctUsers = distinct(userIds, MAX_USERS_PER_REQUEST,
+                "auth.config.batch-users-limit", "用户数超上限");
+        List<String> distinctKeys = distinct(keys, MAX_KEYS_PER_REQUEST,
+                "auth.config.batch-keys-limit", "配置键数超上限");
         if (distinctUsers.isEmpty() || distinctKeys.isEmpty()) {
             return List.of();
         }
@@ -94,17 +96,18 @@ public class UserConfigBatchServiceImpl implements UserConfigBatchService {
      *
      * @param values  原始列表
      * @param max     上限
+     * @param messageKey 超限文案键
      * @param message 超限文案
      * @param <T>     元素类型
      * @return 去重后的列表（保持原顺序）
      */
-    private static <T> List<T> distinct(List<T> values, int max, String message) {
+    private static <T> List<T> distinct(List<T> values, int max, String messageKey, String message) {
         if (values == null || values.isEmpty()) {
             return List.of();
         }
         Set<T> seen = new HashSet<>(values);
         if (seen.size() > max) {
-            throw new BizException(ErrorCode.PARAM_ERROR, message + "（上限 " + max + "）");
+            throw new BizException(ErrorCode.PARAM_ERROR, messageKey, message + "（上限 " + max + "）", max);
         }
         return new ArrayList<>(seen);
     }

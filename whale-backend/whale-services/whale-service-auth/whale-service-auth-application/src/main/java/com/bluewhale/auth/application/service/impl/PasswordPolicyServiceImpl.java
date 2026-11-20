@@ -89,7 +89,7 @@ public class PasswordPolicyServiceImpl implements PasswordPolicyService {
      */
     public void ensureNotReused(Long tenantId, Long userId, String currentEncodedPassword, String rawPassword) {
         if (currentEncodedPassword != null && passwordHasher.matches(rawPassword, currentEncodedPassword)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "新口令不得与当前口令相同");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.password.same-as-current", "新口令不得与当前口令相同");
         }
         int historySize = Math.max(properties.getHistorySize(), 0);
         if (historySize == 0) {
@@ -97,8 +97,8 @@ public class PasswordPolicyServiceImpl implements PasswordPolicyService {
         }
         List<String> recent = passwordHistoryRepository.listRecent(tenantId, userId, historySize);
         if (recent.stream().anyMatch(encoded -> passwordHasher.matches(rawPassword, encoded))) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
-                    "新口令与最近 " + historySize + " 次使用过的口令重复，请更换");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.password.reused",
+                    "新口令与最近 " + historySize + " 次使用过的口令重复，请更换", historySize);
         }
     }
 

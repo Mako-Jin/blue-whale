@@ -16,15 +16,15 @@ import java.util.List;
  */
 public record ConfigBatchGetRequest(
 
-        @NotNull(message = "tenantId 不能为空")
+        @NotNull(message = "{validation.auth.config.tenant-id-required}")
         Long tenantId,
 
-        @NotEmpty(message = "userIds 不能为空")
-        @Size(max = 200, message = "userIds 最多 200 个")
+        @NotEmpty(message = "{validation.auth.config.user-ids-required}")
+        @Size(max = 200, message = "{validation.auth.config.user-ids-size}")
         List<Long> userIds,
 
-        @NotEmpty(message = "keys 不能为空")
-        @Size(max = 50, message = "keys 最多 50 个")
+        @NotEmpty(message = "{validation.auth.config.keys-required}")
+        @Size(max = 50, message = "{validation.auth.config.keys-size}")
         List<String> keys
 ) {
 }

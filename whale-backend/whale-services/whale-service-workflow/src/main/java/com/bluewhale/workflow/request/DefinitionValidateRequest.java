@@ -29,7 +29,7 @@ public class DefinitionValidateRequest implements Serializable {
      * @return 至少一个非空返回 {@code true}
      */
     @JsonIgnore
-    @AssertTrue(message = "流程定义 JSON 与 BPMN XML 不能同时为空")
+    @AssertTrue(message = "{validation.workflow.definition.json-or-bpmn-required}")
     public boolean isDefinitionPresent() {
         return StringUtils.hasText(definitionJson) || StringUtils.hasText(bpmnXml);
     }

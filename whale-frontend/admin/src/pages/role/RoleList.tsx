@@ -13,6 +13,7 @@ import {
   Space,
   Table,
   Tag,
+  Tooltip,
   type TableProps,
 } from 'antd';
 import { useEffect, useRef, useState } from 'react';
@@ -145,10 +146,28 @@ export default function RoleList() {
     }
   };
 
-  const columns: TableProps<RoleVO>['columns'] = [
-    { title: 'ID', dataIndex: 'id', width: 80 },
+  const columns: TableProps<RoleVO>['columns'] = [    { title: 'ID', dataIndex: 'id', width: 80 },
     { title: '角色编码', dataIndex: 'roleCode', width: 180 },
-    { title: '角色名称', dataIndex: 'roleName', width: 160 },
+    {
+      title: '角色名称',
+      dataIndex: 'roleName',
+      width: 220,
+      render: (value: string | undefined, row) => (
+        <Space size={4} wrap>
+          <span>{value}</span>
+          {row.builtIn && (
+            <Tooltip title="内置角色：不可删除、不可改名">
+              <Tag color="gold">内置</Tag>
+            </Tooltip>
+          )}
+          {row.threeAdmin && (
+            <Tooltip title="三员分立角色：权限集由内置职责矩阵决定，且与其他两员互斥">
+              <Tag color="purple">三员</Tag>
+            </Tooltip>
+          )}
+        </Space>
+      ),
+    },
     {
       title: '描述',
       dataIndex: 'description',
@@ -183,17 +202,30 @@ export default function RoleList() {
             perm="sys:role:assign"
             type="link"
             size="small"
+            disabled={row.threeAdmin}
+            title={
+              row.threeAdmin
+                ? '三员角色权限集由内置职责矩阵决定，手工调整会破坏职责分离'
+                : undefined
+            }
             onClick={() => void openAssignPermissions(row)}
           >
             分配权限
           </AuthButton>
-          {has('sys:role:delete') && (
-            <Popconfirm title="确认删除该角色？" onConfirm={() => void handleDelete(row)}>
-              <Button type="link" size="small" danger>
-                删除
-              </Button>
-            </Popconfirm>
-          )}
+          {has('sys:role:delete') &&
+            (row.builtIn ? (
+              <Tooltip title="内置角色不允许删除（删除三员或租户管理员会让职责分离缺岗）">
+                <Button type="link" size="small" danger disabled>
+                  删除
+                </Button>
+              </Tooltip>
+            ) : (
+              <Popconfirm title="确认删除该角色？" onConfirm={() => void handleDelete(row)}>
+                <Button type="link" size="small" danger>
+                  删除
+                </Button>
+              </Popconfirm>
+            ))}
         </Space>
       ),
     },
@@ -255,8 +287,9 @@ export default function RoleList() {
           name="roleName"
           label="角色名称"
           rules={[{ required: true, message: '请输入角色名称' }]}
+          extra={editRecord?.builtIn ? '内置角色名称是职责标识，不允许修改' : undefined}
         >
-          <Input />
+          <Input disabled={Boolean(editRecord?.builtIn)} />
         </Form.Item>
         <Form.Item name="description" label="描述">
           <Input.TextArea rows={2} />
@@ -265,7 +298,13 @@ export default function RoleList() {
           <InputNumber min={0} style={{ width: '100%' }} />
         </Form.Item>
         <Form.Item name="status" label="状态" initialValue={1}>
-          <Select options={STATUS_OPTIONS} />
+          <Select
+            options={STATUS_OPTIONS.map((option) => ({
+              ...option,
+              // 三员停用等于让职责分离岗位失效，后端同样拒绝
+              disabled: option.value === 0 && Boolean(editRecord?.threeAdmin),
+            }))}
+          />
         </Form.Item>
       </FormModal>
 

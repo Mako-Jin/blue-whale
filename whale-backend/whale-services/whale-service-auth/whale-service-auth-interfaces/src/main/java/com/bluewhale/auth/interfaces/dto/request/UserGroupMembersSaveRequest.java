@@ -16,6 +16,6 @@ import java.util.List;
 public class UserGroupMembersSaveRequest {
 
     /** 成员用户 ID 列表（空列表表示清空） */
-    @NotNull(message = "成员用户 ID 列表不能为空")
+    @NotNull(message = "{validation.auth.group.member-ids-required}")
     private List<Long> memberUserIds;
 }

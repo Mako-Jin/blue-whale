@@ -263,7 +263,8 @@ public class FormPublishServiceImpl implements FormPublishService {
         Integer version = definition.getVersion() == null ? DEFAULT_VERSION : definition.getVersion();
         List<FormColumnMetaPo> columns = listPublishColumns(definition.getId(), version);
         if (columns.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "表定义无可发布的列，请先维护列元数据");
+            throw new BizException(ErrorCode.PARAM_ERROR, "form.table-definition.no-publishable-column",
+                    "表定义无可发布的列，请先维护列元数据");
         }
         String table = FormTableDdlGenerator.tableName(definition.getTableCode(), version);
         String schemaSnapshot = FormMetadataCompiler.compileTable(columns);
@@ -344,9 +345,9 @@ public class FormPublishServiceImpl implements FormPublishService {
             return;
         }
         if (!force) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
+            throw new BizException(ErrorCode.PARAM_ERROR, "form.publish.narrowed-columns",
                     "以下列类型收窄可能导致存量数据被截断，请确认后以 force=true 重新发布："
-                            + String.join("；", narrowed));
+                            + String.join("；", narrowed), String.join("；", narrowed));
         }
         log.warn("表单发布存在列类型收窄，已按 force=true 确认执行：table={}, 收窄列={}", table, narrowed);
     }
@@ -638,7 +639,8 @@ public class FormPublishServiceImpl implements FormPublishService {
         wrapper.ne(FormTableRegistryPo::getStatus, FormRegistryStatusMarker.STATUS_FAILED);
         Long count = formTableRegistryMapper.selectCount(wrapper);
         if (count != null && count > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "该表单版本已发布，如需变更请修改版本号后重新发布");
+            throw new BizException(ErrorCode.PARAM_ERROR, "form.definition.version-already-published",
+                    "该表单版本已发布，如需变更请修改版本号后重新发布");
         }
     }
 
@@ -648,7 +650,8 @@ public class FormPublishServiceImpl implements FormPublishService {
      * @return 参数错误业务异常
      */
     private static BizException duplicatePublishError() {
-        return new BizException(ErrorCode.PARAM_ERROR.getCode(), "该表单版本已发布或正在发布，请刷新后重试");
+        return new BizException(ErrorCode.PARAM_ERROR, "form.definition.publish-conflict",
+                "该表单版本已发布或正在发布，请刷新后重试");
     }
 
     /**

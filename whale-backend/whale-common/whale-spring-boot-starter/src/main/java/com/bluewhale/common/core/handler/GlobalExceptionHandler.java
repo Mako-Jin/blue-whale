@@ -3,8 +3,12 @@ package com.bluewhale.common.core.handler;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.Result;
+import com.bluewhale.common.i18n.CommonMessageResolver;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
@@ -15,14 +19,49 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.util.Locale;
+
 /**
  * 全局异常处理器
+ *
+ * <p>错误文案按请求 Locale 解析，优先级：主 {@code MessageSource}
+ * （已接入 i18n SDK 时为数据库 &gt; 属性文件）→ 公共错误资源包 → {@link ErrorCode} 中文常量。
+ * 主资源缺失时仍返回中文，保证展示层永不空白。</p>
  *
  * @author BlueWhale
  */
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    /** 主消息源未命中时的哨兵，用于区分「未命中」与「命中空文案」 */
+    private static final String MISSING = "__WHALE_I18N_MISSING__";
+
+    /** 主消息源（已接入 i18n SDK 时为三级回退实现） */
+    private MessageSource messageSource;
+
+    /** 公共错误资源包解析器 */
+    private CommonMessageResolver commonMessageResolver;
+
+    /**
+     * 注入主消息源（可选：无 i18n 能力的环境保持中文兜底）
+     *
+     * @param messageSource 主消息源
+     */
+    @Autowired(required = false)
+    public void setMessageSource(MessageSource messageSource) {
+        this.messageSource = messageSource;
+    }
+
+    /**
+     * 注入公共错误资源包解析器（可选：单元测试可直接构造处理器）
+     *
+     * @param commonMessageResolver 公共文案解析器
+     */
+    @Autowired(required = false)
+    public void setCommonMessageResolver(CommonMessageResolver commonMessageResolver) {
+        this.commonMessageResolver = commonMessageResolver;
+    }
 
     /**
      * 处理业务异常
@@ -33,6 +72,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BizException.class)
     public Result<Void> handleBizException(BizException e) {
         log.warn("业务异常: code={}, message={}", e.getCode(), e.getMessage());
+        if (e.getMessageKey() != null) {
+            return Result.fail(e.getCode(),
+                    resolve(e.getMessageKey(), e.getMessageArgs(), e.getMessage()));
+        }
         return Result.fail(e.getCode(), e.getMessage());
     }
 
@@ -45,7 +88,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public Result<Void> handleMethodArgumentNotValidException(MethodArgumentNotValidException e) {
         FieldError fieldError = e.getBindingResult().getFieldError();
-        String message = fieldError == null ? ErrorCode.PARAM_ERROR.getMessage() : fieldError.getDefaultMessage();
+        String message = fieldError == null
+                ? resolve(ErrorCode.PARAM_ERROR.getMessageKey(), null, ErrorCode.PARAM_ERROR.getMessage())
+                : fieldError.getDefaultMessage();
         return Result.fail(ErrorCode.PARAM_ERROR.getCode(), message);
     }
 
@@ -60,7 +105,8 @@ public class GlobalExceptionHandler {
         String message = e.getConstraintViolations().stream()
                 .findFirst()
                 .map(violation -> violation.getMessage())
-                .orElse(ErrorCode.PARAM_ERROR.getMessage());
+                .orElseGet(() -> resolve(ErrorCode.PARAM_ERROR.getMessageKey(), null,
+                        ErrorCode.PARAM_ERROR.getMessage()));
         return Result.fail(ErrorCode.PARAM_ERROR.getCode(), message);
     }
 
@@ -76,7 +122,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public Result<Void> handleHttpMessageNotReadableException(HttpMessageNotReadableException e) {
         log.warn("请求体解析失败: {}", e.getMessage());
-        return Result.fail(ErrorCode.PARAM_ERROR.getCode(), ErrorCode.PARAM_ERROR.getMessage());
+        return fail(ErrorCode.PARAM_ERROR);
     }
 
     /**
@@ -88,7 +134,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public Result<Void> handleMissingServletRequestParameterException(MissingServletRequestParameterException e) {
         log.warn("缺少请求参数: {}", e.getParameterName());
-        return Result.fail(ErrorCode.PARAM_ERROR.getCode(), "缺少参数: " + e.getParameterName());
+        String fallback = ErrorCode.MISSING_PARAMETER.getMessage() + ": " + e.getParameterName();
+        return Result.fail(ErrorCode.PARAM_ERROR.getCode(),
+                resolve(ErrorCode.MISSING_PARAMETER.getMessageKey(), new Object[]{e.getParameterName()}, fallback));
     }
 
     /**
@@ -100,7 +148,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public Result<Void> handleMethodArgumentTypeMismatchException(MethodArgumentTypeMismatchException e) {
         log.warn("请求参数类型不匹配: name={}, value={}", e.getName(), e.getValue());
-        return Result.fail(ErrorCode.PARAM_ERROR.getCode(), "参数类型不匹配: " + e.getName());
+        String fallback = ErrorCode.PARAM_TYPE_MISMATCH.getMessage() + ": " + e.getName();
+        return Result.fail(ErrorCode.PARAM_ERROR.getCode(),
+                resolve(ErrorCode.PARAM_TYPE_MISMATCH.getMessageKey(), new Object[]{e.getName()}, fallback));
     }
 
     /**
@@ -112,7 +162,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public Result<Void> handleHttpRequestMethodNotSupportedException(HttpRequestMethodNotSupportedException e) {
         log.warn("请求方法不支持: method={}, supported={}", e.getMethod(), e.getSupportedHttpMethods());
-        return Result.fail(ErrorCode.METHOD_NOT_ALLOWED);
+        return fail(ErrorCode.METHOD_NOT_ALLOWED);
     }
 
     /**
@@ -124,7 +174,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NoResourceFoundException.class)
     public Result<Void> handleNoResourceFoundException(NoResourceFoundException e) {
         log.warn("资源不存在: {}", e.getResourcePath());
-        return Result.fail(ErrorCode.NOT_FOUND);
+        return fail(ErrorCode.NOT_FOUND);
     }
 
     /**
@@ -136,6 +186,42 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public Result<Void> handleException(Exception e) {
         log.error("系统异常", e);
-        return Result.fail(ErrorCode.SYSTEM_ERROR);
+        return fail(ErrorCode.SYSTEM_ERROR);
+    }
+
+    /**
+     * 以错误码枚举构建本地化失败响应
+     *
+     * @param errorCode 错误码枚举
+     * @return 失败响应
+     */
+    private Result<Void> fail(ErrorCode errorCode) {
+        return Result.fail(errorCode.getCode(),
+                resolve(errorCode.getMessageKey(), null, errorCode.getMessage()));
+    }
+
+    /**
+     * 按当前请求 Locale 解析文案：主消息源 → 公共资源包 → 调用方兜底。
+     *
+     * @param key         文案键
+     * @param args        占位参数
+     * @param fallbackText 未命中时的中文兜底
+     * @return 解析结果
+     */
+    private String resolve(String key, Object[] args, String fallbackText) {
+        Locale locale = LocaleContextHolder.getLocale();
+        if (messageSource != null) {
+            String text = messageSource.getMessage(key, args, MISSING, locale);
+            if (text != null && !MISSING.equals(text)) {
+                return text;
+            }
+        }
+        if (commonMessageResolver != null) {
+            String text = commonMessageResolver.resolve(key, args, locale, null);
+            if (text != null) {
+                return text;
+            }
+        }
+        return fallbackText;
     }
 }

@@ -55,7 +55,7 @@ public class DocFileClient {
                 }
             });
         } catch (IOException ex) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "读取上传文件失败");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "doc.file.read-failed", "读取上传文件失败");
         }
         body.add("bucket", bucket);
         Map<?, ?> response = InternalTokenSupport.restClient()
@@ -126,7 +126,7 @@ public class DocFileClient {
                 .retrieve()
                 .body(byte[].class);
         if (bytes == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "附件内容不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "doc.file.content-not-found", "附件内容不存在");
         }
         return bytes;
     }
@@ -139,7 +139,7 @@ public class DocFileClient {
      */
     private Map<?, ?> extractData(Map<?, ?> response) {
         if (response == null) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "文件服务响应为空");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "doc.file.response-empty", "文件服务响应为空");
         }
         Object code = response.get("code");
         if (code instanceof Number number && number.intValue() != 0) {
@@ -147,7 +147,7 @@ public class DocFileClient {
         }
         Object data = response.get("data");
         if (!(data instanceof Map<?, ?> map)) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "文件服务返回数据格式异常");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "doc.file.response-format-invalid", "文件服务返回数据格式异常");
         }
         return map;
     }
@@ -160,7 +160,7 @@ public class DocFileClient {
     private String baseUrl() {
         List<ServiceInstance> instances = discoveryClient.getInstances(SERVICE_NAME);
         if (instances.isEmpty()) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "文件服务不可用");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "doc.file.service-unavailable", "文件服务不可用");
         }
         return instances.get(0).getUri().toString();
     }

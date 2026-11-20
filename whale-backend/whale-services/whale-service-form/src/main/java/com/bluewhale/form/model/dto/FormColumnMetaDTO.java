@@ -20,65 +20,65 @@ public class FormColumnMetaDTO implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 列编码（物理列名；小写字母开头，仅字母/数字/下划线，最长 64） */
-    @NotBlank(message = "列编码不能为空")
-    @Size(max = 64, message = "列编码长度不能超过 64")
+    @NotBlank(message = "{validation.form.column.code-required}")
+    @Size(max = 64, message = "{validation.form.column.code-size}")
     @Pattern(regexp = "^[a-z][a-z0-9_]{0,63}$",
-            message = "列编码仅允许小写字母、数字、下划线且以字母开头，长度不超过 64")
+            message = "{validation.form.column.code-pattern}")
     private String columnCode;
 
     /** 列名称（业务名，最长 128） */
-    @Size(max = 128, message = "列名称长度不能超过 128")
+    @Size(max = 128, message = "{validation.form.column.name-size}")
     private String columnName;
 
     /** 存储类型：text / textarea / number / date / datetime / select / bool / attachment / subtable */
-    @NotBlank(message = "列存储类型不能为空")
-    @Size(max = 32, message = "列存储类型长度不能超过 32")
+    @NotBlank(message = "{validation.form.column.data-type-required}")
+    @Size(max = 32, message = "{validation.form.column.data-type-size}")
     private String dataType;
 
     /** 长度（text 生效，范围 1..2000；缺省 255） */
-    @Min(value = 1, message = "列长度不能小于 1")
-    @Max(value = 2000, message = "列长度不能超过 2000")
+    @Min(value = 1, message = "{validation.form.column.length-min}")
+    @Max(value = 2000, message = "{validation.form.column.length-max}")
     private Integer length;
 
     /** 精度（number 生效，范围 1..65；缺省 18） */
-    @Min(value = 1, message = "列精度不能小于 1")
-    @Max(value = 65, message = "列精度不能超过 65")
+    @Min(value = 1, message = "{validation.form.column.precision-min}")
+    @Max(value = 65, message = "{validation.form.column.precision-max}")
     private Integer precision;
 
     /** 小数位（number 生效，范围 0..30；缺省 4） */
-    @Min(value = 0, message = "列小数位不能小于 0")
-    @Max(value = 30, message = "列小数位不能超过 30")
+    @Min(value = 0, message = "{validation.form.column.scale-min}")
+    @Max(value = 30, message = "{validation.form.column.scale-max}")
     private Integer scale;
 
     /** 能否为空：1 可空 / 0 非空；必填列必须为 0 */
-    @Min(value = 0, message = "nullable 仅允许 0 或 1")
-    @Max(value = 1, message = "nullable 仅允许 0 或 1")
+    @Min(value = 0, message = "{validation.form.column.nullable-range}")
+    @Max(value = 1, message = "{validation.form.column.nullable-range}")
     private Integer nullable;
 
     /** 是否必填：1 必填 / 0 非必填；缺省 0 */
-    @Min(value = 0, message = "required 仅允许 0 或 1")
-    @Max(value = 1, message = "required 仅允许 0 或 1")
+    @Min(value = 0, message = "{validation.form.column.required-range}")
+    @Max(value = 1, message = "{validation.form.column.required-range}")
     private Integer required;
 
     /** 敏感字段：1 敏感 / 0 普通；缺省 0，仅影响导出脱敏 */
-    @Min(value = 0, message = "sensitive 仅允许 0 或 1")
-    @Max(value = 1, message = "sensitive 仅允许 0 或 1")
+    @Min(value = 0, message = "{validation.form.column.sensitive-range}")
+    @Max(value = 1, message = "{validation.form.column.sensitive-range}")
     private Integer sensitive;
 
     /** 默认值 */
-    @Size(max = 255, message = "默认值长度不能超过 255")
+    @Size(max = 255, message = "{validation.form.column.default-value-size}")
     private String defaultValue;
 
     /** 备注 */
-    @Size(max = 255, message = "备注长度不能超过 255")
+    @Size(max = 255, message = "{validation.form.column.remark-size}")
     private String remark;
 
     /** 排序号 */
-    @Min(value = 0, message = "排序号不能小于 0")
+    @Min(value = 0, message = "{validation.form.column.sort-no-min}")
     private Integer sortNo;
 
     /** 状态：1 正常 / 0 禁用；缺省 1 */
-    @Min(value = 0, message = "状态仅允许 0 或 1")
-    @Max(value = 1, message = "状态仅允许 0 或 1")
+    @Min(value = 0, message = "{validation.form.column.status-range}")
+    @Max(value = 1, message = "{validation.form.column.status-range}")
     private Integer status;
 }

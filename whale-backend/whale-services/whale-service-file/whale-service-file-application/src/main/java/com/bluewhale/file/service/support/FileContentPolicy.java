@@ -53,13 +53,13 @@ public class FileContentPolicy {
             return;
         }
         if (isBlocked(detected)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
-                    "禁止上传可执行文件: " + detected.getDescription());
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "file.content.executable-blocked",
+                    "禁止上传可执行文件: " + detected.getDescription(), detected.getDescription());
         }
         FileMagicType expected = expectedOf(originalName);
         if (expected != null && expected != detected) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
-                    "文件内容与扩展名不匹配: " + detected.getDescription());
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "file.content.extension-mismatch",
+                    "文件内容与扩展名不匹配: " + detected.getDescription(), detected.getDescription());
         }
     }
 

@@ -12,6 +12,6 @@ import lombok.Data;
 public class UserStatusRequest {
 
     /** 状态：1 启用 / 0 停用 */
-    @NotNull(message = "状态不能为空")
+    @NotNull(message = "{validation.auth.common.status-required}")
     private Integer status;
 }

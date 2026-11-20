@@ -61,7 +61,7 @@ public class ProcessDelegateServiceImpl implements ProcessDelegateService {
     public DelegateRuleVO update(Long id, DelegateRuleSaveRequest request) {
         ProcessDelegatePo entity = processDelegateMapper.selectById(id);
         if (entity == null) {
-            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "代理规则不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "workflow.delegate.not-found", "代理规则不存在");
         }
         apply(entity, request);
         ensureNoOverlap(entity);
@@ -73,7 +73,7 @@ public class ProcessDelegateServiceImpl implements ProcessDelegateService {
     public void delete(Long id) {
         ProcessDelegatePo entity = processDelegateMapper.selectById(id);
         if (entity == null) {
-            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "代理规则不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "workflow.delegate.not-found", "代理规则不存在");
         }
         processDelegateMapper.deleteById(id);
     }
@@ -106,11 +106,13 @@ public class ProcessDelegateServiceImpl implements ProcessDelegateService {
         String fromAccount = request.getFromAccount().trim();
         String toAccount = request.getToAccount().trim();
         if (fromAccount.equals(toAccount)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "委托人与代理人不能相同");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.delegate.same-account",
+                    "委托人与代理人不能相同");
         }
         if (request.getStartTime().isAfter(request.getEndTime())
                 || request.getStartTime().isEqual(request.getEndTime())) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "生效开始时间必须早于结束时间");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.delegate.invalid-period",
+                    "生效开始时间必须早于结束时间");
         }
         entity.setDefinitionCode(definitionCode);
         entity.setFromAccount(fromAccount);
@@ -142,7 +144,7 @@ public class ProcessDelegateServiceImpl implements ProcessDelegateService {
                 .lt(ProcessDelegatePo::getStartTime, entity.getEndTime())
                 .gt(ProcessDelegatePo::getEndTime, entity.getStartTime());
         if (processDelegateMapper.selectCount(wrapper) > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "代理生效时间段与其他规则重叠");
+            throw new BizException(ErrorCode.PARAM_ERROR, "workflow.delegate.overlap", "代理生效时间段与其他规则重叠");
         }
     }
 

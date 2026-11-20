@@ -86,7 +86,7 @@ public class AppealServiceImpl implements AppealService {
                 .eq(ForumAppeal::getTargetId, targetId)
                 .eq(ForumAppeal::getStatus, STATUS_PENDING));
         if (pending > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "该对象已有待处理的申诉，请勿重复提交");
+            throw new BizException(ErrorCode.PARAM_ERROR, "forum.appeal.duplicate-pending", "该对象已有待处理的申诉，请勿重复提交");
         }
         // 先校验材料再落工单：文件服务不可用时不留半张工单，也少一次事务内网络调用
         List<ForumFileMetadataClient.FileMeta> files = resolveMaterials(body.getMaterialFileIds(), actor.userId());
@@ -142,10 +142,10 @@ public class AppealServiceImpl implements AppealService {
     public AppealVO handle(Long appealId, AppealHandleRequest body, ForumActor actor) {
         ForumAppeal appeal = appealMapper.selectById(appealId);
         if (appeal == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "申诉工单不存在");
+            throw new BizException(ErrorCode.PARAM_ERROR, "forum.appeal.not-found", "申诉工单不存在");
         }
         if (!STATUS_PENDING.equals(appeal.getStatus())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "该申诉已处理，不能重复复核");
+            throw new BizException(ErrorCode.PARAM_ERROR, "forum.appeal.already-handled", "该申诉已处理，不能重复复核");
         }
         String next = Boolean.TRUE.equals(body.getApproved()) ? STATUS_APPROVED : STATUS_REJECTED;
         appeal.setStatus(next);
@@ -180,31 +180,31 @@ public class AppealServiceImpl implements AppealService {
             case TARGET_THREAD -> {
                 ForumThread thread = threadMapper.selectById(targetId);
                 if (thread == null || !actor.userId().equals(thread.getAuthorId())) {
-                    throw new BizException(ErrorCode.PARAM_ERROR, "只能申诉本人的帖子");
+                    throw new BizException(ErrorCode.PARAM_ERROR, "forum.appeal.thread-not-own", "只能申诉本人的帖子");
                 }
                 if (!REMOVED.equals(thread.getStatus())) {
-                    throw new BizException(ErrorCode.PARAM_ERROR, "该帖未被处置，无需申诉");
+                    throw new BizException(ErrorCode.PARAM_ERROR, "forum.appeal.thread-not-removed", "该帖未被处置，无需申诉");
                 }
             }
             case TARGET_POST -> {
                 ForumPost post = postMapper.selectById(targetId);
                 if (post == null || !actor.userId().equals(post.getAuthorId())) {
-                    throw new BizException(ErrorCode.PARAM_ERROR, "只能申诉本人的楼层");
+                    throw new BizException(ErrorCode.PARAM_ERROR, "forum.appeal.post-not-owned", "只能申诉本人的楼层");
                 }
                 if (!REMOVED.equals(post.getStatus())) {
-                    throw new BizException(ErrorCode.PARAM_ERROR, "该楼层未被处置，无需申诉");
+                    throw new BizException(ErrorCode.PARAM_ERROR, "forum.appeal.post-not-removed", "该楼层未被处置，无需申诉");
                 }
             }
             case TARGET_BAN -> {
                 if (!actor.userId().equals(targetId)) {
-                    throw new BizException(ErrorCode.PARAM_ERROR, "只能申诉本人的禁言处置");
+                    throw new BizException(ErrorCode.PARAM_ERROR, "forum.appeal.ban-not-own", "只能申诉本人的禁言处置");
                 }
                 ForumUserBan ban = banService.activeBan(actor.userId());
                 if (ban == null) {
-                    throw new BizException(ErrorCode.PARAM_ERROR, "当前没有生效的禁言处置，无需申诉");
+                    throw new BizException(ErrorCode.PARAM_ERROR, "forum.appeal.ban-not-active", "当前没有生效的禁言处置，无需申诉");
                 }
             }
-            default -> throw new BizException(ErrorCode.PARAM_ERROR, "不支持的申诉对象类型");
+            default -> throw new BizException(ErrorCode.PARAM_ERROR, "forum.appeal.target-type-unsupported", "不支持的申诉对象类型");
         }
     }
 
@@ -217,7 +217,7 @@ public class AppealServiceImpl implements AppealService {
     private String normalizeType(String targetType) {
         String type = targetType == null ? "" : targetType.trim().toUpperCase();
         if (!TARGET_THREAD.equals(type) && !TARGET_POST.equals(type) && !TARGET_BAN.equals(type)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "申诉对象类型仅支持 THREAD / POST / BAN");
+            throw new BizException(ErrorCode.PARAM_ERROR, "forum.appeal.target-type-invalid", "申诉对象类型仅支持 THREAD / POST / BAN");
         }
         return type;
     }
@@ -232,7 +232,7 @@ public class AppealServiceImpl implements AppealService {
         String normalized = status.trim().toUpperCase();
         if (!STATUS_PENDING.equals(normalized) && !STATUS_APPROVED.equals(normalized)
                 && !STATUS_REJECTED.equals(normalized)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "工单状态仅支持 PENDING / APPROVED / REJECTED");
+            throw new BizException(ErrorCode.PARAM_ERROR, "forum.appeal.status-invalid", "工单状态仅支持 PENDING / APPROVED / REJECTED");
         }
         return normalized;
     }
@@ -245,20 +245,20 @@ public class AppealServiceImpl implements AppealService {
                         .orderByAsc(ForumAppealMaterial::getId)
                         .last("LIMIT 1"));
         if (material == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "申诉材料不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "forum.appeal.material-missing", "申诉材料不存在");
         }
         ForumAppeal appeal = appealMapper.selectById(material.getAppealId());
         if (appeal == null) {
-            throw new BizException(ErrorCode.NOT_FOUND, "申诉材料不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "forum.appeal.material-missing", "申诉材料不存在");
         }
         // 本人看自己的材料，复核人看工单材料；其余一律拒绝——内网内容接口不做归属校验
         boolean owner = actor != null && actor.userId() != null && actor.userId().equals(appeal.getUserId());
         if (!owner && (actor == null || !actor.hasPermission(ForumPermissions.MANAGE_DISPOSE))) {
-            throw new BizException(ErrorCode.FORBIDDEN, "无权查看该申诉材料");
+            throw new BizException(ErrorCode.FORBIDDEN, "forum.appeal.material-forbidden", "无权查看该申诉材料");
         }
         String contentType = material.getContentType() == null ? "" : material.getContentType();
         if (!contentType.startsWith("image/")) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "该材料不支持在线预览");
+            throw new BizException(ErrorCode.PARAM_ERROR, "forum.appeal.material-preview-unsupported", "该材料不支持在线预览");
         }
         ForumFileMetadataClient.FileContent content = fileMetadataClient.loadContent(fileId);
         return new AppealMaterialContent(content.bytes(), contentType);
@@ -284,8 +284,9 @@ public class AppealServiceImpl implements AppealService {
             }
         }
         if (unique.size() > properties.getAppealMaterialLimit()) {
-            throw new BizException(ErrorCode.PARAM_ERROR,
-                    "申诉材料不能超过 " + properties.getAppealMaterialLimit() + " 个");
+            throw new BizException(ErrorCode.PARAM_ERROR, "forum.appeal.material-limit-exceeded",
+                    "申诉材料不能超过 " + properties.getAppealMaterialLimit() + " 个",
+                    properties.getAppealMaterialLimit());
         }
         List<ForumFileMetadataClient.FileMeta> files = new ArrayList<>(unique.size());
         for (Long fileId : unique) {
