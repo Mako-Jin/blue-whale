@@ -2,6 +2,7 @@ package com.bluewhale.alert.controller;
 
 import com.bluewhale.alert.dto.AlertRuleQueryRequest;
 import com.bluewhale.alert.dto.AlertRuleSaveRequest;
+import com.bluewhale.alert.dto.AlertRuleStatusRequest;
 import com.bluewhale.alert.service.AlertRuleService;
 import com.bluewhale.alert.vo.AlertRuleVO;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
@@ -19,8 +20,6 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.Map;
 
 /**
  * 告警规则管理接口
@@ -111,15 +110,15 @@ public class AlertRuleController {
     /**
      * 启停告警规则
      *
-     * @param id   规则ID
-     * @param body 请求体，键 {@code status}：1 启用 / 0 停用
+     * @param id      规则ID
+     * @param request 启停请求，{@code status}：1 启用 / 0 停用
      * @return 空响应体
      */
     @PutMapping("/{id}/status")
     @RequirePermission("sys:alert:rule:edit")
     @AuditLog(operation = "启停告警规则", type = OperateType.UPDATE, targetType = TARGET_TYPE, targetId = "#id")
-    public Result<Void> updateStatus(@PathVariable Long id, @RequestBody Map<String, Integer> body) {
-        alertRuleService.updateStatus(id, body == null ? null : body.get("status"));
+    public Result<Void> updateStatus(@PathVariable Long id, @Valid @RequestBody AlertRuleStatusRequest request) {
+        alertRuleService.updateStatus(id, request.getStatus());
         return Result.ok();
     }
 }

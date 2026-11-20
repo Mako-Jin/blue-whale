@@ -33,6 +33,9 @@ public class AlertRecordVO implements Serializable {
     /** 记录状态：FIRING 触发中 / RECOVERED 已恢复 */
     private String status;
 
+    /** 告警指纹（用于排查窗口内去重） */
+    private String fingerprint;
+
     /** 触发时间 */
     private LocalDateTime triggerTime;
 

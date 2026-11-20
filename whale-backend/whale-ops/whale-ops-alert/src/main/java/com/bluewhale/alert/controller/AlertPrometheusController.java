@@ -6,6 +6,7 @@ import com.bluewhale.alert.service.AlertRecordService;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.Result;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -53,16 +54,19 @@ public class AlertPrometheusController {
      * @param token         入站令牌请求头
      * @param authorization Bearer 授权头
      * @param payload       Alertmanager 请求体
+     * @param request       HTTP 请求（仅用于失败时记录来源地址）
      * @return 落库条数
      */
     @PostMapping("/prometheus")
     public Result<Integer> receive(@RequestHeader(value = TOKEN_HEADER, required = false) String token,
                                    @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)
                                    String authorization,
-                                   @RequestBody PrometheusWebhookPayload payload) {
+                                   @RequestBody PrometheusWebhookPayload payload,
+                                   HttpServletRequest request) {
         String candidate = StringUtils.hasText(token) ? token : stripBearer(authorization);
         if (!tokenMatches(candidate)) {
-            log.warn("Alertmanager 入站令牌校验失败");
+            log.warn("Alertmanager 入站令牌校验失败: remoteAddr={}",
+                    request == null ? "-" : request.getRemoteAddr());
             throw new BizException(ErrorCode.FORBIDDEN);
         }
         int inserted = alertRecordService.ingest(payload);

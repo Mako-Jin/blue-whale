@@ -7,9 +7,9 @@ import com.bluewhale.alert.service.AlertNotifyService;
 import com.bluewhale.common.tenant.TenantContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.mail.internet.MimeMessage;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -24,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -38,7 +39,6 @@ import java.util.Objects;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class AlertNotifyServiceImpl implements AlertNotifyService {
 
     /** 邮件通道 */
@@ -56,18 +56,42 @@ public class AlertNotifyServiceImpl implements AlertNotifyService {
     /** 单条短信内容上限（字符），超长截断避免被网关拒绝或拆成多条计费 */
     private static final int MAX_SMS_CONTENT_LENGTH = 480;
 
+    /** 默认连接超时（毫秒）：请求级超时由各通道配置通过 {@code HttpRequest.timeout} 控制 */
+    private static final int DEFAULT_CONNECT_TIMEOUT_MILLIS = 3000;
+
+    /** 共享 HTTP 客户端：复用连接池与 Selector 线程，避免每次发送都新建 */
+    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofMillis(DEFAULT_CONNECT_TIMEOUT_MILLIS))
+            .build();
+
     private final AlertNotifyProperties properties;
 
     private final ObjectProvider<JavaMailSender> mailSenderProvider;
 
     private final ObjectMapper objectMapper;
 
+    /**
+     * 构造通知服务
+     *
+     * @param properties        通知配置
+     * @param mailSenderProvider 邮件发送器（未配置 spring.mail.host 时为空）
+     * @param objectMapper      内部 Jackson 2 映射器（显式限定，避免与 MVC 的 Jackson 3 混淆）
+     */
+    public AlertNotifyServiceImpl(AlertNotifyProperties properties,
+                                  ObjectProvider<JavaMailSender> mailSenderProvider,
+                                  @Qualifier("alertObjectMapper") ObjectMapper objectMapper) {
+        this.properties = properties;
+        this.mailSenderProvider = mailSenderProvider;
+        this.objectMapper = objectMapper;
+    }
+
     @Override
     public void notify(AlertRule rule, AlertRecord record) {
         if (rule == null || record == null) {
             return;
         }
-        String channel = rule.getChannel() == null ? CHANNEL_NONE : rule.getChannel().toUpperCase();
+        String channel = rule.getChannel() == null
+                ? CHANNEL_NONE : rule.getChannel().trim().toUpperCase(Locale.ROOT);
         if (CHANNEL_EMAIL.equals(channel)) {
             sendEmail(rule, record);
         } else if (CHANNEL_WEBHOOK.equals(channel)) {
@@ -138,10 +162,8 @@ public class AlertNotifyServiceImpl implements AlertNotifyService {
                     .header("Content-Type", "application/json; charset=UTF-8")
                     .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
                     .build();
-            HttpResponse<String> response = HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofMillis(timeout))
-                    .build()
-                    .send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            HttpResponse<String> response = HTTP_CLIENT.send(request,
+                    HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
                 log.info("告警 Webhook 已送达: ruleCode={}, status={}",
                         rule.getRuleCode(), response.statusCode());
@@ -192,10 +214,8 @@ public class AlertNotifyServiceImpl implements AlertNotifyService {
             if (StringUtils.hasText(sms.getToken())) {
                 builder.header("Authorization", "Bearer " + sms.getToken().trim());
             }
-            HttpResponse<String> response = HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofMillis(timeout))
-                    .build()
-                    .send(builder.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            HttpResponse<String> response = HTTP_CLIENT.send(builder.build(),
+                    HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
                 log.info("告警短信已提交网关: ruleCode={}, to={}",
                         rule.getRuleCode(), maskPhones(recipients));

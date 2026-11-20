@@ -1,7 +1,9 @@
 package com.bluewhale.alert.service.impl;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.alert.config.AlertNotifyProperties;
 import com.bluewhale.alert.dto.AlertRecordCreateRequest;
@@ -12,8 +14,10 @@ import com.bluewhale.alert.entity.AlertRule;
 import com.bluewhale.alert.mapper.AlertRecordMapper;
 import com.bluewhale.alert.mapper.AlertRuleMapper;
 import com.bluewhale.alert.service.AlertNotifyService;
+import com.bluewhale.alert.support.AlertNotifyDispatcher;
 import com.bluewhale.alert.vo.AlertRecordVO;
 import com.bluewhale.common.core.result.PageResult;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -25,6 +29,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -44,10 +49,24 @@ class AlertRecordServiceImplTest {
 
     private final AlertNotifyService alertNotifyService = mock(AlertNotifyService.class);
 
+    /** 同步执行器：测试中把异步派发退化为直接调用，断言仍然同步可见 */
+    private final AlertNotifyDispatcher alertNotifyDispatcher =
+            new AlertNotifyDispatcher(alertNotifyService, Runnable::run);
+
     private final AlertNotifyProperties notifyProperties = new AlertNotifyProperties();
 
     private final AlertRecordServiceImpl alertRecordService =
-            new AlertRecordServiceImpl(alertRecordMapper, alertRuleMapper, alertNotifyService, notifyProperties);
+            new AlertRecordServiceImpl(alertRecordMapper, alertRuleMapper, alertNotifyDispatcher, notifyProperties);
+
+    /**
+     * 初始化实体表元数据，使 Lambda 条件可渲染为列名（便于断言去重窗口字段）
+     */
+    @BeforeAll
+    static void initTableInfo() {
+        TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(new MybatisConfiguration(), ""),
+                AlertRecord.class);
+    }
 
     @Test
     @DisplayName("page：按条件调用分页查询并映射结果")
@@ -192,6 +211,37 @@ class AlertRecordServiceImplTest {
         assertEquals(0, inserted);
         verify(alertRecordMapper, never()).insert(ArgumentMatchers.<AlertRecord>any());
         verify(alertNotifyService, never()).notify(any(), any());
+    }
+
+    @Test
+    @DisplayName("ingest：去重窗口以入库时间 create_time 为基准，而非 startsAt")
+    void shouldJudgeDedupWindowByCreateTime() {
+        when(alertRuleMapper.selectOne(any())).thenReturn(null);
+        when(alertRecordMapper.selectCount(ArgumentMatchers.<Wrapper<AlertRecord>>any())).thenReturn(0L);
+        PrometheusWebhookPayload.PrometheusAlert alert = alert("firing", "cpu_high", "critical");
+        alert.setStartsAt("2020-01-01T00:00:00+08:00");
+
+        alertRecordService.ingest(payload(alert));
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Wrapper<AlertRecord>> captor = ArgumentCaptor.forClass(Wrapper.class);
+        verify(alertRecordMapper).selectCount(captor.capture());
+        String sqlSegment = captor.getValue().getSqlSegment();
+        org.junit.jupiter.api.Assertions.assertTrue(sqlSegment.contains("create_time"),
+                "去重窗口必须按入库时间判断: " + sqlSegment);
+        org.junit.jupiter.api.Assertions.assertFalse(sqlSegment.contains("trigger_time"),
+                "trigger_time 是首次触发时间，重发旧告警会让窗口失效: " + sqlSegment);
+    }
+
+    @Test
+    @DisplayName("create：非法租户ID直接拒绝，避免越权写入")
+    void shouldRejectNonPositiveTenant() {
+        AlertRecordCreateRequest request = createRequest();
+        request.setTenantId(0L);
+
+        assertThrows(com.bluewhale.common.core.exception.BizException.class,
+                () -> alertRecordService.create(request));
+        verify(alertRecordMapper, never()).insert(any(AlertRecord.class));
     }
 
     /**

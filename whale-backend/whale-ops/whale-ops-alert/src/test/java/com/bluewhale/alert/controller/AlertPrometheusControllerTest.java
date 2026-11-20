@@ -7,6 +7,7 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.result.Result;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.json.JsonMapper;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -35,7 +36,7 @@ class AlertPrometheusControllerTest {
         PrometheusWebhookPayload payload = new PrometheusWebhookPayload();
         when(alertRecordService.ingest(payload)).thenReturn(2);
 
-        Result<Integer> result = controller.receive(TOKEN, null, payload);
+        Result<Integer> result = controller.receive(TOKEN, null, payload, null);
 
         assertEquals(2, result.getData());
         verify(alertRecordService).ingest(payload);
@@ -47,7 +48,7 @@ class AlertPrometheusControllerTest {
         PrometheusWebhookPayload payload = new PrometheusWebhookPayload();
         when(alertRecordService.ingest(payload)).thenReturn(1);
 
-        Result<Integer> result = controller.receive(null, "Bearer " + TOKEN, payload);
+        Result<Integer> result = controller.receive(null, "Bearer " + TOKEN, payload, null);
 
         assertEquals(1, result.getData());
     }
@@ -58,13 +59,36 @@ class AlertPrometheusControllerTest {
         PrometheusWebhookPayload payload = new PrometheusWebhookPayload();
 
         BizException missing = assertThrows(BizException.class,
-                () -> controller.receive(null, null, payload));
+                () -> controller.receive(null, null, payload, null));
         BizException wrong = assertThrows(BizException.class,
-                () -> controller.receive("wrong-token", null, payload));
+                () -> controller.receive("wrong-token", null, payload, null));
 
         assertEquals(403, missing.getCode());
         assertEquals(403, wrong.getCode());
         verify(alertRecordService, never()).ingest(payload);
+    }
+
+    @Test
+    @DisplayName("入站 JSON：Jackson 3（MVC 默认）可正确反序列化 Alertmanager 请求体")
+    void shouldDeserializeAlertmanagerPayloadWithJackson3() {
+        String json = """
+                {"version":"4","status":"firing","alerts":[
+                  {"status":"firing",
+                   "labels":{"alertname":"cpu_high","severity":"critical","tenant_id":"7"},
+                   "annotations":{"summary":"CPU 92%"},
+                   "startsAt":"2026-10-25T10:00:00+08:00",
+                   "fingerprint":"fp-1"}]}
+                """;
+
+        PrometheusWebhookPayload payload = JsonMapper.builder().build()
+                .readValue(json, PrometheusWebhookPayload.class);
+
+        assertEquals(1, payload.getAlerts().size());
+        PrometheusWebhookPayload.PrometheusAlert alert = payload.getAlerts().get(0);
+        assertEquals("cpu_high", alert.getLabels().get("alertname"));
+        assertEquals("7", alert.getLabels().get("tenant_id"));
+        assertEquals("CPU 92%", alert.getAnnotations().get("summary"));
+        assertEquals("fp-1", alert.getFingerprint());
     }
 
     /**

@@ -5,9 +5,11 @@ import com.bluewhale.alert.entity.AlertRecord;
 import com.bluewhale.alert.entity.AlertRule;
 import com.bluewhale.alert.vo.AlertRecordVO;
 import com.bluewhale.alert.vo.AlertRuleVO;
+import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
+import org.mapstruct.NullValuePropertyMappingStrategy;
 import org.mapstruct.factory.Mappers;
 
 /**
@@ -52,11 +54,15 @@ public interface AlertConverter {
     AlertRule toEntity(AlertRuleSaveRequest request);
 
     /**
-     * 保存请求覆盖既有规则实体（保留主键与审计字段）
+     * 保存请求覆盖既有规则实体（保留主键与审计字段）。
+     *
+     * <p>可选字段为 {@code null} 时保留原值，避免前端只传部分字段时把
+     * metric/target/threshold 等配置清空。</p>
      *
      * @param request 保存请求
      * @param entity  待更新的规则实体
      */
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "createTime", ignore = true)
     @Mapping(target = "updateTime", ignore = true)

@@ -3,6 +3,7 @@ package com.bluewhale.alert.controller;
 import com.bluewhale.alert.dto.AlertRecordCreateRequest;
 import com.bluewhale.alert.service.AlertRecordService;
 import com.bluewhale.common.core.result.Result;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -34,7 +35,7 @@ public class AlertInternalRecordController {
      * @return 落库条数（0 表示窗口内重复被去重）
      */
     @PostMapping("/record")
-    public Result<Integer> create(@RequestBody AlertRecordCreateRequest request) {
+    public Result<Integer> create(@Valid @RequestBody AlertRecordCreateRequest request) {
         int inserted = alertRecordService.create(request);
         log.info("内网告警创建完成: source={}, ruleCode={}, inserted={}",
                 request == null ? null : request.getSource(),

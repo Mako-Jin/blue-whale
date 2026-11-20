@@ -13,6 +13,7 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -23,6 +24,8 @@ import java.util.List;
  * 告警规则服务实现
  *
  * <p>新增 / 更新前按 {@code rule_code} 查重（仅未删除记录），冲突抛 {@code PARAM_ERROR}；
+ * 数据库 {@code uk_tenant_rule_code} 是并发场景的最终防线，唯一键冲突同样转换为
+ * {@code PARAM_ERROR}，避免并发请求漏成 500。
  * 详情 / 更新 / 删除 / 启停前均校验存在性，缺失抛 {@code NOT_FOUND}。</p>
  *
  * @author BlueWhale
@@ -69,7 +72,7 @@ public class AlertRuleServiceImpl implements AlertRuleService {
     public AlertRuleVO create(AlertRuleSaveRequest request) {
         ensureUnique(request.getRuleCode(), null);
         AlertRule entity = AlertConverter.INSTANCE.toEntity(request);
-        alertRuleMapper.insert(entity);
+        insertGuardingUniqueKey(entity);
         return toVo(alertRuleMapper.selectById(entity.getId()));
     }
 
@@ -80,7 +83,7 @@ public class AlertRuleServiceImpl implements AlertRuleService {
         ensureUnique(request.getRuleCode(), id);
         AlertConverter.INSTANCE.updateEntity(request, existing);
         existing.setId(id);
-        alertRuleMapper.updateById(existing);
+        updateGuardingUniqueKey(existing);
         return toVo(alertRuleMapper.selectById(id));
     }
 
@@ -100,6 +103,32 @@ public class AlertRuleServiceImpl implements AlertRuleService {
         AlertRule existing = requireRule(id);
         existing.setStatus(status);
         alertRuleMapper.updateById(existing);
+    }
+
+    /**
+     * 插入规则，唯一键冲突转换为 {@code PARAM_ERROR}。
+     *
+     * @param entity 待插入规则
+     */
+    private void insertGuardingUniqueKey(AlertRule entity) {
+        try {
+            alertRuleMapper.insert(entity);
+        } catch (DuplicateKeyException e) {
+            throw new BizException(ErrorCode.PARAM_ERROR);
+        }
+    }
+
+    /**
+     * 更新规则，唯一键冲突转换为 {@code PARAM_ERROR}。
+     *
+     * @param entity 待更新规则
+     */
+    private void updateGuardingUniqueKey(AlertRule entity) {
+        try {
+            alertRuleMapper.updateById(entity);
+        } catch (DuplicateKeyException e) {
+            throw new BizException(ErrorCode.PARAM_ERROR);
+        }
     }
 
     /**
