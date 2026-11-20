@@ -36,7 +36,7 @@ public class InternalTokenProperties {
     private String token = "";
 
     /** 受保护路径模式（Ant 通配），默认覆盖所有含 internal 段的路径与审计摄入端点 */
-    private List<String> pathPatterns = new ArrayList<>(List.of("/**/internal/**", "/audit/log/ingest/**"));
+    private List<String> pathPatterns = new ArrayList<>(List.of("/**/internal/**", "/audit/v1/log/ingest/**"));
 
     /** 豁免路径模式：命中即跳过令牌校验（如 Alertmanager 入站 webhook，自身已带告警令牌） */
     private List<String> excludePatterns = new ArrayList<>();

@@ -52,7 +52,7 @@ class PermissionHeaderGlobalFilterTest {
     /** 权限码 */
     private static final String CODE = "sys:audit:log:list";
     /** 受保护请求地址 */
-    private static final String REQUEST_URL = "http://localhost/audit/log/frontend/page";
+    private static final String REQUEST_URL = "http://localhost/audit/v1/log/frontend/page";
     /** 回落接口地址 */
     private static final String AUTH_ME_URI = "lb://whale-service-auth/auth/v1/me";
     /** 租户头名 */

@@ -24,9 +24,9 @@
     { "service": "whale-contract", "module": "whale-apps/whale-contract", "match": "whale-apps/whale-contract/", "port": 9006 },
     { "service": "whale-crm", "module": "whale-apps/whale-crm", "match": "whale-apps/whale-crm/", "port": 9007 },
     { "service": "whale-mall", "module": "whale-apps/whale-mall", "match": "whale-apps/whale-mall/", "port": 9010 },
-    { "service": "whale-audit", "module": "whale-ops/whale-audit", "match": "whale-ops/whale-audit/", "port": 9101 },
+    { "service": "whale-audit", "module": "whale-ops/whale-ops-audit", "match": "whale-ops/whale-ops-audit/", "port": 9101 },
     { "service": "whale-monitor", "module": "whale-ops/whale-monitor", "match": "whale-ops/whale-monitor/", "port": 9102 },
-    { "service": "whale-alert", "module": "whale-ops/whale-alert", "match": "whale-ops/whale-alert/", "port": 9103 },
+    { "service": "whale-alert", "module": "whale-ops/whale-ops-alert", "match": "whale-ops/whale-ops-alert/", "port": 9103 },
     { "service": "whale-config", "module": "whale-registry/whale-config", "match": "whale-registry/whale-config/", "port": 9201 }
   ],
   "frontend": [

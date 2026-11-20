@@ -105,9 +105,9 @@ export interface LogSdkConfig {
   release?: string;
   /** 上报基地址（默认空串，即同源相对路径） */
   baseUrl?: string;
-  /** 开发者日志上报端点（默认 /audit/log/frontend/batch） */
+  /** 开发者日志上报端点（默认 /audit/v1/log/frontend/batch） */
   frontendEndpoint?: string;
-  /** 用户行为上报端点（默认 /audit/log/behavior/batch） */
+  /** 用户行为上报端点（默认 /audit/v1/log/behavior/batch） */
   behaviorEndpoint?: string;
   /** console 劫持配置 */
   console?: ConsoleOptions;

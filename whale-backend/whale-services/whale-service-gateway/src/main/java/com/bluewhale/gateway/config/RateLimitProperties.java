@@ -54,7 +54,7 @@ public class RateLimitProperties {
     @Data
     public static class PathRule {
 
-        /** Ant 风格路径模式，如 {@code /audit/log/frontend/**} */
+        /** Ant 风格路径模式，如 {@code /audit/v1/log/frontend/**} */
         private String pathPattern;
 
         /** 本规则单个窗口内允许的最大请求数 */

@@ -163,10 +163,10 @@ whale:
         - path-pattern: /oauth2/token
           limit: ${WHALE_GATEWAY_RATE_LIMIT_OAUTH2_TOKEN:60}
           window-seconds: ${WHALE_GATEWAY_RATE_LIMIT_OAUTH2_TOKEN_WINDOW_SECONDS:60}
-        - path-pattern: /audit/log/frontend/batch
+        - path-pattern: /audit/v1/log/frontend/batch
           limit: ${WHALE_GATEWAY_RATE_LIMIT_REPORT:30}
           window-seconds: ${WHALE_GATEWAY_RATE_LIMIT_REPORT_WINDOW_SECONDS:1}
-        - path-pattern: /audit/log/behavior/batch
+        - path-pattern: /audit/v1/log/behavior/batch
           limit: ${WHALE_GATEWAY_RATE_LIMIT_REPORT:30}
           window-seconds: ${WHALE_GATEWAY_RATE_LIMIT_REPORT_WINDOW_SECONDS:1}
         # Wave 5.75 音频流：一次播放会发起多次 Range 请求，按路径独立阈值防止直连刷流
@@ -251,7 +251,7 @@ whale:
         # 第二段为版本号，用 `*` 匹配 v1/v2…）
         - /*/*/internal/**
         # P1-3 审计汇聚摄入端点：非 /internal 命名，单独收口
-        - /audit/log/ingest/**
+        - /audit/v1/log/ingest/**
 
 management:
   endpoints:

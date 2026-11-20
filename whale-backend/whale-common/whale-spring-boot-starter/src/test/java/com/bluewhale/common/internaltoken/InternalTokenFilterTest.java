@@ -117,9 +117,9 @@ class InternalTokenFilterTest {
     }
 
     @Test
-    @DisplayName("filter：审计摄入端点 /audit/log/ingest/** 受默认模式保护")
+    @DisplayName("filter：审计摄入端点 /audit/v1/log/ingest/** 受默认模式保护")
     void shouldProtectAuditIngestPath() throws Exception {
-        assertEquals(403, doFilter("/audit/log/ingest", null).getStatus());
+        assertEquals(403, doFilter("/audit/v1/log/ingest", null).getStatus());
     }
 
     @Test

@@ -7,10 +7,10 @@
 import type { LogLevel } from './types';
 
 /** 通道③：前端开发者日志上报端点（与后端 LogIngestController 冻结契约一致）。 */
-export const FRONTEND_ENDPOINT = '/audit/log/frontend/batch';
+export const FRONTEND_ENDPOINT = '/audit/v1/log/frontend/batch';
 
 /** 通道④：前端用户行为上报端点。 */
-export const BEHAVIOR_ENDPOINT = '/audit/log/behavior/batch';
+export const BEHAVIOR_ENDPOINT = '/audit/v1/log/behavior/batch';
 
 /** 单次上报条目上限（与后端 MAX_BATCH_SIZE=50 对齐，超出即分片）。 */
 export const MAX_BATCH_SIZE = 50;

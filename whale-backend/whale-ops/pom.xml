@@ -17,8 +17,8 @@
     <description>BlueWhale 运维监控聚合模块</description>
 
     <modules>
-        <module>whale-audit</module>
+        <module>whale-ops-audit</module>
         <module>whale-monitor</module>
-        <module>whale-alert</module>
+        <module>whale-ops-alert</module>
     </modules>
 </project>

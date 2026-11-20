@@ -30,7 +30,7 @@ import java.util.List;
 public class AuditLogForwarder {
 
     /** 摄入端点路径（与 whale-audit {@code AuditLogController} 对齐） */
-    private static final String INGEST_PATH = "/audit/log/ingest";
+    private static final String INGEST_PATH = "/audit/v1/log/ingest";
 
     private final RestClient restClient;
 

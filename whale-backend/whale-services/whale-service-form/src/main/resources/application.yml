@@ -70,7 +70,7 @@ bluewhale:
   internal-token:
     path-patterns:
       - /**/internal/**
-      - /audit/log/ingest/**
+      - /audit/v1/log/ingest/**
 
 mybatis-plus:
   configuration:

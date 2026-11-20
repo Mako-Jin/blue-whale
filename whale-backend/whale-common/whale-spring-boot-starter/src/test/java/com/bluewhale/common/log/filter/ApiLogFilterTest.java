@@ -42,7 +42,7 @@ class ApiLogFilterTest {
     /** 请求 URI（含设备查询路径） */
     private static final String NORMAL_URI = "/device/list";
     /** 前端上报接口路径（默认排除） */
-    private static final String FRONTEND_REPORT_URI = "/audit/log/frontend/batch";
+    private static final String FRONTEND_REPORT_URI = "/audit/v1/log/frontend/batch";
     /** 业务模块名（回填 api_log.module 的配置值） */
     private static final String MODULE_NAME = "whale-auth";
 
@@ -189,7 +189,7 @@ class ApiLogFilterTest {
     @DisplayName("默认排除路径含前端上报接口，防上报回环")
     void shouldContainReportPathsInDefaultExcludePaths() {
         assertThat(properties.getExcludePaths())
-                .contains("/audit/log/frontend/**", "/audit/log/behavior/**");
+                .contains("/audit/v1/log/frontend/**", "/audit/v1/log/behavior/**");
     }
 
     /**

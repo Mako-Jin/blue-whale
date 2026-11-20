@@ -167,10 +167,10 @@ def main():
     expect_whitelisted("接口文档 /v3/api-docs", "GET", "/v3/api-docs")
     expect_whitelisted("接口文档首页 /doc.html", "GET", "/doc.html")
     expect_whitelisted("站点图标 /favicon.ico", "GET", "/favicon.ico")
-    expect_whitelisted("前端上报 /audit/log/frontend/batch", "POST",
-                       "/audit/log/frontend/batch", [])
-    expect_whitelisted("行为上报 /audit/log/behavior/batch", "POST",
-                       "/audit/log/behavior/batch", [])
+    expect_whitelisted("前端上报 /audit/v1/log/frontend/batch", "POST",
+                       "/audit/v1/log/frontend/batch", [])
+    expect_whitelisted("行为上报 /audit/v1/log/behavior/batch", "POST",
+                       "/audit/v1/log/behavior/batch", [])
     expect_whitelisted("三方登录授权起始 /social/v1/*/authorize", "GET",
                        "/social/v1/wechat/authorize")
     expect_whitelisted("三方登录回调 /social/v1/*/callback", "GET",

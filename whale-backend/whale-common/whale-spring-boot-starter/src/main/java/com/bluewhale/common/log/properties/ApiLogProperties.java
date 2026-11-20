@@ -11,8 +11,8 @@ import java.util.List;
  * 后端接口日志配置（REQ-SEC-006，{@code ApiLogFilter}）。
  *
  * <p>{@code whale.log.api.*}：开关 / 采样率 / body 缓存上限 / 排除路径 / 模块名。
- * {@code exclude-paths} 默认含上报接口（{@code /audit/log/frontend/**}、
- * {@code /audit/log/behavior/**}）以防上报请求本身被记为接口日志形成回环。</p>
+ * {@code exclude-paths} 默认含上报接口（{@code /audit/v1/log/frontend/**}、
+ * {@code /audit/v1/log/behavior/**}）以防上报请求本身被记为接口日志形成回环。</p>
  *
  * @author BlueWhale
  */
@@ -26,7 +26,7 @@ public class ApiLogProperties {
     /** 默认排除路径：探活、静态资源、错误页、前端上报接口与审计摄入（防回环） */
     private static final List<String> DEFAULT_EXCLUDE_PATHS = List.of(
             "/actuator/**", "/health", "/favicon.ico", "/error",
-            "/audit/log/frontend/**", "/audit/log/behavior/**", "/audit/log/ingest/**");
+            "/audit/v1/log/frontend/**", "/audit/v1/log/behavior/**", "/audit/v1/log/ingest/**");
 
     /**
      * 业务模块名（回填至 {@code api_log.module}）：默认取 {@code spring.application.name}，

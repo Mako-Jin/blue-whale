@@ -56,7 +56,7 @@ if ($order -and $order.data) {
 }
 
 # audit
-Call 'P12 audit/log/page' 'GET' "$gw/audit/log/page?current=1&size=10" $h $null | Out-Null
+Call 'P12 audit/v1/log/page' 'GET' "$gw/audit/v1/log/page?current=1&size=10" $h $null | Out-Null
 
 # no-token -> real 401
 Call 'P13 no-token monitor/list' 'GET' "$gw/monitor/service/list" $null $null | Out-Null

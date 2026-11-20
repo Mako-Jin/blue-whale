@@ -59,7 +59,7 @@ bluewhale:
   internal-token:
     path-patterns:
       - /**/internal/**
-      - /audit/log/ingest/**
+      - /audit/v1/log/ingest/**
       - /assistant/openapi/**
 
 # AUTH-06：启用 starter 的 RequirePermissionInterceptor（默认 false，须显式开启），

@@ -19,7 +19,7 @@ public class AuditLogForwardProperties {
     /** 是否开启转发（默认关闭） */
     private boolean enabled = false;
 
-    /** whale-audit 基址（不含路径），转发目标为 {@code {url}/audit/log/ingest} */
+    /** whale-audit 基址（不含路径），转发目标为 {@code {url}/audit/v1/log/ingest} */
     private String url = "http://127.0.0.1:9101";
 
     /** 连接与读取超时（毫秒）：超时即回退本地落库 */
