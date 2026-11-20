@@ -55,6 +55,25 @@ CREATE TABLE audit_log (
 ) COMMENT='操作审计日志表';
 
 -- ---------------------------------------------------------------------
+-- 审计日志追加写守卫（等保 2.0：审计记录应受到保护，避免被删除、修改或覆盖）
+-- 设计说明：audit_log 为合规证据表，只允许 INSERT + SELECT。应用层由
+--           scripts/security/check-audit-append-only.py 拦住改写语句，数据库层
+--           由下面两个触发器拦住手工 SQL 与 DBA 客户端；归档任务只导出不删除，
+--           不受影响。幂等：先 DROP TRIGGER IF EXISTS 再建。
+-- ---------------------------------------------------------------------
+DROP TRIGGER IF EXISTS trg_audit_log_no_update;
+CREATE TRIGGER trg_audit_log_no_update
+    BEFORE UPDATE ON audit_log
+    FOR EACH ROW
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'audit_log is append-only, UPDATE is forbidden';
+
+DROP TRIGGER IF EXISTS trg_audit_log_no_delete;
+CREATE TRIGGER trg_audit_log_no_delete
+    BEFORE DELETE ON audit_log
+    FOR EACH ROW
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'audit_log is append-only, DELETE is forbidden';
+
+-- ---------------------------------------------------------------------
 -- 审计日志归档水位表（AUTH-09，Wave 5.48）
 -- 设计说明：audit_log 为 append-only，归档只导出不删除；以单行水位记录
 --           上一轮成功归档批次的最后一条 create_time + id，避免每轮 cron

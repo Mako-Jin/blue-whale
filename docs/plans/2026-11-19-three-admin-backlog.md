@@ -16,12 +16,18 @@
 | 存量环境迁移（第 8 节） | V36 幂等（重跑 affected 全 0），平台 + 业务租户一次覆盖 | ✅ |
 | 租户开通自动生成（验收 4） | `TenantProvisioningAppServiceImpl#copyThreeAdminRolesFromPlatform` + 互斥约束播种 | ✅ |
 | 单测（第 7 节） | `RoleAppServiceTest` 新增 5 例、`TenantProvisioningAppServiceTest` 新增 1 例 | ✅ |
+| 审计追加写保护（第 5 节 1、2、3 项） | 代码层门禁 `scripts/security/check-audit-append-only.py`（已挂 CI）+ 数据库触发器 `AuditAppendOnlyGuard.java`（28 库）+ `whale-audit` V2/init.sql | ✅ |
+| 审计的审计（第 5 节 2 项） | `AuditLogController` 查询/详情/链路/导出均 `@AuditLog(QUERY/EXPORT)` | ✅（既有能力，本轮核对） |
+| 超管与三员互斥（第 2 节 2 项） | `V37__super_admin_three_admin_mutex.sql`：super_admin 并入 `three_admin_mutex` | ✅ |
+| 验收与安全评审归档（第 8 节） | `scripts/verify/three-admin-assertions.sql` 11 条断言 + `docs/reviews/2026-11-20-three-admin-compliance.md` 条款对照表 | ✅ |
 
 **未做 / 待评估**：
 
 - 三员账号「双人复核启用」：等保三级可选项，当前无对应审批流模型，未实现。
-- `super_admin` 与三员互斥：仍为代码级硬旁路（`PermissionInterceptor`），交付后应停用超管账号而非靠角色约束；见下方运维口径。
-- 审计归档哈希与保留期（第 5 节后两项）：`whale-audit` 既有能力，未在本轮改动。
+- 审计归档哈希与签名：归档只导出不删除、水位可追溯，但归档包未记 SHA-256。
+- 应用数据库账号按表收权：当前靠触发器拦改删，生产建议再 `GRANT SELECT, INSERT ON audit_log`。
+- 审计留存期 6 个月的强制巡检：保留期靠配置，无巡检告警。
+- `super_admin` 与三员的「互斥」只到角色分配层：超管本身是代码级硬旁路（`PermissionInterceptor`），交付后仍须停用超管账号——技术强制不了，只能靠流程。
 
 **运维口径（交付后必做）**：
 
