@@ -44,6 +44,11 @@ import { createQuestSystem } from './quests';
 import { createSceneEnv, type SceneEnv } from './env';
 import { createPostFx, type PostFx } from './postfx';
 import type { SkyState } from './env-sky';
+import {
+  applyBrickMap,
+  applyStoneMap,
+  applyPlasterMap,
+} from './textures';
 import type { CharPanelHandle } from './charpanel';
 import type { AvatarParams } from './avatar';
 import type { NpcChatHandle } from './npcchat';
@@ -240,8 +245,49 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     depthWrite: false,
   });
 
+  /* ---- 材质贴图（视觉合并批2，自 showcase 移植）----
+   * 纯色 MeshStandardMaterial 在 IBL+ACES 下大面积墙面是一块发光板：图不承担
+   * 颜色，只做 ±8% 的雨痕/霉斑/颗粒调制，颜色仍由材质 baseColor 给。
+   * matRoad 不挂图：环路 RingGeometry 的 UV 是圆盘映射，贴上去成放射状拉花。
+   * low 档（软渲染 e2e）不挂：512²×3 张 anisotropy=8 的贴图在 SwiftShader 下
+   * 拖帧率，寻路/导览按帧推进会卡——e2e 断言不依赖像素，无图不影响冒烟。 */
+  if (quality !== 'low') {
+    applyBrickMap(matWall);
+    applyBrickMap(matWallDark);
+    applyStoneMap(matStone);
+    applyPlasterMap(matRed);
+    applyPlasterMap(matRedDark);
+  }
+
+  /* BoxGeometry 六面 UV 按米缩放：默认 UV 每面 0..1，一张 4m 砖纹贴到 40m 墙
+   * 会被拉伸成「墙纸」。面序 +x,-x,+y,-y,+z,-z，每面 4 顶点。 */
+  const TEX_METERS = 4.0;
+  function scaleBoxUV(geo, w, h, d, meters = TEX_METERS) {
+    const uv = geo.attributes.uv;
+    if (!uv || uv.count !== 24) return;
+    const faceScale = [
+      [d / meters, h / meters],
+      [d / meters, h / meters],
+      [w / meters, d / meters],
+      [w / meters, d / meters],
+      [w / meters, h / meters],
+      [w / meters, h / meters],
+    ];
+    for (let f = 0; f < 6; f++) {
+      const su = faceScale[f][0];
+      const sv = faceScale[f][1];
+      for (let i = 0; i < 4; i++) {
+        const k = f * 4 + i;
+        uv.setXY(k, uv.getX(k) * su, uv.getY(k) * sv);
+      }
+    }
+    uv.needsUpdate = true;
+  }
+
   function box(w, h, d, mat, cast = true) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    const geo = new THREE.BoxGeometry(w, h, d);
+    scaleBoxUV(geo, w, h, d);
+    const m = new THREE.Mesh(geo, mat);
     m.castShadow = cast;
     m.receiveShadow = true;
     return m;
@@ -696,6 +742,7 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   // 垛口合批
   {
     const merlonGeo = new THREE.BoxGeometry(1.7, 1.6, 0.8);
+    scaleBoxUV(merlonGeo, 1.7, 1.6, 0.8);
     const merlonMesh = new THREE.InstancedMesh(merlonGeo, matWallDark, merlonMatrices.length);
     merlonMatrices.forEach((m, i) => merlonMesh.setMatrixAt(i, m));
     merlonMesh.instanceMatrix.needsUpdate = true;
@@ -918,15 +965,28 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     scene.add(innerRing);
   }
 
-  // 中轴御道
+  // 中轴御道：Stone 贴图独立材质（matRoad 本体不挂图，环路 RingGeometry UV 是
+  // 圆盘映射会拉花）；plane UV 按 13×176m / 4m 缩放后平铺
   {
-    const axis = new THREE.Mesh(new THREE.PlaneGeometry(13, 176), matRoad);
+    const matRoadTex = matRoad.clone();
+    if (quality !== 'low') applyStoneMap(matRoadTex);
+    const axisGeo = new THREE.PlaneGeometry(13, 176);
+    const auv = axisGeo.attributes.uv;
+    for (let i = 0; i < auv.count; i++) {
+      auv.setXY(i, auv.getX(i) * (13 / 4), auv.getY(i) * (176 / 4));
+    }
+    const axis = new THREE.Mesh(axisGeo, matRoadTex);
     axis.rotation.x = -Math.PI / 2;
     axis.position.set(0, 0.07, 4);
     axis.receiveShadow = true;
     scene.add(axis);
 
-    const cross = new THREE.Mesh(new THREE.PlaneGeometry(13, 176), matRoad);
+    const crossGeo = new THREE.PlaneGeometry(13, 176);
+    const cuv = crossGeo.attributes.uv;
+    for (let i = 0; i < cuv.count; i++) {
+      cuv.setXY(i, cuv.getX(i) * (13 / 4), cuv.getY(i) * (176 / 4));
+    }
+    const cross = new THREE.Mesh(crossGeo, matRoadTex);
     cross.rotation.x = -Math.PI / 2;
     cross.rotation.z = Math.PI / 2;
     cross.position.set(0, 0.065, 0);

@@ -62,3 +62,16 @@
 - **性能**：mid 41.5fps / high 36.5 / low(直渲基线) 49.5——mid=84% 达标；首测 34.5（69%）→ mid 摘掉 SMAA（两遍全屏 pass）后达标，SMAA 只留 high。
 - **遗留**：批2 材质贴图、批3 天空/水增强、批4 装饰构件；dusk 截图实为日落时刻（150s/天节奏快，非回归）。
 - **已修正问题项**：`lanternOn` 重复声明（build 才报，tsc 因 @ts-nocheck 不查 city.ts）；首次截图脚本等面板 3.5s 不足（mount 后 2100ms 才弹）。
+
+### 2026-11-20 批2 完成（材质贴图）
+
+- **需求项**：纯色 MeshStandardMaterial 在 IBL+ACES 下大面积墙面是"发光板"，上程序化贴图（只做明暗调制不承担颜色）+ BoxGeometry 六面 UV 按米缩放。
+- **完成项**：
+  - 新增 `src/world/textures.ts`（自 showcase 移植 brick/stone/plaster 三张程序化 CanvasTexture，噪声函数内联；showcase 的 `hash2` 双定义已合并）。
+  - `city.ts`：`scaleBoxUV`（六面按 (w,h,d)/4m 缩放 UV，解决"每面恰好一张图"的拉伸）接入 `box()` 工厂与城垛 InstancedMesh；matWall/matWallDark→brick、matStone→stone、matRed/matRedDark→plaster；御道 plane 独立 `matRoadTex`（UV 13×176m/4m 平铺），**matRoad 不挂图**（环路 RingGeometry UV 是圆盘映射，贴上去成放射拉花）。
+  - **e2e 回归与修复**：首测 city-smoke/guide 挂——三张 512² anisotropy=8 贴图在 SwiftShader 下拖帧率，寻路/导览按帧推进即卡。修复：low 档（软渲染）不挂任何贴图（e2e 断言不依赖像素）。重建后 city-smoke/guide/path/say/quest/weather/audio/glyphs 8 个全绿。
+  - **调参两轮**：① stone 苔斑 0.28→0.14、阈值收紧，plaster 痕/斑各收一档——蓝鲸城石面无 showcase 的逐块色差与沉陷掩护，直接搬参数出图是"脏水泥"；② brick envMapIntensity 0.95→0.65——蓝鲸城天顶饱和度高（0x2f6fb0 直灌 IBL），朝上大面反射天顶成"蓝色噪面"（showcase 天顶柔和所以 0.95 没事）。
+  - **性能**：512²/anisotropy8=35.5fps → 256²/anisotropy4=38.5fps（直渲基线 49.5 的 78%；灰缝 1px 仍清晰）。取 256² 是视觉/性能平衡点。
+- **验证**：tsc/eslint/build 过；8 个 e2e 全绿；三轮截图评审（砖墙纹理成功、台基/御道收敛、背光面偏蓝为 IBL 冷天光正常表现）。
+- **待做项**：批3 天空/水增强、批4 装饰构件。
+- **已修正问题项**：SwiftShader 贴图拖帧率导致 guide 寻路超时回归（low 档跳过贴图修复）。
