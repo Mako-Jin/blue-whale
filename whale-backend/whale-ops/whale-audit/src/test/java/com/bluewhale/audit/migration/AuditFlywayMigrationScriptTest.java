@@ -105,17 +105,21 @@ class AuditFlywayMigrationScriptTest {
     }
 
     /**
-     * 基线一致性校验：V1 建表集合必须与 init.sql 完全一致
+     * 基线一致性校验：init.sql 的建表集合必须等于「V1 基线 + 后续迁移新增的表」
+     *
+     * <p>判据从「等于 V1」放宽到「等于 V1 ∪ 后续迁移」：迁移新增表（如 V4 的心跳表）本来就该
+     * 同步写进 init.sql，否则手工建库的环境会缺表且启动不报错。仍保留「V1 自身必须恰好 7 张表」
+     * 的硬断言，防止有人把新表塞进基线而不是发新迁移——那会让已上线库静默缺表。</p>
      *
      * @throws IOException 读取脚本失败
      */
     @Test
-    @DisplayName("V1 基线建表集合与 init.sql 一致")
+    @DisplayName("init.sql 建表集合等于 V1 基线 + 后续迁移新增表")
     void baselineTablesShouldMatchInitScript() throws IOException {
         Set<String> initTables = extractTables(INIT_SCRIPT);
-        Set<String> baselineTables = extractTables(MIGRATION_DIR.resolve("V1__baseline.sql"));
+        Path baseline = MIGRATION_DIR.resolve("V1__baseline.sql");
+        Set<String> baselineTables = extractTables(baseline);
         assertFalse(initTables.isEmpty(), "init.sql 未解析到建表语句");
-        assertEquals(initTables, baselineTables, "V1 基线与 init.sql 的建表集合不一致");
         assertEquals(7, baselineTables.size(), "audit 基线应包含 7 张表");
         assertTrue(baselineTables.contains("audit_log"), "基线必须包含 audit_log");
         assertTrue(baselineTables.contains("audit_archive_watermark"), "基线必须包含归档水位表");
@@ -123,6 +127,17 @@ class AuditFlywayMigrationScriptTest {
             assertTrue(baselineTables.contains(logTable), "基线必须包含多通道日志表：" + logTable);
         }
         assertTrue(baselineTables.contains("audit_mq_message"), "基线必须包含 MQ 去重表");
+
+        Set<String> expected = new LinkedHashSet<>(baselineTables);
+        for (Path script : migrationScripts()) {
+            if (script.getFileName().toString().startsWith("V1__")) {
+                continue;
+            }
+            expected.addAll(extractTables(script));
+        }
+        assertEquals(expected, initTables,
+                "init.sql 建表集合必须等于 V1 基线 + 后续迁移新增表（新增表要同步写进 init.sql）");
+        assertTrue(expected.contains("audit_job_heartbeat"), "V4 应新增作业心跳表");
     }
 
     /**

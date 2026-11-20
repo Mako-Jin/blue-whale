@@ -96,6 +96,26 @@ CREATE TABLE audit_archive_watermark (
 ) COMMENT='审计日志归档水位表';
 
 -- ---------------------------------------------------------------------
+-- 审计作业心跳表（V4 迁移补齐，等保 2.0 8.1.4.3 b：作业存活证据）
+-- 与上表不同，这里刻意不写 DROP TABLE：心跳是跨批次累计证据，
+-- 重复执行初始化脚本不应把「作业上次成功时间」清零。
+-- 本表需要更新（每次执行改同一行），不属于 append-only 范围。
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS audit_job_heartbeat (
+    job_code        VARCHAR(64)  NOT NULL                COMMENT '任务编码，如 audit.log.retention',
+    last_start_at   DATETIME(3)  DEFAULT NULL            COMMENT '最近一次开始时间',
+    last_end_at     DATETIME(3)  DEFAULT NULL            COMMENT '最近一次结束时间',
+    last_success_at DATETIME(3)  DEFAULT NULL            COMMENT '最近一次成功时间（陈旧度判定基准）',
+    last_status     VARCHAR(16)  DEFAULT NULL            COMMENT '最近一次结果 SUCCESS / FAILED',
+    last_message    VARCHAR(512) DEFAULT NULL            COMMENT '最近一次执行摘要或异常简述（截断 512）',
+    run_count       BIGINT       NOT NULL DEFAULT 0      COMMENT '累计执行次数',
+    fail_count      BIGINT       NOT NULL DEFAULT 0      COMMENT '累计失败次数',
+    update_time     DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+                                 ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '本行更新时间',
+    PRIMARY KEY (job_code)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='审计作业心跳表：作业存活证据，供陈旧度告警';
+
+-- ---------------------------------------------------------------------
 -- 多通道观测日志表（REQ-SEC-006，Wave 5.10）
 -- 设计说明：与 audit_log 一致为 append-only（无 update_time / deleted），
 --           id 雪花、create_time 即记录产生时间；4 张独立表，不污染 audit_log 语义。

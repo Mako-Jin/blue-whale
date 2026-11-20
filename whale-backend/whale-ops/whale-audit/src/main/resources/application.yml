@@ -105,6 +105,9 @@ whale:
       # 仅导出归档，绝不对 audit_log 做物理/逻辑删除。归档与清理解耦：
       # enabled 仍默认 false（不清理 4 张日志表），但 archive-enabled=true 时调度器照常装配并归档。
       archive-enabled: ${WHALE_AUDIT_RETENTION_ARCHIVE_ENABLED:true}
+      # 作业心跳陈旧告警阈值（天）：距上次成功执行超过该天数即告警（指标 audit.job.stale.days）。
+      # 作业默认每日 03:00 跑，连续 2 天没有成功记录说明调度被停 / cron 写错 / 一直失败。
+      stale-alert-days: ${WHALE_AUDIT_RETENTION_STALE_ALERT_DAYS:2}
     # AUTH-10 MQ 汇聚（消费端）：默认关闭，开启后声明审计交换机/队列/死信拓扑并消费落库。
     # 依赖增量脚本 db/migration-auth10.sql 创建 audit_mq_message 去重表。
     mq:

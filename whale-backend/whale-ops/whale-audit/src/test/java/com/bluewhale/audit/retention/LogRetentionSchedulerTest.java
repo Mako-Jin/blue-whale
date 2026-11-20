@@ -62,6 +62,9 @@ class LogRetentionSchedulerTest {
     @Mock
     private AuditRetentionInspector retentionInspector;
 
+    @Mock
+    private AuditJobHeartbeatRecorder heartbeatRecorder;
+
     private LogRetentionCleaner retentionCleaner;
 
     @BeforeEach
@@ -120,7 +123,7 @@ class LogRetentionSchedulerTest {
         RetentionProperties properties = new RetentionProperties();
         properties.setEnabled(true);
         properties.setDays(CONFIGURED_DAYS);
-        LogRetentionScheduler scheduler = new LogRetentionScheduler(cleaner, archiver, retentionInspector, properties);
+        LogRetentionScheduler scheduler = new LogRetentionScheduler(cleaner, archiver, retentionInspector, heartbeatRecorder, properties);
 
         scheduler.cleanExpiredLogs();
 
@@ -133,7 +136,7 @@ class LogRetentionSchedulerTest {
         RetentionProperties properties = new RetentionProperties();
         properties.setEnabled(true);
         properties.setArchiveEnabled(false);
-        LogRetentionScheduler scheduler = new LogRetentionScheduler(cleaner, archiver, retentionInspector, properties);
+        LogRetentionScheduler scheduler = new LogRetentionScheduler(cleaner, archiver, retentionInspector, heartbeatRecorder, properties);
 
         scheduler.cleanExpiredLogs();
 
@@ -148,7 +151,7 @@ class LogRetentionSchedulerTest {
         properties.setEnabled(true);
         properties.setArchiveEnabled(true);
         properties.setDays(CONFIGURED_DAYS);
-        LogRetentionScheduler scheduler = new LogRetentionScheduler(cleaner, archiver, retentionInspector, properties);
+        LogRetentionScheduler scheduler = new LogRetentionScheduler(cleaner, archiver, retentionInspector, heartbeatRecorder, properties);
 
         scheduler.cleanExpiredLogs();
 
@@ -161,7 +164,7 @@ class LogRetentionSchedulerTest {
     void shouldArchiveWithoutCleanupWhenRetentionDisabled() {
         RetentionProperties properties = new RetentionProperties();
         properties.setDays(CONFIGURED_DAYS);
-        LogRetentionScheduler scheduler = new LogRetentionScheduler(cleaner, archiver, retentionInspector, properties);
+        LogRetentionScheduler scheduler = new LogRetentionScheduler(cleaner, archiver, retentionInspector, heartbeatRecorder, properties);
 
         scheduler.cleanExpiredLogs();
 
@@ -188,7 +191,7 @@ class LogRetentionSchedulerTest {
         properties.setEnabled(false);
         properties.setArchiveEnabled(false);
         properties.setMinimumDays(MINIMUM_DAYS);
-        LogRetentionScheduler scheduler = new LogRetentionScheduler(cleaner, archiver, retentionInspector, properties);
+        LogRetentionScheduler scheduler = new LogRetentionScheduler(cleaner, archiver, retentionInspector, heartbeatRecorder, properties);
 
         scheduler.cleanExpiredLogs();
 
@@ -203,10 +206,49 @@ class LogRetentionSchedulerTest {
         RetentionProperties properties = new RetentionProperties();
         properties.setArchiveEnabled(false);
         when(retentionInspector.inspect(anyInt())).thenReturn(200L);
-        LogRetentionScheduler scheduler = new LogRetentionScheduler(cleaner, archiver, retentionInspector, properties);
+        LogRetentionScheduler scheduler = new LogRetentionScheduler(cleaner, archiver, retentionInspector, heartbeatRecorder, properties);
 
         String summary = scheduler.cleanExpiredLogs();
 
         assertTrue(summary.contains("oldestAuditDays=200"), "摘要应带巡检结果，实际=" + summary);
+    }
+
+    @Test
+    @DisplayName("Scheduler：成功执行后写心跳成功，且摘要落库（作业存活证据）")
+    void shouldRecordHeartbeatSuccess() {
+        RetentionProperties properties = new RetentionProperties();
+        properties.setEnabled(false);
+        properties.setArchiveEnabled(false);
+        when(retentionInspector.inspect(anyInt())).thenReturn(200L);
+        LogRetentionScheduler scheduler =
+                new LogRetentionScheduler(cleaner, archiver, retentionInspector, heartbeatRecorder, properties);
+
+        String summary = scheduler.cleanExpiredLogs();
+
+        verify(heartbeatRecorder).recordStart(AuditJobStaleGauge.JOB_LOG_RETENTION);
+        verify(heartbeatRecorder).recordSuccess(AuditJobStaleGauge.JOB_LOG_RETENTION, summary);
+        verify(heartbeatRecorder, never()).recordFailure(any(), any());
+    }
+
+    @Test
+    @DisplayName("Scheduler：归档抛异常时写心跳失败，并把异常原样抛出（调度中心仍能记失败）")
+    void shouldRecordHeartbeatFailureAndRethrow() {
+        RetentionProperties properties = new RetentionProperties();
+        properties.setArchiveEnabled(true);
+        properties.setDays(CONFIGURED_DAYS);
+        org.mockito.Mockito.doThrow(new IllegalStateException("upload failed"))
+                .when(archiver).archive(anyInt());
+        LogRetentionScheduler scheduler =
+                new LogRetentionScheduler(cleaner, archiver, retentionInspector, heartbeatRecorder, properties);
+
+        IllegalStateException error = org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalStateException.class, scheduler::cleanExpiredLogs);
+
+        assertEquals("upload failed", error.getMessage());
+        verify(heartbeatRecorder).recordStart(AuditJobStaleGauge.JOB_LOG_RETENTION);
+        verify(heartbeatRecorder, never()).recordSuccess(any(), any());
+        verify(heartbeatRecorder).recordFailure(
+                org.mockito.ArgumentMatchers.eq(AuditJobStaleGauge.JOB_LOG_RETENTION),
+                org.mockito.ArgumentMatchers.contains("upload failed"));
     }
 }

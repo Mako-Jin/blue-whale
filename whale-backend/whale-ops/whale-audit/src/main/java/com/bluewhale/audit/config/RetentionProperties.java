@@ -44,4 +44,13 @@ public class RetentionProperties {
      * 本条只决定「最早记录距今不足多少天时报警」。</p>
      */
     private int minimumDays = 180;
+
+    /**
+     * 作业陈旧告警阈值（天）：距上次<b>成功</b>执行超过本天数即告警，默认 2。
+     *
+     * <p>用于 {@code audit.job.stale.days} 指标与 WARN 日志。作业默认每日 03:00 跑，
+     * 连续两天以上没有成功记录，说明调度被停、cron 写错或一直失败——这三种情况
+     * 都不会让任何业务报错，只能靠心跳发现。设为 0 或负数时按默认 2 处理。</p>
+     */
+    private int staleAlertDays = 2;
 }
