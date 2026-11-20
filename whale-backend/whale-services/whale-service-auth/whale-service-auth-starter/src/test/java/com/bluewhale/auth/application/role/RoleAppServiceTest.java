@@ -30,7 +30,9 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.never;
@@ -240,5 +242,91 @@ class RoleAppServiceTest {
         assertEquals(List.of("sys:user:list", "sys:role:list"),
                 roleAppService.listPermissionCodesByUserId(ROLE_ID));
         verify(roleRepository).listPermissionCodesByUserId(ROLE_ID);
+    }
+
+    // ------------------------------------------------------------------
+    // 三员分立（等保 2.0）：内置角色保护与视图暴露
+    // ------------------------------------------------------------------
+
+    /**
+     * 构造指定角色编码的角色聚合（用于三员与内置角色用例）
+     *
+     * @param roleCode 角色编码（system_admin / security_admin / audit_admin / tenant_admin …）
+     * @return 角色聚合
+     */
+    private static RoleAggregate roleOf(String roleCode) {
+        return RoleAggregate.reconstitute(ROLE_ID, 1L, RoleCode.of(roleCode), roleCode, "描述", 10,
+                RoleAggregate.STATUS_ENABLED, CREATED, UPDATED);
+    }
+
+    @Test
+    @DisplayName("delete：内置角色（三员 / 租户管理员）拒绝删除且不落库、不发事件")
+    void shouldRejectDeleteBuiltInRole() {
+        for (String code : List.of("system_admin", "security_admin", "audit_admin", "tenant_admin")) {
+            when(roleRepository.findById(ROLE_ID)).thenReturn(Optional.of(roleOf(code)));
+
+            BizException ex = assertThrows(BizException.class, () -> roleAppService.delete(ROLE_ID));
+
+            assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
+            assertTrue(ex.getMessage().contains("内置角色不允许删除"), code + " 应被拒绝删除");
+        }
+        verify(roleRepository, never()).deleteById(any());
+        verify(eventPublisher, never()).publish(any());
+    }
+
+    @Test
+    @DisplayName("assignPermissions：三员角色拒绝手工调整权限集（防止职责分离被绕过）")
+    void shouldRejectAssignPermissionsForThreeAdmin() {
+        when(roleRepository.findById(ROLE_ID)).thenReturn(Optional.of(roleOf("audit_admin")));
+
+        BizException ex = assertThrows(BizException.class, () -> roleAppService.assignPermissions(
+                ROLE_ID, new AssignRolePermissionsCommand(List.of(10L))));
+
+        assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
+        assertTrue(ex.getMessage().contains("三员角色权限集由内置职责矩阵决定"));
+        verify(roleRepository, never()).replacePermissions(any(), anyList());
+    }
+
+    @Test
+    @DisplayName("update：内置角色改名被拒绝，同值提交（只改描述）放行")
+    void shouldRejectRenameBuiltInRoleButAllowDescriptionChange() {
+        RoleAggregate stored = roleOf("system_admin");
+        when(roleRepository.findById(ROLE_ID)).thenReturn(Optional.of(stored));
+
+        // 真改名：拒绝
+        assertThrows(BizException.class, () -> roleAppService.update(ROLE_ID,
+                new UpdateRoleCommand("运维管理员", "新描述", 10, RoleAggregate.STATUS_ENABLED)));
+        assertEquals("system_admin", stored.getRoleName());
+
+        // 同值提交：只改描述，放行
+        RoleVO vo = roleAppService.update(ROLE_ID,
+                new UpdateRoleCommand("system_admin", "职责说明已更新", 10, RoleAggregate.STATUS_ENABLED));
+        assertEquals("职责说明已更新", vo.getDescription());
+    }
+
+    @Test
+    @DisplayName("update：三员角色不允许停用（停用等于让职责分离岗位缺岗）")
+    void shouldRejectDisableThreeAdminRole() {
+        when(roleRepository.findById(ROLE_ID)).thenReturn(Optional.of(roleOf("audit_admin")));
+
+        assertThrows(BizException.class, () -> roleAppService.update(ROLE_ID,
+                new UpdateRoleCommand("audit_admin", "描述", 12, RoleAggregate.STATUS_DISABLED)));
+        verify(roleRepository, never()).save(any(RoleAggregate.class));
+    }
+
+    @Test
+    @DisplayName("RoleVO：暴露 builtIn / threeAdmin 供前端置灰与标签渲染")
+    void shouldExposeBuiltInFlagsInVo() {
+        when(roleRepository.findById(ROLE_ID)).thenReturn(Optional.of(roleOf("security_admin")));
+
+        RoleVO vo = roleAppService.getDetail(ROLE_ID);
+
+        assertTrue(vo.getBuiltIn());
+        assertTrue(vo.getThreeAdmin());
+
+        when(roleRepository.findById(ROLE_ID)).thenReturn(Optional.of(roleOf("test_role")));
+        RoleVO normal = roleAppService.getDetail(ROLE_ID);
+        assertFalse(normal.getBuiltIn());
+        assertFalse(normal.getThreeAdmin());
     }
 }

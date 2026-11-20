@@ -110,6 +110,17 @@ export default function UserList() {
 
   const deptOptions = flattenDepts(depts).map((dept) => ({ value: dept.id, label: dept.deptName }));
 
+  // 三员分立（等保 2.0）：同一用户最多持有系统管理员 / 安全管理员 / 安全审计员中的一个。
+  // 已选中一个三员后，其余三员置灰——后端 RoleConstraintChecker 同样会拒，前端提前拦可避免
+  // 「点提交才报错」的往返；已选中的那一个仍可取消，便于换岗。
+  const selectedThreeAdmin = roles.filter(
+    (role) => role.threeAdmin && checkedRoleIds.includes(role.id),
+  );
+  const isThreeAdminConflict = (role: RoleVO) =>
+    Boolean(role.threeAdmin) &&
+    selectedThreeAdmin.length > 0 &&
+    !checkedRoleIds.includes(role.id);
+
   const handleToggleStatus = async (row: UserVO, status: number) => {
     try {
       await changeUserStatus(row.id, status);
@@ -435,13 +446,29 @@ export default function UserList() {
           onChange={(values) => setCheckedRoleIds(values as string[])}
           style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
         >
-          {roles.map((role) => (
-            <Checkbox key={role.id} value={role.id}>
-              {role.roleName}
-              <Tag style={{ marginLeft: 8 }}>{role.roleCode}</Tag>
-            </Checkbox>
-          ))}
+          {roles.map((role) => {
+            const conflict = isThreeAdminConflict(role);
+            return (
+              <Checkbox key={role.id} value={role.id} disabled={conflict}>
+                {role.roleName}
+                <Tag style={{ marginLeft: 8 }}>{role.roleCode}</Tag>
+                {role.threeAdmin && (
+                  <Tag color="purple" style={{ marginLeft: 4 }}>
+                    三员
+                  </Tag>
+                )}
+                {conflict && (
+                  <Typography.Text type="secondary" style={{ marginLeft: 8 }}>
+                    已持有其他三员角色，互斥不可选
+                  </Typography.Text>
+                )}
+              </Checkbox>
+            );
+          })}
         </Checkbox.Group>
+        <div className="admin-hint">
+          三员互斥：系统管理员 / 安全管理员 / 安全审计员，同一用户最多持有其中一个。
+        </div>
       </Modal>
     </>
   );

@@ -12,6 +12,8 @@ import com.bluewhale.auth.domain.model.vo.RoleCode;
 import com.bluewhale.auth.domain.aggregate.PermissionAggregate;
 import com.bluewhale.auth.domain.repository.PermissionRepository;
 import com.bluewhale.auth.domain.aggregate.RoleAggregate;
+import com.bluewhale.auth.domain.aggregate.RoleConstraintAggregate;
+import com.bluewhale.auth.domain.repository.RoleConstraintRepository;
 import com.bluewhale.auth.domain.repository.RoleRepository;
 import com.bluewhale.auth.domain.aggregate.TenantAggregate;
 import com.bluewhale.auth.domain.repository.TenantRepository;
@@ -36,7 +38,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -91,6 +95,9 @@ class TenantProvisioningAppServiceTest {
 
     @Mock
     private TenantMembershipAppService tenantMembershipAppService;
+
+    @Mock
+    private RoleConstraintRepository roleConstraintRepository;
 
     @InjectMocks
     private TenantProvisioningAppServiceImpl service;
@@ -237,6 +244,82 @@ class TenantProvisioningAppServiceTest {
     }
 
     @Test
+    @DisplayName("开通：按模板下发三员角色、审计码只给审计员、并播种三员互斥约束")
+    void shouldProvisionThreeAdminRolesAndMutexConstraint() {
+        AtomicLong roleIdSequence = new AtomicLong(300L);
+        when(tenantAppService.requirePlatformTenant()).thenReturn(platformTenant());
+        when(tenantRepository.findByCode("acme")).thenReturn(Optional.empty());
+        when(tenantRepository.save(any(TenantAggregate.class))).thenAnswer(invocation -> {
+            TenantAggregate draft = invocation.getArgument(0);
+            return TenantAggregate.reconstitute(NEW_TENANT_ID, draft.getTenantCode(), draft.getTenantName(), "TENANT",
+                    draft.getStatus(), draft.getExpireTime(), draft.getQuotaJson(),
+                    draft.getCreateTime(), draft.getUpdateTime());
+        });
+        when(deptRepository.save(any(DeptAggregate.class))).thenAnswer(invocation -> {
+            DeptAggregate draft = invocation.getArgument(0);
+            return DeptAggregate.reconstitute(ROOT_DEPT_ID, draft.getTenantId(), draft.getParentId(), draft.getDeptName(),
+                    draft.getSort(), draft.getLeader(), draft.getCreateTime(), draft.getUpdateTime());
+        });
+        // 菜单模板为空：本轮只关心角色链路
+        when(menuRepository.findAllByTenantId(TenantAggregate.PLATFORM_TENANT_ID)).thenReturn(List.of());
+        // 审计码（503）不在平台专属集合内，必须能下发给 audit_admin；同时不能进 tenant_admin
+        when(permissionRepository.findEnabledAll()).thenReturn(List.of(
+                permission(501L, "sys:user:list"), permission(503L, "sys:audit:log:list")));
+        when(roleRepository.save(any(RoleAggregate.class))).thenAnswer(invocation -> {
+            RoleAggregate draft = invocation.getArgument(0);
+            return RoleAggregate.reconstitute(roleIdSequence.incrementAndGet(), draft.getTenantId(),
+                    draft.getRoleCode(), draft.getRoleName(), draft.getDescription(), draft.getSortNo(),
+                    draft.getStatus(), draft.getCreateTime(), draft.getUpdateTime());
+        });
+        // 三员模板齐备（其余业务角色模板缺失，按告警跳过）
+        // 业务角色模板逐个查库时参数各不相同，先按「任意编码 → 空」兜底，避免严格模式下的
+        // PotentialStubbingProblem；随后三条具体 stub 覆盖三员编码。
+        lenient().when(roleRepository.findByTenantIdAndCode(eq(TenantAggregate.PLATFORM_TENANT_ID), anyString()))
+                .thenReturn(Optional.empty());
+        when(roleRepository.findByTenantIdAndCode(TenantAggregate.PLATFORM_TENANT_ID, "system_admin"))
+                .thenReturn(Optional.of(threeAdminTemplate(9_001L, "system_admin", "系统管理员", 10)));
+        when(roleRepository.findByTenantIdAndCode(TenantAggregate.PLATFORM_TENANT_ID, "security_admin"))
+                .thenReturn(Optional.of(threeAdminTemplate(9_002L, "security_admin", "安全管理员", 11)));
+        when(roleRepository.findByTenantIdAndCode(TenantAggregate.PLATFORM_TENANT_ID, "audit_admin"))
+                .thenReturn(Optional.of(threeAdminTemplate(9_003L, "audit_admin", "安全审计员", 12)));
+        when(roleRepository.listPermissionIds(9_001L)).thenReturn(List.of(501L));
+        when(roleRepository.listPermissionIds(9_002L)).thenReturn(List.of(501L));
+        when(roleRepository.listPermissionIds(9_003L)).thenReturn(List.of(503L));
+        when(userRepository.save(any(UserAggregate.class))).thenAnswer(invocation -> {
+            UserAggregate draft = invocation.getArgument(0);
+            return UserAggregate.reconstitute(ADMIN_ID, draft.getTenantId(), draft.getUsername(), draft.getPassword(),
+                    draft.getNickname(), draft.getPhone(), draft.getEmail(), draft.getDeptId(), draft.getStatus(),
+                    draft.getCreateTime(), draft.getUpdateTime());
+        });
+        when(passwordHasher.encode("initPwd")).thenReturn(CIPHER);
+
+        service.provision(new CreateTenantCommand("acme", "ACME", null, null, "admin", "initPwd", "管理员"));
+
+        ArgumentCaptor<RoleAggregate> roleCaptor = ArgumentCaptor.forClass(RoleAggregate.class);
+        // tenant_admin + 三员 = 4 个角色（业务角色模板全部缺失）
+        verify(roleRepository, times(4)).save(roleCaptor.capture());
+        List<RoleAggregate> saved = roleCaptor.getAllValues();
+        assertEquals("tenant_admin", saved.get(0).getRoleCode().value());
+        assertEquals(List.of("system_admin", "security_admin", "audit_admin"),
+                saved.subList(1, 4).stream().map(role -> role.getRoleCode().value()).toList());
+        assertEquals("SYSTEM", saved.get(1).getCategory(), "三员角色分类应随模板复制为 SYSTEM");
+
+        // tenant_admin 被三员专属码收口：只有 sys:user:list
+        verify(roleRepository).replacePermissions(301L, List.of(501L));
+        verify(roleRepository).replacePermissions(302L, List.of(501L));
+        verify(roleRepository).replacePermissions(303L, List.of(501L));
+        // 审计员拿到审计码——这是「授权成功但看不到审计」那条静默故障的回归点
+        verify(roleRepository).replacePermissions(304L, List.of(503L));
+
+        ArgumentCaptor<RoleConstraintAggregate> constraintCaptor =
+                ArgumentCaptor.forClass(RoleConstraintAggregate.class);
+        verify(roleConstraintRepository).save(constraintCaptor.capture());
+        RoleConstraintAggregate constraint = constraintCaptor.getValue();
+        assertEquals("three_admin_mutex", constraint.getConstraintCode());
+        assertEquals(List.of(302L, 303L, 304L), constraint.getRoleIds());
+    }
+
+    @Test
     @DisplayName("开通：子菜单先于父菜单返回时不报错，按轮次解析父子层级")
     void shouldCopyMenusWhenChildListedBeforeParent() {
         AtomicLong menuIdSequence = new AtomicLong(20_000L);
@@ -335,5 +418,20 @@ class TenantProvisioningAppServiceTest {
     private static PermissionAggregate permission(Long id, String permCode) {
         return PermissionAggregate.reconstitute(id, PermissionAggregate.ROOT_PARENT_ID, PermCode.of(permCode), permCode,
                 "API", "/" + permCode, "GET", 0, PermissionAggregate.STATUS_ENABLED, NOW, NOW);
+    }
+
+    /**
+     * 构造平台租户的三员角色模板（category = SYSTEM，与 V36 迁移一致）
+     *
+     * @param id 模板角色 ID
+     * @param roleCode 角色编码
+     * @param roleName 角色名称
+     * @param sortNo 排序号
+     * @return 三员角色模板聚合
+     */
+    private static RoleAggregate threeAdminTemplate(Long id, String roleCode, String roleName, int sortNo) {
+        return RoleAggregate.reconstituteWithHierarchy(id, TenantAggregate.PLATFORM_TENANT_ID,
+                RoleCode.of(roleCode), roleName, "三员模板", sortNo, RoleAggregate.STATUS_ENABLED,
+                0L, 1, "NONE", "SYSTEM", NOW, NOW);
     }
 }

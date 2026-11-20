@@ -1,5 +1,6 @@
 package com.bluewhale.auth.domain.aggregate;
 
+import com.bluewhale.auth.domain.model.AuthRoleCodes;
 import com.bluewhale.auth.domain.model.vo.InheritStrategy;
 import com.bluewhale.auth.domain.model.vo.RoleCode;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -132,11 +133,19 @@ public class RoleAggregate implements Entity<Long> {
     /**
      * 行为：重命名角色（对应更新接口的 {@code roleName} 赋值）
      *
+     * <p>内置角色（含三员）的名称是职责标识，改名会让「谁在什么岗位上」失去可追溯性，
+     * 因此一律拒绝；描述与排序仍允许调整。</p>
+     *
      * @param roleName 新角色名称
+     * @throws DomainException 内置角色改名时抛出
      */
     public void rename(String roleName) {
         if (roleName == null || roleName.isBlank()) {
             throw new DomainException(ErrorCode.PARAM_ERROR, "角色名称不能为空");
+        }
+        // 同值提交（前端编辑描述时原样带出名称）放行，真正改名才拒绝
+        if (isBuiltIn() && !roleName.equals(this.roleName)) {
+            throw new DomainException(ErrorCode.PARAM_ERROR, "内置角色不允许改名：" + roleCode.value());
         }
         this.roleName = roleName;
         this.updateTime = LocalDateTime.now();
@@ -171,8 +180,32 @@ public class RoleAggregate implements Entity<Long> {
         if (status != STATUS_ENABLED && status != STATUS_DISABLED) {
             throw new DomainException(ErrorCode.PARAM_ERROR, "状态值非法，仅支持 1（启用）/ 0（停用）");
         }
+        // 三员角色停用等于让职责分离岗位失效（审计员被停用后无人可查审计），一律拒绝
+        if (isThreeAdmin() && status == STATUS_DISABLED && this.status != STATUS_DISABLED) {
+            throw new DomainException(ErrorCode.PARAM_ERROR, "三员角色不允许停用：" + roleCode.value());
+        }
         this.status = status;
         this.updateTime = LocalDateTime.now();
+    }
+
+    /**
+     * 判断当前角色是否内置角色（{@code super_admin} / {@code tenant_admin} / 三员）
+     *
+     * <p>内置角色不可删除、不可改名，权限集与启用状态受额外保护。</p>
+     *
+     * @return 内置角色返回 {@code true}
+     */
+    public boolean isBuiltIn() {
+        return AuthRoleCodes.isBuiltIn(roleCode.value());
+    }
+
+    /**
+     * 判断当前角色是否三员之一（系统管理员 / 安全管理员 / 安全审计员）
+     *
+     * @return 属于三员返回 {@code true}
+     */
+    public boolean isThreeAdmin() {
+        return AuthRoleCodes.isThreeAdmin(roleCode.value());
     }
 
     /**

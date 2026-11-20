@@ -10,6 +10,12 @@ export interface RoleVO {
   description?: string;
   sortNo?: number;
   status?: number;
+  /** 角色分类：GENERAL 通用 / BUSINESS 业务 / SYSTEM 系统 */
+  category?: string;
+  /** 内置角色：不可删除、不可改名（三员的权限集亦不可手工调整） */
+  builtIn?: boolean;
+  /** 三员之一（system_admin / security_admin / audit_admin），互斥置灰依据 */
+  threeAdmin?: boolean;
   createTime?: string;
   updateTime?: string;
 }

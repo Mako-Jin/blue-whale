@@ -96,7 +96,7 @@ public class RoleAppServiceImpl implements RoleAppService {
         // 值对象前置校验角色编码不变量
         RoleCode roleCode = RoleCode.of(command.roleCode());
         if (roleRepository.existsByCode(roleCode.value())) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "角色编码已存在");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.role.code-exists", "角色编码已存在");
         }
         RoleAggregate role = RoleAggregate.create(tenantId, roleCode, command.roleName(), command.description(), command.sortNo(),
                 command.status());
@@ -134,11 +134,19 @@ public class RoleAppServiceImpl implements RoleAppService {
     /**
      * 删除角色：逻辑删除角色并清理角色-权限关联，随后发布删除事件
      *
+     * <p>内置角色（{@code super_admin} / {@code tenant_admin} / 三员）拒绝删除：删除
+     * {@code tenant_admin} 会让租户失去唯一可授权角色，删除三员会让职责分离缺岗，
+     * 二者都是「删完之后一段时间内没人发现」的静默故障。</p>
+     *
      * @param id 角色 ID
      */
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
-        requireRole(id);
+        RoleAggregate role = requireRole(id);
+        if (role.isBuiltIn()) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.role.builtin-delete-forbidden",
+                    "内置角色不允许删除：" + role.getRoleCode().value(), role.getRoleCode().value());
+        }
         roleRepository.deleteById(id);
         // 角色删除后该角色下用户的权限码集合变化，发布事件由监听器失效其缓存
         domainEventPublisher.publish(new RoleDomainEvent(id, ChangeType.DELETED));
@@ -147,6 +155,10 @@ public class RoleAppServiceImpl implements RoleAppService {
     /**
      * 全量覆盖角色权限：校验权限点有效性后重建关联，并发布权限分配事件
      *
+     * <p>三员角色的权限集是职责分离的载体（安全管理员授角色、审计员只能看审计），一旦允许
+     * 在管理端改写，持有「角色授权」权限的安全管理员就能给审计员塞全套业务权限，
+     * 三员分立形同虚设。故三员角色只接受内置矩阵（V36 迁移 / 租户开通流程）授予。</p>
+     *
      * @param id 角色 ID
      * @param command 分配权限命令
      */
@@ -154,11 +166,16 @@ public class RoleAppServiceImpl implements RoleAppService {
     @DistributedLock(prefix = "lock", biz = "auth:role", key = "#id", waitTime = 1, leaseTime = 30, failFast = true)
     public void assignPermissions(Long id, AssignRolePermissionsCommand command) {
         RoleAggregate role = requireRole(id);
+        if (role.isThreeAdmin()) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.role.builtin-permission-immutable",
+                    "三员角色权限集由内置职责矩阵决定，不允许手工调整：" + role.getRoleCode().value(),
+                    role.getRoleCode().value());
+        }
         List<Long> permissionIds = command.permissionIds() == null ? List.of() : command.permissionIds();
         // 领域侧归一化（去重去空 + 数量上限），以归一化结果做有效性校验与落库
         List<Long> normalized = role.assignPermissions(permissionIds);
         if (!normalized.isEmpty() && permissionRepository.countByIds(normalized) != normalized.size()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "存在无效的权限ID");
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "auth.role.permission-ids-invalid", "存在无效的权限ID");
         }
         roleRepository.replacePermissions(id, normalized);
         // 角色权限变更后发布事件，由监听器在提交后失效该角色下用户的缓存

@@ -3,6 +3,35 @@
 - 日期：2026-11-19
 - 结论：**是这三个**。等保 2.0 的标准表述为「系统管理员、安全管理员、安全审计员」，口语简称“三员”；你列的“审计员、安全员、系统管理员”分别对应“安全审计员、安全管理员、系统管理员”。
 
+## 〇、2026-11-20 交付进展
+
+| 项 | 落地位置 | 状态 |
+| --- | --- | --- |
+| 三员角色编码与内置判定 | `AuthRoleCodes`（THREE_ADMIN_CODES / isBuiltIn / isThreeAdmin） | ✅ |
+| 内置角色不变量 | `RoleAggregate`：内置禁改名、三员禁停用；`RoleAppServiceImpl`：内置禁删、三员禁改权限集 | ✅ |
+| 角色与权限建模（第 1 节） | `V36__three_admin_segregation.sql`：角色 26004-26006 + 业务租户复制 + 矩阵白名单授权 | ✅ |
+| 职责分离与互斥（第 2 节） | 三员 MUTEX 约束播种（`three_admin_mutex`），复用既有 `RoleConstraintCheckerImpl` | ✅ |
+| 权限边界矩阵（第 3 节） | V36 三段白名单逐码枚举；`sys:audit:log:list` 已从 tenant_admin 收回 | ✅ |
+| 审计日志可见性（第 6 节） | ops 菜单按权限码过滤，管理员侧不再出现审计入口 | ✅ |
+| 存量环境迁移（第 8 节） | V36 幂等（重跑 affected 全 0），平台 + 业务租户一次覆盖 | ✅ |
+| 租户开通自动生成（验收 4） | `TenantProvisioningAppServiceImpl#copyThreeAdminRolesFromPlatform` + 互斥约束播种 | ✅ |
+| 单测（第 7 节） | `RoleAppServiceTest` 新增 5 例、`TenantProvisioningAppServiceTest` 新增 1 例 | ✅ |
+
+**未做 / 待评估**：
+
+- 三员账号「双人复核启用」：等保三级可选项，当前无对应审批流模型，未实现。
+- `super_admin` 与三员互斥：仍为代码级硬旁路（`PermissionInterceptor`），交付后应停用超管账号而非靠角色约束；见下方运维口径。
+- 审计归档哈希与保留期（第 5 节后两项）：`whale-audit` 既有能力，未在本轮改动。
+
+**运维口径（交付后必做）**：
+
+1. 用平台 `super_admin` 建三个独立账号，分别授 `system_admin` / `security_admin` / `audit_admin`（互斥约束会拦住一人多授）。
+2. 三员账号首次登录必须改密（系统管理员重置口令即置 `must_change_password`，登录返回 `mustChangePassword=true`）。
+3. 交付完成后停用或改密 `super_admin`，避免「硬旁路账号」长期在线。
+4. 三员角色权限集不允许在管理端调整（后端拒绝 + 前端按钮置灰）：需要变更职责边界时，改 `V36` 白名单并发新迁移。
+
+---
+
 ## 一、现状盘点
 
 | 能力 | 现状 |
