@@ -1,7 +1,7 @@
 # 三员分立等保 2.0 对照与验收归档（2026-11-20）
 
-> 交付批次：① commit `5de909f6`（三员角色与职责矩阵）；② `7e21c1cc` + `09244ea3`（审计防篡改、超管并入互斥、验收断言集）；③ 本批（归档哈希链与清单签名、留存巡检、超管退役闸门）。
-> **部署提醒**：本批改了 `whale-audit` 的迁移与代码，必须重建 `whale-audit` 镜像后重启，`restart` 不会带新代码。
+> 交付批次：① commit `5de909f6`（三员角色与职责矩阵）；② `7e21c1cc` + `09244ea3`（审计防篡改、超管并入互斥、验收断言集）；③ 归档哈希链与清单签名、留存巡检、超管退役闸门；④ 本批（作业心跳与陈旧告警、应用账号最小权限核查）。
+> **部署提醒**：本批改了 `whale-audit` 的迁移（V4）与代码，必须重建 `whale-audit` 镜像后重启，`restart` 不会带新代码。
 > 对照标准：GB/T 22239-2019《信息安全技术 网络安全等级保护基本要求》第三级——8.1.4 安全计算环境、8.1.5 安全管理中心。
 > 本文是安全评审归档件：每条要求都给出**落地位置**与**可重复的验证命令**，不留「已实现」这种无法验证的结论。
 
@@ -14,9 +14,11 @@
 | 审计记录保护 | 已落地：代码层门禁 + 数据库层触发器（UPDATE / DELETE 均被拒绝） |
 | 归档完整性 | 已落地：每批 SHA-256 + 跨批链式哈希 + 可选 HMAC 清单签名，配套校验工具（§4.2） |
 | 审计留存 | 已落地：指标 `audit.log.oldest.days` + 低于 180 天告警（§4.3） |
+| 审计作业存活 | 已落地：`audit_job_heartbeat` 落库 + 指标 `audit.job.stale.days`，连续 2 天未成功即告警（§4.4） |
+| 应用账号最小权限 | 已落地核查工具：`AuditDbGrantCheck` 判定 `audit_log` 是否只余 SELECT/INSERT，并给出按级整改语句（§4.5） |
 | 超管退役 | 已落地巡检：`scripts/verify/super-admin-retirement.sql` 4 条交付闸门（§5） |
 | 审计的审计 | 已落地：审计查询/详情/链路/导出全部标注 `@AuditLog(type=QUERY/EXPORT)` |
-| 未实现（已登记为残余风险） | 三员账号「双人复核启用」、应用账号按表收权、归档历史批次补签 |
+| 未实现（已登记为残余风险） | 三员账号「双人复核启用」、归档历史批次补签、归档链头外部锚点 |
 
 ## 二、条款对照
 
@@ -48,6 +50,8 @@
 | b) c) 完整性 | 归档文件可自证未被改、批次序列可自证未被插入/删除 | 每批 CSV 的 SHA-256 + 链式哈希 `chain(n)=sha256(chain(n-1)+sha256(batch n))` 写入 `audit_archive_watermark`；同批上传 `.sha256` 清单，配置 `whale.audit.export.sign-key` 后追加 HMAC-SHA256 | §4.2 |
 | d) | 审计记录定期备份、**留存不少于 6 个月** | ① `AuditLogArchiver` 按水位分批导出 CSV 上传对象存储；② 留存巡检：指标 `audit.log.oldest.days`（Gauge）+ 低于 `whale.audit.retention.minimum-days`（默认 180）告警 | §4.3；归档水位表 `audit_archive_watermark` |
 | 「审计的审计」 | 审计员自身操作亦须留痕 | `AuditLogController` 查询/详情/链路/导出任务提交均 `@AuditLog(type=QUERY/EXPORT)`；`/ingest` 显式不加（避免自激） | `AuditLogController` 类注释 AUTH-07 |
+| 审计持续性 | 审计能力不得无声停摆（作业停用 / cron 写错 / 反复重启） | 作业心跳落库 `audit_job_heartbeat` + 指标 `audit.job.stale.days`，连续 2 天未成功即告警；失败同样留痕（`fail_count`），避免「一直跑一直失败」被当成健康 | §4.4 |
+| 最小权限 | 应用账号不应具备改写/拆守卫能力 | `AuditDbGrantCheck`：`audit_log` 生效权限须精确等于 `SELECT, INSERT`，按表级/库级/全局分级出整改语句 | §4.5 |
 
 ## 三、三员权限边界（实测值，2026-11-20）
 
@@ -138,6 +142,69 @@ FROM bluewhale_audit.audit_archive_watermark WHERE id = 1;
 
 实测（2026-11-20，本地库）：巡检返回并落 Gauge；单测 5 例覆盖达标 / 不足 / 空表 / 查询异常 / 阈值非法兜底。
 
+### 4.4 作业心跳与陈旧告警（8.1.4.3 b：审计记录持续产生）
+
+留存巡检能发现「留存不足」，但发现不了**作业压根没跑**——调度被停、cron 写错、容器反复重启导致从未触发，这三种情况在监控上都表现为「指标不更新」，与健康状态完全同形。
+
+| 环节 | 落地 |
+| --- | --- |
+| 心跳落库 | `audit_job_heartbeat`（V4，主键 `job_code`）：`last_start_at` / `last_end_at` / `last_success_at` / `last_status` / `last_message` / `run_count` / `fail_count`。**落库而非内存**——内存计时器重启即清零，每晚重建容器的环境里会把「两周没跑」洗成「刚跑过」 |
+| 埋点 | `LogRetentionScheduler#cleanExpiredLogs` 全程包裹：开始写 `RUNNING`，成功推进 `last_success_at`，失败只加 `fail_count` 并原样抛出（调度中心仍能记失败） |
+| 指标 | `audit.job.stale.days{job="audit.log.retention"}`，抓取时读库（主键单行）+ 30 秒本地缓存；`-1` = 从未成功 |
+| 告警口径 | `> whale.audit.retention.stale-alert-days`（默认 2 天）；同一段告警只打一次 WARN，恢复时打 INFO |
+| 隔离要求 | 表无 `tenant_id`，已加入 `whale.tenant.sql.ignore-tables` 默认值，并由 `AuditJobHeartbeatTenantIgnoreTest` 钉住（漏加会 `Unknown column 'tenant_id'`，作业每轮静默失败） |
+
+```sql
+-- 取心跳（作业是否在跑、跑成没跑成，一眼可见）
+SELECT job_code, last_start_at, last_success_at, last_status,
+       TIMESTAMPDIFF(DAY, last_success_at, NOW()) AS stale_days,
+       run_count, fail_count, last_message
+FROM bluewhale_audit.audit_job_heartbeat;
+```
+
+本轮实测：
+
+- V4 迁移在 `bluewhale_audit` 连跑两次，第二次 `affected=0` 不报错（幂等）。
+- 单测 18 例：记录器 8 例（首次插入 / 只更新 / 成功推进 / 失败不推进 / 首次即失败补插 / 库挂不抛 / 超长截断 / 自增 SQL）+ 指标 8 例（无记录 / 有行无成功时间 / 3 天前 / 刚成功 / 时钟回拨 / 查询异常 / 缓存 / invalidate）+ 调度器 2 例（成功写心跳、异常写失败并重抛）+ 白名单 1 例。
+- 负向验证：把 `audit_job_heartbeat` 从 `ignore-tables` 默认值里删掉 → `AuditJobHeartbeatTenantIgnoreTest` 立即 FAIL（`expected: <true> but was: <false>`），恢复后重新 install 通过。
+
+### 4.5 应用账号按表收权（8.1.4.3 c：审计记录保护的第二道防线）
+
+现状是「触发器守得住改写，守不住拆守卫」：应用账号仍持 `UPDATE`/`DELETE`/`ALTER`，而 `ALTER` 能直接 `DROP TRIGGER`。权限层收口后，应用账号连这些语法都发不出去。
+
+```bash
+# 核查应用账号对全部含 audit_log 的库的生效权限（全局 ∪ 库级 ∪ 表级）
+DB_USER=root DB_PWD=*** java -cp F:/respository/maven/com/mysql/mysql-connector-j/8.3.0/mysql-connector-j-8.3.0.jar \
+     scripts/security/AuditDbGrantCheck.java --app-user=whale_app --app-host=%
+#   --schemas=a,b   只核查指定库
+```
+
+判定规则：`audit_log` 的生效权限必须**精确等于** `SELECT, INSERT`（缺一即 FAIL——缺 INSERT 意味着审计写不进去，同样是事故）。
+
+关键设计：MySQL 权限是**累加**的，表级 `REVOKE` 抵不掉库级授权。所以输出按来源分级，整改代价不同：
+
+| 越权来源 | 输出 | 代价 |
+| --- | --- | --- |
+| 表级（`TABLE_PRIVILEGES`） | `REVOKE UPDATE ON db.audit_log FROM ...` | 一行精确收敛，不影响其他表 |
+| 库级（`SCHEMA_PRIVILEGES`） | `REVOKE UPDATE ON db.* FROM ...` + 提示「须评估后逐表补授」 | 影响该库全部表，属授权模型调整 |
+| 全局（`USER_PRIVILEGES`，如 root） | 只给警告，**不生成**表级语句 | 表级语句在此处无效，只能改用专用应用账号 |
+
+退出码：`0` 全部收口 / `1` 存在越权或缺失 / `2` 用法错误或账号不存在（会列出该用户名实际的 host，避免 `root@localhost` 被写成 `root@%` 的空转）。
+
+本轮实测（临时账号 `qa_grant_probe`，验证后已 DROP）：
+
+| 场景 | 结果 |
+| --- | --- |
+| 表级仅 SELECT+INSERT | `[PASS]`，rc=0 |
+| 表级多授 UPDATE | `[FAIL]` + `REVOKE UPDATE ON db.audit_log`（表级精确收敛） |
+| 库级授 SELECT 但缺 INSERT | `[FAIL]` + `GRANT INSERT ON db.audit_log`（缺失也要报，避免审计写不进） |
+| 库级授 UPDATE | `[FAIL]` + `REVOKE UPDATE ON db.*`（提示影响全库） |
+| 按输出语句整改后重跑 4 个库 | 全部 `[PASS]`，rc=0 |
+| `root@localhost`（全局 ALL） | 24 个库全 `[FAIL]` + 一条全局警告，不刷 24 条无用 REVOKE |
+
+> 本地开发常直接用 root，此检查必然 FAIL——它是**交付闸门**，与 `super-admin-retirement.sql` 同类，**不要挂 CI**。
+> 生产建议：为应用新建专用账号，仅授各库 `SELECT, INSERT ON <db>.audit_log` + 业务表所需权限，而不是继续共用管理账号。
+
 ## 五、三员账号全生命周期（运维必须照做）
 
 | 阶段 | 动作 | 判据 |
@@ -155,13 +222,16 @@ FROM bluewhale_audit.audit_archive_watermark WHERE id = 1;
 | # | 风险 | 现状 | 建议 |
 | --- | --- | --- | --- |
 | 1 | 三员账号「双人复核启用」未实现 | 无审批流模型，本轮不做 | 复用 workflow 模块做「开通/授权双人复核」；等保三级为可选项，四级必需 |
-| 2 | 应用数据库账号对 `audit_log` 仍有 UPDATE 权限（靠触发器拦住） | 28 个库均靠触发器 | 生产按库 `GRANT SELECT, INSERT ON audit_log` 收权，形成「账户 + 触发器」双约束 |
-| 3 | 历史归档批次（配密钥之前）清单 `hmac=` 为空 | 已归档批次不可追溯补签（补签等于伪造时间线） | 从本批起启用签名；审计时对历史批次只做 SHA-256 + 链值校验，签名校验从启用批次起算 |
-| 4 | 归档链值无外部锚点 | 链头只在自家库 | 交付时把 `chain_sha256` + `archived_total` 抄送第三方（邮件/纸质）封存，作为链头锚点 |
-| 5 | 留存巡检依赖调度在跑 | 默认每日 03:00，且 `archive-enabled` 默认开 | 监控 `audit.log.retention` 作业最近成功时间；连续 2 天未跑应告警（作业级心跳） |
+| 2 | 历史归档批次（配密钥之前）清单 `hmac=` 为空 | 已归档批次不可追溯补签（补签等于伪造时间线） | 从启用批次起签名校验；审计时对历史批次只做 SHA-256 + 链值校验 |
+| 3 | 归档链值无外部锚点 | 链头只在自家库 | 交付时把 `chain_sha256` + `archived_total` 抄送第三方（邮件/纸质）封存，作为链头锚点 |
+| 4 | 应用账号收权依赖人工执行 | 核查工具已就绪（§4.5），但**尚未改动任何现有账号授权** | 交付前用 `AuditDbGrantCheck` 出清单 → 评估 → 新建专用应用账号 → 切连接串；不要对共用管理账号做表级 REVOKE（无效） |
 
-> 本轮已关闭的三项：归档哈希与签名（原 #2）、留存 6 个月强制校验（原 #4）、超管退役技术巡检（原 #5，
-> 由「只能靠流程」变为「流程 + 可执行闸门」——技术仍拦不住超管本身，但「没退役」一定能被查出来）。
+> 已关闭项：归档哈希与签名、留存 6 个月强制校验、超管退役技术巡检（技术仍拦不住超管本身，
+> 但「没退役」一定能被查出来）、作业存活监控（把「作业没跑」从「指标不更新」变成可告警的正数）。
+> 应用账号收权在第四批给出可执行的判定与整改工具，但**动作本身仍待运维执行**，故保留在上表。
+>
+> 注意区分「工具就绪」与「已收权」：`AuditDbGrantCheck` 只读、不改授权，本轮实测用的是临时账号，
+> 现有账号权限**未被修改**。收权动作涉及连接串与授权模型，必须由运维在交付环境按 §4.5 执行并留存输出。
 
 ## 七、变更清单（本轮新增）
 
@@ -178,5 +248,9 @@ FROM bluewhale_audit.audit_archive_watermark WHERE id = 1;
 | `whale-audit/.../db/migration/V3__archive_watermark_chain.sql` | 水位表补 6 列（批次哈希/链值/两份 objectKey/行数/累计），幂等 |
 | `whale-audit/.../support/AuditArchiveDigest.java` | SHA-256、链式哈希、HMAC、清单生成与命名 |
 | `whale-audit/.../retention/AuditRetentionInspector.java` | 留存巡检：最早记录距今天数 → `audit.log.oldest.days` + WARN |
+| `whale-audit/.../db/migration/V4__audit_job_heartbeat.sql` | 作业心跳表（幂等 `CREATE TABLE IF NOT EXISTS`），并由 `db/init.sql` 同步 |
+| `whale-audit/.../retention/AuditJobHeartbeatRecorder.java` | 心跳写入：开始 / 成功 / 失败三态，库故障不反噬主任务 |
+| `whale-audit/.../retention/AuditJobStaleGauge.java` | 指标 `audit.job.stale.days{job}`：抓取读库 + 30s 缓存 + 告警去重 |
+| `scripts/security/AuditDbGrantCheck.java` | 应用账号最小权限核查：按「表级 / 库级 / 全局」分级给出整改语句，只读不改授权 |
 
 > 守卫范围**只到 `audit_log`**：`api_log` / `outbound_log` / `frontend_log` / `behavior_log` 有保留期清理任务（`LogRetentionCleaner` 按 cron 删除过期行），给它们加 DELETE 守卫会让保留期失效、表无限膨胀。这一条是本轮踩到又修正的口径，别再「顺手扩大到四张表」。
