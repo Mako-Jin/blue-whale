@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.bluewhale</groupId>
+        <artifactId>whale-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../../whale-parent/pom.xml</relativePath>
+    </parent>
+
+    <artifactId>whale-overview-sdk</artifactId>
+    <name>Whale Overview SDK</name>
+    <description>概览契约 SDK - 服务实现 GET /&lt;前缀&gt;/overview 即接入数据厅/牌坊（契约见 docs/specs/overview-contract）</description>
+
+    <dependencies>
+        <!--
+          概览是"服务对外的一段只读接口"，必须坐在平台基座之上：
+          Result / BizException / UserContext（权限码头口径）都来自 starter，
+          因此这里用普通依赖而不是 optional —— 缺它这个 SDK 没有任何意义。
+        -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-spring-boot-starter</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!--
+          Micrometer 仅用于 overview.load{service,outcome} 计数。
+          optional：没有 actuator 的服务照样能跑，计数器退化为空实现
+          （自动配置按 @ConditionalOnClass 跳过，不会因缺类启动失败）。
+        -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
+        <!-- 测试 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

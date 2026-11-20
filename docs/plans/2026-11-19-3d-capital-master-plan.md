@@ -226,12 +226,35 @@
 
 | 编号 | 任务 | 产出 | 验收 | 依赖 | 工期 |
 |---|---|---|---|---|---|
-| T4.1 | [ ] `overview` schema 定稿 | JSON Schema + 文档 | 前后端签字 | T3.1 | 0.5d |
-| T4.2 | [ ] 后端通用 starter（摘要端点基类） | `OverviewSupport` | 新服务继承即用 | T4.1 | 2d |
-| T4.3 | [ ] 前端 overview 客户端 + 类型生成 | TS 类型 | 字段对齐 schema | T4.1 | 1d |
-| T4.4 | [ ] 标杆：ERP overview | `/erp/overview` | 3 个 KPI 与后台一致 | T4.2 | 1.5d |
+| T4.1 | [x] `overview` schema 定稿 | JSON Schema + 文档 | 前后端签字 | T3.1 | 0.5d |
+| T4.2 | [x] 后端通用 starter（摘要端点基类） | `OverviewSupport` | 新服务继承即用 | T4.1 | 2d |
+| T4.3 | [x] 前端 overview 客户端 + 类型生成 | TS 类型 | 字段对齐 schema | T4.1 | 1d |
+| T4.4 | [x] 标杆：ERP overview | `/erp/overview` | 3 个 KPI 与后台一致 | T4.2 | 1.5d |
 | T4.5 | [ ] 标杆：ERP 屏风页（列表+详情） | 一个完整业务页 | 滚动/筛选/查看详情可用 | T4.3,T2.4 | 2d |
-| T4.6 | [ ] 标杆：ERP 厅配置 | 一份 JSON | 进殿看到真数据 | T4.4,T3.3 | 0.5d |
+| T4.6 | [x] 标杆：ERP 厅配置 | 一份 JSON | 进殿看到真数据 | T4.4,T3.3 | 0.5d |
+
+**S4 交付说明（2026-11-21，第一批：T4.1–T4.4 / T4.6；T4.5 屏风页待办）**
+
+- 契约：`docs/specs/overview-contract/README.md` + `overview.schema.json`（前端 TS 类型的唯一来源）。
+  一次把三件事定死：① 百分比**只传比率**（S3 前端"小于 1.5 就当比率"的兜底在真实 0.8% 上会显示成 80%）；
+  ② 三态 `live/stale/degraded` —— "有数字"与"数字是真的"必须能区分；③ 降级也走同一形状，前端不为 404 写第二套解析。
+- 后端：新增 `whale-sdk/whale-overview-sdk`（自动装配）。接入成本 = 实现 `OverviewProvider` + 配
+  `whale.overview.base-path`。SDK 统一提供 TTL 缓存（键含租户，防跨租户串数）、provider 超时中断（独立
+  daemon 线程池，`Future.cancel(true)`）、失败降级（有旧值→`stale`，无→`degraded`，**失败不写缓存**所以下轮自动重试）、
+  权限 403、`overview.load{service,outcome}` 计数（Micrometer 缺失时自动退化为空实现）。
+- 标杆：`/erp/overview`（`ErpOverviewProvider`）三个 KPI 直接复用 `AnalyticsAppService#getCockpit` ——
+  与 2D 经营驾驶舱**同一个方法**，3D 不许另造口径。权限码复用 `sys:erp:bi:cockpit:list`，**没有新增权限点、没有新迁移**。
+- 前端：`scripts/gen-overview-types.mjs` 从 schema 生成 `src/world/overview.types.ts`（`--check` 可进 CI）；
+  `overview.ts` 负责取数与映射（denied/超时/非 JSON 全部折成结果对象，永不抛）；`halls.ts` 是"厅配置"——
+  **加一行就多一个殿走契约接口**，未登记的殿继续用 S3 的 metrics 采集，两条路并存逐殿替换。
+- 验证：SDK 26 例（含契约字段/枚举往返、租户隔离、超时、stale/degraded、监听器失败不影响取数、装配条件、
+  base-path 绑定）+ ERP provider 4 例；checkstyle 0 违规；`tsc -b`/`eslint src --max-warnings 0`/`vite build` 通过；
+  e2e `world-datahall-smoke` 25 项全绿、`world-glyphs` 全绿。`world-city-smoke` 3 项失败为 S1 扩容后的
+  旧断言遗留（传送门 9→13、内城门外坐标 51→58），S3 交付时已在干净基线复现过。
+- 负向验证：把租户从缓存键里去掉 → `shouldIsolateTenants` 失败（rc=1）；恢复后全绿。
+- 未做：T4.5 ERP 屏风页（列表+详情）；`charts`/`links` 字段已下发但前端尚未消费（屏风页落地时一起接）。
+- 起服验证待办：本环境 Nacos 未起，`GET /erp/overview` 的真实 HTTP 断言未跑；起服后按
+  `curl -H "X-User-Id: 1" -H "X-Permission-Codes: sys:erp:bi:cockpit:list" http://127.0.0.1:8080/erp/overview` 复核。
 
 ### S5 皇城 9 殿（每殿 3 件套：overview + 屏风页 + 厅配置）
 

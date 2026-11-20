@@ -53,7 +53,7 @@
 | 文档 | 主题 |
 |---|---|
 | [2026-11-18-3d-showcase-scene.md](2026-11-18-3d-showcase-scene.md) | `whale-showcase` 美术样板间（河谷渡口，S0–S23 视觉迭代，不接后端） |
-| [2026-11-19-3d-capital-master-plan.md](2026-11-19-3d-capital-master-plan.md) | **三维王城总纲 v2（3D 全量承载）**：31 个服务空间映射（皇城 9 殿 / 内城 12 坊 / 外城 9 处）+ WebGL/CSS3D/HUD 三层渲染 + 120 个细分任务（S0 验证 → S8 打磨）+ M0–M5 里程碑。**进度：S0/S1/S2 已完成** |
+| [2026-11-19-3d-capital-master-plan.md](2026-11-19-3d-capital-master-plan.md) | **三维王城总纲 v2（3D 全量承载）**：31 个服务空间映射（皇城 9 殿 / 内城 12 坊 / 外城 9 处）+ WebGL/CSS3D/HUD 三层渲染 + 120 个细分任务（S0 验证 → S8 打磨）+ M0–M5 里程碑。**进度：S0/S1/S2/S3 已完成，S4 完成 T4.1–T4.4/T4.6（T4.5 屏风页待办）** |
 | [2026-11-19-s0-spike-report.md](2026-11-19-s0-spike-report.md) | **S0 技术验证报告**：两层零漂移（0.00px）、深度遮挡可行、antd 页面可复用（弹层需全局 `getPopupContainer`）；IME 与性能待真机 |
 
 ## 三、服务台账（backlog，与 roadmap 互补）

@@ -58,6 +58,13 @@ whale:
   permission:
     header:
       enabled: true
+  # 概览契约（三维王城数据厅）：SDK 注册 GET /erp/overview，本服务只提供 provider。
+  # 路径与 2D 侧既有只读接口同前缀（REQ-ARCH-003：网关不剥前缀）；
+  # TTL 30s 对应前端 30s 轮询，timeout 3s 保证不拖死 HTTP 线程。
+  overview:
+    base-path: /erp/overview
+    ttl: 30s
+    timeout: 3s
 
 mybatis-plus:
   configuration:

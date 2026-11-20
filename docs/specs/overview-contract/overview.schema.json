@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bluewhale.local/schemas/overview.schema.json",
+  "title": "OverviewSnapshot",
+  "description": "服务概览快照。口径见 docs/specs/overview-contract/README.md；本文件是前端 TS 类型的唯一来源，不得手改生成物。",
+  "type": "object",
+  "required": ["service", "nodeKey", "title", "generatedAt", "state", "kpis"],
+  "properties": {
+    "service": {
+      "type": "string",
+      "description": "服务一级前缀，与网关路由一致（erp / mes / oa …）"
+    },
+    "nodeKey": {
+      "type": "string",
+      "description": "城内节点 key，与 city-layout.json 对齐"
+    },
+    "title": { "type": "string", "description": "厅/牌主标题" },
+    "subtitle": { "type": "string", "description": "口径与统计期间，避免前端拼接" },
+    "generatedAt": { "type": "string", "description": "生成时刻，ISO-8601 带时区" },
+    "state": { "$ref": "#/$defs/OverviewState" },
+    "kpis": { "type": "array", "items": { "$ref": "#/$defs/OverviewKpi" } },
+    "charts": { "type": "array", "items": { "$ref": "#/$defs/OverviewChart" } },
+    "alerts": { "type": "array", "items": { "$ref": "#/$defs/OverviewAlert" } },
+    "links": { "type": "array", "items": { "$ref": "#/$defs/OverviewLink" } },
+    "notes": { "type": "array", "items": { "type": "string" } }
+  },
+  "$defs": {
+    "OverviewState": {
+      "type": "string",
+      "enum": ["live", "stale", "degraded"],
+      "description": "live 实时成功 / stale 沿用上次成功 / degraded 不可用"
+    },
+    "OverviewFormat": {
+      "type": "string",
+      "enum": ["count", "money", "percent", "duration", "text"],
+      "description": "只表达排版口径；percent 一律传比率（0.82）"
+    },
+    "OverviewTone": {
+      "type": "string",
+      "enum": ["good", "warn", "bad", "flat"]
+    },
+    "OverviewKpi": {
+      "type": "object",
+      "required": ["key", "label", "value", "format"],
+      "properties": {
+        "key": { "type": "string" },
+        "label": { "type": "string" },
+        "value": { "type": "number", "description": "百分比传比率；文本类也必填（用于比对）" },
+        "format": { "$ref": "#/$defs/OverviewFormat" },
+        "unit": { "type": "string" },
+        "tone": { "$ref": "#/$defs/OverviewTone" },
+        "deltaPercent": { "type": "number", "description": "环比比率，+12% 记 0.12" },
+        "hint": { "type": "string", "description": "口径说明，≤20 字" }
+      }
+    },
+    "OverviewSeries": {
+      "type": "object",
+      "required": ["name", "values"],
+      "properties": {
+        "name": { "type": "string" },
+        "values": { "type": "array", "items": { "type": "number" } }
+      }
+    },
+    "OverviewChart": {
+      "type": "object",
+      "required": ["key", "title", "type", "format", "categories", "series"],
+      "properties": {
+        "key": { "type": "string" },
+        "title": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["line", "bar", "donut"]
+        },
+        "format": { "$ref": "#/$defs/OverviewFormat" },
+        "categories": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "长度必须等于每个 series.values 长度，缺数补 0"
+        },
+        "series": { "type": "array", "items": { "$ref": "#/$defs/OverviewSeries" } }
+      }
+    },
+    "OverviewAlert": {
+      "type": "object",
+      "required": ["level", "text"],
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["info", "warning", "critical"]
+        },
+        "text": { "type": "string" },
+        "count": { "type": "integer" },
+        "since": { "type": "string", "description": "首现时刻 ISO-8601" }
+      }
+    },
+    "OverviewLink": {
+      "type": "object",
+      "required": ["key", "label", "path"],
+      "properties": {
+        "key": { "type": "string" },
+        "label": { "type": "string" },
+        "path": { "type": "string" },
+        "permission": { "type": "string" }
+      }
+    }
+  }
+}

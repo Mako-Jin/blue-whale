@@ -29,6 +29,8 @@ import { createGlyphs } from './glyphs';
 import { createWorldMetrics } from './metrics';
 import { createDataHall } from './datahall';
 import type { HallData } from './datahall';
+import { createHallOverview } from './halls';
+import { OVERVIEW_HALLS } from './halls';
 import { createSpeech } from './speech';
 import { mountSayPanel } from './saypanel';
 import { createWorldAudio } from './audio';
@@ -2298,17 +2300,33 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     return tone;
   };
   const palaceName = (nodeKey) => PALACES.find((p) => p.nodeKey === nodeKey)?.name ?? nodeKey;
-  const mapHallData = () =>
-    [...metrics.cards.values()].map((card) => ({
-      nodeKey: card.nodeKey,
-      name: palaceName(card.nodeKey),
-      sub: PALACES.find((p) => p.nodeKey === card.nodeKey)?.sub ?? card.nodeKey,
-      state: card.state,
-      tone: hallTone(card),
-      metrics: card.metrics,
-      note: card.note,
-      updatedAt: card.updatedAt,
-    }));
+  /* 契约概览（S4）覆盖：只替换登记在 OVERVIEW_HALLS 里的殿，其余仍是 S3 的 metrics 口径。
+     概览没数时不覆盖——回落 metrics，而不是把厅变成空壳（宁可显示旧口径的真数）。 */
+  const overviewHallData = new Map();
+  const mapHallData = () => {
+    const rows = [...metrics.cards.values()].map((card) => {
+      const row = {
+        nodeKey: card.nodeKey,
+        name: palaceName(card.nodeKey),
+        sub: PALACES.find((p) => p.nodeKey === card.nodeKey)?.sub ?? card.nodeKey,
+        state: card.state,
+        tone: hallTone(card),
+        metrics: card.metrics,
+        note: card.note,
+        updatedAt: card.updatedAt,
+      };
+      const overview = overviewHallData.get(card.nodeKey);
+      return overview && overview.metrics.length > 0 ? overview : row;
+    });
+    // 已接入契约但 metrics 里没有对应探针的殿：补进去，否则那座厅永远打不开
+    const known = new Set(rows.map((row) => row.nodeKey));
+    overviewHallData.forEach((hall, nodeKey) => {
+      if (!known.has(nodeKey) && hall.metrics.length > 0) {
+        rows.push(hall);
+      }
+    });
+    return rows;
+  };
 
   /** 进出厅的操作提示：用现成 toast，不新增 DOM（守住 bww-* 契约） */
   const renderHallHint = (nodeKey) => {
@@ -2350,9 +2368,11 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   const onHallEngaged = (nodeKey) => {
     if (nodeKey === null) {
       stopHallRefresh();
+      hallOverview?.stop(); // 出厅：契约概览不再轮询（它的数据只在厅里用）
       metrics.start(); // 回城恢复 60s 城情采集
     } else {
       metrics.stop(); // 进厅：城池采集让位
+      hallOverview?.start(); // 进厅：契约概览接管已接入的殿
       startHallRefresh();
     }
     renderHallHint(nodeKey);
@@ -2366,6 +2386,18 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     onEngagedChange: onHallEngaged,
   });
   dataHall.setData(mapHallData());
+
+  /* 契约概览采集（S4）：与城池采集共用令牌/权限来源，只覆盖已接入的殿。
+     进出厅时与 metrics 交替启停，避免同一批数字被刷两遍。 */
+  const hallOverview = createHallOverview({
+    palaces: PALACES,
+    getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+    getPermissions: opts.getPermissions,
+    onChange: (halls) => {
+      halls.forEach((hall, nodeKey) => overviewHallData.set(nodeKey, hall));
+      dataHall?.setData(mapHallData());
+    },
+  });
 
   const brain = createWorldBrain({
     getToken: () => debugToken() ?? opts.getToken?.() ?? null,
@@ -3935,6 +3967,10 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       refreshing: metrics.isRunning(),
       hallRefresh: hallRefreshTimer !== null,
       cameraY: Number(camera.position.y.toFixed(1)),
+      // S4 契约概览：接了哪些节点、采集器是否在跑（e2e 断言"离厅即停"）
+      overviewNodes: OVERVIEW_HALLS.length,
+      overviewRunning: hallOverview?.isRunning() ?? false,
+      overviewHalls: [...overviewHallData.keys()],
     });
     window.__bwwHallOpen = (index) => dataHall?.open(index ?? 0);
     window.__bwwHallClose = () => dataHall?.close();
@@ -4198,6 +4234,7 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     npcChat?.destroy();
     brain.dispose();
     metrics.dispose();
+    hallOverview?.dispose();
     glyphs.dispose();
     sayPanel?.destroy();
     speech?.dispose();

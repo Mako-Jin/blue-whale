@@ -8,7 +8,9 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "clean": "rimraf dist",
-    "lint": "eslint src --max-warnings 0"
+    "lint": "eslint src --max-warnings 0",
+    "gen:overview": "node scripts/gen-overview-types.mjs",
+    "check:overview": "node scripts/gen-overview-types.mjs --check"
   },
   "dependencies": {
     "@bluewhale/whale-common-theme": "workspace:*",

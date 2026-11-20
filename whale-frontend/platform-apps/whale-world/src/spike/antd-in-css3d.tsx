@@ -10,6 +10,8 @@
  * <p>用 ?fix=1 打开 getPopupContainer，把弹层锁进面板内部，作为对照。</p>
  */
 
+/* eslint-disable react-refresh/only-export-components -- T0.5 spike 入口页：整页挂载、没有任何导出，只由 spike-antd.html 直接加载 */
+
 import { useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Button, Input, Select, Table } from 'antd';
