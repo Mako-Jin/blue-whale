@@ -13,6 +13,7 @@ import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -25,8 +26,11 @@ import java.util.stream.Collectors;
 /**
  * 概览装载服务：缓存、超时、降级、指标四件事的唯一实现。
  *
- * <p><b>1. TTL 缓存。</b>键为 {@code service|nodeKey|tenantId} —— 租户必须进键，
- * 否则 A 租户的数会被发给 B 租户（这类越权不会报错，只会"数据看起来怪"）。</p>
+ * <p><b>1. TTL 缓存。</b>键为 {@code service|nodeKey|tenantId|权限签名} —— 租户必须进键，
+ * 否则 A 租户的数会被发给 B 租户（这类越权不会报错，只会"数据看起来怪"）。
+ * <b>权限同样必须进键</b>：契约要求 provider 按权限做块级裁剪（没权限的块根本不下发），
+ * 同一租户里权限不同的两个用户看到的快照本来就不是一份东西，共用缓存等于把
+ * 有权限的人的数据发给没权限的人。</p>
  *
  * <p><b>2. 超时。</b>provider 在独立线程池执行，超时即 {@code cancel(true)} 并按失败处理。
  * 直接在请求线程里跑 provider，一旦 provider 里有个没设超时的下游调用，
@@ -259,15 +263,34 @@ public class OverviewService implements DisposableBean {
     }
 
     /**
-     * 缓存键：服务 + 节点 + 租户
+     * 缓存键：服务 + 节点 + 租户 + 权限签名
      *
      * @param provider 目标 provider
      * @param context 调用者上下文
      * @return 缓存键
      */
     private String cacheKey(OverviewProvider provider, OverviewContext context) {
+        Long tenantId = context == null ? null : context.tenantId();
         return orElse(provider.service(), "unknown") + '|' + provider.nodeKey() + '|'
-                + (context == null || context.tenantId() == null ? "-" : context.tenantId());
+                + (tenantId == null ? "-" : tenantId) + '|' + permissionSignature(context);
+    }
+
+    /**
+     * 权限签名：把调用者的权限集合压成定长短串，用于缓存键
+     *
+     * <p>用 {@code Set#hashCode}（元素哈希之和，与顺序无关）+ 集合大小：同一套权限无论
+     * 网关以什么顺序拼 {@code X-Permission-Codes} 都会落到同一个键上；大小参与签名是为了
+     * 降低不同集合撞同一哈希的概率。签名只影响缓存命中，不承担鉴权职责。</p>
+     *
+     * @param context 调用者上下文，可空
+     * @return 签名，例如 {@code 3:a1b2c3d4}；无上下文时为 {@code none}
+     */
+    private String permissionSignature(OverviewContext context) {
+        if (context == null || context.permissionCodes().isEmpty()) {
+            return "none";
+        }
+        Set<String> codes = context.permissionCodes();
+        return codes.size() + ":" + Integer.toHexString(codes.hashCode());
     }
 
     /**

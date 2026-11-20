@@ -175,7 +175,7 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
   const tool = h('div', 'bwsp-tool');
   const search = h('input', 'bws-input bwsp-search');
   search.type = 'text';
-  search.placeholder = '搜索单号 / 供应商…';
+  search.placeholder = '搜索…';
   const statusSel = h('select', 'bws-input bwsp-status');
   const refreshBtn = h('button', 'bwsp-btn', '刷新');
   refreshBtn.type = 'button';
@@ -482,6 +482,7 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
   function paintTool(): void {
     const spec = activeSpec();
     search.hidden = !spec?.keywordParam;
+    if (spec?.searchPlaceholder) search.placeholder = spec.searchPlaceholder;
     statusSel.hidden = !spec?.statusParam;
     if (spec?.statuses && statusPageKey !== spec.key) {
       statusPageKey = spec.key;
@@ -615,7 +616,7 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
   }
 
   function emptyText(denied: boolean): string {
-    if (denied) return '无此殿凭据 · 请向主事申请采购查看权限';
+    if (denied) return '无此殿凭据 · 请联系主事申请权限';
     switch (listState) {
       case 'loading':
         return '问询中…';
@@ -624,7 +625,7 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
       case 'denied':
         return listError || '无此殿凭据';
       case 'empty':
-        return '没有符合条件的单据';
+        return '没有符合条件的记录';
       default:
         return '暂无数据';
     }

@@ -12,6 +12,10 @@ import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 
 const BASE = process.env.BASE ?? 'http://127.0.0.1:8125/world/?debug=1';
+
+/* 屏风页选择器一律限定到户部这块屏风：城里同时挂着数枢殿总控页（S5），
+   '.bwsp-search' 这类选择器会同时命中两个，Playwright strict mode 直接报错。 */
+const SCOPE = '[data-screen-id="hubu-erp"] ';
 const OUT = 'D:/BlueWhale/BlueWhale/.toolchains/tmp/s4-shots';
 mkdirSync(OUT, { recursive: true });
 
@@ -103,19 +107,19 @@ check('屏风进入贴脸态（可滚动可输入）', engaged.focus === 'true',
 check('屏风搬到平面化层（输入法需要无 3D 祖先）', engaged.planar === 'bww-planar', engaged.planar);
 
 /* ---- 4. 关键字筛选 ---- */
-await page.locator('.bwsp-search').fill('PO-202611-0003');
+await page.locator(SCOPE + '.bwsp-search').fill('PO-202611-0003');
 await page.waitForTimeout(700);
 probe = await page.evaluate(() => window.__bwwScreenPage?.());
 check('关键字筛选把 20 条收窄到 1 条', probe?.list.rows === 1 && probe?.list.total === 1, probe?.list);
 check('筛过的行就是那只单号', probe?.list.keyword === 'PO-202611-0003', probe?.list.keyword);
 
-await page.locator('.bwsp-search').fill('');
+await page.locator(SCOPE + '.bwsp-search').fill('');
 await page.waitForTimeout(700);
 probe = await page.evaluate(() => window.__bwwScreenPage?.());
 check('清空关键字后恢复 20 条', probe?.list.total === 20, probe?.list);
 
 /* ---- 5. 状态筛选 ---- */
-await page.locator('.bwsp-status').selectOption('RECEIVED');
+await page.locator(SCOPE + '.bwsp-status').selectOption('RECEIVED');
 await page.waitForTimeout(500);
 const statusRows = await page.evaluate(() =>
   [...document.querySelectorAll('.bwsp-table tbody tr')].map(
@@ -126,16 +130,16 @@ probe = await page.evaluate(() => window.__bwwScreenPage?.());
 check('状态筛选生效（只剩已收货）', probe?.list.rows === 3 && statusRows.every((text) => text === '已收货'), statusRows);
 check('筛选后回到第 1 页', probe?.list.page === 1, probe?.list.page);
 
-await page.locator('.bwsp-status').selectOption('');
+await page.locator(SCOPE + '.bwsp-status').selectOption('');
 await page.waitForTimeout(500);
 
 /* ---- 6. 分页 ---- */
-await page.locator('.bwsp-pager .bwsp-btn').last().click();
+await page.locator(SCOPE + '.bwsp-pager .bwsp-btn').last().click();
 await page.waitForTimeout(500);
 probe = await page.evaluate(() => window.__bwwScreenPage?.());
 check('翻到第 2 页：仍是 6 行（共 20 条）', probe?.list.page === 2 && probe?.list.rows === 6, probe?.list);
-const nextBtn = page.locator('.bwsp-pager .bwsp-btn').last();
-const prevBtn = page.locator('.bwsp-pager .bwsp-btn').first();
+const nextBtn = page.locator(SCOPE + '.bwsp-pager .bwsp-btn').last();
+const prevBtn = page.locator(SCOPE + '.bwsp-pager .bwsp-btn').first();
 check('非末页下一页可用', (await nextBtn.isDisabled()) === false);
 // 20 条 / 每页 6 条 = 4 页，末页只剩 2 条
 await nextBtn.click();
@@ -154,7 +158,7 @@ probe = await page.evaluate(() => window.__bwwScreenPage?.());
 check('退回第 1 页', probe?.list.page === 1, probe?.list.page);
 
 /* ---- 7. 点行看详情 ---- */
-await page.locator('.bwsp-table tbody tr').first().click();
+await page.locator(SCOPE + '.bwsp-table tbody tr').first().click();
 await page.waitForTimeout(500);
 probe = await page.evaluate(() => window.__bwwScreenPage?.());
 check('点行打开详情', probe?.detail.open === true, probe?.detail);
@@ -169,13 +173,13 @@ check('详情态下列表让位（不是叠在一起）', listHidden === true, l
 await page.screenshot({ path: `${OUT}/10-screenpage-detail.png` });
 
 /* ---- 8. 返回列表 ---- */
-await page.locator('.bwsp-dhead .bwsp-btn').click();
+await page.locator(SCOPE + '.bwsp-dhead .bwsp-btn').click();
 await page.waitForTimeout(400);
 probe = await page.evaluate(() => window.__bwwScreenPage?.());
 check('返回后回到列表且行还在', probe?.detail.open === false && probe?.list.rows === 6, probe);
 
 /* ---- 9. 滚动：详情分录区自己滚，整页不动 ---- */
-await page.locator('.bwsp-table tbody tr').first().click();
+await page.locator(SCOPE + '.bwsp-table tbody tr').first().click();
 await page.waitForTimeout(400);
 const scrolled = await page.evaluate(() => {
   const wrap = document.querySelector('.bwsp-lines');
@@ -191,7 +195,7 @@ const scrolled = await page.evaluate(() => {
 });
 check('分录区可滚动且在屏风内部', scrolled?.after > scrolled?.before, scrolled);
 check('整页不跟着滚（表头/返回按钮不跑掉）', scrolled?.bodyScroll === 0, scrolled?.bodyScroll);
-await page.locator('.bwsp-dhead .bwsp-btn').click();
+await page.locator(SCOPE + '.bwsp-dhead .bwsp-btn').click();
 await page.waitForTimeout(300);
 
 await page.screenshot({ path: `${OUT}/11-screenpage-list.png` });

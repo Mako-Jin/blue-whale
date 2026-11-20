@@ -52,3 +52,24 @@ whale:
   permission:
     header:
       enabled: true
+  overview:
+    # 数枢殿总控（S5/T5.1）：本服务只做聚合，不查任何业务库。
+    # base-path 含服务一级前缀（REQ-ARCH-003：网关不剥前缀），外部路径与这里一致。
+    base-path: /monitor/overview
+    # 比单殿的 2s 长一档：各殿是并行问的，SDK 这一层等的是"最慢的那座 + 汇总开销"
+    timeout: 5s
+    # 前端 30s 轮询一次，服务端缓存与之同量级，避免每次轮询都穿透到 8 个下游
+    ttl: 30s
+    aggregate:
+      enabled: true
+      # 单殿超时：超过它就当这座殿"未通"，不让一座慢殿拖住整块总控
+      timeout: 2s
+      cache-ttl: 30s
+      # 在册的殿：T5.2–T5.9 每接入一座殿，这里加一行即可（聚合与前端都不用改）。
+      # 容器内用容器名 + 端口直连（不经过网关：网关挂了总控仍要看得到各殿的真实状态）。
+      # 本机起服时把地址改成 http://127.0.0.1:<各服务端口>。
+      targets:
+        - nodeKey: hubu-hall
+          name: 户部
+          url: http://bw-erp:9001/erp/overview
+          permission: sys:erp:bi:cockpit:list

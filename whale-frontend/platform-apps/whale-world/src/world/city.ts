@@ -57,7 +57,7 @@ import { createQuestSystem } from './quests';
 import { createScreenLayer } from './screen';
 import type { ScreenHandle } from './screen';
 import { mountScreenPage, type ScreenPageHandle } from './screenpage';
-import { PURCHASE_ORDER_PAGE } from './screenpages';
+import { PURCHASE_ORDER_PAGE, HUB_HALLS_PAGE } from './screenpages';
 import { createSceneEnv, type SceneEnv } from './env';
 import { createPostFx, type PostFx } from './postfx';
 import { createSky, type SkyState } from './env-sky';
@@ -2394,6 +2394,7 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
      进出厅时与 metrics 交替启停，避免同一批数字被刷两遍。 */
   const hallOverview = createHallOverview({
     palaces: PALACES,
+    mainHall: { nodeKey: MAIN_HALL.nodeKey, name: MAIN_HALL.name, sub: '总控' },
     getToken: () => debugToken() ?? opts.getToken?.() ?? null,
     getPermissions: opts.getPermissions,
     onChange: (halls) => {
@@ -3840,6 +3841,10 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   let hubuScreen: ScreenHandle | null = null;
   let hubuPage: ScreenPageHandle | null = null;
 
+  /** 数枢殿总控屏与它的业务页句柄（同上） */
+  let shushuScreen: ScreenHandle | null = null;
+  let shushuPage: ScreenPageHandle | null = null;
+
   function setupScreens() {
     try {
     screens.add({
@@ -3859,42 +3864,37 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       },
     });
 
-    screens.add({
+    /* 数枢殿总控屏（S5/T5.1）：屏风里是真业务页 —— 概览与表格都来自
+       /monitor/overview 的同一次聚合，各殿状态是服务端判定的，不是前端猜的。
+
+       这一块原来（S2）是写死数据的排版演示：五行假服务名足以钉住样式，
+       但它验证不了任何真链路。S5 把它换成总控页，顺便给"进屏风"这条路径
+       再找一个真实入口 —— 数枢殿就在出生点正前方，玩家第一眼看到的就是它。 */
+    shushuScreen = screens.add({
       id: 'shushu',
-      position: [7.6, 1.2, 63],
+      position: [7.6, 1.55, 63],
       facing: 0,
-      size: 'medium',
-      title: '数枢殿 · 总览',
-      subtitle: 'OVERVIEW',
-      tone: 'good',
+      // 总控是张四列表 + 6 行分页，中屏（680×420）排不下；与户部台账同档大屏
+      size: 'large',
+      title: '数枢殿 · 总控',
+      subtitle: 'HUB / OVERVIEW',
+      tone: 'idle',
       mount: (body) => {
-        /* 这一版是写死的演示数据，S3 会换成 overview 接口返回值。
-           放真数据之前先钉住排版：KPI 一行、明细一表、多余内容靠滚动。 */
-        const kpi = (v, label) =>
-          `<div><b>${v}</b><span>${label}</span></div>`;
-        const rows = [
-          ['用户认证', '12,480', '在线 316', '正常'],
-          ['流程引擎', '2,915', '运行中 42', '正常'],
-          ['文件存储', '1.8 TB', '今增 62 GB', '注意'],
-          ['定时任务', '418', '今日失败 3', '异常'],
-          ['消息投递', '86,204', '积压 12', '正常'],
-        ];
-        body.innerHTML = `
-          <div class="bws-kpi">
-            ${kpi('31', '接入服务')}
-            ${kpi('99.94%', '近 24h 可用')}
-            ${kpi('3', '待处理告警')}
-            ${kpi('128 ms', 'P95 响应')}
-          </div>
-          <table class="bws-list">
-            <thead><tr><th>服务</th><th>总量</th><th>当前</th><th>状态</th></tr></thead>
-            <tbody>
-              ${rows.map((r) => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join('')}
-            </tbody>
-          </table>
-          <div style="margin-top:.7em">
-            <input class="bws-input" type="text" placeholder="搜索服务名…（在这里试中文输入）" />
-          </div>`;
+        shushuPage = mountScreenPage(body, {
+          nodeKey: 'shushu-hall',
+          overviewPath: '/monitor/overview',
+          pages: [HUB_HALLS_PAGE],
+          getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+          getPermissions: opts.getPermissions,
+          onTone: (tone) => shushuScreen?.setTone(tone),
+          onTitle: (title, subtitle) => {
+            shushuScreen?.setTitle(title ? `${title} · 总控` : '数枢殿 · 总控', subtitle ?? 'HUB / OVERVIEW');
+          },
+        });
+        return () => {
+          shushuPage?.dispose();
+          shushuPage = null;
+        };
       },
     });
 
@@ -4118,10 +4118,11 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     /* 屏风页探针（S4 / T4.5）：读业务页状态（概览/标签/列表/详情），
        以及"进屏风 / 注入演示数据"两个动作。只在 ?debug=1 下存在，
        正常路径既不暴露业务字段，也不会注入任何假数据。 */
-    window.__bwwScreenPage = () => hubuPage?.probe() ?? null;
+    window.__bwwScreenPage = (id?: string) =>
+      (id === 'shushu' ? shushuPage : hubuPage)?.probe() ?? null;
     window.__bwwScreenOpen = (id: string) => screens.get(id)?.enter();
     window.__bwwScreenExit = () => screens.exit();
-    window.__bwwScreenMock = () => hubuPage?.mock();
+    window.__bwwScreenMock = (id?: string) => (id === 'shushu' ? shushuPage : hubuPage)?.mock();
     /* 声景探针：e2e 无法"听"，只能读状态（是否解锁、是否静音）与脚下地面判定 */
     window.__bwwAudio = () => ({
       ready: audio.isReady(),

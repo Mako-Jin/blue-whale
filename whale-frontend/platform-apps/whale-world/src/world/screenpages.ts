@@ -49,6 +49,8 @@ export interface ScreenListPageSpec {
   idKey?: string;
   /** 关键字查询参数名；缺省不给搜索框 */
   keywordParam?: string;
+  /** 搜索框提示语；缺省「搜索…」 */
+  searchPlaceholder?: string;
   /** 状态查询参数名；缺省不给状态筛选 */
   statusParam?: string;
   /** 状态筛选项（第一项通常是"全部"，值为空串） */
@@ -94,6 +96,7 @@ export const PURCHASE_ORDER_PAGE: ScreenListPageSpec = {
   permission: 'sys:erp:purchase:list',
   idKey: 'id',
   keywordParam: 'keyword',
+  searchPlaceholder: '搜索单号 / 供应商…',
   statusParam: 'status',
   statuses: [
     { value: '', label: '全部状态' },
@@ -138,6 +141,70 @@ export const PURCHASE_ORDER_PAGE: ScreenListPageSpec = {
 };
 
 /**
+ * 殿的连通状态：与后端 {@code HubHallState} 一一对应，前端只做展示。
+ *
+ * <p>「无凭据」单独一档而不是并进「未通」：前者要去要权限，后者要去查服务，
+ * 混成一档会让值班的人先翻半小时日志才发现是自己没权限。</p>
+ */
+export const HUB_HALL_STATE: Record<string, ScreenStatusStyle> = {
+  live: { label: '通畅', tone: 'good' },
+  stale: { label: '陈旧', tone: 'warn' },
+  degraded: { label: '未通', tone: 'bad' },
+  denied: { label: '无凭据', tone: 'flat' },
+};
+
+/**
+ * 数枢殿总控页（S5 / T5.1）：把所有在册各殿的概览摆成一张表。
+ *
+ * <p>为什么这张表值得单独一页：总控的价值不在"再多一块看板"，而在
+ * <b>一眼看出哪座殿没数、为什么没数</b>。所以列只有四列——殿、主指标、状态、说明，
+ * 说明列直接写"问询超时""无此殿凭据"，而不是让人点进每一座殿去猜。</p>
+ *
+ * <p>数据来自 {@code /monitor/overview/halls}（与 {@code /monitor/overview} 同一次聚合），
+ * 分页与关键字都由服务端生效：前端把 {@code current/size/keyword} 原样发出去。</p>
+ */
+export const HUB_HALLS_PAGE: ScreenListPageSpec = {
+  key: 'hall-health',
+  title: '八方宫署',
+  listPath: '/monitor/overview/halls',
+  detailPath: (id) => `/monitor/overview/halls/${id}`,
+  idKey: 'id',
+  keywordParam: 'keyword',
+  searchPlaceholder: '搜索殿名…',
+  statusParam: 'state',
+  statuses: [
+    { value: '', label: '全部状态' },
+    { value: 'live', label: '通畅' },
+    { value: 'stale', label: '陈旧' },
+    { value: 'degraded', label: '未通' },
+    { value: 'denied', label: '无凭据' },
+  ],
+  statusMap: HUB_HALL_STATE,
+  /* 6 行/页：屏风是 620px 高，KPI 条 + 环形图之后只剩约 230px，6 行刚好排满 */
+  pageSize: 6,
+  columns: [
+    { key: 'name', label: '殿', width: '20%' },
+    { key: 'headline', label: '主指标', width: '38%' },
+    { key: 'state', label: '状态', width: '14%', format: 'status' },
+    { key: 'note', label: '说明', width: '28%' },
+  ],
+  detailFields: [
+    { key: 'name', label: '殿' },
+    { key: 'state', label: '状态', format: 'status' },
+    { key: 'subtitle', label: '口径' },
+    { key: 'updatedLabel', label: '数据时刻' },
+    { key: 'note', label: '说明' },
+  ],
+  lineColumns: [
+    { key: 'no', label: '#', width: '8%' },
+    { key: 'label', label: '指标', width: '62%' },
+    { key: 'value', label: '数值', width: '30%', align: 'right' },
+  ],
+  lineSource: 'lines',
+  titleKey: 'name',
+};
+
+/**
  * 屏风页登记表：key = 概览 `links[].key`。
  *
  * <p>概览没下发（或概览整个 403）时，这份表就是唯一入口——屏风页不依赖概览活着，
@@ -145,4 +212,5 @@ export const PURCHASE_ORDER_PAGE: ScreenListPageSpec = {
  */
 export const SCREEN_PAGES: Record<string, ScreenListPageSpec> = {
   [PURCHASE_ORDER_PAGE.key]: PURCHASE_ORDER_PAGE,
+  [HUB_HALLS_PAGE.key]: HUB_HALLS_PAGE,
 };

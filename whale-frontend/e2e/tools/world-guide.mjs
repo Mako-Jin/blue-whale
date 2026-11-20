@@ -58,8 +58,11 @@ const hudVisible = () => page.evaluate(
 
 /* ---- 站点表 ---- */
 const stops = await page.evaluate(() => window.__bwwGuideStops());
-ok(stops.length === 9, `站点共 9 站（八方宫署 + 数枢殿，实际 ${stops.length}）`);
-ok(stops[8]?.nodeKey === 'shushu-hall', `最后一站是数枢殿（${stops[8]?.name}）`);
+// S1 城郭扩容后站点表 = 十二坊 + 数枢殿 = 13 站；判据改成"末站是数枢殿"，
+// 而不是写死第 9 站——写死下标的那版在扩容后一直在报"最后一站是将作监"。
+ok(stops.length === 13, `站点共 13 站（十二坊 + 数枢殿，实际 ${stops.length}）`);
+const lastStop = stops[stops.length - 1];
+ok(lastStop?.nodeKey === 'shushu-hall', `最后一站是数枢殿（${lastStop?.name}）`);
 
 /* ---- 开导览 ---- */
 await page.keyboard.press('KeyG');

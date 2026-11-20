@@ -4,6 +4,9 @@
 // 元素带了 matrix3d 祖先、layout 与视觉脱节——这一条可以精确断言：
 //   进入屏风后，输入框的祖先链里不允许出现 matrix3d；退出后必须还原。
 // 另外验证输入框可聚焦、可输入、退出后屏风回到 3D 容器。
+//
+// 选择器用 .bwsp-search 而不是 .bws-input：S5 起数枢殿这块屏风是通用业务页，
+// 里面同时有一个搜索框和一个状态下拉框（都是 .bws-input），只按 .bws-input 选会命中两个。
 
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
@@ -20,7 +23,7 @@ await page.goto('http://127.0.0.1:8124/world/?debug=1', { waitUntil: 'load', tim
 await page.waitForTimeout(8000);
 
 const inspect = () => page.evaluate(() => {
-  const input = document.querySelector('[data-screen-id="shushu"] .bws-input');
+  const input = document.querySelector('[data-screen-id="shushu"] .bwsp-search');
   const screenEl = document.querySelector('[data-screen-id="shushu"]');
   if (!input || !screenEl) return null;
   // 走到根的祖先链，找出带 3D 变换的
@@ -56,7 +59,7 @@ console.log('ENGAGED ' + JSON.stringify(engaged));
 await page.screenshot({ path: OUT + '/40-engaged-input.png' });
 
 // 聚焦并输入（fill 走的是 value 赋值，绕开 IME，但能验证焦点与事件链路）
-const input = page.locator('[data-screen-id="shushu"] .bws-input');
+const input = page.locator('[data-screen-id="shushu"] .bwsp-search');
 await input.click();
 await page.waitForTimeout(300);
 const focusedInfo = await page.evaluate(() => {

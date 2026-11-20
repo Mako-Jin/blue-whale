@@ -93,6 +93,23 @@ class OverviewServiceTest {
     }
 
     @Test
+    @DisplayName("权限进缓存键：同租户内权限不同的两个人不共用快照")
+    void shouldIsolatePermissions() {
+        StubProvider provider = new StubProvider(context -> Overviews.builder("erp", "hubu-hall", "户部")
+                .kpi(Overviews.count("blocks", "可见块", context.hasPermission("sys:erp:purchase:list") ? 2 : 1))
+                .build());
+        OverviewService subject = serviceOf(provider);
+
+        OverviewSnapshot limited = subject.load(OverviewContext.of(7L, 1L, Set.of("sys:erp:bi:cockpit:list")), provider);
+        OverviewSnapshot full = subject.load(
+                OverviewContext.of(7L, 1L, Set.of("sys:erp:bi:cockpit:list", "sys:erp:purchase:list")), provider);
+
+        assertThat(provider.calls.get()).isEqualTo(2);
+        assertThat(limited.kpis().get(0).value()).isEqualTo(1d);
+        assertThat(full.kpis().get(0).value()).isEqualTo(2d);
+    }
+
+    @Test
     @DisplayName("成功过一次后失败 → 返回上次快照并置 stale，带降级说明")
     void shouldServeStaleAfterFailure() {
         AtomicInteger round = new AtomicInteger();

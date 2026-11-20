@@ -282,7 +282,7 @@
 
 | 编号 | 任务 | 服务 | 依赖 |
 |---|---|---|---|
-| T5.1 | [ ] 数枢殿总控（聚合多服务） | 聚合 | T4.6 |
+| T5.1 | [x] 数枢殿总控（聚合多服务） | 聚合 | T4.6 |
 | T5.2 | [ ] 枢密殿 | auth | T5.1 |
 | T5.3 | [ ] 度支殿 | pay | T5.1 |
 | T5.4 | [ ] 藏书殿 | file | T5.1 |
@@ -294,6 +294,47 @@
 | T5.10 | [ ] 城门楼地标（网关，无入口） | gateway | T1.9 |
 
 > 每殿 3 个任务（接口 / 屏风页 / 厅配置），实际约 **27 个**。为控制篇幅此处按殿合并，开工时展开为 `T5.x.1/.2/.3`。
+
+**S5 第一批交付说明（2026-11-21，T5.1 数枢殿总控）**
+
+- **聚合放在服务端，不是前端拼**。S3 那套"八路异构接口各猜字段"最致命的不是字段漂移，
+  而是**没有"没数"这个状态**：一路失败就少一张卡，看起来像"这殿今天没业务"。总控必须能给
+  每座殿标 `live/stale/degraded/denied`，而这个判定只能发生在看得到全部下游结果的地方。
+- **宿主是 whale-monitor**（`com.bluewhale.monitor.overview`）。它是本工程唯一的无库采集型服务，
+  总控要做的事与它同构；新起一个"总控服务"要再占一档内存（VM 余量本就吃紧），收益只是名字更贴切。
+  端点 `GET /monitor/overview`（概览）+ `GET /monitor/overview/halls[/{nodeKey}]`（屏风页数据）。
+- **接入一殿 = 加一行配置**：`whale.overview.aggregate.targets`（`nodeKey/name/url/permission`）。
+  容器内用容器名直连（`http://bw-erp:9001/erp/overview`），**不经过网关**——网关挂了，总控仍要能看到
+  各殿真实状态；这也是"总控不依赖被监控对象"的最小前提。当前只登记户部，T5.2–T5.9 逐殿追加。
+- **单殿失败隔离**：并行问询 + 单殿 2s 超时（SDK 那层 5s），一座挂只让那一行变红。
+  四张 KPI 是 接入殿 / 通畅 / 陈旧 / 未通；`denied` 单独一档——"去要权限"和"去查服务"是两件事，
+  混成一档会让值班的人先翻半小时日志。
+- **身份透传而不是服务身份**：转发调用者的 `X-User-Id / X-Tenant-Id / X-Permission-Codes`，
+  各殿按自己的权限码裁剪。总控**不设权限码**：它的可见范围就是"你在各殿能看到的范围"，
+  再加一道总控权限只会把"没权限"和"没这条接口"混成同一个 403。
+- **SDK 修复：缓存键补权限签名**。原键是 `service|nodeKey|tenant`，而契约要求 provider 按权限做块级裁剪
+  ——同租户里权限不同的两个人看到的快照本来就不是一份东西，共用缓存等于把有权限的人的数发给没权限的人。
+  负向验证：去掉签名后 `shouldIsolatePermissions` 失败（rc=1）。
+- **SDK 补 `Overviews.formatValue/formatKpi`**：总控一行里混着金额、计数与百分比，一列只能有一种排版，
+  只能服务端先排成字符串。规则与前端 `overview.ts#formatValue` 逐条对齐并有单测钉住
+  （`OverviewFormatTest` 6 例）。
+- **屏风页**：数枢殿那块 S2 的写死演示屏换成真总控页（`HUB_HALLS_PAGE`，四列 = 殿/主指标/状态/说明）。
+  分页与关键字/状态筛选**在服务端生效**（`current/size/keyword/state`），否则就是"表里 6 行却写着第 1/2 页"的假分页。
+  行里的主指标与数据时刻由服务端排版（`营收 ¥123.4万`、`11-21 03:00`），前端不再二次格式化。
+- **顺手修掉一个 S2 遗留的真 bug**：退出屏风后整块纸面糊在镜头上、且再也点不动。
+  根因是 three 的 `CSS3DRenderer` 用 `WeakMap` 缓存"上次写进 `element.style.transform` 的字符串"，
+  只有字符串变化才重写；屏风退出后矩阵与进入前完全一致 → 缓存命中 → 渲染器跳过，
+  而我们刚把 inline transform 清空。修法：还原时**换一个新的 `CSS3DObject`**（`Screen#reattach3d`），
+  让缓存必然失效。三块屏风（告示/户部/数枢殿）复测：退出后矩形回到 `268×138`（此前是 `16948×3202`）。
+- **验证**：`e2e/tools/world-shushu-smoke.mjs` 31 项全绿（用 `page.route` 返回与后端同形状的信封，
+  顺带断言分页/筛选参数真的发给了服务端；末段把接口打成 500，验"有旧值就标陈旧、列表给人话+重试"）。
+  后端 `HubOverviewAggregatorTest` 7 例（三殿 live/stale/500、身份转发、缺码不发请求、慢殿超时、
+  TTL 缓存、空配置、详情映射）+ SDK 33 例；checkstyle 0 违规。
+  回归：`world-screenpage-smoke` 35 项、`world-screen/engage/ime/resize/hint/occlusion/wheel`、
+  `world-datahall-smoke`、`world-glyphs`、`world-quest` 全通过。
+- **已知遗留**：`world-city-smoke` 3 项（传送门 9→13 等 S1 旧断言）、`world-guide` 1 项
+  "中止后能正常走"（位移 0.8m < 1.5m；已用 `git stash` 在改动前基线复现同样结果，非本批引入）；
+  guide 的站点数断言已按 13 站修正。真接口 HTTP 仍未验（本机 Nacos/Docker 未起）。
 
 ### S6 内城 12 坊
 

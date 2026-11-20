@@ -16,6 +16,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * 快照组装器与常用工厂：让 provider 只写"取什么数"，不写"怎么摆"。
@@ -41,6 +42,21 @@ public final class Overviews {
 
     /** 生成时刻口径：ISO-8601 带时区 */
     private static final DateTimeFormatter ISO = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
+
+    /** 「亿」的折算阈值 */
+    private static final double YI = 1e8;
+
+    /** 「万」的折算阈值 */
+    private static final double WAN = 1e4;
+
+    /** 一小时 / 一天 / 一分钟的秒数，供时长排版用 */
+    private static final int SECONDS_PER_MINUTE = 60;
+
+    /** 一小时的秒数 */
+    private static final int SECONDS_PER_HOUR = 3_600;
+
+    /** 一天的秒数 */
+    private static final int SECONDS_PER_DAY = 86_400;
 
     /**
      * 私有构造器：工具类
@@ -222,6 +238,106 @@ public final class Overviews {
      */
     public static OverviewLink link(String key, String label, String path, String permission) {
         return new OverviewLink(key, label, path, permission);
+    }
+
+    /**
+     * 按契约口径排版一个裸数值。
+     *
+     * <p><b>为什么服务端也要有一份排版实现</b>：汇总类 provider（如数枢殿总控）要把
+     * 多路快照压成一张表，而各殿的首指标口径不同（营收是金额、订单是计数），
+     * 表格一列只能有一种排版 —— 只能在服务端先排成字符串。规则与前端
+     * {@code overview.ts#formatValue} 逐条对齐（万/亿折算、百分比乘 100、
+     * 时长进位），改这边必须同步改那边，否则同一张牌在城里和屏风上会显示成两个数。</p>
+     *
+     * @param format 排版口径，{@code null} 视为计数
+     * @param value 裸数值
+     * @return 可直接显示的文本（不含单位）
+     */
+    public static String formatValue(OverviewFormat format, double value) {
+        OverviewFormat safe = format == null ? OverviewFormat.COUNT : format;
+        return switch (safe) {
+            case MONEY -> money(value);
+            case PERCENT -> String.format(Locale.CHINA, "%.1f%%", value * 100);
+            case DURATION -> duration(value);
+            case TEXT -> plain(value);
+            case COUNT -> scale(value);
+        };
+    }
+
+    /**
+     * 按契约口径排版一个指标（计数类追加单位）
+     *
+     * <p>金额与百分比已自带符号，再拼单位会出现 {@code ¥12万元}，因此只有计数类追加
+     * {@link OverviewKpi#unit()}。</p>
+     *
+     * @param kpi 指标，可空
+     * @return 可直接显示的文本；指标为空时返回 {@code —}
+     */
+    public static String formatKpi(OverviewKpi kpi) {
+        if (kpi == null) {
+            return "—";
+        }
+        String text = formatValue(kpi.format(), kpi.value());
+        return kpi.format() == OverviewFormat.COUNT && kpi.unit() != null && !kpi.unit().isBlank()
+                ? text + kpi.unit()
+                : text;
+    }
+
+    /**
+     * 金额排版：与计数同阈值，前缀 ￥
+     *
+     * @param value 金额
+     * @return 文本
+     */
+    private static String money(double value) {
+        return "¥" + scale(value);
+    }
+
+    /**
+     * 计数排版：万 / 亿折算，其余千分位
+     *
+     * @param value 数值
+     * @return 文本
+     */
+    private static String scale(double value) {
+        double abs = Math.abs(value);
+        if (abs >= YI) {
+            return String.format(Locale.CHINA, "%.2f亿", value / YI);
+        }
+        if (abs >= WAN) {
+            return String.format(Locale.CHINA, "%.1f万", value / WAN);
+        }
+        return String.format(Locale.CHINA, "%,d", Math.round(value));
+    }
+
+    /**
+     * 时长排版：天 / 小时 / 分钟 / 秒
+     *
+     * @param seconds 秒数
+     * @return 文本
+     */
+    private static String duration(double seconds) {
+        long safe = Math.max(0L, Math.round(seconds));
+        if (safe >= SECONDS_PER_DAY) {
+            return String.format(Locale.CHINA, "%.1f天", (double) safe / SECONDS_PER_DAY);
+        }
+        if (safe >= SECONDS_PER_HOUR) {
+            return String.format(Locale.CHINA, "%.1f小时", (double) safe / SECONDS_PER_HOUR);
+        }
+        if (safe >= SECONDS_PER_MINUTE) {
+            return Math.round((double) safe / SECONDS_PER_MINUTE) + "分钟";
+        }
+        return safe + "秒";
+    }
+
+    /**
+     * 文本口径：整数不带小数点，其余原样
+     *
+     * @param value 数值
+     * @return 文本
+     */
+    private static String plain(double value) {
+        return value == Math.rint(value) ? String.valueOf((long) value) : String.valueOf(value);
     }
 
     /**

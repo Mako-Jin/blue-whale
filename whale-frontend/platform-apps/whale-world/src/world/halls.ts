@@ -12,19 +12,29 @@ import type { HallData } from './datahall';
 import { createOverviewFeed, toHallData, type OverviewFeedOptions, type OverviewHallSpec } from './overview';
 
 /**
- * 已接入契约的服务（标杆：户部 / ERP）。
+ * 已接入契约的服务（标杆：户部 / ERP；S5：数枢殿总控）。
  *
- * <p>路径与 2D 后台同前缀（REQ-ARCH-003：网关不剥前缀），权限码复用
- * `sys:erp:bi:cockpit:list`，不为 3D 单独发一套授权。</p>
+ * <p>路径与 2D 后台同前缀（REQ-ARCH-003：网关不剥前缀），权限码复用 2D 同一码，
+ * 不为 3D 单独发一套授权。</p>
  */
 export const OVERVIEW_HALLS: OverviewHallSpec[] = [
   { nodeKey: 'hubu-hall', path: '/erp/overview', permission: 'sys:erp:bi:cockpit:list' },
+  /* 数枢殿总控（S5/T5.1）：服务端把在册各殿的概览汇成一屏。
+     **不设权限码**——总控的可见范围就是"你在各殿能看到的范围"，
+     缺凭据的殿在总控里显示为「无凭据」行，而不是整块 403。
+     另给一个权限码只会让"没权限"和"没这条接口"变成同一个 403。 */
+  { nodeKey: 'shushu-hall', path: '/monitor/overview' },
 ];
 
 /** 采集器选项：与 metrics 共用同一套令牌/权限来源 */
 export interface HallOverviewOptions extends Omit<OverviewFeedOptions, 'halls' | 'onChange'> {
   /** 城内宫殿列表，用于取殿名与副标题兜底 */
   palaces: PalaceSpec[];
+  /**
+   * 主殿（数枢殿）：它不在 {@link PalaceSpec} 列表里（那是十二坊），
+   * 但它的厅同样走契约接口，名字与副标题得单独给，否则厅匾上会显示节点 key。
+   */
+  mainHall?: { nodeKey: string; name: string; sub: string };
   /** 厅数据变化回调（Map 原地更新） */
   onChange: (halls: Map<string, HallData>) => void;
 }
@@ -52,8 +62,16 @@ export function createHallOverview(options: HallOverviewOptions): HallOverviewHa
   if (OVERVIEW_HALLS.length === 0) {
     return null;
   }
-  const palaceOf = (nodeKey: string): PalaceSpec | undefined =>
-    options.palaces.find((palace) => palace.nodeKey === nodeKey);
+  const labelOf = (nodeKey: string): { name: string; sub: string } => {
+    const palace = options.palaces.find((item) => item.nodeKey === nodeKey);
+    if (palace) {
+      return { name: palace.name, sub: palace.sub };
+    }
+    if (options.mainHall && options.mainHall.nodeKey === nodeKey) {
+      return { name: options.mainHall.name, sub: options.mainHall.sub };
+    }
+    return { name: nodeKey, sub: nodeKey };
+  };
 
   const halls = new Map<string, HallData>();
   const feed = createOverviewFeed({
@@ -64,8 +82,8 @@ export function createHallOverview(options: HallOverviewOptions): HallOverviewHa
     intervalMillis: options.intervalMillis,
     onChange: (results) => {
       results.forEach((result, nodeKey) => {
-        const palace = palaceOf(nodeKey);
-        halls.set(nodeKey, toHallData(result, palace?.name ?? nodeKey, palace?.sub ?? nodeKey));
+        const label = labelOf(nodeKey);
+        halls.set(nodeKey, toHallData(result, label.name, label.sub));
       });
       options.onChange(halls);
     },

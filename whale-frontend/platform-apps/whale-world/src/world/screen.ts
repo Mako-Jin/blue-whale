@@ -168,7 +168,8 @@ class Screen {
   readonly id: string;
   readonly el: HTMLElement;
   readonly body: HTMLElement;
-  readonly object: CSS3DObject;
+  /** 3D 对象；退出贴脸态时会换一个新的，原因见 {@link Screen#reattach3d} */
+  object: CSS3DObject;
 
   private readonly titleEl: HTMLElement;
   private readonly subEl: HTMLElement;
@@ -251,6 +252,29 @@ class Screen {
   /** 屏风法线的水平分量（指向"正面看它的人"） */
   normal(): THREE.Vector3 {
     return new THREE.Vector3(Math.sin(this.worldFacing), 0, Math.cos(this.worldFacing));
+  }
+
+  /**
+   * 换一个新的 3D 对象（贴脸态退回 3D 时用）。
+   *
+   * <p><b>为什么要换对象，而不是复用原来那个：</b>three 的 CSS3DRenderer 用
+   * {@code WeakMap<object, {style}>} 缓存"上次写进 {@code element.style.transform}
+   * 的字符串"，只有字符串变了才重写。屏风退出贴脸态后位置/旋转/缩放与进入前完全一样
+   * （相机也被还原），算出来的样式字符串与缓存里那条逐字符相同 → 渲染器认定
+   * "已经写过"直接跳过；而我们刚刚把 inline transform 清空了，于是元素停在
+   * "无变换"状态：视觉上是一块巨大的纸面糊在镜头上，且再也点不动。
+   * 新建对象等于让缓存必然失效 —— 比"改一下坐标再改回来"这种抖动干净得多。</p>
+   */
+  reattach3d(): void {
+    const previous = this.object;
+    const next = new CSS3DObject(this.el);
+    next.position.copy(previous.position);
+    next.rotation.copy(previous.rotation);
+    next.scale.copy(previous.scale);
+    next.visible = previous.visible;
+    next.renderOrder = previous.renderOrder;
+    next.layers.mask = previous.layers.mask;
+    this.object = next;
   }
 
   center(): THREE.Vector3 {
@@ -438,6 +462,10 @@ export function createScreenLayer(options: ScreenLayerOptions): ScreenLayerHandl
     screen.el.style.transformOrigin = '50% 50%';
     screen.el.style.pointerEvents = '';
     planarRoot.removeChild(screen.el);
+    css3dScene.remove(screen.object);
+    /* 必须换一个新对象再挂回场景：复用原对象会命中渲染器的样式缓存，
+       导致 transform 永远不会被重写（详见 Screen#reattach3d 的说明）。 */
+    screen.reattach3d();
     css3dScene.add(screen.object);
     screen.planarized = false;
   }
