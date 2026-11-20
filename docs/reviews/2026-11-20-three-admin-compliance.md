@@ -62,6 +62,8 @@
 
 ```bash
 # 1) 11 条三员断言（只读，不改数据）
+#    DbQ.java 只是本地只读查询小工具；任何 MySQL 客户端（DBeaver / mysql CLI）执行
+#    scripts/verify/three-admin-assertions.sql 等价，输出四列 check_name/expected/actual/result。
 java -cp F:/respository/maven/com/mysql/mysql-connector-j/8.3.0/mysql-connector-j-8.3.0.jar \
      .workbuddy/tmp/DbQ.java "$(cat scripts/verify/three-admin-assertions.sql)"
 
