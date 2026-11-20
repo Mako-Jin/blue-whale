@@ -319,6 +319,8 @@ export interface WorldMetricsHandle {
   /** 开始定时刷新 */
   start: () => void;
   stop: () => void;
+  /** 定时器是否在跑（e2e 断言"离厅即停"用） */
+  isRunning: () => boolean;
   dispose: () => void;
 }
 
@@ -568,6 +570,9 @@ export function createWorldMetrics(
         timer = null;
       }
       document.removeEventListener('visibilitychange', onVisibility);
+    },
+    isRunning() {
+      return timer !== null;
     },
     dispose() {
       disposed = true;

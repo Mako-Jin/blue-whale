@@ -133,7 +133,7 @@ export default function App({ getToken, getPermissions }: AppProps) {
         <div>
           拖拽 转视角&ensp;滚轮 远近&ensp;<kbd>E</kbd> 传送&ensp;<kbd>F</kbd> 交谈&ensp;<kbd>T</kbd>{' '}
           问小鲸宝&ensp;<kbd>G</kbd> 导览&ensp;<kbd>Q</kbd> 喊话&ensp;<kbd>N</kbd> 静音&ensp;
-          <kbd>C</kbd> 形象&ensp;<kbd>M</kbd> 城图&ensp;<kbd>R</kbd> 复位
+          <kbd>C</kbd> 形象&ensp;<kbd>M</kbd> 城图&ensp;<kbd>V</kbd> 数据厅&ensp;<kbd>R</kbd> 复位
         </div>
       </div>
 

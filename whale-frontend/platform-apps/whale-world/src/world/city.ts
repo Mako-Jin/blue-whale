@@ -27,6 +27,8 @@ import { createWorldBrain } from './brain';
 import { mountNpcChat } from './npcchat';
 import { createGlyphs } from './glyphs';
 import { createWorldMetrics } from './metrics';
+import { createDataHall } from './datahall';
+import type { HallData } from './datahall';
 import { createSpeech } from './speech';
 import { mountSayPanel } from './saypanel';
 import { createWorldAudio } from './audio';
@@ -2279,14 +2281,91 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   const glyphs = createGlyphs(PALACES, terrainHeight);
   scene.add(glyphs.group);
 
+  /* ---- 数据厅（S3）：只读数据走 WebGL 层，数据全部来自上面这套 metrics 采集 ----
+     把 GlyphCard 映射成厅配置。tone 取该牌所有指标里最"严重"的一档（bad>warn>good>flat），
+     没有指标时跟状态走——这样厅名匾下的状态灯与该殿牌坊永远同色。 */
+  let dataHall = null;
+  const hallTone = (card) => {
+    const order = { flat: 0, good: 1, warn: 2, bad: 3 };
+    let tone = 'flat';
+    for (const m of card.metrics) {
+      if (order[m.tone ?? 'flat'] > order[tone]) tone = m.tone ?? 'flat';
+    }
+    if (card.metrics.length === 0) {
+      if (card.state === 'unreachable') tone = 'bad';
+      else if (card.state === 'stale' || card.state === 'denied') tone = 'warn';
+    }
+    return tone;
+  };
+  const palaceName = (nodeKey) => PALACES.find((p) => p.nodeKey === nodeKey)?.name ?? nodeKey;
+  const mapHallData = () =>
+    [...metrics.cards.values()].map((card) => ({
+      nodeKey: card.nodeKey,
+      name: palaceName(card.nodeKey),
+      sub: PALACES.find((p) => p.nodeKey === card.nodeKey)?.sub ?? card.nodeKey,
+      state: card.state,
+      tone: hallTone(card),
+      metrics: card.metrics,
+      note: card.note,
+      updatedAt: card.updatedAt,
+    }));
+
+  /** 进出厅的操作提示：用现成 toast，不新增 DOM（守住 bww-* 契约） */
+  const renderHallHint = (nodeKey) => {
+    if (nodeKey === null) return;
+    const hallName = palaceName(nodeKey);
+    showToast(hallName + ' · 数据厅', '← → 切厅 · Esc 出厅 · 30s 自动刷新');
+  };
+
   const metrics = createWorldMetrics(PALACES, {
     // 与问话共用同一套令牌/权限来源；debug 注入的令牌也让牌坊受益
     getToken: () => debugToken() ?? opts.getToken?.() ?? null,
     getPermissions: opts.getPermissions,
-    onChange: (cards) => glyphs.update(cards),
+    onChange: (cards) => {
+      glyphs.update(cards);
+      // 厅开着时同步它的数据；没开也喂，省得进厅那一刻才第一次画
+      dataHall?.setData(mapHallData());
+    },
   });
   // 先把"问询中/上次 xx:xx"的初始态画上去：牌子一开始就该是块牌子，而不是空白木板
   glyphs.update(metrics.cards);
+
+  /* 数据厅刷新调度（T3.6）：进厅停掉城池那套 60s 定时器，改由这里 30s 刷一次；
+     离厅恢复城池采集。两套定时器不能同时跑，否则 8 路接口被刷两遍。 */
+  let hallRefreshTimer = null;
+  const stopHallRefresh = () => {
+    if (hallRefreshTimer !== null) {
+      window.clearInterval(hallRefreshTimer);
+      hallRefreshTimer = null;
+    }
+  };
+  const startHallRefresh = () => {
+    stopHallRefresh();
+    void metrics.refresh();
+    hallRefreshTimer = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      void metrics.refresh();
+    }, 30_000);
+  };
+  const onHallEngaged = (nodeKey) => {
+    if (nodeKey === null) {
+      stopHallRefresh();
+      metrics.start(); // 回城恢复 60s 城情采集
+    } else {
+      metrics.stop(); // 进厅：城池采集让位
+      startHallRefresh();
+    }
+    renderHallHint(nodeKey);
+  };
+
+  dataHall = createDataHall({
+    scene,
+    camera,
+    domElement: renderer.domElement,
+    getFollowPose: () => ({ position: followPos.clone(), target: followTarget.clone() }),
+    onEngagedChange: onHallEngaged,
+  });
+  dataHall.setData(mapHallData());
 
   const brain = createWorldBrain({
     getToken: () => debugToken() ?? opts.getToken?.() ?? null,
@@ -2668,7 +2747,30 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       }
       return;
     }
+    /* 数据厅内：方向键/A/D 切厅、Esc 出厅，先于行走与面板快捷键消费掉，
+       否则按 ← 切厅的同时角色也会横移（厅在 y=400，位移看不见但状态会脏）。 */
+    if (dataHall?.isActive() && dataHall.handleKey(e.code)) {
+      return;
+    }
     keys.add(e.code);
+    /* 进入数据厅（S3）：按 V 开第一厅。玩家若站在某殿坊前，优先开那一厅。 */
+    if (e.code === 'KeyV') {
+      let idx = 0;
+      const keys = [...metrics.cards.keys()];
+      let best = Infinity;
+      for (let i = 0; i < PALACES.length; i++) {
+        const p = PALACES[i];
+        const at = keys.indexOf(p.nodeKey);
+        if (at < 0) continue;
+        const dist = Math.hypot(player.pos.x - p.x, player.pos.z - p.z);
+        if (dist < best) {
+          best = dist;
+          idx = at;
+        }
+      }
+      dataHall?.open(idx);
+      return;
+    }
     if (e.code === 'KeyE') {
       /* 屏风优先于传送门：玩家既然已经站到屏风前，想做的就是看这块屏风。
          没有近处屏风时才回到"开传送门"的旧行为。 */
@@ -3646,10 +3748,13 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     /* 屏风接管相机时（过场中或已进殿），玩家停步、跟随镜头让位。
        只冻结"输入与相机"，NPC、天气、昼夜、传送门照常跑——城里不该因为
        有人站在屏风前看数就静止。 */
+    /* 数据厅（S3）激活时同样冻结输入与跟随相机：厅在 y=400，相机 snap 到固定机位
+       后若还跑 updateCamera 会立刻被拉回玩家身上，展厅直接穿帮。 */
+    const hallActive = Boolean(dataHall?.isActive());
     const screenBusy = screens.isControlling() || domFocused;
-    if (screenBusy) {
+    if (hallActive || screenBusy) {
       player.speed = 0;
-      screens.updateCamera();
+      if (!hallActive) screens.updateCamera();
     } else {
       updatePlayer(dt);
     }
@@ -3659,7 +3764,7 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     // 脚步声跟速度走：静止时 update 内部会自己归零，不必在外面判
     audio.update(dt, player.speed, groundAt(player.pos.x, player.pos.z));
     updateActors(dt);
-    if (!screenBusy) updateCamera(dt);
+    if (!screenBusy && !hallActive) updateCamera(dt);
     updateWhale(dt);
     updatePortals(dt);
     updateScreenHint();
@@ -3822,6 +3927,49 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     /* 画质档探针（视觉合并批1）：读当前档位 / 手动切换（low 直渲，mid/high 走后处理） */
     window.__bwwQuality = () => quality;
     window.__bwwSetQuality = (q: 'high' | 'mid' | 'low') => setQuality(q);
+    /* 数据厅探针（S3）：读厅状态 / 开关 / 切厅 / 导出卡面位图（e2e 与截图评审用） */
+    window.__bwwDataHall = () => ({
+      active: Boolean(dataHall?.isActive()),
+      current: dataHall?.current() ?? null,
+      hallCount: metrics.cards.size,
+      refreshing: metrics.isRunning(),
+      hallRefresh: hallRefreshTimer !== null,
+      cameraY: Number(camera.position.y.toFixed(1)),
+    });
+    window.__bwwHallOpen = (index) => dataHall?.open(index ?? 0);
+    window.__bwwHallClose = () => dataHall?.close();
+    window.__bwwHallNext = () => dataHall?.next();
+    window.__bwwHallPrev = () => dataHall?.prev();
+    window.__bwwHallFace = (kind, index) => dataHall?.faceOf(kind, index) ?? null;
+    /* 演示数据探针：无后端/无权限时图表全是"无可比数据"，评审看不到真出图。
+       这里注入一份确定的假数据（只在 ?debug=1 下存在、只喂数据厅、不碰牌坊与正常路径），
+       连喂 5 次让折线积累 5 个采样点，便于截图评审 KPI/曲线/柱/环在"有数"时的样子。 */
+    window.__bwwHallMock = () => {
+      const keys = [...metrics.cards.keys()];
+      // 连喂 5 次，每次微增主指标，让折线积累 5 个真实采样点
+      for (let k = 0; k < 5; k++) {
+        const demo = [];
+        for (let n = 0; n < keys.length; n++) {
+          const key = keys[n];
+          demo.push({
+            nodeKey: key,
+            name: palaceName(key),
+            sub: PALACES.find((p) => p.nodeKey === key)?.sub ?? key,
+            state: 'live',
+            tone: n === 2 ? 'warn' : 'good',
+            note: '演示数据',
+            updatedAt: Date.now(),
+            metrics: [
+              { label: '营收', value: `${(12.4 + n * 0.7 + k * 0.3).toFixed(1)}万`, tone: 'good' },
+              { label: '订单', value: `${2840 + n * 137}`, tone: 'flat' },
+              { label: '预警', value: `${n % 3}`, tone: n % 3 > 0 ? 'warn' : 'good' },
+              { label: '达成', value: `${(88 + n).toFixed(1)}%`, tone: 'good' },
+            ],
+          });
+        }
+        dataHall?.setData(demo);
+      }
+    };
     /* 时段探针（视觉合并批3）：直接设 world.time（0..1，0.5=正午 0.25=日出 0.75=日落）。
      * e2e 与截图评审需要确定的昼夜相位，靠等 150s 一天的真实周期不可靠。 */
     window.__bwwSetTime = (t: number) => {
@@ -4033,6 +4181,12 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     if (disposed) return;
     disposed = true;
     cancelAnimationFrame(rafId);
+    if (hallRefreshTimer !== null) {
+      window.clearInterval(hallRefreshTimer);
+      hallRefreshTimer = null;
+    }
+    dataHall?.dispose();
+    dataHall = null;
     cleanups.forEach((fn) => fn());
     cleanups.length = 0;
     clearTimeout(toastTimer);
