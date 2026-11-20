@@ -49,6 +49,8 @@ import {
   applyStoneMap,
   applyPlasterMap,
 } from './textures';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { BOARD_D, SIGN_PROUD, drawGoldPlaqueTexture, goldSignMaterial } from './plaque';
 import type { CharPanelHandle } from './charpanel';
 import type { AvatarParams } from './avatar';
 import type { NpcChatHandle } from './npcchat';
@@ -145,6 +147,11 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   const isSoftwareGpu = /swiftshader|llvmpipe|softpipe|software/i.test(gpuName);
   let quality: Quality = isSoftwareGpu ? 'low' : 'mid';
 
+  /* 调试自由漫游（仅 ?debug=1 暴露）：默认玩家被钳在 OUTER-4 城内 —— 城外河道、
+   * 门楼外侧的机位拍不到。截图评审 / 探针需要出城时必须显式打开，否则会被
+   * 每帧 clamp 拖回城里（批3 踩过）。 */
+  let freeRoam = false;
+
   const postfx: PostFx = createPostFx(renderer, scene, camera, innerWidth, innerHeight);
   postfx.setAntialias(QUALITY[quality].aa);
 
@@ -234,6 +241,9 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   const matWall = M(0x8b8478, { roughness: 0.95 });
   const matWallDark = M(0x6f695f, { roughness: 0.95 });
   const matStone = M(0xd6cfbd, { roughness: 0.85 });
+  /* 门洞抱框/台明用的整石：比 matStone 暗两档。matStone 是给压顶、栏板这类小
+   * 构件做高光用的，整面用它在正午 IBL 下白得刺眼（批4 首轮实拍）。 */
+  const matAshlar = M(0xb9b09b, { roughness: 0.9 });
   const matRoad = M(0x9a9384, { roughness: 0.98 });
   const matRed = M(0x8f3a2c, { roughness: 0.8 });
   const matRedDark = M(0x6b2a20, { roughness: 0.85 });
@@ -660,6 +670,63 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   const _v3 = new THREE.Vector3();
   const _s3 = new THREE.Vector3(1, 1, 1);
 
+  /* ==========================================================================
+   * 城门楼合批设施（视觉合并批4）
+   *
+   * <p>六个门楼 × 数十个构件，逐个 mesh add 会白吃上百 draw call；构件几何乘上
+   * 门楼世界矩阵后按材质入桶，末尾每桶 mergeGeometries 成 1 个 mesh（8 桶）。
+   * 门洞与城墙几何一律不动——collision.ts 的穿门/挡墙断言依赖它们。</p>
+   * ========================================================================== */
+  const gateGeo: Record<string, THREE.BufferGeometry[]> = {
+    wall: [],
+    ashlar: [],
+    stone: [],
+    red: [],
+    redDark: [],
+    wood: [],
+    gold: [],
+    board: [],
+    roofOuter: [],
+    roofInner: [],
+  };
+  /** 匾额面片（每面一张独立贴图，合不了批）与檐灯世界坐标 */
+  const gateSigns: THREE.Mesh[] = [];
+  const gateLanternPos: THREE.Vector3[] = [];
+  /** 有门名的门楼锚点（x/z + 门外朝向），供"最近门楼"那盏点光逐帧就位 */
+  const gateAnchors: { x: number; z: number; yaw: number }[] = [];
+  /**
+   * 门楼檐灯的实际照明（只此一盏，逐帧移到最近的门楼）。
+   *
+   * <p>檐灯本身是 MeshBasicMaterial + 溢光壳，只"看着亮"不照别人；四个门外各挂
+   * 一盏点光会让所有材质的灯数常量翻倍（实测吃 3~4fps），而四门外相距 180m，
+   * 同一时刻只可能靠近一座——一盏跟着最近门楼走，视觉等价、开销一份。</p>
+   */
+  const gateLight = new THREE.PointLight(0xffa060, 0, 34, 2);
+  gateLight.name = 'gate-light';
+  scene.add(gateLight);
+  const GATE_ID = new THREE.Matrix4();
+  const _gm = new THREE.Matrix4();
+  const _gl = new THREE.Matrix4();
+  const _gq = new THREE.Quaternion();
+  const _ge = new THREE.Euler();
+  const _gp = new THREE.Vector3();
+  const _gone = new THREE.Vector3(1, 1, 1);
+
+  /** 几何按「门楼世界矩阵 × 局部变换」入桶 */
+  function gateEmit(bucket, geo, G, px = 0, py = 0, pz = 0, rx = 0, ry = 0, rz = 0) {
+    _gq.setFromEuler(_ge.set(rx, ry, rz));
+    _gl.compose(_gp.set(px, py, pz), _gq, _gone);
+    geo.applyMatrix4(_gm.copy(G).multiply(_gl));
+    gateGeo[bucket].push(geo);
+  }
+
+  /** 门楼盒体：UV 按米缩放，与 box() 工厂同口径（砖石纹不被拉伸） */
+  function gateBox(bucket, G, w, h, d, px, py, pz, rx = 0, ry = 0, rz = 0) {
+    const geo = new THREE.BoxGeometry(w, h, d);
+    scaleBoxUV(geo, w, h, d);
+    gateEmit(bucket, geo, G, px, py, pz, rx, ry, rz);
+  }
+
   function addMerlons(x0, z0, x1, z1, yTop, step = 3.6) {
     const dx = x1 - x0;
     const dz = z1 - z0;
@@ -683,7 +750,7 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
    * @param {'x'|'z'} along 延伸方向
    * @param {number} sign 位置符号
    */
-  function buildWallSide(half, height, thick, along, sign, gateW, gateH, group) {
+  function buildWallSide(half, height, thick, along, sign, gateW, gateH, group, frame = true) {
     const len = half * 2;
     const segW = (len - gateW) / 2;
     const yBase = 0;
@@ -715,6 +782,28 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       group.add(m);
     }
 
+    /* 门洞石框（批4）：门额石带 + 两侧抱框，内外两面各一套。纯装饰——洞口
+     * 尺寸分毫不动（collision.ts 的穿门断言依赖它）。没有这一圈，穿门时看到的
+     * 是墙体截断面：砖纹贴图在截面上是一片横切撕口，很脏。 */
+    const fz = thick / 2 + 0.2;
+    if (frame) {
+      for (const f of [-1, 1]) {
+        if (along === 'x') {
+          const zf = sign * half + f * fz;
+          gateBox('ashlar', GATE_ID, gateW + 1.7, 0.9, 0.4, 0, gateH + 0.45, zf);
+          for (const ps of [-1, 1]) {
+            gateBox('ashlar', GATE_ID, 0.55, gateH, 0.4, ps * (gateW / 2 + 0.28), gateH / 2, zf);
+          }
+        } else {
+          const xf = sign * half + f * fz;
+          gateBox('ashlar', GATE_ID, 0.4, 0.9, gateW + 1.7, xf, gateH + 0.45, 0);
+          for (const ps of [-1, 1]) {
+            gateBox('ashlar', GATE_ID, 0.4, gateH, 0.55, xf, gateH / 2, ps * (gateW / 2 + 0.28));
+          }
+        }
+      }
+    }
+
     // 垛口
     if (along === 'x') {
       addMerlons(-half, sign * half, -gateW / 2 - 0.5, sign * half, height);
@@ -725,39 +814,123 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     }
   }
 
-  /** 城门楼 */
-  function buildGateTower(x, z, yaw, scale = 1, roofColor = 0x2f6b5f) {
-    const g = new THREE.Group();
-    g.position.set(x, 0, z);
-    g.rotation.y = yaw;
-
-    const base = box(20 * scale, 4 * scale, 12 * scale, matStone);
-    base.position.y = 12 * scale;
-    g.add(base);
-
-    const hall = box(15 * scale, 6 * scale, 9 * scale, matRed);
-    hall.position.y = 17 * scale;
-    g.add(hall);
-
-    const roof = new THREE.Mesh(
-      new THREE.CylinderGeometry(
-        (11.5 * scale) / Math.SQRT2,
-        (18 * scale) / Math.SQRT2,
-        3.4 * scale,
-        4,
-      ),
-      M(roofColor, { roughness: 0.6, metalness: 0.15 }),
+  /**
+   * 城门楼（批4 重做）：城台 + 台明 + 周围廊十二柱 + 填板墙 + 额枋斗拱 + 两坡
+   * 瓦顶 + 正脊鸱吻；有门名的再挂两面金字匾额与檐下灯笼。
+   *
+   * <p>局部 **+Z 就是门外方向**（yaw 把 +Z 转到该门朝向），匾与檐灯都在 ±Z 立面。
+   * 几何全部入桶，由末尾统一合批，函数本身不建 mesh。</p>
+   *
+   * @param roofBucket 'roofOuter' | 'roofInner'（瓦色分桶）
+   * @param name 门名（匾额题字）；null 不挂匾也不挂灯（内城门）
+   */
+  function buildGateTower(x, z, yaw, scale, roofBucket, name) {
+    const s = scale;
+    const G = new THREE.Matrix4().compose(
+      new THREE.Vector3(x, 0, z),
+      new THREE.Quaternion().setFromAxisAngle(Y_AXIS, yaw),
+      new THREE.Vector3(1, 1, 1),
     );
-    roof.rotation.y = Math.PI / 4;
-    roof.position.y = 21.7 * scale;
-    roof.castShadow = true;
-    g.add(roof);
 
-    const ridge = box(16 * scale, 0.55, 0.55, matGold);
-    ridge.position.y = 23.5 * scale;
-    g.add(ridge);
+    /* ---- 城台：外形与旧版一致（20×4×12 @ y=12），只加压顶石与女墙 ---- */
+    gateBox('wall', G, 20 * s, 4 * s, 9 * s, 0, 12 * s, 0);
+    /* 城台挑檐：城外机位没有阴影贴图（阴影盒只跟玩家 44m），只靠材质差读不出
+     * 城台比城墙厚 6m —— 沿底沿加一道出挑的整石，明暗交界自己就把厚度说清了。 */
+    gateBox('ashlar', G, 20.6 * s, 0.45 * s, 9.6 * s, 0, 10.1 * s, 0);
+    gateBox('ashlar', G, 20.8 * s, 0.36 * s, 9.8 * s, 0, 14.05 * s, 0);
+    /* 女墙只做两端：前后檐柱在 z=±4.55，正好压在城台前沿上，前后加墙会插进柱子；
+     * 有周围廊的城楼本来也是廊柱临边、只在山面设墙。 */
+    for (const sg of [-1, 1]) {
+      gateBox('ashlar', G, 0.42 * s, 0.9 * s, 9.6 * s, sg * 10 * s, 14.7 * s, 0);
+    }
 
-    return g;
+    /* ---- 城楼：台明 + 填板墙 + 周围廊十二柱（4 角 + 4 前后檐中柱 + 4 山面） ---- */
+    gateBox('ashlar', G, 16 * s, 0.5 * s, 10.4 * s, 0, 14.35 * s, 0); // 台明（顶 14.6）
+    gateBox('red', G, 14.4 * s, 4.9 * s, 8.4 * s, 0, 17.05 * s, 0);
+    const colGeo = () => new THREE.CylinderGeometry(0.25 * s, 0.27 * s, 5.2 * s, 10);
+    const column = (cx, cz) => {
+      gateBox('ashlar', G, 0.62 * s, 0.34 * s, 0.62 * s, cx * s, 14.77 * s, cz * s); // 柱础
+      gateEmit('redDark', colGeo(), G, cx * s, 17.2 * s, cz * s); // 柱顶 19.8
+    };
+    for (const cx of [-7, -2.6, 2.6, 7]) {
+      for (const cz of [-4.55, 4.55]) column(cx, cz);
+    }
+    for (const cx of [-7, 7]) {
+      for (const cz of [-2.4, 2.4]) column(cx, cz);
+    }
+
+    /* ---- 板门与直棂窗（填板墙内外两面）---- */
+    for (const sg of [-1, 1]) {
+      gateBox('wood', G, 3.6 * s, 3.4 * s, 0.22 * s, 0, 16.5 * s, sg * 4.28 * s);
+      for (const wx of [-4.8, 4.8]) {
+        gateBox('wood', G, 2.2 * s, 1.6 * s, 0.18 * s, wx * s, 17.5 * s, sg * 4.28 * s);
+      }
+    }
+
+    /* ---- 额枋 + 檐下斗拱示意（短悬臂；只有十来像素，但去掉檐口就"飘"）---- */
+    gateBox('redDark', G, 15.2 * s, 0.6 * s, 9.4 * s, 0, 20.1 * s, 0);
+    for (let i = -6; i <= 6; i++) {
+      for (const sg of [-1, 1]) {
+        gateBox('wood', G, 0.34 * s, 0.5 * s, 1.4 * s, i * 1.1 * s, 20.65 * s, sg * 4.9 * s);
+      }
+    }
+
+    /* ---- 两坡瓦顶：檐口 20.9，坡度 0.33rad（showcase 同口径），正脊 22.95 ---- */
+    for (const sg of [-1, 1]) {
+      gateBox(roofBucket, G, 17.4 * s, 0.34 * s, 6.2 * s, 0, 21.9 * s, sg * 2.94 * s, sg * 0.33);
+    }
+    for (const sg of [-1, 1]) {
+      gateBox('redDark', G, 17.6 * s, 0.36 * s, 0.3 * s, 0, 20.95 * s, sg * 5.42 * s); // 封檐板
+    }
+    gateBox('gold', G, 17.8 * s, 0.5 * s, 0.64 * s, 0, 22.95 * s, 0);
+    for (const sg of [-1, 1]) {
+      gateBox('gold', G, 0.7 * s, 1.4 * s, 0.5 * s, sg * 8.6 * s, 23.6 * s, 0, 0, 0, -sg * 0.3);
+    }
+
+    if (!name) return;
+    gateAnchors.push({ x, z, yaw });
+
+    /* ---- 匾额：明间（柱 -2.6..2.6）挂 4.2×1.15 漆地，两面各一块 + 金字面片 ---- */
+    const bw = 4.2 * s;
+    const bh = 1.15 * s;
+    const by = 18.6 * s;
+    const signW = bw - 0.1 * s;
+    const signH = bh - 0.08 * s;
+    /* 金字面片在 low 档（SwiftShader，e2e 路径）跳过：一块匾一张 1800×500 的
+     * canvas + alphaTest 采样，在软渲染下是纯负担，而 e2e 只断言 DOM/探针。
+     * 漆地照建，远看仍是"挂了匾"。 */
+    const signMat =
+      quality === 'low'
+        ? null
+        : goldSignMaterial(
+            drawGoldPlaqueTexture(name, signW, signH, 0.74 * s),
+            `gatePlaque-${name}`,
+          );
+    const signGeo = signMat ? new THREE.PlaneGeometry(signW, signH) : null;
+    for (const sg of [-1, 1]) {
+      gateBox('board', G, bw, bh, BOARD_D * s, 0, by, sg * (4.2 * s + (BOARD_D * s) / 2));
+      if (!signMat) continue;
+      // plane 法线 +Z：+Z 面不转、-Z 面绕 Y 转 π——两面读字都正立不镜像
+      const sign = new THREE.Mesh(signGeo, signMat);
+      sign.position.set(0, by, sg * (4.2 * s + BOARD_D * s + SIGN_PROUD));
+      sign.rotation.y = sg > 0 ? 0 : Math.PI;
+      sign.castShadow = false; // 字不投影：alphaTest 镂空的影子是一团噪点
+      sign.receiveShadow = true; // 檐口影子落到字上，反而是"匾在檐下"的证据
+      sign.updateMatrix();
+      gateSigns.push(sign); // 位置在合批末尾统一乘门楼矩阵
+      sign.applyMatrix4(G);
+    }
+
+    /* ---- 檐下灯笼：额枋外沿吊 3 盏 × 内外两面（复用 matLantern，夜间自动点亮）---- */
+    /* 每面 4 盏、避开明间中轴：3 盏时中间那盏正好挂在匾额上沿，溢光壳半径 1.35
+     * 会把"南"字糊掉。 */
+    for (const lx of [-6.3, -3.3, 3.3, 6.3]) {
+      for (const sg of [-1, 1]) {
+        const lz = sg * 5.55 * s;
+        gateEmit('wood', new THREE.CylinderGeometry(0.04 * s, 0.04 * s, 1.5 * s, 6), G, lx * s, 20.5 * s, lz);
+        gateLanternPos.push(new THREE.Vector3(lx * s, 19.3 * s, lz).applyMatrix4(G));
+      }
+    }
   }
 
   const cityGroup = new THREE.Group();
@@ -769,10 +942,12 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   buildWallSide(OUTER, 10, 3.2, 'x', 1, 16, 9.2, cityGroup);
   buildWallSide(OUTER, 10, 3.2, 'z', -1, 16, 9.2, cityGroup);
   buildWallSide(OUTER, 10, 3.2, 'z', 1, 16, 9.2, cityGroup);
-  cityGroup.add(buildGateTower(0, OUTER, 0, 1.0, 0x2f6b5f));
-  cityGroup.add(buildGateTower(0, -OUTER, Math.PI, 1.0, 0x2f6b5f));
-  cityGroup.add(buildGateTower(OUTER, 0, -Math.PI / 2, 1.0, 0x2f6b5f));
-  cityGroup.add(buildGateTower(-OUTER, 0, Math.PI / 2, 1.0, 0x2f6b5f));
+  /* 四座外城门：指北针以 -Z 为北（小地图口径），故南 +Z、北 -Z、东 +X、西 -X。
+   * yaw 必须把门楼局部 +Z 转到"门外"，匾额与檐灯才朝向城外。 */
+  buildGateTower(0, OUTER, 0, 1.0, 'roofOuter', '南薰門');
+  buildGateTower(0, -OUTER, Math.PI, 1.0, 'roofOuter', '望江門');
+  buildGateTower(OUTER, 0, Math.PI / 2, 1.0, 'roofOuter', '朝陽門');
+  buildGateTower(-OUTER, 0, -Math.PI / 2, 1.0, 'roofOuter', '鯨津門');
 
   // 内城
   const INNER = CITY_GEOMETRY.innerWall;
@@ -780,8 +955,55 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   buildWallSide(INNER, 8, 2.4, 'x', 1, 12, 7.2, cityGroup);
   buildWallSide(INNER, 8, 2.4, 'z', -1, 12, 7.2, cityGroup);
   buildWallSide(INNER, 8, 2.4, 'z', 1, 12, 7.2, cityGroup);
-  cityGroup.add(buildGateTower(0, INNER, 0, 0.78, 0x3f5f78));
-  cityGroup.add(buildGateTower(0, -INNER, Math.PI, 0.78, 0x3f5f78));
+  buildGateTower(0, INNER, 0, 0.78, 'roofInner', null);
+  buildGateTower(0, -INNER, Math.PI, 0.78, 'roofInner', null);
+
+  /* ---- 门楼合批收口（批4）：每材质桶并成 1 个 mesh ---- */
+  {
+    const gateMats = {
+      wall: matWall,
+      ashlar: matAshlar,
+      stone: matStone,
+      red: matRed,
+      redDark: matRedDark,
+      wood: matWood,
+      gold: matGold,
+      board: M(0x2b1f19, { roughness: 0.52, metalness: 0.05 }),
+      roofOuter: M(0x2f6b5f, { roughness: 0.55, metalness: 0.18 }),
+      roofInner: M(0x3f5f78, { roughness: 0.55, metalness: 0.18 }),
+    };
+    for (const [key, list] of Object.entries(gateGeo)) {
+      if (!list.length) continue;
+      const merged = mergeGeometries(list, false);
+      list.forEach((geo) => geo.dispose());
+      const mesh = new THREE.Mesh(merged, gateMats[key]);
+      mesh.name = `gate-${key}`;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      cityGroup.add(mesh);
+    }
+    gateSigns.forEach((sign) => cityGroup.add(sign));
+
+    /* 檐下灯笼：24 盏两个 InstancedMesh（灯体 + 溢光壳）。材质复用御道灯笼的
+     * matLantern/matLanternGlow——它们每帧按昼夜改色与不透明度，门楼灯自动跟着亮。 */
+    if (gateLanternPos.length) {
+      const bodyGeo = new THREE.SphereGeometry(0.44, 10, 8);
+      bodyGeo.scale(1, 1.18, 1);
+      const glowGeo = new THREE.SphereGeometry(1.35, 8, 6);
+      const bodies = new THREE.InstancedMesh(bodyGeo, matLantern, gateLanternPos.length);
+      const glows = new THREE.InstancedMesh(glowGeo, matLanternGlow, gateLanternPos.length);
+      gateLanternPos.forEach((p, i) => {
+        _gm.makeTranslation(p.x, p.y, p.z);
+        bodies.setMatrixAt(i, _gm);
+        glows.setMatrixAt(i, _gm);
+      });
+      bodies.instanceMatrix.needsUpdate = true;
+      glows.instanceMatrix.needsUpdate = true;
+      bodies.name = 'gate-lanterns';
+      glows.name = 'gate-lantern-glows';
+      cityGroup.add(bodies, glows);
+    }
+  }
 
   // 垛口合批
   {
@@ -935,10 +1157,10 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   // 皇城墙
   {
     const R = CITY_GEOMETRY.royalWall;
-    buildWallSide(R, 12, 2.6, 'x', -1, 10, 8.5, palaceGroup);
-    buildWallSide(R, 12, 2.6, 'x', 1, 10, 8.5, palaceGroup);
-    buildWallSide(R, 12, 2.6, 'z', -1, 10, 8.5, palaceGroup);
-    buildWallSide(R, 12, 2.6, 'z', 1, 10, 8.5, palaceGroup);
+    buildWallSide(R, 12, 2.6, 'x', -1, 10, 8.5, palaceGroup, false);
+    buildWallSide(R, 12, 2.6, 'x', 1, 10, 8.5, palaceGroup, false);
+    buildWallSide(R, 12, 2.6, 'z', -1, 10, 8.5, palaceGroup, false);
+    buildWallSide(R, 12, 2.6, 'z', 1, 10, 8.5, palaceGroup, false);
   }
 
   // 主殿：数枢殿 → 核心数据（参数来自 city-layout.json）
@@ -2201,6 +2423,9 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     yaw: 0,
     pitch: 0.44,
     dist: 16,
+    /** 取景点相对玩家眼睛的抬升（m）。正常玩法恒为 0，只有截图评审用
+     *  __bwwLookAt 抬起来看匾额、屋顶这类高处的构件。 */
+    rise: 0,
     target: new THREE.Vector3(),
   };
   const keys = new Set();
@@ -2657,6 +2882,27 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     matLantern.color.copy(new THREE.Color(0x4a3226).lerp(new THREE.Color(0xff5a3c), lanternOn));
     matLanternGlow.opacity = 0.05 + lanternOn * 0.2;
 
+    /* 门楼檐灯的照明：一盏点光跟到最近的门楼外侧，50m 内才点（超出即熄灭）。
+     * 灯位取门楼中轴外 7m、高 13m——城台立面、匾额、门洞上沿都在照射角内。 */
+    if (gateAnchors.length) {
+      let bestD2 = Infinity;
+      let best = null;
+      for (const a of gateAnchors) {
+        const d2 = (a.x - player.pos.x) ** 2 + (a.z - player.pos.z) ** 2;
+        if (d2 < bestD2) {
+          bestD2 = d2;
+          best = a;
+        }
+      }
+      const d = Math.sqrt(bestD2);
+      if (best && d < 50) {
+        gateLight.position.set(best.x + Math.sin(best.yaw) * 7, 13, best.z + Math.cos(best.yaw) * 7);
+        gateLight.intensity = lanternOn * 120 * clamp(1 - d / 50, 0, 1);
+      } else {
+        gateLight.intensity = 0;
+      }
+    }
+
     waterUniforms.uSky.value.copy(bot).multiplyScalar(1.0);
     visibleSky.mesh.position.copy(camera.position);
 
@@ -3021,8 +3267,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     player.pos.x += Math.sin(player.yaw) * step;
     player.pos.z += Math.cos(player.yaw) * step;
 
-    // 城墙与建筑边界（简单推挤）
-    const lim = OUTER - 4;
+    // 城墙与建筑边界（简单推挤；freeRoam 为截图/探针用，正常玩法恒为城内钳位）
+    const lim = freeRoam ? 1e4 : OUTER - 4;
     player.pos.x = clamp(player.pos.x, -lim, lim);
     player.pos.z = clamp(player.pos.z, -lim, lim);
     collide(player.pos);
@@ -3055,7 +3301,7 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   }
 
   function updateCamera(dt) {
-    camTarget.copy(player.pos).add(new THREE.Vector3(0, 2.4, 0));
+    camTarget.copy(player.pos).add(new THREE.Vector3(0, 2.4 + cam.rise, 0));
     const cp = Math.cos(cam.pitch);
     // 玩家在城内时，相机不允许越过外墙（避免城墙挡镜头）
     let d = cam.dist;
@@ -3304,6 +3550,11 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     window.__bwwSetTime = (t: number) => {
       world.time = t;
     };
+    /* 出城探针（视觉合并批4）：门楼外立面/城外河道的机位都被 OUTER-4 的钳位
+     * 挡住，截图脚本必须先开这个。只在 ?debug=1 下存在。 */
+    window.__bwwFreeRoam = (v: boolean) => {
+      freeRoam = Boolean(v);
+    };
     /* 牌坊状态探针：给 e2e 断言"哪个殿拿到了真数、哪个殿降级了" */
     window.__bwwGlyphs = () =>
       [...metrics.cards.values()].map((card) => ({
@@ -3448,7 +3699,16 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       GUIDE_STOPS.map((s) => ({ nodeKey: s.nodeKey, name: s.name, x: s.x, z: s.z }));
     /* 直接定轨道相机：e2e 需要"站在某点、朝某处看"的确定视角，靠拖拽估算角度不可靠。
        注意这里的 yaw 是**相机**绕玩家的方位（cam.yaw），不是角色朝向（player.yaw） */
+    /* 取景探针（视觉合并批4）：把相机环绕点抬到 rise 米，用于评审匾额/屋顶。
+     * 正常操作里的 pitch 是俯角且不许为负，抬高处的构件只能靠这个看。 */
+    window.__bwwLookAt = (yaw, pitch, dist, rise = 0) => {
+      cam.yaw = yaw;
+      cam.pitch = clamp(pitch, -0.6, 1.15);
+      cam.dist = Math.max(3, dist);
+      cam.rise = rise;
+    };
     window.__bwwLook = (yaw, pitch, dist) => {
+      cam.rise = 0;
       cam.yaw = yaw;
       if (typeof pitch === 'number') {
         cam.pitch = clamp(pitch, 0.08, 1.15);

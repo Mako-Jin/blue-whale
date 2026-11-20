@@ -77,7 +77,13 @@ let progressOk = true;
 for (let i = 0; i < stops.length; i += 1) {
   const stop = stops[i];
   await page.evaluate(({ x, z }) => window.__bwwWarp(x, z), { x: stop.x, z: stop.z });
-  await page.waitForTimeout(420);
+  /* 等"到站"而不是死等 420ms：导览推进按帧判定，SwiftShader 软渲染只有 3.5fps
+   * （一帧约 290ms），固定 420ms 窗口只够 1.4 帧，偶发跑空就整站误判。断言口径
+   * 不变——超时未推进仍然由下面的 index 检查判 FAIL。 */
+  await page
+    .waitForFunction((exp) => window.__bwwGuide().index >= exp, i + 1, { timeout: 4000 })
+    .catch(() => {});
+  await page.waitForTimeout(120);
   const line = await bubbleText();
   if (!line.includes(stop.name)) {
     narrationOk = false;
