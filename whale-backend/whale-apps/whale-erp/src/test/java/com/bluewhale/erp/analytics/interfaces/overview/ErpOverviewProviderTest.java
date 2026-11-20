@@ -5,7 +5,10 @@ import com.bluewhale.erp.analytics.application.view.CockpitView;
 import com.bluewhale.overview.OverviewContext;
 import com.bluewhale.overview.model.OverviewAlert;
 import com.bluewhale.overview.model.OverviewAlertLevel;
+import com.bluewhale.overview.model.OverviewChart;
+import com.bluewhale.overview.model.OverviewFormat;
 import com.bluewhale.overview.model.OverviewKpi;
+import com.bluewhale.overview.model.OverviewLink;
 import com.bluewhale.overview.model.OverviewSnapshot;
 import com.bluewhale.overview.model.OverviewState;
 import com.bluewhale.overview.model.OverviewTone;
@@ -37,13 +40,15 @@ class ErpOverviewProviderTest {
         view.setSnapshotNo("CPS-202611-0007");
         view.setPeriodCode("202611");
         view.setRevenueAmount(new BigDecimal("1234567.89"));
+        view.setCostAmount(new BigDecimal("700000.00"));
+        view.setProfitAmount(new BigDecimal("534567.89"));
         view.setOrderCount(4321);
         view.setAlertCount(alertCount);
         return view;
     }
 
     private static OverviewContext context() {
-        return OverviewContext.of(1L, 1L, Set.of("sys:erp:bi:cockpit:list"));
+        return OverviewContext.of(1L, 1L, Set.of("sys:erp:bi:cockpit:list", "sys:erp:purchase:list"));
     }
 
     @Test
@@ -97,5 +102,43 @@ class ErpOverviewProviderTest {
         assertThat(snapshot.subtitle()).contains("当期");
         assertThat(snapshot.kpis()).extracting(OverviewKpi::key).containsExactly("revenue", "orders", "alerts");
         assertThat(snapshot.alerts()).isEmpty();
+        // 图表里的 null 会画成 NaN 柱，整张卡静默变白——必须补 0
+        assertThat(snapshot.charts().get(0).series().get(0).values()).containsExactly(0d, 0d, 0d);
+    }
+
+    @Test
+    @DisplayName("金额柱状图：营收/成本/利润三项同源，口径为 money，不做百分比换算")
+    void shouldExposeAmountChart() {
+        when(analyticsAppService.getCockpit(null)).thenReturn(cockpit(0));
+
+        OverviewSnapshot snapshot = provider.build(context());
+        OverviewChart chart = snapshot.charts().get(0);
+
+        assertThat(snapshot.charts()).hasSize(1);
+        assertThat(chart.key()).isEqualTo("pnl");
+        assertThat(chart.type()).isEqualTo("bar");
+        assertThat(chart.format()).isEqualTo(OverviewFormat.MONEY);
+        assertThat(chart.categories()).containsExactly("营收", "成本", "利润");
+        assertThat(chart.series()).hasSize(1);
+        assertThat(chart.series().get(0).values()).containsExactly(1234567.89d, 700000d, 534567.89d);
+        // 契约要求 categories 与 values 等长；不等长时前端只能自己补 0，图就悄悄画歪了
+        assertThat(chart.categories()).hasSize(chart.series().get(0).values().size());
+    }
+
+    @Test
+    @DisplayName("采购订单入口：有权限才下发，缺权限时连入口都不出现")
+    void shouldTrimLinkByPermission() {
+        when(analyticsAppService.getCockpit(null)).thenReturn(cockpit(0));
+
+        OverviewSnapshot granted = provider.build(context());
+        OverviewLink link = granted.links().get(0);
+        assertThat(link.key()).isEqualTo("purchase-orders");
+        assertThat(link.path()).isEqualTo("/erp/scm/purchase-order/page");
+        assertThat(link.permission()).isEqualTo("sys:erp:purchase:list");
+
+        OverviewSnapshot denied = provider.build(OverviewContext.of(1L, 1L, Set.of("sys:erp:bi:cockpit:list")));
+        assertThat(denied.links()).isEmpty();
+        // 上下文缺失也不能 500：概览宁可少一个入口
+        assertThat(provider.build(null).links()).isEmpty();
     }
 }

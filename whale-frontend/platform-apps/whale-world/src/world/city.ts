@@ -55,6 +55,9 @@ import {
 import { createNavGrid } from './path';
 import { createQuestSystem } from './quests';
 import { createScreenLayer } from './screen';
+import type { ScreenHandle } from './screen';
+import { mountScreenPage, type ScreenPageHandle } from './screenpage';
+import { PURCHASE_ORDER_PAGE } from './screenpages';
 import { createSceneEnv, type SceneEnv } from './env';
 import { createPostFx, type PostFx } from './postfx';
 import { createSky, type SkyState } from './env-sky';
@@ -3833,6 +3836,10 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
    *
    * 位置选在出生点（0, 0, 66）正前方偏两侧：玩家进城第一眼就能看到"这里能点"，
    * 不用先学会走路才找到演示对象。 */
+  /** 户部屏风与其业务页句柄：题头灯与标题由业务页回调驱动，调试探针也要用 */
+  let hubuScreen: ScreenHandle | null = null;
+  let hubuPage: ScreenPageHandle | null = null;
+
   function setupScreens() {
     try {
     screens.add({
@@ -3888,6 +3895,44 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           <div style="margin-top:.7em">
             <input class="bws-input" type="text" placeholder="搜索服务名…（在这里试中文输入）" />
           </div>`;
+      },
+    });
+
+    /* 户部（ERP）屏风页（S4 / T4.5）：屏风里是一个真业务页 ——
+       KPI 与图表来自 /erp/overview，列表与详情来自采购订单自己的接口。
+       立在户部殿前（19.67, 73.41）偏北 4 米，正对来路，玩家从御道走过来就看见。
+
+       为什么不复用数枢殿那块中屏：那块是 S2 的排版演示（写死数据），
+       这块要证明的是"真接口 + 列表 + 详情"。两者用途不同，S5 才统一按布局生成。 */
+    /* 位置按台基反算：户部台基深 (7+9)×0.95 = 15.2 米、顶面高 2.47 米，
+       屏风若按殿心偏移会插进台基里（CSS3D 不做深度测试，看上去就是浮在半空）。
+       所以沿殿的正面法线（yaw -165°）退到台基之外的地面上，离台阶也留出 2 米。 */
+    hubuScreen = screens.add({
+      id: 'hubu-erp',
+      position: [15.2, 1.55, 64.6],
+      facing: -2.88,
+      size: 'large',
+      title: '户部 · 采购台账',
+      subtitle: 'ERP / PURCHASE',
+      tone: 'idle',
+      mount: (body) => {
+        hubuPage = mountScreenPage(body, {
+          nodeKey: 'hubu-hall',
+          overviewPath: '/erp/overview',
+          overviewPermission: 'sys:erp:bi:cockpit:list',
+          pages: [PURCHASE_ORDER_PAGE],
+          getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+          getPermissions: opts.getPermissions,
+          // 题头灯跟业务页状态走：概览陈旧/失败时不该还亮绿灯
+          onTone: (tone) => hubuScreen?.setTone(tone),
+          onTitle: (title, subtitle) => {
+            hubuScreen?.setTitle(title ? `${title} · 采购台账` : '户部 · 采购台账', subtitle ?? 'ERP / PURCHASE');
+          },
+        });
+        return () => {
+          hubuPage?.dispose();
+          hubuPage = null;
+        };
       },
     });
 
@@ -4070,6 +4115,13 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
         front: v.z < 1,
       };
     };
+    /* 屏风页探针（S4 / T4.5）：读业务页状态（概览/标签/列表/详情），
+       以及"进屏风 / 注入演示数据"两个动作。只在 ?debug=1 下存在，
+       正常路径既不暴露业务字段，也不会注入任何假数据。 */
+    window.__bwwScreenPage = () => hubuPage?.probe() ?? null;
+    window.__bwwScreenOpen = (id: string) => screens.get(id)?.enter();
+    window.__bwwScreenExit = () => screens.exit();
+    window.__bwwScreenMock = () => hubuPage?.mock();
     /* 声景探针：e2e 无法"听"，只能读状态（是否解锁、是否静音）与脚下地面判定 */
     window.__bwwAudio = () => ({
       ready: audio.isReady(),

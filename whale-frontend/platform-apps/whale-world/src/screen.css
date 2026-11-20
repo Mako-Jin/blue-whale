@@ -364,3 +364,342 @@ body[data-screen-engaged] .bww-speech-layer {
 .bws-screen[data-quality='low'] {
   filter: none;
 }
+
+/* ---------- 屏风业务页（S4 / T4.5）：KPI + 图表 + 列表 + 详情 ---------- */
+/* 业务页自己管滚动：外层不再滚，否则表头会跟着滚走，翻到第 8 行就不知道
+   每列是什么了。:has 只在真的挂了业务页时生效，告示类屏风保持原样。 */
+.bws-body:has(> .bwsp) {
+  overflow: hidden;
+}
+
+.bwsp {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55em;
+  height: 100%;
+  min-height: 0;
+}
+
+.bwsp-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(6.4em, 1fr));
+  gap: 0.45em;
+  flex: 0 0 auto;
+}
+.bwsp-kpi {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4em;
+  padding: 0.2em 0.45em;
+  background: rgba(255, 253, 245, 0.78);
+  border: 1px solid rgba(120, 92, 52, 0.2);
+  border-left: 2px solid #a8702c;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.bwsp-kpi[data-tone='good'] {
+  border-left-color: #3f9e6e;
+}
+.bwsp-kpi[data-tone='warn'] {
+  border-left-color: #c9962f;
+}
+.bwsp-kpi[data-tone='bad'] {
+  border-left-color: #b5452f;
+}
+.bwsp-kpi-value {
+  font-size: 1.04em;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #33271a;
+}
+.bwsp-kpi-label {
+  font-size: 0.64em;
+  letter-spacing: 0.05em;
+  color: rgba(96, 74, 42, 0.82);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bwsp-chart {
+  flex: 0 0 auto;
+  padding: 0.22em 0.5em 0.2em;
+  background: rgba(255, 254, 248, 0.62);
+  border: 1px solid rgba(120, 92, 52, 0.18);
+}
+.bwsp-chart-head {
+  display: flex;
+  align-items: center;
+  font-size: 0.66em;
+  letter-spacing: 0.06em;
+  color: rgba(96, 74, 42, 0.88);
+}
+.bwsp-chart-title {
+  margin-right: 0.5em;
+}
+
+.bwsp-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.16em;
+  padding-top: 0.16em;
+}
+.bwsp-barrow {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  font-size: 0.68em;
+}
+.bwsp-barlabel {
+  flex: 0 0 4.2em;
+  text-align: right;
+  color: rgba(96, 74, 42, 0.85);
+  white-space: nowrap;
+}
+.bwsp-bartrack {
+  flex: 1 1 auto;
+  height: 0.9em;
+  background: rgba(120, 92, 52, 0.1);
+  overflow: hidden;
+}
+.bwsp-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #c99a52, #8a5f22);
+}
+.bwsp-barval {
+  flex: 0 0 5.2em;
+  color: #4a3823;
+  white-space: nowrap;
+}
+
+.bwsp-linewrap svg.bwsp-line {
+  display: block;
+  width: 100%;
+  height: 3em;
+}
+.bwsp-barlabels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.64em;
+  color: rgba(96, 74, 42, 0.78);
+}
+.bwsp-donutwrap {
+  display: flex;
+  align-items: center;
+  gap: 0.8em;
+}
+.bwsp-donut {
+  width: 4em;
+  height: 4em;
+  flex: 0 0 auto;
+}
+.bwsp-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25em 0.8em;
+  font-size: 0.72em;
+  color: #4a3823;
+}
+.bwsp-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28em;
+}
+.bwsp-dot {
+  display: inline-block;
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  background: #a8702c;
+}
+
+.bwsp-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35em;
+  flex: 0 0 auto;
+}
+.bwsp-tab {
+  font: inherit;
+  font-size: 0.74em;
+  padding: 0.14em 0.66em;
+  border: 1px solid rgba(120, 92, 52, 0.3);
+  background: rgba(255, 254, 248, 0.72);
+  color: #4a3823;
+  cursor: pointer;
+}
+.bwsp-tab[data-active='true'] {
+  background: #8a5f22;
+  border-color: #8a5f22;
+  color: #fdf6e6;
+}
+.bwsp-tab:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.bwsp-tool {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  flex: 0 0 auto;
+}
+.bwsp-search {
+  flex: 1 1 auto;
+  min-width: 6em;
+}
+.bwsp-status {
+  flex: 0 0 auto;
+  width: auto;
+  padding: 0.3em 0.4em;
+  font-size: 0.84em;
+}
+.bwsp-btn {
+  font: inherit;
+  font-size: 0.76em;
+  padding: 0.2em 0.62em;
+  border: 1px solid rgba(120, 92, 52, 0.34);
+  background: rgba(255, 254, 248, 0.85);
+  color: #4a3823;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.bwsp-btn:hover:not(:disabled) {
+  border-color: #a8702c;
+  color: #8a5f22;
+}
+.bwsp-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.bwsp-count {
+  font-size: 0.72em;
+  color: rgba(96, 74, 42, 0.78);
+  white-space: nowrap;
+}
+
+.bwsp-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.bwsp-tablewrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+.bwsp-table {
+  font-size: 0.8em;
+}
+/* 表头吸顶：表体自己滚时，滚到第 6 行还得知道每列是什么 */
+.bwsp-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 0.2em 0.42em;
+  background: #efe3c8;
+}
+.bwsp-table td {
+  padding: 0.2em 0.42em;
+}
+.bwsp-row {
+  cursor: pointer;
+}
+.bwsp-pager {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding-top: 0.26em;
+  margin-top: 0.2em;
+  border-top: 1px solid rgba(120, 92, 52, 0.16);
+  font-size: 0.74em;
+  color: rgba(96, 74, 42, 0.85);
+  flex: 0 0 auto;
+}
+.bwsp-empty {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55em;
+  padding: 1.4em 1em;
+  font-size: 0.88em;
+  letter-spacing: 0.06em;
+  color: rgba(110, 88, 52, 0.8);
+  text-align: center;
+}
+
+.bwsp-detail {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+.bwsp-dhead {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  margin-bottom: 0.5em;
+}
+.bwsp-dtitle {
+  font-size: 1.08em;
+  color: #33271a;
+}
+.bwsp-kv {
+  display: grid;
+  grid-template-columns: auto 1fr auto 1fr;
+  gap: 0.26em 0.7em;
+  margin: 0 0 0.65em;
+  font-size: 0.86em;
+}
+.bwsp-kv dt {
+  color: rgba(96, 74, 42, 0.82);
+  white-space: nowrap;
+}
+.bwsp-kv dd {
+  margin: 0;
+  color: #2c2116;
+}
+.bwsp-h5 {
+  margin: 0.3em 0 0.3em;
+  font-size: 0.8em;
+  letter-spacing: 0.1em;
+  color: rgba(74, 56, 34, 0.9);
+}
+.bwsp-lines {
+  max-height: 11em;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+.bwsp-note {
+  margin: 0.5em 0 0;
+  font-size: 0.8em;
+  color: rgba(96, 74, 42, 0.86);
+}
+
+.bwsp-badge {
+  display: inline-block;
+  padding: 0.02em 0.45em;
+  border: 1px solid transparent;
+  border-radius: 0.2em;
+  font-size: 0.88em;
+  background: rgba(120, 92, 52, 0.12);
+  color: #4a3823;
+}
+.bwsp-badge[data-tone='good'] {
+  background: rgba(63, 158, 110, 0.16);
+  border-color: rgba(63, 158, 110, 0.35);
+  color: #21724b;
+}
+.bwsp-badge[data-tone='warn'] {
+  background: rgba(201, 150, 47, 0.18);
+  border-color: rgba(201, 150, 47, 0.4);
+  color: #8a6416;
+}
+.bwsp-badge[data-tone='bad'] {
+  background: rgba(181, 69, 47, 0.16);
+  border-color: rgba(181, 69, 47, 0.38);
+  color: #8f2f1c;
+}

@@ -107,8 +107,14 @@ S3 前端曾在 `0.82` 与 `82` 之间猜（`formatPercent` 用「小于 1.5 就
 |---|---|---|---|
 | `key` | string | 是 | 唯一 |
 | `label` | string | 是 | 入口文字 |
-| `path` | string | 是 | 屏风页路径（`/erp/overview/orders`），S4 只登记不消费 |
+| `path` | string | 是 | 屏风页要取的列表接口路径（`/erp/scm/purchase-order/page`），与 2D 后台同一路径 |
 | `permission` | string | 否 | 该入口额外要求的权限码；缺失时**由 provider 裁掉**，不要下发再让前端隐藏 |
+
+> **`path` 的语义（T4.5 起）**：不另造"屏风专用接口"，直接指该列表在 2D 后台用的分页接口
+> （`{code,message,data:{records,total,current,size}}` 信封）。列怎么排、详情取哪个字段属于
+> 展示层的配置，在 `whale-world/src/world/screenpages.ts` 里按 `key` 登记；契约只负责
+> "这殿还有哪些入口"，不负责表头。这样同一份权限码、同一套分页参数在两处复用，
+> 3D 不会出现"只有屏风能看到的第二套列表口径"。
 
 ## 3. 服务端行为（starter 保证，provider 不重复实现）
 

@@ -16,7 +16,7 @@
 
 import type { HallData } from './datahall';
 import type { GlyphMetric, GlyphState, GlyphTone } from './metrics';
-import type { OverviewKpi, OverviewSnapshot } from './overview.types';
+import type { OverviewFormat, OverviewKpi, OverviewSnapshot } from './overview.types';
 
 /* ---------------------------------------------------------------- 格式化 */
 
@@ -64,22 +64,30 @@ const formatDuration = (seconds: number): string => {
   return `${s}秒`;
 };
 
+/** 按契约的 format 排版一个裸数值（屏风页的表格与图表也用它，保证全城一套口径） */
+export function formatValue(format: OverviewFormat, value: number): string {
+  const n = num(value);
+  switch (format) {
+    case 'money':
+      return formatMoney(n);
+    case 'percent':
+      return formatPercent(n);
+    case 'duration':
+      return formatDuration(n);
+    case 'text':
+      return String(n);
+    case 'count':
+    default:
+      return formatCount(n);
+  }
+}
+
 /** 按契约的 format 排版一个数值 */
 export function formatKpiValue(kpi: OverviewKpi): string {
   const value = num(kpi.value);
-  switch (kpi.format) {
-    case 'money':
-      return formatMoney(value);
-    case 'percent':
-      return formatPercent(value);
-    case 'duration':
-      return formatDuration(value);
-    case 'text':
-      return String(value);
-    case 'count':
-    default:
-      return `${formatCount(value)}${kpi.unit ?? ''}`;
-  }
+  const text = formatValue(kpi.format, value);
+  // 只有计数类追加单位（「件」「人」）；money/percent 已自带符号，再拼会出现 ￥12万 元
+  return kpi.format === 'count' ? `${text}${kpi.unit ?? ''}` : text;
 }
 
 /* ---------------------------------------------------------------- 映射 */
