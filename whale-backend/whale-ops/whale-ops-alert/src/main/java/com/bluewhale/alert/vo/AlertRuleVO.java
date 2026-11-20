@@ -46,6 +46,9 @@ public class AlertRuleVO implements Serializable {
     /** 通知通道 */
     private String channel;
 
+    /** 规则级接收人（逗号分隔），为空时使用全局配置 */
+    private String notifyTargets;
+
     /** 状态：1 启用 / 0 停用 */
     private Integer status;
 

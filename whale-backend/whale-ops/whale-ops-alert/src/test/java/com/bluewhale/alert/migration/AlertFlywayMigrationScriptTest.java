@@ -97,16 +97,21 @@ class AlertFlywayMigrationScriptTest {
      * @throws IOException 读取脚本失败
      */
     @Test
-    @DisplayName("V1 基线建表集合与 init.sql 一致且含关键表")
+    @DisplayName("全部版本化脚本建表集合与 init.sql 一致且含关键表")
     void baselineTablesShouldMatchInitScript() throws IOException {
         Set<String> initTables = extractTables(INIT_SCRIPT);
-        Set<String> baselineTables = extractTables(MIGRATION_DIR.resolve("V1__baseline.sql"));
+        Set<String> versionedTables = new LinkedHashSet<>();
+        for (Path script : migrationScripts()) {
+            versionedTables.addAll(extractTables(script));
+        }
         assertFalse(initTables.isEmpty(), "init.sql 未解析到建表语句");
-        assertEquals(initTables, baselineTables, "V1 基线与 init.sql 的建表集合不一致");
-        assertEquals(3, baselineTables.size(), "alert 基线应包含 3 张表");
-        assertTrue(baselineTables.contains("alert_rule"), "基线必须包含告警规则表");
-        assertTrue(baselineTables.contains("alert_record"), "基线必须包含告警记录表");
-        assertTrue(baselineTables.contains("api_log"), "基线必须包含接口日志表");
+        assertEquals(initTables, versionedTables, "版本化脚本与 init.sql 的建表集合不一致");
+        assertEquals(5, versionedTables.size(), "alert 应包含 5 张表");
+        assertTrue(versionedTables.contains("alert_rule"), "必须包含告警规则表");
+        assertTrue(versionedTables.contains("alert_record"), "必须包含告警记录表");
+        assertTrue(versionedTables.contains("api_log"), "必须包含接口日志表");
+        assertTrue(versionedTables.contains("alert_silence"), "必须包含告警静默表");
+        assertTrue(versionedTables.contains("alert_notify_log"), "必须包含通知发送日志表");
 
         String baseline = Files.readString(
                 MIGRATION_DIR.resolve("V1__baseline.sql"), StandardCharsets.UTF_8);

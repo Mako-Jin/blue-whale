@@ -49,6 +49,9 @@ public class AlertRule extends BaseEntity {
     /** 通知通道：EMAIL / SMS / WEBHOOK / NONE */
     private String channel;
 
+    /** 规则级接收人（逗号分隔）；为空时使用全局配置 */
+    private String notifyTargets;
+
     /** 状态：1 启用 / 0 停用 */
     private Integer status;
 

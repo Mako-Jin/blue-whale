@@ -62,13 +62,64 @@ public final class AlertRecordSupport {
     /** 记录状态：已恢复 */
     public static final String STATUS_RECOVERED = "RECOVERED";
 
+    /** 记录状态：已静默（落库但不通知） */
+    public static final String STATUS_SILENCED = "SILENCED";
+
     /** 内网告警未提供规则编码时的兜底值 */
     private static final String EXTERNAL_RULE_CODE = "external";
+
+    /** 单条告警标签数量上限 */
+    static final int MAX_LABEL_COUNT = 64;
+
+    /** 标签键最大长度 */
+    static final int MAX_LABEL_KEY_LENGTH = 128;
+
+    /** 标签值最大长度 */
+    static final int MAX_LABEL_VALUE_LENGTH = 512;
+
+    /** 单条告警注解数量上限 */
+    static final int MAX_ANNOTATION_COUNT = 32;
+
+    /** 注解值最大长度 */
+    static final int MAX_ANNOTATION_VALUE_LENGTH = 1024;
 
     /**
      * 私有构造器：工具类，禁止实例化
      */
     private AlertRecordSupport() {
+    }
+
+    /**
+     * 判断告警标签 / 注解是否超出体积上限。
+     *
+     * <p>入站 payload 由外部系统控制，超大标签集会在指纹拼接与落库阶段放大内存占用，
+     * 因此在写库前直接拒绝。上限按 Alertmanager 常规规模设定，正常告警不会触发。</p>
+     *
+     * @param alert 单条告警
+     * @return 超限返回 {@code true}
+     */
+    public static boolean isOversized(PrometheusWebhookPayload.PrometheusAlert alert) {
+        Map<String, String> labels = alert.getLabels();
+        if (labels != null) {
+            if (labels.size() > MAX_LABEL_COUNT) {
+                return true;
+            }
+            for (Map.Entry<String, String> entry : labels.entrySet()) {
+                if (entry.getKey() == null || entry.getKey().length() > MAX_LABEL_KEY_LENGTH
+                        || (entry.getValue() != null && entry.getValue().length() > MAX_LABEL_VALUE_LENGTH)) {
+                    return true;
+                }
+            }
+        }
+        Map<String, String> annotations = alert.getAnnotations();
+        if (annotations == null) {
+            return false;
+        }
+        if (annotations.size() > MAX_ANNOTATION_COUNT) {
+            return true;
+        }
+        return annotations.values().stream()
+                .anyMatch(value -> value != null && value.length() > MAX_ANNOTATION_VALUE_LENGTH);
     }
 
     /**

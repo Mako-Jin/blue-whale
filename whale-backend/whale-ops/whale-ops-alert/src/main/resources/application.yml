@@ -68,6 +68,10 @@ whale:
       dedup:
         enabled: ${ALERT_DEDUP_ENABLED:true}
         window-seconds: ${ALERT_DEDUP_WINDOW_SECONDS:300}
+      # 通知失败重试：仅对 5xx / 429 / IO 异常重试，4xx 直接失败
+      retry:
+        max-attempts: ${ALERT_NOTIFY_MAX_ATTEMPTS:3}
+        backoff-millis: ${ALERT_NOTIFY_BACKOFF_MILLIS:300}
       email:
         enabled: ${ALERT_EMAIL_ENABLED:false}
         from: ${ALERT_EMAIL_FROM:}
@@ -85,6 +89,17 @@ whale:
         template-code: ${ALERT_SMS_TEMPLATE_CODE:BLUEWHALE_ALERT}
         sign-name: ${ALERT_SMS_SIGN_NAME:}
         timeout-millis: ${ALERT_SMS_TIMEOUT:3000}
+    # 入站批处理：单次上限、分片大小与请求体上限（防超大 payload 打满内存）
+    ingest:
+      max-alerts: ${ALERT_INGEST_MAX_ALERTS:500}
+      batch-size: ${ALERT_INGEST_BATCH_SIZE:100}
+      max-payload-bytes: ${ALERT_INGEST_MAX_PAYLOAD_BYTES:1048576}
+    # 记录保留策略：仅清理已恢复 / 已静默的历史记录，触发记录不受影响
+    retention:
+      enabled: ${ALERT_RETENTION_ENABLED:true}
+      days: ${ALERT_RETENTION_DAYS:90}
+      batch-size: ${ALERT_RETENTION_BATCH_SIZE:1000}
+      cron: ${ALERT_RETENTION_CRON:0 30 3 * * ?}
 
 # 邮件通道依赖 Spring Mail 自动装配：设置 SPRING_MAIL_HOST / SPRING_MAIL_USERNAME /
 # SPRING_MAIL_PASSWORD 后 JavaMailSender 才会创建；未配置时邮件通知自动跳过。

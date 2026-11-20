@@ -29,6 +29,7 @@ CREATE TABLE alert_rule (
     duration_seconds INT           DEFAULT NULL            COMMENT '持续时长（秒），持续超过阈值达到该时长才触发',
     level            VARCHAR(16)   DEFAULT NULL            COMMENT '告警级别：INFO / WARN / ERROR / CRITICAL',
     channel          VARCHAR(32)   DEFAULT NULL            COMMENT '通知通道：EMAIL / SMS / WEBHOOK / NONE',
+    notify_targets   VARCHAR(512)  DEFAULT NULL            COMMENT '规则级接收人，逗号分隔；为空时使用全局配置',
     status           TINYINT       NOT NULL DEFAULT 1      COMMENT '状态：1 启用 / 0 停用',
     remark           VARCHAR(255)  DEFAULT NULL            COMMENT '备注',
     create_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -53,6 +54,10 @@ CREATE TABLE alert_record (
     fingerprint  VARCHAR(64)  DEFAULT NULL        COMMENT '告警指纹（Alertmanager fingerprint 或标签 SHA-256），用于窗口内去重',
     trigger_time DATETIME     DEFAULT NULL        COMMENT '触发时间',
     recover_time DATETIME     DEFAULT NULL        COMMENT '恢复时间（未恢复为 NULL）',
+    acknowledged TINYINT      NOT NULL DEFAULT 0  COMMENT '是否已认领：0 未认领 / 1 已认领',
+    ack_user     VARCHAR(64)  DEFAULT NULL        COMMENT '认领人ID',
+    ack_time     DATETIME     DEFAULT NULL        COMMENT '认领时间',
+    ack_note     VARCHAR(255) DEFAULT NULL        COMMENT '认领备注',
     create_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted      TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
@@ -60,6 +65,7 @@ CREATE TABLE alert_record (
     KEY idx_tenant_id (tenant_id),
     KEY idx_rule_code (rule_code),
     KEY idx_status (status),
+    KEY idx_tenant_status_trigger (tenant_id, status, trigger_time),
     KEY idx_fingerprint (tenant_id, fingerprint, trigger_time)
 ) COMMENT='告警记录表';
 
@@ -104,3 +110,44 @@ CREATE TABLE api_log (
     KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_biz_status (biz_status)
 ) COMMENT='后端接口日志表';
+
+-- ---------------------------------------------------------------------
+-- 告警静默规则表（V2 新增）
+-- matcher 语义：rule_code / alert_level / keyword 均为空表示匹配全部，
+-- 非空则精确匹配（keyword 为内容包含匹配）。
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS alert_silence;
+CREATE TABLE alert_silence (
+    id          BIGINT       NOT NULL                COMMENT '主键ID（雪花算法）',
+    tenant_id   BIGINT       NOT NULL DEFAULT 1      COMMENT '租户ID（行级隔离）',
+    rule_code   VARCHAR(64)  DEFAULT NULL            COMMENT '规则编码，空表示全部规则',
+    alert_level VARCHAR(16)  DEFAULT NULL            COMMENT '告警级别，空表示全部级别',
+    keyword     VARCHAR(128) DEFAULT NULL            COMMENT '内容关键字，空表示全部内容',
+    start_time  DATETIME     NOT NULL                COMMENT '静默开始时间',
+    end_time    DATETIME     NOT NULL                COMMENT '静默结束时间',
+    reason      VARCHAR(255) DEFAULT NULL            COMMENT '静默原因',
+    created_by  VARCHAR(64)  DEFAULT NULL            COMMENT '创建人ID',
+    create_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted     TINYINT      NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    PRIMARY KEY (id),
+    KEY idx_tenant_window (tenant_id, start_time, end_time)
+) COMMENT='告警静默规则表';
+
+-- ---------------------------------------------------------------------
+-- 告警通知发送日志表（V2 新增）
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS alert_notify_log;
+CREATE TABLE alert_notify_log (
+    id          BIGINT       NOT NULL                COMMENT '主键ID（雪花算法）',
+    tenant_id   BIGINT       NOT NULL DEFAULT 1      COMMENT '租户ID（行级隔离）',
+    record_id   BIGINT       DEFAULT NULL            COMMENT '告警记录ID',
+    rule_code   VARCHAR(64)  DEFAULT NULL            COMMENT '规则编码',
+    channel     VARCHAR(16)  NOT NULL                COMMENT '通知通道：EMAIL / SMS / WEBHOOK',
+    status      VARCHAR(16)  NOT NULL                COMMENT '发送结果：SUCCESS / FAILED',
+    retry_count INT          NOT NULL DEFAULT 0      COMMENT '已重试次数',
+    error       VARCHAR(512) DEFAULT NULL            COMMENT '失败原因（异常类名 + 消息）',
+    create_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (id),
+    KEY idx_tenant_rule_time (tenant_id, rule_code, create_time)
+) COMMENT='告警通知发送日志表';

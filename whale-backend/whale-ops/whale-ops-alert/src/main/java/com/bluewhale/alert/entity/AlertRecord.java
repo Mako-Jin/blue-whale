@@ -45,4 +45,16 @@ public class AlertRecord extends BaseEntity {
 
     /** 恢复时间（未恢复为 {@code null}） */
     private LocalDateTime recoverTime;
+
+    /** 是否已认领：0 未认领 / 1 已认领 */
+    private Integer acknowledged;
+
+    /** 认领人ID */
+    private String ackUser;
+
+    /** 认领时间 */
+    private LocalDateTime ackTime;
+
+    /** 认领备注 */
+    private String ackNote;
 }

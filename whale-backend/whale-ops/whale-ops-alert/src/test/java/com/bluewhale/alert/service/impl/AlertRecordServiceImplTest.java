@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bluewhale.alert.config.AlertIngestProperties;
 import com.bluewhale.alert.config.AlertNotifyProperties;
 import com.bluewhale.alert.dto.AlertRecordCreateRequest;
 import com.bluewhale.alert.dto.AlertRecordQueryRequest;
@@ -14,9 +15,11 @@ import com.bluewhale.alert.entity.AlertRule;
 import com.bluewhale.alert.mapper.AlertRecordMapper;
 import com.bluewhale.alert.mapper.AlertRuleMapper;
 import com.bluewhale.alert.service.AlertNotifyService;
+import com.bluewhale.alert.service.AlertSilenceService;
 import com.bluewhale.alert.support.AlertNotifyDispatcher;
 import com.bluewhale.alert.vo.AlertRecordVO;
 import com.bluewhale.common.core.result.PageResult;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -55,8 +58,17 @@ class AlertRecordServiceImplTest {
 
     private final AlertNotifyProperties notifyProperties = new AlertNotifyProperties();
 
-    private final AlertRecordServiceImpl alertRecordService =
-            new AlertRecordServiceImpl(alertRecordMapper, alertRuleMapper, alertNotifyDispatcher, notifyProperties);
+    private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+
+    private final AlertSilenceService alertSilenceService = mock(AlertSilenceService.class);
+
+    private final AlertIngestProperties ingestProperties = new AlertIngestProperties();
+
+    private final AlertRecordWriter alertRecordWriter = new AlertRecordWriter(alertRecordMapper,
+            alertRuleMapper, alertNotifyDispatcher, notifyProperties, alertSilenceService, meterRegistry);
+
+    private final AlertRecordServiceImpl alertRecordService = new AlertRecordServiceImpl(
+            alertRecordMapper, alertRecordWriter, ingestProperties, meterRegistry);
 
     /**
      * 初始化实体表元数据，使 Lambda 条件可渲染为列名（便于断言去重窗口字段）
@@ -242,6 +254,126 @@ class AlertRecordServiceImplTest {
         assertThrows(com.bluewhale.common.core.exception.BizException.class,
                 () -> alertRecordService.create(request));
         verify(alertRecordMapper, never()).insert(any(AlertRecord.class));
+    }
+
+    @Test
+    @DisplayName("ingest：resolved 命中存量 FIRING 时更新为 RECOVERED，不再新增记录")
+    void shouldCloseExistingFiringOnResolved() {
+        when(alertRuleMapper.selectOne(any())).thenReturn(null);
+        when(alertRecordMapper.update(ArgumentMatchers.<AlertRecord>any(),
+                ArgumentMatchers.<Wrapper<AlertRecord>>any())).thenReturn(1);
+        PrometheusWebhookPayload.PrometheusAlert alert = alert("resolved", "cpu_high", "warning");
+        alert.setFingerprint("fp-close");
+
+        int inserted = alertRecordService.ingest(payload(alert));
+
+        assertEquals(0, inserted);
+        verify(alertRecordMapper, never()).insert(ArgumentMatchers.<AlertRecord>any());
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Wrapper<AlertRecord>> captor = ArgumentCaptor.forClass(Wrapper.class);
+        verify(alertRecordMapper).update(ArgumentMatchers.<AlertRecord>any(), captor.capture());
+        String sqlSet = ((com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<AlertRecord>)
+                captor.getValue()).getSqlSet();
+        org.junit.jupiter.api.Assertions.assertTrue(sqlSet.contains("recover_time"),
+                "恢复闭环必须回填 recover_time: " + sqlSet);
+    }
+
+    @Test
+    @DisplayName("ingest：resolved 未匹配到 FIRING 时仍新增一条 RECOVERED 记录")
+    void shouldInsertRecoveredWhenNoFiringMatched() {
+        when(alertRuleMapper.selectOne(any())).thenReturn(null);
+        when(alertRecordMapper.update(ArgumentMatchers.<AlertRecord>any(),
+                ArgumentMatchers.<Wrapper<AlertRecord>>any())).thenReturn(0);
+
+        int inserted = alertRecordService.ingest(payload(alert("resolved", "cpu_high", "warning")));
+
+        assertEquals(1, inserted);
+        ArgumentCaptor<AlertRecord> captor = ArgumentCaptor.forClass(AlertRecord.class);
+        verify(alertRecordMapper).insert(captor.capture());
+        assertEquals("RECOVERED", captor.getValue().getStatus());
+    }
+
+    @Test
+    @DisplayName("ingest：命中静默时落库为 SILENCED 且不通知")
+    void shouldMarkSilencedWithoutNotify() {
+        AlertRule rule = enabledRule("cpu_high", "EMAIL");
+        when(alertRuleMapper.selectOne(any())).thenReturn(rule);
+        when(alertSilenceService.isSilenced(any(), any(), any())).thenReturn(true);
+
+        int inserted = alertRecordService.ingest(payload(alert("firing", "cpu_high", "critical")));
+
+        assertEquals(1, inserted);
+        ArgumentCaptor<AlertRecord> captor = ArgumentCaptor.forClass(AlertRecord.class);
+        verify(alertRecordMapper).insert(captor.capture());
+        assertEquals("SILENCED", captor.getValue().getStatus());
+        verify(alertNotifyService, never()).notify(any(), any());
+    }
+
+    @Test
+    @DisplayName("ingest：标签值超过体积上限时跳过，不落库")
+    void shouldSkipOversizedLabels() {
+        PrometheusWebhookPayload.PrometheusAlert alert = alert("firing", "cpu_high", "warning");
+        alert.setLabels(Map.of("alertname", "cpu_high", "blob", "x".repeat(600)));
+
+        int inserted = alertRecordService.ingest(payload(alert));
+
+        assertEquals(0, inserted);
+        verify(alertRecordMapper, never()).insert(ArgumentMatchers.<AlertRecord>any());
+    }
+
+    @Test
+    @DisplayName("ack：触发中告警可认领并回写认领信息")
+    void shouldAcknowledgeFiringRecord() {
+        AlertRecord existing = new AlertRecord();
+        existing.setId(5L);
+        existing.setRuleCode("cpu_high");
+        existing.setStatus("FIRING");
+        when(alertRecordMapper.selectById(5L)).thenReturn(existing);
+        com.bluewhale.alert.dto.AlertAckRequest request = new com.bluewhale.alert.dto.AlertAckRequest();
+        request.setAckUser("ops-1");
+        request.setAckNote("已接手排查");
+
+        AlertRecordVO vo = alertRecordService.ack(5L, request);
+
+        assertEquals(1, vo.getAcknowledged());
+        assertEquals("ops-1", vo.getAckUser());
+        org.junit.jupiter.api.Assertions.assertNotNull(vo.getAckTime());
+        verify(alertRecordMapper).updateById(existing);
+    }
+
+    @Test
+    @DisplayName("ack：已恢复告警拒绝认领")
+    void shouldRejectAckForRecoveredRecord() {
+        AlertRecord existing = new AlertRecord();
+        existing.setId(6L);
+        existing.setStatus("RECOVERED");
+        when(alertRecordMapper.selectById(6L)).thenReturn(existing);
+
+        assertThrows(com.bluewhale.common.core.exception.BizException.class,
+                () -> alertRecordService.ack(6L, new com.bluewhale.alert.dto.AlertAckRequest()));
+        verify(alertRecordMapper, never()).updateById(ArgumentMatchers.<AlertRecord>any());
+    }
+
+    @Test
+    @DisplayName("stats：聚合活跃数、级别分布、TOP 规则与 MTTR")
+    void shouldAggregateStats() {
+        when(alertRecordMapper.selectCount(ArgumentMatchers.<Wrapper<AlertRecord>>any()))
+                .thenReturn(3L, 9L, 5L, 1L);
+        when(alertRecordMapper.selectMaps(ArgumentMatchers.<Wrapper<AlertRecord>>any())).thenReturn(
+                List.of(Map.of("alert_level", "WARN", "cnt", 4L)),
+                List.of(Map.of("rule_code", "cpu_high", "cnt", 4L)),
+                List.of(Map.of("mttr", 120D)));
+
+        com.bluewhale.alert.vo.AlertRecordStatsVO stats =
+                alertRecordService.stats(null, null);
+
+        assertEquals(3L, stats.getActiveCount());
+        assertEquals(9L, stats.getTotalCount());
+        assertEquals(5L, stats.getRecoveredCount());
+        assertEquals(1L, stats.getSilencedCount());
+        assertEquals(4L, stats.getByLevel().get("WARN"));
+        assertEquals("cpu_high", stats.getTopRules().get(0).getRuleCode());
+        assertEquals(120D, stats.getMttrSeconds());
     }
 
     /**

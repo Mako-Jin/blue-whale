@@ -53,6 +53,10 @@ public class AlertRuleSaveRequest implements Serializable {
     @Size(max = 32, message = "通知通道长度不能超过 32")
     private String channel;
 
+    /** 规则级接收人（逗号分隔），为空时使用全局配置 */
+    @Size(max = 512, message = "规则级接收人长度不能超过 512")
+    private String notifyTargets;
+
     /** 状态：1 启用 / 0 停用 */
     private Integer status;
 

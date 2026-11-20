@@ -36,6 +36,24 @@ public class AlertNotifyProperties {
     /** 入站告警去重配置（F-03） */
     private Dedup dedup = new Dedup();
 
+    /** 通知重试配置（V2：失败退避重试） */
+    private Retry retry = new Retry();
+
+    /**
+     * 通知重试配置。
+     *
+     * @author BlueWhale
+     */
+    @Data
+    public static class Retry {
+
+        /** 最大尝试次数（含首次发送），小于 1 时按 1 处理 */
+        private int maxAttempts = 3;
+
+        /** 退避基数（毫秒），第 n 次重试等待 {@code backoffMillis * n} */
+        private long backoffMillis = 300L;
+    }
+
     /**
      * 入站告警去重配置：同一 fingerprint 在窗口内重复触发时只落库/通知一次。
      *

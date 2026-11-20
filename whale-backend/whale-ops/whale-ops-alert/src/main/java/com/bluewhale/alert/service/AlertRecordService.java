@@ -1,10 +1,14 @@
 package com.bluewhale.alert.service;
 
+import com.bluewhale.alert.dto.AlertAckRequest;
 import com.bluewhale.alert.dto.AlertRecordCreateRequest;
 import com.bluewhale.alert.dto.AlertRecordQueryRequest;
 import com.bluewhale.alert.dto.PrometheusWebhookPayload;
+import com.bluewhale.alert.vo.AlertRecordStatsVO;
 import com.bluewhale.alert.vo.AlertRecordVO;
 import com.bluewhale.common.core.result.PageResult;
+
+import java.time.LocalDateTime;
 
 /**
  * 告警记录服务
@@ -42,4 +46,22 @@ public interface AlertRecordService {
      * @return 落库条数（1 落库 / 0 判定为窗口内重复）
      */
     int create(AlertRecordCreateRequest request);
+
+    /**
+     * 认领告警（标记运维已接手）。
+     *
+     * @param id      告警记录ID
+     * @param request 认领请求
+     * @return 更新后的记录
+     */
+    AlertRecordVO ack(Long id, AlertAckRequest request);
+
+    /**
+     * 告警统计聚合（运维看板）。
+     *
+     * @param start 触发时间起始（可空）
+     * @param end   触发时间截止（可空）
+     * @return 统计结果
+     */
+    AlertRecordStatsVO stats(LocalDateTime start, LocalDateTime end);
 }

@@ -3,10 +3,12 @@ package com.bluewhale.alert.service.impl;
 import com.bluewhale.alert.config.AlertNotifyProperties;
 import com.bluewhale.alert.entity.AlertRecord;
 import com.bluewhale.alert.entity.AlertRule;
+import com.bluewhale.alert.mapper.AlertNotifyLogMapper;
 import com.bluewhale.common.tenant.TenantContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.DisplayName;
@@ -24,6 +26,7 @@ import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -45,8 +48,13 @@ class AlertNotifyServiceImplTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+
+    private final AlertNotifyLogMapper notifyLogMapper = mock(AlertNotifyLogMapper.class);
+
     private final AlertNotifyServiceImpl notifyService =
-            new AlertNotifyServiceImpl(properties, mailSenderProvider, objectMapper);
+            new AlertNotifyServiceImpl(properties, mailSenderProvider, objectMapper,
+                    meterRegistry, notifyLogMapper);
 
     @Test
     @DisplayName("EMAIL：启用且配置完整时发送 HTML 邮件并包含租户与转义内容")
@@ -253,6 +261,95 @@ class AlertNotifyServiceImplTest {
         notifyService.notify(rule("NONE"), record());
 
         verifyNoInteractions(mailSenderProvider);
+    }
+
+    @Test
+    @DisplayName("WEBHOOK：5xx 时按退避重试，成功后记录 SUCCESS 与重试次数")
+    void shouldRetryWebhookOnServerError() throws IOException {
+        AtomicReference<String> body = new AtomicReference<>();
+        java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/hook", exchange -> {
+            body.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            int status = calls.incrementAndGet() == 1 ? 500 : 200;
+            exchange.sendResponseHeaders(status, 0);
+            exchange.close();
+        });
+        server.start();
+        try {
+            properties.getWebhook().setEnabled(true);
+            properties.getWebhook().setUrl("http://127.0.0.1:" + server.getAddress().getPort() + "/hook");
+            properties.getRetry().setMaxAttempts(2);
+            properties.getRetry().setBackoffMillis(1L);
+
+            notifyService.notify(rule("WEBHOOK"), record());
+
+            assertEquals(2, calls.get());
+            assertTrue(body.get().contains("\"ruleCode\":\"cpu_high\""));
+            ArgumentCaptor<com.bluewhale.alert.entity.AlertNotifyLog> captor =
+                    ArgumentCaptor.forClass(com.bluewhale.alert.entity.AlertNotifyLog.class);
+            verify(notifyLogMapper).insert(captor.capture());
+            assertEquals("SUCCESS", captor.getValue().getStatus());
+            assertEquals(1, captor.getValue().getRetryCount());
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    @DisplayName("WEBHOOK：重试耗尽后落库 FAILED 日志，不抛出异常")
+    void shouldPersistFailedLogAfterRetriesExhausted() throws IOException {
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/hook", exchange -> {
+            exchange.getRequestBody().readAllBytes();
+            exchange.sendResponseHeaders(503, 0);
+            exchange.close();
+        });
+        server.start();
+        try {
+            properties.getWebhook().setEnabled(true);
+            properties.getWebhook().setUrl("http://127.0.0.1:" + server.getAddress().getPort() + "/hook");
+            properties.getRetry().setMaxAttempts(2);
+            properties.getRetry().setBackoffMillis(1L);
+
+            notifyService.notify(rule("WEBHOOK"), record());
+
+            ArgumentCaptor<com.bluewhale.alert.entity.AlertNotifyLog> captor =
+                    ArgumentCaptor.forClass(com.bluewhale.alert.entity.AlertNotifyLog.class);
+            verify(notifyLogMapper).insert(captor.capture());
+            assertEquals("FAILED", captor.getValue().getStatus());
+            assertEquals(1, captor.getValue().getRetryCount());
+            assertTrue(captor.getValue().getError().contains("503"));
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    @DisplayName("SMS：规则级接收人覆盖全局收件人")
+    void shouldUseRuleLevelRecipients() throws IOException {
+        AtomicReference<String> body = new AtomicReference<>();
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/sms", exchange -> {
+            body.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            exchange.sendResponseHeaders(200, 0);
+            exchange.close();
+        });
+        server.start();
+        try {
+            properties.getSms().setEnabled(true);
+            properties.getSms().setUrl("http://127.0.0.1:" + server.getAddress().getPort() + "/sms");
+            properties.getSms().setTo(List.of("13800000000"));
+            AlertRule rule = rule("SMS");
+            rule.setNotifyTargets("13900000000,13700000000");
+
+            notifyService.notify(rule, record());
+
+            assertTrue(body.get().contains("\"phones\":[\"13900000000\",\"13700000000\"]"));
+            assertFalse(body.get().contains("13800000000"));
+        } finally {
+            server.stop(0);
+        }
     }
 
     /**
