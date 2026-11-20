@@ -41,6 +41,9 @@ import {
 } from './collision';
 import { createNavGrid } from './path';
 import { createQuestSystem } from './quests';
+import { createSceneEnv, type SceneEnv } from './env';
+import { createPostFx, type PostFx } from './postfx';
+import type { SkyState } from './env-sky';
 import type { CharPanelHandle } from './charpanel';
 import type { AvatarParams } from './avatar';
 import type { NpcChatHandle } from './npcchat';
@@ -112,21 +115,90 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   renderer.toneMappingExposure = 1.02;
   host.appendChild(renderer.domElement);
 
+  /* ==========================================================================
+   * 渲染增强底座（自 whale-showcase 移植，2026-11-20 批1）：IBL + 后处理 + 画质档
+   *
+   * <p>three 的 toneMapping 只在渲染到画布时生效，渲染到 RenderTarget 时是空操作；
+   * 后处理链的 OutputPass 统一做 ACES——所以直渲（low 档）与 composer 两条路径
+   * 都只有一次色调映射，不会双重映射。renderer.toneMapping 保持原值两条路径共用。</p>
+   *
+   * <p>e2e 在 SwiftShader 软渲染下跑 WebGL：PMREM 与多 pass 后处理在软渲染下
+   * 又慢又费，检测到软渲染强制 low 档（直渲 + 不烘 IBL）——e2e 断言只依赖
+   * DOM/探针，不依赖像素，降级不影响冒烟。</p>
+   * ========================================================================== */
+  type Quality = 'high' | 'mid' | 'low';
+  /* mid 不开 SMAA（两遍全屏 pass 拖 ~4fps），抗锯齿交给 low 之外共有的 canvas MSAA
+   * 之外的 bloom 半分辨率模糊天然柔化；SMAA 只留给 high。 */
+  const QUALITY: Record<Quality, { dpr: number; aa: boolean }> = {
+    high: { dpr: 2, aa: true },
+    mid: { dpr: 1, aa: false },
+    low: { dpr: 1, aa: false },
+  };
+  const gl = renderer.getContext();
+  const dbgInfo = gl.getExtension('WEBGL_debug_renderer_info');
+  const gpuName = dbgInfo ? String(gl.getParameter(dbgInfo.UNMASKED_RENDERER_WEBGL)) : '';
+  const isSoftwareGpu = /swiftshader|llvmpipe|softpipe|software/i.test(gpuName);
+  let quality: Quality = isSoftwareGpu ? 'low' : 'mid';
+
+  const postfx: PostFx = createPostFx(renderer, scene, camera, innerWidth, innerHeight);
+  postfx.setAntialias(QUALITY[quality].aa);
+
+  let env: SceneEnv | null = null;
+  let envIntensity = 0.85;
+  if (quality !== 'low') {
+    env = createSceneEnv(renderer);
+    scene.environment = env.texture;
+    scene.environmentIntensity = envIntensity;
+  }
+  /* 低画质（软渲染）env 为 null：半球光 + 平行光回退到移植前的光照结构 */
+
+  function setQuality(q: Quality) {
+    quality = q;
+    const cfg = QUALITY[q];
+    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, cfg.dpr));
+    renderer.setSize(innerWidth, innerHeight);
+    postfx.setAntialias(cfg.aa);
+    postfx.setSize(innerWidth, innerHeight);
+  }
+
+  /* 后处理昼夜风味：值在 updateSky 末尾逐帧写入（复用预分配对象，避免每帧 new） */
+  const gradeShadowTint = new THREE.Color(0x1a2440);
+  const gradeHighTint = new THREE.Color(0xffd2a0);
+
+  /* env 烘焙节流：连续昼夜 150s/天，PMREM 每帧烘不可能——每 6s 一次（一天 25 次），
+   * 太阳走约 14°，环境光随昼夜平滑过渡足够。SkyState 对象复用不重建。 */
+  const ENV_INTERVAL = 6;
+  let lastEnvAt = -1e9;
+  const envState: SkyState = {
+    top: new THREE.Color(),
+    horizon: new THREE.Color(),
+    ground: new THREE.Color(),
+    sunDir: new THREE.Vector3(),
+    sunColor: new THREE.Color(),
+    sunIntensity: 1,
+    haze: 0,
+    stars: 0,
+  };
+  const ENV_MOON_COLOR = new THREE.Color(0x9fb2ff);
+
   /* 工具栏、HUD、各种面板都是 #bww-scene 的**兄弟节点**（React 里同一层渲染），
    * 不在 host 里面。所有按 data-action 找按钮的代码必须从页面根查，
    * 否则 querySelectorAll 恒返回空——按钮看着在、点了没反应，而且不报任何错。 */
   const uiRoot = host.closest('.bww-page') ?? host.parentElement ?? host;
 
-  const hemi = new THREE.HemisphereLight(0x9fc7ff, 0x2c2a20, 0.5);
+  const hemi = new THREE.HemisphereLight(0x9fc7ff, 0x2c2a20, 0.2);
   scene.add(hemi);
 
   const sunLight = new THREE.DirectionalLight(0xfff0cf, 2.1);
   sunLight.castShadow = true;
   sunLight.shadow.mapSize.set(2048, 2048);
-  sunLight.shadow.camera.left = -130;
-  sunLight.shadow.camera.right = 130;
-  sunLight.shadow.camera.top = 130;
-  sunLight.shadow.camera.bottom = -130;
+  /* 阴影盒从 ±130 收紧到 ±44 并逐帧跟随玩家（showcase 口径）：盒不变时 texel
+   * 约 13cm，桥板/瓦垄全是自阴影网格；±44 跟随后 texel 约 4.3cm。范围只罩
+   * 玩家周边，NPC 稍远丢影可接受（游戏相机永远盯着玩家）。 */
+  sunLight.shadow.camera.left = -44;
+  sunLight.shadow.camera.right = 44;
+  sunLight.shadow.camera.top = 44;
+  sunLight.shadow.camera.bottom = -44;
   sunLight.shadow.camera.near = 1;
   sunLight.shadow.camera.far = 800;
   sunLight.shadow.bias = -0.0008;
@@ -2462,7 +2534,10 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     skyUniforms.uSunDir.value.copy(sunDir);
     skyUniforms.uHaze.value = haze;
 
-    sunLight.position.copy(sunDir).multiplyScalar(220);
+    sunLight.target.position.set(player.pos.x, 0, player.pos.z);
+    /* 平行光方向由 position→target 决定：position 必须跟着 target 平移，
+     * 否则 target 跟玩家走后方向会漂移（原版 position 固定在 sunDir*220）。 */
+    sunLight.position.copy(sunLight.target.position).addScaledVector(sunDir, 220);
     sunLight.intensity = lerp(0.05, 2.5, dayF);
     const sunCol = new THREE.Color(0xffe0b0).lerp(new THREE.Color(0xfff6e0), smooth(h, 0, 0.4));
     sunLight.color.copy(sunCol).lerp(new THREE.Color(0xff8a3c), duskF * 0.7);
@@ -2470,7 +2545,7 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     moonLight.position.copy(sunDir).multiplyScalar(-220);
     moonLight.intensity = lerp(0.55, 0.0, dayF);
 
-    hemi.intensity = lerp(0.14, 0.62, dayF);
+    hemi.intensity = lerp(0.06, 0.2, dayF);
     hemi.color.copy(new THREE.Color(0x2a3f6b).lerp(new THREE.Color(0xa8ccff), dayF));
 
     starMat.opacity = clamp(1 - dayF * 1.5, 0, 0.95) * (1 - haze * 0.9);
@@ -2488,6 +2563,40 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     waterUniforms.uSky.value.copy(bot).multiplyScalar(1.0);
     sky.position.copy(camera.position);
     stars.position.copy(camera.position);
+
+    /* ---------------------------------------------------------------- 渲染增强同步
+     * 后处理昼夜风味 + IBL 节流重烘。IBL 接管漫射后 hemi 只补死角（上面已压到 0.06~0.2）。
+     * lanternOn 复用上面灯笼段的声明。 */
+    postfx.setBloom(lerp(0.22, 0.7, lanternOn));
+    postfx.setVignette(lerp(0.32, 0.55, lanternOn));
+    gradeShadowTint.setHex(0x1a2440).lerp(new THREE.Color(0x2a1f3e), duskF * 0.6);
+    postfx.setTint(gradeShadowTint, gradeHighTint, lerp(0.22, 0.3, duskF));
+
+    if (env) {
+      /* env 天空快照：白天用太阳方向烘日景，夜里换月亮方向烘月夜（env-sky 的
+       * moonK 判据 uSunIntensity<1 会自动带月盘与星空，环境光与主天空同源）。 */
+      const night = h < -0.02;
+      envState.top.copy(top);
+      envState.horizon.copy(bot);
+      envState.ground.copy(bot).multiplyScalar(0.3);
+      if (night) {
+        envState.sunDir.copy(sunDir).multiplyScalar(-1); // 月亮在太阳对面
+        envState.sunColor.copy(ENV_MOON_COLOR);
+        envState.sunIntensity = 0.15;
+        envState.stars = starMat.opacity;
+      } else {
+        envState.sunDir.copy(sunDir);
+        envState.sunColor.copy(sunCol);
+        envState.sunIntensity = 1;
+        envState.stars = 0;
+      }
+      envState.haze = haze;
+      if (clock.t - lastEnvAt > ENV_INTERVAL) {
+        lastEnvAt = clock.t;
+        scene.environment = env.update(envState);
+        scene.environmentIntensity = lerp(0.55, 0.85, dayF);
+      }
+    }
   }
 
   /* ==========================================================================
@@ -3017,7 +3126,12 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     updatePortals(dt);
     updateHUD();
 
-    renderer.render(scene, camera);
+    // low 档直渲（软渲染 e2e 路径）；mid/high 走后处理链（Bloom→Output→Grade→SMAA）
+    if (quality === 'low') {
+      renderer.render(scene, camera);
+    } else {
+      postfx.render(dt);
+    }
     updateLabels();
     updateNameLabels();
     // 气泡要在 render 之后投影：此时相机矩阵已是最新
@@ -3029,6 +3143,7 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     camera.aspect = innerWidth / innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(innerWidth, innerHeight);
+    postfx.setSize(innerWidth, innerHeight);
   });
 
   /* 开场 */
@@ -3071,6 +3186,9 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       chat: { open: Boolean(npcChat?.isOpen()), persona: npcChat?.personaId() ?? null },
       online: channel.mode,
     });
+    /* 画质档探针（视觉合并批1）：读当前档位 / 手动切换（low 直渲，mid/high 走后处理） */
+    window.__bwwQuality = () => quality;
+    window.__bwwSetQuality = (q: 'high' | 'mid' | 'low') => setQuality(q);
     /* 牌坊状态探针：给 e2e 断言"哪个殿拿到了真数、哪个殿降级了" */
     window.__bwwGlyphs = () =>
       [...metrics.cards.values()].map((card) => ({
@@ -3298,6 +3416,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       }
     });
     scene.clear();
+    postfx.dispose();
+    env?.dispose();
     renderer.dispose();
     renderer.domElement.remove();
   }
