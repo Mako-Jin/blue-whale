@@ -218,7 +218,7 @@ export interface ProcessDefinitionValidate {
   flowCount: number;
 }
 
-/** 校验入参（POST /workflow/v1/definition/validate；definitionJson 与 bpmnXml 二选一） */
+/** 校验入参（POST /workflow/v1/model/definition/validate；definitionJson 与 bpmnXml 二选一） */
 export interface DefinitionValidateRequest {
   definitionJson?: string;
   bpmnXml?: string;
@@ -248,7 +248,7 @@ export interface SimulateStep {
   counterSignPolicy?: string | null;
 }
 
-/** 选路模拟入参（POST /workflow/v1/definition/simulate） */
+/** 选路模拟入参（POST /workflow/v1/model/definition/simulate） */
 export interface DefinitionSimulateRequest {
   /** 流程定义 JSON（规范化或 legacy） */
   definitionJson: string;
@@ -278,7 +278,7 @@ export interface ProcessDefinitionSimulate {
   errorMessage?: string | null;
 }
 
-/** BPMN 导入入参（POST /workflow/v1/definition/bpmn） */
+/** BPMN 导入入参（POST /workflow/v1/model/definition/bpmn） */
 export interface BpmnImportRequest {
   code: string;
   name: string;
@@ -360,14 +360,14 @@ export const workflowApi = {
   definitionRemove: (id: Id) => del<void>(`/workflow/v1/definition/${id}`),
   // 校验：内容非法返回 valid=false（非异常），errors[] 按 refKey 映射画布元素
   definitionValidate: (data: DefinitionValidateRequest) =>
-    post<ProcessDefinitionValidate>('/workflow/v1/definition/validate', data),
+    post<ProcessDefinitionValidate>('/workflow/v1/model/definition/validate', data),
   // 选路模拟：按流程变量预演走向，不创建实例（错误落在 VO 字段而非异常）
   definitionSimulate: (data: DefinitionSimulateRequest) =>
-    post<ProcessDefinitionSimulate>('/workflow/v1/definition/simulate', data),
+    post<ProcessDefinitionSimulate>('/workflow/v1/model/definition/simulate', data),
   definitionBpmnImport: (data: BpmnImportRequest) =>
-    post<ProcessDefinition>('/workflow/v1/definition/bpmn', data),
+    post<ProcessDefinition>('/workflow/v1/model/definition/bpmn', data),
   // BPMN 导出为原始字节流（响应非 JSON 信封），文件名从 Content-Disposition 解析
-  definitionBpmnExport: (id: Id) => downloadBlob(`/workflow/v1/definition/${id}/bpmn`),
+  definitionBpmnExport: (id: Id) => downloadBlob(`/workflow/v1/model/definition/${id}/bpmn`),
   // 版本快照：版本号倒序；publishStatus 0 草稿 / 1 已发布
   definitionVersions: (id: Id) =>
     get<ProcessDefinitionVersion[]>(`/workflow/v1/definition/${id}/versions`),

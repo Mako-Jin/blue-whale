@@ -64,34 +64,141 @@ def join_path(prefix: str, sub: str) -> str:
     return "/" + "/".join(parts) if parts else "/"
 
 
-def backend_guarded_endpoints() -> list[dict]:
-    """返回 [{method, path, source}]，path 形如 /user/{id}。"""
+# 类型声明与实现列表：控制器普遍 implements 接口契约，路径注解在接口上，
+# 而 `@RequireReauth` 标在实现类的方法上——只看单文件必然解析出 0 个端点。
+TYPE_DECL = re.compile(r"\b(?:public\s+)?(?:interface|class|enum|record)\s+(\w+)")
+IMPLEMENTS = re.compile(r"\bimplements\s+([\w\s,.]+?)\s*\{")
+# 方法签名（取窗口内最后一个，即注解所修饰的方法）
+METHOD_SIG = re.compile(
+    r"(?:public|protected|private)\s+(?:static\s+|final\s+|synchronized\s+)*"
+    r"[\w$<>\[\],.?\s]+?\s(\w+)\s*\("
+)
+
+
+def read_text(path: str) -> str:
+    return io.open(path, encoding="utf-8", errors="replace").read()
+
+
+_TYPE_INDEX: dict[str, str] | None = None
+
+
+def java_type_index() -> dict[str, str]:
+    """简单类名 → 文件路径（只索引 src/main 下的 .java；同名时优先 interfaces 包）。"""
+    global _TYPE_INDEX
+    if _TYPE_INDEX is not None:
+        return _TYPE_INDEX
+    index: dict[str, str] = {}
+    for path in iter_files(BACKEND, (".java",)):
+        norm = path.replace(os.sep, "/")
+        if "/src/main/" not in norm:
+            continue
+        for m in TYPE_DECL.finditer(read_text(path)):
+            name = m.group(1)
+            known = index.get(name)
+            if known is None:
+                index[name] = path
+            elif "interfaces" in norm and "interfaces" not in known.replace(os.sep, "/"):
+                index[name] = path
+    _TYPE_INDEX = index
+    return index
+
+
+def implemented_types(text: str) -> list[str]:
+    """解析 implements 后的简单类型名（去泛型、去包名）。"""
+    names: list[str] = []
+    for m in IMPLEMENTS.finditer(text):
+        for part in m.group(1).split(","):
+            simple = part.split("<")[0].strip().split(".")[-1]
+            if simple and simple not in names:
+                names.append(simple)
+    return names
+
+
+def class_level_prefix(text: str) -> str:
+    m = CLASS_MAPPING.search(text)
+    return m.group(1) if m else ""
+
+
+def mapping_of_method(text: str, method_name: str) -> tuple[str, str] | None:
+    """在给定文本里定位方法的 @XxxMapping，返回 (verb, 子路径)。
+
+    只认「与本方法声明之间没有方法边界」的那张 Mapping：注解与签名之间出现
+    `;` 或 `}` 说明已经越过前一个方法的结尾，那张注解属于别人。
+    """
+    doc_block = re.compile(r"/\*.*?\*/", re.S)
+    pattern = re.compile(r"\b" + re.escape(method_name) + r"\s*\(")
+    for m in pattern.finditer(text):
+        candidates = list(METHOD_MAPPING.finditer(text, 0, m.start()))
+        for hit in reversed(candidates):
+            between = doc_block.sub("", text[hit.end(): m.start()])
+            if ";" in between or "}" in between:
+                continue
+            return hit.group(1).upper(), hit.group(2)
+    return None
+
+
+def backend_guarded_endpoints() -> tuple[list[dict], list[dict]]:
+    """解析 @RequireReauth 端点。
+
+    控制器多为「实现接口契约 + 注解标在实现方法」的写法：路径注解在接口上、
+    二次认证注解在实现类里。因此先看实现类自身窗口内有无 Mapping，没有再顺着
+    `implements` 去接口里找同名方法——否则一个端点都解析不到，门禁形同虚设。
+
+    @return ({method, path, source} 列表，无法解析的注解列表)
+    """
     out: list[dict] = []
+    unresolved: list[dict] = []
+    index = java_type_index()
     for path in iter_files(BACKEND, (".java",)):
         if "/src/main/" not in path.replace(os.sep, "/"):
             continue
-        text = io.open(path, encoding="utf-8", errors="replace").read()
+        text = read_text(path)
         if "@RequireReauth" not in text:
             continue
         rel = os.path.relpath(path, ROOT).replace(os.sep, "/")
-        class_prefix = ""
-        cm = CLASS_MAPPING.search(text)
-        if cm:
-            class_prefix = cm.group(1)
+        own_prefix = class_level_prefix(text)
+        contracts = []
+        for name in implemented_types(text):
+            ipath = index.get(name)
+            if ipath:
+                contracts.append((name, read_text(ipath)))
         for hit in REQUIRE_REAUTH.finditer(text):
-            # 注解写在方法上：向前找最近的 @XxxMapping("...")
             window = text[max(0, hit.start() - 1200): hit.start()]
-            matches = list(METHOD_MAPPING.finditer(window))
-            if not matches:
-                # 解析不到方法映射（javadoc / 配置类 / 拦截器）→ 不是端点，跳过
+            local_matches = list(METHOD_MAPPING.finditer(window))
+            if local_matches:
+                last = local_matches[-1]
+                out.append({
+                    "method": last.group(1).upper(),
+                    "path": make_pattern(own_prefix, last.group(2)),
+                    "source": rel,
+                })
                 continue
-            last = matches[-1]
-            out.append({
-                "method": last.group(1).upper(),
-                "path": make_pattern(class_prefix, last.group(2)),
-                "source": rel,
-            })
-    return out
+            # 注解写在方法签名之前：注解之前的窗口只能看到「上一个方法」，
+            # 被注解方法的名字必须往后找，否则会错配到邻接方法的路径上。
+            sigs = list(METHOD_SIG.finditer(text[hit.end(): hit.end() + 1200]))
+            method_name = sigs[0].group(1) if sigs else None
+            found = None
+            for cname, ctext in contracts:
+                if not method_name:
+                    break
+                hit_mapping = mapping_of_method(ctext, method_name)
+                if hit_mapping:
+                    verb, sub = hit_mapping
+                    found = {
+                        "method": verb,
+                        "path": make_pattern(class_level_prefix(ctext) or own_prefix, sub),
+                        "source": f"{rel} (接口 {cname})",
+                    }
+                    break
+            if found:
+                out.append(found)
+            else:
+                unresolved.append({
+                    "source": rel,
+                    "method": method_name or "（未识别）",
+                    "line": text[:hit.start()].count("\n") + 1,
+                })
+    return out, unresolved
 
 
 def make_pattern(prefix: str, sub: str) -> str:
@@ -191,7 +298,7 @@ def main() -> int:
     parser.add_argument("--json", action="store_true", help="输出 JSON")
     args = parser.parse_args()
 
-    guarded = backend_guarded_endpoints()
+    guarded, unresolved = backend_guarded_endpoints()
     apps = frontend_apps()
     results = []
     failures = []
@@ -209,10 +316,11 @@ def main() -> int:
     if args.json:
         print(json.dumps({
             "guarded_endpoints": guarded,
+            "unresolved": unresolved,
             "apps": results,
             "failures": failures,
         }, ensure_ascii=False, indent=2))
-        return 1 if failures else 0
+        return 1 if (failures or unresolved or not guarded) else 0
 
     print("=" * 64)
     print(f"step-up 受保护端点 {len(guarded)} 个 / 命中应用 {len(results)} 个")
@@ -227,10 +335,22 @@ def main() -> int:
                 print(f"         {hit['method']} {hit['call']}  ({hit['file']})")
             print("         → src/api/client.ts 未注入 onReauthRequired，42801 会原样抛给业务层")
     print("-" * 64)
+    # 解析不到端点不能当作「没有受保护端点」通过：注解被移除、或解析逻辑失效，
+    # 两种情况下门禁都已失去意义，必须人工确认。
+    if unresolved:
+        print(f"FAIL：{len(unresolved)} 处 @RequireReauth 无法解析出 HTTP 路径（门禁不能覆盖）")
+        for item in unresolved:
+            print(f"       {item['source']}:{item['line']} 方法 {item['method']}"
+                  " → 实现类无 Mapping 且 implements 里找不到同名方法")
+        return 1
+    if not guarded:
+        print("FAIL：未解析到任何 @RequireReauth 受保护端点——注解可能已被移除，"
+              "或解析逻辑失效；请人工确认后调整门禁")
+        return 1
     if failures:
         print(f"FAIL {len(failures)} 个应用未接二次认证：{', '.join(failures)}")
         return 1
-    print(f"通过：{len(results)} 个应用均已接入二次认证")
+    print(f"通过：{len(results)} 个应用均已接入二次认证（覆盖 {len(guarded)} 个受保护端点）")
     return 0
 
 

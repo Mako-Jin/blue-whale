@@ -59,7 +59,7 @@ REQUEST_MAPPING_METHOD = re.compile(
 # ---------------------------------------------------------------- 前端解析
 
 CALL = re.compile(
-    r'\b(get|post|put|del|delete|patch)\s*(?:<[^>]*>)?\s*\(\s*([`\'"])(.+?)\2'
+    r'\b(get|post|put|del|delete|patch|downloadBlob)\s*(?:<[^>]*>)?\s*\(\s*([`\'"])(.+?)\2'
 )
 # 包装式调用：`request<T>(url, { method: 'POST' })`（论坛/孪生等子应用统一走 @bluewhale/http 包装层）。
 # 不补这条规则时，这类调用既不计数也不校验，等于「门禁看不见」——2026-11-12 负向验证发现。
@@ -69,6 +69,9 @@ WRAPPER_CALL = re.compile(
 METHOD_OF = {
     "get": "GET", "post": "POST", "put": "PUT",
     "del": "DELETE", "delete": "DELETE", "patch": "PATCH",
+    # 导出/下载类调用：`downloadBlob(url)` 走 GET 取原始字节。
+    # 不识别时这类调用会被完全跳过——导出端点漂移就永远查不出来。
+    "downloadBlob": "GET",
 }
 
 
