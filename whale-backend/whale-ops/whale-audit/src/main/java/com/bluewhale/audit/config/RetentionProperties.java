@@ -36,4 +36,12 @@ public class RetentionProperties {
      * 本开关为 {@code true} 时调度器仍会装配并只执行归档。</p>
      */
     private boolean archiveEnabled = true;
+
+    /**
+     * 审计日志要求的最少留存天数（等保 2.0 8.1.4.3 a：不少于 6 个月），默认 180。
+     *
+     * <p>仅用于留存巡检告警阈值，<b>不参与任何删除决策</b>——{@code audit_log} 永不删除，
+     * 本条只决定「最早记录距今不足多少天时报警」。</p>
+     */
+    private int minimumDays = 180;
 }

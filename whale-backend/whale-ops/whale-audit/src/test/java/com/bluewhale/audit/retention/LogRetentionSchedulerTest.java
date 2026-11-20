@@ -38,6 +38,9 @@ class LogRetentionSchedulerTest {
     /** 配置覆盖后的保留天数 */
     private static final int CONFIGURED_DAYS = 7;
 
+    /** 等保要求的审计留存天数（6 个月按 180 天计） */
+    private static final int MINIMUM_DAYS = 180;
+
     @Mock
     private ApiLogMapper apiLogMapper;
 
@@ -55,6 +58,9 @@ class LogRetentionSchedulerTest {
 
     @Mock
     private AuditLogArchiver archiver;
+
+    @Mock
+    private AuditRetentionInspector retentionInspector;
 
     private LogRetentionCleaner retentionCleaner;
 
@@ -114,7 +120,7 @@ class LogRetentionSchedulerTest {
         RetentionProperties properties = new RetentionProperties();
         properties.setEnabled(true);
         properties.setDays(CONFIGURED_DAYS);
-        LogRetentionScheduler scheduler = new LogRetentionScheduler(cleaner, archiver, properties);
+        LogRetentionScheduler scheduler = new LogRetentionScheduler(cleaner, archiver, retentionInspector, properties);
 
         scheduler.cleanExpiredLogs();
 
@@ -127,7 +133,7 @@ class LogRetentionSchedulerTest {
         RetentionProperties properties = new RetentionProperties();
         properties.setEnabled(true);
         properties.setArchiveEnabled(false);
-        LogRetentionScheduler scheduler = new LogRetentionScheduler(cleaner, archiver, properties);
+        LogRetentionScheduler scheduler = new LogRetentionScheduler(cleaner, archiver, retentionInspector, properties);
 
         scheduler.cleanExpiredLogs();
 
@@ -142,7 +148,7 @@ class LogRetentionSchedulerTest {
         properties.setEnabled(true);
         properties.setArchiveEnabled(true);
         properties.setDays(CONFIGURED_DAYS);
-        LogRetentionScheduler scheduler = new LogRetentionScheduler(cleaner, archiver, properties);
+        LogRetentionScheduler scheduler = new LogRetentionScheduler(cleaner, archiver, retentionInspector, properties);
 
         scheduler.cleanExpiredLogs();
 
@@ -155,7 +161,7 @@ class LogRetentionSchedulerTest {
     void shouldArchiveWithoutCleanupWhenRetentionDisabled() {
         RetentionProperties properties = new RetentionProperties();
         properties.setDays(CONFIGURED_DAYS);
-        LogRetentionScheduler scheduler = new LogRetentionScheduler(cleaner, archiver, properties);
+        LogRetentionScheduler scheduler = new LogRetentionScheduler(cleaner, archiver, retentionInspector, properties);
 
         scheduler.cleanExpiredLogs();
 
@@ -171,6 +177,36 @@ class LogRetentionSchedulerTest {
         assertTrue(properties.isArchiveEnabled(), "归档默认必须开启");
         assertFalse(properties.isEnabled(), "清理默认必须关闭，避免误删");
         assertEquals(RETENTION_DAYS, properties.getDays());
+        assertEquals(MINIMUM_DAYS, properties.getMinimumDays(), "留存巡检阈值默认为等保要求的 180 天");
         verifyNoInteractions(apiLogMapper);
+    }
+
+    @Test
+    @DisplayName("Scheduler：清理与归档都关闭时仍执行留存巡检（只读，不受开关控制）")
+    void shouldInspectRetentionEvenWhenBothSwitchesOff() {
+        RetentionProperties properties = new RetentionProperties();
+        properties.setEnabled(false);
+        properties.setArchiveEnabled(false);
+        properties.setMinimumDays(MINIMUM_DAYS);
+        LogRetentionScheduler scheduler = new LogRetentionScheduler(cleaner, archiver, retentionInspector, properties);
+
+        scheduler.cleanExpiredLogs();
+
+        verify(cleaner, never()).cleanExpired(anyInt());
+        verify(archiver, never()).archive(anyInt());
+        verify(retentionInspector).inspect(MINIMUM_DAYS);
+    }
+
+    @Test
+    @DisplayName("Scheduler：执行摘要包含最早审计记录距今天数，供调度中心直接可见")
+    void shouldExposeOldestAuditDaysInSummary() {
+        RetentionProperties properties = new RetentionProperties();
+        properties.setArchiveEnabled(false);
+        when(retentionInspector.inspect(anyInt())).thenReturn(200L);
+        LogRetentionScheduler scheduler = new LogRetentionScheduler(cleaner, archiver, retentionInspector, properties);
+
+        String summary = scheduler.cleanExpiredLogs();
+
+        assertTrue(summary.contains("oldestAuditDays=200"), "摘要应带巡检结果，实际=" + summary);
     }
 }

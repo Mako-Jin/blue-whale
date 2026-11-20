@@ -23,6 +23,9 @@ import org.springframework.stereotype.Component;
  * <p><b>两者作用域不相交</b>（清理只删 4 张日志表、归档只读 {@code audit_log}），
  * 执行顺序不影响正确性，切勿为「先清理后归档」之类的假设调整顺序。</p>
  *
+ * <p>两项之后固定执行一次 {@link AuditRetentionInspector}：只读、不删，负责把「{@code audit_log}
+ * 最早记录距今多少天」暴露成指标 {@code audit.log.oldest.days}，供留存不足 6 个月的告警使用。</p>
+ *
  * @author BlueWhale
  */
 @Slf4j
@@ -35,12 +38,18 @@ public class LogRetentionScheduler {
 
     private final AuditLogArchiver archiver;
 
+    private final AuditRetentionInspector retentionInspector;
+
     private final RetentionProperties properties;
 
     /**
-     * 按配置 cron 触发：清理开关开启时清理 4 张日志表，归档开关开启时导出 {@code audit_log} 过期记录
+     * 按配置 cron 触发：清理开关开启时清理 4 张日志表，归档开关开启时导出 {@code audit_log} 过期记录，
+     * 最后做一次留存期巡检（指标 + 告警，只读不删）
      *
-     * @return 执行摘要（实际生效的开关与保留天数）
+     * <p>巡检<b>不受两个开关控制</b>：它不删任何数据，只是把「最早记录距今多久」暴露成指标。
+     * 若挂在开关下，关掉清理的合规环境反而失去留存证据，与等保 8.1.4.3 a 的取证意图相反。</p>
+     *
+     * @return 执行摘要（实际生效的开关、保留天数、最早审计记录距今天数）
      */
     @ScheduledJob(code = "audit.log.retention",
             cron = "${whale.audit.retention.cron}",
@@ -54,7 +63,8 @@ public class LogRetentionScheduler {
         if (properties.isArchiveEnabled()) {
             archiver.archive(properties.getDays());
         }
+        long oldestDays = retentionInspector.inspect(properties.getMinimumDays());
         return "clean=" + properties.isEnabled() + ", archive=" + properties.isArchiveEnabled()
-                + ", days=" + properties.getDays();
+                + ", days=" + properties.getDays() + ", oldestAuditDays=" + oldestDays;
     }
 }

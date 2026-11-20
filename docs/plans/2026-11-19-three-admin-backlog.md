@@ -20,20 +20,22 @@
 | 审计的审计（第 5 节 2 项） | `AuditLogController` 查询/详情/链路/导出均 `@AuditLog(QUERY/EXPORT)` | ✅（既有能力，本轮核对） |
 | 超管与三员互斥（第 2 节 2 项） | `V37__super_admin_three_admin_mutex.sql`：super_admin 并入 `three_admin_mutex` | ✅ |
 | 验收与安全评审归档（第 8 节） | `scripts/verify/three-admin-assertions.sql` 11 条断言 + `docs/reviews/2026-11-20-three-admin-compliance.md` 条款对照表 | ✅ |
+| 归档哈希与签名（第 5 节 / 原残余 #2） | `whale-audit` V3 补 6 列 + 每批 `.sha256` 清单（SHA-256 / 链式哈希 / 可选 HMAC）+ `scripts/verify/archive-hash-verify.py` | ✅ |
+| 审计留存 6 个月巡检（原残余 #4） | `AuditRetentionInspector` → Gauge `audit.log.oldest.days`，低于 `whale.audit.retention.minimum-days`（默认 180）WARN | ✅ |
+| 超管退役技术闸门（原残余 #5） | `scripts/verify/super-admin-retirement.sql` 4 条断言（启用超管 0 / 近 7 天成功登录 0 / 三员各有账号 / 无人兼超管与三员） | ✅ |
 
 **未做 / 待评估**：
 
 - 三员账号「双人复核启用」：等保三级可选项，当前无对应审批流模型，未实现。
-- 审计归档哈希与签名：归档只导出不删除、水位可追溯，但归档包未记 SHA-256。
 - 应用数据库账号按表收权：当前靠触发器拦改删，生产建议再 `GRANT SELECT, INSERT ON audit_log`。
-- 审计留存期 6 个月的强制巡检：保留期靠配置，无巡检告警。
-- `super_admin` 与三员的「互斥」只到角色分配层：超管本身是代码级硬旁路（`PermissionInterceptor`），交付后仍须停用超管账号——技术强制不了，只能靠流程。
+- 归档历史批次（配签名密钥之前）的清单 `hmac=` 为空，不可追溯补签——审计时只做哈希与链值校验。
+- `super_admin` 与三员的「互斥」只到角色分配层：超管本身是代码级硬旁路（`PermissionInterceptor`），**技术拦不住它在线**，但「是否已退役」现在有可执行闸门（上表最后一行），不再是纯流程。
 
 **运维口径（交付后必做）**：
 
 1. 用平台 `super_admin` 建三个独立账号，分别授 `system_admin` / `security_admin` / `audit_admin`（互斥约束会拦住一人多授）。
 2. 三员账号首次登录必须改密（系统管理员重置口令即置 `must_change_password`，登录返回 `mustChangePassword=true`）。
-3. 交付完成后停用或改密 `super_admin`，避免「硬旁路账号」长期在线。
+3. 交付完成后停用或改密 `super_admin`，避免「硬旁路账号」长期在线；用 `scripts/verify/super-admin-retirement.sql` 验（4 条全 PASS 才签字，**不要挂 CI**）。
 4. 三员角色权限集不允许在管理端调整（后端拒绝 + 前端按钮置灰）：需要变更职责边界时，改 `V36` 白名单并发新迁移。
 
 ---

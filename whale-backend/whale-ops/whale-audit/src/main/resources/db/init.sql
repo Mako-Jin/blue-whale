@@ -85,6 +85,13 @@ CREATE TABLE audit_archive_watermark (
     last_create_time DATETIME DEFAULT NULL           COMMENT '已归档批次的最后一条 audit_log.create_time',
     last_id          BIGINT   DEFAULT NULL           COMMENT '已归档批次的最后一条 audit_log.id（同一 create_time 内去重）',
     update_time      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '水位更新时间',
+    -- 以下 6 列为归档完整性自证字段（V3 迁移补齐，手工建库在此直接带上）
+    last_batch_sha256 VARCHAR(64)  DEFAULT NULL      COMMENT '本批归档 CSV 的 SHA-256 十六进制小写',
+    chain_sha256      VARCHAR(64)  DEFAULT NULL      COMMENT '链式哈希 sha256(上一批 chain || 本批 sha256)，首批以空串参与计算',
+    last_object_key   VARCHAR(255) DEFAULT NULL      COMMENT '本批归档 CSV 的对象存储键',
+    last_manifest_key VARCHAR(255) DEFAULT NULL      COMMENT '本批 .sha256 校验清单的对象存储键',
+    last_batch_rows   INT          DEFAULT NULL      COMMENT '本批归档行数',
+    archived_total    BIGINT       NOT NULL DEFAULT 0 COMMENT '累计归档行数',
     PRIMARY KEY (id)
 ) COMMENT='审计日志归档水位表';
 

@@ -76,15 +76,22 @@ class AuditFlywayMigrationScriptTest {
     /**
      * 破坏性语句校验：迁移脚本不允许 DROP / TRUNCATE / DELETE
      *
+     * <p>唯一豁免是 {@code DROP TRIGGER IF EXISTS}：MySQL 8 没有 {@code CREATE TRIGGER IF NOT EXISTS}，
+     * 触发器类迁移只能「先删后建」才能重跑幂等；删除的是守卫对象而非数据，
+     * 且紧接着一定会重建（V2 即此用法）。表级 {@code DROP} 仍一律禁止。</p>
+     *
      * @throws IOException 读取脚本失败
      */
     @Test
-    @DisplayName("迁移脚本不含 DROP / TRUNCATE / DELETE")
+    @DisplayName("迁移脚本不含 DROP / TRUNCATE / DELETE（DROP TRIGGER 幂等重建除外）")
     void shouldNotContainDestructiveStatements() throws IOException {
         for (Path script : migrationScripts()) {
             for (String line : Files.readAllLines(script, StandardCharsets.UTF_8)) {
                 String statement = line.trim().toUpperCase();
                 if (statement.startsWith("--") || statement.isEmpty()) {
+                    continue;
+                }
+                if (statement.startsWith("DROP TRIGGER IF EXISTS ")) {
                     continue;
                 }
                 assertFalse(statement.startsWith("DROP "),

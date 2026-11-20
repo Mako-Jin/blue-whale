@@ -1,12 +1,14 @@
 package com.bluewhale.audit.support;
 
 import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * 审计关键路径指标（Micrometer / Actuator Prometheus）。
@@ -47,6 +49,14 @@ public class AuditMetrics {
     private final MeterRegistry meterRegistry;
 
     /**
+     * 最近一次留存期巡检得到的「最早审计记录距今天数」，{@code -1} 表示尚无结果。
+     *
+     * <p>Gauge 只持引用不持值，所以必须由本类长期持有该 {@link AtomicLong} 并在巡检时更新，
+     * 否则每次读数都取自一个临时对象，指标会永远停在注册时的快照。</p>
+     */
+    private final AtomicLong oldestAuditDays = new AtomicLong(-1L);
+
+    /**
      * 记录一次导出任务结果
      *
      * @param success       是否成功
@@ -84,5 +94,21 @@ public class AuditMetrics {
      */
     public void recordMqConsume(String result) {
         meterRegistry.counter("audit.mq.consume", TAG_RESULT, result).increment();
+    }
+
+    /**
+     * 记录 {@code audit_log} 最早记录距今天数（留存期巡检结果）
+     *
+     * <p>以 Gauge 暴露，告警口径「{@code audit.log.oldest.days < 180}」即留存不足 6 个月；
+     * 值为 {@code -1} 表示表为空或查询失败，属「无数据」，告警规则须排除该值。</p>
+     *
+     * @param days 距今天数；{@code -1} 表示未知
+     */
+    public void recordAuditOldestDays(long days) {
+        oldestAuditDays.set(days);
+        // 同一 name 重复 register 会复用已存在的 meter，Gauge 持有 AtomicLong 引用，后续只更新值
+        Gauge.builder("audit.log.oldest.days", oldestAuditDays, AtomicLong::doubleValue)
+                .description("audit_log 最早一条记录距今天数，低于 180 表示留存不足 6 个月（-1=无数据）")
+                .register(meterRegistry);
     }
 }
