@@ -95,6 +95,14 @@ whale:
       max-rows: ${WHALE_AUDIT_EXPORT_MAX_ROWS:50000}
       # 归档分页流式单批行数：每批独立生成 CSV、上传并推进水位，控制单批内存峰值
       batch-rows: ${WHALE_AUDIT_EXPORT_BATCH_ROWS:1000}
+      # 归档清单 HMAC 签名密钥（等保 2.0 8.1.4.3）：为空时清单只有 SHA-256 与链式哈希，
+      # 能发现误改与批次插入/删除，但挡不住有库写权限者连同哈希一起改写。
+      # 生产必须注入，禁止明文入库入仓。
+      sign-key: ${WHALE_AUDIT_EXPORT_SIGN_KEY:}
+      # 强制签名：为 true 且 sign-key 为空时，归档任务直接失败且不产生任何批次
+      # （失败经作业心跳暴露为 audit.job.stale.days 增长）。生产建议 true：
+      # 无签名归档物事后无法补救，补签等于伪造时间线。
+      require-sign-key: ${WHALE_AUDIT_EXPORT_REQUIRE_SIGN_KEY:false}
     retention:
       enabled: ${WHALE_AUDIT_RETENTION_ENABLED:false}
       days: ${WHALE_AUDIT_RETENTION_DAYS:30}

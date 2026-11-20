@@ -41,4 +41,15 @@ public class AuditExportProperties {
      * 生产必须通过环境变量注入，禁止明文入库入仓。</p>
      */
     private String signKey = "";
+
+    /**
+     * 强制要求签名密钥（生产应开启，默认关闭以兼容尚未配密钥的环境）。
+     *
+     * <p>为 {@code true} 且 {@link #signKey} 为空时，归档任务<b>直接失败且不产生任何批次</b>：
+     * 宁可让「归档没跑起来」被作业心跳抓出来，也不要跑出一堆看起来完整、实则无签名的归档物——
+     * 事后补签等于伪造时间线，无法补救。</p>
+     *
+     * <p>关闭时仍会记录指标 {@code audit.archive.signed=0} 并每轮 WARN，避免配置漏项完全无声。</p>
+     */
+    private boolean requireSignKey = false;
 }

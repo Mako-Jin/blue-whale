@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicLong;
  *   <li>{@code audit.export.rows}：导出成功时的行数分布；</li>
  *   <li>{@code audit.archive.batches}（Tag {@code result=success|failure}）：归档批次计数；</li>
  *   <li>{@code audit.archive.rows}：归档成功批次的行数分布；</li>
+ *   <li>{@code audit.archive.signed}：归档清单是否带 HMAC 签名（{@code 1}/{@code 0}/{@code -1}）；</li>
  *   <li>{@code audit.mq.consume}（Tag {@code result=success|duplicate|rejected}）：MQ 消费结果计数。</li>
  * </ul>
  *
@@ -55,6 +56,14 @@ public class AuditMetrics {
      * 否则每次读数都取自一个临时对象，指标会永远停在注册时的快照。</p>
      */
     private final AtomicLong oldestAuditDays = new AtomicLong(-1L);
+
+    /**
+     * 归档清单是否带 HMAC 签名：{@code 1} 已启用、{@code 0} 未启用、{@code -1} 尚未归档过。
+     *
+     * <p>与 {@link #oldestAuditDays} 同理，必须由本类长期持有：Gauge 只持引用，
+     * 用它做「生产环境必须为 1」的告警口径时，值不能是临时对象。</p>
+     */
+    private final AtomicLong archiveSigned = new AtomicLong(-1L);
 
     /**
      * 记录一次导出任务结果
@@ -94,6 +103,22 @@ public class AuditMetrics {
      */
     public void recordMqConsume(String result) {
         meterRegistry.counter("audit.mq.consume", TAG_RESULT, result).increment();
+    }
+
+    /**
+     * 记录归档清单签名是否启用
+     *
+     * <p>告警口径 {@code audit.archive.signed == 0} 即「归档物无签名」：这类归档只能防误改，
+     * 挡不住有库写权限的人连同哈希一起改写。用指标而非仅日志暴露，是因为签名缺失时
+     * 归档批次计数、行数分布、作业心跳<b>全部正常</b>，只有这个值能区分。</p>
+     *
+     * @param signed 是否已配置签名密钥
+     */
+    public void recordArchiveSigned(boolean signed) {
+        archiveSigned.set(signed ? 1L : 0L);
+        Gauge.builder("audit.archive.signed", archiveSigned, AtomicLong::doubleValue)
+                .description("归档清单是否带 HMAC 签名（1=启用，0=未启用，-1=尚未归档，生产应为 1）")
+                .register(meterRegistry);
     }
 
     /**

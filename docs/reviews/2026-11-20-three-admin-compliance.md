@@ -1,7 +1,7 @@
 # 三员分立等保 2.0 对照与验收归档（2026-11-20）
 
-> 交付批次：① commit `5de909f6`（三员角色与职责矩阵）；② `7e21c1cc` + `09244ea3`（审计防篡改、超管并入互斥、验收断言集）；③ 归档哈希链与清单签名、留存巡检、超管退役闸门；④ 本批（作业心跳与陈旧告警、应用账号最小权限核查）。
-> **部署提醒**：本批改了 `whale-audit` 的迁移（V4）与代码，必须重建 `whale-audit` 镜像后重启，`restart` 不会带新代码。
+> 交付批次：① commit `5de909f6`（三员角色与职责矩阵）；② `7e21c1cc` + `09244ea3`（审计防篡改、超管并入互斥、验收断言集）；③ 归档哈希链与清单签名、留存巡检、超管退役闸门；④ 作业心跳与陈旧告警、应用账号最小权限核查；⑤ 本批（归档签名可强制 + 二次认证接线门禁修复）。
+> **部署提醒**：本批改了 `whale-audit` 的代码与配置（`application.yml` 新增 `export.sign-key` / `require-sign-key`），必须重建 `whale-audit` 镜像后重启，`restart` 不会带新代码。
 > 对照标准：GB/T 22239-2019《信息安全技术 网络安全等级保护基本要求》第三级——8.1.4 安全计算环境、8.1.5 安全管理中心。
 > 本文是安全评审归档件：每条要求都给出**落地位置**与**可重复的验证命令**，不留「已实现」这种无法验证的结论。
 
@@ -13,6 +13,8 @@
 | 职责分离的可执行性 | 已落地：MUTEX 约束 `three_admin_mutex`（含 `super_admin`），分配角色即拦截 |
 | 审计记录保护 | 已落地：代码层门禁 + 数据库层触发器（UPDATE / DELETE 均被拒绝） |
 | 归档完整性 | 已落地：每批 SHA-256 + 跨批链式哈希 + 可选 HMAC 清单签名，配套校验工具（§4.2） |
+| 归档签名强度 | 已落地：`require-sign-key=true` 时无密钥即拒绝归档；缺失以 `audit.archive.signed=0` 暴露；校验器 `--require-signature` 强制验签（§4.2） |
+| 危险操作二次认证（8.1.4.2 g） | 已落地接线门禁：由 `@RequireReauth` 反推受保护路径，核对前端是否注入 `onReauthRequired`（本批修复该门禁的解析缺陷） |
 | 审计留存 | 已落地：指标 `audit.log.oldest.days` + 低于 180 天告警（§4.3） |
 | 审计作业存活 | 已落地：`audit_job_heartbeat` 落库 + 指标 `audit.job.stale.days`，连续 2 天未成功即告警（§4.4） |
 | 应用账号最小权限 | 已落地核查工具：`AuditDbGrantCheck` 判定 `audit_log` 是否只余 SELECT/INSERT，并给出按级整改语句（§4.5） |
@@ -109,6 +111,9 @@ python scripts/verify/archive-hash-verify.py auditLog-archive-20261101-1a2b3c4d.
 # 校验签名（密钥 = whale.audit.export.sign-key）
 python scripts/verify/archive-hash-verify.py xxx.csv --hmac-key "$WHALE_AUDIT_SIGN_KEY"
 
+# 生产审计：要求必须有签名，未签名直接不通过（rc=1）
+python scripts/verify/archive-hash-verify.py xxx.csv --hmac-key "$KEY" --require-signature
+
 # 校验跨批连续性：prev 取上一批 chain_sha256（见下方 SQL）
 python scripts/verify/archive-hash-verify.py xxx.csv --prev-chain <上一批 chain>
 
@@ -127,11 +132,25 @@ FROM bluewhale_audit.audit_archive_watermark WHERE id = 1;
 | 篡改 CSV 一个字节 | rc=1，报 `CSV 内容哈希与清单不符` |
 | 错误密钥验签 | rc=1，报 `清单签名不匹配` |
 | 错误前驱链 | rc=1，报 `链值不连续` |
-| 不给密钥（只校验哈希） | rc=0（签名检查跳过，不误判） |
+| 不给密钥（只校验哈希） | rc=0，但**必打三行 WARN**：明确写出「只能证明未被误改，不能证明未被有意改写」 |
+| 未签名清单 + `--require-signature` | rc=1，报 `清单无 HMAC 签名或未提供 --hmac-key` |
 | 清单缺失 | rc=2 |
 
 > 链式哈希能发现「改批、删批、插批」；配了签名密钥后，**即使有数据库写权限**也无法为新批次生成可验证签名。
 > 注意：历史批次若在配置密钥之前归档，其清单 `hmac=` 为空，验签时不要对那批强制 `--hmac-key`。
+
+**签名策略（服务端）**
+
+| 配置 | 行为 |
+| --- | --- |
+| `whale.audit.export.sign-key` 有值 | 清单尾部追加 64 位 HMAC；指标 `audit.archive.signed=1` |
+| 为空 + `require-sign-key=false`（默认） | 照常归档，但每轮 WARN 且 `audit.archive.signed=0` |
+| 为空 + `require-sign-key=true` | **归档直接失败、不产生任何批次**，失败经作业心跳暴露为 `audit.job.stale.days` 增长 |
+
+> 为什么默认不 fail-fast：会让尚未配密钥的环境（含本地开发）整条归档链路起不来。
+> 生产应在部署环境注入 `WHALE_AUDIT_EXPORT_SIGN_KEY` 并置 `WHALE_AUDIT_EXPORT_REQUIRE_SIGN_KEY=true`，
+> 告警规则加一条 `audit.archive.signed == 0`——签名缺失时归档批次计数、行数、作业心跳<b>全部正常</b>，
+> 只有这个指标能区分「归档物不可验签」。密钥禁止写进仓库与镜像。
 
 ### 4.3 审计留存巡检（6 个月）
 
@@ -222,7 +241,7 @@ DB_USER=root DB_PWD=*** java -cp F:/respository/maven/com/mysql/mysql-connector-
 | # | 风险 | 现状 | 建议 |
 | --- | --- | --- | --- |
 | 1 | 三员账号「双人复核启用」未实现 | 无审批流模型，本轮不做 | 复用 workflow 模块做「开通/授权双人复核」；等保三级为可选项，四级必需 |
-| 2 | 历史归档批次（配密钥之前）清单 `hmac=` 为空 | 已归档批次不可追溯补签（补签等于伪造时间线） | 从启用批次起签名校验；审计时对历史批次只做 SHA-256 + 链值校验 |
+| 2 | 历史归档批次（配密钥之前）清单 `hmac=` 为空 | 已归档批次不可追溯补签（补签等于伪造时间线）；本批起服务端可强制签名（`require-sign-key`），未签名会以 `audit.archive.signed=0` 暴露 | 生产注入 `WHALE_AUDIT_EXPORT_SIGN_KEY` + `WHALE_AUDIT_EXPORT_REQUIRE_SIGN_KEY=true`；审计时对历史批次只做 SHA-256 + 链值校验 |
 | 3 | 归档链值无外部锚点 | 链头只在自家库 | 交付时把 `chain_sha256` + `archived_total` 抄送第三方（邮件/纸质）封存，作为链头锚点 |
 | 4 | 应用账号收权依赖人工执行 | 核查工具已就绪（§4.5），但**尚未改动任何现有账号授权** | 交付前用 `AuditDbGrantCheck` 出清单 → 评估 → 新建专用应用账号 → 切连接串；不要对共用管理账号做表级 REVOKE（无效） |
 
@@ -252,5 +271,9 @@ DB_USER=root DB_PWD=*** java -cp F:/respository/maven/com/mysql/mysql-connector-
 | `whale-audit/.../retention/AuditJobHeartbeatRecorder.java` | 心跳写入：开始 / 成功 / 失败三态，库故障不反噬主任务 |
 | `whale-audit/.../retention/AuditJobStaleGauge.java` | 指标 `audit.job.stale.days{job}`：抓取读库 + 30s 缓存 + 告警去重 |
 | `scripts/security/AuditDbGrantCheck.java` | 应用账号最小权限核查：按「表级 / 库级 / 全局」分级给出整改语句，只读不改授权 |
+| `scripts/check-reauth-wiring.py` | **修复**：原先只在控制器单文件里找 `@XxxMapping`，而本项目控制器普遍 `implements` 接口契约（路径在接口、`@RequireReauth` 在实现类），解析出 0 个端点后直接放行——CI 长期绿灯但什么都没查。现按 `implements` 回溯接口取路径，解析不到即 rc=1 |
+| `whale-audit/.../support/AuditMetrics.java` | 新增 `audit.archive.signed`（1/0/-1），签名缺失时唯一能区分的信号 |
+| `whale-audit/.../config/AuditExportProperties.java` | 新增 `require-sign-key`：无密钥时拒绝归档而不是产出不可验签的批次 |
+| `scripts/verify/archive-hash-verify.py` | 无签名清单不再静默通过（三行 WARN），新增 `--require-signature` 作生产审计闸门 |
 
 > 守卫范围**只到 `audit_log`**：`api_log` / `outbound_log` / `frontend_log` / `behavior_log` 有保留期清理任务（`LogRetentionCleaner` 按 cron 删除过期行），给它们加 DELETE 守卫会让保留期失效、表无限膨胀。这一条是本轮踩到又修正的口径，别再「顺手扩大到四张表」。

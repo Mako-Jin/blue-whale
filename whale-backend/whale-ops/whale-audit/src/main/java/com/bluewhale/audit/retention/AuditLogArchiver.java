@@ -77,6 +77,7 @@ public class AuditLogArchiver {
      */
     @DistributedLock(biz = "audit:archive", waitTime = 0, leaseTime = 1800)
     public void archive(int retentionDays) {
+        ensureSigningPolicy();
         LocalDateTime threshold = LocalDateTime.now().minusDays(Math.max(retentionDays, 0));
         int batchRows = Math.max(exportProperties.getBatchRows(), MIN_BATCH_ROWS);
         int maxRows = Math.max(exportProperties.getMaxRows(), batchRows);
@@ -127,6 +128,33 @@ public class AuditLogArchiver {
             return;
         }
         log.info("审计日志归档结束: 批次={}, 总行数={}, 阈值={}", batchNo, archivedRows, threshold);
+    }
+
+    /**
+     * 归档前校验签名策略：强制签名却没配密钥时直接失败，不产生无签名批次
+     *
+     * <p>抛 {@link IllegalStateException} 而不是只打日志——调用方 {@link LogRetentionScheduler}
+     * 会把失败写进 {@code audit_job_heartbeat}，让 {@code audit.job.stale.days} 随时间增长并告警。
+     * 若只告警，配置漏项的表现是「归档批次在涨、行数在涨、作业心跳正常」，
+     * 直到审计日才发现整批归档物没有签名，而补签等于伪造时间线。</p>
+     *
+     * <p>不强制时仍记录指标 {@code audit.archive.signed=0} 并每轮 WARN，避免完全无声。</p>
+     *
+     * @throws IllegalStateException 已开启 {@code require-sign-key} 但未配置密钥
+     */
+    private void ensureSigningPolicy() {
+        String signKey = exportProperties.getSignKey();
+        boolean signed = signKey != null && !signKey.isBlank();
+        auditMetrics.recordArchiveSigned(signed);
+        if (signed) {
+            return;
+        }
+        if (exportProperties.isRequireSignKey()) {
+            throw new IllegalStateException("归档清单签名密钥未配置（whale.audit.export.sign-key / "
+                    + "WHALE_AUDIT_EXPORT_SIGN_KEY）：已开启 require-sign-key，拒绝生成无签名的归档批次");
+        }
+        log.warn("归档清单未启用 HMAC 签名（whale.audit.export.sign-key 为空）："
+                + "SHA-256 与链值可发现误改，但挡不住有库写权限者连同哈希一起改写，生产应配置密钥");
     }
 
     /**

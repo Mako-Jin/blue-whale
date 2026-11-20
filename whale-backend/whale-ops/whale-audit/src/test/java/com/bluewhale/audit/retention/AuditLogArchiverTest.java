@@ -25,6 +25,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
@@ -58,7 +59,9 @@ class AuditLogArchiverTest {
 
     private final AuditExportProperties exportProperties = new AuditExportProperties();
 
-    private final AuditMetrics auditMetrics = new AuditMetrics(new SimpleMeterRegistry());
+    private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+
+    private final AuditMetrics auditMetrics = new AuditMetrics(meterRegistry);
 
     @Test
     void shouldUploadExpiredRecordsAndNeverDeleteAuditLog() {
@@ -252,6 +255,56 @@ class AuditLogArchiverTest {
         verify(watermarkMapper).updateById(captor.capture());
         assertEquals(AuditArchiveDigest.chainSha256(previousChain, batchSha), captor.getValue().getChainSha256());
         assertEquals(6L, captor.getValue().getArchivedTotal(), "累计归档行数应在上一批基础上累加");
+    }
+
+    @Test
+    @DisplayName("强制签名但密钥为空：直接失败且不产生任何批次（不留无签名归档物）")
+    void shouldRefuseToArchiveWhenSignKeyRequiredButMissing() {
+        exportProperties.setRequireSignKey(true);
+        exportProperties.setSignKey("");
+        AuditLogArchiver archiver =
+                new AuditLogArchiver(auditLogMapper, watermarkMapper, archiveClient, exportProperties, auditMetrics);
+
+        IllegalStateException error = assertThrows(IllegalStateException.class,
+                () -> archiver.archive(RETENTION_DAYS));
+        assertTrue(error.getMessage().contains("sign-key"), "异常信息应指出缺哪个配置，实际=" + error.getMessage());
+        verifyNoInteractions(archiveClient);
+        verifyNoInteractions(watermarkMapper);
+        assertEquals(0.0, meterRegistry.get("audit.archive.signed").gauge().value(),
+                "即使拒绝归档，也要把「未签名」这个事实暴露成指标");
+    }
+
+    @Test
+    @DisplayName("未强制签名但密钥为空：照常归档，指标 audit.archive.signed=0 如实暴露")
+    void shouldExposeUnsignedMetricWhenSignKeyMissing() {
+        exportProperties.setRequireSignKey(false);
+        exportProperties.setSignKey("");
+        doReturn(List.of(sampleRecord())).when(auditLogMapper).selectList(any());
+        doReturn(Map.of("objectKey", "bucket/auditLog-archive-u.csv"))
+                .when(archiveClient).upload(any(), any(), any());
+        AuditLogArchiver archiver =
+                new AuditLogArchiver(auditLogMapper, watermarkMapper, archiveClient, exportProperties, auditMetrics);
+
+        archiver.archive(RETENTION_DAYS);
+
+        verify(archiveClient, times(2)).upload(any(), any(), any());
+        assertEquals(0.0, meterRegistry.get("audit.archive.signed").gauge().value(),
+                "无密钥时签名指标必须为 0，否则监控看不出归档物不可验签");
+    }
+
+    @Test
+    @DisplayName("配置密钥：签名指标为 1")
+    void shouldExposeSignedMetricWhenSignKeyPresent() {
+        exportProperties.setSignKey("unit-test-sign-key");
+        doReturn(List.of(sampleRecord())).when(auditLogMapper).selectList(any());
+        doReturn(Map.of("objectKey", "bucket/auditLog-archive-s.csv"))
+                .when(archiveClient).upload(any(), any(), any());
+        AuditLogArchiver archiver =
+                new AuditLogArchiver(auditLogMapper, watermarkMapper, archiveClient, exportProperties, auditMetrics);
+
+        archiver.archive(RETENTION_DAYS);
+
+        assertEquals(1.0, meterRegistry.get("audit.archive.signed").gauge().value());
     }
 
     private static AuditLogRecord sampleRecord() {
