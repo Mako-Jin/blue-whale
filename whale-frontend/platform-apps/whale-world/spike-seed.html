@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>预置角色档案（自动化截图用）</title>
+    <style>
+      body {
+        margin: 0;
+        display: grid;
+        place-items: center;
+        height: 100vh;
+        background: #0d1117;
+        color: #c9d1d9;
+        font: 14px/1.6 ui-sans-serif, system-ui, sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      <p>正在写入角色档案，随后进入城池…</p>
+      <p id="state" style="color: #7a8794"></p>
+    </div>
+    <script>
+      /*
+       * 首次进入城池会弹「录名入城」，无头截图拿不到场景。
+       * 这里预置一份最小档案（loadProfile 对缺失字段一律回落默认值），
+       * 让截图与 e2e 能直接进正片。用法：/world/spike-seed.html
+       */
+      const KEY = 'bww.avatar.v1';
+      const seed = {
+        name: '舰长',
+        height: 1.0,
+        build: 1.0,
+        hair: 'bun',
+        hairColor: '#2b2118',
+        robeColor: '#2f4a6d',
+        skin: '#e8c8a8',
+        accessory: 'none',
+      };
+      try {
+        window.localStorage.setItem(KEY, JSON.stringify(seed));
+        document.getElementById('state').textContent = '已写入 ' + KEY;
+      } catch (err) {
+        document.getElementById('state').textContent = '写入失败：' + err;
+      }
+      window.location.replace('/world/');
+    </script>
+  </body>
+</html>

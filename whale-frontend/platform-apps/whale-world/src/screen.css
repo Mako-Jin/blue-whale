@@ -1,0 +1,366 @@
+/* ==========================================================================
+ * 屏风系统（S2）：3D 城里的"真界面"
+ *
+ * 与 WebGL 城池共用一台相机。这里是 DOM，不是贴图——所以文字是矢量的，
+ * 输入框是真输入框，滚动是真滚动。
+ *
+ * 关键约定
+ * --------
+ * 1. 尺寸单位是 px，且 200px = 1 世界单位（见 screen.ts 的 PX_PER_UNIT）。
+ *    屏风 element 的宽高按 px 写死，再用 scale 缩到世界尺寸，
+ *    这样字号在 3D 里是"物理正确"的，不会被浏览器按视口重新解释。
+ * 2. CSS3DRenderer 的容器必须 pointer-events: none，屏风自己再打开 auto。
+ *    否则整块透明画布会吃掉城里的鼠标事件（拖拽转视角、点地寻路全废）。
+ * 3. 屏风不做 3D 内的 hover 缩放：那会让文字在缩放过程中糊掉。
+ *    反馈靠边框亮度，是"物件被摸了一下"而不是"按钮被点了"。
+ * ========================================================================== */
+
+/* ---------- 屏风本体 ---------- */
+.bws-screen {
+  position: absolute;
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+  pointer-events: auto;
+  /* 纸面在暗场景里要往下压一点，否则夜城里像块发光的白板 */
+  font-family:
+    'Noto Serif SC', 'Songti SC', 'STSong', 'Microsoft YaHei', system-ui, sans-serif;
+  color: #241c12;
+  /* 屏风投在纸上的自阴影，让它"立"在场景里而不是浮在表面 */
+  filter: drop-shadow(0 18px 32px rgba(0, 0, 0, 0.55));
+  transition:
+    filter 0.35s ease,
+    transform 0.35s ease;
+  will-change: transform;
+}
+
+/* 边框：木框 + 内衬线。四角用伪元素做铜包角 */
+.bws-screen::before {
+  content: '';
+  position: absolute;
+  inset: -1.4%;
+  border: 0.9em solid transparent;
+  border-image: linear-gradient(160deg, #6b4325 0%, #3d2514 42%, #57331c 68%, #7a4d2a 100%) 1;
+  box-shadow:
+    inset 0 0 0 2px rgba(198, 156, 84, 0.55),
+    0 0 0 1px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+
+.bws-screen.is-active {
+  filter: drop-shadow(0 22px 44px rgba(0, 0, 0, 0.7)) drop-shadow(0 0 26px rgba(216, 180, 90, 0.22));
+}
+
+/* ---------- 纸面 ---------- */
+.bws-paper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  /* 宣纸：极轻的斜向纹，纯色会觉得像塑料。
+     纹路参数压得很低——屏风在 3D 里被放大 1.5 倍以上，0.035 的对比度会变成
+     明显的竖条摩尔纹，看着像屏幕脏了。 */
+  background:
+    repeating-linear-gradient(
+      92deg,
+      rgba(120, 100, 70, 0.018) 0px,
+      rgba(120, 100, 70, 0.018) 1px,
+      transparent 1px,
+      transparent 7px
+    ),
+    linear-gradient(168deg, #fbf6e7 0%, #f5edd8 55%, #efe5c9 100%);
+  box-shadow: inset 0 0 42px rgba(146, 118, 70, 0.14);
+}
+
+/* ---------- 题头 ---------- */
+.bws-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1em;
+  padding: 0.62em 1.05em 0.5em;
+  border-bottom: 1px solid rgba(120, 92, 52, 0.28);
+  background: linear-gradient(180deg, rgba(214, 190, 142, 0.3), transparent);
+}
+
+.bws-title {
+  font-size: 1.32em;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: #33271a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bws-sub {
+  flex: 0 0 auto;
+  font-style: normal;
+  font-size: 0.66em;
+  letter-spacing: 0.16em;
+  color: rgba(122, 96, 56, 0.72);
+  text-transform: uppercase;
+}
+
+/* 题头右侧的状态灯：绿/黄/红，映射服务健康度 */
+.bws-lamp {
+  flex: 0 0 auto;
+  width: 0.62em;
+  height: 0.62em;
+  border-radius: 50%;
+  background: #7f8a72;
+  box-shadow: 0 0 0.5em currentColor;
+  color: #7f8a72;
+}
+.bws-lamp[data-tone='good'] {
+  background: #3f9e6e;
+  color: #3f9e6e;
+}
+.bws-lamp[data-tone='warn'] {
+  background: #c9962f;
+  color: #c9962f;
+}
+.bws-lamp[data-tone='bad'] {
+  background: #b5452f;
+  color: #b5452f;
+}
+
+/* ---------- 内容区 ---------- */
+.bws-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.8em 1.05em 1em;
+  font-size: 0.86em;
+  line-height: 1.62;
+  /* antd 弹层（Select/DatePicker/Tooltip）要以它为定位基准，否则会挂到 body 上
+     脱离 3D 变换——相机一动，浮层就与控件脱节（T2.12） */
+  position: relative;
+  /* 纸面滚动条要细，粗了就像浏览器而不是卷轴 */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(122, 96, 56, 0.45) transparent;
+  overscroll-behavior: contain;
+}
+
+.bws-body::-webkit-scrollbar {
+  width: 0.42em;
+  height: 0.42em;
+}
+.bws-body::-webkit-scrollbar-thumb {
+  background: rgba(122, 96, 56, 0.4);
+  border-radius: 0.21em;
+}
+.bws-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---------- 脚注 ---------- */
+.bws-foot {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1em;
+  padding: 0.44em 1.05em 0.52em;
+  border-top: 1px solid rgba(120, 92, 52, 0.22);
+  font-size: 0.68em;
+  letter-spacing: 0.08em;
+  color: rgba(96, 74, 42, 0.8);
+  background: linear-gradient(0deg, rgba(214, 190, 142, 0.22), transparent);
+}
+
+.bws-foot kbd {
+  display: inline-block;
+  min-width: 1.5em;
+  padding: 0.05em 0.36em;
+  border: 1px solid rgba(122, 96, 56, 0.42);
+  border-radius: 0.2em;
+  background: rgba(255, 252, 242, 0.72);
+  font-family: inherit;
+  font-size: 0.92em;
+  text-align: center;
+  color: #4a3823;
+}
+
+/* ---------- 空闲提示（未进入时可点） ---------- */
+.bws-screen[data-enterable='true']:hover::before {
+  box-shadow:
+    inset 0 0 0 2px rgba(226, 186, 106, 0.8),
+    0 0 0 1px rgba(0, 0, 0, 0.6);
+}
+
+/* ---------- 三层容器 ---------- */
+/* 顺序自下而上：WebGL 主场景 → 压暗 → CSS3D 屏风 → 遮挡遮罩 → 平面化层。
+   遮挡遮罩必须在屏风之上才能"切掉"屏风的像素；
+   层级要和既有 HUD 对齐：vignette 2 / HUD 10 / 面板 11+。 */
+.bww-css3d-root {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 5;
+}
+
+.bww-occluder-root {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 6;
+}
+
+/* 编辑态平面化容器：InputMethod 候选框需要一个"没有 3D 祖先"的坐标系 */
+.bww-planar-root {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 7;
+}
+
+/* 进入屏风时的暗角压暗，聚焦视线；退出时淡出。
+   压在屏风之下（4 < 5），只暗背景、不暗屏风本身 */
+.bww-screen-dim {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 42%, rgba(4, 8, 12, 0.72) 100%);
+  opacity: 0;
+  transition: opacity 0.45s ease;
+  z-index: 4;
+}
+.bww-screen-dim.is-on {
+  opacity: 1;
+}
+
+/* ---------- 内容小部件：屏风里的通用排版 ---------- */
+.bws-kpi {
+  /* 6.5em 是按"中屏 680px 内宽排 4 列"倒推的：4×117 + 3×gap ≈ 520 < 608。
+     再大的话 4 个指标会被挤成 3+1，屏风上出现半行空档最难看。 */
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(6.5em, 1fr));
+  gap: 0.55em;
+  margin-bottom: 0.8em;
+}
+.bws-kpi > div {
+  padding: 0.5em 0.62em;
+  background: rgba(255, 253, 245, 0.78);
+  border: 1px solid rgba(120, 92, 52, 0.22);
+  border-left: 2px solid #a8702c;
+}
+.bws-kpi b {
+  display: block;
+  font-size: 1.42em;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #33271a;
+}
+.bws-kpi span {
+  font-size: 0.72em;
+  letter-spacing: 0.06em;
+  color: rgba(96, 74, 42, 0.82);
+}
+
+.bws-list {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.94em;
+}
+.bws-list th,
+.bws-list td {
+  padding: 0.42em 0.5em;
+  text-align: left;
+  border-bottom: 1px solid rgba(120, 92, 52, 0.16);
+}
+.bws-list th {
+  font-weight: 600;
+  font-size: 0.86em;
+  letter-spacing: 0.08em;
+  color: rgba(74, 56, 34, 0.9);
+  background: rgba(214, 190, 142, 0.2);
+}
+.bws-list tbody tr:hover {
+  background: rgba(232, 210, 164, 0.28);
+}
+
+/* 屏风里的输入控件：沿用纸面质感，不用暗色 antd 默认皮肤 */
+.bws-input {
+  width: 100%;
+  padding: 0.42em 0.56em;
+  border: 1px solid rgba(120, 92, 52, 0.34);
+  background: rgba(255, 254, 248, 0.9);
+  font: inherit;
+  font-size: 0.96em;
+  color: #241c12;
+  outline: none;
+}
+.bws-input:focus {
+  border-color: #a8702c;
+  box-shadow: 0 0 0 2px rgba(168, 112, 44, 0.16);
+}
+
+.bws-empty {
+  padding: 2.2em 1em;
+  text-align: center;
+  font-size: 0.9em;
+  letter-spacing: 0.12em;
+  color: rgba(110, 88, 52, 0.72);
+}
+
+/* ---------- 进入/退出过场用的遮罩字 ---------- */
+.bws-enter-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 6.5%;
+  transform: translateX(-50%);
+  padding: 0.3em 0.9em;
+  border: 1px solid rgba(216, 180, 90, 0.4);
+  background: rgba(12, 22, 30, 0.66);
+  color: #f0e2c0;
+  font-size: 0.72em;
+  letter-spacing: 0.2em;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* 进入屏风后收起城里的操作提示与工具栏：一条选择器胜过分头 toggle，
+   退出时 DOM 一恢复就自动回来，不会漏掉某个元素。
+   品牌大标题、城图、宠物气泡也一起收——进殿看数的时候它们只是干扰。
+   右上角的时辰与天象保留：那是"现在什么时候"，看数也用得上。 */
+body[data-screen-engaged] .bww-portal-hint,
+body[data-screen-engaged] .bww-talk-hint,
+body[data-screen-engaged] .bww-toolbar,
+body[data-screen-engaged] .bww-help,
+body[data-screen-engaged] .bww-quest,
+body[data-screen-engaged] .bww-map-panel,
+body[data-screen-engaged] .bww-brand,
+body[data-screen-engaged] .bww-pet-bubble,
+/* 名字标签与喊话气泡是 3D 世界投影到屏幕的，相机飞走后会落在屏风正中，
+   像一块脏东西贴在纸上，必须整层收掉 */
+body[data-screen-engaged] .bww-labels,
+body[data-screen-engaged] .bww-speech-layer {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+/* ---------- 贴脸（静室）模式 ---------- */
+/* 屏风铺满视野时，把纸面边距收到最小、字号放大一档，
+   让长文与大表读起来像在灯下看卷，而不是隔着窗看屏 */
+.bws-screen[data-focus='true'] .bws-body {
+  padding: 1.1em 1.5em 1.3em;
+  font-size: 1em;
+}
+.bws-screen[data-focus='true'] .bws-title {
+  font-size: 1.5em;
+}
+
+/* ---------- 低画质降级 ---------- */
+/* 低档画质下屏风改用更小的渲染尺寸（由 JS 设 data-quality），
+   视觉上字会略软，但帧率能救回来 */
+.bws-screen[data-quality='low'] {
+  filter: none;
+}

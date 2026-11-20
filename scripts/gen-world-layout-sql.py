@@ -1,19 +1,31 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""由城池布局单一数据源生成 whale-scene V4 迁移脚本。
+"""由城池布局单一数据源生成 whale-scene 布局迁移脚本。
 
 数据源：whale-frontend/platform-apps/whale-world/src/world/city-layout.json
-产物  ：whale-backend/whale-services/whale-scene/src/main/resources/db/migration/V4__scene_world_layout.sql
+产物  ：whale-backend/whale-services/whale-scene/src/main/resources/db/migration/
+        V5__scene_world_layout_v2.sql
+
+版本策略
+--------
+V4 是 v1 布局（8 坊 / 92-48-22），**已冻结**：Flyway 会对已执行脚本校验 checksum，
+改动它会让所有跑过 V4 的环境直接启动失败。v2 布局（12 坊 + 9 殿 / 110-58-30）
+一律走 V5 增量迁移：先按主键补新节点，再按 node_key 唯一索引覆盖既有节点，
+因此「从 V1 全新起」「跑过 V4 的老库」两条路径都收敛到同一份终态。
 
 设计要点
 --------
 1. 三维布局只允许改 JSON，SQL 一律由本脚本生成，避免「前端坐标」与「库里坐标」
    两套数字各改各的（这正是本项目历史上最喜欢的静默失效模式）。
 2. 生成物是幂等的：建表用 CREATE TABLE IF NOT EXISTS，种子用
-   INSERT ... SELECT ... WHERE NOT EXISTS，符合 REQ-SEC-022（禁 DROP/TRUNCATE/DELETE）。
-3. 三维扩展独立成表 sc_node_world，不 ALTER 2D 的 sc_scene_node，
+   INSERT ... SELECT ... WHERE NOT EXISTS + UPDATE ... WHERE node_key = ...，
+   符合 REQ-SEC-022（禁 DROP/TRUNCATE/DELETE）。
+3. 主键号段以「数组下标」派生，因此 city-layout.json 的 buildings **只允许原地
+   改写与末尾追加**，不得删除或重排——否则后续节点主键整体前移，库里会出现
+   同一个 node_key 的多份副本（唯一索引只能拦住同 id 的重复，拦不住 id 漂移）。
+4. 三维扩展独立成表 sc_node_world，不 ALTER 2D 的 sc_scene_node，
    2D 服务与既有查询完全不知道它存在（零侵入）。
-4. 三维场景使用独立 scene_key（bluewhale-city-3d），不往 2D 的 5001 场景里塞节点，
+5. 三维场景使用独立 scene_key（bluewhale-city-3d），不往 2D 的 5001 场景里塞节点，
    2D 城池导航渲染结果不变。
 
 用法
@@ -33,7 +45,7 @@ ROOT = Path(__file__).resolve().parents[1]
 LAYOUT_PATH = ROOT / "whale-frontend/platform-apps/whale-world/src/world/city-layout.json"
 OUT_PATH = (
     ROOT
-    / "whale-backend/whale-services/whale-scene/src/main/resources/db/migration/V4__scene_world_layout.sql"
+    / "whale-backend/whale-services/whale-scene/src/main/resources/db/migration/V5__scene_world_layout_v2.sql"
 )
 
 # 主键号段（与 V1 基线的 5001/51xx/52xx 错开，避免撞主键导致整条静默跳过）
@@ -77,16 +89,23 @@ def build_sql(layout: dict) -> str:
     add = out.append
 
     add("-- " + "=" * 71)
-    add("-- BlueWhale 蓝鲸城三维布局（whale-scene V4）")
+    add("-- BlueWhale 蓝鲸城三维布局 v2（whale-scene V5）")
     add("-- " + "=" * 71)
     add("-- 生成脚本 : scripts/gen-world-layout-sql.py（禁止手改本文件）")
     add("-- 数据源   : whale-frontend/platform-apps/whale-world/src/world/city-layout.json")
     add("-- 校验     : python scripts/gen-world-layout-sql.py --check（漂移即 FAIL）")
     add("--")
+    add("-- 与 V4 的关系 :")
+    add("--   V4 是 v1 布局（8 坊 / 92-48-22），已冻结，不做任何修改；")
+    add("--   本脚本是 v2 布局（12 坊 + 皇城 9 殿 / 110-58-30）的增量迁移。")
+    add("--   每条「INSERT ... WHERE NOT EXISTS」负责补新节点，紧随其后的")
+    add("--   「UPDATE ... WHERE node_key = ...」负责把既有节点的坐标改到位。")
+    add("--   因此全新库（V1→V5）与老库（V4→V5）最终状态完全一致。")
+    add("--")
     add("-- 隔离口径 :")
     add(f"--   1) 三维场景使用独立 scene_key = {scene['key']}，不触碰 2D 的 5001 蓝鲸城；")
     add("--   2) 三维表现字段独立成表 sc_node_world，不 ALTER 2D 的 sc_scene_node；")
-    add("--   3) 本脚本只新增行与表，不含 DROP / TRUNCATE / DELETE，可重复执行。")
+    add("--   3) 本脚本只新增/更新行与表，不含 DROP / TRUNCATE / DELETE，可重复执行。")
     add("--")
     add("-- 换算口径 : 平面坐标 = planeOrigin + 世界坐标 × planePerUnit")
     add(f"--            世界 ±150 → 平面 0–1000（外城墙 {geometry['outerWall']} 单位 → 平面 "
@@ -142,11 +161,17 @@ def build_sql(layout: dict) -> str:
     add("FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM sc_scene WHERE tenant_id = %d AND scene_key = %s);"
         % (TENANT_ID, q(scene["key"])))
     add("")
+    # 老库已存在该场景时，把名称/描述/版本刷到 v2（V4 写过 v1 的文案）
+    add("UPDATE sc_scene SET name = %s, description = %s, layout_version = %d, published_at = CURRENT_TIMESTAMP"
+        % (q(scene["name"]), q(scene["description"]), scene["version"]))
+    add(" WHERE tenant_id = %d AND scene_key = %s AND deleted = 0;" % (TENANT_ID, q(scene["key"])))
+    add("")
 
     # ---- 3. 节点 ----
     add("-- ---------------------------------------------------------------------")
-    add("-- 3. 节点树（区域 → 皇城建筑 → 八方宫殿）")
+    add("-- 3. 节点树（区域 → 皇城九殿 → 内城十二坊）")
     add("--    coordinate_z 存离地高度取整，三维精确高度见 sc_node_world.elevation。")
+    add("--    每条 INSERT 之后紧跟同一条 UPDATE：新库走 INSERT，老库走 UPDATE。")
     add("-- ---------------------------------------------------------------------")
     for idx, b in enumerate(buildings):
         node_id = NODE_ID_BASE + idx
@@ -161,6 +186,14 @@ def build_sql(layout: dict) -> str:
             plane(b["x"], layout), plane(b["z"], layout), int(round(float(b.get("y") or 0))),
             b.get("sortNo", idx + 1)))
         add("FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM sc_scene_node WHERE id = %d);" % node_id)
+        add("UPDATE sc_scene_node SET parent_key = %s, node_type = %s, name = %s, icon = %s," % (
+            parent, q(b["nodeType"]), q(b["name"]), q(b.get("icon") or "")))
+        add("       coordinate_x = %d, coordinate_y = %d, coordinate_z = %d, sort_no = %d," % (
+            plane(b["x"], layout), plane(b["z"], layout), int(round(float(b.get("y") or 0))),
+            b.get("sortNo", idx + 1)))
+        add("       status = 'ENABLED', deleted = 0")
+        add(" WHERE tenant_id = %d AND scene_id = %d AND node_key = %s;" % (
+            TENANT_ID, SCENE_ID, q(b["nodeKey"])))
         add("")
 
     # ---- 4. 二维入口绑定 ----
@@ -181,6 +214,12 @@ def build_sql(layout: dict) -> str:
         add("SELECT %d, %d, %d, %s, %s, %s, 1, 0" % (
             binding_id, TENANT_ID, node_id, q(entry["type"]), q(entry["path"]), perm))
         add("FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM sc_node_binding WHERE id = %d);" % binding_id)
+        add("UPDATE sc_node_binding b")
+        add("  JOIN sc_scene_node n ON n.id = b.node_id AND n.tenant_id = b.tenant_id")
+        add("   SET b.entry_type = %s, b.target_path = %s, b.permission_code = %s, b.enabled = 1, b.deleted = 0" % (
+            q(entry["type"]), q(entry["path"]), perm))
+        add(" WHERE b.tenant_id = %d AND n.scene_id = %d AND n.node_key = %s;" % (
+            TENANT_ID, SCENE_ID, q(b["nodeKey"])))
         add("")
 
     # ---- 5. 三维表现 ----
@@ -221,6 +260,25 @@ def build_sql(layout: dict) -> str:
             "NULL" if not portal else q(portal["subLabel"]),
             1 if portal.get("main") else 0))
         add("FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM sc_node_world WHERE id = %d);" % world_id)
+        add("UPDATE sc_node_world w")
+        add("  JOIN sc_scene_node n ON n.id = w.node_id AND n.tenant_id = w.tenant_id")
+        add("   SET w.model_key = %s, w.scale_x = %s, w.scale_y = %s, w.scale_z = %s," % (
+            q(b.get("modelKey") or ""), num(scale), num(scale), num(scale)))
+        add("       w.rotation_y_deg = %s, w.elevation = %s, w.collider_half_x = %s, w.collider_half_z = %s," % (
+            num(b.get("rotationDeg") or 0, 2), num(b.get("y") or 0, 2),
+            num(col.get("halfX") or 0, 2), num(col.get("halfZ") or 0, 2)))
+        add("       w.roof_color = %s, w.body_color = %s, w.portal_kind = %s," % (
+            "NULL" if roof is None else roof, "NULL" if body is None else body, q(portal_kind)))
+        add("       w.portal_x = %s, w.portal_z = %s, w.portal_color = %s," % (
+            "NULL" if not portal else num(portal["x"]),
+            "NULL" if not portal else num(portal["z"]),
+            "NULL" if not portal else parse_color(portal.get("color"))))
+        add("       w.portal_label = %s, w.portal_sublabel = %s, w.portal_main = %d, w.deleted = 0" % (
+            "NULL" if not portal else q(portal["label"]),
+            "NULL" if not portal else q(portal["subLabel"]),
+            1 if portal.get("main") else 0))
+        add(" WHERE w.tenant_id = %d AND n.scene_id = %d AND n.node_key = %s;" % (
+            TENANT_ID, SCENE_ID, q(b["nodeKey"])))
         add("")
 
     add("-- " + "=" * 71)

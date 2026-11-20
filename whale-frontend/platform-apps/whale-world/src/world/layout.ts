@@ -12,7 +12,7 @@
 import raw from './city-layout.json';
 
 /** 节点类型（与 sc_scene_node.node_type 同构） */
-export type NodeType = 'REGION' | 'BUILDING' | 'ENTRANCE';
+export type NodeType = 'REGION' | 'BUILDING' | 'ENTRANCE' | 'DISTRICT';
 
 /** 二维入口绑定（与 sc_node_binding 同构） */
 export interface EntryLayout {
@@ -104,6 +104,8 @@ export interface PalaceSpec {
   scale: number;
   roof: number;
   body: number;
+  /** 碰撞半长（来自 city-layout.json，缺省 10×9 沿用旧手感） */
+  collider: { halfX: number; halfZ: number };
   portal: { x: number; z: number; color: number };
 }
 
@@ -119,6 +121,8 @@ export interface HallSpec {
   yaw: number;
   roof: number;
   body: number;
+  /** 碰撞半长；缺省时按台基外扩量估算 */
+  collider: { halfX: number; halfZ: number };
 }
 
 const buildings = CITY_LAYOUT.buildings;
@@ -131,7 +135,12 @@ const royalHalls = buildings.filter(
   (b) => b.nodeType === 'BUILDING' && b.parentKey === 'royal-city' && !b.portal,
 );
 
-/** 八方宫殿（对应 8 个业务子应用），顺序即传送门数字键 2–9 */
+/**
+ * 内城十二坊（每坊对应一个业务子系统），顺序即绕城顺时针一圈。
+ *
+ * <p>v2 从 8 坊扩到 12 坊（每象限 3 坊），四个正方位空出来给御道。顺序同时决定
+ * 导览路线与传送门列表的展示次序，改动前先看 {@code docs/plans/2026-11-19-3d-capital-master-plan.md}。</p>
+ */
 export const PALACES: PalaceSpec[] = palaceNodes.map((b) => ({
   nodeKey: b.nodeKey,
   name: b.name,
@@ -146,6 +155,10 @@ export const PALACES: PalaceSpec[] = palaceNodes.map((b) => ({
   scale: b.scale ?? 0.95,
   roof: hexColor(b.roofColor, 0x2f6b5f),
   body: hexColor(b.bodyColor, 0x8f3a2c),
+  collider: {
+    halfX: b.collider?.halfX ?? 10,
+    halfZ: b.collider?.halfZ ?? 9,
+  },
   portal: {
     x: b.portal?.x ?? b.x,
     z: b.portal?.z ?? b.z,
@@ -153,7 +166,55 @@ export const PALACES: PalaceSpec[] = palaceNodes.map((b) => ({
   },
 }));
 
-/** 皇城配殿（典籍阁 / 玉衡阁） */
+/**
+ * 坊域尺寸（局部坐标：{@code halfW} 沿街巷切向、{@code halfD} 沿径向）。
+ *
+ * <p>12 坊在 r=76 的环路上均分，相邻中心弦长约 39.3m，坊台基 18m 宽 × 16m 深。
+ * 取 13×11 的半长，相邻坊之间留约 3m 巷道；径向内缘 76−11=65，仍在内城墙 58 之外。</p>
+ */
+export const DISTRICT_FOOTPRINT = { halfW: 13, halfD: 11 };
+
+/**
+ * 坊墙几何参数（渲染与碰撞共用，避免「墙画在 A 处、碰撞在 B 处」）。
+ *
+ * <p>{@code gateHalf} 是坊门洞的半宽；坊门开在朝圆心那一面（局部 +z），
+ * 四个正方位留给御道，坊不四面开口。</p>
+ */
+export const DISTRICT_WALL = { height: 3.0, thick: 0.6, gateHalf: 4.5 };
+
+/** 坊（街区）定义：供坊墙、坊门、匾额与坊内落位使用 */
+export interface DistrictSpec {
+  nodeKey: string;
+  name: string;
+  sub: string;
+  x: number;
+  z: number;
+  yaw: number;
+  halfW: number;
+  halfD: number;
+  portal: { x: number; z: number; color: number };
+}
+
+/** 十二坊（与 {@link PALACES} 一一对应，附带坊域范围） */
+export const DISTRICTS: DistrictSpec[] = PALACES.map((p) => ({
+  nodeKey: p.nodeKey,
+  name: p.name,
+  sub: p.sub,
+  x: p.x,
+  z: p.z,
+  yaw: p.yaw,
+  halfW: DISTRICT_FOOTPRINT.halfW,
+  halfD: DISTRICT_FOOTPRINT.halfD,
+  portal: p.portal,
+}));
+
+/**
+ * 皇城内不带传送门的建筑：8 座中枢配殿（枢密 / 度支 / 藏书 / 时辰 / 政事 / 考功 /
+ * 通政 / 起居）与南广场两角的典籍阁、玉衡阁。
+ *
+ * <p>v2 里 8 中枢殿东西两列各 4 座，典籍阁与玉衡阁缩成小阁退到 (±10.5, 20)，
+ * 给中枢殿让位。它们都没有 2D 入口——S5 接入时才补 entry/portal。</p>
+ */
 export const SIDE_HALLS: HallSpec[] = royalHalls.map((b) => ({
   nodeKey: b.nodeKey,
   name: b.name,
@@ -165,6 +226,10 @@ export const SIDE_HALLS: HallSpec[] = royalHalls.map((b) => ({
   yaw: toRad(b.rotationDeg ?? 0),
   roof: hexColor(b.roofColor, 0x3c6b5a),
   body: hexColor(b.bodyColor, 0x8a4a30),
+  collider: {
+    halfX: b.collider?.halfX ?? (((b.w ?? 6) + 9) / 2) * (b.scale ?? 0.72),
+    halfZ: b.collider?.halfZ ?? (((b.d ?? 5) + 9) / 2) * (b.scale ?? 0.72),
+  },
 }));
 
 const mainNode = buildings.find((b) => b.portal?.main);
@@ -184,6 +249,10 @@ export const MAIN_HALL: HallSpec = {
   yaw: toRad(mainNode.rotationDeg ?? 0),
   roof: hexColor(mainNode.roofColor, 0xc9a13a),
   body: hexColor(mainNode.bodyColor, 0x8f2f24),
+  collider: {
+    halfX: mainNode.collider?.halfX ?? (((mainNode.w ?? 14) + 9) / 2) * (mainNode.scale ?? 1),
+    halfZ: mainNode.collider?.halfZ ?? (((mainNode.d ?? 11) + 9) / 2) * (mainNode.scale ?? 1),
+  },
 };
 
 /** 主传送门（皇城内，正对御道） */
@@ -205,20 +274,20 @@ export interface ColliderSpec {
   hz: number;
 }
 
-/** 主殿与配殿的碰撞盒（取建筑底面 0.9 倍，与手感调校一致） */
+/** 主殿与配殿的碰撞盒（尺寸来自 city-layout.json 的 collider，缺省按台基外扩量兜底） */
 export const HALL_COLLIDERS: ColliderSpec[] = [MAIN_HALL, ...SIDE_HALLS].map((hall) => ({
   x: hall.x,
   z: hall.z,
-  hx: hall.w * 0.9,
-  hz: hall.d * 0.9,
+  hx: hall.collider.halfX,
+  hz: hall.collider.halfZ,
 }));
 
-/** 八方宫殿的碰撞盒（库里 sc_node_world.collider_half_* 同源） */
+/** 十二坊的碰撞盒（与 sc_node_world.collider_half_* 同源） */
 export const PALACE_COLLIDERS: ColliderSpec[] = PALACES.map((pal) => ({
   x: pal.x,
   z: pal.z,
-  hx: 10,
-  hz: 9,
+  hx: pal.collider.halfX,
+  hz: pal.collider.halfZ,
 }));
 
 /** 三层城墙的几何参数（半边长 / 墙厚 / 门洞半宽） */

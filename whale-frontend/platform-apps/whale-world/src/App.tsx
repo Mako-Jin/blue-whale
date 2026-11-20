@@ -50,6 +50,14 @@ export default function App({ getToken, getPermissions }: AppProps) {
       <div ref={hostRef} className="bww-scene" id="bww-scene" />
       <div className="bww-vignette" />
 
+      {/* 屏风系统三层（S2）：与 WebGL 共用一台相机，自下而上叠放。
+          屏风是真 DOM，所以能滚动、能输入；遮挡遮罩压在屏风上，
+          让城里的柱子能正确切掉屏风的一角。 */}
+      <div className="bww-screen-dim" id="bww-screen-dim" />
+      <div className="bww-css3d-root" id="bww-css3d" />
+      <div className="bww-occluder-root" id="bww-occluder" />
+      <div className="bww-planar-root" id="bww-planar" />
+
       <div className="bww-labels" id="bww-labels" />
       {/* 同城喊话气泡层：每个气泡单独一排，按世界坐标投影到屏幕 */}
       <div className="bww-speech-layer" id="bww-speech" />

@@ -32,7 +32,16 @@ import { mountSayPanel } from './saypanel';
 import { createWorldAudio } from './audio';
 import type { GroundKind } from './audio';
 import { GUIDE_LINES, createGuide, fallbackLine } from './guide';
-import { CITY_GEOMETRY, MAIN_HALL, MAIN_PORTAL, PALACES, SIDE_HALLS } from './layout';
+import {
+  CITY_GEOMETRY,
+  DISTRICT_WALL,
+  DISTRICTS,
+  GATE_HALF,
+  MAIN_HALL,
+  MAIN_PORTAL,
+  PALACES,
+  SIDE_HALLS,
+} from './layout';
 import {
   WORLD_BOUND,
   camBlocked as isCamBlocked,
@@ -41,9 +50,11 @@ import {
 } from './collision';
 import { createNavGrid } from './path';
 import { createQuestSystem } from './quests';
+import { createScreenLayer } from './screen';
 import type { CharPanelHandle } from './charpanel';
 import type { AvatarParams } from './avatar';
 import type { NpcChatHandle } from './npcchat';
+import type { ScreenLayerHandle } from './screen';
 
 export interface WorldOptions {
   /** 是否运行在 qiankun 基座内（决定传送门「进入」是否跳转 2D） */
@@ -116,6 +127,54 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
    * 不在 host 里面。所有按 data-action 找按钮的代码必须从页面根查，
    * 否则 querySelectorAll 恒返回空——按钮看着在、点了没反应，而且不报任何错。 */
   const uiRoot = host.closest('.bww-page') ?? host.parentElement ?? host;
+
+  /* ------------------------------------------------------------------ 屏风系统（S2）
+   * 三层渲染共用一台相机，自下而上：
+   *   WebGL 主画布（城池）→ CSS3D 层（屏风/真 DOM）→ 遮挡遮罩（只画会挡住屏风的实体）
+   * 屏风不是贴图，是真 DOM：字是矢量的、输入框是真输入框、滚动是真滚动。
+   *
+   * 容器节点由 App.tsx 渲染；万一缺了（例如被基座裁剪），这里兜底自建，
+   * 宁可位置可能不完美，也不要整块屏风系统静默失效。 */
+  const layerRoot = (id, cls) => {
+    let el = document.getElementById(id);
+    if (!el) {
+      el = document.createElement('div');
+      el.id = id;
+      el.className = cls;
+      uiRoot.appendChild(el);
+    }
+    return el;
+  };
+
+  /** 屏风接管相机期间，DOM 里有输入框聚焦时玩家不该继续走 */
+  let domFocused = false;
+  /** 每帧算出的"脚下最近的屏风"，供 E 键与提示条复用 */
+  let nearbyScreen = null;
+  /** 上一帧跟随相机的位姿：退出屏风时插值回这里，不用重算一遍避让逻辑 */
+  const followPos = new THREE.Vector3();
+  const followTarget = new THREE.Vector3();
+
+  const screens: ScreenLayerHandle = createScreenLayer({
+    host,
+    css3dRoot: layerRoot('bww-css3d', 'bww-css3d-root'),
+    occluderRoot: layerRoot('bww-occluder', 'bww-occluder-root'),
+    camera,
+    scene,
+    onEngagedChange: (id) => {
+      /* 进殿后收起城里的操作提示与工具栏——由 screen.css 里
+         body[data-screen-engaged] 统一控制，一条选择器就够。
+         这里不再弹 toast：屏风脚注已经写明了怎么退出，中间再浮一个提示
+         正好压在屏风标题上，是纯干扰。 */
+      void id;
+    },
+    onDomFocus: (focused) => {
+      domFocused = focused;
+    },
+    getFollowPose: () => ({
+      position: followPos.clone(),
+      target: followTarget.clone(),
+    }),
+  });
 
   const hemi = new THREE.HemisphereLight(0x9fc7ff, 0x2c2a20, 0.5);
   scene.add(hemi);
@@ -249,7 +308,7 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   }
 
   /** 脚下是什么地面：只影响脚步音色，判错也不影响玩法，故用最省事的启发式。
-   *  玩家被限在城墙内（OUTER - 4 = 88 米），够不到 132 米外的河，所以没有"涉水"这一档。
+   *  玩家被限在城墙内（OUTER - 4 = 106 米），够不到 132 米外的河，所以没有"涉水"这一档。
    *  城内也不是一整块铺装：中轴御道与环路是石板，其余是夯土与草地。 */
   function groundAt(x: number, z: number): GroundKind {
     if (Math.abs(x) < 7) return 'stone'; // 御道
@@ -602,11 +661,13 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   scene.add(cityGroup);
 
   // 外城（尺度来自 city-layout.json）
+  // gateW 取 GATE_HALF × 2：视觉门洞与 collision.ts 的门洞分段必须同宽，
+  // 否则会出现「看得见门、走不过去」的经典静默缺陷。
   const OUTER = CITY_GEOMETRY.outerWall;
-  buildWallSide(OUTER, 10, 3.2, 'x', -1, 16, 9.2, cityGroup);
-  buildWallSide(OUTER, 10, 3.2, 'x', 1, 16, 9.2, cityGroup);
-  buildWallSide(OUTER, 10, 3.2, 'z', -1, 16, 9.2, cityGroup);
-  buildWallSide(OUTER, 10, 3.2, 'z', 1, 16, 9.2, cityGroup);
+  buildWallSide(OUTER, 10, 3.2, 'x', -1, GATE_HALF.outer * 2, 9.2, cityGroup);
+  buildWallSide(OUTER, 10, 3.2, 'x', 1, GATE_HALF.outer * 2, 9.2, cityGroup);
+  buildWallSide(OUTER, 10, 3.2, 'z', -1, GATE_HALF.outer * 2, 9.2, cityGroup);
+  buildWallSide(OUTER, 10, 3.2, 'z', 1, GATE_HALF.outer * 2, 9.2, cityGroup);
   cityGroup.add(buildGateTower(0, OUTER, 0, 1.0, 0x2f6b5f));
   cityGroup.add(buildGateTower(0, -OUTER, Math.PI, 1.0, 0x2f6b5f));
   cityGroup.add(buildGateTower(OUTER, 0, -Math.PI / 2, 1.0, 0x2f6b5f));
@@ -614,10 +675,10 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
 
   // 内城
   const INNER = CITY_GEOMETRY.innerWall;
-  buildWallSide(INNER, 8, 2.4, 'x', -1, 12, 7.2, cityGroup);
-  buildWallSide(INNER, 8, 2.4, 'x', 1, 12, 7.2, cityGroup);
-  buildWallSide(INNER, 8, 2.4, 'z', -1, 12, 7.2, cityGroup);
-  buildWallSide(INNER, 8, 2.4, 'z', 1, 12, 7.2, cityGroup);
+  buildWallSide(INNER, 8, 2.4, 'x', -1, GATE_HALF.inner * 2, 7.2, cityGroup);
+  buildWallSide(INNER, 8, 2.4, 'x', 1, GATE_HALF.inner * 2, 7.2, cityGroup);
+  buildWallSide(INNER, 8, 2.4, 'z', -1, GATE_HALF.inner * 2, 7.2, cityGroup);
+  buildWallSide(INNER, 8, 2.4, 'z', 1, GATE_HALF.inner * 2, 7.2, cityGroup);
   cityGroup.add(buildGateTower(0, INNER, 0, 0.78, 0x3f5f78));
   cityGroup.add(buildGateTower(0, -INNER, Math.PI, 0.78, 0x3f5f78));
 
@@ -766,16 +827,20 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   const palaceGroup = new THREE.Group();
   scene.add(palaceGroup);
 
+  /* ---- 内城十二坊的坊墙（单独成组，便于 S8 按距离整组裁剪） ---- */
+  const districtGroup = new THREE.Group();
+  scene.add(districtGroup);
+
   /** 计算宫殿朝向：面向城池中心 */
   const faceCenter = (x, z) => Math.atan2(-x, -z);
 
   // 皇城墙
   {
     const R = CITY_GEOMETRY.royalWall;
-    buildWallSide(R, 12, 2.6, 'x', -1, 10, 8.5, palaceGroup);
-    buildWallSide(R, 12, 2.6, 'x', 1, 10, 8.5, palaceGroup);
-    buildWallSide(R, 12, 2.6, 'z', -1, 10, 8.5, palaceGroup);
-    buildWallSide(R, 12, 2.6, 'z', 1, 10, 8.5, palaceGroup);
+    buildWallSide(R, 12, 2.6, 'x', -1, GATE_HALF.royal * 2, 8.5, palaceGroup);
+    buildWallSide(R, 12, 2.6, 'x', 1, GATE_HALF.royal * 2, 8.5, palaceGroup);
+    buildWallSide(R, 12, 2.6, 'z', -1, GATE_HALF.royal * 2, 8.5, palaceGroup);
+    buildWallSide(R, 12, 2.6, 'z', 1, GATE_HALF.royal * 2, 8.5, palaceGroup);
   }
 
   // 主殿：数枢殿 → 核心数据（参数来自 city-layout.json）
@@ -809,7 +874,7 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     );
   });
 
-  /* ---- 八方宫殿（对应业务子系统，坐标与配色来自 city-layout.json） ---- */
+  /* ---- 内城十二坊（对应业务子系统，坐标与配色来自 city-layout.json） ---- */
   const RING_R = CITY_GEOMETRY.ringRoadRadius;
   const palaces = [];
   PALACES.forEach((p) => {
@@ -828,33 +893,104 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     palaces.push({ ...p, group: g });
   });
 
+  /* ---- 坊墙 + 坊门（十二坊各一圈矮墙，朝圆心一侧开坊门挂匾额） ----
+   *
+   * 坊门只开朝圆心那一面：四个正方位是御道，坊若四面开口，站在环路上看不出
+   * 「这是一坊」；只留一个正门，绕城一周时每坊都是"墙—门—墙"的节奏，才有街区感。
+   * 墙高 3m 低于宫殿台基（2.6m）+ 殿身，不挡视线，只做分界。
+   */
+  {
+    const WALL_H = DISTRICT_WALL.height;
+    const WALL_T = DISTRICT_WALL.thick;
+    const GATE_HALF_W = DISTRICT_WALL.gateHalf; // 坊门洞半宽
+    const postGeo = new THREE.BoxGeometry(0.9, 6.2, 0.9);
+    const lintelGeo = new THREE.BoxGeometry(1, 1, 1); // 下面按坊宽缩放
+
+    DISTRICTS.forEach((dst) => {
+      const g = new THREE.Group();
+      g.position.set(dst.x, 0, dst.z);
+      g.rotation.y = dst.yaw;
+
+      const HW = dst.halfW;
+      const HD = dst.halfD;
+      const sideW = HW - GATE_HALF_W; // 南面门洞两侧墙段的宽度
+
+      // 北 / 西 / 东 三面整段，南面按门洞切两段
+      const segs = [
+        { x: 0, z: -HD, w: HW * 2, d: WALL_T },
+        { x: -HW, z: 0, w: WALL_T, d: HD * 2 },
+        { x: HW, z: 0, w: WALL_T, d: HD * 2 },
+        { x: -(GATE_HALF_W + sideW / 2), z: HD, w: sideW, d: WALL_T },
+        { x: GATE_HALF_W + sideW / 2, z: HD, w: sideW, d: WALL_T },
+      ];
+      for (const s of segs) {
+        const seg = box(s.w, WALL_H, s.d, matWall);
+        seg.position.set(s.x, WALL_H / 2, s.z);
+        g.add(seg);
+        // 压顶：一道深色薄檐，远看能读出"这是墙不是方块"
+        const cap = box(s.w + 0.35, 0.28, s.d + 0.35, matWallDark, false);
+        cap.position.set(s.x, WALL_H + 0.14, s.z);
+        g.add(cap);
+      }
+
+      // 坊门：两根门柱 + 门楣
+      for (const sx of [-1, 1]) {
+        const post = new THREE.Mesh(postGeo, matStone);
+        post.position.set(sx * GATE_HALF_W, 3.1, HD);
+        post.castShadow = true;
+        post.receiveShadow = true;
+        g.add(post);
+      }
+      const lintel = new THREE.Mesh(lintelGeo, matStone);
+      lintel.scale.set(GATE_HALF_W * 2 + 2.0, 0.9, 1.1);
+      lintel.position.set(0, 6.75, HD);
+      lintel.castShadow = true;
+      lintel.receiveShadow = true;
+      g.add(lintel);
+
+      // 匾额：挂在门楣下方，朝圆心
+      const plaque = new THREE.Mesh(
+        new THREE.PlaneGeometry(4.6, 1.7),
+        new THREE.MeshBasicMaterial({ map: plaqueTexture(dst.name), transparent: true }),
+      );
+      plaque.position.set(0, 5.85, HD - 0.6);
+      g.add(plaque);
+
+      districtGroup.add(g);
+    });
+  }
+
   /* ==========================================================================
    * 6. 道路 / 灯笼 / 传送门
    * ========================================================================== */
-  // 环形路
+  // 环形路：12 坊落在 r=76 的环上，环带宽 22（相邻坊巷约 21m），
+  // 路面压在坊台基之下，只露出坊间与坊门前的那一截。
   {
-    const ring = new THREE.Mesh(new THREE.RingGeometry(RING_R - 13, RING_R + 13, 96), matRoad);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(RING_R - 11, RING_R + 11, 96), matRoad);
     ring.rotation.x = -Math.PI / 2;
     ring.position.y = 0.06;
     ring.receiveShadow = true;
     scene.add(ring);
 
-    const innerRing = new THREE.Mesh(new THREE.RingGeometry(30, 38, 72), matRoad);
+    // 皇城外的一圈前广场环路（贴皇城墙起 8m 宽）
+    const plaza = CITY_GEOMETRY.royalWall;
+    const innerRing = new THREE.Mesh(new THREE.RingGeometry(plaza + 8, plaza + 16, 72), matRoad);
     innerRing.rotation.x = -Math.PI / 2;
     innerRing.position.y = 0.06;
     innerRing.receiveShadow = true;
     scene.add(innerRing);
   }
 
-  // 中轴御道
+  // 中轴御道（长度随外城墙，铺满南北与东西两条轴线）
   {
-    const axis = new THREE.Mesh(new THREE.PlaneGeometry(13, 176), matRoad);
+    const roadLen = (OUTER - 4) * 2;
+    const axis = new THREE.Mesh(new THREE.PlaneGeometry(13, roadLen), matRoad);
     axis.rotation.x = -Math.PI / 2;
     axis.position.set(0, 0.07, 4);
     axis.receiveShadow = true;
     scene.add(axis);
 
-    const cross = new THREE.Mesh(new THREE.PlaneGeometry(13, 176), matRoad);
+    const cross = new THREE.Mesh(new THREE.PlaneGeometry(13, roadLen), matRoad);
     cross.rotation.x = -Math.PI / 2;
     cross.rotation.z = Math.PI / 2;
     cross.position.set(0, 0.065, 0);
@@ -862,16 +998,23 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     scene.add(cross);
   }
 
-  // 灯笼：沿御道两侧
+  // 灯笼：沿御道两侧，从外城南门内缘走到皇城与内城墙之间
   const lanterns = [];
   {
     const poleGeo = new THREE.CylinderGeometry(0.11, 0.15, 4.6, 8);
     const ballGeo = new THREE.SphereGeometry(0.38, 12, 10);
-    for (let i = 0; i < 11; i++) {
-      const z = 86 - i * 16;
+    // 皇城内（含广场）不放；内城墙带（墙心 ±10）也跳过，避免灯柱插在墙上
+    const ROYAL_CLEAR = CITY_GEOMETRY.royalWall + 4;
+    const INNER_LO = INNER - 10;
+    const INNER_HI = INNER + 10;
+    const GAP = 16;
+    const count = Math.floor((OUTER - 6) * 2 / GAP) + 1;
+    for (let i = 0; i < count; i++) {
+      const z = OUTER - 6 - i * GAP;
       for (const s of [-1, 1]) {
         const px = s * 7.4;
-        if (Math.abs(z) < 26 || (Math.abs(z) > 38 && Math.abs(z) < 58)) continue;
+        const az = Math.abs(z);
+        if (az < ROYAL_CLEAR || (az > INNER_LO && az < INNER_HI)) continue;
         const pole = new THREE.Mesh(poleGeo, matWood);
         pole.position.set(px, 2.3, z);
         pole.castShadow = true;
@@ -2069,6 +2212,9 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     'wheel',
     (e) => {
       e.preventDefault();
+      /* 屏风接管相机期间不准变焦：屏风铺满视野时，用户在纸面外滚两下
+         会把 cam.dist 改掉，退出屏风的瞬间镜头突然弹到另一个距离。 */
+      if (screens.isControlling()) return;
       cam.dist = clamp(cam.dist + e.deltaY * 0.014, 8, 48);
     },
     { passive: false },
@@ -2122,7 +2268,15 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       return;
     }
     keys.add(e.code);
-    if (e.code === 'KeyE') togglePortalPanel();
+    if (e.code === 'KeyE') {
+      /* 屏风优先于传送门：玩家既然已经站到屏风前，想做的就是看这块屏风。
+         没有近处屏风时才回到"开传送门"的旧行为。 */
+      if (nearbyScreen) {
+        nearbyScreen.enter();
+      } else {
+        togglePortalPanel();
+      }
+    }
     if (e.code === 'KeyF') talkToNearestNpc();
     if (e.code === 'KeyT') talkToPet();
     if (e.code === 'KeyG') toggleGuide();
@@ -2860,6 +3014,11 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
 
     camera.position.lerp(camPos, 1 - Math.exp(-dt * 9));
     camera.lookAt(camTarget);
+    /* 记下这一帧的跟随位姿：退出屏风时按它插值回去。
+       不重算一遍是因为 updateCamera 里有一整套相机避让（不穿墙、不入地），
+       复刻一份必然出现"两处算法不一致"的经典故障。 */
+    followPos.copy(camera.position);
+    followTarget.copy(camTarget);
   }
 
   function updateWhale(dt) {
@@ -2944,6 +3103,20 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     }
   }
 
+  /* 屏风接近提示。必须排在 updatePortals 之后跑：两者共用同一个提示条，
+     后写的赢。屏风比传送门近，优先级也更高——走到屏风前的人想看的是屏风。 */
+  function updateScreenHint() {
+    if (screens.isControlling()) {
+      nearbyScreen = null;
+      return;
+    }
+    nearbyScreen = screens.nearest(player.pos.x, player.pos.z, 4.6);
+    if (!nearbyScreen) return;
+    const title = nearbyScreen.el.querySelector('.bws-title')?.textContent ?? '屏风';
+    portalHint.classList.add('bww-show');
+    portalHint.innerHTML = `按 <b>E</b> 或点击进入 · <span>${title}</span>`;
+  }
+
   function updateLabels() {
     const w = renderer.domElement.clientWidth;
     const h = renderer.domElement.clientHeight;
@@ -3005,19 +3178,32 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
 
     updateSky(dt);
     updateWeather(dt);
-    updatePlayer(dt);
+    /* 屏风接管相机时（过场中或已进殿），玩家停步、跟随镜头让位。
+       只冻结"输入与相机"，NPC、天气、昼夜、传送门照常跑——城里不该因为
+       有人站在屏风前看数就静止。 */
+    const screenBusy = screens.isControlling() || domFocused;
+    if (screenBusy) {
+      player.speed = 0;
+      screens.updateCamera();
+    } else {
+      updatePlayer(dt);
+    }
     // 位置更新之后才判达成：这一帧走到门口就该这一帧算数
     updateQuests(dt);
     updateWalkMarker(dt);
     // 脚步声跟速度走：静止时 update 内部会自己归零，不必在外面判
     audio.update(dt, player.speed, groundAt(player.pos.x, player.pos.z));
     updateActors(dt);
-    updateCamera(dt);
+    if (!screenBusy) updateCamera(dt);
     updateWhale(dt);
     updatePortals(dt);
+    updateScreenHint();
     updateHUD();
 
     renderer.render(scene, camera);
+    /* 屏风层紧随主场景之后：CSS3D 用同一台相机的同一帧矩阵，
+       遮挡遮罩再压在最上面切掉被柱子挡住的部分。 */
+    screens.render();
     updateLabels();
     updateNameLabels();
     // 气泡要在 render 之后投影：此时相机矩阵已是最新
@@ -3029,7 +3215,98 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     camera.aspect = innerWidth / innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(innerWidth, innerHeight);
+    screens.resize(innerWidth, innerHeight);
   });
+
+  /* ------------------------------------------------------------------ 屏风布置（S2）
+   * S2 先立两面屏风把系统跑通：一面告示（小屏）、一面数枢殿总览（中屏）。
+   * S3 接数据厅框架后这里会改成按 city-layout.json 批量生成——那时屏风长在每座殿
+   * 坊的门前，而不是像现在这样立在御道两侧。
+   *
+   * 位置选在出生点（0, 0, 66）正前方偏两侧：玩家进城第一眼就能看到"这里能点"，
+   * 不用先学会走路才找到演示对象。 */
+  function setupScreens() {
+    try {
+    screens.add({
+      id: 'notice',
+      position: [-7.6, 0.85, 63],
+      facing: 0,
+      size: 'small',
+      title: '入城须知',
+      subtitle: 'NOTICE',
+      tone: 'good',
+      mount: (body) => {
+        body.innerHTML = `
+          <p style="margin:0 0 .5em">城中殿坊皆可查看。走近立屏，<b>点击</b>或按 <b>E</b> 入内。</p>
+          <p style="margin:0;color:rgba(96,74,42,.85);font-size:.92em">
+            皇城九殿司中枢，内城十二坊理业务，外城九处备游观。
+          </p>`;
+      },
+    });
+
+    screens.add({
+      id: 'shushu',
+      position: [7.6, 1.2, 63],
+      facing: 0,
+      size: 'medium',
+      title: '数枢殿 · 总览',
+      subtitle: 'OVERVIEW',
+      tone: 'good',
+      mount: (body) => {
+        /* 这一版是写死的演示数据，S3 会换成 overview 接口返回值。
+           放真数据之前先钉住排版：KPI 一行、明细一表、多余内容靠滚动。 */
+        const kpi = (v, label) =>
+          `<div><b>${v}</b><span>${label}</span></div>`;
+        const rows = [
+          ['用户认证', '12,480', '在线 316', '正常'],
+          ['流程引擎', '2,915', '运行中 42', '正常'],
+          ['文件存储', '1.8 TB', '今增 62 GB', '注意'],
+          ['定时任务', '418', '今日失败 3', '异常'],
+          ['消息投递', '86,204', '积压 12', '正常'],
+        ];
+        body.innerHTML = `
+          <div class="bws-kpi">
+            ${kpi('31', '接入服务')}
+            ${kpi('99.94%', '近 24h 可用')}
+            ${kpi('3', '待处理告警')}
+            ${kpi('128 ms', 'P95 响应')}
+          </div>
+          <table class="bws-list">
+            <thead><tr><th>服务</th><th>总量</th><th>当前</th><th>状态</th></tr></thead>
+            <tbody>
+              ${rows.map((r) => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join('')}
+            </tbody>
+          </table>
+          <div style="margin-top:.7em">
+            <input class="bws-input" type="text" placeholder="搜索服务名…（在这里试中文输入）" />
+          </div>`;
+      },
+    });
+
+    /* 遮挡演示：御道边一根拴马桩，挂进遮挡层。
+       从出生点看过去，桩子应该切掉屏风的一角——这是 S0 T0.3 在真实场景、真实
+       几何、真实光照下的复核。只有这一根进遮挡层，遮挡 pass 的开销可以忽略。 */
+    const post = new THREE.Group();
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 2.4, 10), matStone);
+    shaft.position.y = 1.2;
+    shaft.castShadow = true;
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.22, 0.86), matWallDark);
+    base.position.y = 0.11;
+    base.castShadow = true;
+    base.receiveShadow = true;
+    post.add(shaft, base);
+    /* 位置是按"从近处正对时刚好切到屏风左边框"定的：
+       相机在玩家 +Z 侧时，桩子在 x=-8.5 的水平角约 7.7°，略小于屏风左缘的 8.1°，
+       于是它只压住纸面最左一小条——够证明遮挡生效，又不挡住正文。 */
+    post.position.set(-8.5, 0, 63.9);
+    scene.add(post);
+    screens.setOccluders([post]);
+    } catch (err) {
+      /* 屏风坏了不该带崩整座城：城还是能走能看的，只是没有界面 */
+      console.error('[screen] setup failed', err);
+    }
+  }
+  setupScreens();
 
   /* 开场 */
   applySeason();
@@ -3286,6 +3563,7 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     }
     peerRigs.clear();
     minimap?.dispose();
+    screens.dispose();
     scene.traverse((obj) => {
       const o = obj;
       if (o.geometry) o.geometry.dispose();

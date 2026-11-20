@@ -3,26 +3,26 @@
   "scene": {
     "key": "bluewhale-city-3d",
     "name": "蓝鲸城（三维）",
-    "description": "蓝鲸城三维主场景：皇城·内城·外城三重城郭，八方宫殿对应业务子系统",
-    "version": 1
+    "description": "蓝鲸城三维主场景：皇城·内城·外城三重城郭，皇城九中枢殿对应平台服务，内城十二坊对应业务子系统，外城诸司对应工具与内容服务",
+    "version": 2
   },
   "scale": {
     "planePerUnit": 3.3333,
     "planeOrigin": 500,
-    "comment": "世界坐标 ±150 映射到平面 0–1000；OUTER=92 落在 193–807，两侧留出外城景观余量"
+    "comment": "世界坐标 ±150 映射到平面 0–1000；OUTER=110 落在 133–867，两侧留出外城景观余量"
   },
   "geometry": {
-    "outerWall": 92,
-    "innerWall": 48,
-    "royalWall": 22,
-    "ringRoadRadius": 68,
+    "outerWall": 110,
+    "innerWall": 58,
+    "royalWall": 30,
+    "ringRoadRadius": 76,
     "gateHalfWidth": {
       "outer": 8.5,
       "inner": 6.5,
       "royal": 5.5
     },
     "wallThickness": {
-      "outer": 2.0,
+      "outer": 2,
       "inner": 1.5,
       "royal": 1.6
     }
@@ -70,18 +70,18 @@
       "sub": "核心数据 · 皇城",
       "icon": "data",
       "x": 0,
-      "z": -2,
+      "z": -8,
       "y": 0,
-      "w": 17,
-      "d": 12,
-      "scale": 1.22,
+      "w": 14,
+      "d": 11,
+      "scale": 1.0,
       "rotationDeg": 0,
       "roofColor": "#c9a13a",
       "bodyColor": "#8f2f24",
       "modelKey": "hall-royal",
       "collider": {
-        "halfX": 15,
-        "halfZ": 13
+        "halfX": 11.5,
+        "halfZ": 10.0
       },
       "sortNo": 4,
       "entry": {
@@ -91,7 +91,7 @@
       },
       "portal": {
         "x": 0,
-        "z": 30,
+        "z": 4,
         "color": "#ffd166",
         "label": "数枢殿",
         "subLabel": "核心数据 · 皇城",
@@ -105,19 +105,19 @@
       "name": "典籍阁",
       "sub": "档案 · 皇城西",
       "icon": "book",
-      "x": -15,
-      "z": 12,
+      "x": -10.5,
+      "z": 20.0,
       "y": 0,
       "w": 6,
       "d": 5,
-      "scale": 0.72,
-      "rotationDeg": -28.6,
+      "scale": 0.5,
+      "rotationDeg": 0.0,
       "roofColor": "#3c6b5a",
       "bodyColor": "#8a4a30",
       "modelKey": "pavilion-side",
       "collider": {
-        "halfX": 6,
-        "halfZ": 5.5
+        "halfX": 3.8,
+        "halfZ": 3.5
       },
       "sortNo": 5
     },
@@ -128,19 +128,19 @@
       "name": "玉衡阁",
       "sub": "历法 · 皇城东",
       "icon": "compass",
-      "x": 15,
-      "z": 12,
+      "x": 10.5,
+      "z": 20.0,
       "y": 0,
       "w": 6,
       "d": 5,
-      "scale": 0.72,
-      "rotationDeg": 28.6,
+      "scale": 0.5,
+      "rotationDeg": 0.0,
       "roofColor": "#3c6b5a",
       "bodyColor": "#8a4a30",
       "modelKey": "pavilion-side",
       "collider": {
-        "halfX": 6,
-        "halfZ": 5.5
+        "halfX": 3.8,
+        "halfZ": 3.5
       },
       "sortNo": 6
     },
@@ -151,13 +151,13 @@
       "name": "户部",
       "sub": "ERP · 企业资源",
       "icon": "erp",
-      "x": 26.022,
-      "z": 62.824,
+      "x": 19.67,
+      "z": 73.41,
       "y": 0,
       "w": 9,
       "d": 7,
       "scale": 0.95,
-      "rotationDeg": -157.5,
+      "rotationDeg": -165.0,
       "roofColor": "#2f6b5f",
       "bodyColor": "#8f3a2c",
       "modelKey": "palace-hall",
@@ -165,15 +165,15 @@
         "halfX": 10,
         "halfZ": 9
       },
-      "sortNo": 10,
+      "sortNo": 7,
       "entry": {
         "type": "SYSTEM",
         "path": "/erp",
         "permission": "sys:erp:item:list"
       },
       "portal": {
-        "x": 20.089,
-        "z": 48.502,
+        "x": 16.047,
+        "z": 59.887,
         "color": "#6fe3ff",
         "label": "户部",
         "subLabel": "ERP · 企业资源"
@@ -186,13 +186,13 @@
       "name": "工部",
       "sub": "MES · 智能制造",
       "icon": "mes",
-      "x": 62.824,
-      "z": 26.022,
+      "x": 53.74,
+      "z": 53.74,
       "y": 0,
       "w": 9,
       "d": 7,
       "scale": 0.95,
-      "rotationDeg": -112.5,
+      "rotationDeg": -135.0,
       "roofColor": "#3f5f78",
       "bodyColor": "#7c3b30",
       "modelKey": "palace-hall",
@@ -200,15 +200,15 @@
         "halfX": 10,
         "halfZ": 9
       },
-      "sortNo": 11,
+      "sortNo": 8,
       "entry": {
         "type": "SYSTEM",
         "path": "/mes",
         "permission": "sys:mes:workorder:list"
       },
       "portal": {
-        "x": 48.502,
-        "z": 20.089,
+        "x": 43.841,
+        "z": 43.841,
         "color": "#6fe3ff",
         "label": "工部",
         "subLabel": "MES · 智能制造"
@@ -221,13 +221,13 @@
       "name": "吏部",
       "sub": "OA · 协同办公",
       "icon": "oa",
-      "x": 62.824,
-      "z": -26.022,
+      "x": 73.41,
+      "z": 19.67,
       "y": 0,
       "w": 9,
       "d": 7,
       "scale": 0.95,
-      "rotationDeg": -67.5,
+      "rotationDeg": -105.0,
       "roofColor": "#4a6b8a",
       "bodyColor": "#8f3a2c",
       "modelKey": "palace-hall",
@@ -235,15 +235,15 @@
         "halfX": 10,
         "halfZ": 9
       },
-      "sortNo": 12,
+      "sortNo": 9,
       "entry": {
         "type": "SYSTEM",
         "path": "/oa",
         "permission": "sys:oa:leave:list"
       },
       "portal": {
-        "x": 48.502,
-        "z": -20.089,
+        "x": 59.887,
+        "z": 16.047,
         "color": "#6fe3ff",
         "label": "吏部",
         "subLabel": "OA · 协同办公"
@@ -256,13 +256,13 @@
       "name": "礼部",
       "sub": "CRM · 客户经营",
       "icon": "crm",
-      "x": 26.022,
-      "z": -62.824,
+      "x": 73.41,
+      "z": -19.67,
       "y": 0,
       "w": 9,
       "d": 7,
       "scale": 0.95,
-      "rotationDeg": -22.5,
+      "rotationDeg": -75.0,
       "roofColor": "#6b4a78",
       "bodyColor": "#8a3b34",
       "modelKey": "palace-hall",
@@ -270,15 +270,15 @@
         "halfX": 10,
         "halfZ": 9
       },
-      "sortNo": 13,
+      "sortNo": 10,
       "entry": {
         "type": "SYSTEM",
         "path": "/crm",
         "permission": "sys:crm:browse"
       },
       "portal": {
-        "x": 20.089,
-        "z": -48.502,
+        "x": 59.887,
+        "z": -16.047,
         "color": "#6fe3ff",
         "label": "礼部",
         "subLabel": "CRM · 客户经营"
@@ -291,13 +291,13 @@
       "name": "兵部",
       "sub": "IoT · 物联感知",
       "icon": "iot",
-      "x": -26.022,
-      "z": -62.824,
+      "x": 53.74,
+      "z": -53.74,
       "y": 0,
       "w": 9,
       "d": 7,
       "scale": 0.95,
-      "rotationDeg": 22.5,
+      "rotationDeg": -45.0,
       "roofColor": "#4a5560",
       "bodyColor": "#6f3a30",
       "modelKey": "palace-hall",
@@ -305,15 +305,15 @@
         "halfX": 10,
         "halfZ": 9
       },
-      "sortNo": 14,
+      "sortNo": 11,
       "entry": {
         "type": "SYSTEM",
         "path": "/iot",
         "permission": "sys:iot:device"
       },
       "portal": {
-        "x": -20.089,
-        "z": -48.502,
+        "x": 43.841,
+        "z": -43.841,
         "color": "#6fe3ff",
         "label": "兵部",
         "subLabel": "IoT · 物联感知"
@@ -326,13 +326,13 @@
       "name": "翰林院",
       "sub": "DOC · 文档知识",
       "icon": "doc",
-      "x": -62.824,
-      "z": -26.022,
+      "x": 19.67,
+      "z": -73.41,
       "y": 0,
       "w": 9,
       "d": 7,
       "scale": 0.95,
-      "rotationDeg": 67.5,
+      "rotationDeg": -15.0,
       "roofColor": "#2c5a52",
       "bodyColor": "#8a4a30",
       "modelKey": "palace-hall",
@@ -340,15 +340,15 @@
         "halfX": 10,
         "halfZ": 9
       },
-      "sortNo": 15,
+      "sortNo": 12,
       "entry": {
-        "type": "KNOWLEDGE",
+        "type": "SYSTEM",
         "path": "/doc",
         "permission": "sys:doc:space:list"
       },
       "portal": {
-        "x": -48.502,
-        "z": -20.089,
+        "x": 16.047,
+        "z": -59.887,
         "color": "#6fe3ff",
         "label": "翰林院",
         "subLabel": "DOC · 文档知识"
@@ -361,13 +361,13 @@
       "name": "杏坛",
       "sub": "LMS · 学习培训",
       "icon": "lms",
-      "x": -62.824,
-      "z": 26.022,
+      "x": -19.67,
+      "z": -73.41,
       "y": 0,
       "w": 9,
       "d": 7,
       "scale": 0.95,
-      "rotationDeg": 112.5,
+      "rotationDeg": 15.0,
       "roofColor": "#8a5a2e",
       "bodyColor": "#8f3a2c",
       "modelKey": "palace-hall",
@@ -375,15 +375,15 @@
         "halfX": 10,
         "halfZ": 9
       },
-      "sortNo": 16,
+      "sortNo": 13,
       "entry": {
         "type": "SYSTEM",
         "path": "/lms",
         "permission": "sys:lms:browse"
       },
       "portal": {
-        "x": -48.502,
-        "z": 20.089,
+        "x": -16.047,
+        "z": -59.887,
         "color": "#6fe3ff",
         "label": "杏坛",
         "subLabel": "LMS · 学习培训"
@@ -396,15 +396,120 @@
       "name": "市舶司",
       "sub": "MALL · 商城交易",
       "icon": "mall",
-      "x": -26.022,
-      "z": 62.824,
+      "x": -53.74,
+      "z": -53.74,
       "y": 0,
       "w": 9,
       "d": 7,
       "scale": 0.95,
-      "rotationDeg": 157.5,
+      "rotationDeg": 45.0,
       "roofColor": "#c9a13a",
       "bodyColor": "#8a3b34",
+      "modelKey": "palace-hall",
+      "collider": {
+        "halfX": 10,
+        "halfZ": 9
+      },
+      "sortNo": 14,
+      "entry": {
+        "type": "SYSTEM",
+        "path": "/mall",
+        "permission": "sys:mall:browse"
+      },
+      "portal": {
+        "x": -43.841,
+        "z": -43.841,
+        "color": "#6fe3ff",
+        "label": "市舶司",
+        "subLabel": "MALL · 商城交易"
+      }
+    },
+    {
+      "nodeKey": "jiangzuo-bureau",
+      "parentKey": "inner-city",
+      "nodeType": "BUILDING",
+      "name": "将作监",
+      "sub": "PDM · 产品数据",
+      "icon": "pdm",
+      "x": -73.41,
+      "z": -19.67,
+      "y": 0,
+      "w": 9,
+      "d": 7,
+      "scale": 0.95,
+      "rotationDeg": 75.0,
+      "roofColor": "#2f6b5f",
+      "bodyColor": "#8f3a2c",
+      "modelKey": "palace-hall",
+      "collider": {
+        "halfX": 10,
+        "halfZ": 9
+      },
+      "sortNo": 15,
+      "entry": {
+        "type": "SYSTEM",
+        "path": "/pdm",
+        "permission": "sys:pdm:bom:list"
+      },
+      "portal": {
+        "x": -59.887,
+        "z": -16.047,
+        "color": "#6fe3ff",
+        "label": "将作监",
+        "subLabel": "PDM · 产品数据"
+      }
+    },
+    {
+      "nodeKey": "yingzao-bureau",
+      "parentKey": "inner-city",
+      "nodeType": "BUILDING",
+      "name": "营造司",
+      "sub": "PM · 工程项目",
+      "icon": "pm",
+      "x": -73.41,
+      "z": 19.67,
+      "y": 0,
+      "w": 9,
+      "d": 7,
+      "scale": 0.95,
+      "rotationDeg": 105.0,
+      "roofColor": "#2f6b5f",
+      "bodyColor": "#8f3a2c",
+      "modelKey": "palace-hall",
+      "collider": {
+        "halfX": 10,
+        "halfZ": 9
+      },
+      "sortNo": 16,
+      "entry": {
+        "type": "SYSTEM",
+        "path": "/pm",
+        "permission": "sys:pm:item:list"
+      },
+      "portal": {
+        "x": -59.887,
+        "z": 16.047,
+        "color": "#6fe3ff",
+        "label": "营造司",
+        "subLabel": "PM · 工程项目"
+      }
+    },
+    {
+      "nodeKey": "mengfu-hall",
+      "parentKey": "inner-city",
+      "nodeType": "BUILDING",
+      "name": "盟府",
+      "sub": "CONTRACT · 合同印章",
+      "icon": "contract",
+      "x": -53.74,
+      "z": 53.74,
+      "y": 0,
+      "w": 9,
+      "d": 7,
+      "scale": 0.95,
+      "rotationDeg": 135.0,
+      "roofColor": "#2f6b5f",
+      "bodyColor": "#8f3a2c",
       "modelKey": "palace-hall",
       "collider": {
         "halfX": 10,
@@ -413,16 +518,235 @@
       "sortNo": 17,
       "entry": {
         "type": "SYSTEM",
-        "path": "/mall",
-        "permission": "sys:mall:browse"
+        "path": "/contract",
+        "permission": "sys:contract:list"
       },
       "portal": {
-        "x": -20.089,
-        "z": 48.502,
+        "x": -43.841,
+        "z": 43.841,
         "color": "#6fe3ff",
-        "label": "市舶司",
-        "subLabel": "MALL · 商城交易"
+        "label": "盟府",
+        "subLabel": "CONTRACT · 合同印章"
       }
+    },
+    {
+      "nodeKey": "xuanfu-court",
+      "parentKey": "inner-city",
+      "nodeType": "BUILDING",
+      "name": "宣抚院",
+      "sub": "PARTY · 党务党建",
+      "icon": "party",
+      "x": -19.67,
+      "z": 73.41,
+      "y": 0,
+      "w": 9,
+      "d": 7,
+      "scale": 0.95,
+      "rotationDeg": 165.0,
+      "roofColor": "#2f6b5f",
+      "bodyColor": "#8f3a2c",
+      "modelKey": "palace-hall",
+      "collider": {
+        "halfX": 10,
+        "halfZ": 9
+      },
+      "sortNo": 18,
+      "entry": {
+        "type": "SYSTEM",
+        "path": "/party",
+        "permission": "sys:party:browse"
+      },
+      "portal": {
+        "x": -16.047,
+        "z": 59.887,
+        "color": "#6fe3ff",
+        "label": "宣抚院",
+        "subLabel": "PARTY · 党务党建"
+      }
+    },
+    {
+      "nodeKey": "shumi-hall",
+      "parentKey": "royal-city",
+      "nodeType": "BUILDING",
+      "name": "枢密殿",
+      "sub": "AUTH · 权限认证",
+      "icon": "auth",
+      "x": -20.5,
+      "z": -21.0,
+      "y": 0,
+      "w": 8,
+      "d": 6,
+      "scale": 0.72,
+      "rotationDeg": 0.0,
+      "roofColor": "#3c6b5a",
+      "bodyColor": "#8a4a30",
+      "modelKey": "pavilion-side",
+      "collider": {
+        "halfX": 6.1,
+        "halfZ": 5.4
+      },
+      "sortNo": 19
+    },
+    {
+      "nodeKey": "duzhi-hall",
+      "parentKey": "royal-city",
+      "nodeType": "BUILDING",
+      "name": "度支殿",
+      "sub": "PAY · 支付结算",
+      "icon": "pay",
+      "x": -20.5,
+      "z": -7.0,
+      "y": 0,
+      "w": 8,
+      "d": 6,
+      "scale": 0.72,
+      "rotationDeg": 0.0,
+      "roofColor": "#3c6b5a",
+      "bodyColor": "#8a4a30",
+      "modelKey": "pavilion-side",
+      "collider": {
+        "halfX": 6.1,
+        "halfZ": 5.4
+      },
+      "sortNo": 20
+    },
+    {
+      "nodeKey": "cangshu-hall",
+      "parentKey": "royal-city",
+      "nodeType": "BUILDING",
+      "name": "藏书殿",
+      "sub": "FILE · 文件存储",
+      "icon": "file",
+      "x": -20.5,
+      "z": 7.0,
+      "y": 0,
+      "w": 8,
+      "d": 6,
+      "scale": 0.72,
+      "rotationDeg": 0.0,
+      "roofColor": "#3c6b5a",
+      "bodyColor": "#8a4a30",
+      "modelKey": "pavilion-side",
+      "collider": {
+        "halfX": 6.1,
+        "halfZ": 5.4
+      },
+      "sortNo": 21
+    },
+    {
+      "nodeKey": "shichen-hall",
+      "parentKey": "royal-city",
+      "nodeType": "BUILDING",
+      "name": "时辰殿",
+      "sub": "JOB · 定时任务",
+      "icon": "job",
+      "x": -20.5,
+      "z": 21.0,
+      "y": 0,
+      "w": 8,
+      "d": 6,
+      "scale": 0.72,
+      "rotationDeg": 0.0,
+      "roofColor": "#3c6b5a",
+      "bodyColor": "#8a4a30",
+      "modelKey": "pavilion-side",
+      "collider": {
+        "halfX": 6.1,
+        "halfZ": 5.4
+      },
+      "sortNo": 22
+    },
+    {
+      "nodeKey": "zhengshi-hall",
+      "parentKey": "royal-city",
+      "nodeType": "BUILDING",
+      "name": "政事殿",
+      "sub": "WORKFLOW · 工作流",
+      "icon": "workflow",
+      "x": 20.5,
+      "z": -21.0,
+      "y": 0,
+      "w": 8,
+      "d": 6,
+      "scale": 0.72,
+      "rotationDeg": 0.0,
+      "roofColor": "#3c6b5a",
+      "bodyColor": "#8a4a30",
+      "modelKey": "pavilion-side",
+      "collider": {
+        "halfX": 6.1,
+        "halfZ": 5.4
+      },
+      "sortNo": 23
+    },
+    {
+      "nodeKey": "kaogong-hall",
+      "parentKey": "royal-city",
+      "nodeType": "BUILDING",
+      "name": "考功殿",
+      "sub": "FORM · 表单引擎",
+      "icon": "form",
+      "x": 20.5,
+      "z": -7.0,
+      "y": 0,
+      "w": 8,
+      "d": 6,
+      "scale": 0.72,
+      "rotationDeg": 0.0,
+      "roofColor": "#3c6b5a",
+      "bodyColor": "#8a4a30",
+      "modelKey": "pavilion-side",
+      "collider": {
+        "halfX": 6.1,
+        "halfZ": 5.4
+      },
+      "sortNo": 24
+    },
+    {
+      "nodeKey": "tongzheng-hall",
+      "parentKey": "royal-city",
+      "nodeType": "BUILDING",
+      "name": "通政殿",
+      "sub": "MESSAGE · 消息通知",
+      "icon": "message",
+      "x": 20.5,
+      "z": 7.0,
+      "y": 0,
+      "w": 8,
+      "d": 6,
+      "scale": 0.72,
+      "rotationDeg": 0.0,
+      "roofColor": "#3c6b5a",
+      "bodyColor": "#8a4a30",
+      "modelKey": "pavilion-side",
+      "collider": {
+        "halfX": 6.1,
+        "halfZ": 5.4
+      },
+      "sortNo": 25
+    },
+    {
+      "nodeKey": "qiju-hall",
+      "parentKey": "royal-city",
+      "nodeType": "BUILDING",
+      "name": "起居殿",
+      "sub": "AUDIT · 审计留痕",
+      "icon": "audit",
+      "x": 20.5,
+      "z": 21.0,
+      "y": 0,
+      "w": 8,
+      "d": 6,
+      "scale": 0.72,
+      "rotationDeg": 0.0,
+      "roofColor": "#3c6b5a",
+      "bodyColor": "#8a4a30",
+      "modelKey": "pavilion-side",
+      "collider": {
+        "halfX": 6.1,
+        "halfZ": 5.4
+      },
+      "sortNo": 26
     }
   ]
 }

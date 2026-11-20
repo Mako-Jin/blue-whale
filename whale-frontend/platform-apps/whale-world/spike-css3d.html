@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>T0.1 · CSS3D + WebGL 混合验证</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; overflow: hidden; background: #0b1016; }
+      body { font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
+
+      /* 两层必须严格重叠：canvas 与 css3d 容器都铺满视口 */
+      #stage { position: fixed; inset: 0; z-index: 0; }
+      #stage canvas { display: block; }
+
+      /* 层序（从下到上）：主场景 canvas → CSS3D 面板 → 遮挡 canvas → HUD
+         遮挡 canvas 只画"该挡住面板的物体"，透明背景，把 DOM 反压回去。 */
+      #css3d-root { position: fixed; inset: 0; z-index: 5; pointer-events: none; overflow: hidden; }
+      #occluder-root { position: fixed; inset: 0; z-index: 10; pointer-events: none; }
+      #occluder-root canvas { display: block; }
+
+      /* 面板：纸张感，字号要够大，用来肉眼判断清晰度 */
+      .paper {
+        width: 640px;
+        height: 400px;
+        padding: 28px 32px;
+        background: linear-gradient(160deg, #fdfaf2 0%, #f2ead8 100%);
+        border: 1px solid #c9b98f;
+        box-shadow: 0 18px 42px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+        color: #2c2418;
+        pointer-events: auto;
+        user-select: text;
+        font-size: 15px;
+        line-height: 1.7;
+      }
+      .paper h2 {
+        font-size: 21px;
+        letter-spacing: 2px;
+        color: #5b3f1e;
+        border-bottom: 1px solid #d6c8a8;
+        padding-bottom: 10px;
+        margin-bottom: 14px;
+      }
+      .paper .hint { color: #7a6a4c; font-size: 13px; }
+      .paper input {
+        width: 100%;
+        margin-top: 12px;
+        padding: 9px 12px;
+        font-size: 15px;
+        border: 1px solid #c2b28a;
+        background: #fffdf7;
+        color: #2c2418;
+        outline: none;
+      }
+      .paper input:focus { border-color: #8a6b2f; box-shadow: 0 0 0 2px rgba(138, 107, 47, 0.18); }
+      .paper button {
+        margin-top: 12px;
+        padding: 8px 18px;
+        font-size: 14px;
+        background: #6b4a1e;
+        color: #fdfaf2;
+        border: none;
+        cursor: pointer;
+      }
+      .paper button:hover { background: #8a6128; }
+      .paper .row { display: flex; gap: 18px; margin-top: 14px; }
+      .paper .stat { flex: 1; background: #fffdf7; border: 1px solid #e0d5b8; padding: 10px 12px; }
+      .paper .stat b { display: block; font-size: 22px; color: #5b3f1e; }
+      .paper .stat span { font-size: 12px; color: #8a7a5a; }
+
+      /* 测量探针：绝对居中的 2px 点。透视下 getBoundingClientRect 的包围盒中心会偏，
+         但一个无面积的点的 rect 中心就是它真实的投影位置——用它量对齐才是准的。 */
+      .paper { position: relative; }
+      .probe {
+        position: absolute; left: 50%; top: 50%;
+        width: 2px; height: 2px; margin: -1px 0 0 -1px;
+        background: transparent; pointer-events: none;
+      }
+
+      /* HUD：屏幕空间，不参与 3D */
+      #hud {
+        position: fixed; left: 20px; top: 20px; z-index: 20;
+        padding: 14px 18px;
+        background: rgba(8, 14, 20, 0.82);
+        border: 1px solid rgba(120, 190, 230, 0.35);
+        color: #cfe6f5;
+        font-size: 13px;
+        line-height: 1.9;
+        font-variant-numeric: tabular-nums;
+        backdrop-filter: blur(6px);
+      }
+      #hud .k { color: #7fa8c4; display: inline-block; width: 96px; }
+      #hud .v { color: #eaf6ff; }
+      #hud .ok { color: #6ee7a8; }
+      #hud .bad { color: #ff8d8d; }
+      #hud h1 { font-size: 14px; letter-spacing: 1px; color: #9dc8e0; margin-bottom: 8px; font-weight: 600; }
+      #hud .tip { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(120,190,230,0.2); color: #6f8fa6; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <div id="stage"></div>
+    <div id="css3d-root"></div>
+    <div id="occluder-root"></div>
+
+    <div id="hud">
+      <h1>T0.1 · 混合渲染验证</h1>
+      <div><span class="k">层误差</span><span class="v" id="hud-err">--</span></div>
+      <div><span class="k">面板尺寸</span><span class="v" id="hud-size">--</span></div>
+      <div><span class="k">FPS</span><span class="v" id="hud-fps">--</span></div>
+      <div><span class="k">相机距离</span><span class="v" id="hud-dist">--</span></div>
+      <div class="tip">拖拽旋转 · 滚轮缩放 · 面板可点可输入</div>
+    </div>
+
+    <script type="module" src="/src/spike/css3d-mix.ts"></script>
+  </body>
+</html>
