@@ -102,6 +102,13 @@
             <groupId>org.mapstruct</groupId>
             <artifactId>mapstruct</artifactId>
         </dependency>
+        <!-- 概览契约 SDK（三维王城藏书殿 T5.4）：只提供缓存/超时/降级与 GET /file/overview 端点，
+             缓存与降级不在服务侧重复实现 -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-overview-sdk</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

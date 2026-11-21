@@ -57,7 +57,13 @@ import { createQuestSystem } from './quests';
 import { createScreenLayer } from './screen';
 import type { ScreenHandle } from './screen';
 import { mountScreenPage, type ScreenPageHandle } from './screenpage';
-import { PURCHASE_ORDER_PAGE, HUB_HALLS_PAGE, LOGIN_HISTORY_PAGE, PAY_ORDER_PAGE } from './screenpages';
+import {
+  PURCHASE_ORDER_PAGE,
+  HUB_HALLS_PAGE,
+  LOGIN_HISTORY_PAGE,
+  PAY_ORDER_PAGE,
+  FILE_ASSET_PAGE,
+} from './screenpages';
 import { createSceneEnv, type SceneEnv } from './env';
 import { createPostFx, type PostFx } from './postfx';
 import { createSky, type SkyState } from './env-sky';
@@ -3853,6 +3859,10 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   let duzhiScreen: ScreenHandle | null = null;
   let duzhiPage: ScreenPageHandle | null = null;
 
+  /** 藏书殿（S5/T5.4）屏风与其业务页句柄（同上） */
+  let cangshuScreen: ScreenHandle | null = null;
+  let cangshuPage: ScreenPageHandle | null = null;
+
   function setupScreens() {
     try {
     screens.add({
@@ -4025,6 +4035,41 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
         return () => {
           duzhiPage?.dispose();
           duzhiPage = null;
+        };
+      },
+    });
+
+    /* 藏书殿（FILE）屏风页（S5 / T5.4）：屏风里是文件台账 ——
+       一共多少份、占了多少盘、最近传了什么、回收站里还堆着什么。
+
+       位置同前两殿：本殿台基上、殿门前（藏书殿殿心 z = +7，屏风 z = +11.5，
+       台基顶面 1.87 米 → 屏风中心 3.42 米）。 */
+    cangshuScreen = screens.add({
+      id: 'cangshu',
+      position: [-20.5, 3.42, 11.5],
+      facing: 0,
+      size: 'large',
+      title: '藏书殿 · 文件台账',
+      subtitle: 'FILE / STORAGE',
+      tone: 'idle',
+      mount: (body) => {
+        cangshuPage = mountScreenPage(body, {
+          nodeKey: 'cangshu-hall',
+          overviewPath: '/file/overview',
+          overviewPermission: 'sys:file:list',
+          pages: [FILE_ASSET_PAGE],
+          getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+          getPermissions: opts.getPermissions,
+          // 题头灯跟业务页状态走：概览陈旧/失败时不该还亮绿灯
+          onTone: (tone) => cangshuScreen?.setTone(tone),
+          onTitle: (title, subtitle) => {
+            cangshuScreen?.setTitle(title ? `${title} · 文件台账` : '藏书殿 · 文件台账',
+              subtitle ?? 'FILE / STORAGE');
+          },
+        });
+        return () => {
+          cangshuPage?.dispose();
+          cangshuPage = null;
         };
       },
     });
@@ -4212,7 +4257,7 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
        以及"进屏风 / 注入演示数据"两个动作。只在 ?debug=1 下存在，
        正常路径既不暴露业务字段，也不会注入任何假数据。
 
-       S5 起城里有四块业务屏风（户部 / 数枢殿 / 枢密殿 / 度支殿），按 id 分派；
+       S5 起城里有五块业务屏风（户部 / 数枢殿 / 枢密殿 / 度支殿 / 藏书殿），按 id 分派；
        不给 id 时仍落到户部（S4 的老脚本靠这个默认）。 */
     /* 屏风 id → 业务页句柄。默认给户部：老脚本不带 id 调探针时的历史行为。 */
     const pageOf = (id?: string): ScreenPageHandle | null => {
@@ -4223,6 +4268,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return shumiPage;
         case 'duzhi':
           return duzhiPage;
+        case 'cangshu':
+          return cangshuPage;
         default:
           return hubuPage;
       }

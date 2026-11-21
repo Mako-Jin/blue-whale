@@ -10,8 +10,18 @@
  * 屏风页不重复这个错误：猜不出来就按原文显示，宁可不漂亮，也不要显示错的数。</p>
  */
 
-/** 列排版口径：与 overview 契约的 format 同构，另加 date / status 两种表格专用口径 */
-export type ColumnFormat = 'text' | 'count' | 'money' | 'percent' | 'date' | 'datetime' | 'status';
+/** 列排版口径：与 overview 契约的 format 同构，另加 date / datetime / status / size 几种表格专用口径 */
+export type ColumnFormat =
+  | 'text'
+  | 'count'
+  | 'money'
+  | 'percent'
+  | 'date'
+  | 'datetime'
+  | 'status'
+  /* 字节数 → "1.2 MB"：文件大小不能套 money（会显示成 ¥1.2），也不能套 count
+     （1234567 个字节没人读得出来是 1.2MB） */
+  | 'size';
 
 /** 一列 */
 export interface ScreenColumn {
@@ -265,6 +275,49 @@ export const PAY_ORDER_PAGE: ScreenListPageSpec = {
 };
 
 /**
+ * 文件台账页（S5 / T5.4）：藏书殿的屏风页。
+ *
+ * <p>列只留五样：文件名、桶、大小、类型、上传时间。objectKey / md5 / 上传人放详情——
+ * 列表要回答的是"这一批东西是什么"，不是"这个对象落在哪个键上"。</p>
+ *
+ * <p>关键字筛选是**真支持**的：后端 `FilePageRequest.originalName` 会按原始文件名模糊匹配。
+ * **不给状态筛选**：`FilePageRequest` 里没有 status 参数（文件状态 1/0/2 只在管理端用），
+ * 给一个不生效的下拉比少一个框更难查。</p>
+ *
+ * <p>不配 `detailPath`：列表行已经带回详情需要的全部字段，再请求一次只会让点开有半秒空白。</p>
+ */
+export const FILE_ASSET_PAGE: ScreenListPageSpec = {
+  key: 'files',
+  title: '文件台账',
+  listPath: '/file/v1/page',
+  permission: 'sys:file:list',
+  idKey: 'id',
+  keywordParam: 'originalName',
+  searchPlaceholder: '搜索文件名…',
+  /* 6 行/页：大屏 620px 里 KPI + 图表 + 工具栏之后只剩约 230px */
+  pageSize: 6,
+  columns: [
+    { key: 'originalName', label: '文件名', width: '34%' },
+    { key: 'bucket', label: '桶', width: '18%' },
+    { key: 'fileSize', label: '大小', width: '16%', format: 'size', align: 'right' },
+    { key: 'contentType', label: '类型', width: '16%' },
+    { key: 'createTime', label: '上传', width: '16%', format: 'datetime' },
+  ],
+  detailFields: [
+    { key: 'originalName', label: '原始文件名' },
+    { key: 'fileName', label: '存储文件名' },
+    { key: 'bucket', label: '桶' },
+    { key: 'objectKey', label: '对象键' },
+    { key: 'fileSize', label: '大小', format: 'size' },
+    { key: 'contentType', label: '类型' },
+    { key: 'md5', label: 'MD5' },
+    { key: 'uploaderId', label: '上传人 ID' },
+    { key: 'createTime', label: '上传时间', format: 'datetime' },
+  ],
+  titleKey: 'originalName',
+};
+
+/**
  * 殿的连通状态：与后端 {@code HubHallState} 一一对应，前端只做展示。
  *
  * <p>「无凭据」单独一档而不是并进「未通」：前者要去要权限，后者要去查服务，
@@ -339,4 +392,5 @@ export const SCREEN_PAGES: Record<string, ScreenListPageSpec> = {
   [HUB_HALLS_PAGE.key]: HUB_HALLS_PAGE,
   [LOGIN_HISTORY_PAGE.key]: LOGIN_HISTORY_PAGE,
   [PAY_ORDER_PAGE.key]: PAY_ORDER_PAGE,
+  [FILE_ASSET_PAGE.key]: FILE_ASSET_PAGE,
 };

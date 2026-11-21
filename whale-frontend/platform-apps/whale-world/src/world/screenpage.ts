@@ -506,6 +506,27 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
     return activeSpec()?.pageSize ?? 8;
   }
 
+  /**
+   * 字节数排成可读文本（1024 进制）
+   *
+   * <p>不足 1KB 保留整数（"512 B"），其余一位小数——磁盘数字的用处是"量级对不对"，
+   * 精确到字节只会把一列撑宽。</p>
+   *
+   * @param bytes 字节数
+   * @returns 形如 "1.2 MB" 的文本
+   */
+  function formatBytes(bytes: number): string {
+    if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let value = bytes;
+    let unit = 0;
+    while (value >= 1024 && unit < units.length - 1) {
+      value /= 1024;
+      unit += 1;
+    }
+    return unit === 0 ? `${Math.round(value)} B` : `${value.toFixed(1)} ${units[unit]}`;
+  }
+
   function cellText(spec: ScreenListPageSpec, column: ScreenColumn, row: Row): string {
     const value = row[column.key];
     switch (column.format) {
@@ -528,6 +549,10 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
         const key = String(value ?? '');
         return spec.statusMap?.[key]?.label ?? (key || '—');
       }
+      /* 字节数：1024 进制、一位小数。用 1024 而不是 1000 是因为后端
+         配额/上限也是按 1024 算的，两边不一致时"刚满 50MB 却被拒"最难解释。 */
+      case 'size':
+        return formatBytes(num(value));
       default:
         return value === null || value === undefined || value === '' ? '—' : String(value);
     }

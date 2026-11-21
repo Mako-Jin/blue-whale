@@ -81,3 +81,7 @@ whale:
           name: 度支殿
           url: http://bw-pay:8086/pay/overview
           permission: sys:pay:list
+        - nodeKey: cangshu-hall
+          name: 藏书殿
+          url: http://bw-file:8085/file/overview
+          permission: sys:file:list

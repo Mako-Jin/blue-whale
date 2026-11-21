@@ -285,7 +285,7 @@
 | T5.1 | [x] 数枢殿总控（聚合多服务） | 聚合 | T4.6 |
 | T5.2 | [x] 枢密殿 | auth | T5.1 |
 | T5.3 | [x] 度支殿 | pay | T5.1 |
-| T5.4 | [ ] 藏书殿 | file | T5.1 |
+| T5.4 | [x] 藏书殿 | file | T5.1 |
 | T5.5 | [ ] 时辰殿 | job | T5.1 |
 | T5.6 | [ ] 政事殿 | workflow | T5.1 |
 | T5.7 | [ ] 考功殿 | form | T5.1 |
@@ -412,6 +412,50 @@
 - **已知取舍（布局级，不在本批改）**：皇城九殿 14 米一档、台基深 10.8 米，殿与殿之间只剩 **3.2 米**夹道，
   屏风只能在这个夹道里近距观看（约 2–4 米）。屏风本身是"看一眼有什么、按 E 进去读"的入口，
   进入即平面化全屏，近距不影响读数；要真正拉开观看距离得改九殿间距，那是布局变更。
+
+**S5 第四批交付说明（2026-11-21，T5.4 藏书殿 / file）**
+
+- **file 概览**：`GET /file/overview`，四张 KPI（文件总数 / 占用空间 / 今日新增 / 回收站）
+  + 两张图（近 7 日新增（line，件数）、按桶分布（bar，件数））。权限码复用 2D 文件列表的
+  `sys:file:list`，屏风页复用 `/file/v1/page`，**无新接口、无新权限点**。
+- **「文件数」与「占用空间」故意不同口径**：文件数只数**根文件**（`parent_id IS NULL`，
+  与人看到的列表条数一致），占用空间算**全部行**（含各版本行——版本行不出现在列表里，
+  但实实在在占盘）。两个数都用根行会少算盘，都用全部行会让"文件变多了"的错觉。
+- **回收站口径跟 2D 回收站页一致**：`deleted = 1 AND parent_id IS NULL`；占用字节算该文件
+  的整组（版本行也随根文件一起被逻辑删除）。超期判定线 = `now - retention-days`，
+  `retention-days <= 0`（无限期保留）时**不查超期**——否则每份被删的文件都会变成一条告警，
+  值班的人第二天就把告警关了。
+- **告警两条可并存**：① 回收站有文件超过保留期未清理 → `WARNING`「清理作业可能没跑」
+  （与作业心跳同源的静默失效）；② 回收站占用 ≥ 5GB → `WARNING`「确认保留期或手动清理」
+  （容量问题）。**清理本身没开启时两条都不报**，改用 note 说明——配置成不清理不是故障。
+- **统计端口 `FileLibraryStatQuery` 放在 domain 层**：file 是分层模块
+  （`interfaces → application → domain ← infrastructure`），
+  infrastructure **不依赖** application，端口放 application 层会导致实现类编不过
+  （第一次就撞了：`程序包 com.bluewhale.file.application.port 不存在`）。
+  放 domain 后两个方向都成立，也与既有 `FileAssetRepository` 同层。
+- **索引按查询形状补**（`V9__file_overview_index.sql` + `init.sql`，先查 `STATISTICS` 再 `ADD INDEX`）：
+  `(tenant_id, deleted)`、`(tenant_id, create_time)`、`(tenant_id, deleted, delete_time)`；
+  建好第一条后**删掉冗余的单列 `idx_tenant_id`**（最左前缀已被覆盖，上传链路少维护一棵索引）。
+  时间条件列不套函数；按天聚合才用 `DATE(create_time)`。
+- **屏风页**：`FILE_ASSET_PAGE` 五列（文件名 / 桶 / 大小 / 类型 / 上传时间）。为此新增
+  **`size` 列口径**（1024 进制 → `1.5 GB`）：文件大小既不能套 `money`（会显示成 `¥1.5`），
+  也不能套 `count`（1234567 个字节没人读得出来）。关键字参数是 `originalName` 而**不是通用
+  `keyword`**，发错参数名后端不报错、只是不过滤——e2e 专门断言了参数名。
+  **不给状态下拉**：`FilePageRequest` 没有 status 参数（文件状态只在管理端用），
+  给了就是一个不生效的框（与度支殿正相反的一对判据）。
+- **总控接入**：`targets` 加 `cangshu-hall`（`http://bw-file:8085/file/overview`，权限码同上），
+  数枢殿总控里出现第四行真数据。
+- **验证**：`e2e/tools/world-cangshu-smoke.mjs` 37 项全绿（四 KPI、两图、`size` 三档
+  B/KB/GB、搜索框存在且参数名是 `originalName`、无状态下拉、翻页/详情 9 字段、
+  详情不再打二次接口、Esc 退出后回到 3D 尺寸、接口 500 标 stale 且列表给人话）。
+  后端 `FileOverviewProviderTest` 11 例 + `whale-service-file` 全量 101 例通过；checkstyle 0。
+  回归：`world-duzhi` 36、`world-shumi` 32、`world-shushu` 31、`world-screenpage` 35、
+  `world-city-smoke`、`world-guide` 19、`world-quest` 42、`world-screen/{smoke,engage,ime,resize,hint,occlusion,wheel}`
+  全通过；八项门禁 rc=0（perm-mapping 991、api-path-drift 1571、internal-boundary 127）。
+- **一个环境坑（记下来省下次的两小时）**：截图里 WebGL 画布全白、DOM 正常，既不是代码问题也不是
+  数据问题——`canvas.getContext('webgl2').isContextLost()` 返回 `true`。宿主机可用内存只剩约 1GB 时，
+  **1440×900 + d3d11 会丢上下文**（同一脚本降到 1024×640 立刻恢复）。判断"是渲染挂了还是模型没加载"
+  最快的一步就是读 `isContextLost()`，不要靠截图猜。
 
 ### S6 内城 12 坊
 

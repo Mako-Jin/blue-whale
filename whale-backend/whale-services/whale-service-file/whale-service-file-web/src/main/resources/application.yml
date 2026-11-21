@@ -64,6 +64,15 @@ whale:
   permission:
     header:
       enabled: true
+  # 三维王城藏书殿（T5.4）：SDK 注册 GET /file/overview，本服务只提供 provider。
+  # base-path 含服务一级前缀（REQ-ARCH-003：网关不剥前缀），外部路径与这里一致。
+  # 注意与下面的 whale.file 互不干扰：这里是总控概览契约，那里是文件服务自身配置。
+  overview:
+    base-path: /file/overview
+    # 四张 KPI + 两张图打 5 次库（库存/今日/趋势/回收站/按桶），文件表可能很大，留 5 秒
+    timeout: 5s
+    # 前端 30s 轮询一次；文件总量本就是分钟级变化，缓存 30s 不会让人看到旧数
+    ttl: 30s
   # Wave 5.50：国际化 SDK 自治化。启动时在本服务库幂等创建 sys_i18n_message，
   # 文案回退源为 classpath:i18n/file/messages*；本地管理接口保持默认关闭。
   i18n:

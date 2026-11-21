@@ -12,7 +12,7 @@ import type { HallData } from './datahall';
 import { createOverviewFeed, toHallData, type OverviewFeedOptions, type OverviewHallSpec } from './overview';
 
 /**
- * 已接入契约的服务（标杆：户部 / ERP；S5：数枢殿总控、枢密殿）。
+ * 已接入契约的服务（标杆：户部 / ERP；S5：数枢殿总控、枢密殿、度支殿、藏书殿）。
  *
  * <p>路径与 2D 后台同前缀（REQ-ARCH-003：网关不剥前缀），权限码复用 2D 同一码，
  * 不为 3D 单独发一套授权。</p>
@@ -30,6 +30,10 @@ export const OVERVIEW_HALLS: OverviewHallSpec[] = [
   /* 度支殿（S5/T5.3）：收款、待支付、退款。权限码复用 2D 支付单管理的
      `sys:pay:list`——能在后台看支付单的人，就能在城里看这一屏。 */
   { nodeKey: 'duzhi-hall', path: '/pay/overview', permission: 'sys:pay:list' },
+  /* 藏书殿（S5/T5.4）：文件总量、占用空间、回收站。权限码复用 2D 文件列表的
+     `sys:file:list`；非管理员本来就只看得见自己上传的文件，3D 沿用同一口子，
+     不在这里额外放宽。 */
+  { nodeKey: 'cangshu-hall', path: '/file/overview', permission: 'sys:file:list' },
 ];
 
 /** 采集器选项：与 metrics 共用同一套令牌/权限来源 */
