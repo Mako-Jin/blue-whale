@@ -95,24 +95,33 @@ class WorkflowFlywayMigrationScriptTest {
     }
 
     /**
-     * 增量同步：V2~V13 新增的列 / 唯一键 / 索引必须全部体现在 init.sql
+     * 增量同步：V2~V14 新增的列 / 唯一键 / 索引必须全部体现在 init.sql
      *
      * @throws IOException 读取脚本失败
      */
     @Test
-    @DisplayName("init.sql 同步 V2~V13 的增量列、唯一键与索引")
+    @DisplayName("init.sql 同步 V2~V14 的增量列、唯一键与索引")
     void initScriptShouldCoverIncrementalChanges() throws IOException {
         String initSql = Files.readString(INIT_SCRIPT, StandardCharsets.UTF_8);
         for (String token : List.of("operator_id", "operator_type", "operator_source", "last_event_id",
                 "assignee_overrides_json", "finished_at", "active_code", "window_bucket",
                 "due_at", "idx_status_due_at",
-                "uk_cc", "uk_tenant_active_code", "uk_urge_window", "idx_status_finished")) {
+                "uk_cc", "uk_tenant_active_code", "uk_urge_window", "idx_status_finished",
+                /* V14（政事殿概览）：四个复合索引，缺一个就会让某条概览查询退化成租户内全表扫 */
+                "idx_tenant_status_finished", "idx_tenant_create_time",
+                "idx_tenant_status_due", "idx_tenant_status_node")) {
             assertTrue(initSql.contains(token), "init.sql 应同步增量结构：" + token);
         }
         String instanceBlock = initSql.substring(initSql.indexOf("CREATE TABLE process_instance"),
                 initSql.indexOf("COMMENT='流程实例表'"));
         assertFalse(instanceBlock.contains("idx_status "),
                 "process_instance 不应再建已被 idx_status_finished 覆盖的 idx_status");
+        assertFalse(instanceBlock.contains("KEY idx_tenant_id "),
+                "process_instance 的 idx_tenant_id 已被 V14 复合索引最左前缀覆盖，init.sql 不应再单建");
+        String taskBlock = initSql.substring(initSql.indexOf("CREATE TABLE process_task"),
+                initSql.indexOf("COMMENT='待办任务表'"));
+        assertFalse(taskBlock.contains("KEY idx_tenant_id "),
+                "process_task 的 idx_tenant_id 已被 V14 复合索引最左前缀覆盖，init.sql 不应再单建");
         String v2 = Files.readString(MIGRATION_DIR.resolve("V2__task_operator.sql"), StandardCharsets.UTF_8);
         for (String column : List.of("operator_id", "operator_type", "operator_source")) {
             assertTrue(v2.contains(column), "V2 应补齐列：" + column);

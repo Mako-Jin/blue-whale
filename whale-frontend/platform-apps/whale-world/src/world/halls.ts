@@ -38,6 +38,10 @@ export const OVERVIEW_HALLS: OverviewHallSpec[] = [
      权限码复用 2D 定时任务页的 `sys:job:list`——能在后台启停任务的人，
      才该在城里看到"哪个任务静默了"。 */
   { nodeKey: 'shichen-hall', path: '/job/overview', permission: 'sys:job:list' },
+  /* 政事殿（S5/T5.6）：在途审批、今日办结、待办积压、卡住的流程。
+     权限码复用 2D 流程实例页的 `sys:workflow:instance:list`——能看到全租户实例的人，
+     才该在城里看到"哪条审批链断了"。 */
+  { nodeKey: 'zhengshi-hall', path: '/workflow/overview', permission: 'sys:workflow:instance:list' },
 ];
 
 /** 采集器选项：与 metrics 共用同一套令牌/权限来源 */

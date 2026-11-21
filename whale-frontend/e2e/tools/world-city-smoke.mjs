@@ -141,7 +141,10 @@ const walk = async (ms) => {
 };
 // 内城墙在 z=58（几何扩容后；旧断言按 46 写，起点 51 其实已经在城里，等于没测门洞）。
 await page.evaluate(() => window.__bwwWarp(0, 62)); // 内城门外，门洞 |x|<6.5
-await walk(6000);
+/* 走 9 秒而不是 6 秒：软件渲染下主循环被压到 ~4fps，而 dt 上限 0.05s，
+   6 秒实际只前进 ~4 米——正好停在 z=58.04 这条门线上，"能不能穿门"就成了掷硬币。
+   这里给足余量，测的仍是"门洞可穿"，不是"帧率够不够高"。 */
+await walk(9000);
 const throughGate = await page.evaluate(() => window.__bwwDebug());
 ok(throughGate.z < 58, `正：沿御道穿过内城门（z 62 → ${throughGate.z}）`);
 

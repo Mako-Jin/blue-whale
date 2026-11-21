@@ -419,27 +419,46 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
     return wrap;
   }
 
+  /* 折线支持多条序列：发起 vs 办结这种"进 / 出"对比，只有画在同一张图上才有意义。
+     早前这里只取 series[0]，第二条序列会被**静默丢弃**——图上看着完全正常，
+     只是少了一半数。多条时按调色板分别描线，并补一个最小图例（两根线不加图例，
+     看的人分不清哪根是发起）。 */
   function lineChart(chart: OverviewChart): Element {
-    const values = chart.series[0]?.values ?? [];
-    const max = Math.max(1, ...values.map((value) => Math.abs(num(value))));
-    const step = values.length > 1 ? 100 / (values.length - 1) : 100;
-    const points = values
-      .map((value, index) => `${(index * step).toFixed(2)},${(30 - (num(value) / max) * 26).toFixed(2)}`)
-      .join(' ');
+    const palette = ['#a8702c', '#3f9e6e', '#4f7fa8', '#c9962f', '#8c6b9e'];
+    const series = chart.series.length > 0 ? chart.series : [{ name: '数值', values: [] as number[] }];
+    const slots = Math.max(chart.categories.length, ...series.map((item) => item.values.length));
+    const all = series.flatMap((item) => item.values.map(num));
+    const max = Math.max(1, ...all.map((value) => Math.abs(value)));
+    const step = slots > 1 ? 100 / (slots - 1) : 100;
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('viewBox', '0 0 100 34');
     svg.setAttribute('class', 'bwsp-line');
-    const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-    polyline.setAttribute('points', points);
-    polyline.setAttribute('fill', 'none');
-    polyline.setAttribute('stroke', '#a8702c');
-    polyline.setAttribute('stroke-width', '0.8');
-    svg.appendChild(polyline);
+    series.forEach((item, index) => {
+      const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+      polyline.setAttribute('points', item.values
+        .map((value, position) =>
+          `${(position * step).toFixed(2)},${(30 - (num(value) / max) * 26).toFixed(2)}`)
+        .join(' '));      polyline.setAttribute('fill', 'none');
+      polyline.setAttribute('stroke', palette[index % palette.length]);
+      polyline.setAttribute('stroke-width', '0.8');
+      svg.appendChild(polyline);
+    });
     const wrap = h('div', 'bwsp-linewrap');
     wrap.appendChild(svg);
     const labels = h('div', 'bwsp-barlabels');
     for (const category of chart.categories) labels.appendChild(h('span', '', category));
     wrap.appendChild(labels);
+    if (series.length > 1) {
+      const legend = h('div', 'bwsp-legend');
+      series.forEach((item, index) => {
+        const entry = h('span', 'bwsp-legend-item');
+        const dot = h('i', 'bwsp-dot');
+        dot.style.background = palette[index % palette.length];
+        entry.append(dot, h('span', '', item.name));
+        legend.appendChild(entry);
+      });
+      wrap.appendChild(legend);
+    }
     return wrap;
   }
 
@@ -547,7 +566,10 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
             : '—';
       case 'status': {
         const key = String(value ?? '');
-        return spec.statusMap?.[key]?.label ?? (key || '—');
+        /* 列级字典优先：同一张表里可能混着两种状态空间（流程实例 + 它的审批链），
+           两者状态码相同、含义不同，用页面级字典会把"待办"译成"运行中"且不报错。 */
+        const map = column.statusMap ?? spec.statusMap;
+        return map?.[key]?.label ?? (key || '—');
       }
       /* 字节数：1024 进制、一位小数。用 1024 而不是 1000 是因为后端
          配额/上限也是按 1024 算的，两边不一致时"刚满 50MB 却被拒"最难解释。 */
@@ -581,7 +603,8 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
         if (column.format === 'status') {
           const key = String(row[column.key] ?? '');
           const badge = h('span', 'bwsp-badge', cellText(spec, column, row));
-          badge.dataset.tone = spec.statusMap?.[key]?.tone ?? 'flat';
+          const map = column.statusMap ?? spec.statusMap;
+          badge.dataset.tone = map?.[key]?.tone ?? 'flat';
           td.appendChild(badge);
         } else {
           td.textContent = cellText(spec, column, row);
@@ -686,7 +709,8 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
         if (field.format === 'status') {
           const key = String(row[field.key] ?? '');
           const badge = h('span', 'bwsp-badge', cellText(spec, field, row));
-          badge.dataset.tone = spec.statusMap?.[key]?.tone ?? 'flat';
+          const map = field.statusMap ?? spec.statusMap;
+          badge.dataset.tone = map?.[key]?.tone ?? 'flat';
           dd.appendChild(badge);
         } else {
           dd.textContent = cellText(spec, field, row);

@@ -81,7 +81,9 @@ CREATE TABLE process_instance (
     update_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted             TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
-    KEY idx_tenant_id (tenant_id),
+    -- 概览（V14）：单列 idx_tenant_id 被这两个复合索引的最左前缀覆盖，故不再单建
+    KEY idx_tenant_create_time (tenant_id, create_time),
+    KEY idx_tenant_status_finished (tenant_id, status, finished_at),
     KEY idx_definition_id (definition_id),
     KEY idx_status_finished (status, finished_at)
 ) COMMENT='流程实例表';
@@ -116,7 +118,9 @@ CREATE TABLE process_task (
     update_time  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted      TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
-    KEY idx_tenant_id (tenant_id),
+    -- 概览（V14）：单列 idx_tenant_id 被这两个复合索引的最左前缀覆盖，故不再单建
+    KEY idx_tenant_status_due (tenant_id, status, due_at),
+    KEY idx_tenant_status_node (tenant_id, status, node_name),
     KEY idx_instance_id (instance_id),
     KEY idx_assignee (assignee),
     KEY idx_status (status),

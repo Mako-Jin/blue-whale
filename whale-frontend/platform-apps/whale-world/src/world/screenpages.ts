@@ -35,6 +35,15 @@ export interface ScreenColumn {
   align?: 'left' | 'right';
   /** 排版口径 */
   format?: ColumnFormat;
+  /**
+   * 列级状态字典；缺省用页面级 {@link ScreenListPageSpec#statusMap}。
+   *
+   * <p><b>为什么需要列级覆盖</b>：实例与任务的状态码是同一套数字、含义却不同
+   * （实例 0 = 运行中，任务 0 = 待办）。只有页面级字典时，详情里的审批链会按实例的
+   * 字典翻译任务行——"待办"会被显示成"运行中"，而且不报错。同一张表里混着两种
+   * 状态空间时（流程实例 + 它的审批链），必须能逐列指定。</p>
+   */
+  statusMap?: Record<string, ScreenStatusStyle>;
 }
 
 /** 状态码 → 中文 + 灯色 */
@@ -382,6 +391,96 @@ export const JOB_INFO_PAGE: ScreenListPageSpec = {
 };
 
 /**
+ * 流程实例状态：`process_instance.status`，0 运行中 / 1 已通过 / 2 已驳回 / 3 已撤销。
+ *
+ * <p>「运行中」给 warn 而不是 good：它不是一种健康状态，而是"还没批完"——
+ * 绿灯会让人以为这一屏全都没问题。</p>
+ */
+export const INSTANCE_STATUS_STYLE: Record<string, ScreenStatusStyle> = {
+  '0': { label: '运行中', tone: 'warn' },
+  '1': { label: '已通过', tone: 'good' },
+  '2': { label: '已驳回', tone: 'bad' },
+  '3': { label: '已撤销', tone: 'flat' },
+};
+
+/**
+ * 审批任务状态：`process_task.status`，0 待办 / 1 已同意 / 2 已驳回 / 3 已取消。
+ *
+ * <p><b>与实例状态码值相同、含义不同</b>（实例 0 = 运行中，任务 0 = 待办）。详情里的
+ * 审批链必须用这份字典，靠列级 {@link ScreenColumn#statusMap} 覆盖页面级字典——
+ * 否则"待办"会被译成"运行中"，而且不报错。</p>
+ */
+export const TASK_STATUS_STYLE: Record<string, ScreenStatusStyle> = {
+  '0': { label: '待办', tone: 'warn' },
+  '1': { label: '已同意', tone: 'good' },
+  '2': { label: '已驳回', tone: 'bad' },
+  '3': { label: '已取消', tone: 'flat' },
+};
+
+/**
+ * 流程实例页（S5 / T5.6）：政事殿的屏风页。
+ *
+ * <p>列只留五样：标题、流程、发起人、状态、发起时间。列表回答的是"哪些奏折在途"，
+ * 不是"这条单子的每个字段"。</p>
+ *
+ * <p>关键字参数是 {@code title}（模糊匹配），不是 {@code keyword}——
+ * `ProcessInstanceQueryRequest` 只有 {@code title / status / definitionCode / initiator}
+ * 四个条件。发一个后端不认的参数，Spring 会静默忽略，搜索框就成了摆设。</p>
+ *
+ * <p>详情配 {@code detailPath}：实例详情接口会把该实例的审批链（{@code tasks}）一并带回，
+ * 这是整个页面最值得看的东西——它卡在谁那里、批注写了什么。审批链用
+ * {@link TASK_STATUS_STYLE} 翻译，不能沿用实例字典。</p>
+ */
+export const PROCESS_INSTANCE_PAGE: ScreenListPageSpec = {
+  key: 'instances',
+  title: '流程实例',
+  listPath: '/workflow/v1/instance/page',
+  detailPath: (id) => `/workflow/v1/instance/${id}`,
+  permission: 'sys:workflow:instance:list',
+  idKey: 'id',
+  keywordParam: 'title',
+  searchPlaceholder: '搜索流程标题…',
+  statusParam: 'status',
+  statuses: [
+    { value: '', label: '全部状态' },
+    { value: '0', label: '运行中' },
+    { value: '1', label: '已通过' },
+    { value: '2', label: '已驳回' },
+    { value: '3', label: '已撤销' },
+  ],
+  statusMap: INSTANCE_STATUS_STYLE,
+  /* 6 行/页：大屏 620px 里 KPI + 图表 + 工具栏之后只剩约 230px */
+  pageSize: 6,
+  columns: [
+    { key: 'title', label: '流程标题', width: '34%' },
+    { key: 'definitionCode', label: '流程', width: '20%' },
+    { key: 'initiator', label: '发起人', width: '16%' },
+    { key: 'status', label: '状态', width: '14%', format: 'status' },
+    { key: 'createTime', label: '发起', width: '16%', format: 'datetime' },
+  ],
+  detailFields: [
+    { key: 'title', label: '流程标题' },
+    { key: 'definitionCode', label: '流程编码' },
+    { key: 'definitionVersion', label: '定义版本' },
+    { key: 'businessKey', label: '业务键' },
+    { key: 'initiator', label: '发起人' },
+    { key: 'status', label: '状态', format: 'status' },
+    { key: 'currentNodeKey', label: '当前节点' },
+    { key: 'createTime', label: '发起时间', format: 'datetime' },
+    { key: 'updateTime', label: '最近变更', format: 'datetime' },
+  ],
+  lineColumns: [
+    { key: 'nodeName', label: '审批节点', width: '26%' },
+    { key: 'assignee', label: '审批人', width: '18%' },
+    { key: 'status', label: '结果', width: '14%', format: 'status', statusMap: TASK_STATUS_STYLE },
+    { key: 'comment', label: '意见', width: '26%' },
+    { key: 'updateTime', label: '时间', width: '16%', format: 'datetime' },
+  ],
+  lineSource: 'tasks',
+  titleKey: 'title',
+};
+
+/**
  * 殿的连通状态：与后端 {@code HubHallState} 一一对应，前端只做展示。
  *
  * <p>「无凭据」单独一档而不是并进「未通」：前者要去要权限，后者要去查服务，
@@ -458,4 +557,5 @@ export const SCREEN_PAGES: Record<string, ScreenListPageSpec> = {
   [PAY_ORDER_PAGE.key]: PAY_ORDER_PAGE,
   [FILE_ASSET_PAGE.key]: FILE_ASSET_PAGE,
   [JOB_INFO_PAGE.key]: JOB_INFO_PAGE,
+  [PROCESS_INSTANCE_PAGE.key]: PROCESS_INSTANCE_PAGE,
 };

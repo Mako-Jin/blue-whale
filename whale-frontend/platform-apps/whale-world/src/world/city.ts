@@ -64,6 +64,7 @@ import {
   PAY_ORDER_PAGE,
   FILE_ASSET_PAGE,
   JOB_INFO_PAGE,
+  PROCESS_INSTANCE_PAGE,
 } from './screenpages';
 import { createSceneEnv, type SceneEnv } from './env';
 import { createPostFx, type PostFx } from './postfx';
@@ -3868,6 +3869,10 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   let shichenScreen: ScreenHandle | null = null;
   let shichenPage: ScreenPageHandle | null = null;
 
+  /** 政事殿（S5/T5.6）屏风与其业务页句柄（同上） */
+  let zhengshiScreen: ScreenHandle | null = null;
+  let zhengshiPage: ScreenPageHandle | null = null;
+
   function setupScreens() {
     try {
     screens.add({
@@ -4114,6 +4119,43 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       },
     });
 
+    /* 政事殿（WORKFLOW）屏风页（S5 / T5.6）：屏风里是流程实例台账 ——
+       哪些奏折在途、今天批了几件、卡在谁那里。
+
+       位置同前几殿：本殿台基上、殿门前。**注意政事殿在东列**（x = +20.5、
+       殿心 z = -21），与西列枢密殿（x = -20.5、同 z）东西对称，所以屏风也镜像到
+       东侧（x = +20.5、z = -16.5），而不是继续沿西列往南排。
+       台基顶面 1.87 米 → 屏风中心 3.42 米（摆法说明见枢密殿那段）。 */
+    zhengshiScreen = screens.add({
+      id: 'zhengshi',
+      position: [20.5, 3.42, -16.5],
+      facing: 0,
+      size: 'large',
+      title: '政事殿 · 流程实例',
+      subtitle: 'WORKFLOW / APPROVAL',
+      tone: 'idle',
+      mount: (body) => {
+        zhengshiPage = mountScreenPage(body, {
+          nodeKey: 'zhengshi-hall',
+          overviewPath: '/workflow/overview',
+          overviewPermission: 'sys:workflow:instance:list',
+          pages: [PROCESS_INSTANCE_PAGE],
+          getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+          getPermissions: opts.getPermissions,
+          // 题头灯跟业务页状态走：概览陈旧/失败时不该还亮绿灯
+          onTone: (tone) => zhengshiScreen?.setTone(tone),
+          onTitle: (title, subtitle) => {
+            zhengshiScreen?.setTitle(title ? `${title} · 流程实例` : '政事殿 · 流程实例',
+              subtitle ?? 'WORKFLOW / APPROVAL');
+          },
+        });
+        return () => {
+          zhengshiPage?.dispose();
+          zhengshiPage = null;
+        };
+      },
+    });
+
     /* 遮挡演示：御道边一根拴马桩，挂进遮挡层。
        从出生点看过去，桩子应该切掉屏风的一角——这是 S0 T0.3 在真实场景、真实
        几何、真实光照下的复核。只有这一根进遮挡层，遮挡 pass 的开销可以忽略。 */
@@ -4297,8 +4339,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
        以及"进屏风 / 注入演示数据"两个动作。只在 ?debug=1 下存在，
        正常路径既不暴露业务字段，也不会注入任何假数据。
 
-       S5 起城里有六块业务屏风（户部 / 数枢殿 / 枢密殿 / 度支殿 / 藏书殿 / 时辰殿），按 id 分派；
-       不给 id 时仍落到户部（S4 的老脚本靠这个默认）。 */
+       S5 起城里有七块业务屏风（户部 / 数枢殿 / 枢密殿 / 度支殿 / 藏书殿 / 时辰殿 / 政事殿），
+       按 id 分派；不给 id 时仍落到户部（S4 的老脚本靠这个默认）。 */
     /* 屏风 id → 业务页句柄。默认给户部：老脚本不带 id 调探针时的历史行为。 */
     const pageOf = (id?: string): ScreenPageHandle | null => {
       switch (id) {
@@ -4312,6 +4354,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return cangshuPage;
         case 'shichen':
           return shichenPage;
+        case 'zhengshi':
+          return zhengshiPage;
         default:
           return hubuPage;
       }

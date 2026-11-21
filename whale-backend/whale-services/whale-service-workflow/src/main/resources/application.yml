@@ -70,6 +70,14 @@ whale:
     enabled: true
     auto-init: true
     module-scan-enabled: true
+  # 三维王城政事殿（T5.6）：SDK 注册 GET /workflow/overview，本服务只提供 provider。
+  # base-path 含服务一级前缀（REQ-ARCH-003：网关不剥前缀），外部路径与这里一致。
+  overview:
+    base-path: /workflow/overview
+    # 四张 KPI + 两张图打 5 次库，其中"卡住实例"那条带 NOT EXISTS 子查询，留 5 秒
+    timeout: 5s
+    # 前端 30s 轮询一次；审批数据是分钟级变化，缓存 30s 不会让人看到旧数
+    ttl: 30s
 
 mybatis-plus:
   configuration:

@@ -89,3 +89,7 @@ whale:
           name: 时辰殿
           url: http://bw-job:8082/job/overview
           permission: sys:job:list
+        - nodeKey: zhengshi-hall
+          name: 政事殿
+          url: http://bw-workflow:8083/workflow/overview
+          permission: sys:workflow:instance:list

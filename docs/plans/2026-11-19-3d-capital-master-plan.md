@@ -287,7 +287,7 @@
 | T5.3 | [x] 度支殿 | pay | T5.1 |
 | T5.4 | [x] 藏书殿 | file | T5.1 |
 | T5.5 | [x] 时辰殿 | job | T5.1 |
-| T5.6 | [ ] 政事殿 | workflow | T5.1 |
+| T5.6 | [x] 政事殿 | workflow | T5.1 |
 | T5.7 | [ ] 考功殿 | form | T5.1 |
 | T5.8 | [ ] 通政殿 | message | T5.1 |
 | T5.9 | [ ] 起居殿（只读） | audit | T5.1 |
@@ -512,6 +512,62 @@
   查下去是 `explorer.exe` 私有内存涨到 **20GB**（工作集 7.7GB），把提交内存吃干；
   重启 explorer 后可用内存从 0.8GB 回到 4.4GB，构建立刻正常。
   遇到"连小堆都 OOM"先看 `PrivateMemorySize64` 排行，不要一味调 `-Xmx`。
+
+**S5 第六批交付说明（2026-11-21，T5.6 政事殿 / workflow）**
+
+- **workflow 概览**：`GET /workflow/overview`，四张 KPI（运行中 / 今日办结 / 待办任务 / 卡住实例）
+  + 两张图（近 7 日发起与办结（line，两条序列）、待办积压 Top 5 节点（bar））。
+  权限码复用 2D 流程实例页的 `sys:workflow:instance:list`，屏风页复用
+  `/workflow/v1/instance/page` 与 `/{id}` 详情，**无新接口、无新权限点**。
+- **「卡住实例」单独占一张 KPI，不是只写进告警**：它是这一屏最不可替代的数。
+  另外三张（在途 / 办结 / 待办）在 2D 列表页翻一翻也能拼出来，而"运行中却没有任何待办"
+  只有把 `process_instance` 与 `process_task` 对起来才看得见——实例停在运行中、
+  没人收到催办、也不会失败，只有发起人在等。判据用 `NOT EXISTS`，
+  不用 `LEFT JOIN + COUNT(*)=0`（后者在任务表行数上来后会把整张表拉进 join）。
+- **告警两条根因不同、可并存**：卡住 → `CRITICAL`（链断了，要看缺陷）；
+  待办超时 ≥ 10 → `CRITICAL`、1–9 → `WARNING`（人在拖，要催办）。混成一条会让值班的人
+  先去催一个根本没人有待办的流程。
+- **办结只算审批通过**（`status = 1` 且看 `finished_at`）：`finished_at` 本就只在通过时写入
+  （V10 迁移），驳回与撤销停在 `update_time`。三种终态混成一个"办结"，会让驳回率高的时候
+  "办结数"反而更高。
+- **超时时长用分钟、向上取整**：`TIMESTAMPDIFF(HOUR, ...)` 会把 30 分钟截成 0 小时，
+  告警文案就成了"最久超时 0 小时"——看起来像没超时。
+- **统计端口 `ProcessOverviewStatQuery`**（6 方法 / 4 record）：租户显式传参、
+  `invalidWindow()` 统一拦时间窗、空值折 0、节点名为空折「未命名节点」；
+  `dailyFlow` 在实现里把"发起（`create_time` 分组）"与"办结（`finished_at` 分组）"两条
+  按日期并成一张表，省得 provider 各写一遍"两条列表对齐到 7 天"。
+- **索引按查询形状补**（`V14__workflow_overview_index.sql` + `init.sql`）：
+  `process_instance(tenant_id, status, finished_at)`、`(tenant_id, create_time)`、
+  `process_task(tenant_id, status, due_at)`、`(tenant_id, status, node_name)`；
+  两张表的单列 `idx_tenant_id` 被复合索引最左前缀覆盖，建好后删掉。
+  不动 `idx_status_finished` / `idx_status_due_at`——它们服务的是**后台跨租户扫描**
+  （归档、超时扫描线程没有租户上下文），前面带 `tenant_id` 的索引用不上。
+- **屏风页**：`PROCESS_INSTANCE_PAGE` 五列（标题 / 流程 / 发起人 / 状态 / 发起时间）。
+  关键字参数是 **`title`**，不是 `keyword`——`ProcessInstanceQueryRequest` 只有
+  `title / status / definitionCode / initiator` 四个条件，发后端不认的参数会被静默忽略，
+  搜索框就成了摆设（T5.4 在 `originalName` 上踩过同一种坑）。
+  详情配 `detailPath`：实例详情会把审批链（`tasks`）一并带回，那是这一页最值得看的东西。
+- **顺手修掉两个"静默丢数据"**：
+  1. **折线只画 `series[0]`**。发起 vs 办结这类"进 / 出"对比只有画在一起才有意义，
+     而渲染器只取第一条序列——第二条被静默丢弃，图上看着完全正常，只是少了一半数。
+     现改为按调色板逐条描线，多条时补一个最小图例（两根线不加图例分不清谁是谁）。
+  2. **状态字典只有页面级**。实例与任务的状态码是同一套数字、含义不同
+     （实例 0 = 运行中，任务 0 = 待办）。详情里的审批链会按实例字典翻译任务行，
+     "待办"被显示成"运行中"且不报错。现支持**列级 `statusMap` 覆盖**，
+     `TASK_STATUS_STYLE` 只作用在审批链那一列。
+- **位置**：政事殿在**东列**（`x = +20.5`、殿心 `z = -21`），与西列枢密殿东西对称，
+  所以屏风也镜像到东侧（`x = +20.5`、`z = -16.5`），而不是继续沿西列往南排。
+  `y = 3.42`（台基 1.87 + 大屏半高 1.55），与 T5.2 起统一的摆法一致。
+- **总控接入**：`targets` 加 `zhengshi-hall`（`http://bw-workflow:8083/workflow/overview`，
+  权限码同上），数枢殿总控里出现第六行真数据。
+- **验证**：`e2e/tools/world-zhengshi-smoke.mjs` **56 项全绿**（四张 KPI 与两张 KPI 黄灯、
+  折线真画了两条且有图例、搜索参数名是 `title` 且不夹带 `keyword`、状态值用 `0/1/2/3`、
+  已驳回红灯 / 已撤销灰灯、分页、详情 9 字段 + 审批链 3 行、**审批链显示"待办"而不是"运行中"**、
+  详情按 id 打真接口、Esc 退出后回到 3D 尺寸、接口 500 标 stale 且列表给人话）。
+  后端 `ProcessOverviewProviderTest` **12 例** + `whale-service-workflow` 全量 **259 例**通过
+  （含 ArchUnit 3 例、Flyway 迁移守卫 5 例——守卫里新增了 V14 四个索引与
+  "init.sql 不得再单建 `idx_tenant_id`"两条断言）；checkstyle 0 违规。
+- **已知遗留**：`/workflow/overview` 的真实 HTTP 未验（本机 Docker / Nacos 未起）。
 
 ### S6 内城 12 坊
 

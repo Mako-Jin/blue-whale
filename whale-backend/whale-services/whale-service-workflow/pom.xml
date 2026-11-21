@@ -81,6 +81,13 @@
             <artifactId>whale-tools</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- 概览契约 SDK（三维王城 T5.6）：@Component 实现 OverviewProvider 即自动注册
+             GET /workflow/overview；快照缓存键含权限签名，服务侧不重复实现 -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-overview-sdk</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.mapstruct</groupId>
             <artifactId>mapstruct</artifactId>
