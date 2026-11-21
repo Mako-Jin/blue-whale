@@ -78,13 +78,16 @@ public interface PayOrderMapper extends BaseMapper<PayOrderPo> {
     /**
      * 待支付单与其中超时未支付的笔数（度支殿概览 T5.3）
      *
+     * <p>{@code PAYING} 是渠道调用中的中间态，尚未落账，同样计入待支付；
+     * 长时间停在 PAYING 属于异常，需要按超时口径暴露出来。</p>
+     *
      * @param tenantId 租户 ID
      * @param staleBefore 超过该时刻仍未支付视为可疑（回调可能丢失）
      * @return 待支付总数与超时数
      */
-    @Select("SELECT COALESCE(SUM(CASE WHEN status = 'CREATED' THEN 1 ELSE 0 END), 0) AS pendingOrders, "
-            + "COALESCE(SUM(CASE WHEN status = 'CREATED' AND create_time < #{staleBefore} THEN 1 ELSE 0 END), 0) "
-            + "AS staleOrders "
+    @Select("SELECT COALESCE(SUM(CASE WHEN status IN ('CREATED', 'PAYING') THEN 1 ELSE 0 END), 0) AS pendingOrders, "
+            + "COALESCE(SUM(CASE WHEN status IN ('CREATED', 'PAYING') AND create_time < #{staleBefore} "
+            + "THEN 1 ELSE 0 END), 0) AS staleOrders "
             + "FROM pay_order WHERE tenant_id = #{tenantId} AND deleted = 0")
     PayPendingStatPo countPending(@Param("tenantId") Long tenantId,
                                   @Param("staleBefore") LocalDateTime staleBefore);

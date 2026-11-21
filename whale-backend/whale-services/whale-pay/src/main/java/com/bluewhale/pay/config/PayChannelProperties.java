@@ -11,8 +11,8 @@ import java.util.List;
  * 支付渠道配置。
  *
  * <p>{@link #mock} 为全局开关：开启时所有渠道只做本地模拟，不发起真实资金请求，
- * 渠道流水号以 {@code MOCK-} 开头；关闭由 {@link PayChannelStartupGuard} 在启动阶段
- * 直接拒绝，避免在「渠道调用仍在本地事务内」的情况下把真实资金动作带上线。</p>
+ * 渠道流水号以 {@code MOCK-} 开头；关闭表示接入真实渠道，此时渠道调用已在本地事务之外，
+ * 支付/退款失败分别回退为 {@code CREATED} 或留下 {@code FAILED} 单供对账。</p>
  *
  * @author BlueWhale
  */

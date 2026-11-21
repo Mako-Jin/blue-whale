@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.pay.channel.PayChannelGateway;
 import com.bluewhale.pay.channel.PayChannelResult;
 import com.bluewhale.pay.po.PayNotifyTaskPo;
@@ -22,6 +23,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.SimpleTransactionStatus;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 
@@ -69,9 +73,22 @@ class PayRefundServiceImplTest {
 
     private final PayNotifyService payNotifyService = mock(PayNotifyService.class);
 
+    private final TransactionTemplate transactionTemplate = transactionTemplate();
+
     private final PayRefundServiceImpl service = new PayRefundServiceImpl(
             payOrderMapper, payRefundMapper, payTransactionMapper,
-            payChannelGateway, payNotifyService);
+            payChannelGateway, payNotifyService, transactionTemplate);
+
+    /**
+     * 构造不落真实事务的模板：数据库操作全部为 mock，只需走通 getTransaction/commit 流程。
+     *
+     * @return 事务模板
+     */
+    private static TransactionTemplate transactionTemplate() {
+        PlatformTransactionManager manager = mock(PlatformTransactionManager.class);
+        when(manager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
+        return new TransactionTemplate(manager);
+    }
 
     private static PayOrderPo paidOrder() {
         PayOrderPo order = new PayOrderPo();
@@ -97,6 +114,10 @@ class PayRefundServiceImplTest {
         when(payChannelGateway.refund(any(), any(), notNull()))
                 .thenReturn(new PayChannelResult("MOCK-R1", "REFUNDED"));
         when(payNotifyService.enqueue(any(), any(), any(), any())).thenReturn(task);
+        when(payRefundMapper.insert(any(PayRefundPo.class))).thenAnswer(invocation -> {
+            invocation.<PayRefundPo>getArgument(0).setId(55L);
+            return 1;
+        });
     }
 
     @Test
@@ -128,6 +149,28 @@ class PayRefundServiceImplTest {
                 () -> service.refundByNo("MO20261107001", new BigDecimal("50.00"), "测试"));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        verify(payTransactionMapper, never()).insert(any(PayTransactionPo.class));
+        // 渠道已退款但本地累计失败：退款单落 FAILED，作为对账入口
+        ArgumentCaptor<PayRefundPo> captor = ArgumentCaptor.forClass(PayRefundPo.class);
+        verify(payRefundMapper).updateById(captor.capture());
+        assertEquals("FAILED", captor.getValue().getStatus());
+    }
+
+    @Test
+    @DisplayName("refundByNo：渠道退款失败把退款单置 FAILED 并抛出原异常")
+    void shouldMarkFailedWhenChannelRefundFails() {
+        stubHappyPath();
+        when(payChannelGateway.refund(any(), any(), notNull()))
+                .thenThrow(new BizException(ErrorCode.PARAM_ERROR, "渠道退款超时"));
+
+        BizException ex = assertThrows(BizException.class,
+                () -> service.refundByNo("MO20261107001", new BigDecimal("30.00"), "测试"));
+
+        assertEquals("渠道退款超时", ex.getMessage());
+        ArgumentCaptor<PayRefundPo> captor = ArgumentCaptor.forClass(PayRefundPo.class);
+        verify(payRefundMapper).updateById(captor.capture());
+        assertEquals("FAILED", captor.getValue().getStatus());
+        verify(payOrderMapper, never()).applyRefund(any(), any());
         verify(payTransactionMapper, never()).insert(any(PayTransactionPo.class));
     }
 

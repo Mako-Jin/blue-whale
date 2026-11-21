@@ -6,14 +6,21 @@ package com.bluewhale.pay.enums;
  * <p>替代散落在 service/channel 中的字符串常量（审计 P2）：状态流转与比较改为
  * 枚举后，拼写错误在编译期暴露；{@link #code()} 即落库字符串，与历史数据兼容。</p>
  *
- * <p>流转方向单向：{@code CREATED → PAID}、{@code CREATED → CANCELLED}、
- * {@code PAID → REFUNDED}。</p>
+ * <p>流转方向单向：{@code CREATED → PAYING → PAID}、{@code PAYING → CREATED}（渠道失败回退）、
+ * {@code CREATED → CANCELLED}、{@code PAID → REFUNDED}。</p>
+ *
+ * <p>{@link #PAYING} 是「渠道调用中」的中间态：抢占成功后先提交，再在事务外调用渠道，
+ * 避免渠道扣款成功而本地事务回滚。订单停在 PAYING 说明渠道结果未落账，需走对账确认。</p>
+ *
  * @author BlueWhale
  */
 public enum PayOrderStatus {
 
     /** 待支付（创建后的初始状态） */
     CREATED("CREATED"),
+
+    /** 支付中（已抢占，渠道调用尚未落账） */
+    PAYING("PAYING"),
 
     /** 已支付 */
     PAID("PAID"),

@@ -74,7 +74,8 @@ public interface PayOrderService {
     PayOrderVO cancelByOrderNo(String orderNo);
 
     /**
-     * 支付：仅允许 CREATED → PAID，流转后回填支付时间与渠道流水号
+     * 支付：仅允许 CREATED → PAYING → PAID；PAYING 为渠道调用中间态，
+     * 渠道明确失败回退 CREATED，成功后回填支付时间与渠道流水号
      *
      * @param id 支付单ID
      * @return 支付后的支付单视图对象

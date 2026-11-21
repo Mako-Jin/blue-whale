@@ -11,8 +11,8 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
  * 支付服务启动类
  *
  * <p>默认 {@code whale.pay.mock=true}：支付/退款/对账只做本地模拟，
- * 不发起真实资金请求；关闭 mock 会被 {@code PayChannelStartupGuard} 拒绝启动，
- * 直到渠道调用移出本地事务并补齐补偿/对账。</p>
+ * 不发起真实资金请求。渠道调用已移出本地事务——关闭 mock 接入真实渠道后，
+ * 渠道失败回退支付单、失败退款留 {@code FAILED} 单作为对账入口。</p>
  *
  * @author BlueWhale
  */

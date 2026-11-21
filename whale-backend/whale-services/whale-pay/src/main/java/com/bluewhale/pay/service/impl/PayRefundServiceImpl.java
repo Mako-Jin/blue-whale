@@ -21,8 +21,10 @@ import com.bluewhale.pay.service.PayNotifyService;
 import com.bluewhale.pay.service.PayRefundService;
 import com.bluewhale.pay.vo.PayRefundVO;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
@@ -35,11 +37,16 @@ import java.util.List;
  * 退款单服务实现。
  *
  * <p>退款主流程：创建退款单（CREATED）→ 渠道退款 → 退款单 SUCCESS +
- * {@code pay_order} 原子累计退款额（全额自动 REFUNDED）→ 流水 → 业务通知。
- * 每一步失败抛业务异常回滚，不留中间态。</p>
+ * {@code pay_order} 原子累计退款额（全额自动 REFUNDED）→ 流水 → 业务通知。</p>
+ *
+ * <p><b>事务边界（P0-2）：</b>拆成「建单提交 → 事务外调渠道 → 记账提交」三段，
+ * 渠道网络往返不持有数据库事务。渠道明确失败或记账失败时，把退款单置为
+ * {@code FAILED} 并保留原始异常供调用方重试；渠道成功但本地记账失败属于资金不一致，
+ * {@code FAILED} 单即对账入口，由运营按渠道流水核实后处理。</p>
  *
  * @author BlueWhale
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PayRefundServiceImpl implements PayRefundService {
@@ -73,15 +80,15 @@ public class PayRefundServiceImpl implements PayRefundService {
 
     private final PayNotifyService payNotifyService;
 
+    private final TransactionTemplate transactionTemplate;
+
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public PayRefundVO refundByNo(String payOrderNo, String refundNo, BigDecimal amount, String reason) {
         validateAmount(amount);
         return doRefund(requireOrderByNo(payOrderNo), refundNo, amount, reason);
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public PayRefundVO refundFull(Long payOrderId, String reason) {
         PayOrderPo order = payOrderMapper.selectById(payOrderId);
         if (order == null) {
@@ -96,8 +103,7 @@ public class PayRefundServiceImpl implements PayRefundService {
     }
 
     /**
-     * 退款主流程：幂等判重 → 建退款单 → 渠道退款 → 退款单 SUCCESS →
-     * 支付单原子累计退款额 → 流水 → 业务通知。
+     * 退款主流程：幂等判重并建退款单（提交）→ 事务外渠道退款 → 记账事务。
      *
      * @param order    支付单
      * @param refundNo 业务退款请求号（空则自动生成）
@@ -106,28 +112,120 @@ public class PayRefundServiceImpl implements PayRefundService {
      * @return 退款单
      */
     private PayRefundVO doRefund(PayOrderPo order, String refundNo, BigDecimal amount, String reason) {
-        PayRefundPo replayed = findReplayedRefund(refundNo, amount);
-        if (replayed != null) {
-            return PayOrderConverter.INSTANCE.toRefundVo(replayed);
+        PreparedRefund prepared = prepareRefund(order, refundNo, amount, reason);
+        if (!prepared.fresh()) {
+            // 幂等回放（含并发同号请求）：已有退款单直接返回，不再发起渠道退款
+            return PayOrderConverter.INSTANCE.toRefundVo(prepared.refund());
         }
-        PayRefundPo refund = createRefundRecord(order, refundNo, amount, reason);
-        PayChannelResult result = payChannelGateway.refund(order, refund.getRefundNo(), amount);
-        refund.setStatus(PayRefundStatus.SUCCESS.code());
-        refund.setChannelRefundNo(result.providerTradeNo());
-        refund.setRefundTime(LocalDateTime.now());
-        payRefundMapper.updateById(refund);
-        // 原子累计：0 行 = 状态不允许或累计超额，回滚整笔退款
+        PayRefundPo refund = prepared.refund();
+        PayChannelResult result;
+        try {
+            // 事务外调用渠道：退款网络往返不持有数据库事务
+            result = payChannelGateway.refund(order, refund.getRefundNo(), amount);
+        } catch (RuntimeException ex) {
+            markRefundFailed(refund.getId());
+            throw ex;
+        }
+        try {
+            transactionTemplate.executeWithoutResult(status ->
+                    settleRefund(order, refund, amount, result));
+        } catch (RuntimeException ex) {
+            // 渠道可能已退款成功，保留 FAILED 单供对账核实
+            markRefundFailed(refund.getId());
+            throw ex;
+        }
+        return PayOrderConverter.INSTANCE.toRefundVo(refund);
+    }
+
+    /**
+     * 建单事务：幂等判重 + 插入 CREATED 退款单并立即提交。
+     *
+     * <p>并发同号请求撞 {@code uk_tenant_refund_no} 时回读已存在原单，按幂等回放处理。</p>
+     *
+     * @param order    支付单
+     * @param refundNo 业务退款请求号
+     * @param amount   退款金额
+     * @param reason   退款原因
+     * @return 退款单与是否本次新建
+     */
+    private PreparedRefund prepareRefund(PayOrderPo order, String refundNo,
+                                         BigDecimal amount, String reason) {
+        try {
+            return transactionTemplate.execute(status -> {
+                PayRefundPo replayed = findReplayedRefund(refundNo, amount);
+                if (replayed != null) {
+                    return new PreparedRefund(replayed, false);
+                }
+                return new PreparedRefund(createRefundRecord(order, refundNo, amount, reason), true);
+            });
+        } catch (DuplicateKeyException ex) {
+            PayRefundPo concurrent = findReplayedRefund(refundNo, amount);
+            if (concurrent != null) {
+                return new PreparedRefund(concurrent, false);
+            }
+            throw ex;
+        }
+    }
+
+    /**
+     * 退款记账事务：原子累计退款额 → 退款单 SUCCESS → 流水 → 业务通知。
+     *
+     * <p>先做原子累计（0 行即状态不允许或超额），避免先行改退款单后又回滚。</p>
+     *
+     * @param order  支付单
+     * @param refund 退款单
+     * @param amount 退款金额
+     * @param result 渠道结果
+     */
+    private void settleRefund(PayOrderPo order, PayRefundPo refund,
+                              BigDecimal amount, PayChannelResult result) {
+        // 原子累计：0 行 = 状态不允许或累计超额，整段记账回滚
         if (payOrderMapper.applyRefund(order.getId(), amount) == 0) {
             throw new BizException(ErrorCode.PARAM_ERROR, "pay.refund.not-refundable",
                     "退款失败：支付单不可退款或累计退款超出支付金额");
         }
+        refund.setStatus(PayRefundStatus.SUCCESS.code());
+        refund.setChannelRefundNo(result.providerTradeNo());
+        refund.setRefundTime(LocalDateTime.now());
+        payRefundMapper.updateById(refund);
         recordTransaction(order, amount, result);
         PayOrderPo fresh = payOrderMapper.selectById(order.getId());
-        PayNotifyTaskPo task =
-                payNotifyService.enqueue(PayNotifyEvent.REFUNDED, fresh, refund.getRefundNo(),
-                        fresh.getRefundAmount());
+        PayNotifyTaskPo task = payNotifyService.enqueue(PayNotifyEvent.REFUNDED, fresh,
+                refund.getRefundNo(), fresh.getRefundAmount());
         payNotifyService.dispatchAfterCommit(task == null ? null : task.getId());
-        return PayOrderConverter.INSTANCE.toRefundVo(refund);
+    }
+
+    /**
+     * 将退款单置为 FAILED（独立事务），作为失败/不一致的对账入口。
+     *
+     * <p>置败失败只记录日志，不覆盖调用方即将抛出的原始异常——真正重要的是
+     * 让调用方看到渠道/记账失败原因，退款单状态可由对账补齐。</p>
+     *
+     * @param refundId 退款单ID
+     */
+    private void markRefundFailed(Long refundId) {
+        if (refundId == null) {
+            return;
+        }
+        try {
+            transactionTemplate.executeWithoutResult(status -> {
+                PayRefundPo update = new PayRefundPo();
+                update.setId(refundId);
+                update.setStatus(PayRefundStatus.FAILED.code());
+                payRefundMapper.updateById(update);
+            });
+        } catch (RuntimeException ex) {
+            log.error("退款单置 FAILED 失败，需人工对账: refundId={}", refundId, ex);
+        }
+    }
+
+    /**
+     * 建单事务结果：退款单与是否本次新建。
+     *
+     * @param refund 退款单
+     * @param fresh  是否本次新建（true 才需要调渠道）
+     */
+    private record PreparedRefund(PayRefundPo refund, boolean fresh) {
     }
 
     @Override

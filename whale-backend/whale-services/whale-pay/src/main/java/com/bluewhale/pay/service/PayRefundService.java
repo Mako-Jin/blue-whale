@@ -9,7 +9,8 @@ import java.math.BigDecimal;
  * 退款单服务。
  *
  * <p>退款单模型支持部分退款；累计退款额在 {@code pay_order} 上原子累计，
- * 全额退完自动置 REFUNDED 并投递业务通知。</p>
+ * 全额退完自动置 REFUNDED 并投递业务通知。渠道退款在数据库事务之外执行，
+ * 失败会把退款单置为 FAILED，作为人工对账入口。</p>
  *
  * @author BlueWhale
  */

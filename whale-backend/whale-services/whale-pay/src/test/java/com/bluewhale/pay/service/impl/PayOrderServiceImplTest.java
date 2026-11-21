@@ -27,6 +27,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.SimpleTransactionStatus;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -40,6 +43,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -74,8 +78,22 @@ class PayOrderServiceImplTest {
 
     private final PayRefundService payRefundService = mock(PayRefundService.class);
 
+    private final TransactionTemplate transactionTemplate = transactionTemplate();
+
     private final PayOrderServiceImpl payOrderService = new PayOrderServiceImpl(
-            payOrderMapper, payTransactionMapper, payChannelGateway, payNotifyService, payRefundService);
+            payOrderMapper, payTransactionMapper, payChannelGateway, payNotifyService, payRefundService,
+            transactionTemplate);
+
+    /**
+     * 构造不落真实事务的模板：数据库操作全部为 mock，只需走通 getTransaction/commit 流程。
+     *
+     * @return 事务模板
+     */
+    private static TransactionTemplate transactionTemplate() {
+        PlatformTransactionManager manager = mock(PlatformTransactionManager.class);
+        when(manager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
+        return new TransactionTemplate(manager);
+    }
 
     /**
      * 构造支付单实体桩对象。
@@ -269,7 +287,7 @@ class PayOrderServiceImplTest {
         PayOrderServiceImpl service = new PayOrderServiceImpl(
                 payOrderMapper, payTransactionMapper,
                 new PayChannelGateway(properties, List.of(new MockPayChannelAdapter(properties))),
-                payNotifyService, payRefundService);
+                payNotifyService, payRefundService, transactionTemplate);
         when(payOrderMapper.selectById(1L)).thenReturn(order(1L, "PAY20261020001", "CREATED"));
         when(payOrderMapper.update(isNull(), ArgumentMatchers.<Wrapper<PayOrderPo>>any())).thenReturn(1);
 
@@ -278,6 +296,38 @@ class PayOrderServiceImplTest {
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertTrue(ex.getMessage().contains("真实支付渠道尚未接入"));
         verify(payOrderMapper, never()).updateById(any(PayOrderPo.class));
+    }
+
+    @Test
+    @DisplayName("pay：渠道失败回退 PAYING→CREATED 并原样抛出异常")
+    void shouldReleaseClaimWhenChannelFails() {
+        when(payOrderMapper.selectById(1L)).thenReturn(order(1L, "PAY20261020013", "CREATED"));
+        when(payOrderMapper.update(isNull(), ArgumentMatchers.<Wrapper<PayOrderPo>>any()))
+                .thenReturn(1, 1);
+        PayChannelGateway failing = mock(PayChannelGateway.class);
+        when(failing.pay(any())).thenThrow(new BizException(ErrorCode.PARAM_ERROR, "渠道超时"));
+        PayOrderServiceImpl service = new PayOrderServiceImpl(
+                payOrderMapper, payTransactionMapper, failing,
+                payNotifyService, payRefundService, transactionTemplate);
+
+        BizException ex = assertThrows(BizException.class, () -> service.pay(1L));
+
+        assertEquals("渠道超时", ex.getMessage());
+        // 第一次抢占、第二次回退
+        verify(payOrderMapper, times(2)).update(isNull(), ArgumentMatchers.<Wrapper<PayOrderPo>>any());
+        verify(payOrderMapper, never()).updateById(any(PayOrderPo.class));
+        verify(payTransactionMapper, never()).insert(any(PayTransactionPo.class));
+    }
+
+    @Test
+    @DisplayName("pay：PAYING 中间态拒绝重复发起渠道请求")
+    void shouldRejectWhenPaying() {
+        when(payOrderMapper.selectById(1L)).thenReturn(order(1L, "PAY20261020014", "PAYING"));
+
+        BizException ex = assertThrows(BizException.class, () -> payOrderService.pay(1L));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        verify(payOrderMapper, never()).update(isNull(), ArgumentMatchers.<Wrapper<PayOrderPo>>any());
     }
 
     @Test

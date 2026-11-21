@@ -26,9 +26,11 @@ import com.bluewhale.pay.vo.PayOrderVO;
 import com.bluewhale.pay.vo.PayReconcileVO;
 import com.bluewhale.pay.vo.PayTransactionVO;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
@@ -41,15 +43,21 @@ import java.util.Objects;
  * 支付单服务实现
  *
  * <p>创建前校验金额与渠道、按 {@code order_no} 查重（并发撞唯一索引时同样转为参数错误）；
- * 状态流转单向：{@code CREATED → PAID / CANCELLED}、{@code PAID → REFUNDED}。
+ * 状态流转单向：{@code CREATED → PAYING → PAID / CANCELLED}、{@code PAID → REFUNDED}。
  * 状态流转通过「条件更新抢占」（{@code update ... where status = 期望状态}）保证并发安全：
  * 同一支付单的并发支付/取消/退款只有一个事务能赢得抢占，其余直接失败，
- * 从而杜绝重复扣款、重复退款与重复流水；渠道调用失败时整个事务（含抢占）回滚。
+ * 从而杜绝重复扣款、重复退款与重复流水。</p>
+ *
+ * <p><b>渠道调用与事务边界（P0-2）：</b>支付拆成「抢占提交 → 事务外调渠道 → 记账提交」三段。
+ * 抢占 {@code CREATED → PAYING} 先提交，渠道网络往返不持有数据库事务；渠道成功后的记账失败
+ * 会让订单停在 {@code PAYING}，由对账暴露并人工确认，而不是静默回滚成「钱扣了、账没记」。
+ * 渠道明确失败时把 {@code PAYING} 回退为 {@code CREATED}，允许业务方重试。
  * 支付与退款成功后追加 {@code pay_transaction} 流水，并回填渠道流水号与退款信息；
  * 对账把本地状态与渠道状态比对后返回一致性结果。</p>
  *
  * @author BlueWhale
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PayOrderServiceImpl implements PayOrderService {
@@ -88,6 +96,8 @@ public class PayOrderServiceImpl implements PayOrderService {
     private final PayNotifyService payNotifyService;
 
     private final PayRefundService payRefundService;
+
+    private final TransactionTemplate transactionTemplate;
 
     @Override
     public PageResult<PayOrderVO> page(PayOrderQueryRequest request) {
@@ -134,21 +144,29 @@ public class PayOrderServiceImpl implements PayOrderService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public PayOrderVO pay(Long id) {
         PayOrderPo existing = requireOrder(id);
-        ensureStatus(existing, PayOrderStatus.CREATED.code(), "只有待支付的支付单可以支付");
-        // 条件更新抢占 CREATED → PAID：并发下只有一个事务能成功，防止重复扣款
-        claimTransition(id, PayOrderStatus.CREATED.code(), PayOrderStatus.PAID.code(), "只有待支付的支付单可以支付");
-        existing.setStatus(PayOrderStatus.PAID.code());
-        existing.setPayTime(LocalDateTime.now());
-        PayChannelResult result = payChannelGateway.pay(existing);
-        existing.setChannelTradeNo(result.providerTradeNo());
-        payOrderMapper.updateById(existing);
-        recordTransaction(existing, TYPE_PAY, result);
-        PayNotifyTaskPo task =
-                payNotifyService.enqueue(PayNotifyEvent.PAID, existing, null, null);
-        payNotifyService.dispatchAfterCommit(task == null ? null : task.getId());
+        ensurePayable(existing);
+        /* ① 抢占事务：CREATED → PAYING 并立即提交。先落「支付中」再调渠道，
+           渠道调用期间不持有数据库事务/连接；进程崩溃后订单停在 PAYING，
+           可由对账发现，而不是留下「渠道已扣款、本地仍 CREATED」的静默不一致。 */
+        transactionTemplate.executeWithoutResult(status ->
+                claimTransition(id, PayOrderStatus.CREATED.code(), PayOrderStatus.PAYING.code(),
+                        "只有待支付的支付单可以支付"));
+        existing.setStatus(PayOrderStatus.PAYING.code());
+        PayChannelResult result;
+        try {
+            // ② 事务外调用渠道：真实渠道的网络往返不再受本地事务时长与回滚影响
+            result = payChannelGateway.pay(existing);
+        } catch (RuntimeException ex) {
+            // 渠道明确失败：回退 PAYING → CREATED，允许业务方重试
+            transactionTemplate.executeWithoutResult(status ->
+                    releasePaymentClaim(id, ex.getMessage()));
+            throw ex;
+        }
+        /* ③ 记账事务：渠道成功后写 PAID、流水与通知任务。本段失败时订单保持 PAYING
+           （渠道可能已扣款，不能回退），由对账兜底。 */
+        transactionTemplate.executeWithoutResult(status -> settlePayment(existing, result));
         return toVo(payOrderMapper.selectById(id));
     }
 
@@ -164,8 +182,8 @@ public class PayOrderServiceImpl implements PayOrderService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public PayOrderVO refund(Long id) {
+        // 不包事务：渠道调用与退款记账的事务边界由 PayRefundService 内部三段式控制
         if (payOrderMapper.selectById(id) == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
@@ -349,6 +367,54 @@ public class PayOrderServiceImpl implements PayOrderService {
         if (payOrderMapper.update(null, claim) == 0) {
             throw new BizException(ErrorCode.PARAM_ERROR, message);
         }
+    }
+
+    /**
+     * 支付状态前置校验：PAYING 视为处理中，不重复发起渠道请求。
+     *
+     * @param order 支付单实体
+     */
+    private static void ensurePayable(PayOrderPo order) {
+        if (PayOrderStatus.PAYING.code().equals(order.getStatus())) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "pay.order.paying",
+                    "支付处理中，请稍后重试或通过对账确认结果");
+        }
+        ensureStatus(order, PayOrderStatus.CREATED.code(), "只有待支付的支付单可以支付");
+    }
+
+    /**
+     * 渠道明确失败后回退抢占：{@code PAYING → CREATED}，允许业务方重试。
+     *
+     * <p>回退本身失败（如数据库不可用）只会让订单停在 PAYING，由对账兜底，
+     * 不会造成资金重复动作；因此这里记录错误而不覆盖原始渠道异常。</p>
+     *
+     * @param id     支付单ID
+     * @param reason 渠道失败原因
+     */
+    private void releasePaymentClaim(Long id, String reason) {
+        LambdaUpdateWrapper<PayOrderPo> release = new LambdaUpdateWrapper<>();
+        release.eq(PayOrderPo::getId, id)
+                .eq(PayOrderPo::getStatus, PayOrderStatus.PAYING.code())
+                .set(PayOrderPo::getStatus, PayOrderStatus.CREATED.code());
+        if (payOrderMapper.update(null, release) == 0) {
+            log.warn("渠道失败后未能回退 PAYING→CREATED，需人工对账: id={} reason={}", id, reason);
+        }
+    }
+
+    /**
+     * 支付记账事务：PAYING → PAID，回填渠道流水号与支付时间，写流水并投递通知。
+     *
+     * @param order  支付单实体
+     * @param result 渠道结果
+     */
+    private void settlePayment(PayOrderPo order, PayChannelResult result) {
+        order.setStatus(PayOrderStatus.PAID.code());
+        order.setPayTime(LocalDateTime.now());
+        order.setChannelTradeNo(result.providerTradeNo());
+        payOrderMapper.updateById(order);
+        recordTransaction(order, TYPE_PAY, result);
+        PayNotifyTaskPo task = payNotifyService.enqueue(PayNotifyEvent.PAID, order, null, null);
+        payNotifyService.dispatchAfterCommit(task == null ? null : task.getId());
     }
 
     /**

@@ -74,7 +74,8 @@ whale:
     auto-init: true
     module-scan-enabled: true
   # F-04：默认 mock 渠道，支付/退款只生成模拟流水号，不发起真实资金请求。
-  # 关闭 mock 会由 PayChannelStartupGuard 拒绝启动（渠道调用仍在本地事务内，禁止真实资金上线）。
+  # 渠道调用已在本地事务之外：关闭 mock 接真实渠道时，渠道失败回退 PAYING→CREATED，
+  # 记账失败留 FAILED/PAYING 作为对账入口，不会出现「渠道已扣款、本地已回滚」。
   # allowed-channels 必须与已实现的适配器一一对应，否则 PayChannelGateway 启动即失败。
   pay:
     mock: ${WHALE_PAY_MOCK:true}

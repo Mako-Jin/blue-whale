@@ -81,7 +81,7 @@ public class PayOrderController {
     }
 
     /**
-     * 支付支付单（CREATED → PAID）
+     * 支付支付单（CREATED → PAYING → PAID）
      *
      * @param id 支付单ID
      * @return 支付后的支付单视图对象
