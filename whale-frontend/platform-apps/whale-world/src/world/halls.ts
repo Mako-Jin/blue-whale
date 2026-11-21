@@ -34,6 +34,10 @@ export const OVERVIEW_HALLS: OverviewHallSpec[] = [
      `sys:file:list`；非管理员本来就只看得见自己上传的文件，3D 沿用同一口子，
      不在这里额外放宽。 */
   { nodeKey: 'cangshu-hall', path: '/file/overview', permission: 'sys:file:list' },
+  /* 时辰殿（S5/T5.5）：任务是否还在按点跑、今天跑了多少次、失败几次。
+     权限码复用 2D 定时任务页的 `sys:job:list`——能在后台启停任务的人，
+     才该在城里看到"哪个任务静默了"。 */
+  { nodeKey: 'shichen-hall', path: '/job/overview', permission: 'sys:job:list' },
 ];
 
 /** 采集器选项：与 metrics 共用同一套令牌/权限来源 */

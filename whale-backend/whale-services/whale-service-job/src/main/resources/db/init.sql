@@ -37,6 +37,8 @@ CREATE TABLE job_info (
     deleted         TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_tenant_id (tenant_id),
+    -- T5.5 概览：任务总数与运行中、静默任务扫描都是「本租户 + status」
+    KEY idx_tenant_status (tenant_id, status),
     KEY idx_handler_bean (handler_bean)
 ) COMMENT='定时任务信息表';
 
@@ -65,7 +67,12 @@ CREATE TABLE job_log (
     deleted      TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_tenant_id (tenant_id),
-    KEY idx_job_id (job_id),
+    -- T5.5 概览：执行统计与按天趋势走 (tenant_id, start_time)；
+    -- 失败面与失败 Top 走 (tenant_id, status, start_time)；
+    -- 静默判定的 NOT EXISTS 子查询走 (job_id, start_time)（按 job_id 定位再卡时间窗）
+    KEY idx_tenant_start (tenant_id, start_time),
+    KEY idx_tenant_status_start (tenant_id, status, start_time),
+    KEY idx_job_start (job_id, start_time),
     KEY idx_run_id (run_id),
     KEY idx_start_time (start_time)
 ) COMMENT='定时任务执行日志表';

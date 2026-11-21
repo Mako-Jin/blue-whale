@@ -93,6 +93,13 @@
             <artifactId>whale-auth-sdk</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- 概览契约 SDK（S5/T5.5 时辰殿）：provider 只写"这一屏有什么"，
+             缓存键与权限裁剪在 SDK 里做，服务侧不重复实现 -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-overview-sdk</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.mapstruct</groupId>
             <artifactId>mapstruct</artifactId>

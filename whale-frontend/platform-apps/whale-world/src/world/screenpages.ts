@@ -318,6 +318,70 @@ export const FILE_ASSET_PAGE: ScreenListPageSpec = {
 };
 
 /**
+ * 任务状态：`job_info.status` 只有两位（1 运行中 / 0 已停止），前端只做展示。
+ *
+ * <p>「已停止」给 flat 而不是 bad：停用是**主动决定**，不是故障。
+ * 给红灯会让值班的人以为任务挂了，然后去查一个本来就不该在跑的任务。</p>
+ */
+export const JOB_STATUS_STYLE: Record<string, ScreenStatusStyle> = {
+  '1': { label: '运行中', tone: 'good' },
+  '0': { label: '已停止', tone: 'flat' },
+};
+
+/**
+ * 定时任务页（S5 / T5.5）：时辰殿的屏风页。
+ *
+ * <p>列只留五样：任务、分组、计划、状态、下次。handler / 执行器 / 重试策略放详情——
+ * 列表要回答的是"哪些任务在跑、按什么节奏跑"，不是"这个 Bean 叫什么"。</p>
+ *
+ * <p>关键字与状态**两个筛选都给**：`JobInfoQueryRequest` 真支持 `keyword`（任务名模糊）
+ * 与 `status`（1/0），给了就真发。状态值是字符串 `'1'`/`'0'`，与行里的数字用
+ * `String()` 对齐——发成 `"RUNNING"` 这种自造枚举后端会当成不匹配，静默返回全部。</p>
+ *
+ * <p>不配 `detailPath`：列表行已带回详情需要的全部字段，再请求一次只会让点开有半秒空白。</p>
+ */
+export const JOB_INFO_PAGE: ScreenListPageSpec = {
+  key: 'jobs',
+  title: '定时任务',
+  listPath: '/job/v1/info/page',
+  permission: 'sys:job:list',
+  idKey: 'id',
+  keywordParam: 'keyword',
+  searchPlaceholder: '搜索任务名…',
+  statusParam: 'status',
+  statuses: [
+    { value: '', label: '全部状态' },
+    { value: '1', label: '运行中' },
+    { value: '0', label: '已停止' },
+  ],
+  statusMap: JOB_STATUS_STYLE,
+  /* 6 行/页：大屏 620px 里 KPI + 图表 + 工具栏之后只剩约 230px */
+  pageSize: 6,
+  columns: [
+    { key: 'jobName', label: '任务', width: '30%' },
+    { key: 'jobGroup', label: '分组', width: '16%' },
+    { key: 'cronExpression', label: '计划', width: '22%' },
+    { key: 'status', label: '状态', width: '14%', format: 'status' },
+    { key: 'nextFireTime', label: '下次', width: '18%', format: 'datetime' },
+  ],
+  detailFields: [
+    { key: 'jobName', label: '任务名' },
+    { key: 'jobGroup', label: '分组' },
+    { key: 'handlerBean', label: '执行器 Bean' },
+    { key: 'executorApp', label: '执行器应用' },
+    { key: 'jobCode', label: '任务编码' },
+    { key: 'cronExpression', label: 'Cron 表达式' },
+    { key: 'misfirePolicy', label: '错过策略' },
+    { key: 'maxRetry', label: '重试上限' },
+    { key: 'failCount', label: '累计失败' },
+    { key: 'status', label: '状态', format: 'status' },
+    { key: 'nextFireTime', label: '下次执行', format: 'datetime' },
+    { key: 'remark', label: '备注' },
+  ],
+  titleKey: 'jobName',
+};
+
+/**
  * 殿的连通状态：与后端 {@code HubHallState} 一一对应，前端只做展示。
  *
  * <p>「无凭据」单独一档而不是并进「未通」：前者要去要权限，后者要去查服务，
@@ -393,4 +457,5 @@ export const SCREEN_PAGES: Record<string, ScreenListPageSpec> = {
   [LOGIN_HISTORY_PAGE.key]: LOGIN_HISTORY_PAGE,
   [PAY_ORDER_PAGE.key]: PAY_ORDER_PAGE,
   [FILE_ASSET_PAGE.key]: FILE_ASSET_PAGE,
+  [JOB_INFO_PAGE.key]: JOB_INFO_PAGE,
 };

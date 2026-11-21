@@ -63,6 +63,7 @@ import {
   LOGIN_HISTORY_PAGE,
   PAY_ORDER_PAGE,
   FILE_ASSET_PAGE,
+  JOB_INFO_PAGE,
 } from './screenpages';
 import { createSceneEnv, type SceneEnv } from './env';
 import { createPostFx, type PostFx } from './postfx';
@@ -3863,6 +3864,10 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   let cangshuScreen: ScreenHandle | null = null;
   let cangshuPage: ScreenPageHandle | null = null;
 
+  /** 时辰殿（S5/T5.5）屏风与其业务页句柄（同上） */
+  let shichenScreen: ScreenHandle | null = null;
+  let shichenPage: ScreenPageHandle | null = null;
+
   function setupScreens() {
     try {
     screens.add({
@@ -4074,6 +4079,41 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       },
     });
 
+    /* 时辰殿（JOB）屏风页（S5 / T5.5）：屏风里是定时任务台账 ——
+       哪些任务在跑、按什么计划跑、今天失败了几次。
+
+       位置同前几殿：本殿台基上、殿门前（时辰殿殿心 z = +21，屏风 z = +25.5，
+       台基顶面 1.87 米 → 屏风中心 3.42 米）。 */
+    shichenScreen = screens.add({
+      id: 'shichen',
+      position: [-20.5, 3.42, 25.5],
+      facing: 0,
+      size: 'large',
+      title: '时辰殿 · 定时任务',
+      subtitle: 'JOB / SCHEDULER',
+      tone: 'idle',
+      mount: (body) => {
+        shichenPage = mountScreenPage(body, {
+          nodeKey: 'shichen-hall',
+          overviewPath: '/job/overview',
+          overviewPermission: 'sys:job:list',
+          pages: [JOB_INFO_PAGE],
+          getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+          getPermissions: opts.getPermissions,
+          // 题头灯跟业务页状态走：概览陈旧/失败时不该还亮绿灯
+          onTone: (tone) => shichenScreen?.setTone(tone),
+          onTitle: (title, subtitle) => {
+            shichenScreen?.setTitle(title ? `${title} · 定时任务` : '时辰殿 · 定时任务',
+              subtitle ?? 'JOB / SCHEDULER');
+          },
+        });
+        return () => {
+          shichenPage?.dispose();
+          shichenPage = null;
+        };
+      },
+    });
+
     /* 遮挡演示：御道边一根拴马桩，挂进遮挡层。
        从出生点看过去，桩子应该切掉屏风的一角——这是 S0 T0.3 在真实场景、真实
        几何、真实光照下的复核。只有这一根进遮挡层，遮挡 pass 的开销可以忽略。 */
@@ -4257,7 +4297,7 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
        以及"进屏风 / 注入演示数据"两个动作。只在 ?debug=1 下存在，
        正常路径既不暴露业务字段，也不会注入任何假数据。
 
-       S5 起城里有五块业务屏风（户部 / 数枢殿 / 枢密殿 / 度支殿 / 藏书殿），按 id 分派；
+       S5 起城里有六块业务屏风（户部 / 数枢殿 / 枢密殿 / 度支殿 / 藏书殿 / 时辰殿），按 id 分派；
        不给 id 时仍落到户部（S4 的老脚本靠这个默认）。 */
     /* 屏风 id → 业务页句柄。默认给户部：老脚本不带 id 调探针时的历史行为。 */
     const pageOf = (id?: string): ScreenPageHandle | null => {
@@ -4270,6 +4310,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return duzhiPage;
         case 'cangshu':
           return cangshuPage;
+        case 'shichen':
+          return shichenPage;
         default:
           return hubuPage;
       }

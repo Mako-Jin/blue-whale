@@ -286,7 +286,7 @@
 | T5.2 | [x] 枢密殿 | auth | T5.1 |
 | T5.3 | [x] 度支殿 | pay | T5.1 |
 | T5.4 | [x] 藏书殿 | file | T5.1 |
-| T5.5 | [ ] 时辰殿 | job | T5.1 |
+| T5.5 | [x] 时辰殿 | job | T5.1 |
 | T5.6 | [ ] 政事殿 | workflow | T5.1 |
 | T5.7 | [ ] 考功殿 | form | T5.1 |
 | T5.8 | [ ] 通政殿 | message | T5.1 |
@@ -456,6 +456,62 @@
   数据问题——`canvas.getContext('webgl2').isContextLost()` 返回 `true`。宿主机可用内存只剩约 1GB 时，
   **1440×900 + d3d11 会丢上下文**（同一脚本降到 1024×640 立刻恢复）。判断"是渲染挂了还是模型没加载"
   最快的一步就是读 `isContextLost()`，不要靠截图猜。
+
+**S5 第五批交付说明（2026-11-21，T5.5 时辰殿 / job）**
+
+- **job 概览**：`GET /job/overview`，四张 KPI（任务总数 / 今日执行 / 今日失败 / 静默任务）
+  + 两张图（近 7 日执行（line，次数）、近 7 日失败最多的任务（bar，次数））。
+  权限码复用 2D 定时任务页的 `sys:job:list`，屏风页复用 `/job/v1/info/page`，
+  **无新接口、无新权限点**。
+- **只数已结束的执行**（`status IN (1, -1)`）：执行中的行在结束时才回写，
+  把它算进分母会让"今日执行 20 次、成功率 60%"每隔几秒跳一次，看的人分不清是故障还是刷新。
+- **静默任务只展示、不逐条告警**：判据只有"近 24 小时有没有执行记录"，**不看 cron 周期**。
+  月级任务（如 LMS 学时结算 `0 0 1 1 * ?`）在这个窗口里天然是空的，逐个报等于制造噪音，
+  值班的人一周内就会把这条告警关掉。只有**所有**运行中任务一起静默时才发 `CRITICAL`——
+  那是调度器停摆（或租户上下文丢了），不是某个任务周期长。这个判据与 `audit` 的作业心跳同构。
+- **失败告警"量先判、比例作补刀"**：今日失败 ≥ 5 报 `CRITICAL`；否则总样本 ≥ 10 且失败占比
+  ≥ 30% 报 `WARNING`。两条并列会让值班分不清"是量大事"还是"是比例事"，而处置动作是同一个
+  （去看执行日志）。样本 < 10 不谈占比——1 失败 0 成功就是 100%。
+  这两条与静默告警**可以同时出现**（不同根因：一个查调度线程，一个查任务自身）。
+- **统计端口 `JobScheduleStatQuery`**（6 方法 / 4 record）：租户**显式传参**、窗口统一用
+  `invalidWindow()` 拦、空值折 0 不折 null、任务名为空折「未命名任务」。
+  **没有复用 `JobLogService#stats`**：那个方法为 2D 统计页服务，把窗口内明细整批回捞到内存
+  （上限 10 万行）再算 P95/TopN；屏风页 60 秒轮询一次，拿它当数据源等于每分钟拉 10 万行。
+- **静默判定用 `NOT EXISTS` 而不是 `LEFT JOIN ... HAVING MAX(start_time) < ?`**：
+  后者在"从未执行过"的任务上 `MAX` 为 NULL、比较结果也是 NULL，**这些最该被点名的任务
+  反而会被过滤掉**。
+- **失败 Top 按 `job_name` 分组而不是 `job_id`**：同一任务改名后会留下两个 job_id 的历史行，
+  按 id 分组会让它占掉两个坑位，看起来像"两个任务都在失败"。
+- **索引按查询形状补**（`V17__job_overview_index.sql` + `init.sql`，先查 `STATISTICS` 再 `ADD INDEX`）：
+  `job_log(tenant_id, start_time)`、`job_log(tenant_id, status, start_time)`、
+  `job_log(job_id, start_time)`、`job_info(tenant_id, status)`；`idx_job_id` 被
+  `(job_id, start_time)` 最左覆盖，建好后删掉。时间条件列不套函数，按天聚合才用 `DATE(start_time)`。
+- **屏风页**：`JOB_INFO_PAGE` 五列（任务 / 分组 / 计划 / 状态 / 下次执行）。
+  **keyword 与 status 两个筛选都给**——`JobInfoQueryRequest` 真支持这两个参数；
+  状态值是后端的 `'1'/'0'` 而不是自造枚举（发 `RUNNING` 这种值后端不报错、只是不过滤，
+  e2e 专门断言了发出去的是 `status=1`）。「已停止」给**灰灯不是红灯**：停用是主动决定，
+  不是故障，给红灯会让人去查一个本来就不该在跑的任务。Cron 与错过策略原样显示，
+  不在前端翻译成人话——翻译错了比显示原文更难查。不配 `detailPath`（列表行已含全部详情，12 个字段）。
+- **总控接入**：`targets` 加 `shichen-hall`（`http://bw-job:8082/job/overview`，权限码同上），
+  数枢殿总控里出现第五行真数据。
+- **验证**：`e2e/tools/world-shichen-smoke.mjs` **44 项全绿**（四 KPI、失败/静默两张 KPI 亮黄灯、
+  成功副标带百分比、搜索框 + 状态下拉都在、状态值是 `1/0`、关键字与状态参数真发真筛、
+  已停止灰灯、翻页/详情 12 字段、详情不再打二次接口、Esc 退出后回到 3D 尺寸、接口 500 标 stale）。
+  后端 `JobOverviewProviderTest` **12 例** + `whale-service-job` 全量 **162 例**通过
+  （含 ArchUnit 分层守卫 3 例、Flyway 迁移脚本守卫）；checkstyle 0。
+  回归：`world-cangshu` 37、`world-duzhi` 36、`world-shumi` 32、`world-shushu` 31、
+  `world-screenpage` 35、`world-city-smoke`、`world-guide` 19、`world-quest` 42、`world-datahall`、
+  `world-glyphs`、`world-screen/{smoke,engage,ime,resize,hint,occlusion,wheel}` 全通过；
+  八项门禁 rc=0（perm-mapping **992**、api-path-drift 1571、internal-boundary 127、qiankun 23）。
+- **补上 T5.4 的欠账**：`whale-service-file-architecture-test` 4 例这次跑通了
+  （当时宿主余量 1.1GB，fork 出的 surefire JVM 直接 `malloc failed`）。注意**必须带 `-am`**：
+  只跑 architecture-test 单模块时，`interfaces_must_not_depend_on_infrastructure` 规则
+  扫到 0 个类，ArchUnit 的 `failOnEmptyShould` 会把它判成失败——那是"扫描对象为 0"，
+  不是真的违规（与本项目老门禁 `check-reauth-wiring.py` 曾空转同一个坑）。
+- **环境坑**：本次编译连 384m 堆都申请不到（`os::commit_memory ... DOS error 1455`）。
+  查下去是 `explorer.exe` 私有内存涨到 **20GB**（工作集 7.7GB），把提交内存吃干；
+  重启 explorer 后可用内存从 0.8GB 回到 4.4GB，构建立刻正常。
+  遇到"连小堆都 OOM"先看 `PrivateMemorySize64` 排行，不要一味调 `-Xmx`。
 
 ### S6 内城 12 坊
 

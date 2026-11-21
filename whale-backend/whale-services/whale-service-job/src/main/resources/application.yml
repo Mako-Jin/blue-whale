@@ -70,6 +70,16 @@ whale:
   permission:
     header:
       enabled: true
+  # 三维王城时辰殿（T5.5）：SDK 注册 GET /job/overview，本服务只提供 provider。
+  # base-path 含服务一级前缀（REQ-ARCH-003：网关不剥前缀），外部路径与这里一致。
+  # 注意与下面的 whale.job 互不干扰：这里是总控概览契约，那里是调度器自身配置。
+  overview:
+    base-path: /job/overview
+    # 四张 KPI + 两张图打 6 次库（任务数/今日执行/失败面/静默/趋势/失败 Top），
+    # 静默那条带 NOT EXISTS 子查询，留 5 秒
+    timeout: 5s
+    # 前端 30s 轮询一次；调度数据本就是分钟级变化，缓存 30s 不会让人看到旧数
+    ttl: 30s
   # P2 国际化：BizException 文案键按请求 Locale 解析；启动时幂等创建 sys_i18n_message，
   # 属性文件回退源为 classpath:i18n/job/messages*。
   i18n:
