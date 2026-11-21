@@ -126,17 +126,21 @@ await page.waitForTimeout(300);
 ok((await guideState()).active === false, 'Esc 中止导览');
 ok(!(await hudVisible()), '中止后进度条收起');
 
-/* ---- 中止后不影响正常走动 ---- */
-await page.evaluate(() => window.__bwwWarp(0, 78));
+/* ---- 中止后不影响正常走动 ----
+   判据是"确实动了且方向对"，不是"走了多少米"：主循环 dt 上限 0.05s，
+   软件渲染下只有 ~1fps，2.2s 累计位移约 1m 是环境上限，写成 >1.5m 等于在测显卡。
+   起点从 (0,78) 挪到 (0,100)：S1 城郭扩容后 78 那一带已有建筑，会把人挡住（位移 0.2m）。 */
+await page.evaluate(() => window.__bwwWarp(0, 100));
 await page.waitForTimeout(300);
 const beforeWalk = await page.evaluate(() => window.__bwwDebug());
 await page.keyboard.down('w');
-await page.waitForTimeout(2200);
+await page.waitForTimeout(2500);
 await page.keyboard.up('w');
 await page.waitForTimeout(250);
 const afterWalk = await page.evaluate(() => window.__bwwDebug());
 const walked = Math.hypot(afterWalk.x - beforeWalk.x, afterWalk.z - beforeWalk.z);
-ok(walked > 1.5, `中止后能正常走（位移 ${walked.toFixed(2)}m）`);
+ok(walked > 0.5 && Math.abs(afterWalk.z - beforeWalk.z) > 0.5,
+  `中止后能正常走（位移 ${walked.toFixed(2)}m，z ${beforeWalk.z.toFixed(2)}→${afterWalk.z.toFixed(2)}）`);
 
 ok(errors.length === 0, `无页面异常（${errors.slice(0, 2).join(' | ')}）`);
 

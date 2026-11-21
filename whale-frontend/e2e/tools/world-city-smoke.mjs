@@ -45,7 +45,9 @@ await page.waitForTimeout(4200);
 /* 1. 无未捕获异常 */
 ok(pageErrors.length === 0, `加载期无 pageerror（实际 ${pageErrors.length} 条）${pageErrors[0] || ''}`);
 
-/* 2. 首访自动弹面板 + 预览画布 */
+/* 2. 首访自动弹面板 + 预览画布
+   等元素而不是写死 4.2s：3D 首帧要编译着色器，机器忙时 4.2s 会偶发不够。 */
+await page.locator('#bww-char-panel.bww-open').waitFor({ state: 'attached', timeout: 15000 }).catch(() => {});
 ok((await page.locator('#bww-char-panel.bww-open').count()) === 1, '首次入城自动打开「录名入城」');
 const previewSize = await page.evaluate(() => {
   const c = document.querySelector('.bww-cp-canvas');
@@ -83,18 +85,48 @@ const mapPainted = await page.evaluate(() => {
 });
 ok(mapPainted, '城图 canvas 已绘制（>50% 不透明像素）');
 
-/* 6. 传送门面板 */
+/* 6. 传送门面板
+   E 键自 S2 起"屏风优先于传送门"：出生点正对告示屏，直接按 E 会进屏风而不是开面板。
+   先走到城内空处（远离任何屏风）再按 E，才测得到传送门面板本身。 */
+await page.evaluate(() => window.__bwwWarp(0, 90));
+await page.waitForTimeout(600);
 await page.keyboard.press('KeyE');
 await page.waitForTimeout(1200);
 const portalItems = await page.evaluate(() => {
+  const panel = document.getElementById('bww-portal-panel');
+  const cs = getComputedStyle(panel);
   const items = Array.from(document.querySelectorAll('.bww-portal-item'));
   return {
     total: items.length,
-    visible: items.filter((el) => getComputedStyle(el).visibility === 'visible' && Number(getComputedStyle(el).opacity) > 0).length,
+    opened: panel.classList.contains('bww-open'),
+    visible: cs.visibility === 'visible',
+    clickable: cs.pointerEvents === 'auto',
+    // 卡片自身不因动画而隐藏：不透明度由面板过渡，卡片不该另有一套显隐
+    cardsHidden: items.filter((el) => getComputedStyle(el).visibility !== 'visible').length,
   };
 });
-ok(portalItems.total === 9, `传送门 9 项（实际 ${portalItems.total}）`);
-ok(portalItems.visible === 9, `传送门卡片可见（实际 ${portalItems.visible}）`);
+// S1 城郭扩容后是 十二坊 + 数枢殿 = 13 项；写死 9 的那版一直在报"实际 13"。
+ok(portalItems.total === 13, `传送门 13 项（实际 ${portalItems.total}）`);
+/* 判"打开"要看类名/可见性/可点击，不看 opacity：
+   软件渲染（swiftshader）下 CSS 过渡能拖到 3s 以上，按 opacity 判会把"已打开"误判成"不可见"。 */
+ok(portalItems.opened && portalItems.visible && portalItems.clickable,
+  `传送门面板已打开可点（open=${portalItems.opened} vis=${portalItems.visible} click=${portalItems.clickable}）`);
+/* 卡片可见性轮询等，不写死等待时长：软件渲染下 CSS 过渡能拖到 3s 以上，
+   写死 1.2s 会把"还在过渡"误判成"卡片不可见"。 */
+let cardsHidden = portalItems.cardsHidden;
+if (cardsHidden > 0) {
+  await page
+    .waitForFunction(
+      () => [...document.querySelectorAll('.bww-portal-item')].every((el) => getComputedStyle(el).visibility === 'visible'),
+      null,
+      { timeout: 6000 },
+    )
+    .catch(() => {});
+  cardsHidden = await page.evaluate(
+    () => [...document.querySelectorAll('.bww-portal-item')].filter((el) => getComputedStyle(el).visibility !== 'visible').length,
+  );
+}
+ok(cardsHidden === 0, `13 张卡片本身可见（隐藏 ${cardsHidden} 张）`);
 await page.keyboard.press('Escape');
 await page.waitForTimeout(300);
 
@@ -107,15 +139,16 @@ const walk = async (ms) => {
   await page.keyboard.up('Shift');
   await page.waitForTimeout(400);
 };
-await page.evaluate(() => window.__bwwWarp(0, 51)); // 内城门外，门洞 |x|<6.5
+// 内城墙在 z=58（几何扩容后；旧断言按 46 写，起点 51 其实已经在城里，等于没测门洞）。
+await page.evaluate(() => window.__bwwWarp(0, 62)); // 内城门外，门洞 |x|<6.5
 await walk(6000);
 const throughGate = await page.evaluate(() => window.__bwwDebug());
-ok(throughGate.z < 46, `正：沿御道穿过内城门（z 51 → ${throughGate.z}）`);
+ok(throughGate.z < 58, `正：沿御道穿过内城门（z 62 → ${throughGate.z}）`);
 
-await page.evaluate(() => window.__bwwWarp(20, 51)); // 同一高度但贴墙
+await page.evaluate(() => window.__bwwWarp(20, 62)); // 同一高度但贴墙
 await walk(6000);
 const blocked = await page.evaluate(() => window.__bwwDebug());
-ok(blocked.z > 49, `负：贴墙处被城墙挡住（z 51 → ${blocked.z}）`);
+ok(blocked.z > 59, `负：贴墙处被城墙挡住（z 62 → ${blocked.z}）`);
 
 /* 8. 城民问话（P3）：断言的是"接线对不对"，不是"AI 答得好不好"
       本用例不带 token → 世界之脑必须判 offline（不发必然 403 的请求），
