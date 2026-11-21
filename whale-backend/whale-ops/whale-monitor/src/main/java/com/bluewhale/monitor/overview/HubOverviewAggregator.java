@@ -360,6 +360,13 @@ public class HubOverviewAggregator implements DisposableBean {
         if (!codes.isEmpty()) {
             headers.set(WebHeaders.PERMISSION_CODES, String.join(",", codes));
         }
+        /* 角色也要转：礼部坊的数据范围按 CRM 的 CrmActor 角色口径判（管理员看全量、
+           其余看本人）。只转权限不转角色，总控里那座坊会按"本人范围"算，
+           与直接进坊看到的数不一样——同一座城两块屏报两个数，最难查。 */
+        Set<String> roles = context.roleCodes();
+        if (!roles.isEmpty()) {
+            headers.set(WebHeaders.USER_ROLES, String.join(",", roles));
+        }
     }
 
     /**

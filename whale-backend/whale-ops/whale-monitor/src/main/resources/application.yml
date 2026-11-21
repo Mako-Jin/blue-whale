@@ -114,3 +114,7 @@ whale:
           name: 吏部坊
           url: http://bw-oa:9004/oa/overview
           permission: sys:oa:attendance:daily:list
+        - nodeKey: libu-ritual-hall
+          name: 礼部坊
+          url: http://bw-crm:9007/crm/overview
+          permission: sys:crm:analytics:dashboard

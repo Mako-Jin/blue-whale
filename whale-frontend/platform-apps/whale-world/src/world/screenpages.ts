@@ -867,6 +867,98 @@ export const ATTENDANCE_DAILY_PAGE: ScreenListPageSpec = {
 };
 
 /**
+ * 客户状态：与后端 `CustomerStatus` 一一对应，前端只做展示。
+ *
+ * <p>「已合并」给灰灯：它是只读的历史痕迹（这条记录已经并到另一家名下），
+ * 不是故障，也不值得值班的人每次路过都点进去查。</p>
+ */
+export const CUSTOMER_STATUS_STYLE: Record<string, ScreenStatusStyle> = {
+  ACTIVE: { label: '有效', tone: 'good' },
+  INACTIVE: { label: '停用', tone: 'flat' },
+  MERGED: { label: '已合并', tone: 'flat' },
+};
+
+/**
+ * 客户等级字典：A 重点 / B 普通 / C 潜力 / D 观察。
+ *
+ * <p>兼容存量 `KEY / NORMAL / POTENTIAL`（后端 `CustomerLevel#from` 会映射成 A/C/D，
+ * 但库里仍有按旧码存的行）。不写这三个键的后果是列里原样显示英文 `KEY` ——
+ * 不报错、也不好看，而且看牌的人不知道 KEY 比 A 高还是低。</p>
+ */
+export const CUSTOMER_LEVEL_STYLE: Record<string, ScreenStatusStyle> = {
+  A: { label: 'A 重点', tone: 'good' },
+  B: { label: 'B 普通', tone: 'flat' },
+  C: { label: 'C 潜力', tone: 'flat' },
+  D: { label: 'D 观察', tone: 'warn' },
+  KEY: { label: 'A 重点', tone: 'good' },
+  NORMAL: { label: 'C 潜力', tone: 'flat' },
+  POTENTIAL: { label: 'D 观察', tone: 'warn' },
+};
+
+/**
+ * 客户台账页（S6 / T6.11）：礼部坊的屏风页。
+ *
+ * <p><b>这一屏讲什么。</b>礼部掌宾客：城里这一面屏风回答"我们手上有哪些客户、
+ * 哪些重点客户最近没人跟"。销售看板（KPI 与柱图）在屏风上半部，
+ * 下半部就是这张台账——两处数字出自同一套数据，不会出现"牌上说 12 个风险商机、
+ * 表里找不到对应客户"的情况。</p>
+ *
+ * <p><b>关键字参数是 `keyword`，这次是真的。</b>`CustomerPageParams` 里有
+ * `keyword`（编码 / 名称 / 简称模糊匹配）与 `status / level / source / industry`
+ * 四个筛选位。给搜索框之前先确认后端认这个参数名，是 S5 起立的规矩。</p>
+ *
+ * <p><b>不配 detailPath。</b>`/crm/customer/page` 返回的 `CustomerView` 已经是整行明细
+ * （含税号、地址、公海状态、跟进时间），列表行就是详情；再请求一次
+ * `/crm/customer/{id}` 只会多一次往返，还可能因数据权限差异拿到不同的行。</p>
+ *
+ * <p>等级列用列级 {@link ScreenColumn#statusMap} 覆盖页面级字典：页面级是"
+ * 客户状态（有效/停用）"，等级是另一套码值（A/B/C/D）。两套混用会把"有效"
+ * 显示成英文 ACTIVE，而且不报错。</p>
+ */
+export const CUSTOMER_PAGE: ScreenListPageSpec = {
+  key: 'customers',
+  title: '客户台账',
+  listPath: '/crm/customer/page',
+  permission: 'sys:crm:customer:list',
+  idKey: 'id',
+  keywordParam: 'keyword',
+  searchPlaceholder: '搜索客户编码 / 名称…',
+  statusParam: 'status',
+  statuses: [
+    { value: '', label: '全部状态' },
+    { value: 'ACTIVE', label: '有效' },
+    { value: 'INACTIVE', label: '停用' },
+    { value: 'MERGED', label: '已合并' },
+  ],
+  statusMap: CUSTOMER_STATUS_STYLE,
+  /* 6 行/页：大屏 620px 里 KPI + 图表 + 工具栏之后只剩约 230px */
+  pageSize: 6,
+  columns: [
+    { key: 'name', label: '客户', width: '30%' },
+    { key: 'level', label: '等级', width: '14%', format: 'status', statusMap: CUSTOMER_LEVEL_STYLE },
+    { key: 'industry', label: '行业', width: '18%' },
+    { key: 'lastFollowUpAt', label: '最近跟进', width: '20%', format: 'datetime' },
+    { key: 'status', label: '状态', width: '18%', format: 'status' },
+  ],
+  detailFields: [
+    { key: 'customerCode', label: '客户编码' },
+    { key: 'name', label: '客户名称' },
+    { key: 'shortName', label: '客户简称' },
+    { key: 'status', label: '状态', format: 'status' },
+    { key: 'level', label: '等级', format: 'status', statusMap: CUSTOMER_LEVEL_STYLE },
+    { key: 'industry', label: '行业' },
+    { key: 'source', label: '来源' },
+    { key: 'scale', label: '规模' },
+    { key: 'website', label: '官网' },
+    { key: 'address', label: '地址' },
+    { key: 'ownerId', label: '负责人 ID' },
+    { key: 'lastFollowUpAt', label: '最近跟进', format: 'datetime' },
+    { key: 'createTime', label: '创建时间', format: 'datetime' },
+  ],
+  titleKey: 'name',
+};
+
+/**
  * 殿的连通状态：与后端 {@code HubHallState} 一一对应，前端只做展示。
  *
  * <p>「无凭据」单独一档而不是并进「未通」：前者要去要权限，后者要去查服务，
@@ -949,4 +1041,5 @@ export const SCREEN_PAGES: Record<string, ScreenListPageSpec> = {
   [AUDIT_LOG_PAGE.key]: AUDIT_LOG_PAGE,
   [WORK_ORDER_PAGE.key]: WORK_ORDER_PAGE,
   [ATTENDANCE_DAILY_PAGE.key]: ATTENDANCE_DAILY_PAGE,
+  [CUSTOMER_PAGE.key]: CUSTOMER_PAGE,
 };

@@ -178,6 +178,14 @@ whale:
       bucket: ${WHALE_CRM_EXPORT_BUCKET:bluewhale-crm-export}
       connect-timeout-millis: ${WHALE_CRM_FILE_CONNECT_TIMEOUT:1000}
       read-timeout-millis: ${WHALE_CRM_FILE_READ_TIMEOUT:5000}
+  # 概览契约（三维王城数据厅 - 礼部坊）：SDK 注册 GET /crm/overview，本服务只提供 provider。
+  # 路径带服务前缀（REQ-ARCH-003：网关不剥前缀）；TTL 30s 对应前端 30s 轮询。
+  # timeout 2s 比 ERP 窄一档：销售看板是四张聚合查询（线索/赢单/目标/管道），
+  # 不扫明细表；超过 2s 说明库已经不正常，早点降级比让屏风转圈强。
+  overview:
+    base-path: /crm/overview
+    ttl: 30s
+    timeout: 2s
 
 mybatis-plus:
   configuration:

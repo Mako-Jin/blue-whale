@@ -71,6 +71,7 @@ import {
   AUDIT_LOG_PAGE,
   WORK_ORDER_PAGE,
   ATTENDANCE_DAILY_PAGE,
+  CUSTOMER_PAGE,
 } from './screenpages';
 import { createSceneEnv, type SceneEnv } from './env';
 import { createPostFx, type PostFx } from './postfx';
@@ -3931,6 +3932,12 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   let libuScreen: ScreenHandle | null = null;
   let libuPage: ScreenPageHandle | null = null;
 
+  /** 礼部坊（S6/T6.10）屏风与其业务页句柄：节点 key 是 `libu-ritual-hall`，
+      与吏部的 `libu-hall` 只差一词——布局里两坊同高对称（z=±19.67），
+      变量名必须能区分，否则半年后没人看得出哪块屏是哪个坊的 */
+  let libuRitualScreen: ScreenHandle | null = null;
+  let libuRitualPage: ScreenPageHandle | null = null;
+
   /**
    * 坊的屏风落位：从布局数据现算，不手抄坐标。
    *
@@ -4131,6 +4138,45 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return () => {
             libuPage?.dispose();
             libuPage = null;
+          };
+        },
+      });
+    }
+
+    /* 礼部坊（S6/T6.10）：客户台账 + 销售看板 —— 本月卖了多少、离目标还差多少、
+       管道里压着多少、哪些商机过期没关。
+
+       落位同样是 `districtScreenPose`：礼部与吏部在布局里是对称的两坊
+       （z = -19.67 / +19.67，yaw ±75° / -105°），公式套上各自的 yaw
+       就给出两块互不重叠的屏位，不需要再手工调坐标。 */
+    const libuRitualPose = districtScreenPose('libu-ritual-hall');
+    if (libuRitualPose) {
+      libuRitualScreen = screens.add({
+        id: 'libu-ritual',
+        position: [libuRitualPose.x, 1.55, libuRitualPose.z],
+        facing: libuRitualPose.facing,
+        size: 'large',
+        title: '礼部坊 · 客户台账',
+        subtitle: 'CRM / CUSTOMER',
+        tone: 'idle',
+        mount: (body) => {
+          libuRitualPage = mountScreenPage(body, {
+            nodeKey: 'libu-ritual-hall',
+            overviewPath: '/crm/overview',
+            overviewPermission: 'sys:crm:analytics:dashboard',
+            pages: [CUSTOMER_PAGE],
+            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+            getPermissions: opts.getPermissions,
+            // 题头灯跟业务页状态走：概览陈旧/失败（含 CRM 分析门禁关闭）时不该还亮绿灯
+            onTone: (tone) => libuRitualScreen?.setTone(tone),
+            onTitle: (title, subtitle) => {
+              libuRitualScreen?.setTitle(title ? `${title} · 客户台账` : '礼部坊 · 客户台账',
+                subtitle ?? 'CRM / CUSTOMER');
+            },
+          });
+          return () => {
+            libuRitualPage?.dispose();
+            libuRitualPage = null;
           };
         },
       });
@@ -4653,7 +4699,7 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
        正常路径既不暴露业务字段，也不会注入任何假数据。
 
        S5 收尾时皇城共十块业务屏风（户部 / 数枢殿 / 枢密殿 / 度支殿 / 藏书殿 / 时辰殿 /
-       政事殿 / 考功殿 / 通政殿 / 起居殿），S6 起逐坊增加内城坊（工部 / 吏部 …），
+       政事殿 / 考功殿 / 通政殿 / 起居殿），S6 起逐坊增加内城坊（工部 / 吏部 / 礼部 …），
        按 id 分派；不给 id 时仍落到户部（S4 的老脚本靠这个默认）。 */
     /* 屏风 id → 业务页句柄。默认给户部：老脚本不带 id 调探针时的历史行为。 */
     const pageOf = (id?: string): ScreenPageHandle | null => {
@@ -4680,6 +4726,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return gongbuPage;
         case 'libu':
           return libuPage;
+        case 'libu-ritual':
+          return libuRitualPage;
         default:
           return hubuPage;
       }

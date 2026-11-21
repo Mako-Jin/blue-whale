@@ -5,6 +5,7 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.common.web.UserContext;
+import com.bluewhale.common.web.WebHeaders;
 import com.bluewhale.overview.model.OverviewSnapshot;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -74,6 +75,9 @@ public class OverviewController {
     /**
      * 解析调用者上下文（先快照再进线程池，异步化后不会失效）
      *
+     * <p>角色码与权限码一起快照：权限回答"能不能看"，角色回答"看多大范围"。
+     * 两者都取自网关注入的可信身份头，provider 侧不再回读请求。</p>
+     *
      * @param request 当前请求
      * @return 上下文
      */
@@ -81,7 +85,8 @@ public class OverviewController {
         Long userId = UserContext.findUserId(request);
         Long tenantId = RequestContextHolder.getTenantId();
         Set<String> codes = UserContext.permissionCodes(request);
-        return OverviewContext.of(userId, tenantId, codes);
+        Set<String> roles = WebHeaders.splitCodes(WebHeaders.header(request, WebHeaders.USER_ROLES));
+        return OverviewContext.of(userId, tenantId, codes, roles);
     }
 
     /**

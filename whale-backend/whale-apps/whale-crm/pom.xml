@@ -77,6 +77,12 @@
             <artifactId>whale-tools</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- 概览契约（三维王城数据厅 - 礼部坊）：GET /crm/overview 由 SDK 自动注册，本服务只提供 provider -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-overview-sdk</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

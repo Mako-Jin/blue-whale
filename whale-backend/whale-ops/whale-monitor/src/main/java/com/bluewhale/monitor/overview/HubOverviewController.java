@@ -6,6 +6,7 @@ import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.common.web.UserContext;
+import com.bluewhale.common.web.WebHeaders;
 import com.bluewhale.monitor.vo.HubHallDetailVO;
 import com.bluewhale.monitor.vo.HubHallRowVO;
 import com.bluewhale.overview.OverviewContext;
@@ -132,6 +133,7 @@ public class HubOverviewController {
      */
     private OverviewContext contextOf(HttpServletRequest request) {
         return OverviewContext.of(UserContext.findUserId(request), RequestContextHolder.getTenantId(),
-                UserContext.permissionCodes(request));
+                UserContext.permissionCodes(request),
+                WebHeaders.splitCodes(WebHeaders.header(request, WebHeaders.USER_ROLES)));
     }
 }

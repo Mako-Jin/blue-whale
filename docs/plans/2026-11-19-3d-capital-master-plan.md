@@ -773,7 +773,10 @@
 | T6.7 | 吏部坊 overview（`/oa/overview`） | oa | [x] |
 | T6.8 | 吏部坊 屏风页（考勤日报） | oa | [x] |
 | T6.9 | 吏部坊 厅配置 + 数枢殿总控在册 | oa | [x] |
-| T6.10–T6.36 | 其余九坊（礼部 / 兵部 / 杏坛 / 将作 / 营造 / 盟府 / 宣抚 / 翰林 / 市舶） | crm / iot / lms / pdm / pm / contract / party / doc / mall | [ ] |
+| T6.10 | 礼部坊 overview（`/crm/overview`） | crm | [x] |
+| T6.11 | 礼部坊 屏风页（客户台账） | crm | [x] |
+| T6.12 | 礼部坊 厅配置 + 数枢殿总控在册 | crm | [x] |
+| T6.13–T6.36 | 其余八坊（兵部 / 杏坛 / 将作 / 营造 / 盟府 / 宣抚 / 翰林 / 市舶） | iot / lms / pdm / pm / contract / party / doc / mall | [ ] |
 
 **S6 第一批交付说明（2026-11-21，T6.4–T6.6 工部坊 / mes）**
 
@@ -843,6 +846,46 @@
   （perm-mapping 974 后端码 / 669 前端引用、api-path-drift 1571）。
 - **已知遗留**：`/oa/overview` 的真实 HTTP 未验（本机 Docker / Nacos 未起），同前九批口径；
   `world-path` 仍有 2 项基线失败（户部坊门洞与坊墙交界被 nav grid 判成可走），非本批引入。
+
+**S6 第三批交付说明（2026-11-21，T6.10–T6.12 礼部坊 / crm）**
+
+- **这一坊讲"宾客"，与户部互补**：户部看钱怎么花出去（采购与成本），礼部看钱怎么收进来
+  （销售与目标）。四个数：本月赢单、目标达成、加权管道、风险商机；一张图把
+  目标 / 已赢单 / 加权管道放在同一标度上，缺口一眼可见。
+- **接口**：`GET /crm/overview`（`whale.overview.base-path`），权限码复用 2D 销售看板的
+  `sys:crm:analytics:dashboard`，屏风页复用 `/crm/customer/page`，
+  **无新接口、无新权限点、无新迁移**。
+- **口径不另造**：provider 只调 `AnalyticsAppService#dashboard(CrmActor)` —— 与 2D
+  「数据分析 → 销售看板」**同一个方法**。目标完成率、加权管道、预测缺口三条算式都在
+  应用服务里，3D 侧不重算。
+- **契约 SDK 补了一个真缺口：角色码**。CRM 的数据范围按**角色**判
+  （`CrmActor#allDataScope()`：`tenant_admin / crm_admin / crm_sales_manager / crm_analyst`
+  看全租户，其余只看本人），而 `OverviewContext` 原先只快照 userId / tenantId / 权限码。
+  没有角色码，管理员站在礼部坊前会看到一片 0（个人范围），而 2D 同一时刻显示全租户业绩。
+  所以 `OverviewContext` 加 `roleCodes` 组件与 `hasRole(...)`，`OverviewController`、
+  `HubOverviewController` 一并快照 `X-User-Roles`，`HubOverviewAggregator` 向各殿
+  透传该头；三参 `of(...)` 保留，十一个殿的调用点无需改动。
+  **数据范围一律交回 `CrmActor`**，不在 3D 侧另立"超管看全量"的规则——城里与后台必须同一个数。
+- **百分比换算**：2D 看板给的是百分数（94），契约 `format=percent` 要比率（0.94）。
+  provider 显式 `divide(100, 4, HALF_UP)`；单测写死 `0.94`，负向验证（改成除 1）当场 FAIL
+  （`expected: 0.94 but was: 94.0`，仅此一例失败）。
+- **两处静默失效被提前挡住**：① 本月没设目标时达成率恒为 0，牌面看起来像"零业绩"→
+  语气置 FLAT、提示语写"本月未设目标"，并追加 INFO 告警说明；② `CustomerPageParams`
+  **有** `keyword`（编码/名称/简称），所以客户页配搜索框并照实发 `keyword`，
+  与吏部坊（无 keyword、故意不给搜索框）形成对照。
+- **两套码值不能混**：客户状态（ACTIVE/INACTIVE/MERGED）与客户等级（A/B/C/D）是两套码，
+  等级列用**列级 `statusMap`** 覆盖页面级字典；同时兼容存量 `KEY / NORMAL / POTENTIAL`
+  （译成 A / C / D），不映射就会在列里看到英文 `KEY` 且不报错。
+- **数枢殿总控在册**：`whale-monitor` 的 `whale.overview.aggregate.targets` 加
+  `http://bw-crm:9007/crm/overview`（容器内直连容器名，不走网关）。
+- **验证**：`CrmOverviewProviderTest` 8 例（比率换算、无目标灰牌、风险商机告警、
+  柱图三值、客户入口、角色透传、门禁异常上抛）+ `CrmArchitectureTest` 9 条
+  （新包 `analytics.interfaces.overview` 归入接口层，不触 infrastructure）全绿；
+  whale-crm 全量 **377 例**通过、checkstyle 0 违规；e2e `world-libu-ritual-smoke.mjs`
+  **55 项全绿**；回归 libu 49 / gongbu 48 / screenpage 35 / city-smoke 全通过；八项门禁 rc=0。
+- **已知遗留**：`/crm/overview` 的真实 HTTP 未验（本机 Docker / Nacos 未起），同前几批口径；
+  2D 侧 `super_admin` 不在 `ALL_DATA_SCOPE_ROLES` 里（超管在后台销售看板看到的也是本人数据），
+  这是既有行为，本批**照抄不改**——要动就单独改 2D，别在 3D 侧偷偷放宽。
 
 ### S7 外城 9 处
 
