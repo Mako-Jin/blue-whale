@@ -4,7 +4,6 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.pay.config.PayChannelProperties;
 import com.bluewhale.pay.po.PayOrderPo;
-import com.bluewhale.pay.enums.PayOrderStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -41,7 +40,7 @@ public class MockPayChannelAdapter implements PayChannelAdapter {
     @Override
     public PayChannelResult pay(PayOrderPo order) {
         ensureMockEnabled(order);
-        return new PayChannelResult(newMockTradeNo(), PayOrderStatus.PAID.code());
+        return new PayChannelResult(newMockTradeNo());
     }
 
     /**
@@ -55,7 +54,7 @@ public class MockPayChannelAdapter implements PayChannelAdapter {
     @Override
     public PayChannelResult refund(PayOrderPo order, String refundNo, BigDecimal refundAmount) {
         ensureMockEnabled(order);
-        return new PayChannelResult(newMockRefundNo(), PayOrderStatus.REFUNDED.code());
+        return new PayChannelResult(newMockRefundNo());
     }
 
     /**

@@ -360,8 +360,7 @@ public class PayOrderServiceImpl implements PayOrderService {
         }
         order.setStatus(PayOrderStatus.PAID.code());
         order.setPayTime(now);
-        recordTransaction(order, TYPE_PAY,
-                new PayChannelResult(order.getChannelTradeNo(), PayOrderStatus.PAID.code()));
+        recordTransaction(order, TYPE_PAY, new PayChannelResult(order.getChannelTradeNo()));
         PayNotifyTaskPo task = payNotifyService.enqueue(PayNotifyEvent.PAID, order, null, null);
         payNotifyService.dispatchAfterCommit(task == null ? null : task.getId());
         return true;

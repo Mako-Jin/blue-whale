@@ -313,11 +313,12 @@ public class PayOverviewProvider implements OverviewProvider {
     private void appendAlerts(Overviews.Builder builder, long failed, PendingStat pending) {
         if (failed >= FAILED_ALERT_COUNT) {
             builder.alert(OverviewAlertLevel.CRITICAL,
-                    "今日支付失败 " + failed + " 笔，请查渠道与失败流水", (int) failed);
+                    "今日支付失败 " + failed + " 笔，请查渠道与失败流水", Math.toIntExact(failed));
         }
         if (pending.stale() >= STALE_PENDING_ALERT) {
             builder.alert(OverviewAlertLevel.WARNING,
-                    pending.stale() + " 笔支付单超过 24 小时未支付，回调可能丢失", (int) pending.stale());
+                    pending.stale() + " 笔支付单超过 24 小时未支付，回调可能丢失",
+                    Math.toIntExact(pending.stale()));
         }
     }
 }

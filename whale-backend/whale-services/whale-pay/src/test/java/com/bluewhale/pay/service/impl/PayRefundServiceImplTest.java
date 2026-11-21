@@ -112,7 +112,7 @@ class PayRefundServiceImplTest {
         when(payOrderMapper.selectById(10L)).thenReturn(order);
         when(payOrderMapper.applyRefund(eq(10L), notNull())).thenReturn(1);
         when(payChannelGateway.refund(any(), any(), notNull()))
-                .thenReturn(new PayChannelResult("MOCK-R1", "REFUNDED"));
+                .thenReturn(new PayChannelResult("MOCK-R1"));
         when(payNotifyService.enqueue(any(), any(), any(), any())).thenReturn(task);
         when(payRefundMapper.insert(any(PayRefundPo.class))).thenAnswer(invocation -> {
             invocation.<PayRefundPo>getArgument(0).setId(55L);
@@ -220,7 +220,7 @@ class PayRefundServiceImplTest {
         when(payOrderMapper.selectById(10L)).thenReturn(partially);
         when(payOrderMapper.applyRefund(eq(10L), notNull())).thenReturn(1);
         when(payChannelGateway.refund(any(), any(), notNull()))
-                .thenReturn(new PayChannelResult("MOCK-R2", "REFUNDED"));
+                .thenReturn(new PayChannelResult("MOCK-R2"));
         when(payNotifyService.enqueue(any(), any(), any(), any()))
                 .thenReturn(new PayNotifyTaskPo());
 
