@@ -36,6 +36,7 @@ import { mountSayPanel } from './saypanel';
 import { createWorldAudio } from './audio';
 import type { GroundKind } from './audio';
 import { GUIDE_LINES, createGuide, fallbackLine } from './guide';
+import { GATE_TOWERS, gateHintText, nearestGate, type NearestGate } from './landmarks';
 import {
   CITY_GEOMETRY,
   DISTRICT_WALL,
@@ -252,6 +253,11 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   let domFocused = false;
   /** 每帧算出的"脚下最近的屏风"，供 E 键与提示条复用 */
   let nearbyScreen = null;
+  /** 每帧算出的"脚下最近的传送门"与距离（提示条按优先级裁决，见 updateInteractionHint） */
+  let nearestPortal = null;
+  let nearestPortalDist = Infinity;
+  /** 每帧算出的"脚下最近的城门楼"（S5/T5.10）：只有地标，没有内页 */
+  let nearbyGate: NearestGate | null = null;
   /** 上一帧跟随相机的位姿：退出屏风时插值回这里，不用重算一遍避让逻辑 */
   const followPos = new THREE.Vector3();
   const followTarget = new THREE.Vector3();
@@ -2824,6 +2830,12 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       if (nearbyScreen) {
         nearbyScreen.enter();
       } else {
+        /* 城门楼（S5/T5.10）：E 在这里仍然是"过门"（开传送门列表），
+           但先补一句解释——否则站在门洞里按 E 弹出一张殿宇清单，
+           会被读成"门楼里还藏着一座殿"，而它其实只是通道。 */
+        if (nearbyGate) {
+          showToast(`城门楼 · ${nearbyGate.spec.name}`, nearbyGate.spec.duty);
+        }
         togglePortalPanel();
       }
     }
@@ -3709,26 +3721,47 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       p.ring.material.opacity = 1;
       p.near = d < 9;
     }
-    if (nearest && nearestDist < 7) {
-      portalHint.classList.add('bww-show');
-      portalHint.innerHTML = `按 <b>E</b> 打开传送门 · <span>${nearest.name}</span>`;
-    } else {
-      portalHint.classList.remove('bww-show');
-    }
+    /* 这里只记"最近的传送门是谁"，不再直接写提示条：
+       提示条只有一条，谁该占它由 updateInteractionHint 统一裁决。 */
+    nearestPortal = nearest;
+    nearestPortalDist = nearestDist;
   }
 
-  /* 屏风接近提示。必须排在 updatePortals 之后跑：两者共用同一个提示条，
-     后写的赢。屏风比传送门近，优先级也更高——走到屏风前的人想看的是屏风。 */
-  function updateScreenHint() {
+  /* 交互提示条的唯一裁决者（S5/T5.10 收口）。
+     优先级：屏风（4.6m）> 传送门（7m）> 城门楼（11m）。
+     三条都写同一块 #bww-portal-hint，各自 if 就写会在同一帧里互相覆盖——
+     旧写法靠"后调用的赢"，加第三条时必然打起来，索性一次算完。 */
+  function updateInteractionHint() {
     if (screens.isControlling()) {
       nearbyScreen = null;
+      nearbyGate = null;
+      portalHint.classList.remove('bww-show');
       return;
     }
     nearbyScreen = screens.nearest(player.pos.x, player.pos.z, 4.6);
-    if (!nearbyScreen) return;
-    const title = nearbyScreen.el.querySelector('.bws-title')?.textContent ?? '屏风';
-    portalHint.classList.add('bww-show');
-    portalHint.innerHTML = `按 <b>E</b> 或点击进入 · <span>${title}</span>`;
+    if (nearbyScreen) {
+      const title = nearbyScreen.el.querySelector('.bws-title')?.textContent ?? '屏风';
+      portalHint.classList.add('bww-show');
+      portalHint.innerHTML = `按 <b>E</b> 或点击进入 · <span>${title}</span>`;
+      nearbyGate = null;
+      return;
+    }
+    if (nearestPortal && nearestPortalDist < 7) {
+      portalHint.classList.add('bww-show');
+      portalHint.innerHTML = `按 <b>E</b> 打开传送门 · <span>${nearestPortal.name}</span>`;
+      nearbyGate = null;
+      return;
+    }
+    /* 城门楼（S5/T5.10）：网关在城里的化身，只有地标、没有内页。
+       文案刻意不写"进入"——写"过门"才是真的（按 E 开的是传送门列表）。 */
+    nearbyGate = nearestGate(player.pos.x, player.pos.z);
+    if (nearbyGate) {
+      const hint = gateHintText(nearbyGate.spec);
+      portalHint.classList.add('bww-show');
+      portalHint.innerHTML = `${hint.lead} · <span>${hint.name}</span>`;
+      return;
+    }
+    portalHint.classList.remove('bww-show');
   }
 
   function updateLabels() {
@@ -3814,7 +3847,7 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     if (!screenBusy && !hallActive) updateCamera(dt);
     updateWhale(dt);
     updatePortals(dt);
-    updateScreenHint();
+    updateInteractionHint();
     updateHUD();
 
     // low 档直渲（软渲染 e2e 路径）；mid/high 走后处理链（Bloom→Output→Grade→SMAA）
@@ -4423,6 +4456,40 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       player.speed = 0;
       player.pos.set(x, 0, z);
     };
+    /* 城门楼地标探针（S5/T5.10）：地标表、脚下最近的门楼、以及提示条当前文案。
+       门楼没有内页，能自动验的只有"认得出 + 说明没骗人"这两件事。 */
+    window.__bwwLandmarks = () => ({
+      gates: GATE_TOWERS.map((gate) => ({
+        nodeKey: gate.nodeKey,
+        name: gate.name,
+        tier: gate.tier,
+        landmark: gate.landmark,
+        x: gate.x,
+        z: gate.z,
+        gateHalf: gate.gateHalf,
+      })),
+      // 用玩家真实坐标算，而不是复用每帧缓存：e2e 的 warp 与下一帧之间可能还没跑
+      near: (() => {
+        const hit = nearestGate(player.pos.x, player.pos.z);
+        return hit
+          ? {
+              nodeKey: hit.spec.nodeKey,
+              name: hit.spec.name,
+              distance: Number(hit.distance.toFixed(2)),
+            }
+          : null;
+      })(),
+      hint: {
+        shown: portalHint.classList.contains('bww-show'),
+        text: (portalHint.textContent ?? '').replace(/\s+/g, ' ').trim(),
+      },
+      panelOpen: portalPanel.classList.contains('bww-open'),
+    });
+    /* 城图派生尺度：断言"城图 = 布局数据"，不去读画布像素（软渲染下像素不可靠） */
+    window.__bwwMinimap = () => ({
+      ...(minimap ? minimap.geometry() : null),
+      visible: mapVisible,
+    });
     /* 自动寻路探针：读状态，以及不经鼠标直接设目标（单独验算路） */
     window.__bwwPath = () => ({
       active: autoWalk.active,
