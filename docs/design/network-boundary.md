@@ -31,6 +31,35 @@
    网关因此额外声明 `/*/*/internal/**`（首段服务、次段版本）。因此 `/twin/notify/internal/x`
    这类多段命名网关拦不住，只剩令牌一层——内网端点一律按 `/<service>[/vN]/internal/**` 命名。
 
+### 0.1 按服务签发令牌 + 租户白名单（P0-1，2026-11-21）
+
+共享令牌只能证明「来自内网」，无法阻止**持有令牌的服务**伪造 `X-Tenant-Id` 跨租户操作。
+starter 现支持按服务签发模式（`InternalTokenProperties#issuers`）：
+
+- 请求头值改为 `<服务ID>.<密钥>`；服务端按服务 ID 查表，密钥常量时间比较；
+- 非平台服务必须携带 `X-Tenant-Id`，且落在该服务 `tenants` 白名单内，否则 403；
+- 平台级服务（定时任务、归档等跨租户场景）显式配置 `platform: true`；
+- 出站侧配置本服务身份 `issuer-id`/`issuer-secret`，`InternalTokenSupport` 自动发送；
+- **未配置 `issuers` 时保持共享令牌行为**，可按服务分批切换；配置 `issuers` 后共享令牌不再被接受。
+
+```yaml
+bluewhale:
+  internal-token:
+    issuer-id: mall                  # 本服务出站身份
+    issuer-secret: ${WHALE_INTERNAL_TOKEN_MALL}
+    issuers:                         # 本服务信任的入站调用方
+      mall:
+        secret: ${WHALE_INTERNAL_TOKEN_MALL}
+        tenants: [1001, 1002]        # 仅允许这些租户
+      job:
+        secret: ${WHALE_INTERNAL_TOKEN_JOB}
+        platform: true               # 平台级：允许跨租户
+```
+
+配置错误（密钥为空、非平台服务无 tenants、`issuer-id`/`issuer-secret` 只配一半、服务 ID 含 `.`）
+由 `InternalTokenGuard` 启动即拒绝。部署侧仍需按第 1～2 节收敛网络可达性——应用层令牌是
+网络边界的补充，不是替代。
+
 ## 1. 风险
 
 业务服务（auth、contract、job、archive、alert、erp/mes/pdm/oa、workflow 等）默认直接监听 `8081+` / `9001+`。

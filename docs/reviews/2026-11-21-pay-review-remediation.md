@@ -88,10 +88,11 @@
 3. 默认 `allowed-channels` 含 `BALANCE/ALIPAY/WECHAT/UNIONPAY` 但无适配器；收敛为 `MOCK`，避免启动校验与创建校验互相矛盾。
 4. 实现 P0-2 时发现 `PayOrderServiceImpl#refund` 的外层 `@Transactional` 会把退款渠道调用重新包进事务，已一并移除。
 5. 实现 P0-2 时发现退款单 `FAILED` 状态此前从未落库、`applyRefund` 失败整笔回滚后不留痕，已改为失败/记账异常都落 FAILED 单。
+6. P0-1 代码侧补齐：`whale-spring-boot-starter` 的内网令牌新增「按服务签发 + 租户白名单」模式（`issuers` / `issuer-id` / `issuer-secret`），共享令牌默认行为不变；`InternalTokenGuard` 对缺密钥、非平台服务无租户白名单、身份只配一半等配置 fail-fast。
 
 ## 六、待做项
 
-1. **P0-1 令牌与租户强绑定**：当前为服务间共享令牌，无法阻止持有令牌的服务伪造其他租户；需按服务/租户签发令牌，并配套 K8s NetworkPolicy/安全组限制 8086 直连。
+1. **P0-1 部署侧切换**：starter 已支持按服务签发令牌 + 租户白名单（见 `docs/design/network-boundary.md` 第 0.1 节），但各服务实例尚未配置 `issuers`/`issuer-id`/`issuer-secret`，当前仍运行在共享令牌模式。需按服务分批下发身份与租户白名单，并配套 K8s NetworkPolicy/安全组限制 8086 直连。
 2. **PAYING 停留单的对账闭环**：当前停留在 `PAYING` 的支付单只会通过概览「待支付/超时」暴露，尚未提供自动查询渠道并推进终态的定时任务；接真实渠道前需补「渠道路由查询 + 人工确认」的运维入口。
 3. **P2-13 手工重试三态**：`retryManually` 仍返回 boolean，任务正在投递时返回 false 语义不够清晰；需改为三态结果并同步前端。
 4. **P3 并发/幂等集成测试**：重复 pay、同 `refundNo` 并发退款、通知重试到 DEAD、`applyRefund` 并发超额，建议用 Testcontainers/MySQL 集成测试覆盖。
@@ -104,4 +105,5 @@
 | 编译 | `mvn -q -DskipTests compile`（whale-pay） | 通过 |
 | 单测 | `mvn -q test`（whale-pay） | 通过（订单/退款/通知/架构/迁移/概览，含三段式补偿用例） |
 | Checkstyle | `mvn -q checkstyle:check`（whale-pay） | 通过 |
+| 内网令牌 starter | `mvn -q test` + `mvn -q checkstyle:check`（whale-spring-boot-starter） | 通过（含按服务令牌与租户白名单用例） |
 | Auth 迁移测试 | `mvn -q -Dtest=FlywayMigrationScriptTest test`（auth-starter） | 通过 |
