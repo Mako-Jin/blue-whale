@@ -16,6 +16,7 @@
 8. 内网 DTO 金额必须与管理端 DTO 使用同等 Bean Validation。
 9. `notifyUrl` 格式必须在创建阶段校验。
 10. 通知重试必须使用独立权限码。
+11. 停留在 `PAYING` 的支付单必须能自动查询渠道并收敛终态，不得长期悬挂。
 
 ## 二、完成项
 
@@ -31,6 +32,7 @@
 | P1-8 | 内网 DTO 金额缺校验 | 内网创建/退款请求补 `@DecimalMin("0.01")`、`@Digits(integer=16, fraction=2)` |
 | P1-9 | `notifyUrl` 创建时不校验 | 创建阶段复用 `splitNotifyUrl` 同逻辑校验，非法直接 `PARAM_ERROR` |
 | P1-10 | 通知重试权限码语义不匹配 | 改用 `sys:pay:notify:retry`；auth 库新增 `V40__pay_notify_retry_permission.sql` 与 `init.sql` 权限点，并授予既有 `tenant_admin` |
+| P0-2 残留 | `PAYING` 停留单无自动收敛 | 新增跨租户扫描 + 定时对账（见 3.4）：渠道明确 `PAID` 才条件收敛并补流水/通知，其余状态保持 `PAYING` 记录告警，不自动回退 |
 
 ## 三、P0-2 资金一致性改造（本轮）
 
@@ -66,6 +68,25 @@
 - 新增 i18n 文案 `pay.order.paying`（中/英/默认三份）；
 - 单测新增：渠道失败回退 `PAYING → CREATED`、`PAYING` 拒绝重复支付、退款渠道失败置 `FAILED`、记账失败置 `FAILED`。
 
+### 3.4 `PAYING` 停留单自动对账（本轮）
+
+**背景**：记账事务失败或进程在「渠道已返回、本地未落账」之间崩溃时，支付单会停在 `PAYING`。
+概览只能把它算进「待支付/超时」，没有任何组件会去问渠道到底有没有扣款。
+
+**实现**：
+
+| 环节 | 做法 |
+| --- | --- |
+| 扫描 | `PayOrderMapper#selectStalePaying`：`status = 'PAYING' AND update_time < 阈值`，`@InterceptorIgnore(tenantLine = "true")` 做平台级跨租户扫描，按 `update_time` 升序限量 |
+| 租户 | 扫描结果带回 `tenant_id`，逐单 `TenantContext.set` 后再加载/更新订单，确保流水与通知任务落在原租户；处理完 `clear`，避免线程池串租户 |
+| 查询 | 逐单调 `payChannelGateway.queryStatus`；查询异常只记 ERROR，订单保持 `PAYING` |
+| 收敛 | **仅渠道明确返回 `PAID`** 时，用条件更新 `PAYING → PAID` 抢占（多实例只有一个成功），随后补 `pay_transaction` 与 `PAID` 通知 |
+| 不回退 | 渠道返回 `CREATED`/未知状态时**不自动回退**：渠道状态可能滞后，回退成可支付会造成重复扣款；保持 `PAYING` 记 WARN，交人工用管理端对账接口确认 |
+| 配置 | `whale.pay.reconcile.stale-seconds`（默认 300）、`batch-size`（默认 50）、`interval-ms`（默认 60000） |
+
+**边界**：`MockPayChannelAdapter#queryStatus` 镜像本地状态，因此 mock 模式下停留单会一直返回 `PAYING`，对账为 no-op，属预期；
+`queryStatus` 只返回状态码，自动收敛时拿不到渠道流水号，`channel_trade_no` 为空并在日志中提示，接真实渠道后需评估扩展 `queryResult`。
+
 ## 四、P2 / P3 处理
 
 - P2-11 控制器路径统一：`PayRefundController` 改为类级 `@RequestMapping("/pay")`。
@@ -93,7 +114,7 @@
 ## 六、待做项
 
 1. **P0-1 部署侧切换**：starter 已支持按服务签发令牌 + 租户白名单（见 `docs/design/network-boundary.md` 第 0.1 节），但各服务实例尚未配置 `issuers`/`issuer-id`/`issuer-secret`，当前仍运行在共享令牌模式。需按服务分批下发身份与租户白名单，并配套 K8s NetworkPolicy/安全组限制 8086 直连。
-2. **PAYING 停留单的对账闭环**：当前停留在 `PAYING` 的支付单只会通过概览「待支付/超时」暴露，尚未提供自动查询渠道并推进终态的定时任务；接真实渠道前需补「渠道路由查询 + 人工确认」的运维入口。
+2. **PAYING 自动对账的运维补强**：3.4 只自动收敛渠道明确 `PAID` 的单；渠道 `CREATED`/未知/查询异常一律保持 `PAYING` 等人工确认。接真实渠道后需补「三方流水号回填」（`queryStatus` 只返回状态）与告警接入。
 3. **P2-13 手工重试三态**：`retryManually` 仍返回 boolean，任务正在投递时返回 false 语义不够清晰；需改为三态结果并同步前端。
 4. **P3 并发/幂等集成测试**：重复 pay、同 `refundNo` 并发退款、通知重试到 DEAD、`applyRefund` 并发超额，建议用 Testcontainers/MySQL 集成测试覆盖。
 5. **P3 其他**：`PayOverviewProvider` 强转可用 `Math.toIntExact`；Jackson 3 迁移后删除 `Jackson2CompatConfig`。
@@ -103,7 +124,7 @@
 | 项 | 命令 | 结果 |
 | --- | --- | --- |
 | 编译 | `mvn -q -DskipTests compile`（whale-pay） | 通过 |
-| 单测 | `mvn -q test`（whale-pay） | 通过（订单/退款/通知/架构/迁移/概览，含三段式补偿用例） |
+| 单测 | `mvn -q test`（whale-pay） | 通过（订单/退款/通知/架构/迁移/概览，含三段式补偿与 PAYING 对账用例） |
 | Checkstyle | `mvn -q checkstyle:check`（whale-pay） | 通过 |
 | 内网令牌 starter | `mvn -q test` + `mvn -q checkstyle:check`（whale-spring-boot-starter） | 通过（含按服务令牌与租户白名单用例） |
 | Auth 迁移测试 | `mvn -q -Dtest=FlywayMigrationScriptTest test`（auth-starter） | 通过 |
