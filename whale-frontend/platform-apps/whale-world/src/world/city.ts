@@ -75,6 +75,7 @@ import {
   DEVICE_PAGE,
   COURSE_PAGE,
   PART_PAGE,
+  PROJECT_PAGE,
 } from './screenpages';
 import { createSceneEnv, type SceneEnv } from './env';
 import { createPostFx, type PostFx } from './postfx';
@@ -3953,6 +3954,10 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   let jiangzuoScreen: ScreenHandle | null = null;
   let jiangzuoPage: ScreenPageHandle | null = null;
 
+  /** 营造坊（S6/T6.22）屏风与其业务页句柄（同上） */
+  let yingzaoScreen: ScreenHandle | null = null;
+  let yingzaoPage: ScreenPageHandle | null = null;
+
   /**
    * 坊的屏风落位：从布局数据现算，不手抄坐标。
    *
@@ -4312,6 +4317,48 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return () => {
             jiangzuoPage?.dispose();
             jiangzuoPage = null;
+          };
+        },
+      });
+    }
+
+    /* 营造坊（S6/T6.22）：项目台账 + 三本账 —— 工程推进到哪了、有多少活没人干。
+
+       布局里营造司在坊区与将作相邻（都是"造东西"的口径，一里一外：
+       将作管器物图册，营造管工程节奏）；`districtScreenPose` 按它自己的
+       正面法线算落点，不需要手调坐标。
+
+       屏风上半部是四张牌（在建项目 / 活跃迭代 / 未完成工作项 / 逾期未完成），
+       下半部是项目台账。工作项不单摆一页：后端的工作项分页强制按项目过滤，
+       租户级的工作项清单在 2D 后台也不存在，硬凑只会误导。 */
+    const yingzaoPose = districtScreenPose('yingzao-bureau');
+    if (yingzaoPose) {
+      yingzaoScreen = screens.add({
+        id: 'yingzao',
+        position: [yingzaoPose.x, 1.55, yingzaoPose.z],
+        facing: yingzaoPose.facing,
+        size: 'large',
+        title: '营造坊 · 项目台账',
+        subtitle: 'PM / PROJECT',
+        tone: 'idle',
+        mount: (body) => {
+          yingzaoPage = mountScreenPage(body, {
+            nodeKey: 'yingzao-bureau',
+            overviewPath: '/pm/overview',
+            overviewPermission: 'sys:pm:project:list',
+            pages: [PROJECT_PAGE],
+            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+            getPermissions: opts.getPermissions,
+            // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
+            onTone: (tone) => yingzaoScreen?.setTone(tone),
+            onTitle: (title, subtitle) => {
+              yingzaoScreen?.setTitle(title ? `${title} · 项目台账` : '营造坊 · 项目台账',
+                subtitle ?? 'PM / PROJECT');
+            },
+          });
+          return () => {
+            yingzaoPage?.dispose();
+            yingzaoPage = null;
           };
         },
       });
@@ -4869,6 +4916,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return xingtanPage;
         case 'jiangzuo':
           return jiangzuoPage;
+        case 'yingzao':
+          return yingzaoPage;
         default:
           return hubuPage;
       }

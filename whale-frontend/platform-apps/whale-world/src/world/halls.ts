@@ -53,6 +53,12 @@ export const OVERVIEW_HALLS: OverviewHallSpec[] = [
      才该在城里看到"这一城要造什么、图纸上改到第几版"。四本账的"未关闭"判定
      （驳回与取消不算欠账）在后端统计服务一处定义，前端不做二次换算。 */
   { nodeKey: 'jiangzuo-bureau', path: '/pdm/overview', permission: 'sys:pdm:part:list' },
+  /* 营造坊（S6/T6.22）：在建项目、活跃迭代、未完成工作项、逾期未完成。
+     权限码复用 2D 项目台账的 `sys:pm:project:list`——能在后台看项目的人，
+     才该在城里看到"工程推进到哪了"。未完成的判定跟状态分类
+     （TODO / IN_PROGRESS / DONE）走，由 provider 在口径说明里写明，
+     前端不做二次换算。 */
+  { nodeKey: 'yingzao-bureau', path: '/pm/overview', permission: 'sys:pm:project:list' },
   /* 数枢殿总控（S5/T5.1）：服务端把在册各殿的概览汇成一屏。
      **不设权限码**——总控的可见范围就是"你在各殿能看到的范围"，
      缺凭据的殿在总控里显示为「无凭据」行，而不是整块 403。

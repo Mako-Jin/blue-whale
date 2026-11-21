@@ -785,7 +785,10 @@
 | T6.19 | 将作坊 overview（`/pdm/overview`） | pdm | [x] |
 | T6.20 | 将作坊 屏风页（物料台账） | pdm | [x] |
 | T6.21 | 将作坊 厅配置 + 数枢殿总控在册 | pdm | [x] |
-| T6.22–T6.36 | 其余五坊（营造 / 盟府 / 宣抚 / 翰林 / 市舶） | pm / contract / party / doc / mall | [ ] |
+| T6.22 | 营造坊 overview（`/pm/overview`） | pm | [x] |
+| T6.23 | 营造坊 屏风页（项目台账） | pm | [x] |
+| T6.24 | 营造坊 厅配置 + 数枢殿总控在册 | pm | [x] |
+| T6.25–T6.36 | 其余四坊（盟府 / 宣抚 / 翰林 / 市舶） | contract / party / doc / mall | [ ] |
 
 **S6 第一批交付说明（2026-11-21，T6.4–T6.6 工部坊 / mes）**
 
@@ -1007,6 +1010,46 @@
   回归 world-city-smoke 全通过；八项门禁 rc=0；tsc --noEmit 通过。
 - **已知遗留**：`/pdm/overview` 的真实 HTTP 未验（本机 Docker / Nacos 未起），同前几批口径；
   改了 whale-pdm 与 whale-monitor 的 yml，**部署时两座容器都要重建镜像**（restart 不带新配置）。
+
+**S6 第七批交付说明（2026-11-22，T6.22–T6.24 营造坊 / pm）**
+
+- **接口**：`GET /pm/overview`（`whale.overview.base-path=/pm/overview`，TTL 30s、超时 2s）：
+  四张 KPI（在建项目 / 活跃迭代 / 未完成工作项 / 逾期未完成）+ 一张五类工作项**柱图**
+  （史诗 / 需求 / 任务 / 缺陷 / 子任务）+ 四条告警（逾期 CRITICAL、无主与空档迭代 WARNING、
+  未启动迭代与归档 INFO）+ 项目台账入口。PM 没有现成租户级看板（ReportController 四张报表
+  全部按 projectId 出数），像 IoT / 将作一样**新写统计口径**：`PmOverviewStatsService` +
+  `PmOverviewStats` record，provider 只排版。权限码复用 2D 项目台账的 `sys:pm:project:list`，
+  屏风页复用 `/pm/project/page`，**无新接口、无新权限点、无新迁移**。
+- **三本账，口径收一处**：项目（pm_project ACTIVE/ARCHIVED）、迭代（pm_sprint
+  FUTURE/ACTIVE/CLOSED）、工作项（pm_work_item）。「未完成 = 状态分类非 DONE」——
+  PM 的状态是**每个项目自定义的**（pm_status 按 projectId 各配一套），唯一跨项目稳定的
+  只有 category 三分类（TODO / IN_PROGRESS / DONE）；直接拿状态码判断换个项目就全错。
+  先 selectList 取本租户 DONE 分类的状态 id（租户插件自动加 tenant_id），再对工作项做
+  IN / NOT IN——**不用 notInSql 子查询**（插件不改写字符串子查询，跨租户串数且不报错）。
+- **"逾期未完成"是唯一带重语气的牌**：有活拖期亮红灯（CRITICAL 告警），清空了亮绿灯；
+  "未完成工作项"只报数（活没做完是常态），提示语拆「待办 X · 进行中 Y」。
+  **迭代空档单独成条**：有在建项目但 0 个活跃迭代 → 迭代牌黄灯 + WARNING——工程在册却没人排期。
+- **工作项不单摆一页**：后端 `/pm/work-item/page` 强制 projectId（@NotNull），
+  租户级的工作项清单在 2D 后台也不存在，硬凑一页只会把"按项目逐个点"伪装成"租户总账"。
+- **屏风页**：`PROJECT_PAGE`（`/pm/project/page`，六列：编码 / 名称 / 类型 / 可见性 / 状态 /
+  创建时间）。**关键字接 `keyword`**——项目查询是少数后端就有合并关键字的（编码与名称一起
+  模糊匹配）；类型与可见性两列用**列级 statusMap**（SCRUM/KANBAN、PRIVATE/TEAM/PUBLIC），
+  页面级字典留给状态列（ACTIVE 在建绿灯 / ARCHIVED 已归档灰灯）。
+  **负责人列不摆**：leadUserId 是用户 ID，屏风拿不到用户名，摆出来是一串数字。
+  **不配 `detailPath`**：`ProjectVO` 平铺，行内字段够详情用。
+- **e2e 与前几坊有一处不同**：营造司在城南侧（z=+19.67，将作的对面），出生点镜头朝北
+  看不见它——冒烟脚本先从 **CSS3D 变换矩阵解屏风位姿**（matrix3d 列主序：第 12/14 个数
+  是平移 x/z，第 9/11 个数是局部 +z 轴 = 正面法线），`__bwwWalkTo` 走到法线外侧 4.5m、
+  `__bwwLook(atan2(nx,nz), 0.18, 9)` 转镜头，再**直接派发 click**（走到跟前时屏风可能落
+  在小地图面板底下，locator.click 的 hit-target 检查会被拦；点击入口是 screen.el 上的
+  click 监听，派发走同一逻辑）。前 55 项断言与全城回归已验。
+- **数枢殿总控在册**：`aggregate.targets` 加 `http://bw-pm:9005/pm/overview`，已接入 **16 处**。
+- **验证**：`PmOverviewProviderTest` 8 例 + `PmOverviewStatsServiceTest` 6 例；
+  whale-pm 全量 **147 例**通过；e2e `world-yingzao-smoke.mjs` **55 项全绿**；
+  回归 world-city-smoke 全通过（首轮挂 1 项已知帧率敏感偶发，复跑全绿）；
+  八项门禁 rc=0；tsc --noEmit 通过。
+- **已知遗留**：`/pm/overview` 的真实 HTTP 未验（本机 Docker / Nacos 未起），同前几批口径；
+  改了 whale-pm 与 whale-monitor 的 yml，**部署时两座容器都要重建镜像**（restart 不带新配置）。
 
 ### S7 外城 9 处
 

@@ -130,3 +130,7 @@ whale:
           name: 将作坊
           url: http://bw-pdm:9003/pdm/overview
           permission: sys:pdm:part:list
+        - nodeKey: yingzao-bureau
+          name: 营造坊
+          url: http://bw-pm:9005/pm/overview
+          permission: sys:pm:project:list

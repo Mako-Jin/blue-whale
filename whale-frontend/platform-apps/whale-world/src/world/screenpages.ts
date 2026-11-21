@@ -1165,6 +1165,77 @@ export const PART_PAGE: ScreenListPageSpec = {
   titleKey: 'name',
 };
 
+/** 项目状态：与 `ProjectGuard` 一一对应（ACTIVE 在建 / ARCHIVED 已归档） */
+export const PROJECT_STATUS_STYLE: Record<string, ScreenStatusStyle> = {
+  ACTIVE: { label: '在建', tone: 'good' },
+  ARCHIVED: { label: '已归档', tone: 'flat' },
+};
+
+/** 项目类型：与 `BoardType` 一一对应，列级字典——类型不是状态，不该蹭页面级字典 */
+export const PROJECT_TYPE_STYLE: Record<string, ScreenStatusStyle> = {
+  SCRUM: { label: 'Scrum', tone: 'flat' },
+  KANBAN: { label: '看板', tone: 'flat' },
+};
+
+/**
+ * 营造坊（S6/T6.22）项目台账页。
+ *
+ * <p><b>这一屏讲什么。</b>营造司掌工程调度：城里有多少项工程在同时开工。
+ * 项目是三本账（项目 / 迭代 / 工作项）里的底账——迭代和工作项都挂在项目上，
+ * 所以坊里只摆这一页。</p>
+ *
+ * <p><b>工作项不单摆一页。</b>后端的 `/pm/work-item/page` 强制按项目过滤
+ * （projectId @NotNull），租户级的工作项清单在 2D 后台也不存在；
+ * 硬凑一页只会把"按项目逐个点"伪装成"租户总账"。</p>
+ *
+ * <p><b>关键字接 `keyword`。</b>项目查询是少数后端就有合并关键字的
+ * （编码与名称一起模糊匹配），屏风搜索框直接接它，不用挑一个字段。
+ * 负责人列（leadUserId）是用户 ID，屏风拿不到用户名，摆出来只会是一串数字——不摆。</p>
+ *
+ * <p><b>不配 `detailPath`：列表行已经带回详情需要的全部字段（描述、可见性、
+ * 类型、状态），再请求一次只会让点开有半秒空白。</b></p>
+ */
+export const PROJECT_PAGE: ScreenListPageSpec = {
+  key: 'projects',
+  title: '项目台账',
+  listPath: '/pm/project/page',
+  permission: 'sys:pm:project:list',
+  idKey: 'id',
+  keywordParam: 'keyword',
+  searchPlaceholder: '搜索项目编码 / 名称…',
+  statusParam: 'status',
+  statuses: [
+    { value: '', label: '全部状态' },
+    { value: 'ACTIVE', label: '在建' },
+    { value: 'ARCHIVED', label: '已归档' },
+  ],
+  statusMap: PROJECT_STATUS_STYLE,
+  /* 6 行/页：大屏 620px 里 KPI + 图表 + 工具栏之后只剩约 230px */
+  pageSize: 6,
+  columns: [
+    { key: 'key', label: '编码', width: '14%' },
+    { key: 'name', label: '名称', width: '30%' },
+    { key: 'projectType', label: '类型', width: '14%', format: 'status', statusMap: PROJECT_TYPE_STYLE },
+    { key: 'visibility', label: '可见性', width: '14%', format: 'status', statusMap: {
+      PRIVATE: { label: '私有', tone: 'flat' },
+      TEAM: { label: '团队', tone: 'flat' },
+      PUBLIC: { label: '公开', tone: 'flat' },
+    } },
+    { key: 'status', label: '状态', width: '14%', format: 'status' },
+    { key: 'createTime', label: '创建时间', width: '14%', format: 'datetime' },
+  ],
+  detailFields: [
+    { key: 'key', label: '编码' },
+    { key: 'name', label: '名称' },
+    { key: 'projectType', label: '类型', format: 'status' },
+    { key: 'visibility', label: '可见性', format: 'status' },
+    { key: 'description', label: '描述' },
+    { key: 'status', label: '状态', format: 'status' },
+    { key: 'createTime', label: '创建时间', format: 'datetime' },
+  ],
+  titleKey: 'name',
+};
+
 /**
  * 殿的连通状态：与后端 {@code HubHallState} 一一对应，前端只做展示。
  *
@@ -1252,4 +1323,5 @@ export const SCREEN_PAGES: Record<string, ScreenListPageSpec> = {
   [DEVICE_PAGE.key]: DEVICE_PAGE,
   [COURSE_PAGE.key]: COURSE_PAGE,
   [PART_PAGE.key]: PART_PAGE,
+  [PROJECT_PAGE.key]: PROJECT_PAGE,
 };
