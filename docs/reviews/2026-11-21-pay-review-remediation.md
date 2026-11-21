@@ -99,6 +99,7 @@
 - P2-19 `ensureStatus` + `claimTransition`：保留（前者负责报错文案，后者负责并发抢占）。
 - P2-20 线程池停机：通知线程池增加 `waitForTasksToCompleteOnShutdown` 与 `awaitTerminationSeconds(30)`。
 - P2-13 手工重试三态：`retryManually` 改为返回 `PayNotifyRetryResultVO`，状态为 `SUCCESS` / `IN_PROGRESS` / `RETRY_PENDING`；任务不存在抛 404；前端 generated schema 同步为 `ResultPayNotifyRetryResultVO`。
+- 接口版本化：whale-pay 全部 HTTP 接口统一为 `/pay/v1/**`（内网同步为 `/pay/v1/internal/**`），新增 `ApiVersionConfig` 解析路径版本段；网关仍按 `Path=/pay/**` 转发、`/*/*/internal/**` 拦截内网；权限元数据由 `V41__pay_api_path_versioning.sql` 迁移。
 - P3 导入清理：`PayNotifyServiceImpl` 去除全限定类名并补齐 import。
 - P3 路径约束：支付单详情改为 `/{id:\d+}`，与 `/page` 明确区分。
 - P3 ArchUnit：包名由 `entity` 修正为 `po`，新增「service 不得依赖 controller」规则。
