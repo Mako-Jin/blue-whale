@@ -77,3 +77,7 @@ whale:
           name: 枢密殿
           url: http://bw-auth:8081/auth/overview
           permission: sys:login:history:list
+        - nodeKey: duzhi-hall
+          name: 度支殿
+          url: http://bw-pay:8086/pay/overview
+          permission: sys:pay:list

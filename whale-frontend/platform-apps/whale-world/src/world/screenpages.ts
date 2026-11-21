@@ -200,6 +200,71 @@ export const LOGIN_HISTORY_PAGE: ScreenListPageSpec = {
 };
 
 /**
+ * 支付单状态：与后端 `PayOrderStatus` 一一对应。
+ *
+ * <p>「待支付」给黄灯而不是灰灯：它不是历史状态，是**还没做完的事**。
+ * 一张挂着 3 天的待支付单，比一条已退款记录更值得值班的人看一眼。</p>
+ */
+export const PAY_STATUS_STYLE: Record<string, ScreenStatusStyle> = {
+  CREATED: { label: '待支付', tone: 'warn' },
+  PAID: { label: '已支付', tone: 'good' },
+  CANCELLED: { label: '已取消', tone: 'flat' },
+  REFUNDED: { label: '已退款', tone: 'warn' },
+};
+
+/**
+ * 支付单管理页（S5 / T5.3）：度支殿的屏风页。
+ *
+ * <p>列只留五样：单号、业务标识、金额、状态、建单时间。渠道与流水号在详情里——
+ * 列表是"哪笔单出问题了"，详情才是"这笔单怎么走的"。</p>
+ *
+ * <p>关键字筛选是**真支持**的（后端 `PayOrderQueryRequest.keyword` 会同时模糊匹配
+ * 单号与业务标识），所以这里给搜索框；状态筛选用 `status`，与后端字段同名。</p>
+ *
+ * <p>不配 `detailPath`：列表行已经带回详情需要的全部字段，再请求一次只会让
+ * "点开有半秒空白"，而支付单的详情不会在列表与详情之间变化。</p>
+ */
+export const PAY_ORDER_PAGE: ScreenListPageSpec = {
+  key: 'pay-orders',
+  title: '支付单',
+  listPath: '/pay/order/page',
+  permission: 'sys:pay:list',
+  idKey: 'id',
+  keywordParam: 'keyword',
+  searchPlaceholder: '搜索单号 / 业务标识…',
+  statusParam: 'status',
+  statuses: [
+    { value: '', label: '全部状态' },
+    { value: 'CREATED', label: '待支付' },
+    { value: 'PAID', label: '已支付' },
+    { value: 'CANCELLED', label: '已取消' },
+    { value: 'REFUNDED', label: '已退款' },
+  ],
+  statusMap: PAY_STATUS_STYLE,
+  pageSize: 6,
+  columns: [
+    { key: 'orderNo', label: '单号', width: '26%' },
+    { key: 'businessKey', label: '业务标识', width: '22%' },
+    { key: 'amount', label: '金额', width: '16%', format: 'money', align: 'right' },
+    { key: 'status', label: '状态', width: '16%', format: 'status' },
+    { key: 'createTime', label: '建单', width: '20%', format: 'datetime' },
+  ],
+  detailFields: [
+    { key: 'orderNo', label: '单号' },
+    { key: 'businessKey', label: '业务标识' },
+    { key: 'amount', label: '金额', format: 'money' },
+    { key: 'currency', label: '币种' },
+    { key: 'channel', label: '渠道' },
+    { key: 'status', label: '状态', format: 'status' },
+    { key: 'payTime', label: '支付时间', format: 'datetime' },
+    { key: 'channelTradeNo', label: '渠道流水号' },
+    { key: 'refundAmount', label: '已退金额', format: 'money' },
+    { key: 'createTime', label: '建单时间', format: 'datetime' },
+  ],
+  titleKey: 'orderNo',
+};
+
+/**
  * 殿的连通状态：与后端 {@code HubHallState} 一一对应，前端只做展示。
  *
  * <p>「无凭据」单独一档而不是并进「未通」：前者要去要权限，后者要去查服务，
@@ -273,4 +338,5 @@ export const SCREEN_PAGES: Record<string, ScreenListPageSpec> = {
   [PURCHASE_ORDER_PAGE.key]: PURCHASE_ORDER_PAGE,
   [HUB_HALLS_PAGE.key]: HUB_HALLS_PAGE,
   [LOGIN_HISTORY_PAGE.key]: LOGIN_HISTORY_PAGE,
+  [PAY_ORDER_PAGE.key]: PAY_ORDER_PAGE,
 };

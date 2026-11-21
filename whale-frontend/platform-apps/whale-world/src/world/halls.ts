@@ -27,6 +27,9 @@ export const OVERVIEW_HALLS: OverviewHallSpec[] = [
   /* 枢密殿（S5/T5.2）：账号与会话。权限码与 2D 登录历史页同一码，
      所以"在后台能看登录历史"的人在城里也能看——两处口径不会分叉。 */
   { nodeKey: 'shumi-hall', path: '/auth/overview', permission: 'sys:login:history:list' },
+  /* 度支殿（S5/T5.3）：收款、待支付、退款。权限码复用 2D 支付单管理的
+     `sys:pay:list`——能在后台看支付单的人，就能在城里看这一屏。 */
+  { nodeKey: 'duzhi-hall', path: '/pay/overview', permission: 'sys:pay:list' },
 ];
 
 /** 采集器选项：与 metrics 共用同一套令牌/权限来源 */

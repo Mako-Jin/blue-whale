@@ -57,7 +57,7 @@ import { createQuestSystem } from './quests';
 import { createScreenLayer } from './screen';
 import type { ScreenHandle } from './screen';
 import { mountScreenPage, type ScreenPageHandle } from './screenpage';
-import { PURCHASE_ORDER_PAGE, HUB_HALLS_PAGE, LOGIN_HISTORY_PAGE } from './screenpages';
+import { PURCHASE_ORDER_PAGE, HUB_HALLS_PAGE, LOGIN_HISTORY_PAGE, PAY_ORDER_PAGE } from './screenpages';
 import { createSceneEnv, type SceneEnv } from './env';
 import { createPostFx, type PostFx } from './postfx';
 import { createSky, type SkyState } from './env-sky';
@@ -3849,6 +3849,10 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   let shumiScreen: ScreenHandle | null = null;
   let shumiPage: ScreenPageHandle | null = null;
 
+  /** 度支殿（S5/T5.3）屏风与其业务页句柄（同上） */
+  let duzhiScreen: ScreenHandle | null = null;
+  let duzhiPage: ScreenPageHandle | null = null;
+
   function setupScreens() {
     try {
     screens.add({
@@ -3943,12 +3947,28 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     /* 枢密殿（AUTH）屏风页（S5 / T5.2）：屏风里是登录历史 ——
        谁、什么时候、用什么方式登录，失败了多少次。
 
-       位置按台基反算（与户部同一套算法）：殿心 (-20.5, -21)，台基半深
-       collider.halfZ = 5.4 米，屏风退到台基之外 2 米处（z = -13.4）；
-       facing 0 与殿的 rotationDeg 0 一致，正对从御道走来的人。 */
+       **皇城屏风的摆法**（T5.3 起统一）：立在**本殿台基上、殿门前**，
+       而不是台基外的缝隙里。皇城九殿 14 米一档、台基深 10.8 米，殿与殿之间
+       只剩 3.2 米——屏风放在缝隙里既会贴到隔壁台基侧面，第三人称相机也被
+       台基夹到贴脸（实测相机落到 0.5 米、埋进鲸鱼）。放在台基上则有三件事同时成立：
+       ① 屏风脚下是实体台基，不会看起来浮在暗处；
+       ② 玩家站在台基边缘抬头就能读屏；
+       ③ 视线从殿门进来正对屏面，不会被两侧殿墙切掉。
+
+       **y 只能从台基顶面往上算**：`createPalace` 里台基高 `2.6 × scale`，
+       皇城 `scale = 0.72` → 台基顶面 1.87 米。而 `ScreenSpec.position` 是屏风
+       **中心**（`screen.ts` 里 `transformOrigin: 50% 50%`），大屏高 3.1 米，
+       故中心 = 1.87 + 1.55 ≈ 3.42 米。早前取 2.55 是把它当底边估的，结果屏风
+       下半截插进实心台基里——台基不透明，插进去的底边看不见，远看就成了
+       "屏风浮在台基前"。
+       z 取殿心 +4.5：台基前沿在 +5.4，留 0.9 米石面垫脚；殿身前沿 +2.16、
+       檐柱 +2.7，也不会顶到柱子。
+
+       规格仍用大屏：屏风页按 620px 高排版（KPI + 图表 + 6 行表格），中屏只有
+       420px 高，装不下就会变成内部滚动——屏风上再套一层滚动是最难用的组合。 */
     shumiScreen = screens.add({
       id: 'shumi',
-      position: [-20.5, 1.55, -13.4],
+      position: [-20.5, 3.42, -16.5],
       facing: 0,
       size: 'large',
       title: '枢密殿 · 登录历史',
@@ -3970,6 +3990,41 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
         return () => {
           shumiPage?.dispose();
           shumiPage = null;
+        };
+      },
+    });
+
+    /* 度支殿（PAY）屏风页（S5 / T5.3）：屏风里是支付单台账 ——
+       今天收进来多少钱、哪几笔还挂着没付、退了多少。
+
+       位置同枢密殿：本殿台基上、殿门前（殿心 z = -7，屏风 z = -2.5，
+       台基顶面 1.87 米 → 屏风中心 3.42 米，见上面那段摆法说明）。
+       与枢密殿那块（z = -16.5）同列相距 14 米，各在自己台基上，互不遮挡。 */
+    duzhiScreen = screens.add({
+      id: 'duzhi',
+      position: [-20.5, 3.42, -2.5],
+      facing: 0,
+      size: 'large',
+      title: '度支殿 · 支付单',
+      subtitle: 'PAY / SETTLEMENT',
+      tone: 'idle',
+      mount: (body) => {
+        duzhiPage = mountScreenPage(body, {
+          nodeKey: 'duzhi-hall',
+          overviewPath: '/pay/overview',
+          overviewPermission: 'sys:pay:list',
+          pages: [PAY_ORDER_PAGE],
+          getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+          getPermissions: opts.getPermissions,
+          // 题头灯跟业务页状态走：概览陈旧/失败时不该还亮绿灯
+          onTone: (tone) => duzhiScreen?.setTone(tone),
+          onTitle: (title, subtitle) => {
+            duzhiScreen?.setTitle(title ? `${title} · 支付单` : '度支殿 · 支付单', subtitle ?? 'PAY / SETTLEMENT');
+          },
+        });
+        return () => {
+          duzhiPage?.dispose();
+          duzhiPage = null;
         };
       },
     });
@@ -4157,9 +4212,21 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
        以及"进屏风 / 注入演示数据"两个动作。只在 ?debug=1 下存在，
        正常路径既不暴露业务字段，也不会注入任何假数据。
 
-       S5 起城里有三块业务屏风，按 id 分派：不给 id 时仍落到户部（S4 的老脚本靠这个默认）。 */
-    const pageOf = (id?: string) =>
-      id === 'shushu' ? shushuPage : id === 'shumi' ? shumiPage : hubuPage;
+       S5 起城里有四块业务屏风（户部 / 数枢殿 / 枢密殿 / 度支殿），按 id 分派；
+       不给 id 时仍落到户部（S4 的老脚本靠这个默认）。 */
+    /* 屏风 id → 业务页句柄。默认给户部：老脚本不带 id 调探针时的历史行为。 */
+    const pageOf = (id?: string): ScreenPageHandle | null => {
+      switch (id) {
+        case 'shushu':
+          return shushuPage;
+        case 'shumi':
+          return shumiPage;
+        case 'duzhi':
+          return duzhiPage;
+        default:
+          return hubuPage;
+      }
+    };
     window.__bwwScreenPage = (id?: string) => pageOf(id)?.probe() ?? null;
     window.__bwwScreenOpen = (id: string) => screens.get(id)?.enter();
     window.__bwwScreenExit = () => screens.exit();

@@ -37,7 +37,11 @@ CREATE TABLE IF NOT EXISTS pay_order (
     PRIMARY KEY (id),
     UNIQUE KEY uk_tenant_order_no (tenant_id, order_no),
     KEY idx_business_key (business_key),
-    KEY idx_status (status)
+    KEY idx_status (status),
+    -- 度支殿概览（T5.3）：收款/趋势/渠道按支付时间窗取数
+    KEY idx_tenant_pay_time (tenant_id, pay_time),
+    -- 待支付与超时未支付
+    KEY idx_tenant_status_time (tenant_id, status, create_time)
 ) COMMENT='支付单表';
 
 -- ---------------------------------------------------------------------
@@ -61,7 +65,9 @@ CREATE TABLE IF NOT EXISTS pay_transaction (
     deleted           TINYINT       NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_tenant_order (tenant_id, order_id),
-    KEY idx_provider_trade_no (provider_trade_no)
+    KEY idx_provider_trade_no (provider_trade_no),
+    -- 度支殿概览（T5.3）：失败笔数与成功退款额
+    KEY idx_tenant_type_time (tenant_id, type, status, create_time)
 ) COMMENT='支付退款流水表';
 
 -- ---------------------------------------------------------------------

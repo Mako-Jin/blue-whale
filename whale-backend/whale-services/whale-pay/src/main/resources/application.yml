@@ -58,6 +58,14 @@ whale:
   permission:
     header:
       enabled: true
+  # 三维王城度支殿（T5.3）：SDK 注册 GET /pay/overview，本服务只提供 provider。
+  # base-path 含服务一级前缀（REQ-ARCH-003：网关不剥前缀），外部路径与这里一致。
+  overview:
+    base-path: /pay/overview
+    # 四张 KPI + 两张图要打 6 次库（收款/建单/待支付/退款/趋势/渠道），比 ERP 单快照慢一档
+    timeout: 5s
+    # 前端 30s 轮询一次；支付数据本就是分钟级变化，缓存 30s 不会让值班的人看到旧数
+    ttl: 30s
   # 国际化：启用 whale-i18n-sdk，异常文案键按请求 Locale 解析
   i18n:
     enabled: true

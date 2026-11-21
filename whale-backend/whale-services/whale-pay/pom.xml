@@ -80,6 +80,13 @@
             <artifactId>whale-tools</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- 概览契约（三维王城度支殿）：GET /pay/overview 由 SDK 自动注册，本服务只提供 provider。
+              缓存/降级/权限裁剪在 SDK 里做，服务侧不重复实现 -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-overview-sdk</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.mapstruct</groupId>
             <artifactId>mapstruct</artifactId>

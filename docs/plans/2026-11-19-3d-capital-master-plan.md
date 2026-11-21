@@ -284,7 +284,7 @@
 |---|---|---|---|
 | T5.1 | [x] 数枢殿总控（聚合多服务） | 聚合 | T4.6 |
 | T5.2 | [x] 枢密殿 | auth | T5.1 |
-| T5.3 | [ ] 度支殿 | pay | T5.1 |
+| T5.3 | [x] 度支殿 | pay | T5.1 |
 | T5.4 | [ ] 藏书殿 | file | T5.1 |
 | T5.5 | [ ] 时辰殿 | job | T5.1 |
 | T5.6 | [ ] 政事殿 | workflow | T5.1 |
@@ -371,6 +371,47 @@
   4. 导览"中止后能正常走"按位移 > 1.5m 判。主循环 `dt` 上限 0.05s，软件渲染下约 1fps，
      2.2s 累计位移天然只有 ~1m——这条一直在测显卡。改判"确实动了且方向对"，
      起点从已被新增建筑挡住的 `(0,78)` 换到 `(0,100)`。
+
+**S5 第三批交付说明（2026-11-21，T5.3 度支殿 / pay）**
+
+- **pay 概览**：`GET /pay/overview`，四张 KPI（今日收款 / 今日建单 / 待支付 / 今日退款）
+  + 两张图（近 7 日收款趋势（line，金额）、今日渠道构成（bar，金额））。
+  权限码复用 2D 支付单管理的 `sys:pay:list`，屏风页复用 `/pay/order/page`，**无新接口、无新权限点**。
+- **退款不冲减收款**：收款口径是 `status IN ('PAID','REFUNDED')` 且按 `pay_time` 落在窗口内（毛额），
+  退款走 `pay_transaction` 里 `type='REFUND' AND status='SUCCESS'` 单独统计。两条并行口径而不是
+  「收款减退款」——净额会把"今天收 100 退 80"显示成 20，规模感全丢；而值班要看的恰恰是
+  "进账多少、退了多大规模"，这两个数分开才看得出问题。
+- **失败告警只数 PAY 类型的 FAILED**（`type='PAY' AND status='FAILED'`）。退款失败混进渠道故障，
+  会把"支付通道挂了"稀释成"偶发失败"，而两者处置动作不同（一个找通道、一个找退款原因）。
+- **两条告警可并存**：失败笔数 ≥ 5 报 `CRITICAL`（看渠道）、待支付里超 24 小时未回调 ≥ 10 报
+  `WARNING`（看回调）。T5.2 登录那条是"二选一"（同一个处置动作），这里相反——不同根因就要都报出来。
+- **统计下沉成端口** `PayOverviewStatQuery`（8 个方法、4 个 record），租户**显式传参**、时间窗统一
+  用 `invalidWindow()` 拦 `tenantId==null / from/to==null / !from.isBefore(to)`，空结果一律折 0 不折 null；
+  渠道为空白折 `"UNKNOWN"`（支付单允许没有渠道，空字符串当类目会让柱图出现一根无名柱）。
+  一次聚合供 KPI 与图表共用，不为一屏打三遍库。
+- **索引按查询形状补**（`V3__pay_overview_index.sql` + `init.sql`，先查 `STATISTICS` 再 `ADD INDEX` 幂等）：
+  `pay_order(tenant_id, pay_time)`、`pay_order(tenant_id, status, create_time)`、
+  `pay_transaction(tenant_id, type, status, create_time)`。时间条件列**不套函数**
+  （`DATE(pay_time)=?` 会让索引失效）；按天聚合才用 `DATE(pay_time)`，那条是离线趋势、量已收窄到 7 天。
+- **屏风页**：`PAY_ORDER_PAGE` 五列（单号 / 业务标识 / 金额 / 状态 / 建单时间），
+  状态用中文徽标（待支付 warn、已支付 good、已取消 flat、已退款 warn）；**keyword 与 status 两个筛选都给**
+  ——接口真支持这两个参数，给了就真发。**不配 `detailPath`**：列表行已含全部详情字段，
+  再打一次详情接口只是多一次往返；行点击用行数据直接摊详情（10 个字段，含渠道流水号 / 已退金额 / 回调时间）。
+- **屏风 3D 摆放修正（同时改掉 T5.2 的错值）**：`ScreenSpec.position` 是屏风**中心**，
+  而皇城台基高 `2.6 × scale = 1.87`、大屏高 3.1 → 中心应在 `1.87 + 1.55 ≈ 3.42`。
+  T5.2 取的 `2.55` 是把它当底边估的，屏风下半截插在实心台基里；CSS3D 不做深度测试，
+  插进去的底边不会被打掉，看上去就是"屏风浮在台基前"。现统一为
+  **本殿台基上、殿门前 `z = 殿心 + 4.5`、`y = 3.42`**（台基前沿 +5.4，留 0.9 米石面垫脚）。
+- **验证**：`e2e/tools/world-duzhi-smoke.mjs` 36 项全绿（四 KPI、两张图、**有搜索框且 keyword 真发真筛**、
+  金额带 `¥` 千分位、待支付黄灯、详情 10 字段、Esc 退出后回到 3D 尺寸、接口 500 标 stale 且列表给人话）。
+  后端 `PayOverviewProviderTest` 8 例（KPI 顺序 / 退款不冲减 / 7 天补 0 / 无收款占位类目 /
+  失败告警 CRITICAL / 超时告警 WARNING 可与失败并存 / 无租户 / 无权限不下发入口）+ `whale-pay` 全量 51 例；
+  checkstyle 0 违规。回归：`world-shumi` 32、`world-shushu` 31、`world-screenpage` 35、
+  `world-city-smoke`、`world-guide` 19、`world-quest` 42、`world-datahall`、`world-glyphs`、
+  `world-screen/{smoke,engage,ime,resize,hint,occlusion,wheel}` 全通过。
+- **已知取舍（布局级，不在本批改）**：皇城九殿 14 米一档、台基深 10.8 米，殿与殿之间只剩 **3.2 米**夹道，
+  屏风只能在这个夹道里近距观看（约 2–4 米）。屏风本身是"看一眼有什么、按 E 进去读"的入口，
+  进入即平面化全屏，近距不影响读数；要真正拉开观看距离得改九殿间距，那是布局变更。
 
 ### S6 内城 12 坊
 
