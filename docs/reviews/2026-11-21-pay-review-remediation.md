@@ -94,7 +94,7 @@
 - P2-14 实例选择：通知投递按游标轮询 Nacos 实例，不再固定 `instances.get(0)`。
 - P2-15 适配器重复注册：渠道号重复时构造阶段直接抛异常，不再静默保留第一个。
 - P2-16 配置校验：`PayChannelProperties` 增加 `@Validated` + `@NotEmpty`。
-- P2-17 未使用配置：删除 `PayNotifyProperties.failFast`。
+- P2-17 未使用配置/字段：删除 `PayNotifyProperties.failFast`；`PayChannelResult` 删除从未读取的 `channelStatus`，只保留渠道流水号（状态查询统一走 `queryStatus`）。
 - P2-18 重复查询：`refundFull` 复用已加载支付单，`refundByNo` 与 `refundFull` 共用 `doRefund`，少一次按单号查询。
 - P2-19 `ensureStatus` + `claimTransition`：保留（前者负责报错文案，后者负责并发抢占）。
 - P2-20 线程池停机：通知线程池增加 `waitForTasksToCompleteOnShutdown` 与 `awaitTerminationSeconds(30)`。
@@ -102,6 +102,7 @@
 - P3 导入清理：`PayNotifyServiceImpl` 去除全限定类名并补齐 import。
 - P3 路径约束：支付单详情改为 `/{id:\d+}`，与 `/page` 明确区分。
 - P3 ArchUnit：包名由 `entity` 修正为 `po`，新增「service 不得依赖 controller」规则。
+- P3 数值转换：`PayOverviewProvider` 告警笔数改用 `Math.toIntExact`，超范围直接失败而非静默截断。
 
 ## 五、已修正问题项（实现过程中发现）
 
@@ -117,7 +118,7 @@
 1. **P0-1 部署侧切换**：starter 已支持按服务签发令牌 + 租户白名单（见 `docs/design/network-boundary.md` 第 0.1 节），但各服务实例尚未配置 `issuers`/`issuer-id`/`issuer-secret`，当前仍运行在共享令牌模式。需按服务分批下发身份与租户白名单，并配套 K8s NetworkPolicy/安全组限制 8086 直连。
 2. **PAYING 自动对账的运维补强**：3.4 只自动收敛渠道明确 `PAID` 的单；渠道 `CREATED`/未知/查询异常一律保持 `PAYING` 等人工确认。接真实渠道后需补「三方流水号回填」（`queryStatus` 只返回状态）与告警接入。
 3. **P3 并发/幂等集成测试**：重复 pay、同 `refundNo` 并发退款、通知重试到 DEAD、`applyRefund` 并发超额，建议用 Testcontainers/MySQL 集成测试覆盖。
-4. **P3 其他**：`PayOverviewProvider` 强转可用 `Math.toIntExact`；Jackson 3 迁移后删除 `Jackson2CompatConfig`。
+4. **P3 其他**：Jackson 3 迁移后删除 `Jackson2CompatConfig`。
 
 ## 七、验证
 
