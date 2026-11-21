@@ -289,7 +289,7 @@
 | T5.5 | [x] 时辰殿 | job | T5.1 |
 | T5.6 | [x] 政事殿 | workflow | T5.1 |
 | T5.7 | [x] 考功殿 | form | T5.1 |
-| T5.8 | [ ] 通政殿 | message | T5.1 |
+| T5.8 | [x] 通政殿 | message | T5.1 |
 | T5.9 | [ ] 起居殿（只读） | audit | T5.1 |
 | T5.10 | [ ] 城门楼地标（网关，无入口） | gateway | T1.9 |
 
@@ -624,6 +624,60 @@
   各起一个浏览器，两个 WebGL 上下文同时占 GPU 时会拖慢合成，`world-screenpage-smoke`
   翻页按钮被判定成"element is outside of the viewport"而超时失败；串行重跑 35 项全绿。
 - **已知遗留**：`/form/overview` 的真实 HTTP 未验（本机 Docker / Nacos 未起）。
+
+**S5 第八批交付说明（2026-11-21，T5.8 通政殿 / message）**
+
+- **接口**：`GET /message/overview`（`whale.overview.base-path`）：四张 KPI（今日投递 /
+  送达率 / 积压未发 / 退信）+ 两张图（近 7 日投递 line、失败最多渠道 bar）。
+  权限码复用 `sys:message:record:list`，屏风页复用 `/message/v1/record/page` 与 `/{id}`，
+  **无新接口、无新权限点**。
+- **不复用 2D 投递看板**（`/message/v1/record/dashboard`）：那个方法是给后台用的，它把窗口内
+  投递按 `channel + status` 分组**全部回捞到内存**再拼渠道表与失败 Top10。屏风 30 秒轮询一次，
+  拿它当数据源等于每 30 秒拉一遍组合行。新端口只做 count 型聚合，一条 SQL 出一个数；
+  但**成功率口径逐字沿用**（成功 = `DELIVERED + READ`、失败 = `FAILED + BOUNCED`），
+  否则城里 92%、后台 88%，谁都不知道该信哪个。
+- **投递按"渠道 × 接收人"计数，不是消息条数**：一条消息发 3 个渠道给 10 人 = 30 条投递。
+  对运维来说每一次投递都是一次真实发送尝试；按消息数算会把"1 条发给 10 人"显示成 1，
+  失败率随之为零。
+- **「积压未发」是本殿的核心数**：状态还停在 `PENDING / DISPATCHING` 且创建时间超过 10 分钟。
+  它不报错、不告警，接口返回成功而收件人什么也没收到——消息服务最典型的静默失效。
+  阈值 10 分钟是异步补偿回收阈值（120 秒）的 5 倍余量：卡 2 分钟是正常排队，卡 10 分钟
+  说明补偿也没救回来。
+- **告警两条、根因不同、可并存**：积压 → `CRITICAL`（收下了没送出，去看投递线程与补偿任务）；
+  退信 → `WARNING`（地址失效，重试永远失败，只能改数据）。混成一条会让人先去重试一批
+  根本不可能成功的投递。
+- **小样本不谈比率**：近 24h 投递不足 20 条时，送达率跌破 90% 也不转黄灯——4 条里坏 1 条
+  就是 75%，报出来只是噪音。但副标始终写"成功 X / 失败 Y"，避免"100% 其实只发了 1 条"。
+- **端口** `MessageOverviewStatQuery`（5 方法 / 3 record）：租户显式传参、`invalidWindow()`、
+  空值折 0、渠道空折「未知渠道」。窗口按 `sent_at` 卡而不是 `create_time`：投递行先落库
+  再发送，未发出的那些 `sent_at` 为空，算进"今日投递"会让数字比实际送出的大。
+- **索引** `V9__message_overview_index.sql` + `init.sql`：
+  `msg_delivery(tenant_id, sent_at)`、`(tenant_id, status, sent_at)`、
+  `msg_record(tenant_id, status, create_time)`、`(status, create_time)`；
+  建好后删被最左前缀覆盖的 `idx_tenant_status`。第 3、4 个索引**不能互相替代**——
+  补偿任务查的是"所有租户里卡住的 PENDING"（`InterceptorIgnore(tenantLine)`），没有
+  `tenant_id`，带租户前缀的索引用不上；而概览必须带租户，否则会把别家的积压算进来。
+- **屏风页**：`MESSAGE_RECORD_PAGE` 五列（标题 / 业务类型 / 渠道 / 状态 / 创建）。
+  **没有搜索框**：`MessageRecordQueryRequest` 只有 `bizType / bizId / status / channel`，
+  没有关键字（标题模糊）——配一个 `keywordParam` 也会被 Spring 静默忽略，框就成了摆设
+  （与 T5.2 同一个判据）。状态选项按"问题优先"排：失败 / 部分失败 / 待投递在最前，
+  排查的人十次有九次是来找坏消息的。详情配 `detailPath`，把各渠道投递明细（`deliveries`）
+  渲染成分录表；正文 `content` 不进详情——它是 TEXT，长度不受控，塞进 620px 屏风会把版面顶穿。
+- **详情分录必须用列级状态字典**：投递状态是**另一套码**（`READ` / `BOUNCED` 在消息状态里
+  根本不存在）。用页面级字典会把它们原样显示成英文且不报错——`DELIVERY_STATUS_STYLE`
+  + 列级 `statusMap` 覆盖（T5.6 加的能力，这是第二个真实用例）。
+- **位置**：通政殿在**东列第三进**（`x = +20.5`、殿心 `z = 7`），紧挨考功殿南侧，
+  屏风 `z = 11.5`（殿心 + 4.5）、`y = 3.42`，与 T5.2 起统一的摆法一致。
+- **总控接入**：`targets` 加 `tongzheng-hall`（`http://bw-message:8094/message/overview`，
+  权限码同上），数枢殿总控里出现第八行真数据。
+- **验证**：`e2e/tools/world-tongzheng-smoke.mjs` **55 项全绿**（四张 KPI 与两盏黄灯、
+  送达率显示成百分比、"没有搜索框"、状态选项问题优先且值为后端枚举、首屏只带分页参数、
+  待投递黄灯不是中性色、分页、详情 8 字段 + 投递明细 4 行、`READ→已读` / `BOUNCED→退信`
+  证明列级字典生效、Esc 退出后回到 3D 尺寸、接口 500 标 stale 且列表给人话）。
+  后端 `MessageOverviewProviderTest` **12 例** + `whale-service-message` 全量 **144 例**通过
+  （含 ArchUnit 3 例、Flyway 迁移守卫 5 例——守卫里新增 V9 四个索引与"init.sql 不得再单建
+  `idx_tenant_status`"断言，断言前先剥行注释）；checkstyle 0 违规。
+- **已知遗留**：`/message/overview` 的真实 HTTP 未验（本机 Docker / Nacos 未起）。
 
 ### S6 内城 12 坊
 

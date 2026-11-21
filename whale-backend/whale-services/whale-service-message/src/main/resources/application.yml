@@ -63,6 +63,14 @@ whale:
     enabled: true
     auto-init: true
     module-scan-enabled: true
+  # 三维王城通政殿（T5.8）：SDK 注册 GET /message/overview，本服务只提供 provider。
+  # base-path 含服务一级前缀（REQ-ARCH-003：网关不剥前缀），外部路径与这里一致。
+  overview:
+    base-path: /message/overview
+    # 四张 KPI + 两张图打 5 次 count 型聚合，本服务不强依赖跨服务调用
+    timeout: 5s
+    # 前端 30s 轮询一次；投递量与退信是分钟级变化，缓存 30s 不会让人看到旧数
+    ttl: 30s
   message:
     # 无真实供应商阶段的默认口径：外部通道不发起网络请求，只记录 MOCKED/SKIPPED。
     # 生产接入真实渠道时显式设置 WHALE_MESSAGE_MOCK=false。

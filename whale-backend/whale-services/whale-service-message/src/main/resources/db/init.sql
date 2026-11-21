@@ -57,7 +57,9 @@ CREATE TABLE IF NOT EXISTS msg_record (
     PRIMARY KEY (id),
     UNIQUE KEY uk_tenant_idempotency (tenant_id, idempotency_key),
     KEY idx_tenant_biz (tenant_id, biz_type, biz_id),
-    KEY idx_tenant_create_time (tenant_id, create_time)
+    KEY idx_tenant_create_time (tenant_id, create_time),
+    KEY idx_tenant_status_create (tenant_id, status, create_time),
+    KEY idx_status_create (status, create_time)
 ) COMMENT='逻辑消息记录表';
 
 -- ---------------------------------------------------------------------
@@ -83,7 +85,8 @@ CREATE TABLE IF NOT EXISTS msg_delivery (
     PRIMARY KEY (id),
     UNIQUE KEY uk_message_channel_recipient (message_id, channel, recipient),
     KEY idx_tenant_message (tenant_id, message_id),
-    KEY idx_tenant_status (tenant_id, status),
+    KEY idx_tenant_sent (tenant_id, sent_at),
+    KEY idx_tenant_status_sent (tenant_id, status, sent_at),
     KEY idx_tenant_provider (tenant_id, channel, provider_message_id),
     KEY idx_create_time (create_time)
 ) COMMENT='消息投递记录表';

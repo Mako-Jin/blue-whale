@@ -66,6 +66,7 @@ import {
   JOB_INFO_PAGE,
   PROCESS_INSTANCE_PAGE,
   FORM_DEFINITION_PAGE,
+  MESSAGE_RECORD_PAGE,
 } from './screenpages';
 import { createSceneEnv, type SceneEnv } from './env';
 import { createPostFx, type PostFx } from './postfx';
@@ -3878,6 +3879,10 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   let kaogongScreen: ScreenHandle | null = null;
   let kaogongPage: ScreenPageHandle | null = null;
 
+  /** 通政殿（S5/T5.8）屏风与其业务页句柄（同上） */
+  let tongzhengScreen: ScreenHandle | null = null;
+  let tongzhengPage: ScreenPageHandle | null = null;
+
   function setupScreens() {
     try {
     screens.add({
@@ -4197,6 +4202,43 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       },
     });
 
+    /* 通政殿（S5/T5.8）：今天送出多少封信、送得到吗、有没有卡在半路、有没有被退回。
+       通政司管"上行下达"，所以这一屏看的是**消息是否真的到了人手里**：
+       积压未发（收下了没送出）与退信（地址失效）是两件不同的坏事。
+
+       位置同前几殿：本殿台基上、殿门前。通政殿在**东列第三进**（x = +20.5、
+       殿心 z = 7），紧挨考功殿南侧，所以屏风 z = 11.5（殿心 + 4.5）。
+       台基顶面 1.87 米 → 屏风中心 3.42 米（摆法说明见枢密殿那段）。 */
+    tongzhengScreen = screens.add({
+      id: 'tongzheng',
+      position: [20.5, 3.42, 11.5],
+      facing: 0,
+      size: 'large',
+      title: '通政殿 · 消息记录',
+      subtitle: 'MESSAGE / DESPATCH',
+      tone: 'idle',
+      mount: (body) => {
+        tongzhengPage = mountScreenPage(body, {
+          nodeKey: 'tongzheng-hall',
+          overviewPath: '/message/overview',
+          overviewPermission: 'sys:message:record:list',
+          pages: [MESSAGE_RECORD_PAGE],
+          getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+          getPermissions: opts.getPermissions,
+          // 题头灯跟业务页状态走：概览陈旧/失败时不该还亮绿灯
+          onTone: (tone) => tongzhengScreen?.setTone(tone),
+          onTitle: (title, subtitle) => {
+            tongzhengScreen?.setTitle(title ? `${title} · 消息记录` : '通政殿 · 消息记录',
+              subtitle ?? 'MESSAGE / DESPATCH');
+          },
+        });
+        return () => {
+          tongzhengPage?.dispose();
+          tongzhengPage = null;
+        };
+      },
+    });
+
     /* 遮挡演示：御道边一根拴马桩，挂进遮挡层。
        从出生点看过去，桩子应该切掉屏风的一角——这是 S0 T0.3 在真实场景、真实
        几何、真实光照下的复核。只有这一根进遮挡层，遮挡 pass 的开销可以忽略。 */
@@ -4380,8 +4422,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
        以及"进屏风 / 注入演示数据"两个动作。只在 ?debug=1 下存在，
        正常路径既不暴露业务字段，也不会注入任何假数据。
 
-       S5 起城里有八块业务屏风（户部 / 数枢殿 / 枢密殿 / 度支殿 / 藏书殿 / 时辰殿 /
-       政事殿 / 考功殿），按 id 分派；不给 id 时仍落到户部（S4 的老脚本靠这个默认）。 */
+       S5 起城里有九块业务屏风（户部 / 数枢殿 / 枢密殿 / 度支殿 / 藏书殿 / 时辰殿 /
+       政事殿 / 考功殿 / 通政殿），按 id 分派；不给 id 时仍落到户部（S4 的老脚本靠这个默认）。 */
     /* 屏风 id → 业务页句柄。默认给户部：老脚本不带 id 调探针时的历史行为。 */
     const pageOf = (id?: string): ScreenPageHandle | null => {
       switch (id) {
@@ -4399,6 +4441,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return zhengshiPage;
         case 'kaogong':
           return kaogongPage;
+        case 'tongzheng':
+          return tongzhengPage;
         default:
           return hubuPage;
       }

@@ -46,6 +46,10 @@ export const OVERVIEW_HALLS: OverviewHallSpec[] = [
      主表与物理表有没有对不上的数据。权限码复用 2D 表单定义页的 `sys:form:list`——
      能维护表单定义的人，才该在城里看到"哪张表没人填了、哪批数据对不上"。 */
   { nodeKey: 'kaogong-hall', path: '/form/overview', permission: 'sys:form:list' },
+  /* 通政殿（S5/T5.8）：今天送出多少封信、送得到吗、有没有卡在半路、有没有被退回。
+     权限码复用 2D 消息记录页的 `sys:message:record:list`——能在后台看投递记录的人，
+     才该在城里看到"哪些消息根本没发出去"。 */
+  { nodeKey: 'tongzheng-hall', path: '/message/overview', permission: 'sys:message:record:list' },
 ];
 
 /** 采集器选项：与 metrics 共用同一套令牌/权限来源 */

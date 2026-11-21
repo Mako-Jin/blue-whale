@@ -553,6 +553,118 @@ export const FORM_DEFINITION_PAGE: ScreenListPageSpec = {
 };
 
 /**
+ * 消息记录状态：`msg_record.status`，由该消息全部投递结果聚合而来。
+ *
+ * <p>「待投递 / 投递中」给 warn 而不是 flat：它们不是"进行中"这么中性的事——
+ * 停在 PENDING 意味着业务方已经收到成功响应、收件人却什么都没收到，
+ * 这是消息服务最典型的静默失效。中性色会让它和"已发送"看起来一样。</p>
+ */
+export const MESSAGE_STATUS_STYLE: Record<string, ScreenStatusStyle> = {
+  PENDING: { label: '待投递', tone: 'warn' },
+  DISPATCHING: { label: '投递中', tone: 'warn' },
+  SENT: { label: '已发送', tone: 'flat' },
+  DELIVERED: { label: '已送达', tone: 'good' },
+  PARTIAL: { label: '部分失败', tone: 'warn' },
+  FAILED: { label: '失败', tone: 'bad' },
+  MOCKED: { label: '演示', tone: 'flat' },
+  SKIPPED: { label: '已跳过', tone: 'flat' },
+  EXPIRED: { label: '过期未发', tone: 'bad' },
+};
+
+/**
+ * 投递状态：`msg_delivery.status`，与消息状态<b>不是同一套码值</b>。
+ *
+ * <p>详情里的投递明细必须用这份字典，靠列级 {@link ScreenColumn#statusMap} 覆盖
+ * 页面级字典：{@code READ}（已读）与 {@code BOUNCED}（退信）在消息状态里根本不存在，
+ * 用页面级字典会把它们原样显示成英文，而且不报错。</p>
+ */
+export const DELIVERY_STATUS_STYLE: Record<string, ScreenStatusStyle> = {
+  SENT: { label: '已提交', tone: 'flat' },
+  DELIVERED: { label: '已送达', tone: 'good' },
+  READ: { label: '已读', tone: 'good' },
+  BOUNCED: { label: '退信', tone: 'bad' },
+  FAILED: { label: '失败', tone: 'bad' },
+  SKIPPED: { label: '已跳过', tone: 'flat' },
+  MOCKED: { label: '演示', tone: 'flat' },
+  EXPIRED: { label: '过期', tone: 'bad' },
+};
+
+/**
+ * 消息记录页（S5 / T5.8）：通政殿的屏风页。
+ *
+ * <p>列只留五样：标题、业务类型、渠道、状态、创建时间。这一屏回答的是"最近这些信送给谁了、
+ * 哪些没送出去"，不是"某条消息的正文写了什么"。</p>
+ *
+ * <p><b>没有搜索框</b>：`MessageRecordQueryRequest` 只有 {@code bizType / bizId / status /
+ * channel} 四个条件，没有关键字（标题模糊匹配）——配一个 {@code keywordParam} 也会被
+ * Spring 静默忽略，搜索框就成了纯摆设。宁可不给，也不给一个按了没反应的框。</p>
+ *
+ * <p>状态筛选项按"问题优先"排：失败、部分失败、待投递排在最前，正常态靠后。
+ * 排查的人十次里有九次是来找坏消息的，不该让他每次先滚过五个正常态。</p>
+ *
+ * <p>详情配 {@code detailPath}：记录详情会把各渠道投递明细（{@code deliveries}）一并带回，
+ * 这是列表行里没有的信息——一条消息发了几个渠道、每个渠道成没成、失败原因是什么。
+ * 正文 {@code content} 不进详情：它是 TEXT，长度不受控，塞进 620px 的屏风会把版面顶穿，
+ * 要看全文去 2D 后台。</p>
+ */
+export const MESSAGE_RECORD_PAGE: ScreenListPageSpec = {
+  key: 'messages',
+  title: '消息记录',
+  listPath: '/message/v1/record/page',
+  detailPath: (id) => `/message/v1/record/${id}`,
+  permission: 'sys:message:record:list',
+  idKey: 'id',
+  statusParam: 'status',
+  statuses: [
+    { value: '', label: '全部状态' },
+    { value: 'FAILED', label: '失败' },
+    { value: 'PARTIAL', label: '部分失败' },
+    { value: 'PENDING', label: '待投递' },
+    { value: 'DISPATCHING', label: '投递中' },
+    { value: 'EXPIRED', label: '过期未发' },
+    { value: 'DELIVERED', label: '已送达' },
+    { value: 'SENT', label: '已发送' },
+    { value: 'SKIPPED', label: '已跳过' },
+    { value: 'MOCKED', label: '演示' },
+  ],
+  statusMap: MESSAGE_STATUS_STYLE,
+  /* 6 行/页：大屏 620px 里 KPI + 图表 + 工具栏之后只剩约 230px */
+  pageSize: 6,
+  columns: [
+    { key: 'title', label: '标题', width: '34%' },
+    { key: 'bizType', label: '业务类型', width: '20%' },
+    { key: 'channels', label: '渠道', width: '16%' },
+    { key: 'status', label: '状态', width: '14%', format: 'status' },
+    { key: 'createTime', label: '创建', width: '16%', format: 'datetime' },
+  ],
+  detailFields: [
+    { key: 'title', label: '标题' },
+    { key: 'bizType', label: '业务类型' },
+    { key: 'bizId', label: '业务标识' },
+    { key: 'templateCode', label: '模板编码' },
+    { key: 'channels', label: '渠道' },
+    { key: 'status', label: '状态', format: 'status' },
+    { key: 'priority', label: '优先级' },
+    { key: 'createTime', label: '创建时间', format: 'datetime' },
+  ],
+  lineColumns: [
+    { key: 'channel', label: '渠道', width: '14%' },
+    { key: 'recipient', label: '接收人', width: '24%' },
+    {
+      key: 'status',
+      label: '结果',
+      width: '14%',
+      format: 'status',
+      statusMap: DELIVERY_STATUS_STYLE,
+    },
+    { key: 'errorMessage', label: '失败原因', width: '28%' },
+    { key: 'sentAt', label: '投递时间', width: '20%', format: 'datetime' },
+  ],
+  lineSource: 'deliveries',
+  titleKey: 'title',
+};
+
+/**
  * 殿的连通状态：与后端 {@code HubHallState} 一一对应，前端只做展示。
  *
  * <p>「无凭据」单独一档而不是并进「未通」：前者要去要权限，后者要去查服务，
@@ -631,4 +743,5 @@ export const SCREEN_PAGES: Record<string, ScreenListPageSpec> = {
   [JOB_INFO_PAGE.key]: JOB_INFO_PAGE,
   [PROCESS_INSTANCE_PAGE.key]: PROCESS_INSTANCE_PAGE,
   [FORM_DEFINITION_PAGE.key]: FORM_DEFINITION_PAGE,
+  [MESSAGE_RECORD_PAGE.key]: MESSAGE_RECORD_PAGE,
 };

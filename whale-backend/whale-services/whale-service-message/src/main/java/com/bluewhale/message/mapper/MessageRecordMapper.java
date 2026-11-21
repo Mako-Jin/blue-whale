@@ -57,4 +57,24 @@ public interface MessageRecordMapper extends BaseMapper<MessageRecordPo> {
     @InterceptorIgnore(tenantLine = "true")
     @Select("SELECT DISTINCT tenant_id FROM msg_record WHERE deleted = 0 AND create_time < #{deadline}")
     List<Long> selectExpiredTenantIds(@Param("deadline") LocalDateTime deadline);
+
+    /**
+     * 积压未发的消息条数（通政殿概览 T5.8）
+     *
+     * <p>「积压」= 状态还停在 {@code PENDING / DISPATCHING}，且创建时间已超过阈值。
+     * 这是消息服务最典型的静默失效：接口返回成功、业务方认为已通知，收件人什么也没收到，
+     * 而 {@code PENDING} 本身既不报错也不告警。</p>
+     *
+     * <p>阈值由调用方给（概览取 10 分钟，是异步补偿阈值 120 秒的数倍余量）：
+     * 卡住 30 秒是正常排队，卡住 10 分钟就是补偿任务也没救回来。</p>
+     *
+     * @param tenantId 租户 ID
+     * @param deadline 创建时间早于该值视为积压
+     * @return 积压条数；无数据时为 0
+     */
+    @Select("SELECT COUNT(*) FROM msg_record "
+            + "WHERE tenant_id = #{tenantId} AND deleted = 0 "
+            + "AND status IN ('PENDING', 'DISPATCHING') "
+            + "AND create_time < #{deadline}")
+    long countBacklog(@Param("tenantId") Long tenantId, @Param("deadline") LocalDateTime deadline);
 }

@@ -98,6 +98,56 @@ class MessageFlywayMigrationScriptTest {
     }
 
     /**
+     * V9 概览索引与 init.sql 同步（T5.8）
+     *
+     * <p>三件事一起钉：V9 真的建了四个索引、init.sql 的建表语句里也有、被最左前缀覆盖的
+     * {@code idx_tenant_status} 已经从 init.sql 删掉。只断言"迁移里有"是不够的——
+     * 空库走 init.sql、存量库走 Flyway，两条路必须收敛到同一份索引集合。</p>
+     *
+     * <p><b>断言前先剥掉行注释</b>：表内说明文字会提到被删的索引名，
+     * 不剥就成了"文档写了 = DDL 建了"。</p>
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("V9 概览索引与 init.sql 同步")
+    void overviewIndexesShouldBeSyncedWithInitScript() throws IOException {
+        String migration = Files.readString(MIGRATION_DIR.resolve("V9__message_overview_index.sql"),
+                StandardCharsets.UTF_8);
+        String initSql = Files.readString(INIT_SCRIPT, StandardCharsets.UTF_8);
+        for (String index : List.of("idx_tenant_sent", "idx_tenant_status_sent",
+                "idx_tenant_status_create", "idx_status_create")) {
+            assertTrue(migration.contains(index), "V9 应创建索引：" + index);
+            assertTrue(initSql.contains(index), "init.sql 应同步索引：" + index);
+        }
+        String deliveryBlock = stripLineComments(initSql.substring(
+                initSql.indexOf("CREATE TABLE IF NOT EXISTS msg_delivery"),
+                initSql.indexOf("COMMENT='消息投递记录表'")));
+        assertFalse(deliveryBlock.contains("idx_tenant_status "),
+                "msg_delivery 的 idx_tenant_status 已被 idx_tenant_status_sent 最左前缀覆盖，"
+                        + "init.sql 不应再单建");
+        String recordBlock = stripLineComments(initSql.substring(
+                initSql.indexOf("CREATE TABLE IF NOT EXISTS msg_record"),
+                initSql.indexOf("COMMENT='逻辑消息记录表'")));
+        assertTrue(recordBlock.contains("idx_tenant_status_create"),
+                "msg_record 应保留带租户的积压索引（概览用）");
+        assertTrue(recordBlock.contains("idx_status_create"),
+                "msg_record 应保留跨租户的积压索引（补偿任务无租户上下文，带租户前缀的用不上）");
+    }
+
+    /**
+     * 去掉 SQL 行注释，避免"注释里提到索引名"被当成"建了索引"
+     *
+     * @param sql SQL 片段
+     * @return 去掉 {@code --} 行注释后的片段
+     */
+    private static String stripLineComments(String sql) {
+        return sql.lines()
+                .filter(line -> !line.trim().startsWith("--"))
+                .collect(Collectors.joining("\n"));
+    }
+
+    /**
      * OA M0 通知模板种子包含 5 个模板编码，且脚本无破坏性语句
      *
      * @throws IOException 读取脚本失败

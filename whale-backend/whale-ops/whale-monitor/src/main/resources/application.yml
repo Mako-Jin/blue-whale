@@ -97,3 +97,7 @@ whale:
           name: 考功殿
           url: http://bw-form:8084/form/overview
           permission: sys:form:list
+        - nodeKey: tongzheng-hall
+          name: 通政殿
+          url: http://bw-message:8094/message/overview
+          permission: sys:message:record:list
