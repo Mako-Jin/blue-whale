@@ -148,6 +148,8 @@ const kpiOf = (data: unknown, key: string): unknown =>
  * 八座殿里只有翰林院（DOC）没有统计接口，因此走同域最近的只读接口（藏书阁数）；
  * 兵部（IoT）自 S6 起有了 /iot/overview，牌上直接读契约里的在线率与待回指令，
  * 不再借告警中心的"未处理数"顶替——那个数是户部的经营预警，与设备心跳不是一件事。
+ * 杏坛（LMS）自 S6 起改读 /lms/overview：原来的 /lms/analytics/overview 也够用，
+ * 但两处各算一遍百分比，迟早出现"牌坊与屏风不一致"。
  */
 const PROBES: ProbeSpec[] = [
   {
@@ -242,13 +244,14 @@ const PROBES: ProbeSpec[] = [
     ],
   },
   {
-    // 杏坛 = LMS：学员覆盖与学习完成率
+    // 杏坛 = LMS：在册学员与学习覆盖率。S6/T6.16 起读契约 /lms/overview，
+    // 与屏风上半部四张牌同一份数（同一快照，不会再出现"牌坊 63%、屏风 62%"）。
     nodeKey: 'xingtan-hall',
     permission: 'sys:lms:analytics:view',
-    url: '/lms/analytics/overview',
+    url: '/lms/overview',
     extract: (d) => [
-      { label: '在册学员', value: formatCount(dig(d, 'learnerTotal') ?? dig(d, 'memberTotal')) },
-      { label: '学习完成', value: formatPercent(dig(d, 'completionRate')) },
+      { label: '在册学员', value: formatCount(kpiOf(d, 'learners')) },
+      { label: '学习覆盖', value: formatPercent(kpiOf(d, 'coverage')) },
     ],
   },
   {

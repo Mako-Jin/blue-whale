@@ -122,3 +122,7 @@ whale:
           name: 兵部坊
           url: http://bw-iot:8088/iot/overview
           permission: sys:iot:device
+        - nodeKey: xingtan-hall
+          name: 杏坛坊
+          url: http://bw-lms:9008/lms/overview
+          permission: sys:lms:analytics:view

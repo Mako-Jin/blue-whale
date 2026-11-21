@@ -1031,6 +1031,74 @@ export const DEVICE_PAGE: ScreenListPageSpec = {
 };
 
 /**
+ * 课程状态字典：与 `CourseStatus` 一一对应，发布状态机 DRAFT → PUBLISHED → ARCHIVED。
+ *
+ * <p>草稿与归档都给灰灯：前者还没打算开课，后者已经下架，都不是问题。
+ * 只有"已发布"值得一提——它意味着现在真的有人在学。</p>
+ */
+export const COURSE_STATUS_STYLE: Record<string, ScreenStatusStyle> = {
+  DRAFT: { label: '草稿', tone: 'flat' },
+  PUBLISHED: { label: '已发布', tone: 'good' },
+  ARCHIVED: { label: '已归档', tone: 'flat' },
+};
+
+/**
+ * 课程目录页（S6 / T6.16）：杏坛坊的屏风页。
+ *
+ * <p><b>这一屏讲什么。</b>杏坛掌教化：上面是"该读书的人有没有在读书"
+ * （在册学员 / 学习覆盖 / 学习完成 / 考试通过），下面这张表回答"到底开了哪些课、
+ * 谁在教、是草稿还是已上架"。覆盖率低的时候，人第一件事就是问"课不够还是没人学"，
+ * 这张表给的正是前半句。</p>
+ *
+ * <p><b>关键字与状态都是真的。</b>`CourseController#page` 接
+ * {@code keyword / category / status / current / size}，`keyword` 按课程名与编码模糊匹配。
+ * 这里只放 `status` 一个下拉：分类是自由文本，做成下拉会漏掉新分类。</p>
+ *
+ * <p><b>不配 detailPath。</b>详情接口返回的是 {@code CourseDetailView}——课程头
+ * 包在 {@code course} 里、章节与课件是两层嵌套数组，而屏风详情只认平铺键值对。
+ * 硬配上去会得到一张全空的详情页，比不给入口更糟。课程结构在 2D 教务台上看。</p>
+ */
+export const COURSE_PAGE: ScreenListPageSpec = {
+  key: 'courses',
+  title: '课程目录',
+  listPath: '/lms/course/page',
+  permission: 'sys:lms:course:list',
+  idKey: 'id',
+  keywordParam: 'keyword',
+  searchPlaceholder: '搜索课程名 / 编码…',
+  statusParam: 'status',
+  statuses: [
+    { value: '', label: '全部状态' },
+    { value: 'DRAFT', label: '草稿' },
+    { value: 'PUBLISHED', label: '已发布' },
+    { value: 'ARCHIVED', label: '已归档' },
+  ],
+  statusMap: COURSE_STATUS_STYLE,
+  /* 5 行/页：本页的折线是**双序列**，比单序列多一行图例（"学习人数 / 完成人数"），
+     6 行会把最后一行压到分页栏底下（DOM 有 6 行、眼睛只看到 5 行）。
+     宁可少一行也不要"页签说 6 行、实际看 5 行"。 */
+  pageSize: 5,
+  columns: [
+    { key: 'title', label: '课程', width: '26%' },
+    { key: 'category', label: '分类', width: '18%' },
+    { key: 'lecturer', label: '讲师', width: '18%' },
+    { key: 'createTime', label: '创建时间', width: '22%', format: 'datetime' },
+    { key: 'status', label: '状态', width: '16%', format: 'status' },
+  ],
+  /* 详情只用列表行已有的字段（课程编码与简介列表里放不下，详情里补齐） */
+  detailFields: [
+    { key: 'courseCode', label: '课程编码' },
+    { key: 'title', label: '课程名称' },
+    { key: 'category', label: '分类' },
+    { key: 'lecturer', label: '讲师' },
+    { key: 'status', label: '状态', format: 'status' },
+    { key: 'description', label: '简介' },
+    { key: 'createTime', label: '创建时间', format: 'datetime' },
+  ],
+  titleKey: 'title',
+};
+
+/**
  * 殿的连通状态：与后端 {@code HubHallState} 一一对应，前端只做展示。
  *
  * <p>「无凭据」单独一档而不是并进「未通」：前者要去要权限，后者要去查服务，
@@ -1115,4 +1183,5 @@ export const SCREEN_PAGES: Record<string, ScreenListPageSpec> = {
   [ATTENDANCE_DAILY_PAGE.key]: ATTENDANCE_DAILY_PAGE,
   [CUSTOMER_PAGE.key]: CUSTOMER_PAGE,
   [DEVICE_PAGE.key]: DEVICE_PAGE,
+  [COURSE_PAGE.key]: COURSE_PAGE,
 };

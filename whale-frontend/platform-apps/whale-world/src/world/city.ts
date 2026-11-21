@@ -73,6 +73,7 @@ import {
   ATTENDANCE_DAILY_PAGE,
   CUSTOMER_PAGE,
   DEVICE_PAGE,
+  COURSE_PAGE,
 } from './screenpages';
 import { createSceneEnv, type SceneEnv } from './env';
 import { createPostFx, type PostFx } from './postfx';
@@ -3943,6 +3944,10 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   let bingbuScreen: ScreenHandle | null = null;
   let bingbuPage: ScreenPageHandle | null = null;
 
+  /** 杏坛坊（S6/T6.16）屏风与其业务页句柄（同上） */
+  let xingtanScreen: ScreenHandle | null = null;
+  let xingtanPage: ScreenPageHandle | null = null;
+
   /**
    * 坊的屏风落位：从布局数据现算，不手抄坐标。
    *
@@ -4220,6 +4225,47 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return () => {
             bingbuPage?.dispose();
             bingbuPage = null;
+          };
+        },
+      });
+    }
+
+    /* 杏坛坊（S6/T6.16）：课程目录 + 学习看板 —— 这一城的人有没有在长本事。
+
+       布局里杏坛在西南角（x/z = -19.67/-73.41，yaw 15°），是十二坊里最靠南的一座；
+       `districtScreenPose` 按它自己的正面法线算落点，不需要手调坐标。
+
+       屏风上半部是四张牌（在册学员 / 学习覆盖 / 学习完成 / 考试通过），
+       下半部是课程目录。两者出自同一个看板：覆盖率低的时候先看"课够不够"，
+       再看"是不是没人学"——这张表回答的是前半句。 */
+    const xingtanPose = districtScreenPose('xingtan-hall');
+    if (xingtanPose) {
+      xingtanScreen = screens.add({
+        id: 'xingtan',
+        position: [xingtanPose.x, 1.55, xingtanPose.z],
+        facing: xingtanPose.facing,
+        size: 'large',
+        title: '杏坛坊 · 课程目录',
+        subtitle: 'LMS / COURSE',
+        tone: 'idle',
+        mount: (body) => {
+          xingtanPage = mountScreenPage(body, {
+            nodeKey: 'xingtan-hall',
+            overviewPath: '/lms/overview',
+            overviewPermission: 'sys:lms:analytics:view',
+            pages: [COURSE_PAGE],
+            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+            getPermissions: opts.getPermissions,
+            // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
+            onTone: (tone) => xingtanScreen?.setTone(tone),
+            onTitle: (title, subtitle) => {
+              xingtanScreen?.setTitle(title ? `${title} · 课程目录` : '杏坛坊 · 课程目录',
+                subtitle ?? 'LMS / COURSE');
+            },
+          });
+          return () => {
+            xingtanPage?.dispose();
+            xingtanPage = null;
           };
         },
       });
@@ -4742,7 +4788,7 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
        正常路径既不暴露业务字段，也不会注入任何假数据。
 
        S5 收尾时皇城共十块业务屏风（户部 / 数枢殿 / 枢密殿 / 度支殿 / 藏书殿 / 时辰殿 /
-       政事殿 / 考功殿 / 通政殿 / 起居殿），S6 起逐坊增加内城坊（工部 / 吏部 / 礼部 / 兵部 …），
+       政事殿 / 考功殿 / 通政殿 / 起居殿），S6 起逐坊增加内城坊（工部 / 吏部 / 礼部 / 兵部 / 杏坛 …），
        按 id 分派；不给 id 时仍落到户部（S4 的老脚本靠这个默认）。 */
     /* 屏风 id → 业务页句柄。默认给户部：老脚本不带 id 调探针时的历史行为。 */
     const pageOf = (id?: string): ScreenPageHandle | null => {
@@ -4773,6 +4819,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return libuRitualPage;
         case 'bingbu':
           return bingbuPage;
+        case 'xingtan':
+          return xingtanPage;
         default:
           return hubuPage;
       }

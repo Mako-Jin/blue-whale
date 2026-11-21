@@ -779,7 +779,10 @@
 | T6.13 | 兵部坊 overview（`/iot/overview`） | iot | [x] |
 | T6.14 | 兵部坊 屏风页（设备台账） | iot | [x] |
 | T6.15 | 兵部坊 厅配置 + 数枢殿总控在册 | iot | [x] |
-| T6.16–T6.36 | 其余七坊（杏坛 / 将作 / 营造 / 盟府 / 宣抚 / 翰林 / 市舶） | lms / pdm / pm / contract / party / doc / mall | [ ] |
+| T6.16 | 杏坛坊 overview（`/lms/overview`） | lms | [x] |
+| T6.17 | 杏坛坊 屏风页（课程目录） | lms | [x] |
+| T6.18 | 杏坛坊 厅配置 + 数枢殿总控在册 | lms | [x] |
+| T6.19–T6.36 | 其余六坊（将作 / 营造 / 盟府 / 宣抚 / 翰林 / 市舶） | pdm / pm / contract / party / doc / mall | [ ] |
 
 **S6 第一批交付说明（2026-11-21，T6.4–T6.6 工部坊 / mes）**
 
@@ -932,6 +935,41 @@
   `expected: 0.8 but was: 0.6666666666666666`（8/12），恢复即全绿。
 - **已知遗留**：`/iot/overview` 的真实 HTTP 未验（本机 Docker / Nacos 未起，`aiot` profile 默认关闭），
   同前几批口径。
+
+**S6 第五批交付说明（2026-11-21，T6.16–T6.18 杏坛坊 / lms）**
+
+- **接口**：`GET /lms/overview`（`whale.overview.base-path=/lms/overview`，TTL 30s、超时 2s）：
+  四张 KPI（在册学员 / 学习覆盖 / 学习完成 / 考试通过）+ 一张近 14 个统计日的
+  学习人数·完成人数**双序列折线** + 六条告警（无人可教、覆盖偏低、学了没学完、
+  通过率低、今日无快照、趋势为空）+ 课程目录入口。权限码复用 2D 学习看板的
+  `sys:lms:analytics:view`，屏风页复用 `/lms/course/page`，**无新接口、无新权限点、无新迁移**。
+- **口径不另造**：provider 只调 `AnalyticsAppService#overview(null, actor)` —— 与 2D 学习看板
+  同一个方法（有当日快照读快照、没有就实时算但不落库）。三个比率**显式 `/100`**：
+  `MetricSnapshot#rate` 给的是百分数（94），契约的 `PERCENT` 吃比率（0.94），
+  不除就是「9400.0%」。
+- **两个分母写进牌面**：覆盖率对**在职人数**、完成率对**已学人数**、通过率对**参考人数**。
+  覆盖与完成并排时最容易被读成同一件事，提示语里逐个写出分子分母（`已学 630/1001`、
+  `学完 473/630`、`通过 90/100`）。分母为 0 时给灰灯 + 「尚无在职人数 / 尚无人开始学 /
+  本月无人参考」，**不让 0% 冒充"没人学"**。
+- **趋势取尾部 14 个统计日**：看板快照留 30 天，30 个点在 830px 宽的屏风上每点 27px，
+  密集段会糊成一条粗线。两条序列同量纲（都是人数）才放一张图；覆盖率与通过率是比率，
+  混进来 Y 轴没法标度。
+- **屏风页**：`COURSE_PAGE`（`/lms/course/page`，五列：课程 / 分类 / 讲师 / 创建时间 / 状态）。
+  **关键字与状态都是真的**（`CourseController#page` 收 `keyword / category / status`），
+  状态是 DRAFT / PUBLISHED / ARCHIVED 三态：草稿与归档给灰灯，只有已发布亮绿灯。
+  **不配 `detailPath`**：`CourseDetailView` 把课程头包在 `course` 里、章节与课件是两层嵌套数组，
+  而屏风详情只认平铺键值对——硬配上去会得到一张全空的详情页；详情用列表行字段
+  （课程编码与简介列表放不下，详情补齐）。
+- **5 行/页而不是 6**：本页折线是**双序列**，比单序列多一行图例（学习人数 / 完成人数），
+  6 行会把最后一行压到分页栏底下（DOM 有 6 行、眼睛只看到 5 行）。
+- **牌坊口径同步下沉**：`metrics.ts` 里杏坛改读 `/lms/overview`——`/lms/analytics/overview`
+  也够用，但两处各算一遍百分比，迟早出现"牌坊 63%、屏风 62%"。
+- **数枢殿总控在册**：`aggregate.targets` 加 `http://bw-lms:9008/lms/overview`，已接入 **14 处**。
+- **验证**：`LmsOverviewProviderTest` 12 例 + `LmsArchitectureTest` 4 条；
+  whale-lms 全量 **251 例**通过、checkstyle 0 违规；e2e `world-xingtan-smoke.mjs` **60 项全绿**；
+  回归 bingbu 53 / libu-ritual 55 / screenpage 35 / city-smoke 全通过；八项门禁 rc=0。
+  **负向验证**：把 `/100` 改成 `/1`，单测两例当场报 `expected: 0.63 but was: 63.0`，恢复即全绿。
+- **已知遗留**：`/lms/overview` 的真实 HTTP 未验（本机 Docker / Nacos 未起），同前几批口径。
 
 ### S7 外城 9 处
 

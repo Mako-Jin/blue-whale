@@ -66,6 +66,14 @@ whale:
     ware-limit-per-chapter: ${WHALE_LMS_WARE_LIMIT_PER_CHAPTER:20}
     # 报进度百分比上限
     progress-max-percent: 100
+  # 概览契约（三维王城数据厅 - 杏坛坊）：SDK 注册 GET /lms/overview，本服务只提供 provider。
+  # 路径带服务前缀（REQ-ARCH-003：网关不剥前缀）；TTL 30s 对应前端 30s 轮询。
+  # timeout 2s 比 ERP 窄一档：看板的数是三个 metrics() 聚合 + 当日快照，
+  # 不扫明细表；超过 2s 说明库已经不正常，早点降级比让屏风转圈强。
+  overview:
+    base-path: /lms/overview
+    ttl: 30s
+    timeout: 2s
 
 mybatis-plus:
   configuration:
