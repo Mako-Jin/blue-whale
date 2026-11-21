@@ -1,4 +1,4 @@
-package com.bluewhale.alert.entity;
+package com.bluewhale.alert.po;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.bluewhale.common.entity.BaseEntity;
@@ -18,7 +18,7 @@ import java.math.BigDecimal;
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("alert_rule")
-public class AlertRule extends BaseEntity {
+public class AlertRulePo extends BaseEntity {
 
     private static final long serialVersionUID = 1L;
 

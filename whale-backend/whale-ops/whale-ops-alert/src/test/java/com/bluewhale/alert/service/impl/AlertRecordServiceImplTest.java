@@ -10,8 +10,8 @@ import com.bluewhale.alert.config.AlertNotifyProperties;
 import com.bluewhale.alert.dto.AlertRecordCreateRequest;
 import com.bluewhale.alert.dto.AlertRecordQueryRequest;
 import com.bluewhale.alert.dto.PrometheusWebhookPayload;
-import com.bluewhale.alert.entity.AlertRecord;
-import com.bluewhale.alert.entity.AlertRule;
+import com.bluewhale.alert.po.AlertRecordPo;
+import com.bluewhale.alert.po.AlertRulePo;
 import com.bluewhale.alert.mapper.AlertRecordMapper;
 import com.bluewhale.alert.mapper.AlertRuleMapper;
 import com.bluewhale.alert.service.AlertNotifyService;
@@ -77,23 +77,23 @@ class AlertRecordServiceImplTest {
     static void initTableInfo() {
         TableInfoHelper.initTableInfo(
                 new org.apache.ibatis.builder.MapperBuilderAssistant(new MybatisConfiguration(), ""),
-                AlertRecord.class);
+                AlertRecordPo.class);
     }
 
     @Test
     @DisplayName("page：按条件调用分页查询并映射结果")
     void shouldPageWithConditions() {
-        AlertRecord entity = new AlertRecord();
+        AlertRecordPo entity = new AlertRecordPo();
         entity.setId(1L);
         entity.setRuleCode("cpu_high");
         entity.setAlertLevel("WARN");
         entity.setStatus("FIRING");
         entity.setContent("CPU 使用率 92% 超过阈值 80%");
-        Page<AlertRecord> page = new Page<>(1L, 10L);
+        Page<AlertRecordPo> page = new Page<>(1L, 10L);
         page.setRecords(List.of(entity));
         page.setTotal(1L);
-        when(alertRecordMapper.selectPage(ArgumentMatchers.<Page<AlertRecord>>any(),
-                ArgumentMatchers.<Wrapper<AlertRecord>>any())).thenReturn(page);
+        when(alertRecordMapper.selectPage(ArgumentMatchers.<Page<AlertRecordPo>>any(),
+                ArgumentMatchers.<Wrapper<AlertRecordPo>>any())).thenReturn(page);
 
         AlertRecordQueryRequest request = new AlertRecordQueryRequest();
         request.setRuleCode("cpu_high");
@@ -111,11 +111,11 @@ class AlertRecordServiceImplTest {
     @Test
     @DisplayName("page：单页条数收敛到上限 200")
     void shouldClampPageSize() {
-        Page<AlertRecord> page = new Page<>(1L, 200L);
+        Page<AlertRecordPo> page = new Page<>(1L, 200L);
         page.setRecords(List.of());
         page.setTotal(0L);
-        when(alertRecordMapper.selectPage(ArgumentMatchers.<Page<AlertRecord>>any(),
-                ArgumentMatchers.<Wrapper<AlertRecord>>any())).thenReturn(page);
+        when(alertRecordMapper.selectPage(ArgumentMatchers.<Page<AlertRecordPo>>any(),
+                ArgumentMatchers.<Wrapper<AlertRecordPo>>any())).thenReturn(page);
 
         AlertRecordQueryRequest request = new AlertRecordQueryRequest();
         request.setSize(9999L);
@@ -127,16 +127,16 @@ class AlertRecordServiceImplTest {
     @Test
     @DisplayName("ingest：firing 告警落库并按命中规则通知一次")
     void shouldIngestFiringAndNotify() {
-        AlertRule rule = enabledRule("cpu_high", "EMAIL");
+        AlertRulePo rule = enabledRule("cpu_high", "EMAIL");
         when(alertRuleMapper.selectOne(any())).thenReturn(rule);
         PrometheusWebhookPayload payload = payload(alert("firing", "cpu_high", "critical"));
 
         int inserted = alertRecordService.ingest(payload);
 
         assertEquals(1, inserted);
-        ArgumentCaptor<AlertRecord> captor = ArgumentCaptor.forClass(AlertRecord.class);
+        ArgumentCaptor<AlertRecordPo> captor = ArgumentCaptor.forClass(AlertRecordPo.class);
         verify(alertRecordMapper).insert(captor.capture());
-        AlertRecord saved = captor.getValue();
+        AlertRecordPo saved = captor.getValue();
         assertEquals("cpu_high", saved.getRuleCode());
         assertEquals(9L, saved.getRuleId());
         assertEquals("CRITICAL", saved.getAlertLevel());
@@ -148,16 +148,16 @@ class AlertRecordServiceImplTest {
     @Test
     @DisplayName("ingest：resolved 告警落库为已恢复且不通知")
     void shouldIngestResolvedWithoutNotify() {
-        AlertRule rule = enabledRule("cpu_high", "EMAIL");
+        AlertRulePo rule = enabledRule("cpu_high", "EMAIL");
         when(alertRuleMapper.selectOne(any())).thenReturn(rule);
         PrometheusWebhookPayload payload = payload(alert("resolved", "cpu_high", "warning"));
 
         int inserted = alertRecordService.ingest(payload);
 
         assertEquals(1, inserted);
-        ArgumentCaptor<AlertRecord> captor = ArgumentCaptor.forClass(AlertRecord.class);
+        ArgumentCaptor<AlertRecordPo> captor = ArgumentCaptor.forClass(AlertRecordPo.class);
         verify(alertRecordMapper).insert(captor.capture());
-        AlertRecord saved = captor.getValue();
+        AlertRecordPo saved = captor.getValue();
         assertEquals("RECOVERED", saved.getStatus());
         assertEquals("WARN", saved.getAlertLevel());
         assertNotNull(saved.getRecoverTime());
@@ -167,21 +167,21 @@ class AlertRecordServiceImplTest {
     @Test
     @DisplayName("ingest：窗口内同 fingerprint 的 firing 告警去重，不落库不通知")
     void shouldSkipDuplicateFiringInWindow() {
-        AlertRule rule = enabledRule("cpu_high", "EMAIL");
+        AlertRulePo rule = enabledRule("cpu_high", "EMAIL");
         when(alertRuleMapper.selectOne(any())).thenReturn(rule);
-        when(alertRecordMapper.selectCount(ArgumentMatchers.<Wrapper<AlertRecord>>any())).thenReturn(1L);
+        when(alertRecordMapper.selectCount(ArgumentMatchers.<Wrapper<AlertRecordPo>>any())).thenReturn(1L);
 
         int inserted = alertRecordService.ingest(payload(alert("firing", "cpu_high", "critical")));
 
         assertEquals(0, inserted);
-        verify(alertRecordMapper, never()).insert(ArgumentMatchers.<AlertRecord>any());
+        verify(alertRecordMapper, never()).insert(ArgumentMatchers.<AlertRecordPo>any());
         verify(alertNotifyService, never()).notify(any(), any());
     }
 
     @Test
     @DisplayName("ingest：告警标签 tenant_id 决定落库与通知的租户上下文")
     void shouldUseTenantLabelAsContext() {
-        AlertRule rule = enabledRule("cpu_high", "EMAIL");
+        AlertRulePo rule = enabledRule("cpu_high", "EMAIL");
         when(alertRuleMapper.selectOne(any())).thenReturn(rule);
         java.util.concurrent.atomic.AtomicLong notifiedTenant = new java.util.concurrent.atomic.AtomicLong();
         org.mockito.Mockito.doAnswer(invocation -> {
@@ -200,7 +200,7 @@ class AlertRecordServiceImplTest {
     @Test
     @DisplayName("ingest：租户内无规则时回落到平台租户规则并保持通知")
     void shouldFallbackToPlatformRuleForTenantAlert() {
-        AlertRule rule = enabledRule("cpu_high", "EMAIL");
+        AlertRulePo rule = enabledRule("cpu_high", "EMAIL");
         when(alertRuleMapper.selectOne(any())).thenReturn(null, rule);
         PrometheusWebhookPayload.PrometheusAlert alert = alert("firing", "cpu_high", "critical");
         alert.setLabels(Map.of("alertname", "cpu_high", "severity", "critical", "tenant_id", "7"));
@@ -221,7 +221,7 @@ class AlertRecordServiceImplTest {
         int inserted = alertRecordService.ingest(payload(alert));
 
         assertEquals(0, inserted);
-        verify(alertRecordMapper, never()).insert(ArgumentMatchers.<AlertRecord>any());
+        verify(alertRecordMapper, never()).insert(ArgumentMatchers.<AlertRecordPo>any());
         verify(alertNotifyService, never()).notify(any(), any());
     }
 
@@ -229,14 +229,14 @@ class AlertRecordServiceImplTest {
     @DisplayName("ingest：去重窗口以入库时间 create_time 为基准，而非 startsAt")
     void shouldJudgeDedupWindowByCreateTime() {
         when(alertRuleMapper.selectOne(any())).thenReturn(null);
-        when(alertRecordMapper.selectCount(ArgumentMatchers.<Wrapper<AlertRecord>>any())).thenReturn(0L);
+        when(alertRecordMapper.selectCount(ArgumentMatchers.<Wrapper<AlertRecordPo>>any())).thenReturn(0L);
         PrometheusWebhookPayload.PrometheusAlert alert = alert("firing", "cpu_high", "critical");
         alert.setStartsAt("2020-01-01T00:00:00+08:00");
 
         alertRecordService.ingest(payload(alert));
 
         @SuppressWarnings("unchecked")
-        ArgumentCaptor<Wrapper<AlertRecord>> captor = ArgumentCaptor.forClass(Wrapper.class);
+        ArgumentCaptor<Wrapper<AlertRecordPo>> captor = ArgumentCaptor.forClass(Wrapper.class);
         verify(alertRecordMapper).selectCount(captor.capture());
         String sqlSegment = captor.getValue().getSqlSegment();
         org.junit.jupiter.api.Assertions.assertTrue(sqlSegment.contains("create_time"),
@@ -253,26 +253,26 @@ class AlertRecordServiceImplTest {
 
         assertThrows(com.bluewhale.common.core.exception.BizException.class,
                 () -> alertRecordService.create(request));
-        verify(alertRecordMapper, never()).insert(any(AlertRecord.class));
+        verify(alertRecordMapper, never()).insert(any(AlertRecordPo.class));
     }
 
     @Test
     @DisplayName("ingest：resolved 命中存量 FIRING 时更新为 RECOVERED，不再新增记录")
     void shouldCloseExistingFiringOnResolved() {
         when(alertRuleMapper.selectOne(any())).thenReturn(null);
-        when(alertRecordMapper.update(ArgumentMatchers.<AlertRecord>any(),
-                ArgumentMatchers.<Wrapper<AlertRecord>>any())).thenReturn(1);
+        when(alertRecordMapper.update(ArgumentMatchers.<AlertRecordPo>any(),
+                ArgumentMatchers.<Wrapper<AlertRecordPo>>any())).thenReturn(1);
         PrometheusWebhookPayload.PrometheusAlert alert = alert("resolved", "cpu_high", "warning");
         alert.setFingerprint("fp-close");
 
         int inserted = alertRecordService.ingest(payload(alert));
 
         assertEquals(0, inserted);
-        verify(alertRecordMapper, never()).insert(ArgumentMatchers.<AlertRecord>any());
+        verify(alertRecordMapper, never()).insert(ArgumentMatchers.<AlertRecordPo>any());
         @SuppressWarnings("unchecked")
-        ArgumentCaptor<Wrapper<AlertRecord>> captor = ArgumentCaptor.forClass(Wrapper.class);
-        verify(alertRecordMapper).update(ArgumentMatchers.<AlertRecord>any(), captor.capture());
-        String sqlSet = ((com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<AlertRecord>)
+        ArgumentCaptor<Wrapper<AlertRecordPo>> captor = ArgumentCaptor.forClass(Wrapper.class);
+        verify(alertRecordMapper).update(ArgumentMatchers.<AlertRecordPo>any(), captor.capture());
+        String sqlSet = ((com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<AlertRecordPo>)
                 captor.getValue()).getSqlSet();
         org.junit.jupiter.api.Assertions.assertTrue(sqlSet.contains("recover_time"),
                 "恢复闭环必须回填 recover_time: " + sqlSet);
@@ -282,13 +282,13 @@ class AlertRecordServiceImplTest {
     @DisplayName("ingest：resolved 未匹配到 FIRING 时仍新增一条 RECOVERED 记录")
     void shouldInsertRecoveredWhenNoFiringMatched() {
         when(alertRuleMapper.selectOne(any())).thenReturn(null);
-        when(alertRecordMapper.update(ArgumentMatchers.<AlertRecord>any(),
-                ArgumentMatchers.<Wrapper<AlertRecord>>any())).thenReturn(0);
+        when(alertRecordMapper.update(ArgumentMatchers.<AlertRecordPo>any(),
+                ArgumentMatchers.<Wrapper<AlertRecordPo>>any())).thenReturn(0);
 
         int inserted = alertRecordService.ingest(payload(alert("resolved", "cpu_high", "warning")));
 
         assertEquals(1, inserted);
-        ArgumentCaptor<AlertRecord> captor = ArgumentCaptor.forClass(AlertRecord.class);
+        ArgumentCaptor<AlertRecordPo> captor = ArgumentCaptor.forClass(AlertRecordPo.class);
         verify(alertRecordMapper).insert(captor.capture());
         assertEquals("RECOVERED", captor.getValue().getStatus());
     }
@@ -296,14 +296,14 @@ class AlertRecordServiceImplTest {
     @Test
     @DisplayName("ingest：命中静默时落库为 SILENCED 且不通知")
     void shouldMarkSilencedWithoutNotify() {
-        AlertRule rule = enabledRule("cpu_high", "EMAIL");
+        AlertRulePo rule = enabledRule("cpu_high", "EMAIL");
         when(alertRuleMapper.selectOne(any())).thenReturn(rule);
         when(alertSilenceService.isSilenced(any(), any(), any())).thenReturn(true);
 
         int inserted = alertRecordService.ingest(payload(alert("firing", "cpu_high", "critical")));
 
         assertEquals(1, inserted);
-        ArgumentCaptor<AlertRecord> captor = ArgumentCaptor.forClass(AlertRecord.class);
+        ArgumentCaptor<AlertRecordPo> captor = ArgumentCaptor.forClass(AlertRecordPo.class);
         verify(alertRecordMapper).insert(captor.capture());
         assertEquals("SILENCED", captor.getValue().getStatus());
         verify(alertNotifyService, never()).notify(any(), any());
@@ -318,13 +318,13 @@ class AlertRecordServiceImplTest {
         int inserted = alertRecordService.ingest(payload(alert));
 
         assertEquals(0, inserted);
-        verify(alertRecordMapper, never()).insert(ArgumentMatchers.<AlertRecord>any());
+        verify(alertRecordMapper, never()).insert(ArgumentMatchers.<AlertRecordPo>any());
     }
 
     @Test
     @DisplayName("ack：触发中告警可认领并回写认领信息")
     void shouldAcknowledgeFiringRecord() {
-        AlertRecord existing = new AlertRecord();
+        AlertRecordPo existing = new AlertRecordPo();
         existing.setId(5L);
         existing.setRuleCode("cpu_high");
         existing.setStatus("FIRING");
@@ -344,22 +344,22 @@ class AlertRecordServiceImplTest {
     @Test
     @DisplayName("ack：已恢复告警拒绝认领")
     void shouldRejectAckForRecoveredRecord() {
-        AlertRecord existing = new AlertRecord();
+        AlertRecordPo existing = new AlertRecordPo();
         existing.setId(6L);
         existing.setStatus("RECOVERED");
         when(alertRecordMapper.selectById(6L)).thenReturn(existing);
 
         assertThrows(com.bluewhale.common.core.exception.BizException.class,
                 () -> alertRecordService.ack(6L, new com.bluewhale.alert.dto.AlertAckRequest()));
-        verify(alertRecordMapper, never()).updateById(ArgumentMatchers.<AlertRecord>any());
+        verify(alertRecordMapper, never()).updateById(ArgumentMatchers.<AlertRecordPo>any());
     }
 
     @Test
     @DisplayName("stats：聚合活跃数、级别分布、TOP 规则与 MTTR")
     void shouldAggregateStats() {
-        when(alertRecordMapper.selectCount(ArgumentMatchers.<Wrapper<AlertRecord>>any()))
+        when(alertRecordMapper.selectCount(ArgumentMatchers.<Wrapper<AlertRecordPo>>any()))
                 .thenReturn(3L, 9L, 5L, 1L);
-        when(alertRecordMapper.selectMaps(ArgumentMatchers.<Wrapper<AlertRecord>>any())).thenReturn(
+        when(alertRecordMapper.selectMaps(ArgumentMatchers.<Wrapper<AlertRecordPo>>any())).thenReturn(
                 List.of(Map.of("alert_level", "WARN", "cnt", 4L)),
                 List.of(Map.of("rule_code", "cpu_high", "cnt", 4L)),
                 List.of(Map.of("mttr", 120D)));
@@ -383,8 +383,8 @@ class AlertRecordServiceImplTest {
      * @param channel  通知通道
      * @return 规则实体
      */
-    private static AlertRule enabledRule(String ruleCode, String channel) {
-        AlertRule rule = new AlertRule();
+    private static AlertRulePo enabledRule(String ruleCode, String channel) {
+        AlertRulePo rule = new AlertRulePo();
         rule.setId(9L);
         rule.setRuleCode(ruleCode);
         rule.setRuleName("CPU 使用率过高");
@@ -440,9 +440,9 @@ class AlertRecordServiceImplTest {
         int inserted = alertRecordService.create(createRequest());
 
         assertEquals(1, inserted);
-        ArgumentCaptor<AlertRecord> captor = ArgumentCaptor.forClass(AlertRecord.class);
+        ArgumentCaptor<AlertRecordPo> captor = ArgumentCaptor.forClass(AlertRecordPo.class);
         verify(alertRecordMapper).insert(captor.capture());
-        AlertRecord record = captor.getValue();
+        AlertRecordPo record = captor.getValue();
         assertEquals("iot:rule:11", record.getRuleCode());
         assertEquals("ERROR", record.getAlertLevel());
         assertEquals("FIRING", record.getStatus());
@@ -459,7 +459,7 @@ class AlertRecordServiceImplTest {
         int inserted = alertRecordService.create(createRequest());
 
         assertEquals(0, inserted);
-        verify(alertRecordMapper, never()).insert(any(AlertRecord.class));
+        verify(alertRecordMapper, never()).insert(any(AlertRecordPo.class));
     }
 
     @Test
@@ -469,7 +469,7 @@ class AlertRecordServiceImplTest {
                 new AlertRecordCreateRequest();
 
         assertEquals(0, alertRecordService.create(request));
-        verify(alertRecordMapper, never()).insert(any(AlertRecord.class));
+        verify(alertRecordMapper, never()).insert(any(AlertRecordPo.class));
     }
 
     /**

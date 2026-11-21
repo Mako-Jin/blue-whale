@@ -30,9 +30,9 @@ export interface AlertRuleQuery {
   status?: number;
 }
 
-// 分页查询告警规则：GET /alert/rule/page
+// 分页查询告警规则：GET /alert/v1/rule/page
 export function pageAlertRule(params: AlertRuleQuery): Promise<PageResult<AlertRuleVO>> {
-  return get<PageResult<AlertRuleVO>>('/alert/rule/page', params as Record<string, unknown>);
+  return get<PageResult<AlertRuleVO>>('/alert/v1/rule/page', params as Record<string, unknown>);
 }
 
 /** 告警记录视图对象（字段与后端 alert_record 对齐） */
@@ -57,7 +57,7 @@ export interface AlertRecordQuery {
   status?: string;
 }
 
-// 分页查询告警记录：GET /alert/record/page
+// 分页查询告警记录：GET /alert/v1/record/page
 export function pageAlertRecord(params: AlertRecordQuery): Promise<PageResult<AlertRecordVO>> {
-  return get<PageResult<AlertRecordVO>>('/alert/record/page', params as Record<string, unknown>);
+  return get<PageResult<AlertRecordVO>>('/alert/v1/record/page', params as Record<string, unknown>);
 }

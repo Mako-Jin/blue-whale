@@ -1,8 +1,8 @@
 package com.bluewhale.alert.service.impl;
 
 import com.bluewhale.alert.config.AlertNotifyProperties;
-import com.bluewhale.alert.entity.AlertRecord;
-import com.bluewhale.alert.entity.AlertRule;
+import com.bluewhale.alert.po.AlertRecordPo;
+import com.bluewhale.alert.po.AlertRulePo;
 import com.bluewhale.alert.mapper.AlertNotifyLogMapper;
 import com.bluewhale.common.tenant.TenantContext;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -95,7 +95,7 @@ class AlertNotifyServiceImplTest {
         MimeMessage mimeMessage = new MimeMessage(Session.getInstance(new Properties()));
         when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
         when(mailSenderProvider.getIfAvailable()).thenReturn(mailSender);
-        AlertRecord record = record();
+        AlertRecordPo record = record();
         record.setContent("<script>alert(1)</script>");
 
         notifyService.notify(rule("EMAIL"), record);
@@ -194,7 +194,7 @@ class AlertNotifyServiceImplTest {
             properties.getSms().setEnabled(true);
             properties.getSms().setUrl("http://127.0.0.1:" + server.getAddress().getPort() + "/sms");
             properties.getSms().setTo(List.of("13800000000"));
-            AlertRecord longRecord = record();
+            AlertRecordPo longRecord = record();
             longRecord.setContent("x".repeat(600));
 
             notifyService.notify(rule("SMS"), longRecord);
@@ -286,8 +286,8 @@ class AlertNotifyServiceImplTest {
 
             assertEquals(2, calls.get());
             assertTrue(body.get().contains("\"ruleCode\":\"cpu_high\""));
-            ArgumentCaptor<com.bluewhale.alert.entity.AlertNotifyLog> captor =
-                    ArgumentCaptor.forClass(com.bluewhale.alert.entity.AlertNotifyLog.class);
+            ArgumentCaptor<com.bluewhale.alert.po.AlertNotifyLogPo> captor =
+                    ArgumentCaptor.forClass(com.bluewhale.alert.po.AlertNotifyLogPo.class);
             verify(notifyLogMapper).insert(captor.capture());
             assertEquals("SUCCESS", captor.getValue().getStatus());
             assertEquals(1, captor.getValue().getRetryCount());
@@ -314,8 +314,8 @@ class AlertNotifyServiceImplTest {
 
             notifyService.notify(rule("WEBHOOK"), record());
 
-            ArgumentCaptor<com.bluewhale.alert.entity.AlertNotifyLog> captor =
-                    ArgumentCaptor.forClass(com.bluewhale.alert.entity.AlertNotifyLog.class);
+            ArgumentCaptor<com.bluewhale.alert.po.AlertNotifyLogPo> captor =
+                    ArgumentCaptor.forClass(com.bluewhale.alert.po.AlertNotifyLogPo.class);
             verify(notifyLogMapper).insert(captor.capture());
             assertEquals("FAILED", captor.getValue().getStatus());
             assertEquals(1, captor.getValue().getRetryCount());
@@ -340,7 +340,7 @@ class AlertNotifyServiceImplTest {
             properties.getSms().setEnabled(true);
             properties.getSms().setUrl("http://127.0.0.1:" + server.getAddress().getPort() + "/sms");
             properties.getSms().setTo(List.of("13800000000"));
-            AlertRule rule = rule("SMS");
+            AlertRulePo rule = rule("SMS");
             rule.setNotifyTargets("13900000000,13700000000");
 
             notifyService.notify(rule, record());
@@ -358,8 +358,8 @@ class AlertNotifyServiceImplTest {
      * @param channel 通知通道
      * @return 规则实体
      */
-    private static AlertRule rule(String channel) {
-        AlertRule rule = new AlertRule();
+    private static AlertRulePo rule(String channel) {
+        AlertRulePo rule = new AlertRulePo();
         rule.setRuleCode("cpu_high");
         rule.setRuleName("CPU 使用率过高");
         rule.setLevel("WARN");
@@ -374,8 +374,8 @@ class AlertNotifyServiceImplTest {
      *
      * @return 记录实体
      */
-    private static AlertRecord record() {
-        AlertRecord record = new AlertRecord();
+    private static AlertRecordPo record() {
+        AlertRecordPo record = new AlertRecordPo();
         record.setRuleCode("cpu_high");
         record.setAlertLevel("WARN");
         record.setStatus("FIRING");

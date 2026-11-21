@@ -1,7 +1,7 @@
 package com.bluewhale.alert.service.impl;
 
 import com.bluewhale.alert.dto.AlertSilenceCreateRequest;
-import com.bluewhale.alert.entity.AlertSilence;
+import com.bluewhale.alert.po.AlertSilencePo;
 import com.bluewhale.alert.mapper.AlertSilenceMapper;
 import com.bluewhale.common.core.exception.BizException;
 import org.junit.jupiter.api.DisplayName;
@@ -71,7 +71,7 @@ class AlertSilenceServiceImplTest {
         request.setEndTime(LocalDateTime.now().minusMinutes(1));
 
         assertThrows(BizException.class, () -> silenceService.create(request));
-        verify(alertSilenceMapper, never()).insert(any(AlertSilence.class));
+        verify(alertSilenceMapper, never()).insert(any(AlertSilencePo.class));
     }
 
     /**
@@ -82,8 +82,8 @@ class AlertSilenceServiceImplTest {
      * @param keyword    内容关键字
      * @return 静默实体
      */
-    private static AlertSilence silence(String ruleCode, String alertLevel, String keyword) {
-        AlertSilence silence = new AlertSilence();
+    private static AlertSilencePo silence(String ruleCode, String alertLevel, String keyword) {
+        AlertSilencePo silence = new AlertSilencePo();
         silence.setId(1L);
         silence.setRuleCode(ruleCode);
         silence.setAlertLevel(alertLevel);

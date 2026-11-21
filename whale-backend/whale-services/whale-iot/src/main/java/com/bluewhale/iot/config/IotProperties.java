@@ -73,7 +73,7 @@ public class IotProperties {
     /**
      * 告警动作配置。
      *
-     * <p>规则命中后调用 whale-alert 内网接口 {@code POST /alert/internal/record}
+     * <p>规则命中后调用 whale-alert 内网接口 {@code POST /alert/v1/internal/record}
      * 落一条告警记录（告警的渠道分发由 whale-alert 负责）。调用失败只记日志、
      * 不回滚遥测，也不影响其它规则。</p>
      *

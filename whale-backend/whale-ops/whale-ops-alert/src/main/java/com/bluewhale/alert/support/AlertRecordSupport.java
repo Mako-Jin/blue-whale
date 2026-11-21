@@ -2,8 +2,8 @@ package com.bluewhale.alert.support;
 
 import com.bluewhale.alert.dto.AlertRecordCreateRequest;
 import com.bluewhale.alert.dto.PrometheusWebhookPayload;
-import com.bluewhale.alert.entity.AlertRecord;
-import com.bluewhale.alert.entity.AlertRule;
+import com.bluewhale.alert.po.AlertRecordPo;
+import com.bluewhale.alert.po.AlertRulePo;
 import com.bluewhale.common.tenant.TenantContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
@@ -165,10 +165,10 @@ public final class AlertRecordSupport {
      * @param rule  命中的规则（可为 {@code null}）
      * @return 记录实体
      */
-    public static AlertRecord toRecord(PrometheusWebhookPayload.PrometheusAlert alert, AlertRule rule) {
+    public static AlertRecordPo toRecord(PrometheusWebhookPayload.PrometheusAlert alert, AlertRulePo rule) {
         boolean resolved = "resolved".equalsIgnoreCase(alert.getStatus());
         LocalDateTime now = LocalDateTime.now();
-        AlertRecord record = new AlertRecord();
+        AlertRecordPo record = new AlertRecordPo();
         record.setRuleId(rule == null ? null : rule.getId());
         record.setRuleCode(alert.getLabels().get(LABEL_ALERT_NAME));
         record.setAlertLevel(AlertLevels.normalize(resolveSeverity(alert, rule), AlertLevels.INFO));
@@ -189,7 +189,7 @@ public final class AlertRecordSupport {
      * @param rule  命中的规则（可为 {@code null}）
      * @return 原始级别文本；均为空时返回 {@code null}
      */
-    private static String resolveSeverity(PrometheusWebhookPayload.PrometheusAlert alert, AlertRule rule) {
+    private static String resolveSeverity(PrometheusWebhookPayload.PrometheusAlert alert, AlertRulePo rule) {
         String raw = alert.getLabels().get(LABEL_SEVERITY);
         if (!StringUtils.hasText(raw) && rule != null) {
             raw = rule.getLevel();

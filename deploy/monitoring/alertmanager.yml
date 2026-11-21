@@ -1,6 +1,6 @@
 # BlueWhale Alertmanager 路由（REQ-ARCH-007）
 #
-# 入站目的地为 whale-alert 的内网端点 /alert/internal/prometheus（网关对该前缀统一 403）。
+# 入站目的地为 whale-alert 的内网端点 /alert/v1/internal/prometheus（网关对该前缀统一 403）。
 # 令牌通过 Authorization: Bearer 传递，需与后端 ALERT_WEBHOOK_TOKEN 一致；
 # 默认值仅用于本地联调，生产必须替换 credentials 与 ALERT_WEBHOOK_TOKEN。
 route:
@@ -13,7 +13,7 @@ route:
 receivers:
   - name: whale-alert
     webhook_configs:
-      - url: http://127.0.0.1:9103/alert/internal/prometheus
+      - url: http://127.0.0.1:9103/alert/v1/internal/prometheus
         send_resolved: true
         max_alerts: 0
         http_config:

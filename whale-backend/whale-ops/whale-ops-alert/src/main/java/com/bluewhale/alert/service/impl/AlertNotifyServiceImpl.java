@@ -1,9 +1,9 @@
 package com.bluewhale.alert.service.impl;
 
 import com.bluewhale.alert.config.AlertNotifyProperties;
-import com.bluewhale.alert.entity.AlertNotifyLog;
-import com.bluewhale.alert.entity.AlertRecord;
-import com.bluewhale.alert.entity.AlertRule;
+import com.bluewhale.alert.po.AlertNotifyLogPo;
+import com.bluewhale.alert.po.AlertRecordPo;
+import com.bluewhale.alert.po.AlertRulePo;
 import com.bluewhale.alert.mapper.AlertNotifyLogMapper;
 import com.bluewhale.alert.service.AlertNotifyService;
 import com.bluewhale.common.tenant.TenantContext;
@@ -119,7 +119,7 @@ public class AlertNotifyServiceImpl implements AlertNotifyService {
     }
 
     @Override
-    public void notify(AlertRule rule, AlertRecord record) {
+    public void notify(AlertRulePo rule, AlertRecordPo record) {
         if (rule == null || record == null) {
             return;
         }
@@ -155,7 +155,7 @@ public class AlertNotifyServiceImpl implements AlertNotifyService {
      * @param record  告警记录
      * @return 发送结果
      */
-    private Attempt sendWithRetry(String channel, AlertRule rule, AlertRecord record) {
+    private Attempt sendWithRetry(String channel, AlertRulePo rule, AlertRecordPo record) {
         AlertNotifyProperties.Retry retry = properties.getRetry();
         int maxAttempts = Math.max(1, retry.getMaxAttempts());
         long backoffMillis = Math.max(0L, retry.getBackoffMillis());
@@ -204,7 +204,7 @@ public class AlertNotifyServiceImpl implements AlertNotifyService {
      * @param record  告警记录
      * @return 是否真正发送（{@code false} 表示通道未启用/缺配置而跳过）
      */
-    private boolean dispatch(String channel, AlertRule rule, AlertRecord record) {
+    private boolean dispatch(String channel, AlertRulePo rule, AlertRecordPo record) {
         return switch (channel) {
             case CHANNEL_EMAIL -> sendEmail(rule, record);
             case CHANNEL_WEBHOOK -> sendWebhook(rule, record);
@@ -235,9 +235,9 @@ public class AlertNotifyServiceImpl implements AlertNotifyService {
      * @param channel  通道
      * @param attempt  发送结果
      */
-    private void persistLog(AlertRule rule, AlertRecord record, String channel, Attempt attempt) {
+    private void persistLog(AlertRulePo rule, AlertRecordPo record, String channel, Attempt attempt) {
         try {
-            AlertNotifyLog notifyLog = new AlertNotifyLog();
+            AlertNotifyLogPo notifyLog = new AlertNotifyLogPo();
             notifyLog.setRecordId(record.getId());
             notifyLog.setRuleCode(rule.getRuleCode());
             notifyLog.setChannel(channel);
@@ -258,7 +258,7 @@ public class AlertNotifyServiceImpl implements AlertNotifyService {
      * @param fallback 全局接收人
      * @return 接收人列表
      */
-    private static List<String> resolveTargets(AlertRule rule, List<String> fallback) {
+    private static List<String> resolveTargets(AlertRulePo rule, List<String> fallback) {
         if (!StringUtils.hasText(rule.getNotifyTargets())) {
             return fallback;
         }
@@ -275,7 +275,7 @@ public class AlertNotifyServiceImpl implements AlertNotifyService {
      * @param record 告警记录
      * @return 是否已发送
      */
-    private boolean sendEmail(AlertRule rule, AlertRecord record) {
+    private boolean sendEmail(AlertRulePo rule, AlertRecordPo record) {
         AlertNotifyProperties.Email email = properties.getEmail();
         if (!email.isEnabled()) {
             log.debug("邮件通道未启用，跳过通知: ruleCode={}", rule.getRuleCode());
@@ -319,7 +319,7 @@ public class AlertNotifyServiceImpl implements AlertNotifyService {
      * @param record 告警记录
      * @return 是否已发送
      */
-    private boolean sendWebhook(AlertRule rule, AlertRecord record) {
+    private boolean sendWebhook(AlertRulePo rule, AlertRecordPo record) {
         AlertNotifyProperties.Webhook webhook = properties.getWebhook();
         if (!webhook.isEnabled() || !StringUtils.hasText(webhook.getUrl())) {
             log.debug("Webhook 通道未启用或未配置地址，跳过通知: ruleCode={}", rule.getRuleCode());
@@ -364,7 +364,7 @@ public class AlertNotifyServiceImpl implements AlertNotifyService {
      * @param record 告警记录
      * @return 是否已发送
      */
-    private boolean sendSms(AlertRule rule, AlertRecord record) {
+    private boolean sendSms(AlertRulePo rule, AlertRecordPo record) {
         AlertNotifyProperties.Sms sms = properties.getSms();
         if (!sms.isEnabled()) {
             log.debug("短信通道未启用，跳过通知: ruleCode={}", rule.getRuleCode());
@@ -419,8 +419,8 @@ public class AlertNotifyServiceImpl implements AlertNotifyService {
      * @param recipients 接收手机号
      * @return 网关 JSON 载荷
      */
-    private static Map<String, Object> buildSmsPayload(AlertNotifyProperties.Sms sms, AlertRule rule,
-                                                       AlertRecord record, List<String> recipients) {
+    private static Map<String, Object> buildSmsPayload(AlertNotifyProperties.Sms sms, AlertRulePo rule,
+                                                       AlertRecordPo record, List<String> recipients) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("phones", recipients);
         payload.put("templateCode", sms.getTemplateCode());
@@ -447,7 +447,7 @@ public class AlertNotifyServiceImpl implements AlertNotifyService {
      * @param record 告警记录
      * @return 短信正文
      */
-    private static String buildSmsContent(AlertRule rule, AlertRecord record) {
+    private static String buildSmsContent(AlertRulePo rule, AlertRecordPo record) {
         String content = "[BlueWhale][" + Objects.toString(record.getAlertLevel(), "-") + "] "
                 + Objects.toString(rule.getRuleName(), rule.getRuleCode()) + ": "
                 + Objects.toString(record.getContent(), "-")
@@ -528,7 +528,7 @@ public class AlertNotifyServiceImpl implements AlertNotifyService {
      * @param rule 告警规则
      * @return 邮件主题
      */
-    private static String buildSubject(AlertRule rule) {
+    private static String buildSubject(AlertRulePo rule) {
         return "[BlueWhale][" + rule.getLevel() + "] " + rule.getRuleName();
     }
 
@@ -539,7 +539,7 @@ public class AlertNotifyServiceImpl implements AlertNotifyService {
      * @param record 告警记录
      * @return HTML 正文
      */
-    private static String buildHtml(AlertRule rule, AlertRecord record) {
+    private static String buildHtml(AlertRulePo rule, AlertRecordPo record) {
         Long tenantId = TenantContext.get();
         String level = HtmlUtils.htmlEscape(Objects.toString(record.getAlertLevel(), "-"));
         return "<html><body style=\"font-family:Arial,Helvetica,sans-serif;color:#1f2329\">"
@@ -580,7 +580,7 @@ public class AlertNotifyServiceImpl implements AlertNotifyService {
      * @param record 告警记录
      * @return 载荷键值
      */
-    private static Map<String, Object> buildPayload(AlertRule rule, AlertRecord record) {
+    private static Map<String, Object> buildPayload(AlertRulePo rule, AlertRecordPo record) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("ruleCode", rule.getRuleCode());
         payload.put("ruleName", rule.getRuleName());

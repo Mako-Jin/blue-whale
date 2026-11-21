@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 内网告警创建接口（供其他服务的规则动作调用）。
  *
- * <p>路径位于 {@code /alert/internal/**}：网关对该前缀统一 403，仅允许内网直连；
+ * <p>路径位于 {@code /alert/v1/internal/**}：网关对该前缀统一 403，仅允许内网直连；
  * 服务侧由 starter 的 {@code InternalTokenFilter} 校验 {@code X-Internal-Token}。
  * 与 Prometheus 入站接口的区别是本接口接收「已判定触发」的告警，不做条件评估。</p>
  *
@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @Slf4j
 @RestController
-@RequestMapping("/alert/internal")
+@RequestMapping("/alert/v1/internal")
 @RequiredArgsConstructor
 public class AlertInternalRecordController {
 

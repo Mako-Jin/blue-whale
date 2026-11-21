@@ -22,12 +22,12 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 告警静默管理接口。
  *
- * <p>服务内路径 {@code /alert/silence/**}；命中静默的告警以 {@code SILENCED} 状态落库且不通知。</p>
+ * <p>服务内路径 {@code /alert/v1/silence/**}；命中静默的告警以 {@code SILENCED} 状态落库且不通知。</p>
  *
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/alert/silence")
+@RequestMapping("/alert/v1/silence")
 @RequiredArgsConstructor
 public class AlertSilenceController {
 

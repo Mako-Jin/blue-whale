@@ -78,7 +78,7 @@ class CircuitAlertNotifierTest {
         awaitCaptured();
 
         ClientRequest request = captured.get();
-        assertEquals("http://bw-alert:9103/alert/internal/record", request.url().toString());
+        assertEquals("http://bw-alert:9103/alert/v1/internal/record", request.url().toString());
         assertEquals("POST", request.method().name());
         // 内网令牌来自配置项（默认空）：未配置时不带令牌头（dev 侧 alert 按空令牌 fail-open）
         assertNull(request.headers().getFirst("X-Internal-Token"));

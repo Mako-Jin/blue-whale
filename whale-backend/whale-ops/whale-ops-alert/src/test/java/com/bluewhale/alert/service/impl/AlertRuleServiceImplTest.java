@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.alert.dto.AlertRuleQueryRequest;
 import com.bluewhale.alert.dto.AlertRuleSaveRequest;
-import com.bluewhale.alert.entity.AlertRule;
+import com.bluewhale.alert.po.AlertRulePo;
 import com.bluewhale.alert.mapper.AlertRuleMapper;
 import com.bluewhale.alert.vo.AlertRuleVO;
 import com.bluewhale.common.core.exception.BizException;
@@ -57,16 +57,16 @@ class AlertRuleServiceImplTest {
     @Test
     @DisplayName("page：按条件调用分页查询并映射结果")
     void shouldPageWithConditions() {
-        AlertRule entity = new AlertRule();
+        AlertRulePo entity = new AlertRulePo();
         entity.setId(1L);
         entity.setRuleCode("cpu_high");
         entity.setRuleName("CPU 使用率过高");
         entity.setStatus(1);
-        Page<AlertRule> page = new Page<>(1L, 10L);
+        Page<AlertRulePo> page = new Page<>(1L, 10L);
         page.setRecords(List.of(entity));
         page.setTotal(1L);
-        when(alertRuleMapper.selectPage(ArgumentMatchers.<Page<AlertRule>>any(),
-                ArgumentMatchers.<Wrapper<AlertRule>>any())).thenReturn(page);
+        when(alertRuleMapper.selectPage(ArgumentMatchers.<Page<AlertRulePo>>any(),
+                ArgumentMatchers.<Wrapper<AlertRulePo>>any())).thenReturn(page);
 
         AlertRuleQueryRequest request = new AlertRuleQueryRequest();
         request.setKeyword("cpu");
@@ -92,8 +92,8 @@ class AlertRuleServiceImplTest {
     @Test
     @DisplayName("create：落库并返回规则视图对象")
     void shouldCreateRule() {
-        when(alertRuleMapper.selectCount(ArgumentMatchers.<Wrapper<AlertRule>>any())).thenReturn(0L);
-        AlertRule saved = new AlertRule();
+        when(alertRuleMapper.selectCount(ArgumentMatchers.<Wrapper<AlertRulePo>>any())).thenReturn(0L);
+        AlertRulePo saved = new AlertRulePo();
         saved.setId(100L);
         saved.setRuleCode("disk_high");
         saved.setRuleName("磁盘使用率过高");
@@ -102,35 +102,35 @@ class AlertRuleServiceImplTest {
         AlertRuleVO vo = alertRuleService.create(saveRequest("disk_high", "磁盘使用率过高"));
 
         assertEquals("disk_high", vo.getRuleCode());
-        verify(alertRuleMapper).insert(any(AlertRule.class));
+        verify(alertRuleMapper).insert(any(AlertRulePo.class));
     }
 
     @Test
     @DisplayName("create：rule_code 冲突抛参数错误且不落库")
     void shouldRejectDuplicateCreate() {
-        when(alertRuleMapper.selectCount(ArgumentMatchers.<Wrapper<AlertRule>>any())).thenReturn(1L);
+        when(alertRuleMapper.selectCount(ArgumentMatchers.<Wrapper<AlertRulePo>>any())).thenReturn(1L);
 
         BizException ex = assertThrows(BizException.class,
                 () -> alertRuleService.create(saveRequest("cpu_high", "CPU 使用率过高")));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
-        verify(alertRuleMapper, never()).insert(any(AlertRule.class));
+        verify(alertRuleMapper, never()).insert(any(AlertRulePo.class));
     }
 
     @Test
     @DisplayName("update：校验唯一后更新并返回视图对象")
     void shouldUpdateRule() {
-        AlertRule existing = new AlertRule();
+        AlertRulePo existing = new AlertRulePo();
         existing.setId(8L);
         existing.setRuleCode("cpu_high");
         existing.setRuleName("旧名称");
         when(alertRuleMapper.selectById(8L)).thenReturn(existing);
-        when(alertRuleMapper.selectCount(ArgumentMatchers.<Wrapper<AlertRule>>any())).thenReturn(0L);
+        when(alertRuleMapper.selectCount(ArgumentMatchers.<Wrapper<AlertRulePo>>any())).thenReturn(0L);
 
         AlertRuleVO vo = alertRuleService.update(8L, saveRequest("cpu_high", "新名称"));
 
         assertEquals("新名称", vo.getRuleName());
-        verify(alertRuleMapper).updateById(any(AlertRule.class));
+        verify(alertRuleMapper).updateById(any(AlertRulePo.class));
     }
 
     @Test
@@ -142,13 +142,13 @@ class AlertRuleServiceImplTest {
                 () -> alertRuleService.update(99L, saveRequest("cpu_high", "新名称")));
 
         assertEquals(NOT_FOUND_CODE, ex.getCode());
-        verify(alertRuleMapper, never()).updateById(any(AlertRule.class));
+        verify(alertRuleMapper, never()).updateById(any(AlertRulePo.class));
     }
 
     @Test
     @DisplayName("updateStatus：设置状态后落库")
     void shouldUpdateStatus() {
-        AlertRule existing = new AlertRule();
+        AlertRulePo existing = new AlertRulePo();
         existing.setId(8L);
         existing.setStatus(1);
         when(alertRuleMapper.selectById(8L)).thenReturn(existing);
@@ -156,7 +156,7 @@ class AlertRuleServiceImplTest {
         alertRuleService.updateStatus(8L, 0);
 
         assertEquals(0, existing.getStatus());
-        verify(alertRuleMapper).updateById(any(AlertRule.class));
+        verify(alertRuleMapper).updateById(any(AlertRulePo.class));
     }
 
     @Test
@@ -165,6 +165,6 @@ class AlertRuleServiceImplTest {
         BizException ex = assertThrows(BizException.class, () -> alertRuleService.updateStatus(8L, 2));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
-        verify(alertRuleMapper, never()).updateById(any(AlertRule.class));
+        verify(alertRuleMapper, never()).updateById(any(AlertRulePo.class));
     }
 }

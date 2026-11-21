@@ -23,7 +23,7 @@ import java.security.MessageDigest;
 /**
  * Prometheus Alertmanager 入站告警接口。
  *
- * <p>路径位于 {@code /alert/internal/**}，网关对该前缀统一 403，只允许内网
+ * <p>路径位于 {@code /alert/v1/internal/**}，网关对该前缀统一 403，只允许内网
  * Alertmanager 直连 whale-alert 服务；同时校验 {@code X-Alert-Token} 与
  * {@code whale.alert.notify.webhook-token} 一致。</p>
  *
@@ -31,7 +31,7 @@ import java.security.MessageDigest;
  */
 @Slf4j
 @RestController
-@RequestMapping("/alert/internal")
+@RequestMapping("/alert/v1/internal")
 @RequiredArgsConstructor
 public class AlertPrometheusController {
 

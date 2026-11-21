@@ -1,7 +1,7 @@
 package com.bluewhale.alert.support;
 
-import com.bluewhale.alert.entity.AlertRecord;
-import com.bluewhale.alert.entity.AlertRule;
+import com.bluewhale.alert.po.AlertRecordPo;
+import com.bluewhale.alert.po.AlertRulePo;
 import com.bluewhale.alert.service.AlertNotifyService;
 import com.bluewhale.common.tenant.TenantContext;
 import lombok.extern.slf4j.Slf4j;
@@ -46,7 +46,7 @@ public class AlertNotifyDispatcher {
      * @param rule     命中的规则
      * @param record   告警记录
      */
-    public void dispatch(Long tenantId, AlertRule rule, AlertRecord record) {
+    public void dispatch(Long tenantId, AlertRulePo rule, AlertRecordPo record) {
         if (rule == null || record == null) {
             return;
         }
@@ -60,7 +60,7 @@ public class AlertNotifyDispatcher {
      * @param rule     命中的规则
      * @param record   告警记录
      */
-    private void notifyInTenant(Long tenantId, AlertRule rule, AlertRecord record) {
+    private void notifyInTenant(Long tenantId, AlertRulePo rule, AlertRecordPo record) {
         Long previous = TenantContext.get();
         TenantContext.set(tenantId == null ? TenantContext.DEFAULT_TENANT_ID : tenantId);
         try {

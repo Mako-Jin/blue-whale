@@ -1,6 +1,6 @@
 // notice.ts —— 消息通知数据源
 //
-// 优先告警记录（GET /alert/record/page，需 sys:alert:record:list），
+// 优先告警记录（GET /alert/v1/record/page，需 sys:alert:record:list），
 // 其次 IM 会话（GET /im/conversations，需 sys:im:chat）；两者均无权限时由页面展示空态。
 
 import { http } from './client';
@@ -51,7 +51,7 @@ export async function pageAlertRecords(
   if (params.status) search.set('status', params.status);
   const query = search.toString();
   const page = await http.get<PageResult<AlertRecord>>(
-    `/alert/record/page${query ? `?${query}` : ''}`,
+    `/alert/v1/record/page${query ? `?${query}` : ''}`,
   );
   return { records: page?.records ?? [], total: page?.total ?? '0' };
 }

@@ -40,11 +40,11 @@ Call 'P2 monitor/instances(gateway)' 'GET' "$gw/monitor/service/whale-service-ga
 Call 'P2b monitor/instances(no-such-svc)' 'GET' "$gw/monitor/service/NO_SUCH_SVC/instances" $h $null | Out-Null
 
 # alert
-Call 'P3 alert/rule/page' 'GET' "$gw/alert/rule/page?current=1&size=10" $h $null | Out-Null
-$created = Call 'P4 alert/rule/create' 'POST' "$gw/alert/rule" $h '{"ruleName":"smoke-rule","metricName":"cpu","thresholdValue":90,"operator":"GT","level":"WARN","status":1,"notifyTargets":"admin"}'
-Call 'P5 alert/rule/create-dup' 'POST' "$gw/alert/rule" $h '{"ruleName":"smoke-rule","metricName":"cpu","thresholdValue":90,"operator":"GT","level":"WARN","status":1,"notifyTargets":"admin"}' | Out-Null
-Call 'P6 alert/rule/404' 'GET' "$gw/alert/rule/999999999" $h $null | Out-Null
-Call 'P7 alert/record/page' 'GET' "$gw/alert/record/page?current=1&size=10" $h $null | Out-Null
+Call 'P3 alert/rule/page' 'GET' "$gw/alert/v1/rule/page?current=1&size=10" $h $null | Out-Null
+$created = Call 'P4 alert/rule/create' 'POST' "$gw/alert/v1/rule" $h '{"ruleName":"smoke-rule","metricName":"cpu","thresholdValue":90,"operator":"GT","level":"WARN","status":1,"notifyTargets":"admin"}'
+Call 'P5 alert/rule/create-dup' 'POST' "$gw/alert/v1/rule" $h '{"ruleName":"smoke-rule","metricName":"cpu","thresholdValue":90,"operator":"GT","level":"WARN","status":1,"notifyTargets":"admin"}' | Out-Null
+Call 'P6 alert/rule/404' 'GET' "$gw/alert/v1/rule/999999999" $h $null | Out-Null
+Call 'P7 alert/record/page' 'GET' "$gw/alert/v1/record/page?current=1&size=10" $h $null | Out-Null
 
 # pay
 Call 'P8 pay/order/page' 'GET' "$gw/pay/order/page?current=1&size=10" $h $null | Out-Null

@@ -26,7 +26,7 @@ import java.time.LocalDateTime;
 /**
  * 告警记录查询与操作接口
  *
- * <p>服务内路径 {@code /alert/record/**}；经网关按 {@code Path=/alert/**} 规则转发，
+ * <p>服务内路径 {@code /alert/v1/record/**}；经网关按 {@code Path=/alert/**} 规则转发，
  * 外部路径与本文档一致。接口返回统一响应体 {@link Result}，受
  * {@code @RequirePermission("sys:alert:record:list")} 保护（由网关权限码头
  * {@code X-Permission-Codes} + starter {@code RequirePermissionInterceptor} 判定）。</p>
@@ -34,7 +34,7 @@ import java.time.LocalDateTime;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/alert/record")
+@RequestMapping("/alert/v1/record")
 @RequiredArgsConstructor
 public class AlertRecordController {
 

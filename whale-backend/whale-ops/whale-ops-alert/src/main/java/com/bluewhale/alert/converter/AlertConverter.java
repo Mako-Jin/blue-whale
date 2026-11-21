@@ -1,8 +1,8 @@
 package com.bluewhale.alert.converter;
 
 import com.bluewhale.alert.dto.AlertRuleSaveRequest;
-import com.bluewhale.alert.entity.AlertRecord;
-import com.bluewhale.alert.entity.AlertRule;
+import com.bluewhale.alert.po.AlertRecordPo;
+import com.bluewhale.alert.po.AlertRulePo;
 import com.bluewhale.alert.vo.AlertRecordVO;
 import com.bluewhale.alert.vo.AlertRuleVO;
 import org.mapstruct.BeanMapping;
@@ -31,7 +31,7 @@ public interface AlertConverter {
      * @param record 告警记录实体
      * @return 告警记录视图对象
      */
-    AlertRecordVO toRecordVo(AlertRecord record);
+    AlertRecordVO toRecordVo(AlertRecordPo record);
 
     /**
      * 告警规则实体转视图对象
@@ -39,7 +39,7 @@ public interface AlertConverter {
      * @param rule 告警规则实体
      * @return 告警规则视图对象
      */
-    AlertRuleVO toRuleVo(AlertRule rule);
+    AlertRuleVO toRuleVo(AlertRulePo rule);
 
     /**
      * 保存请求转规则实体（唯一性校验由服务层处理）
@@ -51,7 +51,7 @@ public interface AlertConverter {
     @Mapping(target = "createTime", ignore = true)
     @Mapping(target = "updateTime", ignore = true)
     @Mapping(target = "deleted", ignore = true)
-    AlertRule toEntity(AlertRuleSaveRequest request);
+    AlertRulePo toEntity(AlertRuleSaveRequest request);
 
     /**
      * 保存请求覆盖既有规则实体（保留主键与审计字段）。
@@ -67,5 +67,5 @@ public interface AlertConverter {
     @Mapping(target = "createTime", ignore = true)
     @Mapping(target = "updateTime", ignore = true)
     @Mapping(target = "deleted", ignore = true)
-    void updateEntity(AlertRuleSaveRequest request, @MappingTarget AlertRule entity);
+    void updateEntity(AlertRuleSaveRequest request, @MappingTarget AlertRulePo entity);
 }

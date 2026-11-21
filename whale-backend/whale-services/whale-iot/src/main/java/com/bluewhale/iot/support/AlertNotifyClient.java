@@ -17,7 +17,7 @@ import java.util.Map;
 /**
  * 告警动作客户端：调用 whale-alert 内网接口落告警记录。
  *
- * <p>只用内网 {@code /alert/internal/record}（网关对 {@code /internal/**} 统一 403），
+ * <p>只用内网 {@code /alert/v1/internal/record}（网关对 {@code /internal/**} 统一 403），
  * 请求经 {@link InternalTokenSupport} 自动附带 {@code X-Internal-Token}，并由
  * {@code X-Tenant-Id} 透传租户，保证告警落在设备所属租户下。</p>
  *
@@ -32,7 +32,7 @@ import java.util.Map;
 public class AlertNotifyClient {
 
     /** 告警记录创建路径（whale-alert 内网接口） */
-    private static final String RECORD_PATH = "/alert/internal/record";
+    private static final String RECORD_PATH = "/alert/v1/internal/record";
 
     /** 成功业务码 */
     private static final int CODE_SUCCESS = 0;

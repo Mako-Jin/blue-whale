@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 告警规则管理接口
  *
- * <p>服务内路径 {@code /alert/rule/**}；经网关按 {@code Path=/alert/**} 规则转发，
+ * <p>服务内路径 {@code /alert/v1/rule/**}；经网关按 {@code Path=/alert/**} 规则转发，
  * 外部路径与本文档一致。全部接口返回统一响应体 {@link Result}，受
  * {@code @RequirePermission("sys:alert:rule:*")} 保护（由网关权限码头
  * {@code X-Permission-Codes} + starter {@code RequirePermissionInterceptor} 判定），
@@ -33,7 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/alert/rule")
+@RequestMapping("/alert/v1/rule")
 @RequiredArgsConstructor
 public class AlertRuleController {
 

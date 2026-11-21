@@ -17,7 +17,7 @@ import java.io.IOException;
  *
  * <p>{@code server.tomcat.max-http-form-post-size} 只作用于表单，JSON 请求体需要在读取前
  * 按 {@code Content-Length} 拦截，防止超大 payload 占满内存。仅作用于
- * {@code POST /alert/internal/prometheus}，不影响其它接口。</p>
+ * {@code POST /alert/v1/internal/prometheus}，不影响其它接口。</p>
  *
  * @author BlueWhale
  */
@@ -26,7 +26,7 @@ import java.io.IOException;
 public class AlertIngestSizeFilter extends OncePerRequestFilter {
 
     /** 受保护的入站路径 */
-    private static final String INGEST_PATH = "/alert/internal/prometheus";
+    private static final String INGEST_PATH = "/alert/v1/internal/prometheus";
 
     private final AlertIngestProperties ingestProperties;
 

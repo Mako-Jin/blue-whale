@@ -1,7 +1,7 @@
 package com.bluewhale.alert.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bluewhale.alert.entity.AlertNotifyLog;
+import com.bluewhale.alert.po.AlertNotifyLogPo;
 import org.apache.ibatis.annotations.Mapper;
 
 /**
@@ -10,5 +10,5 @@ import org.apache.ibatis.annotations.Mapper;
  * @author BlueWhale
  */
 @Mapper
-public interface AlertNotifyLogMapper extends BaseMapper<AlertNotifyLog> {
+public interface AlertNotifyLogMapper extends BaseMapper<AlertNotifyLogPo> {
 }

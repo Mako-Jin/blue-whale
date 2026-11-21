@@ -14,7 +14,7 @@ route:
 receivers:
   - name: whale-alert
     webhook_configs:
-      - url: http://host.docker.internal:9103/alert/internal/prometheus
+      - url: http://host.docker.internal:9103/alert/v1/internal/prometheus
         send_resolved: true
         max_alerts: 0
         http_config:

@@ -1,4 +1,4 @@
-package com.bluewhale.alert.entity;
+package com.bluewhale.alert.po;
 
 import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
@@ -20,7 +20,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @TableName("alert_notify_log")
-public class AlertNotifyLog implements Serializable {
+public class AlertNotifyLogPo implements Serializable {
 
     private static final long serialVersionUID = 1L;
 

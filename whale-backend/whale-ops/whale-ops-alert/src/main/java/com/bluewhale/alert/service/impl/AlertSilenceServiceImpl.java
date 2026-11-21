@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.alert.dto.AlertSilenceCreateRequest;
 import com.bluewhale.alert.dto.AlertSilenceQueryRequest;
-import com.bluewhale.alert.entity.AlertSilence;
+import com.bluewhale.alert.po.AlertSilencePo;
 import com.bluewhale.alert.mapper.AlertSilenceMapper;
 import com.bluewhale.alert.service.AlertSilenceService;
 import com.bluewhale.alert.vo.AlertSilenceVO;
@@ -39,7 +39,7 @@ public class AlertSilenceServiceImpl implements AlertSilenceService {
         if (request.getEndTime().isBefore(request.getStartTime())) {
             throw new BizException(ErrorCode.PARAM_ERROR);
         }
-        AlertSilence entity = new AlertSilence();
+        AlertSilencePo entity = new AlertSilencePo();
         entity.setRuleCode(request.getRuleCode());
         entity.setAlertLevel(request.getAlertLevel());
         entity.setKeyword(request.getKeyword());
@@ -56,15 +56,15 @@ public class AlertSilenceServiceImpl implements AlertSilenceService {
 
     @Override
     public PageResult<AlertSilenceVO> page(AlertSilenceQueryRequest request) {
-        LambdaQueryWrapper<AlertSilence> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(StringUtils.hasText(request.getRuleCode()), AlertSilence::getRuleCode,
+        LambdaQueryWrapper<AlertSilencePo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(StringUtils.hasText(request.getRuleCode()), AlertSilencePo::getRuleCode,
                 request.getRuleCode());
         if (Boolean.TRUE.equals(request.getActiveOnly())) {
             LocalDateTime now = LocalDateTime.now();
-            wrapper.le(AlertSilence::getStartTime, now).ge(AlertSilence::getEndTime, now);
+            wrapper.le(AlertSilencePo::getStartTime, now).ge(AlertSilencePo::getEndTime, now);
         }
-        wrapper.orderByDesc(AlertSilence::getStartTime);
-        Page<AlertSilence> page = alertSilenceMapper.selectPage(request.toPage(), wrapper);
+        wrapper.orderByDesc(AlertSilencePo::getStartTime);
+        Page<AlertSilencePo> page = alertSilenceMapper.selectPage(request.toPage(), wrapper);
         List<AlertSilenceVO> records = page.getRecords().stream()
                 .map(AlertSilenceServiceImpl::toVo).toList();
         return PageResult.of(records, page.getTotal(), page.getCurrent(), page.getSize());
@@ -72,7 +72,7 @@ public class AlertSilenceServiceImpl implements AlertSilenceService {
 
     @Override
     public void delete(Long id) {
-        AlertSilence existing = alertSilenceMapper.selectById(id);
+        AlertSilencePo existing = alertSilenceMapper.selectById(id);
         if (existing == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
@@ -83,9 +83,9 @@ public class AlertSilenceServiceImpl implements AlertSilenceService {
     @Override
     public boolean isSilenced(String ruleCode, String level, String content) {
         LocalDateTime now = LocalDateTime.now();
-        LambdaQueryWrapper<AlertSilence> wrapper = new LambdaQueryWrapper<>();
-        wrapper.le(AlertSilence::getStartTime, now).ge(AlertSilence::getEndTime, now);
-        for (AlertSilence silence : alertSilenceMapper.selectList(wrapper)) {
+        LambdaQueryWrapper<AlertSilencePo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.le(AlertSilencePo::getStartTime, now).ge(AlertSilencePo::getEndTime, now);
+        for (AlertSilencePo silence : alertSilenceMapper.selectList(wrapper)) {
             if (!matches(silence, ruleCode, level, content)) {
                 continue;
             }
@@ -105,7 +105,7 @@ public class AlertSilenceServiceImpl implements AlertSilenceService {
      * @param content  告警内容
      * @return 匹配返回 {@code true}
      */
-    private static boolean matches(AlertSilence silence, String ruleCode, String level, String content) {
+    private static boolean matches(AlertSilencePo silence, String ruleCode, String level, String content) {
         if (StringUtils.hasText(silence.getRuleCode())
                 && !silence.getRuleCode().equals(ruleCode)) {
             return false;
@@ -124,7 +124,7 @@ public class AlertSilenceServiceImpl implements AlertSilenceService {
      * @param entity 静默实体
      * @return 静默视图对象
      */
-    private static AlertSilenceVO toVo(AlertSilence entity) {
+    private static AlertSilenceVO toVo(AlertSilencePo entity) {
         AlertSilenceVO vo = new AlertSilenceVO();
         vo.setId(entity.getId());
         vo.setRuleCode(entity.getRuleCode());

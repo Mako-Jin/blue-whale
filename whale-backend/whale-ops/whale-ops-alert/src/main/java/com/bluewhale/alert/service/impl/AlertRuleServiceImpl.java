@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.alert.dto.AlertRuleQueryRequest;
 import com.bluewhale.alert.dto.AlertRuleSaveRequest;
 import com.bluewhale.alert.converter.AlertConverter;
-import com.bluewhale.alert.entity.AlertRule;
+import com.bluewhale.alert.po.AlertRulePo;
 import com.bluewhale.alert.mapper.AlertRuleMapper;
 import com.bluewhale.alert.service.AlertRuleService;
 import com.bluewhale.alert.vo.AlertRuleVO;
@@ -47,17 +47,17 @@ public class AlertRuleServiceImpl implements AlertRuleService {
 
     @Override
     public PageResult<AlertRuleVO> page(AlertRuleQueryRequest request) {
-        LambdaQueryWrapper<AlertRule> wrapper = new LambdaQueryWrapper<>();
+        LambdaQueryWrapper<AlertRulePo> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(request.getKeyword())) {
-            wrapper.and(inner -> inner.like(AlertRule::getRuleName, request.getKeyword())
-                    .or().like(AlertRule::getRuleCode, request.getKeyword()));
+            wrapper.and(inner -> inner.like(AlertRulePo::getRuleName, request.getKeyword())
+                    .or().like(AlertRulePo::getRuleCode, request.getKeyword()));
         }
-        wrapper.eq(StringUtils.hasText(request.getMetric()), AlertRule::getMetric, request.getMetric());
-        wrapper.eq(StringUtils.hasText(request.getLevel()), AlertRule::getLevel, request.getLevel());
-        wrapper.eq(request.getStatus() != null, AlertRule::getStatus, request.getStatus());
-        wrapper.orderByDesc(AlertRule::getCreateTime);
+        wrapper.eq(StringUtils.hasText(request.getMetric()), AlertRulePo::getMetric, request.getMetric());
+        wrapper.eq(StringUtils.hasText(request.getLevel()), AlertRulePo::getLevel, request.getLevel());
+        wrapper.eq(request.getStatus() != null, AlertRulePo::getStatus, request.getStatus());
+        wrapper.orderByDesc(AlertRulePo::getCreateTime);
         long size = Math.min(Math.max(request.getSize(), 1L), MAX_PAGE_SIZE);
-        Page<AlertRule> page = alertRuleMapper.selectPage(new Page<>(request.getCurrent(), size), wrapper);
+        Page<AlertRulePo> page = alertRuleMapper.selectPage(new Page<>(request.getCurrent(), size), wrapper);
         List<AlertRuleVO> records = page.getRecords().stream().map(AlertRuleServiceImpl::toVo).toList();
         return PageResult.of(records, page.getTotal(), page.getCurrent(), page.getSize());
     }
@@ -71,7 +71,7 @@ public class AlertRuleServiceImpl implements AlertRuleService {
     @Transactional(rollbackFor = Exception.class)
     public AlertRuleVO create(AlertRuleSaveRequest request) {
         ensureUnique(request.getRuleCode(), null);
-        AlertRule entity = AlertConverter.INSTANCE.toEntity(request);
+        AlertRulePo entity = AlertConverter.INSTANCE.toEntity(request);
         insertGuardingUniqueKey(entity);
         return toVo(alertRuleMapper.selectById(entity.getId()));
     }
@@ -79,7 +79,7 @@ public class AlertRuleServiceImpl implements AlertRuleService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public AlertRuleVO update(Long id, AlertRuleSaveRequest request) {
-        AlertRule existing = requireRule(id);
+        AlertRulePo existing = requireRule(id);
         ensureUnique(request.getRuleCode(), id);
         AlertConverter.INSTANCE.updateEntity(request, existing);
         existing.setId(id);
@@ -100,7 +100,7 @@ public class AlertRuleServiceImpl implements AlertRuleService {
         if (status == null || (status != STATUS_ENABLED && status != STATUS_DISABLED)) {
             throw new BizException(ErrorCode.PARAM_ERROR);
         }
-        AlertRule existing = requireRule(id);
+        AlertRulePo existing = requireRule(id);
         existing.setStatus(status);
         alertRuleMapper.updateById(existing);
     }
@@ -110,7 +110,7 @@ public class AlertRuleServiceImpl implements AlertRuleService {
      *
      * @param entity 待插入规则
      */
-    private void insertGuardingUniqueKey(AlertRule entity) {
+    private void insertGuardingUniqueKey(AlertRulePo entity) {
         try {
             alertRuleMapper.insert(entity);
         } catch (DuplicateKeyException e) {
@@ -123,7 +123,7 @@ public class AlertRuleServiceImpl implements AlertRuleService {
      *
      * @param entity 待更新规则
      */
-    private void updateGuardingUniqueKey(AlertRule entity) {
+    private void updateGuardingUniqueKey(AlertRulePo entity) {
         try {
             alertRuleMapper.updateById(entity);
         } catch (DuplicateKeyException e) {
@@ -137,8 +137,8 @@ public class AlertRuleServiceImpl implements AlertRuleService {
      * @param id 规则ID
      * @return 规则实体
      */
-    private AlertRule requireRule(Long id) {
-        AlertRule rule = alertRuleMapper.selectById(id);
+    private AlertRulePo requireRule(Long id) {
+        AlertRulePo rule = alertRuleMapper.selectById(id);
         if (rule == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
@@ -152,10 +152,10 @@ public class AlertRuleServiceImpl implements AlertRuleService {
      * @param excludeId 更新场景下排除自身ID，新增场景传 {@code null}
      */
     private void ensureUnique(String ruleCode, Long excludeId) {
-        LambdaQueryWrapper<AlertRule> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(AlertRule::getRuleCode, ruleCode);
+        LambdaQueryWrapper<AlertRulePo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(AlertRulePo::getRuleCode, ruleCode);
         if (excludeId != null) {
-            wrapper.ne(AlertRule::getId, excludeId);
+            wrapper.ne(AlertRulePo::getId, excludeId);
         }
         if (alertRuleMapper.selectCount(wrapper) > 0) {
             throw new BizException(ErrorCode.PARAM_ERROR);
@@ -168,7 +168,7 @@ public class AlertRuleServiceImpl implements AlertRuleService {
      * @param rule 规则实体
      * @return 规则视图对象
      */
-    private static AlertRuleVO toVo(AlertRule rule) {
+    private static AlertRuleVO toVo(AlertRulePo rule) {
         AlertRuleVO vo = AlertConverter.INSTANCE.toRuleVo(rule);
         return vo;
     }

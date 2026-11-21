@@ -9,7 +9,7 @@ import com.bluewhale.alert.dto.AlertAckRequest;
 import com.bluewhale.alert.dto.AlertRecordCreateRequest;
 import com.bluewhale.alert.dto.AlertRecordQueryRequest;
 import com.bluewhale.alert.dto.PrometheusWebhookPayload;
-import com.bluewhale.alert.entity.AlertRecord;
+import com.bluewhale.alert.po.AlertRecordPo;
 import com.bluewhale.alert.mapper.AlertRecordMapper;
 import com.bluewhale.alert.service.AlertRecordService;
 import com.bluewhale.alert.support.AlertRecordSupport;
@@ -64,22 +64,22 @@ public class AlertRecordServiceImpl implements AlertRecordService {
 
     @Override
     public PageResult<AlertRecordVO> page(AlertRecordQueryRequest request) {
-        LambdaQueryWrapper<AlertRecord> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(StringUtils.hasText(request.getRuleCode()), AlertRecord::getRuleCode, request.getRuleCode());
-        wrapper.eq(StringUtils.hasText(request.getAlertLevel()), AlertRecord::getAlertLevel, request.getAlertLevel());
-        wrapper.eq(StringUtils.hasText(request.getStatus()), AlertRecord::getStatus, request.getStatus());
-        wrapper.eq(request.getAcknowledged() != null, AlertRecord::getAcknowledged,
+        LambdaQueryWrapper<AlertRecordPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(StringUtils.hasText(request.getRuleCode()), AlertRecordPo::getRuleCode, request.getRuleCode());
+        wrapper.eq(StringUtils.hasText(request.getAlertLevel()), AlertRecordPo::getAlertLevel, request.getAlertLevel());
+        wrapper.eq(StringUtils.hasText(request.getStatus()), AlertRecordPo::getStatus, request.getStatus());
+        wrapper.eq(request.getAcknowledged() != null, AlertRecordPo::getAcknowledged,
                 Boolean.TRUE.equals(request.getAcknowledged()) ? 1 : 0);
-        wrapper.ge(request.getTriggerTimeStart() != null, AlertRecord::getTriggerTime,
+        wrapper.ge(request.getTriggerTimeStart() != null, AlertRecordPo::getTriggerTime,
                 request.getTriggerTimeStart());
-        wrapper.le(request.getTriggerTimeEnd() != null, AlertRecord::getTriggerTime,
+        wrapper.le(request.getTriggerTimeEnd() != null, AlertRecordPo::getTriggerTime,
                 request.getTriggerTimeEnd());
-        wrapper.like(StringUtils.hasText(request.getKeyword()), AlertRecord::getContent,
+        wrapper.like(StringUtils.hasText(request.getKeyword()), AlertRecordPo::getContent,
                 request.getKeyword());
         String orderColumn = resolveSortColumn(request.getSortField());
         wrapper.last("ORDER BY " + orderColumn
                 + ("asc".equalsIgnoreCase(request.getSortOrder()) ? " ASC" : " DESC"));
-        Page<AlertRecord> page = alertRecordMapper.selectPage(request.toPage(), wrapper);
+        Page<AlertRecordPo> page = alertRecordMapper.selectPage(request.toPage(), wrapper);
         List<AlertRecordVO> records = page.getRecords().stream().map(AlertRecordServiceImpl::toVo).toList();
         return PageResult.of(records, page.getTotal(), page.getCurrent(), page.getSize());
     }
@@ -141,7 +141,7 @@ public class AlertRecordServiceImpl implements AlertRecordService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public AlertRecordVO ack(Long id, AlertAckRequest request) {
-        AlertRecord existing = alertRecordMapper.selectById(id);
+        AlertRecordPo existing = alertRecordMapper.selectById(id);
         if (existing == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
@@ -180,8 +180,8 @@ public class AlertRecordServiceImpl implements AlertRecordService {
      * @return 记录数
      */
     private long countByStatus(String status, LocalDateTime start, LocalDateTime end) {
-        LambdaQueryWrapper<AlertRecord> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(AlertRecord::getStatus, status);
+        LambdaQueryWrapper<AlertRecordPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(AlertRecordPo::getStatus, status);
         applyRange(wrapper, start, end);
         Long count = alertRecordMapper.selectCount(wrapper);
         return count == null ? 0L : count;
@@ -195,7 +195,7 @@ public class AlertRecordServiceImpl implements AlertRecordService {
      * @return 记录数
      */
     private long countInRange(LocalDateTime start, LocalDateTime end) {
-        LambdaQueryWrapper<AlertRecord> wrapper = new LambdaQueryWrapper<>();
+        LambdaQueryWrapper<AlertRecordPo> wrapper = new LambdaQueryWrapper<>();
         applyRange(wrapper, start, end);
         Long count = alertRecordMapper.selectCount(wrapper);
         return count == null ? 0L : count;
@@ -210,7 +210,7 @@ public class AlertRecordServiceImpl implements AlertRecordService {
      * @return 分组计数（保持查询顺序）
      */
     private Map<String, Long> countGroupBy(String column, LocalDateTime start, LocalDateTime end) {
-        QueryWrapper<AlertRecord> wrapper = new QueryWrapper<>();
+        QueryWrapper<AlertRecordPo> wrapper = new QueryWrapper<>();
         wrapper.select(column, "COUNT(*) AS " + COL_COUNT).groupBy(column);
         applyRange(wrapper, start, end);
         Map<String, Long> result = new LinkedHashMap<>();
@@ -229,7 +229,7 @@ public class AlertRecordServiceImpl implements AlertRecordService {
      * @return TOP 规则列表
      */
     private List<AlertRecordStatsVO.RuleCount> topRules(LocalDateTime start, LocalDateTime end) {
-        QueryWrapper<AlertRecord> wrapper = new QueryWrapper<>();
+        QueryWrapper<AlertRecordPo> wrapper = new QueryWrapper<>();
         wrapper.select(COL_RULE_CODE, "COUNT(*) AS " + COL_COUNT)
                 .groupBy(COL_RULE_CODE)
                 .orderByDesc(COL_COUNT)
@@ -250,7 +250,7 @@ public class AlertRecordServiceImpl implements AlertRecordService {
      * @return 平均秒数；无恢复记录时为 0
      */
     private double avgRecoverSeconds(LocalDateTime start, LocalDateTime end) {
-        QueryWrapper<AlertRecord> wrapper = new QueryWrapper<>();
+        QueryWrapper<AlertRecordPo> wrapper = new QueryWrapper<>();
         wrapper.select("AVG(TIMESTAMPDIFF(SECOND, trigger_time, recover_time)) AS mttr")
                 .eq("status", AlertRecordSupport.STATUS_RECOVERED)
                 .isNotNull("recover_time");
@@ -273,10 +273,10 @@ public class AlertRecordServiceImpl implements AlertRecordService {
      * @param start   起始时间
      * @param end     截止时间
      */
-    private static void applyRange(LambdaQueryWrapper<AlertRecord> wrapper,
+    private static void applyRange(LambdaQueryWrapper<AlertRecordPo> wrapper,
                                    LocalDateTime start, LocalDateTime end) {
-        wrapper.ge(start != null, AlertRecord::getTriggerTime, start)
-                .le(end != null, AlertRecord::getTriggerTime, end);
+        wrapper.ge(start != null, AlertRecordPo::getTriggerTime, start)
+                .le(end != null, AlertRecordPo::getTriggerTime, end);
     }
 
     /**
@@ -286,7 +286,7 @@ public class AlertRecordServiceImpl implements AlertRecordService {
      * @param start   起始时间
      * @param end     截止时间
      */
-    private static void applyRange(QueryWrapper<AlertRecord> wrapper,
+    private static void applyRange(QueryWrapper<AlertRecordPo> wrapper,
                                    LocalDateTime start, LocalDateTime end) {
         wrapper.ge(start != null, "trigger_time", start)
                 .le(end != null, "trigger_time", end);
@@ -308,7 +308,7 @@ public class AlertRecordServiceImpl implements AlertRecordService {
      * @param record 记录实体
      * @return 记录视图对象
      */
-    private static AlertRecordVO toVo(AlertRecord record) {
+    private static AlertRecordVO toVo(AlertRecordPo record) {
         return AlertConverter.INSTANCE.toRecordVo(record);
     }
 }

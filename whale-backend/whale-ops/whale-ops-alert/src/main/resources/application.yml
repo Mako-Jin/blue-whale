@@ -108,7 +108,7 @@ whale:
 bluewhale:
   internal-token:
     exclude-patterns:
-      - /alert/internal/prometheus/**
+      - /alert/v1/internal/prometheus/**
 
 mybatis-plus:
   configuration:

@@ -5,8 +5,8 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.bluewhale.alert.config.AlertNotifyProperties;
 import com.bluewhale.alert.dto.AlertRecordCreateRequest;
 import com.bluewhale.alert.dto.PrometheusWebhookPayload;
-import com.bluewhale.alert.entity.AlertRecord;
-import com.bluewhale.alert.entity.AlertRule;
+import com.bluewhale.alert.po.AlertRecordPo;
+import com.bluewhale.alert.po.AlertRulePo;
 import com.bluewhale.alert.mapper.AlertRecordMapper;
 import com.bluewhale.alert.mapper.AlertRuleMapper;
 import com.bluewhale.alert.service.AlertSilenceService;
@@ -115,8 +115,8 @@ public class AlertRecordWriter {
      * @return 是否写入
      */
     private int ingestOne(PrometheusWebhookPayload.PrometheusAlert alert, List<PendingNotify> pending) {
-        AlertRule rule = findRule(alert.getLabels().get(AlertRecordSupport.LABEL_ALERT_NAME));
-        AlertRecord record = AlertRecordSupport.toRecord(alert, rule);
+        AlertRulePo rule = findRule(alert.getLabels().get(AlertRecordSupport.LABEL_ALERT_NAME));
+        AlertRecordPo record = AlertRecordSupport.toRecord(alert, rule);
         if (STATUS_RECOVERED.equals(record.getStatus())) {
             return recover(record);
         }
@@ -150,15 +150,15 @@ public class AlertRecordWriter {
      * @param recovered 由 resolved 告警转换出的记录
      * @return 写入条数（更新已有记录计 0，新增恢复记录计 1）
      */
-    private int recover(AlertRecord recovered) {
+    private int recover(AlertRecordPo recovered) {
         LocalDateTime recoverTime = recovered.getRecoverTime() == null
                 ? LocalDateTime.now() : recovered.getRecoverTime();
         if (StringUtils.hasText(recovered.getFingerprint())) {
-            LambdaUpdateWrapper<AlertRecord> update = new LambdaUpdateWrapper<>();
-            update.eq(AlertRecord::getFingerprint, recovered.getFingerprint())
-                    .eq(AlertRecord::getStatus, STATUS_FIRING)
-                    .set(AlertRecord::getStatus, STATUS_RECOVERED)
-                    .set(AlertRecord::getRecoverTime, recoverTime);
+            LambdaUpdateWrapper<AlertRecordPo> update = new LambdaUpdateWrapper<>();
+            update.eq(AlertRecordPo::getFingerprint, recovered.getFingerprint())
+                    .eq(AlertRecordPo::getStatus, STATUS_FIRING)
+                    .set(AlertRecordPo::getStatus, STATUS_RECOVERED)
+                    .set(AlertRecordPo::getRecoverTime, recoverTime);
             int updated = alertRecordMapper.update(null, update);
             if (updated > 0) {
                 log.info("告警恢复闭环: ruleCode={}, fingerprint={}, updated={}",
@@ -186,7 +186,7 @@ public class AlertRecordWriter {
                 : request.getTenantId();
         TenantContext.set(targetTenant);
         try {
-            AlertRecord record = new AlertRecord();
+            AlertRecordPo record = new AlertRecordPo();
             record.setRuleCode(AlertRecordSupport.normalizeRuleCode(request.getRuleCode()));
             record.setAlertLevel(AlertLevels.normalize(request.getAlertLevel(), AlertLevels.WARN));
             record.setContent(AlertRecordSupport.truncateContent(request.getContent()));
@@ -194,7 +194,7 @@ public class AlertRecordWriter {
             record.setFingerprint(AlertRecordSupport.fingerprint(request));
             record.setTriggerTime(request.getTriggerTime() == null
                     ? LocalDateTime.now() : request.getTriggerTime());
-            AlertRule rule = StringUtils.hasText(record.getRuleCode())
+            AlertRulePo rule = StringUtils.hasText(record.getRuleCode())
                     ? findRule(record.getRuleCode()) : null;
             if (alertSilenceService.isSilenced(record.getRuleCode(), record.getAlertLevel(),
                     record.getContent())) {
@@ -226,16 +226,16 @@ public class AlertRecordWriter {
      * @param record 待落库记录
      * @return 重复返回 {@code true}
      */
-    private boolean isDuplicate(AlertRecord record) {
+    private boolean isDuplicate(AlertRecordPo record) {
         AlertNotifyProperties.Dedup dedup = notifyProperties.getDedup();
         if (!dedup.isEnabled() || !StringUtils.hasText(record.getFingerprint())) {
             return false;
         }
         LocalDateTime threshold = LocalDateTime.now().minusSeconds(Math.max(dedup.getWindowSeconds(), 1));
-        LambdaQueryWrapper<AlertRecord> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(AlertRecord::getFingerprint, record.getFingerprint())
-                .eq(AlertRecord::getStatus, STATUS_FIRING)
-                .ge(AlertRecord::getCreateTime, threshold);
+        LambdaQueryWrapper<AlertRecordPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(AlertRecordPo::getFingerprint, record.getFingerprint())
+                .eq(AlertRecordPo::getStatus, STATUS_FIRING)
+                .ge(AlertRecordPo::getCreateTime, threshold);
         Long count = alertRecordMapper.selectCount(wrapper);
         if (count != null && count > 0L) {
             Counter.builder(METRIC_DEDUP).register(meterRegistry).increment();
@@ -250,7 +250,7 @@ public class AlertRecordWriter {
      * @param rule 命中的规则（可为 {@code null}）
      * @return 规则存在且已启用时为 {@code true}
      */
-    private static boolean isEnabled(AlertRule rule) {
+    private static boolean isEnabled(AlertRulePo rule) {
         return rule != null && rule.getStatus() != null && rule.getStatus() == RULE_ENABLED;
     }
 
@@ -260,8 +260,8 @@ public class AlertRecordWriter {
      * @param ruleCode 规则编码
      * @return 规则实体；不存在时为 {@code null}
      */
-    private AlertRule findRule(String ruleCode) {
-        AlertRule rule = selectRule(ruleCode);
+    private AlertRulePo findRule(String ruleCode) {
+        AlertRulePo rule = selectRule(ruleCode);
         Long tenantId = TenantContext.get();
         if (rule == null && tenantId != null && tenantId != TenantContext.DEFAULT_TENANT_ID) {
             TenantContext.set(TenantContext.DEFAULT_TENANT_ID);
@@ -283,9 +283,9 @@ public class AlertRecordWriter {
      * @param ruleCode 规则编码
      * @return 规则实体；不存在时为 {@code null}
      */
-    private AlertRule selectRule(String ruleCode) {
-        LambdaQueryWrapper<AlertRule> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(AlertRule::getRuleCode, ruleCode);
+    private AlertRulePo selectRule(String ruleCode) {
+        LambdaQueryWrapper<AlertRulePo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(AlertRulePo::getRuleCode, ruleCode);
         return alertRuleMapper.selectOne(wrapper);
     }
 
@@ -329,6 +329,6 @@ public class AlertRecordWriter {
      * @param record   告警记录
      * @param tenantId 归属租户
      */
-    private record PendingNotify(AlertRule rule, AlertRecord record, Long tenantId) {
+    private record PendingNotify(AlertRulePo rule, AlertRecordPo record, Long tenantId) {
     }
 }

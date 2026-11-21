@@ -1,7 +1,7 @@
 package com.bluewhale.alert.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bluewhale.alert.entity.AlertRule;
+import com.bluewhale.alert.po.AlertRulePo;
 
 /**
  * 告警规则 Mapper
@@ -10,5 +10,5 @@ import com.bluewhale.alert.entity.AlertRule;
  *
  * @author BlueWhale
  */
-public interface AlertRuleMapper extends BaseMapper<AlertRule> {
+public interface AlertRuleMapper extends BaseMapper<AlertRulePo> {
 }

@@ -1,7 +1,7 @@
 package com.bluewhale.alert.service;
 
-import com.bluewhale.alert.entity.AlertRecord;
-import com.bluewhale.alert.entity.AlertRule;
+import com.bluewhale.alert.po.AlertRecordPo;
+import com.bluewhale.alert.po.AlertRulePo;
 
 /**
  * 告警通知服务：按规则配置的通道发送通知。
@@ -18,5 +18,5 @@ public interface AlertNotifyService {
      * @param rule   触发的告警规则
      * @param record 已落库的告警记录
      */
-    void notify(AlertRule rule, AlertRecord record);
+    void notify(AlertRulePo rule, AlertRecordPo record);
 }

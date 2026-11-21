@@ -1,7 +1,7 @@
 package com.bluewhale.alert.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bluewhale.alert.entity.AlertRecord;
+import com.bluewhale.alert.po.AlertRecordPo;
 import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Param;
 
@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
  *
  * @author BlueWhale
  */
-public interface AlertRecordMapper extends BaseMapper<AlertRecord> {
+public interface AlertRecordMapper extends BaseMapper<AlertRecordPo> {
 
     /**
      * 物理删除超过保留期的已恢复 / 已静默记录。

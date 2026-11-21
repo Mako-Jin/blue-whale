@@ -20,7 +20,7 @@ import java.util.Map;
 /**
  * 熔断状态告警上报客户端：把熔断打开/恢复上报到 whale-alert 内网记录接口。
  *
- * <p>只用内网 {@code POST /alert/internal/record}（网关对 {@code /internal/**} 统一 403，
+ * <p>只用内网 {@code POST /alert/v1/internal/record}（网关对 {@code /internal/**} 统一 403，
  * 不经网关转发）；whale-alert 侧按 fingerprint 在窗口内去重（重开抖动不刷屏），
  * 并在存在同名启用规则时触发邮件/webhook/短信通知。</p>
  *
@@ -34,7 +34,7 @@ import java.util.Map;
 @Component
 public class CircuitAlertNotifier {
     /** whale-alert 内网告警记录路径 */
-    private static final String RECORD_PATH = "/alert/internal/record";
+    private static final String RECORD_PATH = "/alert/v1/internal/record";
 
     /** 上报来源标识 */
     private static final String SOURCE = "gateway";

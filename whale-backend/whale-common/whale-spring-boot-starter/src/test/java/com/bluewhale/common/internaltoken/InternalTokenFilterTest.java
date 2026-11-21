@@ -111,9 +111,9 @@ class InternalTokenFilterTest {
     @Test
     @DisplayName("filter：豁免路径（Alertmanager 入站）不校验令牌放行")
     void shouldAllowExcludedPath() throws Exception {
-        properties.setExcludePatterns(List.of("/alert/internal/prometheus/**"));
+        properties.setExcludePatterns(List.of("/alert/v1/internal/prometheus/**"));
 
-        assertEquals(200, doFilter("/alert/internal/prometheus", null).getStatus());
+        assertEquals(200, doFilter("/alert/v1/internal/prometheus", null).getStatus());
     }
 
     @Test

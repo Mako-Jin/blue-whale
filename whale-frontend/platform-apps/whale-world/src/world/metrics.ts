@@ -215,7 +215,7 @@ const PROBES: ProbeSpec[] = [
     // 兵部 = IoT：本服务没有聚合接口，取城防语义最近的「告警中心未处理数」
     nodeKey: 'bingbu-hall',
     permission: 'sys:alert:record:list',
-    url: '/alert/record/page?status=FIRING&pageSize=1',
+    url: '/alert/v1/record/page?status=FIRING&pageSize=1',
     extract: (d) => [
       {
         label: '未处理告警',

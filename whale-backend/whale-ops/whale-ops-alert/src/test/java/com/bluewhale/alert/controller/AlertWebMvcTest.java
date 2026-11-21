@@ -55,11 +55,11 @@ class AlertWebMvcTest {
     }
 
     @Test
-    @DisplayName("POST /alert/internal/prometheus：令牌正确时完成 JSON 绑定并返回条数")
+    @DisplayName("POST /alert/v1/internal/prometheus：令牌正确时完成 JSON 绑定并返回条数")
     void shouldIngestWebhookViaHttp() throws Exception {
         when(alertRecordService.ingest(any())).thenReturn(1);
 
-        mockMvc.perform(post("/alert/internal/prometheus")
+        mockMvc.perform(post("/alert/v1/internal/prometheus")
                         .header("X-Alert-Token", TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(PAYLOAD))
@@ -71,11 +71,11 @@ class AlertWebMvcTest {
     }
 
     @Test
-    @DisplayName("POST /alert/internal/prometheus：缺少令牌时拒绝且不落库")
+    @DisplayName("POST /alert/v1/internal/prometheus：缺少令牌时拒绝且不落库")
     void shouldRejectWebhookWithoutToken() {
         jakarta.servlet.ServletException exception = org.junit.jupiter.api.Assertions.assertThrows(
                 jakarta.servlet.ServletException.class,
-                () -> mockMvc.perform(post("/alert/internal/prometheus")
+                () -> mockMvc.perform(post("/alert/v1/internal/prometheus")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(PAYLOAD)));
 
@@ -84,9 +84,9 @@ class AlertWebMvcTest {
     }
 
     @Test
-    @DisplayName("GET /alert/meta/enums：下发级别、通道、运算符、状态与排序枚举")
+    @DisplayName("GET /alert/v1/meta/enums：下发级别、通道、运算符、状态与排序枚举")
     void shouldExposeEnums() throws Exception {
-        mockMvc.perform(get("/alert/meta/enums"))
+        mockMvc.perform(get("/alert/v1/meta/enums"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data.levels[0]").value("INFO"))

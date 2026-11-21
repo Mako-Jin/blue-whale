@@ -21,7 +21,7 @@ import java.util.Map;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/alert/meta")
+@RequestMapping("/alert/v1/meta")
 public class AlertMetaController {
 
     /**
