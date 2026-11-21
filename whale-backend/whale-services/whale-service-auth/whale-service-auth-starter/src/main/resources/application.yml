@@ -75,6 +75,14 @@ spring:
         file-extension: yaml
 
 whale:
+  # 三维王城枢密殿（T5.2）：SDK 注册 GET /auth/overview，本服务只提供 provider。
+  # base-path 含服务一级前缀（REQ-ARCH-003：网关不剥前缀），外部路径与这里一致。
+  overview:
+    base-path: /auth/overview
+    # 四张 KPI + 两张图要打 3 次库（用户数 / 会话数 / 7 日聚合），比 ERP 的单快照慢一档
+    timeout: 5s
+    # 前端 30s 轮询一次；认证数据本就分钟级变化，缓存 30s 不会让值班的人看到旧数
+    ttl: 30s
   # S-02 Redis 降级口径：false=可用性优先（Redis 不可读时放行并告警），
   # true=安全优先（按已撤销/已命中黑名单拒绝请求）；需与网关保持一致。
   security:

@@ -57,7 +57,7 @@ import { createQuestSystem } from './quests';
 import { createScreenLayer } from './screen';
 import type { ScreenHandle } from './screen';
 import { mountScreenPage, type ScreenPageHandle } from './screenpage';
-import { PURCHASE_ORDER_PAGE, HUB_HALLS_PAGE } from './screenpages';
+import { PURCHASE_ORDER_PAGE, HUB_HALLS_PAGE, LOGIN_HISTORY_PAGE } from './screenpages';
 import { createSceneEnv, type SceneEnv } from './env';
 import { createPostFx, type PostFx } from './postfx';
 import { createSky, type SkyState } from './env-sky';
@@ -3845,6 +3845,10 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   let shushuScreen: ScreenHandle | null = null;
   let shushuPage: ScreenPageHandle | null = null;
 
+  /** 枢密殿（S5/T5.2）屏风与其业务页句柄（同上） */
+  let shumiScreen: ScreenHandle | null = null;
+  let shumiPage: ScreenPageHandle | null = null;
+
   function setupScreens() {
     try {
     screens.add({
@@ -3932,6 +3936,40 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
         return () => {
           hubuPage?.dispose();
           hubuPage = null;
+        };
+      },
+    });
+
+    /* 枢密殿（AUTH）屏风页（S5 / T5.2）：屏风里是登录历史 ——
+       谁、什么时候、用什么方式登录，失败了多少次。
+
+       位置按台基反算（与户部同一套算法）：殿心 (-20.5, -21)，台基半深
+       collider.halfZ = 5.4 米，屏风退到台基之外 2 米处（z = -13.4）；
+       facing 0 与殿的 rotationDeg 0 一致，正对从御道走来的人。 */
+    shumiScreen = screens.add({
+      id: 'shumi',
+      position: [-20.5, 1.55, -13.4],
+      facing: 0,
+      size: 'large',
+      title: '枢密殿 · 登录历史',
+      subtitle: 'AUTH / LOGIN',
+      tone: 'idle',
+      mount: (body) => {
+        shumiPage = mountScreenPage(body, {
+          nodeKey: 'shumi-hall',
+          overviewPath: '/auth/overview',
+          overviewPermission: 'sys:login:history:list',
+          pages: [LOGIN_HISTORY_PAGE],
+          getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+          getPermissions: opts.getPermissions,
+          onTone: (tone) => shumiScreen?.setTone(tone),
+          onTitle: (title, subtitle) => {
+            shumiScreen?.setTitle(title ? `${title} · 登录历史` : '枢密殿 · 登录历史', subtitle ?? 'AUTH / LOGIN');
+          },
+        });
+        return () => {
+          shumiPage?.dispose();
+          shumiPage = null;
         };
       },
     });
@@ -4117,12 +4155,15 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     };
     /* 屏风页探针（S4 / T4.5）：读业务页状态（概览/标签/列表/详情），
        以及"进屏风 / 注入演示数据"两个动作。只在 ?debug=1 下存在，
-       正常路径既不暴露业务字段，也不会注入任何假数据。 */
-    window.__bwwScreenPage = (id?: string) =>
-      (id === 'shushu' ? shushuPage : hubuPage)?.probe() ?? null;
+       正常路径既不暴露业务字段，也不会注入任何假数据。
+
+       S5 起城里有三块业务屏风，按 id 分派：不给 id 时仍落到户部（S4 的老脚本靠这个默认）。 */
+    const pageOf = (id?: string) =>
+      id === 'shushu' ? shushuPage : id === 'shumi' ? shumiPage : hubuPage;
+    window.__bwwScreenPage = (id?: string) => pageOf(id)?.probe() ?? null;
     window.__bwwScreenOpen = (id: string) => screens.get(id)?.enter();
     window.__bwwScreenExit = () => screens.exit();
-    window.__bwwScreenMock = (id?: string) => (id === 'shushu' ? shushuPage : hubuPage)?.mock();
+    window.__bwwScreenMock = (id?: string) => pageOf(id)?.mock();
     /* 声景探针：e2e 无法"听"，只能读状态（是否解锁、是否静音）与脚下地面判定 */
     window.__bwwAudio = () => ({
       ready: audio.isReady(),

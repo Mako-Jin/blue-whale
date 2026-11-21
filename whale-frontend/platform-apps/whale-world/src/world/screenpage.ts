@@ -515,6 +515,15 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
         return formatValue(column.format, num(value));
       case 'date':
         return typeof value === 'string' && value.length >= 10 ? value.slice(0, 10) : '—';
+      /* 日期+时分：登录历史这类"同一天很多条"的表只显示日期等于没有时间信息，
+         而屏风宽度又放不下秒。ISO 串按位置切，不做 new Date()——时区换算会把
+         后端给的事件时间再挪一次，同一行在城里和后台显示成两个时刻。 */
+      case 'datetime':
+        return typeof value === 'string' && value.length >= 16
+          ? `${value.slice(5, 10)} ${value.slice(11, 16)}`
+          : typeof value === 'string' && value.length >= 10
+            ? value.slice(0, 10)
+            : '—';
       case 'status': {
         const key = String(value ?? '');
         return spec.statusMap?.[key]?.label ?? (key || '—');

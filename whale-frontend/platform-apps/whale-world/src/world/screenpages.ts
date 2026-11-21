@@ -11,7 +11,7 @@
  */
 
 /** 列排版口径：与 overview 契约的 format 同构，另加 date / status 两种表格专用口径 */
-export type ColumnFormat = 'text' | 'count' | 'money' | 'percent' | 'date' | 'status';
+export type ColumnFormat = 'text' | 'count' | 'money' | 'percent' | 'date' | 'datetime' | 'status';
 
 /** 一列 */
 export interface ScreenColumn {
@@ -141,6 +141,65 @@ export const PURCHASE_ORDER_PAGE: ScreenListPageSpec = {
 };
 
 /**
+ * 登录结果：与后端 `login_result` 一一对应。
+ *
+ * <p>「失败」用红灯而不是黄灯：登录失败是枢密殿唯一需要立刻看的信号，
+ * 黄灯在夜间监视器上基本看不出来。</p>
+ */
+export const LOGIN_RESULT_STYLE: Record<string, ScreenStatusStyle> = {
+  SUCCESS: { label: '成功', tone: 'good' },
+  FAILURE: { label: '失败', tone: 'bad' },
+  LOGOUT: { label: '登出', tone: 'flat' },
+};
+
+/**
+ * 登录历史页（S5 / T5.2）：枢密殿的屏风页。
+ *
+ * <p><b>为什么这张表不配搜索框。</b>2D 的登录历史接口只有
+ * `userId / result / startTime / endTime`，<b>没有 keyword</b>。给一个搜索框、
+ * 把关键字发过去、后端默默忽略，是"按了没反应"这类最难查的问题——
+ * 宁可少一个框，也不要一个不生效的框。</p>
+ *
+ * <p>列只留五样：谁、成没成、用什么登的、从哪来、什么时候。
+ * 失败原因埋在详情里：撞库排查要看的是"同一 IP 大量失败"，
+ * 而不是某一行的具体原因。</p>
+ */
+export const LOGIN_HISTORY_PAGE: ScreenListPageSpec = {
+  key: 'login-history',
+  title: '登录历史',
+  listPath: '/login-history/v1/page',
+  permission: 'sys:login:history:list',
+  idKey: 'id',
+  statusParam: 'result',
+  statuses: [
+    { value: '', label: '全部结果' },
+    { value: 'SUCCESS', label: '成功' },
+    { value: 'FAILURE', label: '失败' },
+    { value: 'LOGOUT', label: '登出' },
+  ],
+  statusMap: LOGIN_RESULT_STYLE,
+  pageSize: 6,
+  columns: [
+    { key: 'username', label: '账号', width: '24%' },
+    { key: 'loginResult', label: '结果', width: '14%', format: 'status' },
+    { key: 'loginType', label: '方式', width: '14%' },
+    { key: 'ip', label: '来源 IP', width: '26%' },
+    { key: 'loginTime', label: '时间', width: '22%', format: 'datetime' },
+  ],
+  detailFields: [
+    { key: 'username', label: '账号' },
+    { key: 'loginResult', label: '结果', format: 'status' },
+    { key: 'loginType', label: '登录方式' },
+    { key: 'failureReason', label: '失败原因' },
+    { key: 'ip', label: '来源 IP' },
+    { key: 'userAgent', label: '客户端' },
+    { key: 'loginTime', label: '事件时间', format: 'datetime' },
+    { key: 'deviceFingerprint', label: '设备指纹' },
+  ],
+  titleKey: 'username',
+};
+
+/**
  * 殿的连通状态：与后端 {@code HubHallState} 一一对应，前端只做展示。
  *
  * <p>「无凭据」单独一档而不是并进「未通」：前者要去要权限，后者要去查服务，
@@ -213,4 +272,5 @@ export const HUB_HALLS_PAGE: ScreenListPageSpec = {
 export const SCREEN_PAGES: Record<string, ScreenListPageSpec> = {
   [PURCHASE_ORDER_PAGE.key]: PURCHASE_ORDER_PAGE,
   [HUB_HALLS_PAGE.key]: HUB_HALLS_PAGE,
+  [LOGIN_HISTORY_PAGE.key]: LOGIN_HISTORY_PAGE,
 };

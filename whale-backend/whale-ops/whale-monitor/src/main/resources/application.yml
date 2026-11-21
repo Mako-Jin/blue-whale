@@ -73,3 +73,7 @@ whale:
           name: 户部
           url: http://bw-erp:9001/erp/overview
           permission: sys:erp:bi:cockpit:list
+        - nodeKey: shumi-hall
+          name: 枢密殿
+          url: http://bw-auth:8081/auth/overview
+          permission: sys:login:history:list

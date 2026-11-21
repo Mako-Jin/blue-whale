@@ -12,7 +12,7 @@ import type { HallData } from './datahall';
 import { createOverviewFeed, toHallData, type OverviewFeedOptions, type OverviewHallSpec } from './overview';
 
 /**
- * 已接入契约的服务（标杆：户部 / ERP；S5：数枢殿总控）。
+ * 已接入契约的服务（标杆：户部 / ERP；S5：数枢殿总控、枢密殿）。
  *
  * <p>路径与 2D 后台同前缀（REQ-ARCH-003：网关不剥前缀），权限码复用 2D 同一码，
  * 不为 3D 单独发一套授权。</p>
@@ -24,6 +24,9 @@ export const OVERVIEW_HALLS: OverviewHallSpec[] = [
      缺凭据的殿在总控里显示为「无凭据」行，而不是整块 403。
      另给一个权限码只会让"没权限"和"没这条接口"变成同一个 403。 */
   { nodeKey: 'shushu-hall', path: '/monitor/overview' },
+  /* 枢密殿（S5/T5.2）：账号与会话。权限码与 2D 登录历史页同一码，
+     所以"在后台能看登录历史"的人在城里也能看——两处口径不会分叉。 */
+  { nodeKey: 'shumi-hall', path: '/auth/overview', permission: 'sys:login:history:list' },
 ];
 
 /** 采集器选项：与 metrics 共用同一套令牌/权限来源 */
