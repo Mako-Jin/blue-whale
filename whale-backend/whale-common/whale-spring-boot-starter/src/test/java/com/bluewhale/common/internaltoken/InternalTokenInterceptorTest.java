@@ -80,6 +80,17 @@ class InternalTokenInterceptorTest {
     }
 
     @Test
+    @DisplayName("interceptor：配置本服务身份时发送 <服务ID>.<密钥>")
+    void shouldAddIssuerTokenWhenIdentityConfigured() throws IOException {
+        properties.setIssuerId("mall");
+        properties.setIssuerSecret("mall-secret");
+
+        MockClientHttpRequest request = intercept(new InternalTokenInterceptor(properties));
+
+        assertEquals("mall.mall-secret", request.getHeaders().getFirst("X-Internal-Token"));
+    }
+
+    @Test
     @DisplayName("interceptor：令牌未配置时不附加头")
     void shouldNotAddTokenHeaderWhenBlank() throws IOException {
         properties.setToken("");

@@ -13,6 +13,7 @@ import java.io.IOException;
  *
  * <p>挂载在调用其他服务 {@code /internal/**} 端点的 RestClient 上，为请求自动附加
  * {@code X-Internal-Token} 头；服务端 {@link InternalTokenFilter} 据此校验。
+ * 按服务签发模式下头值为 {@code <服务ID>.<密钥>}（本服务身份），否则回退共享令牌；
  * 令牌未配置时不附加（对应服务端 fail-open/dev 场景，或对端未启用校验）。</p>
  *
  * <p>业务侧通过 {@link InternalTokenSupport} 构造 RestClient 时自动挂载，无需手工注册。</p>
@@ -45,7 +46,7 @@ public class InternalTokenInterceptor implements ClientHttpRequestInterceptor {
     public ClientHttpResponse intercept(HttpRequest request, byte[] body,
                                         ClientHttpRequestExecution execution) throws IOException {
         if (properties.isEnabled()) {
-            String token = properties.resolveToken();
+            String token = properties.resolveOutboundToken();
             if (!token.isBlank()) {
                 HttpHeaders headers = request.getHeaders();
                 if (headers.getFirst(properties.getHeader()) == null) {

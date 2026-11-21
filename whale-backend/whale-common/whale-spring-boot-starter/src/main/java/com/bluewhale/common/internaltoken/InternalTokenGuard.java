@@ -5,6 +5,8 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.core.env.Environment;
 import org.springframework.util.StringUtils;
 
+import java.util.Map;
+
 /**
  * 内网令牌启动护栏：非 dev 环境未配置令牌时拒绝启动（fail-fast）。
  *
@@ -47,17 +49,79 @@ public class InternalTokenGuard implements InitializingBean {
                     + "直连业务端口的 /internal/** 接口仅依赖网络边界防护");
             return;
         }
-        if (StringUtils.hasText(properties.resolveToken())) {
+        validateCallerIdentity();
+        if (properties.hasIssuers()) {
+            validateIssuers();
+            return;
+        }
+        if (StringUtils.hasText(properties.resolveOutboundToken())) {
             return;
         }
         if (isDevProfile()) {
             log.warn("当前为 dev 环境且未配置内网令牌，服务侧 /internal/** 接口令牌校验未生效；"
-                    + "生产环境必须通过配置项 bluewhale.internal-token.token 或环境变量 WHALE_INTERNAL_TOKEN 设置随机令牌");
+                    + "生产环境必须通过 bluewhale.internal-token.token 或环境变量 WHALE_INTERNAL_TOKEN 设置随机令牌");
             return;
         }
         throw new IllegalStateException("内网令牌未配置：非 dev 环境启用服务侧内网令牌校验时，"
                 + "必须通过 bluewhale.internal-token.token 或环境变量 WHALE_INTERNAL_TOKEN 设置随机令牌。"
                 + "如确认不需要防护，请显式配置 bluewhale.internal-token.enabled=false");
+    }
+
+    /**
+     * 校验本服务出站身份：issuer-id 与 issuer-secret 必须成对出现，服务 ID 不得包含分隔符
+     *
+     * @throws IllegalStateException 身份配置不完整或格式非法
+     */
+    private void validateCallerIdentity() {
+        boolean hasId = StringUtils.hasText(properties.getIssuerId());
+        boolean hasSecret = StringUtils.hasText(properties.getIssuerSecret());
+        if (hasId != hasSecret) {
+            throw new IllegalStateException("内网令牌调用方身份配置不完整："
+                    + "bluewhale.internal-token.issuer-id 与 issuer-secret 必须同时配置");
+        }
+        if (hasId && properties.getIssuerId().contains(".")) {
+            throw new IllegalStateException("内网令牌服务 ID 不能包含 '.'：令牌格式为 <服务ID>.<密钥>");
+        }
+    }
+
+    /**
+     * 校验按服务签发的令牌清单：密钥非空、服务 ID 不含分隔符、非平台服务必须有租户白名单
+     *
+     * @throws IllegalStateException 任一条目配置非法
+     */
+    private void validateIssuers() {
+        for (Map.Entry<String, InternalTokenProperties.Issuer> entry : properties.getIssuers().entrySet()) {
+            String serviceId = entry.getKey();
+            if (!StringUtils.hasText(serviceId) || serviceId.contains(".")) {
+                throw new IllegalStateException("内网令牌服务 ID 非法（不能为空或包含 '.'）: " + serviceId);
+            }
+            InternalTokenProperties.Issuer issuer = entry.getValue();
+            if (issuer == null || !StringUtils.hasText(issuer.getSecret())) {
+                throw new IllegalStateException("内网令牌服务 " + serviceId + " 未配置 secret");
+            }
+            if (!issuer.isPlatform() && !hasAnyTenant(issuer)) {
+                throw new IllegalStateException("内网令牌服务 " + serviceId
+                        + " 既未配置 tenants 也未声明 platform=true，将拒绝其全部租户请求");
+            }
+        }
+    }
+
+    /**
+     * 是否配置了任一非空租户
+     *
+     * @param issuer 服务令牌配置
+     * @return 有非空租户返回 {@code true}
+     */
+    private boolean hasAnyTenant(InternalTokenProperties.Issuer issuer) {
+        if (issuer.getTenants() == null) {
+            return false;
+        }
+        for (String tenant : issuer.getTenants()) {
+            if (StringUtils.hasText(tenant)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

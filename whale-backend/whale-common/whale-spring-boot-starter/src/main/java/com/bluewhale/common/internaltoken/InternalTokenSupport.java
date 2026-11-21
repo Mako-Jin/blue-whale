@@ -56,12 +56,14 @@ public final class InternalTokenSupport {
     }
 
     /**
-     * 取当前生效的内网令牌（供无法走拦截器的出站通道使用，如 SSE 流式 HttpClient）
+     * 取当前生效的出站内网令牌（供无法走拦截器的出站通道使用，如 SSE 流式 HttpClient）
+     *
+     * <p>按服务签发模式下返回 {@code <服务ID>.<密钥>}，否则回退共享令牌。</p>
      *
      * @return 生效令牌；可能为空串（未配置，调用方按需跳过附加）
      */
     public static String token() {
-        return currentProperties().resolveToken();
+        return currentProperties().resolveOutboundToken();
     }
 
     /**

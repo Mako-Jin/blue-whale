@@ -9,7 +9,9 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -42,14 +44,48 @@ class InternalTokenFilterTest {
      * @throws IOException      响应写出异常
      */
     private MockHttpServletResponse doFilter(String path, String header) throws ServletException, IOException {
+        return doFilter(path, header, null);
+    }
+
+    /**
+     * 执行过滤并返回响应（可携带租户头）
+     *
+     * @param path     请求路径
+     * @param header   令牌头（null 表示不携带）
+     * @param tenantId 租户头（null 表示不携带）
+     * @return 响应
+     * @throws ServletException 过滤器异常
+     * @throws IOException      响应写出异常
+     */
+    private MockHttpServletResponse doFilter(String path, String header, String tenantId)
+            throws ServletException, IOException {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", path);
         request.setRequestURI(path);
         if (header != null) {
             request.addHeader(properties.getHeader(), header);
         }
+        if (tenantId != null) {
+            request.addHeader(properties.getTenantHeader(), tenantId);
+        }
         MockHttpServletResponse response = new MockHttpServletResponse();
         filter.doFilter(request, response, new MockFilterChain());
         return response;
+    }
+
+    /**
+     * 启用按服务签发模式：mall 仅允许租户 1001/1002，job 为平台级服务
+     */
+    private void enableIssuerMode() {
+        InternalTokenProperties.Issuer mall = new InternalTokenProperties.Issuer();
+        mall.setSecret("mall-secret");
+        mall.setTenants(List.of("1001", "1002"));
+        InternalTokenProperties.Issuer job = new InternalTokenProperties.Issuer();
+        job.setSecret("job-secret");
+        job.setPlatform(true);
+        Map<String, InternalTokenProperties.Issuer> issuers = new LinkedHashMap<>();
+        issuers.put("mall", mall);
+        issuers.put("job", job);
+        properties.setIssuers(issuers);
     }
 
     @Test
@@ -136,5 +172,58 @@ class InternalTokenFilterTest {
         properties.setToken("explicit");
 
         assertEquals("explicit", properties.resolveToken());
+    }
+
+    @Test
+    @DisplayName("filter：按服务令牌 + 白名单内租户放行")
+    void shouldAllowIssuerWithAllowedTenant() throws Exception {
+        enableIssuerMode();
+
+        assertEquals(200, doFilter("/pay/internal/order/O1", "mall.mall-secret", "1001").getStatus());
+    }
+
+    @Test
+    @DisplayName("filter：按服务令牌 + 白名单外租户返回 403")
+    void shouldDenyIssuerWithForeignTenant() throws Exception {
+        enableIssuerMode();
+
+        MockHttpServletResponse response = doFilter("/pay/internal/order/O1", "mall.mall-secret", "2002");
+
+        assertEquals(403, response.getStatus());
+        assertEquals("{\"code\":403,\"message\":\"内网令牌无权访问该租户\",\"data\":null}",
+                response.getContentAsString());
+    }
+
+    @Test
+    @DisplayName("filter：非平台服务缺少租户头返回 403")
+    void shouldDenyIssuerWithoutTenant() throws Exception {
+        enableIssuerMode();
+
+        MockHttpServletResponse response = doFilter("/pay/internal/order/O1", "mall.mall-secret", null);
+
+        assertEquals(403, response.getStatus());
+        assertEquals("{\"code\":403,\"message\":\"内网接口缺少租户头\",\"data\":null}",
+                response.getContentAsString());
+    }
+
+    @Test
+    @DisplayName("filter：平台级服务不校验租户头")
+    void shouldAllowPlatformIssuerWithoutTenant() throws Exception {
+        enableIssuerMode();
+
+        assertEquals(200, doFilter("/pay/internal/order/O1", "job.job-secret", null).getStatus());
+    }
+
+    @Test
+    @DisplayName("filter：服务密钥错误、未知服务、旧共享令牌均返回 403")
+    void shouldDenyInvalidIssuerTokens() throws Exception {
+        enableIssuerMode();
+
+        assertEquals(403, doFilter("/pay/internal/order/O1", "mall.wrong", "1001").getStatus());
+        assertEquals(403, doFilter("/pay/internal/order/O1", "unknown.secret", "1001").getStatus());
+        // 按服务模式开启后共享令牌不再被接受
+        assertEquals(403, doFilter("/pay/internal/order/O1", "secret-token", "1001").getStatus());
+        // 缺少分隔符的裸令牌
+        assertEquals(403, doFilter("/pay/internal/order/O1", "mall-secret", "1001").getStatus());
     }
 }
