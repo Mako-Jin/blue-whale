@@ -74,6 +74,7 @@ import {
   CUSTOMER_PAGE,
   DEVICE_PAGE,
   COURSE_PAGE,
+  PART_PAGE,
 } from './screenpages';
 import { createSceneEnv, type SceneEnv } from './env';
 import { createPostFx, type PostFx } from './postfx';
@@ -3948,6 +3949,10 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   let xingtanScreen: ScreenHandle | null = null;
   let xingtanPage: ScreenPageHandle | null = null;
 
+  /** 将作坊（S6/T6.19）屏风与其业务页句柄（同上） */
+  let jiangzuoScreen: ScreenHandle | null = null;
+  let jiangzuoPage: ScreenPageHandle | null = null;
+
   /**
    * 坊的屏风落位：从布局数据现算，不手抄坐标。
    *
@@ -4266,6 +4271,47 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return () => {
             xingtanPage?.dispose();
             xingtanPage = null;
+          };
+        },
+      });
+    }
+
+    /* 将作坊（S6/T6.19）：物料台账 + 四本账 —— 这一城要造什么、图纸上改到第几版。
+
+       布局里将作监在西侧（x/z = -73.41/-19.67），与东岸的市舶隔城相望；
+       `districtScreenPose` 按它自己的正面法线算落点，不需要手调坐标。
+
+       屏风上半部是四张牌（在册物料 / 生效 BOM / 未关闭变更 / 图纸文档），
+       下半部是物料台账。四本账里只有物料是"造一台机器前要先看的东西"——
+       BOM 与变更在 2D 里才有发布与审批按钮，城里点进去也只能看。 */
+    const jiangzuoPose = districtScreenPose('jiangzuo-bureau');
+    if (jiangzuoPose) {
+      jiangzuoScreen = screens.add({
+        id: 'jiangzuo',
+        position: [jiangzuoPose.x, 1.55, jiangzuoPose.z],
+        facing: jiangzuoPose.facing,
+        size: 'large',
+        title: '将作坊 · 物料台账',
+        subtitle: 'PDM / PART',
+        tone: 'idle',
+        mount: (body) => {
+          jiangzuoPage = mountScreenPage(body, {
+            nodeKey: 'jiangzuo-bureau',
+            overviewPath: '/pdm/overview',
+            overviewPermission: 'sys:pdm:part:list',
+            pages: [PART_PAGE],
+            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+            getPermissions: opts.getPermissions,
+            // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
+            onTone: (tone) => jiangzuoScreen?.setTone(tone),
+            onTitle: (title, subtitle) => {
+              jiangzuoScreen?.setTitle(title ? `${title} · 物料台账` : '将作坊 · 物料台账',
+                subtitle ?? 'PDM / PART');
+            },
+          });
+          return () => {
+            jiangzuoPage?.dispose();
+            jiangzuoPage = null;
           };
         },
       });
@@ -4821,6 +4867,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return bingbuPage;
         case 'xingtan':
           return xingtanPage;
+        case 'jiangzuo':
+          return jiangzuoPage;
         default:
           return hubuPage;
       }

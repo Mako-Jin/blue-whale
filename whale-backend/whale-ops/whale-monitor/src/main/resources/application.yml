@@ -126,3 +126,7 @@ whale:
           name: 杏坛坊
           url: http://bw-lms:9008/lms/overview
           permission: sys:lms:analytics:view
+        - nodeKey: jiangzuo-bureau
+          name: 将作坊
+          url: http://bw-pdm:9003/pdm/overview
+          permission: sys:pdm:part:list

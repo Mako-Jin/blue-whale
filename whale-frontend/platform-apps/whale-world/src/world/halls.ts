@@ -48,6 +48,11 @@ export const OVERVIEW_HALLS: OverviewHallSpec[] = [
      覆盖率对在职人数、完成率对已学人数，由 provider 在牌面提示语里写明，
      前端不做二次换算。 */
   { nodeKey: 'xingtan-hall', path: '/lms/overview', permission: 'sys:lms:analytics:view' },
+  /* 将作坊（S6/T6.19）：在册物料、生效 BOM、未关闭变更、图纸文档。
+     权限码复用 2D 物料台账的 `sys:pdm:part:list`——能在后台看物料的人，
+     才该在城里看到"这一城要造什么、图纸上改到第几版"。四本账的"未关闭"判定
+     （驳回与取消不算欠账）在后端统计服务一处定义，前端不做二次换算。 */
+  { nodeKey: 'jiangzuo-bureau', path: '/pdm/overview', permission: 'sys:pdm:part:list' },
   /* 数枢殿总控（S5/T5.1）：服务端把在册各殿的概览汇成一屏。
      **不设权限码**——总控的可见范围就是"你在各殿能看到的范围"，
      缺凭据的殿在总控里显示为「无凭据」行，而不是整块 403。

@@ -782,7 +782,10 @@
 | T6.16 | 杏坛坊 overview（`/lms/overview`） | lms | [x] |
 | T6.17 | 杏坛坊 屏风页（课程目录） | lms | [x] |
 | T6.18 | 杏坛坊 厅配置 + 数枢殿总控在册 | lms | [x] |
-| T6.19–T6.36 | 其余六坊（将作 / 营造 / 盟府 / 宣抚 / 翰林 / 市舶） | pdm / pm / contract / party / doc / mall | [ ] |
+| T6.19 | 将作坊 overview（`/pdm/overview`） | pdm | [x] |
+| T6.20 | 将作坊 屏风页（物料台账） | pdm | [x] |
+| T6.21 | 将作坊 厅配置 + 数枢殿总控在册 | pdm | [x] |
+| T6.22–T6.36 | 其余五坊（营造 / 盟府 / 宣抚 / 翰林 / 市舶） | pm / contract / party / doc / mall | [ ] |
 
 **S6 第一批交付说明（2026-11-21，T6.4–T6.6 工部坊 / mes）**
 
@@ -970,6 +973,40 @@
   回归 bingbu 53 / libu-ritual 55 / screenpage 35 / city-smoke 全通过；八项门禁 rc=0。
   **负向验证**：把 `/100` 改成 `/1`，单测两例当场报 `expected: 0.63 but was: 63.0`，恢复即全绿。
 - **已知遗留**：`/lms/overview` 的真实 HTTP 未验（本机 Docker / Nacos 未起），同前几批口径。
+
+**S6 第六批交付说明（2026-11-22，T6.19–T6.21 将作坊 / pdm）**
+
+- **接口**：`GET /pdm/overview`（`whale.overview.base-path=/pdm/overview`，TTL 30s、超时 2s）：
+  四张 KPI（在册物料 / 生效 BOM / 未关闭变更 / 图纸文档）+ 一张四类物料**柱图**
+  （成品 / 部件 / 零件 / 原材料）+ 六条告警（变更积压、图纸借出、执行中变更、
+  BOM 草稿、有物料无生效 BOM、无物料）+ 物料台账入口。PDM 没有现成看板，
+  像 IoT 一样**新写统计口径**：`PdmOverviewStatsService` + `PdmOverviewStats` record，
+  provider 只排版。权限码复用 2D 物料台账的 `sys:pdm:part:list`，
+  屏风页复用 `/pdm/part/page`，**无新接口、无新权限点、无新迁移**。
+- **四本账，口径收一处**：物料（pdm_product ENABLED）、BOM（RELEASED / DRAFT / 共 N 版）、
+  变更（pdm_chg_order）、图纸（pdm_doc_document）。「未关闭变更 =
+  状态不在 完成/关闭/驳回/取消」——驳回与取消已经出了结论，不算欠账；
+  单测用 ArgumentCaptor 钉住 NOT IN 的四个状态值（注意：本版 MyBatis-Plus 的
+  in/notIn **参数在 `getSqlSegment()` 渲染时才登记**，断言前必须先调一次渲染，否则拿到空表）。
+- **"未关闭变更"是唯一带语气的牌**：有单压着亮黄灯、清空了亮绿灯，提示语拆
+  「评估/审批 X · 执行中 Y」两段——前者要人去催，后者只能等执行人做完。
+  其余三张牌只报数（flat），语气留给告警条。
+- **柱图不是趋势折线**：将作的账是存量不是流量，物料类型码值固定四种，
+  横向条形一行读完"标签—长度—数值"。
+- **物料是唯一入口**：BOM 与变更在 2D 里才有发布、审批按钮，城里点进去也只能看。
+- **屏风页**：`PART_PAGE`（`/pdm/part/page`，五列：编码 / 名称 / 类型 / 规格 / 状态）。
+  **关键字接 `name` 不接 `keyword`**——后端 `PdmProductQueryRequest` 是 code / name
+  分开的两个条件，没有合并 keyword；类型列用**列级 statusMap**
+  （PRODUCT/ASSEMBLY/PART/RAW_MATERIAL），页面级字典留给状态列
+  （ENABLED 在册绿灯 / DISABLED 停用灰灯），两套码空间同屏靠列级覆盖分开。
+  **不配 `detailPath`**：`PdmProductVO` 平铺，行内字段够详情用（材质 / 单位 /
+  ERP 编码在详情补齐）。6 行/页（柱图单序列，不像杏坛双序列要减一行）。
+- **数枢殿总控在册**：`aggregate.targets` 加 `http://bw-pdm:9003/pdm/overview`，已接入 **15 处**。
+- **验证**：`PdmOverviewProviderTest` 8 例 + `PdmOverviewStatsServiceTest` 4 例；
+  whale-pdm 全量 **236 例**通过；e2e `world-jiangzuo-smoke.mjs` **53 项全绿**；
+  回归 world-city-smoke 全通过；八项门禁 rc=0；tsc --noEmit 通过。
+- **已知遗留**：`/pdm/overview` 的真实 HTTP 未验（本机 Docker / Nacos 未起），同前几批口径；
+  改了 whale-pdm 与 whale-monitor 的 yml，**部署时两座容器都要重建镜像**（restart 不带新配置）。
 
 ### S7 外城 9 处
 

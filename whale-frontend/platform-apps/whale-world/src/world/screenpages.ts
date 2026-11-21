@@ -1098,6 +1098,73 @@ export const COURSE_PAGE: ScreenListPageSpec = {
   titleKey: 'title',
 };
 
+/** 物料状态：与 `pdm_product.status` 一一对应（ENABLED 在册 / DISABLED 停用） */
+export const PART_STATUS_STYLE: Record<string, ScreenStatusStyle> = {
+  ENABLED: { label: '在册', tone: 'good' },
+  DISABLED: { label: '停用', tone: 'flat' },
+};
+
+/** 物料类型：与 `PdmPartTypes` 一一对应，列级字典——类型不是状态，不该蹭页面级字典 */
+export const PART_TYPE_STYLE: Record<string, ScreenStatusStyle> = {
+  PRODUCT: { label: '成品', tone: 'good' },
+  ASSEMBLY: { label: '部件', tone: 'flat' },
+  PART: { label: '零件', tone: 'flat' },
+  RAW_MATERIAL: { label: '原材料', tone: 'warn' },
+};
+
+/**
+ * 物料台账页（S6 / T6.19）：将作坊的屏风页。
+ *
+ * <p><b>这一屏讲什么。</b>将作掌营造法式：造什么器物、用多少料。物料是四本账里
+ * 的底账——BOM、变更、图纸都挂在物料上，所以坊里只摆这一页。</p>
+ *
+ * <p><b>关键字接 `name` 不接 `code`。</b>后端的查询条件是 code / name 分开的两个参数、
+ * 没有合并的 keyword；屏风的搜索框只发一个参数，接 `name`（找料的人先想起名字，
+ * 不是编码）。编码列仍然摆在第一列，看得见就行。</p>
+ *
+ * <p><b>不配 `detailPath`：列表行已经带回详情需要的全部字段（规格、材质、计量单位、
+ * ERP 编码），再请求一次只会让点开有半秒空白。</b>被合并的物料（mergedTo 非空）在
+ * 详情里能看到去向。</p>
+ */
+export const PART_PAGE: ScreenListPageSpec = {
+  key: 'parts',
+  title: '物料台账',
+  listPath: '/pdm/part/page',
+  permission: 'sys:pdm:part:list',
+  idKey: 'id',
+  keywordParam: 'name',
+  searchPlaceholder: '搜索物料名称…',
+  statusParam: 'status',
+  statuses: [
+    { value: '', label: '全部状态' },
+    { value: 'ENABLED', label: '在册' },
+    { value: 'DISABLED', label: '停用' },
+  ],
+  statusMap: PART_STATUS_STYLE,
+  /* 6 行/页：大屏 620px 里 KPI + 图表 + 工具栏之后只剩约 230px */
+  pageSize: 6,
+  columns: [
+    { key: 'code', label: '编码', width: '18%' },
+    { key: 'name', label: '名称', width: '26%' },
+    { key: 'partType', label: '类型', width: '14%', format: 'status', statusMap: PART_TYPE_STYLE },
+    { key: 'spec', label: '规格', width: '24%' },
+    { key: 'status', label: '状态', width: '18%', format: 'status' },
+  ],
+  detailFields: [
+    { key: 'code', label: '编码' },
+    { key: 'name', label: '名称' },
+    { key: 'partType', label: '类型', format: 'status' },
+    { key: 'material', label: '材质' },
+    { key: 'spec', label: '规格' },
+    { key: 'uom', label: '计量单位' },
+    { key: 'categoryCode', label: '分类' },
+    { key: 'erpItemCode', label: 'ERP 物料编码' },
+    { key: 'status', label: '状态', format: 'status' },
+    { key: 'updateTime', label: '更新时间', format: 'datetime' },
+  ],
+  titleKey: 'name',
+};
+
 /**
  * 殿的连通状态：与后端 {@code HubHallState} 一一对应，前端只做展示。
  *
@@ -1184,4 +1251,5 @@ export const SCREEN_PAGES: Record<string, ScreenListPageSpec> = {
   [CUSTOMER_PAGE.key]: CUSTOMER_PAGE,
   [DEVICE_PAGE.key]: DEVICE_PAGE,
   [COURSE_PAGE.key]: COURSE_PAGE,
+  [PART_PAGE.key]: PART_PAGE,
 };
