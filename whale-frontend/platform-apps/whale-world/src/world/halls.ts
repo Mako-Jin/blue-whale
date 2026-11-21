@@ -13,7 +13,7 @@ import { createOverviewFeed, toHallData, type OverviewFeedOptions, type Overview
 
 /**
  * 已接入契约的服务（标杆：户部 / ERP；S5：数枢殿总控、枢密殿、度支殿、藏书殿、
- * 时辰殿、政事殿、考功殿、通政殿、起居殿；S6：工部坊 / MES）。
+ * 时辰殿、政事殿、考功殿、通政殿、起居殿；S6：工部坊 / MES、吏部坊 / OA）。
  *
  * <p>路径与 2D 后台同前缀（REQ-ARCH-003：网关不剥前缀），权限码复用 2D 同一码，
  * 不为 3D 单独发一套授权。</p>
@@ -25,6 +25,11 @@ export const OVERVIEW_HALLS: OverviewHallSpec[] = [
      才该在城里看到"今天这条线到底跑成什么样"。四个域（生产/质量/设备/人员）
      由 MES 内部综合看板聚合，城里不重新拼口径。 */
   { nodeKey: 'gongbu-hall', path: '/mes/overview', permission: 'sys:mes:dashboard:view' },
+  /* 吏部坊（S6/T6.7）：在册人数、今日缺卡/迟到、本月考勤异常。
+     权限码复用 2D 考勤日报页的 `sys:oa:attendance:daily:list`——能在后台看考勤日报的人，
+     才该在城里看到"今天谁没来"。人事档案（在职人数）是另一个模块的口径，
+     provider 会在缺 `sys:oa:hr:profile:list` 时把那一块牌整块裁掉，不靠前端隐藏。 */
+  { nodeKey: 'libu-hall', path: '/oa/overview', permission: 'sys:oa:attendance:daily:list' },
   /* 数枢殿总控（S5/T5.1）：服务端把在册各殿的概览汇成一屏。
      **不设权限码**——总控的可见范围就是"你在各殿能看到的范围"，
      缺凭据的殿在总控里显示为「无凭据」行，而不是整块 403。

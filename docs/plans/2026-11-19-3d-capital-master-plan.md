@@ -770,7 +770,10 @@
 | T6.4 | 工部坊 overview（`/mes/overview`） | mes | [x] |
 | T6.5 | 工部坊 屏风页（生产工单） | mes | [x] |
 | T6.6 | 工部坊 厅配置 + 数枢殿总控在册 | mes | [x] |
-| T6.7–T6.36 | 其余十坊（吏部 / 礼部 / 兵部 / 杏坛 / 将作 / 营造 / 盟府 / 宣抚 / 翰林 / 市舶） | oa / crm / iot / lms / pdm / pm / contract / party / doc / mall | [ ] |
+| T6.7 | 吏部坊 overview（`/oa/overview`） | oa | [x] |
+| T6.8 | 吏部坊 屏风页（考勤日报） | oa | [x] |
+| T6.9 | 吏部坊 厅配置 + 数枢殿总控在册 | oa | [x] |
+| T6.10–T6.36 | 其余九坊（礼部 / 兵部 / 杏坛 / 将作 / 营造 / 盟府 / 宣抚 / 翰林 / 市舶） | crm / iot / lms / pdm / pm / contract / party / doc / mall | [ ] |
 
 **S6 第一批交付说明（2026-11-21，T6.4–T6.6 工部坊 / mes）**
 
@@ -799,6 +802,47 @@
   datahall 全通过 / guide 19 / quest 42 / glyphs 4 + 基础族七支 rc=0；八项门禁 rc=0（perm-mapping 995）。
 - **已知遗留**：`/mes/overview` 的真实 HTTP 未验（本机 Docker / Nacos 未起），同前九批口径；
   起服后按 `curl -H "X-User-Id: 1" -H "X-Permission-Codes: sys:mes:dashboard:view" http://127.0.0.1:8080/mes/overview` 复核。
+
+**S6 第二批交付说明（2026-11-21，T6.7–T6.9 吏部坊 / oa）**
+
+- **这一坊讲"人"，不重复政事殿**：政事殿看的是流程引擎里哪条审批链断了，吏部坊看的是
+  **谁在册、今天谁没打卡、今天谁迟到、本月考勤异常多少人次**。城里两座殿报同一件事
+  （都去数"审批"）才是坏设计，所以这里刻意不接 `oa_approval_instance`。
+- **接口**：`GET /oa/overview`（`whale.overview.base-path`）：四张 KPI（在职人数 / 今日缺卡 /
+  今日迟到 / 本月出勤人次）+ 一张图（本月 迟到·早退·缺卡 人次）+ 两条告警（今日缺卡 WARNING、
+  今日迟到 INFO）。权限码复用 2D 考勤日报的 `sys:oa:attendance:daily:list`，
+  屏风页复用 `/oa/attendance/daily/page`，**无新接口、无新权限点、无新迁移**。
+- **口径不另造**：考勤数字全部走 `ReportRepository#attendanceMonthly` —— 与 2D
+  「数据报表 → 考勤月报」**同一条 SQL**（`ReportQueryMapper#attendanceMonthly`）。迟到/缺卡的判定
+  （`late_minutes > 0`、`absent = 1`）若在 3D 侧另写一条 `count(*)`，就会长出第二份定义，
+  迟早与报表页对不上。两次查询只是区间不同（本月 / 今日），月初两天重合时复用第一次结果。
+- **两个单位不能混**：「今日缺卡 / 今日迟到」数的是**人数**（今天有几个人异常），
+  「本月出勤」数的是**人次**（每人每天算一次）。牌面提示语各自写清，避免把 44 人次读成 44 个人。
+- **跨上下文的口径要自己裁**：「在职人数」取自人事档案（`oa_employee_profile`），
+  不是 Auth 用户数、也不等于编制；且 `ACTIVE / PROBATION / REGULAR` 都在册，所以
+  **档案总数 − 离职数**，不是 `count(employmentStatus='ACTIVE')`——后者会把试用期与转正的人漏掉，
+  而牌面上那个数仍然"像个正常数字"，没人会发现。缺 `sys:oa:hr:profile:list` 时
+  这块牌整块不下发（契约 §2.5：provider 裁，不靠前端隐藏）。
+- **两处静默失效被提前挡住**：① `AttendanceDailyQuery` **没有 keyword**（只有
+  userId / status / dateFrom / dateTo），所以考勤页**不配搜索框**——摆一个把关键字发成
+  `keyword` 的搜索框，后端会默默忽略，是"按了没反应"里最难查的一种；② 考勤日汇总由重算任务生成，
+  任务没跑时所有数字都是 0，牌面看起来像"全勤零异常"→ provider 在**一行汇总都没有**时
+  追加一条 INFO 告警"本月还没有考勤日汇总，重算任务可能没跑"，不让 0 冒充好成绩。
+- **不挂"员工档案"入口**：`EmployeeProfileView` 只有 userId / deptId，姓名与部门名都在 Auth 侧，
+  城里摆出来是一张全是数字的名录。入口指向读不懂的列表比没有入口更糟，所以人事档案只以
+  「在职人数」这个聚合数出现。
+- **数枢殿总控在册**：`whale-monitor` 的 `whale.overview.aggregate.targets` 加
+  `http://bw-oa:9004/oa/overview`（容器内直连容器名，不走网关）。
+- **验证**：`OaOverviewProviderTest` 8 例（含"首查本月一日至今日、次查仅今日"的区间断言，
+  以及"在职人数 = 总数 − 离职"的负向验证：改成只数总数当场 FAIL）；whale-oa 全量 **299 例**通过、
+  checkstyle 0 违规、`OaArchitectureTest` 7 条通过（概览层放在 `com.bluewhale.oa.overview`，
+  只向内依赖各上下文**领域端口**，不进任何业务包）；e2e `world-libu-smoke.mjs` **49 项全绿**；
+  回归 qiju 46 / tongzheng 55 / zhengshi 56 / kaogong 59 / shichen 44 / cangshu 37 / duzhi 36 /
+  shumi 32 / shushu 31 / screenpage 35 / gongbu 48 / gate 26 / city-smoke 全通过 / datahall 全通过 /
+  guide 19 / quest 42 / glyphs 4 / walk-check + 基础族七支 rc=0；八项门禁 rc=0
+  （perm-mapping 974 后端码 / 669 前端引用、api-path-drift 1571）。
+- **已知遗留**：`/oa/overview` 的真实 HTTP 未验（本机 Docker / Nacos 未起），同前九批口径；
+  `world-path` 仍有 2 项基线失败（户部坊门洞与坊墙交界被 nav grid 判成可走），非本批引入。
 
 ### S7 外城 9 处
 

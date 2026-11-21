@@ -794,6 +794,79 @@ export const WORK_ORDER_PAGE: ScreenListPageSpec = {
 };
 
 /**
+ * 考勤日状态：与后端 `AttendanceStatus.DAILY_*` 一一对应，前端只做展示。
+ *
+ * <p>「迟到+早退」单列一档，不拆成两个标签：同一个人同一天既迟到又早退，日汇总里
+ * 就是一行 `LATE_AND_EARLY`；硬拆成两个状态，一行里要挤两个灯，列宽立刻不够。</p>
+ */
+export const ATTENDANCE_DAILY_STATUS: Record<string, ScreenStatusStyle> = {
+  NORMAL: { label: '正常', tone: 'good' },
+  LATE: { label: '迟到', tone: 'warn' },
+  EARLY: { label: '早退', tone: 'warn' },
+  LATE_AND_EARLY: { label: '迟到+早退', tone: 'warn' },
+  ABSENT: { label: '缺卡', tone: 'bad' },
+};
+
+/**
+ * 考勤日报页（S6 / T6.8）：吏部坊的屏风页。
+ *
+ * <p><b>这一页没有搜索框，是有意为之。</b>{@code AttendanceDailyQuery} 只有
+ * `userId / status / dateFrom / dateTo` 四个条件，**没有 keyword**。给它配一个搜索框、
+ * 把关键字发成后端不认识的参数名，后端会默默忽略——"按了没反应"是这类问题里最难查的
+ * 一种。真要按人查，走状态筛选 + 2D 考勤页的日期区间，比在城门口造假接口强。</p>
+ *
+ * <p><b>不配 detailPath。</b>`/oa/attendance/daily/page` 返回的 `DailyView` 已经是
+ * 整行明细（含打卡时刻与备注），列表行就是详情；再请求一次只会多一次 404 ——
+ * 这个模块根本没有 `/daily/{id}` 详情接口。</p>
+ *
+ * <p>列表只留六列：哪天、谁、哪个班次、迟到多少分钟、早退多少分钟、什么状态。
+ * 打卡时刻（`firstIn / lastOut`）放进详情——列表是"今天谁不正常"，
+ * 详情才是"他到底几点打的卡"。</p>
+ */
+export const ATTENDANCE_DAILY_PAGE: ScreenListPageSpec = {
+  key: 'attendance-daily',
+  title: '考勤日报',
+  listPath: '/oa/attendance/daily/page',
+  permission: 'sys:oa:attendance:daily:list',
+  idKey: 'id',
+  statusParam: 'status',
+  statuses: [
+    { value: '', label: '全部状态' },
+    { value: 'NORMAL', label: '正常' },
+    { value: 'LATE', label: '迟到' },
+    { value: 'EARLY', label: '早退' },
+    { value: 'LATE_AND_EARLY', label: '迟到+早退' },
+    { value: 'ABSENT', label: '缺卡' },
+  ],
+  statusMap: ATTENDANCE_DAILY_STATUS,
+  /* 6 行/页：大屏 620px 里 KPI + 图表 + 工具栏之后只剩约 230px */
+  pageSize: 6,
+  /* 列宽：班次只给 12%（DAY / NIGHT 是定长编码），把省下的宽度还给姓名与状态，
+     否则表格中段会空出一大片，看着像少了一列。 */
+  columns: [
+    { key: 'workDate', label: '日期', width: '21%', format: 'date' },
+    { key: 'userName', label: '姓名', width: '24%' },
+    { key: 'shiftCode', label: '班次', width: '12%' },
+    { key: 'lateMinutes', label: '迟到(分)', width: '13%', format: 'count', align: 'right' },
+    { key: 'earlyMinutes', label: '早退(分)', width: '13%', format: 'count', align: 'right' },
+    { key: 'status', label: '状态', width: '17%', format: 'status' },
+  ],
+  detailFields: [
+    { key: 'workDate', label: '考勤日期', format: 'date' },
+    { key: 'userName', label: '姓名' },
+    { key: 'shiftCode', label: '班次' },
+    { key: 'firstIn', label: '上班打卡', format: 'datetime' },
+    { key: 'lastOut', label: '下班打卡', format: 'datetime' },
+    { key: 'lateMinutes', label: '迟到分钟', format: 'count', align: 'right' },
+    { key: 'earlyMinutes', label: '早退分钟', format: 'count', align: 'right' },
+    { key: 'absent', label: '缺卡', format: 'count', align: 'right' },
+    { key: 'status', label: '状态', format: 'status' },
+    { key: 'remark', label: '备注' },
+  ],
+  titleKey: 'userName',
+};
+
+/**
  * 殿的连通状态：与后端 {@code HubHallState} 一一对应，前端只做展示。
  *
  * <p>「无凭据」单独一档而不是并进「未通」：前者要去要权限，后者要去查服务，
@@ -875,4 +948,5 @@ export const SCREEN_PAGES: Record<string, ScreenListPageSpec> = {
   [MESSAGE_RECORD_PAGE.key]: MESSAGE_RECORD_PAGE,
   [AUDIT_LOG_PAGE.key]: AUDIT_LOG_PAGE,
   [WORK_ORDER_PAGE.key]: WORK_ORDER_PAGE,
+  [ATTENDANCE_DAILY_PAGE.key]: ATTENDANCE_DAILY_PAGE,
 };

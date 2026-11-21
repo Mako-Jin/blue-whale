@@ -110,3 +110,7 @@ whale:
           name: 工部坊
           url: http://bw-mes:9002/mes/overview
           permission: sys:mes:dashboard:view
+        - nodeKey: libu-hall
+          name: 吏部坊
+          url: http://bw-oa:9004/oa/overview
+          permission: sys:oa:attendance:daily:list

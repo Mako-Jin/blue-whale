@@ -66,6 +66,14 @@ whale:
         cron: "${OA_TRIP_REPORT_REMINDER_CRON:0 0 9 * * *}"
         days-after: ${OA_TRIP_REPORT_REMINDER_DAYS_AFTER:3}
         batch-size: ${OA_TRIP_REPORT_REMINDER_BATCH_SIZE:100}
+  # 概览契约（三维王城数据厅 - 吏部坊）：SDK 注册 GET /oa/overview，本服务只提供 provider。
+  # 路径带服务前缀（REQ-ARCH-003：网关不剥前缀）；TTL 30s 对应前端 30s 轮询。
+  # timeout 4s 比 ERP 宽一档：这一屏要扫两次考勤日汇总（本月 + 今日），
+  # 考勤日表是按人按天的宽表，比 ERP 的订单快照重。
+  overview:
+    base-path: /oa/overview
+    ttl: 30s
+    timeout: 4s
 
 mybatis-plus:
   configuration:

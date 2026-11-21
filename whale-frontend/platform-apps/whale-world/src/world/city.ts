@@ -70,6 +70,7 @@ import {
   MESSAGE_RECORD_PAGE,
   AUDIT_LOG_PAGE,
   WORK_ORDER_PAGE,
+  ATTENDANCE_DAILY_PAGE,
 } from './screenpages';
 import { createSceneEnv, type SceneEnv } from './env';
 import { createPostFx, type PostFx } from './postfx';
@@ -3926,6 +3927,10 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   let gongbuScreen: ScreenHandle | null = null;
   let gongbuPage: ScreenPageHandle | null = null;
 
+  /** 吏部坊（S6/T6.7）屏风与其业务页句柄（同上） */
+  let libuScreen: ScreenHandle | null = null;
+  let libuPage: ScreenPageHandle | null = null;
+
   /**
    * 坊的屏风落位：从布局数据现算，不手抄坐标。
    *
@@ -4093,6 +4098,43 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       });
     }
 
+
+    /* 吏部坊（S6/T6.7）：考勤日报 —— 今天谁没来、谁迟到了、这个月异常多少人次。
+
+       落位与工部坊同一套公式（`districtScreenPose`），这里不再重复解释：
+       内城坊的台基放不下屏风，只能落在台基外、坊门内那条地上。 */
+    const libuPose = districtScreenPose('libu-hall');
+    if (libuPose) {
+      libuScreen = screens.add({
+        id: 'libu',
+        position: [libuPose.x, 1.55, libuPose.z],
+        facing: libuPose.facing,
+        size: 'large',
+        title: '吏部坊 · 考勤日报',
+        subtitle: 'OA / ATTENDANCE',
+        tone: 'idle',
+        mount: (body) => {
+          libuPage = mountScreenPage(body, {
+            nodeKey: 'libu-hall',
+            overviewPath: '/oa/overview',
+            overviewPermission: 'sys:oa:attendance:daily:list',
+            pages: [ATTENDANCE_DAILY_PAGE],
+            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+            getPermissions: opts.getPermissions,
+            // 题头灯跟业务页状态走：概览陈旧/失败时不该还亮绿灯
+            onTone: (tone) => libuScreen?.setTone(tone),
+            onTitle: (title, subtitle) => {
+              libuScreen?.setTitle(title ? `${title} · 考勤日报` : '吏部坊 · 考勤日报',
+                subtitle ?? 'OA / ATTENDANCE');
+            },
+          });
+          return () => {
+            libuPage?.dispose();
+            libuPage = null;
+          };
+        },
+      });
+    }
 
     /* 枢密殿（AUTH）屏风页（S5 / T5.2）：屏风里是登录历史 ——
        谁、什么时候、用什么方式登录，失败了多少次。
@@ -4610,9 +4652,9 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
        以及"进屏风 / 注入演示数据"两个动作。只在 ?debug=1 下存在，
        正常路径既不暴露业务字段，也不会注入任何假数据。
 
-       S5 起城里有九块业务屏风（户部 / 数枢殿 / 枢密殿 / 度支殿 / 藏书殿 / 时辰殿 /
-       政事殿 / 考功殿 / 通政殿 / 起居殿），S6 起加内城各坊，按 id 分派；
-       不给 id 时仍落到户部（S4 的老脚本靠这个默认）。 */
+       S5 收尾时皇城共十块业务屏风（户部 / 数枢殿 / 枢密殿 / 度支殿 / 藏书殿 / 时辰殿 /
+       政事殿 / 考功殿 / 通政殿 / 起居殿），S6 起逐坊增加内城坊（工部 / 吏部 …），
+       按 id 分派；不给 id 时仍落到户部（S4 的老脚本靠这个默认）。 */
     /* 屏风 id → 业务页句柄。默认给户部：老脚本不带 id 调探针时的历史行为。 */
     const pageOf = (id?: string): ScreenPageHandle | null => {
       switch (id) {
@@ -4636,6 +4678,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return qijuPage;
         case 'gongbu':
           return gongbuPage;
+        case 'libu':
+          return libuPage;
         default:
           return hubuPage;
       }
