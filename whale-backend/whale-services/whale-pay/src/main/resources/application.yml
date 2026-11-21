@@ -80,6 +80,12 @@ whale:
   pay:
     mock: ${WHALE_PAY_MOCK:true}
     allowed-channels: ${WHALE_PAY_ALLOWED_CHANNELS:MOCK}
+    # 停留在 PAYING 的支付单自动对账：update_time 超过阈值的单逐单查询渠道，
+    # 仅渠道明确 PAID 才收敛为 PAID；其余保持 PAYING 等人工确认（不回退，避免重复扣款）。
+    reconcile:
+      stale-seconds: ${WHALE_PAY_RECONCILE_STALE_SECONDS:300}
+      batch-size: ${WHALE_PAY_RECONCILE_BATCH_SIZE:50}
+      interval-ms: ${WHALE_PAY_RECONCILE_INTERVAL_MS:60000}
 
 mybatis-plus:
   configuration:

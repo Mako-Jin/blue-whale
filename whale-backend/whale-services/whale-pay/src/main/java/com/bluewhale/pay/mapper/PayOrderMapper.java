@@ -1,11 +1,13 @@
 package com.bluewhale.pay.mapper;
 
+import com.baomidou.mybatisplus.annotation.InterceptorIgnore;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.bluewhale.pay.po.PayOrderPo;
 import com.bluewhale.pay.mapper.stat.PayChannelAmountPo;
 import com.bluewhale.pay.mapper.stat.PayDayAmountPo;
 import com.bluewhale.pay.mapper.stat.PayPaidStatPo;
 import com.bluewhale.pay.mapper.stat.PayPendingStatPo;
+import com.bluewhale.pay.mapper.stat.PayStaleOrderPo;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
@@ -39,6 +41,23 @@ public interface PayOrderMapper extends BaseMapper<PayOrderPo> {
             + "update_time = NOW() "
             + "WHERE id = #{id} AND status = 'PAID' AND amount - COALESCE(refund_amount, 0) >= #{amount}")
     int applyRefund(@Param("id") Long id, @Param("amount") BigDecimal amount);
+
+    /**
+     * 扫描停留在 {@code PAYING} 的支付单（平台级跨租户对账）。
+     *
+     * <p>定时对账线程没有租户上下文，这里显式忽略租户拦截器，扫到全部租户的停留单；
+     * 结果带回 {@code tenant_id}，由调用方逐单还原租户上下文后再更新与记账。</p>
+     *
+     * @param before 更新时间早于该时刻才视为停留
+     * @param limit  单轮最大条数
+     * @return 支付单摘要（ID + 租户）
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT id, tenant_id FROM pay_order "
+            + "WHERE status = 'PAYING' AND deleted = 0 AND update_time < #{before} "
+            + "ORDER BY update_time ASC LIMIT #{limit}")
+    List<PayStaleOrderPo> selectStalePaying(@Param("before") LocalDateTime before,
+                                            @Param("limit") int limit);
 
     /**
      * 时间窗内的收款统计（度支殿概览 T5.3）

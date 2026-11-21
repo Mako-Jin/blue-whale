@@ -108,6 +108,16 @@ public interface PayOrderService {
     PayReconcileVO reconcile(Long id);
 
     /**
+     * 自动对账停留在 {@code PAYING} 的支付单（定时器入口）。
+     *
+     * <p>逐单查询渠道：只有渠道明确返回 {@code PAID} 才收敛为 {@code PAID} 并补流水与通知；
+     * 渠道未支付、状态未知或查询异常一律保持 {@code PAYING} 等人工确认，不自动回退。</p>
+     *
+     * @return 本轮成功收敛的笔数
+     */
+    int reconcileStalePaying();
+
+    /**
      * 支付单的支付/退款流水（按创建时间倒序）
      *
      * @param id 支付单ID

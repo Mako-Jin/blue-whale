@@ -2,6 +2,7 @@ package com.bluewhale.pay;
 
 import com.bluewhale.pay.config.PayChannelProperties;
 import com.bluewhale.pay.config.PayNotifyProperties;
+import com.bluewhale.pay.config.PayReconcileProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -18,7 +19,8 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
  */
 @SpringBootApplication
 @EnableDiscoveryClient
-@EnableConfigurationProperties({PayChannelProperties.class, PayNotifyProperties.class})
+@EnableConfigurationProperties({PayChannelProperties.class, PayNotifyProperties.class,
+        PayReconcileProperties.class})
 public class WhalePayApplication {
 
     /**

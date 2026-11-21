@@ -6,8 +6,10 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.pay.channel.PayChannelGateway;
 import com.bluewhale.pay.channel.PayChannelResult;
+import com.bluewhale.pay.config.PayReconcileProperties;
 import com.bluewhale.pay.converter.PayOrderConverter;
 import com.bluewhale.pay.dto.PayInternalCreateRequest;
 import com.bluewhale.pay.dto.PayOrderCreateRequest;
@@ -19,6 +21,7 @@ import com.bluewhale.pay.enums.PayNotifyEvent;
 import com.bluewhale.pay.enums.PayOrderStatus;
 import com.bluewhale.pay.mapper.PayOrderMapper;
 import com.bluewhale.pay.mapper.PayTransactionMapper;
+import com.bluewhale.pay.mapper.stat.PayStaleOrderPo;
 import com.bluewhale.pay.service.PayNotifyService;
 import com.bluewhale.pay.service.PayOrderService;
 import com.bluewhale.pay.service.PayRefundService;
@@ -28,6 +31,7 @@ import com.bluewhale.pay.vo.PayTransactionVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -98,6 +102,8 @@ public class PayOrderServiceImpl implements PayOrderService {
     private final PayRefundService payRefundService;
 
     private final TransactionTemplate transactionTemplate;
+
+    private final PayReconcileProperties reconcileProperties;
 
     @Override
     public PageResult<PayOrderVO> page(PayOrderQueryRequest request) {
@@ -264,6 +270,103 @@ public class PayOrderServiceImpl implements PayOrderService {
         return vo;
     }
 
+    /**
+     * 自动对账停留单：跨租户扫描 → 逐单还原租户上下文 → 查询渠道 → 仅 PAID 收敛。
+     *
+     * <p>定时线程没有租户上下文，租户 SQL 插件会整体忽略（既不加条件也不带 tenant_id 写入），
+     * 因此必须由扫描结果显式设置租户，否则补写的流水与通知任务会落到默认租户。</p>
+     *
+     * @return 本轮成功收敛的笔数
+     */
+    @Override
+    @Scheduled(fixedDelayString = "${whale.pay.reconcile.interval-ms:60000}")
+    public int reconcileStalePaying() {
+        LocalDateTime before = LocalDateTime.now().minusSeconds(reconcileProperties.getStaleSeconds());
+        List<PayStaleOrderPo> stale = payOrderMapper.selectStalePaying(before, reconcileProperties.getBatchSize());
+        int converged = 0;
+        for (PayStaleOrderPo item : stale) {
+            TenantContext.set(item.getTenantId());
+            try {
+                if (convergeIfChannelPaid(item.getId())) {
+                    converged++;
+                }
+            } catch (RuntimeException ex) {
+                // 单笔异常不能中断整轮：订单保持 PAYING，留待下一轮或人工确认
+                log.error("PAYING 停留单对账异常: id={} tenantId={}", item.getId(), item.getTenantId(), ex);
+            } finally {
+                TenantContext.clear();
+            }
+        }
+        if (converged > 0 && log.isInfoEnabled()) {
+            log.info("PAYING 对账轮次完成: stale={} converged={}", stale.size(), converged);
+        }
+        return converged;
+    }
+
+    /**
+     * 单笔停留单对账：渠道明确 PAID 才在独立事务内收敛，其余状态不回退。
+     *
+     * @param id 支付单 ID
+     * @return 是否由本次调用收敛为 PAID
+     */
+    private boolean convergeIfChannelPaid(Long id) {
+        PayOrderPo order = payOrderMapper.selectById(id);
+        if (order == null || !PayOrderStatus.PAYING.code().equals(order.getStatus())) {
+            // 扫描后已被其他线程推进或删除，跳过
+            return false;
+        }
+        String channelStatus;
+        try {
+            channelStatus = payChannelGateway.queryStatus(order);
+        } catch (RuntimeException ex) {
+            log.error("渠道状态查询失败，支付单保持 PAYING: orderNo={} channel={}",
+                    order.getOrderNo(), order.getChannel(), ex);
+            return false;
+        }
+        if (!PayOrderStatus.PAID.code().equals(channelStatus)) {
+            // 渠道可能状态滞后：回退成 CREATED 会允许重复支付，宁可保持 PAYING 等人工确认
+            log.warn("渠道状态非 PAID，支付单保持 PAYING 待人工确认: orderNo={} channelStatus={}",
+                    order.getOrderNo(), channelStatus);
+            return false;
+        }
+        Boolean settled = transactionTemplate.execute(status -> settleReconciledPayment(order));
+        return Boolean.TRUE.equals(settled);
+    }
+
+    /**
+     * 对账收敛事务：条件抢占 {@code PAYING → PAID}（多实例只有一个成功），补流水与通知。
+     *
+     * @param order 支付单（状态为 PAYING）
+     * @return 是否由本次事务完成收敛
+     */
+    private boolean settleReconciledPayment(PayOrderPo order) {
+        LocalDateTime now = LocalDateTime.now();
+        LambdaUpdateWrapper<PayOrderPo> update = new LambdaUpdateWrapper<>();
+        update.eq(PayOrderPo::getId, order.getId())
+                .eq(PayOrderPo::getStatus, PayOrderStatus.PAYING.code())
+                .set(PayOrderPo::getStatus, PayOrderStatus.PAID.code())
+                .set(PayOrderPo::getPayTime, now)
+                .set(PayOrderPo::getUpdateTime, now);
+        if (StringUtils.hasText(order.getChannelTradeNo())) {
+            update.set(PayOrderPo::getChannelTradeNo, order.getChannelTradeNo());
+        }
+        if (payOrderMapper.update(null, update) == 0) {
+            log.warn("支付单已被其他实例收敛，跳过重复流水: id={}", order.getId());
+            return false;
+        }
+        if (!StringUtils.hasText(order.getChannelTradeNo())) {
+            log.warn("渠道未返回流水号，自动收敛后 channel_trade_no 为空，需人工补录: orderNo={}",
+                    order.getOrderNo());
+        }
+        order.setStatus(PayOrderStatus.PAID.code());
+        order.setPayTime(now);
+        recordTransaction(order, TYPE_PAY,
+                new PayChannelResult(order.getChannelTradeNo(), PayOrderStatus.PAID.code()));
+        PayNotifyTaskPo task = payNotifyService.enqueue(PayNotifyEvent.PAID, order, null, null);
+        payNotifyService.dispatchAfterCommit(task == null ? null : task.getId());
+        return true;
+    }
+
     @Override
     public List<PayTransactionVO> listTransactions(Long id) {
         requireOrder(id);
@@ -363,7 +466,10 @@ public class PayOrderServiceImpl implements PayOrderService {
         LambdaUpdateWrapper<PayOrderPo> claim = new LambdaUpdateWrapper<>();
         claim.eq(PayOrderPo::getId, id)
                 .eq(PayOrderPo::getStatus, from)
-                .set(PayOrderPo::getStatus, to);
+                .set(PayOrderPo::getStatus, to)
+                // 同步推进 update_time：PAYING 的停留时长从抢占时刻算起，
+                // 否则老单刚进入 PAYING 就会被对账当成停留单提前介入
+                .set(PayOrderPo::getUpdateTime, LocalDateTime.now());
         if (payOrderMapper.update(null, claim) == 0) {
             throw new BizException(ErrorCode.PARAM_ERROR, message);
         }
