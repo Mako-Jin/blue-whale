@@ -12,7 +12,7 @@ import java.math.BigDecimal;
 /**
  * 内网退款请求。
  *
- * <p>由业务服务经 {@code /pay/internal/refund} 调用；按支付单号定位，
+ * <p>由业务服务经 {@code /pay/v1/internal/refund} 调用；按支付单号定位，
  * 校验累计退款额不超过支付金额。</p>
  *
  * <p>{@code refundNo} 是业务方生成的退款请求号（如商城售后单号）。

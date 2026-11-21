@@ -74,7 +74,7 @@ class PayOverviewProviderTest {
         assertEquals(2, snapshot.charts().size());
         assertEquals(1, snapshot.links().size());
         assertEquals("pay-orders", snapshot.links().get(0).key());
-        assertEquals("/pay/order/page", snapshot.links().get(0).path());
+        assertEquals("/pay/v1/order/page", snapshot.links().get(0).path());
         assertTrue(snapshot.alerts().isEmpty());
     }
 

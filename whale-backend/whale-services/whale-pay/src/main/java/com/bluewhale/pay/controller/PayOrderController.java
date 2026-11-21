@@ -25,7 +25,7 @@ import java.util.List;
 /**
  * 支付单管理接口
  *
- * <p>服务内路径 {@code /pay/order/**}；经网关按 {@code Path=/pay/**} 规则转发，
+ * <p>服务内路径 {@code /pay/v1/order/**}；经网关按 {@code Path=/pay/**} 规则转发且不剥前缀，
  * 外部路径与本文档一致。全部接口返回统一响应体 {@link Result}，受
  * {@code @RequirePermission("sys:pay:*")} 保护（由网关权限码头
  * {@code X-Permission-Codes} + starter {@code RequirePermissionInterceptor} 判定），
@@ -34,7 +34,7 @@ import java.util.List;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/pay/order")
+@RequestMapping(path = "/pay/v{version}/order", version = "1")
 @RequiredArgsConstructor
 public class PayOrderController {
 

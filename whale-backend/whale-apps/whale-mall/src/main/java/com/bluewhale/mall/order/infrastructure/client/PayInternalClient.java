@@ -85,7 +85,7 @@ public class PayInternalClient {
      * @return 支付单号（pay_order.orderNo）
      */
     public String createPayOrder(String orderNo, BigDecimal amount, String currency, String notifyUrl) {
-        JsonNode data = post("/pay/internal/order", Map.of(
+        JsonNode data = post("/pay/v1/internal/order", Map.of(
                 "orderNo", orderNo,
                 "bizType", "MALL_ORDER",
                 "amount", amount,
@@ -101,7 +101,7 @@ public class PayInternalClient {
      * @param orderNo 支付单号
      */
     public void pay(String orderNo) {
-        post("/pay/internal/order/" + orderNo + "/pay", Map.of());
+        post("/pay/v1/internal/order/" + orderNo + "/pay", Map.of());
     }
 
     /**
@@ -111,7 +111,7 @@ public class PayInternalClient {
      */
     public void cancel(String orderNo) {
         try {
-            post("/pay/internal/order/" + orderNo + "/cancel", Map.of());
+            post("/pay/v1/internal/order/" + orderNo + "/cancel", Map.of());
         } catch (BizException ex) {
             if (ex.getCode() != BIZ_NOT_FOUND_CODE) {
                 throw ex;
@@ -132,7 +132,7 @@ public class PayInternalClient {
      * @param reason   原因
      */
     public void refund(String orderNo, String refundNo, BigDecimal amount, String reason) {
-        post("/pay/internal/refund", Map.of(
+        post("/pay/v1/internal/refund", Map.of(
                 "payOrderNo", orderNo,
                 "refundNo", refundNo == null ? "" : refundNo,
                 "amount", amount,

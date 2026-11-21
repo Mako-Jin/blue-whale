@@ -56,7 +56,7 @@ public class PayOverviewProvider implements OverviewProvider {
     private static final String PERMISSION = "sys:pay:list";
 
     /** 屏风页（支付单管理）路径：与 2D 后台同路径 */
-    private static final String ORDER_PAGE_PATH = "/pay/order/page";
+    private static final String ORDER_PAGE_PATH = "/pay/v1/order/page";
 
     /** 趋势天数（含今天） */
     private static final int TREND_DAYS = 7;

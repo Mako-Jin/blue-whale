@@ -47,12 +47,12 @@ Call 'P6 alert/rule/404' 'GET' "$gw/alert/v1/rule/999999999" $h $null | Out-Null
 Call 'P7 alert/record/page' 'GET' "$gw/alert/v1/record/page?current=1&size=10" $h $null | Out-Null
 
 # pay
-Call 'P8 pay/order/page' 'GET' "$gw/pay/order/page?current=1&size=10" $h $null | Out-Null
-$order = Call 'P9 pay/order/create' 'POST' "$gw/pay/order" $h '{"bizOrderNo":"SMOKE-1","amount":100.00,"payChannel":"ALIPAY","subject":"smoke"}'
+Call 'P8 pay/order/page' 'GET' "$gw/pay/v1/order/page?current=1&size=10" $h $null | Out-Null
+$order = Call 'P9 pay/order/create' 'POST' "$gw/pay/v1/order" $h '{"bizOrderNo":"SMOKE-1","amount":100.00,"payChannel":"ALIPAY","subject":"smoke"}'
 if ($order -and $order.data) {
   $oid = $order.data.id
-  Call 'P10 pay/order/pay' 'POST' "$gw/pay/order/$oid/pay" $h '{}' | Out-Null
-  Call 'P11 pay/order/pay-again' 'POST' "$gw/pay/order/$oid/pay" $h '{}' | Out-Null
+  Call 'P10 pay/order/pay' 'POST' "$gw/pay/v1/order/$oid/pay" $h '{}' | Out-Null
+  Call 'P11 pay/order/pay-again' 'POST' "$gw/pay/v1/order/$oid/pay" $h '{}' | Out-Null
 }
 
 # audit

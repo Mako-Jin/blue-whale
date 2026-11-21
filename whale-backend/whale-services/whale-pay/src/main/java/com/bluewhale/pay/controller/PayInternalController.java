@@ -18,11 +18,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 支付内网接口（仅服务间直连，网关侧对 {@code /pay/internal/**} 统一 403）。
+ * 支付内网接口（仅服务间直连，网关侧对 {@code /pay/v1/internal/**} 统一 403）。
  *
  * <p>入站安全分两层：</p>
  * <ol>
- *   <li><b>服务间令牌</b>：starter 的 {@code InternalTokenFilter} 对 {@code /pay/internal/**}
+ *   <li><b>服务间令牌</b>：starter 的 {@code InternalTokenFilter} 对 {@code /pay/v1/internal/**}
  *       校验 {@code X-Internal-Token}，无令牌直接 403；非 dev 环境未配置令牌时
  *       {@code InternalTokenGuard} 拒绝启动。</li>
  *   <li><b>租户上下文</b>：{@code X-Tenant-Id} 由 {@code TenantContextFilter} 还原，
@@ -36,7 +36,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/pay/internal")
+@RequestMapping(path = "/pay/v{version}/internal", version = "1")
 @RequiredArgsConstructor
 public class PayInternalController {
 

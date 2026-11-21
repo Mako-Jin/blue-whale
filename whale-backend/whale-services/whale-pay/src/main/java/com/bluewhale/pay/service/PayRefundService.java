@@ -44,7 +44,7 @@ public interface PayRefundService {
     }
 
     /**
-     * 管理端整单退款（兼容原 {@code POST /pay/order/{id}/refund} 语义）。
+     * 管理端整单退款（兼容原 {@code POST /pay/v1/order/{id}/refund} 语义）。
      *
      * @param payOrderId 支付单 ID
      * @param reason     退款原因

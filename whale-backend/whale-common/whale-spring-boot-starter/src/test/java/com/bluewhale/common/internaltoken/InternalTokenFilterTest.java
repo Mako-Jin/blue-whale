@@ -179,7 +179,7 @@ class InternalTokenFilterTest {
     void shouldAllowIssuerWithAllowedTenant() throws Exception {
         enableIssuerMode();
 
-        assertEquals(200, doFilter("/pay/internal/order/O1", "mall.mall-secret", "1001").getStatus());
+        assertEquals(200, doFilter("/pay/v1/internal/order/O1", "mall.mall-secret", "1001").getStatus());
     }
 
     @Test
@@ -187,7 +187,7 @@ class InternalTokenFilterTest {
     void shouldDenyIssuerWithForeignTenant() throws Exception {
         enableIssuerMode();
 
-        MockHttpServletResponse response = doFilter("/pay/internal/order/O1", "mall.mall-secret", "2002");
+        MockHttpServletResponse response = doFilter("/pay/v1/internal/order/O1", "mall.mall-secret", "2002");
 
         assertEquals(403, response.getStatus());
         assertEquals("{\"code\":403,\"message\":\"内网令牌无权访问该租户\",\"data\":null}",
@@ -199,7 +199,7 @@ class InternalTokenFilterTest {
     void shouldDenyIssuerWithoutTenant() throws Exception {
         enableIssuerMode();
 
-        MockHttpServletResponse response = doFilter("/pay/internal/order/O1", "mall.mall-secret", null);
+        MockHttpServletResponse response = doFilter("/pay/v1/internal/order/O1", "mall.mall-secret", null);
 
         assertEquals(403, response.getStatus());
         assertEquals("{\"code\":403,\"message\":\"内网接口缺少租户头\",\"data\":null}",
@@ -211,7 +211,7 @@ class InternalTokenFilterTest {
     void shouldAllowPlatformIssuerWithoutTenant() throws Exception {
         enableIssuerMode();
 
-        assertEquals(200, doFilter("/pay/internal/order/O1", "job.job-secret", null).getStatus());
+        assertEquals(200, doFilter("/pay/v1/internal/order/O1", "job.job-secret", null).getStatus());
     }
 
     @Test
@@ -219,11 +219,11 @@ class InternalTokenFilterTest {
     void shouldDenyInvalidIssuerTokens() throws Exception {
         enableIssuerMode();
 
-        assertEquals(403, doFilter("/pay/internal/order/O1", "mall.wrong", "1001").getStatus());
-        assertEquals(403, doFilter("/pay/internal/order/O1", "unknown.secret", "1001").getStatus());
+        assertEquals(403, doFilter("/pay/v1/internal/order/O1", "mall.wrong", "1001").getStatus());
+        assertEquals(403, doFilter("/pay/v1/internal/order/O1", "unknown.secret", "1001").getStatus());
         // 按服务模式开启后共享令牌不再被接受
-        assertEquals(403, doFilter("/pay/internal/order/O1", "secret-token", "1001").getStatus());
+        assertEquals(403, doFilter("/pay/v1/internal/order/O1", "secret-token", "1001").getStatus());
         // 缺少分隔符的裸令牌
-        assertEquals(403, doFilter("/pay/internal/order/O1", "mall-secret", "1001").getStatus());
+        assertEquals(403, doFilter("/pay/v1/internal/order/O1", "mall-secret", "1001").getStatus());
     }
 }

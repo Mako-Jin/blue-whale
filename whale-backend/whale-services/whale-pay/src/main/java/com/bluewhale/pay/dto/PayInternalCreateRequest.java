@@ -12,7 +12,7 @@ import java.math.BigDecimal;
 /**
  * 内网创建支付单请求。
  *
- * <p>由业务服务（如 whale-mall）经 {@code /pay/internal/order} 调用；
+ * <p>由业务服务（如 whale-mall）经 {@code /pay/v1/internal/order} 调用；
  * 金额以业务方订单应付总额为准，按 {@code orderNo} 幂等。</p>
  *
  * @author BlueWhale

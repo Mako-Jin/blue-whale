@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-  '/pay/order': {
+  '/pay/v1/order': {
     parameters: {
       query?: never;
       header?: never;
@@ -20,7 +20,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/pay/order/{id}/refund': {
+  '/pay/v1/order/{id}/refund': {
     parameters: {
       query?: never;
       header?: never;
@@ -36,7 +36,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/pay/order/{id}/pay': {
+  '/pay/v1/order/{id}/pay': {
     parameters: {
       query?: never;
       header?: never;
@@ -52,7 +52,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/pay/order/{id}/cancel': {
+  '/pay/v1/order/{id}/cancel': {
     parameters: {
       query?: never;
       header?: never;
@@ -68,7 +68,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/pay/notify/{id}/retry': {
+  '/pay/v1/notify/{id}/retry': {
     parameters: {
       query?: never;
       header?: never;
@@ -84,7 +84,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/pay/internal/refund': {
+  '/pay/v1/internal/refund': {
     parameters: {
       query?: never;
       header?: never;
@@ -100,7 +100,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/pay/internal/order': {
+  '/pay/v1/internal/order': {
     parameters: {
       query?: never;
       header?: never;
@@ -116,7 +116,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/pay/internal/order/{orderNo}/pay': {
+  '/pay/v1/internal/order/{orderNo}/pay': {
     parameters: {
       query?: never;
       header?: never;
@@ -132,7 +132,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/pay/internal/order/{orderNo}/cancel': {
+  '/pay/v1/internal/order/{orderNo}/cancel': {
     parameters: {
       query?: never;
       header?: never;
@@ -148,7 +148,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/pay/refund/{id}': {
+  '/pay/v1/refund/{id}': {
     parameters: {
       query?: never;
       header?: never;
@@ -164,7 +164,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/pay/refund/page': {
+  '/pay/v1/refund/page': {
     parameters: {
       query?: never;
       header?: never;
@@ -180,7 +180,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/pay/order/{id}': {
+  '/pay/v1/order/{id}': {
     parameters: {
       query?: never;
       header?: never;
@@ -196,7 +196,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/pay/order/{id}/transactions': {
+  '/pay/v1/order/{id}/transactions': {
     parameters: {
       query?: never;
       header?: never;
@@ -212,7 +212,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/pay/order/{id}/reconcile': {
+  '/pay/v1/order/{id}/reconcile': {
     parameters: {
       query?: never;
       header?: never;
@@ -228,7 +228,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/pay/order/page': {
+  '/pay/v1/order/page': {
     parameters: {
       query?: never;
       header?: never;
@@ -244,7 +244,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/pay/notify/page': {
+  '/pay/v1/notify/page': {
     parameters: {
       query?: never;
       header?: never;
@@ -260,7 +260,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/pay/internal/order/{orderNo}': {
+  '/pay/v1/internal/order/{orderNo}': {
     parameters: {
       query?: never;
       header?: never;

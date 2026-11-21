@@ -246,7 +246,7 @@ export const PAY_STATUS_STYLE: Record<string, ScreenStatusStyle> = {
 export const PAY_ORDER_PAGE: ScreenListPageSpec = {
   key: 'pay-orders',
   title: '支付单',
-  listPath: '/pay/order/page',
+  listPath: '/pay/v1/order/page',
   permission: 'sys:pay:list',
   idKey: 'id',
   keywordParam: 'keyword',

@@ -8,7 +8,7 @@
 //   ② **接口支持 keyword，屏风就必须给搜索框**（上一条的反面，两条一起才是判据）；
 //   ③ 待支付单在列表里是黄灯——它不是历史状态，是还没做完的事。
 //
-// 数据来源：page.route 拦 /pay/overview 与 /pay/order/page，
+// 数据来源：page.route 拦 /pay/overview 与 /pay/v1/order/page，
 // 返回**与后端同形状**的信封（{code,message,data}）。
 
 import { chromium } from '@playwright/test';
@@ -67,7 +67,7 @@ const OVERVIEW = {
     },
   ],
   alerts: [{ level: 'critical', text: '今日支付失败 6 笔，请查渠道与失败流水', count: 6 }],
-  links: [{ key: 'pay-orders', label: '支付单管理', path: '/pay/order/page', permission: 'sys:pay:list' }],
+  links: [{ key: 'pay-orders', label: '支付单管理', path: '/pay/v1/order/page', permission: 'sys:pay:list' }],
   notes: ['口径：收款按支付时间、退款按成功退款流水、待支付含超时未支付，均限本租户'],
 };
 
@@ -117,7 +117,7 @@ await page.route('**/pay/overview**', async (route) => {
   await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(json(OVERVIEW)) });
 });
 
-await page.route('**/pay/order/page**', async (route) => {
+await page.route('**/pay/v1/order/page**', async (route) => {
   const url = new URL(route.request().url());
   const current = Number(url.searchParams.get('current') ?? '1');
   const size = Number(url.searchParams.get('size') ?? '6');
@@ -285,7 +285,7 @@ check('退出后回到 3D 尺寸（不是糊满整个镜头）', exited.w > 0 &&
 await page.route('**/pay/overview**', (route) =>
   route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
 );
-await page.route('**/pay/order/page**', (route) =>
+await page.route('**/pay/v1/order/page**', (route) =>
   route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
 );
 await page.locator('[data-screen-id="duzhi"]').click();

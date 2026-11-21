@@ -54,7 +54,7 @@ logging:
 
 # AUTH-06：启用 starter 的 RequirePermissionInterceptor（默认 false，须显式开启），
 # 按网关注入的 X-Permission-Codes 判定本服务支付接口的 sys:pay:* 权限。
-# 内网接口 /pay/internal/** 由 starter 的 InternalTokenFilter 校验 X-Internal-Token，
+# 内网接口 /pay/v1/internal/** 由 starter 的 InternalTokenFilter 校验 X-Internal-Token，
 # 非 dev 环境未配置令牌时 InternalTokenGuard 拒绝启动（WHALE_INTERNAL_TOKEN）。
 whale:
   permission:

@@ -21,13 +21,13 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 退款单与业务通知任务管理接口。
  *
- * <p>路径 {@code /pay/refund/**} 与 {@code /pay/notify/**}，经网关按
- * {@code Path=/pay/**} 转发，受 {@code sys:pay:*} 权限保护。</p>
+ * <p>路径 {@code /pay/v1/refund/**} 与 {@code /pay/v1/notify/**}，经网关按
+ * {@code Path=/pay/**} 转发且不剥前缀，受 {@code sys:pay:*} 权限保护。</p>
  *
  * @author BlueWhale
  */
 @RestController
-@RequestMapping("/pay")
+@RequestMapping(path = "/pay/v{version}", version = "1")
 @RequiredArgsConstructor
 public class PayRefundController {
 

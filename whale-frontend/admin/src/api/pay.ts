@@ -82,35 +82,35 @@ export interface PayOrderPageParams {
 
 /** 分页查询支付单 */
 export function pagePayOrders(params: PayOrderPageParams): Promise<PageResult<PayOrderVO>> {
-  return get<PageResult<PayOrderVO>>('/pay/order/page', { ...params });
+  return get<PageResult<PayOrderVO>>('/pay/v1/order/page', { ...params });
 }
 
 /** 创建支付单 */
 export function createPayOrder(body: PayOrderInput): Promise<PayOrderVO> {
-  return post<PayOrderVO>('/pay/order', body);
+  return post<PayOrderVO>('/pay/v1/order', body);
 }
 
 /** 支付支付单（CREATED → PAID） */
 export function payPayOrder(id: string): Promise<PayOrderVO> {
-  return post<PayOrderVO>(`/pay/order/${id}/pay`);
+  return post<PayOrderVO>(`/pay/v1/order/${id}/pay`);
 }
 
 /** 取消支付单（CREATED → CANCELLED） */
 export function cancelPayOrder(id: string): Promise<PayOrderVO> {
-  return post<PayOrderVO>(`/pay/order/${id}/cancel`);
+  return post<PayOrderVO>(`/pay/v1/order/${id}/cancel`);
 }
 
 /** 退款支付单（PAID → REFUNDED，当前为全额退款） */
 export function refundPayOrder(id: string): Promise<PayOrderVO> {
-  return post<PayOrderVO>(`/pay/order/${id}/refund`);
+  return post<PayOrderVO>(`/pay/v1/order/${id}/refund`);
 }
 
 /** 支付单对账：比对本地状态与渠道状态 */
 export function reconcilePayOrder(id: string): Promise<PayReconcileVO> {
-  return get<PayReconcileVO>(`/pay/order/${id}/reconcile`);
+  return get<PayReconcileVO>(`/pay/v1/order/${id}/reconcile`);
 }
 
 /** 支付/退款流水列表 */
 export function listPayTransactions(id: string): Promise<PayTransactionVO[]> {
-  return get<PayTransactionVO[]>(`/pay/order/${id}/transactions`);
+  return get<PayTransactionVO[]>(`/pay/v1/order/${id}/transactions`);
 }
