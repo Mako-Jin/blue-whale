@@ -87,6 +87,12 @@
             <artifactId>whale-auth-sdk</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- S5/T5.9 起居殿概览：复用统一 OverviewProvider 契约（只读） -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-overview-sdk</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.mapstruct</groupId>
             <artifactId>mapstruct</artifactId>

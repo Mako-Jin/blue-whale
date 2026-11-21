@@ -290,7 +290,7 @@
 | T5.6 | [x] 政事殿 | workflow | T5.1 |
 | T5.7 | [x] 考功殿 | form | T5.1 |
 | T5.8 | [x] 通政殿 | message | T5.1 |
-| T5.9 | [ ] 起居殿（只读） | audit | T5.1 |
+| T5.9 | [x] 起居殿（只读） | audit | T5.1 |
 | T5.10 | [ ] 城门楼地标（网关，无入口） | gateway | T1.9 |
 
 > 每殿 3 个任务（接口 / 屏风页 / 厅配置），实际约 **27 个**。为控制篇幅此处按殿合并，开工时展开为 `T5.x.1/.2/.3`。
@@ -678,6 +678,49 @@
   （含 ArchUnit 3 例、Flyway 迁移守卫 5 例——守卫里新增 V9 四个索引与"init.sql 不得再单建
   `idx_tenant_status`"断言，断言前先剥行注释）；checkstyle 0 违规。
 - **已知遗留**：`/message/overview` 的真实 HTTP 未验（本机 Docker / Nacos 未起）。
+
+**S5 第九批交付说明（2026-11-21，T5.9 起居殿 / audit，只读）**
+
+- **接口**：`GET /audit/overview`（`whale.overview.base-path`）：四张 KPI（今日审计 /
+  失败操作 / 留痕断流 / 归档陈旧）+ 两张图（近 7 日审计 line、操作类型 Top5 bar）。
+  权限码复用 `sys:audit:log:list`，屏风页复用 `/audit/v1/log/page`，**无新接口、无新权限点、无新迁移**。
+  audit 是**单模块服务**（`whale-ops/whale-ops-audit`），provider 放 `overview` 包、统计端口放
+  `service`、聚合 SQL 走独立只读 Mapper（不污染公共 `AuditLogMapper` 的 BaseMapper）。
+- **这一屏回答"审计本身还活着吗"**：审计服务最怕的不是漏抓一次违规，而是"该记的那段是空白"。
+  摄入链路断开、归档停摆都**不报错**——进程活着、健康探针绿、指标照常暴露，等查账才发现没证据。
+  所以除常规两牌外专设两张静默失效牌：
+  - **留痕断流**（`silence`, DURATION）= 当前时刻减本租户最近一条审计写入时刻。比"今日 0 条"
+    更准——空闲环境今日 0 条正常，连续一天一条都没有才不正常。**从未写入记 -1，不算故障**
+    （前端 `formatDuration` 会把负值 clamp 成 0 秒，靠副标"尚无审计记录"兜底）。
+  - **归档陈旧**（`stale`, 天）= 归档作业 `audit.log.retention` 心跳最后成功距今，与指标
+    `audit.job.stale.days` 同口径（心跳表平台级、主键 job_code、无 tenant_id，已在租户白名单）。
+- **告警两条、根因不同、可并存**：断流 → `CRITICAL`（写不进来，先查摄入链路）；
+  归档停摆 → `WARNING`（记下来了但没归档，去查 retention 作业）。混成一条会让人先翻归档日志，
+  而真正的问题是审计根本没写进去。
+- **全程只读**：概览 30s 轮询，provider 内只有 count/select，无任何写库——与 `audit_log`
+  append-only 语义一致，触发器与门禁不误伤。
+- **租户显式传参**：provider 在 SDK 独立线程池执行（`OverviewService#invoke`），拿不到请求线程的
+  `TenantContext`，租户插件会忽略审计表——统计 SQL 必须自己带 `tenant_id = #{tenantId}`，
+  否则把别家的审计算进这一屏（还不报错）。时间条件一律 `>= from AND < to`，函数只用在分组键。
+- **索引**：复用 audit_log 既有 `idx_tenant_time(tenant_id, create_time)`，趋势按天聚合窗口仅 7 天，
+  **无新索引、无新迁移**（V1 基线已覆盖，audit 服务自身版本仍止于 V4）。
+- **屏风页** `AUDIT_LOG_PAGE` 五列（操作时间 / 操作人 / 模块 / 操作类型 / 结果）。
+  **关键字参数是 `username` 不是 `keyword`**（`AuditLogQueryRequest` 的文本条件只有 username 模糊匹配，
+  配 keyword 会被 Spring 静默忽略）。状态筛选走 `bizStatus`（0 失败 / 1 成功），值用后端原值；
+  `bizStatus` 是数字，靠 `AUDIT_RESULT_STYLE` 字典 `String(value)` 查表译成"成功/失败"并打灯。
+  **不配 `detailPath`**：详情接口 `/{id}` 返回的与列表行同字段（同一个 `AuditLogVO`），再请求拿不到
+  新信息，还会把 `requestParams`/`resultBody` 两个 TEXT 顶进 620px 版面。
+- **位置**：起居殿在**东列第四进**（`x = +20.5`、殿心 `z = 21`，通政殿北侧），
+  屏风 `[20.5, 3.42, 25.5]`（殿心 + 4.5）、`y = 3.42`、`facing = 0`，摆法与前几殿一致。
+- **总控接入**：`targets` 加 `qiju-hall`（`http://bw-audit:9101/audit/overview`，权限码同上），
+  数枢殿总控里出现第九行真数据。容器名/端口取自 compose（`bw-audit` / 9101），网关 `/audit/**` 路由已存。
+- **验证**：`e2e/tools/world-qiju-smoke.mjs` **46 项全绿**（四张 KPI 与两盏告警灯、断流 DURATION 排版、
+  有搜索框且关键字发 username 不发 keyword、状态值用 bizStatus 原值、数字状态码译成中文并打灯、
+  首屏只带分页参数、分页、列表行即详情不打二次请求、Esc 退出回 3D、接口 500 标 stale 给人话）。
+  后端 `AuditOverviewProviderTest` **12 例** + audit 全量 **135 例**通过（含 ArchUnit 5 例，带 `-am`）；
+  monitor 13 例；checkstyle 0 违规；八项门禁 rc=0；前端 check:overview / lint / build 全过。
+  回归：业务族 tongzheng 55 / shushu 31 / kaogong 59 / screenpage 35、屏风基础族 7 个、city-smoke 全绿。
+- **已知遗留**：`/audit/overview` 的真实 HTTP 未验（本机 Docker / Nacos 未起），同前八批口径。
 
 ### S6 内城 12 坊
 

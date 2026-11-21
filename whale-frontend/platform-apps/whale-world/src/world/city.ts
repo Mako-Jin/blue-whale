@@ -67,6 +67,7 @@ import {
   PROCESS_INSTANCE_PAGE,
   FORM_DEFINITION_PAGE,
   MESSAGE_RECORD_PAGE,
+  AUDIT_LOG_PAGE,
 } from './screenpages';
 import { createSceneEnv, type SceneEnv } from './env';
 import { createPostFx, type PostFx } from './postfx';
@@ -3883,6 +3884,10 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   let tongzhengScreen: ScreenHandle | null = null;
   let tongzhengPage: ScreenPageHandle | null = null;
 
+  /** 起居殿（S5/T5.9）屏风与其业务页句柄（同上） */
+  let qijuScreen: ScreenHandle | null = null;
+  let qijuPage: ScreenPageHandle | null = null;
+
   function setupScreens() {
     try {
     screens.add({
@@ -4239,6 +4244,40 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       },
     });
 
+    /* 起居殿（S5/T5.9）：审计留痕是否在正常工作。比起"抓到一次违规"，这一屏更怕
+       "该记的那段是空白"——摄入断流、归档停摆都不报错，等查账才发现没证据。
+       位置同前几殿：东列第四进（x = +20.5、殿心 z = 21），屏风 z = 25.5（殿心 + 4.5），
+       台基顶面 1.87 米 → 屏风中心 3.42 米（摆法说明见枢密殿那段）。 */
+    qijuScreen = screens.add({
+      id: 'qiju',
+      position: [20.5, 3.42, 25.5],
+      facing: 0,
+      size: 'large',
+      title: '起居殿 · 审计日志',
+      subtitle: 'AUDIT / RECORD',
+      tone: 'idle',
+      mount: (body) => {
+        qijuPage = mountScreenPage(body, {
+          nodeKey: 'qiju-hall',
+          overviewPath: '/audit/overview',
+          overviewPermission: 'sys:audit:log:list',
+          pages: [AUDIT_LOG_PAGE],
+          getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+          getPermissions: opts.getPermissions,
+          // 题头灯跟业务页状态走：概览陈旧/失败时不该还亮绿灯
+          onTone: (tone) => qijuScreen?.setTone(tone),
+          onTitle: (title, subtitle) => {
+            qijuScreen?.setTitle(title ? `${title} · 审计日志` : '起居殿 · 审计日志',
+              subtitle ?? 'AUDIT / RECORD');
+          },
+        });
+        return () => {
+          qijuPage?.dispose();
+          qijuPage = null;
+        };
+      },
+    });
+
     /* 遮挡演示：御道边一根拴马桩，挂进遮挡层。
        从出生点看过去，桩子应该切掉屏风的一角——这是 S0 T0.3 在真实场景、真实
        几何、真实光照下的复核。只有这一根进遮挡层，遮挡 pass 的开销可以忽略。 */
@@ -4443,6 +4482,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return kaogongPage;
         case 'tongzheng':
           return tongzhengPage;
+        case 'qiju':
+          return qijuPage;
         default:
           return hubuPage;
       }

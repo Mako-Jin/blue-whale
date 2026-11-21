@@ -50,6 +50,10 @@ export const OVERVIEW_HALLS: OverviewHallSpec[] = [
      权限码复用 2D 消息记录页的 `sys:message:record:list`——能在后台看投递记录的人，
      才该在城里看到"哪些消息根本没发出去"。 */
   { nodeKey: 'tongzheng-hall', path: '/message/overview', permission: 'sys:message:record:list' },
+  /* 起居殿（S5/T5.9）：今日留痕多少、有没有失败，以及两件"安静的坏事"——
+     审计留痕断流（最近一条距今多久）与归档作业陈旧。权限码复用 2D 审计日志页的
+     `sys:audit:log:list`——只有审计管理员该在城里看到"哪段时间没留下证据"。 */
+  { nodeKey: 'qiju-hall', path: '/audit/overview', permission: 'sys:audit:log:list' },
 ];
 
 /** 采集器选项：与 metrics 共用同一套令牌/权限来源 */

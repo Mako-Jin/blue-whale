@@ -101,3 +101,7 @@ whale:
           name: 通政殿
           url: http://bw-message:8094/message/overview
           permission: sys:message:record:list
+        - nodeKey: qiju-hall
+          name: 起居殿
+          url: http://bw-audit:9101/audit/overview
+          permission: sys:audit:log:list

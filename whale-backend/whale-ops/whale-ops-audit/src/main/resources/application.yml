@@ -85,6 +85,11 @@ whale:
   permission:
     header:
       enabled: true
+  # S5/T5.9 起居殿概览：base-path 含服务一级前缀，网关不剥前缀（REQ-ARCH-003）
+  overview:
+    base-path: /audit/overview
+    timeout: 5s
+    ttl: 30s
   # REQ-SEC-006 日志保留期清理：默认关闭（enabled=false 时不装配调度器、不清理）；
   # 仅清理 api_log/outbound_log/frontend_log/behavior_log 四张日志表，不触碰 audit_log（AUTH-09）。
   audit:

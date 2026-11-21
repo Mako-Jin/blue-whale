@@ -665,6 +665,58 @@ export const MESSAGE_RECORD_PAGE: ScreenListPageSpec = {
 };
 
 /**
+ * 审计业务结果：`audit_log.biz_status`，1 成功 / 0 失败。
+ *
+ * <p>失败给 bad 而不是 flat：起居殿这一屏是给审计管理员查"谁做过什么、有没有失败"的，
+ * 失败记录混在一片中性灰里等于没筛出来。</p>
+ */
+export const AUDIT_RESULT_STYLE: Record<string, ScreenStatusStyle> = {
+  '1': { label: '成功', tone: 'good' },
+  '0': { label: '失败', tone: 'bad' },
+};
+
+/**
+ * 审计日志页（S5 / T5.9）：起居殿的屏风页，只读。
+ *
+ * <p>列只留五样：操作时间、操作人、模块、操作类型、结果。这一屏回答的是"最近谁在系统里
+ * 做了什么、哪些失败了"，不是"某条操作的完整请求报文"——那是 2D 审计中心的活。</p>
+ *
+ * <p><b>关键字参数是 `username` 不是 `keyword`</b>：`AuditLogQueryRequest` 只有
+ * {@code username}（模糊匹配）这个文本条件，配 `keyword` 会被 Spring 静默忽略。</p>
+ *
+ * <p><b>状态筛选走 `bizStatus`</b>（1/0），接口收 Integer；这里传字符串由 Spring 转换。
+ * 不配 `detailPath`：详情接口 {@code /audit/v1/log/{id}} 返回的字段与列表行一致（同一个
+ * {@code AuditLogVO}），再请求一次拿不到新信息，反而会在 620px 大屏上把 requestParams / resultBody
+ * 两个 TEXT 顶进来撑破版面。要看完整报文去 2D 审计中心。</p>
+ */
+export const AUDIT_LOG_PAGE: ScreenListPageSpec = {
+  key: 'audit-logs',
+  title: '审计日志',
+  listPath: '/audit/v1/log/page',
+  permission: 'sys:audit:log:list',
+  idKey: 'id',
+  keywordParam: 'username',
+  searchPlaceholder: '搜索操作人…',
+  statusParam: 'bizStatus',
+  statuses: [
+    { value: '', label: '全部结果' },
+    { value: '0', label: '失败' },
+    { value: '1', label: '成功' },
+  ],
+  statusMap: AUDIT_RESULT_STYLE,
+  /* 6 行/页：大屏 620px 里 KPI + 图表 + 工具栏之后只剩约 230px */
+  pageSize: 6,
+  columns: [
+    { key: 'createTime', label: '操作时间', width: '22%', format: 'datetime' },
+    { key: 'username', label: '操作人', width: '18%' },
+    { key: 'module', label: '模块', width: '22%' },
+    { key: 'operateType', label: '操作', width: '18%' },
+    { key: 'bizStatus', label: '结果', width: '20%', format: 'status' },
+  ],
+  titleKey: 'operation',
+};
+
+/**
  * 殿的连通状态：与后端 {@code HubHallState} 一一对应，前端只做展示。
  *
  * <p>「无凭据」单独一档而不是并进「未通」：前者要去要权限，后者要去查服务，
@@ -744,4 +796,5 @@ export const SCREEN_PAGES: Record<string, ScreenListPageSpec> = {
   [PROCESS_INSTANCE_PAGE.key]: PROCESS_INSTANCE_PAGE,
   [FORM_DEFINITION_PAGE.key]: FORM_DEFINITION_PAGE,
   [MESSAGE_RECORD_PAGE.key]: MESSAGE_RECORD_PAGE,
+  [AUDIT_LOG_PAGE.key]: AUDIT_LOG_PAGE,
 };
