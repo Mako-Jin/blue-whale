@@ -959,6 +959,78 @@ export const CUSTOMER_PAGE: ScreenListPageSpec = {
 };
 
 /**
+ * 设备在线字典：`iot_device.online` 是 0/1 两个数字，不是字符串枚举。
+ *
+ * <p>数字码必须是**字符串键**（`'1'`/`'0'`）：渲染层查表前做 `String(value)`，
+ * 写成数字键 `{ 1: … }` 在 JS 里其实也是 `'1'`，但混着写最容易出现"一个有灯一个没灯"。
+ * 离线给黄灯而不是红灯：设备没上线可能只是还没装、在仓库里躺着，
+ * 红牌留给"在线率掉了"这种整体结论，逐台设备一进来就满屏红，等于没有告警。</p>
+ */
+export const DEVICE_ONLINE_STYLE: Record<string, ScreenStatusStyle> = {
+  '1': { label: '在线', tone: 'good' },
+  '0': { label: '离线', tone: 'warn' },
+};
+
+/** 设备状态：与 `iot_device.status` 一一对应（active 启用 / disabled 禁用） */
+export const DEVICE_STATUS_STYLE: Record<string, ScreenStatusStyle> = {
+  active: { label: '启用', tone: 'good' },
+  disabled: { label: '禁用', tone: 'flat' },
+};
+
+/**
+ * 设备台账页（S6 / T6.13）：兵部坊的屏风页。
+ *
+ * <p><b>这一屏讲什么。</b>兵部掌哨探：城里这面屏风回答"探子都在不在岗"——
+ * 哪台设备、挂在哪个产品下、在不在线、最后一次回报是什么时候。屏风上半部是
+ * 设备总数 / 在线率 / 近 24h 上报 / 待回指令，下半部就是这张台账，
+ * 两边出自同一批表。</p>
+ *
+ * <p><b>关键字参数是 `keyword`，这次是真的。</b>`IotDeviceController#page` 接
+ * {@code productId / keyword / current / size}，`keyword` 按设备名与昵称模糊匹配。
+ * <b>但没有状态筛选位</b>——设备分页接口不收 `status`，配一个下拉只会发出后端
+ * 默默忽略的参数，"点了没反应"是这类问题里最难查的一种。要看禁用设备，
+ * 走 2D 设备管理页。</p>
+ *
+ * <p><b>不配 detailPath。</b>`/iot/devices/page` 返回的 `DeviceVO` 已经含产品名、
+ * 最近在线/上报时间与状态，列表行就是详情；详情接口 `/{id}` 返回同一份 VO，
+ * 再请求一次只是多一次往返。</p>
+ *
+ * <p>「在线」列走列级字典：页面级字典是设备状态（active/disabled），
+ * 在线是 0/1 的另一套码值，混用会把"在线"显示成英文 1。</p>
+ */
+export const DEVICE_PAGE: ScreenListPageSpec = {
+  key: 'devices',
+  title: '设备台账',
+  listPath: '/iot/devices/page',
+  permission: 'sys:iot:device',
+  idKey: 'id',
+  keywordParam: 'keyword',
+  searchPlaceholder: '搜索设备名 / 昵称…',
+  statusMap: DEVICE_STATUS_STYLE,
+  /* 6 行/页：大屏 620px 里 KPI + 图表 + 工具栏之后只剩约 230px */
+  pageSize: 6,
+  columns: [
+    { key: 'deviceName', label: '设备', width: '26%' },
+    { key: 'productName', label: '产品', width: '24%' },
+    { key: 'online', label: '在线', width: '14%', format: 'status', statusMap: DEVICE_ONLINE_STYLE },
+    { key: 'lastReportTime', label: '最近上报', width: '20%', format: 'datetime' },
+    { key: 'status', label: '状态', width: '16%', format: 'status' },
+  ],
+  detailFields: [
+    { key: 'deviceName', label: '设备名称' },
+    { key: 'nickname', label: '昵称' },
+    { key: 'productName', label: '所属产品' },
+    { key: 'productCode', label: '产品编码' },
+    { key: 'online', label: '在线', format: 'status', statusMap: DEVICE_ONLINE_STYLE },
+    { key: 'status', label: '状态', format: 'status' },
+    { key: 'lastOnlineTime', label: '最近在线', format: 'datetime' },
+    { key: 'lastReportTime', label: '最近上报', format: 'datetime' },
+    { key: 'createTime', label: '创建时间', format: 'datetime' },
+  ],
+  titleKey: 'deviceName',
+};
+
+/**
  * 殿的连通状态：与后端 {@code HubHallState} 一一对应，前端只做展示。
  *
  * <p>「无凭据」单独一档而不是并进「未通」：前者要去要权限，后者要去查服务，
@@ -1042,4 +1114,5 @@ export const SCREEN_PAGES: Record<string, ScreenListPageSpec> = {
   [WORK_ORDER_PAGE.key]: WORK_ORDER_PAGE,
   [ATTENDANCE_DAILY_PAGE.key]: ATTENDANCE_DAILY_PAGE,
   [CUSTOMER_PAGE.key]: CUSTOMER_PAGE,
+  [DEVICE_PAGE.key]: DEVICE_PAGE,
 };

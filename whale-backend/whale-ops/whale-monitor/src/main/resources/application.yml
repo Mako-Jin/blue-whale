@@ -118,3 +118,7 @@ whale:
           name: 礼部坊
           url: http://bw-crm:9007/crm/overview
           permission: sys:crm:analytics:dashboard
+        - nodeKey: bingbu-hall
+          name: 兵部坊
+          url: http://bw-iot:8088/iot/overview
+          permission: sys:iot:device

@@ -66,6 +66,14 @@ whale:
   permission:
     header:
       enabled: true
+  # 概览契约（三维王城兵部坊）：端点由 SDK 自动注册，路径必须带服务一级前缀（网关不剥前缀）
+  overview:
+    enabled: true
+    base-path: /iot/overview
+    # 前端 30s 轮询，服务端缓存同频，避免每次轮询都连查 10 余张表的 count
+    ttl: 30s
+    # 一次快照要跑 12 次 count，2s 是上限；超时即降级为"上次成功"，不挂住 HTTP 线程
+    timeout: 2s
   # P2 国际化：BizException 文案键按请求 Locale 解析；启动时幂等创建 sys_i18n_message，
   # 属性文件回退源为 classpath:i18n/iot/messages*。
   i18n:

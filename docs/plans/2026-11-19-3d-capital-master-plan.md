@@ -776,7 +776,10 @@
 | T6.10 | 礼部坊 overview（`/crm/overview`） | crm | [x] |
 | T6.11 | 礼部坊 屏风页（客户台账） | crm | [x] |
 | T6.12 | 礼部坊 厅配置 + 数枢殿总控在册 | crm | [x] |
-| T6.13–T6.36 | 其余八坊（兵部 / 杏坛 / 将作 / 营造 / 盟府 / 宣抚 / 翰林 / 市舶） | iot / lms / pdm / pm / contract / party / doc / mall | [ ] |
+| T6.13 | 兵部坊 overview（`/iot/overview`） | iot | [x] |
+| T6.14 | 兵部坊 屏风页（设备台账） | iot | [x] |
+| T6.15 | 兵部坊 厅配置 + 数枢殿总控在册 | iot | [x] |
+| T6.16–T6.36 | 其余七坊（杏坛 / 将作 / 营造 / 盟府 / 宣抚 / 翰林 / 市舶） | lms / pdm / pm / contract / party / doc / mall | [ ] |
 
 **S6 第一批交付说明（2026-11-21，T6.4–T6.6 工部坊 / mes）**
 
@@ -886,6 +889,49 @@
 - **已知遗留**：`/crm/overview` 的真实 HTTP 未验（本机 Docker / Nacos 未起），同前几批口径；
   2D 侧 `super_admin` 不在 `ALL_DATA_SCOPE_ROLES` 里（超管在后台销售看板看到的也是本人数据），
   这是既有行为，本批**照抄不改**——要动就单独改 2D，别在 3D 侧偷偷放宽。
+
+**S6 第四批交付说明（2026-11-21，T6.13–T6.15 兵部坊 / iot）**
+
+- **接口**：`GET /iot/overview`（`whale.overview.base-path=/iot/overview`，TTL 30s、超时 2s）：
+  四张 KPI（设备总数 / 在线率 / 近 24h 上报 / 待回指令）+ 一张近 7 日遥测**折线** +
+  五条告警（离线设备、待回指令、遥测断流、规则全停、无设备）+ 设备台账入口。
+  权限码复用 2D 设备管理的 `sys:iot:device`，屏风页复用 `/iot/devices/page`，
+  **无新接口、无新权限点、无新迁移**。
+- **统计口径收在 `IotStatsService` 一处**：`deviceTotal / deviceActive / deviceOnline /
+  telemetry24h / telemetryDays / pendingCommands / rulesTotal / rulesEnabled`。
+  **在线率的分母是"启用中"而不是"全部"**——停用设备不在线是正常状态，算进分母会让
+  一座全停用的机房显示"在线率 0%，全城失联"。离线数同理取 `启用 − 在线`（不为负）。
+- **近 7 日按天用 7 次 `selectCount`，不写 `GROUP BY`**：遥测表按月分区、`(tenant_id, ts)`
+  有索引，单日 count 是索引区间扫描；自定义 SQL 得自己保证 `tenant_id` 条件不漏，
+  漏了就是跨租户串数且不报错。区间取左闭右开 `[当天 00:00, 次日 00:00)`。
+- **待回指令 = `pending + sent`**：只数 `pending` 会让"发出去 200 条一条没回"显示成 0，
+  而 `sent`（已投递 EMQX、设备未回执）正是兵部要盯的那一段。
+- **趋势画折线不画横条**：屏风只有 620px 高，7 根横条吃掉近 180px，把下面的设备台账
+  挤到只剩 3 行可见（页签写 6 行、实际要滚）。折线把同一组数压进 3em，
+  断流那天直接落到基线。
+  **顺手修了折线图的一个既存缺陷**：`viewBox="0 0 100 34"` 配 830×48 的容器，
+  默认 `preserveAspectRatio` 按高度等比缩放，线只占中间约 17% 宽、两侧一大片空白，
+  而横轴标签是 `space-between` 铺满整宽的——七座用折线的殿（时辰/政事/考功/通政/起居/度支/兵部）
+  全是这个样子。改为 `preserveAspectRatio="none"` + `vector-effect="non-scaling-stroke"`
+  （否则非等比缩放会把竖线拉粗 8 倍），线宽 0.8→1.2。
+- **屏风页**：`DEVICE_PAGE`（`/iot/devices/page`，五列：设备 / 产品 / 在线 / 最近上报 / 状态）。
+  **有搜索框**（`IotDeviceController#page` 真收 `keyword`，按设备名与昵称模糊匹配），
+  **没有状态筛选**（该接口不收 `status`，配下拉只会发一个后端默默忽略的参数），
+  **不配 `detailPath`**（`DeviceVO` 即整行明细，`/{id}` 返回同一份 VO）。
+  「在线」是 0/1 数字码，走**列级 `statusMap`**；状态列是另一套码值（active/disabled）。
+- **牌坊口径同步下沉**：`metrics.ts` 里兵部原先是借告警中心的「未处理告警数」顶替，
+  现在改读 `/iot/overview` 的在线率 / 设备数 / 待回指令——告警是户部那套经营预警，
+  与设备心跳不是一件事；同一座坊在城里两处显示两套数更糟。
+- **数枢殿总控在册**：`aggregate.targets` 加 `http://bw-iot:8088/iot/overview`，已接入 **13 处**。
+- **验证**：`IotOverviewProviderTest` 11 例 + `IotStatsServiceTest` 5 例 +
+  `IotArchitectureTest` 4 条；whale-iot 全量 **92 例**通过、checkstyle 0 违规；
+  e2e `world-bingbu-smoke.mjs` **53 项全绿**；回归 qiju 46 / kaogong 59 / tongzheng 55 /
+  zhengshi 56 / libu-ritual 55 / gongbu 48 / libu 49 / screenpage 35 / city-smoke 全通过；
+  八项门禁 rc=0。
+  **负向验证**：把在线率分母改成 `deviceTotal`，两层单测同时报
+  `expected: 0.8 but was: 0.6666666666666666`（8/12），恢复即全绿。
+- **已知遗留**：`/iot/overview` 的真实 HTTP 未验（本机 Docker / Nacos 未起，`aiot` profile 默认关闭），
+  同前几批口径。
 
 ### S7 外城 9 处
 

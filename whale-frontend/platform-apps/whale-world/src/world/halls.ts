@@ -13,7 +13,8 @@ import { createOverviewFeed, toHallData, type OverviewFeedOptions, type Overview
 
 /**
  * 已接入契约的服务（标杆：户部 / ERP；S5：数枢殿总控、枢密殿、度支殿、藏书殿、
- * 时辰殿、政事殿、考功殿、通政殿、起居殿；S6：工部坊 / MES、吏部坊 / OA、礼部坊 / CRM）。
+ * 时辰殿、政事殿、考功殿、通政殿、起居殿；S6：工部坊 / MES、吏部坊 / OA、礼部坊 / CRM、
+ * 兵部坊 / IoT）。
  *
  * <p>路径与 2D 后台同前缀（REQ-ARCH-003：网关不剥前缀），权限码复用 2D 同一码，
  * 不为 3D 单独发一套授权。</p>
@@ -36,6 +37,11 @@ export const OVERVIEW_HALLS: OverviewHallSpec[] = [
      `CrmActor#allDataScope()` 按角色判（管理员看全租户，其余只看本人），
      所以概览上下文除了权限码还必须带角色码，否则管理员站在坊前只会看到一片 0。 */
   { nodeKey: 'libu-ritual-hall', path: '/crm/overview', permission: 'sys:crm:analytics:dashboard' },
+  /* 兵部坊（S6/T6.13）：设备总数、在线率、近 24h 上报、待回指令。
+     权限码复用 2D 设备管理的 `sys:iot:device`——能管设备的人，才该在城里看到
+     "哪些哨探哑了"。**这一坊不接告警中心**：告警（whale-alert）是户部那套经营预警的
+     口径，兵部看的是设备心跳与遥测断流，两条链路搅在一起会让同一件事被两座坊各报一次。 */
+  { nodeKey: 'bingbu-hall', path: '/iot/overview', permission: 'sys:iot:device' },
   /* 数枢殿总控（S5/T5.1）：服务端把在册各殿的概览汇成一屏。
      **不设权限码**——总控的可见范围就是"你在各殿能看到的范围"，
      缺凭据的殿在总控里显示为「无凭据」行，而不是整块 403。

@@ -72,6 +72,7 @@ import {
   WORK_ORDER_PAGE,
   ATTENDANCE_DAILY_PAGE,
   CUSTOMER_PAGE,
+  DEVICE_PAGE,
 } from './screenpages';
 import { createSceneEnv, type SceneEnv } from './env';
 import { createPostFx, type PostFx } from './postfx';
@@ -3938,6 +3939,10 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   let libuRitualScreen: ScreenHandle | null = null;
   let libuRitualPage: ScreenPageHandle | null = null;
 
+  /** 兵部坊（S6/T6.13）屏风与其业务页句柄（同上） */
+  let bingbuScreen: ScreenHandle | null = null;
+  let bingbuPage: ScreenPageHandle | null = null;
+
   /**
    * 坊的屏风落位：从布局数据现算，不手抄坐标。
    *
@@ -4177,6 +4182,44 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return () => {
             libuRitualPage?.dispose();
             libuRitualPage = null;
+          };
+        },
+      });
+    }
+
+    /* 兵部坊（S6/T6.13）：设备台账 + 兵部概览 —— 有多少哨探、几个在岗、
+       近一天收上来多少条消息、有没有指令发出去就没了下文。
+
+       落位同样套 `districtScreenPose`：兵部在布局里是东南角（x/z = 53.74/-53.74，
+       yaw -45°），公式按它自己的正面法线算，不需要手调坐标。 */
+    const bingbuPose = districtScreenPose('bingbu-hall');
+    if (bingbuPose) {
+      bingbuScreen = screens.add({
+        id: 'bingbu',
+        position: [bingbuPose.x, 1.55, bingbuPose.z],
+        facing: bingbuPose.facing,
+        size: 'large',
+        title: '兵部坊 · 设备台账',
+        subtitle: 'IOT / DEVICE',
+        tone: 'idle',
+        mount: (body) => {
+          bingbuPage = mountScreenPage(body, {
+            nodeKey: 'bingbu-hall',
+            overviewPath: '/iot/overview',
+            overviewPermission: 'sys:iot:device',
+            pages: [DEVICE_PAGE],
+            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+            getPermissions: opts.getPermissions,
+            // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
+            onTone: (tone) => bingbuScreen?.setTone(tone),
+            onTitle: (title, subtitle) => {
+              bingbuScreen?.setTitle(title ? `${title} · 设备台账` : '兵部坊 · 设备台账',
+                subtitle ?? 'IOT / DEVICE');
+            },
+          });
+          return () => {
+            bingbuPage?.dispose();
+            bingbuPage = null;
           };
         },
       });
@@ -4699,7 +4742,7 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
        正常路径既不暴露业务字段，也不会注入任何假数据。
 
        S5 收尾时皇城共十块业务屏风（户部 / 数枢殿 / 枢密殿 / 度支殿 / 藏书殿 / 时辰殿 /
-       政事殿 / 考功殿 / 通政殿 / 起居殿），S6 起逐坊增加内城坊（工部 / 吏部 / 礼部 …），
+       政事殿 / 考功殿 / 通政殿 / 起居殿），S6 起逐坊增加内城坊（工部 / 吏部 / 礼部 / 兵部 …），
        按 id 分派；不给 id 时仍落到户部（S4 的老脚本靠这个默认）。 */
     /* 屏风 id → 业务页句柄。默认给户部：老脚本不带 id 调探针时的历史行为。 */
     const pageOf = (id?: string): ScreenPageHandle | null => {
@@ -4728,6 +4771,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return libuPage;
         case 'libu-ritual':
           return libuRitualPage;
+        case 'bingbu':
+          return bingbuPage;
         default:
           return hubuPage;
       }

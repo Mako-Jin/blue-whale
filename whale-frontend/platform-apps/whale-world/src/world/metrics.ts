@@ -130,18 +130,24 @@ function dig(source: unknown, path: string): unknown {
   return cur;
 }
 
-/** 列表类响应取总条数：兼容本项目自研 PageResult 与 Spring Page 两种形态 */
-const totalOf = (data: unknown): unknown =>
-  dig(data, 'total') ??
-  dig(data, 'totalElements') ??
-  dig(data, 'records.length') ??
-  dig(data, 'content.length');
+/**
+ * 概览契约响应里按 key 取一个 KPI 的数值。
+ *
+ * <p>{@code /<服务>/overview} 返回的是 {@code { kpis: [{ key, value, ... }] }}，
+ * 不是平铺字段，所以{@code dig} 用不上。取不到返回 {@code undefined}，
+ * 交给各格式化函数按"没有数"处理（显示 —），不要在这里兜 0——
+ * 0 与"接口没给"在牌上是两件事。</p>
+ */
+const kpiOf = (data: unknown, key: string): unknown =>
+  (dig(data, 'kpis') as { key?: string; value?: unknown }[] | undefined)?.find(
+    (kpi) => kpi?.key === key,
+  )?.value;
 
 /* ---------------------------------------------------------------- 八路采集 */
 /*
- * 只有 7 个系统有现成的概览接口。兵部（IoT）与翰林院（DOC）没有统计接口，
- * 因此走同域最近的只读接口，并在牌下的说明里写清楚取的是什么——
- * 与其编一个不存在的"设备在线数"，不如显示告警中心未处理数与藏书阁数。
+ * 八座殿里只有翰林院（DOC）没有统计接口，因此走同域最近的只读接口（藏书阁数）；
+ * 兵部（IoT）自 S6 起有了 /iot/overview，牌上直接读契约里的在线率与待回指令，
+ * 不再借告警中心的"未处理数"顶替——那个数是户部的经营预警，与设备心跳不是一件事。
  */
 const PROBES: ProbeSpec[] = [
   {
@@ -212,15 +218,17 @@ const PROBES: ProbeSpec[] = [
     ],
   },
   {
-    // 兵部 = IoT：本服务没有聚合接口，取城防语义最近的「告警中心未处理数」
+    // 兵部 = IoT：设备心跳与指令回执（S6 起走契约概览，与城里屏风同一个数）
     nodeKey: 'bingbu-hall',
-    permission: 'sys:alert:record:list',
-    url: '/alert/v1/record/page?status=FIRING&pageSize=1',
+    permission: 'sys:iot:device',
+    url: '/iot/overview',
     extract: (d) => [
+      { label: '在线率', value: formatPercent(kpiOf(d, 'online-rate')) },
+      { label: '设备', value: formatCount(kpiOf(d, 'devices')) },
       {
-        label: '未处理告警',
-        value: formatCount(totalOf(d)),
-        tone: num(totalOf(d)) > 0 ? 'bad' : 'good',
+        label: '待回指令',
+        value: formatCount(kpiOf(d, 'pending-cmd')),
+        tone: num(kpiOf(d, 'pending-cmd')) > 0 ? 'warn' : 'good',
       },
     ],
   },

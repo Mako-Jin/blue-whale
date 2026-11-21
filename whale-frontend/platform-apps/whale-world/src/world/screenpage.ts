@@ -432,15 +432,24 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
     const step = slots > 1 ? 100 / (slots - 1) : 100;
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('viewBox', '0 0 100 34');
+    /* **必须拉伸而不是等比缩放**：容器是 830×48（宽高比 17:1），viewBox 是 100:34（3:1）。
+       默认 preserveAspectRatio="xMidYMid meet" 会按高度等比缩放，线只占中间约 17% 宽、
+       两侧一大片空白——七座用折线的殿（时辰/政事/考功/通政/起居/度支/兵部）全是这个样子，
+       而横轴标签是 space-between 铺满整宽的，线和标签对不上。 */
+    svg.setAttribute('preserveAspectRatio', 'none');
     svg.setAttribute('class', 'bwsp-line');
     series.forEach((item, index) => {
       const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
       polyline.setAttribute('points', item.values
         .map((value, position) =>
           `${(position * step).toFixed(2)},${(30 - (num(value) / max) * 26).toFixed(2)}`)
-        .join(' '));      polyline.setAttribute('fill', 'none');
+        .join(' '));
+      polyline.setAttribute('fill', 'none');
       polyline.setAttribute('stroke', palette[index % palette.length]);
-      polyline.setAttribute('stroke-width', '0.8');
+      /* 非等比缩放会把描边一起拉扁（竖线粗 8 倍、横线几乎消失）：
+         non-scaling-stroke 让线宽按屏幕像素算，与缩放无关。 */
+      polyline.setAttribute('vector-effect', 'non-scaling-stroke');
+      polyline.setAttribute('stroke-width', '1.2');
       svg.appendChild(polyline);
     });
     const wrap = h('div', 'bwsp-linewrap');
