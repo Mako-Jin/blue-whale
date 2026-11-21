@@ -4,6 +4,7 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.pay.po.PayNotifyTaskPo;
 import com.bluewhale.pay.po.PayOrderPo;
 import com.bluewhale.pay.enums.PayNotifyEvent;
+import com.bluewhale.pay.vo.PayNotifyRetryResultVO;
 
 /**
  * 业务通知服务。
@@ -51,10 +52,13 @@ public interface PayNotifyService {
     /**
      * 手工重试 DEAD/PENDING 任务（管理端入口）。
      *
+     * <p>返回三态结果：投递成功、正在投递（被其他实例领取）、已排下次重试；
+     * 任务不存在时抛出 {@code NOT_FOUND}。</p>
+     *
      * @param taskId 任务 ID
-     * @return 是否投递成功
+     * @return 三态结果
      */
-    boolean retryManually(Long taskId);
+    PayNotifyRetryResultVO retryManually(Long taskId);
 
     /**
      * 查询任务列表（管理端分页）。

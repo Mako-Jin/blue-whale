@@ -2,6 +2,7 @@ package com.bluewhale.pay.service.impl;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.pay.config.PayNotifyProperties;
 import com.bluewhale.pay.po.PayNotifyTaskPo;
 import com.bluewhale.pay.mapper.PayNotifyTaskMapper;
@@ -20,6 +21,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -133,25 +135,47 @@ class PayNotifyServiceImplTest {
         PayNotifyTaskPo dead = pendingTask();
         dead.setStatus("DEAD");
         dead.setRetryCount(6);
-        when(taskMapper.selectById(1L)).thenReturn(dead);
+        // 第一次读到 DEAD 触发重置，第二次读到重置后的 PENDING 再投递
+        when(taskMapper.selectById(1L)).thenReturn(dead, pendingTask());
         when(taskMapper.claimForDelivery(1L, 0)).thenReturn(1);
         when(discoveryClient.getInstances("whale-mall")).thenReturn(List.of());
 
-        assertFalse(service.retryManually(1L));
+        assertEquals("RETRY_PENDING", service.retryManually(1L).getStatus());
 
         verify(taskMapper).update(any(), any());
     }
 
     @Test
-    @DisplayName("retryManually：已成功任务直接返回 true 不再投递")
+    @DisplayName("retryManually：已成功任务返回 SUCCESS 不再投递")
     void shouldSkipManualRetryWhenSuccess() {
         PayNotifyTaskPo success = pendingTask();
         success.setStatus("SUCCESS");
         when(taskMapper.selectById(1L)).thenReturn(success);
 
-        assertTrue(service.retryManually(1L));
+        assertEquals("SUCCESS", service.retryManually(1L).getStatus());
         verify(taskMapper, never()).update(any(), any());
         verify(taskMapper, never()).claimForDelivery(any(), anyInt());
+    }
+
+    @Test
+    @DisplayName("retryManually：任务被其他实例领取时返回 IN_PROGRESS")
+    void shouldReportInProgressWhenClaimLost() {
+        PayNotifyTaskPo task = pendingTask();
+        when(taskMapper.selectById(1L)).thenReturn(task);
+        when(taskMapper.claimForDelivery(1L, 0)).thenReturn(0);
+
+        assertEquals("IN_PROGRESS", service.retryManually(1L).getStatus());
+        verify(taskMapper, never()).markSuccess(1L);
+    }
+
+    @Test
+    @DisplayName("retryManually：任务不存在抛 NOT_FOUND")
+    void shouldThrowWhenManualRetryMissing() {
+        when(taskMapper.selectById(99L)).thenReturn(null);
+
+        BizException ex = assertThrows(BizException.class, () -> service.retryManually(99L));
+
+        assertEquals(404, ex.getCode());
     }
 
     @Test

@@ -3,15 +3,19 @@ package com.bluewhale.pay.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.internaltoken.InternalTokenSupport;
 import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.pay.config.PayNotifyProperties;
 import com.bluewhale.pay.enums.PayNotifyEvent;
+import com.bluewhale.pay.enums.PayNotifyRetryStatus;
 import com.bluewhale.pay.mapper.PayNotifyTaskMapper;
 import com.bluewhale.pay.po.PayNotifyTaskPo;
 import com.bluewhale.pay.po.PayOrderPo;
 import com.bluewhale.pay.service.PayNotifyService;
+import com.bluewhale.pay.vo.PayNotifyRetryResultVO;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -164,21 +168,34 @@ public class PayNotifyServiceImpl implements PayNotifyService {
 
     @Override
     public boolean deliverTask(Long taskId) {
+        return deliver(taskId).success();
+    }
+
+    /**
+     * 投递一次并返回细分结果。
+     *
+     * <p>{@code claimed=false} 表示本次没有领取到任务（其他实例正在投递、任务已完成或状态已变更），
+     * 与「领取后投递失败」区分开，供手工重试返回三态。</p>
+     *
+     * @param taskId 任务 ID
+     * @return 投递结果
+     */
+    private DeliveryOutcome deliver(Long taskId) {
         PayNotifyTaskPo task = taskMapper.selectById(taskId);
         if (task == null) {
-            return false;
+            return new DeliveryOutcome(false, false, "任务不存在");
         }
         if (!STATUS_PENDING.equals(task.getStatus())) {
-            return STATUS_SUCCESS.equals(task.getStatus());
+            return new DeliveryOutcome(STATUS_SUCCESS.equals(task.getStatus()), false, null);
         }
         if (taskMapper.claimForDelivery(taskId, task.getRetryCount()) == 0) {
             log.debug("通知任务已被其他实例领取: taskId={}", taskId);
-            return false;
+            return new DeliveryOutcome(false, false, "任务正在投递中");
         }
         String error = doNotify(task);
         if (error == null) {
             taskMapper.markSuccess(taskId);
-            return true;
+            return new DeliveryOutcome(true, true, null);
         }
         LocalDateTime nextRetryAt = LocalDateTime.now().plus(backoff(task.getRetryCount()));
         int updated = taskMapper.markFailure(taskId, properties.getMaxRetries(), nextRetryAt, trimError(error));
@@ -186,7 +203,7 @@ public class PayNotifyServiceImpl implements PayNotifyService {
             log.warn("通知投递失败: taskId={} event={} retry={} error={}",
                     taskId, task.getEvent(), task.getRetryCount() + 1, error);
         }
-        return false;
+        return new DeliveryOutcome(false, true, error);
     }
 
     @Override
@@ -207,10 +224,13 @@ public class PayNotifyServiceImpl implements PayNotifyService {
     }
 
     @Override
-    public boolean retryManually(Long taskId) {
+    public PayNotifyRetryResultVO retryManually(Long taskId) {
         PayNotifyTaskPo task = taskMapper.selectById(taskId);
-        if (task == null || STATUS_SUCCESS.equals(task.getStatus())) {
-            return task != null;
+        if (task == null) {
+            throw new BizException(ErrorCode.NOT_FOUND);
+        }
+        if (STATUS_SUCCESS.equals(task.getStatus())) {
+            return PayNotifyRetryResultVO.of(PayNotifyRetryStatus.SUCCESS, "通知任务已投递成功，无需重试");
         }
         if (STATUS_DEAD.equals(task.getStatus())) {
             LambdaUpdateWrapper<PayNotifyTaskPo> reset = new LambdaUpdateWrapper<>();
@@ -220,9 +240,18 @@ public class PayNotifyServiceImpl implements PayNotifyService {
                     .set(PayNotifyTaskPo::getRetryCount, 0)
                     .set(PayNotifyTaskPo::getNextRetryAt, LocalDateTime.now());
             taskMapper.update(null, reset);
-            return deliverTask(taskId);
         }
-        return deliverTask(taskId);
+        DeliveryOutcome outcome = deliver(taskId);
+        if (outcome.success()) {
+            return PayNotifyRetryResultVO.of(PayNotifyRetryStatus.SUCCESS, "通知投递成功");
+        }
+        if (!outcome.claimed()) {
+            // 未领取到任务：其他实例正在投递，或任务状态已被并发修改
+            return PayNotifyRetryResultVO.of(PayNotifyRetryStatus.IN_PROGRESS,
+                    "任务正在投递中或状态已变更，请稍后刷新");
+        }
+        return PayNotifyRetryResultVO.of(PayNotifyRetryStatus.RETRY_PENDING,
+                "投递失败，已安排下次重试: " + outcome.error());
     }
 
     @Override
@@ -374,5 +403,15 @@ public class PayNotifyServiceImpl implements PayNotifyService {
     private static String trimError(String error) {
         return error == null ? null
                 : (error.length() <= 500 ? error : error.substring(0, 500));
+    }
+
+    /**
+     * 单次投递的细分结果。
+     *
+     * @param success 是否投递成功
+     * @param claimed 是否由本次调用领取到任务（false 表示其他实例正在投递或状态已变更）
+     * @param error   失败原因（成功时为空）
+     */
+    private record DeliveryOutcome(boolean success, boolean claimed, String error) {
     }
 }

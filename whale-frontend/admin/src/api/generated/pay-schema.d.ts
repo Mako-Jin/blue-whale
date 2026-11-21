@@ -314,11 +314,16 @@ export interface components {
       message?: string;
       data?: components['schemas']['PayOrderVO'];
     };
-    ResultBoolean: {
+    PayNotifyRetryResultVO: {
+      /** SUCCESS / IN_PROGRESS / RETRY_PENDING */
+      status?: string;
+      message?: string;
+    };
+    ResultPayNotifyRetryResultVO: {
       /** Format: int32 */
       code?: number;
       message?: string;
-      data?: boolean;
+      data?: components['schemas']['PayNotifyRetryResultVO'];
     };
     PayInternalRefundRequest: {
       payOrderNo: string;
@@ -566,7 +571,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          '*/*': components['schemas']['ResultBoolean'];
+          '*/*': components['schemas']['ResultPayNotifyRetryResultVO'];
         };
       };
     };

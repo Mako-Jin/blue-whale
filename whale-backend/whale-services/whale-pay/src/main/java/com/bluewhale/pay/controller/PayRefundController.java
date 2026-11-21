@@ -7,6 +7,7 @@ import com.bluewhale.pay.converter.PayOrderConverter;
 import com.bluewhale.pay.po.PayNotifyTaskPo;
 import com.bluewhale.pay.service.PayNotifyService;
 import com.bluewhale.pay.service.PayRefundService;
+import com.bluewhale.pay.vo.PayNotifyRetryResultVO;
 import com.bluewhale.pay.vo.PayNotifyTaskVO;
 import com.bluewhale.pay.vo.PayRefundVO;
 import lombok.RequiredArgsConstructor;
@@ -86,11 +87,11 @@ public class PayRefundController {
      * 手工重试通知任务（DEAD 任务人工介入入口）。
      *
      * @param id 任务 ID
-     * @return 是否投递成功
+     * @return 三态结果：投递成功 / 正在投递 / 已安排下次重试
      */
     @PostMapping("/notify/{id}/retry")
     @RequirePermission("sys:pay:notify:retry")
-    public Result<Boolean> retry(@PathVariable Long id) {
+    public Result<PayNotifyRetryResultVO> retry(@PathVariable Long id) {
         return Result.ok(payNotifyService.retryManually(id));
     }
 }
