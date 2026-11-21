@@ -6,12 +6,11 @@ import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.pay.channel.PayChannelGateway;
 import com.bluewhale.pay.channel.PayChannelResult;
-import com.bluewhale.pay.entity.PayNotifyTask;
-import com.bluewhale.pay.entity.PayOrder;
-import com.bluewhale.pay.entity.PayRefund;
-import com.bluewhale.pay.entity.PayTransaction;
+import com.bluewhale.pay.po.PayNotifyTaskPo;
+import com.bluewhale.pay.po.PayOrderPo;
+import com.bluewhale.pay.po.PayRefundPo;
+import com.bluewhale.pay.po.PayTransactionPo;
 import com.bluewhale.pay.enums.PayNotifyEvent;
-import com.bluewhale.pay.mapper.PayNotifyTaskMapper;
 import com.bluewhale.pay.mapper.PayOrderMapper;
 import com.bluewhale.pay.mapper.PayRefundMapper;
 import com.bluewhale.pay.mapper.PayTransactionMapper;
@@ -55,9 +54,9 @@ class PayRefundServiceImplTest {
     @BeforeAll
     static void initTableInfo() {
         MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "");
-        TableInfoHelper.initTableInfo(assistant, PayOrder.class);
-        TableInfoHelper.initTableInfo(assistant, PayRefund.class);
-        TableInfoHelper.initTableInfo(assistant, PayNotifyTask.class);
+        TableInfoHelper.initTableInfo(assistant, PayOrderPo.class);
+        TableInfoHelper.initTableInfo(assistant, PayRefundPo.class);
+        TableInfoHelper.initTableInfo(assistant, PayNotifyTaskPo.class);
     }
 
     private final PayOrderMapper payOrderMapper = mock(PayOrderMapper.class);
@@ -74,8 +73,8 @@ class PayRefundServiceImplTest {
             payOrderMapper, payRefundMapper, payTransactionMapper,
             payChannelGateway, payNotifyService);
 
-    private static PayOrder paidOrder() {
-        PayOrder order = new PayOrder();
+    private static PayOrderPo paidOrder() {
+        PayOrderPo order = new PayOrderPo();
         order.setId(10L);
         order.setOrderNo("MO20261107001");
         order.setAmount(new BigDecimal("100.00"));
@@ -89,8 +88,8 @@ class PayRefundServiceImplTest {
     }
 
     private void stubHappyPath() {
-        PayOrder order = paidOrder();
-        PayNotifyTask task = new PayNotifyTask();
+        PayOrderPo order = paidOrder();
+        PayNotifyTaskPo task = new PayNotifyTaskPo();
         task.setId(77L);
         when(payOrderMapper.selectOne(any())).thenReturn(order);
         when(payOrderMapper.selectById(10L)).thenReturn(order);
@@ -109,10 +108,10 @@ class PayRefundServiceImplTest {
 
         assertEquals("SUCCESS", vo.getStatus());
         assertEquals("MOCK-R1", vo.getChannelRefundNo());
-        ArgumentCaptor<PayRefund> captor = ArgumentCaptor.forClass(PayRefund.class);
+        ArgumentCaptor<PayRefundPo> captor = ArgumentCaptor.forClass(PayRefundPo.class);
         verify(payRefundMapper).insert(captor.capture());
         assertTrue(captor.getValue().getRefundNo().startsWith("RF"));
-        ArgumentCaptor<PayTransaction> txCaptor = ArgumentCaptor.forClass(PayTransaction.class);
+        ArgumentCaptor<PayTransactionPo> txCaptor = ArgumentCaptor.forClass(PayTransactionPo.class);
         verify(payTransactionMapper).insert(txCaptor.capture());
         assertEquals("REFUND", txCaptor.getValue().getType());
         verify(payNotifyService).enqueue(eq(PayNotifyEvent.REFUNDED), any(), any(), any());
@@ -129,7 +128,7 @@ class PayRefundServiceImplTest {
                 () -> service.refundByNo("MO20261107001", new BigDecimal("50.00"), "测试"));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
-        verify(payTransactionMapper, never()).insert(any(PayTransaction.class));
+        verify(payTransactionMapper, never()).insert(any(PayTransactionPo.class));
     }
 
     @Test
@@ -143,7 +142,7 @@ class PayRefundServiceImplTest {
                 () -> service.refundByNo("MO20261107001", new BigDecimal("1.999"), "测试"));
         assertEquals(PARAM_ERROR_CODE, scale.getCode());
 
-        verify(payRefundMapper, never()).insert(any(PayRefund.class));
+        verify(payRefundMapper, never()).insert(any(PayRefundPo.class));
     }
 
     @Test
@@ -159,20 +158,20 @@ class PayRefundServiceImplTest {
     @Test
     @DisplayName("refundFull：已全额退款拒绝再次退款")
     void shouldRejectFullRefundWhenNoRemaining() {
-        PayOrder order = paidOrder();
+        PayOrderPo order = paidOrder();
         order.setRefundAmount(new BigDecimal("100.00"));
         when(payOrderMapper.selectById(10L)).thenReturn(order);
 
         BizException ex = assertThrows(BizException.class, () -> service.refundFull(10L, "测试"));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
-        verify(payRefundMapper, never()).insert(any(PayRefund.class));
+        verify(payRefundMapper, never()).insert(any(PayRefundPo.class));
     }
 
     @Test
     @DisplayName("refundFull：按剩余可退金额整单退")
     void shouldRefundRemainingOnFullRefund() {
-        PayOrder partially = paidOrder();
+        PayOrderPo partially = paidOrder();
         partially.setRefundAmount(new BigDecimal("40.00"));
         when(payOrderMapper.selectOne(any())).thenReturn(partially);
         when(payOrderMapper.selectById(10L)).thenReturn(partially);
@@ -180,11 +179,11 @@ class PayRefundServiceImplTest {
         when(payChannelGateway.refund(any(), any(), notNull()))
                 .thenReturn(new PayChannelResult("MOCK-R2", "REFUNDED"));
         when(payNotifyService.enqueue(any(), any(), any(), any()))
-                .thenReturn(new PayNotifyTask());
+                .thenReturn(new PayNotifyTaskPo());
 
         service.refundFull(10L, "测试");
 
-        ArgumentCaptor<PayRefund> captor = ArgumentCaptor.forClass(PayRefund.class);
+        ArgumentCaptor<PayRefundPo> captor = ArgumentCaptor.forClass(PayRefundPo.class);
         verify(payRefundMapper).insert(captor.capture());
         assertEquals(new BigDecimal("60.00"), captor.getValue().getAmount());
     }
@@ -202,19 +201,19 @@ class PayRefundServiceImplTest {
     @Test
     @DisplayName("page：关键词走模糊匹配分支")
     void shouldPageWithKeyword() {
-        when(payRefundMapper.selectPage(any(), ArgumentMatchers.<Wrapper<PayRefund>>any()))
+        when(payRefundMapper.selectPage(any(), ArgumentMatchers.<Wrapper<PayRefundPo>>any()))
                 .thenReturn(new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>());
 
         service.page("RF2026", 1L, 10L);
 
-        verify(payRefundMapper).selectPage(any(), ArgumentMatchers.<Wrapper<PayRefund>>any());
+        verify(payRefundMapper).selectPage(any(), ArgumentMatchers.<Wrapper<PayRefundPo>>any());
     }
 
     @Test
     @DisplayName("enqueue 未配置回调地址时通知为空不投递")
     void shouldSkipNotifyWhenNoUrl() {
         stubHappyPath();
-        PayOrder order = paidOrder();
+        PayOrderPo order = paidOrder();
         order.setNotifyUrl(null);
         when(payNotifyService.enqueue(any(), any(), any(), any())).thenReturn(null);
 
@@ -226,8 +225,8 @@ class PayRefundServiceImplTest {
     @Test
     @DisplayName("refundByNo：同一退款请求号重复调用返回原单，不重复出账")
     void shouldReplaySameRefundNo() {
-        PayOrder order = paidOrder();
-        PayRefund existing = new PayRefund();
+        PayOrderPo order = paidOrder();
+        PayRefundPo existing = new PayRefundPo();
         existing.setRefundNo("AS20261107001");
         existing.setAmount(new BigDecimal("30.00"));
         existing.setStatus("SUCCESS");
@@ -238,17 +237,17 @@ class PayRefundServiceImplTest {
 
         assertEquals("AS20261107001", vo.getRefundNo());
         assertEquals("SUCCESS", vo.getStatus());
-        verify(payRefundMapper, never()).insert(any(PayRefund.class));
+        verify(payRefundMapper, never()).insert(any(PayRefundPo.class));
         verify(payChannelGateway, never()).refund(any(), any(), any());
         verify(payOrderMapper, never()).applyRefund(any(), any());
-        verify(payTransactionMapper, never()).insert(any(PayTransaction.class));
+        verify(payTransactionMapper, never()).insert(any(PayTransactionPo.class));
     }
 
     @Test
     @DisplayName("refundByNo：同一退款请求号换金额重试直接拒绝")
     void shouldRejectReplayWithDifferentAmount() {
         when(payOrderMapper.selectOne(any())).thenReturn(paidOrder());
-        PayRefund existing = new PayRefund();
+        PayRefundPo existing = new PayRefundPo();
         existing.setRefundNo("AS20261107001");
         existing.setAmount(new BigDecimal("30.00"));
         when(payRefundMapper.selectOne(any())).thenReturn(existing);
@@ -257,7 +256,7 @@ class PayRefundServiceImplTest {
                 () -> service.refundByNo("MO20261107001", "AS20261107001", new BigDecimal("50.00"), "重试"));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
-        verify(payRefundMapper, never()).insert(any(PayRefund.class));
+        verify(payRefundMapper, never()).insert(any(PayRefundPo.class));
     }
 
     @Test
@@ -267,7 +266,7 @@ class PayRefundServiceImplTest {
 
         service.refundByNo("MO20261107001", "AS20261107002", new BigDecimal("30.00"), "部分退款");
 
-        ArgumentCaptor<PayRefund> captor = ArgumentCaptor.forClass(PayRefund.class);
+        ArgumentCaptor<PayRefundPo> captor = ArgumentCaptor.forClass(PayRefundPo.class);
         verify(payRefundMapper).insert(captor.capture());
         assertEquals("AS20261107002", captor.getValue().getRefundNo());
         assertEquals(new BigDecimal("30.00"), captor.getValue().getAmount());

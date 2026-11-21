@@ -1,10 +1,15 @@
 package com.bluewhale.pay.mapper;
 
+import com.baomidou.mybatisplus.annotation.InterceptorIgnore;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bluewhale.pay.entity.PayNotifyTask;
+import com.bluewhale.pay.po.PayNotifyTaskPo;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
+
+import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 业务通知任务 Mapper。
@@ -12,7 +17,23 @@ import org.apache.ibatis.annotations.Update;
  * @author BlueWhale
  */
 @Mapper
-public interface PayNotifyTaskMapper extends BaseMapper<PayNotifyTask> {
+public interface PayNotifyTaskMapper extends BaseMapper<PayNotifyTaskPo> {
+
+    /**
+     * 查询到期待重试任务（全局扫描，跨租户）。
+     *
+     * <p>定时任务线程没有租户上下文，这里显式忽略租户拦截器：重试器是平台级组件，
+     * 必须能扫到所有租户的任务；投递时再从载荷恢复 {@code tenantId} 回调业务方。</p>
+     *
+     * @param now   当前时刻
+     * @param limit 单轮最大条数
+     * @return 到期任务
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT * FROM pay_notify_task "
+            + "WHERE status = 'PENDING' AND deleted = 0 AND next_retry_at <= #{now} "
+            + "ORDER BY next_retry_at ASC LIMIT #{limit}")
+    List<PayNotifyTaskPo> selectDueForRetry(@Param("now") LocalDateTime now, @Param("limit") int limit);
 
     /**
      * 抢占式领取任务（多实例并发下只允许一个投递者）。

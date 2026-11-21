@@ -1,7 +1,7 @@
 package com.bluewhale.pay.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bluewhale.pay.entity.PayRefund;
+import com.bluewhale.pay.po.PayRefundPo;
 import org.apache.ibatis.annotations.Mapper;
 
 /**
@@ -10,5 +10,5 @@ import org.apache.ibatis.annotations.Mapper;
  * @author BlueWhale
  */
 @Mapper
-public interface PayRefundMapper extends BaseMapper<PayRefund> {
+public interface PayRefundMapper extends BaseMapper<PayRefundPo> {
 }

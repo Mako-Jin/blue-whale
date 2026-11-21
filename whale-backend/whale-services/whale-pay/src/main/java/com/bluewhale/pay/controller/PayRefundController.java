@@ -4,6 +4,7 @@ import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.pay.converter.PayOrderConverter;
+import com.bluewhale.pay.po.PayNotifyTaskPo;
 import com.bluewhale.pay.service.PayNotifyService;
 import com.bluewhale.pay.service.PayRefundService;
 import com.bluewhale.pay.vo.PayNotifyTaskVO;
@@ -12,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @author BlueWhale
  */
 @RestController
+@RequestMapping("/pay")
 @RequiredArgsConstructor
 public class PayRefundController {
 
@@ -39,7 +42,7 @@ public class PayRefundController {
      * @param size    页大小
      * @return 分页结果
      */
-    @GetMapping("/pay/refund/page")
+    @GetMapping("/refund/page")
     @RequirePermission("sys:pay:list")
     public Result<PageResult<PayRefundVO>> page(@RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") long current,
@@ -53,7 +56,7 @@ public class PayRefundController {
      * @param id 退款单 ID
      * @return 退款单
      */
-    @GetMapping("/pay/refund/{id}")
+    @GetMapping("/refund/{id}")
     @RequirePermission("sys:pay:list")
     public Result<PayRefundVO> detail(@PathVariable Long id) {
         return Result.ok(payRefundService.detail(id));
@@ -67,12 +70,12 @@ public class PayRefundController {
      * @param size    页大小
      * @return 分页结果
      */
-    @GetMapping("/pay/notify/page")
+    @GetMapping("/notify/page")
     @RequirePermission("sys:pay:list")
     public Result<PageResult<PayNotifyTaskVO>> notifyPage(@RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") long current,
             @RequestParam(defaultValue = "10") long size) {
-        PageResult<com.bluewhale.pay.entity.PayNotifyTask> page =
+        PageResult<PayNotifyTaskPo> page =
                 payNotifyService.pageTasks(current, size, status);
         return Result.ok(PageResult.of(
                 page.getRecords().stream().map(PayOrderConverter.INSTANCE::toNotifyTaskVo).toList(),
@@ -85,8 +88,8 @@ public class PayRefundController {
      * @param id 任务 ID
      * @return 是否投递成功
      */
-    @PostMapping("/pay/notify/{id}/retry")
-    @RequirePermission("sys:pay:refund")
+    @PostMapping("/notify/{id}/retry")
+    @RequirePermission("sys:pay:notify:retry")
     public Result<Boolean> retry(@PathVariable Long id) {
         return Result.ok(payNotifyService.retryManually(id));
     }

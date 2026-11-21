@@ -8,9 +8,10 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.pay.channel.PayChannelGateway;
 import com.bluewhale.pay.channel.PayChannelResult;
 import com.bluewhale.pay.converter.PayOrderConverter;
-import com.bluewhale.pay.entity.PayOrder;
-import com.bluewhale.pay.entity.PayRefund;
-import com.bluewhale.pay.entity.PayTransaction;
+import com.bluewhale.pay.po.PayNotifyTaskPo;
+import com.bluewhale.pay.po.PayOrderPo;
+import com.bluewhale.pay.po.PayRefundPo;
+import com.bluewhale.pay.po.PayTransactionPo;
 import com.bluewhale.pay.enums.PayNotifyEvent;
 import com.bluewhale.pay.enums.PayRefundStatus;
 import com.bluewhale.pay.mapper.PayOrderMapper;
@@ -76,12 +77,40 @@ public class PayRefundServiceImpl implements PayRefundService {
     @Transactional(rollbackFor = Exception.class)
     public PayRefundVO refundByNo(String payOrderNo, String refundNo, BigDecimal amount, String reason) {
         validateAmount(amount);
-        PayOrder order = requireOrderByNo(payOrderNo);
-        PayRefund replayed = findReplayedRefund(refundNo, amount);
+        return doRefund(requireOrderByNo(payOrderNo), refundNo, amount, reason);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public PayRefundVO refundFull(Long payOrderId, String reason) {
+        PayOrderPo order = payOrderMapper.selectById(payOrderId);
+        if (order == null) {
+            throw new BizException(ErrorCode.NOT_FOUND);
+        }
+        BigDecimal remaining = order.getAmount().subtract(
+                order.getRefundAmount() == null ? BigDecimal.ZERO : order.getRefundAmount());
+        if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "pay.refund.already-full-refunded", "支付单已全额退款");
+        }
+        return doRefund(order, null, remaining, reason);
+    }
+
+    /**
+     * 退款主流程：幂等判重 → 建退款单 → 渠道退款 → 退款单 SUCCESS →
+     * 支付单原子累计退款额 → 流水 → 业务通知。
+     *
+     * @param order    支付单
+     * @param refundNo 业务退款请求号（空则自动生成）
+     * @param amount   退款金额
+     * @param reason   退款原因
+     * @return 退款单
+     */
+    private PayRefundVO doRefund(PayOrderPo order, String refundNo, BigDecimal amount, String reason) {
+        PayRefundPo replayed = findReplayedRefund(refundNo, amount);
         if (replayed != null) {
             return PayOrderConverter.INSTANCE.toRefundVo(replayed);
         }
-        PayRefund refund = createRefundRecord(order, refundNo, amount, reason);
+        PayRefundPo refund = createRefundRecord(order, refundNo, amount, reason);
         PayChannelResult result = payChannelGateway.refund(order, refund.getRefundNo(), amount);
         refund.setStatus(PayRefundStatus.SUCCESS.code());
         refund.setChannelRefundNo(result.providerTradeNo());
@@ -93,8 +122,8 @@ public class PayRefundServiceImpl implements PayRefundService {
                     "退款失败：支付单不可退款或累计退款超出支付金额");
         }
         recordTransaction(order, amount, result);
-        PayOrder fresh = payOrderMapper.selectById(order.getId());
-        com.bluewhale.pay.entity.PayNotifyTask task =
+        PayOrderPo fresh = payOrderMapper.selectById(order.getId());
+        PayNotifyTaskPo task =
                 payNotifyService.enqueue(PayNotifyEvent.REFUNDED, fresh, refund.getRefundNo(),
                         fresh.getRefundAmount());
         payNotifyService.dispatchAfterCommit(task == null ? null : task.getId());
@@ -102,37 +131,22 @@ public class PayRefundServiceImpl implements PayRefundService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
-    public PayRefundVO refundFull(Long payOrderId, String reason) {
-        PayOrder order = payOrderMapper.selectById(payOrderId);
-        if (order == null) {
-            throw new BizException(ErrorCode.NOT_FOUND);
-        }
-        BigDecimal remaining = order.getAmount().subtract(
-                order.getRefundAmount() == null ? BigDecimal.ZERO : order.getRefundAmount());
-        if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "pay.refund.already-full-refunded", "支付单已全额退款");
-        }
-        return refundByNo(order.getOrderNo(), null, remaining, reason);
-    }
-
-    @Override
     public PageResult<PayRefundVO> page(String keyword, long current, long size) {
-        LambdaQueryWrapper<PayRefund> wrapper = new LambdaQueryWrapper<>();
+        LambdaQueryWrapper<PayRefundPo> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(keyword)) {
-            wrapper.and(inner -> inner.like(PayRefund::getRefundNo, keyword)
-                    .or().like(PayRefund::getPayOrderNo, keyword));
+            wrapper.and(inner -> inner.like(PayRefundPo::getRefundNo, keyword)
+                    .or().like(PayRefundPo::getPayOrderNo, keyword));
         }
-        wrapper.orderByDesc(PayRefund::getCreateTime);
+        wrapper.orderByDesc(PayRefundPo::getCreateTime);
         long safeSize = Math.min(Math.max(size, 1L), 200L);
-        Page<PayRefund> page = payRefundMapper.selectPage(new Page<>(current, safeSize), wrapper);
+        Page<PayRefundPo> page = payRefundMapper.selectPage(new Page<>(current, safeSize), wrapper);
         List<PayRefundVO> records = page.getRecords().stream().map(PayOrderConverter.INSTANCE::toRefundVo).toList();
         return PageResult.of(records, page.getTotal(), page.getCurrent(), page.getSize());
     }
 
     @Override
     public PayRefundVO detail(Long id) {
-        PayRefund refund = payRefundMapper.selectById(id);
+        PayRefundPo refund = payRefundMapper.selectById(id);
         if (refund == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
@@ -153,12 +167,12 @@ public class PayRefundServiceImpl implements PayRefundService {
      * @param amount   本次退款金额
      * @return 已存在的退款单，无则 null
      */
-    private PayRefund findReplayedRefund(String refundNo, BigDecimal amount) {
+    private PayRefundPo findReplayedRefund(String refundNo, BigDecimal amount) {
         if (!StringUtils.hasText(refundNo)) {
             return null;
         }
-        PayRefund existing = payRefundMapper.selectOne(new LambdaQueryWrapper<PayRefund>()
-                .eq(PayRefund::getRefundNo, refundNo));
+        PayRefundPo existing = payRefundMapper.selectOne(new LambdaQueryWrapper<PayRefundPo>()
+                .eq(PayRefundPo::getRefundNo, refundNo));
         if (existing == null) {
             return null;
         }
@@ -179,8 +193,8 @@ public class PayRefundServiceImpl implements PayRefundService {
      * @param reason   原因
      * @return 退款单
      */
-    private PayRefund createRefundRecord(PayOrder order, String refundNo, BigDecimal amount, String reason) {
-        PayRefund refund = new PayRefund();
+    private PayRefundPo createRefundRecord(PayOrderPo order, String refundNo, BigDecimal amount, String reason) {
+        PayRefundPo refund = new PayRefundPo();
         refund.setRefundNo(StringUtils.hasText(refundNo) ? refundNo.trim() : newRefundNo());
         refund.setPayOrderId(order.getId());
         refund.setPayOrderNo(order.getOrderNo());
@@ -198,8 +212,8 @@ public class PayRefundServiceImpl implements PayRefundService {
      * @param amount 金额
      * @param result 渠道结果
      */
-    private void recordTransaction(PayOrder order, BigDecimal amount, PayChannelResult result) {
-        PayTransaction transaction = new PayTransaction();
+    private void recordTransaction(PayOrderPo order, BigDecimal amount, PayChannelResult result) {
+        PayTransactionPo transaction = new PayTransactionPo();
         transaction.setOrderId(order.getId());
         transaction.setOrderNo(order.getOrderNo());
         transaction.setType(TYPE_REFUND);
@@ -217,9 +231,9 @@ public class PayRefundServiceImpl implements PayRefundService {
      * @param payOrderNo 支付单号
      * @return 支付单
      */
-    private PayOrder requireOrderByNo(String payOrderNo) {
-        PayOrder order = payOrderMapper.selectOne(new LambdaQueryWrapper<PayOrder>()
-                .eq(PayOrder::getOrderNo, payOrderNo));
+    private PayOrderPo requireOrderByNo(String payOrderNo) {
+        PayOrderPo order = payOrderMapper.selectOne(new LambdaQueryWrapper<PayOrderPo>()
+                .eq(PayOrderPo::getOrderNo, payOrderNo));
         if (order == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }

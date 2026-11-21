@@ -1,4 +1,4 @@
-package com.bluewhale.pay.entity;
+package com.bluewhale.pay.po;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.bluewhale.common.entity.BaseEntity;
@@ -19,7 +19,7 @@ import java.time.LocalDateTime;
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("pay_order")
-public class PayOrder extends BaseEntity {
+public class PayOrderPo extends BaseEntity {
 
     private static final long serialVersionUID = 1L;
 

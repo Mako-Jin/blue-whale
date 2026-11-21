@@ -1,4 +1,4 @@
-package com.bluewhale.pay.entity;
+package com.bluewhale.pay.po;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.bluewhale.common.entity.BaseEntity;
@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("pay_notify_task")
-public class PayNotifyTask extends BaseEntity {
+public class PayNotifyTaskPo extends BaseEntity {
 
     private static final long serialVersionUID = 1L;
 

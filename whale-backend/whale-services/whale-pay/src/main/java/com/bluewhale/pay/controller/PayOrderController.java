@@ -61,7 +61,7 @@ public class PayOrderController {
      * @param id 支付单ID
      * @return 支付单视图对象
      */
-    @GetMapping("/{id}")
+    @GetMapping("/{id:\\d+}")
     @RequirePermission("sys:pay:list")
     public Result<PayOrderVO> detail(@PathVariable Long id) {
         return Result.ok(payOrderService.getDetail(id));

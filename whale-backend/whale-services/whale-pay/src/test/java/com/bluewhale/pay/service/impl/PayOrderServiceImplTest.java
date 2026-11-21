@@ -12,8 +12,8 @@ import com.bluewhale.pay.channel.PayChannelGateway;
 import com.bluewhale.pay.config.PayChannelProperties;
 import com.bluewhale.pay.dto.PayOrderCreateRequest;
 import com.bluewhale.pay.dto.PayOrderQueryRequest;
-import com.bluewhale.pay.entity.PayOrder;
-import com.bluewhale.pay.entity.PayTransaction;
+import com.bluewhale.pay.po.PayOrderPo;
+import com.bluewhale.pay.po.PayTransactionPo;
 import com.bluewhale.pay.mapper.PayOrderMapper;
 import com.bluewhale.pay.mapper.PayTransactionMapper;
 import com.bluewhale.pay.service.PayNotifyService;
@@ -60,7 +60,7 @@ class PayOrderServiceImplTest {
     @BeforeAll
     static void initTableInfo() {
         TableInfoHelper.initTableInfo(
-                new MapperBuilderAssistant(new MybatisConfiguration(), ""), PayOrder.class);
+                new MapperBuilderAssistant(new MybatisConfiguration(), ""), PayOrderPo.class);
     }
 
     private final PayOrderMapper payOrderMapper = mock(PayOrderMapper.class);
@@ -85,8 +85,8 @@ class PayOrderServiceImplTest {
      * @param status  状态
      * @return 支付单实体
      */
-    private static PayOrder order(Long id, String orderNo, String status) {
-        PayOrder entity = new PayOrder();
+    private static PayOrderPo order(Long id, String orderNo, String status) {
+        PayOrderPo entity = new PayOrderPo();
         entity.setId(id);
         entity.setOrderNo(orderNo);
         entity.setStatus(status);
@@ -109,19 +109,19 @@ class PayOrderServiceImplTest {
         request.setBusinessKey("BIZ-1");
         request.setAmount(new BigDecimal("88.88"));
         request.setCurrency("CNY");
-        request.setChannel("BALANCE");
+        request.setChannel("MOCK");
         return request;
     }
 
     @Test
     @DisplayName("page：按条件分页查询并映射结果")
     void shouldPageWithConditions() {
-        PayOrder entity = order(1L, "PAY20261020001", "CREATED");
-        Page<PayOrder> page = new Page<>(1L, 10L);
+        PayOrderPo entity = order(1L, "PAY20261020001", "CREATED");
+        Page<PayOrderPo> page = new Page<>(1L, 10L);
         page.setRecords(List.of(entity));
         page.setTotal(1L);
-        when(payOrderMapper.selectPage(ArgumentMatchers.<Page<PayOrder>>any(),
-                ArgumentMatchers.<Wrapper<PayOrder>>any())).thenReturn(page);
+        when(payOrderMapper.selectPage(ArgumentMatchers.<Page<PayOrderPo>>any(),
+                ArgumentMatchers.<Wrapper<PayOrderPo>>any())).thenReturn(page);
 
         PayOrderQueryRequest request = new PayOrderQueryRequest();
         request.setKeyword("PAY2026");
@@ -147,26 +147,26 @@ class PayOrderServiceImplTest {
     @Test
     @DisplayName("create：orderNo 冲突抛参数错误且不落库")
     void shouldRejectDuplicateOrderNo() {
-        when(payOrderMapper.selectCount(ArgumentMatchers.<Wrapper<PayOrder>>any())).thenReturn(1L);
+        when(payOrderMapper.selectCount(ArgumentMatchers.<Wrapper<PayOrderPo>>any())).thenReturn(1L);
 
         BizException ex = assertThrows(BizException.class,
                 () -> payOrderService.create(createRequest("PAY20261020001")));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
-        verify(payOrderMapper, never()).insert(any(PayOrder.class));
+        verify(payOrderMapper, never()).insert(any(PayOrderPo.class));
     }
 
     @Test
     @DisplayName("create：orderNo 唯一时落库并置初始状态 CREATED")
     void shouldCreateWithCreatedStatus() {
-        when(payOrderMapper.selectCount(ArgumentMatchers.<Wrapper<PayOrder>>any())).thenReturn(0L);
-        PayOrder saved = order(100L, "PAY20261020002", "CREATED");
+        when(payOrderMapper.selectCount(ArgumentMatchers.<Wrapper<PayOrderPo>>any())).thenReturn(0L);
+        PayOrderPo saved = order(100L, "PAY20261020002", "CREATED");
         when(payOrderMapper.selectById(any())).thenReturn(saved);
 
         PayOrderVO vo = payOrderService.create(createRequest("PAY20261020002"));
 
         assertEquals("CREATED", vo.getStatus());
-        ArgumentCaptor<PayOrder> captor = ArgumentCaptor.forClass(PayOrder.class);
+        ArgumentCaptor<PayOrderPo> captor = ArgumentCaptor.forClass(PayOrderPo.class);
         verify(payOrderMapper).insert(captor.capture());
         assertEquals("PAY20261020002", captor.getValue().getOrderNo());
         assertEquals("CREATED", captor.getValue().getStatus());
@@ -182,7 +182,7 @@ class PayOrderServiceImplTest {
         BizException ex = assertThrows(BizException.class, () -> payOrderService.create(request));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
-        verify(payOrderMapper, never()).insert(any(PayOrder.class));
+        verify(payOrderMapper, never()).insert(any(PayOrderPo.class));
     }
 
     @Test
@@ -194,42 +194,42 @@ class PayOrderServiceImplTest {
         BizException ex = assertThrows(BizException.class, () -> payOrderService.create(request));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
-        verify(payOrderMapper, never()).insert(any(PayOrder.class));
+        verify(payOrderMapper, never()).insert(any(PayOrderPo.class));
     }
 
     @Test
     @DisplayName("create：不支持的渠道拒绝创建")
     void shouldRejectUnsupportedChannel() {
-        when(payOrderMapper.selectCount(ArgumentMatchers.<Wrapper<PayOrder>>any())).thenReturn(0L);
+        when(payOrderMapper.selectCount(ArgumentMatchers.<Wrapper<PayOrderPo>>any())).thenReturn(0L);
         PayOrderCreateRequest request = createRequest("PAY20261020008");
         request.setChannel("UNKNOWN");
 
         BizException ex = assertThrows(BizException.class, () -> payOrderService.create(request));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
-        verify(payOrderMapper, never()).insert(any(PayOrder.class));
+        verify(payOrderMapper, never()).insert(any(PayOrderPo.class));
     }
 
     @Test
     @DisplayName("pay：CREATED → PAID 并回填支付时间、渠道流水号与流水")
     void shouldPayFromCreated() {
-        PayOrder existing = order(1L, "PAY20261020001", "CREATED");
-        PayOrder paid = order(1L, "PAY20261020001", "PAID");
+        PayOrderPo existing = order(1L, "PAY20261020001", "CREATED");
+        PayOrderPo paid = order(1L, "PAY20261020001", "PAID");
         paid.setChannelTradeNo("MOCK-1");
         when(payOrderMapper.selectById(1L)).thenReturn(existing, paid);
-        when(payOrderMapper.update(isNull(), ArgumentMatchers.<Wrapper<PayOrder>>any())).thenReturn(1);
-        when(payOrderMapper.updateById(any(PayOrder.class))).thenReturn(1);
-        when(payTransactionMapper.insert(any(PayTransaction.class))).thenReturn(1);
+        when(payOrderMapper.update(isNull(), ArgumentMatchers.<Wrapper<PayOrderPo>>any())).thenReturn(1);
+        when(payOrderMapper.updateById(any(PayOrderPo.class))).thenReturn(1);
+        when(payTransactionMapper.insert(any(PayTransactionPo.class))).thenReturn(1);
 
         PayOrderVO vo = payOrderService.pay(1L);
 
         assertEquals("PAID", vo.getStatus());
-        ArgumentCaptor<PayOrder> orderCaptor = ArgumentCaptor.forClass(PayOrder.class);
+        ArgumentCaptor<PayOrderPo> orderCaptor = ArgumentCaptor.forClass(PayOrderPo.class);
         verify(payOrderMapper).updateById(orderCaptor.capture());
         assertEquals("PAID", orderCaptor.getValue().getStatus());
         assertNotNull(orderCaptor.getValue().getPayTime());
         assertNotNull(orderCaptor.getValue().getChannelTradeNo());
-        ArgumentCaptor<PayTransaction> txCaptor = ArgumentCaptor.forClass(PayTransaction.class);
+        ArgumentCaptor<PayTransactionPo> txCaptor = ArgumentCaptor.forClass(PayTransactionPo.class);
         verify(payTransactionMapper).insert(txCaptor.capture());
         assertEquals("PAY", txCaptor.getValue().getType());
         assertEquals("SUCCESS", txCaptor.getValue().getStatus());
@@ -238,13 +238,13 @@ class PayOrderServiceImplTest {
     @Test
     @DisplayName("pay：非 CREATED 状态拒绝流转且不落库")
     void shouldRejectPayWhenNotCreated() {
-        PayOrder existing = order(2L, "PAY20261020003", "PAID");
+        PayOrderPo existing = order(2L, "PAY20261020003", "PAID");
         when(payOrderMapper.selectById(2L)).thenReturn(existing);
 
         BizException ex = assertThrows(BizException.class, () -> payOrderService.pay(2L));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
-        verify(payOrderMapper, never()).updateById(any(PayOrder.class));
+        verify(payOrderMapper, never()).updateById(any(PayOrderPo.class));
     }
 
     @Test
@@ -252,13 +252,13 @@ class PayOrderServiceImplTest {
     void shouldRejectPayWhenClaimLost() {
         when(payOrderMapper.selectById(1L)).thenReturn(order(1L, "PAY20261020001", "CREATED"));
         // 条件更新未命中：状态已被并发事务改变
-        when(payOrderMapper.update(isNull(), ArgumentMatchers.<Wrapper<PayOrder>>any())).thenReturn(0);
+        when(payOrderMapper.update(isNull(), ArgumentMatchers.<Wrapper<PayOrderPo>>any())).thenReturn(0);
 
         BizException ex = assertThrows(BizException.class, () -> payOrderService.pay(1L));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
-        verify(payOrderMapper, never()).updateById(any(PayOrder.class));
-        verify(payTransactionMapper, never()).insert(any(PayTransaction.class));
+        verify(payOrderMapper, never()).updateById(any(PayOrderPo.class));
+        verify(payTransactionMapper, never()).insert(any(PayTransactionPo.class));
     }
 
     @Test
@@ -271,13 +271,13 @@ class PayOrderServiceImplTest {
                 new PayChannelGateway(properties, List.of(new MockPayChannelAdapter(properties))),
                 payNotifyService, payRefundService);
         when(payOrderMapper.selectById(1L)).thenReturn(order(1L, "PAY20261020001", "CREATED"));
-        when(payOrderMapper.update(isNull(), ArgumentMatchers.<Wrapper<PayOrder>>any())).thenReturn(1);
+        when(payOrderMapper.update(isNull(), ArgumentMatchers.<Wrapper<PayOrderPo>>any())).thenReturn(1);
 
         BizException ex = assertThrows(BizException.class, () -> service.pay(1L));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertTrue(ex.getMessage().contains("真实支付渠道尚未接入"));
-        verify(payOrderMapper, never()).updateById(any(PayOrder.class));
+        verify(payOrderMapper, never()).updateById(any(PayOrderPo.class));
     }
 
     @Test
@@ -293,16 +293,16 @@ class PayOrderServiceImplTest {
     @Test
     @DisplayName("cancel：CREATED → CANCELLED")
     void shouldCancelFromCreated() {
-        PayOrder existing = order(3L, "PAY20261020004", "CREATED");
-        PayOrder cancelled = order(3L, "PAY20261020004", "CANCELLED");
+        PayOrderPo existing = order(3L, "PAY20261020004", "CREATED");
+        PayOrderPo cancelled = order(3L, "PAY20261020004", "CANCELLED");
         when(payOrderMapper.selectById(3L)).thenReturn(existing, cancelled);
-        when(payOrderMapper.update(isNull(), ArgumentMatchers.<Wrapper<PayOrder>>any())).thenReturn(1);
-        when(payOrderMapper.updateById(any(PayOrder.class))).thenReturn(1);
+        when(payOrderMapper.update(isNull(), ArgumentMatchers.<Wrapper<PayOrderPo>>any())).thenReturn(1);
+        when(payOrderMapper.updateById(any(PayOrderPo.class))).thenReturn(1);
 
         PayOrderVO vo = payOrderService.cancel(3L);
 
         assertEquals("CANCELLED", vo.getStatus());
-        ArgumentCaptor<PayOrder> captor = ArgumentCaptor.forClass(PayOrder.class);
+        ArgumentCaptor<PayOrderPo> captor = ArgumentCaptor.forClass(PayOrderPo.class);
         verify(payOrderMapper).updateById(captor.capture());
         assertEquals("CANCELLED", captor.getValue().getStatus());
     }
@@ -310,21 +310,21 @@ class PayOrderServiceImplTest {
     @Test
     @DisplayName("cancel：非 CREATED 状态拒绝流转且不落库")
     void shouldRejectCancelWhenNotCreated() {
-        PayOrder existing = order(4L, "PAY20261020005", "CANCELLED");
+        PayOrderPo existing = order(4L, "PAY20261020005", "CANCELLED");
         when(payOrderMapper.selectById(4L)).thenReturn(existing);
 
         BizException ex = assertThrows(BizException.class, () -> payOrderService.cancel(4L));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
-        verify(payOrderMapper, never()).updateById(any(PayOrder.class));
+        verify(payOrderMapper, never()).updateById(any(PayOrderPo.class));
     }
 
     @Test
     @DisplayName("refund：委托退款服务整单退款并回读最新状态")
     void shouldRefundFromPaid() {
-        PayOrder existing = order(5L, "PAY20261020009", "PAID");
+        PayOrderPo existing = order(5L, "PAY20261020009", "PAID");
         existing.setChannelTradeNo("MOCK-9");
-        PayOrder refunded = order(5L, "PAY20261020009", "REFUNDED");
+        PayOrderPo refunded = order(5L, "PAY20261020009", "REFUNDED");
         refunded.setRefundAmount(new BigDecimal("100.00"));
         when(payOrderMapper.selectById(5L)).thenReturn(existing, refunded);
 
@@ -355,13 +355,13 @@ class PayOrderServiceImplTest {
         BizException ex = assertThrows(BizException.class, () -> payOrderService.refund(6L));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
-        verify(payTransactionMapper, never()).insert(any(PayTransaction.class));
+        verify(payTransactionMapper, never()).insert(any(PayTransactionPo.class));
     }
 
     @Test
     @DisplayName("reconcile：mock 渠道状态镜像本地，结果一致")
     void shouldReconcileConsistently() {
-        PayOrder existing = order(7L, "PAY20261020011", "PAID");
+        PayOrderPo existing = order(7L, "PAY20261020011", "PAID");
         existing.setChannelTradeNo("MOCK-11");
         when(payOrderMapper.selectById(7L)).thenReturn(existing);
 
@@ -377,7 +377,7 @@ class PayOrderServiceImplTest {
     @Test
     @DisplayName("listTransactions：按支付单返回流水且状态映射正确")
     void shouldListTransactions() {
-        PayTransaction transaction = new PayTransaction();
+        PayTransactionPo transaction = new PayTransactionPo();
         transaction.setId(900L);
         transaction.setOrderId(8L);
         transaction.setOrderNo("PAY20261020012");
@@ -385,7 +385,7 @@ class PayOrderServiceImplTest {
         transaction.setAmount(new BigDecimal("100.00"));
         transaction.setStatus("SUCCESS");
         when(payOrderMapper.selectById(8L)).thenReturn(order(8L, "PAY20261020012", "PAID"));
-        when(payTransactionMapper.selectList(ArgumentMatchers.<Wrapper<PayTransaction>>any()))
+        when(payTransactionMapper.selectList(ArgumentMatchers.<Wrapper<PayTransactionPo>>any()))
                 .thenReturn(List.of(transaction));
 
         List<PayTransactionVO> list = payOrderService.listTransactions(8L);

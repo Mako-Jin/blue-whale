@@ -12,8 +12,9 @@ import com.bluewhale.pay.converter.PayOrderConverter;
 import com.bluewhale.pay.dto.PayInternalCreateRequest;
 import com.bluewhale.pay.dto.PayOrderCreateRequest;
 import com.bluewhale.pay.dto.PayOrderQueryRequest;
-import com.bluewhale.pay.entity.PayOrder;
-import com.bluewhale.pay.entity.PayTransaction;
+import com.bluewhale.pay.po.PayNotifyTaskPo;
+import com.bluewhale.pay.po.PayOrderPo;
+import com.bluewhale.pay.po.PayTransactionPo;
 import com.bluewhale.pay.enums.PayNotifyEvent;
 import com.bluewhale.pay.enums.PayOrderStatus;
 import com.bluewhale.pay.mapper.PayOrderMapper;
@@ -72,6 +73,9 @@ public class PayOrderServiceImpl implements PayOrderService {
     /** 默认币种 */
     private static final String DEFAULT_CURRENCY = "CNY";
 
+    /** 默认业务方类型 */
+    private static final String DEFAULT_BIZ_TYPE = "MALL_ORDER";
+
     /** 金额最大小数位 */
     private static final int MAX_AMOUNT_SCALE = 2;
 
@@ -87,16 +91,16 @@ public class PayOrderServiceImpl implements PayOrderService {
 
     @Override
     public PageResult<PayOrderVO> page(PayOrderQueryRequest request) {
-        LambdaQueryWrapper<PayOrder> wrapper = new LambdaQueryWrapper<>();
+        LambdaQueryWrapper<PayOrderPo> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(request.getKeyword())) {
-            wrapper.and(inner -> inner.like(PayOrder::getOrderNo, request.getKeyword())
-                    .or().like(PayOrder::getBusinessKey, request.getKeyword()));
+            wrapper.and(inner -> inner.like(PayOrderPo::getOrderNo, request.getKeyword())
+                    .or().like(PayOrderPo::getBusinessKey, request.getKeyword()));
         }
-        wrapper.eq(StringUtils.hasText(request.getStatus()), PayOrder::getStatus, request.getStatus());
-        wrapper.eq(StringUtils.hasText(request.getChannel()), PayOrder::getChannel, request.getChannel());
-        wrapper.orderByDesc(PayOrder::getCreateTime);
+        wrapper.eq(StringUtils.hasText(request.getStatus()), PayOrderPo::getStatus, request.getStatus());
+        wrapper.eq(StringUtils.hasText(request.getChannel()), PayOrderPo::getChannel, request.getChannel());
+        wrapper.orderByDesc(PayOrderPo::getCreateTime);
         long size = Math.min(Math.max(request.getSize(), 1L), MAX_PAGE_SIZE);
-        Page<PayOrder> page = payOrderMapper.selectPage(new Page<>(request.getCurrent(), size), wrapper);
+        Page<PayOrderPo> page = payOrderMapper.selectPage(new Page<>(request.getCurrent(), size), wrapper);
         List<PayOrderVO> records = page.getRecords().stream().map(PayOrderServiceImpl::toVo).toList();
         return PageResult.of(records, page.getTotal(), page.getCurrent(), page.getSize());
     }
@@ -112,14 +116,12 @@ public class PayOrderServiceImpl implements PayOrderService {
         validateAmount(request.getAmount());
         String orderNo = request.getOrderNo().trim();
         ensureUnique(orderNo);
-        PayOrder entity = PayOrderConverter.INSTANCE.toEntity(request);
+        PayOrderPo entity = PayOrderConverter.INSTANCE.toEntity(request);
         entity.setOrderNo(orderNo);
         entity.setCurrency(normalize(request.getCurrency(), DEFAULT_CURRENCY));
         entity.setChannel(normalize(request.getChannel(), DEFAULT_CHANNEL));
-        if (!payChannelGateway.isSupported(entity.getChannel())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "pay.channel.unsupported",
-                    "不支持的支付渠道: " + entity.getChannel(), entity.getChannel());
-        }
+        // 白名单 + 适配器同时存在才允许创建，避免建出永远付不了的单
+        payChannelGateway.ensureAvailable(entity.getChannel());
         entity.setStatus(PayOrderStatus.CREATED.code());
         entity.setRefundAmount(BigDecimal.ZERO);
         try {
@@ -134,7 +136,7 @@ public class PayOrderServiceImpl implements PayOrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public PayOrderVO pay(Long id) {
-        PayOrder existing = requireOrder(id);
+        PayOrderPo existing = requireOrder(id);
         ensureStatus(existing, PayOrderStatus.CREATED.code(), "只有待支付的支付单可以支付");
         // 条件更新抢占 CREATED → PAID：并发下只有一个事务能成功，防止重复扣款
         claimTransition(id, PayOrderStatus.CREATED.code(), PayOrderStatus.PAID.code(), "只有待支付的支付单可以支付");
@@ -144,7 +146,7 @@ public class PayOrderServiceImpl implements PayOrderService {
         existing.setChannelTradeNo(result.providerTradeNo());
         payOrderMapper.updateById(existing);
         recordTransaction(existing, TYPE_PAY, result);
-        com.bluewhale.pay.entity.PayNotifyTask task =
+        PayNotifyTaskPo task =
                 payNotifyService.enqueue(PayNotifyEvent.PAID, existing, null, null);
         payNotifyService.dispatchAfterCommit(task == null ? null : task.getId());
         return toVo(payOrderMapper.selectById(id));
@@ -153,7 +155,7 @@ public class PayOrderServiceImpl implements PayOrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public PayOrderVO cancel(Long id) {
-        PayOrder existing = requireOrder(id);
+        PayOrderPo existing = requireOrder(id);
         ensureStatus(existing, PayOrderStatus.CREATED.code(), "只有待支付的支付单可以取消");
         claimTransition(id, PayOrderStatus.CREATED.code(), PayOrderStatus.CANCELLED.code(), "只有待支付的支付单可以取消");
         existing.setStatus(PayOrderStatus.CANCELLED.code());
@@ -175,30 +177,42 @@ public class PayOrderServiceImpl implements PayOrderService {
     @Transactional(rollbackFor = Exception.class)
     public PayOrderVO createInternal(PayInternalCreateRequest request) {
         String orderNo = request.getOrderNo().trim();
-        PayOrder existing = payOrderMapper.selectOne(new LambdaQueryWrapper<PayOrder>()
-                .eq(PayOrder::getOrderNo, orderNo));
+        validateAmount(request.getAmount());
+        validateNotifyUrl(request.getNotifyUrl());
+        PayOrderPo existing = findByOrderNo(orderNo);
         if (existing != null) {
             // 幂等创建：同单号重复创建直接返回原单，业务方重试是正常路径
             return toVo(existing);
         }
-        PayOrderCreateRequest adminRequest = new PayOrderCreateRequest();
-        adminRequest.setOrderNo(orderNo);
-        adminRequest.setBusinessKey(request.getBizType());
-        adminRequest.setAmount(request.getAmount());
-        adminRequest.setCurrency(request.getCurrency());
-        adminRequest.setChannel(request.getChannel());
-        adminRequest.setRemark(request.getRemark());
-        PayOrderVO created = create(adminRequest);
-        PayOrder fresh = payOrderMapper.selectById(created.getId());
-        fresh.setBizType(normalize(request.getBizType(), "MALL_ORDER"));
-        fresh.setNotifyUrl(request.getNotifyUrl().trim());
-        payOrderMapper.updateById(fresh);
-        return toVo(payOrderMapper.selectById(created.getId()));
+        // bizType/notifyUrl 在首次插入即写入，避免「创建后补写」造成幂等返回缺字段
+        PayOrderPo entity = new PayOrderPo();
+        entity.setOrderNo(orderNo);
+        entity.setBizType(normalize(request.getBizType(), DEFAULT_BIZ_TYPE));
+        entity.setNotifyUrl(request.getNotifyUrl().trim());
+        entity.setAmount(request.getAmount());
+        entity.setCurrency(normalize(request.getCurrency(), DEFAULT_CURRENCY));
+        entity.setChannel(normalize(request.getChannel(), DEFAULT_CHANNEL));
+        entity.setRemark(request.getRemark());
+        entity.setStatus(PayOrderStatus.CREATED.code());
+        entity.setRefundAmount(BigDecimal.ZERO);
+        payChannelGateway.ensureAvailable(entity.getChannel());
+        try {
+            payOrderMapper.insert(entity);
+        } catch (DuplicateKeyException ex) {
+            // 并发同单号：后到请求回读已存在原单，保持幂等语义
+            PayOrderPo concurrent = findByOrderNo(orderNo);
+            if (concurrent != null) {
+                return toVo(concurrent);
+            }
+            throw new BizException(ErrorCode.PARAM_ERROR, "pay.order.no-duplicate",
+                    "支付单号已存在: " + orderNo, orderNo);
+        }
+        return toVo(payOrderMapper.selectById(entity.getId()));
     }
 
     @Override
     public PayOrderVO getByOrderNo(String orderNo) {
-        PayOrder order = requireOrderByNo(orderNo);
+        PayOrderPo order = requireOrderByNo(orderNo);
         return toVo(order);
     }
 
@@ -209,7 +223,7 @@ public class PayOrderServiceImpl implements PayOrderService {
 
     @Override
     public PayOrderVO cancelByOrderNo(String orderNo) {
-        PayOrder order = requireOrderByNo(orderNo);
+        PayOrderPo order = requireOrderByNo(orderNo);
         if (PayOrderStatus.CANCELLED.code().equals(order.getStatus())) {
             // 幂等取消：业务方重复取消直接成功
             return toVo(order);
@@ -219,7 +233,7 @@ public class PayOrderServiceImpl implements PayOrderService {
 
     @Override
     public PayReconcileVO reconcile(Long id) {
-        PayOrder existing = requireOrder(id);
+        PayOrderPo existing = requireOrder(id);
         String channelStatus = payChannelGateway.queryStatus(existing);
         PayReconcileVO vo = new PayReconcileVO();
         vo.setOrderId(existing.getId());
@@ -235,8 +249,8 @@ public class PayOrderServiceImpl implements PayOrderService {
     @Override
     public List<PayTransactionVO> listTransactions(Long id) {
         requireOrder(id);
-        LambdaQueryWrapper<PayTransaction> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PayTransaction::getOrderId, id).orderByDesc(PayTransaction::getCreateTime);
+        LambdaQueryWrapper<PayTransactionPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(PayTransactionPo::getOrderId, id).orderByDesc(PayTransactionPo::getCreateTime);
         return payTransactionMapper.selectList(wrapper).stream()
                 .map(PayOrderServiceImpl::toTransactionVo)
                 .toList();
@@ -249,8 +263,8 @@ public class PayOrderServiceImpl implements PayOrderService {
      * @param type   流水类型
      * @param result 渠道结果
      */
-    private void recordTransaction(PayOrder order, String type, PayChannelResult result) {
-        PayTransaction transaction = new PayTransaction();
+    private void recordTransaction(PayOrderPo order, String type, PayChannelResult result) {
+        PayTransactionPo transaction = new PayTransactionPo();
         transaction.setOrderId(order.getId());
         transaction.setOrderNo(order.getOrderNo());
         transaction.setType(type);
@@ -268,8 +282,8 @@ public class PayOrderServiceImpl implements PayOrderService {
      * @param id 支付单ID
      * @return 支付单实体
      */
-    private PayOrder requireOrder(Long id) {
-        PayOrder order = id == null ? null : payOrderMapper.selectById(id);
+    private PayOrderPo requireOrder(Long id) {
+        PayOrderPo order = id == null ? null : payOrderMapper.selectById(id);
         if (order == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
@@ -282,14 +296,25 @@ public class PayOrderServiceImpl implements PayOrderService {
      * @param orderNo 支付单号
      * @return 支付单
      */
-    private PayOrder requireOrderByNo(String orderNo) {
-        PayOrder order = StringUtils.hasText(orderNo)
-                ? payOrderMapper.selectOne(new LambdaQueryWrapper<PayOrder>().eq(PayOrder::getOrderNo, orderNo.trim()))
+    private PayOrderPo requireOrderByNo(String orderNo) {
+        PayOrderPo order = StringUtils.hasText(orderNo)
+                ? payOrderMapper.selectOne(new LambdaQueryWrapper<PayOrderPo>().eq(PayOrderPo::getOrderNo, orderNo.trim()))
                 : null;
         if (order == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
         return order;
+    }
+
+    /**
+     * 按支付单号查询，不存在返回 {@code null}（幂等判断用）。
+     *
+     * @param orderNo 支付单号
+     * @return 支付单或 null
+     */
+    private PayOrderPo findByOrderNo(String orderNo) {
+        return payOrderMapper.selectOne(new LambdaQueryWrapper<PayOrderPo>()
+                .eq(PayOrderPo::getOrderNo, orderNo));
     }
 
     /**
@@ -299,7 +324,7 @@ public class PayOrderServiceImpl implements PayOrderService {
      * @param expected 期望状态
      * @param message  错误提示
      */
-    private static void ensureStatus(PayOrder order, String expected, String message) {
+    private static void ensureStatus(PayOrderPo order, String expected, String message) {
         if (!expected.equals(order.getStatus())) {
             throw new BizException(ErrorCode.PARAM_ERROR, message);
         }
@@ -317,10 +342,10 @@ public class PayOrderServiceImpl implements PayOrderService {
      * @param message 抢占失败时的错误提示
      */
     private void claimTransition(Long id, String from, String to, String message) {
-        LambdaUpdateWrapper<PayOrder> claim = new LambdaUpdateWrapper<>();
-        claim.eq(PayOrder::getId, id)
-                .eq(PayOrder::getStatus, from)
-                .set(PayOrder::getStatus, to);
+        LambdaUpdateWrapper<PayOrderPo> claim = new LambdaUpdateWrapper<>();
+        claim.eq(PayOrderPo::getId, id)
+                .eq(PayOrderPo::getStatus, from)
+                .set(PayOrderPo::getStatus, to);
         if (payOrderMapper.update(null, claim) == 0) {
             throw new BizException(ErrorCode.PARAM_ERROR, message);
         }
@@ -341,13 +366,26 @@ public class PayOrderServiceImpl implements PayOrderService {
     }
 
     /**
+     * 回调地址格式校验：必须是 {@code <服务名>/<路径>}，非法值在创建阶段直接拒绝，
+     * 避免落库后到投递阶段才失败并一路重试至 DEAD。
+     *
+     * @param notifyUrl 回调地址
+     */
+    private static void validateNotifyUrl(String notifyUrl) {
+        if (PayNotifyServiceImpl.splitNotifyUrl(notifyUrl == null ? null : notifyUrl.trim()) == null) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "pay.order.notify-url-invalid",
+                    "回调地址格式非法，应为 <服务名>/<路径>: " + notifyUrl, notifyUrl);
+        }
+    }
+
+    /**
      * 唯一性校验：{@code order_no} 冲突时抛出 {@code PARAM_ERROR}
      *
      * @param orderNo 支付单号
      */
     private void ensureUnique(String orderNo) {
-        LambdaQueryWrapper<PayOrder> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PayOrder::getOrderNo, orderNo);
+        LambdaQueryWrapper<PayOrderPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(PayOrderPo::getOrderNo, orderNo);
         if (payOrderMapper.selectCount(wrapper) > 0) {
             throw new BizException(ErrorCode.PARAM_ERROR, "pay.order.no-duplicate",
                     "支付单号已存在: " + orderNo, orderNo);
@@ -372,7 +410,7 @@ public class PayOrderServiceImpl implements PayOrderService {
      * @param order 支付单实体
      * @return 支付单视图对象
      */
-    private static PayOrderVO toVo(PayOrder order) {
+    private static PayOrderVO toVo(PayOrderPo order) {
         return PayOrderConverter.INSTANCE.toOrderVo(order);
     }
 
@@ -382,7 +420,7 @@ public class PayOrderServiceImpl implements PayOrderService {
      * @param transaction 流水实体
      * @return 流水视图对象
      */
-    private static PayTransactionVO toTransactionVo(PayTransaction transaction) {
+    private static PayTransactionVO toTransactionVo(PayTransactionPo transaction) {
         return PayOrderConverter.INSTANCE.toTransactionVo(transaction);
     }
 }

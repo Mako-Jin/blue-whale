@@ -1,23 +1,27 @@
 package com.bluewhale.pay.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.common.internaltoken.InternalTokenSupport;
+import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.pay.config.PayNotifyProperties;
-import com.bluewhale.pay.entity.PayNotifyTask;
-import com.bluewhale.pay.entity.PayOrder;
 import com.bluewhale.pay.enums.PayNotifyEvent;
 import com.bluewhale.pay.mapper.PayNotifyTaskMapper;
+import com.bluewhale.pay.po.PayNotifyTaskPo;
+import com.bluewhale.pay.po.PayOrderPo;
 import com.bluewhale.pay.service.PayNotifyService;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.bluewhale.common.internaltoken.InternalTokenSupport;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -25,10 +29,13 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 业务通知服务实现。
@@ -52,6 +59,18 @@ public class PayNotifyServiceImpl implements PayNotifyService {
 
     /** 事件字段 */
     private static final String FIELD_EVENT = "event";
+
+    /** 状态：待投递 */
+    private static final String STATUS_PENDING = "PENDING";
+
+    /** 状态：投递成功 */
+    private static final String STATUS_SUCCESS = "SUCCESS";
+
+    /** 状态：死信 */
+    private static final String STATUS_DEAD = "DEAD";
+
+    /** 实例轮询游标：避免所有回调固定打到第一个实例 */
+    private static final AtomicInteger INSTANCE_CURSOR = new AtomicInteger();
 
     private final PayNotifyTaskMapper taskMapper;
 
@@ -92,28 +111,27 @@ public class PayNotifyServiceImpl implements PayNotifyService {
      *
      * @return 请求工厂
      */
-    private org.springframework.http.client.SimpleClientHttpRequestFactory buildRequestFactory() {
-        org.springframework.http.client.SimpleClientHttpRequestFactory factory =
-                new org.springframework.http.client.SimpleClientHttpRequestFactory();
+    private SimpleClientHttpRequestFactory buildRequestFactory() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(Duration.ofSeconds(properties.getTimeoutSeconds()));
         factory.setReadTimeout(Duration.ofSeconds(properties.getTimeoutSeconds()));
         return factory;
     }
 
     @Override
-    public PayNotifyTask enqueue(PayNotifyEvent event, PayOrder order, String refundNo,
-            java.math.BigDecimal refundAmount) {
+    public PayNotifyTaskPo enqueue(PayNotifyEvent event, PayOrderPo order, String refundNo,
+                                   BigDecimal refundAmount) {
         if (!StringUtils.hasText(order.getNotifyUrl())) {
             log.warn("支付单未配置回调地址，跳过通知: orderNo={}", order.getOrderNo());
             return null;
         }
-        PayNotifyTask task = new PayNotifyTask();
+        PayNotifyTaskPo task = new PayNotifyTaskPo();
         task.setBizType(order.getBizType());
         task.setBizOrderNo(order.getOrderNo());
         task.setEvent(event.code());
         task.setNotifyUrl(order.getNotifyUrl());
         task.setPayload(buildPayload(event, order, refundNo, refundAmount));
-        task.setStatus("PENDING");
+        task.setStatus(STATUS_PENDING);
         task.setRetryCount(0);
         task.setNextRetryAt(LocalDateTime.now());
         taskMapper.insert(task);
@@ -146,12 +164,12 @@ public class PayNotifyServiceImpl implements PayNotifyService {
 
     @Override
     public boolean deliverTask(Long taskId) {
-        PayNotifyTask task = taskMapper.selectById(taskId);
+        PayNotifyTaskPo task = taskMapper.selectById(taskId);
         if (task == null) {
             return false;
         }
-        if (!"PENDING".equals(task.getStatus())) {
-            return "SUCCESS".equals(task.getStatus());
+        if (!STATUS_PENDING.equals(task.getStatus())) {
+            return STATUS_SUCCESS.equals(task.getStatus());
         }
         if (taskMapper.claimForDelivery(taskId, task.getRetryCount()) == 0) {
             log.debug("通知任务已被其他实例领取: taskId={}", taskId);
@@ -174,13 +192,10 @@ public class PayNotifyServiceImpl implements PayNotifyService {
     @Override
     @Scheduled(fixedDelayString = "${whale.pay.notify.retry-interval-ms:30000}")
     public int retryDueTasks() {
-        List<PayNotifyTask> due = taskMapper.selectList(new LambdaQueryWrapper<PayNotifyTask>()
-                .eq(PayNotifyTask::getStatus, "PENDING")
-                .le(PayNotifyTask::getNextRetryAt, LocalDateTime.now())
-                .orderByAsc(PayNotifyTask::getNextRetryAt)
-                .last("LIMIT " + RETRY_BATCH));
+        // 全局跨租户扫描：显式忽略租户拦截（见 PayNotifyTaskMapper#selectDueForRetry）
+        List<PayNotifyTaskPo> due = taskMapper.selectDueForRetry(LocalDateTime.now(), RETRY_BATCH);
         int success = 0;
-        for (PayNotifyTask task : due) {
+        for (PayNotifyTaskPo task : due) {
             if (deliverTask(task.getId())) {
                 success++;
             }
@@ -193,18 +208,17 @@ public class PayNotifyServiceImpl implements PayNotifyService {
 
     @Override
     public boolean retryManually(Long taskId) {
-        PayNotifyTask task = taskMapper.selectById(taskId);
-        if (task == null || "SUCCESS".equals(task.getStatus())) {
+        PayNotifyTaskPo task = taskMapper.selectById(taskId);
+        if (task == null || STATUS_SUCCESS.equals(task.getStatus())) {
             return task != null;
         }
-        if ("DEAD".equals(task.getStatus())) {
-            com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<PayNotifyTask> reset =
-                    new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<>();
-            reset.eq(PayNotifyTask::getId, taskId)
-                    .eq(PayNotifyTask::getStatus, "DEAD")
-                    .set(PayNotifyTask::getStatus, "PENDING")
-                    .set(PayNotifyTask::getRetryCount, 0)
-                    .set(PayNotifyTask::getNextRetryAt, LocalDateTime.now());
+        if (STATUS_DEAD.equals(task.getStatus())) {
+            LambdaUpdateWrapper<PayNotifyTaskPo> reset = new LambdaUpdateWrapper<>();
+            reset.eq(PayNotifyTaskPo::getId, taskId)
+                    .eq(PayNotifyTaskPo::getStatus, STATUS_DEAD)
+                    .set(PayNotifyTaskPo::getStatus, STATUS_PENDING)
+                    .set(PayNotifyTaskPo::getRetryCount, 0)
+                    .set(PayNotifyTaskPo::getNextRetryAt, LocalDateTime.now());
             taskMapper.update(null, reset);
             return deliverTask(taskId);
         }
@@ -212,12 +226,13 @@ public class PayNotifyServiceImpl implements PayNotifyService {
     }
 
     @Override
-    public PageResult<PayNotifyTask> pageTasks(long current, long size, String status) {
-        LambdaQueryWrapper<PayNotifyTask> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(StringUtils.hasText(status), PayNotifyTask::getStatus, status);
-        wrapper.orderByDesc(PayNotifyTask::getCreateTime);
+    public PageResult<PayNotifyTaskPo> pageTasks(long current, long size, String status) {
+        // 管理端请求带租户上下文，租户插件自动追加 tenant_id 条件
+        LambdaQueryWrapper<PayNotifyTaskPo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(StringUtils.hasText(status), PayNotifyTaskPo::getStatus, status);
+        wrapper.orderByDesc(PayNotifyTaskPo::getCreateTime);
         long safeSize = Math.min(Math.max(size, 1L), 200L);
-        Page<PayNotifyTask> page = taskMapper.selectPage(new Page<>(current, safeSize), wrapper);
+        Page<PayNotifyTaskPo> page = taskMapper.selectPage(new Page<>(current, safeSize), wrapper);
         return PageResult.of(page.getRecords(), page.getTotal(), page.getCurrent(), page.getSize());
     }
 
@@ -227,7 +242,7 @@ public class PayNotifyServiceImpl implements PayNotifyService {
      * @param task 任务
      * @return 失败原因；成功返回 null
      */
-    private String doNotify(PayNotifyTask task) {
+    private String doNotify(PayNotifyTaskPo task) {
         String[] target = splitNotifyUrl(task.getNotifyUrl());
         if (target == null) {
             return "回调地址格式非法: " + task.getNotifyUrl();
@@ -236,7 +251,8 @@ public class PayNotifyServiceImpl implements PayNotifyService {
         if (instances == null || instances.isEmpty()) {
             return "服务实例不可用: " + target[0];
         }
-        String endpoint = instances.get(0).getUri().toString() + target[1];
+        ServiceInstance instance = instances.get(Math.floorMod(INSTANCE_CURSOR.getAndIncrement(), instances.size()));
+        String endpoint = instance.getUri() + target[1];
         try {
             String body = restClient.post()
                     .uri(endpoint)
@@ -268,7 +284,7 @@ public class PayNotifyServiceImpl implements PayNotifyService {
                 return "业务码非成功: " + body;
             }
             return null;
-        } catch (RuntimeException | com.fasterxml.jackson.core.JsonProcessingException ex) {
+        } catch (RuntimeException | JsonProcessingException ex) {
             return "回调响应解析失败: " + body;
         }
     }
@@ -282,10 +298,10 @@ public class PayNotifyServiceImpl implements PayNotifyService {
      * @param refundAmount 累计退款金额
      * @return JSON
      */
-    private String buildPayload(PayNotifyEvent event, PayOrder order, String refundNo,
-            java.math.BigDecimal refundAmount) {
-        Map<String, Object> payload = new java.util.HashMap<>();
-        payload.put("tenantId", com.bluewhale.common.tenant.TenantContext.get());
+    private String buildPayload(PayNotifyEvent event, PayOrderPo order, String refundNo,
+                                BigDecimal refundAmount) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("tenantId", TenantContext.get());
         payload.put(FIELD_EVENT, event.code());
         payload.put("bizType", order.getBizType());
         payload.put("orderNo", order.getOrderNo());
@@ -297,7 +313,7 @@ public class PayNotifyServiceImpl implements PayNotifyService {
         payload.put("payTime", order.getPayTime() == null ? null : order.getPayTime().toString());
         try {
             return objectMapper.writeValueAsString(payload);
-        } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+        } catch (JsonProcessingException ex) {
             throw new IllegalStateException("回调载荷序列化失败", ex);
         }
     }
@@ -308,17 +324,17 @@ public class PayNotifyServiceImpl implements PayNotifyService {
      * @param task 任务
      * @return 租户 ID
      */
-    private Long extractTenantId(PayNotifyTask task) {
+    private Long extractTenantId(PayNotifyTaskPo task) {
         try {
             JsonNode node = objectMapper.readTree(task.getPayload());
             JsonNode tenantId = node.get("tenantId");
             if (tenantId != null && !tenantId.isNull()) {
                 return tenantId.asLong();
             }
-        } catch (RuntimeException | com.fasterxml.jackson.core.JsonProcessingException ex) {
+        } catch (RuntimeException | JsonProcessingException ex) {
             log.warn("通知载荷租户解析失败，按未知租户投递: taskId={}", task.getId());
         }
-        return com.bluewhale.common.tenant.TenantContext.UNKNOWN_TENANT_ID;
+        return TenantContext.UNKNOWN_TENANT_ID;
     }
 
     /**

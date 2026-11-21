@@ -1,7 +1,7 @@
 package com.bluewhale.pay.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bluewhale.pay.entity.PayOrder;
+import com.bluewhale.pay.po.PayOrderPo;
 import com.bluewhale.pay.mapper.stat.PayChannelAmountPo;
 import com.bluewhale.pay.mapper.stat.PayDayAmountPo;
 import com.bluewhale.pay.mapper.stat.PayPaidStatPo;
@@ -21,7 +21,7 @@ import java.util.List;
  *
  * @author BlueWhale
  */
-public interface PayOrderMapper extends BaseMapper<PayOrder> {
+public interface PayOrderMapper extends BaseMapper<PayOrderPo> {
 
     /**
      * 原子退款累计：单条 SQL 完成「可退校验 + 累计 + 全额置 REFUNDED」。
@@ -33,11 +33,11 @@ public interface PayOrderMapper extends BaseMapper<PayOrder> {
      * @param amount 本次退款金额
      * @return 影响行数（0 表示状态不允许或余额不足）
      */
-    @Update("UPDATE pay_order SET refund_amount = refund_amount + #{amount}, "
-            + "refund_time = IF(refund_amount + #{amount} >= amount, NOW(), refund_time), "
-            + "status = IF(refund_amount + #{amount} >= amount, 'REFUNDED', status), "
+    @Update("UPDATE pay_order SET refund_amount = COALESCE(refund_amount, 0) + #{amount}, "
+            + "refund_time = IF(COALESCE(refund_amount, 0) + #{amount} >= amount, NOW(), refund_time), "
+            + "status = IF(COALESCE(refund_amount, 0) + #{amount} >= amount, 'REFUNDED', status), "
             + "update_time = NOW() "
-            + "WHERE id = #{id} AND status = 'PAID' AND amount - refund_amount >= #{amount}")
+            + "WHERE id = #{id} AND status = 'PAID' AND amount - COALESCE(refund_amount, 0) >= #{amount}")
     int applyRefund(@Param("id") Long id, @Param("amount") BigDecimal amount);
 
     /**

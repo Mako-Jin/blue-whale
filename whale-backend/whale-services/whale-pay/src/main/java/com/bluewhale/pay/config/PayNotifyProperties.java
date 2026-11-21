@@ -20,7 +20,4 @@ public class PayNotifyProperties {
 
     /** 单次投递读超时秒数 */
     private long timeoutSeconds = 5;
-
-    /** 投递失败是否抛出（异步投递时仅记录，不影响主流程） */
-    private boolean failFast = false;
 }

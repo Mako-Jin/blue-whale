@@ -1,6 +1,7 @@
 package com.bluewhale.pay.controller;
 
 import com.bluewhale.common.core.result.Result;
+import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.pay.dto.PayInternalCreateRequest;
 import com.bluewhale.pay.dto.PayInternalRefundRequest;
 import com.bluewhale.pay.service.PayOrderService;
@@ -19,8 +20,18 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 支付内网接口（仅服务间直连，网关侧对 {@code /pay/internal/**} 统一 403）。
  *
- * <p>不做用户权限校验（服务间无用户态）；租户上下文由调用方以
- * {@code X-Tenant-Id} 头传入，经 starter 的 {@code TenantContextFilter} 还原。</p>
+ * <p>入站安全分两层：</p>
+ * <ol>
+ *   <li><b>服务间令牌</b>：starter 的 {@code InternalTokenFilter} 对 {@code /pay/internal/**}
+ *       校验 {@code X-Internal-Token}，无令牌直接 403；非 dev 环境未配置令牌时
+ *       {@code InternalTokenGuard} 拒绝启动。</li>
+ *   <li><b>租户上下文</b>：{@code X-Tenant-Id} 由 {@code TenantContextFilter} 还原，
+ *       本控制器每个入口显式 {@link TenantContext#requireId()}，缺失即 400，
+ *       不允许无租户写入。</li>
+ * </ol>
+ *
+ * <p>残余风险：当前令牌为服务间共享令牌，不能把租户与调用方身份强绑定；
+ * 需要更强隔离时应改为按服务/租户签发令牌，并配合 K8s NetworkPolicy 限制直连端口。</p>
  *
  * @author BlueWhale
  */
@@ -41,6 +52,7 @@ public class PayInternalController {
      */
     @PostMapping("/order")
     public Result<PayOrderVO> create(@Valid @RequestBody PayInternalCreateRequest request) {
+        requireTenant();
         return Result.ok(payOrderService.createInternal(request));
     }
 
@@ -52,6 +64,7 @@ public class PayInternalController {
      */
     @GetMapping("/order/{orderNo}")
     public Result<PayOrderVO> getByOrderNo(@PathVariable String orderNo) {
+        requireTenant();
         return Result.ok(payOrderService.getByOrderNo(orderNo));
     }
 
@@ -63,6 +76,7 @@ public class PayInternalController {
      */
     @PostMapping("/order/{orderNo}/pay")
     public Result<PayOrderVO> pay(@PathVariable String orderNo) {
+        requireTenant();
         return Result.ok(payOrderService.payByOrderNo(orderNo));
     }
 
@@ -74,6 +88,7 @@ public class PayInternalController {
      */
     @PostMapping("/order/{orderNo}/cancel")
     public Result<PayOrderVO> cancel(@PathVariable String orderNo) {
+        requireTenant();
         return Result.ok(payOrderService.cancelByOrderNo(orderNo));
     }
 
@@ -87,7 +102,15 @@ public class PayInternalController {
      */
     @PostMapping("/refund")
     public Result<PayRefundVO> refund(@Valid @RequestBody PayInternalRefundRequest request) {
+        requireTenant();
         return Result.ok(payRefundService.refundByNo(request.getPayOrderNo(), request.getRefundNo(),
                 request.getAmount(), request.getReason()));
+    }
+
+    /**
+     * 校验租户上下文存在（缺失直接 400）。
+     */
+    private static void requireTenant() {
+        TenantContext.requireId();
     }
 }

@@ -1,4 +1,4 @@
-package com.bluewhale.pay.entity;
+package com.bluewhale.pay.po;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.bluewhale.common.entity.BaseEntity;
@@ -18,7 +18,7 @@ import java.math.BigDecimal;
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("pay_transaction")
-public class PayTransaction extends BaseEntity {
+public class PayTransactionPo extends BaseEntity {
 
     private static final long serialVersionUID = 1L;
 

@@ -1,10 +1,10 @@
 package com.bluewhale.pay.converter;
 
 import com.bluewhale.pay.dto.PayOrderCreateRequest;
-import com.bluewhale.pay.entity.PayNotifyTask;
-import com.bluewhale.pay.entity.PayOrder;
-import com.bluewhale.pay.entity.PayRefund;
-import com.bluewhale.pay.entity.PayTransaction;
+import com.bluewhale.pay.po.PayNotifyTaskPo;
+import com.bluewhale.pay.po.PayOrderPo;
+import com.bluewhale.pay.po.PayRefundPo;
+import com.bluewhale.pay.po.PayTransactionPo;
 import com.bluewhale.pay.vo.PayNotifyTaskVO;
 import com.bluewhale.pay.vo.PayOrderVO;
 import com.bluewhale.pay.vo.PayRefundVO;
@@ -32,7 +32,7 @@ public interface PayOrderConverter {
      * @param request 创建请求
      * @return 支付单实体
      */
-    PayOrder toEntity(PayOrderCreateRequest request);
+    PayOrderPo toEntity(PayOrderCreateRequest request);
 
     /**
      * 支付单实体转视图对象
@@ -40,7 +40,7 @@ public interface PayOrderConverter {
      * @param order 支付单实体
      * @return 支付单视图对象
      */
-    PayOrderVO toOrderVo(PayOrder order);
+    PayOrderVO toOrderVo(PayOrderPo order);
 
     /**
      * 流水实体转视图对象
@@ -48,7 +48,7 @@ public interface PayOrderConverter {
      * @param transaction 流水实体
      * @return 流水视图对象
      */
-    PayTransactionVO toTransactionVo(PayTransaction transaction);
+    PayTransactionVO toTransactionVo(PayTransactionPo transaction);
 
     /**
      * 退款单实体转视图对象
@@ -56,7 +56,7 @@ public interface PayOrderConverter {
      * @param refund 退款单实体
      * @return 退款单视图对象
      */
-    PayRefundVO toRefundVo(PayRefund refund);
+    PayRefundVO toRefundVo(PayRefundPo refund);
 
     /**
      * 通知任务实体转视图对象
@@ -64,5 +64,5 @@ public interface PayOrderConverter {
      * @param task 任务实体
      * @return 任务视图对象
      */
-    PayNotifyTaskVO toNotifyTaskVo(PayNotifyTask task);
+    PayNotifyTaskVO toNotifyTaskVo(PayNotifyTaskPo task);
 }

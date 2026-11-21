@@ -1,5 +1,7 @@
 package com.bluewhale.pay.dto;
 
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -30,6 +32,8 @@ public class PayInternalCreateRequest implements Serializable {
 
     /** 支付金额 */
     @NotNull(message = "{validation.pay.internal-create.amount-required}")
+    @DecimalMin(value = "0.01", message = "{validation.pay.internal-create.amount-min}")
+    @Digits(integer = 16, fraction = 2, message = "{validation.pay.internal-create.amount-digits}")
     private BigDecimal amount;
 
     /** 币种（默认 CNY） */

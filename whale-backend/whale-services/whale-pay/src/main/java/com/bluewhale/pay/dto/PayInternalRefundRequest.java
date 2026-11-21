@@ -1,5 +1,7 @@
 package com.bluewhale.pay.dto;
 
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -33,6 +35,8 @@ public class PayInternalRefundRequest implements Serializable {
 
     /** 本次退款金额 */
     @NotNull(message = "{validation.pay.internal-refund.amount-required}")
+    @DecimalMin(value = "0.01", message = "{validation.pay.internal-refund.amount-min}")
+    @Digits(integer = 16, fraction = 2, message = "{validation.pay.internal-refund.amount-digits}")
     private BigDecimal amount;
 
     /** 退款原因 */

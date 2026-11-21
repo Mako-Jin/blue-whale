@@ -1,6 +1,6 @@
 package com.bluewhale.pay.channel;
 
-import com.bluewhale.pay.entity.PayOrder;
+import com.bluewhale.pay.po.PayOrderPo;
 
 import java.math.BigDecimal;
 
@@ -28,7 +28,7 @@ public interface PayChannelAdapter {
      * @param order 支付单（状态已抢占为 PAID）
      * @return 渠道结果（渠道流水号 + 渠道状态）
      */
-    PayChannelResult pay(PayOrder order);
+    PayChannelResult pay(PayOrderPo order);
 
     /**
      * 渠道退款。
@@ -38,7 +38,7 @@ public interface PayChannelAdapter {
      * @param refundAmount 本次退款金额
      * @return 渠道结果
      */
-    PayChannelResult refund(PayOrder order, String refundNo, BigDecimal refundAmount);
+    PayChannelResult refund(PayOrderPo order, String refundNo, BigDecimal refundAmount);
 
     /**
      * 渠道侧订单状态查询（对账用）。
@@ -46,5 +46,5 @@ public interface PayChannelAdapter {
      * @param order 支付单
      * @return 渠道状态码
      */
-    String queryStatus(PayOrder order);
+    String queryStatus(PayOrderPo order);
 }

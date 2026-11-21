@@ -10,8 +10,8 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 /**
  * 支付服务分层依赖守护（T-18 试点）。
  *
- * <p>本服务采用单模块分包结构（{@code controller / service / mapper / entity / dto / vo}），
- * 依赖方向固化如下：{@code controller → service → mapper → entity}，反向依赖一律禁止。
+ * <p>本服务采用单模块分包结构（{@code controller / service / mapper / po / dto / vo}），
+ * 依赖方向固化如下：{@code controller → service → mapper → po}，反向依赖一律禁止。
  * 规则只扫描生产类（{@link ImportOption.DoNotIncludeTests}），避免测试替身触发误报。</p>
  *
  * @author BlueWhale
@@ -25,7 +25,7 @@ class PayArchitectureTest {
             .that().resideInAPackage("com.bluewhale.pay.controller..")
             .should().dependOnClassesThat().resideInAnyPackage(
                     "com.bluewhale.pay.mapper..",
-                    "com.bluewhale.pay.entity..");
+                    "com.bluewhale.pay.po..");
 
     /** Mapper 只依赖实体与框架，不得反向依赖控制器或业务服务 */
     @ArchTest
@@ -35,10 +35,16 @@ class PayArchitectureTest {
                     "com.bluewhale.pay.controller..",
                     "com.bluewhale.pay.service..");
 
-    /** 实体为纯持久化模型，不得依赖控制器、业务服务或 Mapper */
+    /** 服务层不得反向依赖控制器 */
+    @ArchTest
+    static final ArchRule service_must_not_depend_on_controller = noClasses()
+            .that().resideInAPackage("com.bluewhale.pay.service..")
+            .should().dependOnClassesThat().resideInAPackage("com.bluewhale.pay.controller..");
+
+    /** 持久化对象为纯数据模型，不得依赖控制器、业务服务或 Mapper */
     @ArchTest
     static final ArchRule entity_must_not_depend_on_outer_layers = noClasses()
-            .that().resideInAPackage("com.bluewhale.pay.entity..")
+            .that().resideInAPackage("com.bluewhale.pay.po..")
             .should().dependOnClassesThat().resideInAnyPackage(
                     "com.bluewhale.pay.controller..",
                     "com.bluewhale.pay.service..",

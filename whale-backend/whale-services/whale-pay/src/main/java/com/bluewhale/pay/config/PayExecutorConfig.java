@@ -26,6 +26,9 @@ public class PayExecutorConfig {
         executor.setMaxPoolSize(4);
         executor.setQueueCapacity(200);
         executor.setThreadNamePrefix("pay-notify-");
+        // 停机时等待在途回调结束：任务本身可重试，但显式等待可减少重启后的重复投递与日志噪音
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(30);
         executor.initialize();
         return executor;
     }

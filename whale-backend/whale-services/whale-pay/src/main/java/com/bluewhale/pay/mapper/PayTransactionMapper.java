@@ -1,7 +1,7 @@
 package com.bluewhale.pay.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.bluewhale.pay.entity.PayTransaction;
+import com.bluewhale.pay.po.PayTransactionPo;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
  * @author BlueWhale
  */
 @Mapper
-public interface PayTransactionMapper extends BaseMapper<PayTransaction> {
+public interface PayTransactionMapper extends BaseMapper<PayTransactionPo> {
 
     /**
      * 时间窗内成功退款金额（度支殿概览 T5.3）

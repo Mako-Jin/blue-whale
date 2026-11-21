@@ -3,7 +3,7 @@ package com.bluewhale.pay.service.impl;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.bluewhale.pay.config.PayNotifyProperties;
-import com.bluewhale.pay.entity.PayNotifyTask;
+import com.bluewhale.pay.po.PayNotifyTaskPo;
 import com.bluewhale.pay.mapper.PayNotifyTaskMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
@@ -13,7 +13,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
-import org.springframework.core.task.TaskExecutor;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -44,7 +43,7 @@ class PayNotifyServiceImplTest {
     @BeforeAll
     static void initTableInfo() {
         TableInfoHelper.initTableInfo(
-                new MapperBuilderAssistant(new MybatisConfiguration(), ""), PayNotifyTask.class);
+                new MapperBuilderAssistant(new MybatisConfiguration(), ""), PayNotifyTaskPo.class);
     }
 
     private final PayNotifyTaskMapper taskMapper = mock(PayNotifyTaskMapper.class);
@@ -55,8 +54,8 @@ class PayNotifyServiceImplTest {
             taskMapper, new ObjectMapper(), discoveryClient,
             new PayNotifyProperties(), Runnable::run);
 
-    private static PayNotifyTask pendingTask() {
-        PayNotifyTask task = new PayNotifyTask();
+    private static PayNotifyTaskPo pendingTask() {
+        PayNotifyTaskPo task = new PayNotifyTaskPo();
         task.setId(1L);
         task.setBizType("MALL_ORDER");
         task.setBizOrderNo("MO20261107001");
@@ -75,12 +74,12 @@ class PayNotifyServiceImplTest {
         when(taskMapper.selectById(99L)).thenReturn(null);
         assertFalse(service.deliverTask(99L));
 
-        PayNotifyTask success = pendingTask();
+        PayNotifyTaskPo success = pendingTask();
         success.setStatus("SUCCESS");
         when(taskMapper.selectById(1L)).thenReturn(success);
         assertTrue(service.deliverTask(1L));
 
-        PayNotifyTask dead = pendingTask();
+        PayNotifyTaskPo dead = pendingTask();
         dead.setStatus("DEAD");
         when(taskMapper.selectById(2L)).thenReturn(dead);
         assertFalse(service.deliverTask(2L));
@@ -89,7 +88,7 @@ class PayNotifyServiceImplTest {
     @Test
     @DisplayName("deliverTask：抢占失败（其他实例已领取）直接返回 false")
     void shouldSkipWhenClaimLost() {
-        PayNotifyTask task = pendingTask();
+        PayNotifyTaskPo task = pendingTask();
         when(taskMapper.selectById(1L)).thenReturn(task);
         when(taskMapper.claimForDelivery(1L, 0)).thenReturn(0);
 
@@ -100,7 +99,7 @@ class PayNotifyServiceImplTest {
     @Test
     @DisplayName("deliverTask：服务实例不可用记失败并安排退避")
     void shouldMarkFailureWhenInstanceMissing() {
-        PayNotifyTask task = pendingTask();
+        PayNotifyTaskPo task = pendingTask();
         when(taskMapper.selectById(1L)).thenReturn(task);
         when(taskMapper.claimForDelivery(1L, 0)).thenReturn(1);
         when(discoveryClient.getInstances("whale-mall")).thenReturn(List.of());
@@ -116,7 +115,7 @@ class PayNotifyServiceImplTest {
     @Test
     @DisplayName("deliverTask：回调 HTTP 失败记失败原因")
     void shouldMarkFailureWhenHttpError() {
-        PayNotifyTask task = pendingTask();
+        PayNotifyTaskPo task = pendingTask();
         when(taskMapper.selectById(1L)).thenReturn(task);
         when(taskMapper.claimForDelivery(1L, 0)).thenReturn(1);
         ServiceInstance instance = mock(ServiceInstance.class);
@@ -131,7 +130,7 @@ class PayNotifyServiceImplTest {
     @Test
     @DisplayName("retryManually：DEAD 任务重置为 PENDING 并重试")
     void shouldResetDeadTaskOnManualRetry() {
-        PayNotifyTask dead = pendingTask();
+        PayNotifyTaskPo dead = pendingTask();
         dead.setStatus("DEAD");
         dead.setRetryCount(6);
         when(taskMapper.selectById(1L)).thenReturn(dead);
@@ -146,7 +145,7 @@ class PayNotifyServiceImplTest {
     @Test
     @DisplayName("retryManually：已成功任务直接返回 true 不再投递")
     void shouldSkipManualRetryWhenSuccess() {
-        PayNotifyTask success = pendingTask();
+        PayNotifyTaskPo success = pendingTask();
         success.setStatus("SUCCESS");
         when(taskMapper.selectById(1L)).thenReturn(success);
 

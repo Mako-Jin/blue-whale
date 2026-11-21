@@ -54,6 +54,8 @@ logging:
 
 # AUTH-06：启用 starter 的 RequirePermissionInterceptor（默认 false，须显式开启），
 # 按网关注入的 X-Permission-Codes 判定本服务支付接口的 sys:pay:* 权限。
+# 内网接口 /pay/internal/** 由 starter 的 InternalTokenFilter 校验 X-Internal-Token，
+# 非 dev 环境未配置令牌时 InternalTokenGuard 拒绝启动（WHALE_INTERNAL_TOKEN）。
 whale:
   permission:
     header:
@@ -72,10 +74,11 @@ whale:
     auto-init: true
     module-scan-enabled: true
   # F-04：默认 mock 渠道，支付/退款只生成模拟流水号，不发起真实资金请求。
-  # 关闭 mock 前必须先实现真实渠道适配器，否则支付/退款/对账会返回明确业务错误。
+  # 关闭 mock 会由 PayChannelStartupGuard 拒绝启动（渠道调用仍在本地事务内，禁止真实资金上线）。
+  # allowed-channels 必须与已实现的适配器一一对应，否则 PayChannelGateway 启动即失败。
   pay:
     mock: ${WHALE_PAY_MOCK:true}
-    allowed-channels: ${WHALE_PAY_ALLOWED_CHANNELS:MOCK,BALANCE,ALIPAY,WECHAT,UNIONPAY}
+    allowed-channels: ${WHALE_PAY_ALLOWED_CHANNELS:MOCK}
 
 mybatis-plus:
   configuration:

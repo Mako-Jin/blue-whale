@@ -3,7 +3,7 @@ package com.bluewhale.pay.channel;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.pay.config.PayChannelProperties;
-import com.bluewhale.pay.entity.PayOrder;
+import com.bluewhale.pay.po.PayOrderPo;
 import com.bluewhale.pay.enums.PayOrderStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -28,6 +28,9 @@ public class MockPayChannelAdapter implements PayChannelAdapter {
 
     private static final String MOCK_TRADE_PREFIX = "MOCK-";
 
+    /** 退款流水号前缀：与支付流水号区分，避免对账时无法判断资金方向 */
+    private static final String MOCK_REFUND_PREFIX = "MOCK-RF-";
+
     private final PayChannelProperties properties;
 
     @Override
@@ -36,7 +39,7 @@ public class MockPayChannelAdapter implements PayChannelAdapter {
     }
 
     @Override
-    public PayChannelResult pay(PayOrder order) {
+    public PayChannelResult pay(PayOrderPo order) {
         ensureMockEnabled(order);
         return new PayChannelResult(newMockTradeNo(), PayOrderStatus.PAID.code());
     }
@@ -50,11 +53,9 @@ public class MockPayChannelAdapter implements PayChannelAdapter {
      * @return 渠道结果
      */
     @Override
-    public PayChannelResult refund(PayOrder order, String refundNo, BigDecimal refundAmount) {
+    public PayChannelResult refund(PayOrderPo order, String refundNo, BigDecimal refundAmount) {
         ensureMockEnabled(order);
-        String providerTradeNo = StringUtils.hasText(order.getChannelTradeNo())
-                ? order.getChannelTradeNo() : newMockTradeNo();
-        return new PayChannelResult(providerTradeNo, PayOrderStatus.REFUNDED.code());
+        return new PayChannelResult(newMockRefundNo(), PayOrderStatus.REFUNDED.code());
     }
 
     /**
@@ -64,7 +65,7 @@ public class MockPayChannelAdapter implements PayChannelAdapter {
      * @return 渠道状态
      */
     @Override
-    public String queryStatus(PayOrder order) {
+    public String queryStatus(PayOrderPo order) {
         ensureMockEnabled(order);
         return order.getStatus();
     }
@@ -74,7 +75,7 @@ public class MockPayChannelAdapter implements PayChannelAdapter {
      *
      * @param order 支付单
      */
-    private void ensureMockEnabled(PayOrder order) {
+    private void ensureMockEnabled(PayOrderPo order) {
         if (!properties.isMock()) {
             throw new BizException(ErrorCode.PARAM_ERROR, "pay.channel.not-integrated",
                     "真实支付渠道尚未接入，请先实现渠道适配器或开启 whale.pay.mock");
@@ -93,5 +94,14 @@ public class MockPayChannelAdapter implements PayChannelAdapter {
      */
     private static String newMockTradeNo() {
         return MOCK_TRADE_PREFIX + UUID.randomUUID().toString().replace("-", "");
+    }
+
+    /**
+     * 生成模拟退款流水号（独立于支付流水号）。
+     *
+     * @return 模拟退款流水号
+     */
+    private static String newMockRefundNo() {
+        return MOCK_REFUND_PREFIX + UUID.randomUUID().toString().replace("-", "");
     }
 }

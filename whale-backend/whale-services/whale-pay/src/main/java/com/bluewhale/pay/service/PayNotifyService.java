@@ -1,14 +1,14 @@
 package com.bluewhale.pay.service;
 
 import com.bluewhale.common.core.result.PageResult;
-import com.bluewhale.pay.entity.PayNotifyTask;
-import com.bluewhale.pay.entity.PayOrder;
+import com.bluewhale.pay.po.PayNotifyTaskPo;
+import com.bluewhale.pay.po.PayOrderPo;
 import com.bluewhale.pay.enums.PayNotifyEvent;
 
 /**
  * 业务通知服务。
  *
- * <p>支付/退款成功后投递 {@link PayNotifyTask}：先落任务表，事务提交后异步首投；
+ * <p>支付/退款成功后投递 {@link PayNotifyTaskPo}：先落任务表，事务提交后异步首投；
  * 失败由重试器按指数退避重试，超过上限置 DEAD 等待人工重试。</p>
  *
  * @author BlueWhale
@@ -24,7 +24,7 @@ public interface PayNotifyService {
      * @param refundAmount 累计退款金额（REFUNDED 事件用，可为 null）
      * @return 任务实体
      */
-    PayNotifyTask enqueue(PayNotifyEvent event, PayOrder order, String refundNo, java.math.BigDecimal refundAmount);
+    PayNotifyTaskPo enqueue(PayNotifyEvent event, PayOrderPo order, String refundNo, java.math.BigDecimal refundAmount);
 
     /**
      * 事务提交后异步首投；无事务上下文时直接异步投递。
@@ -64,5 +64,5 @@ public interface PayNotifyService {
      * @param status  状态过滤（可空）
      * @return 分页结果
      */
-    PageResult<PayNotifyTask> pageTasks(long current, long size, String status);
+    PageResult<PayNotifyTaskPo> pageTasks(long current, long size, String status);
 }
