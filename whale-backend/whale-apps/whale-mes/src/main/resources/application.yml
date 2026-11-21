@@ -66,6 +66,13 @@ whale:
     integration:
       # ERP 内网基地址（容器内用容器名，如 http://bw-erp:9001）；为空时不回传
       erp-base-url: ${WHALE_ERP_URL:}
+  # 概览契约（三维王城数据厅 - 工部坊）：SDK 注册 GET /mes/overview，本服务只提供 provider。
+  # 路径带服务前缀（REQ-ARCH-003：网关不剥前缀）；TTL 30s 对应前端 30s 轮询。
+  # timeout 3s 比 ERP 宽：综合看板要串四个域（生产/质量/设备/人员），ERP 只查一张快照表。
+  overview:
+    base-path: /mes/overview
+    ttl: 30s
+    timeout: 3s
 
 mybatis-plus:
   configuration:

@@ -35,7 +35,10 @@ class MesArchitectureTest {
             "com.bluewhale.mes.equipment.controller..",
             "com.bluewhale.mes.collect.controller..",
             "com.bluewhale.mes.workforce.controller..",
-            "com.bluewhale.mes.dashboard.controller.."
+            "com.bluewhale.mes.dashboard.controller..",
+            /* 概览 provider（三维王城数据厅）属于出站/交付层：只许调 service，
+               不许直连 mapper —— 与 controller 同一条规则。 */
+            "com.bluewhale.mes.dashboard.overview.."
     };
 
     /** 业务服务所在包（存量顶层 + M0/M1 新增上下文） */

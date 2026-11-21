@@ -12,13 +12,19 @@ import type { HallData } from './datahall';
 import { createOverviewFeed, toHallData, type OverviewFeedOptions, type OverviewHallSpec } from './overview';
 
 /**
- * 已接入契约的服务（标杆：户部 / ERP；S5：数枢殿总控、枢密殿、度支殿、藏书殿）。
+ * 已接入契约的服务（标杆：户部 / ERP；S5：数枢殿总控、枢密殿、度支殿、藏书殿、
+ * 时辰殿、政事殿、考功殿、通政殿、起居殿；S6：工部坊 / MES）。
  *
  * <p>路径与 2D 后台同前缀（REQ-ARCH-003：网关不剥前缀），权限码复用 2D 同一码，
  * 不为 3D 单独发一套授权。</p>
  */
 export const OVERVIEW_HALLS: OverviewHallSpec[] = [
   { nodeKey: 'hubu-hall', path: '/erp/overview', permission: 'sys:erp:bi:cockpit:list' },
+  /* 工部坊（S6/T6.4）：今日产量、达成率、未关闭异常、故障设备。
+     权限码复用 2D 综合看板的 `sys:mes:dashboard:view`——能在后台看车间看板的人，
+     才该在城里看到"今天这条线到底跑成什么样"。四个域（生产/质量/设备/人员）
+     由 MES 内部综合看板聚合，城里不重新拼口径。 */
+  { nodeKey: 'gongbu-hall', path: '/mes/overview', permission: 'sys:mes:dashboard:view' },
   /* 数枢殿总控（S5/T5.1）：服务端把在册各殿的概览汇成一屏。
      **不设权限码**——总控的可见范围就是"你在各殿能看到的范围"，
      缺凭据的殿在总控里显示为「无凭据」行，而不是整块 403。

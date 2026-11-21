@@ -717,6 +717,83 @@ export const AUDIT_LOG_PAGE: ScreenListPageSpec = {
 };
 
 /**
+ * 工单状态：与后端 `MesWorkOrder.status` 一一对应，前端只做展示。
+ *
+ * <p>「暂停」给黄灯而不是灰灯：暂停的工单还占着工位与物料，它跟"已完成"完全不同——
+ * 灰灯会让人以为这条线已经完结了。「已取消」才是灰的。</p>
+ */
+export const WORK_ORDER_STATUS: Record<string, ScreenStatusStyle> = {
+  RECEIVED: { label: '已接收', tone: 'flat' },
+  DISPATCHED: { label: '已派工', tone: 'flat' },
+  IN_PROGRESS: { label: '生产中', tone: 'good' },
+  PAUSED: { label: '暂停', tone: 'warn' },
+  COMPLETED: { label: '已完工', tone: 'good' },
+  CLOSED: { label: '已关闭', tone: 'flat' },
+  CANCELLED: { label: '已取消', tone: 'bad' },
+};
+
+/**
+ * 生产工单页（S6 / T6.5）：工部坊的屏风页。
+ *
+ * <p><b>关键字参数名是 `code`，不是 `keyword`。</b>MES 的工单分页查询
+ * （`MesWorkOrderQueryRequest`）只有 `code / name / erpOrderNo / itemCode / status / priority`
+ * 六个条件，<b>没有 keyword</b>。给一个搜索框、把关键字发成 `keyword`、后端默默忽略，
+ * 是"按了没反应"这类最难查的问题。这里把关键字接到 `code`（工单编码，最常用的检索口），
+ * 占位语也照实写成"搜索工单编码"。</p>
+ *
+ * <p><b>不配 detailPath。</b>列表行已经带回详情需要的全部字段（`MesWorkOrderVO` 只有主表、
+ * 没有分录），再请求一次 `/mes/work-order/{id}` 只会让"点开有半秒空白"。</p>
+ *
+ * <p>五列只留：哪张单、做什么、做多少、什么状态、什么时候开工。物料编码埋在详情里——
+ * 列表是"今天哪几张单在跑"，详情才是"这张单的工艺路线是哪一版"。</p>
+ */
+export const WORK_ORDER_PAGE: ScreenListPageSpec = {
+  key: 'work-orders',
+  title: '生产工单',
+  listPath: '/mes/work-order/page',
+  permission: 'sys:mes:workorder:list',
+  idKey: 'id',
+  keywordParam: 'code',
+  searchPlaceholder: '搜索工单编码…',
+  statusParam: 'status',
+  statuses: [
+    { value: '', label: '全部状态' },
+    { value: 'RECEIVED', label: '已接收' },
+    { value: 'DISPATCHED', label: '已派工' },
+    { value: 'IN_PROGRESS', label: '生产中' },
+    { value: 'PAUSED', label: '暂停' },
+    { value: 'COMPLETED', label: '已完工' },
+    { value: 'CLOSED', label: '已关闭' },
+    { value: 'CANCELLED', label: '已取消' },
+  ],
+  statusMap: WORK_ORDER_STATUS,
+  /* 6 行/页：大屏 620px 里 KPI + 图表 + 工具栏之后只剩约 230px */
+  pageSize: 6,
+  columns: [
+    { key: 'code', label: '工单编码', width: '24%' },
+    { key: 'itemName', label: '物料', width: '30%' },
+    { key: 'plannedQuantity', label: '计划量', width: '16%', format: 'count', align: 'right' },
+    { key: 'status', label: '状态', width: '14%', format: 'status' },
+    { key: 'plannedStart', label: '计划开工', width: '16%', format: 'date' },
+  ],
+  detailFields: [
+    { key: 'code', label: '工单编码' },
+    { key: 'name', label: '工单名称' },
+    { key: 'status', label: '状态', format: 'status' },
+    { key: 'erpOrderNo', label: 'ERP 生产订单' },
+    { key: 'itemCode', label: '物料编码' },
+    { key: 'itemName', label: '物料名称' },
+    { key: 'plannedQuantity', label: '计划数量', format: 'count', align: 'right' },
+    { key: 'uom', label: '计量单位' },
+    { key: 'priority', label: '优先级' },
+    { key: 'routingVersion', label: '工艺路线版本' },
+    { key: 'plannedStart', label: '计划开工', format: 'datetime' },
+    { key: 'plannedEnd', label: '计划完工', format: 'datetime' },
+  ],
+  titleKey: 'code',
+};
+
+/**
  * 殿的连通状态：与后端 {@code HubHallState} 一一对应，前端只做展示。
  *
  * <p>「无凭据」单独一档而不是并进「未通」：前者要去要权限，后者要去查服务，
@@ -797,4 +874,5 @@ export const SCREEN_PAGES: Record<string, ScreenListPageSpec> = {
   [FORM_DEFINITION_PAGE.key]: FORM_DEFINITION_PAGE,
   [MESSAGE_RECORD_PAGE.key]: MESSAGE_RECORD_PAGE,
   [AUDIT_LOG_PAGE.key]: AUDIT_LOG_PAGE,
+  [WORK_ORDER_PAGE.key]: WORK_ORDER_PAGE,
 };

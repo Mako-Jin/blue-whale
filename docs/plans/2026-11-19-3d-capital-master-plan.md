@@ -760,16 +760,45 @@
 
 ### S6 内城 12 坊
 
-同 S5 结构，每坊 3 个任务，共 **36 个**：
+同 S5 结构，每坊 3 个任务（overview + 屏风页 + 厅配置），共 **36 个**：
 
-| 坊 | 服务 | 坊 | 服务 |
+| 编号 | 任务 | 服务 | 状态 |
 |---|---|---|---|
-| 户部坊 | erp | 将作坊 | pdm |
-| 工部坊 | mes | 营造坊 | pm |
-| 吏部坊 | oa | 盟府坊 | contract |
-| 礼部坊 | crm | 宣抚坊 | party |
-| 兵部坊 | iot | 翰林坊 | doc |
-| 杏坛坊 | lms | 市舶坊 | mall |
+| T6.1 | 户部坊 overview（`/erp/overview`） | erp | [x] S4 标杆 |
+| T6.2 | 户部坊 屏风页（采购订单） | erp | [x] S4/T4.5 |
+| T6.3 | 户部坊 厅配置 | erp | [x] S4/T4.6 |
+| T6.4 | 工部坊 overview（`/mes/overview`） | mes | [x] |
+| T6.5 | 工部坊 屏风页（生产工单） | mes | [x] |
+| T6.6 | 工部坊 厅配置 + 数枢殿总控在册 | mes | [x] |
+| T6.7–T6.36 | 其余十坊（吏部 / 礼部 / 兵部 / 杏坛 / 将作 / 营造 / 盟府 / 宣抚 / 翰林 / 市舶） | oa / crm / iot / lms / pdm / pm / contract / party / doc / mall | [ ] |
+
+**S6 第一批交付说明（2026-11-21，T6.4–T6.6 工部坊 / mes）**
+
+- **接口**：`GET /mes/overview`（`whale.overview.base-path`）：四张 KPI（今日完成 / 达成率 /
+  未关闭 / 故障设备）+ 一张图（今日 目标/完成/不良）+ 四条告警（故障设备 CRITICAL、生产异常与
+  NCR 各一条 WARNING、SPC 命中 INFO）。权限码复用 2D 综合看板的 `sys:mes:dashboard:view`，
+  屏风页复用 `/mes/work-order/page`，**无新接口、无新权限点、无新迁移**。
+- **口径不另造**：provider 只调 `MesDashboardService#dashboard(null, null, null)` —— 与 2D 综合看板、
+  SSE 推送、CSV 导出**同一个方法**；生产/质量两域在 MES 内部又分别复用生产看板与质量看板服务。
+  不传 `lineId/teamId`：城里看的是全厂今日，在 3D 侧默认一条产线等于造一个"后台看不到的口径"。
+- **百分比必须换算成比率**：MES 的 `achievementRate` 是 0–100 的百分数（`90.00`），契约
+  `format=percent` 要求比率（`0.9`）。provider 显式 `divide(100, 4, HALF_UP)`；单测把
+  "0.9 → 90.0%"写死成断言，负向验证（去掉除法）当场 FAIL。
+- **两处静默失效被提前挡住**：① 今日无计划时 `achievementRate` 为 null，直接发 0 会显示
+  "达成率 0.0%"像全线停产 → 语气置 FLAT、提示语写"今日无计划"；② MES 工单查询**没有 `keyword`**，
+  屏风页关键字接到 `code`（工单编码），不发明一个后端会默默忽略的参数名。
+- **屏风落位不再手抄坐标**：内城坊台基深 15.2m、坊墙内缘不到 2m，屏风只能立在台基外、坊门内那一条地上。
+  新增 `districtScreenPose()`，把 S4 在户部实测的偏移（正面法线 9.67m + 切向 2.04m）套到
+  `PALACES` 上现算；户部保留实测字面量（公式来源），其余十一坊一律走函数。
+- **数枢殿总控在册**：`whale-monitor` 的 `whale.overview.aggregate.targets` 加一行
+  （`http://bw-mes:9002/mes/overview`），总控聚合与前端都不用改。
+- **验证**：`MesOverviewProviderTest` 9 例 + `MesArchitectureTest` 7 条（新包
+  `dashboard.overview` 归入交付层，禁直连 mapper）全绿；whale-mes 全量 159 例通过、checkstyle 0 违规；
+  e2e `world-gongbu-smoke.mjs` **48 项全绿**；回归 qiju 46 / tongzheng 55 / zhengshi 56 / kaogong 59 /
+  shichen 44 / cangshu 37 / duzhi 36 / shumi 32 / shushu 31 / screenpage 35 / gate 26 / city-smoke 全通过 /
+  datahall 全通过 / guide 19 / quest 42 / glyphs 4 + 基础族七支 rc=0；八项门禁 rc=0（perm-mapping 995）。
+- **已知遗留**：`/mes/overview` 的真实 HTTP 未验（本机 Docker / Nacos 未起），同前九批口径；
+  起服后按 `curl -H "X-User-Id: 1" -H "X-Permission-Codes: sys:mes:dashboard:view" http://127.0.0.1:8080/mes/overview` 复核。
 
 ### S7 外城 9 处
 

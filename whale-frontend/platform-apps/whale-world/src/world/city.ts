@@ -69,6 +69,7 @@ import {
   FORM_DEFINITION_PAGE,
   MESSAGE_RECORD_PAGE,
   AUDIT_LOG_PAGE,
+  WORK_ORDER_PAGE,
 } from './screenpages';
 import { createSceneEnv, type SceneEnv } from './env';
 import { createPostFx, type PostFx } from './postfx';
@@ -3921,6 +3922,42 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   let qijuScreen: ScreenHandle | null = null;
   let qijuPage: ScreenPageHandle | null = null;
 
+  /** 工部坊（S6/T6.4）屏风与其业务页句柄（同上） */
+  let gongbuScreen: ScreenHandle | null = null;
+  let gongbuPage: ScreenPageHandle | null = null;
+
+  /**
+   * 坊的屏风落位：从布局数据现算，不手抄坐标。
+   *
+   * <p>内城坊的台基深 15.2 米（`(d + 9) × scale`），坊墙内缘只剩不到 2 米，
+   * 屏风放不进台基里（CSS3D 不做深度测试，插进台基看着就是浮在半空）。
+   * 所以沿殿的**正面法线**退到台基外、坊门内的那条地上，再沿切向偏一点避开台阶。</p>
+   *
+   * <p>两个偏移量是 S4 在户部实测出来的（落点 15.2 / 64.6，屏风底边投影确实踩在地面）。
+   * 12 坊几何完全一致，公式套在 {@link PALACES} 上就能得到各自的落点；
+   * 户部仍保留那组实测字面量（公式的来源），其余各坊一律用本函数，
+   * 免得十二组坐标各写各的、改一处忘十一处。</p>
+   *
+   * @param nodeKey 坊的节点 key
+   * @returns 屏风位置与朝向；找不到该坊时返回 null（宁可少一块屏，也不要摆错位置）
+   */
+  function districtScreenPose(nodeKey: string): { x: number; z: number; facing: number } | null {
+    const palace = PALACES.find((item) => item.nodeKey === nodeKey);
+    if (!palace) {
+      return null;
+    }
+    // front 是正面法线（朝城内），lateral 是它的右法线；与 createPalace 的 yaw 同口径
+    const frontX = Math.sin(palace.yaw);
+    const frontZ = Math.cos(palace.yaw);
+    const lateralX = Math.cos(palace.yaw);
+    const lateralZ = -Math.sin(palace.yaw);
+    return {
+      x: palace.x + 9.67 * frontX + 2.04 * lateralX,
+      z: palace.z + 9.67 * frontZ + 2.04 * lateralZ,
+      facing: palace.yaw,
+    };
+  }
+
   function setupScreens() {
     try {
     screens.add({
@@ -4011,6 +4048,51 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
         };
       },
     });
+
+    /* 工部坊（S6/T6.4）：生产工单 —— 今天哪几张单在跑、跑到哪一步、计划量多少。
+
+       **坊的屏风落位与前十二殿不同**：皇城殿的屏风立在台基上（殿前有空地），
+       而内城坊的台基深 15.2 米、坊墙内缘只剩不到 2 米，屏风放不进台基里，
+       只能像户部那样落在**台基外、坊门内**那一条地上。
+
+       这套落点是 S4 在户部实测出来的（屏风底边投影 563px vs 地面投影 556px，
+       确实踩在地上），所以这里**不手抄第二组坐标**，而是按同一套公式从
+       {@link PALACES} 现算：沿殿的正面法线退 9.67 米，再沿切向偏 2.04 米避开台阶。
+       户部那组数保留原地（它是公式的实测来源，改它就得重做一次投影校验）；
+       后续十一坊都套公式，各坊的落点不会再各写各的。 */
+    const gongbuPose = districtScreenPose('gongbu-hall');
+    if (gongbuPose) {
+      gongbuScreen = screens.add({
+        id: 'gongbu',
+        position: [gongbuPose.x, 1.55, gongbuPose.z],
+        facing: gongbuPose.facing,
+        size: 'large',
+        title: '工部坊 · 生产工单',
+        subtitle: 'MES / WORK ORDER',
+        tone: 'idle',
+        mount: (body) => {
+          gongbuPage = mountScreenPage(body, {
+            nodeKey: 'gongbu-hall',
+            overviewPath: '/mes/overview',
+            overviewPermission: 'sys:mes:dashboard:view',
+            pages: [WORK_ORDER_PAGE],
+            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+            getPermissions: opts.getPermissions,
+            // 题头灯跟业务页状态走：概览陈旧/失败时不该还亮绿灯
+            onTone: (tone) => gongbuScreen?.setTone(tone),
+            onTitle: (title, subtitle) => {
+              gongbuScreen?.setTitle(title ? `${title} · 生产工单` : '工部坊 · 生产工单',
+                subtitle ?? 'MES / WORK ORDER');
+            },
+          });
+          return () => {
+            gongbuPage?.dispose();
+            gongbuPage = null;
+          };
+        },
+      });
+    }
+
 
     /* 枢密殿（AUTH）屏风页（S5 / T5.2）：屏风里是登录历史 ——
        谁、什么时候、用什么方式登录，失败了多少次。
@@ -4529,7 +4611,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
        正常路径既不暴露业务字段，也不会注入任何假数据。
 
        S5 起城里有九块业务屏风（户部 / 数枢殿 / 枢密殿 / 度支殿 / 藏书殿 / 时辰殿 /
-       政事殿 / 考功殿 / 通政殿），按 id 分派；不给 id 时仍落到户部（S4 的老脚本靠这个默认）。 */
+       政事殿 / 考功殿 / 通政殿 / 起居殿），S6 起加内城各坊，按 id 分派；
+       不给 id 时仍落到户部（S4 的老脚本靠这个默认）。 */
     /* 屏风 id → 业务页句柄。默认给户部：老脚本不带 id 调探针时的历史行为。 */
     const pageOf = (id?: string): ScreenPageHandle | null => {
       switch (id) {
@@ -4551,6 +4634,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return tongzhengPage;
         case 'qiju':
           return qijuPage;
+        case 'gongbu':
+          return gongbuPage;
         default:
           return hubuPage;
       }

@@ -105,3 +105,8 @@ whale:
           name: 起居殿
           url: http://bw-audit:9101/audit/overview
           permission: sys:audit:log:list
+        # S6 内城十二坊：T6.4 起逐坊接入，这里加一行即可
+        - nodeKey: gongbu-hall
+          name: 工部坊
+          url: http://bw-mes:9002/mes/overview
+          permission: sys:mes:dashboard:view
