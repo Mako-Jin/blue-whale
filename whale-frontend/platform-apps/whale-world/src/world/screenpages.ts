@@ -481,6 +481,78 @@ export const PROCESS_INSTANCE_PAGE: ScreenListPageSpec = {
 };
 
 /**
+ * 表单定义状态：`form_definition.status`，1 正常 / 0 禁用。
+ *
+ * <p>禁用给 flat 而不是 bad：停用是主动决定（这张表不收了），不是故障。
+ * 给红灯会让人每次路过都想点进去查一遍。</p>
+ */
+export const FORM_STATUS_STYLE: Record<string, ScreenStatusStyle> = {
+  '1': { label: '正常', tone: 'good' },
+  '0': { label: '禁用', tone: 'flat' },
+};
+
+/**
+ * 表单定义页（S5 / T5.7）：考功殿的屏风页。
+ *
+ * <p>列只留五样：表单名、编码、分类、状态、最近更新。这一屏回答的是"有哪些表在收数、
+ * 哪张表刚改过"，不是"某个字段怎么配"。</p>
+ *
+ * <p>关键字参数是 {@code name}（模糊匹配），不是 {@code keyword}——
+ * `FormQueryRequest` 只有 {@code name / code / status / category} 四个条件，
+ * 发一个后端不认的参数会被 Spring 静默忽略，搜索框就成了摆设。</p>
+ *
+ * <p>详情配 {@code detailPath}：定义详情会把字段配置（{@code fields}）一并带回，
+ * 这是列表行里没有的信息——这张表到底有哪几个字段、哪些不在表单上显示。
+ * 控件类型保持后端原值（text / select / date…）：前端没有一份可信的中文映射，
+ * 猜一个不如照原文写。</p>
+ */
+export const FORM_DEFINITION_PAGE: ScreenListPageSpec = {
+  key: 'forms',
+  title: '表单定义',
+  listPath: '/form/v1/definition/page',
+  detailPath: (id) => `/form/v1/definition/${id}`,
+  permission: 'sys:form:list',
+  idKey: 'id',
+  keywordParam: 'name',
+  searchPlaceholder: '搜索表单名称…',
+  statusParam: 'status',
+  statuses: [
+    { value: '', label: '全部状态' },
+    { value: '1', label: '正常' },
+    { value: '0', label: '禁用' },
+  ],
+  statusMap: FORM_STATUS_STYLE,
+  /* 6 行/页：大屏 620px 里 KPI + 图表 + 工具栏之后只剩约 230px */
+  pageSize: 6,
+  columns: [
+    { key: 'name', label: '表单', width: '32%' },
+    { key: 'code', label: '编码', width: '24%' },
+    { key: 'category', label: '分类', width: '16%' },
+    { key: 'status', label: '状态', width: '12%', format: 'status' },
+    { key: 'updateTime', label: '更新', width: '16%', format: 'datetime' },
+  ],
+  detailFields: [
+    { key: 'name', label: '表单名称' },
+    { key: 'code', label: '表单编码' },
+    { key: 'category', label: '分类' },
+    { key: 'version', label: '版本' },
+    { key: 'status', label: '状态', format: 'status' },
+    { key: 'tags', label: '标签' },
+    { key: 'remark', label: '备注' },
+    { key: 'createTime', label: '创建时间', format: 'datetime' },
+    { key: 'updateTime', label: '更新时间', format: 'datetime' },
+  ],
+  lineColumns: [
+    { key: 'fieldLabel', label: '字段', width: '38%' },
+    { key: 'widgetType', label: '控件', width: '22%' },
+    { key: 'sortNo', label: '排序', width: '16%', align: 'right', format: 'count' },
+    { key: 'status', label: '状态', width: '24%', format: 'status' },
+  ],
+  lineSource: 'fields',
+  titleKey: 'name',
+};
+
+/**
  * 殿的连通状态：与后端 {@code HubHallState} 一一对应，前端只做展示。
  *
  * <p>「无凭据」单独一档而不是并进「未通」：前者要去要权限，后者要去查服务，
@@ -558,4 +630,5 @@ export const SCREEN_PAGES: Record<string, ScreenListPageSpec> = {
   [FILE_ASSET_PAGE.key]: FILE_ASSET_PAGE,
   [JOB_INFO_PAGE.key]: JOB_INFO_PAGE,
   [PROCESS_INSTANCE_PAGE.key]: PROCESS_INSTANCE_PAGE,
+  [FORM_DEFINITION_PAGE.key]: FORM_DEFINITION_PAGE,
 };

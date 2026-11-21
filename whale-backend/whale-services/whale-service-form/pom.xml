@@ -86,6 +86,13 @@
             <artifactId>whale-tools</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- 三维王城考功殿（T5.7）：概览契约 SDK，服务侧只实现 OverviewProvider，
+             快照拼装 / 权限裁剪 / TTL 缓存由 SDK 负责 -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-overview-sdk</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.mapstruct</groupId>
             <artifactId>mapstruct</artifactId>

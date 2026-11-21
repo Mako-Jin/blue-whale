@@ -65,6 +65,7 @@ import {
   FILE_ASSET_PAGE,
   JOB_INFO_PAGE,
   PROCESS_INSTANCE_PAGE,
+  FORM_DEFINITION_PAGE,
 } from './screenpages';
 import { createSceneEnv, type SceneEnv } from './env';
 import { createPostFx, type PostFx } from './postfx';
@@ -3873,6 +3874,10 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   let zhengshiScreen: ScreenHandle | null = null;
   let zhengshiPage: ScreenPageHandle | null = null;
 
+  /** 考功殿（S5/T5.7）屏风与其业务页句柄（同上） */
+  let kaogongScreen: ScreenHandle | null = null;
+  let kaogongPage: ScreenPageHandle | null = null;
+
   function setupScreens() {
     try {
     screens.add({
@@ -4156,6 +4161,42 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       },
     });
 
+    /* 考功殿（FORM）屏风页（S5 / T5.7）：屏风里是表单定义台账 ——
+       有哪些表在收数、哪张表刚改过、这张表有哪几个字段。
+
+       位置同前几殿：本殿台基上、殿门前。考功殿在**东列第二进**（x = +20.5、
+       殿心 z = -7），紧挨政事殿南侧，所以屏风 z = -2.5（殿心 + 4.5）。
+       台基顶面 1.87 米 → 屏风中心 3.42 米（摆法说明见枢密殿那段）。 */
+    kaogongScreen = screens.add({
+      id: 'kaogong',
+      position: [20.5, 3.42, -2.5],
+      facing: 0,
+      size: 'large',
+      title: '考功殿 · 表单定义',
+      subtitle: 'FORM / LEDGER',
+      tone: 'idle',
+      mount: (body) => {
+        kaogongPage = mountScreenPage(body, {
+          nodeKey: 'kaogong-hall',
+          overviewPath: '/form/overview',
+          overviewPermission: 'sys:form:list',
+          pages: [FORM_DEFINITION_PAGE],
+          getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+          getPermissions: opts.getPermissions,
+          // 题头灯跟业务页状态走：概览陈旧/失败时不该还亮绿灯
+          onTone: (tone) => kaogongScreen?.setTone(tone),
+          onTitle: (title, subtitle) => {
+            kaogongScreen?.setTitle(title ? `${title} · 表单定义` : '考功殿 · 表单定义',
+              subtitle ?? 'FORM / LEDGER');
+          },
+        });
+        return () => {
+          kaogongPage?.dispose();
+          kaogongPage = null;
+        };
+      },
+    });
+
     /* 遮挡演示：御道边一根拴马桩，挂进遮挡层。
        从出生点看过去，桩子应该切掉屏风的一角——这是 S0 T0.3 在真实场景、真实
        几何、真实光照下的复核。只有这一根进遮挡层，遮挡 pass 的开销可以忽略。 */
@@ -4339,8 +4380,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
        以及"进屏风 / 注入演示数据"两个动作。只在 ?debug=1 下存在，
        正常路径既不暴露业务字段，也不会注入任何假数据。
 
-       S5 起城里有七块业务屏风（户部 / 数枢殿 / 枢密殿 / 度支殿 / 藏书殿 / 时辰殿 / 政事殿），
-       按 id 分派；不给 id 时仍落到户部（S4 的老脚本靠这个默认）。 */
+       S5 起城里有八块业务屏风（户部 / 数枢殿 / 枢密殿 / 度支殿 / 藏书殿 / 时辰殿 /
+       政事殿 / 考功殿），按 id 分派；不给 id 时仍落到户部（S4 的老脚本靠这个默认）。 */
     /* 屏风 id → 业务页句柄。默认给户部：老脚本不带 id 调探针时的历史行为。 */
     const pageOf = (id?: string): ScreenPageHandle | null => {
       switch (id) {
@@ -4356,6 +4397,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return shichenPage;
         case 'zhengshi':
           return zhengshiPage;
+        case 'kaogong':
+          return kaogongPage;
         default:
           return hubuPage;
       }

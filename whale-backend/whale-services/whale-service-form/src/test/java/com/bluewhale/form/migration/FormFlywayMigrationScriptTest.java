@@ -96,6 +96,45 @@ class FormFlywayMigrationScriptTest {
     }
 
     /**
+     * 考功殿（T5.7）索引迁移与 init.sql 同步
+     *
+     * <p>盯两件事：① V16 必须真的建两个复合索引、删两个被最左前缀覆盖的单列索引；
+     * ② init.sql 的 {@code form_data} 块必须跟着改——它是空库手工执行的脚本，
+     * 若只改 Flyway，空库建出来的表会比存量库少索引，概览在空库上直接全表扫。</p>
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("V16 建两个复合索引并清掉被覆盖的单列索引，init.sql 同步")
+    void overviewIndexesShouldBeSyncedWithInitScript() throws IOException {
+        Path v16 = MIGRATION_DIR.resolve("V16__form_overview_index.sql");
+        assertTrue(Files.exists(v16), "缺少 V16 索引迁移脚本");
+        String script = Files.readString(v16, StandardCharsets.UTF_8);
+        for (String index : List.of("idx_tenant_create", "idx_tenant_biz_update")) {
+            assertTrue(script.contains("ADD INDEX " + index), "V16 应补建索引：" + index);
+        }
+        for (String stale : List.of("idx_tenant_id", "idx_tenant_biz_status")) {
+            assertTrue(script.contains("DROP INDEX " + stale),
+                    "V16 应删除被复合索引最左前缀覆盖的：" + stale);
+        }
+        String initSql = Files.readString(INIT_SCRIPT, StandardCharsets.UTF_8);
+        int from = initSql.indexOf("CREATE TABLE form_data");
+        assertTrue(from > 0, "init.sql 未找到 form_data 建表语句");
+        String dataBlock = initSql.substring(from, initSql.indexOf("COMMENT='表单数据表", from));
+        for (String token : List.of("idx_tenant_create", "idx_tenant_biz_update",
+                "biz_status", "process_instance_id", "client_request_id")) {
+            assertTrue(dataBlock.contains(token), "init.sql 的 form_data 应同步：" + token);
+        }
+        /* 断言前先剥掉注释：块里那段说明文字会提到被删掉的索引名，
+           不剥的话"文档写了"会被当成"DDL 建了"。 */
+        String ddl = dataBlock.replaceAll("(?s)/\\*.*?\\*/", "");
+        assertFalse(ddl.contains("idx_tenant_id"),
+                "form_data 的 idx_tenant_id 已被 idx_tenant_create 最左前缀覆盖，init.sql 不应再单建");
+        assertFalse(ddl.contains("idx_tenant_biz_status"),
+                "form_data 的 idx_tenant_biz_status 已被 idx_tenant_biz_update 覆盖，init.sql 不应再单建");
+    }
+
+    /**
      * 列出迁移脚本并按文件名字典序返回
      *
      * @return 迁移脚本路径

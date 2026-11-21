@@ -93,3 +93,7 @@ whale:
           name: 政事殿
           url: http://bw-workflow:8083/workflow/overview
           permission: sys:workflow:instance:list
+        - nodeKey: kaogong-hall
+          name: 考功殿
+          url: http://bw-form:8084/form/overview
+          permission: sys:form:list

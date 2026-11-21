@@ -288,7 +288,7 @@
 | T5.4 | [x] 藏书殿 | file | T5.1 |
 | T5.5 | [x] 时辰殿 | job | T5.1 |
 | T5.6 | [x] 政事殿 | workflow | T5.1 |
-| T5.7 | [ ] 考功殿 | form | T5.1 |
+| T5.7 | [x] 考功殿 | form | T5.1 |
 | T5.8 | [ ] 通政殿 | message | T5.1 |
 | T5.9 | [ ] 起居殿（只读） | audit | T5.1 |
 | T5.10 | [ ] 城门楼地标（网关，无入口） | gateway | T1.9 |
@@ -568,6 +568,62 @@
   （含 ArchUnit 3 例、Flyway 迁移守卫 5 例——守卫里新增了 V14 四个索引与
   "init.sql 不得再单建 `idx_tenant_id`"两条断言）；checkstyle 0 违规。
 - **已知遗留**：`/workflow/overview` 的真实 HTTP 未验（本机 Docker / Nacos 未起）。
+
+**S5 第七批交付说明（2026-11-21，T5.7 考功殿 / form）**
+
+- **form 概览**：`GET /form/overview`，四张 KPI（启用表单 / 今日提交 / 待审批 / 待修差异）
+  + 两张图（近 7 日提交（line）、近 7 日提交最多 Top 5 表单（bar））。
+  权限码复用 2D 表单定义页的 `sys:form:list`，屏风页复用 `/form/v1/definition/page`
+  与 `/{id}` 详情，**无新接口、无新权限点**。
+- **「待修差异」单独占一张 KPI，这是这一屏唯一必须把两张"表"对起来才看得见的数。**
+  `form_data` 与各版本物理表 `form_data_{code}_v{n}` 双写，任一侧失败就留下单向数据：
+  列表读主表 → 有这一行；点开详情读物理表 → 字段全空。**全程不报错**，
+  只有当事人觉得"我明明填了"。它不能并进"数据总量"，否则永远是个看不出来的分母。
+- **告警两条根因不同、可并存**：主从不一致 → `CRITICAL`（写库那一步失败了，要看对账页
+  与物理表）；待审批超 24 小时 → `WARNING`（流程没人处理，要去找审批人）。
+  混成一条会让人先去催一个根本没人有待办的流程。
+- **超时按 `update_time` 判、不按 `create_time`**：审批中的行只会被审批回调改动，
+  两者等价；但"驳回后重提"的行会被 `update_time` 正确地重新计时，而 `create_time`
+  会让它一辈子带着"已卡 30 天"的标签。24 小时是有意的粗粒度——隔夜审批本来就有。
+- **只数有效数据**（`deleted = 0 AND status = 1`）：作废行还在表里，算进提交量会让
+  考核口径单向偏大，而且越清理越对不上。
+- **「近 7 日 N 条」复用趋势那份聚合**（`dailySubmits` 求和），不再单独打一次库：
+  两个数天然一致，也不会出现"图上 7 根柱子加起来 40、副标写 41"这种没法解释的偏差。
+- **统计端口 `FormOverviewStatQuery`**（7 方法 / 3 record）：租户显式传参、
+  `invalidWindow()` 统一拦时间窗、空值折 0、表单名缺失折 `null` 由 provider 回落编码。
+  提交 Top 用 `LEFT JOIN form_definition` 取名、`MAX(d.name)` 保住"一个编码一行"：
+  定义被删掉后历史数据还在，内连接会把这几条提交从图上直接抹掉。
+- **索引按查询形状补**（`V16__form_overview_index.sql` + `init.sql`）：
+  `form_data(tenant_id, create_time)`、`(tenant_id, biz_status, update_time)`；
+  建好后删掉被最左前缀完全覆盖的 `idx_tenant_id` 与 `idx_tenant_biz_status`。
+  **不动** `idx_definition_id` / `idx_biz_key` / `idx_table_code_version`——它们服务的是
+  业务侧按定义、按业务键、按物理表路由的等值查询，与租户 + 时间无关。
+- **`init.sql` 顺带补齐 `form_data` 的欠账**：`client_request_id`（V5）、
+  `biz_status` / `process_instance_id`（V10）三列与两个唯一键原本只活在迁移里，
+  空库跑 `init.sql` 建出来的表与存量库不一致（新索引又依赖 `biz_status`，
+  不补会直接建表失败）。这一批把它补成"空库可独立执行"。
+- **屏风页**：`FORM_DEFINITION_PAGE` 五列（表单 / 编码 / 分类 / 状态 / 更新）。
+  关键字参数是 **`name`**，不是 `keyword`——`FormQueryRequest` 只有
+  `name / code / status / category` 四个条件（T5.4 `originalName`、T5.6 `title` 同一个坑）。
+  详情配 `detailPath`：字段配置（`fields`）只有详情接口带回来，列表行里没有。
+- **「禁用」给灰灯不给红灯**：停用是主动决定（这张表不收了），不是故障；
+  给红灯会让人每次路过都想点进去查一遍。字段分录里的"禁用"同理，且分录表只做文字翻译、
+  不打灯（与政事殿审批链一致：分录是明细，不是"这一屏整体健康度"）。
+- **位置**：考功殿在**东列第二进**（`x = +20.5`、殿心 `z = -7`），紧挨政事殿南侧，
+  屏风 `z = -2.5`（殿心 + 4.5）、`y = 3.42`，与 T5.2 起统一的摆法一致。
+- **总控接入**：`targets` 加 `kaogong-hall`（`http://bw-form:8084/form/overview`，
+  权限码同上），数枢殿总控里出现第七行真数据。
+- **验证**：`e2e/tools/world-kaogong-smoke.mjs` **59 项全绿**（四张 KPI 与两张黄灯、
+  单序列折线不画图例、搜索参数名是 `name` 且不夹带 `keyword`、状态值用 `1/0`、
+  正常绿灯 / 禁用灰灯、分页、详情 9 字段 + 字段配置 4 行、详情按 id 打真接口、
+  Esc 退出后回到 3D 尺寸、接口 500 标 stale 且列表给人话）。
+  后端 `FormOverviewProviderTest` **13 例** + `whale-service-form` 全量 **263 例**通过
+  （含 ArchUnit 5 例、Flyway 迁移守卫 3 例——守卫里新增 V16 两个索引与
+  "init.sql 不得再单建 `idx_tenant_id` / `idx_tenant_biz_status`"两条断言）；checkstyle 0 违规。
+- **e2e 环境坑（新）**：**两个 e2e 族不要并发跑**。屏风基础族（8124）与业务族（8125）
+  各起一个浏览器，两个 WebGL 上下文同时占 GPU 时会拖慢合成，`world-screenpage-smoke`
+  翻页按钮被判定成"element is outside of the viewport"而超时失败；串行重跑 35 项全绿。
+- **已知遗留**：`/form/overview` 的真实 HTTP 未验（本机 Docker / Nacos 未起）。
 
 ### S6 内城 12 坊
 

@@ -39,6 +39,9 @@ CREATE TABLE form_definition (
 -- ---------------------------------------------------------------------
 -- 表单数据表
 -- ---------------------------------------------------------------------
+-- 本表是 form 库里唯一会长到千万级的表，列与索引按已应用的最新迁移写全
+-- （client_request_id 来自 V5、biz_status / process_instance_id 来自 V10、
+-- 两个复合索引来自 V16），保证本脚本在空库上独立可执行。
 DROP TABLE IF EXISTS form_data;
 CREATE TABLE form_data (
     id                  BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
@@ -51,18 +54,28 @@ CREATE TABLE form_data (
     table_version       INT           DEFAULT NULL           COMMENT '所属表版本（路由物理表；缺省回落 definition_version）',
     form_definition_id  BIGINT        DEFAULT NULL           COMMENT '提交来源的表单视图ID（元数据模型；NULL 为旧模型）',
     biz_key             VARCHAR(64)   DEFAULT NULL           COMMENT '业务键（可选）',
+    client_request_id   VARCHAR(64)   DEFAULT NULL           COMMENT '客户端幂等键（可选，租户 + 表单编码内唯一）',
     data_json           MEDIUMTEXT    NULL                   COMMENT '表单数据JSON（最长64KB；过渡期双写，结构化真值见物理表）',
     submitter           VARCHAR(64)   DEFAULT NULL           COMMENT '提交人账号',
     status              TINYINT       NOT NULL DEFAULT 1     COMMENT '状态：1 有效 / 0 作废',
+    biz_status          TINYINT       NOT NULL DEFAULT 3     COMMENT '业务状态：1 草稿 / 2 审批中 / 3 已通过 / 4 已驳回（存量默认 3）',
+    process_instance_id VARCHAR(64)   DEFAULT NULL           COMMENT '外部工作流实例ID（审批中时非空）',
     create_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted             TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
+    UNIQUE KEY uk_tenant_definition_client_req (tenant_id, definition_code, client_request_id),
     KEY idx_definition_id (definition_id),
     KEY idx_biz_key (biz_key),
-    KEY idx_tenant_id (tenant_id),
     KEY idx_table_code_version (table_code, table_version),
-    KEY idx_form_definition_id (form_definition_id)
+    KEY idx_form_definition_id (form_definition_id),
+    KEY idx_process_instance (process_instance_id),
+    /* 考功殿（T5.7）：① 本租户 + 时间窗（今日提交 / 近 7 日趋势 / Top 表单）
+       ② 本租户 + 业务状态 + 多久没动（待审批累计 / 超时待审）。
+       这两个复合索引的最左前缀同时覆盖了原来的 idx_tenant_id 与
+       idx_tenant_biz_status，V16 已把那两个单列索引删掉。 */
+    KEY idx_tenant_create (tenant_id, create_time),
+    KEY idx_tenant_biz_update (tenant_id, biz_status, update_time)
 ) COMMENT='表单数据表（主记录；结构化字段落各版本物理表 form_data_{code}_v{version}）';
 
 -- ---------------------------------------------------------------------

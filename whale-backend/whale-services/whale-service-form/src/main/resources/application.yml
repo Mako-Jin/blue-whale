@@ -63,6 +63,15 @@ whale:
     enabled: true
     auto-init: true
     module-scan-enabled: true
+  # 三维王城考功殿（T5.7）：SDK 注册 GET /form/overview，本服务只提供 provider。
+  # base-path 含服务一级前缀（REQ-ARCH-003：网关不剥前缀），外部路径与这里一致。
+  overview:
+    base-path: /form/overview
+    # 四张 KPI + 两张图打 6 次库（定义数 / 今日提交 / 近 7 日趋势 / 待审批 / 超时待审 /
+    # 待修差异 / Top5 表单），都是 count 型聚合，5 秒足够
+    timeout: 5s
+    # 前端 30s 轮询一次；表单提交是分钟级变化，缓存 30s 不会让人看到旧数
+    ttl: 30s
 
 # 内网令牌：/form/internal/** 仅供档案服务内网直调，除网关 internal-deny 外再做一层服务端校验。
 # 令牌值由部署环境变量 WHALE_INTERNAL_TOKEN 注入，仓库内不落明文；未配置时非 dev 环境启动失败。

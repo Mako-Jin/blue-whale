@@ -42,6 +42,10 @@ export const OVERVIEW_HALLS: OverviewHallSpec[] = [
      权限码复用 2D 流程实例页的 `sys:workflow:instance:list`——能看到全租户实例的人，
      才该在城里看到"哪条审批链断了"。 */
   { nodeKey: 'zhengshi-hall', path: '/workflow/overview', permission: 'sys:workflow:instance:list' },
+  /* 考功殿（S5/T5.7）：表单还在被填吗、今天录了几条、多少条卡在审批、
+     主表与物理表有没有对不上的数据。权限码复用 2D 表单定义页的 `sys:form:list`——
+     能维护表单定义的人，才该在城里看到"哪张表没人填了、哪批数据对不上"。 */
+  { nodeKey: 'kaogong-hall', path: '/form/overview', permission: 'sys:form:list' },
 ];
 
 /** 采集器选项：与 metrics 共用同一套令牌/权限来源 */
