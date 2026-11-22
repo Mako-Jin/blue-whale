@@ -27,6 +27,7 @@ import com.bluewhale.pay.service.PaySettlementService;
 import com.bluewhale.pay.vo.PayOrderVO;
 import com.bluewhale.pay.vo.PayReconcileVO;
 import com.bluewhale.pay.vo.PayTransactionVO;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -82,7 +83,8 @@ class PayOrderServiceImplTest {
     private final PayRefundMapper payRefundMapper = mock(PayRefundMapper.class);
 
     private final PayChannelGateway payChannelGateway = new PayChannelGateway(
-            new PayChannelProperties(), List.of(new MockPayChannelAdapter(new PayChannelProperties())));
+            new PayChannelProperties(), List.of(new MockPayChannelAdapter(new PayChannelProperties(),
+                    new ObjectMapper())));
 
     private final PayNotifyService payNotifyService = mock(PayNotifyService.class);
 
@@ -314,7 +316,8 @@ class PayOrderServiceImplTest {
         properties.setMock(false);
         PayOrderServiceImpl service = new PayOrderServiceImpl(
                 payOrderMapper, payTransactionMapper,
-                new PayChannelGateway(properties, List.of(new MockPayChannelAdapter(properties))),
+                new PayChannelGateway(properties, List.of(new MockPayChannelAdapter(properties,
+                        new ObjectMapper()))),
                 payRefundService, paySettlementService, transactionTemplate, reconcileProperties);
         when(payOrderMapper.selectById(1L)).thenReturn(order(1L, "PAY20261020001", "CREATED"));
         when(payOrderMapper.update(isNull(), ArgumentMatchers.<Wrapper<PayOrderPo>>any())).thenReturn(1);

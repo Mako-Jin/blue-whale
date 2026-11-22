@@ -128,6 +128,38 @@ public class PayChannelGateway {
     }
 
     /**
+     * 解析渠道回调并验签（验签在适配器内完成）。
+     *
+     * @param channel 渠道编码
+     * @param rawBody 原始报文
+     * @param headers 原始请求头
+     * @return 统一回调请求
+     */
+    public ChannelCallbackRequest parseCallback(String channel, String rawBody, Map<String, String> headers) {
+        return requireAdapter(channel).parseCallback(rawBody, headers);
+    }
+
+    /**
+     * 渠道要求的成功响应体。
+     *
+     * @param channel 渠道编码
+     * @return 成功响应体
+     */
+    public String successResponse(String channel) {
+        return requireAdapter(channel).successResponse();
+    }
+
+    /**
+     * 渠道要求的失败响应体（触发渠道重发）。
+     *
+     * @param channel 渠道编码
+     * @return 失败响应体
+     */
+    public String failureResponse(String channel) {
+        return requireAdapter(channel).failureResponse();
+    }
+
+    /**
      * 按渠道号取适配器；白名单通过但无适配器实现视为渠道未接入
      *
      * @param channel 渠道编码

@@ -80,6 +80,9 @@ whale:
       - /social/v1/*/callback
       # 第三方电子签章回调：外部平台匿名回调，安全依赖渠道 HMAC/RSA 验签 + 时间戳窗口 + 幂等
       - /contract/sign/callback/**
+      # 支付渠道异步回调：外部渠道匿名回调，安全依赖渠道验签 + 幂等键；白名单请求会剥离
+      # 客户端伪造的身份/租户头（JwtAuthGlobalFilter#withoutIdentityHeaders），租户由支付单反查
+      - /pay/v1/callback/**
     # P2-6 WebSocket 握手 ticket 校验路径（精确匹配，不参与 Ant 通配）：
     #   必须与远程白名单（auth 库 sys_gateway_whitelist）、gateway-routes-fallback.yaml 的
     #   WS 路由 predicates 三处一致。新增 WS 端点时：本配置加路径 + 远程白名单加同路径

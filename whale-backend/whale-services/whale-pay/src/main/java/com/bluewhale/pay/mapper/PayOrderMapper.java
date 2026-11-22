@@ -60,6 +60,30 @@ public interface PayOrderMapper extends BaseMapper<PayOrderPo> {
                                             @Param("limit") int limit);
 
     /**
+     * 按支付单号反查租户（渠道回调使用）。
+     *
+     * <p>回调请求不信任入站租户头，必须先跨租户定位支付单。唯一键是
+     * {@code (tenant_id, order_no)}，若同一单号命中多个租户说明数据异常，
+     * 由调用方拒绝并留痕，不做猜测。</p>
+     *
+     * @param orderNo 支付单号
+     * @return 命中租户列表
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT tenant_id FROM pay_order WHERE order_no = #{orderNo} AND deleted = 0")
+    List<Long> selectTenantIdsByOrderNo(@Param("orderNo") String orderNo);
+
+    /**
+     * 渠道关单回调：仅未支付单可置为已取消（条件更新，并发安全）。
+     *
+     * @param id 支付单 ID
+     * @return 影响行数（0 表示已支付/已退款/已取消）
+     */
+    @Update("UPDATE pay_order SET status = 'CANCELLED', update_time = NOW() "
+            + "WHERE id = #{id} AND status IN ('CREATED', 'PAYING') AND deleted = 0")
+    int closeIfUnpaid(@Param("id") Long id);
+
+    /**
      * 时间窗内的收款统计（度支殿概览 T5.3）
      *
      * <p>口径按 {@code pay_time} 而不是 {@code create_time}：今天建的单一周后才付款，

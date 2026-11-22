@@ -3,13 +3,18 @@ package com.bluewhale.pay.channel;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.pay.config.PayChannelProperties;
+import com.bluewhale.pay.enums.PayCallbackEvent;
 import com.bluewhale.pay.po.PayOrderPo;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -31,6 +36,8 @@ public class MockPayChannelAdapter implements PayChannelAdapter {
     private static final String MOCK_REFUND_PREFIX = "MOCK-RF-";
 
     private final PayChannelProperties properties;
+
+    private final ObjectMapper objectMapper;
 
     @Override
     public String channel() {
@@ -70,19 +77,88 @@ public class MockPayChannelAdapter implements PayChannelAdapter {
     }
 
     /**
+     * 解析回调报文：MOCK 使用 JSON，字段与 {@link ChannelCallbackRequest} 对齐。
+     *
+     * <p>真实渠道必须在各自的适配器内完成验签；MOCK 只用于本地开发与冒烟，
+     * 因此不做签名校验，但仍要求报文结构合法。</p>
+     *
+     * @param rawBody 原始报文
+     * @param headers 原始请求头
+     * @return 统一回调请求
+     */
+    @Override
+    public ChannelCallbackRequest parseCallback(String rawBody, Map<String, String> headers) {
+        ensureMockEnabled();
+        JsonNode root;
+        try {
+            root = objectMapper.readTree(rawBody == null ? "" : rawBody);
+        } catch (JsonProcessingException ex) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "pay.callback.payload-invalid",
+                    "渠道回调报文非法", ex.getOriginalMessage());
+        }
+        if (root == null || !root.isObject()) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "pay.callback.payload-invalid", "渠道回调报文非法");
+        }
+        return new ChannelCallbackRequest(channel(), text(root, "channelTradeNo"),
+                text(root, "outTradeNo"), text(root, "refundNo"),
+                PayCallbackEvent.fromCode(text(root, "event")), decimal(root, "amount"),
+                text(root, "currency"), rawBody == null ? "" : rawBody,
+                headers == null ? Map.of() : Map.copyOf(headers));
+    }
+
+    /**
      * 校验 mock 开关与渠道归属。
      *
      * @param order 支付单
      */
     private void ensureMockEnabled(PayOrderPo order) {
-        if (!properties.isMock()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "pay.channel.not-integrated",
-                    "真实支付渠道尚未接入，请先实现渠道适配器或开启 whale.pay.mock");
-        }
+        ensureMockEnabled();
         if (!StringUtils.hasText(order.getChannel())
                 || !"MOCK".equals(order.getChannel().trim().toUpperCase(Locale.ROOT))) {
             throw new BizException(ErrorCode.PARAM_ERROR, "pay.channel.mock-only",
                     "MOCK 适配器只处理 MOCK 渠道订单: " + order.getChannel(), order.getChannel());
+        }
+    }
+
+    /**
+     * 校验 mock 开关。
+     */
+    private void ensureMockEnabled() {
+        if (!properties.isMock()) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "pay.channel.not-integrated",
+                    "真实支付渠道尚未接入，请先实现渠道适配器或开启 whale.pay.mock");
+        }
+    }
+
+    /**
+     * 读取文本字段，缺失返回 {@code null}。
+     *
+     * @param root  报文根节点
+     * @param field 字段名
+     * @return 字段值
+     */
+    private static String text(JsonNode root, String field) {
+        JsonNode node = root.get(field);
+        return node == null || node.isNull() ? null : node.asText();
+    }
+
+    /**
+     * 读取金额字段，缺失返回 {@code null}，格式非法抛业务异常。
+     *
+     * @param root  报文根节点
+     * @param field 字段名
+     * @return 金额
+     */
+    private static BigDecimal decimal(JsonNode root, String field) {
+        String value = text(root, field);
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        try {
+            return new BigDecimal(value.trim());
+        } catch (NumberFormatException ex) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "pay.callback.payload-invalid",
+                    "渠道回调金额非法: " + value, value);
         }
     }
 

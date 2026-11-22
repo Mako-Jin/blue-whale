@@ -3,6 +3,7 @@ package com.bluewhale.pay.channel;
 import com.bluewhale.pay.po.PayOrderPo;
 
 import java.math.BigDecimal;
+import java.util.Map;
 
 /**
  * 支付渠道适配器 SPI。
@@ -50,4 +51,35 @@ public interface PayChannelAdapter {
      * @return 渠道状态码
      */
     String queryStatus(PayOrderPo order);
+
+    /**
+     * 解析渠道异步回调报文并验签。
+     *
+     * <p>验签必须在本方法内完成：签名不合法、报文结构非法直接抛业务异常，
+     * 由回调服务落 {@code REJECTED/SIGN_INVALID} 并返回渠道失败体。
+     * 回调请求不携带可信租户，租户由 {@code outTradeNo} 反查支付单获得。</p>
+     *
+     * @param rawBody 原始报文
+     * @param headers 原始请求头（只读）
+     * @return 统一回调请求
+     */
+    ChannelCallbackRequest parseCallback(String rawBody, Map<String, String> headers);
+
+    /**
+     * 渠道要求的成功响应体（HTTP 恒为 200，渠道按响应体判断是否重发）。
+     *
+     * @return 成功响应体
+     */
+    default String successResponse() {
+        return "SUCCESS";
+    }
+
+    /**
+     * 渠道要求的失败响应体（触发渠道重发）。
+     *
+     * @return 失败响应体
+     */
+    default String failureResponse() {
+        return "FAIL";
+    }
 }
