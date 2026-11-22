@@ -418,8 +418,8 @@ public interface PayChannelAdapter {
 阶段 1  统一状态推进 PaySettlementService + PayChannelResult 扩展 + 状态机 ✅
 阶段 2  回调入站（表 + 控制器 + 适配器 parseCallback + 幂等 + 日志） ✅
 阶段 3  批量对账（表 + 任务 + 差异处置接口 + 概览告警） ✅
-阶段 4  内网鉴权部署侧切换 + whale-pay-client SDK
-阶段 5  次优三件（超时关单、通知指标 + ShedLock、部分退款 + 能力矩阵）
+阶段 4  内网鉴权部署侧切换 + whale-pay-client SDK ✅
+阶段 5  次优三件（超时关单、通知指标 + ShedLock、部分退款 + 能力矩阵） ✅
 阶段 6  数据生命周期与归档
 ```
 
@@ -477,7 +477,7 @@ public interface PayChannelAdapter {
 
 **与定稿的差异（理由随行）**
 
-1. 未引入 ShedLock：批次唯一键在插入时天然完成「单实例抢占」，重复触发读到 `RUNNING`/`SUCCESS` 直接返回，`FAILED`/`PARTIAL` 通过条件更新重新领取。pay 模块未引入 Redisson 或调度中心，为一个日任务新增第三方锁依赖不划算；唯一键本身已是最终幂等边界。
+1. ~~未引入 ShedLock~~：阶段 3 当时以批次唯一键完成单实例抢占；阶段 5 已引入 ShedLock（`shedlock` 表、`@SchedulerLock`），通知重试与日切对账共用，见 7.5。
 2. 未构建 `Money` 值对象：对账按单笔金额与币种比对，币种不一致直接落 `AMOUNT_MISMATCH`，不产生跨币种汇总；概览 `SUM(amount)` 的多币种分组仍列为待做项（阶段 5/6），本阶段未放大该问题。
 3. `LOCAL_ONLY` 只对已落账（`PAID`/`REFUNDED`）的本地单产出：`PAYING` 单可能尚未入账，若也判「本地有渠道无」会产生大量噪音；停留在 `PAYING` 的单由已有的秒级停留单对账兜底。
 4. 新增权限码 `sys:pay:reconcile:handle` / `sys:pay:reconcile:run` 未在 auth 模块补种子数据：按本轮「只改已改名的 whale-service-*/whale-ops-* 模块」约定，auth 不在改动范围，权限下发列入待做项。
@@ -502,7 +502,35 @@ public interface PayChannelAdapter {
 
 **验证**：新增 6 项单测（头部注入与单号生成、退款号生成、业务错误不重试、5xx 重试、`pay` 不重试、本地参数校验），`checkstyle:check` 通过。
 
+### 7.5 阶段 5 落地记录（2026-11-22）
+
+| 改动 | 内容 |
+|---|---|
+| `V7__pay_close_and_shedlock.sql` | `pay_order` 增加 `close_reason` / `close_attempts` / `next_close_at` 与 `idx_status_create_time`；新建 `shedlock` 表，DDL 均按 `information_schema` 判重可重复执行 |
+| `PayCloseReason` | `TIMEOUT` / `MANUAL` / `CHANNEL_CLOSED`；人工取消写 `MANUAL`，渠道关单回调写 `CHANNEL_CLOSED`，超时任务写 `TIMEOUT` |
+| `PayCloseService(Impl)` + `PayCloseProperties` | `@Scheduled(fixedDelayString="${whale.pay.close.interval-ms:300000}")` 跨租户扫 `CREATED` 且建单早于 `timeout-minutes`（默认 30）的单；渠道声明 `CLOSE` 时先调 `close(order)`，否则直接本地取消；失败按 `backoff-seconds * 2^n`（上限 `max-backoff-seconds`）写 `next_close_at`，本轮继续处理其余单；逐单还原租户上下文 |
+| `PayChannelFeature` + 适配器能力 | `PayChannelAdapter#features()`（默认空）、`#close(order)`（默认不支持）；`MockPayChannelAdapter` 声明全部四项能力并实现关单；`PayChannelGateway` 新增 `supports` / `features` / `close` / `capabilities` |
+| 通知可观测 | Micrometer `pay.notify.pending` / `dead` / `oldest_pending_age_seconds`（Gauge）+ `pay.notify.delivery`（Counter，tag event/bizType/targetService/result）+ `pay.notify.delivery_duration`（Timer）；`enqueue` 把 `RequestContextHolder` 的 trace 写入 `payload.traceId`，投递时存在则透传 `X-Trace-Id` |
+| 通知运维接口 | `notify/page` 增加 `bizType` 过滤；新增 `GET /pay/v1/notify/{id}`（返回含 `payload`）；新增 `POST /pay/v1/notify/retry-batch`（`LinkedHashSet` 去重保序、逐项捕获 `NOT_FOUND`、单项失败不影响其余） |
+| 部分退款 | 新增 `POST /pay/v1/order/{id}/refund/partial`（`amount` / `reason` / `clientRequestId`→`refundNo`）；`refundPartial` 校验已支付、金额不超过剩余可退；`doRefund` 统一做渠道能力校验，金额小于剩余可退且渠道无 `PARTIAL_REFUND` 时 400 |
+| 退款进度 | `PayOrderVO.refundableAmount = amount - refundAmount`（仅 `PAID` 非 0）；`PayRefundVO` 增加 `orderAmount` / `totalRefundedAmount`，列表与详情按 `payOrderNo` 批量回填支付单累计退款 |
+| 渠道能力接口 | 新增 `GET /pay/v1/channel/capabilities`（`sys:pay:list`），按渠道返回能力编码，供前端渲染按钮可用性 |
+| ShedLock | pay pom 引入 `shedlock-spring` / `shedlock-provider-jdbc-template` 7.11.0；`PaySchedulerConfig` 使用 `JdbcTemplateLockProvider.usingDbTime()`；`pay-notify-retry`（`lockAtMostFor=5m`）与 `pay-reconcile-batch`（`30m`）共用 `shedlock` 表 |
+| 概览 | 待支付 KPI 副标追加「今日自动关单 N」；`PayOverviewStatQuery#timedOutClosedBetween` 统计 `close_reason=TIMEOUT` 且 `update_time` 落在当日窗口的笔数 |
+| i18n | 三份 `messages*.properties` 同步新增 2 个业务错误键 + 7 个校验键 |
+
+**与定稿的差异（理由随行）**
+
+1. 关单失败重试未新建 `pay_close_task`，改为 `pay_order.close_attempts` + `next_close_at` 内联退避：两者语义等价（指数退避、扫描过滤），但省掉一张表与一套 Mapper，且失败单天然回到同一扫描入口；后续若需要人工查看「关单失败队列」，再抽出独立表。
+2. ShedLock 版本声明在 pay 模块（`shedlock.version` 属性）而非 `whale-parent` 的 `dependencyManagement`：遵守本轮「只改已改名的 `whale-service-*/whale-ops-*` 模块」约束；若其他服务后续需要同类锁，再上提到 parent 统一管理。
+3. `pay.notify.delivery_duration` 额外携带 `result` 标签（定稿只要求 delivery Counter 带 result）：可分别观察成功/失败耗时，不增加基数上限（四个标签均为低基数字段）。
+4. 「今日自动关单」以 `update_time` 圈定时间窗，未新增 `close_time` 列：`CANCELLED` 单的状态只写一次，`update_time` 即关单时刻；避免为统计再冗余一列。
+5. 渠道能力接口、部分退款、批量重试分别复用既有 `sys:pay:list` / `sys:pay:refund` / `sys:pay:notify:retry`，未新增权限码，auth 侧无需补种子。
+
+**验证**：`mvn -pl whale-services/whale-service-pay test` 96 项通过（新增 8 项：超时关单 4、通知批量重试 1、部分退款 2、剩余可退金额 1），Checkstyle 门禁通过（仅魔术数字 info 级提示）。
+
 ---
+
 
 ## 8. 需求项 / 完成项 / 待做项 / 已修正问题项
 
@@ -528,11 +556,12 @@ public interface PayChannelAdapter {
 | 阶段 2：渠道异步回调入站（验签/幂等/留痕/统一落账） | 已完成（2026-11-22，见 7.2） |
 | 阶段 3：批量对账 + 差异闭环（批次/差异/处置/概览告警） | 已完成（2026-11-22，见 7.3） |
 | 阶段 4：内网鉴权 + `whale-pay-client` SDK（代码侧） | 已完成（2026-11-22，见 7.4；部署侧待下发） |
+| 阶段 5：超时关单 + 通知可观测 + 部分退款/能力矩阵 | 已完成（2026-11-22，见 7.5） |
 | 本设计文档 | 已完成 |
 
 ### 待做项
 
-1. 阶段 5～6 实现（按第 7 节顺序）。
+1. 阶段 6 实现（数据生命周期与归档：`pay_transaction` / `pay_notify_task` 归档、`DEAD` 永久保留、补充索引）。
 2. 部署侧下发 `issuer-id`/`issuer-secret` 与租户白名单，配置 NetworkPolicy。
 3. 并发/幂等/故障注入集成测试（需 MySQL 环境）。
 4. `queryStatus` 扩展为可返回渠道流水号的 `queryResult`，补齐自动收敛时 `channel_trade_no` 为空的问题。
