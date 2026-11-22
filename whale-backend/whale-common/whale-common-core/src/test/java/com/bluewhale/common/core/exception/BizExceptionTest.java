@@ -51,6 +51,26 @@ class BizExceptionTest {
     }
 
     @Test
+    @DisplayName("以错误码枚举 + 国际化键 + 中文兜底构造：保留枚举码与键")
+    void shouldBuildFromErrorCodeWithMessageKey() {
+        BizException ex = new BizException(ErrorCode.PARAM_ERROR, "common.param.invalid", "参数非法", "name");
+
+        assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
+        assertEquals("common.param.invalid", ex.getMessageKey());
+        assertEquals("参数非法", ex.getMessage());
+        assertEquals(1, ex.getMessageArgs().length);
+        assertEquals("name", ex.getMessageArgs()[0]);
+    }
+
+    @Test
+    @DisplayName("占位参数显式传 null：归一化为空数组，避免 NPE")
+    void shouldNormalizeNullVarargsToEmptyArray() {
+        BizException ex = new BizException(40901, "doc.page.conflict", "页面冲突", (Object[]) null);
+
+        assertEquals(0, ex.getMessageArgs().length);
+    }
+
+    @Test
     @DisplayName("仅以文案构造：错误码缺省为系统错误")
     void shouldDefaultToSystemError() {
         BizException ex = new BizException("服务内部错误");

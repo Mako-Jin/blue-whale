@@ -29,6 +29,7 @@ class LocaleSupportTest {
         assertEquals(LocaleSupport.ENGLISH, LocaleSupport.fromAcceptLanguage("en-US,en;q=0.9"));
         assertEquals(LocaleSupport.CHINESE, LocaleSupport.fromAcceptLanguage("ja-JP,zh-TW;q=0.8"));
         assertEquals(LocaleSupport.DEFAULT_LANGUAGE, LocaleSupport.fromAcceptLanguage("ja-JP"));
+        assertEquals(LocaleSupport.DEFAULT_LANGUAGE, LocaleSupport.fromAcceptLanguage("  "));
         assertEquals(LocaleSupport.DEFAULT_LANGUAGE, LocaleSupport.fromAcceptLanguage(null));
     }
 

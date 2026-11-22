@@ -11,9 +11,12 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.AbstractSet;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -149,6 +152,24 @@ class HubOverviewAggregatorTest {
         properties.setTimeout(timeout);
         properties.setCacheTtl(ttl);
         properties.setTargets(new ArrayList<>(List.of(targets)));
+        aggregator = new HubOverviewAggregator(properties);
+        return aggregator;
+    }
+
+    /**
+     * 按原始配置启动聚合器（允许 targets / cacheTtl 为 null，覆盖配置缺省分支）
+     *
+     * @param timeout 单殿超时
+     * @param ttl 缓存时长，可为 null
+     * @param targets 殿配置，可为 null
+     * @return 聚合器
+     */
+    private HubOverviewAggregator startCustom(Duration timeout, Duration ttl,
+                                              List<HubOverviewProperties.Target> targets) {
+        HubOverviewProperties properties = new HubOverviewProperties();
+        properties.setTimeout(timeout);
+        properties.setCacheTtl(ttl);
+        properties.setTargets(targets);
         aggregator = new HubOverviewAggregator(properties);
         return aggregator;
     }
@@ -292,5 +313,230 @@ class HubOverviewAggregatorTest {
                 .containsExactly("营收=¥1,234", "订单=88件");
         assertThat(detail.note()).contains("口径：演示");
         assertThat(aggregate.detail("nope")).isNull();
+    }
+
+    @Test
+    @DisplayName("配置为 null：当作空殿表处理，给出可诊断说明而不是空指针")
+    void shouldHandleNullTargets() {
+        HubOverviewAggregator subject = startCustom(Duration.ofSeconds(2), Duration.ZERO, null);
+
+        HubAggregate aggregate = subject.aggregate(ctx());
+
+        assertThat(aggregate.probes()).isEmpty();
+        assertThat(aggregate.snapshot().notes()).anyMatch(note -> note.contains("未登记下游服务"));
+    }
+
+    @Test
+    @DisplayName("未配置地址 / 空节点 key / 空殿名：按诊断文本降级，不抛异常")
+    void shouldDegradeWhenUrlOrNamesBlank() {
+        HubOverviewProperties.Target blankNode = target(null, null, "/erp/overview", null);
+        blankNode.setUrl("  ");
+        HubOverviewProperties.Target blankName = target("gongbu-hall", "  ", "/erp/overview", null);
+        stub("/erp/overview", 200, LIVE_BODY, 0);
+        HubOverviewAggregator subject = start(Duration.ofSeconds(2), Duration.ZERO, blankNode, blankName);
+
+        HubAggregate aggregate = subject.aggregate(ctx());
+
+        assertThat(aggregate.rows().get(0).nodeKey()).isEmpty();
+        assertThat(aggregate.rows().get(0).name()).isEmpty();
+        assertThat(aggregate.rows().get(0).state()).isEqualTo("degraded");
+        assertThat(aggregate.rows().get(0).note()).isEqualTo("未配置地址");
+        assertThat(aggregate.rows().get(1).name()).isEqualTo("gongbu-hall");
+        assertThat(aggregate.rows().get(1).state()).isEqualTo("live");
+    }
+
+    @Test
+    @DisplayName("下游回 401/403：标无凭据，不笼统算成未通")
+    void shouldMarkDeniedOnAuthFailures() {
+        stub("/a/overview", 401, "{}", 0);
+        stub("/b/overview", 403, "{}", 0);
+        HubOverviewAggregator subject = start(Duration.ofSeconds(2), Duration.ZERO,
+                target("a-hall", "甲殿", "/a/overview", null),
+                target("b-hall", "乙殿", "/b/overview", null));
+
+        HubAggregate aggregate = subject.aggregate(ctx());
+
+        assertThat(aggregate.rows()).extracting(row -> row.state()).containsExactly("denied", "denied");
+        assertThat(aggregate.rows()).extracting(row -> row.note()).containsExactly("无此殿凭据", "无此殿凭据");
+    }
+
+    @Test
+    @DisplayName("下游空响应：无响应体与缺失 data 都折成空响应降级")
+    void shouldDegradeOnEmptyResponses() {
+        server.createContext("/empty/overview", exchange -> {
+            exchange.sendResponseHeaders(204, -1);
+            exchange.close();
+        });
+        stub("/nodata/overview", 200, "{\"code\":0,\"message\":\"ok\"}", 0);
+        HubOverviewAggregator subject = start(Duration.ofSeconds(2), Duration.ZERO,
+                target("empty-hall", "空殿", "/empty/overview", null),
+                target("nodata-hall", "无数殿", "/nodata/overview", null));
+
+        HubAggregate aggregate = subject.aggregate(ctx());
+
+        assertThat(aggregate.rows()).extracting(row -> row.note()).containsExactly("空响应", "空响应");
+    }
+
+    @Test
+    @DisplayName("下游业务拒绝：长消息截断成一句，不把整段文案塞进告警条")
+    void shouldDegradeOnBusinessErrorWithLongMessage() {
+        String longMessage = "业务拒绝".repeat(10);
+        // 必须带 data，否则先被“空响应”分支截住，走不到业务码判定
+        String body = "{\"code\":500,\"message\":\"" + longMessage + "\",\"data\":{}}";
+        stub("/biz/overview", 200, body, 0);
+        HubOverviewAggregator subject = start(Duration.ofSeconds(2), Duration.ZERO,
+                target("biz-hall", "业务殿", "/biz/overview", null));
+
+        HubAggregate aggregate = subject.aggregate(ctx());
+
+        assertThat(aggregate.rows().get(0).state()).isEqualTo("degraded");
+        assertThat(aggregate.rows().get(0).note()).hasSize(30).endsWith("…");
+    }
+
+    @Test
+    @DisplayName("身份转发：空身份不写头，角色码单独转发")
+    void shouldForwardRolesAndSkipNullIdentity() {
+        stub("/erp/overview", 200, LIVE_BODY, 0);
+        HubOverviewAggregator subject = start(Duration.ofSeconds(2), Duration.ZERO,
+                target("hubu-hall", "户部", "/erp/overview", null));
+
+        subject.aggregate(OverviewContext.of(null, null, Set.of(), Set.of("crm_admin", "crm_analyst")));
+
+        assertThat(seenHeaders).doesNotContainKey("x-user-id@/erp/overview");
+        assertThat(seenHeaders).doesNotContainKey("x-tenant-id@/erp/overview");
+        assertThat(seenHeaders).doesNotContainKey("x-permission-codes@/erp/overview");
+        assertThat(seenHeaders.get("x-user-roles@/erp/overview")).contains("crm_admin", "crm_analyst");
+    }
+
+    @Test
+    @DisplayName("下游快照无 notes：说明只写实时，不追加空壳后缀")
+    void shouldHandleSnapshotWithoutNotes() {
+        String nullNotes = """
+                {"code":0,"message":"ok","data":{"service":"erp","nodeKey":"hubu-hall","title":"户部",
+                "generatedAt":"2026-11-21T03:00:00+08:00","state":"live",
+                "kpis":[{"key":"revenue","label":"营收","value":1234,"format":"money","tone":"flat"}],
+                "charts":[],"alerts":[],"links":[],"notes":null}}
+                """;
+        String emptyNotes = nullNotes.replace("\"notes\":null", "\"notes\":[]");
+        stub("/nullnotes/overview", 200, nullNotes, 0);
+        stub("/emptynotes/overview", 200, emptyNotes, 0);
+        HubOverviewAggregator subject = start(Duration.ofSeconds(2), Duration.ZERO,
+                target("a-hall", "甲殿", "/nullnotes/overview", null),
+                target("b-hall", "乙殿", "/emptynotes/overview", null));
+
+        HubAggregate aggregate = subject.aggregate(ctx());
+
+        assertThat(aggregate.rows()).extracting(row -> row.note()).containsExactly("实时", "实时");
+    }
+
+    @Test
+    @DisplayName("空上下文：缓存键按匿名租户处理，空殿表仍返回诚实快照")
+    void shouldHandleNullContext() {
+        HubOverviewAggregator subject = start(Duration.ofSeconds(2), Duration.ZERO);
+
+        HubAggregate aggregate = subject.aggregate(null);
+
+        assertThat(aggregate.probes()).isEmpty();
+        assertThat(aggregate.snapshot().notes()).anyMatch(note -> note.contains("未登记下游服务"));
+    }
+
+    @Test
+    @DisplayName("TTL 过期：重新问下游，而不是一直返回旧快照")
+    void shouldRebuildAfterTtlExpires() throws InterruptedException {
+        stub("/erp/overview", 200, LIVE_BODY, 0);
+        HubOverviewAggregator subject = start(Duration.ofSeconds(2), Duration.ofMillis(1),
+                target("hubu-hall", "户部", "/erp/overview", null));
+
+        subject.aggregate(ctx());
+        Thread.sleep(20L);
+        subject.aggregate(ctx());
+
+        assertThat(hits.get("/erp/overview").get()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("缓存时长为 null：回落默认 TTL")
+    void shouldUseDefaultTtlWhenNull() {
+        stub("/erp/overview", 200, LIVE_BODY, 0);
+        HubOverviewAggregator subject = startCustom(Duration.ofSeconds(2), null,
+                new ArrayList<>(List.of(target("hubu-hall", "户部", "/erp/overview", null))));
+
+        subject.aggregate(ctx());
+        subject.aggregate(ctx());
+
+        assertThat(hits.get("/erp/overview").get()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("缓存时长为负数：同样回落默认 TTL")
+    void shouldUseDefaultTtlWhenNegative() {
+        stub("/erp/overview", 200, LIVE_BODY, 0);
+        HubOverviewAggregator subject = start(Duration.ofSeconds(2), Duration.ofMillis(-1),
+                target("hubu-hall", "户部", "/erp/overview", null));
+
+        subject.aggregate(ctx());
+        subject.aggregate(ctx());
+
+        assertThat(hits.get("/erp/overview").get()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("连接被拒：折成未接通，不把堆栈写到表格里")
+    void shouldReportConnectionRefused() throws IOException {
+        ServerSocket closed = new ServerSocket(0);
+        int port = closed.getLocalPort();
+        closed.close();
+        HubOverviewProperties.Target unreachable = new HubOverviewProperties.Target();
+        unreachable.setNodeKey("down-hall");
+        unreachable.setName("断联殿");
+        unreachable.setUrl("http://127.0.0.1:" + port + "/overview");
+        HubOverviewAggregator subject = start(Duration.ofSeconds(2), Duration.ZERO, unreachable);
+
+        HubAggregate aggregate = subject.aggregate(ctx());
+
+        assertThat(aggregate.rows().get(0).state()).isEqualTo("degraded");
+        assertThat(aggregate.rows().get(0).note()).isEqualTo("未接通");
+    }
+
+    @Test
+    @DisplayName("响应体坏掉：按 RuntimeException 降级，说明截断为一句")
+    void shouldDegradeOnUnreadableBody() {
+        stub("/bad/overview", 200, "not-a-json", 0);
+        HubOverviewAggregator subject = start(Duration.ofSeconds(2), Duration.ZERO,
+                target("bad-hall", "坏殿", "/bad/overview", null));
+
+        HubAggregate aggregate = subject.aggregate(ctx());
+
+        assertThat(aggregate.rows().get(0).state()).isEqualTo("degraded");
+        assertThat(aggregate.rows().get(0).note()).isNotBlank().hasSizeLessThanOrEqualTo(30);
+    }
+
+    @Test
+    @DisplayName("问询任务异常：await 兜住 CompletionException，单殿降级不影响整页")
+    void shouldDegradeWhenProbeTaskFails() {
+        Set<String> explodingCodes = new AbstractSet<>() {
+            @Override
+            public Iterator<String> iterator() {
+                return List.<String>of().iterator();
+            }
+
+            @Override
+            public int size() {
+                return 0;
+            }
+
+            @Override
+            public boolean contains(Object value) {
+                throw new IllegalStateException("模拟权限读取失败");
+            }
+        };
+        OverviewContext broken = new OverviewContext(11L, 7L, explodingCodes, Set.of());
+        HubOverviewAggregator subject = start(Duration.ofSeconds(2), Duration.ZERO,
+                target("a-hall", "甲殿", "/a/overview", "sys:a:view"));
+
+        HubAggregate aggregate = subject.aggregate(broken);
+
+        assertThat(aggregate.rows().get(0).state()).isEqualTo("degraded");
+        assertThat(aggregate.rows().get(0).note()).isEqualTo("问询中断");
     }
 }

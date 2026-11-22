@@ -15,6 +15,7 @@ import org.springframework.util.DigestUtils;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -244,6 +245,129 @@ class LocalChunkUploadStoreTest {
 
         BizException ex = assertThrows(BizException.class,
                 () -> store.storePart(sessionId, 0, broken, 1L));
+
+        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("构造：存储根目录无法创建时抛系统错误")
+    void shouldRejectUnusableRoot() throws IOException {
+        Path fileRoot = tempDir.resolve("not-a-dir");
+        Files.writeString(fileRoot, "occupied");
+        FileProperties properties = new FileProperties();
+        properties.getStorage().setRoot(fileRoot.toString());
+
+        BizException ex = assertThrows(BizException.class,
+                () -> new LocalChunkUploadStore(properties));
+
+        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("initialize：会话目录无法创建时抛系统错误")
+    void shouldFailWhenSessionDirCannotBeCreated() throws IOException {
+        ChunkUploadSessionId sessionId = ChunkUploadSessionId.random();
+        Path sessionDir = tempDir.resolve(".chunk-upload").resolve(sessionId.value());
+        Files.createDirectories(sessionDir.getParent());
+        Files.writeString(sessionDir, "occupied");
+
+        BizException ex = assertThrows(BizException.class,
+                () -> store.initialize(sessionId, metadata(1L)));
+
+        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("initialize：关闭保留期时跳过过期清理")
+    void shouldSkipPurgeWhenTtlDisabled() {
+        FileProperties properties = new FileProperties();
+        properties.getStorage().setRoot(tempDir.toString());
+        properties.setChunkUploadTtlHours(0L);
+        LocalChunkUploadStore noTtl = new LocalChunkUploadStore(properties);
+        ChunkUploadSessionId sessionId = ChunkUploadSessionId.random();
+
+        noTtl.initialize(sessionId, metadata(1L));
+
+        assertTrue(noTtl.exists(sessionId));
+    }
+
+    @Test
+    @DisplayName("writable/sessionCount：报告根目录可写状态与暂存会话数")
+    void shouldReportWritableAndSessionCount() {
+        assertTrue(store.writable());
+        assertEquals(0L, store.sessionCount());
+
+        store.initialize(ChunkUploadSessionId.random(), metadata(1L));
+
+        assertTrue(store.writable());
+        assertEquals(1L, store.sessionCount());
+    }
+
+    @Test
+    @DisplayName("metadata：会话目录存在但元数据文件缺失时返回 null")
+    void shouldReturnNullWhenMetaMissing() throws IOException {
+        ChunkUploadSessionId sessionId = ChunkUploadSessionId.random();
+        Files.createDirectories(tempDir.resolve(".chunk-upload").resolve(sessionId.value()));
+
+        assertNull(store.metadata(sessionId));
+    }
+
+    @Test
+    @DisplayName("metadata：元数据文件不可读时抛系统错误")
+    void shouldFailWhenMetaUnreadable() throws IOException {
+        ChunkUploadSessionId sessionId = ChunkUploadSessionId.random();
+        Files.createDirectories(tempDir.resolve(".chunk-upload").resolve(sessionId.value())
+                .resolve("meta.properties"));
+
+        BizException ex = assertThrows(BizException.class, () -> store.metadata(sessionId));
+
+        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("metadata：空 MIME 与非法数字按默认值回落")
+    void shouldFoldInvalidMetadataValues() {
+        ChunkUploadSessionId sessionId = ChunkUploadSessionId.random();
+        store.initialize(sessionId, new ChunkUploadMetadata("f", null, 10L));
+        assertNull(store.metadata(sessionId).contentType());
+
+        Path meta = tempDir.resolve(".chunk-upload").resolve(sessionId.value())
+                .resolve("meta.properties");
+        try {
+            Files.writeString(meta, "size=abc\nmaxSizeBytes=xyz\nquotaBytes=bad\n");
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+
+        ChunkUploadMetadata folded = store.metadata(sessionId);
+        assertEquals(0L, folded.size());
+        assertEquals(ChunkUploadMetadata.LIMITS_NOT_RECORDED, folded.maxSizeBytes());
+        assertEquals(ChunkUploadMetadata.LIMITS_NOT_RECORDED, folded.quotaBytes());
+    }
+
+    @Test
+    @DisplayName("uploadedPartIndexes：忽略非数字分片文件名")
+    void shouldIgnoreNonNumericPartNames() throws IOException {
+        ChunkUploadSessionId sessionId = ChunkUploadSessionId.random();
+        store.initialize(sessionId, metadata(1L));
+        Path dir = tempDir.resolve(".chunk-upload").resolve(sessionId.value());
+        Files.writeString(dir.resolve("part-"), "x");
+        Files.writeString(dir.resolve("part-abc"), "x");
+        storePart(sessionId, 3, "OK");
+
+        assertEquals(List.of(3), store.uploadedPartIndexes(sessionId));
+    }
+
+    @Test
+    @DisplayName("merge：合并文件无法写入时抛系统错误")
+    void shouldFailWhenMergedFileCannotBeWritten() throws IOException {
+        ChunkUploadSessionId sessionId = ChunkUploadSessionId.random();
+        store.initialize(sessionId, metadata(1L));
+        Path mergedDir = tempDir.resolve(".chunk-upload").resolve(sessionId.value())
+                .resolve("merged.bin");
+        Files.createDirectories(mergedDir.resolve("blocker"));
+
+        BizException ex = assertThrows(BizException.class, () -> store.merge(sessionId, 0));
 
         assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), ex.getCode());
     }

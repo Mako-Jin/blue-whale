@@ -172,6 +172,27 @@ class LocalStoragePluginTest {
     }
 
     @Test
+    @DisplayName("构造：未配置根目录时抛系统错误")
+    void shouldRejectMissingRoot() {
+        LocalStorageProperties properties = new LocalStorageProperties();
+        properties.setRoot(" ");
+
+        BizException ex = assertThrows(BizException.class, () -> new LocalStoragePlugin(properties));
+
+        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("health：根目录存在且可写时 UP；目录消失后 DOWN")
+    void shouldReportHealth() throws IOException {
+        assertTrue(plugin.health().up());
+
+        Files.delete(tempDir);
+
+        assertFalse(plugin.health().up());
+    }
+
+    @Test
     @DisplayName("presignedDownloadUrl：本地插件不支持，抛参数错误")
     void shouldRejectPresign() {
         BizException ex = assertThrows(BizException.class,

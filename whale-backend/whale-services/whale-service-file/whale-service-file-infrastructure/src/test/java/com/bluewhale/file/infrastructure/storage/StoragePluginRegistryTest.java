@@ -10,6 +10,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -285,5 +286,105 @@ class StoragePluginRegistryTest {
         BizException invalidKey = assertThrows(BizException.class,
                 () -> new StoragePluginRegistry(List.of(local), invalid));
         assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), invalidKey.getCode());
+    }
+
+    @Test
+    @DisplayName("同类型插件重复注册时保留先注册者")
+    void shouldKeepFirstDuplicatePlugin() {
+        StoragePlugin first = plugin("local", false);
+        StoragePlugin second = plugin("local", true);
+
+        StoragePluginRegistry registry =
+                new StoragePluginRegistry(List.of(first, second), properties("local"));
+
+        assertEquals(1, registry.plugins().size());
+        assertFalse(registry.plugins().get(0).presignedSupported());
+    }
+
+    @Test
+    @DisplayName("move/listObjects 委派给活动插件")
+    void shouldDelegateMoveAndList() {
+        StoragePlugin local = plugin("local", false);
+        when(local.listObjects()).thenReturn(List.of());
+        StoragePluginRegistry registry = new StoragePluginRegistry(List.of(local), properties("local"));
+
+        registry.move("b", "k", "target", "local");
+
+        assertEquals(List.of(), registry.listObjects("local"));
+        verify(local).move("b", "k", "target");
+    }
+
+    @Test
+    @DisplayName("启用加密但密钥长度非法时启动失败")
+    void shouldRejectWrongKeyLength() {
+        FileProperties bad = properties("local");
+        bad.getStorage().getEncryption().setEnabled(true);
+        bad.getStorage().getEncryption()
+                .setKey(Base64.getEncoder().encodeToString(new byte[8]));
+
+        BizException ex = assertThrows(BizException.class,
+                () -> new StoragePluginRegistry(List.of(plugin("local", false)), bad));
+
+        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("加密区间读取失败时关闭原始流并抛系统错误")
+    void shouldFailOnEncryptedRangeRead() {
+        StoragePlugin local = plugin("local", false);
+        StoragePluginRegistry registry = new StoragePluginRegistry(List.of(local), encryptedProperties());
+        byte[] header = new byte[20];
+        System.arraycopy("WHALEENC".getBytes(StandardCharsets.US_ASCII), 0, header, 0, 8);
+        when(local.load("b", "k", 0L, 20L)).thenReturn(new ByteArrayInputStream(header));
+        InputStream broken = new InputStream() {
+            @Override
+            public int read() throws IOException {
+                throw new IOException("boom");
+            }
+
+            @Override
+            public void close() throws IOException {
+                throw new IOException("close boom");
+            }
+        };
+        when(local.load("b", "k")).thenReturn(broken);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> registry.load("b", "k", 0L, 1L, "local"));
+
+        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("加密模式下探测对象头失败时按明文回落区间读取")
+    void shouldFallbackWhenHeaderProbeFails() throws Exception {
+        StoragePlugin local = plugin("local", false);
+        StoragePluginRegistry registry = new StoragePluginRegistry(List.of(local), encryptedProperties());
+        when(local.load("b", "k", 0L, 20L)).thenThrow(new IllegalStateException("probe failed"));
+        when(local.load("b", "k", 2L, 2L)).thenReturn(
+                new ByteArrayInputStream("xy".getBytes(StandardCharsets.US_ASCII)));
+
+        try (InputStream in = registry.load("b", "k", 2L, 2L, "local")) {
+            assertEquals("xy", new String(in.readAllBytes(), StandardCharsets.US_ASCII));
+        }
+    }
+
+    @Test
+    @DisplayName("加密区间流支持单字节读取与跳过")
+    void shouldReadAndSkipLimitedStream() throws Exception {
+        StoragePlugin local = plugin("local", false);
+        StoragePluginRegistry registry = new StoragePluginRegistry(List.of(local), encryptedProperties());
+        byte[] cipherText = storeAndCapture(local, registry,
+                "abcdef".getBytes(StandardCharsets.US_ASCII));
+        when(local.load("b", "k", 0L, 20L))
+                .thenReturn(new ByteArrayInputStream(Arrays.copyOf(cipherText, 20)));
+        when(local.load("b", "k")).thenReturn(new ByteArrayInputStream(cipherText));
+
+        try (InputStream in = registry.load("b", "k", 1L, 3L, "local")) {
+            assertEquals('b', in.read());
+            assertEquals(1L, in.skip(1L));
+            assertEquals("d", new String(in.readAllBytes(), StandardCharsets.US_ASCII));
+            assertEquals(-1, in.read());
+        }
     }
 }

@@ -1,6 +1,6 @@
 {
-  "note": "覆盖率基线：只升不降。校验脚本 scripts/ci/check-coverage.py；目标阈值见 docs/design/cicd.md §3.3（行 40% / 分支 30%）。 2026-11-22 按当前全量 verify 实测校准 14 个模块的陈旧模块级基线（服务重命名/拆分后口径漂移）；聚合基线保持 49.84%/44.20%，仍低于实测 53.17%/47.09%。",
-  "generated_at": "2026-11-22T06:50:37Z",
+  "note": "覆盖率基线：只升不降。校验脚本 scripts/ci/check-coverage.py；目标阈值见 docs/design/cicd.md §3.3（行 40% / 分支 30%）。 2026-11-22 补充总控聚合/文件/支付/场景/审计/告警/common-core 单测后按实测上调 9 个模块基线；聚合基线保持 49.84%/44.20%，实测 53.51%/47.61%。",
+  "generated_at": "2026-11-22T10:24:43Z",
   "target": {
     "line": 0.4,
     "branch": 0.3
@@ -52,8 +52,8 @@
       "branch": 0.5453
     },
     "whale-common/whale-common-core": {
-      "line": 0.963,
-      "branch": 0.9286
+      "line": 0.9762,
+      "branch": 1.0
     },
     "whale-common/whale-common-domain": {
       "line": 0.9423,
@@ -76,16 +76,16 @@
       "branch": 1.0
     },
     "whale-ops/whale-ops-alert": {
-      "line": 0.7714,
+      "line": 0.7912,
       "branch": 0.5738
     },
     "whale-ops/whale-ops-audit": {
       "line": 0.8377,
-      "branch": 0.709
+      "branch": 0.7254
     },
     "whale-ops/whale-monitor": {
-      "line": 0.7736,
-      "branch": 0.5882
+      "line": 0.8,
+      "branch": 0.875
     },
     "whale-registry/whale-config": {
       "line": 0.8798,
@@ -153,18 +153,18 @@
     },
     "whale-services/whale-service-pay": {
       "line": 0.6655,
-      "branch": 0.5053
+      "branch": 0.5476
     },
     "whale-services/whale-scene": {
-      "line": 0.6204,
-      "branch": 0.6517
+      "line": 0.6489,
+      "branch": 0.67
     },
     "whale-services/whale-service-auth/whale-service-auth-starter": {
       "line": 0.3868,
       "branch": 0.3239
     },
     "whale-services/whale-service-file/whale-service-file-application": {
-      "line": 0.8958,
+      "line": 0.9132,
       "branch": 0.7672
     },
     "whale-services/whale-service-file/whale-service-file-domain": {
@@ -172,12 +172,12 @@
       "branch": 0.7614
     },
     "whale-services/whale-service-file/whale-service-file-infrastructure": {
-      "line": 0.7872,
-      "branch": 0.6203
+      "line": 0.885,
+      "branch": 0.8367
     },
     "whale-services/whale-service-file/whale-service-file-plugins/whale-service-file-plugins-local": {
-      "line": 0.7176,
-      "branch": 0.75
+      "line": 0.75,
+      "branch": 0.85
     },
     "whale-services/whale-service-file/whale-service-file-plugins/whale-service-file-plugins-minio": {
       "line": 0.5644,
