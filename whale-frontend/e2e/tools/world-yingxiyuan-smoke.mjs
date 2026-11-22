@@ -348,8 +348,18 @@ check('幕布画面尺寸 16:9（480×270）',
   nearStage?.width === 480 && nearStage?.height === 270, nearStage);
 const nearFrames = nearStage?.frames ?? -1;
 await page.waitForTimeout(1500);
-const nearFrames2 = (await page.evaluate(() => window.__bwwStageScreen?.() ?? null))?.frames ?? -1;
+const nearStage2 = await page.evaluate(() => window.__bwwStageScreen?.() ?? null);
+const nearFrames2 = nearStage2?.frames ?? -1;
 check('走近后帧计数在涨（画面真的在动）', nearFrames2 > nearFrames, { nearFrames, nearFrames2 });
+/* 帧计数只说明"我们在重绘"，不说明"画上去有东西"：纹理会话没绑上、画面被清成纯色，
+   帧计数照样涨。对比度（中心 32×32 亮度标准差）与视频时刻把这两种假绿分开：
+   - contrast 接近 0 = 一块纯色幕布（灯箱底若真画上去，皮影人与字幕会把值顶到 20+）
+   - videoTime 不推进 = <video> 停在首帧，纹理是死的 */
+check('幕布画面不是一块纯色（中心亮度标准差 > 6）',
+  (nearStage2?.contrast ?? 0) > 6, { contrast: nearStage2?.contrast, nearStage: nearStage2 });
+check('视频时刻在推进（captureStream 真在推帧，不是停在首帧）',
+  (nearStage2?.videoTime ?? 0) > (nearStage?.videoTime ?? 0),
+  { before: nearStage?.videoTime, after: nearStage2?.videoTime });
 const stagePos = { x: nearStage?.x ?? 0, z: nearStage?.z ?? 0 };
 check('幕布立在影戏院侧前方（世界坐标 x>70、z>20）',
   stagePos.x > 70 && stagePos.z > 20, stagePos);

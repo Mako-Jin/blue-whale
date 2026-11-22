@@ -73,6 +73,10 @@ export interface StageScreenHandle {
     shows: number;
     /** captureStream / play 失败原因（null 表示没出错）；排障时先看这一项 */
     videoError: string | null;
+    /** 视频当前播放时刻（秒）：在推进才说明 stream 真的在推帧，不是停在首帧 */
+    videoTime: number;
+    /** 画面中心 32×32 的亮度标准差：证明"不是一块纯色"（0 附近=空白幕布） */
+    contrast: number;
   };
 }
 
@@ -292,6 +296,34 @@ export function createStageScreen(width: number, height: number): StageScreenHan
     stream = capture;
   }
 
+  /**
+   * 采样画面中心 32×32 的亮度标准差。
+   *
+   * <p>帧计数只说明"我们在重绘"，不说明"画上去的东西有内容"——纹理没绑上、
+   * 画面被清成纯色时帧计数照样涨。标准差把"一块纯色"与"有图形的画面"分开，
+   * e2e 用它做负向兜底（阈值取 6：皮影戏灯箱底约 20~40，纯色接近 0）。</p>
+   *
+   * <p>上下文从参数传入而不是闭包捕获：`ctx` 是守卫过的 `const`，但函数声明会提升，
+   * TS 不会把守卫后的收窄带进这种作用域，直接引用会报 `possibly 'null'`。</p>
+   *
+   * @param context 画布上下文（非空）
+   * @returns 亮度标准差（0~255 量纲）
+   */
+  function sampleContrast(context: CanvasRenderingContext2D): number {
+    const size = 32;
+    const data = context.getImageData((SCREEN_W - size) / 2, (SCREEN_H - size) / 2, size, size).data;
+    let sum = 0;
+    let sumSq = 0;
+    const count = size * size;
+    for (let i = 0; i < data.length; i += 4) {
+      const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      sum += lum;
+      sumSq += lum * lum;
+    }
+    const mean = sum / count;
+    return Number(Math.sqrt(Math.max(0, sumSq / count - mean * mean)).toFixed(2));
+  }
+
   return {
     group,
     update(dt: number, distance: number): void {
@@ -343,6 +375,8 @@ export function createStageScreen(width: number, height: number): StageScreenHan
         near,
         shows: SHOWS.length,
         videoError,
+        videoTime: video ? Number(video.currentTime.toFixed(3)) : 0,
+        contrast: sampleContrast(ctx),
       };
     },
   };
