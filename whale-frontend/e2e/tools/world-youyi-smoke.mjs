@@ -56,7 +56,7 @@ const OVERVIEW = {
   kpis: [
     { key: 'mailboxes', label: '在册邮箱', value: 22, format: 'count', tone: 'flat', hint: '另停用 3 个' },
     { key: 'sync-overdue', label: '同步超时', value: 2, format: 'count', tone: 'warn', hint: '超过一天没拉到新信' },
-    { key: 'quota-tight', label: '配额吃紧', value: 1, format: 'count', tone: 'warn', hint: '已用八成以上，该清理或扩容' },
+    { key: 'quota-tight', label: '配额吃紧', value: 1, format: 'count', tone: 'warn', hint: '已用八成以上' },
     { key: 'bounce', label: '近七日退信', value: 4, format: 'count', tone: 'warn', hint: '永久 3 · 临时 1' },
   ],
   charts: [

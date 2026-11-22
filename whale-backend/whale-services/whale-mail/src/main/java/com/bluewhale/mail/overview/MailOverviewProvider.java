@@ -162,7 +162,9 @@ public class MailOverviewProvider implements OverviewProvider {
      * @return 提示语
      */
     private static String quotaHint(MailOverviewStats stats) {
-        return stats.quotaTight() > 0 ? "已用八成以上，该清理或扩容" : "配额都还宽裕";
+        /* 牌面提示只有一行的宽度：13 个字会被 ellipsis 截掉（实测"已用八成以上，该清理…"），
+     "该清理"这层意思交给告警条说。 */
+        return stats.quotaTight() > 0 ? "已用八成以上" : "配额都还宽裕";
     }
 
     /**
