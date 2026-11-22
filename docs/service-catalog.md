@@ -2,6 +2,7 @@
 
 > 用途：**全平台端口 ↔ 服务 ↔ 组件**的唯一权威清单。看端口即知对应哪个服务，看服务即知其分组、库、对外前缀与职责。
 > 关联需求：REQ-ARCH-005（新增）、REQ-ARCH-004（命名规范，[naming-conventions.md](naming-conventions.md) §八）
+> 最后更新：2026-11-22（**Agent/Assistant/档案/场景/数字孪生对外接口版本化**：统一为 `/<service>/v1/**`；`/assistant/openapi/v1/**`、`/agent/mcp`、各服务 internal 与 overview 保持不变；新增 `V44__agent_assistant_archive_scene_twin_api_path_versioning.sql`，前端 API 层、门户/文档/后台、世界屏风页、SSE 与烟测脚本同步。）
 > 最后更新：2026-11-22（**CRM/合同/PDM/PM/地图对外接口版本化**：统一为 `/<service>/v1/**`；电子签回调 `/contract/sign/callback/**`、各服务 internal 与 overview 保持不变；新增 `V43__crm_contract_pdm_pm_map_api_path_versioning.sql`，前端 API 层、世界屏风页、e2e 与烟测脚本同步。）
 > 最后更新：2026-11-22（**ERP/MES/OA/LMS/MALL 对外接口版本化**：五个应用对外接口统一为 `/<service>/v1/**`，与 `/pay/v1/**`、`/form/v1/**` 等保持一致；内网 `/<service>/internal/**` 与概览 `/<service>/overview` 本轮保持不变，避免破坏跨服务调用与监控聚合；各应用新增 `ApiVersionConfig`，权限元数据由 `V42__erp_mes_oa_lms_mall_api_path_versioning.sql` 迁移，前端 API 层、世界屏风页、e2e 与烟测脚本同步。）
 > 最后更新：2026-11-09（**常态编排补齐基础设施依赖**：`deploy/backend/docker-compose.services.yml` 新增 `whale-file`（8085）、`whale-contract`（9006）、`whale-mall`（9010）三个服务；`whale-music` / `whale-party` 改为 `demo` profile，默认不启动。此前 CRM 分析导出、OA 公文附件、LMS 课件、PDM 附件、archive 归档、audit 导出、job 附件清理的 `WHALE_*_FILE_SERVICE_URL` 全部指向一个不存在的容器（功能实际不可用）。前提是 Docker VM 上限由 6GB 提到 8GB（`~/.wslconfig`），常态栈 **22 个容器**全 healthy、VM 余量约 600MB。回归基线：`scripts/file-smoke.py`（9/9）、`scripts/mall-smoke.py`（77/77）。`docker-compose.verify.yml` 只保留 CRM/OA 第二副本，不再重复定义这三个服务。）
