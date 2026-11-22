@@ -1,5 +1,10 @@
 // 静态菜单配置 - 基座占位菜单与子应用入口
 // 图标在 MainLayout 中通过 MENU_ICONS 映射，保持本文件为纯数据
+//
+// 语言：menuConfig 的 label 为中文基线，英文集中在 menuLabelEn（按 key 索引）。
+// 本地化函数在渲染时按当前语言取词，未登记英文的项回退中文，保证永不空白。
+
+import { detectUiLang, type UiLang } from '@bluewhale/whale-auth';
 
 export interface MenuNode {
   key: string;
@@ -122,6 +127,96 @@ export const menuConfig: MenuNode[] = [
 ];
 
 /**
+ * 菜单英文文案（按节点 key 索引）。新增菜单项时须同步补英文，
+ * menu.test.ts 会校验中英键集合一致，漏登记直接 FAIL。
+ */
+export const menuLabelEn: Record<string, string> = {
+  '/': 'Workspace',
+  '/preferences': 'Notification Preferences',
+  '/system': 'System Management',
+  '/system/users': 'Users',
+  '/system/roles': 'Roles',
+  '/system/menus': 'Menus',
+  '/portal': 'Portal',
+  '/erp': 'ERP',
+  '/erp/items': 'Items',
+  '/erp/suppliers': 'Suppliers',
+  '/erp/master-data': 'ERP Master Data',
+  '/erp/finance/voucher': 'Vouchers',
+  '/erp/finance/arap': 'Receivables & Payables',
+  '/erp/finance/report': 'Financial Reports',
+  '/erp/scm/purchase': 'Purchase Orders',
+  '/erp/scm/sales': 'Sales Orders',
+  '/erp/scm/stock': 'Inventory Ledger',
+  '/erp/scm/transfer': 'Stock Transfers',
+  '/erp/scm/stocktake': 'Stocktaking',
+  '/erp/scm/purchase-return': 'Purchase Returns',
+  '/erp/scm/sales-return': 'Sales Returns',
+  '/erp/scm/purchase-requisition': 'Purchase Requisitions',
+  '/erp/scm/sales-quotation': 'Sales Quotations',
+  '/erp/scm/price-list': 'Price Lists',
+  '/erp/scm/safety-stock': 'Safety Stock',
+  '/erp/mfg/forecast': 'Demand Forecast',
+  '/erp/mfg/mps': 'Master Production Schedule',
+  '/erp/mfg/production': 'Production Orders',
+  '/erp/hr/employee': 'Organization & Employees',
+  '/erp/hr/attendance': 'Attendance',
+  '/erp/hr/payroll': 'Payroll Batches',
+  '/erp/hr/performance': 'Performance',
+  '/erp/qc/inspection': 'Inspection & Nonconformity',
+  '/erp/qc/equipment': 'Equipment & Maintenance',
+  '/erp/qc/metrology': 'Gauges & Calibration',
+  '/erp/bi/cockpit': 'Business Cockpit',
+  '/erp/bi/cube': 'Multidimensional Analysis',
+  '/erp/bi/report': 'Report Center',
+  '/erp/bi/alert': 'Alert Center',
+  '/oa': 'OA',
+  '/mes': 'MES',
+  '/pdm': 'PDM',
+  '/pdm/document': 'Document Center',
+  '/pdm/product': 'Product Structure',
+  '/im': 'Messages',
+  '/pm': 'Project Management',
+  '/contract': 'Contracts',
+  '/doc': 'Documents',
+  '/music': 'Music',
+  '/mail': 'Mail',
+  '/lms': 'Learning & Training',
+  '/party': 'Party & Union',
+  '/scene': 'City Navigation',
+  '/scene/navigation': '2D Navigation',
+  '/scene/manage': 'Scene Management',
+  '/scene/bindings': 'Entry Bindings',
+  '/scene/visibility': 'Visibility',
+  '/assistant': 'AI Assistant',
+  '/agent': 'Knowledge Assistant',
+  '/iot': 'IoT Devices',
+  '/twin': 'Digital Twin',
+  '/forum': 'Forum',
+  '/world': 'Blue Whale City 3D',
+};
+
+/**
+ * 取菜单节点的本地化文案：英文命中用英文，其余回落中文。
+ *
+ * @param node 菜单节点
+ * @param lang 目标语言
+ * @returns 展示文案
+ */
+export function localizedMenuLabel(node: MenuNode, lang: UiLang): string {
+  return lang === 'en-US' ? (menuLabelEn[node.key] ?? node.label) : node.label;
+}
+
+/**
+ * 按当前存储偏好取界面语言（无 i18n 的基座直接复用共享工具）。
+ *
+ * @returns 当前语言
+ */
+export function currentUiLang(): UiLang {
+  return detectUiLang();
+}
+
+/**
  * 按当前用户权限裁剪菜单：无权限的叶子节点隐藏；目录在子节点全部隐藏时一并隐藏。
  *
  * <p>未声明 {@code permission} 的节点始终可见（工作台/门户为无数据权限的入口）。
@@ -150,22 +245,23 @@ export function filterMenuByPermissions(
   return visible;
 }
 
-const routeTitles = new Map<string, string>();
+const routeNodes = new Map<string, MenuNode>();
 
 function collectTitles(nodes: MenuNode[]): void {
   nodes.forEach((node) => {
-    routeTitles.set(node.key, node.label);
+    routeNodes.set(node.key, node);
     if (node.children) collectTitles(node.children);
   });
 }
 collectTitles(menuConfig);
 
 // 根据路径取页面标题：精确匹配菜单项；子应用子路由取第一段匹配；兜底返回路径本身
-export function getRouteTitle(pathname: string): string {
-  const exact = routeTitles.get(pathname);
-  if (exact) return exact;
+export function getRouteTitle(pathname: string, lang: UiLang = 'zh-CN'): string {
+  const exact = routeNodes.get(pathname);
+  if (exact) return localizedMenuLabel(exact, lang);
   const segment = `/${pathname.split('/')[1]}`;
-  return routeTitles.get(segment) ?? pathname;
+  const parent = routeNodes.get(segment);
+  return parent ? localizedMenuLabel(parent, lang) : pathname;
 }
 
 /**
@@ -178,23 +274,25 @@ export function getRouteTitle(pathname: string): string {
  * @returns 是菜单项返回 true
  */
 export function hasMenuEntry(pathname: string): boolean {
-  return routeTitles.has(pathname);
+  return routeNodes.has(pathname);
 }
 
 // 根据路径取面包屑文本链（如 ['系统管理', '用户管理']）
-export function getBreadcrumbItems(pathname: string): string[] {
+export function getBreadcrumbItems(pathname: string, lang: UiLang = 'zh-CN'): string[] {
   for (const item of menuConfig) {
     if (item.children) {
       const child = item.children.find((node) => node.key === pathname);
-      if (child) return [item.label, child.label];
+      if (child) {
+        return [localizedMenuLabel(item, lang), localizedMenuLabel(child, lang)];
+      }
     } else if (item.key === pathname) {
-      return [item.label];
+      return [localizedMenuLabel(item, lang)];
     }
   }
   if (pathname !== '/') {
     const segment = `/${pathname.split('/')[1]}`;
-    const parent = routeTitles.get(segment);
-    if (parent) return [parent];
+    const parent = routeNodes.get(segment);
+    if (parent) return [localizedMenuLabel(parent, lang)];
   }
   return [];
 }

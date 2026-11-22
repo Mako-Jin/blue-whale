@@ -11,8 +11,11 @@ export type Language = 'zh-CN' | 'en-US';
 /** 默认语言：简体中文 */
 export const DEFAULT_LANGUAGE: Language = 'zh-CN';
 
-/** 语言持久化键 */
+/** 语言持久化键（与共享包 whale-auth 的 UI_LANG_STORAGE_KEY 一致） */
 const STORAGE_KEY = 'whale-admin-lang';
+
+/** 语言变更事件名（与共享包 whale-auth 的 UI_LANG_CHANGE_EVENT 一致，供基座菜单联动） */
+const LANG_CHANGE_EVENT = 'whale-ui-lang-change';
 
 /**
  * 归一化语言标签：仅接受中文/英文，其余返回 null。
@@ -73,5 +76,11 @@ export function saveLanguage(language: Language): void {
     window.localStorage.setItem(STORAGE_KEY, language);
   } catch {
     // 存储不可用时仅本次会话生效
+  }
+  // qiankun 基座与子应用共享 window：广播以便基座菜单/面包屑实时跟随，避免中英混杂
+  try {
+    window.dispatchEvent(new CustomEvent(LANG_CHANGE_EVENT, { detail: language }));
+  } catch {
+    // 无 DOM 环境忽略
   }
 }

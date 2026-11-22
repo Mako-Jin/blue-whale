@@ -16,7 +16,7 @@ interface LoginFormValues {
 
 export default function LoginPage() {
   const { message } = App.useApp();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   /** 登录锁定倒计时（连续错口令触达上限时禁用提交，避免无效连点） */
@@ -99,6 +99,7 @@ export default function LoginPage() {
           userId={pendingChange.userId ?? getCurrentUser()?.userId}
           baseUrl={import.meta.env.VITE_API_BASE_URL ?? ''}
           getToken={getToken}
+          language={language}
           onSuccess={() => {
             // 清登录态（内存令牌 + 用户缓存），提示用新口令重新登录
             clearAuth();

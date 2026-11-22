@@ -10,24 +10,26 @@
  */
 
 import { useState, type CSSProperties, type FormEvent } from 'react';
+import { detectUiLang, type UiLang } from './language';
+import { changePasswordMessages, type ChangePasswordMessages } from './mustChangePasswordMessages';
 import { getCsrfToken } from './refresh';
 
 /** 密码强度要求：≥12 位且同时包含大写字母、小写字母、数字与特殊字符（与后端默认策略一致） */
-function validatePasswordStrength(password: string): string | null {
+function validatePasswordStrength(password: string, msg: ChangePasswordMessages): string | null {
   if (password.length < 12) {
-    return '密码长度至少 12 位';
+    return msg.errorTooShort;
   }
   if (!/[a-z]/.test(password)) {
-    return '密码需包含小写字母';
+    return msg.errorNeedLower;
   }
   if (!/[A-Z]/.test(password)) {
-    return '密码需包含大写字母';
+    return msg.errorNeedUpper;
   }
   if (!/[0-9]/.test(password)) {
-    return '密码需包含数字';
+    return msg.errorNeedDigit;
   }
   if (!/[^A-Za-z0-9]/.test(password)) {
-    return '密码需包含特殊字符';
+    return msg.errorNeedSpecial;
   }
   return null;
 }
@@ -45,6 +47,11 @@ export interface MustChangePasswordDialogProps {
   getToken: () => string | null;
   /** 改密成功后的回调（提示用新口令重新登录并清登录态跳登录页） */
   onSuccess: () => void;
+  /**
+   * 界面语言。接入 I18nProvider 的应用（admin）应显式传入以实时跟随切换；
+   * 未传时回落到共享语言工具（读 whale-admin-lang，无记录固定中文），兼容无 i18n 的调用方。
+   */
+  language?: UiLang;
 }
 
 const overlayStyle: CSSProperties = {
@@ -90,7 +97,10 @@ export function MustChangePasswordDialog({
   baseUrl = '',
   getToken,
   onSuccess,
+  language,
 }: MustChangePasswordDialogProps) {
+  const lang = language ?? detectUiLang();
+  const msg = changePasswordMessages[lang];
   const [oldPassword, setOldPassword] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -103,25 +113,25 @@ export function MustChangePasswordDialog({
       return;
     }
     if (!oldPassword) {
-      setError('请输入原密码');
+      setError(msg.errorOldPasswordRequired);
       return;
     }
-    const weakness = validatePasswordStrength(password);
+    const weakness = validatePasswordStrength(password, msg);
     if (weakness) {
       setError(weakness);
       return;
     }
     if (password !== confirm) {
-      setError('两次输入的新密码不一致');
+      setError(msg.errorConfirmMismatch);
       return;
     }
     if (password === oldPassword) {
-      setError('新密码不能与原密码相同');
+      setError(msg.errorSameAsOld);
       return;
     }
     const token = getToken();
     if (!token) {
-      setError('登录态已失效，请重新登录');
+      setError(msg.errorTokenInvalid);
       return;
     }
     setSubmitting(true);
@@ -145,10 +155,12 @@ export function MustChangePasswordDialog({
         // 拒绝，再弹一次验密只会更绕——直接给出可执行的提示（后端已取消该端点的二次认证，
         // 此处是历史配置或网关策略变动时的兜底）。
         if (response.status === 428 || payload?.code === 42801) {
-          setError('当前会话需要重新验证身份，请退出后重新登录再试');
+          setError(msg.errorReauth);
           return;
         }
-        setError(payload?.message ?? `密码修改失败（HTTP ${response.status}）`);
+        setError(
+          payload?.message ?? msg.errorHttp.replace('{status}', String(response.status)),
+        );
         return;
       }
       // 尽力登出旧会话（服务端撤销存量令牌并清刷新 Cookie）；失败不阻断本地清态
@@ -168,7 +180,7 @@ export function MustChangePasswordDialog({
       }
       onSuccess();
     } catch {
-      setError('网络异常，请稍后重试');
+      setError(msg.errorNetwork);
     } finally {
       setSubmitting(false);
     }
@@ -177,11 +189,11 @@ export function MustChangePasswordDialog({
   return (
     <div style={overlayStyle}>
       <form style={cardStyle} onSubmit={handleSubmit}>
-        <h3 style={{ margin: 0, fontSize: 16 }}>请修改密码</h3>
+        <h3 style={{ margin: 0, fontSize: 16 }}>{msg.title}</h3>
         <p style={{ margin: '8px 0 0', fontSize: 13, color: 'rgba(0, 0, 0, 0.65)' }}>
-          首次登录、密码被重置或密码已到期时，必须设置新密码后才能继续使用系统。
+          {msg.description}
         </p>
-        <label style={labelStyle}>原密码</label>
+        <label style={labelStyle}>{msg.oldPassword}</label>
         <input
           style={inputStyle}
           type="password"
@@ -190,7 +202,7 @@ export function MustChangePasswordDialog({
           autoFocus
           onChange={(e) => setOldPassword(e.target.value)}
         />
-        <label style={labelStyle}>新密码</label>
+        <label style={labelStyle}>{msg.newPassword}</label>
         <input
           style={inputStyle}
           type="password"
@@ -198,7 +210,7 @@ export function MustChangePasswordDialog({
           autoComplete="new-password"
           onChange={(e) => setPassword(e.target.value)}
         />
-        <label style={labelStyle}>确认新密码</label>
+        <label style={labelStyle}>{msg.confirmPassword}</label>
         <input
           style={inputStyle}
           type="password"
@@ -206,7 +218,7 @@ export function MustChangePasswordDialog({
           autoComplete="new-password"
           onChange={(e) => setConfirm(e.target.value)}
         />
-        <div style={hintStyle}>至少 12 位，且包含大写字母、小写字母、数字和特殊字符</div>
+        <div style={hintStyle}>{msg.strengthHint}</div>
         {error ? <div style={dangerStyle}>{error}</div> : null}
         <button
           type="submit"
@@ -223,7 +235,7 @@ export function MustChangePasswordDialog({
             cursor: submitting ? 'default' : 'pointer',
           }}
         >
-          {submitting ? '提交中…' : '修改密码并重新登录'}
+          {submitting ? msg.submitting : msg.submit}
         </button>
       </form>
     </div>

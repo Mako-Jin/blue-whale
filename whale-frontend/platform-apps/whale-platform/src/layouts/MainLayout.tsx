@@ -26,17 +26,23 @@ import {
   TeamOutlined,
   UserOutlined,
 } from '@ant-design/icons';
-import { App, Avatar, Badge, Breadcrumb, Button, Dropdown, Layout, Menu, Space, Tabs } from 'antd';
+import { App, Avatar, Badge, Breadcrumb, Button, Dropdown, Layout, Menu, Select, Space, Tabs } from 'antd';
 import type { MenuProps } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import {
+  saveUiLang,
+  type UiLang,
+} from '@bluewhale/whale-auth';
 import { logout, useCurrentUser } from '../api/auth';
 import { useImUnread } from '../hooks/useImUnread';
+import { useUiLang } from '../hooks/useUiLang';
 import {
   getBreadcrumbItems,
   getRouteTitle,
   hasMenuEntry,
   filterMenuByPermissions,
   menuConfig,
+  localizedMenuLabel,
 } from '../router/menu';
 import { ThemeSwitcher } from '@bluewhale/whale-common-theme';
 
@@ -48,7 +54,17 @@ interface TabItem {
   closable: boolean;
 }
 
-const HOME_TAB: TabItem = { key: '/', label: '工作台', closable: false };
+/** 首页标签与少量 Header 文案的中英对照（菜单主体走 menuLabelEn） */
+const BASE_TEXT = {
+  homeTab: { 'zh-CN': '工作台', 'en-US': 'Workspace' },
+  loggedOut: { 'zh-CN': '已退出登录', 'en-US': 'Signed out' },
+  notLoggedIn: { 'zh-CN': '未登录', 'en-US': 'Not signed in' },
+  logout: { 'zh-CN': '退出登录', 'en-US': 'Sign out' },
+  collapseMenu: { 'zh-CN': '折叠菜单', 'en-US': 'Toggle menu' },
+  logoTitle: { 'zh-CN': 'BlueWhale 微服务平台', 'en-US': 'BlueWhale Microservices' },
+  user: { 'zh-CN': '用户', 'en-US': 'User' },
+  languageLabel: { 'zh-CN': '语言', 'en-US': 'Language' },
+} as const;
 
 const MENU_ICONS: Record<string, ReactNode> = {
   '/': <HomeOutlined />,
@@ -81,8 +97,12 @@ export default function MainLayout() {
   const { message } = App.useApp();
   const navigate = useNavigate();
   const location = useLocation();
+  const language = useUiLang();
+  const tx = (key: keyof typeof BASE_TEXT) => BASE_TEXT[key][language];
   const [collapsed, setCollapsed] = useState(false);
-  const [tabs, setTabs] = useState<TabItem[]>([HOME_TAB]);
+  const [tabs, setTabs] = useState<TabItem[]>([
+    { key: '/', label: BASE_TEXT.homeTab['zh-CN'], closable: false },
+  ]);
   const user = useCurrentUser();
   const imUnread = useImUnread(user?.permissions?.includes('sys:im:chat') ?? false);
 
@@ -100,9 +120,11 @@ export default function MainLayout() {
       }
       return [
         ...prev,
-        { key: activeKey, label: getRouteTitle(activeKey), closable: activeKey !== '/' },
+        { key: activeKey, label: getRouteTitle(activeKey, language), closable: activeKey !== '/' },
       ];
     });
+    // language 仅用于新增标签时的标题；已有标签在渲染时按当前语言重算，无需重复入 state
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeKey]);
 
   const handleTabChange = (key: string) => {
@@ -122,7 +144,7 @@ export default function MainLayout() {
 
   const handleLogout = async () => {
     await logout();
-    message.success('已退出登录');
+    message.success(tx('loggedOut'));
     navigate('/login', { replace: true });
   };
 
@@ -135,23 +157,39 @@ export default function MainLayout() {
     label:
       item.key === '/im' ? (
         <Badge count={imUnread} size="small" offset={[10, 0]}>
-          {item.label}
+          {localizedMenuLabel(item, language)}
         </Badge>
       ) : (
-        item.label
+        localizedMenuLabel(item, language)
       ),
     children: item.children?.map((child) => ({
       key: child.key,
       icon: MENU_ICONS[child.key],
-      label: child.label,
+      label: localizedMenuLabel(child, language),
     })),
   }));
 
   const userMenuItems: MenuProps['items'] = [
-    { key: 'username', icon: <UserOutlined />, label: user?.username ?? '未登录', disabled: true },
+    {
+      key: 'username',
+      icon: <UserOutlined />,
+      label: user?.username ?? tx('notLoggedIn'),
+      disabled: true,
+    },
     { type: 'divider' },
-    { key: 'logout', icon: <LogoutOutlined />, label: '退出登录', danger: true },
+    { key: 'logout', icon: <LogoutOutlined />, label: tx('logout'), danger: true },
   ];
+
+  // 已打开标签在语言切换后按当前语言重算标题（首页标题也随语言变）
+  const localizedTabs: TabItem[] = tabs.map((tab) => ({
+    ...tab,
+    label:
+      tab.key === '/'
+        ? tx('homeTab')
+        : getRouteTitle(tab.key, language) === tab.key
+          ? tab.label
+          : getRouteTitle(tab.key, language),
+  }));
 
   return (
     // 固定视口高度（而非 minHeight）：子应用容器用 height:100% 撑满，父级必须高度确定，
@@ -180,20 +218,31 @@ export default function MainLayout() {
         <Header className="platform-header">
           <Button
             type="text"
-            aria-label="折叠菜单"
+            aria-label={tx('collapseMenu')}
             icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
             onClick={() => setCollapsed(!collapsed)}
           />
           <div className="platform-logo">
             <span className="platform-logo-mark">B</span>
-            <span className="platform-logo-title">BlueWhale 微服务平台</span>
+            <span className="platform-logo-title">{tx('logoTitle')}</span>
           </div>
           <Breadcrumb
             className="platform-breadcrumb"
-            items={getBreadcrumbItems(activeKey).map((title) => ({ title }))}
+            items={getBreadcrumbItems(activeKey, language).map((title) => ({ title }))}
           />
           <Space className="platform-header-actions">
             <ThemeSwitcher compact />
+            <Select<UiLang>
+              aria-label={tx('languageLabel')}
+              size="small"
+              value={language}
+              style={{ width: 96 }}
+              onChange={(value) => saveUiLang(value)}
+              options={[
+                { value: 'zh-CN', label: '中文' },
+                { value: 'en-US', label: 'English' },
+              ]}
+            />
             <Dropdown
               menu={{
                 items: userMenuItems,
@@ -204,7 +253,7 @@ export default function MainLayout() {
             >
               <Space className="platform-user">
                 <Avatar size="small" icon={<UserOutlined />} />
-                <span>{user?.nickname ?? '用户'}</span>
+                <span>{user?.nickname ?? tx('user')}</span>
               </Space>
             </Dropdown>
           </Space>
@@ -215,7 +264,7 @@ export default function MainLayout() {
             hideAdd
             size="small"
             activeKey={activeKey}
-            items={tabs}
+            items={localizedTabs}
             onChange={handleTabChange}
             onEdit={(targetKey, action) => {
               if (action === 'remove') handleTabClose(String(targetKey));
