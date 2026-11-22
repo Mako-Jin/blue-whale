@@ -417,7 +417,7 @@ public interface PayChannelAdapter {
 阶段 0  文档定稿（本文） ✅
 阶段 1  统一状态推进 PaySettlementService + PayChannelResult 扩展 + 状态机 ✅
 阶段 2  回调入站（表 + 控制器 + 适配器 parseCallback + 幂等 + 日志） ✅
-阶段 3  批量对账（表 + 任务 + 差异处置接口 + 概览告警）
+阶段 3  批量对账（表 + 任务 + 差异处置接口 + 概览告警） ✅
 阶段 4  内网鉴权部署侧切换 + whale-pay-client SDK
 阶段 5  次优三件（超时关单、通知指标 + ShedLock、部分退款 + 能力矩阵）
 阶段 6  数据生命周期与归档
@@ -462,6 +462,29 @@ public interface PayChannelAdapter {
 
 **验证**：`mvn test` 78 项通过（新增回调 8 项：支付成功、验签失败、金额不符、未知单号、重复回调、失败重试、退款成功、关单冲突），`mvn checkstyle:check` 通过。
 
+### 7.3 阶段 3 落地记录（2026-11-22）
+
+| 改动 | 内容 |
+|---|---|
+| `V6__pay_reconcile.sql` | 新增 `pay_reconcile_batch`、`pay_reconcile_diff`；批次唯一键 `(tenant_id, channel, biz_date)`，差异唯一键 `(batch_id, channel, order_no, diff_type)` |
+| `PayReconcileBatchPo` / `PayReconcileDiffPo` / Mapper | 批次重新领取用条件更新；差异提供未处置计数与处置条件更新 |
+| `PayReconcileBatchStatus` / `PayReconcileDiffType` / `PayReconcileHandleStatus` / `PayReconcileAction` | 状态、差异类型、处置状态与动作枚举，落库字符串与枚举名一致 |
+| `PayChannelAdapter#supportsBillDownload` / `downloadBill` | 默认不支持账单下载；支持时由渠道实现返回 `ChannelBillItem`。不用「空列表」表达不支持，避免误判为渠道当日无单 |
+| `PayChannelGateway` | 新增 `supportsBillDownload` / `downloadBill` 路由 |
+| `PayReconcileService(Impl)` | 日切 `@Scheduled(cron = "${whale.pay.reconcile.batch-cron:0 30 2 * * ?}")` 跑 T-1；手动触发；跨租户列租户后逐租户还原上下文；批次唯一键抢占执行；账单比对四类差异；不支持账单下载降级为逐笔状态查询并标记 `PARTIAL`；账单取数异常落 `FAILED` 且不产出差异；补偿复用 `PaySettlementService#markPaid` |
+| `PayReconcileController` | `GET /pay/v1/reconcile/batch/page`、`GET /pay/v1/reconcile/diff/page`、`POST /pay/v1/reconcile/diff/{id}/handle`、`POST /pay/v1/reconcile/batch`；处置与触发写审计日志 |
+| 概览 | `PayOverviewStatQuery` 增加 `openDiffCount` / `openAmountMismatchCount`；度支殿新增「对账差异」KPI，金额不一致 `CRITICAL`、存在未处置差异 `WARNING` |
+
+**与定稿的差异（理由随行）**
+
+1. 未引入 ShedLock：批次唯一键在插入时天然完成「单实例抢占」，重复触发读到 `RUNNING`/`SUCCESS` 直接返回，`FAILED`/`PARTIAL` 通过条件更新重新领取。pay 模块未引入 Redisson 或调度中心，为一个日任务新增第三方锁依赖不划算；唯一键本身已是最终幂等边界。
+2. 未构建 `Money` 值对象：对账按单笔金额与币种比对，币种不一致直接落 `AMOUNT_MISMATCH`，不产生跨币种汇总；概览 `SUM(amount)` 的多币种分组仍列为待做项（阶段 5/6），本阶段未放大该问题。
+3. `LOCAL_ONLY` 只对已落账（`PAID`/`REFUNDED`）的本地单产出：`PAYING` 单可能尚未入账，若也判「本地有渠道无」会产生大量噪音；停留在 `PAYING` 的单由已有的秒级停留单对账兜底。
+4. 新增权限码 `sys:pay:reconcile:handle` / `sys:pay:reconcile:run` 未在 auth 模块补种子数据：按本轮「只改已改名的 whale-service-*/whale-ops-* 模块」约定，auth 不在改动范围，权限下发列入待做项。
+5. 渠道账单行缺少商户单号时以渠道流水号作为差异单号兜底，保证 `CHANNEL_ONLY` 可追溯。
+
+**验证**：`mvn test` 88 项通过（新增对账 9 项：LOCAL_ONLY、CHANNEL_ONLY、AMOUNT_MISMATCH、STATUS_MISMATCH、降级 PARTIAL、账单取数失败、批次幂等、补偿拒绝、补偿成功；概览新增 1 项差异告警），`checkstyle:check` 通过。
+
 ---
 
 ## 8. 需求项 / 完成项 / 待做项 / 已修正问题项
@@ -486,15 +509,17 @@ public interface PayChannelAdapter {
 | 内网令牌 starter 按服务签发 + 租户白名单 | 已完成（代码侧） |
 | 阶段 1：统一状态推进 + 状态机 + 渠道结果状态 | 已完成（2026-11-22，见 7.1） |
 | 阶段 2：渠道异步回调入站（验签/幂等/留痕/统一落账） | 已完成（2026-11-22，见 7.2） |
+| 阶段 3：批量对账 + 差异闭环（批次/差异/处置/概览告警） | 已完成（2026-11-22，见 7.3） |
 | 本设计文档 | 已完成 |
 
 ### 待做项
 
-1. 阶段 3～6 实现（按第 7 节顺序）。
+1. 阶段 4～6 实现（按第 7 节顺序）。
 2. 部署侧下发 `issuer-id`/`issuer-secret` 与租户白名单，配置 NetworkPolicy。
 3. 并发/幂等/故障注入集成测试（需 MySQL 环境）。
 4. `queryStatus` 扩展为可返回渠道流水号的 `queryResult`，补齐自动收敛时 `channel_trade_no` 为空的问题。
-5. `Money` 值对象与统计 SQL 按币种分组，最迟在批量对账（阶段 3）施工前完成。
+5. `Money` 值对象与统计 SQL 按币种分组，最迟在批量对账（阶段 3）施工前完成——阶段 3 未引入，概览多币种仍待处理。
+6. auth 模块补 `sys:pay:reconcile:handle` / `sys:pay:reconcile:run` 权限种子，并对 `tenant_admin` 授权。
 
 ### 已修正问题项
 
