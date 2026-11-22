@@ -1862,6 +1862,106 @@ export const THREAD_PAGE: ScreenListPageSpec = {
 };
 
 /**
+ * 邮件文件夹：与后端 {@code MailFolderType} 的 code 一一对应。
+ *
+ * <p>{@code CUSTOM} 单列一档：自定义文件夹在 2D 里是账号自建的归档目录，
+ * 屏风上不提供按它筛选（值不知道），但列表里出现时不能显示成裸的 "CUSTOM"。</p>
+ */
+export const MAIL_FOLDER_TYPE: Record<string, ScreenStatusStyle> = {
+  INBOX: { label: '收件箱', tone: 'good' },
+  SENT: { label: '已发送', tone: 'flat' },
+  DRAFT: { label: '草稿箱', tone: 'flat' },
+  JUNK: { label: '垃圾邮件', tone: 'warn' },
+  TRASH: { label: '已删除', tone: 'bad' },
+  CUSTOM: { label: '自定义', tone: 'flat' },
+};
+
+/**
+ * 已读状态：后端 {@code seen} 是 0/1。
+ *
+ * <p><b>字典键必须是字符串</b>：渲染层用 {@code String(value)} 查表，写成数字
+ * {@code 0: {...}} 会变成对象索引，运行时永远查不到、且不报错——这一列就会
+ * 一直显示裸的 "0"。</p>
+ */
+export const MAIL_SEEN_STATE: Record<string, ScreenStatusStyle> = {
+  '0': { label: '未读', tone: 'warn' },
+  '1': { label: '已读', tone: 'flat' },
+};
+
+/** 附件标记：{@code hasAttachment} 0/1，破折号而不是"无"——表格里越短越好 */
+export const MAIL_ATTACHMENT_STATE: Record<string, ScreenStatusStyle> = {
+  '0': { label: '—', tone: 'flat' },
+  '1': { label: '附件', tone: 'good' },
+};
+
+/**
+ * 邮驿（MAIL）邮件列表页。
+ *
+ * <p><b>筛选框选的是文件夹不是状态。</b>邮件没有"状态"这个维度：已读未读是行上的
+ * 一列，而同一封信在不同文件夹里含义完全不同（草稿、已发送、垃圾）。所以
+ * {@code statusParam} 指向 {@code folderCode}，控件语义是"看哪个抽屉"。
+ * 第一项给空串：服务端 {@code resolveFolder} 在缺 {@code folderCode} 时取
+ * INBOX，所以空串天然就是收件箱，不需要前端写死默认值。</p>
+ *
+ * <p><b>不配 {@code detailPath}。</b>{@code GET /mail/v1/message/{id}} 会触发正文
+ * 回源（同步阶段只拉了 header，正文要现场再连一次 IMAP）。屏风上点一行就去打
+ * 邮箱服务器，既慢又会因为对外网络不通而降级——列表行里的字段已经够答
+ * "谁、什么时候、多大、读没读"。</p>
+ */
+export const MAIL_PAGE: ScreenListPageSpec = {
+  key: 'messages',
+  title: '邮件列表',
+  listPath: '/mail/v1/message/page',
+  permission: 'sys:mail:message:list',
+  idKey: 'id',
+  keywordParam: 'keyword',
+  searchPlaceholder: '搜索主题 / 发件人…',
+  statusParam: 'folderCode',
+  statuses: [
+    { value: '', label: '收件箱' },
+    { value: 'SENT', label: '已发送' },
+    { value: 'DRAFT', label: '草稿箱' },
+    { value: 'JUNK', label: '垃圾邮件' },
+    { value: 'TRASH', label: '已删除' },
+  ],
+  /* 6 行/页：四态柱图（与影戏院同宽），KPI + 柱图 + 工具栏之后正好排满 */
+  pageSize: 6,
+  columns: [
+    { key: 'subject', label: '主题', width: '33%' },
+    { key: 'fromName', label: '发件人', width: '16%' },
+    { key: 'seen', label: '状态', width: '8%', format: 'status', statusMap: MAIL_SEEN_STATE },
+    {
+      key: 'hasAttachment',
+      label: '附件',
+      width: '8%',
+      format: 'status',
+      statusMap: MAIL_ATTACHMENT_STATE,
+    },
+    { key: 'sizeBytes', label: '大小', width: '10%', format: 'size' },
+    { key: 'sentTime', label: '收信时间', width: '17%', format: 'datetime' },
+  ],
+  detailFields: [
+    { key: 'subject', label: '主题' },
+    { key: 'fromName', label: '发件人' },
+    { key: 'fromAddr', label: '发件地址' },
+    { key: 'toAddrs', label: '收件人' },
+    { key: 'ccAddrs', label: '抄送' },
+    { key: 'folderCode', label: '所在文件夹', format: 'status', statusMap: MAIL_FOLDER_TYPE },
+    { key: 'seen', label: '状态', format: 'status', statusMap: MAIL_SEEN_STATE },
+    {
+      key: 'hasAttachment',
+      label: '附件',
+      format: 'status',
+      statusMap: MAIL_ATTACHMENT_STATE,
+    },
+    { key: 'sizeBytes', label: '大小', format: 'size' },
+    { key: 'sentTime', label: '收信时间', format: 'datetime' },
+    { key: 'preview', label: '摘要' },
+  ],
+  titleKey: 'subject',
+};
+
+/**
  * 殿的连通状态：与后端 {@code HubHallState} 一一对应，前端只做展示。
  *
  * <p>「无凭据」单独一档而不是并进「未通」：前者要去要权限，后者要去查服务，

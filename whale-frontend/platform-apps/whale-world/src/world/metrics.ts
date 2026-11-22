@@ -347,6 +347,27 @@ const PROBES: ProbeSpec[] = [
       },
     ],
   },
+  {
+    // 邮驿 = MAIL：S7/T7.4 起读契约 /mail/overview，与屏风上半部四张牌同一份
+    // 快照。牌坊只放"有多少邮箱 + 有多少驿路账"两格：同步超时、配额吃紧、
+    // 退信三笔都并进待办——对值班的人来说都是"今天要去驿里看一眼"。
+    nodeKey: 'youyi-stage',
+    permission: 'sys:mail:account:list',
+    url: '/mail/overview',
+    extract: (d) => [
+      { label: '在册邮箱', value: formatCount(kpiOf(d, 'mailboxes')) },
+      {
+        label: '待办',
+        value: formatCount(
+          num(kpiOf(d, 'sync-overdue')) + num(kpiOf(d, 'quota-tight')) + num(kpiOf(d, 'bounce')),
+        ),
+        tone:
+          num(kpiOf(d, 'sync-overdue')) + num(kpiOf(d, 'quota-tight')) + num(kpiOf(d, 'bounce')) > 0
+            ? 'warn'
+            : 'good',
+      },
+    ],
+  },
 ];
 
 /* ---------------------------------------------------------------- 持久化 */

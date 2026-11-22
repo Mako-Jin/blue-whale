@@ -83,6 +83,7 @@ import {
   SONG_PAGE,
   CONTENT_PAGE,
   THREAD_PAGE,
+  MAIL_PAGE,
 } from './screenpages';
 import { createStageScreen, type StageScreenHandle } from './stagescreen';
 import { createSceneEnv, type SceneEnv } from './env';
@@ -4027,6 +4028,10 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   let qingyiScreen: ScreenHandle | null = null;
   let qingyiPage: ScreenPageHandle | null = null;
 
+  /** 邮驿（S7/T7.4）屏风与其业务页句柄（同上） */
+  let youyiScreen: ScreenHandle | null = null;
+  let youyiPage: ScreenPageHandle | null = null;
+
   /**
    * 坊的屏风落位：从布局数据现算，不手抄坐标。
    *
@@ -4785,6 +4790,51 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
         });
       }
 
+      /* 邮驿（S7/T7.4，外城九处第四处）：邮件列表 + 驿路账。
+
+       布局里邮驿在东北外城（x/z = 53.92/-77.00，旋转 -35°），与前三坊同一套
+       正面法线落点公式——外城每接一处不必手调坐标。
+
+       屏风上半部是四张牌（在册邮箱 / 同步超时 / 配额吃紧 / 近七日退信），
+       中部是账号同步四态柱图，下半部是邮件列表。后三张牌是本屏的语气：
+       信进不来（同步超时）、信快存不住（配额吃紧）、信出不去（退信）。
+       账号管理与退信回执不单摆页——两者都是低频运维动作，从概览入口进去办；
+       屏风上硬凑三页只会把入口铺满。 */
+      const youyiPose = districtScreenPose('youyi-stage');
+      if (youyiPose) {
+        youyiScreen = screens.add({
+          id: 'youyi',
+          position: [youyiPose.x, 1.55, youyiPose.z],
+          facing: youyiPose.facing,
+          size: 'large',
+          title: '邮驿 · 邮件列表',
+          subtitle: 'MAIL / 驿站传书',
+          tone: 'idle',
+          mount: (body) => {
+            youyiPage = mountScreenPage(body, {
+              nodeKey: 'youyi-stage',
+              overviewPath: '/mail/overview',
+              overviewPermission: 'sys:mail:account:list',
+              pages: [MAIL_PAGE],
+              getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+              getPermissions: opts.getPermissions,
+              // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
+              onTone: (tone) => youyiScreen?.setTone(tone),
+              onTitle: (title, subtitle) => {
+                youyiScreen?.setTitle(
+                  title ? `${title} · 邮件列表` : '邮驿 · 邮件列表',
+                  subtitle ?? 'MAIL / 驿站传书',
+                );
+              },
+            });
+            return () => {
+              youyiPage?.dispose();
+              youyiPage = null;
+            };
+          },
+        });
+      }
+
       /* 枢密殿（AUTH）屏风页（S5 / T5.2）：屏风里是登录历史 ——
        谁、什么时候、用什么方式登录，失败了多少次。
 
@@ -5281,6 +5331,28 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       ...(minimap ? minimap.geometry() : null),
       visible: mapVisible,
     });
+    /* 导航探针：某个世界坐标"格网说能走"与"实际会被推出"是不是一致的。
+
+       这两个判断用的是同一批碰撞盒，但**格网是轴对齐近似、碰撞按真实旋转盒**，
+       所以角落上可能出现"格网放行、人却被顶住"的格子——A* 会把路走到那种格上，
+       角色顶着墙推不进去，最后放弃在路中间。跑长距离走位失败时先问这个探针：
+       `grid:true` 且 `hits` 非空就是这类格子。 */
+    window.__bwwNav = (x: number, z: number) => {
+      const hits: string[] = [];
+      for (const [index, box] of BLOCKERS.entries()) {
+        const yaw = (box as { yaw?: number }).yaw ?? 0;
+        const dx = x - box.x;
+        const dz = z - box.z;
+        const cos = Math.cos(-yaw);
+        const sin = Math.sin(-yaw);
+        const lx = dx * cos - dz * sin;
+        const lz = dx * sin + dz * cos;
+        if (Math.abs(lx) <= box.hx + 0.55 && Math.abs(lz) <= box.hz + 0.55) {
+          hits.push(`${index}:${(box as { kind?: string }).kind ?? '?'}@${box.x.toFixed(1)},${box.z.toFixed(1)}`);
+        }
+      }
+      return { x, z, grid: nav.walkable(x, z), hits };
+    };
     /* 自动寻路探针：读状态，以及不经鼠标直接设目标（单独验算路） */
     window.__bwwPath = () => ({
       active: autoWalk.active,
@@ -5371,6 +5443,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return yingxiPage;
         case 'qingyi':
           return qingyiPage;
+        case 'youyi':
+          return youyiPage;
         default:
           return hubuPage;
       }

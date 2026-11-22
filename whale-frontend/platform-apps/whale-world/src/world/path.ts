@@ -13,9 +13,18 @@
  *
  * <p>精度取舍：1m 一格，全城约 176×176 格，一次 A* 几十毫秒（点一下算一次）。
  * 最窄的三道门洞净宽 11m / 13m / 17m，1m 网格不会把门判死。</p>
+ *
+ * <p><b>旋转盒必须按旋转算，不能拿 hx/hz 当轴对齐盒用。</b>内城十二坊的坊墙是斜着
+ * 摆的：把 {@code hx/hz} 直接当轴对齐盒，斜墙在格网里既会"少挡"（墙的两端被抹平，
+ * 路被规划进真墙里，角色顶着墙推不进去、几秒后放弃在路中间）也会"多挡"（墙的
+ * 中段被摊平，本该能走的街道变成死路）。两种错都不报错，只表现为"点了没反应"或
+ * "走到一半停下"。所以格网与拉直两处都按盒的局部坐标系判。</p>
  * ========================================================================== */
 
 import type { ColliderSpec } from './layout';
+
+/** 带朝向的碰撞盒（与 {@code collision.Blocker} 同形；坊墙是旋转盒） */
+export type NavBlocker = ColliderSpec & { yaw?: number };
 
 /** 格子边长（米） */
 const CELL = 1;
@@ -81,12 +90,39 @@ export interface NavGrid {
   clearLine: (a: NavPoint, b: NavPoint) => boolean;
 }
 
-/** 膨胀后的轴对齐盒 */
+/** 膨胀后的盒（带朝向；yaw 为 0 时就是普通轴对齐盒） */
 interface PadBox {
   x: number;
   z: number;
   hx: number;
   hz: number;
+  /** 绕 Y 轴旋转（弧度），0 表示轴对齐 */
+  yaw: number;
+  /** cos(-yaw)：世界位移转盒内坐标用，预先算好避免每格重算 */
+  cos: number;
+  /** sin(-yaw) */
+  sin: number;
+}
+
+/**
+ * 盒是否包含某点。
+ *
+ * <p>闭区间取向：贴边即算撞——与 {@code collide} 的推挤边界一致，宁可绕一点。</p>
+ *
+ * @param box 膨胀盒
+ * @param x   世界 x
+ * @param z   世界 z
+ * @returns 落在盒内返回 {@code true}
+ */
+function boxContains(box: PadBox, x: number, z: number): boolean {
+  if (box.yaw === 0) {
+    return Math.abs(x - box.x) < box.hx && Math.abs(z - box.z) < box.hz;
+  }
+  const dx = x - box.x;
+  const dz = z - box.z;
+  const lx = dx * box.cos - dz * box.sin;
+  const lz = dx * box.sin + dz * box.cos;
+  return Math.abs(lx) < box.hx && Math.abs(lz) < box.hz;
 }
 
 /**
@@ -105,8 +141,28 @@ function segmentHitsBox(
   box: PadBox,
   pad: number,
 ): boolean {
-  const dx = bx - ax;
-  const dz = bz - az;
+  /* 旋转盒：把线段两端转到盒内坐标，盒就退化成以原点为中心、半边 ±hx/±hz 的
+     轴对齐盒。直线在旋转下仍是直线，slab 法照样成立。 */
+  let x0 = ax;
+  let z0 = az;
+  let x1 = bx;
+  let z1 = bz;
+  let cx = box.x;
+  let cz = box.z;
+  if (box.yaw !== 0) {
+    const ax0 = ax - box.x;
+    const az0 = az - box.z;
+    x0 = ax0 * box.cos - az0 * box.sin;
+    z0 = ax0 * box.sin + az0 * box.cos;
+    const bx0 = bx - box.x;
+    const bz0 = bz - box.z;
+    x1 = bx0 * box.cos - bz0 * box.sin;
+    z1 = bx0 * box.sin + bz0 * box.cos;
+    cx = 0;
+    cz = 0;
+  }
+  const dx = x1 - x0;
+  const dz = z1 - z0;
   let tmin = 0;
   let tmax = 1;
 
@@ -127,10 +183,10 @@ function segmentHitsBox(
     return tmin <= tmax;
   };
 
-  if (!slab(ax, dx, box.x - box.hx - pad, box.x + box.hx + pad)) {
+  if (!slab(x0, dx, cx - box.hx - pad, cx + box.hx + pad)) {
     return false;
   }
-  return slab(az, dz, box.z - box.hz - pad, box.z + box.hz + pad);
+  return slab(z0, dz, cz - box.hz - pad, cz + box.hz + pad);
 }
 
 /** 极简二叉堆（A* 开放集），比每轮 sort 快一个数量级 */
@@ -194,7 +250,7 @@ class MinHeap {
  * @param blockers 碰撞盒（与 {@code collision.createBlockers()} 同源，保证"能走"与"不撞墙"是同一套几何）
  * @param options  边界与膨胀半径
  */
-export function createNavGrid(blockers: ColliderSpec[], options: NavGridOptions): NavGrid {
+export function createNavGrid(blockers: NavBlocker[], options: NavGridOptions): NavGrid {
   const cell = options.cell ?? CELL;
   const radius = options.radius ?? DEFAULT_RADIUS;
   const bound = options.bound;
@@ -202,12 +258,18 @@ export function createNavGrid(blockers: ColliderSpec[], options: NavGridOptions)
   const size = Math.max(2, Math.ceil((bound * 2) / cell));
   const total = size * size;
 
-  const boxes: PadBox[] = blockers.map((b) => ({
-    x: b.x,
-    z: b.z,
-    hx: b.hx + radius,
-    hz: b.hz + radius,
-  }));
+  const boxes: PadBox[] = blockers.map((b) => {
+    const yaw = b.yaw ?? 0;
+    return {
+      x: b.x,
+      z: b.z,
+      hx: b.hx + radius,
+      hz: b.hz + radius,
+      yaw,
+      cos: Math.cos(-yaw),
+      sin: Math.sin(-yaw),
+    };
+  });
 
   /** 逐格标记：格子中心落在任一膨胀盒内即不可走 */
   const blocked = new Uint8Array(total);
@@ -217,7 +279,7 @@ export function createNavGrid(blockers: ColliderSpec[], options: NavGridOptions)
       const cx = origin + (ix + 0.5) * cell;
       let hit = 0;
       for (const b of boxes) {
-        if (Math.abs(cx - b.x) < b.hx && Math.abs(cz - b.z) < b.hz) {
+        if (boxContains(b, cx, cz)) {
           hit = 1;
           break;
         }

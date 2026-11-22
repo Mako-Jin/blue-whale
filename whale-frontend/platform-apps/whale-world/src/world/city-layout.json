@@ -755,13 +755,13 @@
       "name": "乐坊",
       "sub": "MUSIC · 音乐工坊",
       "icon": "music",
-      "x": 39.73,
-      "z": 85.2,
+      "x": 47.0,
+      "z": 81.41,
       "y": 0,
       "w": 8,
       "d": 6,
       "scale": 0.72,
-      "rotationDeg": -155.0,
+      "rotationDeg": -150.0,
       "roofColor": "#8a5a2e",
       "bodyColor": "#7a5230",
       "modelKey": "palace-hall",
@@ -776,8 +776,8 @@
         "permission": "sys:music:browse"
       },
       "portal": {
-        "x": 33.81,
-        "z": 72.51,
+        "x": 40.0,
+        "z": 69.28,
         "color": "#ffd76f",
         "label": "乐坊",
         "subLabel": "MUSIC · 音乐工坊"
@@ -851,6 +851,41 @@
         "color": "#9be8c8",
         "label": "清议堂",
         "subLabel": "FORUM · 议事公论"
+      }
+    },
+    {
+      "nodeKey": "youyi-stage",
+      "parentKey": "outer-city",
+      "nodeType": "BUILDING",
+      "name": "邮驿",
+      "sub": "MAIL · 驿站传书",
+      "icon": "mail",
+      "x": 47.0,
+      "z": -81.41,
+      "y": 0,
+      "w": 9,
+      "d": 7,
+      "scale": 0.75,
+      "rotationDeg": -30.0,
+      "roofColor": "#7a4b3a",
+      "bodyColor": "#5d3a2d",
+      "modelKey": "palace-hall",
+      "collider": {
+        "halfX": 6.5,
+        "halfZ": 5.0
+      },
+      "sortNo": 30,
+      "entry": {
+        "type": "SYSTEM",
+        "path": "/mail",
+        "permission": "sys:mail:message:list"
+      },
+      "portal": {
+        "x": 40.0,
+        "z": -69.28,
+        "color": "#ffb066",
+        "label": "邮驿",
+        "subLabel": "MAIL · 驿站传书"
       }
     }
   ]
