@@ -80,6 +80,12 @@
             <artifactId>whale-tools</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- 三维王城概览 SDK（S7/T7.3）：清议堂屏风数据源，/forum/overview -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-overview-sdk</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

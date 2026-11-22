@@ -158,3 +158,7 @@ whale:
           name: 影戏院
           url: http://bw-video:8098/video/overview
           permission: sys:video:content:list
+        - nodeKey: qingyi-stage
+          name: 清议堂
+          url: http://bw-forum:9011/forum/overview
+          permission: sys:forum:manage:list
