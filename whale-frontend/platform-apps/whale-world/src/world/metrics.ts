@@ -261,18 +261,19 @@ const PROBES: ProbeSpec[] = [
     ],
   },
   {
-    // 市舶司 = MALL：日报是列表，取当天那一行
+    // 市舶司 = MALL：S6/T6.34 起读契约 /mall/overview，与屏风上半部四张牌同一份
+    // 快照（原先取日报最后一行，口径是"截到那天"不是当下，两处会分叉）。
     nodeKey: 'shibosi-hall',
     permission: 'sys:mall:order:list',
-    url: '/mall/v1/report/daily',
-    extract: (d) => {
-      const rows = Array.isArray(d) ? (d as Array<Record<string, unknown>>) : [];
-      const last = rows.length > 0 ? rows[rows.length - 1] : undefined;
-      return [
-        { label: '今日订单', value: formatCount(last?.orderCount) },
-        { label: '成交额', value: formatMoney(last?.paidAmount) },
-      ];
-    },
+    url: '/mall/overview',
+    extract: (d) => [
+      { label: '在售商品', value: formatCount(kpiOf(d, 'on-sale')) },
+      {
+        label: '待发货',
+        value: formatCount(kpiOf(d, 'paid')),
+        tone: num(kpiOf(d, 'paid')) > 0 ? 'warn' : 'good',
+      },
+    ],
   },
 ];
 

@@ -790,7 +790,8 @@
 | T6.24 | 营造坊 厅配置 + 数枢殿总控在册 | pm | [x] |
 | T6.25–T6.27 | 盟府（contract） | contract | [x] |
 | T6.28–T6.30 | 宣抚坊（party） | party | [x] |
-| T6.31–T6.36 | 其余二坊（翰林 / 市舶） | doc / mall | [ ] |
+| T6.31–T6.33 | 翰林坊（doc） | doc | [x] |
+| T6.34–T6.36 | 市舶坊（mall）——S6 十二坊收官 | mall | [x] |
 
 **S6 第一批交付说明（2026-11-21，T6.4–T6.6 工部坊 / mes）**
 
@@ -1108,6 +1109,58 @@
   已接入 **18 处**。
 - **已知遗留**：`/party/overview` 的真实 HTTP 未验（本机 Docker / Nacos 未起），同前几批口径；
   改了 whale-party 与 whale-monitor 的 yml，**部署时两座容器都要重建镜像**。
+
+**S6 第十批交付说明（2026-11-22，T6.31–T6.33 翰林坊 / doc）**
+
+- **接口**：`GET /doc/overview`（`whale.overview.base-path=/doc/overview`，TTL 30s、超时 2s）：
+  四张 KPI（文档空间 / 文稿页面 / 待发布审批 / 回收站）+ 一张四状态柱图
+  （草稿 / 已发布 / 待审批 / 已归档）+ 五条告警 + 空间台账入口。
+  DOC 无现成看板，新建 `DocOverviewStats/StatsService/Provider`
+  （whale-services/whale-doc 独立启动模块 :8095）。权限码复用 `sys:doc:space:list`。
+- **回收站口径**：`deleted=1` 的账目被逻辑删除挡住，常规 selectCount 永远看不见——
+  新手工 SQL `countTrashRootsByTenant`（`@InterceptorIgnore(tenantLine)` + 显式
+  `tenant_id`），按**棵**数（`trash_root_id = id`，整棵子树算一棵），与 2D 按根操作同口径；
+  tenantId 必须显式传入（provider 跑独立线程无 TenantContext），缺了直接抛让 SDK 降级。
+- **屏风页**：`SPACE_PAGE`（`/doc/space/page`，六列）。有搜索框（keyword 合并名称/描述）；
+  `statusParam=visibility`（筛可见性不筛状态）；可见性列级字典（PUBLIC/MEMBER）+
+  空间状态页面级字典（数字 1/0）；不配 `detailPath`（DocSpaceVO 平铺）。
+- **两处同步**：① `city.ts` 的 `pageOf` 探针补 `hanlin` case——default 回退 hubuPage
+  会让 probe 返回户部页的 probe（HTTP 500 假象）而 DOM 断言全过；② `metrics.ts`
+  翰林牌坊指标从 `/doc/space/my`（"我的"口径）换契约 `/doc/overview`。
+- **数枢殿总控在册**：`http://bw-doc:8095/doc/overview`，接入 **19 处**。
+- **验证**：单测 14 例；whale-doc 全量测试通过；e2e `world-hanlin-smoke` 55 项全绿；
+  city-smoke 回归全过；tsc / overview-types 同步。
+
+**S6 第十一批交付说明（2026-11-22，T6.34–T6.36 市舶坊 / mall，S6 十二坊收官）**
+
+- **接口**：`GET /mall/overview`（`whale.overview.base-path=/mall/overview`，TTL 30s、超时 2s）：
+  四张 KPI（在售商品 / 待发货订单 / 待处理售后 / 零库存 SKU，后三张有账就黄）
+  + 一张订单七态柱图（待支付 / 待发货 / 已发货 / 已完成 / 已取消 / 退款中 / 已退款，COUNT）
+  + 五条告警（待发货积压 / 退款进行中 / 售后待审核 / 零库存 WARNING；待退货与空市 INFO）
+  + 订单台账 + 商品台账两个入口。MALL 无现成看板，新建
+  `MallOverviewStats/StatsService/Provider`（whale-apps/whale-mall，:9010，容器 bw-mall）。
+  权限码复用 `sys:mall:order:list`（商品入口带自己的 `sys:mall:product:list`）。
+- **口径**：订单七态各 count 一次不写 GROUP BY（租户插件保证隔离，自拼 SQL 一漏就
+  跨租户串数）；售后只数未结账两段（CREATED + WAIT_RETURN，终态不进待办）；
+  **零库存按 SKU 数不按商品数**（缺一个尺码也是缺，与下单失败直接对齐）；
+  tenantId 显式传入，缺了直接抛。
+- **屏风页**：`ORDER_PAGE`（`/mall/v1/order/page`，七列）。有搜索框（keyword 合并
+  订单号/买家名）；`statusParam=status`（运营五态：不摆已完成/已取消/已退款）；
+  订单状态页面级字典七态（退款中黄、已完成绿、其余灰，退款两态不并进取消）；
+  金额 money 口径；不配 `detailPath`（OrderView 平铺）。
+- **屏风入口标签跟概览 links 走**：`tabItems()` 优先用概览快照的 links，
+  无本地页配置的入口渲染成**禁用标签**（title「尚未接入或缺少权限」）——
+  市舶两个入口 → 两个标签，商品禁用。e2e 断言别假设"几页配几个标签"。
+- **metrics.ts 牌坊指标同步换契约**：`/mall/v1/report/daily`（日报最后一行，
+  "截到那天"口径）→ `/mall/overview`（当下快照），与屏风同一份。
+- **数枢殿总控在册**：`http://bw-mall:9010/mall/overview`，接入 **20 处**——
+  **S6 内城十二坊全部收官**。
+- **验证**：单测 15 例；mall + monitor package rc=0；e2e `world-shibo-smoke` 55 项全绿；
+  city-smoke 回归全过；tsc / overview-types 同步。
+- **已知遗留（非本批引入）**：`check-api-path-drift.py` FAIL 2 处——POST /contract
+  （contract.ts）、POST /scene（scene.ts），来自 API 版本化提交 2022e115 / ad5c5725
+  的遗留（HEAD 上既有，本批 diff 不碰这两个应用）；其余七项门禁 PASS，修复归后续批次。
+  改了 whale-mall 与 whale-monitor 的 yml，**部署时两座容器都要重建镜像**。
 
 ### S7 外城 9 处
 

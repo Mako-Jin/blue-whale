@@ -72,6 +72,12 @@
             <artifactId>whale-auth-sdk</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- 三维王城概览 SDK：市舶司屏风数据源（GET /mall/overview） -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-overview-sdk</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>com.bluewhale</groupId>
             <artifactId>whale-tools</artifactId>

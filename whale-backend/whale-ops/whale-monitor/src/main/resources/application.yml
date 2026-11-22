@@ -146,3 +146,7 @@ whale:
           name: 翰林院
           url: http://bw-doc:8095/doc/overview
           permission: sys:doc:space:list
+        - nodeKey: shibosi-hall
+          name: 市舶司
+          url: http://bw-mall:9010/mall/overview
+          permission: sys:mall:order:list

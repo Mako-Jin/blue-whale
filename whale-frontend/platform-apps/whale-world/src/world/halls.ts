@@ -66,6 +66,10 @@ export const OVERVIEW_HALLS: OverviewHallSpec[] = [
      才该在城里看到"这一城写出来的文书走到了哪一步"。回收站按棵数
      （整棵删除子树算一棵）在后端统计服务一处定义，前端不做二次换算。 */
   { nodeKey: 'hanlin-academy', path: '/doc/overview', permission: 'sys:doc:space:list' },
+  /* 市舶司（S6/T6.34）——内城十二坊收官：商城运营。订单是主账，
+     权限码复用 2D 订单台账（sys:mall:order:list），不为 3D 单发授权；
+     商品台账入口走自己的 sys:mall:product:list，在 provider link 里带。 */
+  { nodeKey: 'shibosi-hall', path: '/mall/overview', permission: 'sys:mall:order:list' },
   /* 数枢殿总控（S5/T5.1）：服务端把在册各殿的概览汇成一屏。
      **不设权限码**——总控的可见范围就是"你在各殿能看到的范围"，
      缺凭据的殿在总控里显示为「无凭据」行，而不是整块 403。

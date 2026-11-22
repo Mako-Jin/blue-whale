@@ -79,6 +79,7 @@ import {
   CONTRACT_PAGE,
   MEMBER_PAGE,
   SPACE_PAGE,
+  ORDER_PAGE,
 } from './screenpages';
 import { createSceneEnv, type SceneEnv } from './env';
 import { createPostFx, type PostFx } from './postfx';
@@ -3973,6 +3974,10 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
   let hanlinScreen: ScreenHandle | null = null;
   let hanlinPage: ScreenPageHandle | null = null;
 
+  /** 市舶司（S6/T6.34）屏风与其业务页句柄（同上） */
+  let shiboScreen: ScreenHandle | null = null;
+  let shiboPage: ScreenPageHandle | null = null;
+
   /**
    * 坊的屏风落位：从布局数据现算，不手抄坐标。
    *
@@ -4498,6 +4503,47 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return () => {
             hanlinPage?.dispose();
             hanlinPage = null;
+          };
+        },
+      });
+    }
+
+    /* 市舶司（S6/T6.34，内城十二坊收官）：订单台账 + 通商四本账 —— 生意卡在哪一节。
+
+       布局里市舶司在西北角（x/z = -53.74/-53.74，旋转 45°），`districtScreenPose`
+       按它自己的正面法线算落点，不需要手调坐标。
+
+       屏风上半部是四张牌（在售商品 / 待发货订单 / 待处理售后 / 零库存 SKU），
+       中部是订单七态分布柱图，下半部是订单台账。售后与库存不单摆页：
+       2D 里都从订单和商品进，硬凑只会把入口铺满。 */
+    const shiboPose = districtScreenPose('shibosi-hall');
+    if (shiboPose) {
+      shiboScreen = screens.add({
+        id: 'shibo',
+        position: [shiboPose.x, 1.55, shiboPose.z],
+        facing: shiboPose.facing,
+        size: 'large',
+        title: '市舶司 · 订单台账',
+        subtitle: 'MALL / 商城交易',
+        tone: 'idle',
+        mount: (body) => {
+          shiboPage = mountScreenPage(body, {
+            nodeKey: 'shibosi-hall',
+            overviewPath: '/mall/overview',
+            overviewPermission: 'sys:mall:order:list',
+            pages: [ORDER_PAGE],
+            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+            getPermissions: opts.getPermissions,
+            // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
+            onTone: (tone) => shiboScreen?.setTone(tone),
+            onTitle: (title, subtitle) => {
+              shiboScreen?.setTitle(title ? `${title} · 订单台账` : '市舶司 · 订单台账',
+                subtitle ?? 'MALL / 商城交易');
+            },
+          });
+          return () => {
+            shiboPage?.dispose();
+            shiboPage = null;
           };
         },
       });
@@ -5063,6 +5109,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
           return xuanfuPage;
         case 'hanlin':
           return hanlinPage;
+        case 'shibo':
+          return shiboPage;
         default:
           return hubuPage;
       }
