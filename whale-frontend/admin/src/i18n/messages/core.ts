@@ -23,7 +23,8 @@ export const coreMessages = defineMessages(
     'home.checkToken': '校验当前令牌（GET /auth/me）',
     'home.tokenValid': '令牌有效：GET /auth/me 调用成功',
     'home.tokenInvalid': '令牌校验失败',
-    'home.hint': '提示：进入「用户 / 角色 / 菜单管理」页可验证按钮级权限——未授权的操作按钮会被自动隐藏。',
+    'home.hint':
+      '提示：进入「用户 / 角色 / 菜单管理」页可验证按钮级权限——未授权的操作按钮会被自动隐藏。',
     'tenant.label': '租户',
     'tenant.placeholder': '租户',
     'tenant.switchFailed': '切换租户失败',
@@ -59,7 +60,8 @@ export const coreMessages = defineMessages(
     'home.checkToken': 'Validate current token (GET /auth/me)',
     'home.tokenValid': 'Token valid: GET /auth/me succeeded',
     'home.tokenInvalid': 'Token validation failed',
-    'home.hint': 'Tip: open Users / Roles / Menus to verify button-level permissions — unauthorized actions are hidden automatically.',
+    'home.hint':
+      'Tip: open Users / Roles / Menus to verify button-level permissions — unauthorized actions are hidden automatically.',
     'tenant.label': 'Tenant',
     'tenant.placeholder': 'Tenant',
     'tenant.switchFailed': 'Failed to switch tenant',

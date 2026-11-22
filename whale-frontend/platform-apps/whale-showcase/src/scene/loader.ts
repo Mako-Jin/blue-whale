@@ -96,19 +96,20 @@ export async function loadAssets(): Promise<SceneAssets> {
       );
     });
 
-  const [gate, round, tall, willow, houseSmall, houseBig, houseShop, lantern, wall, dock, boat] = await Promise.all([
-    load(FILES.gate),
-    load(FILES.round),
-    load(FILES.tall),
-    load(FILES.willow),
-    load(FILES.houseSmall),
-    load(FILES.houseBig),
-    load(FILES.houseShop),
-    load(FILES.lantern),
-    load(FILES.wall),
-    load(FILES.dock),
-    load(FILES.boat),
-  ]);
+  const [gate, round, tall, willow, houseSmall, houseBig, houseShop, lantern, wall, dock, boat] =
+    await Promise.all([
+      load(FILES.gate),
+      load(FILES.round),
+      load(FILES.tall),
+      load(FILES.willow),
+      load(FILES.houseSmall),
+      load(FILES.houseBig),
+      load(FILES.houseShop),
+      load(FILES.lantern),
+      load(FILES.wall),
+      load(FILES.dock),
+      load(FILES.boat),
+    ]);
 
   // 窗纸/灯罩这类自发光材质要跟随时段调亮度，得先把实例收集起来
   const glow: THREE.MeshStandardMaterial[] = [];

@@ -486,9 +486,7 @@ export default function DefinitionList() {
             ]}
           />
         )}
-        <div style={{ marginTop: 12, color: '#999' }}>
-          {t('assistant.definition.tools.note')}
-        </div>
+        <div style={{ marginTop: 12, color: '#999' }}>{t('assistant.definition.tools.note')}</div>
       </Drawer>
     </>
   );

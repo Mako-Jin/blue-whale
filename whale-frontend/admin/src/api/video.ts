@@ -376,7 +376,9 @@ export function takedownMovie(id: string, reason: string): Promise<MovieAdminVie
 export function pageCollections(
   params: CollectionQuery,
 ): Promise<PageResult<MovieCollectionAdminView>> {
-  return get<PageResult<MovieCollectionAdminView>>('/video/v1/admin/collections/page', { ...params });
+  return get<PageResult<MovieCollectionAdminView>>('/video/v1/admin/collections/page', {
+    ...params,
+  });
 }
 
 /** 运营读取单个片单（含全部条目） */

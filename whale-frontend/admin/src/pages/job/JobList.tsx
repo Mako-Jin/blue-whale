@@ -120,7 +120,9 @@ export default function JobList() {
       })
       .catch((error) => {
         if (!cancelled) {
-          message.error(error instanceof Error ? error.message : t('job.list.msg.dependencyFailed'));
+          message.error(
+            error instanceof Error ? error.message : t('job.list.msg.dependencyFailed'),
+          );
         }
       })
       .finally(() => {
@@ -257,7 +259,10 @@ export default function JobList() {
       setEditorOpen(false);
       jobTableRef.current?.reload();
     } catch (error) {
-      showError(error, editRecord ? t('job.list.msg.updateFailed') : t('job.list.msg.createFailed'));
+      showError(
+        error,
+        editRecord ? t('job.list.msg.updateFailed') : t('job.list.msg.createFailed'),
+      );
       throw error;
     }
   };
@@ -355,7 +360,11 @@ export default function JobList() {
                         disabled={selectedRowKeys.length === 0}
                         onConfirm={() => void handleBatchDelete()}
                       >
-                        <Button danger disabled={selectedRowKeys.length === 0} loading={batchRunning}>
+                        <Button
+                          danger
+                          disabled={selectedRowKeys.length === 0}
+                          loading={batchRunning}
+                        >
                           {t('job.list.batch.delete')}
                         </Button>
                       </Popconfirm>

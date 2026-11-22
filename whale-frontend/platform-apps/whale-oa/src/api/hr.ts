@@ -253,7 +253,9 @@ export function toggleLeaveType(id: number, enabled: boolean): Promise<LeaveType
 export function pageLeaveBalances(
   params: LeaveBalanceQuery = {},
 ): Promise<PageResult<LeaveBalanceView>> {
-  return http.get<PageResult<LeaveBalanceView>>(`/oa/v1/hr/leave-balance/page${buildQuery(params)}`);
+  return http.get<PageResult<LeaveBalanceView>>(
+    `/oa/v1/hr/leave-balance/page${buildQuery(params)}`,
+  );
 }
 
 /** 查询当前用户某年度额度 */

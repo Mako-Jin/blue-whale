@@ -229,20 +229,14 @@ export function buildJobColumns({
             {t('job.list.action.edit')}
           </AuthButton>
           {has('sys:job:run') && (
-            <Popconfirm
-              title={t('job.list.confirm.run')}
-              onConfirm={() => void onRun(row)}
-            >
+            <Popconfirm title={t('job.list.confirm.run')} onConfirm={() => void onRun(row)}>
               <Button type="link" size="small">
                 {t('job.list.action.run')}
               </Button>
             </Popconfirm>
           )}
           {has('sys:job:delete') && (
-            <Popconfirm
-              title={t('job.list.confirm.delete')}
-              onConfirm={() => void onDelete(row)}
-            >
+            <Popconfirm title={t('job.list.confirm.delete')} onConfirm={() => void onDelete(row)}>
               <Button type="link" size="small" danger>
                 {t('job.list.action.delete')}
               </Button>

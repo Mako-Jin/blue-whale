@@ -85,11 +85,7 @@ import {
 import { createSceneEnv, type SceneEnv } from './env';
 import { createPostFx, type PostFx } from './postfx';
 import { createSky, type SkyState } from './env-sky';
-import {
-  applyBrickMap,
-  applyStoneMap,
-  applyPlasterMap,
-} from './textures';
+import { applyBrickMap, applyStoneMap, applyPlasterMap } from './textures';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { BOARD_D, SIGN_PROUD, drawGoldPlaqueTexture, goldSignMaterial } from './plaque';
 import type { CharPanelHandle } from './charpanel';
@@ -449,12 +445,14 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
 
     // ① 南岭主脉（+z 南缘）：分形山脊，越靠南越高；主脊走向沿 x 起伏
     const southW = smooth(z, 150, 320) * out;
-    const ridge = 1 - Math.abs(Math.sin(x * 0.016 + 2.1) * 0.72 + Math.sin(x * 0.041 + z * 0.013) * 0.28);
+    const ridge =
+      1 - Math.abs(Math.sin(x * 0.016 + 2.1) * 0.72 + Math.sin(x * 0.041 + z * 0.013) * 0.28);
     h += southW * (14 + ridge * ridge * 26 + Math.sin(x * 0.05 + z * 0.037) * 3.2);
 
     // ① 东山丘陵（+x 东缘）：中低丘；z≈-30 处按规格留「东关」垭口豁口
     const eastW = smooth(x, 170, 320) * out * (1 - 0.75 * gauss((z + 30) / 55));
-    const ridgeE = 1 - Math.abs(Math.sin(z * 0.019 + 0.7) * 0.65 + Math.sin(x * 0.031 + z * 0.021) * 0.35);
+    const ridgeE =
+      1 - Math.abs(Math.sin(z * 0.019 + 0.7) * 0.65 + Math.sin(x * 0.031 + z * 0.021) * 0.35);
     h += eastW * (6 + ridgeE * ridgeE * 12 + Math.cos(x * 0.045) * 2.4);
 
     // 西缘缓丘：衔接南岭与北部平原，高度克制（河湾阶地观感）
@@ -508,7 +506,8 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       const noise = (Math.sin(x * 0.21) * Math.cos(z * 0.19) + 1) * 0.5;
       tmpC.copy(cGrassA).lerp(cGrassB, noise);
       // ④ 植被遮罩：平原田块（16m 网格伪随机取色，只在离河较远的低地）
-      const field = Math.sin(Math.floor(x / 16) * 12.9898 + Math.floor(z / 16) * 78.233) * 43758.5453;
+      const field =
+        Math.sin(Math.floor(x / 16) * 12.9898 + Math.floor(z / 16) * 78.233) * 43758.5453;
       const fpatch = field - Math.floor(field);
       if (h > -3 && h < 6 && riverDist(x, z) > 40) {
         tmpC.lerp(fpatch > 0.5 ? cFarmA : cFarmB, 0.55 * (1 - smooth(h, 4, 8)));
@@ -1022,7 +1021,14 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     for (const lx of [-6.3, -3.3, 3.3, 6.3]) {
       for (const sg of [-1, 1]) {
         const lz = sg * 5.55 * s;
-        gateEmit('wood', new THREE.CylinderGeometry(0.04 * s, 0.04 * s, 1.5 * s, 6), G, lx * s, 20.5 * s, lz);
+        gateEmit(
+          'wood',
+          new THREE.CylinderGeometry(0.04 * s, 0.04 * s, 1.5 * s, 6),
+          G,
+          lx * s,
+          20.5 * s,
+          lz,
+        );
         gateLanternPos.push(new THREE.Vector3(lx * s, 19.3 * s, lz).applyMatrix4(G));
       }
     }
@@ -1442,7 +1448,7 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     const INNER_LO = INNER - 10;
     const INNER_HI = INNER + 10;
     const GAP = 16;
-    const count = Math.floor((OUTER - 6) * 2 / GAP) + 1;
+    const count = Math.floor(((OUTER - 6) * 2) / GAP) + 1;
     for (let i = 0; i < count; i++) {
       const z = OUTER - 6 - i * GAP;
       for (const s of [-1, 1]) {
@@ -3223,7 +3229,11 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
       }
       const d = Math.sqrt(bestD2);
       if (best && d < 50) {
-        gateLight.position.set(best.x + Math.sin(best.yaw) * 7, 13, best.z + Math.cos(best.yaw) * 7);
+        gateLight.position.set(
+          best.x + Math.sin(best.yaw) * 7,
+          13,
+          best.z + Math.cos(best.yaw) * 7,
+        );
         gateLight.intensity = lanternOn * 120 * clamp(1 - d / 50, 0, 1);
       } else {
         gateLight.intensity = 0;
@@ -3263,7 +3273,10 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
     envState.haze = haze;
     /* 云量：晴天给一点底云，雨/雪按 weatherMix 加厚；受光色随昼夜与太阳色走 */
     envState.cloud = clamp(0.22 + world.weatherMix[1] * 0.7 + world.weatherMix[2] * 0.55, 0, 0.95);
-    cloudLightCol.setHex(0xffffff).lerp(sunCol, 0.35).multiplyScalar(0.2 + dayF * 0.8);
+    cloudLightCol
+      .setHex(0xffffff)
+      .lerp(sunCol, 0.35)
+      .multiplyScalar(0.2 + dayF * 0.8);
     envState.cloudLight = cloudLightCol.getHex();
     cloudShadeCol.setHex(0x9aa4b0).multiplyScalar(0.15 + dayF * 0.85);
     envState.cloudShade = cloudShadeCol.getHex();
@@ -4028,96 +4041,102 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
 
   function setupScreens() {
     try {
-    screens.add({
-      id: 'notice',
-      position: [-7.6, 0.85, 63],
-      facing: 0,
-      size: 'small',
-      title: '入城须知',
-      subtitle: 'NOTICE',
-      tone: 'good',
-      mount: (body) => {
-        body.innerHTML = `
+      screens.add({
+        id: 'notice',
+        position: [-7.6, 0.85, 63],
+        facing: 0,
+        size: 'small',
+        title: '入城须知',
+        subtitle: 'NOTICE',
+        tone: 'good',
+        mount: (body) => {
+          body.innerHTML = `
           <p style="margin:0 0 .5em">城中殿坊皆可查看。走近立屏，<b>点击</b>或按 <b>E</b> 入内。</p>
           <p style="margin:0;color:rgba(96,74,42,.85);font-size:.92em">
             皇城九殿司中枢，内城十二坊理业务，外城九处备游观。
           </p>`;
-      },
-    });
+        },
+      });
 
-    /* 数枢殿总控屏（S5/T5.1）：屏风里是真业务页 —— 概览与表格都来自
+      /* 数枢殿总控屏（S5/T5.1）：屏风里是真业务页 —— 概览与表格都来自
        /monitor/overview 的同一次聚合，各殿状态是服务端判定的，不是前端猜的。
 
        这一块原来（S2）是写死数据的排版演示：五行假服务名足以钉住样式，
        但它验证不了任何真链路。S5 把它换成总控页，顺便给"进屏风"这条路径
        再找一个真实入口 —— 数枢殿就在出生点正前方，玩家第一眼看到的就是它。 */
-    shushuScreen = screens.add({
-      id: 'shushu',
-      position: [7.6, 1.55, 63],
-      facing: 0,
-      // 总控是张四列表 + 6 行分页，中屏（680×420）排不下；与户部台账同档大屏
-      size: 'large',
-      title: '数枢殿 · 总控',
-      subtitle: 'HUB / OVERVIEW',
-      tone: 'idle',
-      mount: (body) => {
-        shushuPage = mountScreenPage(body, {
-          nodeKey: 'shushu-hall',
-          overviewPath: '/monitor/overview',
-          pages: [HUB_HALLS_PAGE],
-          getToken: () => debugToken() ?? opts.getToken?.() ?? null,
-          getPermissions: opts.getPermissions,
-          onTone: (tone) => shushuScreen?.setTone(tone),
-          onTitle: (title, subtitle) => {
-            shushuScreen?.setTitle(title ? `${title} · 总控` : '数枢殿 · 总控', subtitle ?? 'HUB / OVERVIEW');
-          },
-        });
-        return () => {
-          shushuPage?.dispose();
-          shushuPage = null;
-        };
-      },
-    });
+      shushuScreen = screens.add({
+        id: 'shushu',
+        position: [7.6, 1.55, 63],
+        facing: 0,
+        // 总控是张四列表 + 6 行分页，中屏（680×420）排不下；与户部台账同档大屏
+        size: 'large',
+        title: '数枢殿 · 总控',
+        subtitle: 'HUB / OVERVIEW',
+        tone: 'idle',
+        mount: (body) => {
+          shushuPage = mountScreenPage(body, {
+            nodeKey: 'shushu-hall',
+            overviewPath: '/monitor/overview',
+            pages: [HUB_HALLS_PAGE],
+            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+            getPermissions: opts.getPermissions,
+            onTone: (tone) => shushuScreen?.setTone(tone),
+            onTitle: (title, subtitle) => {
+              shushuScreen?.setTitle(
+                title ? `${title} · 总控` : '数枢殿 · 总控',
+                subtitle ?? 'HUB / OVERVIEW',
+              );
+            },
+          });
+          return () => {
+            shushuPage?.dispose();
+            shushuPage = null;
+          };
+        },
+      });
 
-    /* 户部（ERP）屏风页（S4 / T4.5）：屏风里是一个真业务页 ——
+      /* 户部（ERP）屏风页（S4 / T4.5）：屏风里是一个真业务页 ——
        KPI 与图表来自 /erp/overview，列表与详情来自采购订单自己的接口。
        立在户部殿前（19.67, 73.41）偏北 4 米，正对来路，玩家从御道走过来就看见。
 
        为什么不复用数枢殿那块中屏：那块是 S2 的排版演示（写死数据），
        这块要证明的是"真接口 + 列表 + 详情"。两者用途不同，S5 才统一按布局生成。 */
-    /* 位置按台基反算：户部台基深 (7+9)×0.95 = 15.2 米、顶面高 2.47 米，
+      /* 位置按台基反算：户部台基深 (7+9)×0.95 = 15.2 米、顶面高 2.47 米，
        屏风若按殿心偏移会插进台基里（CSS3D 不做深度测试，看上去就是浮在半空）。
        所以沿殿的正面法线（yaw -165°）退到台基之外的地面上，离台阶也留出 2 米。 */
-    hubuScreen = screens.add({
-      id: 'hubu-erp',
-      position: [15.2, 1.55, 64.6],
-      facing: -2.88,
-      size: 'large',
-      title: '户部 · 采购台账',
-      subtitle: 'ERP / PURCHASE',
-      tone: 'idle',
-      mount: (body) => {
-        hubuPage = mountScreenPage(body, {
-          nodeKey: 'hubu-hall',
-          overviewPath: '/erp/overview',
-          overviewPermission: 'sys:erp:bi:cockpit:list',
-          pages: [PURCHASE_ORDER_PAGE],
-          getToken: () => debugToken() ?? opts.getToken?.() ?? null,
-          getPermissions: opts.getPermissions,
-          // 题头灯跟业务页状态走：概览陈旧/失败时不该还亮绿灯
-          onTone: (tone) => hubuScreen?.setTone(tone),
-          onTitle: (title, subtitle) => {
-            hubuScreen?.setTitle(title ? `${title} · 采购台账` : '户部 · 采购台账', subtitle ?? 'ERP / PURCHASE');
-          },
-        });
-        return () => {
-          hubuPage?.dispose();
-          hubuPage = null;
-        };
-      },
-    });
+      hubuScreen = screens.add({
+        id: 'hubu-erp',
+        position: [15.2, 1.55, 64.6],
+        facing: -2.88,
+        size: 'large',
+        title: '户部 · 采购台账',
+        subtitle: 'ERP / PURCHASE',
+        tone: 'idle',
+        mount: (body) => {
+          hubuPage = mountScreenPage(body, {
+            nodeKey: 'hubu-hall',
+            overviewPath: '/erp/overview',
+            overviewPermission: 'sys:erp:bi:cockpit:list',
+            pages: [PURCHASE_ORDER_PAGE],
+            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+            getPermissions: opts.getPermissions,
+            // 题头灯跟业务页状态走：概览陈旧/失败时不该还亮绿灯
+            onTone: (tone) => hubuScreen?.setTone(tone),
+            onTitle: (title, subtitle) => {
+              hubuScreen?.setTitle(
+                title ? `${title} · 采购台账` : '户部 · 采购台账',
+                subtitle ?? 'ERP / PURCHASE',
+              );
+            },
+          });
+          return () => {
+            hubuPage?.dispose();
+            hubuPage = null;
+          };
+        },
+      });
 
-    /* 工部坊（S6/T6.4）：生产工单 —— 今天哪几张单在跑、跑到哪一步、计划量多少。
+      /* 工部坊（S6/T6.4）：生产工单 —— 今天哪几张单在跑、跑到哪一步、计划量多少。
 
        **坊的屏风落位与前十二殿不同**：皇城殿的屏风立在台基上（殿前有空地），
        而内城坊的台基深 15.2 米、坊墙内缘只剩不到 2 米，屏风放不进台基里，
@@ -4128,155 +4147,162 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
        {@link PALACES} 现算：沿殿的正面法线退 9.67 米，再沿切向偏 2.04 米避开台阶。
        户部那组数保留原地（它是公式的实测来源，改它就得重做一次投影校验）；
        后续十一坊都套公式，各坊的落点不会再各写各的。 */
-    const gongbuPose = districtScreenPose('gongbu-hall');
-    if (gongbuPose) {
-      gongbuScreen = screens.add({
-        id: 'gongbu',
-        position: [gongbuPose.x, 1.55, gongbuPose.z],
-        facing: gongbuPose.facing,
-        size: 'large',
-        title: '工部坊 · 生产工单',
-        subtitle: 'MES / WORK ORDER',
-        tone: 'idle',
-        mount: (body) => {
-          gongbuPage = mountScreenPage(body, {
-            nodeKey: 'gongbu-hall',
-            overviewPath: '/mes/overview',
-            overviewPermission: 'sys:mes:dashboard:view',
-            pages: [WORK_ORDER_PAGE],
-            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
-            getPermissions: opts.getPermissions,
-            // 题头灯跟业务页状态走：概览陈旧/失败时不该还亮绿灯
-            onTone: (tone) => gongbuScreen?.setTone(tone),
-            onTitle: (title, subtitle) => {
-              gongbuScreen?.setTitle(title ? `${title} · 生产工单` : '工部坊 · 生产工单',
-                subtitle ?? 'MES / WORK ORDER');
-            },
-          });
-          return () => {
-            gongbuPage?.dispose();
-            gongbuPage = null;
-          };
-        },
-      });
-    }
+      const gongbuPose = districtScreenPose('gongbu-hall');
+      if (gongbuPose) {
+        gongbuScreen = screens.add({
+          id: 'gongbu',
+          position: [gongbuPose.x, 1.55, gongbuPose.z],
+          facing: gongbuPose.facing,
+          size: 'large',
+          title: '工部坊 · 生产工单',
+          subtitle: 'MES / WORK ORDER',
+          tone: 'idle',
+          mount: (body) => {
+            gongbuPage = mountScreenPage(body, {
+              nodeKey: 'gongbu-hall',
+              overviewPath: '/mes/overview',
+              overviewPermission: 'sys:mes:dashboard:view',
+              pages: [WORK_ORDER_PAGE],
+              getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+              getPermissions: opts.getPermissions,
+              // 题头灯跟业务页状态走：概览陈旧/失败时不该还亮绿灯
+              onTone: (tone) => gongbuScreen?.setTone(tone),
+              onTitle: (title, subtitle) => {
+                gongbuScreen?.setTitle(
+                  title ? `${title} · 生产工单` : '工部坊 · 生产工单',
+                  subtitle ?? 'MES / WORK ORDER',
+                );
+              },
+            });
+            return () => {
+              gongbuPage?.dispose();
+              gongbuPage = null;
+            };
+          },
+        });
+      }
 
-
-    /* 吏部坊（S6/T6.7）：考勤日报 —— 今天谁没来、谁迟到了、这个月异常多少人次。
+      /* 吏部坊（S6/T6.7）：考勤日报 —— 今天谁没来、谁迟到了、这个月异常多少人次。
 
        落位与工部坊同一套公式（`districtScreenPose`），这里不再重复解释：
        内城坊的台基放不下屏风，只能落在台基外、坊门内那条地上。 */
-    const libuPose = districtScreenPose('libu-hall');
-    if (libuPose) {
-      libuScreen = screens.add({
-        id: 'libu',
-        position: [libuPose.x, 1.55, libuPose.z],
-        facing: libuPose.facing,
-        size: 'large',
-        title: '吏部坊 · 考勤日报',
-        subtitle: 'OA / ATTENDANCE',
-        tone: 'idle',
-        mount: (body) => {
-          libuPage = mountScreenPage(body, {
-            nodeKey: 'libu-hall',
-            overviewPath: '/oa/overview',
-            overviewPermission: 'sys:oa:attendance:daily:list',
-            pages: [ATTENDANCE_DAILY_PAGE],
-            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
-            getPermissions: opts.getPermissions,
-            // 题头灯跟业务页状态走：概览陈旧/失败时不该还亮绿灯
-            onTone: (tone) => libuScreen?.setTone(tone),
-            onTitle: (title, subtitle) => {
-              libuScreen?.setTitle(title ? `${title} · 考勤日报` : '吏部坊 · 考勤日报',
-                subtitle ?? 'OA / ATTENDANCE');
-            },
-          });
-          return () => {
-            libuPage?.dispose();
-            libuPage = null;
-          };
-        },
-      });
-    }
+      const libuPose = districtScreenPose('libu-hall');
+      if (libuPose) {
+        libuScreen = screens.add({
+          id: 'libu',
+          position: [libuPose.x, 1.55, libuPose.z],
+          facing: libuPose.facing,
+          size: 'large',
+          title: '吏部坊 · 考勤日报',
+          subtitle: 'OA / ATTENDANCE',
+          tone: 'idle',
+          mount: (body) => {
+            libuPage = mountScreenPage(body, {
+              nodeKey: 'libu-hall',
+              overviewPath: '/oa/overview',
+              overviewPermission: 'sys:oa:attendance:daily:list',
+              pages: [ATTENDANCE_DAILY_PAGE],
+              getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+              getPermissions: opts.getPermissions,
+              // 题头灯跟业务页状态走：概览陈旧/失败时不该还亮绿灯
+              onTone: (tone) => libuScreen?.setTone(tone),
+              onTitle: (title, subtitle) => {
+                libuScreen?.setTitle(
+                  title ? `${title} · 考勤日报` : '吏部坊 · 考勤日报',
+                  subtitle ?? 'OA / ATTENDANCE',
+                );
+              },
+            });
+            return () => {
+              libuPage?.dispose();
+              libuPage = null;
+            };
+          },
+        });
+      }
 
-    /* 礼部坊（S6/T6.10）：客户台账 + 销售看板 —— 本月卖了多少、离目标还差多少、
+      /* 礼部坊（S6/T6.10）：客户台账 + 销售看板 —— 本月卖了多少、离目标还差多少、
        管道里压着多少、哪些商机过期没关。
 
        落位同样是 `districtScreenPose`：礼部与吏部在布局里是对称的两坊
        （z = -19.67 / +19.67，yaw ±75° / -105°），公式套上各自的 yaw
        就给出两块互不重叠的屏位，不需要再手工调坐标。 */
-    const libuRitualPose = districtScreenPose('libu-ritual-hall');
-    if (libuRitualPose) {
-      libuRitualScreen = screens.add({
-        id: 'libu-ritual',
-        position: [libuRitualPose.x, 1.55, libuRitualPose.z],
-        facing: libuRitualPose.facing,
-        size: 'large',
-        title: '礼部坊 · 客户台账',
-        subtitle: 'CRM / CUSTOMER',
-        tone: 'idle',
-        mount: (body) => {
-          libuRitualPage = mountScreenPage(body, {
-            nodeKey: 'libu-ritual-hall',
-            overviewPath: '/crm/overview',
-            overviewPermission: 'sys:crm:analytics:dashboard',
-            pages: [CUSTOMER_PAGE],
-            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
-            getPermissions: opts.getPermissions,
-            // 题头灯跟业务页状态走：概览陈旧/失败（含 CRM 分析门禁关闭）时不该还亮绿灯
-            onTone: (tone) => libuRitualScreen?.setTone(tone),
-            onTitle: (title, subtitle) => {
-              libuRitualScreen?.setTitle(title ? `${title} · 客户台账` : '礼部坊 · 客户台账',
-                subtitle ?? 'CRM / CUSTOMER');
-            },
-          });
-          return () => {
-            libuRitualPage?.dispose();
-            libuRitualPage = null;
-          };
-        },
-      });
-    }
+      const libuRitualPose = districtScreenPose('libu-ritual-hall');
+      if (libuRitualPose) {
+        libuRitualScreen = screens.add({
+          id: 'libu-ritual',
+          position: [libuRitualPose.x, 1.55, libuRitualPose.z],
+          facing: libuRitualPose.facing,
+          size: 'large',
+          title: '礼部坊 · 客户台账',
+          subtitle: 'CRM / CUSTOMER',
+          tone: 'idle',
+          mount: (body) => {
+            libuRitualPage = mountScreenPage(body, {
+              nodeKey: 'libu-ritual-hall',
+              overviewPath: '/crm/overview',
+              overviewPermission: 'sys:crm:analytics:dashboard',
+              pages: [CUSTOMER_PAGE],
+              getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+              getPermissions: opts.getPermissions,
+              // 题头灯跟业务页状态走：概览陈旧/失败（含 CRM 分析门禁关闭）时不该还亮绿灯
+              onTone: (tone) => libuRitualScreen?.setTone(tone),
+              onTitle: (title, subtitle) => {
+                libuRitualScreen?.setTitle(
+                  title ? `${title} · 客户台账` : '礼部坊 · 客户台账',
+                  subtitle ?? 'CRM / CUSTOMER',
+                );
+              },
+            });
+            return () => {
+              libuRitualPage?.dispose();
+              libuRitualPage = null;
+            };
+          },
+        });
+      }
 
-    /* 兵部坊（S6/T6.13）：设备台账 + 兵部概览 —— 有多少哨探、几个在岗、
+      /* 兵部坊（S6/T6.13）：设备台账 + 兵部概览 —— 有多少哨探、几个在岗、
        近一天收上来多少条消息、有没有指令发出去就没了下文。
 
        落位同样套 `districtScreenPose`：兵部在布局里是东南角（x/z = 53.74/-53.74，
        yaw -45°），公式按它自己的正面法线算，不需要手调坐标。 */
-    const bingbuPose = districtScreenPose('bingbu-hall');
-    if (bingbuPose) {
-      bingbuScreen = screens.add({
-        id: 'bingbu',
-        position: [bingbuPose.x, 1.55, bingbuPose.z],
-        facing: bingbuPose.facing,
-        size: 'large',
-        title: '兵部坊 · 设备台账',
-        subtitle: 'IOT / DEVICE',
-        tone: 'idle',
-        mount: (body) => {
-          bingbuPage = mountScreenPage(body, {
-            nodeKey: 'bingbu-hall',
-            overviewPath: '/iot/overview',
-            overviewPermission: 'sys:iot:device',
-            pages: [DEVICE_PAGE],
-            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
-            getPermissions: opts.getPermissions,
-            // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
-            onTone: (tone) => bingbuScreen?.setTone(tone),
-            onTitle: (title, subtitle) => {
-              bingbuScreen?.setTitle(title ? `${title} · 设备台账` : '兵部坊 · 设备台账',
-                subtitle ?? 'IOT / DEVICE');
-            },
-          });
-          return () => {
-            bingbuPage?.dispose();
-            bingbuPage = null;
-          };
-        },
-      });
-    }
+      const bingbuPose = districtScreenPose('bingbu-hall');
+      if (bingbuPose) {
+        bingbuScreen = screens.add({
+          id: 'bingbu',
+          position: [bingbuPose.x, 1.55, bingbuPose.z],
+          facing: bingbuPose.facing,
+          size: 'large',
+          title: '兵部坊 · 设备台账',
+          subtitle: 'IOT / DEVICE',
+          tone: 'idle',
+          mount: (body) => {
+            bingbuPage = mountScreenPage(body, {
+              nodeKey: 'bingbu-hall',
+              overviewPath: '/iot/overview',
+              overviewPermission: 'sys:iot:device',
+              pages: [DEVICE_PAGE],
+              getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+              getPermissions: opts.getPermissions,
+              // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
+              onTone: (tone) => bingbuScreen?.setTone(tone),
+              onTitle: (title, subtitle) => {
+                bingbuScreen?.setTitle(
+                  title ? `${title} · 设备台账` : '兵部坊 · 设备台账',
+                  subtitle ?? 'IOT / DEVICE',
+                );
+              },
+            });
+            return () => {
+              bingbuPage?.dispose();
+              bingbuPage = null;
+            };
+          },
+        });
+      }
 
-    /* 杏坛坊（S6/T6.16）：课程目录 + 学习看板 —— 这一城的人有没有在长本事。
+      /* 杏坛坊（S6/T6.16）：课程目录 + 学习看板 —— 这一城的人有没有在长本事。
 
        布局里杏坛在西南角（x/z = -19.67/-73.41，yaw 15°），是十二坊里最靠南的一座；
        `districtScreenPose` 按它自己的正面法线算落点，不需要手调坐标。
@@ -4284,40 +4310,42 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
        屏风上半部是四张牌（在册学员 / 学习覆盖 / 学习完成 / 考试通过），
        下半部是课程目录。两者出自同一个看板：覆盖率低的时候先看"课够不够"，
        再看"是不是没人学"——这张表回答的是前半句。 */
-    const xingtanPose = districtScreenPose('xingtan-hall');
-    if (xingtanPose) {
-      xingtanScreen = screens.add({
-        id: 'xingtan',
-        position: [xingtanPose.x, 1.55, xingtanPose.z],
-        facing: xingtanPose.facing,
-        size: 'large',
-        title: '杏坛坊 · 课程目录',
-        subtitle: 'LMS / COURSE',
-        tone: 'idle',
-        mount: (body) => {
-          xingtanPage = mountScreenPage(body, {
-            nodeKey: 'xingtan-hall',
-            overviewPath: '/lms/overview',
-            overviewPermission: 'sys:lms:analytics:view',
-            pages: [COURSE_PAGE],
-            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
-            getPermissions: opts.getPermissions,
-            // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
-            onTone: (tone) => xingtanScreen?.setTone(tone),
-            onTitle: (title, subtitle) => {
-              xingtanScreen?.setTitle(title ? `${title} · 课程目录` : '杏坛坊 · 课程目录',
-                subtitle ?? 'LMS / COURSE');
-            },
-          });
-          return () => {
-            xingtanPage?.dispose();
-            xingtanPage = null;
-          };
-        },
-      });
-    }
+      const xingtanPose = districtScreenPose('xingtan-hall');
+      if (xingtanPose) {
+        xingtanScreen = screens.add({
+          id: 'xingtan',
+          position: [xingtanPose.x, 1.55, xingtanPose.z],
+          facing: xingtanPose.facing,
+          size: 'large',
+          title: '杏坛坊 · 课程目录',
+          subtitle: 'LMS / COURSE',
+          tone: 'idle',
+          mount: (body) => {
+            xingtanPage = mountScreenPage(body, {
+              nodeKey: 'xingtan-hall',
+              overviewPath: '/lms/overview',
+              overviewPermission: 'sys:lms:analytics:view',
+              pages: [COURSE_PAGE],
+              getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+              getPermissions: opts.getPermissions,
+              // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
+              onTone: (tone) => xingtanScreen?.setTone(tone),
+              onTitle: (title, subtitle) => {
+                xingtanScreen?.setTitle(
+                  title ? `${title} · 课程目录` : '杏坛坊 · 课程目录',
+                  subtitle ?? 'LMS / COURSE',
+                );
+              },
+            });
+            return () => {
+              xingtanPage?.dispose();
+              xingtanPage = null;
+            };
+          },
+        });
+      }
 
-    /* 将作坊（S6/T6.19）：物料台账 + 四本账 —— 这一城要造什么、图纸上改到第几版。
+      /* 将作坊（S6/T6.19）：物料台账 + 四本账 —— 这一城要造什么、图纸上改到第几版。
 
        布局里将作监在西侧（x/z = -73.41/-19.67），与东岸的市舶隔城相望；
        `districtScreenPose` 按它自己的正面法线算落点，不需要手调坐标。
@@ -4325,40 +4353,42 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
        屏风上半部是四张牌（在册物料 / 生效 BOM / 未关闭变更 / 图纸文档），
        下半部是物料台账。四本账里只有物料是"造一台机器前要先看的东西"——
        BOM 与变更在 2D 里才有发布与审批按钮，城里点进去也只能看。 */
-    const jiangzuoPose = districtScreenPose('jiangzuo-bureau');
-    if (jiangzuoPose) {
-      jiangzuoScreen = screens.add({
-        id: 'jiangzuo',
-        position: [jiangzuoPose.x, 1.55, jiangzuoPose.z],
-        facing: jiangzuoPose.facing,
-        size: 'large',
-        title: '将作坊 · 物料台账',
-        subtitle: 'PDM / PART',
-        tone: 'idle',
-        mount: (body) => {
-          jiangzuoPage = mountScreenPage(body, {
-            nodeKey: 'jiangzuo-bureau',
-            overviewPath: '/pdm/overview',
-            overviewPermission: 'sys:pdm:part:list',
-            pages: [PART_PAGE],
-            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
-            getPermissions: opts.getPermissions,
-            // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
-            onTone: (tone) => jiangzuoScreen?.setTone(tone),
-            onTitle: (title, subtitle) => {
-              jiangzuoScreen?.setTitle(title ? `${title} · 物料台账` : '将作坊 · 物料台账',
-                subtitle ?? 'PDM / PART');
-            },
-          });
-          return () => {
-            jiangzuoPage?.dispose();
-            jiangzuoPage = null;
-          };
-        },
-      });
-    }
+      const jiangzuoPose = districtScreenPose('jiangzuo-bureau');
+      if (jiangzuoPose) {
+        jiangzuoScreen = screens.add({
+          id: 'jiangzuo',
+          position: [jiangzuoPose.x, 1.55, jiangzuoPose.z],
+          facing: jiangzuoPose.facing,
+          size: 'large',
+          title: '将作坊 · 物料台账',
+          subtitle: 'PDM / PART',
+          tone: 'idle',
+          mount: (body) => {
+            jiangzuoPage = mountScreenPage(body, {
+              nodeKey: 'jiangzuo-bureau',
+              overviewPath: '/pdm/overview',
+              overviewPermission: 'sys:pdm:part:list',
+              pages: [PART_PAGE],
+              getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+              getPermissions: opts.getPermissions,
+              // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
+              onTone: (tone) => jiangzuoScreen?.setTone(tone),
+              onTitle: (title, subtitle) => {
+                jiangzuoScreen?.setTitle(
+                  title ? `${title} · 物料台账` : '将作坊 · 物料台账',
+                  subtitle ?? 'PDM / PART',
+                );
+              },
+            });
+            return () => {
+              jiangzuoPage?.dispose();
+              jiangzuoPage = null;
+            };
+          },
+        });
+      }
 
-    /* 营造坊（S6/T6.22）：项目台账 + 三本账 —— 工程推进到哪了、有多少活没人干。
+      /* 营造坊（S6/T6.22）：项目台账 + 三本账 —— 工程推进到哪了、有多少活没人干。
 
        布局里营造司在坊区与将作相邻（都是"造东西"的口径，一里一外：
        将作管器物图册，营造管工程节奏）；`districtScreenPose` 按它自己的
@@ -4367,40 +4397,42 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
        屏风上半部是四张牌（在建项目 / 活跃迭代 / 未完成工作项 / 逾期未完成），
        下半部是项目台账。工作项不单摆一页：后端的工作项分页强制按项目过滤，
        租户级的工作项清单在 2D 后台也不存在，硬凑只会误导。 */
-    const yingzaoPose = districtScreenPose('yingzao-bureau');
-    if (yingzaoPose) {
-      yingzaoScreen = screens.add({
-        id: 'yingzao',
-        position: [yingzaoPose.x, 1.55, yingzaoPose.z],
-        facing: yingzaoPose.facing,
-        size: 'large',
-        title: '营造坊 · 项目台账',
-        subtitle: 'PM / PROJECT',
-        tone: 'idle',
-        mount: (body) => {
-          yingzaoPage = mountScreenPage(body, {
-            nodeKey: 'yingzao-bureau',
-            overviewPath: '/pm/overview',
-            overviewPermission: 'sys:pm:project:list',
-            pages: [PROJECT_PAGE],
-            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
-            getPermissions: opts.getPermissions,
-            // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
-            onTone: (tone) => yingzaoScreen?.setTone(tone),
-            onTitle: (title, subtitle) => {
-              yingzaoScreen?.setTitle(title ? `${title} · 项目台账` : '营造坊 · 项目台账',
-                subtitle ?? 'PM / PROJECT');
-            },
-          });
-          return () => {
-            yingzaoPage?.dispose();
-            yingzaoPage = null;
-          };
-        },
-      });
-    }
+      const yingzaoPose = districtScreenPose('yingzao-bureau');
+      if (yingzaoPose) {
+        yingzaoScreen = screens.add({
+          id: 'yingzao',
+          position: [yingzaoPose.x, 1.55, yingzaoPose.z],
+          facing: yingzaoPose.facing,
+          size: 'large',
+          title: '营造坊 · 项目台账',
+          subtitle: 'PM / PROJECT',
+          tone: 'idle',
+          mount: (body) => {
+            yingzaoPage = mountScreenPage(body, {
+              nodeKey: 'yingzao-bureau',
+              overviewPath: '/pm/overview',
+              overviewPermission: 'sys:pm:project:list',
+              pages: [PROJECT_PAGE],
+              getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+              getPermissions: opts.getPermissions,
+              // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
+              onTone: (tone) => yingzaoScreen?.setTone(tone),
+              onTitle: (title, subtitle) => {
+                yingzaoScreen?.setTitle(
+                  title ? `${title} · 项目台账` : '营造坊 · 项目台账',
+                  subtitle ?? 'PM / PROJECT',
+                );
+              },
+            });
+            return () => {
+              yingzaoPage?.dispose();
+              yingzaoPage = null;
+            };
+          },
+        });
+      }
 
-    /* 盟府（S6/T6.25）：合同台账 + 契约三本账 —— 纸面上的承诺：金额、状态、到期。
+      /* 盟府（S6/T6.25）：合同台账 + 契约三本账 —— 纸面上的承诺：金额、状态、到期。
 
        布局里盟府在内城西北角（将作的对面、营造的邻坊）；`districtScreenPose`
        按它自己的正面法线算落点，不需要手调坐标。
@@ -4408,40 +4440,42 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
        屏风上半部是四张牌（生效中 / 在途 / 本月到期 / 已过期仍生效），
        中部是生效合同金额柱图，下半部是合同台账。印章与签署任务不单摆页：
        印章授权是管理操作不是台账，签署任务挂在具体合同下，租户级清单不存在。 */
-    const mengfuPose = districtScreenPose('mengfu-hall');
-    if (mengfuPose) {
-      mengfuScreen = screens.add({
-        id: 'mengfu',
-        position: [mengfuPose.x, 1.55, mengfuPose.z],
-        facing: mengfuPose.facing,
-        size: 'large',
-        title: '盟府 · 合同台账',
-        subtitle: 'CONTRACT / 契约',
-        tone: 'idle',
-        mount: (body) => {
-          mengfuPage = mountScreenPage(body, {
-            nodeKey: 'mengfu-hall',
-            overviewPath: '/contract/overview',
-            overviewPermission: 'sys:contract:list',
-            pages: [CONTRACT_PAGE],
-            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
-            getPermissions: opts.getPermissions,
-            // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
-            onTone: (tone) => mengfuScreen?.setTone(tone),
-            onTitle: (title, subtitle) => {
-              mengfuScreen?.setTitle(title ? `${title} · 合同台账` : '盟府 · 合同台账',
-                subtitle ?? 'CONTRACT / 契约');
-            },
-          });
-          return () => {
-            mengfuPage?.dispose();
-            mengfuPage = null;
-          };
-        },
-      });
-    }
+      const mengfuPose = districtScreenPose('mengfu-hall');
+      if (mengfuPose) {
+        mengfuScreen = screens.add({
+          id: 'mengfu',
+          position: [mengfuPose.x, 1.55, mengfuPose.z],
+          facing: mengfuPose.facing,
+          size: 'large',
+          title: '盟府 · 合同台账',
+          subtitle: 'CONTRACT / 契约',
+          tone: 'idle',
+          mount: (body) => {
+            mengfuPage = mountScreenPage(body, {
+              nodeKey: 'mengfu-hall',
+              overviewPath: '/contract/overview',
+              overviewPermission: 'sys:contract:list',
+              pages: [CONTRACT_PAGE],
+              getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+              getPermissions: opts.getPermissions,
+              // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
+              onTone: (tone) => mengfuScreen?.setTone(tone),
+              onTitle: (title, subtitle) => {
+                mengfuScreen?.setTitle(
+                  title ? `${title} · 合同台账` : '盟府 · 合同台账',
+                  subtitle ?? 'CONTRACT / 契约',
+                );
+              },
+            });
+            return () => {
+              mengfuPage?.dispose();
+              mengfuPage = null;
+            };
+          },
+        });
+      }
 
-    /* 宣抚坊（S6/T6.28）：党员台账 + 党务四张牌 —— 组织生活正不正常。
+      /* 宣抚坊（S6/T6.28）：党员台账 + 党务四张牌 —— 组织生活正不正常。
 
        布局里宣抚院在城南侧（z=+73.41，盟府的邻坊）；`districtScreenPose`
        按它自己的正面法线算落点，不需要手调坐标。
@@ -4449,40 +4483,42 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
        屏风上半部是四张牌（在册党员 / 党费收缴 / 三会一课 / 组织生活参会），
        中部是党员年龄结构柱图，下半部是党员台账。支部与工会不单摆页：
        支部是组织结构不是台账，工会的账在联建（union）另算，混进来口径就乱了。 */
-    const xuanfuPose = districtScreenPose('xuanfu-court');
-    if (xuanfuPose) {
-      xuanfuScreen = screens.add({
-        id: 'xuanfu',
-        position: [xuanfuPose.x, 1.55, xuanfuPose.z],
-        facing: xuanfuPose.facing,
-        size: 'large',
-        title: '宣抚坊 · 党员台账',
-        subtitle: 'PARTY / 党务',
-        tone: 'idle',
-        mount: (body) => {
-          xuanfuPage = mountScreenPage(body, {
-            nodeKey: 'xuanfu-court',
-            overviewPath: '/party/overview',
-            overviewPermission: 'sys:party:metric:list',
-            pages: [MEMBER_PAGE],
-            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
-            getPermissions: opts.getPermissions,
-            // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
-            onTone: (tone) => xuanfuScreen?.setTone(tone),
-            onTitle: (title, subtitle) => {
-              xuanfuScreen?.setTitle(title ? `${title} · 党员台账` : '宣抚坊 · 党员台账',
-                subtitle ?? 'PARTY / 党务');
-            },
-          });
-          return () => {
-            xuanfuPage?.dispose();
-            xuanfuPage = null;
-          };
-        },
-      });
-    }
+      const xuanfuPose = districtScreenPose('xuanfu-court');
+      if (xuanfuPose) {
+        xuanfuScreen = screens.add({
+          id: 'xuanfu',
+          position: [xuanfuPose.x, 1.55, xuanfuPose.z],
+          facing: xuanfuPose.facing,
+          size: 'large',
+          title: '宣抚坊 · 党员台账',
+          subtitle: 'PARTY / 党务',
+          tone: 'idle',
+          mount: (body) => {
+            xuanfuPage = mountScreenPage(body, {
+              nodeKey: 'xuanfu-court',
+              overviewPath: '/party/overview',
+              overviewPermission: 'sys:party:metric:list',
+              pages: [MEMBER_PAGE],
+              getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+              getPermissions: opts.getPermissions,
+              // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
+              onTone: (tone) => xuanfuScreen?.setTone(tone),
+              onTitle: (title, subtitle) => {
+                xuanfuScreen?.setTitle(
+                  title ? `${title} · 党员台账` : '宣抚坊 · 党员台账',
+                  subtitle ?? 'PARTY / 党务',
+                );
+              },
+            });
+            return () => {
+              xuanfuPage?.dispose();
+              xuanfuPage = null;
+            };
+          },
+        });
+      }
 
-    /* 翰林院（S6/T6.31）：空间台账 + 文书四本账 —— 写出来的东西走到了哪一步。
+      /* 翰林院（S6/T6.31）：空间台账 + 文书四本账 —— 写出来的东西走到了哪一步。
 
        布局里翰林院在城北侧（z=-73.41，杏坛的对坊）；`districtScreenPose`
        按它自己的正面法线算落点，不需要手调坐标。
@@ -4491,40 +4527,42 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
        中部是文稿状态分布柱图，下半部是空间台账。页面树与回收站不单摆页：
        页面按空间树形组织、没有租户级清单，回收站在 2D 里也按空间进，
        硬凑一张跨空间大表只会误导。 */
-    const hanlinPose = districtScreenPose('hanlin-academy');
-    if (hanlinPose) {
-      hanlinScreen = screens.add({
-        id: 'hanlin',
-        position: [hanlinPose.x, 1.55, hanlinPose.z],
-        facing: hanlinPose.facing,
-        size: 'large',
-        title: '翰林院 · 空间台账',
-        subtitle: 'DOC / 文档知识',
-        tone: 'idle',
-        mount: (body) => {
-          hanlinPage = mountScreenPage(body, {
-            nodeKey: 'hanlin-academy',
-            overviewPath: '/doc/overview',
-            overviewPermission: 'sys:doc:space:list',
-            pages: [SPACE_PAGE],
-            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
-            getPermissions: opts.getPermissions,
-            // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
-            onTone: (tone) => hanlinScreen?.setTone(tone),
-            onTitle: (title, subtitle) => {
-              hanlinScreen?.setTitle(title ? `${title} · 空间台账` : '翰林院 · 空间台账',
-                subtitle ?? 'DOC / 文档知识');
-            },
-          });
-          return () => {
-            hanlinPage?.dispose();
-            hanlinPage = null;
-          };
-        },
-      });
-    }
+      const hanlinPose = districtScreenPose('hanlin-academy');
+      if (hanlinPose) {
+        hanlinScreen = screens.add({
+          id: 'hanlin',
+          position: [hanlinPose.x, 1.55, hanlinPose.z],
+          facing: hanlinPose.facing,
+          size: 'large',
+          title: '翰林院 · 空间台账',
+          subtitle: 'DOC / 文档知识',
+          tone: 'idle',
+          mount: (body) => {
+            hanlinPage = mountScreenPage(body, {
+              nodeKey: 'hanlin-academy',
+              overviewPath: '/doc/overview',
+              overviewPermission: 'sys:doc:space:list',
+              pages: [SPACE_PAGE],
+              getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+              getPermissions: opts.getPermissions,
+              // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
+              onTone: (tone) => hanlinScreen?.setTone(tone),
+              onTitle: (title, subtitle) => {
+                hanlinScreen?.setTitle(
+                  title ? `${title} · 空间台账` : '翰林院 · 空间台账',
+                  subtitle ?? 'DOC / 文档知识',
+                );
+              },
+            });
+            return () => {
+              hanlinPage?.dispose();
+              hanlinPage = null;
+            };
+          },
+        });
+      }
 
-    /* 市舶司（S6/T6.34，内城十二坊收官）：订单台账 + 通商四本账 —— 生意卡在哪一节。
+      /* 市舶司（S6/T6.34，内城十二坊收官）：订单台账 + 通商四本账 —— 生意卡在哪一节。
 
        布局里市舶司在西北角（x/z = -53.74/-53.74，旋转 45°），`districtScreenPose`
        按它自己的正面法线算落点，不需要手调坐标。
@@ -4532,40 +4570,42 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
        屏风上半部是四张牌（在售商品 / 待发货订单 / 待处理售后 / 零库存 SKU），
        中部是订单七态分布柱图，下半部是订单台账。售后与库存不单摆页：
        2D 里都从订单和商品进，硬凑只会把入口铺满。 */
-    const shiboPose = districtScreenPose('shibosi-hall');
-    if (shiboPose) {
-      shiboScreen = screens.add({
-        id: 'shibo',
-        position: [shiboPose.x, 1.55, shiboPose.z],
-        facing: shiboPose.facing,
-        size: 'large',
-        title: '市舶司 · 订单台账',
-        subtitle: 'MALL / 商城交易',
-        tone: 'idle',
-        mount: (body) => {
-          shiboPage = mountScreenPage(body, {
-            nodeKey: 'shibosi-hall',
-            overviewPath: '/mall/overview',
-            overviewPermission: 'sys:mall:order:list',
-            pages: [ORDER_PAGE],
-            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
-            getPermissions: opts.getPermissions,
-            // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
-            onTone: (tone) => shiboScreen?.setTone(tone),
-            onTitle: (title, subtitle) => {
-              shiboScreen?.setTitle(title ? `${title} · 订单台账` : '市舶司 · 订单台账',
-                subtitle ?? 'MALL / 商城交易');
-            },
-          });
-          return () => {
-            shiboPage?.dispose();
-            shiboPage = null;
-          };
-        },
-      });
-    }
+      const shiboPose = districtScreenPose('shibosi-hall');
+      if (shiboPose) {
+        shiboScreen = screens.add({
+          id: 'shibo',
+          position: [shiboPose.x, 1.55, shiboPose.z],
+          facing: shiboPose.facing,
+          size: 'large',
+          title: '市舶司 · 订单台账',
+          subtitle: 'MALL / 商城交易',
+          tone: 'idle',
+          mount: (body) => {
+            shiboPage = mountScreenPage(body, {
+              nodeKey: 'shibosi-hall',
+              overviewPath: '/mall/overview',
+              overviewPermission: 'sys:mall:order:list',
+              pages: [ORDER_PAGE],
+              getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+              getPermissions: opts.getPermissions,
+              // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
+              onTone: (tone) => shiboScreen?.setTone(tone),
+              onTitle: (title, subtitle) => {
+                shiboScreen?.setTitle(
+                  title ? `${title} · 订单台账` : '市舶司 · 订单台账',
+                  subtitle ?? 'MALL / 商城交易',
+                );
+              },
+            });
+            return () => {
+              shiboPage?.dispose();
+              shiboPage = null;
+            };
+          },
+        });
+      }
 
-    /* 乐坊（S7/T7.1，外城九处第一处）：歌曲台账 + 曲库三本账 —— 内容卡在哪一节。
+      /* 乐坊（S7/T7.1，外城九处第一处）：歌曲台账 + 曲库三本账 —— 内容卡在哪一节。
 
        布局里乐坊在东南外城（x/z = 39.73/85.20，旋转 -155°），`districtScreenPose`
        按它自己的正面法线算落点，不需要手调坐标。坊域落点仍用内城同一套
@@ -4574,40 +4614,42 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
        屏风上半部是四张牌（已上架歌曲 / 待审评论 / 待复核申诉 / 版权待复核），
        中部是歌曲三态分布柱图，下半部是歌曲台账。评论与申诉不单摆页：
        2D 里都从歌曲进，硬凑只会把入口铺满。 */
-    const yuefangPose = districtScreenPose('yuefang-stage');
-    if (yuefangPose) {
-      yuefangScreen = screens.add({
-        id: 'yuefang',
-        position: [yuefangPose.x, 1.55, yuefangPose.z],
-        facing: yuefangPose.facing,
-        size: 'large',
-        title: '乐坊 · 歌曲台账',
-        subtitle: 'MUSIC / 曲库运营',
-        tone: 'idle',
-        mount: (body) => {
-          yuefangPage = mountScreenPage(body, {
-            nodeKey: 'yuefang-stage',
-            overviewPath: '/music/overview',
-            overviewPermission: 'sys:music:song:list',
-            pages: [SONG_PAGE],
-            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
-            getPermissions: opts.getPermissions,
-            // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
-            onTone: (tone) => yuefangScreen?.setTone(tone),
-            onTitle: (title, subtitle) => {
-              yuefangScreen?.setTitle(title ? `${title} · 歌曲台账` : '乐坊 · 歌曲台账',
-                subtitle ?? 'MUSIC / 曲库运营');
-            },
-          });
-          return () => {
-            yuefangPage?.dispose();
-            yuefangPage = null;
-          };
-        },
-      });
-    }
+      const yuefangPose = districtScreenPose('yuefang-stage');
+      if (yuefangPose) {
+        yuefangScreen = screens.add({
+          id: 'yuefang',
+          position: [yuefangPose.x, 1.55, yuefangPose.z],
+          facing: yuefangPose.facing,
+          size: 'large',
+          title: '乐坊 · 歌曲台账',
+          subtitle: 'MUSIC / 曲库运营',
+          tone: 'idle',
+          mount: (body) => {
+            yuefangPage = mountScreenPage(body, {
+              nodeKey: 'yuefang-stage',
+              overviewPath: '/music/overview',
+              overviewPermission: 'sys:music:song:list',
+              pages: [SONG_PAGE],
+              getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+              getPermissions: opts.getPermissions,
+              // 题头灯跟业务页状态走：概览陈旧/失败（服务未起、无凭据）时不该还亮绿灯
+              onTone: (tone) => yuefangScreen?.setTone(tone),
+              onTitle: (title, subtitle) => {
+                yuefangScreen?.setTitle(
+                  title ? `${title} · 歌曲台账` : '乐坊 · 歌曲台账',
+                  subtitle ?? 'MUSIC / 曲库运营',
+                );
+              },
+            });
+            return () => {
+              yuefangPage?.dispose();
+              yuefangPage = null;
+            };
+          },
+        });
+      }
 
-    /* 枢密殿（AUTH）屏风页（S5 / T5.2）：屏风里是登录历史 ——
+      /* 枢密殿（AUTH）屏风页（S5 / T5.2）：屏风里是登录历史 ——
        谁、什么时候、用什么方式登录，失败了多少次。
 
        **皇城屏风的摆法**（T5.3 起统一）：立在**本殿台基上、殿门前**，
@@ -4629,301 +4671,319 @@ export function createWorld(host: HTMLElement, opts: WorldOptions): WorldHandle 
 
        规格仍用大屏：屏风页按 620px 高排版（KPI + 图表 + 6 行表格），中屏只有
        420px 高，装不下就会变成内部滚动——屏风上再套一层滚动是最难用的组合。 */
-    shumiScreen = screens.add({
-      id: 'shumi',
-      position: [-20.5, 3.42, -16.5],
-      facing: 0,
-      size: 'large',
-      title: '枢密殿 · 登录历史',
-      subtitle: 'AUTH / LOGIN',
-      tone: 'idle',
-      mount: (body) => {
-        shumiPage = mountScreenPage(body, {
-          nodeKey: 'shumi-hall',
-          overviewPath: '/auth/overview',
-          overviewPermission: 'sys:login:history:list',
-          pages: [LOGIN_HISTORY_PAGE],
-          getToken: () => debugToken() ?? opts.getToken?.() ?? null,
-          getPermissions: opts.getPermissions,
-          onTone: (tone) => shumiScreen?.setTone(tone),
-          onTitle: (title, subtitle) => {
-            shumiScreen?.setTitle(title ? `${title} · 登录历史` : '枢密殿 · 登录历史', subtitle ?? 'AUTH / LOGIN');
-          },
-        });
-        return () => {
-          shumiPage?.dispose();
-          shumiPage = null;
-        };
-      },
-    });
+      shumiScreen = screens.add({
+        id: 'shumi',
+        position: [-20.5, 3.42, -16.5],
+        facing: 0,
+        size: 'large',
+        title: '枢密殿 · 登录历史',
+        subtitle: 'AUTH / LOGIN',
+        tone: 'idle',
+        mount: (body) => {
+          shumiPage = mountScreenPage(body, {
+            nodeKey: 'shumi-hall',
+            overviewPath: '/auth/overview',
+            overviewPermission: 'sys:login:history:list',
+            pages: [LOGIN_HISTORY_PAGE],
+            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+            getPermissions: opts.getPermissions,
+            onTone: (tone) => shumiScreen?.setTone(tone),
+            onTitle: (title, subtitle) => {
+              shumiScreen?.setTitle(
+                title ? `${title} · 登录历史` : '枢密殿 · 登录历史',
+                subtitle ?? 'AUTH / LOGIN',
+              );
+            },
+          });
+          return () => {
+            shumiPage?.dispose();
+            shumiPage = null;
+          };
+        },
+      });
 
-    /* 度支殿（PAY）屏风页（S5 / T5.3）：屏风里是支付单台账 ——
+      /* 度支殿（PAY）屏风页（S5 / T5.3）：屏风里是支付单台账 ——
        今天收进来多少钱、哪几笔还挂着没付、退了多少。
 
        位置同枢密殿：本殿台基上、殿门前（殿心 z = -7，屏风 z = -2.5，
        台基顶面 1.87 米 → 屏风中心 3.42 米，见上面那段摆法说明）。
        与枢密殿那块（z = -16.5）同列相距 14 米，各在自己台基上，互不遮挡。 */
-    duzhiScreen = screens.add({
-      id: 'duzhi',
-      position: [-20.5, 3.42, -2.5],
-      facing: 0,
-      size: 'large',
-      title: '度支殿 · 支付单',
-      subtitle: 'PAY / SETTLEMENT',
-      tone: 'idle',
-      mount: (body) => {
-        duzhiPage = mountScreenPage(body, {
-          nodeKey: 'duzhi-hall',
-          overviewPath: '/pay/overview',
-          overviewPermission: 'sys:pay:list',
-          pages: [PAY_ORDER_PAGE],
-          getToken: () => debugToken() ?? opts.getToken?.() ?? null,
-          getPermissions: opts.getPermissions,
-          // 题头灯跟业务页状态走：概览陈旧/失败时不该还亮绿灯
-          onTone: (tone) => duzhiScreen?.setTone(tone),
-          onTitle: (title, subtitle) => {
-            duzhiScreen?.setTitle(title ? `${title} · 支付单` : '度支殿 · 支付单', subtitle ?? 'PAY / SETTLEMENT');
-          },
-        });
-        return () => {
-          duzhiPage?.dispose();
-          duzhiPage = null;
-        };
-      },
-    });
+      duzhiScreen = screens.add({
+        id: 'duzhi',
+        position: [-20.5, 3.42, -2.5],
+        facing: 0,
+        size: 'large',
+        title: '度支殿 · 支付单',
+        subtitle: 'PAY / SETTLEMENT',
+        tone: 'idle',
+        mount: (body) => {
+          duzhiPage = mountScreenPage(body, {
+            nodeKey: 'duzhi-hall',
+            overviewPath: '/pay/overview',
+            overviewPermission: 'sys:pay:list',
+            pages: [PAY_ORDER_PAGE],
+            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+            getPermissions: opts.getPermissions,
+            // 题头灯跟业务页状态走：概览陈旧/失败时不该还亮绿灯
+            onTone: (tone) => duzhiScreen?.setTone(tone),
+            onTitle: (title, subtitle) => {
+              duzhiScreen?.setTitle(
+                title ? `${title} · 支付单` : '度支殿 · 支付单',
+                subtitle ?? 'PAY / SETTLEMENT',
+              );
+            },
+          });
+          return () => {
+            duzhiPage?.dispose();
+            duzhiPage = null;
+          };
+        },
+      });
 
-    /* 藏书殿（FILE）屏风页（S5 / T5.4）：屏风里是文件台账 ——
+      /* 藏书殿（FILE）屏风页（S5 / T5.4）：屏风里是文件台账 ——
        一共多少份、占了多少盘、最近传了什么、回收站里还堆着什么。
 
        位置同前两殿：本殿台基上、殿门前（藏书殿殿心 z = +7，屏风 z = +11.5，
        台基顶面 1.87 米 → 屏风中心 3.42 米）。 */
-    cangshuScreen = screens.add({
-      id: 'cangshu',
-      position: [-20.5, 3.42, 11.5],
-      facing: 0,
-      size: 'large',
-      title: '藏书殿 · 文件台账',
-      subtitle: 'FILE / STORAGE',
-      tone: 'idle',
-      mount: (body) => {
-        cangshuPage = mountScreenPage(body, {
-          nodeKey: 'cangshu-hall',
-          overviewPath: '/file/overview',
-          overviewPermission: 'sys:file:list',
-          pages: [FILE_ASSET_PAGE],
-          getToken: () => debugToken() ?? opts.getToken?.() ?? null,
-          getPermissions: opts.getPermissions,
-          // 题头灯跟业务页状态走：概览陈旧/失败时不该还亮绿灯
-          onTone: (tone) => cangshuScreen?.setTone(tone),
-          onTitle: (title, subtitle) => {
-            cangshuScreen?.setTitle(title ? `${title} · 文件台账` : '藏书殿 · 文件台账',
-              subtitle ?? 'FILE / STORAGE');
-          },
-        });
-        return () => {
-          cangshuPage?.dispose();
-          cangshuPage = null;
-        };
-      },
-    });
+      cangshuScreen = screens.add({
+        id: 'cangshu',
+        position: [-20.5, 3.42, 11.5],
+        facing: 0,
+        size: 'large',
+        title: '藏书殿 · 文件台账',
+        subtitle: 'FILE / STORAGE',
+        tone: 'idle',
+        mount: (body) => {
+          cangshuPage = mountScreenPage(body, {
+            nodeKey: 'cangshu-hall',
+            overviewPath: '/file/overview',
+            overviewPermission: 'sys:file:list',
+            pages: [FILE_ASSET_PAGE],
+            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+            getPermissions: opts.getPermissions,
+            // 题头灯跟业务页状态走：概览陈旧/失败时不该还亮绿灯
+            onTone: (tone) => cangshuScreen?.setTone(tone),
+            onTitle: (title, subtitle) => {
+              cangshuScreen?.setTitle(
+                title ? `${title} · 文件台账` : '藏书殿 · 文件台账',
+                subtitle ?? 'FILE / STORAGE',
+              );
+            },
+          });
+          return () => {
+            cangshuPage?.dispose();
+            cangshuPage = null;
+          };
+        },
+      });
 
-    /* 时辰殿（JOB）屏风页（S5 / T5.5）：屏风里是定时任务台账 ——
+      /* 时辰殿（JOB）屏风页（S5 / T5.5）：屏风里是定时任务台账 ——
        哪些任务在跑、按什么计划跑、今天失败了几次。
 
        位置同前几殿：本殿台基上、殿门前（时辰殿殿心 z = +21，屏风 z = +25.5，
        台基顶面 1.87 米 → 屏风中心 3.42 米）。 */
-    shichenScreen = screens.add({
-      id: 'shichen',
-      position: [-20.5, 3.42, 25.5],
-      facing: 0,
-      size: 'large',
-      title: '时辰殿 · 定时任务',
-      subtitle: 'JOB / SCHEDULER',
-      tone: 'idle',
-      mount: (body) => {
-        shichenPage = mountScreenPage(body, {
-          nodeKey: 'shichen-hall',
-          overviewPath: '/job/overview',
-          overviewPermission: 'sys:job:list',
-          pages: [JOB_INFO_PAGE],
-          getToken: () => debugToken() ?? opts.getToken?.() ?? null,
-          getPermissions: opts.getPermissions,
-          // 题头灯跟业务页状态走：概览陈旧/失败时不该还亮绿灯
-          onTone: (tone) => shichenScreen?.setTone(tone),
-          onTitle: (title, subtitle) => {
-            shichenScreen?.setTitle(title ? `${title} · 定时任务` : '时辰殿 · 定时任务',
-              subtitle ?? 'JOB / SCHEDULER');
-          },
-        });
-        return () => {
-          shichenPage?.dispose();
-          shichenPage = null;
-        };
-      },
-    });
+      shichenScreen = screens.add({
+        id: 'shichen',
+        position: [-20.5, 3.42, 25.5],
+        facing: 0,
+        size: 'large',
+        title: '时辰殿 · 定时任务',
+        subtitle: 'JOB / SCHEDULER',
+        tone: 'idle',
+        mount: (body) => {
+          shichenPage = mountScreenPage(body, {
+            nodeKey: 'shichen-hall',
+            overviewPath: '/job/overview',
+            overviewPermission: 'sys:job:list',
+            pages: [JOB_INFO_PAGE],
+            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+            getPermissions: opts.getPermissions,
+            // 题头灯跟业务页状态走：概览陈旧/失败时不该还亮绿灯
+            onTone: (tone) => shichenScreen?.setTone(tone),
+            onTitle: (title, subtitle) => {
+              shichenScreen?.setTitle(
+                title ? `${title} · 定时任务` : '时辰殿 · 定时任务',
+                subtitle ?? 'JOB / SCHEDULER',
+              );
+            },
+          });
+          return () => {
+            shichenPage?.dispose();
+            shichenPage = null;
+          };
+        },
+      });
 
-    /* 政事殿（WORKFLOW）屏风页（S5 / T5.6）：屏风里是流程实例台账 ——
+      /* 政事殿（WORKFLOW）屏风页（S5 / T5.6）：屏风里是流程实例台账 ——
        哪些奏折在途、今天批了几件、卡在谁那里。
 
        位置同前几殿：本殿台基上、殿门前。**注意政事殿在东列**（x = +20.5、
        殿心 z = -21），与西列枢密殿（x = -20.5、同 z）东西对称，所以屏风也镜像到
        东侧（x = +20.5、z = -16.5），而不是继续沿西列往南排。
        台基顶面 1.87 米 → 屏风中心 3.42 米（摆法说明见枢密殿那段）。 */
-    zhengshiScreen = screens.add({
-      id: 'zhengshi',
-      position: [20.5, 3.42, -16.5],
-      facing: 0,
-      size: 'large',
-      title: '政事殿 · 流程实例',
-      subtitle: 'WORKFLOW / APPROVAL',
-      tone: 'idle',
-      mount: (body) => {
-        zhengshiPage = mountScreenPage(body, {
-          nodeKey: 'zhengshi-hall',
-          overviewPath: '/workflow/overview',
-          overviewPermission: 'sys:workflow:instance:list',
-          pages: [PROCESS_INSTANCE_PAGE],
-          getToken: () => debugToken() ?? opts.getToken?.() ?? null,
-          getPermissions: opts.getPermissions,
-          // 题头灯跟业务页状态走：概览陈旧/失败时不该还亮绿灯
-          onTone: (tone) => zhengshiScreen?.setTone(tone),
-          onTitle: (title, subtitle) => {
-            zhengshiScreen?.setTitle(title ? `${title} · 流程实例` : '政事殿 · 流程实例',
-              subtitle ?? 'WORKFLOW / APPROVAL');
-          },
-        });
-        return () => {
-          zhengshiPage?.dispose();
-          zhengshiPage = null;
-        };
-      },
-    });
+      zhengshiScreen = screens.add({
+        id: 'zhengshi',
+        position: [20.5, 3.42, -16.5],
+        facing: 0,
+        size: 'large',
+        title: '政事殿 · 流程实例',
+        subtitle: 'WORKFLOW / APPROVAL',
+        tone: 'idle',
+        mount: (body) => {
+          zhengshiPage = mountScreenPage(body, {
+            nodeKey: 'zhengshi-hall',
+            overviewPath: '/workflow/overview',
+            overviewPermission: 'sys:workflow:instance:list',
+            pages: [PROCESS_INSTANCE_PAGE],
+            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+            getPermissions: opts.getPermissions,
+            // 题头灯跟业务页状态走：概览陈旧/失败时不该还亮绿灯
+            onTone: (tone) => zhengshiScreen?.setTone(tone),
+            onTitle: (title, subtitle) => {
+              zhengshiScreen?.setTitle(
+                title ? `${title} · 流程实例` : '政事殿 · 流程实例',
+                subtitle ?? 'WORKFLOW / APPROVAL',
+              );
+            },
+          });
+          return () => {
+            zhengshiPage?.dispose();
+            zhengshiPage = null;
+          };
+        },
+      });
 
-    /* 考功殿（FORM）屏风页（S5 / T5.7）：屏风里是表单定义台账 ——
+      /* 考功殿（FORM）屏风页（S5 / T5.7）：屏风里是表单定义台账 ——
        有哪些表在收数、哪张表刚改过、这张表有哪几个字段。
 
        位置同前几殿：本殿台基上、殿门前。考功殿在**东列第二进**（x = +20.5、
        殿心 z = -7），紧挨政事殿南侧，所以屏风 z = -2.5（殿心 + 4.5）。
        台基顶面 1.87 米 → 屏风中心 3.42 米（摆法说明见枢密殿那段）。 */
-    kaogongScreen = screens.add({
-      id: 'kaogong',
-      position: [20.5, 3.42, -2.5],
-      facing: 0,
-      size: 'large',
-      title: '考功殿 · 表单定义',
-      subtitle: 'FORM / LEDGER',
-      tone: 'idle',
-      mount: (body) => {
-        kaogongPage = mountScreenPage(body, {
-          nodeKey: 'kaogong-hall',
-          overviewPath: '/form/overview',
-          overviewPermission: 'sys:form:list',
-          pages: [FORM_DEFINITION_PAGE],
-          getToken: () => debugToken() ?? opts.getToken?.() ?? null,
-          getPermissions: opts.getPermissions,
-          // 题头灯跟业务页状态走：概览陈旧/失败时不该还亮绿灯
-          onTone: (tone) => kaogongScreen?.setTone(tone),
-          onTitle: (title, subtitle) => {
-            kaogongScreen?.setTitle(title ? `${title} · 表单定义` : '考功殿 · 表单定义',
-              subtitle ?? 'FORM / LEDGER');
-          },
-        });
-        return () => {
-          kaogongPage?.dispose();
-          kaogongPage = null;
-        };
-      },
-    });
+      kaogongScreen = screens.add({
+        id: 'kaogong',
+        position: [20.5, 3.42, -2.5],
+        facing: 0,
+        size: 'large',
+        title: '考功殿 · 表单定义',
+        subtitle: 'FORM / LEDGER',
+        tone: 'idle',
+        mount: (body) => {
+          kaogongPage = mountScreenPage(body, {
+            nodeKey: 'kaogong-hall',
+            overviewPath: '/form/overview',
+            overviewPermission: 'sys:form:list',
+            pages: [FORM_DEFINITION_PAGE],
+            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+            getPermissions: opts.getPermissions,
+            // 题头灯跟业务页状态走：概览陈旧/失败时不该还亮绿灯
+            onTone: (tone) => kaogongScreen?.setTone(tone),
+            onTitle: (title, subtitle) => {
+              kaogongScreen?.setTitle(
+                title ? `${title} · 表单定义` : '考功殿 · 表单定义',
+                subtitle ?? 'FORM / LEDGER',
+              );
+            },
+          });
+          return () => {
+            kaogongPage?.dispose();
+            kaogongPage = null;
+          };
+        },
+      });
 
-    /* 通政殿（S5/T5.8）：今天送出多少封信、送得到吗、有没有卡在半路、有没有被退回。
+      /* 通政殿（S5/T5.8）：今天送出多少封信、送得到吗、有没有卡在半路、有没有被退回。
        通政司管"上行下达"，所以这一屏看的是**消息是否真的到了人手里**：
        积压未发（收下了没送出）与退信（地址失效）是两件不同的坏事。
 
        位置同前几殿：本殿台基上、殿门前。通政殿在**东列第三进**（x = +20.5、
        殿心 z = 7），紧挨考功殿南侧，所以屏风 z = 11.5（殿心 + 4.5）。
        台基顶面 1.87 米 → 屏风中心 3.42 米（摆法说明见枢密殿那段）。 */
-    tongzhengScreen = screens.add({
-      id: 'tongzheng',
-      position: [20.5, 3.42, 11.5],
-      facing: 0,
-      size: 'large',
-      title: '通政殿 · 消息记录',
-      subtitle: 'MESSAGE / DESPATCH',
-      tone: 'idle',
-      mount: (body) => {
-        tongzhengPage = mountScreenPage(body, {
-          nodeKey: 'tongzheng-hall',
-          overviewPath: '/message/overview',
-          overviewPermission: 'sys:message:record:list',
-          pages: [MESSAGE_RECORD_PAGE],
-          getToken: () => debugToken() ?? opts.getToken?.() ?? null,
-          getPermissions: opts.getPermissions,
-          // 题头灯跟业务页状态走：概览陈旧/失败时不该还亮绿灯
-          onTone: (tone) => tongzhengScreen?.setTone(tone),
-          onTitle: (title, subtitle) => {
-            tongzhengScreen?.setTitle(title ? `${title} · 消息记录` : '通政殿 · 消息记录',
-              subtitle ?? 'MESSAGE / DESPATCH');
-          },
-        });
-        return () => {
-          tongzhengPage?.dispose();
-          tongzhengPage = null;
-        };
-      },
-    });
+      tongzhengScreen = screens.add({
+        id: 'tongzheng',
+        position: [20.5, 3.42, 11.5],
+        facing: 0,
+        size: 'large',
+        title: '通政殿 · 消息记录',
+        subtitle: 'MESSAGE / DESPATCH',
+        tone: 'idle',
+        mount: (body) => {
+          tongzhengPage = mountScreenPage(body, {
+            nodeKey: 'tongzheng-hall',
+            overviewPath: '/message/overview',
+            overviewPermission: 'sys:message:record:list',
+            pages: [MESSAGE_RECORD_PAGE],
+            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+            getPermissions: opts.getPermissions,
+            // 题头灯跟业务页状态走：概览陈旧/失败时不该还亮绿灯
+            onTone: (tone) => tongzhengScreen?.setTone(tone),
+            onTitle: (title, subtitle) => {
+              tongzhengScreen?.setTitle(
+                title ? `${title} · 消息记录` : '通政殿 · 消息记录',
+                subtitle ?? 'MESSAGE / DESPATCH',
+              );
+            },
+          });
+          return () => {
+            tongzhengPage?.dispose();
+            tongzhengPage = null;
+          };
+        },
+      });
 
-    /* 起居殿（S5/T5.9）：审计留痕是否在正常工作。比起"抓到一次违规"，这一屏更怕
+      /* 起居殿（S5/T5.9）：审计留痕是否在正常工作。比起"抓到一次违规"，这一屏更怕
        "该记的那段是空白"——摄入断流、归档停摆都不报错，等查账才发现没证据。
        位置同前几殿：东列第四进（x = +20.5、殿心 z = 21），屏风 z = 25.5（殿心 + 4.5），
        台基顶面 1.87 米 → 屏风中心 3.42 米（摆法说明见枢密殿那段）。 */
-    qijuScreen = screens.add({
-      id: 'qiju',
-      position: [20.5, 3.42, 25.5],
-      facing: 0,
-      size: 'large',
-      title: '起居殿 · 审计日志',
-      subtitle: 'AUDIT / RECORD',
-      tone: 'idle',
-      mount: (body) => {
-        qijuPage = mountScreenPage(body, {
-          nodeKey: 'qiju-hall',
-          overviewPath: '/audit/overview',
-          overviewPermission: 'sys:audit:log:list',
-          pages: [AUDIT_LOG_PAGE],
-          getToken: () => debugToken() ?? opts.getToken?.() ?? null,
-          getPermissions: opts.getPermissions,
-          // 题头灯跟业务页状态走：概览陈旧/失败时不该还亮绿灯
-          onTone: (tone) => qijuScreen?.setTone(tone),
-          onTitle: (title, subtitle) => {
-            qijuScreen?.setTitle(title ? `${title} · 审计日志` : '起居殿 · 审计日志',
-              subtitle ?? 'AUDIT / RECORD');
-          },
-        });
-        return () => {
-          qijuPage?.dispose();
-          qijuPage = null;
-        };
-      },
-    });
+      qijuScreen = screens.add({
+        id: 'qiju',
+        position: [20.5, 3.42, 25.5],
+        facing: 0,
+        size: 'large',
+        title: '起居殿 · 审计日志',
+        subtitle: 'AUDIT / RECORD',
+        tone: 'idle',
+        mount: (body) => {
+          qijuPage = mountScreenPage(body, {
+            nodeKey: 'qiju-hall',
+            overviewPath: '/audit/overview',
+            overviewPermission: 'sys:audit:log:list',
+            pages: [AUDIT_LOG_PAGE],
+            getToken: () => debugToken() ?? opts.getToken?.() ?? null,
+            getPermissions: opts.getPermissions,
+            // 题头灯跟业务页状态走：概览陈旧/失败时不该还亮绿灯
+            onTone: (tone) => qijuScreen?.setTone(tone),
+            onTitle: (title, subtitle) => {
+              qijuScreen?.setTitle(
+                title ? `${title} · 审计日志` : '起居殿 · 审计日志',
+                subtitle ?? 'AUDIT / RECORD',
+              );
+            },
+          });
+          return () => {
+            qijuPage?.dispose();
+            qijuPage = null;
+          };
+        },
+      });
 
-    /* 遮挡演示：御道边一根拴马桩，挂进遮挡层。
+      /* 遮挡演示：御道边一根拴马桩，挂进遮挡层。
        从出生点看过去，桩子应该切掉屏风的一角——这是 S0 T0.3 在真实场景、真实
        几何、真实光照下的复核。只有这一根进遮挡层，遮挡 pass 的开销可以忽略。 */
-    const post = new THREE.Group();
-    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 2.4, 10), matStone);
-    shaft.position.y = 1.2;
-    shaft.castShadow = true;
-    const base = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.22, 0.86), matWallDark);
-    base.position.y = 0.11;
-    base.castShadow = true;
-    base.receiveShadow = true;
-    post.add(shaft, base);
-    /* 位置是按"从近处正对时刚好切到屏风左边框"定的：
+      const post = new THREE.Group();
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 2.4, 10), matStone);
+      shaft.position.y = 1.2;
+      shaft.castShadow = true;
+      const base = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.22, 0.86), matWallDark);
+      base.position.y = 0.11;
+      base.castShadow = true;
+      base.receiveShadow = true;
+      post.add(shaft, base);
+      /* 位置是按"从近处正对时刚好切到屏风左边框"定的：
        相机在玩家 +Z 侧时，桩子在 x=-8.5 的水平角约 7.7°，略小于屏风左缘的 8.1°，
        于是它只压住纸面最左一小条——够证明遮挡生效，又不挡住正文。 */
-    post.position.set(-8.5, 0, 63.9);
-    scene.add(post);
-    screens.setOccluders([post]);
+      post.position.set(-8.5, 0, 63.9);
+      scene.add(post);
+      screens.setOccluders([post]);
     } catch (err) {
       /* 屏风坏了不该带崩整座城：城还是能走能看的，只是没有界面 */
       console.error('[screen] setup failed', err);

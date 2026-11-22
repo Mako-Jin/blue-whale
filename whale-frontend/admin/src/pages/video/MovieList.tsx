@@ -226,9 +226,7 @@ export default function MovieList() {
       })
       .catch((error) =>
         message.error(
-          error instanceof Error
-            ? error.message
-            : t('video.movie.upload.failed', { label }),
+          error instanceof Error ? error.message : t('video.movie.upload.failed', { label }),
         ),
       )
       .finally(() => setUploading(false));
@@ -295,9 +293,7 @@ export default function MovieList() {
       message.success(t('video.movie.msg.published'));
       tableRef.current?.reload();
     } catch (error) {
-      message.error(
-        error instanceof Error ? error.message : t('video.movie.msg.publishFailed'),
-      );
+      message.error(error instanceof Error ? error.message : t('video.movie.msg.publishFailed'));
     }
   };
 
@@ -679,9 +675,7 @@ export default function MovieList() {
             label={t('video.movie.form.duration')}
             style={{ flex: 1 }}
             rules={
-              editing
-                ? []
-                : [{ required: true, message: t('video.movie.form.durationRequired') }]
+              editing ? [] : [{ required: true, message: t('video.movie.form.durationRequired') }]
             }
           >
             <InputNumber

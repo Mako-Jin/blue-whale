@@ -3,7 +3,14 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { createSceneEnv } from './env';
 import type { SceneAssets } from './loader';
 import { createPostFx } from './postfx';
-import { GATE_PLAQUE_ANCHOR, WALL_X, alleySpots, buildSettlement, lanternSpots, windTime } from './props';
+import {
+  GATE_PLAQUE_ANCHOR,
+  WALL_X,
+  alleySpots,
+  buildSettlement,
+  lanternSpots,
+  windTime,
+} from './props';
 import { createGatePlaque } from './plaque';
 import { createSky, type SkyState } from './sky';
 import { createTerrain, heightAt, GATE_ROAD_Y } from './terrain';
@@ -27,7 +34,8 @@ export interface SceneStats {
 
 export type TimeName = 'dusk' | 'day' | 'blue' | 'night';
 export type Quality = 'high' | 'mid' | 'low';
-export type PresetName = 'overview' | 'bridge' | 'street' | 'dock' | 'shop' | 'alley' | 'roofs' | 'bank' | 'gate' | 'moon';
+export type PresetName =
+  'overview' | 'bridge' | 'street' | 'dock' | 'shop' | 'alley' | 'roofs' | 'bank' | 'gate' | 'moon';
 
 interface TimePreset {
   /** 太阳高度角（度） */
@@ -153,7 +161,7 @@ const TIMES: Record<TimeName, TimePreset> = {
     // 白天云：白顶灰底，量适中——纯蓝天也好看，但全景上三分之一太空。
     // shade 必须压到 0x7f95ad 一档：白天可见天带全是 0xd8e6f0 的亮雾色，
     // 云底不够深就直接被雾色吃掉
-    cloud: 0.90,
+    cloud: 0.9,
     cloudLight: 0xfffaf0,
     cloudShade: 0x647a92,
     // 白天窗纸必须换"纸本色"（S27）：0xFFB964 的暖橙 albedo 在 3.2 的日照下
@@ -236,7 +244,7 @@ const TIMES: Record<TimeName, TimePreset> = {
     shadowTint: 0x0c1730,
     shadowAmount: 0.4,
     // 夜云：月光给一点轮廓就够，量压低——夜里大团亮云会抢灯笼的戏
-    cloud: 0.30,
+    cloud: 0.3,
     cloudLight: 0x2e3a54,
     cloudShade: 0x10161f,
     paperColor: 0xffb964,
@@ -335,7 +343,11 @@ const CAMERAS: Record<PresetName, CameraPreset> = {
 export function sunDirection(p: TimePreset): THREE.Vector3 {
   const el = (p.sunElev * Math.PI) / 180;
   const az = (p.sunAzim * Math.PI) / 180;
-  return new THREE.Vector3(Math.cos(el) * Math.cos(az), Math.sin(el), Math.cos(el) * Math.sin(az)).normalize();
+  return new THREE.Vector3(
+    Math.cos(el) * Math.cos(az),
+    Math.sin(el),
+    Math.cos(el) * Math.sin(az),
+  ).normalize();
 }
 
 export interface ShowcaseOptions {
@@ -374,7 +386,10 @@ export function createShowcase(host: HTMLElement, opts: ShowcaseOptions = {}): S
 
   const camera = new THREE.PerspectiveCamera(38, host.clientWidth / host.clientHeight, 0.4, 3000);
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    powerPreference: 'high-performance',
+  });
   // postfx 一帧要 render 五六次，自动重置的话 HUD 永远只能读到最后一个全屏 quad（2 个三角面）
   renderer.info.autoReset = false;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));

@@ -288,10 +288,7 @@ export default function PermissionList() {
           label={t('permission.form.type')}
           rules={[{ required: true, message: t('permission.form.typeRequired') }]}
         >
-          <Select
-            options={permTypeOptions(t)}
-            placeholder={t('permission.form.typePlaceholder')}
-          />
+          <Select options={permTypeOptions(t)} placeholder={t('permission.form.typePlaceholder')} />
         </Form.Item>
         <Form.Item name="path" label={t('permission.form.path')}>
           <Input placeholder={t('permission.form.pathPlaceholder')} />

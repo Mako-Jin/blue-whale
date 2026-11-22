@@ -38,7 +38,9 @@ export async function pageInAppMessages(params: {
   search.set('current', String(params.current));
   search.set('size', String(params.size));
   if (params.readFlag !== undefined) search.set('readFlag', String(params.readFlag));
-  const page = await http.get<PageResult<InAppMessage>>(`/message/v1/inapp/page?${search.toString()}`);
+  const page = await http.get<PageResult<InAppMessage>>(
+    `/message/v1/inapp/page?${search.toString()}`,
+  );
   return {
     records: page?.records ?? [],
     total: page?.total ?? 0,

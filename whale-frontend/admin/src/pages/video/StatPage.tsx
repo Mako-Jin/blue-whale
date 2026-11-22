@@ -63,7 +63,10 @@ export default function StatPage() {
         }
       >
         <Space size={48} wrap>
-          <Statistic title={t('video.stat.card.totalContent')} value={overview?.totalContent ?? 0} />
+          <Statistic
+            title={t('video.stat.card.totalContent')}
+            value={overview?.totalContent ?? 0}
+          />
           <Statistic
             title={t('video.stat.card.publishedContent')}
             value={overview?.publishedContent ?? 0}
@@ -83,7 +86,10 @@ export default function StatPage() {
 
       <Card title={t('video.stat.card.typeDistribution')} loading={loading}>
         <Space size={48} wrap>
-          <Statistic title={t('video.stat.card.shortVideo')} value={overview?.shortVideoCount ?? 0} />
+          <Statistic
+            title={t('video.stat.card.shortVideo')}
+            value={overview?.shortVideoCount ?? 0}
+          />
           <Statistic title={t('video.stat.card.video')} value={overview?.videoCount ?? 0} />
           <Statistic title={t('video.stat.card.movie')} value={overview?.movieCount ?? 0} />
         </Space>
@@ -100,9 +106,7 @@ export default function StatPage() {
               <Tag color="green">{t('video.stat.tag.noBacklog')}</Tag>
             )}
           </Descriptions.Item>
-          <Descriptions.Item
-            label={t('video.stat.label.expiringLicenses', { days: expiringDays })}
-          >
+          <Descriptions.Item label={t('video.stat.label.expiringLicenses', { days: expiringDays })}>
             {overview?.expiringLicenseCount && overview.expiringLicenseCount > 0 ? (
               <Tag color="red">
                 {t('video.stat.tag.expiringLicenses', { count: overview.expiringLicenseCount })}

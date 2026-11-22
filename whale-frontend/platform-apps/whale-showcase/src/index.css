@@ -138,7 +138,10 @@ body,
   font-size: 12px;
   letter-spacing: 0.1em;
   cursor: pointer;
-  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background 0.15s;
 }
 
 .sc-btn:hover {

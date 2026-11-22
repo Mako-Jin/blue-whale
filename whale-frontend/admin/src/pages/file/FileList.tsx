@@ -124,10 +124,7 @@ export default function FileList() {
             {t('file.action.download')}
           </AuthButton>
           {has('sys:file:delete') && (
-            <Popconfirm
-              title={t('file.confirm.delete')}
-              onConfirm={() => void handleDelete(row)}
-            >
+            <Popconfirm title={t('file.confirm.delete')} onConfirm={() => void handleDelete(row)}>
               <Button type="link" size="small" danger>
                 {t('file.action.delete')}
               </Button>

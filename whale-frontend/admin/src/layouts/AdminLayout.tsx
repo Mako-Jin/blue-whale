@@ -46,7 +46,11 @@ function filterStaticNav(items: SidebarItem[], permissions: readonly string[]): 
  * 动态菜单未包含租户管理时补一个入口。
  * 仅平台租户账号持有 sys:tenant:list 权限码，业务租户不会看到该入口。
  */
-function withTenantNav(items: SidebarItem[], canManageTenants: boolean, label: string): SidebarItem[] {
+function withTenantNav(
+  items: SidebarItem[],
+  canManageTenants: boolean,
+  label: string,
+): SidebarItem[] {
   if (!canManageTenants || collectMenuKeys(items).includes('/tenants')) {
     return items;
   }

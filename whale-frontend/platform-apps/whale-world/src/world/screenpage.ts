@@ -230,14 +230,24 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
         signal: controller.signal,
       });
       if (response.status === 401 || response.status === 403) {
-        return { ok: false, status: response.status, data: null, error: permissionNote(response.status) };
+        return {
+          ok: false,
+          status: response.status,
+          data: null,
+          error: permissionNote(response.status),
+        };
       }
       if (!response.ok) {
         return { ok: false, status: response.status, data: null, error: `HTTP ${response.status}` };
       }
       const contentType = response.headers.get('content-type') ?? '';
       if (!contentType.includes('json')) {
-        return { ok: false, status: response.status, data: null, error: '非 JSON 响应（多半是代理未配）' };
+        return {
+          ok: false,
+          status: response.status,
+          data: null,
+          error: '非 JSON 响应（多半是代理未配）',
+        };
       }
       const payload: unknown = await response.json();
       const wrapped = Boolean(payload && typeof payload === 'object' && 'code' in (payload as Row));
@@ -280,7 +290,11 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
     // 演示数据模式下不再问后端：否则 60s 后的自动刷新会把注入的 KPI 冲成"未登录"
     if (mocked) return;
     const next = await fetchOverview(
-      { nodeKey: options.nodeKey, path: options.overviewPath, permission: options.overviewPermission },
+      {
+        nodeKey: options.nodeKey,
+        path: options.overviewPath,
+        permission: options.overviewPermission,
+      },
       { getToken: options.getToken, getPermissions: options.getPermissions, timeoutMillis },
       overview,
     );
@@ -365,7 +379,11 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
         const card = h('div', 'bwsp-kpi');
         card.dataset.tone = kpi.tone ?? 'flat';
         const value = h('b', 'bwsp-kpi-value', formatKpiValue(kpi));
-        const label = h('span', 'bwsp-kpi-label', kpi.hint ? `${kpi.label} · ${kpi.hint}` : kpi.label);
+        const label = h(
+          'span',
+          'bwsp-kpi-label',
+          kpi.hint ? `${kpi.label} · ${kpi.hint}` : kpi.label,
+        );
         card.append(value, label);
         kpiBox.appendChild(card);
       }
@@ -425,7 +443,8 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
      看的人分不清哪根是发起）。 */
   function lineChart(chart: OverviewChart): Element {
     const palette = ['#a8702c', '#3f9e6e', '#4f7fa8', '#c9962f', '#8c6b9e'];
-    const series = chart.series.length > 0 ? chart.series : [{ name: '数值', values: [] as number[] }];
+    const series =
+      chart.series.length > 0 ? chart.series : [{ name: '数值', values: [] as number[] }];
     const slots = Math.max(chart.categories.length, ...series.map((item) => item.values.length));
     const all = series.flatMap((item) => item.values.map(num));
     const max = Math.max(1, ...all.map((value) => Math.abs(value)));
@@ -440,10 +459,15 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
     svg.setAttribute('class', 'bwsp-line');
     series.forEach((item, index) => {
       const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-      polyline.setAttribute('points', item.values
-        .map((value, position) =>
-          `${(position * step).toFixed(2)},${(30 - (num(value) / max) * 26).toFixed(2)}`)
-        .join(' '));
+      polyline.setAttribute(
+        'points',
+        item.values
+          .map(
+            (value, position) =>
+              `${(position * step).toFixed(2)},${(30 - (num(value) / max) * 26).toFixed(2)}`,
+          )
+          .join(' '),
+      );
       polyline.setAttribute('fill', 'none');
       polyline.setAttribute('stroke', palette[index % palette.length]);
       /* 非等比缩放会把描边一起拉扁（竖线粗 8 倍、横线几乎消失）：
@@ -498,7 +522,10 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
     const legend = h('div', 'bwsp-legend');
     chart.categories.forEach((category, index) => {
       const item = h('span', 'bwsp-legend-item');
-      item.append(h('i', 'bwsp-dot'), h('span', '', `${category} ${formatValue(chart.format, values[index] ?? 0)}`));
+      item.append(
+        h('i', 'bwsp-dot'),
+        h('span', '', `${category} ${formatValue(chart.format, values[index] ?? 0)}`),
+      );
       legend.appendChild(item);
     });
     wrap.appendChild(legend);
@@ -523,7 +550,9 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
       statusSel.value = status;
     }
     countEl.textContent =
-      listState === 'ready' || listState === 'empty' ? `共 ${total} 条 · 第 ${page}/${pageCount()} 页` : '';
+      listState === 'ready' || listState === 'empty'
+        ? `共 ${total} 条 · 第 ${page}/${pageCount()} 页`
+        : '';
   }
 
   function pageCount(): number {
@@ -704,7 +733,9 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
     detailBody.replaceChildren();
     if (!spec || !detail.data) {
       detailTitle.textContent = '详情';
-      detailBody.appendChild(h('div', 'bwsp-empty', detail.state === 'loading' ? '问询中…' : '暂无详情'));
+      detailBody.appendChild(
+        h('div', 'bwsp-empty', detail.state === 'loading' ? '问询中…' : '暂无详情'),
+      );
       return;
     }
     const row = detail.data;
@@ -796,7 +827,8 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
     const filtered = mockData.filter((row) => {
       if (status && spec.statusParam && String(row.status ?? '') !== status) return false;
       if (!keyword) return true;
-      const hay = `${row.docNo ?? ''} ${row.supplierName ?? ''} ${row.itemName ?? ''}`.toLowerCase();
+      const hay =
+        `${row.docNo ?? ''} ${row.supplierName ?? ''} ${row.itemName ?? ''}`.toLowerCase();
       return hay.includes(keyword.toLowerCase());
     });
     total = filtered.length;
@@ -955,7 +987,9 @@ export function mountScreenPage(body: HTMLElement, options: ScreenPageOptions): 
         },
       ],
       alerts: [{ level: 'warning', text: '有 2 条未关闭预警', count: 2 }],
-      links: spec ? [{ key: spec.key, label: spec.title, path: spec.listPath, permission: spec.permission }] : [],
+      links: spec
+        ? [{ key: spec.key, label: spec.title, path: spec.listPath, permission: spec.permission }]
+        : [],
       notes: ['演示数据 · 仅 ?debug=1 下注入'],
     };
   }

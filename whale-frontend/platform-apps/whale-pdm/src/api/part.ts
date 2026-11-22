@@ -303,7 +303,9 @@ export function getPart(id: string): Promise<PdmPart> {
 
 /** 保存零件（无 id 走新增） */
 export function savePart(input: PartInput, id?: string): Promise<PdmPart> {
-  return id ? http.put<PdmPart>(`/pdm/v1/part/${id}`, input) : http.post<PdmPart>('/pdm/v1/part', input);
+  return id
+    ? http.put<PdmPart>(`/pdm/v1/part/${id}`, input)
+    : http.post<PdmPart>('/pdm/v1/part', input);
 }
 
 /** 删除零件 */

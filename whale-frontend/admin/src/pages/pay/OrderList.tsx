@@ -248,20 +248,14 @@ export default function OrderList() {
             {t('pay.action.detail')}
           </Button>
           {row.status === 'CREATED' && has('sys:pay:pay') && (
-            <Popconfirm
-              title={t('pay.confirm.pay')}
-              onConfirm={() => void handlePay(row)}
-            >
+            <Popconfirm title={t('pay.confirm.pay')} onConfirm={() => void handlePay(row)}>
               <Button type="link" size="small">
                 {t('pay.action.pay')}
               </Button>
             </Popconfirm>
           )}
           {row.status === 'CREATED' && has('sys:pay:cancel') && (
-            <Popconfirm
-              title={t('pay.confirm.cancel')}
-              onConfirm={() => void handleCancel(row)}
-            >
+            <Popconfirm title={t('pay.confirm.cancel')} onConfirm={() => void handleCancel(row)}>
               <Button type="link" size="small">
                 {t('pay.action.cancel')}
               </Button>
@@ -342,9 +336,7 @@ export default function OrderList() {
               {
                 name: 'keyword',
                 label: t('pay.search.keyword'),
-                element: (
-                  <Input allowClear placeholder={t('pay.search.keywordPlaceholder')} />
-                ),
+                element: <Input allowClear placeholder={t('pay.search.keywordPlaceholder')} />,
               },
               {
                 name: 'status',

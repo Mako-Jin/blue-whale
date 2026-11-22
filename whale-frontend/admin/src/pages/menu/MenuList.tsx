@@ -159,8 +159,7 @@ export default function MenuList() {
       title: t('menu.col.visible'),
       dataIndex: 'visible',
       width: 80,
-      render: (value: number | undefined) =>
-        value === 1 ? t('menu.flag.yes') : t('menu.flag.no'),
+      render: (value: number | undefined) => (value === 1 ? t('menu.flag.yes') : t('menu.flag.no')),
     },
     {
       title: t('menu.col.status'),

@@ -110,5 +110,7 @@ export function retryChgNotice(id: string): Promise<ChgNotice> {
 
 /** 通知投递日志 */
 export function pageChgNotifyLogs(id: string): Promise<PageResult<ChgNotifyLog>> {
-  return http.get<PageResult<ChgNotifyLog>>(`/pdm/v1/change/notice/${id}/notify-logs`, { size: 100 });
+  return http.get<PageResult<ChgNotifyLog>>(`/pdm/v1/change/notice/${id}/notify-logs`, {
+    size: 100,
+  });
 }

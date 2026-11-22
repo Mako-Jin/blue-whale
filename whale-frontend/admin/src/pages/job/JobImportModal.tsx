@@ -116,7 +116,12 @@ export function JobImportModal({ open, onCancel, onImported }: JobImportModalPro
         ) : (
           <Space>
             <Button onClick={onCancel}>{t('job.import.action.cancel')}</Button>
-            <Button type="primary" loading={importing} disabled={!parsed} onClick={() => void handleImport()}>
+            <Button
+              type="primary"
+              loading={importing}
+              disabled={!parsed}
+              onClick={() => void handleImport()}
+            >
               {t('job.import.action.start')}
             </Button>
           </Space>
@@ -168,9 +173,7 @@ export function JobImportModal({ open, onCancel, onImported }: JobImportModalPro
               dependencies: result.dependencyCount,
             })}
             description={
-              result.failures.length > 0 ? (
-                <FailureList failures={result.failures} />
-              ) : undefined
+              result.failures.length > 0 ? <FailureList failures={result.failures} /> : undefined
             }
           />
         )}

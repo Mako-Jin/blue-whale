@@ -121,8 +121,7 @@ export const videoMessages = defineMessages(
     'video.movie.form.licenseNo': '授权编号',
     'video.movie.form.licenseNoExtra': '授权合同 / 登记编号，可选',
     'video.movie.form.licenseExpire': '授权到期时间',
-    'video.movie.form.licenseExpireExtraCurrent':
-      '当前：{time}；保存需重新选择（到期后自动下线）',
+    'video.movie.form.licenseExpireExtraCurrent': '当前：{time}；保存需重新选择（到期后自动下线）',
     'video.movie.form.licenseExpireExtra': '到期后定时任务自动下线并阻断播放',
     'video.movie.form.licenseExpirePlaceholder': '选择授权到期时间',
     'video.movie.form.sectionImages': '图片素材',

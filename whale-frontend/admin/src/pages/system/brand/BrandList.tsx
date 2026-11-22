@@ -261,10 +261,7 @@ export default function BrandList() {
                 name: 'keyword',
                 label: t('systemAuth.brand.search.keyword'),
                 element: (
-                  <Input
-                    allowClear
-                    placeholder={t('systemAuth.brand.search.keywordPlaceholder')}
-                  />
+                  <Input allowClear placeholder={t('systemAuth.brand.search.keywordPlaceholder')} />
                 ),
               },
               {
@@ -357,10 +354,7 @@ export default function BrandList() {
           </Form.Item>
         </Space>
         <Form.Item name="loginTitle" label={t('systemAuth.brand.field.loginTitle')}>
-          <Input
-            maxLength={64}
-            placeholder={t('systemAuth.brand.field.loginTitlePlaceholder')}
-          />
+          <Input maxLength={64} placeholder={t('systemAuth.brand.field.loginTitlePlaceholder')} />
         </Form.Item>
         <Form.Item name="institutionName" label={t('systemAuth.brand.field.institutionName')}>
           <Input maxLength={64} />

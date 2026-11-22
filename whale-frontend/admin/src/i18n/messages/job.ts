@@ -129,7 +129,8 @@ export const jobMessages = defineMessages(
     'job.import.msg.doneWithFailures': '导入完成，{count} 条失败',
     'job.import.summary': '{file}：任务 {jobs} 条，依赖 {dependencies} 条',
     'job.import.summaryVersion': '，版本 {version}',
-    'job.import.resultSummary': '新建 {created}，更新 {updated}，跳过 {skipped}，依赖 {dependencies} 条',
+    'job.import.resultSummary':
+      '新建 {created}，更新 {updated}，跳过 {skipped}，依赖 {dependencies} 条',
     'job.import.failureItem': '{target}：{reason}',
     'job.import.failureRest': '其余 {count} 条失败未展示',
 
@@ -175,7 +176,8 @@ export const jobMessages = defineMessages(
     'job.dag.noCron': '无 Cron',
     'job.dag.status.running': '运行中',
     'job.dag.status.stopped': '已停止',
-    'job.dag.tip': '{name}（#{id}）\n分组：{group}\n执行器：{executor} / {code}\nCron：{cron}\n状态：{status}',
+    'job.dag.tip':
+      '{name}（#{id}）\n分组：{group}\n执行器：{executor} / {code}\nCron：{cron}\n状态：{status}',
     'job.dag.tipFailure': '\n连续失败：{count}',
     'job.dag.msg.loadFailed': '拓扑图加载失败',
     'job.dag.msg.acyclic': '依赖图无环',

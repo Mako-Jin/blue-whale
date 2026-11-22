@@ -139,8 +139,7 @@ export function heightAt(x: number, z: number): number {
       road = GATE_ROAD_Y + (4.15 - GATE_ROAD_Y) * smoothstep(34.4, 39.5, x);
     }
     road -= roadDz * 0.044;
-    const roadMask =
-      roadBand * smoothstep(20.5, 21.5, x) * (1 - smoothstep(39.5, 42, x));
+    const roadMask = roadBand * smoothstep(20.5, 21.5, x) * (1 - smoothstep(39.5, 42, x));
     if (roadMask > 0.001) {
       h = h * (1 - roadMask) + road * roadMask;
     }
@@ -182,8 +181,7 @@ function createGroundDetail(): THREE.Texture {
       for (let x = 0; x < size; x += 1) {
         // 三层噪声叠加，值域压到 0.62~1.0：只做明暗微差，不改变整体色相
         const n =
-          fbm(x * 0.055, y * 0.055, 4) * 0.6 +
-          fbm(x * 0.21 + 17.3, y * 0.21 - 5.1, 3) * 0.4;
+          fbm(x * 0.055, y * 0.055, 4) * 0.6 + fbm(x * 0.21 + 17.3, y * 0.21 - 5.1, 3) * 0.4;
         const v = Math.round(255 * (0.62 + n * 0.38));
         const i = (y * size + x) * 4;
         img.data[i] = v;
@@ -280,7 +278,7 @@ export function createTerrain(size = 620, segments = 264): Terrain {
     const tone = patch * 0.8 + mid * 0.45 + broad * 0.9;
     // 饱和度抖动 0.16 → 0.10：白天 hemi 提到 1.15 之后，0.16 的饱和抖动
     // 让向阳面草地产出 0x7f9a3a 一类的"荧光绿"。干湿差靠明度就够了。
-    c.offsetHSL(tone * 0.045, tone * 0.10, tone * 0.105);
+    c.offsetHSL(tone * 0.045, tone * 0.1, tone * 0.105);
     // 细颗粒：频率必须低于网格分辨率（620/264≈2.3m 一格，0.9 的噪声在顶点上采样
     // 会直接走样成一条条竖向条纹），这里给到 0.22 只留低频起伏
     const grain = (fbm(x * 0.22, z * 0.22, 2) - 0.5) * 0.05;

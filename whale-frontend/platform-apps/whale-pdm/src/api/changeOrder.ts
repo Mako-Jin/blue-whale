@@ -94,7 +94,10 @@ export interface ChgTaskInput {
 
 /** 分页查询变更单 */
 export function pageChgOrders(query: ChgOrderQuery): Promise<PageResult<ChgOrder>> {
-  return http.get<PageResult<ChgOrder>>('/pdm/v1/change/order/page', query as Record<string, unknown>);
+  return http.get<PageResult<ChgOrder>>(
+    '/pdm/v1/change/order/page',
+    query as Record<string, unknown>,
+  );
 }
 
 /** 变更单详情 */

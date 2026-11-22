@@ -344,9 +344,7 @@ export default function ItemList() {
               {
                 name: 'keyword',
                 label: t('config.search.keyword'),
-                element: (
-                  <Input allowClear placeholder={t('config.search.keywordPlaceholder')} />
-                ),
+                element: <Input allowClear placeholder={t('config.search.keywordPlaceholder')} />,
               },
               {
                 name: 'valueType',

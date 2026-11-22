@@ -70,7 +70,8 @@ export interface Paged<T> {
 // ---- 场景 ----
 
 export const sceneApi = {
-  page: (query?: Record<string, unknown>) => http.get<Paged<SceneVO>>('/twin/v1/scenes/page', query),
+  page: (query?: Record<string, unknown>) =>
+    http.get<Paged<SceneVO>>('/twin/v1/scenes/page', query),
   get: (id: string) => http.get<SceneVO>(`/twin/v1/scenes/${id}`),
   create: (body: SceneSaveRequest) => http.post<SceneVO>('/twin/v1/scenes', body),
   update: (id: string, body: SceneSaveRequest) => http.put<SceneVO>(`/twin/v1/scenes/${id}`, body),
@@ -89,7 +90,8 @@ export const entityApi = {
     http.post<EntityVO>(`/twin/v1/scenes/${sceneId}/entities`, body),
   update: (sceneId: string, id: string, body: EntitySaveRequest) =>
     http.put<EntityVO>(`/twin/v1/scenes/${sceneId}/entities/${id}`, body),
-  remove: (sceneId: string, id: string) => http.del<void>(`/twin/v1/scenes/${sceneId}/entities/${id}`),
+  remove: (sceneId: string, id: string) =>
+    http.del<void>(`/twin/v1/scenes/${sceneId}/entities/${id}`),
 };
 
 /**
@@ -170,8 +172,10 @@ export const bindingApi = {
     http.post<BindingVO>(`/twin/v1/scenes/${sceneId}/bindings`, body),
   update: (sceneId: string, id: string, body: BindingSaveRequest) =>
     http.put<BindingVO>(`/twin/v1/scenes/${sceneId}/bindings/${id}`, body),
-  remove: (sceneId: string, id: string) => http.del<void>(`/twin/v1/scenes/${sceneId}/bindings/${id}`),
-  state: (sceneId: string) => http.get<BindingStateVO[]>(`/twin/v1/scenes/${sceneId}/bindings/state`),
+  remove: (sceneId: string, id: string) =>
+    http.del<void>(`/twin/v1/scenes/${sceneId}/bindings/${id}`),
+  state: (sceneId: string) =>
+    http.get<BindingStateVO[]>(`/twin/v1/scenes/${sceneId}/bindings/state`),
 };
 
 /** 拉取 IoT 设备精简列表（绑定选择器；失败返回空数组不打断查看器） */
@@ -464,7 +468,8 @@ export const markerApi = {
     http.post<MarkerVO>(`/twin/v1/scenes/${sceneId}/markers`, body),
   update: (sceneId: string, id: string, body: MarkerSaveRequest) =>
     http.put<MarkerVO>(`/twin/v1/scenes/${sceneId}/markers/${id}`, body),
-  remove: (sceneId: string, id: string) => http.del<void>(`/twin/v1/scenes/${sceneId}/markers/${id}`),
+  remove: (sceneId: string, id: string) =>
+    http.del<void>(`/twin/v1/scenes/${sceneId}/markers/${id}`),
 };
 
 // ---- 发布快照（M3）----

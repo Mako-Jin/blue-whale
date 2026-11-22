@@ -357,7 +357,9 @@ export function createWater(length = 480, halfWidth = 12): Water {
     uFogDensity: { value: 0.0022 },
     uEnv: { value: null as THREE.Texture | null },
     uEnvWeight: { value: 0 },
-    uLampPos: { value: [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()] },
+    uLampPos: {
+      value: [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()],
+    },
     uLampPower: { value: [0, 0, 0, 0] },
     uLampCount: { value: 0 },
     /*
@@ -414,7 +416,7 @@ export function createWater(length = 480, halfWidth = 12): Water {
     setLamps(positions, powers) {
       const n = Math.min(4, positions.length);
       for (let i = 0; i < n; i += 1) uniforms.uLampPos.value[i].copy(positions[i]);
-      for (let i = 0; i < 4; i += 1) uniforms.uLampPower.value[i] = i < n ? powers[i] ?? 0 : 0;
+      for (let i = 0; i < 4; i += 1) uniforms.uLampPower.value[i] = i < n ? (powers[i] ?? 0) : 0;
       uniforms.uLampCount.value = n;
     },
   };

@@ -128,13 +128,7 @@ export function DagGraph({ nodes, edges, cycleJobIds = [], height = 520 }: DagGr
                   r={4}
                   fill={running ? token.colorSuccess : token.colorTextQuaternary}
                 />
-                <text
-                  x={x + 26}
-                  y={y + 21}
-                  fontSize={13}
-                  fill={token.colorText}
-                  fontWeight={500}
-                >
+                <text x={x + 26} y={y + 21} fontSize={13} fill={token.colorText} fontWeight={500}>
                   {truncate(node.jobName)}
                 </text>
                 <text

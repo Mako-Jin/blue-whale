@@ -330,9 +330,12 @@ export function changeParticipantStatus(
   userId: number,
   status: OaParticipantStatus,
 ): Promise<OaMeetingParticipant> {
-  return http.put<OaMeetingParticipant>(`/oa/v1/meeting/${meetingId}/participants/${userId}/status`, {
-    status,
-  });
+  return http.put<OaMeetingParticipant>(
+    `/oa/v1/meeting/${meetingId}/participants/${userId}/status`,
+    {
+      status,
+    },
+  );
 }
 
 /** 保存会议纪要（含行动项） */

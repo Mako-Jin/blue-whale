@@ -344,9 +344,18 @@ function buildBridge(b: Builder): void {
     b.box('stone', step * 1.04, 0.16, BRIDGE_WIDTH - 0.5, x0, y - 0.08, BRIDGE_Z, { z: ang });
     // 两侧栏板（沿弧分段，跟着斜率转）
     for (const zs of [-1, 1]) {
-      b.box('stoneDark', step * 1.02, 0.9, 0.26, x0, y + 0.45, BRIDGE_Z + zs * (BRIDGE_WIDTH / 2 - 0.13), {
-        z: ang,
-      });
+      b.box(
+        'stoneDark',
+        step * 1.02,
+        0.9,
+        0.26,
+        x0,
+        y + 0.45,
+        BRIDGE_Z + zs * (BRIDGE_WIDTH / 2 - 0.13),
+        {
+          z: ang,
+        },
+      );
     }
   }
   // 栏杆望柱：每 2.3m 一根，否则长栏板看着像一堵墙
@@ -429,7 +438,6 @@ function buildDock(b: Builder): void {
  *
  * <p>方向备忘：码头西端搭岸、东端伸进深水，任何上岸构件只能往 -X 铺。</p>
  */
-
 
 export interface BoatPlace {
   x: number;
@@ -562,11 +570,7 @@ function buildTreesPlaceholder(b: Builder, spots: TreeSpot[]): void {
  * <p>54 棵 × 2 个 primitive × 一物一 mesh 的话是 108 个 drawcall；按 (变体, 部件)
  * 归并成 InstancedMesh 之后是 6 个。三角面不变，但 drawcall 与材质切换全省了。</p>
  */
-function buildTreesFromGlb(
-  group: THREE.Group,
-  assets: SceneAssets,
-  spots: TreeSpot[],
-): void {
+function buildTreesFromGlb(group: THREE.Group, assets: SceneAssets, spots: TreeSpot[]): void {
   const byVariant = new Map<TreeVariant, TreeSpot[]>();
   for (const sp of spots) {
     const list = byVariant.get(sp.variant) ?? [];
@@ -746,7 +750,15 @@ function buildStreet(b: Builder): void {
     const zcE = z + 0.9 + (rand() - 0.5) * 0.12;
     const sinkE = (rand() - 0.5) * 0.055;
     const kE: MatKey = rand() < 0.07 ? 'stone' : 'stoneDark';
-    b.box(kE, 3.42 - rand() * 0.1, 0.24, 3.5, STREET_X + 1.76, heightAt(STREET_X, zcE) + 0.05 + sinkE, zcE);
+    b.box(
+      kE,
+      3.42 - rand() * 0.1,
+      0.24,
+      3.5,
+      STREET_X + 1.76,
+      heightAt(STREET_X, zcE) + 0.05 + sinkE,
+      zcE,
+    );
 
     // 西半幅：13.99…16.95。13.53…13.99 那一条让给排水明沟（见下）
     const zcW = z - 0.9 + (rand() - 0.5) * 0.12;
@@ -774,8 +786,6 @@ function buildStreet(b: Builder): void {
   for (let z = -44; z < 40; z += 7) {
     b.box('stoneDark', GUTTER_W - 0.06, 0.09, 0.14, GUTTER_X, GY + 0.045, z);
   }
-
-
 
   /*
    * 街沿石：街面东沿（20.5）到临街立面（21.2）之间那条 0.7m 的缝。
@@ -811,7 +821,7 @@ function buildEmbankment(b: Builder): void {
     const h = top + 1.75; // 压到水下 1.75m
     b.box('stoneDark', 1.15, h, 2.42, X, top - h / 2 + 0.04, zc);
     // 压面石：比墙面挑出一点，形成一条影线
-    b.box('stone', 1.34, 0.16, 2.44, X + 0.04, top + 0.10, zc);
+    b.box('stone', 1.34, 0.16, 2.44, X + 0.04, top + 0.1, zc);
   }
 }
 
@@ -852,11 +862,11 @@ function buildCourtWalls(b: Builder, spots: HouseSpot[]): void {
     }
     // 门洞：深色门板凹进 0.1，门框用木色
     b.box('woodDark', 0.16, 2.06, 1.66, FRONT_X - 0.04, gy + 1.03, sp.z);
-    b.box('wood', 0.12, 2.2, 1.9, FRONT_X - 0.10, gy + 1.10, sp.z);
+    b.box('wood', 0.12, 2.2, 1.9, FRONT_X - 0.1, gy + 1.1, sp.z);
     b.box('woodDark', 0.2, 2.02, 1.6, FRONT_X - 0.16, gy + 1.01, sp.z);
     // 门楼顶：一块 1.5m 进深的小坡瓦顶（前后各挑 0.35），比墙头高一档
-    b.box('tile', 0.92, 0.12, 2.7, FRONT_X - 0.40, gy + 2.83, sp.z, { z: 0.30 });
-    b.box('tile', 0.92, 0.12, 2.7, FRONT_X + 0.40, gy + 2.83, sp.z, { z: -0.30 });
+    b.box('tile', 0.92, 0.12, 2.7, FRONT_X - 0.4, gy + 2.83, sp.z, { z: 0.3 });
+    b.box('tile', 0.92, 0.12, 2.7, FRONT_X + 0.4, gy + 2.83, sp.z, { z: -0.3 });
     b.box('tile', 0.2, 0.12, 2.78, FRONT_X, gy + 2.96, sp.z);
     // 门前踏跺
     b.box('stoneDark', 0.5, 0.18, 2.0, FRONT_X - 0.42, gy + 0.09, sp.z);
@@ -900,8 +910,8 @@ function buildAlleys(b: Builder, spots: AlleySpot[]): void {
     // 门头瓦顶：前后两坡，前坡挑出 0.55。
     // 0.12 厚的瓦片从街面平视只看得见一条边——出图是"门楣上浮着一块黑板"；
     // 加厚到 0.2 并把前坡往外挑，才看得见瓦面。
-    b.box('tile', 1.15, 0.2, sp.w + 0.5, x0 - 0.34, y + 2.70, zc, { z: 0.30 });
-    b.box('tile', 1.15, 0.2, sp.w + 0.5, x0 + 0.34, y + 2.70, zc, { z: -0.30 });
+    b.box('tile', 1.15, 0.2, sp.w + 0.5, x0 - 0.34, y + 2.7, zc, { z: 0.3 });
+    b.box('tile', 1.15, 0.2, sp.w + 0.5, x0 + 0.34, y + 2.7, zc, { z: -0.3 });
     b.box('tile', 0.2, 0.22, sp.w + 0.62, x0 + 0.02, y + 2.86, zc);
     // 巷名匾：一小块深色木牌。不能用 gold——金属材质在 1m 内的壁灯下会烧成一块橙红
     // 色发光板，比巷子本身还抢眼。
@@ -920,7 +930,7 @@ function buildAlleys(b: Builder, spots: AlleySpot[]): void {
     b.darken(1);
     b.box('tile', 0.52, 0.14, sp.w + 0.3, x0 + ALLEY_D - 0.1, y + 2.98, zc);
     // 石门框 + 双扇板门
-    b.box('stoneDark', 0.12, 2.3, 1.7, x0 + ALLEY_D - 0.30, y + 1.15, zc);
+    b.box('stoneDark', 0.12, 2.3, 1.7, x0 + ALLEY_D - 0.3, y + 1.15, zc);
     b.box('woodDark', 0.1, 2.06, 1.34, x0 + ALLEY_D - 0.34, y + 1.03, zc);
     b.box('wood', 0.06, 1.96, 0.06, x0 + ALLEY_D - 0.38, y + 1.0, zc);
     // 门罩：门头上一道小披檐，把"门"和"墙"分开
@@ -985,8 +995,8 @@ function buildStreetProps(b: Builder, spots: HouseSpot[]): void {
       const y = heightAt(x, z);
       // cyl(key, rTop, rBot, h, x, y, z, seg)：六个数字一个都不能少。
       // 少传 h 时 h 会吃掉 x（20.75m），出图是一根顶到天上去的细柱。
-      b.cyl('stoneDark', 0.34, 0.30, 0.62, x, y + 0.30, z, 12);
-      b.cyl('stone', 0.37, 0.37, 0.08, x, y + 0.60, z, 12);
+      b.cyl('stoneDark', 0.34, 0.3, 0.62, x, y + 0.3, z, 12);
+      b.cyl('stone', 0.37, 0.37, 0.08, x, y + 0.6, z, 12);
       b.cyl('water', 0.29, 0.29, 0.03, x, y + 0.56, z, 12);
     }
     // 柴垛：三四根横放的木柴叠起来
@@ -994,9 +1004,19 @@ function buildStreetProps(b: Builder, spots: HouseSpot[]): void {
       const z = sp.z + (rand() - 0.5) * 5.2;
       const y = heightAt(x, z);
       for (let i = 0; i < 4; i += 1) {
-        b.cyl('wood', 0.09, 0.09, 0.9, x + (i % 2) * 0.16, y + 0.09 + Math.floor(i / 2) * 0.16, z + (i % 2) * 0.02, 6, {
-          x: Math.PI / 2,
-        });
+        b.cyl(
+          'wood',
+          0.09,
+          0.09,
+          0.9,
+          x + (i % 2) * 0.16,
+          y + 0.09 + Math.floor(i / 2) * 0.16,
+          z + (i % 2) * 0.02,
+          6,
+          {
+            x: Math.PI / 2,
+          },
+        );
       }
     }
   }
@@ -1056,7 +1076,10 @@ export function wallSegments(): WallSeg[] {
   return out;
 }
 
-/** 占位城墙：分层收分 + 垛口，体量与 GLB 对齐（换件时构图不动） */function buildWall(b: Builder, segs: WallSeg[]): void {
+/** 占位城墙：分层收分 + 垛口，体量与 GLB 对齐（换件时构图不动） */ function buildWall(
+  b: Builder,
+  segs: WallSeg[],
+): void {
   for (const sg of segs) {
     const y = sg.y;
     // 三层退台：底 2.75 → 1.55m 处 2.62 → 3.15m 处 2.34 → 4.6m 处 2.05
@@ -1406,7 +1429,12 @@ function buildFieldGround(b: Builder): void {
   for (const [x0, z0, x1, z1, kind] of FIELD_BLOCKS) {
     const cx = (x0 + x1) / 2;
     const cz = (z0 + z1) / 2;
-    const geo = new THREE.PlaneGeometry(x1 - x0, z1 - z0, Math.round((x1 - x0) / 2.5), Math.round((z1 - z0) / 2.5));
+    const geo = new THREE.PlaneGeometry(
+      x1 - x0,
+      z1 - z0,
+      Math.round((x1 - x0) / 2.5),
+      Math.round((z1 - z0) / 2.5),
+    );
     geo.rotateX(-Math.PI / 2);
     const pos = geo.attributes.position as THREE.BufferAttribute;
     for (let i = 0; i < pos.count; i += 1) {
@@ -1440,7 +1468,7 @@ function buildFields(b: Builder): void {
           if (y < WATER_LEVEL + 0.45) continue;
           const edge = Math.min(x - x0, x1 - x, z - z0, z1 - z);
           if (edge < 2.6 && rand() < (2.6 - edge) / 3.0) continue;
-          b.box('soil', 0.62, 0.10 + rand() * 0.03, 1.9, xc, y + 0.07, z);
+          b.box('soil', 0.62, 0.1 + rand() * 0.03, 1.9, xc, y + 0.07, z);
         }
       }
       // 残茬：稀疏的短秆簇，收割后的证据
@@ -1564,7 +1592,11 @@ function buildWestFarm(b: Builder): void {
     b.cyl('straw', 0.5 * s, 0.84 * s, 0.62 * s, hx, y + 1.12 * s, hz, 9, { y: yaw + 0.7 });
     b.cyl('straw', 0.12 * s, 0.42 * s, 0.3 * s, hx, y + 1.5 * s, hz, 9, { y: yaw + 1.4 });
     // 散草：垛脚下几撮掉落的干草
-    for (const [ox, oz] of [[1.3, 0.2], [-0.9, 1.1], [0.4, -1.2]] as const) {
+    for (const [ox, oz] of [
+      [1.3, 0.2],
+      [-0.9, 1.1],
+      [0.4, -1.2],
+    ] as const) {
       const gy = heightAt(hx + ox * s, hz + oz * s);
       b.box('straw', 0.4 * s, 0.1, 0.22 * s, hx + ox * s, gy + 0.05, hz + oz * s, { y: yaw + ox });
     }
@@ -1730,7 +1762,13 @@ function createReedClump(): THREE.BufferGeometry {
   };
 
   /** 竖直渐变顶点色：按局部 y 在 ca→cb 之间插值（ya/yb 是这段的全局高度区间） */
-  const tintV = (g: THREE.BufferGeometry, ya: number, yb: number, ca: THREE.Color, cb: THREE.Color): void => {
+  const tintV = (
+    g: THREE.BufferGeometry,
+    ya: number,
+    yb: number,
+    ca: THREE.Color,
+    cb: THREE.Color,
+  ): void => {
     const p = g.attributes.position as THREE.BufferAttribute;
     const arr = new Float32Array(p.count * 3);
     const c = new THREE.Color();
@@ -1744,7 +1782,13 @@ function createReedClump(): THREE.BufferGeometry {
     g.setAttribute('color', new THREE.BufferAttribute(arr, 3));
   };
 
-  const stems: Array<{ a: number; top: THREE.Vector3; mid: THREE.Vector3; h: number; lean: number }> = [];
+  const stems: Array<{
+    a: number;
+    top: THREE.Vector3;
+    mid: THREE.Vector3;
+    h: number;
+    lean: number;
+  }> = [];
 
   const addStem = (i: number): void => {
     const a = i * 2.399963229728653 + 0.3; // 黄金角：10 根秆铺开不结块
@@ -1785,18 +1829,25 @@ function createReedClump(): THREE.BufferGeometry {
       const half = (w * (1 - t)) / 2;
       const cx = base.x + dir.x * len * t;
       const cz = base.z + dir.z * len * t;
-      const cy = base.y + rise * Math.sin(Math.PI * Math.min(t * 1.12, 1)) - 0.34 * Math.max(0, t - 0.55) ** 2;
+      const cy =
+        base.y +
+        rise * Math.sin(Math.PI * Math.min(t * 1.12, 1)) -
+        0.34 * Math.max(0, t - 0.55) ** 2;
       pos.push(cx - side.x * half, cy, cz - side.z * half);
-      col.push(...(() => {
-        const c = new THREE.Color().lerpColors(cLeaf0, cLeaf1, t);
-        return [c.r, c.g, c.b];
-      })());
-      if (half > 0) {
-        pos.push(cx + side.x * half, cy, cz + side.z * half);
-        col.push(...(() => {
+      col.push(
+        ...(() => {
           const c = new THREE.Color().lerpColors(cLeaf0, cLeaf1, t);
           return [c.r, c.g, c.b];
-        })());
+        })(),
+      );
+      if (half > 0) {
+        pos.push(cx + side.x * half, cy, cz + side.z * half);
+        col.push(
+          ...(() => {
+            const c = new THREE.Color().lerpColors(cLeaf0, cLeaf1, t);
+            return [c.r, c.g, c.b];
+          })(),
+        );
       }
     }
     // 4 截面：前 3 段是四边形，末截面宽 0 收成三角
@@ -1986,7 +2037,7 @@ function createGrassTuft(
   opt: { blades?: number; hMin?: number; hMax?: number; w?: number; leanMul?: number } = {},
 ): THREE.BufferGeometry {
   const blades = opt.blades ?? 6;
-  const hMin = opt.hMin ?? 0.20;
+  const hMin = opt.hMin ?? 0.2;
   const hMax = opt.hMax ?? 0.44;
   const w = opt.w ?? 0.03;
   const leanMul = opt.leanMul ?? 1.0;
@@ -2226,7 +2277,7 @@ function createShrub(): THREE.BufferGeometry {
       const y = pos.getY(i);
       const vgrad = Math.min(1, Math.max(0, y / top)); // 受光梯度：上亮下暗
       const jit = hash01(pos.getX(i) * 9.1, pos.getZ(i) * 7.7, lumpSeed) - 0.5;
-      const t = Math.min(1, Math.max(0, 0.18 + lh * 0.30 + vgrad * 0.52 + jit * 0.34));
+      const t = Math.min(1, Math.max(0, 0.18 + lh * 0.3 + vgrad * 0.52 + jit * 0.34));
       c.lerpColors(dark, light, t);
       col[i * 3] = c.r;
       col[i * 3 + 1] = c.g;
@@ -2247,13 +2298,13 @@ function createShrub(): THREE.BufferGeometry {
     const phi = i * 2.399963229728653;
     const k = 0.34 + 0.61 * hash01(i * 1.7, 3.1);
     const jr = hash01(i * 0.9, 8.8);
-    const tongue = hash01(i * 2.7, 9.0) > 0.7 ? 0.10 : 0.0;
-    const r = 0.145 + 0.10 * jr;
+    const tongue = hash01(i * 2.7, 9.0) > 0.7 ? 0.1 : 0.0;
+    const r = 0.145 + 0.1 * jr;
     const g = new THREE.IcosahedronGeometry(r, 1);
     displace(g, i + 1);
     g.translate(
       Math.cos(phi) * rr * 0.74 * k,
-      0.42 + y * 0.30 * k + (jr - 0.5) * 0.10 - tongue,
+      0.42 + y * 0.3 * k + (jr - 0.5) * 0.1 - tongue,
       Math.sin(phi) * rr * 0.74 * k,
     );
     paint(g, i + 1, 0.78);
@@ -2263,7 +2314,7 @@ function createShrub(): THREE.BufferGeometry {
   for (let i = 0; i < 3; i += 1) {
     const g = new THREE.IcosahedronGeometry(0.28 - i * 0.04, 0);
     displace(g, 21 + i);
-    g.translate((i - 1) * 0.16, 0.30 + i * 0.12, (i % 2 === 0 ? 0.1 : -0.12));
+    g.translate((i - 1) * 0.16, 0.3 + i * 0.12, i % 2 === 0 ? 0.1 : -0.12);
     paint(g, 21 + i, 0.72);
     parts.push(g);
   }
@@ -2449,13 +2500,8 @@ function buildGroundCover(group: THREE.Group, trees: TreeSpot[]): void {
   applyWind(grassMat, 0.065, 0.5);
 
   // 远景：6 叶粗草簇，铺满全岸带（13000 丛 × 18 tri，三角面预算在片数上）
-  instanceScatter(
-    group,
-    createGrassTuft(),
-    grassMat,
-    grassSpots(),
-    'grass',
-    (_i, sp) => grassTint(sp),
+  instanceScatter(group, createGrassTuft(), grassMat, grassSpots(), 'grass', (_i, sp) =>
+    grassTint(sp),
   );
 
   // 近景：8 叶细草簇，只铺水线环带与码头前草地。这一带贴着 1.7m 眼高，
@@ -2510,13 +2556,18 @@ function buildGroundCover(group: THREE.Group, trees: TreeSpot[]): void {
         const h = Math.sin(sp.x * 7.77 + sp.z * 3.31) * 43758.5453;
         const t = h - Math.floor(h);
         const lum = 0.52 + t * 0.24;
-        const warm = (t - 0.5) * 0.10;
+        const warm = (t - 0.5) * 0.1;
         const g = sp.y - halfH * sp.s * 0.4; // 反推"地面高度"（落点 y 已被半埋抬高）
         const wet = clamp((0.45 - g) / 0.45, 0, 1) * 0.3;
         const v = lum * (1 - wet);
         // 第四个参数是必须的：instanceColor 按线性空间写入，0.55 的"设计灰"
         // 直接 setRGB 会被当线性值渲染成 0.85 的亮灰——第一版石头白得像羊群
-        return new THREE.Color().setRGB(v * (1 + warm), v, v * (1 - warm * 0.8), THREE.SRGBColorSpace);
+        return new THREE.Color().setRGB(
+          v * (1 + warm),
+          v,
+          v * (1 - warm * 0.8),
+          THREE.SRGBColorSpace,
+        );
       },
     );
   }
@@ -2750,7 +2801,7 @@ function buildHouses(b: Builder): void {
     b.box('window', 0.1, 0.7, 1.0, s.x - w / 2, y + h * 0.62, s.z, {});
     // 人字顶：两块斜板对扣
     const slope = 0.52;
-    const roofLen = (w / 2) / Math.cos(slope) + 0.5;
+    const roofLen = w / 2 / Math.cos(slope) + 0.5;
     b.box('tile', roofLen, 0.24, d + 0.9, s.x - w / 4 - 0.1, y + h + 0.5, s.z, { z: slope });
     b.box('tile', roofLen, 0.24, d + 0.9, s.x + w / 4 + 0.1, y + h + 0.5, s.z, { z: -slope });
     // 屋脊
@@ -2873,9 +2924,9 @@ export function buildSettlement(assets?: SceneAssets): THREE.Group {
 
   const spots = treeSpots();
   // 树必须在上面的 builder 出组之前决定走哪条路径：占位件是走 Builder 合并的
-  const hasTrees = !!assets && (['round', 'tall', 'willow'] as TreeVariant[]).some(
-    (k) => (assets.trees[k] ?? []).length > 0,
-  );
+  const hasTrees =
+    !!assets &&
+    (['round', 'tall', 'willow'] as TreeVariant[]).some((k) => (assets.trees[k] ?? []).length > 0);
   if (!hasTrees) buildTreesPlaceholder(b, spots);
 
   if (!assets?.gate) buildGate(b, GATE_X, BRIDGE_Z);
@@ -2911,9 +2962,9 @@ export function buildSettlement(assets?: SceneAssets): THREE.Group {
   // 城门楼填合豁口，同敌台一样与换件路径无关
   buildGateTower(b);
 
-  const hasHouses = !!assets && (['small', 'big', 'shop'] as HouseVariant[]).some(
-    (k) => (assets.houses[k] ?? []).length > 0,
-  );
+  const hasHouses =
+    !!assets &&
+    (['small', 'big', 'shop'] as HouseVariant[]).some((k) => (assets.houses[k] ?? []).length > 0);
   if (!hasHouses) buildHouses(b);
 
   const group = b.build();

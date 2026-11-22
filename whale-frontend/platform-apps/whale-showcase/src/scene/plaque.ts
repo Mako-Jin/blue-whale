@@ -124,7 +124,11 @@ function sharedPlaqueMaterial(): THREE.MeshStandardMaterial {
 }
 
 /** 金字面片材质的公共参数——牌坊与城楼两处共用一套工艺 */
-function goldSignMaterial(map: THREE.Texture, name: string, metalness = 0.55): THREE.MeshStandardMaterial {
+function goldSignMaterial(
+  map: THREE.Texture,
+  name: string,
+  metalness = 0.55,
+): THREE.MeshStandardMaterial {
   const mat = new THREE.MeshStandardMaterial({
     map,
     metalness,
@@ -196,7 +200,11 @@ export function createGatePlaque(): THREE.Group {
   // 首轮实拍金字几乎全黑）、渐变整体提亮一档——白天靠漫反射读字，夜里
   // 檐灯点亮后金属高光再回来
   const mat = goldSignMaterial(
-    drawGoldPlaqueTexture(GATE_TEXT, GATE_SIGN_W, GATE_SIGN_H, GATE_CHAR_H, ['#fae7ae', '#ecc97c', '#d1a752']),
+    drawGoldPlaqueTexture(GATE_TEXT, GATE_SIGN_W, GATE_SIGN_H, GATE_CHAR_H, [
+      '#fae7ae',
+      '#ecc97c',
+      '#d1a752',
+    ]),
     'gatePlaqueGold',
     0.25,
   );

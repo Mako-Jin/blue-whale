@@ -227,9 +227,7 @@ export default function CollectionPanel() {
       setItems(detail.items ?? []);
     } catch (error) {
       message.error(
-        error instanceof Error
-          ? error.message
-          : t('video.catalog.collection.msg.itemsLoadFailed'),
+        error instanceof Error ? error.message : t('video.catalog.collection.msg.itemsLoadFailed'),
       );
     } finally {
       setItemsLoading(false);
@@ -257,9 +255,7 @@ export default function CollectionPanel() {
       setPickerTotal(Number(result.total ?? 0));
     } catch (error) {
       message.error(
-        error instanceof Error
-          ? error.message
-          : t('video.catalog.collection.msg.moviesLoadFailed'),
+        error instanceof Error ? error.message : t('video.catalog.collection.msg.moviesLoadFailed'),
       );
     } finally {
       setPickerLoading(false);
@@ -542,9 +538,7 @@ export default function CollectionPanel() {
         params={{ keyword, publishState }}
         onError={(error) =>
           message.error(
-            error instanceof Error
-              ? error.message
-              : t('video.catalog.collection.list.loadFailed'),
+            error instanceof Error ? error.message : t('video.catalog.collection.list.loadFailed'),
           )
         }
         search={
@@ -616,9 +610,7 @@ export default function CollectionPanel() {
             ) : coverFileId ? (
               <Typography.Text type="secondary">
                 {t('video.catalog.collection.form.coverUploaded', {
-                  name:
-                    coverName ||
-                    t('video.catalog.collection.form.fileId', { id: coverFileId }),
+                  name: coverName || t('video.catalog.collection.form.fileId', { id: coverFileId }),
                 })}
               </Typography.Text>
             ) : editing?.coverUrl ? (
@@ -666,9 +658,7 @@ export default function CollectionPanel() {
         <Form.Item
           name="title"
           label={t('video.catalog.collection.form.title')}
-          rules={[
-            { required: true, message: t('video.catalog.collection.form.titleRequired') },
-          ]}
+          rules={[{ required: true, message: t('video.catalog.collection.form.titleRequired') }]}
         >
           <Input maxLength={200} showCount />
         </Form.Item>

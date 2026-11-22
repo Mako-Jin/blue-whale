@@ -233,7 +233,9 @@ export function refreshCockpit(input: CockpitRefreshInput): Promise<CockpitView>
 
 /** 主动失效快照 */
 export function invalidateCockpit(periodCode: string): Promise<void> {
-  return http.post<void>(`/erp/v1/bi/cockpit/invalidate?periodCode=${encodeURIComponent(periodCode)}`);
+  return http.post<void>(
+    `/erp/v1/bi/cockpit/invalidate?periodCode=${encodeURIComponent(periodCode)}`,
+  );
 }
 
 /** 多维分析 */

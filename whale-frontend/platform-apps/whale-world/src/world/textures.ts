@@ -98,7 +98,7 @@ export function plasterTexture(): THREE.CanvasTexture {
         // 砂粒（6cm）
         const grain = fbm(u * 46 + 11.2, v * 46 + 6.4, 2) - 0.5;
         // 霉斑：低频 fbm 阈值化，只在约一成面积上出现
-        const mold = smoothstep(0.60, 0.88, fbm(u * 4.4 + 9.1, v * 4.4 - 2.2, 4));
+        const mold = smoothstep(0.6, 0.88, fbm(u * 4.4 + 9.1, v * 4.4 - 2.2, 4));
 
         // 雨痕分两种宽窄：
         //   细痕 2~5cm——雨水顺着墙面流下的水线，是"白墙"最典型的脏
@@ -107,7 +107,7 @@ export function plasterTexture(): THREE.CanvasTexture {
         // 缺了这层掩码，整面墙就成了"竖条纹布"（第一版就是这个毛病）。
         const fineRaw = fbm(u * 86 + 21.5, v * 8.0 + 0.7, 3);
         const broadRaw = fbm(u * 24 + 5.3, v * 3.4 + 3.1, 3);
-        const cover = smoothstep(0.40, 0.70, fbm(u * 9.0 + 40.2, v * 1.6 + 12.0, 3));
+        const cover = smoothstep(0.4, 0.7, fbm(u * 9.0 + 40.2, v * 1.6 + 12.0, 3));
         const streak =
           cover * (smoothstep(0.58, 0.78, fineRaw) * 0.55 + smoothstep(0.66, 0.88, broadRaw));
 
@@ -196,10 +196,10 @@ export function stoneTexture(): THREE.CanvasTexture {
         // 在这里出图是「脏水泥」——蓝鲸城石面无逐块色差与沉陷掩护，斑块须更稀更淡
         const moss = smoothstep(0.66, 0.88, fbm(u * 7.0 + 31.5, v * 7.0 + 9.4, 4));
         // 凿痕：平行细密的手工凿纹，2~3cm 间距。频率比颗粒高、方向随机
-        const chisel = smoothstep(0.56, 0.72, fbm(u * 170 + 2.2, v * 42 + 7.7, 2)) * 0.10;
+        const chisel = smoothstep(0.56, 0.72, fbm(u * 170 + 2.2, v * 42 + 7.7, 2)) * 0.1;
 
         let lum = 0.98 + blotch * 0.13 + grain * 0.09;
-        lum -= pit * 0.10;
+        lum -= pit * 0.1;
         lum -= moss * 0.14 + chisel;
         if (DEBUG_STONE_UV) lum = (Math.floor(u * 8) + Math.floor(v * 8)) % 2 ? 0.95 : 0.35;
 
@@ -284,7 +284,9 @@ function pnoise(u: number, v: number, period: number, periodV = period): number 
 
 /** 三倍频可平铺 fbm，输出 0..1 */
 function pfbm(u: number, v: number, period: number): number {
-  return pnoise(u, v, period) * 0.5 + pnoise(u, v, period * 2) * 0.32 + pnoise(u, v, period * 4) * 0.18;
+  return (
+    pnoise(u, v, period) * 0.5 + pnoise(u, v, period * 2) * 0.32 + pnoise(u, v, period * 4) * 0.18
+  );
 }
 
 /** 临时开关：把砖纹换成"一块=一格"的棋盘，用来核对 UV 尺度（0.5m 层 × 0.67m 块） */
@@ -337,7 +339,7 @@ export function brickTexture(): THREE.CanvasTexture {
         // 灰缝：细、暗，但只在近处成立。0.58 时缝是清晰的网格，30m 外整面墙
         // 变成"瓷砖"；0.80 后它退化成一圈灰雾，只剩层理与块差
         const edge = Math.min(sx, bw - sx, sy, ch - sy);
-        if (edge < gap) lum = 0.80 + h2 * 0.05;
+        if (edge < gap) lum = 0.8 + h2 * 0.05;
         else if (edge < gap + 1) lum *= 0.94;
 
         // 连续的脏：1.5m 斑驳 + 0.2m 麻点，把相邻石块"连"成一片
@@ -346,7 +348,7 @@ export function brickTexture(): THREE.CanvasTexture {
 
         // 雨痕：竖向拉长的暗条（u 方向 6 个周期 = 0.67m 一条，v 方向 1 个周期，
         // 所以是"竖条"而不是"斑点"；两个方向都用整数周期，平铺仍然无缝）
-        const streak = smoothstep(0.60, 0.84, pnoise(u, v, 6, 1));
+        const streak = smoothstep(0.6, 0.84, pnoise(u, v, 6, 1));
         if (edge >= gap) lum *= 1 - streak * 0.11;
 
         const i = (y * SIZE + x) * 4;

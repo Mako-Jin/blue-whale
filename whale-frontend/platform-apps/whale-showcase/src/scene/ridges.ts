@@ -55,7 +55,7 @@ function ridgeHeight(angle: number, seed: number, hMin: number, hMax: number): n
   const rf = 1 - Math.abs(2 * fbm(cx * 3.1 + seed * 1.7, sz * 3.1 + seed, 3) - 1);
   // 细齿：小频率噪声让脊线不圆滑
   const jag = fbm(cx * 12 + seed * 3.1, sz * 12 - seed * 2.3, 2);
-  const t = Math.min(1, Math.max(0, 0.30 * broad + 0.72 * Math.pow(rf, 1.5) + (jag - 0.5) * 0.26));
+  const t = Math.min(1, Math.max(0, 0.3 * broad + 0.72 * Math.pow(rf, 1.5) + (jag - 0.5) * 0.26));
   return hMin + (hMax - hMin) * t;
 }
 

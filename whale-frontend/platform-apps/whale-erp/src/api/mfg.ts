@@ -464,7 +464,9 @@ export interface CrpView {
 
 /** 工作中心分页 */
 export function pageWorkCenters(params: MfgQueryParams = {}): Promise<PageResult<WorkCenterView>> {
-  return http.get<PageResult<WorkCenterView>>(`/erp/v1/mfg/work-centers/page?${buildQuery(params)}`);
+  return http.get<PageResult<WorkCenterView>>(
+    `/erp/v1/mfg/work-centers/page?${buildQuery(params)}`,
+  );
 }
 
 /** 全部工作中心（下拉用） */

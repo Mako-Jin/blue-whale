@@ -57,6 +57,7 @@ export const pageApi = {
   restore: (id: number) => http.post<DocPageSaveResult>(`/doc/v1/page/${id}/restore`),
   duplicate: (id: number, payload: PageDuplicatePayload) =>
     http.post<DocPage>(`/doc/v1/page/${id}/duplicate`, payload),
-  submitApproval: (id: number) => http.post<DocPageSaveResult>(`/doc/v1/page/${id}/submit-approval`),
+  submitApproval: (id: number) =>
+    http.post<DocPageSaveResult>(`/doc/v1/page/${id}/submit-approval`),
   approval: (id: number) => http.get<DocApprovalInfo>(`/doc/v1/page/${id}/approval`),
 };

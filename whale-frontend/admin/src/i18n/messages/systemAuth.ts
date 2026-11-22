@@ -137,8 +137,7 @@ export const systemAuthMessages = defineMessages(
     'systemAuth.passwordPolicy.field.maxAgeDaysExtra': '取值范围 1–365 天，到期后强制修改',
     'systemAuth.passwordPolicy.field.maxAgeDaysRequired': '请输入口令有效期',
     'systemAuth.passwordPolicy.field.warnDays': '到期前提醒天数',
-    'systemAuth.passwordPolicy.field.warnDaysExtra':
-      '0 表示不提前提醒；到期提醒不影响口令正常使用',
+    'systemAuth.passwordPolicy.field.warnDaysExtra': '0 表示不提前提醒；到期提醒不影响口令正常使用',
     'systemAuth.passwordPolicy.field.warnDaysRequired': '请输入到期提醒天数',
     'systemAuth.passwordPolicy.field.warnDaysTooLarge': '到期提醒天数不能大于口令有效期',
     'systemAuth.passwordPolicy.save': '保存策略',

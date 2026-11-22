@@ -9,7 +9,12 @@
 
 import type { PalaceSpec } from './layout';
 import type { HallData } from './datahall';
-import { createOverviewFeed, toHallData, type OverviewFeedOptions, type OverviewHallSpec } from './overview';
+import {
+  createOverviewFeed,
+  toHallData,
+  type OverviewFeedOptions,
+  type OverviewHallSpec,
+} from './overview';
 
 /**
  * 已接入契约的服务（标杆：户部 / ERP；S5：数枢殿总控、枢密殿、度支殿、藏书殿、
@@ -96,7 +101,11 @@ export const OVERVIEW_HALLS: OverviewHallSpec[] = [
   /* 政事殿（S5/T5.6）：在途审批、今日办结、待办积压、卡住的流程。
      权限码复用 2D 流程实例页的 `sys:workflow:instance:list`——能看到全租户实例的人，
      才该在城里看到"哪条审批链断了"。 */
-  { nodeKey: 'zhengshi-hall', path: '/workflow/overview', permission: 'sys:workflow:instance:list' },
+  {
+    nodeKey: 'zhengshi-hall',
+    path: '/workflow/overview',
+    permission: 'sys:workflow:instance:list',
+  },
   /* 考功殿（S5/T5.7）：表单还在被填吗、今天录了几条、多少条卡在审批、
      主表与物理表有没有对不上的数据。权限码复用 2D 表单定义页的 `sys:form:list`——
      能维护表单定义的人，才该在城里看到"哪张表没人填了、哪批数据对不上"。 */

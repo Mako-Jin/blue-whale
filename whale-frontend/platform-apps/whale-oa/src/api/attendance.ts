@@ -308,7 +308,9 @@ export function punch(input: OaAttendancePunchInput): Promise<OaAttendanceRecord
 export function pageDaily(
   params: OaAttendanceDailyQuery = {},
 ): Promise<PageResult<OaAttendanceDaily>> {
-  return http.get<PageResult<OaAttendanceDaily>>(`/oa/v1/attendance/daily/page${buildQuery(params)}`);
+  return http.get<PageResult<OaAttendanceDaily>>(
+    `/oa/v1/attendance/daily/page${buildQuery(params)}`,
+  );
 }
 
 /** 按日期区间重算日报 */

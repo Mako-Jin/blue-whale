@@ -228,9 +228,7 @@ export default function AnnouncementList() {
         <Form.Item
           name="content"
           label={t('message.announcement.form.content')}
-          rules={[
-            { required: true, message: t('message.announcement.form.contentRequired') },
-          ]}
+          rules={[{ required: true, message: t('message.announcement.form.contentRequired') }]}
         >
           <Input.TextArea
             rows={5}

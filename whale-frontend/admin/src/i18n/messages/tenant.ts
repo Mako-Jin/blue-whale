@@ -173,12 +173,15 @@ export const tenantMessages = defineMessages(
     'tenant.config.searchPlaceholder': 'Filter by key prefix, e.g. notify.',
     'tenant.config.create': 'New Config',
     'tenant.config.refresh': 'Refresh',
-    'tenant.config.empty': 'No defaults configured for this tenant (consumers fall back to built-in defaults)',
+    'tenant.config.empty':
+      'No defaults configured for this tenant (consumers fall back to built-in defaults)',
     'tenant.config.editTitle': 'Edit config: {key}',
     'tenant.config.createTitle': 'New Tenant Config',
     'tenant.config.keyRequired': 'Please enter config key',
-    'tenant.config.keyPattern': 'At least two lowercase segments separated by dots (e.g. notify.twin.alert)',
-    'tenant.config.keyImmutable': 'Config key cannot be changed after creation; add a new entry and switch consumers to the new key instead',
+    'tenant.config.keyPattern':
+      'At least two lowercase segments separated by dots (e.g. notify.twin.alert)',
+    'tenant.config.keyImmutable':
+      'Config key cannot be changed after creation; add a new entry and switch consumers to the new key instead',
     'tenant.config.keyHints': 'Common keys: {keys}',
     'tenant.config.valueRequired': 'Please enter config value',
     'tenant.config.valueTooLong': 'Config value must not exceed {max} bytes',
@@ -193,7 +196,7 @@ export const tenantMessages = defineMessages(
     'tenant.member.bindFailed': 'Failed to bind user',
     'tenant.member.removeTitle': 'Remove Member',
     'tenant.member.removeContent':
-      'Remove {name} from the current tenant? The user\'s roles in this tenant will also be revoked.',
+      "Remove {name} from the current tenant? The user's roles in this tenant will also be revoked.",
     'tenant.member.removed': 'Member removed',
     'tenant.member.removeFailed': 'Failed to remove member',
     'tenant.member.col.userId': 'User ID',

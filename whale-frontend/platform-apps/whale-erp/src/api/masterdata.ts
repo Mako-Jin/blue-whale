@@ -160,7 +160,9 @@ export function reopenPeriod(id: number): Promise<ErpPeriod> {
 
 /** 客户分页 */
 export function pageCustomers(params: PageParams = {}): Promise<PageResult<ErpCustomer>> {
-  return http.get<PageResult<ErpCustomer>>(`/erp/v1/master-data/customer/page?${buildQuery(params)}`);
+  return http.get<PageResult<ErpCustomer>>(
+    `/erp/v1/master-data/customer/page?${buildQuery(params)}`,
+  );
 }
 
 /** 保存客户 */

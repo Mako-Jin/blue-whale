@@ -392,7 +392,9 @@ export function cancelPayroll(id: number): Promise<PayrollRunView> {
 
 /** 我的工资条（仅本人） */
 export function myPayslips(params: HrQueryParams = {}): Promise<PageResult<PayrollRunView>> {
-  return http.get<PageResult<PayrollRunView>>(`/erp/v1/hr/payroll/payslip/my?${buildQuery(params)}`);
+  return http.get<PageResult<PayrollRunView>>(
+    `/erp/v1/hr/payroll/payslip/my?${buildQuery(params)}`,
+  );
 }
 
 /** 绩效周期分页 */

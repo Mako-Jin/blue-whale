@@ -95,7 +95,9 @@ export function pageReportSnapshots(
   }
   search.set('current', String(params.current ?? 1));
   search.set('size', String(params.size ?? 10));
-  return http.get<PageResult<OaReportSnapshot>>(`/oa/v1/report/snapshots/page?${search.toString()}`);
+  return http.get<PageResult<OaReportSnapshot>>(
+    `/oa/v1/report/snapshots/page?${search.toString()}`,
+  );
 }
 
 /** 读取快照内容 */

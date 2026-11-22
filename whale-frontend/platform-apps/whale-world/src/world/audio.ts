@@ -175,9 +175,8 @@ export function createWorldAudio(): WorldAudio {
       // 退化为直连——方位感丢了但声音还在，不算事故。
       musicGain = ctx.createGain();
       musicGain.gain.value = 0;
-      const panCtor = (
-        ctx as AudioContext & { createStereoPanner?: () => StereoPannerNode }
-      ).createStereoPanner;
+      const panCtor = (ctx as AudioContext & { createStereoPanner?: () => StereoPannerNode })
+        .createStereoPanner;
       if (panCtor) {
         musicPan = panCtor.call(ctx);
         musicPan.pan.value = 0;
@@ -436,8 +435,10 @@ export function createWorldAudio(): WorldAudio {
             const when = Math.max(musicNextAt, ctx.currentTime + 0.02);
             doPluck(PENTATONIC[scaleIndex], when);
             // 相邻音漫步：±1 或原地重复，不成调不成曲
-            scaleIndex = Math.max(0, Math.min(PENTATONIC.length - 1,
-              scaleIndex + (Math.random() < 0.5 ? -1 : 1)));
+            scaleIndex = Math.max(
+              0,
+              Math.min(PENTATONIC.length - 1, scaleIndex + (Math.random() < 0.5 ? -1 : 1)),
+            );
             musicNextAt = when + 0.5 + Math.random() * 0.55;
           }
         } else {

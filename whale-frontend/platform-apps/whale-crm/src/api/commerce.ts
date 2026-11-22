@@ -134,7 +134,10 @@ export interface CollectionActionView {
 
 /** 合同台账分页 */
 export function pageContracts(query: ContractPageQuery): Promise<PageResult<ContractView>> {
-  return http.get<PageResult<ContractView>>('/crm/v1/contract/page', query as Record<string, unknown>);
+  return http.get<PageResult<ContractView>>(
+    '/crm/v1/contract/page',
+    query as Record<string, unknown>,
+  );
 }
 
 /** 合同台账详情 */
@@ -304,7 +307,10 @@ export interface SalesOrderPageQuery {
 
 /** 订单分页 */
 export function pageOrders(query: SalesOrderPageQuery): Promise<PageResult<SalesOrderView>> {
-  return http.get<PageResult<SalesOrderView>>('/crm/v1/order/page', query as Record<string, unknown>);
+  return http.get<PageResult<SalesOrderView>>(
+    '/crm/v1/order/page',
+    query as Record<string, unknown>,
+  );
 }
 
 /** 订单详情 */
@@ -509,7 +515,10 @@ export interface ArSyncResultView {
 
 /** 开票申请分页 */
 export function pageInvoices(query: InvoicePageQuery): Promise<PageResult<InvoiceView>> {
-  return http.get<PageResult<InvoiceView>>('/crm/v1/invoice/page', query as Record<string, unknown>);
+  return http.get<PageResult<InvoiceView>>(
+    '/crm/v1/invoice/page',
+    query as Record<string, unknown>,
+  );
 }
 
 /** 开票申请详情 */

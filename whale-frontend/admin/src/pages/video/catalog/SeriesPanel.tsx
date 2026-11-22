@@ -119,9 +119,7 @@ export default function SeriesPanel() {
       })
       .catch((error) =>
         message.error(
-          error instanceof Error
-            ? error.message
-            : t('video.catalog.series.msg.coverUploadFailed'),
+          error instanceof Error ? error.message : t('video.catalog.series.msg.coverUploadFailed'),
         ),
       )
       .finally(() => setUploadingCover(false));
@@ -410,8 +408,7 @@ export default function SeriesPanel() {
             ) : coverFileId ? (
               <Typography.Text type="secondary">
                 {t('video.catalog.series.form.coverUploaded', {
-                  name:
-                    coverName || t('video.catalog.series.form.fileId', { id: coverFileId }),
+                  name: coverName || t('video.catalog.series.form.fileId', { id: coverFileId }),
                 })}
               </Typography.Text>
             ) : editing?.coverUrl ? (

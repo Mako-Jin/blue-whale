@@ -382,19 +382,23 @@ export const workflowApi = {
   instancePage: (query?: InstanceQuery) =>
     get<PageResult<ProcessInstance>>('/workflow/v1/instance/page', query),
   instanceDetail: (id: Id) => get<ProcessInstance>(`/workflow/v1/instance/${id}`),
-  instanceStart: (data: InstanceStartRequest) => post<ProcessInstance>('/workflow/v1/instance', data),
+  instanceStart: (data: InstanceStartRequest) =>
+    post<ProcessInstance>('/workflow/v1/instance', data),
   instanceCancel: (id: Id) => post<void>(`/workflow/v1/instance/${id}/cancel`),
 
   // 待办任务 API（服务内前缀 /workflow/v1/task）
   taskPage: (query?: TaskQuery) => get<PageResult<ProcessTask>>('/workflow/v1/task/page', query),
-  taskApprove: (id: Id, data?: ApprovalRequest) => post<void>(`/workflow/v1/task/${id}/approve`, data),
-  taskReject: (id: Id, data?: ApprovalRequest) => post<void>(`/workflow/v1/task/${id}/reject`, data),
+  taskApprove: (id: Id, data?: ApprovalRequest) =>
+    post<void>(`/workflow/v1/task/${id}/approve`, data),
+  taskReject: (id: Id, data?: ApprovalRequest) =>
+    post<void>(`/workflow/v1/task/${id}/reject`, data),
   taskTransfer: (id: Id, data: TaskTransferRequest) =>
     put<void>(`/workflow/v1/task/${id}/transfer`, data),
   taskDelegate: (id: Id, data: TaskTransferRequest) =>
     put<void>(`/workflow/v1/task/${id}/delegate`, data),
   /** 完成委派：被委派人处理完，任务交回委派人 */
-  taskResolve: (id: Id, data?: ApprovalRequest) => put<void>(`/workflow/v1/task/${id}/resolve`, data),
+  taskResolve: (id: Id, data?: ApprovalRequest) =>
+    put<void>(`/workflow/v1/task/${id}/resolve`, data),
   taskRollback: (id: Id, data: TaskRollbackRequest) =>
     post<void>(`/workflow/v1/task/${id}/rollback`, data),
   /** 加签：为当前节点追加同级审批人，追加人全部同意后节点才完成 */

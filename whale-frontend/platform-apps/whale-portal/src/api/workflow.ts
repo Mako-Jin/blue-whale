@@ -101,7 +101,9 @@ export async function pageMyTask(params: WorkflowTaskQuery = {}): Promise<Workfl
 
 /** 统计运行中的流程实例数（status=0），失败时抛错由调用方降级展示 */
 export async function countRunningInstances(): Promise<number> {
-  const page = await http.get<PageResult<unknown>>('/workflow/v1/instance/page?status=0&pageSize=1');
+  const page = await http.get<PageResult<unknown>>(
+    '/workflow/v1/instance/page?status=0&pageSize=1',
+  );
   return page?.total ?? 0;
 }
 

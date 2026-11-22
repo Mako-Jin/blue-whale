@@ -6,12 +6,12 @@
  * 校验同步：pnpm --filter whale-world check:overview
  */
 /** live 实时成功 / stale 沿用上次成功 / degraded 不可用 */
-export type OverviewState = "live" | "stale" | "degraded";
+export type OverviewState = 'live' | 'stale' | 'degraded';
 
 /** 只表达排版口径；percent 一律传比率（0.82） */
-export type OverviewFormat = "count" | "money" | "percent" | "duration" | "text";
+export type OverviewFormat = 'count' | 'money' | 'percent' | 'duration' | 'text';
 
-export type OverviewTone = "good" | "warn" | "bad" | "flat";
+export type OverviewTone = 'good' | 'warn' | 'bad' | 'flat';
 
 export interface OverviewKpi {
   key: string;
@@ -35,7 +35,7 @@ export interface OverviewSeries {
 export interface OverviewChart {
   key: string;
   title: string;
-  type: "line" | "bar" | "donut";
+  type: 'line' | 'bar' | 'donut';
   format: OverviewFormat;
   /** 长度必须等于每个 series.values 长度，缺数补 0 */
   categories: string[];
@@ -43,7 +43,7 @@ export interface OverviewChart {
 }
 
 export interface OverviewAlert {
-  level: "info" | "warning" | "critical";
+  level: 'info' | 'warning' | 'critical';
   text: string;
   count?: number;
   /** 首现时刻 ISO-8601 */

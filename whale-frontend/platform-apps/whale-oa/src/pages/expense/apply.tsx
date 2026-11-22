@@ -146,8 +146,7 @@ export default function ExpenseApplyPage() {
     (sum, item) => sum + (Number(item?.amount) || 0),
     0,
   );
-  const overBudget =
-    tripIdValue != null && tripBudget != null && totalAmount > Number(tripBudget);
+  const overBudget = tripIdValue != null && tripBudget != null && totalAmount > Number(tripBudget);
 
   const openCreate = () => {
     setEditing(null);

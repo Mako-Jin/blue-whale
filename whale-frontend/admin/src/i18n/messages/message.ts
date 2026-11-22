@@ -118,8 +118,7 @@ export const messageMessages = defineMessages(
     'message.announcement.form.titlePlaceholder': 'e.g. Platform maintenance notice',
     'message.announcement.form.content': 'Announcement Body',
     'message.announcement.form.contentRequired': 'Please enter announcement content',
-    'message.announcement.form.contentPlaceholder':
-      'Content shown to all users in this tenant',
+    'message.announcement.form.contentPlaceholder': 'Content shown to all users in this tenant',
     'message.announcement.form.bizType': 'Business Type',
     'message.announcement.form.bizTypeExtra':
       'Optional, defaults to SYSTEM_ANNOUNCE; used by the frontend to distinguish announcements from targeted messages',

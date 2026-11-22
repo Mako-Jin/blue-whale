@@ -1295,7 +1295,9 @@ export function pageUnionActivitySignups(
   id: number,
   query: UnionActivitySignupQuery,
 ): Promise<PageResult<UnionSignupView>> {
-  return http.get<PageResult<UnionSignupView>>(`/party/v1/union/activity/${id}/signups`, { ...query });
+  return http.get<PageResult<UnionSignupView>>(`/party/v1/union/activity/${id}/signups`, {
+    ...query,
+  });
 }
 
 /**
@@ -1307,7 +1309,9 @@ export function pageUnionActivitySignups(
 export function pageUnionActivityPortal(
   query: UnionActivityPortalQuery,
 ): Promise<PageResult<UnionActivityView>> {
-  return http.get<PageResult<UnionActivityView>>('/party/v1/union/activity/portal/page', { ...query });
+  return http.get<PageResult<UnionActivityView>>('/party/v1/union/activity/portal/page', {
+    ...query,
+  });
 }
 
 /**
@@ -1437,7 +1441,9 @@ export function rateUnionProposal(id: number, rating: number): Promise<UnionProp
 export function pageUnionProposalPortal(
   query: UnionProposalPortalQuery,
 ): Promise<PageResult<UnionProposalView>> {
-  return http.get<PageResult<UnionProposalView>>('/party/v1/union/proposal/portal/page', { ...query });
+  return http.get<PageResult<UnionProposalView>>('/party/v1/union/proposal/portal/page', {
+    ...query,
+  });
 }
 
 /**
@@ -1672,5 +1678,8 @@ export function exportUnionMetric(from?: string, to?: string): Promise<void> {
     params.set('to', to);
   }
   const query = params.toString();
-  return downloadCsv(`/party/v1/union/metric/export${query ? `?${query}` : ''}`, 'union-metric.csv');
+  return downloadCsv(
+    `/party/v1/union/metric/export${query ? `?${query}` : ''}`,
+    'union-metric.csv',
+  );
 }

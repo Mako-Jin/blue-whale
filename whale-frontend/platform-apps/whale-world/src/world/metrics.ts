@@ -285,10 +285,18 @@ const PROBES: ProbeSpec[] = [
       { label: '已上架', value: formatCount(kpiOf(d, 'published')) },
       {
         label: '待办',
-        value: formatCount(num(kpiOf(d, 'comment-pending'))
-          + num(kpiOf(d, 'appeal-pending')) + num(kpiOf(d, 'copyright-declared'))),
-        tone: num(kpiOf(d, 'comment-pending'))
-          + num(kpiOf(d, 'appeal-pending')) + num(kpiOf(d, 'copyright-declared')) > 0 ? 'warn' : 'good',
+        value: formatCount(
+          num(kpiOf(d, 'comment-pending')) +
+            num(kpiOf(d, 'appeal-pending')) +
+            num(kpiOf(d, 'copyright-declared')),
+        ),
+        tone:
+          num(kpiOf(d, 'comment-pending')) +
+            num(kpiOf(d, 'appeal-pending')) +
+            num(kpiOf(d, 'copyright-declared')) >
+          0
+            ? 'warn'
+            : 'good',
       },
     ],
   },

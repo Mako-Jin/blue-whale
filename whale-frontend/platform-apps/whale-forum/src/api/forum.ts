@@ -458,7 +458,9 @@ export function fetchProfile(userId?: string): Promise<Profile> {
 
 /** 我的帖子（含审核中/已处置，服务端不过滤状态） */
 export function fetchMyThreads(current = 1, size = 20): Promise<PageResult<ThreadListItem>> {
-  return request<PageResult<ThreadListItem>>(`/forum/v1/my/threads?current=${current}&size=${size}`);
+  return request<PageResult<ThreadListItem>>(
+    `/forum/v1/my/threads?current=${current}&size=${size}`,
+  );
 }
 
 /** 我的回复（已删帖的楼层不出现） */

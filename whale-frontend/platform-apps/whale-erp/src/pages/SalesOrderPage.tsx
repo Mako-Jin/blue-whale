@@ -664,7 +664,11 @@ export default function SalesOrderPage() {
                     </Button>
                   </Space>
                 ))}
-                <Button type="dashed" block onClick={() => add({ itemCode: '', requiredQuantity: 1 })}>
+                <Button
+                  type="dashed"
+                  block
+                  onClick={() => add({ itemCode: '', requiredQuantity: 1 })}
+                >
                   添加用料
                 </Button>
               </Space>

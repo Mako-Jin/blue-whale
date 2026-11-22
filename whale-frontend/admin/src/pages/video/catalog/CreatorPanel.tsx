@@ -122,9 +122,7 @@ export default function CreatorPanel() {
     try {
       await updateCreator(row.id, { status: enabled ? 1 : 0 });
       message.success(
-        enabled
-          ? t('video.catalog.creator.msg.enabled')
-          : t('video.catalog.creator.msg.disabled'),
+        enabled ? t('video.catalog.creator.msg.enabled') : t('video.catalog.creator.msg.disabled'),
       );
       tableRef.current?.reload();
     } catch (error) {
@@ -248,9 +246,7 @@ export default function CreatorPanel() {
         params={{ keyword, status }}
         onError={(error) =>
           message.error(
-            error instanceof Error
-              ? error.message
-              : t('video.catalog.creator.list.loadFailed'),
+            error instanceof Error ? error.message : t('video.catalog.creator.list.loadFailed'),
           )
         }
         search={
@@ -319,9 +315,7 @@ export default function CreatorPanel() {
             ) : avatarFileId ? (
               <Typography.Text type="secondary">
                 {t('video.catalog.creator.form.avatarUploaded', {
-                  name:
-                    avatarName ||
-                    t('video.catalog.creator.form.fileId', { id: avatarFileId }),
+                  name: avatarName || t('video.catalog.creator.form.fileId', { id: avatarFileId }),
                 })}
               </Typography.Text>
             ) : editing?.avatarUrl ? (
@@ -369,9 +363,7 @@ export default function CreatorPanel() {
         <Form.Item
           name="displayName"
           label={t('video.catalog.creator.form.displayName')}
-          rules={[
-            { required: true, message: t('video.catalog.creator.form.displayNameRequired') },
-          ]}
+          rules={[{ required: true, message: t('video.catalog.creator.form.displayNameRequired') }]}
         >
           <Input maxLength={64} showCount />
         </Form.Item>

@@ -74,7 +74,10 @@ export default function LoginPage() {
             <Input placeholder={t('login.usernamePlaceholder')} autoComplete="username" />
           </Form.Item>
           <Form.Item name="password">
-            <Input.Password placeholder={t('login.passwordPlaceholder')} autoComplete="current-password" />
+            <Input.Password
+              placeholder={t('login.passwordPlaceholder')}
+              autoComplete="current-password"
+            />
           </Form.Item>
           <Form.Item style={{ marginBottom: 0 }}>
             <Button

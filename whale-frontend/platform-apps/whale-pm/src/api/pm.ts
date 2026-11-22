@@ -292,9 +292,11 @@ export const workflowApi = {
   statuses: (projectId: string) => http.get<Status[]>(`/pm/v1/project/${projectId}/status`),
   addStatus: (projectId: string, body: Partial<Status>) =>
     http.post<Status>(`/pm/v1/project/${projectId}/status`, body),
-  updateStatus: (id: string, body: Partial<Status>) => http.put<Status>(`/pm/v1/status/${id}`, body),
+  updateStatus: (id: string, body: Partial<Status>) =>
+    http.put<Status>(`/pm/v1/status/${id}`, body),
   removeStatus: (id: string) => http.del<void>(`/pm/v1/status/${id}`),
-  transitions: (projectId: string) => http.get<Transition[]>(`/pm/v1/project/${projectId}/transition`),
+  transitions: (projectId: string) =>
+    http.get<Transition[]>(`/pm/v1/project/${projectId}/transition`),
   addTransition: (projectId: string, body: Record<string, unknown>) =>
     http.post<Transition>(`/pm/v1/project/${projectId}/transition`, body),
   removeTransition: (id: string) => http.del<void>(`/pm/v1/transition/${id}`),
@@ -336,13 +338,16 @@ export const sprintApi = {
     http.get<PageResult<Sprint>>('/pm/v1/sprint/page', { ...query }),
   detail: (id: string) => http.get<Sprint>(`/pm/v1/sprint/${id}`),
   create: (body: Record<string, unknown>) => http.post<Sprint>('/pm/v1/sprint', body),
-  update: (id: string, body: Record<string, unknown>) => http.put<Sprint>(`/pm/v1/sprint/${id}`, body),
+  update: (id: string, body: Record<string, unknown>) =>
+    http.put<Sprint>(`/pm/v1/sprint/${id}`, body),
   remove: (id: string) => http.del<void>(`/pm/v1/sprint/${id}`),
   start: (id: string) => http.put<Sprint>(`/pm/v1/sprint/${id}/start`),
   close: (id: string) => http.put<Sprint>(`/pm/v1/sprint/${id}/close`),
   items: (id: string) => http.get<WorkItem[]>(`/pm/v1/sprint/${id}/item`),
   addItems: (id: string, itemIds: string[]) =>
-    http.post<number>(`/pm/v1/sprint/${id}/item`, { itemIds: itemIds.map((value) => Number(value)) }),
+    http.post<number>(`/pm/v1/sprint/${id}/item`, {
+      itemIds: itemIds.map((value) => Number(value)),
+    }),
   removeItem: (id: string, itemId: string) => http.del<void>(`/pm/v1/sprint/${id}/item/${itemId}`),
 };
 

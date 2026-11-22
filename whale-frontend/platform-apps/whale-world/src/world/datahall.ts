@@ -123,7 +123,14 @@ interface CardSlot {
 
 /* ---------------------------------------------------------------- 工具 */
 
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+): void {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
   ctx.lineTo(x + w - r, y);
@@ -422,7 +429,8 @@ function paintDonut(slot: CardSlot, metrics: GlyphMetric[]): void {
     ctx.arc(cx, cy, r, angle, next);
     ctx.arc(cx, cy, ir, next, angle, true);
     ctx.closePath();
-    ctx.fillStyle = TONE_COLOR[m.tone ?? (['flat', 'good', 'warn', 'bad', 'flat', 'good'][i % 6] as GlyphTone)];
+    ctx.fillStyle =
+      TONE_COLOR[m.tone ?? (['flat', 'good', 'warn', 'bad', 'flat', 'good'][i % 6] as GlyphTone)];
     ctx.fill();
     angle = next;
   });
@@ -442,7 +450,8 @@ function paintDonut(slot: CardSlot, metrics: GlyphMetric[]): void {
   ctx.textAlign = 'left';
   valid.forEach((m, i) => {
     const y = 100 + i * 34;
-    ctx.fillStyle = TONE_COLOR[m.tone ?? (['flat', 'good', 'warn', 'bad', 'flat', 'good'][i % 6] as GlyphTone)];
+    ctx.fillStyle =
+      TONE_COLOR[m.tone ?? (['flat', 'good', 'warn', 'bad', 'flat', 'good'][i % 6] as GlyphTone)];
     ctx.fillRect(272, y - 12, 14, 14);
     ctx.font = `18px ${FONT}`;
     ctx.fillStyle = 'rgba(236, 223, 196, 0.8)';
@@ -498,7 +507,10 @@ function paintAlert(slot: CardSlot, hall: HallData): void {
     denied: 'warn',
     unreachable: 'bad',
   };
-  const tone = hall.state === 'live' && alarming.length > 0 ? alarming[0].tone ?? 'warn' : stateTone[hall.state];
+  const tone =
+    hall.state === 'live' && alarming.length > 0
+      ? (alarming[0].tone ?? 'warn')
+      : stateTone[hall.state];
   const accent = TONE_COLOR[tone];
 
   ctx.textAlign = 'center';
@@ -558,7 +570,11 @@ export function createDataHall(options: DataHallOptions): DataHallHandle {
   const wallMat = new THREE.MeshStandardMaterial({ color: 0x6b4a34, roughness: 0.94 });
   const stoneMat = new THREE.MeshStandardMaterial({ color: 0x9a8f7a, roughness: 0.92 });
   const floorMat = new THREE.MeshStandardMaterial({ color: 0x3b2a20, roughness: 0.95 });
-  const goldMat = new THREE.MeshStandardMaterial({ color: 0xb08d3e, roughness: 0.55, metalness: 0.5 });
+  const goldMat = new THREE.MeshStandardMaterial({
+    color: 0xb08d3e,
+    roughness: 0.55,
+    metalness: 0.5,
+  });
 
   const box = (w: number, h: number, d: number, mat: THREE.Material): THREE.Mesh => {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
@@ -608,7 +624,11 @@ export function createDataHall(options: DataHallOptions): DataHallHandle {
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = 4;
-    const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, toneMapped: false });
+    const material = new THREE.MeshBasicMaterial({
+      map: texture,
+      transparent: true,
+      toneMapped: false,
+    });
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(worldW, worldH), material);
     mesh.position.set(x, y, z);
     mesh.rotation.y = ry;
@@ -618,7 +638,16 @@ export function createDataHall(options: DataHallOptions): DataHallHandle {
     return slot;
   };
 
-  const plaqueSlot = makeSlot('plaque', TEX_PLAQUE_W, TEX_PLAQUE_H, 8.4, 2.1, 0, 7.0, -ROOM_D / 2 + 0.3);
+  const plaqueSlot = makeSlot(
+    'plaque',
+    TEX_PLAQUE_W,
+    TEX_PLAQUE_H,
+    8.4,
+    2.1,
+    0,
+    7.0,
+    -ROOM_D / 2 + 0.3,
+  );
   // 匾额木框
   const plaqueFrame = box(9.0, 2.6, 0.24, wood);
   plaqueFrame.position.set(0, 7.0, -ROOM_D / 2 + 0.16);
@@ -638,9 +667,36 @@ export function createDataHall(options: DataHallOptions): DataHallHandle {
 
   /* --- 3 张图表卡（后墙下部） --- */
   const CHART_X = [-6, 0, 6];
-  const lineSlot = makeSlot('chart-line', TEX_CHART_W, TEX_CHART_H, 5.2, 2.9, CHART_X[0], 1.9, -ROOM_D / 2 + 0.32);
-  const barSlot = makeSlot('chart-bar', TEX_CHART_W, TEX_CHART_H, 5.2, 2.9, CHART_X[1], 1.9, -ROOM_D / 2 + 0.32);
-  const donutSlot = makeSlot('chart-donut', TEX_CHART_W, TEX_CHART_H, 5.2, 2.9, CHART_X[2], 1.9, -ROOM_D / 2 + 0.32);
+  const lineSlot = makeSlot(
+    'chart-line',
+    TEX_CHART_W,
+    TEX_CHART_H,
+    5.2,
+    2.9,
+    CHART_X[0],
+    1.9,
+    -ROOM_D / 2 + 0.32,
+  );
+  const barSlot = makeSlot(
+    'chart-bar',
+    TEX_CHART_W,
+    TEX_CHART_H,
+    5.2,
+    2.9,
+    CHART_X[1],
+    1.9,
+    -ROOM_D / 2 + 0.32,
+  );
+  const donutSlot = makeSlot(
+    'chart-donut',
+    TEX_CHART_W,
+    TEX_CHART_H,
+    5.2,
+    2.9,
+    CHART_X[2],
+    1.9,
+    -ROOM_D / 2 + 0.32,
+  );
   for (const x of CHART_X) {
     const frame = box(5.4, 3.1, 0.14, goldMat);
     frame.position.set(x, 1.9, -ROOM_D / 2 + 0.24);
@@ -741,16 +797,27 @@ export function createDataHall(options: DataHallOptions): DataHallHandle {
     const state = hall?.state ?? 'loading';
     const tone = hall?.tone ?? 'flat';
     const note = hall?.note ?? '';
-    const fp = (i: number) => `${state}|${note}|${metrics[i]?.label}|${metrics[i]?.value}|${metrics[i]?.tone}`;
+    const fp = (i: number) =>
+      `${state}|${note}|${metrics[i]?.label}|${metrics[i]?.value}|${metrics[i]?.tone}`;
 
-    kpiSlots.forEach((slot, i) => repaint(slot, fp(i), () => paintKpi(slot, hall ?? emptyHall(), i)));
+    kpiSlots.forEach((slot, i) =>
+      repaint(slot, fp(i), () => paintKpi(slot, hall ?? emptyHall(), i)),
+    );
 
-    const series = hall ? history.get(hall.nodeKey) ?? [] : [];
+    const series = hall ? (history.get(hall.nodeKey) ?? []) : [];
     const seriesFp = `${hall?.nodeKey}|${series.join(',')}|${tone}|${metrics[0]?.label}`;
-    repaint(lineSlot, seriesFp, () => paintLine(lineSlot, series, tone, metrics[0]?.label ?? '主指标'));
-    repaint(barSlot, fp(0) + '|bar|' + metrics.map((m) => m.value).join(','), () => paintBar(barSlot, metrics));
-    repaint(donutSlot, fp(0) + '|donut|' + metrics.map((m) => m.value).join(','), () => paintDonut(donutSlot, metrics));
-    repaint(alertSlot, fp(0) + '|alert|' + metrics.map((m) => m.tone).join(','), () => paintAlert(alertSlot, hall ?? emptyHall()));
+    repaint(lineSlot, seriesFp, () =>
+      paintLine(lineSlot, series, tone, metrics[0]?.label ?? '主指标'),
+    );
+    repaint(barSlot, fp(0) + '|bar|' + metrics.map((m) => m.value).join(','), () =>
+      paintBar(barSlot, metrics),
+    );
+    repaint(donutSlot, fp(0) + '|donut|' + metrics.map((m) => m.value).join(','), () =>
+      paintDonut(donutSlot, metrics),
+    );
+    repaint(alertSlot, fp(0) + '|alert|' + metrics.map((m) => m.tone).join(','), () =>
+      paintAlert(alertSlot, hall ?? emptyHall()),
+    );
 
     // 檐灯颜色跟整体语气
     const color = TONE_COLOR[tone];

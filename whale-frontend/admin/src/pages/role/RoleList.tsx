@@ -146,7 +146,8 @@ export default function RoleList() {
     }
   };
 
-  const columns: TableProps<RoleVO>['columns'] = [    { title: 'ID', dataIndex: 'id', width: 80 },
+  const columns: TableProps<RoleVO>['columns'] = [
+    { title: 'ID', dataIndex: 'id', width: 80 },
     { title: '角色编码', dataIndex: 'roleCode', width: 180 },
     {
       title: '角色名称',

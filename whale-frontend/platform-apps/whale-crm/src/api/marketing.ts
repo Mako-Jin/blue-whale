@@ -296,7 +296,10 @@ export interface PartnerReportCreateInput {
 
 /** 分页查询活动 */
 export function pageCampaigns(query: CampaignQuery): Promise<PageResult<CampaignView>> {
-  return http.get<PageResult<CampaignView>>('/crm/v1/campaign/page', query as Record<string, unknown>);
+  return http.get<PageResult<CampaignView>>(
+    '/crm/v1/campaign/page',
+    query as Record<string, unknown>,
+  );
 }
 
 /** 活动详情 */
@@ -391,7 +394,10 @@ export function executeSend(id: number): Promise<MarketingSendView> {
 
 /** 分页查询渠道伙伴 */
 export function pagePartners(query: PartnerQuery): Promise<PageResult<PartnerView>> {
-  return http.get<PageResult<PartnerView>>('/crm/v1/partner/page', query as Record<string, unknown>);
+  return http.get<PageResult<PartnerView>>(
+    '/crm/v1/partner/page',
+    query as Record<string, unknown>,
+  );
 }
 
 /** 新建渠道伙伴 */

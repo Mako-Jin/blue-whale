@@ -50,10 +50,7 @@ describe('layoutDag', () => {
   });
 
   it('孤立节点落在第一层，不影响其他节点层号', () => {
-    const result = layoutDag(
-      [node('1'), node('2'), node('9')],
-      [{ from: '1', to: '2' }],
-    );
+    const result = layoutDag([node('1'), node('2'), node('9')], [{ from: '1', to: '2' }]);
 
     expect(boxOf(result, '9').y).toBe(boxOf(result, '1').y);
     expect(result.layers).toBe(2);

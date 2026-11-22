@@ -303,10 +303,7 @@ export default function OAuthClientList() {
                 name: 'keyword',
                 label: t('systemAuth.oauth.search.keyword'),
                 element: (
-                  <Input
-                    allowClear
-                    placeholder={t('systemAuth.oauth.search.keywordPlaceholder')}
-                  />
+                  <Input allowClear placeholder={t('systemAuth.oauth.search.keywordPlaceholder')} />
                 ),
               },
               {
@@ -420,11 +417,7 @@ export default function OAuthClientList() {
               style={{ width: 160 }}
             />
           </Form.Item>
-          <Form.Item
-            name="status"
-            label={t('systemAuth.oauth.field.status')}
-            initialValue={1}
-          >
+          <Form.Item name="status" label={t('systemAuth.oauth.field.status')} initialValue={1}>
             <Select options={statusOptions} style={{ width: 120 }} />
           </Form.Item>
         </Space>

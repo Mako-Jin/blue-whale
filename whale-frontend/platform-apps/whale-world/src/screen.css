@@ -23,8 +23,7 @@
   margin: 0;
   pointer-events: auto;
   /* 纸面在暗场景里要往下压一点，否则夜城里像块发光的白板 */
-  font-family:
-    'Noto Serif SC', 'Songti SC', 'STSong', 'Microsoft YaHei', system-ui, sans-serif;
+  font-family: 'Noto Serif SC', 'Songti SC', 'STSong', 'Microsoft YaHei', system-ui, sans-serif;
   color: #241c12;
   /* 屏风投在纸上的自阴影，让它"立"在场景里而不是浮在表面 */
   filter: drop-shadow(0 18px 32px rgba(0, 0, 0, 0.55));

@@ -73,7 +73,9 @@ function buildDailyColumns(t: Translate): TableProps<JobLogDailyStatVO>['columns
       dataIndex: 'failureCount',
       width: 90,
       render: (value: string | undefined) => (
-        <Typography.Text type={toNumber(value) > 0 ? 'danger' : undefined}>{value ?? '0'}</Typography.Text>
+        <Typography.Text type={toNumber(value) > 0 ? 'danger' : undefined}>
+          {value ?? '0'}
+        </Typography.Text>
       ),
     },
     {

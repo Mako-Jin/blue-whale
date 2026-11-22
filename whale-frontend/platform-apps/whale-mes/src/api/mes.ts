@@ -404,7 +404,9 @@ export function pageMesSchedulePlans(
   query: MesScheduleQuery = {},
 ): Promise<PageResult<MesSchedulePlan>> {
   const queryString = toQueryString({ current: 1, size: 20, ...query });
-  return http.get<PageResult<MesSchedulePlan>>(`/mes/v1/dispatch/schedule/plan/page?${queryString}`);
+  return http.get<PageResult<MesSchedulePlan>>(
+    `/mes/v1/dispatch/schedule/plan/page?${queryString}`,
+  );
 }
 
 /** 查询排程计划详情（含时段） */
@@ -844,7 +846,9 @@ export function pageMesLineSideStock(
   } = {},
 ): Promise<PageResult<MesLineSideStock>> {
   const queryString = toQueryString({ current: 1, size: 100, ...query });
-  return http.get<PageResult<MesLineSideStock>>(`/mes/v1/trace/line-side/stock/page?${queryString}`);
+  return http.get<PageResult<MesLineSideStock>>(
+    `/mes/v1/trace/line-side/stock/page?${queryString}`,
+  );
 }
 
 /** 线边入库 / 退料退回 */
@@ -1910,7 +1914,10 @@ export function completeMesMaintenanceOrder(
   id: string,
   input: { completedBy?: string; checklistResults: string[]; remark?: string },
 ): Promise<MesMaintenanceOrder> {
-  return http.post<MesMaintenanceOrder>(`/mes/v1/equipment/maintenance/order/${id}/complete`, input);
+  return http.post<MesMaintenanceOrder>(
+    `/mes/v1/equipment/maintenance/order/${id}/complete`,
+    input,
+  );
 }
 
 /** 保养验收 */
@@ -2818,12 +2825,14 @@ export function subscribeMesDashboard(
 
 /** 导出综合看板 CSV（受 sys:mes:dashboard:export 权限控制） */
 export function exportMesDashboard(params: MesDashboardQuery = {}): Promise<void> {
-  return client.downloadBlob('/mes/v1/dashboard/export', { ...params }).then(({ blob, filename }) => {
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.click();
-    URL.revokeObjectURL(url);
-  });
+  return client
+    .downloadBlob('/mes/v1/dashboard/export', { ...params })
+    .then(({ blob, filename }) => {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+    });
 }

@@ -279,7 +279,9 @@ export function deleteDriver(id: number): Promise<void> {
 export function pageBookings(
   params: OaAdministrativeQuery = {},
 ): Promise<PageResult<OaVehicleBooking>> {
-  return http.get<PageResult<OaVehicleBooking>>(`/oa/v1/vehicle/bookings/page${buildQuery(params)}`);
+  return http.get<PageResult<OaVehicleBooking>>(
+    `/oa/v1/vehicle/bookings/page${buildQuery(params)}`,
+  );
 }
 
 /** 用车申请详情 */

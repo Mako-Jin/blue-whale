@@ -219,9 +219,7 @@ export default function ArchiveItemList({
   const handleConfirm = async (row: ArchiveItemVO) => {
     try {
       const result = await confirmItem(row.id);
-      message.success(
-        t('archive.item.msg.confirmed', { archiveNo: result.archiveNo ?? '-' }),
-      );
+      message.success(t('archive.item.msg.confirmed', { archiveNo: result.archiveNo ?? '-' }));
       refresh();
     } catch (error) {
       message.error(error instanceof Error ? error.message : t('archive.item.msg.confirmFailed'));

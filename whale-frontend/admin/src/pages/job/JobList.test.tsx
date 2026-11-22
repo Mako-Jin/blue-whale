@@ -110,9 +110,7 @@ describe('JobList 定时任务页', () => {
     await waitFor(() => expect(batchEnable).toBeEnabled());
     fireEvent.click(batchEnable);
 
-    await waitFor(() =>
-      expect(batchChangeJobStatus).toHaveBeenCalledWith(['1'], 1),
-    );
+    await waitFor(() => expect(batchChangeJobStatus).toHaveBeenCalledWith(['1'], 1));
   });
 
   it('告警记录拆分多通道并显示恢复标识', async () => {

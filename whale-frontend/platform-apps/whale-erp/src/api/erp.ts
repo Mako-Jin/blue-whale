@@ -43,7 +43,9 @@ export async function listErpItems(): Promise<ErpItem[]> {
 /** 保存商品/物料（无 id 走新增，有 id 走编辑） */
 export function saveErpItem(input: ErpItemInput): Promise<ErpItem> {
   const { id, ...body } = input;
-  return id ? http.put<ErpItem>(`/erp/v1/item/${id}`, body) : http.post<ErpItem>('/erp/v1/item', body);
+  return id
+    ? http.put<ErpItem>(`/erp/v1/item/${id}`, body)
+    : http.post<ErpItem>('/erp/v1/item', body);
 }
 
 /** 供应商分类 */

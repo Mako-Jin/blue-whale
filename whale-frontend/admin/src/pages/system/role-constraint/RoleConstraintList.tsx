@@ -296,18 +296,14 @@ export default function RoleConstraintList() {
           <Form.Item
             name="constraintCode"
             label={t('systemOps.roleConstraint.field.code')}
-            rules={[
-              { required: true, message: t('systemOps.roleConstraint.field.codeRequired') },
-            ]}
+            rules={[{ required: true, message: t('systemOps.roleConstraint.field.codeRequired') }]}
           >
             <Input maxLength={64} disabled={Boolean(editing)} style={{ width: 200 }} />
           </Form.Item>
           <Form.Item
             name="constraintName"
             label={t('systemOps.roleConstraint.field.name')}
-            rules={[
-              { required: true, message: t('systemOps.roleConstraint.field.nameRequired') },
-            ]}
+            rules={[{ required: true, message: t('systemOps.roleConstraint.field.nameRequired') }]}
           >
             <Input maxLength={64} style={{ width: 200 }} />
           </Form.Item>

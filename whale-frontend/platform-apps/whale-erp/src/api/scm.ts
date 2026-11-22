@@ -492,7 +492,9 @@ export function cancelPurchaseReturn(id: number): Promise<PurchaseReturnView> {
 export function pageSalesReturns(
   params: ScmQueryParams = {},
 ): Promise<PageResult<SalesReturnView>> {
-  return http.get<PageResult<SalesReturnView>>(`/erp/v1/scm/sales-return/page?${buildQuery(params)}`);
+  return http.get<PageResult<SalesReturnView>>(
+    `/erp/v1/scm/sales-return/page?${buildQuery(params)}`,
+  );
 }
 
 /** 销售退货单详情（含分录） */
@@ -797,12 +799,16 @@ export function compareSupplierPrices(
 ): Promise<SupplierPriceCompareView[]> {
   const search = new URLSearchParams({ itemId: String(itemId) });
   if (date) search.set('date', date);
-  return http.get<SupplierPriceCompareView[]>(`/erp/v1/scm/price-list/compare?${search.toString()}`);
+  return http.get<SupplierPriceCompareView[]>(
+    `/erp/v1/scm/price-list/compare?${search.toString()}`,
+  );
 }
 
 /** 物料采购价格趋势（按月汇总） */
 export function priceTrend(itemId: number, months = 6): Promise<PriceTrendView[]> {
-  return http.get<PriceTrendView[]>(`/erp/v1/scm/price-list/trend?itemId=${itemId}&months=${months}`);
+  return http.get<PriceTrendView[]>(
+    `/erp/v1/scm/price-list/trend?itemId=${itemId}&months=${months}`,
+  );
 }
 
 /** 安全库存配置 */

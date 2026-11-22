@@ -208,10 +208,7 @@ const frameGeo = new THREE.BufferGeometry().setFromPoints([
   new THREE.Vector3(-PANEL_WORLD_W / 2, PANEL_WORLD_H / 2, 0),
   new THREE.Vector3(-PANEL_WORLD_W / 2, -PANEL_WORLD_H / 2, 0),
 ]);
-const frame = new THREE.Line(
-  frameGeo,
-  new THREE.LineBasicMaterial({ color: 0x00ff88 }),
-);
+const frame = new THREE.Line(frameGeo, new THREE.LineBasicMaterial({ color: 0x00ff88 }));
 frame.position.copy(PANEL_POS);
 scene.add(frame);
 

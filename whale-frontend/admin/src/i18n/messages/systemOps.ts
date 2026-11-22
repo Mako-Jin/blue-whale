@@ -152,7 +152,8 @@ export const systemOpsMessages = defineMessages(
     'systemOps.userGroup.field.nameRequired': '请输入组名称',
     'systemOps.userGroup.field.categoryRequired': '请选择类别',
     'systemOps.userGroup.field.filters': '动态规则',
-    'systemOps.userGroup.field.filtersExtra': 'JSON 规则，如 [{"field":"deptId","op":"eq","value":5}]',
+    'systemOps.userGroup.field.filtersExtra':
+      'JSON 规则，如 [{"field":"deptId","op":"eq","value":5}]',
     'systemOps.userGroup.field.filtersPlaceholder': '[{"field":"deptId","op":"eq","value":5}]',
     'systemOps.userGroup.field.members': '成员',
     'systemOps.userGroup.alert.dynamic': '动态规则组按 filters 规则自动圈人，不可手工维护成员',

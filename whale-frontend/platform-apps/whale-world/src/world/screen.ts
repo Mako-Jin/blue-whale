@@ -286,7 +286,10 @@ class Screen {
   }
 
   /** 相机要站的位置：法线方向上，距离按"屏风占满 82% 短边"反算 */
-  enterPose(camera: THREE.PerspectiveCamera): { position: THREE.Vector3; quaternion: THREE.Quaternion } {
+  enterPose(camera: THREE.PerspectiveCamera): {
+    position: THREE.Vector3;
+    quaternion: THREE.Quaternion;
+  } {
     const { w, h } = this.sizeWorld();
     const vFov = (camera.fov * Math.PI) / 180;
     const tanV = Math.tan(vFov / 2);
@@ -475,7 +478,6 @@ export function createScreenLayer(options: ScreenLayerOptions): ScreenLayerHandl
       真正需要重算的是"相机投影变了"——而屏风接管期间相机是锁死的。
       与其写一个必然出现"缩放套缩放"的 replanarize，不如让玩家退出重进。 */
 
-
   function beginTransition(targetId: string | null): void {
     const now = performance.now();
     const fromPos = camera.position.clone();
@@ -493,7 +495,11 @@ export function createScreenLayer(options: ScreenLayerOptions): ScreenLayerHandl
     } else {
       const follow = options.getFollowPose();
       toPos = follow.position.clone();
-      const m = new THREE.Matrix4().lookAt(follow.position, follow.target, new THREE.Vector3(0, 1, 0));
+      const m = new THREE.Matrix4().lookAt(
+        follow.position,
+        follow.target,
+        new THREE.Vector3(0, 1, 0),
+      );
       toQuat = new THREE.Quaternion().setFromRotationMatrix(m);
       // 从屏风飞回跟随位时，若玩家站在屏风背后，直线插值会穿过屏风。
       // 抬一点高度绕过去，比硬穿自然（屏风高 2–3 米，抬 4 米够）。

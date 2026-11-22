@@ -166,9 +166,7 @@ export default function ComponentsDemo() {
               {
                 name: 'category',
                 label: t('demo.col.category'),
-                element: (
-                  <Select allowClear options={categoryOptions} style={{ width: 140 }} />
-                ),
+                element: <Select allowClear options={categoryOptions} style={{ width: 140 }} />,
               },
             ]}
             onSearch={(values) => {

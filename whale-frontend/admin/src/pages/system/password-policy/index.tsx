@@ -170,11 +170,7 @@ export default function PasswordPolicy() {
               </Button>
             </Form.Item>
           ) : (
-            <Alert
-              type="warning"
-              showIcon
-              message={t('systemAuth.passwordPolicy.noPermission')}
-            />
+            <Alert type="warning" showIcon message={t('systemAuth.passwordPolicy.noPermission')} />
           )}
         </Form>
       </Card>

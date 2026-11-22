@@ -112,7 +112,8 @@ export function createMapClient(request: MapRequest): MapClient {
 
     route: (params) => request<RouteVO>('/map/v1/route', { method: 'POST', body: params }),
 
-    distance: (params) => request<DistanceVO[]>('/map/v1/distance', { method: 'POST', body: params }),
+    distance: (params) =>
+      request<DistanceVO[]>('/map/v1/distance', { method: 'POST', body: params }),
 
     saveLocation: (bizType, bizId, params) =>
       request<MapLocationVO>(`/map/v1/location/${segment(bizType)}/${segment(bizId)}`, {
@@ -163,7 +164,10 @@ export function createMapClient(request: MapRequest): MapClient {
     removeFence: (id) => request<void>(`/map/v1/fence/${segment(id)}/remove`, { method: 'POST' }),
 
     fenceContains: (id, params) =>
-      request<FenceHitVO>(`/map/v1/fence/${segment(id)}/contains`, { method: 'POST', body: params }),
+      request<FenceHitVO>(`/map/v1/fence/${segment(id)}/contains`, {
+        method: 'POST',
+        body: params,
+      }),
 
     fenceMatch: (params) =>
       request<FenceHitVO[]>('/map/v1/fence/match', { method: 'POST', body: params }),

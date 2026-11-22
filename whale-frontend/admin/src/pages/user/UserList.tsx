@@ -117,9 +117,7 @@ export default function UserList() {
     (role) => role.threeAdmin && checkedRoleIds.includes(role.id),
   );
   const isThreeAdminConflict = (role: RoleVO) =>
-    Boolean(role.threeAdmin) &&
-    selectedThreeAdmin.length > 0 &&
-    !checkedRoleIds.includes(role.id);
+    Boolean(role.threeAdmin) && selectedThreeAdmin.length > 0 && !checkedRoleIds.includes(role.id);
 
   const handleToggleStatus = async (row: UserVO, status: number) => {
     try {

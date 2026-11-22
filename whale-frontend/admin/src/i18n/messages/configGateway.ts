@@ -186,7 +186,8 @@ export const configGatewayMessages = defineMessages(
     'config.operation.delete': 'Delete',
     'gateway.whitelist.title': 'Whitelist',
     'gateway.blacklist.title': 'Blacklist',
-    'gateway.missingPermission': 'Missing permission to view gateway access lists (sys:gateway:*:list)',
+    'gateway.missingPermission':
+      'Missing permission to view gateway access lists (sys:gateway:*:list)',
     'gateway.alert.blacklistTitle':
       'The blacklist takes precedence over the whitelist: matching requests are always rejected with 403, without checking the whitelist or token.',
     'gateway.alert.blacklistDescription':

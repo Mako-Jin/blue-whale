@@ -213,7 +213,13 @@ export async function fetchOverview(
     return { nodeKey: spec.nodeKey, state: 'denied', note: '未登录', updatedAt: 0, snapshot: null };
   }
   if (lacksPermission(spec.permission, options)) {
-    return { nodeKey: spec.nodeKey, state: 'denied', note: '无此殿凭据', updatedAt: 0, snapshot: null };
+    return {
+      nodeKey: spec.nodeKey,
+      state: 'denied',
+      note: '无此殿凭据',
+      updatedAt: 0,
+      snapshot: null,
+    };
   }
 
   const controller = new AbortController();
@@ -264,9 +270,19 @@ export async function fetchOverview(
       ? '问询超时'
       : (error instanceof Error && error.message ? error.message : '未接通').slice(0, 24);
     if (previous && previous.updatedAt > 0) {
-      return { ...previous, state: 'stale', note: `${reason} · 上次 ${timeLabel(previous.updatedAt)}` };
+      return {
+        ...previous,
+        state: 'stale',
+        note: `${reason} · 上次 ${timeLabel(previous.updatedAt)}`,
+      };
     }
-    return { nodeKey: spec.nodeKey, state: 'unreachable', note: reason, updatedAt: 0, snapshot: null };
+    return {
+      nodeKey: spec.nodeKey,
+      state: 'unreachable',
+      note: reason,
+      updatedAt: 0,
+      snapshot: null,
+    };
   } finally {
     window.clearTimeout(timer);
   }

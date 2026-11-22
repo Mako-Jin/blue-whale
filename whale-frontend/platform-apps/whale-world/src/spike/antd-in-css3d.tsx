@@ -111,9 +111,7 @@ function Demo(): React.ReactElement {
 
   return (
     <div style={{ padding: '18px 20px 22px' }}>
-      <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 4 }}>
-        ERP · 采购订单
-      </div>
+      <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 4 }}>ERP · 采购订单</div>
       <div style={{ fontSize: 12, color: '#8a7a5a', marginBottom: 14 }}>
         这张表是真实 antd 组件，渲染在三维面板的 DOM 里
       </div>
@@ -141,12 +139,7 @@ function Demo(): React.ReactElement {
         </span>
       </div>
 
-      <Table
-        size="small"
-        pagination={false}
-        dataSource={ROWS}
-        columns={COLUMNS}
-      />
+      <Table size="small" pagination={false} dataSource={ROWS} columns={COLUMNS} />
     </div>
   );
 }
@@ -172,8 +165,7 @@ function checkPopup(): void {
   const cy = r.top + r.height / 2;
 
   const inside =
-    cx >= sheetRect.left && cx <= sheetRect.right &&
-    cy >= sheetRect.top && cy <= sheetRect.bottom;
+    cx >= sheetRect.left && cx <= sheetRect.right && cy >= sheetRect.top && cy <= sheetRect.bottom;
 
   hudPopup.textContent = FIXED ? '面板内（getPopupContainer）' : 'document.body';
   hudPos.textContent = `(${Math.round(cx)}, ${Math.round(cy)})`;
@@ -210,5 +202,6 @@ window.addEventListener('resize', () => {
   fixed: FIXED,
   check: checkPopup,
   sheetRect: () => sheet.getBoundingClientRect(),
-  dropdownRect: () => document.querySelector('.ant-select-dropdown')?.getBoundingClientRect() ?? null,
+  dropdownRect: () =>
+    document.querySelector('.ant-select-dropdown')?.getBoundingClientRect() ?? null,
 };

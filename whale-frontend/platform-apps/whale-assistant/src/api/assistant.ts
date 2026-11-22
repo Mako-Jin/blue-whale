@@ -60,7 +60,10 @@ export interface ChatDoneVO {
 
 /** 已发布助手列表（会话创建选择用；无 sys:assistant:define 权限时可能 403，由调用方降级） */
 export function listPublishedDefinitions(): Promise<DefinitionVO[]> {
-  return http.get<DefinitionVO[]>('/assistant/v1/definitions/page', { status: 'published', size: 50 });
+  return http.get<DefinitionVO[]>('/assistant/v1/definitions/page', {
+    status: 'published',
+    size: 50,
+  });
 }
 
 /** 我的会话分页 */

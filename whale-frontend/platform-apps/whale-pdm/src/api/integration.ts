@@ -105,7 +105,9 @@ export function runOaReconcile(): Promise<ReconcileRow[]> {
 
 /** 重新通知 ERP 拉取 BOM 快照 */
 export function notifyBom(bomNo: string, versionNo: string): Promise<SyncLog> {
-  return http.post<SyncLog>(`/pdm/v1/integration/reconcile/bom/${bomNo}/versions/${versionNo}/notify`);
+  return http.post<SyncLog>(
+    `/pdm/v1/integration/reconcile/bom/${bomNo}/versions/${versionNo}/notify`,
+  );
 }
 
 /** 重推 MES 工艺路线 */

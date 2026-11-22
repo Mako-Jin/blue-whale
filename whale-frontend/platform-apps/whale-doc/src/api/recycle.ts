@@ -6,7 +6,10 @@ import type { DocRecycleItem } from './types';
 export const recycleApi = {
   /** 分页查询空间回收站根节点 */
   page: (spaceId: number, current = 1, size = 20) =>
-    http.get<PageResult<DocRecycleItem>>(`/doc/v1/space/${spaceId}/recycle/page`, { current, size }),
+    http.get<PageResult<DocRecycleItem>>(`/doc/v1/space/${spaceId}/recycle/page`, {
+      current,
+      size,
+    }),
   /** 恢复一棵回收站子树 */
   restore: (pageId: number) => http.post<void>(`/doc/v1/page/${pageId}/trash/restore`),
   /** 彻底清除一棵回收站子树 */

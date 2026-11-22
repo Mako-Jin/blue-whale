@@ -467,7 +467,9 @@ export function closeNcr(id: number, input: NcrCloseInput): Promise<NcrView> {
 
 /** 质量成本分页 */
 export function pageQualityCost(params: QcQueryParams = {}): Promise<PageResult<QualityCostView>> {
-  return http.get<PageResult<QualityCostView>>(`/erp/v1/qc/quality-cost/page?${buildQuery(params)}`);
+  return http.get<PageResult<QualityCostView>>(
+    `/erp/v1/qc/quality-cost/page?${buildQuery(params)}`,
+  );
 }
 
 /** 设备分页 */

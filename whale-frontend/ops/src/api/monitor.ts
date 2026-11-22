@@ -25,5 +25,7 @@ export function getServiceList(): Promise<ServiceSummaryVO[]> {
 
 // 指定服务的实例列表
 export function getInstances(serviceName: string): Promise<ServiceInstanceVO[]> {
-  return get<ServiceInstanceVO[]>(`/monitor/v1/service/${encodeURIComponent(serviceName)}/instances`);
+  return get<ServiceInstanceVO[]>(
+    `/monitor/v1/service/${encodeURIComponent(serviceName)}/instances`,
+  );
 }
