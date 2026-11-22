@@ -6,7 +6,7 @@
 | 状态 | 设计定稿，实现待启动 |
 | 最后更新 | 2026-11-22 |
 | 作者 | BlueWhale |
-| 落点 | `whale-services/whale-pay`、`whale-sdk/whale-pay-client`（新建）、`whale-spring-boot-starter`（令牌已具备） |
+| 落点 | `whale-services/whale-service-pay`、`whale-sdk/whale-pay-client`（新建）、`whale-spring-boot-starter`（令牌已具备） |
 | 前置文档 | [支付评审整改 2026-11-21](../reviews/2026-11-21-pay-review-remediation.md)、[网络边界](../design/network-boundary.md)、[分布式基础设施](distributed.md) |
 
 ---
