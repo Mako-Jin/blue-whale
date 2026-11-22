@@ -58,6 +58,14 @@ whale:
   permission:
     header:
       enabled: true
+  # 三维王城概览（S7/T7.4）：邮驿屏风读 /mail/overview。
+  # 路径带服务前缀（REQ-ARCH-003：网关不剥前缀）；TTL 30s 对应前端 30s 轮询。
+  # timeout 2s：八次索引 count，不碰正文大字段；超过 2s 说明库已经不正常，
+  # 早点降级比让屏风转圈强。
+  overview:
+    base-path: /mail/overview
+    ttl: 30s
+    timeout: 2s
   mail:
     # 默认邮箱域名与协议端点：单套 Mailcow 部署时前端无需逐项填写
     default-domain: ${WHALE_MAIL_DOMAIN:}

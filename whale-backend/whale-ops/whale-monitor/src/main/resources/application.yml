@@ -162,3 +162,7 @@ whale:
           name: 清议堂
           url: http://bw-forum:9011/forum/overview
           permission: sys:forum:manage:list
+        - nodeKey: youyi-stage
+          name: 邮驿
+          url: http://bw-mail:8099/mail/overview
+          permission: sys:mail:account:list
