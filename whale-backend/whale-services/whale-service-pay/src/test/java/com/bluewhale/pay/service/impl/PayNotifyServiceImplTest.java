@@ -7,6 +7,7 @@ import com.bluewhale.pay.config.PayNotifyProperties;
 import com.bluewhale.pay.po.PayNotifyTaskPo;
 import com.bluewhale.pay.mapper.PayNotifyTaskMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -54,7 +55,7 @@ class PayNotifyServiceImplTest {
 
     private final PayNotifyServiceImpl service = new PayNotifyServiceImpl(
             taskMapper, new ObjectMapper(), discoveryClient,
-            new PayNotifyProperties(), Runnable::run);
+            new PayNotifyProperties(), Runnable::run, new SimpleMeterRegistry());
 
     private static PayNotifyTaskPo pendingTask() {
         PayNotifyTaskPo task = new PayNotifyTaskPo();
@@ -189,5 +190,20 @@ class PayNotifyServiceImplTest {
         assertNull(PayNotifyServiceImpl.splitNotifyUrl(""));
         assertNull(PayNotifyServiceImpl.splitNotifyUrl("no-slash"));
         assertNull(PayNotifyServiceImpl.splitNotifyUrl("svc/"));
+    }
+
+    @Test
+    @DisplayName("retryBatch：按入参顺序去重，不存在的任务逐项返回 NOT_FOUND")
+    void shouldRetryBatchDedupAndReportMissing() {
+        when(taskMapper.selectById(1L)).thenReturn(null);
+        when(taskMapper.selectById(2L)).thenReturn(null);
+
+        var results = service.retryBatch(List.of(1L, 2L, 1L));
+
+        assertEquals(2, results.size());
+        assertEquals(1L, results.get(0).getId());
+        assertEquals("NOT_FOUND", results.get(0).getStatus());
+        assertEquals(2L, results.get(1).getId());
+        assertEquals("NOT_FOUND", results.get(1).getStatus());
     }
 }

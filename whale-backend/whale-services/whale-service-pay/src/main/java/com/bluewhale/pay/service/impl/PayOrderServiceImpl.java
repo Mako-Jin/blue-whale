@@ -16,6 +16,7 @@ import com.bluewhale.pay.dto.PayOrderCreateRequest;
 import com.bluewhale.pay.dto.PayOrderQueryRequest;
 import com.bluewhale.pay.po.PayOrderPo;
 import com.bluewhale.pay.po.PayTransactionPo;
+import com.bluewhale.pay.enums.PayCloseReason;
 import com.bluewhale.pay.enums.PayOrderStatus;
 import com.bluewhale.pay.mapper.PayOrderMapper;
 import com.bluewhale.pay.mapper.PayTransactionMapper;
@@ -172,6 +173,7 @@ public class PayOrderServiceImpl implements PayOrderService {
         ensureStatus(existing, PayOrderStatus.CREATED.code(), "只有待支付的支付单可以取消");
         claimTransition(id, PayOrderStatus.CREATED.code(), PayOrderStatus.CANCELLED.code(), "只有待支付的支付单可以取消");
         existing.setStatus(PayOrderStatus.CANCELLED.code());
+        existing.setCloseReason(PayCloseReason.MANUAL.code());
         payOrderMapper.updateById(existing);
         return toVo(payOrderMapper.selectById(id));
     }
@@ -510,7 +512,24 @@ public class PayOrderServiceImpl implements PayOrderService {
      * @return 支付单视图对象
      */
     private static PayOrderVO toVo(PayOrderPo order) {
-        return PayOrderConverter.INSTANCE.toOrderVo(order);
+        PayOrderVO vo = PayOrderConverter.INSTANCE.toOrderVo(order);
+        vo.setRefundableAmount(refundableOf(order));
+        return vo;
+    }
+
+    /**
+     * 剩余可退金额：仅已支付单可退，退款后退完为 0。
+     *
+     * @param order 支付单
+     * @return 剩余可退金额
+     */
+    private static BigDecimal refundableOf(PayOrderPo order) {
+        if (!PayOrderStatus.PAID.code().equals(order.getStatus())) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal refunded = order.getRefundAmount() == null ? BigDecimal.ZERO : order.getRefundAmount();
+        BigDecimal remaining = order.getAmount().subtract(refunded);
+        return remaining.signum() > 0 ? remaining : BigDecimal.ZERO;
     }
 
     /**

@@ -3,15 +3,18 @@ package com.bluewhale.pay.channel;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.pay.config.PayChannelProperties;
+import com.bluewhale.pay.enums.PayChannelFeature;
 import com.bluewhale.pay.po.PayOrderPo;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -94,6 +97,60 @@ public class PayChannelGateway {
             throw new BizException(ErrorCode.PARAM_ERROR, "pay.channel.adapter-missing",
                     "渠道未接入适配器: " + channel + "（当前仅内置 MOCK）", channel);
         }
+    }
+
+    /**
+     * 渠道是否具备某项能力。
+     *
+     * <p>渠道不可用或适配器未声明该能力时返回 {@code false}，调用方据此拒绝
+     * 部分退款、跳过渠道关单等动作，而不是在服务里按渠道号分支。</p>
+     *
+     * @param channel 渠道编码
+     * @param feature 能力
+     * @return 是否支持
+     */
+    public boolean supports(String channel, PayChannelFeature feature) {
+        if (feature == null || !isSupported(channel)) {
+            return false;
+        }
+        String normalized = channel.trim().toUpperCase(Locale.ROOT);
+        Set<PayChannelFeature> features = adapters.get(normalized).features();
+        return features != null && features.contains(feature);
+    }
+
+    /**
+     * 渠道声明的全部能力。
+     *
+     * @param channel 渠道编码
+     * @return 能力集合（不可变）
+     */
+    public Set<PayChannelFeature> features(String channel) {
+        return requireAdapter(channel).features();
+    }
+
+    /**
+     * 渠道能力矩阵（管理端渲染用）。
+     *
+     * @return 渠道编码 → 能力集合，保持适配器注册顺序
+     */
+    public Map<String, Set<PayChannelFeature>> capabilities() {
+        Map<String, Set<PayChannelFeature>> result = new LinkedHashMap<>();
+        for (Map.Entry<String, PayChannelAdapter> entry : adapters.entrySet()) {
+            if (matchesAllowed(entry.getKey())) {
+                result.put(entry.getKey(), entry.getValue().features());
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 渠道主动关单。
+     *
+     * @param order 支付单
+     * @return 渠道结果
+     */
+    public PayChannelResult close(PayOrderPo order) {
+        return requireAdapter(order.getChannel()).close(order);
     }
 
     /**

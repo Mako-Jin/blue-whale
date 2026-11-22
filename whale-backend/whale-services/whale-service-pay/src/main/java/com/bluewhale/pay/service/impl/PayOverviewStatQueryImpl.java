@@ -76,6 +76,14 @@ public class PayOverviewStatQueryImpl implements PayOverviewStatQuery {
     }
 
     @Override
+    public long timedOutClosedBetween(Long tenantId, LocalDateTime from, LocalDateTime to) {
+        if (invalidWindow(tenantId, from, to)) {
+            return 0L;
+        }
+        return payOrderMapper.countTimedOutClosed(tenantId, from, to);
+    }
+
+    @Override
     public BigDecimal refundBetween(Long tenantId, LocalDateTime from, LocalDateTime to) {
         if (invalidWindow(tenantId, from, to)) {
             return ZERO;

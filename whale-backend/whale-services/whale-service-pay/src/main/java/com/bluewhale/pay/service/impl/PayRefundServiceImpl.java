@@ -8,6 +8,8 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.pay.channel.PayChannelGateway;
 import com.bluewhale.pay.channel.PayChannelResult;
 import com.bluewhale.pay.converter.PayOrderConverter;
+import com.bluewhale.pay.enums.PayChannelFeature;
+import com.bluewhale.pay.enums.PayOrderStatus;
 import com.bluewhale.pay.po.PayOrderPo;
 import com.bluewhale.pay.po.PayRefundPo;
 import com.bluewhale.pay.enums.PayRefundStatus;
@@ -28,6 +30,10 @@ import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * 退款单服务实现。
@@ -82,12 +88,22 @@ public class PayRefundServiceImpl implements PayRefundService {
         if (order == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
-        BigDecimal remaining = order.getAmount().subtract(
-                order.getRefundAmount() == null ? BigDecimal.ZERO : order.getRefundAmount());
+        BigDecimal remaining = remainingRefundable(order);
         if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
             throw new BizException(ErrorCode.PARAM_ERROR, "pay.refund.already-full-refunded", "支付单已全额退款");
         }
         return doRefund(order, null, remaining, reason);
+    }
+
+    @Override
+    public PayRefundVO refundPartial(Long payOrderId, String clientRequestId, BigDecimal amount, String reason) {
+        validateAmount(amount);
+        PayOrderPo order = payOrderMapper.selectById(payOrderId);
+        if (order == null) {
+            throw new BizException(ErrorCode.NOT_FOUND);
+        }
+        ensurePartialRefundable(order, amount);
+        return doRefund(order, clientRequestId, amount, reason);
     }
 
     /**
@@ -100,6 +116,7 @@ public class PayRefundServiceImpl implements PayRefundService {
      * @return 退款单
      */
     private PayRefundVO doRefund(PayOrderPo order, String refundNo, BigDecimal amount, String reason) {
+        ensureChannelSupportsAmount(order, amount);
         PreparedRefund prepared = prepareRefund(order, refundNo, amount, reason);
         if (!prepared.fresh()) {
             // 幂等回放（含并发同号请求）：已有退款单直接返回，不再发起渠道退款
@@ -198,7 +215,7 @@ public class PayRefundServiceImpl implements PayRefundService {
         wrapper.orderByDesc(PayRefundPo::getCreateTime);
         long safeSize = Math.min(Math.max(size, 1L), 200L);
         Page<PayRefundPo> page = payRefundMapper.selectPage(new Page<>(current, safeSize), wrapper);
-        List<PayRefundVO> records = page.getRecords().stream().map(PayOrderConverter.INSTANCE::toRefundVo).toList();
+        List<PayRefundVO> records = withProgress(page.getRecords());
         return PageResult.of(records, page.getTotal(), page.getCurrent(), page.getSize());
     }
 
@@ -208,7 +225,79 @@ public class PayRefundServiceImpl implements PayRefundService {
         if (refund == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
-        return PayOrderConverter.INSTANCE.toRefundVo(refund);
+        return withProgress(List.of(refund)).get(0);
+    }
+
+    /**
+     * 剩余可退金额。
+     *
+     * @param order 支付单
+     * @return amount - 累计退款额，最小为 0
+     */
+    private static BigDecimal remainingRefundable(PayOrderPo order) {
+        BigDecimal refunded = order.getRefundAmount() == null ? BigDecimal.ZERO : order.getRefundAmount();
+        BigDecimal remaining = order.getAmount().subtract(refunded);
+        return remaining.signum() > 0 ? remaining : BigDecimal.ZERO;
+    }
+
+    /**
+     * 部分退款前置校验：必须已支付、金额不超过剩余可退。
+     *
+     * @param order  支付单
+     * @param amount 本次退款金额
+     */
+    private static void ensurePartialRefundable(PayOrderPo order, BigDecimal amount) {
+        if (!PayOrderStatus.PAID.code().equals(order.getStatus())) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "pay.refund.not-refundable", "退款失败：支付单不可退款");
+        }
+        BigDecimal remaining = remainingRefundable(order);
+        if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "pay.refund.already-full-refunded", "支付单已全额退款");
+        }
+        if (amount.compareTo(remaining) > 0) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "pay.refund.amount-exceeds-refundable",
+                    "退款金额超过剩余可退金额: " + remaining, remaining);
+        }
+    }
+
+    /**
+     * 渠道能力校验：部分退款要求渠道声明 {@code PARTIAL_REFUND}。
+     *
+     * @param order  支付单
+     * @param amount 本次退款金额
+     */
+    private void ensureChannelSupportsAmount(PayOrderPo order, BigDecimal amount) {
+        if (amount.compareTo(remainingRefundable(order)) < 0
+                && !payChannelGateway.supports(order.getChannel(), PayChannelFeature.PARTIAL_REFUND)) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "pay.refund.partial-not-supported",
+                    "当前渠道不支持部分退款，请按剩余可退金额全额退款", order.getChannel());
+        }
+    }
+
+    /**
+     * 退款单转 VO 并补齐所属支付单的累计退款进度。
+     *
+     * @param refunds 退款单列表
+     * @return 带进度信息的 VO 列表
+     */
+    private List<PayRefundVO> withProgress(List<PayRefundPo> refunds) {
+        List<PayRefundVO> vos = refunds.stream().map(PayOrderConverter.INSTANCE::toRefundVo).toList();
+        Set<String> orderNos = refunds.stream().map(PayRefundPo::getPayOrderNo)
+                .filter(StringUtils::hasText).collect(Collectors.toSet());
+        if (orderNos.isEmpty()) {
+            return vos;
+        }
+        Map<String, PayOrderPo> orders = payOrderMapper.selectList(new LambdaQueryWrapper<PayOrderPo>()
+                        .in(PayOrderPo::getOrderNo, orderNos)).stream()
+                .collect(Collectors.toMap(PayOrderPo::getOrderNo, Function.identity(), (first, second) -> first));
+        for (PayRefundVO vo : vos) {
+            PayOrderPo order = orders.get(vo.getPayOrderNo());
+            if (order != null) {
+                vo.setOrderAmount(order.getAmount());
+                vo.setTotalRefundedAmount(order.getRefundAmount());
+            }
+        }
+        return vos;
     }
 
     /**

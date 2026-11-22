@@ -126,6 +126,7 @@ public class PayOverviewProvider implements OverviewProvider {
         PaidStat paid = paidOrZero(statQuery.paidBetween(tenantId, dayStart, dayEnd));
         long createdToday = statQuery.createdBetween(tenantId, dayStart, dayEnd);
         PendingStat pending = pendingOrZero(statQuery.pending(tenantId, now.minus(STALE_AFTER)));
+        long autoClosed = statQuery.timedOutClosedBetween(tenantId, dayStart, dayEnd);
         BigDecimal refund = refundOrZero(statQuery.refundBetween(tenantId, dayStart, dayEnd));
         long failed = statQuery.failedPaymentsBetween(tenantId, dayStart, dayEnd);
         long openDiff = tenantId == null ? 0L : statQuery.openDiffCount(tenantId);
@@ -141,7 +142,8 @@ public class PayOverviewProvider implements OverviewProvider {
                 .kpi(Overviews.count("paidOrders", "今日成交", paid.orders(), OverviewTone.FLAT,
                         "今日建单 " + createdToday))
                 .kpi(Overviews.count("pending", "待支付", pending.pending(),
-                        pending.stale() > 0 ? OverviewTone.WARN : OverviewTone.FLAT, pendingHint(pending)))
+                        pending.stale() > 0 ? OverviewTone.WARN : OverviewTone.FLAT,
+                        pendingHint(pending, autoClosed)))
                 .kpi(Overviews.money("refund", "今日退款", refund,
                         refund.signum() > 0 ? OverviewTone.WARN : OverviewTone.FLAT, "成功退款"))
                 .kpi(Overviews.count("reconcileDiff", "对账差异", openDiff,
@@ -196,16 +198,19 @@ public class PayOverviewProvider implements OverviewProvider {
     }
 
     /**
-     * 待支付 KPI 的副标：超时数与总数分开说
+     * 待支付 KPI 的副标：超时数与今日自动关单数分开说
      *
-     * @param pending 待支付统计
+     * @param pending    待支付统计
+     * @param autoClosed 今日超时自动关单数
      * @return 副标文案
      */
-    private String pendingHint(PendingStat pending) {
-        if (pending.stale() > 0) {
-            return "其中超时 " + pending.stale();
+    private String pendingHint(PendingStat pending, long autoClosed) {
+        StringBuilder hint = new StringBuilder(
+                pending.stale() > 0 ? "其中超时 " + pending.stale() : "笔");
+        if (autoClosed > 0) {
+            hint.append(" · 今日自动关单 ").append(autoClosed);
         }
-        return "笔";
+        return hint.toString();
     }
 
     /**

@@ -131,9 +131,71 @@ public interface PayOrderMapper extends BaseMapper<PayOrderPo> {
      * @param id 支付单 ID
      * @return 影响行数（0 表示已支付/已退款/已取消）
      */
-    @Update("UPDATE pay_order SET status = 'CANCELLED', update_time = NOW() "
+    @Update("UPDATE pay_order SET status = 'CANCELLED', close_reason = 'CHANNEL_CLOSED', update_time = NOW() "
             + "WHERE id = #{id} AND status IN ('CREATED', 'PAYING') AND deleted = 0")
     int closeIfUnpaid(@Param("id") Long id);
+
+    /**
+     * 扫描超时未支付的支付单（跨租户，供自动关单任务使用）。
+     *
+     * <p>只扫 {@code CREATED}：{@code PAYING} 已发往渠道，必须由停留单对账确认结果，
+     * 不能直接关单。{@code next_close_at} 用于关单失败后的退避，避免每轮热重试。</p>
+     *
+     * @param before 建单时间早于该时刻才视为超时
+     * @param now    当前时刻（过滤尚未到重试时间的单）
+     * @param limit  单轮最大条数
+     * @return 支付单摘要（ID + 租户）
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT id, tenant_id FROM pay_order "
+            + "WHERE status = 'CREATED' AND deleted = 0 AND create_time < #{before} "
+            + "AND (next_close_at IS NULL OR next_close_at <= #{now}) "
+            + "ORDER BY create_time ASC LIMIT #{limit}")
+    List<PayStaleOrderPo> selectTimeoutCreated(@Param("before") LocalDateTime before,
+                                               @Param("now") LocalDateTime now,
+                                               @Param("limit") int limit);
+
+    /**
+     * 关闭超时支付单（条件更新：只有仍为 {@code CREATED} 才能关）。
+     *
+     * <p>影响行数为 0 表示扫描后已被支付/取消，直接跳过，不做补偿。</p>
+     *
+     * @param id     支付单 ID
+     * @param reason 关单原因
+     * @return 影响行数
+     */
+    @Update("UPDATE pay_order SET status = 'CANCELLED', close_reason = #{reason}, "
+            + "next_close_at = NULL, update_time = NOW() "
+            + "WHERE id = #{id} AND status = 'CREATED' AND deleted = 0")
+    int closeIfCreated(@Param("id") Long id, @Param("reason") String reason);
+
+    /**
+     * 记录一次渠道关单失败并安排下次重试（指数退避）。
+     *
+     * @param id          支付单 ID
+     * @param nextCloseAt 下次允许重试的时刻
+     * @return 影响行数
+     */
+    @Update("UPDATE pay_order SET close_attempts = close_attempts + 1, "
+            + "next_close_at = #{nextCloseAt}, update_time = NOW() "
+            + "WHERE id = #{id} AND status = 'CREATED' AND deleted = 0")
+    int markCloseFailure(@Param("id") Long id, @Param("nextCloseAt") LocalDateTime nextCloseAt);
+
+    /**
+     * 时间窗内自动超时关单的笔数（度支殿概览「自动处置」口径）。
+     *
+     * @param tenantId 租户 ID
+     * @param from     起始时刻（含）
+     * @param to       截止时刻（不含）
+     * @return 自动关单笔数
+     */
+    @Select("SELECT COUNT(*) FROM pay_order "
+            + "WHERE tenant_id = #{tenantId} AND deleted = 0 "
+            + "AND status = 'CANCELLED' AND close_reason = 'TIMEOUT' "
+            + "AND update_time >= #{from} AND update_time < #{to}")
+    long countTimedOutClosed(@Param("tenantId") Long tenantId,
+                             @Param("from") LocalDateTime from,
+                             @Param("to") LocalDateTime to);
 
     /**
      * 时间窗内的收款统计（度支殿概览 T5.3）

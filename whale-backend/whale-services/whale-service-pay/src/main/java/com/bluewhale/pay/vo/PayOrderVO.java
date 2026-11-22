@@ -37,6 +37,9 @@ public class PayOrderVO implements Serializable {
     /** 状态：CREATED 待支付 / PAID 已支付 / CANCELLED 已取消 / REFUNDED 已退款 */
     private String status;
 
+    /** 关单原因：TIMEOUT / MANUAL / CHANNEL_CLOSED（仅已取消单有值） */
+    private String closeReason;
+
     /** 支付完成时间 */
     private LocalDateTime payTime;
 
@@ -45,6 +48,9 @@ public class PayOrderVO implements Serializable {
 
     /** 已退款金额 */
     private BigDecimal refundAmount;
+
+    /** 剩余可退金额（amount - refundAmount，非 PAID 状态为 0） */
+    private BigDecimal refundableAmount;
 
     /** 退款完成时间 */
     private LocalDateTime refundTime;

@@ -31,6 +31,12 @@ public class PayRefundVO implements Serializable {
     /** 本次退款金额 */
     private BigDecimal amount;
 
+    /** 支付单金额（列表按 payOrderNo 聚合展示退款进度） */
+    private BigDecimal orderAmount;
+
+    /** 支付单累计成功退款金额（含本单，失败单不计） */
+    private BigDecimal totalRefundedAmount;
+
     /** 退款原因 */
     private String reason;
 

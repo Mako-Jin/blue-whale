@@ -30,6 +30,9 @@ public class PayNotifyTaskVO implements Serializable {
     /** 回调地址 */
     private String notifyUrl;
 
+    /** 回调 JSON 载荷（详情排查用） */
+    private String payload;
+
     /** 状态 */
     private String status;
 

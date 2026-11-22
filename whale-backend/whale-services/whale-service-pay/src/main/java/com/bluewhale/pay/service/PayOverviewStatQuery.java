@@ -88,6 +88,16 @@ public interface PayOverviewStatQuery {
     PendingStat pending(Long tenantId, LocalDateTime staleBefore);
 
     /**
+     * 时间窗内因超时被自动关单的笔数。
+     *
+     * @param tenantId 租户 ID
+     * @param from     起始时刻（含）
+     * @param to       截止时刻（不含）
+     * @return 自动关单笔数；租户缺失时为 0
+     */
+    long timedOutClosedBetween(Long tenantId, LocalDateTime from, LocalDateTime to);
+
+    /**
      * 时间窗内成功退款金额（按流水，不按支付单累计值）
      *
      * @param tenantId 租户 ID

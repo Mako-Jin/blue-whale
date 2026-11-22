@@ -7,6 +7,7 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.pay.channel.PayChannelGateway;
 import com.bluewhale.pay.channel.PayChannelResult;
+import com.bluewhale.pay.enums.PayChannelFeature;
 import com.bluewhale.pay.po.PayNotifyTaskPo;
 import com.bluewhale.pay.po.PayOrderPo;
 import com.bluewhale.pay.po.PayRefundPo;
@@ -20,6 +21,7 @@ import com.bluewhale.pay.service.PaySettlementService;
 import com.bluewhale.pay.vo.PayRefundVO;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -91,6 +93,14 @@ class PayRefundServiceImplTest {
         PlatformTransactionManager manager = mock(PlatformTransactionManager.class);
         when(manager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
         return new TransactionTemplate(manager);
+    }
+
+    /**
+     * 默认渠道声明支持部分退款，个别用例再覆盖为不支持。
+     */
+    @BeforeEach
+    void stubChannelCapabilities() {
+        when(payChannelGateway.supports(any(), eq(PayChannelFeature.PARTIAL_REFUND))).thenReturn(true);
     }
 
     private static PayOrderPo paidOrder() {
@@ -253,6 +263,40 @@ class PayRefundServiceImplTest {
         service.page("RF2026", 1L, 10L);
 
         verify(payRefundMapper).selectPage(any(), ArgumentMatchers.<Wrapper<PayRefundPo>>any());
+    }
+
+    @Test
+    @DisplayName("refundPartial：渠道不支持部分退款时直接拒绝，不建退款单")
+    void shouldRejectPartialWhenChannelUnsupported() {
+        when(payOrderMapper.selectById(10L)).thenReturn(paidOrder());
+        when(payChannelGateway.supports(any(), eq(PayChannelFeature.PARTIAL_REFUND))).thenReturn(false);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> service.refundPartial(10L, null, new BigDecimal("30.00"), "部分退"));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        verify(payRefundMapper, never()).insert(any(PayRefundPo.class));
+        verify(payChannelGateway, never()).refund(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("refundPartial：支持部分退款时按 clientRequestId 建单并成功")
+    void shouldRefundPartially() {
+        when(payOrderMapper.selectById(10L)).thenReturn(paidOrder());
+        when(payOrderMapper.applyRefund(eq(10L), notNull())).thenReturn(1);
+        when(payChannelGateway.refund(any(), any(), notNull()))
+                .thenReturn(new PayChannelResult("MOCK-R3"));
+        when(payNotifyService.enqueue(any(), any(), any(), any())).thenReturn(new PayNotifyTaskPo());
+        when(payRefundMapper.insert(any(PayRefundPo.class))).thenAnswer(invocation -> {
+            invocation.<PayRefundPo>getArgument(0).setId(56L);
+            return 1;
+        });
+
+        PayRefundVO vo = service.refundPartial(10L, "AS-PART-1", new BigDecimal("30.00"), "部分退");
+
+        assertEquals("SUCCESS", vo.getStatus());
+        assertEquals("AS-PART-1", vo.getRefundNo());
+        assertEquals(new BigDecimal("30.00"), vo.getAmount());
     }
 
     @Test

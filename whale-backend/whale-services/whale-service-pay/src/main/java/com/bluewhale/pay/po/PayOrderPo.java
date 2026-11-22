@@ -47,6 +47,15 @@ public class PayOrderPo extends BaseEntity {
     /** 状态：CREATED 待支付 / PAID 已支付 / CANCELLED 已取消 / REFUNDED 已退款 */
     private String status;
 
+    /** 关单原因：TIMEOUT / MANUAL / CHANNEL_CLOSED（仅 CANCELLED 有值） */
+    private String closeReason;
+
+    /** 渠道关单失败次数（指数退避重试） */
+    private Integer closeAttempts;
+
+    /** 下次允许重试关单的时刻 */
+    private LocalDateTime nextCloseAt;
+
     /** 支付完成时间（未支付为 {@code null}） */
     private LocalDateTime payTime;
 

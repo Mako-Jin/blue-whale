@@ -53,6 +53,20 @@ public interface PayRefundService {
     PayRefundVO refundFull(Long payOrderId, String reason);
 
     /**
+     * 管理端部分退款（按支付单 ID）。
+     *
+     * <p>金额必须小于等于剩余可退金额；小于剩余金额时要求渠道具备
+     * {@code PARTIAL_REFUND} 能力，否则直接拒绝，不允许把部分退款伪装成全额。</p>
+     *
+     * @param payOrderId     支付单 ID
+     * @param clientRequestId 业务退款请求号（幂等键，可空）
+     * @param amount         本次退款金额
+     * @param reason         退款原因
+     * @return 退款单
+     */
+    PayRefundVO refundPartial(Long payOrderId, String clientRequestId, BigDecimal amount, String reason);
+
+    /**
      * 退款单分页。
      *
      * @param keyword 退款单号/支付单号模糊（可空）

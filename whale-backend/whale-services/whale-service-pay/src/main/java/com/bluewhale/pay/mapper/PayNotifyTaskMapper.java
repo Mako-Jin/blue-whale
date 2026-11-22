@@ -73,4 +73,31 @@ public interface PayNotifyTaskMapper extends BaseMapper<PayNotifyTaskPo> {
     int markFailure(@Param("id") Long id, @Param("maxRetries") int maxRetries,
             @Param("nextRetryAt") java.time.LocalDateTime nextRetryAt,
             @Param("errorMessage") String errorMessage);
+
+    /**
+     * 待投递任务数（全局指标口径）。
+     *
+     * @return 待投递任务数
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT COUNT(*) FROM pay_notify_task WHERE status = 'PENDING' AND deleted = 0")
+    long countPending();
+
+    /**
+     * 死信任务数（全局指标口径）。
+     *
+     * @return 死信任务数
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT COUNT(*) FROM pay_notify_task WHERE status = 'DEAD' AND deleted = 0")
+    long countDead();
+
+    /**
+     * 最早待投递任务的创建时间（积压时长指标口径）。
+     *
+     * @return 创建时间；无待投递任务时返回 {@code null}
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT MIN(create_time) FROM pay_notify_task WHERE status = 'PENDING' AND deleted = 0")
+    java.time.LocalDateTime selectOldestPendingCreateTime();
 }

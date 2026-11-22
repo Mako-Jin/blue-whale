@@ -4,6 +4,7 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.pay.config.PayChannelProperties;
 import com.bluewhale.pay.enums.PayCallbackEvent;
+import com.bluewhale.pay.enums.PayChannelFeature;
 import com.bluewhale.pay.po.PayOrderPo;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -13,8 +14,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.util.EnumSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -74,6 +77,23 @@ public class MockPayChannelAdapter implements PayChannelAdapter {
     public String queryStatus(PayOrderPo order) {
         ensureMockEnabled(order);
         return order.getStatus();
+    }
+
+    @Override
+    public Set<PayChannelFeature> features() {
+        return EnumSet.allOf(PayChannelFeature.class);
+    }
+
+    /**
+     * 渠道关单：MOCK 无真实渠道单，直接返回成功流水号。
+     *
+     * @param order 支付单
+     * @return 渠道结果
+     */
+    @Override
+    public PayChannelResult close(PayOrderPo order) {
+        ensureMockEnabled(order);
+        return new PayChannelResult(newMockTradeNo());
     }
 
     /**

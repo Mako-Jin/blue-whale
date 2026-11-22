@@ -17,7 +17,10 @@ public enum PayNotifyRetryStatus {
     IN_PROGRESS("IN_PROGRESS"),
 
     /** 本次投递失败，已按退避策略安排下次自动重试 */
-    RETRY_PENDING("RETRY_PENDING");
+    RETRY_PENDING("RETRY_PENDING"),
+
+    /** 批量重试时任务不存在（单条接口抛 404，批量按项返回） */
+    NOT_FOUND("NOT_FOUND");
 
     private final String code;
 

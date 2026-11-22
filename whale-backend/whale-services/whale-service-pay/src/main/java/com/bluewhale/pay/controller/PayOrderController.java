@@ -7,9 +7,12 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.pay.dto.PayOrderCreateRequest;
 import com.bluewhale.pay.dto.PayOrderQueryRequest;
+import com.bluewhale.pay.dto.PayPartialRefundRequest;
 import com.bluewhale.pay.service.PayOrderService;
+import com.bluewhale.pay.service.PayRefundService;
 import com.bluewhale.pay.vo.PayOrderVO;
 import com.bluewhale.pay.vo.PayReconcileVO;
+import com.bluewhale.pay.vo.PayRefundVO;
 import com.bluewhale.pay.vo.PayTransactionVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +45,8 @@ public class PayOrderController {
     private static final String TARGET_TYPE = "pay_order";
 
     private final PayOrderService payOrderService;
+
+    private final PayRefundService payRefundService;
 
     /**
      * 分页查询支付单
@@ -117,6 +122,25 @@ public class PayOrderController {
     @AuditLog(operation = "退款支付单", type = OperateType.UPDATE, targetType = TARGET_TYPE, targetId = "#id")
     public Result<PayOrderVO> refund(@PathVariable Long id) {
         return Result.ok(payOrderService.refund(id));
+    }
+
+    /**
+     * 部分退款（PAID 状态，金额不超过剩余可退）。
+     *
+     * <p>{@code clientRequestId} 作为退款单号透传，同号重试返回原单；
+     * 渠道未声明 {@code PARTIAL_REFUND} 时只能按剩余可退金额全额退。</p>
+     *
+     * @param id      支付单ID
+     * @param request 部分退款请求
+     * @return 退款单
+     */
+    @PostMapping("/{id}/refund/partial")
+    @RequirePermission("sys:pay:refund")
+    @AuditLog(operation = "部分退款", type = OperateType.UPDATE, targetType = TARGET_TYPE, targetId = "#id")
+    public Result<PayRefundVO> refundPartial(@PathVariable Long id,
+            @Valid @RequestBody PayPartialRefundRequest request) {
+        return Result.ok(payRefundService.refundPartial(id, request.getClientRequestId(),
+                request.getAmount(), request.getReason()));
     }
 
     /**

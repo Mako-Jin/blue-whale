@@ -4,7 +4,10 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.pay.po.PayNotifyTaskPo;
 import com.bluewhale.pay.po.PayOrderPo;
 import com.bluewhale.pay.enums.PayNotifyEvent;
+import com.bluewhale.pay.vo.PayNotifyRetryBatchItemVO;
 import com.bluewhale.pay.vo.PayNotifyRetryResultVO;
+
+import java.util.List;
 
 /**
  * 业务通知服务。
@@ -61,12 +64,32 @@ public interface PayNotifyService {
     PayNotifyRetryResultVO retryManually(Long taskId);
 
     /**
+     * 批量手工重试（管理端入口）。
+     *
+     * <p>按入参顺序去重后逐项投递，单项失败不影响其余项；逐项返回结果，
+     * 不存在的任务返回 {@code NOT_FOUND}。</p>
+     *
+     * @param taskIds 任务 ID 列表
+     * @return 逐项结果（与去重后的入参顺序一致）
+     */
+    List<PayNotifyRetryBatchItemVO> retryBatch(List<Long> taskIds);
+
+    /**
      * 查询任务列表（管理端分页）。
      *
      * @param current 页码
      * @param size    页大小
      * @param status  状态过滤（可空）
+     * @param bizType 业务方类型过滤（可空）
      * @return 分页结果
      */
-    PageResult<PayNotifyTaskPo> pageTasks(long current, long size, String status);
+    PageResult<PayNotifyTaskPo> pageTasks(long current, long size, String status, String bizType);
+
+    /**
+     * 任务详情（含载荷，供死信排查）。
+     *
+     * @param taskId 任务 ID
+     * @return 任务实体
+     */
+    PayNotifyTaskPo getTask(Long taskId);
 }

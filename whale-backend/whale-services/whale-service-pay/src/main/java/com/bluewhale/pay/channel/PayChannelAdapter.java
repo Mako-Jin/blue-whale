@@ -1,11 +1,13 @@
 package com.bluewhale.pay.channel;
 
+import com.bluewhale.pay.enums.PayChannelFeature;
 import com.bluewhale.pay.po.PayOrderPo;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 支付渠道适配器 SPI。
@@ -92,6 +94,31 @@ public interface PayChannelAdapter {
      */
     default List<ChannelBillItem> downloadBill(LocalDate bizDate) {
         throw new UnsupportedOperationException("渠道不支持账单下载: " + channel());
+    }
+
+    /**
+     * 渠道能力声明。
+     *
+     * <p>默认不声明任何能力：调用方据此拒绝部分退款、跳过渠道关单等动作。
+     * 真实渠道按自身协议覆盖，MOCK 声明全部能力用于本地联调。</p>
+     *
+     * @return 能力集合
+     */
+    default Set<PayChannelFeature> features() {
+        return Set.of();
+    }
+
+    /**
+     * 渠道主动关单。
+     *
+     * <p>仅当 {@link #features()} 包含 {@link PayChannelFeature#CLOSE} 时调用；
+     * 不支持关单的渠道由调用方直接把本地单置为 {@code CANCELLED}。</p>
+     *
+     * @param order 支付单
+     * @return 渠道结果（流水号可选）
+     */
+    default PayChannelResult close(PayOrderPo order) {
+        throw new UnsupportedOperationException("渠道不支持关单: " + channel());
     }
 
     /**

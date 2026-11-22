@@ -180,6 +180,22 @@ class PayOrderServiceImplTest {
     }
 
     @Test
+    @DisplayName("getDetail：剩余可退金额按已退金额计算，非 PAID 为 0")
+    void shouldComputeRefundableAmount() {
+        PayOrderPo paid = order(5L, "PAY20261020005", "PAID");
+        paid.setRefundAmount(new BigDecimal("40.00"));
+        when(payOrderMapper.selectById(5L)).thenReturn(paid);
+
+        PayOrderVO vo = payOrderService.getDetail(5L);
+
+        assertEquals(new BigDecimal("60.00"), vo.getRefundableAmount());
+
+        PayOrderPo created = order(6L, "PAY20261020006", "CREATED");
+        when(payOrderMapper.selectById(6L)).thenReturn(created);
+        assertEquals(BigDecimal.ZERO, payOrderService.getDetail(6L).getRefundableAmount());
+    }
+
+    @Test
     @DisplayName("create：orderNo 冲突抛参数错误且不落库")
     void shouldRejectDuplicateOrderNo() {
         when(payOrderMapper.selectCount(ArgumentMatchers.<Wrapper<PayOrderPo>>any())).thenReturn(1L);

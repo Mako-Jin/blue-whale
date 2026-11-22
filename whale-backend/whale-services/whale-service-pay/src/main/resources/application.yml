@@ -86,6 +86,14 @@ whale:
       stale-seconds: ${WHALE_PAY_RECONCILE_STALE_SECONDS:300}
       batch-size: ${WHALE_PAY_RECONCILE_BATCH_SIZE:50}
       interval-ms: ${WHALE_PAY_RECONCILE_INTERVAL_MS:60000}
+    # 超时自动关单：只关 CREATED（PAYING 交给停留单对账）；渠道关单失败按指数退避，
+    # 不阻塞同轮其他支付单。
+    close:
+      timeout-minutes: ${WHALE_PAY_CLOSE_TIMEOUT_MINUTES:30}
+      batch-size: ${WHALE_PAY_CLOSE_BATCH_SIZE:100}
+      interval-ms: ${WHALE_PAY_CLOSE_INTERVAL_MS:300000}
+      backoff-seconds: ${WHALE_PAY_CLOSE_BACKOFF_SECONDS:60}
+      max-backoff-seconds: ${WHALE_PAY_CLOSE_MAX_BACKOFF_SECONDS:3600}
 
 mybatis-plus:
   configuration:

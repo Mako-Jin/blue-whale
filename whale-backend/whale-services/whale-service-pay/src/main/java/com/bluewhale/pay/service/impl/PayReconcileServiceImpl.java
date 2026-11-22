@@ -32,6 +32,7 @@ import com.bluewhale.pay.vo.PayReconcileBatchVO;
 import com.bluewhale.pay.vo.PayReconcileDiffVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -101,6 +102,7 @@ public class PayReconcileServiceImpl implements PayReconcileService {
 
     @Override
     @Scheduled(cron = "${whale.pay.reconcile.batch-cron:0 30 2 * * ?}")
+    @SchedulerLock(name = "pay-reconcile-batch", lockAtMostFor = "30m")
     public int runScheduled() {
         if (!properties.isBatchEnabled()) {
             return 0;
