@@ -3,6 +3,8 @@ package com.bluewhale.pay.channel;
 import com.bluewhale.pay.po.PayOrderPo;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -64,6 +66,33 @@ public interface PayChannelAdapter {
      * @return 统一回调请求
      */
     ChannelCallbackRequest parseCallback(String rawBody, Map<String, String> headers);
+
+    /**
+     * 是否支持按日下载渠道账单。
+     *
+     * <p>默认 {@code false}：不支持账单的渠道由对账任务降级为「按本地订单逐笔查询状态」，
+     * 批次标记 {@code PARTIAL}。不能用「返回空列表」表达不支持，否则会被误读为
+     * 「渠道当日无单」。</p>
+     *
+     * @return true 表示可调用 {@link #downloadBill(LocalDate)}
+     */
+    default boolean supportsBillDownload() {
+        return false;
+    }
+
+    /**
+     * 下载指定业务日的渠道账单。
+     *
+     * <p>仅在 {@link #supportsBillDownload()} 为 {@code true} 时调用；实现应只返回
+     * 已成功入账的账单行。渠道接口异常直接抛出，由对账批次落 {@code FAILED}，
+     * 不产出差异。</p>
+     *
+     * @param bizDate 对账业务日
+     * @return 账单条目；渠道当日无单时返回空列表
+     */
+    default List<ChannelBillItem> downloadBill(LocalDate bizDate) {
+        throw new UnsupportedOperationException("渠道不支持账单下载: " + channel());
+    }
 
     /**
      * 渠道要求的成功响应体（HTTP 恒为 200，渠道按响应体判断是否重发）。

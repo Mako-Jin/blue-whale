@@ -128,6 +128,8 @@ public class PayOverviewProvider implements OverviewProvider {
         PendingStat pending = pendingOrZero(statQuery.pending(tenantId, now.minus(STALE_AFTER)));
         BigDecimal refund = refundOrZero(statQuery.refundBetween(tenantId, dayStart, dayEnd));
         long failed = statQuery.failedPaymentsBetween(tenantId, dayStart, dayEnd);
+        long openDiff = tenantId == null ? 0L : statQuery.openDiffCount(tenantId);
+        long amountDiff = tenantId == null ? 0L : statQuery.openAmountMismatchCount(tenantId);
         List<DayAmount> trend = statQuery.paidByDay(tenantId,
                 today.minusDays(TREND_DAYS - 1L).atStartOfDay(), dayEnd);
         List<ChannelAmount> channels = statQuery.paidByChannel(tenantId, dayStart, dayEnd);
@@ -142,6 +144,8 @@ public class PayOverviewProvider implements OverviewProvider {
                         pending.stale() > 0 ? OverviewTone.WARN : OverviewTone.FLAT, pendingHint(pending)))
                 .kpi(Overviews.money("refund", "今日退款", refund,
                         refund.signum() > 0 ? OverviewTone.WARN : OverviewTone.FLAT, "成功退款"))
+                .kpi(Overviews.count("reconcileDiff", "对账差异", openDiff,
+                        openDiff > 0 ? OverviewTone.WARN : OverviewTone.FLAT, "待处置"))
                 .chart(Overviews.chart("paid-trend", "近 " + TREND_DAYS + " 日收款",
                         "line", OverviewFormat.MONEY, labels(today),
                         Overviews.series("收款", seriesOf(byDay, today))))
@@ -149,7 +153,7 @@ public class PayOverviewProvider implements OverviewProvider {
                         channelLabels(channels),
                         Overviews.series("金额", channelValues(channels))))
                 .note("口径：收款按支付时间（PAID/REFUNDED 的实际到账额）、退款按成功退款流水、"
-                        + "待支付含超时未支付，均限本租户");
+                        + "待支付含超时未支付、对账差异含挂起未处置，均限本租户");
         if (tenantId == null) {
             /* 没租户上下文时四个数都会是 0——不写清楚，看的人会以为今天真的没生意。 */
             builder.note("未识别租户上下文，仅展示空口径（请从网关携带租户头访问）");
@@ -157,7 +161,7 @@ public class PayOverviewProvider implements OverviewProvider {
         if (context != null && context.hasPermission(PERMISSION)) {
             builder.link(Overviews.link("pay-orders", "支付单管理", ORDER_PAGE_PATH, PERMISSION));
         }
-        appendAlerts(builder, failed, pending);
+        appendAlerts(builder, failed, pending, openDiff, amountDiff);
         return builder.build();
     }
 
@@ -301,16 +305,19 @@ public class PayOverviewProvider implements OverviewProvider {
     }
 
     /**
-     * 追加告警：失败先判、超时补一刀
+     * 追加告警：失败先判、超时补一刀、对账差异再补一刀
      *
-     * <p>两条可以同时存在：失败笔数是"渠道坏了"，超时未支付是"回调丢了"，
-     * 处置动作不同（一个查渠道配置、一个查回调与幂等），所以要分开报。</p>
+     * <p>三条可以同时存在：失败笔数是"渠道坏了"，超时未支付是"回调丢了"，
+     * 对账差异是"账对不上"；处置动作各不相同，不能合并成一条。</p>
      *
-     * @param builder 组装器
-     * @param failed  今日支付失败笔数
-     * @param pending 待支付统计
+     * @param builder    组装器
+     * @param failed     今日支付失败笔数
+     * @param pending    待支付统计
+     * @param openDiff   未处置对账差异数
+     * @param amountDiff 未处置金额/币种差异数
      */
-    private void appendAlerts(Overviews.Builder builder, long failed, PendingStat pending) {
+    private void appendAlerts(Overviews.Builder builder, long failed, PendingStat pending,
+                              long openDiff, long amountDiff) {
         if (failed >= FAILED_ALERT_COUNT) {
             builder.alert(OverviewAlertLevel.CRITICAL,
                     "今日支付失败 " + failed + " 笔，请查渠道与失败流水", Math.toIntExact(failed));
@@ -319,6 +326,15 @@ public class PayOverviewProvider implements OverviewProvider {
             builder.alert(OverviewAlertLevel.WARNING,
                     pending.stale() + " 笔支付单超过 24 小时未支付，回调可能丢失",
                     Math.toIntExact(pending.stale()));
+        }
+        if (amountDiff > 0) {
+            builder.alert(OverviewAlertLevel.CRITICAL,
+                    "存在 " + amountDiff + " 笔对账金额不一致，禁止自动补偿，请人工核实",
+                    Math.toIntExact(amountDiff));
+        }
+        if (openDiff > 0) {
+            builder.alert(OverviewAlertLevel.WARNING,
+                    "存在 " + openDiff + " 笔对账差异待处理", Math.toIntExact(openDiff));
         }
     }
 }

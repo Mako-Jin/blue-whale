@@ -65,7 +65,7 @@ class PayOverviewProviderTest {
 
         assertEquals("pay", snapshot.service());
         assertEquals("duzhi-hall", snapshot.nodeKey());
-        assertEquals(List.of("paid", "paidOrders", "pending", "refund"),
+        assertEquals(List.of("paid", "paidOrders", "pending", "refund", "reconcileDiff"),
                 snapshot.kpis().stream().map(OverviewKpi::key).toList());
         assertEquals(34560d, kpi(snapshot, "paid"));
         assertEquals(12d, kpi(snapshot, "paidOrders"));
@@ -189,6 +189,26 @@ class PayOverviewProviderTest {
     }
 
     /**
+     * 对账差异告警：金额不一致 → CRITICAL，另有未处置差异时再补 WARNING
+     */
+    @Test
+    @DisplayName("告警：对账金额不一致 → CRITICAL，未处置差异 → WARNING")
+    void shouldAlertOnReconcileDiff() {
+        stubBaseline(new PaidStat(0L, BigDecimal.ZERO), 0L, new PendingStat(0L, 0L),
+                BigDecimal.ZERO, 0L, List.of(), List.of());
+        when(statQuery.openDiffCount(anyLong())).thenReturn(3L);
+        when(statQuery.openAmountMismatchCount(anyLong())).thenReturn(1L);
+
+        OverviewSnapshot snapshot = provider.build(contextWith(Set.of("sys:pay:list")));
+
+        assertEquals(2, snapshot.alerts().size());
+        assertEquals(OverviewAlertLevel.CRITICAL, snapshot.alerts().get(0).level());
+        assertTrue(snapshot.alerts().get(0).text().contains("金额不一致"));
+        assertEquals(OverviewAlertLevel.WARNING, snapshot.alerts().get(1).level());
+        assertEquals(3d, kpi(snapshot, "reconcileDiff"));
+    }
+
+    /**
      * 造上下文
      *
      * @param permissions 权限码
@@ -224,6 +244,8 @@ class PayOverviewProviderTest {
                 .thenReturn(trend);
         when(statQuery.paidByChannel(anyLong(), any(LocalDateTime.class), any(LocalDateTime.class)))
                 .thenReturn(channels);
+        when(statQuery.openDiffCount(anyLong())).thenReturn(0L);
+        when(statQuery.openAmountMismatchCount(anyLong())).thenReturn(0L);
     }
 
     /**

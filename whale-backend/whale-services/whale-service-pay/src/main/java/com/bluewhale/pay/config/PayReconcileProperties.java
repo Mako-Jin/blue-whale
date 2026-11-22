@@ -21,4 +21,13 @@ public class PayReconcileProperties {
 
     /** 单轮最多扫描的支付单数，避免一次对账拖垮渠道接口 */
     private int batchSize = 50;
+
+    /** 是否启用日切批量对账 */
+    private boolean batchEnabled = true;
+
+    /** 日切批量对账 cron：默认凌晨 02:30 跑 T-1 */
+    private String batchCron = "0 30 2 * * ?";
+
+    /** 回看天数：默认 1，即对账 T-1 */
+    private int lookbackDays = 1;
 }

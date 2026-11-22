@@ -74,6 +74,58 @@ public interface PayOrderMapper extends BaseMapper<PayOrderPo> {
     List<Long> selectTenantIdsByOrderNo(@Param("orderNo") String orderNo);
 
     /**
+     * 跨租户列出存在支付单的租户（批量对账的日切入口）。
+     *
+     * <p>定时线程没有租户上下文，必须先拿到租户清单再逐租户还原上下文比对，
+     * 否则差异与流水会落到默认租户。</p>
+     *
+     * @return 租户 ID 列表
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT DISTINCT tenant_id FROM pay_order WHERE deleted = 0 AND tenant_id IS NOT NULL")
+    List<Long> selectDistinctTenantIds();
+
+    /**
+     * 某业务日需要参与对账的渠道清单。
+     *
+     * <p>口径：当日到账（PAID/REFUNDED 按 {@code pay_time}）与当日进入支付中
+     * （PAYING 按 {@code update_time}）的订单所属渠道；CREATED 从未发往渠道，不纳入。</p>
+     *
+     * @param tenantId 租户 ID
+     * @param from     业务日起（含）
+     * @param to       业务日止（不含）
+     * @return 渠道清单
+     */
+    @Select("SELECT DISTINCT channel FROM pay_order "
+            + "WHERE tenant_id = #{tenantId} AND deleted = 0 AND channel IS NOT NULL AND channel <> '' AND ("
+            + "(status IN ('PAID', 'REFUNDED') AND pay_time >= #{from} AND pay_time < #{to}) "
+            + "OR (status = 'PAYING' AND update_time >= #{from} AND update_time < #{to}))")
+    List<String> selectReconcileChannels(@Param("tenantId") Long tenantId,
+                                         @Param("from") LocalDateTime from,
+                                         @Param("to") LocalDateTime to);
+
+    /**
+     * 某业务日某渠道参与对账的本地订单。
+     *
+     * <p>与 {@link #selectReconcileChannels} 同一口径，保证「渠道清单」与「订单集合」
+     * 不会出现一个有一个没有的错位。</p>
+     *
+     * @param tenantId 租户 ID
+     * @param channel  渠道编码
+     * @param from     业务日起（含）
+     * @param to       业务日止（不含）
+     * @return 支付单列表
+     */
+    @Select("SELECT * FROM pay_order "
+            + "WHERE tenant_id = #{tenantId} AND channel = #{channel} AND deleted = 0 AND ("
+            + "(status IN ('PAID', 'REFUNDED') AND pay_time >= #{from} AND pay_time < #{to}) "
+            + "OR (status = 'PAYING' AND update_time >= #{from} AND update_time < #{to}))")
+    List<PayOrderPo> selectReconcileOrders(@Param("tenantId") Long tenantId,
+                                           @Param("channel") String channel,
+                                           @Param("from") LocalDateTime from,
+                                           @Param("to") LocalDateTime to);
+
+    /**
      * 渠道关单回调：仅未支付单可置为已取消（条件更新，并发安全）。
      *
      * @param id 支付单 ID

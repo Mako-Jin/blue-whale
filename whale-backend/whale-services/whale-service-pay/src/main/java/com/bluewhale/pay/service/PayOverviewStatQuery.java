@@ -126,4 +126,20 @@ public interface PayOverviewStatQuery {
      * @return 每个渠道一行，按金额降序
      */
     List<ChannelAmount> paidByChannel(Long tenantId, LocalDateTime from, LocalDateTime to);
+
+    /**
+     * 未处置的对账差异数（{@code OPEN} 与 {@code SUSPENDED} 都算未处置）。
+     *
+     * @param tenantId 租户 ID
+     * @return 未处置差异数；租户缺失时为 0
+     */
+    long openDiffCount(Long tenantId);
+
+    /**
+     * 未处置的金额/币种不一致差异数（概览红色告警口径）。
+     *
+     * @param tenantId 租户 ID
+     * @return 未处置金额差异数；租户缺失时为 0
+     */
+    long openAmountMismatchCount(Long tenantId);
 }

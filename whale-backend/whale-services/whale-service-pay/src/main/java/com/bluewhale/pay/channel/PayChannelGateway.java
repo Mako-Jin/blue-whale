@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -125,6 +126,27 @@ public class PayChannelGateway {
      */
     public String queryStatus(PayOrderPo order) {
         return requireAdapter(order.getChannel()).queryStatus(order);
+    }
+
+    /**
+     * 渠道是否支持账单下载（不支持则对账降级为逐笔状态查询）。
+     *
+     * @param channel 渠道编码
+     * @return true 表示支持
+     */
+    public boolean supportsBillDownload(String channel) {
+        return requireAdapter(channel).supportsBillDownload();
+    }
+
+    /**
+     * 下载渠道账单。
+     *
+     * @param channel 渠道编码
+     * @param bizDate 对账业务日
+     * @return 账单条目
+     */
+    public List<ChannelBillItem> downloadBill(String channel, LocalDate bizDate) {
+        return requireAdapter(channel).downloadBill(bizDate);
     }
 
     /**

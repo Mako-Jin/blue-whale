@@ -1,6 +1,7 @@
 package com.bluewhale.pay.service.impl;
 
 import com.bluewhale.pay.mapper.PayOrderMapper;
+import com.bluewhale.pay.mapper.PayReconcileDiffMapper;
 import com.bluewhale.pay.mapper.PayTransactionMapper;
 import com.bluewhale.pay.mapper.stat.PayChannelAmountPo;
 import com.bluewhale.pay.mapper.stat.PayDayAmountPo;
@@ -39,6 +40,8 @@ public class PayOverviewStatQueryImpl implements PayOverviewStatQuery {
     private final PayOrderMapper payOrderMapper;
 
     private final PayTransactionMapper payTransactionMapper;
+
+    private final PayReconcileDiffMapper diffMapper;
 
     @Override
     public PaidStat paidBetween(Long tenantId, LocalDateTime from, LocalDateTime to) {
@@ -117,6 +120,16 @@ public class PayOverviewStatQueryImpl implements PayOverviewStatQuery {
                     valueOf(row.getOrders()), amountOf(row.getAmount())));
         }
         return List.copyOf(result);
+    }
+
+    @Override
+    public long openDiffCount(Long tenantId) {
+        return tenantId == null ? 0L : diffMapper.countOpen(tenantId);
+    }
+
+    @Override
+    public long openAmountMismatchCount(Long tenantId) {
+        return tenantId == null ? 0L : diffMapper.countOpenAmountMismatch(tenantId);
     }
 
     /**
