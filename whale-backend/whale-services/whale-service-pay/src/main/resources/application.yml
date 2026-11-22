@@ -94,6 +94,13 @@ whale:
       interval-ms: ${WHALE_PAY_CLOSE_INTERVAL_MS:300000}
       backoff-seconds: ${WHALE_PAY_CLOSE_BACKOFF_SECONDS:60}
       max-backoff-seconds: ${WHALE_PAY_CLOSE_MAX_BACKOFF_SECONDS:3600}
+    # 数据归档：支付流水保留 180 天、成功通知保留 30 天；PENDING/DEAD 永不归档。
+    archive:
+      transaction-retention-days: ${WHALE_PAY_ARCHIVE_TRANSACTION_DAYS:180}
+      notify-success-retention-days: ${WHALE_PAY_ARCHIVE_NOTIFY_DAYS:30}
+      batch-size: ${WHALE_PAY_ARCHIVE_BATCH_SIZE:500}
+      max-batches-per-run: ${WHALE_PAY_ARCHIVE_MAX_BATCHES:200}
+      cron: ${WHALE_PAY_ARCHIVE_CRON:0 0 3 * * ?}
 
 mybatis-plus:
   configuration:
